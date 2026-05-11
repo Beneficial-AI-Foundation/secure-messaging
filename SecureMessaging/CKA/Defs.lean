@@ -75,18 +75,20 @@ Round 2 (B → A):
 
 ## Security
 
-The CKA security game is parameterized by a challenge epoch `t* : ℕ`, a
-challenged party `P ∈ {A, B}`, and a healing delay `ΔCKA : ℕ`. The adversary
+The CKA security game is parameterized by a challenge epoch `challengeEpoch : ℕ`,
+a challenged party `challengedParty ∈ {A, B}`, and a forward-secrecy delay
+`ckaFSDelay : ℕ`. The adversary
 has access to send / receive oracles for each party, incrementing per party
 epoch counters tA and tB, respectively. In addition, there are oracles for:
 
 - **State compromise** (`O-Corrupt-A`, `O-Corrupt-B`): reveals a party's
   current local state. Permitted only outside the challenge window — either
-  before the challenge, or after the party's counter has advanced `ΔCKA`
-  epochs past `t*` (the post-challenge healing window).
+  before the challenge, or after the party's counter has advanced `ckaFSDelay`
+  epochs past `challengeEpoch` (the post-challenge healing window).
 
-- **Challenge** (`O-Chall-A`, `O-Chall-B`): at epoch `t*` on party `P`, runs
-  the regular `sendP` algorithm but returns either the real epoch key `k`
+- **Challenge** (`O-Chall-A`, `O-Chall-B`): at epoch `challengeEpoch` on party
+  `challengedParty`, runs the regular `sendP` algorithm but returns either
+  the real epoch key `k`
   (if `b = 0`) or a freshly sampled uniform key (if `b = 1`).
 
 These oracles define a game (security experiment) between a challenger and an
@@ -218,9 +220,9 @@ def validStep (last : Option CKAAction) (next : CKAAction) : Bool :=
 
 /-- Game parameters fixed at the start of the security experiment. -/
 structure GameParams where
-  tStar : ℕ              -- epoch that adversary will challenge
-  deltaCKA : ℕ           -- healing delay after state corruption
-  challengedParty : CKAParty  -- which party `P ∈ {A, B}` is challenged by the adversary
+  challengeEpoch : ℕ              -- epoch that adversary will challenge
+  ckaFSDelay : ℕ           -- forward-secrecy delay after which state corruption is allowed
+  challengedParty : CKAParty  -- which party is challenged by the adversary
 
 /-- Internal state of the CKA game.
 - `stA`, `stB`: per-party protocol state.
@@ -321,30 +323,32 @@ end ckaSecuritySpec
 
 /-! ### Epoch predicates (used for restricting oracle calls, defining reductions, etc) -/
 
-/-- Challenge allowed only when the challenged party's counter is at `tStar`. -/
+/-- Challenge allowed only when the challenged party's counter is at `challengeEpoch`. -/
 def isChallengeEpoch (gp : GameParams) (state : GameState St I Rho) : Bool :=
-  state.tP gp.challengedParty == gp.tStar
+  state.tP gp.challengedParty == gp.challengeEpoch
 
 /-- The opposite party is sending in the epoch immediately before the challenge.
 
-If party `P = gp.challengedParty` is challenged at epoch `tStar`, this predicate
-recognizes the send by the opposite party at epoch `tStar - 1`. -/
+If `gp.challengedParty` is challenged at epoch `challengeEpoch`, this
+predicate recognizes the send by the opposite party at preceding epoch. -/
 def isOtherSendBeforeChall (gp : GameParams) (state : GameState St I Rho) : Bool :=
-  state.tP gp.challengedParty.other == gp.tStar - 1
+  state.tP gp.challengedParty.other == gp.challengeEpoch - 1
 
-/-- Party A has advanced `ΔCKA` epochs past the challenge: `tA ≥ t* + ΔCKA`.
+/-- Party A has advanced `ckaFSDelay` epochs past the challenge:
+`tA ≥ challengeEpoch + ckaFSDelay`.
 This is the post-challenge threshold that re-enables `O-Corrupt-A`. -/
 abbrev finishedA (gp : GameParams) (state : GameState St I Rho) : Bool :=
-  gp.tStar + gp.deltaCKA ≤ state.tA
+  gp.challengeEpoch + gp.ckaFSDelay ≤ state.tA
 
-/-- Party B has advanced `ΔCKA` epochs past the challenge: `tB ≥ t* + ΔCKA`.
+/-- Party B has advanced `ckaFSDelay` epochs past the challenge:
+`tB ≥ challengeEpoch + ckaFSDelay`.
 This is the post-challenge threshold that re-enables `O-Corrupt-B`. -/
 abbrev finishedB (gp : GameParams) (state : GameState St I Rho) : Bool :=
-  gp.tStar + gp.deltaCKA ≤ state.tB
+  gp.challengeEpoch + gp.ckaFSDelay ≤ state.tB
 
-/-- Corruption allowed before the challenge window: `(max tA tB) + 2 ≤ tStar`. -/
+/-- Corruption allowed before the challenge window: `(max tA tB) + 2 ≤ challengeEpoch`. -/
 def allowCorr (gp : GameParams) (state : GameState St I Rho) : Bool :=
-  (max state.tA state.tB) + 2 ≤ gp.tStar
+  (max state.tA state.tB) + 2 ≤ gp.challengeEpoch
 
 /-! ### Send oracles -/
 
@@ -461,7 +465,7 @@ def oracleRecvB [DecidableEq I] (cka : CKAScheme ProbComp IK St I Rho) :
 /-- **O-Chall-A.**
 Increment epoch counter, trigger send by A, return message and key.
 Like `O-Send-A` but returns `b ? $ᵗ I : key` (real or
-random key). Only fires when `P = A` and `tA = t*`. -/
+random key). Only fires when `challengedParty = A` and `tA = challengeEpoch`. -/
 def oracleChallA (gp : GameParams) (isRandom : Bool) [SampleableType I]
     (cka : CKAScheme ProbComp IK St I Rho) :
     QueryImpl (Unit →ₒ Option (Rho × I)) (StateT (GameState St I Rho) ProbComp) :=
@@ -490,7 +494,7 @@ def oracleChallA (gp : GameParams) (isRandom : Bool) [SampleableType I]
 /-- **O-Chall-B.**
 Increment epoch counter, trigger send by B, return message and key.
 Like `O-Send-B` but returns `b ? $ᵗ I : key` (real or
-random key). Only fires when `P = A` and `tA = t*`. -/
+random key). Only fires when `challengedParty = B` and `tB = challengeEpoch`. -/
 def oracleChallB (gp : GameParams) (isRandom : Bool) [SampleableType I]
     (cka : CKAScheme ProbComp IK St I Rho) :
     QueryImpl (Unit →ₒ Option (Rho × I)) (StateT (GameState St I Rho) ProbComp) :=
