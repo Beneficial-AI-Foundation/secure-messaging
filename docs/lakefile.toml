@@ -6,9 +6,10 @@ name = "versoBlueprint"
 git = "https://github.com/leanprover/verso-blueprint"
 rev = "v4.29.0"
 
-[[require]]
-name = "SecureMessaging"
-path = ".."
+# TODO: uncomment when there are declarations to document
+# [[require]]
+# name = "SecureMessaging"
+# path = ".."
 
 [[lean_lib]]
 name = "SecureMessagingDocs"

@@ -40,7 +40,6 @@ jobs:
       - name: Download Mathlib cache
         run: |
           lake exe cache get 2>&1 || echo "cache get returned non-zero (may be partial)"
-          lake -d docs exe cache get 2>&1 || echo "docs cache get returned non-zero (may be partial)"
 
       - name: Update VCVio dependency
         run: |
