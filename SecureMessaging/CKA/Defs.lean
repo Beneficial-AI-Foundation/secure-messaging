@@ -73,28 +73,6 @@ Round 2 (B → A):
 [CORRECTNESS: kA' =?= kB']
 ```
 
-## Security
-
-The CKA security game is parameterized by a challenge epoch `challengeEpoch : ℕ`,
-a challenged party `challengedParty ∈ {A, B}`, and a forward-secrecy delay
-`ckaFSDelay : ℕ`. The adversary
-has access to send / receive oracles for each party, incrementing per party
-epoch counters tA and tB, respectively. In addition, there are oracles for:
-
-- **State compromise** (`O-Corrupt-A`, `O-Corrupt-B`): reveals a party's
-  current local state. Permitted only outside the challenge window — either
-  before the challenge, or after the party's counter has advanced `ckaFSDelay`
-  epochs past `challengeEpoch` (the post-challenge healing window).
-
-- **Challenge** (`O-Chall-A`, `O-Chall-B`): at epoch `challengeEpoch` on party
-  `challengedParty`, runs the regular `sendP` algorithm but returns either
-  the real epoch key `k`
-  (if `b = 0`) or a freshly sampled uniform key (if `b = 1`).
-
-These oracles define a game (security experiment) between a challenger and an
-adversary. The adversary wins the game if it returns a bit `b` that equals the bit
-`b` sampled by the challenger. The adversary's *advantage* is `|Pr[Win] - 1/2|`.
-
 ## References
 
 The CKA syntax, correctness and security definitions follow:
@@ -114,6 +92,33 @@ They model a stronger security property that is dropped from these subsequent pa
   *How to Compare Bandwidth Constrained Two-Party Secure Messaging Protocols:
   A Quest for A More Efficient and Secure Post-Quantum Protocol.*
   USENIX Security 2025, https://eprint.iacr.org/2025/2267.pdf
+
+## Security
+
+The CKA security game is parameterized by:
+
+- `challengeEpoch : ℕ`, where the adversary will attempt a challenge;
+- `challengedParty ∈ {A, B}`, the party challenged by the adversary;
+- `ckaFSDelay : ℕ`, the forward-secrecy delay after which state corruption
+  is allowed.
+
+The adversary has access to send / receive oracles for each party, incrementing
+per-party epoch counters `tA` and `tB`, respectively. In addition, there are
+oracles for:
+
+- **State corruption** (`O-Corrupt-A`, `O-Corrupt-B`): reveals a party's
+  current local state. Permitted only outside the challenge window — either
+  before the challenge, or after the party's counter has advanced `ckaFSDelay`
+  epochs past `challengeEpoch` (the post-challenge healing window).
+
+- **Challenge** (`O-Chall-A`, `O-Chall-B`): at epoch `challengeEpoch` on party
+  `challengedParty`, runs the regular `sendP` algorithm but returns either
+  the real epoch key `k` (if `b = 0`) or a freshly sampled uniform key
+  (if `b = 1`).
+
+These oracles define a game (security experiment) between a challenger and an
+adversary. The adversary wins if it returns the bit `b` sampled by the
+challenger. The adversary's *advantage* is `|Pr[Win] - 1/2|`.
 -/
 
 open OracleSpec OracleComp ENNReal
