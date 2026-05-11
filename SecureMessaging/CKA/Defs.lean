@@ -52,21 +52,24 @@ Setup:
 
 Alternating protocol flow:
 
-A state stA                         B state stB
-───────────                         ───────────
-sendA(stA) ──▶ (kA, ρA, stA')
-                      │
-                      │ ρA
-                      ▼
-                 recvB(stB, ρA)  ──▶ (kB, stB')
+A                                          B
+─────                                      ─────
+stA                                        stB
+Round 1 (A → B):
 
+(kA, ρA, stA') ← sendA(stA)
+
+         ─────────── ρA ───────────▶
+
+                                           (kB, stB') ← recvB(stB, ρA)
 [CORRECTNESS: kA =?= kB]
-[NEXT ROUND]
-                (kB', ρB, stB'') ◀── sendB(stB')         │
-                      │
-                      │ ρB
-                      ▼
-(kA', stA'') ◀── recvA(stA', ρB)
+
+Round 2 (B → A):
+                                           (kB', ρB, stB'') ← sendB(stB')
+         ◀─────────── ρB ───────────
+
+(kA', stA'') ← recvA(stA', ρB)
+
 [CORRECTNESS: kA' =?= kB']
 ```
 
