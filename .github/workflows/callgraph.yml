@@ -2,7 +2,7 @@ name: Call Graph
 
 on:
   push:
-    branches: [main]
+    branches: [main, la/add_deploy_page]
   workflow_dispatch:
 
 concurrency:
