@@ -147,10 +147,6 @@ structure CKAScheme (m : Type → Type u) [Monad m] (IK St I Rho : Type) where
 
 namespace CKAScheme
 
-variable {m : Type → Type v} [Monad m] {IK St I Rho : Type}
-  (cka : CKAScheme m IK St I Rho)
-
-
 /-! ## Security Model
 
 As in [ACD19, TripleRatchet], we assume the following:
@@ -426,12 +422,12 @@ def oracleRecvA [DecidableEq I] (cka : CKAScheme ProbComp IK St I Rho) :
       | some ρ =>
         -- Run A's receive algorithm on the current A-state and B's message.
         match cka.recvA state.stA ρ with
-        | none => pure () -- Receive failed.
+        | none =>
+          set { state with
+            rhoB := none, keyB := none,
+            correct := false, lastAction := some .recvA }
         | some (keyA, stA') =>
-          let ok := match state.keyB with
-           -- ok iff the derived keys match: (receiver keyA == sender keyB)
-            | some keyB => decide (some keyA = some keyB)
-            | none => false
+          let ok := state.keyB == some keyA
           set { state with
             -- Update game state.
             stA := stA', rhoB := none, keyB := none,
@@ -456,12 +452,12 @@ def oracleRecvB [DecidableEq I] (cka : CKAScheme ProbComp IK St I Rho) :
       | some ρ =>
         -- Run B's receive algorithm on the current B-state and A's message.
         match cka.recvB state.stB ρ with
-        | none => pure () -- Receive failed.
+        | none =>
+          set { state with
+            rhoA := none, keyA := none,
+            correct := false, lastAction := some .recvB }
         | some (keyB, stB') =>
-          let ok := match state.keyA with
-            -- ok iff the derived keys match: (receiver keyB == sender keyA)
-            | some keyA => decide (some keyB = some keyA)
-            | none => false
+          let ok := state.keyA == some keyB
           set { state with
             -- Update game state.
             stB := stB', rhoA := none, keyA := none,
