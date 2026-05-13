@@ -99,8 +99,10 @@ The CKA security game is parameterized by:
 
 - `challengeEpoch : ℕ`, where the adversary will attempt a challenge;
 - `challengedParty ∈ {A, B}`, the party challenged by the adversary;
-- `ckaFSDelay : ℕ`, the forward-secrecy delay after which state corruption
-  is allowed.
+- `ΔFS : ℕ`, the forward-secrecy delay after which post-challenge state corruption
+  is allowed;
+- `ΔCKA : ℕ`, the post-compromise-security delay before the challenge during which
+  state corruption is disallowed.
 
 The adversary has access to send / receive oracles for each party, incrementing
 per-party epoch counters `tA` and `tB`, respectively. In addition, there are
@@ -108,8 +110,8 @@ oracles for:
 
 - **State corruption** (`O-Corrupt-A`, `O-Corrupt-B`): reveals a party's
   current local state. Permitted only outside the challenge window — either
-  before the challenge, or after the party's counter has advanced `ckaFSDelay`
-  epochs past `challengeEpoch` (the post-challenge healing window).
+  at least `ΔCKA` epochs before the challenge, or after the party's counter
+  has advanced `ΔFS` epochs past `challengeEpoch` (the post-challenge healing window).
 
 - **Challenge** (`O-Chall-A`, `O-Chall-B`): at epoch `challengeEpoch` on party
   `challengedParty`, runs the regular `sendP` algorithm but returns either
@@ -145,9 +147,13 @@ structure CKAScheme (m : Type → Type u) [Monad m] (IK St I Rho : Type) where
 
 namespace CKAScheme
 
+variable {m : Type → Type v} [Monad m] {IK St I Rho : Type}
+  (cka : CKAScheme m IK St I Rho)
+
+
 /-! ## Security Model
 
-As in [ACD19, TripleRatchet], and contrary to [SPQR], we assume the following:
+As in [ACD19, TripleRatchet], we assume the following:
 
 - **Alternating Communication**: parties A and B execute the sending and
 receiving algorithms in an alternating order.
@@ -222,7 +228,8 @@ def validStep (last : Option CKAAction) (next : CKAAction) : Bool :=
 /-- Game parameters fixed at the start of the security experiment. -/
 structure GameParams where
   challengeEpoch : ℕ              -- epoch that adversary will challenge
-  ckaFSDelay : ℕ           -- forward-secrecy delay after which state corruption is allowed
+  ΔFS : ℕ           -- forward-secrecy delay after which state corruption is allowed
+  ΔCKA : ℕ          -- PCS delay before the challenge during which corruption is disallowed
   challengedParty : CKAParty  -- which party is challenged by the adversary
 
 /-- Internal state of the CKA game.
@@ -335,21 +342,22 @@ predicate recognizes the send by the opposite party at preceding epoch. -/
 def isOtherSendBeforeChall (gp : GameParams) (state : GameState St I Rho) : Bool :=
   state.tP gp.challengedParty.other == gp.challengeEpoch - 1
 
-/-- Party A has advanced `ckaFSDelay` epochs past the challenge:
-`tA ≥ challengeEpoch + ckaFSDelay`.
+/-- Party A has advanced `ΔFS` epochs past the challenge:
+`tA ≥ challengeEpoch + ΔFS`.
 This is the post-challenge threshold that re-enables `O-Corrupt-A`. -/
 abbrev finishedA (gp : GameParams) (state : GameState St I Rho) : Bool :=
-  gp.challengeEpoch + gp.ckaFSDelay ≤ state.tA
+  gp.challengeEpoch + gp.ΔFS ≤ state.tA
 
-/-- Party B has advanced `ckaFSDelay` epochs past the challenge:
-`tB ≥ challengeEpoch + ckaFSDelay`.
+/-- Party B has advanced `ΔFS` epochs past the challenge:
+`tB ≥ challengeEpoch + ΔFS`.
 This is the post-challenge threshold that re-enables `O-Corrupt-B`. -/
 abbrev finishedB (gp : GameParams) (state : GameState St I Rho) : Bool :=
-  gp.challengeEpoch + gp.ckaFSDelay ≤ state.tB
+  gp.challengeEpoch + gp.ΔFS ≤ state.tB
 
-/-- Corruption allowed before the challenge window: `(max tA tB) + 2 ≤ challengeEpoch`. -/
+/-- Corruption allowed before the challenge window:
+`(max tA tB) + ΔCKA ≤ challengeEpoch`. -/
 def allowCorr (gp : GameParams) (state : GameState St I Rho) : Bool :=
-  (max state.tA state.tB) + 2 ≤ gp.challengeEpoch
+  (max state.tA state.tB) + gp.ΔCKA ≤ gp.challengeEpoch
 
 /-! ### Send oracles -/
 
@@ -418,12 +426,12 @@ def oracleRecvA [DecidableEq I] (cka : CKAScheme ProbComp IK St I Rho) :
       | some ρ =>
         -- Run A's receive algorithm on the current A-state and B's message.
         match cka.recvA state.stA ρ with
-        | none =>
-          set { state with
-            rhoB := none, keyB := none,
-            correct := false, lastAction := some .recvA }
+        | none => pure () -- Receive failed.
         | some (keyA, stA') =>
-          let ok := state.keyB == some keyA
+          let ok := match state.keyB with
+           -- ok iff the derived keys match: (receiver keyA == sender keyB)
+            | some keyB => decide (some keyA = some keyB)
+            | none => false
           set { state with
             -- Update game state.
             stA := stA', rhoB := none, keyB := none,
@@ -448,12 +456,12 @@ def oracleRecvB [DecidableEq I] (cka : CKAScheme ProbComp IK St I Rho) :
       | some ρ =>
         -- Run B's receive algorithm on the current B-state and A's message.
         match cka.recvB state.stB ρ with
-        | none =>
-          set { state with
-            rhoA := none, keyA := none,
-            correct := false, lastAction := some .recvB }
+        | none => pure () -- Receive failed.
         | some (keyB, stB') =>
-          let ok := state.keyA == some keyB
+          let ok := match state.keyA with
+            -- ok iff the derived keys match: (receiver keyB == sender keyA)
+            | some keyA => decide (some keyB = some keyA)
+            | none => false
           set { state with
             -- Update game state.
             stB := stB', rhoA := none, keyA := none,
