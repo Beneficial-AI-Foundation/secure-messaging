@@ -78,28 +78,7 @@ Round 2 (B → A):
 [CORRECTNESS: kA' =?= kB']
 ```
 
-## References
-
-The CKA syntax, correctness and security definitions follow:
-
-- [ACD19] Alwen, Coretti, Dodis.
-  *The Double Ratchet: Security Notions, Proofs, and Modularization for the Signal Protocol.*
-  EUROCRYPT 2019, https://eprint.iacr.org/2018/1037.pdf
-
-We exclude that allow to corrupt the random coins used by A or B during send.
-Instead, following the [TripleRatchet] paper, we include oracles that allow to leak that randomness.
-
-- [TripleRatchet]  Dodis, Jost, Katsumata, Prest, Schmidt.
-  *Triple Ratchet: A Bandwidth Efficient Hybrid-Secure Signal Protocol.*
-  EUROCRYPT 2025, https://eprint.iacr.org/2025/078.pdf
-
-- [SPQR] Auerbach, Dodis, Jost, Katsumata, Schmidt.
-  *How to Compare Bandwidth Constrained Two-Party Secure Messaging Protocols:
-  A Quest for A More Efficient and Secure Post-Quantum Protocol.*
-  USENIX Security 2025, https://eprint.iacr.org/2025/2267.pdf
-
-## Security
-
+## Security model
 The CKA security game is parameterized by:
 
 - `challengeEpoch : ℕ`, where the adversary will attempt a challenge;
@@ -114,10 +93,10 @@ per-party epoch counters `tA` and `tB`, respectively. In addition, there are
 oracles for:
 
 - **State corruption** (`O-Corrupt-A`, `O-Corrupt-B`): reveals a party's
-  current local state. Permitted only outside the challenge window — either
+  current local state. Permitted only outside the *challenge window* — either
   when both party counters are at least `ΔPCS` epochs before the challenge, or
   after the corrupted party's counter has advanced `ΔFS` epochs past
-  `challengeEpoch` (the post-challenge healing window).
+  `challengeEpoch`.
 
 - **Send randomness leakage** (`O-Send-A-rleak`, `O-Send-B-rleak`): runs the
   regular send algorithm, updates the sender state, and returns the protocol
@@ -132,6 +111,84 @@ oracles for:
 These oracles define a game (security experiment) between a challenger and an
 adversary. The adversary wins if it returns the bit `b` sampled by the
 challenger. The adversary's *advantage* is `|Pr[Win] - 1/2|`.
+
+## References
+
+The CKA syntax, correctness and security definitions follow:
+
+- [TripleRatchet]  Dodis, Jost, Katsumata, Prest, Schmidt.
+  *Triple Ratchet: A Bandwidth Efficient Hybrid-Secure Signal Protocol.*
+  EUROCRYPT 2025, https://eprint.iacr.org/2025/078.pdf
+
+For the security definition, we adopt Definition 2.12 and Figure 4 of [TripleRatchet],
+with the following modelling differences:
+
+1. **Two send oracles vs. one single oracle with a Boolean flag.**
+
+  - The paper has a single `Send-P(rleak)` oracle parameterized by a flag `rleak ∈ {0,1}`.
+
+  - We have separate oracles `O-Send-P` (no leakage) and `O-Send-P-rleak` (leakage).
+
+2. **`Our CKA scheme has separate sendP and sendP_rleak algorithms.**
+
+  - The paper has a single algorithm `CKA-Send-P` invoked in two modes by
+  the game: with fresh internal randomness (`rleak = 0`), or with randomness
+  sampled externally by the oracle and passed in as `CKA-Send-P(stP; rand)`
+  (`rleak = 1`).
+
+  - We have two separate algorithms, `sendP` and `sendP_rleak`,
+  where `sendP_rleak` returns the used randomness alongside the normal output.
+
+3. **The `challengedParty` field is explicit in `GameParams`.**
+
+  - [TripleRatchet] and [ACD19] use per-party counters `tA, tB`, with `Chall-P` gated by
+  `tP = t*`, where `t*` is the challenge epoch used as a game parameter.
+  Under alternating communication (A first), both counters advance in lockstep,
+  so for any single `t*` only one of `Chall-A` / `Chall-B` can fire:
+  parity of `t*` determines the challenged party (odd ⇒ A sends, even ⇒ B sends).
+
+  - We make this explicit by adding `challengedParty ∈ {A, B}` field to `GameParams`.
+
+4. **Per-`GameParams` advantage with absolute value, instead of max over challenge epochs.**
+
+  - Definition 2.12 of [TripleRatchet] defines:
+    `Adv^CKA_{𝒜, ΔFS, ΔPCS} := max_{t̂*} ( Pr[Game^CKA_{𝒜, ΔFS, ΔPCS, t̂*} = 1] − 1/2 )`,
+  taking `Pr − 1/2` without an absolute value and folding the max over `t̂*` into the advantage.
+
+  - Our `securityAdvantage` is instead defined as:
+    `securityAdvantage(cka, 𝒜, gp) := | Pr[ securityExp(cka, 𝒜, gp) = 1 ] − 1/2 |`,
+  where `gp = (challengeEpoch, ΔFS, ΔPCS, challengedParty)`.
+
+  *Note:*
+  - **Absolute value is for free.** If an adversary `𝒜` wins with
+    probability `1/2 − ε`, then `𝒜'` that runs `𝒜` and flips its output
+    bit wins with probability `1/2 + ε`. So bounding `|Pr − 1/2| ≤ ε`
+    is equivalent to bounding the signed `Pr − 1/2 ≤ ε` for every
+    adversary in the same complexity class.
+  - **Max becomes ∀-quantification in the theorem statement.** The
+    paper includes `max_{t̂*}` into the advantage; we include `t̂*` (and the
+    other parameters of `gp`) as inputs to `securityAdvantage` and move
+    the quantification over `gp` into the security statement. The paper's
+    `∀ ΔFS, ΔPCS, Adv^CKA_{𝒜, ΔFS, ΔPCS} ≤ ε` is equivalent to our
+    `∀ gp, securityAdvantage(cka, 𝒜, gp) ≤ ε`.
+
+5. **`req` failure encoded as oracle returning `none`, not as game abort.**
+  The paper's `req ⟦…⟧` aborts the entire game on failure. In Lean, when an
+  oracle's gate (PCS, FS, alternation, challenge-epoch) fails, it returns
+  `none` and the game state is not updated.
+
+Other references:
+
+- [ACD19] Alwen, Coretti, Dodis.
+  *The Double Ratchet: Security Notions, Proofs, and Modularization for the Signal Protocol.*
+  EUROCRYPT 2019, https://eprint.iacr.org/2018/1037.pdf
+
+- [SPQR] Auerbach, Dodis, Jost, Katsumata, Schmidt.
+  *How to Compare Bandwidth Constrained Two-Party Secure Messaging Protocols:
+  A Quest for A More Efficient and Secure Post-Quantum Protocol.*
+  USENIX Security 2025, https://eprint.iacr.org/2025/2267.pdf
+
+
 -/
 
 open OracleSpec OracleComp ENNReal
@@ -163,7 +220,7 @@ structure CKAScheme (m : Type → Type u) [Monad m] (IK St I Rho Rand : Type) wh
 
 namespace CKAScheme
 
-/-! ## Security Model
+/-! ## More Details on Security Model
 
 As in [ACD19, TripleRatchet], we assume the following:
 
