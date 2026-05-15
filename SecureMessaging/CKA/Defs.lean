@@ -151,13 +151,15 @@ with the following modelling differences:
 
 4. **Per-`GameParams` advantage with absolute value, instead of max over challenge epochs.**
 
+  Let `t*` denote the `challengeEpoch`.
+
   - Definition 2.12 of [TripleRatchet] defines:
-    `Adv^CKA_{𝒜, ΔFS, ΔPCS} := max_{t̂*} ( Pr[Game^CKA_{𝒜, ΔFS, ΔPCS, t̂*} = 1] − 1/2 )`,
-  taking `Pr − 1/2` without an absolute value and folding the max over `t̂*` into the advantage.
+    `Adv^CKA_{𝒜, ΔFS, ΔPCS} := max_{t*} ( Pr[Game^CKA_{𝒜, ΔFS, ΔPCS, t*} = 1] − 1/2 )`,
+  taking `Pr − 1/2` without an absolute value and folding the max over `t*` into the advantage.
 
   - Our `securityAdvantage` is instead defined as:
     `securityAdvantage(cka, 𝒜, gp) := | Pr[ securityExp(cka, 𝒜, gp) = 1 ] − 1/2 |`,
-  where `gp = (challengeEpoch, ΔFS, ΔPCS, challengedParty)`.
+  where `gp = (t*, ΔFS, ΔPCS, challengedParty)`.
 
   *Note:*
   - **Absolute value is for free.** If an adversary `𝒜` wins with
@@ -166,7 +168,7 @@ with the following modelling differences:
     is equivalent to bounding the signed `Pr − 1/2 ≤ ε` for every
     adversary in the same complexity class.
   - **Max becomes ∀-quantification in the theorem statement.** The
-    paper includes `max_{t̂*}` into the advantage; we include `t̂*` (and the
+    paper includes `max_{t*}` into the advantage; we include `t*` (and the
     other parameters of `gp`) as inputs to `securityAdvantage` and move
     the quantification over `gp` into the security statement. The paper's
     `∀ ΔFS, ΔPCS, Adv^CKA_{𝒜, ΔFS, ΔPCS} ≤ ε` is equivalent to our
