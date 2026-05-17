@@ -120,7 +120,7 @@ def ddhCKA.recv (st : F ⊕ G) (ρ : G) : Option (G × (F ⊕ G)) :=
 - `initKeyGen`: `x₀ ← $ᵗ F`; return `(x₀ • gen, x₀)`.
 - `initA (h, x₀)`: store `h : G`. `initB (h, x₀)`: store `x₀ : F`.
 - `sendA(h: G)` and `sendB(h: G)`: defined as `send(h: G)` above.
-- `revA(x: F, ρ: G)` and `revB(x: F, ρ: G)` defined as `recv(x: F, ρ: G)` above.
+- `recvA(x: F, ρ: G)` and `recvB(x: F, ρ: G)` defined as `recv(x: F, ρ: G)` above.
 -/
 def ddhCKA (F G : Type) [Field F] [Fintype F] [DecidableEq F] [SampleableType F]
     [AddCommGroup G] [Module F G] [SampleableType G]

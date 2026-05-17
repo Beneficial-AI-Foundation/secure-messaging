@@ -46,7 +46,6 @@ private lemma oracleUnif_preserves_reachableInv :
   rcases hz' with ⟨_, rfl⟩
   simpa using hσ
 
-set_option linter.flexible false in
 /-- `O-Send-A` preserves `reachableInv`:
 `(x•g, x, -, -, -, -)` → sample `y` → `(y, x, y•g, -, y•(x•g), -)`. -/
 private lemma oracleSendA_preserves_reachableInv :
@@ -65,7 +64,14 @@ private lemma oracleSendA_preserves_reachableInv :
         ⟨hphase, hc, x, rfl, rfl, rfl, rfl, rfl, rfl⟩
       subst correct
       rw [CKAScheme.oracleSendA, StateT.run_bind, StateT.run_get] at hz
-      have hz' := hz; simp [validStep, ddhCKA, ddhCKA.send] at hz'
+      have hz' : ∃ y : F, y ∈ support ($ᵗ F : ProbComp F) ∧
+          (some (y • gen, y • (x • gen)),
+            { stA := .inl y, stB := .inl x,
+              rhoA := some (y • gen), rhoB := none,
+              keyA := some (y • (x • gen)), keyB := none,
+              correct := true, lastAction := some .sendA,
+              tA := epA + 1, tB := epB }) = z := by
+        simpa [validStep, ddhCKA, ddhCKA.send] using hz
       obtain ⟨y, _, rfl⟩ := hz'
       refine ⟨?_, rfl, x, y, rfl, rfl, rfl, rfl, rfl, rfl⟩
       simpa [epochCounterInv] using hphase)
@@ -100,7 +106,6 @@ private lemma oracleRecvB_preserves_reachableInv [DecidableEq G] :
       refine ⟨?_, rfl, y, rfl, rfl, rfl, rfl, rfl, rfl⟩
       simpa [epochCounterInv] using hphase)
 
-set_option linter.flexible false in
 /-- `O-Send-B` preserves `reachableInv`:
 `(y, y•g, -, -, -, -)` → sample `x'` → `(y, x', -, x'•g, -, x'•(y•g))`. -/
 private lemma oracleSendB_preserves_reachableInv :
@@ -118,7 +123,14 @@ private lemma oracleSendB_preserves_reachableInv :
       ⟨hphase, hc, y, rfl, rfl, rfl, rfl, rfl, rfl⟩
     subst correct
     rw [CKAScheme.oracleSendB, StateT.run_bind, StateT.run_get] at hz
-    have hz' := hz; simp [validStep, ddhCKA, ddhCKA.send] at hz'
+    have hz' : ∃ x : F, x ∈ support ($ᵗ F : ProbComp F) ∧
+        (some (x • gen, x • (y • gen)),
+          { stA := .inl y, stB := .inl x,
+            rhoA := none, rhoB := some (x • gen),
+            keyA := none, keyB := some (x • (y • gen)),
+            correct := true, lastAction := some .sendB,
+            tA := epA, tB := epB + 1 }) = z := by
+      simpa [validStep, ddhCKA, ddhCKA.send] using hz
     obtain ⟨x, _, rfl⟩ := hz'
     refine ⟨?_, rfl, x, y, rfl, rfl, rfl, rfl, rfl, rfl⟩
     simpa [epochCounterInv] using hphase.symm
