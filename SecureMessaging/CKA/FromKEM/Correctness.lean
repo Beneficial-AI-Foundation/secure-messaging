@@ -11,8 +11,16 @@ import SecureMessaging.CKA.FromKEM.Construction
 This file states the correctness properties for the generic CKA-from-KEM
 construction of [ACD19, Section 4.1.2].
 
-The deliverable for Issue #3 is the specification surface: definitions and
-property statements. Proofs are intentionally left as `sorry` for later PRs.
+The KEM correctness property is:
+
+```
+(pk, sk) ← keygen
+(c, k)   ← encaps pk
+k'       ← decaps sk c
+return k' = some k
+```
+
+Perfect correctness means this experiment succeeds with probability exactly 1.
 -/
 
 open OracleSpec OracleComp ENNReal
@@ -21,20 +29,20 @@ namespace kemCKA
 
 variable {K PK SK C : Type}
 
-/-- One honest KEM-CKA send followed by the matching receive produces the same
-epoch key, assuming the underlying VCV-io KEM is perfectly correct.
+/-- One-step correctness for the KEM-based CKA construction.
 
-This is the local, one-step correctness statement behind the game theorem:
-if a sender encapsulates to `pk`, publishes `(c, pk')`, and stores `sk'`, then
-the receiver holding the matching `sk` decapsulates `c` to the sender's key and
-stores `pk'` for the next send phase.
+The experiment samples an initial KEM key pair `(pk, sk)`, runs the CKA send
+algorithm from `sendReady pk`, and then runs the matching CKA receive algorithm
+from `recvReady sk` on the transmitted message. Under the hypothesis that
+honestly generated KEM encapsulations always decapsulate to the encapsulated
+key, the receiver recovers the sender's epoch key with probability one.
 
-The statement is phrased as a probability-1 support property rather than by
-opening the internals of `ProbComp`, so later proof work can choose the most
-convenient VCV-io support lemmas.
+This is the local correctness obligation for the state transition in
+[ACD19, Section 4.1.2]: after sending `(c, pk')`, the sender stores `sk'`,
+while the receiver stores `pk'` for the next phase.
 -/
 theorem send_recv_agree [DecidableEq K]
-    (kem : KEMForCKA ProbComp K PK SK C)
+    (kem : KEMInput ProbComp K PK SK C)
     (hkem : kem.toKEM.PerfectlyCorrect ProbCompRuntime.probComp) :
     Pr[= true |
       do
@@ -52,14 +60,10 @@ theorem send_recv_agree [DecidableEq K]
 game.
 
 For every adversary using only the honest send/receive oracles, the game returns
-`true` with probability one, provided the underlying KEM is perfectly correct.
-
-Crypto reading: the CKA epoch key produced by the sender is exactly the key
-recovered by the receiver at each delivered epoch. This is the CKA analogue of
-KEM decapsulation recovering the encapsulated shared key.
+`true` with probability one under the KEM correctness hypothesis.
 -/
 theorem correctness [DecidableEq K]
-    (kem : KEMForCKA ProbComp K PK SK C)
+    (kem : KEMInput ProbComp K PK SK C)
     (hkem : kem.toKEM.PerfectlyCorrect ProbCompRuntime.probComp)
     (adv : CKAScheme.CKACorrectnessAdversary (Message C PK) K) :
     Pr[= true | CKAScheme.correctnessExp (kemCKA kem) adv] = 1 := by

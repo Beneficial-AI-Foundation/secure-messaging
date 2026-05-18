@@ -113,6 +113,10 @@ outside the challenge window, but it does not get chosen-ciphertext access.
 
 # The KEM-to-CKA Construction
 
+`CKA from KEM` means a generic construction. A KEM is not converted into a CKA
+by changing its execution trace; rather, its three operations are used as the
+subroutines of a new continuous key agreement protocol.
+
 The Double Ratchet paper's Section 4.1.2 construction is:
 
 ```
@@ -153,26 +157,27 @@ that makes the alternating protocol readable in Lean.
 
 # The Decapsulation Adapter
 
-The generic `CKAScheme` interface has pure receive functions, while VCV-io's
-`KEMScheme.decaps` is monadic. For ordinary KEMs, decapsulation is
-deterministic, so the construction uses:
+The generic `CKAScheme` interface has pure receive functions, while
+`KEMScheme.decaps` is monadic. The paper construction uses decapsulation as a
+deterministic operation, so the construction packages this deterministic
+operation explicitly:
 
 ```
-structure kemCKA.KEMForCKA (m : Type -> Type) [Monad m] (K PK SK C : Type) where
+structure kemCKA.KEMInput (m : Type -> Type) [Monad m] (K PK SK C : Type) where
   toKEM : KEMScheme m K PK SK C
   decapsDet : SK -> C -> Option K
   decaps_eq : forall sk c, toKEM.decaps sk c = pure (decapsDet sk c)
 ```
 
-This adapter is local to the CKA construction. It keeps the existing VCV-io KEM
-API as the source of truth and avoids changing the shared CKA games in this PR.
+`KEMInput` is not a second protocol. It is the input package for this
+construction: a KEM together with the deterministic decapsulation function
+needed to instantiate the pure CKA receive fields.
 
 # Randomness Leakage
 
 The paper's CKA security game includes bad-randomness leakage for sends. The
-current VCV-io KEM interface exposes probabilistic `keygen` and `encaps`, but
-not explicit random coins. The KEM construction therefore instantiates
-`Rand = Unit`.
+current KEM interface exposes probabilistic `keygen` and `encaps`, but not
+explicit random coins. The KEM construction therefore instantiates `Rand = Unit`.
 
 This means the randomness-leak oracle is still present in the CKA game, but for
 this construction it leaks no concrete coin value. A future explicit-randomness
@@ -231,6 +236,6 @@ success in the CKA correctness experiment.
 
 `kemCKA.security_reduces_to_ind_cpa` states that, for admissible challenge
 parameters, every CKA adversary induces an IND-CPA adversary against the
-underlying KEM whose advantage upper-bounds the CKA advantage. The theorem body
+input KEM whose advantage upper-bounds the CKA advantage. The theorem body
 is intentionally `sorry`: constructing and proving the reduction is future
-proof work, not part of the Issue #3 spec PR.
+proof work.

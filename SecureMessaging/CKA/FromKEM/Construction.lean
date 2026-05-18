@@ -10,20 +10,52 @@ import VCVio.CryptoFoundations.KeyEncapMech
 # Continuous Key Agreement from a Key Encapsulation Mechanism
 
 This file defines the generic construction of a CKA scheme from a KEM, following
-[ACD19, Section 4.1.2].
+[ACD19, Section 4.1.2]. "From a KEM" means a protocol transformer: given KEM
+algorithms, instantiate the abstract `CKAScheme` interface by using KEM
+encapsulation as the send step and KEM decapsulation as the receive step.
 
-The paper construction is the public-key analogue of the Signal DH ratchet.
-The CKA state alternates between:
+## Paper-to-Lean map
 
-* a public key, meaning the party is ready to send by encapsulating to that key;
-* a secret key, meaning the party is ready to receive by decapsulating the next
-  ciphertext.
+The paper writes the local CKA state as `γ`. In the KEM construction, `γ`
+alternates between a public key and a secret key:
 
-On send, the party encapsulates under the stored public key to obtain the epoch
-key and ciphertext, generates the next KEM key pair, sends the ciphertext
-together with the new public key, and stores the new secret key. On receive,
-the party decapsulates with the stored secret key, stores the received public
-key, and outputs the recovered epoch key.
+```
+paper §4.1.2                         Lean
+────────────────────────────────────────────────────────────
+(pk, sk) ← Gen                       InitKey PK SK := PK × SK
+CKA-Init-A(pk, sk) = pk              initA := State.sendReady pk
+CKA-Init-B(pk, sk) = sk              initB := State.recvReady sk
+state γ = pk                         State.sendReady pk
+state γ = sk                         State.recvReady sk
+T = (c, pk')                         Message C PK := C × PK
+epoch key I                          K
+```
+
+The constructors `sendReady` and `recvReady` come directly from the two shapes
+of `γ` in the paper. A bare sum `PK ⊕ SK` would store the same raw data, but the
+constructor names record the protocol phase in the type: a public key is exactly
+the state from which the next operation is send, and a secret key is exactly the
+state from which the next operation is receive.
+
+One A-to-B step has the following shape:
+
+```
+Initial shared KEM key pair:
+
+  A: sendReady pk0                      B: recvReady sk0
+
+A sends:
+  (c1, I1)    ← Enc(pk0)
+  (pk1, sk1)  ← Gen()
+  T1          := (c1, pk1)
+  A state     := recvReady sk1
+
+              ───────── T1 ─────────▶
+
+B receives:
+  I1          := Dec(sk0, c1)
+  B state     := sendReady pk1
+```
 
 We use a `structure`, not a typeclass, for the KEM input. A concrete CKA
 construction should be passed around explicitly in reductions and game
@@ -37,31 +69,19 @@ universe u
 
 namespace kemCKA
 
-/-- A KEM instance suitable for the current `CKAScheme` API.
+/-- KEM data used as input to the generic CKA construction.
 
-VCV-io's `KEMScheme` already gives the mathematical KEM interface:
-probabilistic key generation, probabilistic encapsulation, and monadic
-decapsulation. The generic CKA interface in `SecureMessaging.CKA.Defs`, however,
-has pure receive algorithms:
-
-```
-recvA : St -> Rho -> Option (I × St)
-recvB : St -> Rho -> Option (I × St)
-```
-
-For ordinary KEMs, decapsulation is deterministic. We therefore keep the
-upstream VCV-io `KEMScheme` as the source of truth and record a deterministic
-decapsulation function together with the compatibility equation saying that the
-monadic KEM decapsulation is just `pure` of that function.
-
-This is a local adapter for [ACD19, Section 4.1.2], not a replacement KEM API.
+The CKA receive API is deterministic, and the paper construction uses
+decapsulation as a deterministic function of secret key and ciphertext. This
+structure packages a KEM with the deterministic decapsulation operation needed
+to define `recv`.
 -/
-structure KEMForCKA (m : Type → Type u) [Monad m] (K PK SK C : Type) where
-  /-- The underlying VCV-io KEM. -/
+structure KEMInput (m : Type → Type u) [Monad m] (K PK SK C : Type) where
+  -- KEM key generation and encapsulation used by `initKeyGen` and `send`.
   toKEM : KEMScheme m K PK SK C
-  /-- Deterministic decapsulation used by the pure CKA receive algorithm. -/
+  -- Deterministic decapsulation used by the pure CKA receive algorithm.
   decapsDet : SK → C → Option K
-  /-- Compatibility with the monadic decapsulation exposed by `KEMScheme`. -/
+  -- Compatibility between the packaged deterministic decapsulation and `toKEM.decaps`.
   decaps_eq : ∀ sk c, toKEM.decaps sk c = pure (decapsDet sk c)
 
 /-- Phase-tagged CKA state for the KEM construction.
@@ -115,7 +135,7 @@ game already enforces alternating communication, but this partiality keeps the
 state machine total as a Lean function.
 -/
 def send {m : Type → Type u} [Monad m] {K PK SK C : Type}
-    (kem : KEMForCKA m K PK SK C) :
+    (kem : KEMInput m K PK SK C) :
     State PK SK → m (Option (K × Message C PK × State PK SK))
   | .sendReady pk => do
       let (c, key) ← kem.toKEM.encaps pk
@@ -125,8 +145,8 @@ def send {m : Type → Type u} [Monad m] {K PK SK C : Type}
 
 /-- Randomness-leaking KEM-CKA send algorithm.
 
-The paper's CKA game has a bad-randomness oracle for sends. The current VCV-io
-`KEMScheme` exposes probabilistic `keygen` and `encaps`, but it does not expose
+The paper's CKA game has a bad-randomness oracle for sends. The current KEM
+interface exposes probabilistic `keygen` and `encaps`, but it does not expose
 their random coins as explicit inputs. Therefore the leaked randomness type for
 this construction is `Unit`.
 
@@ -135,7 +155,7 @@ Future upstream-style explicit-randomness KEM APIs, for example
 coin type while leaving the CKA game interface intact.
 -/
 def send_rleak {m : Type → Type u} [Monad m] {K PK SK C : Type}
-    (kem : KEMForCKA m K PK SK C) :
+    (kem : KEMInput m K PK SK C) :
     State PK SK → m (Option (K × Message C PK × State PK SK × Unit)) := fun st => do
   match ← send kem st with
   | none => return none
@@ -148,7 +168,7 @@ If decapsulation succeeds, output the recovered epoch key and store `pk'`, so
 the next local action must be send. If decapsulation fails, return `none`.
 -/
 def recv {m : Type → Type u} [Monad m] {K PK SK C : Type}
-    (kem : KEMForCKA m K PK SK C) :
+    (kem : KEMInput m K PK SK C) :
     State PK SK → Message C PK → Option (K × State PK SK)
   | .recvReady sk, (c, pk') =>
       match kem.decapsDet sk c with
@@ -164,13 +184,13 @@ The type parameters specialize the abstract CKA interface as follows:
 * `St = kemCKA.State PK SK`, a phase-tagged public/secret key state;
 * `I = K`, the KEM shared key used as the CKA epoch key;
 * `Rho = C × PK`, a KEM ciphertext plus the next public key;
-* `Rand = Unit`, because current VCV-io KEMs do not expose explicit coins.
+* `Rand = Unit`, because the KEM input does not expose explicit coins.
 
 The send and receive algorithms are the same for A and B; only initialization
 differs, with A starting from the public key and B from the secret key.
 -/
 def scheme {m : Type → Type u} [Monad m] {K PK SK C : Type}
-    (kem : KEMForCKA m K PK SK C) :
+    (kem : KEMInput m K PK SK C) :
     CKAScheme m (InitKey PK SK) (State PK SK) K (Message C PK) Unit where
   initKeyGen := kem.toKEM.keygen
   initA := fun ik => return initA ik
@@ -189,7 +209,7 @@ end kemCKA
 This is the instance used by the existing CKA correctness and security games,
 which are currently specialized to `ProbComp`.
 -/
-abbrev kemCKA {K PK SK C : Type} (kem : kemCKA.KEMForCKA ProbComp K PK SK C) :
+abbrev kemCKA {K PK SK C : Type} (kem : kemCKA.KEMInput ProbComp K PK SK C) :
     CKAScheme ProbComp (kemCKA.InitKey PK SK) (kemCKA.State PK SK)
       K (kemCKA.Message C PK) Unit :=
   kemCKA.scheme kem
