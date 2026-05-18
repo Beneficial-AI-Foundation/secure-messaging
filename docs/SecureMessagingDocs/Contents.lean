@@ -11,6 +11,7 @@ import SecureMessagingDocs.SourceBlock
 import SecureMessagingDocs.BlueprintTriptych
 import SecureMessagingDocs.Cryptocode
 import SecureMessagingDocs.DocVCVioOracles
+import SecureMessagingDocs.DocCKAFromKEM
 
 /-!
 # SecureMessaging Docs Contents
@@ -39,6 +40,8 @@ Per-protocol chapters are added next to each formalization as it lands; this
 chapter only describes the shared core.
 
 {include 1 SecureMessagingDocs.DocVCVioOracles}
+
+{include 1 SecureMessagingDocs.DocCKAFromKEM}
 
 {blueprint_graph}
 
