@@ -67,7 +67,7 @@ program over `OracleSpec`.
 * `probOutput_simulateQ_greedyLazy_run'_eq` — **external-sample commutation**.
 
   A top-level sample `a ← $ᵗ τ` consumed only inside oracle bodies can be
-  delayed into the first query via the canonical `QueryImpl.greedyLazy`
+  delayed into the first query via the canonical `greedyLazy`
   construction. Formally, for any family
   `implFam : τ → QueryImpl spec (StateT σ ProbComp)`,
   `evalDist (do let a ← $ᵗ τ; (simulateQ (implFam a) oa).run' s)`
@@ -78,7 +78,7 @@ program over `OracleSpec`.
   Given a "hit" predicate `hit : spec.Domain → Bool` marking the queries
   that consume the external sample `a : τ`, a top-level sample `a ← $ᵗ τ`
   can be deferred to the first hit query
-  via the `QueryImpl.consumeLazy` construction, *provided* `implFam` is
+  via the `consumeLazy` construction, *provided* `implFam` is
   constant in `τ` at non-hit queries (the `h_indep` hypothesis). Under that
   hypothesis,
   `evalDist (do let a ← $ᵗ τ; (simulateQ (implFam a) oa).run' s)`
