@@ -59,10 +59,10 @@ B receives:
   B state     := sendReady pk1
 ```
 
-We use a `structure`, not a typeclass, for the KEM input. A concrete CKA
-construction should be passed around explicitly in reductions and game
-statements; there is no intended global canonical KEM for a type tuple
-`(K, PK, SK, C)`.
+The construction takes an ordinary KEM together with an explicit witness that
+its monadic decapsulation is represented by a deterministic function. This keeps
+the KEM as the primitive object and records the extra restriction needed by the
+pure CKA receive API.
 -/
 
 open OracleSpec OracleComp ENNReal
@@ -71,20 +71,22 @@ universe u
 
 namespace kemCKA
 
-/-- KEM data used as input to the generic CKA construction.
+/-- Deterministic decapsulation witness for a KEM used in the CKA construction.
 
 The CKA receive API is deterministic, and the paper construction uses
-decapsulation as a deterministic function of secret key and ciphertext. This
-structure packages a KEM with the deterministic decapsulation operation needed
-to define `recv`.
+decapsulation as a deterministic function of secret key and ciphertext. This is
+not a separate protocol: it is the extra property and concrete function needed
+to use an ordinary monadic `KEMScheme` as input to the pure CKA receive
+algorithm.
 -/
-structure KEMInput (m : Type → Type u) [Monad m] (K PK SK C : Type) where
-  -- KEM key generation and encapsulation used by `initKeyGen` and `send`.
-  toKEM : KEMScheme m K PK SK C
+structure DeterministicDecaps
+    {m : Type → Type u} [Monad m]
+    {K PK SK C : Type}
+    (kem : KEMScheme m K PK SK C) where
   -- Deterministic decapsulation used by the pure CKA receive algorithm.
   decapsDet : SK → C → Option K
-  -- Compatibility between the packaged deterministic decapsulation and `toKEM.decaps`.
-  decaps_eq : ∀ sk c, toKEM.decaps sk c = pure (decapsDet sk c)
+  -- Compatibility between deterministic decapsulation and the KEM's monadic decapsulation.
+  decaps_eq : ∀ sk c, kem.decaps sk c = pure (decapsDet sk c)
 
 /-- Phase-tagged CKA state for the KEM construction.
 
@@ -137,13 +139,13 @@ game already enforces alternating communication, but this partiality keeps the
 state machine total as a Lean function.
 -/
 def send {m : Type → Type u} [Monad m] {K PK SK C : Type}
-    (kem : KEMInput m K PK SK C)
+    (kem : KEMScheme m K PK SK C)
     (st : State PK SK) :
     m (Option (K × Message C PK × State PK SK)) :=
   match st with
   | .sendReady pk => do
-      let (c, key) ← kem.toKEM.encaps pk
-      let (pk', sk') ← kem.toKEM.keygen
+      let (c, key) ← kem.encaps pk
+      let (pk', sk') ← kem.keygen
       return some (key, (c, pk'), .recvReady sk')
   | .recvReady _ => return none
 
@@ -159,7 +161,7 @@ Future upstream-style explicit-randomness KEM APIs, for example
 coin type while leaving the CKA game interface intact.
 -/
 def send_rleak {m : Type → Type u} [Monad m] {K PK SK C : Type}
-    (kem : KEMInput m K PK SK C)
+    (kem : KEMScheme m K PK SK C)
     (st : State PK SK) :
     m (Option (K × Message C PK × State PK SK × Unit)) := do
   match ← send kem st with
@@ -173,13 +175,14 @@ If decapsulation succeeds, output the recovered epoch key and store `pk'`, so
 the next local action must be send. If decapsulation fails, return `none`.
 -/
 def recv {m : Type → Type u} [Monad m] {K PK SK C : Type}
-    (kem : KEMInput m K PK SK C)
+    {kem : KEMScheme m K PK SK C}
+    (hDet : DeterministicDecaps kem)
     (st : State PK SK) (msg : Message C PK) :
     Option (K × State PK SK) :=
   match st with
   | .recvReady sk =>
       let (c, pk') := msg
-      match kem.decapsDet sk c with
+      match hDet.decapsDet sk c with
       | some key => some (key, .sendReady pk')
       | none => none
   | .sendReady _ => none
@@ -192,32 +195,36 @@ The type parameters specialize the abstract CKA interface as follows:
 * `St = kemCKA.State PK SK`, a phase-tagged public/secret key state;
 * `I = K`, the KEM shared key used as the CKA epoch key;
 * `Rho = C × PK`, a KEM ciphertext plus the next public key;
-* `Rand = Unit`, because the KEM input does not expose explicit coins.
+* `Rand = Unit`, because the KEM interface does not expose explicit coins.
 
 The send and receive algorithms are the same for A and B; only initialization
 differs, with A starting from the public key and B from the secret key.
 -/
 def scheme {m : Type → Type u} [Monad m] {K PK SK C : Type}
-    (kem : KEMInput m K PK SK C) :
+    (kem : KEMScheme m K PK SK C)
+    (hDet : DeterministicDecaps kem) :
     CKAScheme m (InitKey PK SK) (State PK SK) K (Message C PK) Unit where
-  initKeyGen := kem.toKEM.keygen
+  initKeyGen := kem.keygen
   initA := fun ik => return initA ik
   initB := fun ik => return initB ik
   sendA := send kem
   sendA_rleak := send_rleak kem
-  recvA := recv kem
+  recvA := recv hDet
   sendB := send kem
   sendB_rleak := send_rleak kem
-  recvB := recv kem
+  recvB := recv hDet
 
 end kemCKA
 
-/-- The concrete probabilistic CKA scheme obtained from a probabilistic KEM.
+/-- The concrete probabilistic CKA scheme obtained from a probabilistic KEM and
+a deterministic decapsulation witness.
 
 This is the instance used by the existing CKA correctness and security games,
 which are currently specialized to `ProbComp`.
 -/
-abbrev kemCKA {K PK SK C : Type} (kem : kemCKA.KEMInput ProbComp K PK SK C) :
+abbrev kemCKA {K PK SK C : Type}
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : kemCKA.DeterministicDecaps kem) :
     CKAScheme ProbComp (kemCKA.InitKey PK SK) (kemCKA.State PK SK)
       K (kemCKA.Message C PK) Unit :=
-  kemCKA.scheme kem
+  kemCKA.scheme kem hDet

@@ -60,10 +60,10 @@ abbrev Adversary (K PK SK C : Type) :=
 
 /-- IND-CPA reductions generated from CKA adversaries. -/
 abbrev INDCPAReduction [SampleableType K]
-    (kem : KEMInput ProbComp K PK SK C)
+    (kem : KEMScheme ProbComp K PK SK C)
     (_adv : Adversary K PK SK C)
     (_gp : CKAScheme.GameParams) :=
-  kem.toKEM.IND_CPA_Adversary
+  kem.IND_CPA_Adversary
 
 /-- Main security statement for CKA from a KEM.
 
@@ -72,13 +72,14 @@ IND-CPA adversary against the input KEM whose advantage upper-bounds the
 CKA security advantage of the constructed protocol.
 -/
 theorem security_reduces_to_ind_cpa [SampleableType K] [DecidableEq K]
-    (kem : KEMInput ProbComp K PK SK C)
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
     (adv : Adversary K PK SK C)
     (gp : CKAScheme.GameParams)
     (hgp : AdmissibleParams gp) :
     ∃ red : INDCPAReduction kem adv gp,
-      CKAScheme.securityAdvantage (kemCKA kem) adv gp ≤
-        kem.toKEM.IND_CPA_Advantage ProbCompRuntime.probComp red := by
+      CKAScheme.securityAdvantage (kemCKA kem hDet) adv gp ≤
+        kem.IND_CPA_Advantage ProbCompRuntime.probComp red := by
   sorry
 
 end kemCKA

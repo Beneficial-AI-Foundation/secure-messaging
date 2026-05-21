@@ -42,16 +42,17 @@ This is the local correctness obligation for the state transition in
 while the receiver stores `pk'` for the next phase.
 -/
 theorem send_recv_agree [DecidableEq K]
-    (kem : KEMInput ProbComp K PK SK C)
-    (hkem : kem.toKEM.PerfectlyCorrect ProbCompRuntime.probComp) :
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp) :
     Pr[= true |
       do
-        let (pk, sk) ← kem.toKEM.keygen
+        let (pk, sk) ← kem.keygen
         let sent? ← send kem (.sendReady pk)
         match sent? with
         | none => return false
         | some (keyS, msg, _) =>
-            match recv kem (.recvReady sk) msg with
+            match recv hDet (.recvReady sk) msg with
             | none => return false
             | some (keyR, _) => return decide (keyR = keyS)] = 1 := by
   sorry
@@ -63,10 +64,11 @@ For every adversary using only the honest send/receive oracles, the game returns
 `true` with probability one under the KEM correctness hypothesis.
 -/
 theorem correctness [DecidableEq K]
-    (kem : KEMInput ProbComp K PK SK C)
-    (hkem : kem.toKEM.PerfectlyCorrect ProbCompRuntime.probComp)
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
     (adv : CKAScheme.CKACorrectnessAdversary (Message C PK) K) :
-    Pr[= true | CKAScheme.correctnessExp (kemCKA kem) adv] = 1 := by
+    Pr[= true | CKAScheme.correctnessExp (kemCKA kem hDet) adv] = 1 := by
   sorry
 
 end kemCKA
