@@ -39,9 +39,9 @@ authenticated alongside the ciphertext.
 - `decrypt : K → AD → C → Option M`.
   Deterministic decryption: given key `K`, associated data `a`, and ciphertext `e`,
   produces `some m` on success or `none` on authentication failure.
-  Note: Definition 1 of [ACD19] defines `Dec(K, a, e) = m` without an explicit
-  failure case. We use `Option M` to model authentication failure at the scheme
-  level, following standard AEAD conventions (see modeling note 3 below).
+  Note: Definition 1 of [ACD19] writes `Dec(K, a, e) = m` without an explicit
+  failure case in the syntax, but implicitly expects `⊥` on invalid ciphertexts
+  (see modeling note 3 below).
 
 [CORRECTNESS]
 An AEAD scheme is correct if for all keys `K`, associated data `a`, and messages `m`:
@@ -66,10 +66,6 @@ which defines:
 
   `decrypt(a, e): if e = e* or b = 1 return ⊥; return Dec(K, a, e)`
 
-This choice reflects that one-time CCA security suffices for the Double Ratchet
-protocol. Giving the adversary decrypt access in the random world would yield a
-strictly stronger (and unnecessarily harder to achieve) security notion.
-
 We model the one-time encrypt constraint structurally via a **two-phase adversary**,
 following VCVio's `AsymmEncAlg.IND_CCA_Adversary`:
 
@@ -92,13 +88,14 @@ enforced by game state.
 
 2. **`b = true` ↔ paper's `b = 1`** (random ciphertext, no decrypt).
 
-3. **`Option M` return on decrypt.** Definition 1 of [ACD19] defines
-   `Dec(K, a, e) = m` (always returning a message). The `⊥` in the paper
-   appears only in the *security game oracle* (Figure 1), not in `Dec` itself.
-   We use `Option M` as the return type of `decrypt` to also model
-   authentication failure at the scheme level, following standard AEAD
-   conventions (e.g., RFC 5116). This is a strictly more expressive interface
-   than [ACD19]'s Definition 1.
+3. **`Option M` return on decrypt.** Definition 1 of [ACD19] writes
+   `Dec(K, a, e) = m` without an explicit failure case in the syntax.
+   However, the paper's own constructions and proofs implicitly treat `⊥` as
+   a valid output of `Dec`: Figure 6 (FS-AEAD from AEAD) calls `Dec(K, h, e)`
+   and checks `if m = ⊥ → error`, the security proof of Theorem 5 (Hybrid H3)
+   relies on "injections are always rejected," and Definition 7 Property (A)
+   requires `Rcv` state to be unchanged when `m = ⊥`. Our `Option M` makes
+   this implicit convention explicit, consistent with RFC 5116.
 
 4. **Deterministic algorithms.** All AEAD schemes in [ACD19] are deterministic;
    all randomness stems from the key `K`. Hence `encrypt` and `decrypt` are pure
