@@ -47,7 +47,7 @@ authenticated alongside the ciphertext.
   produces `some m` on success or `none` on authentication failure.
   Note: Definition 1 of [ACD19] writes `Dec(K, a, e) = m` without an explicit
   failure case in the syntax, but implicitly expects `⊥` on invalid ciphertexts
-  (see modeling note 3 below).
+  (see modeling note 1 below).
 
 [CORRECTNESS]
 An AEAD scheme is correct if for all keys `K`, associated data `a`, and messages `m`:
@@ -92,6 +92,15 @@ in `CKA/Defs.lean`.
 2. **Deterministic algorithms.** All AEAD schemes in [ACD19] are deterministic;
    all randomness stems from the key `K`. Hence `encrypt` and `decrypt` are pure
    functions, not monadic. Only `keygen` lives in the monad `m`.
+
+3. **One-time encrypt oracle returns `Option C`.** ACD19 Figure 1 declares
+   `encrypt` a "one-time oracle" without specifying behavior on a second call.
+   In VCVio's `OracleComp`, the adversary can query any oracle arbitrarily many
+   times — there is no way to restrict call count at the type level. We return
+   `some e*` on the first call and `none` on subsequent calls, encoding the
+   one-time constraint via game state (`eStar : Option C`). This matches the
+   pattern used by `CKA/Defs.lean` for the challenge oracle (`oracleChallA`),
+   which also returns `Option` and gates on game-state conditions.
 
 -/
 
@@ -241,7 +250,7 @@ def securityExp [SampleableType C] [DecidableEq C]
 
 The game is from Definition 2 of [ACD19], but the advantage convention follows
 Definition 2.5 of [TripleRatchet] (`Pr[win] − 1/2`) rather than ACD19's
-Section 2.1 (`2 · Pr[win] − 1`). This aligns with `CKA.guessAdvantage`,
+Section 2.1 (`2 · Pr[win] − 1`). This aligns with CKA advantage definition,
 which also uses the [TripleRatchet] convention, so that both advantages can be
 combined directly in the top-level secure-messaging security bound.
 
