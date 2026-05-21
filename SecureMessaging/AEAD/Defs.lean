@@ -6,6 +6,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 import VCVio.CryptoFoundations.SecExp
 import VCVio.OracleComp.Constructions.SampleableType
 import VCVio.OracleComp.SimSemantics.Append
+import VCVio.OracleComp.SimSemantics.PreservesInv
 
 /-!
 # Authenticated Encryption with Associated Data (AEAD)
@@ -19,6 +20,11 @@ Indistinguishability under Chosen-Ciphertext Attack (IND-CCA) security following
   EUROCRYPT 2019, https://eprint.iacr.org/2018/1037.pdf
   — Definition 1 (AEAD syntax), Figure 1 (one-time IND-CCA game), Definition 2
   (one-time CCA security).
+
+- [TripleRatchet] Dodis, Jost, Katsumata, Prest, Schmidt.
+  *Triple Ratchet: A Bandwidth Efficient Hybrid-Secure Signal Protocol.*
+  EUROCRYPT 2025, https://eprint.iacr.org/2025/078.pdf
+  — Definition 2.5 (AEAD advantage convention used here).
 
 An AEAD scheme is a pair of deterministic algorithms `(Enc, Dec)` providing both
 confidentiality and integrity for messages, with additional unencrypted associated data
@@ -49,35 +55,29 @@ An AEAD scheme is correct if for all keys `K`, associated data `a`, and messages
   `Dec(K, a, Enc(K, a, m)) = m`
 
 [SECURITY — One-Time IND-CCA]
-The security game (Figure 1 of [ACD19]) samples a hidden challenge bit
-`b ←$ {0, 1}` and provides the adversary with:
+Figure 1 of [ACD19] defines the oracles of the one-time IND-CCA game. The game
+`init` samples `K ←$ K`, `e* ← ⊥`, `b ←$ {0, 1}`, then the adversary
+`A^{encrypt, decrypt}` interacts with:
 
-- A **one-time encryption oracle** that returns either `Enc(K, a, m)` (if `b = 0`)
-  or a uniformly random ciphertext from `C` (if `b = 1`).
-- A **decryption oracle** that returns `Dec(K, a, e)` when `b = 0` and
-  `e ≠ e*` (the challenge ciphertext), and `⊥` otherwise.
+- A **one-time encryption oracle** `encrypt(a, m)`:
+  if `b = 0`, sets `e* ← Enc(K, a, m)`; else sets `e* ←$ C`; returns `e*`.
+  This oracle may be called at most once (stated in Figure 1 caption).
 
-The adversary wins by outputting a guess `b'` such that `b' = b`.
+- A **decryption oracle** `decrypt(a, e)`:
+  `if e = e* or b = 1 return ⊥; return Dec(K, a, e)`.
+  When `e* = ⊥` (pre-challenge), the check `e = e*` is trivially false.
+
+The adversary wins by outputting a guess `b'` such that `b' = b`
+(Definition 2).
 
 **Important:** Unlike standard IND-CCA games (e.g., VCVio's `AsymmEncAlg.IND_CCA`),
-the decrypt oracle in the `b = 1` (random) world returns `⊥` on **all** queries —
-even those made *before* the challenge. This is faithful to Figure 1 of [ACD19],
-which defines:
+the `decrypt` oracle in the `b = 1` (random) world returns `⊥` on **all** queries —
+even those made *before* the challenge.
 
-  `decrypt(a, e): if e = e* or b = 1 return ⊥; return Dec(K, a, e)`
-
-We model the one-time encrypt constraint structurally via a **two-phase adversary**,
-following VCVio's `AsymmEncAlg.IND_CCA_Adversary`:
-
-- Phase 1 (`chooseMessage`): adversary picks `(a, m)` for the challenge.
-- Phase 2 (`distinguish`): adversary receives challenge ciphertext `e*` and guesses `b`.
-
-Both phases have access to the (b-gated) decrypt oracle. This two-phase structure
-captures the same adversary power as the paper's single oracle interface: any
-single-interface adversary that calls encrypt exactly once can be split into a
-pre-challenge phase (producing the message) and a post-challenge phase
-(distinguishing). The one-time encrypt constraint becomes syntactic rather than
-enforced by game state.
+The one-time constraint on `encrypt` and the challenge-ciphertext rejection
+in `decrypt` are both enforced via game state (`e* : Option C`), following
+ACD19 directly. The oracles are stateful (using `StateT`), matching the pattern
+in `CKA/Defs.lean`.
 
 ## Modeling notes
 
@@ -86,11 +86,7 @@ enforced by game state.
    self-containment (the security game requires it), matching VCVio conventions
    (`SymmEncAlg`, `MacAlg`, etc.).
 
-2. **`b = true` maps to the paper's `b = 1` (random world).** The Lean formalization uses
-   `Bool` where [ACD19] uses `{0, 1}`. When `b = true`, the adversary receives a
-   uniformly random ciphertext and the decrypt oracle always returns `none`.
-
-3. **`Option M` return on decrypt.** Definition 1 of [ACD19] writes
+2. **`Option M` return on decrypt.** Definition 1 of [ACD19] writes
    `Dec(K, a, e) = m` without an explicit failure case in the syntax.
    However, the paper's own constructions and proofs implicitly treat `⊥` as
    a valid output of `Dec`: Figure 6 (FS-AEAD from AEAD) calls `Dec(K, h, e)`
@@ -98,7 +94,7 @@ enforced by game state.
    relies on "injections are always rejected," and Definition 7 Property (A)
    requires `Rcv` state to be unchanged when `m = ⊥`.
 
-4. **Deterministic algorithms.** All AEAD schemes in [ACD19] are deterministic;
+3. **Deterministic algorithms.** All AEAD schemes in [ACD19] are deterministic;
    all randomness stems from the key `K`. Hence `encrypt` and `decrypt` are pure
    functions, not monadic. Only `keygen` lives in the monad `m`.
 
@@ -115,6 +111,7 @@ universe u
 message space `M`, associated-data space `AD`, key space `K`, and ciphertext space `C`.
 
 Definition 1 of [ACD19]. -/
+@[ext]
 structure AEADScheme (m : Type → Type u) [Monad m] (M AD K C : Type) where
   /-- Sample a fresh symmetric key. -/
   keygen : m K
@@ -138,114 +135,123 @@ section OneTime_CCA
 
 Figure 1 and Definition 2 of [ACD19].
 
-The adversary interacts with two oracles:
-- A **one-time encryption oracle** (modeled structurally via the two-phase adversary).
-- A **decryption oracle** `(AD × C →ₒ Option M)`, gated by the challenge bit `b`:
-  - When `b = false` (real world): decrypts normally (post-challenge: rejects `e*`).
-  - When `b = true` (random world): always returns `none`.
+The adversary `A` interacts with two stateful oracles:
+- `encrypt(a, m)`: one-time encryption oracle (Figure 1, middle column).
+- `decrypt(a, e)`: decryption oracle (Figure 1, right column).
 
-See the module docstring for a detailed discussion of why the decrypt oracle is
-b-dependent, and how this differs from standard IND-CCA games.
+Game state is `e* : Option C` (`none` = `encrypt` not yet called).
+Both oracles read/write `e*` via `StateT`, matching the pattern in
+`CKA/Defs.lean`.
 -/
 
 variable {M AD K C : Type}
 
-/-- Oracle spec for the AEAD one-time IND-CCA game.
-The adversary has access to uniform randomness and a decryption oracle. -/
-def aeadOneTimeCCASpec (AD C M : Type) := unifSpec + (AD × C →ₒ Option M)
+/-! ### Game state -/
+
+/-- Mutable state of the one-time IND-CCA game (Figure 1 of [ACD19]).
+`eStar = none` means `encrypt` has not been called yet (`e* = ⊥`);
+`eStar = some e` means the challenge ciphertext is `e`. -/
+structure AEADGameState (C : Type) where
+  eStar : Option C
+
+/-! ### Oracle spec -/
+
+/-- Oracle spec for the AEAD one-time IND-CCA game (Figure 1 of [ACD19]).
+The adversary has access to uniform randomness, a one-time encryption oracle,
+and a decryption oracle. -/
+def aeadOneTimeCCASpec (AD M C : Type) :=
+  unifSpec + (AD × M →ₒ Option C) + (AD × C →ₒ Option M)
 
 namespace aeadOneTimeCCASpec
 
-variable {AD C M : Type}
+variable {AD M C : Type}
 
-@[match_pattern] abbrev OUnif (n : ℕ) : (aeadOneTimeCCASpec AD C M).Domain :=
-  .inl n
-@[match_pattern] abbrev ODecrypt (ac : AD × C) : (aeadOneTimeCCASpec AD C M).Domain :=
+@[match_pattern] abbrev OUnif (n : ℕ) : (aeadOneTimeCCASpec AD M C).Domain :=
+  .inl (.inl n)
+@[match_pattern] abbrev OEncrypt (am : AD × M) : (aeadOneTimeCCASpec AD M C).Domain :=
+  .inl (.inr am)
+@[match_pattern] abbrev ODecrypt (ac : AD × C) : (aeadOneTimeCCASpec AD M C).Domain :=
   .inr ac
 
 end aeadOneTimeCCASpec
 
-/-- Two-phase one-time IND-CCA adversary for an AEAD scheme.
+/-! ### Adversary -/
 
-- `chooseMessage`: the adversary picks associated data `a` and message `m` for the
-  challenge encryption, with access to the (b-gated) decrypt oracle.
-  Returns `(a, m, state)`.
-- `distinguish`: after receiving the challenge ciphertext `e*`, the adversary
-  guesses the challenge bit `b`, with access to the (b-gated, e*-rejecting)
-  decrypt oracle. Returns `b'`. -/
-structure OneTime_CCA_Adversary (AD M C : Type) where
-  /-- Internal adversary state passed between phases. -/
-  State : Type
-  /-- Phase 1: choose the challenge `(a, m)` pair. -/
-  chooseMessage : OracleComp (aeadOneTimeCCASpec AD C M) (AD × M × State)
-  /-- Phase 2: given internal state and challenge ciphertext, guess the bit. -/
-  distinguish : State → C → OracleComp (aeadOneTimeCCASpec AD C M) Bool
+/-- One-time IND-CCA adversary for an AEAD scheme: a single computation with
+access to `encrypt` and `decrypt` oracles, outputting a guess bit `b'`.
+Matches the adversary `A` in ACD19 Figure 1 + Definition 2. -/
+abbrev OneTime_CCA_Adversary (AD M C : Type) :=
+  OracleComp (aeadOneTimeCCASpec AD M C) Bool
 
-/-! ### Decrypt oracle implementations
+/-! ### Oracle implementations -/
 
-The decrypt oracle behavior depends on the challenge bit `b`:
-- `b = false` (real world): decrypt normally.
-- `b = true` (random world): always return `none`.
+/-- Uniform-randomness oracle lifted to the game-state monad. -/
+def oracleUnif (C : Type) :
+    QueryImpl unifSpec (StateT (AEADGameState C) ProbComp) :=
+  (QueryImpl.ofLift unifSpec ProbComp).liftTarget (StateT (AEADGameState C) ProbComp)
 
-Post-challenge, the oracle additionally rejects queries on the challenge
-ciphertext `cStar` (when `b = false`). -/
-
-/-- Pre-challenge decryption oracle.
-In the real world (`b = false`), decrypts using `ae.decrypt k a c`.
-In the random world (`b = true`), returns `none` on all queries. -/
-def preChallengeDecryptImpl (ae : AEADScheme ProbComp M AD K C)
+/-- One-time encryption oracle `encrypt(a, m)` (Figure 1 of [ACD19], middle column).
+First call: if `b = false`, sets `e* ← Enc(K, a, m)`;
+            if `b = true`,  sets `e* ←$ C`.
+            Returns `some e*`.
+Subsequent calls: returns `none` (one-time oracle). -/
+def oracleEncrypt [SampleableType C] (ae : AEADScheme ProbComp M AD K C)
     (b : Bool) (k : K) :
-    QueryImpl (AD × C →ₒ Option M) ProbComp :=
-  fun (a, c) => if b then pure none else pure (ae.decrypt k a c)
+    QueryImpl (AD × M →ₒ Option C) (StateT (AEADGameState C) ProbComp) :=
+  fun (a, m) => do
+    let state ← get
+    match state.eStar with
+    | some _ => pure none
+    | none =>
+      let eStar ← if b
+        then liftM ($ᵗ C : ProbComp C)
+        else pure (ae.encrypt k a m)
+      set ({ eStar := some eStar } : AEADGameState C)
+      return some eStar
 
-/-- Post-challenge decryption oracle.
-In the real world (`b = false`), decrypts unless `c = cStar`.
-In the random world (`b = true`), returns `none` on all queries. -/
-def postChallengeDecryptImpl [DecidableEq C] (ae : AEADScheme ProbComp M AD K C)
-    (b : Bool) (k : K) (cStar : C) :
-    QueryImpl (AD × C →ₒ Option M) ProbComp :=
-  fun (a, c) => if b || c == cStar then pure none else pure (ae.decrypt k a c)
+/-- Decryption oracle `decrypt(a, e)` (Figure 1 of [ACD19], right column).
+`if e = e* or b = 1 return ⊥; return Dec(K, a, e)`.
+When `eStar = none` (pre-challenge), the `e = e*` check is trivially false. -/
+def oracleDecrypt [DecidableEq C] (ae : AEADScheme ProbComp M AD K C)
+    (b : Bool) (k : K) :
+    QueryImpl (AD × C →ₒ Option M) (StateT (AEADGameState C) ProbComp) :=
+  fun (a, e) => do
+    let state ← get
+    if b || state.eStar == some e then pure none
+    else pure (ae.decrypt k a e)
 
-/-- Pre-challenge oracle set: uniform randomness + b-gated decrypt. -/
-def preChallengeImpl (ae : AEADScheme ProbComp M AD K C) (b : Bool) (k : K) :
-    QueryImpl (aeadOneTimeCCASpec AD C M) ProbComp :=
-  HasQuery.toQueryImpl (spec := unifSpec) (m := ProbComp) +
-    preChallengeDecryptImpl ae b k
-
-/-- Post-challenge oracle set: uniform randomness + b-gated, e*-rejecting decrypt. -/
-def postChallengeImpl [DecidableEq C] (ae : AEADScheme ProbComp M AD K C)
-    (b : Bool) (k : K) (cStar : C) :
-    QueryImpl (aeadOneTimeCCASpec AD C M) ProbComp :=
-  HasQuery.toQueryImpl (spec := unifSpec) (m := ProbComp) +
-    postChallengeDecryptImpl ae b k cStar
+/-- Complete oracle set for the one-time IND-CCA game (Figure 1 of [ACD19]). -/
+def aeadSecurityImpl [SampleableType C] [DecidableEq C]
+    (ae : AEADScheme ProbComp M AD K C) (b : Bool) (k : K) :
+    QueryImpl (aeadOneTimeCCASpec AD M C) (StateT (AEADGameState C) ProbComp) :=
+  oracleUnif C + oracleEncrypt ae b k + oracleDecrypt ae b k
 
 /-! ### Security experiment -/
 
-/-- **One-time IND-CCA experiment** `Exp^{ot-cca}(ae, A)`.
+/-- **One-time IND-CCA experiment** (Figure 1 + Definition 2 of [ACD19]).
 
-Figure 1 of [ACD19].
-
-1. `k ← ae.keygen`
-2. `b ← $ᵗ Bool` — challenge bit (`true` = random world)
-3. `(a, m, st) ← A₁^{Dec_b}()` — adversary picks challenge
-4. `e* ← if b then $ᵗ C else pure (ae.encrypt k a m)` — challenge ciphertext
-5. `b' ← A₂^{Dec_{b,e*}}(st, e*)` — adversary guesses
-6. `output (b = b')` -/
+`init`:   `K ←$ K; e* ← ⊥; b ←$ {0, 1}`
+`run`:    `b' ← A^{encrypt, decrypt}`
+`output`: `b' = b` -/
 def securityExp [SampleableType C] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTime_CCA_Adversary AD M C) : ProbComp Bool := do
   let k ← ae.keygen
   let b ← $ᵗ Bool
-  let (a, msg, st) ← simulateQ (preChallengeImpl ae b k) adversary.chooseMessage
-  let cStar ← if b then $ᵗ C else pure (ae.encrypt k a msg)
-  let b' ← simulateQ (postChallengeImpl ae b k cStar)
-    (adversary.distinguish st cStar)
+  let (b', _) ← (simulateQ (aeadSecurityImpl ae b k) adversary).run
+    ({ eStar := none } : AEADGameState C)
   return (b == b')
 
-/-- One-time IND-CCA advantage: `|Pr[Win] - 1/2|`.
+/-- One-time IND-CCA guess advantage: `|Pr[b' = b] - 1/2|`.
 
-Definition 2 of [ACD19]. -/
-noncomputable def securityAdvantage [SampleableType C] [DecidableEq C]
+The game is from Definition 2 of [ACD19], but the advantage convention follows
+Definition 2.5 of [TripleRatchet] (`Pr[win] − 1/2`) rather than ACD19's
+Section 2.1 (`2 · Pr[win] − 1`). This aligns with `CKA.guessAdvantage`,
+which also uses the [TripleRatchet] convention, so that both advantages can be
+combined directly in the top-level secure-messaging security bound.
+
+Named `guessAdvantage` following VCVio convention (cf. `ddhGuessAdvantage`). -/
+noncomputable def guessAdvantage [SampleableType C] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTime_CCA_Adversary AD M C) : ℝ :=
   |(Pr[= true | securityExp ae adversary]).toReal - 1 / 2|
@@ -260,11 +266,22 @@ def securityExpFixedBit [SampleableType C] [DecidableEq C]
     (adversary : OneTime_CCA_Adversary AD M C)
     (b : Bool) : ProbComp Bool := do
   let k ← ae.keygen
-  let (a, msg, st) ← simulateQ (preChallengeImpl ae b k) adversary.chooseMessage
-  let cStar ← if b then $ᵗ C else pure (ae.encrypt k a msg)
-  let b' ← simulateQ (postChallengeImpl ae b k cStar)
-    (adversary.distinguish st cStar)
+  let (b', _) ← (simulateQ (aeadSecurityImpl ae b k) adversary).run
+    ({ eStar := none } : AEADGameState C)
   return b'
+
+/-- One-time IND-CCA distinguishing advantage:
+`|Pr[AEAD_rand = 1] - Pr[AEAD_real = 1]|`.
+
+Here `AEAD_real` is `securityExpFixedBit ae adversary false` and `AEAD_rand`
+is `securityExpFixedBit ae adversary true`.
+
+Named `distAdvantage` following VCVio convention (cf. `ddhDistAdvantage`). -/
+noncomputable def distAdvantage [SampleableType C] [DecidableEq C]
+    (ae : AEADScheme ProbComp M AD K C)
+    (adversary : OneTime_CCA_Adversary AD M C) : ℝ :=
+  |(Pr[= true | securityExpFixedBit ae adversary true]).toReal -
+   (Pr[= true | securityExpFixedBit ae adversary false]).toReal|
 
 /-- The single-game AEAD experiment can be decomposed as a uniform-bit branch over
 the two fixed-bit experiments:
@@ -299,7 +316,7 @@ as the difference of the random and real fixed-bit branches:
 Here `AEAD_rand` is `securityExpFixedBit ae adversary true`, and `AEAD_real`
 is `securityExpFixedBit ae adversary false`; both return the adversary's
 raw guess. -/
-lemma securityExp_toReal_sub_half [SampleableType C] [DecidableEq C]
+private lemma securityExp_toReal_sub_half [SampleableType C] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTime_CCA_Adversary AD M C) :
     (Pr[= true | securityExp ae adversary]).toReal - 1 / 2 =
@@ -315,6 +332,17 @@ lemma securityExp_toReal_sub_half [SampleableType C] [DecidableEq C]
   exact probOutput_uniformBool_branch_toReal_sub_half
     (securityExpFixedBit ae adversary true)
     (securityExpFixedBit ae adversary false)
+
+/-- The guess advantage equals half the distinguishing advantage:
+`guessAdvantage = distAdvantage / 2`. -/
+lemma guessAdvantage_eq_distAdvantage_div_two [SampleableType C] [DecidableEq C]
+    (ae : AEADScheme ProbComp M AD K C)
+    (adversary : OneTime_CCA_Adversary AD M C) :
+    guessAdvantage ae adversary = distAdvantage ae adversary / 2 := by
+  simp only [guessAdvantage, distAdvantage]
+  rw [securityExp_toReal_sub_half, abs_div]
+  congr 1
+  exact abs_of_pos two_pos
 
 end OneTime_CCA
 
