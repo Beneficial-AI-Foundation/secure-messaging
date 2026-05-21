@@ -86,7 +86,9 @@ enforced by game state.
    self-containment (the security game requires it), matching VCVio conventions
    (`SymmEncAlg`, `MacAlg`, etc.).
 
-2. **`b = true` ↔ paper's `b = 1`** (random ciphertext, no decrypt).
+2. **`b = true` maps to the paper's `b = 1` (random world).** The Lean formalization uses
+   `Bool` where [ACD19] uses `{0, 1}`. When `b = true`, the adversary receives a
+   uniformly random ciphertext and the decrypt oracle always returns `none`.
 
 3. **`Option M` return on decrypt.** Definition 1 of [ACD19] writes
    `Dec(K, a, e) = m` without an explicit failure case in the syntax.
