@@ -81,12 +81,7 @@ in `CKA/Defs.lean`.
 
 ## Modeling notes
 
-1. **`keygen` is included in the scheme.** Definition 1 of [ACD19] defines
-   `AE = (Enc, Dec)` without key generation. We include `keygen : m K` for
-   self-containment (the security game requires it), matching VCVio conventions
-   (`SymmEncAlg`, `MacAlg`, etc.).
-
-2. **`Option M` return on decrypt.** Definition 1 of [ACD19] writes
+1. **`Option M` return on decrypt.** Definition 1 of [ACD19] writes
    `Dec(K, a, e) = m` without an explicit failure case in the syntax.
    However, the paper's own constructions and proofs implicitly treat `⊥` as
    a valid output of `Dec`: Figure 6 (FS-AEAD from AEAD) calls `Dec(K, h, e)`
@@ -94,7 +89,7 @@ in `CKA/Defs.lean`.
    relies on "injections are always rejected," and Definition 7 Property (A)
    requires `Rcv` state to be unchanged when `m = ⊥`.
 
-3. **Deterministic algorithms.** All AEAD schemes in [ACD19] are deterministic;
+2. **Deterministic algorithms.** All AEAD schemes in [ACD19] are deterministic;
    all randomness stems from the key `K`. Hence `encrypt` and `decrypt` are pure
    functions, not monadic. Only `keygen` lives in the monad `m`.
 
