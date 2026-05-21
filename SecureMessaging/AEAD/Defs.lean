@@ -115,7 +115,6 @@ universe u
 message space `M`, associated-data space `AD`, key space `K`, and ciphertext space `C`.
 
 Definition 1 of [ACD19]. -/
-@[ext]
 structure AEADScheme (m : Type → Type u) [Monad m] (M AD K C : Type) where
   /-- Sample a fresh symmetric key. -/
   keygen : m K
