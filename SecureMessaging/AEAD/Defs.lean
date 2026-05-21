@@ -94,26 +94,12 @@ enforced by game state.
    a valid output of `Dec`: Figure 6 (FS-AEAD from AEAD) calls `Dec(K, h, e)`
    and checks `if m = ⊥ → error`, the security proof of Theorem 5 (Hybrid H3)
    relies on "injections are always rejected," and Definition 7 Property (A)
-   requires `Rcv` state to be unchanged when `m = ⊥`. Our `Option M` makes
-   this implicit convention explicit, consistent with RFC 5116.
+   requires `Rcv` state to be unchanged when `m = ⊥`.
 
 4. **Deterministic algorithms.** All AEAD schemes in [ACD19] are deterministic;
    all randomness stems from the key `K`. Hence `encrypt` and `decrypt` are pure
    functions, not monadic. Only `keygen` lives in the monad `m`.
 
-## Other references
-
-- [RFC5116] McGrew.
-  *An Interface and Algorithms for Authenticated Encryption.*
-  IETF RFC 5116, 2008, https://www.rfc-editor.org/rfc/rfc5116
-  — Standard AEAD interface. Unlike [ACD19], explicitly includes a nonce and
-  defines decryption as returning either a plaintext or an error (`FAIL`),
-  motivating our `Option M` return type.
-
-- [TripleRatchet] Dodis, Jost, Katsumata, Prest, Schmidt.
-  *Triple Ratchet: A Bandwidth Efficient Hybrid-Secure Signal Protocol.*
-  EUROCRYPT 2025, https://eprint.iacr.org/2025/078.pdf
-  — Uses the same AEAD primitive (Definition 2.4) in the Triple Ratchet construction.
 -/
 
 open OracleSpec OracleComp ENNReal
