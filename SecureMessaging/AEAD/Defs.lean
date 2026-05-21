@@ -130,7 +130,7 @@ variable {m : Type → Type u} [Monad m] {M AD K C : Type}
 def Correct (ae : AEADScheme m M AD K C) : Prop :=
   ∀ (k : K) (a : AD) (msg : M), ae.decrypt k a (ae.encrypt k a msg) = some msg
 
-section OT_CCA
+section OneTime_CCA
 
 /-! ## One-Time IND-CCA Security Game
 
@@ -150,18 +150,18 @@ variable {M AD K C : Type}
 
 /-- Oracle spec for the AEAD one-time IND-CCA game.
 The adversary has access to uniform randomness and a decryption oracle. -/
-def aeadOTCCASpec (AD C M : Type) := unifSpec + (AD × C →ₒ Option M)
+def aeadOneTimeCCASpec (AD C M : Type) := unifSpec + (AD × C →ₒ Option M)
 
-namespace aeadOTCCASpec
+namespace aeadOneTimeCCASpec
 
 variable {AD C M : Type}
 
-@[match_pattern] abbrev OUnif (n : ℕ) : (aeadOTCCASpec AD C M).Domain :=
+@[match_pattern] abbrev OUnif (n : ℕ) : (aeadOneTimeCCASpec AD C M).Domain :=
   .inl n
-@[match_pattern] abbrev ODecrypt (ac : AD × C) : (aeadOTCCASpec AD C M).Domain :=
+@[match_pattern] abbrev ODecrypt (ac : AD × C) : (aeadOneTimeCCASpec AD C M).Domain :=
   .inr ac
 
-end aeadOTCCASpec
+end aeadOneTimeCCASpec
 
 /-- Two-phase one-time IND-CCA adversary for an AEAD scheme.
 
@@ -171,13 +171,13 @@ end aeadOTCCASpec
 - `distinguish`: after receiving the challenge ciphertext `e*`, the adversary
   guesses the challenge bit `b`, with access to the (b-gated, e*-rejecting)
   decrypt oracle. Returns `b'`. -/
-structure OT_CCA_Adversary (AD M C : Type) where
+structure OneTime_CCA_Adversary (AD M C : Type) where
   /-- Internal adversary state passed between phases. -/
   State : Type
   /-- Phase 1: choose the challenge `(a, m)` pair. -/
-  chooseMessage : OracleComp (aeadOTCCASpec AD C M) (AD × M × State)
+  chooseMessage : OracleComp (aeadOneTimeCCASpec AD C M) (AD × M × State)
   /-- Phase 2: given internal state and challenge ciphertext, guess the bit. -/
-  distinguish : State → C → OracleComp (aeadOTCCASpec AD C M) Bool
+  distinguish : State → C → OracleComp (aeadOneTimeCCASpec AD C M) Bool
 
 /-! ### Decrypt oracle implementations
 
@@ -206,14 +206,14 @@ def postChallengeDecryptImpl [DecidableEq C] (ae : AEADScheme ProbComp M AD K C)
 
 /-- Pre-challenge oracle set: uniform randomness + b-gated decrypt. -/
 def preChallengeImpl (ae : AEADScheme ProbComp M AD K C) (b : Bool) (k : K) :
-    QueryImpl (aeadOTCCASpec AD C M) ProbComp :=
+    QueryImpl (aeadOneTimeCCASpec AD C M) ProbComp :=
   HasQuery.toQueryImpl (spec := unifSpec) (m := ProbComp) +
     preChallengeDecryptImpl ae b k
 
 /-- Post-challenge oracle set: uniform randomness + b-gated, e*-rejecting decrypt. -/
 def postChallengeImpl [DecidableEq C] (ae : AEADScheme ProbComp M AD K C)
     (b : Bool) (k : K) (cStar : C) :
-    QueryImpl (aeadOTCCASpec AD C M) ProbComp :=
+    QueryImpl (aeadOneTimeCCASpec AD C M) ProbComp :=
   HasQuery.toQueryImpl (spec := unifSpec) (m := ProbComp) +
     postChallengeDecryptImpl ae b k cStar
 
@@ -231,7 +231,7 @@ Figure 1 of [ACD19].
 6. `output (b = b')` -/
 def securityExp [SampleableType C] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
-    (adversary : OT_CCA_Adversary AD M C) : ProbComp Bool := do
+    (adversary : OneTime_CCA_Adversary AD M C) : ProbComp Bool := do
   let k ← ae.keygen
   let b ← $ᵗ Bool
   let (a, msg, st) ← simulateQ (preChallengeImpl ae b k) adversary.chooseMessage
@@ -245,7 +245,7 @@ def securityExp [SampleableType C] [DecidableEq C]
 Definition 2 of [ACD19]. -/
 noncomputable def securityAdvantage [SampleableType C] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
-    (adversary : OT_CCA_Adversary AD M C) : ℝ :=
+    (adversary : OneTime_CCA_Adversary AD M C) : ℝ :=
   |(Pr[= true | securityExp ae adversary]).toReal - 1 / 2|
 
 /-! ### Useful security game decomposition -/
@@ -255,7 +255,7 @@ The branch `b = false` is `AEAD_real`; the branch `b = true` is `AEAD_rand`.
 Returns the adversary's raw guess `b'` (not `b == b'`). -/
 def securityExpFixedBit [SampleableType C] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
-    (adversary : OT_CCA_Adversary AD M C)
+    (adversary : OneTime_CCA_Adversary AD M C)
     (b : Bool) : ProbComp Bool := do
   let k ← ae.keygen
   let (a, msg, st) ← simulateQ (preChallengeImpl ae b k) adversary.chooseMessage
@@ -276,7 +276,7 @@ returns the adversary's raw guess `b'`. Proved by swapping `b ← $ᵗ Bool` pas
 the key-generation step using `probEvent_bind_bind_swap`. -/
 private lemma securityExp_probOutput_eq_branch [SampleableType C] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
-    (adversary : OT_CCA_Adversary AD M C) :
+    (adversary : OneTime_CCA_Adversary AD M C) :
     Pr[= true | securityExp ae adversary] =
     Pr[= true | do
       let b ← ($ᵗ Bool : ProbComp Bool)
@@ -299,7 +299,7 @@ is `securityExpFixedBit ae adversary false`; both return the adversary's
 raw guess. -/
 lemma securityExp_toReal_sub_half [SampleableType C] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
-    (adversary : OT_CCA_Adversary AD M C) :
+    (adversary : OneTime_CCA_Adversary AD M C) :
     (Pr[= true | securityExp ae adversary]).toReal - 1 / 2 =
     ((Pr[= true | securityExpFixedBit ae adversary true]).toReal -
      (Pr[= true | securityExpFixedBit ae adversary false]).toReal) / 2 := by
@@ -314,6 +314,6 @@ lemma securityExp_toReal_sub_half [SampleableType C] [DecidableEq C]
     (securityExpFixedBit ae adversary true)
     (securityExpFixedBit ae adversary false)
 
-end OT_CCA
+end OneTime_CCA
 
 end AEADScheme
