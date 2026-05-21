@@ -104,10 +104,9 @@ enforced by game state.
 
 open OracleSpec OracleComp ENNReal
 
--- Unlike CKA/Defs.lean which declares `universe u v`, we use only `u` (for the monad),
+-- We use only `u` in universe (for the monad),
 -- matching VCVio's crypto-foundations conventions. All type-space parameters (M, AD, K, C)
--- live at `Type` (= `Type 0`). The extra `v` in CKA is unused and can be added here later
--- if needed without breaking changes.
+-- live at `Type` (= `Type 0`).
 universe u
 
 /-- An authenticated encryption with associated data (AEAD) scheme with
