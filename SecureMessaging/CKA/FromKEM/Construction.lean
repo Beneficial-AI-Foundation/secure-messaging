@@ -13,6 +13,8 @@ This file defines the generic construction of a CKA scheme from a KEM, following
 [ACD19, Section 4.1.2]. "From a KEM" means a protocol transformer: given KEM
 algorithms, instantiate the abstract `CKAScheme` interface by using KEM
 encapsulation as the send step and KEM decapsulation as the receive step.
+Here [ACD19] denotes Alwen, Coretti, and Dodis, *The Double Ratchet:
+Security Notions, Proofs, and Modularization for the Signal Protocol*.
 
 ## Paper-to-Lean map
 
@@ -135,8 +137,10 @@ game already enforces alternating communication, but this partiality keeps the
 state machine total as a Lean function.
 -/
 def send {m : Type → Type u} [Monad m] {K PK SK C : Type}
-    (kem : KEMInput m K PK SK C) :
-    State PK SK → m (Option (K × Message C PK × State PK SK))
+    (kem : KEMInput m K PK SK C)
+    (st : State PK SK) :
+    m (Option (K × Message C PK × State PK SK)) :=
+  match st with
   | .sendReady pk => do
       let (c, key) ← kem.toKEM.encaps pk
       let (pk', sk') ← kem.toKEM.keygen
@@ -155,8 +159,9 @@ Future upstream-style explicit-randomness KEM APIs, for example
 coin type while leaving the CKA game interface intact.
 -/
 def send_rleak {m : Type → Type u} [Monad m] {K PK SK C : Type}
-    (kem : KEMInput m K PK SK C) :
-    State PK SK → m (Option (K × Message C PK × State PK SK × Unit)) := fun st => do
+    (kem : KEMInput m K PK SK C)
+    (st : State PK SK) :
+    m (Option (K × Message C PK × State PK SK × Unit)) := do
   match ← send kem st with
   | none => return none
   | some (key, msg, st') => return some (key, msg, st', ())
@@ -168,13 +173,16 @@ If decapsulation succeeds, output the recovered epoch key and store `pk'`, so
 the next local action must be send. If decapsulation fails, return `none`.
 -/
 def recv {m : Type → Type u} [Monad m] {K PK SK C : Type}
-    (kem : KEMInput m K PK SK C) :
-    State PK SK → Message C PK → Option (K × State PK SK)
-  | .recvReady sk, (c, pk') =>
+    (kem : KEMInput m K PK SK C)
+    (st : State PK SK) (msg : Message C PK) :
+    Option (K × State PK SK) :=
+  match st with
+  | .recvReady sk =>
+      let (c, pk') := msg
       match kem.decapsDet sk c with
       | some key => some (key, .sendReady pk')
       | none => none
-  | .sendReady _, _ => none
+  | .sendReady _ => none
 
 /-- Generic CKA scheme induced by a KEM.
 
