@@ -88,6 +88,54 @@ structure DeterministicDecaps
   -- Compatibility between deterministic decapsulation and the KEM's monadic decapsulation.
   decaps_eq : ∀ sk c, kem.decaps sk c = pure (decapsDet sk c)
 
+/-- Randomness-leaking view of the randomized KEM algorithms used by KEM-CKA send.
+
+The CKA security game has send-randomness leak oracles. For a KEM-based send,
+the randomized computations are exactly encapsulation under the current public
+key and generation of the next KEM key pair. This structure packages versions of
+those two computations that also return their sampled randomness.
+
+The projection laws say that if the leaked randomness is erased with `Prod.fst`,
+the resulting computation is definitionally the ordinary KEM computation. Thus
+the executable construction remains a KEM construction, while the richer CKA
+game can expose the coins when a concrete KEM implementation provides them.
+-/
+structure KEMRandLeak
+    {m : Type → Type u} [Monad m]
+    {K PK SK C : Type}
+    (kem : KEMScheme m K PK SK C) where
+  KeygenRand : Type
+  EncapsRand : Type
+  -- Key generation together with the randomness used to sample the key pair.
+  keygen_rleak : m ((PK × SK) × KeygenRand)
+  -- Encapsulation together with the randomness used to sample the ciphertext/key.
+  encaps_rleak : PK → m ((C × K) × EncapsRand)
+  -- Erasing the leaked key-generation randomness recovers ordinary key generation.
+  keygen_eq : Prod.fst <$> keygen_rleak = kem.keygen
+  -- Erasing the leaked encapsulation randomness recovers ordinary encapsulation.
+  encaps_eq : ∀ pk, Prod.fst <$> encaps_rleak pk = kem.encaps pk
+
+namespace KEMRandLeak
+
+variable {m : Type → Type u} [Monad m] {K PK SK C : Type}
+  {kem : KEMScheme m K PK SK C}
+
+/-- Distribution-level key-generation equality induced by `KEMRandLeak.keygen_eq`. -/
+theorem keygen_evalDist_eq (runtime : ProbCompRuntime m)
+    (leak : KEMRandLeak kem) :
+    runtime.evalDist (Prod.fst <$> leak.keygen_rleak) =
+      runtime.evalDist kem.keygen := by
+  rw [leak.keygen_eq]
+
+/-- Distribution-level encapsulation equality induced by `KEMRandLeak.encaps_eq`. -/
+theorem encaps_evalDist_eq (runtime : ProbCompRuntime m)
+    (leak : KEMRandLeak kem) (pk : PK) :
+    runtime.evalDist (Prod.fst <$> leak.encaps_rleak pk) =
+      runtime.evalDist (kem.encaps pk) := by
+  rw [leak.encaps_eq pk]
+
+end KEMRandLeak
+
 /-- Phase-tagged CKA state for the KEM construction.
 
 `sendReady pk` means the party is holding the peer's current public key and can
@@ -168,6 +216,27 @@ def send_rleak {m : Type → Type u} [Monad m] {K PK SK C : Type}
   | none => return none
   | some (key, msg, st') => return some (key, msg, st', ())
 
+/-- KEM-CKA send algorithm with explicit KEM randomness leakage.
+
+This is the same state transition as `send`, but it uses a `KEMRandLeak` package
+so the send-randomness component records both KEM encapsulation randomness and
+fresh key-generation randomness. The order `(EncapsRand × KeygenRand)` follows
+the operational order of the send algorithm in [ACD19, Section 4.1.2].
+-/
+def send_rleakWithLeak {m : Type → Type u} [Monad m] {K PK SK C : Type}
+    (kem : KEMScheme m K PK SK C)
+    (leak : KEMRandLeak kem)
+    (st : State PK SK) :
+    m (Option
+      (K × Message C PK × State PK SK ×
+        (leak.EncapsRand × leak.KeygenRand))) :=
+  match st with
+  | .sendReady pk => do
+      let ((c, key), rEnc) ← leak.encaps_rleak pk
+      let ((pk', sk'), rKeygen) ← leak.keygen_rleak
+      return some (key, (c, pk'), .recvReady sk', (rEnc, rKeygen))
+  | .recvReady _ => return none
+
 /-- KEM-CKA receive algorithm.
 
 From a `recvReady sk` state and message `(c, pk')`, decapsulate `c` with `sk`.
@@ -212,6 +281,30 @@ def scheme {m : Type → Type u} [Monad m] {K PK SK C : Type}
   recvA := recv hDet
   sendB := send kem
   sendB_rleak := send_rleak kem
+  recvB := recv hDet
+
+/-- Generic CKA scheme induced by a KEM with explicit send-randomness leakage.
+
+This specializes `Rand` to the pair of randomness values used by a KEM-CKA send:
+encapsulation randomness for the current epoch key and key-generation randomness
+for the next KEM public/secret key pair. The non-leaking send and receive fields
+are identical to `scheme`; only `sendA_rleak` and `sendB_rleak` use the richer
+leaking KEM interface.
+-/
+def schemeWithLeak {m : Type → Type u} [Monad m] {K PK SK C : Type}
+    (kem : KEMScheme m K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem) :
+    CKAScheme m (InitKey PK SK) (State PK SK) K (Message C PK)
+      (leak.EncapsRand × leak.KeygenRand) where
+  initKeyGen := kem.keygen
+  initA := fun ik => return initA ik
+  initB := fun ik => return initB ik
+  sendA := send kem
+  sendA_rleak := send_rleakWithLeak kem leak
+  recvA := recv hDet
+  sendB := send kem
+  sendB_rleak := send_rleakWithLeak kem leak
   recvB := recv hDet
 
 end kemCKA
