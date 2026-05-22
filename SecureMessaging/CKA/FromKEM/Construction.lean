@@ -202,11 +202,10 @@ def send {m : Type → Type u} [Monad m] {K PK SK C : Type}
 The paper's CKA game has a bad-randomness oracle for sends. The current KEM
 interface exposes probabilistic `keygen` and `encaps`, but it does not expose
 their random coins as explicit inputs. Therefore the leaked randomness type for
-this construction is `Unit`.
+this compatibility construction is `Unit`.
 
-Future upstream-style explicit-randomness KEM APIs, for example
-`keygenWithRand` and `encapsWithRand`, could replace this `Unit` by the actual
-coin type while leaving the CKA game interface intact.
+For KEMs equipped with explicit coin-exposing implementations, use
+`KEMRandLeak`, `send_rleakWithLeak`, and `schemeWithLeak` instead.
 -/
 def send_rleak {m : Type → Type u} [Monad m] {K PK SK C : Type}
     (kem : KEMScheme m K PK SK C)

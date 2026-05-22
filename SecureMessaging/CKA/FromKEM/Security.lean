@@ -48,37 +48,53 @@ structure AdmissibleParams (gp : CKAScheme.GameParams) : Prop where
   two_le_deltaPCS : 2 ≤ gp.ΔPCS
   challenge_epoch_compatible : challengeEpochCompatible gp
 
-/-- The CKA adversary interface specialized to the KEM construction.
+/-- Send-randomness type exposed by the KEM-CKA construction.
 
-This is a named alias for discoverability: the adversary receives the same
-send/receive/challenge/corrupt/randomness-leak oracle family as the generic CKA
-security game, with `Rand = Unit` because the KEM construction does not expose
-explicit send coins.
+For one KEM-CKA send, the leaked randomness consists of the randomness used for
+KEM encapsulation and the randomness used for the fresh next KEM key pair.
 -/
-abbrev Adversary (K PK SK C : Type) :=
-  CKAScheme.CKAAdversary (State PK SK) (Message C PK) K Unit
+abbrev Rand {K PK SK C : Type}
+    {kem : KEMScheme ProbComp K PK SK C}
+    (leak : KEMRandLeak kem) :=
+  leak.EncapsRand × leak.KeygenRand
+
+/-- The CKA adversary interface specialized to the leaking KEM construction.
+
+The adversary receives the generic CKA security oracle family with the
+send-randomness type induced by `KEMRandLeak`.
+-/
+abbrev Adversary {K PK SK C : Type}
+    {kem : KEMScheme ProbComp K PK SK C}
+    (leak : KEMRandLeak kem) :=
+  CKAScheme.CKAAdversary (State PK SK) (Message C PK) K (Rand leak)
 
 /-- IND-CPA reductions generated from CKA adversaries. -/
 abbrev INDCPAReduction [SampleableType K]
     (kem : KEMScheme ProbComp K PK SK C)
-    (_adv : Adversary K PK SK C)
+    (leak : KEMRandLeak kem)
+    (_adv : Adversary (kem := kem) leak)
     (_gp : CKAScheme.GameParams) :=
   kem.IND_CPA_Adversary
 
-/-- Main security statement for CKA from a KEM.
+/-- Existential security-reduction statement for CKA from a KEM.
 
 For every CKA adversary and admissible challenge parameters, there exists an
 IND-CPA adversary against the input KEM whose advantage upper-bounds the
 CKA security advantage of the constructed protocol.
+
+The statement is intentionally existential: this specification PR records the
+proof obligation. A later proof PR should refine the existential witness to a
+named concrete reduction.
 -/
-theorem security_reduces_to_ind_cpa [SampleableType K] [DecidableEq K]
+theorem security_reduces_to_ind_cpa_exists [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (adv : Adversary K PK SK C)
+    (leak : KEMRandLeak kem)
+    (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams)
     (hgp : AdmissibleParams gp) :
-    ∃ red : INDCPAReduction kem adv gp,
-      CKAScheme.securityAdvantage (kemCKA kem hDet) adv gp ≤
+    ∃ red : INDCPAReduction kem leak adv gp,
+      CKAScheme.securityAdvantage (schemeWithLeak kem hDet leak) adv gp ≤
         kem.IND_CPA_Advantage ProbCompRuntime.probComp red := by
   sorry
 
