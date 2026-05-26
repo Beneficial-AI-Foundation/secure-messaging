@@ -48,6 +48,24 @@ structure AdmissibleParams (gp : CKAScheme.GameParams) : Prop where
   two_le_deltaPCS : 2 ≤ gp.ΔPCS
   challenge_epoch_compatible : challengeEpochCompatible gp
 
+private lemma challengeEpoch_pos_of_compatible
+    (gp : CKAScheme.GameParams)
+    (h : challengeEpochCompatible gp) :
+    0 < gp.challengeEpoch := by
+  cases hp : gp.challengedParty
+  · have hmod : gp.challengeEpoch % 2 = 1 := by
+      simpa [challengeEpochCompatible, hp] using h
+    omega
+  · have hb : gp.challengeEpoch % 2 = 0 ∧ 0 < gp.challengeEpoch := by
+      simpa [challengeEpochCompatible, hp] using h
+    exact hb.2
+
+private lemma challengeEpoch_pos_of_admissible
+    (gp : CKAScheme.GameParams)
+    (hgp : AdmissibleParams gp) :
+    0 < gp.challengeEpoch :=
+  challengeEpoch_pos_of_compatible gp hgp.challenge_epoch_compatible
+
 /-- Send-randomness type exposed by the KEM-CKA construction.
 
 For one KEM-CKA send, the leaked randomness consists of the randomness used for
@@ -124,6 +142,62 @@ private def sendBInjectsChallengeKey
     (gp : CKAScheme.GameParams)
     (σ : SecurityState K PK SK C) : Bool :=
   (gp.challengedParty == .A) && (σ.tB == gp.challengeEpoch - 1)
+
+private lemma allowCorrPCS_false_of_two_le_deltaPCS_of_tA_pred
+    (gp : CKAScheme.GameParams)
+    (σ : SecurityState K PK SK C)
+    (hΔ : 2 ≤ gp.ΔPCS)
+    (ht : σ.tA = gp.challengeEpoch - 1) :
+    CKAScheme.allowCorrPCS gp σ = false := by
+  by_cases hle : max σ.tA σ.tB + gp.ΔPCS ≤ gp.challengeEpoch
+  · have hmax : gp.challengeEpoch - 1 ≤ max σ.tA σ.tB := by
+      rw [← ht]
+      exact le_max_left _ _
+    have : gp.challengeEpoch - 1 + 2 ≤ gp.challengeEpoch := by
+      exact (Nat.add_le_add hmax hΔ).trans hle
+    omega
+  · simp [CKAScheme.allowCorrPCS, hle]
+
+private lemma allowCorrPCS_false_of_two_le_deltaPCS_of_tB_pred
+    (gp : CKAScheme.GameParams)
+    (σ : SecurityState K PK SK C)
+    (hΔ : 2 ≤ gp.ΔPCS)
+    (ht : σ.tB = gp.challengeEpoch - 1) :
+    CKAScheme.allowCorrPCS gp σ = false := by
+  by_cases hle : max σ.tA σ.tB + gp.ΔPCS ≤ gp.challengeEpoch
+  · have hmax : gp.challengeEpoch - 1 ≤ max σ.tA σ.tB := by
+      rw [← ht]
+      exact le_max_right _ _
+    have : gp.challengeEpoch - 1 + 2 ≤ gp.challengeEpoch := by
+      exact (Nat.add_le_add hmax hΔ).trans hle
+    omega
+  · simp [CKAScheme.allowCorrPCS, hle]
+
+private lemma allowCorrPCS_false_of_sendA_injectsChallengeKey
+    (gp : CKAScheme.GameParams)
+    (σ : SecurityState K PK SK C)
+    (hΔ : 2 ≤ gp.ΔPCS)
+    (hinj : sendAInjectsChallengeKey gp σ = true) :
+    CKAScheme.allowCorrPCS gp σ = false := by
+  have hparts :
+      (gp.challengedParty == .B) = true ∧
+        (σ.tA == gp.challengeEpoch - 1) = true := by
+    simpa [sendAInjectsChallengeKey] using ((Bool.and_eq_true _ _).mp hinj)
+  have ht : σ.tA = gp.challengeEpoch - 1 := beq_iff_eq.mp hparts.2
+  exact allowCorrPCS_false_of_two_le_deltaPCS_of_tA_pred gp σ hΔ ht
+
+private lemma allowCorrPCS_false_of_sendB_injectsChallengeKey
+    (gp : CKAScheme.GameParams)
+    (σ : SecurityState K PK SK C)
+    (hΔ : 2 ≤ gp.ΔPCS)
+    (hinj : sendBInjectsChallengeKey gp σ = true) :
+    CKAScheme.allowCorrPCS gp σ = false := by
+  have hparts :
+      (gp.challengedParty == .A) = true ∧
+        (σ.tB == gp.challengeEpoch - 1) = true := by
+    simpa [sendBInjectsChallengeKey] using ((Bool.and_eq_true _ _).mp hinj)
+  have ht : σ.tB = gp.challengeEpoch - 1 := beq_iff_eq.mp hparts.2
+  exact allowCorrPCS_false_of_two_le_deltaPCS_of_tB_pred gp σ hΔ ht
 
 private def oracleSendAWithChallengePk
     (kem : KEMScheme ProbComp K PK SK C)
@@ -342,6 +416,57 @@ private def finishChallengeStep [SampleableType K] [DecidableEq K]
       let (guess, _) ←
         (simulateQ (postChallengeImpl kem hDet leak gp) (cont (some (msg, kStar)))).run ps0
       pure (!guess)
+
+private def finishChallengeStepRaw [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (gp : CKAScheme.GameParams)
+    (res : CKAChallengeStepResult leak Bool)
+    (σ : SecurityState K PK SK C)
+    (cStar : C) (kStar : K) : ProbComp Bool :=
+  match res with
+  | .done guess => pure guess
+  | .pausedA cont => do
+      let (pkNext, skNext) ← kem.keygen
+      let msg : Message C PK := (cStar, pkNext)
+      let σ' : SecurityState K PK SK C := { σ with
+        stA := State.recvReady skNext,
+        rhoA := some msg,
+        keyA := some kStar,
+        lastAction := some .challA,
+        tA := σ.tA + 1 }
+      let ps0 : PostChallengeState K PK SK C :=
+        { game := σ', pending := .aToB kStar pkNext msg }
+      let (guess, _) ←
+        (simulateQ (postChallengeImpl kem hDet leak gp) (cont (some (msg, kStar)))).run ps0
+      pure guess
+  | .pausedB cont => do
+      let (pkNext, skNext) ← kem.keygen
+      let msg : Message C PK := (cStar, pkNext)
+      let σ' : SecurityState K PK SK C := { σ with
+        stB := State.recvReady skNext,
+        rhoB := some msg,
+        keyB := some kStar,
+        lastAction := some .challB,
+        tB := σ.tB + 1 }
+      let ps0 : PostChallengeState K PK SK C :=
+        { game := σ', pending := .bToA kStar pkNext msg }
+      let (guess, _) ←
+        (simulateQ (postChallengeImpl kem hDet leak gp) (cont (some (msg, kStar)))).run ps0
+      pure guess
+
+private lemma finishChallengeStep_eq_not_map_raw [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (gp : CKAScheme.GameParams)
+    (res : CKAChallengeStepResult leak Bool)
+    (σ : SecurityState K PK SK C)
+    (cStar : C) (kStar : K) :
+    finishChallengeStep kem hDet leak gp res σ cStar kStar =
+      (! ·) <$> finishChallengeStepRaw kem hDet leak gp res σ cStar kStar := by
+  cases res <;> simp [finishChallengeStep, finishChallengeStepRaw]
 
 private inductive ReductionBranchState (K PK SK C : Type) where
   | pre (game : SecurityState K PK SK C)
@@ -764,6 +889,71 @@ private def ckaReductionINDCPABranch [SampleableType K] [DecidableEq K]
   let kRand ← ($ᵗ K)
   finishChallengeStep kem hDet leak gp res σ cStar (if b then kReal else kRand)
 
+private def ckaReductionINDCPABranchRaw [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (adv : Adversary (kem := kem) leak)
+    (gp : CKAScheme.GameParams)
+    (b : Bool) : ProbComp Bool := do
+  let (pkStar, _skStar) ← kem.keygen
+  let (pk0, sk0) ← kem.keygen
+  let σ0 :=
+    CKAScheme.initGameState
+      (if gp.challengeEpoch == 1 && gp.challengedParty == .A then
+        State.sendReady pkStar
+      else
+        State.sendReady pk0)
+      (State.recvReady sk0)
+  let (res, σ) ← (challengePrefix kem hDet leak gp pkStar adv).run σ0
+  let (cStar, kReal) ← kem.encaps pkStar
+  let kRand ← ($ᵗ K)
+  finishChallengeStepRaw kem hDet leak gp res σ cStar (if b then kReal else kRand)
+
+private lemma ckaReductionINDCPABranch_eq_not_map_raw [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (adv : Adversary (kem := kem) leak)
+    (gp : CKAScheme.GameParams)
+    (b : Bool) :
+    ckaReductionINDCPABranch kem hDet leak adv gp b =
+      (! ·) <$> ckaReductionINDCPABranchRaw kem hDet leak adv gp b := by
+  unfold ckaReductionINDCPABranch ckaReductionINDCPABranchRaw
+  simp only [map_bind]
+  refine bind_congr (m := ProbComp) fun pkStar_skStar => ?_
+  refine bind_congr (m := ProbComp) fun pk0_sk0 => ?_
+  refine bind_congr (m := ProbComp) fun res_σ => ?_
+  refine bind_congr (m := ProbComp) fun cStar_kReal => ?_
+  refine bind_congr (m := ProbComp) fun kRand => ?_
+  rw [finishChallengeStep_eq_not_map_raw]
+
+private lemma abs_probOutput_true_not_map_gap_eq (mx my : ProbComp Bool) :
+    |(Pr[= true | (! ·) <$> mx]).toReal -
+      (Pr[= true | (! ·) <$> my]).toReal| =
+    |(Pr[= true | mx]).toReal - (Pr[= true | my]).toReal| := by
+  simp [probOutput_false_eq_sub]
+  ring_nf
+  rw [show -Pr[= true | my].toReal + Pr[= true | mx].toReal =
+      Pr[= true | mx].toReal - Pr[= true | my].toReal by ring]
+  exact abs_sub_comm (Pr[= true | my].toReal) (Pr[= true | mx].toReal)
+
+private lemma ckaReductionINDCPABranch_gap_eq_raw_gap [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (adv : Adversary (kem := kem) leak)
+    (gp : CKAScheme.GameParams) :
+    |(Pr[= true | ckaReductionINDCPABranch kem hDet leak adv gp true]).toReal -
+      (Pr[= true | ckaReductionINDCPABranch kem hDet leak adv gp false]).toReal| =
+    |(Pr[= true | ckaReductionINDCPABranchRaw kem hDet leak adv gp true]).toReal -
+      (Pr[= true | ckaReductionINDCPABranchRaw kem hDet leak adv gp false]).toReal| := by
+  rw [ckaReductionINDCPABranch_eq_not_map_raw]
+  rw [ckaReductionINDCPABranch_eq_not_map_raw]
+  exact abs_probOutput_true_not_map_gap_eq
+    (ckaReductionINDCPABranchRaw kem hDet leak adv gp true)
+    (ckaReductionINDCPABranchRaw kem hDet leak adv gp false)
+
 private lemma indCPAExpProb_ckaToINDCPAReduction_eq_branch
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
@@ -920,6 +1110,43 @@ private lemma cka_securityAdvantage_le_ind_cpa_of_fixed_gap
   rw [CKAScheme.securityExp_toReal_sub_half]
   exact le_trans (abs_half_gap_le_abs _) hGap
 
+private lemma cka_fixed_gap_le_normalized_reduction_raw_gap
+    [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (adv : Adversary (kem := kem) leak)
+    (gp : CKAScheme.GameParams)
+    (_hgp : AdmissibleParams gp) :
+    |(Pr[= true |
+        CKAScheme.securityExpFixedBit (SecurityCKA kem hDet leak) adv true gp]).toReal -
+      (Pr[= true |
+        CKAScheme.securityExpFixedBit (SecurityCKA kem hDet leak) adv false gp]).toReal| ≤
+    |(Pr[= true | ckaReductionINDCPABranchRaw kem hDet leak adv gp true]).toReal -
+      (Pr[= true | ckaReductionINDCPABranchRaw kem hDet leak adv gp false]).toReal| := by
+  /- Remaining semantic obligation: relate the fixed-bit CKA game to the raw
+     normalized reduction branch. This is now only the protocol-level
+     game-hop/cancellation argument over `challengePrefix`; the IND-CPA sampling
+     order and final Boolean complement have both been factored out. -/
+  sorry
+
+private lemma cka_fixed_gap_le_normalized_reduction_gap
+    [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (adv : Adversary (kem := kem) leak)
+    (gp : CKAScheme.GameParams)
+    (hgp : AdmissibleParams gp) :
+    |(Pr[= true |
+        CKAScheme.securityExpFixedBit (SecurityCKA kem hDet leak) adv true gp]).toReal -
+      (Pr[= true |
+        CKAScheme.securityExpFixedBit (SecurityCKA kem hDet leak) adv false gp]).toReal| ≤
+    |(Pr[= true | ckaReductionINDCPABranch kem hDet leak adv gp true]).toReal -
+      (Pr[= true | ckaReductionINDCPABranch kem hDet leak adv gp false]).toReal| := by
+  rw [ckaReductionINDCPABranch_gap_eq_raw_gap]
+  exact cka_fixed_gap_le_normalized_reduction_raw_gap kem hDet leak adv gp hgp
+
 private lemma ckaToINDCPAReduction_fixed_gap_dominates
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
@@ -936,11 +1163,11 @@ private lemma ckaToINDCPAReduction_fixed_gap_dominates
         (ckaToINDCPAReduction kem hDet leak adv gp) true]).toReal -
       (Pr[= true | kem.IND_CPA_Exp ProbCompRuntime.probComp
         (ckaToINDCPAReduction kem hDet leak adv gp) false]).toReal| := by
-  /- Remaining semantic obligation: show that the concrete reduction's fixed
-     IND-CPA branch gap dominates the CKA real/random fixed-branch gap. Paths
-     that never trigger the challenge oracle must cancel from the branch gap;
-     challenge paths are related by the prefix/post-challenge simulation. -/
-  sorry
+  rw [ckaToINDCPAReduction_IND_CPA_Exp_probOutput_true_eq_branch
+    kem hDet leak adv gp true]
+  rw [ckaToINDCPAReduction_IND_CPA_Exp_probOutput_true_eq_branch
+    kem hDet leak adv gp false]
+  exact cka_fixed_gap_le_normalized_reduction_gap kem hDet leak adv gp _hgp
 
 /-- Existential security-reduction statement for CKA from a KEM.
 
