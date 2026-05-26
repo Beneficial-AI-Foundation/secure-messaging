@@ -910,6 +910,46 @@ private def ckaReductionINDCPABranchRaw [SampleableType K] [DecidableEq K]
   let kRand ← ($ᵗ K)
   finishChallengeStepRaw kem hDet leak gp res σ cStar (if b then kReal else kRand)
 
+private def ckaSecurityFixedFromState [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (adv : Adversary (kem := kem) leak)
+    (gp : CKAScheme.GameParams)
+    (σ : SecurityState K PK SK C)
+    (isRandom : Bool) : ProbComp Bool := do
+  let (guess, _) ←
+    (simulateQ (securityImpl kem hDet leak gp isRandom) adv).run σ
+  pure guess
+
+private def ckaSecurityFixedBranch [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (adv : Adversary (kem := kem) leak)
+    (gp : CKAScheme.GameParams)
+    (isRandom : Bool) : ProbComp Bool := do
+  let (pk0, sk0) ← kem.keygen
+  let σ0 :=
+    CKAScheme.initGameState
+      (State.sendReady pk0)
+      (State.recvReady sk0)
+  ckaSecurityFixedFromState kem hDet leak adv gp σ0 isRandom
+
+private lemma securityExpFixedBit_eq_ckaSecurityFixedBranch
+    [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (adv : Adversary (kem := kem) leak)
+    (gp : CKAScheme.GameParams)
+    (isRandom : Bool) :
+    CKAScheme.securityExpFixedBit (SecurityCKA kem hDet leak) adv isRandom gp =
+      ckaSecurityFixedBranch kem hDet leak adv gp isRandom := by
+  unfold CKAScheme.securityExpFixedBit ckaSecurityFixedBranch
+  unfold ckaSecurityFixedFromState SecurityCKA securityImpl
+  simp [schemeWithLeak, initA, initB]
+
 private lemma ckaReductionINDCPABranch_eq_not_map_raw [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -1110,6 +1150,28 @@ private lemma cka_securityAdvantage_le_ind_cpa_of_fixed_gap
   rw [CKAScheme.securityExp_toReal_sub_half]
   exact le_trans (abs_half_gap_le_abs _) hGap
 
+private lemma cka_fixed_gap_le_normalized_reduction_raw_gap_pure
+    [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (gp : CKAScheme.GameParams)
+    (guess : Bool) :
+    |(Pr[= true |
+        CKAScheme.securityExpFixedBit (SecurityCKA kem hDet leak)
+          (pure guess : OracleComp (SecuritySpec leak) Bool) true gp]).toReal -
+      (Pr[= true |
+        CKAScheme.securityExpFixedBit (SecurityCKA kem hDet leak)
+          (pure guess : OracleComp (SecuritySpec leak) Bool) false gp]).toReal| ≤
+    |(Pr[= true |
+        ckaReductionINDCPABranchRaw kem hDet leak
+          (pure guess : OracleComp (SecuritySpec leak) Bool) gp true]).toReal -
+      (Pr[= true |
+        ckaReductionINDCPABranchRaw kem hDet leak
+          (pure guess : OracleComp (SecuritySpec leak) Bool) gp false]).toReal| := by
+  simp [CKAScheme.securityExpFixedBit, ckaReductionINDCPABranchRaw,
+    SecurityCKA, schemeWithLeak, finishChallengeStepRaw]
+
 private lemma cka_fixed_gap_le_normalized_reduction_raw_gap
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
@@ -1124,10 +1186,13 @@ private lemma cka_fixed_gap_le_normalized_reduction_raw_gap
         CKAScheme.securityExpFixedBit (SecurityCKA kem hDet leak) adv false gp]).toReal| ≤
     |(Pr[= true | ckaReductionINDCPABranchRaw kem hDet leak adv gp true]).toReal -
       (Pr[= true | ckaReductionINDCPABranchRaw kem hDet leak adv gp false]).toReal| := by
-  /- Remaining semantic obligation: relate the fixed-bit CKA game to the raw
-     normalized reduction branch. This is now only the protocol-level
-     game-hop/cancellation argument over `challengePrefix`; the IND-CPA sampling
-     order and final Boolean complement have both been factored out. -/
+  rw [securityExpFixedBit_eq_ckaSecurityFixedBranch]
+  rw [securityExpFixedBit_eq_ckaSecurityFixedBranch]
+  /- Remaining semantic obligation: relate the normalized fixed-bit CKA branch
+     to the raw normalized reduction branch. This is now only the protocol-level
+     game-hop/cancellation argument over `challengePrefix`; the CKA initialization,
+     IND-CPA sampling order, and final Boolean complement have all been factored
+     out. -/
   sorry
 
 private lemma cka_fixed_gap_le_normalized_reduction_gap
