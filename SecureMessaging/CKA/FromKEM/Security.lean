@@ -448,6 +448,174 @@ private def ckaToINDCPAReduction [SampleableType K] [DecidableEq K]
           (simulateQ (postChallengeImpl kem hDet leak gp) (cont (some (msg, kStar)))).run ps0
         pure (!guess)
 
+private lemma probCompRuntime_probOutput_eq {α : Type} (mx : ProbComp α) (x : α) :
+    Pr[= x | ProbCompRuntime.probComp.evalDist mx] = Pr[= x | mx] := by
+  rfl
+
+private structure INDCPAPrefixState
+    (kem : KEMScheme ProbComp K PK SK C)
+    (red : kem.IND_CPA_Adversary) where
+  st : red.State
+  cStar : C
+  kReal : K
+  kRand : K
+
+private def indCPAPrefix [SampleableType K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (red : kem.IND_CPA_Adversary) : ProbComp (INDCPAPrefixState kem red) := do
+  let (pk, _sk) ← kem.keygen
+  let st ← red.preChallenge pk
+  let (cStar, kReal) ← kem.encaps pk
+  let kRand ← ($ᵗ K)
+  pure { st := st, cStar := cStar, kReal := kReal, kRand := kRand }
+
+private def indCPAExpProb [SampleableType K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (red : kem.IND_CPA_Adversary) (b : Bool) : ProbComp Bool := do
+  let p ← indCPAPrefix kem red
+  red.postChallenge p.st p.cStar (if b then p.kReal else p.kRand)
+
+private def indCPAGameProb [SampleableType K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (red : kem.IND_CPA_Adversary) : ProbComp Bool := do
+  let (pk, _sk) ← kem.keygen
+  let st ← red.preChallenge pk
+  let b ← ($ᵗ Bool)
+  let (cStar, kReal) ← kem.encaps pk
+  let kRand ← ($ᵗ K)
+  let b' ← red.postChallenge st cStar (if b then kReal else kRand)
+  return (b == b')
+
+private def indCPABranchGameProb [SampleableType K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (red : kem.IND_CPA_Adversary) : ProbComp Bool := do
+  let p ← indCPAPrefix kem red
+  let b ← ($ᵗ Bool)
+  let z ← if b then red.postChallenge p.st p.cStar p.kReal
+          else red.postChallenge p.st p.cStar p.kRand
+  pure (b == z)
+
+private lemma indCPAGameProb_evalDist_eq_branch [SampleableType K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (red : kem.IND_CPA_Adversary) :
+    𝒟[indCPAGameProb kem red] = 𝒟[indCPABranchGameProb kem red] := by
+  apply evalDist_ext
+  intro x
+  unfold indCPAGameProb indCPABranchGameProb indCPAPrefix
+  simp only [monad_norm]
+  refine probOutput_bind_congr' kem.keygen x ?_
+  intro pk_sk
+  refine probOutput_bind_congr' (red.preChallenge pk_sk.1) x ?_
+  intro st
+  rw [probOutput_bind_bind_swap ($ᵗ Bool) (kem.encaps pk_sk.1)
+    (fun b ck => do
+      let kRand ← ($ᵗ K)
+      let b' ← red.postChallenge st ck.1 (if b then ck.2 else kRand)
+      pure (b == b')) x]
+  refine probOutput_bind_congr' (kem.encaps pk_sk.1) x ?_
+  intro ck
+  rw [probOutput_bind_bind_swap ($ᵗ Bool) ($ᵗ K)
+    (fun b kRand => do
+      let b' ← red.postChallenge st ck.1 (if b then ck.2 else kRand)
+      pure (b == b')) x]
+  refine probOutput_bind_congr' ($ᵗ K) x ?_
+  intro kRand
+  refine probOutput_bind_congr' ($ᵗ Bool) x ?_
+  intro b
+  cases b <;> rfl
+
+private lemma indCPAGameProb_advantage_eq_fixed_dist [SampleableType K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (red : kem.IND_CPA_Adversary) :
+    (indCPAGameProb kem red).boolBiasAdvantage =
+      (indCPAExpProb kem red true).boolDistAdvantage
+        (indCPAExpProb kem red false) := by
+  rw [show (indCPAGameProb kem red).boolBiasAdvantage =
+      (indCPABranchGameProb kem red).boolBiasAdvantage by
+    unfold ProbComp.boolBiasAdvantage
+    rw [evalDist_ext_iff.mp (indCPAGameProb_evalDist_eq_branch kem red) true]
+    rw [evalDist_ext_iff.mp (indCPAGameProb_evalDist_eq_branch kem red) false]]
+  simpa [indCPABranchGameProb, indCPAExpProb] using
+    ProbComp.boolBiasAdvantage_bind_uniformBool_eq_boolDistAdvantage
+      (indCPAPrefix kem red)
+      (fun p => red.postChallenge p.st p.cStar p.kReal)
+      (fun p => red.postChallenge p.st p.cStar p.kRand)
+
+private lemma indCPAExpProb_probOutput_true_eq [SampleableType K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (red : kem.IND_CPA_Adversary) (b : Bool) :
+    Pr[= true | indCPAExpProb kem red b] =
+      Pr[= true | kem.IND_CPA_Exp ProbCompRuntime.probComp red b] := by
+  unfold KEMScheme.IND_CPA_Exp
+  rw [probCompRuntime_probOutput_eq]
+  cases b <;>
+    simp [indCPAExpProb, indCPAPrefix,
+      ProbCompRuntime.probComp, ProbCompRuntime.liftProbComp, ProbCompLift.id,
+      monad_norm]
+
+private lemma kem_ind_cpa_advantage_eq_fixed_branch_dist [SampleableType K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (red : kem.IND_CPA_Adversary) :
+    kem.IND_CPA_Advantage ProbCompRuntime.probComp red =
+      |(Pr[= true | kem.IND_CPA_Exp ProbCompRuntime.probComp red true]).toReal -
+        (Pr[= true | kem.IND_CPA_Exp ProbCompRuntime.probComp red false]).toReal| := by
+  rw [show kem.IND_CPA_Advantage ProbCompRuntime.probComp red =
+      (indCPAGameProb kem red).boolBiasAdvantage by rfl]
+  rw [indCPAGameProb_advantage_eq_fixed_dist]
+  unfold ProbComp.boolDistAdvantage
+  rw [indCPAExpProb_probOutput_true_eq kem red true]
+  rw [indCPAExpProb_probOutput_true_eq kem red false]
+
+private lemma abs_half_gap_le_abs (x : ℝ) : |x / 2| ≤ |x| := by
+  have hnonneg : 0 ≤ |x| := abs_nonneg _
+  rw [abs_div]
+  rw [abs_of_pos (by norm_num : (0 : ℝ) < 2)]
+  nlinarith
+
+private lemma cka_securityAdvantage_le_ind_cpa_of_fixed_gap
+    [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (adv : Adversary (kem := kem) leak)
+    (gp : CKAScheme.GameParams)
+    (red : kem.IND_CPA_Adversary)
+    (hGap :
+      |(Pr[= true |
+          CKAScheme.securityExpFixedBit (SecurityCKA kem hDet leak) adv true gp]).toReal -
+        (Pr[= true |
+          CKAScheme.securityExpFixedBit (SecurityCKA kem hDet leak) adv false gp]).toReal| ≤
+      |(Pr[= true | kem.IND_CPA_Exp ProbCompRuntime.probComp red true]).toReal -
+        (Pr[= true | kem.IND_CPA_Exp ProbCompRuntime.probComp red false]).toReal|) :
+    CKAScheme.securityAdvantage (SecurityCKA kem hDet leak) adv gp ≤
+      kem.IND_CPA_Advantage ProbCompRuntime.probComp red := by
+  rw [kem_ind_cpa_advantage_eq_fixed_branch_dist]
+  unfold CKAScheme.securityAdvantage
+  rw [CKAScheme.securityExp_toReal_sub_half]
+  exact le_trans (abs_half_gap_le_abs _) hGap
+
+private lemma ckaToINDCPAReduction_fixed_gap_dominates
+    [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (adv : Adversary (kem := kem) leak)
+    (gp : CKAScheme.GameParams)
+    (_hgp : AdmissibleParams gp) :
+    |(Pr[= true |
+        CKAScheme.securityExpFixedBit (SecurityCKA kem hDet leak) adv true gp]).toReal -
+      (Pr[= true |
+        CKAScheme.securityExpFixedBit (SecurityCKA kem hDet leak) adv false gp]).toReal| ≤
+    |(Pr[= true | kem.IND_CPA_Exp ProbCompRuntime.probComp
+        (ckaToINDCPAReduction kem hDet leak adv gp) true]).toReal -
+      (Pr[= true | kem.IND_CPA_Exp ProbCompRuntime.probComp
+        (ckaToINDCPAReduction kem hDet leak adv gp) false]).toReal| := by
+  /- Remaining semantic obligation: show that the concrete reduction's fixed
+     IND-CPA branch gap dominates the CKA real/random fixed-branch gap. Paths
+     that never trigger the challenge oracle must cancel from the branch gap;
+     challenge paths are related by the prefix/post-challenge simulation. -/
+  sorry
+
 /-- Existential security-reduction statement for CKA from a KEM.
 
 For every CKA adversary and admissible challenge parameters, there exists an
@@ -469,6 +637,8 @@ theorem security_reduces_to_ind_cpa_exists [SampleableType K] [DecidableEq K]
       CKAScheme.securityAdvantage (schemeWithLeak kem hDet leak) adv gp ≤
         kem.IND_CPA_Advantage ProbCompRuntime.probComp red := by
   refine ⟨ckaToINDCPAReduction kem hDet leak adv gp, ?_⟩
-  sorry
+  exact cka_securityAdvantage_le_ind_cpa_of_fixed_gap
+    kem hDet leak adv gp (ckaToINDCPAReduction kem hDet leak adv gp)
+    (ckaToINDCPAReduction_fixed_gap_dominates kem hDet leak adv gp hgp)
 
 end kemCKA
