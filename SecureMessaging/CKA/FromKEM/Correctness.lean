@@ -31,7 +31,13 @@ variable {K PK SK C : Type}
 
 open CKAScheme.ckaCorrectnessSpec
 
-private lemma decapsDet_eq_some_of_mem_support [DecidableEq K]
+/-- Perfect KEM correctness specialized to deterministic decapsulation.
+
+If `(pk, sk)` can be sampled by key generation and `(c, key)` can be sampled by
+encapsulation under `pk`, then the deterministic decapsulation witness recovers
+exactly `key` from `sk` and `c`.
+-/
+lemma decapsDet_eq_some_of_mem_support [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
     (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)

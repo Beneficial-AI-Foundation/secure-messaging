@@ -110,6 +110,121 @@ abbrev SecurityCKA
     (leak : KEMRandLeak kem) :=
   schemeWithLeak kem hDet leak
 
+/-- Epoch-counter invariant for the A-first alternating CKA game.
+
+After a send/challenge by one party, that party's counter is exactly one ahead
+of the receiver's counter. After a receive, counters are synchronized again.
+-/
+def epochCounterInv (s : SecurityState K PK SK C) : Prop :=
+  match s.lastAction with
+  | none | some .recvA | some .recvB => s.tA = s.tB
+  | some .sendA | some .challA => s.tA = s.tB + 1
+  | some .sendB | some .challB => s.tB = s.tA + 1
+
+lemma epochCounterInv_after_sendA
+    (σ : SecurityState K PK SK C)
+    (hInv : epochCounterInv σ)
+    (hstep : CKAScheme.validStep σ.lastAction .sendA = true) :
+    epochCounterInv
+      ({ σ with lastAction := some .sendA, tA := σ.tA + 1 } :
+        SecurityState K PK SK C) := by
+  cases hlast : σ.lastAction with
+  | none =>
+      simp [epochCounterInv, hlast] at hInv ⊢
+      omega
+  | some act =>
+      cases act <;> simp [CKAScheme.validStep, hlast] at hstep
+      case recvA =>
+        simp [epochCounterInv, hlast] at hInv ⊢
+        omega
+
+lemma epochCounterInv_after_challA
+    (σ : SecurityState K PK SK C)
+    (hInv : epochCounterInv σ)
+    (hstep : CKAScheme.validStep σ.lastAction .challA = true) :
+    epochCounterInv
+      ({ σ with lastAction := some .challA, tA := σ.tA + 1 } :
+        SecurityState K PK SK C) := by
+  cases hlast : σ.lastAction with
+  | none =>
+      simp [epochCounterInv, hlast] at hInv ⊢
+      omega
+  | some act =>
+      cases act <;> simp [CKAScheme.validStep, hlast] at hstep
+      case recvA =>
+        simp [epochCounterInv, hlast] at hInv ⊢
+        omega
+
+lemma epochCounterInv_after_recvB
+    (σ : SecurityState K PK SK C)
+    (hInv : epochCounterInv σ)
+    (hstep : CKAScheme.validStep σ.lastAction .recvB = true) :
+    epochCounterInv
+      ({ σ with lastAction := some .recvB, tB := σ.tB + 1 } :
+        SecurityState K PK SK C) := by
+  cases hlast : σ.lastAction with
+  | none =>
+      simp [CKAScheme.validStep, hlast] at hstep
+  | some act =>
+      cases act <;> simp [CKAScheme.validStep, hlast] at hstep
+      case sendA =>
+        simp [epochCounterInv, hlast] at hInv ⊢
+        omega
+      case challA =>
+        simp [epochCounterInv, hlast] at hInv ⊢
+        omega
+
+lemma epochCounterInv_after_sendB
+    (σ : SecurityState K PK SK C)
+    (hInv : epochCounterInv σ)
+    (hstep : CKAScheme.validStep σ.lastAction .sendB = true) :
+    epochCounterInv
+      ({ σ with lastAction := some .sendB, tB := σ.tB + 1 } :
+        SecurityState K PK SK C) := by
+  cases hlast : σ.lastAction with
+  | none =>
+      simp [CKAScheme.validStep, hlast] at hstep
+  | some act =>
+      cases act <;> simp [CKAScheme.validStep, hlast] at hstep
+      case recvB =>
+        simp [epochCounterInv, hlast] at hInv ⊢
+        omega
+
+lemma epochCounterInv_after_challB
+    (σ : SecurityState K PK SK C)
+    (hInv : epochCounterInv σ)
+    (hstep : CKAScheme.validStep σ.lastAction .challB = true) :
+    epochCounterInv
+      ({ σ with lastAction := some .challB, tB := σ.tB + 1 } :
+        SecurityState K PK SK C) := by
+  cases hlast : σ.lastAction with
+  | none =>
+      simp [CKAScheme.validStep, hlast] at hstep
+  | some act =>
+      cases act <;> simp [CKAScheme.validStep, hlast] at hstep
+      case recvB =>
+        simp [epochCounterInv, hlast] at hInv ⊢
+        omega
+
+lemma epochCounterInv_after_recvA
+    (σ : SecurityState K PK SK C)
+    (hInv : epochCounterInv σ)
+    (hstep : CKAScheme.validStep σ.lastAction .recvA = true) :
+    epochCounterInv
+      ({ σ with lastAction := some .recvA, tA := σ.tA + 1 } :
+        SecurityState K PK SK C) := by
+  cases hlast : σ.lastAction with
+  | none =>
+      simp [CKAScheme.validStep, hlast] at hstep
+  | some act =>
+      cases act <;> simp [CKAScheme.validStep, hlast] at hstep
+      case sendB =>
+        simp [epochCounterInv, hlast] at hInv ⊢
+        omega
+      case challB =>
+        simp [epochCounterInv, hlast] at hInv ⊢
+        omega
+
 def securityImpl [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -132,6 +247,123 @@ def willChallengeB
   CKAScheme.validStep σ.lastAction .challB &&
     (gp.challengedParty == .B) &&
     (σ.tB + 1 == gp.challengeEpoch)
+
+lemma lastAction_of_willChallengeA
+    (gp : CKAScheme.GameParams)
+    (σ : SecurityState K PK SK C)
+    (hWill : willChallengeA gp σ = true) :
+    σ.lastAction = none ∨ σ.lastAction = some .recvA := by
+  have hparts := (Bool.and_eq_true _ _).mp hWill
+  have hvalidAndParty := (Bool.and_eq_true _ _).mp hparts.1
+  have hvalid : CKAScheme.validStep σ.lastAction .challA = true :=
+    hvalidAndParty.1
+  cases hlast : σ.lastAction with
+  | none =>
+      exact Or.inl rfl
+  | some act =>
+      cases act <;> simp [CKAScheme.validStep, hlast] at hvalid
+      case recvA =>
+        exact Or.inr rfl
+
+lemma lastAction_of_willChallengeB
+    (gp : CKAScheme.GameParams)
+    (σ : SecurityState K PK SK C)
+    (hWill : willChallengeB gp σ = true) :
+    σ.lastAction = some .recvB := by
+  have hparts := (Bool.and_eq_true _ _).mp hWill
+  have hvalidAndParty := (Bool.and_eq_true _ _).mp hparts.1
+  have hvalid : CKAScheme.validStep σ.lastAction .challB = true :=
+    hvalidAndParty.1
+  cases hlast : σ.lastAction with
+  | none =>
+      simp [CKAScheme.validStep, hlast] at hvalid
+  | some act =>
+      cases act <;> simp [CKAScheme.validStep, hlast] at hvalid
+      case recvB =>
+        rfl
+
+lemma allowCorr_receiverB_false_after_challA
+    (gp : CKAScheme.GameParams)
+    (hgp : AdmissibleParams gp)
+    (σ : SecurityState K PK SK C)
+    (hInv : epochCounterInv σ)
+    (hWill : willChallengeA gp σ = true) :
+    CKAScheme.allowCorr gp
+      ({ σ with lastAction := some .challA, tA := σ.tA + 1 } :
+        SecurityState K PK SK C) .B = false := by
+  have hparts := (Bool.and_eq_true _ _).mp hWill
+  have ht : σ.tA + 1 = gp.challengeEpoch := beq_iff_eq.mp hparts.2
+  have hlast := lastAction_of_willChallengeA gp σ hWill
+  have hsync : σ.tA = σ.tB := by
+    rcases hlast with hlast | hlast <;>
+      simpa [epochCounterInv, hlast] using hInv
+  have hΔ : 2 ≤ gp.ΔPCS := hgp.two_le_deltaPCS
+  have hfsNot : ¬ gp.challengeEpoch + gp.ΔFS ≤ σ.tB := by
+    rw [hgp.deltaFS_zero]
+    omega
+  have hmax : max (σ.tA + 1) σ.tB = gp.challengeEpoch := by
+    apply le_antisymm
+    · rw [max_le_iff]
+      constructor <;> omega
+    · rw [← ht]
+      exact Nat.le_max_left _ _
+  have hpcsNot : ¬ max (σ.tA + 1) σ.tB + gp.ΔPCS ≤ gp.challengeEpoch := by
+    rw [hmax]
+    omega
+  have hpcs :
+      CKAScheme.allowCorrPCS gp
+        ({ σ with lastAction := some .challA, tA := σ.tA + 1 } :
+          SecurityState K PK SK C) = false := by
+    simp [CKAScheme.allowCorrPCS, hpcsNot]
+  have hfs :
+      CKAScheme.allowCorrFS gp
+        ({ σ with lastAction := some .challA, tA := σ.tA + 1 } :
+          SecurityState K PK SK C) .B = false := by
+    simp [CKAScheme.allowCorrFS, hfsNot]
+  unfold CKAScheme.allowCorr
+  rw [hpcs]
+  simp [hfs]
+
+lemma allowCorr_receiverA_false_after_challB
+    (gp : CKAScheme.GameParams)
+    (hgp : AdmissibleParams gp)
+    (σ : SecurityState K PK SK C)
+    (hInv : epochCounterInv σ)
+    (hWill : willChallengeB gp σ = true) :
+    CKAScheme.allowCorr gp
+      ({ σ with lastAction := some .challB, tB := σ.tB + 1 } :
+        SecurityState K PK SK C) .A = false := by
+  have hparts := (Bool.and_eq_true _ _).mp hWill
+  have ht : σ.tB + 1 = gp.challengeEpoch := beq_iff_eq.mp hparts.2
+  have hlast := lastAction_of_willChallengeB gp σ hWill
+  have hsync : σ.tA = σ.tB := by
+    simpa [epochCounterInv, hlast] using hInv
+  have hΔ : 2 ≤ gp.ΔPCS := hgp.two_le_deltaPCS
+  have hfsNot : ¬ gp.challengeEpoch + gp.ΔFS ≤ σ.tA := by
+    rw [hgp.deltaFS_zero]
+    omega
+  have hmax : max σ.tA (σ.tB + 1) = gp.challengeEpoch := by
+    apply le_antisymm
+    · rw [max_le_iff]
+      constructor <;> omega
+    · rw [← ht]
+      exact Nat.le_max_right _ _
+  have hpcsNot : ¬ max σ.tA (σ.tB + 1) + gp.ΔPCS ≤ gp.challengeEpoch := by
+    rw [hmax]
+    omega
+  have hpcs :
+      CKAScheme.allowCorrPCS gp
+        ({ σ with lastAction := some .challB, tB := σ.tB + 1 } :
+          SecurityState K PK SK C) = false := by
+    simp [CKAScheme.allowCorrPCS, hpcsNot]
+  have hfs :
+      CKAScheme.allowCorrFS gp
+        ({ σ with lastAction := some .challB, tB := σ.tB + 1 } :
+          SecurityState K PK SK C) .A = false := by
+    simp [CKAScheme.allowCorrFS, hfsNot]
+  unfold CKAScheme.allowCorr
+  rw [hpcs]
+  simp [hfs]
 
 def sendAInjectsChallengeKey
     (gp : CKAScheme.GameParams)

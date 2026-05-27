@@ -131,6 +131,162 @@ def postChallengeImpl [SampleableType K] [DecidableEq K]
     | other =>
         liftSecurityImplToPost kem hDet leak gp other
 
+lemma securityImpl_recvB_of_decaps_eq [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (gp : CKAScheme.GameParams)
+    (g : SecurityState K PK SK C)
+    (sk : SK) (msg : Message C PK) (key : K)
+    (hstep : CKAScheme.validStep g.lastAction .recvB = true)
+    (hdec : hDet.decapsDet sk msg.1 = some key) :
+    (securityImpl kem hDet leak gp false
+        (CKAScheme.ckaSecuritySpec.ORecvB : (SecuritySpec leak).Domain)).run
+        { g with stB := State.recvReady sk, rhoA := some msg, keyA := some key } =
+      pure ((), { g with
+        stB := State.sendReady msg.2,
+        rhoA := none,
+        keyA := none,
+        correct := g.correct,
+        lastAction := some .recvB,
+        tB := g.tB + 1 }) := by
+  change (CKAScheme.oracleRecvB (schemeWithLeak kem hDet leak) ()).run
+        { g with stB := State.recvReady sk, rhoA := some msg, keyA := some key } = _
+  simp [CKAScheme.oracleRecvB, schemeWithLeak, recv, hstep, hdec]
+
+lemma securityImpl_recvA_of_decaps_eq [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (gp : CKAScheme.GameParams)
+    (g : SecurityState K PK SK C)
+    (sk : SK) (msg : Message C PK) (key : K)
+    (hstep : CKAScheme.validStep g.lastAction .recvA = true)
+    (hdec : hDet.decapsDet sk msg.1 = some key) :
+    (securityImpl kem hDet leak gp false
+        (CKAScheme.ckaSecuritySpec.ORecvA : (SecuritySpec leak).Domain)).run
+        { g with stA := State.recvReady sk, rhoB := some msg, keyB := some key } =
+      pure ((), { g with
+        stA := State.sendReady msg.2,
+        rhoB := none,
+        keyB := none,
+        correct := g.correct,
+        lastAction := some .recvA,
+        tA := g.tA + 1 }) := by
+  change (CKAScheme.oracleRecvA (schemeWithLeak kem hDet leak) ()).run
+        { g with stA := State.recvReady sk, rhoB := some msg, keyB := some key } = _
+  simp [CKAScheme.oracleRecvA, schemeWithLeak, recv, hstep, hdec]
+
+lemma postChallengeImpl_recvB_aToB_of_valid [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (gp : CKAScheme.GameParams)
+    (g : SecurityState K PK SK C)
+    (key : K) (nextPk : PK) (msg : Message C PK)
+    (hstep : CKAScheme.validStep g.lastAction .recvB = true) :
+    (postChallengeImpl kem hDet leak gp
+        (CKAScheme.ckaSecuritySpec.ORecvB : (SecuritySpec leak).Domain)).run
+        ({ game := g, pending := PendingChallengeRecv.aToB key nextPk msg } :
+          PostChallengeState K PK SK C) =
+      (let g' : SecurityState K PK SK C := { g with
+          stB := State.sendReady nextPk,
+          rhoA := none,
+          keyA := none,
+          correct := g.correct && (g.keyA == some key),
+          lastAction := some .recvB,
+          tB := g.tB + 1 }
+       pure ((), ({ game := g', pending := .none } :
+         PostChallengeState K PK SK C))) := by
+  simp [postChallengeImpl, hstep, StateT.run_bind, StateT.run_get, StateT.run_set]
+  rfl
+
+lemma postChallengeImpl_recvA_bToA_of_valid [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (gp : CKAScheme.GameParams)
+    (g : SecurityState K PK SK C)
+    (key : K) (nextPk : PK) (msg : Message C PK)
+    (hstep : CKAScheme.validStep g.lastAction .recvA = true) :
+    (postChallengeImpl kem hDet leak gp
+        (CKAScheme.ckaSecuritySpec.ORecvA : (SecuritySpec leak).Domain)).run
+        ({ game := g, pending := PendingChallengeRecv.bToA key nextPk msg } :
+          PostChallengeState K PK SK C) =
+      (let g' : SecurityState K PK SK C := { g with
+          stA := State.sendReady nextPk,
+          rhoB := none,
+          keyB := none,
+          correct := g.correct && (g.keyB == some key),
+          lastAction := some .recvA,
+          tA := g.tA + 1 }
+       pure ((), ({ game := g', pending := .none } :
+         PostChallengeState K PK SK C))) := by
+  simp [postChallengeImpl, hstep, StateT.run_bind, StateT.run_get, StateT.run_set]
+  rfl
+
+lemma securityImpl_recvB_eq_project_postChallengeImpl_aToB
+    [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (gp : CKAScheme.GameParams)
+    (g : SecurityState K PK SK C)
+    (sk : SK) (msg : Message C PK) (realKey fakeKey : K)
+    (hstep : CKAScheme.validStep g.lastAction .recvB = true)
+    (hdec : hDet.decapsDet sk msg.1 = some realKey) :
+    Prod.map id PostChallengeState.game <$>
+      (postChallengeImpl kem hDet leak gp
+        (CKAScheme.ckaSecuritySpec.ORecvB : (SecuritySpec leak).Domain)).run
+        ({ game := { g with rhoA := some msg, keyA := some fakeKey },
+           pending := PendingChallengeRecv.aToB fakeKey msg.2 msg } :
+          PostChallengeState K PK SK C) =
+      (securityImpl kem hDet leak gp false
+        (CKAScheme.ckaSecuritySpec.ORecvB : (SecuritySpec leak).Domain)).run
+        { g with stB := State.recvReady sk, rhoA := some msg, keyA := some realKey } := by
+  change Prod.map id PostChallengeState.game <$>
+      (postChallengeImpl kem hDet leak gp
+        (CKAScheme.ckaSecuritySpec.ORecvB : (SecuritySpec leak).Domain)).run
+        ({ game := { g with rhoA := some msg, keyA := some fakeKey },
+           pending := PendingChallengeRecv.aToB fakeKey msg.2 msg } :
+          PostChallengeState K PK SK C) =
+    (CKAScheme.oracleRecvB (schemeWithLeak kem hDet leak) ()).run
+        { g with stB := State.recvReady sk, rhoA := some msg, keyA := some realKey }
+  simp [postChallengeImpl, CKAScheme.oracleRecvB, schemeWithLeak, recv, hstep, hdec,
+    StateT.run_bind, StateT.run_get, StateT.run_set]
+  rfl
+
+lemma securityImpl_recvA_eq_project_postChallengeImpl_bToA
+    [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (gp : CKAScheme.GameParams)
+    (g : SecurityState K PK SK C)
+    (sk : SK) (msg : Message C PK) (realKey fakeKey : K)
+    (hstep : CKAScheme.validStep g.lastAction .recvA = true)
+    (hdec : hDet.decapsDet sk msg.1 = some realKey) :
+    Prod.map id PostChallengeState.game <$>
+      (postChallengeImpl kem hDet leak gp
+        (CKAScheme.ckaSecuritySpec.ORecvA : (SecuritySpec leak).Domain)).run
+        ({ game := { g with rhoB := some msg, keyB := some fakeKey },
+           pending := PendingChallengeRecv.bToA fakeKey msg.2 msg } :
+          PostChallengeState K PK SK C) =
+      (securityImpl kem hDet leak gp false
+        (CKAScheme.ckaSecuritySpec.ORecvA : (SecuritySpec leak).Domain)).run
+        { g with stA := State.recvReady sk, rhoB := some msg, keyB := some realKey } := by
+  change Prod.map id PostChallengeState.game <$>
+      (postChallengeImpl kem hDet leak gp
+        (CKAScheme.ckaSecuritySpec.ORecvA : (SecuritySpec leak).Domain)).run
+        ({ game := { g with rhoB := some msg, keyB := some fakeKey },
+           pending := PendingChallengeRecv.bToA fakeKey msg.2 msg } :
+          PostChallengeState K PK SK C) =
+    (CKAScheme.oracleRecvA (schemeWithLeak kem hDet leak) ()).run
+        { g with stA := State.recvReady sk, rhoB := some msg, keyB := some realKey }
+  simp [postChallengeImpl, CKAScheme.oracleRecvA, schemeWithLeak, recv, hstep, hdec,
+    StateT.run_bind, StateT.run_get, StateT.run_set]
+  rfl
+
 def finishChallengeStep [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
