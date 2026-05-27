@@ -76,6 +76,7 @@ private lemma cka_fixed_gap_le_normalized_reduction_raw_gap
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
+    (_hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
     (leak : KEMRandLeak kem)
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams)
@@ -88,17 +89,21 @@ private lemma cka_fixed_gap_le_normalized_reduction_raw_gap
       (Pr[= true | ckaReductionINDCPABranchRaw kem hDet leak adv gp false]).toReal| := by
   rw [securityExpFixedBit_eq_ckaSecurityFixedBranch]
   rw [securityExpFixedBit_eq_ckaSecurityFixedBranch]
-  /- Remaining semantic obligation: relate the normalized fixed-bit CKA branch
-     to the raw normalized reduction branch. This is now only the protocol-level
-     game-hop/cancellation argument over `challengePrefix`; the CKA initialization,
-     IND-CPA sampling order, and final Boolean complement have all been factored
-     out. -/
+  /- Remaining semantic obligation: the paper's hidden-state simulation.
+
+     The reduction may install `pkStar` while the corresponding secret key is
+     unknown and represented by unrelated hidden state. Admissibility prevents
+     corruption/rleak from exposing that state before the challenge, and
+     `_hkem` justifies that the matching receive deletes the hidden decapsulation
+     key and reaches the same public next state. The proof cannot be the stronger
+     per-branch equality without this correctness argument. -/
   sorry
 
 private lemma cka_fixed_gap_le_normalized_reduction_gap
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
+    (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
     (leak : KEMRandLeak kem)
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams)
@@ -110,12 +115,13 @@ private lemma cka_fixed_gap_le_normalized_reduction_gap
     |(Pr[= true | ckaReductionINDCPABranch kem hDet leak adv gp true]).toReal -
       (Pr[= true | ckaReductionINDCPABranch kem hDet leak adv gp false]).toReal| := by
   rw [ckaReductionINDCPABranch_gap_eq_raw_gap]
-  exact cka_fixed_gap_le_normalized_reduction_raw_gap kem hDet leak adv gp hgp
+  exact cka_fixed_gap_le_normalized_reduction_raw_gap kem hDet hkem leak adv gp hgp
 
 private lemma ckaToINDCPAReduction_fixed_gap_dominates
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
+    (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
     (leak : KEMRandLeak kem)
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams)
@@ -132,13 +138,14 @@ private lemma ckaToINDCPAReduction_fixed_gap_dominates
     kem hDet leak adv gp true]
   rw [ckaToINDCPAReduction_IND_CPA_Exp_probOutput_true_eq_branch
     kem hDet leak adv gp false]
-  exact cka_fixed_gap_le_normalized_reduction_gap kem hDet leak adv gp _hgp
+  exact cka_fixed_gap_le_normalized_reduction_gap kem hDet hkem leak adv gp _hgp
 
 /-- Existential security-reduction statement for CKA from a KEM.
 
-For every CKA adversary and admissible challenge parameters, there exists an
-IND-CPA adversary against the input KEM whose advantage upper-bounds the
-CKA security advantage of the constructed protocol.
+For every perfectly correct input KEM, every CKA adversary, and every admissible
+challenge parameter set, there exists an IND-CPA adversary against the input KEM
+whose advantage upper-bounds the CKA security advantage of the constructed
+protocol.
 
 The statement is intentionally existential: this specification PR records the
 proof obligation. A later proof PR should refine the existential witness to a
@@ -147,6 +154,7 @@ named concrete reduction.
 theorem security_reduces_to_ind_cpa_exists [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
+    (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
     (leak : KEMRandLeak kem)
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams)
@@ -157,6 +165,6 @@ theorem security_reduces_to_ind_cpa_exists [SampleableType K] [DecidableEq K]
   refine ⟨ckaToINDCPAReduction kem hDet leak adv gp, ?_⟩
   exact cka_securityAdvantage_le_ind_cpa_of_fixed_gap
     kem hDet leak adv gp (ckaToINDCPAReduction kem hDet leak adv gp)
-    (ckaToINDCPAReduction_fixed_gap_dominates kem hDet leak adv gp hgp)
+    (ckaToINDCPAReduction_fixed_gap_dominates kem hDet hkem leak adv gp hgp)
 
 end kemCKA
