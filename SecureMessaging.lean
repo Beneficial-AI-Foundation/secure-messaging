@@ -1,5 +1,6 @@
 import SecureMessaging.AEAD.Defs
 import SecureMessaging.AEAD.FromEtM.Construction
+import SecureMessaging.AEAD.FromEtM.Correctness
 import SecureMessaging.CKA.Defs
 import SecureMessaging.CKA.FromDDH.Common
 import SecureMessaging.CKA.FromDDH.Construction
