@@ -25,9 +25,10 @@ polynomial-functor / free-monad / probabilistic-monad layering recorded here.
 open Verso.Genre Manual
 open Informal
 
-#doc (Manual) "Section 0 — Prerequisites: VCV-io Math Stack" =>
+#doc (Manual) "0. Preliminaries — VCV-io Math Stack" =>
 %%%
-tag := "prerequisites_vcvio"
+tag := "preliminaries_vcvio"
+number := false
 %%%
 
 :::group "vcvio_core"

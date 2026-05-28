@@ -50,6 +50,9 @@ VCV-io-based game definitions.
 :::
 
 # Scope
+%%%
+number := false
+%%%
 
 The current scope covers:
 
@@ -68,6 +71,9 @@ downstream projects can cite a single named correctness or security theorem
 in this library.
 
 # How To Read This Site
+%%%
+number := false
+%%%
 
 The site is organized so every protocol chapter reads from three directions:
 
@@ -88,11 +94,9 @@ security claim        <-> theorem statement over game advantages
 game hop/reduction    <-> proof between theorem statements
 ```
 
-# Section 0 — Prerequisites
-
-Before reading any protocol chapter, read Section 0. It records the shared
-VCV-io oracle-game encoding (polynomial functors, free monads, `QueryImpl`,
-`simulateQ`, `ProbComp`, `evalDist`) that every chapter in this library
-reuses without restating.
+Before reading any protocol chapter, read Section 0 below. It records the
+shared VCV-io oracle-game encoding (polynomial functors, free monads,
+`QueryImpl`, `simulateQ`, `ProbComp`, `evalDist`) that every chapter in this
+library reuses without restating.
 
 {include 1 SecureMessagingDocs.Prerequisites}
