@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 -/
 
 
-import SecureMessaging.CKA.FromKEM.Security.HiddenStateSim
+import SecureMessaging.CKA.FromKEM.Security.PrefixSim
 
 /-!
 # CKA from KEM — Security Statements
@@ -23,10 +23,7 @@ namespace kemCKA
 variable {K PK SK C : Type}
 
 private lemma abs_half_gap_le_abs (x : ℝ) : |x / 2| ≤ |x| := by
-  have hnonneg : 0 ≤ |x| := abs_nonneg _
-  rw [abs_div]
-  rw [abs_of_pos (by norm_num : (0 : ℝ) < 2)]
-  nlinarith
+  grind
 
 private lemma cka_securityAdvantage_le_ind_cpa_of_fixed_gap
     [SampleableType K] [DecidableEq K]
