@@ -1,4 +1,5 @@
 import SecureMessaging.AEAD.Defs
+import SecureMessaging.AEAD.FromEtM.Construction
 import SecureMessaging.CKA.Defs
 import SecureMessaging.CKA.FromDDH.Common
 import SecureMessaging.CKA.FromDDH.Construction
@@ -21,3 +22,4 @@ import SecureMessaging.CKA.FromKEM.Construction
 import SecureMessaging.CKA.FromKEM.Correctness
 import SecureMessaging.CKA.FromKEM.Security
 import SecureMessaging.PRFPRNG.Defs
+import SecureMessaging.SymEnc.Defs
