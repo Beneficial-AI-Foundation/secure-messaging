@@ -6,7 +6,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 import VCVio.CryptoFoundations.SecExp
 import VCVio.OracleComp.Constructions.SampleableType
 import VCVio.OracleComp.SimSemantics.Append
-import VCVio.OracleComp.SimSemantics.PreservesInv
+import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
 
 /-!
 # Authenticated Encryption with Associated Data (AEAD)
