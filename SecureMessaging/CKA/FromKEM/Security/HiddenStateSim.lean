@@ -103,6 +103,144 @@ inductive PostRel
       (h : PostBToARel kem hDet gp honest post) :
       PostRel kem hDet gp honest post
 
+lemma postRel_aToB_after_challA
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (gp : CKAScheme.GameParams)
+    (hgp : AdmissibleParams gp)
+    (σ : SecurityState K PK SK C)
+    (skStar skNext : SK) (msg : Message C PK) (realKey fakeKey : K)
+    (hInv : epochCounterInv σ)
+    (hWill : willChallengeA gp σ = true)
+    (hdec : hDet.decapsDet skStar msg.1 = some realKey) :
+    PostRel kem hDet gp
+      (postAToBHonestState
+        ({ σ with
+            stA := State.recvReady skNext,
+            lastAction := some CKAScheme.CKAAction.challA,
+            tA := σ.tA + 1 } : SecurityState K PK SK C)
+        skStar msg realKey)
+      (postAToBReductionState
+        ({ σ with
+            stA := State.recvReady skNext,
+            lastAction := some CKAScheme.CKAAction.challA,
+            tA := σ.tA + 1 } : SecurityState K PK SK C)
+        msg fakeKey) := by
+  let base : SecurityState K PK SK C :=
+    { σ with
+      stA := State.recvReady skNext,
+      lastAction := some CKAScheme.CKAAction.challA,
+      tA := σ.tA + 1 }
+  have hrecv : CKAScheme.validStep base.lastAction .recvB = true := by
+    simp [base, CKAScheme.validStep]
+  have hblockBase : CKAScheme.allowCorr gp base .B = false := by
+    simpa [base] using
+      allowCorr_receiverB_false_after_challA gp hgp σ hInv hWill
+  have hblock :
+      CKAScheme.allowCorr gp
+        (postAToBReductionState base msg fakeKey).game .B = false := by
+    simpa [postAToBReductionState] using hblockBase
+  exact PostRel.aToB
+    (PostAToBRel.intro base skStar msg realKey fakeKey rfl rfl hdec hrecv hblock)
+
+lemma postRel_aToB_after_challA_of_mem_support [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
+    (gp : CKAScheme.GameParams)
+    (hgp : AdmissibleParams gp)
+    (σ : SecurityState K PK SK C)
+    {pkStar : PK} {skStar skNext : SK} {msg : Message C PK} {realKey fakeKey : K}
+    (hInv : epochCounterInv σ)
+    (hWill : willChallengeA gp σ = true)
+    (hks : (pkStar, skStar) ∈ support kem.keygen)
+    (hck : (msg.1, realKey) ∈ support (kem.encaps pkStar)) :
+    PostRel kem hDet gp
+      (postAToBHonestState
+        ({ σ with
+            stA := State.recvReady skNext,
+            lastAction := some CKAScheme.CKAAction.challA,
+            tA := σ.tA + 1 } : SecurityState K PK SK C)
+        skStar msg realKey)
+      (postAToBReductionState
+        ({ σ with
+            stA := State.recvReady skNext,
+            lastAction := some CKAScheme.CKAAction.challA,
+            tA := σ.tA + 1 } : SecurityState K PK SK C)
+        msg fakeKey) := by
+  exact postRel_aToB_after_challA kem hDet gp hgp σ skStar skNext msg realKey
+    fakeKey hInv hWill
+    (decapsDet_eq_some_of_mem_support kem hDet hkem hks hck)
+
+lemma postRel_bToA_after_challB
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (gp : CKAScheme.GameParams)
+    (hgp : AdmissibleParams gp)
+    (σ : SecurityState K PK SK C)
+    (skStar skNext : SK) (msg : Message C PK) (realKey fakeKey : K)
+    (hInv : epochCounterInv σ)
+    (hWill : willChallengeB gp σ = true)
+    (hdec : hDet.decapsDet skStar msg.1 = some realKey) :
+    PostRel kem hDet gp
+      (postBToAHonestState
+        ({ σ with
+            stB := State.recvReady skNext,
+            lastAction := some CKAScheme.CKAAction.challB,
+            tB := σ.tB + 1 } : SecurityState K PK SK C)
+        skStar msg realKey)
+      (postBToAReductionState
+        ({ σ with
+            stB := State.recvReady skNext,
+            lastAction := some CKAScheme.CKAAction.challB,
+            tB := σ.tB + 1 } : SecurityState K PK SK C)
+        msg fakeKey) := by
+  let base : SecurityState K PK SK C :=
+    { σ with
+      stB := State.recvReady skNext,
+      lastAction := some CKAScheme.CKAAction.challB,
+      tB := σ.tB + 1 }
+  have hrecv : CKAScheme.validStep base.lastAction .recvA = true := by
+    simp [base, CKAScheme.validStep]
+  have hblockBase : CKAScheme.allowCorr gp base .A = false := by
+    simpa [base] using
+      allowCorr_receiverA_false_after_challB gp hgp σ hInv hWill
+  have hblock :
+      CKAScheme.allowCorr gp
+        (postBToAReductionState base msg fakeKey).game .A = false := by
+    simpa [postBToAReductionState] using hblockBase
+  exact PostRel.bToA
+    (PostBToARel.intro base skStar msg realKey fakeKey rfl rfl hdec hrecv hblock)
+
+lemma postRel_bToA_after_challB_of_mem_support [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
+    (gp : CKAScheme.GameParams)
+    (hgp : AdmissibleParams gp)
+    (σ : SecurityState K PK SK C)
+    {pkStar : PK} {skStar skNext : SK} {msg : Message C PK} {realKey fakeKey : K}
+    (hInv : epochCounterInv σ)
+    (hWill : willChallengeB gp σ = true)
+    (hks : (pkStar, skStar) ∈ support kem.keygen)
+    (hck : (msg.1, realKey) ∈ support (kem.encaps pkStar)) :
+    PostRel kem hDet gp
+      (postBToAHonestState
+        ({ σ with
+            stB := State.recvReady skNext,
+            lastAction := some CKAScheme.CKAAction.challB,
+            tB := σ.tB + 1 } : SecurityState K PK SK C)
+        skStar msg realKey)
+      (postBToAReductionState
+        ({ σ with
+            stB := State.recvReady skNext,
+            lastAction := some CKAScheme.CKAAction.challB,
+            tB := σ.tB + 1 } : SecurityState K PK SK C)
+        msg fakeKey) := by
+  exact postRel_bToA_after_challB kem hDet gp hgp σ skStar skNext msg realKey
+    fakeKey hInv hWill
+    (decapsDet_eq_some_of_mem_support kem hDet hkem hks hck)
+
 private lemma postRel_attach_none
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
