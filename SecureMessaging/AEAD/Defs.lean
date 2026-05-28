@@ -6,6 +6,7 @@ Authors: Beneficial AI Foundation
 
 import VCVio.CryptoFoundations.SecExp
 import VCVio.OracleComp.Constructions.SampleableType
+import VCVio.OracleComp.QueryTracking.QueryBound
 import VCVio.OracleComp.SimSemantics.Append
 import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
 
@@ -149,6 +150,15 @@ Matches the adversary `A` in ACD19 Figure 1 + Definition 2. -/
 abbrev OneTimeCCAAdversary (AD M C : Type) :=
   OracleComp (aeadOneTimeCCASpec AD M C) Bool
 -- ANCHOR_END: OneTimeCCAAdversary
+
+/-- Structural bound on the number of decrypt-oracle queries made by a
+one-time IND-CCA adversary. `decryptQueryBound adv q_d` asserts that `adv`
+makes at most `q_d` queries to the decrypt oracle (index `.inr _` in
+`aeadOneTimeCCASpec`), with no constraint on encryption or uniform-sampling
+queries. Built on VCVio's `IsQueryBoundP`. -/
+def decryptQueryBound (adv : OneTime_CCA_Adversary AD M C)
+    (q_d : ℕ) : Prop :=
+  adv.IsQueryBoundP (· matches Sum.inr _) q_d
 
 /-! ### Oracle implementations -/
 
