@@ -50,9 +50,9 @@ The syntax is an `OracleSpec`. The adversary is an `OracleComp` over that spec.
 The challenger is a `QueryImpl`, and `simulateQ` folds the adversary syntax
 through that implementation.
 
-```
 Read this page as a stack:
 
+```
 OracleSpec       polynomial signature: query -> response type
 OracleQuery      one query node plus all response continuations
 OracleComp       free monad: adaptive oracle-program trees
@@ -65,13 +65,13 @@ Game             StateT GameState ProbComp running adversary syntax
 
 # Poly and Probabilistic Monad Theory
 
-```
-Main slogan:
 
-OracleComp is syntax.
-simulateQ runs that syntax against an implementation.
-evalDist turns probabilistic syntax into an output distribution.
-```
+**Main slogan:**
+
+- `OracleComp` is syntax.
+- `simulateQ` runs that syntax against an implementation.
+- `evalDist` turns probabilistic syntax into an output distribution.
+
 
 # OracleSpec Is The Polynomial Signature
 
@@ -131,12 +131,10 @@ The relation with `OracleSpec` is exactly the relation between a polynomial
 signature and its value at a type:
 
 ```
-iota : Type          query/index type
-spec : OracleSpec iota
-                    the response-family, equivalently spec : iota -> Type
-
-spec                 corresponds to the polynomial P
-OracleQuery spec X   corresponds to the evaluated functor P(X)
+iota : Type               query/index type
+spec : OracleSpec iota    the response-family, equivalently spec : iota -> Type
+spec                      corresponds to the polynomial P
+OracleQuery spec X        corresponds to the evaluated functor P(X)
 ```
 
 The identifier `spec` is just a conventional variable name for an oracle
@@ -176,9 +174,9 @@ well-founded adaptive oracle-program tree:
 
 ```
 pure x
-
+```
 or
-
+```
 ask q, then for each response r : spec.Range q continue as another tree
 ```
 
