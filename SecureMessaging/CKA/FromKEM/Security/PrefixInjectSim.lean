@@ -242,4 +242,243 @@ lemma ckaReductionINDCPABranchRaw_keygen_swapped_gap_eq
   rw [ckaReductionINDCPABranchRaw_keygen_swapped_probOutput_true]
   rw [ckaReductionINDCPABranchRaw_keygen_swapped_probOutput_true]
 
+/-- Honest A-send oracle that injects the sampled challenge key pair.
+
+This mirrors `oracleSendAWithChallengePk`, but at the predecessor send for a
+B-challenge (`sendAInjectsChallengeKey`) it uses `pkStar` as the message's next
+public key *and* stores the matching secret `skStar` as A's next receive secret.
+The ordinary fresh `kem.keygen` draw is kept so the bind structure matches the
+raw reduction prefix; its result is unused on the injection send. -/
+def oracleSendAWithChallengeKeyPair
+    (kem : KEMScheme ProbComp K PK SK C)
+    (gp : CKAScheme.GameParams)
+    (pkStar : PK) (skStar : SK) :
+    QueryImpl (Unit →ₒ Option (Message C PK × K))
+      (StateT (SecurityState K PK SK C) ProbComp) :=
+  fun () => do
+    let σ ← get
+    if CKAScheme.validStep σ.lastAction .sendA then
+      let σSend := { σ with tA := σ.tA + 1 }
+      match σSend.stA with
+      | .sendReady pk => do
+          let (c, key) ← liftM (kem.encaps pk)
+          let (pkGenerated, skGenerated) ← liftM kem.keygen
+          let useStar := sendAInjectsChallengeKey gp σSend
+          let pkNext := if useStar then pkStar else pkGenerated
+          let skNext := if useStar then skStar else skGenerated
+          let msg : Message C PK := (c, pkNext)
+          set { σSend with
+            stA := State.recvReady skNext,
+            rhoA := some msg,
+            keyA := some key,
+            lastAction := some .sendA }
+          return some (msg, key)
+      | .recvReady _ =>
+          return none
+    else
+      return none
+
+/-- Honest B-send oracle that injects the sampled challenge key pair.
+
+Mirror of `oracleSendAWithChallengeKeyPair` for the predecessor send of an
+A-challenge (`sendBInjectsChallengeKey`). -/
+def oracleSendBWithChallengeKeyPair
+    (kem : KEMScheme ProbComp K PK SK C)
+    (gp : CKAScheme.GameParams)
+    (pkStar : PK) (skStar : SK) :
+    QueryImpl (Unit →ₒ Option (Message C PK × K))
+      (StateT (SecurityState K PK SK C) ProbComp) :=
+  fun () => do
+    let σ ← get
+    if CKAScheme.validStep σ.lastAction .sendB then
+      let σSend := { σ with tB := σ.tB + 1 }
+      match σSend.stB with
+      | .sendReady pk => do
+          let (c, key) ← liftM (kem.encaps pk)
+          let (pkGenerated, skGenerated) ← liftM kem.keygen
+          let useStar := sendBInjectsChallengeKey gp σSend
+          let pkNext := if useStar then pkStar else pkGenerated
+          let skNext := if useStar then skStar else skGenerated
+          let msg : Message C PK := (c, pkNext)
+          set { σSend with
+            stB := State.recvReady skNext,
+            rhoB := some msg,
+            keyB := some key,
+            lastAction := some .sendB }
+          return some (msg, key)
+      | .recvReady _ =>
+          return none
+    else
+      return none
+
+/-- Honest security implementation that injects the sampled challenge key pair at
+the predecessor send.
+
+This is the honest fixed-bit implementation `securityImpl … isRandom` with the
+send oracles replaced by the injecting variants.  Non-send queries — including
+the actual challenge oracles — keep the honest behaviour with the real bit
+`isRandom`. -/
+def securityImplWithChallengeKeyPair [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (gp : CKAScheme.GameParams)
+    (isRandom : Bool)
+    (pkStar : PK) (skStar : SK) :
+    QueryImpl (SecuritySpec leak) (StateT (SecurityState K PK SK C) ProbComp) :=
+  fun t =>
+    match t with
+    | CKAScheme.ckaSecuritySpec.OSendA =>
+        oracleSendAWithChallengeKeyPair kem gp pkStar skStar ()
+    | CKAScheme.ckaSecuritySpec.OSendB =>
+        oracleSendBWithChallengeKeyPair kem gp pkStar skStar ()
+    | other =>
+        securityImpl kem hDet leak gp isRandom other
+
+/-- Honest fixed-bit branch with the challenge key pair injected at the
+predecessor send.
+
+This is `ckaSecurityFixedBranchWithChallengeKey` with the honest implementation
+replaced by `securityImplWithChallengeKeyPair`, so the send immediately before
+the challenge installs `pkStar`/`skStar` instead of a freshly generated pair. -/
+def ckaSecurityFixedBranchWithInjectedChallengeKey
+    [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (adv : Adversary (kem := kem) leak)
+    (gp : CKAScheme.GameParams)
+    (isRandom : Bool) : ProbComp Bool := do
+  let (pk0, sk0) ← kem.keygen
+  let (pkStar, skStar) ← kem.keygen
+  let σ0 :=
+    CKAScheme.initGameState
+      (if gp.challengeEpoch == 1 && gp.challengedParty == .A then
+        State.sendReady pkStar
+      else
+        State.sendReady pk0)
+      (if gp.challengeEpoch == 1 && gp.challengedParty == .A then
+        State.recvReady skStar
+      else
+        State.recvReady sk0)
+  let (guess, _) ←
+    (simulateQ
+      (securityImplWithChallengeKeyPair kem hDet leak gp isRandom pkStar skStar)
+      adv).run σ0
+  pure guess
+
+/-! ## Injecting send-oracle run reductions -/
+
+/-- Run reduction for the injecting A-send oracle on a send-ready state. -/
+lemma oracleSendAWithChallengeKeyPair_run_sendReady
+    (kem : KEMScheme ProbComp K PK SK C)
+    (gp : CKAScheme.GameParams)
+    (pkStar : PK) (skStar : SK)
+    (σ : SecurityState K PK SK C) (pk : PK)
+    (hvalid : CKAScheme.validStep σ.lastAction .sendA = true)
+    (hstA : σ.stA = State.sendReady pk) :
+    (oracleSendAWithChallengeKeyPair kem gp pkStar skStar ()).run σ =
+      (do
+        let (c, key) ← kem.encaps pk
+        let (pkGenerated, skGenerated) ← kem.keygen
+        let useStar := sendAInjectsChallengeKey gp { σ with tA := σ.tA + 1 }
+        let pkNext := if useStar then pkStar else pkGenerated
+        let skNext := if useStar then skStar else skGenerated
+        let msg : Message C PK := (c, pkNext)
+        pure (some (msg, key),
+          ({ σ with
+              tA := σ.tA + 1,
+              stA := State.recvReady skNext,
+              rhoA := some msg,
+              keyA := some key,
+              lastAction := some .sendA } : SecurityState K PK SK C))) := by
+  simp only [oracleSendAWithChallengeKeyPair, hvalid, ↓reduceIte, hstA,
+    StateT.run_bind, StateT.run_get, StateT.run_monadLift, monadLift_self,
+    StateT.run_set, StateT.run_pure, pure_bind, bind_assoc]
+
+/-- Run reduction for the injecting B-send oracle on a send-ready state. -/
+lemma oracleSendBWithChallengeKeyPair_run_sendReady
+    (kem : KEMScheme ProbComp K PK SK C)
+    (gp : CKAScheme.GameParams)
+    (pkStar : PK) (skStar : SK)
+    (σ : SecurityState K PK SK C) (pk : PK)
+    (hvalid : CKAScheme.validStep σ.lastAction .sendB = true)
+    (hstB : σ.stB = State.sendReady pk) :
+    (oracleSendBWithChallengeKeyPair kem gp pkStar skStar ()).run σ =
+      (do
+        let (c, key) ← kem.encaps pk
+        let (pkGenerated, skGenerated) ← kem.keygen
+        let useStar := sendBInjectsChallengeKey gp { σ with tB := σ.tB + 1 }
+        let pkNext := if useStar then pkStar else pkGenerated
+        let skNext := if useStar then skStar else skGenerated
+        let msg : Message C PK := (c, pkNext)
+        pure (some (msg, key),
+          ({ σ with
+              tB := σ.tB + 1,
+              stB := State.recvReady skNext,
+              rhoB := some msg,
+              keyB := some key,
+              lastAction := some .sendB } : SecurityState K PK SK C))) := by
+  simp only [oracleSendBWithChallengeKeyPair, hvalid, ↓reduceIte, hstB,
+    StateT.run_bind, StateT.run_get, StateT.run_monadLift, monadLift_self,
+    StateT.run_set, StateT.run_pure, pure_bind, bind_assoc]
+
+/-- Run reduction for the honest A-send oracle on a send-ready state. -/
+lemma securityImpl_OSendA_run_sendReady [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (gp : CKAScheme.GameParams)
+    (isRandom : Bool)
+    (σ : SecurityState K PK SK C) (pk : PK)
+    (hvalid : CKAScheme.validStep σ.lastAction .sendA = true)
+    (hstA : σ.stA = State.sendReady pk) :
+    (securityImpl kem hDet leak gp isRandom
+        (CKAScheme.ckaSecuritySpec.OSendA : (SecuritySpec leak).Domain)).run σ =
+      (do
+        let (c, key) ← kem.encaps pk
+        let (pkGenerated, skGenerated) ← kem.keygen
+        let msg : Message C PK := (c, pkGenerated)
+        pure (some (msg, key),
+          ({ σ with
+              tA := σ.tA + 1,
+              stA := State.recvReady skGenerated,
+              rhoA := some msg,
+              keyA := some key,
+              lastAction := some .sendA } : SecurityState K PK SK C))) := by
+  change (CKAScheme.oracleSendA (schemeWithLeak kem hDet leak) ()).run σ = _
+  simp only [CKAScheme.oracleSendA, schemeWithLeak, send, hvalid, ↓reduceIte, hstA,
+    StateT.run_bind, StateT.run_get, StateT.run_monadLift, monadLift_self,
+    StateT.run_set, StateT.run_pure, pure_bind, bind_assoc]
+  rfl
+
+/-- Run reduction for the honest B-send oracle on a send-ready state. -/
+lemma securityImpl_OSendB_run_sendReady [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (gp : CKAScheme.GameParams)
+    (isRandom : Bool)
+    (σ : SecurityState K PK SK C) (pk : PK)
+    (hvalid : CKAScheme.validStep σ.lastAction .sendB = true)
+    (hstB : σ.stB = State.sendReady pk) :
+    (securityImpl kem hDet leak gp isRandom
+        (CKAScheme.ckaSecuritySpec.OSendB : (SecuritySpec leak).Domain)).run σ =
+      (do
+        let (c, key) ← kem.encaps pk
+        let (pkGenerated, skGenerated) ← kem.keygen
+        let msg : Message C PK := (c, pkGenerated)
+        pure (some (msg, key),
+          ({ σ with
+              tB := σ.tB + 1,
+              stB := State.recvReady skGenerated,
+              rhoB := some msg,
+              keyB := some key,
+              lastAction := some .sendB } : SecurityState K PK SK C))) := by
+  change (CKAScheme.oracleSendB (schemeWithLeak kem hDet leak) ()).run σ = _
+  simp only [CKAScheme.oracleSendB, schemeWithLeak, send, hvalid, ↓reduceIte, hstB,
+    StateT.run_bind, StateT.run_get, StateT.run_monadLift, monadLift_self,
+    StateT.run_set, StateT.run_pure, pure_bind, bind_assoc]
+  rfl
+
 end kemCKA
