@@ -481,4 +481,62 @@ lemma securityImpl_OSendB_run_sendReady [SampleableType K] [DecidableEq K]
     StateT.run_set, StateT.run_pure, pure_bind, bind_assoc]
   rfl
 
+/-! ## EXPERIMENT (to be removed) -/
+
+lemma exp_unif [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (gp : CKAScheme.GameParams)
+    (isRandom : Bool) (n : ℕ)
+    (σ : SecurityState K PK SK C)
+    (z : _ × SecurityState K PK SK C)
+    (hz : z ∈ support ((securityImpl kem hDet leak gp isRandom
+      (CKAScheme.ckaSecuritySpec.OUnif n : (SecuritySpec leak).Domain)).run σ)) :
+    σ.tA ≤ z.2.tA ∧ σ.tB ≤ z.2.tB := by
+  simp only [securityImpl, SecurityCKA, CKAScheme.ckaSecurityImpl,
+    CKAScheme.ckaCorrectnessImpl, CKAScheme.oracleUnif, QueryImpl.add, QueryImpl.liftTarget,
+    QueryImpl.id', StateT.run_bind, StateT.run_get, StateT.run_set, StateT.run_monadLift,
+    monadLift_self, StateT.run_pure, support_bind, support_pure, support_liftM] at hz
+  trace_state
+  sorry
+
+lemma exp_corrA [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (gp : CKAScheme.GameParams)
+    (isRandom : Bool)
+    (σ : SecurityState K PK SK C)
+    (z : _ × SecurityState K PK SK C)
+    (hz : z ∈ support ((securityImpl kem hDet leak gp isRandom
+      (CKAScheme.ckaSecuritySpec.OCorruptA : (SecuritySpec leak).Domain)).run σ)) :
+    σ.tA ≤ z.2.tA ∧ σ.tB ≤ z.2.tB := by
+  change z ∈ support ((CKAScheme.oracleCorruptA gp (State PK SK) K (Message C PK) ()).run σ) at hz
+  simp only [CKAScheme.oracleCorruptA, StateT.run_bind, StateT.run_get, pure_bind] at hz
+  trace_state
+  sorry
+
+lemma exp_sendA [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (gp : CKAScheme.GameParams)
+    (isRandom : Bool)
+    (σ : SecurityState K PK SK C)
+    (z : _ × SecurityState K PK SK C)
+    (hz : z ∈ support ((securityImpl kem hDet leak gp isRandom
+      (CKAScheme.ckaSecuritySpec.OSendA : (SecuritySpec leak).Domain)).run σ)) :
+    σ.tA ≤ z.2.tA ∧ σ.tB ≤ z.2.tB := by
+  by_cases hvalid : CKAScheme.validStep σ.lastAction .sendA = true
+  · cases hst : σ.stA with
+    | sendReady pk =>
+        rw [securityImpl_OSendA_run_sendReady kem hDet leak gp isRandom σ pk hvalid hst] at hz
+        simp only [support_bind, support_pure, Set.mem_iUnion, Set.mem_singleton_iff] at hz
+        trace_state
+        sorry
+    | recvReady sk =>
+        sorry
+  · sorry
+
 end kemCKA
