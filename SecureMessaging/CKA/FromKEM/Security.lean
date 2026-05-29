@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 -/
 
 
-import SecureMessaging.CKA.FromKEM.Security.ChallengeBridge
+import SecureMessaging.CKA.FromKEM.Security.PrefixInjectSim
 
 /-!
 # CKA from KEM — Security Statements
@@ -86,6 +86,8 @@ private lemma cka_fixed_gap_le_normalized_reduction_raw_gap
       (Pr[= true | ckaReductionINDCPABranchRaw kem hDet leak adv gp false]).toReal| := by
   rw [securityExpFixedBit_eq_ckaSecurityFixedBranch]
   rw [securityExpFixedBit_eq_ckaSecurityFixedBranch]
+  rw [ckaSecurityFixedBranch_challenge_key_gap_eq]
+  rw [ckaReductionINDCPABranchRaw_keygen_swapped_gap_eq]
   /- Remaining semantic obligation: the paper's hidden-state simulation.
 
      The reduction may install `pkStar` while the corresponding secret key is
