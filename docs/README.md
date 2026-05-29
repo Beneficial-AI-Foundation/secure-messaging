@@ -16,6 +16,20 @@ protocol-specific chapters added alongside each formalization as it lands.
 See [DIAGRAMS.md](DIAGRAMS.md) for the local convention on editable Verso
 diagrams, including when to use HTML/SVG DOM output versus TikZ/TeX output.
 
+## Quick build
+
+The build + render flow is wrapped in `scripts/build-blueprint.sh`. From
+the repository root:
+
+```bash
+./scripts/build-blueprint.sh
+python3 -m http.server 8080 -d docs/_out/site/html-multi
+```
+
+Then open `http://localhost:8080`. The sections below describe what the
+wrapper does step by step, useful when debugging or running individual
+stages.
+
 ## Build
 
 From the repository root:
