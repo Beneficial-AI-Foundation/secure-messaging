@@ -49,10 +49,15 @@ Documentation for the `SecureMessaging` Lean formalization and its
 VCV-io-based game definitions.
 :::
 
-# Scope
+# Preface
 %%%
 number := false
 %%%
+
+The non-technical material — current scope and a reading model — that
+contextualises the chapters below.
+
+## Scope
 
 The current scope covers:
 
@@ -70,10 +75,7 @@ such as ML-KEM. Each of these will be added as its own chapter so that
 downstream projects can cite a single named correctness or security theorem
 in this library.
 
-# How To Read This Site
-%%%
-number := false
-%%%
+## How To Read This Site
 
 The site is organized so every protocol chapter reads from three directions:
 
