@@ -436,4 +436,31 @@ lemma challB_sampled_reduction_query_rel
       (skStar := skStar) (cStar := cStar) (realKey := realKey) (fakeKey := kStar)
       (outKey := kStar) hInv hWill hks hck
 
+lemma reductionStatePostRel_run'_relTriple
+    [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (gp : CKAScheme.GameParams)
+    (pkStar : PK) (cStar : C) (kStar : K)
+    {α : Type}
+    (adv : OracleComp (SecuritySpec leak) α)
+    {honest : SecurityState K PK SK C}
+    {rs : ReductionBranchState K PK SK C}
+    (hrel : reductionStatePostRel kem hDet gp honest rs) :
+    RelTriple
+      ((simulateQ (securityImpl kem hDet leak gp false) adv).run' honest)
+      ((simulateQ (reductionBranchImpl kem hDet leak gp pkStar cStar kStar) adv).run' rs)
+      (EqRel α) := by
+  cases rs with
+  | pre _ =>
+      cases hrel
+  | post ps =>
+      dsimp [reductionStatePostRel] at hrel
+      have hpost := postRel_run'_relTriple kem hDet leak gp adv hrel
+      rw [StateT.run'_eq]
+      rw [StateT.run'_eq]
+      rw [reductionBranchImpl_post_simulateQ_run]
+      simpa [StateT.run'_eq, map_eq_bind_pure_comp] using hpost
+
 end kemCKA
