@@ -21,6 +21,22 @@ namespace kemCKA
 
 variable {K PK SK C : Type}
 
+private lemma relTriple_refl_support {α : Type} (mx : ProbComp α) :
+    RelTriple mx mx (fun a b => a = b ∧ a ∈ support mx) := by
+  rw [relTriple_iff_relWP, relWP_iff_couplingPost]
+  refine ⟨_root_.SPMF.Coupling.refl (𝒟[mx]), ?_⟩
+  intro z hz
+  rcases (mem_support_bind_iff
+    (𝒟[mx]) (fun a => (pure (a, a) : SPMF (α × α))) z).1 hz with
+    ⟨a, ha, hz'⟩
+  have hzEq : z = (a, a) := by
+    simpa [support_pure, Set.mem_singleton_iff] using hz'
+  subst hzEq
+  have ha' : some a ∈ (𝒟[mx]).run.support := by
+    rw [PMF.mem_support_iff]
+    exact (SPMF.mem_support_iff (𝒟[mx]) a).1 ha
+  exact ⟨rfl, mem_support_of_mem_support_evalDist mx a ha'⟩
+
 /-- Relation used once the raw reduction has switched from prefix mode to the
 post-challenge simulator. -/
 def reductionStatePostRel
@@ -348,6 +364,190 @@ lemma challA_sampled_reduction_query_rel
       (skStar := skStar) (cStar := cStar) (realKey := realKey) (fakeKey := kStar)
       (outKey := kStar) hInv hWill hks hck
 
+lemma reductionStatePostRel_run'_relTriple
+    [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (gp : CKAScheme.GameParams)
+    (pkStar : PK) (cStar : C) (kStar : K)
+    {α : Type}
+    (adv : OracleComp (SecuritySpec leak) α)
+    {honest : SecurityState K PK SK C}
+    {rs : ReductionBranchState K PK SK C}
+    (hrel : reductionStatePostRel kem hDet gp honest rs) :
+    RelTriple
+      ((simulateQ (securityImpl kem hDet leak gp false) adv).run' honest)
+      ((simulateQ (reductionBranchImpl kem hDet leak gp pkStar cStar kStar) adv).run' rs)
+      (EqRel α) := by
+  cases rs with
+  | pre _ =>
+      cases hrel
+  | post ps =>
+      dsimp [reductionStatePostRel] at hrel
+      have hpost := postRel_run'_relTriple kem hDet leak gp adv hrel
+      rw [StateT.run'_eq]
+      rw [StateT.run'_eq]
+      rw [reductionBranchImpl_post_simulateQ_run]
+      simpa [StateT.run'_eq, map_eq_bind_pure_comp] using hpost
+
+lemma challA_sampled_reduction_cont_run'_relTriple
+    [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
+    (leak : KEMRandLeak kem)
+    (gp : CKAScheme.GameParams)
+    (hgp : AdmissibleParams gp)
+    (σ : SecurityState K PK SK C)
+    {pkStar : PK} {skStar : SK}
+    (hInv : epochCounterInv σ)
+    (hWill : willChallengeA gp σ = true)
+    (hks : (pkStar, skStar) ∈ support kem.keygen)
+    {α : Type}
+    (cont : Option (Message C PK × K) → OracleComp (SecuritySpec leak) α) :
+    RelTriple
+      (((securityImpl kem hDet leak gp false
+        (CKAScheme.ckaSecuritySpec.OChallA : (SecuritySpec leak).Domain)).run
+        (preAToBHonestState σ pkStar skStar)) >>= fun p =>
+          (simulateQ (securityImpl kem hDet leak gp false) (cont p.1)).run' p.2)
+      (do
+        let (cStar, realKey) ← kem.encaps pkStar
+        let q ←
+          (reductionBranchImpl kem hDet leak gp pkStar cStar realKey
+            (CKAScheme.ckaSecuritySpec.OChallA : (SecuritySpec leak).Domain)).run
+            (ReductionBranchState.pre (preAToBReductionState σ pkStar))
+        (simulateQ
+          (reductionBranchImpl kem hDet leak gp pkStar cStar realKey)
+          (cont q.1)).run' q.2)
+      (EqRel α) := by
+  rw [securityImpl_challA_preAToB_real_run kem hDet leak gp σ pkStar skStar hWill]
+  simp only [bind_assoc]
+  refine relTriple_bind (relTriple_refl_support (kem.encaps pkStar)) ?_
+  intro ck ck' hckRel
+  rcases hckRel with ⟨hckEq, hck⟩
+  subst hckEq
+  rcases ck with ⟨cStar, realKey⟩
+  have hstep :=
+    challA_sampled_reduction_query_rel kem hDet hkem leak gp hgp σ
+      (pkStar := pkStar) (skStar := skStar) (cStar := cStar)
+      (realKey := realKey) (kStar := realKey) hInv hWill hks hck
+  have hcont :
+      ∀ (p : Option (Message C PK × K) × SecurityState K PK SK C)
+        (q : Option (Message C PK × K) × ReductionBranchState K PK SK C),
+        p.1 = q.1 ∧ reductionStatePostRel kem hDet gp p.2 q.2 →
+        RelTriple
+          ((simulateQ (securityImpl kem hDet leak gp false) (cont p.1)).run' p.2)
+          ((simulateQ
+            (reductionBranchImpl kem hDet leak gp pkStar cStar realKey)
+            (cont q.1)).run' q.2)
+          (EqRel α) := by
+    intro p q hp
+    rcases hp with ⟨hout, hrel⟩
+    rw [← hout]
+    exact reductionStatePostRel_run'_relTriple kem hDet leak gp pkStar cStar realKey
+      (cont p.1) hrel
+  simpa only [bind_assoc] using relTriple_bind hstep hcont
+
+lemma challA_sampled_reduction_random_cont_run'_relTriple
+    [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
+    (leak : KEMRandLeak kem)
+    (gp : CKAScheme.GameParams)
+    (hgp : AdmissibleParams gp)
+    (σ : SecurityState K PK SK C)
+    {pkStar : PK} {skStar : SK}
+    (hInv : epochCounterInv σ)
+    (hWill : willChallengeA gp σ = true)
+    (hks : (pkStar, skStar) ∈ support kem.keygen)
+    {α : Type}
+    (cont : Option (Message C PK × K) → OracleComp (SecuritySpec leak) α) :
+    RelTriple
+      (((securityImpl kem hDet leak gp true
+        (CKAScheme.ckaSecuritySpec.OChallA : (SecuritySpec leak).Domain)).run
+        (preAToBHonestState σ pkStar skStar)) >>= fun p =>
+          (simulateQ (securityImpl kem hDet leak gp false) (cont p.1)).run' p.2)
+      (do
+        let (cStar, _realKey) ← kem.encaps pkStar
+        let kRand ← ($ᵗ K : ProbComp K)
+        let q ←
+          (reductionBranchImpl kem hDet leak gp pkStar cStar kRand
+            (CKAScheme.ckaSecuritySpec.OChallA : (SecuritySpec leak).Domain)).run
+            (ReductionBranchState.pre (preAToBReductionState σ pkStar))
+        (simulateQ
+          (reductionBranchImpl kem hDet leak gp pkStar cStar kRand)
+          (cont q.1)).run' q.2)
+      (EqRel α) := by
+  rw [securityImpl_challA_preAToB_random_run kem hDet leak gp σ pkStar skStar hWill]
+  simp only [bind_assoc]
+  refine relTriple_bind (relTriple_refl_support (kem.encaps pkStar)) ?_
+  intro ck ck' hckRel
+  rcases hckRel with ⟨hckEq, hck⟩
+  subst hckEq
+  rcases ck with ⟨cStar, realKey⟩
+  let leftAfterSwap : ProbComp α := do
+    let outKey ← ($ᵗ K : ProbComp K)
+    let p ← do
+      let (pkNext, skNext) ← kem.keygen
+      let msg : Message C PK := (cStar, pkNext)
+      let base : SecurityState K PK SK C := { σ with
+        stA := State.recvReady skNext,
+        lastAction := some CKAScheme.CKAAction.challA,
+        tA := σ.tA + 1 }
+      pure (some (msg, outKey), postAToBHonestState base skStar msg realKey)
+    (simulateQ (securityImpl kem hDet leak gp false) (cont p.1)).run' p.2
+  have hswap : RelTriple
+      (do
+        let pkNext_skNext ← kem.keygen
+        let outKey ← ($ᵗ K : ProbComp K)
+        let msg : Message C PK := (cStar, pkNext_skNext.1)
+        let base : SecurityState K PK SK C := { σ with
+          stA := State.recvReady pkNext_skNext.2,
+          lastAction := some CKAScheme.CKAAction.challA,
+          tA := σ.tA + 1 }
+        let p := (some (msg, outKey), postAToBHonestState base skStar msg realKey)
+        (simulateQ (securityImpl kem hDet leak gp false) (cont p.1)).run' p.2)
+      leftAfterSwap
+      (EqRel α) := by
+    simpa [leftAfterSwap, bind_assoc] using
+      (relTriple_bind_bind_swap_eqRel
+        (oa := kem.keygen) (ob := ($ᵗ K : ProbComp K))
+        (f := fun pkNext_skNext outKey =>
+          let msg : Message C PK := (cStar, pkNext_skNext.1)
+          let base : SecurityState K PK SK C := { σ with
+            stA := State.recvReady pkNext_skNext.2,
+            lastAction := some CKAScheme.CKAAction.challA,
+            tA := σ.tA + 1 }
+          let p := (some (msg, outKey), postAToBHonestState base skStar msg realKey)
+          (simulateQ (securityImpl kem hDet leak gp false) (cont p.1)).run' p.2))
+  refine relTriple_trans_eqRel_left hswap ?_
+  dsimp [leftAfterSwap]
+  refine relTriple_bind (relTriple_refl ($ᵗ K : ProbComp K)) ?_
+  intro outKey outKey' hout
+  subst hout
+  have hstep :=
+    challA_sampled_reduction_query_rel kem hDet hkem leak gp hgp σ
+      (pkStar := pkStar) (skStar := skStar) (cStar := cStar)
+      (realKey := realKey) (kStar := outKey) hInv hWill hks hck
+  have hcont :
+      ∀ (p : Option (Message C PK × K) × SecurityState K PK SK C)
+        (q : Option (Message C PK × K) × ReductionBranchState K PK SK C),
+        p.1 = q.1 ∧ reductionStatePostRel kem hDet gp p.2 q.2 →
+        RelTriple
+          ((simulateQ (securityImpl kem hDet leak gp false) (cont p.1)).run' p.2)
+          ((simulateQ
+            (reductionBranchImpl kem hDet leak gp pkStar cStar outKey)
+            (cont q.1)).run' q.2)
+          (EqRel α) := by
+    intro p q hp
+    rcases hp with ⟨hout, hrel⟩
+    rw [← hout]
+    exact reductionStatePostRel_run'_relTriple kem hDet leak gp pkStar cStar outKey
+      (cont p.1) hrel
+  simpa only [bind_assoc] using relTriple_bind hstep hcont
+
 lemma challB_sampled_keygen_rel
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
@@ -436,31 +636,161 @@ lemma challB_sampled_reduction_query_rel
       (skStar := skStar) (cStar := cStar) (realKey := realKey) (fakeKey := kStar)
       (outKey := kStar) hInv hWill hks hck
 
-lemma reductionStatePostRel_run'_relTriple
+lemma challB_sampled_reduction_cont_run'_relTriple
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
+    (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
     (leak : KEMRandLeak kem)
     (gp : CKAScheme.GameParams)
-    (pkStar : PK) (cStar : C) (kStar : K)
+    (hgp : AdmissibleParams gp)
+    (σ : SecurityState K PK SK C)
+    {pkStar : PK} {skStar : SK}
+    (hInv : epochCounterInv σ)
+    (hWill : willChallengeB gp σ = true)
+    (hks : (pkStar, skStar) ∈ support kem.keygen)
     {α : Type}
-    (adv : OracleComp (SecuritySpec leak) α)
-    {honest : SecurityState K PK SK C}
-    {rs : ReductionBranchState K PK SK C}
-    (hrel : reductionStatePostRel kem hDet gp honest rs) :
+    (cont : Option (Message C PK × K) → OracleComp (SecuritySpec leak) α) :
     RelTriple
-      ((simulateQ (securityImpl kem hDet leak gp false) adv).run' honest)
-      ((simulateQ (reductionBranchImpl kem hDet leak gp pkStar cStar kStar) adv).run' rs)
+      (((securityImpl kem hDet leak gp false
+        (CKAScheme.ckaSecuritySpec.OChallB : (SecuritySpec leak).Domain)).run
+        (preBToAHonestState σ pkStar skStar)) >>= fun p =>
+          (simulateQ (securityImpl kem hDet leak gp false) (cont p.1)).run' p.2)
+      (do
+        let (cStar, realKey) ← kem.encaps pkStar
+        let q ←
+          (reductionBranchImpl kem hDet leak gp pkStar cStar realKey
+            (CKAScheme.ckaSecuritySpec.OChallB : (SecuritySpec leak).Domain)).run
+            (ReductionBranchState.pre (preBToAReductionState σ pkStar))
+        (simulateQ
+          (reductionBranchImpl kem hDet leak gp pkStar cStar realKey)
+          (cont q.1)).run' q.2)
       (EqRel α) := by
-  cases rs with
-  | pre _ =>
-      cases hrel
-  | post ps =>
-      dsimp [reductionStatePostRel] at hrel
-      have hpost := postRel_run'_relTriple kem hDet leak gp adv hrel
-      rw [StateT.run'_eq]
-      rw [StateT.run'_eq]
-      rw [reductionBranchImpl_post_simulateQ_run]
-      simpa [StateT.run'_eq, map_eq_bind_pure_comp] using hpost
+  rw [securityImpl_challB_preBToA_real_run kem hDet leak gp σ pkStar skStar hWill]
+  simp only [bind_assoc]
+  refine relTriple_bind (relTriple_refl_support (kem.encaps pkStar)) ?_
+  intro ck ck' hckRel
+  rcases hckRel with ⟨hckEq, hck⟩
+  subst hckEq
+  rcases ck with ⟨cStar, realKey⟩
+  have hstep :=
+    challB_sampled_reduction_query_rel kem hDet hkem leak gp hgp σ
+      (pkStar := pkStar) (skStar := skStar) (cStar := cStar)
+      (realKey := realKey) (kStar := realKey) hInv hWill hks hck
+  have hcont :
+      ∀ (p : Option (Message C PK × K) × SecurityState K PK SK C)
+        (q : Option (Message C PK × K) × ReductionBranchState K PK SK C),
+        p.1 = q.1 ∧ reductionStatePostRel kem hDet gp p.2 q.2 →
+        RelTriple
+          ((simulateQ (securityImpl kem hDet leak gp false) (cont p.1)).run' p.2)
+          ((simulateQ
+            (reductionBranchImpl kem hDet leak gp pkStar cStar realKey)
+            (cont q.1)).run' q.2)
+          (EqRel α) := by
+    intro p q hp
+    rcases hp with ⟨hout, hrel⟩
+    rw [← hout]
+    exact reductionStatePostRel_run'_relTriple kem hDet leak gp pkStar cStar realKey
+      (cont p.1) hrel
+  simpa only [bind_assoc] using relTriple_bind hstep hcont
+
+lemma challB_sampled_reduction_random_cont_run'_relTriple
+    [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
+    (leak : KEMRandLeak kem)
+    (gp : CKAScheme.GameParams)
+    (hgp : AdmissibleParams gp)
+    (σ : SecurityState K PK SK C)
+    {pkStar : PK} {skStar : SK}
+    (hInv : epochCounterInv σ)
+    (hWill : willChallengeB gp σ = true)
+    (hks : (pkStar, skStar) ∈ support kem.keygen)
+    {α : Type}
+    (cont : Option (Message C PK × K) → OracleComp (SecuritySpec leak) α) :
+    RelTriple
+      (((securityImpl kem hDet leak gp true
+        (CKAScheme.ckaSecuritySpec.OChallB : (SecuritySpec leak).Domain)).run
+        (preBToAHonestState σ pkStar skStar)) >>= fun p =>
+          (simulateQ (securityImpl kem hDet leak gp false) (cont p.1)).run' p.2)
+      (do
+        let (cStar, _realKey) ← kem.encaps pkStar
+        let kRand ← ($ᵗ K : ProbComp K)
+        let q ←
+          (reductionBranchImpl kem hDet leak gp pkStar cStar kRand
+            (CKAScheme.ckaSecuritySpec.OChallB : (SecuritySpec leak).Domain)).run
+            (ReductionBranchState.pre (preBToAReductionState σ pkStar))
+        (simulateQ
+          (reductionBranchImpl kem hDet leak gp pkStar cStar kRand)
+          (cont q.1)).run' q.2)
+      (EqRel α) := by
+  rw [securityImpl_challB_preBToA_random_run kem hDet leak gp σ pkStar skStar hWill]
+  simp only [bind_assoc]
+  refine relTriple_bind (relTriple_refl_support (kem.encaps pkStar)) ?_
+  intro ck ck' hckRel
+  rcases hckRel with ⟨hckEq, hck⟩
+  subst hckEq
+  rcases ck with ⟨cStar, realKey⟩
+  let leftAfterSwap : ProbComp α := do
+    let outKey ← ($ᵗ K : ProbComp K)
+    let p ← do
+      let (pkNext, skNext) ← kem.keygen
+      let msg : Message C PK := (cStar, pkNext)
+      let base : SecurityState K PK SK C := { σ with
+        stB := State.recvReady skNext,
+        lastAction := some CKAScheme.CKAAction.challB,
+        tB := σ.tB + 1 }
+      pure (some (msg, outKey), postBToAHonestState base skStar msg realKey)
+    (simulateQ (securityImpl kem hDet leak gp false) (cont p.1)).run' p.2
+  have hswap : RelTriple
+      (do
+        let pkNext_skNext ← kem.keygen
+        let outKey ← ($ᵗ K : ProbComp K)
+        let msg : Message C PK := (cStar, pkNext_skNext.1)
+        let base : SecurityState K PK SK C := { σ with
+          stB := State.recvReady pkNext_skNext.2,
+          lastAction := some CKAScheme.CKAAction.challB,
+          tB := σ.tB + 1 }
+        let p := (some (msg, outKey), postBToAHonestState base skStar msg realKey)
+        (simulateQ (securityImpl kem hDet leak gp false) (cont p.1)).run' p.2)
+      leftAfterSwap
+      (EqRel α) := by
+    simpa [leftAfterSwap, bind_assoc] using
+      (relTriple_bind_bind_swap_eqRel
+        (oa := kem.keygen) (ob := ($ᵗ K : ProbComp K))
+        (f := fun pkNext_skNext outKey =>
+          let msg : Message C PK := (cStar, pkNext_skNext.1)
+          let base : SecurityState K PK SK C := { σ with
+            stB := State.recvReady pkNext_skNext.2,
+            lastAction := some CKAScheme.CKAAction.challB,
+            tB := σ.tB + 1 }
+          let p := (some (msg, outKey), postBToAHonestState base skStar msg realKey)
+          (simulateQ (securityImpl kem hDet leak gp false) (cont p.1)).run' p.2))
+  refine relTriple_trans_eqRel_left hswap ?_
+  dsimp [leftAfterSwap]
+  refine relTriple_bind (relTriple_refl ($ᵗ K : ProbComp K)) ?_
+  intro outKey outKey' hout
+  subst hout
+  have hstep :=
+    challB_sampled_reduction_query_rel kem hDet hkem leak gp hgp σ
+      (pkStar := pkStar) (skStar := skStar) (cStar := cStar)
+      (realKey := realKey) (kStar := outKey) hInv hWill hks hck
+  have hcont :
+      ∀ (p : Option (Message C PK × K) × SecurityState K PK SK C)
+        (q : Option (Message C PK × K) × ReductionBranchState K PK SK C),
+        p.1 = q.1 ∧ reductionStatePostRel kem hDet gp p.2 q.2 →
+        RelTriple
+          ((simulateQ (securityImpl kem hDet leak gp false) (cont p.1)).run' p.2)
+          ((simulateQ
+            (reductionBranchImpl kem hDet leak gp pkStar cStar outKey)
+            (cont q.1)).run' q.2)
+          (EqRel α) := by
+    intro p q hp
+    rcases hp with ⟨hout, hrel⟩
+    rw [← hout]
+    exact reductionStatePostRel_run'_relTriple kem hDet leak gp pkStar cStar outKey
+      (cont p.1) hrel
+  simpa only [bind_assoc] using relTriple_bind hstep hcont
 
 end kemCKA
