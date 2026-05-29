@@ -1,0 +1,130 @@
+name: Deploy Website to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build-docs:
+    name: Build Verso Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install elan
+        run: |
+          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> $GITHUB_PATH
+
+      - name: Cache Lake packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            .lake
+            docs/.lake
+          key: ${{ runner.os }}-lake-docs-${{ hashFiles('lake-manifest.json', 'lean-toolchain', 'docs/lake-manifest.json') }}
+          restore-keys: |
+            ${{ runner.os }}-lake-docs-
+
+      - name: Resolve docs dependencies
+        run: lake -d docs update
+
+      - name: Download Mathlib cache
+        run: lake -d docs exe cache get 2>&1 || echo "cache get returned non-zero (may be partial)"
+
+      # Build only the Lean libraries (SecureMessagingDocs + the Main module).
+      # We deliberately do NOT build the `docs` executable: linking it would
+      # pull in VCVio's post-quantum C/FFI sources, which require git
+      # submodules and additional compile flags we don't configure here. The
+      # rendered HTML is produced by `lean --run Main.lean` below, which only
+      # needs the .olean artifacts. See docs/README.md for the same caution
+      # applied locally.
+      - name: Build Verso docs (Lean libraries only)
+        run: lake -d docs build SecureMessagingDocs Main
+
+      - name: Generate documentation site
+        working-directory: docs
+        run: lake env lean --run Main.lean --output ../site
+
+      - name: Add root landing page
+        run: |
+          cat > site/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>Secure Messaging — Lean Formalization</title>
+            <style>
+              body { font-family: system-ui, -apple-system, sans-serif; max-width: 700px; margin: 60px auto; padding: 0 20px; color: #333; line-height: 1.6; }
+              h1 { margin-bottom: 0.3em; }
+              .subtitle { color: #666; margin-top: 0; }
+              .links { list-style: none; padding: 0; margin-top: 2em; }
+              .links li { margin: 1em 0; }
+              .links a { font-size: 1.15em; text-decoration: none; color: #0366d6; }
+              .links a:hover { text-decoration: underline; }
+              .links .desc { display: block; color: #666; font-size: 0.9em; margin-top: 0.2em; }
+            </style>
+          </head>
+          <body>
+            <h1>Secure Messaging — Lean Formalization</h1>
+            <p class="subtitle">Formal verification of secure messaging protocols</p>
+            <ul class="links">
+              <li>
+                <a href="html-multi/">Documentation</a>
+                <span class="desc">Protocol specification and verified code</span>
+              </li>
+            </ul>
+            <p><a href="https://github.com/Beneficial-AI-Foundation/secure-messaging">Source on GitHub</a></p>
+          </body>
+          </html>
+          EOF
+
+      - name: Upload docs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-site
+          path: site
+          retention-days: 1
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build-docs
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Download docs site
+        uses: actions/download-artifact@v4
+        with:
+          name: docs-site
+          path: site
+
+      - name: List final site structure
+        run: |
+          echo "=== Site structure ==="
+          find site -type f | head -50
+          echo "..."
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
