@@ -59,3 +59,64 @@ Avoid `lake -d docs build docs` on checkouts without the vendored native
 sources of any dependency that links extern libraries. Building the executable
 links the root package's extern libraries; `lake -d docs build SecureMessagingDocs Main`
 and `lean --run` avoid that link step.
+
+## Adding a new chapter
+
+Each protocol chapter lives in its own file under
+`docs/SecureMessagingDocs/`. To add one:
+
+1. Create `docs/SecureMessagingDocs/Doc<Name>.lean` with a chapter
+   scaffold (see template below).
+2. In `docs/SecureMessagingDocs/Contents.lean`:
+   - add `import SecureMessagingDocs.Doc<Name>` near the top, and
+   - add `{include 1 SecureMessagingDocs.Doc<Name>}` to the body where
+     the chapter should appear.
+3. Run `./scripts/build-blueprint.sh` to verify the chapter compiles
+   and that every `(lean := "...")` reference resolves. The build fails
+   if a referenced Lean declaration is missing or renamed, so this is
+   also the cheapest way to catch drift between docs and code.
+
+### Minimal chapter scaffold
+
+```lean
+/-
+Copyright (c) 2026 BAIF. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+-/
+
+import VersoManual
+import VersoBlueprint
+import SecureMessagingDocs.BlueprintTriptych
+-- Plus any SecureMessaging / VCVio modules whose declarations this
+-- chapter references via `(lean := "X")`.
+
+open Verso.Genre Manual
+open Informal
+
+#doc (Manual) "<Chapter title>" =>
+%%%
+tag := "<chapter_tag>"
+%%%
+
+Prose introduction to the chapter.
+
+:::group "<group_tag>"
+Short overview of what the group covers.
+:::
+
+:::definition "<def_tag>" (lean := "MyLeanDecl") (parent := "<group_tag>")
+Description of the definition. The `(lean := ...)` reference must
+resolve to a real declaration; the build fails otherwise.
+:::
+```
+
+### Worked examples
+
+* [`Prerequisites.lean`](SecureMessagingDocs/Prerequisites.lean) — the
+  longest current chapter; uses `:::group`, `:::definition`, and the
+  custom triptych and free-monad diagram blocks.
+* [`BlueprintTriptych.lean`](SecureMessagingDocs/BlueprintTriptych.lean)
+  — the local "Paper / Lean / Meaning" three-panel block extension.
+  Used inside Prerequisites.lean for paper-vs-Lean cross-references.
+* [`DIAGRAMS.md`](DIAGRAMS.md) — convention for adding new editable
+  Verso diagrams (HTML/SVG plus TikZ) via `block_extension`.
