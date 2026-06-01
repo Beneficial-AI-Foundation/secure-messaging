@@ -582,4 +582,79 @@ private lemma probOutput_simulateQ_keygen_commute [SampleableType K] [DecidableE
         (injectPrefix_run_support_effInject kem hDet leak gp isRandom
           (.pausedB cont) σ_p adv σ0 hrs)
 
+/-- Running `securityImpl` from a state with the challenge key installed agrees
+with injecting that key pair through `securityImplWithChallengeKeyPair`, per bit.
+
+When the challenge is the very first A-send the key pair is already in the
+initial state, so `injectionPassed` holds at the start and the post-injection
+equivalence closes it directly.  Otherwise the installing send happens later, the
+challenge key draw is unused up front, and the keygen-commute identity moves it
+into place. -/
+private lemma ckaSecurityFixedBranchWithChallengeKey_injected_probOutput_true_eq
+    [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (adv : Adversary (kem := kem) leak)
+    (gp : CKAScheme.GameParams)
+    (isRandom : Bool) :
+    Pr[= true |
+        ckaSecurityFixedBranchWithChallengeKey kem hDet leak adv gp isRandom] =
+      Pr[= true |
+        ckaSecurityFixedBranchWithInjectedChallengeKey
+          kem hDet leak adv gp isRandom] := by
+  unfold ckaSecurityFixedBranchWithChallengeKey
+    ckaSecurityFixedBranchWithInjectedChallengeKey ckaSecurityFixedFromState
+  by_cases hinit :
+      (gp.challengeEpoch == 1 && gp.challengedParty == .A) = true
+  · simp only [hinit, ↓reduceIte]
+    refine probOutput_bind_congr' kem.keygen true fun pk0sk0 => ?_
+    refine probOutput_bind_congr' kem.keygen true fun pkStar_skStar => ?_
+    have hpass : injectionPassed gp
+        (CKAScheme.initGameState
+          (State.sendReady pkStar_skStar.1)
+          (State.recvReady pkStar_skStar.2) :
+          SecurityState K PK SK C) := by
+      obtain ⟨hce, hcp⟩ := (Bool.and_eq_true _ _).mp hinit
+      rw [beq_iff_eq] at hce hcp
+      simp only [injectionPassed, hcp, CKAScheme.initGameState]
+      omega
+    exact (probOutput_fst_true_eq_of_run_eq fun z =>
+      probOutput_simulateQ_securityImplWithChallengeKeyPair_run_eq_of_injectionPassed
+        kem hDet leak gp isRandom pkStar_skStar.1 pkStar_skStar.2 adv _ hpass z).symm
+  · have hinitFalse :
+        (gp.challengeEpoch == 1 && gp.challengedParty == .A) = false :=
+      Bool.eq_false_of_not_eq_true hinit
+    simp only [hinitFalse, Bool.false_eq_true, ↓reduceIte]
+    refine probOutput_bind_congr' kem.keygen true fun pk0sk0 => ?_
+    rw [probOutput_bind_const]
+    simp only [HasEvalPMF.probFailure_eq_zero, tsub_zero, one_mul]
+    exact (probOutput_simulateQ_keygen_commute
+      kem hDet leak gp isRandom adv
+      (CKAScheme.initGameState
+        (State.sendReady pk0sk0.1)
+        (State.recvReady pk0sk0.2))).symm
+
+/-- The challenge-key and injected-challenge-key fixed branches have the same
+true-output gap across the two fixed bits. -/
+lemma ckaSecurityFixedBranchWithChallengeKey_injected_gap_eq
+    [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (adv : Adversary (kem := kem) leak)
+    (gp : CKAScheme.GameParams) :
+    |(Pr[= true |
+        ckaSecurityFixedBranchWithChallengeKey kem hDet leak adv gp true]).toReal -
+      (Pr[= true |
+        ckaSecurityFixedBranchWithChallengeKey kem hDet leak adv gp false]).toReal| =
+    |(Pr[= true |
+        ckaSecurityFixedBranchWithInjectedChallengeKey
+          kem hDet leak adv gp true]).toReal -
+      (Pr[= true |
+        ckaSecurityFixedBranchWithInjectedChallengeKey
+          kem hDet leak adv gp false]).toReal| := by
+  rw [ckaSecurityFixedBranchWithChallengeKey_injected_probOutput_true_eq]
+  rw [ckaSecurityFixedBranchWithChallengeKey_injected_probOutput_true_eq]
+
 end kemCKA
