@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "la/add_deploy_page"]
   pull_request:
     branches: ["main"]
   workflow_dispatch:
@@ -37,13 +37,13 @@ jobs:
         run: cp static/index.html site/index.html
 
       - name: Upload Pages artifact
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/la/add_deploy_page'
         uses: actions/upload-pages-artifact@v3
         with:
           path: site
 
   deploy:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/la/add_deploy_page'
     needs: build
     runs-on: ubuntu-latest
     environment:
