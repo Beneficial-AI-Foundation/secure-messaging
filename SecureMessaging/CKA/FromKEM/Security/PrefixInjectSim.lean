@@ -16,7 +16,7 @@ challenge key pair to the point where the honest game would generate that key
 pair.
 -/
 
-open OracleSpec OracleComp ENNReal
+open OracleSpec OracleComp ENNReal OracleComp.ProgramLogic.Relational
 
 namespace kemCKA
 
@@ -874,5 +874,37 @@ lemma securityImplWithChallengeKeyPair_run_eq_securityImpl_of_injectionPassed
       simp only [oracleSendBWithChallengeKeyPair, CKAScheme.oracleSendB, hvalidFalse,
         Bool.false_eq_true, ↓reduceIte, StateT.run_bind, StateT.run_get, StateT.run_pure, pure_bind]
   all_goals rfl
+
+/-- Past the injection epoch, the injecting and honest implementations induce the
+same output-state distribution on any adversary.
+
+The per-step equivalence
+`securityImplWithChallengeKeyPair_run_eq_securityImpl_of_injectionPassed` lifts
+through `simulateQ`; counter monotonicity
+(`securityImpl_preservesInv_injectionPassed`) keeps `injectionPassed` true along
+the whole run. -/
+lemma probOutput_simulateQ_securityImplWithChallengeKeyPair_run_eq_of_injectionPassed
+    [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (gp : CKAScheme.GameParams)
+    (isRandom : Bool)
+    (pkStar : PK) (skStar : SK)
+    (adv : Adversary (kem := kem) leak)
+    (s : SecurityState K PK SK C)
+    (hs : injectionPassed gp s)
+    (z : Bool × SecurityState K PK SK C) :
+    Pr[= z | (simulateQ
+        (securityImplWithChallengeKeyPair kem hDet leak gp isRandom pkStar skStar) adv).run s] =
+      Pr[= z | (simulateQ (securityImpl kem hDet leak gp isRandom) adv).run s] :=
+  probOutput_simulateQ_run_eq_of_impl_eq_preservesInv
+    (securityImplWithChallengeKeyPair kem hDet leak gp isRandom pkStar skStar)
+    (securityImpl kem hDet leak gp isRandom)
+    (injectionPassed gp) adv
+    (securityImplWithChallengeKeyPair_run_eq_securityImpl_of_injectionPassed
+      kem hDet leak gp isRandom pkStar skStar)
+    (securityImpl_preservesInv_injectionPassed kem hDet leak gp isRandom)
+    s hs z
 
 end kemCKA
