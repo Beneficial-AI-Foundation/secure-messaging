@@ -36,7 +36,9 @@ jobs:
 
       - name: Build documentation
         working-directory: docs
-        run: lake build
+        run: |
+          lake exe cache get || true
+          lake build
 
       - name: Generate documentation site
         working-directory: docs
