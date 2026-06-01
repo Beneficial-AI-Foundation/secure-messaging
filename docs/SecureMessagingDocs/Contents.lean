@@ -1,10 +1,15 @@
 import VersoManual
+import VersoBlueprint
 import VersoBlueprint.Commands.Graph
 import VersoBlueprint.Commands.Summary
-import SecureMessaging.AEAD.Defs
+import SecureMessagingDocs.Chapters.AEAD
+import SecureMessagingDocs.Chapters.CKA
+import SecureMessagingDocs.Chapters.Primitives
+import SecureMessagingDocs.Chapters.Protocols
 
 open Verso.Genre Manual
 open Verso.Genre.Manual.InlineLean
+open Informal
 
 set_option doc.verso true
 set_option pp.rawOnError true
@@ -30,14 +35,10 @@ and security properties for cryptographic messaging protocols.
 
 {blueprint_summary}
 
-# Authenticated Encryption with Associated Data
+{include 0 SecureMessagingDocs.Chapters.AEAD}
 
-An AEAD scheme provides both confidentiality and integrity for messages,
-with additional unencrypted associated data authenticated alongside the ciphertext.
-The formalization follows Definition 1 of \[ACD19\].
+{include 0 SecureMessagingDocs.Chapters.CKA}
 
-{docstring AEADScheme}
+{include 0 SecureMessagingDocs.Chapters.Primitives}
 
-{docstring AEADScheme.Correct}
-
-{docstring AEADScheme.securityExp}
+{include 0 SecureMessagingDocs.Chapters.Protocols}
