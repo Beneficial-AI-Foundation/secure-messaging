@@ -30,11 +30,10 @@ variable {K PK SK C : Type}
 
 /-! ## The injecting send -/
 
-/-- The next A-send actually installs the challenge key pair: it is a valid send
-on a send-ready state at the predecessor epoch for a B-challenge.
-
-This is precisely the configuration in which `oracleSendAWithChallengeKeyPair`
-diverges from the honest A-send. -/
+/-- The next A-send installs the challenge key pair: it is a valid send from a
+send-ready state at the epoch preceding a B-challenge.  This is exactly the
+configuration in which `oracleSendAWithChallengeKeyPair` differs from the honest
+A-send. -/
 private def sendAEffectivelyInjects
     (gp : CKAScheme.GameParams)
     (σ : SecurityState K PK SK C) : Bool :=
@@ -42,8 +41,8 @@ private def sendAEffectivelyInjects
     (match σ.stA with | .sendReady _ => true | _ => false) &&
     sendAInjectsChallengeKey gp { σ with tA := σ.tA + 1 }
 
-/-- Mirror of `sendAEffectivelyInjects` for the predecessor send of an
-A-challenge. -/
+/-- The next B-send installs the challenge key pair, the mirror of
+`sendAEffectivelyInjects` for the send preceding an A-challenge. -/
 private def sendBEffectivelyInjects
     (gp : CKAScheme.GameParams)
     (σ : SecurityState K PK SK C) : Bool :=
@@ -53,11 +52,13 @@ private def sendBEffectivelyInjects
 
 /-! ## The prefix simulation -/
 
-/-- Run the honest fixed-bit game until the first send that installs the
-challenge key pair, pausing there.
+/-- Simulate the honest fixed-bit game up to the first send that would install
+the challenge key pair, recording the adversary's remaining continuation.
 
-Before that send the injecting and honest implementations agree, so the prefix
-uses the honest implementation `securityImpl` and is shared by both branches. -/
+The result is `.pausedA`/`.pausedB`, carrying the continuation interrupted at
+that send, or `.done` when the adversary halts before any such send.  Up to that
+send the injecting and honest implementations coincide, so this prefix runs the
+honest implementation `securityImpl` and is common to both branches. -/
 private def injectPrefix [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -92,11 +93,12 @@ private def injectPrefix [SampleableType K] [DecidableEq K]
           let out ← securityImpl kem hDet leak gp isRandom other
           rec out)
 
-/-- Off the effective injecting send, the injecting and honest implementations
-run identically on every oracle.
+/-- The injecting and honest implementations agree on every oracle that is not
+the installing send.
 
-The send oracles only diverge when `useStar` fires, which the effective-inject
-guard rules out; every other oracle is shared definitionally. -/
+Only the send oracles can differ, and only when they install the challenge key
+pair; the `sendAEffectivelyInjects`/`sendBEffectivelyInjects` guards exclude that
+case here, and every other oracle coincides definitionally. -/
 private lemma securityImplWithChallengeKeyPair_run_eq_securityImpl_of_step
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
@@ -161,5 +163,182 @@ private lemma securityImplWithChallengeKeyPair_run_eq_securityImpl_of_step
       simp only [oracleSendBWithChallengeKeyPair, CKAScheme.oracleSendB, hvalidFalse,
         Bool.false_eq_true, ↓reduceIte, StateT.run_bind, StateT.run_get, StateT.run_pure, pure_bind]
   all_goals rfl
+
+/-! ## Resuming after the pause -/
+
+/-- Complete a split run from a recorded `CKAChallengeStepResult`.
+
+For `.pausedA`/`.pausedB`, run the installing send under `impl` and simulate the
+recorded continuation on the resulting state.  For `.done`, the run already
+finished, so its result and final state are returned unchanged. -/
+private def injectResume [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (leak : KEMRandLeak kem)
+    (impl : QueryImpl (SecuritySpec leak) (StateT (SecurityState K PK SK C) ProbComp))
+    (res : CKAChallengeStepResult leak Bool)
+    (σ : SecurityState K PK SK C) :
+    ProbComp (Bool × SecurityState K PK SK C) :=
+  match res with
+  | .done g => pure (g, σ)
+  | .pausedA cont =>
+      (impl (CKAScheme.ckaSecuritySpec.OSendA : (SecuritySpec leak).Domain)).run σ >>=
+        fun x => (simulateQ impl (cont x.1)).run x.2
+  | .pausedB cont =>
+      (impl (CKAScheme.ckaSecuritySpec.OSendB : (SecuritySpec leak).Domain)).run σ >>=
+        fun x => (simulateQ impl (cont x.1)).run x.2
+
+/-- Factor a simulated run through `injectPrefix`.
+
+Any implementation that agrees with the honest one except at the installing send
+splits into the shared prefix `injectPrefix` followed by `injectResume`, which
+performs that send and finishes the run. -/
+private lemma simulateQ_run_eq_injectPrefix_bind [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (gp : CKAScheme.GameParams)
+    (isRandom : Bool)
+    (impl : QueryImpl (SecuritySpec leak) (StateT (SecurityState K PK SK C) ProbComp))
+    (hstep : ∀ (t : (SecuritySpec leak).Domain) (σ : SecurityState K PK SK C),
+      (t = (CKAScheme.ckaSecuritySpec.OSendA : (SecuritySpec leak).Domain) →
+        sendAEffectivelyInjects gp σ = false) →
+      (t = (CKAScheme.ckaSecuritySpec.OSendB : (SecuritySpec leak).Domain) →
+        sendBEffectivelyInjects gp σ = false) →
+      (impl t).run σ = (securityImpl kem hDet leak gp isRandom t).run σ)
+    (adv : OracleComp (SecuritySpec leak) Bool)
+    (σ : SecurityState K PK SK C) :
+    (simulateQ impl adv).run σ =
+      (injectPrefix kem hDet leak gp isRandom adv).run σ >>=
+        fun x => injectResume kem leak impl x.1 x.2 := by
+  induction adv using OracleComp.inductionOn generalizing σ with
+  | pure g =>
+      simp [injectPrefix, injectResume, simulateQ_pure, StateT.run_pure]
+  | query_bind t cont ih =>
+      rcases t with
+        (((((((((n | uSendA) | uRecvA) | uSendB) | uRecvB) |
+          uChallA) | uChallB) | uCorrA) | uCorrB) | uRLeakA) | uRLeakB
+      all_goals
+        try cases uSendA
+        try cases uRecvA
+        try cases uSendB
+        try cases uRecvB
+        try cases uCorrA
+        try cases uCorrB
+        try cases uRLeakA
+        try cases uRLeakB
+      all_goals
+        try
+          simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
+            OracleQuery.cont_query, id_map, bind_assoc, StateT.run_bind, injectPrefix,
+            construct_query_bind]
+          rw [hstep _ _ (by simp) (by simp)]
+          refine bind_congr (m := ProbComp) fun a => ?_
+          simpa using ih a.1 a.2
+      · -- O-Send-A
+        by_cases heff : sendAEffectivelyInjects gp σ = true
+        · simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
+            OracleQuery.cont_query, id_map, StateT.run_bind, StateT.run_get, pure_bind,
+            injectPrefix, construct_query_bind, heff, ↓reduceIte, StateT.run_pure, injectResume]
+        · have heffFalse : sendAEffectivelyInjects gp σ = false :=
+            Bool.eq_false_of_not_eq_true heff
+          simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
+            OracleQuery.cont_query, id_map, bind_assoc,
+            StateT.run_bind, StateT.run_get, pure_bind, injectPrefix, construct_query_bind,
+            heffFalse, Bool.false_eq_true, ↓reduceIte]
+          rw [hstep _ _ (fun _ => heffFalse) (by simp)]
+          refine bind_congr (m := ProbComp) fun a => ?_
+          simpa using ih a.1 a.2
+      · -- O-Send-B
+        by_cases heff : sendBEffectivelyInjects gp σ = true
+        · simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
+            OracleQuery.cont_query,  id_map,
+            StateT.run_bind, StateT.run_get, pure_bind, injectPrefix, construct_query_bind,
+            heff, ↓reduceIte, StateT.run_pure, injectResume]
+        · have heffFalse : sendBEffectivelyInjects gp σ = false :=
+            Bool.eq_false_of_not_eq_true heff
+          simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
+            OracleQuery.cont_query, id_map, bind_assoc,
+            StateT.run_bind, StateT.run_get, pure_bind, injectPrefix, construct_query_bind,
+            heffFalse, Bool.false_eq_true, ↓reduceIte]
+          rw [hstep _ _ (by simp) (fun _ => heffFalse)]
+          refine bind_congr (m := ProbComp) fun a => ?_
+          simpa using ih a.1 a.2
+
+/-- A run that stops at an installing send stops in a state where that send is
+indeed installing.
+
+`injectPrefix` only emits `.pausedA`/`.pausedB` when the guard
+`sendAEffectivelyInjects`/`sendBEffectivelyInjects` holds, so every paused state
+in its support satisfies that guard. -/
+private lemma injectPrefix_run_support_effInject [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (gp : CKAScheme.GameParams)
+    (isRandom : Bool)
+    (res : CKAChallengeStepResult leak Bool)
+    (σ' : SecurityState K PK SK C)
+    (adv : OracleComp (SecuritySpec leak) Bool)
+    (σ : SecurityState K PK SK C) :
+    (res, σ') ∈ support ((injectPrefix kem hDet leak gp isRandom adv).run σ) →
+      (match res with
+        | .done _ => True
+        | .pausedA _ => sendAEffectivelyInjects gp σ' = true
+        | .pausedB _ => sendBEffectivelyInjects gp σ' = true) := by
+  induction adv using OracleComp.inductionOn generalizing σ with
+  | pure g =>
+      intro hmem
+      simp only [injectPrefix, construct_pure, StateT.run_pure, support_pure,
+        Set.mem_singleton_iff, Prod.mk.injEq] at hmem
+      obtain ⟨rfl, -⟩ := hmem
+      trivial
+  | query_bind t cont ih =>
+      rcases t with
+        (((((((((n | uSendA) | uRecvA) | uSendB) | uRecvB) |
+          uChallA) | uChallB) | uCorrA) | uCorrB) | uRLeakA) | uRLeakB
+      all_goals
+        try cases uSendA
+        try cases uRecvA
+        try cases uSendB
+        try cases uRecvB
+        try cases uCorrA
+        try cases uCorrB
+        try cases uRLeakA
+        try cases uRLeakB
+      all_goals
+        try
+          intro hmem
+          simp only [injectPrefix, construct_query_bind, StateT.run_bind, support_bind,
+            Set.mem_iUnion₂] at hmem
+          obtain ⟨p, -, hmem'⟩ := hmem
+          exact ih p.1 p.2 hmem'
+      · -- O-Send-A
+        intro hmem
+        by_cases heff : sendAEffectivelyInjects gp σ = true
+        · simp only [injectPrefix, construct_query_bind, StateT.run_bind, StateT.run_get,
+            pure_bind, heff] at hmem
+          obtain ⟨rfl, rfl⟩ := hmem
+          exact heff
+        · have heffFalse : sendAEffectivelyInjects gp σ = false :=
+            Bool.eq_false_of_not_eq_true heff
+          simp only [injectPrefix, construct_query_bind, StateT.run_bind, StateT.run_get,
+            pure_bind, heffFalse, Bool.false_eq_true, ↓reduceIte, support_bind,
+            Set.mem_iUnion₂] at hmem
+          obtain ⟨p, -, hmem'⟩ := hmem
+          exact ih p.1 p.2 hmem'
+      · -- O-Send-B
+        intro hmem
+        by_cases heff : sendBEffectivelyInjects gp σ = true
+        · simp only [injectPrefix, construct_query_bind, StateT.run_bind, StateT.run_get,
+            pure_bind, heff] at hmem
+          obtain ⟨rfl, rfl⟩ := hmem
+          exact heff
+        · have heffFalse : sendBEffectivelyInjects gp σ = false :=
+            Bool.eq_false_of_not_eq_true heff
+          simp only [injectPrefix, construct_query_bind, StateT.run_bind, StateT.run_get,
+            pure_bind, heffFalse, Bool.false_eq_true, ↓reduceIte, support_bind,
+            Set.mem_iUnion₂] at hmem
+          obtain ⟨p, -, hmem'⟩ := hmem
+          exact ih p.1 p.2 hmem'
 
 end kemCKA
