@@ -1,0 +1,24 @@
+# Literate rendering configuration for Secure Messaging docs
+# See: https://github.com/leanprover/verso (literate.toml reference)
+
+landing_page = "SecureMessaging"
+docstrings_as_text = true
+hide_commands = ["import", "set_option", "open", "universe", "variable"]
+
+# Only render the SecureMessaging library (exclude docs and ToVCVio helpers)
+[[targets]]
+library = "SecureMessaging"
+
+exclude = [
+  "SecureMessagingDocs",
+  "ToVCVio",
+]
+
+order = [
+  "SecureMessaging.AEAD",
+  "SecureMessaging.CKA",
+]
+
+[metadata]
+title = "Secure Messaging — Lean Formalization"
+description = "Machine-checked proofs of secure messaging protocols in Lean 4"

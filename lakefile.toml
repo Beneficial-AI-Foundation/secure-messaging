@@ -5,7 +5,6 @@ defaultTargets = ["SecureMessaging", "ToVCVio"]
 pp.unicode.fun = true
 autoImplicit = false
 relaxedAutoImplicit = false
-weak.linter.mathlibStandardSet = true
 maxSynthPendingDepth = 3
 maxRecDepth = 10000
 

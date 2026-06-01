@@ -45,8 +45,13 @@ jobs:
       - name: Generate documentation site
         run: lake env lean --run SecureMessagingDocsMain.lean --output site
 
-      - name: Add landing page
-        run: cp static/index.html site/index.html
+      - name: Build literate code docs
+        run: lake build :literateHtml
+
+      - name: Assemble site
+        run: |
+          cp -r .lake/build/literate-html site/code
+          cp static/index.html site/index.html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
