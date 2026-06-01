@@ -3,7 +3,7 @@
 
 landing_page = "SecureMessaging"
 docstrings_as_text = true
-hide_commands = ["import", "set_option", "open", "universe", "variable"]
+hide_commands = ["import", "set_option", "open", "universe", "variable", "namespace", "end", "section"]
 
 # Only render the SecureMessaging library (exclude docs and ToVCVio helpers)
 [[targets]]

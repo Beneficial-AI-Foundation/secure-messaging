@@ -69,12 +69,8 @@ The adversary wins if its guess `b'` satisfies `b' = b`.
 
 open OracleSpec OracleComp ENNReal
 
--- We use only `u` in universe (for the monad),
--- matching VCVio's crypto-foundations conventions. All type-space parameters (M, AD, K, C)
--- live at `Type` (= `Type 0`).
 universe u
 
--- ANCHOR: AEADScheme
 /-- **Definition 1** ([ACD19]).
 An **AEAD scheme** Π = (`keygen`, `encrypt`, `decrypt`) over spaces
 (`M`, `AD`, `K`, `C`) consists of a probabilistic key-generation algorithm
@@ -86,19 +82,14 @@ structure AEADScheme (m : Type → Type u) [Monad m] (M AD K C : Type) where
   encrypt : K → AD → M → C
   /-- `Dec(K, a, e) → m | ⊥`. -/
   decrypt : K → AD → C → Option M
--- ANCHOR_END: AEADScheme
-
 namespace AEADScheme
 
 variable {m : Type → Type u} [Monad m] {M AD K C : Type}
 
--- ANCHOR: Correct
 /-- **Correctness** ([ACD19], Definition 1).
 ∀ k ∈ K, a ∈ AD, m ∈ M : `Dec(k, a, Enc(k, a, m)) = m`. -/
 def Correct (ae : AEADScheme m M AD K C) : Prop :=
   ∀ (k : K) (a : AD) (msg : M), ae.decrypt k a (ae.encrypt k a msg) = some msg
--- ANCHOR_END: Correct
-
 section OneTime_CCA
 
 /-! ## One-Time IND-CCA Security Game
@@ -115,13 +106,10 @@ variable {M AD K C : Type}
 
 /-! ### Oracle spec -/
 
--- ANCHOR: aeadOneTimeCCASpec
 /-- **Oracle interface** for the one-time IND-CCA game (Figure 1, [ACD19]).
 The adversary 𝒜 has access to oracles `(unifSpec, Encrypt, Decrypt)`. -/
 def aeadOneTimeCCASpec (AD M C : Type) :=
   unifSpec + (AD × M →ₒ Option C) + (AD × C →ₒ Option M)
--- ANCHOR_END: aeadOneTimeCCASpec
-
 namespace aeadOneTimeCCASpec
 
 variable {AD M C : Type}
@@ -150,7 +138,6 @@ def oracleUnif (C : Type) :
     QueryImpl unifSpec (StateT (Option C) ProbComp) :=
   (QueryImpl.ofLift unifSpec ProbComp).liftTarget (StateT (Option C) ProbComp)
 
--- ANCHOR: oracleEncrypt
 /-- **Encrypt oracle** (Figure 1, [ACD19], middle column).
 
 On first query `(a, m)`:
@@ -171,9 +158,6 @@ def oracleEncrypt [SampleableType C] (ae : AEADScheme ProbComp M AD K C)
         else pure (ae.encrypt k a m)
       set (some eStar)
       return some eStar
--- ANCHOR_END: oracleEncrypt
-
--- ANCHOR: oracleDecrypt
 /-- **Decrypt oracle** (Figure 1, [ACD19], right column).
 
 On query `(a, e)`:
@@ -185,8 +169,6 @@ def oracleDecrypt [DecidableEq C] (ae : AEADScheme ProbComp M AD K C)
   fun (a, e) => do
     if b || (← get) == some e then pure none
     else pure (ae.decrypt k a e)
--- ANCHOR_END: oracleDecrypt
-
 /-- Combined oracle implementation `𝒪_b = (unifSpec, Encrypt_b, Decrypt_b)` for the
 one-time IND-CCA game (Figure 1, [ACD19]). -/
 def aeadSecurityImpl [SampleableType C] [DecidableEq C]
@@ -196,7 +178,6 @@ def aeadSecurityImpl [SampleableType C] [DecidableEq C]
 
 /-! ### Security experiment -/
 
--- ANCHOR: securityExp
 /-- **Experiment** `Exp^{ot-cca}_{Π,𝒜}` (Figure 1 + Definition 2, [ACD19]).
 
 1. `K ←$ KeyGen()`
@@ -210,8 +191,6 @@ def securityExp [SampleableType C] [DecidableEq C]
   let b ← $ᵗ Bool
   let (b', _) ← (simulateQ (aeadSecurityImpl ae b k) adversary).run none
   return (b == b')
--- ANCHOR_END: securityExp
-
 /-- **Guess advantage** (Definition 2, [ACD19]):
 `Adv^{ot-cca}_{Π,𝒜} := |Pr[Exp^{ot-cca}_{Π,𝒜} = 1] − 1/2|`. -/
 noncomputable def guessAdvantage [SampleableType C] [DecidableEq C]
@@ -279,7 +258,6 @@ private lemma securityExp_toReal_sub_half [SampleableType C] [DecidableEq C]
     (securityExpFixedBit ae adversary true)
     (securityExpFixedBit ae adversary false)
 
--- ANCHOR: guessAdvantage_eq_distAdvantage_div_two
 /-- **Theorem.** `Adv^{ot-cca}_{Π,𝒜} = Δ_{Π,𝒜} / 2`.
 The guess advantage equals half the distinguishing advantage. -/
 lemma guessAdvantage_eq_distAdvantage_div_two [SampleableType C] [DecidableEq C]
@@ -290,8 +268,6 @@ lemma guessAdvantage_eq_distAdvantage_div_two [SampleableType C] [DecidableEq C]
   rw [securityExp_toReal_sub_half, abs_div]
   congr 1
   exact abs_of_pos two_pos
--- ANCHOR_END: guessAdvantage_eq_distAdvantage_div_two
-
 end OneTime_CCA
 
 end AEADScheme
