@@ -26,6 +26,14 @@ jobs:
         # with:
           # leanchecker: true
 
+      - name: Cache docs Lake packages
+        uses: actions/cache@v4
+        with:
+          path: docs/.lake
+          key: docs-lake-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'docs/lake-manifest.json') }}-${{ github.sha }}
+          restore-keys: |
+            docs-lake-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'docs/lake-manifest.json') }}
+
       - name: Build documentation
         run: lake -d docs build
 
