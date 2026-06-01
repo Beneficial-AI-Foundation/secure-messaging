@@ -38,6 +38,14 @@ jobs:
           restore-keys: |
             docs-lake-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'docs/lake-manifest.json') }}
 
+      - name: Fetch docs dependencies
+        working-directory: docs
+        run: |
+          lake resolve-deps
+          if [ -d .lake/packages/VCVio/.git ]; then
+            git -C .lake/packages/VCVio submodule update --init --recursive
+          fi
+
       - name: Build documentation
         working-directory: docs
         run: lake build
