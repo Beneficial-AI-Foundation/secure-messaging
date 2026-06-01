@@ -1,2 +1,4 @@
 .lake
+docs/.lake
+site/
 .DS_Store

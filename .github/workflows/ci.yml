@@ -24,42 +24,18 @@ jobs:
 
       - uses: leanprover/lean-action@v1
         with:
-          build: "false"
           use-mathlib-cache: "true"
 
-      - name: Build project
-        run: lake build
-
-      - name: Cache docs Lake packages
-        uses: actions/cache@v4
-        with:
-          path: docs/.lake
-          key: docs-lake-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'docs/lake-manifest.json') }}
-          restore-keys: |
-            docs-lake-${{ runner.os }}-
-
-      - name: Fetch docs dependencies
-        working-directory: docs
-        run: |
-          lake resolve-deps
-          lake exe cache get || true
-          if [ -d .lake/packages/VCVio/.git ]; then
-            git -C .lake/packages/VCVio submodule update --init --recursive
-          fi
-
       - name: Build documentation
-        working-directory: docs
-        run: lake build
+        run: lake build SecureMessagingDocs
 
       - name: Generate documentation site
-        working-directory: docs
-        run: lake env lean --run Main.lean --output ../site
+        run: lake env lean --run SecureMessagingDocsMain.lean --output site
 
       - name: Add landing page
         run: cp static/index.html site/index.html
 
       - name: Upload Pages artifact
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/la/add_deploy_page'
         uses: actions/upload-pages-artifact@v3
         with:
           path: site
