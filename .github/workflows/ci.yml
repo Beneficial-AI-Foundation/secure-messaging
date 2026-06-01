@@ -25,6 +25,10 @@ jobs:
       - uses: leanprover/lean-action@v1
         with:
           build: "false"
+          use-mathlib-cache: "true"
+
+      - name: Build project
+        run: lake build
 
       - name: Cache docs Lake packages
         uses: actions/cache@v4
@@ -36,9 +40,7 @@ jobs:
 
       - name: Build documentation
         working-directory: docs
-        run: |
-          lake exe cache get || true
-          lake build
+        run: lake build
 
       - name: Generate documentation site
         working-directory: docs
