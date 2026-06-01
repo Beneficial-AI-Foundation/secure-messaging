@@ -35,7 +35,8 @@ jobs:
             docs-lake-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'docs/lake-manifest.json') }}
 
       - name: Build documentation
-        run: lake -d docs build
+        working-directory: docs
+        run: lake build
 
       - name: Generate documentation site
         working-directory: docs
