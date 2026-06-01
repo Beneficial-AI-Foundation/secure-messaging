@@ -42,6 +42,7 @@ jobs:
         working-directory: docs
         run: |
           lake resolve-deps
+          lake exe cache get || true
           if [ -d .lake/packages/VCVio/.git ]; then
             git -C .lake/packages/VCVio submodule update --init --recursive
           fi
