@@ -487,4 +487,58 @@ private lemma injectResume_pausedB_combine [SampleableType K] [DecidableEq K]
       probOutput_simulateQ_securityImplWithChallengeKeyPair_run_eq_of_injectionPassed
         kem hDet leak gp isRandom p.1 p.2 (cont (some ((ck.1, p.1), ck.2))) _ (hpass _ rfl) z
 
+/-! ## Moving the challenge key draw across the simulation -/
+
+/-- From any starting state, drawing the challenge key pair up front and running
+the injecting implementation gives the same Boolean output as running the honest
+implementation.
+
+Both runs split through `injectPrefix`; the shared prefix commutes past the
+up-front draw, and at the installing send the draw couples with the send. -/
+private lemma probOutput_simulateQ_keygen_commute [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (gp : CKAScheme.GameParams)
+    (isRandom : Bool)
+    (adv : Adversary (kem := kem) leak)
+    (σ0 : SecurityState K PK SK C) :
+    Pr[= true | kem.keygen >>= fun p =>
+        (simulateQ
+        (securityImplWithChallengeKeyPair kem hDet leak gp isRandom p.1 p.2) adv).run σ0 >>=
+          fun x => pure x.1]
+      = Pr[= true | (simulateQ (securityImpl kem hDet leak gp isRandom) adv).run σ0 >>=
+          fun x => pure x.1] := by
+  have hsplitWCK : ∀ p : PK × SK,
+      (simulateQ (securityImplWithChallengeKeyPair kem hDet leak gp isRandom p.1 p.2) adv).run σ0 =
+        (injectPrefix kem hDet leak gp isRandom adv).run σ0 >>= fun x =>
+          injectResume kem leak (securityImplWithChallengeKeyPair kem hDet leak gp isRandom p.1 p.2)
+            x.1 x.2 :=
+    fun p => simulateQ_run_eq_injectPrefix_bind kem hDet leak gp isRandom _
+      (securityImplWithChallengeKeyPair_run_eq_securityImpl_of_step
+        kem hDet leak gp isRandom p.1 p.2)
+      adv σ0
+  have hsplitH :
+      (simulateQ (securityImpl kem hDet leak gp isRandom) adv).run σ0 =
+        (injectPrefix kem hDet leak gp isRandom adv).run σ0 >>= fun x =>
+          injectResume kem leak (securityImpl kem hDet leak gp isRandom) x.1 x.2 :=
+    simulateQ_run_eq_injectPrefix_bind kem hDet leak gp isRandom _ (fun _ _ _ _ => rfl) adv σ0
+  simp only [hsplitWCK, hsplitH, bind_assoc]
+  rw [probOutput_bind_bind_swap (mx := kem.keygen)
+    (my := (injectPrefix kem hDet leak gp isRandom adv).run σ0)]
+  refine probOutput_bind_congr fun rs hrs => ?_
+  obtain ⟨res, σ_p⟩ := rs
+  cases res with
+  | done g =>
+      simp only [injectResume, pure_bind, probOutput_bind_const,
+        HasEvalPMF.probFailure_eq_zero, tsub_zero, one_mul]
+  | pausedA cont =>
+      exact injectResume_pausedA_combine kem hDet leak gp isRandom cont σ_p
+        (injectPrefix_run_support_effInject kem hDet leak gp isRandom
+          (.pausedA cont) σ_p adv σ0 hrs)
+  | pausedB cont =>
+      exact injectResume_pausedB_combine kem hDet leak gp isRandom cont σ_p
+        (injectPrefix_run_support_effInject kem hDet leak gp isRandom
+          (.pausedB cont) σ_p adv σ0 hrs)
+
 end kemCKA
