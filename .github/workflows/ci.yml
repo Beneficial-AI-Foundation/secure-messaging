@@ -13,11 +13,12 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "pages-${{ github.ref }}"
+  group: "${{ github.repository }}-pages-${{ github.ref }}"
   cancel-in-progress: true
 
 jobs:
   build:
+    name: Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,13 +29,30 @@ jobs:
           use-github-cache: "false"
           use-mathlib-cache: "true"
 
-      - name: Cache Lake build artifacts
+      - name: Restore Lake package cache
         uses: actions/cache@v4
         with:
-          path: .lake
-          key: lake-build-${{ runner.os }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lake-manifest.json') }}
+          path: |
+            .lake/packages
+          key: ${{ runner.os }}-lake-packages-v2-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}
           restore-keys: |
-            lake-build-${{ runner.os }}-
+            ${{ runner.os }}-lake-packages-v2-
+
+      - name: Restore Lake build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .lake/build/lib
+            .lake/build/ir
+          key: ${{ runner.os }}-lake-build-v2-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.toml', '**/*.lean') }}
+          restore-keys: |
+            ${{ runner.os }}-lake-build-v2-${{ hashFiles('lean-toolchain', 'lake-manifest.json', 'lakefile.toml') }}-
+            ${{ runner.os }}-lake-build-v2-
+
+      - name: Show tool versions
+        run: |
+          lean --version
+          lake --version
 
       - name: Build project
         run: lake build
@@ -43,23 +61,30 @@ jobs:
         run: lake build SecureMessagingDocs
 
       - name: Generate documentation site
-        run: lake env lean --run SecureMessagingDocsMain.lean --output site
+        run: lake env lean --run SecureMessagingDocsMain.lean --output _out/site
 
       - name: Build literate code docs
         run: lake build :literateHtml
 
       - name: Assemble site
         run: |
-          cp -r .lake/build/literate-html site/code
-          cp static/index.html site/index.html
+          cp -r .lake/build/literate-html _out/site/code
+          cp static/index.html _out/site/index.html
+
+      - name: Validate site output
+        run: |
+          test -f _out/site/index.html
+          test -f _out/site/html-multi/index.html
+          test -f _out/site/code/index.html
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
-          path: site
+          path: _out/site
 
   deploy:
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/la/add_deploy_page'
+    name: Deploy Pages
+    if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
     environment:
