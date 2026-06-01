@@ -766,4 +766,113 @@ lemma securityImpl_run_counters_mono [SampleableType K] [DecidableEq K]
         pure_bind] at hz
       vcv_support
 
+/-! ## Past-injection equivalence of the injecting and honest implementations -/
+
+/-- The challenged party's predecessor counter has reached the injection epoch,
+so no later send can install the challenge key pair.
+
+For an A-challenge the predecessor send is a B-send (so the relevant counter is
+`tB`); for a B-challenge it is an A-send (so the counter is `tA`). -/
+def injectionPassed
+    (gp : CKAScheme.GameParams)
+    (σ : SecurityState K PK SK C) : Prop :=
+  match gp.challengedParty with
+  | .A => gp.challengeEpoch - 1 ≤ σ.tB
+  | .B => gp.challengeEpoch - 1 ≤ σ.tA
+
+/-- Once the predecessor counter has passed the injection epoch, the honest
+implementation keeps it passed: counters are monotone along every oracle. -/
+lemma securityImpl_preservesInv_injectionPassed [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (gp : CKAScheme.GameParams)
+    (isRandom : Bool) :
+    QueryImpl.PreservesInv (securityImpl kem hDet leak gp isRandom)
+      (injectionPassed (K := K) (PK := PK) (SK := SK) (C := C) gp) := by
+  intro t σ0 h z hz
+  have hmono := securityImpl_run_counters_mono kem hDet leak gp isRandom t σ0 z hz
+  cases hcp : gp.challengedParty <;>
+    simp only [injectionPassed, hcp] at h ⊢ <;> omega
+
+/-- Past the injection epoch, the injecting implementation coincides with the
+honest one on every oracle.
+
+Only the two send oracles differ between the implementations, and the `useStar`
+guard there is forced false once `injectionPassed` holds (either the challenged
+party makes that send never inject, or its counter has already passed the
+injection epoch), so both install the freshly generated key pair. Every other
+oracle is shared definitionally. -/
+lemma securityImplWithChallengeKeyPair_run_eq_securityImpl_of_injectionPassed
+    [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (gp : CKAScheme.GameParams)
+    (isRandom : Bool)
+    (pkStar : PK) (skStar : SK)
+    (t : (SecuritySpec leak).Domain)
+    (s : SecurityState K PK SK C)
+    (hs : injectionPassed gp s) :
+    (securityImplWithChallengeKeyPair kem hDet leak gp isRandom pkStar skStar t).run s =
+      (securityImpl kem hDet leak gp isRandom t).run s := by
+  rcases t with
+    (((((((((n | uSendA) | uRecvA) | uSendB) | uRecvB) |
+      uChallA) | uChallB) | uCorrA) | uCorrB) | uRLeakA) | uRLeakB
+  · rfl
+  · -- O-Send-A: the injecting and honest A-send agree (no injection past the epoch)
+    cases uSendA
+    have hnotInj : sendAInjectsChallengeKey gp { s with tA := s.tA + 1 } = false := by
+      cases hcp : gp.challengedParty with
+      | A => simp [sendAInjectsChallengeKey, hcp]
+      | B =>
+          simp only [injectionPassed, hcp] at hs
+          have hne : s.tA + 1 ≠ gp.challengeEpoch - 1 := by omega
+          simp [sendAInjectsChallengeKey, hcp, hne]
+    change (oracleSendAWithChallengeKeyPair kem gp pkStar skStar ()).run s = _
+    by_cases hvalid : CKAScheme.validStep s.lastAction .sendA = true
+    · cases hst : s.stA with
+      | sendReady pk =>
+          rw [oracleSendAWithChallengeKeyPair_run_sendReady kem gp pkStar skStar s pk hvalid hst,
+            securityImpl_OSendA_run_sendReady kem hDet leak gp isRandom s pk hvalid hst];
+          simp only [hnotInj]; rfl
+      | recvReady sk =>
+          change _ = (CKAScheme.oracleSendA (schemeWithLeak kem hDet leak) ()).run s
+          simp only [oracleSendAWithChallengeKeyPair, CKAScheme.oracleSendA, schemeWithLeak, send,
+            hvalid, ↓reduceIte, hst, StateT.run_bind, StateT.run_get, StateT.run_monadLift,
+            monadLift_self, StateT.run_pure, pure_bind]
+    · have hvalidFalse : CKAScheme.validStep s.lastAction .sendA = false :=
+        Bool.eq_false_of_not_eq_true hvalid
+      change _ = (CKAScheme.oracleSendA (schemeWithLeak kem hDet leak) ()).run s
+      simp only [oracleSendAWithChallengeKeyPair, CKAScheme.oracleSendA, hvalidFalse,
+        Bool.false_eq_true, ↓reduceIte, StateT.run_bind, StateT.run_get, StateT.run_pure, pure_bind]
+  · rfl
+  · -- O-Send-B: mirror of O-Send-A
+    cases uSendB
+    have hnotInj : sendBInjectsChallengeKey gp { s with tB := s.tB + 1 } = false := by
+      cases hcp : gp.challengedParty with
+      | A =>
+          simp only [injectionPassed, hcp] at hs
+          have hne : s.tB + 1 ≠ gp.challengeEpoch - 1 := by omega
+          simp [sendBInjectsChallengeKey, hcp, hne]
+      | B => simp [sendBInjectsChallengeKey, hcp]
+    change (oracleSendBWithChallengeKeyPair kem gp pkStar skStar ()).run s = _
+    by_cases hvalid : CKAScheme.validStep s.lastAction .sendB = true
+    · cases hst : s.stB with
+      | sendReady pk =>
+          rw [oracleSendBWithChallengeKeyPair_run_sendReady kem gp pkStar skStar s pk hvalid hst,
+            securityImpl_OSendB_run_sendReady kem hDet leak gp isRandom s pk hvalid hst]
+          simp only [hnotInj]; rfl
+      | recvReady sk =>
+          change _ = (CKAScheme.oracleSendB (schemeWithLeak kem hDet leak) ()).run s
+          simp only [oracleSendBWithChallengeKeyPair, CKAScheme.oracleSendB, schemeWithLeak, send,
+            hvalid, ↓reduceIte, hst, StateT.run_bind, StateT.run_get, StateT.run_monadLift,
+            monadLift_self, StateT.run_pure, pure_bind]
+    · have hvalidFalse : CKAScheme.validStep s.lastAction .sendB = false :=
+        Bool.eq_false_of_not_eq_true hvalid
+      change _ = (CKAScheme.oracleSendB (schemeWithLeak kem hDet leak) ()).run s
+      simp only [oracleSendBWithChallengeKeyPair, CKAScheme.oracleSendB, hvalidFalse,
+        Bool.false_eq_true, ↓reduceIte, StateT.run_bind, StateT.run_get, StateT.run_pure, pure_bind]
+  all_goals rfl
+
 end kemCKA
