@@ -341,4 +341,150 @@ private lemma injectPrefix_run_support_effInject [SampleableType K] [DecidableEq
           obtain ⟨p, -, hmem'⟩ := hmem
           exact ih p.1 p.2 hmem'
 
+/-! ## Combining the split at the installing send -/
+
+/-- Two state-output computations with the same output distribution have the same
+distribution on their Boolean component. -/
+private lemma probOutput_fst_true_eq_of_run_eq
+    {X Y : ProbComp (Bool × SecurityState K PK SK C)}
+    (h : ∀ z, Pr[= z | X] = Pr[= z | Y]) :
+    Pr[= true | X >>= fun x => pure x.1] = Pr[= true | Y >>= fun x => pure x.1] := by
+  rw [probOutput_bind_eq_tsum, probOutput_bind_eq_tsum]
+  exact tsum_congr fun z => by rw [h z]
+
+/-- The keygen commute at the installing A-send.
+
+On the injected branch the up-front challenge key draw supplies the installed
+pair while the send draws an unused fresh pair; on the honest branch the send
+draws the pair it installs.  Dropping the unused draw, coupling the up-front draw
+with the honest send's draw, and finishing the post-injection suffix with the
+`injectionPassed` equivalence identifies the two. -/
+private lemma injectResume_pausedA_combine [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (gp : CKAScheme.GameParams)
+    (isRandom : Bool)
+    (cont : Option (Message C PK × K) → OracleComp (SecuritySpec leak) Bool)
+    (σ_p : SecurityState K PK SK C)
+    (heff : sendAEffectivelyInjects gp σ_p = true) :
+    Pr[= true | kem.keygen >>= fun p =>
+        injectResume kem leak (securityImplWithChallengeKeyPair kem hDet leak gp isRandom p.1 p.2)
+          (.pausedA cont) σ_p >>= fun x => pure x.1]
+      = Pr[= true | injectResume kem leak (securityImpl kem hDet leak gp isRandom)
+          (.pausedA cont) σ_p >>= fun x => pure x.1] := by
+  simp only [sendAEffectivelyInjects, Bool.and_eq_true] at heff
+  obtain ⟨⟨hvalid, hsr⟩, hinj⟩ := heff
+  cases hst : σ_p.stA with
+  | recvReady sk => rw [hst] at hsr; exact absurd hsr (by simp)
+  | sendReady pk =>
+    -- the post-send state (counter `σ_p.tA + 1`) has `injectionPassed`
+    have hpass : ∀ s : SecurityState K PK SK C, s.tA = σ_p.tA + 1 → injectionPassed gp s := by
+      intro s hs
+      simp only [sendAInjectsChallengeKey, Bool.and_eq_true, beq_iff_eq] at hinj
+      obtain ⟨hcp, hta⟩ := hinj
+      simp only [injectionPassed, hcp]
+      omega
+    -- the injecting A-send under the up-front draw, reduced for every `p`
+    have hWCKSend : ∀ p : PK × SK,
+        (securityImplWithChallengeKeyPair kem hDet leak gp isRandom p.1 p.2
+            (CKAScheme.ckaSecuritySpec.OSendA : (SecuritySpec leak).Domain)).run σ_p =
+          (do
+            let (c, key) ← kem.encaps pk
+            let (_pkGen, _skGen) ← kem.keygen
+            pure (some ((c, p.1), key),
+              ({ σ_p with
+                  tA := σ_p.tA + 1,
+                  stA := State.recvReady p.2,
+                  rhoA := some (c, p.1),
+                  keyA := some key,
+                  lastAction := some .sendA } : SecurityState K PK SK C))) := by
+      intro p
+      change (oracleSendAWithChallengeKeyPair kem gp p.1 p.2 ()).run σ_p = _
+      simp only [oracleSendAWithChallengeKeyPair_run_sendReady kem gp p.1 p.2 σ_p pk hvalid hst,
+        hinj, ↓reduceIte]
+      simp_all only [bind_pure_comp]
+      obtain ⟨fst, snd⟩ := p
+      simp_all only
+      rfl
+    -- normal forms of the two `injectResume` runs after the send reductions
+    simp only [injectResume, hWCKSend,
+      securityImpl_OSendA_run_sendReady kem hDet leak gp isRandom σ_p pk hvalid hst, bind_assoc]
+    -- couple the up-front challenge draw with the send's encapsulation, descend to
+    -- the shared encapsulation and key draw, then drop the unused draw and finish
+    -- the suffix by the post-injection equivalence
+    rw [probOutput_bind_bind_swap (mx := kem.keygen) (my := kem.encaps pk)]
+    refine probOutput_bind_congr fun ck _ => ?_
+    refine probOutput_bind_congr fun p _ => ?_
+    rw [probOutput_bind_const]
+    simp only [HasEvalPMF.probFailure_eq_zero, tsub_zero, one_mul]
+    exact probOutput_fst_true_eq_of_run_eq fun z =>
+      probOutput_simulateQ_securityImplWithChallengeKeyPair_run_eq_of_injectionPassed
+        kem hDet leak gp isRandom p.1 p.2 (cont (some ((ck.1, p.1), ck.2))) _ (hpass _ rfl) z
+
+/-- The keygen commute at the installing B-send, the mirror of
+`injectResume_pausedA_combine`. -/
+private lemma injectResume_pausedB_combine [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (leak : KEMRandLeak kem)
+    (gp : CKAScheme.GameParams)
+    (isRandom : Bool)
+    (cont : Option (Message C PK × K) → OracleComp (SecuritySpec leak) Bool)
+    (σ_p : SecurityState K PK SK C)
+    (heff : sendBEffectivelyInjects gp σ_p = true) :
+    Pr[= true | kem.keygen >>= fun p =>
+        injectResume kem leak (securityImplWithChallengeKeyPair kem hDet leak gp isRandom p.1 p.2)
+          (.pausedB cont) σ_p >>= fun x => pure x.1]
+      = Pr[= true | injectResume kem leak (securityImpl kem hDet leak gp isRandom)
+          (.pausedB cont) σ_p >>= fun x => pure x.1] := by
+  simp only [sendBEffectivelyInjects, Bool.and_eq_true] at heff
+  obtain ⟨⟨hvalid, hsr⟩, hinj⟩ := heff
+  cases hst : σ_p.stB with
+  | recvReady sk => rw [hst] at hsr; exact absurd hsr (by simp)
+  | sendReady pk =>
+    -- the post-send state (counter `σ_p.tB + 1`) has `injectionPassed`
+    have hpass : ∀ s : SecurityState K PK SK C, s.tB = σ_p.tB + 1 → injectionPassed gp s := by
+      intro s hs
+      simp only [sendBInjectsChallengeKey, Bool.and_eq_true, beq_iff_eq] at hinj
+      obtain ⟨hcp, hta⟩ := hinj
+      simp only [injectionPassed, hcp]
+      omega
+    -- the injecting B-send under the up-front draw, reduced for every `p`
+    have hWCKSend : ∀ p : PK × SK,
+        (securityImplWithChallengeKeyPair kem hDet leak gp isRandom p.1 p.2
+            (CKAScheme.ckaSecuritySpec.OSendB : (SecuritySpec leak).Domain)).run σ_p =
+          (do
+            let (c, key) ← kem.encaps pk
+            let (_pkGen, _skGen) ← kem.keygen
+            pure (some ((c, p.1), key),
+              ({ σ_p with
+                  tB := σ_p.tB + 1,
+                  stB := State.recvReady p.2,
+                  rhoB := some (c, p.1),
+                  keyB := some key,
+                  lastAction := some .sendB } : SecurityState K PK SK C))) := by
+      intro p
+      change (oracleSendBWithChallengeKeyPair kem gp p.1 p.2 ()).run σ_p = _
+      simp only [oracleSendBWithChallengeKeyPair_run_sendReady kem gp p.1 p.2 σ_p pk hvalid hst,
+        hinj, ↓reduceIte]
+      simp_all only [bind_pure_comp]
+      obtain ⟨fst, snd⟩ := p
+      simp_all only
+      rfl
+    -- normal forms of the two `injectResume` runs after the send reductions
+    simp only [injectResume, hWCKSend,
+      securityImpl_OSendB_run_sendReady kem hDet leak gp isRandom σ_p pk hvalid hst, bind_assoc]
+    -- couple the up-front challenge draw with the send's encapsulation, descend to
+    -- the shared encapsulation and key draw, then drop the unused draw and finish
+    -- the suffix by the post-injection equivalence
+    rw [probOutput_bind_bind_swap (mx := kem.keygen) (my := kem.encaps pk)]
+    refine probOutput_bind_congr fun ck _ => ?_
+    refine probOutput_bind_congr fun p _ => ?_
+    rw [probOutput_bind_const]
+    simp only [HasEvalPMF.probFailure_eq_zero, tsub_zero, one_mul]
+    exact probOutput_fst_true_eq_of_run_eq fun z =>
+      probOutput_simulateQ_securityImplWithChallengeKeyPair_run_eq_of_injectionPassed
+        kem hDet leak gp isRandom p.1 p.2 (cont (some ((ck.1, p.1), ck.2))) _ (hpass _ rfl) z
+
 end kemCKA
