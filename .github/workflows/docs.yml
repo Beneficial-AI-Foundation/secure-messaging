@@ -1,28 +1,24 @@
 name: Docs (Verso-Blueprint)
 
-# Builds the Verso-Blueprint documentation site in vb-poc/ and uploads it as a
-# downloadable CI artifact for review/preview.
-#
-# It deliberately does NOT publish to GitHub Pages. This repo has a single Pages
-# site whose Source is "GitHub Actions"; the github-pages environment only allows
-# `main` and `la/add_deploy_page` to deploy, so a deploy from any other branch is
-# rejected by environment protection. The production layout is a SUBPATH deploy
-# (team docs at /, this PoC at /vb-poc/), assembled by the team's coordinated
-# deploy on an allowed branch — not here. See
-# .formalising/fv-plans/VB-docs/progress.md for that plan.
-#
-# The Lean build is delegated to leanprover/lean-action (the same action ci.yml
-# uses), but this docs package requires versoBlueprint ONLY — not the protocol
-# library's VCV-io / mathlib stack — so the build is light and fully separate from
-# the project build (no mathlib download). ~/.elan and vb-poc/.lake are cached
-# across runs, so only the first (cold) run pays the versoBlueprint build.
+# Builds the Verso-Blueprint docs in vb-poc/ (versoBlueprint-only — no mathlib /
+# VCV-io stack, so the build is light and separate from the project build) and:
+#   * on ANY repo: uploads the rendered site as a Pages artifact;
+#   * ONLY on a fork owned by 'a-dangelo': deploys it to that fork's GitHub Pages
+#     (https://a-dangelo.github.io/secure-messaging/), giving the PoC an
+#     independent live site without touching the upstream team Pages (whose
+#     environment forbids deploys from here anyway).
+# On the upstream repo the deploy job is skipped, so CI stays build-only there.
 
 on:
+  push:
+    branches: [ada/vb-poc, main]
   pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
+  pages: write
+  id-token: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -35,8 +31,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/configure-pages@v5
+
       # Cache the Lean toolchain so elan does not re-download v4.29.0 every run.
-      # (lean-action installs elan but does not cache the toolchain itself.)
       - name: Cache Lean toolchain
         uses: actions/cache@v4
         with:
@@ -56,7 +53,6 @@ jobs:
           lint: false
           use-mathlib-cache: false
 
-      # Verso-specific: run the generator to emit the static site.
       - name: Render site to static HTML
         run: lake -d vb-poc env lean --run vb-poc/Main.lean --output vb-poc/_out/site
 
@@ -65,10 +61,27 @@ jobs:
           test -f vb-poc/_out/site/html-multi/index.html
           test -f vb-poc/_out/site/html-multi/-verso-data/blueprint-preview-manifest.json
 
-      # Downloadable preview (open index.html locally). The production publish is
-      # the coordinated subpath deploy on an allowed branch, not this workflow.
-      - name: Upload site as downloadable artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-pages-artifact@v4
         with:
-          name: vb-docs-site
           path: vb-poc/_out/site/html-multi
+
+  deploy:
+    name: Deploy to fork Pages
+    # Runs ONLY on a fork owned by 'a-dangelo' (never on the upstream repo), and
+    # never on pull_request events. Publishes to a-dangelo.github.io/secure-messaging/.
+    #
+    # TODO(remove when the PoC merges into SecureMessaging): the 'a-dangelo' owner
+    # gate below — and the a-dangelo references in this file's header comment — are
+    # TEMPORARY, only so the PoC can be previewed on a personal fork while it's under
+    # review. Once the PoC is approved and merged to SM (this version or astefano's),
+    # delete the gate + a-dangelo comments and point the deploy at the team's
+    # main/Pages flow, so the merged workflow is clean and fork-agnostic.
+    if: github.repository_owner == 'a-dangelo' && github.event_name != 'pull_request'
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
