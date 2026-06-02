@@ -12,10 +12,10 @@ name: Docs (Verso-Blueprint)
 # .formalising/fv-plans/VB-docs/progress.md for that plan.
 #
 # The Lean build is delegated to leanprover/lean-action (the same action ci.yml
-# uses), so the protocol library and the docs share one toolchain pin and
-# mathlib's cloud cache; mathlib is downloaded, never compiled. ~/.elan and
-# vb-poc/.lake are cached across runs, so only the first (cold) run pays the full
-# toolchain download + versoBlueprint build.
+# uses), but this docs package requires versoBlueprint ONLY — not the protocol
+# library's VCV-io / mathlib stack — so the build is light and fully separate from
+# the project build (no mathlib download). ~/.elan and vb-poc/.lake are cached
+# across runs, so only the first (cold) run pays the versoBlueprint build.
 
 on:
   pull_request:
@@ -43,10 +43,10 @@ jobs:
           path: ~/.elan
           key: elan-${{ runner.os }}-${{ hashFiles('vb-poc/lean-toolchain') }}
 
-      # lean-action, pointed at vb-poc/, installs elan, runs `lake exe cache get`
-      # (downloads mathlib oleans; never compiles mathlib), caches vb-poc/.lake,
-      # and runs `lake build` for the SMDocs default target.
-      - name: Build docs library (elan + mathlib cache + lake build)
+      # lean-action, pointed at vb-poc/, installs elan, caches vb-poc/.lake, and
+      # runs `lake build` for the SMDocs default target. use-mathlib-cache is
+      # false: the docs require versoBlueprint only (no mathlib).
+      - name: Build docs library (elan + lake build)
         uses: leanprover/lean-action@v1
         with:
           lake-package-directory: vb-poc
@@ -54,7 +54,7 @@ jobs:
           build: true
           test: false
           lint: false
-          use-mathlib-cache: true
+          use-mathlib-cache: false
 
       # Verso-specific: run the generator to emit the static site.
       - name: Render site to static HTML

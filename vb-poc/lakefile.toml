@@ -1,19 +1,15 @@
 name = "SMDocs"
 defaultTargets = ["SMDocs"]
 
-# Verso-Blueprint pinned to its v4.29.0 release ref, so the protocol library, the
-# docs, and the mathlib cache all share one toolchain (leanprover/lean4:v4.29.0)
-# and one mathlib revision. The committed lake-manifest.json locks the exact SHA.
+# Standalone docs package: requires versoBlueprint ONLY (which pulls verso +
+# proofwidgets, NOT mathlib). The protocol library and its VCV-io / mathlib /
+# loom2 / Hax stack are intentionally NOT required here, so this docs build stays
+# fast and fully separate from the project build. Pinned to versoBlueprint's
+# v4.29.0 ref (same Lean toolchain as the project); the manifest locks the SHA.
 [[require]]
 name = "versoBlueprint"
 git = "https://github.com/leanprover/verso-blueprint"
 rev = "v4.29.0"
-
-# The docs read live SecureMessaging declarations by reference; a rename in the
-# library should fail the docs build rather than silently drift.
-[[require]]
-name = "SecureMessaging"
-path = ".."
 
 [[lean_lib]]
 name = "SMDocs"
