@@ -1,27 +1,26 @@
 name: Docs (Verso-Blueprint)
 
-# Builds the Verso-Blueprint documentation site in docs/ and deploys it to
-# GitHub Pages.
+# Builds the Verso-Blueprint documentation site in docs/ and uploads it as a
+# downloadable CI artifact for review/preview.
 #
-# The Lean heavy-lifting is delegated to `leanprover/lean-action` — the SAME
-# action ci.yml uses for the protocol library — so the two builds share one
-# toolchain pin (leanprover/lean4:v4.29.0) and one mathlib revision. Mathlib is
-# NEVER compiled here: lean-action detects the mathlib dependency in
-# docs/lake-manifest.json and runs `lake exe cache get`, which downloads
-# prebuilt oleans from Mathlib's cloud cache, and it caches docs/.lake (toolchain
-# + built deps) across runs. The Verso render and the GitHub Pages publish are
-# the only steps lean-action does not cover, so they stay explicit below.
+# It deliberately does NOT publish to GitHub Pages. This repo has a single Pages
+# site whose Source is "GitHub Actions", deployed from `main` by the team's CI
+# workflow; the `github-pages` environment is restricted to `main`, so a deploy
+# from any other branch is rejected by environment protection. The production
+# layout is a SUBPATH deploy (team docs at /, this PoC at /vb-poc/), assembled by
+# the coordinated main-branch deploy — not here. See
+# .formalising/fv-plans/VB-docs/progress.md for that plan.
+#
+# The Lean build is delegated to leanprover/lean-action (the same action ci.yml
+# uses), so the protocol library and the docs share one toolchain pin and
+# mathlib's cloud cache; mathlib is downloaded, never compiled.
 
 on:
-  push:
-    branches: [ada/vb-poc, main]
   pull_request:
   workflow_dispatch:
 
 permissions:
-  contents: read      # checkout
-  pages: write        # publish to GitHub Pages
-  id-token: write     # OIDC token the deploy-pages action exchanges
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -34,16 +33,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Prepares Pages metadata (base URL etc.) for the upload/deploy steps.
-      - uses: actions/configure-pages@v5
-
-      # lean-action, pointed at docs/, performs in one step:
-      #   1. install elan (pinned by docs/lean-toolchain) and add lake to PATH
-      #   2. `lake exe cache get`  -> download mathlib oleans (use-mathlib-cache: true)
-      #   3. cache docs/.lake via actions/cache so repeat runs are fast
-      #   4. `lake build`          -> build the SMDocs default target in docs/
-      # auto-config is disabled and test/lint left off so the step does exactly
-      # those four things and nothing is silently inferred.
+      # lean-action, pointed at docs/, installs elan (pinned by
+      # docs/lean-toolchain), runs `lake exe cache get` (downloads mathlib oleans;
+      # never compiles mathlib), caches docs/.lake, and runs `lake build` for the
+      # SMDocs default target.
       - name: Build docs library (elan + mathlib cache + lake build)
         uses: leanprover/lean-action@v1
         with:
@@ -54,8 +47,7 @@ jobs:
           lint: false
           use-mathlib-cache: true
 
-      # Verso-specific: run the generator to emit the static site. lake is on
-      # PATH from lean-action; docs/.lake is already built, so this is fast.
+      # Verso-specific: run the generator to emit the static site.
       - name: Render site to static HTML
         run: lake -d docs env lean --run docs/Main.lean --output docs/_out/site
 
@@ -64,20 +56,10 @@ jobs:
           test -f docs/_out/site/html-multi/index.html
           test -f docs/_out/site/html-multi/-verso-data/blueprint-preview-manifest.json
 
-      # Package docs/_out/site/html-multi as the Pages artifact.
-      - uses: actions/upload-pages-artifact@v4
+      # Downloadable preview (open index.html locally). The production publish is
+      # the coordinated subpath deploy on main, not this workflow.
+      - name: Upload site as downloadable artifact
+        uses: actions/upload-artifact@v4
         with:
+          name: vb-docs-site
           path: docs/_out/site/html-multi
-
-  deploy:
-    name: Deploy to Pages
-    # Build-only on PRs; publish on push to a tracked branch or manual dispatch.
-    if: github.event_name != 'pull_request'
-    needs: build
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
