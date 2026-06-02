@@ -9,6 +9,7 @@ import VersoBlueprint.Commands.Graph
 import VersoBlueprint.Commands.Summary
 import SMDocs.TexStub
 import SMDocs.CkaFromDdh
+import SMDocs.CkaDiagrams
 
 /-!
 # Blueprint root
@@ -44,6 +45,8 @@ Capability stubs, one page each:
 {include 1 SMDocs.TexStub}
 
 {include 1 SMDocs.CkaFromDdh}
+
+{include 1 SMDocs.CkaDiagrams}
 
 {blueprint_graph}
 
