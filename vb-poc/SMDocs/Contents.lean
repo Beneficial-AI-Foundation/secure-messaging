@@ -8,14 +8,14 @@ import VersoBlueprint
 import VersoBlueprint.Commands.Graph
 import VersoBlueprint.Commands.Summary
 import SMDocs.TexStub
+import SMDocs.CkaFromDdh
 
 /-!
 # Blueprint root
 
-Minimal Verso-Blueprint landing page for the `SecureMessaging` formalization. It
-exists only to prove the site builds, renders, and deploys. The four capability
-stubs (TeX, Lean+LSP, diagrams, blueprint features) and the protocol progress
-chart are added in later phases.
+Verso-Blueprint landing page for the `SecureMessaging` formalization. It wires the
+capability stubs into one site and renders the dependency graph, status summary,
+and bibliography. Each stub is a single minimal page.
 -/
 
 open Verso.Genre
@@ -43,6 +43,10 @@ Capability stubs, one page each:
 
 {include 1 SMDocs.TexStub}
 
+{include 1 SMDocs.CkaFromDdh}
+
 {blueprint_graph}
 
 {blueprint_summary}
+
+{blueprint_bibliography}

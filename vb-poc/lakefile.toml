@@ -1,15 +1,27 @@
 name = "SMDocs"
 defaultTargets = ["SMDocs"]
 
-# Standalone docs package: requires versoBlueprint ONLY (which pulls verso +
-# proofwidgets, NOT mathlib). The protocol library and its VCV-io / mathlib /
-# loom2 / Hax stack are intentionally NOT required here, so this docs build stays
-# fast and fully separate from the project build. Pinned to versoBlueprint's
-# v4.29.0 ref (same Lean toolchain as the project); the manifest locks the SHA.
+# Docs package for the SecureMessaging Verso-Blueprint PoC. Two requires:
+#  - versoBlueprint: the docs framework (transitively pulls verso + proofwidgets).
+#  - SecureMessaging (path=".."): the project library itself, so pages can evoke
+#    REAL declarations with hover/LSP and the `(lean := "...")` blueprint refs are
+#    drift-proof — renaming a referenced decl fails this build instead of letting
+#    the prose silently rot.
+#
+# Requiring the project transitively pulls the full VCV-io / mathlib / loom2 / Hax
+# stack, so this is a heavy build. It is deliberately ONE workspace (this package
+# requires the project by path, which builds the project in-place at the repo root
+# rather than in a second copy) so mathlib is materialised once and the project is
+# compiled once. The CI (.github/workflows/docs.yml) fetches the mathlib cloud
+# cache exactly once and builds this single workspace — see that file.
 [[require]]
 name = "versoBlueprint"
 git = "https://github.com/leanprover/verso-blueprint"
 rev = "v4.29.0"
+
+[[require]]
+name = "SecureMessaging"
+path = ".."
 
 [[lean_lib]]
 name = "SMDocs"

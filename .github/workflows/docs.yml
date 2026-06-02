@@ -1,12 +1,22 @@
 name: Docs (Verso-Blueprint)
 
-# Builds the Verso-Blueprint docs in vb-poc/ (versoBlueprint-only — no mathlib /
-# VCV-io stack, so the build is light and separate from the project build) and:
+# Builds the Verso-Blueprint docs in vb-poc/ and publishes them.
+#
+# vb-poc/ requires the SecureMessaging library (path="..") so the docs evoke REAL
+# declarations with hover/LSP and drift-proof `(lean := "...")` refs. That pulls
+# the full VCV-io / mathlib stack, so this is a heavy build — but it is ONE Lake
+# workspace: the path-require builds the project IN PLACE at the repo root and the
+# docs on top, so the mathlib cloud cache is fetched ONCE (use-mathlib-cache: true)
+# and the project is compiled ONCE (no duplicate mathlib materialisation).
+#
+# MERGE NOTE: on the team repo this docs build would run alongside ci.yml; to avoid
+# compiling the project twice on `main`, fold the docs+render+deploy steps into
+# ci.yml's single build job (one checkout, one mathlib fetch, one `lake build`).
+#
 #   * on ANY repo: uploads the rendered site as a Pages artifact;
 #   * ONLY on a fork owned by 'a-dangelo': deploys it to that fork's GitHub Pages
-#     (https://a-dangelo.github.io/secure-messaging/), giving the PoC an
-#     independent live site without touching the upstream team Pages (whose
-#     environment forbids deploys from here anyway).
+#     (https://a-dangelo.github.io/secure-messaging/), an independent live preview
+#     that never touches the upstream team Pages.
 # On the upstream repo the deploy job is skipped, so CI stays build-only there.
 
 on:
@@ -40,10 +50,11 @@ jobs:
           path: ~/.elan
           key: elan-${{ runner.os }}-${{ hashFiles('vb-poc/lean-toolchain') }}
 
-      # lean-action, pointed at vb-poc/, installs elan, caches vb-poc/.lake, and
-      # runs `lake build` for the SMDocs default target. use-mathlib-cache is
-      # false: the docs require versoBlueprint only (no mathlib).
-      - name: Build docs library (elan + lake build)
+      # lean-action, pointed at vb-poc/, installs elan, fetches the mathlib cloud
+      # cache ONCE (use-mathlib-cache: true), then builds the SMDocs default
+      # target — which transitively compiles the SecureMessaging project (in place
+      # at the repo root) and the docs on top — and caches the whole vb-poc/.lake.
+      - name: Build docs + project (elan + mathlib cache + lake build)
         uses: leanprover/lean-action@v1
         with:
           lake-package-directory: vb-poc
@@ -51,7 +62,7 @@ jobs:
           build: true
           test: false
           lint: false
-          use-mathlib-cache: false
+          use-mathlib-cache: true
 
       - name: Render site to static HTML
         run: lake -d vb-poc env lean --run vb-poc/Main.lean --output vb-poc/_out/site
