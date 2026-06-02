@@ -7,6 +7,7 @@ import VersoManual
 import VersoBlueprint
 import VersoBlueprint.Commands.Graph
 import VersoBlueprint.Commands.Summary
+import SMDocs.TexStub
 
 /-!
 # Blueprint root
@@ -37,6 +38,10 @@ documentation content arrives in later phases.
 Placeholder blueprint node, so the dependency graph and the status summary have
 something to render while the scaffold is verified end to end.
 :::
+
+Capability stubs, one page each:
+
+{include 1 SMDocs.TexStub}
 
 {blueprint_graph}
 
