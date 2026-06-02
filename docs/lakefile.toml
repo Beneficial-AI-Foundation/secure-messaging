@@ -1,0 +1,23 @@
+name = "SMDocs"
+defaultTargets = ["SMDocs"]
+
+# Verso-Blueprint pinned to its v4.29.0 release ref, so the protocol library, the
+# docs, and the mathlib cache all share one toolchain (leanprover/lean4:v4.29.0)
+# and one mathlib revision. The committed lake-manifest.json locks the exact SHA.
+[[require]]
+name = "versoBlueprint"
+git = "https://github.com/leanprover/verso-blueprint"
+rev = "v4.29.0"
+
+# The docs read live SecureMessaging declarations by reference; a rename in the
+# library should fail the docs build rather than silently drift.
+[[require]]
+name = "SecureMessaging"
+path = ".."
+
+[[lean_lib]]
+name = "SMDocs"
+
+[[lean_exe]]
+name = "site"
+root = "Main"

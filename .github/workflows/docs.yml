@@ -1,0 +1,83 @@
+name: Docs (Verso-Blueprint)
+
+# Builds the Verso-Blueprint documentation site in docs/ and deploys it to
+# GitHub Pages.
+#
+# The Lean heavy-lifting is delegated to `leanprover/lean-action` — the SAME
+# action ci.yml uses for the protocol library — so the two builds share one
+# toolchain pin (leanprover/lean4:v4.29.0) and one mathlib revision. Mathlib is
+# NEVER compiled here: lean-action detects the mathlib dependency in
+# docs/lake-manifest.json and runs `lake exe cache get`, which downloads
+# prebuilt oleans from Mathlib's cloud cache, and it caches docs/.lake (toolchain
+# + built deps) across runs. The Verso render and the GitHub Pages publish are
+# the only steps lean-action does not cover, so they stay explicit below.
+
+on:
+  push:
+    branches: [ada/vb-poc, main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read      # checkout
+  pages: write        # publish to GitHub Pages
+  id-token: write     # OIDC token the deploy-pages action exchanges
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Prepares Pages metadata (base URL etc.) for the upload/deploy steps.
+      - uses: actions/configure-pages@v5
+
+      # lean-action, pointed at docs/, performs in one step:
+      #   1. install elan (pinned by docs/lean-toolchain) and add lake to PATH
+      #   2. `lake exe cache get`  -> download mathlib oleans (use-mathlib-cache: true)
+      #   3. cache docs/.lake via actions/cache so repeat runs are fast
+      #   4. `lake build`          -> build the SMDocs default target in docs/
+      # auto-config is disabled and test/lint left off so the step does exactly
+      # those four things and nothing is silently inferred.
+      - name: Build docs library (elan + mathlib cache + lake build)
+        uses: leanprover/lean-action@v1
+        with:
+          lake-package-directory: docs
+          auto-config: false
+          build: true
+          test: false
+          lint: false
+          use-mathlib-cache: true
+
+      # Verso-specific: run the generator to emit the static site. lake is on
+      # PATH from lean-action; docs/.lake is already built, so this is fast.
+      - name: Render site to static HTML
+        run: lake -d docs env lean --run docs/Main.lean --output docs/_out/site
+
+      - name: Verify site output
+        run: |
+          test -f docs/_out/site/html-multi/index.html
+          test -f docs/_out/site/html-multi/-verso-data/blueprint-preview-manifest.json
+
+      # Package docs/_out/site/html-multi as the Pages artifact.
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: docs/_out/site/html-multi
+
+  deploy:
+    name: Deploy to Pages
+    # Build-only on PRs; publish on push to a tracked branch or manual dispatch.
+    if: github.event_name != 'pull_request'
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
