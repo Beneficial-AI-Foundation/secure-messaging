@@ -1,19 +1,21 @@
 name: Docs (Verso-Blueprint)
 
-# Builds the Verso-Blueprint documentation site in docs/ and uploads it as a
+# Builds the Verso-Blueprint documentation site in vb-poc/ and uploads it as a
 # downloadable CI artifact for review/preview.
 #
 # It deliberately does NOT publish to GitHub Pages. This repo has a single Pages
-# site whose Source is "GitHub Actions", deployed from `main` by the team's CI
-# workflow; the `github-pages` environment is restricted to `main`, so a deploy
-# from any other branch is rejected by environment protection. The production
-# layout is a SUBPATH deploy (team docs at /, this PoC at /vb-poc/), assembled by
-# the coordinated main-branch deploy — not here. See
+# site whose Source is "GitHub Actions"; the github-pages environment only allows
+# `main` and `la/add_deploy_page` to deploy, so a deploy from any other branch is
+# rejected by environment protection. The production layout is a SUBPATH deploy
+# (team docs at /, this PoC at /vb-poc/), assembled by the team's coordinated
+# deploy on an allowed branch — not here. See
 # .formalising/fv-plans/VB-docs/progress.md for that plan.
 #
 # The Lean build is delegated to leanprover/lean-action (the same action ci.yml
 # uses), so the protocol library and the docs share one toolchain pin and
-# mathlib's cloud cache; mathlib is downloaded, never compiled.
+# mathlib's cloud cache; mathlib is downloaded, never compiled. ~/.elan and
+# vb-poc/.lake are cached across runs, so only the first (cold) run pays the full
+# toolchain download + versoBlueprint build.
 
 on:
   pull_request:
@@ -33,14 +35,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # lean-action, pointed at docs/, installs elan (pinned by
-      # docs/lean-toolchain), runs `lake exe cache get` (downloads mathlib oleans;
-      # never compiles mathlib), caches docs/.lake, and runs `lake build` for the
-      # SMDocs default target.
+      # Cache the Lean toolchain so elan does not re-download v4.29.0 every run.
+      # (lean-action installs elan but does not cache the toolchain itself.)
+      - name: Cache Lean toolchain
+        uses: actions/cache@v4
+        with:
+          path: ~/.elan
+          key: elan-${{ runner.os }}-${{ hashFiles('vb-poc/lean-toolchain') }}
+
+      # lean-action, pointed at vb-poc/, installs elan, runs `lake exe cache get`
+      # (downloads mathlib oleans; never compiles mathlib), caches vb-poc/.lake,
+      # and runs `lake build` for the SMDocs default target.
       - name: Build docs library (elan + mathlib cache + lake build)
         uses: leanprover/lean-action@v1
         with:
-          lake-package-directory: docs
+          lake-package-directory: vb-poc
           auto-config: false
           build: true
           test: false
@@ -49,17 +58,17 @@ jobs:
 
       # Verso-specific: run the generator to emit the static site.
       - name: Render site to static HTML
-        run: lake -d docs env lean --run docs/Main.lean --output docs/_out/site
+        run: lake -d vb-poc env lean --run vb-poc/Main.lean --output vb-poc/_out/site
 
       - name: Verify site output
         run: |
-          test -f docs/_out/site/html-multi/index.html
-          test -f docs/_out/site/html-multi/-verso-data/blueprint-preview-manifest.json
+          test -f vb-poc/_out/site/html-multi/index.html
+          test -f vb-poc/_out/site/html-multi/-verso-data/blueprint-preview-manifest.json
 
       # Downloadable preview (open index.html locally). The production publish is
-      # the coordinated subpath deploy on main, not this workflow.
+      # the coordinated subpath deploy on an allowed branch, not this workflow.
       - name: Upload site as downloadable artifact
         uses: actions/upload-artifact@v4
         with:
           name: vb-docs-site
-          path: docs/_out/site/html-multi
+          path: vb-poc/_out/site/html-multi

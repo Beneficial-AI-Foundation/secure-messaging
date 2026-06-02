@@ -11,10 +11,10 @@ import SMDocs.Contents
 
 Renders the Verso-Blueprint site to static HTML. From the repository root:
 
-    lake -d docs build SMDocs
-    lake -d docs env lean --run docs/Main.lean --output docs/_out/site
+    lake -d vb-poc build SMDocs
+    lake -d vb-poc env lean --run vb-poc/Main.lean --output vb-poc/_out/site
 
-The site lands in `docs/_out/site/html-multi/`.
+The site lands in `vb-poc/_out/site/html-multi/`.
 -/
 
 open Verso Doc
