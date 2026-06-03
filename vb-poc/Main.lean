@@ -186,6 +186,20 @@ def smCss : CSS := CSS.mk r#"
   overflow-x: auto;
   max-width: 100%;
 }
+
+/* Blueprint "Lean code for …" panels: show the declaration signature, not its
+   docstring. VersoBlueprint auto-pulls each decl's library docstring and renders it
+   as a standalone block (div.docs / pre.docstring / div.docstring) below the signature;
+   that text is an informal narration of the proof and reads as clutter. Hide only those
+   standalone prose blocks. CRUCIAL: the LSP hover tooltips reuse `code.docstring` inside
+   `span.hover-info` — those are inline (not pre/div, not in .docs), so they stay intact,
+   as do the signature, the status badges, and the "defined in …" source link. */
+.bp_external_decl_rendered .docs,
+.bp_external_decl_rendered .subdocs,
+.bp_external_decl_rendered pre.docstring,
+.bp_external_decl_rendered div.docstring {
+  display: none;
+}
 "#
 
 def main (args : List String) : IO UInt32 :=

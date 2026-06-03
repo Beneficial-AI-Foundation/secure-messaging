@@ -26,7 +26,7 @@ open Verso.Genre Manual
 -- The macro pack. `\providecommand` (idempotent) rather than `\newcommand` so the
 -- table can coexist with other preludes when several pages accumulate on the root.
 tex_prelude r#"
-\providecommand{\sample}{\xleftarrow{\$}}
+\providecommand{\sample}{\mathrel{\overset{\scriptscriptstyle\$}{\leftarrow}}}
 \providecommand{\getsval}{\gets}
 \providecommand{\Return}{\textbf{return}\;}
 \providecommand{\req}{\textbf{req}\;}
