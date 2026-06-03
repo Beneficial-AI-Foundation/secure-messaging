@@ -9,7 +9,6 @@ on:
       - 'lakefile.toml'
       - 'lake-manifest.json'
       - '.github/workflows/ci.yml'
-      - 'static/**'
   pull_request:
     branches: ["main"]
     paths:
@@ -18,7 +17,6 @@ on:
       - 'lakefile.toml'
       - 'lake-manifest.json'
       - '.github/workflows/ci.yml'
-      - 'static/**'
   workflow_dispatch:
 
 permissions:
@@ -49,18 +47,13 @@ jobs:
       - name: Generate documentation site
         run: lake env lean --run SecureMessagingDocsMain.lean --output _out/site
 
-      - name: Assemble site
-        run: cp static/index.html _out/site/index.html
-
       - name: Validate site output
-        run: |
-          test -f _out/site/index.html
-          test -f _out/site/html-multi/index.html
+        run: test -f _out/site/html-multi/index.html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
-          path: _out/site
+          path: _out/site/html-multi
 
   deploy:
     name: Deploy Pages
