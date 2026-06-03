@@ -29,7 +29,8 @@ Authenticated Encryption with Associated Data (AEAD).
 An *AEAD scheme* $`\Pi = (\text{KeyGen}, \text{Enc}, \text{Dec})` over spaces
 $`(\mathcal{M}, \mathcal{AD}, \mathcal{K}, \mathcal{C})` consists of a probabilistic
 key-generation algorithm and deterministic encryption/decryption algorithms
-(Definition 1, \[ACD19\]).
+(Definition 1, \[ACD19\]). The Lean formalization includes an explicit nonce
+space $`\mathcal{N}` beyond the paper's presentation.
 :::
 
 :::definition "aead_correctness" (parent := "aead") (lean := "AEADScheme.Correct")
@@ -43,14 +44,20 @@ _Experiment_ $`\text{Exp}^{\text{ot-cca}}_{\Pi, \mathcal{A}}`.
 The one-time CCA security experiment samples a key and challenge bit,
 gives the adversary access to encryption and decryption oracles,
 and outputs whether the adversary's guess matches the bit
-(Definition 2, \[ACD19\]).
+(Figure 1, \[ACD19\]).
 {uses "aead_scheme"}[] defines the scheme under attack.
 :::
 
+:::definition "aead_guess_advantage" (parent := "aead") (lean := "AEADScheme.guessAdvantage")
+_Guess advantage._ $`\text{Adv}^{\text{ot-cca}}_{\Pi}(\mathcal{A}) = |\Pr[\text{Exp}^{\text{ot-cca}}_{\Pi,\mathcal{A}} = 1] - \tfrac{1}{2}|`
+(Definition 2, \[ACD19\]).
+{uses "aead_security_exp"}[] defines the experiment.
+:::
+
 :::theorem "aead_advantage_equivalence" (parent := "aead") (lean := "AEADScheme.guessAdvantage_eq_distAdvantage_div_two")
-The guess-based advantage equals half the distinguishing advantage:
+The guess advantage equals half the distinguishing advantage:
 $$`\text{Adv}^{\text{ot-cca}}_{\Pi}(\mathcal{A}) = \tfrac{1}{2}\,\text{Adv}^{\text{dist}}_{\Pi}(\mathcal{A})`
-{uses "aead_security_exp"}[] defines the security experiment.
+{uses "aead_guess_advantage"}[] defines the advantage.
 :::
 
 # AEAD-AES-GCM (issues \#20–23)

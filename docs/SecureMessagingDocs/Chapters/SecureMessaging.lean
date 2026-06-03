@@ -74,6 +74,14 @@ combining {uses "double_ratchet_abstract_authenticity"}[] and
 {uses "double_ratchet_abstract_privacy"}[].
 :::
 
+:::theorem "double_ratchet_abstract_verify" (parent := "secure_messaging")
+_Verify abstract Double Ratchet protocol_ (\#122).
+End-to-end verification that {uses "double_ratchet_abstract_spec"}[] satisfies
+{uses "double_ratchet_abstract_correctness"}[],
+{uses "double_ratchet_abstract_authenticity"}[], and
+{uses "double_ratchet_abstract_privacy"}[].
+:::
+
 ## Signal Protocol Instantiation
 
 :::definition "double_ratchet_signal_spec" (parent := "secure_messaging")
@@ -103,6 +111,14 @@ _Privacy of Signal Double Ratchet_ (\#132).
 _Security of Signal Double Ratchet_ (\#133).
 {uses "double_ratchet_signal_spec"}[] satisfies full messaging security
 combining {uses "double_ratchet_signal_authenticity"}[] and
+{uses "double_ratchet_signal_privacy"}[].
+:::
+
+:::theorem "double_ratchet_signal_verify" (parent := "secure_messaging")
+_Verify Signal Double Ratchet protocol_ (\#123).
+End-to-end verification that {uses "double_ratchet_signal_spec"}[] satisfies
+{uses "double_ratchet_signal_correctness"}[],
+{uses "double_ratchet_signal_authenticity"}[], and
 {uses "double_ratchet_signal_privacy"}[].
 :::
 
@@ -147,6 +163,14 @@ combining {uses "triple_ratchet_authenticity"}[] and
 {uses "triple_ratchet_privacy"}[].
 :::
 
+:::theorem "triple_ratchet_verify" (parent := "secure_messaging")
+_Verify Triple Ratchet protocol_ (\#135).
+End-to-end verification that {uses "triple_ratchet_spec"}[] satisfies
+{uses "triple_ratchet_correctness"}[],
+{uses "triple_ratchet_authenticity"}[], and
+{uses "triple_ratchet_privacy"}[].
+:::
+
 # SCKA Messaging (issues \#17, \#120, \#142–148)
 
 SCKA-based messaging (\[SCKA25\]) adapts the secure messaging framework to
@@ -184,5 +208,13 @@ _Privacy of SCKA messaging_ (\#147).
 _Security of SCKA messaging_ (\#148).
 {uses "scka_messaging_spec"}[] satisfies full messaging security
 combining {uses "scka_messaging_authenticity"}[] and
+{uses "scka_messaging_privacy"}[].
+:::
+
+:::theorem "scka_messaging_verify" (parent := "secure_messaging")
+_Verify SCKA messaging protocol_ (\#143).
+End-to-end verification that {uses "scka_messaging_spec"}[] satisfies
+{uses "scka_messaging_correctness"}[],
+{uses "scka_messaging_authenticity"}[], and
 {uses "scka_messaging_privacy"}[].
 :::

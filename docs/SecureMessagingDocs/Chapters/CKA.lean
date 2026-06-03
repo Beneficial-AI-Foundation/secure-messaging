@@ -31,7 +31,7 @@ A _CKA scheme_ consists of algorithms $`(\text{Init}, \text{Send}, \text{Recv})`
 $`\text{Init}` produces initial states for both parties, $`\text{Send}` outputs a
 message and shared key from the sender's state, and $`\text{Recv}` recovers the
 shared key from the receiver's state and a received message
-(Definition 6, \[ACD19\]; Definition 2.12, \[TR25\]).
+(Definition 12, \[ACD19\]).
 :::
 
 :::definition "cka_correctness_exp" (parent := "cka") (lean := "CKAScheme.correctnessExp")
@@ -45,12 +45,12 @@ _Security experiment_ $`\text{Exp}^{\text{cka}}_{\Pi, \mathcal{A}}`.
 The adversary controls the send/receive schedule and has access to corruption,
 randomness-leakage, and challenge oracles. Security requires that challenge keys
 are indistinguishable from random under appropriate trivial-win conditions
-(Definition 7, \[ACD19\]; Definition 2.12, \[TR25\]).
+(Definition 13, Figure 3, \[ACD19\]; Definition 2.12, Figure 4, \[TR25\]).
 {uses "cka_scheme"}[] defines the scheme under attack.
 :::
 
 :::definition "cka_security_advantage" (parent := "cka") (lean := "CKAScheme.ckaGuessAdvantage")
-_Advantage._ $`\text{Adv}^{\text{cka}}_{\Pi}(\mathcal{A}, \text{gp}) = |2\Pr[\text{Exp}^{\text{cka}}_{\Pi,\mathcal{A},\text{gp}} = 1] - 1|`.
+_Advantage._ $`\text{Adv}^{\text{cka}}_{\Pi}(\mathcal{A}, \text{gp}) = |\Pr[\text{Exp}^{\text{cka}}_{\Pi,\mathcal{A},\text{gp}} = 1] - \tfrac{1}{2}|`.
 {uses "cka_security_exp"}[] defines the experiment.
 :::
 
@@ -80,17 +80,17 @@ The KEM-based CKA is secure in the sense of {uses "cka_security_exp"}[]
 under standard KEM security assumptions.
 :::
 
-# CKA-from-DDH (issues \#7, \#10)
+# CKA-from-DDH (issues \#7–10)
 
 :::definition "cka_from_ddh_spec" (parent := "cka") (lean := "ddhCKA")
-_CKA-from-DDH._ Construction of a CKA scheme using
+_CKA-from-DDH_ (\#8). Construction of a CKA scheme using
 Diffie–Hellman key exchanges in a cyclic group
 (Section 4.1.2, \[ACD19\]).
 {uses "cka_scheme"}[] is the target interface.
 :::
 
 :::theorem "cka_from_ddh_correctness" (parent := "cka") (lean := "ddhCKA.correctness")
-_Correctness of CKA-from-DDH._ The DDH-based construction satisfies
+_Correctness of CKA-from-DDH_ (\#9). The DDH-based construction satisfies
 {uses "cka_correctness_exp"}[].
 :::
 

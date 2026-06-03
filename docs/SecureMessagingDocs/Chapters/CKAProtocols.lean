@@ -36,7 +36,7 @@ with {uses "on_off_kem_scheme"}[] as a building block.
 
 :::definition "unikem_cka_spec" (parent := "cka_protocols")
 _UniKEM-CKA protocol_ (\#97). CKA construction from a unidirectional KEM
-(\[TR25\]).
+(Section 4, \[TR25\]).
 {uses "cka_scheme"}[] is the target interface.
 :::
 
@@ -56,7 +56,7 @@ _Security of UniKEM-CKA_ (\#99).
 
 :::definition "bikem_cka_spec" (parent := "cka_protocols")
 _BiKEM-CKA protocol_ (\#100). CKA construction from a bidirectional KEM
-(\[TR25\]).
+(Section 4, \[TR25\]).
 {uses "cka_scheme"}[] is the target interface.
 :::
 
@@ -76,7 +76,7 @@ _Security of BiKEM-CKA_ (\#102).
 
 :::definition "rkem_cka_spec" (parent := "cka_protocols")
 _RKEM-CKA protocol_ (\#103). CKA construction from a ratcheting KEM
-(\[TR25\]).
+(Section 4, \[TR25\]).
 {uses "cka_scheme"}[] is the target interface.
 {uses "rkem_scheme"}[] provides the ratcheting KEM.
 :::

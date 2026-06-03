@@ -16,7 +16,7 @@ advances the state, providing forward secrecy and post-compromise security
 
 References:
 \[TR25\] Dodis, Jost, Katsumata, Prest, Schmidt. _Triple Ratchet_, 2025.
-\[SPQR\] Auerbach, Dodis, Jost, Katsumata, Schmidt. _SPQR_, 2025.
+\[SCKA25\] Auerbach, Dodis, Jost, Katsumata, Schmidt. _SPQR_, 2025.
 
 :::group "rkem"
 Ratcheting Key Encapsulation Mechanism (RKEM).
@@ -98,7 +98,7 @@ _Ratchet simulatability of RKEM-from-KEM_ (\#78).
 
 :::definition "katana_plain_spec" (parent := "rkem")
 _Plain Katana-RKEM-from-Lattices_ (\#81). The basic lattice-based RKEM
-construction from \[SPQR\].
+construction (Section 6, \[TR25\]).
 {uses "rkem_scheme"}[] is the target interface.
 :::
 
@@ -121,7 +121,7 @@ _Ratchet simulatability of plain Katana-RKEM_ (\#84).
 
 :::definition "katana_optimised_spec" (parent := "rkem")
 _Optimised Katana-RKEM-from-Lattices_ (\#85). The bandwidth-optimised
-lattice-based RKEM construction from \[SPQR\].
+lattice-based RKEM construction (Section 6, \[TR25\]).
 {uses "rkem_scheme"}[] is the target interface.
 :::
 

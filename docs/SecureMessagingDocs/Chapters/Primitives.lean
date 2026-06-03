@@ -50,6 +50,12 @@ the underlying AEAD and PRG.
 {uses "aead_security_exp"}[]
 :::
 
+:::theorem "fs_aead_verify" (parent := "fs_aead")
+_Verify FS-AEAD-from-AEAD-PRG construction_ (\#30).
+End-to-end verification that {uses "fs_aead_construction"}[] satisfies
+{uses "fs_aead_correctness"}[] and {uses "fs_aead_security"}[].
+:::
+
 # PRF-PRNG (issues \#33–37)
 
 A PRF-PRNG is a stateful pseudorandom generator that produces
@@ -77,6 +83,12 @@ _Security of PRF-PRNG construction_ (\#37).
 security.
 :::
 
+:::theorem "prf_prng_verify" (parent := "prf_prng")
+_Verify PRF-PRNG-from-PRP-PRG construction_ (\#35).
+End-to-end verification that {uses "prf_prng_construction"}[] satisfies
+{uses "prf_prng_security"}[].
+:::
+
 # On-Off KEM (issues \#39–42)
 
 An On-Off KEM generalizes standard KEMs to support both online
@@ -94,8 +106,13 @@ Syntax, correctness, and security definitions for On-Off KEMs.
 
 :::definition "on_off_kem_from_ml_kem" (parent := "on_off_kem")
 _On-Off-KEM-from-ML-KEM_ (\#41). Construction from the ML-KEM
-(Module Lattice KEM) standard, with correctness proof.
+(Module Lattice KEM) standard.
 {uses "on_off_kem_scheme"}[] is the target interface.
+:::
+
+:::theorem "on_off_kem_from_ml_kem_correctness" (parent := "on_off_kem")
+_Correctness of On-Off-KEM-from-ML-KEM_ (\#41).
+{uses "on_off_kem_from_ml_kem"}[] satisfies On-Off KEM correctness.
 :::
 
 :::theorem "on_off_kem_from_ml_kem_security" (parent := "on_off_kem")
@@ -120,9 +137,15 @@ any $`k` suffice for recovery.
 :::
 
 :::definition "reed_solomon_spec" (parent := "erasure_codes")
-_Reed-Solomon erasure code_ (\#117). Specification and correctness proof
-of the Reed-Solomon construction.
+_Reed-Solomon erasure code_ (\#117). Construction of an erasure code using
+Reed-Solomon polynomial interpolation.
 {uses "erasure_code_scheme"}[] is the target interface.
+:::
+
+:::theorem "reed_solomon_correctness" (parent := "erasure_codes")
+_Correctness of Reed-Solomon erasure code_ (\#117).
+{uses "reed_solomon_spec"}[] satisfies {uses "erasure_code_scheme"}[] correctness:
+any $`k`-of-$`n` fragments suffice to recover the original data.
 :::
 
 # Cross-Cutting Concerns
