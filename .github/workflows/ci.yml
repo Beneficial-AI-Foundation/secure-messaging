@@ -3,17 +3,74 @@ name: CI
 on:
   push:
     branches: ["main"]
+    paths:
+      - '**/*.lean'
+      - 'lean-toolchain'
+      - 'lakefile.toml'
+      - 'lake-manifest.json'
+      - '.github/workflows/ci.yml'
+      - 'static/**'
   pull_request:
     branches: ["main"]
+    paths:
+      - '**/*.lean'
+      - 'lean-toolchain'
+      - 'lakefile.toml'
+      - 'lake-manifest.json'
+      - '.github/workflows/ci.yml'
+      - 'static/**'
   workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages-${{ github.ref }}"
+  cancel-in-progress: false
 
 jobs:
   build:
+    name: Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+
       - uses: leanprover/lean-action@v1
-        # with:
-          # Re-verify all declarations with an independent minimal type checker,
-          # guarding against soundness bugs in the Lean elaborator
-          # leanchecker: true
+        with:
+          auto-config: "false"
+          build: "true"
+          use-mathlib-cache: "true"
+
+      - name: Build documentation
+        run: lake build SecureMessagingDocs
+
+      - name: Generate documentation site
+        run: lake env lean --run SecureMessagingDocsMain.lean --output _out/site
+
+      - name: Assemble site
+        run: cp static/index.html _out/site/index.html
+
+      - name: Validate site output
+        run: |
+          test -f _out/site/index.html
+          test -f _out/site/html-multi/index.html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _out/site
+
+  deploy:
+    name: Deploy Pages
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
