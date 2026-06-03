@@ -1,9 +1,20 @@
 import VersoManual
 import VersoBlueprint
+import VersoBlueprint.Commands.Graph
+import VersoBlueprint.Commands.Summary
+import SecureMessagingDocs.Chapters.AEAD
+import SecureMessagingDocs.Chapters.CKA
+import SecureMessagingDocs.Chapters.Primitives
+import SecureMessagingDocs.Chapters.RKEM
+import SecureMessagingDocs.Chapters.CKAProtocols
+import SecureMessagingDocs.Chapters.SecureMessaging
 
 open Verso.Genre Manual
+open Verso.Genre.Manual.InlineLean
+open Informal
 
 set_option doc.verso true
+set_option pp.rawOnError true
 
 #doc (Manual) "Secure Messaging — Lean Formalization" =>
 %%%
@@ -21,3 +32,19 @@ The source code is available on
 
 The goal of this project is to provide machine-checked proofs of correctness
 and security properties for cryptographic messaging protocols.
+
+{blueprint_graph}
+
+{blueprint_summary}
+
+{include 0 SecureMessagingDocs.Chapters.AEAD}
+
+{include 0 SecureMessagingDocs.Chapters.CKA}
+
+{include 0 SecureMessagingDocs.Chapters.Primitives}
+
+{include 0 SecureMessagingDocs.Chapters.RKEM}
+
+{include 0 SecureMessagingDocs.Chapters.CKAProtocols}
+
+{include 0 SecureMessagingDocs.Chapters.SecureMessaging}
