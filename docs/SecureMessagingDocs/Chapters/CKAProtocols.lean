@@ -2,6 +2,7 @@ import Verso
 import VersoManual
 import VersoBlueprint
 import SecureMessagingDocs.Bibliography
+import SecureMessagingDocs.CryptoNotation
 
 open Verso.Genre
 open Verso.Genre.Manual

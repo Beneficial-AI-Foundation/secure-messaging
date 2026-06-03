@@ -2,6 +2,7 @@ import Verso
 import VersoManual
 import VersoBlueprint
 import SecureMessagingDocs.Bibliography
+import SecureMessagingDocs.CryptoNotation
 
 open Verso.Genre
 open Verso.Genre.Manual
@@ -30,7 +31,7 @@ Signal instantiation.
 :::definition "double_ratchet_scheme" (parent := "secure_messaging")
 _Double Ratchet scheme_ (\#121, {Informal.citet ACD19}[]).
 Specification of the Double Ratchet messaging scheme: syntax for
-$`(\text{Init}, \text{Send}, \text{Recv})` over a CKA, FS-AEAD, and PRF-PRNG.
+$`(\Init, \Send, \Recv)` over a CKA, FS-AEAD, and PRF-PRNG.
 {uses "cka_scheme"}[]
 {uses "fs_aead_scheme"}[]
 {uses "prf_prng_scheme"}[]

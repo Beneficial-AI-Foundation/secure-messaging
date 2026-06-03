@@ -2,6 +2,7 @@ import Verso
 import VersoManual
 import VersoBlueprint
 import SecureMessagingDocs.Bibliography
+import SecureMessagingDocs.CryptoNotation
 
 open Verso.Genre
 open Verso.Genre.Manual
@@ -23,7 +24,7 @@ Ratcheting Key Encapsulation Mechanism (RKEM).
 
 :::definition "rkem_scheme" (parent := "rkem")
 _RKEM scheme_ (\#47, Section 5.1, {Informal.citet TR25}[]).
-Syntax for an RKEM: $`(\text{Gen}, \text{Encaps}, \text{Decaps})` with
+Syntax for an RKEM: $`(\Gen, \Encaps, \Decaps)` with
 ratcheting state evolution. Security notions include forward secrecy (FS)
 and ratchet simulatability (RS).
 :::

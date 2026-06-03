@@ -2,6 +2,7 @@ import Verso
 import VersoManual
 import VersoBlueprint
 import SecureMessagingDocs.Bibliography
+import SecureMessagingDocs.CryptoNotation
 
 open Verso.Genre
 open Verso.Genre.Manual
@@ -155,5 +156,5 @@ any $`k`-of-$`n` fragments suffice to recover the original data.
 _Query-bounded adversaries and security predicates_ (\#59).
 Structured adversary bounding (query-bounded, eventually PPT) and
 security predicates of the form
-$`\forall \mathcal{A},\; \text{IsBounded}(\mathcal{A}) \Rightarrow \text{Adv}(\mathcal{A}) \leq \varepsilon`.
+$`\forall \mathcal{A},\; \textsf{IsBounded}(\mathcal{A}) \Rightarrow \Adv(\mathcal{A}) \leq \varepsilon`.
 :::

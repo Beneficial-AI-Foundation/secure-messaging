@@ -3,6 +3,7 @@ import VersoManual
 import VersoBlueprint
 import SecureMessaging.AEAD.Defs
 import SecureMessagingDocs.Bibliography
+import SecureMessagingDocs.CryptoNotation
 
 open Verso.Genre
 open Verso.Genre.Manual
@@ -21,8 +22,12 @@ Authenticated Encryption with Associated Data (AEAD).
 
 # Scheme Definition
 
+```lean "sig_aead_scheme"
+#check @AEADScheme
+```
+
 :::definition "aead_scheme" (parent := "aead") (lean := "AEADScheme")
-An *AEAD scheme* $`\Pi = (\text{KeyGen}, \text{Enc}, \text{Dec})` over spaces
+An *AEAD scheme* $`\Pi = (\KeyGen, \Enc, \Dec)` over spaces
 $`(\mathcal{M}, \mathcal{AD}, \mathcal{K}, \mathcal{C})` consists of a probabilistic
 key-generation algorithm and deterministic encryption/decryption algorithms
 (Definition 1, {Informal.citet ACD19}[]). The Lean formalization includes an explicit nonce
@@ -31,12 +36,16 @@ space $`\mathcal{N}` beyond the paper's presentation.
 
 :::definition "aead_correctness" (parent := "aead") (lean := "AEADScheme.Correct")
 _Correctness._ For all $`k \in \mathcal{K}`, $`a \in \mathcal{AD}`, $`m \in \mathcal{M}`:
-$$`\text{Dec}(k, a, \text{Enc}(k, a, m)) = m`
+$$`\Dec(k, a, \Enc(k, a, m)) = m`
 {uses "aead_scheme"}[] is correct when decryption inverts encryption.
 :::
 
+```lean "sig_aead_security"
+#check @AEADScheme.securityExp
+```
+
 :::definition "aead_security_exp" (parent := "aead") (lean := "AEADScheme.securityExp")
-_Experiment_ $`\text{Exp}^{\text{ot-cca}}_{\Pi, \mathcal{A}}`.
+_Experiment_ $`\Exp^{\textsf{ot-cca}}_{\Pi, \mathcal{A}}`.
 The one-time CCA security experiment samples a key and challenge bit,
 gives the adversary access to encryption and decryption oracles,
 and outputs whether the adversary's guess matches the bit
@@ -45,14 +54,18 @@ and outputs whether the adversary's guess matches the bit
 :::
 
 :::definition "aead_guess_advantage" (parent := "aead") (lean := "AEADScheme.guessAdvantage")
-_Guess advantage._ $`\text{Adv}^{\text{ot-cca}}_{\Pi}(\mathcal{A}) = |\Pr[\text{Exp}^{\text{ot-cca}}_{\Pi,\mathcal{A}} = 1] - \tfrac{1}{2}|`
+_Guess advantage._ $`\Adv^{\textsf{ot-cca}}_{\Pi}(\mathcal{A}) = |\Pr[\Exp^{\textsf{ot-cca}}_{\Pi,\mathcal{A}} = 1] - \tfrac{1}{2}|`
 (Definition 2, {Informal.citet ACD19}[]).
 {uses "aead_security_exp"}[] defines the experiment.
 :::
 
+```lean "sig_aead_advantage"
+#check @AEADScheme.guessAdvantage_eq_distAdvantage_div_two
+```
+
 :::theorem "aead_advantage_equivalence" (parent := "aead") (lean := "AEADScheme.guessAdvantage_eq_distAdvantage_div_two")
 The guess advantage equals half the distinguishing advantage:
-$$`\text{Adv}^{\text{ot-cca}}_{\Pi}(\mathcal{A}) = \tfrac{1}{2}\,\text{Adv}^{\text{dist}}_{\Pi}(\mathcal{A})`
+$$`\Adv^{\textsf{ot-cca}}_{\Pi}(\mathcal{A}) = \tfrac{1}{2}\,\Adv^{\textsf{dist}}_{\Pi}(\mathcal{A})`
 {uses "aead_guess_advantage"}[] defines the advantage.
 :::
 

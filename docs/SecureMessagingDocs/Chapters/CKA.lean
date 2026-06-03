@@ -5,6 +5,7 @@ import SecureMessaging.CKA.Defs
 import SecureMessaging.CKA.FromDDH.Construction
 import SecureMessaging.CKA.FromDDH.Correctness
 import SecureMessagingDocs.Bibliography
+import SecureMessagingDocs.CryptoNotation
 
 open Verso.Genre
 open Verso.Genre.Manual
@@ -23,10 +24,14 @@ Continuous Key Agreement (CKA).
 
 # Scheme Definition
 
+```lean "sig_cka_scheme"
+#check @CKAScheme
+```
+
 :::definition "cka_scheme" (parent := "cka") (lean := "CKAScheme")
-A _CKA scheme_ consists of algorithms $`(\text{Init}, \text{Send}, \text{Recv})` where
-$`\text{Init}` produces initial states for both parties, $`\text{Send}` outputs a
-message and shared key from the sender's state, and $`\text{Recv}` recovers the
+A _CKA scheme_ consists of algorithms $`(\Init, \Send, \Recv)` where
+$`\Init` produces initial states for both parties, $`\Send` outputs a
+message and shared key from the sender's state, and $`\Recv` recovers the
 shared key from the receiver's state and a received message
 (Definition 12, {Informal.citet ACD19}[]).
 :::
@@ -37,8 +42,12 @@ the shared keys produced by sender and receiver agree.
 {uses "cka_scheme"}[] defines the scheme under test.
 :::
 
+```lean "sig_cka_security"
+#check @CKAScheme.securityExp
+```
+
 :::definition "cka_security_exp" (parent := "cka") (lean := "CKAScheme.securityExp")
-_Security experiment_ $`\text{Exp}^{\text{cka}}_{\Pi, \mathcal{A}}`.
+_Security experiment_ $`\Exp^{\textsf{cka}}_{\Pi, \mathcal{A}}`.
 The adversary controls the send/receive schedule and has access to corruption,
 randomness-leakage, and challenge oracles. Security requires that challenge keys
 are indistinguishable from random under appropriate trivial-win conditions
@@ -47,13 +56,17 @@ are indistinguishable from random under appropriate trivial-win conditions
 :::
 
 :::definition "cka_security_advantage" (parent := "cka") (lean := "CKAScheme.ckaGuessAdvantage")
-_Advantage._ $`\text{Adv}^{\text{cka}}_{\Pi}(\mathcal{A}, \text{gp}) = |\Pr[\text{Exp}^{\text{cka}}_{\Pi,\mathcal{A},\text{gp}} = 1] - \tfrac{1}{2}|`.
+_Advantage._ $`\Adv^{\textsf{cka}}_{\Pi}(\mathcal{A}, \textsf{gp}) = |\Pr[\Exp^{\textsf{cka}}_{\Pi,\mathcal{A},\textsf{gp}} = 1] - \tfrac{1}{2}|`.
 {uses "cka_security_exp"}[] defines the experiment.
 :::
 
+```lean "sig_cka_advantage"
+#check @CKAScheme.ckaGuessAdvantage_eq_ckaDistAdvantage_div_two
+```
+
 :::theorem "cka_advantage_equivalence" (parent := "cka") (lean := "CKAScheme.ckaGuessAdvantage_eq_ckaDistAdvantage_div_two")
 The CKA guess advantage equals half the distinguishing advantage:
-$`\text{guessAdv} = \text{distAdv} / 2`.
+$`\textsf{guessAdv} = \textsf{distAdv} / 2`.
 {uses "cka_security_advantage"}[] defines the advantage.
 :::
 
@@ -79,12 +92,21 @@ under standard KEM security assumptions.
 
 # CKA-from-DDH (issues \#7–10)
 
+```lean "sig_ddh_cka"
+#check @ddhCKA
+#check CKAState
+```
+
 :::definition "cka_from_ddh_spec" (parent := "cka") (lean := "ddhCKA")
 _CKA-from-DDH_ (\#8). Construction of a CKA scheme using
 Diffie–Hellman key exchanges in a cyclic group
 (Section 4.1.2, {Informal.citet ACD19}[]).
 {uses "cka_scheme"}[] is the target interface.
 :::
+
+```lean "sig_ddh_correctness"
+#check @ddhCKA.correctness
+```
 
 :::theorem "cka_from_ddh_correctness" (parent := "cka") (lean := "ddhCKA.correctness")
 _Correctness of CKA-from-DDH_ (\#9). The DDH-based construction satisfies
