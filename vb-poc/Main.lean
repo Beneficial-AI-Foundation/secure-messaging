@@ -187,15 +187,16 @@ def smCss : CSS := CSS.mk r#"
   max-width: 100%;
 }
 
-/* Blueprint "Lean code for …" panels: show the declaration signature, not its
-   docstring. VersoBlueprint auto-pulls each decl's library docstring and renders it
-   as a standalone block (div.docs / pre.docstring / div.docstring) below the signature;
-   that text is an informal narration of the proof and reads as clutter. Hide only those
-   standalone prose blocks. CRUCIAL: the LSP hover tooltips reuse `code.docstring` inside
-   `span.hover-info` — those are inline (not pre/div, not in .docs), so they stay intact,
-   as do the signature, the status badges, and the "defined in …" source link. */
+/* Blueprint "Lean code for …" panels: show the declaration signature AND its structure
+   fields / constructors, but not the prose docstring. VersoBlueprint auto-pulls each decl's
+   library docstring and renders it as a standalone prose block (div.docs / pre.docstring /
+   div.docstring) — that informal narration is the clutter we hide. Do NOT hide `.subdocs`:
+   for a structure or inductive, that element carries the FIELD / CONSTRUCTOR signatures (the
+   actual definition body), which we want visible. We hide only the docstring elements, so a
+   documented field loses its prose but keeps its name-and-type. CRUCIAL: the LSP hover
+   tooltips reuse `code.docstring` inside `span.hover-info` — inline, not pre/div, not in
+   .docs — so they stay intact, as do the signature, status badges, and source link. */
 .bp_external_decl_rendered .docs,
-.bp_external_decl_rendered .subdocs,
 .bp_external_decl_rendered pre.docstring,
 .bp_external_decl_rendered div.docstring {
   display: none;
