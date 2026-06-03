@@ -19,6 +19,15 @@ into end-to-end encrypted communication systems.
 Secure Messaging protocols.
 :::
 
+:::definition "messaging_security_exp" (parent := "secure_messaging")
+_Messaging security experiment_ (Definition 17, {Informal.citet ACD19}[]).
+The secure messaging security game gives the adversary control over
+message sending and receiving, corruption of party states, and challenge
+queries. Security requires that the adversary cannot distinguish
+real message payloads from random, and cannot forge valid ciphertexts,
+subject to appropriate trivial-win conditions.
+:::
+
 # Double Ratchet (issues \#118, \#121–133)
 
 The Double Ratchet protocol ({Informal.citet ACD19}[]) composes CKA, FS-AEAD, and PRF-PRNG
@@ -47,7 +56,7 @@ generic primitives.
 :::
 
 :::theorem "double_ratchet_abstract_correctness" (parent := "secure_messaging")
-_Correctness of abstract Double Ratchet_ (\#125).
+_Correctness of abstract Double Ratchet_ (\#125, Theorem 5, {Informal.citet ACD19}[]).
 {uses "double_ratchet_abstract_spec"}[] satisfies messaging correctness:
 received messages match sent messages in order.
 :::
@@ -65,9 +74,10 @@ ciphertexts reveal no information about plaintexts.
 :::
 
 :::theorem "double_ratchet_abstract_security" (parent := "secure_messaging")
-_Security of abstract Double Ratchet_ (\#128).
+_Security of abstract Double Ratchet_ (\#128, Theorem 6, {Informal.citet ACD19}[]).
 {uses "double_ratchet_abstract_spec"}[] satisfies full messaging security
-combining {uses "double_ratchet_abstract_authenticity"}[] and
+in the sense of {uses "messaging_security_exp"}[], combining
+{uses "double_ratchet_abstract_authenticity"}[] and
 {uses "double_ratchet_abstract_privacy"}[].
 :::
 
@@ -107,7 +117,8 @@ _Privacy of Signal Double Ratchet_ (\#132).
 :::theorem "double_ratchet_signal_security" (parent := "secure_messaging")
 _Security of Signal Double Ratchet_ (\#133).
 {uses "double_ratchet_signal_spec"}[] satisfies full messaging security
-combining {uses "double_ratchet_signal_authenticity"}[] and
+in the sense of {uses "messaging_security_exp"}[], combining
+{uses "double_ratchet_signal_authenticity"}[] and
 {uses "double_ratchet_signal_privacy"}[].
 :::
 
@@ -126,14 +137,14 @@ an RKEM-based third ratchet for improved bandwidth efficiency
 and hybrid post-quantum security.
 
 :::definition "triple_ratchet_scheme" (parent := "secure_messaging")
-_Triple Ratchet scheme_ (\#134, {Informal.citet TR25}[]).
+_Triple Ratchet scheme_ (\#134, Section 3, {Informal.citet TR25}[]).
 Specification of the Triple Ratchet messaging scheme incorporating
 {uses "rkem_scheme"}[] for the third ratchet layer.
 {uses "double_ratchet_scheme"}[]
 :::
 
 :::definition "triple_ratchet_spec" (parent := "secure_messaging")
-_Triple Ratchet protocol_ (\#136, {Informal.citet TR25}[]).
+_Triple Ratchet protocol_ (\#136, Section 3, {Informal.citet TR25}[]).
 Full specification of the Triple Ratchet protocol.
 {uses "triple_ratchet_scheme"}[] defines the scheme.
 :::
@@ -156,7 +167,8 @@ _Privacy of Triple Ratchet_ (\#139).
 :::theorem "triple_ratchet_security" (parent := "secure_messaging")
 _Security of Triple Ratchet_ (\#140).
 {uses "triple_ratchet_spec"}[] satisfies full messaging security
-combining {uses "triple_ratchet_authenticity"}[] and
+in the sense of {uses "messaging_security_exp"}[], combining
+{uses "triple_ratchet_authenticity"}[] and
 {uses "triple_ratchet_privacy"}[].
 :::
 
@@ -204,7 +216,8 @@ _Privacy of SCKA messaging_ (\#147).
 :::theorem "scka_messaging_security" (parent := "secure_messaging")
 _Security of SCKA messaging_ (\#148).
 {uses "scka_messaging_spec"}[] satisfies full messaging security
-combining {uses "scka_messaging_authenticity"}[] and
+in the sense of {uses "messaging_security_exp"}[], combining
+{uses "scka_messaging_authenticity"}[] and
 {uses "scka_messaging_privacy"}[].
 :::
 

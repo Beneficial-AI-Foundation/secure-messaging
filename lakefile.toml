@@ -28,3 +28,4 @@ name = "SecureMessaging"
 [[lean_lib]]
 name = "SecureMessagingDocs"
 srcDir = "docs"
+leanOptions = { weak.linter.hashCommand = false, weak.linter.style.setOption = false, weak.linter.style.longLine = false }

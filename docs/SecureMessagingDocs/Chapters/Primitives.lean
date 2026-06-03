@@ -32,6 +32,15 @@ encryption interface: each encryption updates the sender's state so that
 old keys are erased.
 :::
 
+:::definition "fs_aead_security_exp" (parent := "fs_aead")
+_FS-AEAD security experiment_ (Definition 15, {Informal.citet ACD19}[]).
+The FS-AEAD security game extends the AEAD security experiment to account
+for state evolution: the adversary adaptively queries encryption and
+decryption oracles across multiple epochs, and security must hold even when
+earlier key states are compromised.
+{uses "fs_aead_scheme"}[] defines the scheme under attack.
+:::
+
 :::definition "fs_aead_construction" (parent := "fs_aead")
 _FS-AEAD-from-AEAD-PRG_ (\#31). Construction from an AEAD scheme and a
 pseudorandom generator (Section 4.2, {Informal.citet ACD19}[]).
@@ -47,9 +56,9 @@ _Correctness of FS-AEAD construction_ (\#29).
 
 :::theorem "fs_aead_security" (parent := "fs_aead")
 _Security of FS-AEAD construction_ (\#32).
-{uses "fs_aead_construction"}[] is FS-AEAD secure under the security of
-the underlying AEAD and PRG.
-{uses "aead_security_exp"}[]
+{uses "fs_aead_construction"}[] is FS-AEAD secure in the sense of
+{uses "fs_aead_security_exp"}[] under the security of the underlying AEAD
+and PRG.
 :::
 
 :::theorem "fs_aead_verify" (parent := "fs_aead")
@@ -70,7 +79,16 @@ Pseudorandom Function-Generator (PRF-PRNG).
 
 :::definition "prf_prng_scheme" (parent := "prf_prng")
 _PRF-PRNG scheme_ (\#34, Section 4.3, {Informal.citet ACD19}[]).
-A stateful pseudorandom generator with syntax and security definitions.
+A stateful pseudorandom generator: syntax for a state-evolving function
+that produces pseudorandom outputs at each invocation.
+:::
+
+:::definition "prf_prng_security_exp" (parent := "prf_prng")
+_PRF-PRNG security experiment_ (Definition 16, {Informal.citet ACD19}[]).
+The PRF-PRNG security game requires that successive outputs of the
+generator are computationally indistinguishable from independent
+uniformly random values, even when the adversary observes all outputs.
+{uses "prf_prng_scheme"}[] defines the scheme under test.
 :::
 
 :::definition "prf_prng_construction" (parent := "prf_prng")
@@ -81,8 +99,8 @@ and a pseudorandom generator (Section 4.3.2, {Informal.citet ACD19}[]).
 
 :::theorem "prf_prng_security" (parent := "prf_prng")
 _Security of PRF-PRNG construction_ (\#37).
-{uses "prf_prng_construction"}[] is PRF-PRNG secure under PRP and PRG
-security.
+{uses "prf_prng_construction"}[] is PRF-PRNG secure in the sense of
+{uses "prf_prng_security_exp"}[] under PRP and PRG security.
 :::
 
 :::theorem "prf_prng_verify" (parent := "prf_prng")
@@ -103,7 +121,17 @@ Online-Offline Key Encapsulation Mechanism (On-Off KEM).
 
 :::definition "on_off_kem_scheme" (parent := "on_off_kem")
 _On-Off KEM scheme_ (\#40, Definition 2.1, {Informal.citet SCKA25}[]).
-Syntax, correctness, and security definitions for On-Off KEMs.
+Syntax and correctness for On-Off KEMs: $`(\KeyGen, \Encaps, \Decaps)`
+supporting both online (interactive) and offline (non-interactive)
+encapsulation modes.
+:::
+
+:::definition "on_off_kem_security_exp" (parent := "on_off_kem")
+_On-Off KEM security experiment_ (Definition 2.2, {Informal.citet SCKA25}[]).
+The On-Off KEM security game requires that encapsulated keys are
+indistinguishable from random for both online and offline encapsulation
+modes, even when the adversary has access to a decapsulation oracle.
+{uses "on_off_kem_scheme"}[] defines the scheme under attack.
 :::
 
 :::definition "on_off_kem_from_ml_kem" (parent := "on_off_kem")
@@ -119,7 +147,8 @@ _Correctness of On-Off-KEM-from-ML-KEM_ (\#41).
 
 :::theorem "on_off_kem_from_ml_kem_security" (parent := "on_off_kem")
 _Security of On-Off-KEM-from-ML-KEM_ (\#42).
-{uses "on_off_kem_from_ml_kem"}[] is secure in the On-Off KEM sense.
+{uses "on_off_kem_from_ml_kem"}[] is secure in the sense of
+{uses "on_off_kem_security_exp"}[].
 :::
 
 # Erasure Codes (issues \#115–117)

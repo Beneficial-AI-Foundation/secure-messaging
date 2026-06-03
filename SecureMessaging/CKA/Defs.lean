@@ -201,23 +201,23 @@ universe u v
 per-party state space `St`, epoch-key space `I`, protocol-message space `Rho`,
 and send-randomness space `Rand`. -/
 structure CKAScheme (m : Type → Type u) [Monad m] (IK St I Rho Rand : Type) where
-  -- samples initial shared key
+  /-- Samples initial shared key material. -/
   initKeyGen : m IK
-  -- initializes A's local state from the initial key
+  /-- Initializes party A's local state from the initial key. -/
   initA : IK → m St
-  -- initializes B's local state from the initial key
+  /-- Initializes party B's local state from the initial key. -/
   initB : IK → m St
-  -- Party A's send: returns the fresh epoch key, message sent to B, and A's next state.
+  /-- Party A's send: produces a fresh epoch key, message for B, and A's next state. -/
   sendA : St → m (Option (I × Rho × St))
-  -- Party A's randomness-leaking send: also returns the randomness used for the send.
+  /-- Party A's randomness-leaking send: also returns the randomness used. -/
   sendA_rleak : St → m (Option (I × Rho × St × Rand))
-  -- Party A's receive: returns the derived epoch key and A's next state.
+  /-- Party A's receive: derives the matching epoch key and A's next state. -/
   recvA : St → Rho → Option (I × St)
-  -- Party B's send: returns the fresh epoch key, message sent to A, and B's next state.
+  /-- Party B's send: produces a fresh epoch key, message for A, and B's next state. -/
   sendB : St → m (Option (I × Rho × St))
-  -- Party B's randomness-leaking send: also returns the randomness used for the send.
+  /-- Party B's randomness-leaking send: also returns the randomness used. -/
   sendB_rleak : St → m (Option (I × Rho × St × Rand))
-  -- Party B's receive: returns the derived epoch key and B's next state.
+  /-- Party B's receive: derives the matching epoch key and B's next state. -/
   recvB : St → Rho → Option (I × St)
 
 namespace CKAScheme

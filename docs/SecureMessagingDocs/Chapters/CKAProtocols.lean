@@ -30,6 +30,18 @@ Syntax for a Sparse Continuous Key Agreement protocol: extends
 with {uses "on_off_kem_scheme"}[] as a building block.
 :::
 
+:::definition "scka_security_exp" (parent := "cka_protocols")
+_SCKA security experiment_ ({Informal.citet SCKA25}[]).
+The SCKA security game extends the CKA security experiment
+({uses "cka_security_exp"}[]) to the sparse/opportunistic setting:
+the adversary controls an irregular send/receive schedule and has
+access to corruption and challenge oracles. Security requires that
+challenge keys are indistinguishable from random under appropriate
+trivial-win conditions, accounting for the bandwidth-constrained
+communication pattern.
+{uses "scka_protocol_scheme"}[] defines the scheme under attack.
+:::
+
 # UniKEM-CKA (issues \#90, \#97–99)
 
 :::definition "unikem_cka_spec" (parent := "cka_protocols")
@@ -106,7 +118,8 @@ _Correctness of Opp-UniKEM-CKA_ (\#107).
 
 :::theorem "opp_unikem_cka_security" (parent := "cka_protocols")
 _Security of Opp-UniKEM-CKA_ (\#108).
-{uses "opp_unikem_cka_spec"}[] is secure in the SCKA sense.
+{uses "opp_unikem_cka_spec"}[] is secure in the sense of
+{uses "scka_security_exp"}[].
 :::
 
 # Opp-BiKEM-CKA (issues \#95, \#109–111)
@@ -124,7 +137,8 @@ _Correctness of Opp-BiKEM-CKA_ (\#110).
 
 :::theorem "opp_bikem_cka_security" (parent := "cka_protocols")
 _Security of Opp-BiKEM-CKA_ (\#111).
-{uses "opp_bikem_cka_spec"}[] is secure in the SCKA sense.
+{uses "opp_bikem_cka_spec"}[] is secure in the sense of
+{uses "scka_security_exp"}[].
 :::
 
 # Opp-RKEM-CKA (issues \#96, \#112–114)
@@ -143,5 +157,6 @@ _Correctness of Opp-RKEM-CKA_ (\#113).
 
 :::theorem "opp_rkem_cka_security" (parent := "cka_protocols")
 _Security of Opp-RKEM-CKA_ (\#114).
-{uses "opp_rkem_cka_spec"}[] is secure in the SCKA sense.
+{uses "opp_rkem_cka_spec"}[] is secure in the sense of
+{uses "scka_security_exp"}[].
 :::

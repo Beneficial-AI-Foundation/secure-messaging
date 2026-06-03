@@ -14,7 +14,6 @@ open Verso.Genre.Manual.InlineLean
 open Informal
 
 set_option doc.verso true
-set_option pp.rawOnError true
 
 #doc (Manual) "Secure Messaging — Lean Formalization" =>
 %%%

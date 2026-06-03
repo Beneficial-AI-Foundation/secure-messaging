@@ -61,7 +61,8 @@ _Advantage._ $`\Adv^{\textsf{cka}}_{\Pi}(\mathcal{A}, \textsf{gp}) = |\Pr[\Exp^{
 :::
 
 ```lean "sig_cka_advantage"
-#check @CKAScheme.ckaGuessAdvantage_eq_ckaDistAdvantage_div_two
+open CKAScheme in
+#check @ckaGuessAdvantage_eq_ckaDistAdvantage_div_two
 ```
 
 :::theorem "cka_advantage_equivalence" (parent := "cka") (lean := "CKAScheme.ckaGuessAdvantage_eq_ckaDistAdvantage_div_two")
