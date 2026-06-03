@@ -1,6 +1,7 @@
 import Verso
 import VersoManual
 import VersoBlueprint
+import SecureMessagingDocs.Bibliography
 
 open Verso.Genre
 open Verso.Genre.Manual
@@ -12,11 +13,7 @@ set_option doc.verso true
 
 An RKEM provides key encapsulation with ratcheting: each operation
 advances the state, providing forward secrecy and post-compromise security
-(Section 5.1, \[TR25\]).
-
-References:
-\[TR25\] Dodis, Jost, Katsumata, Prest, Schmidt. _Triple Ratchet_, 2025.
-\[SCKA25\] Auerbach, Dodis, Jost, Katsumata, Schmidt. _SPQR_, 2025.
+(Section 5.1, {Informal.citet TR25}[]).
 
 :::group "rkem"
 Ratcheting Key Encapsulation Mechanism (RKEM).
@@ -25,7 +22,7 @@ Ratcheting Key Encapsulation Mechanism (RKEM).
 # Scheme Definition (issues \#43, \#47)
 
 :::definition "rkem_scheme" (parent := "rkem")
-_RKEM scheme_ (\#47, Section 5.1, \[TR25\]).
+_RKEM scheme_ (\#47, Section 5.1, {Informal.citet TR25}[]).
 Syntax for an RKEM: $`(\text{Gen}, \text{Encaps}, \text{Decaps})` with
 ratcheting state evolution. Security notions include forward secrecy (FS)
 and ratchet simulatability (RS).
@@ -98,7 +95,7 @@ _Ratchet simulatability of RKEM-from-KEM_ (\#78).
 
 :::definition "katana_plain_spec" (parent := "rkem")
 _Plain Katana-RKEM-from-Lattices_ (\#81). The basic lattice-based RKEM
-construction (Section 6, \[TR25\]).
+construction (Section 6, {Informal.citet TR25}[]).
 {uses "rkem_scheme"}[] is the target interface.
 :::
 
@@ -121,7 +118,7 @@ _Ratchet simulatability of plain Katana-RKEM_ (\#84).
 
 :::definition "katana_optimised_spec" (parent := "rkem")
 _Optimised Katana-RKEM-from-Lattices_ (\#85). The bandwidth-optimised
-lattice-based RKEM construction (Section 6, \[TR25\]).
+lattice-based RKEM construction (Section 6, {Informal.citet TR25}[]).
 {uses "rkem_scheme"}[] is the target interface.
 :::
 

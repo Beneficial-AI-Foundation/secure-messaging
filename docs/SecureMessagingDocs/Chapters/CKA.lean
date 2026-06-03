@@ -4,6 +4,7 @@ import VersoBlueprint
 import SecureMessaging.CKA.Defs
 import SecureMessaging.CKA.FromDDH.Construction
 import SecureMessaging.CKA.FromDDH.Correctness
+import SecureMessagingDocs.Bibliography
 
 open Verso.Genre
 open Verso.Genre.Manual
@@ -16,10 +17,6 @@ set_option doc.verso true
 CKA provides ongoing key agreement between two parties who alternate
 sending and receiving messages, producing fresh shared keys at each epoch.
 
-References:
-\[ACD19\] Alwen, Coretti, Dodis. _The Double Ratchet_, 2019. Section 4.1.
-\[TR25\] Dodis, Jost, Katsumata, Prest, Schmidt. _Triple Ratchet_, 2025.
-
 :::group "cka"
 Continuous Key Agreement (CKA).
 :::
@@ -31,7 +28,7 @@ A _CKA scheme_ consists of algorithms $`(\text{Init}, \text{Send}, \text{Recv})`
 $`\text{Init}` produces initial states for both parties, $`\text{Send}` outputs a
 message and shared key from the sender's state, and $`\text{Recv}` recovers the
 shared key from the receiver's state and a received message
-(Definition 12, \[ACD19\]).
+(Definition 12, {Informal.citet ACD19}[]).
 :::
 
 :::definition "cka_correctness_exp" (parent := "cka") (lean := "CKAScheme.correctnessExp")
@@ -45,7 +42,7 @@ _Security experiment_ $`\text{Exp}^{\text{cka}}_{\Pi, \mathcal{A}}`.
 The adversary controls the send/receive schedule and has access to corruption,
 randomness-leakage, and challenge oracles. Security requires that challenge keys
 are indistinguishable from random under appropriate trivial-win conditions
-(Definition 13, Figure 3, \[ACD19\]; Definition 2.12, Figure 4, \[TR25\]).
+(Definition 13, Figure 3, {Informal.citet ACD19}[]; Definition 2.12, Figure 4, {Informal.citet TR25}[]).
 {uses "cka_scheme"}[] defines the scheme under attack.
 :::
 
@@ -65,7 +62,7 @@ $`\text{guessAdv} = \text{distAdv} / 2`.
 :::definition "cka_from_kem_spec" (parent := "cka")
 _CKA-from-KEM_ (\#3). Construction of a CKA scheme from a Key Encapsulation
 Mechanism: each send encapsulates a fresh key, each receive decapsulates
-(Section 4.1.2, \[ACD19\]).
+(Section 4.1.2, {Informal.citet ACD19}[]).
 {uses "cka_scheme"}[] is the target interface.
 :::
 
@@ -75,7 +72,7 @@ _Correctness of CKA-from-KEM_ (\#4). The KEM-based construction satisfies
 :::
 
 :::theorem "cka_from_kem_security" (parent := "cka")
-_Security of CKA-from-KEM_ (\#5, Theorem 2, \[ACD19\]).
+_Security of CKA-from-KEM_ (\#5, Theorem 2, {Informal.citet ACD19}[]).
 The KEM-based CKA is secure in the sense of {uses "cka_security_exp"}[]
 under standard KEM security assumptions.
 :::
@@ -85,7 +82,7 @@ under standard KEM security assumptions.
 :::definition "cka_from_ddh_spec" (parent := "cka") (lean := "ddhCKA")
 _CKA-from-DDH_ (\#8). Construction of a CKA scheme using
 Diffie–Hellman key exchanges in a cyclic group
-(Section 4.1.2, \[ACD19\]).
+(Section 4.1.2, {Informal.citet ACD19}[]).
 {uses "cka_scheme"}[] is the target interface.
 :::
 
@@ -95,7 +92,7 @@ _Correctness of CKA-from-DDH_ (\#9). The DDH-based construction satisfies
 :::
 
 :::theorem "cka_from_ddh_security" (parent := "cka")
-_Security of CKA-from-DDH_ (\#10, Theorem 3, \[ACD19\]).
+_Security of CKA-from-DDH_ (\#10, Theorem 3, {Informal.citet ACD19}[]).
 The DDH-based CKA is secure in the sense of {uses "cka_security_exp"}[]
 under the DDH assumption.
 :::
@@ -105,7 +102,7 @@ under the DDH assumption.
 :::definition "cka_from_lwe_spec" (parent := "cka")
 _CKA-from-LWE_ (\#12). Post-quantum construction of a CKA scheme
 from lattice-based key exchange
-(Section 4.1.2, \[ACD19\]).
+(Section 4.1.2, {Informal.citet ACD19}[]).
 {uses "cka_scheme"}[] is the target interface.
 :::
 
@@ -115,7 +112,7 @@ _Correctness of CKA-from-LWE_ (\#13). The LWE-based construction satisfies
 :::
 
 :::theorem "cka_from_lwe_security" (parent := "cka")
-_Security of CKA-from-LWE_ (\#14, Theorem 4, \[ACD19\]).
+_Security of CKA-from-LWE_ (\#14, Theorem 4, {Informal.citet ACD19}[]).
 The LWE-based CKA is secure in the sense of {uses "cka_security_exp"}[]
 under the LWE assumption.
 :::

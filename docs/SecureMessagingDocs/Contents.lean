@@ -48,3 +48,5 @@ and security properties for cryptographic messaging protocols.
 {include 0 SecureMessagingDocs.Chapters.CKAProtocols}
 
 {include 0 SecureMessagingDocs.Chapters.SecureMessaging}
+
+{blueprint_bibliography}

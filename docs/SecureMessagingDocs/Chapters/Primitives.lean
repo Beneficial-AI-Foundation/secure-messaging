@@ -1,6 +1,7 @@
 import Verso
 import VersoManual
 import VersoBlueprint
+import SecureMessagingDocs.Bibliography
 
 open Verso.Genre
 open Verso.Genre.Manual
@@ -17,14 +18,14 @@ richer cryptographic abstractions.
 
 FS-AEAD extends AEAD with forward secrecy: past ciphertexts remain
 confidential even if the current key is compromised
-(Section 4.2, \[ACD19\]).
+(Section 4.2, {Informal.citet ACD19}[]).
 
 :::group "fs_aead"
 Forward-Secure AEAD (FS-AEAD).
 :::
 
 :::definition "fs_aead_scheme" (parent := "fs_aead")
-_FS-AEAD scheme_ (\#28, Definition 14, \[ACD19\]).
+_FS-AEAD scheme_ (\#28, Definition 14, {Informal.citet ACD19}[]).
 An FS-AEAD scheme augments {uses "aead_scheme"}[] with a state-evolving
 encryption interface: each encryption updates the sender's state so that
 old keys are erased.
@@ -32,7 +33,7 @@ old keys are erased.
 
 :::definition "fs_aead_construction" (parent := "fs_aead")
 _FS-AEAD-from-AEAD-PRG_ (\#31). Construction from an AEAD scheme and a
-pseudorandom generator (Section 4.2, \[ACD19\]).
+pseudorandom generator (Section 4.2, {Informal.citet ACD19}[]).
 Each encryption step applies the PRG to the current key to derive the
 message key and the next-epoch key.
 {uses "fs_aead_scheme"}[] is the target interface.
@@ -60,20 +61,20 @@ End-to-end verification that {uses "fs_aead_construction"}[] satisfies
 
 A PRF-PRNG is a stateful pseudorandom generator that produces
 pseudorandom outputs from an evolving internal state
-(Section 4.3, \[ACD19\]).
+(Section 4.3, {Informal.citet ACD19}[]).
 
 :::group "prf_prng"
 Pseudorandom Function-Generator (PRF-PRNG).
 :::
 
 :::definition "prf_prng_scheme" (parent := "prf_prng")
-_PRF-PRNG scheme_ (\#34, Section 4.3, \[ACD19\]).
+_PRF-PRNG scheme_ (\#34, Section 4.3, {Informal.citet ACD19}[]).
 A stateful pseudorandom generator with syntax and security definitions.
 :::
 
 :::definition "prf_prng_construction" (parent := "prf_prng")
 _PRF-PRNG-from-PRP-PRG_ (\#36). Construction from a pseudorandom permutation
-and a pseudorandom generator (Section 4.3.2, \[ACD19\]).
+and a pseudorandom generator (Section 4.3.2, {Informal.citet ACD19}[]).
 {uses "prf_prng_scheme"}[] is the target interface.
 :::
 
@@ -93,14 +94,14 @@ End-to-end verification that {uses "prf_prng_construction"}[] satisfies
 
 An On-Off KEM generalizes standard KEMs to support both online
 (interactive) and offline (non-interactive) encapsulation modes
-(Definition 2.1, \[SCKA25\]).
+(Definition 2.1, {Informal.citet SCKA25}[]).
 
 :::group "on_off_kem"
 Online-Offline Key Encapsulation Mechanism (On-Off KEM).
 :::
 
 :::definition "on_off_kem_scheme" (parent := "on_off_kem")
-_On-Off KEM scheme_ (\#40, Definition 2.1, \[SCKA25\]).
+_On-Off KEM scheme_ (\#40, Definition 2.1, {Informal.citet SCKA25}[]).
 Syntax, correctness, and security definitions for On-Off KEMs.
 :::
 

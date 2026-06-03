@@ -1,6 +1,7 @@
 import Verso
 import VersoManual
 import VersoBlueprint
+import SecureMessagingDocs.Bibliography
 
 open Verso.Genre
 open Verso.Genre.Manual
@@ -13,18 +14,13 @@ set_option doc.verso true
 Full secure messaging protocols combining all lower-level primitives
 into end-to-end encrypted communication systems.
 
-References:
-\[ACD19\] Alwen, Coretti, Dodis. _The Double Ratchet_, 2019.
-\[TR25\] Dodis, Jost, Katsumata, Prest, Schmidt. _Triple Ratchet_, 2025.
-\[SCKA25\] Auerbach, Dodis, Jost, Katsumata, Schmidt. _SPQR_, 2025.
-
 :::group "secure_messaging"
 Secure Messaging protocols.
 :::
 
 # Double Ratchet (issues \#118, \#121–133)
 
-The Double Ratchet protocol (\[ACD19\]) composes CKA, FS-AEAD, and PRF-PRNG
+The Double Ratchet protocol ({Informal.citet ACD19}[]) composes CKA, FS-AEAD, and PRF-PRNG
 into the Signal-style messaging protocol. We formalize both an abstract
 protocol (parameterized by generic CKA/FS-AEAD/PRF-PRNG) and the concrete
 Signal instantiation.
@@ -32,7 +28,7 @@ Signal instantiation.
 ## Scheme Definition
 
 :::definition "double_ratchet_scheme" (parent := "secure_messaging")
-_Double Ratchet scheme_ (\#121, \[ACD19\]).
+_Double Ratchet scheme_ (\#121, {Informal.citet ACD19}[]).
 Specification of the Double Ratchet messaging scheme: syntax for
 $`(\text{Init}, \text{Send}, \text{Recv})` over a CKA, FS-AEAD, and PRF-PRNG.
 {uses "cka_scheme"}[]
@@ -43,7 +39,7 @@ $`(\text{Init}, \text{Send}, \text{Recv})` over a CKA, FS-AEAD, and PRF-PRNG.
 ## Abstract Protocol
 
 :::definition "double_ratchet_abstract_spec" (parent := "secure_messaging")
-_Double Ratchet abstract protocol_ (\#124, \[ACD19\]).
+_Double Ratchet abstract protocol_ (\#124, {Informal.citet ACD19}[]).
 Specification of the abstract Double Ratchet protocol parameterized by
 generic primitives.
 {uses "double_ratchet_scheme"}[] defines the scheme.
@@ -85,7 +81,7 @@ End-to-end verification that {uses "double_ratchet_abstract_spec"}[] satisfies
 ## Signal Protocol Instantiation
 
 :::definition "double_ratchet_signal_spec" (parent := "secure_messaging")
-_Double Ratchet Signal protocol_ (\#129, \[ACD19\]).
+_Double Ratchet Signal protocol_ (\#129, {Informal.citet ACD19}[]).
 Concrete instantiation of the Double Ratchet with Signal's specific
 CKA (X3DH + DH ratchet), FS-AEAD (AES-256-CBC + HMAC), and PRF-PRNG
 (HKDF).
@@ -124,19 +120,19 @@ End-to-end verification that {uses "double_ratchet_signal_spec"}[] satisfies
 
 # Triple Ratchet (issues \#119, \#134–140)
 
-The Triple Ratchet protocol (\[TR25\]) extends the Double Ratchet with
+The Triple Ratchet protocol ({Informal.citet TR25}[]) extends the Double Ratchet with
 an RKEM-based third ratchet for improved bandwidth efficiency
 and hybrid post-quantum security.
 
 :::definition "triple_ratchet_scheme" (parent := "secure_messaging")
-_Triple Ratchet scheme_ (\#134, \[TR25\]).
+_Triple Ratchet scheme_ (\#134, {Informal.citet TR25}[]).
 Specification of the Triple Ratchet messaging scheme incorporating
 {uses "rkem_scheme"}[] for the third ratchet layer.
 {uses "double_ratchet_scheme"}[]
 :::
 
 :::definition "triple_ratchet_spec" (parent := "secure_messaging")
-_Triple Ratchet protocol_ (\#136, \[TR25\]).
+_Triple Ratchet protocol_ (\#136, {Informal.citet TR25}[]).
 Full specification of the Triple Ratchet protocol.
 {uses "triple_ratchet_scheme"}[] defines the scheme.
 :::
@@ -173,18 +169,18 @@ End-to-end verification that {uses "triple_ratchet_spec"}[] satisfies
 
 # SCKA Messaging (issues \#17, \#120, \#142–148)
 
-SCKA-based messaging (\[SCKA25\]) adapts the secure messaging framework to
+SCKA-based messaging ({Informal.citet SCKA25}[]) adapts the secure messaging framework to
 bandwidth-constrained settings using Sparse Continuous Key Agreement.
 
 :::definition "scka_messaging_scheme" (parent := "secure_messaging")
-_SCKA messaging scheme_ (\#142, \[SCKA25\]).
+_SCKA messaging scheme_ (\#142, {Informal.citet SCKA25}[]).
 Specification of the SCKA-based messaging scheme.
 {uses "scka_protocol_scheme"}[]
 {uses "fs_aead_scheme"}[]
 :::
 
 :::definition "scka_messaging_spec" (parent := "secure_messaging")
-_SCKA messaging protocol_ (\#144, \[SCKA25\]).
+_SCKA messaging protocol_ (\#144, {Informal.citet SCKA25}[]).
 Full specification of the SCKA-based messaging protocol.
 {uses "scka_messaging_scheme"}[] defines the scheme.
 :::

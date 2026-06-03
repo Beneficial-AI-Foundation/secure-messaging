@@ -2,6 +2,7 @@ import Verso
 import VersoManual
 import VersoBlueprint
 import SecureMessaging.AEAD.Defs
+import SecureMessagingDocs.Bibliography
 
 open Verso.Genre
 open Verso.Genre.Manual
@@ -14,11 +15,6 @@ set_option doc.verso true
 AEAD provides both confidentiality and integrity for messages,
 with additional unencrypted associated data authenticated alongside the ciphertext.
 
-References:
-\[ACD19\] Alwen, Coretti, Dodis. _The Double Ratchet_, 2019.
-\[BN00\] Bellare, Namprempre. _Authenticated Encryption_, 2000.
-\[NIST-SP800-38D\] NIST. _GCM_, 2007.
-
 :::group "aead"
 Authenticated Encryption with Associated Data (AEAD).
 :::
@@ -29,7 +25,7 @@ Authenticated Encryption with Associated Data (AEAD).
 An *AEAD scheme* $`\Pi = (\text{KeyGen}, \text{Enc}, \text{Dec})` over spaces
 $`(\mathcal{M}, \mathcal{AD}, \mathcal{K}, \mathcal{C})` consists of a probabilistic
 key-generation algorithm and deterministic encryption/decryption algorithms
-(Definition 1, \[ACD19\]). The Lean formalization includes an explicit nonce
+(Definition 1, {Informal.citet ACD19}[]). The Lean formalization includes an explicit nonce
 space $`\mathcal{N}` beyond the paper's presentation.
 :::
 
@@ -44,13 +40,13 @@ _Experiment_ $`\text{Exp}^{\text{ot-cca}}_{\Pi, \mathcal{A}}`.
 The one-time CCA security experiment samples a key and challenge bit,
 gives the adversary access to encryption and decryption oracles,
 and outputs whether the adversary's guess matches the bit
-(Figure 1, \[ACD19\]).
+(Figure 1, {Informal.citet ACD19}[]).
 {uses "aead_scheme"}[] defines the scheme under attack.
 :::
 
 :::definition "aead_guess_advantage" (parent := "aead") (lean := "AEADScheme.guessAdvantage")
 _Guess advantage._ $`\text{Adv}^{\text{ot-cca}}_{\Pi}(\mathcal{A}) = |\Pr[\text{Exp}^{\text{ot-cca}}_{\Pi,\mathcal{A}} = 1] - \tfrac{1}{2}|`
-(Definition 2, \[ACD19\]).
+(Definition 2, {Informal.citet ACD19}[]).
 {uses "aead_security_exp"}[] defines the experiment.
 :::
 
@@ -64,7 +60,7 @@ $$`\text{Adv}^{\text{ot-cca}}_{\Pi}(\mathcal{A}) = \tfrac{1}{2}\,\text{Adv}^{\te
 
 :::definition "aead_aes_gcm_spec" (parent := "aead")
 _AEAD-AES-GCM_ (\#21). Construction of an AEAD scheme from AES-GCM as specified
-in NIST SP 800-38D.
+in {Informal.citet NIST_GCM}[].
 {uses "aead_scheme"}[] is the target interface.
 :::
 
@@ -83,7 +79,7 @@ in the sense of {uses "aead_security_exp"}[].
 :::definition "aead_etm_spec" (parent := "aead")
 _AEAD-Encrypt-then-MAC_ (\#24). Generic construction of an AEAD scheme from a
 symmetric encryption scheme and a MAC via the Encrypt-then-MAC composition
-(\[BN00\]).
+({Informal.citet BN00}[]).
 {uses "aead_scheme"}[] is the target interface.
 :::
 
