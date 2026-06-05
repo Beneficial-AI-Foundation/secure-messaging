@@ -30,7 +30,7 @@ omit [Fintype F] [DecidableEq F] [SampleableType F] [SampleableType G] in
 /-- `reachableInv` holds on `initGameState` for any key `(x₀ • gen, x₀)`. -/
 private lemma reachableInv_init (x₀ : F) :
     reachableInv gen
-      { stA := .inr (x₀ • gen), stB := .inl x₀,
+      { stA := .sendReady (x₀ • gen), stB := .recvReady x₀,
         rhoA := none, rhoB := none, keyA := none, keyB := none,
         correct := true, lastAction := none,
         tA := 0, tB := 0 } :=
@@ -39,7 +39,7 @@ private lemma reachableInv_init (x₀ : F) :
 omit [Fintype F] [DecidableEq F] [SampleableType F] [SampleableType G] in
 /-- Uniform sampling oracle preserves `reachableInv` (state unchanged). -/
 private lemma oracleUnif_preserves_reachableInv :
-    QueryImpl.PreservesInv (CKAScheme.oracleUnif (F ⊕ G) G G) (reachableInv gen) := by
+    QueryImpl.PreservesInv (CKAScheme.oracleUnif (CKAState F G) G G) (reachableInv gen) := by
   intro t σ hσ z hz
   have hz' : ∃ y : unifSpec.Range t, (y, σ) = z := by
     simpa [CKAScheme.oracleUnif] using hz
@@ -66,12 +66,12 @@ private lemma oracleSendA_preserves_reachableInv :
       rw [CKAScheme.oracleSendA, StateT.run_bind, StateT.run_get] at hz
       have hz' : ∃ y : F, y ∈ support ($ᵗ F : ProbComp F) ∧
           (some (y • gen, y • (x • gen)),
-            { stA := .inl y, stB := .inl x,
+            { stA := .recvReady y, stB := .recvReady x,
               rhoA := some (y • gen), rhoB := none,
               keyA := some (y • (x • gen)), keyB := none,
               correct := true, lastAction := some .sendA,
               tA := epA + 1, tB := epB }) = z := by
-        simpa [validStep, ddhCKA, ddhCKA.send] using hz
+        simpa [validStep, ddhCKA, send] using hz
       obtain ⟨y, _, rfl⟩ := hz'
       refine ⟨?_, rfl, x, y, rfl, rfl, rfl, rfl, rfl, rfl⟩
       simpa [epochCounterInv] using hphase)
@@ -95,11 +95,11 @@ private lemma oracleRecvB_preserves_reachableInv [DecidableEq G] :
       rcases (by simpa [reachableInv, epochCounterInv, stateShapeInv] using hσ) with
         ⟨hphase, hc, x, y, rfl, rfl, rfl, rfl, rfl, rfl⟩
       subst correct
-      have : z = ((), ⟨.inl y, .inr (y • gen),
+      have : z = ((), ⟨.recvReady y, .sendReady (y • gen),
           none, none, none, none, true,
           some .recvB, epA, epB + 1⟩) := by
         simpa [CKAScheme.oracleRecvB, validStep,
-          ddhCKA, ddhCKA.recv, smul_comm x y gen,
+          ddhCKA, recv, smul_comm x y gen,
           StateT.run_bind, StateT.run_get,
           pure_bind] using hz
       subst this
@@ -125,12 +125,12 @@ private lemma oracleSendB_preserves_reachableInv :
     rw [CKAScheme.oracleSendB, StateT.run_bind, StateT.run_get] at hz
     have hz' : ∃ x : F, x ∈ support ($ᵗ F : ProbComp F) ∧
         (some (x • gen, x • (y • gen)),
-          { stA := .inl y, stB := .inl x,
+          { stA := .recvReady y, stB := .recvReady x,
             rhoA := none, rhoB := some (x • gen),
             keyA := none, keyB := some (x • (y • gen)),
             correct := true, lastAction := some .sendB,
             tA := epA, tB := epB + 1 }) = z := by
-      simpa [validStep, ddhCKA, ddhCKA.send] using hz
+      simpa [validStep, ddhCKA, send] using hz
     obtain ⟨x, _, rfl⟩ := hz'
     refine ⟨?_, rfl, x, y, rfl, rfl, rfl, rfl, rfl, rfl⟩
     simpa [epochCounterInv] using hphase.symm
@@ -154,11 +154,11 @@ private lemma oracleRecvA_preserves_reachableInv [DecidableEq G] :
       rcases (by simpa [reachableInv, epochCounterInv, stateShapeInv] using hσ) with
         ⟨hphase, hc, x, y, rfl, rfl, rfl, rfl, rfl, rfl⟩
       subst correct
-      have : z = ((), ⟨.inr (x • gen), .inl x,
+      have : z = ((), ⟨.sendReady (x • gen), .recvReady x,
           none, none, none, none, true,
           some .recvA, epA + 1, epB⟩) := by
         simpa [CKAScheme.oracleRecvA, validStep,
-          ddhCKA, ddhCKA.recv, smul_comm y x gen,
+          ddhCKA, recv, smul_comm y x gen,
           StateT.run_bind, StateT.run_get,
           pure_bind] using hz
       subst this
@@ -215,9 +215,9 @@ private lemma always_correct [DecidableEq G] (adv : CKACorrectnessAdversary G G)
       ∃ x₀ : F, (x₀ • gen, x₀) = ik) with ⟨x₀, hx₀⟩
     exact ⟨x₀, hx₀.symm⟩
   rcases hik' with ⟨x₀, rfl⟩
-  have hstA' : stA = .inr (x₀ • gen) := by
+  have hstA' : stA = .sendReady (x₀ • gen) := by
     simpa [ddhCKA, mem_support_pure_iff] using hstA
-  have hstB' : stB = .inl x₀ := by
+  have hstB' : stB = .recvReady x₀ := by
     simpa [ddhCKA, mem_support_pure_iff] using hstB
   subst stA
   subst stB
@@ -228,7 +228,7 @@ private lemma always_correct [DecidableEq G] (adv : CKACorrectnessAdversary G G)
       (Inv := reachableInv gen)
       (correctnessImpl_preserves (F := F) (G := G) (gen := gen))
       adv
-      { stA := .inr (x₀ • gen), stB := .inl x₀,
+      { stA := .sendReady (x₀ • gen), stB := .recvReady x₀,
         rhoA := none, rhoB := none,
         keyA := none, keyB := none,
         correct := true, lastAction := none,

@@ -157,8 +157,8 @@ with the following modelling differences:
     `Adv^CKA_{𝒜, ΔFS, ΔPCS} := max_{t*} ( Pr[Game^CKA_{𝒜, ΔFS, ΔPCS, t*} = 1] − 1/2 )`,
   taking `Pr − 1/2` without an absolute value and folding the max over `t*` into the advantage.
 
-  - Our `securityAdvantage` is instead defined as:
-    `securityAdvantage(cka, 𝒜, gp) := | Pr[ securityExp(cka, 𝒜, gp) = 1 ] − 1/2 |`,
+  - Our `ckaGuessAdvantage` is instead defined as:
+    `ckaGuessAdvantage(cka, 𝒜, gp) := | Pr[ securityExp(cka, 𝒜, gp) = 1 ] − 1/2 |`,
   where `gp = (t*, ΔFS, ΔPCS, challengedParty)`.
 
   *Note:*
@@ -169,10 +169,10 @@ with the following modelling differences:
     adversary in the same complexity class.
   - **Max becomes ∀-quantification in the theorem statement.** The
     paper includes `max_{t*}` into the advantage; we include `t*` (and the
-    other parameters of `gp`) as inputs to `securityAdvantage` and move
+    other parameters of `gp`) as inputs to `ckaGuessAdvantage` and move
     the quantification over `gp` into the security statement. The paper's
     `∀ ΔFS, ΔPCS, Adv^CKA_{𝒜, ΔFS, ΔPCS} ≤ ε` is equivalent to our
-    `∀ gp, securityAdvantage(cka, 𝒜, gp) ≤ ε`.
+    `∀ gp, ckaGuessAdvantage(cka, 𝒜, gp) ≤ ε`.
 
 5. **`req` failure encoded as oracle returning `none`, not as game abort.**
   The paper's `req ⟦…⟧` aborts the entire game on failure. In Lean, when an
@@ -758,8 +758,8 @@ def securityExp [SampleableType I] [DecidableEq I] (cka : CKAScheme ProbComp IK 
   let (b', _) ← (simulateQ (ckaSecurityImpl gp b cka) adversary).run (initGameState stA stB)
   return (b == b')
 
-/-- CKA security advantage: `|Pr[Win] - 1/2|`. -/
-noncomputable def securityAdvantage [SampleableType I] [DecidableEq I]
+/-- CKA guess advantage: `|Pr[Win] - 1/2|`. -/
+noncomputable def ckaGuessAdvantage [SampleableType I] [DecidableEq I]
     (cka : CKAScheme ProbComp IK St I Rho Rand) (adversary : CKAAdversary St Rho I Rand)
     (gp : GameParams) : ℝ :=
   |(Pr[= true | securityExp cka adversary gp]).toReal - 1 / 2|
@@ -779,6 +779,18 @@ def securityExpFixedBit [SampleableType I] [DecidableEq I]
   let (b', _) ← (simulateQ (ckaSecurityImpl gp b cka) adversary).run
     (initGameState stA stB)
   return b'
+
+/-- CKA distinguishing advantage:
+`|Pr[CKA_rand = 1] - Pr[CKA_real = 1]|`.
+
+Here `CKA_real` is `securityExpFixedBit cka adversary false gp` and
+`CKA_rand` is `securityExpFixedBit cka adversary true gp`. -/
+noncomputable def ckaDistAdvantage [SampleableType I] [DecidableEq I]
+    (cka : CKAScheme ProbComp IK St I Rho Rand)
+    (adversary : CKAAdversary St Rho I Rand)
+    (gp : GameParams) : ℝ :=
+  |(Pr[= true | securityExpFixedBit cka adversary true gp]).toReal -
+   (Pr[= true | securityExpFixedBit cka adversary false gp]).toReal|
 
 /-- The single-game CKA experiment can be decomposed as a uniform-bit branch over
 the two fixed-bit experiments:
@@ -834,6 +846,17 @@ lemma securityExp_toReal_sub_half [SampleableType I] [DecidableEq I]
   exact probOutput_uniformBool_branch_toReal_sub_half
     (securityExpFixedBit cka adversary true gp)
     (securityExpFixedBit cka adversary false gp)
+
+/-- The CKA guess advantage equals half the distinguishing advantage:
+`ckaGuessAdvantage = ckaDistAdvantage / 2`. -/
+lemma ckaGuessAdvantage_eq_ckaDistAdvantage_div_two [SampleableType I] [DecidableEq I]
+    (cka : CKAScheme ProbComp IK St I Rho Rand)
+    (adversary : CKAAdversary St Rho I Rand) (gp : GameParams) :
+    ckaGuessAdvantage cka adversary gp = ckaDistAdvantage cka adversary gp / 2 := by
+  simp only [ckaGuessAdvantage, ckaDistAdvantage]
+  rw [securityExp_toReal_sub_half, abs_div]
+  congr 1
+  exact abs_of_pos two_pos
 
 end Games
 
