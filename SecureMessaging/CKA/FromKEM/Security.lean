@@ -85,7 +85,7 @@ theorem security_reduces_to_ind_cpa_exists [SampleableType K] [DecidableEq K]
     (gp : CKAScheme.GameParams)
     (hgp : AdmissibleParams gp) :
     ∃ red : INDCPAReduction kem leak adv gp,
-      CKAScheme.securityAdvantage (scheme kem hDet leak) adv gp ≤
+      CKAScheme.ckaGuessAdvantage (scheme kem hDet leak) adv gp ≤
         KEMScheme.IND_CPA_Advantage (kem := kem) ProbCompRuntime.probComp red := by
   sorry
 
