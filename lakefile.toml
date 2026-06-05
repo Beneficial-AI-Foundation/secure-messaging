@@ -28,3 +28,7 @@ name = "SecureMessaging"
 [[lean_lib]]
 name = "SecureMessagingDocs"
 srcDir = "docs"
+
+[[lean_exe]]
+name = "secureMessagingDocs"
+root = "SecureMessagingDocsMain"
