@@ -7,7 +7,8 @@ import VCVio.CryptoFoundations.SecExp
 import VCVio.OracleComp.Constructions.SampleableType
 import VCVio.OracleComp.QueryTracking.QueryBound
 import VCVio.OracleComp.SimSemantics.Append
-import VCVio.OracleComp.SimSemantics.PreservesInv
+import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
+import SecureMessaging.ToVCVio.UnifLift
 
 /-!
 # Authenticated Encryption with Associated Data (AEAD)
@@ -120,7 +121,7 @@ variable {M AD K C : Type}
 The adversary has access to uniform randomness, a one-time encryption oracle,
 and a decryption oracle. -/
 -- ANCHOR: aeadOneTimeCCASpec
-def aeadOneTimeCCASpec (AD M C : Type) :=
+abbrev aeadOneTimeCCASpec (AD M C : Type) :=
   unifSpec + (AD × M →ₒ Option C) + (AD × C →ₒ Option M)
 -- ANCHOR_END: aeadOneTimeCCASpec
 
@@ -164,7 +165,7 @@ def decryptQueryBound (adv : OneTime_CCA_Adversary AD M C)
 /-- Uniform-randomness oracle lifted to the game-state monad. -/
 def oracleUnif (C : Type) :
     QueryImpl unifSpec (StateT (Option C) ProbComp) :=
-  (QueryImpl.ofLift unifSpec ProbComp).liftTarget (StateT (Option C) ProbComp)
+  ToVCVio.unifLiftStateT (Option C) unifSpec
 
 /-- One-time encryption oracle `encrypt(a, m)` (Figure 1 of [ACD19], middle column).
 First call: if `b = false`, sets `e* ← Enc(K, a, m)`;
@@ -188,7 +189,14 @@ def oracleEncrypt [SampleableType C] (ae : AEADScheme ProbComp M AD K C)
 
 /-- Decryption oracle `decrypt(a, e)` (Figure 1 of [ACD19], right column).
 `if e = e* or b = 1 return ⊥; return Dec(K, a, e)`.
-When `eStar = none` (pre-challenge), the `e = e*` check is trivially false. -/
+When `eStar = none` (pre-challenge), the `e = e*` check is trivially false.
+
+Note: the challenge guard compares the **ciphertext `e` only**, ignoring the
+associated data `a` — faithful to ACD19 Def 2 / Fig 1 (the target notion here).
+This differs from NRS14 nAE / Boneh–Shoup §9.10, which suppress only the exact
+`(a, e)` pair returned by encryption; the present notion suppresses every `(a', e*)`.
+For Encrypt-then-MAC the difference is immaterial: a query `(a', e*)` with
+`a' ≠ a*` fails tag verification with overwhelming probability anyway. -/
 -- ANCHOR: oracleDecrypt
 def oracleDecrypt [DecidableEq C] (ae : AEADScheme ProbComp M AD K C)
     (b : Bool) (k : K) :

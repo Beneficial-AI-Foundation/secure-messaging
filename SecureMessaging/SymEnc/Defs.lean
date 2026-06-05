@@ -88,7 +88,7 @@ which is strictly stronger than standard IND-CPA (left-or-right).
 /-- Oracle spec for the one-time IND$-CPA game.
 The adversary has access to uniform randomness and a one-time encryption
 oracle that returns `Option C` (none after first call). -/
-def indCPASpec (M C : Type) := unifSpec + (M →ₒ Option C)
+abbrev indCPASpec (M C : Type) := unifSpec + (M →ₒ Option C)
 
 /-! ### Adversary -/
 
