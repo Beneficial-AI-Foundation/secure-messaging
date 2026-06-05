@@ -25,3 +25,5 @@ import SecureMessaging.CKA.FromKEM.Correctness
 import SecureMessaging.CKA.FromKEM.Security
 import SecureMessaging.PRFPRNG.Defs
 import SecureMessaging.SymEnc.Defs
+import SecureMessaging.ToVCVio.RandomOracleForgery
+import SecureMessaging.ToVCVio.SampleableTypeProd
