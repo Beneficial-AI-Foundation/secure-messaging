@@ -68,6 +68,17 @@ The game samples `K ←$ K`, `e* ← ⊥`, `b ←$ {0, 1}`, then the adversary
 
 The adversary wins if its guess `b'` satisfies `b' = b`.
 
+[WHY A PRF TAG, NOT JUST A MAC]
+The construction in `AEAD/FromEtM` must hit the AEAD notion ACD19 actually
+requires, and that notion forces a PRF. The game above is *real-or-random*: when
+`b = 1` the oracle returns a uniform random ciphertext `e* ←$ C`, so the **whole**
+ciphertext — authentication tag included — must be indistinguishable from uniform.
+MAC unforgeability cannot deliver this (an unforgeable tag may still look
+non-uniform); pseudorandomness can. So to match ACD19 we tag with a PRF, not an
+unforgeable MAC. Note also that the textbook "LoR ⇒ RoR" shortcut does not bridge
+the gap: that equivalence is for random-*message* RoR, whereas ACD19 is
+random-*ciphertext* IND$, which is strictly stronger than LoR.
+
 -/
 
 open OracleSpec OracleComp ENNReal

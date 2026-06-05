@@ -24,9 +24,14 @@ IND$-CPA (real-or-random) security, following:
   EUROCRYPT 2019.
   — One-time encryption setting where each key is used at most once.
 
-This is a **local placeholder** for a type expected to be upstreamed to VCVio.
-When VCVio delivers `Cslib.Crypto.EncScheme` or equivalent, this file should
-be replaced by an import.
+This is a **local placeholder**. VCVio already has `SymmEncAlg`, but its
+`encrypt`/`decrypt` are monadic (`K → M → m C`), i.e. possibly randomized, and
+it carries only information-theoretic perfect-secrecy notions (Shannon) — not a
+computational IND$-CPA game. ACD19's EtM proof needs a *deterministic* cipher
+with a *computational one-time IND$-CPA* assumption, which is exactly what
+`DetSEAlg` plus the game below provide. Tracked upstream at
+<https://github.com/Verified-zkEVM/VCV-io/issues/411>; when VCVio delivers a
+deterministic IND$-CPA variant, this file should be replaced by an import.
 
 ## Deviations from NRS14
 
@@ -85,9 +90,8 @@ which is strictly stronger than standard IND-CPA (left-or-right).
 
 /-! ### Oracle spec -/
 
-/-- Oracle spec for the one-time IND$-CPA game.
-The adversary has access to uniform randomness and a one-time encryption
-oracle that returns `Option C` (none after first call). -/
+/-- Oracle spec (signatures only) for the one-time IND$-CPA game: uniform
+randomness plus an encryption oracle `M →ₒ Option C`. -/
 abbrev indCPASpec (M C : Type) := unifSpec + (M →ₒ Option C)
 
 /-! ### Adversary -/
