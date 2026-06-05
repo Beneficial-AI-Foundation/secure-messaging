@@ -72,9 +72,9 @@ KEM-CKA send: key generation and encapsulation.
 
 `keygen_rleak` and `encaps_rleak` return the ordinary KEM output together with
 the randomness they sampled, so the CKA security game can answer
-send-randomness leak queries. The erasure equalities `keygen_eq` and
-`encaps_eq` say that dropping the leaked randomness (with `Prod.fst`) recovers
-the ordinary KEM computations.
+send-randomness leak queries. The fields `keygen_fst` and `encaps_fst` say
+that the ordinary KEM computations are the first component of the
+randomness-returning ones.
 -/
 structure KEMRandLeak
     {m : Type → Type u} [Monad m]
@@ -86,17 +86,31 @@ structure KEMRandLeak
   keygen_rleak : m ((PK × SK) × KeygenRand)
   -- Encapsulation together with the randomness used to sample the ciphertext/key.
   encaps_rleak : PK → m ((C × K) × EncapsRand)
-  -- Erasure equality: dropping the leaked randomness recovers `kem.keygen`.
-  keygen_eq : Prod.fst <$> keygen_rleak = kem.keygen
-  -- Erasure equality: dropping the leaked randomness recovers `kem.encaps pk`.
-  encaps_eq : ∀ pk, Prod.fst <$> encaps_rleak pk = kem.encaps pk
+  -- First component: the ordinary key generation is the first component
+  -- of `keygen_rleak`.
+  keygen_fst : Prod.fst <$> keygen_rleak = kem.keygen
+  -- First component: ordinary encapsulation is the first component of
+  -- `encaps_rleak pk`.
+  encaps_fst : ∀ pk, Prod.fst <$> encaps_rleak pk = kem.encaps pk
 
 namespace KEMRandLeak
 
+/-- Send-randomness type induced by a leak package: the combined randomness of
+the two randomized KEM calls in one KEM-CKA send. The component order
+`EncapsRand × KeygenRand` follows the operational order of the send algorithm,
+which encapsulates before generating the next key pair.
+-/
+abbrev Rand {m : Type → Type u} [Monad m] {K PK SK C : Type}
+    {kem : KEMScheme m K PK SK C} (leak : KEMRandLeak kem) : Type :=
+  leak.EncapsRand × leak.KeygenRand
+
 /-- The trivial randomness-leak package: both leak types are `Unit` and the
 leaking computations are the ordinary KEM computations. It instantiates the
-construction for KEMs that do not expose their coins, and models leak oracles
-that reveal nothing to the adversary.
+construction for KEMs that do not expose their coins: one CKA send built from
+this package leaks only `((), ())`, one `()` for each of the two randomized
+KEM calls, so the leak oracles reveal nothing to the adversary. This is a
+weaker no-leak model; the ACD19-facing security statement quantifies over an
+arbitrary leak package instead of defaulting to this trivial one.
 -/
 def unit {m : Type → Type u} [Monad m] [LawfulMonad m] {K PK SK C : Type}
     (kem : KEMScheme m K PK SK C) : KEMRandLeak kem where
@@ -104,8 +118,8 @@ def unit {m : Type → Type u} [Monad m] [LawfulMonad m] {K PK SK C : Type}
   EncapsRand := Unit
   keygen_rleak := (·, ()) <$> kem.keygen
   encaps_rleak := fun pk => (·, ()) <$> kem.encaps pk
-  keygen_eq := by simp
-  encaps_eq := fun pk => by simp
+  keygen_fst := by simp
+  encaps_fst := fun pk => by simp
 
 end KEMRandLeak
 
@@ -168,23 +182,57 @@ def send {m : Type → Type u} [Monad m] {K PK SK C : Type}
 /-- Randomness-leaking KEM-CKA send algorithm.
 
 Same state transition as `send`, built from a `KEMRandLeak` package so that
-the output also records the randomness of the two randomized KEM calls. The
-component order `(EncapsRand × KeygenRand)` follows the operational order of
-the send algorithm.
+the output also records the randomness of the two randomized KEM calls, as a
+pair of type `KEMRandLeak.Rand leak`.
 -/
 def send_rleak {m : Type → Type u} [Monad m] {K PK SK C : Type}
     (kem : KEMScheme m K PK SK C)
     (leak : KEMRandLeak kem)
     (st : State PK SK) :
-    m (Option
-      (K × Message C PK × State PK SK ×
-        (leak.EncapsRand × leak.KeygenRand))) :=
+    m (Option (K × Message C PK × State PK SK × leak.Rand)) :=
   match st with
   | .sendReady pk => do
       let ((c, key), rEnc) ← leak.encaps_rleak pk
       let ((pk', sk'), rKeygen) ← leak.keygen_rleak
       return some (key, (c, pk'), .recvReady sk', (rEnc, rKeygen))
   | .recvReady _ => return none
+
+/-- Project a randomness-leaking send output to the ordinary send output. -/
+def sendWithRandFst {K PK SK C Rand : Type}
+    (out? : Option (K × Message C PK × State PK SK × Rand)) :
+    Option (K × Message C PK × State PK SK) :=
+  out?.map fun | (key, msg, st, _rand) => (key, msg, st)
+
+-- Taking the first component inside the continuation is the same as mapping
+-- `Prod.fst` over the bound computation; used to lift `keygen_fst` and
+-- `encaps_fst`.
+private theorem bind_fst_eq
+    {m : Type → Type u} [Monad m] [LawfulMonad m]
+    {α β γ : Type} (x : m (α × β)) (f : α → m γ) :
+    (x >>= fun y => f y.1) = ((Prod.fst <$> x) >>= f) := by
+  simp
+
+/-- The randomness-leaking send agrees with the ordinary send after projecting
+away the leaked sender randomness. This lifts the `KEMRandLeak` fields
+`encaps_fst` and `keygen_fst` to the CKA send algorithm.
+-/
+theorem send_rleak_fst_eq_send
+    {m : Type → Type u} [Monad m] [LawfulMonad m]
+    {K PK SK C : Type}
+    (kem : KEMScheme m K PK SK C)
+    (leak : KEMRandLeak kem)
+    (st : State PK SK) :
+    sendWithRandFst <$> send_rleak kem leak st = send kem st := by
+  cases st with
+  | sendReady pk =>
+      simp only [send, send_rleak]
+      rw [map_bind, ← leak.encaps_fst pk, ← leak.keygen_fst, ← bind_fst_eq]
+      refine bind_congr fun ⟨⟨c, key⟩, rEnc⟩ => ?_
+      simp only [map_bind]
+      rw [← bind_fst_eq]
+      refine bind_congr fun ⟨⟨pk', sk'⟩, rKeygen⟩ => ?_
+      simp [sendWithRandFst]
+  | recvReady sk => simp [send, send_rleak, sendWithRandFst]
 
 /-- KEM-CKA receive algorithm.
 
@@ -213,7 +261,8 @@ The type parameters specialize the abstract CKA interface as follows:
 * `St = kemCKA.State PK SK`, a phase-tagged public/secret key state;
 * `I = K`, the KEM shared key used as the CKA epoch key;
 * `Rho = C × PK`, the protocol-message space;
-* `Rand = leak.EncapsRand × leak.KeygenRand`, the randomness leaked by one send.
+* `Rand = KEMRandLeak.Rand leak`, the encapsulation and key-generation
+  randomness leaked by one send.
 
 The send and receive algorithms are the same for A and B; only initialization
 differs, with A starting from the public key and B from the secret key. For a
@@ -224,8 +273,7 @@ def scheme {m : Type → Type u} [Monad m] {K PK SK C : Type}
     (kem : KEMScheme m K PK SK C)
     (hDet : DeterministicDecaps kem)
     (leak : KEMRandLeak kem) :
-    CKAScheme m (InitKey PK SK) (State PK SK) K (Message C PK)
-      (leak.EncapsRand × leak.KeygenRand) where
+    CKAScheme m (InitKey PK SK) (State PK SK) K (Message C PK) leak.Rand where
   initKeyGen := kem.keygen
   initA := fun ik => return initA ik
   initB := fun ik => return initB ik

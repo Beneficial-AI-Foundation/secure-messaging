@@ -48,25 +48,16 @@ structure AdmissibleParams (gp : CKAScheme.GameParams) : Prop where
   two_le_deltaPCS : 2 ≤ gp.ΔPCS
   challenge_epoch_compatible : challengeEpochCompatible gp
 
-/-- Send-randomness type exposed by the KEM-CKA construction.
-
-For one KEM-CKA send, the leaked randomness consists of the randomness used for
-KEM encapsulation and the randomness used for the fresh next KEM key pair.
--/
-abbrev Rand {K PK SK C : Type}
-    {kem : KEMScheme ProbComp K PK SK C}
-    (leak : KEMRandLeak kem) :=
-  leak.EncapsRand × leak.KeygenRand
-
 /-- The CKA adversary interface specialized to the leaking KEM construction.
 
 The adversary receives the generic CKA security oracle family with the
-send-randomness type induced by `KEMRandLeak`.
+send-randomness type `KEMRandLeak.Rand leak`: the randomness of KEM
+encapsulation paired with the randomness of the fresh next KEM key pair.
 -/
 abbrev Adversary {K PK SK C : Type}
     {kem : KEMScheme ProbComp K PK SK C}
     (leak : KEMRandLeak kem) :=
-  CKAScheme.CKAAdversary (State PK SK) (Message C PK) K (Rand leak)
+  CKAScheme.CKAAdversary (State PK SK) (Message C PK) K leak.Rand
 
 /-- IND-CPA reductions generated from CKA adversaries. -/
 abbrev INDCPAReduction [SampleableType K]
