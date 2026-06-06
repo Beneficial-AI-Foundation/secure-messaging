@@ -12,6 +12,13 @@ import SecureMessagingDocs.Chapters.RKEM.Overview
 import SecureMessagingDocs.Chapters.SCKA.Overview
 import SecureMessagingDocs.Chapters.SecureMessaging.Overview
 
+set_option linter.style.setOption false
+set_option linter.hashCommand false
+set_option linter.style.emptyLine false
+set_option linter.style.longLine false
+set_option linter.style.whitespace false
+set_option verso.docstring.allowMissing true
+
 open Verso.Genre Manual
 open Verso.Genre.Manual.InlineLean
 open Informal

@@ -4,6 +4,13 @@ import SecureMessagingDocs.Chapters.AEAD.Defs
 import SecureMessagingDocs.Chapters.AEAD.AESGCM
 import SecureMessagingDocs.Chapters.AEAD.EncryptThenMAC
 
+set_option linter.style.setOption false
+set_option linter.hashCommand false
+set_option linter.style.emptyLine false
+set_option linter.style.longLine false
+set_option linter.style.whitespace false
+set_option verso.docstring.allowMissing true
+
 open Verso.Genre Manual
 open Informal
 

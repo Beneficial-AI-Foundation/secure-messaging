@@ -305,10 +305,14 @@ def validStep (last : Option CKAAction) (next : CKAAction) : Bool :=
 /-- Game parameters fixed at the start of the security experiment. -/
 -- ANCHOR: GameParams
 structure GameParams where
-  challengeEpoch : ℕ              -- epoch that adversary will challenge
-  ΔFS : ℕ           -- forward-secrecy delay after which state corruption is allowed
-  ΔPCS : ℕ          -- PCS delay before the challenge during which corruption is disallowed
-  challengedParty : CKAParty  -- which party is challenged by the adversary
+  /-- Epoch challenged by the adversary. -/
+  challengeEpoch : ℕ
+  /-- Forward-secrecy delay after which state corruption is allowed. -/
+  ΔFS : ℕ
+  /-- Post-compromise-security delay before the challenge during which corruption is disallowed. -/
+  ΔPCS : ℕ
+  /-- Party selected for the challenge oracle. -/
+  challengedParty : CKAParty
 -- ANCHOR_END: GameParams
 
 /-- Internal state of the CKA game.
@@ -320,16 +324,26 @@ structure GameParams where
 - `tA`, `tB`: per-party epoch counters. -/
 -- ANCHOR: GameState
 structure GameState (St I Rho : Type) where
+  /-- Local protocol state for party A. -/
   stA : St
+  /-- Local protocol state for party B. -/
   stB : St
-  rhoA : Option Rho  -- latest undelivered A -> B message
-  rhoB : Option Rho  -- latest undelivered B -> A message
-  keyA : Option I    -- sender key corresponding to `rhoA`
-  keyB : Option I    -- sender key corresponding to `rhoB`
+  /-- Latest undelivered message sent from A to B. -/
+  rhoA : Option Rho
+  /-- Latest undelivered message sent from B to A. -/
+  rhoB : Option Rho
+  /-- Sender key corresponding to `rhoA`. -/
+  keyA : Option I
+  /-- Sender key corresponding to `rhoB`. -/
+  keyB : Option I
+  /-- Whether delivered epoch keys have agreed so far. -/
   correct : Bool
+  /-- Last oracle action, used to enforce alternating communication. -/
   lastAction : Option CKAAction
-  tA : ℕ             -- epoch counter for A (incremented on each send/chall/recv by A)
-  tB : ℕ             -- epoch counter for B (incremented on each send/chall/recv by B)
+  /-- Epoch counter for A, incremented on A-side send, challenge, or receive. -/
+  tA : ℕ
+  /-- Epoch counter for B, incremented on B-side send, challenge, or receive. -/
+  tB : ℕ
 -- ANCHOR_END: GameState
 
 /-- Epoch counter for party `p`. -/

@@ -7,6 +7,13 @@ import SecureMessagingDocs.Chapters.CKA.Defs
 import SecureMessaging.CKA.FromDDH.Construction
 import SecureMessaging.CKA.FromDDH.Correctness
 
+set_option linter.style.setOption false
+set_option linter.hashCommand false
+set_option linter.style.emptyLine false
+set_option linter.style.longLine false
+set_option linter.style.whitespace false
+set_option verso.docstring.allowMissing true
+
 open Verso.Genre Manual
 open Verso.Genre.Manual.InlineLean
 open Verso.Code.External

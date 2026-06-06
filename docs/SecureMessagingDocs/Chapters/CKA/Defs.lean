@@ -5,6 +5,13 @@ import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessaging.CKA.Defs
 
+set_option linter.style.setOption false
+set_option linter.hashCommand false
+set_option linter.style.emptyLine false
+set_option linter.style.longLine false
+set_option linter.style.whitespace false
+set_option verso.docstring.allowMissing true
+
 open Verso.Genre Manual
 open Verso.Genre.Manual.InlineLean
 open Verso.Code.External
@@ -67,16 +74,26 @@ $`\todo`
 
 ```anchor GameState (project := ".") (module := SecureMessaging.CKA.Defs)
 structure GameState (St I Rho : Type) where
+  /-- Local protocol state for party A. -/
   stA : St
+  /-- Local protocol state for party B. -/
   stB : St
-  rhoA : Option Rho  -- latest undelivered A -> B message
-  rhoB : Option Rho  -- latest undelivered B -> A message
-  keyA : Option I    -- sender key corresponding to `rhoA`
-  keyB : Option I    -- sender key corresponding to `rhoB`
+  /-- Latest undelivered message sent from A to B. -/
+  rhoA : Option Rho
+  /-- Latest undelivered message sent from B to A. -/
+  rhoB : Option Rho
+  /-- Sender key corresponding to `rhoA`. -/
+  keyA : Option I
+  /-- Sender key corresponding to `rhoB`. -/
+  keyB : Option I
+  /-- Whether delivered epoch keys have agreed so far. -/
   correct : Bool
+  /-- Last oracle action, used to enforce alternating communication. -/
   lastAction : Option CKAAction
-  tA : ℕ             -- epoch counter for A (incremented on each send/chall/recv by A)
-  tB : ℕ             -- epoch counter for B (incremented on each send/chall/recv by B)
+  /-- Epoch counter for A, incremented on A-side send, challenge, or receive. -/
+  tA : ℕ
+  /-- Epoch counter for B, incremented on B-side send, challenge, or receive. -/
+  tB : ℕ
 ```
 
 *Game parameters* $`(t^*, \Delta_\mathsf{FS}, \Delta_\mathsf{PCS}, \mathsf{chall})`
@@ -88,10 +105,14 @@ structure GameState (St I Rho : Type) where
 
 ```anchor GameParams (project := ".") (module := SecureMessaging.CKA.Defs)
 structure GameParams where
-  challengeEpoch : ℕ              -- epoch that adversary will challenge
-  ΔFS : ℕ           -- forward-secrecy delay after which state corruption is allowed
-  ΔPCS : ℕ          -- PCS delay before the challenge during which corruption is disallowed
-  challengedParty : CKAParty  -- which party is challenged by the adversary
+  /-- Epoch challenged by the adversary. -/
+  challengeEpoch : ℕ
+  /-- Forward-secrecy delay after which state corruption is allowed. -/
+  ΔFS : ℕ
+  /-- Post-compromise-security delay before the challenge during which corruption is disallowed. -/
+  ΔPCS : ℕ
+  /-- Party selected for the challenge oracle. -/
+  challengedParty : CKAParty
 ```
 
 *Predicates*
