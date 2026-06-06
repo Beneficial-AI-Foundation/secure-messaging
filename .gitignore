@@ -1,4 +1,6 @@
 .lake
 docs/.lake
 site/
+_out/
+.vscode/
 .DS_Store

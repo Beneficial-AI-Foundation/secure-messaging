@@ -32,3 +32,4 @@ srcDir = "docs"
 [[lean_exe]]
 name = "secureMessagingDocs"
 root = "SecureMessagingDocsMain"
+

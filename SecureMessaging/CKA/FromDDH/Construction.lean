@@ -19,9 +19,8 @@ scalar multiplication `a • gen`, and a fixed generator `gen : G`.
 - Initial key space `IK = G × F` — a group element and its discrete log.
 - Epoch key space `I = G` — DH shared secrets.
 - Message space `Rho = G` — DH public values.
-- State space `St = CKAState F G` — a phase-tagged state:
-  `sendReady h` holds a group element `h : G` and can send next;
-  `recvReady x` holds a scalar `x : F` and can receive next.
+- State space `St = F ⊕ G` — holds :
+  A scalar in F after a Send action, or else group element in G after a Recv action.
 
 The send and receive algorithms are same for both A and B: sendA = sendB and recvA = recvB.
 
@@ -84,48 +83,37 @@ open OracleSpec OracleComp ENNReal
 variable {F : Type} [Field F] [Fintype F] [DecidableEq F] [SampleableType F]
 variable {G : Type} [AddCommGroup G] [Module F G] [SampleableType G]
 
-/-- Phase-tagged CKA state for the DDH construction.
-
-`sendReady h` means the party holds the peer's current DH public value `h : G`
-and can produce the next epoch key by sampling a scalar. `recvReady x` means
-the party holds its previously sampled scalar `x : F` and can receive the next
-DH public value. -/
-inductive CKAState (F G : Type) where
-  | sendReady : G → CKAState F G
-  | recvReady : F → CKAState F G
-  deriving DecidableEq, Fintype, Repr
-
 /-- `send(h : G)`: `x ← $ᵗ F`; `key := x • h`, `msg := x • gen`, `st' := x`. -/
-def send (gen : G) (st : CKAState F G) : ProbComp (Option (G × G × CKAState F G)) :=
+def ddhCKA.send (gen : G) (st : F ⊕ G) : ProbComp (Option (G × G × (F ⊕ G))) :=
   match st with
-  | .sendReady h => do
+  | .inr h => do
     let x ← $ᵗ F
     let key := x • h
     let msg := x • gen
-    let st' : CKAState F G := .recvReady x
+    let st' : F ⊕ G := .inl x
     return some (key, msg, st')
-  | .recvReady _ => return none
+  | .inl _ => return none
 
 /-- `send_rleak(h : G)`: as `send`, additionally leaking the sampled scalar `x`. -/
-def send_rleak (gen : G) (st : CKAState F G) :
-    ProbComp (Option (G × G × CKAState F G × F)) :=
+def ddhCKA.send_rleak (gen : G) (st : F ⊕ G) :
+    ProbComp (Option (G × G × (F ⊕ G) × F)) :=
   match st with
-  | .sendReady h => do
+  | .inr h => do
     let x ← $ᵗ F
     let key := x • h
     let msg := x • gen
-    let st' : CKAState F G := .recvReady x
+    let st' : F ⊕ G := .inl x
     return some (key, msg, st', x)
-  | .recvReady _ => return none
+  | .inl _ => return none
 
 /-- `recv(x : F, ρ : G)`: `key := x • ρ`, `st' := ρ`. -/
-def recv (st : CKAState F G) (ρ : G) : Option (G × CKAState F G) :=
+def ddhCKA.recv (st : F ⊕ G) (ρ : G) : Option (G × (F ⊕ G)) :=
   match st with
-  | .recvReady x =>
+  | .inl x =>
     let key := x • ρ
-    let st' : CKAState F G := .sendReady ρ
+    let st' : F ⊕ G := .inr ρ
     some (key, st')
-  | .sendReady _ => none
+  | .inr _ => none
 
 /-- CKA from DDH over a module `Module F G` with generator `gen : G`.
 
@@ -134,17 +122,19 @@ def recv (st : CKAState F G) (ρ : G) : Option (G × CKAState F G) :=
 - `sendA(h: G)` and `sendB(h: G)`: defined as `send(h: G)` above.
 - `recvA(x: F, ρ: G)` and `recvB(x: F, ρ: G)` defined as `recv(x: F, ρ: G)` above.
 -/
+-- ANCHOR: ddhCKA
 def ddhCKA (F G : Type) [Field F] [Fintype F] [DecidableEq F] [SampleableType F]
     [AddCommGroup G] [Module F G] [SampleableType G]
-  (gen : G) : CKAScheme ProbComp (G × F) (CKAState F G) G G F where
+    (gen : G) : CKAScheme ProbComp (G × F) (F ⊕ G) G G F where
   initKeyGen := do
     let x ← $ᵗ F
     return (x • gen, x)
-  initA := fun (h, _) => return .sendReady h
-  initB := fun (_, x) => return .recvReady x
-  sendA := send gen
-  sendA_rleak := send_rleak gen
-  sendB := send gen
-  sendB_rleak := send_rleak gen
-  recvA := recv
-  recvB := recv
+  initA := fun (h, _) => return .inr h
+  initB := fun (_, x) => return .inl x
+  sendA := ddhCKA.send gen
+  sendA_rleak := ddhCKA.send_rleak gen
+  sendB := ddhCKA.send gen
+  sendB_rleak := ddhCKA.send_rleak gen
+  recvA := ddhCKA.recv
+  recvB := ddhCKA.recv
+-- ANCHOR_END: ddhCKA

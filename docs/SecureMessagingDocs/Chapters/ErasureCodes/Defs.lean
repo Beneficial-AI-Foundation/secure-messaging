@@ -1,0 +1,41 @@
+import Verso
+import VersoManual
+import VersoBlueprint
+import SecureMessagingDocs.Visuals.GameBoxes
+import SecureMessagingDocs.Visuals.AnchorPill
+
+open Verso.Genre
+open Verso.Genre.Manual
+open Informal
+
+set_option doc.verso true
+
+#doc (Manual) "Definitions" =>
+
+:::group "erasure_codes"
+Erasure Codes.
+:::
+
+:::defTitle "erasure_code_scheme" "Erasure code scheme"
+:::
+
+::::definition "erasure_code_scheme" (parent := "erasure_codes")
+$`\todo`
+
+:::leanPill "missing" "Lean formalization pending"
+:::
+
+{githubLabel}`github` {githubIssue 116}[]
+::::
+
+:::defTitle "erasure_code_correctness" "Erasure code correctness"
+:::
+
+::::definition "erasure_code_correctness" (parent := "erasure_codes")
+$`\todo`
+
+:::leanPill "missing" "Lean formalization pending"
+:::
+
+{usesLabel}`uses` {uses "erasure_code_scheme"}[] · {githubLabel}`github` {githubIssue 116}[]
+::::
