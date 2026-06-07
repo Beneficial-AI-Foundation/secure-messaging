@@ -60,11 +60,50 @@ jobs:
           path: _out/site/html-multi
           key: docs-site-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'lake-manifest.json', '**/*.lean') }}
 
-      - name: Build documentation
+      - name: Build documentation modules
+        run: |
+          free -h
+          /usr/bin/time -v lake build \
+            SecureMessagingDocs.Chapters.AEAD.Defs \
+            SecureMessagingDocs.Chapters.AEAD.AESGCM \
+            SecureMessagingDocs.Chapters.AEAD.EncryptThenMAC \
+            SecureMessagingDocs.Chapters.CKA.Defs \
+            SecureMessagingDocs.Chapters.CKA.FromDDH \
+            SecureMessagingDocs.Chapters.CKA.FromKEM \
+            SecureMessagingDocs.Chapters.CKA.FromLWE \
+            SecureMessagingDocs.Chapters.ErasureCodes.Defs \
+            SecureMessagingDocs.Chapters.ErasureCodes.ReedSolomon \
+            SecureMessagingDocs.Chapters.FSAEAD.Defs \
+            SecureMessagingDocs.Chapters.FSAEAD.FromAEADPRG \
+            SecureMessagingDocs.Chapters.OnOffKEM.Defs \
+            SecureMessagingDocs.Chapters.OnOffKEM.FromMLKEM \
+            SecureMessagingDocs.Chapters.PRFPRNG.Defs \
+            SecureMessagingDocs.Chapters.PRFPRNG.FromPRPPRG \
+            SecureMessagingDocs.Chapters.RKEM.Defs \
+            SecureMessagingDocs.Chapters.RKEM.FromDDHNonFS \
+            SecureMessagingDocs.Chapters.RKEM.FromDDHFS \
+            SecureMessagingDocs.Chapters.RKEM.FromKEM \
+            SecureMessagingDocs.Chapters.RKEM.KatanaPlain \
+            SecureMessagingDocs.Chapters.RKEM.KatanaOptimised \
+            SecureMessagingDocs.Chapters.SCKA.Defs \
+            SecureMessagingDocs.Chapters.SCKA.UniKEM \
+            SecureMessagingDocs.Chapters.SCKA.BiKEM \
+            SecureMessagingDocs.Chapters.SCKA.RKEM \
+            SecureMessagingDocs.Chapters.SCKA.OppUniKEM \
+            SecureMessagingDocs.Chapters.SCKA.OppBiKEM \
+            SecureMessagingDocs.Chapters.SCKA.OppRKEM \
+            SecureMessagingDocs.Chapters.SecureMessaging.Defs \
+            SecureMessagingDocs.Chapters.SecureMessaging.DoubleRatchetAbstract \
+            SecureMessagingDocs.Chapters.SecureMessaging.DoubleRatchetSignal \
+            SecureMessagingDocs.Chapters.SecureMessaging.TripleRatchet \
+            SecureMessagingDocs.Chapters.SecureMessaging.SCKA \
+            SecureMessagingDocs.Visuals.Style
+
+      - name: Build documentation root
         run: |
           free -h
           while true; do
-            echo "docs build heartbeat: $(date -u)"
+            echo "docs root heartbeat: $(date -u)"
             free -h
             ps -eo pid,ppid,rss,vsz,comm,args | grep '[l]ean' || true
             sleep 60
