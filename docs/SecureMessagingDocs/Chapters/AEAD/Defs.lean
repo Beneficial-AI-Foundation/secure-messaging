@@ -14,12 +14,13 @@ set_option verso.docstring.allowMissing true
 
 open Verso.Genre Manual
 open Verso.Genre.Manual.InlineLean
+open Verso.Code.External
 open Informal
 
 set_option doc.verso true
 set_option pp.rawOnError true
 
-#doc (Manual) "Definitions" =>
+#doc (Manual) "AEAD Definitions" =>
 
 :::defTitle "aead" "Authenticated Encryption with Associated Data - AEAD scheme"
 :::
@@ -27,7 +28,7 @@ set_option pp.rawOnError true
 :::definition "aead" (lean := "AEADScheme")
 $`\todo`
 
-```leanSnippet
+```anchor AEADScheme (project := ".") (module := SecureMessaging.AEAD.Defs)
 structure AEADScheme (m : Type → Type u) [Monad m] (M AD K C : Type) where
   /-- Sample a fresh symmetric key. -/
   keygen : m K
@@ -51,7 +52,7 @@ $`\pif\;e^*\neq\bot\;\pthen\;\Return\bot`
 
 $`\pif\;b\;\pthen\;e^* \sample \mathcal C\;\pelse\;e^* \gets \Enc(K,a,m);\quad \Return e^*`
 
-```leanSnippet
+```anchor oracleEncrypt (project := ".") (module := SecureMessaging.AEAD.Defs)
 def oracleEncrypt [SampleableType C] (ae : AEADScheme ProbComp M AD K C)
     (b : Bool) (k : K) :
     QueryImpl (AD × M →ₒ Option C) (StateT (Option C) ProbComp) :=
@@ -70,7 +71,7 @@ def oracleEncrypt [SampleableType C] (ae : AEADScheme ProbComp M AD K C)
 :::::gameCell "\\Odec(a,e)" (kind := "oracle") (state := "\\gamestate\\; (e^*\\text{ - challenge ciphertext}, b\\text{ - challenge bit})")
 $`\pif\;b\,\vee\,e{ = }e^*\;\pthen\;\Return\bot\;\pelse\;\Return \Dec(K,a,e)`
 
-```leanSnippet
+```anchor oracleDecrypt (project := ".") (module := SecureMessaging.AEAD.Defs)
 def oracleDecrypt [DecidableEq C] (ae : AEADScheme ProbComp M AD K C)
     (b : Bool) (k : K) :
     QueryImpl (AD × C →ₒ Option M) (StateT (Option C) ProbComp) :=
@@ -90,7 +91,7 @@ def oracleDecrypt [DecidableEq C] (ae : AEADScheme ProbComp M AD K C)
 :::definition "aead_correct" (lean := "AEADScheme.Correct")
 $`\todo`
 
-```leanSnippet
+```anchor Correct (project := ".") (module := SecureMessaging.AEAD.Defs)
 def Correct (ae : AEADScheme m M AD K C) : Prop :=
   ∀ (k : K) (a : AD) (msg : M), ae.decrypt k a (ae.encrypt k a msg) = some msg
 ```
@@ -109,7 +110,7 @@ Let $`\O = \{\Oenc, \Odec\}` and denote by $`\adv^{\O}` an adversary with oracle
 :::leanPillCaption "specification for oracle $`\\O` types"
 :::
 
-```leanSnippet
+```anchor aeadOneTimeCCASpec (project := ".") (module := SecureMessaging.AEAD.Defs)
 def aeadOneTimeCCASpec (AD M C : Type) :=
   unifSpec + (AD × M →ₒ Option C) + (AD × C →ₒ Option M)
 ```
@@ -117,7 +118,7 @@ def aeadOneTimeCCASpec (AD M C : Type) :=
 :::leanPillCaption "specification for oracle set $`\\O`"
 :::
 
-```leanSnippet
+```anchor aeadSecurityImpl (project := ".") (module := SecureMessaging.AEAD.Defs)
 def aeadSecurityImpl [SampleableType C] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C) (b : Bool) (k : K) :
     QueryImpl (aeadOneTimeCCASpec AD M C) (StateT (Option C) ProbComp) :=
@@ -127,7 +128,7 @@ def aeadSecurityImpl [SampleableType C] [DecidableEq C]
 :::leanPillCaption "type of adversaries with oracle access"
 :::
 
-```leanSnippet
+```anchor OneTime_CCA_Adversary (project := ".") (module := SecureMessaging.AEAD.Defs)
 abbrev OneTime_CCA_Adversary (AD M C : Type) :=
   OracleComp (aeadOneTimeCCASpec AD M C) Bool
 ```
@@ -138,7 +139,7 @@ $`K \sample \mathcal K;\quad b \sample \bit;\quad b' \gets \adv^{\O};\quad \Retu
 :::::
 ::::::
 
-```leanSnippet
+```anchor securityExp (project := ".") (module := SecureMessaging.AEAD.Defs)
 def securityExp [SampleableType C] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTime_CCA_Adversary AD M C) : ProbComp Bool := do
@@ -161,7 +162,7 @@ $`\todo`
 $$`\mathsf{Adv}^{\textsf{guess}}_{\textsf{AEAD}}(\adv)
   = \Bigl|\, \Pr[\,b' = b\,] - \tfrac{1}{2} \,\Bigr|`
 
-```leanSnippet
+```anchor guessAdvantage (project := ".") (module := SecureMessaging.AEAD.Defs)
 noncomputable def guessAdvantage [SampleableType C] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTime_CCA_Adversary AD M C) : ℝ :=

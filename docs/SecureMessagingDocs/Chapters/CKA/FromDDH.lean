@@ -16,6 +16,7 @@ set_option verso.docstring.allowMissing true
 
 open Verso.Genre Manual
 open Verso.Genre.Manual.InlineLean
+open Verso.Code.External
 open Informal
 
 set_option doc.verso true
@@ -33,7 +34,7 @@ CKA from DDH.
 :::definition "cka_from_ddh" (parent := "cka_cka_from_ddh") (lean := "ddhCKA")
 $`\todo`
 
-```leanSnippet
+```anchor ddhCKA (project := ".") (module := SecureMessaging.CKA.FromDDH.Construction)
 def ddhCKA (F G : Type) [Field F] [Fintype F] [DecidableEq F] [SampleableType F]
     [AddCommGroup G] [Module F G] [SampleableType G]
     (gen : G) : CKAScheme ProbComp (G × F) (F ⊕ G) G G F where
@@ -61,7 +62,7 @@ $`\todo`
 
 $$`\Pr[\,\textsf{correctnessExp} = \mathsf{true}\,] = 1`
 
-```leanSnippet
+```anchor correctness (project := ".") (module := SecureMessaging.CKA.FromDDH.Correctness)
 theorem correctness [DecidableEq G] (adv : CKACorrectnessAdversary G G) :
     Pr[= true | correctnessExp (ddhCKA F G gen) adv] = 1
 ```

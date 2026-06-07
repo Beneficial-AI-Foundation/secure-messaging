@@ -10,7 +10,7 @@ open Informal
 
 set_option doc.verso true
 
-#doc (Manual) "Definitions" =>
+#doc (Manual) "RKEM Definitions" =>
 
 :::group "rkem"
 Ratcheting Key Encapsulation Mechanism (RKEM).

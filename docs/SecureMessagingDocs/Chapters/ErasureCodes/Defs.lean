@@ -10,7 +10,7 @@ open Informal
 
 set_option doc.verso true
 
-#doc (Manual) "Definitions" =>
+#doc (Manual) "Erasure-Code Definitions" =>
 
 :::group "erasure_codes"
 Erasure Codes.

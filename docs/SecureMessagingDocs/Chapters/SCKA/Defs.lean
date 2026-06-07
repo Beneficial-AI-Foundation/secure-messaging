@@ -10,7 +10,7 @@ open Informal
 
 set_option doc.verso true
 
-#doc (Manual) "Definitions" =>
+#doc (Manual) "SCKA Definitions" =>
 
 :::group "cka_protocols"
 SCKA protocol constructions.

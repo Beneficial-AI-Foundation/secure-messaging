@@ -10,7 +10,7 @@ open Informal
 
 set_option doc.verso true
 
-#doc (Manual) "Definitions" =>
+#doc (Manual) "PRF-PRNG Definitions" =>
 
 :::group "prf_prng"
 Pseudorandom Function-Generator (PRF-PRNG).

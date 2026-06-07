@@ -10,7 +10,7 @@ open Informal
 
 set_option doc.verso true
 
-#doc (Manual) "Definitions" =>
+#doc (Manual) "Forward-Secure AEAD Definitions" =>
 
 :::group "fs_aead"
 Forward-Secure AEAD (FS-AEAD).
