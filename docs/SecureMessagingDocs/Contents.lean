@@ -1,27 +1,6 @@
 import VersoManual
-import VersoBlueprint
-import VersoBlueprint.Commands.Graph
-import VersoBlueprint.Commands.Summary
-import SecureMessagingDocs.Chapters.AEAD.Overview
-import SecureMessagingDocs.Chapters.CKA.Overview
-import SecureMessagingDocs.Chapters.ErasureCodes.Overview
-import SecureMessagingDocs.Chapters.FSAEAD.Overview
-import SecureMessagingDocs.Chapters.OnOffKEM.Overview
-import SecureMessagingDocs.Chapters.PRFPRNG.Overview
-import SecureMessagingDocs.Chapters.RKEM.Overview
-import SecureMessagingDocs.Chapters.SCKA.Overview
-import SecureMessagingDocs.Chapters.SecureMessaging.Overview
-
-set_option linter.style.setOption false
-set_option linter.hashCommand false
-set_option linter.style.emptyLine false
-set_option linter.style.longLine false
-set_option linter.style.whitespace false
-set_option verso.docstring.allowMissing true
 
 open Verso.Genre Manual
-open Verso.Genre.Manual.InlineLean
-open Informal
 
 set_option doc.verso true
 
@@ -40,26 +19,22 @@ The source code is available on
 The goal of this project is to provide machine-checked proofs of correctness
 and security properties for cryptographic messaging protocols.
 
-{blueprint_graph}
+# Chapters
 
-{blueprint_summary}
+- Authenticated Encryption with Associated Data
 
-{include 0 SecureMessagingDocs.Chapters.AEAD.Overview}
+- Continuous Key Agreement
 
-{include 0 SecureMessagingDocs.Chapters.CKA.Overview}
+- Erasure Codes
 
-{include 0 SecureMessagingDocs.Chapters.ErasureCodes.Overview}
+- Forward-Secure Authenticated Encryption with Associated Data
 
-{include 0 SecureMessagingDocs.Chapters.FSAEAD.Overview}
+- On-Off Key Encapsulation Mechanisms
 
-{include 0 SecureMessagingDocs.Chapters.OnOffKEM.Overview}
+- Pseudorandom Functions and Pseudorandom Generators
 
-{include 0 SecureMessagingDocs.Chapters.PRFPRNG.Overview}
+- Ratcheted Key Encapsulation Mechanisms
 
-{include 0 SecureMessagingDocs.Chapters.RKEM.Overview}
+- Signal Continuous Key Agreement
 
-{include 0 SecureMessagingDocs.Chapters.SCKA.Overview}
-
-{include 0 SecureMessagingDocs.Chapters.SecureMessaging.Overview}
-
-{blueprint_bibliography}
+- Secure Messaging Protocols
