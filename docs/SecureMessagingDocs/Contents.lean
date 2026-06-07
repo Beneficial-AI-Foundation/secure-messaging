@@ -1,6 +1,25 @@
 import VersoManual
+import VersoBlueprint
+import SecureMessagingDocs.Chapters.AEAD.Overview
+import SecureMessagingDocs.Chapters.CKA.Overview
+import SecureMessagingDocs.Chapters.ErasureCodes.Overview
+import SecureMessagingDocs.Chapters.FSAEAD.Overview
+import SecureMessagingDocs.Chapters.OnOffKEM.Overview
+import SecureMessagingDocs.Chapters.PRFPRNG.Overview
+import SecureMessagingDocs.Chapters.RKEM.Overview
+import SecureMessagingDocs.Chapters.SCKA.Overview
+import SecureMessagingDocs.Chapters.SecureMessaging.Overview
+
+set_option linter.style.setOption false
+set_option linter.hashCommand false
+set_option linter.style.emptyLine false
+set_option linter.style.longLine false
+set_option linter.style.whitespace false
+set_option verso.docstring.allowMissing true
 
 open Verso.Genre Manual
+open Verso.Genre.Manual.InlineLean
+open Informal
 
 set_option doc.verso true
 
@@ -19,22 +38,22 @@ The source code is available on
 The goal of this project is to provide machine-checked proofs of correctness
 and security properties for cryptographic messaging protocols.
 
-# Chapters
+{include 0 SecureMessagingDocs.Chapters.AEAD.Overview}
 
-- Authenticated Encryption with Associated Data
+{include 0 SecureMessagingDocs.Chapters.CKA.Overview}
 
-- Continuous Key Agreement
+{include 0 SecureMessagingDocs.Chapters.ErasureCodes.Overview}
 
-- Erasure Codes
+{include 0 SecureMessagingDocs.Chapters.FSAEAD.Overview}
 
-- Forward-Secure Authenticated Encryption with Associated Data
+{include 0 SecureMessagingDocs.Chapters.OnOffKEM.Overview}
 
-- On-Off Key Encapsulation Mechanisms
+{include 0 SecureMessagingDocs.Chapters.PRFPRNG.Overview}
 
-- Pseudorandom Functions and Pseudorandom Generators
+{include 0 SecureMessagingDocs.Chapters.RKEM.Overview}
 
-- Ratcheted Key Encapsulation Mechanisms
+{include 0 SecureMessagingDocs.Chapters.SCKA.Overview}
 
-- Signal Continuous Key Agreement
+{include 0 SecureMessagingDocs.Chapters.SecureMessaging.Overview}
 
-- Secure Messaging Protocols
+{blueprint_bibliography}
