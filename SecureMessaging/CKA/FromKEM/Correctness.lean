@@ -23,7 +23,7 @@ return k' = some k
 Perfect correctness means this experiment succeeds with probability exactly 1.
 -/
 
-open OracleSpec OracleComp ENNReal
+open OracleSpec OracleComp ENNReal KEMScheme
 
 namespace kemCKA
 
@@ -165,9 +165,10 @@ private lemma oracleUnif_preserves_reachableInv
 
 private lemma oracleSendA_preserves_reachableInv
     (kem : KEMScheme ProbComp K PK SK C)
-    (hDet : DeterministicDecaps kem) :
+    (hDet : DeterministicDecaps kem)
+    (leak : RandLeak kem) :
     QueryImpl.PreservesInv
-      (CKAScheme.oracleSendA (kemCKA kem hDet))
+      (CKAScheme.oracleSendA (scheme kem hDet leak))
       (reachableInv kem) := by
   intro _ σ hσ z hz
   rcases σ with ⟨sA, sB, ρA, ρB, keyA, keyB, correct, last, epA, epB⟩
@@ -193,15 +194,16 @@ private lemma oracleSendA_preserves_reachableInv
               keyA := some key, keyB := none,
               correct := true, lastAction := some .sendA,
               tA := epA + 1, tB := epB }) = z := by
-        simpa [CKAScheme.validStep, kemCKA, scheme, send] using hz
+        simpa [CKAScheme.validStep, scheme, send] using hz
       obtain ⟨c, key, pk', sk', hck, hks', rfl⟩ := hz'
       exact reachableInv_after_sendA (kem := kem) hks hck hks')
 
 private lemma oracleSendB_preserves_reachableInv
     (kem : KEMScheme ProbComp K PK SK C)
-    (hDet : DeterministicDecaps kem) :
+    (hDet : DeterministicDecaps kem)
+    (leak : RandLeak kem) :
     QueryImpl.PreservesInv
-      (CKAScheme.oracleSendB (kemCKA kem hDet))
+      (CKAScheme.oracleSendB (scheme kem hDet leak))
       (reachableInv kem) := by
   intro _ σ hσ z hz
   rcases σ with ⟨sA, sB, ρA, ρB, keyA, keyB, correct, last, epA, epB⟩
@@ -226,16 +228,17 @@ private lemma oracleSendB_preserves_reachableInv
             keyA := none, keyB := some key,
             correct := true, lastAction := some .sendB,
             tA := epA, tB := epB + 1 }) = z := by
-      simpa [CKAScheme.validStep, kemCKA, scheme, send] using hz
+      simpa [CKAScheme.validStep, scheme, send] using hz
     obtain ⟨c, key, pk', sk', hck, hks', rfl⟩ := hz'
     exact reachableInv_after_sendB (kem := kem) hks hck hks'
 
 private lemma oracleRecvB_preserves_reachableInv [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
+    (leak : RandLeak kem)
     (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp) :
     QueryImpl.PreservesInv
-      (CKAScheme.oracleRecvB (kemCKA kem hDet))
+      (CKAScheme.oracleRecvB (scheme kem hDet leak))
       (reachableInv kem) := by
   intro _ σ hσ z hz
   rcases σ with ⟨sA, sB, ρA, ρB, keyA, keyB, correct, last, epA, epB⟩
@@ -257,7 +260,7 @@ private lemma oracleRecvB_preserves_reachableInv [DecidableEq K]
         (pk := pk) (sk := sk) (c := c) (key := key) kem hDet hkem hks hck
       have : z = ((), ⟨State.recvReady skNext, State.sendReady pkNext,
           none, none, none, none, true, some .recvB, epA, epB + 1⟩) := by
-        simpa [CKAScheme.oracleRecvB, CKAScheme.validStep, kemCKA, scheme, recv, hdec,
+        simpa [CKAScheme.oracleRecvB, CKAScheme.validStep, scheme, recv, hdec,
           StateT.run_bind, StateT.run_get, pure_bind] using hz
       subst this
       exact reachableInv_after_recvB (kem := kem) hksNext
@@ -266,9 +269,10 @@ private lemma oracleRecvB_preserves_reachableInv [DecidableEq K]
 private lemma oracleRecvA_preserves_reachableInv [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
+    (leak : RandLeak kem)
     (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp) :
     QueryImpl.PreservesInv
-      (CKAScheme.oracleRecvA (kemCKA kem hDet))
+      (CKAScheme.oracleRecvA (scheme kem hDet leak))
       (reachableInv kem) := by
   intro _ σ hσ z hz
   rcases σ with ⟨sA, sB, ρA, ρB, keyA, keyB, correct, last, epA, epB⟩
@@ -290,7 +294,7 @@ private lemma oracleRecvA_preserves_reachableInv [DecidableEq K]
         (pk := pk) (sk := sk) (c := c) (key := key) kem hDet hkem hks hck
       have : z = ((), ⟨State.sendReady pkNext, State.recvReady skNext,
           none, none, none, none, true, some .recvA, epA + 1, epB⟩) := by
-        simpa [CKAScheme.oracleRecvA, CKAScheme.validStep, kemCKA, scheme, recv, hdec,
+        simpa [CKAScheme.oracleRecvA, CKAScheme.validStep, scheme, recv, hdec,
           StateT.run_bind, StateT.run_get, pure_bind] using hz
       subst this
       exact reachableInv_after_recvA (kem := kem) hksNext
@@ -299,9 +303,10 @@ private lemma oracleRecvA_preserves_reachableInv [DecidableEq K]
 private lemma correctnessImpl_preserves [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
+    (leak : RandLeak kem)
     (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp) :
     QueryImpl.PreservesInv
-      (CKAScheme.ckaCorrectnessImpl (kemCKA kem hDet))
+      (CKAScheme.ckaCorrectnessImpl (scheme kem hDet leak))
       (reachableInv kem) := by
   intro t σ hσ z hz
   match t with
@@ -310,30 +315,34 @@ private lemma correctnessImpl_preserves [DecidableEq K]
         oracleUnif_preserves_reachableInv (kem := kem) n σ hσ z hz
   | OSendA =>
       simpa [CKAScheme.ckaCorrectnessImpl] using
-        oracleSendA_preserves_reachableInv (kem := kem) (hDet := hDet) () σ hσ z hz
+        oracleSendA_preserves_reachableInv
+          (kem := kem) (hDet := hDet) (leak := leak) () σ hσ z hz
   | ORecvA =>
       simpa [CKAScheme.ckaCorrectnessImpl] using
         oracleRecvA_preserves_reachableInv
-          (kem := kem) (hDet := hDet) (hkem := hkem) () σ hσ z hz
+          (kem := kem) (hDet := hDet) (leak := leak) (hkem := hkem) () σ hσ z hz
   | OSendB =>
       simpa [CKAScheme.ckaCorrectnessImpl] using
-        oracleSendB_preserves_reachableInv (kem := kem) (hDet := hDet) () σ hσ z hz
+        oracleSendB_preserves_reachableInv
+          (kem := kem) (hDet := hDet) (leak := leak) () σ hσ z hz
   | ORecvB =>
       simpa [CKAScheme.ckaCorrectnessImpl] using
         oracleRecvB_preserves_reachableInv
-          (kem := kem) (hDet := hDet) (hkem := hkem) () σ hσ z hz
+          (kem := kem) (hDet := hDet) (leak := leak) (hkem := hkem) () σ hσ z hz
 
 /-- One-step correctness for the KEM-based CKA construction.
 
-The experiment samples an initial KEM key pair `(pk, sk)`, runs the CKA send
-algorithm from `sendReady pk`, and then runs the matching CKA receive algorithm
-from `recvReady sk` on the transmitted message. Under the hypothesis that
-honestly generated KEM encapsulations always decapsulate to the encapsulated
-key, the receiver recovers the sender's epoch key with probability one.
+The experiment samples an initial KEM key pair `(pk, sk)`, runs the honest-send
+branch of `send` from `sendReady pk` inline — encapsulate under `pk`, then
+generate the next key pair — and runs the CKA receive algorithm from
+`recvReady sk` on the transmitted message `(c, pkNext)`. The receiver must
+recover the sender's epoch key; receive failure counts as a correctness
+failure, matching the generic CKA correctness oracle.
 
-This is the local correctness obligation for the state transition in
-[ACD19, Section 4.1.2]: after sending `(c, pk')`, the sender stores `sk'`,
-while the receiver stores `pk'` for the next phase.
+The target is probability exactly `1` because the statement is the CKA-shaped
+form of the KEM perfect-correctness hypothesis `hkem`, itself an exact
+`Pr[⋯] = 1` statement; the extra key-generation step only supplies the next
+public key and does not affect the decapsulated key.
 -/
 theorem send_recv_agree [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
@@ -342,34 +351,39 @@ theorem send_recv_agree [DecidableEq K]
     Pr[= true |
       do
         let (pk, sk) ← kem.keygen
-        let sent? ← send kem (.sendReady pk)
-        match sent? with
+        let (c, keyS) ← kem.encaps pk
+        let (pkNext, _skNext) ← kem.keygen
+        match recv hDet (.recvReady sk) (c, pkNext) with
         | none => return false
-        | some (keyS, msg, _) =>
-            match recv hDet (.recvReady sk) msg with
-            | none => return false
-            | some (keyR, _) => return decide (keyR = keyS)] = 1 := by
+        | some (keyR, _) => return decide (keyR = keyS)] = 1 := by
   rw [← probEvent_eq_eq_probOutput, probEvent_eq_one_iff]
   refine ⟨probFailure_eq_zero, ?_⟩
   intro b hb
-  simp only [send, bind_pure_comp, recv, bind_assoc, bind_map_left, support_bind, Set.mem_iUnion,
-    exists_prop, Prod.exists, exists_and_right] at hb
-  rcases hb with ⟨pk, sk, hks, c, key, hck, pk', _hpk', hb⟩
+  rw [mem_support_bind_iff] at hb
+  obtain ⟨⟨pk, sk⟩, hks, hb⟩ := hb
+  rw [mem_support_bind_iff] at hb
+  obtain ⟨⟨c, keyS⟩, hck, hb⟩ := hb
+  rw [mem_support_bind_iff] at hb
+  obtain ⟨⟨pkNext, _skNext⟩, _hksNext, hb⟩ := hb
   have hdec := decapsDet_eq_some_of_mem_support kem hDet hkem hks hck
-  simpa [hdec] using hb
+  simpa [recv, hdec, mem_support_pure_iff] using hb
 
 /-- Correctness of the CKA-from-KEM construction in the existing CKA correctness
 game.
 
 For every adversary using only the honest send/receive oracles, the game returns
-`true` with probability one under the KEM correctness hypothesis.
+`true` with probability one under the KEM correctness hypothesis. The statement
+is proved for an arbitrary randomness-leak package `leak`: the correctness game
+never queries the randomness-leaking send oracles, so correctness is independent
+of the choice of `leak`.
 -/
 theorem correctness [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
+    (leak : RandLeak kem)
     (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
     (adv : CKAScheme.CKACorrectnessAdversary (Message C PK) K) :
-    Pr[= true | CKAScheme.correctnessExp (kemCKA kem hDet) adv] = 1 := by
+    Pr[= true | CKAScheme.correctnessExp (scheme kem hDet leak) adv] = 1 := by
   rw [← probEvent_eq_eq_probOutput, probEvent_eq_one_iff]
   refine ⟨probFailure_eq_zero, ?_⟩
   intro b hb
@@ -384,16 +398,16 @@ theorem correctness [DecidableEq K]
   rw [mem_support_bind_iff] at hb
   rcases hb with ⟨out, hout, hb⟩
   have hstA' : stA = State.sendReady pk := by
-    simpa [kemCKA, scheme, initA, mem_support_pure_iff] using hstA
+    simpa [scheme, initA, mem_support_pure_iff] using hstA
   have hstB' : stB = State.recvReady sk := by
-    simpa [kemCKA, scheme, initB, mem_support_pure_iff] using hstB
+    simpa [scheme, initB, mem_support_pure_iff] using hstB
   subst stA
   subst stB
   have hInv : reachableInv kem out.2 := by
     exact OracleComp.simulateQ_run_preservesInv
-      (impl := CKAScheme.ckaCorrectnessImpl (kemCKA kem hDet))
+      (impl := CKAScheme.ckaCorrectnessImpl (scheme kem hDet leak))
       (Inv := reachableInv kem)
-      (correctnessImpl_preserves (kem := kem) (hDet := hDet) (hkem := hkem))
+      (correctnessImpl_preserves (kem := kem) (hDet := hDet) (leak := leak) (hkem := hkem))
       adv
       (CKAScheme.initGameState (State.sendReady pk) (State.recvReady sk))
       (reachableInv_init (kem := kem) hik)
