@@ -110,7 +110,7 @@ jobs:
           done &
           heartbeat_pid=$!
           trap 'kill "$heartbeat_pid" 2>/dev/null || true' EXIT
-          /usr/bin/time -v lake build SecureMessagingDocs.Contents SecureMessagingDocs.Visuals.Style
+          /usr/bin/time -v lake build +SecureMessagingDocs.Contents:olean
           kill "$heartbeat_pid" 2>/dev/null || true
           trap - EXIT
 
