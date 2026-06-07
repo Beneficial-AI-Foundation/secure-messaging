@@ -36,11 +36,29 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Cache Lake build products
+        id: lake-build-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .lake/build
+          key: lake-build-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'lake-manifest.json', '**/*.lean') }}
+          restore-keys: |
+            lake-build-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'lake-manifest.json') }}-
+            lake-build-${{ runner.os }}-
+
       - uses: leanprover/lean-action@v1
         with:
           auto-config: "false"
           build: "true"
           use-mathlib-cache: "true"
+
+      - name: Cache rendered documentation site
+        id: docs-site-cache
+        uses: actions/cache@v4
+        with:
+          path: _out/site/html-multi
+          key: docs-site-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'lake-manifest.json', '**/*.lean') }}
 
       - name: Build documentation
         run: |
@@ -48,6 +66,7 @@ jobs:
           /usr/bin/time -v lake build SecureMessagingDocs.Contents SecureMessagingDocs.Visuals.Style
 
       - name: Generate documentation site
+        if: steps.docs-site-cache.outputs.cache-hit != 'true'
         run: /usr/bin/time -v lake env lean --run SecureMessagingDocsMain.lean --output _out/site
 
       - name: Validate site output
