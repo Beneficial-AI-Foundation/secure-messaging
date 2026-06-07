@@ -63,7 +63,17 @@ jobs:
       - name: Build documentation
         run: |
           free -h
+          while true; do
+            echo "docs build heartbeat: $(date -u)"
+            free -h
+            ps -eo pid,ppid,rss,vsz,comm,args | grep '[l]ean' || true
+            sleep 60
+          done &
+          heartbeat_pid=$!
+          trap 'kill "$heartbeat_pid" 2>/dev/null || true' EXIT
           /usr/bin/time -v lake build SecureMessagingDocs.Contents SecureMessagingDocs.Visuals.Style
+          kill "$heartbeat_pid" 2>/dev/null || true
+          trap - EXIT
 
       - name: Generate documentation site
         if: steps.docs-site-cache.outputs.cache-hit != 'true'
