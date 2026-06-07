@@ -32,6 +32,7 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
 
@@ -42,10 +43,12 @@ jobs:
           use-mathlib-cache: "true"
 
       - name: Build documentation
-        run: lake build SecureMessagingDocs
+        run: |
+          free -h
+          /usr/bin/time -v lake build SecureMessagingDocs.Contents SecureMessagingDocs.Visuals.Style
 
       - name: Generate documentation site
-        run: lake env lean --run SecureMessagingDocsMain.lean --output _out/site
+        run: /usr/bin/time -v lake env lean --run SecureMessagingDocsMain.lean --output _out/site
 
       - name: Validate site output
         run: test -f _out/site/html-multi/index.html
