@@ -23,7 +23,7 @@ return k' = some k
 Perfect correctness means this experiment succeeds with probability exactly 1.
 -/
 
-open OracleSpec OracleComp ENNReal
+open OracleSpec OracleComp ENNReal KEMScheme
 
 namespace kemCKA
 
@@ -69,7 +69,7 @@ of the choice of `leak`.
 theorem correctness [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
     (adv : CKAScheme.CKACorrectnessAdversary (Message C PK) K) :
     Pr[= true | CKAScheme.correctnessExp (scheme kem hDet leak) adv] = 1 := by

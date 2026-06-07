@@ -12,10 +12,14 @@ This file states the security property for the generic CKA-from-KEM construction
 of [ACD19, Section 4.1.2].
 
 The paper's Theorem 2 says that the generic KEM-based construction has
-`Delta_CKA = 0` and reduces CKA security to KEM security.
+`Delta_CKA = 0` and reduces CKA security to KEM security. The paper's proof is
+constructive: it builds an explicit IND-CPA adversary from the CKA adversary.
+The statement below is an existential placeholder for that theorem; the proof
+PR for issue #5 will replace it with a statement about a concrete reduction,
+an explicitly constructed IND-CPA adversary proved to satisfy the bound.
 -/
 
-open OracleSpec OracleComp ENNReal
+open OracleSpec OracleComp ENNReal KEMScheme
 
 namespace kemCKA
 
@@ -51,41 +55,39 @@ structure AdmissibleParams (gp : CKAScheme.GameParams) : Prop where
 /-- The CKA adversary interface specialized to the leaking KEM construction.
 
 The adversary receives the generic CKA security oracle family with the
-send-randomness type `KEMRandLeak.Rand leak`: the randomness of KEM
-encapsulation paired with the randomness of the fresh next KEM key pair.
+send-randomness type `RandLeak.Rand leak`: the randomness of KEM encapsulation
+paired with the randomness of the fresh next KEM key pair.
 -/
 abbrev Adversary {K PK SK C : Type}
     {kem : KEMScheme ProbComp K PK SK C}
-    (leak : KEMRandLeak kem) :=
+    (leak : RandLeak kem) :=
   CKAScheme.CKAAdversary (State PK SK) (Message C PK) K leak.Rand
-
-/-- IND-CPA reductions generated from CKA adversaries. -/
-abbrev INDCPAReduction [SampleableType K]
-    (kem : KEMScheme ProbComp K PK SK C)
-    (leak : KEMRandLeak kem)
-    (_adv : Adversary (kem := kem) leak)
-    (_gp : CKAScheme.GameParams) :=
-  KEMScheme.IND_CPA_Adversary kem
 
 /-- Existential security-reduction statement for CKA from a KEM.
 
-For every CKA adversary and admissible challenge parameters, there exists an
-IND-CPA adversary against the input KEM whose advantage upper-bounds the
-CKA security advantage of the constructed protocol.
+For every perfectly correct KEM, CKA adversary, and admissible challenge
+parameters, there exists an IND-CPA adversary against the KEM whose advantage
+upper-bounds the CKA distinguishing advantage of the constructed protocol.
+The bound compares like with like: `CKAScheme.ckaDistAdvantage` is the gap
+between the real-key and random-key branches of the CKA game (twice
+`CKAScheme.ckaGuessAdvantage`), and `KEMScheme.IND_CPA_Advantage` is the
+Boolean bias `|Pr[true] - Pr[false]|` of the single IND-CPA game.
 
-The statement is intentionally existential: this specification PR records the
-proof obligation. A later proof PR should refine the existential witness to a
-named concrete reduction.
+The statement is an existential placeholder, not the final form of [ACD19,
+Theorem 2], whose proof is constructive. The proof PR for issue #5 will
+replace the existential with a concrete reduction — an explicitly constructed
+IND-CPA adversary — and prove this bound for it.
 -/
 theorem security_reduces_to_ind_cpa_exists [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
+    (leak : RandLeak kem)
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams)
     (hgp : AdmissibleParams gp) :
-    ∃ red : INDCPAReduction kem leak adv gp,
-      CKAScheme.ckaGuessAdvantage (scheme kem hDet leak) adv gp ≤
+    ∃ red : KEMScheme.IND_CPA_Adversary kem,
+      CKAScheme.ckaDistAdvantage (scheme kem hDet leak) adv gp ≤
         KEMScheme.IND_CPA_Advantage (kem := kem) ProbCompRuntime.probComp red := by
   sorry
 
