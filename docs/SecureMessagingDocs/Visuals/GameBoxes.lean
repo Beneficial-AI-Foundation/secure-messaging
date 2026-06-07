@@ -76,6 +76,11 @@ end
 
 /-! ## Block Extensions -/
 
+@[code_block]
+def leanSnippet : CodeBlockExpanderOf Unit
+  | _, contents => do
+    ``(Block.code $contents)
+
 /-- HTML attributes carrying a single CSS `class`. -/
 private def attrsWithClass (className : String) : Array (String × String) :=
   #[("class", className)]
