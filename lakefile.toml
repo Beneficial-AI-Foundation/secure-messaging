@@ -20,7 +20,7 @@ rev = "v4.29.0"
 [[require]]
 name = "VCVio"
 git = "https://github.com/Verified-zkEVM/VCV-io"
-rev = "4570fdb4a679b19794db164bc2b8fad358f3fd53"
+rev = "cab4c5cb734ba615762979ef306e019495fde729"
 
 [[lean_lib]]
 name = "ToVCVio"
