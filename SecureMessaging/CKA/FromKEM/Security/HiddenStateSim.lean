@@ -13,7 +13,7 @@ This file contains the relational invariants used to connect the concrete CKA
 fixed-bit games with the IND-CPA reduction branch.
 -/
 
-open OracleSpec OracleComp ENNReal
+open OracleSpec OracleComp ENNReal KEMScheme
 open OracleComp.ProgramLogic.Relational
 
 namespace kemCKA
@@ -42,7 +42,7 @@ def postBToAReductionState
   { game := { base with rhoB := some msg, keyB := some key },
     pending := PendingChallengeRecv.bToA key msg.2 msg }
 
-def noPendingPostState (s : SecurityState K PK SK C) : PostChallengeState K PK SK C :=
+private def noPendingPostState (s : SecurityState K PK SK C) : PostChallengeState K PK SK C :=
   { game := s, pending := PendingChallengeRecv.none }
 
 /-- Relation for the post-challenge A-to-B window.
@@ -103,7 +103,7 @@ inductive PostRel
       (h : PostBToARel kem hDet gp honest post) :
       PostRel kem hDet gp honest post
 
-lemma postRel_aToB_after_challA
+private lemma postRel_aToB_after_challA
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
     (gp : CKAScheme.GameParams)
@@ -172,7 +172,7 @@ lemma postRel_aToB_after_challA_of_mem_support [DecidableEq K]
     fakeKey hInv hWill
     (decapsDet_eq_some_of_mem_support kem hDet hkem hks hck)
 
-lemma postRel_bToA_after_challB
+private lemma postRel_bToA_after_challB
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
     (gp : CKAScheme.GameParams)
@@ -289,9 +289,9 @@ private lemma postRel_attach
 private lemma postChallengeImpl_none_run_eq [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
-    (t : (SecuritySpec leak).Domain)
+    (t : (securitySpec leak).Domain)
     (s : SecurityState K PK SK C) :
     (postChallengeImpl kem hDet leak gp t).run
         ({ game := s, pending := PendingChallengeRecv.none } :
@@ -319,12 +319,12 @@ private lemma postChallengeImpl_none_run_eq [SampleableType K] [DecidableEq K]
 
 /-- A post-challenge state with no pending override exactly follows the honest
 security implementation, preserving the projected relation. -/
-lemma postRel_none_step [SampleableType K] [DecidableEq K]
+private lemma postRel_none_step [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
-    (t : (SecuritySpec leak).Domain)
+    (t : (securitySpec leak).Domain)
     (s : SecurityState K PK SK C) :
     RelTriple
       ((securityImpl kem hDet leak gp false t).run s)
@@ -336,36 +336,10 @@ lemma postRel_none_step [SampleableType K] [DecidableEq K]
   exact postRel_attach_none (kem := kem) (hDet := hDet) (gp := gp)
     ((securityImpl kem hDet leak gp false t).run s)
 
-lemma securityImpl_postChallenge_none_run'_relTriple
-    [SampleableType K] [DecidableEq K]
+private lemma postRel_aToB_recvB_noPending [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
-    (gp : CKAScheme.GameParams)
-    {α : Type}
-    (adv : OracleComp (SecuritySpec leak) α)
-    (s : SecurityState K PK SK C) :
-    RelTriple
-      ((simulateQ (securityImpl kem hDet leak gp false) adv).run' s)
-      ((simulateQ (postChallengeImpl kem hDet leak gp) adv).run' (noPendingPostState s))
-      (EqRel α) := by
-  refine relTriple_simulateQ_run'_of_query_map_eq
-    (securityImpl kem hDet leak gp false)
-    (postChallengeImpl kem hDet leak gp)
-    noPendingPostState ?_ adv s
-  intro t s'
-  change
-    (Prod.map id noPendingPostState <$> (securityImpl kem hDet leak gp false t).run s') =
-      (postChallengeImpl kem hDet leak gp t).run
-        ({ game := s', pending := PendingChallengeRecv.none } :
-          PostChallengeState K PK SK C)
-  rw [postChallengeImpl_none_run_eq]
-  rfl
-
-lemma postRel_aToB_recvB_noPending [SampleableType K] [DecidableEq K]
-    (kem : KEMScheme ProbComp K PK SK C)
-    (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
     (base : SecurityState K PK SK C)
     (sk : SK) (msg : Message C PK) (realKey fakeKey : K)
@@ -373,10 +347,10 @@ lemma postRel_aToB_recvB_noPending [SampleableType K] [DecidableEq K]
     (hrecv : CKAScheme.validStep base.lastAction .recvB = true) :
     RelTriple
       ((securityImpl kem hDet leak gp false
-        (CKAScheme.ckaSecuritySpec.ORecvB : (SecuritySpec leak).Domain)).run
+        (CKAScheme.ckaSecuritySpec.ORecvB : (securitySpec leak).Domain)).run
         (postAToBHonestState base sk msg realKey))
       ((postChallengeImpl kem hDet leak gp
-        (CKAScheme.ckaSecuritySpec.ORecvB : (SecuritySpec leak).Domain)).run
+        (CKAScheme.ckaSecuritySpec.ORecvB : (securitySpec leak).Domain)).run
         (postAToBReductionState base msg fakeKey))
       (fun p q => p.1 = q.1 ∧ q.2 = noPendingPostState p.2) := by
   rw [show postAToBHonestState base sk msg realKey =
@@ -401,10 +375,10 @@ lemma postRel_aToB_recvB_noPending [SampleableType K] [DecidableEq K]
   apply relTriple_pure_pure
   simp [noPendingPostState]
 
-lemma postRel_aToB_recvB [SampleableType K] [DecidableEq K]
+private lemma postRel_aToB_recvB [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
     (base : SecurityState K PK SK C)
     (sk : SK) (msg : Message C PK) (realKey fakeKey : K)
@@ -412,10 +386,10 @@ lemma postRel_aToB_recvB [SampleableType K] [DecidableEq K]
     (hrecv : CKAScheme.validStep base.lastAction .recvB = true) :
     RelTriple
       ((securityImpl kem hDet leak gp false
-        (CKAScheme.ckaSecuritySpec.ORecvB : (SecuritySpec leak).Domain)).run
+        (CKAScheme.ckaSecuritySpec.ORecvB : (securitySpec leak).Domain)).run
         (postAToBHonestState base sk msg realKey))
       ((postChallengeImpl kem hDet leak gp
-        (CKAScheme.ckaSecuritySpec.ORecvB : (SecuritySpec leak).Domain)).run
+        (CKAScheme.ckaSecuritySpec.ORecvB : (securitySpec leak).Domain)).run
         (postAToBReductionState base msg fakeKey))
       (fun p q => p.1 = q.1 ∧ PostRel kem hDet gp p.2 q.2) := by
   refine relTriple_post_mono
@@ -423,38 +397,10 @@ lemma postRel_aToB_recvB [SampleableType K] [DecidableEq K]
   intro p q hp
   exact ⟨hp.1, by rw [hp.2]; exact PostRel.none p.2⟩
 
-lemma postRel_aToB_recvB_cont_run'_relTriple [SampleableType K] [DecidableEq K]
+private lemma postRel_bToA_recvA_noPending [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
-    (gp : CKAScheme.GameParams)
-    (base : SecurityState K PK SK C)
-    (sk : SK) (msg : Message C PK) (realKey fakeKey : K)
-    (hdec : hDet.decapsDet sk msg.1 = some realKey)
-    (hrecv : CKAScheme.validStep base.lastAction .recvB = true)
-    {α : Type}
-    (cont : Unit → OracleComp (SecuritySpec leak) α) :
-    RelTriple
-      (((securityImpl kem hDet leak gp false
-        (CKAScheme.ckaSecuritySpec.ORecvB : (SecuritySpec leak).Domain)).run
-        (postAToBHonestState base sk msg realKey)) >>= fun p =>
-          (simulateQ (securityImpl kem hDet leak gp false) (cont p.1)).run' p.2)
-      (((postChallengeImpl kem hDet leak gp
-        (CKAScheme.ckaSecuritySpec.ORecvB : (SecuritySpec leak).Domain)).run
-        (postAToBReductionState base msg fakeKey)) >>= fun q =>
-          (simulateQ (postChallengeImpl kem hDet leak gp) (cont q.1)).run' q.2)
-      (EqRel α) := by
-  refine relTriple_bind
-    (postRel_aToB_recvB_noPending kem hDet leak gp base sk msg realKey fakeKey hdec hrecv) ?_
-  intro p q hp
-  rcases hp with ⟨hout, hstate⟩
-  rw [← hout, hstate]
-  exact securityImpl_postChallenge_none_run'_relTriple kem hDet leak gp (cont p.1) p.2
-
-lemma postRel_bToA_recvA_noPending [SampleableType K] [DecidableEq K]
-    (kem : KEMScheme ProbComp K PK SK C)
-    (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
     (base : SecurityState K PK SK C)
     (sk : SK) (msg : Message C PK) (realKey fakeKey : K)
@@ -462,10 +408,10 @@ lemma postRel_bToA_recvA_noPending [SampleableType K] [DecidableEq K]
     (hrecv : CKAScheme.validStep base.lastAction .recvA = true) :
     RelTriple
       ((securityImpl kem hDet leak gp false
-        (CKAScheme.ckaSecuritySpec.ORecvA : (SecuritySpec leak).Domain)).run
+        (CKAScheme.ckaSecuritySpec.ORecvA : (securitySpec leak).Domain)).run
         (postBToAHonestState base sk msg realKey))
       ((postChallengeImpl kem hDet leak gp
-        (CKAScheme.ckaSecuritySpec.ORecvA : (SecuritySpec leak).Domain)).run
+        (CKAScheme.ckaSecuritySpec.ORecvA : (securitySpec leak).Domain)).run
         (postBToAReductionState base msg fakeKey))
       (fun p q => p.1 = q.1 ∧ q.2 = noPendingPostState p.2) := by
   rw [show postBToAHonestState base sk msg realKey =
@@ -490,10 +436,10 @@ lemma postRel_bToA_recvA_noPending [SampleableType K] [DecidableEq K]
   apply relTriple_pure_pure
   simp [noPendingPostState]
 
-lemma postRel_bToA_recvA [SampleableType K] [DecidableEq K]
+private lemma postRel_bToA_recvA [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
     (base : SecurityState K PK SK C)
     (sk : SK) (msg : Message C PK) (realKey fakeKey : K)
@@ -501,44 +447,16 @@ lemma postRel_bToA_recvA [SampleableType K] [DecidableEq K]
     (hrecv : CKAScheme.validStep base.lastAction .recvA = true) :
     RelTriple
       ((securityImpl kem hDet leak gp false
-        (CKAScheme.ckaSecuritySpec.ORecvA : (SecuritySpec leak).Domain)).run
+        (CKAScheme.ckaSecuritySpec.ORecvA : (securitySpec leak).Domain)).run
         (postBToAHonestState base sk msg realKey))
       ((postChallengeImpl kem hDet leak gp
-        (CKAScheme.ckaSecuritySpec.ORecvA : (SecuritySpec leak).Domain)).run
+        (CKAScheme.ckaSecuritySpec.ORecvA : (securitySpec leak).Domain)).run
         (postBToAReductionState base msg fakeKey))
       (fun p q => p.1 = q.1 ∧ PostRel kem hDet gp p.2 q.2) := by
   refine relTriple_post_mono
     (postRel_bToA_recvA_noPending kem hDet leak gp base sk msg realKey fakeKey hdec hrecv) ?_
   intro p q hp
   exact ⟨hp.1, by rw [hp.2]; exact PostRel.none p.2⟩
-
-lemma postRel_bToA_recvA_cont_run'_relTriple [SampleableType K] [DecidableEq K]
-    (kem : KEMScheme ProbComp K PK SK C)
-    (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
-    (gp : CKAScheme.GameParams)
-    (base : SecurityState K PK SK C)
-    (sk : SK) (msg : Message C PK) (realKey fakeKey : K)
-    (hdec : hDet.decapsDet sk msg.1 = some realKey)
-    (hrecv : CKAScheme.validStep base.lastAction .recvA = true)
-    {α : Type}
-    (cont : Unit → OracleComp (SecuritySpec leak) α) :
-    RelTriple
-      (((securityImpl kem hDet leak gp false
-        (CKAScheme.ckaSecuritySpec.ORecvA : (SecuritySpec leak).Domain)).run
-        (postBToAHonestState base sk msg realKey)) >>= fun p =>
-          (simulateQ (securityImpl kem hDet leak gp false) (cont p.1)).run' p.2)
-      (((postChallengeImpl kem hDet leak gp
-        (CKAScheme.ckaSecuritySpec.ORecvA : (SecuritySpec leak).Domain)).run
-        (postBToAReductionState base msg fakeKey)) >>= fun q =>
-          (simulateQ (postChallengeImpl kem hDet leak gp) (cont q.1)).run' q.2)
-      (EqRel α) := by
-  refine relTriple_bind
-    (postRel_bToA_recvA_noPending kem hDet leak gp base sk msg realKey fakeKey hdec hrecv) ?_
-  intro p q hp
-  rcases hp with ⟨hout, hstate⟩
-  rw [← hout, hstate]
-  exact securityImpl_postChallenge_none_run'_relTriple kem hDet leak gp (cont p.1) p.2
 
 private lemma lastAction_of_valid_recvB
     {last : Option CKAScheme.CKAAction}
@@ -567,11 +485,11 @@ private lemma lastAction_of_valid_recvA
 private lemma securityImpl_corruptA_run [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
     (s : SecurityState K PK SK C) :
     ((securityImpl kem hDet leak gp false
-      (CKAScheme.ckaSecuritySpec.OCorruptA : (SecuritySpec leak).Domain)).run s) =
+      (CKAScheme.ckaSecuritySpec.OCorruptA : (securitySpec leak).Domain)).run s) =
       pure (if CKAScheme.allowCorr gp s .A then some s.stA else none, s) := by
   change (CKAScheme.oracleCorruptA gp (State PK SK) K (Message C PK) ()).run s = _
   cases hcorr : CKAScheme.allowCorr gp s .A <;>
@@ -581,11 +499,11 @@ private lemma securityImpl_corruptA_run [SampleableType K] [DecidableEq K]
 private lemma securityImpl_corruptB_run [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
     (s : SecurityState K PK SK C) :
     ((securityImpl kem hDet leak gp false
-      (CKAScheme.ckaSecuritySpec.OCorruptB : (SecuritySpec leak).Domain)).run s) =
+      (CKAScheme.ckaSecuritySpec.OCorruptB : (securitySpec leak).Domain)).run s) =
       pure (if CKAScheme.allowCorr gp s .B then some s.stB else none, s) := by
   change (CKAScheme.oracleCorruptB gp (State PK SK) K (Message C PK) ()).run s = _
   cases hcorr : CKAScheme.allowCorr gp s .B <;>
@@ -595,11 +513,11 @@ private lemma securityImpl_corruptB_run [SampleableType K] [DecidableEq K]
 private lemma postChallengeImpl_corruptA_run [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
     (ps : PostChallengeState K PK SK C) :
     ((postChallengeImpl kem hDet leak gp
-      (CKAScheme.ckaSecuritySpec.OCorruptA : (SecuritySpec leak).Domain)).run ps) =
+      (CKAScheme.ckaSecuritySpec.OCorruptA : (securitySpec leak).Domain)).run ps) =
       pure
         (if CKAScheme.allowCorr gp ps.game .A then some ps.game.stA else none, ps) := by
   have hgame := securityImpl_corruptA_run kem hDet leak gp ps.game
@@ -611,11 +529,11 @@ private lemma postChallengeImpl_corruptA_run [SampleableType K] [DecidableEq K]
 private lemma postChallengeImpl_corruptB_run [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
     (ps : PostChallengeState K PK SK C) :
     ((postChallengeImpl kem hDet leak gp
-      (CKAScheme.ckaSecuritySpec.OCorruptB : (SecuritySpec leak).Domain)).run ps) =
+      (CKAScheme.ckaSecuritySpec.OCorruptB : (securitySpec leak).Domain)).run ps) =
       pure
         (if CKAScheme.allowCorr gp ps.game .B then some ps.game.stB else none, ps) := by
   have hgame := securityImpl_corruptB_run kem hDet leak gp ps.game
@@ -627,9 +545,9 @@ private lemma postChallengeImpl_corruptB_run [SampleableType K] [DecidableEq K]
 lemma postRel_step [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
-    (t : (SecuritySpec leak).Domain)
+    (t : (securitySpec leak).Domain)
     {honest : SecurityState K PK SK C}
     {post : PostChallengeState K PK SK C}
     (hrel : PostRel kem hDet gp honest post) :
@@ -657,71 +575,71 @@ lemma postRel_step [SampleableType K] [DecidableEq K]
       rcases t with
         (((((((((n | uSendA) | uRecvA) | uSendB) | uRecvB) |
           uChallA) | uChallB) | uCorrA) | uCorrB) | uRLeakA) | uRLeakB
-      · simpa [securityImpl, SecurityCKA, CKAScheme.ckaSecurityImpl,
+      · simpa [securityImpl, scheme, CKAScheme.ckaSecurityImpl,
           CKAScheme.ckaCorrectnessImpl, CKAScheme.oracleUnif, QueryImpl.add,
           QueryImpl.liftTarget, QueryImpl.id', postChallengeImpl, liftSecurityImplToPost,
           postAToBHonestState, postAToBReductionState, StateT.run_bind, StateT.run_get,
           StateT.run_set] using
           postRel_attach kem hDet gp
             ((securityImpl kem hDet leak gp false
-              (CKAScheme.ckaSecuritySpec.OUnif n : (SecuritySpec leak).Domain)).run'
+              (CKAScheme.ckaSecuritySpec.OUnif n : (securitySpec leak).Domain)).run'
               (postAToBHonestState base sk msg realKey)) hcurrent
       · cases uSendA
         rcases hlastRecv with hlast | hlast <;>
-          simpa [securityImpl, SecurityCKA, CKAScheme.ckaSecurityImpl,
+          simpa [securityImpl, scheme, CKAScheme.ckaSecurityImpl,
             CKAScheme.ckaCorrectnessImpl, CKAScheme.oracleSendA, QueryImpl.add,
             QueryImpl.liftTarget, QueryImpl.id', postChallengeImpl, liftSecurityImplToPost,
-            postAToBHonestState, postAToBReductionState, schemeWithLeak, send,
+            postAToBHonestState, postAToBReductionState, send,
             StateT.run_bind, StateT.run_get, StateT.run_set, hlast, CKAScheme.validStep] using
             postRel_attach kem hDet gp
               ((securityImpl kem hDet leak gp false
-                (CKAScheme.ckaSecuritySpec.OSendA : (SecuritySpec leak).Domain)).run'
+                (CKAScheme.ckaSecuritySpec.OSendA : (securitySpec leak).Domain)).run'
                 (postAToBHonestState base sk msg realKey)) hcurrent
       · cases uRecvA
         rcases hlastRecv with hlast | hlast <;>
-          simpa [securityImpl, SecurityCKA, CKAScheme.ckaSecurityImpl,
+          simpa [securityImpl, scheme, CKAScheme.ckaSecurityImpl,
             CKAScheme.ckaCorrectnessImpl, CKAScheme.oracleRecvA, QueryImpl.add,
             QueryImpl.liftTarget, QueryImpl.id', postChallengeImpl, liftSecurityImplToPost,
-            postAToBHonestState, postAToBReductionState, schemeWithLeak, recv,
+            postAToBHonestState, postAToBReductionState, recv,
             StateT.run_bind, StateT.run_get, StateT.run_set, hlast, CKAScheme.validStep] using
             postRel_attach kem hDet gp
               ((securityImpl kem hDet leak gp false
-                (CKAScheme.ckaSecuritySpec.ORecvA : (SecuritySpec leak).Domain)).run'
+                (CKAScheme.ckaSecuritySpec.ORecvA : (securitySpec leak).Domain)).run'
                 (postAToBHonestState base sk msg realKey)) hcurrent
       · cases uSendB
         rcases hlastRecv with hlast | hlast <;>
-          simpa [securityImpl, SecurityCKA, CKAScheme.ckaSecurityImpl,
+          simpa [securityImpl, scheme, CKAScheme.ckaSecurityImpl,
             CKAScheme.ckaCorrectnessImpl, CKAScheme.oracleSendB, QueryImpl.add,
             QueryImpl.liftTarget, QueryImpl.id', postChallengeImpl, liftSecurityImplToPost,
-            postAToBHonestState, postAToBReductionState, schemeWithLeak, send,
+            postAToBHonestState, postAToBReductionState, send,
             StateT.run_bind, StateT.run_get, StateT.run_set, hlast, CKAScheme.validStep] using
             postRel_attach kem hDet gp
               ((securityImpl kem hDet leak gp false
-                (CKAScheme.ckaSecuritySpec.OSendB : (SecuritySpec leak).Domain)).run'
+                (CKAScheme.ckaSecuritySpec.OSendB : (securitySpec leak).Domain)).run'
                 (postAToBHonestState base sk msg realKey)) hcurrent
       · cases uRecvB
         exact postRel_aToB_recvB kem hDet leak gp base sk msg realKey fakeKey hdec hrecv
       · cases uChallA
         rcases hlastRecv with hlast | hlast <;>
-          simpa [securityImpl, SecurityCKA, CKAScheme.ckaSecurityImpl,
+          simpa [securityImpl, scheme, CKAScheme.ckaSecurityImpl,
             CKAScheme.oracleChallA, QueryImpl.add, QueryImpl.liftTarget, QueryImpl.id',
             postChallengeImpl, liftSecurityImplToPost, postAToBHonestState,
-            postAToBReductionState, schemeWithLeak, send, StateT.run_bind, StateT.run_get,
+            postAToBReductionState, send, StateT.run_bind, StateT.run_get,
             StateT.run_set, hlast, CKAScheme.validStep] using
             postRel_attach kem hDet gp
               ((securityImpl kem hDet leak gp false
-                (CKAScheme.ckaSecuritySpec.OChallA : (SecuritySpec leak).Domain)).run'
+                (CKAScheme.ckaSecuritySpec.OChallA : (securitySpec leak).Domain)).run'
                 (postAToBHonestState base sk msg realKey)) hcurrent
       · cases uChallB
         rcases hlastRecv with hlast | hlast <;>
-          simpa [securityImpl, SecurityCKA, CKAScheme.ckaSecurityImpl,
+          simpa [securityImpl, scheme, CKAScheme.ckaSecurityImpl,
             CKAScheme.oracleChallB, QueryImpl.add, QueryImpl.liftTarget, QueryImpl.id',
             postChallengeImpl, liftSecurityImplToPost, postAToBHonestState,
-            postAToBReductionState, schemeWithLeak, send, StateT.run_bind, StateT.run_get,
+            postAToBReductionState, send, StateT.run_bind, StateT.run_get,
             StateT.run_set, hlast, CKAScheme.validStep] using
             postRel_attach kem hDet gp
               ((securityImpl kem hDet leak gp false
-                (CKAScheme.ckaSecuritySpec.OChallB : (SecuritySpec leak).Domain)).run'
+                (CKAScheme.ckaSecuritySpec.OChallB : (securitySpec leak).Domain)).run'
                 (postAToBHonestState base sk msg realKey)) hcurrent
       · cases uCorrA
         rw [securityImpl_corruptA_run kem hDet leak gp
@@ -753,25 +671,25 @@ lemma postRel_step [SampleableType K] [DecidableEq K]
         exact relTriple_pure_pure ⟨rfl, hcurrent⟩
       · cases uRLeakA
         rcases hlastRecv with hlast | hlast <;>
-          simpa [securityImpl, SecurityCKA, CKAScheme.ckaSecurityImpl,
+          simpa [securityImpl, scheme, CKAScheme.ckaSecurityImpl,
             CKAScheme.oracleSendA_rleak, QueryImpl.add, QueryImpl.liftTarget,
             QueryImpl.id', postChallengeImpl, liftSecurityImplToPost, postAToBHonestState,
-            postAToBReductionState, schemeWithLeak, send_rleakWithLeak, StateT.run_bind,
+            postAToBReductionState, send_rleak, StateT.run_bind,
             StateT.run_get, StateT.run_set, hlast, CKAScheme.validStep] using
             postRel_attach kem hDet gp
               ((securityImpl kem hDet leak gp false
-                (CKAScheme.ckaSecuritySpec.OSendA_rleak : (SecuritySpec leak).Domain)).run'
+                (CKAScheme.ckaSecuritySpec.OSendA_rleak : (securitySpec leak).Domain)).run'
                 (postAToBHonestState base sk msg realKey)) hcurrent
       · cases uRLeakB
         rcases hlastRecv with hlast | hlast <;>
-          simpa [securityImpl, SecurityCKA, CKAScheme.ckaSecurityImpl,
+          simpa [securityImpl, scheme, CKAScheme.ckaSecurityImpl,
             CKAScheme.oracleSendB_rleak, QueryImpl.add, QueryImpl.liftTarget,
             QueryImpl.id', postChallengeImpl, liftSecurityImplToPost, postAToBHonestState,
-            postAToBReductionState, schemeWithLeak, send_rleakWithLeak, StateT.run_bind,
+            postAToBReductionState, send_rleak, StateT.run_bind,
             StateT.run_get, StateT.run_set, hlast, CKAScheme.validStep] using
             postRel_attach kem hDet gp
               ((securityImpl kem hDet leak gp false
-                (CKAScheme.ckaSecuritySpec.OSendB_rleak : (SecuritySpec leak).Domain)).run'
+                (CKAScheme.ckaSecuritySpec.OSendB_rleak : (securitySpec leak).Domain)).run'
                 (postAToBHonestState base sk msg realKey)) hcurrent
   | bToA h =>
       rcases h with ⟨base, sk, msg, realKey, fakeKey, hhonest, hpost, hdec, hrecv, hblock⟩
@@ -790,71 +708,71 @@ lemma postRel_step [SampleableType K] [DecidableEq K]
       rcases t with
         (((((((((n | uSendA) | uRecvA) | uSendB) | uRecvB) |
           uChallA) | uChallB) | uCorrA) | uCorrB) | uRLeakA) | uRLeakB
-      · simpa [securityImpl, SecurityCKA, CKAScheme.ckaSecurityImpl,
+      · simpa [securityImpl, scheme, CKAScheme.ckaSecurityImpl,
           CKAScheme.ckaCorrectnessImpl, CKAScheme.oracleUnif, QueryImpl.add,
           QueryImpl.liftTarget, QueryImpl.id', postChallengeImpl, liftSecurityImplToPost,
           postBToAHonestState, postBToAReductionState, StateT.run_bind, StateT.run_get,
           StateT.run_set] using
           postRel_attach kem hDet gp
             ((securityImpl kem hDet leak gp false
-              (CKAScheme.ckaSecuritySpec.OUnif n : (SecuritySpec leak).Domain)).run'
+              (CKAScheme.ckaSecuritySpec.OUnif n : (securitySpec leak).Domain)).run'
               (postBToAHonestState base sk msg realKey)) hcurrent
       · cases uSendA
         rcases hlastRecv with hlast | hlast <;>
-          simpa [securityImpl, SecurityCKA, CKAScheme.ckaSecurityImpl,
+          simpa [securityImpl, scheme, CKAScheme.ckaSecurityImpl,
             CKAScheme.ckaCorrectnessImpl, CKAScheme.oracleSendA, QueryImpl.add,
             QueryImpl.liftTarget, QueryImpl.id', postChallengeImpl, liftSecurityImplToPost,
-            postBToAHonestState, postBToAReductionState, schemeWithLeak, send,
+            postBToAHonestState, postBToAReductionState, send,
             StateT.run_bind, StateT.run_get, StateT.run_set, hlast, CKAScheme.validStep] using
             postRel_attach kem hDet gp
               ((securityImpl kem hDet leak gp false
-                (CKAScheme.ckaSecuritySpec.OSendA : (SecuritySpec leak).Domain)).run'
+                (CKAScheme.ckaSecuritySpec.OSendA : (securitySpec leak).Domain)).run'
                 (postBToAHonestState base sk msg realKey)) hcurrent
       · cases uRecvA
         exact postRel_bToA_recvA kem hDet leak gp base sk msg realKey fakeKey hdec hrecv
       · cases uSendB
         rcases hlastRecv with hlast | hlast <;>
-          simpa [securityImpl, SecurityCKA, CKAScheme.ckaSecurityImpl,
+          simpa [securityImpl, scheme, CKAScheme.ckaSecurityImpl,
             CKAScheme.ckaCorrectnessImpl, CKAScheme.oracleSendB, QueryImpl.add,
             QueryImpl.liftTarget, QueryImpl.id', postChallengeImpl, liftSecurityImplToPost,
-            postBToAHonestState, postBToAReductionState, schemeWithLeak, send,
+            postBToAHonestState, postBToAReductionState, send,
             StateT.run_bind, StateT.run_get, StateT.run_set, hlast, CKAScheme.validStep] using
             postRel_attach kem hDet gp
               ((securityImpl kem hDet leak gp false
-                (CKAScheme.ckaSecuritySpec.OSendB : (SecuritySpec leak).Domain)).run'
+                (CKAScheme.ckaSecuritySpec.OSendB : (securitySpec leak).Domain)).run'
                 (postBToAHonestState base sk msg realKey)) hcurrent
       · cases uRecvB
         rcases hlastRecv with hlast | hlast <;>
-          simpa [securityImpl, SecurityCKA, CKAScheme.ckaSecurityImpl,
+          simpa [securityImpl, scheme, CKAScheme.ckaSecurityImpl,
             CKAScheme.ckaCorrectnessImpl, CKAScheme.oracleRecvB, QueryImpl.add,
             QueryImpl.liftTarget, QueryImpl.id', postChallengeImpl, liftSecurityImplToPost,
-            postBToAHonestState, postBToAReductionState, schemeWithLeak, recv,
+            postBToAHonestState, postBToAReductionState, recv,
             StateT.run_bind, StateT.run_get, StateT.run_set, hlast, CKAScheme.validStep] using
             postRel_attach kem hDet gp
               ((securityImpl kem hDet leak gp false
-                (CKAScheme.ckaSecuritySpec.ORecvB : (SecuritySpec leak).Domain)).run'
+                (CKAScheme.ckaSecuritySpec.ORecvB : (securitySpec leak).Domain)).run'
                 (postBToAHonestState base sk msg realKey)) hcurrent
       · cases uChallA
         rcases hlastRecv with hlast | hlast <;>
-          simpa [securityImpl, SecurityCKA, CKAScheme.ckaSecurityImpl,
+          simpa [securityImpl, scheme, CKAScheme.ckaSecurityImpl,
             CKAScheme.oracleChallA, QueryImpl.add, QueryImpl.liftTarget, QueryImpl.id',
             postChallengeImpl, liftSecurityImplToPost, postBToAHonestState,
-            postBToAReductionState, schemeWithLeak, send, StateT.run_bind, StateT.run_get,
+            postBToAReductionState, send, StateT.run_bind, StateT.run_get,
             StateT.run_set, hlast, CKAScheme.validStep] using
             postRel_attach kem hDet gp
               ((securityImpl kem hDet leak gp false
-                (CKAScheme.ckaSecuritySpec.OChallA : (SecuritySpec leak).Domain)).run'
+                (CKAScheme.ckaSecuritySpec.OChallA : (securitySpec leak).Domain)).run'
                 (postBToAHonestState base sk msg realKey)) hcurrent
       · cases uChallB
         rcases hlastRecv with hlast | hlast <;>
-          simpa [securityImpl, SecurityCKA, CKAScheme.ckaSecurityImpl,
+          simpa [securityImpl, scheme, CKAScheme.ckaSecurityImpl,
             CKAScheme.oracleChallB, QueryImpl.add, QueryImpl.liftTarget, QueryImpl.id',
             postChallengeImpl, liftSecurityImplToPost, postBToAHonestState,
-            postBToAReductionState, schemeWithLeak, send, StateT.run_bind, StateT.run_get,
+            postBToAReductionState, send, StateT.run_bind, StateT.run_get,
             StateT.run_set, hlast, CKAScheme.validStep] using
             postRel_attach kem hDet gp
               ((securityImpl kem hDet leak gp false
-                (CKAScheme.ckaSecuritySpec.OChallB : (SecuritySpec leak).Domain)).run'
+                (CKAScheme.ckaSecuritySpec.OChallB : (securitySpec leak).Domain)).run'
                 (postBToAHonestState base sk msg realKey)) hcurrent
       · cases uCorrA
         rw [securityImpl_corruptA_run kem hDet leak gp
@@ -886,34 +804,34 @@ lemma postRel_step [SampleableType K] [DecidableEq K]
         exact relTriple_pure_pure ⟨hout, hcurrent⟩
       · cases uRLeakA
         rcases hlastRecv with hlast | hlast <;>
-          simpa [securityImpl, SecurityCKA, CKAScheme.ckaSecurityImpl,
+          simpa [securityImpl, scheme, CKAScheme.ckaSecurityImpl,
             CKAScheme.oracleSendA_rleak, QueryImpl.add, QueryImpl.liftTarget,
             QueryImpl.id', postChallengeImpl, liftSecurityImplToPost, postBToAHonestState,
-            postBToAReductionState, schemeWithLeak, send_rleakWithLeak, StateT.run_bind,
+            postBToAReductionState, send_rleak, StateT.run_bind,
             StateT.run_get, StateT.run_set, hlast, CKAScheme.validStep] using
             postRel_attach kem hDet gp
               ((securityImpl kem hDet leak gp false
-                (CKAScheme.ckaSecuritySpec.OSendA_rleak : (SecuritySpec leak).Domain)).run'
+                (CKAScheme.ckaSecuritySpec.OSendA_rleak : (securitySpec leak).Domain)).run'
                 (postBToAHonestState base sk msg realKey)) hcurrent
       · cases uRLeakB
         rcases hlastRecv with hlast | hlast <;>
-          simpa [securityImpl, SecurityCKA, CKAScheme.ckaSecurityImpl,
+          simpa [securityImpl, scheme, CKAScheme.ckaSecurityImpl,
             CKAScheme.oracleSendB_rleak, QueryImpl.add, QueryImpl.liftTarget,
             QueryImpl.id', postChallengeImpl, liftSecurityImplToPost, postBToAHonestState,
-            postBToAReductionState, schemeWithLeak, send_rleakWithLeak, StateT.run_bind,
+            postBToAReductionState, send_rleak, StateT.run_bind,
             StateT.run_get, StateT.run_set, hlast, CKAScheme.validStep] using
             postRel_attach kem hDet gp
               ((securityImpl kem hDet leak gp false
-                (CKAScheme.ckaSecuritySpec.OSendB_rleak : (SecuritySpec leak).Domain)).run'
+                (CKAScheme.ckaSecuritySpec.OSendB_rleak : (securitySpec leak).Domain)).run'
                 (postBToAHonestState base sk msg realKey)) hcurrent
 
 lemma postRel_run'_relTriple [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
     {α : Type}
-    (adv : OracleComp (SecuritySpec leak) α)
+    (adv : OracleComp (securitySpec leak) α)
     {honest : SecurityState K PK SK C}
     {post : PostChallengeState K PK SK C}
     (hrel : PostRel kem hDet gp honest post) :
