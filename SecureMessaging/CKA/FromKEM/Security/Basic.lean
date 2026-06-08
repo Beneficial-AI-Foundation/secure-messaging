@@ -6,16 +6,22 @@ Released under Apache 2.0 license as described in the file LICENSE.
 import SecureMessaging.CKA.FromKEM.Correctness
 
 /-!
-# CKA from KEM — Security Statements
+# CKA from KEM — Security Foundations
 
-This file states the security property for the generic CKA-from-KEM construction
-of [ACD19, Section 4.1.2].
+Shared setup for the security analysis of the generic CKA-from-KEM construction
+of [ACD19, Section 4.1.2]: the admissible challenge parameters, the specialized
+adversary and oracle-spec aliases, the epoch-counter invariant of the A-first
+alternating game, and the modified send oracles that embed a KEM challenge
+public key at the epoch before the challenge.
 
-The paper's Theorem 2 says that the generic KEM-based construction has
-`Delta_CKA = 0` and reduces CKA security to KEM security.
+These declarations are the Lean counterpart of the bookkeeping in the paper's
+reduction. They fix when the challenge epoch is a send epoch for the challenged
+party, show that corruption and randomness leaks are disallowed around the
+challenge, and describe how the reduction installs `pkStar` one epoch before the
+challenge send.
 -/
 
-open OracleSpec OracleComp ENNReal
+open OracleSpec OracleComp ENNReal KEMScheme
 
 namespace kemCKA
 
@@ -66,49 +72,27 @@ lemma challengeEpoch_pos_of_admissible
     0 < gp.challengeEpoch :=
   challengeEpoch_pos_of_compatible gp hgp.challenge_epoch_compatible
 
-/-- Send-randomness type exposed by the KEM-CKA construction.
-
-For one KEM-CKA send, the leaked randomness consists of the randomness used for
-KEM encapsulation and the randomness used for the fresh next KEM key pair.
--/
-abbrev Rand {K PK SK C : Type}
-    {kem : KEMScheme ProbComp K PK SK C}
-    (leak : KEMRandLeak kem) :=
-  leak.EncapsRand × leak.KeygenRand
-
 /-- The CKA adversary interface specialized to the leaking KEM construction.
 
 The adversary receives the generic CKA security oracle family with the
-send-randomness type induced by `KEMRandLeak`.
+send-randomness type `RandLeak.Rand leak`: the randomness of KEM encapsulation
+paired with the randomness of the fresh next KEM key pair.
 -/
 abbrev Adversary {K PK SK C : Type}
     {kem : KEMScheme ProbComp K PK SK C}
-    (leak : KEMRandLeak kem) :=
-  CKAScheme.CKAAdversary (State PK SK) (Message C PK) K (Rand leak)
+    (leak : RandLeak kem) :=
+  CKAScheme.CKAAdversary (State PK SK) (Message C PK) K leak.Rand
 
-/-- IND-CPA reductions generated from CKA adversaries. -/
-abbrev INDCPAReduction [SampleableType K]
-    (kem : KEMScheme ProbComp K PK SK C)
-    (leak : KEMRandLeak kem)
-    (_adv : Adversary (kem := kem) leak)
-    (_gp : CKAScheme.GameParams) :=
-  kem.IND_CPA_Adversary
-
-abbrev SecuritySpec
-    {K PK SK C : Type}
+/-- The generic CKA security oracle spec specialized to the leaking KEM
+construction: the send-randomness type is `RandLeak.Rand leak`. -/
+abbrev securitySpec {K PK SK C : Type}
     {kem : KEMScheme ProbComp K PK SK C}
-    (leak : KEMRandLeak kem) :=
-  CKAScheme.ckaSecuritySpec (State PK SK) (Message C PK) K (Rand leak)
+    (leak : RandLeak kem) :=
+  CKAScheme.ckaSecuritySpec (State PK SK) (Message C PK) K leak.Rand
 
-abbrev SecurityState
-    (K PK SK C : Type) :=
+/-- The CKA game state specialized to the KEM construction. -/
+abbrev SecurityState (K PK SK C : Type) :=
   CKAScheme.GameState (State PK SK) K (Message C PK)
-
-abbrev SecurityCKA
-    (kem : KEMScheme ProbComp K PK SK C)
-    (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem) :=
-  schemeWithLeak kem hDet leak
 
 /-- Epoch-counter invariant for the A-first alternating CKA game.
 
@@ -228,11 +212,11 @@ lemma epochCounterInv_after_recvA
 def securityImpl [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
     (isRandom : Bool) :
-    QueryImpl (SecuritySpec leak) (StateT (SecurityState K PK SK C) ProbComp) :=
-  CKAScheme.ckaSecurityImpl gp isRandom (SecurityCKA kem hDet leak)
+    QueryImpl (securitySpec leak) (StateT (SecurityState K PK SK C) ProbComp) :=
+  CKAScheme.ckaSecurityImpl gp isRandom (scheme kem hDet leak)
 
 def willChallengeA
     (gp : CKAScheme.GameParams)
@@ -488,10 +472,10 @@ def oracleSendBWithChallengePk
 def prefixImpl [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
     (pkStar : PK) :
-    QueryImpl (SecuritySpec leak) (StateT (SecurityState K PK SK C) ProbComp) :=
+    QueryImpl (securitySpec leak) (StateT (SecurityState K PK SK C) ProbComp) :=
   fun t =>
     match t with
     | CKAScheme.ckaSecuritySpec.OSendA =>
