@@ -3,7 +3,7 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
 
-import SecureMessaging.CKA.FromKEM.Security.Basic
+import SecureMessaging.CKA.FromKEM.Security.PostChallenge
 
 /-!
 # CKA from KEM — Security Statements
@@ -34,6 +34,10 @@ The bound compares like with like: `CKAScheme.ckaDistAdvantage` is the gap
 between the real-key and random-key branches of the CKA game (twice
 `CKAScheme.ckaGuessAdvantage`), and `KEMScheme.IND_CPA_Advantage` is the
 Boolean bias `|Pr[true] - Pr[false]|` of the single IND-CPA game.
+
+N.B. ACD19's sampled-bit guessing advantage is half of `ckaDistAdvantage`
+(`CKAScheme.ckaGuessAdvantage_eq_ckaDistAdvantage_div_two`); the paper's no-leak
+construction is the instance `RandLeak.noLeak kem`.
 
 The statement is an existential placeholder, not the final form of [ACD19,
 Theorem 2], whose proof is constructive. The proof PR for issue #5 will
