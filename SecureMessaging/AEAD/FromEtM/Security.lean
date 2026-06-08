@@ -398,14 +398,6 @@ theorem game0_eq_real
         split_ifs <;>
         simp [StateT.run_pure, map_pure, Prod.map]
 
--- TODO(upstream, brick U3): the PRF-impl forwarding facts `hidimpl`/`hkgfwd`/`hfwdR` (here) and
--- `hidimpl`/`hkgfwdI`/`hfwdI`/`hroI` (in `game1_eq_prfIdealExp`) are generic facts about VCVio's
--- `prfRealQueryImpl`/`prfIdealQueryImpl`. Once contributed to `VCVio/CryptoFoundations/PRF.lean`
--- (draft PR to Verified-zkEVM/VCV-io), replace them with the upstream lemmas:
---   `hkgfwd`/`hfwdR`  → `simulateQ_prfRealQueryImpl_liftComp`
---   `hkgfwdI`/`hfwdI` → `simulateQ_prfIdealQueryImpl_liftComp`
---   `hroI`            → `simulateQ_prfIdealQueryImpl_inr`
--- (`hidimpl` becomes a SimSemantics `HasQuery.toQueryImpl = QueryImpl.id'` simp lemma).
 omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
 /-- Game 0 → real PRF experiment: the `game0` distribution equals the real PRF experiment run on
 `prfReduction`. The "real" half of NRS14 Lemma 3, eq. (4). -/
@@ -414,30 +406,12 @@ theorem game0_eq_prfRealExp
     (adv : OneTime_CCA_Adversary AD M (C_e × T)) :
     Pr[= true | game0 se prf adv] =
       Pr[= true | prf.prfRealExp (prfReduction se adv)] := by
-  -- The PRF-experiment's `unifSpec` forwarder is the identity handler on `ProbComp`.
-  have hidimpl : (HasQuery.toQueryImpl (spec := unifSpec) (m := ProbComp)) =
-      QueryImpl.id' unifSpec := rfl
-  -- Forwarding the reduction's `liftComp se.keygen` through the real PRF oracle returns
-  -- `se.keygen` (the `unifSpec` side is the identity handler; the function oracle is unused).
-  have hkgfwd : ∀ k : K_m, simulateQ (prf.prfRealQueryImpl k)
-      (OracleComp.liftComp se.keygen (unifSpec + ((AD × C_e) →ₒ T))) = se.keygen := by
-    intro k
-    unfold PRFScheme.prfRealQueryImpl
-    rw [QueryImpl.simulateQ_add_liftComp_left, hidimpl, simulateQ_id']
-  -- The real PRF oracle passes any forwarded `unifSpec` computation through unchanged.
-  have hfwdR : ∀ (k : K_m) {β : Type} (ob : OracleComp unifSpec β),
-      simulateQ (prf.prfRealQueryImpl k)
-        (liftM ob : OracleComp (unifSpec + ((AD × C_e) →ₒ T)) β) = ob := by
-    intro k β ob
-    rw [show (liftM ob : OracleComp (unifSpec + ((AD × C_e) →ₒ T)) β)
-          = OracleComp.liftComp ob (unifSpec + ((AD × C_e) →ₒ T)) from rfl]
-    unfold PRFScheme.prfRealQueryImpl
-    rw [QueryImpl.simulateQ_add_liftComp_left, hidimpl, simulateQ_id']
   -- RHS: unfold the reduction + experiment, fold the inner skeleton run to `run'`,
-  -- collapse the nested `simulateQ` via `mapStateTBase`, forward `liftComp se.keygen`.
+  -- collapse the nested `simulateQ` via `mapStateTBase`, forward `liftComp se.keygen`
+  -- (the upstream `simulateQ_prfRealQueryImpl_liftComp` is the `unifSpec`-transparency fact).
   unfold PRFScheme.prfRealExp prfReduction etmGameSkeleton
   simp only [ToVCVio.runStateT_bind_fst_eq_run', simulateQ_bind,
-    QueryImpl.simulateQ_mapStateTBase_run', hkgfwd]
+    QueryImpl.simulateQ_mapStateTBase_run', PRFScheme.simulateQ_prfRealQueryImpl_liftComp]
   -- LHS: unfold game0 + skeleton, fold its run to `run'`.
   unfold game0 etmGameSkeleton
   simp only [ToVCVio.runStateT_bind_fst_eq_run']
@@ -458,7 +432,8 @@ theorem game0_eq_prfRealExp
           (liftM (OracleSpec.query n) :
             OracleComp (unifSpec + ((AD × C_e) →ₒ T)) (unifSpec.Range n))
           = (liftM (OracleSpec.query n) : OracleComp unifSpec (unifSpec.Range n)) :=
-        hfwdR k (liftM (OracleSpec.query n) : OracleComp unifSpec (unifSpec.Range n))
+        PRFScheme.simulateQ_prfRealQueryImpl_liftComp prf k
+          (liftM (OracleSpec.query n) : OracleComp unifSpec (unifSpec.Range n))
       simp [gameUnifImpl, QueryImpl.mapStateTBase, QueryImpl.add_apply_inl,
         QueryImpl.liftTarget_apply, hq, StateT.run_monadLift,
         Functor.map_map]
@@ -488,46 +463,28 @@ theorem game1_eq_prfIdealExp
     (adv : OneTime_CCA_Adversary AD M (C_e × T)) :
     Pr[= true | game1 se adv] =
       Pr[= true | PRFScheme.prfIdealExp (prfReduction se adv)] := by
-  -- The PRF-experiment's `unifSpec` forwarder is the identity handler on `ProbComp`.
-  have hidimpl : (HasQuery.toQueryImpl (spec := unifSpec) (m := ProbComp)) =
-      QueryImpl.id' unifSpec := rfl
-  -- Forwarding the reduction's `liftComp se.keygen` through the lazy-RO PRF oracle returns
-  -- `liftM se.keygen` (the cache is threaded unchanged; the function oracle is unused).
-  have hkgfwdI : simulateQ (PRFScheme.prfIdealQueryImpl (D := AD × C_e) (R := T))
-      (OracleComp.liftComp se.keygen (unifSpec + ((AD × C_e) →ₒ T)))
-      = (liftM se.keygen : StateT ((AD × C_e →ₒ T).QueryCache) ProbComp K_e) := by
-    unfold PRFScheme.prfIdealQueryImpl
-    rw [QueryImpl.simulateQ_add_liftComp_left, hidimpl, simulateQ_liftTarget, simulateQ_id']
-  -- RHS: collapse the nested `simulateQ`, forward keygen, then push the outer `.run' ∅`
-  -- through the `liftM se.keygen` bind so both sides start with `se.keygen`.
-  -- Push the outer `.run' ∅` through the `liftM se.keygen` bind so both sides start with
+  -- RHS: collapse the nested `simulateQ`, forward keygen (the upstream
+  -- `simulateQ_prfIdealQueryImpl_liftComp` is the cache-threading `unifSpec`-transparency fact),
+  -- then push the outer `.run' ∅` through the `liftM se.keygen` bind so both sides start with
   -- `se.keygen` (the cache threads through unchanged).
   unfold PRFScheme.prfIdealExp prfReduction etmGameSkeleton
   simp only [ToVCVio.runStateT_bind_fst_eq_run', simulateQ_bind,
-    QueryImpl.simulateQ_mapStateTBase_run', hkgfwdI, ToVCVio.run'_monadLift_bind]
+    QueryImpl.simulateQ_mapStateTBase_run', PRFScheme.simulateQ_prfIdealQueryImpl_liftComp,
+    ToVCVio.run'_monadLift_bind]
   -- LHS: game1.
   unfold game1 etmGameSkeleton
   simp only [ToVCVio.runStateT_bind_fst_eq_run']
-  -- The lazy-RO PRF oracle passes a forwarded `unifSpec` computation through unchanged,
-  -- and answers a forwarded function query `Sum.inr q` by the lazy random oracle at `q`.
-  have hfwdI : ∀ {β : Type} (ob : OracleComp unifSpec β),
-      simulateQ (PRFScheme.prfIdealQueryImpl (D := AD × C_e) (R := T))
-        (liftM ob : OracleComp (unifSpec + ((AD × C_e) →ₒ T)) β)
-        = (liftM ob : StateT ((AD × C_e →ₒ T).QueryCache) ProbComp β) := by
-    intro β ob
-    rw [show (liftM ob : OracleComp (unifSpec + ((AD × C_e) →ₒ T)) β)
-          = OracleComp.liftComp ob (unifSpec + ((AD × C_e) →ₒ T)) from rfl]
-    unfold PRFScheme.prfIdealQueryImpl
-    rw [QueryImpl.simulateQ_add_liftComp_left, hidimpl, simulateQ_liftTarget, simulateQ_id']
+  -- A forwarded function query `Sum.inr q` is answered by the lazy random oracle at `q`. This is
+  -- exactly the upstream `simulateQ_prfIdealQueryImpl_inr`; the local restatement just pins the
+  -- ambient spec annotation so it matches syntactically in the `simp only` decrypt branches below.
   have hroI : ∀ (q : AD × C_e),
       simulateQ (PRFScheme.prfIdealQueryImpl (D := AD × C_e) (R := T))
         (liftM (OracleSpec.query (Sum.inr q) :
             OracleQuery (unifSpec + ((AD × C_e) →ₒ T)) T) :
           OracleComp (unifSpec + ((AD × C_e) →ₒ T)) T)
         = (((AD × C_e) →ₒ T).randomOracle q :
-            StateT ((AD × C_e →ₒ T).QueryCache) ProbComp T) := by
-    intro q
-    simp [PRFScheme.prfIdealQueryImpl, QueryImpl.add_apply_inr]
+            StateT ((AD × C_e →ₒ T).QueryCache) ProbComp T) :=
+    fun q => PRFScheme.simulateQ_prfIdealQueryImpl_inr q
   refine probOutput_bind_congr' se.keygen true (fun ke => ?_)
   refine congrArg (fun o => Pr[= true | o]) ?_
   -- Flatten the nested `StateT EtmGameState (StateT QueryCache ProbComp)` into a single
@@ -609,7 +566,8 @@ theorem game1_eq_prfIdealExp
             OracleComp (unifSpec + ((AD × C_e) →ₒ T)) (unifSpec.Range n))
           = (liftM (liftM (OracleSpec.query n) : OracleComp unifSpec (unifSpec.Range n)) :
               StateT ((AD × C_e →ₒ T).QueryCache) ProbComp (unifSpec.Range n)) :=
-        hfwdI (liftM (OracleSpec.query n) : OracleComp unifSpec (unifSpec.Range n))
+        PRFScheme.simulateQ_prfIdealQueryImpl_liftComp
+          (liftM (OracleSpec.query n) : OracleComp unifSpec (unifSpec.Range n))
       rw [ToVCVio.flattenStateT_mapStateTBase_apply_run]
       simp [gameUnifImpl,
         QueryImpl.add_apply_inl, QueryImpl.liftTarget_apply, hq,
