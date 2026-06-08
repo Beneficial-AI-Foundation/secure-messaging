@@ -7,16 +7,24 @@ Released under Apache 2.0 license as described in the file LICENSE.
 import SecureMessaging.CKA.FromKEM.Security.ReductionBranch
 
 /-!
-# CKA from KEM — Security Statements
+# CKA from KEM — Branch and IND-CPA Bridge
 
-This file states the security property for the generic CKA-from-KEM construction
-of [ACD19, Section 4.1.2].
+This file packages the reduction's Boolean branch experiments and the advantage
+normalization that connects them to VCVio's KEM IND-CPA game, following
+[ACD19, Section 4.1.2].
 
-The paper's Theorem 2 says that the generic KEM-based construction has
-`Delta_CKA = 0` and reduces CKA security to KEM security.
+* `ckaSecurityFixedBranch` is the CKA fixed-bit branch;
+* `ckaReductionINDCPABranch` is the KEM challenge branch of the concrete
+  reduction, and `ckaReductionINDCPABranchRaw` drops its final `not` so the
+  absolute gap absorbs the CKA/KEM bit-orientation reversal;
+* `kem_ind_cpa_advantage_eq_fixed_branch_dist` rewrites VCVio's single-game
+  `IND_CPA_Advantage` as the fixed-branch gap used by the proof chain.
+
+This layer defines the branch experiments and their advantage bridges only. It
+does not prove the hidden-state simulation or the key-injection equivalences.
 -/
 
-open OracleSpec OracleComp ENNReal
+open OracleSpec OracleComp ENNReal KEMScheme
 
 namespace kemCKA
 
@@ -53,7 +61,7 @@ def indCPAExpProb [SampleableType K]
 def ckaReductionINDCPABranch [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams)
     (b : Bool) : ProbComp Bool := do
@@ -74,7 +82,7 @@ def ckaReductionINDCPABranch [SampleableType K] [DecidableEq K]
 def ckaReductionINDCPABranchRaw [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams)
     (b : Bool) : ProbComp Bool := do
@@ -95,7 +103,7 @@ def ckaReductionINDCPABranchRaw [SampleableType K] [DecidableEq K]
 def ckaSecurityFixedFromState [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams)
     (σ : SecurityState K PK SK C)
@@ -107,7 +115,7 @@ def ckaSecurityFixedFromState [SampleableType K] [DecidableEq K]
 def ckaReductionRawFromState [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
     (pkStar : PK) (cStar : C) (kStar : K)
     (adv : Adversary (kem := kem) leak)
@@ -119,7 +127,7 @@ def ckaReductionRawFromState [SampleableType K] [DecidableEq K]
 def ckaReductionRawSplitFromState [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
     (pkStar : PK) (cStar : C) (kStar : K)
     (adv : Adversary (kem := kem) leak)
@@ -131,7 +139,7 @@ lemma ckaReductionRawFromState_post_eq
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
     (pkStar : PK) (cStar : C) (kStar : K)
     (adv : Adversary (kem := kem) leak)
@@ -150,16 +158,16 @@ lemma ckaReductionRawFromState_query_post_eq
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
     (pkStar : PK) (cStar : C) (kStar : K)
     (ps : PostChallengeState K PK SK C)
-    (t : (SecuritySpec leak).Domain)
-    (cont : (SecuritySpec leak).Range t → OracleComp (SecuritySpec leak) Bool) :
+    (t : (securitySpec leak).Domain)
+    (cont : (securitySpec leak).Range t → OracleComp (securitySpec leak) Bool) :
     ckaReductionRawFromState kem hDet leak gp pkStar cStar kStar
-        (((liftM ((SecuritySpec leak).query t) :
-            OracleComp (SecuritySpec leak) ((SecuritySpec leak).Range t)) >>= cont :
-          OracleComp (SecuritySpec leak) Bool))
+        (((liftM ((securitySpec leak).query t) :
+            OracleComp (securitySpec leak) ((securitySpec leak).Range t)) >>= cont :
+          OracleComp (securitySpec leak) Bool))
         (ReductionBranchState.post ps) =
       (do
         let (out, ps') ← (postChallengeImpl kem hDet leak gp t).run ps
@@ -172,17 +180,17 @@ lemma ckaReductionRawFromState_query_challA_of_will
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
     (pkStar : PK) (cStar : C) (kStar : K)
     (σ : SecurityState K PK SK C)
-    (cont : Option (Message C PK × K) → OracleComp (SecuritySpec leak) Bool)
+    (cont : Option (Message C PK × K) → OracleComp (securitySpec leak) Bool)
     (hWill : willChallengeA gp σ = true) :
     ckaReductionRawFromState kem hDet leak gp pkStar cStar kStar
-        (((liftM ((SecuritySpec leak).query
-          (CKAScheme.ckaSecuritySpec.OChallA : (SecuritySpec leak).Domain)) :
-            OracleComp (SecuritySpec leak) (Option (Message C PK × K))) >>= cont :
-          OracleComp (SecuritySpec leak) Bool))
+        (((liftM ((securitySpec leak).query
+          (CKAScheme.ckaSecuritySpec.OChallA : (securitySpec leak).Domain)) :
+            OracleComp (securitySpec leak) (Option (Message C PK × K))) >>= cont :
+          OracleComp (securitySpec leak) Bool))
         (ReductionBranchState.pre σ) =
       (do
         let (pkNext, skNext) ← kem.keygen
@@ -204,22 +212,22 @@ lemma ckaReductionRawFromState_query_challA_of_not_will
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
     (pkStar : PK) (cStar : C) (kStar : K)
     (σ : SecurityState K PK SK C)
-    (cont : Option (Message C PK × K) → OracleComp (SecuritySpec leak) Bool)
+    (cont : Option (Message C PK × K) → OracleComp (securitySpec leak) Bool)
     (hWill : willChallengeA gp σ = false) :
     ckaReductionRawFromState kem hDet leak gp pkStar cStar kStar
-        (((liftM ((SecuritySpec leak).query
-          (CKAScheme.ckaSecuritySpec.OChallA : (SecuritySpec leak).Domain)) :
-            OracleComp (SecuritySpec leak) (Option (Message C PK × K))) >>= cont :
-          OracleComp (SecuritySpec leak) Bool))
+        (((liftM ((securitySpec leak).query
+          (CKAScheme.ckaSecuritySpec.OChallA : (securitySpec leak).Domain)) :
+            OracleComp (securitySpec leak) (Option (Message C PK × K))) >>= cont :
+          OracleComp (securitySpec leak) Bool))
         (ReductionBranchState.pre σ) =
       (do
         let (out, σ') ←
           (prefixImpl kem hDet leak gp pkStar
-            (CKAScheme.ckaSecuritySpec.OChallA : (SecuritySpec leak).Domain)).run σ
+            (CKAScheme.ckaSecuritySpec.OChallA : (securitySpec leak).Domain)).run σ
         ckaReductionRawFromState kem hDet leak gp pkStar cStar kStar
           (cont out) (ReductionBranchState.pre σ')) := by
   simp [ckaReductionRawFromState, simulateQ_bind, reductionBranchImpl, hWill,
@@ -229,17 +237,17 @@ lemma ckaReductionRawFromState_query_challB_of_will
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
     (pkStar : PK) (cStar : C) (kStar : K)
     (σ : SecurityState K PK SK C)
-    (cont : Option (Message C PK × K) → OracleComp (SecuritySpec leak) Bool)
+    (cont : Option (Message C PK × K) → OracleComp (securitySpec leak) Bool)
     (hWill : willChallengeB gp σ = true) :
     ckaReductionRawFromState kem hDet leak gp pkStar cStar kStar
-        (((liftM ((SecuritySpec leak).query
-          (CKAScheme.ckaSecuritySpec.OChallB : (SecuritySpec leak).Domain)) :
-            OracleComp (SecuritySpec leak) (Option (Message C PK × K))) >>= cont :
-          OracleComp (SecuritySpec leak) Bool))
+        (((liftM ((securitySpec leak).query
+          (CKAScheme.ckaSecuritySpec.OChallB : (securitySpec leak).Domain)) :
+            OracleComp (securitySpec leak) (Option (Message C PK × K))) >>= cont :
+          OracleComp (securitySpec leak) Bool))
         (ReductionBranchState.pre σ) =
       (do
         let (pkNext, skNext) ← kem.keygen
@@ -261,22 +269,22 @@ lemma ckaReductionRawFromState_query_challB_of_not_will
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
     (pkStar : PK) (cStar : C) (kStar : K)
     (σ : SecurityState K PK SK C)
-    (cont : Option (Message C PK × K) → OracleComp (SecuritySpec leak) Bool)
+    (cont : Option (Message C PK × K) → OracleComp (securitySpec leak) Bool)
     (hWill : willChallengeB gp σ = false) :
     ckaReductionRawFromState kem hDet leak gp pkStar cStar kStar
-        (((liftM ((SecuritySpec leak).query
-          (CKAScheme.ckaSecuritySpec.OChallB : (SecuritySpec leak).Domain)) :
-            OracleComp (SecuritySpec leak) (Option (Message C PK × K))) >>= cont :
-          OracleComp (SecuritySpec leak) Bool))
+        (((liftM ((securitySpec leak).query
+          (CKAScheme.ckaSecuritySpec.OChallB : (securitySpec leak).Domain)) :
+            OracleComp (securitySpec leak) (Option (Message C PK × K))) >>= cont :
+          OracleComp (securitySpec leak) Bool))
         (ReductionBranchState.pre σ) =
       (do
         let (out, σ') ←
           (prefixImpl kem hDet leak gp pkStar
-            (CKAScheme.ckaSecuritySpec.OChallB : (SecuritySpec leak).Domain)).run σ
+            (CKAScheme.ckaSecuritySpec.OChallB : (securitySpec leak).Domain)).run σ
         ckaReductionRawFromState kem hDet leak gp pkStar cStar kStar
           (cont out) (ReductionBranchState.pre σ')) := by
   simp [ckaReductionRawFromState, simulateQ_bind, reductionBranchImpl, hWill,
@@ -286,7 +294,7 @@ lemma ckaReductionRawFromState_pre_eq_split
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
     (pkStar : PK) (cStar : C) (kStar : K)
     (adv : Adversary (kem := kem) leak)
@@ -364,7 +372,7 @@ lemma ckaReductionRawFromState_pre_eq_split
           trans (do
             let (out, σ') ←
               (prefixImpl kem hDet leak gp pkStar
-                (CKAScheme.ckaSecuritySpec.OChallA : (SecuritySpec leak).Domain)).run σ
+                (CKAScheme.ckaSecuritySpec.OChallA : (securitySpec leak).Domain)).run σ
             ckaReductionRawFromState kem hDet leak gp pkStar cStar kStar
               (cont out) (ReductionBranchState.pre σ'))
           · simpa [CKAScheme.ckaSecuritySpec.OChallA] using
@@ -416,7 +424,7 @@ lemma ckaReductionRawFromState_pre_eq_split
           trans (do
             let (out, σ') ←
               (prefixImpl kem hDet leak gp pkStar
-                (CKAScheme.ckaSecuritySpec.OChallB : (SecuritySpec leak).Domain)).run σ
+                (CKAScheme.ckaSecuritySpec.OChallB : (securitySpec leak).Domain)).run σ
             ckaReductionRawFromState kem hDet leak gp pkStar cStar kStar
               (cont out) (ReductionBranchState.pre σ'))
           · simpa [CKAScheme.ckaSecuritySpec.OChallB] using
@@ -432,7 +440,7 @@ lemma ckaReductionRawFromState_pre_eq_split
 def ckaSecurityFixedBranch [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams)
     (isRandom : Bool) : ProbComp Bool := do
@@ -447,20 +455,20 @@ lemma securityExpFixedBit_eq_ckaSecurityFixedBranch
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams)
     (isRandom : Bool) :
-    CKAScheme.securityExpFixedBit (SecurityCKA kem hDet leak) adv isRandom gp =
+    CKAScheme.securityExpFixedBit (scheme kem hDet leak) adv isRandom gp =
       ckaSecurityFixedBranch kem hDet leak adv gp isRandom := by
   unfold CKAScheme.securityExpFixedBit ckaSecurityFixedBranch
-  unfold ckaSecurityFixedFromState SecurityCKA securityImpl
-  simp [schemeWithLeak, initA, initB]
+  unfold ckaSecurityFixedFromState securityImpl
+  simp [scheme, initA, initB]
 
 lemma ckaReductionINDCPABranch_eq_not_map_raw [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams)
     (b : Bool) :
@@ -488,7 +496,7 @@ lemma abs_probOutput_true_not_map_gap_eq (mx my : ProbComp Bool) :
 lemma ckaReductionINDCPABranch_gap_eq_raw_gap [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams) :
     |(Pr[= true | ckaReductionINDCPABranch kem hDet leak adv gp true]).toReal -
@@ -505,7 +513,7 @@ lemma indCPAExpProb_ckaToINDCPAReduction_eq_branch
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams)
     (b : Bool) :
@@ -606,7 +614,7 @@ lemma ckaToINDCPAReduction_IND_CPA_Exp_probOutput_true_eq_branch
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams)
     (b : Bool) :
