@@ -22,10 +22,10 @@ UniKEM-CKA.
 ::::definition "unikem_cka_spec" (parent := "cka_protocols_unikem_cka")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "on_off_kem_scheme"}[] · {githubLabel}`github` {githubIssue 97}[]
+{usesLabel}`uses` {uses "scka_scheme"}[] · {uses "erasure_code_scheme"}[] · {uses "on_off_kem_scheme"}[] · {githubLabel}`github` {githubIssue 97}[]
 ::::
 
 :::defTitle "unikem_cka_correctness" "UniKEM-CKA correctness"
@@ -34,10 +34,10 @@ $`\todo`
 ::::theorem "unikem_cka_correctness" (parent := "cka_protocols_unikem_cka")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "unikem_cka_spec"}[] · {githubLabel}`github` {githubIssue 98}[]
+{usesLabel}`uses` {uses "unikem_cka_spec"}[] · {uses "scka_correctness"}[] · {uses "erasure_code_correctness"}[] · {uses "on_off_kem_correctness"}[] · {githubLabel}`github` {githubIssue 98}[]
 ::::
 
 :::defTitle "unikem_cka_security" "UniKEM-CKA security"
@@ -46,8 +46,8 @@ $`\todo`
 ::::theorem "unikem_cka_security" (parent := "cka_protocols_unikem_cka")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "unikem_cka_spec"}[] · {githubLabel}`github` {githubIssue 99}[]
+{usesLabel}`uses` {uses "unikem_cka_spec"}[] · {uses "scka_security"}[] · {uses "erasure_code_scheme"}[] · {uses "on_off_kem_security"}[] · {githubLabel}`github` {githubIssue 99}[]
 ::::

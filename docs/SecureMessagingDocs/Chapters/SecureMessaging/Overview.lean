@@ -1,5 +1,7 @@
 import VersoManual
 import VersoBlueprint
+import VersoBlueprint.Commands.Graph
+import VersoBlueprint.Commands.Summary
 import SecureMessagingDocs.Bibliography
 import SecureMessagingDocs.Chapters.SecureMessaging.Defs
 import SecureMessagingDocs.Chapters.SecureMessaging.DoubleRatchetAbstract
@@ -30,3 +32,7 @@ set_option doc.verso true
 {include 1 SecureMessagingDocs.Chapters.SecureMessaging.TripleRatchet}
 
 {include 1 SecureMessagingDocs.Chapters.SecureMessaging.SCKA}
+
+{blueprint_graph}
+
+{blueprint_summary}

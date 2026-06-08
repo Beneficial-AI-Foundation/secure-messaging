@@ -27,10 +27,10 @@ Triple Ratchet.
 ::::definition "secure_messaging_triple_ratchet_scheme" (parent := "secure_messaging_triple_ratchet")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "fs_aead_scheme"}[] · {uses "prf_prng_scheme"}[] · {githubLabel}`github` {githubIssue 134}[]
+{usesLabel}`uses` {uses "erasure_code_scheme"}[] · {uses "rkem_scheme"}[] · {uses "fs_aead_scheme"}[] · {uses "prf_prng_scheme"}[] · {githubLabel}`github` {githubIssue 134}[]
 ::::
 
 :::defTitle "secure_messaging_triple_ratchet_spec" "Triple Ratchet protocol"
@@ -39,10 +39,10 @@ $`\todo`
 ::::definition "secure_messaging_triple_ratchet_spec" (parent := "secure_messaging_triple_ratchet")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "fs_aead_scheme"}[] · {uses "prf_prng_scheme"}[] · {githubLabel}`github` {githubIssue 136}[]
+{usesLabel}`uses` {uses "secure_messaging_triple_ratchet_scheme"}[] · {uses "erasure_code_scheme"}[] · {uses "rkem_scheme"}[] · {uses "fs_aead_scheme"}[] · {uses "prf_prng_scheme"}[] · {githubLabel}`github` {githubIssue 136}[]
 ::::
 
 :::defTitle "secure_messaging_triple_ratchet_correctness" "Triple Ratchet correctness"
@@ -51,10 +51,10 @@ $`\todo`
 ::::theorem "secure_messaging_triple_ratchet_correctness" (parent := "secure_messaging_triple_ratchet")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_triple_ratchet_spec"}[] · {githubLabel}`github` {githubIssue 137}[]
+{usesLabel}`uses` {uses "secure_messaging_triple_ratchet_spec"}[] · {uses "erasure_code_correctness"}[] · {uses "rkem_correctness"}[] · {githubLabel}`github` {githubIssue 137}[]
 ::::
 
 :::defTitle "secure_messaging_triple_ratchet_authenticity" "Triple Ratchet authenticity"
@@ -63,10 +63,10 @@ $`\todo`
 ::::theorem "secure_messaging_triple_ratchet_authenticity" (parent := "secure_messaging_triple_ratchet")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_triple_ratchet_spec"}[] · {githubLabel}`github` {githubIssue 138}[]
+{usesLabel}`uses` {uses "secure_messaging_triple_ratchet_spec"}[] · {uses "fs_aead_security"}[] · {githubLabel}`github` {githubIssue 138}[]
 ::::
 
 :::defTitle "secure_messaging_triple_ratchet_privacy" "Triple Ratchet privacy"
@@ -75,10 +75,10 @@ $`\todo`
 ::::theorem "secure_messaging_triple_ratchet_privacy" (parent := "secure_messaging_triple_ratchet")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_triple_ratchet_spec"}[] · {githubLabel}`github` {githubIssue 139}[]
+{usesLabel}`uses` {uses "secure_messaging_triple_ratchet_spec"}[] · {uses "rkem_forward_security"}[] · {uses "rkem_ratchet_sim"}[] · {uses "fs_aead_security"}[] · {uses "prf_prng_security"}[] · {githubLabel}`github` {githubIssue 139}[]
 ::::
 
 :::defTitle "secure_messaging_triple_ratchet_security" "Triple Ratchet security"
@@ -87,8 +87,8 @@ $`\todo`
 ::::theorem "secure_messaging_triple_ratchet_security" (parent := "secure_messaging_triple_ratchet")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_triple_ratchet_spec"}[] · {githubLabel}`github` {githubIssue 140}[]
+{usesLabel}`uses` {uses "secure_messaging_triple_ratchet_spec"}[] · {uses "secure_messaging_triple_ratchet_correctness"}[] · {uses "secure_messaging_triple_ratchet_authenticity"}[] · {uses "secure_messaging_triple_ratchet_privacy"}[] · {githubLabel}`github` {githubIssue 140}[]
 ::::

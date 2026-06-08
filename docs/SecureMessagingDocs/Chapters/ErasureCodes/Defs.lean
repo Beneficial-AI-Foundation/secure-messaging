@@ -22,7 +22,7 @@ Erasure Codes.
 ::::definition "erasure_code_scheme" (parent := "erasure_codes")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
 {githubLabel}`github` {githubIssue 116}[]
@@ -34,7 +34,7 @@ $`\todo`
 ::::definition "erasure_code_correctness" (parent := "erasure_codes")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
 {usesLabel}`uses` {uses "erasure_code_scheme"}[] · {githubLabel}`github` {githubIssue 116}[]

@@ -134,12 +134,14 @@ def smDocsCss : String := r#"
 
 /* Informative names shown next to each definition/theorem number.
    Verso's blueprint title row is a 2-column grid (caption + number); we add a
-   third column so the name sits inline on the same line, in the heading font.
-   The name is keyed on the node's stable label (the `title` attribute). */
+   third column so the name sits inline on the same line, in the heading font. */
 .bp_heading_title_row.bp_heading_title_row_statement {
   grid-template-columns: 11ch max-content max-content;
 }
-.bp_heading_title_row_statement::after {
+.bp-heading-title-marker {
+  display: none;
+}
+.bp-heading-display-title {
   font: inherit;
   font-style: normal;
   font-weight: inherit;
@@ -158,12 +160,23 @@ def smDocsCss : String := r#"
    with a faint underline; darken slightly on hover. */
 .bp_inline_preview_ref a {
   color: #556070;
+  font-style: normal;
   text-decoration-color: rgba(85, 96, 112, 0.35);
   text-underline-offset: 0.15em;
 }
 .bp_inline_preview_ref a:hover {
   color: #1f2937;
   text-decoration-color: currentColor;
+}
+
+.bp_used_by_target,
+.bp_used_by_target_title,
+.bp_used_by_target_meta,
+.bp_used_by_target_meta code,
+.bp_used_by_axis_badge,
+.bp_used_by_preview_label,
+.bp_used_by_preview_title {
+  font-style: normal;
 }
 
 /* Hidden marker before an anchor; JS moves its text into .lean-pill-caption on the row. */
@@ -183,6 +196,7 @@ p.lean-pill-caption {
 }
 .lean-pill-caption {
   font-size: 0.9rem;
+  font-style: normal;
   line-height: 1.45;
   color: #57606a;
 }
@@ -202,6 +216,7 @@ p.lean-pill-caption {
   padding: 0.12rem 0.55rem;
   font-size: 0.78rem;
   font-weight: 600;
+  font-style: normal;
   font-family: inherit;
   line-height: inherit;
   color: #57606a;
@@ -239,6 +254,7 @@ p.lean-pill-caption {
   padding: 0.12rem 0.55rem;
   font-size: 0.78rem;
   font-weight: 600;
+  font-style: normal;
   line-height: inherit;
   color: #57606a;
   background: #f6f8fa;
@@ -246,9 +262,9 @@ p.lean-pill-caption {
   border-radius: 6px;
 }
 .lean-pill-status[data-status="missing"] .lean-pill-status-label {
-  color: #8a4b0f;
-  background: #fff8c5;
-  border-color: #eac54f;
+  color: #6f4d00;
+  background: #fff7d6;
+  border-color: #d9b84f;
 }
 .lean-pill-status[data-status="partial"] .lean-pill-status-label {
   color: #5a3e85;
@@ -262,6 +278,7 @@ p.lean-pill-caption {
 }
 .lean-pill-status-caption {
   font-size: 0.9rem;
+  font-style: normal;
   line-height: 1.45;
 }
 
@@ -281,6 +298,25 @@ p.lean-pill-caption {
 text from a preceding leanPillCaption block is shown inline after the pill. -/
 def smDocsJs : String := r#"
 (function () {
+  function installHeadingTitles() {
+    document.querySelectorAll(".bp-heading-title-marker").forEach(function (marker) {
+      var label = marker.getAttribute("data-label");
+      var title = marker.getAttribute("data-title");
+      if (!label || !title) {
+        marker.remove();
+        return;
+      }
+      var wrapper = document.querySelector('[title="' + CSS.escape(label) + '"]');
+      var row = wrapper && wrapper.querySelector(".bp_heading .bp_heading_title_row_statement");
+      if (row && !row.querySelector(".bp-heading-display-title")) {
+        var titleSpan = document.createElement("span");
+        titleSpan.className = "bp-heading-display-title";
+        titleSpan.textContent = title;
+        row.appendChild(titleSpan);
+      }
+      marker.remove();
+    });
+  }
   function pillSuffixFor(code) {
     var node = code.previousElementSibling;
     while (node) {
@@ -344,6 +380,7 @@ def smDocsJs : String := r#"
     });
   }
   function initLeanPills() {
+    installHeadingTitles();
     wrapLeanBlocks();
     window.setTimeout(function () {
       renderMathIn(document.body);

@@ -22,7 +22,7 @@ Ratcheting Key Encapsulation Mechanism (RKEM).
 ::::definition "rkem_scheme" (parent := "rkem")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
 {githubLabel}`github` {githubIssue 47}[]
@@ -34,7 +34,7 @@ $`\todo`
 ::::definition "rkem_ratchet_sim" (parent := "rkem")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
 {usesLabel}`uses` {uses "rkem_scheme"}[] · {githubLabel}`github` {githubIssue 47}[]
@@ -46,7 +46,7 @@ $`\todo`
 ::::definition "rkem_forward_security" (parent := "rkem")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
 {usesLabel}`uses` {uses "rkem_scheme"}[] · {githubLabel}`github` {githubIssue 47}[]
@@ -58,7 +58,7 @@ $`\todo`
 ::::definition "rkem_correctness" (parent := "rkem")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
 {usesLabel}`uses` {uses "rkem_scheme"}[] · {githubLabel}`github` {githubIssue 47}[]

@@ -21,7 +21,6 @@ deriving Inhabited
 
 structure LeanPillConfig where
   status : String
-  caption : String
 deriving Inhabited
 
 section
@@ -34,7 +33,7 @@ instance : FromArgs LeanPillCaptionConfig m where
   fromArgs := LeanPillCaptionConfig.parse
 
 def LeanPillConfig.parse : ArgParse m LeanPillConfig :=
-  LeanPillConfig.mk <$> .positional `status .string <*> .positional `caption .string
+  LeanPillConfig.mk <$> .positional `status .string
 
 instance : FromArgs LeanPillConfig m where
   fromArgs := LeanPillConfig.parse
@@ -84,23 +83,30 @@ block_extension Block.leanPillCaption (caption : String) where
       pure <| Verso.Output.Html.tag "p" #[("class", "lean-pill-caption")] <|
         renderPillCaption caption
 
-block_extension Block.leanPill (status : String) (caption : String) where
-  data := toJson (status, caption)
+block_extension Block.leanPill (status : String) where
+  data := toJson status
   traverse _id _data _contents := do
     pure none
   toTeX := none
   toHtml :=
     some <| fun _goI _goB _id data _contents => do
-      let (status, caption) :=
-        match fromJson? (α := String × String) data with
-        | .ok item => item
-        | .error _ => ("missing", "Lean formalization pending")
+      let status :=
+        match fromJson? (α := String) data with
+        | .ok s => s
+        | .error _ => "missing"
+      let caption :=
+        match status with
+        | "linked" => "Lean"
+        | "partial" => "Lean partial"
+        | "planned" => "Lean planned"
+        | "missing" => "Lean anchor pending"
+        | other => s!"Lean {other}"
       let label :=
         match status with
         | "linked" => "Lean"
         | "partial" => "Lean partial"
         | "planned" => "Lean planned"
-        | "missing" => "Lean missing"
+        | "missing" => "Lean"
         | other => s!"Lean {other}"
       pure <| Verso.Output.Html.tag "div" #[
           ("class", "lean-pill-status"),
@@ -122,4 +128,4 @@ def leanPillCaption : DirectiveExpanderOf LeanPillCaptionConfig
 @[directive]
 def leanPill : DirectiveExpanderOf LeanPillConfig
   | cfg, _contents => do
-    ``(Block.other (Block.leanPill $(quote cfg.status) $(quote cfg.caption)) #[])
+    ``(Block.other (Block.leanPill $(quote cfg.status)) #[])

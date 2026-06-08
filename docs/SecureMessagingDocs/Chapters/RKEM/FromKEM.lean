@@ -22,7 +22,7 @@ RKEM from KEM.
 ::::definition "rkem_from_kem_spec" (parent := "rkem_rkem_from_kem")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
 {usesLabel}`uses` {uses "rkem_scheme"}[] · {githubLabel}`github` {githubIssue 75}[]
@@ -34,7 +34,7 @@ $`\todo`
 ::::theorem "rkem_from_kem_correctness" (parent := "rkem_rkem_from_kem")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
 {usesLabel}`uses` {uses "rkem_from_kem_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_correctness"}[] · {githubLabel}`github` {githubIssue 76}[]
@@ -46,7 +46,7 @@ $`\todo`
 ::::theorem "rkem_from_kem_forward_security" (parent := "rkem_rkem_from_kem")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
 {usesLabel}`uses` {uses "rkem_from_kem_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_forward_security"}[] · {githubLabel}`github` {githubIssue 77}[]
@@ -58,7 +58,7 @@ $`\todo`
 ::::theorem "rkem_from_kem_ratchet_sim" (parent := "rkem_rkem_from_kem")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
 {usesLabel}`uses` {uses "rkem_from_kem_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_ratchet_sim"}[] · {githubLabel}`github` {githubIssue 78}[]

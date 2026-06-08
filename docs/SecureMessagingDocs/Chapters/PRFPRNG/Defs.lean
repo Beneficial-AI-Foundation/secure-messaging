@@ -22,7 +22,7 @@ Pseudorandom Function-Generator (PRF-PRNG).
 ::::definition "prf_prng_scheme" (parent := "prf_prng")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
 {githubLabel}`github` {githubIssue 34}[]
@@ -34,7 +34,7 @@ $`\todo`
 ::::definition "prf_prng_security" (parent := "prf_prng")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
 {usesLabel}`uses` {uses "prf_prng_scheme"}[] · {githubLabel}`github` {githubIssue 34}[]

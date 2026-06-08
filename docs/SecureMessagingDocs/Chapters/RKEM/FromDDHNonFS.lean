@@ -22,7 +22,7 @@ RKEM from DDH (non-FS).
 ::::definition "rkem_from_ddh_nonfs_spec" (parent := "rkem_rkem_from_ddh_non_fs")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
 {usesLabel}`uses` {uses "rkem_scheme"}[] · {githubLabel}`github` {githubIssue 66}[]
@@ -34,7 +34,7 @@ $`\todo`
 ::::theorem "rkem_from_ddh_nonfs_correctness" (parent := "rkem_rkem_from_ddh_non_fs")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
 {usesLabel}`uses` {uses "rkem_from_ddh_nonfs_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_correctness"}[] · {githubLabel}`github` {githubIssue 67}[]
@@ -46,7 +46,7 @@ $`\todo`
 ::::theorem "rkem_from_ddh_nonfs_ratchet_sim" (parent := "rkem_rkem_from_ddh_non_fs")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
 {usesLabel}`uses` {uses "rkem_from_ddh_nonfs_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_ratchet_sim"}[] · {githubLabel}`github` {githubIssue 68}[]

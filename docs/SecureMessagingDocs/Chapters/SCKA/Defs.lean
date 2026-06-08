@@ -26,10 +26,10 @@ SCKA.
 ::::definition "scka_scheme" (parent := "cka_protocols_scka")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "on_off_kem_scheme"}[] · {githubLabel}`github` {githubIssue 93}[]
+{githubLabel}`github` {githubIssue 93}[]
 ::::
 
 :::defTitle "scka_correctness" "SCKA protocol correctness"
@@ -38,7 +38,7 @@ $`\todo`
 ::::definition "scka_correctness" (parent := "cka_protocols_scka")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
 {usesLabel}`uses` {uses "scka_scheme"}[] · {githubLabel}`github` {githubIssue 93}[]
@@ -50,7 +50,7 @@ $`\todo`
 ::::definition "scka_security" (parent := "cka_protocols_scka")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
 {usesLabel}`uses` {uses "scka_scheme"}[] · {githubLabel}`github` {githubIssue 93}[]

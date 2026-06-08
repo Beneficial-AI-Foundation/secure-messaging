@@ -27,10 +27,10 @@ Abstract Protocol (Double Ratchet).
 ::::definition "secure_messaging_abstract_double_ratchet_spec" (parent := "secure_messaging_abstract_protocol_double_ratchet")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "fs_aead_scheme"}[] · {uses "prf_prng_scheme"}[] · {githubLabel}`github` {githubIssue 124}[]
+{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[] · {uses "cka"}[] · {uses "fs_aead_scheme"}[] · {uses "prf_prng_scheme"}[] · {githubLabel}`github` {githubIssue 124}[]
 ::::
 
 :::defTitle "secure_messaging_abstract_double_ratchet_correctness" "Abstract Double Ratchet correctness"
@@ -39,10 +39,10 @@ $`\todo`
 ::::theorem "secure_messaging_abstract_double_ratchet_correctness" (parent := "secure_messaging_abstract_protocol_double_ratchet")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_abstract_double_ratchet_spec"}[] · {githubLabel}`github` {githubIssue 125}[]
+{usesLabel}`uses` {uses "secure_messaging_abstract_double_ratchet_spec"}[] · {uses "cka_correct"}[] · {githubLabel}`github` {githubIssue 125}[]
 ::::
 
 :::defTitle "secure_messaging_abstract_double_ratchet_authenticity" "Abstract Double Ratchet authenticity"
@@ -51,10 +51,10 @@ $`\todo`
 ::::theorem "secure_messaging_abstract_double_ratchet_authenticity" (parent := "secure_messaging_abstract_protocol_double_ratchet")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_abstract_double_ratchet_spec"}[] · {githubLabel}`github` {githubIssue 126}[]
+{usesLabel}`uses` {uses "secure_messaging_abstract_double_ratchet_spec"}[] · {uses "fs_aead_security"}[] · {githubLabel}`github` {githubIssue 126}[]
 ::::
 
 :::defTitle "secure_messaging_abstract_double_ratchet_privacy" "Abstract Double Ratchet privacy"
@@ -63,10 +63,10 @@ $`\todo`
 ::::theorem "secure_messaging_abstract_double_ratchet_privacy" (parent := "secure_messaging_abstract_protocol_double_ratchet")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_abstract_double_ratchet_spec"}[] · {githubLabel}`github` {githubIssue 127}[]
+{usesLabel}`uses` {uses "secure_messaging_abstract_double_ratchet_spec"}[] · {uses "cka_security"}[] · {uses "fs_aead_security"}[] · {uses "prf_prng_security"}[] · {githubLabel}`github` {githubIssue 127}[]
 ::::
 
 :::defTitle "secure_messaging_abstract_double_ratchet_security" "Abstract Double Ratchet security"
@@ -75,8 +75,8 @@ $`\todo`
 ::::theorem "secure_messaging_abstract_double_ratchet_security" (parent := "secure_messaging_abstract_protocol_double_ratchet")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_abstract_double_ratchet_spec"}[] · {githubLabel}`github` {githubIssue 128}[]
+{usesLabel}`uses` {uses "secure_messaging_abstract_double_ratchet_spec"}[] · {uses "secure_messaging_abstract_double_ratchet_correctness"}[] · {uses "secure_messaging_abstract_double_ratchet_authenticity"}[] · {uses "secure_messaging_abstract_double_ratchet_privacy"}[] · {githubLabel}`github` {githubIssue 128}[]
 ::::

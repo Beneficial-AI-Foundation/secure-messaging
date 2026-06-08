@@ -22,7 +22,7 @@ On-Off KEM from ML-KEM.
 ::::definition "on_off_kem_from_ml_kem_spec" (parent := "on_off_kem_on_off_kem_from_ml_kem")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
 {usesLabel}`uses` {uses "on_off_kem_scheme"}[] · {githubLabel}`github` {githubIssue 41}[]
@@ -34,7 +34,7 @@ $`\todo`
 ::::theorem "on_off_kem_from_ml_kem_security" (parent := "on_off_kem_on_off_kem_from_ml_kem")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
 {usesLabel}`uses` {uses "on_off_kem_from_ml_kem_spec"}[] · {uses "on_off_kem_scheme"}[] · {uses "on_off_kem_security"}[] · {githubLabel}`github` {githubIssue 42}[]

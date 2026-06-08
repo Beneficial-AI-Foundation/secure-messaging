@@ -27,10 +27,10 @@ Encrypt-then-MAC.
 ::::definition "aead_etm_spec" (parent := "aead_encrypt_then_mac")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
-{githubLabel}`github` {githubIssue 24}[]
+{usesLabel}`uses` {uses "aead"}[] · {githubLabel}`github` {githubIssue 24}[]
 ::::
 
 :::defTitle "aead_etm_correctness" "AEAD encrypt-then-MAC correctness"
@@ -39,10 +39,10 @@ $`\todo`
 ::::theorem "aead_etm_correctness" (parent := "aead_encrypt_then_mac")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "aead_etm_spec"}[] · {githubLabel}`github` {githubIssue 25}[]
+{usesLabel}`uses` {uses "aead_etm_spec"}[] · {uses "aead_correct"}[] · {githubLabel}`github` {githubIssue 25}[]
 ::::
 
 :::defTitle "aead_etm_security" "AEAD encrypt-then-MAC security"
@@ -51,8 +51,8 @@ $`\todo`
 ::::theorem "aead_etm_security" (parent := "aead_encrypt_then_mac")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "aead_etm_spec"}[] · {githubLabel}`github` {githubIssue 26}[]
+{usesLabel}`uses` {uses "aead_etm_spec"}[] · {uses "aead_security_exp"}[] · {githubLabel}`github` {githubIssue 26}[]
 ::::

@@ -1,5 +1,7 @@
 import VersoManual
 import VersoBlueprint
+import VersoBlueprint.Commands.Graph
+import VersoBlueprint.Commands.Summary
 import SecureMessagingDocs.Bibliography
 import SecureMessagingDocs.Chapters.RKEM.Defs
 import SecureMessagingDocs.Chapters.RKEM.FromDDHNonFS
@@ -32,3 +34,6 @@ set_option doc.verso true
 
 {include 1 SecureMessagingDocs.Chapters.RKEM.KatanaOptimised}
 
+{blueprint_graph}
+
+{blueprint_summary}

@@ -22,10 +22,10 @@ BiKEM-CKA.
 ::::definition "bikem_cka_spec" (parent := "cka_protocols_bikem_cka")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "on_off_kem_scheme"}[] · {githubLabel}`github` {githubIssue 100}[]
+{usesLabel}`uses` {uses "scka_scheme"}[] · {uses "erasure_code_scheme"}[] · {githubLabel}`github` {githubIssue 100}[]
 ::::
 
 :::defTitle "bikem_cka_correctness" "BiKEM-CKA correctness"
@@ -34,10 +34,10 @@ $`\todo`
 ::::theorem "bikem_cka_correctness" (parent := "cka_protocols_bikem_cka")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "bikem_cka_spec"}[] · {githubLabel}`github` {githubIssue 101}[]
+{usesLabel}`uses` {uses "bikem_cka_spec"}[] · {uses "scka_correctness"}[] · {uses "erasure_code_correctness"}[] · {githubLabel}`github` {githubIssue 101}[]
 ::::
 
 :::defTitle "bikem_cka_security" "BiKEM-CKA security"
@@ -46,8 +46,8 @@ $`\todo`
 ::::theorem "bikem_cka_security" (parent := "cka_protocols_bikem_cka")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "bikem_cka_spec"}[] · {githubLabel}`github` {githubIssue 102}[]
+{usesLabel}`uses` {uses "bikem_cka_spec"}[] · {uses "scka_security"}[] · {uses "erasure_code_scheme"}[] · {githubLabel}`github` {githubIssue 102}[]
 ::::

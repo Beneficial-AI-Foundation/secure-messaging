@@ -26,7 +26,7 @@ at most 1:
   * `lastAction ∈ {sendA, challA}`       ⟹  `tA = tB + 1`  (A's send pending recvB)
   * `lastAction ∈ {sendB, challB}`       ⟹  `tB = tA + 1`  (B's send pending recvA)
 -/
-def epochCounterInv (s : GameState (F ⊕ G) G G) : Prop :=
+def epochCounterInv (s : GameState (CKAState F G) G G) : Prop :=
   match s.lastAction with
   | none | some .recvA | some .recvB => s.tA = s.tB
   | some .sendA | some .challA => s.tA = s.tB + 1
@@ -50,20 +50,20 @@ In each phase, `(stA, stB, ρA, ρB, keyA, keyB)` has the shape below
  3 | `recvB`             | `y`      | `y•gen`  | `⊥`     | `⊥`     | `⊥`          | `⊥`       |
  4 | `sendB`, `challB`   | `y`      | `x`      | `⊥`     | `x•gen` | `⊥`          | `x•(y•gen)`|
 -/
-def stateShapeInv (gen : G) (s : GameState (F ⊕ G) G G) : Prop :=
+def stateShapeInv (gen : G) (s : GameState (CKAState F G) G G) : Prop :=
   match s.lastAction with
   | none | some .recvA =>
-    ∃ x : F, s.stA = .inr (x • gen) ∧ s.stB = .inl x ∧
+    ∃ x : F, s.stA = .sendReady (x • gen) ∧ s.stB = .recvReady x ∧
       s.rhoA = none ∧ s.rhoB = none ∧ s.keyA = none ∧ s.keyB = none
   | some .sendA | some .challA =>
-    ∃ x y : F, s.stA = .inl y ∧ s.stB = .inl x ∧
+    ∃ x y : F, s.stA = .recvReady y ∧ s.stB = .recvReady x ∧
       s.rhoA = some (y • gen) ∧ s.rhoB = none ∧
       s.keyA = some (y • (x • gen)) ∧ s.keyB = none
   | some .recvB =>
-    ∃ y : F, s.stA = .inl y ∧ s.stB = .inr (y • gen) ∧
+    ∃ y : F, s.stA = .recvReady y ∧ s.stB = .sendReady (y • gen) ∧
       s.rhoA = none ∧ s.rhoB = none ∧ s.keyA = none ∧ s.keyB = none
   | some .sendB | some .challB =>
-    ∃ x y : F, s.stA = .inl y ∧ s.stB = .inl x ∧
+    ∃ x y : F, s.stA = .recvReady y ∧ s.stB = .recvReady x ∧
       s.rhoA = none ∧ s.rhoB = some (x • gen) ∧
       s.keyA = none ∧ s.keyB = some (x • (y • gen))
 
@@ -87,7 +87,7 @@ def stateShapeInv (gen : G) (s : GameState (F ⊕ G) G G) : Prop :=
  3 | `recvB`             | `y`      | `y•gen`  | `⊥`     | `⊥`     | `⊥`          | `⊥`       |
  4 | `sendB`, `challB`   | `y`      | `x`      | `⊥`     | `x•gen` | `⊥`          | `x•(y•gen)`|
 -/
-def reachableShape (gen : G) (s : GameState (F ⊕ G) G G) : Prop :=
+def reachableShape (gen : G) (s : GameState (CKAState F G) G G) : Prop :=
   epochCounterInv s ∧ stateShapeInv gen s
 
 /-- **Reachable-state invariant** `reachableInv gen s`:
@@ -98,7 +98,7 @@ def reachableShape (gen : G) (s : GameState (F ⊕ G) G G) : Prop :=
 * `stateShapeInv gen s` — state is in one of four DH-compatible shapes.
 
 Maintained by every oracle call along reachable traces. -/
-def reachableInv (gen : G) (s : GameState (F ⊕ G) G G) : Prop :=
+def reachableInv (gen : G) (s : GameState (CKAState F G) G G) : Prop :=
   epochCounterInv s ∧
   s.correct = true ∧
   stateShapeInv gen s

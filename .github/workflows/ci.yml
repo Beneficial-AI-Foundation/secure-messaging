@@ -5,6 +5,7 @@ on:
     branches: ["main", "update-verso-blueprint"]
     paths:
       - '**/*.lean'
+      - 'scripts/**'
       - 'lean-toolchain'
       - 'lakefile.toml'
       - 'lake-manifest.json'
@@ -13,6 +14,7 @@ on:
     branches: ["main"]
     paths:
       - '**/*.lean'
+      - 'scripts/**'
       - 'lean-toolchain'
       - 'lakefile.toml'
       - 'lake-manifest.json'
@@ -53,17 +55,9 @@ jobs:
           build: "true"
           use-mathlib-cache: "true"
 
-      - name: Cache rendered documentation site
-        id: docs-site-cache
-        uses: actions/cache@v4
-        with:
-          path: _out/site/html-multi
-          key: docs-site-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'lake-manifest.json', '**/*.lean') }}
-
       - name: Build documentation modules
         run: |
-          free -h
-          /usr/bin/time -v lake build \
+          lake build \
             SecureMessagingDocs.Chapters.AEAD.Defs \
             SecureMessagingDocs.Chapters.AEAD.AESGCM \
             SecureMessagingDocs.Chapters.AEAD.EncryptThenMAC \
@@ -99,27 +93,15 @@ jobs:
             SecureMessagingDocs.Chapters.SecureMessaging.SCKA \
             SecureMessagingDocs.Visuals.Style
 
-      - name: Build documentation root
-        run: |
-          free -h
-          while true; do
-            echo "docs root heartbeat: $(date -u)"
-            free -h
-            ps -eo pid,ppid,rss,vsz,comm,args | grep '[l]ean' || true
-            sleep 60
-          done &
-          heartbeat_pid=$!
-          trap 'kill "$heartbeat_pid" 2>/dev/null || true' EXIT
-          /usr/bin/time -v lake build +SecureMessagingDocs.Contents:olean
-          kill "$heartbeat_pid" 2>/dev/null || true
-          trap - EXIT
-
       - name: Generate documentation site
-        if: steps.docs-site-cache.outputs.cache-hit != 'true'
-        run: /usr/bin/time -v lake env lean --run SecureMessagingDocsMain.lean --output _out/site
+        run: scripts/render-docs-site.sh
 
       - name: Validate site output
-        run: test -f _out/site/html-multi/index.html
+        run: |
+          test -f _out/site/html-multi/index.html
+          test -f _out/site/html-multi/Continuous-Key-Agreement/index.html
+          test -f _out/site/html-multi/Continuous-Key-Agreement/Dependency-Graph/index.html
+          test -f _out/site/html-multi/Continuous-Key-Agreement/Blueprint-Summary/index.html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4

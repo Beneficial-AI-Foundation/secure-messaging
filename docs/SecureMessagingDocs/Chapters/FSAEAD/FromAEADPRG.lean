@@ -27,10 +27,10 @@ FS-AEAD from AEAD and PRG.
 ::::definition "fs_aead_from_aead_prg_spec" (parent := "fs_aead_fs_aead_from_aead_prg")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "fs_aead_scheme"}[] · {githubLabel}`github` {githubIssue 31}[]
+{usesLabel}`uses` {uses "fs_aead_scheme"}[] · {uses "aead"}[] · {uses "prf_prng_scheme"}[] · {githubLabel}`github` {githubIssue 31}[]
 ::::
 
 :::defTitle "fs_aead_from_aead_prg_correctness" "FS-AEAD from AEAD and PRG correctness"
@@ -39,10 +39,10 @@ $`\todo`
 ::::theorem "fs_aead_from_aead_prg_correctness" (parent := "fs_aead_fs_aead_from_aead_prg")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "fs_aead_from_aead_prg_spec"}[] · {uses "fs_aead_scheme"}[] · {githubLabel}`github` {githubIssue 29}[]
+{usesLabel}`uses` {uses "fs_aead_from_aead_prg_spec"}[] · {uses "fs_aead_scheme"}[] · {uses "aead_correct"}[] · {uses "prf_prng_scheme"}[] · {githubLabel}`github` {githubIssue 29}[]
 ::::
 
 :::defTitle "fs_aead_from_aead_prg_security" "FS-AEAD from AEAD and PRG security"
@@ -51,8 +51,8 @@ $`\todo`
 ::::theorem "fs_aead_from_aead_prg_security" (parent := "fs_aead_fs_aead_from_aead_prg")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "fs_aead_from_aead_prg_spec"}[] · {uses "fs_aead_scheme"}[] · {uses "fs_aead_security"}[] · {githubLabel}`github` {githubIssue 32}[]
+{usesLabel}`uses` {uses "fs_aead_from_aead_prg_spec"}[] · {uses "fs_aead_scheme"}[] · {uses "fs_aead_security"}[] · {uses "aead_security_exp"}[] · {uses "prf_prng_security"}[] · {githubLabel}`github` {githubIssue 32}[]
 ::::

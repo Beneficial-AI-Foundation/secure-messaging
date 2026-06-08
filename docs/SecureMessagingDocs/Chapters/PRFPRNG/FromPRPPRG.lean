@@ -27,7 +27,7 @@ PRF-PRNG from PRP and PRG.
 ::::definition "prf_prng_from_prp_prg_spec" (parent := "prf_prng_prf_prng_from_prp_prg")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
 {usesLabel}`uses` {uses "prf_prng_scheme"}[] · {githubLabel}`github` {githubIssue 36}[]
@@ -39,7 +39,7 @@ $`\todo`
 ::::theorem "prf_prng_from_prp_prg_security" (parent := "prf_prng_prf_prng_from_prp_prg")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
 {usesLabel}`uses` {uses "prf_prng_from_prp_prg_spec"}[] · {uses "prf_prng_scheme"}[] · {uses "prf_prng_security"}[] · {githubLabel}`github` {githubIssue 37}[]

@@ -22,10 +22,10 @@ RKEM-CKA.
 ::::definition "rkem_cka_spec" (parent := "cka_protocols_rkem_cka")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "on_off_kem_scheme"}[] · {githubLabel}`github` {githubIssue 103}[]
+{usesLabel}`uses` {uses "scka_scheme"}[] · {uses "erasure_code_scheme"}[] · {uses "rkem_scheme"}[] · {githubLabel}`github` {githubIssue 103}[]
 ::::
 
 :::defTitle "rkem_cka_correctness" "RKEM-CKA correctness"
@@ -34,10 +34,10 @@ $`\todo`
 ::::theorem "rkem_cka_correctness" (parent := "cka_protocols_rkem_cka")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "rkem_cka_spec"}[] · {githubLabel}`github` {githubIssue 104}[]
+{usesLabel}`uses` {uses "rkem_cka_spec"}[] · {uses "scka_correctness"}[] · {uses "erasure_code_correctness"}[] · {uses "rkem_correctness"}[] · {githubLabel}`github` {githubIssue 104}[]
 ::::
 
 :::defTitle "rkem_cka_security" "RKEM-CKA security"
@@ -46,8 +46,8 @@ $`\todo`
 ::::theorem "rkem_cka_security" (parent := "cka_protocols_rkem_cka")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "rkem_cka_spec"}[] · {githubLabel}`github` {githubIssue 105}[]
+{usesLabel}`uses` {uses "rkem_cka_spec"}[] · {uses "scka_security"}[] · {uses "erasure_code_scheme"}[] · {uses "rkem_forward_security"}[] · {uses "rkem_ratchet_sim"}[] · {githubLabel}`github` {githubIssue 105}[]
 ::::

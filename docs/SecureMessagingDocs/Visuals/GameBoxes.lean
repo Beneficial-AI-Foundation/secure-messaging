@@ -106,12 +106,6 @@ private def attrsWithLocalTexPrelude (attrs : Array (String × String)) :
       attr.1 != "data-bp-tex-prelude-id" && attr.1 != "data-bp-tex-prelude").push
     ("data-bp-tex-prelude", cryptoTexPrelude)
 
-/-- CSS rule that appends `title` next to the Blueprint heading for `label`. -/
-private def defTitleCss (label title : String) : String :=
-  "[title=" ++ Json.compress (Json.str label) ++
-    "] > .bp_heading .bp_heading_title_row_statement::after { content: " ++
-    Json.compress (Json.str title) ++ "; }"
-
 /--
 Blueprint summary/graph assets can add later empty default TeX preludes. Cryptocode blocks
 therefore attach their prelude directly to contained math nodes as a local fallback.
@@ -165,7 +159,8 @@ block_extension Block.gameCell (title : String) (kind? : Option String) (state? 
           ] (withLocalTexPrelude (.seq body))
         ]
 
--- A small local style block that names one Blueprint definition/theorem heading.
+-- A hidden marker that names one Blueprint definition/theorem heading. Site JS
+-- moves this into the actual heading row so the title is normal selectable text.
 block_extension Block.defTitle (label title : String) where
   data := toJson (label, title)
   traverse _id _data _contents := do
@@ -177,8 +172,13 @@ block_extension Block.defTitle (label title : String) where
         match fromJson? (α := String × String) data with
         | .ok item => item
         | .error _ => ("", "")
-      pure <| Verso.Output.Html.tag "style" #[]
-        (Verso.Output.Html.text false (defTitleCss label title))
+      pure <| Verso.Output.Html.tag "span"
+        #[
+          ("class", "bp-heading-title-marker"),
+          ("data-label", label),
+          ("data-title", title)
+        ]
+        (Verso.Output.Html.text true "")
 
 /-! ## Directives -/
 

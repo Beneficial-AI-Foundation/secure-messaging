@@ -26,10 +26,10 @@ AES-GCM.
 ::::definition "aead_aes_gcm_spec" (parent := "aead_aes_gcm")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
-{githubLabel}`github` {githubIssue 21}[]
+{usesLabel}`uses` {uses "aead"}[] · {githubLabel}`github` {githubIssue 21}[]
 ::::
 
 :::defTitle "aead_aes_gcm_correctness" "AEAD-AES-GCM correctness"
@@ -38,10 +38,10 @@ $`\todo`
 ::::theorem "aead_aes_gcm_correctness" (parent := "aead_aes_gcm")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "aead_aes_gcm_spec"}[] · {githubLabel}`github` {githubIssue 22}[]
+{usesLabel}`uses` {uses "aead_aes_gcm_spec"}[] · {uses "aead_correct"}[] · {githubLabel}`github` {githubIssue 22}[]
 ::::
 
 :::defTitle "aead_aes_gcm_security" "AEAD-AES-GCM security"
@@ -50,8 +50,8 @@ $`\todo`
 ::::theorem "aead_aes_gcm_security" (parent := "aead_aes_gcm")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "aead_aes_gcm_spec"}[] · {githubLabel}`github` {githubIssue 23}[]
+{usesLabel}`uses` {uses "aead_aes_gcm_spec"}[] · {uses "aead_security_exp"}[] · {githubLabel}`github` {githubIssue 23}[]
 ::::

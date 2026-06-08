@@ -66,13 +66,16 @@ is proved for an arbitrary randomness-leak package `leak`: the correctness game
 never queries the randomness-leaking send oracles, so correctness is independent
 of the choice of `leak`.
 -/
+-- ANCHOR: correctness
 theorem correctness [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
     (leak : RandLeak kem)
     (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
     (adv : CKAScheme.CKACorrectnessAdversary (Message C PK) K) :
-    Pr[= true | CKAScheme.correctnessExp (scheme kem hDet leak) adv] = 1 := by
+    Pr[= true | CKAScheme.correctnessExp (scheme kem hDet leak) adv] = 1
+-- ANCHOR_END: correctness
+    := by
   sorry
 
 end kemCKA

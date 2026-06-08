@@ -22,7 +22,7 @@ Katana RKEM (optimised).
 ::::definition "optimised_katana_rkem_spec" (parent := "rkem_katana_rkem_optimised")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
 {usesLabel}`uses` {uses "rkem_scheme"}[] · {githubLabel}`github` {githubIssue 85}[]
@@ -34,7 +34,7 @@ $`\todo`
 ::::theorem "optimised_katana_rkem_correctness" (parent := "rkem_katana_rkem_optimised")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
 {usesLabel}`uses` {uses "optimised_katana_rkem_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_correctness"}[] · {githubLabel}`github` {githubIssue 86}[]
@@ -46,7 +46,7 @@ $`\todo`
 ::::theorem "optimised_katana_rkem_forward_security" (parent := "rkem_katana_rkem_optimised")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
 {usesLabel}`uses` {uses "optimised_katana_rkem_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_forward_security"}[] · {githubLabel}`github` {githubIssue 87}[]
@@ -58,7 +58,7 @@ $`\todo`
 ::::theorem "optimised_katana_rkem_ratchet_sim" (parent := "rkem_katana_rkem_optimised")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
 {usesLabel}`uses` {uses "optimised_katana_rkem_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_ratchet_sim"}[] · {githubLabel}`github` {githubIssue 88}[]

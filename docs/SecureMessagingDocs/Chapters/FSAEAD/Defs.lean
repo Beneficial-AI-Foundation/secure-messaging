@@ -22,7 +22,7 @@ Forward-Secure AEAD (FS-AEAD).
 ::::definition "fs_aead_scheme" (parent := "fs_aead")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
 {githubLabel}`github` {githubIssue 28}[]
@@ -34,7 +34,7 @@ $`\todo`
 ::::definition "fs_aead_security" (parent := "fs_aead")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
 {usesLabel}`uses` {uses "fs_aead_scheme"}[] · {githubLabel}`github` {githubIssue 28}[]

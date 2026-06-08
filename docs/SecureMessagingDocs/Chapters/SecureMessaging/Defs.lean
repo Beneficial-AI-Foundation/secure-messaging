@@ -33,10 +33,10 @@ Double Ratchet.
 ::::definition "secure_messaging_double_ratchet_scheme" (parent := "secure_messaging_double_ratchet")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "fs_aead_scheme"}[] · {uses "prf_prng_scheme"}[] · {githubLabel}`github` {githubIssue 121}[]
+{usesLabel}`uses` {uses "cka"}[] · {uses "fs_aead_scheme"}[] · {uses "prf_prng_scheme"}[] · {githubLabel}`github` {githubIssue 121}[]
 ::::
 
 :::defTitle "secure_messaging_double_ratchet_correctness" "Double Ratchet correctness"
@@ -45,10 +45,10 @@ $`\todo`
 ::::definition "secure_messaging_double_ratchet_correctness" (parent := "secure_messaging_double_ratchet")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[] · {githubLabel}`github` {githubIssue 121}[]
+{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[] · {uses "cka_correct"}[] · {githubLabel}`github` {githubIssue 121}[]
 ::::
 
 :::defTitle "secure_messaging_double_ratchet_authenticity" "Double Ratchet authenticity"
@@ -57,10 +57,10 @@ $`\todo`
 ::::definition "secure_messaging_double_ratchet_authenticity" (parent := "secure_messaging_double_ratchet")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[] · {githubLabel}`github` {githubIssue 121}[]
+{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[] · {uses "fs_aead_security"}[] · {githubLabel}`github` {githubIssue 121}[]
 ::::
 
 :::defTitle "secure_messaging_double_ratchet_privacy" "Double Ratchet privacy"
@@ -69,10 +69,10 @@ $`\todo`
 ::::definition "secure_messaging_double_ratchet_privacy" (parent := "secure_messaging_double_ratchet")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[] · {githubLabel}`github` {githubIssue 121}[]
+{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[] · {uses "cka_security"}[] · {uses "fs_aead_security"}[] · {uses "prf_prng_security"}[] · {githubLabel}`github` {githubIssue 121}[]
 ::::
 
 :::defTitle "secure_messaging_double_ratchet_security" "Double Ratchet security"
@@ -81,8 +81,8 @@ $`\todo`
 ::::definition "secure_messaging_double_ratchet_security" (parent := "secure_messaging_double_ratchet")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[] · {githubLabel}`github` {githubIssue 121}[]
+{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[] · {uses "secure_messaging_double_ratchet_correctness"}[] · {uses "secure_messaging_double_ratchet_authenticity"}[] · {uses "secure_messaging_double_ratchet_privacy"}[] · {githubLabel}`github` {githubIssue 121}[]
 ::::

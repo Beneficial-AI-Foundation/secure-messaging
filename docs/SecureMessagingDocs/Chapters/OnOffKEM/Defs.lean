@@ -22,7 +22,7 @@ Online-Offline Key Encapsulation Mechanism (On-Off KEM).
 ::::definition "on_off_kem_scheme" (parent := "on_off_kem")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
 {githubLabel}`github` {githubIssue 40}[]
@@ -34,7 +34,7 @@ $`\todo`
 ::::definition "on_off_kem_correctness" (parent := "on_off_kem")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
 {usesLabel}`uses` {uses "on_off_kem_scheme"}[] · {githubLabel}`github` {githubIssue 40}[]
@@ -46,7 +46,7 @@ $`\todo`
 ::::definition "on_off_kem_security" (parent := "on_off_kem")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
 {usesLabel}`uses` {uses "on_off_kem_scheme"}[] · {githubLabel}`github` {githubIssue 40}[]

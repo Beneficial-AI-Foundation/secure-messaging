@@ -1,5 +1,7 @@
 import VersoManual
 import VersoBlueprint
+import VersoBlueprint.Commands.Graph
+import VersoBlueprint.Commands.Summary
 import SecureMessagingDocs.Bibliography
 import SecureMessagingDocs.Chapters.FSAEAD.Defs
 import SecureMessagingDocs.Chapters.FSAEAD.FromAEADPRG
@@ -20,3 +22,6 @@ set_option doc.verso true
 
 {include 1 SecureMessagingDocs.Chapters.FSAEAD.FromAEADPRG}
 
+{blueprint_graph}
+
+{blueprint_summary}

@@ -27,10 +27,10 @@ SCKA.
 ::::definition "secure_messaging_scka_scheme" (parent := "secure_messaging_scka")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "fs_aead_scheme"}[] · {uses "prf_prng_scheme"}[] · {githubLabel}`github` {githubIssue 142}[]
+{usesLabel}`uses` {uses "scka_scheme"}[] · {uses "fs_aead_scheme"}[] · {uses "prf_prng_scheme"}[] · {githubLabel}`github` {githubIssue 142}[]
 ::::
 
 :::defTitle "secure_messaging_scka_spec" "Secure messaging protocol (SCKA)"
@@ -39,10 +39,10 @@ $`\todo`
 ::::definition "secure_messaging_scka_spec" (parent := "secure_messaging_scka")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "fs_aead_scheme"}[] · {uses "prf_prng_scheme"}[] · {githubLabel}`github` {githubIssue 144}[]
+{usesLabel}`uses` {uses "secure_messaging_scka_scheme"}[] · {uses "scka_scheme"}[] · {uses "fs_aead_scheme"}[] · {uses "prf_prng_scheme"}[] · {githubLabel}`github` {githubIssue 144}[]
 ::::
 
 :::defTitle "secure_messaging_scka_correctness" "SCKA secure messaging correctness"
@@ -51,10 +51,10 @@ $`\todo`
 ::::theorem "secure_messaging_scka_correctness" (parent := "secure_messaging_scka")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_scka_spec"}[] · {githubLabel}`github` {githubIssue 145}[]
+{usesLabel}`uses` {uses "secure_messaging_scka_spec"}[] · {uses "scka_correctness"}[] · {githubLabel}`github` {githubIssue 145}[]
 ::::
 
 :::defTitle "secure_messaging_scka_authenticity" "SCKA secure messaging authenticity"
@@ -63,10 +63,10 @@ $`\todo`
 ::::theorem "secure_messaging_scka_authenticity" (parent := "secure_messaging_scka")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_scka_spec"}[] · {githubLabel}`github` {githubIssue 146}[]
+{usesLabel}`uses` {uses "secure_messaging_scka_spec"}[] · {uses "scka_correctness"}[] · {uses "fs_aead_security"}[] · {githubLabel}`github` {githubIssue 146}[]
 ::::
 
 :::defTitle "secure_messaging_scka_privacy" "SCKA secure messaging privacy"
@@ -75,10 +75,10 @@ $`\todo`
 ::::theorem "secure_messaging_scka_privacy" (parent := "secure_messaging_scka")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_scka_spec"}[] · {githubLabel}`github` {githubIssue 147}[]
+{usesLabel}`uses` {uses "secure_messaging_scka_spec"}[] · {uses "scka_security"}[] · {uses "fs_aead_security"}[] · {uses "prf_prng_security"}[] · {githubLabel}`github` {githubIssue 147}[]
 ::::
 
 :::defTitle "secure_messaging_scka_security" "SCKA secure messaging security"
@@ -87,8 +87,8 @@ $`\todo`
 ::::theorem "secure_messaging_scka_security" (parent := "secure_messaging_scka")
 $`\todo`
 
-:::leanPill "missing" "Lean proof pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_scka_spec"}[] · {githubLabel}`github` {githubIssue 148}[]
+{usesLabel}`uses` {uses "secure_messaging_scka_spec"}[] · {uses "secure_messaging_scka_correctness"}[] · {uses "secure_messaging_scka_authenticity"}[] · {uses "secure_messaging_scka_privacy"}[] · {githubLabel}`github` {githubIssue 148}[]
 ::::

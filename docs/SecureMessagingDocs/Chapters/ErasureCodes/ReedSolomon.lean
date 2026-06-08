@@ -29,8 +29,8 @@ Reed-Solomon.
 ::::definition "reed_solomon_erasure_code_correctness" (parent := "erasure_codes_reed_solomon")
 $`\todo`
 
-:::leanPill "missing" "Lean formalization pending"
+:::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "erasure_code_scheme"}[] · {githubLabel}`github` {githubIssue 117}[]
+{usesLabel}`uses` {uses "erasure_code_scheme"}[] · {uses "erasure_code_correctness"}[] · {githubLabel}`github` {githubIssue 117}[]
 ::::
