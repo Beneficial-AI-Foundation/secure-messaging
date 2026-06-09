@@ -22,7 +22,8 @@ equivalence (`probOutput_simulateQ_securityImplWithChallengeKeyPair_run_eq_of_in
 finishes the suffix.
 -/
 
-open OracleSpec OracleComp ENNReal OracleComp.ProgramLogic.Relational
+open OracleSpec OracleComp ENNReal KEMScheme
+open OracleComp.ProgramLogic.Relational
 
 namespace kemCKA
 
@@ -62,11 +63,11 @@ honest implementation `securityImpl` and is common to both branches. -/
 private def injectPrefix [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
     (isRandom : Bool)
     {α : Type} :
-    OracleComp (SecuritySpec leak) α →
+    OracleComp (securitySpec leak) α →
       StateT (SecurityState K PK SK C) ProbComp
         (CKAChallengeStepResult leak α) :=
   OracleComp.construct
@@ -79,7 +80,7 @@ private def injectPrefix [SampleableType K] [DecidableEq K]
             pure (.pausedA oa)
           else
             let out ← securityImpl kem hDet leak gp isRandom
-              (CKAScheme.ckaSecuritySpec.OSendA : (SecuritySpec leak).Domain)
+              (CKAScheme.ckaSecuritySpec.OSendA : (securitySpec leak).Domain)
             rec out
       | CKAScheme.ckaSecuritySpec.OSendB =>
           let σ ← get
@@ -87,7 +88,7 @@ private def injectPrefix [SampleableType K] [DecidableEq K]
             pure (.pausedB oa)
           else
             let out ← securityImpl kem hDet leak gp isRandom
-              (CKAScheme.ckaSecuritySpec.OSendB : (SecuritySpec leak).Domain)
+              (CKAScheme.ckaSecuritySpec.OSendB : (securitySpec leak).Domain)
             rec out
       | other =>
           let out ← securityImpl kem hDet leak gp isRandom other
@@ -103,15 +104,15 @@ private lemma securityImplWithChallengeKeyPair_run_eq_securityImpl_of_step
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
     (isRandom : Bool)
     (pkStar : PK) (skStar : SK)
-    (t : (SecuritySpec leak).Domain)
+    (t : (securitySpec leak).Domain)
     (σ : SecurityState K PK SK C)
-    (hA : t = (CKAScheme.ckaSecuritySpec.OSendA : (SecuritySpec leak).Domain) →
+    (hA : t = (CKAScheme.ckaSecuritySpec.OSendA : (securitySpec leak).Domain) →
       sendAEffectivelyInjects gp σ = false)
-    (hB : t = (CKAScheme.ckaSecuritySpec.OSendB : (SecuritySpec leak).Domain) →
+    (hB : t = (CKAScheme.ckaSecuritySpec.OSendB : (securitySpec leak).Domain) →
       sendBEffectivelyInjects gp σ = false) :
     (securityImplWithChallengeKeyPair kem hDet leak gp isRandom pkStar skStar t).run σ =
       (securityImpl kem hDet leak gp isRandom t).run σ := by
@@ -131,13 +132,13 @@ private lemma securityImplWithChallengeKeyPair_run_eq_securityImpl_of_step
             securityImpl_OSendA_run_sendReady kem hDet leak gp isRandom σ pk hvalid hst]
           simp only [hnotInj]; rfl
       | recvReady sk =>
-          change _ = (CKAScheme.oracleSendA (schemeWithLeak kem hDet leak) ()).run σ
-          simp only [oracleSendAWithChallengeKeyPair, CKAScheme.oracleSendA, schemeWithLeak, send,
+          change _ = (CKAScheme.oracleSendA (scheme kem hDet leak) ()).run σ
+          simp only [oracleSendAWithChallengeKeyPair, CKAScheme.oracleSendA, scheme, send,
             hvalid, ↓reduceIte, hst, StateT.run_bind, StateT.run_get, StateT.run_monadLift,
             monadLift_self, StateT.run_pure, pure_bind]
     · have hvalidFalse : CKAScheme.validStep σ.lastAction .sendA = false :=
         Bool.eq_false_of_not_eq_true hvalid
-      change _ = (CKAScheme.oracleSendA (schemeWithLeak kem hDet leak) ()).run σ
+      change _ = (CKAScheme.oracleSendA (scheme kem hDet leak) ()).run σ
       simp only [oracleSendAWithChallengeKeyPair, CKAScheme.oracleSendA, hvalidFalse,
         Bool.false_eq_true, ↓reduceIte, StateT.run_bind, StateT.run_get, StateT.run_pure, pure_bind]
   · rfl
@@ -153,13 +154,13 @@ private lemma securityImplWithChallengeKeyPair_run_eq_securityImpl_of_step
             securityImpl_OSendB_run_sendReady kem hDet leak gp isRandom σ pk hvalid hst]
           simp only [hnotInj]; rfl
       | recvReady sk =>
-          change _ = (CKAScheme.oracleSendB (schemeWithLeak kem hDet leak) ()).run σ
-          simp only [oracleSendBWithChallengeKeyPair, CKAScheme.oracleSendB, schemeWithLeak, send,
+          change _ = (CKAScheme.oracleSendB (scheme kem hDet leak) ()).run σ
+          simp only [oracleSendBWithChallengeKeyPair, CKAScheme.oracleSendB, scheme, send,
             hvalid, ↓reduceIte, hst, StateT.run_bind, StateT.run_get, StateT.run_monadLift,
             monadLift_self, StateT.run_pure, pure_bind]
     · have hvalidFalse : CKAScheme.validStep σ.lastAction .sendB = false :=
         Bool.eq_false_of_not_eq_true hvalid
-      change _ = (CKAScheme.oracleSendB (schemeWithLeak kem hDet leak) ()).run σ
+      change _ = (CKAScheme.oracleSendB (scheme kem hDet leak) ()).run σ
       simp only [oracleSendBWithChallengeKeyPair, CKAScheme.oracleSendB, hvalidFalse,
         Bool.false_eq_true, ↓reduceIte, StateT.run_bind, StateT.run_get, StateT.run_pure, pure_bind]
   all_goals rfl
@@ -173,18 +174,18 @@ recorded continuation on the resulting state.  For `.done`, the run already
 finished, so its result and final state are returned unchanged. -/
 private def injectResume [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
-    (leak : KEMRandLeak kem)
-    (impl : QueryImpl (SecuritySpec leak) (StateT (SecurityState K PK SK C) ProbComp))
+    (leak : RandLeak kem)
+    (impl : QueryImpl (securitySpec leak) (StateT (SecurityState K PK SK C) ProbComp))
     (res : CKAChallengeStepResult leak Bool)
     (σ : SecurityState K PK SK C) :
     ProbComp (Bool × SecurityState K PK SK C) :=
   match res with
   | .done g => pure (g, σ)
   | .pausedA cont =>
-      (impl (CKAScheme.ckaSecuritySpec.OSendA : (SecuritySpec leak).Domain)).run σ >>=
+      (impl (CKAScheme.ckaSecuritySpec.OSendA : (securitySpec leak).Domain)).run σ >>=
         fun x => (simulateQ impl (cont x.1)).run x.2
   | .pausedB cont =>
-      (impl (CKAScheme.ckaSecuritySpec.OSendB : (SecuritySpec leak).Domain)).run σ >>=
+      (impl (CKAScheme.ckaSecuritySpec.OSendB : (securitySpec leak).Domain)).run σ >>=
         fun x => (simulateQ impl (cont x.1)).run x.2
 
 /-- Factor a simulated run through `injectPrefix`.
@@ -195,17 +196,17 @@ performs that send and finishes the run. -/
 private lemma simulateQ_run_eq_injectPrefix_bind [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
     (isRandom : Bool)
-    (impl : QueryImpl (SecuritySpec leak) (StateT (SecurityState K PK SK C) ProbComp))
-    (hstep : ∀ (t : (SecuritySpec leak).Domain) (σ : SecurityState K PK SK C),
-      (t = (CKAScheme.ckaSecuritySpec.OSendA : (SecuritySpec leak).Domain) →
+    (impl : QueryImpl (securitySpec leak) (StateT (SecurityState K PK SK C) ProbComp))
+    (hstep : ∀ (t : (securitySpec leak).Domain) (σ : SecurityState K PK SK C),
+      (t = (CKAScheme.ckaSecuritySpec.OSendA : (securitySpec leak).Domain) →
         sendAEffectivelyInjects gp σ = false) →
-      (t = (CKAScheme.ckaSecuritySpec.OSendB : (SecuritySpec leak).Domain) →
+      (t = (CKAScheme.ckaSecuritySpec.OSendB : (securitySpec leak).Domain) →
         sendBEffectivelyInjects gp σ = false) →
       (impl t).run σ = (securityImpl kem hDet leak gp isRandom t).run σ)
-    (adv : OracleComp (SecuritySpec leak) Bool)
+    (adv : OracleComp (securitySpec leak) Bool)
     (σ : SecurityState K PK SK C) :
     (simulateQ impl adv).run σ =
       (injectPrefix kem hDet leak gp isRandom adv).run σ >>=
@@ -273,12 +274,12 @@ in its support satisfies that guard. -/
 private lemma injectPrefix_run_support_effInject [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
     (isRandom : Bool)
     (res : CKAChallengeStepResult leak Bool)
     (σ' : SecurityState K PK SK C)
-    (adv : OracleComp (SecuritySpec leak) Bool)
+    (adv : OracleComp (securitySpec leak) Bool)
     (σ : SecurityState K PK SK C) :
     (res, σ') ∈ support ((injectPrefix kem hDet leak gp isRandom adv).run σ) →
       (match res with
@@ -364,11 +365,11 @@ in how the post-send state `mkState` is built, so both reduce to this lemma. -/
 private lemma keygen_commute_after_install_tail [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
     (isRandom : Bool)
     (pk : PK)
-    (cont : Option (Message C PK × K) → OracleComp (SecuritySpec leak) Bool)
+    (cont : Option (Message C PK × K) → OracleComp (securitySpec leak) Bool)
     (mkState : PK → SK → C → K → SecurityState K PK SK C)
     (hpass : ∀ (p : PK × SK) (ck : C × K),
       injectionPassed gp (mkState p.1 p.2 ck.1 ck.2)) :
@@ -403,10 +404,10 @@ with the honest send's draw, and finishing the post-injection suffix with the
 private lemma injectResume_pausedA_combine [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
     (isRandom : Bool)
-    (cont : Option (Message C PK × K) → OracleComp (SecuritySpec leak) Bool)
+    (cont : Option (Message C PK × K) → OracleComp (securitySpec leak) Bool)
     (σ_p : SecurityState K PK SK C)
     (heff : sendAEffectivelyInjects gp σ_p = true) :
     Pr[= true | kem.keygen >>= fun p =>
@@ -438,7 +439,7 @@ private lemma injectResume_pausedA_combine [SampleableType K] [DecidableEq K]
     -- the injecting A-send under the up-front draw, reduced for every `p`
     have hWCKSend : ∀ p : PK × SK,
         (securityImplWithChallengeKeyPair kem hDet leak gp isRandom p.1 p.2
-            (CKAScheme.ckaSecuritySpec.OSendA : (SecuritySpec leak).Domain)).run σ_p =
+            (CKAScheme.ckaSecuritySpec.OSendA : (securitySpec leak).Domain)).run σ_p =
           (do
             let (c, key) ← kem.encaps pk
             let (_pkGen, _skGen) ← kem.keygen
@@ -468,10 +469,10 @@ private lemma injectResume_pausedA_combine [SampleableType K] [DecidableEq K]
 private lemma injectResume_pausedB_combine [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
     (isRandom : Bool)
-    (cont : Option (Message C PK × K) → OracleComp (SecuritySpec leak) Bool)
+    (cont : Option (Message C PK × K) → OracleComp (securitySpec leak) Bool)
     (σ_p : SecurityState K PK SK C)
     (heff : sendBEffectivelyInjects gp σ_p = true) :
     Pr[= true | kem.keygen >>= fun p =>
@@ -503,7 +504,7 @@ private lemma injectResume_pausedB_combine [SampleableType K] [DecidableEq K]
     -- the injecting B-send under the up-front draw, reduced for every `p`
     have hWCKSend : ∀ p : PK × SK,
         (securityImplWithChallengeKeyPair kem hDet leak gp isRandom p.1 p.2
-            (CKAScheme.ckaSecuritySpec.OSendB : (SecuritySpec leak).Domain)).run σ_p =
+            (CKAScheme.ckaSecuritySpec.OSendB : (securitySpec leak).Domain)).run σ_p =
           (do
             let (c, key) ← kem.encaps pk
             let (_pkGen, _skGen) ← kem.keygen
@@ -539,7 +540,7 @@ up-front draw, and at the installing send the draw couples with the send. -/
 private lemma probOutput_simulateQ_keygen_commute [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
     (isRandom : Bool)
     (adv : Adversary (kem := kem) leak)
@@ -594,7 +595,7 @@ private lemma ckaSecurityFixedBranchWithChallengeKey_injected_probOutput_true_eq
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams)
     (isRandom : Bool) :
@@ -641,7 +642,7 @@ lemma ckaSecurityFixedBranchWithChallengeKey_injected_gap_eq
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams) :
     |(Pr[= true |
