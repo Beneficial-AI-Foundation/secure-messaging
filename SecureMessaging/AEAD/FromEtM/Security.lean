@@ -16,7 +16,6 @@ import SecureMessaging.ToVCVio.RandomOracleForgery
 import SecureMessaging.ToVCVio.IdenticalUntilBad
 import SecureMessaging.ToVCVio.DiscardQuerySimulate
 import SecureMessaging.ToVCVio.ProbEventCoupling
-import SecureMessaging.ToVCVio.StateTRun
 import SecureMessaging.ToVCVio.TVDistConvexity
 import SecureMessaging.ToVCVio.SimulateQForward
 import SecureMessaging.ToVCVio.StateTInvariant
@@ -363,7 +362,8 @@ theorem game0_eq_real
           (pure (ke, km) : ProbComp (K_e × K_m))) := rfl
   unfold game0 etmGameSkeleton AEADScheme.securityExpFixedBit
   rw [hkg]
-  simp only [bind_assoc, pure_bind, ToVCVio.runStateT_bind_fst_eq_run']
+  simp only [bind_assoc, pure_bind]
+  simp only [bind_pure_comp, ← StateT.run'_eq]
   -- Swap the two independent key samplers so both sides start with `se.keygen`.
   simp only [← probEvent_eq_eq_probOutput]
   rw [probEvent_bind_bind_swap prf.keygen se.keygen]
@@ -410,11 +410,11 @@ theorem game0_eq_prfRealExp
   -- collapse the nested `simulateQ` via `mapStateTBase`, forward `liftComp se.keygen`
   -- (the upstream `simulateQ_prfRealQueryImpl_liftComp` is the `unifSpec`-transparency fact).
   unfold PRFScheme.prfRealExp prfReduction etmGameSkeleton
-  simp only [ToVCVio.runStateT_bind_fst_eq_run', simulateQ_bind,
+  simp only [bind_pure_comp, ← StateT.run'_eq, simulateQ_bind,
     QueryImpl.simulateQ_mapStateTBase_run', PRFScheme.simulateQ_prfRealQueryImpl_liftComp]
   -- LHS: unfold game0 + skeleton, fold its run to `run'`.
   unfold game0 etmGameSkeleton
-  simp only [ToVCVio.runStateT_bind_fst_eq_run']
+  simp only [bind_pure_comp, ← StateT.run'_eq]
   -- Both sides: `prf.keygen` then `se.keygen`, same order; descend both.
   refine probOutput_bind_congr' prf.keygen true (fun k => ?_)
   refine probOutput_bind_congr' se.keygen true (fun ke => ?_)
@@ -468,12 +468,21 @@ theorem game1_eq_prfIdealExp
   -- then push the outer `.run' ∅` through the `liftM se.keygen` bind so both sides start with
   -- `se.keygen` (the cache threads through unchanged).
   unfold PRFScheme.prfIdealExp prfReduction etmGameSkeleton
-  simp only [ToVCVio.runStateT_bind_fst_eq_run', simulateQ_bind,
+  -- Targeted push of `run'` through the `liftM se.keygen` bind. Stated as a local `have` (a
+  -- one-line `simp` fact) rather than via the general `StateT.run'_bind'`, which unfolds *every*
+  -- `run'`-of-bind and would dismantle the per-key `simulateQ … .run'` recovered below.
+  have hpush : ∀ {β : Type} (G : K_e → StateT (TagCache AD C_e T) ProbComp β)
+      (s : TagCache AD C_e T),
+      ((liftM se.keygen : StateT (TagCache AD C_e T) ProbComp K_e) >>= G).run' s
+        = se.keygen >>= fun a => (G a).run' s :=
+    fun G s => by
+      simp [StateT.run'_eq, StateT.run_bind, StateT.run_monadLift, bind_map_left, map_bind]
+  simp only [bind_pure_comp, ← StateT.run'_eq, simulateQ_bind,
     QueryImpl.simulateQ_mapStateTBase_run', PRFScheme.simulateQ_prfIdealQueryImpl_liftComp,
-    ToVCVio.run'_monadLift_bind]
+    hpush]
   -- LHS: game1.
   unfold game1 etmGameSkeleton
-  simp only [ToVCVio.runStateT_bind_fst_eq_run']
+  simp only [bind_pure_comp, ← StateT.run'_eq]
   -- A forwarded function query `Sum.inr q` is answered by the lazy random oracle at `q`. This is
   -- exactly the upstream `simulateQ_prfIdealQueryImpl_inr`; the local restatement just pins the
   -- ambient spec annotation so it matches syntactically in the `simp only` decrypt branches below.
@@ -759,7 +768,7 @@ theorem game2'_eq_game2
   -- Fold the skeleton tail `let (b', _) ← run; return b'` to `run'`.
   -- Both games: `se.keygen` then the per-key skeleton run; descend through keygen.
   unfold game2' game2 etmGameSkeleton
-  simp only [ToVCVio.runStateT_bind_fst_eq_run']
+  simp only [bind_pure_comp, ← StateT.run'_eq]
   refine probOutput_bind_congr' se.keygen true (fun ke => ?_)
   -- Per key: the two interpreters differ only in `decImpl`'s `verifyTag` — `game2'` makes a
   -- discarded random-oracle query at `(ad, c)` before rejecting, `game2` rejects directly.
@@ -1434,7 +1443,7 @@ theorem game1_game2_le_auth
     have hflag1 : game1 se adv = se.keygen >>= Y₁ := by
       rw [hY₁]
       unfold game1 etmGameSkeleton
-      simp only [ToVCVio.runStateT_bind_fst_eq_run']
+      simp only [bind_pure_comp, ← StateT.run'_eq]
       refine bind_congr fun ke => ?_
       refine (run'_simulateQ_eq_of_query_map_eq _ _ Prod.fst ?hproj adv ((none, ∅), false)).symm
       case hproj =>
@@ -1461,7 +1470,7 @@ theorem game1_game2_le_auth
     have hflag2 : game2' se adv = se.keygen >>= Y₂ := by
       rw [hY₂]
       unfold game2' etmGameSkeleton
-      simp only [ToVCVio.runStateT_bind_fst_eq_run']
+      simp only [bind_pure_comp, ← StateT.run'_eq]
       refine bind_congr fun ke => ?_
       refine (run'_simulateQ_eq_of_query_map_eq _ _ Prod.fst ?hproj adv ((none, ∅), false)).symm
       case hproj =>
@@ -1565,7 +1574,7 @@ theorem game2_game3_le_enc [Inhabited K_e]
       QueryImpl.simulateQ_mapStateTBase_run]
     simp only [bind_pure_comp, ← StateT.run'_eq]
     unfold game3 etmGameSkeleton
-    simp only [ToVCVio.runStateT_bind_fst_eq_run']
+    simp only [bind_pure_comp, ← StateT.run'_eq]
     refine probOutput_bind_congr' se.keygen true (fun key => ?_)
     -- Flatten the nested `StateT EtmGameState (StateT Bool ProbComp)` into a single
     -- `StateT (EtmGameState × Bool) ProbComp` (the indCPA "encrypt called" flag joins the state).
@@ -1714,7 +1723,7 @@ theorem game2_game3_le_enc [Inhabited K_e]
             (fun ke m => pure (se.encrypt ke m)) (fun _ => liftM ($ᵗ T : ProbComp T))
             (fun _ _ => pure false) gameUnifImpl adv : ProbComp Bool)] := by
       unfold game2 etmGameSkeleton
-      simp only [ToVCVio.runStateT_bind_fst_eq_run']
+      simp only [bind_pure_comp, ← StateT.run'_eq]
       refine probOutput_bind_congr' se.keygen true (fun key => ?_)
       rw [run'_simulateQ_eq_of_query_map_eq_inv'
             _ _ (fun s => s.1 = none → s.2 = (∅ : TagCache AD C_e T))
@@ -1955,7 +1964,8 @@ theorem game3_eq_rand
           (pure (ke, km) : ProbComp (K_e × K_m))) := rfl
   unfold game3 etmGameSkeleton AEADScheme.securityExpFixedBit
   rw [hkg]
-  simp only [bind_assoc, pure_bind, ToVCVio.runStateT_bind_fst_eq_run']
+  simp only [bind_assoc, pure_bind]
+  simp only [bind_pure_comp, ← StateT.run'_eq]
   -- Both sides start with `se.keygen`; descend it.
   refine probOutput_bind_congr' se.keygen true (fun ke => ?_)
   -- RHS samples a dead `km`; its body is constant in `km` (= the LHS value by projection).
