@@ -36,7 +36,9 @@ $`\todo`
 
 ```anchor CKAState (project := ".") (module := SecureMessaging.CKA.FromDDH.Construction)
 inductive CKAState (F G : Type) where
+  /-- Holds the peer's current DH public value and is ready to send. -/
   | sendReady : G → CKAState F G
+  /-- Holds the party's sampled scalar and is ready to receive. -/
   | recvReady : F → CKAState F G
   deriving DecidableEq, Fintype, Repr
 ```
