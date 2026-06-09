@@ -67,11 +67,11 @@ abbrev Adversary {K PK SK C : Type}
 
 For every perfectly correct KEM, CKA adversary, and admissible challenge
 parameters, there exists an IND-CPA adversary against the KEM whose advantage
-upper-bounds the CKA advantage of the constructed protocol.
-The statement uses the local CKA advantage convention
-`CKAScheme.securityAdvantage`, namely `|Pr[Win] - 1/2|`, and compares it to
-`KEMScheme.IND_CPA_Advantage`, the Boolean bias `|Pr[true] - Pr[false]|` of
-the single IND-CPA game.
+upper-bounds the CKA distinguishing advantage of the constructed protocol.
+The bound compares like with like: `CKAScheme.ckaDistAdvantage` is the gap
+between the real-key and random-key branches of the CKA game (twice
+`CKAScheme.ckaGuessAdvantage`), and `KEMScheme.IND_CPA_Advantage` is the
+Boolean bias `|Pr[true] - Pr[false]|` of the single IND-CPA game.
 
 The statement is an existential placeholder, not the final form of [ACD19,
 Theorem 2], whose proof is constructive. The proof PR for issue #5 will
@@ -88,7 +88,7 @@ theorem security_reduces_to_ind_cpa_exists [SampleableType K] [DecidableEq K]
     (gp : CKAScheme.GameParams)
     (hgp : AdmissibleParams gp) :
     ∃ red : KEMScheme.IND_CPA_Adversary kem,
-      CKAScheme.securityAdvantage (scheme kem hDet leak) adv gp ≤
+      CKAScheme.ckaDistAdvantage (scheme kem hDet leak) adv gp ≤
         KEMScheme.IND_CPA_Advantage (kem := kem) ProbCompRuntime.probComp red
 -- ANCHOR_END: security_reduces_to_ind_cpa_exists
     := by

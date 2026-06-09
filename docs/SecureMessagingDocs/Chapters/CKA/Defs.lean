@@ -526,15 +526,15 @@ def securityExp [SampleableType I] [DecidableEq I] (cka : CKAScheme ProbComp IK 
 :::defTitle "cka_advantage" "CKA guess advantage"
 :::
 
-:::definition "cka_advantage" (lean := "CKAScheme.securityAdvantage")
+:::definition "cka_advantage" (lean := "CKAScheme.ckaGuessAdvantage")
 $`\todo`
 
 $$`\Adv{\textsf{guess}}(\adv, gp)
   \;=\; \Bigl|\, \Pr\bigl[\,\Exp{\textsf{sec}}{\textsf{CKA}}(\adv,gp) = 1\,\bigr] - \tfrac12 \,\Bigr|
   \;=\; \Bigl|\, \Pr[\,b' = b\,] - \tfrac12 \,\Bigr|`
 
-```anchor securityAdvantage (project := ".") (module := SecureMessaging.CKA.Defs)
-noncomputable def securityAdvantage [SampleableType I] [DecidableEq I]
+```anchor ckaGuessAdvantage (project := ".") (module := SecureMessaging.CKA.Defs)
+noncomputable def ckaGuessAdvantage [SampleableType I] [DecidableEq I]
     (cka : CKAScheme ProbComp IK St I Rho Rand) (adversary : CKAAdversary St Rho I Rand)
     (gp : GameParams) : ℝ :=
   |(Pr[= true | securityExp cka adversary gp]).toReal - 1 / 2|
