@@ -29,7 +29,8 @@ render_root="$output_root/chapter-renders"
 add_project_index_links() {
   local chapter_dir="$1"
   local contents_label="$2"
-  CHAPTER_DIR="$chapter_dir" CHAPTER_CONTENTS="$contents_label" find "$chapter_dir" -name '*.html' -type f -exec perl -0pi -e '
+  while IFS= read -r -d '' html_file; do
+    CHAPTER_CONTENTS="$contents_label" perl -0pi -e '
     my $contents = $ENV{"CHAPTER_CONTENTS"} // "Chapter Contents:";
     my $chapterHref = "./";
     s{</head>}{<style>\n#toc .project-index-toc {\n  margin-bottom: 0.75rem;\n}\n#toc .project-index-toc a {\n  color: inherit;\n  font-weight: 600;\n  text-decoration: none;\n}\n#toc .project-index-toc a:hover {\n  text-decoration: underline;\n}\n.chapter-overview-actions {\n  display: flex;\n  flex-wrap: wrap;\n  gap: 0.55rem;\n  margin: 1rem 0 0;\n}\n.chapter-overview-actions a {\n  display: inline-block;\n  padding: 0.34rem 0.65rem;\n  border: 1px solid #d0d7de;\n  border-radius: 6px;\n  background: #f6f8fa;\n  color: #556070;\n  font-size: 0.9rem;\n  font-weight: 600;\n  text-decoration: none;\n}\n.chapter-overview-actions a:hover {\n  border-color: #9fb0cf;\n  color: #1f2937;\n}\n</style>\n</head>};
@@ -39,7 +40,8 @@ add_project_index_links() {
       s{<div class="split-toc book">\s*<div class="title">}{<div class="split-toc project-index-toc">\n              <div class="title">\n                <span class="no-toggle"></span><span class=""><a href="../">Table of Contents</a></span>\n                </div>\n              </div>\n            <div class="split-toc book">\n              <div class="title">};
     }
     s{(<span class="">)Table of Contents(</span>)}{$1<a href="$chapterHref">$contents</a>$2};
-  ' {} +
+  ' "$html_file"
+  done < <(find "$chapter_dir" -name '*.html' -type f -print0)
 }
 
 # Split chapter manuals emit a standalone title page. Remove it from chapter
@@ -57,7 +59,8 @@ remove_generated_manual_titlepage() {
 # generated Graph/Summary links are folded into compact action buttons.
 move_references_to_bottom() {
   local chapter_dir="$1"
-  find "$chapter_dir" -name '*.html' -type f -exec perl -0pi -e '
+  while IFS= read -r -d '' html_file; do
+    perl -0pi -e '
     my $refs = "";
     my $graph_summary = "";
     if (s{(\s*<p>\s*<strong>References:</strong>\s*</p>\s*<ul>.*?</ul>\s*)}{}s) {
@@ -73,7 +76,8 @@ move_references_to_bottom() {
         s{(\s*</section>\s*</div>\s*</main>)}{$bottom$1}s;
       }
     }
-  ' {} +
+  ' "$html_file"
+  done < <(find "$chapter_dir" -name '*.html' -type f -print0)
 }
 
 # runner | overview module | output slug | site title | sidebar contents label
