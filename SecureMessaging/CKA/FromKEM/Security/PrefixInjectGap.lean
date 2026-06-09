@@ -20,7 +20,7 @@ equality (with the bit reversed across the two games) up to the prepared
 challenge bridges.
 -/
 
-open OracleSpec OracleComp ENNReal
+open OracleSpec OracleComp ENNReal KEMScheme
 open OracleComp.ProgramLogic.Relational
 
 namespace kemCKA
@@ -38,10 +38,10 @@ holds).  Both are stated on `.run'`, the projection the bridges use. -/
 
 /-- The honest implementation keeps `challengePassed` true on every reachable
 post-state, because no oracle step lowers the epoch counters. -/
-lemma securityImpl_preservesInv_challengePassed [SampleableType K] [DecidableEq K]
+private lemma securityImpl_preservesInv_challengePassed [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
     (isRandom : Bool) :
     QueryImpl.PreservesInv (securityImpl kem hDet leak gp isRandom)
@@ -65,15 +65,15 @@ private lemma probOutput_run'_true_eq_of_run_probOutput_eq
 
 /-- Past the injection epoch, `securityImplWithChallengeKeyPair` and the honest
 `securityImpl` give the same simulated output distribution after `.run'`. -/
-private lemma probOutput_simulateQ_wck_run'_eq_of_injectionPassed
+lemma probOutput_simulateQ_wck_run'_eq_of_injectionPassed
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
     (isRandom : Bool)
     (pkStar : PK) (skStar : SK)
-    (adv : OracleComp (SecuritySpec leak) Bool)
+    (adv : OracleComp (securitySpec leak) Bool)
     (s : SecurityState K PK SK C)
     (hs : injectionPassed gp s) :
     Pr[= true |
@@ -88,13 +88,13 @@ private lemma probOutput_simulateQ_wck_run'_eq_of_injectionPassed
 
 /-- Past the challenge epoch, the fixed-bit honest implementations give the same
 simulated output distribution after `.run'`. -/
-private lemma probOutput_simulateQ_true_false_run'_eq_of_challengePassed
+lemma probOutput_simulateQ_true_false_run'_eq_of_challengePassed
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
-    (leak : KEMRandLeak kem)
+    (leak : RandLeak kem)
     (gp : CKAScheme.GameParams)
-    (adv : OracleComp (SecuritySpec leak) Bool)
+    (adv : OracleComp (securitySpec leak) Bool)
     (s : SecurityState K PK SK C)
     (hs : challengePassed gp s) :
     Pr[= true |
