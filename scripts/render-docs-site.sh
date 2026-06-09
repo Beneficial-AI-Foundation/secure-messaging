@@ -167,10 +167,151 @@ cat > "$site_root/index.html" <<'HTML'
     .chapter-title:hover {
       text-decoration: underline;
     }
+    .blueprint-status {
+      margin-top: 34px;
+    }
+    .blueprint-status h2 {
+      margin: 0 0 14px;
+      font-size: 1.45rem;
+    }
+    .status-summary {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .status-card {
+      padding: 15px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--panel);
+    }
+    .status-card h3 {
+      margin: 0 0 10px;
+      font-size: 1rem;
+    }
+    .status-card dl {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+    }
+    .status-card dl div {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .status-card dt {
+      color: var(--muted);
+    }
+    .status-card dd {
+      margin: 0;
+      font-weight: 700;
+    }
+    .status-table {
+      width: 100%;
+      min-width: 720px;
+      border-collapse: collapse;
+      border: 1px solid var(--line);
+      font-size: 0.95rem;
+    }
+    .status-table caption {
+      margin-bottom: 8px;
+      color: var(--muted);
+      text-align: left;
+    }
+    .status-table th,
+    .status-table td {
+      padding: 9px 10px;
+      border-top: 1px solid var(--line);
+      text-align: left;
+    }
+    .status-table th:not(:first-child),
+    .status-table td {
+      text-align: right;
+    }
+    .status-table th[colspan] {
+      text-align: center;
+    }
+    .status-table .theorem-group {
+      border-left: 2px solid var(--line);
+    }
+    .status-count {
+      position: relative;
+      display: inline-flex;
+      justify-content: flex-end;
+      min-width: 1.6rem;
+      cursor: pointer;
+      outline: none;
+    }
+    .status-number {
+      color: var(--link);
+      font-weight: 700;
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 2px;
+    }
+    .status-popover {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      z-index: 20;
+      display: none;
+      width: max-content;
+      max-width: min(360px, 82vw);
+      max-height: 280px;
+      overflow: auto;
+      padding: 10px 12px;
+      border: 1px solid #b8c2d4;
+      border-radius: 6px;
+      background: #ffffff;
+      box-shadow: 0 12px 32px rgba(23, 32, 51, 0.16);
+      color: var(--text);
+      text-align: left;
+      white-space: normal;
+    }
+    .status-popover strong {
+      display: block;
+      margin-bottom: 7px;
+      font-size: 0.85rem;
+    }
+    .status-popover ul {
+      display: grid;
+      gap: 5px;
+      margin: 0;
+      padding-left: 1.1rem;
+    }
+    .status-popover a {
+      color: var(--link);
+    }
+    .status-popover code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 0.84rem;
+    }
+    .status-popover li span {
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+    .status-count:hover .status-popover,
+    .status-count:focus .status-popover,
+    .status-count:focus-within .status-popover {
+      display: block;
+    }
+    .status-table thead th {
+      border-top: 0;
+      background: var(--panel);
+      color: var(--muted);
+      font-weight: 600;
+    }
     @media (max-width: 640px) {
       .chapter-row {
         align-items: flex-start;
         flex-direction: column;
+      }
+      .status-summary {
+        grid-template-columns: 1fr;
+      }
+      .status-table {
+        font-size: 0.85rem;
       }
     }
     footer {
@@ -206,6 +347,11 @@ done
 
 cat >> "$site_root/index.html" <<'HTML'
     </ul>
+HTML
+
+python3 scripts/aggregate-blueprint-status.py --site-dir "$site_root" --html-summary >> "$site_root/index.html"
+
+cat >> "$site_root/index.html" <<'HTML'
     <footer>
       <a href="https://github.com/Beneficial-AI-Foundation/secure-messaging">Source on GitHub</a>
     </footer>
