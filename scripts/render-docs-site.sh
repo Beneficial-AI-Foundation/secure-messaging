@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Render each documentation chapter as its own Verso manual and combine the
+# outputs into one static site.
 output_root="_out/site"
 
+# By default, render the deployable site under `_out/site`. Pass
+# `--output <dir>` for local preview builds in a separate directory.
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --output)
@@ -19,6 +23,9 @@ done
 site_root="$output_root/html-multi"
 render_root="$output_root/chapter-renders"
 
+# Verso renders each chapter as a standalone manual. Add a project-level link to
+# every page sidebar and inject the small bits of shared styling needed by the
+# combined site.
 add_project_index_links() {
   local chapter_dir="$1"
   local contents_label="$2"
@@ -35,16 +42,22 @@ add_project_index_links() {
   ' {} +
 }
 
-remove_chapter_overview_title() {
+# Split chapter manuals emit a standalone title page. Remove it from chapter
+# overview pages because the combined site already shows the chapter title.
+remove_generated_manual_titlepage() {
   local index_file="$1"
   perl -0pi -e '
     s{\s*<div class="titlepage">\s*<h1>.*?</h1>\s*(?:<div class="authors"></div>\s*)?</div>\s*}{}s;
   ' "$index_file"
 }
 
-move_overview_references_to_bottom() {
-  local index_file="$1"
-  perl -0pi -e '
+# Chapter pages begin with references when the source manual starts with
+# `*References:*`. Move that block to the bottom of the page so definitions and
+# theorem statements are the first content a reader sees. On overview pages, the
+# generated Graph/Summary links are folded into compact action buttons.
+move_references_to_bottom() {
+  local chapter_dir="$1"
+  find "$chapter_dir" -name '*.html' -type f -exec perl -0pi -e '
     my $refs = "";
     my $graph_summary = "";
     if (s{(\s*<p>\s*<strong>References:</strong>\s*</p>\s*<ul>.*?</ul>\s*)}{}s) {
@@ -55,11 +68,15 @@ move_overview_references_to_bottom() {
         push @links, qq{<a href="$1">$2</a>};
       }
       my $actions = @links ? qq{<div class="chapter-overview-actions">} . join("", @links) . qq{</div>} : "";
-      s{(</ol>\s*</section>)}{$1$refs$actions}s;
+      my $bottom = $refs . $actions;
+      if (!s{(\s*</section>\s*<nav class="prev-next-buttons">)}{$bottom$1}s) {
+        s{(\s*</section>\s*</div>\s*</main>)}{$bottom$1}s;
+      }
     }
-  ' "$index_file"
+  ' {} +
 }
 
+# runner | overview module | output slug | site title | sidebar contents label
 chapters=(
   "docs/SecureMessagingDocs/Renderers/AEADMain.lean|SecureMessagingDocs.Chapters.AEAD.Overview|Authenticated-Encryption-with-Associated-Data|Authenticated Encryption with Associated Data|AEAD Contents:"
   "docs/SecureMessagingDocs/Renderers/CKAMain.lean|SecureMessagingDocs.Chapters.CKA.Overview|Continuous-Key-Agreement|Continuous Key Agreement|CKA Contents:"
@@ -75,6 +92,8 @@ chapters=(
 rm -rf "$site_root" "$render_root"
 mkdir -p "$site_root" "$render_root"
 
+# The site root is intentionally plain HTML: chapter manuals remain responsible
+# for their own Verso assets, search indexes, graphs, and previews.
 cat > "$site_root/index.html" <<'HTML'
 <!DOCTYPE html>
 <html lang="en">
@@ -176,9 +195,8 @@ for chapter in "${chapters[@]}"; do
   mkdir -p "$site_root/$slug"
   cp -R "$out_dir/html-multi/." "$site_root/$slug/"
   add_project_index_links "$site_root/$slug" "$contents_label"
-  remove_chapter_overview_title "$site_root/$slug/index.html"
-  move_overview_references_to_bottom "$site_root/$slug/index.html"
-  remove_chapter_overview_title "$site_root/$slug/index.html"
+  move_references_to_bottom "$site_root/$slug"
+  remove_generated_manual_titlepage "$site_root/$slug/index.html"
   printf '      <li><div class="chapter-row"><a class="chapter-title" href="%s/">%s</a></div></li>\n' "$slug" "$title" >> "$site_root/index.html"
 done
 

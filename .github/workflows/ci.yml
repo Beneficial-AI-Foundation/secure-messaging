@@ -34,7 +34,6 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
 
@@ -99,9 +98,22 @@ jobs:
       - name: Validate site output
         run: |
           test -f _out/site/html-multi/index.html
-          test -f _out/site/html-multi/Continuous-Key-Agreement/index.html
-          test -f _out/site/html-multi/Continuous-Key-Agreement/Dependency-Graph/index.html
-          test -f _out/site/html-multi/Continuous-Key-Agreement/Blueprint-Summary/index.html
+          chapters=(
+            Authenticated-Encryption-with-Associated-Data
+            Continuous-Key-Agreement
+            Erasure-Codes
+            Forward-Secure-AEAD
+            Online-Offline-KEM
+            PRF-PRNG
+            Ratcheting-KEM
+            Sparse-Continuous-Key-Agreement
+            Secure-Messaging
+          )
+          for chapter in "${chapters[@]}"; do
+            test -f "_out/site/html-multi/$chapter/index.html"
+            test -f "_out/site/html-multi/$chapter/Dependency-Graph/index.html"
+            test -f "_out/site/html-multi/$chapter/Blueprint-Summary/index.html"
+          done
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
