@@ -49,7 +49,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_signal_double_ratchet_spec"}[] · {uses "secure_messaging_abstract_double_ratchet_authenticity"}[] · {uses "fs_aead_security"}[] · {githubLabel}`github` {githubIssue 131}[]
+{usesLabel}`uses` {uses "secure_messaging_signal_double_ratchet_spec"}[] · {uses "secure_messaging_abstract_double_ratchet_authenticity"}[] · {githubLabel}`github` {githubIssue 131}[]
 ::::
 
 :::defTitle "secure_messaging_signal_double_ratchet_privacy" "Signal Double Ratchet privacy"
@@ -61,7 +61,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_signal_double_ratchet_spec"}[] · {uses "secure_messaging_abstract_double_ratchet_privacy"}[] · {uses "cka_security"}[] · {uses "fs_aead_security"}[] · {uses "prf_prng_security"}[] · {githubLabel}`github` {githubIssue 132}[]
+{usesLabel}`uses` {uses "secure_messaging_signal_double_ratchet_spec"}[] · {uses "secure_messaging_abstract_double_ratchet_privacy"}[] · {githubLabel}`github` {githubIssue 132}[]
 ::::
 
 :::defTitle "secure_messaging_signal_double_ratchet_security" "Signal Double Ratchet security"

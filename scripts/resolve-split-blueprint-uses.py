@@ -17,6 +17,17 @@ from pathlib import Path
 
 
 MANIFEST_PATH = "-verso-data/blueprint-preview-manifest.json"
+CHAPTER_PREFIXES = {
+    "Authenticated-Encryption-with-Associated-Data": "AEAD",
+    "Continuous-Key-Agreement": "CKA",
+    "Erasure-Codes": "EC",
+    "Forward-Secure-AEAD": "FS-AEAD",
+    "Online-Offline-KEM": "OO-KEM",
+    "PRF-PRNG": "PRF-PRNG",
+    "Ratcheting-KEM": "RKEM",
+    "Sparse-Continuous-Key-Agreement": "SCKA",
+    "Secure-Messaging": "SM",
+}
 ATOM_BLOCK_RE = re.compile(
     r'^(?P<fence>:{3,})(?P<kind>definition|theorem)\s+"(?P<label>[^"]+)".*?^\1\s*$',
     re.MULTILINE | re.DOTALL,
@@ -105,9 +116,14 @@ def relative_href(site_dir: Path, link_base: Path, target: AtomTarget) -> str:
     return rel + (sep + fragment if sep else "")
 
 
+def prefixed_title(target: AtomTarget) -> str:
+    prefix = CHAPTER_PREFIXES.get(target.chapter, target.chapter)
+    return f"{prefix}:{target.title}"
+
+
 def replacement_for(site_dir: Path, link_base: Path, target: AtomTarget) -> str:
     href = html.escape(relative_href(site_dir, link_base, target), quote=True)
-    title = html.escape(target.title)
+    title = html.escape(prefixed_title(target))
     label = html.escape(target.label, quote=True)
     return f'<span><a class="split-blueprint-use" href="{href}" title="{label}">{title}</a></span>'
 
@@ -126,6 +142,30 @@ def replace_unresolved_uses(block: str, replacements: list[str]) -> tuple[str, i
     return re.sub(r'<span>\[\?\?\]</span>', replace_one, block), replaced
 
 
+def prefix_resolved_uses(block: str, deps: list[str], targets: dict[str, AtomTarget]) -> tuple[str, int]:
+    prefixed = 0
+    for dep in deps:
+        target = targets.get(dep)
+        if not target:
+            continue
+        label = html.escape(target.label, quote=True)
+        title = html.escape(target.title)
+        display_title = html.escape(prefixed_title(target))
+        pattern = re.compile(
+            rf'(<a\b(?=[^>]*\btitle="{re.escape(label)}")[^>]*>)'
+            rf'{re.escape(title)}'
+            r'(</a>)'
+        )
+
+        def prefix_one(match: re.Match[str]) -> str:
+            nonlocal prefixed
+            prefixed += 1
+            return f"{match.group(1)}{display_title}{match.group(2)}"
+
+        block = pattern.sub(prefix_one, block, count=1)
+    return block, prefixed
+
+
 def process_html_file(
     html_file: Path,
     site_dir: Path,
@@ -139,7 +179,7 @@ def process_html_file(
         return 0
     link_base = link_base_dir(html_file, text)
 
-    total_replaced = 0
+    total_changed = 0
     output: list[str] = []
     cursor = 0
     marker = '<div class="bp_wrapper'
@@ -166,13 +206,15 @@ def process_html_file(
             ]
             if replacements and '<span>[??]</span>' in block:
                 block, replaced = replace_unresolved_uses(block, replacements)
-                total_replaced += replaced
+                total_changed += replaced
+            block, prefixed = prefix_resolved_uses(block, deps, targets)
+            total_changed += prefixed
         output.append(block)
         cursor = end
 
-    if total_replaced:
+    if total_changed:
         html_file.write_text("".join(output))
-    return total_replaced
+    return total_changed
 
 
 def main() -> None:
@@ -183,12 +225,12 @@ def main() -> None:
 
     uses_by_label = load_source_uses(args.docs_dir)
     targets = load_targets(args.site_dir)
-    replaced = 0
+    changed = 0
     for html_file in sorted(args.site_dir.glob("**/*.html")):
         if html_file == args.site_dir / "index.html":
             continue
-        replaced += process_html_file(html_file, args.site_dir, uses_by_label, targets)
-    print(f"Resolved {replaced} split Blueprint uses link(s).")
+        changed += process_html_file(html_file, args.site_dir, uses_by_label, targets)
+    print(f"Resolved or prefixed {changed} Blueprint uses link(s).")
 
 
 if __name__ == "__main__":

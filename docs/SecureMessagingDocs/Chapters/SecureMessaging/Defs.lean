@@ -60,7 +60,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[] · {uses "fs_aead_security"}[] · {githubLabel}`github` {githubIssue 121}[]
+{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[] · {githubLabel}`github` {githubIssue 121}[]
 ::::
 
 :::defTitle "secure_messaging_double_ratchet_privacy" "Double Ratchet privacy"
@@ -72,7 +72,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[] · {uses "cka_security"}[] · {uses "fs_aead_security"}[] · {uses "prf_prng_security"}[] · {githubLabel}`github` {githubIssue 121}[]
+{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[] · {githubLabel}`github` {githubIssue 121}[]
 ::::
 
 :::defTitle "secure_messaging_double_ratchet_security" "Double Ratchet security"
