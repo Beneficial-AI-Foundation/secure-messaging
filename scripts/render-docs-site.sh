@@ -345,6 +345,8 @@ for chapter in "${chapters[@]}"; do
   printf '      <li><div class="chapter-row"><a class="chapter-title" href="%s/">%s</a></div></li>\n' "$slug" "$title" >> "$site_root/index.html"
 done
 
+python3 scripts/resolve-split-blueprint-uses.py --site-dir "$site_root"
+
 cat >> "$site_root/index.html" <<'HTML'
     </ul>
 HTML

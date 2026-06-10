@@ -179,6 +179,32 @@ def smDocsCss : String := r#"
   font-style: normal;
 }
 
+/* Blueprint's default theorem style adds a left rail that definitions do not
+   have. Keep definitions and theorems visually uniform; the heading already
+   identifies the atom kind. */
+.bp_kind_theorem_content,
+div.theorem_thmcontent,
+html[data-bp-style="blueprint"] .bp_kind_theorem_content,
+html[data-bp-style="blueprint"] div.theorem_thmcontent,
+html[data-bp-style="modern"] .bp_kind_theorem_content,
+html[data-bp-style="modern"] .bp_wrapper div.theorem_thmcontent,
+html[data-bp-style="bold"] .bp_kind_theorem_content,
+html[data-bp-style="bold"] .bp_wrapper div.theorem_thmcontent {
+  border-left: 0 !important;
+  padding-left: 0 !important;
+}
+
+.split-blueprint-use {
+  color: #556070;
+  font-style: normal;
+  text-decoration-color: rgba(85, 96, 112, 0.35);
+  text-underline-offset: 0.15em;
+}
+.split-blueprint-use:hover {
+  color: #1f2937;
+  text-decoration-color: currentColor;
+}
+
 /* Hidden marker before an anchor; JS moves its text into .lean-pill-caption on the row. */
 p.lean-pill-caption {
   display: none;
