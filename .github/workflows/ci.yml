@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: ["main", "update-verso-blueprint"]
+    branches: ["main"]
     paths:
       - '**/*.lean'
       - 'scripts/**'
@@ -122,7 +122,7 @@ jobs:
 
   deploy:
     name: Deploy Pages
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     environment:
