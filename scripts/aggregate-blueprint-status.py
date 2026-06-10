@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+"""Summarize Blueprint atom coverage from a rendered split Verso site.
+
+Each chapter render emits a Blueprint preview manifest. This script reads those
+manifests, counts definition/theorem atoms, and reports whether each atom has an
+associated Lean block and appears fully verified.
+"""
 
 import argparse
 import html as html_module
@@ -39,6 +45,10 @@ def strip_tags(html: str) -> str:
 def classify(entry: dict, chapter: str) -> Atom:
     html = entry.get("html", "")
     text = strip_tags(html).lower()
+
+    # The rendered preview HTML is the only status source available here. The
+    # Lean pill renderer marks missing/partial declarations, while any remaining
+    # `sorry` text means the statement is specified but not fully verified.
     specified = 'class="hl lean block"' in html
     has_missing_marker = 'data-status="missing"' in html
     has_partial_marker = 'data-status="partial"' in html
@@ -56,6 +66,8 @@ def classify(entry: dict, chapter: str) -> Atom:
 
 
 def load_atoms(site_dir: Path) -> list[Atom]:
+    # The split site stores one manifest per chapter under
+    # <chapter>/-verso-data/blueprint-preview-manifest.json.
     manifests = sorted(site_dir.glob(f"*/{MANIFEST_PATH}"))
     if not manifests:
         raise SystemExit(
@@ -149,6 +161,9 @@ def status_count_cell(chapter: str, kind: str, metric: str, atoms: list[Atom], e
     metric_text = html_module.escape(metric.title())
     kind_text = html_module.escape(kind.title())
     atom_items = []
+
+    # Counts in the table are focusable; the popover gives reviewers a quick path
+    # from each aggregate number to the atoms that make it up.
     for atom in sorted(atoms, key=lambda item: item.label):
         label = html_module.escape(atom.label)
         title = html_module.escape(atom.title)

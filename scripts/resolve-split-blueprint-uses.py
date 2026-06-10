@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+"""Resolve cross-chapter Blueprint `uses` links after split rendering.
+
+Verso can resolve `uses` references within one rendered manual, but our site is
+assembled from independently rendered chapter manuals. This script stitches those
+manuals back together by reading source `uses` metadata and rendered preview
+manifests, then replacing cross-chapter `[??]` placeholders in the final HTML.
+"""
 
 import argparse
 import html
@@ -26,6 +33,8 @@ class AtomTarget:
 
 
 def load_source_uses(docs_dir: Path) -> dict[str, list[str]]:
+    # Source blocks preserve the authored order of `{uses ...}` references, which
+    # lets us replace the rendered `[??]` placeholders in the same order.
     uses_by_label: dict[str, list[str]] = {}
     for source in sorted(docs_dir.rglob("*.lean")):
         text = source.read_text()
@@ -37,6 +46,8 @@ def load_source_uses(docs_dir: Path) -> dict[str, list[str]]:
 
 
 def load_targets(site_dir: Path) -> dict[str, AtomTarget]:
+    # Rendered manifests provide the final display title and local href for every
+    # Blueprint atom. We index them globally by label across all chapters.
     targets: dict[str, AtomTarget] = {}
     duplicates: set[str] = set()
     for manifest in sorted(site_dir.glob(f"*/{MANIFEST_PATH}")):
@@ -65,17 +76,37 @@ def load_targets(site_dir: Path) -> dict[str, AtomTarget]:
     return targets
 
 
-def relative_href(site_dir: Path, html_file: Path, target: AtomTarget) -> str:
+def link_base_dir(html_file: Path, text: str) -> Path:
+    match = re.search(r'<base\s+href="([^"]*)"', text)
+    if not match:
+        return html_file.parent
+
+    # Verso pages set a relative <base> so chapter-local assets and links resolve
+    # from the chapter root. Cross-chapter links must be relative to that same
+    # base; otherwise GitHub Pages project paths can be escaped accidentally.
+    base_href = html.unescape(match.group(1))
+    if re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:", base_href) or base_href.startswith("/"):
+        return html_file.parent
+    base_path = base_href.partition("#")[0].partition("?")[0]
+    if not base_path:
+        return html_file.parent
+    return html_file.parent / base_path
+
+
+def relative_href(site_dir: Path, link_base: Path, target: AtomTarget) -> str:
     href, sep, fragment = target.href.partition("#")
     target_path = site_dir / target.chapter / href
-    rel = os.path.relpath(target_path, html_file.parent)
+    rel = os.path.relpath(target_path, link_base)
+
+    # Directory-style Verso hrefs need the trailing slash before the fragment so
+    # browsers resolve `chapter/page/#anchor`, not `chapter/page#anchor`.
     if href.endswith("/") and not rel.endswith("/"):
         rel += "/"
     return rel + (sep + fragment if sep else "")
 
 
-def replacement_for(site_dir: Path, html_file: Path, target: AtomTarget) -> str:
-    href = html.escape(relative_href(site_dir, html_file, target), quote=True)
+def replacement_for(site_dir: Path, link_base: Path, target: AtomTarget) -> str:
+    href = html.escape(relative_href(site_dir, link_base, target), quote=True)
     title = html.escape(target.title)
     label = html.escape(target.label, quote=True)
     return f'<span><a class="split-blueprint-use" href="{href}" title="{label}">{title}</a></span>'
@@ -106,6 +137,7 @@ def process_html_file(
         current_chapter = html_file.relative_to(site_dir).parts[0]
     except ValueError:
         return 0
+    link_base = link_base_dir(html_file, text)
 
     total_replaced = 0
     output: list[str] = []
@@ -124,8 +156,11 @@ def process_html_file(
         if title_match:
             label = html.unescape(title_match.group(1))
             deps = uses_by_label.get(label, [])
+
+            # Same-chapter dependencies are already resolved by Verso. Only the
+            # cross-chapter dependencies should correspond to `[??]` slots here.
             replacements = [
-                replacement_for(site_dir, html_file, targets[dep])
+                replacement_for(site_dir, link_base, targets[dep])
                 for dep in deps
                 if dep in targets and targets[dep].chapter != current_chapter
             ]

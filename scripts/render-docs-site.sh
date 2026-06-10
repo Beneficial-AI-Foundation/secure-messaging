@@ -334,6 +334,10 @@ HTML
 for chapter in "${chapters[@]}"; do
   IFS='|' read -r runner module slug title contents_label <<< "$chapter"
   echo "Rendering $title"
+
+  # Render one chapter manual into a temporary directory, then copy only its
+  # html-multi output into the assembled site. The helpers below normalize each
+  # standalone manual so it behaves like one chapter of the combined site.
   out_dir="$render_root/$slug"
   lake build SecureMessagingDocs.Render "$module"
   lake env lean --run "$runner" --output "$out_dir"
@@ -345,12 +349,17 @@ for chapter in "${chapters[@]}"; do
   printf '      <li><div class="chapter-row"><a class="chapter-title" href="%s/">%s</a></div></li>\n' "$slug" "$title" >> "$site_root/index.html"
 done
 
+# The chapters are rendered independently, so Verso cannot resolve Blueprint
+# `uses` links that point into a different chapter. Repair those placeholders
+# once all per-chapter manifests and HTML files are present in the combined site.
 python3 scripts/resolve-split-blueprint-uses.py --site-dir "$site_root"
 
 cat >> "$site_root/index.html" <<'HTML'
     </ul>
 HTML
 
+# Build the root Blueprint status table from the same per-chapter manifests.
+# This avoids importing every rich documentation module into one giant manual.
 python3 scripts/aggregate-blueprint-status.py --site-dir "$site_root" --html-summary >> "$site_root/index.html"
 
 cat >> "$site_root/index.html" <<'HTML'
