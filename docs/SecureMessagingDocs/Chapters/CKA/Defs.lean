@@ -119,7 +119,7 @@ structure GameParams where
 
 *Predicates*
 
-$`\allow(t_\mathsf{A},t_\mathsf{B},t^*,\Delta_\mathsf{FS},\Delta_\mathsf{PCS},P) \;\Leftrightarrow\; \max(t_\mathsf{A},t_\mathsf{B})+\Delta_\mathsf{PCS}\leq t^* \;\vee\; t^*+\Delta_\mathsf{FS}\leq t_P`$
+$`\allow(t_\mathsf{A},t_\mathsf{B},t^*,\Delta_\mathsf{FS},\Delta_\mathsf{PCS},P) \;\Leftrightarrow\; \max(t_\mathsf{A},t_\mathsf{B})+\Delta_\mathsf{PCS}\leq t^* \;\vee\; t^*+\Delta_\mathsf{FS}\leq t_P`
 
 ```anchor allowCorrPCS (project := ".") (module := SecureMessaging.CKA.Defs)
 def allowCorrPCS (gp : GameParams) (state : GameState St I Rho) : Bool :=
@@ -463,7 +463,7 @@ def correctnessExp [DecidableEq I] (cka : CKAScheme ProbComp IK St I Rho Rand)
 :::::::definition "cka_security" (lean := "CKAScheme.securityExp, CKAScheme.ckaSecurityImpl, CKAScheme.CKAAdversary")
 $`\todo`
 
-Let $`\O = \{\OSendA, \ORecA, \OChallA, \OCorrA, \OSendARLeak, \OSendB, \ORecB, \OChallB, \OCorrB, \OSendBRLeak\}`$.
+Let $`\O = \{\OSendA, \ORecA, \OChallA, \OCorrA, \OSendARLeak, \OSendB, \ORecB, \OChallB, \OCorrB, \OSendBRLeak\}`.
 
 :::leanPillCaption "specification for oracle interfaces"
 :::
