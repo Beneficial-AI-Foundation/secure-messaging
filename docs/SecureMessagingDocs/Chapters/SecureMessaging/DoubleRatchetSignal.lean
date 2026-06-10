@@ -10,10 +10,10 @@ open Informal
 
 set_option doc.verso true
 
-#doc (Manual) "Signal Protocol (Double Ratchet)" =>
+#doc (Manual) "Double Ratchet SM - Signal" =>
 
 :::group "secure_messaging_signal_protocol_double_ratchet"
-Signal Protocol (Double Ratchet).
+Double Ratchet SM - Signal.
 :::
 
 :::defTitle "secure_messaging_signal_double_ratchet_spec" "Signal Double Ratchet protocol"

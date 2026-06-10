@@ -11,14 +11,14 @@ open Informal
 
 set_option doc.verso true
 
-#doc (Manual) "Triple Ratchet" =>
+#doc (Manual) "Triple Ratchet SM" =>
 
 *References:*
 
 - {Informal.citet TR25}[]
 
 :::group "secure_messaging_triple_ratchet"
-Triple Ratchet.
+Triple Ratchet SM.
 :::
 
 :::defTitle "secure_messaging_triple_ratchet_scheme" "Secure messaging scheme (Triple Ratchet)"
@@ -54,7 +54,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_triple_ratchet_spec"}[] · {uses "erasure_code_correctness"}[] · {uses "rkem_correctness"}[] · {githubLabel}`github` {githubIssue 137}[]
+{usesLabel}`uses` {uses "secure_messaging_triple_ratchet_spec"}[] · {githubLabel}`github` {githubIssue 137}[]
 ::::
 
 :::defTitle "secure_messaging_triple_ratchet_authenticity" "Triple Ratchet authenticity"
@@ -66,7 +66,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_triple_ratchet_spec"}[] · {uses "fs_aead_security"}[] · {githubLabel}`github` {githubIssue 138}[]
+{usesLabel}`uses` {uses "secure_messaging_triple_ratchet_spec"}[] · {githubLabel}`github` {githubIssue 138}[]
 ::::
 
 :::defTitle "secure_messaging_triple_ratchet_privacy" "Triple Ratchet privacy"
@@ -78,7 +78,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_triple_ratchet_spec"}[] · {uses "rkem_forward_security"}[] · {uses "rkem_ratchet_sim"}[] · {uses "fs_aead_security"}[] · {uses "prf_prng_security"}[] · {githubLabel}`github` {githubIssue 139}[]
+{usesLabel}`uses` {uses "secure_messaging_triple_ratchet_spec"}[] · {githubLabel}`github` {githubIssue 139}[]
 ::::
 
 :::defTitle "secure_messaging_triple_ratchet_security" "Triple Ratchet security"

@@ -5,6 +5,8 @@ Verso can resolve `uses` references within one rendered manual, but our site is
 assembled from independently rendered chapter manuals. This script stitches those
 manuals back together by reading source `uses` metadata and rendered preview
 manifests, then replacing cross-chapter `[??]` placeholders in the final HTML.
+It also copies the needed preview entries into each chapter manifest so repaired
+cross-chapter links get the same hover previews as native same-chapter links.
 """
 
 import argparse
@@ -38,9 +40,11 @@ USES_RE = re.compile(r'\{uses\s+"([^"]+)"\}')
 @dataclass(frozen=True)
 class AtomTarget:
     label: str
+    key: str
     title: str
     chapter: str
     href: str
+    entry: dict
 
 
 def load_source_uses(docs_dir: Path) -> dict[str, list[str]]:
@@ -65,6 +69,8 @@ def load_targets(site_dir: Path) -> dict[str, AtomTarget]:
         chapter = manifest.relative_to(site_dir).parts[0]
         data = json.loads(manifest.read_text())
         for entry in data.get("previews", []):
+            if entry.get("splitPreviewCopy"):
+                continue
             if entry.get("targetKind") != "block":
                 continue
             if entry.get("kind") not in {"definition", "theorem"}:
@@ -77,9 +83,11 @@ def load_targets(site_dir: Path) -> dict[str, AtomTarget]:
                 duplicates.add(label)
             targets[label] = AtomTarget(
                 label=label,
+                key=entry.get("key", f"{label}--statement"),
                 title=entry.get("title", label),
                 chapter=chapter,
                 href=href,
+                entry=entry,
             )
     if duplicates:
         duplicate_list = ", ".join(sorted(duplicates))
@@ -121,11 +129,26 @@ def prefixed_title(target: AtomTarget) -> str:
     return f"{prefix}:{target.title}"
 
 
+def preview_id(target: AtomTarget) -> str:
+    escaped = re.sub(r"[^A-Za-z0-9-]", lambda match: f"-{ord(match.group(0)):04X}", target.key)
+    return f"bp-split-uses-{escaped}"
+
+
 def replacement_for(site_dir: Path, link_base: Path, target: AtomTarget) -> str:
     href = html.escape(relative_href(site_dir, link_base, target), quote=True)
     title = html.escape(prefixed_title(target))
     label = html.escape(target.label, quote=True)
-    return f'<span><a class="split-blueprint-use" href="{href}" title="{label}">{title}</a></span>'
+    key = html.escape(target.key, quote=True)
+    pid = html.escape(preview_id(target), quote=True)
+    return (
+        '<span><span class="bp_inline_preview_ref split-blueprint-use" '
+        f'data-bp-preview-id="{pid}" '
+        f'data-bp-preview-title="{title}" '
+        f'data-bp-preview-key="{key}" '
+        f'data-bp-preview-fallback-label="{label}">'
+        f'<a href="{href}" title="{label}">{title}</a>'
+        '</span></span>'
+    )
 
 
 def replace_unresolved_uses(block: str, replacements: list[str]) -> tuple[str, int]:
@@ -140,30 +163,6 @@ def replace_unresolved_uses(block: str, replacements: list[str]) -> tuple[str, i
         return value
 
     return re.sub(r'<span>\[\?\?\]</span>', replace_one, block), replaced
-
-
-def prefix_resolved_uses(block: str, deps: list[str], targets: dict[str, AtomTarget]) -> tuple[str, int]:
-    prefixed = 0
-    for dep in deps:
-        target = targets.get(dep)
-        if not target:
-            continue
-        label = html.escape(target.label, quote=True)
-        title = html.escape(target.title)
-        display_title = html.escape(prefixed_title(target))
-        pattern = re.compile(
-            rf'(<a\b(?=[^>]*\btitle="{re.escape(label)}")[^>]*>)'
-            rf'{re.escape(title)}'
-            r'(</a>)'
-        )
-
-        def prefix_one(match: re.Match[str]) -> str:
-            nonlocal prefixed
-            prefixed += 1
-            return f"{match.group(1)}{display_title}{match.group(2)}"
-
-        block = pattern.sub(prefix_one, block, count=1)
-    return block, prefixed
 
 
 def process_html_file(
@@ -207,14 +206,51 @@ def process_html_file(
             if replacements and '<span>[??]</span>' in block:
                 block, replaced = replace_unresolved_uses(block, replacements)
                 total_changed += replaced
-            block, prefixed = prefix_resolved_uses(block, deps, targets)
-            total_changed += prefixed
         output.append(block)
         cursor = end
 
     if total_changed:
         html_file.write_text("".join(output))
     return total_changed
+
+
+def copy_cross_preview_entries(
+    site_dir: Path,
+    uses_by_label: dict[str, list[str]],
+    targets: dict[str, AtomTarget],
+) -> int:
+    needed_by_chapter: dict[str, dict[str, dict]] = {}
+    for label, deps in uses_by_label.items():
+        source = targets.get(label)
+        if not source:
+            continue
+        for dep in deps:
+            target = targets.get(dep)
+            if not target or target.chapter == source.chapter:
+                continue
+            needed_by_chapter.setdefault(source.chapter, {})[target.key] = target.entry
+
+    copied = 0
+    for chapter, entries in sorted(needed_by_chapter.items()):
+        manifest = site_dir / chapter / MANIFEST_PATH
+        if not manifest.exists():
+            continue
+        data = json.loads(manifest.read_text())
+        previews = data.setdefault("previews", [])
+        existing = {entry.get("key", "") for entry in previews if isinstance(entry, dict)}
+        changed = False
+        for key, entry in sorted(entries.items()):
+            if key in existing:
+                continue
+            copied_entry = dict(entry)
+            copied_entry["splitPreviewCopy"] = True
+            previews.append(copied_entry)
+            existing.add(key)
+            copied += 1
+            changed = True
+        if changed:
+            manifest.write_text(json.dumps(data, ensure_ascii=False))
+    return copied
 
 
 def main() -> None:
@@ -230,7 +266,8 @@ def main() -> None:
         if html_file == args.site_dir / "index.html":
             continue
         changed += process_html_file(html_file, args.site_dir, uses_by_label, targets)
-    print(f"Resolved or prefixed {changed} Blueprint uses link(s).")
+    copied = copy_cross_preview_entries(args.site_dir, uses_by_label, targets)
+    print(f"Resolved {changed} split Blueprint uses link(s); copied {copied} preview entrie(s).")
 
 
 if __name__ == "__main__":

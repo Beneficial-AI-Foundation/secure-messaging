@@ -48,7 +48,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[] · {uses "cka_correct"}[] · {githubLabel}`github` {githubIssue 121}[]
+{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[] · {githubLabel}`github` {githubIssue 121}[]
 ::::
 
 :::defTitle "secure_messaging_double_ratchet_authenticity" "Double Ratchet authenticity"

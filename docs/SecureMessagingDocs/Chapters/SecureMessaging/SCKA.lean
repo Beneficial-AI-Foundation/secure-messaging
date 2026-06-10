@@ -11,14 +11,14 @@ open Informal
 
 set_option doc.verso true
 
-#doc (Manual) "SCKA" =>
+#doc (Manual) "SCKA SM" =>
 
 *References:*
 
 - {Informal.citet SCKA25}[]
 
 :::group "secure_messaging_scka"
-SCKA.
+SCKA SM.
 :::
 
 :::defTitle "secure_messaging_scka_scheme" "Secure messaging scheme (SCKA)"
@@ -54,7 +54,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_scka_spec"}[] · {uses "scka_correctness"}[] · {githubLabel}`github` {githubIssue 145}[]
+{usesLabel}`uses` {uses "secure_messaging_scka_spec"}[] · {githubLabel}`github` {githubIssue 145}[]
 ::::
 
 :::defTitle "secure_messaging_scka_authenticity" "SCKA secure messaging authenticity"
@@ -66,7 +66,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_scka_spec"}[] · {uses "scka_correctness"}[] · {uses "fs_aead_security"}[] · {githubLabel}`github` {githubIssue 146}[]
+{usesLabel}`uses` {uses "secure_messaging_scka_spec"}[] · {githubLabel}`github` {githubIssue 146}[]
 ::::
 
 :::defTitle "secure_messaging_scka_privacy" "SCKA secure messaging privacy"
@@ -78,7 +78,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_scka_spec"}[] · {uses "scka_security"}[] · {uses "fs_aead_security"}[] · {uses "prf_prng_security"}[] · {githubLabel}`github` {githubIssue 147}[]
+{usesLabel}`uses` {uses "secure_messaging_scka_spec"}[] · {githubLabel}`github` {githubIssue 147}[]
 ::::
 
 :::defTitle "secure_messaging_scka_security" "SCKA secure messaging security"

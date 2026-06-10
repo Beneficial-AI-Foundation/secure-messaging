@@ -82,6 +82,8 @@ def load_atoms(site_dir: Path) -> list[Atom]:
         chapter = chapter_name(manifest, site_dir)
         data = json.loads(manifest.read_text())
         for entry in data.get("previews", []):
+            if entry.get("splitPreviewCopy"):
+                continue
             if entry.get("targetKind") != "block" or entry.get("kind") not in TRACKED_KINDS:
                 continue
             atom = classify(entry, chapter)

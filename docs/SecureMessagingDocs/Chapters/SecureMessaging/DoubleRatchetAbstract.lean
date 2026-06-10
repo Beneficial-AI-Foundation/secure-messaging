@@ -11,14 +11,14 @@ open Informal
 
 set_option doc.verso true
 
-#doc (Manual) "Abstract Protocol (Double Ratchet)" =>
+#doc (Manual) "Double Ratchet SM - Abstract" =>
 
 *References:*
 
 - {Informal.citet ACD19}[]
 
 :::group "secure_messaging_abstract_protocol_double_ratchet"
-Abstract Protocol (Double Ratchet).
+Double Ratchet SM - Abstract.
 :::
 
 :::defTitle "secure_messaging_abstract_double_ratchet_spec" "Abstract Double Ratchet protocol"
@@ -42,7 +42,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_abstract_double_ratchet_spec"}[] · {uses "cka_correct"}[] · {githubLabel}`github` {githubIssue 125}[]
+{usesLabel}`uses` {uses "secure_messaging_abstract_double_ratchet_spec"}[] · {githubLabel}`github` {githubIssue 125}[]
 ::::
 
 :::defTitle "secure_messaging_abstract_double_ratchet_authenticity" "Abstract Double Ratchet authenticity"
@@ -54,7 +54,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_abstract_double_ratchet_spec"}[] · {uses "fs_aead_security"}[] · {githubLabel}`github` {githubIssue 126}[]
+{usesLabel}`uses` {uses "secure_messaging_abstract_double_ratchet_spec"}[] · {githubLabel}`github` {githubIssue 126}[]
 ::::
 
 :::defTitle "secure_messaging_abstract_double_ratchet_privacy" "Abstract Double Ratchet privacy"
@@ -66,7 +66,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_abstract_double_ratchet_spec"}[] · {uses "cka_security"}[] · {uses "fs_aead_security"}[] · {uses "prf_prng_security"}[] · {githubLabel}`github` {githubIssue 127}[]
+{usesLabel}`uses` {uses "secure_messaging_abstract_double_ratchet_spec"}[] · {githubLabel}`github` {githubIssue 127}[]
 ::::
 
 :::defTitle "secure_messaging_abstract_double_ratchet_security" "Abstract Double Ratchet security"
