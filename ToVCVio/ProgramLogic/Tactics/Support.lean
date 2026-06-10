@@ -35,15 +35,23 @@ macro "vcv_support" h:ident : tactic =>
     (vcv_simp_support at $h:ident
      vcv_extract_support_binds at $h:ident))
 
-/-- Normalize local support facts and close common support-generated goals. -/
+/-- Normalize local support facts and close common support-generated goals.
+
+After normalization the bind witnesses sit under existentials, so they are
+destructured before substitution; the explicit pair closers handle the
+one-counter-bump send shapes, where the bumped record is definitionally equal
+to the goal's projection but not syntactically. -/
 macro "vcv_support" : tactic =>
   `(tactic|
     (simp only [StateT.run_bind, StateT.run_get, StateT.run_set, StateT.run_monadLift,
       monadLift_self, StateT.run_pure, pure_bind, bind_assoc, support_bind,
       support_pure, Set.mem_iUnion, Set.mem_singleton_iff] at *
+     try casesm* Exists _, _ ∧ _
      try subst_vars
      first
        | grind
        | omega
        | exact ⟨le_refl _, le_refl _⟩
+       | exact ⟨Nat.le_succ _, le_refl _⟩
+       | exact ⟨le_refl _, Nat.le_succ _⟩
        | simp_all))
