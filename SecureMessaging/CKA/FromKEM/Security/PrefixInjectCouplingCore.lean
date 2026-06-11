@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 -/
 
 import SecureMessaging.CKA.FromKEM.Security.PrefixInjectGap
+import ToVCVio.ProgramLogic.Relational.Basic
 import VCVio.ProgramLogic.Relational.FromUnary
 
 /-!
@@ -712,22 +713,6 @@ lemma mem_support_keygen_of_keygen_rleak
     ks ∈ support kem.keygen := by
   rw [← leak.keygen_fst]
   exact (mem_support_bind_iff _ _ _).2 ⟨(ks, r), h, by simp⟩
-
-lemma relTriple_refl_support {α : Type} (mx : ProbComp α) :
-    RelTriple mx mx (fun a b => a = b ∧ a ∈ support mx) := by
-  rw [relTriple_iff_relWP, relWP_iff_couplingPost]
-  refine ⟨_root_.SPMF.Coupling.refl (𝒟[mx]), ?_⟩
-  intro z hz
-  rcases (mem_support_bind_iff
-    (𝒟[mx]) (fun a => (pure (a, a) : SPMF (α × α))) z).1 hz with
-    ⟨a, ha, hz'⟩
-  have hzEq : z = (a, a) := by
-    simpa [support_pure, Set.mem_singleton_iff] using hz'
-  subst hzEq
-  have ha' : some a ∈ (𝒟[mx]).run.support := by
-    rw [PMF.mem_support_iff]
-    exact (SPMF.mem_support_iff (𝒟[mx]) a).1 ha
-  exact ⟨rfl, mem_support_of_mem_support_evalDist mx a ha'⟩
 
 /-! ## The injecting sends with the guard off
 

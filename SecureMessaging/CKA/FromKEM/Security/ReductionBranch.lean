@@ -130,7 +130,7 @@ def ckaReductionBranchRun [SampleableType K] [DecidableEq K]
     (simulateQ (reductionBranchImpl kem hDet leak gp pkStar cStar kStar) adv).run rs0
   pure (!guess)
 
-lemma reductionBranchImpl_post_run [SampleableType K] [DecidableEq K]
+private lemma reductionBranchImpl_post_run [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
     (leak : RandLeak kem)

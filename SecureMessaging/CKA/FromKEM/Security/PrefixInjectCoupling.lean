@@ -16,8 +16,8 @@ Splitting both games at that query, the runs that never reach such a query are
 bit-independent and cancel inside each game's own gap, while the paused runs
 land in the challenge-bridge shapes.  The party-specific couplings live in
 `PrefixInjectCouplingA` and `PrefixInjectCouplingB`; this file assembles them
-into the gap-level bound `cka_injected_honest_gap_le_keygen_swapped_raw_gap`,
-the missing hop in the top-level advantage chain.
+into the gap equality `cka_injected_honest_gap_eq_keygen_swapped_raw_gap`,
+the final hop in the top-level advantage chain.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
@@ -818,32 +818,5 @@ lemma cka_injected_honest_gap_eq_keygen_swapped_raw_gap
     ENNReal.toReal_add probOutput_ne_top probOutput_ne_top]
   rw [add_sub_add_right_eq_sub, add_sub_add_right_eq_sub]
   exact abs_sub_comm _ _
-
-/-- The absolute challenge-bit gap of the injected honest branch is bounded by
-the gap of the keygen-swapped raw reduction branch.  The two gaps are in fact
-equal: see `cka_injected_honest_gap_eq_keygen_swapped_raw_gap`. -/
-lemma cka_injected_honest_gap_le_keygen_swapped_raw_gap
-    [SampleableType K] [DecidableEq K]
-    (kem : KEMScheme ProbComp K PK SK C)
-    (hDet : DeterministicDecaps kem)
-    (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
-    (leak : RandLeak kem)
-    (adv : Adversary (kem := kem) leak)
-    (gp : CKAScheme.GameParams)
-    (hgp : AdmissibleParams gp) :
-    |(Pr[= true |
-        ckaSecurityFixedBranchWithInjectedChallengeKey
-          kem hDet leak adv gp true]).toReal -
-      (Pr[= true |
-        ckaSecurityFixedBranchWithInjectedChallengeKey
-          kem hDet leak adv gp false]).toReal| ≤
-    |(Pr[= true |
-        ckaReductionINDCPABranchRawKeygenSwapped
-          kem hDet leak adv gp true]).toReal -
-      (Pr[= true |
-        ckaReductionINDCPABranchRawKeygenSwapped
-          kem hDet leak adv gp false]).toReal| :=
-  le_of_eq
-    (cka_injected_honest_gap_eq_keygen_swapped_raw_gap kem hDet hkem leak adv gp hgp)
 
 end kemCKA

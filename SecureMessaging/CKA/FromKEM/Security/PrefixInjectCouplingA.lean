@@ -487,14 +487,7 @@ private lemma coupleRelA_step_pre [SampleableType K] [DecidableEq K]
     rintro p q ⟨rfl, hsup⟩
     exact ⟨rfl, Or.inl ⟨rfl, preInvA_preserved_sendA kem hDet leak gp σ hpre p hsup⟩⟩
   · -- O-Recv-A: the same oracle on the same state
-    change RelTriple
-      ((securityImpl kem hDet leak gp false
-        (CKAScheme.ckaSecuritySpec.ORecvA : (securitySpec leak).Domain)).run σ)
-      ((securityImpl kem hDet leak gp false
-        (CKAScheme.ckaSecuritySpec.ORecvA : (securitySpec leak).Domain)).run σ) _
-    refine relTriple_post_mono (relTriple_refl_support _) ?_
-    rintro p q ⟨rfl, hsup⟩
-    exact ⟨rfl, Or.inl ⟨rfl,
+    exact relTriple_refl_support_post fun p hsup => ⟨rfl, Or.inl ⟨rfl,
       preInvA_preserved_recvA kem hDet leak hkem gp σ hpre p hsup⟩⟩
   · -- O-Send-B: the injecting send when the guard fires, honest otherwise
     change RelTriple
