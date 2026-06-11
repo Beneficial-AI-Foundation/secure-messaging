@@ -39,16 +39,6 @@ inductive CKAChallengeStepResult
   | pausedB
       (cont : Option (Message C PK × K) → OracleComp (securitySpec leak) α)
 
-def CKAChallengeStepResult.map
-    {K PK SK C α β : Type}
-    {kem : KEMScheme ProbComp K PK SK C}
-    {leak : RandLeak kem}
-    (f : α → β) :
-    CKAChallengeStepResult leak α → CKAChallengeStepResult leak β
-  | .done a => .done (f a)
-  | .pausedA cont => .pausedA (fun x => f <$> cont x)
-  | .pausedB cont => .pausedB (fun x => f <$> cont x)
-
 inductive CKAReductionState
     {K PK SK C : Type}
     {kem : KEMScheme ProbComp K PK SK C}

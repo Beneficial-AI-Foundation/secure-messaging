@@ -483,9 +483,8 @@ private lemma coupleRelA_step_pre [SampleableType K] [DecidableEq K]
     rw [oracleSendAWithChallengeKeyPair_run_eq_of_not_inject kem hDet leak gp pkStar
         skStar σ hg,
       oracleSendAWithChallengePk_run_eq_of_not_inject kem hDet leak gp pkStar σ hg]
-    refine relTriple_post_mono (relTriple_refl_support _) ?_
-    rintro p q ⟨rfl, hsup⟩
-    exact ⟨rfl, Or.inl ⟨rfl, preInvA_preserved_sendA kem hDet leak gp σ hpre p hsup⟩⟩
+    exact relTriple_refl_support_post fun p hsup => ⟨rfl, Or.inl ⟨rfl,
+      preInvA_preserved_sendA kem hDet leak gp σ hpre p hsup⟩⟩
   · -- O-Recv-A: the same oracle on the same state
     exact relTriple_refl_support_post fun p hsup => ⟨rfl, Or.inl ⟨rfl,
       preInvA_preserved_recvA kem hDet leak hkem gp σ hpre p hsup⟩⟩
@@ -540,20 +539,11 @@ private lemma coupleRelA_step_pre [SampleableType K] [DecidableEq K]
       rw [oracleSendBWithChallengeKeyPair_run_eq_of_not_inject kem hDet leak gp pkStar
           skStar σ hg,
         oracleSendBWithChallengePk_run_eq_of_not_inject kem hDet leak gp pkStar σ hg]
-      refine relTriple_post_mono (relTriple_refl_support _) ?_
-      rintro p q ⟨rfl, hsup⟩
-      exact ⟨rfl, Or.inl ⟨rfl,
+      exact relTriple_refl_support_post fun p hsup => ⟨rfl, Or.inl ⟨rfl,
         preInvA_preserved_sendB_of_not_inject kem hDet leak gp hparty hodd σ hpre hg
           p hsup⟩⟩
   · -- O-Recv-B: the same oracle on the same state
-    change RelTriple
-      ((securityImpl kem hDet leak gp false
-        (CKAScheme.ckaSecuritySpec.ORecvB : (securitySpec leak).Domain)).run σ)
-      ((securityImpl kem hDet leak gp false
-        (CKAScheme.ckaSecuritySpec.ORecvB : (securitySpec leak).Domain)).run σ) _
-    refine relTriple_post_mono (relTriple_refl_support _) ?_
-    rintro p q ⟨rfl, hsup⟩
-    exact ⟨rfl, Or.inl ⟨rfl,
+    exact relTriple_refl_support_post fun p hsup => ⟨rfl, Or.inl ⟨rfl,
       preInvA_preserved_recvB kem hDet leak hkem gp σ hpre p hsup⟩⟩
   · -- O-Chall-A: the guard is false inside the invariant
     change RelTriple
@@ -598,24 +588,10 @@ private lemma coupleRelA_step_pre [SampleableType K] [DecidableEq K]
     rw [hrun]
     exact relTriple_pure_pure ⟨rfl, Or.inl ⟨rfl, hpre⟩⟩
   · -- O-Send-A-rleak: the same oracle on the same state
-    change RelTriple
-      ((securityImpl kem hDet leak gp false
-        (CKAScheme.ckaSecuritySpec.OSendA_rleak : (securitySpec leak).Domain)).run σ)
-      ((securityImpl kem hDet leak gp false
-        (CKAScheme.ckaSecuritySpec.OSendA_rleak : (securitySpec leak).Domain)).run σ) _
-    refine relTriple_post_mono (relTriple_refl_support _) ?_
-    rintro p q ⟨rfl, hsup⟩
-    exact ⟨rfl, Or.inl ⟨rfl,
+    exact relTriple_refl_support_post fun p hsup => ⟨rfl, Or.inl ⟨rfl,
       preInvA_preserved_sendA_rleak kem hDet leak gp σ hpre p hsup⟩⟩
   · -- O-Send-B-rleak: the same oracle on the same state
-    change RelTriple
-      ((securityImpl kem hDet leak gp false
-        (CKAScheme.ckaSecuritySpec.OSendB_rleak : (securitySpec leak).Domain)).run σ)
-      ((securityImpl kem hDet leak gp false
-        (CKAScheme.ckaSecuritySpec.OSendB_rleak : (securitySpec leak).Domain)).run σ) _
-    refine relTriple_post_mono (relTriple_refl_support _) ?_
-    rintro p q ⟨rfl, hsup⟩
-    exact ⟨rfl, Or.inl ⟨rfl,
+    exact relTriple_refl_support_post fun p hsup => ⟨rfl, Or.inl ⟨rfl,
       preInvA_preserved_sendB_rleak kem hDet leak gp hΔ hodd σ hpre p hsup⟩⟩
 
 /-- One coupled oracle step in the injected phase.  The states differ exactly

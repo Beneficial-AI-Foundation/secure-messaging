@@ -54,24 +54,6 @@ structure AdmissibleParams (gp : CKAScheme.GameParams) : Prop where
   two_le_deltaPCS : 2 ≤ gp.ΔPCS
   challenge_epoch_compatible : challengeEpochCompatible gp
 
-lemma challengeEpoch_pos_of_compatible
-    (gp : CKAScheme.GameParams)
-    (h : challengeEpochCompatible gp) :
-    0 < gp.challengeEpoch := by
-  cases hp : gp.challengedParty
-  · have hmod : gp.challengeEpoch % 2 = 1 := by
-      simpa [challengeEpochCompatible, hp] using h
-    omega
-  · have hb : gp.challengeEpoch % 2 = 0 ∧ 0 < gp.challengeEpoch := by
-      simpa [challengeEpochCompatible, hp] using h
-    exact hb.2
-
-lemma challengeEpoch_pos_of_admissible
-    (gp : CKAScheme.GameParams)
-    (hgp : AdmissibleParams gp) :
-    0 < gp.challengeEpoch :=
-  challengeEpoch_pos_of_compatible gp hgp.challenge_epoch_compatible
-
 /-- The CKA adversary interface specialized to the leaking KEM construction.
 
 The adversary receives the generic CKA security oracle family with the
@@ -104,110 +86,6 @@ def epochCounterInv (s : SecurityState K PK SK C) : Prop :=
   | none | some .recvA | some .recvB => s.tA = s.tB
   | some .sendA | some .challA => s.tA = s.tB + 1
   | some .sendB | some .challB => s.tB = s.tA + 1
-
-lemma epochCounterInv_after_sendA
-    (σ : SecurityState K PK SK C)
-    (hInv : epochCounterInv σ)
-    (hstep : CKAScheme.validStep σ.lastAction .sendA = true) :
-    epochCounterInv
-      ({ σ with lastAction := some .sendA, tA := σ.tA + 1 } :
-        SecurityState K PK SK C) := by
-  cases hlast : σ.lastAction with
-  | none =>
-      simp [epochCounterInv, hlast] at hInv ⊢
-      omega
-  | some act =>
-      cases act <;> simp [CKAScheme.validStep, hlast] at hstep
-      case recvA =>
-        simp [epochCounterInv, hlast] at hInv ⊢
-        omega
-
-lemma epochCounterInv_after_challA
-    (σ : SecurityState K PK SK C)
-    (hInv : epochCounterInv σ)
-    (hstep : CKAScheme.validStep σ.lastAction .challA = true) :
-    epochCounterInv
-      ({ σ with lastAction := some .challA, tA := σ.tA + 1 } :
-        SecurityState K PK SK C) := by
-  cases hlast : σ.lastAction with
-  | none =>
-      simp [epochCounterInv, hlast] at hInv ⊢
-      omega
-  | some act =>
-      cases act <;> simp [CKAScheme.validStep, hlast] at hstep
-      case recvA =>
-        simp [epochCounterInv, hlast] at hInv ⊢
-        omega
-
-lemma epochCounterInv_after_recvB
-    (σ : SecurityState K PK SK C)
-    (hInv : epochCounterInv σ)
-    (hstep : CKAScheme.validStep σ.lastAction .recvB = true) :
-    epochCounterInv
-      ({ σ with lastAction := some .recvB, tB := σ.tB + 1 } :
-        SecurityState K PK SK C) := by
-  cases hlast : σ.lastAction with
-  | none =>
-      simp [CKAScheme.validStep, hlast] at hstep
-  | some act =>
-      cases act <;> simp [CKAScheme.validStep, hlast] at hstep
-      case sendA =>
-        simp [epochCounterInv, hlast] at hInv ⊢
-        omega
-      case challA =>
-        simp [epochCounterInv, hlast] at hInv ⊢
-        omega
-
-lemma epochCounterInv_after_sendB
-    (σ : SecurityState K PK SK C)
-    (hInv : epochCounterInv σ)
-    (hstep : CKAScheme.validStep σ.lastAction .sendB = true) :
-    epochCounterInv
-      ({ σ with lastAction := some .sendB, tB := σ.tB + 1 } :
-        SecurityState K PK SK C) := by
-  cases hlast : σ.lastAction with
-  | none =>
-      simp [CKAScheme.validStep, hlast] at hstep
-  | some act =>
-      cases act <;> simp [CKAScheme.validStep, hlast] at hstep
-      case recvB =>
-        simp [epochCounterInv, hlast] at hInv ⊢
-        omega
-
-lemma epochCounterInv_after_challB
-    (σ : SecurityState K PK SK C)
-    (hInv : epochCounterInv σ)
-    (hstep : CKAScheme.validStep σ.lastAction .challB = true) :
-    epochCounterInv
-      ({ σ with lastAction := some .challB, tB := σ.tB + 1 } :
-        SecurityState K PK SK C) := by
-  cases hlast : σ.lastAction with
-  | none =>
-      simp [CKAScheme.validStep, hlast] at hstep
-  | some act =>
-      cases act <;> simp [CKAScheme.validStep, hlast] at hstep
-      case recvB =>
-        simp [epochCounterInv, hlast] at hInv ⊢
-        omega
-
-lemma epochCounterInv_after_recvA
-    (σ : SecurityState K PK SK C)
-    (hInv : epochCounterInv σ)
-    (hstep : CKAScheme.validStep σ.lastAction .recvA = true) :
-    epochCounterInv
-      ({ σ with lastAction := some .recvA, tA := σ.tA + 1 } :
-        SecurityState K PK SK C) := by
-  cases hlast : σ.lastAction with
-  | none =>
-      simp [CKAScheme.validStep, hlast] at hstep
-  | some act =>
-      cases act <;> simp [CKAScheme.validStep, hlast] at hstep
-      case sendB =>
-        simp [epochCounterInv, hlast] at hInv ⊢
-        omega
-      case challB =>
-        simp [epochCounterInv, hlast] at hInv ⊢
-        omega
 
 def securityImpl [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
@@ -388,32 +266,6 @@ lemma allowCorrPCS_false_of_two_le_deltaPCS_of_tB_pred
       exact (Nat.add_le_add hmax hΔ).trans hle
     omega
   · simp [CKAScheme.allowCorrPCS, hle]
-
-lemma allowCorrPCS_false_of_sendA_injectsChallengeKey
-    (gp : CKAScheme.GameParams)
-    (σ : SecurityState K PK SK C)
-    (hΔ : 2 ≤ gp.ΔPCS)
-    (hinj : sendAInjectsChallengeKey gp σ = true) :
-    CKAScheme.allowCorrPCS gp σ = false := by
-  have hparts :
-      (gp.challengedParty == .B) = true ∧
-        (σ.tA == gp.challengeEpoch - 1) = true := by
-    simpa [sendAInjectsChallengeKey] using ((Bool.and_eq_true _ _).mp hinj)
-  have ht : σ.tA = gp.challengeEpoch - 1 := beq_iff_eq.mp hparts.2
-  exact allowCorrPCS_false_of_two_le_deltaPCS_of_tA_pred gp σ hΔ ht
-
-lemma allowCorrPCS_false_of_sendB_injectsChallengeKey
-    (gp : CKAScheme.GameParams)
-    (σ : SecurityState K PK SK C)
-    (hΔ : 2 ≤ gp.ΔPCS)
-    (hinj : sendBInjectsChallengeKey gp σ = true) :
-    CKAScheme.allowCorrPCS gp σ = false := by
-  have hparts :
-      (gp.challengedParty == .A) = true ∧
-        (σ.tB == gp.challengeEpoch - 1) = true := by
-    simpa [sendBInjectsChallengeKey] using ((Bool.and_eq_true _ _).mp hinj)
-  have ht : σ.tB = gp.challengeEpoch - 1 := beq_iff_eq.mp hparts.2
-  exact allowCorrPCS_false_of_two_le_deltaPCS_of_tB_pred gp σ hΔ ht
 
 def oracleSendAWithChallengePk
     (kem : KEMScheme ProbComp K PK SK C)

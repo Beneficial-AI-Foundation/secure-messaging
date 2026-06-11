@@ -34,18 +34,6 @@ inductive ReductionBranchState (K PK SK C : Type) where
   | pre (game : SecurityState K PK SK C)
   | post (post : PostChallengeState K PK SK C)
 
-def reductionBranchInitialState
-    (gp : CKAScheme.GameParams)
-    (pkStar pk0 : PK) (sk0 : SK) :
-    ReductionBranchState K PK SK C :=
-  .pre <|
-    CKAScheme.initGameState
-      (if gp.challengeEpoch == 1 && gp.challengedParty == .A then
-        State.sendReady pkStar
-      else
-        State.sendReady pk0)
-      (State.recvReady sk0)
-
 /-- Single-pass view of the concrete IND-CPA reduction branch.
 
 While in `.pre`, ordinary queries are handled by the prefix simulator that has
@@ -116,20 +104,6 @@ def reductionBranchImpl [SampleableType K] [DecidableEq K]
         set (ReductionBranchState.post ps')
         return out
 
-def ckaReductionBranchRun [SampleableType K] [DecidableEq K]
-    (kem : KEMScheme ProbComp K PK SK C)
-    (hDet : DeterministicDecaps kem)
-    (leak : RandLeak kem)
-    (adv : Adversary (kem := kem) leak)
-    (gp : CKAScheme.GameParams)
-    (pkStar : PK) (cStar : C) (kStar : K) : ProbComp Bool := do
-  let (pk0, sk0) ← kem.keygen
-  let rs0 : ReductionBranchState K PK SK C :=
-    reductionBranchInitialState gp pkStar pk0 sk0
-  let (guess, _) ←
-    (simulateQ (reductionBranchImpl kem hDet leak gp pkStar cStar kStar) adv).run rs0
-  pure (!guess)
-
 private lemma reductionBranchImpl_post_run [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -194,24 +168,6 @@ lemma reductionBranchImpl_pre_challA_run_of_will [SampleableType K] [DecidableEq
         pure (some (msg, kStar), ReductionBranchState.post ps')) := by
   simp [reductionBranchImpl, hWill, StateT.run_bind, StateT.run_get, StateT.run_set]
 
-lemma reductionBranchImpl_pre_challA_run_of_not_will [SampleableType K] [DecidableEq K]
-    (kem : KEMScheme ProbComp K PK SK C)
-    (hDet : DeterministicDecaps kem)
-    (leak : RandLeak kem)
-    (gp : CKAScheme.GameParams)
-    (pkStar : PK) (cStar : C) (kStar : K)
-    (σ : SecurityState K PK SK C)
-    (hWill : willChallengeA gp σ = false) :
-    (reductionBranchImpl kem hDet leak gp pkStar cStar kStar
-        (CKAScheme.ckaSecuritySpec.OChallA : (securitySpec leak).Domain)).run
-        (ReductionBranchState.pre σ) =
-      (do
-        let (out, σ') ←
-          (prefixImpl kem hDet leak gp pkStar
-            (CKAScheme.ckaSecuritySpec.OChallA : (securitySpec leak).Domain)).run σ
-        pure (out, ReductionBranchState.pre σ')) := by
-  simp [reductionBranchImpl, hWill, StateT.run_bind, StateT.run_get, StateT.run_set]
-
 lemma reductionBranchImpl_pre_challB_run_of_will [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -235,24 +191,6 @@ lemma reductionBranchImpl_pre_challB_run_of_will [SampleableType K] [DecidableEq
         let ps' : PostChallengeState K PK SK C :=
           { game := σ', pending := .bToA kStar pkNext msg }
         pure (some (msg, kStar), ReductionBranchState.post ps')) := by
-  simp [reductionBranchImpl, hWill, StateT.run_bind, StateT.run_get, StateT.run_set]
-
-lemma reductionBranchImpl_pre_challB_run_of_not_will [SampleableType K] [DecidableEq K]
-    (kem : KEMScheme ProbComp K PK SK C)
-    (hDet : DeterministicDecaps kem)
-    (leak : RandLeak kem)
-    (gp : CKAScheme.GameParams)
-    (pkStar : PK) (cStar : C) (kStar : K)
-    (σ : SecurityState K PK SK C)
-    (hWill : willChallengeB gp σ = false) :
-    (reductionBranchImpl kem hDet leak gp pkStar cStar kStar
-        (CKAScheme.ckaSecuritySpec.OChallB : (securitySpec leak).Domain)).run
-        (ReductionBranchState.pre σ) =
-      (do
-        let (out, σ') ←
-          (prefixImpl kem hDet leak gp pkStar
-            (CKAScheme.ckaSecuritySpec.OChallB : (securitySpec leak).Domain)).run σ
-        pure (out, ReductionBranchState.pre σ')) := by
   simp [reductionBranchImpl, hWill, StateT.run_bind, StateT.run_get, StateT.run_set]
 
 def challengePrefix [SampleableType K] [DecidableEq K]
@@ -291,59 +229,6 @@ def challengePrefix [SampleableType K] [DecidableEq K]
           let out ← (prefixImpl kem hDet leak gp pkStar other)
           rec out)
 
-lemma challengePrefix_pure [SampleableType K] [DecidableEq K]
-    (kem : KEMScheme ProbComp K PK SK C)
-    (hDet : DeterministicDecaps kem)
-    (leak : RandLeak kem)
-    (gp : CKAScheme.GameParams)
-    (pkStar : PK)
-    {α : Type} (a : α) :
-    challengePrefix kem hDet leak gp pkStar (pure a : OracleComp (securitySpec leak) α) =
-      pure (.done a) := by
-  simp [challengePrefix]
-
-lemma challengePrefix_query_challA [SampleableType K] [DecidableEq K]
-    (kem : KEMScheme ProbComp K PK SK C)
-    (hDet : DeterministicDecaps kem)
-    (leak : RandLeak kem)
-    (gp : CKAScheme.GameParams)
-    (pkStar : PK)
-    {α : Type}
-    (mx : Option (Message C PK × K) → OracleComp (securitySpec leak) α) :
-    challengePrefix kem hDet leak gp pkStar
-        ((securitySpec leak).query
-            (CKAScheme.ckaSecuritySpec.OChallA : (securitySpec leak).Domain) >>= mx) =
-      (do
-        let σ ← get
-        if willChallengeA gp σ then
-          pure (.pausedA mx)
-        else
-          let out ← prefixImpl kem hDet leak gp pkStar
-            (CKAScheme.ckaSecuritySpec.OChallA : (securitySpec leak).Domain)
-          challengePrefix kem hDet leak gp pkStar (mx out)) := by
-  simp [challengePrefix]
-
-lemma challengePrefix_query_challB [SampleableType K] [DecidableEq K]
-    (kem : KEMScheme ProbComp K PK SK C)
-    (hDet : DeterministicDecaps kem)
-    (leak : RandLeak kem)
-    (gp : CKAScheme.GameParams)
-    (pkStar : PK)
-    {α : Type}
-    (mx : Option (Message C PK × K) → OracleComp (securitySpec leak) α) :
-    challengePrefix kem hDet leak gp pkStar
-        ((securitySpec leak).query
-            (CKAScheme.ckaSecuritySpec.OChallB : (securitySpec leak).Domain) >>= mx) =
-      (do
-        let σ ← get
-        if willChallengeB gp σ then
-          pure (.pausedB mx)
-        else
-          let out ← prefixImpl kem hDet leak gp pkStar
-            (CKAScheme.ckaSecuritySpec.OChallB : (securitySpec leak).Domain)
-          challengePrefix kem hDet leak gp pkStar (mx out)) := by
-  simp [challengePrefix]
-
 def ckaToINDCPAReduction [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -373,34 +258,6 @@ def ckaToINDCPAReduction [SampleableType K] [DecidableEq K]
         finishChallengeStep kem hDet leak gp (.pausedA cont) σ cStar kStar
     | .pausedB σ cont =>
         finishChallengeStep kem hDet leak gp (.pausedB cont) σ cStar kStar
-
-lemma ckaToINDCPAReduction_pre_post_eq_finish
-    [SampleableType K] [DecidableEq K]
-    (kem : KEMScheme ProbComp K PK SK C)
-    (hDet : DeterministicDecaps kem)
-    (leak : RandLeak kem)
-    (adv : Adversary (kem := kem) leak)
-    (gp : CKAScheme.GameParams)
-    (pkStar : PK) (cStar : C) (kStar : K) :
-    (do
-      let st ← (ckaToINDCPAReduction kem hDet leak adv gp).preChallenge pkStar
-      (ckaToINDCPAReduction kem hDet leak adv gp).postChallenge st cStar kStar) =
-    (do
-      let (pk0, sk0) ← kem.keygen
-      let σ0 :=
-        CKAScheme.initGameState
-          (if gp.challengeEpoch == 1 && gp.challengedParty == .A then
-            State.sendReady pkStar
-          else
-            State.sendReady pk0)
-          (State.recvReady sk0)
-      let (res, σ) ← (challengePrefix kem hDet leak gp pkStar adv).run σ0
-      finishChallengeStep kem hDet leak gp res σ cStar kStar) := by
-  unfold ckaToINDCPAReduction
-  simp only [Bool.and_eq_true, beq_iff_eq, bind_assoc]
-  refine bind_congr (m := ProbComp) fun pk0_sk0 => ?_
-  refine bind_congr (m := ProbComp) fun res_σ => ?_
-  cases res_σ.1 <;> rfl
 
 
 end kemCKA
