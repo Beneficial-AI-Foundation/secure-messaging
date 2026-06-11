@@ -249,8 +249,11 @@ has three mutually exclusive outcomes summing to `1`:
 So `Pr[= true | exp] = 1` reduces to:
 * `nofail`         — `Pr[⊥ | exp] = 0` (never fails);
 * `always_correct` — `Pr[= false | exp] = 0` (never returns `false`). -/
+-- ANCHOR: correctness
 theorem correctness [DecidableEq G] (adv : CKACorrectnessAdversary G G) :
-    Pr[= true | correctnessExp (ddhCKA F G gen) adv] = 1 := by
+  Pr[= true | correctnessExp (ddhCKA F G gen) adv] = 1
+-- ANCHOR_END: correctness
+  := by
   rw [← probEvent_eq_eq_probOutput, probEvent_eq_one_iff]
   exact ⟨nofail adv, always_correct adv⟩
 

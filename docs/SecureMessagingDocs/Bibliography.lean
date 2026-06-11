@@ -53,3 +53,36 @@ def NIST_GCM : Verso.Genre.Manual.Bibliography.Citable := .article
   , volume := inlines!"800-38D"
   , number := inlines!""
   , url := some "https://csrc.nist.gov/pubs/sp/800/38/d/final" }
+
+@[bib "RFC5510"]
+def RFC5510 : Verso.Genre.Manual.Bibliography.Citable := .article
+  { title := inlines!"Reed-Solomon Forward Error Correction (FEC) Schemes"
+  , authors := #[inlines!"J. Lacan", inlines!"V. Roca", inlines!"J. Peltotalo", inlines!"S. Peltotalo"]
+  , journal := inlines!"RFC"
+  , year := 2009
+  , month := some (inlines!"April")
+  , volume := inlines!"5510"
+  , number := inlines!""
+  , url := some "https://datatracker.ietf.org/doc/rfc5510/" }
+
+@[bib "SPQR-ENC"]
+def SPQR_ENC : Verso.Genre.Manual.Bibliography.Citable := .article
+  { title := inlines!"Sparse Post Quantum Ratchet: Encoding Layer"
+  , authors := #[inlines!"Signal"]
+  , journal := inlines!"SparsePostQuantumRatchet"
+  , year := 2025
+  , month := none
+  , volume := inlines!""
+  , number := inlines!""
+  , url := some "https://github.com/signalapp/SparsePostQuantumRatchet/tree/main/src/encoding" }
+
+@[bib "MLKEM-Braid"]
+def MLKEM_Braid : Verso.Genre.Manual.Bibliography.Citable := .article
+  { title := inlines!"The ML-KEM Braid Specification"
+  , authors := #[inlines!"Signal"]
+  , journal := inlines!"Signal Specifications"
+  , year := 2025
+  , month := none
+  , volume := inlines!""
+  , number := inlines!""
+  , url := some "https://signal.org/docs/specifications/mlkembraid/" }

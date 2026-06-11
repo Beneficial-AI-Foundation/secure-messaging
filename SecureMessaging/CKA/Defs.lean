@@ -200,25 +200,27 @@ universe u v
 /-- A continuous key agreement (CKA) protocol with initial-key space `IK`,
 per-party state space `St`, epoch-key space `I`, protocol-message space `Rho`,
 and send-randomness space `Rand`. -/
+-- ANCHOR: CKAScheme
 structure CKAScheme (m : Type → Type u) [Monad m] (IK St I Rho Rand : Type) where
-  -- samples initial shared key
+  /-- samples initial shared key -/
   initKeyGen : m IK
-  -- initializes A's local state from the initial key
+  /-- initializes A's local state from the initial key -/
   initA : IK → m St
-  -- initializes B's local state from the initial key
+  /-- initializes B's local state from the initial key -/
   initB : IK → m St
-  -- Party A's send: returns the fresh epoch key, message sent to B, and A's next state.
+  /-- Party A's send: returns the fresh epoch key, message sent to B, and A's next state. -/
   sendA : St → m (Option (I × Rho × St))
-  -- Party A's randomness-leaking send: also returns the randomness used for the send.
+  /-- Party A's randomness-leaking send: also returns the randomness used for the send. -/
   sendA_rleak : St → m (Option (I × Rho × St × Rand))
-  -- Party A's receive: returns the derived epoch key and A's next state.
+  /-- Party A's receive: returns the derived epoch key and A's next state. -/
   recvA : St → Rho → Option (I × St)
-  -- Party B's send: returns the fresh epoch key, message sent to A, and B's next state.
+  /-- Party B's send: returns the fresh epoch key, message sent to A, and B's next state. -/
   sendB : St → m (Option (I × Rho × St))
-  -- Party B's randomness-leaking send: also returns the randomness used for the send.
+  /-- Party B's randomness-leaking send: also returns the randomness used for the send. -/
   sendB_rleak : St → m (Option (I × Rho × St × Rand))
-  -- Party B's receive: returns the derived epoch key and B's next state.
+  /-- Party B's receive: returns the derived epoch key and B's next state. -/
   recvB : St → Rho → Option (I × St)
+-- ANCHOR_END: CKAScheme
 
 namespace CKAScheme
 
@@ -301,11 +303,17 @@ def validStep (last : Option CKAAction) (next : CKAAction) : Bool :=
   | _, _ => false
 
 /-- Game parameters fixed at the start of the security experiment. -/
+-- ANCHOR: GameParams
 structure GameParams where
-  challengeEpoch : ℕ              -- epoch that adversary will challenge
-  ΔFS : ℕ           -- forward-secrecy delay after which state corruption is allowed
-  ΔPCS : ℕ          -- PCS delay before the challenge during which corruption is disallowed
-  challengedParty : CKAParty  -- which party is challenged by the adversary
+  /-- Epoch challenged by the adversary. -/
+  challengeEpoch : ℕ
+  /-- Forward-secrecy delay after which state corruption is allowed. -/
+  ΔFS : ℕ
+  /-- Post-compromise-security delay before the challenge during which corruption is disallowed. -/
+  ΔPCS : ℕ
+  /-- Party selected for the challenge oracle. -/
+  challengedParty : CKAParty
+-- ANCHOR_END: GameParams
 
 /-- Internal state of the CKA game.
 - `stA`, `stB`: per-party protocol state.
@@ -314,17 +322,29 @@ structure GameParams where
 - `correct`: tracks whether A and B agree on derived keys at all epochs.
 - `lastAction`: enforces alternating communication.
 - `tA`, `tB`: per-party epoch counters. -/
+-- ANCHOR: GameState
 structure GameState (St I Rho : Type) where
+  /-- Local protocol state for party A. -/
   stA : St
+  /-- Local protocol state for party B. -/
   stB : St
-  rhoA : Option Rho  -- latest undelivered A -> B message
-  rhoB : Option Rho  -- latest undelivered B -> A message
-  keyA : Option I    -- sender key corresponding to `rhoA`
-  keyB : Option I    -- sender key corresponding to `rhoB`
+  /-- Latest undelivered message sent from A to B. -/
+  rhoA : Option Rho
+  /-- Latest undelivered message sent from B to A. -/
+  rhoB : Option Rho
+  /-- Sender key corresponding to `rhoA`. -/
+  keyA : Option I
+  /-- Sender key corresponding to `rhoB`. -/
+  keyB : Option I
+  /-- Whether delivered epoch keys have agreed so far. -/
   correct : Bool
+  /-- Last oracle action, used to enforce alternating communication. -/
   lastAction : Option CKAAction
-  tA : ℕ             -- epoch counter for A (incremented on each send/chall/recv by A)
-  tB : ℕ             -- epoch counter for B (incremented on each send/chall/recv by B)
+  /-- Epoch counter for A, incremented on A-side send, challenge, or receive. -/
+  tA : ℕ
+  /-- Epoch counter for B, incremented on B-side send, challenge, or receive. -/
+  tB : ℕ
+-- ANCHOR_END: GameState
 
 /-- Epoch counter for party `p`. -/
 def GameState.tP (s : GameState St I Rho) : CKAParty → ℕ
@@ -338,12 +358,14 @@ def GameState.stP (s : GameState St I Rho) : CKAParty → St
 
 /-- Oracle spec for the CKA correctness game (send + recv only).
 Defines the expected oracles types. -/
+-- ANCHOR: ckaCorrectnessSpec
 def ckaCorrectnessSpec (Rho I : Type) :=
   unifSpec                        -- Uniform randomness
   + (Unit →ₒ Option (Rho × I))   -- O-Send-A (outputs message and key)
   + (Unit →ₒ Unit)               -- O-Recv-A (no adversary I/O; delivers the pending sent message)
   + (Unit →ₒ Option (Rho × I))   -- O-Send-B (outputs message and key)
   + (Unit →ₒ Unit)               -- O-Recv-B (no adversary I/O; delivers the pending sent message)
+-- ANCHOR_END: ckaCorrectnessSpec
 
 namespace ckaCorrectnessSpec
 
@@ -368,6 +390,7 @@ end ckaCorrectnessSpec
 
 /-- Oracle spec for the CKA security game (send + recv + challenge + corrupt + rleak).
 Defines the expected oracles types. -/
+-- ANCHOR: ckaSecuritySpec
 def ckaSecuritySpec (St Rho I Rand : Type) :=
   ckaCorrectnessSpec Rho I
   + (Unit →ₒ Option (Rho × I))   -- O-Chall-A (outputs message and key)
@@ -376,6 +399,7 @@ def ckaSecuritySpec (St Rho I Rand : Type) :=
   + (Unit →ₒ Option St)           -- O-Corrupt-B (outputs party state)
   + (Unit →ₒ Option (Rho × I × Rand)) -- O-Send-A-rleak
   + (Unit →ₒ Option (Rho × I × Rand)) -- O-Send-B-rleak
+-- ANCHOR_END: ckaSecuritySpec
 
 namespace ckaSecuritySpec
 
@@ -413,8 +437,10 @@ end ckaSecuritySpec
 /-! ### Epoch predicates (used for restricting oracle calls, defining reductions, etc) -/
 
 /-- Challenge allowed only when the challenged party's counter is at `challengeEpoch`. -/
+-- ANCHOR: isChallengeEpoch
 def isChallengeEpoch (gp : GameParams) (state : GameState St I Rho) : Bool :=
   state.tP gp.challengedParty == gp.challengeEpoch
+-- ANCHOR_END: isChallengeEpoch
 
 /-- The opposite party is sending in the epoch immediately before the challenge.
 
@@ -425,27 +451,34 @@ def isOtherSendBeforeChall (gp : GameParams) (state : GameState St I Rho) : Bool
 
 /-- Post-challenge FS gate for party `p`:
 party `p` has advanced `ΔFS` epochs past the challenge. -/
+-- ANCHOR: allowCorrFS
 abbrev allowCorrFS (gp : GameParams) (state : GameState St I Rho) : CKAParty → Bool
   | .A => gp.challengeEpoch + gp.ΔFS ≤ state.tA
   | .B => gp.challengeEpoch + gp.ΔFS ≤ state.tB
+-- ANCHOR_END: allowCorrFS
 
 /-- Pre-challenge PCS gate:
 `max(tA, tB) ≤ challengeEpoch - ΔPCS`, equivalently
 `max(tA, tB) + ΔPCS ≤ challengeEpoch`. -/
+-- ANCHOR: allowCorrPCS
 def allowCorrPCS (gp : GameParams) (state : GameState St I Rho) : Bool :=
   (max state.tA state.tB) + gp.ΔPCS ≤ gp.challengeEpoch
+-- ANCHOR_END: allowCorrPCS
 
 /-- Corruption gate for party `p`. This is the disjunction of the two allowed
 corruption windows: both party counters are `ΔPCS` epochs before the challenge,
 or party `p` has advanced `ΔFS` epochs past the challenge. -/
+-- ANCHOR: allowCorr
 def allowCorr (gp : GameParams) (state : GameState St I Rho) : CKAParty → Bool
   | p => allowCorrPCS gp state || allowCorrFS gp state p
+-- ANCHOR_END: allowCorr
 
 /-! ### Send oracles -/
 
 /-- **O-Send-A.**
 Increment epoch counter, trigger send by A, return message and key.
 `tA++; (key, ρ, stA') ← sendA(stA)`; return `(ρ, key)`. -/
+-- ANCHOR: oracleSendA
 def oracleSendA (cka : CKAScheme ProbComp IK St I Rho Rand) :
     QueryImpl (Unit →ₒ Option (Rho × I)) (StateT (GameState St I Rho) ProbComp) :=
   fun () => do
@@ -465,10 +498,12 @@ def oracleSendA (cka : CKAScheme ProbComp IK St I Rho Rand) :
         -- Return the message and key to the adversary.
         return some (ρ, key)
     else pure none
+-- ANCHOR_END: oracleSendA
 
 /-- **O-Send-B.**
 Increment epoch counter, trigger send by B, return message and key.
 `tB++; (key, ρ, stB') ← sendB(stB)`; return `(ρ, key)`. -/
+-- ANCHOR: oracleSendB
 def oracleSendB (cka : CKAScheme ProbComp IK St I Rho Rand) :
     QueryImpl (Unit →ₒ Option (Rho × I)) (StateT (GameState St I Rho) ProbComp) :=
   fun () => do
@@ -488,11 +523,13 @@ def oracleSendB (cka : CKAScheme ProbComp IK St I Rho Rand) :
         -- Return the message and key to the adversary.
         return some (ρ, key)
     else pure none
+-- ANCHOR_END: oracleSendB
 
 /-! ### Randomness-leaking send oracles -/
 
 /-- **O-Send-A-rleak.** Like `O-Send-A`, but returns the randomness used by
 A's send when the post-increment epoch is before the `ΔPCS` challenge window. -/
+-- ANCHOR: oracleSendA_rleak
 def oracleSendA_rleak (gp : GameParams) (cka : CKAScheme ProbComp IK St I Rho Rand) :
     QueryImpl (Unit →ₒ Option (Rho × I × Rand)) (StateT (GameState St I Rho) ProbComp) :=
   fun () => do
@@ -509,9 +546,11 @@ def oracleSendA_rleak (gp : GameParams) (cka : CKAScheme ProbComp IK St I Rho Ra
           return some (ρ, key, rand)
       else pure none
     else pure none
+-- ANCHOR_END: oracleSendA_rleak
 
 /-- **O-Send-B-rleak.** Like `O-Send-B`, but returns the randomness used by
 B's send when the post-increment epoch is before the `ΔPCS` challenge window. -/
+-- ANCHOR: oracleSendB_rleak
 def oracleSendB_rleak (gp : GameParams) (cka : CKAScheme ProbComp IK St I Rho Rand) :
     QueryImpl (Unit →ₒ Option (Rho × I × Rand)) (StateT (GameState St I Rho) ProbComp) :=
   fun () => do
@@ -528,6 +567,7 @@ def oracleSendB_rleak (gp : GameParams) (cka : CKAScheme ProbComp IK St I Rho Ra
           return some (ρ, key, rand)
       else pure none
     else pure none
+-- ANCHOR_END: oracleSendB_rleak
 
 /-! ### Receive oracles -/
 
@@ -535,6 +575,7 @@ def oracleSendB_rleak (gp : GameParams) (cka : CKAScheme ProbComp IK St I Rho Ra
 Increment epoch counter, run A's receive on B's pending message, and update
 the internal `correct` flag.
 `tA++; (keyA, stA') ← recvA(stA, ρB); correct := correct ∧ (keyA == keyB)`. -/
+-- ANCHOR: oracleRecvA
 def oracleRecvA [DecidableEq I] (cka : CKAScheme ProbComp IK St I Rho Rand) :
     QueryImpl (Unit →ₒ Unit) (StateT (GameState St I Rho) ProbComp) :=
   fun () => do
@@ -560,11 +601,13 @@ def oracleRecvA [DecidableEq I] (cka : CKAScheme ProbComp IK St I Rho Rand) :
             -- Update correctness flag.
             correct := state.correct && ok, lastAction := some .recvA }
     else pure ()
+-- ANCHOR_END: oracleRecvA
 
 /-- **O-Recv-B.**
 Increment epoch counter, run B's receive on A's pending message, and update
 the internal `correct` flag.
 `tB++; (keyB, stB') ← recvB(stB, ρA); correct := correct ∧ (keyB == keyA)`. -/
+-- ANCHOR: oracleRecvB
 def oracleRecvB [DecidableEq I] (cka : CKAScheme ProbComp IK St I Rho Rand) :
     QueryImpl (Unit →ₒ Unit) (StateT (GameState St I Rho) ProbComp) :=
   fun () => do
@@ -590,6 +633,7 @@ def oracleRecvB [DecidableEq I] (cka : CKAScheme ProbComp IK St I Rho Rand) :
             -- Update correctness flag.
             correct := state.correct && ok, lastAction := some .recvB }
     else pure ()
+-- ANCHOR_END: oracleRecvB
 
 /-! ### Challenge oracles -/
 
@@ -597,6 +641,7 @@ def oracleRecvB [DecidableEq I] (cka : CKAScheme ProbComp IK St I Rho Rand) :
 Increment epoch counter, trigger send by A, return message and key.
 Like `O-Send-A` but returns `b ? $ᵗ I : key` (real or
 random key). Only fires when `challengedParty = A` and `tA = challengeEpoch`. -/
+-- ANCHOR: oracleChallA
 def oracleChallA (gp : GameParams) (isRandom : Bool) [SampleableType I]
     (cka : CKAScheme ProbComp IK St I Rho Rand) :
     QueryImpl (Unit →ₒ Option (Rho × I)) (StateT (GameState St I Rho) ProbComp) :=
@@ -621,11 +666,13 @@ def oracleChallA (gp : GameParams) (isRandom : Bool) [SampleableType I]
           return some (ρ, outKey)
       else pure none
     else pure none
+-- ANCHOR_END: oracleChallA
 
 /-- **O-Chall-B.**
 Increment epoch counter, trigger send by B, return message and key.
 Like `O-Send-B` but returns `b ? $ᵗ I : key` (real or
 random key). Only fires when `challengedParty = B` and `tB = challengeEpoch`. -/
+-- ANCHOR: oracleChallB
 def oracleChallB (gp : GameParams) (isRandom : Bool) [SampleableType I]
     (cka : CKAScheme ProbComp IK St I Rho Rand) :
     QueryImpl (Unit →ₒ Option (Rho × I)) (StateT (GameState St I Rho) ProbComp) :=
@@ -649,6 +696,7 @@ def oracleChallB (gp : GameParams) (isRandom : Bool) [SampleableType I]
           return some (ρ, outKey)
       else pure none
     else pure none
+-- ANCHOR_END: oracleChallB
 
 /-! ### Corruption oracles
 
@@ -659,21 +707,25 @@ Corruption is allowed iff either
 
 /-- **O-Corrupt-A.** Return `stA` if either the `ΔPCS` pre-challenge gate holds,
 or A has advanced `ΔFS` epochs past the challenge. -/
+-- ANCHOR: oracleCorruptA
 def oracleCorruptA (gp : GameParams) (St I Rho : Type) :
     QueryImpl (Unit →ₒ Option St) (StateT (GameState St I Rho) ProbComp) :=
   fun () => do
     let state ← get
     if allowCorr gp state .A then return some state.stA
     else return none
+-- ANCHOR_END: oracleCorruptA
 
 /-- **O-Corrupt-B.** Return `stB` if either the `ΔPCS` pre-challenge gate holds,
 or B has advanced `ΔFS` epochs past the challenge. -/
+-- ANCHOR: oracleCorruptB
 def oracleCorruptB (gp : GameParams) (St I Rho : Type) :
     QueryImpl (Unit →ₒ Option St) (StateT (GameState St I Rho) ProbComp) :=
   fun () => do
     let state ← get
     if allowCorr gp state .B then return some state.stB
     else return none
+-- ANCHOR_END: oracleCorruptB
 
 /-- Oracle for adversary randomness: forwards to `ProbComp`. -/
 def oracleUnif (St I Rho : Type) :
@@ -681,13 +733,16 @@ def oracleUnif (St I Rho : Type) :
   (QueryImpl.ofLift unifSpec ProbComp).liftTarget (StateT (GameState St I Rho) ProbComp)
 
 /-- Oracle set for the correctness game. -/
+-- ANCHOR: ckaCorrectnessImpl
 def ckaCorrectnessImpl [DecidableEq I] (cka : CKAScheme ProbComp IK St I Rho Rand) :
     QueryImpl (ckaCorrectnessSpec Rho I) (StateT (GameState St I Rho) ProbComp) :=
   oracleUnif St I Rho
     + oracleSendA cka + oracleRecvA cka
     + oracleSendB cka + oracleRecvB cka
+-- ANCHOR_END: ckaCorrectnessImpl
 
 /-- Oracle set for the security game. -/
+-- ANCHOR: ckaSecurityImpl
 def ckaSecurityImpl (gp : GameParams) (isRandom : Bool) [SampleableType I] [DecidableEq I]
     (cka : CKAScheme ProbComp IK St I Rho Rand) :
     QueryImpl (ckaSecuritySpec St Rho I Rand) (StateT (GameState St I Rho) ProbComp) :=
@@ -695,12 +750,17 @@ def ckaSecurityImpl (gp : GameParams) (isRandom : Bool) [SampleableType I] [Deci
     + oracleChallA gp isRandom cka + oracleChallB gp isRandom cka
     + oracleCorruptA gp St I Rho + oracleCorruptB gp St I Rho
     + oracleSendA_rleak gp cka + oracleSendB_rleak gp cka
+-- ANCHOR_END: ckaSecurityImpl
 
 /-- Correctness adversary: send + recv oracles only. -/
+-- ANCHOR: CKACorrectnessAdversary
 abbrev CKACorrectnessAdversary (Rho I : Type) := OracleComp (ckaCorrectnessSpec Rho I) Bool
+-- ANCHOR_END: CKACorrectnessAdversary
 
 /-- Security adversary: send + recv + challenge + corruption + rleak oracles. -/
+-- ANCHOR: CKAAdversary
 abbrev CKAAdversary (St Rho I Rand : Type) := OracleComp (ckaSecuritySpec St Rho I Rand) Bool
+-- ANCHOR_END: CKAAdversary
 
 /-! ### Correctness game -/
 
@@ -722,6 +782,7 @@ returns whether all delivered epoch keys matched.
   `σ_0  := initGameState(stA, stB)`
   `(_,σ_f)  ← 𝒜^O(σ_0)`,        where `O = (O-Send-A, O-Recv-A, O-Send-B, O-Recv-B)`
   `output σ_f.correct` -/
+-- ANCHOR: correctnessExp
 def correctnessExp [DecidableEq I] (cka : CKAScheme ProbComp IK St I Rho Rand)
     (adversary : CKACorrectnessAdversary Rho I) : ProbComp Bool := do
   let ik ← cka.initKeyGen
@@ -730,6 +791,7 @@ def correctnessExp [DecidableEq I] (cka : CKAScheme ProbComp IK St I Rho Rand)
   let (_, state) ←
     (simulateQ (ckaCorrectnessImpl cka) adversary).run (initGameState stA stB)
   return state.correct
+-- ANCHOR_END: correctnessExp
 
 /-! ### Security game -/
 
@@ -748,6 +810,7 @@ returns whether the adversary guesses the challenge bit.
   `output (b = b')`
 
 As in [ACD19, Def. 13, Fig. 3]. -/
+-- ANCHOR: securityExp
 def securityExp [SampleableType I] [DecidableEq I] (cka : CKAScheme ProbComp IK St I Rho Rand)
   (adversary : CKAAdversary St Rho I Rand)
     (gp : GameParams) : ProbComp Bool := do
@@ -757,12 +820,15 @@ def securityExp [SampleableType I] [DecidableEq I] (cka : CKAScheme ProbComp IK 
   let b ← $ᵗ Bool
   let (b', _) ← (simulateQ (ckaSecurityImpl gp b cka) adversary).run (initGameState stA stB)
   return (b == b')
+-- ANCHOR_END: securityExp
 
 /-- CKA guess advantage: `|Pr[Win] - 1/2|`. -/
+-- ANCHOR: ckaGuessAdvantage
 noncomputable def ckaGuessAdvantage [SampleableType I] [DecidableEq I]
     (cka : CKAScheme ProbComp IK St I Rho Rand) (adversary : CKAAdversary St Rho I Rand)
     (gp : GameParams) : ℝ :=
   |(Pr[= true | securityExp cka adversary gp]).toReal - 1 / 2|
+-- ANCHOR_END: ckaGuessAdvantage
 
 /-! ### Useful security game decomposition -/
 

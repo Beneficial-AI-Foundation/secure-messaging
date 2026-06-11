@@ -164,6 +164,7 @@ differs, with A starting from the public key and B from the secret key. For a
 KEM that does not expose its coins, instantiate `leak` with the trivial
 package `RandLeak.noLeak kem`.
 -/
+-- ANCHOR: scheme
 def scheme {m : Type → Type u} [Monad m] {K PK SK C : Type}
     (kem : KEMScheme m K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -178,5 +179,6 @@ def scheme {m : Type → Type u} [Monad m] {K PK SK C : Type}
   sendB := send kem
   sendB_rleak := send_rleak kem leak
   recvB := recv hDet
+-- ANCHOR_END: scheme
 
 end kemCKA

@@ -43,6 +43,7 @@ The statement is an existential wrapper around a concrete witness: the proof
 instantiates `red := ckaToINDCPAReduction kem hDet leak adv gp` and proves the
 two advantages equal, so the stated bound holds with equality.
 -/
+-- ANCHOR: security_reduces_to_ind_cpa_exists
 theorem security_reduces_to_ind_cpa_exists [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -53,7 +54,9 @@ theorem security_reduces_to_ind_cpa_exists [SampleableType K] [DecidableEq K]
     (hgp : AdmissibleParams gp) :
     ∃ red : KEMScheme.IND_CPA_Adversary kem,
       CKAScheme.ckaDistAdvantage (scheme kem hDet leak) adv gp ≤
-        KEMScheme.IND_CPA_Advantage (kem := kem) ProbCompRuntime.probComp red := by
+        KEMScheme.IND_CPA_Advantage (kem := kem) ProbCompRuntime.probComp red
+-- ANCHOR_END: security_reduces_to_ind_cpa_exists
+    := by
   refine ⟨ckaToINDCPAReduction kem hDet leak adv gp, le_of_eq ?_⟩
   rw [kem_ind_cpa_advantage_eq_fixed_branch_dist,
     ckaToINDCPAReduction_IND_CPA_Exp_probOutput_true_eq_branch kem hDet leak adv gp true,

@@ -90,10 +90,14 @@ variable {G : Type} [AddCommGroup G] [Module F G] [SampleableType G]
 and can produce the next epoch key by sampling a scalar. `recvReady x` means
 the party holds its previously sampled scalar `x : F` and can receive the next
 DH public value. -/
+-- ANCHOR: CKAState
 inductive CKAState (F G : Type) where
+  /-- Holds the peer's current DH public value and is ready to send. -/
   | sendReady : G → CKAState F G
+  /-- Holds the party's sampled scalar and is ready to receive. -/
   | recvReady : F → CKAState F G
   deriving DecidableEq, Fintype, Repr
+-- ANCHOR_END: CKAState
 
 /-- `send(h : G)`: `x ← $ᵗ F`; `key := x • h`, `msg := x • gen`, `st' := x`. -/
 def send (gen : G) (st : CKAState F G) : ProbComp (Option (G × G × CKAState F G)) :=
@@ -134,6 +138,7 @@ def recv (st : CKAState F G) (ρ : G) : Option (G × CKAState F G) :=
 - `sendA(h: G)` and `sendB(h: G)`: defined as `send(h: G)` above.
 - `recvA(x: F, ρ: G)` and `recvB(x: F, ρ: G)` defined as `recv(x: F, ρ: G)` above.
 -/
+-- ANCHOR: ddhCKA
 def ddhCKA (F G : Type) [Field F] [Fintype F] [DecidableEq F] [SampleableType F]
     [AddCommGroup G] [Module F G] [SampleableType G]
   (gen : G) : CKAScheme ProbComp (G × F) (CKAState F G) G G F where
@@ -148,3 +153,4 @@ def ddhCKA (F G : Type) [Field F] [Fintype F] [DecidableEq F] [SampleableType F]
   sendB_rleak := send_rleak gen
   recvA := recv
   recvB := recv
+-- ANCHOR_END: ddhCKA

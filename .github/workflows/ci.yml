@@ -5,6 +5,7 @@ on:
     branches: ["main"]
     paths:
       - '**/*.lean'
+      - 'scripts/**'
       - 'lean-toolchain'
       - 'lakefile.toml'
       - 'lake-manifest.json'
@@ -13,6 +14,7 @@ on:
     branches: ["main"]
     paths:
       - '**/*.lean'
+      - 'scripts/**'
       - 'lean-toolchain'
       - 'lakefile.toml'
       - 'lake-manifest.json'
@@ -35,20 +37,83 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Cache Lake build products
+        id: lake-build-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .lake/build
+          key: lake-build-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'lake-manifest.json', '**/*.lean') }}
+          restore-keys: |
+            lake-build-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'lake-manifest.json') }}-
+            lake-build-${{ runner.os }}-
+
       - uses: leanprover/lean-action@v1
         with:
           auto-config: "false"
           build: "true"
           use-mathlib-cache: "true"
 
-      - name: Build documentation
-        run: lake build SecureMessagingDocs
+      - name: Build documentation modules
+        run: |
+          lake build \
+            SecureMessagingDocs.Chapters.AEAD.Defs \
+            SecureMessagingDocs.Chapters.AEAD.AESGCM \
+            SecureMessagingDocs.Chapters.AEAD.EncryptThenMAC \
+            SecureMessagingDocs.Chapters.CKA.Defs \
+            SecureMessagingDocs.Chapters.CKA.FromDDH \
+            SecureMessagingDocs.Chapters.CKA.FromKEM \
+            SecureMessagingDocs.Chapters.CKA.FromLWE \
+            SecureMessagingDocs.Chapters.ErasureCodes.Defs \
+            SecureMessagingDocs.Chapters.ErasureCodes.ReedSolomon \
+            SecureMessagingDocs.Chapters.FSAEAD.Defs \
+            SecureMessagingDocs.Chapters.FSAEAD.FromAEADPRG \
+            SecureMessagingDocs.Chapters.OnOffKEM.Defs \
+            SecureMessagingDocs.Chapters.OnOffKEM.FromMLKEM \
+            SecureMessagingDocs.Chapters.PRFPRNG.Defs \
+            SecureMessagingDocs.Chapters.PRFPRNG.FromPRPPRG \
+            SecureMessagingDocs.Chapters.RKEM.Defs \
+            SecureMessagingDocs.Chapters.RKEM.FromDDHNonFS \
+            SecureMessagingDocs.Chapters.RKEM.FromDDHFS \
+            SecureMessagingDocs.Chapters.RKEM.FromKEM \
+            SecureMessagingDocs.Chapters.RKEM.KatanaPlain \
+            SecureMessagingDocs.Chapters.RKEM.KatanaOptimised \
+            SecureMessagingDocs.Chapters.SCKA.Defs \
+            SecureMessagingDocs.Chapters.SCKA.UniKEM \
+            SecureMessagingDocs.Chapters.SCKA.BiKEM \
+            SecureMessagingDocs.Chapters.SCKA.RKEM \
+            SecureMessagingDocs.Chapters.SCKA.OppUniKEM \
+            SecureMessagingDocs.Chapters.SCKA.OppBiKEM \
+            SecureMessagingDocs.Chapters.SCKA.OppRKEM \
+            SecureMessagingDocs.Chapters.SecureMessaging.Defs \
+            SecureMessagingDocs.Chapters.SecureMessaging.DoubleRatchetAbstract \
+            SecureMessagingDocs.Chapters.SecureMessaging.DoubleRatchetSignal \
+            SecureMessagingDocs.Chapters.SecureMessaging.TripleRatchet \
+            SecureMessagingDocs.Chapters.SecureMessaging.SCKA \
+            SecureMessagingDocs.Visuals.Style
 
       - name: Generate documentation site
-        run: lake env lean --run SecureMessagingDocsMain.lean --output _out/site
+        run: scripts/render-docs-site.sh
 
       - name: Validate site output
-        run: test -f _out/site/html-multi/index.html
+        run: |
+          test -f _out/site/html-multi/index.html
+          chapters=(
+            Authenticated-Encryption-with-Associated-Data
+            Continuous-Key-Agreement
+            Erasure-Codes
+            Forward-Secure-AEAD
+            Online-Offline-KEM
+            PRF-PRNG
+            Ratcheting-KEM
+            Sparse-Continuous-Key-Agreement
+            Secure-Messaging
+          )
+          for chapter in "${chapters[@]}"; do
+            test -f "_out/site/html-multi/$chapter/index.html"
+            test -f "_out/site/html-multi/$chapter/Dependency-Graph/index.html"
+            test -f "_out/site/html-multi/$chapter/Blueprint-Summary/index.html"
+          done
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
@@ -57,7 +122,7 @@ jobs:
 
   deploy:
     name: Deploy Pages
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     needs: build
     runs-on: ubuntu-latest
     environment:
