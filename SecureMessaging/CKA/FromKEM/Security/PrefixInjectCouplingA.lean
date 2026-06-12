@@ -29,7 +29,7 @@ variable {K PK SK C : Type}
 challenge epoch; it keeps `willChallengeA` false until the injecting send.
 `preInvA` combines it with `securityShapeInv`. -/
 
-def preTraceA
+private def preTraceA
     (gp : CKAScheme.GameParams)
     (σ : SecurityState K PK SK C) : Prop :=
   match σ.lastAction with
@@ -40,7 +40,7 @@ def preTraceA
   | some .recvA => σ.tA % 2 = 0 ∧ σ.tA = σ.tB ∧ σ.tA + 3 ≤ gp.challengeEpoch
   | some .challA | some .challB => False
 
-def preInvA
+private def preInvA
     (kem : KEMScheme ProbComp K PK SK C)
     (gp : CKAScheme.GameParams)
     (σ : SecurityState K PK SK C) : Prop :=

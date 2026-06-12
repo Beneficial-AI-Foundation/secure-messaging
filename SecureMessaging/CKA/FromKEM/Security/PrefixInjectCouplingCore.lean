@@ -176,7 +176,7 @@ oracles are the two challenge oracles, and the prefix steps them only at states
 where their `willChallengeA`/`willChallengeB` guard is false, where they are
 full no-ops.  At the pause both sides perform the same challenge step at the
 real bit `b`. -/
-lemma simulateQ_wck_run_eq_injectedChallengePrefix_bind
+private lemma simulateQ_wck_run_eq_injectedChallengePrefix_bind
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -385,7 +385,7 @@ private lemma willChallengeB_eq_false_of_challengePassed
 /-- The key-pair-injecting implementation keeps both epoch counters
 non-decreasing, like `securityImpl`: only the send oracles differ, and they
 bump the sender's counter by one. -/
-lemma wck_run_counters_mono [SampleableType K] [DecidableEq K]
+private lemma wck_run_counters_mono [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
     (leak : RandLeak kem)
@@ -462,7 +462,7 @@ lemma wck_run_counters_mono [SampleableType K] [DecidableEq K]
 /-- The reduction prefix implementation keeps both epoch counters
 non-decreasing: only its send oracles differ from `securityImpl`'s, and they
 bump the sender's counter by one. -/
-lemma prefixImpl_run_counters_mono [SampleableType K] [DecidableEq K]
+private lemma prefixImpl_run_counters_mono [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
     (leak : RandLeak kem)

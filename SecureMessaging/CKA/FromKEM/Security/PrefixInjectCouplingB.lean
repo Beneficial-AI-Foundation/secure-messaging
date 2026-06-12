@@ -29,7 +29,7 @@ alternation trace keeps `tA` at least two epochs below the challenge epoch at
 the receive that could precede the injecting send, and the challenge epoch is
 even. -/
 
-def preTraceB
+private def preTraceB
     (gp : CKAScheme.GameParams)
     (σ : SecurityState K PK SK C) : Prop :=
   match σ.lastAction with
@@ -40,7 +40,7 @@ def preTraceB
   | some .recvA => σ.tA % 2 = 0 ∧ σ.tA = σ.tB ∧ σ.tA + 2 ≤ gp.challengeEpoch
   | some .challA | some .challB => False
 
-def preInvB
+private def preInvB
     (kem : KEMScheme ProbComp K PK SK C)
     (gp : CKAScheme.GameParams)
     (σ : SecurityState K PK SK C) : Prop :=
