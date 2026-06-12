@@ -119,7 +119,7 @@ private lemma reductionBranchImpl_post_run [SampleableType K] [DecidableEq K]
       (do
         let (out, ps') ← (postChallengeImpl kem hDet leak gp t).run ps
         pure (out, ReductionBranchState.post ps')) := by
-  simp [reductionBranchImpl, StateT.run_bind, StateT.run_get, StateT.run_set]
+  simp [reductionBranchImpl, stateT_run]
 
 /-- Once in `.post`, simulating a whole adversary under `reductionBranchImpl`
 is the same as simulating it under `postChallengeImpl`, with the state
@@ -142,7 +142,7 @@ lemma reductionBranchImpl_post_simulateQ_run [SampleableType K] [DecidableEq K]
   | pure a =>
       simp
   | query_bind t cont ih =>
-      simp only [simulateQ_bind, simulateQ_spec_query, StateT.run_bind]
+      simp only [simulateQ_bind, simulateQ_spec_query, stateT_run]
       rw [reductionBranchImpl_post_run]
       simp only [bind_assoc, pure_bind]
       refine bind_congr (m := ProbComp) fun p => ?_
@@ -174,7 +174,7 @@ lemma reductionBranchImpl_pre_challA_run_of_will [SampleableType K] [DecidableEq
         let ps' : PostChallengeState K PK SK C :=
           { game := σ', pending := .aToB kStar pkNext msg }
         pure (some (msg, kStar), ReductionBranchState.post ps')) := by
-  simp [reductionBranchImpl, hWill, StateT.run_bind, StateT.run_get, StateT.run_set]
+  simp [reductionBranchImpl, hWill, stateT_run]
 
 /-- Run reduction for the due B-challenge, the mirror of
 `reductionBranchImpl_pre_challA_run_of_will`. -/
@@ -201,7 +201,7 @@ lemma reductionBranchImpl_pre_challB_run_of_will [SampleableType K] [DecidableEq
         let ps' : PostChallengeState K PK SK C :=
           { game := σ', pending := .bToA kStar pkNext msg }
         pure (some (msg, kStar), ReductionBranchState.post ps')) := by
-  simp [reductionBranchImpl, hWill, StateT.run_bind, StateT.run_get, StateT.run_set]
+  simp [reductionBranchImpl, hWill, stateT_run]
 
 /-- Run the adversary under the prefix implementation until its first due
 challenge query, returning the interrupted continuation

@@ -1,11 +1,19 @@
 import ToMathlib.Control.StateT
+import ToVCVio.Control.SimpAttr
 
 /-!
 # `StateT.run` rewrites
 
 Small rewrites for `StateT` computations that first read the current state with
 `get`, then choose the rest of the computation from that state.
+
+This file also fixes the membership of the `stateT_run` simp set declared in
+`ToVCVio/Control/SimpAttr.lean`.
 -/
+
+attribute [stateT_run]
+  StateT.run_bind StateT.run_get StateT.run_set StateT.run_pure
+  StateT.run_monadLift monadLift_self pure_bind
 
 namespace StateT
 

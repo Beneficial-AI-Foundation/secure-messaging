@@ -5,6 +5,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 
 
 import SecureMessaging.CKA.FromKEM.Security.Basic
+import ToVCVio.Control.StateT
 
 /-!
 # CKA from KEM — Post-Challenge Oracle
@@ -222,7 +223,7 @@ lemma postChallengeImpl_recvB_aToB_of_valid [SampleableType K] [DecidableEq K]
           tB := g.tB + 1 }
        pure ((), ({ game := g', pending := .none } :
          PostChallengeState K PK SK C))) := by
-  simp [postChallengeImpl, hstep, StateT.run_bind, StateT.run_get, StateT.run_set]
+  simp [postChallengeImpl, hstep, stateT_run]
   rfl
 
 /-- Run reduction for the intercepted A-receive of the pending `bToA`
@@ -248,7 +249,7 @@ lemma postChallengeImpl_recvA_bToA_of_valid [SampleableType K] [DecidableEq K]
           tA := g.tA + 1 }
        pure ((), ({ game := g', pending := .none } :
          PostChallengeState K PK SK C))) := by
-  simp [postChallengeImpl, hstep, StateT.run_bind, StateT.run_get, StateT.run_set]
+  simp [postChallengeImpl, hstep, stateT_run]
   rfl
 
 /-- Hidden-state agreement at B's receive of the challenge message.
@@ -287,7 +288,7 @@ lemma securityImpl_recvB_eq_project_postChallengeImpl_aToB
     (CKAScheme.oracleRecvB (scheme kem hDet leak) ()).run
         { g with stB := State.recvReady sk, rhoA := some msg, keyA := some realKey }
   simp [postChallengeImpl, CKAScheme.oracleRecvB, scheme, recv, hstep, hdec,
-    StateT.run_bind, StateT.run_get, StateT.run_set]
+    stateT_run]
   rfl
 
 /-- Hidden-state agreement at A's receive of the challenge message, the
@@ -320,7 +321,7 @@ lemma securityImpl_recvA_eq_project_postChallengeImpl_bToA
     (CKAScheme.oracleRecvA (scheme kem hDet leak) ()).run
         { g with stA := State.recvReady sk, rhoB := some msg, keyB := some realKey }
   simp [postChallengeImpl, CKAScheme.oracleRecvA, scheme, recv, hstep, hdec,
-    StateT.run_bind, StateT.run_get, StateT.run_set]
+    stateT_run]
   rfl
 
 /-- Answer the paused challenge query and finish the game.

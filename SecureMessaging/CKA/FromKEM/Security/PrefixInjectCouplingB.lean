@@ -96,8 +96,7 @@ private lemma preInvB_preserved_sendA_of_not_inject [SampleableType K] [Decidabl
   cases hGuard : CKAScheme.validStep last .sendA
   case false =>
     have hzEq : z = (none, ⟨sA, sB, ρA, ρB, kA, kB, corr, last, tA, tB⟩) := by
-      simpa [CKAScheme.oracleSendA, hGuard, StateT.run_bind, StateT.run_get,
-        pure_bind] using hz
+      simpa [CKAScheme.oracleSendA, hGuard, stateT_run] using hz
     subst hzEq
     exact ⟨hshape, he2, htrace⟩
   case true =>
@@ -143,8 +142,7 @@ private lemma preInvB_preserved_recvB [SampleableType K] [DecidableEq K]
   cases hGuard : CKAScheme.validStep last .recvB
   case false =>
     have hzEq : z = ((), ⟨sA, sB, ρA, ρB, kA, kB, corr, last, tA, tB⟩) := by
-      simpa [CKAScheme.oracleRecvB, hGuard, StateT.run_bind, StateT.run_get,
-        pure_bind] using hz
+      simpa [CKAScheme.oracleRecvB, hGuard, stateT_run] using hz
     subst hzEq
     exact ⟨hshape, he2, htrace⟩
   case true =>
@@ -159,7 +157,7 @@ private lemma preInvB_preserved_recvB [SampleableType K] [DecidableEq K]
       have hzEq : z = ((), ⟨State.recvReady sk', State.sendReady pk',
           none, none, none, none, corr, some .recvB, tA, tB + 1⟩) := by
         simpa [CKAScheme.oracleRecvB, CKAScheme.validStep, scheme, recv, hdec,
-          StateT.run_bind, StateT.run_get, pure_bind] using hz
+          stateT_run] using hz
       subst hzEq
       refine ⟨?_, he2, ?_⟩
       · exact ⟨pk', sk', hks', rfl, rfl, rfl, rfl, rfl, rfl⟩
@@ -186,8 +184,7 @@ private lemma preInvB_preserved_recvA [SampleableType K] [DecidableEq K]
   cases hGuard : CKAScheme.validStep last .recvA
   case false =>
     have hzEq : z = ((), ⟨sA, sB, ρA, ρB, kA, kB, corr, last, tA, tB⟩) := by
-      simpa [CKAScheme.oracleRecvA, hGuard, StateT.run_bind, StateT.run_get,
-        pure_bind] using hz
+      simpa [CKAScheme.oracleRecvA, hGuard, stateT_run] using hz
     subst hzEq
     exact ⟨hshape, he2, htrace⟩
   case true =>
@@ -202,7 +199,7 @@ private lemma preInvB_preserved_recvA [SampleableType K] [DecidableEq K]
       have hzEq : z = ((), ⟨State.sendReady pk', State.recvReady sk',
           none, none, none, none, corr, some .recvA, tA + 1, tB⟩) := by
         simpa [CKAScheme.oracleRecvA, CKAScheme.validStep, scheme, recv, hdec,
-          StateT.run_bind, StateT.run_get, pure_bind] using hz
+          stateT_run] using hz
       subst hzEq
       refine ⟨?_, he2, ?_⟩
       · exact ⟨pk', sk', hks', rfl, rfl, rfl, rfl, rfl, rfl⟩
@@ -228,8 +225,7 @@ private lemma preInvB_preserved_sendB [SampleableType K] [DecidableEq K]
   cases hGuard : CKAScheme.validStep last .sendB
   case false =>
     have hzEq : z = (none, ⟨sA, sB, ρA, ρB, kA, kB, corr, last, tA, tB⟩) := by
-      simpa [CKAScheme.oracleSendB, hGuard, StateT.run_bind, StateT.run_get,
-        pure_bind] using hz
+      simpa [CKAScheme.oracleSendB, hGuard, stateT_run] using hz
     subst hzEq
     exact ⟨hshape, he2, htrace⟩
   case true =>
@@ -273,8 +269,7 @@ private lemma preInvB_preserved_sendA_rleak [SampleableType K] [DecidableEq K]
   cases hGuard : CKAScheme.validStep last .sendA
   case false =>
     have hzEq : z = (none, ⟨sA, sB, ρA, ρB, kA, kB, corr, last, tA, tB⟩) := by
-      simpa [CKAScheme.oracleSendA_rleak, hGuard, StateT.run_bind, StateT.run_get,
-        pure_bind] using hz
+      simpa [CKAScheme.oracleSendA_rleak, hGuard, stateT_run] using hz
     subst hzEq
     exact ⟨hshape, he2, htrace⟩
   case true =>
@@ -306,7 +301,7 @@ private lemma preInvB_preserved_sendA_rleak [SampleableType K] [DecidableEq K]
           omega)
     · have hzEq : z = (none, ⟨sA, sB, ρA, ρB, kA, kB, corr, last, tA, tB⟩) := by
         simpa [CKAScheme.oracleSendA_rleak, hGuard, CKAScheme.allowCorrPCS, hPCS,
-          StateT.run_bind, StateT.run_get, pure_bind] using hz
+          stateT_run] using hz
       subst hzEq
       exact ⟨hshape, he2, htrace⟩
 
@@ -327,8 +322,7 @@ private lemma preInvB_preserved_sendB_rleak [SampleableType K] [DecidableEq K]
   cases hGuard : CKAScheme.validStep last .sendB
   case false =>
     have hzEq : z = (none, ⟨sA, sB, ρA, ρB, kA, kB, corr, last, tA, tB⟩) := by
-      simpa [CKAScheme.oracleSendB_rleak, hGuard, StateT.run_bind, StateT.run_get,
-        pure_bind] using hz
+      simpa [CKAScheme.oracleSendB_rleak, hGuard, stateT_run] using hz
     subst hzEq
     exact ⟨hshape, he2, htrace⟩
   case true =>
@@ -359,7 +353,7 @@ private lemma preInvB_preserved_sendB_rleak [SampleableType K] [DecidableEq K]
         omega
     · have hzEq : z = (none, ⟨sA, sB, ρA, ρB, kA, kB, corr, last, tA, tB⟩) := by
         simpa [CKAScheme.oracleSendB_rleak, hGuard, CKAScheme.allowCorrPCS, hPCS,
-          StateT.run_bind, StateT.run_get, pure_bind] using hz
+          stateT_run] using hz
       subst hzEq
       exact ⟨hshape, he2, htrace⟩
 
@@ -1173,7 +1167,7 @@ lemma injectedPrefix_couples_challengePrefix_B
           try cases uRLeakB
         all_goals
           simp only [injectedChallengePrefix, challengePrefix, construct_query_bind,
-            StateT.run_bind, StateT.run_get, pure_bind, hWA, hWB, Bool.false_eq_true,
+            stateT_run, hWA, hWB, Bool.false_eq_true,
             ↓reduceIte]
         all_goals
           exact relTriple_bind
@@ -1224,7 +1218,7 @@ lemma injectedPrefix_couples_challengePrefix_B
           try cases uRLeakB
         all_goals
           simp only [injectedChallengePrefix, challengePrefix, construct_query_bind,
-            StateT.run_bind, StateT.run_get, pure_bind, hWA', hWB', Bool.false_eq_true,
+            stateT_run, hWA', hWB', Bool.false_eq_true,
             ↓reduceIte]
         all_goals
           exact relTriple_bind
@@ -1263,8 +1257,8 @@ lemma injectedPrefix_couples_challengePrefix_B
           try cases uRLeakB
         all_goals
           simp only [injectedChallengePrefix, challengePrefix, construct_query_bind,
-            StateT.run_bind, StateT.run_get, pure_bind, hWill', hWA',
-            Bool.false_eq_true, ↓reduceIte, StateT.run_pure]
+            stateT_run, hWill', hWA',
+            Bool.false_eq_true, ↓reduceIte]
         all_goals
           first
             | exact relTriple_bind

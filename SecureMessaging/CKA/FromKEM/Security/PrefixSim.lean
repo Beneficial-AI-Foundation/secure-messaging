@@ -100,7 +100,7 @@ private lemma securityImpl_challA_preAToB_real_run
       (preAToBHonestState σ pkStar skStar) = _
   simp [CKAScheme.oracleChallA, scheme, send, preAToBHonestState,
     postAToBHonestState, CKAScheme.isChallengeEpoch, CKAScheme.GameState.tP,
-    hvalid, hparty, ht, StateT.run_bind, StateT.run_get, StateT.run_set,
+    hvalid, hparty, ht, stateT_run,
     map_eq_bind_pure_comp]
   rfl
 
@@ -137,7 +137,7 @@ private lemma securityImpl_challA_preAToB_random_run
       (preAToBHonestState σ pkStar skStar) = _
   simp [CKAScheme.oracleChallA, scheme, send, preAToBHonestState,
     postAToBHonestState, CKAScheme.isChallengeEpoch, CKAScheme.GameState.tP,
-    hvalid, hparty, ht, StateT.run_bind, StateT.run_get, StateT.run_set,
+    hvalid, hparty, ht, stateT_run,
     map_eq_bind_pure_comp]
   rfl
 
@@ -173,7 +173,7 @@ private lemma securityImpl_challB_preBToA_real_run
       (preBToAHonestState σ pkStar skStar) = _
   simp [CKAScheme.oracleChallB, scheme, send, preBToAHonestState,
     postBToAHonestState, CKAScheme.isChallengeEpoch, CKAScheme.GameState.tP,
-    hvalid, hparty, ht, StateT.run_bind, StateT.run_get, StateT.run_set,
+    hvalid, hparty, ht, stateT_run,
     map_eq_bind_pure_comp]
   rfl
 
@@ -210,7 +210,7 @@ private lemma securityImpl_challB_preBToA_random_run
       (preBToAHonestState σ pkStar skStar) = _
   simp [CKAScheme.oracleChallB, scheme, send, preBToAHonestState,
     postBToAHonestState, CKAScheme.isChallengeEpoch, CKAScheme.GameState.tP,
-    hvalid, hparty, ht, StateT.run_bind, StateT.run_get, StateT.run_set,
+    hvalid, hparty, ht, stateT_run,
     map_eq_bind_pure_comp]
   rfl
 

@@ -410,8 +410,7 @@ lemma oracleSendAWithChallengeKeyPair_run_sendReady
               keyA := some key,
               lastAction := some .sendA } : SecurityState K PK SK C))) := by
   simp only [oracleSendAWithChallengeKeyPair, hvalid, ↓reduceIte, hstA,
-    StateT.run_bind, StateT.run_get, StateT.run_monadLift, monadLift_self,
-    StateT.run_set, StateT.run_pure, pure_bind, bind_assoc]
+    stateT_run, bind_assoc]
 
 /-- Run reduction for the injecting B-send oracle on a send-ready state. -/
 lemma oracleSendBWithChallengeKeyPair_run_sendReady
@@ -437,8 +436,7 @@ lemma oracleSendBWithChallengeKeyPair_run_sendReady
               keyB := some key,
               lastAction := some .sendB } : SecurityState K PK SK C))) := by
   simp only [oracleSendBWithChallengeKeyPair, hvalid, ↓reduceIte, hstB,
-    StateT.run_bind, StateT.run_get, StateT.run_monadLift, monadLift_self,
-    StateT.run_set, StateT.run_pure, pure_bind, bind_assoc]
+    stateT_run, bind_assoc]
 
 /-- Run reduction for the honest A-send oracle on a send-ready state. -/
 lemma securityImpl_OSendA_run_sendReady [SampleableType K] [DecidableEq K]
@@ -465,8 +463,7 @@ lemma securityImpl_OSendA_run_sendReady [SampleableType K] [DecidableEq K]
               lastAction := some .sendA } : SecurityState K PK SK C))) := by
   change (CKAScheme.oracleSendA (scheme kem hDet leak) ()).run σ = _
   simp only [CKAScheme.oracleSendA, scheme, send, hvalid, ↓reduceIte, hstA,
-    StateT.run_bind, StateT.run_get, StateT.run_monadLift, monadLift_self,
-    StateT.run_set, StateT.run_pure, pure_bind, bind_assoc]
+    stateT_run, bind_assoc]
   rfl
 
 /-- Run reduction for the honest B-send oracle on a send-ready state. -/
@@ -494,8 +491,7 @@ lemma securityImpl_OSendB_run_sendReady [SampleableType K] [DecidableEq K]
               lastAction := some .sendB } : SecurityState K PK SK C))) := by
   change (CKAScheme.oracleSendB (scheme kem hDet leak) ()).run σ = _
   simp only [CKAScheme.oracleSendB, scheme, send, hvalid, ↓reduceIte, hstB,
-    StateT.run_bind, StateT.run_get, StateT.run_monadLift, monadLift_self,
-    StateT.run_set, StateT.run_pure, pure_bind, bind_assoc]
+    stateT_run, bind_assoc]
   rfl
 
 /-! ## Single-oracle run-support reference examples
@@ -537,7 +533,7 @@ private lemma exp_corrA [SampleableType K] [DecidableEq K]
       (CKAScheme.ckaSecuritySpec.OCorruptA : (securitySpec leak).Domain)).run σ)) :
     σ.tA ≤ z.2.tA ∧ σ.tB ≤ z.2.tB := by
   change z ∈ support ((CKAScheme.oracleCorruptA gp (State PK SK) K (Message C PK) ()).run σ) at hz
-  simp only [CKAScheme.oracleCorruptA, StateT.run_bind, StateT.run_get, pure_bind] at hz
+  simp only [CKAScheme.oracleCorruptA, stateT_run] at hz
   split_ifs at hz <;> vcv_support
 
 private lemma exp_sendA [SampleableType K] [DecidableEq K]
@@ -558,13 +554,12 @@ private lemma exp_sendA [SampleableType K] [DecidableEq K]
         vcv_support
     | recvReady sk =>
         change z ∈ support ((CKAScheme.oracleSendA (scheme kem hDet leak) ()).run σ) at hz
-        simp only [CKAScheme.oracleSendA, hvalid, hst, StateT.run_bind, StateT.run_get,
-          pure_bind] at hz
+        simp only [CKAScheme.oracleSendA, hvalid, hst, stateT_run] at hz
         vcv_support
   · have hvalidFalse : CKAScheme.validStep σ.lastAction .sendA = false :=
       Bool.eq_false_of_not_eq_true hvalid
     change z ∈ support ((CKAScheme.oracleSendA (scheme kem hDet leak) ()).run σ) at hz
-    simp only [CKAScheme.oracleSendA, hvalidFalse, StateT.run_bind, StateT.run_get, pure_bind] at hz
+    simp only [CKAScheme.oracleSendA, hvalidFalse, stateT_run] at hz
     vcv_support
 
 /-! ## Counter monotonicity of the honest security implementation -/
@@ -600,14 +595,12 @@ lemma securityImpl_run_counters_mono [SampleableType K] [DecidableEq K]
           vcv_support
       | recvReady sk =>
           change z ∈ support ((CKAScheme.oracleSendA (scheme kem hDet leak) ()).run σ) at hz
-          simp only [CKAScheme.oracleSendA, hvalid, hst, StateT.run_bind, StateT.run_get,
-            pure_bind] at hz
+          simp only [CKAScheme.oracleSendA, hvalid, hst, stateT_run] at hz
           vcv_support
     · have hvalidFalse : CKAScheme.validStep σ.lastAction .sendA = false :=
         Bool.eq_false_of_not_eq_true hvalid
       change z ∈ support ((CKAScheme.oracleSendA (scheme kem hDet leak) ()).run σ) at hz
-      simp only [CKAScheme.oracleSendA, hvalidFalse, StateT.run_bind, StateT.run_get,
-        pure_bind] at hz
+      simp only [CKAScheme.oracleSendA, hvalidFalse, stateT_run] at hz
       vcv_support
   · -- O-Recv-A
     cases uRecvA
@@ -615,24 +608,22 @@ lemma securityImpl_run_counters_mono [SampleableType K] [DecidableEq K]
     · change z ∈ support ((CKAScheme.oracleRecvA (scheme kem hDet leak) ()).run σ) at hz
       cases hrhoB : σ.rhoB with
       | none =>
-          simp only [CKAScheme.oracleRecvA, hvalid, hrhoB, StateT.run_bind, StateT.run_get,
-            pure_bind] at hz
+          simp only [CKAScheme.oracleRecvA, hvalid, hrhoB, stateT_run] at hz
           vcv_support
       | some ρ =>
           cases hrecv : recv hDet σ.stA ρ with
           | none =>
               simp only [CKAScheme.oracleRecvA, scheme, hvalid, hrhoB, hrecv,
-                StateT.run_bind, StateT.run_get, pure_bind] at hz
+                stateT_run] at hz
               vcv_support
           | some keyStA =>
               simp only [CKAScheme.oracleRecvA, scheme, hvalid, hrhoB, hrecv,
-                StateT.run_bind, StateT.run_get, pure_bind] at hz
+                stateT_run] at hz
               vcv_support
     · have hvalidFalse : CKAScheme.validStep σ.lastAction .recvA = false :=
         Bool.eq_false_of_not_eq_true hvalid
       change z ∈ support ((CKAScheme.oracleRecvA (scheme kem hDet leak) ()).run σ) at hz
-      simp only [CKAScheme.oracleRecvA, hvalidFalse, StateT.run_bind, StateT.run_get,
-        pure_bind] at hz
+      simp only [CKAScheme.oracleRecvA, hvalidFalse, stateT_run] at hz
       vcv_support
   · -- O-Send-B
     cases uSendB
@@ -643,14 +634,12 @@ lemma securityImpl_run_counters_mono [SampleableType K] [DecidableEq K]
           vcv_support
       | recvReady sk =>
           change z ∈ support ((CKAScheme.oracleSendB (scheme kem hDet leak) ()).run σ) at hz
-          simp only [CKAScheme.oracleSendB, hvalid, hst, StateT.run_bind, StateT.run_get,
-            pure_bind] at hz
+          simp only [CKAScheme.oracleSendB, hvalid, hst, stateT_run] at hz
           vcv_support
     · have hvalidFalse : CKAScheme.validStep σ.lastAction .sendB = false :=
         Bool.eq_false_of_not_eq_true hvalid
       change z ∈ support ((CKAScheme.oracleSendB (scheme kem hDet leak) ()).run σ) at hz
-      simp only [CKAScheme.oracleSendB, hvalidFalse, StateT.run_bind, StateT.run_get,
-        pure_bind] at hz
+      simp only [CKAScheme.oracleSendB, hvalidFalse, stateT_run] at hz
       vcv_support
   · -- O-Recv-B
     cases uRecvB
@@ -658,24 +647,22 @@ lemma securityImpl_run_counters_mono [SampleableType K] [DecidableEq K]
     · change z ∈ support ((CKAScheme.oracleRecvB (scheme kem hDet leak) ()).run σ) at hz
       cases hrhoA : σ.rhoA with
       | none =>
-          simp only [CKAScheme.oracleRecvB, hvalid, hrhoA, StateT.run_bind, StateT.run_get,
-            pure_bind] at hz
+          simp only [CKAScheme.oracleRecvB, hvalid, hrhoA, stateT_run] at hz
           vcv_support
       | some ρ =>
           cases hrecv : recv hDet σ.stB ρ with
           | none =>
               simp only [CKAScheme.oracleRecvB, scheme, hvalid, hrhoA, hrecv,
-                StateT.run_bind, StateT.run_get, pure_bind] at hz
+                stateT_run] at hz
               vcv_support
           | some keyStB =>
               simp only [CKAScheme.oracleRecvB, scheme, hvalid, hrhoA, hrecv,
-                StateT.run_bind, StateT.run_get, pure_bind] at hz
+                stateT_run] at hz
               vcv_support
     · have hvalidFalse : CKAScheme.validStep σ.lastAction .recvB = false :=
         Bool.eq_false_of_not_eq_true hvalid
       change z ∈ support ((CKAScheme.oracleRecvB (scheme kem hDet leak) ()).run σ) at hz
-      simp only [CKAScheme.oracleRecvB, hvalidFalse, StateT.run_bind, StateT.run_get,
-        pure_bind] at hz
+      simp only [CKAScheme.oracleRecvB, hvalidFalse, stateT_run] at hz
       vcv_support
   · -- O-Chall-A
     cases uChallA
@@ -685,21 +672,20 @@ lemma securityImpl_run_counters_mono [SampleableType K] [DecidableEq K]
       cases hst : σ.stA with
       | sendReady pk =>
           simp only [CKAScheme.oracleChallA, scheme, send, hvalid, hst, ↓reduceIte,
-            StateT.run_bind, StateT.run_get, pure_bind] at hz
+            stateT_run] at hz
           split_ifs at hz
           · vcv_support hz; grind
           · vcv_support hz; grind
           · vcv_support
       | recvReady sk =>
           simp only [CKAScheme.oracleChallA, scheme, send, hvalid, hst, ↓reduceIte,
-            StateT.run_bind, StateT.run_get, pure_bind] at hz
+            stateT_run] at hz
           split_ifs at hz <;> vcv_support
     · have hvalidFalse : CKAScheme.validStep σ.lastAction .challA = false :=
         Bool.eq_false_of_not_eq_true hvalid
       change z ∈ support
         ((CKAScheme.oracleChallA gp isRandom (scheme kem hDet leak) ()).run σ) at hz
-      simp only [CKAScheme.oracleChallA, hvalidFalse, StateT.run_bind, StateT.run_get,
-        pure_bind] at hz
+      simp only [CKAScheme.oracleChallA, hvalidFalse, stateT_run] at hz
       vcv_support
   · -- O-Chall-B
     cases uChallB
@@ -709,31 +695,30 @@ lemma securityImpl_run_counters_mono [SampleableType K] [DecidableEq K]
       cases hst : σ.stB with
       | sendReady pk =>
           simp only [CKAScheme.oracleChallB, scheme, send, hvalid, hst, ↓reduceIte,
-            StateT.run_bind, StateT.run_get, pure_bind] at hz
+            stateT_run] at hz
           split_ifs at hz
           · vcv_support hz; grind
           · vcv_support hz; grind
           · vcv_support
       | recvReady sk =>
           simp only [CKAScheme.oracleChallB, scheme, send, hvalid, hst, ↓reduceIte,
-            StateT.run_bind, StateT.run_get, pure_bind] at hz
+            stateT_run] at hz
           split_ifs at hz <;> vcv_support
     · have hvalidFalse : CKAScheme.validStep σ.lastAction .challB = false :=
         Bool.eq_false_of_not_eq_true hvalid
       change z ∈ support
         ((CKAScheme.oracleChallB gp isRandom (scheme kem hDet leak) ()).run σ) at hz
-      simp only [CKAScheme.oracleChallB, hvalidFalse, StateT.run_bind, StateT.run_get,
-        pure_bind] at hz
+      simp only [CKAScheme.oracleChallB, hvalidFalse, stateT_run] at hz
       vcv_support
   · -- O-Corrupt-A
     cases uCorrA
     change z ∈ support ((CKAScheme.oracleCorruptA gp (State PK SK) K (Message C PK) ()).run σ) at hz
-    simp only [CKAScheme.oracleCorruptA, StateT.run_bind, StateT.run_get, pure_bind] at hz
+    simp only [CKAScheme.oracleCorruptA, stateT_run] at hz
     split_ifs at hz <;> vcv_support
   · -- O-Corrupt-B
     cases uCorrB
     change z ∈ support ((CKAScheme.oracleCorruptB gp (State PK SK) K (Message C PK) ()).run σ) at hz
-    simp only [CKAScheme.oracleCorruptB, StateT.run_bind, StateT.run_get, pure_bind] at hz
+    simp only [CKAScheme.oracleCorruptB, stateT_run] at hz
     split_ifs at hz <;> vcv_support
   · -- O-Send-A-rleak
     cases uRLeakA
@@ -743,20 +728,19 @@ lemma securityImpl_run_counters_mono [SampleableType K] [DecidableEq K]
       cases hst : σ.stA with
       | sendReady pk =>
           simp only [CKAScheme.oracleSendA_rleak, scheme, send_rleak, hvalid, hst,
-            ↓reduceIte, StateT.run_bind, StateT.run_get, pure_bind] at hz
+            ↓reduceIte, stateT_run] at hz
           split_ifs at hz
           · vcv_support hz; grind
           · vcv_support
       | recvReady sk =>
           simp only [CKAScheme.oracleSendA_rleak, scheme, send_rleak, hvalid, hst,
-            ↓reduceIte, StateT.run_bind, StateT.run_get, pure_bind] at hz
+            ↓reduceIte, stateT_run] at hz
           split_ifs at hz <;> vcv_support
     · have hvalidFalse : CKAScheme.validStep σ.lastAction .sendA = false :=
         Bool.eq_false_of_not_eq_true hvalid
       change z ∈ support ((CKAScheme.oracleSendA_rleak gp (scheme kem hDet leak) ()).run σ)
         at hz
-      simp only [CKAScheme.oracleSendA_rleak, hvalidFalse, StateT.run_bind, StateT.run_get,
-        pure_bind] at hz
+      simp only [CKAScheme.oracleSendA_rleak, hvalidFalse, stateT_run] at hz
       vcv_support
   · -- O-Send-B-rleak
     cases uRLeakB
@@ -766,20 +750,19 @@ lemma securityImpl_run_counters_mono [SampleableType K] [DecidableEq K]
       cases hst : σ.stB with
       | sendReady pk =>
           simp only [CKAScheme.oracleSendB_rleak, scheme, send_rleak, hvalid, hst,
-            ↓reduceIte, StateT.run_bind, StateT.run_get, pure_bind] at hz
+            ↓reduceIte, stateT_run] at hz
           split_ifs at hz
           · vcv_support hz; grind
           · vcv_support
       | recvReady sk =>
           simp only [CKAScheme.oracleSendB_rleak, scheme, send_rleak, hvalid, hst,
-            ↓reduceIte, StateT.run_bind, StateT.run_get, pure_bind] at hz
+            ↓reduceIte, stateT_run] at hz
           split_ifs at hz <;> vcv_support
     · have hvalidFalse : CKAScheme.validStep σ.lastAction .sendB = false :=
         Bool.eq_false_of_not_eq_true hvalid
       change z ∈ support ((CKAScheme.oracleSendB_rleak gp (scheme kem hDet leak) ()).run σ)
         at hz
-      simp only [CKAScheme.oracleSendB_rleak, hvalidFalse, StateT.run_bind, StateT.run_get,
-        pure_bind] at hz
+      simp only [CKAScheme.oracleSendB_rleak, hvalidFalse, stateT_run] at hz
       vcv_support
 
 /-! ## Past-injection equivalence of the injecting and honest implementations -/
@@ -855,13 +838,12 @@ private lemma securityImplWithChallengeKeyPair_run_eq_securityImpl_of_injectionP
       | recvReady sk =>
           change _ = (CKAScheme.oracleSendA (scheme kem hDet leak) ()).run s
           simp only [oracleSendAWithChallengeKeyPair, CKAScheme.oracleSendA, scheme, send,
-            hvalid, ↓reduceIte, hst, StateT.run_bind, StateT.run_get, StateT.run_monadLift,
-            monadLift_self, StateT.run_pure, pure_bind]
+            hvalid, ↓reduceIte, hst, stateT_run]
     · have hvalidFalse : CKAScheme.validStep s.lastAction .sendA = false :=
         Bool.eq_false_of_not_eq_true hvalid
       change _ = (CKAScheme.oracleSendA (scheme kem hDet leak) ()).run s
       simp only [oracleSendAWithChallengeKeyPair, CKAScheme.oracleSendA, hvalidFalse,
-        Bool.false_eq_true, ↓reduceIte, StateT.run_bind, StateT.run_get, StateT.run_pure, pure_bind]
+        Bool.false_eq_true, ↓reduceIte, stateT_run]
   · rfl
   · -- O-Send-B: mirror of O-Send-A
     cases uSendB
@@ -882,13 +864,12 @@ private lemma securityImplWithChallengeKeyPair_run_eq_securityImpl_of_injectionP
       | recvReady sk =>
           change _ = (CKAScheme.oracleSendB (scheme kem hDet leak) ()).run s
           simp only [oracleSendBWithChallengeKeyPair, CKAScheme.oracleSendB, scheme, send,
-            hvalid, ↓reduceIte, hst, StateT.run_bind, StateT.run_get, StateT.run_monadLift,
-            monadLift_self, StateT.run_pure, pure_bind]
+            hvalid, ↓reduceIte, hst, stateT_run]
     · have hvalidFalse : CKAScheme.validStep s.lastAction .sendB = false :=
         Bool.eq_false_of_not_eq_true hvalid
       change _ = (CKAScheme.oracleSendB (scheme kem hDet leak) ()).run s
       simp only [oracleSendBWithChallengeKeyPair, CKAScheme.oracleSendB, hvalidFalse,
-        Bool.false_eq_true, ↓reduceIte, StateT.run_bind, StateT.run_get, StateT.run_pure, pure_bind]
+        Bool.false_eq_true, ↓reduceIte, stateT_run]
   all_goals rfl
 
 /-- Past the injection epoch, the injecting and honest implementations induce the
