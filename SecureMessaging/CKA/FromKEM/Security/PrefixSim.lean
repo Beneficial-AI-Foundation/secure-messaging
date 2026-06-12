@@ -10,9 +10,16 @@ import VCVio.ProgramLogic.Relational.SimulateQ
 /-!
 # CKA from KEM — Prefix Simulation
 
-This file contains the pre-challenge pieces of the hidden-state simulation.
-The lemmas here expose the honest challenge oracle at the exact point where the
-IND-CPA challenge public key has been installed.
+Pre-challenge pieces of the hidden-state simulation. The prepared states
+(`preAToBHonestState`, `preAToBReductionState`, and their B-side mirrors) fix
+the moment just before the due challenge, with the challenge public key
+installed and the reduction not holding its secret key.
+
+The four `chall…_cont_run'_relTriple` lemmas answer the due challenge from
+those states and hand the run over to the post-challenge relation: the honest
+real-key (`isRandom = false`) and random-key (`isRandom = true`) games match
+the reduction's challenge step fed the encapsulated key or an independent
+uniform key. `ChallengeBridge` repackages these as probability equalities.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
@@ -376,6 +383,11 @@ private lemma reductionStatePostRel_run'_relTriple
       rw [reductionBranchImpl_post_simulateQ_run]
       simpa [StateT.run'_eq, map_eq_bind_pure_comp] using hpost
 
+/-- Prepared A-challenge step, real-key case: from
+`preAToBHonestState`/`preAToBReductionState`, the honest `isRandom = false`
+challenge answer plus honest continuation matches the reduction's challenge
+step fed the key encapsulated under `pkStar`, plus its post-challenge
+simulation. -/
 lemma challA_sampled_reduction_cont_run'_relTriple
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
@@ -434,6 +446,10 @@ lemma challA_sampled_reduction_cont_run'_relTriple
       (cont p.1) hrel
   simpa only [bind_assoc] using relTriple_bind hstep hcont
 
+/-- Prepared A-challenge step, random-key case: the honest `isRandom = true`
+challenge answer plus honest continuation matches the reduction's challenge
+step fed an independent uniform key. The random-branch counterpart of
+`challA_sampled_reduction_cont_run'_relTriple`. -/
 lemma challA_sampled_reduction_random_cont_run'_relTriple
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
@@ -621,6 +637,8 @@ private lemma challB_sampled_reduction_query_rel
       (skStar := skStar) (cStar := cStar) (realKey := realKey) (fakeKey := kStar)
       (outKey := kStar) hInv hWill hks hck
 
+/-- Prepared B-challenge step, real-key case, the mirror of
+`challA_sampled_reduction_cont_run'_relTriple`. -/
 lemma challB_sampled_reduction_cont_run'_relTriple
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
@@ -679,6 +697,8 @@ lemma challB_sampled_reduction_cont_run'_relTriple
       (cont p.1) hrel
   simpa only [bind_assoc] using relTriple_bind hstep hcont
 
+/-- Prepared B-challenge step, random-key case, the mirror of
+`challA_sampled_reduction_random_cont_run'_relTriple`. -/
 lemma challB_sampled_reduction_random_cont_run'_relTriple
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)

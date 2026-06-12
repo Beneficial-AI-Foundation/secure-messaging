@@ -30,6 +30,8 @@ namespace kemCKA
 
 variable {K PK SK C : Type}
 
+/-- State of the single-pass reduction branch: the plain game state before
+the challenge, the post-challenge state after it. -/
 inductive ReductionBranchState (K PK SK C : Type) where
   | pre (game : SecurityState K PK SK C)
   | post (post : PostChallengeState K PK SK C)
@@ -119,6 +121,9 @@ private lemma reductionBranchImpl_post_run [SampleableType K] [DecidableEq K]
         pure (out, ReductionBranchState.post ps')) := by
   simp [reductionBranchImpl, StateT.run_bind, StateT.run_get, StateT.run_set]
 
+/-- Once in `.post`, simulating a whole adversary under `reductionBranchImpl`
+is the same as simulating it under `postChallengeImpl`, with the state
+re-wrapped. Proved by query induction from the single-query run reduction. -/
 lemma reductionBranchImpl_post_simulateQ_run [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -143,6 +148,9 @@ lemma reductionBranchImpl_post_simulateQ_run [SampleableType K] [DecidableEq K]
       refine bind_congr (m := ProbComp) fun p => ?_
       simpa using ih p.1 p.2
 
+/-- Run reduction for the due A-challenge: the reduction consumes
+`(cStar, kStar)`, builds the challenge message, installs the pending receive,
+and switches to the post-challenge state. -/
 lemma reductionBranchImpl_pre_challA_run_of_will [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -168,6 +176,8 @@ lemma reductionBranchImpl_pre_challA_run_of_will [SampleableType K] [DecidableEq
         pure (some (msg, kStar), ReductionBranchState.post ps')) := by
   simp [reductionBranchImpl, hWill, StateT.run_bind, StateT.run_get, StateT.run_set]
 
+/-- Run reduction for the due B-challenge, the mirror of
+`reductionBranchImpl_pre_challA_run_of_will`. -/
 lemma reductionBranchImpl_pre_challB_run_of_will [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -193,6 +203,11 @@ lemma reductionBranchImpl_pre_challB_run_of_will [SampleableType K] [DecidableEq
         pure (some (msg, kStar), ReductionBranchState.post ps')) := by
   simp [reductionBranchImpl, hWill, StateT.run_bind, StateT.run_get, StateT.run_set]
 
+/-- Run the adversary under the prefix implementation until its first due
+challenge query, returning the interrupted continuation
+(`pausedA`/`pausedB`), or `done` with the final result if no challenge
+occurs. Challenge queries that are not due are answered by the prefix
+implementation like any other query. -/
 def challengePrefix [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -229,6 +244,14 @@ def challengePrefix [SampleableType K] [DecidableEq K]
           let out ← (prefixImpl kem hDet leak gp pkStar other)
           rec out)
 
+/-- The concrete IND-CPA adversary built from the CKA adversary.
+
+`preChallenge pkStar` starts the game — placing `pkStar` directly into the
+initial state when the challenge is the very first A-send — and runs the
+adversary up to its first due challenge query. `postChallenge` answers that
+query with the KEM challenge ciphertext and key and finishes through
+`finishChallengeStep`; the final negation aligns the CKA and IND-CPA bit
+orientations. -/
 def ckaToINDCPAReduction [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)

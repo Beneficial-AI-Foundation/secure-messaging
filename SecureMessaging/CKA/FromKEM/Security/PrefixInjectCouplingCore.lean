@@ -62,6 +62,8 @@ lemma securityImpl_challA_run_of_not_will [SampleableType K] [DecidableEq K]
       Bool.eq_false_of_not_eq_true hvalid
     simp [CKAScheme.oracleChallA, hvalidFalse]
 
+/-- Run reduction for a B-challenge query that is not due, the mirror of
+`securityImpl_challA_run_of_not_will`. -/
 lemma securityImpl_challB_run_of_not_will [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -326,6 +328,8 @@ lemma oracleSendAWithChallengePk_run_sendReady
     StateT.run_bind, StateT.run_get, StateT.run_monadLift, monadLift_self,
     StateT.run_set, StateT.run_pure, pure_bind, bind_assoc]
 
+/-- Run reduction for the `pkStar`-embedding B-send oracle on a send-ready
+state, the mirror of `oracleSendAWithChallengePk_run_sendReady`. -/
 lemma oracleSendBWithChallengePk_run_sendReady
     (kem : KEMScheme ProbComp K PK SK C)
     (gp : CKAScheme.GameParams)
@@ -705,6 +709,8 @@ lemma mem_support_encaps_of_encaps_rleak
   rw [← leak.encaps_fst pk]
   exact (mem_support_bind_iff _ _ _).2 ⟨(ck, r), h, by simp⟩
 
+/-- Key-generation analogue of `mem_support_encaps_of_encaps_rleak`: a draw
+of the leaking key generation projects to a draw of `kem.keygen`. -/
 lemma mem_support_keygen_of_keygen_rleak
     (kem : KEMScheme ProbComp K PK SK C)
     (leak : RandLeak kem)
@@ -750,6 +756,8 @@ lemma oracleSendAWithChallengeKeyPair_run_eq_of_not_inject
   · simp [oracleSendAWithChallengeKeyPair, CKAScheme.oracleSendA,
       Bool.eq_false_of_not_eq_true hvalid]
 
+/-- Off the installing send, the injecting B-send agrees with the honest
+B-send, the mirror of `oracleSendAWithChallengeKeyPair_run_eq_of_not_inject`. -/
 lemma oracleSendBWithChallengeKeyPair_run_eq_of_not_inject
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
@@ -781,6 +789,9 @@ lemma oracleSendBWithChallengeKeyPair_run_eq_of_not_inject
   · simp [oracleSendBWithChallengeKeyPair, CKAScheme.oracleSendB,
       Bool.eq_false_of_not_eq_true hvalid]
 
+/-- Off the installing send, the `pkStar`-embedding A-send agrees with the
+honest A-send — the `WithChallengePk` variant of
+`oracleSendAWithChallengeKeyPair_run_eq_of_not_inject`. -/
 lemma oracleSendAWithChallengePk_run_eq_of_not_inject
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
@@ -812,6 +823,8 @@ lemma oracleSendAWithChallengePk_run_eq_of_not_inject
   · simp [oracleSendAWithChallengePk, CKAScheme.oracleSendA,
       Bool.eq_false_of_not_eq_true hvalid]
 
+/-- Off the installing send, the `pkStar`-embedding B-send agrees with the
+honest B-send, the mirror of `oracleSendAWithChallengePk_run_eq_of_not_inject`. -/
 lemma oracleSendBWithChallengePk_run_eq_of_not_inject
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)

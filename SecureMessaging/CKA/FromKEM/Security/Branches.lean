@@ -30,10 +30,14 @@ namespace kemCKA
 
 variable {K PK SK C : Type}
 
+/-- The runtime's `evalDist` embedding does not change point probabilities. -/
 private lemma probCompRuntime_probOutput_eq {α : Type} (mx : ProbComp α) (x : α) :
     Pr[= x | ProbCompRuntime.probComp.evalDist mx] = Pr[= x | mx] := by
   rfl
 
+/-- Data produced by the IND-CPA experiment before the challenge bit is used:
+the reduction's paused state, the challenge ciphertext, and the real and
+random candidate keys. -/
 private structure INDCPAPrefixState
     (kem : KEMScheme ProbComp K PK SK C)
     (red : kem.IND_CPA_Adversary) where
@@ -42,6 +46,8 @@ private structure INDCPAPrefixState
   kReal : K
   kRand : K
 
+/-- The bit-independent prefix of the IND-CPA experiment: key generation, the
+reduction's pre-challenge phase, encapsulation, and the random key draw. -/
 private def indCPAPrefix [SampleableType K]
     (kem : KEMScheme ProbComp K PK SK C)
     (red : kem.IND_CPA_Adversary) : ProbComp (INDCPAPrefixState kem red) := do
@@ -51,6 +57,8 @@ private def indCPAPrefix [SampleableType K]
   let kRand ← ($ᵗ K)
   pure { st := st, cStar := cStar, kReal := kReal, kRand := kRand }
 
+/-- The IND-CPA experiment with a fixed challenge bit, phrased over
+`indCPAPrefix`. -/
 private def indCPAExpProb [SampleableType K]
     (kem : KEMScheme ProbComp K PK SK C)
     (red : kem.IND_CPA_Adversary) (b : Bool) : ProbComp Bool := do
@@ -58,6 +66,11 @@ private def indCPAExpProb [SampleableType K]
   red.postChallenge p.st p.cStar (if b then p.kReal else p.kRand)
 
 
+/-- The KEM challenge branch of the concrete reduction with a fixed challenge
+bit: run the prefix to the paused challenge, encapsulate against the
+challenge public key, and finish with the real (`b = true`) or random
+(`b = false`) key. This is the reduction's side of the IND-CPA experiment,
+written as one `ProbComp`. -/
 def ckaReductionINDCPABranch [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -79,6 +92,9 @@ def ckaReductionINDCPABranch [SampleableType K] [DecidableEq K]
   let kRand ← ($ᵗ K)
   finishChallengeStep kem hDet leak gp res σ cStar (if b then kReal else kRand)
 
+/-- `ckaReductionINDCPABranch` without the final guess negation. The raw form
+is the one coupled against the honest CKA branches; the gap is unchanged
+(`ckaReductionINDCPABranch_gap_eq_raw_gap`). -/
 def ckaReductionINDCPABranchRaw [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -100,6 +116,8 @@ def ckaReductionINDCPABranchRaw [SampleableType K] [DecidableEq K]
   let kRand ← ($ᵗ K)
   finishChallengeStepRaw kem hDet leak gp res σ cStar (if b then kReal else kRand)
 
+/-- The fixed-bit CKA game run from an explicit initial state: simulate the
+adversary under the honest implementation and return its guess. -/
 def ckaSecurityFixedFromState [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -112,6 +130,8 @@ def ckaSecurityFixedFromState [SampleableType K] [DecidableEq K]
     (simulateQ (securityImpl kem hDet leak gp isRandom) adv).run σ
   pure guess
 
+/-- The honest fixed-bit CKA branch: generate the initial key pair and run
+`ckaSecurityFixedFromState` from the standard initial state. -/
 def ckaSecurityFixedBranch [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -126,6 +146,9 @@ def ckaSecurityFixedBranch [SampleableType K] [DecidableEq K]
       (State.recvReady sk0)
   ckaSecurityFixedFromState kem hDet leak adv gp σ0 isRandom
 
+/-- The generic fixed-bit CKA security experiment for the KEM construction is
+exactly the honest fixed-bit branch: unfolding the scheme's initialization
+gives the same game. -/
 lemma securityExpFixedBit_eq_ckaSecurityFixedBranch
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
@@ -140,6 +163,8 @@ lemma securityExpFixedBit_eq_ckaSecurityFixedBranch
   unfold ckaSecurityFixedFromState securityImpl
   simp [scheme, initA, initB]
 
+/-- The negated and raw reduction branches differ by a final `(! ·)` map,
+inherited from the challenge finishers. -/
 private lemma ckaReductionINDCPABranch_eq_not_map_raw [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -158,6 +183,9 @@ private lemma ckaReductionINDCPABranch_eq_not_map_raw [SampleableType K] [Decida
   refine bind_congr (m := ProbComp) fun kRand => ?_
   rw [finishChallengeStep_eq_not_map_raw]
 
+/-- A final `(! ·)` map turns `true`-output probability into `false`-output
+probability, and the absolute two-branch gap absorbs the swap. This is where
+the CKA/KEM bit-orientation reversal disappears. -/
 private lemma abs_probOutput_true_not_map_gap_eq (mx my : ProbComp Bool) :
     |(Pr[= true | (! ·) <$> mx]).toReal -
       (Pr[= true | (! ·) <$> my]).toReal| =
@@ -168,6 +196,8 @@ private lemma abs_probOutput_true_not_map_gap_eq (mx my : ProbComp Bool) :
       Pr[= true | mx].toReal - Pr[= true | my].toReal by ring]
   exact abs_sub_comm (Pr[= true | my].toReal) (Pr[= true | mx].toReal)
 
+/-- The reduction branch gap equals the raw (un-negated) branch gap: the
+final negation flips each branch's bias but not the absolute gap. -/
 lemma ckaReductionINDCPABranch_gap_eq_raw_gap [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -184,6 +214,9 @@ lemma ckaReductionINDCPABranch_gap_eq_raw_gap [SampleableType K] [DecidableEq K]
     (ckaReductionINDCPABranchRaw kem hDet leak adv gp true)
     (ckaReductionINDCPABranchRaw kem hDet leak adv gp false)
 
+/-- For the concrete reduction, the fixed-bit IND-CPA experiment is the
+reduction branch: the reduction's two phases recombine into the single-pass
+branch program. -/
 private lemma indCPAExpProb_ckaToINDCPAReduction_eq_branch
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
@@ -206,6 +239,9 @@ private lemma indCPAExpProb_ckaToINDCPAReduction_eq_branch
     refine bind_congr (m := ProbComp) fun res_σ => ?_
     cases res_σ.1 <;> simp [finishChallengeStep]
 
+/-- The game underlying VCVio's `IND_CPA_Advantage`, spelled out: sample the
+challenge bit inside the game and compare it with the reduction's guess.
+Definitionally equal to the library's game. -/
 private def indCPAGameProb [SampleableType K]
     (kem : KEMScheme ProbComp K PK SK C)
     (red : kem.IND_CPA_Adversary) : ProbComp Bool := do
@@ -217,6 +253,8 @@ private def indCPAGameProb [SampleableType K]
   let b' ← red.postChallenge st cStar (if b then kReal else kRand)
   return (b == b')
 
+/-- `indCPAGameProb` with the bit-independent prefix hoisted before the bit
+draw, the bridge between the sampled-bit game and the fixed-bit branches. -/
 private def indCPABranchGameProb [SampleableType K]
     (kem : KEMScheme ProbComp K PK SK C)
     (red : kem.IND_CPA_Adversary) : ProbComp Bool := do
@@ -226,6 +264,8 @@ private def indCPABranchGameProb [SampleableType K]
           else red.postChallenge p.st p.cStar p.kRand
   pure (b == z)
 
+/-- Hoisting the prefix past the bit draw does not change the game's output
+distribution: the bit is independent of the prefix samples. -/
 private lemma indCPAGameProb_evalDist_eq_branch [SampleableType K]
     (kem : KEMScheme ProbComp K PK SK C)
     (red : kem.IND_CPA_Adversary) :
@@ -255,6 +295,8 @@ private lemma indCPAGameProb_evalDist_eq_branch [SampleableType K]
   intro b
   cases b <;> rfl
 
+/-- The sampled-bit bias advantage of the IND-CPA game equals the
+distinguishing advantage of its two fixed-bit experiments. -/
 private lemma indCPAGameProb_advantage_eq_fixed_dist [SampleableType K]
     (kem : KEMScheme ProbComp K PK SK C)
     (red : kem.IND_CPA_Adversary) :
@@ -272,6 +314,8 @@ private lemma indCPAGameProb_advantage_eq_fixed_dist [SampleableType K]
       (fun p => red.postChallenge p.st p.cStar p.kReal)
       (fun p => red.postChallenge p.st p.cStar p.kRand)
 
+/-- The local fixed-bit experiment matches the library's `IND_CPA_Exp` on
+`true`-output probability. -/
 private lemma indCPAExpProb_probOutput_true_eq [SampleableType K]
     (kem : KEMScheme ProbComp K PK SK C)
     (red : kem.IND_CPA_Adversary) (b : Bool) :
@@ -285,6 +329,10 @@ private lemma indCPAExpProb_probOutput_true_eq [SampleableType K]
       monad_norm]
 
 
+/-- For the concrete reduction, the library IND-CPA experiment with fixed bit
+`b` returns `true` with the same probability as the reduction branch. This is
+the step that lets `Security.lean` replace the library game by the branch
+program. -/
 lemma ckaToINDCPAReduction_IND_CPA_Exp_probOutput_true_eq_branch
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
@@ -299,6 +347,9 @@ lemma ckaToINDCPAReduction_IND_CPA_Exp_probOutput_true_eq_branch
   rw [← indCPAExpProb_probOutput_true_eq]
   rw [indCPAExpProb_ckaToINDCPAReduction_eq_branch]
 
+/-- VCVio's `IND_CPA_Advantage` equals the absolute `true`-output gap of the
+two fixed-bit `IND_CPA_Exp` runs: split the sampled bit into its two branches
+and normalize the bias to a distinguishing gap. -/
 lemma kem_ind_cpa_advantage_eq_fixed_branch_dist [SampleableType K]
     (kem : KEMScheme ProbComp K PK SK C)
     (red : kem.IND_CPA_Adversary) :

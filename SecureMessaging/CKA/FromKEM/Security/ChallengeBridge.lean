@@ -21,6 +21,9 @@ namespace kemCKA
 
 variable {K PK SK C : Type}
 
+/-- Probability form of `challA_sampled_reduction_cont_run'_relTriple`: the
+prepared real-key A-challenge step and the reduction's challenge step output
+`true` with equal probability. -/
 lemma challA_sampled_reduction_cont_probOutput_true_eq
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
@@ -54,6 +57,9 @@ lemma challA_sampled_reduction_cont_probOutput_true_eq
     (challA_sampled_reduction_cont_run'_relTriple
       kem hDet hkem leak gp hgp σ hInv hWill hks cont)
 
+/-- Probability form of
+`challA_sampled_reduction_random_cont_run'_relTriple`, the random-key
+case. -/
 lemma challA_sampled_reduction_random_cont_probOutput_true_eq
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
@@ -88,6 +94,8 @@ lemma challA_sampled_reduction_random_cont_probOutput_true_eq
     (challA_sampled_reduction_random_cont_run'_relTriple
       kem hDet hkem leak gp hgp σ hInv hWill hks cont)
 
+/-- Probability form of `challB_sampled_reduction_cont_run'_relTriple`, the
+B-side real-key case. -/
 lemma challB_sampled_reduction_cont_probOutput_true_eq
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
@@ -121,6 +129,9 @@ lemma challB_sampled_reduction_cont_probOutput_true_eq
     (challB_sampled_reduction_cont_run'_relTriple
       kem hDet hkem leak gp hgp σ hInv hWill hks cont)
 
+/-- Probability form of
+`challB_sampled_reduction_random_cont_run'_relTriple`, the B-side random-key
+case. -/
 lemma challB_sampled_reduction_random_cont_probOutput_true_eq
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)

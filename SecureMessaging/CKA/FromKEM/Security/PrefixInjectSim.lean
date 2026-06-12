@@ -31,6 +31,9 @@ def challengePassed
   | .A => gp.challengeEpoch ≤ σ.tA
   | .B => gp.challengeEpoch ≤ σ.tB
 
+/-- Once the challenge epoch has passed (`challengePassed`), the two
+fixed-bit implementations agree on every query: the challenge oracle can no
+longer fire at the challenged epoch, and no other oracle reads the bit. -/
 lemma securityImpl_true_false_run_eq_of_challengePassed
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
@@ -128,6 +131,8 @@ def ckaSecurityFixedBranchWithChallengeKey
         State.recvReady sk0)
   ckaSecurityFixedFromState kem hDet leak adv gp σ0 isRandom
 
+/-- Pointwise (per-bit) equality behind
+`ckaSecurityFixedBranch_challenge_key_gap_eq`. -/
 private lemma ckaSecurityFixedBranch_challenge_key_probOutput_true_eq
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
@@ -154,6 +159,11 @@ private lemma ckaSecurityFixedBranch_challenge_key_probOutput_true_eq
     rw [probOutput_bind_const]
     simp only [HasEvalPMF.probFailure_eq_zero, tsub_zero, one_mul]
 
+/-- Game hop: the honest fixed branch and
+`ckaSecurityFixedBranchWithChallengeKey` have the same true-output gap. Per
+bit, one of the two up-front key draws is unused — the challenge draw in the
+general case, the ordinary initial draw when the challenge is the very first
+A-send — so it drops out. -/
 lemma ckaSecurityFixedBranch_challenge_key_gap_eq
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
@@ -198,6 +208,8 @@ def ckaReductionINDCPABranchRawKeygenSwapped
   let kRand ← ($ᵗ K)
   finishChallengeStepRaw kem hDet leak gp res σ cStar (if b then kReal else kRand)
 
+/-- Pointwise (per-bit) equality behind
+`ckaReductionINDCPABranchRaw_keygen_swapped_gap_eq`. -/
 private lemma ckaReductionINDCPABranchRaw_keygen_swapped_probOutput_true
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
@@ -228,6 +240,9 @@ private lemma ckaReductionINDCPABranchRaw_keygen_swapped_probOutput_true
         (if b then kReal else kRand))
     (z := true)]
 
+/-- Game hop: swapping the two initial key-generation draws of the raw
+reduction branch preserves the true-output gap. The swap is a pure sampling
+commute, proved pointwise per bit. -/
 lemma ckaReductionINDCPABranchRaw_keygen_swapped_gap_eq
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)

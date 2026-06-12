@@ -9,8 +9,17 @@ import VCVio.ProgramLogic.Relational.SimulateQ
 /-!
 # CKA from KEM — Hidden-State Simulation
 
-This file contains the relational invariants used to connect the concrete CKA
-fixed-bit games with the IND-CPA reduction branch.
+After the challenge, the honest game and the reduction differ only in hidden
+state: the honest receiver still stores the decapsulation secret key and the
+real challenge key, while the reduction stores neither and answers the
+matching receive from its pending record. This file shows that difference is
+unobservable.
+
+`PostRel` relates an honest game state to a reduction post-challenge state in
+the A-to-B and B-to-A challenge windows and once the pending receive has
+happened. `postRel_step` shows every oracle preserves the relation with equal
+outputs — receiver corruption is blocked by admissibility — and
+`postRel_run'_relTriple` lifts this to whole adversary runs.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
@@ -20,22 +29,32 @@ namespace kemCKA
 
 variable {K PK SK C : Type}
 
+/-- Honest-side state in the A-to-B challenge window: the receiver B still
+holds the decapsulation secret `sk`, and the challenge message and real key
+sit in the A slots. -/
 def postAToBHonestState
     (base : SecurityState K PK SK C) (sk : SK) (msg : Message C PK) (key : K) :
     SecurityState K PK SK C :=
   { base with stB := State.recvReady sk, rhoA := some msg, keyA := some key }
 
+/-- Reduction-side state in the A-to-B challenge window: no receiver secret,
+the (possibly random) challenge key in the A slots, and the pending receive
+override that will answer B's receive. -/
 def postAToBReductionState
     (base : SecurityState K PK SK C) (msg : Message C PK) (key : K) :
     PostChallengeState K PK SK C :=
   { game := { base with rhoA := some msg, keyA := some key },
     pending := PendingChallengeRecv.aToB key msg.2 msg }
 
+/-- Honest-side state in the B-to-A challenge window, the mirror of
+`postAToBHonestState`. -/
 def postBToAHonestState
     (base : SecurityState K PK SK C) (sk : SK) (msg : Message C PK) (key : K) :
     SecurityState K PK SK C :=
   { base with stA := State.recvReady sk, rhoB := some msg, keyB := some key }
 
+/-- Reduction-side state in the B-to-A challenge window, the mirror of
+`postAToBReductionState`. -/
 def postBToAReductionState
     (base : SecurityState K PK SK C) (msg : Message C PK) (key : K) :
     PostChallengeState K PK SK C :=
@@ -143,6 +162,9 @@ private lemma postRel_aToB_after_challA
   exact PostRel.aToB
     (PostAToBRel.intro base skStar msg realKey fakeKey rfl rfl hdec hrecv hblock)
 
+/-- Entering the A-to-B window: right after a due A-challenge, the honest and
+reduction states are `PostRel`-related. The support memberships supply the
+deterministic decapsulation fact through perfect correctness. -/
 lemma postRel_aToB_after_challA_of_mem_support [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -212,6 +234,8 @@ private lemma postRel_bToA_after_challB
   exact PostRel.bToA
     (PostBToARel.intro base skStar msg realKey fakeKey rfl rfl hdec hrecv hblock)
 
+/-- Entering the B-to-A window, the mirror of
+`postRel_aToB_after_challA_of_mem_support`. -/
 lemma postRel_bToA_after_challB_of_mem_support [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -542,6 +566,11 @@ private lemma postChallengeImpl_corruptB_run [SampleableType K] [DecidableEq K]
   rw [hgame]
   rfl
 
+/-- One-query preservation of the hidden-state relation: under `PostRel`, the
+honest implementation and the post-challenge implementation answer every
+oracle with equal outputs and `PostRel`-related successor states. Receiver
+corruption, the one query that could see the hidden difference, is blocked by
+the recorded `allowCorr = false`. -/
 lemma postRel_step [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -825,6 +854,10 @@ lemma postRel_step [SampleableType K] [DecidableEq K]
                 (CKAScheme.ckaSecuritySpec.OSendB_rleak : (securitySpec leak).Domain)).run'
                 (postBToAHonestState base sk msg realKey)) hcurrent
 
+/-- Whole-run consequence of `postRel_step`: from `PostRel`-related states,
+simulating any adversary under the honest and post-challenge implementations
+yields outputs related by equality. The probability layer turns this
+`RelTriple` into equal output distributions. -/
 lemma postRel_run'_relTriple [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)

@@ -28,6 +28,9 @@ namespace kemCKA
 
 variable {K PK SK C : Type}
 
+/-- Result of running the adversary up to the first valid challenge query:
+either it finished without one (`done`), or it paused at an A- or B-challenge
+with the continuation awaiting the challenge answer. -/
 inductive CKAChallengeStepResult
     {K PK SK C : Type}
     {kem : KEMScheme ProbComp K PK SK C}
@@ -39,6 +42,9 @@ inductive CKAChallengeStepResult
   | pausedB
       (cont : Option (Message C PK × K) → OracleComp (securitySpec leak) α)
 
+/-- A paused reduction run together with its game state: the adversary either
+finished with a guess, or stands at a challenge query with the current game
+state and the continuation. -/
 inductive CKAReductionState
     {K PK SK C : Type}
     {kem : KEMScheme ProbComp K PK SK C}
@@ -51,16 +57,23 @@ inductive CKAReductionState
       (σ : SecurityState K PK SK C)
       (cont : Option (Message C PK × K) → OracleComp (securitySpec leak) Bool)
 
+/-- The challenge message in flight, if any: after an A-challenge the message
+waits for B's receive (`aToB`), and symmetrically for `bToA`. It records the
+challenge key, the next public key, and the message itself. -/
 inductive PendingChallengeRecv (K PK C : Type) where
   | none
   | aToB (key : K) (nextPk : PK) (msg : Message C PK)
   | bToA (key : K) (nextPk : PK) (msg : Message C PK)
 
+/-- State of the post-challenge oracle implementation: the underlying CKA
+game state plus the challenge message still awaiting receipt. -/
 structure PostChallengeState
     (K PK SK C : Type) where
   game : SecurityState K PK SK C
   pending : PendingChallengeRecv K PK C
 
+/-- Answer a query with the honest implementation, acting on the `game`
+component of the post-challenge state and leaving `pending` unchanged. -/
 def liftSecurityImplToPost [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -73,6 +86,12 @@ def liftSecurityImplToPost [SampleableType K] [DecidableEq K]
   set { ps with game := game' }
   return out
 
+/-- Post-challenge oracle implementation.
+
+The receive of the pending challenge message is answered from the recorded
+challenge key and next public key, with no decapsulation — exactly what the
+reduction can do without the challenge secret key. Every other query runs the
+honest implementation on the `game` component. -/
 def postChallengeImpl [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -127,6 +146,9 @@ def postChallengeImpl [SampleableType K] [DecidableEq K]
     | other =>
         liftSecurityImplToPost kem hDet leak gp other
 
+/-- Run reduction for the honest B-receive when decapsulation returns the
+sender's recorded key: the receive consumes the message, synchronizes B to
+the sender's epoch, and leaves `correct` unchanged. -/
 lemma securityImpl_recvB_of_decaps_eq [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -150,6 +172,8 @@ lemma securityImpl_recvB_of_decaps_eq [SampleableType K] [DecidableEq K]
         { g with stB := State.recvReady sk, rhoA := some msg, keyA := some key } = _
   simp [CKAScheme.oracleRecvB, scheme, recv, hstep, hdec]
 
+/-- Run reduction for the honest A-receive when decapsulation returns the
+sender's recorded key, the mirror of `securityImpl_recvB_of_decaps_eq`. -/
 lemma securityImpl_recvA_of_decaps_eq [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -173,6 +197,10 @@ lemma securityImpl_recvA_of_decaps_eq [SampleableType K] [DecidableEq K]
         { g with stA := State.recvReady sk, rhoB := some msg, keyB := some key } = _
   simp [CKAScheme.oracleRecvA, scheme, recv, hstep, hdec]
 
+/-- Run reduction for the intercepted B-receive of the pending `aToB`
+challenge message: the state advances as in an honest receive, with the
+recorded challenge key standing in for the decapsulated key, and `pending`
+clears. -/
 lemma postChallengeImpl_recvB_aToB_of_valid [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -197,6 +225,8 @@ lemma postChallengeImpl_recvB_aToB_of_valid [SampleableType K] [DecidableEq K]
   simp [postChallengeImpl, hstep, StateT.run_bind, StateT.run_get, StateT.run_set]
   rfl
 
+/-- Run reduction for the intercepted A-receive of the pending `bToA`
+challenge message, the mirror of `postChallengeImpl_recvB_aToB_of_valid`. -/
 lemma postChallengeImpl_recvA_bToA_of_valid [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -221,6 +251,14 @@ lemma postChallengeImpl_recvA_bToA_of_valid [SampleableType K] [DecidableEq K]
   simp [postChallengeImpl, hstep, StateT.run_bind, StateT.run_get, StateT.run_set]
   rfl
 
+/-- Hidden-state agreement at B's receive of the challenge message.
+
+Projected to the game component, the intercepted receive that replays
+`fakeKey` from a state storing `fakeKey` agrees with the honest receive that
+decapsulates `realKey` from a state storing `realKey` and the receive secret
+`sk`. The key value and the secret key drop out of the resulting game state,
+which is what lets the reduction answer post-challenge queries without the
+challenge secret. -/
 lemma securityImpl_recvB_eq_project_postChallengeImpl_aToB
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
@@ -252,6 +290,8 @@ lemma securityImpl_recvB_eq_project_postChallengeImpl_aToB
     StateT.run_bind, StateT.run_get, StateT.run_set]
   rfl
 
+/-- Hidden-state agreement at A's receive of the challenge message, the
+mirror of `securityImpl_recvB_eq_project_postChallengeImpl_aToB`. -/
 lemma securityImpl_recvA_eq_project_postChallengeImpl_bToA
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
@@ -283,6 +323,13 @@ lemma securityImpl_recvA_eq_project_postChallengeImpl_bToA
     StateT.run_bind, StateT.run_get, StateT.run_set]
   rfl
 
+/-- Answer the paused challenge query and finish the game.
+
+For a paused run, draw the next key pair, build the challenge message from
+`cStar`, hand `(msg, kStar)` to the continuation, and run it under the
+post-challenge implementation. The final guess is negated to account for the
+CKA/KEM bit-orientation reversal; `finishChallengeStepRaw` is the un-negated
+form. -/
 def finishChallengeStep [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -322,6 +369,9 @@ def finishChallengeStep [SampleableType K] [DecidableEq K]
         (simulateQ (postChallengeImpl kem hDet leak gp) (cont (some (msg, kStar)))).run ps0
       pure (!guess)
 
+/-- `finishChallengeStep` without the final negation. The raw form couples
+directly with the IND-CPA experiment; the branch gap absorbs the orientation
+difference. -/
 def finishChallengeStepRaw [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -361,6 +411,7 @@ def finishChallengeStepRaw [SampleableType K] [DecidableEq K]
         (simulateQ (postChallengeImpl kem hDet leak gp) (cont (some (msg, kStar)))).run ps0
       pure guess
 
+/-- The negated and raw challenge finishers differ by a final `(! ·)` map. -/
 lemma finishChallengeStep_eq_not_map_raw [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)

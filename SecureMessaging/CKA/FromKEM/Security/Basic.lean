@@ -19,6 +19,15 @@ reduction. They fix when the challenge epoch is a send epoch for the challenged
 party, show that corruption and randomness leaks are disallowed around the
 challenge, and describe how the reduction installs `pkStar` one epoch before the
 challenge send.
+
+Throughout the security modules, "honest" means: run by the construction's own
+algorithms exactly as the security experiment prescribes — honestly generated
+keys come from `kem.keygen` at the protocol step, and the honest implementation
+`securityImpl` answers every oracle that way. It contrasts with the hybrid
+oracles that embed KEM challenge material and with the reduction's simulated
+implementations that answer without the challenge secrets. It is unrelated to
+the corruption oracles: both parties always follow the protocol, and corruption
+only exposes state.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
@@ -87,6 +96,8 @@ def epochCounterInv (s : SecurityState K PK SK C) : Prop :=
   | some .sendA | some .challA => s.tA = s.tB + 1
   | some .sendB | some .challB => s.tB = s.tA + 1
 
+/-- The generic CKA security oracle implementation instantiated with the KEM
+construction and a fixed challenge bit. -/
 def securityImpl [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -96,6 +107,9 @@ def securityImpl [SampleableType K] [DecidableEq K]
     QueryImpl (securitySpec leak) (StateT (SecurityState K PK SK C) ProbComp) :=
   CKAScheme.ckaSecurityImpl gp isRandom (scheme kem hDet leak)
 
+/-- The A-challenge is due: a `challA` step is valid from the current state,
+A is the challenged party, and A's next counter value is the challenge
+epoch. -/
 def willChallengeA
     (gp : CKAScheme.GameParams)
     (σ : SecurityState K PK SK C) : Bool :=
@@ -103,6 +117,7 @@ def willChallengeA
     (gp.challengedParty == .A) &&
     (σ.tA + 1 == gp.challengeEpoch)
 
+/-- The B-challenge is due, the mirror of `willChallengeA`. -/
 def willChallengeB
     (gp : CKAScheme.GameParams)
     (σ : SecurityState K PK SK C) : Bool :=
@@ -110,6 +125,9 @@ def willChallengeB
     (gp.challengedParty == .B) &&
     (σ.tB + 1 == gp.challengeEpoch)
 
+/-- When the A-challenge is due, the previous action can only be the game
+start or a receive by A: those are the states from which `challA` is a valid
+step. -/
 lemma lastAction_of_willChallengeA
     (gp : CKAScheme.GameParams)
     (σ : SecurityState K PK SK C)
@@ -127,6 +145,8 @@ lemma lastAction_of_willChallengeA
       case recvA =>
         exact Or.inr rfl
 
+/-- When the B-challenge is due, the previous action must be a receive by B:
+`challB` is not a valid first step, so the game-start case is excluded. -/
 lemma lastAction_of_willChallengeB
     (gp : CKAScheme.GameParams)
     (σ : SecurityState K PK SK C)
@@ -144,6 +164,11 @@ lemma lastAction_of_willChallengeB
       case recvB =>
         rfl
 
+/-- Right after the A-challenge, corrupting the receiver B is disallowed.
+
+Counters are synchronized before the challenge, so the challenge epoch equals
+the counter maximum just after it; `2 ≤ ΔPCS` then blocks the corruption, and
+`ΔFS = 0` closes the forward-secrecy exception. -/
 lemma allowCorr_receiverB_false_after_challA
     (gp : CKAScheme.GameParams)
     (hgp : AdmissibleParams gp)
@@ -186,6 +211,8 @@ lemma allowCorr_receiverB_false_after_challA
   rw [hpcs]
   simp [hfs]
 
+/-- Right after the B-challenge, corrupting the receiver A is disallowed, the
+mirror of `allowCorr_receiverB_false_after_challA`. -/
 lemma allowCorr_receiverA_false_after_challB
     (gp : CKAScheme.GameParams)
     (hgp : AdmissibleParams gp)
@@ -227,16 +254,24 @@ lemma allowCorr_receiverA_false_after_challB
   rw [hpcs]
   simp [hfs]
 
+/-- A's current send precedes a B-challenge: B is the challenged party and A
+is sending at the epoch before the challenge epoch. On this send the modified
+oracles put the challenge public key into the outgoing message, so the
+challenged B-send encapsulates against it. -/
 def sendAInjectsChallengeKey
     (gp : CKAScheme.GameParams)
     (σ : SecurityState K PK SK C) : Bool :=
   (gp.challengedParty == .B) && (σ.tA == gp.challengeEpoch - 1)
 
+/-- B's current send precedes an A-challenge, the mirror of
+`sendAInjectsChallengeKey`. -/
 def sendBInjectsChallengeKey
     (gp : CKAScheme.GameParams)
     (σ : SecurityState K PK SK C) : Bool :=
   (gp.challengedParty == .A) && (σ.tB == gp.challengeEpoch - 1)
 
+/-- Corruption is PCS-blocked whenever A's counter sits at the epoch before
+the challenge: the counter maximum is then inside the `2 ≤ ΔPCS` window. -/
 lemma allowCorrPCS_false_of_two_le_deltaPCS_of_tA_pred
     (gp : CKAScheme.GameParams)
     (σ : SecurityState K PK SK C)
@@ -252,6 +287,9 @@ lemma allowCorrPCS_false_of_two_le_deltaPCS_of_tA_pred
     omega
   · simp [CKAScheme.allowCorrPCS, hle]
 
+/-- Corruption is PCS-blocked whenever B's counter sits at the epoch before
+the challenge, the mirror of
+`allowCorrPCS_false_of_two_le_deltaPCS_of_tA_pred`. -/
 lemma allowCorrPCS_false_of_two_le_deltaPCS_of_tB_pred
     (gp : CKAScheme.GameParams)
     (σ : SecurityState K PK SK C)
@@ -267,6 +305,13 @@ lemma allowCorrPCS_false_of_two_le_deltaPCS_of_tB_pred
     omega
   · simp [CKAScheme.allowCorrPCS, hle]
 
+/-- Honest A-send oracle that embeds the challenge public key.
+
+Identical to the construction's send oracle except at the send preceding a
+B-challenge (`sendAInjectsChallengeKey`): there the outgoing message carries
+`pkStar` instead of the freshly generated public key. The fresh key pair is
+still drawn, so the randomness shape matches the honest oracle, and A still
+stores the generated secret key. -/
 def oracleSendAWithChallengePk
     (kem : KEMScheme ProbComp K PK SK C)
     (gp : CKAScheme.GameParams)
@@ -294,6 +339,8 @@ def oracleSendAWithChallengePk
     else
       return none
 
+/-- Honest B-send oracle that embeds the challenge public key, the mirror of
+`oracleSendAWithChallengePk`. -/
 def oracleSendBWithChallengePk
     (kem : KEMScheme ProbComp K PK SK C)
     (gp : CKAScheme.GameParams)
@@ -321,6 +368,10 @@ def oracleSendBWithChallengePk
     else
       return none
 
+/-- The pre-challenge oracle implementation of the reduction: the honest
+implementation with both send oracles replaced by their `pkStar`-embedding
+versions. The challenge bit only matters at a valid challenge query, which
+the prefix machinery intercepts, so it is fixed to `false`. -/
 def prefixImpl [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
