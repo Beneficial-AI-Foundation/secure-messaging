@@ -128,7 +128,7 @@ def ckaSecurityFixedBranchWithChallengeKey
         State.recvReady sk0)
   ckaSecurityFixedFromState kem hDet leak adv gp σ0 isRandom
 
-lemma ckaSecurityFixedBranch_challenge_key_probOutput_true_eq
+private lemma ckaSecurityFixedBranch_challenge_key_probOutput_true_eq
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -198,7 +198,7 @@ def ckaReductionINDCPABranchRawKeygenSwapped
   let kRand ← ($ᵗ K)
   finishChallengeStepRaw kem hDet leak gp res σ cStar (if b then kReal else kRand)
 
-lemma ckaReductionINDCPABranchRaw_keygen_swapped_probOutput_true
+private lemma ckaReductionINDCPABranchRaw_keygen_swapped_probOutput_true
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
