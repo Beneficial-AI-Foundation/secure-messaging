@@ -38,9 +38,9 @@ Formally, a `CKAScheme` is a set of algorithms over
 - `sendB_rleak : St → m (Option (I × Rho × St × Rand))`.
   As `sendB`, but also returns the randomness used by B for that send.
 - `recvA : St → Rho → Option (I × St)`.
-  Processes incoming message `ρB`, derives matching epoch key `kB : I`, and new state `stB' : St`.
+  Processes incoming message `ρB`, derives matching epoch key `kA : I`, and new state `stA' : St`.
 - `recvB : St → Rho → Option (I × St)`.
-  Processes incoming message `ρA`, derives matching epoch key `kA : I`, and new state `stA' : St`.
+  Processes incoming message `ρA`, derives matching epoch key `kB : I`, and new state `stB' : St`.
 
 [DIAGRAMS]
 ```text
@@ -83,10 +83,10 @@ The CKA security game is parameterized by:
 
 - `challengeEpoch : ℕ`, where the adversary will attempt a challenge;
 - `challengedParty ∈ {A, B}`, the party challenged by the adversary;
-- `ΔFS : ℕ`, the forward-secrecy delay after which post-challenge state corruption
-  is allowed;
-- `ΔPCS : ℕ`, the post-compromise-security delay before the challenge during which
-  state corruption is disallowed.
+- `ΔFS : ℕ`, the forward-secrecy (FS) delay after which post-challenge state
+  corruption is allowed;
+- `ΔPCS : ℕ`, the post-compromise-security (PCS) delay before the challenge
+  during which state corruption is disallowed.
 
 The adversary has access to send / receive oracles for each party, incrementing
 per-party epoch counters `tA` and `tB`, respectively. In addition, there are

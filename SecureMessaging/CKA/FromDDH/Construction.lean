@@ -8,7 +8,7 @@ import ToMathlib.Control.StateT
 import VCVio.CryptoFoundations.HardnessAssumptions.DiffieHellman
 
 /-!
-# Continuous Key Agreement from Decisional Diffie-Hellman Assumption
+# Continuous Key Agreement (CKA) from Decisional Diffie-Hellman (DDH) Assumption
 
 Construction of a CKA scheme from the DDH following [ACD19, Section 4.1].
 https://eprint.iacr.org/2018/1037.pdf

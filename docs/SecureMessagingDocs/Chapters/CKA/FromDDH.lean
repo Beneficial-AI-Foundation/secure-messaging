@@ -6,6 +6,7 @@ import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessagingDocs.Chapters.CKA.Defs
 import SecureMessaging.CKA.FromDDH.Construction
 import SecureMessaging.CKA.FromDDH.Correctness
+import SecureMessaging.CKA.FromDDH.Security
 
 set_option linter.style.setOption false
 set_option linter.hashCommand false
@@ -91,11 +92,17 @@ theorem correctness [DecidableEq G] (adv : CKACorrectnessAdversary G G) :
 :::defTitle "cka_from_ddh_security" "CKA from DDH security"
 :::
 
-::::theorem "cka_from_ddh_security" (parent := "cka_cka_from_ddh")
+::::theorem "cka_from_ddh_security" (parent := "cka_cka_from_ddh") (lean := "ddhCKA.security")
 $`\todo`
 
-:::leanPill "missing"
-:::
+```anchor security (project := ".") (module := SecureMessaging.CKA.FromDDH.Security)
+theorem security (gp : GameParams)
+  (hΔFS : gp.ΔFS = 1) (hΔPCS : gp.ΔPCS = 2)
+    (hg : Function.Bijective (· • gen : F → G))
+    (adversary : CKAAdversary (CKAState F G) G G F) :
+    ckaGuessAdvantage (ddhCKA F G gen) adversary gp ≤
+      ddhGuessAdvantage gen (securityReduction gp adversary)
+```
 
 {usesLabel}`uses` {uses "cka_from_ddh"}[] · {uses "cka_security"}[] · {githubLabel}`github` {githubIssue 10}[]
 ::::
