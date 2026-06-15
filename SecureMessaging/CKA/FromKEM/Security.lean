@@ -3,20 +3,20 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
 
-import SecureMessaging.CKA.FromKEM.Correctness
+import SecureMessaging.CKA.FromKEM.Security.PrefixInjectCoupling
 
 /-!
 # CKA from KEM — Security Statements
 
-This file states the security property for the generic CKA-from-KEM construction
-of [ACD19, Section 4.1.2].
+This file states and proves the security property for the generic CKA-from-KEM
+construction of [ACD19, Section 4.1.2].
 
 The paper's Theorem 2 says that the generic KEM-based construction has
 `Delta_CKA = 0` and reduces CKA security to KEM security. The paper's proof is
 constructive: it builds an explicit IND-CPA adversary from the CKA adversary.
-The statement below is an existential placeholder for that theorem; the proof
-PR for issue #5 will replace it with a statement about a concrete reduction,
-an explicitly constructed IND-CPA adversary proved to satisfy the bound.
+The theorem below keeps the existential form; its proof supplies the concrete
+reduction `ckaToINDCPAReduction` as the witness and chains the gap equalities
+proved in the `Security/` modules.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
@@ -25,45 +25,7 @@ namespace kemCKA
 
 variable {K PK SK C : Type}
 
-/-- The challenged epoch must be a send epoch for the challenged party in the
-A-first alternating CKA game.
-
-The CKA game starts with A sending. Since both send/challenge and receive
-increment the local party counter, A can be challenged on odd send counters and
-B on positive even send counters.
--/
-def challengeEpochCompatible (gp : CKAScheme.GameParams) : Prop :=
-  match gp.challengedParty with
-  | .A => gp.challengeEpoch % 2 = 1
-  | .B => gp.challengeEpoch % 2 = 0 ∧ 0 < gp.challengeEpoch
-
-/-- Parameter admissibility for applying the generic KEM-to-CKA security
-statement.
-
-* `ΔFS = 0` records the paper's claim that the generic KEM construction achieves
-  optimal forward-secrecy delay.
-* `2 ≤ ΔPCS` records the paper/game convention that corruptions and randomness
-  leaks are excluded less than two epochs before the challenge.
-* `challengeEpochCompatible` says the static challenge epoch is actually a send
-  epoch for the challenged party in the A-first alternating game.
--/
-structure AdmissibleParams (gp : CKAScheme.GameParams) : Prop where
-  deltaFS_zero : gp.ΔFS = 0
-  two_le_deltaPCS : 2 ≤ gp.ΔPCS
-  challenge_epoch_compatible : challengeEpochCompatible gp
-
-/-- The CKA adversary interface specialized to the leaking KEM construction.
-
-The adversary receives the generic CKA security oracle family with the
-send-randomness type `RandLeak.Rand leak`: the randomness of KEM encapsulation
-paired with the randomness of the fresh next KEM key pair.
--/
-abbrev Adversary {K PK SK C : Type}
-    {kem : KEMScheme ProbComp K PK SK C}
-    (leak : RandLeak kem) :=
-  CKAScheme.CKAAdversary (State PK SK) (Message C PK) K leak.Rand
-
-/-- Existential security-reduction statement for CKA from a KEM.
+/-- Security reduction for CKA from a KEM.
 
 For every perfectly correct KEM, CKA adversary, and admissible challenge
 parameters, there exists an IND-CPA adversary against the KEM whose advantage
@@ -73,10 +35,13 @@ between the real-key and random-key branches of the CKA game (twice
 `CKAScheme.ckaGuessAdvantage`), and `KEMScheme.IND_CPA_Advantage` is the
 Boolean bias `|Pr[true] - Pr[false]|` of the single IND-CPA game.
 
-The statement is an existential placeholder, not the final form of [ACD19,
-Theorem 2], whose proof is constructive. The proof PR for issue #5 will
-replace the existential with a concrete reduction — an explicitly constructed
-IND-CPA adversary — and prove this bound for it.
+N.B. ACD19's sampled-bit guessing advantage is half of `ckaDistAdvantage`
+(`CKAScheme.ckaGuessAdvantage_eq_ckaDistAdvantage_div_two`); the paper's no-leak
+construction is the instance `RandLeak.noLeak kem`.
+
+The statement is an existential wrapper around a concrete witness: the proof
+instantiates `red := ckaToINDCPAReduction kem hDet leak adv gp` and proves the
+two advantages equal, so the stated bound holds with equality.
 -/
 -- ANCHOR: security_reduces_to_ind_cpa_exists
 theorem security_reduces_to_ind_cpa_exists [SampleableType K] [DecidableEq K]
@@ -92,6 +57,17 @@ theorem security_reduces_to_ind_cpa_exists [SampleableType K] [DecidableEq K]
         KEMScheme.IND_CPA_Advantage (kem := kem) ProbCompRuntime.probComp red
 -- ANCHOR_END: security_reduces_to_ind_cpa_exists
     := by
-  sorry
+  refine ⟨ckaToINDCPAReduction kem hDet leak adv gp, le_of_eq ?_⟩
+  rw [kem_ind_cpa_advantage_eq_fixed_branch_dist,
+    ckaToINDCPAReduction_IND_CPA_Exp_probOutput_true_eq_branch kem hDet leak adv gp true,
+    ckaToINDCPAReduction_IND_CPA_Exp_probOutput_true_eq_branch kem hDet leak adv gp false,
+    ckaReductionINDCPABranch_gap_eq_raw_gap,
+    ckaReductionINDCPABranchRaw_keygen_swapped_gap_eq]
+  unfold CKAScheme.ckaDistAdvantage
+  rw [securityExpFixedBit_eq_ckaSecurityFixedBranch kem hDet leak adv gp true,
+    securityExpFixedBit_eq_ckaSecurityFixedBranch kem hDet leak adv gp false,
+    ckaSecurityFixedBranch_challenge_key_gap_eq,
+    ckaSecurityFixedBranchWithChallengeKey_injected_gap_eq]
+  exact cka_injected_honest_gap_eq_keygen_swapped_raw_gap kem hDet hkem leak adv gp hgp
 
 end kemCKA
