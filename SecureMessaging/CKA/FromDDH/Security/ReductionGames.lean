@@ -11,13 +11,17 @@ import ToVCVio.OracleComp.QueryTracking.LazySampling
 /-!
 # CKA from DDH — Reduction Games
 
-This file defines the reduction from a CKA security adversary to a DDH adversary.
-Given a DDH challenge tuple `(gen, gA, gB, gT)` and a CKA adversary `𝒜`, the reduction `ℬ = securityReduction gp 𝒜`
-simulates an honest CKA game for `𝒜` with the following modifications:
-  - At the embedding epoch (`tX = challengeEpoch - 1`), the reduction injects `gA` into the honest CKA oracle's output.
-  - At the challenge epoch (`tX = challengeEpoch`), the reduction injects `(gB, gT)` into the honest CKA oracle's output.
+This file defines the reduction from a CKA security adversary to a DDH
+adversary. Given a DDH challenge tuple `(gen, gA, gB, gT)` and a CKA adversary
+`𝒜`, the reduction `ℬ = securityReduction gp 𝒜` simulates an honest CKA game for
+`𝒜` with the following modifications:
+  - At the embedding epoch (`tX = challengeEpoch - 1`), the reduction injects
+    `gA` into the honest CKA oracle's output.
+  - At the challenge epoch (`tX = challengeEpoch`), the reduction injects
+    `(gB, gT)` into the honest CKA oracle's output.
 All other epochs run honest CKA.
-The reduction outputs `!b'`, where `b'` is `𝒜`'s challenge guess to the simulated CKA game.
+The reduction outputs `!b'`, where `b'` is `𝒜`'s challenge guess to the simulated
+CKA game.
 -/
 
 open OracleSpec OracleComp ENNReal

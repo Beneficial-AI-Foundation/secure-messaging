@@ -29,13 +29,13 @@ with `ΔFS = 1` and `ΔPCS = 2`, there is an explicit DDH adversary
 *where `ckaGuessAdvantage(cka, 𝒜, gp) = | Pr[securityExp(cka, 𝒜, gp) = 1] − 1/2 |`
 and `ddhGuessAdvantage(gen, ℬ) = | Pr[ddhExp(gen, ℬ) = 1] − 1/2 |`.*
 
-*Note (cyclic group).* Bijectivity of `fun x : F => x • gen` makes the map
-`x ↦ x • gen` an additive-group isomorphism `(F, +) ≅ (G, +)`.
-The group `G` is cyclic iff `(F, +)` is cyclic.
-Example: for `F = Zₚ` and prime `p`, `G` is cyclic of order `p`.
+*Note (cyclic group).* A particular instance of `(F, G)` satisfying the theorem
+is the prime-field case: `(F, +)` and `(G, +)` are cyclic groups of order `p`
+admitting an isomorphism `(F, +) ≅ (G, +)`.
+Example: for `F = Zₚ` and prime `p`, both additive groups are cyclic of prime order `p`.
 
-*Note (reduction efficiency).* The adversary `ℬ := securityReduction gp 𝒜` uses
-the CKA adversary `𝒜` as a subroutine and answers its CKA oracle queries using
+*Note (reduction efficiency - informal).* The adversary `ℬ := securityReduction gp 𝒜`
+uses the CKA adversary `𝒜` as a subroutine and answers its CKA oracle queries using
 the given DDH challenge `(gen, gA, gB, gT)`.
 The complexity of the setup is `O(1)` and each of `𝒜`'s oracle queries
 is answered making `O(1)` group operations.

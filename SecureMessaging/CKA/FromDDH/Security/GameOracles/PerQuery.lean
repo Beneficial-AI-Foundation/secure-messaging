@@ -83,7 +83,8 @@ lemma honestChallA_param_run_eq_at_chal_B
     (honestChallA_param (F := F) gp gen b ()).run s =
   (oracleChallA gp false (ddhCKA F G gen) ()).run s := by
   have h_beq : (gp.challengedParty == CKAParty.A) = false := by simp [h_cp]
-  simp [honestChallA_param, StateT.run, h_beq]
+  unfold honestChallA_param honestChallA_param_mode
+  simp [h_beq]
 
 omit [Inhabited F] [Fintype G] [DecidableEq G] in
 /-- Off-party dispatch: at `challengedParty = .A`, `honestChallB_param` is pointwise equal
@@ -94,7 +95,8 @@ lemma honestChallB_param_run_eq_at_chal_A
     (honestChallB_param (F := F) gp gen b ()).run s =
   (oracleChallB gp false (ddhCKA F G gen) ()).run s := by
   have h_beq : (gp.challengedParty == CKAParty.B) = false := by simp [h_cp]
-  simp [honestChallB_param, StateT.run, h_beq]
+  unfold honestChallB_param honestChallB_param_mode
+  simp [h_beq]
 
 omit [Inhabited F] [Fintype G] [DecidableEq G] in
 /-! ### Predicate-false dispatch (send oracles)
@@ -217,10 +219,10 @@ lemma honestImpl_param_real_a_indep_special
   | OCorruptA => rfl
   | OChallB =>
     simp [honestImpl_param_real, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
-      honestChallB_param]
+      honestChallB_param, honestChallB_param_mode]
   | OChallA =>
     simp [honestImpl_param_real, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
-      honestChallA_param]
+      honestChallA_param, honestChallA_param_mode]
   | ORecvB => rfl
   | OSendB =>
     change (honestSendB_param gp gen a₁ ()).run s = (honestSendB_param gp gen a₂ ()).run s
@@ -371,10 +373,10 @@ lemma honestImpl_param_rand_a_indep_special
   | OCorruptA => rfl
   | OChallB =>
     simp [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
-      honestChallB_param_rand]
+      honestChallB_param_rand, honestChallB_param_mode]
   | OChallA =>
     simp [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
-      honestChallA_param_rand]
+      honestChallA_param_rand, honestChallA_param_mode]
   | ORecvB => rfl
   | OSendB =>
     change (honestSendB_param gp gen a₁ ()).run s = (honestSendB_param gp gen a₂ ()).run s
@@ -414,7 +416,7 @@ lemma honestImpl_param_rand_b_indep_post_challA_special
   | OCorruptA => rfl
   | OChallB =>
     simp [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
-      honestChallB_param_rand]
+      honestChallB_param_rand, honestChallB_param_mode]
   | OChallA =>
     change (honestChallA_param_rand gp gen b₁ gT ()).run s =
       (honestChallA_param_rand gp gen b₂ gT ()).run s
@@ -624,10 +626,10 @@ lemma honestImpl_param_real_a_indep_post_sendA
   | OCorruptA => rfl  -- corruptA
   | OChallB =>  -- challB at h_cp = .B uses parameter b, not a
     simp [honestImpl_param_real, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestChallB_param, h_cp]
+      honestChallB_param, honestChallB_param_mode, h_cp]
   | OChallA =>  -- challA at h_cp = .B is off-party
     simp [honestImpl_param_real, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestChallA_param, h_cp]
+      honestChallA_param, honestChallA_param_mode, h_cp]
   | ORecvB => rfl  -- recvB
   | OSendB =>  -- sendB at h_cp = .B is off-party
     simp [honestImpl_param_real, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
@@ -656,10 +658,10 @@ lemma honestImpl_param_real_a_indep_post_sendB
   | OCorruptA => rfl
   | OChallB =>  -- challB at h_cp = .A is off-party
     simp [honestImpl_param_real, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestChallB_param, h_cp]
+      honestChallB_param, honestChallB_param_mode, h_cp]
   | OChallA =>  -- challA at h_cp = .A uses parameter b, not a
     simp [honestImpl_param_real, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestChallA_param, h_cp]
+      honestChallA_param, honestChallA_param_mode, h_cp]
   | ORecvB => rfl
   | OSendB =>  -- sendB: hit at challengedParty=A
     change (honestSendB_param gp gen a₁ ()).run s = (honestSendB_param gp gen a₂ ()).run s
@@ -687,7 +689,7 @@ lemma honestImpl_param_real_b_indep_post_challA
   | OCorruptA => rfl
   | OChallB =>  -- challB at h_cp = .A is off-party
     simp [honestImpl_param_real, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestChallB_param, h_cp]
+      honestChallB_param, honestChallB_param_mode, h_cp]
   | OChallA =>  -- challA: hit at challengedParty=A
     change (honestChallA_param gp gen b₁ ()).run s = (honestChallA_param gp gen b₂ ()).run s
     exact honestChallA_param_b_indep_post_event (gen := gen) gp h_cp b₁ b₂ s h_post
@@ -716,7 +718,7 @@ lemma honestImpl_param_real_b_indep_post_challB
   | OCorruptA => rfl
   | OChallA =>  -- challA at h_cp = .B is off-party
     simp [honestImpl_param_real, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestChallA_param, h_cp]
+      honestChallA_param, honestChallA_param_mode, h_cp]
   | OChallB =>  -- challB: hit at challengedParty=B
     change (honestChallB_param gp gen b₁ ()).run s = (honestChallB_param gp gen b₂ ()).run s
     exact honestChallB_param_b_indep_post_event (gen := gen) gp h_cp b₁ b₂ s h_post
@@ -744,10 +746,10 @@ lemma honestImpl_param_rand_a_indep_post_sendA
   | OCorruptA => rfl
   | OChallB =>
     simp [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestChallB_param_rand, h_cp]
+      honestChallB_param_rand, honestChallB_param_mode, h_cp]
   | OChallA =>
     simp [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestChallA_param_rand, h_cp]
+      honestChallA_param_rand, honestChallA_param_mode, h_cp]
   | ORecvB => rfl
   | OSendB =>
     simp [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
@@ -775,10 +777,10 @@ lemma honestImpl_param_rand_a_indep_post_sendB
   | OCorruptA => rfl
   | OChallB =>
     simp [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestChallB_param_rand, h_cp]
+      honestChallB_param_rand, honestChallB_param_mode, h_cp]
   | OChallA =>
     simp [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestChallA_param_rand, h_cp]
+      honestChallA_param_rand, honestChallA_param_mode, h_cp]
   | ORecvB => rfl
   | OSendB =>
     change (honestSendB_param gp gen a₁ ()).run s =
@@ -806,7 +808,7 @@ lemma honestImpl_param_rand_b_indep_post_challA
   | OCorruptA => rfl
   | OChallB =>
     simp [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestChallB_param_rand, h_cp]
+      honestChallB_param_rand, honestChallB_param_mode, h_cp]
   | OChallA =>
     change (honestChallA_param_rand gp gen b₁ gT ()).run s =
       (honestChallA_param_rand gp gen b₂ gT ()).run s
@@ -833,7 +835,7 @@ lemma honestImpl_param_rand_b_indep_post_challB
   | OCorruptA => rfl
   | OChallA =>
     simp [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestChallA_param_rand, h_cp]
+      honestChallA_param_rand, honestChallA_param_mode, h_cp]
   | OChallB =>
     change (honestChallB_param_rand gp gen b₁ gT ()).run s =
       (honestChallB_param_rand gp gen b₂ gT ()).run s
@@ -860,7 +862,7 @@ lemma honestImpl_param_rand_gT_indep_post_challA
   | OCorruptA => rfl
   | OChallB =>
     simp [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestChallB_param_rand, h_cp]
+      honestChallB_param_rand, honestChallB_param_mode, h_cp]
   | OChallA =>
     change (honestChallA_param_rand gp gen b gT₁ ()).run s =
       (honestChallA_param_rand gp gen b gT₂ ()).run s
@@ -887,7 +889,7 @@ lemma honestImpl_param_rand_gT_indep_post_challB
   | OCorruptA => rfl
   | OChallA =>
     simp [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestChallA_param_rand, h_cp]
+      honestChallA_param_rand, honestChallA_param_mode, h_cp]
   | OChallB =>
     change (honestChallB_param_rand gp gen b gT₁ ()).run s =
       (honestChallB_param_rand gp gen b gT₂ ()).run s

@@ -89,7 +89,7 @@ section Step2
 variable [Inhabited F]
 variable [Fintype G]
 
-set_option maxHeartbeats 4000000 in
+set_option maxHeartbeats 2000000 in
 -- The adversary induction expands `simulateQ` through every oracle case; the
 -- default heartbeat limit times out while checking the bridge theorem.
 omit [Inhabited F] [Fintype G] in

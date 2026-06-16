@@ -210,7 +210,7 @@ returns the external key `gT`.
 The state update (`stA := .recvReady b`, `ρ := b • gen`) is the same in both
 modes; only the key returned to the adversary differs. Off-event: identical
 to `oracleChallA`. -/
-@[simp] noncomputable abbrev honestChallA_param_mode
+noncomputable abbrev honestChallA_param_mode
     (mode : HonestChallengeMode) (gp : GameParams) (gen : G) (b : F) (gT : G) :
     QueryImpl (Unit →ₒ Option (G × G)) (StateT (GameState (CKAState F G) G G) ProbComp) :=
   fun () => do
@@ -238,7 +238,7 @@ returns the external key `gT`.
 The state update (`stB := .recvReady b`, `ρ := b • gen`) is the same in both
 modes; only the key returned to the adversary differs. Off-event: identical
 to `oracleChallB`. -/
-@[simp] noncomputable abbrev honestChallB_param_mode
+noncomputable abbrev honestChallB_param_mode
     (mode : HonestChallengeMode) (gp : GameParams) (gen : G) (b : F) (gT : G) :
     QueryImpl (Unit →ₒ Option (G × G)) (StateT (GameState (CKAState F G) G G) ProbComp) :=
   fun () => do
@@ -426,7 +426,7 @@ lemma hindepB_param_honest (gp : GameParams)
     | A =>
       unfold OracleComp.ProgramLogic.Relational.consumeLazy
       simp [honestImpl_param_real, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-        honestChallB_param, hitA, h_cp]
+        honestChallB_param, honestChallB_param_mode, hitA, h_cp]
     | B =>
       exfalso; simp [hitB, h_cp] at h
   | OChallA =>  -- challA: gated by challengedParty = .A
@@ -436,7 +436,7 @@ lemma hindepB_param_honest (gp : GameParams)
     | B =>
       unfold OracleComp.ProgramLogic.Relational.consumeLazy
       simp [honestImpl_param_real, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-        honestChallA_param, hitA, h_cp]
+        honestChallA_param, honestChallA_param_mode, hitA, h_cp]
   | ORecvB => rfl  -- recvB
   | OSendB => rfl  -- sendB
   | ORecvA => rfl  -- recvA
