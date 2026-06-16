@@ -1,0 +1,14 @@
+name: Verification Comment
+# Posts the sticky Verification Delta PR comment after the CI workflow
+# completes. All logic lives in the veritooling reusable workflow; this file
+# only supplies the workflow_run trigger. Running via workflow_run (in the base
+# repo context) gives the GITHUB_TOKEN write access even for fork PRs.
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+jobs:
+  comment:
+    uses: Beneficial-AI-Foundation/veritooling/.github/workflows/verification-comment.yml@v1

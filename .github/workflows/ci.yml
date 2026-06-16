@@ -56,6 +56,52 @@ jobs:
           build: "true"
           use-mathlib-cache: "true"
 
+      # --- Sorry audit (veritooling) ---
+      # Reuses the build above; logic lives in Beneficial-AI-Foundation/veritooling@v1.
+
+      - name: Restore base sorry manifest
+        if: github.event_name == 'pull_request'
+        uses: actions/cache/restore@v4
+        with:
+          key: sorry-manifest-${{ github.event.pull_request.base.ref }}-${{ github.event.pull_request.base.sha }}
+          restore-keys: |
+            sorry-manifest-main-
+          path: sorry-manifest.txt
+
+      - name: Prepare base manifest
+        if: github.event_name == 'pull_request'
+        run: '[ -f sorry-manifest.txt ] && mv sorry-manifest.txt sorry-manifest-base.txt || true'
+        shell: bash
+
+      - name: Sorry audit (collectAxioms)
+        uses: Beneficial-AI-Foundation/veritooling/sorry-audit-collectaxioms@v1
+        with:
+          root-module: "SecureMessaging,ToVCVio"
+
+      - name: Save sorry manifest to cache
+        if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        uses: actions/cache/save@v4
+        with:
+          key: sorry-manifest-${{ github.ref_name }}-${{ github.sha }}
+          path: sorry-manifest.txt
+
+      - name: Save PR number
+        if: github.event_name == 'pull_request'
+        run: echo "${{ github.event.pull_request.number }}" > pr-number.txt
+        shell: bash
+
+      - name: Upload verification artifacts
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-audit
+          path: |
+            sorry-manifest.txt
+            sorry-manifest-base.txt
+            pr-number.txt
+          if-no-files-found: ignore
+          retention-days: 1
+
       - name: Build documentation modules
         run: |
           lake build \
