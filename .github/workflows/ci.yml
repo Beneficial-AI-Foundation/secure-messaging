@@ -34,10 +34,27 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    outputs:
+      docs: ${{ steps.changes.outputs.docs }}
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+
+      # Detect whether anything that affects the documentation site changed.
+      # Deliberately excludes `.github/workflows/ci.yml`, so editing CI alone
+      # runs the sorry audit but skips the (expensive) doc build + deploy.
+      - name: Detect documentation-relevant changes
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            docs:
+              - '**/*.lean'
+              - 'lean-toolchain'
+              - 'lakefile.toml'
+              - 'lake-manifest.json'
+              - 'scripts/**'
 
       - name: Cache Lake build products
         id: lake-build-cache
@@ -104,6 +121,7 @@ jobs:
           retention-days: 1
 
       - name: Build documentation modules
+        if: steps.changes.outputs.docs == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           lake build \
             SecureMessagingDocs.Chapters.AEAD.Defs \
@@ -142,12 +160,14 @@ jobs:
             SecureMessagingDocs.Visuals.Style
 
       - name: Generate documentation site
+        if: steps.changes.outputs.docs == 'true' || github.event_name == 'workflow_dispatch'
         env:
           BLUEPRINT_PROGRESS_HISTORY_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/blueprint-progress-history.json
           GH_TOKEN: ${{ github.token }}
         run: scripts/render-docs-site.sh
 
       - name: Validate site output
+        if: steps.changes.outputs.docs == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           test -f _out/site/html-multi/index.html
           test -f _out/site/html-multi/blueprint-progress-history.json
@@ -169,13 +189,14 @@ jobs:
           done
 
       - name: Upload Pages artifact
+        if: steps.changes.outputs.docs == 'true' || github.event_name == 'workflow_dispatch'
         uses: actions/upload-pages-artifact@v4
         with:
           path: _out/site/html-multi
 
   deploy:
     name: Deploy Pages
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.build.outputs.docs == 'true')
     needs: build
     runs-on: ubuntu-latest
     environment:
