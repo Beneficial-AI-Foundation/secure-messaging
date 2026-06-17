@@ -30,7 +30,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "erasure_code_scheme"}[] · {uses "rkem_scheme"}[] · {uses "fs_aead_scheme"}[] · {uses "prf_prng_scheme"}[] · {githubLabel}`github` {githubIssue 134}[]
+{githubLabel}`github` {githubIssue 134}[]
 ::::
 
 :::defTitle "secure_messaging_triple_ratchet_spec" "Triple Ratchet protocol"

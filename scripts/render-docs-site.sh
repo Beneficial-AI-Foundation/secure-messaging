@@ -22,6 +22,52 @@ done
 
 site_root="$output_root/html-multi"
 render_root="$output_root/chapter-renders"
+history_root="$output_root/history"
+previous_history="$history_root/blueprint-progress-history.json"
+
+# Recover prior progress history when available.
+recover_previous_progress_history() {
+  rm -f "$previous_history"
+  mkdir -p "$history_root"
+
+  # Use an explicit local history file when provided.
+  if [[ -n "${BLUEPRINT_PROGRESS_HISTORY_FILE:-}" && -f "${BLUEPRINT_PROGRESS_HISTORY_FILE:-}" ]]; then
+    cp "$BLUEPRINT_PROGRESS_HISTORY_FILE" "$previous_history"
+    echo "Recovered Blueprint progress history from $BLUEPRINT_PROGRESS_HISTORY_FILE"
+    return
+  fi
+
+  # Otherwise, fetch from the deployed site when a URL is provided.
+  if [[ -n "${BLUEPRINT_PROGRESS_HISTORY_URL:-}" ]]; then
+    if curl -fsSL "$BLUEPRINT_PROGRESS_HISTORY_URL" -o "$previous_history"; then
+      echo "Recovered Blueprint progress history from $BLUEPRINT_PROGRESS_HISTORY_URL"
+      return
+    fi
+    echo "No deployed Blueprint progress history found at $BLUEPRINT_PROGRESS_HISTORY_URL" >&2
+  fi
+
+  echo "Starting Blueprint progress history from the current render"
+}
+
+# Seed progress history when recovery found none and seeding is enabled.
+seed_progress_history_if_needed() {
+  if [[ -f "$previous_history" || "${BLUEPRINT_PROGRESS_HISTORY_SEED:-}" != "1" ]]; then
+    return
+  fi
+
+  if ! command -v gh >/dev/null 2>&1; then
+    echo "Cannot seed Blueprint progress history: gh is not available" >&2
+    return
+  fi
+
+  if python3 scripts/seed-blueprint-progress-history.py \
+    --site-dir "$site_root" \
+    --history "$previous_history"; then
+    echo "Seeded Blueprint progress history from GitHub issue closures"
+  else
+    echo "Could not seed Blueprint progress history; using current render only" >&2
+  fi
+}
 
 # Verso renders each chapter as a standalone manual. Add a project-level link to
 # every page sidebar and inject the small bits of shared styling needed by the
@@ -95,6 +141,7 @@ chapters=(
 
 rm -rf "$site_root" "$render_root"
 mkdir -p "$site_root" "$render_root"
+recover_previous_progress_history
 
 # The site root is intentionally plain HTML: chapter manuals remain responsible
 # for their own Verso assets, search indexes, graphs, and previews.
@@ -123,9 +170,9 @@ cat > "$site_root/index.html" <<'HTML'
       line-height: 1.55;
     }
     main {
-      max-width: 860px;
+      max-width: 1416px;
       margin: 0 auto;
-      padding: 56px 22px 72px;
+      padding: 56px 28px 72px;
     }
     h1 {
       margin: 0 0 8px;
@@ -135,9 +182,10 @@ cat > "$site_root/index.html" <<'HTML'
     }
     .subtitle {
       margin: 0 0 32px;
-      max-width: 680px;
+      max-width: none;
       color: var(--muted);
       font-size: 1.05rem;
+      white-space: nowrap;
     }
     .chapter-list {
       display: grid;
@@ -209,7 +257,8 @@ cat > "$site_root/index.html" <<'HTML'
     }
     .status-table {
       width: 100%;
-      min-width: 720px;
+      min-width: 820px;
+      margin-top: 34px;
       border-collapse: collapse;
       border: 1px solid var(--line);
       font-size: 0.95rem;
@@ -227,7 +276,8 @@ cat > "$site_root/index.html" <<'HTML'
     }
     .status-table th:not(:first-child),
     .status-table td {
-      text-align: right;
+      text-align: center;
+      vertical-align: middle;
     }
     .status-table th[colspan] {
       text-align: center;
@@ -235,10 +285,25 @@ cat > "$site_root/index.html" <<'HTML'
     .status-table .theorem-group {
       border-left: 2px solid var(--line);
     }
+    .status-table .proof-group {
+      border-left: 1px solid var(--line);
+    }
+    .status-table .next-group {
+      border-left: 2px solid var(--line);
+    }
+    .status-chapter-link {
+      color: inherit;
+      text-decoration: none;
+    }
+    .status-chapter-link:hover,
+    .status-chapter-link:focus {
+      text-decoration: underline;
+      text-underline-offset: 0.15em;
+    }
     .status-count {
       position: relative;
       display: inline-flex;
-      justify-content: flex-end;
+      justify-content: center;
       min-width: 1.6rem;
       cursor: pointer;
       outline: none;
@@ -302,6 +367,207 @@ cat > "$site_root/index.html" <<'HTML'
       color: var(--muted);
       font-weight: 600;
     }
+    .status-table .status-all-row th,
+    .status-table .status-all-row td {
+      border-top: 2px solid #9fb0cf;
+      border-bottom: 2px solid #9fb0cf;
+      background: #eef3fb;
+      font-weight: 800;
+      padding-top: 11px;
+      padding-bottom: 11px;
+    }
+    .progress-history {
+      margin-top: 34px;
+    }
+    .progress-history h2 {
+      margin: 0 0 14px;
+      font-size: 1.45rem;
+    }
+    .progress-chart-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+    .progress-chart-card {
+      padding: 15px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--panel);
+      overflow-x: auto;
+      scrollbar-gutter: stable;
+    }
+    .progress-chart-card h3 {
+      margin: 0 0 10px;
+      font-size: 1rem;
+    }
+    .progress-chart {
+      display: block;
+      width: 100%;
+      min-width: 588px;
+      height: auto;
+      overflow: visible;
+    }
+    .progress-chart-axis {
+      stroke: #5d6b7f;
+      stroke-width: 2.9;
+      stroke-linecap: square;
+    }
+    .progress-chart-gridline line {
+      stroke: #c8d1df;
+      stroke-dasharray: 3 7;
+      stroke-linecap: round;
+      stroke-width: 1;
+      opacity: 0.74;
+    }
+    .progress-chart-gridline text {
+      dominant-baseline: middle;
+      fill: #334155;
+      font-size: 0.9rem;
+      font-weight: 800;
+      paint-order: stroke fill;
+      stroke: var(--panel);
+      stroke-linejoin: round;
+      stroke-width: 3px;
+      text-anchor: end;
+    }
+    .progress-chart-guide {
+      stroke-dasharray: 3 5;
+      stroke-linecap: round;
+      stroke-width: 1.7;
+      opacity: 0.58;
+    }
+    .progress-chart-guide.specified {
+      stroke: #2563eb;
+    }
+    .progress-chart-guide.verified {
+      stroke: #16a34a;
+    }
+    .progress-chart-line {
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 4.8;
+    }
+    .progress-chart-line.total {
+      stroke: #5b6474;
+      stroke-dasharray: 5 5;
+    }
+    .progress-chart-line.specified {
+      stroke: #2563eb;
+    }
+    .progress-chart-line.verified {
+      stroke: #16a34a;
+    }
+    .progress-chart-area {
+      opacity: 0.32;
+    }
+    .progress-chart-area.specified {
+      fill: #2563eb;
+    }
+    .progress-chart-area.verified {
+      fill: #16a34a;
+    }
+    .progress-chart-label {
+      fill: var(--muted);
+      font-size: 0.86rem;
+    }
+    .progress-chart-tick line {
+      stroke: #66758a;
+      stroke-width: 1.7;
+    }
+    .progress-chart-tick text {
+      fill: #334155;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.98rem;
+      font-weight: 700;
+      paint-order: stroke fill;
+      stroke: var(--panel);
+      stroke-linejoin: round;
+      stroke-width: 3px;
+      dominant-baseline: hanging;
+      text-anchor: end;
+    }
+    .progress-chart-legend {
+      display: flex;
+      align-items: center;
+      flex-wrap: nowrap;
+      gap: 12px;
+      margin-top: 9px;
+      overflow-x: auto;
+      white-space: nowrap;
+      color: var(--muted);
+      font-size: 0.95rem;
+      font-weight: 650;
+    }
+    .progress-chart-legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .progress-chart-timeframe {
+      margin-left: auto;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .progress-swatch {
+      width: 16px;
+      height: 4px;
+      border-radius: 999px;
+      background: #5b6474;
+    }
+    .progress-swatch.specified {
+      background: #2563eb;
+    }
+    .progress-swatch.verified {
+      background: #16a34a;
+    }
+    .status-references {
+      margin-top: 16px;
+      padding: 14px 15px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--panel);
+    }
+    .status-references h3 {
+      margin: 0 0 8px;
+      font-size: 1rem;
+    }
+    .status-references ul {
+      margin: 0;
+      padding-left: 1.05rem;
+      display: grid;
+      gap: 10px;
+    }
+    .status-ref-item {
+      display: grid;
+      gap: 2px;
+      color: #1f2937;
+    }
+    .status-ref-title {
+      color: #1f2937;
+      font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Times New Roman", serif;
+      font-size: 1.02rem;
+      font-style: italic;
+      text-decoration-color: currentColor;
+      text-underline-offset: 0.15em;
+    }
+    .status-ref-authors {
+      font-family: "Avenir Next", "Helvetica Neue", "Segoe UI", sans-serif;
+      font-size: 0.9rem;
+      color: #556070;
+    }
+    .status-ref-venue {
+      font-family: "Courier Prime", "Courier New", ui-monospace, monospace;
+      font-size: 0.84rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #334155;
+    }
+    @media (max-width: 900px) {
+      .progress-chart-grid {
+        grid-template-columns: 1fr;
+      }
+    }
     @media (max-width: 640px) {
       .chapter-row {
         align-items: flex-start;
@@ -312,6 +578,9 @@ cat > "$site_root/index.html" <<'HTML'
       }
       .status-table {
         font-size: 0.85rem;
+      }
+      .progress-chart-grid {
+        grid-template-columns: 1fr;
       }
     }
     footer {
@@ -327,7 +596,7 @@ cat > "$site_root/index.html" <<'HTML'
 <body>
   <main>
     <h1>Secure Messaging</h1>
-    <p class="subtitle">Lean formalisation of cryptographic primitives and protocols for secure messaging</p>
+    <p class="subtitle">Formal verification of cryptographic primitives and protocols for secure messaging in Lean</p>
     <ul class="chapter-list">
 HTML
 
@@ -353,6 +622,7 @@ done
 # `uses` links that point into a different chapter. Repair those placeholders
 # once all per-chapter manifests and HTML files are present in the combined site.
 python3 scripts/resolve-split-blueprint-uses.py --site-dir "$site_root"
+seed_progress_history_if_needed
 
 cat >> "$site_root/index.html" <<'HTML'
     </ul>
@@ -360,7 +630,14 @@ HTML
 
 # Build the root Blueprint status table from the same per-chapter manifests.
 # This avoids importing every rich documentation module into one giant manual.
-python3 scripts/aggregate-blueprint-status.py --site-dir "$site_root" --html-summary >> "$site_root/index.html"
+python3 scripts/update-blueprint-progress-history.py \
+  --site-dir "$site_root" \
+  --history "$previous_history" \
+  --output "$site_root/blueprint-progress-history.json"
+python3 scripts/aggregate-blueprint-status.py \
+  --site-dir "$site_root" \
+  --history-file "$site_root/blueprint-progress-history.json" \
+  --html-summary >> "$site_root/index.html"
 
 cat >> "$site_root/index.html" <<'HTML'
     <footer>

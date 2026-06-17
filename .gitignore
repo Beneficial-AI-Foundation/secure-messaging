@@ -1,5 +1,6 @@
 .lake
 docs/.lake
+docs/blueprint-progress-history.json
 site/
 _out/
 .vscode/

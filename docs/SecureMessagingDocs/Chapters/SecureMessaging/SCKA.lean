@@ -30,7 +30,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "scka_scheme"}[] · {uses "fs_aead_scheme"}[] · {uses "prf_prng_scheme"}[] · {githubLabel}`github` {githubIssue 142}[]
+{githubLabel}`github` {githubIssue 142}[]
 ::::
 
 :::defTitle "secure_messaging_scka_spec" "Secure messaging protocol (SCKA)"

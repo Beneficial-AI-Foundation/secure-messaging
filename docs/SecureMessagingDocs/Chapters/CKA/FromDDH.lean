@@ -44,7 +44,7 @@ inductive CKAState (F G : Type) where
   deriving DecidableEq, Fintype, Repr
 ```
 
-{usesLabel}`uses` {uses "cka"}[] · {githubLabel}`github` {githubIssue 10}[]
+{usesLabel}`uses` {uses "cka"}[] · {githubLabel}`github` {githubIssue 9}[]
 :::
 
 :::defTitle "cka_from_ddh" "CKA from DDH"
@@ -70,7 +70,7 @@ def ddhCKA (F G : Type) [Field F] [Fintype F] [DecidableEq F] [SampleableType F]
   recvB := recv
 ```
 
-{usesLabel}`uses` {uses "cka"}[] · {uses "cka_from_ddh_state"}[] · {githubLabel}`github` {githubIssue 10}[]
+{usesLabel}`uses` {uses "cka"}[] · {uses "cka_from_ddh_state"}[] · {githubLabel}`github` {githubIssue 8}[]
 :::
 
 :::defTitle "cka_from_ddh_correctness" "CKA from DDH correctness"
@@ -86,7 +86,7 @@ theorem correctness [DecidableEq G] (adv : CKACorrectnessAdversary G G) :
   Pr[= true | correctnessExp (ddhCKA F G gen) adv] = 1
 ```
 
-{usesLabel}`uses` {uses "cka_from_ddh"}[] · {uses "cka_correct"}[]
+{usesLabel}`uses` {uses "cka_from_ddh"}[] · {uses "cka_correct"}[] · {githubLabel}`github` {githubIssue 9}[]
 :::
 
 :::defTitle "cka_from_ddh_security" "CKA from DDH security"

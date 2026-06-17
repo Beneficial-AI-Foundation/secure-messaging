@@ -93,11 +93,16 @@ jobs:
             SecureMessagingDocs.Visuals.Style
 
       - name: Generate documentation site
+        env:
+          BLUEPRINT_PROGRESS_HISTORY_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/blueprint-progress-history.json
+          BLUEPRINT_PROGRESS_HISTORY_SEED: "1"
+          GH_TOKEN: ${{ github.token }}
         run: scripts/render-docs-site.sh
 
       - name: Validate site output
         run: |
           test -f _out/site/html-multi/index.html
+          test -f _out/site/html-multi/blueprint-progress-history.json
           chapters=(
             Authenticated-Encryption-with-Associated-Data
             Continuous-Key-Agreement
