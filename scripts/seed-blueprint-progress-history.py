@@ -45,6 +45,7 @@ class Commit:
 
 
 def parse_datetime(raw_date: str | None) -> datetime | None:
+    # Parse GitHub/git ISO timestamps into timezone-aware datetimes.
     if not raw_date:
         return None
     try:
@@ -55,6 +56,7 @@ def parse_datetime(raw_date: str | None) -> datetime | None:
 
 
 def add_months(date: datetime, months: int) -> datetime:
+    # Add calendar months while preserving a valid day in the target month.
     import calendar
 
     month_index = date.month - 1 + months
@@ -65,10 +67,12 @@ def add_months(date: datetime, months: int) -> datetime:
 
 
 def run_git(args: list[str]) -> str:
+    # Run a git command and return trimmed stdout.
     return subprocess.check_output(["git", *args], text=True).strip()
 
 
 def load_aggregator():
+    # Import the status aggregator next to this script without requiring a package.
     script = Path(__file__).with_name("aggregate-blueprint-status.py")
     spec = importlib.util.spec_from_file_location("aggregate_blueprint_status", script)
     if spec is None or spec.loader is None:
@@ -80,6 +84,7 @@ def load_aggregator():
 
 
 def parse_atom_issues(docs_dir: Path) -> list[AtomIssue]:
+    # Read authored Blueprint atoms and collect their linked GitHub issue numbers.
     atoms: list[AtomIssue] = []
     for path in sorted(docs_dir.rglob("*.lean")):
         lines = path.read_text().splitlines()
@@ -107,6 +112,7 @@ def parse_atom_issues(docs_dir: Path) -> list[AtomIssue]:
 
 
 def fetch_issues(repo: str, issues_json: Path | None) -> dict[int, dict]:
+    # Load issue metadata from a cached JSON file or the GitHub CLI.
     if issues_json is not None:
         items = json.loads(issues_json.read_text())
     else:
@@ -131,6 +137,7 @@ def fetch_issues(repo: str, issues_json: Path | None) -> dict[int, dict]:
 
 
 def load_commits() -> list[Commit]:
+    # Load repository commits oldest-first with dates and subjects.
     output = run_git(["log", "--reverse", "--format=%H%x09%cI%x09%s"])
     commits: list[Commit] = []
     for line in output.splitlines():
@@ -143,6 +150,7 @@ def load_commits() -> list[Commit]:
 
 
 def issue_closed_by(issues: tuple[int, ...], metadata: dict[int, dict], date: datetime) -> bool:
+    # Check whether any linked issue was closed by a commit date.
     for issue in issues:
         closed_at = parse_datetime(metadata.get(issue, {}).get("closedAt"))
         if closed_at is not None and closed_at <= date:
@@ -151,6 +159,7 @@ def issue_closed_by(issues: tuple[int, ...], metadata: dict[int, dict], date: da
 
 
 def estimated_snapshot(commit: Commit, atoms: list[AtomIssue], issues: dict[int, dict], totals: dict) -> dict:
+    # Estimate progress at one commit from issue closure state at that time.
     definition_specified = 0
     theorem_complete = 0
     for atom in atoms:
@@ -181,6 +190,7 @@ def estimated_snapshot(commit: Commit, atoms: list[AtomIssue], issues: dict[int,
 
 
 def exact_snapshot(site_dir: Path) -> dict:
+    # Compute the exact latest progress from the rendered Blueprint manifests.
     aggregator = load_aggregator()
     atoms = aggregator.load_atoms(site_dir)
     totals = aggregator.summarize(atoms)
@@ -207,6 +217,7 @@ def exact_snapshot(site_dir: Path) -> dict:
 
 
 def exact_totals(site_dir: Path) -> dict:
+    # Get current atom totals so historical estimates use today's atom universe.
     aggregator = load_aggregator()
     totals = aggregator.summarize(aggregator.load_atoms(site_dir))
     return {
@@ -220,11 +231,13 @@ def exact_totals(site_dir: Path) -> dict:
 
 
 def write_json(path: Path, data: dict) -> None:
+    # Write stable, pretty JSON for the seeded history file.
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
 
 
 def main() -> None:
+    # Build estimated history, replace HEAD with exact rendered status, and write it.
     parser = argparse.ArgumentParser(description="Seed Blueprint progress history from issue closure estimates.")
     parser.add_argument("--docs-dir", type=Path, default=DEFAULT_DOCS_DIR)
     parser.add_argument("--site-dir", type=Path, default=DEFAULT_SITE_DIR)

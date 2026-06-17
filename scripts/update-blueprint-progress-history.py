@@ -34,19 +34,11 @@ def load_aggregator():
 
 
 def git_output(args: list[str], fallback: str = "") -> str:
+    # Run a git command and return a fallback if the command fails.
     try:
         return subprocess.check_output(["git", *args], text=True).strip()
     except subprocess.CalledProcessError:
         return fallback
-
-
-def load_history(path: Path) -> list[dict]:
-    if not path.exists():
-        return []
-    data = json.loads(path.read_text())
-    if isinstance(data, list):
-        return data
-    return data.get("snapshots", [])
 
 
 def load_history_document(path: Path) -> dict:
@@ -54,12 +46,14 @@ def load_history_document(path: Path) -> dict:
     if not path.exists():
         return {"snapshots": []}
     data = json.loads(path.read_text())
+    # Accept a bare snapshot list as a minimal history document.
     if isinstance(data, list):
         return {"snapshots": data}
     return data if isinstance(data, dict) else {"snapshots": []}
 
 
 def snapshot_date(commit: str | None, explicit_date: str | None) -> str:
+    # Resolve the snapshot date from an override, git metadata, or the current time.
     if explicit_date:
         return explicit_date
     if commit:
@@ -96,6 +90,7 @@ def current_snapshot(site_dir: Path, commit: str | None, date: str | None, subje
 
 
 def sort_key(snapshot: dict) -> tuple[str, str]:
+    # Sort snapshots deterministically by date, then commit.
     return (snapshot.get("date", ""), snapshot.get("commit", ""))
 
 
@@ -119,11 +114,13 @@ def merge_history(existing: dict, snapshot: dict) -> dict:
 
 
 def write_json(path: Path, data: dict) -> None:
+    # Write stable, pretty JSON for artifacts and optional local recovery files.
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
 
 
 def main() -> None:
+    # Parse CLI options, merge the current snapshot, and write or print the result.
     parser = argparse.ArgumentParser(description="Update Blueprint progress history from a rendered site.")
     parser.add_argument("--site-dir", type=Path, default=DEFAULT_SITE_DIR)
     parser.add_argument("--history", type=Path, default=DEFAULT_HISTORY)

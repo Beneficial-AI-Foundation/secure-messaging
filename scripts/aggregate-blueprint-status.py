@@ -57,6 +57,7 @@ class ReadyNextItem:
 
 
 def chapter_name(manifest: Path, site_dir: Path) -> str:
+    # Derive the chapter slug that owns a preview manifest.
     try:
         return manifest.relative_to(site_dir).parts[0]
     except ValueError:
@@ -64,14 +65,17 @@ def chapter_name(manifest: Path, site_dir: Path) -> str:
 
 
 def strip_tags(html: str) -> str:
+    # Remove HTML tags while preserving rough word boundaries.
     return re.sub(r"<[^>]*>", " ", html)
 
 
 def compact_text(html: str) -> str:
+    # Convert small HTML fragments into normalized display text.
     return html_module.unescape(re.sub(r"\s+", " ", strip_tags(html)).strip())
 
 
 def classify(entry: dict, chapter: str) -> Atom:
+    # Convert one preview manifest entry into an Atom status record.
     html = entry.get("html", "")
     text = strip_tags(html).lower()
 
@@ -96,6 +100,7 @@ def classify(entry: dict, chapter: str) -> Atom:
 
 
 def load_atoms(site_dir: Path) -> list[Atom]:
+    # Load all non-copy Blueprint atoms from the split site's chapter manifests.
     # The split site stores one manifest per chapter under
     # <chapter>/-verso-data/blueprint-preview-manifest.json.
     manifests = sorted(site_dir.glob(f"*/{MANIFEST_PATH}"))
@@ -130,20 +135,24 @@ def load_atoms(site_dir: Path) -> list[Atom]:
 
 
 def normalize_chapter_href(chapter: str, href: str) -> str:
+    # Make Blueprint-Summary links usable from the root index page.
     if href.startswith(("http://", "https://", "#")):
         return href
     return posixpath.normpath(f"{chapter}/Blueprint-Summary/{href}")
 
 
 def extract_ready_next_items(summary_html: str, chapter: str) -> list[ReadyNextItem]:
+    # Extract atoms listed in a chapter's Ready next summary section.
     return extract_summary_section_items(summary_html, chapter, "Ready next")
 
 
 def extract_current_blocker_items(summary_html: str, chapter: str) -> list[ReadyNextItem]:
+    # Extract atoms listed in a chapter's Current blockers summary section.
     return extract_summary_section_items(summary_html, chapter, "Current blockers")
 
 
 def extract_summary_section_items(summary_html: str, chapter: str, section_title: str) -> list[ReadyNextItem]:
+    # Parse one named disclosure section from a rendered Blueprint summary page.
     title_pattern = re.escape(section_title)
     match = re.search(
         rf'<details[^>]*class="[^"]*bp_summary_subsection[^"]*"[^>]*>\s*<summary>\s*{title_pattern}\s*\([^)]*\)\s*</summary>(.*?)</details>',
@@ -165,6 +174,7 @@ def extract_summary_section_items(summary_html: str, chapter: str, section_title
 
 
 def load_ready_next_by_chapter(site_dir: Path) -> dict[str, list[ReadyNextItem]]:
+    # Load Ready next items from every chapter summary page.
     ready_by_chapter: dict[str, list[ReadyNextItem]] = {}
     for summary_file in sorted(site_dir.glob("*/Blueprint-Summary/index.html")):
         chapter = summary_file.parts[-3]
@@ -175,6 +185,7 @@ def load_ready_next_by_chapter(site_dir: Path) -> dict[str, list[ReadyNextItem]]
 
 
 def load_current_blockers_by_chapter(site_dir: Path) -> dict[str, list[ReadyNextItem]]:
+    # Load Current blockers items from every chapter summary page.
     blockers_by_chapter: dict[str, list[ReadyNextItem]] = {}
     for summary_file in sorted(site_dir.glob("*/Blueprint-Summary/index.html")):
         chapter = summary_file.parts[-3]
@@ -185,6 +196,7 @@ def load_current_blockers_by_chapter(site_dir: Path) -> dict[str, list[ReadyNext
 
 
 def summarize(atoms: list[Atom]) -> dict[str, Counter]:
+    # Count total/specified/verified atoms across the whole site.
     totals: dict[str, Counter] = {kind: Counter() for kind in TRACKED_KINDS}
     for atom in atoms:
         totals[atom.kind]["total"] += 1
@@ -194,6 +206,7 @@ def summarize(atoms: list[Atom]) -> dict[str, Counter]:
 
 
 def summarize_by_chapter(atoms: list[Atom]) -> dict[str, dict[str, Counter]]:
+    # Count total/specified/verified atoms separately for each chapter.
     chapters: dict[str, dict[str, Counter]] = defaultdict(lambda: {kind: Counter() for kind in TRACKED_KINDS})
     for atom in atoms:
         counter = chapters[atom.chapter][atom.kind]
@@ -204,6 +217,7 @@ def summarize_by_chapter(atoms: list[Atom]) -> dict[str, dict[str, Counter]]:
 
 
 def print_counter(name: str, counter: Counter, show_verified: bool = True) -> None:
+    # Print one text-report counter block.
     print(name)
     print(f"  Total:     {counter['total']}")
     print(f"  Specified: {counter['specified']}")
@@ -212,6 +226,7 @@ def print_counter(name: str, counter: Counter, show_verified: bool = True) -> No
 
 
 def print_text_report(atoms: list[Atom], by_chapter: bool) -> None:
+    # Print the command-line text report.
     totals = summarize(atoms)
     print("Blueprint Status")
     print_counter("Definitions", totals["definition"], show_verified=False)
@@ -232,6 +247,7 @@ def print_text_report(atoms: list[Atom], by_chapter: bool) -> None:
 
 
 def atoms_for(atoms: list[Atom], chapter: str, kind: str, metric: str) -> list[Atom]:
+    # Select atoms for one chapter/kind/metric table cell.
     chapter_atoms = [atom for atom in atoms if atom.chapter == chapter and atom.kind == kind]
     if metric == "total":
         return chapter_atoms
@@ -250,6 +266,7 @@ def status_count_cell(
     extra_class: str = "",
     show_popover_title: bool = True,
 ) -> str:
+    # Render one status-table cell with a count and atom popover.
     count = len(atoms)
     class_attr = f' class="{extra_class}"' if extra_class else ""
     chapter_text = html_module.escape(chapter.replace("-", " "))
@@ -279,27 +296,19 @@ def status_count_cell(
     )
 
 
-def load_history(path: Path | None) -> list[dict]:
-    if path is None or not path.exists():
-        return []
-    data = json.loads(path.read_text())
-    if isinstance(data, list):
-        snapshots = data
-    else:
-        snapshots = data.get("snapshots", [])
-    return [snapshot for snapshot in snapshots if isinstance(snapshot, dict)]
-
-
 def load_history_document(path: Path | None) -> dict:
+    # Load a complete history document, or an empty document when absent.
     if path is None or not path.exists():
         return {"snapshots": []}
     data = json.loads(path.read_text())
+    # Accept a bare snapshot list as a minimal history document.
     if isinstance(data, list):
         return {"snapshots": data}
     return data if isinstance(data, dict) else {"snapshots": []}
 
 
 def snapshot_time(snapshot: dict) -> datetime | None:
+    # Parse a snapshot's date field for sorting and chart placement.
     raw_date = snapshot.get("date")
     if not isinstance(raw_date, str) or not raw_date:
         return None
@@ -311,6 +320,7 @@ def snapshot_time(snapshot: dict) -> datetime | None:
 
 
 def parse_datetime(raw_date: object) -> datetime | None:
+    # Parse optional ISO timestamps from history metadata.
     if not isinstance(raw_date, str) or not raw_date:
         return None
     try:
@@ -321,6 +331,7 @@ def parse_datetime(raw_date: object) -> datetime | None:
 
 
 def add_months(date: datetime, months: int) -> datetime:
+    # Add calendar months while preserving a valid target day.
     month_index = date.month - 1 + months
     year = date.year + month_index // 12
     month = month_index % 12 + 1
@@ -329,11 +340,13 @@ def add_months(date: datetime, months: int) -> datetime:
 
 
 def sorted_history(path: Path | None) -> list[dict]:
+    # Return history snapshots sorted by parsed timestamp.
     snapshots = load_history_document(path).get("snapshots", [])
     return sorted(snapshots, key=lambda snapshot: snapshot_time(snapshot) or datetime.min.replace(tzinfo=timezone.utc))
 
 
 def chart_window(history: dict, snapshots: list[dict]) -> ChartWindow:
+    # Resolve the chart time window from history metadata or snapshots.
     start = parse_datetime(history.get("projectStart"))
     if start is None and snapshots:
         start = snapshot_time(snapshots[0])
@@ -344,6 +357,7 @@ def chart_window(history: dict, snapshots: list[dict]) -> ChartWindow:
 
 
 def metric_value(snapshot: dict, kind: str, metric: str) -> int:
+    # Read one integer metric from a history snapshot.
     value = snapshot.get(kind, {}).get(metric, 0)
     return value if isinstance(value, int) else 0
 
@@ -355,6 +369,7 @@ def chart_coordinates(
     max_value: int,
     window: ChartWindow,
 ) -> list[tuple[float, float]]:
+    # Map history metric values into SVG coordinates.
     if not snapshots:
         return []
 
@@ -383,6 +398,7 @@ def chart_coordinates(
 
 
 def displayed_points(points: list[tuple[float, float]], full_width: bool = False) -> list[tuple[float, float]]:
+    # Extend sparse point sets so SVG lines and areas remain visible.
     if full_width and points:
         extended = list(points)
         left = CHART_PADDING_LEFT
@@ -400,6 +416,7 @@ def displayed_points(points: list[tuple[float, float]], full_width: bool = False
 
 
 def svg_path(points: list[tuple[float, float]]) -> str:
+    # Build an SVG polyline path from chart points.
     if not points:
         return ""
     head, *tail = points
@@ -409,6 +426,7 @@ def svg_path(points: list[tuple[float, float]]) -> str:
 
 
 def svg_area(points: list[tuple[float, float]]) -> str:
+    # Build an SVG filled area under a metric line.
     if not points:
         return ""
     points = displayed_points(points)
@@ -419,6 +437,7 @@ def svg_area(points: list[tuple[float, float]]) -> str:
 
 
 def chart_axis_labels(snapshots: list[dict], window: ChartWindow) -> tuple[str, str]:
+    # Choose start/end labels for the chart axis.
     if window.start is not None and window.end is not None:
         return (window.start.date().isoformat(), window.end.date().isoformat())
     if not snapshots:
@@ -429,6 +448,7 @@ def chart_axis_labels(snapshots: list[dict], window: ChartWindow) -> tuple[str, 
 
 
 def axis_x_for_time(time: datetime, window: ChartWindow) -> float:
+    # Map a timestamp into an SVG x coordinate inside the chart window.
     plot_width = CHART_WIDTH - CHART_PADDING_LEFT - CHART_PADDING_RIGHT
     if window.start is None or window.end is None:
         return CHART_PADDING_LEFT
@@ -440,14 +460,17 @@ def axis_x_for_time(time: datetime, window: ChartWindow) -> float:
 
 
 def short_month_day(time: datetime) -> str:
+    # Format weekly tick labels.
     return time.strftime("%b %-d")
 
 
 def day_month(time: datetime) -> str:
+    # Format compact timeframe labels.
     return time.strftime("%-d %b")
 
 
 def chart_week_ticks(window: ChartWindow) -> str:
+    # Render weekly x-axis ticks across the chart window.
     if window.start is None or window.end is None:
         return ""
     ticks = []
@@ -468,6 +491,7 @@ def chart_week_ticks(window: ChartWindow) -> str:
 
 
 def human_date(snapshot: dict) -> str:
+    # Format a snapshot date for human-readable HTML text.
     parsed = snapshot_time(snapshot)
     if parsed is None:
         return html_module.escape(str(snapshot.get("date", ""))[:10])
@@ -475,6 +499,7 @@ def human_date(snapshot: dict) -> str:
 
 
 def tracking_days(snapshots: list[dict], window: ChartWindow) -> int:
+    # Count the number of calendar days covered by the chart.
     if window.start is not None and window.end is not None:
         return max(1, (window.end.date() - window.start.date()).days + 1)
     dated = [time for time in (snapshot_time(snapshot) for snapshot in snapshots) if time is not None]
@@ -484,6 +509,7 @@ def tracking_days(snapshots: list[dict], window: ChartWindow) -> int:
 
 
 def chart_guides(snapshots: list[dict], kind: str, metrics: tuple[str, ...], max_value: int, window: ChartWindow) -> str:
+    # Render horizontal guide lines for the latest metric values.
     guides = []
     latest = snapshots[-1]
     for metric in metrics:
@@ -506,6 +532,7 @@ def chart_guides(snapshots: list[dict], kind: str, metrics: tuple[str, ...], max
 
 
 def chart_gridlines(max_value: int) -> str:
+    # Render horizontal gridlines every five atoms.
     if max_value <= 5:
         return ""
     plot_height = CHART_HEIGHT - CHART_PADDING_TOP - CHART_PADDING_BOTTOM
@@ -524,6 +551,7 @@ def chart_gridlines(max_value: int) -> str:
 
 
 def chart_timeframe(snapshots: list[dict], window: ChartWindow) -> str:
+    # Summarize the displayed date range for the chart legend.
     if not snapshots:
         return ""
     first = window.start or snapshot_time(snapshots[0])
@@ -536,6 +564,7 @@ def chart_timeframe(snapshots: list[dict], window: ChartWindow) -> str:
 
 
 def progress_chart(title: str, kind: str, metrics: tuple[str, ...], snapshots: list[dict], window: ChartWindow) -> str:
+    # Render one complete progress chart card.
     if not snapshots:
         return ""
     max_value = max(metric_value(snapshot, kind, "total") for snapshot in snapshots) or 1
@@ -583,6 +612,7 @@ def progress_chart(title: str, kind: str, metrics: tuple[str, ...], snapshots: l
 
 
 def print_progress_charts(history_file: Path | None) -> None:
+    # Print the Definitions and Theorems progress chart section.
     history = load_history_document(history_file)
     snapshots = sorted(history.get("snapshots", []), key=lambda snapshot: snapshot_time(snapshot) or datetime.min.replace(tzinfo=timezone.utc))
     if not snapshots:
@@ -597,6 +627,7 @@ def print_progress_charts(history_file: Path | None) -> None:
 
 
 def print_html_summary(atoms: list[Atom], history_file: Path | None = None, site_dir: Path | None = None) -> None:
+    # Print the root HTML status table, charts, and references section.
     chapters = summarize_by_chapter(atoms)
     ready_next_by_chapter = load_ready_next_by_chapter(site_dir) if site_dir is not None else {}
     current_blockers_by_chapter = load_current_blockers_by_chapter(site_dir) if site_dir is not None else {}
@@ -701,6 +732,7 @@ def print_html_summary(atoms: list[Atom], history_file: Path | None = None, site
 
 
 def json_report(atoms: list[Atom]) -> dict:
+    # Build a machine-readable summary of atom status.
     totals = summarize(atoms)
     chapters = summarize_by_chapter(atoms)
     return {
@@ -730,6 +762,7 @@ def json_report(atoms: list[Atom]) -> dict:
 
 
 def main() -> None:
+    # Parse CLI options and choose text, JSON, or HTML output.
     parser = argparse.ArgumentParser(description="Aggregate Verso blueprint atom status from rendered chapter manifests.")
     parser.add_argument("--site-dir", type=Path, default=DEFAULT_SITE_DIR)
     parser.add_argument("--by-chapter", action="store_true")

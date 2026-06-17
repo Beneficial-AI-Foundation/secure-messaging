@@ -49,9 +49,9 @@ recover_previous_progress_history() {
   echo "Starting Blueprint progress history from the current render"
 }
 
-# Seed progress history when recovery found none and seeding is enabled.
+# Seed progress history when recovery found none; set the flag to 0 to skip.
 seed_progress_history_if_needed() {
-  if [[ -f "$previous_history" || "${BLUEPRINT_PROGRESS_HISTORY_SEED:-}" != "1" ]]; then
+  if [[ -f "$previous_history" || "${BLUEPRINT_PROGRESS_HISTORY_SEED:-1}" != "1" ]]; then
     return
   fi
 

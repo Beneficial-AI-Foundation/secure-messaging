@@ -96,6 +96,7 @@ def load_targets(site_dir: Path) -> dict[str, AtomTarget]:
 
 
 def link_base_dir(html_file: Path, text: str) -> Path:
+    # Resolve the directory that relative links are based on for one HTML page.
     match = re.search(r'<base\s+href="([^"]*)"', text)
     if not match:
         return html_file.parent
@@ -113,6 +114,7 @@ def link_base_dir(html_file: Path, text: str) -> Path:
 
 
 def relative_href(site_dir: Path, link_base: Path, target: AtomTarget) -> str:
+    # Build a relative link from one rendered page to a target atom.
     href, sep, fragment = target.href.partition("#")
     target_path = site_dir / target.chapter / href
     rel = os.path.relpath(target_path, link_base)
@@ -125,16 +127,19 @@ def relative_href(site_dir: Path, link_base: Path, target: AtomTarget) -> str:
 
 
 def prefixed_title(target: AtomTarget) -> str:
+    # Prefix cross-chapter display titles with a short chapter name.
     prefix = CHAPTER_PREFIXES.get(target.chapter, target.chapter)
     return f"{prefix}:{target.title}"
 
 
 def preview_id(target: AtomTarget) -> str:
+    # Make a stable DOM id for a copied cross-chapter preview entry.
     escaped = re.sub(r"[^A-Za-z0-9-]", lambda match: f"-{ord(match.group(0)):04X}", target.key)
     return f"bp-split-uses-{escaped}"
 
 
 def replacement_for(site_dir: Path, link_base: Path, target: AtomTarget) -> str:
+    # Render the HTML that replaces one unresolved cross-chapter `[??]` use.
     href = html.escape(relative_href(site_dir, link_base, target), quote=True)
     title = html.escape(prefixed_title(target))
     label = html.escape(target.label, quote=True)
@@ -152,6 +157,7 @@ def replacement_for(site_dir: Path, link_base: Path, target: AtomTarget) -> str:
 
 
 def replace_unresolved_uses(block: str, replacements: list[str]) -> tuple[str, int]:
+    # Replace unresolved use placeholders in authored dependency order.
     replaced = 0
 
     def replace_one(match: re.Match[str]) -> str:
@@ -171,6 +177,7 @@ def process_html_file(
     uses_by_label: dict[str, list[str]],
     targets: dict[str, AtomTarget],
 ) -> int:
+    # Repair unresolved cross-chapter uses in one generated HTML file.
     text = html_file.read_text()
     try:
         current_chapter = html_file.relative_to(site_dir).parts[0]
@@ -219,6 +226,7 @@ def copy_cross_preview_entries(
     uses_by_label: dict[str, list[str]],
     targets: dict[str, AtomTarget],
 ) -> int:
+    # Copy target preview manifest entries into chapters that reference them.
     needed_by_chapter: dict[str, dict[str, dict]] = {}
     for label, deps in uses_by_label.items():
         source = targets.get(label)
@@ -254,6 +262,7 @@ def copy_cross_preview_entries(
 
 
 def main() -> None:
+    # Parse CLI options, repair HTML links, and copy needed preview entries.
     parser = argparse.ArgumentParser(description="Resolve cross-chapter Blueprint uses in a split Verso site.")
     parser.add_argument("--site-dir", type=Path, default=Path("_out/site/html-multi"))
     parser.add_argument("--docs-dir", type=Path, default=Path("docs/SecureMessagingDocs/Chapters"))

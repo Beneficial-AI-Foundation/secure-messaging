@@ -95,7 +95,6 @@ jobs:
       - name: Generate documentation site
         env:
           BLUEPRINT_PROGRESS_HISTORY_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/blueprint-progress-history.json
-          BLUEPRINT_PROGRESS_HISTORY_SEED: "1"
           GH_TOKEN: ${{ github.token }}
         run: scripts/render-docs-site.sh
 
