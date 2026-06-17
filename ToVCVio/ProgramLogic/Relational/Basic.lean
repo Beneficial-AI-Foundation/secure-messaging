@@ -42,4 +42,15 @@ lemma relTriple_refl_support_post {α : Type} {mx : ProbComp α}
   rintro p q ⟨rfl, hsup⟩
   exact h p hsup
 
+/-- Mapping a single computation by two functions that are pointwise related
+gives an `R`-triple of the two mapped computations.  Both sides share the draw
+`mx`, so the outputs are perfectly correlated and `R (f a) (g a)` at each
+sampled `a` suffices.  Taking `f := id` gives the map-right special case. -/
+lemma relTriple_map_map_of_pointwise {α β γ : Type} (mx : ProbComp α)
+    (f : α → β) (g : α → γ) {R : β → γ → Prop}
+    (h : ∀ a, R (f a) (g a)) :
+    RelTriple (f <$> mx) (g <$> mx) R :=
+  relTriple_map (R := R) (relTriple_post_mono (relTriple_refl_support mx)
+    (by rintro a b ⟨rfl, _⟩; exact h a))
+
 end OracleComp.ProgramLogic.Relational

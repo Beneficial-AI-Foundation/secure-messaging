@@ -5,6 +5,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 
 
 import SecureMessaging.CKA.FromKEM.Security.ReductionBranch
+import ToVCVio.OracleComp.EvalDist
 
 /-!
 # CKA from KEM — Branch and IND-CPA Bridge
@@ -29,11 +30,6 @@ open OracleSpec OracleComp ENNReal KEMScheme
 namespace kemCKA
 
 variable {K PK SK C : Type}
-
-/-- The runtime's `evalDist` embedding does not change point probabilities. -/
-private lemma probCompRuntime_probOutput_eq {α : Type} (mx : ProbComp α) (x : α) :
-    Pr[= x | ProbCompRuntime.probComp.evalDist mx] = Pr[= x | mx] := by
-  rfl
 
 /-- Data produced by the IND-CPA experiment before the challenge bit is used:
 the reduction's paused state, the challenge ciphertext, and the real and
@@ -183,19 +179,6 @@ private lemma ckaReductionINDCPABranch_eq_not_map_raw [SampleableType K] [Decida
   refine bind_congr (m := ProbComp) fun kRand => ?_
   rw [finishChallengeStep_eq_not_map_raw]
 
-/-- A final `(! ·)` map turns `true`-output probability into `false`-output
-probability, and the absolute two-branch gap absorbs the swap. This is where
-the CKA/KEM bit-orientation reversal disappears. -/
-private lemma abs_probOutput_true_not_map_gap_eq (mx my : ProbComp Bool) :
-    |(Pr[= true | (! ·) <$> mx]).toReal -
-      (Pr[= true | (! ·) <$> my]).toReal| =
-    |(Pr[= true | mx]).toReal - (Pr[= true | my]).toReal| := by
-  simp [probOutput_false_eq_sub]
-  ring_nf
-  rw [show -Pr[= true | my].toReal + Pr[= true | mx].toReal =
-      Pr[= true | mx].toReal - Pr[= true | my].toReal by ring]
-  exact abs_sub_comm (Pr[= true | my].toReal) (Pr[= true | mx].toReal)
-
 /-- The reduction branch gap equals the raw (un-negated) branch gap: the
 final negation flips each branch's bias but not the absolute gap. -/
 lemma ckaReductionINDCPABranch_gap_eq_raw_gap [SampleableType K] [DecidableEq K]
@@ -322,7 +305,7 @@ private lemma indCPAExpProb_probOutput_true_eq [SampleableType K]
     Pr[= true | indCPAExpProb kem red b] =
       Pr[= true | kem.IND_CPA_Exp ProbCompRuntime.probComp red b] := by
   unfold KEMScheme.IND_CPA_Exp
-  rw [probCompRuntime_probOutput_eq]
+  rw [probOutput_probCompRuntime_evalDist_eq]
   cases b <;>
     simp [indCPAExpProb, indCPAPrefix,
       ProbCompRuntime.probComp, ProbCompRuntime.liftProbComp, ProbCompLift.id,

@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 -/
 
 import SecureMessaging.CKA.FromKEM.Security.PrefixInjectSplit
+import ToVCVio.OracleComp.EvalDist
 
 /-!
 # CKA from KEM — Prefix Injection Gap
@@ -50,18 +51,6 @@ private lemma securityImpl_preservesInv_challengePassed [SampleableType K] [Deci
   have hmono := securityImpl_run_counters_mono kem hDet leak gp isRandom t σ0 z hz
   cases hcp : gp.challengedParty <;>
     simp only [challengePassed, hcp] at h ⊢ <;> omega
-
-/-- Lift an all-output `.run` distribution equality to the `Bool` projection
-`.run'` retained by the challenge bridges. -/
-private lemma probOutput_run'_true_eq_of_run_probOutput_eq
-    {m₁ m₂ : StateT (SecurityState K PK SK C) ProbComp Bool}
-    (s : SecurityState K PK SK C)
-    (h : ∀ z, Pr[= z | m₁.run s] = Pr[= z | m₂.run s]) :
-    Pr[= true | m₁.run' s] = Pr[= true | m₂.run' s] := by
-  change Pr[= true | Prod.fst <$> m₁.run s] = Pr[= true | Prod.fst <$> m₂.run s]
-  simp only [map_eq_bind_pure_comp]
-  rw [probOutput_bind_eq_tsum, probOutput_bind_eq_tsum]
-  exact tsum_congr fun z => by rw [h z]
 
 /-- Past the injection epoch, `securityImplWithChallengeKeyPair` and the honest
 `securityImpl` give the same simulated output distribution after `.run'`. -/

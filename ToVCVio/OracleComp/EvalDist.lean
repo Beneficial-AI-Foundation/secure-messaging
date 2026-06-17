@@ -1,4 +1,5 @@
 import VCVio.OracleComp.EvalDist
+import VCVio.OracleComp.ProbCompLift
 import VCVio.EvalDist.Defs.Instances
 import ToMathlib.ProbabilityTheory.Coupling
 import ToVCVio.EvalDist.Monad.Basic
@@ -257,3 +258,28 @@ lemma evalDist_simulateQ_run'_eq_of_bisim
   simpa [map_eq_bind_pure_comp] using hmap
 
 end OracleComp
+
+/-! ## Point-probability transport for `ProbComp` runtimes and `StateT` projections
+
+Two small `ProbComp`-level bridges, both reusable for any `ProbComp`/`StateT`
+game: the canonical runtime's `evalDist` embedding is transparent to point
+probabilities, and a `.run`-level distribution equality projects to the `Bool`
+`.run'` probability. -/
+
+/-- The canonical `ProbComp` runtime embeds through `evalDist` without changing
+point probabilities: `ProbCompRuntime.probComp.evalDist` is `𝒟[·]`. -/
+lemma probOutput_probCompRuntime_evalDist_eq {α : Type} (mx : ProbComp α) (x : α) :
+    Pr[= x | ProbCompRuntime.probComp.evalDist mx] = Pr[= x | mx] := by
+  rfl
+
+/-- Lift a `.run` point-distribution equality to the `Bool` `.run'` projection:
+if two `StateT σ ProbComp Bool` computations have the same output distribution
+when run from `s`, their `true`-output probabilities after `.run'` agree. -/
+lemma probOutput_run'_true_eq_of_run_probOutput_eq {σ : Type}
+    {m₁ m₂ : StateT σ ProbComp Bool} (s : σ)
+    (h : ∀ z, Pr[= z | m₁.run s] = Pr[= z | m₂.run s]) :
+    Pr[= true | m₁.run' s] = Pr[= true | m₂.run' s] := by
+  change Pr[= true | Prod.fst <$> m₁.run s] = Pr[= true | Prod.fst <$> m₂.run s]
+  simp only [map_eq_bind_pure_comp]
+  rw [probOutput_bind_eq_tsum, probOutput_bind_eq_tsum]
+  exact tsum_congr fun z => by rw [h z]

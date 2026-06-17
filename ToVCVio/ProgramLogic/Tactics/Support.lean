@@ -16,6 +16,18 @@ Bare `vcv_support` is a bundled closer for the same proof shape: it normalizes
 support facts in the local context, substitutes forced equalities, and then
 tries small general solvers such as `grind`.  This form is meant for
 `<;> vcv_support` and `all_goals vcv_support`.
+
+After unfolding a single oracle handler, the support hypothesis falls into one
+of three recurring shapes, all closed by `vcv_support`:
+
+* *bounded-union support* — a state-preserving oracle behind a lifted
+  `unifSpec` query, where `support_bind`/`Set.mem_iUnion₂` expose the sampled
+  value while the state is pinned to the incoming one;
+* *guarded-pure support* — a state-preserving oracle gated by an `if`, where
+  `split_ifs` leaves a `support_pure` singleton in each branch;
+* *one-counter-bump support* — a counter-bumping send oracle, where the bumped
+  record is definitionally equal to the goal's projection but not syntactically,
+  handled by the explicit pair closers below.
 -/
 
 /-- Simplify common `StateT` and support combinators in a support hypothesis. -/

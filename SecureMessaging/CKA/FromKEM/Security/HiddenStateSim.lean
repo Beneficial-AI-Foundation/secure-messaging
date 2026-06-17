@@ -5,6 +5,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 
 import SecureMessaging.CKA.FromKEM.Security.Branches
 import VCVio.ProgramLogic.Relational.SimulateQ
+import ToVCVio.ProgramLogic.Relational.Basic
 
 /-!
 # CKA from KEM — Hidden-State Simulation
@@ -276,16 +277,12 @@ private lemma postRel_attach_none
           (a.1, ({ game := a.2, pending := PendingChallengeRecv.none } :
             PostChallengeState K PK SK C))) <$> mx)
       (fun p q => p.1 = q.1 ∧ PostRel kem hDet gp p.2 q.2) := by
-  let f := fun a : α × SecurityState K PK SK C =>
-    (a.1, ({ game := a.2, pending := PendingChallengeRecv.none } :
-      PostChallengeState K PK SK C))
-  have h : RelTriple (mx >>= fun a => pure a) (mx >>= fun a => pure (f a))
-      (fun p q => p.1 = q.1 ∧ PostRel kem hDet gp p.2 q.2) := by
-    refine relTriple_bind (relTriple_refl mx) ?_
-    intro a b hab
-    subst hab
-    exact relTriple_pure_pure (by simp [f, PostRel.none])
-  simpa [f, map_eq_bind_pure_comp] using h
+  simpa only [id_map] using
+    relTriple_map_map_of_pointwise mx id
+      (fun a => (a.1, ({ game := a.2, pending := PendingChallengeRecv.none } :
+        PostChallengeState K PK SK C)))
+      (R := fun p q => p.1 = q.1 ∧ PostRel kem hDet gp p.2 q.2)
+      (fun a => ⟨rfl, PostRel.none a.2⟩)
 
 private lemma postRel_attach
     (kem : KEMScheme ProbComp K PK SK C)
@@ -299,16 +296,10 @@ private lemma postRel_attach
     RelTriple
       ((fun a => (a, honest)) <$> mx)
       ((fun a => (a, post)) <$> mx)
-      (fun p q => p.1 = q.1 ∧ PostRel kem hDet gp p.2 q.2) := by
-  have h : RelTriple
-      (mx >>= fun a => pure (a, honest))
-      (mx >>= fun a => pure (a, post))
-      (fun p q => p.1 = q.1 ∧ PostRel kem hDet gp p.2 q.2) := by
-    refine relTriple_bind (relTriple_refl mx) ?_
-    intro a b hab
-    subst hab
-    exact relTriple_pure_pure ⟨rfl, hrel⟩
-  simpa [map_eq_bind_pure_comp] using h
+      (fun p q => p.1 = q.1 ∧ PostRel kem hDet gp p.2 q.2) :=
+  relTriple_map_map_of_pointwise mx (fun a => (a, honest)) (fun a => (a, post))
+    (R := fun p q => p.1 = q.1 ∧ PostRel kem hDet gp p.2 q.2)
+    (fun _ => ⟨rfl, hrel⟩)
 
 private lemma postChallengeImpl_none_run_eq [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)

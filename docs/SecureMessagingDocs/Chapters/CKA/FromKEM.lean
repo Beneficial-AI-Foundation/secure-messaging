@@ -82,11 +82,11 @@ theorem correctness [DecidableEq K]
 :::defTitle "cka_from_kem_security" "CKA from KEM security"
 :::
 
-::::theorem "cka_from_kem_security" (parent := "cka_cka_from_kem") (lean := "kemCKA.security_reduces_to_ind_cpa_exists")
+::::theorem "cka_from_kem_security" (parent := "cka_cka_from_kem") (lean := "kemCKA.security_reduces_to_ind_cpa")
 $`\todo`
 
-```anchor security_reduces_to_ind_cpa_exists (project := ".") (module := SecureMessaging.CKA.FromKEM.Security)
-theorem security_reduces_to_ind_cpa_exists [SampleableType K] [DecidableEq K]
+```anchor security_reduces_to_ind_cpa (project := ".") (module := SecureMessaging.CKA.FromKEM.Security)
+theorem security_reduces_to_ind_cpa [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
     (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
@@ -94,9 +94,9 @@ theorem security_reduces_to_ind_cpa_exists [SampleableType K] [DecidableEq K]
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams)
     (hgp : AdmissibleParams gp) :
-    ∃ red : KEMScheme.IND_CPA_Adversary kem,
-      CKAScheme.ckaDistAdvantage (scheme kem hDet leak) adv gp ≤
-        KEMScheme.IND_CPA_Advantage (kem := kem) ProbCompRuntime.probComp red
+    CKAScheme.ckaDistAdvantage (scheme kem hDet leak) adv gp ≤
+      KEMScheme.IND_CPA_Advantage (kem := kem) ProbCompRuntime.probComp
+        (ckaToINDCPAReduction kem hDet leak adv gp)
 ```
 
 {usesLabel}`uses` {uses "cka_from_kem_spec"}[] · {uses "cka_security"}[] · {githubLabel}`github` {githubIssue 5}[]

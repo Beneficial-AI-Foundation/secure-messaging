@@ -14,9 +14,12 @@ construction of [ACD19, Section 4.1.2].
 The paper's Theorem 2 says that the generic KEM-based construction has
 `Delta_CKA = 0` and reduces CKA security to KEM security. The paper's proof is
 constructive: it builds an explicit IND-CPA adversary from the CKA adversary.
-The theorem below keeps the existential form; its proof supplies the concrete
-reduction `ckaToINDCPAReduction` as the witness and chains the gap equalities
-proved in the `Security/` modules.
+The primary theorem `security_reduces_to_ind_cpa` follows that proof: it bounds
+the CKA distinguishing advantage by the IND-CPA advantage of the concrete
+reduction `ckaToINDCPAReduction kem hDet leak adv gp`, in fact with equality,
+chaining the gap equalities proved in the `Security/` modules.
+`security_reduces_to_ind_cpa_exists` repackages it in the existential form as a
+compatibility wrapper.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
@@ -28,8 +31,11 @@ variable {K PK SK C : Type}
 /-- Security reduction for CKA from a KEM.
 
 For every perfectly correct KEM, CKA adversary, and admissible challenge
-parameters, there exists an IND-CPA adversary against the KEM whose advantage
-upper-bounds the CKA distinguishing advantage of the constructed protocol.
+parameters, the IND-CPA advantage of the concrete reduction
+`ckaToINDCPAReduction kem hDet leak adv gp` upper-bounds the CKA distinguishing
+advantage of the constructed protocol — in fact the two advantages are equal,
+so the stated bound holds with equality.
+
 The bound compares like with like: `CKAScheme.ckaDistAdvantage` is the gap
 between the real-key and random-key branches of the CKA game (twice
 `CKAScheme.ckaGuessAdvantage`), and `KEMScheme.IND_CPA_Advantage` is the
@@ -38,13 +44,9 @@ Boolean bias `|Pr[true] - Pr[false]|` of the single IND-CPA game.
 N.B. ACD19's sampled-bit guessing advantage is half of `ckaDistAdvantage`
 (`CKAScheme.ckaGuessAdvantage_eq_ckaDistAdvantage_div_two`); the paper's no-leak
 construction is the instance `RandLeak.noLeak kem`.
-
-The statement is an existential wrapper around a concrete witness: the proof
-instantiates `red := ckaToINDCPAReduction kem hDet leak adv gp` and proves the
-two advantages equal, so the stated bound holds with equality.
 -/
--- ANCHOR: security_reduces_to_ind_cpa_exists
-theorem security_reduces_to_ind_cpa_exists [SampleableType K] [DecidableEq K]
+-- ANCHOR: security_reduces_to_ind_cpa
+theorem security_reduces_to_ind_cpa [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
     (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
@@ -52,12 +54,12 @@ theorem security_reduces_to_ind_cpa_exists [SampleableType K] [DecidableEq K]
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams)
     (hgp : AdmissibleParams gp) :
-    ∃ red : KEMScheme.IND_CPA_Adversary kem,
-      CKAScheme.ckaDistAdvantage (scheme kem hDet leak) adv gp ≤
-        KEMScheme.IND_CPA_Advantage (kem := kem) ProbCompRuntime.probComp red
--- ANCHOR_END: security_reduces_to_ind_cpa_exists
+    CKAScheme.ckaDistAdvantage (scheme kem hDet leak) adv gp ≤
+      KEMScheme.IND_CPA_Advantage (kem := kem) ProbCompRuntime.probComp
+        (ckaToINDCPAReduction kem hDet leak adv gp)
+-- ANCHOR_END: security_reduces_to_ind_cpa
     := by
-  refine ⟨ckaToINDCPAReduction kem hDet leak adv gp, le_of_eq ?_⟩
+  refine le_of_eq ?_
   rw [kem_ind_cpa_advantage_eq_fixed_branch_dist,
     ckaToINDCPAReduction_IND_CPA_Exp_probOutput_true_eq_branch kem hDet leak adv gp true,
     ckaToINDCPAReduction_IND_CPA_Exp_probOutput_true_eq_branch kem hDet leak adv gp false,
@@ -69,5 +71,23 @@ theorem security_reduces_to_ind_cpa_exists [SampleableType K] [DecidableEq K]
     ckaSecurityFixedBranch_challenge_key_gap_eq,
     ckaSecurityFixedBranchWithChallengeKey_injected_gap_eq]
   exact cka_injected_honest_gap_eq_keygen_swapped_raw_gap kem hDet hkem leak adv gp hgp
+
+/-- Existential repackaging of `security_reduces_to_ind_cpa`: there exists an
+IND-CPA adversary against the KEM whose advantage upper-bounds the CKA
+distinguishing advantage. Retained as a compatibility wrapper; the witness is
+the concrete reduction `ckaToINDCPAReduction kem hDet leak adv gp`. -/
+theorem security_reduces_to_ind_cpa_exists [SampleableType K] [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : DeterministicDecaps kem)
+    (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
+    (leak : RandLeak kem)
+    (adv : Adversary (kem := kem) leak)
+    (gp : CKAScheme.GameParams)
+    (hgp : AdmissibleParams gp) :
+    ∃ red : KEMScheme.IND_CPA_Adversary kem,
+      CKAScheme.ckaDistAdvantage (scheme kem hDet leak) adv gp ≤
+        KEMScheme.IND_CPA_Advantage (kem := kem) ProbCompRuntime.probComp red :=
+  ⟨ckaToINDCPAReduction kem hDet leak adv gp,
+    security_reduces_to_ind_cpa kem hDet hkem leak adv gp hgp⟩
 
 end kemCKA

@@ -5,6 +5,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 
 import SecureMessaging.CKA.FromKEM.Security.PrefixInjectCouplingA
 import SecureMessaging.CKA.FromKEM.Security.PrefixInjectCouplingB
+import ToVCVio.EvalDist.Monad.Basic
 
 /-!
 # CKA from KEM — Injected-Prefix Coupling
@@ -33,14 +34,6 @@ Both split games are a prefix bound to a resume.  Replacing the resume's
 finished-run guesses by `false` isolates the paused runs' contribution; the
 finished runs' contribution is bit-free because the prefix runs at bit
 `false`.  The success probability of the game is the sum of the two. -/
-
-private lemma probOutput_true_bind_add_of_pointwise {α : Type} (mx : ProbComp α)
-    (f g h : α → ProbComp Bool)
-    (hpt : ∀ z, Pr[= true | f z] = Pr[= true | g z] + Pr[= true | h z]) :
-    Pr[= true | mx >>= f] = Pr[= true | mx >>= g] + Pr[= true | mx >>= h] := by
-  rw [probOutput_bind_eq_tsum, probOutput_bind_eq_tsum, probOutput_bind_eq_tsum,
-    ← ENNReal.tsum_add]
-  exact tsum_congr fun z => by rw [hpt z, mul_add]
 
 /-- As resuming with `injectedChallengeResume`, with finished runs' guesses
 replaced by `false`: the paused runs' contribution to the success
