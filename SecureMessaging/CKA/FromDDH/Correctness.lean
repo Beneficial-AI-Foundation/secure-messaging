@@ -8,7 +8,9 @@ import SecureMessaging.CKA.FromDDH.Common
 /-!
 # CKA from DDH — Correctness
 
-Correctness proof for the DDH-CKA construction: `Pr[= true | correctnessExp] = 1`.
+Correctness proof for the Continuous Key Agreement (CKA) construction from
+the Decisional Diffie-Hellman (DDH) assumption:
+`Pr[= true | correctnessExp] = 1`.
 The proof establishes a four-phase game invariant and shows it is preserved by
 every oracle call, using `smul_comm` to deduce that the derived keys by A and B are the same.
 -/

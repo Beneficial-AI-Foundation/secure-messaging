@@ -7,6 +7,10 @@ import SecureMessaging.CKA.FromDDH.Construction
 
 /-!
 # CKA from DDH — Common Results for Correctness and Security
+
+Common definitions used by the correctness and security proofs of the
+Continuous Key Agreement (CKA) construction from the Decisional
+Diffie-Hellman (DDH) assumption.
 -/
 
 open OracleSpec OracleComp ENNReal
