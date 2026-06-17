@@ -37,7 +37,7 @@ def git_output(args: list[str], fallback: str = "") -> str:
     # Run a git command and return a fallback if the command fails.
     try:
         return subprocess.check_output(["git", *args], text=True).strip()
-    except subprocess.CalledProcessError:
+    except (subprocess.CalledProcessError, OSError):
         return fallback
 
 
@@ -45,7 +45,10 @@ def load_history_document(path: Path) -> dict:
     # Missing history is valid: the render will start from the current snapshot.
     if not path.exists():
         return {"snapshots": []}
-    data = json.loads(path.read_text())
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {"snapshots": []}
     # Accept a bare snapshot list as a minimal history document.
     if isinstance(data, list):
         return {"snapshots": data}

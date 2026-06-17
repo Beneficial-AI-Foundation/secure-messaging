@@ -49,15 +49,53 @@ recover_previous_progress_history() {
   echo "Starting Blueprint progress history from the current render"
 }
 
-# Seed progress history when recovery found none; set the flag to 0 to skip.
+# Count recovered snapshots so sparse deployed history can be repaired.
+history_snapshot_count() {
+  local history_file="$1"
+  if [[ ! -f "$history_file" ]]; then
+    echo 0
+    return
+  fi
+
+  python3 - "$history_file" <<'PY'
+import json
+import sys
+
+try:
+    data = json.loads(open(sys.argv[1]).read())
+except Exception:
+    print(0)
+    raise SystemExit
+
+if isinstance(data, list):
+    snapshots = data
+elif isinstance(data, dict):
+    snapshots = data.get("snapshots", [])
+else:
+    snapshots = []
+print(len(snapshots) if isinstance(snapshots, list) else 0)
+PY
+}
+
+# Seed progress history when recovery is missing or too sparse; set the flag to 0 to skip.
 seed_progress_history_if_needed() {
-  if [[ -f "$previous_history" || "${BLUEPRINT_PROGRESS_HISTORY_SEED:-1}" != "1" ]]; then
+  if [[ "${BLUEPRINT_PROGRESS_HISTORY_SEED:-1}" != "1" ]]; then
+    return
+  fi
+
+  local snapshot_count
+  snapshot_count="$(history_snapshot_count "$previous_history")"
+  if [[ "$snapshot_count" -ge 2 ]]; then
     return
   fi
 
   if ! command -v gh >/dev/null 2>&1; then
     echo "Cannot seed Blueprint progress history: gh is not available" >&2
     return
+  fi
+
+  if [[ "$snapshot_count" -gt 0 ]]; then
+    echo "Recovered Blueprint progress history has only $snapshot_count snapshot(s); reseeding from GitHub issue closures"
   fi
 
   if python3 scripts/seed-blueprint-progress-history.py \
@@ -185,7 +223,6 @@ cat > "$site_root/index.html" <<'HTML'
       max-width: none;
       color: var(--muted);
       font-size: 1.05rem;
-      white-space: nowrap;
     }
     .chapter-list {
       display: grid;
@@ -287,9 +324,6 @@ cat > "$site_root/index.html" <<'HTML'
     }
     .status-table .proof-group {
       border-left: 1px solid var(--line);
-    }
-    .status-table .next-group {
-      border-left: 2px solid var(--line);
     }
     .status-chapter-link {
       color: inherit;

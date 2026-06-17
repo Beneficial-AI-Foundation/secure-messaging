@@ -270,8 +270,8 @@ def status_count_cell(
     count = len(atoms)
     class_attr = f' class="{extra_class}"' if extra_class else ""
     chapter_text = html_module.escape(chapter.replace("-", " "))
-    metric_text = html_module.escape(metric.title())
-    kind_text = html_module.escape(kind.title())
+    metric_text = html_module.escape(metric.capitalize())
+    kind_text = html_module.escape(kind)
     atom_items = []
 
     # Counts in the table are focusable; the popover gives reviewers a quick path
@@ -300,7 +300,10 @@ def load_history_document(path: Path | None) -> dict:
     # Load a complete history document, or an empty document when absent.
     if path is None or not path.exists():
         return {"snapshots": []}
-    data = json.loads(path.read_text())
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {"snapshots": []}
     # Accept a bare snapshot list as a minimal history document.
     if isinstance(data, list):
         return {"snapshots": data}
@@ -461,12 +464,12 @@ def axis_x_for_time(time: datetime, window: ChartWindow) -> float:
 
 def short_month_day(time: datetime) -> str:
     # Format weekly tick labels.
-    return time.strftime("%b %-d")
+    return f"{time.strftime('%b')} {time.day}"
 
 
 def day_month(time: datetime) -> str:
     # Format compact timeframe labels.
-    return time.strftime("%-d %b")
+    return f"{time.day} {time.strftime('%b')}"
 
 
 def chart_week_ticks(window: ChartWindow) -> str:
@@ -495,7 +498,7 @@ def human_date(snapshot: dict) -> str:
     parsed = snapshot_time(snapshot)
     if parsed is None:
         return html_module.escape(str(snapshot.get("date", ""))[:10])
-    return html_module.escape(parsed.strftime("%b %-d, %Y"))
+    return html_module.escape(f"{parsed.strftime('%b')} {parsed.day}, {parsed.year}")
 
 
 def tracking_days(snapshots: list[dict], window: ChartWindow) -> int:
@@ -568,7 +571,6 @@ def progress_chart(title: str, kind: str, metrics: tuple[str, ...], snapshots: l
     if not snapshots:
         return ""
     max_value = max(metric_value(snapshot, kind, "total") for snapshot in snapshots) or 1
-    first_date, last_date = chart_axis_labels(snapshots, window)
     total_points = chart_coordinates(snapshots, kind, "total", max_value, window)
     total_path = html_module.escape(svg_path(displayed_points(total_points, full_width=True)), quote=True)
     metric_paths = []
@@ -586,8 +588,6 @@ def progress_chart(title: str, kind: str, metrics: tuple[str, ...], snapshots: l
         legend_items.append(f'<span><i class="progress-swatch {metric_class}"></i>{metric_label} {metric_value_text}</span>')
     timeframe_text = chart_timeframe(snapshots, window)
     title_text = html_module.escape(title)
-    first_text = html_module.escape(first_date)
-    last_text = html_module.escape(last_date)
     gridlines = chart_gridlines(max_value)
     guides = chart_guides(snapshots, kind, metrics, max_value, window)
     week_ticks = chart_week_ticks(window)
@@ -662,23 +662,23 @@ def print_html_summary(atoms: list[Atom], history_file: Path | None = None, site
     print('      <table class="status-table" aria-label="Per-chapter blueprint status">')
     print('        <thead>')
     print('          <tr><th scope="col" rowspan="2">Chapter</th><th scope="colgroup" colspan="3">Definitions</th><th class="theorem-group" scope="colgroup" colspan="5">Theorems</th></tr>')
-    print('          <tr><th scope="col">Total</th><th scope="col">Specified</th><th scope="col">Next</th><th class="theorem-group" scope="col">Total</th><th scope="col">Specified</th><th scope="col">Next</th><th class="proof-group" scope="col">Verified</th><th scope="col">Next</th></tr>')
+    print('          <tr><th scope="col">Total</th><th scope="col">Specified</th><th scope="col">Ready next</th><th class="theorem-group" scope="col">Total</th><th scope="col">Specified</th><th scope="col">Ready next</th><th class="proof-group" scope="col">Verified</th><th scope="col">Proof blockers</th></tr>')
     print('        </thead>')
     print('        <tbody>')
     all_cells = "".join(
         [
             status_count_cell("ALL", "definition", "total", [atom for atom in atoms if atom.kind == "definition"]),
             status_count_cell("ALL", "definition", "specified", [atom for atom in atoms if atom.kind == "definition" and atom.specified]),
-            status_count_cell("ALL", "definition", "next", all_ready_next_definitions, show_popover_title=False),
+            status_count_cell("ALL", "definition", "ready next", all_ready_next_definitions, show_popover_title=False),
             status_count_cell("ALL", "theorem", "total", [atom for atom in atoms if atom.kind == "theorem"], "theorem-group"),
             status_count_cell("ALL", "theorem", "specified", [atom for atom in atoms if atom.kind == "theorem" and atom.specified]),
-            status_count_cell("ALL", "theorem", "next", all_ready_next_theorems, show_popover_title=False),
+            status_count_cell("ALL", "theorem", "ready next", all_ready_next_theorems, show_popover_title=False),
             status_count_cell("ALL", "theorem", "verified", [atom for atom in atoms if atom.kind == "theorem" and atom.verified], "proof-group"),
-            status_count_cell("ALL", "theorem", "next", all_current_blocker_theorems, show_popover_title=False),
+            status_count_cell("ALL", "theorem", "proof blockers", all_current_blocker_theorems, show_popover_title=False),
         ]
     )
     print(f'          <tr class="status-all-row"><th scope="row">ALL</th>{all_cells}</tr>')
-    for chapter, chapter_totals in sorted(chapters.items()):
+    for chapter in sorted(chapters):
         chapter_text = html_module.escape(chapter.replace("-", " "))
         definition_total = atoms_for(atoms, chapter, "definition", "total")
         definition_specified = atoms_for(atoms, chapter, "definition", "specified")
@@ -692,7 +692,7 @@ def print_html_summary(atoms: list[Atom], history_file: Path | None = None, site
                 status_count_cell(
                     chapter,
                     "definition",
-                    "next",
+                    "ready next",
                     ready_next_atoms_by_chapter.get(chapter, {}).get("definition", []),
                     show_popover_title=False,
                 ),
@@ -701,7 +701,7 @@ def print_html_summary(atoms: list[Atom], history_file: Path | None = None, site
                 status_count_cell(
                     chapter,
                     "theorem",
-                    "next",
+                    "ready next",
                     ready_next_atoms_by_chapter.get(chapter, {}).get("theorem", []),
                     show_popover_title=False,
                 ),
@@ -709,7 +709,7 @@ def print_html_summary(atoms: list[Atom], history_file: Path | None = None, site
                 status_count_cell(
                     chapter,
                     "theorem",
-                    "next",
+                    "proof blockers",
                     current_blocker_atoms_by_chapter.get(chapter, {}).get("theorem", []),
                     show_popover_title=False,
                 ),
