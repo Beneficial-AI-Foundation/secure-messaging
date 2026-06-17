@@ -555,7 +555,7 @@ def chart_timeframe(snapshots: list[dict], window: ChartWindow) -> str:
     if not snapshots:
         return ""
     first = window.start or snapshot_time(snapshots[0])
-    last = snapshot_time(snapshots[-1]) or window.end
+    last = window.end or snapshot_time(snapshots[-1])
     if first is None or last is None:
         return ""
     first_text = html_module.escape(day_month(first))
