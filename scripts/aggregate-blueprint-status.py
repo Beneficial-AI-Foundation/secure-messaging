@@ -421,7 +421,7 @@ def svg_area(points: list[tuple[float, float]]) -> str:
     # Build an SVG filled area under a metric line.
     if not points:
         return ""
-    points = displayed_points(points, full_width=True)
+    points = displayed_points(points)
     baseline = CHART_HEIGHT - CHART_PADDING_BOTTOM
     first_x = points[0][0]
     last_x = points[-1][0]
@@ -480,6 +480,19 @@ def chart_week_ticks(window: ChartWindow) -> str:
         )
         current = current + timedelta(days=7)
     return "".join(ticks)
+
+
+def chart_endpoint_labels(window: ChartWindow) -> str:
+    # Render fixed start/end labels for the chart horizon.
+    if window.start is None or window.end is None:
+        return ""
+    baseline = CHART_HEIGHT - CHART_PADDING_BOTTOM
+    start_label = html_module.escape(day_month(window.start))
+    end_label = html_module.escape(day_month(window.end))
+    return (
+        f'<text class="progress-chart-label" x="{CHART_PADDING_LEFT}" y="{baseline + 46}" text-anchor="start">{start_label}</text>'
+        f'<text class="progress-chart-label" x="{CHART_WIDTH - CHART_PADDING_RIGHT}" y="{baseline + 46}" text-anchor="end">{end_label}</text>'
+    )
 
 
 def human_date(snapshot: dict) -> str:
@@ -567,7 +580,7 @@ def progress_chart(title: str, kind: str, metrics: tuple[str, ...], snapshots: l
     legend_items = [f'<span><i class="progress-swatch total"></i>Total {metric_value(latest, kind, "total")}</span>']
     for metric in metrics:
         points = chart_coordinates(snapshots, kind, metric, max_value, window)
-        path = html_module.escape(svg_path(displayed_points(points, full_width=True)), quote=True)
+        path = html_module.escape(svg_path(displayed_points(points)), quote=True)
         area = html_module.escape(svg_area(points), quote=True)
         metric_class = html_module.escape(metric, quote=True)
         metric_label = html_module.escape(metric.title())
@@ -580,6 +593,7 @@ def progress_chart(title: str, kind: str, metrics: tuple[str, ...], snapshots: l
     gridlines = chart_gridlines(max_value)
     guides = chart_guides(snapshots, kind, metrics, max_value, window)
     week_ticks = chart_week_ticks(window)
+    endpoint_labels = chart_endpoint_labels(window)
     if timeframe_text:
         legend_items.append(f'<span class="progress-chart-timeframe">{timeframe_text}</span>')
     legend = "".join(legend_items)
@@ -594,7 +608,8 @@ def progress_chart(title: str, kind: str, metrics: tuple[str, ...], snapshots: l
             {guides}
             <path class="progress-chart-line total" d="{total_path}"/>
             {metric_markup}
-                        {week_ticks}
+            {week_ticks}
+            {endpoint_labels}
           </svg>
           <div class="progress-chart-legend">{legend}</div>
         </article>'''
