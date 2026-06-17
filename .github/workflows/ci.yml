@@ -67,6 +67,18 @@ jobs:
             lake-build-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'lake-manifest.json') }}-
             lake-build-${{ runner.os }}-
 
+      # Dependency builds (the verso stack, VCVio, PolyFun, …) are not covered
+      # by the mathlib cache, so cache them separately keyed on the manifest:
+      # they only rebuild when lake-manifest.json or the toolchain changes,
+      # not on every code PR. mathlib itself comes from use-mathlib-cache.
+      - name: Cache Lake dependency builds
+        uses: actions/cache@v4
+        with:
+          path: |
+            .lake/packages/*/.lake/build
+            !.lake/packages/mathlib/.lake/build
+          key: lake-deps-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}
+
       - uses: leanprover/lean-action@v1
         with:
           auto-config: "false"
