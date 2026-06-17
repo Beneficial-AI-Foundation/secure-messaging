@@ -9,7 +9,6 @@ Lean statement exists and whether it appears fully verified.
 
 import argparse
 from datetime import datetime, timedelta, timezone
-import calendar
 import html as html_module
 import json
 import posixpath
@@ -20,6 +19,7 @@ from pathlib import Path
 
 
 DEFAULT_SITE_DIR = Path("_out/site/html-multi")
+DEFAULT_PROJECT_END = "2027-01-28"
 MANIFEST_PATH = "-verso-data/blueprint-preview-manifest.json"
 TRACKED_KINDS = ("definition", "theorem")
 CHART_WIDTH = 1153
@@ -333,15 +333,6 @@ def parse_datetime(raw_date: object) -> datetime | None:
         return None
 
 
-def add_months(date: datetime, months: int) -> datetime:
-    # Add calendar months while preserving a valid target day.
-    month_index = date.month - 1 + months
-    year = date.year + month_index // 12
-    month = month_index % 12 + 1
-    day = min(date.day, calendar.monthrange(year, month)[1])
-    return date.replace(year=year, month=month, day=day)
-
-
 def sorted_history(path: Path | None) -> list[dict]:
     # Return history snapshots sorted by parsed timestamp.
     snapshots = load_history_document(path).get("snapshots", [])
@@ -353,9 +344,7 @@ def chart_window(history: dict, snapshots: list[dict]) -> ChartWindow:
     start = parse_datetime(history.get("projectStart"))
     if start is None and snapshots:
         start = snapshot_time(snapshots[0])
-    end = parse_datetime(history.get("projectEnd"))
-    if end is None and start is not None:
-        end = add_months(start, 6)
+    end = parse_datetime(history.get("projectEnd")) or parse_datetime(DEFAULT_PROJECT_END)
     return ChartWindow(start=start, end=end)
 
 
@@ -432,7 +421,7 @@ def svg_area(points: list[tuple[float, float]]) -> str:
     # Build an SVG filled area under a metric line.
     if not points:
         return ""
-    points = displayed_points(points)
+    points = displayed_points(points, full_width=True)
     baseline = CHART_HEIGHT - CHART_PADDING_BOTTOM
     first_x = points[0][0]
     last_x = points[-1][0]
@@ -554,11 +543,11 @@ def chart_gridlines(max_value: int) -> str:
 
 
 def chart_timeframe(snapshots: list[dict], window: ChartWindow) -> str:
-    # Summarize the displayed date range for the chart legend.
+    # Summarize the tracked data range for the chart legend.
     if not snapshots:
         return ""
-    first = window.start or snapshot_time(snapshots[0])
-    last = window.end or snapshot_time(snapshots[-1])
+    first = snapshot_time(snapshots[0]) or window.start
+    last = snapshot_time(snapshots[-1]) or window.end
     if first is None or last is None:
         return ""
     first_text = html_module.escape(day_month(first))
@@ -578,7 +567,7 @@ def progress_chart(title: str, kind: str, metrics: tuple[str, ...], snapshots: l
     legend_items = [f'<span><i class="progress-swatch total"></i>Total {metric_value(latest, kind, "total")}</span>']
     for metric in metrics:
         points = chart_coordinates(snapshots, kind, metric, max_value, window)
-        path = html_module.escape(svg_path(displayed_points(points)), quote=True)
+        path = html_module.escape(svg_path(displayed_points(points, full_width=True)), quote=True)
         area = html_module.escape(svg_area(points), quote=True)
         metric_class = html_module.escape(metric, quote=True)
         metric_label = html_module.escape(metric.title())

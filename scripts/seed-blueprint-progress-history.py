@@ -23,6 +23,7 @@ DEFAULT_DOCS_DIR = Path("docs/SecureMessagingDocs")
 DEFAULT_HISTORY = Path("docs/blueprint-progress-history.json")
 DEFAULT_SITE_DIR = Path("_out/site/html-multi")
 DEFAULT_REPO = "Beneficial-AI-Foundation/secure-messaging"
+DEFAULT_PROJECT_END = "2027-01-28"
 SCHEMA_VERSION = 1
 
 ATOM_RE = re.compile(r":{3,}(definition|theorem)\s+\"([^\"]+)\"")
@@ -53,17 +54,6 @@ def parse_datetime(raw_date: str | None) -> datetime | None:
         return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=timezone.utc)
     except ValueError:
         return None
-
-
-def add_months(date: datetime, months: int) -> datetime:
-    # Add calendar months while preserving a valid day in the target month.
-    import calendar
-
-    month_index = date.month - 1 + months
-    year = date.year + month_index // 12
-    month = month_index % 12 + 1
-    day = min(date.day, calendar.monthrange(year, month)[1])
-    return date.replace(year=year, month=month, day=day)
 
 
 def run_git(args: list[str]) -> str:
@@ -244,7 +234,7 @@ def main() -> None:
     parser.add_argument("--history", type=Path, default=DEFAULT_HISTORY)
     parser.add_argument("--repo", default=DEFAULT_REPO)
     parser.add_argument("--issues-json", type=Path, help="Use a cached gh issue list JSON file.")
-    parser.add_argument("--months", type=int, default=6, help="Chart horizon in months from the first commit.")
+    parser.add_argument("--project-end", default=DEFAULT_PROJECT_END, help="Chart end date.")
     args = parser.parse_args()
 
     commits = load_commits()
@@ -262,11 +252,10 @@ def main() -> None:
     ordered = sorted(by_commit.values(), key=lambda snapshot: snapshot.get("date", ""))
 
     project_start = commits[0].raw_date
-    project_end = add_months(commits[0].date, args.months).isoformat()
     data = {
         "schemaVersion": SCHEMA_VERSION,
         "projectStart": project_start,
-        "projectEnd": project_end,
+        "projectEnd": args.project_end,
         "historyBasis": "Historical points are estimated from current Blueprint atom-to-issue links and GitHub issue closure dates; the latest point is exact from rendered Blueprint manifests.",
         "updatedAt": datetime.now(timezone.utc).isoformat(),
         "snapshots": ordered,

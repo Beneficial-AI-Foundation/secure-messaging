@@ -18,6 +18,7 @@ from pathlib import Path
 
 DEFAULT_HISTORY = Path("docs/blueprint-progress-history.json")
 DEFAULT_SITE_DIR = Path("_out/site/html-multi")
+DEFAULT_PROJECT_END = "2027-01-28"
 SCHEMA_VERSION = 1
 
 
@@ -107,10 +108,11 @@ def merge_history(existing: dict, snapshot: dict) -> dict:
     by_commit[snapshot["commit"]] = snapshot
     merged = {
         "schemaVersion": SCHEMA_VERSION,
+        "projectEnd": DEFAULT_PROJECT_END,
         "updatedAt": datetime.now(timezone.utc).isoformat(),
         "snapshots": sorted(by_commit.values(), key=sort_key),
     }
-    for key in ("projectStart", "projectEnd", "historyBasis"):
+    for key in ("projectStart", "historyBasis"):
         if key in existing:
             merged[key] = existing[key]
     return merged
