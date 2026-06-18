@@ -327,7 +327,6 @@ def status_count_cell(
     metric: str,
     atoms: list[Atom],
     extra_class: str = "",
-    show_popover_title: bool = True,
 ) -> str:
     # Render one status-table cell with a count and atom popover.
     count = len(atoms)
@@ -350,11 +349,10 @@ def status_count_cell(
         atom_items.append("<li>No atoms</li>")
     atom_list = "".join(atom_items)
     label = f"{metric_text} {kind_text} atoms for {chapter_text}"
-    popover_title = f"<strong>{label}</strong>" if show_popover_title else ""
     return (
         f'<td{class_attr}><span class="status-count" tabindex="0" aria-label="{label}">'
         f'<span class="status-number">{count}</span>'
-        f'<span class="status-popover" role="tooltip">{popover_title}<ul>{atom_list}</ul></span>'
+        f'<span class="status-popover" role="tooltip"><ul>{atom_list}</ul></span>'
         "</span></td>"
     )
 
@@ -739,12 +737,12 @@ def print_html_summary(atoms: list[Atom], history_file: Path | None = None, site
         [
             status_count_cell("ALL", "definition", "total", [atom for atom in atoms if atom.kind == "definition"]),
             status_count_cell("ALL", "definition", "specified", [atom for atom in atoms if atom.kind == "definition" and atom.specified]),
-            status_count_cell("ALL", "definition", "ready next", all_ready_next_definitions, show_popover_title=False),
+            status_count_cell("ALL", "definition", "ready next", all_ready_next_definitions),
             status_count_cell("ALL", "theorem", "total", [atom for atom in atoms if atom.kind == "theorem"], "theorem-group"),
             status_count_cell("ALL", "theorem", "specified", [atom for atom in atoms if atom.kind == "theorem" and atom.specified]),
-            status_count_cell("ALL", "theorem", "ready next", all_ready_next_theorems, show_popover_title=False),
+            status_count_cell("ALL", "theorem", "ready next", all_ready_next_theorems),
             status_count_cell("ALL", "theorem", "verified", [atom for atom in atoms if atom.kind == "theorem" and atom.verified], "proof-group"),
-            status_count_cell("ALL", "theorem", "proof blockers", all_current_blocker_theorems, show_popover_title=False),
+            status_count_cell("ALL", "theorem", "proof blockers", all_current_blocker_theorems),
         ]
     )
     print(f'          <tr class="status-all-row"><th scope="row">ALL</th>{all_cells}</tr>')
@@ -764,7 +762,6 @@ def print_html_summary(atoms: list[Atom], history_file: Path | None = None, site
                     "definition",
                     "ready next",
                     ready_next_atoms_by_chapter.get(chapter, {}).get("definition", []),
-                    show_popover_title=False,
                 ),
                 status_count_cell(chapter, "theorem", "total", theorem_total, "theorem-group"),
                 status_count_cell(chapter, "theorem", "specified", theorem_specified),
@@ -773,7 +770,6 @@ def print_html_summary(atoms: list[Atom], history_file: Path | None = None, site
                     "theorem",
                     "ready next",
                     ready_next_atoms_by_chapter.get(chapter, {}).get("theorem", []),
-                    show_popover_title=False,
                 ),
                 status_count_cell(chapter, "theorem", "verified", theorem_verified, "proof-group"),
                 status_count_cell(
@@ -781,7 +777,6 @@ def print_html_summary(atoms: list[Atom], history_file: Path | None = None, site
                     "theorem",
                     "proof blockers",
                     current_blocker_atoms_by_chapter.get(chapter, {}).get("theorem", []),
-                    show_popover_title=False,
                 ),
             ]
         )
