@@ -58,7 +58,10 @@ variable [Inhabited F]
 variable [Fintype G]
 
 omit [Fintype G] in
-/-- Rand-branch simulation invariant between reduction and honest states. -/
+/-- Rand-branch simulation invariant between reduction and honest states.
+The external random key `_gT` is not constrained by the relation but is kept in
+the parameter list to mirror `honestImpl_param_rand gp gen a b gT`. -/
+@[nolint unusedArguments]
 def reductionHonestRel_rand (gp : GameParams) (gen : G) (a b : F) (_gT : G)
     (sR sH : GameState (CKAState F G) G G) : Prop :=
   reachableShape gen sH ∧

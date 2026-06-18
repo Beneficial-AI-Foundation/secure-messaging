@@ -138,6 +138,10 @@ def recv (st : CKAState F G) (ρ : G) : Option (G × CKAState F G) :=
 - `sendA(h: G)` and `sendB(h: G)`: defined as `send(h: G)` above.
 - `recvA(x: F, ρ: G)` and `recvB(x: F, ρ: G)` defined as `recv(x: F, ρ: G)` above.
 -/
+-- The `Fintype F`, `DecidableEq F`, and `SampleableType G` instances are unused
+-- in the construction itself but kept to align with the security theorems about
+-- `ddhCKA`, which require them.
+@[nolint unusedArguments]
 -- ANCHOR: ddhCKA
 def ddhCKA (F G : Type) [Field F] [Fintype F] [DecidableEq F] [SampleableType F]
     [AddCommGroup G] [Module F G] [SampleableType G]

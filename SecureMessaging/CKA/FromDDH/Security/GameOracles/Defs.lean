@@ -459,6 +459,9 @@ omit [Fintype G] in
   the parameterized `QueryImpl` set `honestImpl_param_real gp gen a b`.
 This is the lazy/eager endpoint for the two cache samples used by
 `ckaSecurityImpl_lazy_real`. -/
+-- `Finite G` is unused in the proof but kept for uniformity with the
+-- surrounding lazy/eager bridge lemmas.
+@[nolint unusedArguments]
 lemma evalDist_ckaSecurityImpl_lazy_eq_eager
     [Finite G]
     (gp : GameParams) (adversary : CKAAdversary (CKAState F G) G G F)
