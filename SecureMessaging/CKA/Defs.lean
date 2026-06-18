@@ -375,14 +375,19 @@ variable {Rho I : Type}
 
 Aliases for the nested `.inl/.inr` paths into `(ckaCorrectnessSpec Rho I).Domain`.
 Marked `@[match_pattern]` so they unfold transparently in `match` patterns. -/
+/-- Domain index selecting the uniform-randomness oracle. -/
 @[match_pattern] abbrev OUnif (n : ℕ) : (ckaCorrectnessSpec Rho I).Domain :=
   .inl (.inl (.inl (.inl n)))
+/-- Domain index selecting the `Send-A` oracle. -/
 @[match_pattern] abbrev OSendA : (ckaCorrectnessSpec Rho I).Domain :=
   .inl (.inl (.inl (.inr ())))
+/-- Domain index selecting the `Recv-A` oracle. -/
 @[match_pattern] abbrev ORecvA : (ckaCorrectnessSpec Rho I).Domain :=
   .inl (.inl (.inr ()))
+/-- Domain index selecting the `Send-B` oracle. -/
 @[match_pattern] abbrev OSendB : (ckaCorrectnessSpec Rho I).Domain :=
   .inl (.inr ())
+/-- Domain index selecting the `Recv-B` oracle. -/
 @[match_pattern] abbrev ORecvB : (ckaCorrectnessSpec Rho I).Domain :=
   .inr ()
 
@@ -409,26 +414,37 @@ variable {St Rho I Rand : Type}
 
 Aliases for the nested `.inl/.inr` paths into `(ckaSecuritySpec St Rho I Rand).Domain`.
 Marked `@[match_pattern]` so they unfold transparently in `match` patterns. -/
+/-- Domain index selecting the uniform-randomness oracle. -/
 @[match_pattern] abbrev OUnif (n : ℕ) : (ckaSecuritySpec St Rho I Rand).Domain :=
   .inl (.inl (.inl (.inl (.inl (.inl (.inl (.inl (.inl (.inl n)))))))))
+/-- Domain index selecting the `Send-A` oracle. -/
 @[match_pattern] abbrev OSendA : (ckaSecuritySpec St Rho I Rand).Domain :=
   .inl (.inl (.inl (.inl (.inl (.inl (.inl (.inl (.inl (.inr ())))))))))
+/-- Domain index selecting the `Recv-A` oracle. -/
 @[match_pattern] abbrev ORecvA : (ckaSecuritySpec St Rho I Rand).Domain :=
   .inl (.inl (.inl (.inl (.inl (.inl (.inl (.inl (.inr ()))))))))
+/-- Domain index selecting the `Send-B` oracle. -/
 @[match_pattern] abbrev OSendB : (ckaSecuritySpec St Rho I Rand).Domain :=
   .inl (.inl (.inl (.inl (.inl (.inl (.inl (.inr ())))))))
+/-- Domain index selecting the `Recv-B` oracle. -/
 @[match_pattern] abbrev ORecvB : (ckaSecuritySpec St Rho I Rand).Domain :=
   .inl (.inl (.inl (.inl (.inl (.inl (.inr ()))))))
+/-- Domain index selecting the `Chall-A` oracle. -/
 @[match_pattern] abbrev OChallA : (ckaSecuritySpec St Rho I Rand).Domain :=
   .inl (.inl (.inl (.inl (.inl (.inr ())))))
+/-- Domain index selecting the `Chall-B` oracle. -/
 @[match_pattern] abbrev OChallB : (ckaSecuritySpec St Rho I Rand).Domain :=
   .inl (.inl (.inl (.inl (.inr ()))))
+/-- Domain index selecting the `Corrupt-A` oracle. -/
 @[match_pattern] abbrev OCorruptA : (ckaSecuritySpec St Rho I Rand).Domain :=
   .inl (.inl (.inl (.inr ())))
+/-- Domain index selecting the `Corrupt-B` oracle. -/
 @[match_pattern] abbrev OCorruptB : (ckaSecuritySpec St Rho I Rand).Domain :=
   .inl (.inl (.inr ()))
+/-- Domain index selecting the `Send-A-rleak` oracle. -/
 @[match_pattern] abbrev OSendA_rleak : (ckaSecuritySpec St Rho I Rand).Domain :=
   .inl (.inr ())
+/-- Domain index selecting the `Send-B-rleak` oracle. -/
 @[match_pattern] abbrev OSendB_rleak : (ckaSecuritySpec St Rho I Rand).Domain :=
   .inr ()
 

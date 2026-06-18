@@ -99,6 +99,8 @@ implementation and pauses at the first challenge query whose
 bit is never read, so the prefix is used at the fixed bit `false`; the resume
 carries the real bit. -/
 
+/-- Runs the adversary under `securityImplWithChallengeKeyPair` at the fixed bit
+`false`, pausing at the first guarded challenge query. -/
 def injectedChallengePrefix [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -146,6 +148,9 @@ simulates the rest of the run.
 The factorization below recovers the full injected game from the bit-`false`
 prefix followed by this bit-`b` resume. -/
 
+/-- Completes a run paused by `injectedChallengePrefix`: returns the guess for a
+`.done` result, or performs the paused challenge query at the real bit and
+simulates the rest. -/
 def injectedChallengeResume [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -659,6 +664,9 @@ Up to the injecting send both split prefixes step the unmodified
 maintain: the pending secret keys pair with the public keys they will
 decapsulate against, as key-generation support pairs. -/
 
+/-- State-shape invariant maintained by `securityImpl` up to the injecting send:
+each pending secret key pairs with the public key it decapsulates, as a
+key-generation support pair. -/
 def securityShapeInv
     (kem : KEMScheme ProbComp K PK SK C)
     (s : SecurityState K PK SK C) : Prop :=

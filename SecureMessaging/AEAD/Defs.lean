@@ -127,10 +127,13 @@ namespace aeadOneTimeCCASpec
 
 variable {AD M C : Type}
 
+/-- Domain index selecting the uniform-randomness oracle. -/
 @[match_pattern] abbrev OUnif (n : ℕ) : (aeadOneTimeCCASpec AD M C).Domain :=
   .inl (.inl n)
+/-- Domain index selecting the encryption oracle. -/
 @[match_pattern] abbrev OEncrypt (am : AD × M) : (aeadOneTimeCCASpec AD M C).Domain :=
   .inl (.inr am)
+/-- Domain index selecting the decryption oracle. -/
 @[match_pattern] abbrev ODecrypt (ac : AD × C) : (aeadOneTimeCCASpec AD M C).Domain :=
   .inr ac
 

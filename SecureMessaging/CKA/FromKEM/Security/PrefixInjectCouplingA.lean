@@ -371,6 +371,8 @@ at `sendReady pkStar` waiting for the challenge query.  Once the challenged
 party's counter passes the challenge epoch neither side can pause, so no
 output tracking is needed. -/
 
+/-- Coupling relation between the injected state `σH` and reduction state `σR`
+for the prefix-injection argument when party `A` is challenged. -/
 def coupleRelA
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)

@@ -369,6 +369,9 @@ receives that message both sides sit at `sendReady pkStar` waiting for the
 challenge query.  Once the challenged party's counter passes the challenge
 epoch neither side can pause. -/
 
+/-- Coupling relation between the injected state `σH` and reduction state `σR`
+for the prefix-injection argument when party `B` is challenged; mirror of
+`coupleRelA`. -/
 def coupleRelB
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)

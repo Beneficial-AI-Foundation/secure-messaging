@@ -190,6 +190,7 @@ inductive HonestChallengeMode where
   | real
   | rand
 
+/-- `true` for `rand` mode, `false` for `real` mode. -/
 @[simp] def HonestChallengeMode.isRandom : HonestChallengeMode → Bool
   | .real => false
   | .rand => true

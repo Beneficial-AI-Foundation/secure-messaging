@@ -70,7 +70,9 @@ inductive PendingChallengeRecv (K PK C : Type) where
 game state plus the challenge message still awaiting receipt. -/
 structure PostChallengeState
     (K PK SK C : Type) where
+  /-- Underlying CKA security-game state. -/
   game : SecurityState K PK SK C
+  /-- Challenge message awaiting receipt, if any. -/
   pending : PendingChallengeRecv K PK C
 
 /-- Answer a query with the honest implementation, acting on the `game`
