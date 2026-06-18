@@ -103,7 +103,7 @@ jobs:
         shell: bash
 
       - name: Sorry audit (collectAxioms)
-        uses: Beneficial-AI-Foundation/veritooling/sorry-audit-collectaxioms@v1
+        uses: Beneficial-AI-Foundation/veritooling/actions/sorry-audit-collectaxioms@v1
         with:
           # Detailed audit (Sections 1 & 2) covers all roots by default; both
           # SecureMessaging and ToVCVio are hand-written, so neither is excluded.
