@@ -707,9 +707,6 @@ python3 scripts/aggregate-blueprint-status.py \
   --html-summary >> "$site_root/index.html"
 
 cat >> "$site_root/index.html" <<'HTML'
-    <footer>
-      <a href="https://github.com/Beneficial-AI-Foundation/secure-messaging">Source on GitHub</a>
-    </footer>
   </main>
 </body>
 </html>
