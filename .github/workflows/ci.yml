@@ -41,6 +41,15 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Reclaim ~30 GB of preinstalled SDKs we don't use, so the disk-heavy
+      # Lean+mathlib build doesn't run out of space. Keeps /opt/hostedtoolcache
+      # (node/python). Hosted, ephemeral runner only — never do this self-hosted.
+      - name: Free disk space
+        shell: bash
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          df -h /
+
       # Detect whether anything that affects the documentation site changed.
       # Deliberately excludes `.github/workflows/ci.yml`, so editing CI alone
       # runs the sorry audit but skips the (expensive) doc build + deploy.
