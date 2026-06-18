@@ -306,8 +306,12 @@ def main() -> None:
     latest = exact_snapshot(args.site_dir, args.docs_dir)
 
     by_commit = {snapshot["commit"]: snapshot for snapshot in snapshots}
-    by_commit[latest["commit"]] = latest
-    ordered = sorted(by_commit.values(), key=lambda snapshot: snapshot.get("date", ""))
+    ordered = [
+        snapshot
+        for snapshot in sorted(by_commit.values(), key=lambda snapshot: snapshot.get("date", ""))
+        if snapshot.get("commit") != latest["commit"]
+    ]
+    ordered.append(latest)
 
     project_start = commits[0].raw_date
     data = {
