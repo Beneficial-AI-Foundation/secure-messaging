@@ -100,10 +100,16 @@ jobs:
       - name: Sorry audit
         uses: Beneficial-AI-Foundation/veritooling/actions/sorry-audit@v1
         with:
-          backend: collectaxioms
-          # Detailed audit (Sections 1 & 2) covers all roots by default; both
-          # SecureMessaging and ToVCVio are hand-written, so neither is excluded.
-          root-module: "SecureMessaging,ToVCVio"
+          # probe-lean backend: zero-config (auto-detects roots from
+          # lakefile.toml), no transitive-closure report — faster and far less
+          # verbose than collectaxioms. Emits a sorry manifest carrying each
+          # declaration's file:line, which the delta report uses.
+          backend: probe
+          # Flag each newly-introduced sorry inline on the PR diff (a ::warning
+          # annotation on the sorry's line). Runs here in the PR-triggered build
+          # job so it attaches to the PR head commit; the sticky comment is
+          # still posted separately by the verification-comment workflow.
+          annotate-new-sorries: "true"
 
       - name: Build documentation modules
         if: steps.changes.outputs.docs == 'true' || github.event_name == 'workflow_dispatch'
