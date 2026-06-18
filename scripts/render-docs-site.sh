@@ -50,34 +50,6 @@ recover_previous_progress_history() {
   echo "Starting Blueprint progress history from the current render"
 }
 
-# Count recovered snapshots so sparse deployed history can be repaired.
-history_snapshot_count() {
-  local history_file="$1"
-  if [[ ! -f "$history_file" ]]; then
-    echo 0
-    return
-  fi
-
-  python3 - "$history_file" <<'PY'
-import json
-import sys
-
-try:
-    data = json.loads(open(sys.argv[1]).read())
-except Exception:
-    print(0)
-    raise SystemExit
-
-if isinstance(data, list):
-    snapshots = data
-elif isinstance(data, dict):
-    snapshots = data.get("snapshots", [])
-else:
-    snapshots = []
-print(len(snapshots) if isinstance(snapshots, list) else 0)
-PY
-}
-
 # Decide whether recovered history is compatible with the current tracked atom
 # universe. Re-seeding avoids visual spikes when old deployed exact snapshots
 # used a different counting basis.

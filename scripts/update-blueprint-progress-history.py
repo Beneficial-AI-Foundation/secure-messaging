@@ -103,13 +103,15 @@ def merge_history(existing: dict, snapshot: dict) -> dict:
     # Key by commit so repeated renders replace the current snapshot instead of duplicating it.
     by_commit: dict[str, dict] = {}
     for entry in existing.get("snapshots", []):
+        if not isinstance(entry, dict):
+            continue
         commit = entry.get("commit")
         if isinstance(commit, str) and commit:
             by_commit[commit] = entry
     by_commit[snapshot["commit"]] = snapshot
     merged = {
         "schemaVersion": SCHEMA_VERSION,
-        "projectEnd": DEFAULT_PROJECT_END,
+        "projectEnd": existing.get("projectEnd", DEFAULT_PROJECT_END),
         "updatedAt": datetime.now(timezone.utc).isoformat(),
         "snapshots": sorted(by_commit.values(), key=sort_key),
     }
