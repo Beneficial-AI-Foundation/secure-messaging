@@ -19,9 +19,12 @@ from pathlib import Path
 
 
 DEFAULT_SITE_DIR = Path("_out/site/html-multi")
+DEFAULT_DOCS_DIR = Path("docs/SecureMessagingDocs")
 DEFAULT_PROJECT_END = "2027-01-28"
 MANIFEST_PATH = "-verso-data/blueprint-preview-manifest.json"
 TRACKED_KINDS = ("definition", "theorem")
+ATOM_RE = re.compile(r":{3,}(definition|theorem)\s+\"([^\"]+)\"")
+ISSUE_RE = re.compile(r"\{githubIssue\s+(\d+)\}")
 CHART_WIDTH = 1153
 CHART_HEIGHT = 546
 CHART_PADDING_LEFT = 37
@@ -30,6 +33,18 @@ CHART_PADDING_TOP = 42
 CHART_PADDING_BOTTOM = 132
 CHART_TICK_LABEL_X = -8
 CHART_TICK_LABEL_Y = 30
+CHAPTER_TITLES = {
+    "Authenticated-Encryption-with-Associated-Data": "Authenticated Encryption with Associated Data",
+    "Continuous-Key-Agreement": "Continuous Key Agreement",
+    "Erasure-Codes": "Erasure Codes",
+    "Forward-Secure-AEAD": "Forward-Secure AEAD",
+    "Online-Offline-KEM": "Online-Offline KEM",
+    "PRF-PRNG": "PRF-PRNG",
+    "Ratcheting-KEM": "Ratcheting KEM",
+    "Sparse-Continuous-Key-Agreement": "Sparse Continuous Key Agreement",
+    "Secure-Messaging": "Secure Messaging",
+}
+CHAPTER_ORDER = tuple(CHAPTER_TITLES)
 
 
 @dataclass(frozen=True)
@@ -62,6 +77,19 @@ def chapter_name(manifest: Path, site_dir: Path) -> str:
         return manifest.relative_to(site_dir).parts[0]
     except ValueError:
         return manifest.parent.parent.name
+
+
+def chapter_title(chapter: str) -> str:
+    # Match the display titles used by the generated root chapter index.
+    return CHAPTER_TITLES.get(chapter, chapter.replace("-", " "))
+
+
+def chapter_sort_key(chapter: str) -> tuple[int, str]:
+    # Match the explicit chapter order used by the generated root chapter index.
+    try:
+        return (CHAPTER_ORDER.index(chapter), "")
+    except ValueError:
+        return (len(CHAPTER_ORDER), chapter_title(chapter))
 
 
 def strip_tags(html: str) -> str:
@@ -132,6 +160,41 @@ def load_atoms(site_dir: Path) -> list[Atom]:
         raise SystemExit(f"Duplicate blueprint labels found: {duplicate_list}")
 
     return atoms
+
+
+def load_tracked_labels(docs_dir: Path) -> set[str]:
+    # Track only authored Blueprint atoms that carry a GitHub issue footer.
+    labels: set[str] = set()
+    for path in sorted(docs_dir.rglob("*.lean")):
+        lines = path.read_text().splitlines()
+        index = 0
+        while index < len(lines):
+            match = ATOM_RE.search(lines[index])
+            if match is None:
+                index += 1
+                continue
+
+            label = match.group(2)
+            fence = re.match(r"\s*(:{3,})", lines[index])
+            close_marker = fence.group(1) if fence is not None else ":::"
+            block = [lines[index]]
+            index += 1
+            while index < len(lines):
+                block.append(lines[index])
+                if lines[index].strip() == close_marker:
+                    index += 1
+                    break
+                index += 1
+
+            if ISSUE_RE.search("\n".join(block)):
+                labels.add(label)
+    return labels
+
+
+def load_tracked_atoms(site_dir: Path, docs_dir: Path = DEFAULT_DOCS_DIR) -> list[Atom]:
+    # Filter rendered atoms to the one-to-one tracked issue set.
+    tracked = load_tracked_labels(docs_dir)
+    return [atom for atom in load_atoms(site_dir) if atom.label in tracked]
 
 
 def normalize_chapter_href(chapter: str, href: str) -> str:
@@ -269,7 +332,7 @@ def status_count_cell(
     # Render one status-table cell with a count and atom popover.
     count = len(atoms)
     class_attr = f' class="{extra_class}"' if extra_class else ""
-    chapter_text = html_module.escape(chapter.replace("-", " "))
+    chapter_text = html_module.escape(chapter_title(chapter))
     metric_text = html_module.escape(metric.capitalize())
     kind_text = html_module.escape(kind)
     atom_items = []
@@ -389,6 +452,11 @@ def chart_coordinates(
     return coordinates
 
 
+def chart_max_value(raw_max: int) -> int:
+    # Round up to the next five-atom tick so the top line has visual headroom.
+    return max(5, ((raw_max + 4) // 5) * 5)
+
+
 def displayed_points(points: list[tuple[float, float]], full_width: bool = False) -> list[tuple[float, float]]:
     # Extend sparse point sets so SVG lines and areas remain visible.
     if full_width and points:
@@ -479,20 +547,17 @@ def chart_week_ticks(window: ChartWindow) -> str:
             f'</g>'
         )
         current = current + timedelta(days=7)
+    if ticks and current - timedelta(days=7) < window.end:
+        x = axis_x_for_time(window.end, window)
+        label = html_module.escape(short_month_day(window.end))
+        ticks.append(
+            f'<g class="progress-chart-tick" transform="translate({x:.1f} {baseline:.1f})">'
+            f'<line y2="6"/>'
+            f'<text x="{CHART_TICK_LABEL_X}" y="{CHART_TICK_LABEL_Y}" '
+            f'transform="rotate(-38 {CHART_TICK_LABEL_X} {CHART_TICK_LABEL_Y})">{label}</text>'
+            f'</g>'
+        )
     return "".join(ticks)
-
-
-def chart_endpoint_labels(window: ChartWindow) -> str:
-    # Render fixed start/end labels for the chart horizon.
-    if window.start is None or window.end is None:
-        return ""
-    baseline = CHART_HEIGHT - CHART_PADDING_BOTTOM
-    start_label = html_module.escape(day_month(window.start))
-    end_label = html_module.escape(day_month(window.end))
-    return (
-        f'<text class="progress-chart-label" x="{CHART_PADDING_LEFT}" y="{baseline + 46}" text-anchor="start">{start_label}</text>'
-        f'<text class="progress-chart-label" x="{CHART_WIDTH - CHART_PADDING_RIGHT}" y="{baseline + 46}" text-anchor="end">{end_label}</text>'
-    )
 
 
 def human_date(snapshot: dict) -> str:
@@ -542,7 +607,7 @@ def chart_gridlines(max_value: int) -> str:
         return ""
     plot_height = CHART_HEIGHT - CHART_PADDING_TOP - CHART_PADDING_BOTTOM
     lines = []
-    for value in range(5, max_value, 5):
+    for value in range(5, max_value + 1, 5):
         y = CHART_PADDING_TOP + plot_height * (1 - value / max_value)
         lines.append(
             f'<g class="progress-chart-gridline">'
@@ -568,11 +633,10 @@ def chart_timeframe(snapshots: list[dict], window: ChartWindow) -> str:
     return f"{first_text} - {last_text}"
 
 
-def progress_chart(title: str, kind: str, metrics: tuple[str, ...], snapshots: list[dict], window: ChartWindow) -> str:
+def progress_chart(title: str, kind: str, metrics: tuple[str, ...], snapshots: list[dict], window: ChartWindow, max_value: int) -> str:
     # Render one complete progress chart card.
     if not snapshots:
         return ""
-    max_value = max(metric_value(snapshot, kind, "total") for snapshot in snapshots) or 1
     total_points = chart_coordinates(snapshots, kind, "total", max_value, window)
     total_path = html_module.escape(svg_path(displayed_points(total_points, full_width=True)), quote=True)
     metric_paths = []
@@ -593,7 +657,6 @@ def progress_chart(title: str, kind: str, metrics: tuple[str, ...], snapshots: l
     gridlines = chart_gridlines(max_value)
     guides = chart_guides(snapshots, kind, metrics, max_value, window)
     week_ticks = chart_week_ticks(window)
-    endpoint_labels = chart_endpoint_labels(window)
     if timeframe_text:
         legend_items.append(f'<span class="progress-chart-timeframe">{timeframe_text}</span>')
     legend = "".join(legend_items)
@@ -609,7 +672,6 @@ def progress_chart(title: str, kind: str, metrics: tuple[str, ...], snapshots: l
             <path class="progress-chart-line total" d="{total_path}"/>
             {metric_markup}
             {week_ticks}
-            {endpoint_labels}
           </svg>
           <div class="progress-chart-legend">{legend}</div>
         </article>'''
@@ -622,10 +684,14 @@ def print_progress_charts(history_file: Path | None) -> None:
     if not snapshots:
         return
     window = chart_window(history, snapshots)
+    max_value = chart_max_value(max(
+        max(metric_value(snapshot, kind, "total") for snapshot in snapshots)
+        for kind in ("definitions", "theorems")
+    ))
     print('      <div class="progress-history" aria-label="Blueprint progress charts">')
     print('        <div class="progress-chart-grid">')
-    print(progress_chart("Definitions", "definitions", ("specified",), snapshots, window))
-    print(progress_chart("Theorems", "theorems", ("specified", "verified"), snapshots, window))
+    print(progress_chart("Definitions", "definitions", ("specified",), snapshots, window, max_value))
+    print(progress_chart("Theorems", "theorems", ("specified", "verified"), snapshots, window, max_value))
     print('        </div>')
     print('      </div>')
 
@@ -682,8 +748,8 @@ def print_html_summary(atoms: list[Atom], history_file: Path | None = None, site
         ]
     )
     print(f'          <tr class="status-all-row"><th scope="row">ALL</th>{all_cells}</tr>')
-    for chapter in sorted(chapters):
-        chapter_text = html_module.escape(chapter.replace("-", " "))
+    for chapter in sorted(chapters, key=chapter_sort_key):
+        chapter_text = html_module.escape(chapter_title(chapter))
         definition_total = atoms_for(atoms, chapter, "definition", "total")
         definition_specified = atoms_for(atoms, chapter, "definition", "specified")
         theorem_total = atoms_for(atoms, chapter, "theorem", "total")
@@ -726,9 +792,9 @@ def print_html_summary(atoms: list[Atom], history_file: Path | None = None, site
     print('      <section class="status-references" aria-labelledby="status-references-heading">')
     print('        <h3 id="status-references-heading">References</h3>')
     print('        <ul>')
-    print('          <li class="status-ref-item"><a class="status-ref-title" href="https://eprint.iacr.org/2018/1037" target="_blank" rel="noreferrer noopener">The Double Ratchet: Security Notions, Proofs, and Modularization for the Signal Protocol (ACD19)</a><span class="status-ref-authors">Joel Alwen, Sandro Coretti, Yevgeniy Dodis</span><span class="status-ref-venue">EUROCRYPT 2019</span></li>')
-    print('          <li class="status-ref-item"><a class="status-ref-title" href="https://eprint.iacr.org/2025/078" target="_blank" rel="noreferrer noopener">Triple Ratchet: A Bandwidth-Efficient Hybrid-Secure Signal Protocol (TR25)</a><span class="status-ref-authors">Yevgeniy Dodis, Daniel Jost, Shuichi Katsumata, Thomas Prest, Sebastian Schmidt</span><span class="status-ref-venue">EUROCRYPT 2025</span></li>')
-    print('          <li class="status-ref-item"><a class="status-ref-title" href="https://eprint.iacr.org/2025/2267" target="_blank" rel="noreferrer noopener">How to Compare Bandwidth-Constrained Two-Party Secure Messaging Protocols: A Quest for a More Efficient and Secure Post-Quantum Protocol (SCKA25)</a><span class="status-ref-authors">Benedikt Auerbach, Yevgeniy Dodis, Daniel Jost, Shuichi Katsumata, Sebastian Schmidt</span><span class="status-ref-venue">USENIX Security 2025</span></li>')
+    print('          <li class="status-ref-item"><a class="status-ref-title" href="https://eprint.iacr.org/2018/1037" target="_blank" rel="noreferrer noopener">The Double Ratchet: Security Notions, Proofs, and Modularization for the Signal Protocol</a><span class="status-ref-authors">Joel Alwen, Sandro Coretti, Yevgeniy Dodis</span><span class="status-ref-venue">EUROCRYPT 2019</span></li>')
+    print('          <li class="status-ref-item"><a class="status-ref-title" href="https://eprint.iacr.org/2025/078" target="_blank" rel="noreferrer noopener">Triple Ratchet: A Bandwidth-Efficient Hybrid-Secure Signal Protocol</a><span class="status-ref-authors">Yevgeniy Dodis, Daniel Jost, Shuichi Katsumata, Thomas Prest, Sebastian Schmidt</span><span class="status-ref-venue">EUROCRYPT 2025</span></li>')
+    print('          <li class="status-ref-item"><a class="status-ref-title" href="https://eprint.iacr.org/2025/2267" target="_blank" rel="noreferrer noopener">How to Compare Bandwidth-Constrained Two-Party Secure Messaging Protocols: A Quest for a More Efficient and Secure Post-Quantum Protocol</a><span class="status-ref-authors">Benedikt Auerbach, Yevgeniy Dodis, Daniel Jost, Shuichi Katsumata, Sebastian Schmidt</span><span class="status-ref-venue">USENIX Security 2025</span></li>')
     print('          <li class="status-ref-item"><a class="status-ref-title" href="https://github.com/Verified-zkEVM/VCV-io" target="_blank" rel="noreferrer noopener">VCV-io</a><span class="status-ref-authors">Formalized Cryptography Proofs in Lean 4</span><span class="status-ref-venue">GitHub Repository</span></li>')
     print('        </ul>')
     print('      </section>')
@@ -769,13 +835,15 @@ def main() -> None:
     # Parse CLI options and choose text, JSON, or HTML output.
     parser = argparse.ArgumentParser(description="Aggregate Verso blueprint atom status from rendered chapter manifests.")
     parser.add_argument("--site-dir", type=Path, default=DEFAULT_SITE_DIR)
+    parser.add_argument("--docs-dir", type=Path, default=DEFAULT_DOCS_DIR)
+    parser.add_argument("--all-atoms", action="store_true", help="Report every rendered Blueprint atom, including untracked helpers.")
     parser.add_argument("--by-chapter", action="store_true")
     parser.add_argument("--html-summary", action="store_true")
     parser.add_argument("--history-file", type=Path)
     parser.add_argument("--json", action="store_true", dest="as_json")
     args = parser.parse_args()
 
-    atoms = load_atoms(args.site_dir)
+    atoms = load_atoms(args.site_dir) if args.all_atoms else load_tracked_atoms(args.site_dir, args.docs_dir)
     if args.html_summary:
         print_html_summary(atoms, args.history_file, args.site_dir)
     elif args.as_json:

@@ -51,7 +51,7 @@ structure CKAScheme (m : Type → Type u) [Monad m] (IK St I Rho Rand : Type) wh
   recvB : St → Rho → Option (I × St)
 ```
 
-{githubLabel}`github` {githubIssue 15}[]
+{githubLabel}`github` {githubIssue 195}[]
 :::
 
 
@@ -393,14 +393,14 @@ def oracleCorruptB (gp : GameParams) (St I Rho : Type) :
 :::::
 ::::::
 
-{usesLabel}`uses` {uses "cka"}[] · {githubLabel}`github` {githubIssue 15}[]
+{usesLabel}`uses` {uses "cka"}[]
 :::::::
 
 
-:::defTitle "cka_correct" "CKA correctness"
+:::defTitle "cka_correctness" "CKA correctness"
 :::
 
-:::::::definition "cka_correct" (lean := "CKAScheme.correctnessExp, CKAScheme.ckaCorrectnessImpl, CKAScheme.CKACorrectnessAdversary")
+:::::::definition "cka_correctness" (lean := "CKAScheme.correctnessExp, CKAScheme.ckaCorrectnessImpl, CKAScheme.CKACorrectnessAdversary")
 $`\todo`
 
 Let $`\O = \{\OSendA, \ORecA, \OSendB, \ORecB\}`.
@@ -454,7 +454,7 @@ def correctnessExp [DecidableEq I] (cka : CKAScheme ProbComp IK St I Rho Rand)
   return state.correct
 ```
 
-{usesLabel}`uses` {uses "cka"}[] · {uses "cka_oracles"}[] · {githubLabel}`github` {githubIssue 15}[]
+{usesLabel}`uses` {uses "cka"}[] · {uses "cka_oracles"}[] · {githubLabel}`github` {githubIssue 196}[]
 :::::::
 
 :::defTitle "cka_security" "CKA security experiment"
@@ -519,7 +519,7 @@ def securityExp [SampleableType I] [DecidableEq I] (cka : CKAScheme ProbComp IK 
   return (b == b')
 ```
 
-{usesLabel}`uses` {uses "cka"}[] · {uses "cka_oracles"}[] · {githubLabel}`github` {githubIssue 15}[]
+{usesLabel}`uses` {uses "cka"}[] · {uses "cka_oracles"}[] · {githubLabel}`github` {githubIssue 197}[]
 :::::::
 
 
@@ -540,5 +540,5 @@ noncomputable def ckaGuessAdvantage [SampleableType I] [DecidableEq I]
   |(Pr[= true | securityExp cka adversary gp]).toReal - 1 / 2|
 ```
 
-{usesLabel}`uses` {uses "cka_security"}[] · {githubLabel}`github` {githubIssue 15}[]
+{usesLabel}`uses` {uses "cka_security"}[]
 :::

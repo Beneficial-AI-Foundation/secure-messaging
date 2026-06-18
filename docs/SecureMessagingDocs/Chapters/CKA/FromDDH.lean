@@ -44,7 +44,7 @@ inductive CKAState (F G : Type) where
   deriving DecidableEq, Fintype, Repr
 ```
 
-{usesLabel}`uses` {uses "cka"}[] · {githubLabel}`github` {githubIssue 9}[]
+{usesLabel}`uses` {uses "cka"}[]
 :::
 
 :::defTitle "cka_from_ddh" "CKA from DDH"
@@ -86,7 +86,7 @@ theorem correctness [DecidableEq G] (adv : CKACorrectnessAdversary G G) :
   Pr[= true | correctnessExp (ddhCKA F G gen) adv] = 1
 ```
 
-{usesLabel}`uses` {uses "cka_from_ddh"}[] · {uses "cka_correct"}[] · {githubLabel}`github` {githubIssue 9}[]
+{usesLabel}`uses` {uses "cka_from_ddh"}[] · {uses "cka_correctness"}[] · {githubLabel}`github` {githubIssue 9}[]
 :::
 
 :::defTitle "cka_from_ddh_security" "CKA from DDH security"

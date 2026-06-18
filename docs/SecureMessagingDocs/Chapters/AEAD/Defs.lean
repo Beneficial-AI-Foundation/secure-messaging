@@ -38,7 +38,7 @@ structure AEADScheme (m : Type → Type u) [Monad m] (M AD K C : Type) where
   decrypt : K → AD → C → Option M
 ```
 
-{githubLabel}`github` {githubIssue 18}[]
+{githubLabel}`github` {githubIssue 192}[]
 :::
 
 
@@ -84,13 +84,13 @@ def oracleDecrypt [DecidableEq C] (ae : AEADScheme ProbComp M AD K C)
 :::::
 ::::::
 
-{usesLabel}`uses` {uses "aead"}[] · {githubLabel}`github` {githubIssue 18}[]
+{usesLabel}`uses` {uses "aead"}[]
 :::::::
 
-:::defTitle "aead_correct" "AEAD correctness"
+:::defTitle "aead_correctness" "AEAD correctness"
 :::
 
-:::definition "aead_correct" (lean := "AEADScheme.Correct")
+:::definition "aead_correctness" (lean := "AEADScheme.Correct")
 $`\todo`
 
 ```anchor Correct (project := ".") (module := SecureMessaging.AEAD.Defs)
@@ -98,7 +98,7 @@ def Correct (ae : AEADScheme m M AD K C) : Prop :=
   ∀ (k : K) (a : AD) (msg : M), ae.decrypt k a (ae.encrypt k a msg) = some msg
 ```
 
-{usesLabel}`uses` {uses "aead"}[] · {githubLabel}`github` {githubIssue 18}[]
+{usesLabel}`uses` {uses "aead"}[] · {githubLabel}`github` {githubIssue 193}[]
 :::
 
 :::defTitle "aead_security_exp" "AEAD security experiment"
@@ -151,7 +151,7 @@ def securityExp [SampleableType C] [DecidableEq C]
   return (b == b')
 ```
 
-{usesLabel}`uses` {uses "aead"}[] · {uses "aead_oracles"}[] · {githubLabel}`github` {githubIssue 18}[]
+{usesLabel}`uses` {uses "aead"}[] · {uses "aead_oracles"}[] · {githubLabel}`github` {githubIssue 194}[]
 :::::::
 
 
@@ -171,5 +171,5 @@ noncomputable def guessAdvantage [SampleableType C] [DecidableEq C]
   |(Pr[= true | securityExp ae adversary]).toReal - 1 / 2|
 ```
 
-{usesLabel}`uses` {uses "aead_security_exp"}[] · {githubLabel}`github` {githubIssue 18}[]
+{usesLabel}`uses` {uses "aead_security_exp"}[]
 :::

@@ -42,7 +42,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "fs_aead_from_aead_prg_spec"}[] · {uses "fs_aead_scheme"}[] · {uses "aead_correct"}[] · {uses "prf_prng_scheme"}[] · {githubLabel}`github` {githubIssue 29}[]
+{usesLabel}`uses` {uses "fs_aead_from_aead_prg_spec"}[] · {uses "fs_aead_scheme"}[] · {uses "aead_correctness"}[] · {uses "prf_prng_scheme"}[] · {githubLabel}`github` {githubIssue 29}[]
 ::::
 
 :::defTitle "fs_aead_from_aead_prg_security" "FS-AEAD from AEAD and PRG security"

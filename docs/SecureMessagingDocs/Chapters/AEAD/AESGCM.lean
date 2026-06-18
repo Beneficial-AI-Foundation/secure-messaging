@@ -41,7 +41,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "aead_aes_gcm_spec"}[] · {uses "aead_correct"}[] · {githubLabel}`github` {githubIssue 22}[]
+{usesLabel}`uses` {uses "aead_aes_gcm_spec"}[] · {uses "aead_correctness"}[] · {githubLabel}`github` {githubIssue 22}[]
 ::::
 
 :::defTitle "aead_aes_gcm_security" "AEAD-AES-GCM security"

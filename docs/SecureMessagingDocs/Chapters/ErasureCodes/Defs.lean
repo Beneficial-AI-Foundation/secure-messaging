@@ -25,7 +25,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{githubLabel}`github` {githubIssue 116}[]
+{githubLabel}`github` {githubIssue 190}[]
 ::::
 
 :::defTitle "erasure_code_correctness" "Erasure code correctness"
@@ -37,5 +37,5 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "erasure_code_scheme"}[] · {githubLabel}`github` {githubIssue 116}[]
+{usesLabel}`uses` {uses "erasure_code_scheme"}[] · {githubLabel}`github` {githubIssue 191}[]
 ::::

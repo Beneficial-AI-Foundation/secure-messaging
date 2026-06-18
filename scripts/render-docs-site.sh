@@ -24,6 +24,7 @@ site_root="$output_root/html-multi"
 render_root="$output_root/chapter-renders"
 history_root="$output_root/history"
 previous_history="$history_root/blueprint-progress-history.json"
+docs_root="docs/SecureMessagingDocs"
 
 # Recover prior progress history when available.
 recover_previous_progress_history() {
@@ -100,6 +101,7 @@ seed_progress_history_if_needed() {
 
   if python3 scripts/seed-blueprint-progress-history.py \
     --site-dir "$site_root" \
+    --docs-dir "$docs_root" \
     --history "$previous_history"; then
     echo "Seeded Blueprint progress history from GitHub issue closures"
   else
@@ -666,10 +668,12 @@ HTML
 # This avoids importing every rich documentation module into one giant manual.
 python3 scripts/update-blueprint-progress-history.py \
   --site-dir "$site_root" \
+  --docs-dir "$docs_root" \
   --history "$previous_history" \
   --output "$site_root/blueprint-progress-history.json"
 python3 scripts/aggregate-blueprint-status.py \
   --site-dir "$site_root" \
+  --docs-dir "$docs_root" \
   --history-file "$site_root/blueprint-progress-history.json" \
   --html-summary >> "$site_root/index.html"
 

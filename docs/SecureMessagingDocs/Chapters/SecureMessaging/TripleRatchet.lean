@@ -30,7 +30,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{githubLabel}`github` {githubIssue 134}[]
+{githubLabel}`github` {githubIssue 171}[]
 ::::
 
 :::defTitle "secure_messaging_triple_ratchet_spec" "Triple Ratchet protocol"

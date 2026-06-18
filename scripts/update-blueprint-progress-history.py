@@ -18,6 +18,7 @@ from pathlib import Path
 
 DEFAULT_HISTORY = Path("docs/blueprint-progress-history.json")
 DEFAULT_SITE_DIR = Path("_out/site/html-multi")
+DEFAULT_DOCS_DIR = Path("docs/SecureMessagingDocs")
 DEFAULT_PROJECT_END = "2027-01-28"
 SCHEMA_VERSION = 1
 
@@ -67,9 +68,9 @@ def snapshot_date(commit: str | None, explicit_date: str | None) -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def current_snapshot(site_dir: Path, commit: str | None, date: str | None, subject: str | None) -> dict:
+def current_snapshot(site_dir: Path, docs_dir: Path, commit: str | None, date: str | None, subject: str | None) -> dict:
     aggregator = load_aggregator()
-    atoms = aggregator.load_atoms(site_dir)
+    atoms = aggregator.load_tracked_atoms(site_dir, docs_dir)
     totals = aggregator.summarize(atoms)
     # CI normally records the checked-out commit; overrides are useful for recovery.
     resolved_commit = commit or git_output(["rev-parse", "HEAD"], "working-tree")
@@ -128,6 +129,7 @@ def main() -> None:
     # Parse CLI options, merge the current snapshot, and write or print the result.
     parser = argparse.ArgumentParser(description="Update Blueprint progress history from a rendered site.")
     parser.add_argument("--site-dir", type=Path, default=DEFAULT_SITE_DIR)
+    parser.add_argument("--docs-dir", type=Path, default=DEFAULT_DOCS_DIR)
     parser.add_argument("--history", type=Path, default=DEFAULT_HISTORY)
     parser.add_argument("--output", type=Path, help="Write the merged history to this path.")
     parser.add_argument("--write-history", action="store_true", help="Also update the input history file.")
@@ -136,7 +138,7 @@ def main() -> None:
     parser.add_argument("--subject", help="Commit subject for the new snapshot; defaults to git metadata.")
     args = parser.parse_args()
 
-    snapshot = current_snapshot(args.site_dir, args.commit, args.date, args.subject)
+    snapshot = current_snapshot(args.site_dir, args.docs_dir, args.commit, args.date, args.subject)
     merged = merge_history(load_history_document(args.history), snapshot)
 
     if args.write_history:

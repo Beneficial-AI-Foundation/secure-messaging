@@ -41,7 +41,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "cka_from_lwe_spec"}[] · {uses "cka_correct"}[] · {githubLabel}`github` {githubIssue 13}[]
+{usesLabel}`uses` {uses "cka_from_lwe_spec"}[] · {uses "cka_correctness"}[] · {githubLabel}`github` {githubIssue 13}[]
 ::::
 
 :::defTitle "cka_from_lwe_security" "CKA from LWE security"

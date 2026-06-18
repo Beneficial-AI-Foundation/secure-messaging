@@ -25,7 +25,19 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "on_off_kem_scheme"}[] · {githubLabel}`github` {githubIssue 41}[]
+{usesLabel}`uses` {uses "on_off_kem_scheme"}[] · {githubLabel}`github` {githubIssue 200}[]
+::::
+
+:::defTitle "on_off_kem_from_ml_kem_correctness" "On-Off KEM from ML-KEM correctness"
+:::
+
+::::theorem "on_off_kem_from_ml_kem_correctness" (parent := "on_off_kem_on_off_kem_from_ml_kem")
+$`\todo`
+
+:::leanPill "missing"
+:::
+
+{usesLabel}`uses` {uses "on_off_kem_from_ml_kem_spec"}[] · {uses "on_off_kem_correctness"}[] · {githubLabel}`github` {githubIssue 201}[]
 ::::
 
 :::defTitle "on_off_kem_from_ml_kem_security" "On-Off KEM from ML-KEM security"

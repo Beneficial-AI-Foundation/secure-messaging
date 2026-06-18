@@ -76,7 +76,7 @@ theorem correctness [DecidableEq K]
     Pr[= true | CKAScheme.correctnessExp (scheme kem hDet leak) adv] = 1
 ```
 
-{usesLabel}`uses` {uses "cka_from_kem_spec"}[] · {uses "cka_correct"}[] · {githubLabel}`github` {githubIssue 4}[]
+{usesLabel}`uses` {uses "cka_from_kem_spec"}[] · {uses "cka_correctness"}[] · {githubLabel}`github` {githubIssue 4}[]
 ::::
 
 :::defTitle "cka_from_kem_security" "CKA from KEM security"

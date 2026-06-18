@@ -23,14 +23,26 @@ set_option doc.verso true
 Reed-Solomon.
 :::
 
-:::defTitle "reed_solomon_erasure_code_correctness" "Reed-Solomon erasure code correctness"
+:::defTitle "reed_solomon_erasure_code" "Reed-Solomon erasure code"
 :::
 
-::::definition "reed_solomon_erasure_code_correctness" (parent := "erasure_codes_reed_solomon")
+::::definition "reed_solomon_erasure_code" (parent := "erasure_codes_reed_solomon")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "erasure_code_scheme"}[] · {uses "erasure_code_correctness"}[] · {githubLabel}`github` {githubIssue 117}[]
+{usesLabel}`uses` {uses "erasure_code_scheme"}[] · {githubLabel}`github` {githubIssue 198}[]
+::::
+
+:::defTitle "reed_solomon_erasure_code_correctness" "Reed-Solomon erasure code correctness"
+:::
+
+::::theorem "reed_solomon_erasure_code_correctness" (parent := "erasure_codes_reed_solomon")
+$`\todo`
+
+:::leanPill "missing"
+:::
+
+{usesLabel}`uses` {uses "reed_solomon_erasure_code"}[] · {uses "erasure_code_correctness"}[] · {githubLabel}`github` {githubIssue 199}[]
 ::::

@@ -29,7 +29,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{githubLabel}`github` {githubIssue 93}[]
+{githubLabel}`github` {githubIssue 183}[]
 ::::
 
 :::defTitle "scka_correctness" "SCKA protocol correctness"
@@ -41,7 +41,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "scka_scheme"}[] · {githubLabel}`github` {githubIssue 93}[]
+{usesLabel}`uses` {uses "scka_scheme"}[] · {githubLabel}`github` {githubIssue 184}[]
 ::::
 
 :::defTitle "scka_security" "SCKA protocol security"
@@ -53,5 +53,5 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "scka_scheme"}[] · {githubLabel}`github` {githubIssue 93}[]
+{usesLabel}`uses` {uses "scka_scheme"}[] · {githubLabel}`github` {githubIssue 185}[]
 ::::

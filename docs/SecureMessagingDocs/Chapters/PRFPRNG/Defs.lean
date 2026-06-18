@@ -25,7 +25,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{githubLabel}`github` {githubIssue 34}[]
+{githubLabel}`github` {githubIssue 188}[]
 ::::
 
 :::defTitle "prf_prng_security" "PRF-PRNG security"
@@ -37,5 +37,5 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "prf_prng_scheme"}[] · {githubLabel}`github` {githubIssue 34}[]
+{usesLabel}`uses` {uses "prf_prng_scheme"}[] · {githubLabel}`github` {githubIssue 189}[]
 ::::

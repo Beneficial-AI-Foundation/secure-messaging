@@ -25,7 +25,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{githubLabel}`github` {githubIssue 28}[]
+{githubLabel}`github` {githubIssue 186}[]
 ::::
 
 :::defTitle "fs_aead_security" "FS-AEAD security"
@@ -37,5 +37,5 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "fs_aead_scheme"}[] · {githubLabel}`github` {githubIssue 28}[]
+{usesLabel}`uses` {uses "fs_aead_scheme"}[] · {githubLabel}`github` {githubIssue 187}[]
 ::::

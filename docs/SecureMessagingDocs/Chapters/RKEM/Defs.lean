@@ -25,7 +25,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{githubLabel}`github` {githubIssue 47}[]
+{githubLabel}`github` {githubIssue 176}[]
 ::::
 
 :::defTitle "rkem_ratchet_sim" "RKEM ratchet simulatability"
@@ -37,7 +37,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "rkem_scheme"}[] · {githubLabel}`github` {githubIssue 47}[]
+{usesLabel}`uses` {uses "rkem_scheme"}[] · {githubLabel}`github` {githubIssue 179}[]
 ::::
 
 :::defTitle "rkem_forward_security" "RKEM forward security"
@@ -49,7 +49,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "rkem_scheme"}[] · {githubLabel}`github` {githubIssue 47}[]
+{usesLabel}`uses` {uses "rkem_scheme"}[] · {githubLabel}`github` {githubIssue 178}[]
 ::::
 
 :::defTitle "rkem_correctness" "RKEM correctness"
@@ -61,5 +61,5 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "rkem_scheme"}[] · {githubLabel}`github` {githubIssue 47}[]
+{usesLabel}`uses` {uses "rkem_scheme"}[] · {githubLabel}`github` {githubIssue 177}[]
 ::::

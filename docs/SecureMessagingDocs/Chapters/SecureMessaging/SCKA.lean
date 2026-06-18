@@ -30,7 +30,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{githubLabel}`github` {githubIssue 142}[]
+{githubLabel}`github` {githubIssue 166}[]
 ::::
 
 :::defTitle "secure_messaging_scka_spec" "Secure messaging protocol (SCKA)"

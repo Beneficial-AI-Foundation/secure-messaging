@@ -38,7 +38,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{githubLabel}`github` {githubIssue 121}[]
+{githubLabel}`github` {githubIssue 161}[]
 ::::
 
 :::defTitle "secure_messaging_double_ratchet_correctness" "Double Ratchet correctness"
@@ -50,7 +50,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[] · {githubLabel}`github` {githubIssue 121}[]
+{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[] · {githubLabel}`github` {githubIssue 162}[]
 ::::
 
 :::defTitle "secure_messaging_double_ratchet_authenticity" "Double Ratchet authenticity"
@@ -62,7 +62,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[] · {githubLabel}`github` {githubIssue 121}[]
+{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[] · {githubLabel}`github` {githubIssue 163}[]
 ::::
 
 :::defTitle "secure_messaging_double_ratchet_privacy" "Double Ratchet privacy"
@@ -74,7 +74,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[] · {githubLabel}`github` {githubIssue 121}[]
+{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[] · {githubLabel}`github` {githubIssue 164}[]
 ::::
 
 :::defTitle "secure_messaging_double_ratchet_security" "Double Ratchet security"
@@ -86,7 +86,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[] · {uses "secure_messaging_double_ratchet_correctness"}[] · {uses "secure_messaging_double_ratchet_authenticity"}[] · {uses "secure_messaging_double_ratchet_privacy"}[] · {githubLabel}`github` {githubIssue 121}[]
+{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[] · {uses "secure_messaging_double_ratchet_correctness"}[] · {uses "secure_messaging_double_ratchet_authenticity"}[] · {uses "secure_messaging_double_ratchet_privacy"}[] · {githubLabel}`github` {githubIssue 165}[]
 ::::
 
 {include 1 SecureMessagingDocs.Chapters.SecureMessaging.DoubleRatchetAbstract}
