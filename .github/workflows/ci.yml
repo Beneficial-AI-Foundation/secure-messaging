@@ -92,6 +92,7 @@ jobs:
         with:
           auto-config: "false"
           build: "true"
+          lint: "true"
           use-mathlib-cache: "true"
 
       # --- Sorry audit (veritooling) ---

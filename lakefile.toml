@@ -1,5 +1,8 @@
 name = "SecureMessaging"
 defaultTargets = ["SecureMessaging", "ToVCVio"]
+# `lake lint` runs Batteries' environment linter (runLinter) over our libraries.
+lintDriver = "batteries/runLinter"
+lintDriverArgs = ["SecureMessaging", "ToVCVio"]
 
 [leanOptions]
 pp.unicode.fun = true
