@@ -78,15 +78,74 @@ print(len(snapshots) if isinstance(snapshots, list) else 0)
 PY
 }
 
+# Decide whether recovered history is compatible with the current tracked atom
+# universe. Re-seeding avoids visual spikes when old deployed exact snapshots
+# used a different counting basis.
+history_reseed_reason() {
+  local history_file="$1"
+  python3 - "$history_file" "$site_root" "$docs_root" <<'PY'
+import importlib.util
+import json
+import sys
+from pathlib import Path
+
+history_path = Path(sys.argv[1])
+site_dir = Path(sys.argv[2])
+docs_dir = Path(sys.argv[3])
+expected_basis = "linked closing PR merge dates"
+
+if not history_path.exists():
+    print("missing")
+    raise SystemExit
+
+try:
+    data = json.loads(history_path.read_text())
+except Exception:
+    print("invalid")
+    raise SystemExit
+
+snapshots = data if isinstance(data, list) else data.get("snapshots", []) if isinstance(data, dict) else []
+if not isinstance(snapshots, list) or len(snapshots) < 2:
+    print("sparse")
+    raise SystemExit
+
+if not isinstance(data, dict) or expected_basis not in str(data.get("historyBasis", "")):
+    print("stale-basis")
+    raise SystemExit
+
+script = Path("scripts/aggregate-blueprint-status.py")
+spec = importlib.util.spec_from_file_location("aggregate_blueprint_status", script)
+if spec is None or spec.loader is None:
+    print("invalid")
+    raise SystemExit
+module = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = module
+spec.loader.exec_module(module)
+totals = module.summarize(module.load_tracked_atoms(site_dir, docs_dir))
+expected = {
+    "definitions": totals["definition"]["total"],
+    "theorems": totals["theorem"]["total"],
+}
+for snapshot in snapshots:
+    definitions = snapshot.get("definitions", {}) if isinstance(snapshot, dict) else {}
+    theorems = snapshot.get("theorems", {}) if isinstance(snapshot, dict) else {}
+    if definitions.get("total") != expected["definitions"] or theorems.get("total") != expected["theorems"]:
+        print("total-mismatch")
+        raise SystemExit
+
+print("none")
+PY
+}
+
 # Seed progress history when recovery is missing or too sparse; set the flag to 0 to skip.
 seed_progress_history_if_needed() {
   if [[ "${BLUEPRINT_PROGRESS_HISTORY_SEED:-1}" != "1" ]]; then
     return
   fi
 
-  local snapshot_count
-  snapshot_count="$(history_snapshot_count "$previous_history")"
-  if [[ "$snapshot_count" -ge 2 ]]; then
+  local reseed_reason
+  reseed_reason="$(history_reseed_reason "$previous_history")"
+  if [[ "$reseed_reason" == "none" ]]; then
     return
   fi
 
@@ -95,15 +154,13 @@ seed_progress_history_if_needed() {
     return
   fi
 
-  if [[ "$snapshot_count" -gt 0 ]]; then
-    echo "Recovered Blueprint progress history has only $snapshot_count snapshot(s); reseeding from GitHub issue closures"
-  fi
+  echo "Reseeding Blueprint progress history ($reseed_reason) from GitHub issue closures and closing PRs"
 
   if python3 scripts/seed-blueprint-progress-history.py \
     --site-dir "$site_root" \
     --docs-dir "$docs_root" \
     --history "$previous_history"; then
-    echo "Seeded Blueprint progress history from GitHub issue closures"
+    echo "Seeded Blueprint progress history from GitHub issue closures and closing PRs"
   else
     echo "Could not seed Blueprint progress history; using current render only" >&2
   fi
