@@ -1,4 +1,5 @@
 import VCVio.EvalDist.Monad.Basic
+import VCVio.OracleComp.ProbComp
 import ToVCVio.Control.StateT
 
 /-!
@@ -67,3 +68,56 @@ macro "vcv_support" : tactic =>
        | exact ⟨Nat.le_succ _, le_refl _⟩
        | exact ⟨le_refl _, Nat.le_succ _⟩
        | simp_all))
+
+/-! ## Reference examples
+
+These small examples mirror the recurring support shapes that appear in
+stateful oracle proofs: a state-preserving lifted sample, a guarded pure oracle,
+and a one-counter-bump oracle.  They are kept next to `vcv_support` as regression
+examples for the tactic without depending on any protocol-specific files.
+-/
+
+private structure VcvSupportExampleState where
+  tA : ℕ
+  tB : ℕ
+
+/-- A state-preserving oracle behind a lifted probabilistic sample. -/
+private def samplePreserving {α : Type} (mx : ProbComp α) :
+    StateT VcvSupportExampleState ProbComp α := do
+  let x ← liftM mx
+  pure x
+
+private lemma exp_sample {α : Type} (mx : ProbComp α)
+    (σ : VcvSupportExampleState) (z : α × VcvSupportExampleState)
+    (hz : z ∈ support ((samplePreserving mx).run σ)) :
+    σ.tA ≤ z.2.tA ∧ σ.tB ≤ z.2.tB := by
+  unfold samplePreserving at hz
+  vcv_support
+
+/-- A guarded pure oracle that leaves the state unchanged in every branch. -/
+private def guardedPure (cond : VcvSupportExampleState → Bool) :
+    StateT VcvSupportExampleState ProbComp Unit := do
+  let σ ← get
+  if cond σ then
+    pure ()
+  else
+    pure ()
+
+private lemma exp_guarded (cond : VcvSupportExampleState → Bool)
+    (σ : VcvSupportExampleState) (z : Unit × VcvSupportExampleState)
+    (hz : z ∈ support ((guardedPure cond).run σ)) :
+    σ.tA ≤ z.2.tA ∧ σ.tB ≤ z.2.tB := by
+  unfold guardedPure at hz
+  vcv_support
+
+/-- A one-counter-bump oracle. -/
+private def bumpA : StateT VcvSupportExampleState ProbComp Unit := do
+  let σ ← get
+  set { σ with tA := σ.tA + 1 }
+  pure ()
+
+private lemma exp_bumpA (σ : VcvSupportExampleState) (z : Unit × VcvSupportExampleState)
+    (hz : z ∈ support (bumpA.run σ)) :
+    σ.tA ≤ z.2.tA ∧ σ.tB ≤ z.2.tB := by
+  unfold bumpA at hz
+  vcv_support

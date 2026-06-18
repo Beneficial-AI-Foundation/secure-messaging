@@ -82,11 +82,11 @@ theorem correctness [DecidableEq K]
 :::defTitle "cka_from_kem_security" "CKA from KEM security"
 :::
 
-::::theorem "cka_from_kem_security" (parent := "cka_cka_from_kem") (lean := "kemCKA.security_reduces_to_ind_cpa")
+::::theorem "cka_from_kem_security" (parent := "cka_cka_from_kem") (lean := "kemCKA.security")
 $`\todo`
 
-```anchor security_reduces_to_ind_cpa (project := ".") (module := SecureMessaging.CKA.FromKEM.Security)
-theorem security_reduces_to_ind_cpa [SampleableType K] [DecidableEq K]
+```anchor security (project := ".") (module := SecureMessaging.CKA.FromKEM.Security)
+theorem security [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
     (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
