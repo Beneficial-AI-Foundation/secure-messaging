@@ -67,12 +67,12 @@ inductive PendingChallengeRecv (K PK C : Type) where
   | bToA (key : K) (nextPk : PK) (msg : Message C PK)
 
 /-- State of the post-challenge oracle implementation: the underlying CKA
-game state plus the challenge message still awaiting receipt. -/
+game state plus the challenge message still to be received. -/
 structure PostChallengeState
     (K PK SK C : Type) where
   /-- Underlying CKA security-game state. -/
   game : SecurityState K PK SK C
-  /-- Challenge message awaiting receipt, if any. -/
+  /-- Challenge message still to be received, if any. -/
   pending : PendingChallengeRecv K PK C
 
 /-- Answer a query with the honest implementation, acting on the `game`
