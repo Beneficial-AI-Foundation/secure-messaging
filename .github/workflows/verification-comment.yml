@@ -11,3 +11,7 @@ on:
 jobs:
   comment:
     uses: Beneficial-AI-Foundation/veritooling/.github/workflows/verification-comment.yml@v1
+    with:
+      # Comment only on new sorries in our hand-written libraries; ignore
+      # generated/dependency code (SecureMessagingDocs, VCVio, mathlib, …).
+      include-prefix: "SecureMessaging,ToVCVio"
