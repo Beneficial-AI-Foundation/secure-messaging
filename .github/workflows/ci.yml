@@ -101,10 +101,13 @@ jobs:
       - name: Sorry audit
         uses: Beneficial-AI-Foundation/veritooling/actions/sorry-audit@v1
         with:
-          # Zero-config; reuses the build above and reports each sorry's file:line.
+          # Reuses the build above and reports each sorry's file:line.
           backend: probe
           # Annotate newly-introduced sorries inline on the PR diff.
           annotate-new-sorries: "true"
+          # Scope to the proof libs; otherwise probe-lean imports the verso docs
+          # library, whose deps aren't built during the audit.
+          extract-args: "--library SecureMessaging,ToVCVio"
 
       - name: Build documentation modules
         if: steps.changes.outputs.docs == 'true' || github.event_name == 'workflow_dispatch'
