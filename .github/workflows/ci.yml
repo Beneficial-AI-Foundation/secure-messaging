@@ -105,12 +105,8 @@ jobs:
           backend: probe
           # Annotate newly-introduced sorries inline on the PR diff.
           annotate-new-sorries: "true"
-          # Scope the audit to the proof libraries. Without this, probe-lean
-          # (v0.9.2+) analyzes every built olean in .lake/build, including the
-          # SecureMessagingDocs (verso blueprint) library, whose VersoManual
-          # dependency isn't built during the audit -> import failure. --library
-          # also limits the build to these libs (by module-name prefix), so the
-          # docs library is never pulled in.
+          # Scope to the proof libs; otherwise probe-lean imports the verso docs
+          # library, whose deps aren't built during the audit.
           extract-args: "--library SecureMessaging,ToVCVio"
 
       - name: Build documentation modules
