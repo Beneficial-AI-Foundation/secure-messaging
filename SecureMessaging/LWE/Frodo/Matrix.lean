@@ -63,8 +63,8 @@ private def sampleFin {α : Type} (s : ProbComp α) : (r : ℕ) → ProbComp (Fi
 
 The dimensions `n` and `nbar` and the modulus `q` (nonzero) fix the matrix
 spaces. `chi` is the entrywise error sampler over `ZMod q`; the maps `hint`,
-`key`, and `rec` are the reconciliation surface. The two `rec_*_correct` fields
-state, on the paper's matrix expressions, that reconciliation recovers the
+`key`, and `reconcile` are the reconciliation surface. The two `rec_*_correct`
+fields state, on the paper's matrix expressions, that reconciliation recovers the
 sender's key; they are the abstraction boundary discharged by a concrete Frodo
 instance. -/
 structure MatrixParams where
@@ -72,7 +72,7 @@ structure MatrixParams where
   n : ℕ
   /-- Number of simultaneously agreed columns. -/
   nbar : ℕ
-  /-- Modulus of the residue ring `Z_q`. -/
+  /-- Modulus of the residue ring `ZMod q`. -/
   q : ℕ
   /-- The modulus is nonzero, so `ZMod q` is finite and sampleable. -/
   q_neZero : NeZero q
@@ -80,7 +80,7 @@ structure MatrixParams where
   Key : Type
   /-- Reconciliation hint space. -/
   Hint : Type
-  /-- Error sampler over `Z_q`; matrix errors are sampled entrywise from this. -/
+  /-- Error sampler over `ZMod q`; matrix errors are sampled entrywise from this. -/
   chi : ProbComp (ZMod q)
   /-- Reconciliation hint computed by the sender from the shared value. -/
   hint : Mat q nbar nbar → Hint
@@ -154,12 +154,12 @@ def sendB (p : MatrixParams) (A : Mat p.q p.n p.n) (B' : Mat p.q p.nbar p.n) :
   return (p.key V, B'', p.hint V, S'', (S'', E'', Etilde''))
 
 /-- B's receive: reconcile `B' * S` against the hint. -/
-def recvB (p : MatrixParams) (_A : Mat p.q p.n p.n) (S : Mat p.q p.n p.nbar)
+def recvB (p : MatrixParams) (S : Mat p.q p.n p.nbar)
     (B' : Mat p.q p.nbar p.n) (h : p.Hint) : Option p.Key :=
   p.reconcile (B' * S) h
 
 /-- A's receive: reconcile `S' * B''` against the hint. -/
-def recvA (p : MatrixParams) (_A : Mat p.q p.n p.n) (S' : Mat p.q p.nbar p.n)
+def recvA (p : MatrixParams) (S' : Mat p.q p.nbar p.n)
     (B'' : Mat p.q p.n p.nbar) (h : p.Hint) : Option p.Key :=
   p.reconcile (S' * B'') h
 
@@ -196,8 +196,8 @@ def concreteCKAParams (p : MatrixParams) : Frodo.CKAParams ProbComp where
   init := p.init
   sendA := p.sendA
   sendB := p.sendB
-  recvB := p.recvB
-  recvA := p.recvA
+  recvB := fun _ => p.recvB
+  recvA := fun _ => p.recvA
   MatchAB := p.MatchAB
   MatchBA := p.MatchBA
   init_match := by
