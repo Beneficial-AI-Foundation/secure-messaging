@@ -82,6 +82,9 @@ variable {K_e K_m M AD C_e T : Type}
 /-! ## Type abbreviations -/
 
 /-- Random oracle cache for the tag function `(AD × C_e) → T`. -/
+-- The `DecidableEq (AD × C_e)` instance is unused in the underlying `QueryCache`
+-- but kept to align with `EtmGameState` and the games built on this cache.
+@[nolint unusedArguments]
 abbrev TagCache (AD C_e T : Type) [DecidableEq (AD × C_e)] [SampleableType T] :=
   ((AD × C_e) →ₒ T).QueryCache
 
@@ -313,6 +316,9 @@ experiment's own key), so the dead bind cancels structurally without needing
 `se.keygen` to be lossless. `decrypt_c` is `fun _ _ => none` for the same reason
 (the branch is unreachable), which also avoids decrypting under a key distinct
 from the oracle's. Requires `[Inhabited K_e]` (every key space is inhabited). -/
+-- `_se` is unused in the body but kept to pin the key type `K_e` and to align
+-- the reduction's signature with `prfReduction` and the security theorems.
+@[nolint unusedArguments]
 noncomputable def encReduction [Inhabited K_e]
     (_se : DetSEAlg K_e M C_e)
     (adv : OneTime_CCA_Adversary AD M (C_e × T))

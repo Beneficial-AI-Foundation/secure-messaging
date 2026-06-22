@@ -73,6 +73,9 @@ abbrev ForgeAdversary (D R : Type) := OracleComp (forgeSpec D R) Unit
 
 /-- State for the forgery experiment: the lazy random-oracle cache for `D →ₒ R`, the set of
 points already passed to the eval oracle, and a Boolean "forged" flag. -/
+-- The `DecidableEq D` instance is unused in the state type itself but kept to
+-- align with the oracles and experiment built on this state.
+@[nolint unusedArguments]
 abbrev ForgeState (D R : Type) [DecidableEq D] [SampleableType R] :=
   (D →ₒ R).QueryCache × Finset D × Bool
 
