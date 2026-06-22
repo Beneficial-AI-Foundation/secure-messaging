@@ -80,13 +80,25 @@ jobs:
       # by the mathlib cache, so cache them separately keyed on the manifest:
       # they only rebuild when lake-manifest.json or the toolchain changes,
       # not on every code PR. mathlib itself comes from use-mathlib-cache.
-      - name: Cache Lake dependency builds
-        uses: actions/cache@v4
+      #
+      # Restore and save are split so the save runs even when a later step
+      # (build/lint/sorry audit) fails: with the combined `actions/cache`
+      # action the save is a post-step that is skipped on job failure, so a
+      # failing run after a manifest bump would rebuild every dependency from
+      # source and never cache the result — making every subsequent run pay
+      # the full ~20 min dependency build again. The `restore-keys` fallback
+      # lets a manifest bump reuse the previous dependency build so lake only
+      # rebuilds the dependencies that actually changed.
+      - name: Restore Lake dependency builds
+        id: lake-deps-cache
+        uses: actions/cache/restore@v4
         with:
           path: |
             .lake/packages/*/.lake/build
             !.lake/packages/mathlib/.lake/build
           key: lake-deps-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}
+          restore-keys: |
+            lake-deps-${{ runner.os }}-
 
       - uses: leanprover/lean-action@v1
         with:
@@ -94,6 +106,18 @@ jobs:
           build: "true"
           lint: "true"
           use-mathlib-cache: "true"
+
+      # Save the dependency build cache even if the build/lint above failed,
+      # but only on an exact-key miss (no point re-uploading an identical
+      # cache on a hit). See the restore step above for the rationale.
+      - name: Save Lake dependency builds
+        if: always() && steps.lake-deps-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .lake/packages/*/.lake/build
+            !.lake/packages/mathlib/.lake/build
+          key: lake-deps-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}
 
       # --- Sorry audit (veritooling) ---
       # Reuses the build above. All orchestration (restore baseline, audit,
