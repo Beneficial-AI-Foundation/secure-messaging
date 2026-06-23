@@ -382,7 +382,7 @@ private lemma keygen_commute_after_install_tail [SampleableType K] [DecidableEq 
   refine probOutput_bind_congr fun ck _ => ?_
   refine probOutput_bind_congr fun p _ => ?_
   rw [probOutput_bind_const]
-  simp only [HasEvalPMF.probFailure_eq_zero, tsub_zero, one_mul]
+  simp only [probFailure_eq_zero, tsub_zero, one_mul]
   exact probOutput_fst_true_eq_of_run_eq fun z =>
     probOutput_simulateQ_securityImplWithChallengeKeyPair_run_eq_of_injectionPassed
       kem hDet leak gp isRandom p.1 p.2 (cont (some ((ck.1, p.1), ck.2)))
@@ -567,7 +567,7 @@ private lemma probOutput_simulateQ_keygen_commute [SampleableType K] [DecidableE
   cases res with
   | done g =>
       simp only [injectResume, pure_bind, probOutput_bind_const,
-        HasEvalPMF.probFailure_eq_zero, tsub_zero, one_mul]
+        probFailure_eq_zero, tsub_zero, one_mul]
   | pausedA cont =>
       exact injectResume_pausedA_combine kem hDet leak gp isRandom cont σ_p
         (injectPrefix_run_support_effInject kem hDet leak gp isRandom
@@ -623,7 +623,7 @@ private lemma ckaSecurityFixedBranchWithChallengeKey_injected_probOutput_true_eq
     simp only [hinitFalse, Bool.false_eq_true, ↓reduceIte]
     refine probOutput_bind_congr' kem.keygen true fun pk0sk0 => ?_
     rw [probOutput_bind_const]
-    simp only [HasEvalPMF.probFailure_eq_zero, tsub_zero, one_mul]
+    simp only [probFailure_eq_zero, tsub_zero, one_mul]
     exact (probOutput_simulateQ_keygen_commute
       kem hDet leak gp isRandom adv
       (CKAScheme.initGameState

@@ -37,7 +37,7 @@ open OracleComp.ProgramLogic.Relational
 namespace ToVCVio
 
 variable {ι₁ ι₂ : Type} {spec₁ : OracleSpec ι₁} {spec₂ : OracleSpec ι₂}
-  [spec₁.Fintype] [spec₁.Inhabited] [spec₂.Fintype] [spec₂.Inhabited]
+  [IsUniformSpec spec₁] [IsUniformSpec spec₂]
   {α β : Type}
 
 /-- **`probEvent` monotonicity from a coupling postcondition.**

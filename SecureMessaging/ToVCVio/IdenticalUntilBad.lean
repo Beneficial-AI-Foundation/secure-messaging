@@ -53,7 +53,7 @@ with the base monad re-threaded from `OracleComp spec` to an *independent* `Orac
 The induction is identical; only the base spec is generalized. -/
 
 variable {σ : Type} {ι ι₂ : Type} {spec : OracleSpec ι} {spec₂ : OracleSpec ι₂}
-  [spec₂.Fintype] [spec₂.Inhabited] {α : Type}
+  [IsUniformSpec spec₂] {α : Type}
 
 /-- Once the output bad flag has fired, a simulation started from a bad state never produces a
 non-bad output. Decoupled-base port of the corresponding VCVio helper. -/

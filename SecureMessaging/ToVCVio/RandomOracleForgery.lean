@@ -59,6 +59,8 @@ open OracleComp OracleSpec ENNReal
 
 namespace ToVCVio
 
+universe u
+
 variable {D R : Type} [DecidableEq D] [DecidableEq R] [SampleableType R]
 
 /-! ## Brick 1: eval + verify lazy-RO unforgeability -/
@@ -66,6 +68,11 @@ variable {D R : Type} [DecidableEq D] [DecidableEq R] [SampleableType R]
 /-- Oracle interface for a one-time-unforgeability adversary: uniform randomness, an **eval**
 oracle returning `ρ(d)`, and a **verify** oracle reporting whether `r = ρ(d)`. -/
 abbrev forgeSpec (D R : Type) := unifSpec + (D →ₒ R) + (D × R →ₒ Bool)
+
+/-- Uniform-spec witness for `forgeSpec`: every oracle (uniform randomness, the eval random
+oracle on `R`, the verify oracle on `Bool`) samples uniformly over a finite, inhabited range. -/
+noncomputable instance [Fintype R] [Inhabited R] : IsUniformSpec (forgeSpec D R) :=
+  IsUniformSpec.ofFintypeInhabited _
 
 /-- A one-time-unforgeability adversary: outputs nothing observable; we only care whether it
 ever made a successful verify query at a not-previously-eval'd point. -/
@@ -116,6 +123,41 @@ def isVerifyQuery : (forgeSpec D R).Domain → Prop := (· matches Sum.inr _)
 
 instance : DecidablePred (isVerifyQuery (D := D) (R := R)) :=
   fun _ => by unfold isVerifyQuery; infer_instance
+
+/-- Query-bound transfer for an `add` handler whose left side never matches the predicate.
+
+This is `VCVio`'s `IsQueryBoundP.simulateQ_run_add_inr_of_step` with the spurious
+`[(spec₁ + spec₂).Fintype]`/`[(spec₁ + spec₂).Inhabited]` requirements dropped: the upstream
+wrapper carries them but never uses them (its body only delegates to `simulateQ_run_of_step`, which
+needs nothing on the adversary spec). Our EtM adversary spec mixes the unbounded message/ciphertext
+types `M`/`C_e`, so it has no `Fintype`; only `[IsUniformSpec spec']` on the *base* oracle is real.
+
+TODO(upstream): relax the `_add_*_of_step` wrappers to drop the unused adversary-spec instances. -/
+theorem simulateQ_run_add_inr_of_step
+    {ι₁ ι₂ ι' : Type u} {spec₁ : OracleSpec ι₁} {spec₂ : OracleSpec ι₂}
+    {spec' : OracleSpec ι'} [IsUniformSpec spec'] {σ α : Type u}
+    {p : ι₁ ⊕ ι₂ → Prop} [DecidablePred p]
+    {q : ι' → Prop} [DecidablePred q]
+    {impl₁ : QueryImpl spec₁ (StateT σ (OracleComp spec'))}
+    {impl₂ : QueryImpl spec₂ (StateT σ (OracleComp spec'))}
+    {oa : OracleComp (spec₁ + spec₂) α} {n : ℕ}
+    (hp_inl : ∀ t, ¬ p (.inl t))
+    (h : IsQueryBoundP oa p n)
+    (hstep_left : ∀ t s, IsQueryBoundP ((impl₁ t).run s) q 0)
+    (hstep_p₂ : ∀ t, p (.inr t) → ∀ s, IsQueryBoundP ((impl₂ t).run s) q 1)
+    (hstep_np₂ : ∀ t, ¬ p (.inr t) → ∀ s, IsQueryBoundP ((impl₂ t).run s) q 0)
+    (s : σ) :
+    IsQueryBoundP ((simulateQ (impl₁ + impl₂) oa).run s) q n :=
+  IsQueryBoundP.simulateQ_run_of_step h
+    (fun t hp s => by
+      cases t with
+      | inl t => exact absurd hp (hp_inl t)
+      | inr t => exact hstep_p₂ t hp s)
+    (fun t hnp s => by
+      cases t with
+      | inl t => exact hstep_left t s
+      | inr t => exact hstep_np₂ t hnp s)
+    s
 
 /-! ### Generalized induction kernel for Brick 1
 
@@ -198,17 +240,13 @@ private theorem probForge_run_eq_zero_of_isEmpty [IsEmpty R]
     · -- eval query: the internal random-oracle sample produces an `R`, impossible when empty.
       exfalso
       simp only [forgeImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, evalRO] at hzmem
-      -- Peel the leading `get` (a pure step), then the internal random-oracle sample.
-      rcases (mem_support_bind_iff _ _ _).1 hzmem with ⟨_, _, hzmem⟩
-      simp only [bind_pure_comp] at hzmem
+      -- Peel the leading `get`; the witness carries the internal random-oracle sample.
       rcases (mem_support_bind_iff _ _ _).1 hzmem with ⟨resp, _, _⟩
       exact isEmptyElim (α := R) (resp.1.1 : R)
     · -- verify query: same internal sample, producing an impossible `R`.
       exfalso
       obtain ⟨td, tr⟩ := t
       simp only [forgeImpl, QueryImpl.add_apply_inr, verifyAgainstRO] at hzmem
-      rcases (mem_support_bind_iff _ _ _).1 hzmem with ⟨_, _, hzmem⟩
-      simp only [bind_pure_comp] at hzmem
       rcases (mem_support_bind_iff _ _ _).1 hzmem with ⟨resp, _, _⟩
       exact isEmptyElim (α := R) (resp.1.1 : R)
   have := OracleComp.simulateQ_run_preservesInv (forgeImpl (D := D) (R := R))
@@ -584,7 +622,7 @@ private theorem probForge_run_le [Fintype R]
         simp only [simulateQ_pure, StateT.run] at hz
         rw [hz] at hforge
         exact Bool.false_ne_true hforge
-      rw [h0]; exact zero_le _
+      rw [h0]; exact zero_le'
   | query_bind t mx ih =>
       -- Unfold one simulated query; split on the oracle index.
       rw [simulateQ_query_bind]

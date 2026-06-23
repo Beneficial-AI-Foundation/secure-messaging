@@ -22,9 +22,10 @@ universe u v
 
 variable {α : Type u} {m : Type u → Type v} [Monad m]
 
+omit [Monad m] in
 /-- If `𝒟[mx] = 𝒟[my]` then `Pr[= x | mx] = Pr[= x | my]`: point-probability
 congruence under equality of evaluation distributions. -/
-lemma probOutput_eq_of_evalDist_eq [HasEvalSPMF m] {mx my : m α}
+lemma probOutput_eq_of_evalDist_eq [MonadLiftT m SPMF] {mx my : m α}
     (h : 𝒟[mx] = 𝒟[my]) (x : α) :
     Pr[= x | mx] = Pr[= x | my] := by
   simpa [probOutput] using congrFun (congrArg DFunLike.coe h) x
@@ -34,7 +35,7 @@ probability of the whole computation: if `Pr[= true | f z]` decomposes as
 `Pr[= true | g z] + Pr[= true | h z]` for every `z`, the same decomposition
 holds after binding each continuation against a shared `mx`. -/
 lemma probOutput_true_bind_add_of_pointwise {β : Type} {n : Type → Type*}
-    [Monad n] [HasEvalSPMF n] (mx : n β) (f g h : β → n Bool)
+    [Monad n] [MonadLiftT n SPMF] [LawfulMonadLiftT n SPMF] (mx : n β) (f g h : β → n Bool)
     (hpt : ∀ z, Pr[= true | f z] = Pr[= true | g z] + Pr[= true | h z]) :
     Pr[= true | mx >>= f] = Pr[= true | mx >>= g] + Pr[= true | mx >>= h] := by
   rw [probOutput_bind_eq_tsum, probOutput_bind_eq_tsum, probOutput_bind_eq_tsum,
@@ -46,7 +47,7 @@ probability, so the absolute two-branch gap is unchanged by negating both
 branches. For never-failing computations this is where a `Bool`-orientation
 reversal disappears. -/
 lemma abs_probOutput_true_not_map_gap_eq {n : Type → Type*}
-    [Monad n] [LawfulMonad n] [HasEvalPMF n] (mx my : n Bool) :
+    [Monad n] [LawfulMonad n] [MonadLiftT n PMF] [LawfulMonadLiftT n PMF] (mx my : n Bool) :
     |(Pr[= true | (! ·) <$> mx]).toReal -
       (Pr[= true | (! ·) <$> my]).toReal| =
     |(Pr[= true | mx]).toReal - (Pr[= true | my]).toReal| := by

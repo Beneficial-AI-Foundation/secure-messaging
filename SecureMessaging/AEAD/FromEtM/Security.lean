@@ -1321,7 +1321,7 @@ theorem probForge_authInst_le_forgeReduction
             intro hfl
             exact hflagimp hfl
 
-omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
+omit [Inhabited C_e] [SampleableType C_e] in
 /-- Query-bound transfer (auth hop adapter): each decrypt query of `adv` becomes exactly one
 verify query in `forgeReduction`, so the reduction makes at most `q_d` verify queries whenever
 `adv` makes at most `q_d` decrypt queries. -/
@@ -1331,6 +1331,9 @@ theorem forgeReduction_isQueryBoundP
     (q_d : ℕ) (hqd : AEADScheme.decryptQueryBound adv q_d) :
     (forgeReduction se adv ke).IsQueryBoundP
       (ToVCVio.isVerifyQuery (D := AD × C_e) (R := T)) q_d := by
+  -- `forgeSpec`'s `IsUniformSpec` witness (needed by the query-bound lemma) wants `Fintype T`;
+  -- the tag type is sampleable, so it is finite.
+  letI : Fintype T := SampleableType.Fintype T
   unfold forgeReduction etmGameSkeleton
   simp only [pure_bind, bind_pure_comp, Functor.map_map]
   rw [isQueryBoundP_def, isQueryBound_map_iff, ← isQueryBoundP_def]
@@ -1340,7 +1343,7 @@ theorem forgeReduction_isQueryBoundP
   -- per-handler `.run`-unwrapping (StateT `MonadLiftT` fusion of the `ofLift` forwarder),
   -- then `isQueryBoundP_query_iff` (encrypt eval / decrypt verify) and
   -- `IsQueryBoundP.liftComp_subSpec` (cross-spec unif lift). Cf. VCVio `CmaToNma` `hfwd`.
-  refine IsQueryBoundP.simulateQ_run_add_inr_of_step (fun t => by simp) hqd ?hleft ?hdec
+  refine ToVCVio.simulateQ_run_add_inr_of_step (fun t => by simp) hqd ?hleft ?hdec
     (fun t hnp => absurd (by simp) hnp) (none, ∅)
   case hleft =>
     intro t s
@@ -1390,7 +1393,7 @@ theorem forgeReduction_isQueryBoundP
       rcases hb : (x : Bool) with _ | _ <;>
         simp only [Bool.false_eq_true, ↓reduceIte, StateT.run_pure, isQueryBoundP_pure]
 
-omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
+omit [Inhabited C_e] [SampleableType C_e] in
 /-- Game 1 → 2: auth bound. Gap bounded by `q_d` times tag-guessing probability.
 
 NRS14 Appendix A.2, A5 Case 1: each decrypt query at a fresh random oracle
@@ -2009,7 +2012,6 @@ theorem game3_eq_rand
 
 /-! ## Main security theorem -/
 
-omit [Inhabited T] in
 /-- **EtM one-time IND-CCA security** (NRS14 Theorem 1 for A5, adapted).
 
 The one-time IND-CCA distinguishing advantage of `etmAEAD se prf` is bounded

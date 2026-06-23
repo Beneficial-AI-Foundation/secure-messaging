@@ -55,7 +55,7 @@ private state and keeps only the adversary's returned value. -/
 theorem evalDist_simulateQ_run'_eq_of_impl_evalDist_eq
     {ι₁ : Type u} {ι₂ : Type u}
     {spec₁ : OracleSpec ι₁} {spec₂ : OracleSpec ι₂}
-    [spec₁.Fintype] [spec₁.Inhabited] [spec₂.Fintype] [spec₂.Inhabited]
+    [IsUniformSpec spec₁] [IsUniformSpec spec₂]
     {σ : Type}
     -- Two implementations of the game oracle interface. Their handlers may
     -- call different base oracle interfaces, `spec₁` and `spec₂`.

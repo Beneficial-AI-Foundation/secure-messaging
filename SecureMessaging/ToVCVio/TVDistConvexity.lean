@@ -30,7 +30,8 @@ universe u v
 
 /-- If `tvDist (f a) (g a) ≤ c` for every `a` (with `0 ≤ c`), then
 `tvDist (mx >>= f) (mx >>= g) ≤ c`. Real-valued companion of `ofReal_tvDist_bind_left_le_const`. -/
-theorem tvDist_bind_left_le_const {m : Type u → Type v} [Monad m] [LawfulMonad m] [HasEvalPMF m]
+theorem tvDist_bind_left_le_const {m : Type u → Type v} [Monad m] [LawfulMonad m]
+    [MonadLiftT m PMF] [LawfulMonadLiftT m PMF] [MonadLiftT m SetM] [EvalDistCompatible m]
     {α β : Type u} (mx : m α) (f g : α → m β) {c : ℝ} (hc : 0 ≤ c)
     (h : ∀ a, tvDist (f a) (g a) ≤ c) :
     tvDist (mx >>= f) (mx >>= g) ≤ c :=

@@ -121,7 +121,7 @@ end SPMF
 namespace OracleComp
 
 variable {ι : Type} {specBase : OracleSpec ι}
-variable [specBase.Fintype] [specBase.Inhabited]
+variable [IsUniformSpec specBase]
 
 /-- **Coupled bisimulation for `simulateQ` with `StateT`.**
 
