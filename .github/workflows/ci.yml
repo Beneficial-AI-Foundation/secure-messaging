@@ -41,18 +41,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Reclaim ~30 GB of preinstalled SDKs we don't use, so the disk-heavy
-      # Lean+mathlib build doesn't run out of space. Keeps /opt/hostedtoolcache
-      # (node/python). Hosted, ephemeral runner only — never do this self-hosted.
       - name: Free disk space
         shell: bash
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
           df -h /
 
-      # Detect whether anything that affects the documentation site changed.
-      # Deliberately excludes `.github/workflows/ci.yml`, so editing CI alone
-      # runs the sorry audit but skips the (expensive) doc build + deploy.
       - name: Detect documentation-relevant changes
         id: changes
         uses: dorny/paths-filter@v3
@@ -76,17 +70,16 @@ jobs:
             lake-build-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'lake-manifest.json') }}-
             lake-build-${{ runner.os }}-
 
-      # Dependency builds (the verso stack, VCVio, PolyFun, …) are not covered
-      # by the mathlib cache, so cache them separately keyed on the manifest:
-      # they only rebuild when lake-manifest.json or the toolchain changes,
-      # not on every code PR. mathlib itself comes from use-mathlib-cache.
-      - name: Cache Lake dependency builds
-        uses: actions/cache@v4
+      - name: Restore Lake dependency builds
+        id: lake-deps-cache
+        uses: actions/cache/restore@v4
         with:
           path: |
             .lake/packages/*/.lake/build
             !.lake/packages/mathlib/.lake/build
           key: lake-deps-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}
+          restore-keys: |
+            lake-deps-${{ runner.os }}-
 
       - uses: leanprover/lean-action@v1
         with:
@@ -95,18 +88,20 @@ jobs:
           lint: "true"
           use-mathlib-cache: "true"
 
-      # --- Sorry audit (veritooling) ---
-      # Reuses the build above. All orchestration (restore baseline, audit,
-      # cache, upload artifacts) lives in the sorry-audit composite action.
+      - name: Save Lake dependency builds
+        if: always() && steps.lake-deps-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .lake/packages/*/.lake/build
+            !.lake/packages/mathlib/.lake/build
+          key: lake-deps-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}
+
       - name: Sorry audit
         uses: Beneficial-AI-Foundation/veritooling/actions/sorry-audit@v1
         with:
-          # Reuses the build above and reports each sorry's file:line.
           backend: probe
-          # Annotate newly-introduced sorries inline on the PR diff.
           annotate-new-sorries: "true"
-          # Scope to the proof libs; otherwise probe-lean imports the verso docs
-          # library, whose deps aren't built during the audit.
           extract-args: "--library SecureMessaging,ToVCVio"
 
       - name: Build documentation modules
