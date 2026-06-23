@@ -20,9 +20,7 @@ import SecureMessaging.CKA.FromKEM.Basic
 import SecureMessaging.CKA.FromKEM.Construction
 import SecureMessaging.CKA.FromKEM.Correctness
 import SecureMessaging.CKA.FromKEM.Security
+import SecureMessaging.CKA.FromLWE.Basic
 import SecureMessaging.CKA.FromLWE.Construction
 import SecureMessaging.CKA.FromLWE.Correctness
-import SecureMessaging.LWE.Frodo
-import SecureMessaging.LWE.Frodo.KEM
-import SecureMessaging.LWE.Frodo.Matrix
 import SecureMessaging.PRFPRNG.Defs

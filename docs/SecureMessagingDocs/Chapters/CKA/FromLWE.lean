@@ -32,18 +32,28 @@ set_option pp.rawOnError true
 :::group "cka_cka_from_lwe"
 CKA from LWE.
 
-We formalize the optimized Frodo/LWE CKA of {Informal.citet ACD19}[], Section 4.1.2. The
-paper sends from B first; the repository's game is A-first, so the parties are exchanged,
-giving the paper's protocol up to renaming.
+We formalize the optimized Frodo/LWE CKA of {Informal.citet ACD19}[], Section 4.1.2.
+The construction works as follows: `Frodo.MatrixParams` (in
+`SecureMessaging.CKA.FromLWE.Basic`) fixes the concrete matrix spaces, samplers,
+reconciliation maps, and reconciliation correctness assumptions; `lweCKA.frodoScheme`
+turns those matrix parameters into a `CKAScheme`, and `lweCKA.frodoCorrectness`
+proves correctness for that concrete scheme.
 
-`Frodo.CKAParams` abstracts the protocol; `lweCKA.scheme` and `lweCKA.correctness` are
-proved against it. `Frodo.MatrixParams` is the concrete model over `ZMod q`, with public
-key `B = A * S + E`, fresh key `B' = S' * A + E'`, and shared value
-`V' = S' * B + Etilde'`. `Frodo.concreteCKAParams` instantiates the abstraction, so
-`lweCKA.frodoScheme` and `lweCKA.frodoCorrectness` specialize the abstract results, and
-`Frodo.kem` is the Appendix C.2 KEM. Correctness of reconciliation is assumed
-(`rec_sendA_correct`, `rec_sendB_correct`); security (ACD19 Theorem 4, `Delta_CKA = 1`)
-is future work.
+`Frodo.MatrixParams` has public key `B = A * S + E`, fresh key `B' = S' * A + E'`,
+and shared value `V' = S' * B + Etilde'`. Its `RecInfo` type is the paper's
+reconciliation information `C'`; `recInfo V'` is the paper's `<V'>_{2B}`,
+`key V'` is the paper's key extraction, and `reconcile` is the paper's `rec`.
+
+The repository CKA game starts from a `sendA` state. In ACD19's LWE
+initialization, the first displayed half-round is paper-B sending from
+`(A, B := A * S + E)` to paper-A, who receives using `(A, S)`. We align that
+half-round with the repository's initial `sendA`/`recvB` transition: Lean
+`sendA`/`recvB` implement paper `CKA-S-B`/`CKA-R-A`, and Lean `sendB`/`recvA`
+implement paper `CKA-S-A`/`CKA-R-B`.
+
+Correctness of reconciliation is assumed (`rec_sendA_correct`, `rec_sendB_correct`);
+security is future work, where ACD19 Theorem 4 reduces the optimized CKA to the CPA
+security of the Frodo KEM (Appendix C.2).
 :::
 
 :::defTitle "cka_from_lwe_spec" "CKA from LWE construction"
@@ -54,10 +64,16 @@ $`\todo`
 
 ```anchor frodoScheme (project := ".") (module := SecureMessaging.CKA.FromLWE.Construction)
 def frodoScheme (p : Frodo.MatrixParams) :
-    CKAScheme ProbComp (InitKey (Frodo.concreteCKAParams p))
-      (State (Frodo.concreteCKAParams p)) p.Key
-      (Message (Frodo.concreteCKAParams p)) (Rand (Frodo.concreteCKAParams p)) :=
-  scheme (Frodo.concreteCKAParams p)
+    CKAScheme ProbComp (InitKey p) (State p) p.Key (Message p) (Rand p) where
+  initKeyGen := p.init
+  initA := fun ik => return initA p ik
+  initB := fun ik => return initB p ik
+  sendA := sendA p
+  sendA_rleak := sendA_rleak p
+  recvA := recvA p
+  sendB := sendB p
+  sendB_rleak := sendB_rleak p
+  recvB := recvB p
 ```
 
 {usesLabel}`uses` {uses "cka"}[] · {githubLabel}`github` {githubIssue 12}[]
@@ -71,7 +87,7 @@ $`\todo`
 
 ```anchor frodoCorrectness (project := ".") (module := SecureMessaging.CKA.FromLWE.Correctness)
 theorem frodoCorrectness (p : Frodo.MatrixParams) [DecidableEq p.Key]
-    (adv : CKAScheme.CKACorrectnessAdversary (Message (Frodo.concreteCKAParams p)) p.Key) :
+    (adv : CKAScheme.CKACorrectnessAdversary (Message p) p.Key) :
     Pr[= true | CKAScheme.correctnessExp (frodoScheme p) adv] = 1
 ```
 

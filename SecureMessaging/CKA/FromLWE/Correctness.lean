@@ -9,7 +9,7 @@ import SecureMessaging.CKA.FromLWE.Construction
 # CKA from the Frodo/LWE Construction — Correctness
 
 This file proves correctness of the Frodo/LWE CKA construction in the abstract
-CKA correctness game: `Pr[= true | correctnessExp (scheme p) adv] = 1` for every
+CKA correctness game: `Pr[= true | correctnessExp (frodoScheme p) adv] = 1` for every
 correctness adversary.
 
 The argument follows the proven generic KEM correctness stack
@@ -17,9 +17,9 @@ The argument follows the proven generic KEM correctness stack
 each point in the A-first send/receive cycle, the states of both parties, any
 pending message, the stored sender key, and the relevant match relation. Each
 correctness oracle preserves the invariant, so the final `correct` flag is `true`.
-Key agreement at each delivery is supplied by the `Frodo.CKAParams` laws
-`sendA_correct` and `sendB_correct`, and the match relation needed for the next
-send by `sendA_match_next` and `sendB_match_next`.
+Key agreement at each delivery is supplied by the `Frodo.MatrixParams` support
+lemmas `sendA_correct` and `sendB_correct`, and the match relation needed for the
+next send by `sendA_match_next` and `sendB_match_next`.
 -/
 
 open OracleSpec OracleComp ENNReal
@@ -36,7 +36,7 @@ delivery or send relies on. After A sends, the support membership of A's send
 together with `MatchAB` yields B's key agreement; symmetrically after B sends.
 Challenge actions are unreachable in the correctness game, so those cases are
 `False`. -/
-private def stateShapeInv (p : Frodo.CKAParams ProbComp)
+private def stateShapeInv (p : Frodo.MatrixParams)
     (s : CKAScheme.GameState (State p) p.Key (Message p)) : Prop :=
   match s.lastAction with
   | none | some .recvA =>
@@ -44,55 +44,55 @@ private def stateShapeInv (p : Frodo.CKAParams ProbComp)
         s.stA = .sendAReady common pubAB ∧ s.stB = .recvBReady common secAB ∧
         s.rhoA = none ∧ s.rhoB = none ∧ s.keyA = none ∧ s.keyB = none
   | some .sendA =>
-      ∃ common pubAB secAB key pubBA hint secBA randA,
+      ∃ common pubAB secAB key pubBA recInfo secBA randA,
         p.MatchAB common pubAB secAB ∧
-        (key, pubBA, hint, secBA, randA) ∈ support (p.sendA common pubAB) ∧
+        (key, pubBA, recInfo, secBA, randA) ∈ support (p.sendA common pubAB) ∧
         s.stA = .recvAReady common secBA ∧ s.stB = .recvBReady common secAB ∧
-        s.rhoA = some (.fromA pubBA hint) ∧ s.rhoB = none ∧
+        s.rhoA = some (.fromA pubBA recInfo) ∧ s.rhoB = none ∧
         s.keyA = some key ∧ s.keyB = none
   | some .recvB =>
       ∃ common pubBA secBA, p.MatchBA common pubBA secBA ∧
         s.stA = .recvAReady common secBA ∧ s.stB = .sendBReady common pubBA ∧
         s.rhoA = none ∧ s.rhoB = none ∧ s.keyA = none ∧ s.keyB = none
   | some .sendB =>
-      ∃ common pubBA secBA key pubAB hint secAB randB,
+      ∃ common pubBA secBA key pubAB recInfo secAB randB,
         p.MatchBA common pubBA secBA ∧
-        (key, pubAB, hint, secAB, randB) ∈ support (p.sendB common pubBA) ∧
+        (key, pubAB, recInfo, secAB, randB) ∈ support (p.sendB common pubBA) ∧
         s.stA = .recvAReady common secBA ∧ s.stB = .recvBReady common secAB ∧
-        s.rhoA = none ∧ s.rhoB = some (.fromB pubAB hint) ∧
+        s.rhoA = none ∧ s.rhoB = some (.fromB pubAB recInfo) ∧
         s.keyA = none ∧ s.keyB = some key
   | some .challA | some .challB => False
 
 /-- Reachable game state: the `correct` flag is still `true` and the state has the
 expected shape for its last action. -/
-private def reachableInv (p : Frodo.CKAParams ProbComp)
+private def reachableInv (p : Frodo.MatrixParams)
     (s : CKAScheme.GameState (State p) p.Key (Message p)) : Prop :=
   s.correct = true ∧ stateShapeInv p s
 
-private lemma reachableInv_init (p : Frodo.CKAParams ProbComp)
-    {common : p.Common} {pubAB : p.PubAB} {secAB : p.SecAB}
+private lemma reachableInv_init (p : Frodo.MatrixParams)
+    {common : Common p} {pubAB : PubAB p} {secAB : SecAB p}
     (h : p.MatchAB common pubAB secAB) :
     reachableInv p
       (CKAScheme.initGameState (State.sendAReady common pubAB) (State.recvBReady common secAB)) :=
   ⟨rfl, common, pubAB, secAB, h, rfl, rfl, rfl, rfl, rfl, rfl⟩
 
-private lemma reachableInv_after_sendA (p : Frodo.CKAParams ProbComp)
-    {common : p.Common} {pubAB : p.PubAB} {secAB : p.SecAB}
-    {key : p.Key} {pubBA : p.PubBA} {hint : p.Hint} {secBA : p.SecBA} {randA : p.RandA}
+private lemma reachableInv_after_sendA (p : Frodo.MatrixParams)
+    {common : Common p} {pubAB : PubAB p} {secAB : SecAB p}
+    {key : p.Key} {pubBA : PubBA p} {recInfo : p.RecInfo} {secBA : SecBA p} {randA : RandA p}
     {epA epB : ℕ}
     (hM : p.MatchAB common pubAB secAB)
-    (hsend : (key, pubBA, hint, secBA, randA) ∈ support (p.sendA common pubAB)) :
+    (hsend : (key, pubBA, recInfo, secBA, randA) ∈ support (p.sendA common pubAB)) :
     reachableInv p
       { stA := .recvAReady common secBA, stB := .recvBReady common secAB,
-        rhoA := some (.fromA pubBA hint), rhoB := none,
+        rhoA := some (.fromA pubBA recInfo), rhoB := none,
         keyA := some key, keyB := none,
         correct := true, lastAction := some .sendA,
         tA := epA + 1, tB := epB } := by
-  refine ⟨rfl, common, pubAB, secAB, key, pubBA, hint, secBA, randA, hM, hsend,
+  refine ⟨rfl, common, pubAB, secAB, key, pubBA, recInfo, secBA, randA, hM, hsend,
     ?_, ?_, ?_, ?_, ?_, ?_⟩ <;> rfl
 
-private lemma reachableInv_after_recvB (p : Frodo.CKAParams ProbComp)
-    {common : p.Common} {pubBA : p.PubBA} {secBA : p.SecBA}
+private lemma reachableInv_after_recvB (p : Frodo.MatrixParams)
+    {common : Common p} {pubBA : PubBA p} {secBA : SecBA p}
     {epA epB : ℕ}
     (hM : p.MatchBA common pubBA secBA) :
     reachableInv p
@@ -102,23 +102,23 @@ private lemma reachableInv_after_recvB (p : Frodo.CKAParams ProbComp)
         tA := epA, tB := epB + 1 } := by
   refine ⟨rfl, common, pubBA, secBA, hM, ?_, ?_, ?_, ?_, ?_, ?_⟩ <;> rfl
 
-private lemma reachableInv_after_sendB (p : Frodo.CKAParams ProbComp)
-    {common : p.Common} {pubBA : p.PubBA} {secBA : p.SecBA}
-    {key : p.Key} {pubAB : p.PubAB} {hint : p.Hint} {secAB : p.SecAB} {randB : p.RandB}
+private lemma reachableInv_after_sendB (p : Frodo.MatrixParams)
+    {common : Common p} {pubBA : PubBA p} {secBA : SecBA p}
+    {key : p.Key} {pubAB : PubAB p} {recInfo : p.RecInfo} {secAB : SecAB p} {randB : RandB p}
     {epA epB : ℕ}
     (hM : p.MatchBA common pubBA secBA)
-    (hsend : (key, pubAB, hint, secAB, randB) ∈ support (p.sendB common pubBA)) :
+    (hsend : (key, pubAB, recInfo, secAB, randB) ∈ support (p.sendB common pubBA)) :
     reachableInv p
       { stA := .recvAReady common secBA, stB := .recvBReady common secAB,
-        rhoA := none, rhoB := some (.fromB pubAB hint),
+        rhoA := none, rhoB := some (.fromB pubAB recInfo),
         keyA := none, keyB := some key,
         correct := true, lastAction := some .sendB,
         tA := epA, tB := epB + 1 } := by
-  refine ⟨rfl, common, pubBA, secBA, key, pubAB, hint, secAB, randB, hM, hsend,
+  refine ⟨rfl, common, pubBA, secBA, key, pubAB, recInfo, secAB, randB, hM, hsend,
     ?_, ?_, ?_, ?_, ?_, ?_⟩ <;> rfl
 
-private lemma reachableInv_after_recvA (p : Frodo.CKAParams ProbComp)
-    {common : p.Common} {pubAB : p.PubAB} {secAB : p.SecAB}
+private lemma reachableInv_after_recvA (p : Frodo.MatrixParams)
+    {common : Common p} {pubAB : PubAB p} {secAB : SecAB p}
     {epA epB : ℕ}
     (hM : p.MatchAB common pubAB secAB) :
     reachableInv p
@@ -128,7 +128,7 @@ private lemma reachableInv_after_recvA (p : Frodo.CKAParams ProbComp)
         tA := epA + 1, tB := epB } := by
   refine ⟨rfl, common, pubAB, secAB, hM, ?_, ?_, ?_, ?_, ?_, ?_⟩ <;> rfl
 
-private lemma oracleUnif_preserves_reachableInv (p : Frodo.CKAParams ProbComp) :
+private lemma oracleUnif_preserves_reachableInv (p : Frodo.MatrixParams) :
     QueryImpl.PreservesInv
       (CKAScheme.oracleUnif (State p) p.Key (Message p))
       (reachableInv p) := by
@@ -138,9 +138,9 @@ private lemma oracleUnif_preserves_reachableInv (p : Frodo.CKAParams ProbComp) :
   rcases hz' with ⟨_, rfl⟩
   simpa using hσ
 
-private lemma oracleSendA_preserves_reachableInv (p : Frodo.CKAParams ProbComp) :
+private lemma oracleSendA_preserves_reachableInv (p : Frodo.MatrixParams) :
     QueryImpl.PreservesInv
-      (CKAScheme.oracleSendA (scheme p))
+      (CKAScheme.oracleSendA (frodoScheme p))
       (reachableInv p) := by
   intro _ σ hσ z hz
   rcases σ with ⟨sA, sB, ρA, ρB, keyA, keyB, correct, last, epA, epB⟩
@@ -157,21 +157,21 @@ private lemma oracleSendA_preserves_reachableInv (p : Frodo.CKAParams ProbComp) 
         ⟨hcorrect, common, pubAB, secAB, hM, rfl, rfl, rfl, rfl, rfl, rfl⟩
       subst correct
       rw [CKAScheme.oracleSendA, StateT.run_bind, StateT.run_get] at hz
-      have hz' : ∃ key pubBA hint secBA randA,
-          (key, pubBA, hint, secBA, randA) ∈ support (p.sendA common pubAB) ∧
-          (some (Message.fromA pubBA hint, key),
+      have hz' : ∃ key pubBA recInfo secBA randA,
+          (key, pubBA, recInfo, secBA, randA) ∈ support (p.sendA common pubAB) ∧
+          (some (Message.fromA pubBA recInfo, key),
             { stA := State.recvAReady common secBA, stB := State.recvBReady common secAB,
-              rhoA := some (Message.fromA pubBA hint), rhoB := none,
+              rhoA := some (Message.fromA pubBA recInfo), rhoB := none,
               keyA := some key, keyB := none,
               correct := true, lastAction := some .sendA,
               tA := epA + 1, tB := epB }) = z := by
-        simpa [CKAScheme.validStep, lweCKA.scheme, lweCKA.sendA] using hz
-      obtain ⟨key, pubBA, hint, secBA, randA, hsend, rfl⟩ := hz'
+        simpa [CKAScheme.validStep, lweCKA.frodoScheme, lweCKA.sendA] using hz
+      obtain ⟨key, pubBA, recInfo, secBA, randA, hsend, rfl⟩ := hz'
       exact reachableInv_after_sendA p hM hsend)
 
-private lemma oracleSendB_preserves_reachableInv (p : Frodo.CKAParams ProbComp) :
+private lemma oracleSendB_preserves_reachableInv (p : Frodo.MatrixParams) :
     QueryImpl.PreservesInv
-      (CKAScheme.oracleSendB (scheme p))
+      (CKAScheme.oracleSendB (frodoScheme p))
       (reachableInv p) := by
   intro _ σ hσ z hz
   rcases σ with ⟨sA, sB, ρA, ρB, keyA, keyB, correct, last, epA, epB⟩
@@ -187,22 +187,22 @@ private lemma oracleSendB_preserves_reachableInv (p : Frodo.CKAParams ProbComp) 
       ⟨hcorrect, common, pubBA, secBA, hM, rfl, rfl, rfl, rfl, rfl, rfl⟩
     subst correct
     rw [CKAScheme.oracleSendB, StateT.run_bind, StateT.run_get] at hz
-    have hz' : ∃ key pubAB hint secAB randB,
-        (key, pubAB, hint, secAB, randB) ∈ support (p.sendB common pubBA) ∧
-        (some (Message.fromB pubAB hint, key),
+    have hz' : ∃ key pubAB recInfo secAB randB,
+        (key, pubAB, recInfo, secAB, randB) ∈ support (p.sendB common pubBA) ∧
+        (some (Message.fromB pubAB recInfo, key),
           { stA := State.recvAReady common secBA, stB := State.recvBReady common secAB,
-            rhoA := none, rhoB := some (Message.fromB pubAB hint),
+            rhoA := none, rhoB := some (Message.fromB pubAB recInfo),
             keyA := none, keyB := some key,
             correct := true, lastAction := some .sendB,
             tA := epA, tB := epB + 1 }) = z := by
-      simpa [CKAScheme.validStep, lweCKA.scheme, lweCKA.sendB] using hz
-    obtain ⟨key, pubAB, hint, secAB, randB, hsend, rfl⟩ := hz'
+      simpa [CKAScheme.validStep, lweCKA.frodoScheme, lweCKA.sendB] using hz
+    obtain ⟨key, pubAB, recInfo, secAB, randB, hsend, rfl⟩ := hz'
     exact reachableInv_after_sendB p hM hsend
 
 private lemma oracleRecvB_preserves_reachableInv
-    (p : Frodo.CKAParams ProbComp) [DecidableEq p.Key] :
+    (p : Frodo.MatrixParams) [DecidableEq p.Key] :
     QueryImpl.PreservesInv
-      (CKAScheme.oracleRecvB (scheme p))
+      (CKAScheme.oracleRecvB (frodoScheme p))
       (reachableInv p) := by
   intro _ σ hσ z hz
   rcases σ with ⟨sA, sB, ρA, ρB, keyA, keyB, correct, last, epA, epB⟩
@@ -217,24 +217,24 @@ private lemma oracleRecvB_preserves_reachableInv
     · simp [CKAScheme.validStep] at hGuard
     cases action <;> simp [CKAScheme.validStep] at hGuard
     · simp only [reachableInv, stateShapeInv] at hσ
-      obtain ⟨hcorrect, common, pubAB, secAB, key, pubBA, hint, secBA, randA,
+      obtain ⟨hcorrect, common, pubAB, secAB, key, pubBA, recInfo, secBA, randA,
           hM, hsend, rfl, rfl, rfl, rfl, rfl, rfl⟩ := hσ
       subst correct
-      have hrecv : p.recvB common secAB pubBA hint = some key :=
-        p.sendA_correct common pubAB secAB hM key pubBA hint secBA randA hsend
+      have hrecv : p.recvB secAB pubBA recInfo = some key :=
+        p.sendA_correct common pubAB secAB hM key pubBA recInfo secBA randA hsend
       have : z = ((), ⟨State.recvAReady common secBA, State.sendBReady common pubBA,
           none, none, none, none, true, some .recvB, epA, epB + 1⟩) := by
-        simpa [CKAScheme.oracleRecvB, CKAScheme.validStep, lweCKA.scheme, lweCKA.recvB, hrecv,
+        simpa [CKAScheme.oracleRecvB, CKAScheme.validStep, lweCKA.frodoScheme, lweCKA.recvB, hrecv,
           StateT.run_bind, StateT.run_get, pure_bind] using hz
       subst this
       exact reachableInv_after_recvB p
-        (p.sendA_match_next common pubAB key pubBA hint secBA randA hsend)
+        (p.sendA_match_next common pubAB key pubBA recInfo secBA randA hsend)
     · exact False.elim (by simp only [reachableInv, stateShapeInv, and_false] at hσ)
 
 private lemma oracleRecvA_preserves_reachableInv
-    (p : Frodo.CKAParams ProbComp) [DecidableEq p.Key] :
+    (p : Frodo.MatrixParams) [DecidableEq p.Key] :
     QueryImpl.PreservesInv
-      (CKAScheme.oracleRecvA (scheme p))
+      (CKAScheme.oracleRecvA (frodoScheme p))
       (reachableInv p) := by
   intro _ σ hσ z hz
   rcases σ with ⟨sA, sB, ρA, ρB, keyA, keyB, correct, last, epA, epB⟩
@@ -249,23 +249,23 @@ private lemma oracleRecvA_preserves_reachableInv
     · simp [CKAScheme.validStep] at hGuard
     cases action <;> simp [CKAScheme.validStep] at hGuard
     · simp only [reachableInv, stateShapeInv] at hσ
-      obtain ⟨hcorrect, common, pubBA, secBA, key, pubAB, hint, secAB, randB,
+      obtain ⟨hcorrect, common, pubBA, secBA, key, pubAB, recInfo, secAB, randB,
           hM, hsend, rfl, rfl, rfl, rfl, rfl, rfl⟩ := hσ
       subst correct
-      have hrecv : p.recvA common secBA pubAB hint = some key :=
-        p.sendB_correct common pubBA secBA hM key pubAB hint secAB randB hsend
+      have hrecv : p.recvA secBA pubAB recInfo = some key :=
+        p.sendB_correct common pubBA secBA hM key pubAB recInfo secAB randB hsend
       have : z = ((), ⟨State.sendAReady common pubAB, State.recvBReady common secAB,
           none, none, none, none, true, some .recvA, epA + 1, epB⟩) := by
-        simpa [CKAScheme.oracleRecvA, CKAScheme.validStep, lweCKA.scheme, lweCKA.recvA, hrecv,
+        simpa [CKAScheme.oracleRecvA, CKAScheme.validStep, lweCKA.frodoScheme, lweCKA.recvA, hrecv,
           StateT.run_bind, StateT.run_get, pure_bind] using hz
       subst this
       exact reachableInv_after_recvA p
-        (p.sendB_match_next common pubBA key pubAB hint secAB randB hsend)
+        (p.sendB_match_next common pubBA key pubAB recInfo secAB randB hsend)
     · exact False.elim (by simp only [reachableInv, stateShapeInv, and_false] at hσ)
 
-private lemma correctnessImpl_preserves (p : Frodo.CKAParams ProbComp) [DecidableEq p.Key] :
+private lemma correctnessImpl_preserves (p : Frodo.MatrixParams) [DecidableEq p.Key] :
     QueryImpl.PreservesInv
-      (CKAScheme.ckaCorrectnessImpl (scheme p))
+      (CKAScheme.ckaCorrectnessImpl (frodoScheme p))
       (reachableInv p) := by
   intro t σ hσ z hz
   match t with
@@ -288,15 +288,15 @@ private lemma correctnessImpl_preserves (p : Frodo.CKAParams ProbComp) [Decidabl
 /-- One-round agreement for the Frodo/LWE construction.
 
 Sample the setup, run A's send, and run B's receive on the transmitted public key
-and hint. The receiver recovers exactly the sender's epoch key; a receive failure
-would count as a correctness failure. Agreement is the `sendA_correct` law applied
-to the `MatchAB` relation produced by `init_match`. -/
-theorem send_recv_agree (p : Frodo.CKAParams ProbComp) [DecidableEq p.Key] :
+and reconciliation information. The receiver recovers exactly the sender's epoch
+key; a receive failure would count as a correctness failure. Agreement is the
+`sendA_correct` law applied to the `MatchAB` relation produced by `init_match`. -/
+theorem send_recv_agree (p : Frodo.MatrixParams) [DecidableEq p.Key] :
     Pr[= true |
       do
         let (common, pubAB, secAB) ← p.init
-        let (keyS, pubBA, hint, _secBA, _randA) ← p.sendA common pubAB
-        match p.recvB common secAB pubBA hint with
+        let (keyS, pubBA, recInfo, _secBA, _randA) ← p.sendA common pubAB
+        match p.recvB secAB pubBA recInfo with
         | none => return false
         | some keyR => return decide (keyR = keyS)] = 1 := by
   rw [← probEvent_eq_eq_probOutput, probEvent_eq_one_iff]
@@ -305,23 +305,24 @@ theorem send_recv_agree (p : Frodo.CKAParams ProbComp) [DecidableEq p.Key] :
   rw [mem_support_bind_iff] at hb
   obtain ⟨⟨common, pubAB, secAB⟩, hinit, hb⟩ := hb
   rw [mem_support_bind_iff] at hb
-  obtain ⟨⟨keyS, pubBA, hint, secBA, randA⟩, hsend, hb⟩ := hb
+  obtain ⟨⟨keyS, pubBA, recInfo, secBA, randA⟩, hsend, hb⟩ := hb
   have hM := p.init_match common pubAB secAB hinit
-  have hrecv := p.sendA_correct common pubAB secAB hM keyS pubBA hint secBA randA hsend
+  have hrecv := p.sendA_correct common pubAB secAB hM keyS pubBA recInfo secBA randA hsend
   simpa [hrecv, mem_support_pure_iff] using hb
 
-/-- Correctness of the Frodo/LWE CKA construction in the abstract CKA correctness
-game.
+/-- Correctness of the concrete Frodo/LWE CKA scheme in the abstract CKA
+correctness game.
 
 For every correctness adversary using the honest send/receive oracles, the game
 returns `true` with probability one. Agreement at each delivered epoch follows
-from the `Frodo.CKAParams` reconciliation laws; no concrete Frodo matrix algebra
-is needed. -/
--- ANCHOR: correctness
-theorem correctness (p : Frodo.CKAParams ProbComp) [DecidableEq p.Key]
+from the `Frodo.MatrixParams` reconciliation laws `rec_sendA_correct` and
+`rec_sendB_correct`, packaged as the support lemmas `sendA_correct` and
+`sendB_correct`. -/
+-- ANCHOR: frodoCorrectness
+theorem frodoCorrectness (p : Frodo.MatrixParams) [DecidableEq p.Key]
     (adv : CKAScheme.CKACorrectnessAdversary (Message p) p.Key) :
-    Pr[= true | CKAScheme.correctnessExp (scheme p) adv] = 1
--- ANCHOR_END: correctness
+    Pr[= true | CKAScheme.correctnessExp (frodoScheme p) adv] = 1
+-- ANCHOR_END: frodoCorrectness
     := by
   rw [← probEvent_eq_eq_probOutput, probEvent_eq_one_iff]
   refine ⟨probFailure_eq_zero, ?_⟩
@@ -336,17 +337,17 @@ theorem correctness (p : Frodo.CKAParams ProbComp) [DecidableEq p.Key]
   rw [mem_support_bind_iff] at hb
   rcases hb with ⟨out, hout, hb⟩
   have hik' : (common, pubAB, secAB) ∈ support p.init := by
-    simpa [lweCKA.scheme] using hik
+    simpa [lweCKA.frodoScheme] using hik
   have hM : p.MatchAB common pubAB secAB := p.init_match common pubAB secAB hik'
   have hstA' : stA = State.sendAReady common pubAB := by
-    simpa [lweCKA.scheme, lweCKA.initA, mem_support_pure_iff] using hstA
+    simpa [lweCKA.frodoScheme, lweCKA.initA, mem_support_pure_iff] using hstA
   have hstB' : stB = State.recvBReady common secAB := by
-    simpa [lweCKA.scheme, lweCKA.initB, mem_support_pure_iff] using hstB
+    simpa [lweCKA.frodoScheme, lweCKA.initB, mem_support_pure_iff] using hstB
   subst stA
   subst stB
   have hInv : reachableInv p out.2 :=
     OracleComp.simulateQ_run_preservesInv
-      (impl := CKAScheme.ckaCorrectnessImpl (scheme p))
+      (impl := CKAScheme.ckaCorrectnessImpl (frodoScheme p))
       (Inv := reachableInv p)
       (correctnessImpl_preserves p)
       adv
@@ -357,19 +358,5 @@ theorem correctness (p : Frodo.CKAParams ProbComp) [DecidableEq p.Key]
   have hb' : b = out.2.correct := by
     simpa [mem_support_pure_iff] using hb
   exact hb'.trans hInv.1
-
-/-- Correctness of the concrete Frodo/LWE CKA scheme in the CKA correctness game.
-
-A thin specialization of `correctness` to `Frodo.concreteCKAParams p`: agreement
-at each epoch is the matrix reconciliation supplied by the `MatrixParams`
-reconciliation laws, lifted through the abstract correctness proof. -/
--- ANCHOR: frodoCorrectness
-theorem frodoCorrectness (p : Frodo.MatrixParams) [DecidableEq p.Key]
-    (adv : CKAScheme.CKACorrectnessAdversary (Message (Frodo.concreteCKAParams p)) p.Key) :
-    Pr[= true | CKAScheme.correctnessExp (frodoScheme p) adv] = 1
--- ANCHOR_END: frodoCorrectness
-    := by
-  letI : DecidableEq (Frodo.concreteCKAParams p).Key := ‹DecidableEq p.Key›
-  exact correctness (Frodo.concreteCKAParams p) adv
 
 end lweCKA
