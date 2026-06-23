@@ -1,6 +1,7 @@
 /-
 Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Beneficial AI Foundation
 -/
 
 import VCVio.CryptoFoundations.SecExp
@@ -98,7 +99,7 @@ abbrev indCPASpec (M C : Type) := unifSpec + (M →ₒ Option C)
 
 /-- One-time IND$-CPA adversary: a computation with access to uniform
 randomness and the encryption oracle, outputting a guess bit. -/
-abbrev IndCPA_Adversary (M C : Type) :=
+abbrev IndCPAAdversary (M C : Type) :=
   OracleComp (indCPASpec M C) Bool
 
 /-! ### Oracle implementations -/
@@ -136,7 +137,7 @@ experiment.
 
 NRS14 Section 2: ivE-security experiment, restricted to one query. -/
 def securityExpFixedBit [SampleableType C] (se : DetSEAlg K M C)
-    (adversary : IndCPA_Adversary M C) (b : Bool) : ProbComp Bool := do
+    (adversary : IndCPAAdversary M C) (b : Bool) : ProbComp Bool := do
   let k ← se.keygen
   let (b', _) ← (simulateQ (indCPAImpl se b k) adversary).run false
   return b'
@@ -146,7 +147,7 @@ def securityExpFixedBit [SampleableType C] (se : DetSEAlg K M C)
 
 NRS14 Section 2: `Adv^{ivE}_E(A)`, restricted to one query and no IV. -/
 noncomputable def distAdvantage [SampleableType C] (se : DetSEAlg K M C)
-    (adversary : IndCPA_Adversary M C) : ℝ :=
+    (adversary : IndCPAAdversary M C) : ℝ :=
   |(Pr[= true | securityExpFixedBit se adversary true]).toReal -
    (Pr[= true | securityExpFixedBit se adversary false]).toReal|
 

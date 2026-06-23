@@ -1,6 +1,7 @@
 /-
 Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.AEAD.FromEtM.Construction
@@ -121,7 +122,7 @@ noncomputable def etmGameSkeleton
     (verifyTag : AD × C_e → T → StateT (TagCache AD C_e T) (OracleComp spec) Bool)
     (unifImpl : QueryImpl unifSpec
         (StateT (EtmGameState AD C_e T) (OracleComp spec)))
-    (adversary : OneTime_CCA_Adversary AD M (C_e × T))
+    (adversary : OneTimeCCAAdversary AD M (C_e × T))
     : OracleComp spec Bool := do
   let ke ← keygen_e
   let encImpl : QueryImpl (AD × M →ₒ Option (C_e × T))
@@ -172,7 +173,7 @@ is disabled, and a one-time fresh RO query is uniform). -/
 NRS14 Lemma 3: starting game (real nAE experiment). -/
 noncomputable def game0
     (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
-    (adv : OneTime_CCA_Adversary AD M (C_e × T)) : ProbComp Bool := do
+    (adv : OneTimeCCAAdversary AD M (C_e × T)) : ProbComp Bool := do
   let km ← prf.keygen
   etmGameSkeleton (spec := unifSpec)
     se.keygen se.decrypt ∅
@@ -188,7 +189,7 @@ NRS14 Lemma 3, eq. (4): replace F^tag with random ρ.
 Deviation: single encryption query (q_e = 1). -/
 noncomputable def game1
     (se : DetSEAlg K_e M C_e)
-    (adv : OneTime_CCA_Adversary AD M (C_e × T)) : ProbComp Bool :=
+    (adv : OneTimeCCAAdversary AD M (C_e × T)) : ProbComp Bool :=
   etmGameSkeleton (spec := unifSpec)
     se.keygen se.decrypt ∅
     (fun ke m => pure (se.encrypt ke m))
@@ -206,7 +207,7 @@ Each decrypt query at a fresh random oracle point verifies with probability
 `1/|T|`; union bound over `q_d` queries gives `q_d/|T|`. -/
 noncomputable def game2
     (se : DetSEAlg K_e M C_e)
-    (adv : OneTime_CCA_Adversary AD M (C_e × T)) : ProbComp Bool :=
+    (adv : OneTimeCCAAdversary AD M (C_e × T)) : ProbComp Bool :=
   etmGameSkeleton (spec := unifSpec)
     se.keygen se.decrypt ∅
     (fun ke m => pure (se.encrypt ke m))
@@ -224,7 +225,7 @@ are equal as distributions (`game2'_eq_game2`, via the discarded-query brick).
 NRS14 Appendix A.2: the intermediate game used to couple `game1` and `game2`. -/
 noncomputable def game2'
     (se : DetSEAlg K_e M C_e)
-    (adv : OneTime_CCA_Adversary AD M (C_e × T)) : ProbComp Bool :=
+    (adv : OneTimeCCAAdversary AD M (C_e × T)) : ProbComp Bool :=
   etmGameSkeleton (spec := unifSpec)
     se.keygen se.decrypt ∅
     (fun ke m => pure (se.encrypt ke m))
@@ -242,7 +243,7 @@ NRS14 Figure 4, right column: `$` oracle (random bits) + `⊥` oracle
 (always reject). This is the ideal nAE experiment. -/
 noncomputable def game3
     (se : DetSEAlg K_e M C_e)
-    (adv : OneTime_CCA_Adversary AD M (C_e × T)) : ProbComp Bool :=
+    (adv : OneTimeCCAAdversary AD M (C_e × T)) : ProbComp Bool :=
   etmGameSkeleton (spec := unifSpec)
     se.keygen se.decrypt ∅
     (fun _ _ => liftM ($ᵗ C_e : ProbComp C_e))
@@ -277,7 +278,7 @@ their queries to `OracleSpec.query (Sum.inr (ad, c))` — the PRF/random oracle
 provided by the experiment. -/
 noncomputable def prfReduction
     (se : DetSEAlg K_e M C_e)
-    (adv : OneTime_CCA_Adversary AD M (C_e × T))
+    (adv : OneTimeCCAAdversary AD M (C_e × T))
     : PRFAdversary (AD × C_e) T :=
   let spec := unifSpec + ((AD × C_e) →ₒ T)
   let unifImpl : QueryImpl unifSpec
@@ -321,8 +322,8 @@ from the oracle's. Requires `[Inhabited K_e]` (every key space is inhabited). -/
 @[nolint unusedArguments]
 noncomputable def encReduction [Inhabited K_e]
     (_se : DetSEAlg K_e M C_e)
-    (adv : OneTime_CCA_Adversary AD M (C_e × T))
-    : DetSEAlg.IndCPA_Adversary M C_e :=
+    (adv : OneTimeCCAAdversary AD M (C_e × T))
+    : DetSEAlg.IndCPAAdversary M C_e :=
   let spec := unifSpec + (M →ₒ Option C_e)
   let unifImpl : QueryImpl unifSpec
       (StateT (EtmGameState AD C_e T) (OracleComp spec)) :=
@@ -357,7 +358,7 @@ Proof strategy:
 3. Apply `run'_simulateQ_eq_of_query_map_eq` to project away the invariant `TagCache = ∅`. -/
 theorem game0_eq_real
     (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
-    (adv : OneTime_CCA_Adversary AD M (C_e × T)) :
+    (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     Pr[= true | game0 se prf adv] =
       Pr[= true | AEADScheme.securityExpFixedBit (etmAEAD se prf) adv false] := by
   -- Tail helper: `(simulateQ impl adv).run s >>= take-fst = (simulateQ impl adv).run' s`.
@@ -409,7 +410,7 @@ omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
 `prfReduction`. The "real" half of NRS14 Lemma 3, eq. (4). -/
 theorem game0_eq_prfRealExp
     (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
-    (adv : OneTime_CCA_Adversary AD M (C_e × T)) :
+    (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     Pr[= true | game0 se prf adv] =
       Pr[= true | prf.prfRealExp (prfReduction se adv)] := by
   -- RHS: unfold the reduction + experiment, fold the inner skeleton run to `run'`,
@@ -466,7 +467,7 @@ on `prfReduction`. The "ideal" half of NRS14 Lemma 3, eq. (4); this is the heavi
 halves, since it must relocate the outer lazy-RO cache into the (always-`∅`) inner `TagCache`. -/
 theorem game1_eq_prfIdealExp
     (se : DetSEAlg K_e M C_e)
-    (adv : OneTime_CCA_Adversary AD M (C_e × T)) :
+    (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     Pr[= true | game1 se adv] =
       Pr[= true | PRFScheme.prfIdealExp (prfReduction se adv)] := by
   -- RHS: collapse the nested `simulateQ`, forward keygen (the upstream
@@ -629,7 +630,7 @@ equalities `game0_eq_prfRealExp` and `game1_eq_prfIdealExp` combine here, since 
 share the same `prfAdvantage` shape. -/
 theorem game0_game1_le_prf
     (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
-    (adv : OneTime_CCA_Adversary AD M (C_e × T)) :
+    (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     |(Pr[= true | game0 se prf adv]).toReal -
      (Pr[= true | game1 se adv]).toReal| ≤
       PRFScheme.prfAdvantage prf (prfReduction se adv) := by
@@ -697,7 +698,7 @@ NRS14 Appendix A.2: the reduction `B(A)` witnessing the forge bound. Each decryp
 one verify query, so `B`'s verify-query count matches `A`'s decrypt-query count `q_d`. -/
 noncomputable def forgeReduction
     (se : DetSEAlg K_e M C_e)
-    (adv : OneTime_CCA_Adversary AD M (C_e × T))
+    (adv : OneTimeCCAAdversary AD M (C_e × T))
     (ke : K_e) : ToVCVio.ForgeAdversary (AD × C_e) T :=
   let spec := ToVCVio.forgeSpec (AD × C_e) T
   let unifImpl : QueryImpl unifSpec
@@ -769,7 +770,7 @@ reveals nothing, so removing it preserves the distribution
 through the skeleton. -/
 theorem game2'_eq_game2
     (se : DetSEAlg K_e M C_e)
-    (adv : OneTime_CCA_Adversary AD M (C_e × T)) :
+    (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     Pr[= true | game2' se adv] = Pr[= true | game2 se adv] := by
   -- Fold the skeleton tail `let (b', _) ← run; return b'` to `run'`.
   -- Both games: `se.keygen` then the per-key skeleton run; descend through keygen.
@@ -863,7 +864,7 @@ distance between them is at most the forge probability of the `b = true` simulat
 (`ToVCVio.tvDist_simulateQ_le_probEvent_output_bad_probComp`). -/
 theorem tvDist_authInst_le_probForge
     (se : DetSEAlg K_e M C_e)
-    (adv : OneTime_CCA_Adversary AD M (C_e × T)) (ke : K_e) :
+    (adv : OneTimeCCAAdversary AD M (C_e × T)) (ke : K_e) :
     tvDist ((simulateQ (authInstImpl se true ke) adv).run' ((none, ∅), false))
         ((simulateQ (authInstImpl se false ke) adv).run' ((none, ∅), false)) ≤
       (Pr[fun z : Bool × (EtmGameState AD C_e T × Bool) => z.2.2 = true |
@@ -964,7 +965,7 @@ same adversary `adv`, then applies the generic coupling brick
 `ToVCVio.probEvent_snd_le_of_relTriple` with a joint-state invariant (NRS14 App. A.2). -/
 theorem probForge_authInst_le_forgeReduction
     (se : DetSEAlg K_e M C_e)
-    (adv : OneTime_CCA_Adversary AD M (C_e × T)) (ke : K_e) :
+    (adv : OneTimeCCAAdversary AD M (C_e × T)) (ke : K_e) :
     (Pr[fun z : Bool × (EtmGameState AD C_e T × Bool) => z.2.2 = true |
         (simulateQ (authInstImpl se true ke) adv).run ((none, ∅), false)]).toReal ≤
       (Pr[fun z : Unit × ToVCVio.ForgeState (AD × C_e) T => z.2.2.2 = true |
@@ -1321,16 +1322,19 @@ theorem probForge_authInst_le_forgeReduction
             intro hfl
             exact hflagimp hfl
 
-omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
+omit [Inhabited C_e] [SampleableType C_e] in
 /-- Query-bound transfer (auth hop adapter): each decrypt query of `adv` becomes exactly one
 verify query in `forgeReduction`, so the reduction makes at most `q_d` verify queries whenever
 `adv` makes at most `q_d` decrypt queries. -/
 theorem forgeReduction_isQueryBoundP
     (se : DetSEAlg K_e M C_e)
-    (adv : OneTime_CCA_Adversary AD M (C_e × T)) (ke : K_e)
+    (adv : OneTimeCCAAdversary AD M (C_e × T)) (ke : K_e)
     (q_d : ℕ) (hqd : AEADScheme.decryptQueryBound adv q_d) :
     (forgeReduction se adv ke).IsQueryBoundP
       (ToVCVio.isVerifyQuery (D := AD × C_e) (R := T)) q_d := by
+  -- `forgeSpec`'s `IsUniformSpec` witness (needed by the query-bound lemma) wants `Fintype T`;
+  -- the tag type is sampleable, so it is finite.
+  letI : Fintype T := SampleableType.Fintype T
   unfold forgeReduction etmGameSkeleton
   simp only [pure_bind, bind_pure_comp, Functor.map_map]
   rw [isQueryBoundP_def, isQueryBound_map_iff, ← isQueryBoundP_def]
@@ -1340,7 +1344,7 @@ theorem forgeReduction_isQueryBoundP
   -- per-handler `.run`-unwrapping (StateT `MonadLiftT` fusion of the `ofLift` forwarder),
   -- then `isQueryBoundP_query_iff` (encrypt eval / decrypt verify) and
   -- `IsQueryBoundP.liftComp_subSpec` (cross-spec unif lift). Cf. VCVio `CmaToNma` `hfwd`.
-  refine IsQueryBoundP.simulateQ_run_add_inr_of_step (fun t => by simp) hqd ?hleft ?hdec
+  refine ToVCVio.simulateQ_run_add_inr_of_step (fun t => by simp) hqd ?hleft ?hdec
     (fun t hnp => absurd (by simp) hnp) (none, ∅)
   case hleft =>
     intro t s
@@ -1390,7 +1394,7 @@ theorem forgeReduction_isQueryBoundP
       rcases hb : (x : Bool) with _ | _ <;>
         simp only [Bool.false_eq_true, ↓reduceIte, StateT.run_pure, isQueryBoundP_pure]
 
-omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
+omit [Inhabited C_e] [SampleableType C_e] in
 /-- Game 1 → 2: auth bound. Gap bounded by `q_d` times tag-guessing probability.
 
 NRS14 Appendix A.2, A5 Case 1: each decrypt query at a fresh random oracle
@@ -1400,7 +1404,7 @@ via `IsQueryBoundP`: `adv` makes at most `q_d` decrypt-oracle queries
 (structurally, on every execution path). -/
 theorem game1_game2_le_auth
     (se : DetSEAlg K_e M C_e)
-    (adv : OneTime_CCA_Adversary AD M (C_e × T))
+    (adv : OneTimeCCAAdversary AD M (C_e × T))
     (q_d : ℕ) [Fintype T]
     (hqd : AEADScheme.decryptQueryBound adv q_d) :
     |(Pr[= true | game1 se adv]).toReal -
@@ -1539,7 +1543,7 @@ to `$ᵗ T` is distributional equality: the cache is written but never read
 (verify disabled), and a one-time fresh RO query is uniformly distributed. -/
 theorem game2_game3_le_enc [Inhabited K_e]
     (se : DetSEAlg K_e M C_e)
-    (adv : OneTime_CCA_Adversary AD M (C_e × T)) :
+    (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     |(Pr[= true | game2 se adv]).toReal -
      (Pr[= true | game3 se adv]).toReal| ≤
       DetSEAlg.distAdvantage se (encReduction se adv) := by
@@ -1960,7 +1964,7 @@ rejects. Dropping a bind of a computation that can fail rescales the output prob
 exactly only when `prf.keygen` is lossless. Every real PRF keygen (`$ᵗ K`) satisfies this. -/
 theorem game3_eq_rand
     (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
-    (adv : OneTime_CCA_Adversary AD M (C_e × T))
+    (adv : OneTimeCCAAdversary AD M (C_e × T))
     (hkm : Pr[⊥ | prf.keygen] = 0) :
     Pr[= true | game3 se adv] =
       Pr[= true | AEADScheme.securityExpFixedBit (etmAEAD se prf) adv true] := by
@@ -2009,7 +2013,6 @@ theorem game3_eq_rand
 
 /-! ## Main security theorem -/
 
-omit [Inhabited T] in
 /-- **EtM one-time IND-CCA security** (NRS14 Theorem 1 for A5, adapted).
 
 The one-time IND-CCA distinguishing advantage of `etmAEAD se prf` is bounded
@@ -2027,7 +2030,7 @@ NRS14 Figure 9 bound: `Adv^nAE ≤ Adv^prf_F(B) + Adv^ivE_E(D₁) + q_d/2^τ`.
 Our one-time adaptation: `Adv^ivE → Adv^{ind$-cpa}`, `2^τ → |T|`. -/
 theorem etmAEAD_security [Inhabited K_e]
     (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
-    (adv : OneTime_CCA_Adversary AD M (C_e × T))
+    (adv : OneTimeCCAAdversary AD M (C_e × T))
     (q_d : ℕ) [Fintype T]
     (hqd : AEADScheme.decryptQueryBound adv q_d)
     (hkm : Pr[⊥ | prf.keygen] = 0) :

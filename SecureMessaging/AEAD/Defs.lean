@@ -168,7 +168,7 @@ one-time IND-CCA adversary. `decryptQueryBound adv q_d` asserts that `adv`
 makes at most `q_d` queries to the decrypt oracle (index `.inr _` in
 `aeadOneTimeCCASpec`), with no constraint on encryption or uniform-sampling
 queries. Built on VCVio's `IsQueryBoundP`. -/
-def decryptQueryBound (adv : OneTime_CCA_Adversary AD M C)
+def decryptQueryBound (adv : OneTimeCCAAdversary AD M C)
     (q_d : ℕ) : Prop :=
   adv.IsQueryBoundP (· matches Sum.inr _) q_d
 
