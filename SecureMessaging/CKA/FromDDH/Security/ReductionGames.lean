@@ -1,6 +1,7 @@
 /-
 Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.CKA.FromDDH.Common
@@ -227,8 +228,8 @@ noncomputable def reductionOracleImpl (gp : GameParams) (gen gA gB gT : G) :
   + reductionChallB (F := F) gp gB gT
   + oracleCorruptA gp (CKAState F G) G G
   + oracleCorruptB gp (CKAState F G) G G
-  + oracleSendA_rleak gp (ddhCKA F G gen)
-  + oracleSendB_rleak gp (ddhCKA F G gen)
+  + oracleSendArleak gp (ddhCKA F G gen)
+  + oracleSendBrleak gp (ddhCKA F G gen)
 
 /-- Initial CKA game state used by the reduction, case-split on game
 parameters `gp`:

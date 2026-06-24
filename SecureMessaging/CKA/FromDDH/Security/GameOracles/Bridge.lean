@@ -1,6 +1,7 @@
 /-
 Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.CKA.FromDDH.Security.GameOracles.Step
@@ -17,7 +18,7 @@ The regular CKA game samples them lazily, inside the oracle stack:
 
 The parameterized game samples them eagerly, before the adversary runs:
 
-  `𝒟[do b a ← $ᵗ F; simulateQ (honestImpl_param_real gp gen a b) 𝒜]`.
+  `𝒟[do b a ← $ᵗ F; simulateQ (honestImplParamReal gp gen a b) 𝒜]`.
 
 Here `a` is the scalar consumed at the embedding epoch, and `b` is the scalar
 consumed at the challenge epoch. The bridge proves that moving these samples
@@ -48,7 +49,7 @@ Main results in this file:
 * `evalDist_eager_honest_lazy_eq` — the whole-adversary bridge: for every
   adversary `𝒜`,
 
-      `𝒟[do b a ← $ᵗ F; simulateQ (honestImpl_param_real gp gen a b) 𝒜] =`
+      `𝒟[do b a ← $ᵗ F; simulateQ (honestImplParamReal gp gen a b) 𝒜] =`
       `𝒟[simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) 𝒜]`.
 
   Proved by induction on `𝒜` using the per-query step lemmas in `Step.lean`.
@@ -57,10 +58,10 @@ Main results in this file:
   bridge above, for an adversary `𝒜` simulated from the initial state
   `initGameState (.sendReady (x₀•gen)) (.recvReady x₀)`:
 
-      `Pr[= false | simulateQ (ckaSecurityImpl_lazy_real gp gen) 𝒜 …] =`
+      `Pr[= false | simulateQ (ckaSecurityImplLazyReal gp gen) 𝒜 …] =`
       `Pr[= false | simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) 𝒜 …]`.
 
-  The LHS uses the `consumeLazy`-wrapped lazy stack `ckaSecurityImpl_lazy_real`
+  The LHS uses the `consumeLazy`-wrapped lazy stack `ckaSecurityImplLazyReal`
   (from `GameOracles/Defs.lean`); the RHS uses the regular CKA game
   `ckaSecurityImpl gp false (ddhCKA F G gen)`. The proof composes two steps:
   - `evalDist_ckaSecurityImpl_lazy_eq_eager` (from `GameOracles/Defs.lean`)
@@ -97,7 +98,7 @@ omit [Inhabited F] [Fintype G] in
 state `s`, the eager parameterized presentation matches the regular CKA game
 at the `evalDist` level:
 
-  `𝒟[do b a ← $ᵗ F; (simulateQ (honestImpl_param_real gp gen a b) 𝒜).run' s] =`
+  `𝒟[do b a ← $ᵗ F; (simulateQ (honestImplParamReal gp gen a b) 𝒜).run' s] =`
   `𝒟[(simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) 𝒜).run' s]`. -/
 lemma evalDist_eager_honest_lazy_eq
     (gp : GameParams) (s : GameState (CKAState F G) G G)
@@ -105,7 +106,7 @@ lemma evalDist_eager_honest_lazy_eq
     evalDist (do
       let b ← ($ᵗ F : ProbComp F)
       let a ← ($ᵗ F : ProbComp F)
-      (simulateQ (honestImpl_param_real gp gen a b) adversary).run' s) =
+      (simulateQ (honestImplParamReal gp gen a b) adversary).run' s) =
     evalDist ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) adversary).run' s) := by
   induction adversary using OracleComp.inductionOn generalizing s with
   | pure x =>
@@ -138,12 +139,12 @@ lemma evalDist_eager_honest_lazy_eq
       exact pass _ k (fun _ _ => rfl) ih
     | OCorruptB =>
       exact pass _ k (fun _ _ => rfl) ih
-    | OSendA_rleak =>
+    | OSendArleak =>
       exact evalDist_eager_honest_lazy_eq_step_passthrough
-        (gen := gen) gp s OSendA_rleak k (fun _ _ => rfl) ih
-    | OSendB_rleak =>
+        (gen := gen) gp s OSendArleak k (fun _ _ => rfl) ih
+    | OSendBrleak =>
       exact evalDist_eager_honest_lazy_eq_step_passthrough
-        (gen := gen) gp s OSendB_rleak k (fun _ _ => rfl) ih
+        (gen := gen) gp s OSendBrleak k (fun _ _ => rfl) ih
     | OSendA =>  -- sendA
       -- Case-split on `gp.challengedParty`:
       -- • challengedParty=A (off-party): impl_eq via
@@ -187,12 +188,12 @@ omit [Fintype G] in
 `initGameState (.sendReady (x₀ • gen)) (.recvReady x₀)`, the adversary has the
 same probability of outputting `false` under two presentations of the honest
 real-branch CKA game: the `consumeLazy`-wrapped oracle stack
-`ckaSecurityImpl_lazy_real gp gen`, and the regular false-branch oracle stack
+`ckaSecurityImplLazyReal gp gen`, and the regular false-branch oracle stack
 `ckaSecurityImpl gp false (ddhCKA F G gen)`. -/
 lemma probOutput_lazy_honest_eq [Finite G] (gp : GameParams)
     (adversary : CKAAdversary (CKAState F G) G G F) (x₀ : F) :
     Pr[= false | do
-      let (b', _) ← (simulateQ (ckaSecurityImpl_lazy_real gp gen) adversary).run
+      let (b', _) ← (simulateQ (ckaSecurityImplLazyReal gp gen) adversary).run
         ((initGameState
             (CKAState.sendReady (x₀ • gen) : CKAState F G)
             (CKAState.recvReady x₀ : CKAState F G), none), none)

@@ -27,7 +27,7 @@ private partial def copyHoverDocsToSubdirs (root : System.FilePath) : IO Unit :=
   visit root
 
 def renderManual (manual : Verso.Doc.Part Manual) (args : List String) : IO UInt32 := do
-  let exitCode ← PreviewManifest.manualMainWithSharedPreviewManifest
+  let exitCode ← PreviewManifest.blueprintMainWithPreviewData
     manual
     args
     (extensionImpls := by exact extension_impls%)

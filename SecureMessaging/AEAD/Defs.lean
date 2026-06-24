@@ -1,12 +1,13 @@
 /-
 Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Beneficial AI Foundation
 -/
 
 import VCVio.CryptoFoundations.SecExp
 import VCVio.OracleComp.Constructions.SampleableType
 import VCVio.OracleComp.SimSemantics.Append
-import VCVio.OracleComp.SimSemantics.PreservesInv
+import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
 
 /-!
 # Authenticated Encryption with Associated Data (AEAD)
@@ -119,7 +120,7 @@ variable {M AD K C : Type}
 The adversary has access to uniform randomness, a one-time encryption oracle,
 and a decryption oracle. -/
 -- ANCHOR: aeadOneTimeCCASpec
-def aeadOneTimeCCASpec (AD M C : Type) :=
+abbrev aeadOneTimeCCASpec (AD M C : Type) :=
   unifSpec + (AD × M →ₒ Option C) + (AD × C →ₒ Option M)
 -- ANCHOR_END: aeadOneTimeCCASpec
 
@@ -144,10 +145,10 @@ end aeadOneTimeCCASpec
 /-- One-time IND-CCA adversary for an AEAD scheme: a single computation with
 access to `encrypt` and `decrypt` oracles, outputting a guess bit `b'`.
 Matches the adversary `A` in ACD19 Figure 1 + Definition 2. -/
--- ANCHOR: OneTime_CCA_Adversary
-abbrev OneTime_CCA_Adversary (AD M C : Type) :=
+-- ANCHOR: OneTimeCCAAdversary
+abbrev OneTimeCCAAdversary (AD M C : Type) :=
   OracleComp (aeadOneTimeCCASpec AD M C) Bool
--- ANCHOR_END: OneTime_CCA_Adversary
+-- ANCHOR_END: OneTimeCCAAdversary
 
 /-! ### Oracle implementations -/
 
@@ -206,7 +207,7 @@ def aeadSecurityImpl [SampleableType C] [DecidableEq C]
 -- ANCHOR: securityExp
 def securityExp [SampleableType C] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
-    (adversary : OneTime_CCA_Adversary AD M C) : ProbComp Bool := do
+    (adversary : OneTimeCCAAdversary AD M C) : ProbComp Bool := do
   let k ← ae.keygen
   let b ← $ᵗ Bool
   let (b', _) ← (simulateQ (aeadSecurityImpl ae b k) adversary).run none
@@ -217,7 +218,7 @@ def securityExp [SampleableType C] [DecidableEq C]
 -- ANCHOR: guessAdvantage
 noncomputable def guessAdvantage [SampleableType C] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
-    (adversary : OneTime_CCA_Adversary AD M C) : ℝ :=
+    (adversary : OneTimeCCAAdversary AD M C) : ℝ :=
   |(Pr[= true | securityExp ae adversary]).toReal - 1 / 2|
 -- ANCHOR_END: guessAdvantage
 
@@ -228,7 +229,7 @@ The branch `b = false` is `AEAD_real`; the branch `b = true` is `AEAD_rand`.
 Returns the adversary's raw guess `b'` (not `b == b'`). -/
 def securityExpFixedBit [SampleableType C] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
-    (adversary : OneTime_CCA_Adversary AD M C)
+    (adversary : OneTimeCCAAdversary AD M C)
     (b : Bool) : ProbComp Bool := do
   let k ← ae.keygen
   let (b', _) ← (simulateQ (aeadSecurityImpl ae b k) adversary).run none
@@ -241,7 +242,7 @@ Here `AEAD_real` is `securityExpFixedBit ae adversary false` and `AEAD_rand`
 is `securityExpFixedBit ae adversary true`. -/
 noncomputable def distAdvantage [SampleableType C] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
-    (adversary : OneTime_CCA_Adversary AD M C) : ℝ :=
+    (adversary : OneTimeCCAAdversary AD M C) : ℝ :=
   |(Pr[= true | securityExpFixedBit ae adversary true]).toReal -
    (Pr[= true | securityExpFixedBit ae adversary false]).toReal|
 
@@ -257,7 +258,7 @@ returns the adversary's raw guess `b'`. Proved by swapping `b ← $ᵗ Bool` pas
 the key-generation step using `probEvent_bind_bind_swap`. -/
 private lemma securityExp_probOutput_eq_branch [SampleableType C] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
-    (adversary : OneTime_CCA_Adversary AD M C) :
+    (adversary : OneTimeCCAAdversary AD M C) :
     Pr[= true | securityExp ae adversary] =
     Pr[= true | do
       let b ← ($ᵗ Bool : ProbComp Bool)
@@ -280,7 +281,7 @@ is `securityExpFixedBit ae adversary false`; both return the adversary's
 raw guess. -/
 private lemma securityExp_toReal_sub_half [SampleableType C] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
-    (adversary : OneTime_CCA_Adversary AD M C) :
+    (adversary : OneTimeCCAAdversary AD M C) :
     (Pr[= true | securityExp ae adversary]).toReal - 1 / 2 =
     ((Pr[= true | securityExpFixedBit ae adversary true]).toReal -
      (Pr[= true | securityExpFixedBit ae adversary false]).toReal) / 2 := by
@@ -300,7 +301,7 @@ private lemma securityExp_toReal_sub_half [SampleableType C] [DecidableEq C]
 `guessAdvantage = distAdvantage / 2`. -/
 lemma guessAdvantage_eq_distAdvantage_div_two [SampleableType C] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
-    (adversary : OneTime_CCA_Adversary AD M C) :
+    (adversary : OneTimeCCAAdversary AD M C) :
     guessAdvantage ae adversary = distAdvantage ae adversary / 2 := by
   simp only [guessAdvantage, distAdvantage]
   rw [securityExp_toReal_sub_half, abs_div]

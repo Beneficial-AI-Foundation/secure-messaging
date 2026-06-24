@@ -40,13 +40,13 @@ structure CKAScheme (m : Type → Type u) [Monad m] (IK St I Rho Rand : Type) wh
   /-- Party A's send: returns the fresh epoch key, message sent to B, and A's next state. -/
   sendA : St → m (Option (I × Rho × St))
   /-- Party A's randomness-leaking send: also returns the randomness used for the send. -/
-  sendA_rleak : St → m (Option (I × Rho × St × Rand))
+  sendArleak : St → m (Option (I × Rho × St × Rand))
   /-- Party A's receive: returns the derived epoch key and A's next state. -/
   recvA : St → Rho → Option (I × St)
   /-- Party B's send: returns the fresh epoch key, message sent to A, and B's next state. -/
   sendB : St → m (Option (I × Rho × St))
   /-- Party B's randomness-leaking send: also returns the randomness used for the send. -/
-  sendB_rleak : St → m (Option (I × Rho × St × Rand))
+  sendBrleak : St → m (Option (I × Rho × St × Rand))
   /-- Party B's receive: returns the derived epoch key and B's next state. -/
   recvB : St → Rho → Option (I × St)
 ```
@@ -61,7 +61,7 @@ structure CKAScheme (m : Type → Type u) [Monad m] (IK St I Rho Rand : Type) wh
 
 :::::::definition "cka_oracles" (lean := "CKAScheme.GameState, CKAScheme.GameParams, CKAScheme.isChallengeEpoch,
 CKAScheme.allowCorrPCS, CKAScheme.allowCorrFS, CKAScheme.allowCorr, CKAScheme.oracleSendA, CKAScheme.oracleSendB,
-CKAScheme.oracleSendA_rleak, CKAScheme.oracleSendB_rleak, CKAScheme.oracleRecvA, CKAScheme.oracleRecvB,
+CKAScheme.oracleSendArleak, CKAScheme.oracleSendBrleak, CKAScheme.oracleRecvA, CKAScheme.oracleRecvB,
 CKAScheme.oracleChallA, CKAScheme.oracleChallB, CKAScheme.oracleCorruptA, CKAScheme.oracleCorruptB")
 $`\todo`
 
@@ -194,15 +194,15 @@ def oracleSendB (cka : CKAScheme ProbComp IK St I Rho Rand) :
 :::::gameCell "\\OSendARLeak" (kind := "oracle")
 $`\req\;\max(t_\mathsf{A}+1,t_\mathsf{B})+\Delta_\mathsf{PCS}\leq t^*;\quad (K_\mathsf{A},\rho_\mathsf{A},\stA,r) \sample \SendARLeak(\stA);\quad t_\mathsf{A}\gets t_\mathsf{A}+1;\quad \Return(\rho_\mathsf{A},K_\mathsf{A},r)`
 
-```anchor oracleSendA_rleak (project := ".") (module := SecureMessaging.CKA.Defs)
-def oracleSendA_rleak (gp : GameParams) (cka : CKAScheme ProbComp IK St I Rho Rand) :
+```anchor oracleSendArleak (project := ".") (module := SecureMessaging.CKA.Defs)
+def oracleSendArleak (gp : GameParams) (cka : CKAScheme ProbComp IK St I Rho Rand) :
     QueryImpl (Unit →ₒ Option (Rho × I × Rand)) (StateT (GameState St I Rho) ProbComp) :=
   fun () => do
     let state ← get
     if validStep state.lastAction .sendA then
       let state := { state with tA := state.tA + 1 }
       if allowCorrPCS gp state then
-        match ← liftM (cka.sendA_rleak state.stA) with
+        match ← liftM (cka.sendArleak state.stA) with
         | none => pure none
         | some (key, ρ, stA', rand) =>
           set { state with
@@ -217,15 +217,15 @@ def oracleSendA_rleak (gp : GameParams) (cka : CKAScheme ProbComp IK St I Rho Ra
 :::::gameCell "\\OSendBRLeak" (kind := "oracle")
 $`\req\;\max(t_\mathsf{A},t_\mathsf{B}+1)+\Delta_\mathsf{PCS}\leq t^*;\quad (K_\mathsf{B},\rho_\mathsf{B},\stB,r) \sample \SendBRLeak(\stB);\quad t_\mathsf{B}\gets t_\mathsf{B}+1;\quad \Return(\rho_\mathsf{B},K_\mathsf{B},r)`
 
-```anchor oracleSendB_rleak (project := ".") (module := SecureMessaging.CKA.Defs)
-def oracleSendB_rleak (gp : GameParams) (cka : CKAScheme ProbComp IK St I Rho Rand) :
+```anchor oracleSendBrleak (project := ".") (module := SecureMessaging.CKA.Defs)
+def oracleSendBrleak (gp : GameParams) (cka : CKAScheme ProbComp IK St I Rho Rand) :
     QueryImpl (Unit →ₒ Option (Rho × I × Rand)) (StateT (GameState St I Rho) ProbComp) :=
   fun () => do
     let state ← get
     if validStep state.lastAction .sendB then
       let state := { state with tB := state.tB + 1 }
       if allowCorrPCS gp state then
-        match ← liftM (cka.sendB_rleak state.stB) with
+        match ← liftM (cka.sendBrleak state.stB) with
         | none => pure none
         | some (key, ρ, stB', rand) =>
           set { state with
@@ -489,7 +489,7 @@ def ckaSecurityImpl (gp : GameParams) (isRandom : Bool) [SampleableType I] [Deci
   ckaCorrectnessImpl cka
     + oracleChallA gp isRandom cka + oracleChallB gp isRandom cka
     + oracleCorruptA gp St I Rho + oracleCorruptB gp St I Rho
-    + oracleSendA_rleak gp cka + oracleSendB_rleak gp cka
+    + oracleSendArleak gp cka + oracleSendBrleak gp cka
 ```
 
 :::leanPillCaption "type of adversaries with oracle access to $`\\O`"

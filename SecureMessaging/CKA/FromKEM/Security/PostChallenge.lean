@@ -1,6 +1,7 @@
 /-
 Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Beneficial AI Foundation
 -/
 
 
@@ -225,7 +226,7 @@ lemma postChallengeImpl_recvB_aToB_of_valid [SampleableType K] [DecidableEq K]
           tB := g.tB + 1 }
        pure ((), ({ game := g', pending := .none } :
          PostChallengeState K PK SK C))) := by
-  simp [postChallengeImpl, hstep, stateT_run]
+  simp [postChallengeImpl, hstep, stateTrun]
   rfl
 
 /-- Run reduction for the intercepted A-receive of the pending `bToA`
@@ -251,7 +252,7 @@ lemma postChallengeImpl_recvA_bToA_of_valid [SampleableType K] [DecidableEq K]
           tA := g.tA + 1 }
        pure ((), ({ game := g', pending := .none } :
          PostChallengeState K PK SK C))) := by
-  simp [postChallengeImpl, hstep, stateT_run]
+  simp [postChallengeImpl, hstep, stateTrun]
   rfl
 
 /-- Hidden-state agreement at B's receive of the challenge message.
@@ -290,7 +291,7 @@ lemma securityImpl_recvB_eq_project_postChallengeImpl_aToB
     (CKAScheme.oracleRecvB (scheme kem hDet leak) ()).run
         { g with stB := State.recvReady sk, rhoA := some msg, keyA := some realKey }
   simp [postChallengeImpl, CKAScheme.oracleRecvB, scheme, recv, hstep, hdec,
-    stateT_run]
+    stateTrun]
   rfl
 
 /-- Hidden-state agreement at A's receive of the challenge message, the
@@ -323,7 +324,7 @@ lemma securityImpl_recvA_eq_project_postChallengeImpl_bToA
     (CKAScheme.oracleRecvA (scheme kem hDet leak) ()).run
         { g with stA := State.recvReady sk, rhoB := some msg, keyB := some realKey }
   simp [postChallengeImpl, CKAScheme.oracleRecvA, scheme, recv, hstep, hdec,
-    stateT_run]
+    stateTrun]
   rfl
 
 /-- Answer the paused challenge query and finish the game.

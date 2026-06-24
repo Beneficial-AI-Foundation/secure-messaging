@@ -1,3 +1,8 @@
+/-
+Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Beneficial AI Foundation
+-/
 import ToMathlib.Control.StateT
 import ToVCVio.Control.SimpAttr
 
@@ -7,11 +12,11 @@ import ToVCVio.Control.SimpAttr
 Small rewrites for `StateT` computations that first read the current state with
 `get`, then choose the rest of the computation from that state.
 
-This file also fixes the membership of the `stateT_run` simp set declared in
+This file also fixes the membership of the `stateTrun` simp set declared in
 `ToVCVio/Control/SimpAttr.lean`.
 -/
 
-attribute [stateT_run]
+attribute [stateTrun]
   StateT.run_bind StateT.run_get StateT.run_set StateT.run_pure
   StateT.run_monadLift monadLift_self pure_bind
 

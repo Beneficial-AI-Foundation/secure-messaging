@@ -1,12 +1,13 @@
 /-
 Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Beneficial AI Foundation
 -/
 
 import VCVio.CryptoFoundations.SecExp
 import VCVio.OracleComp.Constructions.SampleableType
 import VCVio.OracleComp.SimSemantics.Append
-import VCVio.OracleComp.SimSemantics.PreservesInv
+import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
 
 /-!
 # Continuous Key Agreement (CKA)
@@ -33,9 +34,9 @@ Formally, a `CKAScheme` is a set of algorithms over
   Generates new epoch key `kA : I`, message `ρA : Rho` from A to B, and new state `stA' : St`.
 - `sendB : St → m (Option (I × Rho × St))`.
   Generates new epoch key `kB : I`, message `ρB : Rho` from B to A, and new state `stB' : St`.
-- `sendA_rleak : St → m (Option (I × Rho × St × Rand))`.
+- `sendArleak : St → m (Option (I × Rho × St × Rand))`.
   As `sendA`, but also returns the randomness used by A for that send.
-- `sendB_rleak : St → m (Option (I × Rho × St × Rand))`.
+- `sendBrleak : St → m (Option (I × Rho × St × Rand))`.
   As `sendB`, but also returns the randomness used by B for that send.
 - `recvA : St → Rho → Option (I × St)`.
   Processes incoming message `ρB`, derives matching epoch key `kA : I`, and new state `stA' : St`.
@@ -211,13 +212,13 @@ structure CKAScheme (m : Type → Type u) [Monad m] (IK St I Rho Rand : Type) wh
   /-- Party A's send: returns the fresh epoch key, message sent to B, and A's next state. -/
   sendA : St → m (Option (I × Rho × St))
   /-- Party A's randomness-leaking send: also returns the randomness used for the send. -/
-  sendA_rleak : St → m (Option (I × Rho × St × Rand))
+  sendArleak : St → m (Option (I × Rho × St × Rand))
   /-- Party A's receive: returns the derived epoch key and A's next state. -/
   recvA : St → Rho → Option (I × St)
   /-- Party B's send: returns the fresh epoch key, message sent to A, and B's next state. -/
   sendB : St → m (Option (I × Rho × St))
   /-- Party B's randomness-leaking send: also returns the randomness used for the send. -/
-  sendB_rleak : St → m (Option (I × Rho × St × Rand))
+  sendBrleak : St → m (Option (I × Rho × St × Rand))
   /-- Party B's receive: returns the derived epoch key and B's next state. -/
   recvB : St → Rho → Option (I × St)
 -- ANCHOR_END: CKAScheme
@@ -442,10 +443,10 @@ Marked `@[match_pattern]` so they unfold transparently in `match` patterns. -/
 @[match_pattern] abbrev OCorruptB : (ckaSecuritySpec St Rho I Rand).Domain :=
   .inl (.inl (.inr ()))
 /-- Domain index selecting the `Send-A-rleak` oracle. -/
-@[match_pattern] abbrev OSendA_rleak : (ckaSecuritySpec St Rho I Rand).Domain :=
+@[match_pattern] abbrev OSendArleak : (ckaSecuritySpec St Rho I Rand).Domain :=
   .inl (.inr ())
 /-- Domain index selecting the `Send-B-rleak` oracle. -/
-@[match_pattern] abbrev OSendB_rleak : (ckaSecuritySpec St Rho I Rand).Domain :=
+@[match_pattern] abbrev OSendBrleak : (ckaSecuritySpec St Rho I Rand).Domain :=
   .inr ()
 
 end ckaSecuritySpec
@@ -545,15 +546,15 @@ def oracleSendB (cka : CKAScheme ProbComp IK St I Rho Rand) :
 
 /-- **O-Send-A-rleak.** Like `O-Send-A`, but returns the randomness used by
 A's send when the post-increment epoch is before the `ΔPCS` challenge window. -/
--- ANCHOR: oracleSendA_rleak
-def oracleSendA_rleak (gp : GameParams) (cka : CKAScheme ProbComp IK St I Rho Rand) :
+-- ANCHOR: oracleSendArleak
+def oracleSendArleak (gp : GameParams) (cka : CKAScheme ProbComp IK St I Rho Rand) :
     QueryImpl (Unit →ₒ Option (Rho × I × Rand)) (StateT (GameState St I Rho) ProbComp) :=
   fun () => do
     let state ← get
     if validStep state.lastAction .sendA then
       let state := { state with tA := state.tA + 1 }
       if allowCorrPCS gp state then
-        match ← liftM (cka.sendA_rleak state.stA) with
+        match ← liftM (cka.sendArleak state.stA) with
         | none => pure none
         | some (key, ρ, stA', rand) =>
           set { state with
@@ -562,19 +563,19 @@ def oracleSendA_rleak (gp : GameParams) (cka : CKAScheme ProbComp IK St I Rho Ra
           return some (ρ, key, rand)
       else pure none
     else pure none
--- ANCHOR_END: oracleSendA_rleak
+-- ANCHOR_END: oracleSendArleak
 
 /-- **O-Send-B-rleak.** Like `O-Send-B`, but returns the randomness used by
 B's send when the post-increment epoch is before the `ΔPCS` challenge window. -/
--- ANCHOR: oracleSendB_rleak
-def oracleSendB_rleak (gp : GameParams) (cka : CKAScheme ProbComp IK St I Rho Rand) :
+-- ANCHOR: oracleSendBrleak
+def oracleSendBrleak (gp : GameParams) (cka : CKAScheme ProbComp IK St I Rho Rand) :
     QueryImpl (Unit →ₒ Option (Rho × I × Rand)) (StateT (GameState St I Rho) ProbComp) :=
   fun () => do
     let state ← get
     if validStep state.lastAction .sendB then
       let state := { state with tB := state.tB + 1 }
       if allowCorrPCS gp state then
-        match ← liftM (cka.sendB_rleak state.stB) with
+        match ← liftM (cka.sendBrleak state.stB) with
         | none => pure none
         | some (key, ρ, stB', rand) =>
           set { state with
@@ -583,7 +584,7 @@ def oracleSendB_rleak (gp : GameParams) (cka : CKAScheme ProbComp IK St I Rho Ra
           return some (ρ, key, rand)
       else pure none
     else pure none
--- ANCHOR_END: oracleSendB_rleak
+-- ANCHOR_END: oracleSendBrleak
 
 /-! ### Receive oracles -/
 
@@ -765,7 +766,7 @@ def ckaSecurityImpl (gp : GameParams) (isRandom : Bool) [SampleableType I] [Deci
   ckaCorrectnessImpl cka
     + oracleChallA gp isRandom cka + oracleChallB gp isRandom cka
     + oracleCorruptA gp St I Rho + oracleCorruptB gp St I Rho
-    + oracleSendA_rleak gp cka + oracleSendB_rleak gp cka
+    + oracleSendArleak gp cka + oracleSendBrleak gp cka
 -- ANCHOR_END: ckaSecurityImpl
 
 /-- Correctness adversary: send + recv oracles only. -/

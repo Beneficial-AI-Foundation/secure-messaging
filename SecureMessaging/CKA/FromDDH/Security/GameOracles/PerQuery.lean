@@ -1,6 +1,7 @@
 /-
 Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.CKA.FromDDH.Security.GameOracles.Defs
@@ -54,48 +55,48 @@ Each `O_param` oracle, when the firing party of the oracle does not match
 
 omit [Inhabited F] [Fintype G] [DecidableEq G] in
 /-- When the challenged party is `A` (so `sendA` is not the embedding
-side), `honestSendA_param` is pointwise equal to `oracleSendA (ddhCKA F G gen)`. -/
+side), `honestSendAparam` is pointwise equal to `oracleSendA (ddhCKA F G gen)`. -/
 lemma honestSendA_param_run_eq_at_chal_A
     (gp : GameParams) (h_cp : gp.challengedParty = .A)
     (a : F) (s : GameState (CKAState F G) G G) :
-    (honestSendA_param (F := F) gp gen a ()).run s =
+    (honestSendAparam (F := F) gp gen a ()).run s =
     (oracleSendA (ddhCKA F G gen) ()).run s := by
   have h_beq : (gp.challengedParty == CKAParty.B) = false := by simp [h_cp]
-  simp [honestSendA_param, StateT.run, h_beq]
+  simp [honestSendAparam, StateT.run, h_beq]
 
 omit [Inhabited F] [Fintype G] [DecidableEq G] in
-/-- Off-party dispatch: at `challengedParty = .B`, `honestSendB_param` is pointwise equal
+/-- Off-party dispatch: at `challengedParty = .B`, `honestSendBparam` is pointwise equal
 to `oracleSendB (ddhCKA F G gen)`. -/
 lemma honestSendB_param_run_eq_at_chal_B
     (gp : GameParams) (h_cp : gp.challengedParty = .B)
     (a : F) (s : GameState (CKAState F G) G G) :
-    (honestSendB_param (F := F) gp gen a ()).run s =
+    (honestSendBparam (F := F) gp gen a ()).run s =
     (oracleSendB (ddhCKA F G gen) ()).run s := by
   have h_beq : (gp.challengedParty == CKAParty.A) = false := by simp [h_cp]
-  simp [honestSendB_param, StateT.run, h_beq]
+  simp [honestSendBparam, StateT.run, h_beq]
 
 omit [Inhabited F] [Fintype G] [DecidableEq G] in
-/-- Off-party dispatch: at `challengedParty = .B`, `honestChallA_param` is pointwise equal
+/-- Off-party dispatch: at `challengedParty = .B`, `honestChallAparam` is pointwise equal
 to `oracleChallA gp (ddhCKA F G gen)`. -/
 lemma honestChallA_param_run_eq_at_chal_B
     (gp : GameParams) (h_cp : gp.challengedParty = .B)
     (b : F) (s : GameState (CKAState F G) G G) :
-    (honestChallA_param (F := F) gp gen b ()).run s =
+    (honestChallAparam (F := F) gp gen b ()).run s =
   (oracleChallA gp false (ddhCKA F G gen) ()).run s := by
   have h_beq : (gp.challengedParty == CKAParty.A) = false := by simp [h_cp]
-  unfold honestChallA_param honestChallA_param_mode
+  unfold honestChallAparam honestChallAparamMode
   simp [h_beq]
 
 omit [Inhabited F] [Fintype G] [DecidableEq G] in
-/-- Off-party dispatch: at `challengedParty = .A`, `honestChallB_param` is pointwise equal
+/-- Off-party dispatch: at `challengedParty = .A`, `honestChallBparam` is pointwise equal
 to `oracleChallB gp (ddhCKA F G gen)`. -/
 lemma honestChallB_param_run_eq_at_chal_A
     (gp : GameParams) (h_cp : gp.challengedParty = .A)
     (b : F) (s : GameState (CKAState F G) G G) :
-    (honestChallB_param (F := F) gp gen b ()).run s =
+    (honestChallBparam (F := F) gp gen b ()).run s =
   (oracleChallB gp false (ddhCKA F G gen) ()).run s := by
   have h_beq : (gp.challengedParty == CKAParty.B) = false := by simp [h_cp]
-  unfold honestChallB_param honestChallB_param_mode
+  unfold honestChallBparam honestChallBparamMode
   simp [h_beq]
 
 omit [Inhabited F] [Fintype G] [DecidableEq G] in
@@ -116,9 +117,9 @@ lemma honestSendA_param_run_eq_when_pred_false
     (h_pred : (validStep s.lastAction CKAAction.sendA &&
                (gp.challengedParty == CKAParty.B) &&
                isOtherSendBeforeChall gp { s with tA := s.tA + 1 }) = false) :
-    (honestSendA_param (F := F) gp gen a ()).run s =
+    (honestSendAparam (F := F) gp gen a ()).run s =
     (oracleSendA (ddhCKA F G gen) ()).run s := by
-  unfold honestSendA_param
+  unfold honestSendAparam
   exact StateT.run_get_bind_ite_eq_else_of_pred_false _ _ _ s h_pred
 
 omit [Inhabited F] [Fintype G] [DecidableEq G] in
@@ -129,9 +130,9 @@ lemma honestSendB_param_run_eq_when_pred_false
     (h_pred : (validStep s.lastAction CKAAction.sendB &&
                (gp.challengedParty == CKAParty.A) &&
                isOtherSendBeforeChall gp { s with tB := s.tB + 1 }) = false) :
-    (honestSendB_param (F := F) gp gen a ()).run s =
+    (honestSendBparam (F := F) gp gen a ()).run s =
     (oracleSendB (ddhCKA F G gen) ()).run s := by
-  unfold honestSendB_param
+  unfold honestSendBparam
   exact StateT.run_get_bind_ite_eq_else_of_pred_false _ _ _ s h_pred
 
 /-! ### Active-firing run equations (send oracles)
@@ -153,7 +154,7 @@ lemma honestSendA_param_run_eq_at_chal_B_inr
     (h_valid : validStep s.lastAction CKAAction.sendA = true)
     (h_other : isOtherSendBeforeChall gp { s with tA := s.tA + 1 } = true)
     (h_stA : s.stA = CKAState.sendReady h) :
-    (honestSendA_param (F := F) gp gen a ()).run s =
+    (honestSendAparam (F := F) gp gen a ()).run s =
       pure (some (a • gen, a • h),
         { s with
           stA := (.recvReady a : CKAState F G),
@@ -164,7 +165,7 @@ lemma honestSendA_param_run_eq_at_chal_B_inr
   have h_other' :
       isOtherSendBeforeChall gp { s with stA := CKAState.sendReady h, tA := s.tA + 1 } = true := by
     simpa [h_stA] using h_other
-  simp [honestSendA_param, StateT.run_bind, StateT.run_get, StateT.run_set,
+  simp [honestSendAparam, StateT.run_bind, StateT.run_get, StateT.run_set,
     pure_bind, h_valid, h_cp, h_other', h_stA]
 
 omit [Inhabited F] [Fintype G] [DecidableEq G] in
@@ -180,7 +181,7 @@ lemma honestSendB_param_run_eq_at_chal_A_inr
     (h_valid : validStep s.lastAction CKAAction.sendB = true)
     (h_other : isOtherSendBeforeChall gp { s with tB := s.tB + 1 } = true)
     (h_stB : s.stB = CKAState.sendReady h) :
-    (honestSendB_param (F := F) gp gen a ()).run s =
+    (honestSendBparam (F := F) gp gen a ()).run s =
       pure (some (a • gen, a • h),
         { s with
           stB := (.recvReady a : CKAState F G),
@@ -191,41 +192,41 @@ lemma honestSendB_param_run_eq_at_chal_A_inr
   have h_other' :
       isOtherSendBeforeChall gp { s with stB := CKAState.sendReady h, tB := s.tB + 1 } = true := by
     simpa [h_stB] using h_other
-  simp [honestSendB_param, StateT.run_bind, StateT.run_get, StateT.run_set,
+  simp [honestSendBparam, StateT.run_bind, StateT.run_get, StateT.run_set,
     pure_bind, h_valid, h_cp, h_other', h_stB]
 
 /-! ### Special-case impl-level independence (real branch)
 
 When `challengeEpoch = 1` and `challengedParty = .A`, the embedding event
-(`sendB` at `t* − 1 = 0`) is unreachable, so `honestImpl_param_real` never
+(`sendB` at `t* − 1 = 0`) is unreachable, so `honestImplParamReal` never
 consumes `a`. The lemma below states `a`-independence of the full impl at
 every state, with no state precondition. -/
 
 omit [Inhabited F] [Fintype G] in
 /-- In the special case `challengeEpoch = 1`, `challengedParty = A`, the output
-of `honestImpl_param_real` does not depend on the parameter `a` at any query. -/
+of `honestImplParamReal` does not depend on the parameter `a` at any query. -/
 lemma honestImpl_param_real_a_indep_special
     (gp : GameParams) (h_special_case : gp.challengeEpoch = 1 ∧ gp.challengedParty = .A)
     (b : F)
     (t : (ckaSecuritySpec (CKAState F G) G G F).Domain)
     (s : GameState (CKAState F G) G G) (a₁ a₂ : F) :
-    (honestImpl_param_real gp gen a₁ b t).run s =
-    (honestImpl_param_real gp gen a₂ b t).run s := by
+    (honestImplParamReal gp gen a₁ b t).run s =
+    (honestImplParamReal gp gen a₂ b t).run s := by
   rcases h_special_case with ⟨h_challengeEpoch, h_cp⟩
   match t with
-  | OSendB_rleak => rfl
-  | OSendA_rleak => rfl
+  | OSendBrleak => rfl
+  | OSendArleak => rfl
   | OCorruptB => rfl
   | OCorruptA => rfl
   | OChallB =>
-    simp [honestImpl_param_real, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
-      honestChallB_param, honestChallB_param_mode]
+    simp [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
+      honestChallBparam, honestChallBparamMode]
   | OChallA =>
-    simp [honestImpl_param_real, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
-      honestChallA_param, honestChallA_param_mode]
+    simp [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
+      honestChallAparam, honestChallAparamMode]
   | ORecvB => rfl
   | OSendB =>
-    change (honestSendB_param gp gen a₁ ()).run s = (honestSendB_param gp gen a₂ ()).run s
+    change (honestSendBparam gp gen a₁ ()).run s = (honestSendBparam gp gen a₂ ()).run s
     have h_pred_false :
         (validStep s.lastAction CKAAction.sendB &&
           (gp.challengedParty == CKAParty.A) &&
@@ -238,8 +239,8 @@ lemma honestImpl_param_real_a_indep_special
       honestSendB_param_run_eq_when_pred_false (gen := gen) gp a₂ s h_pred_false]
   | ORecvA => rfl
   | OSendA =>
-    simp [honestImpl_param_real, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
-      honestSendA_param]
+    simp [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
+      honestSendAparam]
   | OUnif _ => rfl
 
 /-! ### Predicate-false dispatch (chall oracles, real and rand)
@@ -255,9 +256,9 @@ lemma honestChallA_param_run_eq_when_pred_false
     (h_pred : (validStep s.lastAction CKAAction.challA &&
                (gp.challengedParty == CKAParty.A) &&
                isChallengeEpoch gp { s with tA := s.tA + 1 }) = false) :
-    (honestChallA_param (F := F) gp gen b ()).run s =
+    (honestChallAparam (F := F) gp gen b ()).run s =
     (oracleChallA gp false (ddhCKA F G gen) ()).run s := by
-  unfold honestChallA_param honestChallA_param_mode
+  unfold honestChallAparam honestChallAparamMode
   exact StateT.run_get_bind_ite_eq_else_of_pred_false _ _ _ s h_pred
 
 omit [Inhabited F] [Fintype G] [DecidableEq G] in
@@ -267,9 +268,9 @@ lemma honestChallB_param_run_eq_when_pred_false
     (h_pred : (validStep s.lastAction CKAAction.challB &&
                (gp.challengedParty == CKAParty.B) &&
                isChallengeEpoch gp { s with tB := s.tB + 1 }) = false) :
-    (honestChallB_param (F := F) gp gen b ()).run s =
+    (honestChallBparam (F := F) gp gen b ()).run s =
     (oracleChallB gp false (ddhCKA F G gen) ()).run s := by
-  unfold honestChallB_param honestChallB_param_mode
+  unfold honestChallBparam honestChallBparamMode
   exact StateT.run_get_bind_ite_eq_else_of_pred_false _ _ _ s h_pred
 
 omit [Inhabited F] [Fintype G] [DecidableEq G] in
@@ -279,9 +280,9 @@ lemma honestChallA_param_rand_run_eq_when_pred_false
     (h_pred : (validStep s.lastAction CKAAction.challA &&
                (gp.challengedParty == CKAParty.A) &&
                isChallengeEpoch gp { s with tA := s.tA + 1 }) = false) :
-    (honestChallA_param_rand (F := F) gp gen b gT ()).run s =
+    (honestChallAparamRand (F := F) gp gen b gT ()).run s =
     (oracleChallA gp true (ddhCKA F G gen) ()).run s := by
-  unfold honestChallA_param_rand honestChallA_param_mode
+  unfold honestChallAparamRand honestChallAparamMode
   exact StateT.run_get_bind_ite_eq_else_of_pred_false _ _ _ s h_pred
 
 omit [Inhabited F] [Fintype G] [DecidableEq G] in
@@ -291,9 +292,9 @@ lemma honestChallB_param_rand_run_eq_when_pred_false
     (h_pred : (validStep s.lastAction CKAAction.challB &&
                (gp.challengedParty == CKAParty.B) &&
                isChallengeEpoch gp { s with tB := s.tB + 1 }) = false) :
-    (honestChallB_param_rand (F := F) gp gen b gT ()).run s =
+    (honestChallBparamRand (F := F) gp gen b gT ()).run s =
     (oracleChallB gp true (ddhCKA F G gen) ()).run s := by
-  unfold honestChallB_param_rand honestChallB_param_mode
+  unfold honestChallBparamRand honestChallBparamMode
   exact StateT.run_get_bind_ite_eq_else_of_pred_false _ _ _ s h_pred
 
 /-! ### Active-firing run equations (chall oracles)
@@ -313,7 +314,7 @@ lemma honestChallA_param_mode_run_eq_at_chal_A_inr
     (h_valid : validStep s.lastAction CKAAction.challA = true)
     (h_epoch : isChallengeEpoch gp { s with tA := s.tA + 1 } = true)
     (h_stA : s.stA = CKAState.sendReady h) :
-    (honestChallA_param_mode (F := F) mode gp gen b gT ()).run s =
+    (honestChallAparamMode (F := F) mode gp gen b gT ()).run s =
       pure (some (b • gen, mode.outputKey b h gT),
         { s with
           stA := (.recvReady b : CKAState F G),
@@ -325,7 +326,7 @@ lemma honestChallA_param_mode_run_eq_at_chal_A_inr
       isChallengeEpoch gp
         { s with stA := CKAState.sendReady h, tA := s.tA + 1 } = true := by
     simpa [h_stA] using h_epoch
-  simp [honestChallA_param_mode, StateT.run_bind, StateT.run_get, StateT.run_set,
+  simp [honestChallAparamMode, StateT.run_bind, StateT.run_get, StateT.run_set,
     pure_bind, h_valid, h_cp, h_epoch', h_stA]
 
 omit [Inhabited F] [Fintype G] [DecidableEq G] in
@@ -337,7 +338,7 @@ lemma honestChallB_param_mode_run_eq_at_chal_B_inr
     (h_valid : validStep s.lastAction CKAAction.challB = true)
     (h_epoch : isChallengeEpoch gp { s with tB := s.tB + 1 } = true)
     (h_stB : s.stB = CKAState.sendReady h) :
-    (honestChallB_param_mode (F := F) mode gp gen b gT ()).run s =
+    (honestChallBparamMode (F := F) mode gp gen b gT ()).run s =
       pure (some (b • gen, mode.outputKey b h gT),
         { s with
           stB := (.recvReady b : CKAState F G),
@@ -349,13 +350,13 @@ lemma honestChallB_param_mode_run_eq_at_chal_B_inr
       isChallengeEpoch gp
         { s with stB := CKAState.sendReady h, tB := s.tB + 1 } = true := by
      simpa [h_stB] using h_epoch
-  simp [honestChallB_param_mode, StateT.run_bind, StateT.run_get, StateT.run_set,
+  simp [honestChallBparamMode, StateT.run_bind, StateT.run_get, StateT.run_set,
     pure_bind, h_valid, h_cp, h_epoch', h_stB]
 
 /-! ### Special-case impl-level independence (rand branch) -/
 
 omit [Inhabited F] [Fintype G] in
-/-- Rand special case: the output of `honestImpl_param_rand` does not depend
+/-- Rand special case: the output of `honestImplParamRand` does not depend
 on the embedding parameter `a`, for the same reason as in
 `honestImpl_param_real_a_indep_special`. -/
 lemma honestImpl_param_rand_a_indep_special
@@ -363,23 +364,23 @@ lemma honestImpl_param_rand_a_indep_special
     (b : F) (gT : G)
     (t : (ckaSecuritySpec (CKAState F G) G G F).Domain)
     (s : GameState (CKAState F G) G G) (a₁ a₂ : F) :
-    (honestImpl_param_rand gp gen a₁ b gT t).run s =
-    (honestImpl_param_rand gp gen a₂ b gT t).run s := by
+    (honestImplParamRand gp gen a₁ b gT t).run s =
+    (honestImplParamRand gp gen a₂ b gT t).run s := by
   rcases h_special_case with ⟨h_challengeEpoch, h_cp⟩
   match t with
-  | OSendB_rleak => rfl
-  | OSendA_rleak => rfl
+  | OSendBrleak => rfl
+  | OSendArleak => rfl
   | OCorruptB => rfl
   | OCorruptA => rfl
   | OChallB =>
-    simp [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
-      honestChallB_param_rand, honestChallB_param_mode]
+    simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
+      honestChallBparamRand, honestChallBparamMode]
   | OChallA =>
-    simp [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
-      honestChallA_param_rand, honestChallA_param_mode]
+    simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
+      honestChallAparamRand, honestChallAparamMode]
   | ORecvB => rfl
   | OSendB =>
-    change (honestSendB_param gp gen a₁ ()).run s = (honestSendB_param gp gen a₂ ()).run s
+    change (honestSendBparam gp gen a₁ ()).run s = (honestSendBparam gp gen a₂ ()).run s
     have h_pred_false :
         (validStep s.lastAction CKAAction.sendB &&
           (gp.challengedParty == CKAParty.A) &&
@@ -392,13 +393,13 @@ lemma honestImpl_param_rand_a_indep_special
       honestSendB_param_run_eq_when_pred_false (gen := gen) gp a₂ s h_pred_false]
   | ORecvA => rfl
   | OSendA =>
-    simp [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
-      honestSendA_param]
+    simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
+      honestSendAparam]
   | OUnif _ => rfl
 
 omit [Inhabited F] [Fintype G] in
 /-- Special rand case: once A has reached the challenge epoch (`gp.challengeEpoch ≤ s.tA`),
-the output of `honestImpl_param_rand` no longer depends on the challenge
+the output of `honestImplParamRand` no longer depends on the challenge
 parameter `b`, because no further `challA` can fire. -/
 lemma honestImpl_param_rand_b_indep_post_challA_special
     (gp : GameParams) (h_special_case : gp.challengeEpoch = 1 ∧ gp.challengedParty = .A)
@@ -406,20 +407,20 @@ lemma honestImpl_param_rand_b_indep_post_challA_special
     (t : (ckaSecuritySpec (CKAState F G) G G F).Domain)
     (s : GameState (CKAState F G) G G) (h_post : gp.challengeEpoch ≤ s.tA)
     (b₁ b₂ : F) :
-    (honestImpl_param_rand gp gen a b₁ gT t).run s =
-    (honestImpl_param_rand gp gen a b₂ gT t).run s := by
+    (honestImplParamRand gp gen a b₁ gT t).run s =
+    (honestImplParamRand gp gen a b₂ gT t).run s := by
   rcases h_special_case with ⟨h_challengeEpoch, h_cp⟩
   match t with
-  | OSendB_rleak => rfl
-  | OSendA_rleak => rfl
+  | OSendBrleak => rfl
+  | OSendArleak => rfl
   | OCorruptB => rfl
   | OCorruptA => rfl
   | OChallB =>
-    simp [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
-      honestChallB_param_rand, honestChallB_param_mode]
+    simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
+      honestChallBparamRand, honestChallBparamMode]
   | OChallA =>
-    change (honestChallA_param_rand gp gen b₁ gT ()).run s =
-      (honestChallA_param_rand gp gen b₂ gT ()).run s
+    change (honestChallAparamRand gp gen b₁ gT ()).run s =
+      (honestChallAparamRand gp gen b₂ gT ()).run s
     have h_epoch_false : isChallengeEpoch gp { s with tA := s.tA + 1 } = false := by
       simp [isChallengeEpoch, GameState.tP, h_cp, h_challengeEpoch] at h_post ⊢
       omega
@@ -432,12 +433,12 @@ lemma honestImpl_param_rand_b_indep_post_challA_special
       honestChallA_param_rand_run_eq_when_pred_false (gen := gen) gp b₂ gT s h_pred_false]
   | ORecvB => rfl
   | OSendB =>
-    simp [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
-      honestSendB_param]
+    simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
+      honestSendBparam]
   | ORecvA => rfl
   | OSendA =>
-    simp [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
-      honestSendA_param]
+    simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
+      honestSendAparam]
   | OUnif _ => rfl
 
 /-! ### Per-oracle parameter independence
@@ -448,14 +449,14 @@ the *handler-local* `hindep` lemmas used by `consumeLazy`'s parameter-
 independence hypothesis, and by the full-impl lemmas below. -/
 
 omit [Inhabited F] [Fintype G] [DecidableEq G] in
-/-- When the challenged party is `B`, `honestSendA_param` is `a`-independent
+/-- When the challenged party is `B`, `honestSendAparam` is `a`-independent
 at any state where the embedding cannot fire (`s.tA + 1 ≠ gp.challengeEpoch - 1`,
 i.e., this `sendA` call is not the one that would substitute `a`). -/
 lemma honestSendA_param_a_indep_post_event
     (gp : GameParams) (h_cp : gp.challengedParty = .B) (a₁ a₂ : F)
     (s : GameState (CKAState F G) G G) (h_post : s.tA + 1 ≠ gp.challengeEpoch - 1) :
-    (honestSendA_param (F := F) gp gen a₁ ()).run s =
-    (honestSendA_param (F := F) gp gen a₂ ()).run s := by
+    (honestSendAparam (F := F) gp gen a₁ ()).run s =
+    (honestSendAparam (F := F) gp gen a₂ ()).run s := by
   have h_pred_false :
       (validStep s.lastAction CKAAction.sendA &&
        (gp.challengedParty == CKAParty.B) &&
@@ -473,8 +474,8 @@ sendB embedding has fired, further sendB calls are `a`-independent. -/
 lemma honestSendB_param_a_indep_post_event
     (gp : GameParams) (h_cp : gp.challengedParty = .A) (a₁ a₂ : F)
     (s : GameState (CKAState F G) G G) (h_post : s.tB + 1 ≠ gp.challengeEpoch - 1) :
-    (honestSendB_param (F := F) gp gen a₁ ()).run s =
-    (honestSendB_param (F := F) gp gen a₂ ()).run s := by
+    (honestSendBparam (F := F) gp gen a₁ ()).run s =
+    (honestSendBparam (F := F) gp gen a₂ ()).run s := by
   have h_pred_false :
       (validStep s.lastAction CKAAction.sendB &&
        (gp.challengedParty == CKAParty.A) &&
@@ -492,8 +493,8 @@ challA calls are `b`-independent. -/
 lemma honestChallA_param_b_indep_post_event
     (gp : GameParams) (h_cp : gp.challengedParty = .A) (b₁ b₂ : F)
     (s : GameState (CKAState F G) G G) (h_post : s.tA + 1 ≠ gp.challengeEpoch) :
-    (honestChallA_param (F := F) gp gen b₁ ()).run s =
-    (honestChallA_param (F := F) gp gen b₂ ()).run s := by
+    (honestChallAparam (F := F) gp gen b₁ ()).run s =
+    (honestChallAparam (F := F) gp gen b₂ ()).run s := by
   have h_pred_false :
       (validStep s.lastAction CKAAction.challA &&
        (gp.challengedParty == CKAParty.A) &&
@@ -511,8 +512,8 @@ challB calls are `b`-independent. -/
 lemma honestChallB_param_b_indep_post_event
     (gp : GameParams) (h_cp : gp.challengedParty = .B) (b₁ b₂ : F)
     (s : GameState (CKAState F G) G G) (h_post : s.tB + 1 ≠ gp.challengeEpoch) :
-    (honestChallB_param (F := F) gp gen b₁ ()).run s =
-    (honestChallB_param (F := F) gp gen b₂ ()).run s := by
+    (honestChallBparam (F := F) gp gen b₁ ()).run s =
+    (honestChallBparam (F := F) gp gen b₂ ()).run s := by
   have h_pred_false :
       (validStep s.lastAction CKAAction.challB &&
        (gp.challengedParty == CKAParty.B) &&
@@ -529,8 +530,8 @@ omit [Inhabited F] [Fintype G] [DecidableEq G] in
 lemma honestChallA_param_rand_b_indep_post_event
     (gp : GameParams) (h_cp : gp.challengedParty = .A) (b₁ b₂ : F) (gT : G)
     (s : GameState (CKAState F G) G G) (h_post : s.tA + 1 ≠ gp.challengeEpoch) :
-    (honestChallA_param_rand (F := F) gp gen b₁ gT ()).run s =
-    (honestChallA_param_rand (F := F) gp gen b₂ gT ()).run s := by
+    (honestChallAparamRand (F := F) gp gen b₁ gT ()).run s =
+    (honestChallAparamRand (F := F) gp gen b₂ gT ()).run s := by
   have h_pred_false :
       (validStep s.lastAction CKAAction.challA &&
        (gp.challengedParty == CKAParty.A) &&
@@ -547,8 +548,8 @@ omit [Inhabited F] [Fintype G] [DecidableEq G] in
 lemma honestChallB_param_rand_b_indep_post_event
     (gp : GameParams) (h_cp : gp.challengedParty = .B) (b₁ b₂ : F) (gT : G)
     (s : GameState (CKAState F G) G G) (h_post : s.tB + 1 ≠ gp.challengeEpoch) :
-    (honestChallB_param_rand (F := F) gp gen b₁ gT ()).run s =
-    (honestChallB_param_rand (F := F) gp gen b₂ gT ()).run s := by
+    (honestChallBparamRand (F := F) gp gen b₁ gT ()).run s =
+    (honestChallBparamRand (F := F) gp gen b₂ gT ()).run s := by
   have h_pred_false :
       (validStep s.lastAction CKAAction.challB &&
        (gp.challengedParty == CKAParty.B) &&
@@ -565,8 +566,8 @@ omit [Inhabited F] [Fintype G] [DecidableEq G] in
 lemma honestChallA_param_rand_gT_indep_post_event
     (gp : GameParams) (h_cp : gp.challengedParty = .A) (b : F) (gT₁ gT₂ : G)
     (s : GameState (CKAState F G) G G) (h_post : s.tA + 1 ≠ gp.challengeEpoch) :
-    (honestChallA_param_rand (F := F) gp gen b gT₁ ()).run s =
-    (honestChallA_param_rand (F := F) gp gen b gT₂ ()).run s := by
+    (honestChallAparamRand (F := F) gp gen b gT₁ ()).run s =
+    (honestChallAparamRand (F := F) gp gen b gT₂ ()).run s := by
   have h_pred_false :
       (validStep s.lastAction CKAAction.challA &&
        (gp.challengedParty == CKAParty.A) &&
@@ -583,8 +584,8 @@ omit [Inhabited F] [Fintype G] [DecidableEq G] in
 lemma honestChallB_param_rand_gT_indep_post_event
     (gp : GameParams) (h_cp : gp.challengedParty = .B) (b : F) (gT₁ gT₂ : G)
     (s : GameState (CKAState F G) G G) (h_post : s.tB + 1 ≠ gp.challengeEpoch) :
-    (honestChallB_param_rand (F := F) gp gen b gT₁ ()).run s =
-    (honestChallB_param_rand (F := F) gp gen b gT₂ ()).run s := by
+    (honestChallBparamRand (F := F) gp gen b gT₁ ()).run s =
+    (honestChallBparamRand (F := F) gp gen b gT₂ ()).run s := by
   have h_pred_false :
       (validStep s.lastAction CKAAction.challB &&
        (gp.challengedParty == CKAParty.B) &&
@@ -599,8 +600,8 @@ lemma honestChallB_param_rand_gT_indep_post_event
 omit [Inhabited F] [Fintype G] in
 /-! ### Full-impl parameter independence
 
-Per-oracle independence above promoted to the full `honestImpl_param_real` /
-`honestImpl_param_rand` set: under a state invariant ensuring no further
+Per-oracle independence above promoted to the full `honestImplParamReal` /
+`honestImplParamRand` set: under a state invariant ensuring no further
 firing event can happen, the output at every oracle index is independent of
 the corresponding parameter. Together with the special-case lemmas, these
 provide the `hindep` hypotheses that `consumeLazy` requires in
@@ -617,26 +618,26 @@ lemma honestImpl_param_real_a_indep_post_sendA
     (t : (ckaSecuritySpec (CKAState F G) G G F).Domain)
     (s : GameState (CKAState F G) G G) (h_post : s.tA + 1 ≠ gp.challengeEpoch - 1)
     (a₁ a₂ : F) :
-    (honestImpl_param_real gp gen a₁ b t).run s =
-    (honestImpl_param_real gp gen a₂ b t).run s := by
+    (honestImplParamReal gp gen a₁ b t).run s =
+    (honestImplParamReal gp gen a₂ b t).run s := by
   match t with
-  | OSendB_rleak => rfl
-  | OSendA_rleak => rfl
+  | OSendBrleak => rfl
+  | OSendArleak => rfl
   | OCorruptB => rfl  -- corruptB
   | OCorruptA => rfl  -- corruptA
   | OChallB =>  -- challB at h_cp = .B uses parameter b, not a
-    simp [honestImpl_param_real, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestChallB_param, honestChallB_param_mode, h_cp]
+    simp [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
+      honestChallBparam, honestChallBparamMode, h_cp]
   | OChallA =>  -- challA at h_cp = .B is off-party
-    simp [honestImpl_param_real, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestChallA_param, honestChallA_param_mode, h_cp]
+    simp [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
+      honestChallAparam, honestChallAparamMode, h_cp]
   | ORecvB => rfl  -- recvB
   | OSendB =>  -- sendB at h_cp = .B is off-party
-    simp [honestImpl_param_real, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestSendB_param, h_cp]
+    simp [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
+      honestSendBparam, h_cp]
   | ORecvA => rfl  -- recvA
   | OSendA =>  -- sendA: hit at challengedParty=B
-    change (honestSendA_param gp gen a₁ ()).run s = (honestSendA_param gp gen a₂ ()).run s
+    change (honestSendAparam gp gen a₁ ()).run s = (honestSendAparam gp gen a₂ ()).run s
     exact honestSendA_param_a_indep_post_event (gen := gen) gp h_cp a₁ a₂ s h_post
   | OUnif _ => rfl  -- oracleUnif
 
@@ -649,27 +650,27 @@ lemma honestImpl_param_real_a_indep_post_sendB
     (t : (ckaSecuritySpec (CKAState F G) G G F).Domain)
     (s : GameState (CKAState F G) G G) (h_post : s.tB + 1 ≠ gp.challengeEpoch - 1)
     (a₁ a₂ : F) :
-    (honestImpl_param_real gp gen a₁ b t).run s =
-    (honestImpl_param_real gp gen a₂ b t).run s := by
+    (honestImplParamReal gp gen a₁ b t).run s =
+    (honestImplParamReal gp gen a₂ b t).run s := by
   match t with
-  | OSendB_rleak => rfl
-  | OSendA_rleak => rfl
+  | OSendBrleak => rfl
+  | OSendArleak => rfl
   | OCorruptB => rfl
   | OCorruptA => rfl
   | OChallB =>  -- challB at h_cp = .A is off-party
-    simp [honestImpl_param_real, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestChallB_param, honestChallB_param_mode, h_cp]
+    simp [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
+      honestChallBparam, honestChallBparamMode, h_cp]
   | OChallA =>  -- challA at h_cp = .A uses parameter b, not a
-    simp [honestImpl_param_real, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestChallA_param, honestChallA_param_mode, h_cp]
+    simp [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
+      honestChallAparam, honestChallAparamMode, h_cp]
   | ORecvB => rfl
   | OSendB =>  -- sendB: hit at challengedParty=A
-    change (honestSendB_param gp gen a₁ ()).run s = (honestSendB_param gp gen a₂ ()).run s
+    change (honestSendBparam gp gen a₁ ()).run s = (honestSendBparam gp gen a₂ ()).run s
     exact honestSendB_param_a_indep_post_event (gen := gen) gp h_cp a₁ a₂ s h_post
   | ORecvA => rfl
   | OSendA =>  -- sendA at h_cp = .A is off-party
-    simp [honestImpl_param_real, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestSendA_param, h_cp]
+    simp [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
+      honestSendAparam, h_cp]
   | OUnif _ => rfl
 
 omit [Inhabited F] [Fintype G] in
@@ -680,18 +681,18 @@ lemma honestImpl_param_real_b_indep_post_challA
     (t : (ckaSecuritySpec (CKAState F G) G G F).Domain)
     (s : GameState (CKAState F G) G G) (h_post : s.tA + 1 ≠ gp.challengeEpoch)
     (b₁ b₂ : F) :
-    (honestImpl_param_real gp gen a b₁ t).run s =
-    (honestImpl_param_real gp gen a b₂ t).run s := by
+    (honestImplParamReal gp gen a b₁ t).run s =
+    (honestImplParamReal gp gen a b₂ t).run s := by
   match t with
-  | OSendB_rleak => rfl
-  | OSendA_rleak => rfl
+  | OSendBrleak => rfl
+  | OSendArleak => rfl
   | OCorruptB => rfl
   | OCorruptA => rfl
   | OChallB =>  -- challB at h_cp = .A is off-party
-    simp [honestImpl_param_real, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestChallB_param, honestChallB_param_mode, h_cp]
+    simp [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
+      honestChallBparam, honestChallBparamMode, h_cp]
   | OChallA =>  -- challA: hit at challengedParty=A
-    change (honestChallA_param gp gen b₁ ()).run s = (honestChallA_param gp gen b₂ ()).run s
+    change (honestChallAparam gp gen b₁ ()).run s = (honestChallAparam gp gen b₂ ()).run s
     exact honestChallA_param_b_indep_post_event (gen := gen) gp h_cp b₁ b₂ s h_post
   | ORecvB => rfl
   | OSendB =>  -- sendB uses parameter `a`, not `b`
@@ -709,18 +710,18 @@ lemma honestImpl_param_real_b_indep_post_challB
     (t : (ckaSecuritySpec (CKAState F G) G G F).Domain)
     (s : GameState (CKAState F G) G G) (h_post : s.tB + 1 ≠ gp.challengeEpoch)
     (b₁ b₂ : F) :
-    (honestImpl_param_real gp gen a b₁ t).run s =
-    (honestImpl_param_real gp gen a b₂ t).run s := by
+    (honestImplParamReal gp gen a b₁ t).run s =
+    (honestImplParamReal gp gen a b₂ t).run s := by
   match t with
-  | OSendB_rleak => rfl
-  | OSendA_rleak => rfl
+  | OSendBrleak => rfl
+  | OSendArleak => rfl
   | OCorruptB => rfl
   | OCorruptA => rfl
   | OChallA =>  -- challA at h_cp = .B is off-party
-    simp [honestImpl_param_real, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestChallA_param, honestChallA_param_mode, h_cp]
+    simp [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
+      honestChallAparam, honestChallAparamMode, h_cp]
   | OChallB =>  -- challB: hit at challengedParty=B
-    change (honestChallB_param gp gen b₁ ()).run s = (honestChallB_param gp gen b₂ ()).run s
+    change (honestChallBparam gp gen b₁ ()).run s = (honestChallBparam gp gen b₂ ()).run s
     exact honestChallB_param_b_indep_post_event (gen := gen) gp h_cp b₁ b₂ s h_post
   | ORecvB => rfl
   | OSendA =>  -- sendA uses parameter `a`, not `b`
@@ -737,27 +738,27 @@ lemma honestImpl_param_rand_a_indep_post_sendA
     (t : (ckaSecuritySpec (CKAState F G) G G F).Domain)
     (s : GameState (CKAState F G) G G) (h_post : s.tA + 1 ≠ gp.challengeEpoch - 1)
     (a₁ a₂ : F) :
-    (honestImpl_param_rand gp gen a₁ b gT t).run s =
-    (honestImpl_param_rand gp gen a₂ b gT t).run s := by
+    (honestImplParamRand gp gen a₁ b gT t).run s =
+    (honestImplParamRand gp gen a₂ b gT t).run s := by
   match t with
-  | OSendB_rleak => rfl
-  | OSendA_rleak => rfl
+  | OSendBrleak => rfl
+  | OSendArleak => rfl
   | OCorruptB => rfl
   | OCorruptA => rfl
   | OChallB =>
-    simp [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestChallB_param_rand, honestChallB_param_mode, h_cp]
+    simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
+      honestChallBparamRand, honestChallBparamMode, h_cp]
   | OChallA =>
-    simp [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestChallA_param_rand, honestChallA_param_mode, h_cp]
+    simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
+      honestChallAparamRand, honestChallAparamMode, h_cp]
   | ORecvB => rfl
   | OSendB =>
-    simp [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestSendB_param, h_cp]
+    simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
+      honestSendBparam, h_cp]
   | ORecvA => rfl
   | OSendA =>
-    change (honestSendA_param gp gen a₁ ()).run s =
-      (honestSendA_param gp gen a₂ ()).run s
+    change (honestSendAparam gp gen a₁ ()).run s =
+      (honestSendAparam gp gen a₂ ()).run s
     exact honestSendA_param_a_indep_post_event (gen := gen) gp h_cp a₁ a₂ s h_post
   | OUnif _ => rfl
 
@@ -768,28 +769,28 @@ lemma honestImpl_param_rand_a_indep_post_sendB
     (t : (ckaSecuritySpec (CKAState F G) G G F).Domain)
     (s : GameState (CKAState F G) G G) (h_post : s.tB + 1 ≠ gp.challengeEpoch - 1)
     (a₁ a₂ : F) :
-    (honestImpl_param_rand gp gen a₁ b gT t).run s =
-    (honestImpl_param_rand gp gen a₂ b gT t).run s := by
+    (honestImplParamRand gp gen a₁ b gT t).run s =
+    (honestImplParamRand gp gen a₂ b gT t).run s := by
   match t with
-  | OSendB_rleak => rfl
-  | OSendA_rleak => rfl
+  | OSendBrleak => rfl
+  | OSendArleak => rfl
   | OCorruptB => rfl
   | OCorruptA => rfl
   | OChallB =>
-    simp [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestChallB_param_rand, honestChallB_param_mode, h_cp]
+    simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
+      honestChallBparamRand, honestChallBparamMode, h_cp]
   | OChallA =>
-    simp [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestChallA_param_rand, honestChallA_param_mode, h_cp]
+    simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
+      honestChallAparamRand, honestChallAparamMode, h_cp]
   | ORecvB => rfl
   | OSendB =>
-    change (honestSendB_param gp gen a₁ ()).run s =
-      (honestSendB_param gp gen a₂ ()).run s
+    change (honestSendBparam gp gen a₁ ()).run s =
+      (honestSendBparam gp gen a₂ ()).run s
     exact honestSendB_param_a_indep_post_event (gen := gen) gp h_cp a₁ a₂ s h_post
   | ORecvA => rfl
   | OSendA =>
-    simp [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestSendA_param, h_cp]
+    simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
+      honestSendAparam, h_cp]
   | OUnif _ => rfl
 
 omit [Inhabited F] [Fintype G] in
@@ -799,19 +800,19 @@ lemma honestImpl_param_rand_b_indep_post_challA
     (t : (ckaSecuritySpec (CKAState F G) G G F).Domain)
     (s : GameState (CKAState F G) G G) (h_post : s.tA + 1 ≠ gp.challengeEpoch)
     (b₁ b₂ : F) :
-    (honestImpl_param_rand gp gen a b₁ gT t).run s =
-    (honestImpl_param_rand gp gen a b₂ gT t).run s := by
+    (honestImplParamRand gp gen a b₁ gT t).run s =
+    (honestImplParamRand gp gen a b₂ gT t).run s := by
   match t with
-  | OSendB_rleak => rfl
-  | OSendA_rleak => rfl
+  | OSendBrleak => rfl
+  | OSendArleak => rfl
   | OCorruptB => rfl
   | OCorruptA => rfl
   | OChallB =>
-    simp [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestChallB_param_rand, honestChallB_param_mode, h_cp]
+    simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
+      honestChallBparamRand, honestChallBparamMode, h_cp]
   | OChallA =>
-    change (honestChallA_param_rand gp gen b₁ gT ()).run s =
-      (honestChallA_param_rand gp gen b₂ gT ()).run s
+    change (honestChallAparamRand gp gen b₁ gT ()).run s =
+      (honestChallAparamRand gp gen b₂ gT ()).run s
     exact honestChallA_param_rand_b_indep_post_event (gen := gen) gp h_cp b₁ b₂ gT s h_post
   | ORecvB => rfl
   | OSendB => rfl
@@ -826,19 +827,19 @@ lemma honestImpl_param_rand_b_indep_post_challB
     (t : (ckaSecuritySpec (CKAState F G) G G F).Domain)
     (s : GameState (CKAState F G) G G) (h_post : s.tB + 1 ≠ gp.challengeEpoch)
     (b₁ b₂ : F) :
-    (honestImpl_param_rand gp gen a b₁ gT t).run s =
-    (honestImpl_param_rand gp gen a b₂ gT t).run s := by
+    (honestImplParamRand gp gen a b₁ gT t).run s =
+    (honestImplParamRand gp gen a b₂ gT t).run s := by
   match t with
-  | OSendB_rleak => rfl
-  | OSendA_rleak => rfl
+  | OSendBrleak => rfl
+  | OSendArleak => rfl
   | OCorruptB => rfl
   | OCorruptA => rfl
   | OChallA =>
-    simp [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestChallA_param_rand, honestChallA_param_mode, h_cp]
+    simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
+      honestChallAparamRand, honestChallAparamMode, h_cp]
   | OChallB =>
-    change (honestChallB_param_rand gp gen b₁ gT ()).run s =
-      (honestChallB_param_rand gp gen b₂ gT ()).run s
+    change (honestChallBparamRand gp gen b₁ gT ()).run s =
+      (honestChallBparamRand gp gen b₂ gT ()).run s
     exact honestChallB_param_rand_b_indep_post_event (gen := gen) gp h_cp b₁ b₂ gT s h_post
   | ORecvB => rfl
   | OSendA => rfl
@@ -853,19 +854,19 @@ lemma honestImpl_param_rand_gT_indep_post_challA
     (t : (ckaSecuritySpec (CKAState F G) G G F).Domain)
     (s : GameState (CKAState F G) G G) (h_post : s.tA + 1 ≠ gp.challengeEpoch)
     (gT₁ gT₂ : G) :
-    (honestImpl_param_rand gp gen a b gT₁ t).run s =
-    (honestImpl_param_rand gp gen a b gT₂ t).run s := by
+    (honestImplParamRand gp gen a b gT₁ t).run s =
+    (honestImplParamRand gp gen a b gT₂ t).run s := by
   match t with
-  | OSendB_rleak => rfl
-  | OSendA_rleak => rfl
+  | OSendBrleak => rfl
+  | OSendArleak => rfl
   | OCorruptB => rfl
   | OCorruptA => rfl
   | OChallB =>
-    simp [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestChallB_param_rand, honestChallB_param_mode, h_cp]
+    simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
+      honestChallBparamRand, honestChallBparamMode, h_cp]
   | OChallA =>
-    change (honestChallA_param_rand gp gen b gT₁ ()).run s =
-      (honestChallA_param_rand gp gen b gT₂ ()).run s
+    change (honestChallAparamRand gp gen b gT₁ ()).run s =
+      (honestChallAparamRand gp gen b gT₂ ()).run s
     exact honestChallA_param_rand_gT_indep_post_event (gen := gen) gp h_cp b gT₁ gT₂ s h_post
   | ORecvB => rfl
   | OSendB => rfl
@@ -880,19 +881,19 @@ lemma honestImpl_param_rand_gT_indep_post_challB
     (t : (ckaSecuritySpec (CKAState F G) G G F).Domain)
     (s : GameState (CKAState F G) G G) (h_post : s.tB + 1 ≠ gp.challengeEpoch)
     (gT₁ gT₂ : G) :
-    (honestImpl_param_rand gp gen a b gT₁ t).run s =
-    (honestImpl_param_rand gp gen a b gT₂ t).run s := by
+    (honestImplParamRand gp gen a b gT₁ t).run s =
+    (honestImplParamRand gp gen a b gT₂ t).run s := by
   match t with
-  | OSendB_rleak => rfl
-  | OSendA_rleak => rfl
+  | OSendBrleak => rfl
+  | OSendArleak => rfl
   | OCorruptB => rfl
   | OCorruptA => rfl
   | OChallA =>
-    simp [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      honestChallA_param_rand, honestChallA_param_mode, h_cp]
+    simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
+      honestChallAparamRand, honestChallAparamMode, h_cp]
   | OChallB =>
-    change (honestChallB_param_rand gp gen b gT₁ ()).run s =
-      (honestChallB_param_rand gp gen b gT₂ ()).run s
+    change (honestChallBparamRand gp gen b gT₁ ()).run s =
+      (honestChallBparamRand gp gen b gT₂ ()).run s
     exact honestChallB_param_rand_gT_indep_post_event (gen := gen) gp h_cp b gT₁ gT₂ s h_post
   | ORecvB => rfl
   | OSendA => rfl
@@ -1048,27 +1049,27 @@ lemma relTriple_of_eq_pure_pure
 omit [Inhabited F] [Fintype G] in
 /-- **Per-query `tA`/`tB` monotonicity.**
 
-Every oracle in `honestImpl_param_real` either leaves `state.tA` /
+Every oracle in `honestImplParamReal` either leaves `state.tA` /
 `state.tB` unchanged, or increments exactly one of them by `1`. The
 two are orthogonal: A-side oracles (`oracleSendA`, `oracleRecvA`,
-`oracleChallA`, `honestSendA_param`, `honestChallA_param`) only touch
+`oracleChallA`, `honestSendAparam`, `honestChallAparam`) only touch
 `tA`; B-side oracles (`oracleSendB`, `oracleRecvB`, `oracleChallB`,
-`honestSendB_param`, `honestChallB_param`) only touch `tB`. Both
+`honestSendBparam`, `honestChallBparam`) only touch `tB`. Both
 inequalities underpin the post-event `a`/`b`-independence arguments. -/
 lemma honestImpl_param_real_t_monotone
     (gp : GameParams) (a b : F)
     (t : (ckaSecuritySpec (CKAState F G) G G F).Domain)
     (s : GameState (CKAState F G) G G)
     (z : (ckaSecuritySpec (CKAState F G) G G F).Range t × GameState (CKAState F G) G G)
-    (hz : z ∈ support ((honestImpl_param_real gp gen a b t).run s)) :
+    (hz : z ∈ support ((honestImplParamReal gp gen a b t).run s)) :
     s.tA ≤ z.2.tA ∧ s.tB ≤ z.2.tB := by
   match t with
-  | OSendB_rleak =>
-    change z ∈ support ((oracleSendB_rleak gp (ddhCKA F G gen) ()).run s) at hz
-    unfold oracleSendB_rleak at hz
+  | OSendBrleak =>
+    change z ∈ support ((oracleSendBrleak gp (ddhCKA F G gen) ()).run s) at hz
+    unfold oracleSendBrleak at hz
     rw [StateT.run_get_bind] at hz
     rcases s with ⟨sA, sB, ρA, ρB, kA, kB, correct, last, epA, epB⟩
-    simp only [ddhCKA, send_rleak] at hz ⊢
+    simp only [ddhCKA, sendRleak] at hz ⊢
     split_ifs at hz
     all_goals
       cases sB <;>
@@ -1083,12 +1084,12 @@ lemma honestImpl_param_real_t_monotone
           simp
         | rcases hz with ⟨_, rfl⟩
           simp)
-  | OSendA_rleak =>
-    change z ∈ support ((oracleSendA_rleak gp (ddhCKA F G gen) ()).run s) at hz
-    unfold oracleSendA_rleak at hz
+  | OSendArleak =>
+    change z ∈ support ((oracleSendArleak gp (ddhCKA F G gen) ()).run s) at hz
+    unfold oracleSendArleak at hz
     rw [StateT.run_get_bind] at hz
     rcases s with ⟨sA, sB, ρA, ρB, kA, kB, correct, last, epA, epB⟩
-    simp only [ddhCKA, send_rleak] at hz ⊢
+    simp only [ddhCKA, sendRleak] at hz ⊢
     split_ifs at hz
     all_goals
       cases sA <;>
@@ -1105,19 +1106,19 @@ lemma honestImpl_param_real_t_monotone
           simp)
   | OCorruptB =>
     -- oracleCorruptB: state unchanged
-    simp only [honestImpl_param_real] at hz
+    simp only [honestImplParamReal] at hz
     have h_eq := oracleCorrupt_state_unchanged gp .B s z hz
     rw [h_eq]
     exact ⟨le_refl _, le_refl _⟩
   | OCorruptA =>
     -- oracleCorruptA: state unchanged
-    simp only [honestImpl_param_real, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr] at hz
+    simp only [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr] at hz
     have h_eq := oracleCorrupt_state_unchanged gp .A s z hz
     rw [h_eq]
     exact ⟨le_refl _, le_refl _⟩
   | OChallB =>
-    change z ∈ support ((honestChallB_param (F := F) gp gen b ()).run s) at hz
-    unfold honestChallB_param at hz
+    change z ∈ support ((honestChallBparam (F := F) gp gen b ()).run s) at hz
+    unfold honestChallBparam at hz
     rw [StateT.run_get_bind] at hz
     rcases s with ⟨sA, sB, ρA, ρB, kA, kB, correct, last, epA, epB⟩
     simp only [oracleChallB, pure_bind, bind_pure_comp, ddhCKA, send] at hz ⊢
@@ -1133,8 +1134,8 @@ lemma honestImpl_param_real_t_monotone
         pure_bind, map_pure, ↓reduceIte, support_pure]
       <;> (have hpair := Set.mem_singleton_iff.mp hz; cases hpair; simp)
   | OChallA =>
-    change z ∈ support ((honestChallA_param (F := F) gp gen b ()).run s) at hz
-    unfold honestChallA_param at hz
+    change z ∈ support ((honestChallAparam (F := F) gp gen b ()).run s) at hz
+    unfold honestChallAparam at hz
     rw [StateT.run_get_bind] at hz
     rcases s with ⟨sA, sB, ρA, ρB, kA, kB, correct, last, epA, epB⟩
     simp only [oracleChallA, pure_bind, bind_pure_comp, ddhCKA, send] at hz ⊢
@@ -1162,8 +1163,8 @@ lemma honestImpl_param_real_t_monotone
       simp_all only [StateT.run_set, StateT.run_pure, support_pure]
       <;> (have hpair := Set.mem_singleton_iff.mp hz; cases hpair; simp)
   | OSendB =>
-    change z ∈ support ((honestSendB_param (F := F) gp gen a ()).run s) at hz
-    unfold honestSendB_param at hz
+    change z ∈ support ((honestSendBparam (F := F) gp gen a ()).run s) at hz
+    unfold honestSendBparam at hz
     rw [StateT.run_get_bind] at hz
     rcases s with ⟨sA, sB, ρA, ρB, kA, kB, correct, last, epA, epB⟩
     simp only [oracleSendB, bind_pure_comp, ddhCKA, send] at hz ⊢
@@ -1196,8 +1197,8 @@ lemma honestImpl_param_real_t_monotone
       simp_all only [StateT.run_set, StateT.run_pure, support_pure]
       <;> (have hpair := Set.mem_singleton_iff.mp hz; cases hpair; simp)
   | OSendA =>
-    change z ∈ support ((honestSendA_param (F := F) gp gen a ()).run s) at hz
-    unfold honestSendA_param at hz
+    change z ∈ support ((honestSendAparam (F := F) gp gen a ()).run s) at hz
+    unfold honestSendAparam at hz
     rw [StateT.run_get_bind] at hz
     rcases s with ⟨sA, sB, ρA, ρB, kA, kB, correct, last, epA, epB⟩
     simp only [oracleSendA, bind_pure_comp, ddhCKA, send] at hz ⊢
@@ -1219,7 +1220,7 @@ lemma honestImpl_param_real_t_monotone
           simp)
   | OUnif n =>
     rcases s with ⟨sA, sB, ρA, ρB, kA, kB, correct, last, epA, epB⟩
-    simp only [honestImpl_param_real, QueryImpl.add_apply_inl, oracleUnif,
+    simp only [honestImplParamReal, QueryImpl.add_apply_inl, oracleUnif,
       QueryImpl.liftTarget_apply, QueryImpl.ofLift_apply] at hz
     set s0 : GameState (CKAState F G) G G :=
       { stA := sA, stB := sB, rhoA := ρA, rhoB := ρB, keyA := kA, keyB := kB,
@@ -1239,28 +1240,28 @@ lemma honestImpl_param_rand_t_monotone
     (t : (ckaSecuritySpec (CKAState F G) G G F).Domain)
     (s : GameState (CKAState F G) G G)
     (z : (ckaSecuritySpec (CKAState F G) G G F).Range t × GameState (CKAState F G) G G)
-    (hz : z ∈ support ((honestImpl_param_rand gp gen a b gT t).run s)) :
+    (hz : z ∈ support ((honestImplParamRand gp gen a b gT t).run s)) :
     s.tA ≤ z.2.tA ∧ s.tB ≤ z.2.tB := by
   match t with
-  | OSendB_rleak =>
-    have hz' : z ∈ support ((honestImpl_param_real gp gen a b OSendB_rleak).run s) := hz
-    exact honestImpl_param_real_t_monotone (gen := gen) gp a b OSendB_rleak s z hz'
-  | OSendA_rleak =>
-    have hz' : z ∈ support ((honestImpl_param_real gp gen a b OSendA_rleak).run s) := hz
-    exact honestImpl_param_real_t_monotone (gen := gen) gp a b OSendA_rleak s z hz'
+  | OSendBrleak =>
+    have hz' : z ∈ support ((honestImplParamReal gp gen a b OSendBrleak).run s) := hz
+    exact honestImpl_param_real_t_monotone (gen := gen) gp a b OSendBrleak s z hz'
+  | OSendArleak =>
+    have hz' : z ∈ support ((honestImplParamReal gp gen a b OSendArleak).run s) := hz
+    exact honestImpl_param_real_t_monotone (gen := gen) gp a b OSendArleak s z hz'
   | OCorruptB =>
-    simp only [honestImpl_param_rand] at hz
+    simp only [honestImplParamRand] at hz
     have h_eq := oracleCorrupt_state_unchanged gp .B s z hz
     rw [h_eq]
     exact ⟨le_refl _, le_refl _⟩
   | OCorruptA =>
-    simp only [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr] at hz
+    simp only [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr] at hz
     have h_eq := oracleCorrupt_state_unchanged gp .A s z hz
     rw [h_eq]
     exact ⟨le_refl _, le_refl _⟩
   | OChallB =>
-    change z ∈ support ((honestChallB_param_rand (F := F) gp gen b gT ()).run s) at hz
-    unfold honestChallB_param_rand at hz
+    change z ∈ support ((honestChallBparamRand (F := F) gp gen b gT ()).run s) at hz
+    unfold honestChallBparamRand at hz
     rw [StateT.run_get_bind] at hz
     rcases s with ⟨sA, sB, ρA, ρB, kA, kB, correct, last, epA, epB⟩
     simp only [oracleChallB, pure_bind, bind_pure_comp, ddhCKA, send] at hz ⊢
@@ -1276,8 +1277,8 @@ lemma honestImpl_param_rand_t_monotone
         pure_bind, map_pure, ↓reduceIte, support_pure]
       <;> (have hpair := Set.mem_singleton_iff.mp hz; cases hpair; simp)
   | OChallA =>
-    change z ∈ support ((honestChallA_param_rand (F := F) gp gen b gT ()).run s) at hz
-    unfold honestChallA_param_rand at hz
+    change z ∈ support ((honestChallAparamRand (F := F) gp gen b gT ()).run s) at hz
+    unfold honestChallAparamRand at hz
     rw [StateT.run_get_bind] at hz
     rcases s with ⟨sA, sB, ρA, ρB, kA, kB, correct, last, epA, epB⟩
     simp only [oracleChallA, pure_bind, bind_pure_comp, ddhCKA, send] at hz ⊢
@@ -1293,19 +1294,19 @@ lemma honestImpl_param_rand_t_monotone
         pure_bind, map_pure, ↓reduceIte, support_pure]
       <;> (have hpair := Set.mem_singleton_iff.mp hz; cases hpair; simp)
   | ORecvB =>
-    have hz' : z ∈ support ((honestImpl_param_real gp gen a b ORecvB).run s) := hz
+    have hz' : z ∈ support ((honestImplParamReal gp gen a b ORecvB).run s) := hz
     exact honestImpl_param_real_t_monotone (gen := gen) gp a b ORecvB s z hz'
   | OSendB =>
-    have hz' : z ∈ support ((honestImpl_param_real gp gen a b OSendB).run s) := hz
+    have hz' : z ∈ support ((honestImplParamReal gp gen a b OSendB).run s) := hz
     exact honestImpl_param_real_t_monotone (gen := gen) gp a b OSendB s z hz'
   | ORecvA =>
-    have hz' : z ∈ support ((honestImpl_param_real gp gen a b ORecvA).run s) := hz
+    have hz' : z ∈ support ((honestImplParamReal gp gen a b ORecvA).run s) := hz
     exact honestImpl_param_real_t_monotone (gen := gen) gp a b ORecvA s z hz'
   | OSendA =>
-    have hz' : z ∈ support ((honestImpl_param_real gp gen a b OSendA).run s) := hz
+    have hz' : z ∈ support ((honestImplParamReal gp gen a b OSendA).run s) := hz
     exact honestImpl_param_real_t_monotone (gen := gen) gp a b OSendA s z hz'
   | OUnif n =>
-    have hz' : z ∈ support ((honestImpl_param_real gp gen a b (OUnif n)).run s) := hz
+    have hz' : z ∈ support ((honestImplParamReal gp gen a b (OUnif n)).run s) := hz
     exact honestImpl_param_real_t_monotone (gen := gen) gp a b (OUnif n) s z hz'
 
 /-- If a counter has already reached `epoch - 1`, the next counter value cannot still be

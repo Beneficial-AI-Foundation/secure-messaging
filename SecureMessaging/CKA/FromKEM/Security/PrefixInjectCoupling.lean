@@ -1,6 +1,7 @@
 /-
 Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.CKA.FromKEM.Security.PrefixInjectCouplingA
@@ -132,9 +133,10 @@ private lemma rawResume_probOutput_decomp [SampleableType K] [DecidableEq K]
   | done g =>
       simp only [rawResume, finishChallengeStepRaw, rawResumeKilled, injDone]
       rw [probOutput_bind_const]
-      simp only [HasEvalPMF.probFailure_eq_zero, tsub_zero, one_mul]
+      simp only [probFailure_eq_zero, tsub_zero, one_mul]
       rw [probOutput_bind_const]
-      simp [HasEvalPMF.probFailure_eq_zero]
+      simp only [probFailure_of_liftM_PMF, tsub_zero, probOutput_pure, Bool.true_eq, mul_ite,
+        mul_one, mul_zero, Bool.false_eq_true, ↓reduceIte, zero_add]
   | pausedA cont => simp [rawResumeKilled, injDone]
   | pausedB cont => simp [rawResumeKilled, injDone]
 
@@ -282,7 +284,7 @@ private lemma relTriple_eqRel_of_probOutput_true_eq
     RelTriple mx my (EqRel Bool) := by
   refine relTriple_eqRel_of_probOutput_eq fun x => ?_
   cases x
-  · simp only [probOutput_false_eq_sub, HasEvalPMF.probFailure_eq_zero, h]
+  · simp only [probOutput_false_eq_sub, probFailure_eq_zero, h]
   · exact h
 
 private lemma challA_run_support_counters [SampleableType K] [DecidableEq K]
@@ -323,7 +325,7 @@ private lemma challA_run_support_counters [SampleableType K] [DecidableEq K]
   cases b
   all_goals (
     simp only [↓reduceIte] at hz
-    vcv_support hz
+    vcvSupport hz
     obtain rfl := Set.mem_singleton_iff.mp hz
     exact ⟨rfl, rfl⟩)
 
@@ -365,7 +367,7 @@ private lemma challB_run_support_counters [SampleableType K] [DecidableEq K]
   cases b
   all_goals (
     simp only [↓reduceIte] at hz
-    vcv_support hz
+    vcvSupport hz
     obtain rfl := Set.mem_singleton_iff.mp hz
     exact ⟨rfl, rfl⟩)
 
@@ -402,7 +404,7 @@ private lemma reductionBranch_challA_cont_eq_finishChallengeStepRaw
   simp only [map_eq_bind_pure_comp, bind_assoc, pure_bind]
   refine bind_congr (m := ProbComp) fun p => ?_
   obtain ⟨guess, ps'⟩ := p
-  simp
+  simp only [Function.comp_apply]
 
 private lemma reductionBranch_challB_cont_eq_finishChallengeStepRaw
     [SampleableType K] [DecidableEq K]
@@ -430,7 +432,7 @@ private lemma reductionBranch_challB_cont_eq_finishChallengeStepRaw
   simp only [map_eq_bind_pure_comp, bind_assoc, pure_bind]
   refine bind_congr (m := ProbComp) fun p => ?_
   obtain ⟨guess, ps'⟩ := p
-  simp
+  simp only [Function.comp_apply]
 
 /-! ## The paused killed resumes
 
@@ -596,7 +598,7 @@ private lemma pausedA_killed_probOutput_true_eq
       rw [reductionBranch_challA_cont_eq_finishChallengeStepRaw kem hDet leak gp
         pkStar cStar kReal (preAToBReductionState base pkStar) hWillR cont]
       rw [probOutput_bind_const]
-      simp [HasEvalPMF.probFailure_eq_zero]
+      simp only [probFailure_of_liftM_PMF, tsub_zero, one_mul]
   | true =>
       rw [challA_sampled_reduction_random_cont_probOutput_true_eq kem hDet hkem
         leak gp hgp base hInv hWill hks cont]
@@ -641,7 +643,7 @@ private lemma pausedB_killed_probOutput_true_eq
       rw [reductionBranch_challB_cont_eq_finishChallengeStepRaw kem hDet leak gp
         pkStar cStar kReal (preBToAReductionState base pkStar) hWillR cont]
       rw [probOutput_bind_const]
-      simp [HasEvalPMF.probFailure_eq_zero]
+      simp only [probFailure_of_liftM_PMF, tsub_zero, one_mul]
   | true =>
       rw [challB_sampled_reduction_random_cont_probOutput_true_eq kem hDet hkem
         leak gp hgp base hInv hWill hks cont]

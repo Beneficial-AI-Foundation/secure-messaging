@@ -1,3 +1,8 @@
+/-
+Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Beneficial AI Foundation
+-/
 import SecureMessaging.CKA.FromDDH.Security.GameOracles.Bridge
 
 /-!
@@ -292,7 +297,7 @@ lemma relTriple_reductionSendA_invalid_of_state_rel
     (hrel : R sL sR) :
     OracleComp.ProgramLogic.Relational.RelTriple
       ((reductionSendA (F := F) gp gen (a • gen) ()).run sL)
-      ((honestSendA_param (F := F) gp gen a ()).run sR)
+      ((honestSendAparam (F := F) gp gen a ()).run sR)
       (fun pL pR => pL.1 = pR.1 ∧ R pL.2 pR.2) := by
   have h_vL : validStep sL.lastAction CKAAction.sendA = false :=
     Bool.eq_false_iff.mpr h_v
@@ -312,7 +317,7 @@ lemma relTriple_reductionSendA_invalid_of_state_rel
     rw [h_vR]
     simp
   have h_runR :
-      (honestSendA_param (F := F) gp gen a ()).run sR =
+      (honestSendAparam (F := F) gp gen a ()).run sR =
         (pure (none, sR) : ProbComp (Option (G × G) × GameState (CKAState F G) G G)) := by
     rw [honestSendA_param_run_eq_when_pred_false (gen := gen) gp a sR h_predR]
     unfold oracleSendA
@@ -336,7 +341,7 @@ lemma relTriple_reductionSendB_invalid_of_state_rel
     (hrel : R sL sR) :
     OracleComp.ProgramLogic.Relational.RelTriple
       ((reductionSendB (F := F) gp gen (a • gen) ()).run sL)
-      ((honestSendB_param (F := F) gp gen a ()).run sR)
+      ((honestSendBparam (F := F) gp gen a ()).run sR)
       (fun pL pR => pL.1 = pR.1 ∧ R pL.2 pR.2) := by
   have h_vL : validStep sL.lastAction CKAAction.sendB = false :=
     Bool.eq_false_iff.mpr h_v
@@ -356,7 +361,7 @@ lemma relTriple_reductionSendB_invalid_of_state_rel
     rw [h_vR]
     simp
   have h_runR :
-      (honestSendB_param (F := F) gp gen a ()).run sR =
+      (honestSendBparam (F := F) gp gen a ()).run sR =
         (pure (none, sR) : ProbComp (Option (G × G) × GameState (CKAState F G) G G)) := by
     rw [honestSendB_param_run_eq_when_pred_false (gen := gen) gp a sR h_predR]
     unfold oracleSendB
@@ -384,7 +389,7 @@ lemma relTriple_reductionChallA_pred_false_of_state_rel
     (hrel : R sL sR) :
     OracleComp.ProgramLogic.Relational.RelTriple
       ((reductionChallA (F := F) gp gB gT ()).run sL)
-      ((honestChallA_param_mode (F := F) mode gp gen b gTH ()).run sR)
+      ((honestChallAparamMode (F := F) mode gp gen b gTH ()).run sR)
       (fun pL pR => pL.1 = pR.1 ∧ R pL.2 pR.2) := by
   have h_runL :
       (reductionChallA (F := F) gp gB gT ()).run sL =
@@ -404,14 +409,14 @@ lemma relTriple_reductionChallA_pred_false_of_state_rel
         Bool.eq_false_iff.mpr h_guard
       simp [h_guardL]
   have h_runR :
-      (honestChallA_param_mode (F := F) mode gp gen b gTH ()).run sR =
+      (honestChallAparamMode (F := F) mode gp gen b gTH ()).run sR =
         (pure (none, sR) : ProbComp (Option (G × G) × GameState (CKAState F G) G G)) := by
     have h_param_false :
         ¬ (((validStep sR.lastAction CKAAction.challA &&
               (gp.challengedParty == CKAParty.A)) &&
             isChallengeEpoch gp { sR with tA := sR.tA + 1 }) = true) := by
       simp [h_predR]
-    unfold honestChallA_param_mode
+    unfold honestChallAparamMode
     rw [StateT.run_get_bind]
     rw [if_neg h_param_false]
     unfold oracleChallA
@@ -452,7 +457,7 @@ lemma relTriple_reductionChallB_pred_false_of_state_rel
     (hrel : R sL sR) :
     OracleComp.ProgramLogic.Relational.RelTriple
       ((reductionChallB (F := F) gp gB gT ()).run sL)
-      ((honestChallB_param_mode (F := F) mode gp gen b gTH ()).run sR)
+      ((honestChallBparamMode (F := F) mode gp gen b gTH ()).run sR)
       (fun pL pR => pL.1 = pR.1 ∧ R pL.2 pR.2) := by
   have h_runL :
       (reductionChallB (F := F) gp gB gT ()).run sL =
@@ -472,14 +477,14 @@ lemma relTriple_reductionChallB_pred_false_of_state_rel
         Bool.eq_false_iff.mpr h_guard
       simp [h_guardL]
   have h_runR :
-      (honestChallB_param_mode (F := F) mode gp gen b gTH ()).run sR =
+      (honestChallBparamMode (F := F) mode gp gen b gTH ()).run sR =
         (pure (none, sR) : ProbComp (Option (G × G) × GameState (CKAState F G) G G)) := by
     have h_param_false :
         ¬ (((validStep sR.lastAction CKAAction.challB &&
               (gp.challengedParty == CKAParty.B)) &&
             isChallengeEpoch gp { sR with tB := sR.tB + 1 }) = true) := by
       simp [h_predR]
-    unfold honestChallB_param_mode
+    unfold honestChallBparamMode
     rw [StateT.run_get_bind]
     rw [if_neg h_param_false]
     unfold oracleChallB
@@ -503,7 +508,7 @@ lemma relTriple_reductionChallB_pred_false_of_state_rel
     (a := (none, sL)) (b := (none, sR)) h_runL h_runR ⟨rfl, hrel⟩
 
 omit [DecidableEq G] [Inhabited F] [Fintype G] in
-/-- Left/right disabled-action `sendA_rleak` relational step. For
+/-- Left/right disabled-action `sendArleak` relational step. For
 `R sL sR`, equal last actions, and a disabled `sendA` transition at `sL`, the
 paired leak-oracle calls both return `none` and establish
 `pL.1 = pR.1 ∧ R pL.2 pR.2`. -/
@@ -515,8 +520,8 @@ lemma relTriple_oracleSendA_rleak_invalid_of_state_rel
     (h_v : ¬ validStep sL.lastAction CKAAction.sendA = true)
     (hrel : R sL sR) :
     OracleComp.ProgramLogic.Relational.RelTriple
-      ((oracleSendA_rleak gp (ddhCKA F G gen) ()).run sL)
-      ((oracleSendA_rleak gp (ddhCKA F G gen) ()).run sR)
+      ((oracleSendArleak gp (ddhCKA F G gen) ()).run sL)
+      ((oracleSendArleak gp (ddhCKA F G gen) ()).run sR)
       (fun pL pR => pL.1 = pR.1 ∧ R pL.2 pR.2) := by
   have h_vL : validStep sL.lastAction CKAAction.sendA = false :=
     Bool.eq_false_iff.mpr h_v
@@ -524,17 +529,17 @@ lemma relTriple_oracleSendA_rleak_invalid_of_state_rel
     rw [← h_last]
     exact h_vL
   have h_runL :
-      (oracleSendA_rleak gp (ddhCKA F G gen) ()).run sL =
+      (oracleSendArleak gp (ddhCKA F G gen) ()).run sL =
         (pure (none, sL) :
           ProbComp (Option (G × G × F) × GameState (CKAState F G) G G)) := by
-    unfold oracleSendA_rleak
+    unfold oracleSendArleak
     rw [StateT.run_get_bind]
     simp [h_vL]
   have h_runR :
-      (oracleSendA_rleak gp (ddhCKA F G gen) ()).run sR =
+      (oracleSendArleak gp (ddhCKA F G gen) ()).run sR =
         (pure (none, sR) :
           ProbComp (Option (G × G × F) × GameState (CKAState F G) G G)) := by
-    unfold oracleSendA_rleak
+    unfold oracleSendArleak
     rw [StateT.run_get_bind]
     simp [h_vR]
   refine relTriple_of_eq_pure_pure
@@ -542,7 +547,7 @@ lemma relTriple_oracleSendA_rleak_invalid_of_state_rel
     (a := (none, sL)) (b := (none, sR)) h_runL h_runR ⟨rfl, hrel⟩
 
 omit [DecidableEq G] [Inhabited F] [Fintype G] in
-/-- Left/right disabled-action `sendB_rleak` relational step. For
+/-- Left/right disabled-action `sendBrleak` relational step. For
 `R sL sR`, equal last actions, and a disabled `sendB` transition at `sL`, the
 paired leak-oracle calls both return `none` and establish
 `pL.1 = pR.1 ∧ R pL.2 pR.2`. -/
@@ -554,8 +559,8 @@ lemma relTriple_oracleSendB_rleak_invalid_of_state_rel
     (h_v : ¬ validStep sL.lastAction CKAAction.sendB = true)
     (hrel : R sL sR) :
     OracleComp.ProgramLogic.Relational.RelTriple
-      ((oracleSendB_rleak gp (ddhCKA F G gen) ()).run sL)
-      ((oracleSendB_rleak gp (ddhCKA F G gen) ()).run sR)
+      ((oracleSendBrleak gp (ddhCKA F G gen) ()).run sL)
+      ((oracleSendBrleak gp (ddhCKA F G gen) ()).run sR)
       (fun pL pR => pL.1 = pR.1 ∧ R pL.2 pR.2) := by
   have h_vL : validStep sL.lastAction CKAAction.sendB = false :=
     Bool.eq_false_iff.mpr h_v
@@ -563,17 +568,17 @@ lemma relTriple_oracleSendB_rleak_invalid_of_state_rel
     rw [← h_last]
     exact h_vL
   have h_runL :
-      (oracleSendB_rleak gp (ddhCKA F G gen) ()).run sL =
+      (oracleSendBrleak gp (ddhCKA F G gen) ()).run sL =
         (pure (none, sL) :
           ProbComp (Option (G × G × F) × GameState (CKAState F G) G G)) := by
-    unfold oracleSendB_rleak
+    unfold oracleSendBrleak
     rw [StateT.run_get_bind]
     simp [h_vL]
   have h_runR :
-      (oracleSendB_rleak gp (ddhCKA F G gen) ()).run sR =
+      (oracleSendBrleak gp (ddhCKA F G gen) ()).run sR =
         (pure (none, sR) :
           ProbComp (Option (G × G × F) × GameState (CKAState F G) G G)) := by
-    unfold oracleSendB_rleak
+    unfold oracleSendBrleak
     rw [StateT.run_get_bind]
     simp [h_vR]
   refine relTriple_of_eq_pure_pure

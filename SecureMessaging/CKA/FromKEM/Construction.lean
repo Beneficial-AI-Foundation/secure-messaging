@@ -1,6 +1,7 @@
 /-
 Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.CKA.Defs
@@ -117,15 +118,15 @@ Same state transition as `send`, built from a `RandLeak` package so that the
 output also records the randomness of the two randomized KEM calls, as a pair
 of type `RandLeak.Rand leak`.
 -/
-def send_rleak {m : Type → Type u} [Monad m] {K PK SK C : Type}
+def sendRleak {m : Type → Type u} [Monad m] {K PK SK C : Type}
     (kem : KEMScheme m K PK SK C)
     (leak : RandLeak kem)
     (st : State PK SK) :
     m (Option (K × Message C PK × State PK SK × leak.Rand)) :=
   match st with
   | .sendReady pk => do
-      let ((c, key), rEnc) ← leak.encaps_rleak pk
-      let ((pk', sk'), rKeygen) ← leak.keygen_rleak
+      let ((c, key), rEnc) ← leak.encapsRleak pk
+      let ((pk', sk'), rKeygen) ← leak.keygenRleak
       return some (key, (c, pk'), .recvReady sk', (rEnc, rKeygen))
   | .recvReady _ => return none
 
@@ -174,10 +175,10 @@ def scheme {m : Type → Type u} [Monad m] {K PK SK C : Type}
   initA := fun ik => return initA ik
   initB := fun ik => return initB ik
   sendA := send kem
-  sendA_rleak := send_rleak kem leak
+  sendArleak := sendRleak kem leak
   recvA := recv hDet
   sendB := send kem
-  sendB_rleak := send_rleak kem leak
+  sendBrleak := sendRleak kem leak
   recvB := recv hDet
 -- ANCHOR_END: scheme
 

@@ -50,10 +50,10 @@ def scheme {m : Type → Type u} [Monad m] {K PK SK C : Type}
   initA := fun ik => return initA ik
   initB := fun ik => return initB ik
   sendA := send kem
-  sendA_rleak := send_rleak kem leak
+  sendArleak := sendRleak kem leak
   recvA := recv hDet
   sendB := send kem
-  sendB_rleak := send_rleak kem leak
+  sendBrleak := sendRleak kem leak
   recvB := recv hDet
 ```
 
