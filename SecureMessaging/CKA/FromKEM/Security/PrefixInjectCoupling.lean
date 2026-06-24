@@ -404,7 +404,7 @@ private lemma reductionBranch_challA_cont_eq_finishChallengeStepRaw
   simp only [map_eq_bind_pure_comp, bind_assoc, pure_bind]
   refine bind_congr (m := ProbComp) fun p => ?_
   obtain ⟨guess, ps'⟩ := p
-  simp
+  simp only [Function.comp_apply]
 
 private lemma reductionBranch_challB_cont_eq_finishChallengeStepRaw
     [SampleableType K] [DecidableEq K]
@@ -432,7 +432,7 @@ private lemma reductionBranch_challB_cont_eq_finishChallengeStepRaw
   simp only [map_eq_bind_pure_comp, bind_assoc, pure_bind]
   refine bind_congr (m := ProbComp) fun p => ?_
   obtain ⟨guess, ps'⟩ := p
-  simp
+  simp only [Function.comp_apply]
 
 /-! ## The paused killed resumes
 
