@@ -21,7 +21,7 @@ from pathlib import Path
 DEFAULT_SITE_DIR = Path("_out/site/html-multi")
 DEFAULT_DOCS_DIR = Path("docs/SecureMessagingDocs")
 DEFAULT_PROJECT_END = "2027-01-28"
-MANIFEST_PATH = "-verso-data/blueprint-preview-manifest.json"
+MANIFEST_PATH = "-verso-data/blueprint-manifest.json"
 TRACKED_KINDS = ("definition", "theorem")
 ATOM_RE = re.compile(r":{3,}(definition|theorem)\s+\"([^\"]+)\"")
 ISSUE_RE = re.compile(r"\{githubIssue\s+(\d+)\}")
@@ -102,19 +102,37 @@ def compact_text(html: str) -> str:
     return html_module.unescape(re.sub(r"\s+", " ", strip_tags(html)).strip())
 
 
+def code_decls(entry: dict) -> list[dict]:
+    # Extract the per-declaration code records from a manifest entry.
+    # v4.30 manifests expose proof status as structured `codeData` fields instead
+    # of HTML markers. `external` decls carry a `present` flag; `inline` decls are
+    # always present by construction.
+    code = entry.get("codeData")
+    if not isinstance(code, dict):
+        return []
+    if "external" in code:
+        return code["external"].get("decls", [])
+    if "inline" in code:
+        node = code["inline"]
+        return node.get("definedDefs", []) + node.get("definedTheorems", [])
+    return []
+
+
+def decl_proved(decl: dict) -> bool:
+    # A declaration is fully proved only when it is present and its proof status is
+    # `proved` (not `missing`, `axiomLike`, or `containsSorry`).
+    if decl.get("present") is False:
+        return False
+    return decl.get("provedStatus") == "proved"
+
+
 def classify(entry: dict, chapter: str) -> Atom:
     # Convert one preview manifest entry into an Atom status record.
-    html = entry.get("html", "")
-    text = strip_tags(html).lower()
-
-    # The rendered preview HTML is the only status source available here. The
-    # Lean pill renderer marks missing/partial declarations, while any remaining
-    # `sorry` text means the Lean side is incomplete.
-    has_lean_block = 'class="hl lean block"' in html
-    has_missing_marker = 'data-status="missing"' in html
-    has_partial_marker = 'data-status="partial"' in html
-    has_sorry = "sorry" in text
-    verified = has_lean_block and not has_missing_marker and not has_partial_marker and not has_sorry
+    # An atom has a Lean block when the manifest carries structured code data for
+    # it; it is verified when every associated declaration is present and proved.
+    decls = code_decls(entry)
+    has_lean_block = bool(decls)
+    verified = has_lean_block and all(decl_proved(decl) for decl in decls)
     specified = verified if entry.get("kind", "") == "definition" else has_lean_block
     return Atom(
         kind=entry.get("kind", ""),
@@ -130,7 +148,7 @@ def classify(entry: dict, chapter: str) -> Atom:
 def load_atoms(site_dir: Path) -> list[Atom]:
     # Load all non-copy Blueprint atoms from the split site's chapter manifests.
     # The split site stores one manifest per chapter under
-    # <chapter>/-verso-data/blueprint-preview-manifest.json.
+    # <chapter>/-verso-data/blueprint-manifest.json.
     manifests = sorted(site_dir.glob(f"*/{MANIFEST_PATH}"))
     if not manifests:
         raise SystemExit(

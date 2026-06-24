@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-MANIFEST_PATH = "-verso-data/blueprint-preview-manifest.json"
+MANIFEST_PATH = "-verso-data/blueprint-manifest.json"
 CHAPTER_PREFIXES = {
     "Authenticated-Encryption-with-Associated-Data": "AEAD",
     "Continuous-Key-Agreement": "CKA",
