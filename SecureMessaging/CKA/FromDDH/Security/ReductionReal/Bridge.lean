@@ -56,15 +56,15 @@ lemma evalDist_special_honest_fixed_a_eq_eager
   (s : GameState (CKAState F G) G G) :
     evalDist (do
       let b ← ($ᵗ F : ProbComp F)
-      (simulateQ (honestImpl_param_real gp gen x₀ b) adversary).run' s) =
+      (simulateQ (honestImplParamReal gp gen x₀ b) adversary).run' s) =
     evalDist ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) adversary).run' s) := by
   have h_fixed_vs_a : ∀ b a,
-      evalDist ((simulateQ (honestImpl_param_real gp gen x₀ b) adversary).run' s) =
-      evalDist ((simulateQ (honestImpl_param_real gp gen a b) adversary).run' s) := by
+      evalDist ((simulateQ (honestImplParamReal gp gen x₀ b) adversary).run' s) =
+      evalDist ((simulateQ (honestImplParamReal gp gen a b) adversary).run' s) := by
     intro b a
     exact evalDist_simulateQ_run'_eq_of_impl_evalDist_eq
-      (impl₁ := honestImpl_param_real gp gen x₀ b)
-      (impl₂ := honestImpl_param_real gp gen a b)
+      (impl₁ := honestImplParamReal gp gen x₀ b)
+      (impl₂ := honestImplParamReal gp gen a b)
       (oa := adversary)
       (himpl := fun t s' => by
         exact congrArg evalDist
@@ -74,27 +74,27 @@ lemma evalDist_special_honest_fixed_a_eq_eager
   have h_bind_fixed : ∀ b,
       evalDist (do
         let a ← ($ᵗ F : ProbComp F)
-        (simulateQ (honestImpl_param_real gp gen a b) adversary).run' s) =
-      evalDist ((simulateQ (honestImpl_param_real gp gen x₀ b) adversary).run' s) := by
+        (simulateQ (honestImplParamReal gp gen a b) adversary).run' s) =
+      evalDist ((simulateQ (honestImplParamReal gp gen x₀ b) adversary).run' s) := by
     intro b
     exact evalDist_sample_bind_eq_of_forall_evalDist_eq
-      (f := fun a => (simulateQ (honestImpl_param_real gp gen a b) adversary).run' s)
-      (p := (simulateQ (honestImpl_param_real gp gen x₀ b) adversary).run' s)
+      (f := fun a => (simulateQ (honestImplParamReal gp gen a b) adversary).run' s)
+      (p := (simulateQ (honestImplParamReal gp gen x₀ b) adversary).run' s)
       (fun a => (h_fixed_vs_a b a).symm)
   calc
     evalDist (do
         let b ← ($ᵗ F : ProbComp F)
-        (simulateQ (honestImpl_param_real gp gen x₀ b) adversary).run' s)
+        (simulateQ (honestImplParamReal gp gen x₀ b) adversary).run' s)
       =
         evalDist (do
           let b ← ($ᵗ F : ProbComp F)
           let a ← ($ᵗ F : ProbComp F)
-          (simulateQ (honestImpl_param_real gp gen a b) adversary).run' s) := by
+          (simulateQ (honestImplParamReal gp gen a b) adversary).run' s) := by
           exact evalDist_sample_bind_congr_of_forall_evalDist_eq
-            (f := fun b => (simulateQ (honestImpl_param_real gp gen x₀ b) adversary).run' s)
+            (f := fun b => (simulateQ (honestImplParamReal gp gen x₀ b) adversary).run' s)
             (g := fun b => do
               let a ← ($ᵗ F : ProbComp F)
-              (simulateQ (honestImpl_param_real gp gen a b) adversary).run' s)
+              (simulateQ (honestImplParamReal gp gen a b) adversary).run' s)
             (fun b => (h_bind_fixed b).symm)
     _ =
         evalDist ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) adversary).run' s) := by
@@ -224,12 +224,12 @@ lemma probOutput_special_per_x₀
           s₀R]
       = Pr[= false | do
           let b ← ($ᵗ F : ProbComp F)
-          (simulateQ (honestImpl_param_real gp gen x₀ b) adversary).run' s₀H] := by
+          (simulateQ (honestImplParamReal gp gen x₀ b) adversary).run' s₀H] := by
             refine probOutput_bind_congr' _ false fun b => ?_
             exact probOutput_eq_of_evalDist_eq
               (OracleComp.ProgramLogic.Relational.probOutput_simulateQ_run'_eq_of_state_rel
                 (impl₁ := reductionOracleImpl gp gen (x₀ • gen) (b • gen) ((x₀ * b) • gen))
-                (impl₂ := honestImpl_param_real gp gen x₀ b)
+                (impl₂ := honestImplParamReal gp gen x₀ b)
                 (R := reductionHonestRel gp gen x₀ b)
                 (oa := adversary)
                 (s₁ := s₀R) (s₂ := s₀H)

@@ -47,11 +47,11 @@ lemma simulateQ_honest_param_a_indep_post_sendA
     (gp : GameParams) (h_cp : gp.challengedParty = .B) (b : F)
     (adv : OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool)
     (s : GameState (CKAState F G) G G) (h_post : gp.challengeEpoch - 1 ≤ s.tA) (a₁ a₂ : F) :
-    evalDist ((simulateQ (honestImpl_param_real gp gen a₁ b) adv).run s) =
-    evalDist ((simulateQ (honestImpl_param_real gp gen a₂ b) adv).run s) := by
+    evalDist ((simulateQ (honestImplParamReal gp gen a₁ b) adv).run s) =
+    evalDist ((simulateQ (honestImplParamReal gp gen a₂ b) adv).run s) := by
   exact evalDist_simulateQ_run_eq_of_impl_eq_preservesInv
-    (impl₁ := honestImpl_param_real gp gen a₁ b)
-    (impl₂ := honestImpl_param_real gp gen a₂ b)
+    (impl₁ := honestImplParamReal gp gen a₁ b)
+    (impl₂ := honestImplParamReal gp gen a₂ b)
     (Inv := fun s' : GameState (CKAState F G) G G => gp.challengeEpoch - 1 ≤ s'.tA)
     (oa := adv)
     (himpl_eq := fun t s' h_pre =>
@@ -68,11 +68,11 @@ lemma simulateQ_honest_param_a_indep_post_sendB
     (gp : GameParams) (h_cp : gp.challengedParty = .A) (b : F)
     (adv : OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool)
     (s : GameState (CKAState F G) G G) (h_post : gp.challengeEpoch - 1 ≤ s.tB) (a₁ a₂ : F) :
-    evalDist ((simulateQ (honestImpl_param_real gp gen a₁ b) adv).run s) =
-    evalDist ((simulateQ (honestImpl_param_real gp gen a₂ b) adv).run s) := by
+    evalDist ((simulateQ (honestImplParamReal gp gen a₁ b) adv).run s) =
+    evalDist ((simulateQ (honestImplParamReal gp gen a₂ b) adv).run s) := by
   exact evalDist_simulateQ_run_eq_of_impl_eq_preservesInv
-    (impl₁ := honestImpl_param_real gp gen a₁ b)
-    (impl₂ := honestImpl_param_real gp gen a₂ b)
+    (impl₁ := honestImplParamReal gp gen a₁ b)
+    (impl₂ := honestImplParamReal gp gen a₂ b)
     (Inv := fun s' : GameState (CKAState F G) G G => gp.challengeEpoch - 1 ≤ s'.tB)
     (oa := adv)
     (himpl_eq := fun t s' h_pre =>
@@ -89,11 +89,11 @@ lemma simulateQ_honest_param_b_indep_post_challA
     (gp : GameParams) (h_cp : gp.challengedParty = .A) (a : F)
     (adv : OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool)
     (s : GameState (CKAState F G) G G) (h_post : gp.challengeEpoch ≤ s.tA) (b₁ b₂ : F) :
-    evalDist ((simulateQ (honestImpl_param_real gp gen a b₁) adv).run s) =
-    evalDist ((simulateQ (honestImpl_param_real gp gen a b₂) adv).run s) := by
+    evalDist ((simulateQ (honestImplParamReal gp gen a b₁) adv).run s) =
+    evalDist ((simulateQ (honestImplParamReal gp gen a b₂) adv).run s) := by
   exact evalDist_simulateQ_run_eq_of_impl_eq_preservesInv
-    (impl₁ := honestImpl_param_real gp gen a b₁)
-    (impl₂ := honestImpl_param_real gp gen a b₂)
+    (impl₁ := honestImplParamReal gp gen a b₁)
+    (impl₂ := honestImplParamReal gp gen a b₂)
     (Inv := fun s' : GameState (CKAState F G) G G => gp.challengeEpoch ≤ s'.tA)
     (oa := adv)
     (himpl_eq := fun t s' h_pre =>
@@ -110,11 +110,11 @@ lemma simulateQ_honest_param_b_indep_post_challB
     (gp : GameParams) (h_cp : gp.challengedParty = .B) (a : F)
     (adv : OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool)
     (s : GameState (CKAState F G) G G) (h_post : gp.challengeEpoch ≤ s.tB) (b₁ b₂ : F) :
-    evalDist ((simulateQ (honestImpl_param_real gp gen a b₁) adv).run s) =
-    evalDist ((simulateQ (honestImpl_param_real gp gen a b₂) adv).run s) := by
+    evalDist ((simulateQ (honestImplParamReal gp gen a b₁) adv).run s) =
+    evalDist ((simulateQ (honestImplParamReal gp gen a b₂) adv).run s) := by
   exact evalDist_simulateQ_run_eq_of_impl_eq_preservesInv
-    (impl₁ := honestImpl_param_real gp gen a b₁)
-    (impl₂ := honestImpl_param_real gp gen a b₂)
+    (impl₁ := honestImplParamReal gp gen a b₁)
+    (impl₂ := honestImplParamReal gp gen a b₂)
     (Inv := fun s' : GameState (CKAState F G) G G => gp.challengeEpoch ≤ s'.tB)
     (oa := adv)
     (himpl_eq := fun t s' h_pre =>
@@ -130,11 +130,11 @@ lemma simulateQ_honest_param_rand_a_indep_post_sendA
     (gp : GameParams) (h_cp : gp.challengedParty = .B) (b : F) (gT : G)
     (adv : OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool)
     (s : GameState (CKAState F G) G G) (h_post : gp.challengeEpoch - 1 ≤ s.tA) (a₁ a₂ : F) :
-    evalDist ((simulateQ (honestImpl_param_rand gp gen a₁ b gT) adv).run s) =
-    evalDist ((simulateQ (honestImpl_param_rand gp gen a₂ b gT) adv).run s) := by
+    evalDist ((simulateQ (honestImplParamRand gp gen a₁ b gT) adv).run s) =
+    evalDist ((simulateQ (honestImplParamRand gp gen a₂ b gT) adv).run s) := by
   exact evalDist_simulateQ_run_eq_of_impl_eq_preservesInv
-    (impl₁ := honestImpl_param_rand gp gen a₁ b gT)
-    (impl₂ := honestImpl_param_rand gp gen a₂ b gT)
+    (impl₁ := honestImplParamRand gp gen a₁ b gT)
+    (impl₂ := honestImplParamRand gp gen a₂ b gT)
     (Inv := fun s' : GameState (CKAState F G) G G => gp.challengeEpoch - 1 ≤ s'.tA)
     (oa := adv)
     (himpl_eq := fun t s' h_pre =>
@@ -150,11 +150,11 @@ lemma simulateQ_honest_param_rand_a_indep_post_sendB
     (gp : GameParams) (h_cp : gp.challengedParty = .A) (b : F) (gT : G)
     (adv : OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool)
     (s : GameState (CKAState F G) G G) (h_post : gp.challengeEpoch - 1 ≤ s.tB) (a₁ a₂ : F) :
-    evalDist ((simulateQ (honestImpl_param_rand gp gen a₁ b gT) adv).run s) =
-    evalDist ((simulateQ (honestImpl_param_rand gp gen a₂ b gT) adv).run s) := by
+    evalDist ((simulateQ (honestImplParamRand gp gen a₁ b gT) adv).run s) =
+    evalDist ((simulateQ (honestImplParamRand gp gen a₂ b gT) adv).run s) := by
   exact evalDist_simulateQ_run_eq_of_impl_eq_preservesInv
-    (impl₁ := honestImpl_param_rand gp gen a₁ b gT)
-    (impl₂ := honestImpl_param_rand gp gen a₂ b gT)
+    (impl₁ := honestImplParamRand gp gen a₁ b gT)
+    (impl₂ := honestImplParamRand gp gen a₂ b gT)
     (Inv := fun s' : GameState (CKAState F G) G G => gp.challengeEpoch - 1 ≤ s'.tB)
     (oa := adv)
     (himpl_eq := fun t s' h_pre =>
@@ -170,11 +170,11 @@ lemma simulateQ_honest_param_rand_b_indep_post_challA
     (gp : GameParams) (h_cp : gp.challengedParty = .A) (a : F) (gT : G)
     (adv : OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool)
     (s : GameState (CKAState F G) G G) (h_post : gp.challengeEpoch ≤ s.tA) (b₁ b₂ : F) :
-    evalDist ((simulateQ (honestImpl_param_rand gp gen a b₁ gT) adv).run s) =
-    evalDist ((simulateQ (honestImpl_param_rand gp gen a b₂ gT) adv).run s) := by
+    evalDist ((simulateQ (honestImplParamRand gp gen a b₁ gT) adv).run s) =
+    evalDist ((simulateQ (honestImplParamRand gp gen a b₂ gT) adv).run s) := by
   exact evalDist_simulateQ_run_eq_of_impl_eq_preservesInv
-    (impl₁ := honestImpl_param_rand gp gen a b₁ gT)
-    (impl₂ := honestImpl_param_rand gp gen a b₂ gT)
+    (impl₁ := honestImplParamRand gp gen a b₁ gT)
+    (impl₂ := honestImplParamRand gp gen a b₂ gT)
     (Inv := fun s' : GameState (CKAState F G) G G => gp.challengeEpoch ≤ s'.tA)
     (oa := adv)
     (himpl_eq := fun t s' h_pre =>
@@ -190,11 +190,11 @@ lemma simulateQ_honest_param_rand_b_indep_post_challB
     (gp : GameParams) (h_cp : gp.challengedParty = .B) (a : F) (gT : G)
     (adv : OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool)
     (s : GameState (CKAState F G) G G) (h_post : gp.challengeEpoch ≤ s.tB) (b₁ b₂ : F) :
-    evalDist ((simulateQ (honestImpl_param_rand gp gen a b₁ gT) adv).run s) =
-    evalDist ((simulateQ (honestImpl_param_rand gp gen a b₂ gT) adv).run s) := by
+    evalDist ((simulateQ (honestImplParamRand gp gen a b₁ gT) adv).run s) =
+    evalDist ((simulateQ (honestImplParamRand gp gen a b₂ gT) adv).run s) := by
   exact evalDist_simulateQ_run_eq_of_impl_eq_preservesInv
-    (impl₁ := honestImpl_param_rand gp gen a b₁ gT)
-    (impl₂ := honestImpl_param_rand gp gen a b₂ gT)
+    (impl₁ := honestImplParamRand gp gen a b₁ gT)
+    (impl₂ := honestImplParamRand gp gen a b₂ gT)
     (Inv := fun s' : GameState (CKAState F G) G G => gp.challengeEpoch ≤ s'.tB)
     (oa := adv)
     (himpl_eq := fun t s' h_pre =>
@@ -210,11 +210,11 @@ lemma simulateQ_honest_param_rand_gT_indep_post_challA
     (gp : GameParams) (h_cp : gp.challengedParty = .A) (a b : F)
     (adv : OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool)
     (s : GameState (CKAState F G) G G) (h_post : gp.challengeEpoch ≤ s.tA) (gT₁ gT₂ : G) :
-    evalDist ((simulateQ (honestImpl_param_rand gp gen a b gT₁) adv).run s) =
-    evalDist ((simulateQ (honestImpl_param_rand gp gen a b gT₂) adv).run s) := by
+    evalDist ((simulateQ (honestImplParamRand gp gen a b gT₁) adv).run s) =
+    evalDist ((simulateQ (honestImplParamRand gp gen a b gT₂) adv).run s) := by
   exact evalDist_simulateQ_run_eq_of_impl_eq_preservesInv
-    (impl₁ := honestImpl_param_rand gp gen a b gT₁)
-    (impl₂ := honestImpl_param_rand gp gen a b gT₂)
+    (impl₁ := honestImplParamRand gp gen a b gT₁)
+    (impl₂ := honestImplParamRand gp gen a b gT₂)
     (Inv := fun s' : GameState (CKAState F G) G G => gp.challengeEpoch ≤ s'.tA)
     (oa := adv)
     (himpl_eq := fun t s' h_pre =>
@@ -230,11 +230,11 @@ lemma simulateQ_honest_param_rand_gT_indep_post_challB
     (gp : GameParams) (h_cp : gp.challengedParty = .B) (a b : F)
     (adv : OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool)
     (s : GameState (CKAState F G) G G) (h_post : gp.challengeEpoch ≤ s.tB) (gT₁ gT₂ : G) :
-    evalDist ((simulateQ (honestImpl_param_rand gp gen a b gT₁) adv).run s) =
-    evalDist ((simulateQ (honestImpl_param_rand gp gen a b gT₂) adv).run s) := by
+    evalDist ((simulateQ (honestImplParamRand gp gen a b gT₁) adv).run s) =
+    evalDist ((simulateQ (honestImplParamRand gp gen a b gT₂) adv).run s) := by
   exact evalDist_simulateQ_run_eq_of_impl_eq_preservesInv
-    (impl₁ := honestImpl_param_rand gp gen a b gT₁)
-    (impl₂ := honestImpl_param_rand gp gen a b gT₂)
+    (impl₁ := honestImplParamRand gp gen a b gT₁)
+    (impl₂ := honestImplParamRand gp gen a b gT₂)
     (Inv := fun s' : GameState (CKAState F G) G G => gp.challengeEpoch ≤ s'.tB)
     (oa := adv)
     (himpl_eq := fun t s' h_pre =>
@@ -250,21 +250,21 @@ oracle steps preserve the invariant `gp.challengeEpoch ≤ tA`. -/
 lemma honestImpl_param_rand_preserves_post_challA_special
     (gp : GameParams) (h_special_case : gp.challengeEpoch = 1 ∧ gp.challengedParty = .A)
     (a b : F) (gT : G) :
-    QueryImpl.PreservesInv (honestImpl_param_rand gp gen a b gT)
+    QueryImpl.PreservesInv (honestImplParamRand gp gen a b gT)
       (fun s : GameState (CKAState F G) G G => gp.challengeEpoch ≤ s.tA) := by
   intro t s hs z hz
   rcases h_special_case with ⟨h_challengeEpoch, h_cp⟩
   match t with
-  | OSendB_rleak =>
-      have hz' : z ∈ support ((honestImpl_param_real gp gen a b OSendB_rleak).run s) := by
-        simpa [honestImpl_param_rand, honestImpl_param_real] using hz
+  | OSendBrleak =>
+      have hz' : z ∈ support ((honestImplParamReal gp gen a b OSendBrleak).run s) := by
+        simpa [honestImplParamRand, honestImplParamReal] using hz
       exact hs.trans
-        (honestImpl_param_real_t_monotone (gen := gen) gp a b OSendB_rleak s z hz').1
-  | OSendA_rleak =>
-      have hz' : z ∈ support ((honestImpl_param_real gp gen a b OSendA_rleak).run s) := by
-        simpa [honestImpl_param_rand, honestImpl_param_real] using hz
+        (honestImpl_param_real_t_monotone (gen := gen) gp a b OSendBrleak s z hz').1
+  | OSendArleak =>
+      have hz' : z ∈ support ((honestImplParamReal gp gen a b OSendArleak).run s) := by
+        simpa [honestImplParamRand, honestImplParamReal] using hz
       exact hs.trans
-        (honestImpl_param_real_t_monotone (gen := gen) gp a b OSendA_rleak s z hz').1
+        (honestImpl_param_real_t_monotone (gen := gen) gp a b OSendArleak s z hz').1
   | OChallA =>
       have h_epoch_false : isChallengeEpoch gp { s with tA := s.tA + 1 } = false := by
         simp [isChallengeEpoch, GameState.tP, h_cp, h_challengeEpoch] at hs ⊢
@@ -275,11 +275,11 @@ lemma honestImpl_param_rand_preserves_post_challA_special
             isChallengeEpoch gp { s with tA := s.tA + 1 }) = false := by
         simp [h_cp, h_epoch_false]
       have h_run :
-          (honestImpl_param_rand gp gen a b gT OChallA).run s =
+          (honestImplParamRand gp gen a b gT OChallA).run s =
             (pure (none, s) : ProbComp (Option (G × G) × GameState (CKAState F G) G G)) := by
-        simp only [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
+        simp only [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
         calc
-          (honestChallA_param_rand (F := F) gp gen b gT ()).run s =
+          (honestChallAparamRand (F := F) gp gen b gT ()).run s =
               (oracleChallA gp true (ddhCKA F G gen) ()).run s :=
             honestChallA_param_rand_run_eq_when_pred_false (gen := gen) gp b gT s h_pred_false
           _ = (pure (none, s) : ProbComp (Option (G × G) × GameState (CKAState F G) G G)) := by
@@ -292,16 +292,16 @@ lemma honestImpl_param_rand_preserves_post_challA_special
       simpa [hz_eq] using hs
   | OChallB =>
       have h_run :
-          (honestImpl_param_rand gp gen a b gT OChallB).run s =
+          (honestImplParamRand gp gen a b gT OChallB).run s =
             (pure (none, s) : ProbComp (Option (G × G) × GameState (CKAState F G) G G)) := by
-        simp only [honestImpl_param_rand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
+        simp only [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
         have h_pred_false :
             (validStep s.lastAction CKAAction.challB &&
               (gp.challengedParty == CKAParty.B) &&
               isChallengeEpoch gp { s with tB := s.tB + 1 }) = false := by
           simp [h_cp]
         calc
-          (honestChallB_param_rand (F := F) gp gen b gT ()).run s =
+          (honestChallBparamRand (F := F) gp gen b gT ()).run s =
               (oracleChallB gp true (ddhCKA F G gen) ()).run s :=
             honestChallB_param_rand_run_eq_when_pred_false (gen := gen) gp b gT s h_pred_false
           _ = (pure (none, s) : ProbComp (Option (G × G) × GameState (CKAState F G) G G)) := by
@@ -313,38 +313,38 @@ lemma honestImpl_param_rand_preserves_post_challA_special
         simpa [support_pure] using hz
       simpa [hz_eq] using hs
   | OCorruptB =>
-      have hz' : z ∈ support ((honestImpl_param_real gp gen a b OCorruptB).run s) := by
-        simpa [honestImpl_param_rand, honestImpl_param_real] using hz
+      have hz' : z ∈ support ((honestImplParamReal gp gen a b OCorruptB).run s) := by
+        simpa [honestImplParamRand, honestImplParamReal] using hz
       exact hs.trans
         (honestImpl_param_real_t_monotone (gen := gen) gp a b OCorruptB s z hz').1
   | OCorruptA =>
-      have hz' : z ∈ support ((honestImpl_param_real gp gen a b OCorruptA).run s) := by
-        simpa [honestImpl_param_rand, honestImpl_param_real] using hz
+      have hz' : z ∈ support ((honestImplParamReal gp gen a b OCorruptA).run s) := by
+        simpa [honestImplParamRand, honestImplParamReal] using hz
       exact hs.trans
         (honestImpl_param_real_t_monotone (gen := gen) gp a b OCorruptA s z hz').1
   | ORecvB =>
-      have hz' : z ∈ support ((honestImpl_param_real gp gen a b ORecvB).run s) := by
-        simpa [honestImpl_param_rand, honestImpl_param_real] using hz
+      have hz' : z ∈ support ((honestImplParamReal gp gen a b ORecvB).run s) := by
+        simpa [honestImplParamRand, honestImplParamReal] using hz
       exact hs.trans
         (honestImpl_param_real_t_monotone (gen := gen) gp a b ORecvB s z hz').1
   | OSendB =>
-      have hz' : z ∈ support ((honestImpl_param_real gp gen a b OSendB).run s) := by
-        simpa [honestImpl_param_rand, honestImpl_param_real] using hz
+      have hz' : z ∈ support ((honestImplParamReal gp gen a b OSendB).run s) := by
+        simpa [honestImplParamRand, honestImplParamReal] using hz
       exact hs.trans
         (honestImpl_param_real_t_monotone (gen := gen) gp a b OSendB s z hz').1
   | ORecvA =>
-      have hz' : z ∈ support ((honestImpl_param_real gp gen a b ORecvA).run s) := by
-        simpa [honestImpl_param_rand, honestImpl_param_real] using hz
+      have hz' : z ∈ support ((honestImplParamReal gp gen a b ORecvA).run s) := by
+        simpa [honestImplParamRand, honestImplParamReal] using hz
       exact hs.trans
         (honestImpl_param_real_t_monotone (gen := gen) gp a b ORecvA s z hz').1
   | OSendA =>
-      have hz' : z ∈ support ((honestImpl_param_real gp gen a b OSendA).run s) := by
-        simpa [honestImpl_param_rand, honestImpl_param_real] using hz
+      have hz' : z ∈ support ((honestImplParamReal gp gen a b OSendA).run s) := by
+        simpa [honestImplParamRand, honestImplParamReal] using hz
       exact hs.trans
         (honestImpl_param_real_t_monotone (gen := gen) gp a b OSendA s z hz').1
   | OUnif n =>
-      have hz' : z ∈ support ((honestImpl_param_real gp gen a b (OUnif n)).run s) := by
-        simpa [honestImpl_param_rand, honestImpl_param_real] using hz
+      have hz' : z ∈ support ((honestImplParamReal gp gen a b (OUnif n)).run s) := by
+        simpa [honestImplParamRand, honestImplParamReal] using hz
       exact hs.trans
         (honestImpl_param_real_t_monotone (gen := gen) gp a b (OUnif n) s z hz').1
 
@@ -357,11 +357,11 @@ lemma simulateQ_honest_param_rand_b_indep_post_challA_special
     (adv : OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool)
     (s : GameState (CKAState F G) G G) (h_post : gp.challengeEpoch ≤ s.tA)
     (b₁ b₂ : F) :
-    evalDist ((simulateQ (honestImpl_param_rand gp gen a b₁ gT) adv).run s) =
-    evalDist ((simulateQ (honestImpl_param_rand gp gen a b₂ gT) adv).run s) := by
+    evalDist ((simulateQ (honestImplParamRand gp gen a b₁ gT) adv).run s) =
+    evalDist ((simulateQ (honestImplParamRand gp gen a b₂ gT) adv).run s) := by
   exact evalDist_simulateQ_run_eq_of_impl_eq_preservesInv
-    (impl₁ := honestImpl_param_rand gp gen a b₁ gT)
-    (impl₂ := honestImpl_param_rand gp gen a b₂ gT)
+    (impl₁ := honestImplParamRand gp gen a b₁ gT)
+    (impl₂ := honestImplParamRand gp gen a b₂ gT)
     (Inv := fun s' : GameState (CKAState F G) G G => gp.challengeEpoch ≤ s'.tA)
     (oa := adv)
     (himpl_eq := fun t s' h_pre =>
@@ -372,14 +372,14 @@ lemma simulateQ_honest_param_rand_b_indep_post_challA_special
     s h_post
 
 omit [Inhabited F] [Fintype G] [DecidableEq G] in
-/-- At `challengedParty = .B`, pre-sampling `a ← $ᵗ F` for `honestSendA_param` yields the same
+/-- At `challengedParty = .B`, pre-sampling `a ← $ᵗ F` for `honestSendAparam` yields the same
 distribution as `oracleSendA`'s internal sample. -/
 lemma evalDist_marginalized_honestSendA_param_eq_oracleSendA_at_chal_B
     (gp : GameParams) (h_cp : gp.challengedParty = .B)
     (s : GameState (CKAState F G) G G) :
     evalDist (do
       let a ← ($ᵗ F : ProbComp F)
-      (honestSendA_param (F := F) gp gen a ()).run s) =
+      (honestSendAparam (F := F) gp gen a ()).run s) =
     evalDist ((oracleSendA (ddhCKA F G gen) ()).run s) := by
   have h_beq : (gp.challengedParty == CKAParty.B) = true := by simp [h_cp]
   -- Strategy: case-split on whether the impl call uses parameter `a`.
@@ -393,30 +393,30 @@ lemma evalDist_marginalized_honestSendA_param_eq_oracleSendA_at_chal_B
     obtain ⟨h_v, h_o, h, h_stA⟩ := h_fire
     rw [h_stA] at h_o
     have h_eq : (do let a ← ($ᵗ F : ProbComp F)
-                    (honestSendA_param (F := F) gp gen a ()).run s) =
+                    (honestSendAparam (F := F) gp gen a ()).run s) =
                 ((oracleSendA (ddhCKA F G gen) ()).run s) := by
-      simp [honestSendA_param, oracleSendA, StateT.run_bind, StateT.run_get,
+      simp [honestSendAparam, oracleSendA, StateT.run_bind, StateT.run_get,
         pure_bind, bind_pure_comp,
         h_v, h_beq, h_stA, h_o, ddhCKA, send]
     rw [h_eq]
   · -- Non-firing case: lazy delegates to eager pointwise (a unused).
     have h_param_eq_eager : ∀ a : F,
-        (honestSendA_param (F := F) gp gen a ()).run s =
+        (honestSendAparam (F := F) gp gen a ()).run s =
         (oracleSendA (ddhCKA F G gen) ()).run s := by
       intro a
       cases h_v : validStep s.lastAction CKAAction.sendA with
       | false =>
-        simp [honestSendA_param, oracleSendA, StateT.run_bind, StateT.run_get,
+        simp [honestSendAparam, oracleSendA, StateT.run_bind, StateT.run_get,
           pure_bind, h_v, h_beq, ddhCKA]
       | true =>
-        -- The key observation: in honestSendA_param at validStep=true, the if-condition
+        -- The key observation: in honestSendAparam at validStep=true, the if-condition
         -- only depends on `state'.stA = s.stA` via OtherSendBeforeChall (which depends
         -- on tA only, NOT on stA). So we can split on stA and OtherSend without
         -- worrying about state-rewriting.
         cases h_o : isOtherSendBeforeChall gp { s with tA := s.tA + 1 } with
         | false =>
           -- !OtherSend: lazy delegates to else (oracleSendA cka ()). Eager runs same.
-          simp [honestSendA_param, oracleSendA, StateT.run_bind, StateT.run_get,
+          simp [honestSendAparam, oracleSendA, StateT.run_bind, StateT.run_get,
             pure_bind, h_v, h_beq, h_o, ddhCKA, send]
         | true =>
           cases h_stA : s.stA with
@@ -428,26 +428,26 @@ lemma evalDist_marginalized_honestSendA_param_eq_oracleSendA_at_chal_B
                 { s with stA := (.recvReady x : CKAState F G), tA := s.tA + 1 } = true := by
               simp only [isOtherSendBeforeChall] at h_o ⊢
               convert h_o using 2
-            simp [honestSendA_param, oracleSendA, StateT.run_bind, StateT.run_get,
+            simp [honestSendAparam, oracleSendA, StateT.run_bind, StateT.run_get,
               pure_bind, h_v, h_beq, h_o', h_stA, ddhCKA, send]
           | sendReady h =>
             -- Contradicts h_fire (which says NOT all of validStep ∧ OtherSend ∧ stA=.sendReady).
             push Not at h_fire
             exact absurd h_stA (h_fire h_v h_o h)
     exact evalDist_sample_bind_eq_of_forall_eq
-      (f := fun a => (honestSendA_param (F := F) gp gen a ()).run s)
+      (f := fun a => (honestSendAparam (F := F) gp gen a ()).run s)
       (p := (oracleSendA (ddhCKA F G gen) ()).run s)
       h_param_eq_eager
 
 omit [Inhabited F] [Fintype G] [DecidableEq G] in
-/-- At `challengedParty = .A`, pre-sampling `a ← $ᵗ F` for `honestSendB_param`
+/-- At `challengedParty = .A`, pre-sampling `a ← $ᵗ F` for `honestSendBparam`
 yields the same distribution as `oracleSendB`'s internal sample. -/
 lemma evalDist_marginalized_honestSendB_param_eq_oracleSendB_at_chal_A
     (gp : GameParams) (h_cp : gp.challengedParty = .A)
     (s : GameState (CKAState F G) G G) :
     evalDist (do
       let a ← ($ᵗ F : ProbComp F)
-      (honestSendB_param (F := F) gp gen a ()).run s) =
+      (honestSendBparam (F := F) gp gen a ()).run s) =
     evalDist ((oracleSendB (ddhCKA F G gen) ()).run s) := by
   have h_beq : (gp.challengedParty == CKAParty.A) = true := by simp [h_cp]
   by_cases h_fire :
@@ -457,24 +457,24 @@ lemma evalDist_marginalized_honestSendB_param_eq_oracleSendB_at_chal_A
   · obtain ⟨h_v, h_o, h, h_stB⟩ := h_fire
     rw [h_stB] at h_o
     have h_eq : (do let a ← ($ᵗ F : ProbComp F)
-                    (honestSendB_param (F := F) gp gen a ()).run s) =
+                    (honestSendBparam (F := F) gp gen a ()).run s) =
                 ((oracleSendB (ddhCKA F G gen) ()).run s) := by
-      simp [honestSendB_param, oracleSendB, StateT.run_bind, StateT.run_get,
+      simp [honestSendBparam, oracleSendB, StateT.run_bind, StateT.run_get,
          pure_bind, bind_pure_comp,
         h_v, h_beq, h_stB, h_o, ddhCKA, send]
     rw [h_eq]
   · have h_param_eq_eager : ∀ a : F,
-        (honestSendB_param (F := F) gp gen a ()).run s =
+        (honestSendBparam (F := F) gp gen a ()).run s =
         (oracleSendB (ddhCKA F G gen) ()).run s := by
       intro a
       cases h_v : validStep s.lastAction CKAAction.sendB with
       | false =>
-        simp [honestSendB_param, oracleSendB, StateT.run_bind, StateT.run_get,
+        simp [honestSendBparam, oracleSendB, StateT.run_bind, StateT.run_get,
           pure_bind, h_v, h_beq, ddhCKA]
       | true =>
         cases h_o : isOtherSendBeforeChall gp { s with tB := s.tB + 1 } with
         | false =>
-          simp [honestSendB_param, oracleSendB, StateT.run_bind, StateT.run_get,
+          simp [honestSendBparam, oracleSendB, StateT.run_bind, StateT.run_get,
             pure_bind, h_v, h_beq, h_o, ddhCKA, send]
         | true =>
           cases h_stB : s.stB with
@@ -483,25 +483,25 @@ lemma evalDist_marginalized_honestSendB_param_eq_oracleSendB_at_chal_A
                 { s with stB := (.recvReady x : CKAState F G), tB := s.tB + 1 } = true := by
               simp only [isOtherSendBeforeChall] at h_o ⊢
               convert h_o using 2
-            simp [honestSendB_param, oracleSendB, StateT.run_bind, StateT.run_get,
+            simp [honestSendBparam, oracleSendB, StateT.run_bind, StateT.run_get,
               pure_bind, h_v, h_beq, h_o', h_stB, ddhCKA, send]
           | sendReady h =>
             push Not at h_fire
             exact absurd h_stB (h_fire h_v h_o h)
     exact evalDist_sample_bind_eq_of_forall_eq
-      (f := fun a => (honestSendB_param (F := F) gp gen a ()).run s)
+      (f := fun a => (honestSendBparam (F := F) gp gen a ()).run s)
       (p := (oracleSendB (ddhCKA F G gen) ()).run s)
       h_param_eq_eager
 
 omit [Inhabited F] [Fintype G] [DecidableEq G] in
-/-- At `challengedParty = .A`, pre-sampling `b ← $ᵗ F` for `honestChallA_param`
+/-- At `challengedParty = .A`, pre-sampling `b ← $ᵗ F` for `honestChallAparam`
 yields the same distribution as `oracleChallA gp false` (real branch). -/
 lemma evalDist_marginalized_honestChallA_param_eq_oracleChallA_at_chal_A
   (gp : GameParams) (h_cp : gp.challengedParty = .A)
   (s : GameState (CKAState F G) G G) :
     evalDist (do
       let b' ← ($ᵗ F : ProbComp F)
-      (honestChallA_param (F := F) gp gen b' ()).run s) =
+      (honestChallAparam (F := F) gp gen b' ()).run s) =
     evalDist ((oracleChallA gp false (ddhCKA F G gen) ()).run s) := by
   have h_beq : (gp.challengedParty == CKAParty.A) = true := by simp [h_cp]
   by_cases h_fire :
@@ -511,24 +511,24 @@ lemma evalDist_marginalized_honestChallA_param_eq_oracleChallA_at_chal_A
   · obtain ⟨h_v, h_e, h, h_stA⟩ := h_fire
     rw [h_stA] at h_e
     have h_eq : (do let b' ← ($ᵗ F : ProbComp F)
-                    (honestChallA_param (F := F) gp gen b' ()).run s) =
+                    (honestChallAparam (F := F) gp gen b' ()).run s) =
                 ((oracleChallA gp false (ddhCKA F G gen) ()).run s) := by
-      simp [honestChallA_param, oracleChallA, StateT.run_bind, StateT.run_get,
+      simp [honestChallAparam, oracleChallA, StateT.run_bind, StateT.run_get,
         pure_bind, bind_pure_comp,
         h_v, h_beq, h_stA, h_e, ddhCKA, send]
     rw [h_eq]
   · have h_param_eq_eager : ∀ b' : F,
-        (honestChallA_param (F := F) gp gen b' ()).run s =
+        (honestChallAparam (F := F) gp gen b' ()).run s =
         (oracleChallA gp false (ddhCKA F G gen) ()).run s := by
       intro b'
       cases h_v : validStep s.lastAction CKAAction.challA with
       | false =>
-        simp [honestChallA_param, oracleChallA, StateT.run_bind, StateT.run_get,
+        simp [honestChallAparam, oracleChallA, StateT.run_bind, StateT.run_get,
           pure_bind, h_v, h_beq, ddhCKA]
       | true =>
         cases h_e : isChallengeEpoch gp { s with tA := s.tA + 1 } with
         | false =>
-          simp [honestChallA_param, oracleChallA, StateT.run_bind, StateT.run_get,
+          simp [honestChallAparam, oracleChallA, StateT.run_bind, StateT.run_get,
             pure_bind, h_v, h_beq, h_e, ddhCKA, send]
         | true =>
           cases h_stA : s.stA with
@@ -537,19 +537,19 @@ lemma evalDist_marginalized_honestChallA_param_eq_oracleChallA_at_chal_A
                 { s with stA := (.recvReady x : CKAState F G), tA := s.tA + 1 } = true := by
               simp only [isChallengeEpoch] at h_e ⊢
               convert h_e using 2
-            simp [honestChallA_param, oracleChallA, StateT.run_bind, StateT.run_get,
+            simp [honestChallAparam, oracleChallA, StateT.run_bind, StateT.run_get,
               pure_bind, h_v, h_beq, h_e', h_stA, ddhCKA, send]
           | sendReady h =>
             push Not at h_fire
             exact absurd h_stA (h_fire h_v h_e h)
     exact evalDist_sample_bind_eq_of_forall_eq
-      (f := fun b' => (honestChallA_param (F := F) gp gen b' ()).run s)
+      (f := fun b' => (honestChallAparam (F := F) gp gen b' ()).run s)
       (p := (oracleChallA gp false (ddhCKA F G gen) ()).run s)
       h_param_eq_eager
 
 omit [Inhabited F] [Fintype G] [DecidableEq G] in
 /-- At `challengedParty = .A`, pre-sampling both the challenge scalar
-`b' ← $ᵗ F` and the random challenge key `gT ← $ᵗ G` for `honestChallA_param_rand`
+`b' ← $ᵗ F` and the random challenge key `gT ← $ᵗ G` for `honestChallAparamRand`
 yields the same distribution as `oracleChallA gp true` (rand branch). -/
 lemma evalDist_marginalized_honestChallA_param_rand_eq_oracleChallA_at_chal_A
   (gp : GameParams) (h_cp : gp.challengedParty = .A)
@@ -557,7 +557,7 @@ lemma evalDist_marginalized_honestChallA_param_rand_eq_oracleChallA_at_chal_A
     evalDist (do
       let b' ← ($ᵗ F : ProbComp F)
       let gT ← ($ᵗ G : ProbComp G)
-      (honestChallA_param_rand (F := F) gp gen b' gT ()).run s) =
+      (honestChallAparamRand (F := F) gp gen b' gT ()).run s) =
     evalDist ((oracleChallA gp true (ddhCKA F G gen) ()).run s) := by
   have h_beq : (gp.challengedParty == CKAParty.A) = true := by simp [h_cp]
   by_cases h_fire :
@@ -569,24 +569,24 @@ lemma evalDist_marginalized_honestChallA_param_rand_eq_oracleChallA_at_chal_A
     have h_eq : (do
           let b' ← ($ᵗ F : ProbComp F)
           let gT ← ($ᵗ G : ProbComp G)
-          (honestChallA_param_rand (F := F) gp gen b' gT ()).run s) =
+          (honestChallAparamRand (F := F) gp gen b' gT ()).run s) =
         ((oracleChallA gp true (ddhCKA F G gen) ()).run s) := by
-      simp [honestChallA_param_rand, oracleChallA, StateT.run_bind, StateT.run_get,
+      simp [honestChallAparamRand, oracleChallA, StateT.run_bind, StateT.run_get,
         pure_bind, bind_pure_comp,
         h_v, h_beq, h_stA, h_e, ddhCKA, send]
     rw [h_eq]
   · have h_param_eq_eager : ∀ b' : F, ∀ gT : G,
-        (honestChallA_param_rand (F := F) gp gen b' gT ()).run s =
+        (honestChallAparamRand (F := F) gp gen b' gT ()).run s =
         (oracleChallA gp true (ddhCKA F G gen) ()).run s := by
       intro b' gT
       cases h_v : validStep s.lastAction CKAAction.challA with
       | false =>
-        simp [honestChallA_param_rand, oracleChallA, StateT.run_bind, StateT.run_get,
+        simp [honestChallAparamRand, oracleChallA, StateT.run_bind, StateT.run_get,
           pure_bind, h_v, h_beq, ddhCKA]
       | true =>
         cases h_e : isChallengeEpoch gp { s with tA := s.tA + 1 } with
         | false =>
-          simp [honestChallA_param_rand, oracleChallA, StateT.run_bind, StateT.run_get,
+          simp [honestChallAparamRand, oracleChallA, StateT.run_bind, StateT.run_get,
             pure_bind, h_v, h_beq, h_e, ddhCKA, send]
         | true =>
           cases h_stA : s.stA with
@@ -595,26 +595,26 @@ lemma evalDist_marginalized_honestChallA_param_rand_eq_oracleChallA_at_chal_A
                 { s with stA := (.recvReady x : CKAState F G), tA := s.tA + 1 } = true := by
               simp only [isChallengeEpoch] at h_e ⊢
               convert h_e using 2
-            simp [honestChallA_param_rand, oracleChallA, StateT.run_bind, StateT.run_get,
+            simp [honestChallAparamRand, oracleChallA, StateT.run_bind, StateT.run_get,
               pure_bind, h_v, h_beq, h_e', h_stA, ddhCKA,
               send]
           | sendReady h =>
             push Not at h_fire
             exact absurd h_stA (h_fire h_v h_e h)
     exact evalDist_sample_bind₂_eq_of_forall_eq
-      (f := fun b' gT => (honestChallA_param_rand (F := F) gp gen b' gT ()).run s)
+      (f := fun b' gT => (honestChallAparamRand (F := F) gp gen b' gT ()).run s)
       (p := (oracleChallA gp true (ddhCKA F G gen) ()).run s)
       h_param_eq_eager
 
 omit [Inhabited F] [Fintype G] [DecidableEq G] in
-/-- At `challengedParty = .B`, pre-sampling `b ← $ᵗ F` for `honestChallB_param`
+/-- At `challengedParty = .B`, pre-sampling `b ← $ᵗ F` for `honestChallBparam`
 yields the same distribution as `oracleChallB gp false` (real branch). -/
 lemma evalDist_marginalized_honestChallB_param_eq_oracleChallB_at_chal_B
   (gp : GameParams) (h_cp : gp.challengedParty = .B)
   (s : GameState (CKAState F G) G G) :
     evalDist (do
       let b' ← ($ᵗ F : ProbComp F)
-      (honestChallB_param (F := F) gp gen b' ()).run s) =
+      (honestChallBparam (F := F) gp gen b' ()).run s) =
     evalDist ((oracleChallB gp false (ddhCKA F G gen) ()).run s) := by
   have h_beq : (gp.challengedParty == CKAParty.B) = true := by simp [h_cp]
   by_cases h_fire :
@@ -624,24 +624,24 @@ lemma evalDist_marginalized_honestChallB_param_eq_oracleChallB_at_chal_B
   · obtain ⟨h_v, h_e, h, h_stB⟩ := h_fire
     rw [h_stB] at h_e
     have h_eq : (do let b' ← ($ᵗ F : ProbComp F)
-                    (honestChallB_param (F := F) gp gen b' ()).run s) =
+                    (honestChallBparam (F := F) gp gen b' ()).run s) =
                 ((oracleChallB gp false (ddhCKA F G gen) ()).run s) := by
-      simp [honestChallB_param, oracleChallB, StateT.run_bind, StateT.run_get,
+      simp [honestChallBparam, oracleChallB, StateT.run_bind, StateT.run_get,
         pure_bind, bind_pure_comp,
         h_v, h_beq, h_stB, h_e, ddhCKA, send]
     rw [h_eq]
   · have h_param_eq_eager : ∀ b' : F,
-        (honestChallB_param (F := F) gp gen b' ()).run s =
+        (honestChallBparam (F := F) gp gen b' ()).run s =
         (oracleChallB gp false (ddhCKA F G gen) ()).run s := by
       intro b'
       cases h_v : validStep s.lastAction CKAAction.challB with
       | false =>
-        simp [honestChallB_param, oracleChallB, StateT.run_bind, StateT.run_get,
+        simp [honestChallBparam, oracleChallB, StateT.run_bind, StateT.run_get,
           pure_bind, h_v, h_beq, ddhCKA]
       | true =>
         cases h_e : isChallengeEpoch gp { s with tB := s.tB + 1 } with
         | false =>
-          simp [honestChallB_param, oracleChallB, StateT.run_bind, StateT.run_get,
+          simp [honestChallBparam, oracleChallB, StateT.run_bind, StateT.run_get,
             pure_bind, h_v, h_beq, h_e, ddhCKA, send]
         | true =>
           cases h_stB : s.stB with
@@ -650,13 +650,13 @@ lemma evalDist_marginalized_honestChallB_param_eq_oracleChallB_at_chal_B
                 { s with stB := (.recvReady x : CKAState F G), tB := s.tB + 1 } = true := by
               simp only [isChallengeEpoch] at h_e ⊢
               convert h_e using 2
-            simp [honestChallB_param, oracleChallB, StateT.run_bind, StateT.run_get,
+            simp [honestChallBparam, oracleChallB, StateT.run_bind, StateT.run_get,
               pure_bind, h_v, h_beq, h_e', h_stB, ddhCKA, send]
           | sendReady h =>
             push Not at h_fire
             exact absurd h_stB (h_fire h_v h_e h)
     exact evalDist_sample_bind_eq_of_forall_eq
-      (f := fun b' => (honestChallB_param (F := F) gp gen b' ()).run s)
+      (f := fun b' => (honestChallBparam (F := F) gp gen b' ()).run s)
       (p := (oracleChallB gp false (ddhCKA F G gen) ()).run s)
       h_param_eq_eager
 

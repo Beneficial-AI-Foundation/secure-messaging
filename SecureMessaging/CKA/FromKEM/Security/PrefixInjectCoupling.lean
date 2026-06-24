@@ -325,7 +325,7 @@ private lemma challA_run_support_counters [SampleableType K] [DecidableEq K]
   cases b
   all_goals (
     simp only [↓reduceIte] at hz
-    vcv_support hz
+    vcvSupport hz
     obtain rfl := Set.mem_singleton_iff.mp hz
     exact ⟨rfl, rfl⟩)
 
@@ -367,7 +367,7 @@ private lemma challB_run_support_counters [SampleableType K] [DecidableEq K]
   cases b
   all_goals (
     simp only [↓reduceIte] at hz
-    vcv_support hz
+    vcvSupport hz
     obtain rfl := Set.mem_singleton_iff.mp hz
     exact ⟨rfl, rfl⟩)
 

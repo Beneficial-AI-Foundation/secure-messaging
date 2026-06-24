@@ -46,10 +46,10 @@ theorem send_rleak_fst_eq_send
     (kem : KEMScheme m K PK SK C)
     (leak : RandLeak kem)
     (st : State PK SK) :
-    sendWithRandFst <$> send_rleak kem leak st = send kem st := by
+    sendWithRandFst <$> sendRleak kem leak st = send kem st := by
   cases st with
   | sendReady pk =>
-      simp only [send, send_rleak]
+      simp only [send, sendRleak]
       rw [← leak.encaps_fst pk]
       simp only [map_bind, bind_assoc, pure_bind]
       refine bind_congr fun ⟨⟨c, key⟩, rEnc⟩ => ?_
@@ -57,7 +57,7 @@ theorem send_rleak_fst_eq_send
       simp only [bind_assoc, pure_bind]
       refine bind_congr fun ⟨⟨pk', sk'⟩, rKeygen⟩ => ?_
       simp [sendWithRandFst]
-  | recvReady sk => simp [send, send_rleak, sendWithRandFst]
+  | recvReady sk => simp [send, sendRleak, sendWithRandFst]
 
 /-- When the turn check succeeds and the PCS leakage check allows a randomness-
 leak query, the A-side rleak send oracle agrees with the ordinary A-side send
@@ -77,15 +77,15 @@ theorem oracleSendA_rleak_fst_eq_oracleSendA
     (hValid : CKAScheme.validStep s.lastAction .sendA = true)
     (hPCS : CKAScheme.allowCorrPCS gp { s with tA := s.tA + 1 } = true) :
     (sendOracleWithRandFst <$>
-        (CKAScheme.oracleSendA_rleak gp (scheme kem hDet leak) ())).run s =
+        (CKAScheme.oracleSendArleak gp (scheme kem hDet leak) ())).run s =
       (CKAScheme.oracleSendA (scheme kem hDet leak) ()).run s := by
   cases hst : s.stA with
   | recvReady sk =>
-      simp [CKAScheme.oracleSendA_rleak, CKAScheme.oracleSendA, hValid,
-        scheme, sendOracleWithRandFst, send_rleak, send, hst]
+      simp [CKAScheme.oracleSendArleak, CKAScheme.oracleSendA, hValid,
+        scheme, sendOracleWithRandFst, sendRleak, send, hst]
   | sendReady pk =>
       rw [hst] at hPCS
-      simp only [CKAScheme.oracleSendA_rleak, scheme, send_rleak, bind_pure_comp,
+      simp only [CKAScheme.oracleSendArleak, scheme, sendRleak, bind_pure_comp,
         map_bind, StateT.run_bind, StateT.run_get, StateT.run_map,
         sendOracleWithRandFst, pure_bind, hValid, if_true, hst, hPCS,
         liftM_bind, liftM_map, bind_assoc, bind_map_left, StateT.run_monadLift,
@@ -112,15 +112,15 @@ theorem oracleSendB_rleak_fst_eq_oracleSendB
     (hValid : CKAScheme.validStep s.lastAction .sendB = true)
     (hPCS : CKAScheme.allowCorrPCS gp { s with tB := s.tB + 1 } = true) :
     (sendOracleWithRandFst <$>
-        (CKAScheme.oracleSendB_rleak gp (scheme kem hDet leak) ())).run s =
+        (CKAScheme.oracleSendBrleak gp (scheme kem hDet leak) ())).run s =
       (CKAScheme.oracleSendB (scheme kem hDet leak) ()).run s := by
   cases hst : s.stB with
   | recvReady sk =>
-      simp [CKAScheme.oracleSendB_rleak, CKAScheme.oracleSendB, hValid,
-        scheme, sendOracleWithRandFst, send_rleak, send, hst]
+      simp [CKAScheme.oracleSendBrleak, CKAScheme.oracleSendB, hValid,
+        scheme, sendOracleWithRandFst, sendRleak, send, hst]
   | sendReady pk =>
       rw [hst] at hPCS
-      simp only [CKAScheme.oracleSendB_rleak, scheme, send_rleak, bind_pure_comp,
+      simp only [CKAScheme.oracleSendBrleak, scheme, sendRleak, bind_pure_comp,
         map_bind, StateT.run_bind, StateT.run_get, StateT.run_map,
         sendOracleWithRandFst, pure_bind, hValid, if_true, hst, hPCS,
         liftM_bind, liftM_map, bind_assoc, bind_map_left, StateT.run_monadLift,

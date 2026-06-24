@@ -111,8 +111,8 @@ def send (gen : G) (st : CKAState F G) : ProbComp (Option (G × G × CKAState F 
     return some (key, msg, st')
   | .recvReady _ => return none
 
-/-- `send_rleak(h : G)`: as `send`, additionally leaking the sampled scalar `x`. -/
-def send_rleak (gen : G) (st : CKAState F G) :
+/-- `sendRleak(h : G)`: as `send`, additionally leaking the sampled scalar `x`. -/
+def sendRleak (gen : G) (st : CKAState F G) :
     ProbComp (Option (G × G × CKAState F G × F)) :=
   match st with
   | .sendReady h => do
@@ -153,9 +153,9 @@ def ddhCKA (F G : Type) [Field F] [Fintype F] [DecidableEq F] [SampleableType F]
   initA := fun (h, _) => return .sendReady h
   initB := fun (_, x) => return .recvReady x
   sendA := send gen
-  sendA_rleak := send_rleak gen
+  sendArleak := sendRleak gen
   sendB := send gen
-  sendB_rleak := send_rleak gen
+  sendBrleak := sendRleak gen
   recvA := recv
   recvB := recv
 -- ANCHOR_END: ddhCKA

@@ -216,7 +216,7 @@ private lemma simulateQ_wck_run_eq_injectedChallengePrefix_bind
       all_goals
         try
           simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
-            OracleQuery.cont_query, id_map, bind_assoc, stateT_run,
+            OracleQuery.cont_query, id_map, bind_assoc, stateTrun,
             injectedChallengePrefix, construct_query_bind]
           refine bind_congr (m := ProbComp) fun a => ?_
           simpa using ih a.1 a.2
@@ -224,12 +224,12 @@ private lemma simulateQ_wck_run_eq_injectedChallengePrefix_bind
         cases uChallA
         by_cases hWill : willChallengeA gp σ = true
         · simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
-            OracleQuery.cont_query, id_map, stateT_run, injectedChallengePrefix,
+            OracleQuery.cont_query, id_map, stateTrun, injectedChallengePrefix,
             construct_query_bind, hWill, ↓reduceIte, injectedChallengeResume]
         · have hWillFalse : willChallengeA gp σ = false :=
             Bool.eq_false_of_not_eq_true hWill
           simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
-            OracleQuery.cont_query, id_map, bind_assoc, stateT_run,
+            OracleQuery.cont_query, id_map, bind_assoc, stateTrun,
             injectedChallengePrefix, construct_query_bind, hWillFalse,
             Bool.false_eq_true, ↓reduceIte]
           rw [show (securityImplWithChallengeKeyPair kem hDet leak gp b pkStar skStar
@@ -245,12 +245,12 @@ private lemma simulateQ_wck_run_eq_injectedChallengePrefix_bind
         cases uChallB
         by_cases hWill : willChallengeB gp σ = true
         · simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
-            OracleQuery.cont_query, id_map, stateT_run, injectedChallengePrefix,
+            OracleQuery.cont_query, id_map, stateTrun, injectedChallengePrefix,
             construct_query_bind, hWill, ↓reduceIte, injectedChallengeResume]
         · have hWillFalse : willChallengeB gp σ = false :=
             Bool.eq_false_of_not_eq_true hWill
           simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
-            OracleQuery.cont_query, id_map, bind_assoc, stateT_run,
+            OracleQuery.cont_query, id_map, bind_assoc, stateTrun,
             injectedChallengePrefix, construct_query_bind, hWillFalse,
             Bool.false_eq_true, ↓reduceIte]
           rw [show (securityImplWithChallengeKeyPair kem hDet leak gp b pkStar skStar
@@ -329,7 +329,7 @@ lemma oracleSendAWithChallengePk_run_sendReady
               keyA := some key,
               lastAction := some .sendA } : SecurityState K PK SK C))) := by
   simp only [oracleSendAWithChallengePk, hvalid, ↓reduceIte, hstA,
-    stateT_run, bind_assoc]
+    stateTrun, bind_assoc]
 
 /-- Run reduction for the `pkStar`-embedding B-send oracle on a send-ready
 state, the mirror of `oracleSendAWithChallengePk_run_sendReady`. -/
@@ -356,7 +356,7 @@ lemma oracleSendBWithChallengePk_run_sendReady
               keyB := some key,
               lastAction := some .sendB } : SecurityState K PK SK C))) := by
   simp only [oracleSendBWithChallengePk, hvalid, ↓reduceIte, hstB,
-    stateT_run, bind_assoc]
+    stateTrun, bind_assoc]
 
 /-! ## A passed challenge stays passed
 
@@ -416,18 +416,18 @@ private lemma wck_run_counters_mono [SampleableType K] [DecidableEq K]
       | sendReady pk =>
           rw [oracleSendAWithChallengeKeyPair_run_sendReady kem gp pkStar skStar σ pk
             hvalid hst] at hz
-          vcv_support hz
+          vcvSupport hz
           obtain rfl := Set.mem_singleton_iff.mp hz
           exact ⟨Nat.le_succ _, le_refl _⟩
       | recvReady sk =>
           simp only [oracleSendAWithChallengeKeyPair, hvalid, ↓reduceIte, hst,
-            stateT_run] at hz
-          vcv_support
+            stateTrun] at hz
+          vcvSupport
     · have hvalidFalse : CKAScheme.validStep σ.lastAction .sendA = false :=
         Bool.eq_false_of_not_eq_true hvalid
       simp only [oracleSendAWithChallengeKeyPair, hvalidFalse, Bool.false_eq_true,
-        ↓reduceIte, stateT_run] at hz
-      vcv_support
+        ↓reduceIte, stateTrun] at hz
+      vcvSupport
   · exact securityImpl_run_counters_mono kem hDet leak gp isRandom
       (CKAScheme.ckaSecuritySpec.ORecvA : (securitySpec leak).Domain) σ z hz
   · -- O-Send-B: mirror of O-Send-A
@@ -438,18 +438,18 @@ private lemma wck_run_counters_mono [SampleableType K] [DecidableEq K]
       | sendReady pk =>
           rw [oracleSendBWithChallengeKeyPair_run_sendReady kem gp pkStar skStar σ pk
             hvalid hst] at hz
-          vcv_support hz
+          vcvSupport hz
           obtain rfl := Set.mem_singleton_iff.mp hz
           exact ⟨le_refl _, Nat.le_succ _⟩
       | recvReady sk =>
           simp only [oracleSendBWithChallengeKeyPair, hvalid, ↓reduceIte, hst,
-            stateT_run] at hz
-          vcv_support
+            stateTrun] at hz
+          vcvSupport
     · have hvalidFalse : CKAScheme.validStep σ.lastAction .sendB = false :=
         Bool.eq_false_of_not_eq_true hvalid
       simp only [oracleSendBWithChallengeKeyPair, hvalidFalse, Bool.false_eq_true,
-        ↓reduceIte, stateT_run] at hz
-      vcv_support
+        ↓reduceIte, stateTrun] at hz
+      vcvSupport
   · exact securityImpl_run_counters_mono kem hDet leak gp isRandom
       (CKAScheme.ckaSecuritySpec.ORecvB : (securitySpec leak).Domain) σ z hz
   · exact securityImpl_run_counters_mono kem hDet leak gp isRandom
@@ -461,9 +461,9 @@ private lemma wck_run_counters_mono [SampleableType K] [DecidableEq K]
   · exact securityImpl_run_counters_mono kem hDet leak gp isRandom
       (CKAScheme.ckaSecuritySpec.OCorruptB : (securitySpec leak).Domain) σ z hz
   · exact securityImpl_run_counters_mono kem hDet leak gp isRandom
-      (CKAScheme.ckaSecuritySpec.OSendA_rleak : (securitySpec leak).Domain) σ z hz
+      (CKAScheme.ckaSecuritySpec.OSendArleak : (securitySpec leak).Domain) σ z hz
   · exact securityImpl_run_counters_mono kem hDet leak gp isRandom
-      (CKAScheme.ckaSecuritySpec.OSendB_rleak : (securitySpec leak).Domain) σ z hz
+      (CKAScheme.ckaSecuritySpec.OSendBrleak : (securitySpec leak).Domain) σ z hz
 
 /-- The reduction prefix implementation keeps both epoch counters
 non-decreasing: only its send oracles differ from `securityImpl`'s, and they
@@ -490,18 +490,18 @@ private lemma prefixImpl_run_counters_mono [SampleableType K] [DecidableEq K]
     · cases hst : σ.stA with
       | sendReady pk =>
           rw [oracleSendAWithChallengePk_run_sendReady kem gp pkStar σ pk hvalid hst] at hz
-          vcv_support hz
+          vcvSupport hz
           obtain rfl := Set.mem_singleton_iff.mp hz
           exact ⟨Nat.le_succ _, le_refl _⟩
       | recvReady sk =>
           simp only [oracleSendAWithChallengePk, hvalid, ↓reduceIte, hst,
-            stateT_run] at hz
-          vcv_support
+            stateTrun] at hz
+          vcvSupport
     · have hvalidFalse : CKAScheme.validStep σ.lastAction .sendA = false :=
         Bool.eq_false_of_not_eq_true hvalid
       simp only [oracleSendAWithChallengePk, hvalidFalse, Bool.false_eq_true,
-        ↓reduceIte, stateT_run] at hz
-      vcv_support
+        ↓reduceIte, stateTrun] at hz
+      vcvSupport
   · exact securityImpl_run_counters_mono kem hDet leak gp false
       (CKAScheme.ckaSecuritySpec.ORecvA : (securitySpec leak).Domain) σ z hz
   · -- O-Send-B: mirror of O-Send-A
@@ -511,18 +511,18 @@ private lemma prefixImpl_run_counters_mono [SampleableType K] [DecidableEq K]
     · cases hst : σ.stB with
       | sendReady pk =>
           rw [oracleSendBWithChallengePk_run_sendReady kem gp pkStar σ pk hvalid hst] at hz
-          vcv_support hz
+          vcvSupport hz
           obtain rfl := Set.mem_singleton_iff.mp hz
           exact ⟨le_refl _, Nat.le_succ _⟩
       | recvReady sk =>
           simp only [oracleSendBWithChallengePk, hvalid, ↓reduceIte, hst,
-            stateT_run] at hz
-          vcv_support
+            stateTrun] at hz
+          vcvSupport
     · have hvalidFalse : CKAScheme.validStep σ.lastAction .sendB = false :=
         Bool.eq_false_of_not_eq_true hvalid
       simp only [oracleSendBWithChallengePk, hvalidFalse, Bool.false_eq_true,
-        ↓reduceIte, stateT_run] at hz
-      vcv_support
+        ↓reduceIte, stateTrun] at hz
+      vcvSupport
   · exact securityImpl_run_counters_mono kem hDet leak gp false
       (CKAScheme.ckaSecuritySpec.ORecvB : (securitySpec leak).Domain) σ z hz
   · exact securityImpl_run_counters_mono kem hDet leak gp false
@@ -534,9 +534,9 @@ private lemma prefixImpl_run_counters_mono [SampleableType K] [DecidableEq K]
   · exact securityImpl_run_counters_mono kem hDet leak gp false
       (CKAScheme.ckaSecuritySpec.OCorruptB : (securitySpec leak).Domain) σ z hz
   · exact securityImpl_run_counters_mono kem hDet leak gp false
-      (CKAScheme.ckaSecuritySpec.OSendA_rleak : (securitySpec leak).Domain) σ z hz
+      (CKAScheme.ckaSecuritySpec.OSendArleak : (securitySpec leak).Domain) σ z hz
   · exact securityImpl_run_counters_mono kem hDet leak gp false
-      (CKAScheme.ckaSecuritySpec.OSendB_rleak : (securitySpec leak).Domain) σ z hz
+      (CKAScheme.ckaSecuritySpec.OSendBrleak : (securitySpec leak).Domain) σ z hz
 
 /-- From a state past the challenge epoch, the injected prefix never pauses. -/
 lemma injectedChallengePrefix_run_done_of_challengePassed
@@ -594,7 +594,7 @@ lemma injectedChallengePrefix_run_done_of_challengePassed
         try cases uRLeakA
         try cases uRLeakB
       all_goals
-        simp only [injectedChallengePrefix, construct_query_bind, stateT_run,
+        simp only [injectedChallengePrefix, construct_query_bind, stateTrun,
           hWillA, hWillB, Bool.false_eq_true, ↓reduceIte,
           support_bind, Set.mem_iUnion₂] at hz
         obtain ⟨p, hp, hz'⟩ := hz
@@ -652,7 +652,7 @@ lemma challengePrefix_run_done_of_challengePassed
         try cases uRLeakA
         try cases uRLeakB
       all_goals
-        simp only [challengePrefix, construct_query_bind, stateT_run,
+        simp only [challengePrefix, construct_query_bind, stateTrun,
           hWillA, hWillB, Bool.false_eq_true, ↓reduceIte,
           support_bind, Set.mem_iUnion₂] at hz
         obtain ⟨p, hp, hz'⟩ := hz
@@ -701,7 +701,7 @@ def securityShapeInv
 /-! ## Supports of the randomness-leaking KEM calls
 
 By `keygen_fst` and `encaps_fst`, `kem.keygen` and `kem.encaps` are the first
-components of `keygen_rleak` and `encaps_rleak`, so a support fact for a
+components of `keygenRleak` and `encapsRleak`, so a support fact for a
 leaking call projects to one for the underlying call.  The randomness-leaking
 sends preserve the shape invariant through these projections. -/
 
@@ -709,7 +709,7 @@ lemma mem_support_encaps_of_encaps_rleak
     (kem : KEMScheme ProbComp K PK SK C)
     (leak : RandLeak kem)
     {pk : PK} {ck : C × K} {r : leak.EncapsRand}
-    (h : (ck, r) ∈ support (leak.encaps_rleak pk)) :
+    (h : (ck, r) ∈ support (leak.encapsRleak pk)) :
     ck ∈ support (kem.encaps pk) := by
   rw [← leak.encaps_fst pk]
   exact (mem_support_bind_iff _ _ _).2 ⟨(ck, r), h, by simp⟩
@@ -720,7 +720,7 @@ lemma mem_support_keygen_of_keygen_rleak
     (kem : KEMScheme ProbComp K PK SK C)
     (leak : RandLeak kem)
     {ks : PK × SK} {r : leak.KeygenRand}
-    (h : (ks, r) ∈ support leak.keygen_rleak) :
+    (h : (ks, r) ∈ support leak.keygenRleak) :
     ks ∈ support kem.keygen := by
   rw [← leak.keygen_fst]
   exact (mem_support_bind_iff _ _ _).2 ⟨(ks, r), h, by simp⟩

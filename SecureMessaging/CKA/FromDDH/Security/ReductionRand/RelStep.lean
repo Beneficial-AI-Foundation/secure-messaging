@@ -16,7 +16,7 @@ It proves that this relation is an invariant, i.e. it is preserved by each oracl
 
 For
 
-- `R := reductionHonestRel_rand gp gen a b gT`,
+- `R := reductionHonestRelRand gp gen a b gT`,
 - a reduction state `sR`, and
 - a parameterized honest CKA state `sH`
 
@@ -28,7 +28,7 @@ The step theorem proves, for each oracle query `t`,
 ```lean
 RelTriple
   ((reductionOracleImpl gp gen (a • gen) (b • gen) gT t).run sR)
-  ((honestImpl_param_rand gp gen a b gT t).run sH)
+  ((honestImplParamRand gp gen a b gT t).run sH)
   (fun pR pH => pR.1 = pH.1 ∧ R pR.2 pH.2)
 ```
 
@@ -61,9 +61,9 @@ variable [Fintype G]
 omit [Fintype G] in
 /-- Rand-branch simulation invariant between reduction and honest states.
 The external random key `_gT` is not constrained by the relation but is kept in
-the parameter list to mirror `honestImpl_param_rand gp gen a b gT`. -/
+the parameter list to mirror `honestImplParamRand gp gen a b gT`. -/
 @[nolint unusedArguments]
-def reductionHonestRel_rand (gp : GameParams) (gen : G) (a b : F) (_gT : G)
+def reductionHonestRelRand (gp : GameParams) (gen : G) (a b : F) (_gT : G)
     (sR sH : GameState (CKAState F G) G G) : Prop :=
   reachableShape gen sH ∧
   sR.tA = sH.tA ∧
@@ -95,7 +95,7 @@ def reductionHonestRel_rand (gp : GameParams) (gen : G) (a b : F) (_gT : G)
 
 omit [Fintype F] [DecidableEq F] [SampleableType F] [SampleableType G]
   [DecidableEq G] [Inhabited F] [Fintype G] in
-/-- Preservation of `reductionHonestRel_rand` by a successful `recvB` step.
+/-- Preservation of `reductionHonestRelRand` by a successful `recvB` step.
 
 After B receives A's value `y`, both executions set B's local state to
 `.sendReady (y • gen)`. The B-state part of the relation is therefore equality;
@@ -118,7 +118,7 @@ private lemma reductionHonestRel_rand_after_recvB
       sR.stA = (.recvReady 0 : CKAState F G) ∧ sH.stA = .recvReady a)
     (h_safeA : (allowCorrPCS gp sR || allowCorrFS gp sR .A) = true →
       sR.stA = sH.stA) :
-    reductionHonestRel_rand gp gen a b gT
+    reductionHonestRelRand gp gen a b gT
       { sR with
         tB := sR.tB + 1, stB := .sendReady (y • gen),
         rhoA := none, keyA := none, correct := cR,
@@ -184,7 +184,7 @@ private lemma reductionHonestRel_rand_after_recvB
 
 omit [Fintype F] [DecidableEq F] [SampleableType F] [SampleableType G]
   [DecidableEq G] [Inhabited F] [Fintype G] in
-/-- Preservation of `reductionHonestRel_rand` by a successful `recvA` step.
+/-- Preservation of `reductionHonestRelRand` by a successful `recvA` step.
 
 After A receives B's value `x`, both executions set A's local state to
 `.sendReady (x • gen)`. The A-state part of the relation is therefore equality;
@@ -207,7 +207,7 @@ private lemma reductionHonestRel_rand_after_recvA
       sR.stB = (.recvReady 0 : CKAState F G) ∧ sH.stB = .recvReady a)
     (h_safeB : (allowCorrPCS gp sR || allowCorrFS gp sR .B) = true →
       sR.stB = sH.stB) :
-    reductionHonestRel_rand gp gen a b gT
+    reductionHonestRelRand gp gen a b gT
       { sR with
         tA := sR.tA + 1, stA := .sendReady (x • gen),
         rhoB := none, keyB := none, correct := cR,
@@ -279,17 +279,17 @@ private lemma reduction_honest_param_rand_corruptB_rel
     (h_tA : sR.tA = sH.tA) (h_tB : sR.tB = sH.tB)
     (h_safeB : (allowCorrPCS gp sR || allowCorrFS gp sR .B) = true →
       sR.stB = sH.stB)
-    (hrel : reductionHonestRel_rand gp gen a b gT sR sH) :
+    (hrel : reductionHonestRelRand gp gen a b gT sR sH) :
     OracleComp.ProgramLogic.Relational.RelTriple
       ((reductionOracleImpl gp gen (a • gen) (b • gen) gT OCorruptB).run sR)
-      ((honestImpl_param_rand gp gen a b gT OCorruptB).run sH)
+      ((honestImplParamRand gp gen a b gT OCorruptB).run sH)
       (fun pR pH =>
-        pR.1 = pH.1 ∧ reductionHonestRel_rand gp gen a b gT pR.2 pH.2) := by
-  simp only [reductionOracleImpl, honestImpl_param_rand, QueryImpl.add_apply_inl,
+        pR.1 = pH.1 ∧ reductionHonestRelRand gp gen a b gT pR.2 pH.2) := by
+  simp only [reductionOracleImpl, honestImplParamRand, QueryImpl.add_apply_inl,
     QueryImpl.add_apply_inr]
   exact relTriple_oracleCorruptB_of_state_rel
     (gp := gp)
-    (R := fun sR sH => reductionHonestRel_rand gp gen a b gT sR sH)
+    (R := fun sR sH => reductionHonestRelRand gp gen a b gT sR sH)
     (sL := sR) (sR := sH) h_tA h_tB h_safeB hrel
 
 omit [Inhabited F] [Fintype G] in
@@ -300,17 +300,17 @@ private lemma reduction_honest_param_rand_corruptA_rel
     (h_tA : sR.tA = sH.tA) (h_tB : sR.tB = sH.tB)
     (h_safeA : (allowCorrPCS gp sR || allowCorrFS gp sR .A) = true →
       sR.stA = sH.stA)
-    (hrel : reductionHonestRel_rand gp gen a b gT sR sH) :
+    (hrel : reductionHonestRelRand gp gen a b gT sR sH) :
     OracleComp.ProgramLogic.Relational.RelTriple
       ((reductionOracleImpl gp gen (a • gen) (b • gen) gT OCorruptA).run sR)
-      ((honestImpl_param_rand gp gen a b gT OCorruptA).run sH)
+      ((honestImplParamRand gp gen a b gT OCorruptA).run sH)
       (fun pR pH =>
-        pR.1 = pH.1 ∧ reductionHonestRel_rand gp gen a b gT pR.2 pH.2) := by
-  simp only [reductionOracleImpl, honestImpl_param_rand, QueryImpl.add_apply_inl,
+        pR.1 = pH.1 ∧ reductionHonestRelRand gp gen a b gT pR.2 pH.2) := by
+  simp only [reductionOracleImpl, honestImplParamRand, QueryImpl.add_apply_inl,
     QueryImpl.add_apply_inr]
   exact relTriple_oracleCorruptA_of_state_rel
     (gp := gp)
-    (R := fun sR sH => reductionHonestRel_rand gp gen a b gT sR sH)
+    (R := fun sR sH => reductionHonestRelRand gp gen a b gT sR sH)
     (sL := sR) (sR := sH) h_tA h_tB h_safeA hrel
 
 omit [Inhabited F] [Fintype G] in
@@ -318,34 +318,34 @@ omit [Inhabited F] [Fintype G] in
 private lemma reduction_honest_param_rand_unif_rel
     (gp : GameParams) (a b : F) (gT : G) (n : unifSpec.Domain)
     (sR sH : GameState (CKAState F G) G G)
-    (hrel : reductionHonestRel_rand gp gen a b gT sR sH) :
+    (hrel : reductionHonestRelRand gp gen a b gT sR sH) :
     OracleComp.ProgramLogic.Relational.RelTriple
       ((reductionOracleImpl gp gen (a • gen) (b • gen) gT (OUnif n)).run sR)
-      ((honestImpl_param_rand gp gen a b gT (OUnif n)).run sH)
+      ((honestImplParamRand gp gen a b gT (OUnif n)).run sH)
       (fun pR pH =>
-        pR.1 = pH.1 ∧ reductionHonestRel_rand gp gen a b gT pR.2 pH.2) := by
-  simp only [reductionOracleImpl, honestImpl_param_rand, QueryImpl.add_apply_inl]
+        pR.1 = pH.1 ∧ reductionHonestRelRand gp gen a b gT pR.2 pH.2) := by
+  simp only [reductionOracleImpl, honestImplParamRand, QueryImpl.add_apply_inl]
   exact relTriple_oracleUnif_of_state_rel
-    (R := fun sR sH => reductionHonestRel_rand gp gen a b gT sR sH)
+    (R := fun sR sH => reductionHonestRelRand gp gen a b gT sR sH)
     (n := n) (sL := sR) (sR := sH) hrel
 
 omit [Inhabited F] [Fintype G] in
-/-- Per-query preservation of the random-branch relation `reductionHonestRel_rand`. -/
+/-- Per-query preservation of the random-branch relation `reductionHonestRelRand`. -/
 lemma reduction_honest_param_rand_step_rel
   (gp : GameParams) (hΔFS : gp.ΔFS = 1) (hΔPCS : gp.ΔPCS = 2)
     (a b : F) (gT : G)
     (t : (ckaSecuritySpec (CKAState F G) G G F).Domain)
     (sR sH : GameState (CKAState F G) G G)
-    (hrel : reductionHonestRel_rand gp gen a b gT sR sH) :
+    (hrel : reductionHonestRelRand gp gen a b gT sR sH) :
     OracleComp.ProgramLogic.Relational.RelTriple
       ((reductionOracleImpl gp gen (a • gen) (b • gen) gT t).run sR)
-      ((honestImpl_param_rand gp gen a b gT t).run sH)
-      (fun pR pH => pR.1 = pH.1 ∧ reductionHonestRel_rand gp gen a b gT pR.2 pH.2) := by
+      ((honestImplParamRand gp gen a b gT t).run sH)
+      (fun pR pH => pR.1 = pH.1 ∧ reductionHonestRelRand gp gen a b gT pR.2 pH.2) := by
   rcases hrel with
     ⟨h_shape, h_tA, h_tB, h_last, h_rhoA, h_rhoB,
       h_none, h_stA, h_stB,
       h_pendingA, h_pendingB, h_safeA, h_safeB⟩
-  have hrel_self : reductionHonestRel_rand gp gen a b gT sR sH := by
+  have hrel_self : reductionHonestRelRand gp gen a b gT sR sH := by
     exact
       ⟨h_shape, h_tA, h_tB, h_last, h_rhoA, h_rhoB,
         h_none, h_stA, h_stB,
@@ -358,7 +358,7 @@ lemma reduction_honest_param_rand_step_rel
       exact reduction_honest_param_rand_corruptA_rel
         (gen := gen) gp a b gT sR sH h_tA h_tB h_safeA hrel_self
   | OChallB =>
-      simp only [reductionOracleImpl, honestImpl_param_rand, QueryImpl.add_apply_inl,
+      simp only [reductionOracleImpl, honestImplParamRand, QueryImpl.add_apply_inl,
         QueryImpl.add_apply_inr]
       by_cases h_cp : gp.challengedParty = CKAParty.B
       · by_cases h_v : validStep sR.lastAction CKAAction.challB = true
@@ -403,22 +403,22 @@ lemma reduction_honest_param_rand_step_rel
               have h_epochH_nat : sH.tB + 1 = gp.challengeEpoch := by
                 simpa [isChallengeEpoch, GameState.tP, h_cp] using h_epochH
               have h_runH :
-                  (honestChallB_param_rand (F := F) gp gen b gT ()).run sH =
+                  (honestChallBparamRand (F := F) gp gen b gT ()).run sH =
                     (pure (some (b • gen, gT),
                       { sH with
                         tB := sH.tB + 1, stB := (.recvReady b : CKAState F G),
                         rhoB := some (b • gen), keyB := some (b • (a • gen)),
                         lastAction := some .challB }) :
                       ProbComp (Option (G × G) × GameState (CKAState F G) G G)) := by
-                unfold honestChallB_param_rand
+                unfold honestChallBparamRand
                 rw [StateT.run_get_bind]
                 simp [h_lastH, validStep, h_cp, h_epochH_nat, h_stBH,
                   isChallengeEpoch, GameState.tP]
               refine relTriple_of_eq_pure_pure
                 (oa := (reductionChallB (F := F) gp (b • gen) gT ()).run sR)
-                (ob := (honestChallB_param_rand (F := F) gp gen b gT ()).run sH)
+                (ob := (honestChallBparamRand (F := F) gp gen b gT ()).run sH)
                 (R := fun pR pH =>
-                  pR.1 = pH.1 ∧ reductionHonestRel_rand gp gen a b gT pR.2 pH.2)
+                  pR.1 = pH.1 ∧ reductionHonestRelRand gp gen a b gT pR.2 pH.2)
                 (a := (some (b • gen, gT),
                   { sR with
                     tB := sR.tB + 1, stB := (.recvReady 0 : CKAState F G),
@@ -470,7 +470,7 @@ lemma reduction_honest_param_rand_step_rel
             exact relTriple_reductionChallB_pred_false_of_state_rel
               (mode := .rand) (gp := gp) (gen := gen) (b := b)
               (gB := b • gen) (gT := gT) (gTH := gT)
-              (R := fun sR sH => reductionHonestRel_rand gp gen a b gT sR sH)
+              (R := fun sR sH => reductionHonestRelRand gp gen a b gT sR sH)
               (sL := sR) (sR := sH)
               (by simp [h_cp, h_v, h_epochR])
               (by simp [h_vH, h_cp, h_epochH])
@@ -483,7 +483,7 @@ lemma reduction_honest_param_rand_step_rel
           exact relTriple_reductionChallB_pred_false_of_state_rel
             (mode := .rand) (gp := gp) (gen := gen) (b := b)
             (gB := b • gen) (gT := gT) (gTH := gT)
-            (R := fun sR sH => reductionHonestRel_rand gp gen a b gT sR sH)
+            (R := fun sR sH => reductionHonestRelRand gp gen a b gT sR sH)
             (sL := sR) (sR := sH)
             (by simp [h_cp, h_vR])
             (by simp [h_vH])
@@ -493,13 +493,13 @@ lemma reduction_honest_param_rand_step_rel
         exact relTriple_reductionChallB_pred_false_of_state_rel
           (mode := .rand) (gp := gp) (gen := gen) (b := b)
           (gB := b • gen) (gT := gT) (gTH := gT)
-          (R := fun sR sH => reductionHonestRel_rand gp gen a b gT sR sH)
+          (R := fun sR sH => reductionHonestRelRand gp gen a b gT sR sH)
           (sL := sR) (sR := sH)
           (by simp [h_cp_ne])
           (by simp [h_cp_ne])
           hrel_self
   | OChallA =>
-      simp only [reductionOracleImpl, honestImpl_param_rand, QueryImpl.add_apply_inl,
+      simp only [reductionOracleImpl, honestImplParamRand, QueryImpl.add_apply_inl,
         QueryImpl.add_apply_inr]
       by_cases h_cp : gp.challengedParty = CKAParty.A
       · by_cases h_v : validStep sR.lastAction CKAAction.challA = true
@@ -550,22 +550,22 @@ lemma reduction_honest_param_rand_step_rel
               have h_epochH_nat : sH.tA + 1 = gp.challengeEpoch := by
                 simpa [isChallengeEpoch, GameState.tP, h_cp] using h_epochH
               have h_runH :
-                  (honestChallA_param_rand (F := F) gp gen b gT ()).run sH =
+                  (honestChallAparamRand (F := F) gp gen b gT ()).run sH =
                     (pure (some (b • gen, gT),
                       { sH with
                         tA := sH.tA + 1, stA := (.recvReady b : CKAState F G),
                         rhoA := some (b • gen), keyA := some (b • (a • gen)),
                         lastAction := some .challA }) :
                       ProbComp (Option (G × G) × GameState (CKAState F G) G G)) := by
-                unfold honestChallA_param_rand
+                unfold honestChallAparamRand
                 rw [StateT.run_get_bind]
                 simp [h_lastH, validStep, h_cp, h_epochH_nat, h_stAH,
                   isChallengeEpoch, GameState.tP]
               refine relTriple_of_eq_pure_pure
                 (oa := (reductionChallA (F := F) gp (b • gen) gT ()).run sR)
-                (ob := (honestChallA_param_rand (F := F) gp gen b gT ()).run sH)
+                (ob := (honestChallAparamRand (F := F) gp gen b gT ()).run sH)
                 (R := fun pR pH =>
-                  pR.1 = pH.1 ∧ reductionHonestRel_rand gp gen a b gT pR.2 pH.2)
+                  pR.1 = pH.1 ∧ reductionHonestRelRand gp gen a b gT pR.2 pH.2)
                 (a := (some (b • gen, gT),
                   { sR with
                     tA := sR.tA + 1, stA := (.recvReady 0 : CKAState F G),
@@ -617,7 +617,7 @@ lemma reduction_honest_param_rand_step_rel
             exact relTriple_reductionChallA_pred_false_of_state_rel
               (mode := .rand) (gp := gp) (gen := gen) (b := b)
               (gB := b • gen) (gT := gT) (gTH := gT)
-              (R := fun sR sH => reductionHonestRel_rand gp gen a b gT sR sH)
+              (R := fun sR sH => reductionHonestRelRand gp gen a b gT sR sH)
               (sL := sR) (sR := sH)
               (by simp [h_cp, h_v, h_epochR])
               (by simp [h_vH, h_cp, h_epochH])
@@ -630,7 +630,7 @@ lemma reduction_honest_param_rand_step_rel
           exact relTriple_reductionChallA_pred_false_of_state_rel
             (mode := .rand) (gp := gp) (gen := gen) (b := b)
             (gB := b • gen) (gT := gT) (gTH := gT)
-            (R := fun sR sH => reductionHonestRel_rand gp gen a b gT sR sH)
+            (R := fun sR sH => reductionHonestRelRand gp gen a b gT sR sH)
             (sL := sR) (sR := sH)
             (by simp [h_cp, h_vR])
             (by simp [h_vH])
@@ -640,7 +640,7 @@ lemma reduction_honest_param_rand_step_rel
         exact relTriple_reductionChallA_pred_false_of_state_rel
           (mode := .rand) (gp := gp) (gen := gen) (b := b)
           (gB := b • gen) (gT := gT) (gTH := gT)
-          (R := fun sR sH => reductionHonestRel_rand gp gen a b gT sR sH)
+          (R := fun sR sH => reductionHonestRelRand gp gen a b gT sR sH)
           (sL := sR) (sR := sH)
           (by simp [h_cp_ne])
           (by simp [h_cp_ne])
@@ -649,7 +649,7 @@ lemma reduction_honest_param_rand_step_rel
       exact reduction_honest_param_rand_unif_rel
         (gen := gen) gp a b gT n sR sH hrel_self
   | OSendB =>
-      simp only [reductionOracleImpl, honestImpl_param_rand, QueryImpl.add_apply_inl,
+      simp only [reductionOracleImpl, honestImplParamRand, QueryImpl.add_apply_inl,
         QueryImpl.add_apply_inr]
       by_cases h_v : validStep sR.lastAction CKAAction.sendB = true
       · have h_vH : validStep sH.lastAction CKAAction.sendB = true := by
@@ -716,22 +716,22 @@ lemma reduction_honest_param_rand_step_rel
               simp [h_lastH, validStep, h_cpA, h_tB_embedH,
                 isOtherSendBeforeChall, GameState.tP, CKAParty.other]
             have h_runH :
-                (honestSendB_param (F := F) gp gen a ()).run sH =
+                (honestSendBparam (F := F) gp gen a ()).run sH =
                   (pure (some (a • gen, a • (y • gen)),
                     { sH with
                       tB := sH.tB + 1, stB := (.recvReady a : CKAState F G),
                       rhoB := some (a • gen), keyB := some (a • (y • gen)),
                       lastAction := some .sendB }) :
                     ProbComp (Option (G × G) × GameState (CKAState F G) G G)) := by
-              unfold honestSendB_param
+              unfold honestSendBparam
               rw [StateT.run_get_bind]
               simp [h_lastH, validStep, h_cpA, h_tB_embedH, h_stBH,
                 isOtherSendBeforeChall, GameState.tP, CKAParty.other]
             refine relTriple_of_eq_pure_pure
               (oa := (reductionSendB (F := F) gp gen (a • gen) ()).run sR)
-              (ob := (honestSendB_param (F := F) gp gen a ()).run sH)
+              (ob := (honestSendBparam (F := F) gp gen a ()).run sH)
               (R := fun pR pH =>
-                pR.1 = pH.1 ∧ reductionHonestRel_rand gp gen a b gT pR.2 pH.2)
+                pR.1 = pH.1 ∧ reductionHonestRelRand gp gen a b gT pR.2 pH.2)
               (a := (some (a • gen, y • (a • gen)),
                 { sR with
                   tB := sR.tB + 1, stB := (.recvReady 0 : CKAState F G),
@@ -824,7 +824,7 @@ lemma reduction_honest_param_rand_step_rel
               · simp [h_v, h_party, h_stBR, send,
                   isOtherSendBeforeChall, GameState.tP, CKAParty.other]
             have h_runH :
-                (honestSendB_param (F := F) gp gen a ()).run sH =
+                (honestSendBparam (F := F) gp gen a ()).run sH =
                   ((fun x =>
                     (some (x • gen, x • (y • gen)),
                       { sH with
@@ -912,10 +912,10 @@ lemma reduction_honest_param_rand_step_rel
               rfl
       · exact relTriple_reductionSendB_invalid_of_state_rel
           (gp := gp) (gen := gen) (a := a)
-          (R := fun sR sH => reductionHonestRel_rand gp gen a b gT sR sH)
+          (R := fun sR sH => reductionHonestRelRand gp gen a b gT sR sH)
           (sL := sR) (sR := sH) h_last h_v hrel_self
   | OSendA =>
-      simp only [reductionOracleImpl, honestImpl_param_rand, QueryImpl.add_apply_inl,
+      simp only [reductionOracleImpl, honestImplParamRand, QueryImpl.add_apply_inl,
         QueryImpl.add_apply_inr]
       by_cases h_v : validStep sR.lastAction CKAAction.sendA = true
       · have h_vH : validStep sH.lastAction CKAAction.sendA = true := by
@@ -978,22 +978,22 @@ lemma reduction_honest_param_rand_step_rel
               simp [h_lastH, validStep, h_cpB, h_tA_embedH,
                 isOtherSendBeforeChall, GameState.tP, CKAParty.other]
             have h_runH :
-                (honestSendA_param (F := F) gp gen a ()).run sH =
+                (honestSendAparam (F := F) gp gen a ()).run sH =
                   (pure (some (a • gen, a • (x • gen)),
                     { sH with
                       tA := sH.tA + 1, stA := (.recvReady a : CKAState F G),
                       rhoA := some (a • gen), keyA := some (a • (x • gen)),
                       lastAction := some .sendA }) :
                     ProbComp (Option (G × G) × GameState (CKAState F G) G G)) := by
-              unfold honestSendA_param
+              unfold honestSendAparam
               rw [StateT.run_get_bind]
               simp [h_lastH, validStep, h_cpB, h_tA_embedH, h_stAH,
                 isOtherSendBeforeChall, GameState.tP, CKAParty.other]
             refine relTriple_of_eq_pure_pure
               (oa := (reductionSendA (F := F) gp gen (a • gen) ()).run sR)
-              (ob := (honestSendA_param (F := F) gp gen a ()).run sH)
+              (ob := (honestSendAparam (F := F) gp gen a ()).run sH)
               (R := fun pR pH =>
-                pR.1 = pH.1 ∧ reductionHonestRel_rand gp gen a b gT pR.2 pH.2)
+                pR.1 = pH.1 ∧ reductionHonestRelRand gp gen a b gT pR.2 pH.2)
               (a := (some (a • gen, x • (a • gen)),
                 { sR with
                   tA := sR.tA + 1, stA := (.recvReady 0 : CKAState F G),
@@ -1080,7 +1080,7 @@ lemma reduction_honest_param_rand_step_rel
                   isOtherSendBeforeChall, GameState.tP, CKAParty.other] at h_embed_false ⊢
                 simp [h_embed_false]
             have h_runH :
-                (honestSendA_param (F := F) gp gen a ()).run sH =
+                (honestSendAparam (F := F) gp gen a ()).run sH =
                   ((fun y =>
                     (some (y • gen, y • (x • gen)),
                       { sH with
@@ -1164,10 +1164,10 @@ lemma reduction_honest_param_rand_step_rel
                 simp [h_finished_pre]
       · exact relTriple_reductionSendA_invalid_of_state_rel
           (gp := gp) (gen := gen) (a := a)
-          (R := fun sR sH => reductionHonestRel_rand gp gen a b gT sR sH)
+          (R := fun sR sH => reductionHonestRelRand gp gen a b gT sR sH)
           (sL := sR) (sR := sH) h_last h_v hrel_self
   | ORecvB =>
-      simp only [reductionOracleImpl, honestImpl_param_rand, QueryImpl.add_apply_inl,
+      simp only [reductionOracleImpl, honestImplParamRand, QueryImpl.add_apply_inl,
         QueryImpl.add_apply_inr]
       by_cases h_v : validStep sR.lastAction CKAAction.recvB = true
       · have h_vH : validStep sH.lastAction CKAAction.recvB = true := by
@@ -1218,7 +1218,7 @@ lemma reduction_honest_param_rand_step_rel
             (oa := (oracleRecvB (ddhCKA F G gen) ()).run sR)
             (ob := (oracleRecvB (ddhCKA F G gen) ()).run sH)
             (R := fun pR pH =>
-              pR.1 = pH.1 ∧ reductionHonestRel_rand gp gen a b gT pR.2 pH.2)
+              pR.1 = pH.1 ∧ reductionHonestRelRand gp gen a b gT pR.2 pH.2)
             (a := ((), { sR with
               tB := sR.tB + 1, stB := .sendReady (y • gen),
               rhoA := none, keyA := none, correct := cR,
@@ -1237,10 +1237,10 @@ lemma reduction_honest_param_rand_step_rel
             h_safeA⟩
       · exact relTriple_oracleRecvB_invalid_of_state_rel
           (gen := gen)
-          (R := fun sR sH => reductionHonestRel_rand gp gen a b gT sR sH)
+          (R := fun sR sH => reductionHonestRelRand gp gen a b gT sR sH)
           (sL := sR) (sR := sH) h_last h_v hrel_self
   | ORecvA =>
-      simp only [reductionOracleImpl, honestImpl_param_rand, QueryImpl.add_apply_inl,
+      simp only [reductionOracleImpl, honestImplParamRand, QueryImpl.add_apply_inl,
         QueryImpl.add_apply_inr]
       by_cases h_v : validStep sR.lastAction CKAAction.recvA = true
       · have h_vH : validStep sH.lastAction CKAAction.recvA = true := by
@@ -1291,7 +1291,7 @@ lemma reduction_honest_param_rand_step_rel
             (oa := (oracleRecvA (ddhCKA F G gen) ()).run sR)
             (ob := (oracleRecvA (ddhCKA F G gen) ()).run sH)
             (R := fun pR pH =>
-              pR.1 = pH.1 ∧ reductionHonestRel_rand gp gen a b gT pR.2 pH.2)
+              pR.1 = pH.1 ∧ reductionHonestRelRand gp gen a b gT pR.2 pH.2)
             (a := ((), { sR with
               tA := sR.tA + 1, stA := .sendReady (x • gen),
               rhoB := none, keyB := none, correct := cR,
@@ -1310,10 +1310,10 @@ lemma reduction_honest_param_rand_step_rel
             h_safeB⟩
       · exact relTriple_oracleRecvA_invalid_of_state_rel
           (gen := gen)
-          (R := fun sR sH => reductionHonestRel_rand gp gen a b gT sR sH)
+          (R := fun sR sH => reductionHonestRelRand gp gen a b gT sR sH)
           (sL := sR) (sR := sH) h_last h_v hrel_self
-  | OSendA_rleak =>
-      simp only [reductionOracleImpl, honestImpl_param_rand, QueryImpl.add_apply_inl,
+  | OSendArleak =>
+      simp only [reductionOracleImpl, honestImplParamRand, QueryImpl.add_apply_inl,
         QueryImpl.add_apply_inr]
       by_cases h_v : validStep sR.lastAction CKAAction.sendA = true
       · have h_vH : validStep sH.lastAction CKAAction.sendA = true := by
@@ -1334,31 +1334,31 @@ lemma reduction_honest_param_rand_step_rel
             have h_stAR : sR.stA = (.sendReady (x • gen) : CKAState F G) := by
               rw [h_stA_eq, h_stAH]
             have h_runR :
-                (oracleSendA_rleak gp (ddhCKA F G gen) ()).run sR =
+                (oracleSendArleak gp (ddhCKA F G gen) ()).run sR =
                   ((fun y =>
                     (some (y • gen, y • (x • gen), y),
                       { sR with
                         tA := sR.tA + 1, stA := (.recvReady y : CKAState F G),
                         rhoA := some (y • gen), keyA := some (y • (x • gen)),
                         lastAction := some .sendA })) <$> ($ᵗ F : ProbComp F)) := by
-              unfold oracleSendA_rleak
+              unfold oracleSendArleak
               rw [StateT.run_get_bind]
               rw [if_pos h_v]
               rw [if_pos h_allow]
-              simp [h_stAR, ddhCKA, send_rleak]
+              simp [h_stAR, ddhCKA, sendRleak]
             have h_runH :
-                (oracleSendA_rleak gp (ddhCKA F G gen) ()).run sH =
+                (oracleSendArleak gp (ddhCKA F G gen) ()).run sH =
                   ((fun y =>
                     (some (y • gen, y • (x • gen), y),
                       { sH with
                         tA := sH.tA + 1, stA := (.recvReady y : CKAState F G),
                         rhoA := some (y • gen), keyA := some (y • (x • gen)),
                         lastAction := some .sendA })) <$> ($ᵗ F : ProbComp F)) := by
-              unfold oracleSendA_rleak
+              unfold oracleSendArleak
               rw [StateT.run_get_bind]
               rw [if_pos (by simp [h_lastH, validStep])]
               rw [if_pos h_allowH]
-              simp [h_stAH, ddhCKA, send_rleak]
+              simp [h_stAH, ddhCKA, sendRleak]
             refine OracleComp.ProgramLogic.Relational.relTriple_trans_eqRel_left
               (OracleComp.ProgramLogic.Relational.relTriple_eqRel_of_eq h_runR) ?_
             refine OracleComp.ProgramLogic.Relational.relTriple_trans_eqRel_right ?_
@@ -1440,29 +1440,29 @@ lemma reduction_honest_param_rand_step_rel
           have h_allowH : allowCorrPCS gp {sH with tA := sH.tA + 1} = false := by
             simpa [allowCorr, allowCorrPCS, h_tA, h_tB] using h_allowR
           have h_runR :
-              (oracleSendA_rleak gp (ddhCKA F G gen) ()).run sR =
+              (oracleSendArleak gp (ddhCKA F G gen) ()).run sR =
                 (pure (none, sR) :
                   ProbComp (Option (G × G × F) × GameState (CKAState F G) G G)) := by
-            unfold oracleSendA_rleak
+            unfold oracleSendArleak
             rw [StateT.run_get_bind]
             simp [h_v, h_allowR]
           have h_runH :
-              (oracleSendA_rleak gp (ddhCKA F G gen) ()).run sH =
+              (oracleSendArleak gp (ddhCKA F G gen) ()).run sH =
                 (pure (none, sH) :
                   ProbComp (Option (G × G × F) × GameState (CKAState F G) G G)) := by
-            unfold oracleSendA_rleak
+            unfold oracleSendArleak
             rw [StateT.run_get_bind]
             simp [h_vH, h_allowH]
           refine relTriple_of_eq_pure_pure
             (R := fun pR pH =>
-              pR.1 = pH.1 ∧ reductionHonestRel_rand gp gen a b gT pR.2 pH.2)
+              pR.1 = pH.1 ∧ reductionHonestRelRand gp gen a b gT pR.2 pH.2)
             (a := (none, sR)) (b := (none, sH)) h_runR h_runH ⟨rfl, hrel_self⟩
       · exact relTriple_oracleSendA_rleak_invalid_of_state_rel
           (gp := gp) (gen := gen)
-          (R := fun sR sH => reductionHonestRel_rand gp gen a b gT sR sH)
+          (R := fun sR sH => reductionHonestRelRand gp gen a b gT sR sH)
           (sL := sR) (sR := sH) h_last h_v hrel_self
-  | OSendB_rleak =>
-      simp only [reductionOracleImpl, honestImpl_param_rand, QueryImpl.add_apply_inr]
+  | OSendBrleak =>
+      simp only [reductionOracleImpl, honestImplParamRand, QueryImpl.add_apply_inr]
       by_cases h_v : validStep sR.lastAction CKAAction.sendB = true
       · have h_vH : validStep sH.lastAction CKAAction.sendB = true := by
           rw [← h_last]
@@ -1482,31 +1482,31 @@ lemma reduction_honest_param_rand_step_rel
             have h_stBR : sR.stB = (.sendReady (y • gen) : CKAState F G) := by
               rw [h_stB_eq, h_stBH]
             have h_runR :
-                (oracleSendB_rleak gp (ddhCKA F G gen) ()).run sR =
+                (oracleSendBrleak gp (ddhCKA F G gen) ()).run sR =
                   ((fun x =>
                     (some (x • gen, x • (y • gen), x),
                       { sR with
                         tB := sR.tB + 1, stB := (.recvReady x : CKAState F G),
                         rhoB := some (x • gen), keyB := some (x • (y • gen)),
                         lastAction := some .sendB })) <$> ($ᵗ F : ProbComp F)) := by
-              unfold oracleSendB_rleak
+              unfold oracleSendBrleak
               rw [StateT.run_get_bind]
               rw [if_pos h_v]
               rw [if_pos h_allow]
-              simp [h_stBR, ddhCKA, send_rleak]
+              simp [h_stBR, ddhCKA, sendRleak]
             have h_runH :
-                (oracleSendB_rleak gp (ddhCKA F G gen) ()).run sH =
+                (oracleSendBrleak gp (ddhCKA F G gen) ()).run sH =
                   ((fun x =>
                     (some (x • gen, x • (y • gen), x),
                       { sH with
                         tB := sH.tB + 1, stB := (.recvReady x : CKAState F G),
                         rhoB := some (x • gen), keyB := some (x • (y • gen)),
                         lastAction := some .sendB })) <$> ($ᵗ F : ProbComp F)) := by
-              unfold oracleSendB_rleak
+              unfold oracleSendBrleak
               rw [StateT.run_get_bind]
               rw [if_pos (by simp [h_lastH, validStep])]
               rw [if_pos h_allowH]
-              simp [h_stBH, ddhCKA, send_rleak]
+              simp [h_stBH, ddhCKA, sendRleak]
             refine OracleComp.ProgramLogic.Relational.relTriple_trans_eqRel_left
               (OracleComp.ProgramLogic.Relational.relTriple_eqRel_of_eq h_runR) ?_
             refine OracleComp.ProgramLogic.Relational.relTriple_trans_eqRel_right ?_
@@ -1588,26 +1588,26 @@ lemma reduction_honest_param_rand_step_rel
           have h_allowH : allowCorrPCS gp {sH with tB := sH.tB + 1} = false := by
             simpa [allowCorr, allowCorrPCS, h_tA, h_tB] using h_allowR
           have h_runR :
-              (oracleSendB_rleak gp (ddhCKA F G gen) ()).run sR =
+              (oracleSendBrleak gp (ddhCKA F G gen) ()).run sR =
                 (pure (none, sR) :
                   ProbComp (Option (G × G × F) × GameState (CKAState F G) G G)) := by
-            unfold oracleSendB_rleak
+            unfold oracleSendBrleak
             rw [StateT.run_get_bind]
             simp [h_v, h_allowR]
           have h_runH :
-              (oracleSendB_rleak gp (ddhCKA F G gen) ()).run sH =
+              (oracleSendBrleak gp (ddhCKA F G gen) ()).run sH =
                 (pure (none, sH) :
                   ProbComp (Option (G × G × F) × GameState (CKAState F G) G G)) := by
-            unfold oracleSendB_rleak
+            unfold oracleSendBrleak
             rw [StateT.run_get_bind]
             simp [h_vH, h_allowH]
           refine relTriple_of_eq_pure_pure
             (R := fun pR pH =>
-              pR.1 = pH.1 ∧ reductionHonestRel_rand gp gen a b gT pR.2 pH.2)
+              pR.1 = pH.1 ∧ reductionHonestRelRand gp gen a b gT pR.2 pH.2)
             (a := (none, sR)) (b := (none, sH)) h_runR h_runH ⟨rfl, hrel_self⟩
       · exact relTriple_oracleSendB_rleak_invalid_of_state_rel
           (gp := gp) (gen := gen)
-          (R := fun sR sH => reductionHonestRel_rand gp gen a b gT sR sH)
+          (R := fun sR sH => reductionHonestRelRand gp gen a b gT sR sH)
           (sL := sR) (sR := sH) h_last h_v hrel_self
 
 
@@ -1634,8 +1634,8 @@ omit [Inhabited F] [Fintype G] in
 
 In the general case, the reduction stack with fixed DDH inputs
 `(a • gen, b • gen, gT)` is observationally equivalent to the parameterized
-honest random stack `honestImpl_param_rand gp gen a b gT` from the same initial
-state. The state relation `reductionHonestRel_rand` carries the per-query
+honest random stack `honestImplParamRand gp gen a b gT` from the same initial
+state. The state relation `reductionHonestRelRand` carries the per-query
 simulation. -/
 lemma evalDist_reduction_honest_param_rand_eq
   (gp : GameParams) (hΔFS : gp.ΔFS = 1) (hΔPCS : gp.ΔPCS = 2)
@@ -1647,16 +1647,16 @@ lemma evalDist_reduction_honest_param_rand_eq
       (initGameState
         (CKAState.sendReady (x₀ • gen) : CKAState F G)
         (CKAState.recvReady x₀ : CKAState F G))) =
-    evalDist ((simulateQ (honestImpl_param_rand gp gen a b gT) adversary).run'
+    evalDist ((simulateQ (honestImplParamRand gp gen a b gT) adversary).run'
       (initGameState
         (CKAState.sendReady (x₀ • gen) : CKAState F G)
         (CKAState.recvReady x₀ : CKAState F G))) := by
   apply OracleComp.ProgramLogic.Relational.probOutput_simulateQ_run'_eq_of_state_rel
-    (R := reductionHonestRel_rand gp gen a b gT)
+    (R := reductionHonestRelRand gp gen a b gT)
   · intro t sR sH hrel
     exact reduction_honest_param_rand_step_rel
       (gen := gen) gp hΔFS hΔPCS a b gT t sR sH hrel
-  · change reductionHonestRel_rand gp gen a b gT
+  · change reductionHonestRelRand gp gen a b gT
       (initGameState
         (CKAState.sendReady (x₀ • gen) : CKAState F G)
         (CKAState.recvReady x₀ : CKAState F G))

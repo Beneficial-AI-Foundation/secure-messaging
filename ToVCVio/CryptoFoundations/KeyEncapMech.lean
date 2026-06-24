@@ -38,7 +38,7 @@ structure DeterministicDecaps (kem : KEMScheme m K PK SK C) where
 /-- Randomness-leaking versions of the two randomized KEM algorithms: key
 generation and encapsulation.
 
-`keygen_rleak` and `encaps_rleak` return the ordinary KEM output together with
+`keygenRleak` and `encapsRleak` return the ordinary KEM output together with
 the randomness they sampled, so that a security game can answer
 randomness-leak queries. The fields `keygen_fst` and `encaps_fst` say that the
 ordinary KEM computations are the first component of the randomness-returning
@@ -50,21 +50,21 @@ structure RandLeak (kem : KEMScheme m K PK SK C) where
   /-- Randomness space of one encapsulation. -/
   EncapsRand : Type
   /-- Key generation together with the randomness used to sample the key pair. -/
-  keygen_rleak : m ((PK × SK) × KeygenRand)
+  keygenRleak : m ((PK × SK) × KeygenRand)
   /-- Encapsulation together with the randomness used to sample the
   ciphertext/key. -/
-  encaps_rleak : PK → m ((C × K) × EncapsRand)
+  encapsRleak : PK → m ((C × K) × EncapsRand)
   /-- First component: the ordinary key generation is the first component of
-  `keygen_rleak`. -/
+  `keygenRleak`. -/
   keygen_fst :
     (do
-      let out ← keygen_rleak
+      let out ← keygenRleak
       pure out.1) = kem.keygen
   /-- First component: ordinary encapsulation is the first component of
-  `encaps_rleak pk`. -/
+  `encapsRleak pk`. -/
   encaps_fst : ∀ pk,
     (do
-      let out ← encaps_rleak pk
+      let out ← encapsRleak pk
       pure out.1) = kem.encaps pk
 
 namespace RandLeak
@@ -86,10 +86,10 @@ supplied package rather than defaulting to this trivial one.
 def noLeak [LawfulMonad m] (kem : KEMScheme m K PK SK C) : RandLeak kem where
   KeygenRand := Unit
   EncapsRand := Unit
-  keygen_rleak := do
+  keygenRleak := do
     let out ← kem.keygen
     pure (out, ())
-  encaps_rleak := fun pk => do
+  encapsRleak := fun pk => do
     let out ← kem.encaps pk
     pure (out, ())
   keygen_fst := by simp

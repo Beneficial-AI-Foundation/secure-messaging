@@ -135,12 +135,12 @@ private lemma securityImplWithChallengeKeyPair_run_eq_securityImpl_of_step
       | recvReady sk =>
           change _ = (CKAScheme.oracleSendA (scheme kem hDet leak) ()).run σ
           simp only [oracleSendAWithChallengeKeyPair, CKAScheme.oracleSendA, scheme, send,
-            hvalid, ↓reduceIte, hst, stateT_run]
+            hvalid, ↓reduceIte, hst, stateTrun]
     · have hvalidFalse : CKAScheme.validStep σ.lastAction .sendA = false :=
         Bool.eq_false_of_not_eq_true hvalid
       change _ = (CKAScheme.oracleSendA (scheme kem hDet leak) ()).run σ
       simp only [oracleSendAWithChallengeKeyPair, CKAScheme.oracleSendA, hvalidFalse,
-        Bool.false_eq_true, ↓reduceIte, stateT_run]
+        Bool.false_eq_true, ↓reduceIte, stateTrun]
   · rfl
   · -- O-Send-B
     cases uSendB
@@ -156,12 +156,12 @@ private lemma securityImplWithChallengeKeyPair_run_eq_securityImpl_of_step
       | recvReady sk =>
           change _ = (CKAScheme.oracleSendB (scheme kem hDet leak) ()).run σ
           simp only [oracleSendBWithChallengeKeyPair, CKAScheme.oracleSendB, scheme, send,
-            hvalid, ↓reduceIte, hst, stateT_run]
+            hvalid, ↓reduceIte, hst, stateTrun]
     · have hvalidFalse : CKAScheme.validStep σ.lastAction .sendB = false :=
         Bool.eq_false_of_not_eq_true hvalid
       change _ = (CKAScheme.oracleSendB (scheme kem hDet leak) ()).run σ
       simp only [oracleSendBWithChallengeKeyPair, CKAScheme.oracleSendB, hvalidFalse,
-        Bool.false_eq_true, ↓reduceIte, stateT_run]
+        Bool.false_eq_true, ↓reduceIte, stateTrun]
   all_goals rfl
 
 /-! ## Resuming after the pause -/
@@ -229,7 +229,7 @@ private lemma simulateQ_run_eq_injectPrefix_bind [SampleableType K] [DecidableEq
       all_goals
         try
           simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
-            OracleQuery.cont_query, id_map, bind_assoc, stateT_run, injectPrefix,
+            OracleQuery.cont_query, id_map, bind_assoc, stateTrun, injectPrefix,
             construct_query_bind]
           rw [hstep _ _ (by simp) (by simp)]
           refine bind_congr (m := ProbComp) fun a => ?_
@@ -237,13 +237,13 @@ private lemma simulateQ_run_eq_injectPrefix_bind [SampleableType K] [DecidableEq
       · -- O-Send-A
         by_cases heff : sendAEffectivelyInjects gp σ = true
         · simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
-            OracleQuery.cont_query, id_map, stateT_run,
+            OracleQuery.cont_query, id_map, stateTrun,
             injectPrefix, construct_query_bind, heff, ↓reduceIte, injectResume]
         · have heffFalse : sendAEffectivelyInjects gp σ = false :=
             Bool.eq_false_of_not_eq_true heff
           simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
             OracleQuery.cont_query, id_map, bind_assoc,
-            stateT_run, injectPrefix, construct_query_bind,
+            stateTrun, injectPrefix, construct_query_bind,
             heffFalse, Bool.false_eq_true, ↓reduceIte]
           rw [hstep _ _ (fun _ => heffFalse) (by simp)]
           refine bind_congr (m := ProbComp) fun a => ?_
@@ -252,13 +252,13 @@ private lemma simulateQ_run_eq_injectPrefix_bind [SampleableType K] [DecidableEq
         by_cases heff : sendBEffectivelyInjects gp σ = true
         · simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
             OracleQuery.cont_query, id_map,
-            stateT_run, injectPrefix, construct_query_bind,
+            stateTrun, injectPrefix, construct_query_bind,
             heff, ↓reduceIte, injectResume]
         · have heffFalse : sendBEffectivelyInjects gp σ = false :=
             Bool.eq_false_of_not_eq_true heff
           simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
             OracleQuery.cont_query, id_map, bind_assoc,
-            stateT_run, injectPrefix, construct_query_bind,
+            stateTrun, injectPrefix, construct_query_bind,
             heffFalse, Bool.false_eq_true, ↓reduceIte]
           rw [hstep _ _ (by simp) (fun _ => heffFalse)]
           refine bind_congr (m := ProbComp) fun a => ?_
@@ -308,31 +308,31 @@ private lemma injectPrefix_run_support_effInject [SampleableType K] [DecidableEq
       all_goals
         try
           intro hmem
-          simp only [injectPrefix, construct_query_bind, stateT_run, support_bind,
+          simp only [injectPrefix, construct_query_bind, stateTrun, support_bind,
             Set.mem_iUnion₂] at hmem
           obtain ⟨p, -, hmem'⟩ := hmem
           exact ih p.1 p.2 hmem'
       · -- O-Send-A
         intro hmem
         by_cases heff : sendAEffectivelyInjects gp σ = true
-        · simp only [injectPrefix, construct_query_bind, stateT_run, heff] at hmem
+        · simp only [injectPrefix, construct_query_bind, stateTrun, heff] at hmem
           obtain ⟨rfl, rfl⟩ := hmem
           exact heff
         · have heffFalse : sendAEffectivelyInjects gp σ = false :=
             Bool.eq_false_of_not_eq_true heff
-          simp only [injectPrefix, construct_query_bind, stateT_run, heffFalse,
+          simp only [injectPrefix, construct_query_bind, stateTrun, heffFalse,
             Bool.false_eq_true, ↓reduceIte, support_bind, Set.mem_iUnion₂] at hmem
           obtain ⟨p, -, hmem'⟩ := hmem
           exact ih p.1 p.2 hmem'
       · -- O-Send-B
         intro hmem
         by_cases heff : sendBEffectivelyInjects gp σ = true
-        · simp only [injectPrefix, construct_query_bind, stateT_run, heff] at hmem
+        · simp only [injectPrefix, construct_query_bind, stateTrun, heff] at hmem
           obtain ⟨rfl, rfl⟩ := hmem
           exact heff
         · have heffFalse : sendBEffectivelyInjects gp σ = false :=
             Bool.eq_false_of_not_eq_true heff
-          simp only [injectPrefix, construct_query_bind, stateT_run, heffFalse,
+          simp only [injectPrefix, construct_query_bind, stateTrun, heffFalse,
             Bool.false_eq_true, ↓reduceIte, support_bind, Set.mem_iUnion₂] at hmem
           obtain ⟨p, -, hmem'⟩ := hmem
           exact ih p.1 p.2 hmem'

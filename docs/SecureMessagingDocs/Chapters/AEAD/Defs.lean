@@ -104,7 +104,7 @@ def Correct (ae : AEADScheme m M AD K C) : Prop :=
 :::defTitle "aead_security_exp" "AEAD security experiment"
 :::
 
-:::::::definition "aead_security_exp" (lean := "AEADScheme.securityExp, AEADScheme.aeadSecurityImpl, AEADScheme.OneTime_CCA_Adversary")
+:::::::definition "aead_security_exp" (lean := "AEADScheme.securityExp, AEADScheme.aeadSecurityImpl, AEADScheme.OneTimeCCAAdversary")
 $`\todo`
 
 Let $`\O = \{\Oenc, \Odec\}` and denote by $`\adv^{\O}` an adversary with oracle access to $`\O`.
@@ -130,8 +130,8 @@ def aeadSecurityImpl [SampleableType C] [DecidableEq C]
 :::leanPillCaption "type of adversaries with oracle access"
 :::
 
-```anchor OneTime_CCA_Adversary (project := ".") (module := SecureMessaging.AEAD.Defs)
-abbrev OneTime_CCA_Adversary (AD M C : Type) :=
+```anchor OneTimeCCAAdversary (project := ".") (module := SecureMessaging.AEAD.Defs)
+abbrev OneTimeCCAAdversary (AD M C : Type) :=
   OracleComp (aeadOneTimeCCASpec AD M C) Bool
 ```
 
@@ -144,7 +144,7 @@ $`K \sample \mathcal K;\quad b \sample \bit;\quad b' \gets \adv^{\O};\quad \Retu
 ```anchor securityExp (project := ".") (module := SecureMessaging.AEAD.Defs)
 def securityExp [SampleableType C] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
-    (adversary : OneTime_CCA_Adversary AD M C) : ProbComp Bool := do
+    (adversary : OneTimeCCAAdversary AD M C) : ProbComp Bool := do
   let k ← ae.keygen
   let b ← $ᵗ Bool
   let (b', _) ← (simulateQ (aeadSecurityImpl ae b k) adversary).run none
@@ -167,7 +167,7 @@ $$`\mathsf{Adv}^{\textsf{guess}}_{\textsf{AEAD}}(\adv)
 ```anchor guessAdvantage (project := ".") (module := SecureMessaging.AEAD.Defs)
 noncomputable def guessAdvantage [SampleableType C] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
-    (adversary : OneTime_CCA_Adversary AD M C) : ℝ :=
+    (adversary : OneTimeCCAAdversary AD M C) : ℝ :=
   |(Pr[= true | securityExp ae adversary]).toReal - 1 / 2|
 ```
 

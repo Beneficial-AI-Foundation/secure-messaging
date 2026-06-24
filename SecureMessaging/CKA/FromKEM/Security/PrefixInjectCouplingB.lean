@@ -97,7 +97,7 @@ private lemma preInvB_preserved_sendA_of_not_inject [SampleableType K] [Decidabl
   cases hGuard : CKAScheme.validStep last .sendA
   case false =>
     have hzEq : z = (none, ⟨sA, sB, ρA, ρB, kA, kB, corr, last, tA, tB⟩) := by
-      simpa [CKAScheme.oracleSendA, hGuard, stateT_run] using hz
+      simpa [CKAScheme.oracleSendA, hGuard, stateTrun] using hz
     subst hzEq
     exact ⟨hshape, he2, htrace⟩
   case true =>
@@ -143,7 +143,7 @@ private lemma preInvB_preserved_recvB [SampleableType K] [DecidableEq K]
   cases hGuard : CKAScheme.validStep last .recvB
   case false =>
     have hzEq : z = ((), ⟨sA, sB, ρA, ρB, kA, kB, corr, last, tA, tB⟩) := by
-      simpa [CKAScheme.oracleRecvB, hGuard, stateT_run] using hz
+      simpa [CKAScheme.oracleRecvB, hGuard, stateTrun] using hz
     subst hzEq
     exact ⟨hshape, he2, htrace⟩
   case true =>
@@ -158,7 +158,7 @@ private lemma preInvB_preserved_recvB [SampleableType K] [DecidableEq K]
       have hzEq : z = ((), ⟨State.recvReady sk', State.sendReady pk',
           none, none, none, none, corr, some .recvB, tA, tB + 1⟩) := by
         simpa [CKAScheme.oracleRecvB, CKAScheme.validStep, scheme, recv, hdec,
-          stateT_run] using hz
+          stateTrun] using hz
       subst hzEq
       refine ⟨?_, he2, ?_⟩
       · exact ⟨pk', sk', hks', rfl, rfl, rfl, rfl, rfl, rfl⟩
@@ -185,7 +185,7 @@ private lemma preInvB_preserved_recvA [SampleableType K] [DecidableEq K]
   cases hGuard : CKAScheme.validStep last .recvA
   case false =>
     have hzEq : z = ((), ⟨sA, sB, ρA, ρB, kA, kB, corr, last, tA, tB⟩) := by
-      simpa [CKAScheme.oracleRecvA, hGuard, stateT_run] using hz
+      simpa [CKAScheme.oracleRecvA, hGuard, stateTrun] using hz
     subst hzEq
     exact ⟨hshape, he2, htrace⟩
   case true =>
@@ -200,7 +200,7 @@ private lemma preInvB_preserved_recvA [SampleableType K] [DecidableEq K]
       have hzEq : z = ((), ⟨State.sendReady pk', State.recvReady sk',
           none, none, none, none, corr, some .recvA, tA + 1, tB⟩) := by
         simpa [CKAScheme.oracleRecvA, CKAScheme.validStep, scheme, recv, hdec,
-          stateT_run] using hz
+          stateTrun] using hz
       subst hzEq
       refine ⟨?_, he2, ?_⟩
       · exact ⟨pk', sk', hks', rfl, rfl, rfl, rfl, rfl, rfl⟩
@@ -226,7 +226,7 @@ private lemma preInvB_preserved_sendB [SampleableType K] [DecidableEq K]
   cases hGuard : CKAScheme.validStep last .sendB
   case false =>
     have hzEq : z = (none, ⟨sA, sB, ρA, ρB, kA, kB, corr, last, tA, tB⟩) := by
-      simpa [CKAScheme.oracleSendB, hGuard, stateT_run] using hz
+      simpa [CKAScheme.oracleSendB, hGuard, stateTrun] using hz
     subst hzEq
     exact ⟨hshape, he2, htrace⟩
   case true =>
@@ -262,15 +262,15 @@ private lemma preInvB_preserved_sendA_rleak [SampleableType K] [DecidableEq K]
     (hσ : preInvB kem gp σ)
     (z : Option (Message C PK × K × leak.Rand) × SecurityState K PK SK C)
     (hz : z ∈ support ((securityImpl kem hDet leak gp false
-      (CKAScheme.ckaSecuritySpec.OSendA_rleak : (securitySpec leak).Domain)).run σ)) :
+      (CKAScheme.ckaSecuritySpec.OSendArleak : (securitySpec leak).Domain)).run σ)) :
     preInvB kem gp z.2 := by
   obtain ⟨hshape, he2, htrace⟩ := hσ
-  change z ∈ support ((CKAScheme.oracleSendA_rleak gp (scheme kem hDet leak) ()).run σ) at hz
+  change z ∈ support ((CKAScheme.oracleSendArleak gp (scheme kem hDet leak) ()).run σ) at hz
   rcases σ with ⟨sA, sB, ρA, ρB, kA, kB, corr, last, tA, tB⟩
   cases hGuard : CKAScheme.validStep last .sendA
   case false =>
     have hzEq : z = (none, ⟨sA, sB, ρA, ρB, kA, kB, corr, last, tA, tB⟩) := by
-      simpa [CKAScheme.oracleSendA_rleak, hGuard, stateT_run] using hz
+      simpa [CKAScheme.oracleSendArleak, hGuard, stateTrun] using hz
     subst hzEq
     exact ⟨hshape, he2, htrace⟩
   case true =>
@@ -280,10 +280,10 @@ private lemma preInvB_preserved_sendA_rleak [SampleableType K] [DecidableEq K]
       all_goals (
         rcases (by simpa [securityShapeInv] using hshape) with
           ⟨pk, sk, hks, rfl, rfl, rfl, rfl, rfl, rfl⟩
-        rw [CKAScheme.oracleSendA_rleak, StateT.run_bind, StateT.run_get] at hz
+        rw [CKAScheme.oracleSendArleak, StateT.run_bind, StateT.run_get] at hz
         have hz' : ∃ c key rEnc pk' sk' rKG,
-            ((c, key), rEnc) ∈ support (leak.encaps_rleak pk) ∧
-            ((pk', sk'), rKG) ∈ support leak.keygen_rleak ∧
+            ((c, key), rEnc) ∈ support (leak.encapsRleak pk) ∧
+            ((pk', sk'), rKG) ∈ support leak.keygenRleak ∧
             (some ((c, pk'), key, (rEnc, rKG)),
               ({ stA := State.recvReady sk', stB := State.recvReady sk,
                  rhoA := some (c, pk'), rhoB := none,
@@ -291,7 +291,7 @@ private lemma preInvB_preserved_sendA_rleak [SampleableType K] [DecidableEq K]
                  correct := corr, lastAction := some .sendA,
                  tA := tA + 1, tB := tB } : SecurityState K PK SK C)) = z := by
           simpa [CKAScheme.validStep, CKAScheme.allowCorrPCS, hPCS, scheme,
-            send_rleak] using hz
+            sendRleak] using hz
         obtain ⟨c, key, rEnc, pk', sk', rKG, hck, hks', rfl⟩ := hz'
         refine ⟨?_, he2, ?_⟩
         · exact ⟨pk, sk, c, key, pk', sk', hks,
@@ -301,8 +301,8 @@ private lemma preInvB_preserved_sendA_rleak [SampleableType K] [DecidableEq K]
         · simp only [preTraceB] at htrace ⊢
           omega)
     · have hzEq : z = (none, ⟨sA, sB, ρA, ρB, kA, kB, corr, last, tA, tB⟩) := by
-        simpa [CKAScheme.oracleSendA_rleak, hGuard, CKAScheme.allowCorrPCS, hPCS,
-          stateT_run] using hz
+        simpa [CKAScheme.oracleSendArleak, hGuard, CKAScheme.allowCorrPCS, hPCS,
+          stateTrun] using hz
       subst hzEq
       exact ⟨hshape, he2, htrace⟩
 
@@ -315,15 +315,15 @@ private lemma preInvB_preserved_sendB_rleak [SampleableType K] [DecidableEq K]
     (hσ : preInvB kem gp σ)
     (z : Option (Message C PK × K × leak.Rand) × SecurityState K PK SK C)
     (hz : z ∈ support ((securityImpl kem hDet leak gp false
-      (CKAScheme.ckaSecuritySpec.OSendB_rleak : (securitySpec leak).Domain)).run σ)) :
+      (CKAScheme.ckaSecuritySpec.OSendBrleak : (securitySpec leak).Domain)).run σ)) :
     preInvB kem gp z.2 := by
   obtain ⟨hshape, he2, htrace⟩ := hσ
-  change z ∈ support ((CKAScheme.oracleSendB_rleak gp (scheme kem hDet leak) ()).run σ) at hz
+  change z ∈ support ((CKAScheme.oracleSendBrleak gp (scheme kem hDet leak) ()).run σ) at hz
   rcases σ with ⟨sA, sB, ρA, ρB, kA, kB, corr, last, tA, tB⟩
   cases hGuard : CKAScheme.validStep last .sendB
   case false =>
     have hzEq : z = (none, ⟨sA, sB, ρA, ρB, kA, kB, corr, last, tA, tB⟩) := by
-      simpa [CKAScheme.oracleSendB_rleak, hGuard, stateT_run] using hz
+      simpa [CKAScheme.oracleSendBrleak, hGuard, stateTrun] using hz
     subst hzEq
     exact ⟨hshape, he2, htrace⟩
   case true =>
@@ -332,10 +332,10 @@ private lemma preInvB_preserved_sendB_rleak [SampleableType K] [DecidableEq K]
         simp [CKAScheme.validStep] at hGuard
       rcases (by simpa [securityShapeInv] using hshape) with
         ⟨pk, sk, hks, rfl, rfl, rfl, rfl, rfl, rfl⟩
-      rw [CKAScheme.oracleSendB_rleak, StateT.run_bind, StateT.run_get] at hz
+      rw [CKAScheme.oracleSendBrleak, StateT.run_bind, StateT.run_get] at hz
       have hz' : ∃ c key rEnc pk' sk' rKG,
-          ((c, key), rEnc) ∈ support (leak.encaps_rleak pk) ∧
-          ((pk', sk'), rKG) ∈ support leak.keygen_rleak ∧
+          ((c, key), rEnc) ∈ support (leak.encapsRleak pk) ∧
+          ((pk', sk'), rKG) ∈ support leak.keygenRleak ∧
           (some ((c, pk'), key, (rEnc, rKG)),
             ({ stA := State.recvReady sk, stB := State.recvReady sk',
                rhoA := none, rhoB := some (c, pk'),
@@ -343,7 +343,7 @@ private lemma preInvB_preserved_sendB_rleak [SampleableType K] [DecidableEq K]
                correct := corr, lastAction := some .sendB,
                tA := tA, tB := tB + 1 } : SecurityState K PK SK C)) = z := by
         simpa [CKAScheme.validStep, CKAScheme.allowCorrPCS, hPCS, scheme,
-          send_rleak] using hz
+          sendRleak] using hz
       obtain ⟨c, key, rEnc, pk', sk', rKG, hck, hks', rfl⟩ := hz'
       refine ⟨?_, he2, ?_⟩
       · exact ⟨pk, sk, c, key, pk', sk', hks,
@@ -353,8 +353,8 @@ private lemma preInvB_preserved_sendB_rleak [SampleableType K] [DecidableEq K]
       · simp only [preTraceB] at htrace ⊢
         omega
     · have hzEq : z = (none, ⟨sA, sB, ρA, ρB, kA, kB, corr, last, tA, tB⟩) := by
-        simpa [CKAScheme.oracleSendB_rleak, hGuard, CKAScheme.allowCorrPCS, hPCS,
-          stateT_run] using hz
+        simpa [CKAScheme.oracleSendBrleak, hGuard, CKAScheme.allowCorrPCS, hPCS,
+          stateTrun] using hz
       subst hzEq
       exact ⟨hshape, he2, htrace⟩
 
@@ -785,39 +785,39 @@ private lemma coupleRelB_step_inj [SampleableType K] [DecidableEq K]
   · -- O-Send-A-rleak: not a send slot
     change RelTriple
       ((securityImpl kem hDet leak gp false
-        (CKAScheme.ckaSecuritySpec.OSendA_rleak : (securitySpec leak).Domain)).run σHl)
+        (CKAScheme.ckaSecuritySpec.OSendArleak : (securitySpec leak).Domain)).run σHl)
       ((securityImpl kem hDet leak gp false
-        (CKAScheme.ckaSecuritySpec.OSendA_rleak : (securitySpec leak).Domain)).run σRl)
+        (CKAScheme.ckaSecuritySpec.OSendArleak : (securitySpec leak).Domain)).run σRl)
       _
     have hH : (securityImpl kem hDet leak gp false
-        (CKAScheme.ckaSecuritySpec.OSendA_rleak : (securitySpec leak).Domain)).run
+        (CKAScheme.ckaSecuritySpec.OSendArleak : (securitySpec leak).Domain)).run
         σHl = pure (none, σHl) := by
-      change (CKAScheme.oracleSendA_rleak gp (scheme kem hDet leak) ()).run σHl = _
-      simp [CKAScheme.oracleSendA_rleak, CKAScheme.validStep, hσHl]
+      change (CKAScheme.oracleSendArleak gp (scheme kem hDet leak) ()).run σHl = _
+      simp [CKAScheme.oracleSendArleak, CKAScheme.validStep, hσHl]
     have hR : (securityImpl kem hDet leak gp false
-        (CKAScheme.ckaSecuritySpec.OSendA_rleak : (securitySpec leak).Domain)).run
+        (CKAScheme.ckaSecuritySpec.OSendArleak : (securitySpec leak).Domain)).run
         σRl = pure (none, σRl) := by
-      change (CKAScheme.oracleSendA_rleak gp (scheme kem hDet leak) ()).run σRl = _
-      simp [CKAScheme.oracleSendA_rleak, CKAScheme.validStep, hσRl]
+      change (CKAScheme.oracleSendArleak gp (scheme kem hDet leak) ()).run σRl = _
+      simp [CKAScheme.oracleSendArleak, CKAScheme.validStep, hσRl]
     rw [hH, hR]
     exact relTriple_pure_pure ⟨rfl, hrelSame⟩
   · -- O-Send-B-rleak: not a send slot
     change RelTriple
       ((securityImpl kem hDet leak gp false
-        (CKAScheme.ckaSecuritySpec.OSendB_rleak : (securitySpec leak).Domain)).run σHl)
+        (CKAScheme.ckaSecuritySpec.OSendBrleak : (securitySpec leak).Domain)).run σHl)
       ((securityImpl kem hDet leak gp false
-        (CKAScheme.ckaSecuritySpec.OSendB_rleak : (securitySpec leak).Domain)).run σRl)
+        (CKAScheme.ckaSecuritySpec.OSendBrleak : (securitySpec leak).Domain)).run σRl)
       _
     have hH : (securityImpl kem hDet leak gp false
-        (CKAScheme.ckaSecuritySpec.OSendB_rleak : (securitySpec leak).Domain)).run
+        (CKAScheme.ckaSecuritySpec.OSendBrleak : (securitySpec leak).Domain)).run
         σHl = pure (none, σHl) := by
-      change (CKAScheme.oracleSendB_rleak gp (scheme kem hDet leak) ()).run σHl = _
-      simp [CKAScheme.oracleSendB_rleak, CKAScheme.validStep, hσHl]
+      change (CKAScheme.oracleSendBrleak gp (scheme kem hDet leak) ()).run σHl = _
+      simp [CKAScheme.oracleSendBrleak, CKAScheme.validStep, hσHl]
     have hR : (securityImpl kem hDet leak gp false
-        (CKAScheme.ckaSecuritySpec.OSendB_rleak : (securitySpec leak).Domain)).run
+        (CKAScheme.ckaSecuritySpec.OSendBrleak : (securitySpec leak).Domain)).run
         σRl = pure (none, σRl) := by
-      change (CKAScheme.oracleSendB_rleak gp (scheme kem hDet leak) ()).run σRl = _
-      simp [CKAScheme.oracleSendB_rleak, CKAScheme.validStep, hσRl]
+      change (CKAScheme.oracleSendBrleak gp (scheme kem hDet leak) ()).run σRl = _
+      simp [CKAScheme.oracleSendBrleak, CKAScheme.validStep, hσRl]
     rw [hH, hR]
     exact relTriple_pure_pure ⟨rfl, hrelSame⟩
 
@@ -1066,41 +1066,41 @@ private lemma coupleRelB_step_chall [SampleableType K] [DecidableEq K]
   · -- O-Send-A-rleak: not a send slot
     change RelTriple
       ((securityImpl kem hDet leak gp false
-        (CKAScheme.ckaSecuritySpec.OSendA_rleak : (securitySpec leak).Domain)).run σHl)
+        (CKAScheme.ckaSecuritySpec.OSendArleak : (securitySpec leak).Domain)).run σHl)
       ((securityImpl kem hDet leak gp false
-        (CKAScheme.ckaSecuritySpec.OSendA_rleak : (securitySpec leak).Domain)).run σRl)
+        (CKAScheme.ckaSecuritySpec.OSendArleak : (securitySpec leak).Domain)).run σRl)
       _
     have hH : (securityImpl kem hDet leak gp false
-        (CKAScheme.ckaSecuritySpec.OSendA_rleak : (securitySpec leak).Domain)).run
+        (CKAScheme.ckaSecuritySpec.OSendArleak : (securitySpec leak).Domain)).run
         σHl = pure (none, σHl) := by
-      change (CKAScheme.oracleSendA_rleak gp (scheme kem hDet leak) ()).run σHl = _
-      simp [CKAScheme.oracleSendA_rleak, CKAScheme.validStep, hσHl]
+      change (CKAScheme.oracleSendArleak gp (scheme kem hDet leak) ()).run σHl = _
+      simp [CKAScheme.oracleSendArleak, CKAScheme.validStep, hσHl]
     have hR : (securityImpl kem hDet leak gp false
-        (CKAScheme.ckaSecuritySpec.OSendA_rleak : (securitySpec leak).Domain)).run
+        (CKAScheme.ckaSecuritySpec.OSendArleak : (securitySpec leak).Domain)).run
         σRl = pure (none, σRl) := by
-      change (CKAScheme.oracleSendA_rleak gp (scheme kem hDet leak) ()).run σRl = _
-      simp [CKAScheme.oracleSendA_rleak, CKAScheme.validStep, hσRl]
+      change (CKAScheme.oracleSendArleak gp (scheme kem hDet leak) ()).run σRl = _
+      simp [CKAScheme.oracleSendArleak, CKAScheme.validStep, hσRl]
     rw [hH, hR]
     exact relTriple_pure_pure ⟨rfl, hrelSame⟩
   · -- O-Send-B-rleak: the PCS gate fails at the challenge epoch
     change RelTriple
       ((securityImpl kem hDet leak gp false
-        (CKAScheme.ckaSecuritySpec.OSendB_rleak : (securitySpec leak).Domain)).run σHl)
+        (CKAScheme.ckaSecuritySpec.OSendBrleak : (securitySpec leak).Domain)).run σHl)
       ((securityImpl kem hDet leak gp false
-        (CKAScheme.ckaSecuritySpec.OSendB_rleak : (securitySpec leak).Domain)).run σRl)
+        (CKAScheme.ckaSecuritySpec.OSendBrleak : (securitySpec leak).Domain)).run σRl)
       _
     have hpcs : ¬ (max tA (tB + 1) + gp.ΔPCS ≤ gp.challengeEpoch) := by omega
     have hH : (securityImpl kem hDet leak gp false
-        (CKAScheme.ckaSecuritySpec.OSendB_rleak : (securitySpec leak).Domain)).run
+        (CKAScheme.ckaSecuritySpec.OSendBrleak : (securitySpec leak).Domain)).run
         σHl = pure (none, σHl) := by
-      change (CKAScheme.oracleSendB_rleak gp (scheme kem hDet leak) ()).run σHl = _
-      simp [CKAScheme.oracleSendB_rleak, CKAScheme.validStep, CKAScheme.allowCorrPCS,
+      change (CKAScheme.oracleSendBrleak gp (scheme kem hDet leak) ()).run σHl = _
+      simp [CKAScheme.oracleSendBrleak, CKAScheme.validStep, CKAScheme.allowCorrPCS,
         hσHl, hpcs]
     have hR : (securityImpl kem hDet leak gp false
-        (CKAScheme.ckaSecuritySpec.OSendB_rleak : (securitySpec leak).Domain)).run
+        (CKAScheme.ckaSecuritySpec.OSendBrleak : (securitySpec leak).Domain)).run
         σRl = pure (none, σRl) := by
-      change (CKAScheme.oracleSendB_rleak gp (scheme kem hDet leak) ()).run σRl = _
-      simp [CKAScheme.oracleSendB_rleak, CKAScheme.validStep, CKAScheme.allowCorrPCS,
+      change (CKAScheme.oracleSendBrleak gp (scheme kem hDet leak) ()).run σRl = _
+      simp [CKAScheme.oracleSendBrleak, CKAScheme.validStep, CKAScheme.allowCorrPCS,
         hσRl, hpcs]
     rw [hH, hR]
     exact relTriple_pure_pure ⟨rfl, hrelSame⟩
@@ -1171,7 +1171,7 @@ lemma injectedPrefix_couples_challengePrefix_B
           try cases uRLeakB
         all_goals
           simp only [injectedChallengePrefix, challengePrefix, construct_query_bind,
-            stateT_run, hWA, hWB, Bool.false_eq_true,
+            stateTrun, hWA, hWB, Bool.false_eq_true,
             ↓reduceIte]
         all_goals
           exact relTriple_bind
@@ -1222,7 +1222,7 @@ lemma injectedPrefix_couples_challengePrefix_B
           try cases uRLeakB
         all_goals
           simp only [injectedChallengePrefix, challengePrefix, construct_query_bind,
-            stateT_run, hWA', hWB', Bool.false_eq_true,
+            stateTrun, hWA', hWB', Bool.false_eq_true,
             ↓reduceIte]
         all_goals
           exact relTriple_bind
@@ -1261,7 +1261,7 @@ lemma injectedPrefix_couples_challengePrefix_B
           try cases uRLeakB
         all_goals
           simp only [injectedChallengePrefix, challengePrefix, construct_query_bind,
-            stateT_run, hWill', hWA',
+            stateTrun, hWill', hWA',
             Bool.false_eq_true, ↓reduceIte]
         all_goals
           first
