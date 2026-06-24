@@ -1,3 +1,8 @@
+/-
+Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Beneficial AI Foundation
+-/
 import VCVio.ProgramLogic.Relational.SimulateQ
 import ToVCVio.EvalDist.Monad.Basic
 
@@ -55,7 +60,7 @@ private state and keeps only the adversary's returned value. -/
 theorem evalDist_simulateQ_run'_eq_of_impl_evalDist_eq
     {ι₁ : Type u} {ι₂ : Type u}
     {spec₁ : OracleSpec ι₁} {spec₂ : OracleSpec ι₂}
-    [spec₁.Fintype] [spec₁.Inhabited] [spec₂.Fintype] [spec₂.Inhabited]
+    [IsUniformSpec spec₁] [IsUniformSpec spec₂]
     {σ : Type}
     -- Two implementations of the game oracle interface. Their handlers may
     -- call different base oracle interfaces, `spec₁` and `spec₂`.

@@ -1,3 +1,8 @@
+/-
+Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Beneficial AI Foundation
+-/
 import VCVio.OracleComp.EvalDist
 import VCVio.OracleComp.ProbCompLift
 import VCVio.EvalDist.Defs.Instances
@@ -121,7 +126,7 @@ end SPMF
 namespace OracleComp
 
 variable {ι : Type} {specBase : OracleSpec ι}
-variable [specBase.Fintype] [specBase.Inhabited]
+variable [IsUniformSpec specBase]
 
 /-- **Coupled bisimulation for `simulateQ` with `StateT`.**
 

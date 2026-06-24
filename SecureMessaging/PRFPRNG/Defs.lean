@@ -1,7 +1,19 @@
+/-
+Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Beneficial AI Foundation
+-/
 import VCVio.CryptoFoundations.SecExp
 import VCVio.CryptoFoundations.PRG
 import VCVio.OracleComp.Constructions.SampleableType
 import VCVio.OracleComp.SimSemantics.Append
+
+/-!
+# PRF-PRNG schemes (work in progress)
+
+Definitions for a PRF-based PRNG scheme and its security games. Several proofs in
+this module are still `sorry`-stubbed and under development.
+-/
 
 open OracleSpec OracleComp ENNReal
 

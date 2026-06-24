@@ -1,6 +1,7 @@
 /-
 Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.CKA.FromDDH.Security.ReductionGames
@@ -40,7 +41,7 @@ variable [Fintype G]
 omit [Field F] [SampleableType F] [SampleableType G] [DecidableEq G] [Inhabited F] in
 /-- The CKA security spec has finitely many oracle indices. Required by
 VCVio's probability-of-output lemmas that quantify over queries. -/
-instance ckaSecuritySpec_Fintype :
+noncomputable instance ckaSecuritySpec_Fintype :
     (ckaSecuritySpec (CKAState F G) G G F).Fintype := by
   unfold ckaSecuritySpec ckaCorrectnessSpec
   infer_instance
@@ -49,7 +50,7 @@ omit [Field F] [SampleableType F] [SampleableType G] [DecidableEq G] [Inhabited 
 [Fintype G] [Fintype F] in
 /-- The CKA security spec has at least one oracle index. Required by
 VCVio's existence lemmas that pick a sample query. -/
-instance ckaSecuritySpec_Inhabited :
+noncomputable instance ckaSecuritySpec_Inhabited :
     (ckaSecuritySpec (CKAState F G) G G F).Inhabited := by
   unfold ckaSecuritySpec ckaCorrectnessSpec
   infer_instance

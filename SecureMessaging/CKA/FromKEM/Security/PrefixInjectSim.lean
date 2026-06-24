@@ -149,7 +149,7 @@ private lemma ckaSecurityFixedBranch_challenge_key_probOutput_true_eq
       (gp.challengeEpoch == 1 && gp.challengedParty == .A) = true
   · simp only [hinit, ↓reduceIte]
     rw [probOutput_bind_const]
-    simp only [HasEvalPMF.probFailure_eq_zero, tsub_zero, one_mul]
+    simp only [probFailure_eq_zero, tsub_zero, one_mul]
   · have hinitFalse :
         (gp.challengeEpoch == 1 && gp.challengedParty == .A) = false :=
       Bool.eq_false_of_not_eq_true hinit
@@ -157,7 +157,7 @@ private lemma ckaSecurityFixedBranch_challenge_key_probOutput_true_eq
     refine probOutput_bind_congr' kem.keygen true ?_
     intro pk0_sk0
     rw [probOutput_bind_const]
-    simp only [HasEvalPMF.probFailure_eq_zero, tsub_zero, one_mul]
+    simp only [probFailure_eq_zero, tsub_zero, one_mul]
 
 /-- Game hop: the honest fixed branch and
 `ckaSecurityFixedBranchWithChallengeKey` have the same true-output gap. Per
@@ -606,8 +606,20 @@ lemma securityImpl_run_counters_mono [SampleableType K] [DecidableEq K]
           simp only [CKAScheme.oracleChallA, scheme, send, hvalid, hst, ↓reduceIte,
             stateT_run] at hz
           split_ifs at hz
-          · vcv_support hz; grind
-          · vcv_support hz; grind
+          · vcv_support hz
+            try simp only [Set.mem_range, Set.mem_singleton_iff] at hz
+            first | obtain ⟨_, rfl⟩ := hz | subst hz
+            first
+              | exact ⟨Nat.le_succ _, le_refl _⟩
+              | exact ⟨le_refl _, Nat.le_succ _⟩
+              | exact ⟨le_refl _, le_refl _⟩
+          · vcv_support hz
+            try simp only [Set.mem_range, Set.mem_singleton_iff] at hz
+            first | obtain ⟨_, rfl⟩ := hz | subst hz
+            first
+              | exact ⟨Nat.le_succ _, le_refl _⟩
+              | exact ⟨le_refl _, Nat.le_succ _⟩
+              | exact ⟨le_refl _, le_refl _⟩
           · vcv_support
       | recvReady sk =>
           simp only [CKAScheme.oracleChallA, scheme, send, hvalid, hst, ↓reduceIte,
@@ -629,8 +641,20 @@ lemma securityImpl_run_counters_mono [SampleableType K] [DecidableEq K]
           simp only [CKAScheme.oracleChallB, scheme, send, hvalid, hst, ↓reduceIte,
             stateT_run] at hz
           split_ifs at hz
-          · vcv_support hz; grind
-          · vcv_support hz; grind
+          · vcv_support hz
+            try simp only [Set.mem_range, Set.mem_singleton_iff] at hz
+            first | obtain ⟨_, rfl⟩ := hz | subst hz
+            first
+              | exact ⟨Nat.le_succ _, le_refl _⟩
+              | exact ⟨le_refl _, Nat.le_succ _⟩
+              | exact ⟨le_refl _, le_refl _⟩
+          · vcv_support hz
+            try simp only [Set.mem_range, Set.mem_singleton_iff] at hz
+            first | obtain ⟨_, rfl⟩ := hz | subst hz
+            first
+              | exact ⟨Nat.le_succ _, le_refl _⟩
+              | exact ⟨le_refl _, Nat.le_succ _⟩
+              | exact ⟨le_refl _, le_refl _⟩
           · vcv_support
       | recvReady sk =>
           simp only [CKAScheme.oracleChallB, scheme, send, hvalid, hst, ↓reduceIte,
@@ -662,7 +686,13 @@ lemma securityImpl_run_counters_mono [SampleableType K] [DecidableEq K]
           simp only [CKAScheme.oracleSendA_rleak, scheme, send_rleak, hvalid, hst,
             ↓reduceIte, stateT_run] at hz
           split_ifs at hz
-          · vcv_support hz; grind
+          · vcv_support hz
+            try simp only [Set.mem_range, Set.mem_singleton_iff] at hz
+            first | obtain ⟨_, rfl⟩ := hz | subst hz
+            first
+              | exact ⟨Nat.le_succ _, le_refl _⟩
+              | exact ⟨le_refl _, Nat.le_succ _⟩
+              | exact ⟨le_refl _, le_refl _⟩
           · vcv_support
       | recvReady sk =>
           simp only [CKAScheme.oracleSendA_rleak, scheme, send_rleak, hvalid, hst,
@@ -684,7 +714,13 @@ lemma securityImpl_run_counters_mono [SampleableType K] [DecidableEq K]
           simp only [CKAScheme.oracleSendB_rleak, scheme, send_rleak, hvalid, hst,
             ↓reduceIte, stateT_run] at hz
           split_ifs at hz
-          · vcv_support hz; grind
+          · vcv_support hz
+            try simp only [Set.mem_range, Set.mem_singleton_iff] at hz
+            first | obtain ⟨_, rfl⟩ := hz | subst hz
+            first
+              | exact ⟨Nat.le_succ _, le_refl _⟩
+              | exact ⟨le_refl _, Nat.le_succ _⟩
+              | exact ⟨le_refl _, le_refl _⟩
           · vcv_support
       | recvReady sk =>
           simp only [CKAScheme.oracleSendB_rleak, scheme, send_rleak, hvalid, hst,

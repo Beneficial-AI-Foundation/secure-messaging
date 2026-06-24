@@ -113,7 +113,7 @@ Let $`\O = \{\Oenc, \Odec\}` and denote by $`\adv^{\O}` an adversary with oracle
 :::
 
 ```anchor aeadOneTimeCCASpec (project := ".") (module := SecureMessaging.AEAD.Defs)
-def aeadOneTimeCCASpec (AD M C : Type) :=
+abbrev aeadOneTimeCCASpec (AD M C : Type) :=
   unifSpec + (AD × M →ₒ Option C) + (AD × C →ₒ Option M)
 ```
 
