@@ -103,10 +103,6 @@ def compact_text(html: str) -> str:
 
 
 def code_decls(entry: dict) -> list[dict]:
-    # Extract the per-declaration code records from a manifest entry.
-    # v4.30 manifests expose proof status as structured `codeData` fields instead
-    # of HTML markers. `external` decls carry a `present` flag; `inline` decls are
-    # always present by construction.
     code = entry.get("codeData")
     if not isinstance(code, dict):
         return []
@@ -119,8 +115,6 @@ def code_decls(entry: dict) -> list[dict]:
 
 
 def decl_proved(decl: dict) -> bool:
-    # A declaration is fully proved only when it is present and its proof status is
-    # `proved` (not `missing`, `axiomLike`, or `containsSorry`).
     if decl.get("present") is False:
         return False
     return decl.get("provedStatus") == "proved"
@@ -128,8 +122,6 @@ def decl_proved(decl: dict) -> bool:
 
 def classify(entry: dict, chapter: str) -> Atom:
     # Convert one preview manifest entry into an Atom status record.
-    # An atom has a Lean block when the manifest carries structured code data for
-    # it; it is verified when every associated declaration is present and proved.
     decls = code_decls(entry)
     has_lean_block = bool(decls)
     verified = has_lean_block and all(decl_proved(decl) for decl in decls)
