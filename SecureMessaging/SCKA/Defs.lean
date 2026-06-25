@@ -118,8 +118,8 @@ variable {m : Type → Type u} [Monad m] {IK StA StB I Rho Rand : Type}
 
 **Modeling choices:**
 
-- **Parties.** We write `P` for a party (`A` or `B`) and `P̄` for the *other* party,
-  i.e. `P̄ := P.other`.
+- **Parties.** We write `P` for a party (`A` or `B`) and `P̄` for the *other* party
+  (so `Ā = B` and `B̄ = A`).
 - **Message and key arrays**
   Each sent message is recorded in a per-party transit array `Msg[P, n]`,
   where `n` represents the index of the message in the sending sequence.
@@ -139,8 +139,8 @@ variable {m : Type → Type u} [Monad m] {IK StA StB I Rho Rand : Type}
   * `assertUniqueEpochs`: a party does not overwrite a key for an epoch;
   * `assertMonotonicity`: `t^snd_P ≥ t^cur_P`; a sending epoch never goes
     backwards — a party never reports a sending epoch behind one it already reached;
-  * `assertKnownPrefix`: all epochs before `t^cur_P` have a recorded key; the
-    sequence of a party's keys has no gaps up to its current epoch;
+  * `assertKnownPrefix`: all epochs up to and including `t^cur_P` have a recorded key;
+    the sequence of a party's keys has no gaps up to its current epoch;
   * `assertMatchingEpoch`: `t^rcv_P = t^snd_P̄`; on delivery, the receiver
     recovers exactly the sending epoch its partner used to produce the message.
 
@@ -161,16 +161,6 @@ variable {m : Type → Type u} [Monad m] {IK StA StB I Rho Rand : Type}
 section Games
 
 variable {IK StA StB I Rho Rand : Type}
-
-/-- The two parties in an SCKA protocol. -/
-inductive SCKAParty where
-  | A | B
-  deriving DecidableEq, Repr
-
-/-- The opposite party: `A.other = B` and `B.other = A`. -/
-def SCKAParty.other : SCKAParty → SCKAParty
-  | .A => .B
-  | .B => .A
 
 /-- Internal state of the SCKA game.
 
@@ -347,7 +337,7 @@ Send-A-rleak:
   ((tIA, IA), ρ, t^snd_A, stA) ←$ scka.sendArleak(stA)
   vuln' ← stA.vuln \ vuln                         -- newly vulnerable epochs
   req  vuln' ∩ Challenged = ∅
-  Exposed = Exposed ∪ vuln'
+  Exposed ← Exposed ∪ vuln'
   assert t^snd_A ≥ t^cur_A                -- monotonicity
   t^cur_A ← t^snd_A
   if (tIA, IA) ≠ (⊥, ⊥):
@@ -404,12 +394,11 @@ add `vuln'` to `Exposed`, and also return the randomness.
 
 ```text
 Send-B-rleak:
-  rand ←$ R
   vuln ← stB.vuln
-  ((tIB, IB), ρ, t^snd_B, stB) ←$ CKA-Send-B(stB; rand)
+  ((tIB, IB), ρ, t^snd_B, stB) ←$ scka.sendBrleak(stB)
   vuln' ← stB.vuln \ vuln                           -- newly vulnerable epochs
   req  vuln' ∩ Challenged = ∅
-  Exposed = Exposed ∪ vuln'
+  Exposed ← Exposed ∪ vuln'
   assert t^snd_B ≥ t^cur_B              -- monotonicity
   t^cur_B ← t^snd_B
   if (tIB, IB) ≠ (⊥, ⊥):
@@ -582,7 +571,7 @@ Chall(t):
  4  else            :  K ← Key[B, t]
  5  req K ≠ ⊥
  6  if b = 1:  K ←$ I                               // replace with random key
- 8  Challenged = Challenged ∪ {t}
+ 8  Challenged ← Challenged ∪ {t}
  9  return K
 ``` -/
 -- ANCHOR: oracleChall
@@ -612,7 +601,7 @@ def oracleChall (isRandom : Bool) (StA StB I Rho : Type) [SampleableType I] :
 ```text
 Corr-A():
  1  req stA.vuln ∩ Challenged = ∅                    // no challenge of a vulnerable epoch
- 2  Exposed = Exposed ∪ stA.vuln
+ 2  Exposed ← Exposed ∪ stA.vuln
  3  return stA
 ``` -/
 -- ANCHOR: oracleCorruptA
@@ -633,7 +622,7 @@ def oracleCorruptA (vulnA : StA → Finset ℕ) (StB I Rho : Type) :
 ```text
 Corr-B():
  1  req stB.vuln ∩ Challenged = ∅                    // no challenge of a vulnerable epoch
- 2  Exposed = Exposed ∪ stB.vuln
+ 2  Exposed ← Exposed ∪ stB.vuln
  3  return stB
 ``` -/
 -- ANCHOR: oracleCorruptB
