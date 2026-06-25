@@ -8,7 +8,7 @@ import VCVio.OracleComp.QueryTracking.RandomOracle.Basic
 import VCVio.OracleComp.QueryTracking.QueryBound
 import VCVio.OracleComp.Constructions.SampleableType
 import VCVio.OracleComp.SimSemantics.SimulateQ
-import SecureMessaging.ToVCVio.EvalDistBindComm
+import ToVCVio.EvalDist.Monad.BindComm
 
 /-!
 # Lazy Random-Oracle One-Time Unforgeability (missing VCVio bricks)
@@ -47,9 +47,9 @@ is uniform and unrevealed, so the probability that any of the `k_P` tags tried t
 `ρ(P)` is at most `k_P / |R|`; summing over distinct points gives `Σ_P k_P / |R| = q / |R|`.
 
 (The discarded-query removal behind `game2' = game2` is handled separately, at the
-`simulateQ randomOracle` level, by `ToVCVio.evalDist_simulateQ_run'_discardRO` in
-`SecureMessaging.ToVCVio.DiscardQuerySimulate` — accessing the cache only via `randomOracle`,
-which avoids the false bare-`StateT` formulation that a raw cache read would break.)
+`simulateQ randomOracle` level, by `etmAEAD.evalDist_simulateQ_run'_discardRO` in
+`SecureMessaging.AEAD.FromEtM.Security.DiscardQuerySimulate` — accessing the cache only via
+`randomOracle`, which avoids the false bare-`StateT` formulation that a raw cache read would break.)
 
 ## Status
 
@@ -58,7 +58,7 @@ which avoids the false bare-`StateT` formulation that a raw cache read would bre
 
 open OracleComp OracleSpec ENNReal
 
-namespace ToVCVio
+namespace etmAEAD
 
 universe u
 
@@ -270,7 +270,7 @@ sides pin to the same value (renaming the two uniform draws). Once `d` becomes e
 invisible to the forge flag thereafter. This is exactly the forge-only invisibility that
 distinguishes this from a full distributional resampling. It mirrors
 `evalDist_uniformSample_bind_simulateQ_roImpl_run'` in
-`SecureMessaging.ToVCVio.DiscardQuerySimulate`,
+`SecureMessaging.AEAD.FromEtM.Security.DiscardQuerySimulate`,
 specialized to the forge-flag marginal of `forgeImpl`. -/
 
 /-- The forge-flag marginal of running `oa` from state `s`: the `ProbComp Bool` that returns the
@@ -866,4 +866,4 @@ theorem probForge_le_queryBound_div_card [Fintype R]
         rw [ENNReal.toReal_mul, ENNReal.toReal_inv]
         simp
 
-end ToVCVio
+end etmAEAD

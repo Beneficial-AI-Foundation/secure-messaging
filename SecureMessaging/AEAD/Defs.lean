@@ -9,7 +9,7 @@ import VCVio.OracleComp.Constructions.SampleableType
 import VCVio.OracleComp.QueryTracking.QueryBound
 import VCVio.OracleComp.SimSemantics.Append
 import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
-import SecureMessaging.ToVCVio.UnifLift
+import SecureMessaging.Common.UnifLift
 
 /-!
 # Authenticated Encryption with Associated Data (AEAD)
@@ -22,7 +22,9 @@ Indistinguishability under Chosen-Ciphertext Attack (IND-CCA) security following
   Signal Protocol.*
   EUROCRYPT 2019, https://eprint.iacr.org/2018/1037.pdf
   — Definition 1 (AEAD syntax), Figure 1 (one-time IND-CCA game), Definition 2
-  (one-time CCA security).
+  (one-time CCA security). ACD19 only defines this notion (AEAD is assumed as a
+  primitive); the construction and proof are ours, following NRS14 — see
+  `AEAD/FromEtM/Security`.
 
 - [TripleRatchet] Dodis, Jost, Katsumata, Prest, Schmidt.
   *Triple Ratchet: A Bandwidth Efficient Hybrid-Secure Signal Protocol.*
@@ -177,7 +179,7 @@ def decryptQueryBound (adv : OneTimeCCAAdversary AD M C)
 /-- Uniform-randomness oracle lifted to the game-state monad. -/
 def oracleUnif (C : Type) :
     QueryImpl unifSpec (StateT (Option C) ProbComp) :=
-  ToVCVio.unifLiftStateT (Option C) unifSpec
+  unifLiftStateT (Option C) unifSpec
 
 /-- One-time encryption oracle `encrypt(a, m)` (Figure 1 of [ACD19], middle column).
 First call: if `b = false`, sets `e* ← Enc(K, a, m)`;
@@ -219,7 +221,6 @@ def oracleDecrypt [DecidableEq C] (ae : AEADScheme ProbComp M AD K C)
 -- ANCHOR_END: oracleDecrypt
 
 /-- Complete oracle set for the one-time IND-CCA game (Figure 1 of [ACD19]). -/
--- ANCHOR: aeadSecurityImpl
 def aeadSecurityImpl [SampleableType C] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C) (b : Bool) (k : K) :
     QueryImpl (aeadOneTimeCCASpec AD M C) (StateT (Option C) ProbComp) :=

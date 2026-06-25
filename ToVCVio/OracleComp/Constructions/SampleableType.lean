@@ -12,8 +12,6 @@ import VCVio.EvalDist.Prod
 
 Provides `SampleableType (α × β)` from `SampleableType α` and `SampleableType β`,
 sampling each component independently.
-
-This is intended for eventual upstream to VCVio.
 -/
 
 open OracleComp ENNReal

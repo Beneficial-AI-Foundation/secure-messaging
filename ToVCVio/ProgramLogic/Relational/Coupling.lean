@@ -7,35 +7,26 @@ Authors: Beneficial AI Foundation
 import VCVio.ProgramLogic.Relational.SimulateQ
 
 /-!
-# `probEvent` monotonicity from a coupling / relational triple (missing VCVio brick)
+# `probEvent` monotonicity from a coupling / relational triple
 
-The Encrypt-then-MAC authenticity hop relates the *forge event* of two different oracle
-experiments running the same adversary: an instrumented game (`authInstImpl`) whose bad flag is
-set on every successful non-challenge decrypt, and a forgery reduction (`forgeReduction` under
-`forgeImpl`) whose flag is set on a successful verify at a not-eval'd point. The two flags live
-in *different* state spaces, so we cannot relate them by a plain distribution equality — only by
-an *implication on the support of a coupling*.
+Given a coupling between the output-state distributions of two computations (e.g. produced by
+VCVio's `relTriple_simulateQ_run`), if the coupled output pairs satisfy a relation `R` and `R`
+forces a source event to imply a target event, then the source event probability is at most the
+target event probability. This is the bridge used when two experiments track related events in
+*different* state spaces, so they cannot be related by a plain distribution equality — only by an
+implication on the support of a coupling.
 
-This file isolates the generic probabilistic bridge: given a coupling between the output-state
-distributions of two computations (e.g. produced by VCVio's `relTriple_simulateQ_run`), if the
-coupled output pairs satisfy a relation `R` and `R` forces the source event to imply the target
-event, then the source event probability is at most the target event probability.
-
-## Main result
+## Main results
 
 * `probEvent_le_of_couplingPost` — coupling-level statement (any two `OracleComp`s).
-* `probEvent_snd_le_of_relTriple` — the state-event corollary used by the EtM auth hop: from a
-  `RelTriple` whose postcondition relates the final *states*, transport an implication between
-  state predicates into a `probEvent ≤ probEvent` between the two `simulateQ` runs.
-
-Both are generic facts about `OracleComp`/`SPMF` couplings, independent of `SecureMessaging`.
-TODO(upstream): contribute alongside `VCVio.ProgramLogic.Relational`.
+* `probEvent_snd_le_of_relTriple` — state-event corollary: from a `RelTriple` whose postcondition
+  relates the final *states*, transport an implication between state predicates into a
+  `probEvent ≤ probEvent` between the two `simulateQ` runs.
 -/
 
 open OracleComp OracleSpec ENNReal
-open OracleComp.ProgramLogic.Relational
 
-namespace ToVCVio
+namespace OracleComp.ProgramLogic.Relational
 
 variable {ι₁ ι₂ : Type} {spec₁ : OracleSpec ι₁} {spec₂ : OracleSpec ι₂}
   [IsUniformSpec spec₁] [IsUniformSpec spec₂]
@@ -80,8 +71,8 @@ relates the final states by `R_state`, and `R_state` forces a source state predi
 imply a target state predicate `flag₂`, then the probability of `flag₁` on the source run is at
 most the probability of `flag₂` on the target run.
 
-This is the exact shape consumed by the EtM authenticity hop: `flag₁` = "instrumented game's bad
-flag set", `flag₂` = "forge experiment's `forged` flag set". -/
+This is the shape needed when two experiments running the same adversary track related events as
+state predicates over different state spaces. -/
 theorem probEvent_snd_le_of_relTriple
     {ι : Type} {spec : OracleSpec ι}
     {σ₁ σ₂ : Type}
@@ -105,4 +96,4 @@ theorem probEvent_snd_le_of_relTriple
   rintro ⟨a, sa⟩ ⟨b, sb⟩ ⟨-, hR⟩ hflag
   exact himp sa sb hR hflag
 
-end ToVCVio
+end OracleComp.ProgramLogic.Relational

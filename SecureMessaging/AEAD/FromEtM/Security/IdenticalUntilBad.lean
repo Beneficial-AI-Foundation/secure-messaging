@@ -44,7 +44,7 @@ would then call the upstream lemma directly at `spec₂ := unifSpec`).
 
 open OracleComp OracleSpec ENNReal
 
-namespace ToVCVio
+namespace etmAEAD
 
 /-! ## Ported private helpers (base monad `OracleComp spec₂`)
 
@@ -230,4 +230,4 @@ theorem tvDist_simulateQ_le_probEvent_output_bad_probComp
           (simulateQ impl₁ oa).run (s₀, false)].toReal :=
   tvDist_simulateQ_le_probEvent_output_bad_base impl₁ impl₂ oa s₀ h_agree_good h_mono₁ h_mono₂
 
-end ToVCVio
+end etmAEAD

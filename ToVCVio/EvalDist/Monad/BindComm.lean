@@ -7,24 +7,16 @@ Authors: Beneficial AI Foundation
 import VCVio.EvalDist.Monad.Basic
 
 /-!
-# Commuting two independent binds at the `evalDist` level (missing VCVio brick)
+# Commuting two independent binds at the `evalDist` level
 
 `oa >>= fun a => ob >>= fun b => f a b` and `ob >>= fun b => oa >>= fun a => f a b` are **not**
 definitionally equal — and for a non-commutative monad `m` they are genuinely different
 `m`-computations. But their *output distributions* always agree: the two samples are independent,
 so the difference is invisible to `evalDist` (it reduces to `ENNReal.tsum_comm`). This holds for any
 `m` with `[MonadLiftT m SPMF]`, since only the `SPMF` image is manipulated.
-
-This generic fact is used in two places in `SecureMessaging.ToVCVio` (the discarded-query
-resampling marginal and the forge-bit resampling kernel), which previously each carried a private
-`ProbComp` copy. Hoisted here as one shared, generalized lemma.
-
-TODO(upstream): contribute to VCVio alongside `EvalDist/Monad/Basic.lean`.
 -/
 
 open ENNReal
-
-namespace ToVCVio
 
 universe u v
 
@@ -50,5 +42,3 @@ theorem evalDist_bind_bind_comm {β γ δ : Type u}
   refine tsum_congr fun b => ?_
   refine tsum_congr fun a => ?_
   rw [← mul_assoc, ← mul_assoc, mul_comm (Pr[= b | ob]) (Pr[= a | oa])]
-
-end ToVCVio

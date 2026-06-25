@@ -16,3 +16,9 @@ sorry-manifest-base.txt
 # Local-only review/planning notes and verilib mappings (kept out of the repo)
 /design/
 /.verilib/
+
+# Reference papers (kept out of the repo)
+*.pdf
+
+# Python bytecode caches
+__pycache__/

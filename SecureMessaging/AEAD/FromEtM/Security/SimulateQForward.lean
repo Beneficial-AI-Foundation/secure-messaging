@@ -25,7 +25,7 @@ an `OracleComp unifSpec`).
 
 open OracleComp OracleSpec
 
-namespace ToVCVio
+namespace etmAEAD
 
 /-- Forwarding through an identity-left `add` handler: `simulateQ` of
 `(id' unifSpec).liftTarget _ + h`
@@ -39,4 +39,4 @@ theorem simulateQ_id'_liftTarget_add_liftComp
       = (liftM ob : StateT τ ProbComp β) := by
   simp [QueryImpl.simulateQ_add_liftM_left]
 
-end ToVCVio
+end etmAEAD

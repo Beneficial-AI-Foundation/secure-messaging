@@ -29,5 +29,5 @@ import SecureMessaging.KEM.OnOffKEM.Defs
 import SecureMessaging.PRFPRNG.Defs
 import SecureMessaging.SCKA.Defs
 import SecureMessaging.SymEnc.Defs
-import SecureMessaging.ToVCVio.RandomOracleForgery
-import SecureMessaging.ToVCVio.SampleableTypeProd
+import SecureMessaging.AEAD.FromEtM.Security.RandomOracleForgery
+import ToVCVio.OracleComp.Constructions.SampleableType

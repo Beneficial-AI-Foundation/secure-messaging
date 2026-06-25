@@ -26,9 +26,8 @@ the inner cache stays `∅`"): neither the outer reinterpretation nor the `flatt
 reassociation can touch the `σ`-component. This file proves that transparency once and for all, so
 the composed `hinv` premise reduces to an `inner`-only statement.
 
-VCVio already has the simulation-level analogue `OracleComp.simulateQ_run_preserves_inv_of_query`.
-The missing pieces here are the *composition-level* `mapStateTBase` / `flattenStateT`
-invariant-transparency lemmas; see `design/vcvio-upstream-issues.md` Issue 4.
+`OracleComp.simulateQ_run_preserves_inv_of_query` is the simulation-level analogue; these are the
+composition-level `mapStateTBase` / `flattenStateT` invariant-transparency lemmas.
 
 ## Main results
 
@@ -40,7 +39,7 @@ invariant-transparency lemmas; see `design/vcvio-upstream-issues.md` Issue 4.
 
 open OracleSpec OracleComp
 
-namespace ToVCVio
+namespace OracleComp
 
 universe u
 
@@ -102,4 +101,4 @@ theorem flattenStateT_mapStateTBase_run_preserves_inv
   subst hyz
   exact mapStateTBase_run_preserves_inv outer inner inv hinv t s hs q z hz
 
-end ToVCVio
+end OracleComp

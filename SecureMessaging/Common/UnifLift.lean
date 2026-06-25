@@ -21,7 +21,6 @@ local game state `σ : Type` unchanged. It was written out verbatim ~7 times as
 
 open OracleSpec OracleComp
 
-namespace ToVCVio
 
 /-- Forward `unifSpec` queries through `OracleComp spec`, threading the state `σ` unchanged:
 the canonical lift of the identity uniform-sampling handler into `StateT σ (OracleComp spec)`.
@@ -32,4 +31,3 @@ Specializes to the `ProbComp` handlers via `spec := unifSpec` (`ProbComp = Oracl
     QueryImpl unifSpec (StateT σ (OracleComp spec)) :=
   (QueryImpl.ofLift unifSpec (OracleComp spec)).liftTarget (StateT σ (OracleComp spec))
 
-end ToVCVio

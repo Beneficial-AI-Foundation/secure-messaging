@@ -10,7 +10,7 @@ import VCVio.OracleComp.SimSemantics.SimulateQ
 import VCVio.OracleComp.SimSemantics.StateT.Basic
 import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 import VCVio.OracleComp.SimSemantics.Append
-import SecureMessaging.ToVCVio.EvalDistBindComm
+import ToVCVio.EvalDist.Monad.BindComm
 
 /-!
 # Discarded random-oracle query removal under `simulateQ`
@@ -46,7 +46,7 @@ hit-consistent, so a pre-sampled fresh entry is distributionally invisible.
 
 open OracleComp OracleSpec ENNReal
 
-namespace ToVCVio
+namespace etmAEAD
 
 variable {D R : Type} [DecidableEq D] [SampleableType R]
   {ι : Type} {spec : OracleSpec ι} {σ α : Type}
@@ -62,7 +62,7 @@ noncomputable def roImpl (D R : Type) [DecidableEq D] [SampleableType R] :
 /-! ## The true absorption lemma
 
 (The independent-bind commute helper `evalDist_bind_bind_comm` lives in
-`SecureMessaging.ToVCVio.EvalDistBindComm`.) -/
+`ToVCVio.EvalDist.Monad.BindComm`.) -/
 
 /-- Running `randomOracle` on a single query at `d` from a cache that misses `d`: sample uniformly
 and cache the result. -/
@@ -471,4 +471,4 @@ theorem evalDist_simulateQ_run'_discardRO
         rw [hfold₁, hbridge]
       rw [key1, key2, evalDist_simulateQ_roImpl_discard_run' d P qc₀]
 
-end ToVCVio
+end etmAEAD
