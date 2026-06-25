@@ -218,6 +218,7 @@ def oracleDecrypt [DecidableEq C] (ae : AEADScheme ProbComp M AD K C)
 -- ANCHOR_END: oracleDecrypt
 
 /-- Complete oracle set for the one-time IND-CCA game (Figure 1 of [ACD19]). -/
+-- ANCHOR: aeadSecurityImpl
 def aeadSecurityImpl [SampleableType C] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C) (b : Bool) (k : K) :
     QueryImpl (aeadOneTimeCCASpec AD M C) (StateT (Option C) ProbComp) :=
