@@ -186,7 +186,7 @@ Other references:
   *The Double Ratchet: Security Notions, Proofs, and Modularization for the Signal Protocol.*
   EUROCRYPT 2019, https://eprint.iacr.org/2018/1037.pdf
 
-- [SPQR] Auerbach, Dodis, Jost, Katsumata, Schmidt.
+- [SCKA] Auerbach, Dodis, Jost, Katsumata, Schmidt.
   *How to Compare Bandwidth Constrained Two-Party Secure Messaging Protocols:
   A Quest for A More Efficient and Secure Post-Quantum Protocol.*
   USENIX Security 2025, https://eprint.iacr.org/2025/2267.pdf
