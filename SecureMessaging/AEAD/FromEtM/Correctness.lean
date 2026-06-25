@@ -12,11 +12,7 @@ import SecureMessaging.AEAD.FromEtM.Construction
 Correctness proof for the EtM construction: if the base cipher `se` is correct,
 then `etmAEAD se prf` is a correct `AEADScheme`.
 
-## Paper Reference
-
-Correctness is standard (not explicitly stated in NRS14). NRS14 assumes "tidy"
-schemes (Section 2) which implies correctness. The property is: for all keys
-and inputs, `Dec(Enc(m)) = m`.
+Correctness is standard: for all keys and inputs, `Dec(Enc(m)) = m`.
 -/
 
 open OracleSpec OracleComp

@@ -23,17 +23,11 @@ variable {K_e K_m M AD C_e T : Type}
 /-! ## Game-hop lemma signatures -/
 
 omit [Inhabited C_e] [Inhabited T] in
-/-- Game 0 equals the real AEAD experiment.
-NRS14 Lemma 3: starting game = real nAE experiment.
+/-- Game 0 equals the real AEAD experiment (NRS14 Lemma 3: starting game = real nAE experiment).
 
-Proof strategy:
-1. Swap `km`/`ke` sampling order using `probEvent_bind_bind_swap`
-   (independent `ProbComp` samples).
-2. Show the skeleton oracle impl with state `(Option (C_e × T), TagCache)` projected via
-   `Prod.fst` equals `aeadSecurityImpl (etmAEAD se prf) false (ke, km)` with state
-   `Option (C_e × T)`. This holds because `computeTag = pure (prf.eval km q)` and
-   `verifyTag = pure (t == prf.eval km (ad, c))` don't modify the `TagCache`.
-3. Apply `run'_simulateQ_eq_of_query_map_eq` to project away the invariant `TagCache = ∅`. -/
+The skeleton's `(challenge, TagCache)` state projects via `Prod.fst` onto the AEAD game's
+`Option C` challenge state, since the PRF `computeTag`/`verifyTag` never modify the `TagCache`.
+(Proof: swap the independent `km`/`ke` samples, then apply `run'_simulateQ_eq_of_query_map_eq`.) -/
 theorem game0_eq_real
     (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :

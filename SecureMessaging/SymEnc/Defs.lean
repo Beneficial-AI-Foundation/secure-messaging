@@ -25,14 +25,12 @@ IND$-CPA (real-or-random) security, following:
   EUROCRYPT 2019.
   — One-time encryption setting where each key is used at most once.
 
-This is a **local placeholder**. VCVio already has `SymmEncAlg`, but its
-`encrypt`/`decrypt` are monadic (`K → M → m C`), i.e. possibly randomized, and
-it carries only information-theoretic perfect-secrecy notions (Shannon) — not a
-computational IND$-CPA game. ACD19's EtM proof needs a *deterministic* cipher
-with a *computational one-time IND$-CPA* assumption, which is exactly what
-`DetSEAlg` plus the game below provide. Tracked upstream at
-<https://github.com/Verified-zkEVM/VCV-io/issues/411>; when VCVio delivers a
-deterministic IND$-CPA variant, this file should be replaced by an import.
+This is a **local placeholder**: VCVio's `SymmEncAlg` has monadic (possibly randomized)
+`encrypt`/`decrypt` and only information-theoretic perfect-secrecy notions, whereas the EtM
+proof needs a *deterministic* cipher with a *computational one-time IND$-CPA* assumption —
+exactly what `DetSEAlg` plus the game below provide. Tracked upstream at
+<https://github.com/Verified-zkEVM/VCV-io/issues/411>; replace with an import once VCVio
+delivers a deterministic IND$-CPA variant.
 
 ## Deviations from NRS14
 

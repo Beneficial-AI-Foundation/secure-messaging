@@ -12,10 +12,92 @@ import SecureMessaging.AEAD.FromEtM.Security.RandHop
 /-!
 # Encrypt-then-MAC — Security
 
-Security theorem for the EtM construction: the one-time IND-CCA advantage of
+Security theorem for the EtM construction `etmAEAD se prf`.
+
+## Main result
+
+`etmAEAD_security`: the one-time IND-CCA distinguishing advantage of
 `etmAEAD se prf` is bounded by the PRF advantage of `prf`, the IND$-CPA
-advantage of `se`, and `q_d/|T|` (tag-guessing probability per decryption
-query, where `q_d` upper-bounds the adversary's decryption queries).
+advantage of `se`, and a tag-guessing term:
+
+  `Adv^{ot-cca-ror}(A) ≤ Adv^{prf}(B) + q_d/|T| + Adv^{ind$-cpa}(D)`
+
+where `B = prfReduction se A` and `D = encReduction se A`, and `q_d`
+upper-bounds the number of the adversary's decryption queries.
+
+## Notation
+
+| Symbol | Meaning |
+|---|---|
+| `se` | inner deterministic symmetric cipher (`DetSEAlg`) |
+| `prf` | PRF used to compute the authentication tag (`PRFScheme`) |
+| `A` (`adv`) | the one-time IND-CCA adversary |
+| `q_d` | upper bound on `A`'s number of decryption queries (`decryptQueryBound`) |
+| `\|T\|` | size of the tag space (`Fintype.card T`) |
+| `Adv^{ot-cca-ror}` | one-time IND-CCA (real-or-random) advantage of the AEAD scheme |
+| `Adv^{prf}` | PRF distinguishing advantage |
+| `Adv^{ind$-cpa}` | one-time IND$-CPA advantage of `se` |
+
+## Reductions
+
+The bound is witnessed by two explicit reductions (both defined in
+`Security/Games.lean` as instantiations of the shared game skeleton):
+
+- `prfReduction se A` — used for the `game0 → game1` hop; charges `Adv^{prf}`.
+- `encReduction se A` — used for the `game2 → game3` hop; charges `Adv^{ind$-cpa}`.
+
+## Proof sketch: game hops
+
+The proof walks a sequence of four games `game0 … game3`. `game0` is the real
+one-time IND-CCA experiment and `game3` is the ideal one (random ciphertext +
+always-reject decryption), so
+`Adv^{ot-cca-ror}(A) = |Pr[game3 = 1] − Pr[game0 = 1]|`. The triangle inequality
+over the three hops gives the bound. Each hop changes exactly one component:
+
+```text
+        encrypt oracle      tag oracle      decrypt oracle    hop cost  (reduction)
+        ──────────────      ──────────      ──────────────    ────────────────────
+game0   c = Enc_ke(m)       F_km(ad,c)      verify F, then Dec
+  │                                                           Adv^{prf}   (prfReduction)
+  ▼   replace PRF F with a lazy random oracle ρ
+game1   c = Enc_ke(m)       ρ(ad,c)         verify ρ, then Dec
+  │                                                           q_d / |T|   (forgery bound)
+  ▼   disable decryption: a fresh verify point accepts w.p. 1/|T|
+game2   c = Enc_ke(m)       ρ(ad,c)         ⊥ (always reject)
+  │                                                           Adv^{ind$}  (encReduction)
+  ▼   replace the real ciphertext and tag with uniform samples
+game3   c ←$ C_e            t ←$ T          ⊥ (always reject)
+
+  game0 = real one-time IND-CCA experiment
+  game3 = ideal experiment ($ ciphertext, ⊥ decryption)
+```
+
+## Tag queries
+
+After the `game0 → game1` hop the PRF is replaced by a lazily-sampled random
+oracle on `(AD × C_e)`. From then on, both tag *computation* (in encryption) and
+tag *verification* (in decryption) are **random-oracle queries** — these are
+internal to the proof (an artifact of lazy-sampling the tag function), **not**
+part of the ACD19 AEAD game: the adversary `A` still only ever sees the encrypt
+and decrypt oracles.
+
+## Structure
+
+Games and reductions are both instantiations of one **OracleSpec-polymorphic
+game skeleton** (`etmGameSkeleton`, `Security/Games.lean`): the four `game*`
+instantiate it at `spec = unifSpec` (= `ProbComp`), while the reductions
+instantiate the *same* skeleton at the PRF / IND$-CPA spec, forwarding only the
+adversary's uniform-sampling queries through a `unifImpl` (the `SubSpec` lift).
+So a reduction is itself a game, just over a richer oracle spec.
+
+The intermediate games are not `AEADScheme` instances, because the hops change
+internal components (e.g. PRF → random oracle) while keeping the encrypt/decrypt
+oracle interface the adversary sees fixed.
+
+File layout: this file holds only the main theorem; the games, reductions, and
+per-hop lemmas live under `Security/` (`Games.lean`, `PrfHop.lean`,
+`Auth/Hop.lean`, `EncHop.lean`, `RandHop.lean`). Generic, scheme-independent
+lemmas live under `ToVCVio/`.
 
 ## Paper References
 
@@ -27,18 +109,6 @@ Our construction adapts **scheme A5** (= A2.100_111) from NRS14 Figure 2.
 The security proof adapts **Theorem 1** (for A5), with:
 - Concrete bound from **Figure 9**: `Adv^nAE ≤ Adv^prf + Adv^ivE + q_d/2^τ`
 - Proof structure from **Lemma 3** (common opening) + **Appendix A.2** (auth bound)
-
-## Structure
-
-The proof uses an **OracleSpec-polymorphic game skeleton** so that games
-(instantiated with `spec = unifSpec` = `ProbComp`) and reductions
-(instantiated with `spec = PRFOracleSpec` or the IND$-CPA spec) are direct
-instantiations of the same definition. The hop proofs use `simulateQ`
-compositionality.
-
-Note: intermediate games cannot be `AEADScheme` instances because game hops
-change internal components (e.g., replacing PRF with random oracle) while
-preserving the oracle interface.
 
 ## NRS14 Correspondence
 

@@ -9,20 +9,17 @@ import VCVio.ProgramLogic.Relational.Quantitative
 /-!
 # Real-valued TV-distance convexity over a `bind`
 
-VCVio's `tvDist` is real-valued, and the framework pairs each real-valued `tvDist_*` bound with an
-`ofReal_*` companion in `ℝ≥0∞` (e.g. `tvDist_bind_left_event_le` and its
-`ofReal_tvDist_bind_left_event_le` companion). This file adds the real-valued convex-combination
-("const") bound, completing the pair whose `ℝ≥0∞` side is `ofReal_tvDist_bind_left_le_const`:
+The real-valued companion of `ofReal_tvDist_bind_left_le_const`, completing the `tvDist`/`ofReal`
+pair the framework keeps for each bound:
 
 * `tvDist_bind_left_le_const` — per-`a` bound restricted to `a ∈ support mx`;
 * `tvDist_bind_left_le_const'` — the unrestricted `∀ a` companion.
 
-Both are proved directly from `tvDist_bind_left_le` (the weighted-sum bound) and the fact that the
-output distribution has total mass `1`, with no detour through `ENNReal.ofReal`. Unlike a real bound
-threaded through `ofReal`, no `0 ≤ c` hypothesis is needed: when `mx` has unit mass its support is
-nonempty, so `0 ≤ tvDist (f a) (g a) ≤ c` already forces `0 ≤ c`. The signatures mirror
-`ofReal_tvDist_bind_left_le_const`/`'` exactly (same instances, same `support`-restricted vs.
-unrestricted hypothesis split), with `c : ℝ` in place of `ε : ℝ≥0∞`.
+Both follow directly from `tvDist_bind_left_le` (the weighted-sum bound) and
+`∑' a, Pr[= a | mx] = 1`, with no detour through `ENNReal.ofReal`; in particular no `0 ≤ c`
+hypothesis is needed (unit mass makes `support mx` nonempty, so `0 ≤ tvDist (f a) (g a) ≤ c` forces
+`0 ≤ c`). Signatures mirror `ofReal_tvDist_bind_left_le_const`/`'`, with `c : ℝ` in place of
+`ε : ℝ≥0∞`.
 -/
 
 open ENNReal OracleSpec OracleComp
