@@ -21,3 +21,4 @@ import SecureMessaging.CKA.FromKEM.Construction
 import SecureMessaging.CKA.FromKEM.Correctness
 import SecureMessaging.CKA.FromKEM.Security
 import SecureMessaging.PRFPRNG.Defs
+import SecureMessaging.SCKA.Defs
