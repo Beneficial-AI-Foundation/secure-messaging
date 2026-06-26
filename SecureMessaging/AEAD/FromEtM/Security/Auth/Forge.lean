@@ -220,9 +220,9 @@ omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
 forge probability (the `b = true` simulation's `forged` flag) is at most the `forged`
 probability of the eval+verify lazy-RO forge experiment run on `forgeReduction`. The proof
 collapses the nested forge `simulateQ` to the single combined handler `forgeJointImpl` over the
-same adversary `adv`, then applies the generic coupling brick
-`OracleComp.ProgramLogic.Relational.probEvent_snd_le_of_relTriple` with a joint-state invariant
-(NRS14 App. A.2). -/
+same adversary `adv`, then applies the generic coupling lemma
+`OracleComp.ProgramLogic.Relational.probEvent_le_of_relTriple_simulateQ_run` with a joint-state
+invariant (NRS14 App. A.2). -/
 theorem probForge_authInst_le_forgeReduction
     (se : DetSEAlg K_e M C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) (ke : K_e) :
@@ -234,7 +234,7 @@ theorem probForge_authInst_le_forgeReduction
   -- The proof relates the two experiments at the ENNReal level (`.toReal` is monotone on
   -- the relevant non-⊤ probabilities), then collapses the nested forge `simulateQ` to a
   -- single combined handler over the SAME adversary `adv`, and finally applies the generic
-  -- coupling brick `probEvent_snd_le_of_relTriple` with a joint-state invariant.
+  -- coupling lemma `probEvent_le_of_relTriple_simulateQ_run` with a joint-state invariant.
   --
   -- Combined RHS handler: the AEAD oracles forwarded into the joint state
   -- `EtmGameState × ForgeState` (the `simulateQ`-collapse target for the forge run).
@@ -370,13 +370,13 @@ theorem probForge_authInst_le_forgeReduction
       -- The composed event reindexes to the forge `forged` flag on the joint output.
       rfl
     rw [hRHScollapse]
-    -- (ii) Coupling brick: the game's flag (`z.2.2 = true`) implies the forge flag
+    -- (ii) Coupling lemma: the game's flag (`z.2.2 = true`) implies the forge flag
     -- (`z.2.2.2.2 = true`) under `R_state`, which is preserved per-query.
-    refine OracleComp.ProgramLogic.Relational.probEvent_snd_le_of_relTriple
+    refine OracleComp.ProgramLogic.Relational.probEvent_le_of_relTriple_simulateQ_run
       (authInstImpl se true ke) impl₂ R_state adv ?himpl
       ((none, ∅), false) ((none, ∅), (∅, ∅, false)) ?hs
-      (flag₁ := fun s₁ => s₁.2 = true)
-      (flag₂ := fun s₂ => s₂.2.2.2 = true)
+      (p := fun z => z.2.2 = true)
+      (q := fun z => z.2.2.2.2 = true)
       ?himp
     case hs =>
       -- initial states are related: challenges/caches both empty, no eval'd points, flags off
@@ -384,8 +384,8 @@ theorem probForge_authInst_le_forgeReduction
       · intro p hp; simp at hp
       · intro h; exact absurd h (by simp)
     case himp =>
-      -- flag implication is the last conjunct of `R_state`
-      intro a b hR hflag; exact hR.2.2.2 hflag
+      -- flag implication is the last conjunct of `R_state` (output equality is unused here)
+      intro _z₁ _z₂ _heq hR hflag; exact hR.2.2.2 hflag
     case himpl =>
       -- Per-query relational correspondence: each AEAD oracle, run under the instrumented
       -- game handler and under the combined forge handler from `R_state`-related states,
