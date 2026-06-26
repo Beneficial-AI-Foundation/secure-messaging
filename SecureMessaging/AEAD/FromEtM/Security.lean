@@ -123,15 +123,11 @@ The security proof adapts **Theorem 1** (for A5), with:
 | `game2` | Appendix A.2: disable decryption (forgery bound) |
 | `game3` | Figure 4 right column: `$` + `⊥` oracles |
 | `game0_game1_le_prf` | Lemma 3 eq. (4): PRF hop, cost `Adv^prf` |
-| `game1_game2_le_auth` | Appendix A.2, A5 Case 1: auth bound `q_d/2^τ` (see note) |
+| `game1_game2_le_auth` | Appendix A.2 Case 1: `q_d/|T|` (proved directly, not a per-query hybrid) |
 | `game2_game3_le_enc` | Lemma 3, privacy reduction D₁: cost `Adv^ivE` |
 | `etmAEAD_security` | Theorem 1 for A5; Figure 9 bound |
 | `prfReduction` | Lemma 3: adversary B(A) |
 | `encReduction` | Lemma 3: privacy reduction D₁(A) |
-
-Note on `game1_game2_le_auth`: the `q_d` factor is proved *directly*, by
-per-distinct-point lazy-sampling accounting (`probForge_le_queryBound_div_card`),
-**not** via NRS14's Lemma-2 single-decryption-query hybrid.
 -/
 
 open OracleSpec OracleComp ENNReal PRFScheme AEADScheme
