@@ -27,7 +27,7 @@ flag set whenever a (non-challenge) decrypt query's tag verifies against the ran
 the "forgery" event. The state becomes `EtmGameState × Bool`. The parameter `b` selects the
 return behaviour on a successful verify: `b = true` returns the real decryption (= `game1`),
 `b = false` rejects (= `game2'`); both set the flag identically, so the two impls agree on
-every non-bad transition (`tvDist_simulateQ_le_probEvent_output_bad_probComp`). -/
+every non-bad transition (`tvDist_simulateQ_le_probEvent_output_bad_base`). -/
 
 /-- Uniform-sampling oracle on the flag-augmented state. -/
 noncomputable def authUnifImpl :

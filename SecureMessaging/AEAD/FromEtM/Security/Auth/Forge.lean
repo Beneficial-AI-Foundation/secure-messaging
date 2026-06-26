@@ -5,6 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.AEAD.FromEtM.Security.Auth.Defs
+import ToVCVio.ProgramLogic.Relational.IdenticalUntilBad
 
 /-!
 # Encrypt-then-MAC — auth hop: forge-probability bound
@@ -120,7 +121,7 @@ omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
 and `b = false` simulations agree on every non-forged transition (they differ only in the
 verify return when `ok = true`, which also sets the monotone `forged` flag), so the per-key TV
 distance between them is at most the forge probability of the `b = true` simulation
-(`etmAEAD.tvDist_simulateQ_le_probEvent_output_bad_probComp`). -/
+(the generic `tvDist_simulateQ_le_probEvent_output_bad_base` at `spec₂ := unifSpec`). -/
 theorem tvDist_authInst_le_probForge
     (se : DetSEAlg K_e M C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) (ke : K_e) :
@@ -211,7 +212,7 @@ theorem tvDist_authInst_le_probForge
         by_cases hok : tg = t' <;>
           simp [hok, ← OracleComp.pure_def, probOutput_pure_eq_indicator,
             Set.mem_singleton_iff, Prod.ext_iff]
-  exact etmAEAD.tvDist_simulateQ_le_probEvent_output_bad_probComp
+  exact OracleComp.ProgramLogic.Relational.tvDist_simulateQ_le_probEvent_output_bad_base
     (authInstImpl se true ke) (authInstImpl se false ke) adv (none, ∅)
     hagree (hmono true) (hmono false)
 
