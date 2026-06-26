@@ -16,7 +16,7 @@ open Informal
 
 set_option doc.verso true
 
-#doc (Manual) "Ratcheting KEM" =>
+#doc (Manual) "Ratcheting Key Encapsulation Mechanism" =>
 
 *References:*
 

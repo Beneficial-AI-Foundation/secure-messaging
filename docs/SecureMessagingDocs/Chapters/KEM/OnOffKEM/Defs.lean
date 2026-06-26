@@ -10,7 +10,7 @@ open Informal
 
 set_option doc.verso true
 
-#doc (Manual) "Online-Offline KEM Definitions" =>
+#doc (Manual) "On-Off KEM Definitions" =>
 
 :::group "on_off_kem"
 Online-Offline Key Encapsulation Mechanism (On-Off KEM).

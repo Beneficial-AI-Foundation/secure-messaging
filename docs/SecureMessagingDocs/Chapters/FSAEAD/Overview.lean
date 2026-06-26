@@ -12,7 +12,7 @@ open Informal
 
 set_option doc.verso true
 
-#doc (Manual) "Forward-Secure AEAD" =>
+#doc (Manual) "Forward-Secure Authenticated Encryption with Associated Data" =>
 
 *References:*
 

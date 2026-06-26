@@ -16,6 +16,8 @@ Formal verification of protocols for secure messaging in Lean 4, built on top of
   A Quest for A More Efficient and Secure Post-Quantum Protocol.*
   USENIX Security 2025, https://eprint.iacr.org/2025/2267.pdf
 
+See [project issues](https://github.com/orgs/Beneficial-AI-Foundation/projects/17) and [verso blueprint](https://beneficial-ai-foundation.github.io/secure-messaging/).
+
 ## License
 
 Apache-2.0.

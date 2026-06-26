@@ -86,3 +86,14 @@ def MLKEM_Braid : Verso.Genre.Manual.Bibliography.Citable := .article
   , volume := inlines!""
   , number := inlines!""
   , url := some "https://signal.org/docs/specifications/mlkembraid/" }
+
+@[bib "FIPS203"]
+def FIPS203 : Verso.Genre.Manual.Bibliography.Citable := .article
+  { title := inlines!"Module-Lattice-Based Key-Encapsulation Mechanism Standard"
+  , authors := #[inlines!"NIST"]
+  , journal := inlines!"NIST Federal Information Processing Standards"
+  , year := 2024
+  , month := some (inlines!"August")
+  , volume := inlines!"FIPS 203"
+  , number := inlines!""
+  , url := some "https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.203.pdf" }
