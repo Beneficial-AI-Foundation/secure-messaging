@@ -7,4 +7,5 @@ import ToVCVio.OracleComp.QueryTracking.LazySampling
 import ToVCVio.OracleComp.SimSemantics.StateT.PreservesInv
 import ToVCVio.ProgramLogic.Tactics.Support
 import ToVCVio.ProgramLogic.Relational.Basic
+import ToVCVio.ProgramLogic.Relational.IdenticalUntilBad
 import ToVCVio.ProgramLogic.Relational.SimulateQ
