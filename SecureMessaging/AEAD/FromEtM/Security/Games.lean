@@ -17,7 +17,6 @@ import SecureMessaging.AEAD.FromEtM.Security.RandomOracleForgery
 import SecureMessaging.AEAD.FromEtM.Security.IdenticalUntilBad
 import SecureMessaging.AEAD.FromEtM.Security.DiscardQuerySimulate
 import ToVCVio.ProgramLogic.Relational.Coupling
-import ToVCVio.ProgramLogic.Relational.Quantitative
 import SecureMessaging.AEAD.FromEtM.Security.SimulateQForward
 import ToVCVio.OracleComp.SimSemantics.StateT.PreservesInv
 import SecureMessaging.Common.UnifLift

@@ -149,7 +149,7 @@ theorem game1_game2_le_auth
     -- Convexity over the key: a per-key TV bound lifts through the `se.keygen` bind
     -- (`tvDist_bind_left_le_const'`, the unrestricted real-valued companion of VCVio's
     -- `ofReal_tvDist_bind_left_le_const'`).
-    exact OracleComp.ProgramLogic.Relational.tvDist_bind_left_le_const' se.keygen Y₁ Y₂ _ htv_ke
+    exact tvDist_bind_left_le_const' se.keygen Y₁ Y₂ _ htv_ke
   calc |(Pr[= true | game1 se adv]).toReal - (Pr[= true | game2 se adv]).toReal|
       = |(Pr[= true | game1 se adv]).toReal - (Pr[= true | game2' se adv]).toReal| := by
         rw [hC]

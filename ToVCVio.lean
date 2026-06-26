@@ -1,7 +1,6 @@
 import ToVCVio.Control.StateT
 import ToVCVio.CryptoFoundations.KeyEncapMech
 import ToVCVio.EvalDist.Monad.Basic
-import ToVCVio.EvalDist.Monad.BindComm
 import ToVCVio.OracleComp.Constructions.SampleableType
 import ToVCVio.OracleComp.EvalDist
 import ToVCVio.OracleComp.QueryTracking.LazySampling
@@ -9,5 +8,4 @@ import ToVCVio.OracleComp.SimSemantics.StateT.PreservesInv
 import ToVCVio.ProgramLogic.Tactics.Support
 import ToVCVio.ProgramLogic.Relational.Basic
 import ToVCVio.ProgramLogic.Relational.Coupling
-import ToVCVio.ProgramLogic.Relational.Quantitative
 import ToVCVio.ProgramLogic.Relational.SimulateQ

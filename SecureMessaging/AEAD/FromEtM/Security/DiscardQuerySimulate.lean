@@ -10,7 +10,6 @@ import VCVio.OracleComp.SimSemantics.SimulateQ
 import VCVio.OracleComp.SimSemantics.StateT.Basic
 import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 import VCVio.OracleComp.SimSemantics.Append
-import ToVCVio.EvalDist.Monad.BindComm
 
 /-!
 # Discarded random-oracle query removal under `simulateQ`
@@ -61,8 +60,8 @@ noncomputable def roImpl (D R : Type) [DecidableEq D] [SampleableType R] :
 
 /-! ## The true absorption lemma
 
-(The independent-bind commute helper `evalDist_bind_bind_comm` lives in
-`ToVCVio.EvalDist.Monad.BindComm`.) -/
+(The independent-bind swap helper `evalDist_bind_bind_swap` lives upstream in
+`VCVio.EvalDist.Monad.Basic`.) -/
 
 /-- Running `randomOracle` on a single query at `d` from a cache that misses `d`: sample uniformly
 and cache the result. -/
@@ -127,7 +126,7 @@ private theorem evalDist_uniformSample_bind_simulateQ_roImpl_run'
       simp only [hredU]
       -- Both sides: `query n` then continue. Commute the `d`-presample past the unif sample, apply
       -- the IH on each continuation (cache still misses `d`).
-      rw [evalDist_bind_bind_comm ($ᵗ R)
+      rw [evalDist_bind_bind_swap ($ᵗ R)
         (liftM (OracleSpec.query (spec := unifSpec) n) :
           ProbComp ((unifSpec + (D →ₒ R)).Range (Sum.inl n)))
         (fun r u => (simulateQ (roImpl D R) (k u)).run' (qc.cacheQuery d r))]
@@ -207,7 +206,7 @@ private theorem evalDist_uniformSample_bind_simulateQ_roImpl_run'
             rw [randomOracle_run_none t (qc.cacheQuery d r) (hmiss_t r), map_eq_bind_pure_comp]
             simp [bind_assoc]
           rw [hL]
-          rw [evalDist_bind_bind_comm ($ᵗ R) ($ᵗ R)
+          rw [evalDist_bind_bind_swap ($ᵗ R) ($ᵗ R)
             (fun r w => (simulateQ (roImpl D R) (k w)).run'
               ((qc.cacheQuery d r).cacheQuery t w))]
           refine evalDist_ext fun x => ?_

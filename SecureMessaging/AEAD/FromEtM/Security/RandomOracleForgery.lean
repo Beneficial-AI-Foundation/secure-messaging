@@ -8,7 +8,6 @@ import VCVio.OracleComp.QueryTracking.RandomOracle.Basic
 import VCVio.OracleComp.QueryTracking.QueryBound
 import VCVio.OracleComp.Constructions.SampleableType
 import VCVio.OracleComp.SimSemantics.SimulateQ
-import ToVCVio.EvalDist.Monad.BindComm
 
 /-!
 # Lazy Random-Oracle One-Time Unforgeability (missing VCVio bricks)
@@ -384,7 +383,7 @@ private lemma evalDist_forgeBit_resample :
       · -- Uniform-sampling query: state untouched; commute the presample, IH on continuation.
         simp only [forgeImpl_run_inl_bind]
         -- Both sides: `query n` then continue with state `(·, evald, fl)`.
-        rw [evalDist_bind_bind_comm ($ᵗ R)
+        rw [evalDist_bind_bind_swap ($ᵗ R)
           (liftM (OracleSpec.query n) : ProbComp (unifSpec.Range n))
           (fun u w => forgeBit (k w) (cache.cacheQuery d u, evald, fl))]
         refine evalDist_ext fun x => ?_
@@ -449,7 +448,7 @@ private lemma evalDist_forgeBit_resample :
               erw [bind_assoc]
               exact bind_congr fun w => pure_bind _ _
             rw [hLrw]
-            rw [evalDist_bind_bind_comm ($ᵗ R) ($ᵗ R)
+            rw [evalDist_bind_bind_swap ($ᵗ R) ($ᵗ R)
               (fun u w => forgeBit (k w)
                 ((cache.cacheQuery d u).cacheQuery t w, insert t evald, fl))]
             refine evalDist_ext fun x => ?_
@@ -530,7 +529,7 @@ private lemma evalDist_forgeBit_resample :
               erw [bind_assoc]
               exact bind_congr fun w => pure_bind _ _
             rw [hLrw]
-            rw [evalDist_bind_bind_comm ($ᵗ R) ($ᵗ R)
+            rw [evalDist_bind_bind_swap ($ᵗ R) ($ᵗ R)
               (fun u w => forgeBit (k (tr == w))
                 ((cache.cacheQuery d u).cacheQuery td w, evald,
                   fl || ((tr == w) && decide (td ∉ evald))))]
