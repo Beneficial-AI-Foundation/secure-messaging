@@ -22,7 +22,7 @@ Syntax and definitions from Section 3.1 of:
 
 
 [SPACES]
-- `IK`: initial common value (CKA initialization value, possibly trivial, e.g. `⊥`),
+- `IK`: initial common value, possibly trivial (e.g. `⊥`).
 - `StA`: local state for party A.
 - `StB`: local state for party B.
 - `I`: epoch-key space.
@@ -31,8 +31,7 @@ Syntax and definitions from Section 3.1 of:
 
 [ALGORITHMS]
 - `initKeyGen : m IK`.
-  Produces the initial value `ik : IK` common to A and B before the first protocol
-  message (possibly trivial, e.g. `⊥`).
+  Produces the initial value `ik : IK` common to A and B (possibly trivial, e.g. `⊥`).
 - `initA : IK → m StA`.
   Initializes A's local state `stA₀ : StA` from the initial value `ik : IK`.
 - `initB : IK → m StB`.
@@ -57,14 +56,10 @@ Syntax and definitions from Section 3.1 of:
   * Outputs a receiving epoch `t_B^rcv : ℕ`, and a new state `stB' : StB`.
 
 [EXECUTION MODEL]
-Unlike CKA, SCKA does not assume the alternating ("ping-pong") A↔B pattern. Both parties may send
-and receive messages at the same time. A send/receive may produce no key.
-When a key is produced by a party P in {A, B}, we obtain (t_{I_P}, I_P), where
-- t_{I_P} is the epoch the new key belongs to (keys form a sequence I₁, I₂, …),
-- I_P is that key.
-The key epoch t_{I_P} need not equal the sending/receiving epoch t_P^snd / t_P^rcv,
-which is the latest epoch usable for the message itself (with t_P^rcv = t_P̄^snd for a
-matching send/receive).
+Unlike CKA, SCKA does not assume the alternating ("ping-pong") A↔B pattern: both parties
+may send and receive at any time. A send/receive may produce no key; when it does, it
+outputs a key with its epoch number, as a pair `(t, k) : ℕ × I`, where key `k` is to be
+used for epoch `t`.
 -/
 
 open OracleSpec OracleComp ENNReal

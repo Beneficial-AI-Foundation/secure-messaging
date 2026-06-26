@@ -161,7 +161,7 @@ jobs:
             Continuous-Key-Agreement
             Erasure-Codes
             Forward-Secure-AEAD
-            Online-Offline-KEM
+            Key-Encapsulation-Mechanism
             PRF-PRNG
             Ratcheting-KEM
             Sparse-Continuous-Key-Agreement
