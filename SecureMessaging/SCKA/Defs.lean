@@ -138,8 +138,7 @@ variable {m : Type → Type u} [Monad m] {IK StA StB I Rho Rand : Type}
   * `assertUniqueEpochs`: a party does not overwrite a key for an epoch;
   * `assertMonotonicity`: `t^snd_P ≥ t^cur_P`; a sending epoch never goes
     backwards — a party never reports a sending epoch behind one it already reached;
-  * `assertKnownPrefix`: every epoch from `1` to `t^cur_P` has a recorded key (epoch `0`
-    carries no SCKA key, as keys form the sequence `I₁, I₂, …`); no gaps in the prefix;
+  * `assertKnownPrefix`: every epoch from `1` to `t^cur_P` has a recorded key; no gaps in the prefix;
   * `assertMatchingEpoch`: `t^rcv_P = t^snd_P̄`; on delivery, the receiver
     recovers exactly the sending epoch its partner used to produce the message.
 
