@@ -31,19 +31,19 @@ $`\todo`
 :::defTitle "ml_kem_correctness" "ML-KEM correctness"
 :::
 
-::::definition "ml_kem_correctness" (parent := "ml_kem")
+::::theorem "ml_kem_correctness" (parent := "ml_kem")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "ml_kem_scheme"}[] · {githubLabel}`github` {githubIssue 215}[]
+{usesLabel}`uses` {uses "ml_kem_scheme"}[] · {githubLabel}`github` {githubIssue 219}[]
 ::::
 
 :::defTitle "ml_kem_security" "ML-KEM security"
 :::
 
-::::definition "ml_kem_security" (parent := "ml_kem")
+::::theorem "ml_kem_security" (parent := "ml_kem")
 $`\todo`
 
 :::leanPill "missing"
