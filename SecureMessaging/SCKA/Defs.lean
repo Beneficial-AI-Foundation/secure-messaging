@@ -22,7 +22,7 @@ Syntax and definitions from Section 3.1 of:
 
 
 [SPACES]
-- `IK`: initial common value, possibly trivial (e.g. `⊥`).
+- `IK`: initial common value.
 - `StA`: local state for party A.
 - `StB`: local state for party B.
 - `I`: epoch-key space.
@@ -31,7 +31,7 @@ Syntax and definitions from Section 3.1 of:
 
 [ALGORITHMS]
 - `initKeyGen : m IK`.
-  Produces the initial value `ik : IK` common to A and B (possibly trivial, e.g. `⊥`).
+  Produces the initial value `ik : IK` common to A and B.
 - `initA : IK → m StA`.
   Initializes A's local state `stA₀ : StA` from the initial value `ik : IK`.
 - `initB : IK → m StB`.
@@ -68,7 +68,7 @@ universe u
 
 /-- A sparse continuous key agreement scheme.
 
-- `IK`: initial common value (possibly trivial),
+- `IK`: initial common value,
 - `StA`: local state for party A,
 - `StB`: local state for party B,
 - `I`: epoch-key space,
@@ -77,7 +77,7 @@ universe u
 -/
 -- ANCHOR: SCKAScheme
 structure SCKAScheme (m : Type → Type u) [Monad m] (IK StA StB I Rho Rand : Type) where
-  /-- Samples the initial common value (possibly trivial). -/
+  /-- Samples the initial common value. -/
   initKeyGen : m IK
   /-- Initializes A's local state from the initial key. -/
   initA : IK → m StA
@@ -138,7 +138,7 @@ variable {m : Type → Type u} [Monad m] {IK StA StB I Rho Rand : Type}
   * `assertUniqueEpochs`: a party does not overwrite a key for an epoch;
   * `assertMonotonicity`: `t^snd_P ≥ t^cur_P`; a sending epoch never goes
     backwards — a party never reports a sending epoch behind one it already reached;
-  * `assertKnownPrefix`: every epoch from `1` to `t^cur_P` has a recorded key; no gaps in the prefix;
+  * `assertKnownPrefix`: every epoch from `1` to `t^cur_P` has a recorded key;
   * `assertMatchingEpoch`: `t^rcv_P = t^snd_P̄`; on delivery, the receiver
     recovers exactly the sending epoch its partner used to produce the message.
 

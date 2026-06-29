@@ -38,7 +38,7 @@ $`\todo`
 
 ```anchor SCKAScheme (project := ".") (module := SecureMessaging.SCKA.Defs)
 structure SCKAScheme (m : Type → Type u) [Monad m] (IK StA StB I Rho Rand : Type) where
-  /-- Samples the initial common value (possibly trivial). -/
+  /-- Samples the initial common value. -/
   initKeyGen : m IK
   /-- Initializes A's local state from the initial key. -/
   initA : IK → m StA
