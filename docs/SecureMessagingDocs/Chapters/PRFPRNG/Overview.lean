@@ -12,7 +12,7 @@ open Informal
 
 set_option doc.verso true
 
-#doc (Manual) "PRF-PRNG" =>
+#doc (Manual) "Pseudorandom Function and Generator" =>
 
 *References:*
 

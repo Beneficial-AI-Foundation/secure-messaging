@@ -119,8 +119,9 @@ jobs:
             SecureMessagingDocs.Chapters.ErasureCodes.ReedSolomon \
             SecureMessagingDocs.Chapters.FSAEAD.Defs \
             SecureMessagingDocs.Chapters.FSAEAD.FromAEADPRG \
-            SecureMessagingDocs.Chapters.OnOffKEM.Defs \
-            SecureMessagingDocs.Chapters.OnOffKEM.FromMLKEM \
+            SecureMessagingDocs.Chapters.KEM.MLKEM \
+            SecureMessagingDocs.Chapters.KEM.OnOffKEM.Defs \
+            SecureMessagingDocs.Chapters.KEM.OnOffKEM.FromMLKEM \
             SecureMessagingDocs.Chapters.PRFPRNG.Defs \
             SecureMessagingDocs.Chapters.PRFPRNG.FromPRPPRG \
             SecureMessagingDocs.Chapters.RKEM.Defs \
@@ -160,7 +161,7 @@ jobs:
             Continuous-Key-Agreement
             Erasure-Codes
             Forward-Secure-AEAD
-            Online-Offline-KEM
+            Key-Encapsulation-Mechanism
             PRF-PRNG
             Ratcheting-KEM
             Sparse-Continuous-Key-Agreement

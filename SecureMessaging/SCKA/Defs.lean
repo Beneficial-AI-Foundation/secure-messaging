@@ -22,7 +22,7 @@ Syntax and definitions from Section 3.1 of:
 
 
 [SPACES]
-- `IK`: initial shared key,
+- `IK`: initial common value.
 - `StA`: local state for party A.
 - `StB`: local state for party B.
 - `I`: epoch-key space.
@@ -31,11 +31,11 @@ Syntax and definitions from Section 3.1 of:
 
 [ALGORITHMS]
 - `initKeyGen : m IK`.
-  Produces the initial key `ik : IK` shared by A and B before the first protocol message.
+  Produces the initial value `ik : IK` common to A and B.
 - `initA : IK → m StA`.
-  Initializes A's local state `stA₀ : StA` from the initial key `ik : IK`.
+  Initializes A's local state `stA₀ : StA` from the initial value `ik : IK`.
 - `initB : IK → m StB`.
-  Initializes B's local state `stB₀ : StB` from the initial key `ik : IK`.
+  Initializes B's local state `stB₀ : StB` from the initial value `ik : IK`.
 - `sendA : StA → m (Option (Option (ℕ × I) × Rho × ℕ × StA))`.
   * May output an (epoch counter, epoch key) pair `(t_{I_A}, I_A) : ℕ × I`.
   * Outputs a message `ρA : Rho` from A to B, a sending epoch `t_A^snd : ℕ`, and a new state `stA'.
@@ -56,11 +56,10 @@ Syntax and definitions from Section 3.1 of:
   * Outputs a receiving epoch `t_B^rcv : ℕ`, and a new state `stB' : StB`.
 
 [EXECUTION MODEL]
-Unlike CKA, SCKA does not assume the alternating ("ping-pong") A↔B pattern. Both parties may send
-and receive messages at the same time. A send/receive may produce no key.
-When a key is produced by a party P in {A, B}, we obtain (t_{I_P}, I_P), where
-- t_{I_P} is an epoch counter,
-- I_P is the key to be associated with that epoch.
+Unlike CKA, SCKA does not assume the alternating ("ping-pong") A↔B pattern: both parties
+may send and receive at any time. A send/receive may produce no key; when it does, it
+outputs a key with its epoch number, as a pair `(t, k) : ℕ × I`, where key `k` is to be
+used for epoch `t`.
 -/
 
 open OracleSpec OracleComp ENNReal
@@ -69,7 +68,7 @@ universe u
 
 /-- A sparse continuous key agreement scheme.
 
-- `IK`: initial shared key material,
+- `IK`: initial common value,
 - `StA`: local state for party A,
 - `StB`: local state for party B,
 - `I`: epoch-key space,
@@ -78,7 +77,7 @@ universe u
 -/
 -- ANCHOR: SCKAScheme
 structure SCKAScheme (m : Type → Type u) [Monad m] (IK StA StB I Rho Rand : Type) where
-  /-- Samples initial shared key material. -/
+  /-- Samples the initial common value. -/
   initKeyGen : m IK
   /-- Initializes A's local state from the initial key. -/
   initA : IK → m StA
@@ -139,8 +138,7 @@ variable {m : Type → Type u} [Monad m] {IK StA StB I Rho Rand : Type}
   * `assertUniqueEpochs`: a party does not overwrite a key for an epoch;
   * `assertMonotonicity`: `t^snd_P ≥ t^cur_P`; a sending epoch never goes
     backwards — a party never reports a sending epoch behind one it already reached;
-  * `assertKnownPrefix`: all epochs up to and including `t^cur_P` have a recorded key;
-    the sequence of a party's keys has no gaps up to its current epoch;
+  * `assertKnownPrefix`: every epoch from `1` to `t^cur_P` has a recorded key;
   * `assertMatchingEpoch`: `t^rcv_P = t^snd_P̄`; on delivery, the receiver
     recovers exactly the sending epoch its partner used to produce the message.
 
@@ -272,7 +270,7 @@ def oracleSendA [DecidableEq I] (scka : SCKAScheme ProbComp IK StA StB I Rho Ran
         let assertUniqueEpochs := (state.keyA tI).isNone
         let assertConsistentKeys := (state.keyB tI).isNone || state.keyB tI == some key
         let keyA' := Function.update state.keyA tI (some key)
-        let assertKnownPrefix := (List.range (tsnd + 1)).all (fun t => (keyA' t).isSome)
+        let assertKnownPrefix := (List.range (tsnd + 1)).all (fun t => t = 0 || (keyA' t).isSome)
         set { state with
           stA := stA', tcurA := tsnd, keyA := keyA', msgA := msgA', nA := nA',
           correct := state.correct
@@ -317,7 +315,7 @@ def oracleSendB [DecidableEq I] (scka : SCKAScheme ProbComp IK StA StB I Rho Ran
         let assertUniqueEpochs := (state.keyB tI).isNone
         let assertConsistentKeys := (state.keyA tI).isNone || state.keyA tI == some key
         let keyB' := Function.update state.keyB tI (some key)
-        let assertKnownPrefix := (List.range (tsnd + 1)).all (fun t => (keyB' t).isSome)
+        let assertKnownPrefix := (List.range (tsnd + 1)).all (fun t => t = 0 || (keyB' t).isSome)
         set { state with
           stB := stB', tcurB := tsnd, keyB := keyB', msgB := msgB', nB := nB',
           correct := state.correct
@@ -377,7 +375,7 @@ def oracleSendArleak [DecidableEq I] (vulnA : StA → Finset ℕ)
           let assertUniqueEpochs := (state.keyA tI).isNone
           let assertConsistentKeys := (state.keyB tI).isNone || state.keyB tI == some key
           let keyA' := Function.update state.keyA tI (some key)
-          let assertKnownPrefix := (List.range (tsnd + 1)).all (fun t => (keyA' t).isSome)
+          let assertKnownPrefix := (List.range (tsnd + 1)).all (fun t => t = 0 || (keyA' t).isSome)
           set { state with
             stA := stA', tcurA := tsnd, exposed := exposed', keyA := keyA',
             msgA := msgA', nA := nA',
@@ -437,7 +435,7 @@ def oracleSendBrleak [DecidableEq I] (vulnB : StB → Finset ℕ)
           let assertUniqueEpochs := (state.keyB tI).isNone
           let assertConsistentKeys := (state.keyA tI).isNone || state.keyA tI == some key
           let keyB' := Function.update state.keyB tI (some key)
-          let assertKnownPrefix := (List.range (tsnd + 1)).all (fun t => (keyB' t).isSome)
+          let assertKnownPrefix := (List.range (tsnd + 1)).all (fun t => t = 0 || (keyB' t).isSome)
           set { state with
             stB := stB', tcurB := tsnd, exposed := exposed', keyB := keyB',
             msgB := msgB', nB := nB',
@@ -495,7 +493,8 @@ def oracleRecvA [DecidableEq I] (scka : SCKAScheme ProbComp IK StA StB I Rho Ran
           let assertUniqueEpochs := (state.keyA tI).isNone
           let assertConsistentKeys := (state.keyB tI).isNone || state.keyB tI == some key
           let keyA' := Function.update state.keyA tI (some key)
-          let assertKnownPrefix := (List.range (tcurA' + 1)).all (fun t => (keyA' t).isSome)
+          let assertKnownPrefix :=
+            (List.range (tcurA' + 1)).all (fun t => t = 0 || (keyA' t).isSome)
           set { state with
             stA := stA', tcurA := tcurA', keyA := keyA',
             correct := state.correct
@@ -548,7 +547,8 @@ def oracleRecvB [DecidableEq I] (scka : SCKAScheme ProbComp IK StA StB I Rho Ran
           let assertUniqueEpochs := (state.keyB tI).isNone
           let assertConsistentKeys := (state.keyA tI).isNone || state.keyA tI == some key
           let keyB' := Function.update state.keyB tI (some key)
-          let assertKnownPrefix := (List.range (tcurB' + 1)).all (fun t => (keyB' t).isSome)
+          let assertKnownPrefix :=
+            (List.range (tcurB' + 1)).all (fun t => t = 0 || (keyB' t).isSome)
           set { state with
             stB := stB', tcurB := tcurB', keyB := keyB',
             correct := state.correct
