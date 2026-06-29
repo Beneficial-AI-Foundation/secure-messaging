@@ -29,14 +29,16 @@ namespace KEMScheme
 
 variable {m : Type → Type u} [Monad m] {K PK SK C : Type}
 
-/-- Online-offline (on/off) KEM witness structure.
+/-- An online-offline (on/off) KEM witness for a KEM `kem` (Definition 2.1 of
+[SCKA]), decomposing `kem.encaps` into an offline and an online phase.
 
-It records that the encapsulation of `kem` factors into an offline phase
-`encapsOff` (independent of the encapsulation key, producing the offline
-ciphertext `ct0 : C₀` and a state `stct : St`) and an online phase `encapsOn`
-(using the encapsulation key, producing the online ciphertext `ct1 : C₁` and
-the shared key), with the ciphertext space splitting as `C ≃ C₀ × C₁` so that
-`ct = (ct0, ct1)`. -/
+- `St`: the offline encapsulation state space;
+- `C₀`: the offline ciphertext space;
+- `C₁`: the online ciphertext space;
+- `split`: identifies the ciphertext space `C` with `C₀ × C₁`, i.e. `ct = (ct0, ct1)`;
+- `encapsOff`: the key-independent offline phase, producing a state and `ct0`;
+- `encapsOn st ek`: the online phase, producing `ct1` and the shared key;
+- `factor`: `kem.encaps` runs `encapsOff` then `encapsOn`, reassembled via `split`. -/
 -- ANCHOR: OnOffStructure
 structure OnOffStructure (kem : KEMScheme m K PK SK C) where
   /-- Offline encapsulation state space. -/
@@ -61,9 +63,8 @@ structure OnOffStructure (kem : KEMScheme m K PK SK C) where
     pure (split.symm (c0, c1), k))
 -- ANCHOR_END: OnOffStructure
 
-/-- Every KEM is (degenerately) an on/off KEM: take the offline phase to do
-nothing (`C₀ := Unit`) and let the online phase be the whole encapsulation
-(`C₁ := C`). This witnesses that on/off KEMs strictly generalize plain KEMs. -/
+/-- On/off structure showing that any `kem` can be trivially split into an offline
+phase with an empty ciphertext, and an online phase that performs the whole encapsulation. -/
 def trivialOnOff [LawfulMonad m] (kem : KEMScheme m K PK SK C) :
     kem.OnOffStructure where
   St := Unit
