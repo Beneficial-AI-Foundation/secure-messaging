@@ -37,7 +37,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "on_off_kem_from_ml_kem_spec"}[] · {uses "on_off_kem_correctness"}[] · {githubLabel}`github` {githubIssue 201}[]
+{usesLabel}`uses` {uses "on_off_kem_from_ml_kem_spec"}[] · {uses "on_off_kem_scheme"}[] · {githubLabel}`github` {githubIssue 201}[]
 ::::
 
 :::defTitle "on_off_kem_from_ml_kem_security" "On-Off KEM from ML-KEM security"
@@ -49,5 +49,5 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "on_off_kem_from_ml_kem_spec"}[] · {uses "on_off_kem_scheme"}[] · {uses "on_off_kem_security"}[] · {githubLabel}`github` {githubIssue 42}[]
+{usesLabel}`uses` {uses "on_off_kem_from_ml_kem_spec"}[] · {uses "on_off_kem_scheme"}[] · {githubLabel}`github` {githubIssue 42}[]
 ::::

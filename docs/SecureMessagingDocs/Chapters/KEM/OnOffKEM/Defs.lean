@@ -56,29 +56,5 @@ structure OnOffStructure (kem : KEMScheme m K PK SK C) where
     pure (split.symm (c0, c1), k))
 ```
 
-{githubLabel}`github` {githubIssue 180}[]
-::::
-
-:::defTitle "on_off_kem_correctness" "On-Off KEM correctness"
-:::
-
-::::definition "on_off_kem_correctness" (parent := "on_off_kem")
-$`\todo`
-
-:::leanPill "missing"
-:::
-
-{usesLabel}`uses` {uses "on_off_kem_scheme"}[] · {githubLabel}`github` {githubIssue 181}[]
-::::
-
-:::defTitle "on_off_kem_security" "On-Off KEM security"
-:::
-
-::::definition "on_off_kem_security" (parent := "on_off_kem")
-$`\todo`
-
-:::leanPill "missing"
-:::
-
-{usesLabel}`uses` {uses "on_off_kem_scheme"}[] · {githubLabel}`github` {githubIssue 182}[]
+{githubLabel}`github` {githubIssue 40}[]
 ::::
