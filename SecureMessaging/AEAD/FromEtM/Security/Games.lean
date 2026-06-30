@@ -13,11 +13,11 @@ import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 import VCVio.OracleComp.QueryTracking.SubSpec
 import VCVio.EvalDist.TVDist
 import VCVio.ProgramLogic.Relational.SimulateQ
-import SecureMessaging.AEAD.FromEtM.Security.RandomOracleForgery
-import SecureMessaging.AEAD.FromEtM.Security.DiscardQuerySimulate
-import SecureMessaging.AEAD.FromEtM.Security.SimulateQForward
+import ToVCVio.OracleComp.QueryTracking.RandomOracle.RandomOracleForgery
+import ToVCVio.OracleComp.QueryTracking.RandomOracle.DiscardQuerySimulate
+import ToVCVio.OracleComp.SimSemantics.SimulateQForward
 import ToVCVio.OracleComp.SimSemantics.StateT.PreservesInv
-import SecureMessaging.Common.UnifLift
+import ToVCVio.OracleComp.SimSemantics.UnifLift
 
 /-!
 # Encrypt-then-MAC — game and reduction definitions

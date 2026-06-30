@@ -141,7 +141,7 @@ theorem game1_game2_le_auth
       intro ke
       rw [hforgeProb]
       exact le_trans (probForge_authInst_le_forgeReduction se adv ke)
-        (etmAEAD.probForge_le_queryBound_div_card (forgeReduction se adv ke) q_d
+        (OracleComp.probForge_le_queryBound_div_card (forgeReduction se adv ke) q_d
           (forgeReduction_isQueryBoundP se adv ke q_d hqd))
     -- Combine (3)+(4): per-key TV ≤ q_d/|T|.
     have htv_ke : ∀ ke, tvDist (Y₁ ke) (Y₂ ke) ≤ ↑q_d * (Fintype.card T : ℝ)⁻¹ :=

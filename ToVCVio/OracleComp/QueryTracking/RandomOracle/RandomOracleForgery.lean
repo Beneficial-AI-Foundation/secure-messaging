@@ -14,9 +14,8 @@ import VCVio.OracleComp.SimSemantics.SimulateQ
 
 This file isolates the probabilistic "bricks" that the Encrypt-then-MAC authenticity hop
 (`game1_game2_le_auth` in `SecureMessaging.AEAD.FromEtM.Security`) needs but that VCVio does
-not yet provide as assembled lemmas. They are generic facts about the lazy random oracle and
-are intended to be contributed upstream (alongside
-`VCVio.OracleComp.QueryTracking.RandomOracle`); they are independent of `SecureMessaging`.
+not yet provide as assembled lemmas. They are generic facts about the lazy random oracle and are
+independent of `SecureMessaging`.
 
 ## Brick 1 — `probForge_le_queryBound_div_card`
 
@@ -46,8 +45,8 @@ is uniform and unrevealed, so the probability that any of the `k_P` tags tried t
 `ρ(P)` is at most `k_P / |R|`; summing over distinct points gives `Σ_P k_P / |R| = q / |R|`.
 
 (The discarded-query removal behind `game2' = game2` is handled separately, at the
-`simulateQ randomOracle` level, by `etmAEAD.evalDist_simulateQ_run'_discardRO` in
-`SecureMessaging.AEAD.FromEtM.Security.DiscardQuerySimulate` — accessing the cache only via
+`simulateQ randomOracle` level, by `OracleComp.evalDist_simulateQ_run'_discardRO` in
+`ToVCVio.OracleComp.QueryTracking.RandomOracle.DiscardQuerySimulate` — accessing the cache only via
 `randomOracle`, which avoids the false bare-`StateT` formulation that a raw cache read would break.)
 
 ## Status
@@ -57,7 +56,7 @@ is uniform and unrevealed, so the probability that any of the `k_P` tags tried t
 
 open OracleComp OracleSpec ENNReal
 
-namespace etmAEAD
+namespace OracleComp
 
 universe u
 
@@ -269,7 +268,7 @@ sides pin to the same value (renaming the two uniform draws). Once `d` becomes e
 invisible to the forge flag thereafter. This is exactly the forge-only invisibility that
 distinguishes this from a full distributional resampling. It mirrors
 `evalDist_uniformSample_bind_simulateQ_roImpl_run'` in
-`SecureMessaging.AEAD.FromEtM.Security.DiscardQuerySimulate`,
+`ToVCVio.OracleComp.QueryTracking.RandomOracle.DiscardQuerySimulate`,
 specialized to the forge-flag marginal of `forgeImpl`. -/
 
 /-- The forge-flag marginal of running `oa` from state `s`: the `ProbComp Bool` that returns the
@@ -865,4 +864,4 @@ theorem probForge_le_queryBound_div_card [Fintype R]
         rw [ENNReal.toReal_mul, ENNReal.toReal_inv]
         simp
 
-end etmAEAD
+end OracleComp

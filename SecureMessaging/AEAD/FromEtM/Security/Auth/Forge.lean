@@ -26,7 +26,7 @@ omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
 /-- Step C of the auth hop: `game2'` (verify queries the RO then rejects unconditionally)
 has the same output distribution as `game2` (rejects directly). The discarded verify RO query
 reveals nothing, so removing it preserves the distribution
-(`etmAEAD.evalDist_simulateQ_run'_discardRO`, the RO-mediated discarded-query brick), lifted
+(`OracleComp.evalDist_simulateQ_run'_discardRO`, the RO-mediated discarded-query brick), lifted
 through the skeleton. -/
 theorem game2'_eq_game2
     (se : DetSEAlg K_e M C_e)
@@ -42,7 +42,7 @@ theorem game2'_eq_game2
   -- Reduce the `Pr` equality to a `𝒟` equality and apply the generic discarded-query brick.
   rw [probOutput_def, probOutput_def]
   refine congrFun (congrArg DFunLike.coe ?_) true
-  refine etmAEAD.evalDist_simulateQ_run'_discardRO
+  refine OracleComp.evalDist_simulateQ_run'_discardRO
     (D := AD × C_e) (R := T) _ _ ?h₁ ?hstep adv none ∅
   case h₁ =>
     -- `game2`'s interpreter respects the RO: the only cache access is `computeTag = randomOracle`
@@ -71,10 +71,10 @@ theorem game2'_eq_game2
       · -- unif: both sides forward a uniform sample, cache + challenge unchanged.
         simp only [QueryImpl.add_apply_inl, simulateQ_bind, simulateQ_spec_query,
           StateT.run_bind, simulateQ_pure, StateT.run_pure]
-        rw [show ((etmAEAD.roImpl (AD × C_e) T) (Sum.inl n)).run qc =
+        rw [show ((OracleComp.roImpl (AD × C_e) T) (Sum.inl n)).run qc =
               (fun u => (u, qc)) <$> (liftM (OracleSpec.query (spec := unifSpec) n) :
                 ProbComp ((unifSpec + ((AD × C_e) →ₒ T)).Range (Sum.inl n))) from by
-            rw [etmAEAD.roImpl, QueryImpl.add_apply_inl]; unfold unifFwdImpl
+            rw [OracleComp.roImpl, QueryImpl.add_apply_inl]; unfold unifFwdImpl
             rw [QueryImpl.liftTarget_apply, HasQuery.toQueryImpl]
             simp [StateT.run_monadLift, bind_pure_comp, HasQuery.query]]
         unfold gameUnifImpl
@@ -85,12 +85,12 @@ theorem game2'_eq_game2
         rfl
       · -- encrypt: case on whether the challenge is already set.
         cases s <;>
-          simp [etmAEAD.roImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
+          simp [OracleComp.roImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
             StateT.run_bind, StateT.run_get,
             StateT.run_set, StateT.run_pure, map_bind, Functor.map_map]
       · -- decrypt: reject unconditionally; case on the challenge guard, both reject identically.
         by_cases hg : s = some (c, tg) <;>
-          simp [etmAEAD.roImpl, QueryImpl.add_apply_inr,
+          simp [OracleComp.roImpl, QueryImpl.add_apply_inr,
             StateT.run_bind, StateT.run_get, StateT.run_set, StateT.run_pure, map_pure,
             beq_iff_eq, hg]
   case hstep =>
@@ -229,8 +229,8 @@ theorem probForge_authInst_le_forgeReduction
     (adv : OneTimeCCAAdversary AD M (C_e × T)) (ke : K_e) :
     (Pr[fun z : Bool × (EtmGameState AD C_e T × Bool) => z.2.2 = true |
         (simulateQ (authInstImpl se true ke) adv).run ((none, ∅), false)]).toReal ≤
-      (Pr[fun z : Unit × etmAEAD.ForgeState (AD × C_e) T => z.2.2.2 = true |
-          (simulateQ etmAEAD.forgeImpl (forgeReduction se adv ke)).run
+      (Pr[fun z : Unit × OracleComp.ForgeState (AD × C_e) T => z.2.2.2 = true |
+          (simulateQ OracleComp.forgeImpl (forgeReduction se adv ke)).run
             (∅, ∅, false)]).toReal := by
   -- The proof relates the two experiments at the ENNReal level (`.toReal` is monotone on
   -- the relevant non-⊤ probabilities), then collapses the nested forge `simulateQ` to a
@@ -241,7 +241,7 @@ theorem probForge_authInst_le_forgeReduction
   -- `EtmGameState × ForgeState` (the `simulateQ`-collapse target for the forge run).
   set impl₂ :
       QueryImpl (aeadOneTimeCCASpec AD M (C_e × T))
-        (StateT (EtmGameState AD C_e T × etmAEAD.ForgeState (AD × C_e) T) ProbComp) :=
+        (StateT (EtmGameState AD C_e T × OracleComp.ForgeState (AD × C_e) T) ProbComp) :=
     forgeJointImpl se ke with himpl₂
   -- Joint-state invariant coupling the instrumented-game state `(EtmGameState × Bool)` with
   -- the combined RHS state `(EtmGameState × ForgeState)`: the challenge slot and the lazy-RO
@@ -250,7 +250,7 @@ theorem probForge_authInst_le_forgeReduction
   -- forge `forged` flag.
   set R_state :
       (EtmGameState AD C_e T × Bool) →
-        (EtmGameState AD C_e T × etmAEAD.ForgeState (AD × C_e) T) → Prop :=
+        (EtmGameState AD C_e T × OracleComp.ForgeState (AD × C_e) T) → Prop :=
     fun s₁ s₂ =>
       -- challenge agrees
       s₁.1.1 = s₂.1.1 ∧
@@ -269,9 +269,9 @@ theorem probForge_authInst_le_forgeReduction
   case hle =>
     -- (i) Reduction collapse: rewrite the forge run as a `simulateQ impl₂ adv` run.
     have hRHScollapse :
-        Pr[fun z : Unit × etmAEAD.ForgeState (AD × C_e) T => z.2.2.2 = true |
-            (simulateQ etmAEAD.forgeImpl (forgeReduction se adv ke)).run (∅, ∅, false)] =
-          Pr[fun z : Bool × (EtmGameState AD C_e T × etmAEAD.ForgeState (AD × C_e) T) =>
+        Pr[fun z : Unit × OracleComp.ForgeState (AD × C_e) T => z.2.2.2 = true |
+            (simulateQ OracleComp.forgeImpl (forgeReduction se adv ke)).run (∅, ∅, false)] =
+          Pr[fun z : Bool × (EtmGameState AD C_e T × OracleComp.ForgeState (AD × C_e) T) =>
                 z.2.2.2.2 = true |
             (simulateQ impl₂ adv).run ((none, ∅), (∅, ∅, false))] := by
       -- Mechanical nested-`simulateQ` collapse: `forgeReduction = const () <$> skeleton`,
@@ -291,23 +291,23 @@ theorem probForge_authInst_le_forgeReduction
       rw [OracleComp.simulateQ_mapStateTBase_run_eq_map_flattenStateT]
       -- The flattened collapsed handler equals the hand-written joint handler
       -- `forgeJointImpl`.
-      rw [show (etmAEAD.forgeImpl.mapStateTBase _).flattenStateT
+      rw [show (OracleComp.forgeImpl.mapStateTBase _).flattenStateT
             = forgeJointImpl se ke from ?hflat,
         ← himpl₂, probEvent_map]
       case hflat =>
         funext t
         rcases t with (n | ⟨ad, m⟩) | ⟨ad, c, tg⟩
         · -- unif oracle: both handlers forward `query n` to the same lifted uniform sample
-          have hufwd : simulateQ etmAEAD.forgeImpl
+          have hufwd : simulateQ OracleComp.forgeImpl
               (liftM (OracleSpec.query n) :
-                OracleComp (etmAEAD.forgeSpec (AD × C_e) T) (unifSpec.Range n))
-              = etmAEAD.forgeUnifImpl n := by
+                OracleComp (OracleComp.forgeSpec (AD × C_e) T) (unifSpec.Range n))
+              = OracleComp.forgeUnifImpl n := by
             have hq : (liftM (OracleSpec.query n) :
-                  OracleComp (etmAEAD.forgeSpec (AD × C_e) T) (unifSpec.Range n))
-                = (OracleSpec.query (spec := etmAEAD.forgeSpec (AD × C_e) T)
+                  OracleComp (OracleComp.forgeSpec (AD × C_e) T) (unifSpec.Range n))
+                = (OracleSpec.query (spec := OracleComp.forgeSpec (AD × C_e) T)
                     (Sum.inl (Sum.inl n))) := rfl
             rw [hq]
-            simp [etmAEAD.forgeImpl, QueryImpl.add_apply_inl]
+            simp [OracleComp.forgeImpl, QueryImpl.add_apply_inl]
           ext ⟨eg, fs⟩ : 2
           simp only [QueryImpl.flattenStateT, QueryImpl.mapStateTBase,
             QueryImpl.add_apply_inl, QueryImpl.liftTarget_apply, QueryImpl.ofLift_apply,
@@ -319,7 +319,7 @@ theorem probForge_authInst_le_forgeReduction
           erw [OracleComp.liftM_run_StateT, OracleComp.liftM_run_StateT]
           rw [simulateQ_bind]
           erw [hufwd]
-          simp only [simulateQ_pure, etmAEAD.forgeUnifImpl, QueryImpl.liftTarget_apply,
+          simp only [simulateQ_pure, OracleComp.forgeUnifImpl, QueryImpl.liftTarget_apply,
             QueryImpl.ofLift_apply, StateT.run_bind, StateT.run_pure,
             bind_assoc, pure_bind,
             ← bind_pure_comp]
@@ -327,29 +327,29 @@ theorem probForge_authInst_le_forgeReduction
           simp only [Functor.map_map, bind_pure_comp,
             ]
         · -- encrypt oracle: forwards the tag query to the shared eval RO, records challenge
-          have hefwd : ∀ q : AD × C_e, simulateQ etmAEAD.forgeImpl
-              (liftM (OracleSpec.query (spec := etmAEAD.forgeSpec (AD × C_e) T)
+          have hefwd : ∀ q : AD × C_e, simulateQ OracleComp.forgeImpl
+              (liftM (OracleSpec.query (spec := OracleComp.forgeSpec (AD × C_e) T)
                   (Sum.inl (Sum.inr q))) :
-                OracleComp (etmAEAD.forgeSpec (AD × C_e) T) T)
-              = etmAEAD.evalRO q := by
+                OracleComp (OracleComp.forgeSpec (AD × C_e) T) T)
+              = OracleComp.evalRO q := by
             intro q
-            simp [etmAEAD.forgeImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
+            simp [OracleComp.forgeImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
           ext ⟨⟨ch, qc⟩, fs⟩ : 2
           rw [flattenStateT_mapStateTBase_apply_run]
           cases ch <;>
             simp [QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, forgeJointImpl,
               StateT.run_bind, StateT.run_get, StateT.run_set,
               StateT.run_monadLift, StateT.run_pure, simulateQ_map,
-              simulateQ_pure, hefwd, etmAEAD.evalRO, bind_pure_comp, map_bind,
+              simulateQ_pure, hefwd, OracleComp.evalRO, bind_pure_comp, map_bind,
               Functor.map_map, pure_bind]
         · -- decrypt oracle: forwards the verify query to the shared verify RO
-          have hvfwd : ∀ p : (AD × C_e) × T, simulateQ etmAEAD.forgeImpl
-              (liftM (OracleSpec.query (spec := etmAEAD.forgeSpec (AD × C_e) T)
+          have hvfwd : ∀ p : (AD × C_e) × T, simulateQ OracleComp.forgeImpl
+              (liftM (OracleSpec.query (spec := OracleComp.forgeSpec (AD × C_e) T)
                   (Sum.inr p)) :
-                OracleComp (etmAEAD.forgeSpec (AD × C_e) T) Bool)
-              = etmAEAD.verifyAgainstRO p := by
+                OracleComp (OracleComp.forgeSpec (AD × C_e) T) Bool)
+              = OracleComp.verifyAgainstRO p := by
             intro p
-            simp [etmAEAD.forgeImpl, QueryImpl.add_apply_inr]
+            simp [OracleComp.forgeImpl, QueryImpl.add_apply_inr]
           ext ⟨⟨ch, qc⟩, fs⟩ : 2
           rw [flattenStateT_mapStateTBase_apply_run]
           by_cases heq : ch = some (c, tg)
@@ -361,7 +361,7 @@ theorem probForge_authInst_le_forgeReduction
           · simp only [add_apply_inr, liftM_pure, Prod.mk.eta, StateT.run_monadLift,
               monadLift_self, bind_pure_comp, Functor.map_map, liftM_map, bind_map_left, pure_bind,
               beq_iff_eq, QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get, heq,
-              ↓reduceIte, StateT.run_set, simulateQ_bind, hvfwd, etmAEAD.verifyAgainstRO,
+              ↓reduceIte, StateT.run_set, simulateQ_bind, hvfwd, OracleComp.verifyAgainstRO,
               QueryImpl.withCaching_apply, decide_not, bind_assoc, map_bind, forgeJointImpl,
               QueryImpl.ofLift_eq_id']
             refine bind_congr fun a => ?_
@@ -592,7 +592,7 @@ theorem forgeReduction_isQueryBoundP
     (adv : OneTimeCCAAdversary AD M (C_e × T)) (ke : K_e)
     (q_d : ℕ) (hqd : AEADScheme.decryptQueryBound adv q_d) :
     (forgeReduction se adv ke).IsQueryBoundP
-      (etmAEAD.isVerifyQuery (D := AD × C_e) (R := T)) q_d := by
+      (OracleComp.isVerifyQuery (D := AD × C_e) (R := T)) q_d := by
   -- `forgeSpec`'s `IsUniformSpec` witness (needed by the query-bound lemma) wants `Fintype T`;
   -- the tag type is sampleable, so it is finite.
   letI : Fintype T := SampleableType.Fintype T
@@ -605,7 +605,7 @@ theorem forgeReduction_isQueryBoundP
   -- per-handler `.run`-unwrapping (StateT `MonadLiftT` fusion of the `ofLift` forwarder),
   -- then `isQueryBoundP_query_iff` (encrypt eval / decrypt verify) and
   -- `IsQueryBoundP.liftComp_subSpec` (cross-spec unif lift). Cf. VCVio `CmaToNma` `hfwd`.
-  refine etmAEAD.simulateQ_run_add_inr_of_step (fun t => by simp) hqd ?hleft ?hdec
+  refine OracleComp.simulateQ_run_add_inr_of_step (fun t => by simp) hqd ?hleft ?hdec
     (fun t hnp => absurd (by simp) hnp) (none, ∅)
   case hleft =>
     intro t s
@@ -618,11 +618,11 @@ theorem forgeReduction_isQueryBoundP
       -- `Sum.inl (Sum.inl n)`,
       -- which never `matches Sum.inr _`, so the forwarder makes no verify queries
       change (liftM (OracleSpec.query
-          (Sum.inl (Sum.inl n) : (etmAEAD.forgeSpec (AD × C_e) T).Domain) :
-            OracleQuery (etmAEAD.forgeSpec (AD × C_e) T) _) :
-          OracleComp (etmAEAD.forgeSpec (AD × C_e) T) _).IsQueryBoundP _ 0
+          (Sum.inl (Sum.inl n) : (OracleComp.forgeSpec (AD × C_e) T).Domain) :
+            OracleQuery (OracleComp.forgeSpec (AD × C_e) T) _) :
+          OracleComp (OracleComp.forgeSpec (AD × C_e) T) _).IsQueryBoundP _ 0
       rw [isQueryBoundP_query_iff]
-      simp [etmAEAD.isVerifyQuery]
+      simp [OracleComp.isVerifyQuery]
     · -- encrypt forwarder: one eval query `Sum.inl (Sum.inr _)`, not a verify query
       simp only [QueryImpl.add_apply_inr]
       obtain ⟨ch, qc⟩ := s
@@ -633,9 +633,9 @@ theorem forgeReduction_isQueryBoundP
             StateT.run_get, StateT.run_map, StateT.run_set, map_pure, Functor.map_map,
             isQueryBoundP_map_iff]
           exact (isQueryBoundP_query_iff
-              (p := etmAEAD.isVerifyQuery (D := AD × C_e) (R := T))
+              (p := OracleComp.isVerifyQuery (D := AD × C_e) (R := T))
               (Sum.inl (Sum.inr (ad, se.encrypt ke m))) 0).mpr
-            (fun h => absurd h (by simp [etmAEAD.isVerifyQuery]))
+            (fun h => absurd h (by simp [OracleComp.isVerifyQuery]))
       | some val =>
           simp [StateT.run_bind, StateT.run_get, StateT.run_pure]
   case hdec =>
@@ -644,12 +644,12 @@ theorem forgeReduction_isQueryBoundP
     simp only [StateT.run_bind, StateT.run_get, pure_bind]
     by_cases hg : ch = some (c, tg)
     · simp only [hg, beq_self_eq_true, ↓reduceIte, StateT.run_pure]
-      exact isQueryBoundP_pure etmAEAD.isVerifyQuery (none, some (c, tg), qc) 1
+      exact isQueryBoundP_pure OracleComp.isVerifyQuery (none, some (c, tg), qc) 1
     · simp only [beq_iff_eq, hg, ↓reduceIte, StateT.run_bind, StateT.run_set, pure_bind]
       erw [OracleComp.liftM_run_StateT, OracleComp.liftM_run_StateT]
       simp only [StateT.run_pure, bind_assoc, pure_bind]
       refine (isQueryBoundP_bind (m := 0)
-        ((isQueryBoundP_query_iff (p := etmAEAD.isVerifyQuery)
+        ((isQueryBoundP_query_iff (p := OracleComp.isVerifyQuery)
           (Sum.inr ((ad, c), tg)) 1).mpr (fun _ => Nat.one_pos))
         (fun x _ => ?_)).mono (le_refl 1)
       rcases hb : (x : Bool) with _ | _ <;>

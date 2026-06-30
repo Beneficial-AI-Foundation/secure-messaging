@@ -8,7 +8,7 @@ import VCVio.CryptoFoundations.SecExp
 import VCVio.OracleComp.Constructions.SampleableType
 import VCVio.OracleComp.SimSemantics.Append
 import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
-import SecureMessaging.Common.UnifLift
+import ToVCVio.OracleComp.SimSemantics.UnifLift
 
 /-!
 # Continuous Key Agreement (CKA)

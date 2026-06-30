@@ -102,7 +102,7 @@ theorem game2_game3_le_enc [Inhabited K_e]
             (liftM (OracleSpec.query n) :
               OracleComp (unifSpec + (M →ₒ Option C_e)) (unifSpec.Range n))
             = liftM (liftM (OracleSpec.query n) : OracleComp unifSpec (unifSpec.Range n)) :=
-          etmAEAD.simulateQ_id'_liftTarget_add_liftComp _
+          OracleComp.simulateQ_id'_liftTarget_add_liftComp _
             (liftM (OracleSpec.query n) : OracleComp unifSpec (unifSpec.Range n))
         simp only [add_apply_inl, QueryImpl.flattenStateT, QueryImpl.mapStateTBase,
           DetSEAlg.indCPAImpl, DetSEAlg.oracleUnif, QueryImpl.ofLift_eq_id', StateT.run_bind,
@@ -121,7 +121,7 @@ theorem game2_game3_le_enc [Inhabited K_e]
                 StateT (TagCache AD C_e T)
                   (OracleComp (unifSpec + (M →ₒ Option C_e))) T).run qc)
             = liftM ((fun t => (t, qc)) <$> ($ᵗ T : ProbComp T)) :=
-          etmAEAD.simulateQ_id'_liftTarget_add_liftComp _
+          OracleComp.simulateQ_id'_liftTarget_add_liftComp _
             ((fun t => (t, qc)) <$> ($ᵗ T : ProbComp T))
         cases ch with
         | none =>
@@ -182,7 +182,7 @@ theorem game2_game3_le_enc [Inhabited K_e]
             (liftM (OracleSpec.query n) :
               OracleComp (unifSpec + (M →ₒ Option C_e)) (unifSpec.Range n))
             = liftM (liftM (OracleSpec.query n) : OracleComp unifSpec (unifSpec.Range n)) :=
-          etmAEAD.simulateQ_id'_liftTarget_add_liftComp _
+          OracleComp.simulateQ_id'_liftTarget_add_liftComp _
             (liftM (OracleSpec.query n) : OracleComp unifSpec (unifSpec.Range n))
         simp [QueryImpl.flattenStateT, QueryImpl.mapStateTBase, DetSEAlg.indCPAImpl,
           DetSEAlg.oracleUnif, gameUnifImpl, QueryImpl.add_apply_inl, QueryImpl.liftTarget_apply,
@@ -195,7 +195,7 @@ theorem game2_game3_le_enc [Inhabited K_e]
                 StateT (TagCache AD C_e T)
                   (OracleComp (unifSpec + (M →ₒ Option C_e))) T).run qc)
             = liftM ((fun t => (t, qc)) <$> ($ᵗ T : ProbComp T)) :=
-          etmAEAD.simulateQ_id'_liftTarget_add_liftComp _
+          OracleComp.simulateQ_id'_liftTarget_add_liftComp _
             ((fun t => (t, qc)) <$> ($ᵗ T : ProbComp T))
         cases ch <;>
           simp [QueryImpl.flattenStateT, QueryImpl.mapStateTBase, DetSEAlg.indCPAImpl,
@@ -328,7 +328,7 @@ theorem game2_game3_le_enc [Inhabited K_e]
               (liftM (OracleSpec.query n) :
                 OracleComp (unifSpec + (M →ₒ Option C_e)) (unifSpec.Range n))
               = liftM (liftM (OracleSpec.query n) : OracleComp unifSpec (unifSpec.Range n)) :=
-            etmAEAD.simulateQ_id'_liftTarget_add_liftComp _
+            OracleComp.simulateQ_id'_liftTarget_add_liftComp _
               (liftM (OracleSpec.query n) : OracleComp unifSpec (unifSpec.Range n))
           simp only [add_apply_inl, QueryImpl.flattenStateT, QueryImpl.mapStateTBase,
             DetSEAlg.indCPAImpl, DetSEAlg.oracleUnif, QueryImpl.ofLift_eq_id', StateT.run_bind,
@@ -347,7 +347,7 @@ theorem game2_game3_le_enc [Inhabited K_e]
                   StateT (TagCache AD C_e T)
                     (OracleComp (unifSpec + (M →ₒ Option C_e))) T).run qc)
               = liftM ((fun t => (t, qc)) <$> ($ᵗ T : ProbComp T)) :=
-            etmAEAD.simulateQ_id'_liftTarget_add_liftComp _
+            OracleComp.simulateQ_id'_liftTarget_add_liftComp _
               ((fun t => (t, qc)) <$> ($ᵗ T : ProbComp T))
           cases ch with
           | none =>
@@ -408,7 +408,7 @@ theorem game2_game3_le_enc [Inhabited K_e]
               (liftM (OracleSpec.query n) :
                 OracleComp (unifSpec + (M →ₒ Option C_e)) (unifSpec.Range n))
               = liftM (liftM (OracleSpec.query n) : OracleComp unifSpec (unifSpec.Range n)) :=
-            etmAEAD.simulateQ_id'_liftTarget_add_liftComp _
+            OracleComp.simulateQ_id'_liftTarget_add_liftComp _
               (liftM (OracleSpec.query n) : OracleComp unifSpec (unifSpec.Range n))
           simp [QueryImpl.flattenStateT, QueryImpl.mapStateTBase, DetSEAlg.indCPAImpl,
             DetSEAlg.oracleUnif, gameUnifImpl, QueryImpl.add_apply_inl, QueryImpl.liftTarget_apply,
@@ -421,7 +421,7 @@ theorem game2_game3_le_enc [Inhabited K_e]
                   StateT (TagCache AD C_e T)
                     (OracleComp (unifSpec + (M →ₒ Option C_e))) T).run qc)
               = liftM ((fun t => (t, qc)) <$> ($ᵗ T : ProbComp T)) :=
-            etmAEAD.simulateQ_id'_liftTarget_add_liftComp _
+            OracleComp.simulateQ_id'_liftTarget_add_liftComp _
               ((fun t => (t, qc)) <$> ($ᵗ T : ProbComp T))
           cases ch <;>
             simp [QueryImpl.flattenStateT, QueryImpl.mapStateTBase, DetSEAlg.indCPAImpl,

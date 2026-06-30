@@ -45,7 +45,7 @@ hit-consistent, so a pre-sampled fresh entry is distributionally invisible.
 
 open OracleComp OracleSpec ENNReal
 
-namespace etmAEAD
+namespace OracleComp
 
 variable {D R : Type} [DecidableEq D] [SampleableType R]
   {ι : Type} {spec : OracleSpec ι} {σ α : Type}
@@ -470,4 +470,4 @@ theorem evalDist_simulateQ_run'_discardRO
         rw [hfold₁, hbridge]
       rw [key1, key2, evalDist_simulateQ_roImpl_discard_run' d P qc₀]
 
-end etmAEAD
+end OracleComp

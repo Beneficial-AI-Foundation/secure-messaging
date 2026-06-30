@@ -23,7 +23,7 @@ syntactically: the lifted query enters the combined spec in one step, not as a l
 
 open OracleComp OracleSpec
 
-namespace etmAEAD
+namespace OracleComp
 
 /-- Forwarding through an identity-left `add` handler: `simulateQ` of
 `(id' unifSpec).liftTarget _ + h`
@@ -37,4 +37,4 @@ theorem simulateQ_id'_liftTarget_add_liftComp
       = (liftM ob : StateT τ ProbComp β) := by
   simp [QueryImpl.simulateQ_add_liftM_left]
 
-end etmAEAD
+end OracleComp

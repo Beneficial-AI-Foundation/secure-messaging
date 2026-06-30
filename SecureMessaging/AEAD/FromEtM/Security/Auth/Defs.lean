@@ -71,7 +71,7 @@ noncomputable def authInstImpl (se : DetSEAlg K_e M C_e) (b : Bool) (ke : K_e) :
   authUnifImpl (AD := AD) (C_e := C_e) (T := T) + authEncImpl (AD := AD) (T := T) se ke +
     authDecImpl (AD := AD) (T := T) se b ke
 
-/-- Forge reduction: a `etmAEAD.ForgeAdversary` over `forgeSpec (AD × C_e) T` built from the
+/-- Forge reduction: a `OracleComp.ForgeAdversary` over `forgeSpec (AD × C_e) T` built from the
 AEAD adversary at a fixed key `ke`. It is a skeleton instantiation (`spec = forgeSpec`) that
 forwards the EtM tag computation to the **eval** oracle (`D →ₒ R`) and the EtM verification to
 the **verify** oracle (`D × R →ₒ Bool`), discarding the final guess bit (only the `forged` flag
@@ -82,8 +82,8 @@ one verify query, so `B`'s verify-query count matches `A`'s decrypt-query count 
 noncomputable def forgeReduction
     (se : DetSEAlg K_e M C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T))
-    (ke : K_e) : etmAEAD.ForgeAdversary (AD × C_e) T :=
-  let spec := etmAEAD.forgeSpec (AD × C_e) T
+    (ke : K_e) : OracleComp.ForgeAdversary (AD × C_e) T :=
+  let spec := OracleComp.forgeSpec (AD × C_e) T
   let unifImpl : QueryImpl unifSpec
       (StateT (EtmGameState AD C_e T) (OracleComp spec)) :=
     unifLiftStateT (EtmGameState AD C_e T) spec
@@ -114,10 +114,10 @@ unique eval'd point); the decrypt oracle forwards verification to the forge **ve
 (setting `forged` on a successful verify at a not-eval'd point). -/
 noncomputable def forgeJointImpl (se : DetSEAlg K_e M C_e) (ke : K_e) :
     QueryImpl (aeadOneTimeCCASpec AD M (C_e × T))
-      (StateT (EtmGameState AD C_e T × etmAEAD.ForgeState (AD × C_e) T) ProbComp) :=
+      (StateT (EtmGameState AD C_e T × OracleComp.ForgeState (AD × C_e) T) ProbComp) :=
   -- unif oracle: thread both states unchanged
   ((QueryImpl.ofLift unifSpec ProbComp).liftTarget
-      (StateT (EtmGameState AD C_e T × etmAEAD.ForgeState (AD × C_e) T) ProbComp))
+      (StateT (EtmGameState AD C_e T × OracleComp.ForgeState (AD × C_e) T) ProbComp))
   -- encrypt oracle
   + (fun (ad, m) => do
       let (eg, fs) ← get
@@ -127,10 +127,10 @@ noncomputable def forgeJointImpl (se : DetSEAlg K_e M C_e) (ke : K_e) :
         let c := se.encrypt ke m
         let (t, cache') ← (((AD × C_e) →ₒ T).randomOracle (ad, c)).run fs.1
         set (((some (c, t), eg.2) : EtmGameState AD C_e T),
-          ((cache', insert (ad, c) fs.2.1, fs.2.2) : etmAEAD.ForgeState (AD × C_e) T))
+          ((cache', insert (ad, c) fs.2.1, fs.2.2) : OracleComp.ForgeState (AD × C_e) T))
         return some (c, t) :
       QueryImpl (AD × M →ₒ Option (C_e × T))
-        (StateT (EtmGameState AD C_e T × etmAEAD.ForgeState (AD × C_e) T) ProbComp))
+        (StateT (EtmGameState AD C_e T × OracleComp.ForgeState (AD × C_e) T) ProbComp))
   -- decrypt oracle
   + (fun (ad, (c, t)) => do
       let (eg, fs) ← get
@@ -138,9 +138,9 @@ noncomputable def forgeJointImpl (se : DetSEAlg K_e M C_e) (ke : K_e) :
       else do
         let (resp, cache') ← (((AD × C_e) →ₒ T).randomOracle (ad, c)).run fs.1
         let hit : Bool := t == resp
-        let fs' : etmAEAD.ForgeState (AD × C_e) T :=
+        let fs' : OracleComp.ForgeState (AD × C_e) T :=
           (cache', fs.2.1, fs.2.2 || (hit && decide ((ad, c) ∉ fs.2.1)))
-        set ((eg, fs') : EtmGameState AD C_e T × etmAEAD.ForgeState (AD × C_e) T)
+        set ((eg, fs') : EtmGameState AD C_e T × OracleComp.ForgeState (AD × C_e) T)
         if hit then pure (se.decrypt ke c) else pure none :
       QueryImpl (AD × (C_e × T) →ₒ Option M)
-        (StateT (EtmGameState AD C_e T × etmAEAD.ForgeState (AD × C_e) T) ProbComp))
+        (StateT (EtmGameState AD C_e T × OracleComp.ForgeState (AD × C_e) T) ProbComp))

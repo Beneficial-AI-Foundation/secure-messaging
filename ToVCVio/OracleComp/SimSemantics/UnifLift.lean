@@ -27,4 +27,3 @@ Specializes to the `ProbComp` handlers via `spec := unifSpec` (`ProbComp = Oracl
     [MonadLiftT (OracleQuery unifSpec) (OracleComp spec)] :
     QueryImpl unifSpec (StateT σ (OracleComp spec)) :=
   (QueryImpl.ofLift unifSpec (OracleComp spec)).liftTarget (StateT σ (OracleComp spec))
-

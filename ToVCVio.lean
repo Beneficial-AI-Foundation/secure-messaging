@@ -4,7 +4,11 @@ import ToVCVio.EvalDist.Monad.Basic
 import ToVCVio.OracleComp.Constructions.SampleableType
 import ToVCVio.OracleComp.EvalDist
 import ToVCVio.OracleComp.QueryTracking.LazySampling
+import ToVCVio.OracleComp.QueryTracking.RandomOracle.DiscardQuerySimulate
+import ToVCVio.OracleComp.QueryTracking.RandomOracle.RandomOracleForgery
+import ToVCVio.OracleComp.SimSemantics.SimulateQForward
 import ToVCVio.OracleComp.SimSemantics.StateT.PreservesInv
+import ToVCVio.OracleComp.SimSemantics.UnifLift
 import ToVCVio.ProgramLogic.Tactics.Support
 import ToVCVio.ProgramLogic.Relational.Basic
 import ToVCVio.ProgramLogic.Relational.IdenticalUntilBad
