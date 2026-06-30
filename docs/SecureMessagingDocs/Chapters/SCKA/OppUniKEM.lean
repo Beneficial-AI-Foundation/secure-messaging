@@ -37,7 +37,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "opp_unikem_cka_spec"}[] · {uses "scka_correctness"}[] · {uses "erasure_code_correctness"}[] · {uses "on_off_kem_correctness"}[] · {githubLabel}`github` {githubIssue 107}[]
+{usesLabel}`uses` {uses "opp_unikem_cka_spec"}[] · {uses "scka_correctness"}[] · {uses "erasure_code_correctness"}[] · {uses "on_off_kem_scheme"}[] · {githubLabel}`github` {githubIssue 107}[]
 ::::
 
 :::defTitle "opp_unikem_cka_security" "Opp-UniKEM-CKA security"
@@ -49,5 +49,5 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "opp_unikem_cka_spec"}[] · {uses "scka_security"}[] · {uses "erasure_code_scheme"}[] · {uses "on_off_kem_security"}[] · {githubLabel}`github` {githubIssue 108}[]
+{usesLabel}`uses` {uses "opp_unikem_cka_spec"}[] · {uses "scka_security"}[] · {uses "erasure_code_scheme"}[] · {uses "on_off_kem_scheme"}[] · {githubLabel}`github` {githubIssue 108}[]
 ::::
