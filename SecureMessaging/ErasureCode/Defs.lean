@@ -10,7 +10,7 @@ import Mathlib.Data.Finset.Sort
 /-!
 # Erasure Codes
 
-Syntex and correctness of erasure codes following Definition A.6 from:
+Syntax and correctness of erasure codes following Definition A.6 from:
 
 - [SCKA] Auerbach, Dodis, Jost, Katsumata, Schmidt.
   *How to Compare Bandwidth Constrained Two-Party Secure Messaging Protocols.*
@@ -18,15 +18,13 @@ Syntex and correctness of erasure codes following Definition A.6 from:
 
 An *erasure code* over a set of symbols `Σ`, with block length `N` and message size
 `nchunk`, consists of two algorithms:
-- `Encode(M, i) → c`: encodes message `M` ∈ `Σ^nchunk` at index `i` ∈ `ℤ_N` to symbol `c` ∈ `Σ`;
-- `Decode(L) → M`: from a chunk set `L` ⊆ `ℤ_N × Σ`, recovers `M` ∈ `Σ^nchunk` or fails with `⊥`.
+- `Encode(M, i) → c`: encodes message `M ∈ Σ^nchunk` at index `i ∈ ℤ_N` to a symbol `c ∈ Σ`;
+- `Decode(L) → M`: from a chunk set `L ⊆ ℤ_N × Σ`, recovers `M ∈ Σ^nchunk` or fails with `⊥`.
 
-Writing `L_I = {(i, Encode(M, i)) | i ∈ I}` for the chunks of `M` at indices `I` ⊆ `ℤ_N`,
+Writing `L_I = {(i, Encode(M, i)) | i ∈ I}` for the chunks of `M` at indices `I ⊆ ℤ_N`,
 correctness requires, for all `M` and all `I`:
-- Decode(L_I) = M, if |I| = nchunk;
-- Decode(L_I) = ⊥, if |I| < nchunk.
-
-The alphabet Σ is the type parameter `Sym`.
+- `Decode(L_I) = M, if |I| = nchunk`;
+- `Decode(L_I) = ⊥, if |I| < nchunk`.
 -/
 
 universe u
