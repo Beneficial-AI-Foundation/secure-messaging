@@ -131,9 +131,6 @@ jobs:
             SecureMessagingDocs.Chapters.RKEM.KatanaPlain \
             SecureMessagingDocs.Chapters.RKEM.KatanaOptimised \
             SecureMessagingDocs.Chapters.SCKA.Defs \
-            SecureMessagingDocs.Chapters.SCKA.UniKEM \
-            SecureMessagingDocs.Chapters.SCKA.BiKEM \
-            SecureMessagingDocs.Chapters.SCKA.RKEM \
             SecureMessagingDocs.Chapters.SCKA.OppUniKEM \
             SecureMessagingDocs.Chapters.SCKA.OppBiKEM \
             SecureMessagingDocs.Chapters.SCKA.OppRKEM \
