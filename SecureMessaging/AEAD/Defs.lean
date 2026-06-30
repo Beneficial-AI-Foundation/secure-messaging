@@ -206,8 +206,13 @@ Note: the challenge guard compares the **ciphertext `e` only**, ignoring the
 associated data `a` — faithful to ACD19 Def 2 / Fig 1 (the target notion here).
 This differs from NRS14 nAE / Boneh–Shoup §9.10, which suppress only the exact
 `(a, e)` pair returned by encryption; the present notion suppresses every `(a', e*)`.
-For Encrypt-then-MAC the difference is immaterial: a query `(a', e*)` with
-`a' ≠ a*` fails tag verification with overwhelming probability anyway. -/
+For Encrypt-then-MAC the difference is immaterial — but this is a *motivational*
+remark, not a fact any proof here relies on, so no helper lemma is added (and this
+EtM-agnostic file would be the wrong home for one). The formal content — that
+suppressing the wider `(a', e*)` family costs the adversary nothing — is exactly
+what the authenticity hop discharges: a forged `(a', e*)` with `a' ≠ a*` needs
+`T* = ρ(a', C*)` at an un-eval'd random-oracle point, which the `q_d/|T|` forgery
+bound (`…QueryTracking.RandomOracle.RandomOracleForgery`) already accounts for. -/
 -- ANCHOR: oracleDecrypt
 def oracleDecrypt [DecidableEq C] (ae : AEADScheme ProbComp M AD K C)
     (b : Bool) (k : K) :

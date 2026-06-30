@@ -299,13 +299,17 @@ def compile (B : (t : spec.Domain) → σ → OracleComp (unifSpec + (D →ₒ R
   (simulateQ (bodyImpl B) adv).run s
 
 omit [DecidableEq D] [SampleableType R] in
-@[simp] lemma compile_pure
+/-- Internal unfolding lemma for `compile` on `pure` (used only inside this file's
+`run_simulateQ_eq_compile`). -/
+@[simp] private lemma compile_pure
     (B : (t : spec.Domain) → σ → OracleComp (unifSpec + (D →ₒ R)) (spec.Range t × σ))
     (x : α) (s : σ) : compile (α := α) B (pure x) s = pure (x, s) := by
   simp [compile]
 
 omit [DecidableEq D] [SampleableType R] in
-lemma compile_query_bind
+/-- Internal unfolding lemma for `compile` on a `query >>= k` (used only inside this file's
+`run_simulateQ_eq_compile`). -/
+private lemma compile_query_bind
     (B : (t : spec.Domain) → σ → OracleComp (unifSpec + (D →ₒ R)) (spec.Range t × σ))
     (t : spec.Domain) (k : spec.Range t → OracleComp spec α) (s : σ) :
     compile (α := α) B (liftM (spec.query t) >>= k) s =

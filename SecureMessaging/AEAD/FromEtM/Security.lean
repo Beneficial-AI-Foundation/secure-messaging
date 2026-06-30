@@ -102,8 +102,11 @@ lemmas live under `ToVCVio/`.
 ## Paper References
 
 The *notion* targeted here is ACD19's (defined in `AEAD/Defs.lean`); the *proof*
-follows NRS14. Both use the same ind$ (random-ciphertext) notion, so the
-adaptation is faithful.
+is an EtM argument adapted from **NRS14 scheme A5**. The two line up because
+ACD19's one-time real-or-random notion and NRS14's ivE/nAE rest on the same
+ind$ (random-*ciphertext*) family; the precise, game-by-game correspondence
+that backs this is the `## NRS14 Correspondence` table below (not the single
+shared-family observation on its own).
 
 Our construction adapts **scheme A5** (= A2.100_111) from NRS14 Figure 2.
 The security proof adapts **Theorem 1** (for A5), with:
@@ -151,6 +154,12 @@ where `B = prfReduction se adv` and `D = encReduction se adv` are explicit
 reductions (skeleton instantiations), and `q_d` upper-bounds the adversary's
 number of decryption queries (tied to `adv` via `decryptQueryBound`, i.e.
 `IsQueryBoundP` on the decrypt-oracle index).
+
+The hypothesis `hkm` (`Pr[⊥ | prf.keygen] = 0`, i.e. MAC-key generation never
+fails) is needed at the ideal endpoint: `game3` replaces the keyed tag by a
+uniform sample, and lining its output up with the real experiment
+(`game3_eq_rand`) requires key generation to contribute no failure mass —
+otherwise the two experiments' `⊥`-probabilities would differ.
 
 NRS14 Figure 9 bound: `Adv^nAE ≤ Adv^prf_F(B) + Adv^ivE_E(D₁) + q_d/2^τ`.
 Our one-time adaptation: `Adv^ivE → Adv^{ind$-cpa}`, `2^τ → |T|`. -/
