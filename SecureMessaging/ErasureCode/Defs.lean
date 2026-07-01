@@ -59,7 +59,9 @@ variable {m : Type → Type u} [Monad m] {Sym : Type}
 noncomputable def encodeChunks [DecidableEq Sym] (ec : ErasureCode m Sym)
     (M : Fin ec.nchunk → Sym) (I : Finset (Fin ec.N)) :
     m (Finset (Fin ec.N × Sym)) := do
-  let chunks ← I.toList.mapM fun i => (fun c => (i, c)) <$> ec.encode M i
+  let chunks ← I.toList.mapM fun i => do
+    let c ← ec.encode M i
+    pure (i, c)
   pure chunks.toFinset
 -- ANCHOR_END: encodeChunks
 
@@ -68,8 +70,10 @@ noncomputable def encodeChunks [DecidableEq Sym] (ec : ErasureCode m Sym)
 -- ANCHOR: Correct
 def Correct [DecidableEq Sym] (ec : ErasureCode m Sym) : Prop :=
   ∀ (M : Fin ec.nchunk → Sym) (I : Finset (Fin ec.N)),
-    (I.card = ec.nchunk → (ec.encodeChunks M I >>= ec.decode) = pure (some M)) ∧
-    (I.card < ec.nchunk → (ec.encodeChunks M I >>= ec.decode) = pure none)
+    (I.card = ec.nchunk →
+      (do let L ← ec.encodeChunks M I; ec.decode L) = pure (some M)) ∧
+    (I.card < ec.nchunk →
+      (do let L ← ec.encodeChunks M I; ec.decode L) = pure none)
 -- ANCHOR_END: Correct
 
 end ErasureCode
