@@ -120,8 +120,8 @@ jobs:
             SecureMessagingDocs.Chapters.FSAEAD.Defs \
             SecureMessagingDocs.Chapters.FSAEAD.FromAEADPRG \
             SecureMessagingDocs.Chapters.KEM.MLKEM \
-            SecureMessagingDocs.Chapters.KEM.OnOffKEM.Defs \
-            SecureMessagingDocs.Chapters.KEM.OnOffKEM.FromMLKEM \
+            SecureMessagingDocs.Chapters.KEM.OnOffKEM.Overview \
+            SecureMessagingDocs.Chapters.KEM.IncrementalKEM.Overview \
             SecureMessagingDocs.Chapters.PRFPRNG.Defs \
             SecureMessagingDocs.Chapters.PRFPRNG.FromPRPPRG \
             SecureMessagingDocs.Chapters.RKEM.Defs \

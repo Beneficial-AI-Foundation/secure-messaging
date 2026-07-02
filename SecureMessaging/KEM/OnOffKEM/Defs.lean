@@ -62,7 +62,8 @@ structure OnOffStructure (kem : KEMScheme m K PK SK C) where
   encapsOff : m (St × C₀)
   /-- Online encapsulation `Enc.On`: from the state and `pk`, returns `ct1` and the shared key. -/
   encapsOn : St → PK → m (C₁ × K)
-  /-- `kem.encaps` is the two phases in sequence, recombined via `split`. -/
+  /-- For every public key, `kem.encaps` is equal to first running `encapsOff`,
+  then running `encapsOn st pk`. -/
   factor : ∀ pk, kem.encaps pk = (do
     let (st, c0) ← encapsOff
     let (c1, k) ← encapsOn st pk

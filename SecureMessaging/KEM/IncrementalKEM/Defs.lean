@@ -79,9 +79,10 @@ structure IncrementalStructure (kem : KEMScheme m K PK SK C) where
   validPK_iff_pkParts : ∀ hdr vec, validPK hdr vec = true ↔ ∃ pk, pkParts pk = (hdr, vec)
   /-- First stage of encaps: from the header alone, returns the state, `ct1`, and the shared key. -/
   encaps1 : PKheader → m (St × C₁ × K)
-  /-- Second stage of encaps: returns the second ciphertext component. -/
+  /-- Second stage of encaps: returns the second ciphertext component `ct2`. -/
   encaps2 : St → PKheader → PKvector → m C₂
-  /-- Full `kem.encaps` agrees with `encaps1` then `encaps2` on `pkParts`. -/
+  /-- For every public key, `kem.encaps` is equal to first running `encaps1`
+  on the derived header, then running `encaps2` on the resulting state. -/
   factor : ∀ pk, kem.encaps pk = (do
     let (hdr, vec) := pkParts pk
     let (st, c1, k) ← encaps1 hdr
