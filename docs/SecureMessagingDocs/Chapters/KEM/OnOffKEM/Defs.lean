@@ -3,7 +3,7 @@ import VersoBlueprint
 import SecureMessagingDocs.Visuals.Notation
 import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
-import SecureMessaging.OnOffKEM.Defs
+import SecureMessaging.KEM.OnOffKEM.Defs
 
 set_option linter.style.setOption false
 set_option linter.hashCommand false
@@ -32,7 +32,7 @@ Online-Offline Key Encapsulation Mechanism (On-Off KEM).
 ::::definition "on_off_kem_scheme" (parent := "on_off_kem") (lean := "KEMScheme.OnOffStructure")
 $`\todo`
 
-```anchor OnOffStructure (project := ".") (module := SecureMessaging.OnOffKEM.Defs)
+```anchor OnOffStructure (project := ".") (module := SecureMessaging.KEM.OnOffKEM.Defs)
 structure OnOffStructure (kem : KEMScheme m K PK SK C) where
   /-- Offline encapsulation state space. -/
   St : Type
