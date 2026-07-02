@@ -88,15 +88,6 @@ jobs:
           lint: "true"
           use-mathlib-cache: "true"
 
-      - name: Save Lake dependency builds
-        if: always() && steps.lake-deps-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            .lake/packages/*/.lake/build
-            !.lake/packages/mathlib/.lake/build
-          key: lake-deps-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}
-
       - name: Sorry audit
         uses: Beneficial-AI-Foundation/veritooling/actions/sorry-audit@v1
         with:
@@ -169,6 +160,15 @@ jobs:
             test -f "_out/site/html-multi/$chapter/Dependency-Graph/index.html"
             test -f "_out/site/html-multi/$chapter/Blueprint-Summary/index.html"
           done
+
+      - name: Save Lake dependency builds
+        if: always() && steps.lake-deps-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .lake/packages/*/.lake/build
+            !.lake/packages/mathlib/.lake/build
+          key: lake-deps-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}
 
       - name: Upload Pages artifact
         if: steps.changes.outputs.docs == 'true' || github.event_name == 'workflow_dispatch'
