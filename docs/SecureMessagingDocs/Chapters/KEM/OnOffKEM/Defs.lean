@@ -42,14 +42,11 @@ structure OnOffStructure (kem : KEMScheme m K PK SK C) where
   C₁ : Type
   /-- The ciphertext space splits as `ct = (ct0, ct1)`. -/
   split : C ≃ C₀ × C₁
-  /-- Offline encapsulation `Enc.Off`: returns a state and the offline
-  ciphertext, independently of the encapsulation key. -/
+  /-- Offline encapsulation `Enc.Off`: key-independent, returns a state and `ct0`. -/
   encapsOff : m (St × C₀)
-  /-- Online encapsulation `Enc.On`: from the offline state and the
-  encapsulation key, returns the online ciphertext and the shared key. -/
+  /-- Online encapsulation `Enc.On`: from the state and `pk`, returns `ct1` and the shared key. -/
   encapsOn : St → PK → m (C₁ × K)
-  /-- The KEM's encapsulation is the offline phase followed by the online phase,
-  with the two ciphertext halves recombined via `split`. -/
+  /-- `kem.encaps` is the two phases in sequence, recombined via `split`. -/
   factor : ∀ pk, kem.encaps pk = (do
     let (st, c0) ← encapsOff
     let (c1, k) ← encapsOn st pk

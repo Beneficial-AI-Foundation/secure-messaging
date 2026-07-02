@@ -34,34 +34,31 @@ $`\todo`
 
 ```anchor IncrementalStructure (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.Defs)
 structure IncrementalStructure (kem : KEMScheme m K PK SK C) where
-  /-- Public-key header space. For ML-KEM: `ek_seed || SHA3-256(ek_seed || ek_vector)`. -/
+  /-- Public-key header type. -/
   PKheader : Type
-  /-- Vector part of the public-key space. For ML-KEM: `ek_vector`. -/
+  /-- Public-key vector type. -/
   PKvector : Type
-  /-- First ciphertext component space. -/
+  /-- First ciphertext component. -/
   C₁ : Type
-  /-- Second ciphertext component space. -/
+  /-- Second ciphertext component. -/
   C₂ : Type
-  /-- Encapsulation state space carried from the first stage to the second. -/
+  /-- Encapsulation state carried from the first stage to the second. -/
   St : Type
-  /-- The public key splits as `pk = (hdr, vec)`. -/
-  splitPK : PK ≃ PKheader × PKvector
+  /-- Header/vector pair derived from the public encapsulation key. -/
+  pkParts : PK → PKheader × PKvector
   /-- The ciphertext splits as `ct = (ct1, ct2)`. -/
   splitC : C ≃ C₁ × C₂
-  /-- Consistency check of a vector part against a header. For ML-KEM this is the
-  hash check `SHA3-256(ek_seed || ek_vector) = hek`. Protocols must check `validPK`
-  before running `encaps2` on a received vector. -/
+  /-- Consistency check of a vector part against a header. -/
   validPK : PKheader → PKvector → Bool
-  /-- First encapsulation stage `Encaps1`: from the public-key header alone, returns
-  the encapsulation state, the first ciphertext component, and the shared key. -/
+  /-- Header/vector pair is valid iff it is produced by some public key. -/
+  validPK_iff_pkParts : ∀ hdr vec, validPK hdr vec = true ↔ ∃ pk, pkParts pk = (hdr, vec)
+  /-- First stage of encaps: from the header alone, returns the state, `ct1`, and the shared key. -/
   encaps1 : PKheader → m (St × C₁ × K)
-  /-- Second encapsulation stage `Encaps2`: from the state and the full public key,
-  returns the second ciphertext component. -/
+  /-- Second stage of encaps: returns the second ciphertext component. -/
   encaps2 : St → PKheader → PKvector → m C₂
-  /-- The KEM's encapsulation is the first stage followed by the second stage,
-  with the two ciphertext components recombined via `splitC`. -/
+  /-- Full `kem.encaps` agrees with `encaps1` then `encaps2` on `pkParts`. -/
   factor : ∀ pk, kem.encaps pk = (do
-    let (hdr, vec) := splitPK pk
+    let (hdr, vec) := pkParts pk
     let (st, c1, k) ← encaps1 hdr
     let c2 ← encaps2 st hdr vec
     pure (splitC.symm (c1, c2), k))
