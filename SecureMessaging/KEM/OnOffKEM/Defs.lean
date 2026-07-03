@@ -11,16 +11,26 @@ import ToVCVio.CryptoFoundations.KeyEncapMech
 The online-offline KEM of [SCKA, Def. 2.1](https://eprint.iacr.org/2025/2267.pdf),
 modelled as a property of a plain `KEMScheme`.
 
-`KEMScheme.OnOffStructure kem` is a structure showing that the given KEM encapsulation algorithm
-`kem.encaps` splits into an offline phase `Enc.Off` (key-independent, producing `ct0 : C₀`)
-and an online phase `Enc.On` (producing `ct1 : C₁` and the encapsulation key), with the full
-KEM ciphertext being `ct = (ct0, ct1)`.
+Recall:
 
-An on/off KEM is therefore a `kem : KEMScheme m K PK SK C` together with
-`oo : kem.OnOffStructure`.
+```
+structure KEMScheme (m : Type → Type u) [Monad m] (K PK SK C : Type) where
+  keygen : m (PK × SK)
+  encaps : PK → m (C × K)
+  decaps : SK → C → m (Option K)
+```
 
-The example structure `KEMScheme.trivialOnOff` shows that any KEM scheme can have a trivial
-on/off split where the offline phase is empty.
+`KEMScheme.OnOffStructure kem` is a structure showing that for the given KEM:
+- the ciphertext splits into two components `ct = (ct0, ct1)`,
+- encapsulation splits into `encapsOff` and `encapsOn` phases, where
+  - `ct0` is computed independently of the public key (`encapsOff`),
+  - `ct1` and the shared key are computed from the public key (`encapsOn`).
+
+An on/off KEM is defined by a base KEM scheme `kem : KEMScheme m K PK SK C`
+plus an on/off structure `oo : kem.OnOffStructure`.
+
+The example structure `KEMScheme.trivialOnOff` shows that any KEM scheme can be seen
+as an on/off KEM with an empty offline phase.
 -/
 
 universe u
@@ -29,15 +39,14 @@ namespace KEMScheme
 
 variable {m : Type → Type u} [Monad m] {K PK SK C : Type}
 
-/-- An online-offline (on/off) KEM witness for a KEM `kem` (Definition 2.1 of
-[SCKA]), decomposing `kem.encaps` into an offline and an online phase.
+/-- An online-offline (on/off) KEM witness for a KEM `kem`
+decomposing `kem.encaps` into an offline and an online phase.
 
-- `St`: the offline encapsulation state space;
-- `C₀`: the offline ciphertext space;
-- `C₁`: the online ciphertext space;
+- `St`: state produced by the offline encapsulation algorithm;
+- `C₀`, `C₁`: the offline and online ciphertext spaces;
 - `split`: identifies the ciphertext space `C` with `C₀ × C₁`, i.e. `ct = (ct0, ct1)`;
 - `encapsOff`: the key-independent offline phase, producing a state and `ct0`;
-- `encapsOn st ek`: the online phase, producing `ct1` and the shared key;
+- `encapsOn st pk`: the online phase, producing `ct1` and the shared key;
 - `factor`: `kem.encaps` runs `encapsOff` then `encapsOn`, reassembled via `split`. -/
 -- ANCHOR: OnOffStructure
 structure OnOffStructure (kem : KEMScheme m K PK SK C) where
@@ -49,14 +58,12 @@ structure OnOffStructure (kem : KEMScheme m K PK SK C) where
   C₁ : Type
   /-- The ciphertext space splits as `ct = (ct0, ct1)`. -/
   split : C ≃ C₀ × C₁
-  /-- Offline encapsulation `Enc.Off`: returns a state and the offline
-  ciphertext, independently of the encapsulation key. -/
+  /-- Offline encapsulation `Enc.Off`: key-independent, returns a state and `ct0`. -/
   encapsOff : m (St × C₀)
-  /-- Online encapsulation `Enc.On`: from the offline state and the
-  encapsulation key, returns the online ciphertext and the shared key. -/
+  /-- Online encapsulation `Enc.On`: from the state and `pk`, returns `ct1` and the shared key. -/
   encapsOn : St → PK → m (C₁ × K)
-  /-- The KEM's encapsulation is the offline phase followed by the online phase,
-  with the two ciphertext halves recombined via `split`. -/
+  /-- For every public key, `kem.encaps` is equal to first running `encapsOff`,
+  then running `encapsOn st pk`. -/
   factor : ∀ pk, kem.encaps pk = (do
     let (st, c0) ← encapsOff
     let (c1, k) ← encapsOn st pk
