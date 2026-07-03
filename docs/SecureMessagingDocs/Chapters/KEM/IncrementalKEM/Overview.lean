@@ -51,6 +51,11 @@ structure IncrementalStructure (kem : KEMScheme m K PK SK C) where
   splitC : C ≃ C₁ × C₂
   /-- Consistency check of a vector part against a header. -/
   validPK : PKheader → PKvector → Bool
+  /-- Reconstruct a public key from a valid header/vector pair. -/
+  pkFromParts : (hdr : PKheader) → (vec : PKvector) → validPK hdr vec = true → PK
+  /-- `pkFromParts` reconstructs a public key with the requested parts. -/
+  pkParts_pkFromParts :
+      ∀ hdr vec h, pkParts (pkFromParts hdr vec h) = (hdr, vec)
   /-- Header/vector pair is valid iff it is produced by some public key. -/
   validPK_iff_pkParts : ∀ hdr vec, validPK hdr vec = true ↔ ∃ pk, pkParts pk = (hdr, vec)
   /-- First stage of encaps: from the header alone, returns the state, `ct1`, and the shared key. -/

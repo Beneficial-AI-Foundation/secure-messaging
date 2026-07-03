@@ -53,6 +53,7 @@ into two stages using the two parts of the public encapsulation key.
 - `pkParts pk`: derives the header/vector pair from the public key;
 - `splitC`: identifies the ciphertext space `C` with `C₁ × C₂`;
 - `validPK hdr vec`: consistency check of a pair `(hdr,vec)`;
+- `pkFromParts hdr vec h`: reconstructs a public key from a valid header/vector pair;
 - `validPK_iff_pkParts`: valid pairs are exactly those produced by `pkParts`;
 - `encaps1 hdr`: the first stage, producing the state, `ct1`, and the shared key;
 - `encaps2 st hdr vec`: the second stage, producing `ct2`;
@@ -75,6 +76,11 @@ structure IncrementalStructure (kem : KEMScheme m K PK SK C) where
   splitC : C ≃ C₁ × C₂
   /-- Consistency check of a vector part against a header. -/
   validPK : PKheader → PKvector → Bool
+  /-- Reconstruct a public key from a valid header/vector pair. -/
+  pkFromParts : (hdr : PKheader) → (vec : PKvector) → validPK hdr vec = true → PK
+  /-- `pkFromParts` reconstructs a public key with the requested parts. -/
+  pkParts_pkFromParts :
+      ∀ hdr vec h, pkParts (pkFromParts hdr vec h) = (hdr, vec)
   /-- Header/vector pair is valid iff it is produced by some public key. -/
   validPK_iff_pkParts : ∀ hdr vec, validPK hdr vec = true ↔ ∃ pk, pkParts pk = (hdr, vec)
   /-- First stage of encaps: from the header alone, returns the state, `ct1`, and the shared key. -/
@@ -102,6 +108,10 @@ def trivialIncremental [LawfulMonad m] (kem : KEMScheme m K PK SK C) :
   pkParts pk := (pk, ())
   splitC := (Equiv.prodPUnit C).symm
   validPK _ _ := true
+  pkFromParts hdr _ _ := hdr
+  pkParts_pkFromParts hdr vec _ := by
+    cases vec
+    rfl
   validPK_iff_pkParts hdr vec := by
     constructor
     · intro _
