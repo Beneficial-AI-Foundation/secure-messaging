@@ -45,19 +45,12 @@ structure IncrementalStructure (kem : KEMScheme m K PK SK C) where
   C₂ : Type
   /-- Encapsulation state carried from the first stage to the second. -/
   St : Type
-  /-- Header/vector pair derived from the public encapsulation key. -/
-  pkParts : PK → PKheader × PKvector
-  /-- The ciphertext splits as `ct = (ct1, ct2)`. -/
-  splitC : C ≃ C₁ × C₂
   /-- Consistency check of a vector part against a header. -/
   validPK : PKheader → PKvector → Bool
-  /-- Reconstruct a public key from a valid header/vector pair. -/
-  pkFromParts : (hdr : PKheader) → (vec : PKvector) → validPK hdr vec = true → PK
-  /-- `pkFromParts` reconstructs a public key with the requested parts. -/
-  pkParts_pkFromParts :
-      ∀ hdr vec h, pkParts (pkFromParts hdr vec h) = (hdr, vec)
-  /-- Header/vector pair is valid iff it is produced by some public key. -/
-  validPK_iff_pkParts : ∀ hdr vec, validPK hdr vec = true ↔ ∃ pk, pkParts pk = (hdr, vec)
+  /-- There is a bijection between public keys and header/vector pairs that pass `validPK`. -/
+  splitPK : PK ≃ { parts : PKheader × PKvector // validPK parts.1 parts.2 = true }
+  /-- The ciphertext splits as `ct = (ct1, ct2)`. -/
+  splitC : C ≃ C₁ × C₂
   /-- First stage of encaps: from the header alone, returns the state, `ct1`, and the shared key. -/
   encaps1 : PKheader → m (St × C₁ × K)
   /-- Second stage of encaps: returns the second ciphertext component `ct2`. -/
@@ -65,7 +58,7 @@ structure IncrementalStructure (kem : KEMScheme m K PK SK C) where
   /-- For every public key, `kem.encaps` is equal to first running `encaps1`
   on the derived header, then running `encaps2` on the resulting state. -/
   factor : ∀ pk, kem.encaps pk = (do
-    let (hdr, vec) := pkParts pk
+    let (hdr, vec) := (splitPK pk).1
     let (st, c1, k) ← encaps1 hdr
     let c2 ← encaps2 st hdr vec
     pure (splitC.symm (c1, c2), k))

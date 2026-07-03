@@ -22,7 +22,7 @@ structure KEMScheme (m : Type → Type u) [Monad m] (K PK SK C : Type) where
 ```
 
 `KEMScheme.IncrementalStructure kem` is a structure showing that for the given KEM:
-- the public encapsulation key splits into a header and a vector part `(hdr, vec)`,
+- the public encapsulation key is equivalent to a valid header/vector pair `(hdr, vec)`,
 - the ciphertext splits into two components `ct = (ct1, ct2)`,
 - encapsulation splits into `encaps1` and `encaps2` stages, where
   - `encaps1 hdr` returns a state `st`, the first ciphertext component `ct1`, and the
@@ -50,14 +50,12 @@ into two stages using the two parts of the public encapsulation key.
 - `PKvector`: the encapsulation key vector;
 - `C₁`, `C₂`: the first and second ciphertext spaces;
 - `St`: the encapsulation secret state carried between the two stages;
-- `pkParts pk`: derives the header/vector pair from the public key;
-- `splitC`: identifies the ciphertext space `C` with `C₁ × C₂`;
 - `validPK hdr vec`: consistency check of a pair `(hdr,vec)`;
-- `pkFromParts hdr vec h`: reconstructs a public key from a valid header/vector pair;
-- `validPK_iff_pkParts`: valid pairs are exactly those produced by `pkParts`;
+- `splitPK`: identifies public keys with valid header/vector pairs;
+- `splitC`: identifies the ciphertext space `C` with `C₁ × C₂`;
 - `encaps1 hdr`: the first stage, producing the state, `ct1`, and the shared key;
 - `encaps2 st hdr vec`: the second stage, producing `ct2`;
-- `factor`: `kem.encaps` agrees with `encaps1` then `encaps2` on `pkParts`. -/
+- `factor`: `kem.encaps` agrees with `encaps1` then `encaps2` on `splitPK`. -/
 -- ANCHOR: IncrementalStructure
 structure IncrementalStructure (kem : KEMScheme m K PK SK C) where
   /-- Public-key header type. -/
@@ -70,19 +68,12 @@ structure IncrementalStructure (kem : KEMScheme m K PK SK C) where
   C₂ : Type
   /-- Encapsulation state carried from the first stage to the second. -/
   St : Type
-  /-- Header/vector pair derived from the public encapsulation key. -/
-  pkParts : PK → PKheader × PKvector
-  /-- The ciphertext splits as `ct = (ct1, ct2)`. -/
-  splitC : C ≃ C₁ × C₂
   /-- Consistency check of a vector part against a header. -/
   validPK : PKheader → PKvector → Bool
-  /-- Reconstruct a public key from a valid header/vector pair. -/
-  pkFromParts : (hdr : PKheader) → (vec : PKvector) → validPK hdr vec = true → PK
-  /-- `pkFromParts` reconstructs a public key with the requested parts. -/
-  pkParts_pkFromParts :
-      ∀ hdr vec h, pkParts (pkFromParts hdr vec h) = (hdr, vec)
-  /-- Header/vector pair is valid iff it is produced by some public key. -/
-  validPK_iff_pkParts : ∀ hdr vec, validPK hdr vec = true ↔ ∃ pk, pkParts pk = (hdr, vec)
+  /-- There is a bijection between public keys and header/vector pairs that pass `validPK`. -/
+  splitPK : PK ≃ { parts : PKheader × PKvector // validPK parts.1 parts.2 = true }
+  /-- The ciphertext splits as `ct = (ct1, ct2)`. -/
+  splitC : C ≃ C₁ × C₂
   /-- First stage of encaps: from the header alone, returns the state, `ct1`, and the shared key. -/
   encaps1 : PKheader → m (St × C₁ × K)
   /-- Second stage of encaps: returns the second ciphertext component `ct2`. -/
@@ -90,7 +81,7 @@ structure IncrementalStructure (kem : KEMScheme m K PK SK C) where
   /-- For every public key, `kem.encaps` is equal to first running `encaps1`
   on the derived header, then running `encaps2` on the resulting state. -/
   factor : ∀ pk, kem.encaps pk = (do
-    let (hdr, vec) := pkParts pk
+    let (hdr, vec) := (splitPK pk).1
     let (st, c1, k) ← encaps1 hdr
     let c2 ← encaps2 st hdr vec
     pure (splitC.symm (c1, c2), k))
@@ -105,19 +96,22 @@ def trivialIncremental [LawfulMonad m] (kem : KEMScheme m K PK SK C) :
   C₁ := C
   C₂ := Unit
   St := Unit
-  pkParts pk := (pk, ())
-  splitC := (Equiv.prodPUnit C).symm
   validPK _ _ := true
-  pkFromParts hdr _ _ := hdr
-  pkParts_pkFromParts hdr vec _ := by
-    cases vec
-    rfl
-  validPK_iff_pkParts hdr vec := by
-    constructor
-    · intro _
-      exact ⟨hdr, by cases vec; rfl⟩
-    · intro _
-      rfl
+  splitPK :=
+    { toFun := fun pk => ⟨(pk, ()), rfl⟩
+      invFun := fun parts => parts.1.1
+      left_inv := by
+        intro pk
+        rfl
+      right_inv := by
+        intro parts
+        cases parts with
+        | mk parts h =>
+            cases parts with
+            | mk pk vec =>
+                cases vec
+                rfl }
+  splitC := (Equiv.prodPUnit C).symm
   encaps1 pk := do
     let (c, k) ← kem.encaps pk
     pure ((), c, k)
