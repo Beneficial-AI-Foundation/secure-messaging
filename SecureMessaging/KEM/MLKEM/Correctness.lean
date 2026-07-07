@@ -6,6 +6,7 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.KEM.MLKEM.Correctness.ConcreteEncoding
 import SecureMessaging.KEM.MLKEM.Correctness.FailureBounds
+import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate
 import SecureMessaging.KEM.MLKEM.Correctness.FailureRates
 import SecureMessaging.KEM.MLKEM.Correctness.Noise
 import SecureMessaging.KEM.MLKEM.Correctness.NoiseDistribution
