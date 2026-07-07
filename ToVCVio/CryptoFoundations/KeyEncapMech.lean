@@ -6,9 +6,9 @@ Authors: Beneficial AI Foundation
 import VCVio.CryptoFoundations.KeyEncapMech
 
 /-!
-# KEM Deterministic Decapsulation and Randomness Leaks
+# KEM Deterministic Decapsulation, Randomness Leaks, and Quantitative Correctness
 
-Two helper structures for protocols built from a `KEMScheme`.
+Helper definitions for protocols built from a `KEMScheme`.
 
 `KEMScheme.DeterministicDecaps` is a witness that the KEM decapsulation
 computation is represented by a pure deterministic function, as required by
@@ -19,7 +19,13 @@ randomized KEM algorithms, key generation and encapsulation, for security
 games in which the adversary can ask for the coins of a past operation.
 `KEMScheme.RandLeak.noLeak` is the trivial package for KEMs that do not
 expose their coins.
+
+`KEMScheme.correctnessError` is the probability that honest decapsulation
+fails, and `KEMScheme.deltaCorrect` bounds it by a given `delta`. Both refine
+`KEMScheme.PerfectlyCorrect`, which is the case of error `0`.
 -/
+
+open ENNReal
 
 universe u
 
@@ -96,5 +102,25 @@ def noLeak [LawfulMonad m] (kem : KEMScheme m K PK SK C) : RandLeak kem where
   encaps_fst := fun pk => by simp
 
 end RandLeak
+
+section Correctness
+
+variable [DecidableEq K]
+
+/-- Correctness error of `kem` under `runtime`: the probability that the correctness experiment
+`KEMScheme.CorrectExp` returns `false`, that is, the probability that decapsulating an honestly
+generated encapsulation does not return the encapsulated key.
+
+This refines `KEMScheme.PerfectlyCorrect`, which is the case where the error is `0`. -/
+noncomputable def correctnessError (kem : KEMScheme m K PK SK C)
+    (runtime : ProbCompRuntime m) : ℝ≥0∞ :=
+  Pr[= false | runtime.evalDist kem.CorrectExp]
+
+/-- `delta`-correctness of `kem` under `runtime`: the correctness error is at most `delta`. -/
+def deltaCorrect (kem : KEMScheme m K PK SK C)
+    (runtime : ProbCompRuntime m) (delta : ℝ≥0∞) : Prop :=
+  kem.correctnessError runtime ≤ delta
+
+end Correctness
 
 end KEMScheme
