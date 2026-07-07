@@ -25,6 +25,7 @@ import SecureMessaging.CKA.FromKEM.Correctness
 import SecureMessaging.CKA.FromKEM.Security
 import SecureMessaging.ErasureCode.Defs
 import SecureMessaging.KEM.IncrementalKEM.Defs
+import SecureMessaging.KEM.MLKEM.Correctness
 import SecureMessaging.KEM.OnOffKEM.Defs
 import SecureMessaging.PRFPRNG.Defs
 import SecureMessaging.SCKA.Defs
