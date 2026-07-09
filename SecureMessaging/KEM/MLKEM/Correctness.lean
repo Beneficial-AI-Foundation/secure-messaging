@@ -45,6 +45,7 @@ theorem correctnessError_le_fips203 (p : ParameterSet) (ring : NTTRingOps)
 
 /-- Under the FIPS 203 noise model, ML-KEM at parameter set `p` is
 `δ`-correct for the Table 1 bound `δ = 2 ^ (-e_p)`. -/
+-- ANCHOR: deltaCorrectFips203
 theorem deltaCorrect_fips203 (p : ParameterSet) (ring : NTTRingOps)
     (prims : Primitives (ParameterSet.params p)
       (Concrete.concreteEncoding (ParameterSet.params p)))
@@ -53,6 +54,7 @@ theorem deltaCorrect_fips203 (p : ParameterSet) (ring : NTTRingOps)
       (fips203DecapsulationFailureBound p) :=
   deltaCorrect_of_underlying ring _ prims
     (underlyingCorrectnessError_le_fips203 p ring prims hRing hModel)
+-- ANCHOR_END: deltaCorrectFips203
 
 /-- Under the FIPS 203 noise model, the probability that the Section 3.2
 decapsulation-failure experiment reports a failure is at most the Table 1

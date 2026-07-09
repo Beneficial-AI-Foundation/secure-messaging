@@ -53,6 +53,7 @@ and runs `ML-KEM.Encaps_internal` (Algorithm 20); decapsulation runs
 and compression are the executable FIPS 203 codec; the NTT `ring` and the
 SHA-3 family `prims` are the supplied slots. Input validation lives in the
 checked interface `MLKEM.encaps` / `MLKEM.decaps`. -/
+-- ANCHOR: mlkemScheme
 def mlkemScheme (p : ParameterSet) (ring : NTTRingOps)
     (prims : Primitives (ParameterSet.params p)
       (Concrete.concreteEncoding (ParameterSet.params p))) :
@@ -64,6 +65,7 @@ def mlkemScheme (p : ParameterSet) (ring : NTTRingOps)
       (Ciphertext (ParameterSet.params p)
         (Concrete.concreteEncoding (ParameterSet.params p))) :=
   asKEMScheme ring (Concrete.concreteEncoding (ParameterSet.params p)) prims
+-- ANCHOR_END: mlkemScheme
 
 /-- ML-KEM-512: `k = 2`, `η₁ = 3`, `η₂ = 2`, `d_u = 10`, `d_v = 4` (FIPS 203
 Table 2), with the concrete NTT and the FFI-backed SHA-3/SHAKE primitives. -/
