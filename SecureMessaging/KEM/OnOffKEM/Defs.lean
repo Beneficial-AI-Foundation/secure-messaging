@@ -70,6 +70,45 @@ structure OnOffStructure (kem : KEMScheme m K PK SK C) where
     pure (split.symm (c0, c1), k))
 -- ANCHOR_END: OnOffStructure
 
+/-- Randomness-leaking versions of the randomized algorithms used by an
+online-offline KEM construction.
+
+Fine-grained version of `KEMScheme.RandLeak` specifying the leak in each phase. -/
+-- ANCHOR: OnOffRandLeak
+structure OnOffRandLeak (kem : KEMScheme m K PK SK C)
+    (onoff : kem.OnOffStructure) where
+  /-- Randomness space for key generation. -/
+  KeygenRand : Type
+  /-- Randomness space for offline encapsulation. -/
+  OffRand : Type
+  /-- Randomness space for online encapsulation. -/
+  OnRand : Type
+  /-- Key generation together with the randomness used to sample the key pair. -/
+  keygenRleak : m ((PK × SK) × KeygenRand)
+  /-- Offline encapsulation together with its randomness. -/
+  encapsOffRleak : m ((onoff.St × onoff.C₀) × OffRand)
+  /-- Online encapsulation together with its randomness. -/
+  encapsOnRleak : onoff.St → PK → m ((onoff.C₁ × K) × OnRand)
+  /-- First component: ordinary key generation is the first component of
+  `keygenRleak`. -/
+  keygen_fst :
+    (do
+      let out ← keygenRleak
+      pure out.1) = kem.keygen
+  /-- First component: ordinary offline encapsulation is the first component of
+  `encapsOffRleak`. -/
+  encapsOff_fst :
+    (do
+      let out ← encapsOffRleak
+      pure out.1) = onoff.encapsOff
+  /-- First component: ordinary online encapsulation is the first component of
+  `encapsOnRleak st pk`. -/
+  encapsOn_fst : ∀ st pk,
+    (do
+      let out ← encapsOnRleak st pk
+      pure out.1) = onoff.encapsOn st pk
+-- ANCHOR_END: OnOffRandLeak
+
 /-- On/off structure showing that any `kem` can be trivially split into an offline
 phase with an empty ciphertext, and an online phase that performs the whole encapsulation. -/
 def trivialOnOff [LawfulMonad m] (kem : KEMScheme m K PK SK C) :
