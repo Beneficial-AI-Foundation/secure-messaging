@@ -10,13 +10,13 @@ import SecureMessaging.KEM.MLKEM.Correctness.Noise
 /-!
 # Concrete `Compress₁` recovery at the message-recovery radius
 
-For the concrete ML-KEM encoding, a coefficient within the recovery radius `831`
-of `Decompress₁ b` for a bit `b` is read back as `b` by `Compress₁`. Decoding is
-asymmetric at the positive boundary, where `Decompress₁(1) = 1665 = ⌈q/2⌉` rather
-than `q/2`, so the radius is sharp — recovery already fails at distance `832` for
-the bit `1`.
+For the concrete ML-KEM encoding over `q = 3329`, a coefficient within
+`messageRecoveryRadius = ⌊q/4⌋ - 1 = 831` of `Decompress₁ b` for a bit `b` is
+read back as `b` by `Compress₁`. Decoding is asymmetric at the positive boundary,
+where `Decompress₁(1) = 1665 = ⌈q/2⌉` rather than `q/2`, so the radius is sharp:
+recovery already fails at distance `832` for the bit `1`.
 
-The scalar recovery fact lifts coefficientwise to the polynomial law
+The scalar recovery fact lifts coefficientwise to the polynomial theorem
 `compress1_recovery`, and `fips203EncodingLaws` combines it with the abstract
 round-trip laws to show the concrete encoding satisfies `FIPS203EncodingLaws` for
 every parameter set.
@@ -26,7 +26,8 @@ open LatticeCrypto MLKEM
 
 namespace MLKEM.Concrete
 
-/-- The value of `Compress₁` as an integer: `Compress₁(x) = ⌊(2·x + ⌊q/2⌋)/q⌋ mod 2`. -/
+/-- The value of `Compress₁` as an integer:
+`Compress₁(x) = ⌊(2·x + ⌊q/2⌋)/q⌋ mod 2`. -/
 private theorem compress1_val (x : Coeff) :
     (compress 1 x).val = ((x.val * 2 + 1664) / 3329) % 2 := by
   have hrw : compress 1 x = ((((x.val * 2 + 1664) / 3329) % 2 : ℕ) : Coeff) := rfl
@@ -41,7 +42,7 @@ theorem compress1_recovers_decoded_bit_of_centered_distance_le (b w : Coeff) (hb
     compress 1 w = b := by
   obtain ⟨e, rfl⟩ : ∃ e, w = decompress 1 b + e := ⟨w - decompress 1 b, by ring⟩
   rw [show decompress 1 b + e - decompress 1 b = e from by ring,
-      show messageRecoveryRadius = 831 from rfl] at h
+      MLKEM.messageRecoveryRadius_eq] at h
   have hev : e.val < 3329 := by have := ZMod.val_lt e; simpa [modulus] using this
   have hdisj : e.val ≤ 831 ∨ 2498 ≤ e.val := by
     have h' := h

@@ -11,18 +11,21 @@ import SecureMessaging.KEM.MLKEM.Correctness.Noise
 
 K-PKE decryption recomputes a representative `w` of the encoded message, and the
 decryption noise of an honest run is `w - μ` (`kpkeDecryptDifference`). This file
-expands that noise over the honest run from key seed `d` and message `m`. Writing
-`s`, `e` for the key-generation secret and error, `y`, `e₁`, `e₂` for the
-encryption secret and errors, and `ε_u`, `ε_v` for the ciphertext compression
-errors (decoded minus original), the identity is
+expands that noise over the honest run from key seed `d` and message `m`.
+Writing `s`, `e` for the key-generation secret and error, `y`, `e₁`, `e₂` for
+the encryption secret and errors, and `ε_u`, `ε_v` for the ciphertext
+compression errors (decoded minus original), the right-hand side named
+`kpkeNoiseExpression` is
 
-  `w − μ = eᵀy + e₂ + ε_v − sᵀe₁ − sᵀε_u`,
+  `eᵀy + e₂ + ε_v − sᵀe₁ − sᵀε_u`.
 
-an equation in `R_q`, with every product computed through the NTT isomorphism as
-in FIPS 203 (eq. (4.9); Algorithms 13–15). The public-key term `sᵀÂᵀy` cancels
+The main theorem proves `w − μ = kpkeNoiseExpression ring prims d m`, an
+equation in `R_q`, with every product computed through the NTT isomorphism as in
+FIPS 203 (eq. (4.9); Algorithms 13–15). The public-key term `sᵀÂᵀy` cancels
 against the ciphertext term by the transpose exchange, and `μ` enters `v`
 additively and is subtracted intact. The right-hand side is deterministic in
-`(d, m)`: the decryption noise does not depend on the implicit-rejection seed `z`.
+`(d, m)`: the decryption noise does not depend on the implicit-rejection seed
+`z`.
 
 The first section proves the transform-domain algebra this expansion needs — the
 dot product as a finite sum, distributivity of `mulHat` over finite sums, and the
@@ -209,6 +212,24 @@ def kpkeCompressionErrorV {params : Params} {encoding : Encoding params} (ring :
   encoding.decompressDV (encoding.compressDV (kpkeV ring prims d m)) -
     kpkeV ring prims d m
 
+/-- The deterministic decryption-noise expression
+
+`eᵀy + e₂ + ε_v − sᵀe₁ − sᵀε_u`
+
+for the honest run from key seed `d` and message `m`. The argument `z` is absent
+because this expression expands the K-PKE algebra; the implicit-rejection seed
+does not appear in the ciphertext arithmetic. -/
+def kpkeNoiseExpression {params : Params} {encoding : Encoding params} (ring : NTTRingOps)
+    (prims : Primitives params encoding) (d : Seed32) (m : Message) : Rq :=
+  ring.invNTT (ring.dot (ring.nttVec (kpkeKeygenError prims d))
+      (ring.nttVec (kpkeEncryptionSecret ring prims d m))) +
+    kpkeEncryptionError2 ring prims d m +
+    kpkeCompressionErrorV ring prims d m -
+    ring.invNTT (ring.dot (ring.nttVec (kpkeSecret prims d))
+      (ring.nttVec (kpkeEncryptionError1 ring prims d m))) -
+    ring.invNTT (ring.dot (ring.nttVec (kpkeSecret prims d))
+      (ring.nttVec (kpkeCompressionErrorU ring prims d m)))
+
 /-- The representative recomputed by K-PKE decryption of the honest ciphertext,
 with the serialization round trips removed: `w = v′ − NTT⁻¹(ŝᵀ ∘ NTT(u′))`, where
 `u′` and `v′` are the decompressed decodings of the compressed `u` and `v`. -/
@@ -261,20 +282,15 @@ theorem kpkeDecryptRepresentative_eq {params : Params} {encoding : Encoding para
 
   `w − μ = eᵀy + e₂ + ε_v − sᵀe₁ − sᵀε_u`,
 
-with every product computed through the NTT isomorphism. The right-hand side does
-not depend on the implicit-rejection seed `z`. -/
+with every product computed through the NTT isomorphism. Here `s` is the secret
+key vector, `e` is the key-generation error vector, `y` is the encapsulation
+secret vector, `e₁` and `e₂` are the encapsulation error terms, and `ε_u`, `ε_v`
+are the compression round-trip errors for the ciphertext components. The
+right-hand side does not depend on the implicit-rejection seed `z`. -/
 theorem kpkeDecryptDifference_eq_noise {params : Params} {encoding : Encoding params}
     (ring : NTTRingOps) (prims : Primitives params encoding)
     (hEnc : encoding.Laws) (hRing : NTTRingLaws ring) (d z : Seed32) (m : Message) :
-    kpkeDecryptDifference ring encoding prims d z m =
-      ring.invNTT (ring.dot (ring.nttVec (kpkeKeygenError prims d))
-          (ring.nttVec (kpkeEncryptionSecret ring prims d m))) +
-        kpkeEncryptionError2 ring prims d m +
-        kpkeCompressionErrorV ring prims d m -
-        ring.invNTT (ring.dot (ring.nttVec (kpkeSecret prims d))
-          (ring.nttVec (kpkeEncryptionError1 ring prims d m))) -
-        ring.invNTT (ring.dot (ring.nttVec (kpkeSecret prims d))
-          (ring.nttVec (kpkeCompressionErrorU ring prims d m))) := by
+    kpkeDecryptDifference ring encoding prims d z m = kpkeNoiseExpression ring prims d m := by
   haveI : LatticeCrypto.TransformOps.Laws ring := hRing
   have hv : encoding.decompressDV (encoding.compressDV (kpkeV ring prims d m)) =
       kpkeV ring prims d m + kpkeCompressionErrorV ring prims d m := by
@@ -288,7 +304,7 @@ theorem kpkeDecryptDifference_eq_noise {params : Params} {encoding : Encoding pa
     abel
   unfold kpkeDecryptDifference
   rw [kpkeDecryptRepresentative_eq ring prims hEnc d z m, hv, hu]
-  unfold kpkeU kpkeV
+  unfold kpkeU kpkeV kpkeNoiseExpression
   simp only [TransformOps.hatVec_add, TransformOps.hatVec_unhatVec,
     TransformOps.dot_add_right, TransformOps.dot_add_left,
     TransformOps.dot_matTransposeVecMul, TransformOps.fromHat_addHat]

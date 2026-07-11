@@ -17,12 +17,12 @@ random seeds `d`, `z` and message `m`, under the heuristic assumption that hash
 functions and XOFs behave like uniformly random functions. This file states
 that heuristic as `FIPS203NoiseModel`: at every coefficient, the decoded
 message bit and the coefficient of the decryption noise form an independent
-pair of a uniform bit and a draw from the folded coefficient-noise law. The
+pair of a uniform bit and a draw from the folded coefficient-noise measure. The
 model is a hypothesis on the primitive bundle; nothing here proves it.
 
 Under the model, the exact per-coordinate decoding-failure probability is at
-most the bit-averaged decode-failure mass of the law (`coordinateTail_le`), so
-the union bound over the `256` coefficients and the Table 1 certificate close
+most the bit-averaged decode-failure mass (`coordinateTail_le`), so the union
+bound over the `256` coefficients and the Table 1 arithmetic check close
 the chain: the K-PKE recovery-failure probability of the honest run is at most
 the FIPS 203 decapsulation-failure bound
 (`underlyingCorrectnessError_le_fips203`).
@@ -60,16 +60,23 @@ theorem kpkeDecryptDifference_eq_honestNoise {params : Params} {encoding : Encod
     kpkeDecryptDifference ring encoding prims d z m = kpkeHonestNoise ring prims d m :=
   kpkeDecryptDifference_eq_noise ring prims hEnc hRing d z m
 
-/-- The folded coefficient-noise law carries the full mass of the integer law:
-its values over `ZMod q` sum to the noise denominator. Since the decoded
-coefficient is always a bit, this is why the `2 · q` probabilities stated by
-`FIPS203NoiseModel.coordinateLaw` sum to `1`: the model describes a genuine
-probability distribution. -/
-theorem sum_foldedNoiseLaw (p : ParameterSet) :
-    ∑ r : Coeff, foldedNoiseLaw p r = noiseDenominator p := by
-  have h1 : ∑ r : Coeff, foldedNoiseLaw p r = (foldedNoiseLaw p).sum fun _ m => m :=
-    (Finsupp.sum_fintype (foldedNoiseLaw p) (fun _ m => m) fun _ => rfl).symm
-  rw [h1, foldedNoiseLaw, Finsupp.sum_mapDomain_index (fun _ => rfl) fun _ _ _ => rfl]
+/-- The folded coefficient-noise measure carries the full mass of the integer
+measure: its values over `ZMod q` sum to the noise denominator.
+
+This is a total-mass statement, not a claim that `foldedNoiseMeasure p` already
+has total mass `1`. The normalized residue distribution is
+
+`r ↦ foldedNoiseMeasure p r / noiseDenominator p`.
+
+Since the decoded coefficient is always a bit, the joint probabilities in
+`FIPS203NoiseModel.coordinateDistribution` divide by
+`2 * noiseDenominator p`; summing over the two bits and all residues gives `1`.
+-/
+theorem sum_foldedNoiseMeasure (p : ParameterSet) :
+    ∑ r : Coeff, foldedNoiseMeasure p r = noiseDenominator p := by
+  have h1 : ∑ r : Coeff, foldedNoiseMeasure p r = (foldedNoiseMeasure p).sum fun _ m => m :=
+    (Finsupp.sum_fintype (foldedNoiseMeasure p) (fun _ m => m) fun _ => rfl).symm
+  rw [h1, foldedNoiseMeasure, Finsupp.sum_mapDomain_index (fun _ => rfl) fun _ _ _ => rfl]
   rfl
 
 /-- Coordinate `i` of `compress1` for the concrete encoding is `Compress₁` of
@@ -126,37 +133,38 @@ over uniformly random seeds `d`, `z` and message `m`, under the heuristic
 assumption that hash functions and XOFs behave like uniformly random
 functions. The standard's failure-rate computation accordingly treats each
 coefficient of the decryption noise as a draw from the composed
-coefficient-noise law, independent of the uniform encoded message bit.
+coefficient-noise measure, independent of the uniform encoded message bit.
 
-`coordinateLaw` states that joint law at each coordinate: every outcome
-`(bit, residue)` has probability `foldedNoiseLaw p r / (2 * noiseDenominator p)`.
-The decoded coefficient is always a bit
-(`Concrete.byteDecode1_get_val_lt_two`) and the stated probabilities sum to
-`1` (`sum_foldedNoiseLaw`), so one probability for each pair `(bit, residue)`
-describes the whole joint distribution. This structure is an assumption on `ring` and `prims`; the
-correctness theorems consume it as a hypothesis, and nothing proves it. -/
+`coordinateDistribution` states the joint distribution at each coordinate: every
+outcome `(bit, residue)` has probability
+`foldedNoiseMeasure p r / (2 * noiseDenominator p)`. The decoded coefficient is
+always a bit (`Concrete.byteDecode1_get_val_lt_two`) and the stated
+probabilities sum to `1` (`sum_foldedNoiseMeasure`), so one probability for each
+pair `(bit, residue)` describes the whole joint distribution. This structure is
+an assumption on `ring` and `prims`; the correctness theorems consume it as a
+hypothesis, and nothing proves it. -/
 structure FIPS203NoiseModel (p : ParameterSet) (ring : NTTRingOps)
     (prims : Primitives (ParameterSet.params p)
       (Concrete.concreteEncoding (ParameterSet.params p))) : Prop where
-  /-- The joint law of the decoded message coefficient and the coefficient of
+  /-- The joint distribution of the decoded message coefficient and the coefficient of
   the decryption noise at coordinate `i`: a uniform bit, independent of a draw
-  from the folded coefficient-noise law. -/
-  coordinateLaw : ∀ (i : Fin ringDegree) (b : Fin 2) (r : Coeff),
+  from the folded coefficient-noise measure. -/
+  coordinateDistribution : ∀ (i : Fin ringDegree) (b : Fin 2) (r : Coeff),
     Pr[ fun dzm : Seed32 × Seed32 × Message =>
         ((Concrete.concreteEncoding (ParameterSet.params p)).byteDecode1 dzm.2.2).get i =
             ((b : ℕ) : Coeff) ∧
           (kpkeHonestNoise ring prims dzm.1 dzm.2.2).get i = r
       | honestNoiseSample ]
-      = (foldedNoiseLaw p r : ℝ≥0∞) / (2 * noiseDenominator p)
+      = (foldedNoiseMeasure p r : ℝ≥0∞) / (2 * noiseDenominator p)
 
 /-- Summing the folded masses over the failing `(bit, residue)` pairs gives the
 decode-failure mass: at each residue, the failing bits are counted by
 `decodeFailureWeight`. -/
-private theorem sum_filter_foldedNoiseLaw_eq_decodeFailureMass (p : ParameterSet) :
+private theorem sum_filter_foldedNoiseMeasure_eq_decodeFailureMass (p : ParameterSet) :
     ∑ br ∈ (Finset.univ : Finset (Fin 2 × Coeff)).filter
         (fun br => Concrete.compress 1
             (Concrete.decompress 1 ((br.1 : ℕ) : Coeff) + br.2) ≠ ((br.1 : ℕ) : Coeff)),
-      foldedNoiseLaw p br.2 = decodeFailureMass p := by
+      foldedNoiseMeasure p br.2 = decodeFailureMass p := by
   rw [Finset.sum_filter, Fintype.sum_prod_type, Finset.sum_comm, decodeFailureMass]
   refine Finset.sum_congr rfl fun r _ => ?_
   simp only [Fin.sum_univ_two, Fin.isValue, Fin.val_zero, Fin.val_one, Nat.cast_zero, Nat.cast_one,
@@ -206,7 +214,7 @@ private theorem coordinateDecodeFailure_exists_failing_cell (p : ParameterSet) (
 
 /-- Under the noise model, the probability of the exact per-coordinate decoding
 failure is at most the bit-averaged decode-failure mass of the folded
-coefficient-noise law. -/
+coefficient-noise measure. -/
 theorem coordinateTail_le (p : ParameterSet) (ring : NTTRingOps)
     (prims : Primitives (ParameterSet.params p)
       (Concrete.concreteEncoding (ParameterSet.params p)))
@@ -220,14 +228,14 @@ theorem coordinateTail_le (p : ParameterSet) (ring : NTTRingOps)
       (coordinateDecodeFailure_exists_failing_cell p ring prims hRing i))
     (le_trans (probEvent_exists_finset_le_sum _ honestNoiseSample _) ?_)
   refine le_of_eq
-    ((Finset.sum_congr rfl fun br _ => hModel.coordinateLaw i br.1 br.2).trans ?_)
+    ((Finset.sum_congr rfl fun br _ => hModel.coordinateDistribution i br.1 br.2).trans ?_)
   simp only [div_eq_mul_inv]
-  rw [← Finset.sum_mul, ← Nat.cast_sum, sum_filter_foldedNoiseLaw_eq_decodeFailureMass p]
+  rw [← Finset.sum_mul, ← Nat.cast_sum, sum_filter_foldedNoiseMeasure_eq_decodeFailureMass p]
 
 /-- Under the noise model, the K-PKE recovery-failure probability of the honest
 run is at most the FIPS 203 Table 1 decapsulation-failure bound: the union
 bound over the `256` coefficients of the per-coordinate tail, closed by the
-decode-failure certificate. -/
+decode-failure arithmetic check. -/
 theorem underlyingCorrectnessError_le_fips203 (p : ParameterSet) (ring : NTTRingOps)
     (prims : Primitives (ParameterSet.params p)
       (Concrete.concreteEncoding (ParameterSet.params p)))

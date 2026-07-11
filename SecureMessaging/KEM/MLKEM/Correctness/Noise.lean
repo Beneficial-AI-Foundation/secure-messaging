@@ -10,31 +10,45 @@ import LatticeCrypto.Ring.Norms
 /-!
 # ML-KEM K-PKE decryption noise
 
-ML-KEM encryption hides the message `m` by adding it to a noisy mask; K-PKE
-decryption recomputes a representative `w` of the message and reads each bit
-back with the rounding map `Compress₁`. Decryption is correct exactly when this
-recomputed representative is close enough to the encoded message.
+Let `q = 3329` and let
 
-Closeness is measured coefficient by coefficient. Each coefficient lives in
-`ZMod q` with `q = 3329`. Its *centered representative* is the unique integer in
-`[-(q-1)/2, (q-1)/2]` congruent to it — the representative nearest `0`, which may
-be negative (`LatticeCrypto.centeredRepr`). The *decryption noise* is the
-polynomial `w - μ`, where `μ = Decompress₁(ByteDecode₁ m)` is the encoded
-message. Its size is the largest absolute centered representative over all `256`
-coefficients (`LatticeCrypto.cInfNorm`, the ℓ∞ norm).
+`R_q = (ℤ/qℤ)[X] / (X^256 + 1)`.
 
-Decryption recovers `m` whenever the decryption noise has size at most the
-*recovery radius*. For the ML-KEM message encoding that radius is `831`: one
-below `⌊q/4⌋ = 832`, because `Decompress₁(1) = ⌈q/2⌉ = 1665` is not exactly
-`q/2`, so a bit-`1` coordinate already decodes to `0` once its noise reaches
-`+832`.
+In Lean this ring is the type `Rq`. Its coefficients are residues modulo `q`;
+when an integer representative is needed we use the centered representative in
+`[-(q-1)/2, (q-1)/2]`.
 
-This file defines the decryption noise of an honest run, the recovery radius,
-and two views of recovery. The radius is a coarse sufficient condition: noise
-within it forces K-PKE decryption to return the message. The exact condition is
-coordinatewise — decryption recomputes `Compress₁` of a representative and reads
-it against the decoded message, so recovery fails exactly when some one of the
-`256` coefficients disagrees.
+Fix an honest run from key-generation seeds `(d, z)` and encapsulated message
+`m`. Key generation gives a decapsulation key, encapsulation gives a ciphertext,
+and K-PKE decryption recomputes the polynomial
+
+`w = v′ - ŝᵀ NTT(u′)`.
+
+Here `(u′, v′)` are the decompressed ciphertext components decoded from the
+compressed ciphertext, `ŝ` is the secret vector stored in the decapsulation key,
+and `NTT` is the number-theoretic transform used by ML-KEM to multiply
+polynomials in transform representation. Thus `w ∈ R_q` is the representative
+from which decryption reads the message by applying `Compress₁` coefficientwise.
+
+The encoded message polynomial is
+
+`μ = Decompress₁(ByteDecode₁ m)`.
+
+The decryption noise is the polynomial `w - μ ∈ R_q`. Coefficientwise, each
+entry lies in `ZMod q`; its size is measured by applying
+`LatticeCrypto.centeredRepr` to each coefficient and then taking the
+coefficientwise `ℓ∞` norm (`LatticeCrypto.cInfNorm`).
+
+There are two recovery statements in this file. The norm statement is a simple
+sufficient condition: if every centered coefficient of `w - μ` has absolute
+value at most `⌊q/4⌋ - 1 = 831`, then `Compress₁ w` reads back the original
+message bits. The exact statement is coordinatewise: coefficient `i` fails
+precisely when
+
+`(Compress₁ w)_i ≠ (ByteDecode₁ m)_i`.
+
+The later failure-bound proof uses this exact coordinate event, not the coarser
+symmetric-radius condition.
 -/
 
 open LatticeCrypto
@@ -47,8 +61,12 @@ variable {params : Params}
 variable (ring : NTTRingOps) (encoding : Encoding params)
   (prims : Primitives params encoding)
 
-/-- The message-recovery radius `831` (see the module comment for its value). -/
-def messageRecoveryRadius : ℕ := 831
+/-- The message-recovery radius `⌊q/4⌋ - 1` for the ML-KEM modulus `q = 3329`
+(see the module comment for why this is the safe symmetric radius). -/
+def messageRecoveryRadius : ℕ := modulus / 4 - 1
+
+@[simp] theorem messageRecoveryRadius_eq : messageRecoveryRadius = 831 := by
+  norm_num [messageRecoveryRadius, modulus]
 
 /-- FIPS 203 message-encoding laws used by the decryption reduction: the abstract
 round-trip laws together with `Compress₁ / Decompress₁` message recovery within
@@ -112,9 +130,10 @@ theorem kpke_decrypt_eq_of_noiseWithinRecoveryRadius
   rw [hEnc.compress1_recovery _ m hWithin]
   exact hEnc.laws.byteEncode1_byteDecode1 m
 
-/-- Coordinate `i` of K-PKE decryption fails: `Compress₁` of the recomputed
-representative disagrees with the decoded message at `i`. This is the exact,
-message-dependent decoding event, not the symmetric norm condition. -/
+/-- Coordinate `i` of K-PKE decryption fails: if `w` is the recomputed
+representative, then `(Compress₁ w)_i` disagrees with the decoded message bit
+`(ByteDecode₁ m)_i`. This is the exact, message-dependent decoding event, not
+the symmetric norm condition. -/
 def kpkeCoordinateDecodeFailure (d z : Seed32) (m : Message) (i : Fin ringDegree) : Prop :=
   (encoding.compress1 (kpkeDecryptRepresentative ring encoding prims d z m)).get i ≠
     (encoding.byteDecode1 m).get i

@@ -62,20 +62,20 @@ def kpkeBadNoiseExp : ProbComp Bool := do
   pure (decide (kpkeBadNoise ring encoding prims d z m))
 
 /-- The per-coordinate failure event: coordinate `i` of the decryption noise
-exceeds the recovery radius. -/
+exceeds the recovery radius in the honest sample `(d, z, m)`. -/
 def coordinateFailureEvent (i : Fin ringDegree) : Seed32 × Seed32 × Message → Prop :=
-  fun dzm =>
+  fun (d, z, m) =>
     messageRecoveryRadius <
       (centeredRepr
-        ((kpkeDecryptDifference ring encoding prims dzm.1 dzm.2.1 dzm.2.2).get i)).natAbs
+        ((kpkeDecryptDifference ring encoding prims d z m).get i)).natAbs
 
 /-- The bad-noise probability rewritten as a `probEvent` over the honest sample. -/
 theorem probOutput_true_kpkeBadNoiseExp :
     Pr[= true | kpkeBadNoiseExp ring encoding prims] =
-      Pr[ (fun dzm => kpkeBadNoise ring encoding prims dzm.1 dzm.2.1 dzm.2.2)
+      Pr[ (fun (d, z, m) => kpkeBadNoise ring encoding prims d z m)
           | honestNoiseSample ] := by
   have hmap : kpkeBadNoiseExp ring encoding prims =
-      (fun dzm => decide (kpkeBadNoise ring encoding prims dzm.1 dzm.2.1 dzm.2.2)) <$>
+      (fun (d, z, m) => decide (kpkeBadNoise ring encoding prims d z m)) <$>
         honestNoiseSample := by
     rw [map_honestNoiseSample]; simp only [kpkeBadNoiseExp]
   rw [hmap, ← probEvent_true_eq_probOutput, probEvent_map]
@@ -84,16 +84,16 @@ theorem probOutput_true_kpkeBadNoiseExp :
 /-- The recovery-failure probability rewritten as a `probEvent` over the honest sample. -/
 theorem underlyingCorrectnessError_eq_probEvent :
     underlyingCorrectnessError ring encoding prims =
-      Pr[ (fun dzm => KPKE.decrypt ring encoding prims
-              (keygenInternal ring encoding prims dzm.1 dzm.2.1).2.dkPKE
+      Pr[ (fun (d, z, m) => KPKE.decrypt ring encoding prims
+              (keygenInternal ring encoding prims d z).2.dkPKE
               (encapsInternal ring encoding prims
-                (keygenInternal ring encoding prims dzm.1 dzm.2.1).1 dzm.2.2).2 ≠ dzm.2.2)
+                (keygenInternal ring encoding prims d z).1 m).2 ≠ m)
           | honestNoiseSample ] := by
   have hmap : underlyingCorrectExp ring encoding prims =
-      (fun dzm => decide (KPKE.decrypt ring encoding prims
-          (keygenInternal ring encoding prims dzm.1 dzm.2.1).2.dkPKE
+      (fun (d, z, m) => decide (KPKE.decrypt ring encoding prims
+          (keygenInternal ring encoding prims d z).2.dkPKE
           (encapsInternal ring encoding prims
-            (keygenInternal ring encoding prims dzm.1 dzm.2.1).1 dzm.2.2).2 = dzm.2.2)) <$>
+            (keygenInternal ring encoding prims d z).1 m).2 = m)) <$>
         honestNoiseSample := by
     rw [map_honestNoiseSample]; simp only [underlyingCorrectExp]
   rw [underlyingCorrectnessError, hmap, ← probEvent_not_eq_probOutput, probEvent_map]
@@ -105,16 +105,18 @@ theorem underlyingCorrectnessError_le_badNoise (hEnc : FIPS203EncodingLaws encod
     underlyingCorrectnessError ring encoding prims ≤
       Pr[= true | kpkeBadNoiseExp ring encoding prims] := by
   rw [underlyingCorrectnessError_eq_probEvent, probOutput_true_kpkeBadNoiseExp]
-  refine probEvent_mono'' fun dzm hfail => ?_
+  refine probEvent_mono'' ?_
+  rintro ⟨d, z, m⟩ hfail
+  change kpkeBadNoise ring encoding prims d z m
   rw [kpkeBadNoise_iff_not_within]
   exact fun hwithin => hfail
-    (kpke_decrypt_eq_of_noiseWithinRecoveryRadius ring encoding prims hEnc _ _ _ hwithin)
+    (kpke_decrypt_eq_of_noiseWithinRecoveryRadius ring encoding prims hEnc d z m hwithin)
 
 /-- The decryption noise exceeds the recovery radius exactly when some coordinate
-does. -/
-theorem kpkeBadNoise_iff_exists_coordinate (dzm : Seed32 × Seed32 × Message) :
-    kpkeBadNoise ring encoding prims dzm.1 dzm.2.1 dzm.2.2 ↔
-      ∃ i ∈ Finset.univ, coordinateFailureEvent ring encoding prims i dzm := by
+does in the honest sample `(d, z, m)`. -/
+theorem kpkeBadNoise_iff_exists_coordinate (d z : Seed32) (m : Message) :
+    kpkeBadNoise ring encoding prims d z m ↔
+      ∃ i ∈ Finset.univ, coordinateFailureEvent ring encoding prims i (d, z, m) := by
   simp only [kpkeBadNoise, coordinateFailureEvent, Finset.mem_univ, true_and, ← not_le,
     cInfNorm_le_iff, not_forall]
 
@@ -123,7 +125,7 @@ coordinate `i` of `Compress₁` of the recomputed representative disagrees with 
 decoded message. -/
 def coordinateDecodeFailureEvent (i : Fin ringDegree) :
     Seed32 × Seed32 × Message → Prop :=
-  fun dzm => kpkeCoordinateDecodeFailure ring encoding prims dzm.1 dzm.2.1 dzm.2.2 i
+  fun (d, z, m) => kpkeCoordinateDecodeFailure ring encoding prims d z m i
 
 /-- The K-PKE recovery-failure probability equals the probability that some one of
 the `256` coordinate decoding events holds. -/
@@ -132,15 +134,15 @@ theorem underlyingCorrectnessError_eq_coordinateDecodeFailureEvent (hEnc : encod
       Pr[ (fun dzm => ∃ i : Fin ringDegree,
         coordinateDecodeFailureEvent ring encoding prims i dzm) | honestNoiseSample ] := by
   rw [underlyingCorrectnessError_eq_probEvent]
-  have hpred : (fun dzm : Seed32 × Seed32 × Message => KPKE.decrypt ring encoding prims
-          (keygenInternal ring encoding prims dzm.1 dzm.2.1).2.dkPKE
-          (encapsInternal ring encoding prims
-            (keygenInternal ring encoding prims dzm.1 dzm.2.1).1 dzm.2.2).2 ≠ dzm.2.2) =
+  have hpred : (fun (d, z, m) => KPKE.decrypt ring encoding prims
+          (keygenInternal ring encoding prims d z).2.dkPKE
+          (encapsInternal ring encoding prims (keygenInternal ring encoding prims d z).1 m).2 ≠ m) =
       (fun dzm => ∃ i : Fin ringDegree,
         coordinateDecodeFailureEvent ring encoding prims i dzm) := by
     funext dzm
+    rcases dzm with ⟨d, z, m⟩
     exact propext
-      (kpke_decrypt_ne_iff_exists_coordinateDecodeFailure ring encoding prims hEnc _ _ _)
+      (kpke_decrypt_ne_iff_exists_coordinateDecodeFailure ring encoding prims hEnc d z m)
   rw [hpred]
 
 /-- Union bound: the K-PKE recovery-failure probability is at most the sum over the

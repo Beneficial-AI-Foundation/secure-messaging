@@ -51,10 +51,11 @@ theorem deltaCorrect_fips203 (p : ParameterSet) (ring : NTTRingOps)
       (Concrete.concreteEncoding (ParameterSet.params p)))
     (hRing : NTTRingLaws ring) (hModel : FIPS203NoiseModel p ring prims) :
     (mlkemScheme p ring prims).deltaCorrect ProbCompRuntime.probComp
-      (fips203DecapsulationFailureBound p) :=
+      (fips203DecapsulationFailureBound p)
+-- ANCHOR_END: deltaCorrectFips203
+    :=
   deltaCorrect_of_underlying ring _ prims
     (underlyingCorrectnessError_le_fips203 p ring prims hRing hModel)
--- ANCHOR_END: deltaCorrectFips203
 
 /-- Under the FIPS 203 noise model, the probability that the Section 3.2
 decapsulation-failure experiment reports a failure is at most the Table 1

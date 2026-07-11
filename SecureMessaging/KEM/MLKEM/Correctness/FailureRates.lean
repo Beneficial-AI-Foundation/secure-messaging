@@ -31,15 +31,19 @@ set `p` has failure probability `2 ^ (-e_p)`.
 * ML-KEM-768:  `164.8`
 * ML-KEM-1024: `174.8`
 -/
+-- ANCHOR: decapsulationFailureExponent
 def decapsulationFailureExponent : ParameterSet → ℚ
   | .MLKEM512 => 138.8
   | .MLKEM768 => 164.8
   | .MLKEM1024 => 174.8
+-- ANCHOR_END: decapsulationFailureExponent
 
 /-- FIPS 203 Section 3.2 decapsulation-failure bound `δ_p = 2 ^ (-e_p)` for an
 approved parameter set `p`, as a probability in `ℝ≥0∞`. Table 1 records the
 concrete exponents `e_p` (see `decapsulationFailureExponent`). -/
+-- ANCHOR: fips203DecapsulationFailureBound
 noncomputable def fips203DecapsulationFailureBound (p : ParameterSet) : ℝ≥0∞ :=
   2 ^ (-(decapsulationFailureExponent p : ℝ))
+-- ANCHOR_END: fips203DecapsulationFailureBound
 
 end MLKEM

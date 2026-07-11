@@ -9,8 +9,38 @@ import SecureMessaging.KEM.MLKEM.Correctness.NoiseDistribution
 /-!
 # The radix-packing engine
 
-Packing laws in base `R`, digit extraction, the repunit fold, `decodeFailureMass_eq`,
-and the blocked weight packing. All generic in the radix.
+This file contains the arithmetic engine used by the failure-bound proof. It is
+generic in the radix `R`.
+
+For a finitely supported function `F : ℤ →₀ ℕ`, write the associated counting
+measure on the discrete space `ℤ` as
+
+`μ_F(A) = ∑_{v ∈ A} F(v)`.
+
+Thus `F(v)` is the mass of the singleton `{v}`. This file works with these
+unnormalized natural-number masses; a probability is obtained only later by
+dividing by the total mass `∑_v F(v)`.
+
+When `F` is supported in `[lo, hi]`, define the mass-generating polynomial
+
+`P_F(X) = ∑_{v=lo}^{hi} F(v) X^(v-lo)`.
+
+`measurePack R lo F` is the evaluation `P_F(R)`. The polynomial is just a
+finite algebraic encoding of the singleton masses `μ_F({v}) = F(v)`. The radix
+`R` is chosen larger than the coefficients that can appear in the intermediate
+products, so coefficient extraction from `P_F(R)` by division and remainder is
+exact: no carry can change the coefficient being read.
+
+With this interpretation, the main facts are:
+
+* `measurePack_mul`: convolution of counting measures becomes multiplication of
+  their generating polynomials, then evaluation at `R`;
+* `measurePack_pow`: iterated convolution becomes a power;
+* `sum_mul_pow_mod_repunit`: folding integer noise modulo `q` corresponds to
+  quotienting by `X^q - 1`, which evaluates to reduction modulo `R ^ q - 1`;
+* `decodeFailureMass_eq`: the weighted decode-failure mass is a dot product of
+  the folded measure with the decode-failure weights, extracted as the middle
+  coefficient of a product with the reversed weight polynomial.
 -/
 
 open LatticeCrypto
@@ -76,7 +106,8 @@ private theorem sum_mul_pow_div_pow_mod {R n : ℕ} {f : ℕ → ℕ} (h : ∀ i
     intro j
     rw [pow_add, pow_succ]
     ring
-  rw [Finset.sum_congr rfl fun j _ => htail j, ← Finset.mul_sum, show t + 0 = t from rfl] at hsplit
+  rw [Finset.sum_congr rfl fun j _ => htail j, ← Finset.mul_sum,
+    show t + 0 = t from rfl] at hsplit
   have hsum_inner : ∑ i ∈ Finset.range s, R * (f (t + (i + 1)) * R ^ i) =
       R * ∑ j ∈ Finset.range s, f (t + (j + 1)) * R ^ j := (Finset.mul_sum _ _ _).symm
   rw [hsum_inner] at hsplit
@@ -112,7 +143,8 @@ private theorem sum_mul_pow_pad {R q n : ℕ} (hqn : q ≤ n) (f : ℕ → ℕ) 
 block shift pulled out as a power of `R ^ a`. -/
 private theorem sum_mul_pow_blocks {R : ℕ} (a b : ℕ) (f : ℕ → ℕ) :
     ∑ t ∈ Finset.range (a * b), f t * R ^ t =
-      ∑ j ∈ Finset.range b, (∑ i ∈ Finset.range a, f (a * j + i) * R ^ i) * (R ^ a) ^ j := by
+      ∑ j ∈ Finset.range b,
+        (∑ i ∈ Finset.range a, f (a * j + i) * R ^ i) * (R ^ a) ^ j := by
   rw [sum_range_mul_eq_sum_sum fun t => f t * R ^ t]
   refine Finset.sum_congr rfl fun j _ => ?_
   rw [Finset.sum_mul]
@@ -156,7 +188,8 @@ private theorem sum_mul_pow_mod_repunit {R q m : ℕ} {f : ℕ → ℕ} (hR : 2 
       _ ≡ f (q * j + t) * R ^ t * 1 [MOD R ^ q - 1] := hcong.mul_left _
       _ = f (q * j + t) * R ^ t := by ring
   have hmod : (∑ i ∈ Finset.range (q * m), f i * R ^ i) ≡
-      ∑ t ∈ Finset.range q, (∑ j ∈ Finset.range m, f (q * j + t)) * R ^ t [MOD R ^ q - 1] := by
+      ∑ t ∈ Finset.range q, (∑ j ∈ Finset.range m, f (q * j + t)) * R ^ t
+        [MOD R ^ q - 1] := by
     rw [sum_range_mul_eq_sum_sum fun i => f i * R ^ i]
     have hswap : ∑ t ∈ Finset.range q, (∑ j ∈ Finset.range m, f (q * j + t)) * R ^ t =
         ∑ j ∈ Finset.range m, ∑ t ∈ Finset.range q, f (q * j + t) * R ^ t := by
@@ -172,40 +205,41 @@ private theorem sum_mul_pow_mod_repunit {R q m : ℕ} {f : ℕ → ℕ} (hR : 2 
     _ = ∑ t ∈ Finset.range q, (∑ j ∈ Finset.range m, f (q * j + t)) * R ^ t :=
         Nat.mod_eq_of_lt hRHSlt
 
-/-! ## Packing integer laws -/
+/-! ## Packing integer measures -/
 
-/-- The radix-`R` packing of a law against the base point `lo`: the masses of
-`F`, written in base `R` at the digit positions `v - lo`. -/
-noncomputable def lawPack (R : ℕ) (lo : ℤ) (F : IntLaw) : ℕ :=
+/-- Evaluation at `R` of the generating polynomial for the finite measure `F`
+against the base point `lo`: the mass at integer `v` contributes
+`F v * R^(v - lo)`. -/
+noncomputable def measurePack (R : ℕ) (lo : ℤ) (F : IntMeasure) : ℕ :=
   Finsupp.sum F fun v m => m * R ^ (v - lo).toNat
 
 /-- Packing, as an additive monoid homomorphism. -/
-private noncomputable def lawPackHom (R : ℕ) (lo : ℤ) : IntLaw →+ ℕ where
-  toFun := lawPack R lo
+private noncomputable def measurePackHom (R : ℕ) (lo : ℤ) : IntMeasure →+ ℕ where
+  toFun := measurePack R lo
   map_zero' := Finsupp.sum_zero_index
   map_add' _ _ := Finsupp.sum_add_index' (fun _ => zero_mul _) fun _ _ _ => add_mul _ _ _
 
-theorem lawPack_single (R : ℕ) (lo v : ℤ) (m : ℕ) :
-    lawPack R lo (AddMonoidAlgebra.single v m) = m * R ^ (v - lo).toNat :=
+theorem measurePack_single (R : ℕ) (lo v : ℤ) (m : ℕ) :
+    measurePack R lo (AddMonoidAlgebra.single v m) = m * R ^ (v - lo).toNat :=
   Finsupp.sum_single_index (zero_mul _)
 
 /-- Packing turns convolution into multiplication: the packed product of two
-windowed laws is the product of their packings. -/
-theorem lawPack_mul {R : ℕ} {F G : IntLaw} {lo₁ hi₁ lo₂ hi₂ : ℤ}
-    (hF : LawWindow F lo₁ hi₁) (hG : LawWindow G lo₂ hi₂) :
-    lawPack R (lo₁ + lo₂) (F * G) = lawPack R lo₁ F * lawPack R lo₂ G := by
+windowed measures is the product of their packings. -/
+theorem measurePack_mul {R : ℕ} {F G : IntMeasure} {lo₁ hi₁ lo₂ hi₂ : ℤ}
+    (hF : MeasureWindow F lo₁ hi₁) (hG : MeasureWindow G lo₂ hi₂) :
+    measurePack R (lo₁ + lo₂) (F * G) = measurePack R lo₁ F * measurePack R lo₂ G := by
   rw [AddMonoidAlgebra.mul_def]
-  refine (map_finsuppSum (lawPackHom R (lo₁ + lo₂)) _ _).trans ?_
-  have hRHS : lawPack R lo₁ F * lawPack R lo₂ G =
+  refine (map_finsuppSum (measurePackHom R (lo₁ + lo₂)) _ _).trans ?_
+  have hRHS : measurePack R lo₁ F * measurePack R lo₂ G =
       Finsupp.sum F fun a m => Finsupp.sum G fun b k =>
         m * R ^ (a - lo₁).toNat * (k * R ^ (b - lo₂).toNat) := by
     refine (Finsupp.sum_mul _ _).trans ?_
     exact Finsupp.sum_congr fun a _ => Finsupp.mul_sum _ _
   rw [hRHS]
   refine Finsupp.sum_congr fun a ha => ?_
-  refine (map_finsuppSum (lawPackHom R (lo₁ + lo₂)) _ _).trans ?_
+  refine (map_finsuppSum (measurePackHom R (lo₁ + lo₂)) _ _).trans ?_
   refine Finsupp.sum_congr fun b hb => ?_
-  refine (lawPack_single _ _ _ _).trans ?_
+  refine (measurePack_single _ _ _ _).trans ?_
   have h₁ := (hF a (Finsupp.mem_support_iff.mp ha)).1
   have h₂ := (hG b (Finsupp.mem_support_iff.mp hb)).1
   have hsplit : (a + b - (lo₁ + lo₂)).toNat = (a - lo₁).toNat + (b - lo₂).toNat := by omega
@@ -213,29 +247,31 @@ theorem lawPack_mul {R : ℕ} {F G : IntLaw} {lo₁ hi₁ lo₂ hi₂ : ℤ}
   ring
 
 /-- Packing turns an iterated convolution into a power. -/
-theorem lawPack_pow {R : ℕ} {F : IntLaw} {lo hi : ℤ} (hF : LawWindow F lo hi) (n : ℕ) :
-    lawPack R (n * lo) (F ^ n) = lawPack R lo F ^ n := by
+theorem measurePack_pow {R : ℕ} {F : IntMeasure} {lo hi : ℤ}
+    (hF : MeasureWindow F lo hi) (n : ℕ) :
+    measurePack R (n * lo) (F ^ n) = measurePack R lo F ^ n := by
   induction n with
   | zero =>
     rw [pow_zero, pow_zero, AddMonoidAlgebra.one_def,
-      show ((0 : ℕ) : ℤ) * lo = 0 by simp, lawPack_single]
+      show ((0 : ℕ) : ℤ) * lo = 0 by simp, measurePack_single]
     simp
   | succ n ih =>
     have hcast : ((n + 1 : ℕ) : ℤ) * lo = (n : ℤ) * lo + lo := by push_cast; ring
-    rw [pow_succ, pow_succ, hcast, lawPack_mul (lawWindow_pow hF n) hF, ih]
+    rw [pow_succ, pow_succ, hcast, measurePack_mul (measureWindow_pow hF n) hF, ih]
 
-/-- The packing of a counting law, as a sum over the enumeration. -/
-theorem lawPack_enumLaw (R : ℕ) (lo : ℤ) (N : ℕ) (g : ℕ → ℤ) :
-    lawPack R lo (enumLaw N g) = ∑ x ∈ Finset.range N, R ^ (g x - lo).toNat := by
-  rw [enumLaw]
-  refine (map_sum (lawPackHom R lo) _ _).trans ?_
-  exact Finset.sum_congr rfl fun x _ => (lawPack_single _ _ _ _).trans (one_mul _)
+/-- The packing of an enumerated counting measure, as a sum over the
+enumeration. -/
+theorem measurePack_enumMeasure (R : ℕ) (lo : ℤ) (N : ℕ) (g : ℕ → ℤ) :
+    measurePack R lo (enumMeasure N g) = ∑ x ∈ Finset.range N, R ^ (g x - lo).toNat := by
+  rw [enumMeasure]
+  refine (map_sum (measurePackHom R lo) _ _).trans ?_
+  exact Finset.sum_congr rfl fun x _ => (measurePack_single _ _ _ _).trans (one_mul _)
 
-private theorem prodLaw_enumLaw_left (N : ℕ) (g : ℕ → ℤ) (G : IntLaw) :
-    prodLaw (enumLaw N g) G =
+private theorem productMeasure_enumMeasure_left (N : ℕ) (g : ℕ → ℤ) (G : IntMeasure) :
+    productMeasure (enumMeasure N g) G =
       ∑ x ∈ Finset.range N, Finsupp.sum G fun b k =>
         AddMonoidAlgebra.single (g x * b) k := by
-  rw [enumLaw, prodLaw]
+  rw [enumMeasure, productMeasure]
   refine Eq.trans (Finsupp.sum_finsetSum_index
     (fun _ => by
       simp only [zero_mul, Finsupp.single_zero]
@@ -251,19 +287,19 @@ private theorem prodLaw_enumLaw_left (N : ℕ) (g : ℕ → ℤ) (G : IntLaw) :
     exact Finsupp.sum_fun_zero G)).trans ?_
   exact Finsupp.sum_congr fun b _ => by rw [one_mul]
 
-/-- The packing of a product law with an enumerated left factor, as a window sum
-of the right factor. -/
-theorem lawPack_prodLaw_enumLaw {R : ℕ} {G : IntLaw} {lo₂ : ℤ} {n₂ : ℕ}
-    (hG : LawWindow G lo₂ (lo₂ + n₂ - 1)) (lo : ℤ) (N : ℕ) (g : ℕ → ℤ) :
-    lawPack R lo (prodLaw (enumLaw N g) G) =
+/-- The packing of `productMeasure` with an enumerated left factor, as a window sum of
+the right factor. -/
+theorem measurePack_productMeasure_enumMeasure {R : ℕ} {G : IntMeasure} {lo₂ : ℤ} {n₂ : ℕ}
+    (hG : MeasureWindow G lo₂ (lo₂ + n₂ - 1)) (lo : ℤ) (N : ℕ) (g : ℕ → ℤ) :
+    measurePack R lo (productMeasure (enumMeasure N g) G) =
       ∑ x ∈ Finset.range N, ∑ i ∈ Finset.range n₂,
         G (lo₂ + i) * R ^ (g x * (lo₂ + i) - lo).toNat := by
-  rw [prodLaw_enumLaw_left]
-  refine (map_sum (lawPackHom R lo) _ _).trans ?_
+  rw [productMeasure_enumMeasure_left]
+  refine (map_sum (measurePackHom R lo) _ _).trans ?_
   refine Finset.sum_congr rfl fun x _ => ?_
-  refine (map_finsuppSum (lawPackHom R lo) _ _).trans ?_
+  refine (map_finsuppSum (measurePackHom R lo) _ _).trans ?_
   refine (Finsupp.sum_congr (g2 := fun b k => k * R ^ (g x * b - lo).toNat)
-    fun b _ => lawPack_single _ _ _ _).trans ?_
+    fun b _ => measurePack_single _ _ _ _).trans ?_
   rw [Finsupp.sum_of_support_subset G
     (s := (Finset.range n₂).image fun i : ℕ => lo₂ + (i : ℤ))
     ?_ (fun b k => k * R ^ (g x * b - lo).toNat) fun i _ => zero_mul _]
@@ -273,11 +309,11 @@ theorem lawPack_prodLaw_enumLaw {R : ℕ} {G : IntLaw} {lo₂ : ℤ} {n₂ : ℕ
     rw [Finset.mem_image]
     exact ⟨(b - lo₂).toNat, Finset.mem_range.mpr (by omega), by omega⟩
 
-/-- The packing of a windowed law as a window sum of its masses. -/
-theorem lawPack_eq_range_sum {R : ℕ} {F : IntLaw} {lo : ℤ} {n : ℕ}
-    (hF : LawWindow F lo (lo + n - 1)) :
-    lawPack R lo F = ∑ i ∈ Finset.range n, F (lo + i) * R ^ i := by
-  rw [lawPack]
+/-- The packing of a windowed measure as a window sum of its masses. -/
+theorem measurePack_eq_range_sum {R : ℕ} {F : IntMeasure} {lo : ℤ} {n : ℕ}
+    (hF : MeasureWindow F lo (lo + n - 1)) :
+    measurePack R lo F = ∑ i ∈ Finset.range n, F (lo + i) * R ^ i := by
+  rw [measurePack]
   rw [Finsupp.sum_of_support_subset F
     (s := (Finset.range n).image fun i : ℕ => lo + (i : ℤ))
     ?_ (fun v m => m * R ^ (v - lo).toNat) fun i _ => zero_mul _]
@@ -288,39 +324,39 @@ theorem lawPack_eq_range_sum {R : ℕ} {F : IntLaw} {lo : ℤ} {n : ℕ}
     rw [Finset.mem_image]
     exact ⟨(a - lo).toNat, Finset.mem_range.mpr (by omega), by omega⟩
 
-/-- The total mass of a windowed law as a window sum of its masses. -/
-theorem totalMass_eq_range_sum {F : IntLaw} {lo : ℤ} {n : ℕ}
-    (hF : LawWindow F lo (lo + n - 1)) :
+/-- The total mass of a windowed measure as a window sum of its masses. -/
+theorem totalMass_eq_range_sum {F : IntMeasure} {lo : ℤ} {n : ℕ}
+    (hF : MeasureWindow F lo (lo + n - 1)) :
     totalMass F = ∑ i ∈ Finset.range n, F (lo + i) := by
-  have h := lawPack_eq_range_sum (R := 1) hF
-  rw [lawPack] at h
+  have h := measurePack_eq_range_sum (R := 1) hF
+  rw [measurePack] at h
   simp only [one_pow, mul_one] at h
   rw [totalMass]
   exact h
 
-/-- Every mass of a convolution with a pointwise-bounded law is at most the
+/-- Every mass of a convolution with a pointwise-bounded measure is at most the
 total mass of the other factor times the bound. -/
-theorem mul_apply_le {F G : IntLaw} {lo : ℤ} {n : ℕ} {B : ℕ}
-    (hF : LawWindow F lo (lo + n - 1)) (hB : ∀ b, G b ≤ B) (v : ℤ) :
+theorem mul_apply_le {F G : IntMeasure} {lo : ℤ} {n : ℕ} {B : ℕ}
+    (hF : MeasureWindow F lo (lo + n - 1)) (hB : ∀ b, G b ≤ B) (v : ℤ) :
     (F * G) v ≤ totalMass F * B := by
   rw [mul_apply_window hF v, totalMass_eq_range_sum hF, Finset.sum_mul]
   exact Finset.sum_le_sum fun i _ => Nat.mul_le_mul_left _ (hB _)
 
-/-- A mass of a windowed law is a base-`R` digit of its packing. -/
-theorem lawPack_digit {R : ℕ} {F : IntLaw} {lo : ℤ} {n : ℕ}
-    (hF : LawWindow F lo (lo + n - 1)) (hd : ∀ v, F v < R) {t : ℕ} (ht : t < n) :
-    lawPack R lo F / R ^ t % R = F (lo + t) := by
-  rw [lawPack_eq_range_sum hF]
+/-- A mass of a windowed measure is a base-`R` digit of its packing. -/
+theorem measurePack_digit {R : ℕ} {F : IntMeasure} {lo : ℤ} {n : ℕ}
+    (hF : MeasureWindow F lo (lo + n - 1)) (hd : ∀ v, F v < R) {t : ℕ} (ht : t < n) :
+    measurePack R lo F / R ^ t % R = F (lo + t) := by
+  rw [measurePack_eq_range_sum hF]
   exact sum_mul_pow_div_pow_mod (fun i _ => hd _) ht
 
-/-! ## Sequence laws -/
+/-! ## Sequence measures -/
 
-/-- The law placing mass `f t` at each `t < q`. -/
-noncomputable def seqLaw (q : ℕ) (f : ℕ → ℕ) : IntLaw :=
+/-- The finite measure placing mass `f t` at each `t < q`. -/
+noncomputable def seqMeasure (q : ℕ) (f : ℕ → ℕ) : IntMeasure :=
   ∑ t ∈ Finset.range q, AddMonoidAlgebra.single ((t : ℕ) : ℤ) (f t)
 
-theorem seqLaw_apply {q t : ℕ} (f : ℕ → ℕ) (ht : t < q) :
-    seqLaw q f ((t : ℕ) : ℤ) = f t := by
+theorem seqMeasure_apply {q t : ℕ} (f : ℕ → ℕ) (ht : t < q) :
+    seqMeasure q f ((t : ℕ) : ℤ) = f t := by
   refine (Finsupp.finsetSum_apply _ _ _).trans ?_
   have hcong : ∀ x ∈ Finset.range q,
       AddMonoidAlgebra.single ((x : ℕ) : ℤ) (f x) ((t : ℕ) : ℤ) =
@@ -331,7 +367,8 @@ theorem seqLaw_apply {q t : ℕ} (f : ℕ → ℕ) (ht : t < q) :
   rw [Finset.sum_congr rfl hcong, Finset.sum_ite_eq' (Finset.range q) t fun x => f x,
     if_pos (Finset.mem_range.mpr ht)]
 
-theorem lawWindow_seqLaw (q : ℕ) (f : ℕ → ℕ) : LawWindow (seqLaw q f) 0 ((q : ℤ) - 1) := by
+theorem measureWindow_seqMeasure (q : ℕ) (f : ℕ → ℕ) :
+    MeasureWindow (seqMeasure q f) 0 ((q : ℤ) - 1) := by
   intro v hv
   have hex : ∃ t ∈ Finset.range q, AddMonoidAlgebra.single ((t : ℕ) : ℤ) (f t) v ≠ 0 := by
     by_contra hall
@@ -345,50 +382,51 @@ theorem lawWindow_seqLaw (q : ℕ) (f : ℕ → ℕ) : LawWindow (seqLaw q f) 0 
   subst hvt
   omega
 
-theorem totalMass_seqLaw (q : ℕ) (f : ℕ → ℕ) :
-    totalMass (seqLaw q f) = ∑ t ∈ Finset.range q, f t := by
-  rw [seqLaw]
+theorem totalMass_seqMeasure (q : ℕ) (f : ℕ → ℕ) :
+    totalMass (seqMeasure q f) = ∑ t ∈ Finset.range q, f t := by
+  rw [seqMeasure]
   refine (map_sum totalMassHom _ _).trans ?_
   exact Finset.sum_congr rfl fun t _ => totalMass_single _ _
 
-theorem lawPack_seqLaw (R q : ℕ) (f : ℕ → ℕ) :
-    lawPack R 0 (seqLaw q f) = ∑ t ∈ Finset.range q, f t * R ^ t := by
-  rw [seqLaw]
-  refine (map_sum (lawPackHom R 0) _ _).trans ?_
+theorem measurePack_seqMeasure (R q : ℕ) (f : ℕ → ℕ) :
+    measurePack R 0 (seqMeasure q f) = ∑ t ∈ Finset.range q, f t * R ^ t := by
+  rw [seqMeasure]
+  refine (map_sum (measurePackHom R 0) _ _).trans ?_
   refine Finset.sum_congr rfl fun t _ => ?_
-  refine (lawPack_single _ _ _ _).trans ?_
+  refine (measurePack_single _ _ _ _).trans ?_
   rw [show ((t : ℤ) - 0).toNat = t by omega]
 
-/-- Every mass of a sequence law is bounded by any pointwise bound on the
+/-- Every mass of a sequence measure is bounded by any pointwise bound on the
 sequence. -/
-theorem seqLaw_apply_le {q B : ℕ} {f : ℕ → ℕ} (hf : ∀ t < q, f t ≤ B) (v : ℤ) :
-    seqLaw q f v ≤ B := by
-  by_cases hv : seqLaw q f v = 0
+theorem seqMeasure_apply_le {q B : ℕ} {f : ℕ → ℕ} (hf : ∀ t < q, f t ≤ B) (v : ℤ) :
+    seqMeasure q f v ≤ B := by
+  by_cases hv : seqMeasure q f v = 0
   · rw [hv]
     exact Nat.zero_le B
-  · have hw := lawWindow_seqLaw q f v hv
+  · have hw := measureWindow_seqMeasure q f v hv
     have hvt : v = ((v.toNat : ℕ) : ℤ) := by omega
-    rw [hvt, seqLaw_apply f (by omega)]
+    rw [hvt, seqMeasure_apply f (by omega)]
     exact hf _ (by omega)
 
 /-! ## Folding and the weighted digit -/
 
 private theorem mapDomain_apply_eq_sum {β : Type*} [DecidableEq β] (g : ℤ → β)
-    (F : IntLaw) (r : β) :
+    (F : IntMeasure) (r : β) :
     Finsupp.mapDomain g F r = Finsupp.sum F fun v m => if g v = r then m else 0 := by
   rw [Finsupp.mapDomain]
   refine (Finsupp.sum_apply).trans ?_
   exact Finsupp.sum_congr fun v _ => Finsupp.single_apply
 
-/-- A mass of the folded law is the block sum of the integer-law masses over the
-residue class inside the window. -/
-private theorem foldedNoiseLaw_apply_block (p : ParameterSet) {lo : ℤ} {m : ℕ}
-    (hwin : LawWindow (coefficientNoiseLaw p) lo (lo + ((modulus * m : ℕ) : ℤ) - 1))
+/-- A mass of the folded measure is the block sum of the integer-measure masses
+over the residue class inside the window. -/
+private theorem foldedNoiseMeasure_apply_block (p : ParameterSet) {lo : ℤ} {m : ℕ}
+    (hwin : MeasureWindow (coefficientNoiseMeasure p) lo (lo + ((modulus * m : ℕ) : ℤ) - 1))
     {t : ℕ} (ht : t < modulus) :
-    foldedNoiseLaw p (((lo + (t : ℤ)) : ℤ) : Coeff) =
-      ∑ j ∈ Finset.range m, coefficientNoiseLaw p (lo + ((modulus * j + t : ℕ) : ℤ)) := by
-  rw [foldedNoiseLaw, mapDomain_apply_eq_sum]
-  have hsub : (coefficientNoiseLaw p).support ⊆
+    foldedNoiseMeasure p (((lo + (t : ℤ)) : ℤ) : Coeff) =
+      ∑ j ∈ Finset.range m,
+        coefficientNoiseMeasure p (lo + ((modulus * j + t : ℕ) : ℤ)) := by
+  rw [foldedNoiseMeasure, mapDomain_apply_eq_sum]
+  have hsub : (coefficientNoiseMeasure p).support ⊆
       (Finset.range (modulus * m)).image fun i : ℕ => lo + (i : ℤ) := by
     intro v hv
     have hw := hwin v (Finsupp.mem_support_iff.mp hv)
@@ -398,7 +436,8 @@ private theorem foldedNoiseLaw_apply_block (p : ParameterSet) {lo : ℤ} {m : �
   refine Eq.trans (Finset.sum_image fun i _ j _ h => by omega) ?_
   have ht' : t < 3329 := by simpa [modulus] using ht
   have hcond : ∀ i : ℕ,
-      (((lo + (i : ℤ)) : ℤ) : Coeff) = (((lo + (t : ℤ)) : ℤ) : Coeff) ↔ i % modulus = t := by
+      (((lo + (i : ℤ)) : ℤ) : Coeff) = (((lo + (t : ℤ)) : ℤ) : Coeff) ↔
+        i % modulus = t := by
     intro i
     rw [ZMod.intCast_eq_intCast_iff, Int.ModEq]
     simp only [modulus]
@@ -409,8 +448,8 @@ private theorem foldedNoiseLaw_apply_block (p : ParameterSet) {lo : ℤ} {m : �
       omega
   have hite : ∀ i ∈ Finset.range (modulus * m),
       (if (((lo + (i : ℤ)) : ℤ) : Coeff) = (((lo + (t : ℤ)) : ℤ) : Coeff) then
-        coefficientNoiseLaw p (lo + (i : ℤ)) else 0) =
-      (if i % modulus = t then coefficientNoiseLaw p (lo + (i : ℤ)) else 0) := by
+        coefficientNoiseMeasure p (lo + (i : ℤ)) else 0) =
+      (if i % modulus = t then coefficientNoiseMeasure p (lo + (i : ℤ)) else 0) := by
     intro i _
     exact if_congr (hcond i) rfl rfl
   rw [Finset.sum_congr rfl hite, ← Finset.sum_filter]
@@ -436,80 +475,83 @@ private theorem dot_eq_pack_extract {R q : ℕ} (hq : 0 < q)
     ∑ t ∈ Finset.range q, a t * b t =
       (∑ t ∈ Finset.range q, a t * R ^ t) *
         (∑ t ∈ Finset.range q, b (q - 1 - t) * R ^ t) / R ^ (q - 1) % R := by
-  have hwinA : LawWindow (seqLaw q a) 0 ((q : ℤ) - 1) := lawWindow_seqLaw q a
-  have hwinB : LawWindow (seqLaw q fun u => b (q - 1 - u)) 0 ((q : ℤ) - 1) :=
-    lawWindow_seqLaw q _
-  have hwinA' : LawWindow (seqLaw q a) 0 (0 + (q : ℤ) - 1) := by
+  have hwinA : MeasureWindow (seqMeasure q a) 0 ((q : ℤ) - 1) := measureWindow_seqMeasure q a
+  have hwinB : MeasureWindow (seqMeasure q fun u => b (q - 1 - u)) 0 ((q : ℤ) - 1) :=
+    measureWindow_seqMeasure q _
+  have hwinA' : MeasureWindow (seqMeasure q a) 0 (0 + (q : ℤ) - 1) := by
     rw [zero_add]
     exact hwinA
-  have hB : ∀ v : ℤ, (seqLaw q fun u => b (q - 1 - u)) v ≤ 2 :=
-    seqLaw_apply_le fun t _ => hb _
+  have hB : ∀ v : ℤ, (seqMeasure q fun u => b (q - 1 - u)) v ≤ 2 :=
+    seqMeasure_apply_le fun t _ => hb _
   -- the dot product as the middle mass of the convolution
-  have h2 : (seqLaw q a * seqLaw q fun u => b (q - 1 - u)) (((q - 1 : ℕ) : ℤ)) =
+  have h2 : (seqMeasure q a * seqMeasure q fun u => b (q - 1 - u)) (((q - 1 : ℕ) : ℤ)) =
       ∑ t ∈ Finset.range q, a t * b t := by
     rw [mul_apply_window hwinA']
     refine Finset.sum_congr rfl fun i hi => ?_
     have hilt := Finset.mem_range.mp hi
-    rw [zero_add, seqLaw_apply a hilt]
+    rw [zero_add, seqMeasure_apply a hilt]
     have harg : ((q - 1 : ℕ) : ℤ) - (i : ℤ) = ((q - 1 - i : ℕ) : ℤ) := by
       push_cast [Nat.cast_sub (by omega : 1 ≤ q), Nat.cast_sub (by omega : i ≤ q - 1)]
       ring
-    rw [harg, seqLaw_apply _ (by omega)]
+    rw [harg, seqMeasure_apply _ (by omega)]
     have hidx : q - 1 - (q - 1 - i) = i := by omega
     rw [hidx]
   -- digit bounds of the convolution
-  have hdig : ∀ v : ℤ, (seqLaw q a * seqLaw q fun u => b (q - 1 - u)) v < R := by
+  have hdig : ∀ v : ℤ, (seqMeasure q a * seqMeasure q fun u => b (q - 1 - u)) v < R := by
     intro v
     have hle := mul_apply_le (n := q) hwinA' hB v
-    rw [totalMass_seqLaw] at hle
+    rw [totalMass_seqMeasure] at hle
     omega
-  have hwinAB : LawWindow (seqLaw q a * seqLaw q fun u => b (q - 1 - u)) 0
+  have hwinAB : MeasureWindow (seqMeasure q a * seqMeasure q fun u => b (q - 1 - u)) 0
       (0 + ((2 * q - 1 : ℕ) : ℤ) - 1) := by
-    have hmul := lawWindow_mul hwinA hwinB
+    have hmul := measureWindow_mul hwinA hwinB
     rw [add_zero] at hmul
     refine hmul.mono (by omega) ?_
     push_cast [Nat.cast_sub (by omega : 1 ≤ 2 * q)]
     omega
-  have h3 := lawPack_digit (R := R) hwinAB hdig (t := q - 1) (by omega)
+  have h3 := measurePack_digit (R := R) hwinAB hdig (t := q - 1) (by omega)
   rw [zero_add] at h3
   -- split the packing of the convolution
-  have hsplit := lawPack_mul (R := R) hwinA hwinB
+  have hsplit := measurePack_mul (R := R) hwinA hwinB
   rw [add_zero] at hsplit
-  rw [← h2, ← h3, hsplit, lawPack_seqLaw, lawPack_seqLaw]
+  rw [← h2, ← h3, hsplit, measurePack_seqMeasure, measurePack_seqMeasure]
 
-/-- Evaluation form of the decode-failure mass: pack the coefficient-noise law
-in base `R`, fold with the repunit modulus, multiply by the reversed weight
-packing, and extract the middle digit. -/
+/-- Evaluation form of the decode-failure mass: pack the coefficient-noise
+measure by evaluating its generating polynomial at `R`, fold with the repunit
+modulus, multiply by the reversed weight packing, and extract the middle
+coefficient. -/
 theorem decodeFailureMass_eq (p : ParameterSet) {R : ℕ} {lo : ℤ} {m : ℕ}
     (hR : 2 ≤ R)
-    (hwin : LawWindow (coefficientNoiseLaw p) lo (lo + ((modulus * m : ℕ) : ℤ) - 1))
-    (hden : 2 * totalMass (coefficientNoiseLaw p) < R) :
+    (hwin : MeasureWindow (coefficientNoiseMeasure p) lo (lo + ((modulus * m : ℕ) : ℤ) - 1))
+    (hden : 2 * totalMass (coefficientNoiseMeasure p) < R) :
     decodeFailureMass p =
-      lawPack R lo (coefficientNoiseLaw p) % (R ^ modulus - 1) *
+      measurePack R lo (coefficientNoiseMeasure p) % (R ^ modulus - 1) *
         (∑ t ∈ Finset.range modulus,
-          decodeFailureWeight ((lo + ((modulus - 1 : ℕ) : ℤ) - (t : ℤ) : ℤ) : Coeff) * R ^ t) /
+          decodeFailureWeight
+            ((lo + ((modulus - 1 : ℕ) : ℤ) - (t : ℤ) : ℤ) : Coeff) * R ^ t) /
         R ^ (modulus - 1) % R := by
   have hq : 0 < modulus := by norm_num [modulus]
   have htot : ∑ t ∈ Finset.range modulus,
-      (∑ j ∈ Finset.range m, coefficientNoiseLaw p (lo + ((modulus * j + t : ℕ) : ℤ))) =
-      totalMass (coefficientNoiseLaw p) := by
+      (∑ j ∈ Finset.range m, coefficientNoiseMeasure p (lo + ((modulus * j + t : ℕ) : ℤ))) =
+      totalMass (coefficientNoiseMeasure p) := by
     rw [totalMass_eq_range_sum hwin,
-      sum_range_mul_eq_sum_sum fun i => coefficientNoiseLaw p (lo + (i : ℤ)), Finset.sum_comm]
+      sum_range_mul_eq_sum_sum fun i => coefficientNoiseMeasure p (lo + (i : ℤ)), Finset.sum_comm]
   have hfold_lt : ∀ t < modulus,
-      2 * ∑ j ∈ Finset.range m, coefficientNoiseLaw p (lo + ((modulus * j + t : ℕ) : ℤ)) < R := by
+      2 * ∑ j ∈ Finset.range m,
+        coefficientNoiseMeasure p (lo + ((modulus * j + t : ℕ) : ℤ)) < R := by
     intro t ht
     have hle : (∑ j ∈ Finset.range m,
-        coefficientNoiseLaw p (lo + ((modulus * j + t : ℕ) : ℤ))) ≤
-        totalMass (coefficientNoiseLaw p) := by
+        coefficientNoiseMeasure p (lo + ((modulus * j + t : ℕ) : ℤ))) ≤
+        totalMass (coefficientNoiseMeasure p) := by
       rw [← htot]
       exact Finset.single_le_sum
         (f := fun t => ∑ j ∈ Finset.range m,
-          coefficientNoiseLaw p (lo + ((modulus * j + t : ℕ) : ℤ)))
+          coefficientNoiseMeasure p (lo + ((modulus * j + t : ℕ) : ℤ)))
         (fun i _ => Nat.zero_le _) (Finset.mem_range.mpr ht)
     omega
   -- the mass as a fold-weight dot product
   have h1 : decodeFailureMass p = ∑ t ∈ Finset.range modulus,
-      (∑ j ∈ Finset.range m, coefficientNoiseLaw p (lo + ((modulus * j + t : ℕ) : ℤ))) *
+      (∑ j ∈ Finset.range m, coefficientNoiseMeasure p (lo + ((modulus * j + t : ℕ) : ℤ))) *
         decodeFailureWeight (((lo + (t : ℤ)) : ℤ) : Coeff) := by
     rw [decodeFailureMass]
     refine Finset.sum_nbij' (i := fun r => (r - ((lo : ℤ) : Coeff)).val)
@@ -532,30 +574,33 @@ theorem decodeFailureMass_eq (p : ParameterSet) {R : ℕ} {lo : ℤ} {m : ℕ}
         rw [ZMod.natCast_zmod_val]
         ring
       conv_lhs => rw [← harg]
-      rw [foldedNoiseLaw_apply_block p hwin (ZMod.val_lt _)]
+      rw [foldedNoiseMeasure_apply_block p hwin (ZMod.val_lt _)]
   -- extract the dot product from the packings
   have hdot := dot_eq_pack_extract hq
-    (fun t => ∑ j ∈ Finset.range m, coefficientNoiseLaw p (lo + ((modulus * j + t : ℕ) : ℤ)))
+    (fun t => ∑ j ∈ Finset.range m,
+      coefficientNoiseMeasure p (lo + ((modulus * j + t : ℕ) : ℤ)))
     (fun t => decodeFailureWeight (((lo + (t : ℤ)) : ℤ) : Coeff))
     (fun t => decodeFailureWeight_le_two _) (by rw [htot]; exact hden)
   rw [h1, hdot]
-  -- identify the fold packing with the repunit reduction of the law packing
+  -- identify the fold packing with the repunit reduction of the measure packing
   have hpackA : (∑ t ∈ Finset.range modulus,
-      (∑ j ∈ Finset.range m, coefficientNoiseLaw p (lo + ((modulus * j + t : ℕ) : ℤ))) *
-        R ^ t) = lawPack R lo (coefficientNoiseLaw p) % (R ^ modulus - 1) := by
-    rw [lawPack_eq_range_sum hwin,
-      sum_mul_pow_mod_repunit (f := fun i => coefficientNoiseLaw p (lo + (i : ℤ)))
+      (∑ j ∈ Finset.range m, coefficientNoiseMeasure p (lo + ((modulus * j + t : ℕ) : ℤ))) *
+        R ^ t) = measurePack R lo (coefficientNoiseMeasure p) % (R ^ modulus - 1) := by
+    rw [measurePack_eq_range_sum hwin,
+      sum_mul_pow_mod_repunit (f := fun i => coefficientNoiseMeasure p (lo + (i : ℤ)))
         hR hq hfold_lt]
   rw [hpackA]
   -- align the reversed weight indices
   have hw : (∑ t ∈ Finset.range modulus,
       decodeFailureWeight (((lo + ((modulus - 1 - t : ℕ) : ℤ)) : ℤ) : Coeff) * R ^ t) =
       ∑ t ∈ Finset.range modulus,
-        decodeFailureWeight ((lo + ((modulus - 1 : ℕ) : ℤ) - (t : ℤ) : ℤ) : Coeff) * R ^ t := by
+        decodeFailureWeight
+          ((lo + ((modulus - 1 : ℕ) : ℤ) - (t : ℤ) : ℤ) : Coeff) * R ^ t := by
     refine Finset.sum_congr rfl fun t ht => ?_
     have hlt := Finset.mem_range.mp ht
     have hmod1 : (1 : ℕ) ≤ modulus := by norm_num [modulus]
-    have harg : lo + ((modulus - 1 - t : ℕ) : ℤ) = lo + ((modulus - 1 : ℕ) : ℤ) - (t : ℤ) := by
+    have harg : lo + ((modulus - 1 - t : ℕ) : ℤ) =
+        lo + ((modulus - 1 : ℕ) : ℤ) - (t : ℤ) := by
       push_cast [Nat.cast_sub (by omega : t ≤ modulus - 1)]
       ring
     rw [harg]
@@ -567,7 +612,8 @@ into `53` blocks of `64` digits, padding the `3329` weights with zeros up to
 final kernel check. -/
 theorem weightPack_blocked (R : ℕ) (lo : ℤ) :
     (∑ t ∈ Finset.range modulus,
-        decodeFailureWeight ((lo + ((modulus - 1 : ℕ) : ℤ) - (t : ℤ) : ℤ) : Coeff) * R ^ t) =
+        decodeFailureWeight
+          ((lo + ((modulus - 1 : ℕ) : ℤ) - (t : ℤ) : ℤ) : Coeff) * R ^ t) =
       ∑ j ∈ Finset.range 53,
         (∑ i ∈ Finset.range 64,
           (if 64 * j + i < modulus then

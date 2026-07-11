@@ -62,9 +62,34 @@ theorem deltaCorrect_fips203 (p : ParameterSet) (ring : NTTRingOps)
       (Concrete.concreteEncoding (ParameterSet.params p)))
     (hRing : NTTRingLaws ring) (hModel : FIPS203NoiseModel p ring prims) :
     (mlkemScheme p ring prims).deltaCorrect ProbCompRuntime.probComp
-      (fips203DecapsulationFailureBound p) :=
-  deltaCorrect_of_underlying ring _ prims
-    (underlyingCorrectnessError_le_fips203 p ring prims hRing hModel)
+      (fips203DecapsulationFailureBound p)
+```
+
+:::leanPillCaption "`δ`-correctness predicate"
+:::
+
+```anchor deltaCorrect (project := ".") (module := ToVCVio.CryptoFoundations.KeyEncapMech)
+def deltaCorrect (kem : KEMScheme m K PK SK C)
+    (runtime : ProbCompRuntime m) (delta : ℝ≥0∞) : Prop :=
+  kem.correctnessError runtime ≤ delta
+```
+
+:::leanPillCaption "FIPS 203 Table 1 exponents"
+:::
+
+```anchor decapsulationFailureExponent (project := ".") (module := SecureMessaging.KEM.MLKEM.Correctness.FailureRates)
+def decapsulationFailureExponent : ParameterSet → ℚ
+  | .MLKEM512 => 138.8
+  | .MLKEM768 => 164.8
+  | .MLKEM1024 => 174.8
+```
+
+:::leanPillCaption "failure bound $`δ_p = 2^{-e_p}`"
+:::
+
+```anchor fips203DecapsulationFailureBound (project := ".") (module := SecureMessaging.KEM.MLKEM.Correctness.FailureRates)
+noncomputable def fips203DecapsulationFailureBound (p : ParameterSet) : ℝ≥0∞ :=
+  2 ^ (-(decapsulationFailureExponent p : ℝ))
 ```
 
 {usesLabel}`uses` {uses "ml_kem_scheme"}[] · {githubLabel}`github` {githubIssue 219}[]

@@ -117,9 +117,11 @@ noncomputable def correctnessError (kem : KEMScheme m K PK SK C)
   Pr[= false | runtime.evalDist kem.CorrectExp]
 
 /-- `delta`-correctness of `kem` under `runtime`: the correctness error is at most `delta`. -/
+-- ANCHOR: deltaCorrect
 def deltaCorrect (kem : KEMScheme m K PK SK C)
     (runtime : ProbCompRuntime m) (delta : ℝ≥0∞) : Prop :=
   kem.correctnessError runtime ≤ delta
+-- ANCHOR_END: deltaCorrect
 
 end Correctness
 

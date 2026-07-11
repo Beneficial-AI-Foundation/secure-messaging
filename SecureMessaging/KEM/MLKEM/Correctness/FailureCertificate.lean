@@ -8,24 +8,101 @@ import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate.MLKEM1024
 import SecureMessaging.KEM.MLKEM.Correctness.FailureRates
 
 /-!
-# The FIPS 203 Table 1 decode-failure certificate
+# The FIPS 203 Table 1 decode-failure bound
 
-This file evaluates the decode-failure mass of the folded coefficient-noise law
-and proves the FIPS 203 Table 1 decapsulation-failure bounds for the three
-approved parameter sets.
+This file proves the arithmetic part of the FIPS 203 Table 1 failure-rate bound.
+The surrounding correctness chain reduces honest ML-KEM decapsulation failure to
+K-PKE recovery failure, then to the event that at least one of the `256`
+coefficients decodes to the wrong message bit.
 
-The evaluation packs a windowed law into one natural number in base `R`
-(Kronecker substitution): convolution becomes multiplication (`lawPack_mul`),
-iterated convolution becomes a power (`lawPack_pow`), reduction modulo `q`
-becomes reduction modulo the repunit `R ^ q - 1` (`sum_mul_pow_mod_repunit`),
-and the weighted decode-failure mass becomes one base-`R` digit of one product
-(`decodeFailureMass_eq`). The kernel checks each parameter set by evaluating
-the packed arithmetic at `R = 2 ^ W`.
+For one coefficient the exact question is:
 
-The Table 1 exponents have exact fifth parts, so each comparison against
-`2 ^ (-e_p)` is decided by an exact integer test on fifth powers
-(`decodeFailureMass_pow_five_le`); `decodeFailureMass_le_fips203Bound` casts it
-to the `ℝ≥0∞` bound `fips203DecapsulationFailureBound`.
+`Compress₁ (Decompress₁ b + r) ≠ b`,
+
+where `b ∈ {0,1}` is the message bit and `r` is the decryption-noise residue
+modulo `q = 3329`. `decodeFailureWeight r` counts how many of the two bits fail
+for that residue. `decodeFailureMass p` folds the integer coefficient-noise
+counting measure modulo `q`, weights it by `decodeFailureWeight`, and sums. Thus
+
+`decodeFailureMass p / (2 * noiseDenominator p)`
+
+is the bit-averaged one-coordinate failure probability obtained by normalizing
+the finite counting measure. Multiplying by `ringDegree = 256` gives the
+union-bound estimate for any coefficient failing.
+
+The arithmetic proof uses the following precise encoding of a finite counting
+measure. Let `F : ℤ →₀ ℕ` be supported in `[lo, hi]`, i.e.
+
+`F(v) ≠ 0 → lo ≤ v ∧ v ≤ hi`.
+
+On the discrete measurable space `ℤ`, this finitely supported function is the
+finite measure
+
+`μ_F(A) = ∑_{v ∈ A} F(v)`
+
+for finite/countable subsets `A ⊆ ℤ`; in particular the mass of the singleton
+`{v}` is `μ_F({v}) = F(v)`. Its total mass is
+
+`|F| = μ_F(ℤ) = ∑_v F(v)`.
+
+This is not yet a probability measure unless `|F| = 1`. In this development the
+coefficient-noise measures are deliberately kept as natural-number counts. When
+`|F| ≠ 0`, the associated probability is obtained by normalization:
+
+`Pr_F(A) = μ_F(A) / |F|`.
+
+For the ML-KEM coefficient-noise measure, `|F| = noiseDenominator p`; the
+extra factor `2` in `2 * noiseDenominator p` comes from averaging over the two
+message bits.
+
+Define the mass-generating polynomial
+
+`P_{F,lo}(X) = ∑_{v=lo}^{hi} F(v) X^(v - lo) ∈ ℕ[X]`
+
+This polynomial is not itself the measure or a probability distribution. It is
+an algebraic encoding of the singleton masses: the coefficient of `X^(v - lo)`
+is exactly `μ_F({v}) = F(v)`. Evaluating it at a natural number `R` gives
+
+`measurePack R lo F = P_{F,lo}(R) = ∑_{v=lo}^{hi} F(v) R^(v - lo)`.
+
+The radix `R` is chosen so that every coefficient extracted during the proof is
+strictly less than `R`; hence if `0 ≤ t ≤ hi - lo`, then
+
+`F(lo + t) = (measurePack R lo F / R^t) % R`.
+
+This is ordinary polynomial evaluation plus a no-carry bound.
+
+For the additive convolution
+
+`(F * G)(v) = ∑_{a+b=v} F(a) G(b)`,
+
+the generating polynomials satisfy
+
+`P_{F*G,lo₁+lo₂}(X) = P_{F,lo₁}(X) P_{G,lo₂}(X)`,
+
+so `measurePack_mul` turns convolution into multiplication after evaluation at
+`R`, and `measurePack_pow` turns iterated convolution into exponentiation.
+
+For reduction modulo `q`, if the support is contained in `lo .. lo + q*m - 1`,
+the folded mass at residue `t` is
+
+`F_q(t) = ∑_{j=0}^{m-1} F(lo + q*j + t)`.
+
+Since `X^q = 1` in the quotient `ℕ[X]/(X^q - 1)`, evaluating at `R` makes this
+folding a reduction modulo `R^q - 1` (`sum_mul_pow_mod_repunit`). Finally,
+`decodeFailureMass_eq` computes
+
+`∑_{t=0}^{q-1} F_q(t) * decodeFailureWeight(lo + t)`
+
+as the middle coefficient of the product with the reversed weight polynomial.
+The per-parameter modules instantiate this arithmetic at `R = 2 ^ W`.
+
+FIPS 203 writes the Table 1 exponents with one decimal place:
+`2^-138.8`, `2^-164.8`, and `2^-174.8`. Taking fifth powers clears those decimal
+exponents because `5 * 138.8 = 694`, `5 * 164.8 = 824`, and
+`5 * 174.8 = 874`. Lean first checks the resulting natural-number inequality
+(`decodeFailureMass_pow_five_le`), then `decodeFailureMass_le_fips203Bound`
+casts it to the `ℝ≥0∞` probability bound `fips203DecapsulationFailureBound`.
 
 The evaluation is split across the `FailureCertificate/` modules so no single
 elaboration process holds more than one heavy kernel check.
@@ -40,9 +117,12 @@ private theorem decapsulationFailureExponent_mul_five (p : ParameterSet) :
     decapsulationFailureExponent p * 5 = (scaledFailureExponent p : ℚ) := by
   cases p <;> norm_num [decapsulationFailureExponent, scaledFailureExponent]
 
-/-- The exact fifth-power certificate: the bit-summed decode-failure mass of the
-folded coefficient-noise law, summed over the `256` coefficients against twice
-the total mass, is at most the FIPS 203 Table 1 rate. -/
+/-- The exact fifth-power arithmetic check. It proves the natural-number form of
+
+`256 * decodeFailureMass p / (2 * noiseDenominator p) ≤ 2^(-e_p)`,
+
+where `e_p` is the FIPS 203 Table 1 exponent. The fifth powers clear the single
+decimal place in `e_p`, so the proof reduces to integer arithmetic. -/
 theorem decodeFailureMass_pow_five_le (p : ParameterSet) :
     (ringDegree * decodeFailureMass p) ^ 5 * 2 ^ scaledFailureExponent p ≤
       (2 * noiseDenominator p) ^ 5 := by
@@ -57,10 +137,12 @@ private theorem ennreal_div_le_two_rpow {a b E : ℕ} {e : ℚ} (hb : b ≠ 0)
   have cast5 : ∀ x : ℝ≥0∞, x ^ (5 : ℝ) = x ^ (5 : ℕ) := fun x => by
     rw [← ENNReal.rpow_natCast x 5]; norm_num
   rw [← ENNReal.rpow_le_rpow_iff (z := 5) (by norm_num)]
-  have hLHS : ((a : ℝ≥0∞) / b) ^ (5 : ℝ) = (↑(a ^ 5) : ℝ≥0∞) / (↑(b ^ 5) : ℝ≥0∞) := by
+  have hLHS : ((a : ℝ≥0∞) / b) ^ (5 : ℝ) =
+      (↑(a ^ 5) : ℝ≥0∞) / (↑(b ^ 5) : ℝ≥0∞) := by
     rw [ENNReal.div_rpow_of_nonneg _ _ (by norm_num : (0 : ℝ) ≤ 5), cast5, cast5]
     norm_cast
-  have hRHS : ((2 : ℝ≥0∞) ^ (-(e : ℝ))) ^ (5 : ℝ) = ((2 ^ E : ℕ) : ℝ≥0∞)⁻¹ := by
+  have hRHS : ((2 : ℝ≥0∞) ^ (-(e : ℝ))) ^ (5 : ℝ) =
+      ((2 ^ E : ℕ) : ℝ≥0∞)⁻¹ := by
     rw [← ENNReal.rpow_mul, neg_mul, h5, ENNReal.rpow_neg, ENNReal.rpow_natCast]
     norm_cast
   rw [hLHS, hRHS,
@@ -69,9 +151,9 @@ private theorem ennreal_div_le_two_rpow {a b E : ℕ} {e : ℚ} (hb : b ≠ 0)
       (ENNReal.natCast_ne_top _), ← Nat.cast_mul, Nat.cast_le, mul_comm (2 ^ E) (a ^ 5)]
   exact h
 
-/-- The certificate laws satisfy the FIPS 203 Table 1 bound: the `256`-fold
-bit-averaged decode-failure mass of the folded coefficient-noise law is at most
-the decapsulation-failure bound of the parameter set. -/
+/-- The coefficient-noise finite-measure computation satisfies the FIPS 203 Table 1 bound:
+the union-bound estimate for the `256` coordinate decode-failure events is at
+most the advertised decapsulation-failure probability for the parameter set. -/
 theorem decodeFailureMass_le_fips203Bound (p : ParameterSet) :
     (ringDegree : ℝ≥0∞) * decodeFailureMass p / (2 * noiseDenominator p) ≤
       fips203DecapsulationFailureBound p := by
