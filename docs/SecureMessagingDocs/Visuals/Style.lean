@@ -83,6 +83,36 @@ def smDocsCss : String := r#"
   grid-column: 1 / -1;
 }
 
+.game-cell[data-kind^="compact"] {
+  grid-column: auto;
+}
+
+.game-cell[data-kind^="compact"] .game-cell-body {
+  font-size: 0.84em;
+}
+
+.game-cell[data-kind^="compact"] .game-cell-header {
+  font-size: 0.92em;
+}
+
+.game-cell[data-kind="compact-send"] {
+  order: 1;
+}
+
+.game-cell[data-kind="compact-recv"] {
+  order: 2;
+}
+
+@media (max-width: 640px) {
+  .game-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .game-cell[data-kind^="compact"] {
+    grid-column: 1 / -1;
+  }
+}
+
 /* The cell's title bar: experiment/oracle name (math) on the left, the state
    slice it touches on the right. One uniform colour/font for every box. */
 .game-cell-header {
@@ -214,6 +244,18 @@ p.lean-pill-caption {
 .lean-anchor-row {
   margin: 1rem 0;
 }
+
+/* Keep an algorithm and its Lean pill on the same line when space permits. */
+.game-cell[data-kind^="compact"] .game-cell-body p:has(+ .lean-anchor-row) {
+  display: inline;
+  margin: 0;
+}
+.game-cell[data-kind^="compact"] .game-cell-body p + .lean-anchor-row {
+  display: inline-block;
+  margin: 0 0 0.45rem 0.5rem;
+  vertical-align: baseline;
+}
+
 .lean-anchor-head {
   display: flex;
   align-items: baseline;

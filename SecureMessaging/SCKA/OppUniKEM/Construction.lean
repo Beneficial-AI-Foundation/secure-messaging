@@ -142,21 +142,25 @@ abbrev StB {kem : KEMScheme m K PK SK C} (onoff : kem.OnOffStructure)
   StateB PK onoff.C₀ onoff.C₁ onoff.St Sym
 
 /-- `CKA-Init-KeyGen`: `I_CKA := ⊥` (there is no shared initial key). -/
--- ANCHOR: initAlgorithms
+-- ANCHOR: initKeyGen
 def initKeyGen : m Unit := pure ()
+-- ANCHOR_END: initKeyGen
 
 /-- `CKA-Init-A`: `st_A ← (⊥, ⊥, ⊥, 1, 0, ∅, (false, false))`. -/
+-- ANCHOR: initA
 def initA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     (_ik : Unit) : m (StA onoff Sym) :=
   pure { dkA := none, ekA := none, ct0 := none, t := 1, ich := 0, lch := ∅,
          ack := { ekRec := false, ctRec := false } }
+-- ANCHOR_END: initA
 
 /-- `CKA-Init-B`: `st_B ← (⊥, ⊥, ⊥, ⊥, 1, 0, ∅, (false, false))`. -/
+-- ANCHOR: initB
 def initB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     (_ik : Unit) : m (StB onoff Sym) :=
   pure { ekA := none, ct0 := none, ct1 := none, stCt := none, t := 1, ich := 0,
          lch := ∅, ack := { ekRec := false, ctRec := false } }
--- ANCHOR_END: initAlgorithms
+-- ANCHOR_END: initB
 
 /-- `CKA-Send-A`.
 
@@ -177,7 +181,6 @@ return ((⊥, ⊥), rho, t - 1, st_A)
 def sendA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
   (ecEk : ErasureCodePayload PK Sym) (stA : StA onoff Sym) :
     m (Option (Option (ℕ × K) × Message Sym × ℕ × StA onoff Sym)) := do
--- ANCHOR_END: sendA
   let (dkA, ekA, ich) ←
     match stA.dkA with
     | none => do
@@ -197,6 +200,7 @@ def sendA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
   let msg := (ch?, stA.ack, stA.t, none)
   let stA' := { stA with dkA := dkA, ekA := ekA, ich := ich }
   pure (some (none, msg, stA.t - 1, stA'))
+-- ANCHOR_END: sendA
 
 /-- Randomness-leaking `CKA-Send-A`, also returning the send coins.
 
@@ -209,7 +213,6 @@ def sendArleak (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
   (leak : KEMScheme.OnOffRandLeak kem onoff) (stA : StA onoff Sym) :
   m (Option (Option (ℕ × K) × Message Sym × ℕ × StA onoff Sym ×
     SendRand leak.KeygenRand leak.OffRand leak.OnRand)) := do
--- ANCHOR_END: sendArleak
     let (dkA, ekA, ich, rand) ←
       match stA.dkA with
       | none => do
@@ -232,6 +235,7 @@ def sendArleak (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     let stA' := { stA with dkA := dkA, ekA := ekA, ich := ich }
     -- normal send output plus randomness-leakage
     pure (some (none, msg, stA.t - 1, stA', rand))
+-- ANCHOR_END: sendArleak
 
 /-- `CKA-Rec-A`.
 
@@ -269,7 +273,6 @@ def recvA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
   (stA : StA onoff Sym) (ρ : Message Sym) :
     Option (Option (ℕ × K) × ℕ × StA onoff Sym) :=
--- ANCHOR_END: recvA
   let (ch?, ack', t', b?) := ρ
   let (key?, stA') :=
     if stA.t = t' then
@@ -323,6 +326,7 @@ def recvA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     else
       (none, stA)
   some (key?, t' - 1, stA')
+-- ANCHOR_END: recvA
 
 /-- `CKA-Send-B`.
 
@@ -353,7 +357,6 @@ def sendB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (stB : StB onoff Sym) :
     m (Option (Option (ℕ × K) × Message Sym × ℕ × StB onoff Sym)) := do
--- ANCHOR_END: sendB
   let (stB, ct0, ich) ←
   match stB.ct0 with
   | none => do -- first message of the epoch: run offline encapsulation
@@ -392,6 +395,7 @@ def sendB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
       let msg := (ch?, stB.ack, stB.t, some 1)
       let stB' := { stB with ich := ich }
       pure (some (none, msg, stB.t - 1, stB'))
+-- ANCHOR_END: sendB
 
 /-- Randomness-leaking `CKA-Send-B`: follows `sendB` branch-for-branch, also
 returning the coins of the encapsulation phases run by this send. -/
@@ -403,7 +407,6 @@ def sendBrleak (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     m (Option (Option (ℕ × K) × Message Sym × ℕ × StB onoff Sym ×
       SendRand leak.KeygenRand leak.OffRand leak.OnRand)) :=
   do
--- ANCHOR_END: sendBrleak
     let (stB, ct0, ich, rOff?) ←
       match stB.ct0 with
       | none => do
@@ -454,6 +457,7 @@ def sendBrleak (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
           let msg := (ch?, stB.ack, stB.t, some 1)
           let stB' := { stB with ich := ich }
           pure (some (none, msg, stB.t - 1, stB', offRand))
+-- ANCHOR_END: sendBrleak
 
 /-- `CKA-Rec-B`.
 
@@ -479,7 +483,6 @@ def recvB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     [DecidableEq Sym]
     (ecEk : ErasureCodePayload PK Sym) (stB : StB onoff Sym) (ρ : Message Sym) :
     Option (Option (ℕ × K) × ℕ × StB onoff Sym) :=
--- ANCHOR_END: recvB
   let (ch?, ack', t', _b?) := ρ
   -- first message of the next epoch: advance and reset the per-epoch state
   let stB :=
@@ -509,18 +512,21 @@ def recvB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     else
       stB
   some (none, t' - 1, stB)
+-- ANCHOR_END: recvB
 
 /-- A's vulnerable epoch set (Fig. 16: `{t}` iff `dk_A ≠ ⊥`). -/
--- ANCHOR: vulnerableStates
+-- ANCHOR: vulnA
 def vulnA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     (stA : StA onoff Sym) : Finset ℕ :=
   if stA.dkA.isSome then {stA.t} else ∅
+-- ANCHOR_END: vulnA
 
 /-- B's vulnerable epoch set (Fig. 16: `{t}` iff `st_ct ≠ ⊥`). -/
+-- ANCHOR: vulnB
 def vulnB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     (stB : StB onoff Sym) : Finset ℕ :=
   if stB.stCt.isSome then {stB.t} else ∅
--- ANCHOR_END: vulnerableStates
+-- ANCHOR_END: vulnB
 
 /-- The Opp-UniKEM-CKA protocol as an `SCKAScheme` instance. -/
 -- ANCHOR: scheme
