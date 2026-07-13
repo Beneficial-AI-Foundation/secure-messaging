@@ -25,8 +25,8 @@ primitives are the two supplied slots. `mlkem512Scheme`, `mlkem768Scheme`, and
 `mlkem1024Scheme` fix those slots to the concrete NTT and the FFI-backed
 SHA-3/SHAKE primitives.
 
-The δ-correctness of these schemes under the FIPS 203 noise model is stated in
-`SecureMessaging.KEM.MLKEM.Correctness`.
+The δ-correctness of these schemes under the `CoefficientFailureBound`
+hypothesis is stated in `SecureMessaging.KEM.MLKEM.Correctness`.
 -/
 
 open OracleComp KEMScheme ENNReal

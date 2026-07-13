@@ -60,7 +60,7 @@ $`\todo`
 theorem deltaCorrect_fips203 (p : ParameterSet) (ring : NTTRingOps)
     (prims : Primitives (ParameterSet.params p)
       (Concrete.concreteEncoding (ParameterSet.params p)))
-    (hRing : NTTRingLaws ring) (hModel : FIPS203NoiseModel p ring prims) :
+    (hRing : NTTRingLaws ring) (hModel : CoefficientFailureBound p ring prims) :
     (mlkemScheme p ring prims).deltaCorrect ProbCompRuntime.probComp
       (fips203DecapsulationFailureBound p)
 ```
