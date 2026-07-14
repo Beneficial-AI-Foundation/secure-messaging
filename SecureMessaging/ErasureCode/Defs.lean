@@ -39,8 +39,7 @@ correctness requires, for all `M` and all `I`:
 - `nchunk`: the message size; a message is an `nchunk`-tuple of symbols: `Fin nchunk → Sym`;
 - `encode M i`: the chunk encoding of message `M` at index `i`;
 - `decode L`: recovers a message from a chunk set `L`, or fails (`none`).
-
-`encode` and `decode` are deterministic. -/
+-/
 -- ANCHOR: ErasureCode
 structure ErasureCode (Sym : Type) where
   /-- Intended block length. -/
@@ -57,9 +56,9 @@ structure ErasureCode (Sym : Type) where
 structure ErasureCodePayload (M Sym : Type) where
   /-- The erasure code used for this payload type. -/
   ec : ErasureCode Sym
-  /-- Serialize a payload as the source block consumed by `ec.encode`. -/
+  /-- Serialize a payload as the `nchunk`-symbol message consumed by `ec.encode`. -/
   serialize : M → Fin ec.nchunk → Sym
-  /-- Parse an erasure-code source block back into a payload, or fail. -/
+  /-- Parse a decoded `nchunk`-symbol message as a payload, or fail. -/
   parse : (Fin ec.nchunk → Sym) → Option M
 
 namespace ErasureCodePayload
