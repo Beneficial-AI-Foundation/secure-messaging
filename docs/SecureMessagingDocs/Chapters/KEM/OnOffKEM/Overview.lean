@@ -62,10 +62,6 @@ structure OnOffStructure (kem : KEMScheme m K PK SK C) where
 :::
 
 ::::definition "on_off_kem_rand_leak" (parent := "on_off_kem") (lean := "KEMScheme.OnOffRandLeak")
-`OnOffRandLeak` refines ordinary KEM randomness leakage into the three
-randomized phases used by an on-off KEM: key generation, offline encapsulation,
-and online encapsulation.  Its projection fields require the first component of
-each leaking algorithm to coincide with the corresponding ordinary algorithm.
 
 ```anchor OnOffRandLeak (project := ".") (module := SecureMessaging.KEM.OnOffKEM.Defs)
 structure OnOffRandLeak (kem : KEMScheme m K PK SK C)

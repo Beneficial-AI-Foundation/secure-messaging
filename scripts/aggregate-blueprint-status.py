@@ -123,8 +123,7 @@ def decl_proved(decl: dict) -> bool:
 
 
 def dependency_labels(entry: dict, field: str) -> tuple[str, ...]:
-    # Manifest dependency records carry additional rendering metadata; readiness
-    # only needs their globally unique Blueprint labels.
+    # Reduce manifest dependency records to labels for global Atom lookup.
     uses = entry.get(field, [])
     if not isinstance(uses, list):
         return ()
