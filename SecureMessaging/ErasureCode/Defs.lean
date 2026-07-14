@@ -23,10 +23,8 @@ An *erasure code* over a set of symbols `Σ`, with block length `N` and message 
 - `Decode(L) → M`: from a chunk set `L ⊆ ℕ × Σ`, recovers `M ∈ Σ^nchunk`
   or fails with `⊥`.
 
-Both are modelled as *deterministic* functions: decoding is order-independent and
-depends only on the set of received chunks (the paper states the algorithms as PPT,
-but correctness — and concrete instantiations such as Reed–Solomon — treat them as
-deterministic).
+This model restricts `Encode` and `Decode` to deterministic functions, covering
+deterministic codes such as Reed-Solomon.
 
 Writing `L_I = {(i, Encode(M, i)) | i ∈ I}` for the chunks of `M` at indices `I ⊆ ℕ`,
 correctness requires, for all `M` and all `I`:

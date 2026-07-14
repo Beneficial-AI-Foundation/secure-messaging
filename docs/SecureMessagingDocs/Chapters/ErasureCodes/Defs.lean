@@ -30,7 +30,10 @@ Erasure Codes.
 :::
 
 ::::definition "erasure_code_scheme" (parent := "erasure_codes") (lean := "ErasureCode")
-$`\todo`
+An erasure code over an alphabet $`\Sigma`$ consists of a block length $`N`$, message
+size $`n_{\mathsf{chunk}}`$, an encoder, and a decoder. We represent
+the encoder and decoder as deterministic functions, covering deterministic codes
+such as Reed-Solomon.
 
 ```anchor ErasureCode (project := ".") (module := SecureMessaging.ErasureCode.Defs)
 structure ErasureCode (Sym : Type) where
