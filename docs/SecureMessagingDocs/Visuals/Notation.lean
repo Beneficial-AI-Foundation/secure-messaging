@@ -34,19 +34,33 @@ r#"
 \newcommand{\pif}{\mathsf{if}}                                           % pseudocode "if"
 \newcommand{\pthen}{\mathsf{then}}                                       % pseudocode "then"
 \newcommand{\pelse}{\mathsf{else}}                                       % pseudocode "else"
+\newcommand{\pcomment}[1]{\quad/\!/\;{\small #1}}                         % inline pseudocode comment
 
 % --- CKA party state and operations ---
+\newcommand{\A}{\mathsf{A}}                              % party A
+\newcommand{\B}{\mathsf{B}}                              % party B
 \newcommand{\lcka}{\mathsf{l_{\mathsf{CKA}}}}            % CKA initial shared key (l_CKA)
-\newcommand{\stA}{\mathsf{st}_\mathsf{A}}               % party A's local state
-\newcommand{\stB}{\mathsf{st}_\mathsf{B}}               % party B's local state
-\newcommand{\InitA}{\mathsf{Init}\text{-}\mathsf{A}}    % A's initialization algorithm
-\newcommand{\InitB}{\mathsf{Init}\text{-}\mathsf{B}}    % B's initialization algorithm
-\newcommand{\SendA}{\mathsf{Send}\text{-}\mathsf{A}}    % A's send algorithm
-\newcommand{\SendB}{\mathsf{Send}\text{-}\mathsf{B}}    % B's send algorithm
-\newcommand{\SendARLeak}{\mathsf{Send}\text{-}\mathsf{A}\text{-}\mathsf{rleak}} % A's randomness-leaking send algorithm
-\newcommand{\SendBRLeak}{\mathsf{Send}\text{-}\mathsf{B}\text{-}\mathsf{rleak}} % B's randomness-leaking send algorithm
-\newcommand{\RecA}{\mathsf{Rec}\text{-}\mathsf{A}}      % A's receive algorithm
-\newcommand{\RecB}{\mathsf{Rec}\text{-}\mathsf{B}}      % B's receive algorithm
+\newcommand{\stA}{\mathsf{st}_{\A}}                     % party A's local state
+\newcommand{\stB}{\mathsf{st}_{\B}}                     % party B's local state
+\newcommand{\dkA}{\mathsf{dk}_{\A}}                     % A's decapsulation key
+\newcommand{\ekA}{\mathsf{ek}_{\A}}                     % A's encapsulation key
+\newcommand{\ctzero}{\mathsf{ct}_0}                     % offline ciphertext
+\newcommand{\ctone}{\mathsf{ct}_1}                      % online ciphertext
+\newcommand{\stct}{\mathsf{st}_{\mathsf{ct}}}           % offline encapsulation state
+\newcommand{\ich}{i_{\mathsf{ch}}}                      % chunk counter
+\newcommand{\Lch}{L_{\mathsf{ch}}}                      % received chunk set
+\newcommand{\chunk}{\mathsf{ch}}                        % encoded chunk
+\newcommand{\ack}{\mathsf{ack}}                         % acknowledgement record
+\newcommand{\ekrec}{\mathsf{ek\text{-}rec}}             % encapsulation-key acknowledgement
+\newcommand{\ctrec}{\mathsf{ct}_0\text{-}\mathsf{rec}}  % offline-ciphertext acknowledgement
+\newcommand{\InitA}{\mathsf{Init}\text{-}\A}            % A's initialization algorithm
+\newcommand{\InitB}{\mathsf{Init}\text{-}\B}            % B's initialization algorithm
+\newcommand{\SendA}{\mathsf{Send}\text{-}\A}            % A's send algorithm
+\newcommand{\SendB}{\mathsf{Send}\text{-}\B}            % B's send algorithm
+\newcommand{\SendARLeak}{\mathsf{Send}\text{-}\A\text{-}\mathsf{rleak}} % A's randomness-leaking send algorithm
+\newcommand{\SendBRLeak}{\mathsf{Send}\text{-}\B\text{-}\mathsf{rleak}} % B's randomness-leaking send algorithm
+\newcommand{\RecA}{\mathsf{Rec}\text{-}\A}              % A's receive algorithm
+\newcommand{\RecB}{\mathsf{Rec}\text{-}\B}              % B's receive algorithm
 \newcommand{\finished}{\mathsf{finished}}               % "party finished" corruption-game predicate
 \newcommand{\KeyGen}{\mathsf{KeyGen}}
 \newcommand{\Init}{\mathsf{Init}}
@@ -73,16 +87,16 @@ r#"
 % oracle names and oracle sets (for the adversary access lists)
 \newcommand{\Oenc}{\mathsf{O}\text{-}\mathsf{Enc}}
 \newcommand{\Odec}{\mathsf{O}\text{-}\mathsf{Dec}}
-\newcommand{\OSendA}{\mathsf{O}\text{-}\mathsf{Send}\text{-}\mathsf{A}}
-\newcommand{\OSendB}{\mathsf{O}\text{-}\mathsf{Send}\text{-}\mathsf{B}}
-\newcommand{\OSendARLeak}{\mathsf{O}\text{-}\mathsf{Send}\text{-}\mathsf{A}\text{-}\mathsf{rleak}}
-\newcommand{\OSendBRLeak}{\mathsf{O}\text{-}\mathsf{Send}\text{-}\mathsf{B}\text{-}\mathsf{rleak}}
-\newcommand{\ORecA}{\mathsf{O}\text{-}\mathsf{Rec}\text{-}\mathsf{A}}
-\newcommand{\ORecB}{\mathsf{O}\text{-}\mathsf{Rec}\text{-}\mathsf{B}}
-\newcommand{\OChallA}{\mathsf{O}\text{-}\mathsf{Chall}\text{-}\mathsf{A}}
-\newcommand{\OChallB}{\mathsf{O}\text{-}\mathsf{Chall}\text{-}\mathsf{B}}
-\newcommand{\OCorrA}{\mathsf{O}\text{-}\mathsf{Corr}\text{-}\mathsf{A}}
-\newcommand{\OCorrB}{\mathsf{O}\text{-}\mathsf{Corr}\text{-}\mathsf{B}}
+\newcommand{\OSendA}{\mathsf{O}\text{-}\mathsf{Send}\text{-}\A}
+\newcommand{\OSendB}{\mathsf{O}\text{-}\mathsf{Send}\text{-}\B}
+\newcommand{\OSendARLeak}{\mathsf{O}\text{-}\mathsf{Send}\text{-}\A\text{-}\mathsf{rleak}}
+\newcommand{\OSendBRLeak}{\mathsf{O}\text{-}\mathsf{Send}\text{-}\B\text{-}\mathsf{rleak}}
+\newcommand{\ORecA}{\mathsf{O}\text{-}\mathsf{Rec}\text{-}\A}
+\newcommand{\ORecB}{\mathsf{O}\text{-}\mathsf{Rec}\text{-}\B}
+\newcommand{\OChallA}{\mathsf{O}\text{-}\mathsf{Chall}\text{-}\A}
+\newcommand{\OChallB}{\mathsf{O}\text{-}\mathsf{Chall}\text{-}\B}
+\newcommand{\OCorrA}{\mathsf{O}\text{-}\mathsf{Corr}\text{-}\A}
+\newcommand{\OCorrB}{\mathsf{O}\text{-}\mathsf{Corr}\text{-}\B}
 \renewcommand{\O}{\mathcal{O}}
 \newcommand{\Ocor}{\mathcal{O}_{\mathsf{cor}}}
 \newcommand{\Osec}{\mathcal{O}_{\mathsf{sec}}}

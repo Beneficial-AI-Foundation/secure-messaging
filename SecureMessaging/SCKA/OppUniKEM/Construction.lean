@@ -147,6 +147,7 @@ def initKeyGen : m Unit := pure ()
 -- ANCHOR_END: initKeyGen
 
 /-- `CKA-Init-A`: `st_A ← (⊥, ⊥, ⊥, 1, 0, ∅, (false, false))`. -/
+@[nolint unusedArguments]
 -- ANCHOR: initA
 def initA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     (_ik : Unit) : m (StA onoff Sym) :=
@@ -155,6 +156,7 @@ def initA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 -- ANCHOR_END: initA
 
 /-- `CKA-Init-B`: `st_B ← (⊥, ⊥, ⊥, ⊥, 1, 0, ∅, (false, false))`. -/
+@[nolint unusedArguments]
 -- ANCHOR: initB
 def initB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     (_ik : Unit) : m (StB onoff Sym) :=

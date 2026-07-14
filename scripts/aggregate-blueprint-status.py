@@ -62,6 +62,8 @@ class Atom:
     href: str
     specified: bool
     verified: bool
+    statement_uses: tuple[str, ...]
+    proof_uses: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -120,6 +122,19 @@ def decl_proved(decl: dict) -> bool:
     return decl.get("provedStatus") == "proved"
 
 
+def dependency_labels(entry: dict, field: str) -> tuple[str, ...]:
+    # Manifest dependency records carry additional rendering metadata; readiness
+    # only needs their globally unique Blueprint labels.
+    uses = entry.get(field, [])
+    if not isinstance(uses, list):
+        return ()
+    return tuple(
+        use["label"]
+        for use in uses
+        if isinstance(use, dict) and isinstance(use.get("label"), str) and use["label"]
+    )
+
+
 def classify(entry: dict, chapter: str) -> Atom:
     # Convert one preview manifest entry into an Atom status record.
     decls = code_decls(entry)
@@ -134,6 +149,8 @@ def classify(entry: dict, chapter: str) -> Atom:
         href=entry.get("href", ""),
         specified=specified,
         verified=verified,
+        statement_uses=dependency_labels(entry, "statementUses"),
+        proof_uses=dependency_labels(entry, "proofUses"),
     )
 
 
@@ -214,9 +231,12 @@ def normalize_chapter_href(chapter: str, href: str) -> str:
     return posixpath.normpath(f"{chapter}/Blueprint-Summary/{href}")
 
 
-def extract_ready_next_items(summary_html: str, chapter: str) -> list[ReadyNextItem]:
-    # Extract atoms listed in a chapter's Ready next summary section.
-    return extract_summary_section_items(summary_html, chapter, "Ready next")
+def normalize_atom_href(chapter: str, href: str) -> str:
+    # Manifest atom hrefs are relative to the chapter root, unlike links parsed
+    # from the chapter's Blueprint-Summary page.
+    if href.startswith(("http://", "https://", "#")):
+        return href
+    return posixpath.normpath(f"{chapter}/{href}")
 
 
 def extract_current_blocker_items(summary_html: str, chapter: str) -> list[ReadyNextItem]:
@@ -246,15 +266,66 @@ def extract_summary_section_items(summary_html: str, chapter: str, section_title
     return items
 
 
+def dependencies_formalized(
+    labels: tuple[str, ...],
+    atom_by_label: dict[str, Atom],
+    dependency_field: str,
+    visited: frozenset[str] = frozenset(),
+) -> bool:
+    # Reproduce Verso's dependency-closure check over the assembled split site.
+    # Unlike a per-chapter render, this global index can follow cross-chapter
+    # dependencies after all manifests have been generated.
+    for label in labels:
+        if label in visited:
+            continue
+        dependency = atom_by_label.get(label)
+        if dependency is None or not dependency.verified:
+            return False
+        nested = getattr(dependency, dependency_field)
+        if not dependencies_formalized(
+            nested,
+            atom_by_label,
+            dependency_field,
+            visited | {label},
+        ):
+            return False
+    return True
+
+
+def atom_ready_next(atom: Atom, atom_by_label: dict[str, Atom]) -> bool:
+    if atom.verified:
+        return False
+    if atom.kind == "theorem":
+        # Verso treats an existing incomplete proof as immediately actionable.
+        if atom.specified:
+            return True
+        return dependencies_formalized(
+            atom.statement_uses, atom_by_label, "statement_uses"
+        ) and dependencies_formalized(
+            atom.proof_uses, atom_by_label, "proof_uses"
+        )
+    return dependencies_formalized(
+        atom.statement_uses, atom_by_label, "statement_uses"
+    )
+
+
 def load_ready_next_by_chapter(site_dir: Path) -> dict[str, list[ReadyNextItem]]:
-    # Load Ready next items from every chapter summary page.
-    ready_by_chapter: dict[str, list[ReadyNextItem]] = {}
-    for summary_file in sorted(site_dir.glob("*/Blueprint-Summary/index.html")):
-        chapter = summary_file.parts[-3]
-        items = extract_ready_next_items(summary_file.read_text(), chapter)
-        if items:
-            ready_by_chapter[chapter] = items
-    return ready_by_chapter
+    # Compute readiness from the global manifest set. Chapter-local Blueprint
+    # summaries cannot classify entries whose prerequisites live in another
+    # independently rendered manual.
+    atoms = load_atoms(site_dir)
+    atom_by_label = {atom.label: atom for atom in atoms}
+    ready_by_chapter: dict[str, list[ReadyNextItem]] = defaultdict(list)
+    for atom in atoms:
+        if atom_ready_next(atom, atom_by_label):
+            ready_by_chapter[atom.chapter].append(
+                ReadyNextItem(
+                    chapter=atom.chapter,
+                    label=atom.label,
+                    href=normalize_atom_href(atom.chapter, atom.href),
+                )
+            )
+    return dict(ready_by_chapter)
 
 
 def load_current_blockers_by_chapter(site_dir: Path) -> dict[str, list[ReadyNextItem]]:

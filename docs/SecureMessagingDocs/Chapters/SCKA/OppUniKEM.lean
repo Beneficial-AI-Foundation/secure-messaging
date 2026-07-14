@@ -31,8 +31,9 @@ Opp-UniKEM-CKA.
 :::
 
 :::::::definition "opp_unikem_cka_spec" (parent := "cka_protocols_opp_unikem_cka") (lean := "oppUniKemCKA.initKeyGen, oppUniKemCKA.initA, oppUniKemCKA.initB, oppUniKemCKA.vulnA, oppUniKemCKA.vulnB, oppUniKemCKA.sendA, oppUniKemCKA.sendArleak, oppUniKemCKA.recvA, oppUniKemCKA.sendB, oppUniKemCKA.sendBrleak, oppUniKemCKA.recvB, oppUniKemCKA.scheme")
-Specification of the Opp-UniKEM-CKA protocol from Figure 16 of
-{Informal.citet SCKA25}[].
+Figure 16 of {Informal.citet SCKA25}[]. The boxed checks $`\boxed{t=t'}` are our additions. They prevent old
+  acknowledgements from affecting a new epoch.
+
 ::::::gameGrid
 :::::gameCell "\\textsf{Initialisation}" (kind := "compact")
 $`\mathsf{CKA}\text{-}\mathsf{InitKeyGen}(): \quad
@@ -41,9 +42,13 @@ I_{\mathsf{CKA}}\gets\bot;\quad \mathsf{return}\;I_{\mathsf{CKA}}`
 def initKeyGen : m Unit := pure ()
 ```
 
-$`\mathsf{CKA}\text{-}\mathsf{Init}\text{-}\mathsf{A}(\bot): \quad
-\stA\gets(\bot,\bot,\bot,1,0,\emptyset,(\mathsf{false},\mathsf{false}));\quad
-\mathsf{return}\;\stA`
+$`\begin{array}{l}
+\mathsf{CKA}\text{-}\InitA(\bot): \\
+\quad(\dkA,\ekA,\ctzero,t,\ich,\Lch,\ack)
+  \gets(\bot,\bot,\bot,1,0,\emptyset,(\mathsf{false},\mathsf{false})); \\
+\quad\stA\gets(\dkA,\ekA,\ctzero,t,\ich,\Lch,\ack); \\
+\quad\mathsf{return}\;\stA
+\end{array}`
 ```anchor initA (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
 def initA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     (_ik : Unit) : m (StA onoff Sym) :=
@@ -51,9 +56,13 @@ def initA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
          ack := { ekRec := false, ctRec := false } }
 ```
 
-$`\mathsf{CKA}\text{-}\mathsf{Init}\text{-}\mathsf{B}(\bot): \quad
-\stB\gets(\bot,\bot,\bot,\bot,1,0,\emptyset,(\mathsf{false},\mathsf{false}));\quad
-\mathsf{return}\;\stB`
+$`\begin{array}{l}
+\mathsf{CKA}\text{-}\InitB(\bot): \\
+\quad(\ekA,\ctzero,\ctone,\stct,t,\ich,\Lch,\ack)
+  \gets(\bot,\bot,\bot,\bot,1,0,\emptyset,(\mathsf{false},\mathsf{false})); \\
+\quad\stB\gets(\ekA,\ctzero,\ctone,\stct,t,\ich,\Lch,\ack); \\
+\quad\mathsf{return}\;\stB
+\end{array}`
 ```anchor initB (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
 def initB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     (_ik : Unit) : m (StB onoff Sym) :=
@@ -64,7 +73,7 @@ def initB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 
 :::::gameCell "\\textsf{Vulnerable epochs}" (kind := "compact")
 $`\stA.\mathsf{vuln}: \quad
-\mathsf{return}\;\{t\}\;\mathsf{if}\;dk_A\ne\bot\;\mathsf{else}\;\emptyset`
+\mathsf{return}\;\{t\}\;\mathsf{if}\;\dkA\ne\bot\;\mathsf{else}\;\emptyset`
 ```anchor vulnA (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
 def vulnA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     (stA : StA onoff Sym) : Finset ℕ :=
@@ -72,7 +81,7 @@ def vulnA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 ```
 
 $`\stB.\mathsf{vuln}: \quad
-\mathsf{return}\;\{t\}\;\mathsf{if}\;st_{ct}\ne\bot\;\mathsf{else}\;\emptyset`
+\mathsf{return}\;\{t\}\;\mathsf{if}\;\stct\ne\bot\;\mathsf{else}\;\emptyset`
 ```anchor vulnB (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
 def vulnB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     (stB : StB onoff Sym) : Finset ℕ :=
@@ -80,18 +89,18 @@ def vulnB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 ```
 :::::
 
-:::::gameCell "\\mathsf{CKA}\text{-}\\mathsf{Send}\text{-}\\mathsf{A}(\\stA)" (kind := "compact-send")
+:::::gameCell "\\mathsf{CKA}\text{-}\\SendA(\\stA)" (kind := "compact-send")
 $`\begin{array}{l}
-(dk_A,ek_A,ct_0,t,i_{ch},L_{ch},ack)\gets\stA \\
-ch\gets\bot \\
-\mathsf{if}\;dk_A=\bot\;\mathsf{then} \\
-\quad (ek_A,dk_A)\sample\KeyGen \\
-\quad i_{ch}\gets0 \\
-\mathsf{if}\;\neg ack.ek\text{-}rec\;\mathsf{then} \\
-\quad i_{ch}\gets i_{ch}+1 \\
-\quad ch\gets\mathsf{Encode}(ek_A,i_{ch}) \\
-\rho\gets(ch,ack,t,\bot) \\
-\stA\gets(dk_A,ek_A,ct_0,t,i_{ch},L_{ch},ack) \\
+(\dkA,\ekA,\ctzero,t,\ich,\Lch,\ack)\gets\stA, \chunk\gets\bot \\
+\mathsf{if}\;\dkA=\bot\;\mathsf{then}\pcomment{\text{first message of epoch}} \\
+\quad (\ekA,\dkA)\sample\KeyGen \\
+\quad \ich\gets0 \\
+\mathsf{if}\;\neg\ack.\ekrec\;\mathsf{then}
+  \pcomment{\ekA\ \text{not acknowledged by }\B} \\
+\quad \ich\gets\ich+1 \\
+\quad \chunk\gets\mathsf{Encode}(\ekA,\ich) \\
+\rho\gets(\chunk,\ack,t,\bot) \\
+\stA\gets(\dkA,\ekA,\ctzero,t,\ich,\Lch,\ack) \\
 \mathsf{return}\;((\bot,\bot),\rho,t-1,\stA)
 \end{array}`
 
@@ -120,7 +129,7 @@ def sendA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
   pure (some (none, msg, stA.t - 1, stA'))
 ```
 
-:::leanPillCaption "rleak version leaking KeyGen coins"
+:::leanPillCaption "rleak version leaking key generation coins"
 :::
 ```anchor sendArleak (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
 def sendArleak (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
@@ -153,34 +162,34 @@ def sendArleak (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 ```
 :::::
 
-:::::gameCell "\\mathsf{CKA}\text{-}\\mathsf{Rec}\text{-}\\mathsf{A}(\\stA,\\rho)" (kind := "compact-recv")
+:::::gameCell "\\mathsf{CKA}\text{-}\\RecA(\\stA,\\rho)" (kind := "compact-recv")
 $`\begin{array}{l}
-(dk_A,ek_A,ct_0,t,i_{ch},L_{ch},ack)\gets\stA \\
-(ch,ack',t',b)\gets\rho \\
-I_B\gets\bot \\
-t_{I_B}\gets\bot \\
+(\dkA,\ekA,\ctzero,t,\ich,\Lch,\ack)\gets\stA \\
+(\chunk,\ack',t',b)\gets\rho \\
+I_{\B}\gets\bot, t_{I_{\B}}\gets\bot \\
 \mathsf{if}\;t=t'\;\mathsf{then} \\
-\quad \mathsf{if}\;ct_0=\bot\wedge b=0\;\mathsf{then} \\
-\qquad L_{ch}\gets L_{ch}\cup\{ch\} \\
-\qquad ct_0\gets\mathsf{Decode}(L_{ch}) \\
-\qquad \mathsf{if}\;ct_0\ne\bot\;\mathsf{then} \\
-\qquad\quad ack.ct_0\text{-}rec\gets\mathsf{true} \\
-\qquad\quad L_{ch}\gets\emptyset \\
-\quad \mathsf{else}\;\mathsf{if}\;b=1\;\mathsf{then} \\
-\qquad L_{ch}\gets L_{ch}\cup\{ch\} \\
-\qquad ct_1\gets\mathsf{Decode}(L_{ch}) \\
-\qquad \mathsf{if}\;ct_1\ne\bot\;\mathsf{then} \\
-\qquad\quad I_B\gets\Decaps(dk_A,(ct_0,ct_1)) \\
-\qquad\quad t_{I_B}\gets t \\
-\qquad\quad t\gets t+1 \\
-\qquad\quad L_{ch}\gets\emptyset \\
-\qquad\quad (dk_A,ek_A,ct_0)\gets(\bot,\bot,\bot) \\
-\qquad\quad (ack.ek\text{-}rec,ack.ct_0\text{-}rec)
+\quad \mathsf{if}\;\ctzero=\bot\wedge b=0\;\mathsf{then}
+  \pcomment{\ctzero\ \text{not received yet}} \\
+\qquad \Lch\gets\Lch\cup\{\chunk\} \\
+\qquad \ctzero\gets\mathsf{Decode}(\Lch) \\
+\qquad \mathsf{if}\;\ctzero\ne\bot\;\mathsf{then} \\
+\qquad\quad \ack.\ctrec\gets\mathsf{true}, \Lch\gets\emptyset \\
+\quad \mathsf{else}\;\mathsf{if}\;b=1\;\mathsf{then}
+  \pcomment{\ctone\ \text{not received yet}} \\
+\qquad \Lch\gets\Lch\cup\{\chunk\} \\
+\qquad \ctone\gets\mathsf{Decode}(\Lch) \\
+\qquad \mathsf{if}\;\ctone\ne\bot\;\mathsf{then}
+  \pcomment{\ctone\ \text{recovered from chunk}} \\
+\qquad\quad I_{\B}\gets\Decaps(\dkA,(\ctzero,\ctone)) \\
+\qquad\quad t_{I_{\B}}\gets t, t\gets t+1, \Lch\gets\emptyset \\
+\qquad\quad (\dkA,\ekA,\ctzero)\gets(\bot,\bot,\bot) \\
+\qquad\quad (\ack.\ekrec,\ack.\ctrec)
   \gets(\mathsf{false},\mathsf{false}) \\
-\mathsf{if}\;ack'.ek\text{-}rec\wedge t=t'\;\mathsf{then} \\
-\quad ack.ek\text{-}rec\gets\mathsf{true} \\
-\stA\gets(dk_A,ek_A,ct_0,t,i_{ch},L_{ch},ack) \\
-\mathsf{return}\;((t_{I_B},I_B),t'-1,\stA)
+\mathsf{if}\;\ack'.\ekrec\;\boxed{\wedge\;t=t'}\;\mathsf{then}
+  \pcomment{\text{incorporate }\B\text{'s acknowledgment}} \\
+\quad \ack.\ekrec\gets\mathsf{true} \\
+\stA\gets(\dkA,\ekA,\ctzero,t,\ich,\Lch,\ack) \\
+\mathsf{return}\;((t_{I_{\B}},I_{\B}),t'-1,\stA)
 \end{array}`
 
 ```anchor recvA (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
@@ -247,31 +256,29 @@ def recvA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 ```
 :::::
 
-:::::gameCell "\\mathsf{CKA}\text{-}\\mathsf{Send}\text{-}\\mathsf{B}(\\stB)" (kind := "compact-send")
+:::::gameCell "\\mathsf{CKA}\text{-}\\SendB(\\stB)" (kind := "compact-send")
 $`\begin{array}{l}
-(ek_A,ct_0,ct_1,st_{ct},t,i_{ch},L_{ch},ack)\gets\stB \\
-I_B\gets\bot \\
-t_{I_B}\gets\bot \\
-ch\gets\bot \\
-\mathsf{if}\;ct_0=\bot\;\mathsf{then} \\
-\quad (st_{ct},ct_0)\sample\Encaps.\mathsf{Off} \\
-\quad i_{ch}\gets0 \\
-\mathsf{if}\;\neg ack.ct_0\text{-}rec\;\mathsf{then} \\
-\quad i_{ch}\gets i_{ch}+1 \\
-\quad ch\gets\mathsf{Encode}(ct_0,i_{ch}) \\
+(\ekA,\ctzero,\ctone,\stct,t,\ich,\Lch,\ack)\gets\stB \\
+I_{\B}\gets\bot, t_{I_{\B}}\gets\bot, \chunk\gets\bot \\
+\mathsf{if}\;\ctzero=\bot\;\mathsf{then}\pcomment{\text{first message of epoch}} \\
+\quad (\stct,\ctzero)\sample\Encaps.\mathsf{Off} \\
+\quad \ich\gets0 \\
+\mathsf{if}\;\neg\ack.\ctrec\;\mathsf{then}
+  \pcomment{\ctzero\ \text{not acknowledged by }\A} \\
+\quad \ich\gets\ich+1 \\
+\quad \chunk\gets\mathsf{Encode}(\ctzero,\ich) \\
 \quad b\gets0 \\
-\mathsf{else}\;\mathsf{if}\;ek_A\ne\bot\;\mathsf{then} \\
-\quad \mathsf{if}\;ct_1=\bot\;\mathsf{then} \\
-\qquad (ct_1,I_B)\sample \\
-\qquad\quad \Encaps.\mathsf{On}(st_{ct},ek_A) \\
-\qquad t_{I_B}\gets t \\
-\qquad i_{ch}\gets0 \\
-\quad i_{ch}\gets i_{ch}+1 \\
-\quad ch\gets\mathsf{Encode}(ct_1,i_{ch}) \\
+\mathsf{else}\;\mathsf{if}\;\ekA\ne\bot\;\mathsf{then}
+  \pcomment{\ekA\ \text{received}} \\
+\quad \mathsf{if}\;\ctone=\bot\;\mathsf{then} \\
+\qquad (\ctone,I_{\B})\sample \Encaps.\mathsf{On}(\stct,\ekA) \\
+\qquad t_{I_{\B}}\gets t, \ich\gets0 \\
+\quad \ich\gets\ich+1 \\
+\quad \chunk\gets\mathsf{Encode}(\ctone,\ich) \\
 \quad b\gets1 \\
-\rho\gets(ch,ack,t,b) \\
-\stB\gets(ek_A,ct_0,ct_1,st_{ct},t,i_{ch},L_{ch},ack) \\
-\mathsf{return}\;((t_{I_B},I_B),\rho,t-1,\stB)
+\rho\gets(\chunk,\ack,t,b) \\
+\stB\gets(\ekA,\ctzero,\ctone,\stct,t,\ich,\Lch,\ack) \\
+\mathsf{return}\;((t_{I_{\B}},I_{\B}),\rho,t-1,\stB)
 \end{array}`
 
 ```anchor sendB (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
@@ -382,23 +389,24 @@ def sendBrleak (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 ```
 :::::
 
-:::::gameCell "\\mathsf{CKA}\text{-}\\mathsf{Rec}\text{-}\\mathsf{B}(\\stB,\\rho)" (kind := "compact-recv")
+:::::gameCell "\\mathsf{CKA}\text{-}\\RecB(\\stB,\\rho)" (kind := "compact-recv")
 $`\begin{array}{l}
-(ek_A,ct_0,ct_1,st_{ct},t,i_{ch},L_{ch},ack)\gets\stB \\
-(ch,ack',t',\_)\gets\rho \\
-\mathsf{if}\;t<t'\;\mathsf{then} \\
+(\ekA,\ctzero,\ctone,\stct,t,\ich,\Lch,\ack)\gets\stB \\
+(\chunk,\ack',t',\_)\gets\rho \\
+\mathsf{if}\;t<t'\;\mathsf{then}\pcomment{\text{first message of next epoch}} \\
 \quad t\gets t+1 \\
-\quad (ct_0,ct_1,st_{ct})\gets(\bot,\bot,\bot) \\
-\quad (ek_A,L_{ch})\gets(\bot,\emptyset) \\
-\quad (ack.ek\text{-}rec,ack.ct_0\text{-}rec)
+\quad (\ctzero,\ctone,\stct)\gets(\bot,\bot,\bot) \\
+\quad (\ekA,\Lch)\gets(\bot,\emptyset) \\
+\quad (\ack.\ekrec,\ack.\ctrec)
   \gets(\mathsf{false},\mathsf{false}) \\
-\mathsf{if}\;t=t'\wedge ek_A=\bot\;\mathsf{then} \\
-\quad L_{ch}\gets L_{ch}\cup\{ch\} \\
-\quad ek_A\gets\mathsf{Decode}(L_{ch}) \\
-\quad ack.ek\text{-}rec\gets(ek_A\ne\bot) \\
-\mathsf{if}\;ack'.ct_0\text{-}rec\wedge t=t'\;\mathsf{then} \\
-\quad ack.ct_0\text{-}rec\gets\mathsf{true} \\
-\stB\gets(ek_A,ct_0,ct_1,st_{ct},t,i_{ch},L_{ch},ack) \\
+\mathsf{if}\;t=t'\wedge\ekA=\bot\;\mathsf{then} \\
+\quad \Lch\gets\Lch\cup\{\chunk\} \\
+\quad \ekA\gets\mathsf{Decode}(\Lch) \\
+\quad \ack.\ekrec\gets(\ekA\ne\bot) \\
+\mathsf{if}\;\ack'.\ctrec\;\boxed{\wedge\;t=t'}\;\mathsf{then}
+  \pcomment{\text{incorporate }\A\text{'s acknowledgment}} \\
+\quad \ack.\ctrec\gets\mathsf{true} \\
+\stB\gets(\ekA,\ctzero,\ctone,\stct,t,\ich,\Lch,\ack) \\
 \mathsf{return}\;((\bot,\bot),t'-1,\stB)
 \end{array}`
 
