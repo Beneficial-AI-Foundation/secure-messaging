@@ -23,7 +23,7 @@ syntax-highlighted Lean code blocks, and the game/oracle boxes
 (see `SecureMessagingDocs.Visuals.GameBoxes` for the block extensions that emit them). -/
 def smDocsCss : String := r#"
 /* Main content column width (centred). Tuned for oracle grids + Lean anchors. */
-:root { --verso-content-max-width: calc(74rem - 2cm); }
+:root { --verso-content-max-width: calc(74rem + 2cm); }
 
 /* Hide the blueprint panel's own collapsible code box: we already show the
    full source via the `anchor` block. */
@@ -87,10 +87,7 @@ def smDocsCss : String := r#"
   grid-column: auto;
 }
 
-.game-cell[data-kind^="compact"] .game-cell-body {
-  font-size: 0.84em;
-}
-
+.game-cell[data-kind^="compact"] .game-cell-body,
 .game-cell[data-kind^="compact"] .game-cell-header {
   font-size: 0.92em;
 }
@@ -243,17 +240,6 @@ p.lean-pill-caption {
 /* Lean pill + optional continuation text (fixed header row; code panel below). */
 .lean-anchor-row {
   margin: 1rem 0;
-}
-
-/* Keep an algorithm and its Lean pill on the same line when space permits. */
-.game-cell[data-kind^="compact"] .game-cell-body p:has(+ .lean-anchor-row) {
-  display: inline;
-  margin: 0;
-}
-.game-cell[data-kind^="compact"] .game-cell-body p + .lean-anchor-row {
-  display: inline-block;
-  margin: 0 0 0.45rem 0.5rem;
-  vertical-align: baseline;
 }
 
 .lean-anchor-head {
