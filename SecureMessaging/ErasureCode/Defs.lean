@@ -65,11 +65,11 @@ namespace ErasureCodePayload
 
 variable {M Sym : Type}
 
-/-- Encode a payload at a chunk index, including serialization. -/
+/-- Encode a payload and return its chunk at index `i`. -/
 def encode (ecp : ErasureCodePayload M Sym) (payload : M) (i : ℕ) : Sym :=
   ecp.ec.encode (ecp.serialize payload) i
 
-/-- Decode a payload from chunks, including parsing. -/
+/-- Decode received chunks to a payload, if possible. -/
 def decode (ecp : ErasureCodePayload M Sym) (chunks : Finset (ℕ × Sym)) : Option M :=
   match ecp.ec.decode chunks with
   | none => none
