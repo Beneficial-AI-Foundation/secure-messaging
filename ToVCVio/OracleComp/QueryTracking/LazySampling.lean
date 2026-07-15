@@ -69,15 +69,6 @@ program over `OracleSpec`.
   i.e. the adversary produces the same output probabilities under either
   implementation.
 
-* `probOutput_simulateQ_greedyLazy_run'_eq` — **external-sample commutation**.
-
-  A top-level sample `a ← $ᵗ τ` consumed only inside oracle bodies can be
-  delayed into the first query via the canonical `greedyLazy`
-  construction. Formally, for any family
-  `implFam : τ → QueryImpl spec (StateT σ ProbComp)`,
-  `evalDist (do let a ← $ᵗ τ; (simulateQ (implFam a) oa).run' s)`
-    `= evalDist ((simulateQ (greedyLazy implFam) oa).run' (s, none))`.
-
 * `probOutput_simulateQ_consumeLazy_run'_eq` — **external-sample consume-site commutation**.
 
   Given a "hit" predicate `hit : spec.Domain → Bool` marking the queries
@@ -122,118 +113,7 @@ lemma probOutput_simulateQ_run'_eq_of_state_rel
   evalDist_eq_of_relTriple_eqRel
     (relTriple_simulateQ_run' impl₁ impl₂ R oa h_step s₁ s₂ h)
 
-/-! ## External-sample commutation via greedy lazy sampling -/
-
 variable {τ : Type} [SampleableType τ]
-
-/-- **Greedy-lazy lift** of a `τ`-parameterized impl-family.
-
-Given a family `implFam : τ → QueryImpl spec (StateT σ ProbComp)` of oracle
-implementations over a state space `σ`, produce a single implementation
-over the augmented state space `σ × Option τ`, where the `Option τ` component
-is a one-slot cache holding a single uniform sample of `τ`, shared across all
-queries.
-
-On the first invocation the cache is `none`: sample `a ← $ᵗ τ` uniformly,
-run `implFam a`, and write `some a` to the cache. On every subsequent
-invocation the cache is `some a` and that same `a` is reused as the
-parameter to `implFam`, for any `t : spec.Domain`. -/
-noncomputable def greedyLazy
-    (implFam : τ → QueryImpl spec (StateT σ ProbComp)) :
-    QueryImpl spec (StateT (σ × Option τ) ProbComp) :=
-  -- per-query handler: answer query `t` from augmented state `(state, cache)`,
-  -- returning the response and the updated augmented state
-  fun t (state, cache) => do
-    let a ← (match cache with
-      | some a => (pure a : ProbComp τ)
-      | none => ($ᵗ τ : ProbComp τ))
-    -- run `implFam a` on query `t` and the current state
-    let (u, state') ← (implFam a t) state
-    pure (u, (state', some a))
-
-omit [spec.Fintype] [spec.Inhabited] in
-/-- **Auxiliary for `probOutput_simulateQ_greedyLazy_run'_eq`**.
-
-For any adversary `oa : OracleComp spec α`, running it under `greedyLazy implFam` starting
-from the augmented state `(s, some a)` (cache pre-populated to `a`) yields
-the same output distribution as running it directly under `implFam a`
-starting from `s`. -/
-private theorem probOutput_simulateQ_greedyLazy_run'_some_eq
-    (implFam : τ → QueryImpl spec (StateT σ ProbComp))
-    (oa : OracleComp spec α) (a : τ) (s : σ) :
-    evalDist ((simulateQ (implFam a) oa).run' s) =
-      evalDist ((simulateQ (greedyLazy implFam) oa).run' (s, some a)) := by
-  revert s
-  induction oa using OracleComp.inductionOn with
-  | pure x => intro s; simp [simulateQ_pure]
-  | query_bind t k ih =>
-    intro s
-    apply evalDist_ext
-    intro y
-    simp only [simulateQ_bind, simulateQ_query, OracleQuery.cont_query, id_map,
-      OracleQuery.input_query, StateT.run'_eq, StateT.run_bind, map_bind]
-    -- Unfold `greedyLazy` at `some a` to a pure post-processing.
-    have hg : (greedyLazy implFam t).run (s, some a) =
-        (implFam a t).run s >>= fun p => (pure (p.1, p.2, some a) : ProbComp _) := by
-      simp [greedyLazy, StateT.run]
-    rw [hg]
-    simp only [monad_norm]
-    -- Apply the inductive hypothesis pointwise.
-    refine probOutput_bind_congr' _ y fun p => ?_
-    have := ih p.1 p.2
-    simp only [StateT.run'_eq] at this
-    exact congrFun (congrArg DFunLike.coe this) y
-
-omit [spec.Fintype] [spec.Inhabited] in
-/-- **External-sample commutation into `simulateQ` via greedy lazy sampling.**
-
-Sampling `a ← $ᵗ τ` at the top level and then running `simulateQ (implFam a)`
-on the adversary is output-equivalent to running `simulateQ (greedyLazy implFam)`
-starting from an empty cache. Both sample `a` exactly once; in the lazy form,
-the sample happens at the first invocation rather than at the top.
-
-For multi-sample cases (e.g. two external scalars `a, b`), apply sequentially:
-peel `a` with this lemma, then `b` on the resulting half-lazy impl. -/
-theorem probOutput_simulateQ_greedyLazy_run'_eq
-    (implFam : τ → QueryImpl spec (StateT σ ProbComp))
-    (oa : OracleComp spec α) (s : σ) :
-    evalDist (do
-      let a ← ($ᵗ τ : ProbComp τ)
-      (simulateQ (implFam a) oa).run' s) =
-    evalDist ((simulateQ (greedyLazy implFam) oa).run' (s, none)) := by
-  revert s
-  induction oa using OracleComp.inductionOn with
-  | pure x =>
-    intro s
-    apply evalDist_ext
-    intro y
-    simp [simulateQ_pure]
-  | query_bind t k ih =>
-    intro s
-    apply evalDist_ext
-    intro y
-    simp only [simulateQ_bind, simulateQ_query, OracleQuery.cont_query, id_map,
-      OracleQuery.input_query, StateT.run'_eq, StateT.run_bind, map_bind]
-    -- Unfold `greedyLazy` at `none`: samples `a`, runs `implFam a`, caches.
-    have hg : (greedyLazy implFam t).run (s, none) =
-        (do let a ← ($ᵗ τ : ProbComp τ)
-            let p ← (implFam a t).run s
-            pure (p.1, p.2, some a)) := by
-      simp [greedyLazy, StateT.run]
-    rw [hg]
-    -- Push bind associativity on both sides so the outer `$ᵗ τ` is shared.
-    simp only [monad_norm]
-    -- Both sides now share the outer `$ᵗ τ >>= fun a => (implFam a t).run s >>= ...`;
-    -- reduce to pointwise equality and close via the cached-case lemma.
-    refine probOutput_bind_congr' _ y fun a => ?_
-    refine probOutput_bind_congr' _ y fun p => ?_
-    -- At this point, LHS continuation is `(simulateQ (implFam a) (k p.1)).run' p.2`
-    -- and RHS continuation is `(simulateQ (greedyLazy implFam) (k p.1)).run' (p.2, some a)`
-    -- (modulo the `Prod.fst <$> .run` / `.run'` conversion). Apply the cached lemma.
-    have h_cached := probOutput_simulateQ_greedyLazy_run'_some_eq
-      implFam (k p.1) a p.2
-    simp only [StateT.run'_eq] at h_cached
-    exact congrFun (congrArg DFunLike.coe h_cached) y
 
 /-! ## Consume-site-lazy variant
 
