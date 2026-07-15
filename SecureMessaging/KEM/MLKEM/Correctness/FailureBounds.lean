@@ -18,15 +18,15 @@ coefficients.
 Recovery fails exactly when, on the honest sampling of `(d, z, m)`, some
 coefficient of `Compress₁` of the recomputed representative disagrees with the
 decoded message (`kpke_decrypt_ne_iff_exists_coordinateDecodeFailure`). A union
-bound then bounds the failure probability by the sum of the `256` per-coordinate
-decoding-failure probabilities. Each such probability is the honest-sampling
-probability that `Compress₁` of the representative disagrees with the decoded bit
-at that coordinate, determined by the CBD and compression noise distributions.
+bound then bounds the failure probability by the sum of the `256`
+per-coordinate decoding-failure probabilities.  Each summand is still a
+probability in the honest `(d,z,m)` experiment.  `NoiseModel.lean` states the
+separate comparison that bounds these summands by an explicitly constructed
+independent coefficient measure.
 
-The symmetric recovery-radius event is kept as a coarse sufficient condition:
-recovery fails only on noise exceeding the radius, so the failure probability is
-at most the bad-noise probability. That route is generic and does not feed the
-per-coordinate bound.
+The symmetric recovery-radius proposition gives a second, coarser implication:
+recovery failure implies that the noise exceeds the safe radius.  The exact
+coordinate event is the one used in the numerical proof.
 -/
 
 open OracleComp LatticeCrypto

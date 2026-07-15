@@ -5,133 +5,46 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.KEM.MLKEM.Correctness.Noise
+import ToVCVio.LatticeCrypto.TransformOps
 
 /-!
 # The K-PKE decryption-noise identity
 
-K-PKE decryption recomputes a representative `w` of the encoded message, and the
-decryption noise of an honest run is `w - μ` (`kpkeDecryptDifference`). This file
-expands that noise over the honest run from key seed `d` and message `m`.
-Writing `s`, `e` for the key-generation secret and error, `y`, `e₁`, `e₂` for
-the encryption secret and errors, and `ε_u`, `ε_v` for the ciphertext
-compression errors (decoded minus original), the right-hand side named
-`kpkeNoiseExpression` is
+Fix `q=3329`, `n=256`, and `R_q=(ℤ/qℤ)[X]/(X^n+1)`.  Fix an honest key seed
+`d`, implicit-rejection seed `z`, and message `m`.  The following elements of
+`R_q` (or vectors/matrices over it) are defined in this file:
 
-  `eᵀy + e₂ + ε_v − sᵀe₁ − sᵀε_u`.
+Every element of `R_q` has a representative of degree less than `n`.  Thus
+`w-μ` is called a decryption-noise polynomial because it is an element of this
+polynomial quotient ring; the matrix `A` is a matrix over the same ring.
 
-The main theorem proves `w − μ = kpkeNoiseExpression ring prims d m`, an
-equation in `R_q`, with every product computed through the NTT isomorphism as in
-FIPS 203 (eq. (4.9); Algorithms 13–15). The public-key term `sᵀÂᵀy` cancels
-against the ciphertext term by the transpose exchange, and `μ` enters `v`
-additively and is subtracted intact. The right-hand side is deterministic in
-`(d, m)`: the decryption noise does not depend on the implicit-rejection seed
-`z`.
+* `A`, `s`, and `e`: the public matrix, secret vector, and error vector from
+  K-PKE key generation;
+* `y`, `e₁`, and `e₂`: the secret vector and errors from K-PKE encryption;
+* `μ = Decompress₁(ByteDecode₁(m))`: the message polynomial;
+* `u = Aᵀy+e₁` and `v = (As+e)ᵀy+e₂+μ`: the uncompressed ciphertext;
+* `ε_u = Decompress_{d_u}(Compress_{d_u}(u))-u` and
+  `ε_v = Decompress_{d_v}(Compress_{d_v}(v))-v`: compression errors;
+* `w = v' - sᵀu'`: the representative recomputed by decryption from the
+  decompressed ciphertext `(u',v')`.
 
-The first section proves the transform-domain algebra this expansion needs — the
-dot product as a finite sum, distributivity of `mulHat` over finite sums, and the
-transpose exchange — for any `TransformOps` satisfying `TransformOps.Laws`.
+All products in the implementation are transported through the NTT.  Under
+`NTTRingLaws ring`, `TransformOps.dot_matTransposeVecMul` gives
+
+`sᵀ(Aᵀy) = (As)ᵀy`.
+
+Consequently the public-matrix terms cancel and the main theorem
+`kpkeDecryptDifference_eq_noise` proves the equality in `R_q`
+
+`w - μ = eᵀy + e₂ + ε_v - sᵀe₁ - sᵀε_u`.                (1)
+
+The right side is `kpkeNoiseExpression ring prims d m`.  It contains no `z`:
+the implicit-rejection seed affects the fallback key, not the honest K-PKE
+ciphertext arithmetic.  The generic transform identities used here live in
+`ToVCVio.LatticeCrypto.TransformOps`.
 -/
 
 open LatticeCrypto
-
-universe u v
-
-namespace LatticeCrypto.TransformOps
-
-variable {Coeff : Type u} [CommRing Coeff] {ring : NegacyclicRing Coeff} {Hat : Type v}
-  [AddCommGroup Hat] (ops : TransformOps ring Hat)
-
-/-- Folding addition over a vector equals the finite sum of its entries. -/
-private theorem foldl_add_eq_sum {k : Nat} (w : PolyVec Hat k) :
-    w.foldl (· + ·) (0 : Hat) = ∑ i : Fin k, w.get i := by
-  induction k with
-  | zero =>
-    have hw : w = #v[] := Vector.eq_empty
-    subst hw
-    simp
-  | succ n ih =>
-    haveI : NeZero (n + 1) := ⟨Nat.succ_ne_zero n⟩
-    obtain ⟨w', x, rfl⟩ : ∃ (w' : Vector Hat n) (x : Hat), w = w'.push x :=
-      ⟨w.pop, w.back, (Vector.push_pop_back w).symm⟩
-    rw [Vector.foldl_push, ih w', Fin.sum_univ_castSucc]
-    congr 1
-    · refine Finset.sum_congr rfl fun i _ => ?_
-      change w'[i.val] = (w'.push x)[i.val]
-      exact (Vector.getElem_push_lt i.isLt).symm
-    · change x = (w'.push x)[n]
-      exact Vector.getElem_push_eq.symm
-
-/-- The transform-domain dot product as a finite sum of pointwise products. -/
-theorem dot_eq_sum {k : Nat} (u v : PolyVec Hat k) :
-    ops.dot u v = ∑ i : Fin k, ops.mulHat (u.get i) (v.get i) := by
-  change (Vector.zipWith ops.mulHat u v).foldl (· + ·) (0 : Hat) = _
-  rw [foldl_add_eq_sum]
-  refine Finset.sum_congr rfl fun i _ => ?_
-  change (Vector.zipWith ops.mulHat u v)[i.val] = ops.mulHat u[i.val] v[i.val]
-  exact Vector.getElem_zipWith i.isLt
-
-/-- Entry `i` of a matrix-vector product is the dot product of row `i` with the
-vector. -/
-theorem matVecMul_get {rows cols : Nat} (A : PolyMatrix Hat rows cols)
-    (v : PolyVec Hat cols) (i : Fin rows) :
-    (ops.matVecMul A v).get i = ops.dot (A.get i) v :=
-  Vector.get_map A _ i
-
-/-- Entry `j` of a transposed matrix-vector product is the dot product of column
-`j` with the vector. -/
-theorem matTransposeVecMul_get {rows cols : Nat} (A : PolyMatrix Hat rows cols)
-    (v : PolyVec Hat rows) (j : Fin cols) :
-    (ops.matTransposeVecMul A v).get j =
-      ops.dot (Vector.ofFn fun i => (A.get i).get j) v := by
-  change ((transpose A).map fun row => ops.dot row v).get j = _
-  rw [Vector.get_map]
-  change ops.dot ((Vector.ofFn fun j => Vector.ofFn fun i => (A.get i).get j).get j) v = _
-  rw [Vector.get_ofFn]
-
-variable [laws : Laws ops]
-
-/-- Transform-domain multiplication distributes over a finite sum on the right. -/
-theorem mulHat_sum {ι : Type*} (a : Hat) (t : Finset ι) (f : ι → Hat) :
-    ops.mulHat a (∑ i ∈ t, f i) = ∑ i ∈ t, ops.mulHat a (f i) :=
-  map_sum (AddMonoidHom.mk' (ops.mulHat a) (laws.mul_add a)) f t
-
-/-- Transform-domain multiplication distributes over a finite sum on the left. -/
-theorem sum_mulHat {ι : Type*} (t : Finset ι) (f : ι → Hat) (b : Hat) :
-    ops.mulHat (∑ i ∈ t, f i) b = ∑ i ∈ t, ops.mulHat (f i) b := by
-  rw [mulHat_comm ops, mulHat_sum ops]
-  exact Finset.sum_congr rfl fun i _ => mulHat_comm ops b (f i)
-
-/-- The transform-domain dot product is commutative. -/
-theorem dot_comm {k : Nat} (u v : PolyVec Hat k) : ops.dot u v = ops.dot v u := by
-  rw [dot_eq_sum ops, dot_eq_sum ops]
-  exact Finset.sum_congr rfl fun i _ => mulHat_comm ops _ _
-
-/-- The transform-domain dot product is additive in its first argument. -/
-theorem dot_add_left {k : Nat} (u v w : PolyVec Hat k) :
-    ops.dot (u + v) w = ops.dot u w + ops.dot v w := by
-  rw [dot_comm ops (u + v) w, dot_add_right ops w u v, dot_comm ops w u, dot_comm ops w v]
-
-/-- Applying the transform coordinate-wise after the inverse transform is the
-identity on transform-domain vectors. -/
-theorem hatVec_unhatVec {k : Nat} (vHat : PolyVec Hat k) :
-    ops.hatVec (ops.unhatVec vHat) = vHat := by
-  refine Vector.ext fun i hi => ?_
-  simp only [hatVec, unhatVec, Vector.getElem_map]
-  exact laws.toHat_fromHat vHat[i]
-
-/-- Transpose exchange: dotting `s` with `Âᵀ ∘ y` equals dotting `Â ∘ s` with `y`.
-This cancels the shared `sᵀÂᵀy` term between K-PKE encryption and decryption. -/
-theorem dot_matTransposeVecMul {rows cols : Nat} (A : PolyMatrix Hat rows cols)
-    (s : PolyVec Hat cols) (y : PolyVec Hat rows) :
-    ops.dot s (ops.matTransposeVecMul A y) = ops.dot (ops.matVecMul A s) y := by
-  rw [dot_eq_sum ops, dot_eq_sum ops]
-  simp only [matTransposeVecMul_get, matVecMul_get, dot_eq_sum, Vector.get_ofFn,
-    mulHat_sum, sum_mulHat]
-  rw [Finset.sum_comm]
-  refine Finset.sum_congr rfl fun i _ => Finset.sum_congr rfl fun j _ => ?_
-  rw [← mulHat_assoc ops, mulHat_comm ops (s.get j) ((A.get i).get j)]
-
-end LatticeCrypto.TransformOps
 
 namespace MLKEM
 
@@ -230,9 +143,20 @@ def kpkeNoiseExpression {params : Params} {encoding : Encoding params} (ring : N
     ring.invNTT (ring.dot (ring.nttVec (kpkeSecret prims d))
       (ring.nttVec (kpkeCompressionErrorU ring prims d m)))
 
-/-- The representative recomputed by K-PKE decryption of the honest ciphertext,
-with the serialization round trips removed: `w = v′ − NTT⁻¹(ŝᵀ ∘ NTT(u′))`, where
-`u′` and `v′` are the decompressed decodings of the compressed `u` and `v`. -/
+/-- Let `u = kpkeU ring prims d m`, `v = kpkeV ring prims d m`, and let
+
+`u' = Decompress_{d_u}(Compress_{d_u}(u))`,
+`v' = Decompress_{d_v}(Compress_{d_v}(v))`.
+
+If serialization followed by deserialization, i.e. a roundtrip, recovers the encoded values, the
+representative computed by
+decryption of the serialized honest ciphertext is exactly
+
+`w = v' - NTT⁻¹(NTT(s)ᵀ ∘ NTT(u'))`,
+
+where `s = kpkeSecret prims d`.  This theorem is the precise bridge from the
+serialization-level definition `kpkeDecryptRepresentative` to the algebraic
+ciphertext components used in the noise identity. -/
 theorem kpkeDecryptRepresentative_eq {params : Params} {encoding : Encoding params}
     (ring : NTTRingOps) (prims : Primitives params encoding) (hEnc : encoding.Laws)
     (d z : Seed32) (m : Message) :

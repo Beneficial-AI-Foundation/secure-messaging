@@ -1,6 +1,7 @@
 import ToVCVio.Control.StateT
 import ToVCVio.CryptoFoundations.KeyEncapMech
 import ToVCVio.EvalDist.Monad.Basic
+import ToVCVio.LatticeCrypto.TransformOps
 import ToVCVio.OracleComp.Constructions.SampleableType
 import ToVCVio.OracleComp.EvalDist
 import ToVCVio.OracleComp.QueryTracking.LazySampling

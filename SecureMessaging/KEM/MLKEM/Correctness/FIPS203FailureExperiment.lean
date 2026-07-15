@@ -7,16 +7,37 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.KEM.MLKEM.Correctness.FailureBounds
 
 /-!
-# ML-KEM FIPS 203 decapsulation-failure experiment
+# The FIPS 203 honest decapsulation-failure experiment
 
-FIPS 203 Section 3.2 defines the decapsulation-failure probability of ML-KEM:
-the probability, over an honest key pair and an honest encapsulation `(c, K)`,
-that decapsulation returns a shared secret different from `K`.
+Fix a parameter set, NTT implementation, encoding, and primitive operations.
+On the finite uniform sample space
 
-This file defines the failure experiment `fips203DecapsulationFailureExp`, which
-samples `(d, z, m)` and reports whether decapsulation disagrees with the
-encapsulated key, and proves that its failure probability equals the generic
-`KEMScheme.correctnessError` of VCV-io's packaged `MLKEM.asKEMScheme`.
+`Ω = Seed32 × Seed32 × Message`,
+
+an outcome `ω=(d,z,m)` determines
+
+```
+(ek,dk) = keygenInternal(d,z),
+(K,c)   = encapsInternal(ek,m),
+K'      = decapsInternal(dk,c).
+```
+
+`fips203DecapsulationFailureExp` returns the indicator of the event
+
+`E = {ω∈Ω | K'(ω) ≠ K(ω)}`.                              (1)
+
+Because `ProbComp` is total, the generic correctness definition satisfies
+
+`correctnessError = 1-Pr[K'=K] = Pr[E]`.
+
+`correctnessError_eq_fips203DecapsulationFailureProb` proves this equality by
+unfolding the packaged ML-KEM scheme and identifying its success Boolean with
+the complement of (1).
+
+This file identifies the generic KEM correctness error with the probability
+of the Section 3.2 event.  The numerical threshold is defined in
+`FailureRates.lean`, and `NoiseModel.lean` states the coefficient-distribution
+hypothesis used to derive the conditional inequality.
 -/
 
 open OracleComp KEMScheme ENNReal
@@ -49,10 +70,10 @@ theorem correctnessError_eq_fips203DecapsulationFailureProb (p : ParameterSet)
       Pr[= true | fips203DecapsulationFailureExp p ring encoding prims] := by
   have hbridge : (asKEMScheme ring encoding prims).correctnessError ProbCompRuntime.probComp
       = Pr[= false | (asKEMScheme ring encoding prims).CorrectExp] := by
-    rw [KEMScheme.correctnessError,
-      show ProbCompRuntime.probComp.evalDist (asKEMScheme ring encoding prims).CorrectExp
-        = evalDist (asKEMScheme ring encoding prims).CorrectExp from rfl,
-      SPMF.probOutput_eq_apply, probOutput_def]
+    rw [KEMScheme.correctnessError]
+    change 1 - Pr[= true | (asKEMScheme ring encoding prims).CorrectExp] =
+      Pr[= false | (asKEMScheme ring encoding prims).CorrectExp]
+    rw [probOutput_false_eq_sub, probFailure_eq_zero, tsub_zero]
   have halign : (asKEMScheme ring encoding prims).CorrectExp =
       (! ·) <$> fips203DecapsulationFailureExp p ring encoding prims := by
     simp only [KEMScheme.CorrectExp, asKEMScheme, keygen, fips203DecapsulationFailureExp,

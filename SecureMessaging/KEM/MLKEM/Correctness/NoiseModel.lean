@@ -10,39 +10,78 @@ import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate
 import SecureMessaging.KEM.MLKEM.Correctness.NoiseIdentity
 
 /-!
-# Comparing honest decode failures with the ideal coefficient model
+# Comparing the honest noise with the independent coefficient model
 
-FIPS 203 Section 3.2 defines decapsulation failure over uniform seeds under
-the heuristic that hash functions and XOFs behave like random functions. The
-Table 1 values are computed in a further simplified coefficient model:
-centered-binomial (CBD) variables and uniform-input compression errors are
-composed as independent random variables.
+The variables in this file come from the decryption algebra developed in
+`NoiseIdentity.lean`.  In particular, that module defines
+`A,s,e,y,e₁,e₂,μ,u,v,w,ε_u,ε_v` and proves
 
-This file does not identify the honest fixed-primitive distribution with that
-ideal distribution. At coefficient `i`, write `B_i` for the decoded message
-bit and `N_i` for the coefficient of the decryption noise; decoding fails at
-a pair `(b, r)` when `Compress₁ (Decompress₁ b + r) ≠ b`
-(`coefficientDecodeFailure`). `CoefficientFailureBound` states only the
-comparison the proof uses: for every pair `(b, r)` at which decoding fails,
-the event `B_i = b ∧ N_i = r` has probability at most the probability of
-`(b, r)` under the ideal coefficient distribution,
-`foldedNoiseMeasure p r / (2 * noiseDenominator p)`. Pairs at which decoding
-succeeds are unconstrained.
+`w-μ=eᵀy+e₂+ε_v-sᵀe₁-sᵀε_u`.                            (1)
 
-Under this explicit hypothesis, summing over the failing pairs gives the
-one-coordinate bound `decodeFailureMass p / (2 * noiseDenominator p)`
-(`coordinateTail_le`). The union bound over the `256` coordinates and the
-exact finite-measure computation then give the FIPS 203 Table 1 rate
-(`underlyingCorrectnessError_le_fips203`).
+Here `w-μ` is an element of
+`R_q=(ℤ/qℤ)[X]/(X^256+1)`.  We call it the decryption-noise polynomial because
+elements of this quotient ring are represented uniquely by polynomials of
+degree less than `256`; the public matrix `A` is a matrix over `R_q`.
 
-The comparison is not proved here for concrete SHA-3/SHAKE and is not claimed
-to follow from the random-function heuristic. A faithful random-function
-experiment and a quantitative comparison with the ideal coefficient model are
-planned as separate future work/TODO.
+## Actual random variables
 
-The decryption noise enters through `kpkeHonestNoise`, the expansion
-`eᵀy + e₂ + ε_v − sᵀe₁ − sᵀε_u` of `w − μ` given by the decryption-noise
-identity; it does not depend on the implicit-rejection seed `z`.
+Fix a parameter set `p`, transform operations `ring`, and primitive operations
+`prims`.  The honest experiment uses the finite uniform sample space
+
+`Ω=Seed32×Seed32×Message`.
+
+For `ω=(d,z,m)∈Ω` and `i∈{0,…,255}`, define
+
+```
+B_i(ω) = coefficient i of ByteDecode₁(m) ∈ {0,1},
+N_i(ω) = coefficient i of (w-μ)(d,z,m) ∈ ℤ/qℤ.
+```
+
+Equation (1) shows that `N_i` is independent of the implicit-rejection seed
+`z`; that seed affects the fallback shared secret rather than the honest K-PKE
+ciphertext arithmetic.  A pair `(b,r)` causes a coefficient error precisely
+when
+
+`Fail(b,r) :⇔ Compress₁(Decompress₁(b)+r)≠b`.              (2)
+
+## The comparison measure
+
+Let `M_p=coefficientNoiseMeasure p` be the unnormalized independent-noise
+measure defined in `NoiseDistribution.lean`, and put
+
+```
+D_p     = ∑_{x∈ℤ}M_p(x),
+M̄_p(r)  = ∑_{x∈ℤ : x≡r (mod q)}M_p(x),
+ν_p(b,r)= M̄_p(r)/(2D_p).                                  (3)
+```
+
+Thus `D_p` normalizes `M_p`, while `M̄_p` is its pushforward along
+`ℤ→ℤ/qℤ`.  The factor `2` makes the bit coordinate uniform.
+`sum_foldedNoiseMeasure` proves `∑_r M̄_p(r)=D_p`, and hence `ν_p` is a
+probability measure on `{0,1}×ℤ/qℤ`.
+
+`CoefficientFailureBound p ring prims` is the cellwise comparison
+
+`Fail(b,r) → Pr[B_i=b ∧ N_i=r]≤ν_p(b,r)`                 (4)
+
+for every `i,b,r`.  Only cells contributing to the exact failure event (2)
+are needed.  Summing (4) over those cells gives
+
+`Pr[Fail(B_i,N_i)]≤decodeFailureMass(p)/(2D_p)`.           (5)
+
+A union bound over the `256` coordinates, followed by the exact arithmetic
+certificate, yields
+
+`underlyingCorrectnessError≤2^{-e_p}`.                    (6)
+
+The declarations `coordinateTail_le` and
+`underlyingCorrectnessError_le_fips203` prove (5) and (6).  The comparison
+(4) is an argument to these theorems.  It is a direct, strong domination
+condition on the failing cells; it is not merely the assertion that an XOF is
+a random function, nor is it identical to the heuristic that compression
+inputs are independent and uniform.  A proof of (4) for the concrete
+SHA-3/SHAKE primitives would supply the probabilistic link between the honest
+experiment and the independent coefficient calculation.
 -/
 
 open OracleComp LatticeCrypto
@@ -50,7 +89,8 @@ open scoped ENNReal
 
 namespace MLKEM
 
-/-- The decryption noise of the honest run from key seed `d` and message `m`:
+/-- The decryption-noise element of `R_q` for the honest run from key seed `d`
+and message `m`:
 `eᵀy + e₂ + ε_v − sᵀe₁ − sᵀε_u`, with every product computed through the NTT
 isomorphism. By `kpkeDecryptDifference_eq_noise` this equals `w − μ` on the
 honest run from `(d, z, m)` for every implicit-rejection seed `z`. -/
@@ -73,18 +113,17 @@ theorem kpkeDecryptDifference_eq_honestNoise {params : Params} {encoding : Encod
     kpkeDecryptDifference ring encoding prims d z m = kpkeHonestNoise ring prims d m :=
   kpkeDecryptDifference_eq_noise ring prims hEnc hRing d z m
 
-/-- The folded coefficient-noise measure carries the full mass of the integer
+/-- Pushforward along `ℤ→ℤ/qℤ` preserves the total mass of the coefficient-noise
 measure: its values over `ZMod q` sum to the noise denominator.
 
-This is a total-mass statement, not a claim that `foldedNoiseMeasure p` already
-has total mass `1`. The normalized residue distribution is
+The normalized residue distribution is
 
 `r ↦ foldedNoiseMeasure p r / noiseDenominator p`.
 
-Since the decoded coefficient is always a bit, the ideal probabilities on the
+Since the decoded coefficient is always a bit, the auxiliary probabilities on the
 right-hand side of `CoefficientFailureBound.prob_le_of_decodeFailure` divide
 by `2 * noiseDenominator p`; summing over the two bits and all residues gives
-`1`, so the ideal coefficient distribution is a probability distribution.
+`1`, so the auxiliary coefficient distribution is a probability distribution.
 -/
 theorem sum_foldedNoiseMeasure (p : ParameterSet) :
     ∑ r : Coeff, foldedNoiseMeasure p r = noiseDenominator p := by
@@ -147,24 +186,15 @@ added. -/
 def coefficientDecodeFailure (b : Fin 2) (r : Coeff) : Prop :=
   Concrete.compress 1 (Concrete.decompress 1 ((b : ℕ) : Coeff) + r) ≠ ((b : ℕ) : Coeff)
 
-/-- The coefficient-level comparison hypothesis for honest decoding failure.
+/-- The eventwise coefficient comparison (4) from the module statement.
 
-At coefficient `i`, write `B_i` for the decoded message bit and `N_i` for the
-decryption-noise residue modulo `q`. For every pair `(b, r)` at which
-decoding fails, the hypothesis bounds the probability of the event
-`B_i = b ∧ N_i = r` by the probability of `(b, r)` under the ideal
-coefficient distribution of the Kyber failure-rate computation,
-`foldedNoiseMeasure p r / (2 * noiseDenominator p)`. It says nothing about
-pairs at which decoding succeeds and does not assert equality of the complete
-distributions.
+For every coordinate `i` and every pair `(b,r)` satisfying the exact decoding
+failure predicate (2), this structure bounds the actual joint event by
 
-This comparison is not derived from the FIPS 203 Section 3.2 random-function
-heuristic and is not proved here for the concrete SHA-3/SHAKE primitives.
-Even deriving the resulting failure bound from the heuristic alone is an open
-problem in the literature (Barbosa, Kannwischer, Lim, Schwabe, and Strub,
-"Formally Verified Correctness Bounds for Lattice-Based Cryptography"). The
-correctness theorems consume this structure as a hypothesis; nothing proves
-it. -/
+`Pr[B_i=b ∧ N_i=r] ≤ foldedNoiseMeasure p r / (2*noiseDenominator p)`.
+
+This is the probabilistic premise used to pass from the honest experiment to
+the independent coefficient calculation. -/
 structure CoefficientFailureBound (p : ParameterSet) (ring : NTTRingOps)
     (prims : Primitives (ParameterSet.params p)
       (Concrete.concreteEncoding (ParameterSet.params p))) : Prop where
@@ -239,7 +269,7 @@ private theorem coordinateDecodeFailure_exists_failing_pair (p : ParameterSet) (
 coordinate decodes incorrectly is at most the bit-averaged decode-failure
 mass `decodeFailureMass p / (2 * noiseDenominator p)`: sum the probabilities
 of the pairs `(b, r)` at which decoding fails, bound each by
-`prob_le_of_decodeFailure`, and identify the ideal total with
+`prob_le_of_decodeFailure`, and identify the auxiliary total with
 `decodeFailureMass`. -/
 theorem coordinateTail_le (p : ParameterSet) (ring : NTTRingOps)
     (prims : Primitives (ParameterSet.params p)

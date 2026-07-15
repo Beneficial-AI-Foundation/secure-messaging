@@ -9,8 +9,10 @@ import SecureMessaging.KEM.MLKEM.Correctness.NoiseDistribution
 /-!
 # The radix-packing engine
 
-This file contains the arithmetic engine used by the failure-bound proof. It is
-generic in the radix `R`.
+This file proves a generic finite-measure encoding and then specializes it to
+the ML-KEM decode-failure mass. The sections through `Sequence measures` are
+generic in the integer measure and radix; the final section supplies the
+ML-KEM-specific periodization modulo `q` and weight function.
 
 For a finitely supported function `F : ℤ →₀ ℕ`, write the associated counting
 measure on the discrete space `ℤ` as
@@ -31,16 +33,45 @@ finite algebraic encoding of the singleton masses `μ_F({v}) = F(v)`. The radix
 products, so coefficient extraction from `P_F(R)` by division and remainder is
 exact: no carry can change the coefficient being read.
 
-With this interpretation, the main facts are:
+More explicitly, additive convolution is
 
-* `measurePack_mul`: convolution of counting measures becomes multiplication of
-  their generating polynomials, then evaluation at `R`;
-* `measurePack_pow`: iterated convolution becomes a power;
-* `sum_mul_pow_mod_repunit`: folding integer noise modulo `q` corresponds to
-  quotienting by `X^q - 1`, which evaluates to reduction modulo `R ^ q - 1`;
-* `decodeFailureMass_eq`: the weighted decode-failure mass is a dot product of
-  the folded measure with the decode-failure weights, extracted as the middle
-  coefficient of a product with the reversed weight polynomial.
+`(F*G)(v)=∑_{a+b=v}F(a)G(b)`,
+
+and `measurePack_mul` proves
+
+`P_{F*G}(R)=P_F(R)P_G(R)`
+
+with the appropriate shift of the lower support endpoint.
+
+Suppose the support of `F` is divided into `m` consecutive blocks of length
+`q`. Define its residue-class masses and their packing by
+
+```
+a_t = ∑_{j=0}^{m-1} F(lo+qj+t),
+A_R = ∑_{t=0}^{q-1} a_t R^t.
+```
+
+Since `X^q=1` modulo `X^q-1`, `sum_mul_pow_mod_repunit` proves, under the
+explicit no-carry bound,
+
+`A_R = measurePack R lo F mod (R^q-1)`.                  (1)
+
+For weights `b_t`, let
+
+`B_R^rev=∑_{t=0}^{q-1} b_{q-1-t}R^t`.
+
+The coefficient of degree `q-1` in `A(X)B^rev(X)` is exactly
+`∑_t a_t b_t`. If every product coefficient is below `R`, base-`R` digit
+extraction therefore gives
+
+`∑_t a_t b_t = (A_R B_R^rev / R^{q-1}) mod R`.           (2)
+
+`decodeFailureMass_eq` applies (1)--(2) with `q=3329`, `F` equal to
+`coefficientNoiseMeasure p`, and `b_t` equal to the exact number of message
+bits that fail at residue `lo+t`.  The implementation uses `fold` for the
+pushforward that sums masses in one congruence class.  The extracted “middle
+coefficient” is the coefficient of `X^{q-1}` in the product with the reversed
+weight polynomial.
 -/
 
 open LatticeCrypto
@@ -408,7 +439,7 @@ theorem seqMeasure_apply_le {q B : ℕ} {f : ℕ → ℕ} (hf : ∀ t < q, f t �
     rw [hvt, seqMeasure_apply f (by omega)]
     exact hf _ (by omega)
 
-/-! ## Folding and the weighted digit -/
+/-! ## Periodization modulo `q` and the weighted coefficient -/
 
 private theorem mapDomain_apply_eq_sum {β : Type*} [DecidableEq β] (g : ℤ → β)
     (F : IntMeasure) (r : β) :
@@ -466,9 +497,10 @@ private theorem foldedNoiseMeasure_apply_block (p : ParameterSet) {lo : ℤ} {m 
       · omega
   rw [hfilter, Finset.sum_image fun i _ j _ h => by simp only [modulus] at h; omega]
 
-/-- Extraction of a weighted dot product from the product of two radix
-packings: the middle digit of the product of the packing of `a` with the
-packing of the reversal of `b`. -/
+/-- Extraction of a weighted dot product from two radix packings: the
+coefficient of degree `q-1` in the product of the packing of `a` with the
+packing of the reversal of `b` is `∑ t, a t * b t`; division by `R^(q-1)` and
+reduction modulo `R` extracts that coefficient under the no-carry bound. -/
 private theorem dot_eq_pack_extract {R q : ℕ} (hq : 0 < q)
     (a b : ℕ → ℕ) (hb : ∀ t, b t ≤ 2)
     (ha : 2 * ∑ t ∈ Finset.range q, a t < R) :

@@ -9,30 +9,123 @@ import LatticeCrypto.MLKEM.Concrete.Encoding
 import SecureMessaging.KEM.MLKEM.Correctness.Noise
 
 /-!
-# Exact coefficient-noise finite measures for the ML-KEM failure-bound proof
+# The independent one-coefficient noise model
 
-This file composes the per-coefficient decryption-noise counting measure
-evaluated by the failure bound. The composition follows the decryption-noise
-identity
-`w − μ = eᵀy + e₂ + ε_v − sᵀe₁ − sᵀε_u`
-(`kpkeDecryptDifference_eq_noise`): `k·n` coefficient products for each
-transposed-vector product, and one additive term for the `v` component.
+This file defines the finite counting measure used by the ML-KEM numerical
+certificate.  The algebraic source is the decryption-noise identity proved in
+`NoiseIdentity.lean`:
 
-The generic support — `IntMeasure`, windows, total mass, convolution, and
-`productMeasure` — lives in `ToVCVio.Probability.IntMeasure`. This file
-contains only the ML-KEM specialization. The main objects are:
+`w-μ=eᵀy+e₂+ε_v-sᵀe₁-sᵀε_u`.                            (1)
 
-* `cbdMeasure η`: counts the `4^η` bit samples of `CBD_η` by centered binomial
-  value;
-* `compressionErrorMeasure d`: counts the `q` residues by their `Compress_d`
-  round-trip error;
-* `coefficientNoiseMeasure`: the composed one-coordinate noise counting measure;
-* `foldedNoiseMeasure`: reduction of that integer measure into `ZMod q`;
-* `decodeFailureMass`: the folded mass weighted by the exact per-bit
-  `Compress₁` decode-failure count.
+## Centered binomial and compression-error variables
 
-Every measure here is a definition. No statement in this file relates these
-finite measures to the honest sampler.
+For `η≥0`, let `Ω_η={0,1}^{2η}` and equip it with the uniform probability
+measure.  If `ω=(a₁,…,a_η,b₁,…,b_η)`, define the random variable
+
+`CBD_η : Ω_η → ℤ`,
+
+`CBD_η(ω)=∑_{j=1}^{η}a_j-∑_{j=1}^{η}b_j`.
+
+Thus `CBD_η` is the difference of two independent `Binomial(η,1/2)` random
+variables.  Its name abbreviates *centered binomial distribution*, and its
+image is contained in `{-η,…,η}`.
+
+The counting measure
+
+`C_η(x)=#{ω∈Ω_η | CBD_η(ω)=x}`
+
+has total mass `|Ω_η|=2^{2η}=4^η`; its probability mass function is
+`C_η(x)/4^η`.  Lean enumerates `Ω_η` by the natural numbers
+`{0,…,4^η-1}`: `cbdValue η` is the function `CBD_η` in this enumeration and
+`cbdMeasure η` is the counting measure `C_η`.
+
+For a compression width `d`, define a second random variable on the uniform
+probability space `ℤ/qℤ` by
+
+`c_d : ℤ/qℤ → ℤ`,
+
+`c_d(a)=centered(Decompress_d(Compress_d(a))-a)`.
+
+The measure `compressionErrorMeasure d` is
+
+`E_d(x)=#{a∈ℤ/qℤ | c_d(a)=x}`.
+
+It has total mass `q`, and `E_d(x)/q=Pr[c_d=x]`.
+
+## From polynomial arithmetic to a coefficient measure
+
+The model is most naturally described before reduction modulo `q`.  Put
+
+`R_ℤ=ℤ[X]/(X^n+1)`, with `n=256`.
+
+Choose random polynomial vectors
+
+```
+S,E,Y,E₁,C_u ∈ R_ℤ^k
+```
+
+and random polynomials `E₂,C_v∈R_ℤ`.  All their scalar coefficients are
+mutually independent, with laws
+
+```
+S_{ℓj}, E_{ℓj}, Y_{ℓj}  ∼ CBD_{η₁},
+(E₁)_{ℓj}, (E₂)_j       ∼ CBD_{η₂},
+(C_u)_{ℓj}               ∼ E_{d_u}/q,
+(C_v)_j                  ∼ E_{d_v}/q.
+```
+
+Here `0≤ℓ<k`, `0≤j<n`, and `E_d/q` denotes the normalized compression-error
+measure above.  Define the auxiliary random polynomial
+
+`N_p^ind=EᵀY-Sᵀ(E₁+C_u)+E₂+C_v ∈ R_ℤ`.                   (2)
+
+Thus the model samples scalar coefficients, assembles them into random
+polynomials, and performs polynomial multiplication in the quotient ring.
+No symbolic substitution into `R_q` is involved.  Reducing the coefficients
+of `N_p^ind` modulo `q` gives an element of
+`R_q=(ℤ/qℤ)[X]/(X^n+1)` having the same algebraic form as (1).
+
+Since `X^n=-1`, the coefficient of degree `i` in a product in either quotient
+ring is
+
+`(fg)_i=∑_{j=0}^{i}f_jg_{i-j}-∑_{j=i+1}^{n-1}f_jg_{n+i-j}`.  (3)
+
+Thus a coefficient of one polynomial product is a sum of `n` scalar products,
+and a coefficient of an inner product of vectors of length `k` is a sum of
+`kn` scalar products.  Each product affected by a minus sign in (2)--(3) has
+an independent centered-binomial factor.  Since that factor is symmetric
+about zero, negating the product does not change its distribution.  It follows
+that every fixed coefficient of `N_p^ind` has the same distribution.
+
+Writing `*` for the counting measure of a sum of independent variables and
+`⊠` for the counting measure of their integer product, the resulting
+unnormalized measure for one coefficient is
+
+```
+M_p=(C_{η₁}⊠C_{η₁})^{*(kn)}
+    *(C_{η₁}⊠(C_{η₂}*E_{d_u}))^{*(kn)}
+    *(C_{η₂}*E_{d_v}).                                    (4)
+```
+
+The first factor is the coefficient law of `EᵀY`: it is the additive
+convolution of `kn` product laws `C_{η₁}⊠C_{η₁}`.  The second is the
+coefficient law of `Sᵀ(E₁+C_u)`: each scalar product has one
+`CBD_{η₁}` factor and one independent sum of a `CBD_{η₂}` variable and a
+`d_u`-compression error.  The last factor is the coefficient law of
+`E₂+C_v`.  They therefore correspond to `eᵀy`, `sᵀ(e₁+ε_u)`, and `e₂+ε_v`
+in (1), respectively.
+
+`coefficientNoiseMeasure p` is the unnormalized law (4), and
+`noiseDenominator p` is its total mass.  `foldedNoiseMeasure p` is the
+pushforward of (4) under
+`ℤ→ℤ/qℤ`, obtained by summing the masses in each congruence class.
+`decodeFailureMass p` then weights each residue by the number of message bits
+that it causes `Compress₁` to decode incorrectly.
+
+The generic definitions of finite integer measures, additive convolution, and
+product pushforward live in `ToVCVio.Probability.IntMeasure`.  The proposition
+relating the model (4) to the honest sampler is stated separately in
+`NoiseModel.lean`.
 -/
 
 open LatticeCrypto
@@ -41,15 +134,21 @@ namespace MLKEM
 
 /-! ## Component measures -/
 
-/-- The centered binomial value of a `2η`-bit sample `x`: the number of set bits
-among the low `η` bits minus the number among the next `η` bits (FIPS 203,
-Algorithm 8). -/
+/-- The random-variable function `CBD_η : Ω_η → ℤ`, after identifying
+`Ω_η={0,1}^{2η}` with `{0,…,4^η-1}`.  It sends a `2η`-bit sample `x` to the
+number of set bits among its low `η` bits minus the number among its next `η`
+bits (FIPS 203, Algorithm 8). -/
 def cbdValue (η x : ℕ) : ℤ :=
   ((∑ j ∈ Finset.range η, (x >>> j) % 2 : ℕ) : ℤ) -
     ((∑ j ∈ Finset.range η, (x >>> (η + j)) % 2 : ℕ) : ℤ)
 
-/-- The centered binomial counting measure `CBD_η`: it counts the `4^η` bit
-samples by their centered binomial value. -/
+/-- The unnormalized law of the uniformly sampled random variable
+`CBD_η : Ω_η → ℤ`:
+
+`x ↦ #{ω∈{0,1}^{2η} | CBD_η(ω)=x}`.
+
+Its total mass is `4^η`; division by `4^η` gives its probability mass
+function. -/
 noncomputable def cbdMeasure (η : ℕ) : IntMeasure := enumMeasure (4 ^ η) (cbdValue η)
 
 theorem measureWindow_cbdMeasure_two : MeasureWindow (cbdMeasure 2) (-2) 2 :=
@@ -63,8 +162,9 @@ representative of `Decompress_d (Compress_d x) - x`. -/
 def compressionError (d x : ℕ) : ℤ :=
   centeredRepr (Concrete.decompress d (Concrete.compress d (x : Coeff)) - (x : Coeff))
 
-/-- The compression-error counting measure: the `Compress_d` round-trip error
-under counting over the `q` residues. -/
+/-- The unnormalized compression-error measure for a uniform input residue:
+the mass at `x` is the number of `a∈ℤ/qℤ` for which
+`centered(Decompress_d(Compress_d(a))-a)=x`. -/
 noncomputable def compressionErrorMeasure (d : ℕ) : IntMeasure :=
   enumMeasure modulus (compressionError d)
 
@@ -103,23 +203,32 @@ independent sum of a `CBD_{η₂}` draw and a `Compress_{d_v}` round-trip error.
 noncomputable def additiveNoiseMeasure (p : ParameterSet) : IntMeasure :=
   cbdMeasure p.params.eta2 * compressionErrorMeasure p.params.dv
 
-/-- The finite counting measure for one coefficient of the decryption noise.
-It mirrors
+/-- The unnormalized law of any fixed coefficient of the auxiliary random
+polynomial
+
+`N_p^ind=EᵀY-Sᵀ(E₁+C_u)+E₂+C_v ∈ ℤ[X]/(X^256+1)`.
+
+After reduction modulo `q`, this polynomial mirrors the honest decryption-noise
+identity
 
 `w − μ = eᵀy + e₂ + ε_v − sᵀe₁ − sᵀε_u`.
 
-The factor `keyNoiseProductMeasure p ^ (p.params.k * ringDegree)` accounts for the
-`eᵀy` products; `ciphertextNoiseProductMeasure p ^ (p.params.k * ringDegree)`
-accounts for the `sᵀ(e₁ + ε_u)` products; and `additiveNoiseMeasure p` accounts for
-`e₂ + ε_v`. This file does not assert that the honest per-coordinate sampler has
-this measure. -/
+The coefficients of `E,Y,S,E₁,E₂,C_u,C_v` are independent and have the laws
+specified in the module comment.  The factor
+`keyNoiseProductMeasure p ^ (p.params.k * ringDegree)` accounts for the
+`eᵀy` products; `ciphertextNoiseProductMeasure p ^
+(p.params.k * ringDegree)` accounts for the `sᵀ(e₁+ε_u)` products; and
+`additiveNoiseMeasure p` accounts for `e₂+ε_v`.  The proposition
+`CoefficientFailureBound` in `NoiseModel.lean` is the separate hypothesis that
+compares this auxiliary law with the honest per-coordinate sampler. -/
 noncomputable def coefficientNoiseMeasure (p : ParameterSet) : IntMeasure :=
   keyNoiseProductMeasure p ^ (p.params.k * ringDegree) *
     ciphertextNoiseProductMeasure p ^ (p.params.k * ringDegree) *
     additiveNoiseMeasure p
 
-/-- The coefficient-noise measure folded into `ZMod q`, matching reduction of
-the integer noise into the coefficient ring. -/
+/-- The pushforward of `coefficientNoiseMeasure p` under the reduction map
+`ℤ→ℤ/qℤ`.  Its mass at `r` is the sum of the integer masses over the congruence
+class `r`; equivalently, it is the periodization of the measure modulo `q`. -/
 noncomputable def foldedNoiseMeasure (p : ParameterSet) : ZMod modulus →₀ ℕ :=
   Finsupp.mapDomain (fun v : ℤ => (v : ZMod modulus)) (coefficientNoiseMeasure p)
 
@@ -133,7 +242,7 @@ theorem decodeFailureWeight_le_two (r : Coeff) : decodeFailureWeight r ≤ 2 := 
   rw [decodeFailureWeight]
   split <;> split <;> omega
 
-/-- The bit-summed decode-failure mass of the folded coefficient-noise measure.
+/-- The bit-summed decode-failure mass of the periodized coefficient-noise measure.
 Over a uniform message bit, the decode-failure probability for the finite
 measure defined here is this mass divided by twice the total mass. -/
 noncomputable def decodeFailureMass (p : ParameterSet) : ℕ :=

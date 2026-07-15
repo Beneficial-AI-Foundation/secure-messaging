@@ -7,24 +7,40 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate.Tables
 
 /-!
-# The packed coefficient-noise measures
+# Packed form of the coefficient-noise counting measure
 
-This file gives closed base-`R` packed forms of the three finite
-coefficient-noise counting measures. These formulas are proof machinery for the
-failure-bound arithmetic check: they let `decide +kernel` evaluate a large but finite
-integer expression instead of unfolding convolutions over and over.
+Let `C_η` denote the centered-binomial counting measure `cbdMeasure η`, `E_d` denote
+`compressionErrorMeasure d`, `*` denote additive convolution, and `F⊠G`
+denote `productMeasure F G`, the push-forward of the product counting measure
+under integer multiplication.  For parameters `(k,η₁,η₂,d_u,d_v)` and
+`n=256`, the measure packed in this file is exactly
 
-For each parameter set, `measurePack_coefficientNoiseMeasure_*` states that packing the
-composed coefficient-noise measure equals a product of three explicit packed
-pieces:
+```
+M = (C_{η₁} ⊠ C_{η₁}) ^{*(kn)}
+    * (C_{η₁} ⊠ (C_{η₂} * E_{d_u})) ^{*(kn)}
+    * (C_{η₂} * E_{d_v}).                                (1)
+```
 
-* the `eᵀy` product terms;
-* the `sᵀ(e₁ + ε_u)` product terms;
-* the additive `e₂ + ε_v` term.
+The three factors respectively model the coefficient contributions from
+`eᵀy`, `-sᵀ(e₁+ε_u)`, and `e₂+ε_v`.  In the simplified model, signs on the
+product terms do not change their counting measure because one factor is a
+symmetric centered-binomial variable.  Equation (1) is the definition
+`coefficientNoiseMeasure`; its comparison with the honest sampler is stated in
+`NoiseModel.lean`.
 
-No new cryptographic assumption is introduced here; the file only rewrites the
-finite counting measure defined in `NoiseDistribution.lean` into a form suitable
-for kernel evaluation.
+For a measure `F` supported above `lo`, `measurePack R lo F` evaluates its
+mass-generating polynomial at `R`.  Each theorem
+`measurePack_coefficientNoiseMeasure_*` expands the packed value of (1) into
+the product of three finite sums:
+
+* a sum over two `CBD_{η₁}` values, raised to `kn`;
+* a sum over a `CBD_{η₁}` value and the convolution `C_{η₂}*E_{d_u}`, raised
+  to `kn`;
+* the product of the finite sums for `C_{η₂}` and `E_{d_v}`.
+
+These closed forms let the later `decide +kernel` certificate evaluate one
+finite natural-number expression instead of repeatedly unfolding
+convolutions.
 -/
 
 open LatticeCrypto

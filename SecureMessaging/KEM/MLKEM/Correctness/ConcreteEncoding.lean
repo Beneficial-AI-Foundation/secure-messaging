@@ -18,7 +18,7 @@ recovery already fails at distance `832` for the bit `1`.
 
 The scalar recovery fact lifts coefficientwise to the polynomial theorem
 `compress1_recovery`, and `fips203EncodingLaws` combines it with the abstract
-round-trip laws to show the concrete encoding satisfies `FIPS203EncodingLaws` for
+round-trip identities to show the concrete encoding satisfies `FIPS203EncodingLaws` for
 every parameter set.
 -/
 
@@ -124,7 +124,7 @@ theorem compress1_recovery (params : Params) (w : Rq) (m : Message)
     (byteDecode1_get_val_lt_two params m i) hcoord
 
 /-- The concrete ML-KEM encoding satisfies `FIPS203EncodingLaws` for every parameter
-set: the abstract round-trip laws hold, and `Compress₁` recovers the message within
+set: the required round-trip identities hold, and `Compress₁` recovers the message within
 the recovery radius. -/
 theorem fips203EncodingLaws (p : ParameterSet) :
     FIPS203EncodingLaws (concreteEncoding (ParameterSet.params p)) where

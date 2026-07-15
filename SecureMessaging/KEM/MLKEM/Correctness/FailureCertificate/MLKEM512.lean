@@ -14,20 +14,22 @@ bound. The FIPS 203 Table 2 parameters are `k = 2`, `η₁ = 3`, `η₂ = 2`,
 `d_u = 10`, and `d_v = 4`.
 
 Those parameters determine the one-coordinate coefficient-noise measure used in
-the proof: `η₁ = 3` gives the `CBD₃` samples for the key-side products
-`eᵀy` and `sᵀ(e₁ + ε_u)`, `η₂ = 2` gives the `CBD₂` encryption-error samples,
+the proof: `η₁ = 3` gives the centered-binomial `CBD₃` samples for the key-side
+products `eᵀy` and `sᵀ(e₁ + ε_u)`, `η₂ = 2` gives the centered-binomial `CBD₂`
+encryption-error samples,
 `d_u = 10` gives the `u`-compression error table, `d_v = 4` gives the
 `v`-compression error table, and `k = 2` gives `2 * 256` coefficient products
 for each dot product.
 
-The theorem below proves the exact integer inequality that certifies the
-ML-KEM-512 Table 1 failure-rate bound. "Certifies" here means only this: Lean
-checks that the exact finite sum `decodeFailureMass .MLKEM512`, after the
-`256`-coordinate union bound and the normalization by
-`2 * noiseDenominator .MLKEM512`, is at most `2^-138.8`.
+The theorem below proves the exact integer inequality
 
-NB: the approved parameter sets are split into separate modules so lake checks
-one large closed arithmetic proof at a time.
+`256·decodeFailureMass/(2·noiseDenominator)≤2^-138.8`
+
+for this finite measure.  The coefficient-distribution comparison needed to apply this
+number to the honest sampler is stated in `NoiseModel.lean`.
+
+The approved parameter sets are split into separate modules so that lake
+checks one large closed arithmetic proof at a time.
 -/
 
 open LatticeCrypto

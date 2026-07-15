@@ -25,8 +25,14 @@ primitives are the two supplied slots. `mlkem512Scheme`, `mlkem768Scheme`, and
 `mlkem1024Scheme` fix those slots to the concrete NTT and the FFI-backed
 SHA-3/SHAKE primitives.
 
-The δ-correctness of these schemes under the `CoefficientFailureBound`
-hypothesis is stated in `SecureMessaging.KEM.MLKEM.Correctness`.
+The conditional quantitative correctness theorem for honest decapsulation is
+stated in `SecureMessaging.KEM.MLKEM.Correctness`.  Its generic formulation uses an
+`NTTRingLaws ring` certificate to interpret transform-domain operations as
+arithmetic in `R_q`; the concrete transform is accompanied by the certificate
+`Concrete.concreteNTTRingLaws`.  The numerical theorem additionally takes a
+coefficient-distribution comparison, `CoefficientFailureBound`, relating the
+honest sampler to the auxiliary finite coefficient model used by the
+arithmetic certificate.
 -/
 
 open OracleComp KEMScheme ENNReal

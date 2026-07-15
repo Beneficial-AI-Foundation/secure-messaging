@@ -17,18 +17,20 @@ bound. The FIPS 203 Table 2 parameters are `k = 4`, `η₁ = 2`, `η₂ = 2`,
 `d_u = 11`, and `d_v = 5`.
 
 Those parameters determine the one-coordinate coefficient-noise measure used in
-the proof: `η₁ = 2` gives the key-side `CBD₂` samples, `η₂ = 2` gives the
-encryption-error samples, `d_u = 11` gives the `u`-compression error table,
+the proof: `η₁ = 2` gives the key-side centered-binomial `CBD₂` samples,
+`η₂ = 2` gives the encryption-error samples, `d_u = 11` gives the
+`u`-compression error table,
 `d_v = 5` gives the `v`-compression error table, and `k = 4` gives `4 * 256`
 coefficient products for each dot product.
 
-The theorem below proves the exact integer inequality that certifies the
-ML-KEM-1024 Table 1 failure-rate bound. "Certifies" here means only this: Lean
-checks that the exact finite sum `decodeFailureMass .MLKEM1024`, after the
-`256`-coordinate union bound and the normalization by
-`2 * noiseDenominator .MLKEM1024`, is at most `2^-174.8`.
+The theorem below proves the exact integer inequality
 
-NB: this module imports the ML-KEM-768 arithmetic check only to serialize the heavy
+`256·decodeFailureMass/(2·noiseDenominator)≤2^-174.8`
+
+for this finite measure.  The coefficient-distribution comparison needed to apply this
+number to the honest sampler is stated in `NoiseModel.lean`.
+
+This module imports the ML-KEM-768 arithmetic check to serialize the heavy
 closed arithmetic proofs in lake order.
 -/
 

@@ -8,18 +8,28 @@ import LatticeCrypto.MLKEM.KEM
 import ToVCVio.CryptoFoundations.KeyEncapMech
 
 /-!
-# ML-KEM correctness reduction
+# Deterministic reduction from ML-KEM failure to K-PKE recovery failure
 
-FIPS 203 Section 3.2 defines the decapsulation-failure event of ML-KEM: for an
-honestly generated key pair and an honest encapsulation `(c, K)`, decapsulation
-fails when `Decaps(dk, c) ≠ K`. ML-KEM is not perfectly correct, so this event
-has positive probability.
+On a fixed honest outcome `(d,z,m)`, let `(ek,dk)` be ML-KEM key generation,
+let `(K,c)` be encapsulation, and let
 
-This file bounds the decapsulation-failure probability of VCV-io's packaged
-`MLKEM.asKEMScheme` by the probability that the underlying K-PKE decryption fails
-to recover the encapsulated message on the same honest run. The approved-set
-decapsulation-failure rates from FIPS 203 Table 1 are recorded in
-`SecureMessaging.KEM.MLKEM.Correctness.FailureRates`.
+`m' = KPKE.decrypt(dk.dkPKE,c)`.
+
+The deterministic theorem `decapsInternal_eq_encapsKey_of_decrypt_eq` proves
+
+`m'=m  →  decapsInternal(dk,c)=K`.                        (1)
+
+Indeed, recovery of `m` makes decapsulation derive the same key and coins as
+encapsulation; re-encryption reproduces `c`, so implicit rejection is not
+taken.  The contrapositive of (1) gives the event inclusion
+
+`{Decaps(dk,c)≠K} ⊆ {KPKE.decrypt(dk.dkPKE,c)≠m}`.         (2)
+
+Both events are measured on the same uniform sample of `(d,z,m)`.  Monotonicity
+of probability applied to (2) is
+`correctnessError_le_underlyingCorrectnessError`.  No distributional or
+random-function assumption enters this reduction; those assumptions arise
+only when the K-PKE event on the right of (2) is assigned a numerical bound.
 -/
 
 open OracleComp KEMScheme ENNReal
@@ -77,10 +87,10 @@ theorem correctnessError_le_underlyingCorrectnessError
       underlyingCorrectnessError ring encoding prims := by
   have hbridge : (asKEMScheme ring encoding prims).correctnessError ProbCompRuntime.probComp
       = Pr[= false | (asKEMScheme ring encoding prims).CorrectExp] := by
-    rw [KEMScheme.correctnessError,
-      show ProbCompRuntime.probComp.evalDist (asKEMScheme ring encoding prims).CorrectExp
-        = evalDist (asKEMScheme ring encoding prims).CorrectExp from rfl,
-      SPMF.probOutput_eq_apply, probOutput_def]
+    rw [KEMScheme.correctnessError]
+    change 1 - Pr[= true | (asKEMScheme ring encoding prims).CorrectExp] =
+      Pr[= false | (asKEMScheme ring encoding prims).CorrectExp]
+    rw [probOutput_false_eq_sub, probFailure_eq_zero, tsub_zero]
   rw [hbridge, underlyingCorrectnessError, ← probEvent_eq_eq_probOutput,
     ← probEvent_eq_eq_probOutput]
   simp only [KEMScheme.CorrectExp, asKEMScheme, keygen, underlyingCorrectExp, monad_norm]

@@ -34,21 +34,52 @@ The encoded message polynomial is
 
 `μ = Decompress₁(ByteDecode₁ m)`.
 
-The decryption noise is the polynomial `w - μ ∈ R_q`. Coefficientwise, each
-entry lies in `ZMod q`; its size is measured by applying
-`LatticeCrypto.centeredRepr` to each coefficient and then taking the
-coefficientwise `ℓ∞` norm (`LatticeCrypto.cInfNorm`).
+The decryption noise is the element `w-μ∈R_q`, represented by a polynomial of
+degree less than `256`.  To define its size, write
 
-There are two recovery statements in this file. The norm statement is a simple
-sufficient condition: if every centered coefficient of `w - μ` has absolute
-value at most `⌊q/4⌋ - 1 = 831`, then `Compress₁ w` reads back the original
-message bits. The exact statement is coordinatewise: coefficient `i` fails
-precisely when
+`f=∑_{i=0}^{255} f_iX^i ∈ R_q`
 
-`(Compress₁ w)_i ≠ (ByteDecode₁ m)_i`.
+and let `f̃_i∈[-(q-1)/2,(q-1)/2]∩ℤ` be the unique integer congruent to `f_i`
+modulo `q`.  The coefficient infinity norm is
 
-The later failure-bound proof uses this exact coordinate event, not the coarser
-symmetric-radius condition.
+`‖f‖_∞ = max_{0≤i<256}|f̃_i| ∈ ℕ`.                        (1)
+
+In Lean, `LatticeCrypto.centeredRepr f_i` is `f̃_i` and
+`LatticeCrypto.cInfNorm f` is exactly the maximum in (1).  The library theorem
+`LatticeCrypto.cInfNorm_le_iff` gives the coordinatewise characterization
+
+`cInfNorm f ≤ b  ↔  ∀ i : Fin 256, (centeredRepr(f_i)).natAbs ≤ b`,
+
+where `Int.natAbs` is the natural-number value of the absolute value.
+
+## The two recovery propositions
+
+The first proposition is a sufficient norm criterion.  Define
+
+`ρ = ⌊q/4⌋ - 1 = 831`.
+
+`kpkeNoiseWithinRecoveryRadius d z m` is the proposition
+
+`‖w-μ‖_∞ = cInfNorm(w-μ) ≤ ρ`.
+
+Given the encoding properties bundled by `FIPS203EncodingLaws`, the theorem
+`kpke_decrypt_eq_of_noiseWithinRecoveryRadius` proves that this inequality
+implies `KPKE.decrypt(...) = m`.  This is a sufficient recovery radius; noise
+outside the symmetric interval can still decode correctly.
+
+The second proposition is the exact, message-dependent event.  For
+`i ∈ {0,…,255}`, define
+
+`F_i(d,z,m) :⇔ (Compress₁(w))_i ≠ (ByteDecode₁(m))_i`.
+
+This is `kpkeCoordinateDecodeFailure`.  Assuming the byte-encoding and
+byte-decoding identities in `encoding.Laws`,
+`kpke_decrypt_ne_iff_exists_coordinateDecodeFailure` proves the equivalence
+
+`KPKE.decrypt(...) ≠ m  ↔  ∃ i, F_i(d,z,m)`.
+
+The quantitative proof applies the union bound directly to these exact events:
+`Pr[∃ i,F_i] ≤ ∑_i Pr[F_i]`.
 -/
 
 open LatticeCrypto
@@ -68,11 +99,12 @@ def messageRecoveryRadius : ℕ := modulus / 4 - 1
 @[simp] theorem messageRecoveryRadius_eq : messageRecoveryRadius = 831 := by
   norm_num [messageRecoveryRadius, modulus]
 
-/-- FIPS 203 message-encoding laws used by the decryption reduction: the abstract
-round-trip laws together with `Compress₁ / Decompress₁` message recovery within
+/-- Encoding properties used by the decryption reduction: the serialization
+identities supplied by `encoding.Laws`, together with recovery by
+`Compress₁ / Decompress₁` whenever the noise lies within
 `messageRecoveryRadius`. -/
 structure FIPS203EncodingLaws (encoding : Encoding params) : Prop where
-  /-- The abstract encoding round-trip laws of `encoding`. -/
+  /-- The serialization and deserialization identities of `encoding`. -/
   laws : encoding.Laws
   /-- `Compress₁` recovers the encoded message from any noisy representative whose
   decryption noise is within `messageRecoveryRadius`. -/
@@ -138,10 +170,11 @@ def kpkeCoordinateDecodeFailure (d z : Seed32) (m : Message) (i : Fin ringDegree
   (encoding.compress1 (kpkeDecryptRepresentative ring encoding prims d z m)).get i ≠
     (encoding.byteDecode1 m).get i
 
-/-- K-PKE decryption of the honest encapsulation ciphertext fails to recover `m`
-exactly when some one of the `256` coefficients of `Compress₁` of the recomputed
-representative disagrees with the decoded message. Both directions hold under the
-encoding round-trip laws. -/
+/-- K-PKE decryption of the honest encapsulation ciphertext fails to recover
+`m` exactly when some one of the `256` coefficients of `Compress₁` of the
+recomputed representative disagrees with the decoded message.  The reverse
+direction uses the byte-encoding and byte-decoding identities in
+`encoding.Laws`. -/
 theorem kpke_decrypt_ne_iff_exists_coordinateDecodeFailure
     (hEnc : encoding.Laws) (d z : Seed32) (m : Message) :
     KPKE.decrypt ring encoding prims (keygenInternal ring encoding prims d z).2.dkPKE

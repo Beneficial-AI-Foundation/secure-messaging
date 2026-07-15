@@ -13,7 +13,7 @@ This file records four small finite tables used by the packed arithmetic proof
 and proves that they have the intended values.
 
 The two `convTable*` tables certify the finite measure for a term of
-`sᵀ(e₁ + ε_u)`: first add a `CBD₂` encryption-error coefficient to a
+`sᵀ(e₁ + ε_u)`: first add a centered-binomial `CBD₂` encryption-error coefficient to a
 `Compress_{d_u}` round-trip error, then count the resulting integer value.
 
 * `convTableTen` is for `d_u = 10`, used by ML-KEM-512 and ML-KEM-768; its
@@ -29,10 +29,11 @@ they count `Decompress_d(Compress_d x) - x` over all `q = 3329` residues.
 * `ceTableFive` is for `d_v = 5`, used by ML-KEM-1024; its support is
   `[-52, 52]`.
 
-These tables feed the packed coefficient-noise measures in `PackedMeasures.lean`.
-The compression-error counts range over all residues, so the kernel checks are
-split into bounded blocks and then reassembled. The tables are not assumptions:
-the `_spec` and `measurePack_*` theorems prove them by finite computation.
+These tables feed the packed coefficient-noise measures in
+`PackedMeasures.lean`.  The compression-error counts range over all residues,
+so the kernel checks are split into bounded blocks and then reassembled.  The
+`_spec` and `measurePack_*` theorems establish the table entries by finite
+computation.
 -/
 
 open LatticeCrypto
