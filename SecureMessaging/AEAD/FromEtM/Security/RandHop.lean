@@ -20,18 +20,18 @@ variable {K_e K_m M AD C_e T : Type}
   [SampleableType C_e] [SampleableType T]
 
 omit [Inhabited C_e] [Inhabited T] in
-/-- Game 3 equals the random AEAD experiment.
+/-- `game3` (the final endpoint of the game-hop sequence) coincides with the real
+random-ciphertext AEAD experiment (`securityExpFixedBit … true`).
 
-The hypothesis `hkm` says `prf.keygen` never fails (`Pr[⊥ | prf.keygen] = 0`). It is
-needed because the `b = true` (random) experiment samples `km ← prf.keygen` whereas
-`game3` does not — `km` is dead code once encryption is randomized and decryption always
-rejects. Dropping a bind of a computation that can fail rescales the output probability by
-`(1 - Pr[⊥ | prf.keygen])` (`probOutput_bind_const`), so the two experiments coincide
-exactly only when `prf.keygen` is lossless. Every real PRF keygen (`$ᵗ K`) satisfies this. -/
+`game3` and the real experiment differ only in that the real experiment generates the scheme's
+whole key pair — including the tag key, which sits idle on the random side — while the simplified
+`game3` never generates it. That extra key generation leaves the output distribution unchanged
+precisely when it cannot fail, which is the `NeverFail prf.keygen` hypothesis. (Every standard
+PRF keygen qualifies; why this is benign: see `etmAEAD_security`.) -/
 theorem game3_eq_rand
     (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
     (adv : OneTimeCCAAdversary AD M (C_e × T))
-    (hkm : Pr[⊥ | prf.keygen] = 0) :
+    [NeverFail prf.keygen] :
     Pr[= true | game3 se adv] =
       Pr[= true | AEADScheme.securityExpFixedBit (etmAEAD se prf) adv true] := by
   -- NRS14 Figure 4, right column: ideal nAE experiment.
@@ -53,7 +53,7 @@ theorem game3_eq_rand
             (AEADScheme.aeadSecurityImpl (etmAEAD se prf) true (ke, km))
             Prod.fst ?_ adv ((none, ∅) : EtmGameState AD C_e T)).symm)]
   · -- `prf.keygen` is lossless, so the `(1 - Pr[⊥]) ·` factor is `1`; `rfl` pins `impl₁`.
-    rw [hkm, tsub_zero, one_mul]
+    rw [NeverFail.probFailure_eq_zero, tsub_zero, one_mul]
   · -- per-query projection (`impl₁` now pinned to game3's oracle implementation)
     intro t s
     obtain ⟨ch, qc⟩ := s

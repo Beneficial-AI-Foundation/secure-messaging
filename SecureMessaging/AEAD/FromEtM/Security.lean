@@ -131,6 +131,16 @@ The security proof adapts **Theorem 1** (for A5), with:
 | `etmAEAD_security` | Theorem 1 for A5; Figure 9 bound |
 | `prfReduction` | Lemma 3: adversary B(A) |
 | `encReduction` | Lemma 3: privacy reduction D₁(A) |
+
+## ACD19 vs NRS14: decryption suppression
+
+One place the two notions differ: ACD19's decrypt oracle (`AEAD/Defs.oracleDecrypt`) rejects
+**every** query sharing the challenge ciphertext `e*` — any `(a', e*)`, ignoring the associated
+data — whereas NRS14 nAE (and Boneh–Shoup §9.10) reject only the exact returned pair `(a*, e*)`.
+ACD19 is thus the stronger notion. The gap is immaterial for EtM: a query `(a', e*)` with
+`a' ≠ a*` still has to produce the challenge-independent tag on `(a', C*)`, which after the
+`game1` PRF hop is a fresh random `ρ`-value — exactly what the `q_d/|T|` authenticity term
+(`game1_game2_le_auth`) already bounds.
 -/
 
 open OracleSpec OracleComp ENNReal PRFScheme AEADScheme
@@ -155,12 +165,12 @@ reductions (skeleton instantiations), and `q_d` upper-bounds the adversary's
 number of decryption queries (tied to `adv` via `decryptQueryBound`, i.e.
 `IsQueryBoundP` on the decrypt-oracle index).
 
-The hypothesis `hkm` (`Pr[⊥ | prf.keygen] = 0`, i.e. MAC-key generation never
-fails) is needed at the ideal endpoint: `game3` replaces the keyed tag by a
-uniform sample, and lining its output up with the real experiment
-(`game3_eq_rand`) requires key generation to contribute no failure mass —
-otherwise the two experiments' `⊥`-probabilities would differ.
 
+The `NeverFail prf.keygen` instance (i.e. `Pr[⊥ | prf.keygen] = 0`) is the explicit form
+of a losslessness property NRS14 has implicitly: there keys are sampled from a set, so keygen
+cannot fail. Our `prf.keygen : ProbComp K_m` lives in a more permissive, partiality-aware
+type, so we state it. It is satisfied by every standard PRF (whose key is a uniform sample
+`$ᵗ K_m`), so it doesn't rule out any construction of interest.
 NRS14 Figure 9 bound: `Adv^nAE ≤ Adv^prf_F(B) + Adv^ivE_E(D₁) + q_d/2^τ`.
 Our one-time adaptation: `Adv^ivE → Adv^{ind$-cpa}`, `2^τ → |T|`. -/
 theorem etmAEAD_security [Inhabited K_e]
@@ -168,7 +178,7 @@ theorem etmAEAD_security [Inhabited K_e]
     (adv : OneTimeCCAAdversary AD M (C_e × T))
     (q_d : ℕ) [Fintype T]
     (hqd : AEADScheme.decryptQueryBound adv q_d)
-    (hkm : Pr[⊥ | prf.keygen] = 0) :
+    [NeverFail prf.keygen] :
     AEADScheme.distAdvantage (etmAEAD se prf) adv ≤
       PRFScheme.prfAdvantage prf (prfReduction se adv) +
       ↑q_d * (Fintype.card T : ℝ)⁻¹ +
@@ -180,7 +190,7 @@ theorem etmAEAD_security [Inhabited K_e]
   --   |game3 - game0| ≤ |game0 - game1| + |game1 - game2| + |game2 - game3|
   -- Substituting the three hop bounds gives the result.
   unfold AEADScheme.distAdvantage
-  rw [← game3_eq_rand se prf adv hkm, ← game0_eq_real se prf adv]
+  rw [← game3_eq_rand se prf adv, ← game0_eq_real se prf adv]
   calc |(Pr[= true | game3 se adv]).toReal -
         (Pr[= true | game0 se prf adv]).toReal|
     _ ≤ |(Pr[= true | game0 se prf adv]).toReal -
