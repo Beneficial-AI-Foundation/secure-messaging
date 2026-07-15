@@ -78,16 +78,18 @@ Decryption. Given a secret key `dk = ŝ` and a ciphertext `(u, v)`:
 
 We build the KEM directly on `MLKEM.KPKE`, then exhibit its online-offline split:
 
-* `keygen () = (ek, dk)` — as above, with `ρ` fixed: `ek = t̂ = Â ŝ + ê`, `dk = ŝ`;
-* `encaps ek` — sample `coins` and a message `m` (the shared key) and return
-  `(ct, m)` with `ct = (ct0, ct1) := KPKE.encrypt {t̂ := ek, ρ} m coins`;
+* `keygen () = (ek, dk)` — sample secret `ŝ` and error `ê`; return
+  `ek = t̂ = Â ŝ + ê` and `dk = ŝ` (every key pair shares the fixed `Â`);
+* `encaps ek` — sample encryption randomness `coins` and a message `m`; the shared
+  key is `m`, and the ciphertext is `ct = (ct0, ct1) = KPKE.encrypt m coins` under
+  the public key `(ek, ρ)`;
 * `decaps (dk, ct) = m` — run `MLKEM.KPKE.decrypt`.
 
-So `encaps` and `decaps` are K-PKE encryption and decryption directly; only
-`keygen` re-derives `KPKE.keygenFromSeed` (with `ρ` fixed rather than drawn per
-key pair).
+Here `encaps` and `decaps` are K-PKE encryption and decryption directly; only
+`keygen` re-derives `KPKE.keygenFromSeed`, with `ρ` fixed rather than drawn per
+key pair.
 
-The split is given by two phases that recompute the ciphertext components
+The on/off split is given by two phases that recompute the ciphertext components
 separately:
 
 * `encapsOff () = (ct0, st)` — sample `coins`; return `ct0 = u` and the state
@@ -115,6 +117,7 @@ variable (params : Params) (encoding : Encoding params)
 noise `e1` from fresh coins, and output the offline ciphertext
 `ct0 = invNTTVec (Âᵀ ŷ) + e1` together with the state `(coins, ŷ)` needed by the
 online phase. Independent of the encapsulation key. -/
+-- ANCHOR: encapsOffFromKPKE
 def encapsOff : ProbComp ((Coins × TqVec params.k) × encoding.EncodedU) := do
   let coins ← $ᵗ Coins
   let aHat := prims.publicMatrix rho
@@ -123,10 +126,12 @@ def encapsOff : ProbComp ((Coins × TqVec params.k) × encoding.EncodedU) := do
   let yHat := ring.nttVec y
   let u := ring.invNTTVec (ring.matTransposeVecMul aHat yHat) + e1
   pure ((coins, yHat), encoding.byteEncodeDUVec (encoding.compressDU u))
+-- ANCHOR_END: encapsOffFromKPKE
 
 /-- Online encapsulation `Enc.On`: from the offline state `(coins, ŷ)` and the
 encapsulation key `ek = t̂`, sample the message `I` (the shared key) and output
 the online ciphertext `ct1 = invNTT (t̂ ŷ) + e2 + decompress₁ (decode₁ I)`. -/
+-- ANCHOR: encapsOnFromKPKE
 def encapsOn (st : Coins × TqVec params.k) (ek : encoding.EncodedTHat) :
     ProbComp (encoding.EncodedV × Message) := do
   let (coins, yHat) := st
@@ -136,6 +141,7 @@ def encapsOn (st : Coins × TqVec params.k) (ek : encoding.EncodedTHat) :
   let mu := encoding.decompress1 (encoding.byteDecode1 msg)
   let v := ring.invNTT (ring.dot tHat yHat) + e2 + mu
   pure (encoding.byteEncodeDV (encoding.compressDV v), msg)
+-- ANCHOR_END: encapsOnFromKPKE
 
 /-- Key generation against the fixed public matrix `Â = publicMatrix ρ`: sample
 the secret `s` and error `e`, and output `ek = t̂ = Â ŝ + ê` and `dk = ŝ`
@@ -153,15 +159,18 @@ def keygen : ProbComp (encoding.EncodedTHat × encoding.EncodedTHat) := do
 
 /-- Decapsulation: reassemble the K-PKE ciphertext and run `MLKEM.KPKE.decrypt`
 to recover the message (the shared key). -/
+-- ANCHOR: decapsFromKPKE
 def decaps (sk : encoding.EncodedTHat) (c : encoding.EncodedU × encoding.EncodedV) :
     ProbComp (Option Message) :=
   pure (some (KPKE.decrypt ring encoding prims
     ({ sHatEncoded := sk } : KPKE.SecretKey params encoding)
     ({ uEncoded := c.1, vEncoded := c.2 } : KPKE.Ciphertext params encoding)))
+-- ANCHOR_END: decapsFromKPKE
 
 /-- The K-PKE KEM (IND-CPA, no FO transform) with ciphertext space
 `C = C₀ × C₁ = EncodedU × EncodedV`. Encapsulation is `MLKEM.KPKE.encrypt` on a
 freshly sampled message (the shared key); decapsulation is `MLKEM.KPKE.decrypt`. -/
+-- ANCHOR: schemeFromKPKE
 def scheme :
     KEMScheme ProbComp Message encoding.EncodedTHat encoding.EncodedTHat
       (encoding.EncodedU × encoding.EncodedV) where
@@ -173,11 +182,13 @@ def scheme :
       ({ tHatEncoded := ek, rho := rho } : KPKE.PublicKey params encoding) msg coins
     pure ((ct.uEncoded, ct.vEncoded), msg)
   decaps := decaps params encoding ring prims
+-- ANCHOR_END: schemeFromKPKE
 
 /-- The online-offline structure for the K-PKE KEM: the ciphertext splits as
 `ct = (ct0, ct1)`, and `factor` proves that the KEM's encapsulation
 (`MLKEM.KPKE.encrypt`) equals the offline phase `encapsOff` followed by the
 online phase `encapsOn`. -/
+-- ANCHOR: onOffFromKPKE
 def onOff : (scheme params encoding ring prims rho).OnOffStructure where
   St := Coins × TqVec params.k
   C₀ := encoding.EncodedU
@@ -188,6 +199,7 @@ def onOff : (scheme params encoding ring prims rho).OnOffStructure where
   factor ek := by
     simp only [scheme, encapsOff, encapsOn, KPKE.encrypt, bind_assoc, pure_bind,
       Equiv.refl_symm, Equiv.coe_refl, id_eq]
+-- ANCHOR_END: onOffFromKPKE
 
 /-- The K-PKE on/off KEM at Kyber-768, with the concrete encoding, NTT, and
 FFI-backed primitives; `rho` is the public matrix seed, treated as a public
