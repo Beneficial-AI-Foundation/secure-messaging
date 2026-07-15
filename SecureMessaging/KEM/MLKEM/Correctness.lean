@@ -309,8 +309,15 @@ exact arithmetic certificate proves
 `nF_p/(2D_p) ≤ 2^{-e_p}`.                                  (17)
 
 This is a theorem about the explicitly defined finite measure (14).  It is
-proved with natural-number arithmetic; taking fifth powers clears the one
-decimal place in each exponent.
+proved with natural-number arithmetic.  More precisely, each exponent has the
+form `e_p=E_p/5`, with `E_p∈{694,824,874}`.  For
+`a=nF_p` and the positive integer `b=2D_p`, monotonicity of `x↦x^5` gives
+
+`a/b≤2^{-E_p/5}  ↔  a^5·2^{E_p}≤b^5`.
+
+The right side is an exact natural-number inequality, so the fifth power
+eliminates the rational exponent without using floating-point approximation.
+The full derivation is given in `FailureCertificate.lean`.
 
 It remains to relate the actual random variables `(B_i,N_i)` from (8) to the
 independent model.  `CoefficientFailureBound p ring prims` is the proposition

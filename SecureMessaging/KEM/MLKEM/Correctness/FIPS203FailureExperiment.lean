@@ -44,9 +44,10 @@ open OracleComp KEMScheme ENNReal
 
 namespace MLKEM
 
-/-- The FIPS 203 Section 3.2 decapsulation-failure experiment: sample the key
-seeds `(d, z)` and message `m`, then report whether honest decapsulation
-disagrees with the encapsulated shared secret. -/
+/-- The FIPS 203 Section 3.2 decapsulation-failure experiment: sample K-PKE
+key-generation randomness `d`, the independent implicit-rejection seed `z`,
+and message `m`, then report whether honest decapsulation disagrees with the
+encapsulated shared secret. -/
 def fips203DecapsulationFailureExp (p : ParameterSet) (ring : NTTRingOps)
     (encoding : Encoding (ParameterSet.params p))
     [DecidableEq encoding.EncodedU] [DecidableEq encoding.EncodedV]

@@ -17,7 +17,8 @@ with three approved parameter sets ML-KEM-512, ML-KEM-768, and ML-KEM-1024
 `KEMScheme` for each approved parameter set.
 
 `mlkemScheme p ring prims` is the scheme at parameter set `p`: key generation
-samples the seeds `(d, z)` and runs `ML-KEM.KeyGen_internal`, encapsulation
+samples K-PKE key-generation randomness `d` and an independent
+implicit-rejection seed `z`, then runs `ML-KEM.KeyGen_internal`; encapsulation
 samples the message `m` and runs `ML-KEM.Encaps_internal`, and decapsulation
 runs `ML-KEM.Decaps_internal` with implicit rejection. Byte encoding and
 compression are the executable FIPS 203 codec; the NTT and the SHA-3 family
@@ -52,7 +53,8 @@ instance decidableEqEncodedV (params : Params) :
   inferInstanceAs (DecidableEq ByteArray)
 
 /-- The ML-KEM key-encapsulation mechanism at the approved parameter set `p`
-(FIPS 203 Section 7). Key generation samples the seeds `(d, z)` and runs
+(FIPS 203 Section 7). Key generation samples K-PKE key-generation randomness
+`d` and an independent implicit-rejection seed `z`, then runs
 `ML-KEM.KeyGen_internal` (Algorithm 19); encapsulation samples the message `m`
 and runs `ML-KEM.Encaps_internal` (Algorithm 20); decapsulation runs
 `ML-KEM.Decaps_internal` with implicit rejection (Algorithm 21). Byte encoding

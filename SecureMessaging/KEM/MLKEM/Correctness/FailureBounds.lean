@@ -40,8 +40,9 @@ variable {params : Params}
 variable (ring : NTTRingOps) (encoding : Encoding params)
   (prims : Primitives params encoding)
 
-/-- The honest sampling of the key seeds `(d, z)` and message `m` shared by the
-correctness and bad-noise experiments. -/
+/-- The honest sampling shared by the correctness and bad-noise experiments:
+K-PKE key-generation randomness `d`, the independent implicit-rejection seed
+`z`, and the encapsulated message `m`. -/
 def honestNoiseSample : ProbComp (Seed32 × Seed32 × Message) := do
   let d ← $ᵗ Seed32
   let z ← $ᵗ Seed32

@@ -15,6 +15,11 @@ ML-KEM decapsulation output differs from the shared secret produced by the
 matching honest encapsulation. Table 1 lists the design rate for each approved
 parameter set as a power of two, `δ_p = 2 ^ (-e_p)`.
 
+The number `e_p` is therefore the base-two failure exponent, equivalently
+`e_p=-log₂(δ_p)`.  It is not a probability or a random variable: it is a
+compact logarithmic way to state the proposed upper bound.  A larger `e_p`
+means a smaller failure threshold `δ_p`.
+
 This file defines the exponent `e_p` exactly as a rational number and defines
 the corresponding threshold constant `δ_p=2^(-e_p)` in `ℝ≥0∞`.  These are the
 three numerical thresholds appearing on the right-hand side of the

@@ -17,6 +17,94 @@ certificate.  The algebraic source is the decryption-noise identity proved in
 
 `w-μ=eᵀy+e₂+ε_v-sᵀe₁-sᵀε_u`.                            (1)
 
+## Why construct a distribution for one polynomial coefficient?
+
+The honest correctness experiment has sample space
+
+`Ω_hon=Seed32×Seed32×Message`.
+
+An outcome `ω=(d,z,m)` determines the message bit `B_i(ω)` and decryption-noise
+coefficient `N_i(ω)` at every index `i`.  K-PKE recovery fails exactly when
+
+`∃ i, Compress₁(Decompress₁(B_i(ω))+N_i(ω))≠B_i(ω)`.
+
+The union bound therefore reduces the failure problem to bounding the joint
+distribution of one message bit `B_i` and one scalar coefficient `N_i`.  This
+is why polynomial coefficients enter the probability calculation: ML-KEM
+performs its arithmetic in a polynomial quotient ring, while message recovery
+tests the resulting polynomial one coefficient at a time.
+
+The auxiliary model in this file has a different, much larger product sample
+space `Ξ_p`.  For each scalar coefficient, an outcome `ξ∈Ξ_p` chooses the
+underlying `2η`-bit input to a centered-binomial variable or the underlying
+uniform residue used to define a compression error.  Applying those scalar
+random variables and assembling their outputs determines the random
+polynomials `S,E,Y,E₁,E₂,C_u,C_v` introduced below.  They in turn determine a
+random polynomial `N_p^ind` and hence an integer-valued random variable
+
+`N_{p,i}^ind : Ξ_p → ℤ,    ξ ↦ coefficient i of N_p^ind(ξ)`.
+
+The measure `M_p=coefficientNoiseMeasure p` is the pushforward of counting
+measure on `Ξ_p` along `N_{p,i}^ind`:
+
+`M_p(x)=#{ξ∈Ξ_p | N_{p,i}^ind(ξ)=x}`.
+
+We are therefore not plugging measures into a polynomial.  We put the product
+measure on the tuple of scalar coefficient choices and push that measure
+forward through the function “form the random polynomials, evaluate the noise
+expression, and take coefficient `i`.”
+
+Thus an outcome is not encoded in a single polynomial coefficient.  An outcome
+chooses all the scalar inputs; polynomial arithmetic combines them; and one
+coefficient of the result is the scalar random variable whose distribution we
+need.  Computing `M_p` by direct enumeration of `Ξ_p` would be infeasible.  The
+convolutions below compute the same pushforward measure compositionally from
+the distributions of the scalar inputs.
+
+This auxiliary distribution enters the correctness proof as follows.  Put
+`D_p=∑_xM_p(x)`, reduce `M_p` modulo `q`, and let `F_p` be the mass of the
+resulting `(message bit, noise residue)` pairs for which decoding fails.  The
+auxiliary message bit is uniform and independent, which accounts for the
+factor `2` in the denominator.  Given the `NTTRingLaws` algebraic certificate
+and the hypothesis `CoefficientFailureBound`, each of the `256` coordinates
+satisfies
+
+`Pr[the honest coordinate fails] ≤ F_p/(2D_p)`.
+
+The union bound and the exact arithmetic certificate then give
+
+```
+ε_ML-KEM ≤ 256·F_p/(2D_p) ≤ 2^{-e_p} = δ_p.
+```
+
+The final inequality is what yields the conditional theorem
+`deltaCorrect_fips203`.  The calculation of `M_p` is exact for the auxiliary
+model; `CoefficientFailureBound`, stated in `NoiseModel.lean`, is the separate
+hypothesis relating it to the honest `(d,z,m)` experiment.
+
+## Terminology: the law of a random variable
+
+In probability theory, the *law* of a random variable `X : Ω → S` on a
+probability space `(Ω,P)` means its distribution, namely the pushforward
+measure `X_*P`:
+
+`(X_*P)(A)=P(X⁻¹(A))`.
+
+For a discrete random variable, its probability mass function is
+`x ↦ P[X=x]`.  The `IntMeasure` values in this file are unnormalized versions
+of such laws: they push forward counting measure rather than probability
+measure.  Thus
+
+`x ↦ #{ω∈Ω | X(ω)=x}`
+
+has total mass `|Ω|`, and division by `|Ω|` gives the law of `X` under the
+uniform probability measure.  For independent variables, additive convolution
+computes the law of `X+Y`, while `productMeasure` pushes the product law forward
+along integer multiplication to compute the law of `XY`.  Every occurrence of
+“law” below has this standard pushforward-measure meaning.  It is unrelated to
+Lean structures named `Laws`, which bundle equations satisfied by algebraic or
+encoding operations.
+
 ## Centered binomial and compression-error variables
 
 For `η≥0`, let `Ω_η={0,1}^{2η}` and equip it with the uniform probability
@@ -65,7 +153,7 @@ S,E,Y,E₁,C_u ∈ R_ℤ^k
 ```
 
 and random polynomials `E₂,C_v∈R_ℤ`.  All their scalar coefficients are
-mutually independent, with laws
+mutually independent, with distributions
 
 ```
 S_{ℓj}, E_{ℓj}, Y_{ℓj}  ∼ CBD_{η₁},
@@ -107,16 +195,17 @@ M_p=(C_{η₁}⊠C_{η₁})^{*(kn)}
     *(C_{η₂}*E_{d_v}).                                    (4)
 ```
 
-The first factor is the coefficient law of `EᵀY`: it is the additive
-convolution of `kn` product laws `C_{η₁}⊠C_{η₁}`.  The second is the
-coefficient law of `Sᵀ(E₁+C_u)`: each scalar product has one
+The first factor is the coefficient distribution (pushforward law) of `EᵀY`:
+it is the additive convolution of `kn` product distributions
+`C_{η₁}⊠C_{η₁}`.  The second is the coefficient distribution of
+`Sᵀ(E₁+C_u)`: each scalar product has one
 `CBD_{η₁}` factor and one independent sum of a `CBD_{η₂}` variable and a
-`d_u`-compression error.  The last factor is the coefficient law of
+`d_u`-compression error.  The last factor is the coefficient distribution of
 `E₂+C_v`.  They therefore correspond to `eᵀy`, `sᵀ(e₁+ε_u)`, and `e₂+ε_v`
 in (1), respectively.
 
-`coefficientNoiseMeasure p` is the unnormalized law (4), and
-`noiseDenominator p` is its total mass.  `foldedNoiseMeasure p` is the
+`coefficientNoiseMeasure p` is the unnormalized pushforward distribution (4),
+and `noiseDenominator p` is its total mass.  `foldedNoiseMeasure p` is the
 pushforward of (4) under
 `ℤ→ℤ/qℤ`, obtained by summing the masses in each congruence class.
 `decodeFailureMass p` then weights each residue by the number of message bits
@@ -142,8 +231,8 @@ def cbdValue (η x : ℕ) : ℤ :=
   ((∑ j ∈ Finset.range η, (x >>> j) % 2 : ℕ) : ℤ) -
     ((∑ j ∈ Finset.range η, (x >>> (η + j)) % 2 : ℕ) : ℤ)
 
-/-- The unnormalized law of the uniformly sampled random variable
-`CBD_η : Ω_η → ℤ`:
+/-- The unnormalized pushforward distribution of the uniformly sampled random
+variable `CBD_η : Ω_η → ℤ`:
 
 `x ↦ #{ω∈{0,1}^{2η} | CBD_η(ω)=x}`.
 
@@ -186,25 +275,26 @@ theorem measureWindow_compressionErrorMeasure_eleven :
 
 /-! ## The failure-bound coefficient-noise measure -/
 
-/-- The finite measure of one coefficient product in `eᵀy`, as composed here: a
-product of two independent `CBD_{η₁}` draws. -/
+/-- The pushforward counting measure of one scalar product in `eᵀy`: the
+distribution of the integer product of two independent `CBD_{η₁}` draws. -/
 noncomputable def keyNoiseProductMeasure (p : ParameterSet) : IntMeasure :=
   productMeasure (cbdMeasure p.params.eta1) (cbdMeasure p.params.eta1)
 
-/-- The finite measure of one coefficient product in `sᵀ(e₁ + ε_u)`, as
-composed here: a product of an independent `CBD_{η₁}` draw with an independent sum of a
-`CBD_{η₂}` draw and a `Compress_{d_u}` round-trip error. -/
+/-- The pushforward counting measure of one scalar product in `sᵀ(e₁+ε_u)`:
+the distribution of the product of an independent `CBD_{η₁}` draw with an
+independent sum of a `CBD_{η₂}` draw and a `Compress_{d_u}` round-trip error. -/
 noncomputable def ciphertextNoiseProductMeasure (p : ParameterSet) : IntMeasure :=
   productMeasure (cbdMeasure p.params.eta1)
     (cbdMeasure p.params.eta2 * compressionErrorMeasure p.params.du)
 
-/-- The finite measure of the additive noise `e₂ + ε_v`, as composed here: an
-independent sum of a `CBD_{η₂}` draw and a `Compress_{d_v}` round-trip error. -/
+/-- The pushforward counting measure of the additive term `e₂+ε_v`: the
+distribution of an independent sum of a `CBD_{η₂}` draw and a
+`Compress_{d_v}` round-trip error. -/
 noncomputable def additiveNoiseMeasure (p : ParameterSet) : IntMeasure :=
   cbdMeasure p.params.eta2 * compressionErrorMeasure p.params.dv
 
-/-- The unnormalized law of any fixed coefficient of the auxiliary random
-polynomial
+/-- The unnormalized pushforward distribution of any fixed coefficient of the
+auxiliary random polynomial
 
 `N_p^ind=EᵀY-Sᵀ(E₁+C_u)+E₂+C_v ∈ ℤ[X]/(X^256+1)`.
 
@@ -213,14 +303,14 @@ identity
 
 `w − μ = eᵀy + e₂ + ε_v − sᵀe₁ − sᵀε_u`.
 
-The coefficients of `E,Y,S,E₁,E₂,C_u,C_v` are independent and have the laws
-specified in the module comment.  The factor
+The coefficients of `E,Y,S,E₁,E₂,C_u,C_v` are independent and have the
+distributions specified in the module comment.  The factor
 `keyNoiseProductMeasure p ^ (p.params.k * ringDegree)` accounts for the
 `eᵀy` products; `ciphertextNoiseProductMeasure p ^
 (p.params.k * ringDegree)` accounts for the `sᵀ(e₁+ε_u)` products; and
 `additiveNoiseMeasure p` accounts for `e₂+ε_v`.  The proposition
 `CoefficientFailureBound` in `NoiseModel.lean` is the separate hypothesis that
-compares this auxiliary law with the honest per-coordinate sampler. -/
+compares this auxiliary distribution with the honest per-coordinate sampler. -/
 noncomputable def coefficientNoiseMeasure (p : ParameterSet) : IntMeasure :=
   keyNoiseProductMeasure p ^ (p.params.k * ringDegree) *
     ciphertextNoiseProductMeasure p ^ (p.params.k * ringDegree) *

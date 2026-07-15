@@ -18,34 +18,86 @@ In Lean this ring is the type `Rq`. Its coefficients are residues modulo `q`;
 when an integer representative is needed we use the centered representative in
 `[-(q-1)/2, (q-1)/2]`.
 
-Fix an honest run from key-generation seeds `(d, z)` and encapsulated message
-`m`. Key generation gives a decapsulation key, encapsulation gives a ciphertext,
-and K-PKE decryption recomputes the polynomial
+## Random inputs to an honest run
 
-`w = v′ - ŝᵀ NTT(u′)`.
+The functions below reconstruct an honest ML-KEM execution from three
+independent, uniformly sampled `32`-byte strings `(d,z,m)`:
 
-Here `(u′, v′)` are the decompressed ciphertext components decoded from the
-compressed ciphertext, `ŝ` is the secret vector stored in the decapsulation key,
-and `NTT` is the number-theoretic transform used by ML-KEM to multiply
-polynomials in transform representation. Thus `w ∈ R_q` is the representative
-from which decryption reads the message by applying `Compress₁` coefficientwise.
+* `d` is the randomness supplied to `ML-KEM.KeyGen_internal`.  The primitive
+  `G` expands it into two seeds `(ρ,σ)`: `ρ` determines the public matrix `A`,
+  while `σ` determines the secret vector `s` and key-generation error `e`;
+* `z` is stored in the decapsulation key and is used to compute the fallback
+  shared secret `J(z,c)` if decapsulation rejects a ciphertext.  It does not
+  affect the K-PKE public key, the honest ciphertext, or the decryption-noise
+  expression;
+* `m` is the uniformly sampled message encapsulated by the honest execution.
+  Together with the hash of the encapsulation key, it determines the shared
+  secret and the encryption randomness from which `y,e₁,e₂` are sampled.
 
-The encoded message polynomial is
+Thus `d` is the K-PKE key-generation randomness, whereas `z` is a separate
+implicit-rejection seed.  The definitions take `z` because they reconstruct
+the complete KEM execution, even though the resulting K-PKE noise is
+independent of it.
 
-`μ = Decompress₁(ByteDecode₁ m)`.
+## Polynomial description of decryption
 
-The decryption noise is the element `w-μ∈R_q`, represented by a polynomial of
-degree less than `256`.  To define its size, write
+Suppressing the NTT representation used by the implementation, let
+
+```
+A ∈ R_q^{k×k},
+s,e,y,e₁ ∈ R_q^k,
+e₂,μ ∈ R_q.
+```
+
+Here `A,s,e` come from key generation, `y,e₁,e₂` come from encryption, and
+`μ=Decompress₁(ByteDecode₁(m))` is the encoded message.  The public-key value
+and the two uncompressed ciphertext components are
+
+```
+t = As+e,
+u = Aᵀy+e₁,
+v = tᵀy+e₂+μ.                                             (1)
+```
+
+Compression and subsequent decompression add errors `ε_u` and `ε_v`:
+
+```
+u′ = u+ε_u,
+v′ = v+ε_v.
+```
+
+K-PKE decryption computes
+
+`w=v′-sᵀu′ ∈ R_q`.                                       (2)
+
+In the executable definition this product is performed through the NTT:
+`s` is stored as `ŝ=NTT(s)`, and decryption computes
+
+`w=v′-NTT⁻¹(∑_{ℓ=1}^k ŝ_ℓ ⊙ NTT(u′_ℓ))`,
+
+where `⊙` is multiplication in the transform representation.  Substitution of
+(1) into (2) cancels the two public-matrix terms and gives
+
+`w-μ=eᵀy+e₂+ε_v-sᵀe₁-sᵀε_u`.                            (3)
+
+The left side is the decryption noise.  The file `NoiseIdentity.lean` defines
+all the terms in (1)--(3) and proves (3).  This file defines the recovery
+conditions imposed on `w-μ`.
+
+## The coefficient infinity norm
+
+Every element of `R_q`, including `w-μ`, has a unique representative of degree
+less than `256`.  To define its size, write
 
 `f=∑_{i=0}^{255} f_iX^i ∈ R_q`
 
 and let `f̃_i∈[-(q-1)/2,(q-1)/2]∩ℤ` be the unique integer congruent to `f_i`
 modulo `q`.  The coefficient infinity norm is
 
-`‖f‖_∞ = max_{0≤i<256}|f̃_i| ∈ ℕ`.                        (1)
+`‖f‖_∞ = max_{0≤i<256}|f̃_i| ∈ ℕ`.                        (4)
 
 In Lean, `LatticeCrypto.centeredRepr f_i` is `f̃_i` and
-`LatticeCrypto.cInfNorm f` is exactly the maximum in (1).  The library theorem
+`LatticeCrypto.cInfNorm f` is exactly the maximum in (4).  The library theorem
 `LatticeCrypto.cInfNorm_le_iff` gives the coordinatewise characterization
 
 `cInfNorm f ≤ b  ↔  ∀ i : Fin 256, (centeredRepr(f_i)).natAbs ≤ b`,
@@ -113,8 +165,10 @@ structure FIPS203EncodingLaws (encoding : Encoding params) : Prop where
     encoding.compress1 w = encoding.byteDecode1 m
 
 /-- The representative `w` that K-PKE decryption recomputes from the honest run
-of key seeds `(d, z)` and message `m`, immediately before reading the message
-back with `Compress₁`. -/
+with K-PKE key-generation randomness `d`, implicit-rejection seed `z`, and
+message `m`, immediately before reading the message back with `Compress₁`.
+The seed `z` is present because this definition reconstructs the full KEM key
+pair; it does not affect `w`. -/
 def kpkeDecryptRepresentative (d z : Seed32) (m : Message) : Rq :=
   let dk := (keygenInternal ring encoding prims d z).2
   let c := (encapsInternal ring encoding prims
@@ -123,9 +177,11 @@ def kpkeDecryptRepresentative (d z : Seed32) (m : Message) : Rq :=
   let sHat := encoding.byteDecode12Vec dk.dkPKE.sHatEncoded
   v' - ring.invNTT (ring.dot sHat (ring.nttVec u'))
 
-/-- The decryption noise `w - μ` of the honest run from key seeds `(d, z)` and
-message `m`, where `w` is the recomputed representative and `μ = Decompress₁(ByteDecode₁ m)`
-is the encoded message. -/
+/-- The decryption noise `w - μ` of the honest run with K-PKE key-generation
+randomness `d`, implicit-rejection seed `z`, and message `m`, where `w` is the
+recomputed representative and `μ = Decompress₁(ByteDecode₁ m)` is the encoded
+message.  Although this definition reconstructs the run using `z`, the noise
+identity in `NoiseIdentity.lean` proves that its value is independent of `z`. -/
 def kpkeDecryptDifference (d z : Seed32) (m : Message) : Rq :=
   kpkeDecryptRepresentative ring encoding prims d z m -
     encoding.decompress1 (encoding.byteDecode1 m)

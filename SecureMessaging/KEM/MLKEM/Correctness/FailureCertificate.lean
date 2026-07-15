@@ -73,18 +73,36 @@ identity, and the coefficient-extraction formula.
 
 ## Exact comparison
 
-Taking fifth powers removes the single decimal place in `e_p`:
+The exponent `e_p` is defined by the advertised threshold
+`δ_p=2^{-e_p}`.  Its three values are rational numbers
 
-`5e_p ∈ {694,824,874}`.
+```
+138.8 = 694/5,
+164.8 = 824/5,
+174.8 = 874/5.
+```
 
-Thus each per-parameter module checks the natural-number inequality
+Thus `e_p=E_p/5`, where `E_p∈{694,824,874}` is an integer.  The fifth power is
+chosen because `5` is the common denominator of these exponents in lowest
+terms.  It is not an approximation.  Put `a=256F_p` and `b=2D_p`.  Since
+`a,b≥0`, `b>0`, and the function `x↦x^5` is strictly increasing on the
+nonnegative reals,
 
-`(256F_p)^5 · 2^{5e_p} ≤ (2D_p)^5`                       (4)
+```
+a/b ≤ 2^{-e_p}
+  ↔ (a/b)^5 ≤ (2^{-E_p/5})^5
+  ↔ a^5/b^5 ≤ 2^{-E_p}
+  ↔ a^5·2^{E_p} ≤ b^5.                                   (4)
+```
 
-using `decide +kernel`.  `decodeFailureMass_pow_five_le` collects the three
-instances of (4), and `decodeFailureMass_le_fips203Bound` transports (4) to
-(1) in `ℝ≥0∞`.  The heavy checks are import-chained across the per-parameter
-modules so that only one large kernel computation is elaborated at a time.
+The last line contains only natural-number multiplication and exponentiation.
+This is why the proof changes to fifth powers: Lean can check (4) exactly with
+`decide +kernel`, without floating-point arithmetic or a numerical
+approximation to a real power.  `decodeFailureMass_pow_five_le` collects the
+three instances of (4), and `decodeFailureMass_le_fips203Bound` proves that
+the integer inequality implies (1) in `ℝ≥0∞`.  The heavy checks are
+import-chained across the per-parameter modules so that only one large kernel
+computation is elaborated at a time.
 -/
 
 open LatticeCrypto
@@ -100,8 +118,10 @@ private theorem decapsulationFailureExponent_mul_five (p : ParameterSet) :
 
 `256 * decodeFailureMass p / (2 * noiseDenominator p) ≤ 2^(-e_p)`,
 
-where `e_p` is the FIPS 203 Table 1 exponent. The fifth powers clear the single
-decimal place in `e_p`, so the proof reduces to integer arithmetic. -/
+where `e_p=E_p/5` is the FIPS 203 Table 1 exponent.  Raising both nonnegative
+sides to the fifth power changes `2^(-e_p)` into `2^(-E_p)`; clearing the
+positive denominator and the negative power of two gives the natural-number
+inequality stated below. -/
 theorem decodeFailureMass_pow_five_le (p : ParameterSet) :
     (ringDegree * decodeFailureMass p) ^ 5 * 2 ^ scaledFailureExponent p ≤
       (2 * noiseDenominator p) ^ 5 := by
