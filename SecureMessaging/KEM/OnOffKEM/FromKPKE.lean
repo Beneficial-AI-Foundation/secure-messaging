@@ -76,28 +76,40 @@ Decryption. Given a secret key `dk = ŝ` and a ciphertext `(u, v)`:
 
 ## The KEM algorithms and their split
 
-We build the KEM directly on `MLKEM.KPKE`, then exhibit its online-offline split:
+We build the KEM directly on `MLKEM.KPKE`, reusing the `keygen`, `encrypt`, and
+`decrypt` above (with `Â` fixed, shared by all key pairs):
 
-* `keygen () = (ek, dk)` — sample secret `ŝ` and error `ê`; return
-  `ek = t̂ = Â ŝ + ê` and `dk = ŝ` (every key pair shares the fixed `Â`);
-* `encaps ek` — sample encryption randomness `coins` and a message `m`; the shared
-  key is `m`, and the ciphertext is `ct = (ct0, ct1) = KPKE.encrypt m coins` under
-  the public key `(ek, ρ)`;
-* `decaps (dk, ct) = m` — run `MLKEM.KPKE.decrypt`.
+```
+  keygen():                    -- as above
+    return (ek = t̂, dk = ŝ)
+  encaps(ek = t̂):
+    sample coins, m            -- encryption randomness and message (the shared key)
+    (ct0, ct1) ← encrypt(t̂, m; coins)
+    return ((ct0, ct1), m)
+  decaps(dk = ŝ, (ct0, ct1)):
+    return decrypt(ŝ, (ct0, ct1))          -- = m
+```
 
 Here `encaps` and `decaps` are K-PKE encryption and decryption directly; only
 `keygen` re-derives `KPKE.keygenFromSeed`, with `ρ` fixed rather than drawn per
 key pair.
 
 The on/off split is given by two phases that recompute the ciphertext components
-separately:
+separately (`u = ct0` offline, `v = ct1` online, as in `encrypt` above):
 
-* `encapsOff () = (ct0, st)` — sample `coins`; return `ct0 = u` and the state
-  `st = (coins, ŷ)`. Uses only `Â`, never `ek`;
-* `encapsOn (st, ek) = (ct1, m)` — recover `coins`, `ŷ` from `st`, sample the
-  message `m`; return `ct1 = v` and shared key `m`.
+```
+  encapsOff():                 -- offline; uses only Â, never ek
+    sample coins               -- fixes y, e1, e2
+    ŷ ← NTT y
+    u ← invNTTVec (Âᵀ ŷ) + e1                                -- ct0
+    return (u, st = (coins, ŷ))
+  encapsOn(st = (coins, ŷ), ek = t̂):
+    sample m                                                 -- the shared key
+    v ← invNTT ⟨t̂, ŷ⟩ + e2 + decompress₁ (decode₁ m)         -- ct1
+    return (v, m)
+```
 
-`onOff.factor` *proves* that running `encapsOff` then `encapsOn` equals `encaps`
+`onOff.factor` proves that running `encapsOff` then `encapsOn` equals `encaps`
 (hence `KPKE.encrypt`), confirming the split is faithful; the ciphertext is
 `ct = (ct0, ct1)` and the shared key is the encapsulated message `m`.
 
