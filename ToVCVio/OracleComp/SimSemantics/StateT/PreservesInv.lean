@@ -95,9 +95,9 @@ theorem flattenStateT_mapStateTBase_run_preserves_inv
   intro y hy
   -- Unfold the flattened run to a bind over the composed-base run; the `σ`-component `.2.1`
   -- comes from the inner value `.1.2`.
-  simp only [QueryImpl.flattenStateT, support_bind, Set.mem_iUnion,
-    StateT.run_mk, support_pure, Set.mem_singleton_iff, exists_prop] at hy
+  rw [flattenStateT_mapStateTBase_apply_run, mem_support_bind_iff] at hy
   obtain ⟨z, hz, hyz⟩ := hy
+  simp only [support_pure, Set.mem_singleton_iff] at hyz
   subst hyz
   exact mapStateTBase_run_preserves_inv outer inner inv hinv t s hs q z hz
 
