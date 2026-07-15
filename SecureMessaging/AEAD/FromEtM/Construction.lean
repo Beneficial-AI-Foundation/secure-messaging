@@ -46,6 +46,7 @@ NRS14 Figure 2, scheme A5 (outer-tag EtM), adapted: one-time, no nonce.
 - `encrypt(ke, km, ad, m)`: `c := se.encrypt ke m; t := prf.eval km (ad, c); return (c, t)`
 - `decrypt(ke, km, ad, (c, t))`: if `t == prf.eval km (ad, c)` then `se.decrypt ke c` else `none`
 - `keygen`: independent `ke ← se.keygen; km ← prf.keygen` -/
+-- ANCHOR: etmAEAD
 def etmAEAD (se : DetSEAlg K_e M C_e)
     (prf : PRFScheme K_m (AD × C_e) T) :
     AEADScheme ProbComp M AD (K_e × K_m) (C_e × T) where
@@ -61,3 +62,4 @@ def etmAEAD (se : DetSEAlg K_e M C_e)
     if t == prf.eval km (ad, c)
     then se.decrypt ke c
     else none
+-- ANCHOR_END: etmAEAD
