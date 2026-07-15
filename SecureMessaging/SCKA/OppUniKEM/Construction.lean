@@ -10,38 +10,68 @@ import SecureMessaging.ErasureCode.Defs
 import ToVCVio.CryptoFoundations.KeyEncapMech
 
 /-!
-# Opp-UniKEM-CKA (SCKA from an offline-online KEM + erasure code)
+# Opp-UniKEM-CKA
 
-`Opp-UniKEM-CKA` protocol from Figure 16 in [SCKA] https://eprint.iacr.org/2025/2267.pdf.
+Formalization of the opportunistic UniKEM sparse continuous key-agreement
+protocol from Figure 16 of [SCKA] https://eprint.iacr.org/2025/2267.pdf.
 
+## Protocol overview
 
-## Building blocks
-- KEM Scheme `kem : KEMScheme m K PK SK C` with
-  - `onoff : kem.OnOffStructure` — offline (`Enc.Off`) / online (`Enc.On`) structure,
-  - `detDecaps : kem.DeterministicDecaps` — deterministic decapsulation,
-  - `leak : KEMScheme.OnOffRandLeak kem onoff` — phase-specific randomness leakage
-    for `KeyGen`, `Enc.Off`, and `Enc.On`.
-- Erasure Codes for payloads of type
-  -  `PK`: `ecEk : ErasureCodePayload PK Sym`,
-  -  `onoff.C₀`: `ecCt0 : ErasureCodePayload onoff.C₀ Sym`,
-  -  `onoff.C₁`: `ecCt1 : ErasureCodePayload onoff.C₁ Sym`,
+The protocol runs between parties A and B and establishes, in each epoch `t`,
+a shared epoch key `I_t` using an offline-online Key Encapsulation Mechanism
+(KEM). Key generation is unidirectional: only A generates a KEM key pair
+`(ek_A, dk_A)`, and only B encapsulates, producing an offline ciphertext
+`ct_0` and an online ciphertext `ct_1`. Every transmitted KEM value —
+`ek_A`, `ct_0`, and `ct_1` — is sent as a sequence of indexed erasure-code
+chunks, one chunk per protocol message.
 
-## Modeling notes
-The algorithms follow Figure 16 with the following differences:
+Sending is opportunistic: because B's offline ciphertext `ct_0` is
+independent of `ek_A`, B transmits chunks of `ct_0` concurrently with
+receiving chunks of `ek_A`, instead of waiting for `ek_A` in full.
 
-- **Leaking sends.** `sendArleak`/`sendBrleak` are `sendA`/`sendB` with each
-  randomized KEM call replaced by its leaking version from `OnOffRandLeak`,
-  returning the coins of exactly the KEM phases run by that send.
-- **Acknowledgement update.** The acknowledgement bits of a message refer to
-  the payloads of its epoch `t'`, so a receive algorithm copies them into the state only
-  if the state is still in epoch `t'` after other state updates.
-  Figure 16 instead tests `t = t'` at entry (`Rec-A`) or not at all (`Rec-B`),
-  which lets an old epoch's acknowledgement incorrectly mark the next epoch's fresh
-  payload as already delivered.
+The key exchange of epoch `t` consists of the following phases:
+
+1. A samples `(ek_A, dk_A) ← KeyGen` on its first send of the epoch and
+   transmits chunks of `ek_A` until B acknowledges receipt.
+2. B runs `(st_ct, ct_0) ← Enc.Off` on its first send of the epoch — with no
+   dependency on `ek_A` — and transmits chunks of `ct_0` until A acknowledges
+   receipt.
+3. Once B has decoded `ek_A` and A has acknowledged `ct_0`, B runs
+   `(ct_1, I_B) ← Enc.On(st_ct, ek_A)`, obtaining the epoch key `I_B = I_t`,
+   and transmits chunks of `ct_1`.
+4. Once A has decoded `ct_1`, it computes `I_A ← Dec(dk_A, (ct_0, ct_1))`,
+   with `I_A = I_t` by KEM correctness, erases the epoch's secrets, and
+   advances to epoch `t + 1`.
+
+Each protocol message `ρ = (ch, ack, t, b)` carries an optional indexed chunk
+`ch`, the sender's acknowledgement bits `ack`, the sender's current epoch `t`,
+and — on B's messages — a bit `b` identifying whether the chunk belongs to
+`ct_0` or `ct_1`.
+
+## Parameters
+
+- An offline-online KEM `kem : KEMScheme m K PK SK C` with
+  `onoff : kem.OnOffStructure`, deterministic decapsulation
+  `hDet : kem.DeterministicDecaps`, and the leakage interface
+  `leak : KEMScheme.OnOffRandLeak kem onoff`.
+- Erasure-code payload encodings for A's encapsulation key `PK`, B's offline
+  ciphertext `onoff.C₀`, and B's online ciphertext `onoff.C₁`, all using the
+  shared chunk-symbol type `Sym`.
+
+## Modeling choices
+
+The algorithms follow Figure 16 with these additions or differences:
+
+- **Leaking sends.** `sendArleak` and `sendBrleak` replace each randomized KEM
+  call with its `OnOffRandLeak` counterpart and return coins only for the KEM
+  phases executed by that send.
+- **Acknowledgements.** An acknowledgement belongs to its message's epoch `t'`.
+  A receiver records it only when its state remains in epoch `t'` after processing
+  the message. This prevents an old acknowledgement from marking a fresh epoch's
+  payload as delivered.
 - **Totality.** Figure 16 is partial on unreachable malformed states, for example
-  when `Rec-A` reaches `Dec` without both `dk_A` and `ct_0`.  In Lean, the
-  algorithms are total: locally undefined payload-processing branches output no
-  key and perform no branch-specific state update.
+  when `Rec-A` reaches `Dec` without both `dk_A` and `ct_0`. Here, those local
+  branches return no key and leave the branch-specific state unchanged.
 -/
 
 open OracleSpec OracleComp KEMScheme
