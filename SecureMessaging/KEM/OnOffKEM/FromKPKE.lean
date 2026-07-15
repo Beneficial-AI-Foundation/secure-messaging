@@ -8,44 +8,99 @@ import LatticeCrypto.MLKEM.KPKE
 import LatticeCrypto.MLKEM.Concrete.Instance
 
 /-!
-# Lightweight ML-KEM as an online-offline KEM (from K-PKE)
+# ML-KEM's K-PKE as an online-offline KEM
 
-This file builds a genuine `KEMScheme.OnOffStructure` instance from VCVio's
-spec-level Kyber core `MLKEM.KPKE` (the IND-CPA public-key encryption underlying
-ML-KEM), following the "lightweight" instantiation of
-[SCKA](https://eprint.iacr.org/2025/2267.pdf): the online-offline protocols are
-instantiated with Kyber, and *"as we only require IND-CPA security, we forgo the
-FO transform required for IND-CCA security"* (Sec. 4.1). So the base KEM here is
-the raw K-PKE (no Fujisaki-Okamoto / implicit rejection), used as a KEM by
-encapsulating a uniformly random message as the shared key.
+Online-offline KEM construction following [SCKA]:
+Auerbach, Dodis, Jost, Katsumata, Schmidt,
+*How to Compare Bandwidth Constrained Two-Party Secure Messaging Protocols*
+(https://eprint.iacr.org/2025/2267.pdf).
 
-## The online-offline split
+The construction relies on the IND-CPA public-key encryption underlying ML-KEM (FIPS 203, §5),
+specified by VCVio's K-PKE (`MLKEM.KPKE`). From this scheme, a basic KEM can be
+constructed as follows:
+- encapsulation: encrypt a uniformly random message;
+- decapsulation:  decrypt the corresponding ciphertext.
 
-Recall the K-PKE encryption `MLKEM.KPKE.encrypt`:
+The resulting shared secret key is the decrypted message.
+
+This file provides this basic KEM instantiation from `MLKEM.KPKE` together with
+a `KEMScheme.OnOffStructure` witnessing its online-offline split following the description
+in [SCKA, Def. 2.1].
+
+## Kyber PKE (`MLKEM.KPKE`)
+
+All values are polynomials of the ML-KEM ring `R_q = ℤ_q[X] / (X^256 + 1)` with
+`q = 3329`, and vectors/matrices are over `R_q` of dimension `k`. The `NTT` and
+its inverse transform polynomial coefficients between two domains to make
+multiplication efficient; a hat marks a value in the NTT domain, e.g. `ŷ = NTT y`.
+
+The scheme fixes a `k × k` public matrix `Â`, expanded from a public seed `ρ`.
+
+Key generation:
 
 ```
-  u := invNTTVec (matTransposeVecMul Â ŷ) + e1        -- ct0
-  v := invNTT (dot t̂ ŷ) + e2 + decompress₁ (decode₁ m) -- ct1
+  keygen():
+    sample s, e ∈ Rqᵏ       -- secret and error vectors
+    ŝ, ê ← NTT s, NTT e
+    t̂ ← Â ŝ + ê
+    return (ek = t̂, dk = ŝ)
 ```
 
-The offline component `u = ct0` depends only on the public matrix `Â` and the
-encapsulation randomness, not on the peer's encapsulation key `t̂`. As noted in
-[SCKA, Def. 2.1], ML-KEM is online-offline precisely by *viewing the public
-matrix `Â` (equivalently its seed `ρ`) as a public parameter `par`*. Our
-`OnOffStructure` has no `par` field, so we fix `ρ` as a module parameter of the
-construction; `keygen` then samples key pairs against this shared matrix (the
-matrix-reuse MLWE setting), and:
+Encryption. Given a public key `ek = t̂` and a 32-byte message `m`:
 
-* `encapsOff` samples `(y, e1)` and outputs `ct0 = u` together with the state
-  `(coins, ŷ)`, independent of the encapsulation key;
-* `encapsOn` uses the encapsulation key `t̂` and the state to output `ct1 = v`
-  and the shared key (the sampled message).
+```
+  encrypt(t̂, m):
+    sample y, e1 ∈ Rqᵏ and e2 ∈ Rq  -- ephemeral secret and noise vectors
+    ŷ ← NTT y
+    u ← invNTTVec (Âᵀ ŷ) + e1                                -- ct0
+    v ← invNTT ⟨t̂, ŷ⟩ + e2 + decompress₁ (decode₁ m)         -- ct1
+    return (u, v)
+```
 
-Decapsulation reuses `MLKEM.KPKE.decrypt`. Correctness/security are inherited
-from the base `KEMScheme` (this file only establishes the on/off *structure*).
+where `decompress₁ (decode₁ m)` is the polynomial that corresponds to message `m`.
+The components `u`, `v` are compressed and byte-encoded into the ciphertext parts
+`ct0`, `ct1`.
+
+The noise `y`, `e1`, `e2` is not sampled independently but expanded from a single
+32-byte seed `coins` (the encryption randomness) via PRFs. The online-offline
+split below relies on this: the offline phase samples `coins`, and the online
+phase re-derives `e2` from it.
+
+Decryption. Given a secret key `dk = ŝ` and a ciphertext `(u, v)`:
+
+```
+  decrypt(ŝ, (u, v)):
+    w ← v - invNTT ⟨ŝ, NTT u⟩        -- cancels the t̂-term, leaving ≈ decompress₁ (decode₁ m)
+    return compress₁ w               -- ≈ m
+```
+
+## The KEM algorithms and their split
+
+We build the KEM directly on `MLKEM.KPKE`, then exhibit its online-offline split:
+
+* `keygen () = (ek, dk)` — as above, with `ρ` fixed: `ek = t̂ = Â ŝ + ê`, `dk = ŝ`;
+* `encaps ek` — sample `coins` and a message `m` (the shared key) and return
+  `(ct, m)` with `ct = (ct0, ct1) := KPKE.encrypt {t̂ := ek, ρ} m coins`;
+* `decaps (dk, ct) = m` — run `MLKEM.KPKE.decrypt`.
+
+So `encaps` and `decaps` are K-PKE encryption and decryption directly; only
+`keygen` re-derives `KPKE.keygenFromSeed` (with `ρ` fixed rather than drawn per
+key pair).
+
+The split is given by two phases that recompute the ciphertext components
+separately:
+
+* `encapsOff () = (ct0, st)` — sample `coins`; return `ct0 = u` and the state
+  `st = (coins, ŷ)`. Uses only `Â`, never `ek`;
+* `encapsOn (st, ek) = (ct1, m)` — recover `coins`, `ŷ` from `st`, sample the
+  message `m`; return `ct1 = v` and shared key `m`.
+
+`onOff.factor` *proves* that running `encapsOff` then `encapsOn` equals `encaps`
+(hence `KPKE.encrypt`), confirming the split is faithful; the ciphertext is
+`ct = (ct0, ct1)` and the shared key is the encapsulated message `m`.
 
 `schemeKyber768` / `onOffKyber768` fix the concrete Kyber-768 encoding, NTT, and
-FFI-backed primitive bundles.
+primitive bundles.
 -/
 
 open MLKEM
@@ -104,22 +159,25 @@ def decaps (sk : encoding.EncodedTHat) (c : encoding.EncodedU × encoding.Encode
     ({ sHatEncoded := sk } : KPKE.SecretKey params encoding)
     ({ uEncoded := c.1, vEncoded := c.2 } : KPKE.Ciphertext params encoding)))
 
-/-- The lightweight (IND-CPA, no FO) ML-KEM/K-PKE KEM with ciphertext space
-`C = C₀ × C₁ = EncodedU × EncodedV` and encapsulation written as the offline
-phase followed by the online phase. -/
+/-- The K-PKE KEM (IND-CPA, no FO transform) with ciphertext space
+`C = C₀ × C₁ = EncodedU × EncodedV`. Encapsulation is `MLKEM.KPKE.encrypt` on a
+freshly sampled message (the shared key); decapsulation is `MLKEM.KPKE.decrypt`. -/
 def scheme :
     KEMScheme ProbComp Message encoding.EncodedTHat encoding.EncodedTHat
       (encoding.EncodedU × encoding.EncodedV) where
   keygen := keygen params encoding ring prims rho
   encaps ek := do
-    let (st, c0) ← encapsOff params encoding ring prims rho
-    let (c1, k) ← encapsOn params encoding ring prims st ek
-    pure ((c0, c1), k)
+    let coins ← $ᵗ Coins
+    let msg ← $ᵗ Message
+    let ct := KPKE.encrypt ring encoding prims
+      ({ tHatEncoded := ek, rho := rho } : KPKE.PublicKey params encoding) msg coins
+    pure ((ct.uEncoded, ct.vEncoded), msg)
   decaps := decaps params encoding ring prims
 
-/-- The online-offline structure for the lightweight K-PKE KEM: the ciphertext
-splits as `ct = (ct0, ct1)` and encapsulation factors into `encapsOff` (offline,
-key-independent) and `encapsOn` (online). -/
+/-- The online-offline structure for the K-PKE KEM: the ciphertext splits as
+`ct = (ct0, ct1)`, and `factor` proves that the KEM's encapsulation
+(`MLKEM.KPKE.encrypt`) equals the offline phase `encapsOff` followed by the
+online phase `encapsOn`. -/
 def onOff : (scheme params encoding ring prims rho).OnOffStructure where
   St := Coins × TqVec params.k
   C₀ := encoding.EncodedU
@@ -127,10 +185,12 @@ def onOff : (scheme params encoding ring prims rho).OnOffStructure where
   split := Equiv.refl (encoding.EncodedU × encoding.EncodedV)
   encapsOff := encapsOff params encoding ring prims rho
   encapsOn := encapsOn params encoding ring prims
-  factor _ := by simp [scheme]
+  factor ek := by
+    simp only [scheme, encapsOff, encapsOn, KPKE.encrypt, bind_assoc, pure_bind,
+      Equiv.refl_symm, Equiv.coe_refl, id_eq]
 
-/-- The lightweight on/off KEM at Kyber-768, with the concrete encoding, NTT, and
-FFI-backed primitives; `rho` is the public matrix seed treated as a public
+/-- The K-PKE on/off KEM at Kyber-768, with the concrete encoding, NTT, and
+FFI-backed primitives; `rho` is the public matrix seed, treated as a public
 parameter. -/
 def schemeKyber768 (rho : Seed32) :
     KEMScheme ProbComp Message
