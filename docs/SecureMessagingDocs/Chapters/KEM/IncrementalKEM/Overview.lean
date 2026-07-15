@@ -80,5 +80,5 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "incremental_kem_scheme"}[] · {githubLabel}`github` {githubIssue 226}[]
+{usesLabel}`uses` {uses "incremental_kem_scheme"}[] · {uses "ml_kem_scheme"}[] · {githubLabel}`github` {githubIssue 226}[]
 ::::

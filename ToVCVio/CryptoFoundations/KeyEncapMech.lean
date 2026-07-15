@@ -6,9 +6,9 @@ Authors: Beneficial AI Foundation
 import VCVio.CryptoFoundations.KeyEncapMech
 
 /-!
-# KEM Deterministic Decapsulation and Randomness Leaks
+# KEM Deterministic Decapsulation, Randomness Leaks, and Quantitative Correctness
 
-Two helper structures for protocols built from a `KEMScheme`.
+Helper definitions for protocols built from a `KEMScheme`.
 
 `KEMScheme.DeterministicDecaps` is a witness that the KEM decapsulation
 computation is represented by a pure deterministic function, as required by
@@ -19,7 +19,22 @@ randomized KEM algorithms, key generation and encapsulation, for security
 games in which the adversary can ask for the coins of a past operation.
 `KEMScheme.RandLeak.noLeak` is the trivial package for KEMs that do not
 expose their coins.
+
+For the honest correctness experiment, put
+
+`ε = 1 - Pr[CorrectExp = true]`.
+
+`KEMScheme.correctnessError` is this missing success mass and
+`KEMScheme.deltaCorrect` is the assertion `ε ≤ δ`.  Defining error by missing
+success mass, rather than only by `Pr[CorrectExp = false]`, also counts the
+mass assigned to executions that produce no Boolean result—for example, a
+failed or nonterminating computation.  Consequently `ε = 0` is exactly
+`KEMScheme.PerfectlyCorrect`, even when the runtime's output measure has total
+mass below one.  On a total runtime every execution produces a Boolean output, so
+`ε = Pr[CorrectExp = false]`.
 -/
+
+open ENNReal
 
 universe u
 
@@ -96,5 +111,62 @@ def noLeak [LawfulMonad m] (kem : KEMScheme m K PK SK C) : RandLeak kem where
   encaps_fst := fun pk => by simp
 
 end RandLeak
+
+section Correctness
+
+variable [DecidableEq K]
+
+/-- Correctness error of `kem` under `runtime`, defined as missing success mass:
+
+`1 - Pr[CorrectExp = true]`.
+
+The successful event is that decapsulation of an honestly generated
+encapsulation returns the encapsulated key.  This definition counts both a
+`false` result and the mass of executions that fail or do not terminate.  If
+the experiment is total, it equals `Pr[CorrectExp = false]`. -/
+noncomputable def correctnessError (kem : KEMScheme m K PK SK C)
+    (runtime : ProbCompRuntime m) : ℝ≥0∞ :=
+  1 - Pr[= true | runtime.evalDist kem.CorrectExp]
+
+/-- Zero correctness error is equivalent to VCV-io's perfect-correctness
+statement, without a totality assumption on the runtime. -/
+theorem correctnessError_eq_zero_iff_perfectlyCorrect
+    (kem : KEMScheme m K PK SK C) (runtime : ProbCompRuntime m) :
+    kem.correctnessError runtime = 0 ↔ kem.PerfectlyCorrect runtime := by
+  rw [correctnessError, PerfectlyCorrect, tsub_eq_zero_iff_le]
+  exact ⟨fun h => le_antisymm probOutput_le_one h, fun h => h.ge⟩
+
+/-- Missing success mass decomposes exactly as the probability of returning
+`false` plus the failure/nontermination mass of the evaluated experiment. -/
+theorem correctnessError_eq_probOutput_false_add_probFailure
+    (kem : KEMScheme m K PK SK C) (runtime : ProbCompRuntime m) :
+    kem.correctnessError runtime =
+      Pr[= false | runtime.evalDist kem.CorrectExp] +
+        Pr[⊥ | runtime.evalDist kem.CorrectExp] := by
+  rw [correctnessError]
+  symm
+  refine ENNReal.eq_sub_of_add_eq probOutput_ne_top ?_
+  have htotal := tsum_probOutput_add_probFailure
+    (runtime.evalDist kem.CorrectExp)
+  simpa only [tsum_fintype, Fintype.sum_bool, add_assoc, add_left_comm,
+    add_comm] using htotal
+
+/-- If the evaluated correctness experiment has no failure/nontermination
+mass, missing success mass is exactly the probability of returning `false`. -/
+theorem correctnessError_eq_probOutput_false_of_probFailure_eq_zero
+    (kem : KEMScheme m K PK SK C) (runtime : ProbCompRuntime m)
+    (hfail : Pr[⊥ | runtime.evalDist kem.CorrectExp] = 0) :
+    kem.correctnessError runtime =
+      Pr[= false | runtime.evalDist kem.CorrectExp] := by
+  rw [correctnessError_eq_probOutput_false_add_probFailure, hfail, add_zero]
+
+/-- `delta`-correctness of `kem` under `runtime`: the correctness error is at most `delta`. -/
+-- ANCHOR: deltaCorrect
+def deltaCorrect (kem : KEMScheme m K PK SK C)
+    (runtime : ProbCompRuntime m) (delta : ℝ≥0∞) : Prop :=
+  kem.correctnessError runtime ≤ delta
+-- ANCHOR_END: deltaCorrect
+
+end Correctness
 
 end KEMScheme
