@@ -195,7 +195,7 @@ lemma relTriple_oracleUnif_of_state_rel
       ((oracleUnif (CKAState F G) G G n).run sL)
       ((oracleUnif (CKAState F G) G G n).run sR)
       (fun pL pR => pL.1 = pR.1 ∧ R pL.2 pR.2) := by
-  unfold oracleUnif QueryImpl.liftTarget QueryImpl.ofLift
+  unfold oracleUnif
   change OracleComp.ProgramLogic.Relational.RelTriple
     ((query n : ProbComp ((unifSpec).Range n)) >>= fun u => pure (u, sL))
     ((query n : ProbComp ((unifSpec).Range n)) >>= fun u => pure (u, sR))

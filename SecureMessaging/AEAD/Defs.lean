@@ -6,8 +6,10 @@ Authors: Beneficial AI Foundation
 
 import VCVio.CryptoFoundations.SecExp
 import VCVio.OracleComp.Constructions.SampleableType
+import VCVio.OracleComp.QueryTracking.QueryBound
 import VCVio.OracleComp.SimSemantics.Append
 import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
+import ToVCVio.OracleComp.SimSemantics.UnifLift
 
 /-!
 # Authenticated Encryption with Associated Data (AEAD)
@@ -20,7 +22,9 @@ Indistinguishability under Chosen-Ciphertext Attack (IND-CCA) security following
   Signal Protocol.*
   EUROCRYPT 2019, https://eprint.iacr.org/2018/1037.pdf
   — Definition 1 (AEAD syntax), Figure 1 (one-time IND-CCA game), Definition 2
-  (one-time CCA security).
+  (one-time CCA security). ACD19 only defines this notion (AEAD is assumed as a
+  primitive); the construction and proof are ours, following NRS14 — see
+  `AEAD/FromEtM/Security`.
 
 - [TripleRatchet] Dodis, Jost, Katsumata, Prest, Schmidt.
   *Triple Ratchet: A Bandwidth Efficient Hybrid-Secure Signal Protocol.*
@@ -65,6 +69,14 @@ The game samples `K ←$ K`, `e* ← ⊥`, `b ←$ {0, 1}`, then the adversary
   When `e* = ⊥` (pre-challenge), the check `e = e*` is trivially false.
 
 The adversary wins if its guess `b'` satisfies `b' = b`.
+
+[WHY A PRF TAG, NOT JUST A MAC]
+The game above is *real-or-random*: when `b = 1` the oracle returns a uniform random
+ciphertext `e* ←$ C`, so the **whole** ciphertext — authentication tag included — must be
+indistinguishable from uniform. MAC unforgeability cannot deliver this (an unforgeable tag
+may still look non-uniform); pseudorandomness can. So the `AEAD/FromEtM` construction tags
+with a PRF, not a MAC. The textbook "LoR ⇒ RoR" shortcut does not bridge the gap: it is for
+random-*message* RoR, whereas ACD19 is random-*ciphertext* IND$, strictly stronger than LoR.
 
 -/
 
@@ -150,12 +162,21 @@ abbrev OneTimeCCAAdversary (AD M C : Type) :=
   OracleComp (aeadOneTimeCCASpec AD M C) Bool
 -- ANCHOR_END: OneTimeCCAAdversary
 
+/-- Structural bound on the number of decrypt-oracle queries made by a
+one-time IND-CCA adversary. `decryptQueryBound adv q_d` asserts that `adv`
+makes at most `q_d` queries to the decrypt oracle (index `.inr _` in
+`aeadOneTimeCCASpec`), with no constraint on encryption or uniform-sampling
+queries. Built on VCVio's `IsQueryBoundP`. -/
+def decryptQueryBound (adv : OneTimeCCAAdversary AD M C)
+    (q_d : ℕ) : Prop :=
+  adv.IsQueryBoundP (· matches Sum.inr _) q_d
+
 /-! ### Oracle implementations -/
 
 /-- Uniform-randomness oracle lifted to the game-state monad. -/
 def oracleUnif (C : Type) :
     QueryImpl unifSpec (StateT (Option C) ProbComp) :=
-  (QueryImpl.ofLift unifSpec ProbComp).liftTarget (StateT (Option C) ProbComp)
+  unifLiftStateT (Option C) unifSpec
 
 /-- One-time encryption oracle `encrypt(a, m)` (Figure 1 of [ACD19], middle column).
 First call: if `b = false`, sets `e* ← Enc(K, a, m)`;
@@ -179,7 +200,10 @@ def oracleEncrypt [SampleableType C] (ae : AEADScheme ProbComp M AD K C)
 
 /-- Decryption oracle `decrypt(a, e)` (Figure 1 of [ACD19], right column).
 `if e = e* or b = 1 return ⊥; return Dec(K, a, e)`.
-When `eStar = none` (pre-challenge), the `e = e*` check is trivially false. -/
+When `eStar = none` (pre-challenge), the `e = e*` check is trivially false.
+
+Note: the challenge guard compares the **ciphertext `e` only**, ignoring the
+associated data `a` — faithful to ACD19 Def 2 / Fig 1 (the target notion here). -/
 -- ANCHOR: oracleDecrypt
 def oracleDecrypt [DecidableEq C] (ae : AEADScheme ProbComp M AD K C)
     (b : Bool) (k : K) :

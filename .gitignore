@@ -12,3 +12,13 @@ sorry-manifest-base.txt
 .sorry-delta-section.md
 .verification-delta-comment.md
 .veritooling-Audit.lean
+
+# Local-only review/planning notes and verilib mappings (kept out of the repo)
+/design/
+/.verilib/
+
+# Reference papers (kept out of the repo)
+*.pdf
+
+# Python bytecode caches
+__pycache__/

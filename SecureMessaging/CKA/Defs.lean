@@ -8,6 +8,7 @@ import VCVio.CryptoFoundations.SecExp
 import VCVio.OracleComp.Constructions.SampleableType
 import VCVio.OracleComp.SimSemantics.Append
 import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
+import ToVCVio.OracleComp.SimSemantics.UnifLift
 
 /-!
 # Continuous Key Agreement (CKA)
@@ -747,7 +748,7 @@ def oracleCorruptB (gp : GameParams) (St I Rho : Type) :
 /-- Oracle for adversary randomness: forwards to `ProbComp`. -/
 def oracleUnif (St I Rho : Type) :
     QueryImpl unifSpec (StateT (GameState St I Rho) ProbComp) :=
-  (QueryImpl.ofLift unifSpec ProbComp).liftTarget (StateT (GameState St I Rho) ProbComp)
+  unifLiftStateT (GameState St I Rho) unifSpec
 
 /-- Oracle set for the correctness game. -/
 -- ANCHOR: ckaCorrectnessImpl
