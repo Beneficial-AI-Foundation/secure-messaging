@@ -28,6 +28,7 @@ import SecureMessaging.KEM.IncrementalKEM.Defs
 import SecureMessaging.KEM.MLKEM.Construction
 import SecureMessaging.KEM.MLKEM.Correctness
 import SecureMessaging.KEM.OnOffKEM.Defs
+import SecureMessaging.KEM.OnOffKEM.FromKPKE
 import SecureMessaging.PRFPRNG.Defs
 import SecureMessaging.SCKA.Defs
 import SecureMessaging.SCKA.OppUniKEM.Construction
