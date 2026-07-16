@@ -12,6 +12,7 @@ open Verso.Genre.Manual
 open Informal
 
 set_option doc.verso true
+set_option linter.hashCommand false
 
 #doc (Manual) "Key Encapsulation Mechanism" =>
 

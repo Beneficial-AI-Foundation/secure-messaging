@@ -58,6 +58,49 @@ structure OnOffStructure (kem : KEMScheme m K PK SK C) where
 {githubLabel}`github` {githubIssue 40}[]
 ::::
 
+:::defTitle "on_off_kem_rand_leak" "On-Off KEM randomness leakage"
+:::
+
+::::definition "on_off_kem_rand_leak" (parent := "on_off_kem") (lean := "KEMScheme.OnOffRandLeak")
+
+```anchor OnOffRandLeak (project := ".") (module := SecureMessaging.KEM.OnOffKEM.Defs)
+structure OnOffRandLeak (kem : KEMScheme m K PK SK C)
+    (onoff : kem.OnOffStructure) where
+  /-- Randomness space for key generation. -/
+  KeygenRand : Type
+  /-- Randomness space for offline encapsulation. -/
+  OffRand : Type
+  /-- Randomness space for online encapsulation. -/
+  OnRand : Type
+  /-- Key generation together with the randomness used to sample the key pair. -/
+  keygenRleak : m ((PK × SK) × KeygenRand)
+  /-- Offline encapsulation together with its randomness. -/
+  encapsOffRleak : m ((onoff.St × onoff.C₀) × OffRand)
+  /-- Online encapsulation together with its randomness. -/
+  encapsOnRleak : onoff.St → PK → m ((onoff.C₁ × K) × OnRand)
+  /-- First component: ordinary key generation is the first component of
+  `keygenRleak`. -/
+  keygen_fst :
+    (do
+      let out ← keygenRleak
+      pure out.1) = kem.keygen
+  /-- First component: ordinary offline encapsulation is the first component of
+  `encapsOffRleak`. -/
+  encapsOff_fst :
+    (do
+      let out ← encapsOffRleak
+      pure out.1) = onoff.encapsOff
+  /-- First component: ordinary online encapsulation is the first component of
+  `encapsOnRleak st pk`. -/
+  encapsOn_fst : ∀ st pk,
+    (do
+      let out ← encapsOnRleak st pk
+      pure out.1) = onoff.encapsOn st pk
+```
+
+{usesLabel}`uses` {uses "on_off_kem_scheme"}[]
+::::
+
 :::group "on_off_kem_on_off_kem_from_ml_kem"
 On-Off KEM from ML-KEM.
 :::

@@ -33,15 +33,19 @@ Erasure Codes.
 $`\todo`
 
 ```anchor ErasureCode (project := ".") (module := SecureMessaging.ErasureCode.Defs)
-structure ErasureCode (m : Type → Type u) [Monad m] (Sym : Type) where
-  /-- Block length; chunk indices range over `Fin N`. -/
+structure ErasureCode (Sym : Type) where
+  /-- Number of valid encoded-chunk positions; valid indices are `0, …, N - 1`. -/
   N : ℕ
-  /-- Message size; a message is `Fin nchunk → Sym`. -/
+  /-- At least one encoded-chunk position is available. -/
+  N_pos : 0 < N
+  /-- Number of source symbols and distinct encoded chunks needed for recovery. -/
   nchunk : ℕ
+  /-- The message fits within the codeword. -/
+  nchunk_le_N : nchunk ≤ N
   /-- `Encode(M, i)`: the chunk encoding of message `M` at index `i`. -/
-  encode : (Fin nchunk → Sym) → Fin N → m Sym
+  encode : (Fin nchunk → Sym) → Fin N → Sym
   /-- `Decode(L)`: recover the message from a chunk set, or fail (`none`). -/
-  decode : Finset (Fin N × Sym) → m (Option (Fin nchunk → Sym))
+  decode : Finset (Fin N × Sym) → Option (Fin nchunk → Sym)
 ```
 
 {githubLabel}`github` {githubIssue 190}[]
@@ -57,25 +61,20 @@ $`\todo`
 :::
 
 ```anchor encodeChunks (project := ".") (module := SecureMessaging.ErasureCode.Defs)
-noncomputable def encodeChunks [DecidableEq Sym] (ec : ErasureCode m Sym)
+noncomputable def encodeChunks [DecidableEq Sym] (ec : ErasureCode Sym)
     (M : Fin ec.nchunk → Sym) (I : Finset (Fin ec.N)) :
-    m (Finset (Fin ec.N × Sym)) := do
-  let chunks ← I.toList.mapM fun i => do
-    let c ← ec.encode M i
-    pure (i, c)
-  pure chunks.toFinset
+    Finset (Fin ec.N × Sym) :=
+  (I.toList.map fun i => (i, ec.encode M i)).toFinset
 ```
 
 :::leanPillCaption "correctness predicate"
 :::
 
 ```anchor Correct (project := ".") (module := SecureMessaging.ErasureCode.Defs)
-def Correct [DecidableEq Sym] (ec : ErasureCode m Sym) : Prop :=
+def Correct [DecidableEq Sym] (ec : ErasureCode Sym) : Prop :=
   ∀ (M : Fin ec.nchunk → Sym) (I : Finset (Fin ec.N)),
-    (I.card = ec.nchunk →
-      (do let L ← ec.encodeChunks M I; ec.decode L) = pure (some M)) ∧
-    (I.card < ec.nchunk →
-      (do let L ← ec.encodeChunks M I; ec.decode L) = pure none)
+    (I.card = ec.nchunk → ec.decode (ec.encodeChunks M I) = some M) ∧
+    (I.card < ec.nchunk → ec.decode (ec.encodeChunks M I) = none)
 ```
 
 {usesLabel}`uses` {uses "erasure_code_scheme"}[] · {githubLabel}`github` {githubIssue 191}[]

@@ -24,6 +24,7 @@ CHAPTER_PREFIXES = {
     "Continuous-Key-Agreement": "CKA",
     "Erasure-Codes": "EC",
     "Forward-Secure-AEAD": "FS-AEAD",
+    "Key-Encapsulation-Mechanism": "KEM",
     "Online-Offline-KEM": "OO-KEM",
     "PRF-PRNG": "PRF-PRNG",
     "Ratcheting-KEM": "RKEM",
@@ -156,6 +157,45 @@ def replacement_for(site_dir: Path, link_base: Path, target: AtomTarget) -> str:
     )
 
 
+def patch_manifest_cross_chapter_relations(
+    site_dir: Path,
+    targets: dict[str, AtomTarget],
+) -> int:
+    # Preserve globally resolved relation metadata for downstream consumers.
+    # Per-chapter Verso renders know the labels of cross-chapter dependencies,
+    # but leave their hrefs unset because the target manual is not in scope.
+    patched = 0
+    for manifest in sorted(site_dir.glob(f"*/{MANIFEST_PATH}")):
+        chapter = manifest.relative_to(site_dir).parts[0]
+        data = json.loads(manifest.read_text())
+        changed = False
+        for entry in data.get("previews", []):
+            if not isinstance(entry, dict) or entry.get("splitPreviewCopy"):
+                continue
+            for field in ("uses", "usedBy"):
+                relations = entry.get(field, [])
+                if not isinstance(relations, list):
+                    continue
+                for relation in relations:
+                    if not isinstance(relation, dict) or relation.get("href"):
+                        continue
+                    target = targets.get(relation.get("label", ""))
+                    if target is None or target.chapter == chapter:
+                        continue
+                    relation["href"] = relative_href(
+                        site_dir,
+                        site_dir / chapter,
+                        target,
+                    )
+                    relation["title"] = target.title
+                    relation["previewKey"] = target.key
+                    patched += 1
+                    changed = True
+        if changed:
+            manifest.write_text(json.dumps(data, ensure_ascii=False))
+    return patched
+
+
 def replace_unresolved_uses(block: str, replacements: list[str]) -> tuple[str, int]:
     # Replace unresolved use placeholders in authored dependency order.
     replaced = 0
@@ -270,13 +310,18 @@ def main() -> None:
 
     uses_by_label = load_source_uses(args.docs_dir)
     targets = load_targets(args.site_dir)
+    patched = patch_manifest_cross_chapter_relations(args.site_dir, targets)
     changed = 0
     for html_file in sorted(args.site_dir.glob("**/*.html")):
         if html_file == args.site_dir / "index.html":
             continue
         changed += process_html_file(html_file, args.site_dir, uses_by_label, targets)
     copied = copy_cross_preview_entries(args.site_dir, uses_by_label, targets)
-    print(f"Resolved {changed} split Blueprint uses link(s); copied {copied} preview entrie(s).")
+    print(
+        f"Resolved {changed} split Blueprint uses link(s); "
+        f"patched {patched} manifest relation(s); "
+        f"copied {copied} preview entrie(s)."
+    )
 
 
 if __name__ == "__main__":

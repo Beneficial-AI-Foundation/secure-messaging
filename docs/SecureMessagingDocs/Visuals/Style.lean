@@ -23,7 +23,7 @@ syntax-highlighted Lean code blocks, and the game/oracle boxes
 (see `SecureMessagingDocs.Visuals.GameBoxes` for the block extensions that emit them). -/
 def smDocsCss : String := r#"
 /* Main content column width (centred). Tuned for oracle grids + Lean anchors. */
-:root { --verso-content-max-width: calc(74rem - 2cm); }
+:root { --verso-content-max-width: calc(74rem + 2cm); }
 
 /* Hide the blueprint panel's own collapsible code box: we already show the
    full source via the `anchor` block. */
@@ -81,6 +81,33 @@ def smDocsCss : String := r#"
 .game-cell[data-kind="challenge"],
 .game-cell[data-kind="corrupt"] {
   grid-column: 1 / -1;
+}
+
+.game-cell[data-kind^="compact"] {
+  grid-column: auto;
+}
+
+.game-cell[data-kind^="compact"] .game-cell-body,
+.game-cell[data-kind^="compact"] .game-cell-header {
+  font-size: 0.92em;
+}
+
+.game-cell[data-kind="compact-send"] {
+  order: 1;
+}
+
+.game-cell[data-kind="compact-recv"] {
+  order: 2;
+}
+
+@media (max-width: 640px) {
+  .game-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .game-cell[data-kind^="compact"] {
+    grid-column: 1 / -1;
+  }
 }
 
 /* The cell's title bar: experiment/oracle name (math) on the left, the state
@@ -214,6 +241,7 @@ p.lean-pill-caption {
 .lean-anchor-row {
   margin: 1rem 0;
 }
+
 .lean-anchor-head {
   display: flex;
   align-items: baseline;

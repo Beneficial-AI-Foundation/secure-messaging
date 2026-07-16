@@ -30,5 +30,6 @@ import SecureMessaging.KEM.MLKEM.Correctness
 import SecureMessaging.KEM.OnOffKEM.Defs
 import SecureMessaging.PRFPRNG.Defs
 import SecureMessaging.SCKA.Defs
+import SecureMessaging.SCKA.OppUniKEM.Construction
 import SecureMessaging.SymEnc.Defs
 import ToVCVio.OracleComp.Constructions.SampleableType
