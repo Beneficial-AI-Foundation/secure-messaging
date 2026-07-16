@@ -30,21 +30,22 @@ Erasure Codes.
 :::
 
 ::::definition "erasure_code_scheme" (parent := "erasure_codes") (lean := "ErasureCode")
-An erasure code over an alphabet $`\Sigma`$ consists of a block length $`N`$, message
-size $`n_{\mathsf{chunk}}`$, an encoder, and a decoder. We represent
-the encoder and decoder as deterministic functions, covering deterministic codes
-such as Reed-Solomon.
+$`\todo`
 
 ```anchor ErasureCode (project := ".") (module := SecureMessaging.ErasureCode.Defs)
 structure ErasureCode (Sym : Type) where
-  /-- Intended block length. -/
+  /-- Number of valid encoded-chunk positions; valid indices are `0, …, N - 1`. -/
   N : ℕ
-  /-- Message size; a message is `Fin nchunk → Sym`. -/
+  /-- At least one encoded-chunk position is available. -/
+  N_pos : 0 < N
+  /-- Number of source symbols and distinct encoded chunks needed for recovery. -/
   nchunk : ℕ
+  /-- The message fits within the codeword. -/
+  nchunk_le_N : nchunk ≤ N
   /-- `Encode(M, i)`: the chunk encoding of message `M` at index `i`. -/
-  encode : (Fin nchunk → Sym) → ℕ → Sym
+  encode : (Fin nchunk → Sym) → Fin N → Sym
   /-- `Decode(L)`: recover the message from a chunk set, or fail (`none`). -/
-  decode : Finset (ℕ × Sym) → Option (Fin nchunk → Sym)
+  decode : Finset (Fin N × Sym) → Option (Fin nchunk → Sym)
 ```
 
 {githubLabel}`github` {githubIssue 190}[]
@@ -61,8 +62,8 @@ $`\todo`
 
 ```anchor encodeChunks (project := ".") (module := SecureMessaging.ErasureCode.Defs)
 noncomputable def encodeChunks [DecidableEq Sym] (ec : ErasureCode Sym)
-    (M : Fin ec.nchunk → Sym) (I : Finset ℕ) :
-    Finset (ℕ × Sym) :=
+    (M : Fin ec.nchunk → Sym) (I : Finset (Fin ec.N)) :
+    Finset (Fin ec.N × Sym) :=
   (I.toList.map fun i => (i, ec.encode M i)).toFinset
 ```
 
@@ -71,7 +72,7 @@ noncomputable def encodeChunks [DecidableEq Sym] (ec : ErasureCode Sym)
 
 ```anchor Correct (project := ".") (module := SecureMessaging.ErasureCode.Defs)
 def Correct [DecidableEq Sym] (ec : ErasureCode Sym) : Prop :=
-  ∀ (M : Fin ec.nchunk → Sym) (I : Finset ℕ),
+  ∀ (M : Fin ec.nchunk → Sym) (I : Finset (Fin ec.N)),
     (I.card = ec.nchunk → ec.decode (ec.encodeChunks M I) = some M) ∧
     (I.card < ec.nchunk → ec.decode (ec.encodeChunks M I) = none)
 ```

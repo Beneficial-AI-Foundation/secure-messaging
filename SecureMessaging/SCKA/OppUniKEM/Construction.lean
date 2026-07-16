@@ -228,7 +228,7 @@ def sendA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
       match ekA with
       | none => none
       | some ekA =>
-          some (ich, ecEk.encode ekA ich)
+          some (ecEk.encode ekA ich)
   let msg := (ch?, stA.ack, stA.t, none)
   let stA' := { stA with dkA := dkA, ekA := ekA, ich := ich }
   pure (some (none, msg, stA.t - 1, stA'))
@@ -262,7 +262,7 @@ def sendArleak (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
         match ekA with
         | none => none
         | some ekA =>
-            some (ich, ecEk.encode ekA ich)
+            some (ecEk.encode ekA ich)
     let msg := (ch?, stA.ack, stA.t, none)
     let stA' := { stA with dkA := dkA, ekA := ekA, ich := ich }
     -- normal send output plus randomness-leakage
@@ -398,7 +398,7 @@ def sendB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     pure (stB, ct0, stB.ich)
   if !stB.ack.ctRec then -- `ct_0` not yet acknowledged by A: send chunks of `ct_0`
   let ich := ich + 1
-  let ch? := some (ich, ecCt0.encode ct0 ich)
+  let ch? := some (ecCt0.encode ct0 ich)
   let msg := (ch?, stB.ack, stB.t, some 0)
   let stB' := { stB with ich := ich }
   pure (some (none, msg, stB.t - 1, stB'))
@@ -417,13 +417,13 @@ def sendB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
       | some stCt => do
         let (ct1, key) ← onoff.encapsOn stCt ekA
         let ich := 1
-        let ch? := some (ich, ecCt1.encode ct1 ich)
+        let ch? := some (ecCt1.encode ct1 ich)
         let msg := (ch?, stB.ack, stB.t, some 1)
         let stB' := { stB with ct1 := some ct1, ich := ich }
         pure (some (some (stB.t, key), msg, stB.t - 1, stB'))
     | some ct1 =>
       let ich := stB.ich + 1
-      let ch? := some (ich, ecCt1.encode ct1 ich)
+      let ch? := some (ecCt1.encode ct1 ich)
       let msg := (ch?, stB.ack, stB.t, some 1)
       let stB' := { stB with ich := ich }
       pure (some (none, msg, stB.t - 1, stB'))
@@ -454,7 +454,7 @@ def sendBrleak (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
       | some rOff => SendRand.off rOff
     if !stB.ack.ctRec then
       let ich := ich + 1
-      let ch? := some (ich, ecCt0.encode ct0 ich)
+      let ch? := some (ecCt0.encode ct0 ich)
       let msg := (ch?, stB.ack, stB.t, some 0)
       let stB' := { stB with ich := ich }
       pure (some (none, msg, stB.t - 1, stB', offRand))
@@ -478,14 +478,14 @@ def sendBrleak (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
               | none => SendRand.on rOn
               | some rOff => SendRand.offOn rOff rOn
             let ich := 1
-            let ch? := some (ich, ecCt1.encode ct1 ich)
+            let ch? := some (ecCt1.encode ct1 ich)
             let msg := (ch?, stB.ack, stB.t, some 1)
             let stB' := { stB with ct1 := some ct1, ich := ich }
             pure (some (some (stB.t, key), msg, stB.t - 1, stB', rand))
         | some ct1 =>
           -- Re-sending existing `ct_1` is deterministic.
           let ich := stB.ich + 1
-          let ch? := some (ich, ecCt1.encode ct1 ich)
+          let ch? := some (ecCt1.encode ct1 ich)
           let msg := (ch?, stB.ack, stB.t, some 1)
           let stB' := { stB with ich := ich }
           pure (some (none, msg, stB.t - 1, stB', offRand))
@@ -508,7 +508,7 @@ if t = t' ∧ ek_A = ⊥ then
 if ack'.ct_0-rec and t = t' then  -- incorporate A's acknowledgment
   ack.ct_0-rec <- true
 st_B <- (ek_A, ct_0, ct_1, st_ct, t, i_ch, L_ch, ack)
-return ((⊥, ⊥), t' - 1, st_B)
+return ((⊥, ⊥), t - 1, st_B)
 ``` -/
 -- ANCHOR: recvB
 def recvB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
@@ -543,7 +543,7 @@ def recvB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
       { stB with ack := { stB.ack with ctRec := true } }
     else
       stB
-  some (none, t' - 1, stB)
+  some (none, stB.t - 1, stB)
 -- ANCHOR_END: recvB
 
 /-- A's vulnerable epoch set (Fig. 16: `{t}` iff `dk_A ≠ ⊥`). -/

@@ -17,17 +17,17 @@ Syntax and correctness of erasure codes following Definition A.6 from:
   USENIX Security 2025, https://eprint.iacr.org/2025/2267.pdf
 
 An *erasure code* over a set of symbols `Σ`, with block length `N` and message size
-`nchunk`, consists of two algorithms:
-- `Encode(M, i) → c`: encodes message `M ∈ Σ^nchunk` at chunk index `i : ℕ`
-  to a symbol `c ∈ Σ`;
-- `Decode(L) → M`: from a chunk set `L ⊆ ℕ × Σ`, recovers `M ∈ Σ^nchunk`
+`nchunk ≤ N`, consists of two algorithms:
+- `Encode(M, i) → c`: encodes message `M ∈ Σ^nchunk` at a bounded chunk index
+  `i : Fin N` to a symbol `c ∈ Σ`;
+- `Decode(L) → M`: from a chunk set `L ⊆ Fin N × Σ`, recovers `M ∈ Σ^nchunk`
   or fails with `⊥`.
 
 This model restricts `Encode` and `Decode` to deterministic functions, covering
 deterministic codes such as Reed-Solomon.
 
-Writing `L_I = {(i, Encode(M, i)) | i ∈ I}` for the chunks of `M` at indices `I ⊆ ℕ`,
-correctness requires, for all `M` and all `I`:
+Writing `L_I = {(i, Encode(M, i)) | i ∈ I}` for the chunks of `M` at indices
+`I ⊆ Fin N`, correctness requires, for all `M` and all `I`:
 - `Decode(L_I) = M, if |I| = nchunk`;
 - `Decode(L_I) = ⊥, if |I| < nchunk`.
 -/
@@ -35,21 +35,27 @@ correctness requires, for all `M` and all `I`:
 /-- An erasure code over an alphabet `Sym` (Definition A.6 of [SCKA]).
 
 - `Sym`: the alphabet Σ of symbols;
-- `N`: the intended block length;
-- `nchunk`: the message size; a message is an `nchunk`-tuple of symbols: `Fin nchunk → Sym`;
+- `N`: the number of valid encoded-chunk positions; valid indices are
+  `0, …, N - 1`;
+- `nchunk`: the number of source symbols and the number of distinct encoded
+  chunks required to recover the message;
 - `encode M i`: the chunk encoding of message `M` at index `i`;
 - `decode L`: recovers a message from a chunk set `L`, or fails (`none`).
 -/
 -- ANCHOR: ErasureCode
 structure ErasureCode (Sym : Type) where
-  /-- Intended block length. -/
+  /-- Number of valid encoded-chunk positions; valid indices are `0, …, N - 1`. -/
   N : ℕ
-  /-- Message size; a message is `Fin nchunk → Sym`. -/
+  /-- At least one encoded-chunk position is available. -/
+  N_pos : 0 < N
+  /-- Number of source symbols and distinct encoded chunks needed for recovery. -/
   nchunk : ℕ
+  /-- The message fits within the codeword. -/
+  nchunk_le_N : nchunk ≤ N
   /-- `Encode(M, i)`: the chunk encoding of message `M` at index `i`. -/
-  encode : (Fin nchunk → Sym) → ℕ → Sym
+  encode : (Fin nchunk → Sym) → Fin N → Sym
   /-- `Decode(L)`: recover the message from a chunk set, or fail (`none`). -/
-  decode : Finset (ℕ × Sym) → Option (Fin nchunk → Sym)
+  decode : Finset (Fin N × Sym) → Option (Fin nchunk → Sym)
 -- ANCHOR_END: ErasureCode
 
 /-- An erasure code over `Sym` equipped with serialization for payloads of type `M`. -/
@@ -60,20 +66,38 @@ structure ErasureCodePayload (M Sym : Type) where
   serialize : M → Fin ec.nchunk → Sym
   /-- Parse a decoded `nchunk`-symbol message as a payload, or fail. -/
   parse : (Fin ec.nchunk → Sym) → Option M
+  /-- Parsing a serialized payload recovers the original payload. -/
+  parse_serialize : ∀ payload, parse (serialize payload) = some payload
 
 namespace ErasureCodePayload
 
 variable {M Sym : Type}
 
-/-- Encode a payload and return its chunk at index `i`. -/
-def encode (ecp : ErasureCodePayload M Sym) (payload : M) (i : ℕ) : Sym :=
-  ecp.ec.encode (ecp.serialize payload) i
+/-- Encode at counter `i` modulo `N`, returning the wrapped index and symbol.
+This matches the `ℤ_N` indices in [SCKA] and SPQR's fixed-width chunk index. -/
+def encode (ecp : ErasureCodePayload M Sym) (payload : M) (i : ℕ) : ℕ × Sym :=
+  let j := i % ecp.ec.N
+  let jFin : Fin ecp.ec.N := ⟨j, Nat.mod_lt i ecp.ec.N_pos⟩
+  (j, ecp.ec.encode (ecp.serialize payload) jFin)
 
-/-- Decode received chunks to a payload, if possible. -/
+/-- Decode received chunks to a payload, rejecting a set containing an index
+outside the valid range `0, …, N - 1`. -/
 def decode (ecp : ErasureCodePayload M Sym) (chunks : Finset (ℕ × Sym)) : Option M :=
-  match ecp.ec.decode chunks with
-  | none => none
-  | some block => ecp.parse block
+  if hvalid : ∀ chunk ∈ chunks, chunk.1 < ecp.ec.N then
+    let toBounded : {chunk // chunk ∈ chunks} ↪ (Fin ecp.ec.N × Sym) :=
+      { toFun := fun chunk =>
+          (⟨chunk.1.1, hvalid chunk.1 chunk.2⟩, chunk.1.2)
+        inj' := by
+          intro a b hab
+          apply Subtype.ext
+          exact Prod.ext
+            (congrArg (fun chunk : Fin ecp.ec.N × Sym => chunk.1.val) hab)
+            (congrArg (fun chunk : Fin ecp.ec.N × Sym => chunk.2) hab) }
+    match ecp.ec.decode (chunks.attach.map toBounded) with
+    | none => none
+    | some block => ecp.parse block
+  else
+    none
 
 end ErasureCodePayload
 
@@ -85,8 +109,8 @@ variable {Sym : Type}
 `{(i, Encode(M, i)) | i ∈ I}`. -/
 -- ANCHOR: encodeChunks
 noncomputable def encodeChunks [DecidableEq Sym] (ec : ErasureCode Sym)
-    (M : Fin ec.nchunk → Sym) (I : Finset ℕ) :
-    Finset (ℕ × Sym) :=
+    (M : Fin ec.nchunk → Sym) (I : Finset (Fin ec.N)) :
+    Finset (Fin ec.N × Sym) :=
   (I.toList.map fun i => (i, ec.encode M i)).toFinset
 -- ANCHOR_END: encodeChunks
 
@@ -94,7 +118,7 @@ noncomputable def encodeChunks [DecidableEq Sym] (ec : ErasureCode Sym)
 `M` when `|I| = nchunk` and fails when `|I| < nchunk`. -/
 -- ANCHOR: Correct
 def Correct [DecidableEq Sym] (ec : ErasureCode Sym) : Prop :=
-  ∀ (M : Fin ec.nchunk → Sym) (I : Finset ℕ),
+  ∀ (M : Fin ec.nchunk → Sym) (I : Finset (Fin ec.N)),
     (I.card = ec.nchunk → ec.decode (ec.encodeChunks M I) = some M) ∧
     (I.card < ec.nchunk → ec.decode (ec.encodeChunks M I) = none)
 -- ANCHOR_END: Correct
