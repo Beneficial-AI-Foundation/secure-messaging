@@ -27,8 +27,11 @@ set_option pp.rawOnError true
 
 *References:*
 
-- {Informal.citet BN00}[]
-- {Informal.citet Rog02}[]
+- {Informal.citet NRS14}[] — the construction (Figure 2, scheme A5) and security
+  proof (Theorem 1, Figure 9 bound) this chapter formalizes.
+- {Informal.citet ACD19}[] — the one-time IND-CCA notion being targeted
+  (Definition 1, Figure 1, Definition 2).
+- {Informal.citet TR25}[] — the AEAD advantage convention (Definition 2.5).
 
 :::group "aead_encrypt_then_mac"
 Encrypt-then-MAC.
@@ -95,5 +98,5 @@ theorem etmAEAD_security [Inhabited K_e]
       DetSEAlg.distAdvantage se (encReduction se adv)
 ```
 
-{usesLabel}`uses` {uses "aead_etm_spec"}[] · {uses "aead_security_exp"}[] · {githubLabel}`github` {githubIssue 26}[]
+{usesLabel}`uses` {uses "aead_etm_spec"}[] · {uses "aead_security_exp"}[] · {uses "aead_dist_advantage"}[] · {uses "aead_decrypt_query_bound"}[] · {githubLabel}`github` {githubIssue 26}[]
 ::::

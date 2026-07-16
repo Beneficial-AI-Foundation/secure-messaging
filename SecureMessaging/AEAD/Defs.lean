@@ -167,9 +167,11 @@ one-time IND-CCA adversary. `decryptQueryBound adv q_d` asserts that `adv`
 makes at most `q_d` queries to the decrypt oracle (index `.inr _` in
 `aeadOneTimeCCASpec`), with no constraint on encryption or uniform-sampling
 queries. Built on VCVio's `IsQueryBoundP`. -/
+-- ANCHOR: decryptQueryBound
 def decryptQueryBound (adv : OneTimeCCAAdversary AD M C)
     (q_d : ℕ) : Prop :=
   adv.IsQueryBoundP (· matches Sum.inr _) q_d
+-- ANCHOR_END: decryptQueryBound
 
 /-! ### Oracle implementations -/
 
@@ -251,6 +253,7 @@ noncomputable def guessAdvantage [SampleableType C] [DecidableEq C]
 /-- Security experiment with a fixed challenge bit `b` (not sampled uniformly).
 The branch `b = false` is `AEAD_real`; the branch `b = true` is `AEAD_rand`.
 Returns the adversary's raw guess `b'` (not `b == b'`). -/
+-- ANCHOR: securityExpFixedBit
 def securityExpFixedBit [SampleableType C] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C)
@@ -258,17 +261,20 @@ def securityExpFixedBit [SampleableType C] [DecidableEq C]
   let k ← ae.keygen
   let (b', _) ← (simulateQ (aeadSecurityImpl ae b k) adversary).run none
   return b'
+-- ANCHOR_END: securityExpFixedBit
 
 /-- One-time IND-CCA distinguishing advantage:
 `|Pr[AEAD_rand = 1] - Pr[AEAD_real = 1]|`.
 
 Here `AEAD_real` is `securityExpFixedBit ae adversary false` and `AEAD_rand`
 is `securityExpFixedBit ae adversary true`. -/
+-- ANCHOR: distAdvantage
 noncomputable def distAdvantage [SampleableType C] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) : ℝ :=
   |(Pr[= true | securityExpFixedBit ae adversary true]).toReal -
    (Pr[= true | securityExpFixedBit ae adversary false]).toReal|
+-- ANCHOR_END: distAdvantage
 
 /-- The single-game AEAD experiment can be decomposed as a uniform-bit branch over
 the two fixed-bit experiments:
@@ -320,18 +326,19 @@ private lemma securityExp_toReal_sub_half [SampleableType C] [DecidableEq C]
     (securityExpFixedBit ae adversary true)
     (securityExpFixedBit ae adversary false)
 
--- ANCHOR: guessAdvantage_eq_distAdvantage_div_two
 /-- The guess advantage equals half the distinguishing advantage:
 `guessAdvantage = distAdvantage / 2`. -/
+-- ANCHOR: guessAdvantage_eq_distAdvantage_div_two
 lemma guessAdvantage_eq_distAdvantage_div_two [SampleableType C] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) :
-    guessAdvantage ae adversary = distAdvantage ae adversary / 2 := by
+    guessAdvantage ae adversary = distAdvantage ae adversary / 2
+-- ANCHOR_END: guessAdvantage_eq_distAdvantage_div_two
+  := by
   simp only [guessAdvantage, distAdvantage]
   rw [securityExp_toReal_sub_half, abs_div]
   congr 1
   exact abs_of_pos two_pos
--- ANCHOR_END: guessAdvantage_eq_distAdvantage_div_two
 
 end OneTime_CCA
 
