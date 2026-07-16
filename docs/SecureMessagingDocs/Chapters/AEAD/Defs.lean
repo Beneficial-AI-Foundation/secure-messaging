@@ -1,5 +1,6 @@
 import VersoManual
 import VersoBlueprint
+import SecureMessagingDocs.Bibliography
 import SecureMessagingDocs.Visuals.Notation
 import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
@@ -21,6 +22,12 @@ set_option doc.verso true
 set_option pp.rawOnError true
 
 #doc (Manual) "AEAD Definitions" =>
+
+*References:*
+
+- {Informal.citet ACD19}[] — AEAD syntax (Definition 1) and the one-time
+  IND-CCA game (Figure 1, Definition 2).
+- {Informal.citet TR25}[] — the AEAD advantage convention (Definition 2.5).
 
 :::defTitle "aead" "Authenticated Encryption with Associated Data - AEAD scheme"
 :::
@@ -155,6 +162,25 @@ def securityExp [SampleableType C] [DecidableEq C]
 :::::::
 
 
+:::defTitle "aead_decrypt_query_bound" "AEAD decryption-query bound"
+:::
+
+:::definition "aead_decrypt_query_bound" (lean := "AEADScheme.decryptQueryBound")
+$`\todo`
+
+$`\mathsf{decryptQueryBound}(\adv, q_d)` asserts that the adversary $`\adv` makes at
+most $`q_d` queries to the decryption oracle $`\Odec` (the tag-guessing term
+$`q_d/|T|` in the EtM security bound is stated against this bound).
+
+```anchor decryptQueryBound (project := ".") (module := SecureMessaging.AEAD.Defs)
+def decryptQueryBound (adv : OneTimeCCAAdversary AD M C)
+    (q_d : ℕ) : Prop :=
+  adv.IsQueryBoundP (· matches Sum.inr _) q_d
+```
+
+{usesLabel}`uses` {uses "aead_security_exp"}[]
+:::
+
 :::defTitle "aead_guess_advantage" "AEAD guess advantage"
 :::
 
@@ -172,4 +198,63 @@ noncomputable def guessAdvantage [SampleableType C] [DecidableEq C]
 ```
 
 {usesLabel}`uses` {uses "aead_security_exp"}[]
+:::
+
+:::defTitle "aead_dist_advantage" "AEAD distinguishing advantage"
+:::
+
+:::::definition "aead_dist_advantage" (lean := "AEADScheme.distAdvantage, AEADScheme.securityExpFixedBit")
+$`\todo`
+
+$$`\mathsf{Adv}^{\textsf{dist}}_{\textsf{AEAD}}(\adv)
+  = \Bigl|\, \Pr[\mathsf{AEAD_{rand}} = 1] - \Pr[\mathsf{AEAD_{real}} = 1] \,\Bigr|`
+
+Stated over the two fixed-bit experiments, each returning the adversary's raw
+guess $`b'`: $`\mathsf{AEAD_{real}}` fixes $`b = 0` and $`\mathsf{AEAD_{rand}}`
+fixes $`b = 1`. This is the advantage the Encrypt-then-MAC security theorem bounds.
+
+:::leanPillCaption "security experiment with a fixed challenge bit"
+:::
+
+```anchor securityExpFixedBit (project := ".") (module := SecureMessaging.AEAD.Defs)
+def securityExpFixedBit [SampleableType C] [DecidableEq C]
+    (ae : AEADScheme ProbComp M AD K C)
+    (adversary : OneTimeCCAAdversary AD M C)
+    (b : Bool) : ProbComp Bool := do
+  let k ← ae.keygen
+  let (b', _) ← (simulateQ (aeadSecurityImpl ae b k) adversary).run none
+  return b'
+```
+
+:::leanPillCaption "distinguishing advantage over the two fixed-bit experiments"
+:::
+
+```anchor distAdvantage (project := ".") (module := SecureMessaging.AEAD.Defs)
+noncomputable def distAdvantage [SampleableType C] [DecidableEq C]
+    (ae : AEADScheme ProbComp M AD K C)
+    (adversary : OneTimeCCAAdversary AD M C) : ℝ :=
+  |(Pr[= true | securityExpFixedBit ae adversary true]).toReal -
+   (Pr[= true | securityExpFixedBit ae adversary false]).toReal|
+```
+
+{usesLabel}`uses` {uses "aead_security_exp"}[]
+:::::
+
+:::defTitle "aead_guess_dist_advantage" "Guess vs. distinguishing advantage"
+:::
+
+:::theorem "aead_guess_dist_advantage" (lean := "AEADScheme.guessAdvantage_eq_distAdvantage_div_two")
+$`\todo`
+
+$$`\mathsf{Adv}^{\textsf{guess}}_{\textsf{AEAD}}(\adv)
+  = \tfrac{1}{2}\,\mathsf{Adv}^{\textsf{dist}}_{\textsf{AEAD}}(\adv)`
+
+```anchor guessAdvantage_eq_distAdvantage_div_two (project := ".") (module := SecureMessaging.AEAD.Defs)
+lemma guessAdvantage_eq_distAdvantage_div_two [SampleableType C] [DecidableEq C]
+    (ae : AEADScheme ProbComp M AD K C)
+    (adversary : OneTimeCCAAdversary AD M C) :
+    guessAdvantage ae adversary = distAdvantage ae adversary / 2
+```
+
+{usesLabel}`uses` {uses "aead_guess_advantage"}[] · {uses "aead_dist_advantage"}[]
 :::

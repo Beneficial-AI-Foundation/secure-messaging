@@ -43,6 +43,14 @@ def Rog02 : Verso.Genre.Manual.Bibliography.Citable := .inProceedings
   , booktitle := inlines!"CCS 2002"
   , url := some "https://web.cs.ucdavis.edu/~rogaway/papers/ad.pdf" }
 
+@[bib "NRS14"]
+def NRS14 : Verso.Genre.Manual.Bibliography.Citable := .inProceedings
+  { title := inlines!"Reconsidering Generic Composition"
+  , authors := #[inlines!"Chanathip Namprempre", inlines!"Phillip Rogaway", inlines!"Thomas Shrimpton"]
+  , year := 2014
+  , booktitle := inlines!"EUROCRYPT 2014"
+  , url := some "https://eprint.iacr.org/2013/765" }
+
 @[bib "NIST-GCM"]
 def NIST_GCM : Verso.Genre.Manual.Bibliography.Citable := .article
   { title := inlines!"Recommendation for Block Cipher Modes of Operation: Galois/Counter Mode (GCM) and GMAC"

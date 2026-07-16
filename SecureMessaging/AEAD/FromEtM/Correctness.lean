@@ -27,9 +27,12 @@ The proof is straightforward: the tag comparison
 `prf.eval km (ad, c) == prf.eval km (ad, c)` is trivially `true`, so
 `decrypt` always reaches the `se.decrypt` branch, which recovers the
 plaintext by `hse`. -/
+-- ANCHOR: etmAEAD_correct
 theorem etmAEAD_correct (se : DetSEAlg K_e M C_e)
     (prf : PRFScheme K_m (AD × C_e) T) (hse : se.Correct) :
-    (etmAEAD se prf).Correct := by
+    (etmAEAD se prf).Correct
+-- ANCHOR_END: etmAEAD_correct
+  := by
   intro ⟨ke, km⟩ ad msg
   simp only [etmAEAD, beq_self_eq_true, ↓reduceIte]
   exact hse ke msg

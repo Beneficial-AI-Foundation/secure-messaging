@@ -173,6 +173,7 @@ type, so we state it. It is satisfied by every standard PRF (whose key is a unif
 `$ᵗ K_m`), so it doesn't rule out any construction of interest.
 NRS14 Figure 9 bound: `Adv^nAE ≤ Adv^prf_F(B) + Adv^ivE_E(D₁) + q_d/2^τ`.
 Our one-time adaptation: `Adv^ivE → Adv^{ind$-cpa}`, `2^τ → |T|`. -/
+-- ANCHOR: etmAEAD_security
 theorem etmAEAD_security [Inhabited K_e]
     (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
     (adv : OneTimeCCAAdversary AD M (C_e × T))
@@ -182,7 +183,9 @@ theorem etmAEAD_security [Inhabited K_e]
     AEADScheme.distAdvantage (etmAEAD se prf) adv ≤
       PRFScheme.prfAdvantage prf (prfReduction se adv) +
       ↑q_d * (Fintype.card T : ℝ)⁻¹ +
-      DetSEAlg.distAdvantage se (encReduction se adv) := by
+      DetSEAlg.distAdvantage se (encReduction se adv)
+-- ANCHOR_END: etmAEAD_security
+  := by
   -- NRS14 Theorem 1 / Figure 9: triangle inequality over the game sequence.
   -- distAdvantage = |Pr[rand = 1] - Pr[real = 1]|
   --              = |Pr[game3 = 1] - Pr[game0 = 1]|    (by game0_eq_real, game3_eq_rand)
