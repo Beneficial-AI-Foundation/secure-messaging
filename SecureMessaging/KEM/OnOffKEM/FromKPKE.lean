@@ -159,6 +159,7 @@ def encapsOn (st : Coins × TqVec params.k) (ek : encoding.EncodedTHat) :
 the secret `s` and error `e`, and output `ek = t̂ = Â ŝ + ê` and `dk = ŝ`
 (both serialized). Mirrors `MLKEM.KPKE.keygenFromSeed` with `ρ` fixed as a public
 parameter rather than derived per key pair. -/
+-- ANCHOR: keygenFromKPKE
 def keygen : ProbComp (encoding.EncodedTHat × encoding.EncodedTHat) := do
   let sigma ← $ᵗ Seed32
   let aHat := prims.publicMatrix rho
@@ -168,6 +169,7 @@ def keygen : ProbComp (encoding.EncodedTHat × encoding.EncodedTHat) := do
   let eHat := ring.nttVec e
   let tHat := ring.matVecMul aHat sHat + eHat
   pure (encoding.byteEncode12Vec tHat, encoding.byteEncode12Vec sHat)
+-- ANCHOR_END: keygenFromKPKE
 
 /-- Decapsulation: reassemble the K-PKE ciphertext and run `MLKEM.KPKE.decrypt`
 to recover the message (the shared key). -/
