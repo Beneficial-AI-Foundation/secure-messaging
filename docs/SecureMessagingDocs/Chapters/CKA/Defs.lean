@@ -138,8 +138,12 @@ def allowCorr (gp : GameParams) (state : GameState St I Rho) : CKAParty → Bool
 ```
 
 ::::::gameGrid
-:::::gameCell "\\OSendA" (kind := "oracle")
-$`t_\mathsf{A}\gets t_\mathsf{A}+1;\quad (K_\mathsf{A},\rho_\mathsf{A},\stA) \sample \SendA(\stA);\quad \Return(\rho_\mathsf{A},K_\mathsf{A})`
+:::::gameCell "\\OSendA" (kind := "compact")
+$`\begin{array}{l}
+t_\mathsf{A}\gets t_\mathsf{A}+1; \\
+(K_\mathsf{A},\rho_\mathsf{A},\stA) \sample \SendA(\stA); \\
+\Return(\rho_\mathsf{A},K_\mathsf{A})
+\end{array}`
 
 ```anchor oracleSendA (project := ".") (module := SecureMessaging.CKA.Defs)
 def oracleSendA (cka : CKAScheme ProbComp IK St I Rho Rand) :
@@ -164,8 +168,12 @@ def oracleSendA (cka : CKAScheme ProbComp IK St I Rho Rand) :
 ```
 :::::
 
-:::::gameCell "\\OSendB" (kind := "oracle")
-$`t_\mathsf{B}\gets t_\mathsf{B}+1;\quad (K_\mathsf{B},\rho_\mathsf{B},\stB) \sample \SendB(\stB);\quad \Return(\rho_\mathsf{B},K_\mathsf{B})`
+:::::gameCell "\\OSendB" (kind := "compact")
+$`\begin{array}{l}
+t_\mathsf{B}\gets t_\mathsf{B}+1; \\
+(K_\mathsf{B},\rho_\mathsf{B},\stB) \sample \SendB(\stB); \\
+\Return(\rho_\mathsf{B},K_\mathsf{B})
+\end{array}`
 
 ```anchor oracleSendB (project := ".") (module := SecureMessaging.CKA.Defs)
 def oracleSendB (cka : CKAScheme ProbComp IK St I Rho Rand) :
@@ -191,8 +199,13 @@ def oracleSendB (cka : CKAScheme ProbComp IK St I Rho Rand) :
 :::::
 
 
-:::::gameCell "\\OSendARLeak" (kind := "oracle")
-$`\req\;\max(t_\mathsf{A}+1,t_\mathsf{B})+\Delta_\mathsf{PCS}\leq t^*;\quad (K_\mathsf{A},\rho_\mathsf{A},\stA,r) \sample \SendARLeak(\stA);\quad t_\mathsf{A}\gets t_\mathsf{A}+1;\quad \Return(\rho_\mathsf{A},K_\mathsf{A},r)`
+:::::gameCell "\\OSendARLeak" (kind := "compact")
+$`\begin{array}{l}
+\req\;\max(t_\mathsf{A}+1,t_\mathsf{B})+\Delta_\mathsf{PCS}\leq t^*; \\
+(K_\mathsf{A},\rho_\mathsf{A},\stA,r) \sample \SendARLeak(\stA); \\
+t_\mathsf{A}\gets t_\mathsf{A}+1; \\
+\Return(\rho_\mathsf{A},K_\mathsf{A},r)
+\end{array}`
 
 ```anchor oracleSendArleak (project := ".") (module := SecureMessaging.CKA.Defs)
 def oracleSendArleak (gp : GameParams) (cka : CKAScheme ProbComp IK St I Rho Rand) :
@@ -214,8 +227,13 @@ def oracleSendArleak (gp : GameParams) (cka : CKAScheme ProbComp IK St I Rho Ran
 ```
 :::::
 
-:::::gameCell "\\OSendBRLeak" (kind := "oracle")
-$`\req\;\max(t_\mathsf{A},t_\mathsf{B}+1)+\Delta_\mathsf{PCS}\leq t^*;\quad (K_\mathsf{B},\rho_\mathsf{B},\stB,r) \sample \SendBRLeak(\stB);\quad t_\mathsf{B}\gets t_\mathsf{B}+1;\quad \Return(\rho_\mathsf{B},K_\mathsf{B},r)`
+:::::gameCell "\\OSendBRLeak" (kind := "compact")
+$`\begin{array}{l}
+\req\;\max(t_\mathsf{A},t_\mathsf{B}+1)+\Delta_\mathsf{PCS}\leq t^*; \\
+(K_\mathsf{B},\rho_\mathsf{B},\stB,r) \sample \SendBRLeak(\stB); \\
+t_\mathsf{B}\gets t_\mathsf{B}+1; \\
+\Return(\rho_\mathsf{B},K_\mathsf{B},r)
+\end{array}`
 
 ```anchor oracleSendBrleak (project := ".") (module := SecureMessaging.CKA.Defs)
 def oracleSendBrleak (gp : GameParams) (cka : CKAScheme ProbComp IK St I Rho Rand) :
@@ -237,8 +255,12 @@ def oracleSendBrleak (gp : GameParams) (cka : CKAScheme ProbComp IK St I Rho Ran
 ```
 :::::
 
-:::::gameCell "\\ORecA" (kind := "oracle")
-$`t_\mathsf{A}\gets t_\mathsf{A}+1;\quad (K,\stA) \getsval \RecA(\stA,\rho_\mathsf{B});\quad \mathsf{correct} \gets \mathsf{correct}\wedge(K_\mathsf{B}{=}K)`
+:::::gameCell "\\ORecA" (kind := "compact")
+$`\begin{array}{l}
+t_\mathsf{A}\gets t_\mathsf{A}+1; \\
+(K,\stA) \getsval \RecA(\stA,\rho_\mathsf{B}); \\
+\mathsf{correct} \gets \mathsf{correct}\wedge(K_\mathsf{B}{=}K)
+\end{array}`
 
 ```anchor oracleRecvA (project := ".") (module := SecureMessaging.CKA.Defs)
 def oracleRecvA [DecidableEq I] (cka : CKAScheme ProbComp IK St I Rho Rand) :
@@ -269,8 +291,12 @@ def oracleRecvA [DecidableEq I] (cka : CKAScheme ProbComp IK St I Rho Rand) :
 ```
 :::::
 
-:::::gameCell "\\ORecB" (kind := "oracle")
-$`t_\mathsf{B}\gets t_\mathsf{B}+1;\quad (K,\stB) \getsval \RecB(\stB,\rho_\mathsf{A});\quad \mathsf{correct} \gets \mathsf{correct}\wedge(K_\mathsf{A}{=}K)`
+:::::gameCell "\\ORecB" (kind := "compact")
+$`\begin{array}{l}
+t_\mathsf{B}\gets t_\mathsf{B}+1; \\
+(K,\stB) \getsval \RecB(\stB,\rho_\mathsf{A}); \\
+\mathsf{correct} \gets \mathsf{correct}\wedge(K_\mathsf{A}{=}K)
+\end{array}`
 
 ```anchor oracleRecvB (project := ".") (module := SecureMessaging.CKA.Defs)
 def oracleRecvB [DecidableEq I] (cka : CKAScheme ProbComp IK St I Rho Rand) :
@@ -301,10 +327,14 @@ def oracleRecvB [DecidableEq I] (cka : CKAScheme ProbComp IK St I Rho Rand) :
 ```
 :::::
 
-:::::gameCell "\\OChallA" (kind := "oracle")
-$`t_\mathsf{A}\gets t_\mathsf{A}+1;\quad \req\;\mathsf{chall}{=}\mathsf{A}\wedge t_\mathsf{A}=t^*;\quad (K_\mathsf{A},\rho_\mathsf{A},\stA) \sample \SendA(\stA)`
-
-$`\mathsf{if}\;b\;\mathsf{then}\;K \sample \mathcal K\;\mathsf{else}\;K \gets K_\mathsf{A};\quad \Return(\rho_\mathsf{A},K)`
+:::::gameCell "\\OChallA" (kind := "compact")
+$`\begin{array}{l}
+t_\mathsf{A}\gets t_\mathsf{A}+1; \\
+\req\;\mathsf{chall}{=}\mathsf{A}\wedge t_\mathsf{A}=t^*; \\
+(K_\mathsf{A},\rho_\mathsf{A},\stA) \sample \SendA(\stA); \\
+\mathsf{if}\;b\;\mathsf{then}\;K \sample \mathcal K\;\mathsf{else}\;K \gets K_\mathsf{A}; \\
+\Return(\rho_\mathsf{A},K)
+\end{array}`
 
 ```anchor oracleChallA (project := ".") (module := SecureMessaging.CKA.Defs)
 def oracleChallA (gp : GameParams) (isRandom : Bool) [SampleableType I]
@@ -334,10 +364,14 @@ def oracleChallA (gp : GameParams) (isRandom : Bool) [SampleableType I]
 ```
 :::::
 
-:::::gameCell "\\OChallB" (kind := "oracle")
-$`t_\mathsf{B}\gets t_\mathsf{B}+1;\quad \req\;\mathsf{chall}{=}\mathsf{B}\wedge t_\mathsf{B}=t^*;\quad (K_\mathsf{B},\rho_\mathsf{B},\stB) \sample \SendB(\stB)`
-
-$`\mathsf{if}\;b\;\mathsf{then}\;K \sample \mathcal K\;\mathsf{else}\;K \gets K_\mathsf{B};\quad \Return(\rho_\mathsf{B},K)`
+:::::gameCell "\\OChallB" (kind := "compact")
+$`\begin{array}{l}
+t_\mathsf{B}\gets t_\mathsf{B}+1; \\
+\req\;\mathsf{chall}{=}\mathsf{B}\wedge t_\mathsf{B}=t^*; \\
+(K_\mathsf{B},\rho_\mathsf{B},\stB) \sample \SendB(\stB); \\
+\mathsf{if}\;b\;\mathsf{then}\;K \sample \mathcal K\;\mathsf{else}\;K \gets K_\mathsf{B}; \\
+\Return(\rho_\mathsf{B},K)
+\end{array}`
 
 ```anchor oracleChallB (project := ".") (module := SecureMessaging.CKA.Defs)
 def oracleChallB (gp : GameParams) (isRandom : Bool) [SampleableType I]
@@ -366,8 +400,11 @@ def oracleChallB (gp : GameParams) (isRandom : Bool) [SampleableType I]
 ```
 :::::
 
-:::::gameCell "\\OCorrA" (kind := "oracle")
-$`\req\;\allow(t_\mathsf{A},t_\mathsf{B},t^*,\Delta_\mathsf{FS},\Delta_\mathsf{PCS},\mathsf{A});\quad \Return\stA`
+:::::gameCell "\\OCorrA" (kind := "compact")
+$`\begin{array}{l}
+\req\;\allow(t_\mathsf{A},t_\mathsf{B},t^*,\Delta_\mathsf{FS},\Delta_\mathsf{PCS},\mathsf{A}); \\
+\Return\stA
+\end{array}`
 
 ```anchor oracleCorruptA (project := ".") (module := SecureMessaging.CKA.Defs)
 def oracleCorruptA (gp : GameParams) (St I Rho : Type) :
@@ -379,8 +416,11 @@ def oracleCorruptA (gp : GameParams) (St I Rho : Type) :
 ```
 :::::
 
-:::::gameCell "\\OCorrB" (kind := "oracle")
-$`\req\;\allow(t_\mathsf{A},t_\mathsf{B},t^*,\Delta_\mathsf{FS},\Delta_\mathsf{PCS},\mathsf{B});\quad \Return\stB`
+:::::gameCell "\\OCorrB" (kind := "compact")
+$`\begin{array}{l}
+\req\;\allow(t_\mathsf{A},t_\mathsf{B},t^*,\Delta_\mathsf{FS},\Delta_\mathsf{PCS},\mathsf{B}); \\
+\Return\stB
+\end{array}`
 
 ```anchor oracleCorruptB (project := ".") (module := SecureMessaging.CKA.Defs)
 def oracleCorruptB (gp : GameParams) (St I Rho : Type) :
