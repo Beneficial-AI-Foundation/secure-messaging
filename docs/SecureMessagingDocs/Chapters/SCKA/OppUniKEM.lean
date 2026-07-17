@@ -32,7 +32,8 @@ Opp-UniKEM-CKA.
 
 :::::::definition "opp_unikem_cka_spec" (parent := "cka_protocols_opp_unikem_cka") (lean := "oppUniKemCKA.initKeyGen, oppUniKemCKA.initA, oppUniKemCKA.initB, oppUniKemCKA.vulnA, oppUniKemCKA.vulnB, oppUniKemCKA.sendA, oppUniKemCKA.sendArleak, oppUniKemCKA.recvA, oppUniKemCKA.sendB, oppUniKemCKA.sendBrleak, oppUniKemCKA.recvB, oppUniKemCKA.scheme")
 Figure 16 of {Informal.citet SCKA25}[]. The boxed checks $`\boxed{t=t'}` are our additions. They prevent old
-  acknowledgements from affecting a new epoch.
+  acknowledgements from affecting a new epoch. We also correct $`\mathsf{Rec}\text{-}\B`'s returned receiving
+  epoch from $`t-1` to $`t'-1`, so it identifies the delivered message under delayed or replayed delivery.
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Initialisation}" (kind := "compact")
@@ -407,7 +408,7 @@ $`\begin{array}{l}
   \pcomment{\text{incorporate }\A\text{'s acknowledgment}} \\
 \quad \ack.\ctrec\gets\mathsf{true} \\
 \stB\gets(\ekA,\ctzero,\ctone,\stct,t,\ich,\Lch,\ack) \\
-\mathsf{return}\;((\bot,\bot),t-1,\stB)
+\mathsf{return}\;((\bot,\bot),t'-1,\stB)
 \end{array}`
 
 ```anchor recvB (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
@@ -443,7 +444,8 @@ def recvB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
       { stB with ack := { stB.ack with ctRec := true } }
     else
       stB
-  some (none, stB.t - 1, stB)
+  -- Correct Fig. 16's `t - 1`: the receiving epoch belongs to the delivered message.
+  some (none, t' - 1, stB)
 ```
 :::::
 ::::::

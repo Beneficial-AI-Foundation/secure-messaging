@@ -69,6 +69,9 @@ The algorithms follow Figure 16 with these additions or differences:
   A receiver records it only when its state remains in epoch `t'` after processing
   the message. This prevents an old acknowledgement from marking a fresh epoch's
   payload as delivered.
+- **Receiving epoch.** Figure 16 returns `t - 1` from `Rec-B`. We instead return
+  `t' - 1`, the epoch of the received message, as required by the SCKA matching-
+  epoch condition under delayed or replayed delivery.
 - **Totality.** Figure 16 is partial on unreachable malformed states, for example
   when `Rec-A` reaches `Dec` without both `dk_A` and `ct_0`. Here, those local
   branches return no key and leave the branch-specific state unchanged.
@@ -508,7 +511,7 @@ if t = t' ∧ ek_A = ⊥ then
 if ack'.ct_0-rec and t = t' then  -- incorporate A's acknowledgment
   ack.ct_0-rec <- true
 st_B <- (ek_A, ct_0, ct_1, st_ct, t, i_ch, L_ch, ack)
-return ((⊥, ⊥), t - 1, st_B)
+return ((⊥, ⊥), t' - 1, st_B)
 ``` -/
 -- ANCHOR: recvB
 def recvB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
@@ -543,7 +546,8 @@ def recvB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
       { stB with ack := { stB.ack with ctRec := true } }
     else
       stB
-  some (none, stB.t - 1, stB)
+  -- Correct Fig. 16's `t - 1`: the receiving epoch belongs to the delivered message.
+  some (none, t' - 1, stB)
 -- ANCHOR_END: recvB
 
 /-- A's vulnerable epoch set (Fig. 16: `{t}` iff `dk_A ≠ ⊥`). -/
