@@ -111,12 +111,14 @@ def smDocsCss : String := r#"
 }
 
 /* The cell's title bar: experiment/oracle name (math) on the left, the state
-   slice it touches on the right. One uniform colour/font for every box. */
+   slice it touches on the right. One uniform colour/font for every box.
+   Doubles as the fold/unfold toggle (see `smDocsJs`): clicking it shows/hides
+   the body. */
 .game-cell-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: baseline;
-  gap: 1rem;
+  gap: 0.6rem;
   padding: 0.45rem 0.7rem;
   border-bottom: 1px solid currentColor;
   background: #e8eefc;
@@ -124,11 +126,34 @@ def smDocsCss : String := r#"
   font-weight: 700;
   line-height: 1.25;
 }
-/* The right-hand state slice is lighter than the name. */
+/* Foldable boxes: header is interactive; drop the separator when folded so the
+   collapsed box reads as a single bar. */
+.game-foldable .game-cell-header {
+  cursor: pointer;
+  user-select: none;
+}
+.game-foldable:not(.is-open) .game-cell-header {
+  border-bottom: 0;
+}
+/* Fold indicator: a caret that points right when folded and down when open. */
+.game-cell-caret {
+  flex: none;
+  align-self: center;
+  font-size: 0.85em;
+  line-height: 1;
+  opacity: 0.7;
+  transform: rotate(-90deg);
+  transition: transform 0.15s ease;
+}
+.game-foldable.is-open .game-cell-caret {
+  transform: rotate(0deg);
+}
+/* The right-hand state slice is lighter than the name and sits at the far end. */
 .game-cell-header > code.bp_math {
   font-weight: 400;
   font-size: 0.85em;
   opacity: 0.8;
+  margin-left: auto;
 }
 
 /* The cell's body, holding the pseudocode math lines. */
@@ -433,9 +458,42 @@ def smDocsJs : String := r#"
       }
     });
   }
+  function foldGameCells() {
+    document.querySelectorAll("section.game-cell:not(.game-foldable)").forEach(function (cell) {
+      var header = cell.querySelector(":scope > .game-cell-header");
+      var body = cell.querySelector(":scope > .game-cell-body");
+      if (!header || !body) return;
+      cell.classList.add("game-foldable");
+      var caret = document.createElement("span");
+      caret.className = "game-cell-caret";
+      caret.setAttribute("aria-hidden", "true");
+      caret.textContent = "\u25BE";
+      header.insertBefore(caret, header.firstChild);
+      header.setAttribute("role", "button");
+      header.setAttribute("tabindex", "0");
+      // Folded by default: only the header is visible until the user opens it.
+      body.hidden = true;
+      cell.classList.remove("is-open");
+      header.setAttribute("aria-expanded", "false");
+      function toggle() {
+        var open = body.hidden;
+        body.hidden = !open;
+        cell.classList.toggle("is-open", open);
+        header.setAttribute("aria-expanded", open ? "true" : "false");
+      }
+      header.addEventListener("click", toggle);
+      header.addEventListener("keydown", function (event) {
+        if (event.key === "Enter" || event.key === " " || event.key === "Spacebar") {
+          event.preventDefault();
+          toggle();
+        }
+      });
+    });
+  }
   function initLeanPills() {
     installHeadingTitles();
     wrapLeanBlocks();
+    foldGameCells();
     window.setTimeout(function () {
       renderMathIn(document.body);
     }, 0);
