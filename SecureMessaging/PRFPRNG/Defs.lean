@@ -7,6 +7,7 @@ import VCVio.CryptoFoundations.SecExp
 import VCVio.CryptoFoundations.PRG
 import VCVio.OracleComp.Constructions.SampleableType
 import VCVio.OracleComp.SimSemantics.Append
+import SecureMessaging.PRP.Defs
 
 /-!
 # PRF-PRNG schemes (work in progress)
@@ -151,62 +152,6 @@ noncomputable def pppAdvantage [SampleableType K] [SampleableType I] [Sampleable
 end Game
 
 end PRFPRNGScheme
-
-/-- A pseudorandom permutation scheme: key space `K`, domain `X`. -/
-structure PRPScheme (K X : Type) where
-  /-- Randomized key generation. -/
-  keygen : ProbComp K
-  /-- The keyed permutation on `X`. -/
-  perm : K → X → X
-  /-- The inverse of the keyed permutation. -/
-  invPerm : K → X → X
-
-namespace PRPScheme
-
-variable {K X : Type}
-
-/-- Correctness: `invPerm k` and `perm k` are mutually inverse for every key `k`. -/
-def Correct (prp : PRPScheme K X) : Prop :=
-  ∀ k x, prp.invPerm k (prp.perm k x) = x ∧ prp.perm k (prp.invPerm k x) = x
-
-/-- Oracle spec for the PRP game: uniform randomness plus a permutation oracle. -/
-def PRPOracleSpec (X : Type) := unifSpec + (X →ₒ X)
-
-/-- A PRP adversary: a computation with access to the PRP oracles, outputting a
-guess bit. -/
-abbrev PRPAdversary (X : Type) := OracleComp (PRPOracleSpec X) Bool
-
-/-- Uniform-randomness oracle for the PRP game. -/
-def oracleUnif : QueryImpl unifSpec ProbComp :=
-  HasQuery.toQueryImpl (spec := unifSpec) (m := ProbComp)
-
-/-- Permutation oracle answering each query `x` with `g x`. -/
-def oraclePerm (g : X → X) : QueryImpl (X →ₒ X) ProbComp :=
-  fun x => pure (g x)
-
-/-- Combined oracle implementation for the PRP game using permutation `g`. -/
-def prpQueryImpl (g : X → X) : QueryImpl (PRPOracleSpec X) ProbComp :=
-  oracleUnif + oraclePerm g
-
-/-- Real experiment: runs the adversary against the keyed permutation. -/
-def prpRealExp (prp : PRPScheme K X) (adversary : PRPAdversary X) :
-    ProbComp Bool :=
-    sorry
-
-/-- Ideal experiment: runs the adversary against a uniformly random permutation. -/
-def prpIdealExp [SampleableType (Equiv.Perm X)] (adversary : PRPAdversary X) :
-    ProbComp Bool := do
-  let π ← $ᵗ (Equiv.Perm X)
-  simulateQ (prpQueryImpl fun x => π x) adversary
-
-/-- The PRP advantage: the gap between the adversary's success probabilities in
-the real and ideal experiments. -/
-noncomputable def prpAdvantage [SampleableType (Equiv.Perm X)]
-    (prp : PRPScheme K X) (adversary : PRPAdversary X) : ℝ :=
-    sorry
-
-
-end PRPScheme
 
 namespace PRFPRNGScheme
 
