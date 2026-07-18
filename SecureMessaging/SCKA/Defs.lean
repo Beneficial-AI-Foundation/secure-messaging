@@ -220,6 +220,32 @@ def sckaCorrectnessSpec (Rho : Type) :=
   + (ℕ →ₒ Option (ℕ × Option ℕ))                -- O-Recv-B
 -- ANCHOR_END: sckaCorrectnessSpec
 
+namespace sckaCorrectnessSpec
+
+variable {Rho : Type}
+
+/-! ### Named oracle indices
+
+Aliases for the nested `.inl/.inr` paths into `(sckaCorrectnessSpec Rho).Domain`.
+Marked `@[match_pattern]` so they unfold transparently in `match` patterns. -/
+/-- Domain index selecting the uniform-randomness oracle. -/
+@[match_pattern] abbrev OUnif (n : ℕ) : (sckaCorrectnessSpec Rho).Domain :=
+  .inl (.inl (.inl (.inl n)))
+/-- Domain index selecting the `Send-A` oracle. -/
+@[match_pattern] abbrev OSendA : (sckaCorrectnessSpec Rho).Domain :=
+  .inl (.inl (.inl (.inr ())))
+/-- Domain index selecting the `Send-B` oracle. -/
+@[match_pattern] abbrev OSendB : (sckaCorrectnessSpec Rho).Domain :=
+  .inl (.inl (.inr ()))
+/-- Domain index selecting the `Recv-A` oracle. -/
+@[match_pattern] abbrev ORecvA (n : ℕ) : (sckaCorrectnessSpec Rho).Domain :=
+  .inl (.inr n)
+/-- Domain index selecting the `Recv-B` oracle. -/
+@[match_pattern] abbrev ORecvB (n : ℕ) : (sckaCorrectnessSpec Rho).Domain :=
+  .inr n
+
+end sckaCorrectnessSpec
+
 /-- Oracle spec for the SCKA security game: the correctness spec extended with the
 randomness-leaking send oracles, the challenge oracle, and the corruption oracles. -/
 -- ANCHOR: sckaSecuritySpec

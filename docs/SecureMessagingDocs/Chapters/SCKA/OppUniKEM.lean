@@ -4,7 +4,7 @@ import VersoBlueprint
 import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessagingDocs.Bibliography
-import SecureMessaging.SCKA.OppUniKEM.Construction
+import SecureMessaging.SCKA.OppUniKEM.Correctness
 
 set_option linter.style.setOption false
 set_option linter.hashCommand false
@@ -456,11 +456,63 @@ def recvB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 :::defTitle "opp_unikem_cka_correctness" "Opp-UniKEM-CKA correctness"
 :::
 
-::::theorem "opp_unikem_cka_correctness" (parent := "cka_protocols_opp_unikem_cka")
-$`\todo`
+::::theorem "opp_unikem_cka_correctness" (parent := "cka_protocols_opp_unikem_cka") (lean := "oppUniKemCKA.correctness")
+For any correctness adversary, the experiment returns $`\mathsf{true}` with probability one,
+assuming perfect KEM correctness with deterministic decapsulation, correctness of the three
+erasure codes, and a positive decoding threshold for every encoded payload.
 
-:::leanPill "missing"
+```anchor correctness (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Correctness)
+theorem correctness [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (hDet : DeterministicDecaps kem)
+    (ecEk : ErasureCodePayload PK Sym)
+    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
+    (leak : KEMScheme.OnOffRandLeak kem onoff)
+    (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
+    (hEkCorrect : ecEk.ec.Correct) (hCt0Correct : ecCt0.ec.Correct)
+    (hCt1Correct : ecCt1.ec.Correct)
+    (hEkPos : 0 < ecEk.ec.nchunk) (hCt0Pos : 0 < ecCt0.ec.nchunk)
+    (hCt1Pos : 0 < ecCt1.ec.nchunk)
+    (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym)) :
+    Pr[= true |
+      SCKAScheme.correctnessExp
+        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] = 1
+```
+
+For an imperfect KEM, correctness degrades by a union bound over fresh
+$`\mathsf{SendB}` trials.  If a trial introduces inconsistent current-epoch
+KEM material with probability at most $`\delta`, all other correctness
+oracles preserve consistency, and the adversary makes at most $`q`
+$`\mathsf{SendB}` queries, then the full SCKA failure probability is at most
+$`q\delta`.  Delayed, reordered, duplicated, and replayed receives do not
+consume this budget.  The local trial premise is protocol-facing; deriving it
+from a concrete KEM's average-case $`\delta`-correctness requires a separate
+reduction.
+
+:::leanPillCaption "quantitative correctness for an imperfect KEM"
 :::
+```anchor correctnessFailureLe (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Correctness)
+theorem correctness_failure_le [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (hDet : DeterministicDecaps kem)
+    (ecEk : ErasureCodePayload PK Sym) (hEkCorrect : ecEk.ec.Correct)
+    (hEkPos : 0 < ecEk.ec.nchunk)
+    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0Correct : ecCt0.ec.Correct)
+    (hCt0Pos : 0 < ecCt0.ec.nchunk)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1Correct : ecCt1.ec.Correct)
+    (hCt1Pos : 0 < ecCt1.ec.nchunk)
+    (leak : KEMScheme.OnOffRandLeak kem onoff)
+    (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
+    (q : ℕ) (δ : ℝ≥0∞)
+    (hSend : SendBFailureBound kem onoff hDet ecEk ecCt0 ecCt1 leak δ)
+    (hFree : NonSendBPreservesCurrent kem onoff hDet ecEk ecCt0 ecCt1 leak)
+    (hq : SendBQueryBound adv q) :
+    Pr[= false |
+      SCKAScheme.correctnessExp
+        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] ≤
+      (q : ℝ≥0∞) * δ
+```
 
 {usesLabel}`uses` {uses "opp_unikem_cka_spec"}[] · {uses "scka_correctness"}[] · {uses "erasure_code_correctness"}[] · {uses "on_off_kem_scheme"}[] · {uses "on_off_kem_rand_leak"}[] · {githubLabel}`github` {githubIssue 107}[]
 ::::
