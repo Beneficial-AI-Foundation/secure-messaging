@@ -69,6 +69,29 @@ r#"
 \newcommand{\Gen}{\mathsf{Gen}}
 \newcommand{\Encaps}{\mathsf{Encaps}}
 \newcommand{\Decaps}{\mathsf{Decaps}}
+\newcommand{\Rq}{R_q}                                    % ML-KEM polynomial ring
+\newcommand{\M}{\mathcal{M}}                             % message space
+\newcommand{\K}{\mathcal{K}}                             % shared-key space
+\newcommand{\EK}{\mathcal{EK}}                           % encapsulation-key space
+\newcommand{\DK}{\mathcal{DK}}                           % decapsulation-key space
+\newcommand{\C}{\mathcal{C}}                             % ciphertext space
+\newcommand{\St}{\mathcal{St}}                           % offline state space
+\newcommand{\NTT}{\mathsf{NTT}}
+\newcommand{\XOF}{\mathsf{XOF}}
+\newcommand{\SampleVec}{\mathsf{SampleVec}}
+\newcommand{\SamplePoly}{\mathsf{SamplePoly}}
+\newcommand{\Compress}{\mathsf{Compress}}
+\newcommand{\Decompress}{\mathsf{Decompress}}
+\newcommand{\Encode}{\mathsf{Encode}}
+\newcommand{\Decode}{\mathsf{Decode}}
+\newcommand{\Embed}{\mathsf{Embed}}
+\newcommand{\Recover}{\mathsf{Recover}}
+\newcommand{\pubpar}{\mathsf{par}}                       % public parameter
+\newcommand{\ek}{\mathsf{ek}}
+\newcommand{\dk}{\mathsf{dk}}
+\newcommand{\ct}{\mathsf{ct}}
+\newcommand{\coins}{\mathsf{coins}}
+\newcommand{\Option}{\mathsf{Option}}
 \newcommand{\msgR}[1]{\xrightarrow{\hspace{3em}#1\hspace{3em}}}
 \newcommand{\msgL}[1]{\xleftarrow{\hspace{3em}#1\hspace{3em}}}
 \newcommand{\concat}{\mathbin{\|}}

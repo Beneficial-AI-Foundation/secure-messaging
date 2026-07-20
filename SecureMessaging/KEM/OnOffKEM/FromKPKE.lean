@@ -155,10 +155,8 @@ def encapsOn (st : Coins × TqVec params.k) (ek : encoding.EncodedTHat) :
   pure (encoding.byteEncodeDV (encoding.compressDV v), msg)
 -- ANCHOR_END: encapsOnFromKPKE
 
-/-- Key generation against the fixed public matrix `Â = publicMatrix ρ`: sample
-the secret `s` and error `e`, and output `ek = t̂ = Â ŝ + ê` and `dk = ŝ`
-(both serialized). Mirrors `MLKEM.KPKE.keygenFromSeed` with `ρ` fixed as a public
-parameter rather than derived per key pair. -/
+/-- Key generation against the fixed public matrix `Â = publicMatrix ρ`.
+Mirrors `MLKEM.KPKE.keygenFromSeed` with `ρ` fixed as a public parameter. -/
 -- ANCHOR: keygenFromKPKE
 def keygen : ProbComp (encoding.EncodedTHat × encoding.EncodedTHat) := do
   let sigma ← $ᵗ Seed32
@@ -171,8 +169,19 @@ def keygen : ProbComp (encoding.EncodedTHat × encoding.EncodedTHat) := do
   pure (encoding.byteEncode12Vec tHat, encoding.byteEncode12Vec sHat)
 -- ANCHOR_END: keygenFromKPKE
 
-/-- Decapsulation: reassemble the K-PKE ciphertext and run `MLKEM.KPKE.decrypt`
-to recover the message (the shared key). -/
+/-- Encapsulation: encrypt a uniformly random message (the shared key) under
+`MLKEM.KPKE.encrypt` with the fixed public seed `ρ`. -/
+-- ANCHOR: encapsFromKPKE
+def encaps (ek : encoding.EncodedTHat) :
+    ProbComp ((encoding.EncodedU × encoding.EncodedV) × Message) := do
+  let coins ← $ᵗ Coins
+  let msg ← $ᵗ Message
+  let ct := KPKE.encrypt ring encoding prims
+    ({ tHatEncoded := ek, rho := rho } : KPKE.PublicKey params encoding) msg coins
+  pure ((ct.uEncoded, ct.vEncoded), msg)
+-- ANCHOR_END: encapsFromKPKE
+
+/-- Decapsulation: reassemble the K-PKE ciphertext and run `MLKEM.KPKE.decrypt`. -/
 -- ANCHOR: decapsFromKPKE
 def decaps (sk : encoding.EncodedTHat) (c : encoding.EncodedU × encoding.EncodedV) :
     ProbComp (Option Message) :=
@@ -182,19 +191,13 @@ def decaps (sk : encoding.EncodedTHat) (c : encoding.EncodedU × encoding.Encode
 -- ANCHOR_END: decapsFromKPKE
 
 /-- The K-PKE KEM (IND-CPA, no FO transform) with ciphertext space
-`C = C₀ × C₁ = EncodedU × EncodedV`. Encapsulation is `MLKEM.KPKE.encrypt` on a
-freshly sampled message (the shared key); decapsulation is `MLKEM.KPKE.decrypt`. -/
+`C = C₀ × C₁ = EncodedU × EncodedV`. -/
 -- ANCHOR: schemeFromKPKE
 def scheme :
     KEMScheme ProbComp Message encoding.EncodedTHat encoding.EncodedTHat
       (encoding.EncodedU × encoding.EncodedV) where
   keygen := keygen params encoding ring prims rho
-  encaps ek := do
-    let coins ← $ᵗ Coins
-    let msg ← $ᵗ Message
-    let ct := KPKE.encrypt ring encoding prims
-      ({ tHatEncoded := ek, rho := rho } : KPKE.PublicKey params encoding) msg coins
-    pure ((ct.uEncoded, ct.vEncoded), msg)
+  encaps := encaps params encoding ring prims rho
   decaps := decaps params encoding ring prims
 -- ANCHOR_END: schemeFromKPKE
 
@@ -211,7 +214,7 @@ def onOff : (scheme params encoding ring prims rho).OnOffStructure where
   encapsOff := encapsOff params encoding ring prims rho
   encapsOn := encapsOn params encoding ring prims
   factor ek := by
-    simp only [scheme, encapsOff, encapsOn, KPKE.encrypt, bind_assoc, pure_bind,
+    simp only [scheme, encaps, encapsOff, encapsOn, KPKE.encrypt, bind_assoc, pure_bind,
       Equiv.refl_symm, Equiv.coe_refl, id_eq]
 -- ANCHOR_END: onOffFromKPKE
 

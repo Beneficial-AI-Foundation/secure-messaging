@@ -7,6 +7,7 @@ import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessagingDocs.Bibliography
 import SecureMessaging.KEM.OnOffKEM.Defs
 import SecureMessaging.KEM.OnOffKEM.FromKPKE
+import SecureMessagingDocs.Chapters.KEM.OnOffKEM.KPKESpec
 
 set_option linter.style.setOption false
 set_option linter.hashCommand false
@@ -107,79 +108,189 @@ structure OnOffRandLeak (kem : KEMScheme m K PK SK C)
 On-Off KEM from ML-KEM.
 :::
 
-:::defTitle "on_off_kem_kpke" "Kyber PKE (K-PKE)"
+:::defTitle "on_off_kem_kpke" "Kyber Public-Key Encryption (K-PKE)"
 :::
 
-:::::::definition "on_off_kem_kpke" (parent := "on_off_kem_on_off_kem_from_ml_kem") (lean := "MLKEM.KPKE.keygenFromSeed, MLKEM.KPKE.encrypt, MLKEM.KPKE.decrypt")
-The IND-CPA public-key encryption underlying ML-KEM (Kyber). Operations are in
-$`R_q = \mathbb{Z}_q[X]/(X^{256}+1)`; a hat denotes the NTT domain, $`\hat{A}` (seed $`\rho`) is the
-public matrix, and the noise $`y, e_1, e_2` is expanded from a 32-byte seed $`\mathsf{coins}`.
+:::::::definition "on_off_kem_kpke" (parent := "on_off_kem_on_off_kem_from_ml_kem") (lean := "MLKEM.KPKE.keygenFromSeed, MLKEM.KPKE.encrypt, MLKEM.KPKE.decrypt, MLKEM.NTTRingOps, MLKEM.Primitives.gKeygen, MLKEM.Primitives.sampleNTT, MLKEM.Primitives.prfEta1, MLKEM.Primitives.prfEta2, MLKEM.Primitives.publicMatrix, MLKEM.Primitives.sampleVecEta1, MLKEM.Primitives.sampleVecEta2, MLKEM.Concrete.samplePolyCBD, MLKEM.Concrete.compress, MLKEM.Concrete.decompress, MLKEM.Concrete.byteEncode, MLKEM.Concrete.byteDecode")
+IND-CPA PKE $`(\KeyGen,\Enc,\Dec)` underlying ML-KEM ({Informal.citet FIPS203}[], §5).
 
 ::::::gameGrid
-:::::gameCell "\\KeyGen" (kind := "compact")
-$`\begin{array}{l}
-\KeyGen(): \\
-\quad s, e \sample R_q^k \\
-\quad \hat{s}, \hat{e} \gets \mathsf{NTT}(s), \mathsf{NTT}(e) \\
-\quad \hat{t} \gets \hat{A}\,\hat{s} + \hat{e} \\
-\quad \Return (\mathsf{ek} = \hat{t},\ \mathsf{dk} = \hat{s})
+:::::gameCell "\\textsf{Notation and public parameters}" (kind := "compact")
+$`\begin{array}{ll}
+\Rq = \mathbb{Z}_q[X]/(X^{256}+1) & \text{polynomial ring over } \mathbb{Z}_q \text{ with } q=3329 \\
+\NTT,\NTT^{-1}:\Rq\to\Rq & \text{Number-Theoretic Transforms} \\
+\hat{x}=\NTT(x) & \text{NTT-domain representation of }x \\
+\langle u,v\rangle \in \Rq & \text{vector product for }u, v \in \Rq^k \\
 \end{array}`
 :::::
 
-:::::gameCell "\\Enc" (kind := "compact")
+:::::gameCell "\\KeyGen(d\\in\\{0,1\\}^{256})" (kind := "compact")
 $`\begin{array}{l}
-\Enc(\hat{t}, m): \\
-\quad \text{sample } \mathsf{coins} \pcomment{y, e_1, e_2} \\
-\quad \hat{y} \gets \mathsf{NTT}(y) \\
-\quad u \gets \mathsf{NTT}^{-1}(\hat{A}^{\top}\hat{y}) + e_1 \pcomment{\ctzero} \\
-\quad v \gets \mathsf{NTT}^{-1}(\langle \hat{t}, \hat{y}\rangle) + e_2 + \mathsf{Decompress}_1(\mathsf{Decode}_1(m)) \pcomment{\ctone} \\
-\quad \Return (u, v)
+(\rho, \sigma) \gets G(d) \pcomment{\text{seed expansion}} \\
+s \gets \SampleVec_1(\sigma,0) \pcomment{\text{small secret vector}} \\
+e \gets \SampleVec_1(\sigma,k) \pcomment{\text{small error vector}} \\
+\hat{A} \gets \XOF(\rho) \pcomment{\text{public matrix from seed }\rho} \\
+\hat{s}, \hat{e} \gets \NTT(s), \NTT(e) \\
+\hat{t} \gets \hat{A}\,\hat{s} + \hat{e} \\
+\Return (\ek = (\hat{t},\rho),\ \dk = \hat{s})
 \end{array}`
+
+:::leanPillCaption "KeyGen specification in VCVio"
+:::
+
+```anchor kpkeKeygen (project := ".") (module := SecureMessagingDocs.Chapters.KEM.OnOffKEM.KPKESpec)
+def keygenFromSeed (ring : NTTRingOps) (encoding : Encoding params)
+    (prims : Primitives params encoding) (d : Seed32) :
+    PublicKey params encoding × SecretKey params encoding :=
+  let (rho, sigma) := prims.gKeygen d
+  let aHat := prims.publicMatrix rho
+  let s := prims.sampleVecEta1 sigma 0
+  let e := prims.sampleVecEta1 sigma params.k
+  let sHat := ring.nttVec s
+  let eHat := ring.nttVec e
+  let tHat := ring.matVecMul aHat sHat + eHat
+  ({ tHatEncoded := encoding.byteEncode12Vec tHat, rho := rho },
+    { sHatEncoded := encoding.byteEncode12Vec sHat })
+```
 :::::
 
-:::::gameCell "\\Dec" (kind := "compact")
+:::::gameCell "\\Enc(\\ek=(\\hat{t},\\rho)\\in\\Rq^k\\times\\{0,1\\}^{256},\\ m\\in\\{0,1\\}^{256};\\ \\coins\\in\\{0,1\\}^{256})" (kind := "compact")
 $`\begin{array}{l}
-\Dec(\hat{s}, (u, v)): \\
-\quad w \gets v - \mathsf{NTT}^{-1}(\langle \hat{s}, \mathsf{NTT}(u)\rangle) \\
-\quad \Return \mathsf{Compress}_1(w) \pcomment{\approx m}
+y \gets \SampleVec_1(\coins,0) \pcomment{\text{small ephemeral vector}} \\
+e_1 \gets \SampleVec_2(\coins,k) \pcomment{\text{small error vector}} \\
+e_2 \gets \SamplePoly_2(\coins,2k) \pcomment{\text{small error polynomial}} \\
+\hat{A} \gets \XOF(\rho) \pcomment{\text{public matrix from seed }\rho} \\
+\hat{y} \gets \NTT(y) \\
+u \gets \NTT^{-1}(\hat{A}^{\top}\hat{y}) + e_1 \pcomment{\text{first ciphertext component}} \\
+\mu \gets \Embed(m) \pcomment{\text{embed message in }\Rq} \\
+v \gets \NTT^{-1}(\langle \hat{t}, \hat{y}\rangle) + e_2 + \mu \pcomment{\text{second ciphertext component}} \\
+\ct_0 \gets \Compress(u) \pcomment{\text{compress first component}} \\
+\ct_1 \gets \Compress(v) \pcomment{\text{compress second component}} \\
+\Return \ct=(\ct_0,\ct_1)
 \end{array}`
+
+:::leanPillCaption "Enc specification in VCVio"
+:::
+
+```anchor kpkeEncrypt (project := ".") (module := SecureMessagingDocs.Chapters.KEM.OnOffKEM.KPKESpec)
+def encrypt (ring : NTTRingOps) (encoding : Encoding params)
+    (prims : Primitives params encoding) (ek : PublicKey params encoding) (msg : Message)
+    (coins : Coins) : Ciphertext params encoding :=
+  let tHat := encoding.byteDecode12Vec ek.tHatEncoded
+  let aHat := prims.publicMatrix ek.rho
+  let y := prims.sampleVecEta1 coins 0
+  let e1 := prims.sampleVecEta2 coins params.k
+  let e2 := prims.prfEta2 coins (2 * params.k)
+  let yHat := ring.nttVec y
+  let u := ring.invNTTVec (ring.matTransposeVecMul aHat yHat) + e1
+  let mu := encoding.decompress1 (encoding.byteDecode1 msg)
+  let v := ring.invNTT (ring.dot tHat yHat) + e2 + mu
+  { uEncoded := encoding.byteEncodeDUVec (encoding.compressDU u)
+    vEncoded := encoding.byteEncodeDV (encoding.compressDV v) }
+```
+:::::
+
+:::::gameCell "\\Dec(\\dk=\\hat{s}\\in\\Rq^k,\\ \\ct=(\\ct_0,\\ct_1))" (kind := "compact")
+$`\begin{array}{l}
+u' \gets \Decompress(\ctzero) \pcomment{\text{recover }u} \\
+v' \gets \Decompress(\ctone) \pcomment{\text{recover }v} \\
+w \gets v' - \NTT^{-1}(\langle \hat{s}, \NTT(u')\rangle) \pcomment{\text{recover message in }\Rq} \\
+\Return \Recover(w) \pcomment{\text{decode }\Rq\text{ representative back to }\{0,1\}^{256}}
+\end{array}`
+
+:::leanPillCaption "Dec specification in VCVio"
+:::
+
+```anchor kpkeDecrypt (project := ".") (module := SecureMessagingDocs.Chapters.KEM.OnOffKEM.KPKESpec)
+def decrypt (ring : NTTRingOps) (encoding : Encoding params)
+    (_prims : Primitives params encoding) (dk : SecretKey params encoding)
+    (c : Ciphertext params encoding) : Message :=
+  let (u', v') := encoding.decodeCiphertext c.uEncoded c.vEncoded
+  let sHat := encoding.byteDecode12Vec dk.sHatEncoded
+  let w := v' - ring.invNTT (ring.dot sHat (ring.nttVec u'))
+  encoding.byteEncode1 (encoding.compress1 w)
+```
 :::::
 ::::::
 :::::::
 
-:::defTitle "on_off_kem_kem_from_kpke" "KEM from K-PKE"
+:::defTitle "on_off_kem_kem_from_kpke" "IND-CPA KEM from K-PKE"
 :::
 
-:::::::definition "on_off_kem_kem_from_kpke" (parent := "on_off_kem_on_off_kem_from_ml_kem") (lean := "KPKEOnOff.scheme")
-A KEM built from K-PKE: fix $`\rho` (so $`\hat{A}` is shared by all key pairs) and encapsulate a
-uniformly random message $`m` as the shared key.
+:::::::definition "on_off_kem_kem_from_kpke" (parent := "on_off_kem_on_off_kem_from_ml_kem") (lean := "KPKEOnOff.keygen, KPKEOnOff.encaps, KPKEOnOff.decaps, KPKEOnOff.scheme")
+Let $`\Enc,\Dec` be the encryption and decryption algorithms of
+{bpref "on_off_kem_kpke"}[]. Following
+({Informal.citet SCKA25}[], §2, §4.1), we define a KEM as follows:
 
 ::::::gameGrid
-:::::gameCell "\\KeyGen" (kind := "compact")
-$`\begin{array}{l}
-\KeyGen(): \\
-\quad \Return (\mathsf{ek} = \hat{t},\ \mathsf{dk} = \hat{s}) \pcomment{\text{K-PKE},\ \rho \text{ fixed}}
+:::::gameCell "\\textsf{Public parameters}" (kind := "compact")
+$`\begin{array}{ll}
+\rho\in\{0,1\}^{256} & \text{public matrix seed fixed by the scheme} \\
+\pubpar=\hat{A}=\XOF(\rho)\in\Rq^{k\times k} & \text{public matrix} \\
 \end{array}`
 :::::
 
-:::::gameCell "\\Encaps" (kind := "compact")
+:::::gameCell "\\KeyGen()" (kind := "compact")
 $`\begin{array}{l}
-\Encaps(\mathsf{ek}): \\
-\quad m \sample \{0,1\}^{256} \pcomment{\text{shared key}} \\
-\quad \mathsf{ct} \gets \Enc(\mathsf{ek}, m) \pcomment{\mathsf{ct} = (\ctzero, \ctone)} \\
-\quad \Return (\mathsf{ct},\ m)
+\sigma \sample \{0,1\}^{256} \pcomment{\text{fresh key-noise seed; }\rho\text{ is fixed}} \\
+s \gets \SampleVec_1(\sigma,0) \pcomment{\text{small secret vector}} \\
+e \gets \SampleVec_1(\sigma,k) \pcomment{\text{small error vector}} \\
+\hat{A} \gets \XOF(\rho) \pcomment{\text{reconstruct public matrix from fixed seed }\rho} \\
+\hat{s}, \hat{e} \gets \NTT(s), \NTT(e) \\
+\hat{t} \gets \hat{A}\,\hat{s} + \hat{e} \\
+\Return (\ek = \hat{t},\ \dk = \hat{s})
 \end{array}`
+
+```anchor keygenFromKPKE (project := ".") (module := SecureMessaging.KEM.OnOffKEM.FromKPKE)
+def keygen : ProbComp (encoding.EncodedTHat × encoding.EncodedTHat) := do
+  let sigma ← $ᵗ Seed32
+  let aHat := prims.publicMatrix rho
+  let s := prims.sampleVecEta1 sigma 0
+  let e := prims.sampleVecEta1 sigma params.k
+  let sHat := ring.nttVec s
+  let eHat := ring.nttVec e
+  let tHat := ring.matVecMul aHat sHat + eHat
+  pure (encoding.byteEncode12Vec tHat, encoding.byteEncode12Vec sHat)
+```
 :::::
 
-:::::gameCell "\\Decaps" (kind := "compact")
+:::::gameCell "\\Encaps(\\ek=\\hat{t}\\in\\Rq^k)" (kind := "compact")
 $`\begin{array}{l}
-\Decaps(\mathsf{dk}, \mathsf{ct}): \\
-\quad \Return \Dec(\mathsf{dk}, \mathsf{ct})
+\coins \sample \{0,1\}^{256} \\
+m \sample \{0,1\}^{256} \\
+\ct \gets \Enc((\hat{t},\rho),\ m;\ \coins) \\
+K \gets m \pcomment{\text{shared key}} \\
+\Return (\ct,\ K)
 \end{array}`
+
+```anchor encapsFromKPKE (project := ".") (module := SecureMessaging.KEM.OnOffKEM.FromKPKE)
+def encaps (ek : encoding.EncodedTHat) :
+    ProbComp ((encoding.EncodedU × encoding.EncodedV) × Message) := do
+  let coins ← $ᵗ Coins
+  let msg ← $ᵗ Message
+  let ct := KPKE.encrypt ring encoding prims
+    ({ tHatEncoded := ek, rho := rho } : KPKE.PublicKey params encoding) msg coins
+  pure ((ct.uEncoded, ct.vEncoded), msg)
+```
+:::::
+
+:::::gameCell "\\Decaps(\\dk=\\hat{s}\\in\\Rq^k,\\ \\ct=(\\ct_0,\\ct_1))" (kind := "compact")
+$`\begin{array}{l}
+m \gets \Dec(\hat{s}, \ct) \\
+\Return \mathsf{some}(m) \pcomment{\text{shared key}}
+\end{array}`
+
+```anchor decapsFromKPKE (project := ".") (module := SecureMessaging.KEM.OnOffKEM.FromKPKE)
+def decaps (sk : encoding.EncodedTHat) (c : encoding.EncodedU × encoding.EncodedV) :
+    ProbComp (Option Message) :=
+  pure (some (KPKE.decrypt ring encoding prims
+    ({ sHatEncoded := sk } : KPKE.SecretKey params encoding)
+    ({ uEncoded := c.1, vEncoded := c.2 } : KPKE.Ciphertext params encoding)))
+```
 :::::
 ::::::
 
-:::leanPillCaption "the KEM: `keygen`, `encaps = KPKE.encrypt`, `decaps`"
+:::leanPillCaption "KEM scheme wiring KeyGen, Encaps, and Decaps"
 :::
 
 ```anchor schemeFromKPKE (project := ".") (module := SecureMessaging.KEM.OnOffKEM.FromKPKE)
@@ -187,12 +298,7 @@ def scheme :
     KEMScheme ProbComp Message encoding.EncodedTHat encoding.EncodedTHat
       (encoding.EncodedU × encoding.EncodedV) where
   keygen := keygen params encoding ring prims rho
-  encaps ek := do
-    let coins ← $ᵗ Coins
-    let msg ← $ᵗ Message
-    let ct := KPKE.encrypt ring encoding prims
-      ({ tHatEncoded := ek, rho := rho } : KPKE.PublicKey params encoding) msg coins
-    pure ((ct.uEncoded, ct.vEncoded), msg)
+  encaps := encaps params encoding ring prims rho
   decaps := decaps params encoding ring prims
 ```
 
@@ -202,35 +308,75 @@ def scheme :
 :::defTitle "on_off_kem_from_ml_kem_spec" "On-off instance from K-PKE"
 :::
 
-:::::::definition "on_off_kem_from_ml_kem_spec" (parent := "on_off_kem_on_off_kem_from_ml_kem") (lean := "KPKEOnOff.onOff")
-The online-offline structure (Def. 2.1 of {Informal.citet SCKA25}[]) for the K-PKE KEM:
-$`\ctzero` is computed offline, independent of $`\mathsf{ek}`, and $`\ctone` online. The Lean proof
-`onOff.factor` establishes $`\Encaps.\mathsf{On}\circ\Encaps.\mathsf{Off} = \Encaps` (i.e.
-$`\mathsf{KPKE.Enc}`), so the split is faithful.
+:::::::definition "on_off_kem_from_ml_kem_spec" (parent := "on_off_kem_on_off_kem_from_ml_kem") (lean := "KPKEOnOff.encapsOff, KPKEOnOff.encapsOn, KPKEOnOff.onOff")
+Online-offline structure for the KEM specified in {bpref "on_off_kem_kem_from_kpke"}[]
+({Informal.citet SCKA25}[], Def. 2.1).
 
 ::::::gameGrid
-:::::gameCell "\\Encaps.\\mathsf{Off}" (kind := "compact")
-$`\begin{array}{l}
-\Encaps.\mathsf{Off}(): \\
-\quad \text{sample } \mathsf{coins} \\
-\quad \hat{y} \gets \mathsf{NTT}(y) \\
-\quad u \gets \mathsf{NTT}^{-1}(\hat{A}^{\top}\hat{y}) + e_1 \pcomment{\ctzero} \\
-\quad \Return (u,\ \stct = (\mathsf{coins}, \hat{y}))
+:::::gameCell "\\textsf{Public parameters and ciphertext split}" (kind := "compact")
+$`\begin{array}{ll}
+\rho\in\{0,1\}^{256} & \text{public seed fixed by the scheme} \\
+\pubpar=\hat{A}=\XOF(\rho)\in\Rq^{k\times k} & \text{public matrix generated from seed} \\
+\C=\C_0\times\C_1 & \ct=(\ctzero,\ctone) \\
+\St=\{0,1\}^{256}\times\Rq^k & \stct=(\coins,\hat{y}) \\
 \end{array}`
 :::::
 
-:::::gameCell "\\Encaps.\\mathsf{On}" (kind := "compact")
+:::::gameCell "\\Encaps.\\mathsf{Off}()" (kind := "compact")
 $`\begin{array}{l}
-\Encaps.\mathsf{On}(\stct, \mathsf{ek} = \hat{t}): \\
-\quad m \sample \{0,1\}^{256} \pcomment{\text{shared key}} \\
-\quad v \gets \mathsf{NTT}^{-1}(\langle \hat{t}, \hat{y}\rangle) + e_2 + \mathsf{Decompress}_1(\mathsf{Decode}_1(m)) \pcomment{\ctone} \\
-\quad \Return (v,\ m)
+\coins \sample \{0,1\}^{256} \\
+y \gets \SampleVec_1(\coins,0) \pcomment{\text{small ephemeral vector}} \\
+e_1 \gets \SampleVec_2(\coins,k) \pcomment{\text{small error vector}} \\
+\hat{A} \gets \XOF(\rho) \pcomment{\text{reconstruct public matrix from fixed seed }\rho} \\
+\hat{y} \gets \NTT(y) \\
+u \gets \NTT^{-1}(\hat{A}^{\top}\hat{y}) + e_1 \\
+\stct \gets (\coins, \hat{y}) \\
+\Return (\stct,\ \ctzero = \Compress(u)) \pcomment{\text{compress first component}}
 \end{array}`
-:::::
-::::::
 
-:::leanPillCaption "`factor` proves `Enc.On ∘ Enc.Off = Enc` (hence `KPKE.encrypt`)"
-:::
+```anchor encapsOffFromKPKE (project := ".") (module := SecureMessaging.KEM.OnOffKEM.FromKPKE)
+def encapsOff : ProbComp ((Coins × TqVec params.k) × encoding.EncodedU) := do
+  let coins ← $ᵗ Coins
+  let aHat := prims.publicMatrix rho
+  let y := prims.sampleVecEta1 coins 0
+  let e1 := prims.sampleVecEta2 coins params.k
+  let yHat := ring.nttVec y
+  let u := ring.invNTTVec (ring.matTransposeVecMul aHat yHat) + e1
+  pure ((coins, yHat), encoding.byteEncodeDUVec (encoding.compressDU u))
+```
+:::::
+
+:::::gameCell "\\Encaps.\\mathsf{On}(\\stct\\in\\St,\\ \\ek=\\hat{t}\\in\\Rq^k)" (kind := "compact")
+$`\begin{array}{l}
+(\coins, \hat{y}) \gets \stct \\
+e_2 \gets \SamplePoly_2(\coins,2k) \pcomment{\text{small error polynomial}} \\
+m \sample \{0,1\}^{256} \\
+K \gets m \pcomment{\text{shared key}} \\
+\mu \gets \Embed(m) \pcomment{\text{embed message in }\Rq} \\
+v \gets \NTT^{-1}(\langle \hat{t}, \hat{y}\rangle) + e_2 + \mu \\
+\Return (\ctone = \Compress(v),\ K) \pcomment{\text{compress second component}}
+\end{array}`
+
+```anchor encapsOnFromKPKE (project := ".") (module := SecureMessaging.KEM.OnOffKEM.FromKPKE)
+def encapsOn (st : Coins × TqVec params.k) (ek : encoding.EncodedTHat) :
+    ProbComp (encoding.EncodedV × Message) := do
+  let (coins, yHat) := st
+  let tHat := encoding.byteDecode12Vec ek
+  let e2 := prims.prfEta2 coins (2 * params.k)
+  let msg ← $ᵗ Message
+  let mu := encoding.decompress1 (encoding.byteDecode1 msg)
+  let v := ring.invNTT (ring.dot tHat yHat) + e2 + mu
+  pure (encoding.byteEncodeDV (encoding.compressDV v), msg)
+```
+:::::
+
+:::::gameCell "\\textsf{Factor}" (kind := "compact")
+$`\begin{array}{l}
+\forall\,\ek\in\Rq^k.\ \Encaps(\ek)\ = \\
+\quad (\stct,\ctzero) \gets \Encaps.\mathsf{Off}() \\
+\quad (\ctone,K) \gets \Encaps.\mathsf{On}(\stct,\ek) \\
+\quad \Return\bigl((\ctzero,\ctone),\ K\bigr)
+\end{array}`
 
 ```anchor onOffFromKPKE (project := ".") (module := SecureMessaging.KEM.OnOffKEM.FromKPKE)
 def onOff : (scheme params encoding ring prims rho).OnOffStructure where
@@ -241,9 +387,11 @@ def onOff : (scheme params encoding ring prims rho).OnOffStructure where
   encapsOff := encapsOff params encoding ring prims rho
   encapsOn := encapsOn params encoding ring prims
   factor ek := by
-    simp only [scheme, encapsOff, encapsOn, KPKE.encrypt, bind_assoc, pure_bind,
+    simp only [scheme, encaps, encapsOff, encapsOn, KPKE.encrypt, bind_assoc, pure_bind,
       Equiv.refl_symm, Equiv.coe_refl, id_eq]
 ```
+:::::
+::::::
 
 {usesLabel}`uses` {uses "on_off_kem_scheme"}[] · {uses "on_off_kem_kem_from_kpke"}[] · {githubLabel}`github` {githubIssue 41}[]
 :::::::
