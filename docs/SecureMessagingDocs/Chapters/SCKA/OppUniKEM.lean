@@ -461,7 +461,7 @@ For any correctness adversary, the experiment returns $`\mathsf{true}` with prob
 assuming perfect KEM correctness with deterministic decapsulation, correctness of the three
 erasure codes, and a positive decoding threshold for every encoded payload.
 
-```anchor correctness (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Correctness)
+```anchor correctness (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect)
 theorem correctness [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -480,20 +480,19 @@ theorem correctness [DecidableEq K]
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] = 1
 ```
 
-For an imperfect KEM, correctness degrades by a union bound over fresh
-$`\mathsf{SendB}` trials.  If a trial introduces inconsistent current-epoch
-KEM material with probability at most $`\delta`, all other correctness
-oracles preserve consistency, and the adversary makes at most $`q`
-$`\mathsf{SendB}` queries, then the full SCKA failure probability is at most
-$`q\delta`.  Delayed, reordered, duplicated, and replayed receives do not
-consume this budget.  The local trial premise is protocol-facing; deriving it
-from a concrete KEM's average-case $`\delta`-correctness requires a separate
-reduction.
+For an imperfect KEM, correctness reduces directly to the KEM's ordinary
+average-case $`\delta`-correctness.  A conditional failure potential tracks
+the remaining error when only the key pair, only the offline encapsulation,
+or both have already been sampled.  Consequently, an adversary making at
+most $`q` total send queries causes SCKA failure with probability at most
+$`q\delta`.  Both send oracles are counted because either can make the first
+random choice of a fresh epoch.  Delayed, reordered, duplicated, and replayed
+receives do not consume this budget.
 
 :::leanPillCaption "quantitative correctness for an imperfect KEM"
 :::
-```anchor correctnessFailureLe (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Correctness)
-theorem correctness_failure_le [DecidableEq K]
+```anchor correctnessFailureLeKEM (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction)
+theorem correctness_failure_le_of_deltaCorrect [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym) (hEkCorrect : ecEk.ec.Correct)
@@ -505,9 +504,8 @@ theorem correctness_failure_le [DecidableEq K]
     (leak : KEMScheme.OnOffRandLeak kem onoff)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
     (q : ℕ) (δ : ℝ≥0∞)
-    (hSend : SendBFailureBound kem onoff hDet ecEk ecCt0 ecCt1 leak δ)
-    (hFree : NonSendBPreservesCurrent kem onoff hDet ecEk ecCt0 ecCt1 leak)
-    (hq : SendBQueryBound adv q) :
+    (hδ : kem.deltaCorrect ProbCompRuntime.probComp δ)
+    (hq : SendQueryBound adv q) :
     Pr[= false |
       SCKAScheme.correctnessExp
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] ≤
