@@ -30,7 +30,12 @@ ordinary KEM encapsulation distribution.
 * More generally, let `δ` bound the ordinary KEM correctness error.  If an
   adversary makes at most `q` total send queries, then
 
-  `Pr[protocol correctness failure] ≤ q · δ`.
+  `1 - Pr[protocol correctness succeeds] ≤ q · δ`.
+
+The complement of success counts both an explicit `false` result and missing
+probability mass.  In the present theorem the game is a `ProbComp`, hence it
+is total and the missing mass is zero; the bound is equivalently a bound on
+the probability of returning `false`.
 
 Only sends are charged: either party may make the first random choice of a new
 KEM epoch.  Random-index queries and all receive queries have zero cost.
@@ -53,9 +58,10 @@ reasoning.
    in the SCKA experiment, and preservation through the adversary's complete
    interaction gives probability-one correctness.
 4. **Conditional KEM error.**  For imperfect correctness, the proof defines
-   the remaining failure probability after fixing a key pair, an offline
+   the remaining correctness error after fixing a key pair, an offline
    encapsulation, or both.  Tower identities identify the expectation of each
-   conditional quantity with the ordinary average KEM error.
+   conditional quantity with the ordinary average KEM error.  Both an
+   explicit mismatch and missing mass are assigned error one.
 5. **Potential argument.**  The execution is augmented with an absorbing bad
    event and the conditional error of its unresolved epoch.  Starting an epoch
    costs at most one KEM error in expectation; completing it realizes the
@@ -75,6 +81,7 @@ reasoning.
 * `Correctness.Reduction` lifts the local expected-error bounds through an
   adaptive adversary and proves the final quantitative theorem.
 
-The public theorems remain `oppUniKemCKA.correctness` and
-`oppUniKemCKA.correctness_failure_le_of_deltaCorrect`.
+The principal public theorems are `oppUniKemCKA.correctness` and
+`oppUniKemCKA.correctness_error_le_of_deltaCorrect`; the false-result-only
+bound remains available as `oppUniKemCKA.correctness_failure_le_of_deltaCorrect`.
 -/

@@ -18,11 +18,12 @@ an assertion false even when the KEM has small average error.  Instead the
 proof carries the conditional probabilities developed in `KEM` through the
 protocol execution.
 
-For a reachable protocol state, let `V` be the conditional failure
-probability of its unique unresolved KEM epoch.  It is zero before an epoch is
+For a reachable protocol state, let `V` be the conditional correctness error
+of its unique unresolved KEM epoch.  An explicit mismatch and missing
+probability mass are both charged as error.  The potential is zero before an epoch is
 started and after it has been resolved; after only one side has sampled,
 `V` is the appropriate conditional expectation; after both preliminary
-samples it is the remaining online failure probability.  The execution is
+samples it is the remaining online correctness error.  The execution is
 augmented with an absorbing bit `B` recording whether an online sample has
 actually resolved incorrectly, and is assigned the score
 
@@ -39,11 +40,13 @@ The proof has four mathematical steps.
    incomplete delivery, duplicates, reordering, stale messages, and replay.
 3. **Adaptive composition.**  Induction over the adversary's interaction tree
    gives `E[S_final] ≤ q ε_KEM` whenever the total number of sends is at most
-   `q`.  Receive queries and random-index queries have zero cost.
+   `q`.  Here missing mass has payoff one.  Receive queries and random-index
+   queries are total and have zero cost.
 4. **Failure projection.**  The protocol invariant shows that a failed final
    correctness assertion implies `B`.  Since the indicator of `B` is bounded
-   by `S`, the protocol failure probability is at most `q ε_KEM`, and hence at
-   most `q δ` for a `δ`-correct KEM.
+   by `S`, the protocol correctness error is at most `q ε_KEM`, and hence at
+   most `q δ` for a `δ`-correct KEM.  For `ProbComp` the missing mass is
+   zero, so this total error is also the probability of returning `false`.
 
 The file also retains a lower-level, protocol-facing union-bound theorem whose
 hypotheses directly bound bad `Send-B` steps.  The main public theorem is the
@@ -84,7 +87,7 @@ private def initialGame [DecidableEq K]
     SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) :=
   SCKAScheme.initGameState (initialA kem onoff) (initialB kem onoff)
 
-/-- Conditional failure probability of the unique unresolved honest KEM epoch.
+/-- Conditional correctness error of the unique unresolved honest KEM epoch.
 
 When both parties are in the same epoch, the potential records whichever of
 the key-pair and offline samples already exist.  When A is one epoch ahead,
@@ -350,11 +353,11 @@ private lemma keygen_failurePotential_le [DecidableEq K]
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv kem onoff ecEk ecCt0 ecCt1 s) (hdk : s.stA.dkA = none) :
-    (∑' kp : PK × SK, Pr[= kp | kem.keygen] *
+    (Pr[⊥ | kem.keygen] + ∑' kp : PK × SK, Pr[= kp | kem.keygen] *
       currentFailurePotential kem onoff hDet
         (installAKeypair onoff s kp.1 kp.2)) ≤
       currentFailurePotential kem onoff hDet s +
-        Pr[= false | factorCorrectExp kem onoff hDet] := by
+        factorCorrectnessError kem onoff hDet := by
   rcases hs with ⟨world, hInv⟩
   have hek : s.stA.ekA = none := by
     have hshape := hInv.keypairAShape
@@ -382,15 +385,11 @@ private lemma keygen_failurePotential_le [DecidableEq K]
         have hstSome : s.stB.stCt.isSome := by
           simpa [hct0] using hInv.offBShape
         obtain ⟨st, hst⟩ := Option.isSome_iff_exists.mp hstSome
-        have htower :
-            (∑' kp : PK × SK, Pr[= kp | kem.keygen] *
-              failureAfterBoth kem onoff hDet kp.1 kp.2 st ct0) =
-              failureAfterOff kem onoff hDet st ct0 := rfl
         simpa [currentFailurePotential, installAKeypair, ht, hct1, hdk, hek,
-          hct0, hst, optionPair, htower] using
+          hct0, hst, optionPair, failureAfterOff] using
           (le_self_add : failureAfterOff kem onoff hDet st ct0 ≤
             failureAfterOff kem onoff hDet st ct0 +
-              Pr[= false | factorCorrectExp kem onoff hDet])
+              factorCorrectnessError kem onoff hDet)
   · have hepoch : s.stA.t = s.stB.t + 1 := by
       have hepochBounds := hInv.epochs
       omega
@@ -439,11 +438,12 @@ private lemma off_failurePotential_le [DecidableEq K]
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv kem onoff ecEk ecCt0 ecCt1 s) (hct0 : s.stB.ct0 = none) :
-    (∑' off : onoff.St × onoff.C₀, Pr[= off | onoff.encapsOff] *
+    (Pr[⊥ | onoff.encapsOff] +
+      ∑' off : onoff.St × onoff.C₀, Pr[= off | onoff.encapsOff] *
       currentFailurePotential kem onoff hDet
         (installBOff onoff s off.1 off.2)) ≤
       currentFailurePotential kem onoff hDet s +
-        Pr[= false | factorCorrectExp kem onoff hDet] := by
+        factorCorrectnessError kem onoff hDet := by
   rcases hs with ⟨world, hInv⟩
   have hst : s.stB.stCt = none := by
     have hshape := hInv.offBShape
@@ -479,15 +479,11 @@ private lemma off_failurePotential_le [DecidableEq K]
       have hekSome : s.stA.ekA.isSome := by
         simpa [hdk] using hInv.keypairAShape
       obtain ⟨pk, hek⟩ := Option.isSome_iff_exists.mp hekSome
-      have htower :
-          (∑' off : onoff.St × onoff.C₀, Pr[= off | onoff.encapsOff] *
-            failureAfterBoth kem onoff hDet pk sk off.1 off.2) =
-            failureAfterKeypair kem onoff hDet pk sk := rfl
       simpa [currentFailurePotential, installBOff, ht, hct1, hdk, hek,
-        hct0, hst, optionPair, htower] using
+        hct0, hst, optionPair, failureAfterKeypair] using
         (le_self_add : failureAfterKeypair kem onoff hDet pk sk ≤
           failureAfterKeypair kem onoff hDet pk sk +
-            Pr[= false | factorCorrectExp kem onoff hDet])
+            factorCorrectnessError kem onoff hDet)
 
 private lemma online_source_shape
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
@@ -633,14 +629,16 @@ private lemma sendBOffOnState_score [DecidableEq K]
   · simp [trackedFailureScore, currentKEMFailure, currentFailurePotential,
       sendBOffOnState, sendBKeyState, ht, hdk, hbad, Function.update]
 
-/-- Expected value of a nonnegative payoff on a probabilistic computation. -/
+/-- Failure-aware expected payoff.  Ordinary outputs receive their stated
+payoff, while missing mass receives the maximal payoff `1`. -/
 private noncomputable def expectedPayoff {A : Type}
     (oa : ProbComp A) (payoff : A → ℝ≥0∞) : ℝ≥0∞ :=
-  ∑' a, Pr[= a | oa] * payoff a
+  Pr[⊥ | oa] + ∑' a, Pr[= a | oa] * payoff a
 
 private lemma expectedPayoff_pure {A : Type} (a : A) (payoff : A → ℝ≥0∞) :
     expectedPayoff (pure a : ProbComp A) payoff = payoff a := by
   unfold expectedPayoff
+  simp only [probFailure_pure, zero_add]
   rw [tsum_eq_single a]
   · simp
   · intro b hba
@@ -649,17 +647,30 @@ private lemma expectedPayoff_pure {A : Type} (a : A) (payoff : A → ℝ≥0∞)
 private lemma expectedPayoff_bind {A B : Type} (oa : ProbComp A)
     (ob : A → ProbComp B) (payoff : B → ℝ≥0∞) :
     expectedPayoff (oa >>= ob) payoff =
-      ∑' a, Pr[= a | oa] * expectedPayoff (ob a) payoff := by
+      Pr[⊥ | oa] + ∑' a, Pr[= a | oa] * expectedPayoff (ob a) payoff := by
   unfold expectedPayoff
-  calc
-    ∑' b, Pr[= b | oa >>= ob] * payoff b =
+  rw [probFailure_bind_eq_add_tsum]
+  have hout :
+      (∑' b, Pr[= b | oa >>= ob] * payoff b) =
         ∑' b, ∑' a, Pr[= a | oa] * Pr[= b | ob a] * payoff b := by
-      refine tsum_congr fun b => ?_
-      rw [probOutput_bind_eq_tsum, ENNReal.tsum_mul_right]
-    _ = ∑' a, ∑' b, Pr[= a | oa] * Pr[= b | ob a] * payoff b :=
-      ENNReal.tsum_comm
-    _ = ∑' a, Pr[= a | oa] * ∑' b, Pr[= b | ob a] * payoff b := by
+    refine tsum_congr fun b => ?_
+    rw [probOutput_bind_eq_tsum, ENNReal.tsum_mul_right]
+  calc
+    (Pr[⊥ | oa] + ∑' a, Pr[= a | oa] * Pr[⊥ | ob a]) +
+        ∑' b, Pr[= b | oa >>= ob] * payoff b =
+        Pr[⊥ | oa] + ((∑' a, Pr[= a | oa] * Pr[⊥ | ob a]) +
+          ∑' b, ∑' a, Pr[= a | oa] * Pr[= b | ob a] * payoff b) := by
+      rw [hout]
+      ac_rfl
+    _ = Pr[⊥ | oa] + ((∑' a, Pr[= a | oa] * Pr[⊥ | ob a]) +
+        ∑' a, ∑' b, Pr[= a | oa] * Pr[= b | ob a] * payoff b) := by
+      rw [ENNReal.tsum_comm]
+    _ = Pr[⊥ | oa] + ∑' a, Pr[= a | oa] *
+        (Pr[⊥ | ob a] + ∑' b, Pr[= b | ob a] * payoff b) := by
+      congr 1
+      rw [← ENNReal.tsum_add]
       refine tsum_congr fun a => ?_
+      rw [mul_add]
       simp_rw [mul_assoc]
       rw [ENNReal.tsum_mul_left]
 
@@ -667,15 +678,15 @@ private lemma expectedPayoff_map {A B : Type} (f : A → B) (oa : ProbComp A)
     (payoff : B → ℝ≥0∞) :
     expectedPayoff (f <$> oa) payoff = expectedPayoff oa (fun a => payoff (f a)) := by
   rw [map_eq_bind_pure_comp, expectedPayoff_bind]
-  simp_rw [Function.comp_apply, expectedPayoff_pure]
-  unfold expectedPayoff
+  simp only [Function.comp_apply, expectedPayoff_pure]
   rfl
 
 private lemma expectedPayoff_mono {A : Type} (oa : ProbComp A)
     (f g : A → ℝ≥0∞) (hfg : ∀ a, f a ≤ g a) :
     expectedPayoff oa f ≤ expectedPayoff oa g := by
   unfold expectedPayoff
-  exact ENNReal.tsum_le_tsum fun a => mul_le_mul' le_rfl (hfg a)
+  exact add_le_add le_rfl
+    (ENNReal.tsum_le_tsum fun a => mul_le_mul' le_rfl (hfg a))
 
 private lemma expectedPayoff_le_one {A : Type} (oa : ProbComp A)
     (f : A → ℝ≥0∞) (hf : ∀ a, f a ≤ 1) :
@@ -683,13 +694,14 @@ private lemma expectedPayoff_le_one {A : Type} (oa : ProbComp A)
   calc
     expectedPayoff oa f ≤ expectedPayoff oa (fun _ => 1) :=
       expectedPayoff_mono oa f (fun _ => 1) hf
-    _ = ∑' a, Pr[= a | oa] := by simp [expectedPayoff]
-    _ ≤ 1 := tsum_probOutput_le_one
+    _ = 1 := by simp [expectedPayoff]
 
 private lemma expectedPayoff_le_const_of_support {A : Type} (oa : ProbComp A)
-    (f : A → ℝ≥0∞) (c : ℝ≥0∞) (hf : ∀ a ∈ support oa, f a ≤ c) :
+    (f : A → ℝ≥0∞) (c : ℝ≥0∞) (hnf : Pr[⊥ | oa] = 0)
+    (hf : ∀ a ∈ support oa, f a ≤ c) :
     expectedPayoff oa f ≤ c := by
   unfold expectedPayoff
+  rw [hnf, zero_add]
   calc
     (∑' a, Pr[= a | oa] * f a) ≤ ∑' a, Pr[= a | oa] * c := by
       refine ENNReal.tsum_le_tsum fun a => ?_
@@ -705,17 +717,18 @@ private lemma expectedPayoff_add_const_le {A : Type} (oa : ProbComp A)
     expectedPayoff oa (fun a => f a + c) ≤ expectedPayoff oa f + c := by
   unfold expectedPayoff
   calc
-    (∑' a, Pr[= a | oa] * (f a + c)) =
-        (∑' a, Pr[= a | oa] * f a) +
+    Pr[⊥ | oa] + (∑' a, Pr[= a | oa] * (f a + c)) =
+        (Pr[⊥ | oa] + ∑' a, Pr[= a | oa] * f a) +
           ∑' a, Pr[= a | oa] * c := by
       simp_rw [mul_add]
       rw [ENNReal.tsum_add]
-    _ = (∑' a, Pr[= a | oa] * f a) +
+      ac_rfl
+    _ = (Pr[⊥ | oa] + ∑' a, Pr[= a | oa] * f a) +
         (∑' a, Pr[= a | oa]) * c := by
       rw [ENNReal.tsum_mul_right]
-    _ ≤ (∑' a, Pr[= a | oa] * f a) + 1 * c := by
+    _ ≤ (Pr[⊥ | oa] + ∑' a, Pr[= a | oa] * f a) + 1 * c := by
       exact add_le_add le_rfl (mul_le_mul' tsum_probOutput_le_one le_rfl)
-    _ = (∑' a, Pr[= a | oa] * f a) + c := by rw [one_mul]
+    _ = (Pr[⊥ | oa] + ∑' a, Pr[= a | oa] * f a) + c := by rw [one_mul]
 
 private lemma recvA_kem_source_shape
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
@@ -1098,18 +1111,9 @@ private lemma tracked_step_score_le_of_bad [DecidableEq K]
         (((trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak) t).run p)
         (fun z => trackedFailureScore kem onoff hDet z.2) ≤
       trackedFailureScore kem onoff hDet p + epsilon := by
-  refine (expectedPayoff_le_const_of_support _ _ 1 ?_).trans ?_
-  · intro z hz
-    unfold trackedCorrectnessImpl at hz
-    change z ∈ support (do
-      let y ← ((SCKAScheme.sckaCorrectnessImpl
-        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)) t).run p.1
-      pure (y.1, (y.2, p.2 || currentKEMFailure kem onoff hDet y.2))) at hz
-    rw [mem_support_bind_iff] at hz
-    rcases hz with ⟨y, hy, hz⟩
-    simp only [mem_support_pure_iff] at hz
-    subst z
-    simp [trackedFailureScore, hbad]
+  refine (expectedPayoff_le_one _ _ ?_).trans ?_
+  · intro z
+    exact trackedFailureScore_le_one kem onoff hDet z.2
   · simp [trackedFailureScore, hbad]
 
 /-- The two send oracles are precisely the operations that may start or extend
@@ -1142,7 +1146,7 @@ private lemma tracked_sendA_score_le [DecidableEq K]
           (s, false))
         (fun z => trackedFailureScore kem onoff hDet z.2) ≤
       trackedFailureScore kem onoff hDet (s, false) +
-        Pr[= false | factorCorrectExp kem onoff hDet] := by
+        factorCorrectnessError kem onoff hDet := by
   change expectedPayoff (do
       let y ← (SCKAScheme.oracleSendA
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) ()).run s
@@ -1218,7 +1222,7 @@ private lemma tracked_sendB_score_le [DecidableEq K]
           (s, false))
         (fun z => trackedFailureScore kem onoff hDet z.2) ≤
       trackedFailureScore kem onoff hDet (s, false) +
-        Pr[= false | factorCorrectExp kem onoff hDet] := by
+        factorCorrectnessError kem onoff hDet := by
   change expectedPayoff (do
       let y ← (SCKAScheme.oracleSendB
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) ()).run s
@@ -1321,6 +1325,8 @@ private lemma tracked_sendB_score_le [DecidableEq K]
                 rw [expectedPayoff_map]
                 unfold expectedPayoff
                 rw [failureAfterBoth_eq_indicator]
+                refine congrArg
+                  (fun x : ℝ≥0∞ => Pr[⊥ | onoff.encapsOn off.1 pk] + x) ?_
                 refine tsum_congr fun out => ?_
                 congr 1
                 exact sendBOffOnState_score kem onoff hDet s sk off out.1 out.2
@@ -1331,7 +1337,8 @@ private lemma tracked_sendB_score_le [DecidableEq K]
                 simp [currentFailurePotential, ht, hct1, hekA, hdk, hst, hct0,
                   optionPair]
               calc
-                (∑' off : onoff.St × onoff.C₀, Pr[= off | onoff.encapsOff] *
+                (Pr[⊥ | onoff.encapsOff] +
+                  ∑' off : onoff.St × onoff.C₀, Pr[= off | onoff.encapsOff] *
                     expectedPayoff
                       ((fun out =>
                         (some (s.stB.t - 1, some s.stB.t, msg out),
@@ -1343,14 +1350,16 @@ private lemma tracked_sendB_score_le [DecidableEq K]
                       (fun z => trackedFailureScore kem onoff hDet z.2)) =
                     failureAfterKeypair kem onoff hDet pk sk := by
                       unfold failureAfterKeypair
+                      refine congrArg
+                        (fun x : ℝ≥0∞ => Pr[⊥ | onoff.encapsOff] + x) ?_
                       refine tsum_congr fun off => ?_
                       rw [hinner]
                 _ ≤ trackedFailureScore kem onoff hDet (s, false) +
-                    Pr[= false | factorCorrectExp kem onoff hDet] := by
+                    factorCorrectnessError kem onoff hDet := by
                       simpa [trackedFailureScore, hpot] using
                         (le_self_add : failureAfterKeypair kem onoff hDet pk sk ≤
                           failureAfterKeypair kem onoff hDet pk sk +
-                            Pr[= false | factorCorrectExp kem onoff hDet])
+                            factorCorrectnessError kem onoff hDet)
   | some ct0 =>
       have hstSome : s.stB.stCt.isSome := by
         simpa [hct0] using hInv.offBShape
@@ -1430,6 +1439,8 @@ private lemma tracked_sendB_score_le [DecidableEq K]
                       failureAfterBoth kem onoff hDet pk sk st ct0 := by
                     unfold expectedPayoff
                     rw [failureAfterBoth_eq_indicator]
+                    refine congrArg
+                      (fun x : ℝ≥0∞ => Pr[⊥ | onoff.encapsOn st pk] + x) ?_
                     refine tsum_congr fun out => ?_
                     congr 1
                     exact sendBOnState_score kem onoff hDet s sk ct0 out.1 out.2
@@ -1442,7 +1453,7 @@ private lemma tracked_sendB_score_le [DecidableEq K]
                   simpa [trackedFailureScore, hpot] using
                     (le_self_add : failureAfterBoth kem onoff hDet pk sk st ct0 ≤
                       failureAfterBoth kem onoff hDet pk sk st ct0 +
-                        Pr[= false | factorCorrectExp kem onoff hDet])
+                        factorCorrectnessError kem onoff hDet)
               | some ct1 =>
                   let ich := s.stB.ich + 1
                   let msg : Message Sym :=
@@ -1538,7 +1549,10 @@ private lemma tracked_nonSend_score_le [DecidableEq K]
           (s, false))
         (fun z => trackedFailureScore kem onoff hDet z.2) ≤
       trackedFailureScore kem onoff hDet (s, false) := by
-  apply expectedPayoff_le_const_of_support
+  have hnf : Pr[⊥ |
+      ((trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak) t).run
+        (s, false)] = 0 := probFailure_eq_zero
+  apply expectedPayoff_le_const_of_support _ _ _ hnf
   intro z hz
   exact le_of_eq (tracked_nonSend_score_support_eq kem onoff hDet ecEk ecCt0 ecCt1
     leak t ht s hs hfail z hz)
@@ -1719,7 +1733,7 @@ private lemma tracked_score_step_le [DecidableEq K]
         (fun z => trackedFailureScore kem onoff hDet z.2) ≤
       trackedFailureScore kem onoff hDet p +
         if IsSendQuery t
-        then Pr[= false | factorCorrectExp kem onoff hDet]
+        then factorCorrectnessError kem onoff hDet
         else 0 := by
   cases hbad : p.2 with
   | true =>
@@ -1765,9 +1779,15 @@ private lemma tracked_bad_probability_le_score [DecidableEq K]
     Pr[fun z => z.2.2 = true | oa] ≤
       expectedPayoff oa (fun z => trackedFailureScore kem onoff hDet z.2) := by
   unfold expectedPayoff
-  apply probEvent_le_tsum_probOutput_mul_cost
-  intro z hz
-  simp [trackedFailureScore, hz]
+  calc
+    Pr[fun z => z.2.2 = true | oa] ≤
+        ∑' z, Pr[= z | oa] * trackedFailureScore kem onoff hDet z.2 := by
+      apply probEvent_le_tsum_probOutput_mul_cost
+      intro z hz
+      simp [trackedFailureScore, hz]
+    _ ≤ Pr[⊥ | oa] +
+        ∑' z, Pr[= z | oa] * trackedFailureScore kem onoff hDet z.2 :=
+      le_add_left le_rfl
 
 private lemma tracked_score_adversary_le [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
@@ -1819,15 +1839,17 @@ private lemma tracked_score_adversary_le [DecidableEq K]
           exact ih z.1 (q - 1) (by simpa [ht] using hcont z.1) z.2
             (hpres t p hp z hz)
         calc
-          (∑' z, Pr[= z | (tracked t).run p] *
+          (Pr[⊥ | (tracked t).run p] +
+            ∑' z, Pr[= z | (tracked t).run p] *
               expectedPayoff ((simulateQ tracked (cont z.1)).run z.2)
                 (fun w => score w.2)) ≤
-              ∑' z, Pr[= z | (tracked t).run p] *
+              Pr[⊥ | (tracked t).run p] +
+                ∑' z, Pr[= z | (tracked t).run p] *
                 (score z.2 + (((q - 1 : ℕ) : ℝ≥0∞) * epsilon)) := by
-            refine ENNReal.tsum_le_tsum fun z => ?_
-            by_cases hz : z ∈ support ((tracked t).run p)
-            · exact mul_le_mul' le_rfl (htail z hz)
-            · simp [(probOutput_eq_zero_iff _ _).2 hz]
+            exact add_le_add le_rfl (ENNReal.tsum_le_tsum fun z => by
+              by_cases hz : z ∈ support ((tracked t).run p)
+              · exact mul_le_mul' le_rfl (htail z hz)
+              · simp [(probOutput_eq_zero_iff _ _).2 hz])
           _ ≤ expectedPayoff ((tracked t).run p) (fun z => score z.2) +
                 (((q - 1 : ℕ) : ℝ≥0∞) * epsilon) :=
             expectedPayoff_add_const_le _ _ _
@@ -1848,15 +1870,17 @@ private lemma tracked_score_adversary_le [DecidableEq K]
           exact ih z.1 q (by simpa [ht] using hcont z.1) z.2
             (hpres t p hp z hz)
         calc
-          (∑' z, Pr[= z | (tracked t).run p] *
+          (Pr[⊥ | (tracked t).run p] +
+            ∑' z, Pr[= z | (tracked t).run p] *
               expectedPayoff ((simulateQ tracked (cont z.1)).run z.2)
                 (fun w => score w.2)) ≤
-              ∑' z, Pr[= z | (tracked t).run p] *
+              Pr[⊥ | (tracked t).run p] +
+                ∑' z, Pr[= z | (tracked t).run p] *
                 (score z.2 + ((q : ℝ≥0∞) * epsilon)) := by
-            refine ENNReal.tsum_le_tsum fun z => ?_
-            by_cases hz : z ∈ support ((tracked t).run p)
-            · exact mul_le_mul' le_rfl (htail z hz)
-            · simp [(probOutput_eq_zero_iff _ _).2 hz]
+            exact add_le_add le_rfl (ENNReal.tsum_le_tsum fun z => by
+              by_cases hz : z ∈ support ((tracked t).run p)
+              · exact mul_le_mul' le_rfl (htail z hz)
+              · simp [(probOutput_eq_zero_iff _ _).2 hz])
           _ ≤ expectedPayoff ((tracked t).run p) (fun z => score z.2) +
                 ((q : ℝ≥0∞) * epsilon) :=
             expectedPayoff_add_const_le _ _ _
@@ -2147,7 +2171,7 @@ theorem correctness_failure_le_of_deltaCorrect [DecidableEq K]
   let Inv := trackedInv kem onoff hDet ecEk ecCt0 ecCt1
   let score := trackedFailureScore (Sym := Sym) kem onoff hDet
   let s₀ := initialGame (Sym := Sym) kem onoff
-  let epsilon := Pr[= false | factorCorrectExp kem onoff hDet]
+  let epsilon := factorCorrectnessError kem onoff hDet
   have hpres : QueryImpl.PreservesInv tracked Inv :=
     trackedCorrectnessImpl_preserves kem onoff hDet ecEk hEkCorrect hEkPos
       ecCt0 hCt0Correct hCt0Pos ecCt1 hCt1Correct hCt1Pos leak
@@ -2188,7 +2212,7 @@ theorem correctness_failure_le_of_deltaCorrect [DecidableEq K]
     · rcases hreach with ⟨_world, hWorld⟩
       simp [hWorld.correct] at hincorrect
   have hepsilon : epsilon ≤ δ :=
-    factorCorrectExp_failure_le_of_deltaCorrect kem onoff hDet δ hδ
+    factorCorrectnessError_le_of_deltaCorrect kem onoff hDet δ hδ
   calc
     Pr[= false |
         SCKAScheme.correctnessExp
@@ -2208,6 +2232,40 @@ theorem correctness_failure_le_of_deltaCorrect [DecidableEq K]
       tracked_bad_probability_le_score kem onoff hDet _
     _ ≤ (q : ℝ≥0∞) * epsilon := hscore
     _ ≤ (q : ℝ≥0∞) * δ := mul_le_mul' le_rfl hepsilon
+
+/-- Total quantitative correctness error of Opp-UniKEM-CKA.
+
+The left-hand side is the complement of successful termination, so in a
+general subprobabilistic semantics it comprises both an explicit `false`
+result and missing mass.  The present protocol game lives in `ProbComp`, whose
+computations are total; consequently its missing mass is zero and this theorem
+is equivalent to `correctness_failure_le_of_deltaCorrect`. -/
+-- ANCHOR: correctnessErrorLeKEM
+theorem correctness_error_le_of_deltaCorrect [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (hDet : DeterministicDecaps kem)
+    (ecEk : ErasureCodePayload PK Sym) (hEkCorrect : ecEk.ec.Correct)
+    (hEkPos : 0 < ecEk.ec.nchunk)
+    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0Correct : ecCt0.ec.Correct)
+    (hCt0Pos : 0 < ecCt0.ec.nchunk)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1Correct : ecCt1.ec.Correct)
+    (hCt1Pos : 0 < ecCt1.ec.nchunk)
+    (leak : KEMScheme.OnOffRandLeak kem onoff)
+    (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
+    (q : ℕ) (δ : ℝ≥0∞)
+    (hδ : kem.deltaCorrect ProbCompRuntime.probComp δ)
+    (hq : SendQueryBound adv q) :
+    1 - Pr[= true |
+      SCKAScheme.correctnessExp
+        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] ≤
+      (q : ℝ≥0∞) * δ
+-- ANCHOR_END: correctnessErrorLeKEM
+    := by
+  have h := correctness_failure_le_of_deltaCorrect kem onoff hDet
+    ecEk hEkCorrect hEkPos ecCt0 hCt0Correct hCt0Pos
+    ecCt1 hCt1Correct hCt1Pos leak adv q δ hδ hq
+  rw [probOutput_false_eq_sub, probFailure_eq_zero, tsub_zero] at h
+  exact h
 
 end Reduction
 

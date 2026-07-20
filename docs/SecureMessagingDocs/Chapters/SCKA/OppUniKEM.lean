@@ -484,15 +484,19 @@ For an imperfect KEM, correctness reduces directly to the KEM's ordinary
 average-case $`\delta`-correctness.  A conditional failure potential tracks
 the remaining error when only the key pair, only the offline encapsulation,
 or both have already been sampled.  Consequently, an adversary making at
-most $`q` total send queries causes SCKA failure with probability at most
-$`q\delta`.  Both send oracles are counted because either can make the first
+most $`q` total send queries has total correctness error at most
+$`q\delta`, where total error is one minus the probability of returning
+$`\mathsf{true}`.  Thus the statement also charges any missing probability
+mass.  In this development the game lives in the total semantics
+`ProbComp`, so its missing mass is zero and total error equals the probability
+of returning $`\mathsf{false}`.  Both send oracles are counted because either can make the first
 random choice of a fresh epoch.  Delayed, reordered, duplicated, and replayed
 receives do not consume this budget.
 
 :::leanPillCaption "quantitative correctness for an imperfect KEM"
 :::
-```anchor correctnessFailureLeKEM (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction)
-theorem correctness_failure_le_of_deltaCorrect [DecidableEq K]
+```anchor correctnessErrorLeKEM (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction)
+theorem correctness_error_le_of_deltaCorrect [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym) (hEkCorrect : ecEk.ec.Correct)
@@ -506,7 +510,7 @@ theorem correctness_failure_le_of_deltaCorrect [DecidableEq K]
     (q : ℕ) (δ : ℝ≥0∞)
     (hδ : kem.deltaCorrect ProbCompRuntime.probComp δ)
     (hq : SendQueryBound adv q) :
-    Pr[= false |
+    1 - Pr[= true |
       SCKAScheme.correctnessExp
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] ≤
       (q : ℝ≥0∞) * δ

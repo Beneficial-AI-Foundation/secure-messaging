@@ -5,6 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.SCKA.OppUniKEM.Construction
+import VCVio.OracleComp.QueryTracking.RandomOracle.DeferredSampling
 
 /-!
 # Opp-UniKEM-CKA — Conditional KEM Error
@@ -17,13 +18,15 @@ three stages with ordinary KEM encapsulation.
 
 Write
 
-* `χ(pk, sk, st, ct₀)` for the probability of decapsulation failure after the
+* `χ(pk, sk, st, ct₀)` for the correctness error after the
   key pair and offline result have both been fixed;
 * `φ(pk, sk)` for the expectation of `χ` over a fresh offline result; and
 * `ψ(st, ct₀)` for the expectation of `χ` over a fresh key pair.
 
-These are conditional failure probabilities, not pointwise bounds by the
-global KEM error.  Their essential properties are the two tower identities
+These are conditional correctness errors: an explicit key mismatch and
+missing probability mass are both counted as error.  They are not pointwise
+bounds by the global KEM error.  Their essential properties are the two tower
+identities
 
 `E_keypair[φ] = ε_KEM` and `E_offline[ψ] = ε_KEM`,
 
@@ -87,11 +90,39 @@ theorem factorCorrectExp_failure_le_of_deltaCorrect [DecidableEq K]
         kem ProbCompRuntime.probComp
     _ ≤ δ := hδ
 
+/-- The total correctness error of the factorized experiment.  Missing mass
+is charged as an error, just as it is in `KEMScheme.correctnessError`. -/
+noncomputable def factorCorrectnessError [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (hDet : DeterministicDecaps kem) : ℝ≥0∞ :=
+  Pr[= false | factorCorrectExp kem onoff hDet] +
+    Pr[⊥ | factorCorrectExp kem onoff hDet]
+
+/-- Factorization identifies the total staged error with the ordinary KEM
+correctness error, including any missing mass. -/
+theorem factorCorrectnessError_eq [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (hDet : DeterministicDecaps kem) :
+    factorCorrectnessError kem onoff hDet =
+      kem.correctnessError ProbCompRuntime.probComp := by
+  rw [factorCorrectnessError, factorCorrectExp_eq_correctExp]
+  exact (KEMScheme.correctnessError_eq_probOutput_false_add_probFailure
+    kem ProbCompRuntime.probComp).symm
+
+/-- A `δ`-correct KEM bounds the total error of the factorized experiment. -/
+theorem factorCorrectnessError_le_of_deltaCorrect [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (hDet : DeterministicDecaps kem) (δ : ℝ≥0∞)
+    (hδ : kem.deltaCorrect ProbCompRuntime.probComp δ) :
+    factorCorrectnessError kem onoff hDet ≤ δ := by
+  rw [factorCorrectnessError_eq]
+  exact hδ
+
 /-! ### Conditional KEM-failure potentials
 
 The KEM correctness error is an average over all three independent samples.
 Once a protocol epoch has sampled only a key pair or only an offline
-encapsulation, its remaining conditional failure probability need not be at
+encapsulation, its remaining conditional correctness error need not be at
 most the original average.  The following potentials retain that conditional
 probability.  Their tower identities are what permits an adaptive protocol
 execution to be charged only when it starts a fresh epoch. -/
@@ -104,86 +135,111 @@ private def onlineCorrectExp [DecidableEq K]
   pure (decide
     (hDet.decapsDet sk (onoff.split.symm (ct0, ct1)) = some key))
 
-/-- The conditional KEM failure probability after both the key pair and the
+/-- The conditional KEM correctness error after both the key pair and the
 offline encapsulation have been fixed. -/
 noncomputable def failureAfterBoth [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem) (pk : PK) (sk : SK)
     (st : onoff.St) (ct0 : onoff.C₀) : ℝ≥0∞ :=
-  Pr[= false | onlineCorrectExp kem onoff hDet pk sk st ct0]
+  Pr[= false | onlineCorrectExp kem onoff hDet pk sk st ct0] +
+    Pr[⊥ | onlineCorrectExp kem onoff hDet pk sk st ct0]
 
-/-- The residual KEM failure probability after fixing a key pair and averaging
+/-- The residual KEM correctness error after fixing a key pair and averaging
 over the offline and online encapsulation stages. -/
 noncomputable def failureAfterKeypair [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem) (pk : PK) (sk : SK) : ℝ≥0∞ :=
-  ∑' off : onoff.St × onoff.C₀,
-    Pr[= off | onoff.encapsOff] *
-      failureAfterBoth kem onoff hDet pk sk off.1 off.2
+  Pr[⊥ | onoff.encapsOff] +
+    ∑' off : onoff.St × onoff.C₀,
+      Pr[= off | onoff.encapsOff] *
+        failureAfterBoth kem onoff hDet pk sk off.1 off.2
 
-/-- The residual KEM failure probability after fixing an offline result and
+/-- The residual KEM correctness error after fixing an offline result and
 averaging over key generation and online encapsulation. -/
 noncomputable def failureAfterOff [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem) (st : onoff.St) (ct0 : onoff.C₀) : ℝ≥0∞ :=
-  ∑' kp : PK × SK, Pr[= kp | kem.keygen] *
-    failureAfterBoth kem onoff hDet kp.1 kp.2 st ct0
+  Pr[⊥ | kem.keygen] +
+    ∑' kp : PK × SK, Pr[= kp | kem.keygen] *
+      failureAfterBoth kem onoff hDet kp.1 kp.2 st ct0
+
+private lemma boolError_bind {A : Type} (oa : ProbComp A)
+    (ob : A → ProbComp Bool) :
+    Pr[= false | oa >>= ob] + Pr[⊥ | oa >>= ob] =
+      Pr[⊥ | oa] + ∑' a, Pr[= a | oa] *
+        (Pr[= false | ob a] + Pr[⊥ | ob a]) := by
+  rw [probOutput_bind_eq_tsum, probFailure_bind_eq_add_tsum]
+  calc
+    (∑' a, Pr[= a | oa] * Pr[= false | ob a]) +
+          (Pr[⊥ | oa] + ∑' a, Pr[= a | oa] * Pr[⊥ | ob a]) =
+        Pr[⊥ | oa] +
+          ((∑' a, Pr[= a | oa] * Pr[= false | ob a]) +
+            ∑' a, Pr[= a | oa] * Pr[⊥ | ob a]) := by ac_rfl
+    _ = Pr[⊥ | oa] + ∑' a, Pr[= a | oa] *
+          (Pr[= false | ob a] + Pr[⊥ | ob a]) := by
+      congr 1
+      rw [← ENNReal.tsum_add]
+      refine tsum_congr fun a => ?_
+      rw [mul_add]
+
+private lemma boolError_le_one (oa : ProbComp Bool) :
+    Pr[= false | oa] + Pr[⊥ | oa] ≤ 1 := by
+  calc
+    Pr[= false | oa] + Pr[⊥ | oa] ≤
+        (∑' b : Bool, Pr[= b | oa]) + Pr[⊥ | oa] := by
+      exact add_le_add (ENNReal.le_tsum false) le_rfl
+    _ = 1 := tsum_probOutput_add_probFailure oa
 
 /-- Tower identity obtained by conditioning the factorized experiment on its
 key pair. -/
 lemma factor_failure_tower_keypair [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem) :
-    Pr[= false | factorCorrectExp kem onoff hDet] =
-      ∑' kp : PK × SK, Pr[= kp | kem.keygen] *
-        failureAfterKeypair kem onoff hDet kp.1 kp.2 := by
-  unfold factorCorrectExp failureAfterKeypair failureAfterBoth onlineCorrectExp
-  rw [probOutput_bind_eq_tsum]
+    factorCorrectnessError kem onoff hDet =
+      Pr[⊥ | kem.keygen] +
+        ∑' kp : PK × SK, Pr[= kp | kem.keygen] *
+          failureAfterKeypair kem onoff hDet kp.1 kp.2 := by
+  unfold factorCorrectnessError factorCorrectExp failureAfterKeypair
+  rw [boolError_bind]
+  congr 1
   refine tsum_congr fun kp => ?_
-  rw [probOutput_bind_eq_tsum]
+  congr 1
+  unfold failureAfterBoth onlineCorrectExp
+  rw [boolError_bind]
 
 /-- Tower identity obtained by conditioning the factorized experiment on its
 offline result. -/
 lemma factor_failure_tower_off [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem) :
-    Pr[= false | factorCorrectExp kem onoff hDet] =
-      ∑' off : onoff.St × onoff.C₀, Pr[= off | onoff.encapsOff] *
-        failureAfterOff kem onoff hDet off.1 off.2 := by
-  rw [factor_failure_tower_keypair]
-  unfold failureAfterKeypair failureAfterOff
-  calc
-    (∑' kp : PK × SK, Pr[= kp | kem.keygen] *
+    factorCorrectnessError kem onoff hDet =
+      Pr[⊥ | onoff.encapsOff] +
         ∑' off : onoff.St × onoff.C₀, Pr[= off | onoff.encapsOff] *
-          failureAfterBoth kem onoff hDet kp.1 kp.2 off.1 off.2) =
-        ∑' kp : PK × SK, ∑' off : onoff.St × onoff.C₀,
-          Pr[= kp | kem.keygen] *
-            (Pr[= off | onoff.encapsOff] *
-              failureAfterBoth kem onoff hDet kp.1 kp.2 off.1 off.2) := by
-      refine tsum_congr fun kp => ?_
-      rw [ENNReal.tsum_mul_left]
-    _ = ∑' off : onoff.St × onoff.C₀, ∑' kp : PK × SK,
-          Pr[= kp | kem.keygen] *
-            (Pr[= off | onoff.encapsOff] *
-              failureAfterBoth kem onoff hDet kp.1 kp.2 off.1 off.2) :=
-      ENNReal.tsum_comm
-    _ = ∑' off : onoff.St × onoff.C₀, Pr[= off | onoff.encapsOff] *
-        ∑' kp : PK × SK, Pr[= kp | kem.keygen] *
-          failureAfterBoth kem onoff hDet kp.1 kp.2 off.1 off.2 := by
-      refine tsum_congr fun off => ?_
-      calc
-        (∑' kp : PK × SK, Pr[= kp | kem.keygen] *
-            (Pr[= off | onoff.encapsOff] *
-              failureAfterBoth kem onoff hDet kp.1 kp.2 off.1 off.2)) =
-            ∑' kp : PK × SK, Pr[= off | onoff.encapsOff] *
-              (Pr[= kp | kem.keygen] *
-                failureAfterBoth kem onoff hDet kp.1 kp.2 off.1 off.2) := by
-          refine tsum_congr fun kp => ?_
-          ring
-        _ = Pr[= off | onoff.encapsOff] *
-            ∑' kp : PK × SK, Pr[= kp | kem.keygen] *
-              failureAfterBoth kem onoff hDet kp.1 kp.2 off.1 off.2 := by
-          rw [ENNReal.tsum_mul_left]
+          failureAfterOff kem onoff hDet off.1 off.2 := by
+  let reordered : ProbComp Bool := do
+    let (st, ct0) ← onoff.encapsOff
+    let (pk, sk) ← kem.keygen
+    onlineCorrectExp kem onoff hDet pk sk st ct0
+  have hreorder :
+      evalDist (factorCorrectExp kem onoff hDet) = evalDist reordered := by
+    unfold factorCorrectExp reordered
+    simpa only using
+      (OracleComp.DeferredSampling.evalDist_bind_comm kem.keygen onoff.encapsOff
+        (fun kp off => onlineCorrectExp kem onoff hDet kp.1 kp.2 off.1 off.2))
+  have hfalse : Pr[= false | factorCorrectExp kem onoff hDet] =
+      Pr[= false | reordered] := by
+    exact congrArg (fun d : SPMF Bool => d false) hreorder
+  have hfail : Pr[⊥ | factorCorrectExp kem onoff hDet] =
+      Pr[⊥ | reordered] := by
+    exact congrArg (fun d : SPMF Bool => d.run none) hreorder
+  rw [factorCorrectnessError, hfalse, hfail]
+  unfold reordered failureAfterOff
+  rw [boolError_bind]
+  congr 1
+  refine tsum_congr fun off => ?_
+  congr 1
+  unfold failureAfterBoth onlineCorrectExp
+  rw [boolError_bind]
 
 lemma failureAfterKeypair_le_one [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
@@ -191,14 +247,17 @@ lemma failureAfterKeypair_le_one [DecidableEq K]
     failureAfterKeypair kem onoff hDet pk sk ≤ 1 := by
   unfold failureAfterKeypair failureAfterBoth
   calc
-    ∑' off : onoff.St × onoff.C₀, Pr[= off | onoff.encapsOff] *
-        Pr[= false | onlineCorrectExp kem onoff hDet pk sk off.1 off.2] ≤
-        ∑' off : onoff.St × onoff.C₀, Pr[= off | onoff.encapsOff] * 1 := by
-      exact ENNReal.tsum_le_tsum fun off =>
-        mul_le_mul' le_rfl (probOutput_le_one :
-          Pr[= false | onlineCorrectExp kem onoff hDet pk sk off.1 off.2] ≤ 1)
-    _ = ∑' off : onoff.St × onoff.C₀, Pr[= off | onoff.encapsOff] := by simp
-    _ ≤ 1 := tsum_probOutput_le_one
+    Pr[⊥ | onoff.encapsOff] + ∑' off : onoff.St × onoff.C₀,
+        Pr[= off | onoff.encapsOff] *
+          (Pr[= false | onlineCorrectExp kem onoff hDet pk sk off.1 off.2] +
+            Pr[⊥ | onlineCorrectExp kem onoff hDet pk sk off.1 off.2]) ≤
+        Pr[⊥ | onoff.encapsOff] +
+          ∑' off : onoff.St × onoff.C₀, Pr[= off | onoff.encapsOff] * 1 := by
+      exact add_le_add le_rfl (ENNReal.tsum_le_tsum fun off =>
+        mul_le_mul' le_rfl (boolError_le_one _))
+    _ = 1 := by
+      simp only [mul_one]
+      exact probFailure_add_tsum_probOutput onoff.encapsOff
 
 lemma failureAfterOff_le_one [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
@@ -206,21 +265,24 @@ lemma failureAfterOff_le_one [DecidableEq K]
     failureAfterOff kem onoff hDet st ct0 ≤ 1 := by
   unfold failureAfterOff failureAfterBoth
   calc
-    ∑' kp : PK × SK, Pr[= kp | kem.keygen] *
-        Pr[= false | onlineCorrectExp kem onoff hDet kp.1 kp.2 st ct0] ≤
-        ∑' kp : PK × SK, Pr[= kp | kem.keygen] * 1 := by
-      exact ENNReal.tsum_le_tsum fun kp =>
-        mul_le_mul' le_rfl (probOutput_le_one :
-          Pr[= false | onlineCorrectExp kem onoff hDet kp.1 kp.2 st ct0] ≤ 1)
-    _ = ∑' kp : PK × SK, Pr[= kp | kem.keygen] := by simp
-    _ ≤ 1 := tsum_probOutput_le_one
+    Pr[⊥ | kem.keygen] + ∑' kp : PK × SK, Pr[= kp | kem.keygen] *
+        (Pr[= false | onlineCorrectExp kem onoff hDet kp.1 kp.2 st ct0] +
+          Pr[⊥ | onlineCorrectExp kem onoff hDet kp.1 kp.2 st ct0]) ≤
+        Pr[⊥ | kem.keygen] +
+          ∑' kp : PK × SK, Pr[= kp | kem.keygen] * 1 := by
+      exact add_le_add le_rfl (ENNReal.tsum_le_tsum fun kp =>
+        mul_le_mul' le_rfl (boolError_le_one _))
+    _ = 1 := by
+      simp only [mul_one]
+      exact probFailure_add_tsum_probOutput kem.keygen
 
 lemma failureAfterBoth_le_one [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem) (pk : PK) (sk : SK)
     (st : onoff.St) (ct0 : onoff.C₀) :
-    failureAfterBoth kem onoff hDet pk sk st ct0 ≤ 1 :=
-  probOutput_le_one
+    failureAfterBoth kem onoff hDet pk sk st ct0 ≤ 1 := by
+  unfold failureAfterBoth
+  exact boolError_le_one _
 
 /-- Online tower identity: the conditional error after the first two stages is
 the expected indicator of online decapsulation failure. -/
@@ -229,11 +291,15 @@ lemma failureAfterBoth_eq_indicator [DecidableEq K]
     (hDet : DeterministicDecaps kem) (pk : PK) (sk : SK)
     (st : onoff.St) (ct0 : onoff.C₀) :
     failureAfterBoth kem onoff hDet pk sk st ct0 =
-      ∑' out : onoff.C₁ × K, Pr[= out | onoff.encapsOn st pk] *
-        if hDet.decapsDet sk (onoff.split.symm (ct0, out.1)) ≠ some out.2
-        then 1 else 0 := by
+      Pr[⊥ | onoff.encapsOn st pk] +
+        ∑' out : onoff.C₁ × K, Pr[= out | onoff.encapsOn st pk] *
+          if hDet.decapsDet sk (onoff.split.symm (ct0, out.1)) ≠ some out.2
+          then 1 else 0 := by
   unfold failureAfterBoth onlineCorrectExp
-  rw [probOutput_bind_eq_tsum]
+  rw [probOutput_bind_eq_tsum, probFailure_bind_eq_add_tsum]
+  simp only [probFailure_pure, mul_zero, tsum_zero, add_zero]
+  rw [add_comm]
+  refine congrArg (fun x : ℝ≥0∞ => Pr[⊥ | onoff.encapsOn st pk] + x) ?_
   refine tsum_congr fun out => ?_
   by_cases hgood : hDet.decapsDet sk (onoff.split.symm (ct0, out.1)) = some out.2
   · simp [hgood]
