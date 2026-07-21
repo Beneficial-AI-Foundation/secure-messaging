@@ -80,7 +80,6 @@ r#"
 \newcommand{\Decompress}{\mathsf{Decompress}}
 \newcommand{\Embed}{\mathsf{Embed}}
 \newcommand{\Recover}{\mathsf{Recover}}
-\newcommand{\pubpar}{\mathsf{par}}                       % public parameter
 \newcommand{\ek}{\mathsf{ek}}
 \newcommand{\dk}{\mathsf{dk}}
 \newcommand{\ct}{\mathsf{ct}}

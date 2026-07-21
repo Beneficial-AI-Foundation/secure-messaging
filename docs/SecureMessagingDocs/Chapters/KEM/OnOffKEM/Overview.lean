@@ -197,9 +197,9 @@ def encrypt (ring : NTTRingOps) (encoding : Encoding params)
 
 :::::gameCell "\\Dec(\\dk=\\hat{s}\\in\\Rq^k,\\ \\ct=(\\ct_0,\\ct_1))" (kind := "compact")
 $`\begin{array}{l}
-u' \gets \Decompress(\ctzero) \pcomment{\text{recover }u} \\
-v' \gets \Decompress(\ctone) \pcomment{\text{recover }v} \\
-w \gets v' - \NTT^{-1}(\langle \hat{s}, \NTT(u')\rangle) \pcomment{\text{recover message in }\Rq} \\
+u' \gets \Decompress(\ctzero) \pcomment{\text{recover the }u\text{ component}} \\
+v' \gets \Decompress(\ctone) \pcomment{\text{recover the }v\text{ component}} \\
+w \gets v' - \NTT^{-1}(\langle \hat{s}, \NTT(u')\rangle) \pcomment{\text{recover the }\Rq\text{ representative of }m} \\
 \Return \Recover(w) \pcomment{\text{decode }\Rq\text{ representative back to }\{0,1\}^{256}}
 \end{array}`
 
@@ -225,17 +225,12 @@ def decrypt (ring : NTTRingOps) (encoding : Encoding params)
 
 :::::::definition "on_off_kem_kem_from_kpke" (parent := "on_off_kem_on_off_kem_from_ml_kem") (lean := "KPKEOnOff.keygen, KPKEOnOff.encaps, KPKEOnOff.decaps, KPKEOnOff.scheme")
 Let $`\Enc,\Dec` be the encryption and decryption algorithms of
-{bpref "on_off_kem_kpke"}[]. Following
+{bpref "on_off_kem_kpke"}[]. The scheme is parameterised by a public matrix seed
+$`\rho\in\{0,1\}^{256}`, fixed once and shared by all key pairs; the public matrix
+$`\hat{A}=\XOF(\rho)\in\Rq^{k\times k}` is derived from it where needed. Following
 ({Informal.citet SCKA25}[], §2, §4.1), we define a KEM as follows:
 
 ::::::gameGrid
-:::::gameCell "\\textsf{Public parameters}" (kind := "compact")
-$`\begin{array}{ll}
-\rho\in\{0,1\}^{256} & \text{public matrix seed fixed by the scheme} \\
-\pubpar=\hat{A}=\XOF(\rho)\in\Rq^{k\times k} & \text{public matrix} \\
-\end{array}`
-:::::
-
 :::::gameCell "\\KeyGen()" (kind := "compact")
 $`\begin{array}{l}
 \sigma \sample \{0,1\}^{256} \pcomment{\text{fresh key-noise seed; }\rho\text{ is fixed}} \\
@@ -263,7 +258,7 @@ def keygen : ProbComp (encoding.EncodedTHat × encoding.EncodedTHat) := do
 :::::gameCell "\\Encaps(\\ek=\\hat{t}\\in\\Rq^k)" (kind := "compact")
 $`\begin{array}{l}
 \coins \sample \{0,1\}^{256} \\
-m \sample \{0,1\}^{256} \\
+m \sample \{0,1\}^{256} \pcomment{\text{sample a random message}} \\
 \ct \gets \Enc((\hat{t},\rho),\ m;\ \coins) \\
 \Return (\ct,\ m) \pcomment{\text{the message }m\text{ is the shared key}}
 \end{array}`
@@ -279,7 +274,7 @@ def encaps (ek : encoding.EncodedTHat) :
 ```
 :::::
 
-:::::gameCell "\\Decaps(\\dk=\\hat{s}\\in\\Rq^k,\\ \\ct=(\\ct_0,\\ct_1))" (kind := "compact")
+:::::gameCell "\\Decaps(\\dk=\\hat{s}\\in\\Rq^k,\\ \\ct)" (kind := "compact")
 $`\begin{array}{l}
 m \gets \Dec(\hat{s}, \ct) \\
 \Return \mathsf{some}(m) \pcomment{\text{the decrypted message }m\text{ is the shared key}}
@@ -315,18 +310,11 @@ def scheme :
 
 :::::::definition "on_off_kem_from_ml_kem_spec" (parent := "on_off_kem_on_off_kem_from_ml_kem") (lean := "KPKEOnOff.encapsOff, KPKEOnOff.encapsOn, KPKEOnOff.onOff")
 Online-offline structure for the KEM specified in {bpref "on_off_kem_kem_from_kpke"}[]
-({Informal.citet SCKA25}[], Def. 2.1).
+({Informal.citet SCKA25}[], Def. 2.1). The ciphertext space splits as
+$`\C=\C_0\times\C_1` with $`\ct=(\ctzero,\ctone)`, and the offline state space is
+$`\St=\{0,1\}^{256}\times\Rq^k` with $`\stct=(\coins,\hat{y})`.
 
 ::::::gameGrid
-:::::gameCell "\\textsf{Public parameters and ciphertext split}" (kind := "compact")
-$`\begin{array}{ll}
-\rho\in\{0,1\}^{256} & \text{public seed fixed by the scheme} \\
-\pubpar=\hat{A}=\XOF(\rho)\in\Rq^{k\times k} & \text{public matrix generated from seed} \\
-\C=\C_0\times\C_1 & \ct=(\ctzero,\ctone) \\
-\St=\{0,1\}^{256}\times\Rq^k & \stct=(\coins,\hat{y}) \\
-\end{array}`
-:::::
-
 :::::gameCell "\\Encaps.\\mathsf{Off}()" (kind := "compact")
 $`\begin{array}{l}
 \coins \sample \{0,1\}^{256} \\
