@@ -6,6 +6,7 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.AEAD.AESGCM.GCtr
 import SecureMessaging.AEAD.AESGCM.GHash
+import SecureMessaging.AEAD.AESGCM.TestVectors
 import SecureMessaging.AEAD.Defs
 import SecureMessaging.AES.Defs
 
@@ -160,19 +161,8 @@ def aesGcmAEAD (cipher : AES K) :
 -- ANCHOR_END: aesGcmAEAD
 
 /-! ## GCM validation vector (McGrew–Viega Test Case 3, not in SP 800-38D:
-block-aligned, empty AAD) -/
-
-/-- Test scaffolding: GCM Test Case 3 keyed cipher `E_K` over the inputs GCM
-queries (`0` for the hash subkey `H`, the pre-counter block `J₀` for the tag
-mask, and the `inc₃₂` counter chain from `J₀`). Not part of the spec. -/
-private def tc3Cipher (cb : BitVec 128) : BitVec 128 :=
-  if cb = 0xcafebabefacedbaddecaf88800000001 then 0x3247184b3c4f69a44dbcd22887bbb418
-  else if cb = 0xcafebabefacedbaddecaf88800000002 then 0x9bb22ce7d9f372c1ee2b28722b25f206
-  else if cb = 0xcafebabefacedbaddecaf88800000003 then 0x650d887c3936533a1b8d4e1ea39d2b5c
-  else if cb = 0xcafebabefacedbaddecaf88800000004 then 0x3de91827c10e9a4f5240647ee5221f20
-  else if cb = 0xcafebabefacedbaddecaf88800000005 then 0xaac9e6ccc0074ac0873b9ba85d908bd0
-  else if cb = 0 then 0xb83b533708bf535d0aa6e52980d53b78
-  else 0
+block-aligned, empty AAD). The keyed cipher `tc3Cipher` is shared with the
+`GCtr` test suite (see `SecureMessaging.AEAD.AESGCM.TestVectors`). -/
 
 /-- Test Case 3 plaintext (four blocks). -/
 private def tc3Plain : Vector (BitVec 128) 4 :=

@@ -5,6 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import Mathlib.Data.BitVec
+import SecureMessaging.AEAD.AESGCM.TestVectors
 
 /-!
 # GCTR, `inc₃₂`, and the pre-counter block `J₀` (NIST SP 800-38D §6.2, §6.5, §7.1)
@@ -72,17 +73,6 @@ example :
 example :
     inc32 0xcafebabefacedbaddecaf888ffffffff = 0xcafebabefacedbaddecaf88800000000 := by
   decide
-
-/-- Test scaffolding: the `E_K(CBᵢ)` keystream outputs of GCM Test Case 3 keyed
-by counter block `CBᵢ`, so `gctr` can be checked against the vector without AES. -/
-private def tc3Cipher (cb : BitVec 128) : BitVec 128 :=
-  if cb = 0xcafebabefacedbaddecaf88800000001 then 0x3247184b3c4f69a44dbcd22887bbb418
-  else if cb = 0xcafebabefacedbaddecaf88800000002 then 0x9bb22ce7d9f372c1ee2b28722b25f206
-  else if cb = 0xcafebabefacedbaddecaf88800000003 then 0x650d887c3936533a1b8d4e1ea39d2b5c
-  else if cb = 0xcafebabefacedbaddecaf88800000004 then 0x3de91827c10e9a4f5240647ee5221f20
-  else if cb = 0xcafebabefacedbaddecaf88800000005 then 0xaac9e6ccc0074ac0873b9ba85d908bd0
-  else if cb = 0 then 0xb83b533708bf535d0aa6e52980d53b78
-  else 0
 
 /-- `gctr` maps the Test Case 3 plaintext to its ciphertext. -/
 example :
