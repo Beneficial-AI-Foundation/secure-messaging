@@ -24,6 +24,10 @@ import SecureMessaging.CKA.FromKEM.Construction
 import SecureMessaging.CKA.FromKEM.Correctness
 import SecureMessaging.CKA.FromKEM.Security
 import SecureMessaging.ErasureCode.Defs
+import SecureMessaging.ErasureCode.ReedSolomon.Construction
+import SecureMessaging.ErasureCode.ReedSolomon.Correctness
+import SecureMessaging.ErasureCode.SPQRReedSolomon.Construction
+import SecureMessaging.ErasureCode.SPQRReedSolomon.Correctness
 import SecureMessaging.KEM.IncrementalKEM.Defs
 import SecureMessaging.KEM.MLKEM.Construction
 import SecureMessaging.KEM.MLKEM.Correctness

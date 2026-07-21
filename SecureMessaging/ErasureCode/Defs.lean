@@ -59,6 +59,7 @@ structure ErasureCode (Sym : Type) where
 -- ANCHOR_END: ErasureCode
 
 /-- An erasure code over `Sym` equipped with serialization for payloads of type `M`. -/
+-- ANCHOR: ErasureCodePayload
 structure ErasureCodePayload (M Sym : Type) where
   /-- The erasure code used for this payload type. -/
   ec : ErasureCode Sym
@@ -68,6 +69,7 @@ structure ErasureCodePayload (M Sym : Type) where
   parse : (Fin ec.nchunk → Sym) → Option M
   /-- Parsing a serialized payload recovers the original payload. -/
   parse_serialize : ∀ payload, parse (serialize payload) = some payload
+-- ANCHOR_END: ErasureCodePayload
 
 namespace ErasureCodePayload
 
@@ -105,19 +107,45 @@ namespace ErasureCode
 
 variable {Sym : Type}
 
-/-- Encode `M` at every index in `I`, collecting the chunk set
-`{(i, Encode(M, i)) | i ∈ I}`. -/
+/-- The honest chunk set of `M` at positions `I`:
+`{(i, Encode(M, i)) | i ∈ I}`.
+
+The index is retained in each chunk, so distinct positions remain distinct even
+when their encoded symbols are equal. -/
 -- ANCHOR: encodeChunks
-noncomputable def encodeChunks [DecidableEq Sym] (ec : ErasureCode Sym)
+def encodeChunks (ec : ErasureCode Sym)
     (M : Fin ec.nchunk → Sym) (I : Finset (Fin ec.N)) :
     Finset (Fin ec.N × Sym) :=
-  (I.toList.map fun i => (i, ec.encode M i)).toFinset
+  I.map {
+    toFun := fun i => (i, ec.encode M i)
+    inj' := fun _ _ h => congrArg Prod.fst h
+  }
 -- ANCHOR_END: encodeChunks
+
+/-- `encodeChunks` contains exactly one indexed chunk for each position in `I`. -/
+@[simp]
+theorem card_encodeChunks (ec : ErasureCode Sym)
+    (M : Fin ec.nchunk → Sym) (I : Finset (Fin ec.N)) :
+    (ec.encodeChunks M I).card = I.card := by
+  simp [encodeChunks]
+
+/-- A pair `(i, c)` belongs to `encodeChunks M I` exactly when `i ∈ I` and
+`c = Encode(M, i)`. -/
+@[simp]
+theorem mem_encodeChunks (ec : ErasureCode Sym)
+    (M : Fin ec.nchunk → Sym) (I : Finset (Fin ec.N)) (chunk : Fin ec.N × Sym) :
+    chunk ∈ ec.encodeChunks M I ↔ chunk.1 ∈ I ∧ chunk.2 = ec.encode M chunk.1 := by
+  simp only [encodeChunks, Finset.mem_map]
+  constructor
+  · rintro ⟨i, hi, rfl⟩
+    exact ⟨hi, rfl⟩
+  · rintro ⟨hi, hvalue⟩
+    exact ⟨chunk.1, hi, Prod.ext rfl hvalue.symm⟩
 
 /-- Correctness: decoding the chunk set `{(i, Encode(M, i)) | i ∈ I}` recovers
 `M` when `|I| = nchunk` and fails when `|I| < nchunk`. -/
 -- ANCHOR: Correct
-def Correct [DecidableEq Sym] (ec : ErasureCode Sym) : Prop :=
+def Correct (ec : ErasureCode Sym) : Prop :=
   ∀ (M : Fin ec.nchunk → Sym) (I : Finset (Fin ec.N)),
     (I.card = ec.nchunk → ec.decode (ec.encodeChunks M I) = some M) ∧
     (I.card < ec.nchunk → ec.decode (ec.encodeChunks M I) = none)
