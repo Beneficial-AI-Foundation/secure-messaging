@@ -26,7 +26,7 @@ def smDocsCss : String := r#"
 :root { --verso-content-max-width: calc(74rem + 2cm); }
 
 /* Hide the blueprint panel's own collapsible code box: we already show the
-   full source via the `anchor` block. */
+   full source via `anchor` blocks or external-code pills (see `smDocsJs`). */
 .bp_code_panel_wrapper { display: none !important; }
 
 
@@ -279,7 +279,8 @@ p.lean-pill-caption {
   line-height: 1.45;
   color: #57606a;
 }
-.lean-anchor-body > .hl.lean.block {
+.lean-anchor-body > .hl.lean.block,
+.lean-anchor-body > pre {
   margin-top: 0;
 }
 .lean-anchor-body:not([hidden]) {
@@ -361,6 +362,14 @@ p.lean-pill-caption {
   line-height: 1.45;
 }
 
+/* External Lean pills: teal tint on the "Lean" button for code blocks quoting
+   external (VCVio) source, to set them apart from local-code anchors. */
+.lean-pill-btn.lean-pill-btn-external {
+  color: #0f5c4c;
+  background: #e6f7f2;
+  border-color: #7dceb8;
+}
+
 .github-issue-link {
   color: #556070;
   text-decoration-color: rgba(85, 96, 112, 0.35);
@@ -414,6 +423,8 @@ def smDocsJs : String := r#"
     }
   }
   function wrapLeanBlocks() {
+    // Internal anchors and checked external quotations use the same highlighted
+    // Lean block renderer.
     var blocks = document.querySelectorAll(
       "code.hl.lean.block:not(.bp_external_decl_signature):not(.lean-wrapped)");
     blocks.forEach(function (code) {
@@ -428,6 +439,9 @@ def smDocsJs : String := r#"
         var btn = document.createElement("button");
         btn.type = "button";
         btn.className = "lean-pill-btn";
+        if (/VCVio/.test(suffix)) {
+          btn.classList.add("lean-pill-btn-external");
+        }
         btn.setAttribute("aria-expanded", "false");
         btn.textContent = "Lean";
         var body = document.createElement("div");

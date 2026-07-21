@@ -43,6 +43,21 @@ end
 private def mathInline (tex : String) : Verso.Output.Html :=
   bpMathInline tex
 
+/-- Elaborate quoted Lean source with self-contained highlighting so it can be
+used inside nested visual directives. -/
+@[code_block]
+def quotedLean : CodeBlockExpanderOf Unit
+  | _, contents => do
+    let savedEnv ← getEnv
+    let saved := (← getThe DocElabM.State).highlightDeduplicationTable
+    modifyThe DocElabM.State fun st => { st with highlightDeduplicationTable := none }
+    try
+      return (← withOptions (verso.code.warnLineLength.set · 0) <|
+        Informal.Lean.elabCommands Informal.Lean.defaultConfig contents).block
+    finally
+      setEnv savedEnv
+      modifyThe DocElabM.State fun st => { st with highlightDeduplicationTable := saved }
+
 /-- Render caption text plus `$`…` inline math (same syntax as Verso prose). -/
 partial def renderPillCaption.go (s : String) (acc : Array Verso.Output.Html) : Verso.Output.Html :=
   if s.isEmpty then
