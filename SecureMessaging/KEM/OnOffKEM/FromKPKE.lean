@@ -71,7 +71,7 @@ Decryption. Given a secret key `dk = ŝ` and a ciphertext `(u, v)`:
 ```
   decrypt(ŝ, (u, v)):
     w ← v - invNTT ⟨ŝ, NTT u⟩        -- cancels the t̂-term, leaving ≈ decompress₁ (decode₁ m)
-    return compress₁ w               -- ≈ m
+    return byteEncode₁ (compress₁ w)  -- ≈ m
 ```
 
 ## The KEM algorithms and their split
@@ -87,12 +87,12 @@ We build the KEM directly on `MLKEM.KPKE`, reusing the `keygen`, `encrypt`, and
     (ct0, ct1) ← encrypt(t̂, m; coins)
     return ((ct0, ct1), m)
   decaps(dk = ŝ, (ct0, ct1)):
-    return decrypt(ŝ, (ct0, ct1))          -- = m
+    return some (decrypt(ŝ, (ct0, ct1)))   -- = some m; decapsulation never fails
 ```
 
-Here `encaps` and `decaps` are K-PKE encryption and decryption directly; only
-`keygen` re-derives `KPKE.keygenFromSeed`, with `ρ` fixed rather than drawn per
-key pair.
+Here `encaps` and `decaps` call K-PKE encryption and decryption directly; only
+`keygen` mirrors `KPKE.keygenFromSeed` rather than calling it, with `ρ` fixed
+rather than drawn per key pair.
 
 The on/off split is given by two phases that recompute the ciphertext components
 separately (`u = ct0` offline, `v = ct1` online, as in `encrypt` above):
@@ -102,11 +102,11 @@ separately (`u = ct0` offline, `v = ct1` online, as in `encrypt` above):
     sample coins               -- fixes y, e1, e2
     ŷ ← NTT y
     u ← invNTTVec (Âᵀ ŷ) + e1                                -- ct0
-    return (u, st = (coins, ŷ))
+    return (st = (coins, ŷ), byteEncodeDUVec (compressDU u))
   encapsOn(st = (coins, ŷ), ek = t̂):
     sample m                                                 -- the shared key
     v ← invNTT ⟨t̂, ŷ⟩ + e2 + decompress₁ (decode₁ m)         -- ct1
-    return (v, m)
+    return (byteEncodeDV (compressDV v), m)
 ```
 
 `onOff.factor` proves that running `encapsOff` then `encapsOn` equals `encaps`
@@ -126,9 +126,9 @@ variable (params : Params) (encoding : Encoding params)
   (rho : Seed32)
 
 /-- Offline encapsulation `Enc.Off`: sample the encapsulation randomness `y` and
-noise `e1` from fresh coins, and output the offline ciphertext
-`ct0 = invNTTVec (Âᵀ ŷ) + e1` together with the state `(coins, ŷ)` needed by the
-online phase. Independent of the encapsulation key. -/
+noise `e1` from fresh coins, compute `u = invNTTVec (Âᵀ ŷ) + e1`, and output
+its compressed encoding as `ct0` together with the state `(coins, ŷ)` needed by
+the online phase. Independent of the encapsulation key. -/
 -- ANCHOR: encapsOffFromKPKE
 def encapsOff : ProbComp ((Coins × TqVec params.k) × encoding.EncodedU) := do
   let coins ← $ᵗ Coins
@@ -141,8 +141,9 @@ def encapsOff : ProbComp ((Coins × TqVec params.k) × encoding.EncodedU) := do
 -- ANCHOR_END: encapsOffFromKPKE
 
 /-- Online encapsulation `Enc.On`: from the offline state `(coins, ŷ)` and the
-encapsulation key `ek = t̂`, sample the message `I` (the shared key) and output
-the online ciphertext `ct1 = invNTT (t̂ ŷ) + e2 + decompress₁ (decode₁ I)`. -/
+encapsulation key `ek = t̂`, sample the message `m` (the shared key), compute
+`v = invNTT ⟨t̂, ŷ⟩ + e2 + decompress₁ (decode₁ m)`, and output its compressed
+encoding as `ct1`. -/
 -- ANCHOR: encapsOnFromKPKE
 def encapsOn (st : Coins × TqVec params.k) (ek : encoding.EncodedTHat) :
     ProbComp (encoding.EncodedV × Message) := do
@@ -183,10 +184,10 @@ def encaps (ek : encoding.EncodedTHat) :
 
 /-- Decapsulation: reassemble the K-PKE ciphertext and run `MLKEM.KPKE.decrypt`. -/
 -- ANCHOR: decapsFromKPKE
-def decaps (sk : encoding.EncodedTHat) (c : encoding.EncodedU × encoding.EncodedV) :
+def decaps (dk : encoding.EncodedTHat) (c : encoding.EncodedU × encoding.EncodedV) :
     ProbComp (Option Message) :=
   pure (some (KPKE.decrypt ring encoding prims
-    ({ sHatEncoded := sk } : KPKE.SecretKey params encoding)
+    ({ sHatEncoded := dk } : KPKE.SecretKey params encoding)
     ({ uEncoded := c.1, vEncoded := c.2 } : KPKE.Ciphertext params encoding)))
 -- ANCHOR_END: decapsFromKPKE
 
@@ -223,7 +224,7 @@ FFI-backed primitives; `rho` is the public matrix seed, treated as a public
 parameter. -/
 def schemeKyber768 (rho : Seed32) :
     KEMScheme ProbComp Message
-      (Concrete.mlkem768Encoding.EncodedTHat) (Concrete.mlkem768Encoding.EncodedTHat)
+      Concrete.mlkem768Encoding.EncodedTHat Concrete.mlkem768Encoding.EncodedTHat
       (Concrete.mlkem768Encoding.EncodedU × Concrete.mlkem768Encoding.EncodedV) :=
   scheme mlkem768 Concrete.mlkem768Encoding Concrete.concreteNTTRingOps
     Concrete.mlkem768Primitives rho

@@ -7,7 +7,6 @@ import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessagingDocs.Bibliography
 import SecureMessaging.KEM.OnOffKEM.Defs
 import SecureMessaging.KEM.OnOffKEM.FromKPKE
-import SecureMessagingDocs.Chapters.KEM.OnOffKEM.KPKESpec
 
 set_option linter.style.setOption false
 set_option linter.hashCommand false
@@ -138,7 +137,7 @@ e \gets \SampleVec_1(\sigma,k) \pcomment{\text{small error vector}} \\
 :::leanPillCaption "KeyGen specification in VCVio"
 :::
 
-```anchor kpkeKeygen (project := ".") (module := SecureMessagingDocs.Chapters.KEM.OnOffKEM.KPKESpec)
+```
 def keygenFromSeed (ring : NTTRingOps) (encoding : Encoding params)
     (prims : Primitives params encoding) (d : Seed32) :
     PublicKey params encoding × SecretKey params encoding :=
@@ -172,7 +171,7 @@ v \gets \NTT^{-1}(\langle \hat{t}, \hat{y}\rangle) + e_2 + \mu \pcomment{\text{s
 :::leanPillCaption "Enc specification in VCVio"
 :::
 
-```anchor kpkeEncrypt (project := ".") (module := SecureMessagingDocs.Chapters.KEM.OnOffKEM.KPKESpec)
+```
 def encrypt (ring : NTTRingOps) (encoding : Encoding params)
     (prims : Primitives params encoding) (ek : PublicKey params encoding) (msg : Message)
     (coins : Coins) : Ciphertext params encoding :=
@@ -201,7 +200,7 @@ w \gets v' - \NTT^{-1}(\langle \hat{s}, \NTT(u')\rangle) \pcomment{\text{recover
 :::leanPillCaption "Dec specification in VCVio"
 :::
 
-```anchor kpkeDecrypt (project := ".") (module := SecureMessagingDocs.Chapters.KEM.OnOffKEM.KPKESpec)
+```
 def decrypt (ring : NTTRingOps) (encoding : Encoding params)
     (_prims : Primitives params encoding) (dk : SecretKey params encoding)
     (c : Ciphertext params encoding) : Message :=
@@ -259,8 +258,7 @@ $`\begin{array}{l}
 \coins \sample \{0,1\}^{256} \\
 m \sample \{0,1\}^{256} \\
 \ct \gets \Enc((\hat{t},\rho),\ m;\ \coins) \\
-K \gets m \pcomment{\text{shared key}} \\
-\Return (\ct,\ K)
+\Return (\ct,\ m) \pcomment{\text{the message }m\text{ is the shared key}}
 \end{array}`
 
 ```anchor encapsFromKPKE (project := ".") (module := SecureMessaging.KEM.OnOffKEM.FromKPKE)
@@ -277,14 +275,14 @@ def encaps (ek : encoding.EncodedTHat) :
 :::::gameCell "\\Decaps(\\dk=\\hat{s}\\in\\Rq^k,\\ \\ct=(\\ct_0,\\ct_1))" (kind := "compact")
 $`\begin{array}{l}
 m \gets \Dec(\hat{s}, \ct) \\
-\Return \mathsf{some}(m) \pcomment{\text{shared key}}
+\Return \mathsf{some}(m) \pcomment{\text{the decrypted message }m\text{ is the shared key}}
 \end{array}`
 
 ```anchor decapsFromKPKE (project := ".") (module := SecureMessaging.KEM.OnOffKEM.FromKPKE)
-def decaps (sk : encoding.EncodedTHat) (c : encoding.EncodedU × encoding.EncodedV) :
+def decaps (dk : encoding.EncodedTHat) (c : encoding.EncodedU × encoding.EncodedV) :
     ProbComp (Option Message) :=
   pure (some (KPKE.decrypt ring encoding prims
-    ({ sHatEncoded := sk } : KPKE.SecretKey params encoding)
+    ({ sHatEncoded := dk } : KPKE.SecretKey params encoding)
     ({ uEncoded := c.1, vEncoded := c.2 } : KPKE.Ciphertext params encoding)))
 ```
 :::::
@@ -351,10 +349,9 @@ $`\begin{array}{l}
 (\coins, \hat{y}) \gets \stct \\
 e_2 \gets \SamplePoly_2(\coins,2k) \pcomment{\text{small error polynomial}} \\
 m \sample \{0,1\}^{256} \\
-K \gets m \pcomment{\text{shared key}} \\
 \mu \gets \Embed(m) \pcomment{\text{embed message in }\Rq} \\
 v \gets \NTT^{-1}(\langle \hat{t}, \hat{y}\rangle) + e_2 + \mu \\
-\Return (\ctone = \Compress(v),\ K) \pcomment{\text{compress second component}}
+\Return (\ctone = \Compress(v),\ m) \pcomment{\text{the message }m\text{ is the shared key}}
 \end{array}`
 
 ```anchor encapsOnFromKPKE (project := ".") (module := SecureMessaging.KEM.OnOffKEM.FromKPKE)
@@ -374,8 +371,8 @@ def encapsOn (st : Coins × TqVec params.k) (ek : encoding.EncodedTHat) :
 $`\begin{array}{l}
 \forall\,\ek\in\Rq^k.\ \Encaps(\ek)\ = \\
 \quad (\stct,\ctzero) \gets \Encaps.\mathsf{Off}() \\
-\quad (\ctone,K) \gets \Encaps.\mathsf{On}(\stct,\ek) \\
-\quad \Return\bigl((\ctzero,\ctone),\ K\bigr)
+\quad (\ctone,m) \gets \Encaps.\mathsf{On}(\stct,\ek) \\
+\quad \Return\bigl((\ctzero,\ctone),\ m\bigr) \pcomment{\text{the message }m\text{ is the shared key}}
 \end{array}`
 
 ```anchor onOffFromKPKE (project := ".") (module := SecureMessaging.KEM.OnOffKEM.FromKPKE)

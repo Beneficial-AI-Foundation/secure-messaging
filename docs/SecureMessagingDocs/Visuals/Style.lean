@@ -279,7 +279,8 @@ p.lean-pill-caption {
   line-height: 1.45;
   color: #57606a;
 }
-.lean-anchor-body > .hl.lean.block {
+.lean-anchor-body > .hl.lean.block,
+.lean-anchor-body > pre {
   margin-top: 0;
 }
 .lean-anchor-body:not([hidden]) {
@@ -361,8 +362,8 @@ p.lean-pill-caption {
   line-height: 1.45;
 }
 
-/* External Lean pills: teal tint on the "Lean" button for anchors whose source
-   mirrors external (VCVio) code, to set them apart from local-code anchors. */
+/* External Lean pills: teal tint on the "Lean" button for code blocks quoting
+   external (VCVio) source, to set them apart from local-code anchors. */
 .lean-pill-btn.lean-pill-btn-external {
   color: #0f5c4c;
   background: #e6f7f2;
@@ -422,8 +423,12 @@ def smDocsJs : String := r#"
     }
   }
   function wrapLeanBlocks() {
+    // Anchor blocks are highlighted `code.hl.lean.block` elements; verbatim
+    // quotations of external (VCVio) code are plain `pre` blocks and are only
+    // wrapped when a caption marks them.
     var blocks = document.querySelectorAll(
-      "code.hl.lean.block:not(.bp_external_decl_signature):not(.lean-wrapped)");
+      "code.hl.lean.block:not(.bp_external_decl_signature):not(.lean-wrapped), " +
+      "p.lean-pill-caption + pre:not(.lean-wrapped)");
     blocks.forEach(function (code) {
       code.classList.add("lean-wrapped");
       var suffix = pillSuffixFor(code);
