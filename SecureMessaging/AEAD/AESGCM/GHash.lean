@@ -20,6 +20,9 @@ so no partial-final-block padding); the caller (`Construction`) assembles
 
 - [NIST_GCM] Dworkin. *NIST SP 800-38D*, 2007 — the normative GCM algorithm.
   https://csrc.nist.gov/pubs/sp/800/38/d/final
+- [MV_GCM] McGrew, Viega. *The Galois/Counter Mode of Operation (GCM)*, 2005 —
+  the original GCM proposal; source of the "Test Case 3" validation vector
+  (App. B), which is not part of SP 800-38D. https://csrc.nist.gov/csrc/media/projects/block-cipher-techniques/documents/bcm/proposed-modes/gcm/gcm-revised-spec.pdf
 -/
 
 /-- `GHASH_H(X₁ ‖ … ‖ Xₘ)` (NIST SP 800-38D §6.4, Algorithm 2): fold

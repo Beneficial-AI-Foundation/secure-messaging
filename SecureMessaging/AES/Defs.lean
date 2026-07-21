@@ -15,10 +15,9 @@ permutation on 128-bit blocks.
 The naming deserves care. AES (FIPS 197) is a *concrete* algorithm — a specific
 round function over `GF(2^8)`, key schedule, and block/key sizes. "PRP"
 (pseudorandom permutation) is the *abstract* security property AES is *assumed* to
-satisfy; there is no proof, only the failure of cryptanalysis. So "PRP" names the
-bar and "AES" names a specific candidate that clears it. Here we model only the
-interface: `AES` is a `PRPScheme` on `BitVec 128`, and the FIPS-197 rounds stay
-abstract (an assumed-PRP instance to be supplied later).
+satisfy. So "PRP" names the bar and "AES" names a specific candidate that clears it.
+Here we model only the interface: `AES` is a `PRPScheme` on `BitVec 128`, and the
+FIPS-197 rounds stay abstract (an assumed-PRP instance to be supplied later).
 
 Consumers (e.g. `SecureMessaging.AEAD.AESGCM`) use the forward direction `perm`
 only; confidentiality/integrity of a mode is derived from AES's PRP security via
