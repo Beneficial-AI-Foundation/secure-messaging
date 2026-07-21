@@ -423,12 +423,10 @@ def smDocsJs : String := r#"
     }
   }
   function wrapLeanBlocks() {
-    // Anchor blocks are highlighted `code.hl.lean.block` elements; verbatim
-    // quotations of external (VCVio) code are plain `pre` blocks and are only
-    // wrapped when a caption marks them.
+    // Internal anchors and checked external quotations use the same highlighted
+    // Lean block renderer.
     var blocks = document.querySelectorAll(
-      "code.hl.lean.block:not(.bp_external_decl_signature):not(.lean-wrapped), " +
-      "p.lean-pill-caption + pre:not(.lean-wrapped)");
+      "code.hl.lean.block:not(.bp_external_decl_signature):not(.lean-wrapped)");
     blocks.forEach(function (code) {
       code.classList.add("lean-wrapped");
       var suffix = pillSuffixFor(code);

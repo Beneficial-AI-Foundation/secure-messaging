@@ -19,6 +19,7 @@ open Verso.Genre Manual
 open Verso.Genre.Manual.InlineLean
 open Verso.Code.External
 open Informal
+open MLKEM MLKEM.KPKE
 
 set_option doc.verso true
 set_option pp.rawOnError true
@@ -110,8 +111,13 @@ On-Off KEM from ML-KEM.
 :::defTitle "on_off_kem_kpke" "Kyber Public-Key Encryption (K-PKE)"
 :::
 
-:::::::definition "on_off_kem_kpke" (parent := "on_off_kem_on_off_kem_from_ml_kem") (lean := "MLKEM.KPKE.keygenFromSeed, MLKEM.KPKE.encrypt, MLKEM.KPKE.decrypt, MLKEM.NTTRingOps, MLKEM.Primitives.gKeygen, MLKEM.Primitives.sampleNTT, MLKEM.Primitives.prfEta1, MLKEM.Primitives.prfEta2, MLKEM.Primitives.publicMatrix, MLKEM.Primitives.sampleVecEta1, MLKEM.Primitives.sampleVecEta2, MLKEM.Concrete.samplePolyCBD, MLKEM.Concrete.compress, MLKEM.Concrete.decompress, MLKEM.Concrete.byteEncode, MLKEM.Concrete.byteDecode")
+::::::::definition "on_off_kem_kpke" (parent := "on_off_kem_on_off_kem_from_ml_kem") (lean := "MLKEM.KPKE.keygenFromSeed, MLKEM.KPKE.encrypt, MLKEM.KPKE.decrypt, MLKEM.NTTRingOps, MLKEM.Primitives.gKeygen, MLKEM.Primitives.sampleNTT, MLKEM.Primitives.prfEta1, MLKEM.Primitives.prfEta2, MLKEM.Primitives.publicMatrix, MLKEM.Primitives.sampleVecEta1, MLKEM.Primitives.sampleVecEta2, MLKEM.Concrete.samplePolyCBD, MLKEM.Concrete.compress, MLKEM.Concrete.decompress, MLKEM.Concrete.byteEncode, MLKEM.Concrete.byteDecode")
 IND-CPA PKE $`(\KeyGen,\Enc,\Dec)` underlying ML-KEM ({Informal.citet FIPS203}[], §5).
+
+:::::::leanSection "external-kpke"
+```Verso.Genre.Manual.InlineLean.lean -show
+variable (params : Params)
+```
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Notation and public parameters}" (kind := "compact")
@@ -137,7 +143,7 @@ e \gets \SampleVec_1(\sigma,k) \pcomment{\text{small error vector}} \\
 :::leanPillCaption "KeyGen specification in VCVio"
 :::
 
-```
+```quotedLean
 def keygenFromSeed (ring : NTTRingOps) (encoding : Encoding params)
     (prims : Primitives params encoding) (d : Seed32) :
     PublicKey params encoding × SecretKey params encoding :=
@@ -171,7 +177,7 @@ v \gets \NTT^{-1}(\langle \hat{t}, \hat{y}\rangle) + e_2 + \mu \pcomment{\text{s
 :::leanPillCaption "Enc specification in VCVio"
 :::
 
-```
+```quotedLean
 def encrypt (ring : NTTRingOps) (encoding : Encoding params)
     (prims : Primitives params encoding) (ek : PublicKey params encoding) (msg : Message)
     (coins : Coins) : Ciphertext params encoding :=
@@ -200,7 +206,7 @@ w \gets v' - \NTT^{-1}(\langle \hat{s}, \NTT(u')\rangle) \pcomment{\text{recover
 :::leanPillCaption "Dec specification in VCVio"
 :::
 
-```
+```quotedLean
 def decrypt (ring : NTTRingOps) (encoding : Encoding params)
     (_prims : Primitives params encoding) (dk : SecretKey params encoding)
     (c : Ciphertext params encoding) : Message :=
@@ -212,6 +218,7 @@ def decrypt (ring : NTTRingOps) (encoding : Encoding params)
 :::::
 ::::::
 :::::::
+::::::::
 
 :::defTitle "on_off_kem_kem_from_kpke" "IND-CPA KEM from K-PKE"
 :::
@@ -369,7 +376,7 @@ def encapsOn (st : Coins × TqVec params.k) (ek : encoding.EncodedTHat) :
 
 :::::gameCell "\\textsf{Factor}" (kind := "compact")
 $`\begin{array}{l}
-\forall\,\ek\in\Rq^k.\ \Encaps(\ek)\ = \\
+\forall\,\ek.\quad \Encaps(\ek)\ =\ \mathsf{do} \\
 \quad (\stct,\ctzero) \gets \Encaps.\mathsf{Off}() \\
 \quad (\ctone,m) \gets \Encaps.\mathsf{On}(\stct,\ek) \\
 \quad \Return\bigl((\ctzero,\ctone),\ m\bigr) \pcomment{\text{the message }m\text{ is the shared key}}
