@@ -225,10 +225,9 @@ def decrypt (ring : NTTRingOps) (encoding : Encoding params)
 
 :::::::definition "on_off_kem_kem_from_kpke" (parent := "on_off_kem_on_off_kem_from_ml_kem") (lean := "KPKEOnOff.keygen, KPKEOnOff.encaps, KPKEOnOff.decaps, KPKEOnOff.scheme")
 Let $`\Enc,\Dec` be the encryption and decryption algorithms of
-{bpref "on_off_kem_kpke"}[]. The scheme is parameterised by a public matrix seed
-$`\rho\in\{0,1\}^{256}`, fixed once and shared by all key pairs; the public matrix
-$`\hat{A}=\XOF(\rho)\in\Rq^{k\times k}` is derived from it where needed. Following
-({Informal.citet SCKA25}[], §2, §4.1), we define a KEM as follows:
+{bpref "on_off_kem_kpke"}[]. Following
+({Informal.citet SCKA25}[], §2, §4.1), we define a KEM as follows. The scheme is parameterised by a seed
+$`\rho\in\{0,1\}^{256}` that generates the public matrix. It is fixed and shared by all key pairs.
 
 ::::::gameGrid
 :::::gameCell "\\KeyGen()" (kind := "compact")
@@ -362,13 +361,16 @@ def encapsOn (st : Coins × TqVec params.k) (ek : encoding.EncodedTHat) :
 ```
 :::::
 
-:::::gameCell "\\textsf{Factor}" (kind := "compact")
-$`\begin{array}{l}
-\forall\,\ek.\quad \Encaps(\ek)\ =\ \mathsf{do} \\
-\quad (\stct,\ctzero) \gets \Encaps.\mathsf{Off}() \\
-\quad (\ctone,m) \gets \Encaps.\mathsf{On}(\stct,\ek) \\
-\quad \Return\bigl((\ctzero,\ctone),\ m\bigr) \pcomment{\text{the message }m\text{ is the shared key}}
-\end{array}`
+:::::gameCell "\\textsf{Factorization}" (kind := "game")
+$`\forall\,\ek\in\Rq^k:\quad \Encaps(\ek)\equiv
+\left[(\stct,\ctzero)\gets\Encaps.\mathsf{Off}();\
+(\ctone,K)\gets\Encaps.\mathsf{On}(\stct,\ek);\
+\bigl((\ctzero,\ctone),K\bigr)\right]`
+:::::
+::::::
+
+:::leanPillCaption "on-off structure and factorization proof"
+:::
 
 ```anchor onOffFromKPKE (project := ".") (module := SecureMessaging.KEM.OnOffKEM.FromKPKE)
 def onOff : (scheme params encoding ring prims rho).OnOffStructure where
@@ -382,8 +384,6 @@ def onOff : (scheme params encoding ring prims rho).OnOffStructure where
     simp only [scheme, encaps, encapsOff, encapsOn, KPKE.encrypt, bind_assoc, pure_bind,
       Equiv.refl_symm, Equiv.coe_refl, id_eq]
 ```
-:::::
-::::::
 
 {usesLabel}`uses` {uses "on_off_kem_scheme"}[] · {uses "on_off_kem_kem_from_kpke"}[] · {githubLabel}`github` {githubIssue 41}[]
 :::::::
