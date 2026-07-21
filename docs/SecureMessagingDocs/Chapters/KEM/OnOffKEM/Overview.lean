@@ -113,6 +113,8 @@ On-Off KEM from ML-KEM.
 
 ::::::::definition "on_off_kem_kpke" (parent := "on_off_kem_on_off_kem_from_ml_kem") (lean := "MLKEM.KPKE.keygenFromSeed, MLKEM.KPKE.encrypt, MLKEM.KPKE.decrypt, MLKEM.NTTRingOps, MLKEM.Primitives.gKeygen, MLKEM.Primitives.prfEta2, MLKEM.Primitives.publicMatrix, MLKEM.Primitives.sampleVecEta1, MLKEM.Primitives.sampleVecEta2, MLKEM.Concrete.samplePolyCBD, MLKEM.Concrete.compress, MLKEM.Concrete.decompress, MLKEM.Concrete.byteEncode, MLKEM.Concrete.byteDecode")
 IND-CPA PKE $`(\KeyGen,\Enc,\Dec)` underlying ML-KEM ({Informal.citet FIPS203}[], §5).
+We write $`\Rq` for coefficient-domain polynomials and $`\Tq` for the NTT domain;
+$`\NTT` gives an isomorphism $`\Rq \cong \Tq`.
 
 :::::::leanSection "external-kpke"
 ```Verso.Genre.Manual.InlineLean.lean -show
@@ -123,9 +125,10 @@ variable (params : Params)
 :::::gameCell "\\textsf{Notation and public parameters}" (kind := "compact")
 $`\begin{array}{ll}
 \Rq = \mathbb{Z}_q[X]/(X^{256}+1) & \text{polynomial ring over } \mathbb{Z}_q \text{ with } q=3329 \\
-\NTT,\NTT^{-1}:\Rq\to\Rq & \text{Number-Theoretic Transforms} \\
-\hat{x}=\NTT(x) & \text{NTT-domain representation of }x \\
-\langle u,v\rangle \in \Rq & \text{vector product for }u, v \in \Rq^k \\
+\Tq & \text{NTT domain, isomorphic to }\Rq\text{ via }\NTT \\
+\NTT:\Rq\to\Tq,\ \NTT^{-1}:\Tq\to\Rq & \text{forward and inverse Number-Theoretic Transforms} \\
+\hat{x}=\NTT(x)\in\Tq & \text{hat notation marks NTT-domain values} \\
+\langle \hat{u},\hat{v}\rangle \in \Tq & \text{vector product for }\hat{u}, \hat{v} \in \Tq^k \\
 \end{array}`
 :::::
 
@@ -159,7 +162,7 @@ def keygenFromSeed (ring : NTTRingOps) (encoding : Encoding params)
 ```
 :::::
 
-:::::gameCell "\\Enc(\\ek=(\\hat{t},\\rho)\\in\\Rq^k\\times\\{0,1\\}^{256},\\ m\\in\\{0,1\\}^{256};\\ \\coins\\in\\{0,1\\}^{256})" (kind := "compact")
+:::::gameCell "\\Enc(\\ek=(\\hat{t},\\rho)\\in\\Tq^k\\times\\{0,1\\}^{256},\\ m\\in\\{0,1\\}^{256};\\ \\coins\\in\\{0,1\\}^{256})" (kind := "compact")
 $`\begin{array}{l}
 y \gets \SampleVec_1(\coins,0) \pcomment{\text{small ephemeral vector}} \\
 e_1 \gets \SampleVec_2(\coins,k) \pcomment{\text{small error vector}} \\
@@ -195,7 +198,7 @@ def encrypt (ring : NTTRingOps) (encoding : Encoding params)
 ```
 :::::
 
-:::::gameCell "\\Dec(\\dk=\\hat{s}\\in\\Rq^k,\\ \\ct=(\\ct_0,\\ct_1))" (kind := "compact")
+:::::gameCell "\\Dec(\\dk=\\hat{s}\\in\\Tq^k,\\ \\ct=(\\ct_0,\\ct_1))" (kind := "compact")
 $`\begin{array}{l}
 u' \gets \Decompress(\ctzero) \pcomment{\text{recover the }u\text{ component}} \\
 v' \gets \Decompress(\ctone) \pcomment{\text{recover the }v\text{ component}} \\
@@ -254,7 +257,7 @@ def keygen : ProbComp (encoding.EncodedTHat × encoding.EncodedTHat) := do
 ```
 :::::
 
-:::::gameCell "\\Encaps(\\ek=\\hat{t}\\in\\Rq^k)" (kind := "compact")
+:::::gameCell "\\Encaps(\\ek=\\hat{t}\\in\\Tq^k)" (kind := "compact")
 $`\begin{array}{l}
 \coins \sample \{0,1\}^{256} \\
 m \sample \{0,1\}^{256} \pcomment{\text{sample a random message}} \\
@@ -273,7 +276,7 @@ def encaps (ek : encoding.EncodedTHat) :
 ```
 :::::
 
-:::::gameCell "\\Decaps(\\dk=\\hat{s}\\in\\Rq^k,\\ \\ct)" (kind := "compact")
+:::::gameCell "\\Decaps(\\dk=\\hat{s}\\in\\Tq^k,\\ \\ct)" (kind := "compact")
 $`\begin{array}{l}
 m \gets \Dec(\hat{s}, \ct) \\
 \Return \mathsf{some}(m) \pcomment{\text{the decrypted message }m\text{ is the shared key}}
@@ -311,7 +314,7 @@ def scheme :
 Online-offline structure for the KEM specified in {bpref "on_off_kem_kem_from_kpke"}[]
 ({Informal.citet SCKA25}[], Def. 2.1). The ciphertext space splits as
 $`\C=\C_0\times\C_1` with $`\ct=(\ctzero,\ctone)`, and the offline state space is
-$`\St=\Rq^k\times\Rq` with the minimal online state $`\stct=(\hat{y},e_2)`.
+$`\St=\Tq^k\times\Rq` with the minimal online state $`\stct=(\hat{y},e_2)`.
 
 ::::::gameGrid
 :::::gameCell "\\Encaps.\\mathsf{Off}()" (kind := "compact")
@@ -340,7 +343,7 @@ def encapsOff : ProbComp ((TqVec params.k × Rq) × encoding.EncodedU) := do
 ```
 :::::
 
-:::::gameCell "\\Encaps.\\mathsf{On}(\\stct\\in\\St,\\ \\ek=\\hat{t}\\in\\Rq^k)" (kind := "compact")
+:::::gameCell "\\Encaps.\\mathsf{On}(\\stct\\in\\St,\\ \\ek=\\hat{t}\\in\\Tq^k)" (kind := "compact")
 $`\begin{array}{l}
 (\hat{y},e_2) \gets \stct \\
 m \sample \{0,1\}^{256} \\
@@ -362,7 +365,7 @@ def encapsOn (st : TqVec params.k × Rq) (ek : encoding.EncodedTHat) :
 :::::
 
 :::::gameCell "\\textsf{Factorization}" (kind := "game")
-$`\forall\,\ek\in\Rq^k:\quad \Encaps(\ek)\equiv
+$`\forall\,\ek\in\Tq^k:\quad \Encaps(\ek)\equiv
 \left[(\stct,\ctzero)\gets\Encaps.\mathsf{Off}();\
 (\ctone,K)\gets\Encaps.\mathsf{On}(\stct,\ek);\
 \bigl((\ctzero,\ctone),K\bigr)\right]`
