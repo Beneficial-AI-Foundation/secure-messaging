@@ -125,7 +125,7 @@ variable (params : Params)
 :::::gameCell "\\textsf{Notation and public parameters}" (kind := "compact")
 $`\begin{array}{ll}
 \Rq = \mathbb{Z}_q[X]/(X^{256}+1) & \text{polynomial ring over } \mathbb{Z}_q \text{ with } q=3329 \\
-\Tq & \text{NTT domain, isomorphic to }\Rq\text{ via }\NTT \\
+\Tq & \text{NTT domain, isomorphic to }\Rq\text{ (with isomorphism given by }\NTT\text{)} \\
 \NTT:\Rq\to\Tq,\ \NTT^{-1}:\Tq\to\Rq & \text{forward and inverse Number-Theoretic Transforms} \\
 \hat{x}=\NTT(x)\in\Tq & \text{hat notation marks NTT-domain values} \\
 \langle \hat{u},\hat{v}\rangle \in \Tq & \text{vector product for }\hat{u}, \hat{v} \in \Tq^k \\
@@ -314,7 +314,9 @@ def scheme :
 Online-offline structure for the KEM specified in {bpref "on_off_kem_kem_from_kpke"}[]
 ({Informal.citet SCKA25}[], Def. 2.1). The ciphertext space splits as
 $`\C=\C_0\times\C_1` with $`\ct=(\ctzero,\ctone)`, and the offline state space is
-$`\St=\Tq^k\times\Rq` with the minimal online state $`\stct=(\hat{y},e_2)`.
+$`\St=\Tq^k\times\Rq` with the minimal online state $`\stct=(\hat{y},e_2)`,
+where $`\hat{y}` stays in the NTT domain while $`e_2` remains in coefficient form for the
+final inverse transform.
 
 ::::::gameGrid
 :::::gameCell "\\Encaps.\\mathsf{Off}()" (kind := "compact")
