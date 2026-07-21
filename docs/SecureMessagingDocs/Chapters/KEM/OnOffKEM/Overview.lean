@@ -113,8 +113,6 @@ On-Off KEM from ML-KEM.
 
 ::::::::definition "on_off_kem_kpke" (parent := "on_off_kem_on_off_kem_from_ml_kem") (lean := "MLKEM.KPKE.keygenFromSeed, MLKEM.KPKE.encrypt, MLKEM.KPKE.decrypt, MLKEM.NTTRingOps, MLKEM.Primitives.gKeygen, MLKEM.Primitives.prfEta2, MLKEM.Primitives.publicMatrix, MLKEM.Primitives.sampleVecEta1, MLKEM.Primitives.sampleVecEta2, MLKEM.Concrete.samplePolyCBD, MLKEM.Concrete.compress, MLKEM.Concrete.decompress, MLKEM.Concrete.byteEncode, MLKEM.Concrete.byteDecode")
 IND-CPA PKE $`(\KeyGen,\Enc,\Dec)` underlying ML-KEM ({Informal.citet FIPS203}[], §5).
-We write $`\Rq` for coefficient-domain polynomials and $`\Tq` for the NTT domain;
-$`\NTT` gives an isomorphism $`\Rq \cong \Tq`.
 
 :::::::leanSection "external-kpke"
 ```Verso.Genre.Manual.InlineLean.lean -show
@@ -125,9 +123,9 @@ variable (params : Params)
 :::::gameCell "\\textsf{Notation and public parameters}" (kind := "compact")
 $`\begin{array}{ll}
 \Rq = \mathbb{Z}_q[X]/(X^{256}+1) & \text{polynomial ring over } \mathbb{Z}_q \text{ with } q=3329 \\
-\Tq & \text{NTT domain, isomorphic to }\Rq\text{ (with isomorphism given by }\NTT\text{)} \\
+\Tq & \text{NTT domain} \\
 \NTT:\Rq\to\Tq,\ \NTT^{-1}:\Tq\to\Rq & \text{forward and inverse Number-Theoretic Transforms} \\
-\hat{x}=\NTT(x)\in\Tq & \text{hat notation marks NTT-domain values} \\
+\hat{x}=\NTT(x)\in\Tq & \text{NTT-domain value} \\
 \langle \hat{u},\hat{v}\rangle \in \Tq & \text{vector product for }\hat{u}, \hat{v} \in \Tq^k \\
 \end{array}`
 :::::
@@ -314,8 +312,8 @@ def scheme :
 Online-offline structure for the KEM specified in {bpref "on_off_kem_kem_from_kpke"}[]
 ({Informal.citet SCKA25}[], Def. 2.1). The ciphertext space splits as
 $`\C=\C_0\times\C_1` with $`\ct=(\ctzero,\ctone)`, and the offline state space is
-$`\St=\Tq^k\times\Rq` with the minimal online state $`\stct=(\hat{y},e_2)`,
-where $`\hat{y}` stays in the NTT domain while $`e_2` remains in coefficient form for the
+$`\St=\Tq^k\times\Rq` with online state $`\stct=(\hat{y},e_2)`,
+where $`\hat{y}` is in the NTT domain while $`e_2` remains in coefficient form for the
 final inverse transform.
 
 ::::::gameGrid
