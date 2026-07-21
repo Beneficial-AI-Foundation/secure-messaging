@@ -30,7 +30,7 @@ in [SCKA, Def. 2.1].
 ## Kyber PKE (`MLKEM.KPKE`)
 
 All values are polynomials of the ML-KEM ring `R_q = ℤ_q[X] / (X^256 + 1)` with
-`q = 3329`, and vectors/matrices are over `R_q` of dimension `k`. The `NTT` and
+`q = 3329`. Vectors and matrices are over `R_q` of dimension `k`. The `NTT` and
 its inverse transform polynomial coefficients between two domains to make
 multiplication efficient; a hat marks a value in the NTT domain, e.g. `ŷ = NTT y`.
 
@@ -125,36 +125,7 @@ variable (params : Params) (encoding : Encoding params)
   (ring : NTTRingOps) (prims : Primitives params encoding)
   (rho : Seed32)
 
-/-- Offline encapsulation `Enc.Off`: sample the encapsulation randomness `y` and
-noise `e1` from fresh coins, compute `u = invNTTVec (Âᵀ ŷ) + e1`, and output
-its compressed encoding as `ct0` together with the state `(coins, ŷ)` needed by
-the online phase. Independent of the encapsulation key. -/
--- ANCHOR: encapsOffFromKPKE
-def encapsOff : ProbComp ((Coins × TqVec params.k) × encoding.EncodedU) := do
-  let coins ← $ᵗ Coins
-  let aHat := prims.publicMatrix rho
-  let y := prims.sampleVecEta1 coins 0
-  let e1 := prims.sampleVecEta2 coins params.k
-  let yHat := ring.nttVec y
-  let u := ring.invNTTVec (ring.matTransposeVecMul aHat yHat) + e1
-  pure ((coins, yHat), encoding.byteEncodeDUVec (encoding.compressDU u))
--- ANCHOR_END: encapsOffFromKPKE
-
-/-- Online encapsulation `Enc.On`: from the offline state `(coins, ŷ)` and the
-encapsulation key `ek = t̂`, sample the message `m` (the shared key), compute
-`v = invNTT ⟨t̂, ŷ⟩ + e2 + decompress₁ (decode₁ m)`, and output its compressed
-encoding as `ct1`. -/
--- ANCHOR: encapsOnFromKPKE
-def encapsOn (st : Coins × TqVec params.k) (ek : encoding.EncodedTHat) :
-    ProbComp (encoding.EncodedV × Message) := do
-  let (coins, yHat) := st
-  let tHat := encoding.byteDecode12Vec ek
-  let e2 := prims.prfEta2 coins (2 * params.k)
-  let msg ← $ᵗ Message
-  let mu := encoding.decompress1 (encoding.byteDecode1 msg)
-  let v := ring.invNTT (ring.dot tHat yHat) + e2 + mu
-  pure (encoding.byteEncodeDV (encoding.compressDV v), msg)
--- ANCHOR_END: encapsOnFromKPKE
+/-! ## KEM from K-PKE -/
 
 /-- Key generation against the fixed public matrix `Â = publicMatrix ρ`.
 Mirrors `MLKEM.KPKE.keygenFromSeed` with `ρ` fixed as a public parameter. -/
@@ -202,6 +173,39 @@ def scheme :
   decaps := decaps params encoding ring prims
 -- ANCHOR_END: schemeFromKPKE
 
+/-! ## Online-offline split -/
+
+/-- Offline encapsulation `Enc.Off`: sample fresh coins, derive the ephemeral
+vector `y` and noise `e1`, compute `u = invNTTVec (Âᵀ ŷ) + e1`, and output its
+compressed encoding as `ct0` together with the state `(coins, ŷ)` needed by the
+online phase. Independent of the encapsulation key. -/
+-- ANCHOR: encapsOffFromKPKE
+def encapsOff : ProbComp ((Coins × TqVec params.k) × encoding.EncodedU) := do
+  let coins ← $ᵗ Coins
+  let aHat := prims.publicMatrix rho
+  let y := prims.sampleVecEta1 coins 0
+  let e1 := prims.sampleVecEta2 coins params.k
+  let yHat := ring.nttVec y
+  let u := ring.invNTTVec (ring.matTransposeVecMul aHat yHat) + e1
+  pure ((coins, yHat), encoding.byteEncodeDUVec (encoding.compressDU u))
+-- ANCHOR_END: encapsOffFromKPKE
+
+/-- Online encapsulation `Enc.On`: from the offline state `(coins, ŷ)` and the
+encapsulation key `ek = t̂`, derive `e2` from `coins`, sample the message `m`
+(the shared key), compute `v = invNTT ⟨t̂, ŷ⟩ + e2 + decompress₁ (decode₁ m)`,
+and output its compressed encoding as `ct1`. -/
+-- ANCHOR: encapsOnFromKPKE
+def encapsOn (st : Coins × TqVec params.k) (ek : encoding.EncodedTHat) :
+    ProbComp (encoding.EncodedV × Message) := do
+  let (coins, yHat) := st
+  let tHat := encoding.byteDecode12Vec ek
+  let e2 := prims.prfEta2 coins (2 * params.k)
+  let msg ← $ᵗ Message
+  let mu := encoding.decompress1 (encoding.byteDecode1 msg)
+  let v := ring.invNTT (ring.dot tHat yHat) + e2 + mu
+  pure (encoding.byteEncodeDV (encoding.compressDV v), msg)
+-- ANCHOR_END: encapsOnFromKPKE
+
 /-- The online-offline structure for the K-PKE KEM: the ciphertext splits as
 `ct = (ct0, ct1)`, and `factor` proves that the KEM's encapsulation
 (`MLKEM.KPKE.encrypt`) equals the offline phase `encapsOff` followed by the
@@ -219,7 +223,9 @@ def onOff : (scheme params encoding ring prims rho).OnOffStructure where
       Equiv.refl_symm, Equiv.coe_refl, id_eq]
 -- ANCHOR_END: onOffFromKPKE
 
-/-- The K-PKE on/off KEM at Kyber-768, with the concrete encoding, NTT, and
+/-! ## Concrete Kyber-768 instance -/
+
+/-- The K-PKE-derived KEM at Kyber-768, with the concrete encoding, NTT, and
 FFI-backed primitives; `rho` is the public matrix seed, treated as a public
 parameter. -/
 def schemeKyber768 (rho : Seed32) :
