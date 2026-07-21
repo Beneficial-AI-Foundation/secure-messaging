@@ -111,7 +111,7 @@ On-Off KEM from ML-KEM.
 :::defTitle "on_off_kem_kpke" "Kyber Public-Key Encryption (K-PKE)"
 :::
 
-::::::::definition "on_off_kem_kpke" (parent := "on_off_kem_on_off_kem_from_ml_kem") (lean := "MLKEM.KPKE.keygenFromSeed, MLKEM.KPKE.encrypt, MLKEM.KPKE.decrypt, MLKEM.NTTRingOps, MLKEM.Primitives.gKeygen, MLKEM.Primitives.sampleNTT, MLKEM.Primitives.prfEta1, MLKEM.Primitives.prfEta2, MLKEM.Primitives.publicMatrix, MLKEM.Primitives.sampleVecEta1, MLKEM.Primitives.sampleVecEta2, MLKEM.Concrete.samplePolyCBD, MLKEM.Concrete.compress, MLKEM.Concrete.decompress, MLKEM.Concrete.byteEncode, MLKEM.Concrete.byteDecode")
+::::::::definition "on_off_kem_kpke" (parent := "on_off_kem_on_off_kem_from_ml_kem") (lean := "MLKEM.KPKE.keygenFromSeed, MLKEM.KPKE.encrypt, MLKEM.KPKE.decrypt, MLKEM.NTTRingOps, MLKEM.Primitives.gKeygen, MLKEM.Primitives.prfEta2, MLKEM.Primitives.publicMatrix, MLKEM.Primitives.sampleVecEta1, MLKEM.Primitives.sampleVecEta2, MLKEM.Concrete.samplePolyCBD, MLKEM.Concrete.compress, MLKEM.Concrete.decompress, MLKEM.Concrete.byteEncode, MLKEM.Concrete.byteDecode")
 IND-CPA PKE $`(\KeyGen,\Enc,\Dec)` underlying ML-KEM ({Informal.citet FIPS203}[], §5).
 
 :::::::leanSection "external-kpke"
@@ -311,7 +311,7 @@ def scheme :
 Online-offline structure for the KEM specified in {bpref "on_off_kem_kem_from_kpke"}[]
 ({Informal.citet SCKA25}[], Def. 2.1). The ciphertext space splits as
 $`\C=\C_0\times\C_1` with $`\ct=(\ctzero,\ctone)`, and the offline state space is
-$`\St=\{0,1\}^{256}\times\Rq^k` with $`\stct=(\coins,\hat{y})`.
+$`\St=\Rq^k\times\Rq` with the minimal online state $`\stct=(\hat{y},e_2)`.
 
 ::::::gameGrid
 :::::gameCell "\\Encaps.\\mathsf{Off}()" (kind := "compact")
@@ -319,29 +319,30 @@ $`\begin{array}{l}
 \coins \sample \{0,1\}^{256} \\
 y \gets \SampleVec_1(\coins,0) \pcomment{\text{small ephemeral vector}} \\
 e_1 \gets \SampleVec_2(\coins,k) \pcomment{\text{small error vector}} \\
+e_2 \gets \SamplePoly_2(\coins,2k) \pcomment{\text{small error polynomial}} \\
 \hat{A} \gets \XOF(\rho) \pcomment{\text{reconstruct public matrix from fixed seed }\rho} \\
 \hat{y} \gets \NTT(y) \\
 u \gets \NTT^{-1}(\hat{A}^{\top}\hat{y}) + e_1 \\
-\stct \gets (\coins, \hat{y}) \\
+\stct \gets (\hat{y},e_2) \\
 \Return (\stct,\ \ctzero = \Compress(u)) \pcomment{\text{compress first component}}
 \end{array}`
 
 ```anchor encapsOffFromKPKE (project := ".") (module := SecureMessaging.KEM.OnOffKEM.FromKPKE)
-def encapsOff : ProbComp ((Coins × TqVec params.k) × encoding.EncodedU) := do
+def encapsOff : ProbComp ((TqVec params.k × Rq) × encoding.EncodedU) := do
   let coins ← $ᵗ Coins
   let aHat := prims.publicMatrix rho
   let y := prims.sampleVecEta1 coins 0
   let e1 := prims.sampleVecEta2 coins params.k
+  let e2 := prims.prfEta2 coins (2 * params.k)
   let yHat := ring.nttVec y
   let u := ring.invNTTVec (ring.matTransposeVecMul aHat yHat) + e1
-  pure ((coins, yHat), encoding.byteEncodeDUVec (encoding.compressDU u))
+  pure ((yHat, e2), encoding.byteEncodeDUVec (encoding.compressDU u))
 ```
 :::::
 
 :::::gameCell "\\Encaps.\\mathsf{On}(\\stct\\in\\St,\\ \\ek=\\hat{t}\\in\\Rq^k)" (kind := "compact")
 $`\begin{array}{l}
-(\coins, \hat{y}) \gets \stct \\
-e_2 \gets \SamplePoly_2(\coins,2k) \pcomment{\text{small error polynomial}} \\
+(\hat{y},e_2) \gets \stct \\
 m \sample \{0,1\}^{256} \\
 \mu \gets \Embed(m) \pcomment{\text{embed message in }\Rq} \\
 v \gets \NTT^{-1}(\langle \hat{t}, \hat{y}\rangle) + e_2 + \mu \\
@@ -349,11 +350,10 @@ v \gets \NTT^{-1}(\langle \hat{t}, \hat{y}\rangle) + e_2 + \mu \\
 \end{array}`
 
 ```anchor encapsOnFromKPKE (project := ".") (module := SecureMessaging.KEM.OnOffKEM.FromKPKE)
-def encapsOn (st : Coins × TqVec params.k) (ek : encoding.EncodedTHat) :
+def encapsOn (st : TqVec params.k × Rq) (ek : encoding.EncodedTHat) :
     ProbComp (encoding.EncodedV × Message) := do
-  let (coins, yHat) := st
+  let (yHat, e2) := st
   let tHat := encoding.byteDecode12Vec ek
-  let e2 := prims.prfEta2 coins (2 * params.k)
   let msg ← $ᵗ Message
   let mu := encoding.decompress1 (encoding.byteDecode1 msg)
   let v := ring.invNTT (ring.dot tHat yHat) + e2 + mu
@@ -374,12 +374,12 @@ $`\forall\,\ek\in\Rq^k:\quad \Encaps(\ek)\equiv
 
 ```anchor onOffFromKPKE (project := ".") (module := SecureMessaging.KEM.OnOffKEM.FromKPKE)
 def onOff : (scheme params encoding ring prims rho).OnOffStructure where
-  St := Coins × TqVec params.k
+  St := TqVec params.k × Rq
   C₀ := encoding.EncodedU
   C₁ := encoding.EncodedV
   split := Equiv.refl (encoding.EncodedU × encoding.EncodedV)
   encapsOff := encapsOff params encoding ring prims rho
-  encapsOn := encapsOn params encoding ring prims
+  encapsOn := encapsOn params encoding ring
   factor ek := by
     simp only [scheme, encaps, encapsOff, encapsOn, KPKE.encrypt, bind_assoc, pure_bind,
       Equiv.refl_symm, Equiv.coe_refl, id_eq]

@@ -87,7 +87,7 @@ We build the KEM directly on `MLKEM.KPKE`, reusing the `keygen`, `encrypt`, and
     (ct0, ct1) ← encrypt(t̂, m; coins)
     return ((ct0, ct1), m)
   decaps(dk = ŝ, (ct0, ct1)):
-    return some (decrypt(ŝ, (ct0, ct1)))   -- = some m; decapsulation never fails
+    return some (decrypt(ŝ, (ct0, ct1)))
 ```
 
 Here `encaps` and `decaps` call K-PKE encryption and decryption directly; only
@@ -102,8 +102,8 @@ separately (`u = ct0` offline, `v = ct1` online, as in `encrypt` above):
     sample coins               -- fixes y, e1, e2
     ŷ ← NTT y
     u ← invNTTVec (Âᵀ ŷ) + e1                                -- ct0
-    return (st = (coins, ŷ), byteEncodeDUVec (compressDU u))
-  encapsOn(st = (coins, ŷ), ek = t̂):
+    return (st = (ŷ, e2), byteEncodeDUVec (compressDU u))
+  encapsOn(st = (ŷ, e2), ek = t̂):
     sample m                                                 -- the shared key
     v ← invNTT ⟨t̂, ŷ⟩ + e2 + decompress₁ (decode₁ m)         -- ct1
     return (byteEncodeDV (compressDV v), m)
@@ -153,7 +153,9 @@ def encaps (ek : encoding.EncodedTHat) :
   pure ((ct.uEncoded, ct.vEncoded), msg)
 -- ANCHOR_END: encapsFromKPKE
 
-/-- Decapsulation: reassemble the K-PKE ciphertext and run `MLKEM.KPKE.decrypt`. -/
+/-- Decapsulation: reassemble the K-PKE ciphertext and run the total
+`MLKEM.KPKE.decrypt`. The result is always wrapped in `some`; a K-PKE decryption
+error means recovering `m' ≠ m`, not returning `none`. -/
 -- ANCHOR: decapsFromKPKE
 def decaps (dk : encoding.EncodedTHat) (c : encoding.EncodedU × encoding.EncodedV) :
     ProbComp (Option Message) :=
@@ -176,30 +178,30 @@ def scheme :
 /-! ## Online-offline split -/
 
 /-- Offline encapsulation `Enc.Off`: sample fresh coins, derive the ephemeral
-vector `y` and noise `e1`, compute `u = invNTTVec (Âᵀ ŷ) + e1`, and output its
-compressed encoding as `ct0` together with the state `(coins, ŷ)` needed by the
-online phase. Independent of the encapsulation key. -/
+vector `y` and noise `e1`, `e2`, compute `u = invNTTVec (Âᵀ ŷ) + e1`, and output
+its compressed encoding as `ct0` together with the minimal online state `(ŷ, e2)`.
+Independent of the encapsulation key. -/
 -- ANCHOR: encapsOffFromKPKE
-def encapsOff : ProbComp ((Coins × TqVec params.k) × encoding.EncodedU) := do
+def encapsOff : ProbComp ((TqVec params.k × Rq) × encoding.EncodedU) := do
   let coins ← $ᵗ Coins
   let aHat := prims.publicMatrix rho
   let y := prims.sampleVecEta1 coins 0
   let e1 := prims.sampleVecEta2 coins params.k
+  let e2 := prims.prfEta2 coins (2 * params.k)
   let yHat := ring.nttVec y
   let u := ring.invNTTVec (ring.matTransposeVecMul aHat yHat) + e1
-  pure ((coins, yHat), encoding.byteEncodeDUVec (encoding.compressDU u))
+  pure ((yHat, e2), encoding.byteEncodeDUVec (encoding.compressDU u))
 -- ANCHOR_END: encapsOffFromKPKE
 
-/-- Online encapsulation `Enc.On`: from the offline state `(coins, ŷ)` and the
-encapsulation key `ek = t̂`, derive `e2` from `coins`, sample the message `m`
-(the shared key), compute `v = invNTT ⟨t̂, ŷ⟩ + e2 + decompress₁ (decode₁ m)`,
-and output its compressed encoding as `ct1`. -/
+/-- Online encapsulation `Enc.On`: from the minimal offline state `(ŷ, e2)` and
+the encapsulation key `ek = t̂`, sample the message `m` (the shared key), compute
+`v = invNTT ⟨t̂, ŷ⟩ + e2 + decompress₁ (decode₁ m)`, and output its compressed
+encoding as `ct1`. -/
 -- ANCHOR: encapsOnFromKPKE
-def encapsOn (st : Coins × TqVec params.k) (ek : encoding.EncodedTHat) :
+def encapsOn (st : TqVec params.k × Rq) (ek : encoding.EncodedTHat) :
     ProbComp (encoding.EncodedV × Message) := do
-  let (coins, yHat) := st
+  let (yHat, e2) := st
   let tHat := encoding.byteDecode12Vec ek
-  let e2 := prims.prfEta2 coins (2 * params.k)
   let msg ← $ᵗ Message
   let mu := encoding.decompress1 (encoding.byteDecode1 msg)
   let v := ring.invNTT (ring.dot tHat yHat) + e2 + mu
@@ -212,12 +214,12 @@ def encapsOn (st : Coins × TqVec params.k) (ek : encoding.EncodedTHat) :
 online phase `encapsOn`. -/
 -- ANCHOR: onOffFromKPKE
 def onOff : (scheme params encoding ring prims rho).OnOffStructure where
-  St := Coins × TqVec params.k
+  St := TqVec params.k × Rq
   C₀ := encoding.EncodedU
   C₁ := encoding.EncodedV
   split := Equiv.refl (encoding.EncodedU × encoding.EncodedV)
   encapsOff := encapsOff params encoding ring prims rho
-  encapsOn := encapsOn params encoding ring prims
+  encapsOn := encapsOn params encoding ring
   factor ek := by
     simp only [scheme, encaps, encapsOff, encapsOn, KPKE.encrypt, bind_assoc, pure_bind,
       Equiv.refl_symm, Equiv.coe_refl, id_eq]
