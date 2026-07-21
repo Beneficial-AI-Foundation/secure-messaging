@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.AESGCM.GaloisField
+import Mathlib.Data.BitVec
 
 /-!
 # GCTR, `inc₃₂`, and the pre-counter block `J₀` (NIST SP 800-38D §6.2, §6.5, §7.1)
