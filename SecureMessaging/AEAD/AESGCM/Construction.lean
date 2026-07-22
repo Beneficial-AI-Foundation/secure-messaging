@@ -64,22 +64,50 @@ open OracleSpec OracleComp
 
 variable {K : Type} {n : ℕ}
 
+/-! ## The length block and the length constraint on the input
+
+`lenBlock` and `ValidLengths` are two views of the same pair of bit-lengths,
+`len(A)` and `len(C)`: `lenBlock` packs them into the tag input, `ValidLengths`
+bounds them. Both assume the **whole-block model** (see the module *Scope*: the
+message and AAD are whole 128-bit blocks, so every length is `128 · #blocks`), and
+both must change together if it is relaxed to allow a partial final block:
+`lenBlock` would take the true bit-lengths of `A`/`C` (with the GHASH input
+zero-padding the partial blocks, NIST §7.1 steps 4–5) *and* `ValidLengths`'
+bit-to-block conversion would be redone. Changing one without the other silently
+computes the tag over a wrong length.
+-/
+
 /-- The GCM length block `len(A) ‖ len(C)` (NIST SP 800-38D §7.1): the 64-bit
-bit-lengths of the AAD and ciphertext concatenated, i.e. `128 · #blocks` each
-when block-aligned.
+bit-lengths of the AAD `A` (here `ad`) and the ciphertext `C` (here `c`, the GCTR
+output, `cBlocks` blocks) concatenated, `128 · #blocks` each (whole-block model,
+see above).
 
 This length field is GCM's binding of the `A`/`C` boundary, the defense against
-an adversary shifting bits between the AAD and the ciphertext.
-
-**Block-aligned assumption.** The `* 128` hardcodes the whole-block
-model: it takes *block counts* and multiplies, rather than taking true bit
-lengths. This is correct only because the message and AAD are whole 128-bit
-blocks (see the module *Scope*). If the domain is ever widened to allow a partial
-final block, this must be generalized to the real bit-lengths of `A`/`C` **and**
-the GHASH input must zero-pad the partial blocks (NIST §7.1 steps 4–5); changing
-one without the other silently computes the tag over a wrong length. -/
+an adversary shifting bits between the AAD and the ciphertext. -/
 def lenBlock (adBlocks cBlocks : ℕ) : BitVec 128 :=
   BitVec.ofNat 64 (adBlocks * 128) ++ BitVec.ofNat 64 (cBlocks * 128)
+
+/-- The GCM input-length constraint (NIST SP 800-38D §5.2.1.1), phrased in the
+whole-block model as bounds on the AAD and ciphertext **block counts**.
+
+NIST bounds the *bit* lengths of the plaintext `P` (here the message `m`) and the
+AAD `A` (here `ad`): `len(P) ≤ 2^39 − 256` and `len(A) ≤ 2^64 − 1`. Two steps turn
+these into the block-count bounds below.
+
+- **Carrying the `P` bound over to ciphertext blocks.** GCTR (CTR mode) preserves
+  length, so the ciphertext has exactly as many blocks as the plaintext:
+  `cBlocks = n`. A bound on `len(P)` is therefore a bound on `cBlocks`. (NIST
+  constrains `P`, never `C`, precisely because they have equal length.)
+- **Converting bit lengths to block counts.** Block alignment means
+  `len = 128 · #blocks`, so each bit bound divides through by 128 (floored):
+  `cBlocks ≤ (2^39 − 256) / 128 = 2^32 − 2` and
+  `adBlocks ≤ ⌊(2^64 − 1) / 128⌋ = 2^57 − 1`.
+
+These are security bounds, not correctness bounds: `gcmDecrypt ∘ gcmEncrypt`
+round-trips at every length.
+-/
+def ValidLengths (adBlocks cBlocks : ℕ) : Prop :=
+  cBlocks ≤ 2 ^ 32 - 2 ∧ adBlocks ≤ 2 ^ 57 - 1
 
 /-- GCM authenticated encryption `GCM-AE_K(IV, P, A)` (NIST SP 800-38D §7.1,
 Algorithm 4).

@@ -33,12 +33,13 @@ lemma itself is future work.)
 
 /-- An AES block cipher: a PRP on 128-bit blocks. The key space `K` is an
 arbitrary type parameter; intended instantiations are `BitVec 128`, `BitVec 192`,
-and `BitVec 256` for AES-128/192/256.
+and `BitVec 256` for AES-128/192/256, the FIPS-197 key lengths (Table 4).
 
 The `PRPScheme` fields give the interface: encryption is the forward permutation
 `perm`, decryption is `invPerm`. The security-relevant properties are *not*
-bundled by this alias but assumed separately: correctness is invertibility
-(`PRPScheme.Correct`) and pseudorandomness is PRP security. -/
+bundled by this alias but assumed separately: correctness is invertibility —
+`invPerm k` is the two-sided inverse of `perm k`, spelled out in
+`PRPScheme.Correct` — and pseudorandomness is PRP security. -/
 abbrev AES (K : Type) := PRPScheme K (BitVec 128)
 
 namespace AES
