@@ -45,8 +45,8 @@ def aesGcmAEAD (cipher : AES K) :
     let k ← cipher.keygen
     let nonce ← $ᵗ (BitVec 96)
     return (k, nonce)
-  encrypt := fun (k, nonce) ad m => gcmEncrypt (cipher.perm k) nonce ad m
-  decrypt := fun (k, nonce) ad c => gcmDecrypt (cipher.perm k) nonce ad c
+  encrypt := fun (k, nonce) ad m => gcmEncrypt cipher.perm k nonce ad m
+  decrypt := fun (k, nonce) ad c => gcmDecrypt cipher.perm k nonce ad c
 ```
 
 {usesLabel}`uses` {uses "aead"}[] · {githubLabel}`github` {githubIssue 21}[]

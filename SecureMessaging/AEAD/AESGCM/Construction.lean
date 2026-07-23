@@ -4,8 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.AESGCM.GCtr
-import SecureMessaging.AEAD.AESGCM.GHash
+import SecureMessaging.AEAD.AESGCM.Gcm
 import SecureMessaging.AEAD.AESGCM.TestVectors
 import SecureMessaging.AEAD.Defs
 import SecureMessaging.AES.Defs
@@ -34,16 +33,17 @@ the `AEADScheme` `aesGcmAEAD`.
 
 ## Where AES is
 
-GCM is generic over a 128-bit block cipher that NIST SP 800-38D calls `CIPH_K`
-(§5.1), and it never inspects that cipher, only evaluates it. So the algorithms
-`gcmEncrypt`/`gcmDecrypt` abstract the cipher away entirely: it enters only as a
-plain function `E : BitVec 128 → BitVec 128` (`E = CIPH_K = E_K`), and `AES` is
-never mentioned at this layer.
+GCM is generic over a 128-bit block cipher that NIST SP 800-38D calls `CIPH`,
+keyed by `K` (§5.1), and it never inspects that cipher, only evaluates it. So the
+algorithms `gcmEncrypt`/`gcmDecrypt` keep the cipher abstract, mirroring NIST's
+keyed `GCM-AE_K`/`GCTR_K`: it enters as a key-indexed family
+`ciph : K → BitVec 128 → BitVec 128` (`ciph = CIPH`) together with the key
+`k : K`, evaluated `ciph k = CIPH_K = E_K`. `AES` is never mentioned at this layer.
 
 AES appears one layer up, in the scheme `aesGcmAEAD`, which is what makes this
 *AES*-GCM (`CIPH = AES`, FIPS 197). There we commit to the cipher as
 `cipher : AES K` (the `AES` interface, a PRP on 128-bit blocks) and instantiate
-the algorithms with `E = cipher.perm k`.
+the algorithms with `ciph = cipher.perm` and the sampled key `k`.
 
 AES bottoms out as an opaque primitive: its FIPS-197 internals are out of scope,
 assumed to be a PRP, on which GCM's security rests via the PRP/PRF switching lemma
@@ -67,7 +67,8 @@ motivating caller mandates: HPKE (RFC 9180) registers every AES-GCM AEAD with a
 fixed 96-bit nonce length `Nn = 12`, so an RFC-9180-compliant caller cannot use
 any other IV length. The general (non-96-bit) IV path, where NIST derives a
 128-bit `J₀` via a GHASH over the padded IV (§7.1), is therefore provably unused
-here; `j0` (`GCtr.lean`) is the seam where it would slot in if ever needed.
+here; the direct `J₀ = IV ‖ 0^31 ‖ 1` step in `gcmEncrypt`/`gcmDecrypt` is the
+seam where that general derivation would slot in if ever needed.
 -/
 
 open OracleSpec OracleComp
@@ -129,9 +130,10 @@ def ValidLengths (adBlocks cBlocks : ℕ) : Prop :=
 Algorithm 4).
 
 This is the **algorithm layer**: cipher-agnostic, exactly as NIST §5.1 defines
-GCM over any 128-bit block cipher. The cipher enters only as the already-keyed
-forward map `E = CIPH_K = E_K : BitVec 128 → BitVec 128`; `AES` is never
-mentioned here (that commitment happens in `aesGcmAEAD`).
+GCM over any 128-bit block cipher. Following NIST's keyed `GCM-AE_K`, the cipher
+enters as the forward family `ciph = CIPH : K → BitVec 128 → BitVec 128` with the
+key `k : K`, evaluated `ciph k = CIPH_K = E_K`; `AES` is never mentioned here
+(that commitment happens in `aesGcmAEAD`).
 
 Specialized to the common configuration (see the module *Scope*):
 - **96-bit IV** (the `nonce`): `J₀ = IV ‖ 0^31 ‖ 1` directly — the length NIST
@@ -155,31 +157,32 @@ Following NIST's step numbering:
 - (5) `S = GHASH_H(A ‖ C ‖ (len(A) ‖ len(C)))` (step 4's padding is empty here);
 - (6) `T = E_K(J₀) ⊕ S` (NIST's `MSB_t(GCTR_K(J₀, S))` for the full tag `t = 128`);
 - (7) output `(C, T)`. -/
-def gcmEncrypt (E : BitVec 128 → BitVec 128) (nonce : BitVec 96)
+def gcmEncrypt (ciph : K → BitVec 128 → BitVec 128) (k : K) (nonce : BitVec 96)
     (ad : List (BitVec 128)) (m : Vector (BitVec 128) n) :
     Vector (BitVec 128) n × BitVec 128 :=
-  let h := E 0
-  -- (2) pre-counter block `J₀` (Alg. 4 step 2, 96-bit-IV branch): NIST's `IV` is
-  -- the per-key `nonce`. `J₀` is *not* the IV; `inc₃₂ J₀` is gctr's counter block.
-  let j₀ := j0 nonce
-  let c := gctr E (inc32 j₀) m
+  let h := ciph k 0
+  -- (2) pre-counter block `J₀ = IV ‖ 0^31 ‖ 1` (Alg. 4 step 2, 96-bit-IV branch):
+  -- NIST's `IV` is the per-key `nonce`. `J₀` is *not* the IV; `inc₃₂ J₀` is gctr's
+  -- counter block.
+  let j₀ := nonce ++ (0 : BitVec 31) ++ (1 : BitVec 1)
+  let c := gctr ciph k (inc32 j₀) m
   let s := ghash h (ad ++ c.toList ++ [lenBlock ad.length n])
-  let t := E j₀ ^^^ s
+  let t := ciph k j₀ ^^^ s
   (c, t)
 
 /-- GCM authenticated decryption `GCM-AD_K(IV, C, A, T)` (NIST SP 800-38D §7.2,
 Algorithm 5): recompute the tag from `C, A` (same full-tag form as `gcmEncrypt`);
 on a match return `GCTR_K(inc₃₂(J₀), C) = P`, else `none` (NIST's `FAIL`). -/
-def gcmDecrypt (E : BitVec 128 → BitVec 128) (nonce : BitVec 96)
+def gcmDecrypt (ciph : K → BitVec 128 → BitVec 128) (k : K) (nonce : BitVec 96)
     (ad : List (BitVec 128)) (ct : Vector (BitVec 128) n × BitVec 128) :
     Option (Vector (BitVec 128) n) :=
   let (c, t) := ct
-  let h := E 0
-  -- (2) pre-counter block `J₀` (Alg. 5 step 2, 96-bit-IV branch): as in `gcmEncrypt`,
-  -- NIST's `IV` is the per-key `nonce` and `J₀` is derived from it by `j0`.
-  let j₀ := j0 nonce
+  let h := ciph k 0
+  -- (2) pre-counter block `J₀ = IV ‖ 0^31 ‖ 1` (Alg. 5 step 2, 96-bit-IV branch):
+  -- as in `gcmEncrypt`, NIST's `IV` is the per-key `nonce`.
+  let j₀ := nonce ++ (0 : BitVec 31) ++ (1 : BitVec 1)
   let s := ghash h (ad ++ c.toList ++ [lenBlock ad.length n])
-  if t = E j₀ ^^^ s then some (gctr E (inc32 j₀) c) else none
+  if t = ciph k j₀ ^^^ s then some (gctr ciph k (inc32 j₀) c) else none
 
 /-- **AES-GCM as an `AEADScheme`**: the NIST SP 800-38D §7 algorithms adapted to
 the ACD19 `AEADScheme` interface, where the IV is absorbed into the key rather
@@ -188,11 +191,12 @@ than passed per call.
 This is the **scheme layer**, and the *only* place AES is committed to: the
 cipher-agnostic `gcmEncrypt`/`gcmDecrypt` are instantiated by supplying the `AES`
 interface (a PRP on 128-bit blocks, so `keygen` carries a key distribution),
-plugged in as `E = cipher.perm k`. The abstract argument `E` of the algorithm
-layer thus becomes concrete here, and the security game lives at this level (via
-`cipher.toPRFScheme`), not inside the algorithms. Although a PRP is invertible,
-only the forward `perm` is used, never `invPerm`, because both encryption and
-decryption run through CTR mode, which only evaluates the cipher forward.
+plugged in as the cipher family `ciph = cipher.perm` with the sampled key `k`.
+The abstract cipher of the algorithm layer thus becomes concrete here, and the
+security game lives at this level (via `cipher.toPRFScheme`), not inside the
+algorithms. Although a PRP is invertible, only the forward `perm` is used, never
+`invPerm`, because both encryption and decryption run through CTR mode, which
+only evaluates the cipher forward.
 
 The AEAD key `K × BitVec 96` bundles the cipher key with a fresh per-key nonce
 that `keygen` samples (analogous to HPKE's `base_nonce`, which HPKE instead
@@ -209,8 +213,8 @@ def aesGcmAEAD (cipher : AES K) :
     let k ← cipher.keygen
     let nonce ← $ᵗ (BitVec 96)
     return (k, nonce)
-  encrypt := fun (k, nonce) ad m => gcmEncrypt (cipher.perm k) nonce ad m
-  decrypt := fun (k, nonce) ad c => gcmDecrypt (cipher.perm k) nonce ad c
+  encrypt := fun (k, nonce) ad m => gcmEncrypt cipher.perm k nonce ad m
+  decrypt := fun (k, nonce) ad c => gcmDecrypt cipher.perm k nonce ad c
 -- ANCHOR_END: aesGcmAEAD
 
 /-! ## GCM validation vector (McGrew–Viega Test Case 3, not in SP 800-38D:
@@ -234,17 +238,17 @@ private def tc3Ciphertext : Vector (BitVec 128) 4 × BitVec 128 :=
 
 /-- `gcmEncrypt` reproduces the Test Case 3 ciphertext and tag. -/
 example :
-    gcmEncrypt tc3Cipher 0xcafebabefacedbaddecaf888 [] tc3Plain = tc3Ciphertext := by
+    gcmEncrypt tc3Cipher () 0xcafebabefacedbaddecaf888 [] tc3Plain = tc3Ciphertext := by
   decide
 
 /-- `gcmDecrypt` inverts `gcmEncrypt`. -/
 example :
-    gcmDecrypt tc3Cipher 0xcafebabefacedbaddecaf888 [] tc3Ciphertext = some tc3Plain := by
+    gcmDecrypt tc3Cipher () 0xcafebabefacedbaddecaf888 [] tc3Ciphertext = some tc3Plain := by
   decide
 
 /-- `gcmDecrypt` rejects a tampered tag. -/
 example :
-    gcmDecrypt tc3Cipher 0xcafebabefacedbaddecaf888 []
+    gcmDecrypt tc3Cipher () 0xcafebabefacedbaddecaf888 []
       (tc3Ciphertext.1, 0x00000000000000000000000000000000) = none := by decide
 
 /-! ## Edge-case / robustness checks (block-aligned AAD, empty message,
@@ -260,9 +264,9 @@ that also publish `H = E_K(0)` do not exist). -/
 /-- Non-empty (block-aligned) AAD round-trips: exercises the `ad`-concatenation
 and the `len(A)` field of the length block, both left at zero by Test Case 3. -/
 example :
-    gcmDecrypt tc3Cipher 0xcafebabefacedbaddecaf888
+    gcmDecrypt tc3Cipher () 0xcafebabefacedbaddecaf888
       [0xfeedfacedeadbeeffeedfacedeadbeef, 0x00112233445566778899aabbccddeeff]
-      (gcmEncrypt tc3Cipher 0xcafebabefacedbaddecaf888
+      (gcmEncrypt tc3Cipher () 0xcafebabefacedbaddecaf888
         [0xfeedfacedeadbeeffeedfacedeadbeef, 0x00112233445566778899aabbccddeeff]
         tc3Plain)
       = some tc3Plain := by decide
@@ -271,9 +275,9 @@ example :
 encrypt is rejected (GHASH, hence the tag, binds the AAD). This is the strong
 check — it fails if the AAD were dropped from the tag. -/
 example :
-    gcmDecrypt tc3Cipher 0xcafebabefacedbaddecaf888
+    gcmDecrypt tc3Cipher () 0xcafebabefacedbaddecaf888
       [0xfeedfacedeadbeeffeedfacedeadbeef, 0x00000000000000000000000000000000]
-      (gcmEncrypt tc3Cipher 0xcafebabefacedbaddecaf888
+      (gcmEncrypt tc3Cipher () 0xcafebabefacedbaddecaf888
         [0xfeedfacedeadbeeffeedfacedeadbeef, 0x00112233445566778899aabbccddeeff]
         tc3Plain)
       = none := by decide
@@ -281,20 +285,20 @@ example :
 /-- Empty message (`n = 0`): the ciphertext is empty and the tag is the pure tag
 mask `E_K(J₀)`, since GHASH of the single all-zero length block is `0`. -/
 example :
-    gcmEncrypt tc3Cipher 0xcafebabefacedbaddecaf888 [] (#v[] : Vector (BitVec 128) 0)
+    gcmEncrypt tc3Cipher () 0xcafebabefacedbaddecaf888 [] (#v[] : Vector (BitVec 128) 0)
       = ((#v[] : Vector (BitVec 128) 0), 0x3247184b3c4f69a44dbcd22887bbb418) := by decide
 
 /-- Empty-message round-trip. -/
 example :
-    gcmDecrypt tc3Cipher 0xcafebabefacedbaddecaf888 []
-      (gcmEncrypt tc3Cipher 0xcafebabefacedbaddecaf888 [] (#v[] : Vector (BitVec 128) 0))
+    gcmDecrypt tc3Cipher () 0xcafebabefacedbaddecaf888 []
+      (gcmEncrypt tc3Cipher () 0xcafebabefacedbaddecaf888 [] (#v[] : Vector (BitVec 128) 0))
       = some (#v[] : Vector (BitVec 128) 0) := by decide
 
 /-- Ciphertext integrity: flipping one bit of the first ciphertext block makes the
 recomputed tag mismatch, so decryption returns `none` (complements the
 tampered-*tag* check above, which leaves `C` intact). -/
 example :
-    gcmDecrypt tc3Cipher 0xcafebabefacedbaddecaf888 []
+    gcmDecrypt tc3Cipher () 0xcafebabefacedbaddecaf888 []
       ( #v[ 0x42831ec2217774244b7221b784d0d49d,
             0xe3aa212f2c02a4e035c17e2329aca12e,
             0x21d514b25466931c7d8f6a5aac84aa05,

@@ -1,7 +1,5 @@
 import SecureMessaging.AEAD.AESGCM.Construction
-import SecureMessaging.AEAD.AESGCM.GCtr
-import SecureMessaging.AEAD.AESGCM.GHash
-import SecureMessaging.AEAD.AESGCM.GFMul
+import SecureMessaging.AEAD.AESGCM.Gcm
 import SecureMessaging.AEAD.AESGCM.TestVectors
 import SecureMessaging.AEAD.Defs
 import SecureMessaging.AEAD.FromEtM.Construction
