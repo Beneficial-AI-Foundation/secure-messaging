@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.AESGCM.GaloisField
+import SecureMessaging.AEAD.AESGCM.GFMul
 
 /-!
 # GHASH (NIST SP 800-38D §6.4)

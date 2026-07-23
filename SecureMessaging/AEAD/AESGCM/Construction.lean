@@ -58,6 +58,16 @@ here each key encrypts a single message. It also fixes the common configuration:
 a 96-bit IV, whole-block plaintext and AAD, a fixed message length, and an
 untruncated 128-bit tag. These choices are documented where they take effect, on
 `gcmEncrypt` (the algorithm layer) and `aesGcmAEAD` (the scheme layer) below.
+
+The 96-bit IV is not merely a convenient subset: NIST §5.2.1.1 *recommends* that
+implementations "restrict support to the length of 96 bits, to promote
+interoperability, efficiency, and simplicity of design," so fixing it is
+conformance with NIST's own guidance rather than an omission. It is also what our
+motivating caller mandates: HPKE (RFC 9180) registers every AES-GCM AEAD with a
+fixed 96-bit nonce length `Nn = 12`, so an RFC-9180-compliant caller cannot use
+any other IV length. The general (non-96-bit) IV path, where NIST derives a
+128-bit `J₀` via a GHASH over the padded IV (§7.1), is therefore provably unused
+here; `j0` (`GCtr.lean`) is the seam where it would slot in if ever needed.
 -/
 
 open OracleSpec OracleComp
@@ -81,6 +91,12 @@ computes the tag over a wrong length.
 bit-lengths of the AAD `A` (here `ad`) and the ciphertext `C` (here `c`, the GCTR
 output, `cBlocks` blocks) concatenated, `128 · #blocks` each (whole-block model,
 see above).
+
+This is the trailing block of GHASH's tag input `S`, which NIST §7.1 step 5
+defines as `S = GHASH_H(A ‖ 0^v ‖ C ‖ 0^u ‖ len(A) ‖ len(C))` — the `0^v`/`0^u`
+padding vanishing in the whole-block model, leaving `S = GHASH_H(A ‖ C ‖ (len(A)
+‖ len(C)))`. `S` is computed identically at step 5 of both `gcmEncrypt` and
+`gcmDecrypt`.
 
 This length field is GCM's binding of the `A`/`C` boundary, the defense against
 an adversary shifting bits between the AAD and the ciphertext. -/
@@ -118,12 +134,17 @@ forward map `E = CIPH_K = E_K : BitVec 128 → BitVec 128`; `AES` is never
 mentioned here (that commitment happens in `aesGcmAEAD`).
 
 Specialized to the common configuration (see the module *Scope*):
-- **96-bit IV** (the `nonce`): `J₀ = IV ‖ 0^31 ‖ 1` directly. Other IV lengths,
-  which NIST converts to a 128-bit `J₀` via a GHASH over the IV, are out of scope.
-- **Block-aligned plaintext and AAD**: the message `m` and the AAD `ad`
-  (*additional authenticated data*, authenticated but not encrypted) are whole
-  128-bit blocks, so NIST's `0^v`/`0^u` padding of `A` and `C` (steps 4–5)
-  vanishes and the GHASH input is exactly `A ‖ C ‖ (len(A) ‖ len(C))`.
+- **96-bit IV** (the `nonce`): `J₀ = IV ‖ 0^31 ‖ 1` directly — the length NIST
+  §5.2.1.1 recommends implementations restrict to, and the one HPKE (RFC 9180)
+  fixes for all AES-GCM AEADs (`Nn = 12`). Other IV lengths, which NIST converts
+  to a 128-bit `J₀` via a GHASH over the IV (§7.1), are consequently out of scope.
+- **Block-aligned plaintext and AAD**: the plaintext `m` (a `Vector` of blocks)
+  and the AAD `ad` (a `List` of blocks) — *additional authenticated data*,
+  authenticated but not encrypted — are modelled as sequences of whole 128-bit
+  blocks rather than arbitrary bitstrings. GCTR is length-preserving, so the
+  ciphertext `C` has the same length as `m` and is therefore block-aligned too.
+  NIST's `0^v`/`0^u` padding of `A` and `C` (steps 4–5) consequently vanishes,
+  and the GHASH input is exactly `A ‖ C ‖ (len(A) ‖ len(C))`.
 - **Fixed message length** `n` (the AAD stays variable-length) and an
   **untruncated 128-bit tag**.
 
@@ -138,10 +159,12 @@ def gcmEncrypt (E : BitVec 128 → BitVec 128) (nonce : BitVec 96)
     (ad : List (BitVec 128)) (m : Vector (BitVec 128) n) :
     Vector (BitVec 128) n × BitVec 128 :=
   let h := E 0
-  let iv0 := j0 nonce
-  let c := gctr E (inc32 iv0) m
+  -- (2) pre-counter block `J₀` (Alg. 4 step 2, 96-bit-IV branch): NIST's `IV` is
+  -- the per-key `nonce`. `J₀` is *not* the IV; `inc₃₂ J₀` is gctr's counter block.
+  let j₀ := j0 nonce
+  let c := gctr E (inc32 j₀) m
   let s := ghash h (ad ++ c.toList ++ [lenBlock ad.length n])
-  let t := E iv0 ^^^ s
+  let t := E j₀ ^^^ s
   (c, t)
 
 /-- GCM authenticated decryption `GCM-AD_K(IV, C, A, T)` (NIST SP 800-38D §7.2,
@@ -152,9 +175,11 @@ def gcmDecrypt (E : BitVec 128 → BitVec 128) (nonce : BitVec 96)
     Option (Vector (BitVec 128) n) :=
   let (c, t) := ct
   let h := E 0
-  let iv0 := j0 nonce
+  -- (2) pre-counter block `J₀` (Alg. 5 step 2, 96-bit-IV branch): as in `gcmEncrypt`,
+  -- NIST's `IV` is the per-key `nonce` and `J₀` is derived from it by `j0`.
+  let j₀ := j0 nonce
   let s := ghash h (ad ++ c.toList ++ [lenBlock ad.length n])
-  if t = E iv0 ^^^ s then some (gctr E (inc32 iv0) c) else none
+  if t = E j₀ ^^^ s then some (gctr E (inc32 j₀) c) else none
 
 /-- **AES-GCM as an `AEADScheme`**: the NIST SP 800-38D §7 algorithms adapted to
 the ACD19 `AEADScheme` interface, where the IV is absorbed into the key rather

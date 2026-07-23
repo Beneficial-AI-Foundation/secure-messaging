@@ -50,7 +50,10 @@ def inc32 (x : BitVec 128) : BitVec 128 :=
 
 /-- The pre-counter block `J₀ = IV ‖ 0^31 ‖ 1` (96-bit-IV path, NIST SP 800-38D
 §7.1). `E_K(J₀)` is the tag mask; the initial counter block for `gctr` is
-`inc₃₂(J₀)`. -/
+`inc₃₂(J₀)`. The 96-bit IV is the length NIST §5.2.1.1 recommends restricting to
+(and the one HPKE/RFC 9180 fixes). This definition is the seam for the general
+case: for a non-96-bit IV, NIST §7.1 instead derives `J₀` via a GHASH over the
+padded IV — out of scope here, so `j0` is the direct concatenation only. -/
 def j0 (nonce : BitVec 96) : BitVec 128 := nonce ++ (0 : BitVec 31) ++ (1 : BitVec 1)
 
 /-- GCTR over a fixed-length block vector (NIST SP 800-38D §6.5, Algorithm 3):
