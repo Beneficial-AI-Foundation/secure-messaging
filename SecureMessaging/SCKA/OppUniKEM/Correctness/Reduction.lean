@@ -6,6 +6,7 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect
 import SecureMessaging.SCKA.OppUniKEM.Correctness.KEM
+import ToVCVio.OracleComp.ExpectedPayoff
 import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 
 /-!
@@ -677,107 +678,6 @@ private lemma sendBOffOnState_score [DecidableEq K]
       ht, hdk, hbad, Function.update]
   · simp [trackedFailureScore, currentKEMFailure, currentFailurePotential,
       sendBOffOnState, sendBKeyState, ht, hdk, hbad, Function.update]
-
-/-- `E_X[f] := Pr[X = ⊥] + Σ x, Pr[X = x] · f x`: expectation weighting the
-missing probability mass with the maximal value `1`. -/
-private noncomputable def expectedPayoff {A : Type}
-    (oa : ProbComp A) (payoff : A → ℝ≥0∞) : ℝ≥0∞ :=
-  Pr[⊥ | oa] + ∑' a, Pr[= a | oa] * payoff a
-
-private lemma expectedPayoff_pure {A : Type} (a : A) (payoff : A → ℝ≥0∞) :
-    expectedPayoff (pure a : ProbComp A) payoff = payoff a := by
-  unfold expectedPayoff
-  simp only [probFailure_pure, zero_add]
-  rw [tsum_eq_single a]
-  · simp
-  · intro b hba
-    simp [hba]
-
-private lemma expectedPayoff_bind {A B : Type} (oa : ProbComp A)
-    (ob : A → ProbComp B) (payoff : B → ℝ≥0∞) :
-    expectedPayoff (oa >>= ob) payoff =
-      Pr[⊥ | oa] + ∑' a, Pr[= a | oa] * expectedPayoff (ob a) payoff := by
-  unfold expectedPayoff
-  rw [probFailure_bind_eq_add_tsum]
-  have hout :
-      (∑' b, Pr[= b | oa >>= ob] * payoff b) =
-        ∑' b, ∑' a, Pr[= a | oa] * Pr[= b | ob a] * payoff b := by
-    refine tsum_congr fun b => ?_
-    rw [probOutput_bind_eq_tsum, ENNReal.tsum_mul_right]
-  calc
-    (Pr[⊥ | oa] + ∑' a, Pr[= a | oa] * Pr[⊥ | ob a]) +
-        ∑' b, Pr[= b | oa >>= ob] * payoff b =
-        Pr[⊥ | oa] + ((∑' a, Pr[= a | oa] * Pr[⊥ | ob a]) +
-          ∑' b, ∑' a, Pr[= a | oa] * Pr[= b | ob a] * payoff b) := by
-      rw [hout]
-      ac_rfl
-    _ = Pr[⊥ | oa] + ((∑' a, Pr[= a | oa] * Pr[⊥ | ob a]) +
-        ∑' a, ∑' b, Pr[= a | oa] * Pr[= b | ob a] * payoff b) := by
-      rw [ENNReal.tsum_comm]
-    _ = Pr[⊥ | oa] + ∑' a, Pr[= a | oa] *
-        (Pr[⊥ | ob a] + ∑' b, Pr[= b | ob a] * payoff b) := by
-      congr 1
-      rw [← ENNReal.tsum_add]
-      refine tsum_congr fun a => ?_
-      rw [mul_add]
-      simp_rw [mul_assoc]
-      rw [ENNReal.tsum_mul_left]
-
-private lemma expectedPayoff_map {A B : Type} (f : A → B) (oa : ProbComp A)
-    (payoff : B → ℝ≥0∞) :
-    expectedPayoff (f <$> oa) payoff = expectedPayoff oa (fun a => payoff (f a)) := by
-  rw [map_eq_bind_pure_comp, expectedPayoff_bind]
-  simp only [Function.comp_apply, expectedPayoff_pure]
-  rfl
-
-private lemma expectedPayoff_mono {A : Type} (oa : ProbComp A)
-    (f g : A → ℝ≥0∞) (hfg : ∀ a, f a ≤ g a) :
-    expectedPayoff oa f ≤ expectedPayoff oa g := by
-  unfold expectedPayoff
-  exact add_le_add le_rfl
-    (ENNReal.tsum_le_tsum fun a => mul_le_mul' le_rfl (hfg a))
-
-private lemma expectedPayoff_le_one {A : Type} (oa : ProbComp A)
-    (f : A → ℝ≥0∞) (hf : ∀ a, f a ≤ 1) :
-    expectedPayoff oa f ≤ 1 := by
-  calc
-    expectedPayoff oa f ≤ expectedPayoff oa (fun _ => 1) :=
-      expectedPayoff_mono oa f (fun _ => 1) hf
-    _ = 1 := by simp [expectedPayoff]
-
-private lemma expectedPayoff_le_const_of_support {A : Type} (oa : ProbComp A)
-    (f : A → ℝ≥0∞) (c : ℝ≥0∞) (hnf : Pr[⊥ | oa] = 0)
-    (hf : ∀ a ∈ support oa, f a ≤ c) :
-    expectedPayoff oa f ≤ c := by
-  unfold expectedPayoff
-  rw [hnf, zero_add]
-  calc
-    (∑' a, Pr[= a | oa] * f a) ≤ ∑' a, Pr[= a | oa] * c := by
-      refine ENNReal.tsum_le_tsum fun a => ?_
-      by_cases ha : a ∈ support oa
-      · exact mul_le_mul' le_rfl (hf a ha)
-      · simp [(probOutput_eq_zero_iff _ _).2 ha]
-    _ = (∑' a, Pr[= a | oa]) * c := ENNReal.tsum_mul_right
-    _ ≤ 1 * c := mul_le_mul' tsum_probOutput_le_one le_rfl
-    _ = c := one_mul c
-
-private lemma expectedPayoff_add_const_le {A : Type} (oa : ProbComp A)
-    (f : A → ℝ≥0∞) (c : ℝ≥0∞) :
-    expectedPayoff oa (fun a => f a + c) ≤ expectedPayoff oa f + c := by
-  unfold expectedPayoff
-  calc
-    Pr[⊥ | oa] + (∑' a, Pr[= a | oa] * (f a + c)) =
-        (Pr[⊥ | oa] + ∑' a, Pr[= a | oa] * f a) +
-          ∑' a, Pr[= a | oa] * c := by
-      simp_rw [mul_add]
-      rw [ENNReal.tsum_add]
-      ac_rfl
-    _ = (Pr[⊥ | oa] + ∑' a, Pr[= a | oa] * f a) +
-        (∑' a, Pr[= a | oa]) * c := by
-      rw [ENNReal.tsum_mul_right]
-    _ ≤ (Pr[⊥ | oa] + ∑' a, Pr[= a | oa] * f a) + 1 * c := by
-      exact add_le_add le_rfl (mul_le_mul' tsum_probOutput_le_one le_rfl)
-    _ = (Pr[⊥ | oa] + ∑' a, Pr[= a | oa] * f a) + c := by rw [one_mul]
 
 private lemma recvA_kem_source_shape
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)

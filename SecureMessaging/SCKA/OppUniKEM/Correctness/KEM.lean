@@ -5,6 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.SCKA.OppUniKEM.Construction
+import ToVCVio.OracleComp.ExpectedPayoff
 import VCVio.OracleComp.QueryTracking.RandomOracle.DeferredSampling
 
 /-!
@@ -190,33 +191,6 @@ noncomputable def failureAfterOff [DecidableEq K]
     ∑' kp : PK × SK, Pr[= kp | kem.keygen] *
       failureAfterBoth kem onoff hDet kp.1 kp.2 st ct0
 
-private lemma boolError_bind {A : Type} (oa : ProbComp A)
-    (ob : A → ProbComp Bool) :
-    Pr[= false | oa >>= ob] + Pr[⊥ | oa >>= ob] =
-      Pr[⊥ | oa] + ∑' a, Pr[= a | oa] *
-        (Pr[= false | ob a] + Pr[⊥ | ob a]) := by
-  rw [probOutput_bind_eq_tsum, probFailure_bind_eq_add_tsum]
-  calc
-    (∑' a, Pr[= a | oa] * Pr[= false | ob a]) +
-          (Pr[⊥ | oa] + ∑' a, Pr[= a | oa] * Pr[⊥ | ob a]) =
-        Pr[⊥ | oa] +
-          ((∑' a, Pr[= a | oa] * Pr[= false | ob a]) +
-            ∑' a, Pr[= a | oa] * Pr[⊥ | ob a]) := by ac_rfl
-    _ = Pr[⊥ | oa] + ∑' a, Pr[= a | oa] *
-          (Pr[= false | ob a] + Pr[⊥ | ob a]) := by
-      congr 1
-      rw [← ENNReal.tsum_add]
-      refine tsum_congr fun a => ?_
-      rw [mul_add]
-
-private lemma boolError_le_one (oa : ProbComp Bool) :
-    Pr[= false | oa] + Pr[⊥ | oa] ≤ 1 := by
-  calc
-    Pr[= false | oa] + Pr[⊥ | oa] ≤
-        (∑' b : Bool, Pr[= b | oa]) + Pr[⊥ | oa] := by
-      exact add_le_add (ENNReal.le_tsum false) le_rfl
-    _ = 1 := tsum_probOutput_add_probFailure oa
-
 /-- Averaging `failureAfterKeypair` over `kem.keygen` gives
 `factorCorrectnessError`. -/
 lemma factor_failure_tower_keypair [DecidableEq K]
@@ -227,12 +201,12 @@ lemma factor_failure_tower_keypair [DecidableEq K]
         ∑' kp : PK × SK, Pr[= kp | kem.keygen] *
           failureAfterKeypair kem onoff hDet kp.1 kp.2 := by
   unfold factorCorrectnessError factorCorrectExp failureAfterKeypair
-  rw [boolError_bind]
+  rw [probOutput_false_add_probFailure_bind]
   congr 1
   refine tsum_congr fun kp => ?_
   congr 1
   unfold failureAfterBoth onlineCorrectExp
-  rw [boolError_bind]
+  rw [probOutput_false_add_probFailure_bind]
 
 /-- Averaging `failureAfterOff` over `onoff.encapsOff` gives
 `factorCorrectnessError`. -/
@@ -261,12 +235,12 @@ lemma factor_failure_tower_off [DecidableEq K]
     exact congrArg (fun d : SPMF Bool => d.run none) hreorder
   rw [factorCorrectnessError, hfalse, hfail]
   unfold reordered failureAfterOff
-  rw [boolError_bind]
+  rw [probOutput_false_add_probFailure_bind]
   congr 1
   refine tsum_congr fun off => ?_
   congr 1
   unfold failureAfterBoth onlineCorrectExp
-  rw [boolError_bind]
+  rw [probOutput_false_add_probFailure_bind]
 
 /-- `failureAfterKeypair` is at most `1`. -/
 lemma failureAfterKeypair_le_one [DecidableEq K]
@@ -282,7 +256,7 @@ lemma failureAfterKeypair_le_one [DecidableEq K]
         Pr[⊥ | onoff.encapsOff] +
           ∑' off : onoff.St × onoff.C₀, Pr[= off | onoff.encapsOff] * 1 := by
       exact add_le_add le_rfl (ENNReal.tsum_le_tsum fun off =>
-        mul_le_mul' le_rfl (boolError_le_one _))
+        mul_le_mul' le_rfl (probOutput_false_add_probFailure_le_one _))
     _ = 1 := by
       simp only [mul_one]
       exact probFailure_add_tsum_probOutput onoff.encapsOff
@@ -300,7 +274,7 @@ lemma failureAfterOff_le_one [DecidableEq K]
         Pr[⊥ | kem.keygen] +
           ∑' kp : PK × SK, Pr[= kp | kem.keygen] * 1 := by
       exact add_le_add le_rfl (ENNReal.tsum_le_tsum fun kp =>
-        mul_le_mul' le_rfl (boolError_le_one _))
+        mul_le_mul' le_rfl (probOutput_false_add_probFailure_le_one _))
     _ = 1 := by
       simp only [mul_one]
       exact probFailure_add_tsum_probOutput kem.keygen
@@ -312,7 +286,7 @@ lemma failureAfterBoth_le_one [DecidableEq K]
     (st : onoff.St) (ct0 : onoff.C₀) :
     failureAfterBoth kem onoff hDet pk sk st ct0 ≤ 1 := by
   unfold failureAfterBoth
-  exact boolError_le_one _
+  exact probOutput_false_add_probFailure_le_one _
 
 /-- `failureAfterBoth` equals the missing probability mass of
 `onoff.encapsOn st pk` plus the sum, over its outcomes `(ct₁, k)`, of their
