@@ -10,32 +10,80 @@ import VCVio.OracleComp.QueryTracking.RandomOracle.DeferredSampling
 /-!
 # Opp-UniKEM-CKA — Conditional KEM Error
 
-This file isolates the probabilistic fact about the KEM that is needed by the
-protocol proof.  An on/off encapsulation is sampled in three stages: a key
-pair, an offline state and ciphertext, and finally an online ciphertext and
-key.  The factorization axiom identifies the joint distribution of these
-three stages with ordinary KEM encapsulation.
+This module defines the KEM correctness error of one protocol epoch and
+its conditional versions — the failure probability with some of the
+epoch's samples fixed and the rest drawn from their samplers — and proves
+that averaging the conditional versions recovers the total error.
 
-Write
+Let `kem` be a KEM scheme, `onoff` an on/off factorization for it,
+and `hDet` a deterministic decapsulation witness.  Also let:
 
-* `χ(pk, sk, st, ct₀)` for the correctness error after the
-  key pair and offline result have both been fixed;
-* `φ(pk, sk)` for the expectation of `χ` over a fresh offline result; and
-* `ψ(st, ct₀)` for the expectation of `χ` over a fresh key pair.
+```text
+KG       := kem.keygen
+OFF      := onoff.encapsOff
+ON st pk := onoff.encapsOn st pk
+join     := onoff.split⁻¹ : C₀ × C₁ → C.     -- the inverse of the on/off split
+bad(sk, ct₀, ct₁, k) := hDet.decapsDet sk (join (ct₀, ct₁)) ≠ some k.
+```
 
-These are conditional correctness errors: an explicit key mismatch and
-missing probability mass are both counted as error.  They are not pointwise
-bounds by the global KEM error.  Their essential properties are the two tower
-identities
+For `X : ProbComp α`, `Pr[X = x]` is an output probability and `Pr[X = ⊥]`
+is the missing probability mass.
 
-`E_keypair[φ] = ε_KEM` and `E_offline[ψ] = ε_KEM`,
+## Staged experiment
 
-together with the corresponding online identity expressing `χ` as the
-expected failure indicator.  Thus whichever side samples the first component
-of a fresh protocol epoch, its expected residual error is exactly the KEM's
-average correctness error.  The factorization theorem identifies the staged
-experiment with the standard KEM correctness experiment, so a `δ`-correct KEM
-bounds this common error by `δ`.
+One honest epoch runs the KEM in three stages (`factorCorrectExp`):
+
+```text
+F := do  (pk, sk) ← KG;  (st, ct₀) ← OFF;  (ct₁, k) ← ON st pk
+         return ¬bad(sk, ct₀, ct₁, k)
+```
+
+We show (`factorCorrectExp_eq_correctExp`) that `F` and the ordinary KEM
+correctness experiment `kem.CorrectExp` — sample a key pair, encapsulate,
+check that decapsulation returns the key — are equal as programs, so in
+particular produce the same output distribution.  This uses:
+
+* `onoff.factor` — sampling `OFF` then `ON st pk` and joining the two
+  ciphertext parts is, as a program, equal to `kem.encaps pk`;
+* `hDet.decaps_eq` — decapsulation is the deterministic function
+  `hDet.decapsDet`.
+
+Hence the total error of `F` (`factorCorrectnessError`)
+
+```text
+ε := Pr[F = false] + Pr[F = ⊥]
+```
+
+equals `kem.correctnessError` (`factorCorrectnessError_eq`).
+
+## Conditional errors
+
+`F`'s first two samples are independent.  Fixing one or both of them and
+drawing the rest defines
+
+```text
+χ(pk, sk, st, ct₀) := Pr[ON st pk = ⊥]
+    + Σ (ct₁, k), Pr[ON st pk = (ct₁, k)] · (if bad(sk, ct₀, ct₁, k) then 1 else 0)
+
+φ(pk, sk)  := Pr[OFF = ⊥] + Σ (st, ct₀), Pr[OFF = (st, ct₀)] · χ(pk, sk, st, ct₀)
+
+ψ(st, ct₀) := Pr[KG = ⊥]  + Σ (pk, sk),  Pr[KG = (pk, sk)]  · χ(pk, sk, st, ct₀)
+```
+
+— in Lean `failureAfterBoth`, `failureAfterKeypair`, `failureAfterOff`: the
+residual failure probability after fixing both first-stage samples, only the
+key pair, or only the offline sample.
+
+## Averaging identities
+
+We prove, for `ε` the total error of `F` defined above:
+
+* `factor_failure_tower_keypair` —
+  `ε = Pr[KG = ⊥] + Σ (pk, sk), Pr[KG = (pk, sk)] · φ(pk, sk)`;
+* `factor_failure_tower_off` —
+  `ε = Pr[OFF = ⊥] + Σ (st, ct₀), Pr[OFF = (st, ct₀)] · ψ(st, ct₀)`;
+* `failureAfterBoth_le_one`, `failureAfterKeypair_le_one`,
+  `failureAfterOff_le_one` — `χ, φ, ψ ≤ 1`.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
@@ -46,11 +94,13 @@ universe u
 
 variable {K PK SK C : Type}
 
-/-! ## Factorized KEM correctness -/
+/-! ## Staged KEM correctness experiment -/
 
-/-- The KEM correctness experiment written in the three phases used by the
-Opp-UniKEM protocol: key generation, offline encapsulation, and online
-encapsulation. -/
+/-- The KEM correctness experiment staged as in the Opp-UniKEM protocol:
+sample `(pk, sk) ← kem.keygen`, `(st, ct₀) ← onoff.encapsOff`, and
+`(ct₁, k) ← onoff.encapsOn st pk`, and return whether decapsulating the
+joined ciphertext recovers the key:
+`hDet.decapsDet sk (onoff.split.symm (ct₀, ct₁)) = some k`. -/
 def factorCorrectExp [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem) : ProbComp Bool := do
@@ -60,9 +110,9 @@ def factorCorrectExp [DecidableEq K]
   pure (decide
     (hDet.decapsDet sk (onoff.split.symm (ct0, ct1)) = some key))
 
-/-- On/off factorization and deterministic decapsulation make the factorized
-experiment distributionally identical to the ordinary KEM correctness
-experiment. -/
+/-- `factorCorrectExp` and the ordinary KEM correctness experiment
+`kem.CorrectExp` are equal as programs, by the factorization law
+`onoff.factor` and determinism of decapsulation (`hDet.decaps_eq`). -/
 theorem factorCorrectExp_eq_correctExp [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem) :
@@ -71,35 +121,16 @@ theorem factorCorrectExp_eq_correctExp [DecidableEq K]
   simp_rw [onoff.factor, hDet.decaps_eq]
   simp only [bind_assoc, pure_bind]
 
-/-- `kem.deltaCorrect δ` bounds failure of the factorized experiment used by
-one complete Opp-UniKEM epoch. -/
-theorem factorCorrectExp_failure_le_of_deltaCorrect [DecidableEq K]
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem) (δ : ℝ≥0∞)
-    (hδ : kem.deltaCorrect ProbCompRuntime.probComp δ) :
-    Pr[= false | factorCorrectExp kem onoff hDet] ≤ δ := by
-  unfold KEMScheme.deltaCorrect at hδ
-  calc
-    Pr[= false | factorCorrectExp kem onoff hDet] =
-        Pr[= false | kem.CorrectExp] := by rw [factorCorrectExp_eq_correctExp]
-    _ ≤ Pr[= false | kem.CorrectExp] + Pr[⊥ | kem.CorrectExp] :=
-      le_add_right le_rfl
-    _ = kem.correctnessError ProbCompRuntime.probComp := by
-      symm
-      exact KEMScheme.correctnessError_eq_probOutput_false_add_probFailure
-        kem ProbCompRuntime.probComp
-    _ ≤ δ := hδ
-
-/-- The total correctness error of the factorized experiment.  Missing mass
-is charged as an error, just as it is in `KEMScheme.correctnessError`. -/
+/-- The total correctness error of `factorCorrectExp`: the probability of a
+`false` result plus the missing probability mass, as in
+`KEMScheme.correctnessError`. -/
 noncomputable def factorCorrectnessError [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem) : ℝ≥0∞ :=
   Pr[= false | factorCorrectExp kem onoff hDet] +
     Pr[⊥ | factorCorrectExp kem onoff hDet]
 
-/-- Factorization identifies the total staged error with the ordinary KEM
-correctness error, including any missing mass. -/
+/-- `factorCorrectnessError` equals `kem.correctnessError`. -/
 theorem factorCorrectnessError_eq [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem) :
@@ -109,24 +140,15 @@ theorem factorCorrectnessError_eq [DecidableEq K]
   exact (KEMScheme.correctnessError_eq_probOutput_false_add_probFailure
     kem ProbCompRuntime.probComp).symm
 
-/-- A `δ`-correct KEM bounds the total error of the factorized experiment. -/
-theorem factorCorrectnessError_le_of_deltaCorrect [DecidableEq K]
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem) (δ : ℝ≥0∞)
-    (hδ : kem.deltaCorrect ProbCompRuntime.probComp δ) :
-    factorCorrectnessError kem onoff hDet ≤ δ := by
-  rw [factorCorrectnessError_eq]
-  exact hδ
+/-! ### Conditional KEM errors
 
-/-! ### Conditional KEM-failure potentials
+The conditional error of an epoch that has drawn only its key pair or only
+its offline sample may exceed `ε`; only its average over the fixed sample
+is `ε` (the identities below). -/
 
-The KEM correctness error is an average over all three independent samples.
-Once a protocol epoch has sampled only a key pair or only an offline
-encapsulation, its remaining conditional correctness error need not be at
-most the original average.  The following potentials retain that conditional
-probability.  Their tower identities are what permits an adaptive protocol
-execution to be charged only when it starts a fresh epoch. -/
-
+/-- The online stage of `factorCorrectExp` with `pk`, `sk`, `st`, `ct₀`
+fixed: sample `(ct₁, k) ← onoff.encapsOn st pk` and return whether
+`hDet.decapsDet sk (onoff.split.symm (ct₀, ct₁)) = some k`. -/
 private def onlineCorrectExp [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem) (pk : PK) (sk : SK)
@@ -135,8 +157,11 @@ private def onlineCorrectExp [DecidableEq K]
   pure (decide
     (hDet.decapsDet sk (onoff.split.symm (ct0, ct1)) = some key))
 
-/-- The conditional KEM correctness error after both the key pair and the
-offline encapsulation have been fixed. -/
+/-- `χ(pk, sk, st, ct₀)`, the conditional KEM correctness error with the
+key pair and the offline sample fixed: the probability that
+`(ct₁, k) ← onoff.encapsOn st pk` gives
+`hDet.decapsDet sk (onoff.split.symm (ct₀, ct₁)) ≠ some k`, plus the
+sampler's missing probability mass. -/
 noncomputable def failureAfterBoth [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem) (pk : PK) (sk : SK)
@@ -144,8 +169,9 @@ noncomputable def failureAfterBoth [DecidableEq K]
   Pr[= false | onlineCorrectExp kem onoff hDet pk sk st ct0] +
     Pr[⊥ | onlineCorrectExp kem onoff hDet pk sk st ct0]
 
-/-- The residual KEM correctness error after fixing a key pair and averaging
-over the offline and online encapsulation stages. -/
+/-- `φ(pk, sk)`, the conditional KEM correctness error with the key pair
+fixed: the average of `failureAfterBoth` over `(st, ct₀) ← onoff.encapsOff`,
+plus the sampler's missing probability mass. -/
 noncomputable def failureAfterKeypair [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem) (pk : PK) (sk : SK) : ℝ≥0∞ :=
@@ -154,8 +180,9 @@ noncomputable def failureAfterKeypair [DecidableEq K]
       Pr[= off | onoff.encapsOff] *
         failureAfterBoth kem onoff hDet pk sk off.1 off.2
 
-/-- The residual KEM correctness error after fixing an offline result and
-averaging over key generation and online encapsulation. -/
+/-- `ψ(st, ct₀)`, the conditional KEM correctness error with the offline
+sample fixed: the average of `failureAfterBoth` over
+`(pk, sk) ← kem.keygen`, plus the sampler's missing probability mass. -/
 noncomputable def failureAfterOff [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem) (st : onoff.St) (ct0 : onoff.C₀) : ℝ≥0∞ :=
@@ -190,8 +217,8 @@ private lemma boolError_le_one (oa : ProbComp Bool) :
       exact add_le_add (ENNReal.le_tsum false) le_rfl
     _ = 1 := tsum_probOutput_add_probFailure oa
 
-/-- Tower identity obtained by conditioning the factorized experiment on its
-key pair. -/
+/-- Averaging `failureAfterKeypair` over `kem.keygen` gives
+`factorCorrectnessError`. -/
 lemma factor_failure_tower_keypair [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem) :
@@ -207,8 +234,8 @@ lemma factor_failure_tower_keypair [DecidableEq K]
   unfold failureAfterBoth onlineCorrectExp
   rw [boolError_bind]
 
-/-- Tower identity obtained by conditioning the factorized experiment on its
-offline result. -/
+/-- Averaging `failureAfterOff` over `onoff.encapsOff` gives
+`factorCorrectnessError`. -/
 lemma factor_failure_tower_off [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem) :
@@ -241,6 +268,7 @@ lemma factor_failure_tower_off [DecidableEq K]
   unfold failureAfterBoth onlineCorrectExp
   rw [boolError_bind]
 
+/-- `failureAfterKeypair` is at most `1`. -/
 lemma failureAfterKeypair_le_one [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem) (pk : PK) (sk : SK) :
@@ -259,6 +287,7 @@ lemma failureAfterKeypair_le_one [DecidableEq K]
       simp only [mul_one]
       exact probFailure_add_tsum_probOutput onoff.encapsOff
 
+/-- `failureAfterOff` is at most `1`. -/
 lemma failureAfterOff_le_one [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem) (st : onoff.St) (ct0 : onoff.C₀) :
@@ -276,6 +305,7 @@ lemma failureAfterOff_le_one [DecidableEq K]
       simp only [mul_one]
       exact probFailure_add_tsum_probOutput kem.keygen
 
+/-- `failureAfterBoth` is at most `1`. -/
 lemma failureAfterBoth_le_one [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem) (pk : PK) (sk : SK)
@@ -284,8 +314,9 @@ lemma failureAfterBoth_le_one [DecidableEq K]
   unfold failureAfterBoth
   exact boolError_le_one _
 
-/-- Online tower identity: the conditional error after the first two stages is
-the expected indicator of online decapsulation failure. -/
+/-- `failureAfterBoth` equals the missing probability mass of
+`onoff.encapsOn st pk` plus the sum, over its outcomes `(ct₁, k)`, of their
+probabilities when decapsulation fails on them. -/
 lemma failureAfterBoth_eq_indicator [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem) (pk : PK) (sk : SK)

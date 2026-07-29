@@ -461,8 +461,8 @@ For any correctness adversary, the experiment returns $`\mathsf{true}` with prob
 assuming perfect KEM correctness with deterministic decapsulation, correctness of the three
 erasure codes, and a positive decoding threshold for every encoded payload.
 
-```anchor correctness (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect)
-theorem correctness [DecidableEq K]
+```anchor correctness (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Correctness)
+theorem correctness [DecidableEq K] [DecidableEq Sym]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym)
@@ -480,23 +480,23 @@ theorem correctness [DecidableEq K]
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] = 1
 ```
 
-For an imperfect KEM, correctness reduces directly to the KEM's ordinary
-average-case $`\delta`-correctness.  A conditional failure potential tracks
-the remaining error when only the key pair, only the offline encapsulation,
-or both have already been sampled.  Consequently, an adversary making at
-most $`q` total send queries has total correctness error at most
-$`q\delta`, where total error is one minus the probability of returning
-$`\mathsf{true}`.  Thus the statement also charges any missing probability
-mass.  In this development the game lives in the total semantics
-`ProbComp`, so its missing mass is zero and total error equals the probability
-of returning $`\mathsf{false}`.  Both send oracles are counted because either can make the first
-random choice of a fresh epoch.  Delayed, reordered, duplicated, and replayed
-receives do not consume this budget.
+For an imperfect KEM, correctness reduces to the KEM's average-case
+correctness error $`\varepsilon`: against an adversary making at most $`q`
+total send queries, the experiment returns $`\mathsf{true}` with
+probability at least $`1 - q\varepsilon`.  The complement of this
+probability includes any missing probability mass; in this development the
+game lives in the total semantics `ProbComp`, so the missing mass is zero
+and the complement equals the probability of returning $`\mathsf{false}`.
+The proof conditions $`\varepsilon` on the samples the current epoch has
+already drawn — only the key pair, only the offline encapsulation, or
+both.  Both send oracles are counted because either can make the first
+random choice of a fresh epoch.  Delayed, reordered, duplicated, and
+replayed receives are not counted.
 
 :::leanPillCaption "quantitative correctness for an imperfect KEM"
 :::
-```anchor correctnessErrorLeKEM (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction)
-theorem correctness_error_le_of_deltaCorrect [DecidableEq K]
+```anchor correctnessTrueGe (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Correctness)
+theorem correctness_true_ge [DecidableEq K] [DecidableEq Sym]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym) (hEkCorrect : ecEk.ec.Correct)
@@ -507,13 +507,11 @@ theorem correctness_error_le_of_deltaCorrect [DecidableEq K]
     (hCt1Pos : 0 < ecCt1.ec.nchunk)
     (leak : KEMScheme.OnOffRandLeak kem onoff)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
-    (q : ℕ) (δ : ℝ≥0∞)
-    (hδ : kem.deltaCorrect ProbCompRuntime.probComp δ)
-    (hq : SendQueryBound adv q) :
-    1 - Pr[= true |
+    (q : ℕ) (hq : SendQueryBound adv q) :
+    Pr[= true |
       SCKAScheme.correctnessExp
-        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] ≤
-      (q : ℝ≥0∞) * δ
+        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] ≥
+      1 - (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp
 ```
 
 {usesLabel}`uses` {uses "opp_unikem_cka_spec"}[] · {uses "scka_correctness"}[] · {uses "erasure_code_correctness"}[] · {uses "on_off_kem_scheme"}[] · {uses "on_off_kem_rand_leak"}[] · {githubLabel}`github` {githubIssue 107}[]

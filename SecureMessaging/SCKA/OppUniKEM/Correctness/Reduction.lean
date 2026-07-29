@@ -11,47 +11,94 @@ import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 /-!
 # Opp-UniKEM-CKA — Reduction to KEM Correctness
 
-This file proves quantitative protocol correctness from the average
-correctness error of the underlying KEM.  No pointwise assertion is made about
-a fixed key pair or a fixed offline encapsulation: conditioning can make such
-an assertion false even when the KEM has small average error.  Instead the
-proof carries the conditional probabilities developed in `KEM` through the
-protocol execution.
+Main results, for `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak`,
+`G(Adv) := SCKAScheme.correctnessExp Π Adv`, `ε := kem.correctnessError`,
+and
+correct erasure codes with positive reconstruction thresholds:
 
-For a reachable protocol state, let `V` be the conditional correctness error
-of its unique unresolved KEM epoch.  An explicit mismatch and missing
-probability mass are both charged as error.  The potential is zero before an epoch is
-started and after it has been resolved; after only one side has sampled,
-`V` is the appropriate conditional expectation; after both preliminary
-samples it is the remaining online correctness error.  The execution is
-augmented with an absorbing bit `B` recording whether an online sample has
-actually resolved incorrectly, and is assigned the score
+* `correctness_failure_le_reduction` — for at most `q` send queries
+  (`SendQueryBound Adv q`), `Pr[G(Adv) = false] ≤ q · ε`;
+* `correctness_true_ge_reduction` — equivalently,
+  `Pr[G(Adv) = true] ≥ 1 - q · ε`;
+* `correctness_failure_le_of_sendBFailureBound` — the analogous bound from
+  stepwise premises (`SendBFailureBound`, `NonSendBPreservesCurrent`,
+  `SendBQueryBound`).
 
-`S = 1` if `B` has occurred, and `S = V` otherwise.
+Abbreviate `join := onoff.split⁻¹` and
+`Run o s := ((SCKAScheme.sckaCorrectnessImpl Π) o).run s`.  In the proof,
+`ε` is computed as `factorCorrectnessError kem onoff hDet`, which equals
+`kem.correctnessError` (`factorCorrectnessError_eq`).
 
-The proof has four mathematical steps.
+## Tracked game
 
-1. **Local sampling bounds.**  The tower identities imply that starting a
-   fresh epoch increases expected score by at most the KEM error.  Completing
-   a partially sampled epoch merely replaces a conditional expectation by
-   its realization and does not increase expected score.
-2. **Deterministic preservation.**  Sending already sampled material and
-   receiving any honest stored message preserve the score.  This includes
-   incomplete delivery, duplicates, reordering, stale messages, and replay.
-3. **Adaptive composition.**  Induction over the adversary's interaction tree
-   gives `E[S_final] ≤ q ε_KEM` whenever the total number of sends is at most
-   `q`.  Here missing mass has payoff one.  Receive queries and random-index
-   queries are total and have zero cost.
-4. **Failure projection.**  The protocol invariant shows that a failed final
-   correctness assertion implies `B`.  Since the indicator of `B` is bounded
-   by `S`, the protocol correctness error is at most `q ε_KEM`, and hence at
-   most `q δ` for a `δ`-correct KEM.  For `ProbComp` the missing mass is
-   zero, so this total error is also the probability of returning `false`.
+* `bad s` (`currentKEMFailure`) — `true` iff `s.stA.t = s.stB.t` and the
+  current epoch has completed inconsistently:
+  `s.stA.dkA = some sk`, `s.stB.ct0 = some ct₀`, `s.stB.ct1 = some ct₁`,
+  `s.keyB s.stB.t = some k`, and
+  `hDet.decapsDet sk (join (ct₀, ct₁)) ≠ some k`.
+* `Ô` (`trackedCorrectnessImpl`) — the game extended with a Boolean that
+  stays `true` once set:
+  `Ô o (s, b) := do (r, s') ← Run o s; return (r, (s', b ∨ bad s'))`.
+* `J` (`trackedInv`) —
+  `J (s, b) := b = true ∨ (reachableInv s ∧ bad s = false)`.
 
-The file also retains a lower-level, protocol-facing union-bound theorem whose
-hypotheses directly bound bad `Send-B` steps.  The main public theorem is the
-direct reduction from ordinary KEM `deltaCorrect` and counts both send
-oracles, because either party may make the first random choice of a new epoch.
+## Failure probabilities
+
+With the conditional errors `χ`, `φ`, `ψ` of `Correctness.KEM`, associate to
+a tracked state the probability that it has already failed, or that its
+epoch in progress completes inconsistently:
+
+```text
+V s := 0                     no sample drawn, or epoch completed
+       φ (pk, sk)            only the key pair (stA.ekA, stA.dkA) drawn
+       ψ (st, ct₀)           only the offline sample (stB.stCt, stB.ct0) drawn
+       χ (pk, sk, st, ct₀)   both drawn
+
+S (s, b) := if b then 1 else V s
+E_X[f]   := Pr[X = ⊥] + Σ x, Pr[X = x] · f x
+```
+
+(`currentFailurePotential`, `trackedFailureScore`, `expectedPayoff`).  The
+epoch in progress reads A's key pair, and B's offline sample when
+`s.stA.t = s.stB.t`; when `s.stA.t = s.stB.t + 1`, B's material belongs to
+the completed previous epoch and is ignored.
+
+## One step
+
+For every oracle `o` and every `(s, b)` with `J (s, b)`:
+
+```text
+(r, (s', b')) ∈ supp (Ô o (s, b)) → J (s', b')
+E_{Ô o (s, b)}[S] ≤ S (s, b) + ε      if o ∈ {SendA, SendB}
+E_{Ô o (s, b)}[S] ≤ S (s, b)          otherwise.
+```
+
+Drawing the epoch's first sample turns `V = 0` into expectation at most `ε`
+(the averaging identities of `Correctness.KEM`); drawing the other
+first-stage sample has expectation exactly `V`; drawing the online sample
+completes the epoch, setting `b' = bad s'` with expectation `χ = V` and
+`V s' = 0`.  Receive oracles move no KEM material; their cases are proved
+for every message index.
+
+## Composition
+
+1. `tracked_score_adversary_le` — induction over the adversary's query
+   tree: `J (s, b)` and at most `q` sends give
+   `E[S final] ≤ S (s, b) + q · ε`; initially `S (s₀, false) = 0`.
+2. `tracked_run_project` — dropping the Boolean projects the tracked run
+   onto the real game; by `J`, `correct = false` forces `b = true`, i.e.
+   `S = 1`.  Hence `Pr[G(Adv) = false] ≤ q · ε`, and
+   `Pr[G(Adv) = true] ≥ 1 - q · ε` follows since `G(Adv)` is total.
+
+## Stepwise interface
+
+`correctness_failure_le_of_sendBFailureBound` replaces the conditional
+errors by two premises:
+`SendBFailureBound δ` — from a state with consistent current KEM material,
+one `SendB` call sets `bad` with probability at most `δ` — and
+`NonSendBPreservesCurrent` — no other oracle can set `bad`.  It bounds
+`Pr[G(Adv) = false] ≤ q · δ` for at most `q` `SendB` queries
+(`SendBQueryBound Adv q`).
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
@@ -87,13 +134,12 @@ private def initialGame [DecidableEq K]
     SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) :=
   SCKAScheme.initGameState (initialA kem onoff) (initialB kem onoff)
 
-/-- Conditional correctness error of the unique unresolved honest KEM epoch.
-
-When both parties are in the same epoch, the potential records whichever of
-the key-pair and offline samples already exist.  When A is one epoch ahead,
-B's material belongs to the completed preceding epoch and only A's new key
-pair is relevant.  A sampled online ciphertext resolves the trial; the
-tracking bit below records whether that resolution was bad. -/
+/-- The conditional correctness error of the KEM epoch in progress, given
+the samples already drawn: `failureAfterKeypair` after A's key pair,
+`failureAfterOff` after B's offline sample, `failureAfterBoth` after both,
+and `0` when no sample has been drawn or the online sample has completed the
+epoch.  When A is one epoch ahead of B, B's material belongs to the
+completed preceding epoch and only A's new key pair contributes. -/
 private noncomputable def currentFailurePotential [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -114,8 +160,10 @@ private noncomputable def currentFailurePotential [DecidableEq K]
     | none => 0
     | some kp => failureAfterKeypair kem onoff hDet kp.1 kp.2
 
-/-- Bad executions have payoff one; otherwise the payoff is the conditional
-failure potential of the unresolved epoch. -/
+/-- The probability that the tracked execution has already produced an
+inconsistent epoch (`1` when the failure Boolean is set) or that the epoch
+in progress completes inconsistently (`currentFailurePotential`
+otherwise). -/
 private noncomputable def trackedFailureScore [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -123,11 +171,12 @@ private noncomputable def trackedFailureScore [DecidableEq K]
     ℝ≥0∞ :=
   if p.2 then 1 else currentFailurePotential kem onoff hDet p.1
 
-/-- Whether the current protocol state contains an inconsistent completed KEM
-trial.  The check uses B's source `ct0`, so it fires as soon as online
-encapsulation resolves the trial, even if A has not yet decoded `ct0`.
-Incomplete epochs and the completed epoch left at B while A is one epoch ahead
-return `false`. -/
+/-- Whether the current epoch has completed inconsistently: both parties are
+in the same epoch, A holds a secret key, B holds both ciphertext components
+and a key, and decapsulation disagrees.  The check reads B's own `ct0`, so
+the failure is detected as soon as B draws the online sample, before A
+decodes the ciphertext.  Incomplete epochs, and the completed epoch left at
+B while A is one epoch ahead, give `false`. -/
 def currentKEMFailure [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -629,8 +678,8 @@ private lemma sendBOffOnState_score [DecidableEq K]
   · simp [trackedFailureScore, currentKEMFailure, currentFailurePotential,
       sendBOffOnState, sendBKeyState, ht, hdk, hbad, Function.update]
 
-/-- Failure-aware expected payoff.  Ordinary outputs receive their stated
-payoff, while missing mass receives the maximal payoff `1`. -/
+/-- `E_X[f] := Pr[X = ⊥] + Σ x, Pr[X = x] · f x`: expectation weighting the
+missing probability mass with the maximal value `1`. -/
 private noncomputable def expectedPayoff {A : Type}
     (oa : ProbComp A) (payoff : A → ℝ≥0∞) : ℝ≥0∞ :=
   Pr[⊥ | oa] + ∑' a, Pr[= a | oa] * payoff a
@@ -1116,8 +1165,8 @@ private lemma tracked_step_score_le_of_bad [DecidableEq K]
     exact trackedFailureScore_le_one kem onoff hDet z.2
   · simp [trackedFailureScore, hbad]
 
-/-- The two send oracles are precisely the operations that may start or extend
-an unresolved KEM trial. -/
+/-- Whether an oracle query is `SendA` or `SendB` — the only oracles that
+run `kem.keygen`, `onoff.encapsOff`, or `onoff.encapsOn`. -/
 private def isSendQuery
     (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain) : Bool :=
   match t with
@@ -1674,9 +1723,8 @@ private lemma trackedCorrectnessImpl_preserves
       cases h : currentKEMFailure kem onoff hDet y.2 <;> simp [h] at hfail ⊢
     exact ⟨hreach', hfailFalse⟩
 
-/-- A local bound on introducing inconsistent current KEM material in one
-`Send-B` step.  This is the protocol-facing premise to be discharged from a
-concrete KEM failure analysis. -/
+/-- From a state whose current KEM material is consistent, one `SendB` call
+produces a state with `currentKEMFailure` with probability at most `δ`. -/
 def SendBFailureBound [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -1689,8 +1737,8 @@ def SendBFailureBound [DecidableEq K]
       (SCKAScheme.oracleSendB
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) ()).run s] ≤ δ
 
-/-- Non-`Send-B` correctness oracles cannot introduce inconsistent KEM
-material from a consistent state. -/
+/-- From a state whose current KEM material is consistent, no oracle other
+than `SendB` can produce a state with `currentKEMFailure`. -/
 def NonSendBPreservesCurrent [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -1704,16 +1752,15 @@ def NonSendBPreservesCurrent [DecidableEq K]
         ((SCKAScheme.sckaCorrectnessImpl
           (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)) t).run s] = 0
 
-/-- Syntactic bound on the number of `Send-B` queries made by a correctness
+/-- Syntactic bound on the number of `SendB` queries made by a correctness
 adversary. -/
 def SendBQueryBound (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
     (q : ℕ) : Prop :=
   adv.IsQueryBoundP
     (fun t => t = (OSendB : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)) q
 
-/-- Syntactic bound on the total number of sends.  This is the natural query
-budget for a reduction to average-case KEM correctness: either party may make
-the first randomized choice of a fresh epoch. -/
+/-- Syntactic bound on the total number of send queries.  Both send oracles
+count: either party may draw the first sample of a fresh epoch. -/
 def SendQueryBound (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
     (q : ℕ) : Prop :=
   adv.IsQueryBoundP (IsSendQuery (Sym := Sym)) q
@@ -2054,20 +2101,14 @@ private lemma tracked_bad_probability_le [DecidableEq K]
           _ ≤ 0 + (q : ℝ≥0∞) * δ := hunion
           _ = (q : ℝ≥0∞) * δ := zero_add _
 
-/-- Quantitative correctness of Opp-UniKEM-CKA.
-
-If a fresh `Send-B` step introduces inconsistent current-epoch KEM material
-with probability at most `δ`, and all other correctness oracles preserve a
-consistent current epoch, then an adversary making at most `q` `Send-B`
-queries causes the SCKA correctness experiment to fail with probability at
-most `q * δ`.  Receive queries, including delayed, reordered, duplicated, and
-replayed deliveries, do not consume this budget.
-
-This lower-level protocol-facing interface is retained for callers that
-already have stepwise bounds.  `correctness_failure_le_of_deltaCorrect` below
-discharges the full reduction from the KEM's average-case error directly. -/
+/-- Correctness of Opp-UniKEM-CKA from stepwise premises: if one `SendB`
+step introduces inconsistent current-epoch KEM material with probability at
+most `δ` and no other oracle can, then an adversary making at most `q`
+`SendB` queries makes the correctness experiment fail with probability at
+most `q * δ`.  Receive queries, including delayed, reordered, duplicated,
+and replayed deliveries, are not counted. -/
 -- ANCHOR: correctnessFailureLe
-theorem correctness_failure_le [DecidableEq K]
+theorem correctness_failure_le_of_sendBFailureBound [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym) (hEkCorrect : ecEk.ec.Correct)
@@ -2138,16 +2179,12 @@ theorem correctness_failure_le [DecidableEq K]
           (simulateQ tracked adv).run (s₀, false)] := hmono
     _ ≤ (q : ℝ≥0∞) * δ := hbad
 
-/-- Direct reduction of Opp-UniKEM-CKA correctness to KEM correctness.
-
-If the KEM correctness error is at most `δ`, then any correctness adversary
-making at most `q` total send queries causes protocol correctness failure with
-probability at most `q * δ`.  The budget counts both send oracles because
-either party may make the first random choice of a fresh KEM epoch.  Receive
-queries remain free and may delay, reorder, duplicate, or replay honest
-messages arbitrarily. -/
--- ANCHOR: correctnessFailureLeKEM
-theorem correctness_failure_le_of_deltaCorrect [DecidableEq K]
+/-- Reduction of Opp-UniKEM-CKA correctness to KEM correctness: an adversary
+making at most `q` send queries makes the correctness experiment fail with
+probability at most `q * kem.correctnessError`.  Both send oracles count
+toward `q`, since either party may draw the first sample of a fresh epoch;
+receive queries are not counted. -/
+theorem correctness_failure_le_reduction [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym) (hEkCorrect : ecEk.ec.Correct)
@@ -2158,14 +2195,11 @@ theorem correctness_failure_le_of_deltaCorrect [DecidableEq K]
     (hCt1Pos : 0 < ecCt1.ec.nchunk)
     (leak : KEMScheme.OnOffRandLeak kem onoff)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
-    (q : ℕ) (δ : ℝ≥0∞)
-    (hδ : kem.deltaCorrect ProbCompRuntime.probComp δ)
-    (hq : SendQueryBound adv q) :
+    (q : ℕ) (hq : SendQueryBound adv q) :
     Pr[= false |
       SCKAScheme.correctnessExp
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] ≤
-      (q : ℝ≥0∞) * δ
--- ANCHOR_END: correctnessFailureLeKEM
+      (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp
     := by
   let tracked := trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak
   let Inv := trackedInv kem onoff hDet ecEk ecCt0 ecCt1
@@ -2211,8 +2245,6 @@ theorem correctness_failure_le_of_deltaCorrect [DecidableEq K]
     · exact hbad
     · rcases hreach with ⟨_world, hWorld⟩
       simp [hWorld.correct] at hincorrect
-  have hepsilon : epsilon ≤ δ :=
-    factorCorrectnessError_le_of_deltaCorrect kem onoff hDet δ hδ
   calc
     Pr[= false |
         SCKAScheme.correctnessExp
@@ -2231,17 +2263,12 @@ theorem correctness_failure_le_of_deltaCorrect [DecidableEq K]
           (fun z => score z.2) :=
       tracked_bad_probability_le_score kem onoff hDet _
     _ ≤ (q : ℝ≥0∞) * epsilon := hscore
-    _ ≤ (q : ℝ≥0∞) * δ := mul_le_mul' le_rfl hepsilon
+    _ = (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp := by
+      simp only [epsilon, factorCorrectnessError_eq]
 
-/-- Total quantitative correctness error of Opp-UniKEM-CKA.
-
-The left-hand side is the complement of successful termination, so in a
-general subprobabilistic semantics it comprises both an explicit `false`
-result and missing mass.  The present protocol game lives in `ProbComp`, whose
-computations are total; consequently its missing mass is zero and this theorem
-is equivalent to `correctness_failure_le_of_deltaCorrect`. -/
--- ANCHOR: correctnessErrorLeKEM
-theorem correctness_error_le_of_deltaCorrect [DecidableEq K]
+/-- `Pr[G(Adv) = true] ≥ 1 - q * kem.correctnessError` for at most `q` send
+queries. -/
+theorem correctness_true_ge_reduction [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym) (hEkCorrect : ecEk.ec.Correct)
@@ -2252,20 +2279,19 @@ theorem correctness_error_le_of_deltaCorrect [DecidableEq K]
     (hCt1Pos : 0 < ecCt1.ec.nchunk)
     (leak : KEMScheme.OnOffRandLeak kem onoff)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
-    (q : ℕ) (δ : ℝ≥0∞)
-    (hδ : kem.deltaCorrect ProbCompRuntime.probComp δ)
-    (hq : SendQueryBound adv q) :
-    1 - Pr[= true |
+    (q : ℕ) (hq : SendQueryBound adv q) :
+    Pr[= true |
       SCKAScheme.correctnessExp
-        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] ≤
-      (q : ℝ≥0∞) * δ
--- ANCHOR_END: correctnessErrorLeKEM
+        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] ≥
+      1 - (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp
     := by
-  have h := correctness_failure_le_of_deltaCorrect kem onoff hDet
+  have h := correctness_failure_le_reduction kem onoff hDet
     ecEk hEkCorrect hEkPos ecCt0 hCt0Correct hCt0Pos
-    ecCt1 hCt1Correct hCt1Pos leak adv q δ hδ hq
+    ecCt1 hCt1Correct hCt1Pos leak adv q hq
   rw [probOutput_false_eq_sub, probFailure_eq_zero, tsub_zero] at h
-  exact h
+  rw [tsub_le_iff_right] at h
+  rw [ge_iff_le, tsub_le_iff_right]
+  rwa [add_comm]
 
 end Reduction
 

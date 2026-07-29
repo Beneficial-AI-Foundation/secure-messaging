@@ -8,38 +8,98 @@ import SecureMessaging.SCKA.OppUniKEM.Construction
 import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 
 /-!
-# Opp-UniKEM-CKA — Perfect Correctness
+# Opp-UniKEM-CKA — Game Invariant and Perfect Correctness
 
-This file proves correctness when the underlying KEM is perfectly correct.
-The argument is organized around an honest transcript indexed by protocol
-epoch.  For every epoch the transcript records the key pair, the offline
-encapsulation, and the online encapsulation, together with the assertion that
-each value belongs to the support of its prescribed distribution.
+The reachability invariant of the SCKA correctness game for
 
-The main invariant relates this mathematical transcript to both parties'
-local states, the public message history, the accumulated erasure-code
-chunks, and the tables of established keys.  It asserts in particular that:
+```text
+Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak,
+```
 
-1. the parties' epochs differ by at most one;
-2. every stored or transmitted object comes from its epoch transcript;
-3. a payload is reconstructed exactly when sufficiently many distinct honest
-   chunks have been accumulated;
-4. all completed epochs contain matching keys; and
-5. every assertion made by the correctness experiment remains true.
+preserved by every oracle.  It yields perfect correctness here —
+`correctness_of_perfectKEM`: for a perfectly correct KEM and correct
+erasure codes with positive reconstruction thresholds,
+`Pr[G(Adv) = true] = 1` with `G(Adv) := SCKAScheme.correctnessExp Π Adv` —
+and it
+underlies the probabilistic bounds in `Correctness.Reduction`.
 
-The proof first establishes exact reconstruction lemmas for honest encoded
-subsets.  It then proves that initialization and each of the five kinds of
-interaction—random-index sampling, the two sends, and the two receives—preserve
-the invariant.  Receive preservation is proved without an ordering or
-freshness assumption, so delayed, reordered, duplicated, and replayed honest
-messages are covered.  Perfect KEM correctness is used only when a completed
-online encapsulation is decapsulated.  Invariance under an arbitrary adaptive
-interaction then implies that the experiment returns `true` with probability
-one.
+`supp X` denotes the set of positive-probability outputs of
+`X : ProbComp α`.
 
-The imperfect-KEM analysis is separated into `KEM` and `Reduction`: the former
-develops the conditional KEM error, while the latter replaces the pointwise
-KEM assertion above by an expected-error argument.
+## Transcripts
+
+An `EpochTranscript` records the samples one epoch has drawn:
+
+```text
+T t = (kpₜ, offₜ, onₜ) : Option (PK × SK) × Option (St × C₀) × Option (C₁ × K)
+```
+
+with membership proofs
+
+```text
+kpₜ  = some (pk, sk)  → (pk, sk)  ∈ supp kem.keygen
+offₜ = some (st, ct₀) → (st, ct₀) ∈ supp onoff.encapsOff
+kpₜ = some (pk, sk) ∧ offₜ = some (st, ct₀) ∧ onₜ = some (ct₁, k)
+  → (ct₁, k) ∈ supp (onoff.encapsOn st pk)
+onₜ ≠ none → kpₜ ≠ none ∧ offₜ ≠ none.
+```
+
+## Invariant
+
+`WorldInv T s`, with `tA := s.stA.t` and `tB := s.stB.t`, asserts:
+
+* flag and epochs — `s.correct = true`; `tB ≤ tA ≤ tB + 1`; `0 < tA, tB`;
+  `s.tcurA ≤ tA - 1`; `s.tcurB ≤ tB - 1`;
+* current samples — `kp_tA = pair? s.stA.ekA s.stA.dkA`,
+  `off_tB = pair? s.stB.stCt s.stB.ct0`, `on_tB.map fst = s.stB.ct1`,
+  where `pair?` pairs two options when both are present;
+* decoded values are honest — `s.stB.ekA = some pk → ∃ sk, kp_tB = some (pk, sk)`;
+  `s.stA.ct0 = some ct₀ → ∃ st, off_tA = some (st, ct₀)`;
+* chunk buffers (`ChunksA`, `ChunksB`) — each buffer is an honest chunk set
+  of the payload in transit: strictly below the reconstruction threshold
+  while undecoded, exactly at it once decoded;
+* history — `on_t ≠ none` for `0 < t < tA`; `kp_t = none` for `tA < t`;
+  `off_t = on_t = none` for `tB < t`;
+* key tables — with `key (T t) := on_t.map snd`:
+  `s.keyA t = key (T t)` for `0 < t < tA` and `none` otherwise;
+  `s.keyB t = key (T t)`;
+* messages — every recorded message is generated from `T`
+  (`HonestMessageA`, `HonestMessageB`), reports receiving epoch
+  `sending epoch - 1`, and its sending epoch is at most the sender's.
+
+## Preservation
+
+With `Run o s := ((SCKAScheme.sckaCorrectnessImpl Π) o).run s` and
+`I s := ∃ T, WorldInv T s` (`reachableInv`):
+
+```text
+I s₀                                                   (reachableInv_init)
+I s ∧ (r, s') ∈ supp (Run o s) → I s'       (oracle*_preserves_reachableInv)
+```
+
+The receive oracles are quantified over every index of the message tables,
+so preservation covers delivery in any order and any multiplicity.  The
+only KEM-dependent step is `RecvA` completing an epoch, where the game
+asserts that A's decapsulation returns B's recorded key
+(`CurrentKEMCorrect`); by the invariant both values come from supported
+samples, and perfect KEM correctness gives
+`hDet.decapsDet sk (onoff.split⁻¹ (ct₀, ct₁)) = some k`
+(`decapsDet_eq_some_of_mem_support`, `mem_support_encaps_of_onoff`).
+
+## Erasure codes
+
+For an honest chunk set of a payload `x` indexed by `J ⊆ Fin N`:
+
+```text
+|J| < nchunk → decode = none                    (decode_payloadChunks_none)
+|J| = nchunk → decode = some x                       (decode_payloadChunks)
+```
+
+and inserting one honest chunk either stays strictly below the threshold or
+reaches it exactly and decodes to `x` (`decode_insert_honest`).
+
+By preservation every supported final state has `correct = true`, and
+`G(Adv)` is total, so `Pr[G(Adv) = true] = 1`.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
@@ -303,7 +363,10 @@ section Invariant
 
 variable [DecidableEq Sym]
 
-/-- Ghost record of the honest randomized choices made for one protocol epoch. -/
+/-- The samples drawn so far for one protocol epoch: A's key pair, B's
+offline encapsulation part, and B's online encapsulation part, each with a
+proof of membership in the support of its sampler.  The online part
+presupposes the other two. -/
 structure EpochTranscript
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure) where
   /-- The honest public/secret key pair sampled for this epoch, when present. -/
@@ -473,7 +536,9 @@ private def ChunksA
       | some (ct1, _key) => ∃ I,
           stA.lch = payloadChunks ecCt1 ct1 I ∧ I.card < ecCt1.ec.nchunk
 
-/-- Reachability invariant for the Opp-UniKEM correctness game. -/
+/-- The game state `s` is the honest protocol state determined by the
+transcript `world`: epochs, key material, chunk buffers, message histories,
+and key tables are those of `world`, and the correctness flag is set. -/
 structure WorldInv
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -507,9 +572,8 @@ structure WorldInv
   msgAEpoch : ∀ n ρ tsnd, s.msgA n = some (ρ, tsnd) → ρ.2.2.1 ≤ s.stA.t
   msgBEpoch : ∀ n ρ tsnd, s.msgB n = some (ρ, tsnd) → ρ.2.2.1 ≤ s.stB.t
 
-/-- A protocol state is reachable when it admits an honest epoch transcript
-satisfying all state, message-history, erasure-code, epoch, and key-agreement
-relations collected in `WorldInv`. -/
+/-- The game state admits a transcript of honest epoch samples satisfying
+`WorldInv`. -/
 def reachableInv
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -1611,7 +1675,7 @@ private lemma reachableInv_after_sendB_newOn
       simp [EpochTranscript.key, hon] at hcomplete
     exact Nat.le_antisymm (Nat.le_of_not_gt hnlt) hInv.epochs.1
   -- `Nat.le_antisymm` above already closes the epoch equality; the following
-  -- support fact determines the ghost transcript installed at the current epoch.
+  -- support fact determines the transcript installed at the current epoch.
   let tr' := (world s.stB.t).setOn ct1 key (by simp [hkp]) (by simp [hoff]) (by
     intro pk' sk' st' ct0' hkp' hoff'
     have hpairs := hkp'.symm.trans hkp
@@ -2840,8 +2904,7 @@ The adversary may delay, reorder, duplicate, and replay honest protocol
 messages.  Perfect KEM correctness, deterministic decapsulation, and the
 three erasure-code correctness assumptions suffice to make every game
 assertion hold on every supported execution. -/
--- ANCHOR: correctness
-theorem correctness [DecidableEq K]
+theorem correctness_of_perfectKEM [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym)
@@ -2857,7 +2920,6 @@ theorem correctness [DecidableEq K]
     Pr[= true |
       SCKAScheme.correctnessExp
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] = 1
--- ANCHOR_END: correctness
     := by
   rw [← probEvent_eq_eq_probOutput, probEvent_eq_one_iff]
   refine ⟨probFailure_eq_zero, ?_⟩
