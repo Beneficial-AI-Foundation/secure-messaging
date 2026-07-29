@@ -62,6 +62,17 @@ def NIST_GCM : Verso.Genre.Manual.Bibliography.Citable := .article
   , number := inlines!""
   , url := some "https://csrc.nist.gov/pubs/sp/800/38/d/final" }
 
+@[bib "RS60"]
+def RS60 : Verso.Genre.Manual.Bibliography.Citable := .article
+  { title := inlines!"Polynomial Codes over Certain Finite Fields"
+  , authors := #[inlines!"Irving S. Reed", inlines!"Gustave Solomon"]
+  , journal := inlines!"Journal of the Society for Industrial and Applied Mathematics"
+  , year := 1960
+  , month := some (inlines!"June")
+  , volume := inlines!"8"
+  , number := inlines!"2"
+  , url := some "https://doi.org/10.1137/0108018" }
+
 @[bib "RFC5510"]
 def RFC5510 : Verso.Genre.Manual.Bibliography.Citable := .article
   { title := inlines!"Reed-Solomon Forward Error Correction (FEC) Schemes"

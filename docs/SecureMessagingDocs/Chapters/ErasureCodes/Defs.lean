@@ -54,24 +54,27 @@ structure ErasureCode (Sym : Type) where
 :::defTitle "erasure_code_correctness" "Erasure code correctness"
 :::
 
-::::definition "erasure_code_correctness" (parent := "erasure_codes") (lean := "ErasureCode.Correct, ErasureCode.encodeChunks")
+::::definition "erasure_code_correctness" (parent := "erasure_codes") (lean := "ErasureCode.encodeChunks, ErasureCode.Correct")
 $`\todo`
 
 :::leanPillCaption "chunk set $`L_I = \\{(i, \\mathsf{Encode}(M, i)) \\mid i \\in I\\}`"
 :::
 
 ```anchor encodeChunks (project := ".") (module := SecureMessaging.ErasureCode.Defs)
-noncomputable def encodeChunks [DecidableEq Sym] (ec : ErasureCode Sym)
+def encodeChunks (ec : ErasureCode Sym)
     (M : Fin ec.nchunk → Sym) (I : Finset (Fin ec.N)) :
     Finset (Fin ec.N × Sym) :=
-  (I.toList.map fun i => (i, ec.encode M i)).toFinset
+  I.map {
+    toFun := fun i => (i, ec.encode M i)
+    inj' := fun _ _ h => congrArg Prod.fst h
+  }
 ```
 
 :::leanPillCaption "correctness predicate"
 :::
 
 ```anchor Correct (project := ".") (module := SecureMessaging.ErasureCode.Defs)
-def Correct [DecidableEq Sym] (ec : ErasureCode Sym) : Prop :=
+def Correct (ec : ErasureCode Sym) : Prop :=
   ∀ (M : Fin ec.nchunk → Sym) (I : Finset (Fin ec.N)),
     (I.card = ec.nchunk → ec.decode (ec.encodeChunks M I) = some M) ∧
     (I.card < ec.nchunk → ec.decode (ec.encodeChunks M I) = none)

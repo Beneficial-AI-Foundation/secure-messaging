@@ -3,6 +3,7 @@ import VersoBlueprint
 import SecureMessagingDocs.Bibliography
 import SecureMessagingDocs.Chapters.ErasureCodes.Defs
 import SecureMessagingDocs.Chapters.ErasureCodes.ReedSolomon
+import SecureMessagingDocs.Chapters.ErasureCodes.SPQRReedSolomon
 
 open Verso.Genre
 open Verso.Genre.Manual
@@ -20,3 +21,5 @@ set_option doc.verso true
 {include 1 SecureMessagingDocs.Chapters.ErasureCodes.Defs}
 
 {include 1 SecureMessagingDocs.Chapters.ErasureCodes.ReedSolomon}
+
+{include 1 SecureMessagingDocs.Chapters.ErasureCodes.SPQRReedSolomon}
