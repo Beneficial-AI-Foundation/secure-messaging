@@ -17,17 +17,21 @@ import SecureMessaging.ErasureCode.Defs
 - [RFC5510] Lacan, Roca, Peltotalo, Peltotalo.
   *Reed-Solomon Forward Error Correction (FEC) Schemes.*
   RFC 5510, 2009, https://datatracker.ietf.org/doc/rfc5510/
-- [Wikipedia] *Reed–Solomon error correction.*
-  https://en.wikipedia.org/wiki/Reed%E2%80%93Solomon_error_correction
 - [SCKA] Auerbach, Dodis, Jost, Katsumata, Schmidt.
   *How to Compare Bandwidth Constrained Two-Party Secure Messaging Protocols.*
   USENIX Security 2025, https://eprint.iacr.org/2025/2267.pdf
+
+## Scope
+
+This file formalizes the algebraic evaluation/interpolation core of Reed–Solomon
+codes and its instantiation as an erasure-code. It does not model the full details
+of the packet-level FEC scheme of [RFC5510].
 
 ## Part 1: The Reed–Solomon code
 
 ### Definition (`Code`)
 
-A Reed–Solomon code [RS60, RFC5510, Wikipedia] with parameters `k ≤ N` and
+A Reed–Solomon code [RS60, RFC5510] with parameters `k ≤ N` and
 pairwise distinct evaluation points `x₀, …, x_(N-1) ∈ F` is the linear code
 
 `RS := { (P(x₀), …, P(x_(N-1))) | P ∈ F[X], deg P < k } ⊆ F^N`,

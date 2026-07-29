@@ -19,6 +19,10 @@ parallel structure of Signal's
 where a chunk is 16 `u16` values (32 bytes). The final section gives an abstract SPQR
 specialization.
 
+This is an algebraic abstraction, not an exact specification of Signal's
+implementation. It does not model byte serialization, the concrete correspondence
+between `u16` values and `GF(2^16)` elements, or protocol message encoding.
+
 ## Parallel 16-coordinate construction (`encode`, `decode`, `parallelCode`)
 
 *Recall:* a scalar Reed–Solomon code with parameters `k ≤ N` and
@@ -83,8 +87,10 @@ codeword position carries one whole chunk.
 
 Signal treats each 32-byte chunk as 16 `u16` values and applies one Reed–Solomon code
 to each coordinate. The model in this file, `spqrCode k`, specializes `parallelCode`
-to `GF(2^16)`.
-The correspondence between `u16` values and field elements is not specified.
+to an abstract `GF(2^16)`. It covers the fixed-size inputs used by ML-KEM Braid,
+whose lengths are divisible by 32 bytes. It does not model Signal's more general
+extension to arbitrary even-length byte strings, where the source field elements are
+distributed unevenly among the 16 coordinate polynomials.
 -/
 
 namespace ErasureCode.SPQRReedSolomon
