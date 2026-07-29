@@ -35,6 +35,7 @@ plus an incremental structure `inc : kem.IncrementalStructure`.
 
 The example structure `KEMScheme.trivialIncremental` shows that any KEM scheme can be seen
 as an incremental KEM taking the whole public key as the header.
+
 -/
 
 universe u
@@ -117,5 +118,60 @@ def trivialIncremental [LawfulMonad m] (kem : KEMScheme m K PK SK C) :
     pure ((), c, k)
   encaps2 _ _ _ := pure ()
   factor pk := by simp
+
+/-! ## Running the stages
+
+The definitions below run an incremental KEM the way the braid protocol does: the sender
+splits the public key, the receiver encapsulates in two stages, and the ciphertext is put back
+together for decapsulation. `factor` says the staged run computes exactly `kem.encaps`, so
+every correctness bound on the base KEM applies to the staged run as well.
+-/
+
+namespace IncrementalStructure
+
+open ENNReal
+
+variable {kem : KEMScheme m K PK SK C} (inc : kem.IncrementalStructure)
+
+/-- The header of a public key. -/
+def toHeader (pk : PK) : inc.PKheader := ((inc.splitPK pk).1).1
+
+/-- The vector of a public key. -/
+def toVector (pk : PK) : inc.PKvector := ((inc.splitPK pk).1).2
+
+/-- The staged encapsulation: run `encaps1` on the header, complete with `encaps2`, and put
+the ciphertext together. By `factor` this is exactly `kem.encaps`. -/
+def stagedEncaps (pk : PK) : m (C × K) := do
+  let (st, c1, k) ← inc.encaps1 (inc.toHeader pk)
+  let c2 ← inc.encaps2 st (inc.toHeader pk) (inc.toVector pk)
+  pure (inc.splitC.symm (c1, c2), k)
+
+/-- The factorization law, phrased for the named staged run. -/
+theorem encaps_eq_stagedEncaps (pk : PK) : kem.encaps pk = inc.stagedEncaps pk :=
+  inc.factor pk
+
+/-- The correctness experiment run the staged way: generate a key pair, encapsulate through
+the two stages, decapsulate the result. Compare `KEMScheme.CorrectExp`. -/
+def CorrectExp [DecidableEq K] : m Bool := do
+  let (pk, sk) ← kem.keygen
+  let (c, k) ← inc.stagedEncaps pk
+  let k' ← kem.decaps sk c
+  return decide (k' = some k)
+
+/-- The staged experiment is the ordinary correctness experiment: the two programs are
+equal. -/
+theorem correctExp_eq [DecidableEq K] : inc.CorrectExp = kem.CorrectExp := by
+  simp only [CorrectExp, KEMScheme.CorrectExp, inc.encaps_eq_stagedEncaps]
+
+/-- A correctness bound for the KEM bounds the staged run in the same way. -/
+theorem probFailure_correctExp_le [DecidableEq K] (runtime : ProbCompRuntime m)
+    {delta : ℝ≥0∞} (h : kem.deltaCorrect runtime delta) :
+    Pr[= false | runtime.evalDist inc.CorrectExp] ≤ delta := by
+  rw [inc.correctExp_eq]
+  refine le_trans ?_ h
+  rw [kem.correctnessError_eq_probOutput_false_add_probFailure]
+  exact le_self_add
+
+end IncrementalStructure
 
 end KEMScheme

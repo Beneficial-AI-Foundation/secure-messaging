@@ -31,6 +31,8 @@ import SecureMessaging.ErasureCode.SPQRReedSolomon.Correctness
 import SecureMessaging.KEM.IncrementalKEM.Defs
 import SecureMessaging.KEM.MLKEM.Construction
 import SecureMessaging.KEM.MLKEM.Correctness
+import SecureMessaging.KEM.MLKEM.Correctness.EasyCryptBoundary
+import SecureMessaging.KEM.MLKEM.Incremental
 import SecureMessaging.KEM.OnOffKEM.Defs
 import SecureMessaging.KEM.OnOffKEM.FromKPKE
 import SecureMessaging.PRFPRNG.Defs
