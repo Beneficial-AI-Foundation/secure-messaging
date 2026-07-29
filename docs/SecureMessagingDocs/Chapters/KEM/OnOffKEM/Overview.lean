@@ -123,7 +123,7 @@ variable (params : Params)
 :::::gameCell "\\textsf{Notation and public parameters}" (kind := "compact")
 $`\begin{array}{ll}
 \Rq = \mathbb{Z}_q[X]/(X^{256}+1) & \text{polynomial ring over } \mathbb{Z}_q \text{ with } q=3329 \\
-\Tq & \text{NTT domain; not a subset of }\Rq\text{, but identified with it via }\NTT \\
+\Tq & \text{NTT domain; not a subset of } \Rq \text{, but identified with it via } \NTT \\
 \NTT:\Rq\to\Tq,\ \NTT^{-1}:\Tq\to\Rq & \text{forward and inverse Number-Theoretic Transforms} \\
 \hat{x}=\NTT(x)\in\Tq & \text{NTT-domain value} \\
 \langle \hat{u},\hat{v}\rangle \in \Tq & \text{vector product for }\hat{u}, \hat{v} \in \Tq^k \\
