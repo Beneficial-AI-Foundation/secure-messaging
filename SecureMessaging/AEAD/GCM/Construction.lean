@@ -146,7 +146,11 @@ The key `K × BitVec 96` bundles the cipher key with a fresh per-key `iv` — th
 GCM, NIST §8). The domain is NIST-supported by construction — AAD is `SupportedAAD`,
 the message length carries `_hL : ValidMsgLength L` — with the message fixed to
 `BitVec L` so the ciphertext `BitVec L × BitVec 128` is `SampleableType` for the
-IND-CCA game. Hence `gcmAEAD_correct` is the *unconditional* `AEADScheme.Correct`. -/
+IND-CCA game. Hence `gcmAEAD_correct` is the *unconditional* `AEADScheme.Correct`.
+
+`_hL` is carried to document/require length-support at construction but is not used
+in the body (correctness supplies its own hypothesis), hence `nolint`. -/
+@[nolint unusedArguments]
 -- ANCHOR: gcmAEAD
 def gcmAEAD {K : Type} (prp : CIPH K) (L : ℕ)
     (_hL : ValidMsgLength L) :
