@@ -40,8 +40,12 @@ def incrementalHeader {params : Params} {encoding : Encoding params}
 second: the NTT-domain ephemeral vector `yHat`, second noise polynomial `e2`, and ML-KEM
 `message`. This semantic state retains derived values rather than the raw coins. -/
 structure EncapsulationState (params : Params) where
+  /-- NTT-domain form of the ephemeral vector `y`, used to compute the second ciphertext
+  component. -/
   yHat : TqVec params.k
+  /-- Second encapsulation-noise polynomial, added to the second ciphertext component. -/
   e2 : Rq
+  /-- Sampled 32-byte ML-KEM message embedded in the second ciphertext component. -/
   message : Message
 
 /-- Given `(ρ, h)` and `m`, derives `(k, r) = G(m ‖ h)`, computes `yHat`, `e2`, and the
