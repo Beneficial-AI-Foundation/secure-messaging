@@ -18,8 +18,9 @@ from a uniformly random permutation of `X`.
 Modes of operation (CTR, GCM, ...) consume only the forward direction `perm`; the
 inverse `invPerm` merely witnesses that the primitive is a permutation. Security
 proofs for such modes replace `perm` by a random function, justified by the
-PRP/PRF switching lemma applied to the PRF view `PRPScheme.toPRFScheme`; see
-`SecureMessaging.AES.Defs` for the AES-specific specialization.
+PRP/PRF switching lemma applied to the PRF view `PRPScheme.toPRFScheme`. A
+concrete block cipher (e.g. AES) enters as a `PRPScheme` term at instantiation
+time, viewed through `toPRFScheme` by GCM (`SecureMessaging.AEAD.GCM`).
 
 ## References
 

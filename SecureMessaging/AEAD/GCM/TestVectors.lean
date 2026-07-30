@@ -7,7 +7,7 @@ Authors: Beneficial AI Foundation
 import Mathlib.Data.BitVec
 
 /-!
-# Shared AES-GCM known-answer test scaffolding (not part of the spec)
+# Shared GCM known-answer test scaffolding (not part of the spec)
 
 The GCM building blocks (`gctr`, `gcmEncrypt`/`gcmDecrypt`) are validated against
 the McGrew–Viega *Test Case 3* vector without pulling in a concrete AES: the

@@ -5,7 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import Mathlib.Data.BitVec
-import SecureMessaging.AEAD.AESGCM.TestVectors
+import SecureMessaging.AEAD.GCM.TestVectors
 
 /-!
 # GCM building blocks: GF(2^128) multiplication, GHASH, GCTR (NIST SP 800-38D §6)
@@ -75,12 +75,10 @@ example :
 
 /-! ## GHASH (NIST SP 800-38D §6.4)
 
-The keyed hash `GHASH_H` for GCM integrity: given `H = E_K(0)` and blocks
-`X₁ … Xₘ`, fold `Y₀ = 0`, `Yᵢ = (Yᵢ₋₁ ⊕ Xᵢ) • H`, return `Yₘ`.
-
-The input is a `List (BitVec 128)` of whole blocks (this spec is block-aligned,
-so no partial-final-block padding); the caller (`Construction`) assembles
-`A ‖ C ‖ (len(A) ‖ len(C))`.
+The keyed hash `GHASH_H`: from `H = E_K(0)` and blocks `X₁ … Xₘ`, fold `Y₀ = 0`,
+`Yᵢ = (Yᵢ₋₁ ⊕ Xᵢ) • H`, return `Yₘ`. It consumes *whole* blocks; NIST's zero-padding
+of the final partial `A`/`C` blocks (§7.1 steps 4–5) is the caller's job
+(`Construction`, via `padBlocks`).
 -/
 
 /-- `GHASH_H(X₁ ‖ … ‖ Xₘ)` (NIST SP 800-38D §6.4, Algorithm 2): fold
@@ -114,47 +112,64 @@ example :
         0x00000000000000000000000000000200 ]
       = 0x7f1b32b81b820d02614f8895ac1d4eac := by decide
 
-/-! ## GCTR and `inc₃₂` (NIST SP 800-38D §6.2, §6.5)
+/-! ## Bit-string blocking for GHASH (NIST SP 800-38D §5.2, §7.1)
 
-The counter side of GCM: the counter increment `inc₃₂` (§6.2) and CTR mode
-`gctr` (§6.5).
+NIST's inputs are arbitrary-length *bit strings*; an `n`-bit string `X` is modelled as
+`BitVec n` (so the width `n` is `len(X)`), bits indexed most-significant-first via
+`getMsbD`, so reads past the end return `false`; this supplies, for free, the zero-padding
+NIST appends to a final partial block.
 
-`gctr` is CTR mode over the block cipher `CIPH_K` (§6.5, Algorithm 3):
-`Yᵢ = Xᵢ ⊕ CIPH_K(CBᵢ)`, `CB₁ = ICB`, `CBᵢ₊₁ = inc₃₂(CBᵢ)`. Following NIST's
-`GCTR_K`, the cipher enters as a key-indexed family `ciph : K → BitVec 128 →
-BitVec 128` (`ciph = CIPH`) together with the key `k`, evaluated `ciph k =
-CIPH_K`; GCM is generic over `CIPH`, committing to AES only at `aesGcmAEAD`
-(`Construction`). Because each block is XORed with a keystream that depends only
-on `ciph k` and `ICB`, `gctr ciph k icb` is an involution: applying it twice with
-the same key and `ICB` recovers the input. GCM supplies `ICB = inc₃₂(J₀)` (the
-pre-counter block `J₀` is assembled in `Construction`).
-
-We model the message as a fixed-length `Vector (BitVec 128) n` of *whole* blocks,
-so block `i` (0-indexed, i.e. NIST's block `i+1`) uses `inc₃₂ⁱ(ICB)` and the NIST
-partial-final-block case (§6.5: the last block XORed with the *truncated*
-keystream `MSBₗₑₙ(E_K(CBₙ))`) cannot arise.
-This whole-block restriction is a formalization artifact imposed at the AEAD layer: the
-security game samples a random ciphertext, so the ciphertext type must be
-uniformly samplable, hence fixed-length (see `Construction`). It is therefore
-*narrower* than libsignal's plain-GCM usage (`rust/crypto/src/aes_gcm.rs`), which
-does encrypt arbitrary-length, non-block-aligned messages; the libsignal-faithful
-specializations here are instead the one-time key + fresh 96-bit nonce, the 128-bit
-tag, and AES-256. Can be extended later on if we find that the restriction is a
-problem.
+`paddedBlock`/`padBlocks` reblock these bit strings, per §7.1 steps 4–5, into the
+whole 128-bit blocks that GHASH consumes, zero-padding the final partial block.
 -/
+
+/-- The `i`-th padded 128-bit block of the bit string `x` (0-indexed, most-significant
+block first), with bits past `len(x)` read as `0` — NIST's right zero-padding of
+the final partial block. Bit `t` of block `i` is bit `128·i + t` of `x`. -/
+def paddedBlock {n : ℕ} (x : BitVec n) (i : ℕ) : BitVec 128 :=
+  (BitVec.ofBoolListBE ((List.range 128).map fun t => x.getMsbD (128 * i + t))).cast (by simp)
+
+/-- `x` split into `⌈len(x)/128⌉` blocks with the final partial block zero-padded
+(NIST SP 800-38D §7.1 steps 4–5, `A ‖ 0^v` and `C ‖ 0^u`). GHASH folds over these. -/
+def padBlocks {n : ℕ} (x : BitVec n) : List (BitVec 128) :=
+  (List.range ((n + 127) / 128)).map (paddedBlock x)
+
+/-! ## `inc₃₂` and GCTR (NIST SP 800-38D §6.2, §6.5) -/
 
 /-- The `inc₃₂` increment (NIST SP 800-38D §6.2): low 32-bit counter field
 `+1 mod 2^32`, high 96 bits fixed. -/
 def inc32 (x : BitVec 128) : BitVec 128 :=
   x.extractLsb' 32 96 ++ (x.extractLsb' 0 32 + 1)
 
-/-- GCTR over a fixed-length block vector (NIST SP 800-38D §6.5, Algorithm 3,
-`GCTR_K`): block `i` XORed with `CIPH_K(inc₃₂ⁱ(ICB))`, where the keyed cipher
-`CIPH_K = ciph k` is supplied as the family `ciph` and key `k`. An involution for
-fixed `ciph k` and `ICB`: `gctr ciph k icb (gctr ciph k icb x) = x`. -/
-def gctr {K : Type} {n : ℕ} (ciph : K → BitVec 128 → BitVec 128) (k : K)
-    (icb : BitVec 128) (blocks : Vector (BitVec 128) n) : Vector (BitVec 128) n :=
-  blocks.mapFinIdx (fun i x _ => x ^^^ ciph k (Nat.iterate inc32 i icb))
+/-- The GCTR keystream truncated to `p` bits: `MSB_p(blocks[0] ‖ blocks[1] ‖ …)`,
+where `blocks[i] = CIPH_K(CBᵢ)` and bit `j` is bit `j % 128` of `blocks[j / 128]`
+(NIST SP 800-38D §6.5). -/
+private def keystream (blocks : List (BitVec 128)) (p : ℕ) : BitVec p :=
+  (BitVec.ofBoolListBE
+    ((List.range p).map fun j => (blocks.getD (j / 128) 0).getMsbD (j % 128))).cast (by simp)
+
+/-- The counter chain `[ICB, inc₃₂(ICB), …, inc₃₂ⁿ⁻¹(ICB)]` (`n` blocks), generated
+**incrementally** — each block is one `inc₃₂` step from the previous, not recomputed
+from `ICB` (NIST SP 800-38D §6.5, `CBᵢ₊₁ = inc₃₂(CBᵢ)`). -/
+def counterChain (icb : BitVec 128) : ℕ → List (BitVec 128)
+  | 0 => []
+  | n + 1 => icb :: counterChain (inc32 icb) n
+
+/-- GCTR over an arbitrary-length bit string (NIST SP 800-38D §6.5, Algorithm 3,
+`GCTR_K`): `Y = X ⊕ MSB_{len(X)}(CIPH_K(CB₁) ‖ CIPH_K(CB₂) ‖ …)`, counter chain
+`CBᵢ = inc₃₂ⁱ⁻¹(ICB)` (built incrementally by `counterChain`, one cipher call per
+block). The keyed cipher is `ciph k = CIPH_K`; GCM supplies `ICB = inc₃₂(J₀)`. Since
+the keystream is independent of `X`, `gctr` is an involution (`gctr_involution`). -/
+def gctr {K : Type} (ciph : K → BitVec 128 → BitVec 128) (k : K) (icb : BitVec 128)
+    {p : ℕ} (x : BitVec p) : BitVec p :=
+  x ^^^ keystream ((counterChain icb ((p + 127) / 128)).map (ciph k)) p
+
+/-- `gctr ciph k icb` is an involution: it XORs a keystream independent of the
+input, so `(x ⊕ ks) ⊕ ks = x` — the basis of GCM decryption. -/
+theorem gctr_involution {K : Type} (ciph : K → BitVec 128 → BitVec 128) (k : K)
+    (icb : BitVec 128) {p : ℕ} (x : BitVec p) :
+    gctr ciph k icb (gctr ciph k icb x) = x := by
+  simp only [gctr, BitVec.xor_assoc, BitVec.xor_self, BitVec.xor_zero]
 
 /-! ### GCM validation vector (McGrew–Viega Test Case 3, not in SP 800-38D;
 `IV = cafebabefacedbaddecaf888`). The counter blocks below start from the
@@ -172,27 +187,14 @@ example :
     inc32 0xcafebabefacedbaddecaf888ffffffff = 0xcafebabefacedbaddecaf88800000000 := by
   decide
 
-/-- `gctr` maps the Test Case 3 plaintext to its ciphertext (from `ICB = inc₃₂(J₀)`). -/
+-- `gctr` maps the four-block (512-bit) Test Case 3 plaintext to its ciphertext
+-- (from `ICB = inc₃₂(J₀)`), exercising the counter-keystream path end to end.
+-- `native_decide` because kernel `decide` cannot reduce a `BitVec 512` literal
+-- (the `2^512` modulus exceeds the exponentiation threshold).
+set_option linter.style.longLine false in
+set_option linter.style.nativeDecide false in
 example :
     gctr tc3Cipher () (inc32 0xcafebabefacedbaddecaf88800000001)
-      #v[ 0xd9313225f88406e5a55909c5aff5269a,
-          0x86a7a9531534f7da2e4c303d8a318a72,
-          0x1c3c0c95956809532fcf0e2449a6b525,
-          0xb16aedf5aa0de657ba637b391aafd255 ]
-      = #v[ 0x42831ec2217774244b7221b784d0d49c,
-            0xe3aa212f2c02a4e035c17e2329aca12e,
-            0x21d514b25466931c7d8f6a5aac84aa05,
-            0x1ba30b396a0aac973d58e091473f5985 ] := by decide
-
-/-- `gctr ciph k icb` is an involution (self-inverse for fixed `ciph k` and `ICB`). -/
-example :
-    gctr tc3Cipher () (inc32 0xcafebabefacedbaddecaf88800000001)
-      (gctr tc3Cipher () (inc32 0xcafebabefacedbaddecaf88800000001)
-        #v[ 0xd9313225f88406e5a55909c5aff5269a,
-            0x86a7a9531534f7da2e4c303d8a318a72,
-            0x1c3c0c95956809532fcf0e2449a6b525,
-            0xb16aedf5aa0de657ba637b391aafd255 ])
-      = #v[ 0xd9313225f88406e5a55909c5aff5269a,
-            0x86a7a9531534f7da2e4c303d8a318a72,
-            0x1c3c0c95956809532fcf0e2449a6b525,
-            0xb16aedf5aa0de657ba637b391aafd255 ] := by decide
+      (0xd9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b391aafd255 : BitVec 512)
+      = 0x42831ec2217774244b7221b784d0d49ce3aa212f2c02a4e035c17e2329aca12e21d514b25466931c7d8f6a5aac84aa051ba30b396a0aac973d58e091473f5985 := by
+  native_decide
