@@ -5,6 +5,7 @@ import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessaging.KEM.MLKEM.Construction
 import SecureMessaging.KEM.MLKEM.Correctness
+import SecureMessaging.KEM.MLKEM.Correctness.EasyCryptBoundary
 
 set_option linter.style.setOption false
 set_option linter.hashCommand false
@@ -93,6 +94,33 @@ noncomputable def fips203DecapsulationFailureBound (p : ParameterSet) : ℝ≥0�
 ```
 
 {usesLabel}`uses` {uses "ml_kem_scheme"}[] · {githubLabel}`github` {githubIssue 219}[]
+::::
+
+:::defTitle "ml_kem_correctness_easycrypt" "ML-KEM-768 correctness from EasyCrypt boundary axioms"
+:::
+
+::::theorem "ml_kem_correctness_easycrypt" (parent := "ml_kem")
+  (lean := "MLKEM.deltaCorrect_mlkem768_easycrypt_of_le")
+Assuming EC-1 (`EasyCryptMLKEM768.romCorrectnessError_le`) and EC-2
+(`EasyCryptMLKEM768.correctnessError_le_romCorrectnessError`), and upper bounds
+$`\delta_\mathrm{CB}\le\texttt{failprob}`$, $`\varepsilon_\mathrm{hs}\le\texttt{hsadv}`$,
+$`\varepsilon_\mathrm{prf,kg}\le\texttt{prfadv}`$, and
+$`\varepsilon_\mathrm{prf,enc}\le\texttt{prfadv}`$, ML-KEM-768 is
+$`(\texttt{failprob} + \texttt{hsadv} + 2\cdot\texttt{prfadv})`$-correct.
+
+:::leanPillCaption "EasyCrypt-boundary ML-KEM-768 correctness theorem"
+:::
+
+```anchor deltaCorrect_mlkem768_easycrypt_of_le (project := ".") (module := SecureMessaging.KEM.MLKEM.Correctness.EasyCryptBoundary)
+theorem deltaCorrect_mlkem768_easycrypt_of_le {failprob hsadv prfadv : ℝ≥0∞}
+    (hcb : EasyCryptMLKEM768.correctnessBoundError ≤ failprob)
+    (hhs : EasyCryptMLKEM768.smoothingAdvantage ≤ hsadv)
+    (hkg : EasyCryptMLKEM768.keygenPRFAdvantage ≤ prfadv)
+    (henc : EasyCryptMLKEM768.encapsPRFAdvantage ≤ prfadv) :
+    mlkem768Scheme.deltaCorrect ProbCompRuntime.probComp (failprob + hsadv + 2 * prfadv)
+```
+
+{usesLabel}`uses` {uses "ml_kem_scheme"}[] · {uses "ml_kem_correctness"}[] · {githubLabel}`github` {githubIssue 238}[]
 ::::
 
 :::defTitle "ml_kem_security" "ML-KEM security"

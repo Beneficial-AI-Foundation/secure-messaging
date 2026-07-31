@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.KEM.MLKEM.Incremental
+import SecureMessaging.KEM.IncrementalKEM.FromMLKEM
 
 /-!
 # EasyCrypt assumptions for ML-KEM-768 correctness

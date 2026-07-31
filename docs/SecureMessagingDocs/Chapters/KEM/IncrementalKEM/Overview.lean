@@ -5,6 +5,7 @@ import SecureMessagingDocs.Visuals.Notation
 import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessaging.KEM.IncrementalKEM.Defs
+import SecureMessaging.KEM.IncrementalKEM.FromMLKEM
 
 set_option linter.style.setOption false
 set_option linter.hashCommand false
@@ -77,8 +78,46 @@ Incremental KEM from ML-KEM.
 ::::definition "incremental_kem_from_ml_kem_spec" (parent := "incremental_kem_incremental_kem_from_ml_kem")
 $`\todo`
 
-:::leanPill "missing"
+:::leanPillCaption "incremental ML-KEM construction"
 :::
+
+```anchor mlkemIncremental (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
+def mlkemIncremental (p : ParameterSet) (ring : NTTRingOps)
+    (prims : Primitives (ParameterSet.params p)
+      (Concrete.concreteEncoding (ParameterSet.params p))) :
+    (mlkemScheme p ring prims).IncrementalStructure where
+  PKheader := Seed32 × PublicKeyHash
+  PKvector := (Concrete.concreteEncoding (ParameterSet.params p)).EncodedTHat
+  C₁ := (Concrete.concreteEncoding (ParameterSet.params p)).EncodedU
+  C₂ := (Concrete.concreteEncoding (ParameterSet.params p)).EncodedV
+  St := EncapsulationState (ParameterSet.params p)
+  validPK hdr vec := decide
+    (encapsulationKeyHash (Concrete.concreteEncoding (ParameterSet.params p)) prims
+        { tHatEncoded := vec, rho := hdr.1 } = hdr.2)
+  splitPK :=
+    { toFun := fun ek => ⟨(incrementalHeader prims ek, ek.tHatEncoded), by simp [incrementalHeader]⟩
+      invFun := fun parts => { tHatEncoded := parts.1.2, rho := parts.1.1.1 }
+      left_inv := fun _ => rfl
+      right_inv := by
+        rintro ⟨⟨⟨rho, h⟩, vec⟩, hvalid⟩
+        have hh := of_decide_eq_true hvalid
+        apply Subtype.ext
+        simp only [incrementalHeader, hh] }
+  splitC :=
+    { toFun := fun c => (c.uEncoded, c.vEncoded)
+      invFun := fun uv => { uEncoded := uv.1, vEncoded := uv.2 }
+      left_inv := fun _ => rfl
+      right_inv := fun _ => rfl }
+  encaps1 := fun hdr => do
+    let m ←$ᵗ Message
+    return incrementalEncaps1 ring prims hdr m
+  encaps2 := fun st _hdr vec => return (incrementalEncaps2 ring st vec)
+  factor := by
+    intro ek
+    simp only [mlkemScheme, asKEMScheme, Equiv.coe_fn_symm_mk,
+      bind_assoc, pure_bind]
+    rfl
+```
 
 {usesLabel}`uses` {uses "incremental_kem_scheme"}[] · {uses "ml_kem_scheme"}[] · {githubLabel}`github` {githubIssue 226}[]
 ::::
