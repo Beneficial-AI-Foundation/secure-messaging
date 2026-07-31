@@ -81,8 +81,8 @@ $`\todo`
 :::leanPillCaption "incremental ML-KEM construction"
 :::
 
-```anchor mlkemIncremental (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
-def mlkemIncremental (p : ParameterSet) (ring : NTTRingOps)
+```anchor MLKEM.mlkemIncremental (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
+def MLKEM.mlkemIncremental (p : ParameterSet) (ring : NTTRingOps)
     (prims : Primitives (ParameterSet.params p)
       (Concrete.concreteEncoding (ParameterSet.params p))) :
     (mlkemScheme p ring prims).IncrementalStructure where
