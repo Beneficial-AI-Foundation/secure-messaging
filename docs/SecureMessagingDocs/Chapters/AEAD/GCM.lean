@@ -34,20 +34,17 @@ GCM.
 :::defTitle "aead_gcm_spec" "AEAD-GCM construction"
 :::
 
-::::definition "aead_gcm_spec" (parent := "aead_gcm") (lean := "gcmAEAD")
+::::definition "aead_gcm_spec" (parent := "aead_gcm") (lean := "gcmOneTimeAEAD")
 $`\todo`
 
-```anchor gcmAEAD (project := ".") (module := SecureMessaging.AEAD.GCM.Construction)
-def gcmAEAD {K : Type} (prp : CIPH K) (L : ℕ)
+```anchor gcmOneTimeAEAD (project := ".") (module := SecureMessaging.AEAD.GCM.Construction)
+def gcmOneTimeAEAD {K : Type} (prp : CIPH K) (L : ℕ)
     (_hL : ValidMsgLength L) :
     AEADScheme ProbComp (BitVec L) SupportedAAD
-      (K × BitVec 96) (BitVec L × BitVec 128) where
-  keygen := do
-    let k ← prp.keygen
-    let iv ← $ᵗ (BitVec 96)
-    return (k, iv)
-  encrypt := fun (k, iv) ad m => gcmEncrypt prp.perm k iv ad.1.2 m
-  decrypt := fun (k, iv) ad c => gcmDecrypt prp.perm k iv ad.1.2 c
+      K (BitVec L × BitVec 128) where
+  keygen := prp.keygen
+  encrypt := fun k ad m => gcmEncrypt prp.perm k (0 : BitVec 96) ad.1.2 m
+  decrypt := fun k ad c => gcmDecrypt prp.perm k (0 : BitVec 96) ad.1.2 c
 ```
 
 {usesLabel}`uses` {uses "aead"}[] · {githubLabel}`github` {githubIssue 21}[]
@@ -56,13 +53,13 @@ def gcmAEAD {K : Type} (prp : CIPH K) (L : ℕ)
 :::defTitle "aead_gcm_correctness" "AEAD-GCM correctness"
 :::
 
-::::theorem "aead_gcm_correctness" (parent := "aead_gcm") (lean := "gcmAEAD_correct")
+::::theorem "aead_gcm_correctness" (parent := "aead_gcm") (lean := "gcmOneTimeAEAD_correct")
 $`\todo`
 
-```anchor gcmAEAD_correct (project := ".") (module := SecureMessaging.AEAD.GCM.Construction)
-theorem gcmAEAD_correct {K : Type} (prp : CIPH K) {L : ℕ}
+```anchor gcmOneTimeAEAD_correct (project := ".") (module := SecureMessaging.AEAD.GCM.Construction)
+theorem gcmOneTimeAEAD_correct {K : Type} (prp : CIPH K) {L : ℕ}
     (hL : ValidMsgLength L) :
-    (gcmAEAD prp L hL).Correct
+    (gcmOneTimeAEAD prp L hL).Correct
 ```
 
 {usesLabel}`uses` {uses "aead_gcm_spec"}[] · {uses "aead_correctness"}[] · {githubLabel}`github` {githubIssue 22}[]

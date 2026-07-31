@@ -14,7 +14,7 @@ import SecureMessaging.PRP.Defs
 
 Assembles `gfmul`/`ghash`/`gctr`/`inc₃₂` into GCM encryption (`gcmEncrypt`,
 §7.1 Algorithm 4) and decryption (`gcmDecrypt`, §7.2 Algorithm 5), packaged as
-the `AEADScheme` `gcmAEAD`.
+the one-time-key `AEADScheme` `gcmOneTimeAEAD`.
 
 ## References
 
@@ -26,17 +26,19 @@ the `AEADScheme` `gcmAEAD`.
 - [ACD19] Alwen, Coretti, Dodis. *The Double Ratchet: Security Notions, Proofs,
   and Modularization for the Signal Protocol.* EUROCRYPT 2019,
   https://eprint.iacr.org/2018/1037.pdf — the `AEADScheme` interface
-  (`SecureMessaging.AEAD.Defs`) that `gcmAEAD` targets.
+  (`SecureMessaging.AEAD.Defs`) that `gcmOneTimeAEAD` targets.
 - [RFC9180] Barnes, Bhargavan, Lipp, Wood. *Hybrid Public Key Encryption*,
-  RFC 9180, 2022 — HPKE, libsignal's only production plain-GCM caller,
-  motivating the per-key IV. https://www.rfc-editor.org/rfc/rfc9180
+  RFC 9180, 2022 — HPKE, libsignal's only production plain-GCM caller, whose
+  per-message nonce the nonce-explicit `gcmEncrypt`/`gcmDecrypt` model.
+  https://www.rfc-editor.org/rfc/rfc9180
 
 ## Where the cipher is committed
 
 The algorithms keep the cipher abstract — NIST's keyed family
 `ciph = CIPH : K → BitVec 128 → BitVec 128`, evaluated `ciph k = CIPH_K = E_K`
-(§5.1) — so `gcmEncrypt`/`gcmDecrypt` are cipher-agnostic. The scheme `gcmAEAD`
-commits it to a `PRPScheme` on 128-bit blocks (NIST §5.1: an approved block cipher,
+(§5.1) — so `gcmEncrypt`/`gcmDecrypt` are cipher-agnostic. The scheme
+`gcmOneTimeAEAD` commits it to a `PRPScheme` on 128-bit blocks (NIST §5.1: an
+approved block cipher,
 128-bit block, key ≥ 128 bits — a permutation, not an arbitrary PRF); see its
 docstring.
 
@@ -50,8 +52,9 @@ all modelled — a reader sees NIST Algorithms 3/4/5 directly. Narrowings:
   and the one HPKE (RFC 9180) fixes. Other IV lengths (GHASH-derived `J₀`, §7.1)
   are out of scope; that path is also the regime whose bound Iwata–Ohashi–Minematsu
   (CRYPTO 2012) had to repair, so 96 bits stays in the clean one.
-- **Single-use key** (`gcmAEAD`): each key encrypts one message.
-- **Supported-length, byte-aligned, fixed-length domain** (`gcmAEAD`): NIST requires
+- **Single-use key** (`gcmOneTimeAEAD`): each key encrypts one message, so a fixed
+  IV is sufficient — the `(key, IV)` pair is never reused (NIST §8).
+- **Supported-length, byte-aligned, fixed-length domain** (`gcmOneTimeAEAD`): NIST requires
   byte-aligned lengths within the §5.2.1.1 maxima (`ValidLengths`), and the message
   length is fixed to one `L` for the IND-CCA game's samplable ciphertext. The
   algorithm layer itself stays length-generic.
@@ -74,12 +77,12 @@ AAD bit-lengths bounded and byte-aligned. NIST: "Although GCM is defined on bit
 strings, the bit lengths of the plaintext, the AAD, and the IV shall all be
 multiples of 8, so that these values are byte strings." (`len(C) = len(P)`, GCTR
 preserving length.) `gcmDecrypt` enforces it (Algorithm 5 step 1) and it is baked
-into `gcmAEAD`'s domain. `@[reducible]` for `Decidable` in the guard. -/
+into `gcmOneTimeAEAD`'s domain. `@[reducible]` for `Decidable` in the guard. -/
 @[reducible] def ValidLengths (lenA lenC : ℕ) : Prop :=
   ValidMsgLength lenC ∧ ValidAADLength lenA
 
 /-- The supported-AAD domain: variable-length byte-string AAD whose length is
-NIST-supported. This is `gcmAEAD`'s associated-data type. -/
+NIST-supported. This is `gcmOneTimeAEAD`'s associated-data type. -/
 abbrev SupportedAAD := { x : (a : ℕ) × BitVec a // ValidAADLength x.1 }
 
 /-! ## The GCM algorithms (NIST SP 800-38D §7) -/
@@ -91,7 +94,7 @@ forward family `ciph k = CIPH_K` (module header); `iv` is the 96-bit IV.
 
 Raw algorithm layer: like NIST Algorithm 4 it does not check lengths (a precondition
 `ValidLengths a p`; outside it the `[len(A)]₆₄ ‖ [len(C)]₆₄` block wraps mod 2⁶⁴).
-`gcmAEAD` only ever applies it on its supported domain.
+`gcmOneTimeAEAD` only ever applies it on its supported domain.
 
 Following NIST's steps:
 - (1) `H = E_K(0)`;
@@ -136,47 +139,51 @@ def gcmDecrypt {K : Type} (ciph : K → BitVec 128 → BitVec 128) (k : K)
 and closer to the standard's name than `PRPScheme K (BitVec 128)`. -/
 abbrev CIPH (K : Type) := PRPScheme K (BitVec 128)
 
-/-- **GCM as an `AEADScheme`** (ACD19 interface, IV absorbed into the key). The
-scheme layer: the cipher is a `CIPH K` (PRP on 128-bit blocks), used forward only
+/-- **One-time-key GCM as an `AEADScheme`** (ACD19 interface). This is a one-time-key
+specialization of 96-bit-IV GCM for the ACD19 AEAD abstraction. It fixes the IV to
+`0` because the security experiment permits only one encryption per freshly generated
+block-cipher key; it is not a multi-invocation GCM interface (for that, call the
+nonce-explicit `gcmEncrypt`/`gcmDecrypt` directly).
+
+The scheme layer: the cipher is a `CIPH K` (PRP on 128-bit blocks), used forward only
 (`ciph = prp.perm`; `prp.invPerm` is unused, as CTR runs forward both ways). The
 PRP→PRF switch (`prp.toPRFScheme`) belongs to the security reduction, not the mode.
 
-The key `K × BitVec 96` bundles the cipher key with a fresh per-key `iv` — the
-**single-use-key** specialization (reusing `(k, iv)` repeats the IV and breaks
-GCM, NIST §8). The domain is NIST-supported by construction — AAD is `SupportedAAD`,
-the message length carries `_hL : ValidMsgLength L` — with the message fixed to
-`BitVec L` so the ciphertext `BitVec L × BitVec 128` is `SampleableType` for the
-IND-CCA game. Hence `gcmAEAD_correct` is the *unconditional* `AEADScheme.Correct`.
+The AEAD key is the block-cipher key `K` itself — no IV is bundled in. Fixing the IV
+is sound precisely because keygen draws a fresh key per encryption, so the `(key, IV)`
+pair is never reused (the GCM uniqueness requirement, NIST §8). The ciphertext stays
+`(C, T)`, matching ACD19's fixed ciphertext space. The domain is NIST-supported by
+construction — AAD is `SupportedAAD`, the message length carries `_hL : ValidMsgLength
+L` — with the message fixed to `BitVec L` so the ciphertext `BitVec L × BitVec 128` is
+`SampleableType` for the IND-CCA game. Hence `gcmOneTimeAEAD_correct` is the
+*unconditional* `AEADScheme.Correct`.
 
 `_hL` is carried to document/require length-support at construction but is not used
 in the body (correctness supplies its own hypothesis), hence `nolint`. -/
 @[nolint unusedArguments]
--- ANCHOR: gcmAEAD
-def gcmAEAD {K : Type} (prp : CIPH K) (L : ℕ)
+-- ANCHOR: gcmOneTimeAEAD
+def gcmOneTimeAEAD {K : Type} (prp : CIPH K) (L : ℕ)
     (_hL : ValidMsgLength L) :
     AEADScheme ProbComp (BitVec L) SupportedAAD
-      (K × BitVec 96) (BitVec L × BitVec 128) where
-  keygen := do
-    let k ← prp.keygen
-    let iv ← $ᵗ (BitVec 96)
-    return (k, iv)
-  encrypt := fun (k, iv) ad m => gcmEncrypt prp.perm k iv ad.1.2 m
-  decrypt := fun (k, iv) ad c => gcmDecrypt prp.perm k iv ad.1.2 c
--- ANCHOR_END: gcmAEAD
+      K (BitVec L × BitVec 128) where
+  keygen := prp.keygen
+  encrypt := fun k ad m => gcmEncrypt prp.perm k (0 : BitVec 96) ad.1.2 m
+  decrypt := fun k ad c => gcmDecrypt prp.perm k (0 : BitVec 96) ad.1.2 c
+-- ANCHOR_END: gcmOneTimeAEAD
 
-/-- `gcmAEAD` satisfies the unconditional ACD19 `AEADScheme.Correct` (given the
+/-- `gcmOneTimeAEAD` satisfies the unconditional ACD19 `AEADScheme.Correct` (given the
 message length is supported, `hL`): every domain AAD is supported, so `gcmDecrypt`'s
 length guard passes; the recomputed tag matches by construction; and
 `gctr_involution` recovers the plaintext. -/
--- ANCHOR: gcmAEAD_correct
-theorem gcmAEAD_correct {K : Type} (prp : CIPH K) {L : ℕ}
+-- ANCHOR: gcmOneTimeAEAD_correct
+theorem gcmOneTimeAEAD_correct {K : Type} (prp : CIPH K) {L : ℕ}
     (hL : ValidMsgLength L) :
-    (gcmAEAD prp L hL).Correct
--- ANCHOR_END: gcmAEAD_correct
+    (gcmOneTimeAEAD prp L hL).Correct
+-- ANCHOR_END: gcmOneTimeAEAD_correct
     := by
-  rintro ⟨k, iv⟩ ⟨⟨av, ad⟩, hav⟩ m
+  rintro k ⟨⟨av, ad⟩, hav⟩ m
   have hv : ValidLengths av L := ⟨hL, hav⟩
-  simp only [gcmAEAD, gcmEncrypt, gcmDecrypt]
+  simp only [gcmOneTimeAEAD, gcmEncrypt, gcmDecrypt]
   rw [if_pos hv]
   simp only [if_true, gctr_involution]
 
@@ -190,7 +197,7 @@ Case 3 key/IV, so the tabulated cipher `tc3Cipher` (see
 hash subkey both vectors query. `native_decide` is used because kernel `decide`
 cannot reduce the wide `BitVec` literals (their `2^n` modulus exceeds the
 exponentiation threshold); the resulting `Lean.ofReduceBool` axiom is confined to
-these anonymous `example`s and does not enter `gcmAEAD`/`gcmAEAD_correct`. -/
+these anonymous `example`s and does not enter `gcmOneTimeAEAD`/`gcmOneTimeAEAD_correct`. -/
 
 section KnownAnswerTests
 set_option linter.style.longLine false
