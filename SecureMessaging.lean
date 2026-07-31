@@ -1,6 +1,5 @@
 import SecureMessaging.AEAD.GCM.Construction
 import SecureMessaging.AEAD.GCM.Gcm
-import SecureMessaging.AEAD.GCM.TestVectors
 import SecureMessaging.AEAD.Defs
 import SecureMessaging.AEAD.FromEtM.Construction
 import SecureMessaging.AEAD.FromEtM.Correctness
