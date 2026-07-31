@@ -31,22 +31,27 @@ time, viewed through `toPRFScheme` by GCM (`SecureMessaging.AEAD.GCM`).
 
 open OracleSpec OracleComp
 
-/-- A pseudorandom permutation scheme: key space `K`, domain `X`. -/
-structure PRPScheme (K X : Type) where
+/-- A block cipher (NIST SP 800-38D §5.1): a keyed permutation on `X`, given as
+forward/inverse functions mutually inverse for every key (`correct`). Modes like
+GCM use only the forward direction; `invPerm`/`correct` witness that the primitive
+is a genuine permutation, not an arbitrary function. -/
+structure BlockCipher (K X : Type) where
+  /-- The forward cipher function `CIPHₖ` (§5.1). -/
+  perm : K → X → X
+  /-- The inverse cipher function `CIPHₖ⁻¹`. -/
+  invPerm : K → X → X
+  /-- `perm k` and `invPerm k` are mutually inverse for every key `k`. -/
+  correct : ∀ k x, invPerm k (perm k x) = x ∧ perm k (invPerm k x) = x
+
+/-- A pseudorandom permutation scheme: a `BlockCipher` plus randomized key
+generation (`keygen`). -/
+structure PRPScheme (K X : Type) extends BlockCipher K X where
   /-- Randomized key generation. -/
   keygen : ProbComp K
-  /-- The keyed permutation on `X`. -/
-  perm : K → X → X
-  /-- The inverse of the keyed permutation. -/
-  invPerm : K → X → X
 
 namespace PRPScheme
 
 variable {K X : Type}
-
-/-- Correctness: `invPerm k` and `perm k` are mutually inverse for every key `k`. -/
-def Correct (prp : PRPScheme K X) : Prop :=
-  ∀ k x, prp.invPerm k (prp.perm k x) = x ∧ prp.perm k (prp.invPerm k x) = x
 
 /-- View a PRP as a `PRFScheme` by forgetting invertibility and keeping only the
 forward permutation (`eval := perm`). Modes like CTR/GCM consume a block cipher

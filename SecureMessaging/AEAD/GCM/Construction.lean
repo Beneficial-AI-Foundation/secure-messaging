@@ -34,12 +34,9 @@ the one-time-key `AEADScheme` `gcmOneTimeAEAD`.
 
 ## Where the cipher is committed
 
-The algorithms keep the cipher abstract — NIST's keyed family
-`ciph = CIPH : K → BitVec 128 → BitVec 128`, evaluated `ciph k = CIPH_K = E_K`
-(§5.1) — so `gcmEncrypt`/`gcmDecrypt` are cipher-agnostic. The scheme
-`gcmOneTimeAEAD` commits it to a `PRPScheme` on 128-bit blocks (NIST §5.1: an
-approved block cipher,
-128-bit block, key ≥ 128 bits — a permutation, not an arbitrary PRF); see its
+The algorithms take NIST's block cipher directly as `ciph : CIPH K`, using only the
+forward direction `ciph.perm`. The scheme `gcmOneTimeAEAD` supplies the key
+generation on top, taking a full `PRPScheme` (block cipher + `keygen`); see its
 docstring.
 
 ## Scope
@@ -87,10 +84,14 @@ abbrev SupportedAAD := { x : (a : ℕ) × BitVec a // ValidAADLength x.1 }
 
 /-! ## The GCM algorithms (NIST SP 800-38D §7) -/
 
+/-- `CIPH K` (NIST SP 800-38D §5.1): the block cipher GCM is built over, named after
+NIST's own notation for it. -/
+abbrev CIPH (K : Type) := BlockCipher K (BitVec 128)
+
 /-- GCM authenticated encryption `GCM-AE_K(IV, P, A)` (NIST SP 800-38D §7.1,
 Algorithm 4), on arbitrary-length bit strings: AAD `ad : BitVec a`, plaintext
-`m : BitVec p`, ciphertext `c : BitVec p` (GCTR preserves length). The cipher is the
-forward family `ciph k = CIPH_K` (module header); `iv` is the 96-bit IV.
+`m : BitVec p`, ciphertext `c : BitVec p` (GCTR preserves length). The cipher is
+`ciph : CIPH K`, evaluated forward `ciph.perm k = CIPH_K`; `iv` is the 96-bit IV.
 
 Raw algorithm layer: like NIST Algorithm 4 it does not check lengths (a precondition
 `ValidLengths a p`; outside it the `[len(A)]₆₄ ‖ [len(C)]₆₄` block wraps mod 2⁶⁴).
@@ -103,15 +104,15 @@ Following NIST's steps:
 - (4–5) `S = GHASH_H(A ‖ 0^v ‖ C ‖ 0^u ‖ [len(A)]₆₄ ‖ [len(C)]₆₄)` (padding via
   `padBlocks`, length block appended last);
 - (6) `T = E_K(J₀) ⊕ S`; (7) output `(C, T)`. -/
-def gcmEncrypt {K : Type} (ciph : K → BitVec 128 → BitVec 128) (k : K)
+def gcmEncrypt {K : Type} (ciph : CIPH K) (k : K)
     (iv : BitVec 96) {a p : ℕ} (ad : BitVec a) (m : BitVec p) :
     BitVec p × BitVec 128 :=
-  let h := ciph k 0
+  let h := ciph.perm k 0
   let j₀ := iv ++ (0 : BitVec 31) ++ (1 : BitVec 1)
-  let c := gctr ciph k (inc32 j₀) m
+  let c := gctr ciph.perm k (inc32 j₀) m
   -- trailing GHASH block `[len(A)]₆₄ ‖ [len(C)]₆₄` (NIST SP 800-38D §7.1 step 5)
   let s := ghash h (padBlocks ad ++ padBlocks c ++ [BitVec.ofNat 64 a ++ BitVec.ofNat 64 p])
-  let t := ciph k j₀ ^^^ s
+  let t := ciph.perm k j₀ ^^^ s
   (c, t)
 
 /-- GCM authenticated decryption `GCM-AD_K(IV, C, A, T)` (NIST SP 800-38D §7.2,
@@ -120,24 +121,19 @@ Algorithm 5): `FAIL` (return `none`) if the input lengths are unsupported (step 
 types), else recompute the tag as in `gcmEncrypt` and, on a match, return
 `GCTR_K(inc₃₂(J₀), C) = P`. Encryption has no such check — Algorithm 4 assumes it as
 a precondition; only Algorithm 5 validates lengths. -/
-def gcmDecrypt {K : Type} (ciph : K → BitVec 128 → BitVec 128) (k : K)
+def gcmDecrypt {K : Type} (ciph : CIPH K) (k : K)
     (iv : BitVec 96) {a p : ℕ} (ad : BitVec a) (ct : BitVec p × BitVec 128) :
     Option (BitVec p) :=
   -- Algorithm 5 step 1: FAIL immediately on unsupported input lengths, before any
   -- GHASH work.
   if ValidLengths a p then
     let (c, t) := ct
-    let h := ciph k 0
+    let h := ciph.perm k 0
     let j₀ := iv ++ (0 : BitVec 31) ++ (1 : BitVec 1)
     -- trailing GHASH block `[len(A)]₆₄ ‖ [len(C)]₆₄` (NIST SP 800-38D §7.1 step 5)
     let s := ghash h (padBlocks ad ++ padBlocks c ++ [BitVec.ofNat 64 a ++ BitVec.ofNat 64 p])
-    if t = ciph k j₀ ^^^ s then some (gctr ciph k (inc32 j₀) c) else none
+    if t = ciph.perm k j₀ ^^^ s then some (gctr ciph.perm k (inc32 j₀) c) else none
   else none
-
-/-- `CIPH K` (NIST SP 800-38D §5.1): the block cipher GCM is built over — a PRP on
-128-bit blocks keyed by `K`, of which GCM uses only the forward direction. Shorter
-and closer to the standard's name than `PRPScheme K (BitVec 128)`. -/
-abbrev CIPH (K : Type) := PRPScheme K (BitVec 128)
 
 /-- **One-time-key GCM as an `AEADScheme`** (ACD19 interface). This is a one-time-key
 specialization of 96-bit-IV GCM for the ACD19 AEAD abstraction. It fixes the IV to
@@ -145,9 +141,9 @@ specialization of 96-bit-IV GCM for the ACD19 AEAD abstraction. It fixes the IV 
 block-cipher key; it is not a multi-invocation GCM interface (for that, call the
 nonce-explicit `gcmEncrypt`/`gcmDecrypt` directly).
 
-The scheme layer: the cipher is a `CIPH K` (PRP on 128-bit blocks), used forward only
-(`ciph = prp.perm`; `prp.invPerm` is unused, as CTR runs forward both ways). The
-PRP→PRF switch (`prp.toPRFScheme`) belongs to the security reduction, not the mode.
+The scheme layer: `prp : PRPScheme K (BitVec 128)` supplies the block cipher plus
+key generation; the mode consumes only `prp.toBlockCipher : CIPH K`. The PRP→PRF
+switch (`prp.toPRFScheme`) belongs to the security reduction, not the mode.
 
 The AEAD key is the block-cipher key `K` itself — no IV is bundled in. Fixing the IV
 is sound precisely because keygen draws a fresh key per encryption, so the `(key, IV)`
@@ -162,13 +158,13 @@ L` — with the message fixed to `BitVec L` so the ciphertext `BitVec L × BitVe
 in the body (correctness supplies its own hypothesis), hence `nolint`. -/
 @[nolint unusedArguments]
 -- ANCHOR: gcmOneTimeAEAD
-def gcmOneTimeAEAD {K : Type} (prp : CIPH K) (L : ℕ)
+def gcmOneTimeAEAD {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ)
     (_hL : ValidMsgLength L) :
     AEADScheme ProbComp (BitVec L) SupportedAAD
       K (BitVec L × BitVec 128) where
   keygen := prp.keygen
-  encrypt := fun k ad m => gcmEncrypt prp.perm k (0 : BitVec 96) ad.1.2 m
-  decrypt := fun k ad c => gcmDecrypt prp.perm k (0 : BitVec 96) ad.1.2 c
+  encrypt := fun k ad m => gcmEncrypt prp.toBlockCipher k (0 : BitVec 96) ad.1.2 m
+  decrypt := fun k ad c => gcmDecrypt prp.toBlockCipher k (0 : BitVec 96) ad.1.2 c
 -- ANCHOR_END: gcmOneTimeAEAD
 
 /-- `gcmOneTimeAEAD` satisfies the unconditional ACD19 `AEADScheme.Correct` (given the
@@ -176,7 +172,7 @@ message length is supported, `hL`): every domain AAD is supported, so `gcmDecryp
 length guard passes; the recomputed tag matches by construction; and
 `gctr_involution` recovers the plaintext. -/
 -- ANCHOR: gcmOneTimeAEAD_correct
-theorem gcmOneTimeAEAD_correct {K : Type} (prp : CIPH K) {L : ℕ}
+theorem gcmOneTimeAEAD_correct {K : Type} (prp : PRPScheme K (BitVec 128)) {L : ℕ}
     (hL : ValidMsgLength L) :
     (gcmOneTimeAEAD prp L hL).Correct
 -- ANCHOR_END: gcmOneTimeAEAD_correct
@@ -192,7 +188,7 @@ theorem gcmOneTimeAEAD_correct {K : Type} (prp : CIPH K) {L : ℕ}
 Test Case 3 (four full blocks, empty AAD) covers the block-aligned path; Test
 Case 4 (60-byte plaintext, 20-byte AAD) covers the **partial final block**,
 **partial AAD block**, and the **true bit-length** field. Both share the Test
-Case 3 key/IV, so the tabulated cipher `tc3Cipher` (see
+Case 3 key/IV, so the block cipher `tc3BlockCipher` (see
 `SecureMessaging.AEAD.GCM.TestVectors`) already covers every counter block and the
 hash subkey both vectors query. `native_decide` is used because kernel `decide`
 cannot reduce the wide `BitVec` literals (their `2^n` modulus exceeds the
@@ -214,17 +210,17 @@ private def tc3Tag : BitVec 128 := 0x4d5c2af327cd64a62cf35abd2ba6fab4
 
 /-- `gcmEncrypt` reproduces the Test Case 3 ciphertext and tag (empty AAD). -/
 example :
-    gcmEncrypt tc3Cipher () 0xcafebabefacedbaddecaf888 (0 : BitVec 0) tc3Plain
+    gcmEncrypt tc3BlockCipher () 0xcafebabefacedbaddecaf888 (0 : BitVec 0) tc3Plain
       = (tc3Ct, tc3Tag) := by native_decide
 
 /-- `gcmDecrypt` inverts `gcmEncrypt` on Test Case 3. -/
 example :
-    gcmDecrypt tc3Cipher () 0xcafebabefacedbaddecaf888 (0 : BitVec 0) (tc3Ct, tc3Tag)
+    gcmDecrypt tc3BlockCipher () 0xcafebabefacedbaddecaf888 (0 : BitVec 0) (tc3Ct, tc3Tag)
       = some tc3Plain := by native_decide
 
 /-- `gcmDecrypt` rejects a tampered tag. -/
 example :
-    gcmDecrypt tc3Cipher () 0xcafebabefacedbaddecaf888 (0 : BitVec 0) (tc3Ct, 0)
+    gcmDecrypt tc3BlockCipher () 0xcafebabefacedbaddecaf888 (0 : BitVec 0) (tc3Ct, 0)
       = none := by native_decide
 
 /-- Test Case 4 AAD (20 bytes = 160 bits): a full block plus a partial block. -/
@@ -244,18 +240,18 @@ private def tc4Tag : BitVec 128 := 0x5bc94fbc3221a5db94fae95ae7121a47
 keystream truncation), the partial AAD block (`0^v`/`0^u` padding), and the true
 `len(A) ‖ len(C)` field, all against the authoritative vector. -/
 example :
-    gcmEncrypt tc3Cipher () 0xcafebabefacedbaddecaf888 tc4Aad tc4Plain
+    gcmEncrypt tc3BlockCipher () 0xcafebabefacedbaddecaf888 tc4Aad tc4Plain
       = (tc4Ct, tc4Tag) := by native_decide
 
 /-- `gcmDecrypt` inverts `gcmEncrypt` on Test Case 4 (partial blocks, non-empty AAD). -/
 example :
-    gcmDecrypt tc3Cipher () 0xcafebabefacedbaddecaf888 tc4Aad (tc4Ct, tc4Tag)
+    gcmDecrypt tc3BlockCipher () 0xcafebabefacedbaddecaf888 tc4Aad (tc4Ct, tc4Tag)
       = some tc4Plain := by native_decide
 
 /-- AAD is authenticated: decrypting Test Case 4 under a different AAD is rejected
 (GHASH, hence the tag, binds the AAD). -/
 example :
-    gcmDecrypt tc3Cipher () 0xcafebabefacedbaddecaf888
+    gcmDecrypt tc3BlockCipher () 0xcafebabefacedbaddecaf888
       (0xfeedfacedeadbeeffeedfacedeadbeef00000000 : BitVec 160) (tc4Ct, tc4Tag)
       = none := by native_decide
 

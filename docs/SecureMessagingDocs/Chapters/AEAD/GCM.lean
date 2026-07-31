@@ -38,13 +38,13 @@ GCM.
 $`\todo`
 
 ```anchor gcmOneTimeAEAD (project := ".") (module := SecureMessaging.AEAD.GCM.Construction)
-def gcmOneTimeAEAD {K : Type} (prp : CIPH K) (L : ℕ)
+def gcmOneTimeAEAD {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ)
     (_hL : ValidMsgLength L) :
     AEADScheme ProbComp (BitVec L) SupportedAAD
       K (BitVec L × BitVec 128) where
   keygen := prp.keygen
-  encrypt := fun k ad m => gcmEncrypt prp.perm k (0 : BitVec 96) ad.1.2 m
-  decrypt := fun k ad c => gcmDecrypt prp.perm k (0 : BitVec 96) ad.1.2 c
+  encrypt := fun k ad m => gcmEncrypt prp.toBlockCipher k (0 : BitVec 96) ad.1.2 m
+  decrypt := fun k ad c => gcmDecrypt prp.toBlockCipher k (0 : BitVec 96) ad.1.2 c
 ```
 
 {usesLabel}`uses` {uses "aead"}[] · {githubLabel}`github` {githubIssue 21}[]
@@ -57,7 +57,7 @@ def gcmOneTimeAEAD {K : Type} (prp : CIPH K) (L : ℕ)
 $`\todo`
 
 ```anchor gcmOneTimeAEAD_correct (project := ".") (module := SecureMessaging.AEAD.GCM.Construction)
-theorem gcmOneTimeAEAD_correct {K : Type} (prp : CIPH K) {L : ℕ}
+theorem gcmOneTimeAEAD_correct {K : Type} (prp : PRPScheme K (BitVec 128)) {L : ℕ}
     (hL : ValidMsgLength L) :
     (gcmOneTimeAEAD prp L hL).Correct
 ```
