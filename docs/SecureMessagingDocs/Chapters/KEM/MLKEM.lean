@@ -111,8 +111,8 @@ $`(\texttt{failprob} + \texttt{hsadv} + 2\cdot\texttt{prfadv})`$-correct.
 :::leanPillCaption "EasyCrypt-boundary ML-KEM-768 correctness theorem"
 :::
 
-```anchor MLKEM.deltaCorrect_mlkem768_easycrypt_of_le (project := ".") (module := SecureMessaging.KEM.MLKEM.Correctness.EasyCryptBoundary)
-theorem MLKEM.deltaCorrect_mlkem768_easycrypt_of_le {failprob hsadv prfadv : ℝ≥0∞}
+```anchor deltaCorrect_mlkem768_easycrypt_of_le (project := ".") (module := SecureMessaging.KEM.MLKEM.Correctness.EasyCryptBoundary)
+theorem deltaCorrect_mlkem768_easycrypt_of_le {failprob hsadv prfadv : ℝ≥0∞}
     (hcb : EasyCryptMLKEM768.correctnessBoundError ≤ failprob)
     (hhs : EasyCryptMLKEM768.smoothingAdvantage ≤ hsadv)
     (hkg : EasyCryptMLKEM768.keygenPRFAdvantage ≤ prfadv)
