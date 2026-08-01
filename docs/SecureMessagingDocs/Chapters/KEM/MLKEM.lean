@@ -99,8 +99,7 @@ noncomputable def fips203DecapsulationFailureBound (p : ParameterSet) : ℝ≥0�
 :::defTitle "ml_kem_correctness_easycrypt" "ML-KEM-768 correctness from EasyCrypt boundary axioms"
 :::
 
-::::theorem "ml_kem_correctness_easycrypt" (parent := "ml_kem")
-  (lean := "MLKEM.deltaCorrect_mlkem768_easycrypt_of_le")
+::::theorem "ml_kem_correctness_easycrypt" (parent := "ml_kem") (lean := "MLKEM.deltaCorrect_mlkem768_easycrypt_of_le")
 Assuming EC-1 (`EasyCryptMLKEM768.romCorrectnessError_le`) and EC-2
 (`EasyCryptMLKEM768.correctnessError_le_romCorrectnessError`), and upper bounds
 $`\delta_\mathrm{CB}\le\texttt{failprob}`$, $`\varepsilon_\mathrm{hs}\le\texttt{hsadv}`$,

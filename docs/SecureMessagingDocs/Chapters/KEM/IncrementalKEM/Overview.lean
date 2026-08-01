@@ -76,6 +76,7 @@ Incremental KEM from ML-KEM.
 :::
 
 ::::definition "incremental_kem_from_ml_kem_spec" (parent := "incremental_kem_incremental_kem_from_ml_kem")
+  (lean := "MLKEM.mlkemIncremental")
 $`\todo`
 
 :::leanPillCaption "incremental ML-KEM construction"
