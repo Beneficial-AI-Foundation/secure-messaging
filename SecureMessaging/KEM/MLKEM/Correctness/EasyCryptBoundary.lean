@@ -93,6 +93,7 @@ end EasyCryptMLKEM768
 
 /-- Under the upper-bound hypotheses of `mlkem_spec_correctness`, the local ML-KEM-768
 scheme is `(failprob + hsadv + 2 * prfadv)`-correct. -/
+-- ANCHOR: deltaCorrect_mlkem768_easycrypt_of_le
 theorem deltaCorrect_mlkem768_easycrypt_of_le {failprob hsadv prfadv : ℝ≥0∞}
     (hcb : EasyCryptMLKEM768.correctnessBoundError ≤ failprob)
     (hhs : EasyCryptMLKEM768.smoothingAdvantage ≤ hsadv)
@@ -101,6 +102,7 @@ theorem deltaCorrect_mlkem768_easycrypt_of_le {failprob hsadv prfadv : ℝ≥0�
     mlkem768Scheme.deltaCorrect ProbCompRuntime.probComp (failprob + hsadv + 2 * prfadv) :=
   le_trans EasyCryptMLKEM768.correctnessError_le_romCorrectnessError
     (EasyCryptMLKEM768.romCorrectnessError_le hcb hhs hkg henc)
+-- ANCHOR_END: deltaCorrect_mlkem768_easycrypt_of_le
 
 /-- The staged ML-KEM-768 correctness experiment returns `false` with probability at most
 `failprob + hsadv + 2 * prfadv`. -/

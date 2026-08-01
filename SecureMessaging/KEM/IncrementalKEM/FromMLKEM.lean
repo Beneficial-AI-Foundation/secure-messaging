@@ -78,6 +78,7 @@ def incrementalEncaps2 {params : Params} {encoding : Encoding params} (ring : NT
 `EncapsulationState` containing `yHat`, `e2`, and `message`; stage 2 consumes that state
 without retaining raw coins. `validPK` checks the header hash against the reconstructed
 public key. -/
+-- ANCHOR: mlkemIncremental
 def mlkemIncremental (p : ParameterSet) (ring : NTTRingOps)
     (prims : Primitives (ParameterSet.params p)
       (Concrete.concreteEncoding (ParameterSet.params p))) :
@@ -113,5 +114,6 @@ def mlkemIncremental (p : ParameterSet) (ring : NTTRingOps)
     simp only [mlkemScheme, asKEMScheme, Equiv.coe_fn_symm_mk,
       bind_assoc, pure_bind]
     rfl
+-- ANCHOR_END: mlkemIncremental
 
 end MLKEM
