@@ -117,7 +117,9 @@ theorem deltaCorrect_mlkem768_easycrypt_of_le {failprob hsadv prfadv : ℝ≥0�
     (hhs : EasyCryptMLKEM768.smoothingAdvantage ≤ hsadv)
     (hkg : EasyCryptMLKEM768.keygenPRFAdvantage ≤ prfadv)
     (henc : EasyCryptMLKEM768.encapsPRFAdvantage ≤ prfadv) :
-    mlkem768Scheme.deltaCorrect ProbCompRuntime.probComp (failprob + hsadv + 2 * prfadv)
+    mlkem768Scheme.deltaCorrect ProbCompRuntime.probComp (failprob + hsadv + 2 * prfadv) :=
+  le_trans EasyCryptMLKEM768.correctnessError_le_romCorrectnessError
+    (EasyCryptMLKEM768.romCorrectnessError_le hcb hhs hkg henc)
 ```
 
 {usesLabel}`uses` {uses "ml_kem_scheme"}[] · {uses "ml_kem_correctness"}[] · {githubLabel}`github` {githubIssue 238}[]
