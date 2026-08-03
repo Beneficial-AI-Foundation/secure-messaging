@@ -36,6 +36,9 @@ Incremental Key Encapsulation Mechanism (Incremental KEM).
 ::::definition "incremental_kem_scheme" (parent := "incremental_kem") (lean := "KEMScheme.IncrementalStructure")
 $`\todo`
 
+:::leanPillCaption "incremental KEM interface"
+:::
+
 ```anchor IncrementalStructure (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.Defs)
 structure IncrementalStructure (kem : KEMScheme m K PK SK C) where
   /-- Public-key header type. -/
@@ -80,7 +83,7 @@ Incremental KEM from ML-KEM.
 ::::definition "incremental_kem_from_ml_kem_spec" (parent := "incremental_kem_incremental_kem_from_ml_kem") (lean := "MLKEM.incrementalHeader, MLKEM.EncapsulationState, MLKEM.incrementalEncaps1, MLKEM.incrementalEncaps2, MLKEM.mlkemIncremental")
 $`\todo`
 
-:::leanPillCaption "header"
+:::leanPillCaption "public-key header (ρ, H(ek))"
 :::
 
 ```anchor incrementalHeader (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
@@ -90,7 +93,7 @@ def incrementalHeader {params : Params} {encoding : Encoding params}
   (ek.rho, encapsulationKeyHash encoding prims ek)
 ```
 
-:::leanPillCaption "encapsulation state"
+:::leanPillCaption "state carried between encapsulation stages"
 :::
 
 ```anchor incrementalEncapsulationState (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
@@ -104,7 +107,7 @@ structure EncapsulationState (params : Params) where
   message : Message
 ```
 
-:::leanPillCaption "encaps1"
+:::leanPillCaption "first stage: derive state, u, and the shared secret"
 :::
 
 ```anchor incrementalEncaps1 (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
@@ -121,7 +124,7 @@ def incrementalEncaps1 {params : Params} {encoding : Encoding params} (ring : NT
   ({ yHat, e2, message := m }, encoding.byteEncodeDUVec (encoding.compressDU u), k)
 ```
 
-:::leanPillCaption "encaps2"
+:::leanPillCaption "second stage: derive v from the public-key vector"
 :::
 
 ```anchor incrementalEncaps2 (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
@@ -134,7 +137,7 @@ def incrementalEncaps2 {params : Params} {encoding : Encoding params} (ring : NT
   encoding.byteEncodeDV (encoding.compressDV v)
 ```
 
-:::leanPillCaption "IncrementalStructure instance"
+:::leanPillCaption "complete incremental ML-KEM construction"
 :::
 
 ```anchor mlkemIncremental (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
@@ -185,7 +188,7 @@ def mlkemIncremental (p : ParameterSet) (ring : NTTRingOps)
 ::::theorem "incremental_kem_from_ml_kem_correctness" (parent := "incremental_kem_incremental_kem_from_ml_kem") (lean := "MLKEM.incrementalCorrectExp_failure_le_mlkem768_easycrypt")
 $`\todo`
 
-:::leanPillCaption "staged correctness from EasyCrypt bounds"
+:::leanPillCaption "staged ML-KEM-768 correctness bound"
 :::
 
 ```anchor incrementalCorrectExp_failure_le_mlkem768_easycrypt (project := ".") (module := SecureMessaging.KEM.MLKEM.Correctness.EasyCryptBoundary)
