@@ -100,7 +100,7 @@ jobs:
         run: |
           lake build \
             SecureMessagingDocs.Chapters.AEAD.Defs \
-            SecureMessagingDocs.Chapters.AEAD.AESGCM \
+            SecureMessagingDocs.Chapters.AEAD.GCM \
             SecureMessagingDocs.Chapters.AEAD.EncryptThenMAC \
             SecureMessagingDocs.Chapters.CKA.Defs \
             SecureMessagingDocs.Chapters.CKA.FromDDH \

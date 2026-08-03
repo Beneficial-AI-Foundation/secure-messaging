@@ -1,4 +1,7 @@
+import SecureMessaging.AEAD.GCM
 import SecureMessaging.AEAD.Defs
+import SecureMessaging.AEAD.FromGCM.Construction
+import SecureMessaging.AEAD.FromGCM.Correctness
 import SecureMessaging.AEAD.FromEtM.Construction
 import SecureMessaging.AEAD.FromEtM.Correctness
 import SecureMessaging.AEAD.FromEtM.Security
@@ -36,6 +39,7 @@ import SecureMessaging.KEM.MLKEM.Incremental
 import SecureMessaging.KEM.OnOffKEM.Defs
 import SecureMessaging.KEM.OnOffKEM.FromKPKE
 import SecureMessaging.PRFPRNG.Defs
+import SecureMessaging.PRP.Defs
 import SecureMessaging.SCKA.Defs
 import SecureMessaging.SCKA.OppUniKEM.Construction
 import SecureMessaging.SymEnc.Defs

@@ -4,7 +4,7 @@ import VersoBlueprint.Commands.Graph
 import VersoBlueprint.Commands.Summary
 import SecureMessagingDocs.Bibliography
 import SecureMessagingDocs.Chapters.AEAD.Defs
-import SecureMessagingDocs.Chapters.AEAD.AESGCM
+import SecureMessagingDocs.Chapters.AEAD.GCM
 import SecureMessagingDocs.Chapters.AEAD.EncryptThenMAC
 
 set_option linter.style.setOption false
@@ -31,7 +31,7 @@ set_option doc.verso true
 
 {include 1 SecureMessagingDocs.Chapters.AEAD.Defs}
 
-{include 1 SecureMessagingDocs.Chapters.AEAD.AESGCM}
+{include 1 SecureMessagingDocs.Chapters.AEAD.GCM}
 
 {include 1 SecureMessagingDocs.Chapters.AEAD.EncryptThenMAC}
 

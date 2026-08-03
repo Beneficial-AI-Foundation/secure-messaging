@@ -1,7 +1,7 @@
 import VersoManual
 import VersoBlueprint
 import SecureMessagingDocs.Chapters.AEAD.Defs
-import SecureMessagingDocs.Chapters.AEAD.AESGCM
+import SecureMessagingDocs.Chapters.AEAD.GCM
 import SecureMessagingDocs.Chapters.AEAD.EncryptThenMAC
 
 open Verso.Genre Manual
@@ -19,6 +19,6 @@ set_option doc.verso true
 
 {include 1 SecureMessagingDocs.Chapters.AEAD.Defs}
 
-{include 1 SecureMessagingDocs.Chapters.AEAD.AESGCM}
+{include 1 SecureMessagingDocs.Chapters.AEAD.GCM}
 
 {include 1 SecureMessagingDocs.Chapters.AEAD.EncryptThenMAC}
