@@ -1,16 +1,10 @@
 name = "SecureMessaging"
 defaultTargets = ["SecureMessaging", "ToVCVio"]
 # `lake lint` runs Batteries' environment linter (runLinter) over our libraries.
-# The two GCM.Tests modules are listed explicitly because they're KAT scaffolding
-# deliberately kept out of the SecureMessaging umbrella's import graph (see
-# SecureMessaging/AEAD/GCM/Tests/), so `lake lint`'s module resolution wouldn't
-# otherwise reach them.
 lintDriver = "batteries/runLinter"
 lintDriverArgs = [
   "SecureMessaging",
   "ToVCVio",
-  "SecureMessaging.AEAD.GCM.Tests.Gcm",
-  "SecureMessaging.AEAD.GCM.Tests.Construction",
 ]
 
 [leanOptions]

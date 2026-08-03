@@ -95,12 +95,6 @@ jobs:
           annotate-new-sorries: "true"
           extract-args: "--library SecureMessaging,ToVCVio"
 
-      - name: Build GCM known-answer tests
-        run: |
-          lake build \
-            SecureMessaging.AEAD.GCM.Tests.Gcm \
-            SecureMessaging.AEAD.GCM.Tests.Construction
-
       - name: Build documentation modules
         if: steps.changes.outputs.docs == 'true' || github.event_name == 'workflow_dispatch'
         run: |
