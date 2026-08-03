@@ -96,7 +96,7 @@ Following NIST's steps:
 - (3) `C = GCTR_K(inc₃₂(J₀), P)`;
 - (4–5) `S = GHASH_H(A ‖ 0^v ‖ C ‖ 0^u ‖ [len(A)]₆₄ ‖ [len(C)]₆₄)` (padding via
   `padBlocks`, length block appended last);
-- (6) `T = E_K(J₀) ⊕ S`; (7) output `(C, T)`. -/
+- (6) `T = GCTR_K(J₀, S)` (one block, so `MSB₁₂₈` is the identity); (7) output `(C, T)`. -/
 def gcmEncrypt {K : Type} (ciph : CIPH K) (k : K)
     (iv : BitVec 96) {lenA lenP : ℕ} (ad : BitVec lenA) (m : BitVec lenP) :
     BitVec lenP × BitVec 128 :=
@@ -105,28 +105,35 @@ def gcmEncrypt {K : Type} (ciph : CIPH K) (k : K)
   let c := gctr ciph.perm k (inc32 j₀) m
   -- trailing GHASH block `[len(A)]₆₄ ‖ [len(C)]₆₄` (NIST SP 800-38D §7.1 step 5)
   let s := ghash h (padBlocks ad ++ padBlocks c ++ [BitVec.ofNat 64 lenA ++ BitVec.ofNat 64 lenP])
-  let t := ciph.perm k j₀ ^^^ s
+  -- (6) `T = GCTR_K(J₀, S)` (NIST SP 800-38D §7.1 step 6); one block, so no truncation
+  let t := gctr ciph.perm k j₀ s
   (c, t)
 
 /-- GCM authenticated decryption `GCM-AD_K(IV, C, A, T)` (NIST SP 800-38D §7.2,
-Algorithm 5): `FAIL` (return `none`) if the input lengths are unsupported (step 1,
-`ValidMsgLength lenP ∧ ValidAADLength lenA`; `IV`/tag lengths are fixed by the
-`BitVec 96`/`BitVec 128` types), else recompute the tag as in `gcmEncrypt` and, on a
-match, return
-`GCTR_K(inc₃₂(J₀), C) = P`. Encryption has no such check — Algorithm 4 assumes it as
-a precondition; only Algorithm 5 validates lengths. -/
+Algorithm 5). `none` is NIST's `FAIL`; `some P` is the recovered plaintext.
+
+Following NIST's steps:
+- (1) FAIL if the input lengths are unsupported (`ValidMsgLength lenP ∧
+  ValidAADLength lenA`; the `IV`/tag lengths are fixed by the `BitVec 96`/`BitVec 128`
+  types, so only these two remain to check);
+- (2) `H = E_K(0)`;
+- (3) `J₀ = IV ‖ 0³¹ ‖ 1`;
+- (4) `P = GCTR_K(inc₃₂(J₀), C)`;
+- (5–6) `S = GHASH_H(A ‖ 0^v ‖ C ‖ 0^u ‖ [len(A)]₆₄ ‖ [len(C)]₆₄)`;
+- (7) `T' = GCTR_K(J₀, S)` (one block, so `MSB₁₂₈` is the identity), as in `gcmEncrypt`;
+- (8) if `T = T'` return `P`, else FAIL. -/
 def gcmDecrypt {K : Type} (ciph : CIPH K) (k : K)
     (iv : BitVec 96) {lenA lenP : ℕ} (ad : BitVec lenA) (ct : BitVec lenP × BitVec 128) :
     Option (BitVec lenP) :=
-  -- Algorithm 5 step 1: FAIL immediately on unsupported input lengths, before any
-  -- GHASH work.
+  -- (1) FAIL immediately on unsupported input lengths, before any GHASH work
   if ValidMsgLength lenP ∧ ValidAADLength lenA then
     let (c, t) := ct
-    let h := ciph.perm k 0
-    let j₀ := iv ++ (0 : BitVec 31) ++ (1 : BitVec 1)
-    -- trailing GHASH block `[len(A)]₆₄ ‖ [len(C)]₆₄` (NIST SP 800-38D §7.1 step 5)
-    let s := ghash h (padBlocks ad ++ padBlocks c ++ [BitVec.ofNat 64 lenA ++ BitVec.ofNat 64 lenP])
-    if t = ciph.perm k j₀ ^^^ s then some (gctr ciph.perm k (inc32 j₀) c) else none
+    let h := ciph.perm k 0                          -- (2)
+    let j₀ := iv ++ (0 : BitVec 31) ++ (1 : BitVec 1) -- (3)
+    let p := gctr ciph.perm k (inc32 j₀) c          -- (4)
+    let s := ghash h (padBlocks ad ++ padBlocks c ++ [BitVec.ofNat 64 lenA ++ BitVec.ofNat 64 lenP]) -- (5–6)
+    -- (7–8) recompute `T'` and return `P` on a match, else FAIL
+    if t = gctr ciph.perm k j₀ s then some p else none
   else none
 
 /-- **One-time-key GCM as an `AEADScheme`** (ACD19 interface). This is a one-time-key
