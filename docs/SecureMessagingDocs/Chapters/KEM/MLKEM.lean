@@ -107,7 +107,7 @@ $`\varepsilon_\mathrm{prf,kg}\le\texttt{prfadv}`$, and
 $`\varepsilon_\mathrm{prf,enc}\le\texttt{prfadv}`$, ML-KEM-768 is
 $`(\texttt{failprob} + \texttt{hsadv} + 2\cdot\texttt{prfadv})`$-correct.
 
-:::leanPillCaption "EasyCrypt-boundary ML-KEM-768 correctness theorem"
+:::leanPillCaption "`δ`-correctness from EasyCrypt bounds"
 :::
 
 ```anchor deltaCorrect_mlkem768_easycrypt_of_le (project := ".") (module := SecureMessaging.KEM.MLKEM.Correctness.EasyCryptBoundary)
@@ -116,9 +116,7 @@ theorem deltaCorrect_mlkem768_easycrypt_of_le {failprob hsadv prfadv : ℝ≥0�
     (hhs : EasyCryptMLKEM768.smoothingAdvantage ≤ hsadv)
     (hkg : EasyCryptMLKEM768.keygenPRFAdvantage ≤ prfadv)
     (henc : EasyCryptMLKEM768.encapsPRFAdvantage ≤ prfadv) :
-    mlkem768Scheme.deltaCorrect ProbCompRuntime.probComp (failprob + hsadv + 2 * prfadv) :=
-  le_trans EasyCryptMLKEM768.correctnessError_le_romCorrectnessError
-    (EasyCryptMLKEM768.romCorrectnessError_le hcb hhs hkg henc)
+    mlkem768Scheme.deltaCorrect ProbCompRuntime.probComp (failprob + hsadv + 2 * prfadv)
 ```
 
 {usesLabel}`uses` {uses "ml_kem_scheme"}[] · {uses "ml_kem_correctness"}[] · {githubLabel}`github` {githubIssue 238}[]

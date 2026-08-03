@@ -1,6 +1,7 @@
 import Verso
 import VersoManual
 import VersoBlueprint
+import SecureMessagingDocs.Bibliography
 import SecureMessagingDocs.Visuals.Notation
 import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
@@ -75,50 +76,77 @@ Incremental KEM from ML-KEM.
 :::defTitle "incremental_kem_from_ml_kem_spec" "Incremental KEM from ML-KEM construction"
 :::
 
-::::definition "incremental_kem_from_ml_kem_spec" (parent := "incremental_kem_incremental_kem_from_ml_kem")
-  (lean := "MLKEM.mlkemIncremental")
+::::definition "incremental_kem_from_ml_kem_spec" (parent := "incremental_kem_incremental_kem_from_ml_kem") (lean := "MLKEM.incrementalHeader, MLKEM.EncapsulationState, MLKEM.incrementalEncaps1, MLKEM.incrementalEncaps2, MLKEM.mlkemIncremental")
 $`\todo`
 
-:::leanPillCaption "incremental ML-KEM construction"
+:::leanPillCaption "header"
+:::
+
+```anchor incrementalHeader (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
+def incrementalHeader {params : Params} {encoding : Encoding params}
+    (prims : Primitives params encoding) (ek : EncapsulationKey params encoding) :
+    Seed32 × PublicKeyHash :=
+  (ek.rho, encapsulationKeyHash encoding prims ek)
+```
+
+:::leanPillCaption "encapsulation state"
+:::
+
+```anchor incrementalEncapsulationState (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
+structure EncapsulationState (params : Params) where
+  /-- NTT-domain form of the ephemeral vector `y`, used to compute the second ciphertext
+  component. -/
+  yHat : TqVec params.k
+  /-- Second encapsulation-noise polynomial, added to the second ciphertext component. -/
+  e2 : Rq
+  /-- Sampled 32-byte ML-KEM message embedded in the second ciphertext component. -/
+  message : Message
+```
+
+:::leanPillCaption "encaps1"
+:::
+
+```anchor incrementalEncaps1 (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
+def incrementalEncaps1 {params : Params} {encoding : Encoding params} (ring : NTTRingOps)
+    (prims : Primitives params encoding) (hdr : Seed32 × PublicKeyHash) (m : Message) :
+    EncapsulationState params × encoding.EncodedU × SharedSecret :=
+  let (k, r) := prims.gEncaps m hdr.2
+  let aHat := prims.publicMatrix hdr.1
+  let y := prims.sampleVecEta1 r 0
+  let e1 := prims.sampleVecEta2 r params.k
+  let e2 := prims.prfEta2 r (2 * params.k)
+  let yHat := ring.nttVec y
+  let u := ring.invNTTVec (ring.matTransposeVecMul aHat yHat) + e1
+  ({ yHat, e2, message := m }, encoding.byteEncodeDUVec (encoding.compressDU u), k)
+```
+
+:::leanPillCaption "encaps2"
+:::
+
+```anchor incrementalEncaps2 (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
+def incrementalEncaps2 {params : Params} {encoding : Encoding params} (ring : NTTRingOps)
+    (st : EncapsulationState params)
+    (vec : encoding.EncodedTHat) : encoding.EncodedV :=
+  let tHat := encoding.byteDecode12Vec vec
+  let mu := encoding.decompress1 (encoding.byteDecode1 st.message)
+  let v := ring.invNTT (ring.dot tHat st.yHat) + st.e2 + mu
+  encoding.byteEncodeDV (encoding.compressDV v)
+```
+
+:::leanPillCaption "IncrementalStructure instance"
 :::
 
 ```anchor mlkemIncremental (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
 def mlkemIncremental (p : ParameterSet) (ring : NTTRingOps)
     (prims : Primitives (ParameterSet.params p)
       (Concrete.concreteEncoding (ParameterSet.params p))) :
-    (mlkemScheme p ring prims).IncrementalStructure where
-  PKheader := Seed32 × PublicKeyHash
-  PKvector := (Concrete.concreteEncoding (ParameterSet.params p)).EncodedTHat
-  C₁ := (Concrete.concreteEncoding (ParameterSet.params p)).EncodedU
-  C₂ := (Concrete.concreteEncoding (ParameterSet.params p)).EncodedV
-  St := EncapsulationState (ParameterSet.params p)
-  validPK hdr vec := decide
-    (encapsulationKeyHash (Concrete.concreteEncoding (ParameterSet.params p)) prims
-        { tHatEncoded := vec, rho := hdr.1 } = hdr.2)
-  splitPK :=
-    { toFun := fun ek => ⟨(incrementalHeader prims ek, ek.tHatEncoded), by simp [incrementalHeader]⟩
-      invFun := fun parts => { tHatEncoded := parts.1.2, rho := parts.1.1.1 }
-      left_inv := fun _ => rfl
-      right_inv := by
-        rintro ⟨⟨⟨rho, h⟩, vec⟩, hvalid⟩
-        have hh := of_decide_eq_true hvalid
-        apply Subtype.ext
-        simp only [incrementalHeader, hh] }
-  splitC :=
-    { toFun := fun c => (c.uEncoded, c.vEncoded)
-      invFun := fun uv => { uEncoded := uv.1, vEncoded := uv.2 }
-      left_inv := fun _ => rfl
-      right_inv := fun _ => rfl }
-  encaps1 := fun hdr => do
-    let m ←$ᵗ Message
-    return incrementalEncaps1 ring prims hdr m
-  encaps2 := fun st _hdr vec => return (incrementalEncaps2 ring st vec)
-  factor := by
-    intro ek
-    simp only [mlkemScheme, asKEMScheme, Equiv.coe_fn_symm_mk,
-      bind_assoc, pure_bind]
-    rfl
+    (mlkemScheme p ring prims).IncrementalStructure
 ```
 
 {usesLabel}`uses` {uses "incremental_kem_scheme"}[] · {uses "ml_kem_scheme"}[] · {githubLabel}`github` {githubIssue 226}[]
 ::::
+
+*References:*
+
+- {Informal.citet MLKEM_Braid}[]
+- {Informal.citet FIPS203}[]

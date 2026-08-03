@@ -31,14 +31,17 @@ namespace MLKEM
 
 /-- The incremental public-key header `(ρ, H(ek))`. The first stage uses both values in
 `G(m ‖ H(ek))` and matrix expansion. -/
+-- ANCHOR: incrementalHeader
 def incrementalHeader {params : Params} {encoding : Encoding params}
     (prims : Primitives params encoding) (ek : EncapsulationKey params encoding) :
     Seed32 × PublicKeyHash :=
   (ek.rho, encapsulationKeyHash encoding prims ek)
+-- ANCHOR_END: incrementalHeader
 
 /-- Values computed during the first incremental encapsulation stage and needed by the
 second: the NTT-domain ephemeral vector `yHat`, second noise polynomial `e2`, and ML-KEM
 `message`. This semantic state retains derived values rather than the raw coins. -/
+-- ANCHOR: incrementalEncapsulationState
 structure EncapsulationState (params : Params) where
   /-- NTT-domain form of the ephemeral vector `y`, used to compute the second ciphertext
   component. -/
@@ -47,10 +50,12 @@ structure EncapsulationState (params : Params) where
   e2 : Rq
   /-- Sampled 32-byte ML-KEM message embedded in the second ciphertext component. -/
   message : Message
+-- ANCHOR_END: incrementalEncapsulationState
 
 /-- Given `(ρ, h)` and `m`, derives `(k, r) = G(m ‖ h)`, computes `yHat`, `e2`, and the
 encoded `u` component, and returns them as the stage-2 state, first ciphertext component,
 and shared secret. -/
+-- ANCHOR: incrementalEncaps1
 def incrementalEncaps1 {params : Params} {encoding : Encoding params} (ring : NTTRingOps)
     (prims : Primitives params encoding) (hdr : Seed32 × PublicKeyHash) (m : Message) :
     EncapsulationState params × encoding.EncodedU × SharedSecret :=
@@ -62,10 +67,12 @@ def incrementalEncaps1 {params : Params} {encoding : Encoding params} (ring : NT
   let yHat := ring.nttVec y
   let u := ring.invNTTVec (ring.matTransposeVecMul aHat yHat) + e1
   ({ yHat, e2, message := m }, encoding.byteEncodeDUVec (encoding.compressDU u), k)
+-- ANCHOR_END: incrementalEncaps1
 
 /-- Given the derived stage-2 state and encoded `t̂`, decodes `tHat`, combines it with the
 retained `yHat`, `e2`, and `message`, and returns the encoded `v` component without
 re-sampling or recomputing an NTT. -/
+-- ANCHOR: incrementalEncaps2
 def incrementalEncaps2 {params : Params} {encoding : Encoding params} (ring : NTTRingOps)
     (st : EncapsulationState params)
     (vec : encoding.EncodedTHat) : encoding.EncodedV :=
@@ -73,6 +80,7 @@ def incrementalEncaps2 {params : Params} {encoding : Encoding params} (ring : NT
   let mu := encoding.decompress1 (encoding.byteDecode1 st.message)
   let v := ring.invNTT (ring.dot tHat st.yHat) + st.e2 + mu
   encoding.byteEncodeDV (encoding.compressDV v)
+-- ANCHOR_END: incrementalEncaps2
 
 /-- The incremental ML-KEM structure of ML-KEM Braid, Section 1.2.1. Stage 1 produces an
 `EncapsulationState` containing `yHat`, `e2`, and `message`; stage 2 consumes that state
@@ -82,7 +90,9 @@ public key. -/
 def mlkemIncremental (p : ParameterSet) (ring : NTTRingOps)
     (prims : Primitives (ParameterSet.params p)
       (Concrete.concreteEncoding (ParameterSet.params p))) :
-    (mlkemScheme p ring prims).IncrementalStructure where
+    (mlkemScheme p ring prims).IncrementalStructure
+-- ANCHOR_END: mlkemIncremental
+    where
   PKheader := Seed32 × PublicKeyHash
   PKvector := (Concrete.concreteEncoding (ParameterSet.params p)).EncodedTHat
   C₁ := (Concrete.concreteEncoding (ParameterSet.params p)).EncodedU
@@ -114,6 +124,5 @@ def mlkemIncremental (p : ParameterSet) (ring : NTTRingOps)
     simp only [mlkemScheme, asKEMScheme, Equiv.coe_fn_symm_mk,
       bind_assoc, pure_bind]
     rfl
--- ANCHOR_END: mlkemIncremental
 
 end MLKEM

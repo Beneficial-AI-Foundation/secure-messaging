@@ -99,10 +99,11 @@ theorem deltaCorrect_mlkem768_easycrypt_of_le {failprob hsadv prfadv : ℝ≥0�
     (hhs : EasyCryptMLKEM768.smoothingAdvantage ≤ hsadv)
     (hkg : EasyCryptMLKEM768.keygenPRFAdvantage ≤ prfadv)
     (henc : EasyCryptMLKEM768.encapsPRFAdvantage ≤ prfadv) :
-    mlkem768Scheme.deltaCorrect ProbCompRuntime.probComp (failprob + hsadv + 2 * prfadv) :=
+    mlkem768Scheme.deltaCorrect ProbCompRuntime.probComp (failprob + hsadv + 2 * prfadv)
+-- ANCHOR_END: deltaCorrect_mlkem768_easycrypt_of_le
+    :=
   le_trans EasyCryptMLKEM768.correctnessError_le_romCorrectnessError
     (EasyCryptMLKEM768.romCorrectnessError_le hcb hhs hkg henc)
--- ANCHOR_END: deltaCorrect_mlkem768_easycrypt_of_le
 
 /-- The staged ML-KEM-768 correctness experiment returns `false` with probability at most
 `failprob + hsadv + 2 * prfadv`. -/
