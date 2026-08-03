@@ -11,20 +11,29 @@ import VCVio.OracleComp.QueryTracking.RandomOracle.DeferredSampling
 /-!
 # Opp-UniKEM-CKA — Conditional KEM Error
 
-This module defines the KEM correctness error of one protocol epoch and
-its conditional versions — the failure probability with some of the
-epoch's samples fixed and the rest drawn from their samplers — and proves
-that averaging the conditional versions recovers the total error.
+One Opp-UniKEM epoch runs a single KEM instance in three sampling stages:
+party A draws a key pair, party B draws the offline part of an
+encapsulation and later its online part.  This module considers that KEM
+instance in isolation: its total correctness error, its conditional errors
+after some of the samples are fixed, and the averaging identities relating
+the two, in the form used by `Correctness.Reduction`.
 
-Let `kem` be a KEM scheme, `onoff` an on/off factorization for it,
-and `hDet` a deterministic decapsulation witness.  Also let:
+Let `kem` be a KEM scheme, `onoff` an on/off factorization for it, and
+`hDet` a deterministic decapsulation witness.  The three samples are
 
 ```text
+(pk, sk) ← KG,   (st, ct₀) ← OFF,   (ct₁, k) ← ON st pk,   where
+
 KG       := kem.keygen
 OFF      := onoff.encapsOff
-ON st pk := onoff.encapsOn st pk
-join     := onoff.split⁻¹ : C₀ × C₁ → C.     -- the inverse of the on/off split
-bad(sk, ct₀, ct₁, k) := hDet.decapsDet sk (join (ct₀, ct₁)) ≠ some k.
+ON st pk := onoff.encapsOn st pk,
+```
+
+and the epoch fails when decapsulation misses the key:
+
+```text
+bad(sk, ct₀, ct₁, k) := hDet.decapsDet sk (join (ct₀, ct₁)) ≠ some k,
+join := onoff.split⁻¹ : C₀ × C₁ → C.     -- the inverse of the on/off split
 ```
 
 For `X : ProbComp α`, `Pr[X = x]` is an output probability and `Pr[X = ⊥]`
@@ -32,7 +41,8 @@ is the missing probability mass.
 
 ## Staged experiment
 
-One honest epoch runs the KEM in three stages (`factorCorrectExp`):
+The experiment `F` (`factorCorrectExp`) draws the three samples and tests
+failure:
 
 ```text
 F := do  (pk, sk) ← KG;  (st, ct₀) ← OFF;  (ct₁, k) ← ON st pk
