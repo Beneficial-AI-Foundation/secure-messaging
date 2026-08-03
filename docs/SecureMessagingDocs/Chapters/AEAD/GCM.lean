@@ -4,7 +4,8 @@ import SecureMessagingDocs.Bibliography
 import SecureMessagingDocs.Visuals.Notation
 import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
-import SecureMessaging.AEAD.GCM.Construction
+import SecureMessaging.AEAD.FromGCM.Construction
+import SecureMessaging.AEAD.FromGCM.Correctness
 
 set_option linter.style.setOption false
 set_option linter.hashCommand false
@@ -40,21 +41,21 @@ $`\todo`
 The scheme's domain is the NIST-supported length range. A plaintext/ciphertext
 bit-length is supported when it is at most `2^39 - 256` and byte-aligned:
 
-```anchor ValidMsgLength (project := ".") (module := SecureMessaging.AEAD.GCM.Specification)
+```anchor ValidMsgLength (project := ".") (module := SecureMessaging.AEAD.GCM)
 @[reducible] def ValidMsgLength (lenC : ℕ) : Prop := lenC ≤ 2 ^ 39 - 256 ∧ 8 ∣ lenC
 ```
 
 and the associated data is any byte-aligned bit-string of length at most `2^64 - 1`:
 
-```anchor ValidAADLength (project := ".") (module := SecureMessaging.AEAD.GCM.Specification)
+```anchor ValidAADLength (project := ".") (module := SecureMessaging.AEAD.GCM)
 @[reducible] def ValidAADLength (lenA : ℕ) : Prop := lenA ≤ 2 ^ 64 - 1 ∧ 8 ∣ lenA
 ```
 
-```anchor SupportedAAD (project := ".") (module := SecureMessaging.AEAD.GCM.Specification)
+```anchor SupportedAAD (project := ".") (module := SecureMessaging.AEAD.GCM)
 abbrev SupportedAAD := { x : (a : ℕ) × BitVec a // ValidAADLength x.1 }
 ```
 
-```anchor gcmOneTimeAEAD (project := ".") (module := SecureMessaging.AEAD.GCM.Construction)
+```anchor gcmOneTimeAEAD (project := ".") (module := SecureMessaging.AEAD.FromGCM.Construction)
 def gcmOneTimeAEAD {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ)
     (_hL : ValidMsgLength L) :
     AEADScheme ProbComp (BitVec L) SupportedAAD
@@ -73,7 +74,7 @@ def gcmOneTimeAEAD {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ)
 ::::theorem "aead_gcm_correctness" (parent := "aead_gcm") (lean := "gcmOneTimeAEAD_correct")
 $`\todo`
 
-```anchor gcmOneTimeAEAD_correct (project := ".") (module := SecureMessaging.AEAD.GCM.Construction)
+```anchor gcmOneTimeAEAD_correct (project := ".") (module := SecureMessaging.AEAD.FromGCM.Correctness)
 theorem gcmOneTimeAEAD_correct {K : Type} (prp : PRPScheme K (BitVec 128)) {L : ℕ}
     (hL : ValidMsgLength L) :
     (gcmOneTimeAEAD prp L hL).Correct

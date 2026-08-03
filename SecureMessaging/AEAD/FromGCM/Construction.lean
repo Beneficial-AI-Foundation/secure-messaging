@@ -4,14 +4,14 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.GCM.Specification
+import SecureMessaging.AEAD.GCM
 import SecureMessaging.AEAD.Defs
 import SecureMessaging.PRP.Defs
 
 /-!
 # One-time-key GCM as an `AEADScheme` (ACD19)
 
-Packages the 96-bit-IV GCM algorithms (`Specification`) as the one-time-key `AEADScheme`
+Packages the 96-bit-IV GCM algorithms (`Algorithms`) as the one-time-key `AEADScheme`
 `gcmOneTimeAEAD`, targeting the ACD19 AEAD interface (`SecureMessaging.AEAD.Defs`).
 
 ## References
@@ -50,17 +50,3 @@ def gcmOneTimeAEAD {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ)
   encrypt := fun k ad m => gcmEncrypt prp.toBlockCipher k (0 : BitVec 96) ad.1.2 m
   decrypt := fun k ad c => gcmDecrypt prp.toBlockCipher k (0 : BitVec 96) ad.1.2 c
 -- ANCHOR_END: gcmOneTimeAEAD
-
-/-- `gcmOneTimeAEAD` satisfies the ACD19 `AEADScheme.Correct`, given that the message
-length is supported (`hL`). -/
--- ANCHOR: gcmOneTimeAEAD_correct
-theorem gcmOneTimeAEAD_correct {K : Type} (prp : PRPScheme K (BitVec 128)) {L : ℕ}
-    (hL : ValidMsgLength L) :
-    (gcmOneTimeAEAD prp L hL).Correct
--- ANCHOR_END: gcmOneTimeAEAD_correct
-    := by
-  rintro k ⟨⟨av, ad⟩, hav⟩ m
-  have hv : ValidMsgLength L ∧ ValidAADLength av := ⟨hL, hav⟩
-  simp only [gcmOneTimeAEAD, gcmEncrypt, gcmDecrypt]
-  rw [if_pos hv]
-  simp only [if_true, gctr_involution]
