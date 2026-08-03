@@ -96,18 +96,13 @@ noncomputable def fips203DecapsulationFailureBound (p : ParameterSet) : ℝ≥0�
 {usesLabel}`uses` {uses "ml_kem_scheme"}[] · {githubLabel}`github` {githubIssue 219}[]
 ::::
 
-:::defTitle "ml_kem_correctness_easycrypt" "ML-KEM-768 correctness from EasyCrypt boundary axioms"
+:::defTitle "ml_kem_correctness_easycrypt" "ML-KEM-768 correctness from EasyCrypt assumptions"
 :::
 
 ::::theorem "ml_kem_correctness_easycrypt" (parent := "ml_kem") (lean := "MLKEM.deltaCorrect_mlkem768_easycrypt_of_le")
-Assuming EC-1 (`EasyCryptMLKEM768.romCorrectnessError_le`) and EC-2
-(`EasyCryptMLKEM768.correctnessError_le_romCorrectnessError`), and upper bounds
-$`\delta_\mathrm{CB}\le\texttt{failprob}`$, $`\varepsilon_\mathrm{hs}\le\texttt{hsadv}`$,
-$`\varepsilon_\mathrm{prf,kg}\le\texttt{prfadv}`$, and
-$`\varepsilon_\mathrm{prf,enc}\le\texttt{prfadv}`$, ML-KEM-768 is
-$`(\texttt{failprob} + \texttt{hsadv} + 2\cdot\texttt{prfadv})`$-correct.
+$`\todo`
 
-:::leanPillCaption "`δ`-correctness from EasyCrypt bounds"
+:::leanPillCaption "δ-correctness from EasyCrypt bounds"
 :::
 
 ```anchor deltaCorrect_mlkem768_easycrypt_of_le (project := ".") (module := SecureMessaging.KEM.MLKEM.Correctness.EasyCryptBoundary)
@@ -119,7 +114,7 @@ theorem deltaCorrect_mlkem768_easycrypt_of_le {failprob hsadv prfadv : ℝ≥0�
     mlkem768Scheme.deltaCorrect ProbCompRuntime.probComp (failprob + hsadv + 2 * prfadv)
 ```
 
-{usesLabel}`uses` {uses "ml_kem_scheme"}[] · {uses "ml_kem_correctness"}[] · {githubLabel}`github` {githubIssue 238}[]
+{usesLabel}`uses` {uses "ml_kem_scheme"}[] · {githubLabel}`github` {githubIssue 238}[]
 ::::
 
 :::defTitle "ml_kem_security" "ML-KEM security"

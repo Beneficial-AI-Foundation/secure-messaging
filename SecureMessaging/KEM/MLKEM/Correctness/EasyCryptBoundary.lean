@@ -107,6 +107,7 @@ theorem deltaCorrect_mlkem768_easycrypt_of_le {failprob hsadv prfadv : ℝ≥0�
 
 /-- The staged ML-KEM-768 correctness experiment returns `false` with probability at most
 `failprob + hsadv + 2 * prfadv`. -/
+-- ANCHOR: incrementalCorrectExp_failure_le_mlkem768_easycrypt
 theorem incrementalCorrectExp_failure_le_mlkem768_easycrypt {failprob hsadv prfadv : ℝ≥0∞}
     (hcb : EasyCryptMLKEM768.correctnessBoundError ≤ failprob)
     (hhs : EasyCryptMLKEM768.smoothingAdvantage ≤ hsadv)
@@ -115,7 +116,9 @@ theorem incrementalCorrectExp_failure_le_mlkem768_easycrypt {failprob hsadv prfa
     Pr[= false | ProbCompRuntime.probComp.evalDist
         (mlkemIncremental .MLKEM768 Concrete.concreteNTTRingOps
           Concrete.mlkem768Primitives).CorrectExp]
-      ≤ failprob + hsadv + 2 * prfadv :=
+      ≤ failprob + hsadv + 2 * prfadv
+-- ANCHOR_END: incrementalCorrectExp_failure_le_mlkem768_easycrypt
+    :=
   (mlkemIncremental .MLKEM768 Concrete.concreteNTTRingOps
     Concrete.mlkem768Primitives).probFailure_correctExp_le _
     (deltaCorrect_mlkem768_easycrypt_of_le hcb hhs hkg henc)

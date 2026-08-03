@@ -91,7 +91,6 @@ def mlkemIncremental (p : ParameterSet) (ring : NTTRingOps)
     (prims : Primitives (ParameterSet.params p)
       (Concrete.concreteEncoding (ParameterSet.params p))) :
     (mlkemScheme p ring prims).IncrementalStructure
--- ANCHOR_END: mlkemIncremental
     where
   PKheader := Seed32 × PublicKeyHash
   PKvector := (Concrete.concreteEncoding (ParameterSet.params p)).EncodedTHat
@@ -124,5 +123,6 @@ def mlkemIncremental (p : ParameterSet) (ring : NTTRingOps)
     simp only [mlkemScheme, asKEMScheme, Equiv.coe_fn_symm_mk,
       bind_assoc, pure_bind]
     rfl
+-- ANCHOR_END: mlkemIncremental
 
 end MLKEM
