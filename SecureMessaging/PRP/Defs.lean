@@ -15,13 +15,6 @@ A pseudorandom permutation (PRP) is the abstract model of a block cipher: a keye
 invertible map on a block space `X` that no efficient adversary can distinguish
 from a uniformly random permutation of `X`.
 
-Modes of operation (CTR, GCM, ...) consume only the forward direction `perm`; the
-inverse `invPerm` merely witnesses that the primitive is a permutation. Security
-proofs for such modes replace `perm` by a random function, justified by the
-PRP/PRF switching lemma applied to the PRF view `PRPScheme.toPRFScheme`. A
-concrete block cipher (e.g. AES) enters as a `PRPScheme` term at instantiation
-time, viewed through `toPRFScheme` by GCM (`SecureMessaging.AEAD.GCM`).
-
 ## References
 
 - [BR] Bellare, Rogaway. *Code-Based Game-Playing Proofs and the Security of
@@ -32,9 +25,9 @@ time, viewed through `toPRFScheme` by GCM (`SecureMessaging.AEAD.GCM`).
 open OracleSpec OracleComp
 
 /-- A block cipher (NIST SP 800-38D §5.1): a keyed permutation on `X`, given as
-forward/inverse functions mutually inverse for every key (`correct`). Modes like
-GCM use only the forward direction; `invPerm`/`correct` witness that the primitive
-is a genuine permutation, not an arbitrary function. -/
+forward/inverse functions mutually inverse for every key (`correct`).
+`invPerm`/`correct` witness that the primitive is a genuine permutation, not an
+arbitrary function. -/
 structure BlockCipher (K X : Type) where
   /-- The forward cipher function `CIPHₖ` (§5.1). -/
   perm : K → X → X
@@ -54,13 +47,8 @@ namespace PRPScheme
 variable {K X : Type}
 
 /-- View a PRP as a `PRFScheme` by forgetting invertibility and keeping only the
-forward permutation (`eval := perm`). Modes like CTR/GCM consume a block cipher
-this way.
-
-This is only the structural coercion, not the switching lemma itself: PRP
-security transfers to PRF security via that lemma (for a 128-bit block, loss
-`~ q² / 2¹²⁹` in `q` distinct queries), whose statement and proof are future
-work. -/
+forward permutation (`eval := perm`). The PRP/PRF switching lemma transfers PRP
+security to this PRF view. -/
 def toPRFScheme (prp : PRPScheme K X) : PRFScheme K X X :=
   { keygen := prp.keygen, eval := prp.perm }
 
