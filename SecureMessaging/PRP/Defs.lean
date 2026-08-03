@@ -25,9 +25,7 @@ from a uniformly random permutation of `X`.
 open OracleSpec OracleComp
 
 /-- A block cipher (NIST SP 800-38D §5.1): a keyed permutation on `X`, given as
-forward/inverse functions mutually inverse for every key (`correct`).
-`invPerm`/`correct` witness that the primitive is a genuine permutation, not an
-arbitrary function. -/
+forward/inverse functions that are mutually inverse for every key (`correct`). -/
 structure BlockCipher (K X : Type) where
   /-- The forward cipher function `CIPHₖ` (§5.1). -/
   perm : K → X → X

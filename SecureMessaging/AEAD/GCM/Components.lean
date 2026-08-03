@@ -11,10 +11,10 @@ import Mathlib.Data.BitVec
 
 The cipher-agnostic §6 components that `Specification` assembles into GCM:
 
-- `gfmul` — GF(2^128) multiplication `X • Y` (§6.3, Algorithm 1);
-- `ghash` — the keyed hash `GHASH_H` (§6.4, Algorithm 2);
-- `padBlocks` — reblock a bit string for GHASH (§5.2, §7.1);
-- `inc₃₂` / `gctr` — counter increment (§6.2) and CTR mode (§6.5, Algorithm 3).
+- `gfmul`: GF(2^128) multiplication `X • Y` (§6.3, Algorithm 1);
+- `ghash`: the keyed hash `GHASH_H` (§6.4, Algorithm 2);
+- `padBlocks`: reblock a bit string for GHASH (§5.2, §7.1);
+- `inc₃₂` / `gctr`: counter increment (§6.2) and CTR mode (§6.5, Algorithm 3).
 
 ## References
 
@@ -60,7 +60,7 @@ a final partial block for free.
 -/
 
 /-- The `i`-th 128-bit block of `x` (0-indexed, most-significant block first), bits
-past `len(x)` read as `0` — NIST's right zero-padding of the final partial block. -/
+past `len(x)` read as `0`, giving NIST's right zero-padding of the final partial block. -/
 def paddedBlock {n : ℕ} (x : BitVec n) (i : ℕ) : BitVec 128 :=
   (BitVec.ofBoolListBE ((List.range 128).map fun t => x.getMsbD (128 * i + t))).cast (by simp)
 
@@ -83,7 +83,7 @@ private def keystream (blocks : List (BitVec 128)) (p : ℕ) : BitVec p :=
     ((List.range p).map fun j => (blocks.getD (j / 128) 0).getMsbD (j % 128))).cast (by simp)
 
 /-- The counter chain `[ICB, inc₃₂(ICB), …, inc₃₂ⁿ⁻¹(ICB)]` (`n` blocks), built
-incrementally — one `inc₃₂` step per block (NIST SP 800-38D §6.5, `CBᵢ₊₁ = inc₃₂(CBᵢ)`). -/
+incrementally, one `inc₃₂` step per block (NIST SP 800-38D §6.5, `CBᵢ₊₁ = inc₃₂(CBᵢ)`). -/
 def counterChain (icb : BitVec 128) : ℕ → List (BitVec 128)
   | 0 => []
   | n + 1 => icb :: counterChain (inc32 icb) n
@@ -97,8 +97,7 @@ def gctr {K : Type} (ciph : K → BitVec 128 → BitVec 128) (k : K) (icb : BitV
     {p : ℕ} (x : BitVec p) : BitVec p :=
   x ^^^ keystream ((counterChain icb ((p + 127) / 128)).map (ciph k)) p
 
-/-- `gctr ciph k icb` is an involution (`(x ⊕ ks) ⊕ ks = x`): the basis of GCM
-decryption. -/
+/-- `gctr ciph k icb` is an involution (`(x ⊕ ks) ⊕ ks = x`). -/
 theorem gctr_involution {K : Type} (ciph : K → BitVec 128 → BitVec 128) (k : K)
     (icb : BitVec 128) {p : ℕ} (x : BitVec p) :
     gctr ciph k icb (gctr ciph k icb x) = x := by

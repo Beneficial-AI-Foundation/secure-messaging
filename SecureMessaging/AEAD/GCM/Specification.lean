@@ -16,11 +16,10 @@ Assembles the §6 components (`Components`) into GCM encryption (`gcmEncrypt`,
 
 ## Scope
 
-96-bit IV only (`J₀ = IV ‖ 0³¹ ‖ 1`, NIST §5.2.1.1's recommended length, the one
-HPKE/RFC 9180 fixes); the GHASH-derived `J₀` path for other IV lengths — the regime
-whose bound Iwata–Ohashi–Minematsu (CRYPTO 2012) had to repair — is out of scope.
-Otherwise length-generic over arbitrary-length bit strings, with `ValidMsgLength`/
-`ValidAADLength` capturing NIST's §5.2.1.1 supported range.
+The IV is 96 bits only (`J₀ = IV ‖ 0³¹ ‖ 1`, NIST §5.2.1.1's recommended length, the
+one HPKE/RFC 9180 fixes); the GHASH-derived `J₀` path for other IV lengths is out of
+scope. Message and AAD lengths stay generic, with `ValidMsgLength`/`ValidAADLength`
+capturing NIST's §5.2.1.1 supported range.
 
 ## References
 
@@ -49,9 +48,8 @@ abbrev SupportedAAD := { x : (a : ℕ) × BitVec a // ValidAADLength x.1 }
 
 /-! ## The GCM algorithms (NIST SP 800-38D §7) -/
 
-/-- `CIPH K` (NIST SP 800-38D §5.1): the 128-bit block cipher GCM is built over,
-named after NIST's own notation. Only the forward direction `ciph.perm k = CIPH_K`
-is used. -/
+/-- `CIPH K` (NIST SP 800-38D §5.1): the 128-bit block cipher GCM is built over. Only
+the forward direction `ciph.perm k = CIPH_K` is used. -/
 abbrev CIPH (K : Type) := BlockCipher K (BitVec 128)
 
 /-- GCM authenticated encryption `GCM-AE_K(IV, P, A)` (NIST SP 800-38D §7.1,
