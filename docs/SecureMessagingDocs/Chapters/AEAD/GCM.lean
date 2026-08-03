@@ -37,6 +37,23 @@ GCM.
 ::::definition "aead_gcm_spec" (parent := "aead_gcm") (lean := "gcmOneTimeAEAD")
 $`\todo`
 
+The scheme's domain is the NIST-supported length range. A plaintext/ciphertext
+bit-length is supported when it is at most `2^39 - 256` and byte-aligned:
+
+```anchor ValidMsgLength (project := ".") (module := SecureMessaging.AEAD.GCM.Construction)
+@[reducible] def ValidMsgLength (lenC : ℕ) : Prop := lenC ≤ 2 ^ 39 - 256 ∧ 8 ∣ lenC
+```
+
+and the associated data is any byte-aligned bit-string of length at most `2^64 - 1`:
+
+```anchor ValidAADLength (project := ".") (module := SecureMessaging.AEAD.GCM.Construction)
+@[reducible] def ValidAADLength (lenA : ℕ) : Prop := lenA ≤ 2 ^ 64 - 1 ∧ 8 ∣ lenA
+```
+
+```anchor SupportedAAD (project := ".") (module := SecureMessaging.AEAD.GCM.Construction)
+abbrev SupportedAAD := { x : (a : ℕ) × BitVec a // ValidAADLength x.1 }
+```
+
 ```anchor gcmOneTimeAEAD (project := ".") (module := SecureMessaging.AEAD.GCM.Construction)
 def gcmOneTimeAEAD {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ)
     (_hL : ValidMsgLength L) :

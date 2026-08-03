@@ -48,35 +48,32 @@ all modelled — a reader sees NIST Algorithms 3/4/5 directly. Narrowings:
 - **Single-use key** (`gcmOneTimeAEAD`): each key encrypts one message, so a fixed
   IV is sufficient — the `(key, IV)` pair is never reused (NIST §8).
 - **Supported-length, byte-aligned, fixed-length domain** (`gcmOneTimeAEAD`): NIST requires
-  byte-aligned lengths within the §5.2.1.1 maxima (`ValidLengths`), and the message
-  length is fixed to one `L` for the IND-CCA game's samplable ciphertext. The
-  algorithm layer itself stays length-generic.
+  byte-aligned lengths within the §5.2.1.1 maxima (`ValidMsgLength`/`ValidAADLength`),
+  and the message length is fixed to one `L` for the IND-CCA game's samplable
+  ciphertext. The algorithm layer itself stays length-generic.
 -/
 
 open OracleSpec OracleComp
 
 /-! ## The length constraint on the input -/
 
-/-- Supported plaintext/ciphertext length (NIST SP 800-38D §5.2.1.1): bounded
-(`≤ 2^39 − 256`) and **byte-aligned** (`8 ∣ ·`). -/
+/-- Supported plaintext/ciphertext bit-length (NIST SP 800-38D §5.2.1.1):
+`≤ 2^39 - 256` and a multiple of 8 (byte-aligned). -/
+-- ANCHOR: ValidMsgLength
 @[reducible] def ValidMsgLength (lenC : ℕ) : Prop := lenC ≤ 2 ^ 39 - 256 ∧ 8 ∣ lenC
+-- ANCHOR_END: ValidMsgLength
 
-/-- Supported AAD length (NIST SP 800-38D §5.2.1.1): bounded (`≤ 2^64 − 1`) and
-**byte-aligned** (`8 ∣ ·`). -/
+/-- Supported AAD bit-length (NIST SP 800-38D §5.2.1.1): `≤ 2^64 - 1` and a multiple
+of 8 (byte-aligned). -/
+-- ANCHOR: ValidAADLength
 @[reducible] def ValidAADLength (lenA : ℕ) : Prop := lenA ≤ 2 ^ 64 - 1 ∧ 8 ∣ lenA
+-- ANCHOR_END: ValidAADLength
 
-/-- The GCM supported-length constraint (NIST SP 800-38D §5.2.1.1): plaintext and
-AAD bit-lengths bounded and byte-aligned. NIST: "Although GCM is defined on bit
-strings, the bit lengths of the plaintext, the AAD, and the IV shall all be
-multiples of 8, so that these values are byte strings." (`len(C) = len(P)`, GCTR
-preserving length.) `gcmDecrypt` enforces it (Algorithm 5 step 1) and it is baked
-into `gcmOneTimeAEAD`'s domain. `@[reducible]` for `Decidable` in the guard. -/
-@[reducible] def ValidLengths (lenA lenC : ℕ) : Prop :=
-  ValidMsgLength lenC ∧ ValidAADLength lenA
-
-/-- The supported-AAD domain: variable-length byte-string AAD whose length is
-NIST-supported. This is `gcmOneTimeAEAD`'s associated-data type. -/
+/-- Variable-length byte-string AAD of supported length (`ValidAADLength`);
+`gcmOneTimeAEAD`'s associated-data type. -/
+-- ANCHOR: SupportedAAD
 abbrev SupportedAAD := { x : (a : ℕ) × BitVec a // ValidAADLength x.1 }
+-- ANCHOR_END: SupportedAAD
 
 /-! ## The GCM algorithms (NIST SP 800-38D §7) -/
 
@@ -90,8 +87,8 @@ Algorithm 4), on arbitrary-length bit strings: AAD `ad : BitVec a`, plaintext
 `ciph : CIPH K`, evaluated forward `ciph.perm k = CIPH_K`; `iv` is the 96-bit IV.
 
 Raw algorithm layer: like NIST Algorithm 4 it does not check lengths (a precondition
-`ValidLengths a p`; outside it the `[len(A)]₆₄ ‖ [len(C)]₆₄` block wraps mod 2⁶⁴).
-`gcmOneTimeAEAD` only ever applies it on its supported domain.
+`ValidMsgLength p ∧ ValidAADLength a`; outside it the `[len(A)]₆₄ ‖ [len(C)]₆₄` block
+wraps mod 2⁶⁴). `gcmOneTimeAEAD` only ever applies it on its supported domain.
 
 Following NIST's steps:
 - (1) `H = E_K(0)`;
@@ -113,8 +110,9 @@ def gcmEncrypt {K : Type} (ciph : CIPH K) (k : K)
 
 /-- GCM authenticated decryption `GCM-AD_K(IV, C, A, T)` (NIST SP 800-38D §7.2,
 Algorithm 5): `FAIL` (return `none`) if the input lengths are unsupported (step 1,
-`ValidLengths a p`; `IV`/tag lengths are fixed by the `BitVec 96`/`BitVec 128`
-types), else recompute the tag as in `gcmEncrypt` and, on a match, return
+`ValidMsgLength p ∧ ValidAADLength a`; `IV`/tag lengths are fixed by the
+`BitVec 96`/`BitVec 128` types), else recompute the tag as in `gcmEncrypt` and, on a
+match, return
 `GCTR_K(inc₃₂(J₀), C) = P`. Encryption has no such check — Algorithm 4 assumes it as
 a precondition; only Algorithm 5 validates lengths. -/
 def gcmDecrypt {K : Type} (ciph : CIPH K) (k : K)
@@ -122,7 +120,7 @@ def gcmDecrypt {K : Type} (ciph : CIPH K) (k : K)
     Option (BitVec p) :=
   -- Algorithm 5 step 1: FAIL immediately on unsupported input lengths, before any
   -- GHASH work.
-  if ValidLengths a p then
+  if ValidMsgLength p ∧ ValidAADLength a then
     let (c, t) := ct
     let h := ciph.perm k 0
     let j₀ := iv ++ (0 : BitVec 31) ++ (1 : BitVec 1)
@@ -174,7 +172,7 @@ theorem gcmOneTimeAEAD_correct {K : Type} (prp : PRPScheme K (BitVec 128)) {L : 
 -- ANCHOR_END: gcmOneTimeAEAD_correct
     := by
   rintro k ⟨⟨av, ad⟩, hav⟩ m
-  have hv : ValidLengths av L := ⟨hL, hav⟩
+  have hv : ValidMsgLength L ∧ ValidAADLength av := ⟨hL, hav⟩
   simp only [gcmOneTimeAEAD, gcmEncrypt, gcmDecrypt]
   rw [if_pos hv]
   simp only [if_true, gctr_involution]
