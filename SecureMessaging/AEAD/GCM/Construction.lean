@@ -82,13 +82,13 @@ NIST's own notation for it. -/
 abbrev CIPH (K : Type) := BlockCipher K (BitVec 128)
 
 /-- GCM authenticated encryption `GCM-AE_K(IV, P, A)` (NIST SP 800-38D §7.1,
-Algorithm 4), on arbitrary-length bit strings: AAD `ad : BitVec a`, plaintext
-`m : BitVec p`, ciphertext `c : BitVec p` (GCTR preserves length). The cipher is
+Algorithm 4), on arbitrary-length bit strings: AAD `ad : BitVec lenA`, plaintext
+`m : BitVec lenP`, ciphertext `c : BitVec lenP` (GCTR preserves length). The cipher is
 `ciph : CIPH K`, evaluated forward `ciph.perm k = CIPH_K`; `iv` is the 96-bit IV.
 
 Raw algorithm layer: like NIST Algorithm 4 it does not check lengths (a precondition
-`ValidMsgLength p ∧ ValidAADLength a`; outside it the `[len(A)]₆₄ ‖ [len(C)]₆₄` block
-wraps mod 2⁶⁴). `gcmOneTimeAEAD` only ever applies it on its supported domain.
+`ValidMsgLength lenP ∧ ValidAADLength lenA`; outside it the `[len(A)]₆₄ ‖ [len(C)]₆₄`
+block wraps mod 2⁶⁴). `gcmOneTimeAEAD` only ever applies it on its supported domain.
 
 Following NIST's steps:
 - (1) `H = E_K(0)`;
@@ -98,34 +98,34 @@ Following NIST's steps:
   `padBlocks`, length block appended last);
 - (6) `T = E_K(J₀) ⊕ S`; (7) output `(C, T)`. -/
 def gcmEncrypt {K : Type} (ciph : CIPH K) (k : K)
-    (iv : BitVec 96) {a p : ℕ} (ad : BitVec a) (m : BitVec p) :
-    BitVec p × BitVec 128 :=
+    (iv : BitVec 96) {lenA lenP : ℕ} (ad : BitVec lenA) (m : BitVec lenP) :
+    BitVec lenP × BitVec 128 :=
   let h := ciph.perm k 0
   let j₀ := iv ++ (0 : BitVec 31) ++ (1 : BitVec 1)
   let c := gctr ciph.perm k (inc32 j₀) m
   -- trailing GHASH block `[len(A)]₆₄ ‖ [len(C)]₆₄` (NIST SP 800-38D §7.1 step 5)
-  let s := ghash h (padBlocks ad ++ padBlocks c ++ [BitVec.ofNat 64 a ++ BitVec.ofNat 64 p])
+  let s := ghash h (padBlocks ad ++ padBlocks c ++ [BitVec.ofNat 64 lenA ++ BitVec.ofNat 64 lenP])
   let t := ciph.perm k j₀ ^^^ s
   (c, t)
 
 /-- GCM authenticated decryption `GCM-AD_K(IV, C, A, T)` (NIST SP 800-38D §7.2,
 Algorithm 5): `FAIL` (return `none`) if the input lengths are unsupported (step 1,
-`ValidMsgLength p ∧ ValidAADLength a`; `IV`/tag lengths are fixed by the
+`ValidMsgLength lenP ∧ ValidAADLength lenA`; `IV`/tag lengths are fixed by the
 `BitVec 96`/`BitVec 128` types), else recompute the tag as in `gcmEncrypt` and, on a
 match, return
 `GCTR_K(inc₃₂(J₀), C) = P`. Encryption has no such check — Algorithm 4 assumes it as
 a precondition; only Algorithm 5 validates lengths. -/
 def gcmDecrypt {K : Type} (ciph : CIPH K) (k : K)
-    (iv : BitVec 96) {a p : ℕ} (ad : BitVec a) (ct : BitVec p × BitVec 128) :
-    Option (BitVec p) :=
+    (iv : BitVec 96) {lenA lenP : ℕ} (ad : BitVec lenA) (ct : BitVec lenP × BitVec 128) :
+    Option (BitVec lenP) :=
   -- Algorithm 5 step 1: FAIL immediately on unsupported input lengths, before any
   -- GHASH work.
-  if ValidMsgLength p ∧ ValidAADLength a then
+  if ValidMsgLength lenP ∧ ValidAADLength lenA then
     let (c, t) := ct
     let h := ciph.perm k 0
     let j₀ := iv ++ (0 : BitVec 31) ++ (1 : BitVec 1)
     -- trailing GHASH block `[len(A)]₆₄ ‖ [len(C)]₆₄` (NIST SP 800-38D §7.1 step 5)
-    let s := ghash h (padBlocks ad ++ padBlocks c ++ [BitVec.ofNat 64 a ++ BitVec.ofNat 64 p])
+    let s := ghash h (padBlocks ad ++ padBlocks c ++ [BitVec.ofNat 64 lenA ++ BitVec.ofNat 64 lenP])
     if t = ciph.perm k j₀ ^^^ s then some (gctr ciph.perm k (inc32 j₀) c) else none
   else none
 
