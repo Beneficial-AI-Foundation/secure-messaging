@@ -45,9 +45,9 @@ structure RatchetedAuthenticator
   macHeader : AuthState → ℕ → Header → Mac
   /-- Verify a MAC on a header at the given epoch. -/
   verifyHeader : AuthState → ℕ → Header → Mac → Bool
-  /-- MAC a complete ciphertext at the given epoch. -/
+  /-- MAC a ciphertext at the given epoch. -/
   macCiphertext : AuthState → ℕ → Ciphertext → Mac
-  /-- Verify a MAC on a complete ciphertext at the given epoch. -/
+  /-- Verify a MAC on a ciphertext at the given epoch. -/
   verifyCiphertext : AuthState → ℕ → Ciphertext → Mac → Bool
   /-- Honestly produced header MACs verify successfully. -/
   verifyHeader_correct :
