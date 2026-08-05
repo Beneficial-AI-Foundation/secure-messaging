@@ -6,6 +6,7 @@ Authors: Beneficial AI Foundation
 
 import LatticeCrypto.MLKEM.Concrete.Instance
 import LatticeCrypto.MLKEM.KEM
+import ToVCVio.CryptoFoundations.KeyEncapMech
 
 /-!
 # ML-KEM as a key-encapsulation mechanism
@@ -74,6 +75,31 @@ def mlkemScheme (p : ParameterSet) (ring : NTTRingOps)
         (Concrete.concreteEncoding (ParameterSet.params p))) :=
   asKEMScheme ring (Concrete.concreteEncoding (ParameterSet.params p)) prims
 -- ANCHOR_END: mlkemScheme
+
+/-- Randomness-leakage package for `mlkemScheme`. Key generation leaks the
+FIPS 203 seeds `(d, z)`; encapsulation leaks the sampled message `m`. -/
+-- ANCHOR: mlkemRandLeak
+def mlkemRandLeak (p : ParameterSet) (ring : NTTRingOps)
+    (prims : Primitives (ParameterSet.params p)
+      (Concrete.concreteEncoding (ParameterSet.params p))) :
+    (mlkemScheme p ring prims).RandLeak where
+  KeygenRand := Seed32 × Seed32
+  EncapsRand := Message
+  keygenRleak := do
+    let d ← $ᵗ Seed32
+    let z ← $ᵗ Seed32
+    return (keygenInternal ring (Concrete.concreteEncoding (ParameterSet.params p)) prims d z,
+      (d, z))
+  encapsRleak := fun ek => do
+    let m ← $ᵗ Message
+    let (k, c) := encapsInternal ring (Concrete.concreteEncoding (ParameterSet.params p))
+      prims ek m
+    return ((c, k), m)
+  keygen_fst := by
+    simp only [mlkemScheme, asKEMScheme, keygen, bind_assoc, pure_bind]
+  encaps_fst := fun _ek => by
+    simp only [mlkemScheme, asKEMScheme, bind_assoc, pure_bind]
+-- ANCHOR_END: mlkemRandLeak
 
 /-- ML-KEM-512: `k = 2`, `η₁ = 3`, `η₂ = 2`, `d_u = 10`, `d_v = 4` (FIPS 203
 Table 2), with the concrete NTT and the FFI-backed SHA-3/SHAKE primitives. -/

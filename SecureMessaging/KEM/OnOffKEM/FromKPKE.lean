@@ -225,6 +225,50 @@ def onOff : (scheme params encoding ring prims rho).OnOffStructure where
       Equiv.refl_symm, Equiv.coe_refl, id_eq]
 -- ANCHOR_END: onOffFromKPKE
 
+/-- Randomness-leakage package for `onOff`. Key generation leaks the seed
+`σ`; offline encapsulation leaks the encryption coins; online encapsulation
+leaks the sampled message (shared key). -/
+-- ANCHOR: onOffRandLeakFromKPKE
+def onOffRandLeak :
+    (scheme params encoding ring prims rho).OnOffRandLeak
+      (onOff params encoding ring prims rho) where
+  KeygenRand := Seed32
+  OffRand := Coins
+  OnRand := Message
+  keygenRleak := do
+    let sigma ← $ᵗ Seed32
+    let aHat := prims.publicMatrix rho
+    let s := prims.sampleVecEta1 sigma 0
+    let e := prims.sampleVecEta1 sigma params.k
+    let sHat := ring.nttVec s
+    let eHat := ring.nttVec e
+    let tHat := ring.matVecMul aHat sHat + eHat
+    pure ((encoding.byteEncode12Vec tHat, encoding.byteEncode12Vec sHat), sigma)
+  encapsOffRleak := do
+    let coins ← $ᵗ Coins
+    let aHat := prims.publicMatrix rho
+    let y := prims.sampleVecEta1 coins 0
+    let e1 := prims.sampleVecEta2 coins params.k
+    let e2 := prims.prfEta2 coins (2 * params.k)
+    let yHat := ring.nttVec y
+    let u := ring.invNTTVec (ring.matTransposeVecMul aHat yHat) + e1
+    pure (((yHat, e2), encoding.byteEncodeDUVec (encoding.compressDU u)), coins)
+  encapsOnRleak := fun st ek => do
+    let (yHat, e2) := st
+    let tHat := encoding.byteDecode12Vec ek
+    let msg ← $ᵗ Message
+    let mu := encoding.decompress1 (encoding.byteDecode1 msg)
+    let v := ring.invNTT (ring.dot tHat yHat) + e2 + mu
+    pure ((encoding.byteEncodeDV (encoding.compressDV v), msg), msg)
+  keygen_fst := by
+    simp only [scheme, keygen, bind_assoc, pure_bind]
+  encapsOff_fst := by
+    simp only [onOff, encapsOff, bind_assoc, pure_bind]
+  encapsOn_fst := fun st _ek => by
+    cases st
+    simp only [onOff, encapsOn, bind_assoc, pure_bind]
+-- ANCHOR_END: onOffRandLeakFromKPKE
+
 /-! ## Concrete Kyber-768 instance -/
 
 /-- The K-PKE-derived KEM at Kyber-768, with the concrete encoding, NTT, and

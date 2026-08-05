@@ -51,6 +51,40 @@ def mlkemScheme (p : ParameterSet) (ring : NTTRingOps)
 {githubLabel}`github` {githubIssue 215}[]
 ::::
 
+:::defTitle "ml_kem_rand_leak" "ML-KEM randomness leakage"
+:::
+
+::::definition "ml_kem_rand_leak" (parent := "ml_kem") (lean := "MLKEM.mlkemRandLeak")
+
+:::leanPillCaption "ML-KEM randomness leakage"
+:::
+
+```anchor mlkemRandLeak (project := ".") (module := SecureMessaging.KEM.MLKEM.Construction)
+def mlkemRandLeak (p : ParameterSet) (ring : NTTRingOps)
+    (prims : Primitives (ParameterSet.params p)
+      (Concrete.concreteEncoding (ParameterSet.params p))) :
+    (mlkemScheme p ring prims).RandLeak where
+  KeygenRand := Seed32 × Seed32
+  EncapsRand := Message
+  keygenRleak := do
+    let d ← $ᵗ Seed32
+    let z ← $ᵗ Seed32
+    return (keygenInternal ring (Concrete.concreteEncoding (ParameterSet.params p)) prims d z,
+      (d, z))
+  encapsRleak := fun ek => do
+    let m ← $ᵗ Message
+    let (k, c) := encapsInternal ring (Concrete.concreteEncoding (ParameterSet.params p))
+      prims ek m
+    return ((c, k), m)
+  keygen_fst := by
+    simp only [mlkemScheme, asKEMScheme, keygen, bind_assoc, pure_bind]
+  encaps_fst := fun _ek => by
+    simp only [mlkemScheme, asKEMScheme, bind_assoc, pure_bind]
+```
+
+{usesLabel}`uses` {uses "ml_kem_scheme"}[]
+::::
+
 :::defTitle "ml_kem_correctness" "ML-KEM correctness"
 :::
 

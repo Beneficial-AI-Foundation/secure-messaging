@@ -61,49 +61,6 @@ structure OnOffStructure (kem : KEMScheme m K PK SK C) where
 {githubLabel}`github` {githubIssue 40}[]
 ::::
 
-:::defTitle "on_off_kem_rand_leak" "On-Off KEM randomness leakage"
-:::
-
-::::definition "on_off_kem_rand_leak" (parent := "on_off_kem") (lean := "KEMScheme.OnOffRandLeak")
-
-```anchor OnOffRandLeak (project := ".") (module := SecureMessaging.KEM.OnOffKEM.Defs)
-structure OnOffRandLeak (kem : KEMScheme m K PK SK C)
-    (onoff : kem.OnOffStructure) where
-  /-- Randomness space for key generation. -/
-  KeygenRand : Type
-  /-- Randomness space for offline encapsulation. -/
-  OffRand : Type
-  /-- Randomness space for online encapsulation. -/
-  OnRand : Type
-  /-- Key generation together with the randomness used to sample the key pair. -/
-  keygenRleak : m ((PK × SK) × KeygenRand)
-  /-- Offline encapsulation together with its randomness. -/
-  encapsOffRleak : m ((onoff.St × onoff.C₀) × OffRand)
-  /-- Online encapsulation together with its randomness. -/
-  encapsOnRleak : onoff.St → PK → m ((onoff.C₁ × K) × OnRand)
-  /-- First component: ordinary key generation is the first component of
-  `keygenRleak`. -/
-  keygen_fst :
-    (do
-      let out ← keygenRleak
-      pure out.1) = kem.keygen
-  /-- First component: ordinary offline encapsulation is the first component of
-  `encapsOffRleak`. -/
-  encapsOff_fst :
-    (do
-      let out ← encapsOffRleak
-      pure out.1) = onoff.encapsOff
-  /-- First component: ordinary online encapsulation is the first component of
-  `encapsOnRleak st pk`. -/
-  encapsOn_fst : ∀ st pk,
-    (do
-      let out ← encapsOnRleak st pk
-      pure out.1) = onoff.encapsOn st pk
-```
-
-{usesLabel}`uses` {uses "on_off_kem_scheme"}[]
-::::
-
 :::group "on_off_kem_on_off_kem_from_ml_kem"
 On-Off KEM from ML-KEM.
 :::
@@ -390,3 +347,93 @@ def onOff : (scheme params encoding ring prims rho).OnOffStructure where
 
 {usesLabel}`uses` {uses "on_off_kem_scheme"}[] · {uses "on_off_kem_kem_from_kpke"}[] · {githubLabel}`github` {githubIssue 41}[]
 :::::::
+
+:::defTitle "on_off_kem_rand_leak" "On-Off KEM randomness leakage"
+:::
+
+::::definition "on_off_kem_rand_leak" (parent := "on_off_kem") (lean := "KEMScheme.OnOffRandLeak, KPKEOnOff.onOffRandLeak")
+
+:::leanPillCaption "On-Off KEM randomness leakage"
+:::
+
+```anchor OnOffRandLeak (project := ".") (module := SecureMessaging.KEM.OnOffKEM.Defs)
+structure OnOffRandLeak (kem : KEMScheme m K PK SK C)
+    (onoff : kem.OnOffStructure) where
+  /-- Randomness space for key generation. -/
+  KeygenRand : Type
+  /-- Randomness space for offline encapsulation. -/
+  OffRand : Type
+  /-- Randomness space for online encapsulation. -/
+  OnRand : Type
+  /-- Key generation together with the randomness used to sample the key pair. -/
+  keygenRleak : m ((PK × SK) × KeygenRand)
+  /-- Offline encapsulation together with its randomness. -/
+  encapsOffRleak : m ((onoff.St × onoff.C₀) × OffRand)
+  /-- Online encapsulation together with its randomness. -/
+  encapsOnRleak : onoff.St → PK → m ((onoff.C₁ × K) × OnRand)
+  /-- First component: ordinary key generation is the first component of
+  `keygenRleak`. -/
+  keygen_fst :
+    (do
+      let out ← keygenRleak
+      pure out.1) = kem.keygen
+  /-- First component: ordinary offline encapsulation is the first component of
+  `encapsOffRleak`. -/
+  encapsOff_fst :
+    (do
+      let out ← encapsOffRleak
+      pure out.1) = onoff.encapsOff
+  /-- First component: ordinary online encapsulation is the first component of
+  `encapsOnRleak st pk`. -/
+  encapsOn_fst : ∀ st pk,
+    (do
+      let out ← encapsOnRleak st pk
+      pure out.1) = onoff.encapsOn st pk
+```
+
+:::leanPillCaption "K-PKE On-Off randomness leakage"
+:::
+
+```anchor onOffRandLeakFromKPKE (project := ".") (module := SecureMessaging.KEM.OnOffKEM.FromKPKE)
+def onOffRandLeak :
+    (scheme params encoding ring prims rho).OnOffRandLeak
+      (onOff params encoding ring prims rho) where
+  KeygenRand := Seed32
+  OffRand := Coins
+  OnRand := Message
+  keygenRleak := do
+    let sigma ← $ᵗ Seed32
+    let aHat := prims.publicMatrix rho
+    let s := prims.sampleVecEta1 sigma 0
+    let e := prims.sampleVecEta1 sigma params.k
+    let sHat := ring.nttVec s
+    let eHat := ring.nttVec e
+    let tHat := ring.matVecMul aHat sHat + eHat
+    pure ((encoding.byteEncode12Vec tHat, encoding.byteEncode12Vec sHat), sigma)
+  encapsOffRleak := do
+    let coins ← $ᵗ Coins
+    let aHat := prims.publicMatrix rho
+    let y := prims.sampleVecEta1 coins 0
+    let e1 := prims.sampleVecEta2 coins params.k
+    let e2 := prims.prfEta2 coins (2 * params.k)
+    let yHat := ring.nttVec y
+    let u := ring.invNTTVec (ring.matTransposeVecMul aHat yHat) + e1
+    pure (((yHat, e2), encoding.byteEncodeDUVec (encoding.compressDU u)), coins)
+  encapsOnRleak := fun st ek => do
+    let (yHat, e2) := st
+    let tHat := encoding.byteDecode12Vec ek
+    let msg ← $ᵗ Message
+    let mu := encoding.decompress1 (encoding.byteDecode1 msg)
+    let v := ring.invNTT (ring.dot tHat yHat) + e2 + mu
+    pure ((encoding.byteEncodeDV (encoding.compressDV v), msg), msg)
+  keygen_fst := by
+    simp only [scheme, keygen, bind_assoc, pure_bind]
+  encapsOff_fst := by
+    simp only [onOff, encapsOff, bind_assoc, pure_bind]
+  encapsOn_fst := fun st _ek => by
+    cases st
+    simp only [onOff, encapsOn, bind_assoc, pure_bind]
+```
+
+{usesLabel}`uses` {uses "on_off_kem_scheme"}[] · {uses "on_off_kem_from_ml_kem_spec"}[] · {githubLabel}`github` {githubIssue 248}[]
+::::
