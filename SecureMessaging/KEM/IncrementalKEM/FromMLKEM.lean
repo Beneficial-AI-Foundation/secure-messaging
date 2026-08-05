@@ -22,7 +22,8 @@ vector. A hat denotes an NTT-domain value, so `yHat` is the NTT of the ephemeral
 The ciphertext splits into encoded `u` and `v` components. The first stage also computes
 `e2`, the second noise polynomial, and retains `message`, the sampled 32-byte ML-KEM message.
 The `factor` field of `mlkemIncremental` identifies the staged computation with ML-KEM
-encapsulation.
+encapsulation. `mlkemIncrementalRandLeak` exposes the FIPS 203 coins of key
+generation and first-stage encapsulation for security games.
 -/
 
 open OracleComp KEMScheme LatticeCrypto
@@ -124,5 +125,34 @@ def mlkemIncremental (p : ParameterSet) (ring : NTTRingOps)
       bind_assoc, pure_bind]
     rfl
 -- ANCHOR_END: mlkemIncremental
+
+/-- Randomness-leakage package for `mlkemIncremental`. Key generation leaks the
+FIPS 203 seeds `(d, z)`; first-stage encapsulation leaks the sampled `Message`;
+second-stage encapsulation samples nothing, so its leak type is `Unit`. -/
+-- ANCHOR: mlkemIncrementalRandLeak
+def mlkemIncrementalRandLeak (p : ParameterSet) (ring : NTTRingOps)
+    (prims : Primitives (ParameterSet.params p)
+      (Concrete.concreteEncoding (ParameterSet.params p))) :
+    (mlkemScheme p ring prims).IncrementalRandLeak (mlkemIncremental p ring prims) where
+  KeygenRand := Seed32 × Seed32
+  Encaps1Rand := Message
+  Encaps2Rand := Unit
+  keygenRleak := do
+    let d ← $ᵗ Seed32
+    let z ← $ᵗ Seed32
+    return (keygenInternal ring (Concrete.concreteEncoding (ParameterSet.params p)) prims d z,
+      (d, z))
+  encaps1Rleak := fun hdr => do
+    let m ← $ᵗ Message
+    return (incrementalEncaps1 ring prims hdr m, m)
+  encaps2Rleak := fun st _hdr vec =>
+    return (incrementalEncaps2 ring st vec, ())
+  keygen_fst := by
+    simp only [mlkemScheme, asKEMScheme, keygen, bind_assoc, pure_bind]
+  encaps1_fst := fun _hdr => by
+    simp only [mlkemIncremental, bind_assoc, pure_bind]
+  encaps2_fst := fun _st _hdr _vec => by
+    simp only [mlkemIncremental, pure_bind]
+-- ANCHOR_END: mlkemIncrementalRandLeak
 
 end MLKEM

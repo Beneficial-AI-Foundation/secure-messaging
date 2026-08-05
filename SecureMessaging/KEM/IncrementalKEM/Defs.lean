@@ -88,6 +88,45 @@ structure IncrementalStructure (kem : KEMScheme m K PK SK C) where
     pure (splitC.symm (c1, c2), k))
 -- ANCHOR_END: IncrementalStructure
 
+/-- Randomness-leaking versions of the randomized algorithms used by an
+incremental KEM construction.
+
+Fine-grained version of `KEMScheme.RandLeak` specifying the leak in each phase. -/
+-- ANCHOR: IncrementalRandLeak
+structure IncrementalRandLeak (kem : KEMScheme m K PK SK C)
+    (inc : kem.IncrementalStructure) where
+  /-- Randomness space for key generation. -/
+  KeygenRand : Type
+  /-- Randomness space for the first encapsulation stage. -/
+  Encaps1Rand : Type
+  /-- Randomness space for the second encapsulation stage. -/
+  Encaps2Rand : Type
+  /-- Key generation together with the randomness used to sample the key pair. -/
+  keygenRleak : m ((PK × SK) × KeygenRand)
+  /-- First-stage encapsulation together with its randomness. -/
+  encaps1Rleak : inc.PKheader → m ((inc.St × inc.C₁ × K) × Encaps1Rand)
+  /-- Second-stage encapsulation together with its randomness. -/
+  encaps2Rleak : inc.St → inc.PKheader → inc.PKvector → m (inc.C₂ × Encaps2Rand)
+  /-- First component: ordinary key generation is the first component of
+  `keygenRleak`. -/
+  keygen_fst :
+    (do
+      let out ← keygenRleak
+      pure out.1) = kem.keygen
+  /-- First component: ordinary first-stage encapsulation is the first component of
+  `encaps1Rleak hdr`. -/
+  encaps1_fst : ∀ hdr,
+    (do
+      let out ← encaps1Rleak hdr
+      pure out.1) = inc.encaps1 hdr
+  /-- First component: ordinary second-stage encapsulation is the first component of
+  `encaps2Rleak st hdr vec`. -/
+  encaps2_fst : ∀ st hdr vec,
+    (do
+      let out ← encaps2Rleak st hdr vec
+      pure out.1) = inc.encaps2 st hdr vec
+-- ANCHOR_END: IncrementalRandLeak
+
 /-- Incremental structure showing that any `kem` can be trivially made incremental by
 taking the whole public key as the header. -/
 def trivialIncremental [LawfulMonad m] (kem : KEMScheme m K PK SK C) :
