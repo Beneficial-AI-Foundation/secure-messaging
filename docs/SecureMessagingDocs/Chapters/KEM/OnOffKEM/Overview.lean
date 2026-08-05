@@ -176,6 +176,8 @@ def decrypt (ring : NTTRingOps) (encoding : Encoding params)
 :::::
 ::::::
 :::::::
+
+{usesLabel}`uses` {uses "ml_kem_scheme"}[]
 ::::::::
 
 :::defTitle "on_off_kem_kem_from_kpke" "IND-CPA KEM from K-PKE"
@@ -345,7 +347,7 @@ def onOff : (scheme params encoding ring prims rho).OnOffStructure where
       Equiv.refl_symm, Equiv.coe_refl, id_eq]
 ```
 
-{usesLabel}`uses` {uses "on_off_kem_scheme"}[] · {uses "on_off_kem_kem_from_kpke"}[] · {githubLabel}`github` {githubIssue 41}[]
+{usesLabel}`uses` {uses "on_off_kem_scheme"}[] · {uses "on_off_kem_kem_from_kpke"}[] · {uses "ml_kem_scheme"}[] · {githubLabel}`github` {githubIssue 41}[]
 :::::::
 
 :::defTitle "on_off_kem_rand_leak" "On-Off KEM randomness leakage"
