@@ -1,6 +1,7 @@
 import Verso
 import VersoManual
 import VersoBlueprint
+import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessaging.SCKA.MLKEMBraid.Authenticator
 
@@ -39,7 +40,7 @@ structure RatchetedAuthenticator
     (InitKey EpochKey AuthState Header Ciphertext Mac : Type) where
   /-- Initialize authenticator state from an initial key and epoch. -/
   init : InitKey → ℕ → AuthState
-  /-- Deterministically ratchet the authenticator state with an epoch key. -/
+  /-- Ratchet the authenticator state with an epoch key at the given epoch. -/
   update : AuthState → ℕ → EpochKey → AuthState
   /-- MAC a header at the given epoch. -/
   macHeader : AuthState → ℕ → Header → Mac
