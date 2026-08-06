@@ -203,13 +203,7 @@ e \gets \SampleVec_1(\sigma,k) \pcomment{\text{small error vector}} \\
 ```anchor keygenFromKPKE (project := ".") (module := SecureMessaging.KEM.OnOffKEM.FromKPKE)
 def keygen : ProbComp (encoding.EncodedTHat × encoding.EncodedTHat) := do
   let sigma ← $ᵗ Seed32
-  let aHat := prims.publicMatrix rho
-  let s := prims.sampleVecEta1 sigma 0
-  let e := prims.sampleVecEta1 sigma params.k
-  let sHat := ring.nttVec s
-  let eHat := ring.nttVec e
-  let tHat := ring.matVecMul aHat sHat + eHat
-  pure (encoding.byteEncode12Vec tHat, encoding.byteEncode12Vec sHat)
+  pure (keygenFromSigma params encoding ring prims rho sigma)
 ```
 :::::
 
@@ -291,13 +285,7 @@ u \gets \NTT^{-1}(\hat{A}^{\top}\hat{y}) + e_1 \\
 ```anchor encapsOffFromKPKE (project := ".") (module := SecureMessaging.KEM.OnOffKEM.FromKPKE)
 def encapsOff : ProbComp ((TqVec params.k × Rq) × encoding.EncodedU) := do
   let coins ← $ᵗ Coins
-  let aHat := prims.publicMatrix rho
-  let y := prims.sampleVecEta1 coins 0
-  let e1 := prims.sampleVecEta2 coins params.k
-  let e2 := prims.prfEta2 coins (2 * params.k)
-  let yHat := ring.nttVec y
-  let u := ring.invNTTVec (ring.matTransposeVecMul aHat yHat) + e1
-  pure ((yHat, e2), encoding.byteEncodeDUVec (encoding.compressDU u))
+  pure (encapsOffFromCoins params encoding ring prims rho coins)
 ```
 :::::
 
@@ -313,12 +301,8 @@ v \gets \NTT^{-1}(\langle \hat{t}, \hat{y}\rangle) + e_2 + \mu \\
 ```anchor encapsOnFromKPKE (project := ".") (module := SecureMessaging.KEM.OnOffKEM.FromKPKE)
 def encapsOn (st : TqVec params.k × Rq) (ek : encoding.EncodedTHat) :
     ProbComp (encoding.EncodedV × Message) := do
-  let (yHat, e2) := st
-  let tHat := encoding.byteDecode12Vec ek
   let msg ← $ᵗ Message
-  let mu := encoding.decompress1 (encoding.byteDecode1 msg)
-  let v := ring.invNTT (ring.dot tHat yHat) + e2 + mu
-  pure (encoding.byteEncodeDV (encoding.compressDV v), msg)
+  pure (encapsOnFromMessage params encoding ring st ek msg)
 ```
 :::::
 
@@ -342,8 +326,8 @@ def onOff : (scheme params encoding ring prims rho).OnOffStructure where
   encapsOff := encapsOff params encoding ring prims rho
   encapsOn := encapsOn params encoding ring
   factor ek := by
-    simp only [scheme, encaps, encapsOff, encapsOn, KPKE.encrypt, bind_assoc, pure_bind,
-      Equiv.refl_symm, Equiv.coe_refl, id_eq]
+    simp only [scheme, encaps, encapsOff, encapsOn, encapsOffFromCoins, encapsOnFromMessage,
+      KPKE.encrypt, bind_assoc, pure_bind, Equiv.refl_symm, Equiv.coe_refl, id_eq]
 ```
 
 {usesLabel}`uses` {uses "on_off_kem_scheme"}[] · {uses "kem_from_kpke"}[] · {githubLabel}`github` {githubIssue 41}[]
@@ -404,36 +388,20 @@ def onOffRandLeak :
   OnRand := Message
   keygenRleak := do
     let sigma ← $ᵗ Seed32
-    let aHat := prims.publicMatrix rho
-    let s := prims.sampleVecEta1 sigma 0
-    let e := prims.sampleVecEta1 sigma params.k
-    let sHat := ring.nttVec s
-    let eHat := ring.nttVec e
-    let tHat := ring.matVecMul aHat sHat + eHat
-    pure ((encoding.byteEncode12Vec tHat, encoding.byteEncode12Vec sHat), sigma)
+    pure (keygenFromSigma params encoding ring prims rho sigma, sigma)
   encapsOffRleak := do
     let coins ← $ᵗ Coins
-    let aHat := prims.publicMatrix rho
-    let y := prims.sampleVecEta1 coins 0
-    let e1 := prims.sampleVecEta2 coins params.k
-    let e2 := prims.prfEta2 coins (2 * params.k)
-    let yHat := ring.nttVec y
-    let u := ring.invNTTVec (ring.matTransposeVecMul aHat yHat) + e1
-    pure (((yHat, e2), encoding.byteEncodeDUVec (encoding.compressDU u)), coins)
+    pure (encapsOffFromCoins params encoding ring prims rho coins, coins)
   encapsOnRleak := fun st ek => do
-    let (yHat, e2) := st
-    let tHat := encoding.byteDecode12Vec ek
     let msg ← $ᵗ Message
-    let mu := encoding.decompress1 (encoding.byteDecode1 msg)
-    let v := ring.invNTT (ring.dot tHat yHat) + e2 + mu
-    pure ((encoding.byteEncodeDV (encoding.compressDV v), msg), msg)
+    pure (encapsOnFromMessage params encoding ring st ek msg, msg)
   keygen_fst := by
-    simp only [scheme, keygen, bind_assoc, pure_bind]
+    simp only [scheme, keygen, keygenFromSigma, bind_assoc, pure_bind]
   encapsOff_fst := by
-    simp only [onOff, encapsOff, bind_assoc, pure_bind]
+    simp only [onOff, encapsOff, encapsOffFromCoins, bind_assoc, pure_bind]
   encapsOn_fst := fun st _ek => by
     cases st
-    simp only [onOff, encapsOn, bind_assoc, pure_bind]
+    simp only [onOff, encapsOn, encapsOnFromMessage, bind_assoc, pure_bind]
 ```
 
 {usesLabel}`uses` {uses "on_off_kem_scheme"}[] · {uses "on_off_kem_from_kpke_spec"}[] · {githubLabel}`github` {githubIssue 248}[]
