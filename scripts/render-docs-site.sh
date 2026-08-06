@@ -353,9 +353,6 @@ cat > "$site_root/index.html" <<'HTML'
     .status-table .theorem-group {
       border-left: 2px solid var(--line);
     }
-    .status-table .proof-group {
-      border-left: 1px solid var(--line);
-    }
     .status-chapter-link {
       color: inherit;
       text-decoration: none;

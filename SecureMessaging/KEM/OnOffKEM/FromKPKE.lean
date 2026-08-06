@@ -127,18 +127,24 @@ variable (params : Params) (encoding : Encoding params)
 
 /-! ## KEM from K-PKE -/
 
-/-- Key generation against the fixed public matrix `Â = publicMatrix ρ`.
-Mirrors `MLKEM.KPKE.keygenFromSeed` with `ρ` fixed as a public parameter. -/
--- ANCHOR: keygenFromKPKE
-def keygen : ProbComp (encoding.EncodedTHat × encoding.EncodedTHat) := do
-  let sigma ← $ᵗ Seed32
+/-- Deterministic K-PKE key generation against the fixed public matrix
+`Â = publicMatrix ρ`, parameterized by the sampled seed `σ`. Mirrors
+`MLKEM.KPKE.keygenFromSeed` with `ρ` fixed as a public parameter. -/
+def keygenFromSigma (sigma : Seed32) : encoding.EncodedTHat × encoding.EncodedTHat :=
   let aHat := prims.publicMatrix rho
   let s := prims.sampleVecEta1 sigma 0
   let e := prims.sampleVecEta1 sigma params.k
   let sHat := ring.nttVec s
   let eHat := ring.nttVec e
   let tHat := ring.matVecMul aHat sHat + eHat
-  pure (encoding.byteEncode12Vec tHat, encoding.byteEncode12Vec sHat)
+  (encoding.byteEncode12Vec tHat, encoding.byteEncode12Vec sHat)
+
+/-- Key generation against the fixed public matrix `Â = publicMatrix ρ`.
+Mirrors `MLKEM.KPKE.keygenFromSeed` with `ρ` fixed as a public parameter. -/
+-- ANCHOR: keygenFromKPKE
+def keygen : ProbComp (encoding.EncodedTHat × encoding.EncodedTHat) := do
+  let sigma ← $ᵗ Seed32
+  pure (keygenFromSigma params encoding ring prims rho sigma)
 -- ANCHOR_END: keygenFromKPKE
 
 /-- Encapsulation: encrypt a uniformly random message (the shared key) under
@@ -177,6 +183,19 @@ def scheme :
 
 /-! ## Online-offline split -/
 
+/-- Deterministic offline encapsulation `Enc.Off`, parameterized by the sampled
+coins. Computes the compressed encoding of `u = invNTTVec (Âᵀ ŷ) + e1` together
+with the minimal online state `(ŷ, e2)`. -/
+def encapsOffFromCoins (coins : Coins) :
+    (TqVec params.k × Rq) × encoding.EncodedU :=
+  let aHat := prims.publicMatrix rho
+  let y := prims.sampleVecEta1 coins 0
+  let e1 := prims.sampleVecEta2 coins params.k
+  let e2 := prims.prfEta2 coins (2 * params.k)
+  let yHat := ring.nttVec y
+  let u := ring.invNTTVec (ring.matTransposeVecMul aHat yHat) + e1
+  ((yHat, e2), encoding.byteEncodeDUVec (encoding.compressDU u))
+
 /-- Offline encapsulation `Enc.Off`: sample fresh coins, derive the ephemeral
 vector `y` and noise `e1`, `e2`, compute `u = invNTTVec (Âᵀ ŷ) + e1`, and output
 its compressed encoding as `ct0` together with the minimal online state `(ŷ, e2)`.
@@ -184,14 +203,19 @@ Independent of the encapsulation key. -/
 -- ANCHOR: encapsOffFromKPKE
 def encapsOff : ProbComp ((TqVec params.k × Rq) × encoding.EncodedU) := do
   let coins ← $ᵗ Coins
-  let aHat := prims.publicMatrix rho
-  let y := prims.sampleVecEta1 coins 0
-  let e1 := prims.sampleVecEta2 coins params.k
-  let e2 := prims.prfEta2 coins (2 * params.k)
-  let yHat := ring.nttVec y
-  let u := ring.invNTTVec (ring.matTransposeVecMul aHat yHat) + e1
-  pure ((yHat, e2), encoding.byteEncodeDUVec (encoding.compressDU u))
+  pure (encapsOffFromCoins params encoding ring prims rho coins)
 -- ANCHOR_END: encapsOffFromKPKE
+
+/-- Deterministic online encapsulation `Enc.On`, parameterized by the sampled
+message `m` (the shared key). Computes the compressed encoding of
+`v = invNTT ⟨t̂, ŷ⟩ + e2 + decompress₁ (decode₁ m)`. -/
+def encapsOnFromMessage (st : TqVec params.k × Rq) (ek : encoding.EncodedTHat)
+    (msg : Message) : encoding.EncodedV × Message :=
+  let (yHat, e2) := st
+  let tHat := encoding.byteDecode12Vec ek
+  let mu := encoding.decompress1 (encoding.byteDecode1 msg)
+  let v := ring.invNTT (ring.dot tHat yHat) + e2 + mu
+  (encoding.byteEncodeDV (encoding.compressDV v), msg)
 
 /-- Online encapsulation `Enc.On`: from the minimal offline state `(ŷ, e2)` and
 the encapsulation key `ek = t̂`, sample the message `m` (the shared key), compute
@@ -200,12 +224,8 @@ encoding as `ct1`. -/
 -- ANCHOR: encapsOnFromKPKE
 def encapsOn (st : TqVec params.k × Rq) (ek : encoding.EncodedTHat) :
     ProbComp (encoding.EncodedV × Message) := do
-  let (yHat, e2) := st
-  let tHat := encoding.byteDecode12Vec ek
   let msg ← $ᵗ Message
-  let mu := encoding.decompress1 (encoding.byteDecode1 msg)
-  let v := ring.invNTT (ring.dot tHat yHat) + e2 + mu
-  pure (encoding.byteEncodeDV (encoding.compressDV v), msg)
+  pure (encapsOnFromMessage params encoding ring st ek msg)
 -- ANCHOR_END: encapsOnFromKPKE
 
 /-- The online-offline structure for the K-PKE KEM: the ciphertext splits as
@@ -221,9 +241,37 @@ def onOff : (scheme params encoding ring prims rho).OnOffStructure where
   encapsOff := encapsOff params encoding ring prims rho
   encapsOn := encapsOn params encoding ring
   factor ek := by
-    simp only [scheme, encaps, encapsOff, encapsOn, KPKE.encrypt, bind_assoc, pure_bind,
-      Equiv.refl_symm, Equiv.coe_refl, id_eq]
+    simp only [scheme, encaps, encapsOff, encapsOn, encapsOffFromCoins, encapsOnFromMessage,
+      KPKE.encrypt, bind_assoc, pure_bind, Equiv.refl_symm, Equiv.coe_refl, id_eq]
 -- ANCHOR_END: onOffFromKPKE
+
+/-- Randomness-leakage package for `onOff`. Key generation leaks the seed
+`σ`; offline encapsulation leaks the encryption coins; online encapsulation
+leaks the sampled message (shared key). -/
+-- ANCHOR: onOffRandLeakFromKPKE
+def onOffRandLeak :
+    (scheme params encoding ring prims rho).OnOffRandLeak
+      (onOff params encoding ring prims rho) where
+  KeygenRand := Seed32
+  OffRand := Coins
+  OnRand := Message
+  keygenRleak := do
+    let sigma ← $ᵗ Seed32
+    pure (keygenFromSigma params encoding ring prims rho sigma, sigma)
+  encapsOffRleak := do
+    let coins ← $ᵗ Coins
+    pure (encapsOffFromCoins params encoding ring prims rho coins, coins)
+  encapsOnRleak := fun st ek => do
+    let msg ← $ᵗ Message
+    pure (encapsOnFromMessage params encoding ring st ek msg, msg)
+  keygen_fst := by
+    simp only [scheme, keygen, keygenFromSigma, bind_assoc, pure_bind]
+  encapsOff_fst := by
+    simp only [onOff, encapsOff, encapsOffFromCoins, bind_assoc, pure_bind]
+  encapsOn_fst := fun st _ek => by
+    cases st
+    simp only [onOff, encapsOn, encapsOnFromMessage, bind_assoc, pure_bind]
+-- ANCHOR_END: onOffRandLeakFromKPKE
 
 /-! ## Concrete Kyber-768 instance -/
 

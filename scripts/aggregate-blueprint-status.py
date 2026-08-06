@@ -401,6 +401,15 @@ def atoms_for(atoms: list[Atom], chapter: str, kind: str, metric: str) -> list[A
     raise ValueError(f"unknown metric: {metric}")
 
 
+def merge_atoms(*atom_lists: list[Atom]) -> list[Atom]:
+    # Union atom lists by label, preserving a stable label order for popovers.
+    seen: dict[str, Atom] = {}
+    for atoms in atom_lists:
+        for atom in atoms:
+            seen[atom.label] = atom
+    return sorted(seen.values(), key=lambda item: item.label)
+
+
 def status_count_cell(
     chapter: str,
     kind: str,
@@ -798,19 +807,25 @@ def print_html_summary(atoms: list[Atom], history_file: Path | None = None, site
     all_ready_next_definitions = [
         atom for chapter_map in ready_next_atoms_by_chapter.values() for atom in chapter_map["definition"]
     ]
-    all_ready_next_theorems = [
-        atom for chapter_map in ready_next_atoms_by_chapter.values() for atom in chapter_map["theorem"]
-    ]
-    all_current_blocker_theorems = [
-        atom for chapter_map in current_blocker_atoms_by_chapter.values() for atom in chapter_map["theorem"]
-    ]
+    all_ready_next_theorems = merge_atoms(
+        [
+            atom
+            for chapter_map in ready_next_atoms_by_chapter.values()
+            for atom in chapter_map["theorem"]
+        ],
+        [
+            atom
+            for chapter_map in current_blocker_atoms_by_chapter.values()
+            for atom in chapter_map["theorem"]
+        ],
+    )
     print('    <section class="blueprint-status" aria-labelledby="blueprint-status-heading">')
     print('      <h2 id="blueprint-status-heading">Blueprint Status and Progress</h2>')
     print_progress_charts(history_file)
     print('      <table class="status-table" aria-label="Per-chapter blueprint status">')
     print('        <thead>')
-    print('          <tr><th scope="col" rowspan="2">Chapter</th><th scope="colgroup" colspan="3">Definitions</th><th class="theorem-group" scope="colgroup" colspan="5">Theorems</th></tr>')
-    print('          <tr><th scope="col">Total</th><th scope="col">Specified</th><th scope="col">Ready next</th><th class="theorem-group" scope="col">Total</th><th scope="col">Specified</th><th scope="col">Ready next</th><th class="proof-group" scope="col">Verified</th><th scope="col">Proof blockers</th></tr>')
+    print('          <tr><th scope="col" rowspan="2">Chapter</th><th scope="colgroup" colspan="3">Definitions</th><th class="theorem-group" scope="colgroup" colspan="4">Theorems</th></tr>')
+    print('          <tr><th scope="col">Total</th><th scope="col">Specified</th><th scope="col">Ready next</th><th class="theorem-group" scope="col">Total</th><th scope="col">Specified</th><th scope="col">Verified</th><th scope="col">Ready next</th></tr>')
     print('        </thead>')
     print('        <tbody>')
     all_cells = "".join(
@@ -820,9 +835,8 @@ def print_html_summary(atoms: list[Atom], history_file: Path | None = None, site
             status_count_cell("ALL", "definition", "ready next", all_ready_next_definitions),
             status_count_cell("ALL", "theorem", "total", [atom for atom in atoms if atom.kind == "theorem"], "theorem-group"),
             status_count_cell("ALL", "theorem", "specified", [atom for atom in atoms if atom.kind == "theorem" and atom.specified]),
+            status_count_cell("ALL", "theorem", "verified", [atom for atom in atoms if atom.kind == "theorem" and atom.verified]),
             status_count_cell("ALL", "theorem", "ready next", all_ready_next_theorems),
-            status_count_cell("ALL", "theorem", "verified", [atom for atom in atoms if atom.kind == "theorem" and atom.verified], "proof-group"),
-            status_count_cell("ALL", "theorem", "proof blockers", all_current_blocker_theorems),
         ]
     )
     print(f'          <tr class="status-all-row"><th scope="row">ALL</th>{all_cells}</tr>')
@@ -833,6 +847,10 @@ def print_html_summary(atoms: list[Atom], history_file: Path | None = None, site
         theorem_total = atoms_for(atoms, chapter, "theorem", "total")
         theorem_specified = atoms_for(atoms, chapter, "theorem", "specified")
         theorem_verified = atoms_for(atoms, chapter, "theorem", "verified")
+        theorem_ready_next = merge_atoms(
+            ready_next_atoms_by_chapter.get(chapter, {}).get("theorem", []),
+            current_blocker_atoms_by_chapter.get(chapter, {}).get("theorem", []),
+        )
         cells = "".join(
             [
                 status_count_cell(chapter, "definition", "total", definition_total),
@@ -845,19 +863,8 @@ def print_html_summary(atoms: list[Atom], history_file: Path | None = None, site
                 ),
                 status_count_cell(chapter, "theorem", "total", theorem_total, "theorem-group"),
                 status_count_cell(chapter, "theorem", "specified", theorem_specified),
-                status_count_cell(
-                    chapter,
-                    "theorem",
-                    "ready next",
-                    ready_next_atoms_by_chapter.get(chapter, {}).get("theorem", []),
-                ),
-                status_count_cell(chapter, "theorem", "verified", theorem_verified, "proof-group"),
-                status_count_cell(
-                    chapter,
-                    "theorem",
-                    "proof blockers",
-                    current_blocker_atoms_by_chapter.get(chapter, {}).get("theorem", []),
-                ),
+                status_count_cell(chapter, "theorem", "verified", theorem_verified),
+                status_count_cell(chapter, "theorem", "ready next", theorem_ready_next),
             ]
         )
         chapter_href = html_module.escape(f"{chapter}/", quote=True)

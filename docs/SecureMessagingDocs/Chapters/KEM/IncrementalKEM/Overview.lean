@@ -206,6 +206,81 @@ theorem incrementalCorrectExp_failure_le_mlkem768_easycrypt {failprob hsadv prfa
 {usesLabel}`uses` {uses "incremental_kem_from_ml_kem_spec"}[] · {uses "ml_kem_correctness_easycrypt"}[] · {githubLabel}`github` {githubIssue 238}[]
 ::::
 
+:::defTitle "incremental_kem_rand_leak" "Incremental KEM randomness leakage"
+:::
+
+::::definition "incremental_kem_rand_leak" (parent := "incremental_kem") (lean := "KEMScheme.IncrementalRandLeak, MLKEM.mlkemIncrementalRandLeak")
+
+:::leanPillCaption "incremental KEM randomness leakage"
+:::
+
+```anchor IncrementalRandLeak (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.Defs)
+structure IncrementalRandLeak (kem : KEMScheme m K PK SK C)
+    (inc : kem.IncrementalStructure) where
+  /-- Randomness space for key generation. -/
+  KeygenRand : Type
+  /-- Randomness space for the first encapsulation stage. -/
+  Encaps1Rand : Type
+  /-- Randomness space for the second encapsulation stage. -/
+  Encaps2Rand : Type
+  /-- Key generation together with the randomness used to sample the key pair. -/
+  keygenRleak : m ((PK × SK) × KeygenRand)
+  /-- First-stage encapsulation together with its randomness. -/
+  encaps1Rleak : inc.PKheader → m ((inc.St × inc.C₁ × K) × Encaps1Rand)
+  /-- Second-stage encapsulation together with its randomness. -/
+  encaps2Rleak : inc.St → inc.PKheader → inc.PKvector → m (inc.C₂ × Encaps2Rand)
+  /-- First component: ordinary key generation is the first component of
+  `keygenRleak`. -/
+  keygen_fst :
+    (do
+      let out ← keygenRleak
+      pure out.1) = kem.keygen
+  /-- First component: ordinary first-stage encapsulation is the first component of
+  `encaps1Rleak hdr`. -/
+  encaps1_fst : ∀ hdr,
+    (do
+      let out ← encaps1Rleak hdr
+      pure out.1) = inc.encaps1 hdr
+  /-- First component: ordinary second-stage encapsulation is the first component of
+  `encaps2Rleak st hdr vec`. -/
+  encaps2_fst : ∀ st hdr vec,
+    (do
+      let out ← encaps2Rleak st hdr vec
+      pure out.1) = inc.encaps2 st hdr vec
+```
+
+:::leanPillCaption "ML-KEM incremental randomness leakage"
+:::
+
+```anchor mlkemIncrementalRandLeak (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
+def mlkemIncrementalRandLeak (p : ParameterSet) (ring : NTTRingOps)
+    (prims : Primitives (ParameterSet.params p)
+      (Concrete.concreteEncoding (ParameterSet.params p))) :
+    (mlkemScheme p ring prims).IncrementalRandLeak (mlkemIncremental p ring prims) where
+  KeygenRand := Seed32 × Seed32
+  Encaps1Rand := Message
+  Encaps2Rand := Unit
+  keygenRleak := do
+    let d ← $ᵗ Seed32
+    let z ← $ᵗ Seed32
+    return (keygenInternal ring (Concrete.concreteEncoding (ParameterSet.params p)) prims d z,
+      (d, z))
+  encaps1Rleak := fun hdr => do
+    let m ← $ᵗ Message
+    return (incrementalEncaps1 ring prims hdr m, m)
+  encaps2Rleak := fun st _hdr vec =>
+    return (incrementalEncaps2 ring st vec, ())
+  keygen_fst := by
+    simp only [mlkemScheme, asKEMScheme, keygen, bind_assoc, pure_bind]
+  encaps1_fst := fun _hdr => by
+    simp only [mlkemIncremental, bind_assoc, pure_bind]
+  encaps2_fst := fun _st _hdr _vec => by
+    simp only [mlkemIncremental, pure_bind]
+```
+
+{usesLabel}`uses` {uses "incremental_kem_scheme"}[] · {uses "incremental_kem_from_ml_kem_spec"}[] · {githubLabel}`github` {githubIssue 246}[]
+::::
+
 *References:*
 
 - {Informal.citet MLKEM_Braid}[]
