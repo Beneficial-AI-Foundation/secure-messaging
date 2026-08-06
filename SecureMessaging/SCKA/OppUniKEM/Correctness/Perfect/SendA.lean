@@ -9,18 +9,16 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect.Invariant
 /-!
 # SendA Preserves the Perfect-Correctness Invariant
 
-This module proves that A's send oracle preserves `reachableInv`.
+`oracleSendA_preserves_reachableInv`: A's send oracle preserves
+`reachableInv`.  Cases:
 
-There are two cases:
+* A holds the current epoch's key pair — emit the next public-key chunk;
+  the transcript is unchanged;
+* otherwise — sample a key pair, record it in the current
+  `EpochTranscript`, emit its first public-key chunk.
 
-* if A already holds the current epoch's key pair, `sendA` emits the next
-  public-key chunk without changing the transcript;
-* otherwise, `sendA` samples a supported KEM key pair, records it in the
-  current `EpochTranscript`, and emits its first public-key chunk.
-
-In both cases the newly recorded message is honest, A's receive cursor is
-updated monotonically, and every other component of `WorldInv` is preserved.
-The exported result is `oracleSendA_preserves_reachableInv`.
+In both cases the recorded message is honest and A's receive cursor moves
+monotonically.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme

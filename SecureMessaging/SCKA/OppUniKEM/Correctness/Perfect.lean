@@ -25,54 +25,19 @@ for a perfectly correct KEM and correct erasure codes with positive reconstructi
 
 This invariant also underlies the probabilistic bounds in `Correctness.Reduction`.
 
-`supp X` denotes the set of positive-probability outputs of
-`X : ProbComp α`.
+## Modules
 
-## Transcripts
+* `Perfect.Invariant` — the transcript `EpochTranscript`, the invariant
+  `WorldInv` and its closure `reachableInv`, `CurrentKEMCorrect`,
+  initialization, and the uniform oracle;
+* `Perfect.ErasureCode` — honest chunk sets and their decoding;
+* `Perfect.SendA`, `Perfect.SendB`, `Perfect.RecvA`, `Perfect.RecvB` —
+  preservation of `reachableInv` by each protocol oracle.
 
-An `EpochTranscript` records the elements one epoch `t` has sampled:
+## Composition
 
-```text
-T t = (kpₜ, offₜ, onₜ) : Option (PK × SK) × Option (St × C₀) × Option (C₁ × K)
-```
-
-with membership proofs
-
-```text
-kpₜ  = some (pk, sk)  → (pk, sk)  ∈ supp kem.keygen
-offₜ = some (st, ct₀) → (st, ct₀) ∈ supp onoff.encapsOff
-kpₜ = some (pk, sk) ∧ offₜ = some (st, ct₀) ∧ onₜ = some (ct₁, k)
-  → (ct₁, k) ∈ supp (onoff.encapsOn st pk)
-onₜ ≠ none → kpₜ ≠ none ∧ offₜ ≠ none.
-```
-
-## Invariant
-
-`WorldInv T s`, with `tA := s.stA.t` and `tB := s.stB.t`, asserts:
-
-* flag and epochs — `s.correct = true`; `tB ≤ tA ≤ tB + 1`; `0 < tA, tB`;
-  `s.tcurA ≤ tA - 1`; `s.tcurB ≤ tB - 1`;
-* current samples — `kp_tA = pair? s.stA.ekA s.stA.dkA`,
-  `off_tB = pair? s.stB.stCt s.stB.ct0`, `on_tB.map fst = s.stB.ct1`,
-  where `pair?` pairs two options when both are present;
-* decoded values are honest — `s.stB.ekA = some pk → ∃ sk, kp_tB = some (pk, sk)`;
-  `s.stA.ct0 = some ct₀ → ∃ st, off_tA = some (st, ct₀)`;
-* chunk buffers (`ChunksA`, `ChunksB`) — each buffer is an honest chunk set
-  of the payload in transit: strictly below the reconstruction threshold
-  while undecoded, exactly at it once decoded;
-* history — `on_t ≠ none` for `0 < t < tA`; `kp_t = none` for `tA < t`;
-  `off_t = on_t = none` for `tB < t`;
-* key tables — with `key (T t) := on_t.map snd`:
-  `s.keyA t = key (T t)` for `0 < t < tA` and `none` otherwise;
-  `s.keyB t = key (T t)`;
-* messages — every recorded message is generated from `T`
-  (`HonestMessageA`, `HonestMessageB`), reports receiving epoch
-  `sending epoch - 1`, and its sending epoch is at most the sender's.
-
-## Preservation
-
-With `Run o s := ((SCKAScheme.sckaCorrectnessImpl Π) o).run s` and
-`I s := ∃ T, WorldInv T s` (`reachableInv`):
+With `Run o s := ((SCKAScheme.sckaCorrectnessImpl Π) o).run s`,
+`I := reachableInv`, and `supp` the set of positive-probability outputs:
 
 ```text
 I s₀                                                   (reachableInv_init)
@@ -80,28 +45,9 @@ I s ∧ (r, s') ∈ supp (Run o s) → I s'       (oracle*_preserves_reachableIn
 ```
 
 The receive oracles are quantified over every index of the message tables,
-so preservation covers delivery in any order and any multiplicity.  The
-only KEM-dependent step is `RecvA` completing an epoch, where the game
-asserts that A's decapsulation returns B's recorded key
-(`CurrentKEMCorrect`); by the invariant both values come from supported
-samples, and perfect KEM correctness gives
-`hDet.decapsDet sk (onoff.split⁻¹ (ct₀, ct₁)) = some k`
-(`decapsDet_eq_some_of_mem_support`, `mem_support_encaps_of_onoff`).
-
-## Erasure codes
-
-For an honest chunk set of a payload `x` indexed by `J ⊆ Fin N`:
-
-```text
-|J| < nchunk → decode = none                    (decode_payloadChunks_none)
-|J| = nchunk → decode = some x                       (decode_payloadChunks)
-```
-
-and inserting one honest chunk either stays strictly below the threshold or
-reaches it exactly and decodes to `x` (`decode_insert_honest`).
-
-By preservation every supported final state has `correct = true`, and
-`G(Adv)` is total, so `Pr[G(Adv) = true] = 1`.
+so preservation covers delivery in any order and any multiplicity.  Every
+supported final state therefore has `correct = true`, and `G(Adv)` is
+total, so `Pr[G(Adv) = true] = 1`.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme

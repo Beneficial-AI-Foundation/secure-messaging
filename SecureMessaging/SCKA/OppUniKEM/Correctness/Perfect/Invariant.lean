@@ -9,33 +9,27 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect.ErasureCode
 import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 
 /-!
-# Opp-UniKEM-CKA — Game Invariant Foundation
+# Opp-UniKEM-CKA — Game Invariant
 
-The reachability invariant `WorldInv` for the SCKA correctness game of
-`Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak`, preserved by every
-oracle.  This module contains the transcript structure, invariant definition,
-initialization, and uniform-oracle preservation.  Preservation by send and
-receive oracles is in subsequent modules.
+Each epoch of the SCKA correctness game of
+`Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` runs one KEM instance:
+A samples `(pk, sk) ← kem.keygen`; B samples `(st, ct₀) ← onoff.encapsOff`
+and, once it has decoded `pk`, `(ct₁, k) ← onoff.encapsOn st pk`.
 
-## Notation
+* `EpochTranscript` — the samples an epoch has drawn, each with a proof of
+  membership in the support of its sampler.
+* `WorldInv T s` — the game state `s` is consistent with the transcript
+  `T : ℕ → EpochTranscript` and `s.correct = true`; the clauses are
+  documented on the fields.  `reachableInv s := ∃ T, WorldInv T s`.
+* `CurrentKEMCorrect s` — A's current KEM material and B's recorded key
+  decapsulate consistently: the one KEM fact the `RecvA` proof needs.  For
+  a perfectly correct KEM it holds in every reachable state
+  (`currentKEMCorrect_of_perfect`), because every sample lies in the
+  support of its honest sampler.
 
-* `ans` — the recorded epoch transcript of honest samples, indexed by epoch
-* `L` — chunk buffer (undecoded or decoded payload chunks)
-* `E` — erasure-code decoder
-* `t_A`, `t_B` — epochs of A and B
-* `pk`, `sk` — public and secret keys (KEM key pair)
-* `st`, `ct₀` — OnOff offline state and ciphertext
-* `ct₁`, `k` — OnOff online ciphertext and shared key
-* `T_t` — `EpochTranscript` for epoch `t`: `(kp_t, off_t, on_t)` with
-  - `kp_t : Option (PK × SK)` (key pair)
-  - `off_t : Option (St × C₀)` (offline encapsulation)
-  - `on_t : Option (C₁ × K)` (online encapsulation)
-  - support membership proofs for each component
-
-Each component is secret/internal; only derived group elements or encodings
-(e.g., `pk` derived from the key pair, or `E(pk, i)` sent in messages) are
-public or returned to parties.
-
+`reachableInv` holds initially (`reachableInv_init`) and is preserved by
+the uniform oracle (`oracleUnif_preserves_reachableInv`); the send and
+receive oracles are handled in the sibling modules.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme

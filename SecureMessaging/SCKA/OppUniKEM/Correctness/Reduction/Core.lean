@@ -10,16 +10,19 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.KEM
 /-!
 # Opp-UniKEM-CKA Reduction Core
 
-This module initializes both parties and the correctness game with empty KEM
-state at epoch one.  For a game state `s`, `V s` is the residual correctness
-error of the KEM epoch in progress, `S (s, b)` is `1` after a tracked failure
-and `V s` otherwise, and `bad s` detects a completed inconsistent epoch.  In
-Lean these are `currentFailurePotential`, `trackedFailureScore`, and
-`currentKEMFailure`, respectively.
+Definitions of the tracked correctness game, for a game state `s`:
 
-The basic laws show that `V` and `S` are bounded by `1`, identify the state
-components on which they depend, and describe how epoch advancement resets or
-preserves them.  Later modules use these laws without unfolding the score.
+* `currentKEMFailure` (`bad s`) — a completed current epoch decapsulated
+  inconsistently;
+* `currentFailurePotential` (`V s`) — the residual correctness error of
+  the KEM epoch in progress;
+* `trackedFailureScore` (`S (s, b)`) — `1` once the failure bit `b` is
+  set, `V s` otherwise;
+* the initial game state, with empty KEM state at epoch one.
+
+The basic laws bound `V` and `S` by `1`, identify the state components
+they depend on, and describe how epoch advancement resets or preserves
+them; later modules use these laws without unfolding the score.
 -/
 
 open ENNReal KEMScheme

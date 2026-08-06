@@ -10,23 +10,16 @@ import ToVCVio.OracleComp.ExpectedPayoff
 /-!
 # Opp-UniKEM-CKA Adversary Composition
 
-This module composes one-query correctness facts over an adaptive adversary.
-It exposes two syntactic query-bound interfaces for different reductions.
-`SendBQueryBound` counts only `SendB`, matching the stepwise interface where
-that oracle may introduce a current-epoch KEM inconsistency and all other
-oracles preserve consistency.
-`SendQueryBound` counts both `SendA` and `SendB`, matching the quantitative
-score interface where either send may draw the first sample of a fresh epoch.
+Composes the one-query facts over an adaptive adversary, by induction over
+its oracle-computation tree.  Two routes, with matching query budgets:
 
-The score route uses induction over the adversary's oracle-computation tree.
-At each query, invariant preservation justifies the induction hypothesis, and
-the remaining query budget determines whether one copy of the step error is
-spent.  Expected-payoff bind laws then accumulate the per-send allowance.
-
-The stepwise route instead inducts directly on the probability of the sticky
-bad flag.  A union bound charges `δ` to `SendB` and zero to every other query.
-Projection of the tracked run back to the ordinary game turns that accumulated
-bad-event bound into the exported correctness-failure theorem.
+* score route (`tracked_score_adversary_le`, budget `SendQueryBound`
+  counting `SendA` and `SendB`) — each send may spend one copy of the step
+  error; the expected-payoff bind laws accumulate the allowance to
+  `q · epsilon`;
+* stepwise route (`tracked_bad_probability_le`, budget `SendBQueryBound`
+  counting only `SendB`) — a union bound charges `δ` per `SendB` and zero
+  to every other query.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme

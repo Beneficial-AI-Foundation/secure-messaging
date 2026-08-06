@@ -3,20 +3,19 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Core
 /-!
 # Opp-UniKEM-CKA Send Transitions
 
-This module isolates the state constructors and score laws used by the SendA
-and SendB branches of the correctness reduction.  SendA samples a fresh KEM
-key pair and either installs it directly or emits its next erasure-code chunk.
-SendB has three sampling cases: offline encapsulation only, online
-encapsulation from an existing offline sample, or both samples in one call.
-The constructors record the resulting messages, keys, epochs, and correctness
-bookkeeping without changing the sampling distributions themselves.
+State constructors and score laws for the send branches of the reduction.
+Cases, by the samples drawn:
 
-The potential before any sample is zero.  Sampling A's key pair moves it to
-`φ`; sampling B's offline pair moves it to `ψ`; once both first-stage samples
-are present the potential is `χ`.  Online encapsulation realizes the current
-`χ` failure event, updates the tracked score, and leaves no residual potential.
-The source-shape lemmas recover the matching secret key and epoch required for
-that final transition from the reachable-world invariant.
+* `SendA`, fresh key pair — the potential moves from `0` to `φ`; with an
+  existing key pair no sample is drawn and the potential is unchanged;
+* `SendB`, offline sample — the potential moves from `0` to `ψ`, or from
+  `φ` to `χ` when A's key pair is already present;
+* `SendB`, online sample — realizes the `χ` failure event: the failure
+  bit is updated and no potential remains;
+* `SendB`, offline and online samples — both of the above in one call.
+
+The source-shape lemmas recover, from `reachableInv`, the secret key and
+the epoch equality that the online transition needs.
 -/
 
 open ENNReal KEMScheme

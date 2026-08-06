@@ -9,12 +9,15 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect.Invariant
 /-!
 # RecvB Preserves the Perfect-Correctness Invariant
 
-B may receive a recorded A-to-B message from a stale epoch, its current epoch,
-or the next epoch. Stale delivery only advances the receive cursor. Current
-delivery inserts an honest public-key chunk and propagates acknowledgements.
-Next-epoch delivery first resets B's epoch-local state and then performs the
-same chunk and acknowledgement steps. The exported result is
-`oracleRecvB_preserves_reachableInv`.
+`oracleRecvB_preserves_reachableInv`: B's receive oracle preserves
+`reachableInv` for every recorded A-to-B message.  Cases, by the delivered
+message's epoch:
+
+* stale — only B's receive cursor moves;
+* current — insert an honest public-key chunk, propagate the
+  acknowledgement;
+* next — reset B's epoch-local state, then insert and acknowledge as in
+  the current case.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme

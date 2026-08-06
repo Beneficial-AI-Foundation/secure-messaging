@@ -10,15 +10,12 @@ import ToVCVio.OracleComp.ExpectedPayoff
 /-!
 # Opp-UniKEM-CKA One-Step Score Bounds
 
-The tracked state is `(s, b)`, where `s` is the correctness-game state and the
-sticky bit `b` records whether a current KEM failure has occurred.  Its score
-`S` is `1` after failure and otherwise the residual KEM failure potential.
-Queries are classified as send queries exactly for `SendA` and `SendB`.
+For one query from a reachable, failure-free tracked state `(s, b)`:
 
-From a reachable, failure-free state, either send transition increases the
-expected score by at most `epsilon` (instantiated below by the factor
-correctness error).  Every non-send transition preserves `S` on its support,
-and hence does not increase its expectation.
+* a send query (`SendA` or `SendB`) increases the expected score `S` by at
+  most `epsilon`, instantiated with the factor correctness error;
+* every other query preserves `S` on its support, hence does not increase
+  its expectation.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme

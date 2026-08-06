@@ -5,15 +5,15 @@ import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 /-!
 # Opp-UniKEM-CKA Tracked-State Projection
 
-This module relates the tracked correctness game to the ordinary correctness
-game by forgetting the sticky Boolean failure flag.  The one-query projection
-is lifted through `simulateQ`, so an entire adversary run has the same visible
-result and game state after projection.
+Forgetting the failure bit projects the tracked game onto the ordinary one:
 
-The ordinary correctness experiment is also exposed as a final-state map over
-that simulated run.  Separately, the tracked invariant is shown to survive
-every query by dispatching to the corresponding Perfect oracle-preservation
-theorem for uniform sampling, sends, and receives.
+* `trackedCorrectnessImpl_project`, `tracked_run_project` — one query, and
+  a whole `simulateQ` run, have the same visible result and game state
+  after projection;
+* `correctnessExp_eq_final_map` — the correctness experiment as a
+  final-state map over the simulated run;
+* `trackedCorrectnessImpl_preserves` — the tracked invariant survives
+  every query, by the `Perfect` preservation theorems.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme

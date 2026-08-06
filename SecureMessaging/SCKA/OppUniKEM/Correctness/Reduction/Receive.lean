@@ -9,17 +9,17 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Send
 /-!
 # Opp-UniKEM-CKA Receive Transitions
 
-This module isolates the receive-side facts used by the correctness reduction.
-The source-shape witnesses distinguish receives that preserve the local KEM
-material from receives that advance an epoch and erase that material.  The
-oracle lemmas then show that receiving preserves both the residual KEM failure
-potential and the absence of a realized current failure.
+Receive-side facts of the reduction:
 
-The receive index is arbitrary: no premise requires messages to be selected in
-send order, delivered only once, or chosen at their current epoch.  Consequently
-the preservation arguments cover arbitrary message-table indices, reordered
-delivery, and replay.  Reachability supplies the honest-message and epoch bounds
-needed when a selected message actually advances the receiving party.
+* source-shape witnesses — a receive either preserves the local KEM
+  material or advances an epoch and erases it;
+* preservation lemmas — a receive changes neither the potential `V` nor
+  the absence of a realized current failure.
+
+The receive index is arbitrary — no premise requires send order, single
+delivery, or current-epoch selection — so the lemmas cover reordering and
+replay.  `reachableInv` supplies the honest-message and epoch bounds needed
+when a receive advances the receiving party.
 -/
 
 open ENNReal KEMScheme

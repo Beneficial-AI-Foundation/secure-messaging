@@ -9,18 +9,19 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect.Invariant
 /-!
 # RecvA Preserves the Perfect-Correctness Invariant
 
-A's receive oracle preserves `reachableInv` for every recorded B-to-A message.
-A missing message leaves the state unchanged, while a stale message only moves
-A's receive cursor monotonically. A current message may carry no usable chunk,
-in which case only its acknowledgement is processed. Offline `ct0` chunks are
-accumulated until decoding records the current offline ciphertext; subsequent
-online `ct1` chunks are accumulated until decoding can complete the KEM epoch.
-Acknowledgements are propagated independently through the ack-only path.
-When both ciphertext parts and A's decapsulation key are available, perfect
-KEM correctness identifies the shared key, records it, clears epoch-local
-state, and advances A to the next epoch. The exported current-correctness lemma
-isolates this deterministic step, and `oracleRecvA_preserves_reachableInv` is
-public so the parent `Perfect` module can compose the oracle invariants.
+`oracleRecvA_preserves_reachableInv`: A's receive oracle preserves
+`reachableInv` for every recorded B-to-A message.  Cases, by the delivered
+message:
+
+* missing — the state is unchanged;
+* stale epoch — only A's receive cursor moves, monotonically;
+* current epoch, no usable chunk — only the acknowledgement is processed;
+* current epoch, `ct₀` chunk — accumulated until decoding records the
+  offline ciphertext;
+* current epoch, `ct₁` chunk — accumulated until decoding completes the
+  epoch: A decapsulates, `CurrentKEMCorrect` identifies the result with
+  B's recorded key, A's epoch-local state is cleared, and its epoch
+  advances.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
