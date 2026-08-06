@@ -48,7 +48,7 @@ def mlkemScheme (p : ParameterSet) (ring : NTTRingOps)
   asKEMScheme ring (Concrete.concreteEncoding (ParameterSet.params p)) prims
 ```
 
-{githubLabel}`github` {githubIssue 215}[]
+{usesLabel}`uses` {uses "kpke"}[] · {githubLabel}`github` {githubIssue 215}[]
 ::::
 
 :::defTitle "ml_kem_rand_leak" "ML-KEM randomness leakage"

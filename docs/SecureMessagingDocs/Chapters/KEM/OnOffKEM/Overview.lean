@@ -61,14 +61,10 @@ structure OnOffStructure (kem : KEMScheme m K PK SK C) where
 {githubLabel}`github` {githubIssue 40}[]
 ::::
 
-:::group "on_off_kem_on_off_kem_from_ml_kem"
-On-Off KEM from ML-KEM.
+:::defTitle "kpke" "Kyber Public-Key Encryption (K-PKE)"
 :::
 
-:::defTitle "on_off_kem_kpke" "Kyber Public-Key Encryption (K-PKE)"
-:::
-
-::::::::definition "on_off_kem_kpke" (parent := "on_off_kem_on_off_kem_from_ml_kem") (lean := "MLKEM.KPKE.keygenFromSeed, MLKEM.KPKE.encrypt, MLKEM.KPKE.decrypt, MLKEM.NTTRingOps, MLKEM.Primitives.gKeygen, MLKEM.Primitives.prfEta2, MLKEM.Primitives.publicMatrix, MLKEM.Primitives.sampleVecEta1, MLKEM.Primitives.sampleVecEta2, MLKEM.Concrete.samplePolyCBD, MLKEM.Concrete.compress, MLKEM.Concrete.decompress, MLKEM.Concrete.byteEncode, MLKEM.Concrete.byteDecode")
+::::::::definition "kpke" (parent := "on_off_kem") (lean := "MLKEM.KPKE.keygenFromSeed, MLKEM.KPKE.encrypt, MLKEM.KPKE.decrypt, MLKEM.NTTRingOps, MLKEM.Primitives.gKeygen, MLKEM.Primitives.prfEta2, MLKEM.Primitives.publicMatrix, MLKEM.Primitives.sampleVecEta1, MLKEM.Primitives.sampleVecEta2, MLKEM.Concrete.samplePolyCBD, MLKEM.Concrete.compress, MLKEM.Concrete.decompress, MLKEM.Concrete.byteEncode, MLKEM.Concrete.byteDecode")
 IND-CPA PKE $`(\KeyGen,\Enc,\Dec)` underlying ML-KEM ({Informal.citet FIPS203}[], §5).
 
 :::::::leanSection "external-kpke"
@@ -177,15 +173,18 @@ def decrypt (ring : NTTRingOps) (encoding : Encoding params)
 ::::::
 :::::::
 
-{usesLabel}`uses` {uses "ml_kem_scheme"}[]
 ::::::::
 
-:::defTitle "on_off_kem_kem_from_kpke" "IND-CPA KEM from K-PKE"
+:::group "on_off_kem_from_kpke"
+On-Off KEM from K-PKE.
 :::
 
-:::::::definition "on_off_kem_kem_from_kpke" (parent := "on_off_kem_on_off_kem_from_ml_kem") (lean := "KPKEOnOff.keygen, KPKEOnOff.encaps, KPKEOnOff.decaps, KPKEOnOff.scheme")
+:::defTitle "kem_from_kpke" "IND-CPA KEM from K-PKE"
+:::
+
+:::::::definition "kem_from_kpke" (parent := "on_off_kem_from_kpke") (lean := "KPKEOnOff.keygen, KPKEOnOff.encaps, KPKEOnOff.decaps, KPKEOnOff.scheme")
 Let $`\Enc,\Dec` be the encryption and decryption algorithms of
-{bpref "on_off_kem_kpke"}[]. Following
+{bpref "kpke"}[]. Following
 ({Informal.citet SCKA25}[], §2, §4.1), we define a KEM as follows. The scheme is parameterised by a seed
 $`\rho\in\{0,1\}^{256}` that generates the public matrix. It is fixed and shared by all key pairs.
 
@@ -261,14 +260,14 @@ def scheme :
   decaps := decaps params encoding ring prims
 ```
 
-{usesLabel}`uses` {uses "on_off_kem_kpke"}[]
+{usesLabel}`uses` {uses "kpke"}[]
 :::::::
 
-:::defTitle "on_off_kem_from_ml_kem_spec" "On-off instance from K-PKE"
+:::defTitle "on_off_kem_from_kpke_spec" "On-off instance from K-PKE"
 :::
 
-:::::::definition "on_off_kem_from_ml_kem_spec" (parent := "on_off_kem_on_off_kem_from_ml_kem") (lean := "KPKEOnOff.encapsOff, KPKEOnOff.encapsOn, KPKEOnOff.onOff")
-Online-offline structure for the KEM specified in {bpref "on_off_kem_kem_from_kpke"}[]
+:::::::definition "on_off_kem_from_kpke_spec" (parent := "on_off_kem_from_kpke") (lean := "KPKEOnOff.encapsOff, KPKEOnOff.encapsOn, KPKEOnOff.onOff")
+Online-offline structure for the KEM specified in {bpref "kem_from_kpke"}[]
 ({Informal.citet SCKA25}[], Def. 2.1). The ciphertext space splits as
 $`\C=\C_0\times\C_1` with $`\ct=(\ctzero,\ctone)`, and the offline state space is
 $`\St=\Tq^k\times\Rq` with online state $`\stct=(\hat{y},e_2)`,
@@ -347,7 +346,7 @@ def onOff : (scheme params encoding ring prims rho).OnOffStructure where
       Equiv.refl_symm, Equiv.coe_refl, id_eq]
 ```
 
-{usesLabel}`uses` {uses "on_off_kem_scheme"}[] · {uses "on_off_kem_kem_from_kpke"}[] · {uses "ml_kem_scheme"}[] · {githubLabel}`github` {githubIssue 41}[]
+{usesLabel}`uses` {uses "on_off_kem_scheme"}[] · {uses "kem_from_kpke"}[] · {githubLabel}`github` {githubIssue 41}[]
 :::::::
 
 :::defTitle "on_off_kem_rand_leak" "On-Off KEM randomness leakage"
@@ -437,5 +436,5 @@ def onOffRandLeak :
     simp only [onOff, encapsOn, bind_assoc, pure_bind]
 ```
 
-{usesLabel}`uses` {uses "on_off_kem_scheme"}[] · {uses "on_off_kem_from_ml_kem_spec"}[] · {githubLabel}`github` {githubIssue 248}[]
+{usesLabel}`uses` {uses "on_off_kem_scheme"}[] · {uses "on_off_kem_from_kpke_spec"}[] · {githubLabel}`github` {githubIssue 248}[]
 ::::
