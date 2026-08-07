@@ -16,6 +16,12 @@ index, retaining the first symbol received at a repeated index.
 This models the observable streaming behavior used by ML-KEM Braid. It deliberately
 abstracts away the concrete byte representation, polynomial caches, bounded storage,
 and serialization of Signal's implementation.
+
+## References
+
+- [Signal ML-KEM Braid, §2.2: Encode/Decode](https://signal.org/docs/specifications/mlkembraid/)
+- [SparsePostQuantumRatchet encoder and decoder interfaces](https://github.com/signalapp/SparsePostQuantumRatchet/blob/fd320484dcec89004021e6fdc7481825f5f261fa/src/encoding.rs#L24-L47)
+- [SparsePostQuantumRatchet polynomial streaming implementation](https://github.com/signalapp/SparsePostQuantumRatchet/blob/fd320484dcec89004021e6fdc7481825f5f261fa/src/encoding/polynomial.rs#L751-L929)
 -/
 
 namespace ErasureCodePayload.Streaming

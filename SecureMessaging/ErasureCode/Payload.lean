@@ -16,6 +16,12 @@ number indices. This module relates those representations and lifts
 `ErasureCode.Correct` to serialized payloads. Its incremental result,
 `ErasureCodePayload.decode_insert_honest`, describes adding one honest chunk to an
 honest sub-threshold chunk set.
+
+## References
+
+- [Signal ML-KEM Braid, §1.3: Chunking with Erasure Codes](https://signal.org/docs/specifications/mlkembraid/)
+- `SecureMessaging.ErasureCode.Defs`, which defines `ErasureCode` and
+  `ErasureCodePayload`
 -/
 
 namespace ErasureCode
