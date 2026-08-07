@@ -11,35 +11,33 @@ import VCVio.OracleComp.QueryTracking.RandomOracle.DeferredSampling
 /-!
 # Opp-UniKEM-CKA — Conditional KEM Error
 
-One Opp-UniKEM epoch runs a single KEM instance in three sampling stages:
-party A draws a key pair; party B draws the offline part of an
-encapsulation, and later its online part.
-
 Let `kem` be a KEM scheme, `onoff` an on/off factorization for it, and
-`hDet` a deterministic decapsulation witness.  The three sampling stages are
+`hDet` a deterministic decapsulation witness.
+
+One Opp-UniKEM epoch runs a KEM instance in three sampling stages:
 
 ```text
 (pk, sk) ← KG,   (st, ct₀) ← OFF,   (ct₁, k) ← ON st pk,   where
 
-KG       := kem.keygen
-OFF      := onoff.encapsOff
-ON st pk := onoff.encapsOn st pk,
+KG       := kem.keygen                    -- run by party A
+OFF      := onoff.encapsOff               -- run by party B
+ON st pk := onoff.encapsOn st pk,         -- run by party B after receiving A's pk
 ```
 
-and the epoch fails when decapsulation misses the key:
+The epoch *fails* when decapsulation does not recover the correct key `k`:
 
 ```text
-bad(sk, ct₀, ct₁, k) := hDet.decapsDet sk (join (ct₀, ct₁)) ≠ some k,
+bad(sk, ct₀, ct₁, k) := hDet.decapsDet sk (join (ct₀, ct₁)) ≠ some k, where
 join := onoff.split⁻¹ : C₀ × C₁ → C.     -- the inverse of the on/off split
 ```
 
-For `X : ProbComp α`, `Pr[X = x]` is an output probability and `Pr[X = ⊥]`
-is the missing probability mass.
+For `X : ProbComp α`, `Pr[X = x]` is the probability of output `x`
+and `Pr[X = ⊥]` is the failure probability.
 
-## Staged experiment
+## Factor correctness experiment
 
-The experiment `factorCorrectExp` draws the three samples and tests
-failure:
+We define the experiment `factorCorrectExp` that draws the three samples of an epoch
+and tests for failure:
 
 ```text
 factorCorrectExp := do
@@ -105,7 +103,7 @@ universe u
 
 variable {K PK SK C : Type}
 
-/-! ## Staged KEM correctness experiment -/
+/-! ## Factor correctness experiment -/
 
 /-- The KEM correctness experiment staged as in the Opp-UniKEM protocol:
 sample `(pk, sk) ← kem.keygen`, `(st, ct₀) ← onoff.encapsOff`, and
