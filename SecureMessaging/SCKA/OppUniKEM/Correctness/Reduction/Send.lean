@@ -148,7 +148,7 @@ lemma keygen_failurePotential_le [DecidableEq Sym] [DecidableEq K]
           simpa [hct0] using hshape
         simpa [currentFailurePotential, installAKeypair, ht, hct1, hdk, hek,
           hct0, hst, optionPair] using
-          (le_of_eq (factor_failure_tower_keypair kem onoff hDet).symm)
+          (le_of_eq (factorCorrectnessError_eq_avg_keypair kem onoff hDet).symm)
     | some ct0 =>
         have hstSome : s.stB.stCt.isSome := by
           simpa [hct0] using hInv.offBShape
@@ -159,7 +159,7 @@ lemma keygen_failurePotential_le [DecidableEq Sym] [DecidableEq K]
       have hepochBounds := hInv.epochs
       omega
     simpa [currentFailurePotential, installAKeypair, ht, hdk, hek, optionPair] using
-      (le_of_eq (factor_failure_tower_keypair kem onoff hDet).symm)
+      (le_of_eq (factorCorrectnessError_eq_avg_keypair kem onoff hDet).symm)
 
 /-- Installing A's first key pair cannot immediately complete a failing KEM epoch. -/
 lemma installAKeypair_currentKEMFailure_false [DecidableEq Sym] [DecidableEq K]
@@ -244,7 +244,7 @@ lemma off_failurePotential_le [DecidableEq Sym] [DecidableEq K]
         simpa [hdk] using hshape
       simpa [currentFailurePotential, installBOff, ht, hct1, hdk, hek,
         hct0, hst, optionPair] using
-        (le_of_eq (factor_failure_tower_off kem onoff hDet).symm)
+        (le_of_eq (factorCorrectnessError_eq_avg_off kem onoff hDet).symm)
   | some sk =>
       have hekSome : s.stA.ekA.isSome := by
         simpa [hdk] using hInv.keypairAShape

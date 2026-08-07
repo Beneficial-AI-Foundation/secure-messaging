@@ -69,7 +69,7 @@ KEM failure has occurred so far.
 
 ## Failure probabilities (`Reduction.Core`)
 
-With the conditional errors `χ`, `φ`, `ψ` defined in `Correctness.KEM`,
+With the conditional errors `χ`, `φ`, `ψ` defined in `KEM.OnOffKEM.CorrectnessError`,
 associate to a tracked state the probability that it has already failed, or
 that its epoch in progress completes inconsistently:
 
@@ -98,7 +98,7 @@ E_{Ô o (s, b)}[S] ≤ S (s, b)          otherwise.
 ```
 
 Drawing the epoch's first sample turns `V = 0` into expectation at most `ε`
-(the averaging identities of `Correctness.KEM`); drawing the other
+(the averaging identities of `KEM.OnOffKEM.CorrectnessError`); drawing the other
 first-stage sample has expectation exactly `V`; drawing the online sample
 completes the epoch, setting `b' = bad s'` with expectation `χ = V` and
 `V s' = 0`.  Receive oracles move no KEM material.
@@ -115,7 +115,7 @@ completes the epoch, setting `b' = bad s'` with expectation `χ = V` and
 
 The proofs state the bound with `factorCorrectnessError kem onoff hDet` and
 rewrite it as `kem.correctnessError` by `factorCorrectnessError_eq`
-(`Correctness.KEM`).
+(`KEM.OnOffKEM.CorrectnessError`).
 
 ## Stepwise interface (`Reduction.Composition`)
 

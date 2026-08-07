@@ -5,7 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect.Invariant
-import SecureMessaging.SCKA.OppUniKEM.Correctness.KEM
+import SecureMessaging.KEM.OnOffKEM.CorrectnessError
 
 /-!
 # Opp-UniKEM-CKA Reduction Core

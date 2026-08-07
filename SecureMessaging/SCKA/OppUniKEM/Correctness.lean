@@ -5,7 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect
-import SecureMessaging.SCKA.OppUniKEM.Correctness.KEM
+import SecureMessaging.KEM.OnOffKEM.CorrectnessError
 import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction
 
 /-!
@@ -76,7 +76,7 @@ part, which also yields the epoch's shared key:
 
 5. We conclude `Pr[G(Adv) = true] = 1`.
 
-**Quantitative bounds** (`Correctness.KEM`, `Correctness.Reduction`):
+**Quantitative bounds** (`KEM.OnOffKEM.CorrectnessError`, `Correctness.Reduction`):
 
 1. We define the probability that an epoch ends in a decapsulation failure
    (decapsulating `(ct₀, ct₁)` under `sk` does not return `k`):
