@@ -29,29 +29,29 @@ namespace ErasureCodePayload.Streaming
 variable {M Sym : Type}
 
 /-- Stateful encoder for a fixed payload and the next natural-number counter. -/
--- ANCHOR: ErasureCodePayload_Streaming_EncoderState
+-- ANCHOR: ErasureCodePayload_Streaming_Encoder
 structure EncoderState (M : Type) where
   /-- The fixed payload encoded by this stream. -/
   payload : M
   /-- The natural-number counter used for the next emitted chunk. -/
   nextIndex : ℕ
--- ANCHOR_END: ErasureCodePayload_Streaming_EncoderState
 
 namespace EncoderState
 
 /-- Initialize an encoder before emitting its first chunk. -/
--- ANCHOR: ErasureCodePayload_Streaming_EncoderState_init
 def init (payload : M) : EncoderState M :=
   { payload, nextIndex := 0 }
--- ANCHOR_END: ErasureCodePayload_Streaming_EncoderState_init
 
 /-- Emit the chunk at the current counter and advance the counter by one. -/
--- ANCHOR: ErasureCodePayload_Streaming_EncoderState_nextChunk
 def nextChunk (ecp : ErasureCodePayload M Sym) (state : EncoderState M) :
     (ℕ × Sym) × EncoderState M :=
   (ecp.encode state.payload state.nextIndex,
     { state with nextIndex := state.nextIndex + 1 })
--- ANCHOR_END: ErasureCodePayload_Streaming_EncoderState_nextChunk
+
+end EncoderState
+-- ANCHOR_END: ErasureCodePayload_Streaming_Encoder
+
+namespace EncoderState
 
 /-- The emitted chunk index is the encoder counter reduced modulo the codeword size. -/
 theorem nextChunk_index (ecp : ErasureCodePayload M Sym) (state : EncoderState M) :
@@ -60,12 +60,11 @@ theorem nextChunk_index (ecp : ErasureCodePayload M Sym) (state : EncoderState M
 end EncoderState
 
 /-- Stateful decoder containing the indexed chunks received so far. -/
--- ANCHOR: ErasureCodePayload_Streaming_DecoderState
+-- ANCHOR: ErasureCodePayload_Streaming_Decoder
 structure DecoderState (Sym : Type) where
   /-- Indexed chunks retained by the decoder, with at most one symbol per index for
   states reachable from `empty` through `addChunk`. -/
   chunks : Finset (ℕ × Sym)
--- ANCHOR_END: ErasureCodePayload_Streaming_DecoderState
 
 namespace DecoderState
 
@@ -84,30 +83,27 @@ def IndexUnique (state : DecoderState Sym) : Prop :=
   Set.InjOn Prod.fst (state.chunks : Set (ℕ × Sym))
 
 /-- Initialize a decoder with no received chunks. -/
--- ANCHOR: ErasureCodePayload_Streaming_DecoderState_empty
 def empty : DecoderState Sym :=
   { chunks := ∅ }
--- ANCHOR_END: ErasureCodePayload_Streaming_DecoderState_empty
 
 /-- Add a chunk unless its index is already present. The first symbol received at an
 index is retained, so exact duplicates are harmless and later conflicts are ignored. -/
--- ANCHOR: ErasureCodePayload_Streaming_DecoderState_addChunk
 def addChunk [DecidableEq Sym] (state : DecoderState Sym) (chunk : ℕ × Sym) :
     DecoderState Sym :=
   if state.HasIndex chunk.1 then state else { chunks := insert chunk state.chunks }
--- ANCHOR_END: ErasureCodePayload_Streaming_DecoderState_addChunk
 
 /-- Attempt to decode the chunks accumulated by the decoder. -/
--- ANCHOR: ErasureCodePayload_Streaming_DecoderState_decodedPayload
 def decodedPayload (ecp : ErasureCodePayload M Sym) (state : DecoderState Sym) : Option M :=
   ecp.decode state.chunks
--- ANCHOR_END: ErasureCodePayload_Streaming_DecoderState_decodedPayload
 
 /-- Whether the accumulated chunks currently decode to a payload. -/
--- ANCHOR: ErasureCodePayload_Streaming_DecoderState_hasMessage
 def hasMessage (ecp : ErasureCodePayload M Sym) (state : DecoderState Sym) : Bool :=
   (state.decodedPayload ecp).isSome
--- ANCHOR_END: ErasureCodePayload_Streaming_DecoderState_hasMessage
+
+end DecoderState
+-- ANCHOR_END: ErasureCodePayload_Streaming_Decoder
+
+namespace DecoderState
 
 /-- The empty decoder has pairwise distinct stored indices. -/
 @[simp]
