@@ -29,6 +29,10 @@ We define:
 * `CurrentKEMCorrect s` — A's current KEM material and B's recorded key
   decapsulate consistently.
 
+Chunk-buffer consistency is expressed using the shared
+`ErasureCodePayload.payloadChunks` representation and its threshold decoding
+and incremental insertion lemmas from `SecureMessaging.ErasureCode.Payload`.
+
 In this file we show that `reachableInv` holds initially (`reachableInv_init`) and is preserved by
 the uniform oracle (`oracleUnif_preserves_reachableInv`).
 The send and receive oracles are handled in the sibling modules.

@@ -27,6 +27,12 @@ This invariant also underlies the probabilistic bounds in `Correctness.Reduction
 
 ## Modules
 
+The shared module `SecureMessaging.ErasureCode.Payload` provides the
+natural-indexed honest chunk representation and threshold decoding lemmas used
+throughout the proof.
+
+The Opp-UniKEM proof is split across:
+
 * `Perfect.Invariant` — defines `EpochTranscript` (the samples one epoch
   has drawn), `TranscriptConsistent T s` (the game state `s` agrees with the
   transcript `T`), and the state invariant
@@ -34,7 +40,6 @@ This invariant also underlies the probabilistic bounds in `Correctness.Reduction
   `reachableInv` holds initially, is preserved by the uniform oracle, and,
   for a perfectly correct KEM, implies `CurrentKEMCorrect` — A's
   decapsulation agrees with B's recorded key;
-* `Perfect.ErasureCode` — honest chunk sets and their decoding;
 * `Perfect.SendA`, `Perfect.SendB`, `Perfect.RecvA`, `Perfect.RecvB` —
   preservation of `reachableInv` by each protocol oracle.
 
