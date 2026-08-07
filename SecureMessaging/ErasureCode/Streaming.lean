@@ -74,7 +74,7 @@ def HasIndex (state : DecoderState Sym) (index : ℕ) : Prop :=
   ∃ chunk ∈ state.chunks, chunk.1 = index
 
 /-- Whether the decoder contains a chunk at a given index is decidable. -/
-instance [DecidableEq Sym] (state : DecoderState Sym) (index : ℕ) :
+instance (state : DecoderState Sym) (index : ℕ) :
     Decidable (state.HasIndex index) := by
   unfold HasIndex
   infer_instance
