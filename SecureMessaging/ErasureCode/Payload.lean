@@ -20,8 +20,7 @@ honest sub-threshold chunk set.
 ## References
 
 - [Signal ML-KEM Braid, §1.3: Chunking with Erasure Codes](https://signal.org/docs/specifications/mlkembraid/)
-- `SecureMessaging.ErasureCode.Defs`, which defines `ErasureCode` and
-  `ErasureCodePayload`
+- [SparsePostQuantumRatchet indexed chunks and codec interfaces](https://github.com/signalapp/SparsePostQuantumRatchet/blob/fd320484dcec89004021e6fdc7481825f5f261fa/src/encoding.rs#L24-L47)
 -/
 
 namespace ErasureCode
