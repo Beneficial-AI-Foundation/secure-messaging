@@ -27,7 +27,7 @@ namespace oppUniKemCKA
 variable {K PK SK C Sym : Type}
 
 open SCKAScheme.sckaCorrectnessSpec
-open oppUniKemCKA.Perfect.Internal
+open ErasureCodePayload
 
 /-- Propagate A's ciphertext-received acknowledgement when it refers to B's
 current epoch. -/

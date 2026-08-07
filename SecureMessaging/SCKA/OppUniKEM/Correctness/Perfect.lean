@@ -5,7 +5,6 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.SCKA.OppUniKEM.Construction
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect.ErasureCode
 import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect.Invariant
 import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect.SendA
 import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect.RecvB

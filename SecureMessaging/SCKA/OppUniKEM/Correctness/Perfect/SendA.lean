@@ -30,7 +30,7 @@ universe u
 variable {K PK SK C Sym : Type}
 
 open SCKAScheme.sckaCorrectnessSpec
-open oppUniKemCKA.Perfect.Internal
+open ErasureCodePayload
 
 section SendA
 

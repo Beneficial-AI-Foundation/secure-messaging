@@ -5,7 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.SCKA.OppUniKEM.Construction
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect.ErasureCode
+import SecureMessaging.ErasureCode.Payload
 import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 
 /-!
@@ -79,7 +79,7 @@ private lemma mem_support_encaps_of_onoff
   rw [onoff.factor pk, mem_support_bind_iff]
   exact ⟨(st, ct0), hoff, by simpa [mem_support_pure_iff] using hon⟩
 
-open oppUniKemCKA.Perfect.Internal
+open ErasureCodePayload
 
 section Invariant
 
