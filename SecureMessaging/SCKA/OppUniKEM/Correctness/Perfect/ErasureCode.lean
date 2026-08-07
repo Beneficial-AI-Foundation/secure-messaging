@@ -24,8 +24,8 @@ erasure code (`ErasureCode.encodeChunks`, `ErasureCode.decode`):
   either stays below the threshold or reaches it and decodes correctly.
 
 These helpers are used throughout the Opp-UniKEM correctness invariant to track
-honest chunk buffers (`ChunksA`, `ChunksB`) and guarantee that all decoded values
-match their recorded transcripts.
+honest chunk buffers (`ChunksAConsistent`, `ChunksBConsistent`) and guarantee
+that all decoded values match their recorded transcripts.
 -/
 
 namespace oppUniKemCKA.Perfect.Internal
@@ -109,8 +109,11 @@ lemma payloadChunks_roundtrip {M : Type}
     refine ⟨natChunk, by simp, ?_⟩
     exact Prod.ext (Fin.ext rfl) rfl
 
-/-- Generic version of the roundtrip identity that works with any validity proof.
-This variant is used internally by decoding lemmas. -/
+/-- Casting every chunk of `payloadChunks ecp payload I` back to a bounded
+index recovers `ecp.ec.encodeChunks (ecp.serialize payload) I`.  The same
+identity as `payloadChunks_roundtrip`, but the in-bounds hypothesis `hvalid`
+is a parameter, so the statement matches the bounds check performed inside
+`ErasureCodePayload.decode`. -/
 lemma payloadChunks_boundedMap {M : Type}
     (ecp : ErasureCodePayload M Sym) (payload : M)
     (I : Finset (Fin ecp.ec.N))

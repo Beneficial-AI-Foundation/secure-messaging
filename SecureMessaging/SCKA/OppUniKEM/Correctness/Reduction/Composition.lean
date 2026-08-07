@@ -478,8 +478,8 @@ theorem correctness_failure_le_of_sendBFailureBound [DecidableEq K]
         (s₀, false) hinit z hz
     rcases hzInv with hbad | ⟨hreach, _hcurrent⟩
     · exact hbad
-    · rcases hreach with ⟨_world, hWorld⟩
-      simp [hWorld.correct] at hincorrect
+    · rcases hreach with ⟨_T, hConsistent⟩
+      simp [hConsistent.correct] at hincorrect
   have hbad :
       Pr[fun z => z.2.2 = true |
           (simulateQ tracked adv).run (s₀, false)] ≤

@@ -42,10 +42,10 @@ private lemma reachableInv_after_sendB_same
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (world : ℕ → EpochTranscript kem onoff)
-    (hInv : WorldInv kem onoff ecEk ecCt0 ecCt1 world s)
+    (T : Transcript kem onoff)
+    (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
     (ich : ℕ) (msg : Message Sym)
-    (hhon : HonestMessageB kem onoff ecCt0 ecCt1 world (msg, s.stB.t - 1)) :
+    (hhon : HonestMessageB kem onoff ecCt0 ecCt1 T (msg, s.stB.t - 1)) :
     reachableInv kem onoff ecEk ecCt0 ecCt1
       { s with
         stB := { s.stB with ich := ich }
@@ -53,7 +53,7 @@ private lemma reachableInv_after_sendB_same
         msgB := Function.update s.msgB (s.nB + 1) (some (msg, s.stB.t - 1))
         nB := s.nB + 1
         correct := s.correct && decide (s.tcurB ≤ s.stB.t - 1) } := by
-  refine ⟨world, ?_⟩
+  refine ⟨T, ?_⟩
   constructor
   · simp [hInv.correct, hInv.tcurB]
   · exact hInv.epochs
@@ -103,21 +103,16 @@ private lemma reachableInv_after_sendB_newOff
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0Pos : 0 < ecCt0.ec.nchunk)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (world : ℕ → EpochTranscript kem onoff)
-    (hInv : WorldInv kem onoff ecEk ecCt0 ecCt1 world s)
+    (T : Transcript kem onoff)
+    (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
     (st : onoff.St) (ct0 : onoff.C₀)
     (hmem : (st, ct0) ∈ support onoff.encapsOff)
-    (hct0 : s.stB.ct0 = none) (ich : ℕ) (msg : Message Sym)
-    (hhon : let tr' := (world s.stB.t).setOff st ct0 hmem (by
-        have hoff : (world s.stB.t).off = none := by
-          have hst : s.stB.stCt = none := by
-            simpa [hct0] using hInv.offBShape
-          simpa [hct0, hst, optionPair] using hInv.offB
-        by_contra hon
-        have his := (world s.stB.t).on_off (Option.isSome_iff_ne_none.mpr hon)
-        simp [hoff] at his)
-      let world' := Function.update world s.stB.t tr'
-      HonestMessageB kem onoff ecCt0 ecCt1 world' (msg, s.stB.t - 1)) :
+    (hct0 : s.stB.ct0 = none)
+    (honNone : (T s.stB.t).on = none)
+    (ich : ℕ) (msg : Message Sym)
+    (hhon : let tr' := (T s.stB.t).setOff st ct0 hmem honNone
+      let T' := Function.update T s.stB.t tr'
+      HonestMessageB kem onoff ecCt0 ecCt1 T' (msg, s.stB.t - 1)) :
     reachableInv kem onoff ecEk ecCt0 ecCt1
       { s with
         stB := { s.stB with stCt := some st, ct0 := some ct0, ich := ich }
@@ -128,30 +123,27 @@ private lemma reachableInv_after_sendB_newOff
   dsimp only at hhon ⊢
   have hst : s.stB.stCt = none := by
     simpa [hct0] using hInv.offBShape
-  have hoff : (world s.stB.t).off = none := by
+  have hoff : (T s.stB.t).off = none := by
     simpa [hct0, hst, optionPair] using hInv.offB
-  have hon : (world s.stB.t).on = none := by
-    by_contra hne
-    simpa [hoff] using (world s.stB.t).on_off (Option.isSome_iff_ne_none.mpr hne)
-  let tr' := (world s.stB.t).setOff st ct0 hmem hon
-  let world' := Function.update world s.stB.t tr'
-  have hworldKey : ∀ t, (world' t).key = (world t).key := by
+  let tr' := (T s.stB.t).setOff st ct0 hmem honNone
+  let T' := Function.update T s.stB.t tr'
+  have hTKey : ∀ t, (T' t).key = (T t).key := by
     intro t
     by_cases ht : t = s.stB.t
     · subst t
-      simp [world', tr', EpochTranscript.setOff, EpochTranscript.key, hon]
-    · simp [world', ht]
-  have hworldKp : ∀ t, (world' t).keypair = (world t).keypair := by
+      simp [T', tr', EpochTranscript.setOff, EpochTranscript.key, honNone]
+    · simp [T', ht]
+  have hTKp : ∀ t, (T' t).keypair = (T t).keypair := by
     intro t
     by_cases ht : t = s.stB.t
-    · subst t; simp [world', tr', EpochTranscript.setOff]
-    · simp [world', ht]
-  have hworldOn : ∀ t, (world' t).on = (world t).on := by
+    · subst t; simp [T', tr', EpochTranscript.setOff]
+    · simp [T', ht]
+  have hTOn : ∀ t, (T' t).on = (T t).on := by
     intro t
     by_cases ht : t = s.stB.t
-    · subst t; simp [world', tr', EpochTranscript.setOff]
-    · simp [world', ht]
-  refine ⟨world', ?_⟩
+    · subst t; simp [T', tr', EpochTranscript.setOff]
+    · simp [T', ht]
+  refine ⟨T', ?_⟩
   constructor
   · simp [hInv.correct, hInv.tcurB]
   · exact hInv.epochs
@@ -161,19 +153,19 @@ private lemma reachableInv_after_sendB_newOff
   · exact le_rfl
   · exact hInv.keypairAShape
   · simp
-  · simpa [hworldKp s.stA.t] using hInv.keypairA
-  · simp [world', tr', EpochTranscript.setOff, optionPair]
-  · simpa [hworldOn s.stB.t] using hInv.onB
+  · simpa [hTKp s.stA.t] using hInv.keypairA
+  · simp [T', tr', EpochTranscript.setOff, optionPair]
+  · simpa [hTOn s.stB.t] using hInv.onB
   · intro pk hpk
     obtain ⟨sk, htr⟩ := hInv.decodedEk pk hpk
-    exact ⟨sk, by simpa [hworldKp s.stB.t] using htr⟩
+    exact ⟨sk, by simpa [hTKp s.stB.t] using htr⟩
   · intro ct0' hct0'
     obtain ⟨st', htr⟩ := hInv.decodedCt0 ct0' hct0'
     refine ⟨st', ?_⟩
     by_cases ht : s.stA.t = s.stB.t
     · rw [ht, hoff] at htr
       contradiction
-    · simpa [world', Function.update, ht] using htr
+    · simpa [T', Function.update, ht] using htr
   · by_cases ht : s.stA.t = s.stB.t
     · cases hctA : s.stA.ct0 with
       | some ct0' =>
@@ -183,26 +175,26 @@ private lemma reachableInv_after_sendB_newOff
           contradiction
       | none =>
           have hlch : s.stA.lch = ∅ := by
-            simpa [ChunksA, hctA, ht, hoff] using hInv.chunksA
-          simp only [ChunksA, hctA, ht]
-          have hcurrentOff : (world' s.stB.t).off = some (st, ct0) := by
-            simp [world', tr', EpochTranscript.setOff]
+            simpa [ChunksAConsistent, hctA, ht, hoff] using hInv.chunksA
+          simp only [ChunksAConsistent, hctA, ht]
+          have hcurrentOff : (T' s.stB.t).off = some (st, ct0) := by
+            simp [T', tr', EpochTranscript.setOff]
           rw [hcurrentOff]
           exact ⟨∅,
             by simp [payloadChunks, ErasureCode.encodeChunks, hlch], hCt0Pos⟩
-    · simpa [ChunksA, world', Function.update, ht] using hInv.chunksA
-  · simpa [ChunksB, hworldKp s.stB.t] using hInv.chunksB
+    · simpa [ChunksAConsistent, T', Function.update, ht] using hInv.chunksA
+  · simpa [ChunksBConsistent, hTKp s.stB.t] using hInv.chunksB
   · intro t ht0 hlt
-    simpa [hworldKey t] using hInv.pastComplete t ht0 hlt
+    simpa [hTKey t] using hInv.pastComplete t ht0 hlt
   · intro t hlt
-    simpa [hworldKp t] using hInv.futureKeypair t hlt
+    simpa [hTKp t] using hInv.futureKeypair t hlt
   · intro t hlt
     have hne : t ≠ s.stB.t := Nat.ne_of_gt hlt
-    simpa [world', hne] using hInv.futureOff t hlt
+    simpa [T', hne] using hInv.futureOff t hlt
   · intro t hlt
-    simpa [hworldOn t] using hInv.futureOn t hlt
-  · intro t; simpa [hworldKey t] using hInv.keyA t
-  · intro t; simpa [hworldKey t] using hInv.keyB t
+    simpa [hTOn t] using hInv.futureOn t hlt
+  · intro t; simpa [hTKey t] using hInv.keyA t
+  · intro t; simpa [hTKey t] using hInv.keyB t
   · intro n entry hn
     have hold := hInv.msgA n entry hn
     rcases entry with ⟨⟨ch?, ack, t, b?⟩, tsnd⟩
@@ -213,7 +205,7 @@ private lemma reachableInv_after_sendB_newOff
     | none => trivial
     | some ch =>
         obtain ⟨pk, sk, i, htr, hch⟩ := hold
-        exact ⟨pk, sk, i, by simpa [hworldKp t] using htr, hch⟩
+        exact ⟨pk, sk, i, by simpa [hTKp t] using htr, hch⟩
   · intro n entry hn
     by_cases hnew : n = s.nB + 1
     · subst n
@@ -236,9 +228,9 @@ private lemma reachableInv_after_sendB_newOff
         · subst t
           rw [hoff] at htr
           contradiction
-        · exact ⟨st', ct0', i, by simpa [world', ht] using htr, hch⟩
+        · exact ⟨st', ct0', i, by simpa [T', ht] using htr, hch⟩
       · obtain ⟨ct1, key, i, htr, hch⟩ := hold
-        exact ⟨ct1, key, i, by simpa [hworldOn t] using htr, hch⟩
+        exact ⟨ct1, key, i, by simpa [hTOn t] using htr, hch⟩
   · exact hInv.msgAEpoch
   · intro n ρ tsnd hn
     by_cases hnew : n = s.nB + 1
@@ -258,13 +250,13 @@ private lemma reachableInv_after_sendB_newOn
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1Pos : 0 < ecCt1.ec.nchunk)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (world : ℕ → EpochTranscript kem onoff)
-    (hInv : WorldInv kem onoff ecEk ecCt0 ecCt1 world s)
+    (T : Transcript kem onoff)
+    (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
     (pk : PK) (sk : SK) (st : onoff.St) (ct0 : onoff.C₀)
     (ct1 : onoff.C₁) (key : K)
-    (hkp : (world s.stB.t).keypair = some (pk, sk))
-    (hoff : (world s.stB.t).off = some (st, ct0))
-    (hon : (world s.stB.t).on = none)
+    (hkp : (T s.stB.t).keypair = some (pk, sk))
+    (hoff : (T s.stB.t).off = some (st, ct0))
+    (hon : (T s.stB.t).on = none)
     (_hek : s.stB.ekA = some pk) (_hst : s.stB.stCt = some st)
     (_hct0 : s.stB.ct0 = some ct0)
     (hmem : (ct1, key) ∈ support (onoff.encapsOn st pk)) :
@@ -292,7 +284,7 @@ private lemma reachableInv_after_sendB_newOn
     exact Nat.le_antisymm (Nat.le_of_not_gt hnlt) hInv.epochs.1
   -- `Nat.le_antisymm` above already closes the epoch equality; the following
   -- support fact determines the transcript installed at the current epoch.
-  let tr' := (world s.stB.t).setOn ct1 key (by simp [hkp]) (by simp [hoff]) (by
+  let tr' := (T s.stB.t).setOn ct1 key (by simp [hkp]) (by simp [hoff]) (by
     intro pk' sk' st' ct0' hkp' hoff'
     have hpairs := hkp'.symm.trans hkp
     have hoffs := hoff'.symm.trans hoff
@@ -300,22 +292,22 @@ private lemma reachableInv_after_sendB_newOn
     have hs : st' = st := congrArg Prod.fst (Option.some.inj hoffs)
     subst pk'; subst st'
     exact hmem)
-  let world' := Function.update world s.stB.t tr'
-  have hworldKp : ∀ t, (world' t).keypair = (world t).keypair := by
+  let T' := Function.update T s.stB.t tr'
+  have hTKp : ∀ t, (T' t).keypair = (T t).keypair := by
     intro t
     by_cases ht : t = s.stB.t
-    · subst t; simp [world', tr', EpochTranscript.setOn]
-    · simp [world', ht]
-  have hworldOff : ∀ t, (world' t).off = (world t).off := by
+    · subst t; simp [T', tr', EpochTranscript.setOn]
+    · simp [T', ht]
+  have hTOff : ∀ t, (T' t).off = (T t).off := by
     intro t
     by_cases ht : t = s.stB.t
-    · subst t; simp [world', tr', EpochTranscript.setOn]
-    · simp [world', ht]
-  have hworldKeyOther : ∀ t, t ≠ s.stB.t → (world' t).key = (world t).key := by
+    · subst t; simp [T', tr', EpochTranscript.setOn]
+    · simp [T', ht]
+  have hTKeyOther : ∀ t, t ≠ s.stB.t → (T' t).key = (T t).key := by
     intro t ht
-    simp [world', ht]
-  have hkeyCurrent : (world' s.stB.t).key = some key := by
-    simp [world', tr', EpochTranscript.setOn, EpochTranscript.key]
+    simp [T', ht]
+  have hkeyCurrent : (T' s.stB.t).key = some key := by
+    simp [T', tr', EpochTranscript.setOn, EpochTranscript.key]
   have hkeyBOld : s.keyB s.stB.t = none := by
     rw [hInv.keyB, EpochTranscript.key, hon]
     rfl
@@ -337,7 +329,7 @@ private lemma reachableInv_after_sendB_newOn
           (lt_of_lt_of_le hlt hInv.epochs.1)
       have hne : t ≠ s.stB.t := Nat.ne_of_lt hlt
       simp [Function.update, hne, hInv.keyB, hkey]
-  refine ⟨world', ?_⟩
+  refine ⟨T', ?_⟩
   constructor
   · simp [hInv.correct, hInv.tcurB, hkeyBOld, hkeyAOld, hknown]
   · exact hInv.epochs
@@ -347,22 +339,22 @@ private lemma reachableInv_after_sendB_newOn
   · exact le_rfl
   · exact hInv.keypairAShape
   · exact hInv.offBShape
-  · simpa [hworldKp s.stA.t] using hInv.keypairA
-  · simpa [hworldOff s.stB.t] using hInv.offB
-  · simp [world', tr', EpochTranscript.setOn]
+  · simpa [hTKp s.stA.t] using hInv.keypairA
+  · simpa [hTOff s.stB.t] using hInv.offB
+  · simp [T', tr', EpochTranscript.setOn]
   · intro pk' hpk'
     obtain ⟨sk', htr⟩ := hInv.decodedEk pk' hpk'
-    exact ⟨sk', by simpa [hworldKp s.stB.t] using htr⟩
+    exact ⟨sk', by simpa [hTKp s.stB.t] using htr⟩
   · intro ct0' hct0'
     obtain ⟨st', htr⟩ := hInv.decodedCt0 ct0' hct0'
-    exact ⟨st', by simpa [hworldOff s.stA.t] using htr⟩
+    exact ⟨st', by simpa [hTOff s.stA.t] using htr⟩
   · cases hctA : s.stA.ct0 with
-    | none => simpa [ChunksA, hctA, htEq, hworldOff s.stB.t] using hInv.chunksA
+    | none => simpa [ChunksAConsistent, hctA, htEq, hTOff s.stB.t] using hInv.chunksA
     | some ct0A =>
         have hlch : s.stA.lch = ∅ := by
-          have hc : (∃ stA, (world s.stB.t).off = some (stA, ct0A)) ∧
+          have hc : (∃ stA, (T s.stB.t).off = some (stA, ct0A)) ∧
               s.stA.lch = ∅ := by
-            simpa [ChunksA, hctA, htEq, hon] using hInv.chunksA
+            simpa [ChunksAConsistent, hctA, htEq, hon] using hInv.chunksA
           exact hc.2
         have hoffA := hInv.decodedCt0 ct0A hctA
         rw [htEq] at hoffA
@@ -370,38 +362,38 @@ private lemma reachableInv_after_sendB_newOn
         have hct : ct0A = ct0 := by
           exact congrArg Prod.snd (Option.some.inj (hoffA.symm.trans hoff))
         subst ct0A
-        unfold ChunksA
+        unfold ChunksAConsistent
         rw [hctA]
         constructor
-        · exact ⟨st, by simpa [htEq, hworldOff s.stB.t] using hoff⟩
-        · have hon' : (world' s.stA.t).on = some (ct1, key) := by
-            simp [htEq, world', tr', EpochTranscript.setOn]
+        · exact ⟨st, by simpa [htEq, hTOff s.stB.t] using hoff⟩
+        · have hon' : (T' s.stA.t).on = some (ct1, key) := by
+            simp [htEq, T', tr', EpochTranscript.setOn]
           rw [hon']
           exact ⟨∅,
             by simp [payloadChunks, ErasureCode.encodeChunks, hlch], hCt1Pos⟩
-  · simpa [ChunksB, hworldKp s.stB.t] using hInv.chunksB
+  · simpa [ChunksBConsistent, hTKp s.stB.t] using hInv.chunksB
   · intro t ht0 hlt
     have hne : t ≠ s.stB.t := Nat.ne_of_lt (by simpa [htEq] using hlt)
-    simpa [hworldKeyOther t hne] using hInv.pastComplete t ht0 hlt
+    simpa [hTKeyOther t hne] using hInv.pastComplete t ht0 hlt
   · intro t hlt
-    simpa [hworldKp t] using hInv.futureKeypair t hlt
+    simpa [hTKp t] using hInv.futureKeypair t hlt
   · intro t hlt
-    simpa [hworldOff t] using hInv.futureOff t hlt
+    simpa [hTOff t] using hInv.futureOff t hlt
   · intro t hlt
     have hne : t ≠ s.stB.t := Nat.ne_of_gt hlt
-    simpa [world', hne] using hInv.futureOn t hlt
+    simpa [T', hne] using hInv.futureOn t hlt
   · intro t
     by_cases ht0 : t = 0
     · simp [ht0, hInv.keyA]
     by_cases hlt : t < s.stA.t
     · have hne : t ≠ s.stB.t := by omega
-      simpa [ht0, hlt, hworldKeyOther t hne] using hInv.keyA t
+      simpa [ht0, hlt, hTKeyOther t hne] using hInv.keyA t
     · simpa [ht0, hlt] using hInv.keyA t
   · intro t
     by_cases ht : t = s.stB.t
     · subst t
       simp [Function.update, hkeyCurrent]
-    · simp [Function.update, ht, hworldKeyOther t ht, hInv.keyB]
+    · simp [Function.update, ht, hTKeyOther t ht, hInv.keyB]
   · intro n entry hn
     have hold := hInv.msgA n entry hn
     rcases entry with ⟨⟨ch?, ack, t, b?⟩, tsnd⟩
@@ -412,16 +404,16 @@ private lemma reachableInv_after_sendB_newOn
     | none => trivial
     | some ch =>
         obtain ⟨pk', sk', i, htr, hch⟩ := hold
-        exact ⟨pk', sk', i, by simpa [hworldKp t] using htr, hch⟩
+        exact ⟨pk', sk', i, by simpa [hTKp t] using htr, hch⟩
   · intro n entry hn
     by_cases hnew : n = s.nB + 1
     · subst n
       simp only [Function.update_self, Option.some.injEq] at hn
       subst entry
       change s.stB.t - 1 = s.stB.t - 1 ∧ ∃ ct1' key' i,
-        (world' s.stB.t).on = some (ct1', key') ∧
+        (T' s.stB.t).on = some (ct1', key') ∧
           ecCt1.encode ct1 1 = ecCt1.encode ct1' i
-      exact ⟨rfl, ct1, key, 1, by simp [world', tr', EpochTranscript.setOn], rfl⟩
+      exact ⟨rfl, ct1, key, 1, by simp [T', tr', EpochTranscript.setOn], rfl⟩
     · simp only [Function.update_of_ne hnew] at hn
       have hold := hInv.msgB n entry hn
       rcases entry with ⟨⟨ch?, ack, t, b?⟩, tsnd⟩
@@ -434,13 +426,13 @@ private lemma reachableInv_after_sendB_newOn
       · exact hold
       fin_cases b
       · obtain ⟨st', ct0', i, htr, hch⟩ := hold
-        exact ⟨st', ct0', i, by simpa [hworldOff t] using htr, hch⟩
+        exact ⟨st', ct0', i, by simpa [hTOff t] using htr, hch⟩
       · obtain ⟨ct1', key', i, htr, hch⟩ := hold
         by_cases ht : t = s.stB.t
         · subst t
           rw [hon] at htr
           contradiction
-        · exact ⟨ct1', key', i, by simpa [world', ht] using htr, hch⟩
+        · exact ⟨ct1', key', i, by simpa [T', ht] using htr, hch⟩
   · exact hInv.msgAEpoch
   · intro n ρ tsnd hn
     by_cases hnew : n = s.nB + 1
@@ -461,11 +453,11 @@ private lemma reachableInv_after_sendB_newOffOn
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0Pos : 0 < ecCt0.ec.nchunk)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (world : ℕ → EpochTranscript kem onoff)
-    (hInv : WorldInv kem onoff ecEk ecCt0 ecCt1 world s)
+    (T : Transcript kem onoff)
+    (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
     (pk : PK) (sk : SK) (st : onoff.St) (ct0 : onoff.C₀)
     (ct1 : onoff.C₁) (key : K)
-    (hkp : (world s.stB.t).keypair = some (pk, sk))
+    (hkp : (T s.stB.t).keypair = some (pk, sk))
     (hct0none : s.stB.ct0 = none)
     (hoffmem : (st, ct0) ∈ support onoff.encapsOff)
     (honmem : (ct1, key) ∈ support (onoff.encapsOn st pk)) :
@@ -491,18 +483,18 @@ private lemma reachableInv_after_sendB_newOffOn
   dsimp only
   have hstnone : s.stB.stCt = none := by
     simpa [hct0none] using hInv.offBShape
-  have hoffnone : (world s.stB.t).off = none := by
+  have hoffnone : (T s.stB.t).off = none := by
     simpa [hct0none, hstnone, optionPair] using hInv.offB
-  have honnone : (world s.stB.t).on = none := by
+  have honnone : (T s.stB.t).on = none := by
     by_contra hon
-    simpa [hoffnone] using (world s.stB.t).on_off (Option.isSome_iff_ne_none.mpr hon)
+    simpa [hoffnone] using (T s.stB.t).on_off (Option.isSome_iff_ne_none.mpr hon)
   have htEq : s.stA.t = s.stB.t := by
     have hnlt : ¬ s.stB.t < s.stA.t := by
       intro hlt
       have hc := hInv.pastComplete s.stB.t hInv.epochPosB hlt
       simp [EpochTranscript.key, honnone] at hc
     exact Nat.le_antisymm (Nat.le_of_not_gt hnlt) hInv.epochs.1
-  let offTr := (world s.stB.t).setOff st ct0 hoffmem honnone
+  let offTr := (T s.stB.t).setOff st ct0 hoffmem honnone
   let tr' := offTr.setOn ct1 key (by simp [offTr, EpochTranscript.setOff, hkp])
     (by simp [offTr, EpochTranscript.setOff]) (by
       intro pk' sk' st' ct0' hkp' hoff'
@@ -514,16 +506,16 @@ private lemma reachableInv_after_sendB_newOffOn
       have hs : st' = st := (congrArg Prod.fst (Option.some.inj hoffs)).symm
       subst pk'; subst st'
       exact honmem)
-  let world' := Function.update world s.stB.t tr'
-  have hworldKp : ∀ t, (world' t).keypair = (world t).keypair := by
+  let T' := Function.update T s.stB.t tr'
+  have hTKp : ∀ t, (T' t).keypair = (T t).keypair := by
     intro t
     by_cases ht : t = s.stB.t
-    · subst t; simp [world', tr', offTr, EpochTranscript.setOn, EpochTranscript.setOff]
-    · simp [world', ht]
-  have hworldKeyOther : ∀ t, t ≠ s.stB.t → (world' t).key = (world t).key := by
-    intro t ht; simp [world', ht]
-  have hkeyCurrent : (world' s.stB.t).key = some key := by
-    simp [world', tr', EpochTranscript.setOn, EpochTranscript.key]
+    · subst t; simp [T', tr', offTr, EpochTranscript.setOn, EpochTranscript.setOff]
+    · simp [T', ht]
+  have hTKeyOther : ∀ t, t ≠ s.stB.t → (T' t).key = (T t).key := by
+    intro t ht; simp [T', ht]
+  have hkeyCurrent : (T' s.stB.t).key = some key := by
+    simp [T', tr', EpochTranscript.setOn, EpochTranscript.key]
   have hkeyBOld : s.keyB s.stB.t = none := by
     simp [hInv.keyB, EpochTranscript.key, honnone]
   have hkeyAOld : s.keyA s.stB.t = none := by simp [hInv.keyA, htEq]
@@ -542,7 +534,7 @@ private lemma reachableInv_after_sendB_newOffOn
     · have hk := hInv.pastComplete t (Nat.pos_of_ne_zero ht0)
           (lt_of_lt_of_le hlt hInv.epochs.1)
       simp [Function.update, Nat.ne_of_lt hlt, hInv.keyB, hk]
-  refine ⟨world', ?_⟩
+  refine ⟨T', ?_⟩
   constructor
   · simp [hInv.correct, hInv.tcurB, hkeyBOld, hkeyAOld, hknown]
   · exact hInv.epochs
@@ -552,12 +544,12 @@ private lemma reachableInv_after_sendB_newOffOn
   · exact le_rfl
   · exact hInv.keypairAShape
   · simp
-  · simpa [hworldKp s.stA.t] using hInv.keypairA
-  · simp [world', tr', offTr, EpochTranscript.setOn, EpochTranscript.setOff, optionPair]
-  · simp [world', tr', EpochTranscript.setOn]
+  · simpa [hTKp s.stA.t] using hInv.keypairA
+  · simp [T', tr', offTr, EpochTranscript.setOn, EpochTranscript.setOff, optionPair]
+  · simp [T', tr', EpochTranscript.setOn]
   · intro pk' hpk'
     obtain ⟨sk', htr⟩ := hInv.decodedEk pk' hpk'
-    exact ⟨sk', by simpa [hworldKp s.stB.t] using htr⟩
+    exact ⟨sk', by simpa [hTKp s.stB.t] using htr⟩
   · intro ct0A hct0A
     obtain ⟨stA, hbad⟩ := hInv.decodedCt0 ct0A hct0A
     rw [htEq, hoffnone] at hbad
@@ -570,36 +562,36 @@ private lemma reachableInv_after_sendB_newOffOn
         contradiction
     | none =>
         have hlch : s.stA.lch = ∅ := by
-          simpa [ChunksA, hctA, htEq, hoffnone] using hInv.chunksA
-        simp only [ChunksA, hctA]
-        have hcurrentOff : (world' s.stA.t).off = some (st, ct0) := by
-          simp [htEq, world', tr', offTr, EpochTranscript.setOn,
+          simpa [ChunksAConsistent, hctA, htEq, hoffnone] using hInv.chunksA
+        simp only [ChunksAConsistent, hctA]
+        have hcurrentOff : (T' s.stA.t).off = some (st, ct0) := by
+          simp [htEq, T', tr', offTr, EpochTranscript.setOn,
             EpochTranscript.setOff]
         rw [hcurrentOff]
         exact ⟨∅,
           by simp [payloadChunks, ErasureCode.encodeChunks, hlch], hCt0Pos⟩
-  · simpa [ChunksB, hworldKp s.stB.t] using hInv.chunksB
+  · simpa [ChunksBConsistent, hTKp s.stB.t] using hInv.chunksB
   · intro t ht0 hlt
     have hne : t ≠ s.stB.t := Nat.ne_of_lt (by simpa [htEq] using hlt)
-    simpa [hworldKeyOther t hne] using hInv.pastComplete t ht0 hlt
-  · intro t hlt; simpa [hworldKp t] using hInv.futureKeypair t hlt
+    simpa [hTKeyOther t hne] using hInv.pastComplete t ht0 hlt
+  · intro t hlt; simpa [hTKp t] using hInv.futureKeypair t hlt
   · intro t hlt
     have hne : t ≠ s.stB.t := Nat.ne_of_gt hlt
-    simpa [world', hne] using hInv.futureOff t hlt
+    simpa [T', hne] using hInv.futureOff t hlt
   · intro t hlt
     have hne : t ≠ s.stB.t := Nat.ne_of_gt hlt
-    simpa [world', hne] using hInv.futureOn t hlt
+    simpa [T', hne] using hInv.futureOn t hlt
   · intro t
     by_cases ht0 : t = 0
     · simp [ht0, hInv.keyA]
     by_cases hlt : t < s.stA.t
     · have hne : t ≠ s.stB.t := by omega
-      simpa [ht0, hlt, hworldKeyOther t hne] using hInv.keyA t
+      simpa [ht0, hlt, hTKeyOther t hne] using hInv.keyA t
     · simpa [ht0, hlt] using hInv.keyA t
   · intro t
     by_cases ht : t = s.stB.t
     · subst t; simp [Function.update, hkeyCurrent]
-    · simp [Function.update, ht, hworldKeyOther t ht, hInv.keyB]
+    · simp [Function.update, ht, hTKeyOther t ht, hInv.keyB]
   · intro n entry hn
     have hold := hInv.msgA n entry hn
     rcases entry with ⟨⟨ch?, ack, t, b?⟩, tsnd⟩
@@ -610,16 +602,16 @@ private lemma reachableInv_after_sendB_newOffOn
     | none => trivial
     | some ch =>
         obtain ⟨pk', sk', i, htr, hch⟩ := hold
-        exact ⟨pk', sk', i, by simpa [hworldKp t] using htr, hch⟩
+        exact ⟨pk', sk', i, by simpa [hTKp t] using htr, hch⟩
   · intro n entry hn
     by_cases hnew : n = s.nB + 1
     · subst n
       simp only [Function.update_self, Option.some.injEq] at hn
       subst entry
       change s.stB.t - 1 = s.stB.t - 1 ∧ ∃ ct1' key' i,
-        (world' s.stB.t).on = some (ct1', key') ∧
+        (T' s.stB.t).on = some (ct1', key') ∧
           ecCt1.encode ct1 1 = ecCt1.encode ct1' i
-      exact ⟨rfl, ct1, key, 1, by simp [world', tr', EpochTranscript.setOn], rfl⟩
+      exact ⟨rfl, ct1, key, 1, by simp [T', tr', EpochTranscript.setOn], rfl⟩
     · simp only [Function.update_of_ne hnew] at hn
       have hold := hInv.msgB n entry hn
       rcases entry with ⟨⟨ch?, ack, t, b?⟩, tsnd⟩
@@ -634,11 +626,11 @@ private lemma reachableInv_after_sendB_newOffOn
       · obtain ⟨st', ct0', i, htr, hch⟩ := hold
         by_cases ht : t = s.stB.t
         · subst t; rw [hoffnone] at htr; contradiction
-        · exact ⟨st', ct0', i, by simpa [world', ht] using htr, hch⟩
+        · exact ⟨st', ct0', i, by simpa [T', ht] using htr, hch⟩
       · obtain ⟨ct1', key', i, htr, hch⟩ := hold
         by_cases ht : t = s.stB.t
         · subst t; rw [honnone] at htr; contradiction
-        · exact ⟨ct1', key', i, by simpa [world', ht] using htr, hch⟩
+        · exact ⟨ct1', key', i, by simpa [T', ht] using htr, hch⟩
   · exact hInv.msgAEpoch
   · intro n ρ tsnd hn
     by_cases hnew : n = s.nB + 1
@@ -664,12 +656,12 @@ lemma oracleSendB_preserves_reachableInv
       (SCKAScheme.oracleSendB (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak))
       (reachableInv kem onoff ecEk ecCt0 ecCt1) := by
   intro _ s hs z hz
-  rcases hs with ⟨world, hInv⟩
+  rcases hs with ⟨T, hInv⟩
   cases hct0 : s.stB.ct0 with
   | some ct0 =>
       have hstSome : s.stB.stCt.isSome := by simpa [hct0] using hInv.offBShape
       obtain ⟨st, hst⟩ := Option.isSome_iff_exists.mp hstSome
-      have hoff : (world s.stB.t).off = some (st, ct0) := by
+      have hoff : (T s.stB.t).off = some (st, ct0) := by
         simpa [hst, hct0, optionPair] using hInv.offB
       cases hack : !s.stB.ack.ctRec
       case true =>
@@ -691,9 +683,9 @@ lemma oracleSendB_preserves_reachableInv
           simpa [scheme, sendB, hct0, hackFalse, ich, msg] using hz
         subst z
         apply reachableInv_after_sendB_same kem onoff ecEk ecCt0 ecCt1
-          s world hInv ich msg
+          s T hInv ich msg
         change s.stB.t - 1 = s.stB.t - 1 ∧ ∃ st' ct0' i,
-          (world s.stB.t).off = some (st', ct0') ∧
+          (T s.stB.t).off = some (st', ct0') ∧
             ecCt0.encode ct0 ich = ecCt0.encode ct0' i
         exact ⟨rfl, st, ct0, ich, hoff, rfl⟩
       case false =>
@@ -714,14 +706,14 @@ lemma oracleSendB_preserves_reachableInv
               simpa [scheme, sendB, hct0, hackTrue, hek, msg] using hz
             subst z
             apply reachableInv_after_sendB_same kem onoff ecEk ecCt0 ecCt1
-              s world hInv s.stB.ich msg
+              s T hInv s.stB.ich msg
             simp [msg, HonestMessageB]
         | some pk =>
             have hkp := hInv.decodedEk pk hek
             obtain ⟨sk, hkp⟩ := hkp
             cases hct1 : s.stB.ct1 with
             | some ct1 =>
-                have honSome : (world s.stB.t).on.isSome := by
+                have honSome : (T s.stB.t).on.isSome := by
                   by_contra hn
                   have hn' := Option.not_isSome_iff_eq_none.mp hn
                   simpa [hn', hct1] using hInv.onB
@@ -746,14 +738,14 @@ lemma oracleSendB_preserves_reachableInv
                   simpa [scheme, sendB, hct0, hackTrue, hek, hct1, msg, ich] using hz
                 subst z
                 apply reachableInv_after_sendB_same kem onoff ecEk ecCt0 ecCt1
-                  s world hInv ich msg
+                  s T hInv ich msg
                 change s.stB.t - 1 = s.stB.t - 1 ∧ ∃ ct1' key' i,
-                  (world s.stB.t).on = some (ct1', key') ∧
+                  (T s.stB.t).on = some (ct1', key') ∧
                     ecCt1.encode ct1 ich = ecCt1.encode ct1' i
                 exact ⟨rfl, ct1, key, ich, hon, rfl⟩
             | none =>
-                have hon : (world s.stB.t).on = none := by
-                  cases h : (world s.stB.t).on with
+                have hon : (T s.stB.t).on = none := by
+                  cases h : (T s.stB.t).on with
                   | none => rfl
                   | some pair =>
                       rcases pair with ⟨ct1, key⟩
@@ -782,15 +774,15 @@ lemma oracleSendB_preserves_reachableInv
                   simpa [scheme, sendB, hct0, hackTrue, hek, hct1, hst] using hz
                 obtain ⟨ct1, key, hmem, rfl⟩ := hz'
                 exact reachableInv_after_sendB_newOn kem onoff ecEk ecCt0 ecCt1 hCt1Pos
-                  s world hInv pk sk st ct0 ct1 key hkp hoff hon hek hst hct0 hmem
+                  s T hInv pk sk st ct0 ct1 key hkp hoff hon hek hst hct0 hmem
   | none =>
       have hstnone : s.stB.stCt = none := by
         simpa [hct0] using hInv.offBShape
-      have hoffnone : (world s.stB.t).off = none := by
+      have hoffnone : (T s.stB.t).off = none := by
         simpa [hct0, hstnone, optionPair] using hInv.offB
-      have honnone : (world s.stB.t).on = none := by
+      have honnone : (T s.stB.t).on = none := by
         by_contra hn
-        simpa [hoffnone] using (world s.stB.t).on_off
+        simpa [hoffnone] using (T s.stB.t).on_off
           (Option.isSome_iff_ne_none.mpr hn)
       cases hack : !s.stB.ack.ctRec
       case true =>
@@ -811,17 +803,17 @@ lemma oracleSendB_preserves_reachableInv
           rw [SCKAScheme.oracleSendB, StateT.run_bind, StateT.run_get] at hz
           simpa [scheme, sendB, hct0, hackFalse] using hz
         obtain ⟨st, ct0, hmem, rfl⟩ := hz'
-        let old := world s.stB.t
+        let old := T s.stB.t
         let tr' := old.setOff st ct0 hmem honnone
-        let world' := Function.update world s.stB.t tr'
+        let T' := Function.update T s.stB.t tr'
         apply reachableInv_after_sendB_newOff kem onoff ecEk ecCt0 hCt0Pos ecCt1
-          s world hInv st ct0 hmem hct0 1
+          s T hInv st ct0 hmem hct0 honnone 1
           (some (ecCt0.encode ct0 1), s.stB.ack, s.stB.t, some 0)
         change s.stB.t - 1 = s.stB.t - 1 ∧ ∃ st' ct0' i,
-          (world' s.stB.t).off = some (st', ct0') ∧
+          (T' s.stB.t).off = some (st', ct0') ∧
             ecCt0.encode ct0 1 = ecCt0.encode ct0' i
         exact ⟨rfl, st, ct0, 1,
-          by simp [world', tr', EpochTranscript.setOff], rfl⟩
+          by simp [T', tr', EpochTranscript.setOff], rfl⟩
       case false =>
         have hackTrue : s.stB.ack.ctRec = true := by
           cases h : s.stB.ack.ctRec <;> simp [h] at hack ⊢
@@ -845,7 +837,7 @@ lemma oracleSendB_preserves_reachableInv
               simpa [scheme, sendB, hct0, hackTrue, hek] using hz
             obtain ⟨st, ct0, hmem, rfl⟩ := hz'
             apply reachableInv_after_sendB_newOff kem onoff ecEk ecCt0 hCt0Pos ecCt1
-              s world hInv st ct0 hmem hct0 s.stB.ich
+              s T hInv st ct0 hmem hct0 honnone s.stB.ich
                 (none, s.stB.ack, s.stB.t, none)
             simp [HonestMessageB]
         | some pk =>
@@ -881,7 +873,7 @@ lemma oracleSendB_preserves_reachableInv
               simpa [scheme, sendB, hct0, hackTrue, hek, hct1none] using hz
             obtain ⟨st, ct0, ct1, key, hoffmem, honmem, rfl⟩ := hz'
             exact reachableInv_after_sendB_newOffOn kem onoff ecEk ecCt0 hCt0Pos
-              ecCt1 s world hInv pk sk st ct0 ct1 key hkp hct0 hoffmem honmem
+              ecCt1 s T hInv pk sk st ct0 ct1 key hkp hct0 hoffmem honmem
 
 end SendB
 

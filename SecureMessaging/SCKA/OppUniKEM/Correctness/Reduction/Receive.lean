@@ -119,7 +119,7 @@ lemma oracleRecvB_preserves_failurePotential [DecidableEq K]
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) n).run s)) :
     currentFailurePotential kem onoff hDet z.2 =
       currentFailurePotential kem onoff hDet s := by
-  rcases hs with ⟨world, hInv⟩
+  rcases hs with ⟨T, hInv⟩
   cases hentry : s.msgA n with
   | none =>
       have hz' : z = (none, s) := by
@@ -176,7 +176,7 @@ lemma oracleRecvA_preserves_failurePotential [DecidableEq K]
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) n).run s)) :
     currentFailurePotential kem onoff hDet z.2 =
       currentFailurePotential kem onoff hDet s := by
-  rcases hs with ⟨world, hInv⟩
+  rcases hs with ⟨T, hInv⟩
   cases hentry : s.msgB n with
   | none =>
       have hz' : z = (none, s) := by
@@ -213,7 +213,7 @@ lemma oracleRecvA_preserves_failurePotential [DecidableEq K]
             have : s.stA.t ≤ s.stB.t := by simpa [hadv.2.2.2.1] using htbound
             exact Nat.le_antisymm this hInv.epochs.1
           have hhon := hInv.msgB n (msg, tsnd) hentry
-          have hon : (world s.stA.t).on.isSome := by
+          have hon : (T s.stA.t).on.isSome := by
             rcases msg with ⟨ch?, ack, t, b?⟩
             simp only at hadv
             have ht : t = s.stA.t := hadv.2.2.2.1
@@ -221,7 +221,7 @@ lemma oracleRecvA_preserves_failurePotential [DecidableEq K]
             have hch : ch?.isSome := hadv.2.2.2.2.2
             obtain ⟨ch, rfl⟩ := Option.isSome_iff_exists.mp hch
             obtain ⟨ct1, key, i, hon, _⟩ : ∃ ct1 key i,
-                (world s.stA.t).on = some (ct1, key) ∧
+                (T s.stA.t).on = some (ct1, key) ∧
                   ch = ecCt1.encode ct1 i := by
               simpa [HonestMessageB, ht, hb] using hhon.2
             rw [hon]
@@ -229,10 +229,10 @@ lemma oracleRecvA_preserves_failurePotential [DecidableEq K]
           have hct1 : s.stB.ct1.isSome := by
             have hmap := hInv.onB
             rw [← hepoch] at hmap
-            cases hworld : (world s.stA.t).on with
-            | none => simp [hworld] at hon
+            cases hT : (T s.stA.t).on with
+            | none => simp [hT] at hon
             | some pair =>
-                rw [hworld] at hmap
+                rw [hT] at hmap
                 rw [← hmap]
                 rfl
           exact currentFailurePotential_recvA_advance kem onoff hDet _ _ hepoch hct1
@@ -262,7 +262,7 @@ lemma oracleRecvB_preserves_currentFailure [DecidableEq K]
       ((SCKAScheme.oracleRecvB
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) n).run s)) :
     currentKEMFailure kem onoff hDet z.2 = false := by
-  rcases hs with ⟨world, hInv⟩
+  rcases hs with ⟨T, hInv⟩
   cases hentry : s.msgA n with
   | none =>
       have : z = (none, s) := by
@@ -320,7 +320,7 @@ lemma oracleRecvA_preserves_currentFailure [DecidableEq K]
       ((SCKAScheme.oracleRecvA
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) n).run s)) :
     currentKEMFailure kem onoff hDet z.2 = false := by
-  rcases hs with ⟨world, hInv⟩
+  rcases hs with ⟨T, hInv⟩
   cases hentry : s.msgB n with
   | none =>
       have : z = (none, s) := by
@@ -376,12 +376,12 @@ lemma currentKEMFailure_eq_false_implies_current [DecidableEq K]
     (hs : reachableInv kem onoff ecEk ecCt0 ecCt1 s)
     (hfail : currentKEMFailure kem onoff hDet s = false) :
     CurrentKEMCorrect kem onoff hDet s := by
-  rcases hs with ⟨world, hInv⟩
+  rcases hs with ⟨T, hInv⟩
   intro dk ct0 ct1 key hdk hct0A hct1 hkeyA
-  have honSome : (world s.stB.t).on.isSome := by
+  have honSome : (T s.stB.t).on.isSome := by
     have hmap := hInv.onB
     rw [hct1] at hmap
-    cases hon : (world s.stB.t).on with
+    cases hon : (T s.stB.t).on with
     | none => simp [hon] at hmap
     | some pair => simp
   have htEq : s.stA.t = s.stB.t := by
@@ -389,12 +389,12 @@ lemma currentKEMFailure_eq_false_implies_current [DecidableEq K]
     have hepochBounds := hInv.epochs
     have hlt : s.stB.t < s.stA.t := by omega
     have hfuture := hInv.futureOn s.stA.t hlt
-    have hworldKey : (world s.stA.t).key.isSome := by
+    have hTKey : (T s.stA.t).key.isSome := by
       rw [← hInv.keyB, hkeyA]
       simp
-    simp [EpochTranscript.key, hfuture] at hworldKey
+    simp [EpochTranscript.key, hfuture] at hTKey
   obtain ⟨st, hoffA⟩ := hInv.decodedCt0 ct0 hct0A
-  have hoffB : (world s.stA.t).off = optionPair s.stB.stCt s.stB.ct0 := by
+  have hoffB : (T s.stA.t).off = optionPair s.stB.stCt s.stB.ct0 := by
     simpa [htEq] using hInv.offB
   have hct0B : s.stB.ct0 = some ct0 := by
     rw [hoffA] at hoffB

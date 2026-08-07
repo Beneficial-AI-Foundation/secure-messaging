@@ -106,6 +106,9 @@ abbrev Bit : Type := Fin 2
 abbrev Message (Sym : Type) : Type :=
   Option (ℕ × Sym) × Ack × ℕ × Option Bit
 
+/-- The epoch `t` carried by a message `ρ = (ch?, ack, t, b?)`. -/
+abbrev Message.epoch {Sym : Type} (ρ : Message Sym) : ℕ := ρ.2.2.1
+
 /-- Randomness type returned by an Opp-UniKEM leaking send.
 
 Depending on the role and state of the sending party, various branches of

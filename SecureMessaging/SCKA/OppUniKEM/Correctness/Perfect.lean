@@ -21,59 +21,71 @@ Opp-UniKEM SCKA scheme and prove that it is preserved by every oracle call.
 
 From this invariant, we derive perfect correctness of Opp-UniKEM — `correctness_of_perfectKEM`:
 for a perfectly correct KEM and correct erasure codes with positive reconstruction thresholds,
-`Pr[G(Adv) = true] = 1` with `G(Adv) := SCKAScheme.correctnessExp Π Adv`.
+`Pr[G(Adv) = true] = 1`, where `G(Adv) := SCKAScheme.correctnessExp Π Adv`
+and `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak`.
 
 This invariant also underlies the probabilistic bounds in `Correctness.Reduction`.
 
 ## Modules
 
-* `Perfect.Invariant` — the transcript `EpochTranscript`, the invariant
-  `WorldInv` and its closure `reachableInv`, `CurrentKEMCorrect`,
-  initialization, and the uniform oracle;
+* `Perfect.Invariant` — defines `EpochTranscript` (the samples one epoch
+  has drawn), `TranscriptConsistent T s` (the game state `s` agrees with the
+  transcript `T`), and the state invariant
+  `reachableInv s := ∃ T, TranscriptConsistent T s`; proves that
+  `reachableInv` holds initially, is preserved by the uniform oracle, and,
+  for a perfectly correct KEM, implies `CurrentKEMCorrect` — A's
+  decapsulation agrees with B's recorded key;
 * `Perfect.ErasureCode` — honest chunk sets and their decoding;
 * `Perfect.SendA`, `Perfect.SendB`, `Perfect.RecvA`, `Perfect.RecvB` —
   preservation of `reachableInv` by each protocol oracle.
 
 ## Composition
 
-With `Run o s := ((SCKAScheme.sckaCorrectnessImpl Π) o).run s`,
-`I := reachableInv`, and `supp` the set of positive-probability outputs:
+This file derives `correctness_of_perfectKEM` from the submodule results.
+Let `s₀` be the initial game state.  For an oracle `o` and a game state
+`s`,
+
+`Run o s := ((SCKAScheme.sckaCorrectnessImpl Π) o).run s`
+
+is the probabilistic computation answering the call; its outputs are pairs
+`(r, s')` of a reply and a next state.  `supp X` denotes the set of
+positive-probability outputs of `X`.  The submodules provide
 
 ```text
-I s₀                                                   (reachableInv_init)
-I s ∧ (r, s') ∈ supp (Run o s) → I s'       (oracle*_preserves_reachableInv)
+reachableInv s₀                                        (reachableInv_init)
+reachableInv s ∧ (r, s') ∈ supp (Run o s) → reachableInv s'
+                                        (oracle*_preserves_reachableInv)
 ```
 
-The receive oracles are quantified over every index of the message tables,
-so preservation covers delivery in any order and any multiplicity.  Every
-supported final state therefore has `correct = true`, and `G(Adv)` is
-total, so `Pr[G(Adv) = true] = 1`.
+In this file,
+- `correctnessImpl_preserves` combines the five per-oracle lemmas, and
+- the VCVio lemma `OracleComp.simulateQ_run_preservesInv` extends them along
+  the adversary's entire run.
+
+Therefore every final state of positive probability has `correct = true`.
+Since the game never fails (`probFailure_eq_zero`), the
+main theorem `correctness_of_perfectKEM` follows: `Pr[G(Adv) = true] = 1`.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
 
 namespace oppUniKemCKA
 
-universe u
-
-variable {m : Type → Type u} {K PK SK C Sym : Type}
+variable {K PK SK C Sym : Type}
 
 open SCKAScheme.sckaCorrectnessSpec
 
-/-- `recvB` reports the epoch carried by the delivered message, independently
-of B's current local epoch.  In particular, a delayed old message does not get
-mislabelled with the current epoch. -/
-theorem recvB_receivingEpoch
-    [Monad m] (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
-    [DecidableEq Sym]
-    (ecEk : ErasureCodePayload PK Sym) (stB : StB onoff Sym)
-    (ch? : Option (ℕ × Sym)) (ack : Ack) (t : ℕ) (b? : Option Bit) :
-    (recvB kem onoff ecEk stB (ch?, ack, t, b?)).map (fun out => out.2.1) =
-      some (t - 1) := by
-  simp [recvB]
+/-- Assume:
+- the KEM is perfectly correct (`hkem`) and its decapsulation is
+  deterministic (`hDet`),
+- the erasure codes for the three chunked payloads — A's public key and
+  B's two ciphertext parts — are correct (`hEkCorrect`, `hCt0Correct`,
+  `hCt1Correct`), and
+- their reconstruction thresholds are positive (`hEkPos`, `hCt0Pos`,
+  `hCt1Pos`).
 
-/-- Every oracle in the SCKA correctness implementation preserves
-`reachableInv`, by dispatching to the corresponding oracle-specific theorem. -/
+Then every oracle in the SCKA correctness implementation preserves
+`reachableInv`. -/
 private lemma correctnessImpl_preserves
   [DecidableEq Sym] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
@@ -195,7 +207,7 @@ theorem correctness_of_perfectKEM [DecidableEq Sym] [DecidableEq K]
       (reachableInv_init kem onoff ecEk ecCt0 ecCt1 hEkPos hCt0Pos)
       out hout
   have hb' : b = out.2.correct := by simpa [mem_support_pure_iff] using hb
-  rcases hInv with ⟨_world, hWorld⟩
-  exact hb'.trans hWorld.correct
+  rcases hInv with ⟨_T, hConsistent⟩
+  exact hb'.trans hConsistent.correct
 
 end oppUniKemCKA

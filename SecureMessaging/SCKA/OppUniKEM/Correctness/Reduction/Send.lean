@@ -126,16 +126,16 @@ lemma keygen_failurePotential_le [DecidableEq Sym] [DecidableEq K]
       currentFailurePotential kem onoff hDet s +
         factorCorrectnessError kem onoff hDet := by
   classical
-  rcases hs with ⟨world, hInv⟩
+  rcases hs with ⟨T, hInv⟩
   have hek : s.stA.ekA = none := by
     have hshape := hInv.keypairAShape
     simpa [hdk] using hshape
   by_cases ht : s.stA.t = s.stB.t
-  · have hkpnone : (world s.stA.t).keypair = none := by
+  · have hkpnone : (T s.stA.t).keypair = none := by
       simpa [hdk, hek, optionPair] using hInv.keypairA
-    have honnone : (world s.stA.t).on = none := by
+    have honnone : (T s.stA.t).on = none := by
       by_contra hne
-      have his := (world s.stA.t).on_keypair (Option.isSome_iff_ne_none.mpr hne)
+      have his := (T s.stA.t).on_keypair (Option.isSome_iff_ne_none.mpr hne)
       simp [hkpnone] at his
     have hct1 : s.stB.ct1 = none := by
       have hmap := hInv.onB
@@ -173,16 +173,16 @@ lemma installAKeypair_currentKEMFailure_false [DecidableEq Sym] [DecidableEq K]
     (pk : PK) (sk : SK) :
     currentKEMFailure kem onoff hDet (installAKeypair onoff s pk sk) = false := by
   classical
-  rcases hs with ⟨world, hInv⟩
+  rcases hs with ⟨T, hInv⟩
   by_cases ht : s.stA.t = s.stB.t
   · have hek : s.stA.ekA = none := by
       have hshape := hInv.keypairAShape
       simpa [hdk] using hshape
-    have hkpnone : (world s.stA.t).keypair = none := by
+    have hkpnone : (T s.stA.t).keypair = none := by
       simpa [hdk, hek, optionPair] using hInv.keypairA
-    have honnone : (world s.stA.t).on = none := by
+    have honnone : (T s.stA.t).on = none := by
       by_contra hne
-      have his := (world s.stA.t).on_keypair (Option.isSome_iff_ne_none.mpr hne)
+      have his := (T s.stA.t).on_keypair (Option.isSome_iff_ne_none.mpr hne)
       simp [hkpnone] at his
     have hct1 : s.stB.ct1 = none := by
       have hmap := hInv.onB
@@ -214,26 +214,26 @@ lemma off_failurePotential_le [DecidableEq Sym] [DecidableEq K]
       currentFailurePotential kem onoff hDet s +
         factorCorrectnessError kem onoff hDet := by
   classical
-  rcases hs with ⟨world, hInv⟩
+  rcases hs with ⟨T, hInv⟩
   have hst : s.stB.stCt = none := by
     have hshape := hInv.offBShape
     simpa [hct0] using hshape
-  have hoffnone : (world s.stB.t).off = none := by
+  have hoffnone : (T s.stB.t).off = none := by
     simpa [hct0, hst, optionPair] using hInv.offB
   have ht : s.stA.t = s.stB.t := by
     by_contra hne
     have hepochBounds := hInv.epochs
     have hlt : s.stB.t < s.stA.t := by omega
     have hcomplete := hInv.pastComplete s.stB.t hInv.epochPosB hlt
-    have honSome : (world s.stB.t).on.isSome := by
+    have honSome : (T s.stB.t).on.isSome := by
       simpa [EpochTranscript.key] using hcomplete
-    have hoffSome := (world s.stB.t).on_off honSome
+    have hoffSome := (T s.stB.t).on_off honSome
     simp [hoffnone] at hoffSome
   have hct1 : s.stB.ct1 = none := by
-    have honnone : (world s.stB.t).on = none := by
+    have honnone : (T s.stB.t).on = none := by
       by_contra hne
       have honSome := Option.isSome_iff_ne_none.mpr hne
-      simpa [hoffnone] using (world s.stB.t).on_off honSome
+      simpa [hoffnone] using (T s.stB.t).on_off honSome
     have hmap := hInv.onB
     rw [honnone] at hmap
     simpa using hmap.symm
@@ -266,12 +266,12 @@ lemma online_source_shape [DecidableEq Sym]
     ∃ sk, s.stA.t = s.stB.t ∧ s.stA.ekA = some pk ∧
       s.stA.dkA = some sk := by
   classical
-  rcases hs with ⟨world, hInv⟩
+  rcases hs with ⟨T, hInv⟩
   obtain ⟨sk, hkpB⟩ := hInv.decodedEk pk hekB
-  have honnone : (world s.stB.t).on = none := by
+  have honnone : (T s.stB.t).on = none := by
     have hmap := hInv.onB
     rw [hct1] at hmap
-    cases hon : (world s.stB.t).on with
+    cases hon : (T s.stB.t).on with
     | none => rfl
     | some pair => simp [hon] at hmap
   have ht : s.stA.t = s.stB.t := by
@@ -280,7 +280,7 @@ lemma online_source_shape [DecidableEq Sym]
     have hlt : s.stB.t < s.stA.t := by omega
     have hcomplete := hInv.pastComplete s.stB.t hInv.epochPosB hlt
     simp [EpochTranscript.key, honnone] at hcomplete
-  have hkpA : (world s.stA.t).keypair = optionPair s.stA.ekA s.stA.dkA :=
+  have hkpA : (T s.stA.t).keypair = optionPair s.stA.ekA s.stA.dkA :=
     hInv.keypairA
   rw [ht, hkpB] at hkpA
   cases hekA : s.stA.ekA <;> cases hdkA : s.stA.dkA <;>
@@ -299,21 +299,21 @@ lemma newOff_source_shape [DecidableEq Sym]
     ∃ sk, s.stA.t = s.stB.t ∧ s.stA.ekA = some pk ∧
       s.stA.dkA = some sk := by
   classical
-  rcases hs with ⟨world, hInv⟩
+  rcases hs with ⟨T, hInv⟩
   obtain ⟨sk, hkpB⟩ := hInv.decodedEk pk hekB
   have hst : s.stB.stCt = none := by
     have hshape := hInv.offBShape
     simpa [hct0] using hshape
-  have hoffnone : (world s.stB.t).off = none := by
+  have hoffnone : (T s.stB.t).off = none := by
     simpa [hct0, hst, optionPair] using hInv.offB
   have ht : s.stA.t = s.stB.t := by
     by_contra hne
     have hbounds := hInv.epochs
     have hlt : s.stB.t < s.stA.t := by omega
     have hcomplete := hInv.pastComplete s.stB.t hInv.epochPosB hlt
-    have honSome : (world s.stB.t).on.isSome := by
+    have honSome : (T s.stB.t).on.isSome := by
       simpa [EpochTranscript.key] using hcomplete
-    have hoffSome := (world s.stB.t).on_off honSome
+    have hoffSome := (T s.stB.t).on_off honSome
     simp [hoffnone] at hoffSome
   have hkpA := hInv.keypairA
   rw [ht, hkpB] at hkpA

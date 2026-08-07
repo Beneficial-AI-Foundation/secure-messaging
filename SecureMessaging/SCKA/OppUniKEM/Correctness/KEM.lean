@@ -12,14 +12,11 @@ import VCVio.OracleComp.QueryTracking.RandomOracle.DeferredSampling
 # Opp-UniKEM-CKA — Conditional KEM Error
 
 One Opp-UniKEM epoch runs a single KEM instance in three sampling stages:
-party A draws a key pair, party B draws the offline part of an
-encapsulation and later its online part.  This module considers that KEM
-instance in isolation: its total correctness error, its conditional errors
-after some of the samples are fixed, and the averaging identities relating
-the two, in the form used by `Correctness.Reduction`.
+party A draws a key pair; party B draws the offline part of an
+encapsulation, and later its online part.
 
 Let `kem` be a KEM scheme, `onoff` an on/off factorization for it, and
-`hDet` a deterministic decapsulation witness.  The three samples are
+`hDet` a deterministic decapsulation witness.  The three sampling stages are
 
 ```text
 (pk, sk) ← KG,   (st, ct₀) ← OFF,   (ct₁, k) ← ON st pk,   where
@@ -41,36 +38,43 @@ is the missing probability mass.
 
 ## Staged experiment
 
-The experiment `F` (`factorCorrectExp`) draws the three samples and tests
+The experiment `factorCorrectExp` draws the three samples and tests
 failure:
 
 ```text
-F := do  (pk, sk) ← KG;  (st, ct₀) ← OFF;  (ct₁, k) ← ON st pk
-         return ¬bad(sk, ct₀, ct₁, k)
+factorCorrectExp := do
+  (pk, sk) ← KG;  (st, ct₀) ← OFF;  (ct₁, k) ← ON st pk
+  return ¬bad(sk, ct₀, ct₁, k)
 ```
 
-We show (`factorCorrectExp_eq_correctExp`) that `F` and the ordinary KEM
+We show (`factorCorrectExp_eq_correctExp`) that `factorCorrectExp` and the ordinary KEM
 correctness experiment `kem.CorrectExp` — sample a key pair, encapsulate,
-check that decapsulation returns the key — are equal as programs, so in
-particular produce the same output distribution.  This uses:
+check that decapsulation returns the key — are equal as programs.
+In particular, they produce the same output distribution.
 
-* `onoff.factor` — sampling `OFF` then `ON st pk` and joining the two
-  ciphertext parts is, as a program, equal to `kem.encaps pk`;
-* `hDet.decaps_eq` — decapsulation is the deterministic function
-  `hDet.decapsDet`.
-
-Hence the total error of `F` (`factorCorrectnessError`)
+Hence the total error of `factorCorrectExp`
 
 ```text
-ε := Pr[F = false] + Pr[F = ⊥]
+ε := Pr[factorCorrectExp = false] + Pr[factorCorrectExp = ⊥]
 ```
 
 equals `kem.correctnessError` (`factorCorrectnessError_eq`).
 
 ## Conditional errors
 
-`F`'s first two samples are independent.  Fixing one or both of them and
-drawing the rest defines
+The first two samples of `factorCorrectExp` are independent.  Fixing one or
+both of them and
+drawing the rest gives the probability that the epoch still fails:
+
+* `χ(pk, sk, st, ct₀)` (`failureAfterBoth`) — both first-stage samples
+  fixed: the probability that the online sample completes the epoch
+  inconsistently;
+* `φ(pk, sk)` (`failureAfterKeypair`) — only the key pair fixed: the
+  average of `χ` over the offline sample;
+* `ψ(st, ct₀)` (`failureAfterOff`) — only the offline sample fixed: the
+  average of `χ` over the key pair.
+
+Each adds the missing probability mass of the sampler it draws from:
 
 ```text
 χ(pk, sk, st, ct₀) := Pr[ON st pk = ⊥]
@@ -81,13 +85,9 @@ drawing the rest defines
 ψ(st, ct₀) := Pr[KG = ⊥]  + Σ (pk, sk),  Pr[KG = (pk, sk)]  · χ(pk, sk, st, ct₀)
 ```
 
-— in Lean `failureAfterBoth`, `failureAfterKeypair`, `failureAfterOff`: the
-residual failure probability after fixing both first-stage samples, only the
-key pair, or only the offline sample.
-
 ## Averaging identities
 
-We prove, for `ε` the total error of `F` defined above:
+We prove, for `ε` the total error of `factorCorrectExp` defined above:
 
 * `factor_failure_tower_keypair` —
   `ε = Pr[KG = ⊥] + Σ (pk, sk), Pr[KG = (pk, sk)] · φ(pk, sk)`;

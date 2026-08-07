@@ -147,7 +147,7 @@ lemma tracked_sendA_score_le [DecidableEq K]
         simp [currentFailurePotential, sendAKeygenState, installAKeypair]
       · exact keygen_failurePotential_le kem onoff hDet ecEk ecCt0 ecCt1 s hs hdk
   | some sk =>
-      rcases hs with ⟨world, hInv⟩
+      rcases hs with ⟨T, hInv⟩
       have hekSome : s.stA.ekA.isSome := by
         simpa [hdk] using hInv.keypairAShape
       obtain ⟨pk, hek⟩ := Option.isSome_iff_exists.mp hekSome
@@ -201,17 +201,17 @@ lemma tracked_sendB_score_le [DecidableEq K]
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) ()).run s
       pure (y.1, (y.2, false || currentKEMFailure kem onoff hDet y.2)))
       (fun z => trackedFailureScore kem onoff hDet z.2) ≤ _
-  rcases hs with ⟨world, hInv⟩
+  rcases hs with ⟨T, hInv⟩
   cases hct0 : s.stB.ct0 with
   | none =>
       have hst : s.stB.stCt = none := by
         simpa [hct0] using hInv.offBShape
       have hct1 : s.stB.ct1 = none := by
-        have hoff : (world s.stB.t).off = none := by
+        have hoff : (T s.stB.t).off = none := by
           simpa [hct0, hst, optionPair] using hInv.offB
-        have hon : (world s.stB.t).on = none := by
+        have hon : (T s.stB.t).on = none := by
           by_contra hne
-          simpa [hoff] using (world s.stB.t).on_off
+          simpa [hoff] using (T s.stB.t).on_off
             (Option.isSome_iff_ne_none.mpr hne)
         have hmap := hInv.onB
         rw [hon] at hmap
@@ -237,7 +237,7 @@ lemma tracked_sendB_score_le [DecidableEq K]
           unfold expectedPayoff
           simpa [trackedFailureScore] using
             off_failurePotential_le kem onoff hDet ecEk ecCt0 ecCt1 s
-              ⟨world, hInv⟩ hct0
+              ⟨T, hInv⟩ hct0
       | true =>
           cases hek : s.stB.ekA with
           | none =>
@@ -261,10 +261,10 @@ lemma tracked_sendB_score_le [DecidableEq K]
               unfold expectedPayoff
               simpa [trackedFailureScore] using
                 off_failurePotential_le kem onoff hDet ecEk ecCt0 ecCt1 s
-                  ⟨world, hInv⟩ hct0
+                  ⟨T, hInv⟩ hct0
           | some pk =>
               obtain ⟨sk, ht, hekA, hdk⟩ :=
-                newOff_source_shape kem onoff ecEk ecCt0 ecCt1 s ⟨world, hInv⟩
+                newOff_source_shape kem onoff ecEk ecCt0 ecCt1 s ⟨T, hInv⟩
                   pk hek hct0
               let msg (out : onoff.C₁ × K) : Message Sym :=
                 (some (ecCt1.encode out.1 1), s.stB.ack, s.stB.t, some 1)
@@ -382,7 +382,7 @@ lemma tracked_sendB_score_le [DecidableEq K]
               cases hct1 : s.stB.ct1 with
               | none =>
                   obtain ⟨sk, ht, hekA, hdk⟩ :=
-                    online_source_shape kem onoff ecEk ecCt0 ecCt1 s ⟨world, hInv⟩
+                    online_source_shape kem onoff ecEk ecCt0 ecCt1 s ⟨T, hInv⟩
                       pk st ct0 hek hst hct0 hct1
                   let msg (out : onoff.C₁ × K) : Message Sym :=
                     (some (ecCt1.encode out.1 1), s.stB.ack, s.stB.t, some 1)

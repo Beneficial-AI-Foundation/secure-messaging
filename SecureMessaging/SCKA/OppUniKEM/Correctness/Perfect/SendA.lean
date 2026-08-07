@@ -17,7 +17,7 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect.Invariant
 * otherwise — sample a key pair, record it in the current
   `EpochTranscript`, emit its first public-key chunk.
 
-In both cases the recorded message is honest and A's receive cursor moves
+In both cases the recorded message is honest and A's receive index moves
 monotonically.
 -/
 
@@ -44,8 +44,8 @@ private lemma reachableInv_after_sendA_existing
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (world : ℕ → EpochTranscript kem onoff)
-    (hInv : WorldInv kem onoff ecEk ecCt0 ecCt1 world s)
+    (T : Transcript kem onoff)
+    (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
     (pk : PK) (sk : SK) (hek : s.stA.ekA = some pk) (hdk : s.stA.dkA = some sk) :
     let ich := if s.stA.ack.ekRec then s.stA.ich else s.stA.ich + 1
     let ch? := if s.stA.ack.ekRec then none else some (ecEk.encode pk ich)
@@ -58,9 +58,9 @@ private lemma reachableInv_after_sendA_existing
         nA := s.nA + 1
         correct := s.correct && decide (s.tcurA ≤ s.stA.t - 1) } := by
   dsimp only
-  refine ⟨world, ?_⟩
+  refine ⟨T, ?_⟩
   have hmono : s.tcurA ≤ s.stA.t - 1 := hInv.tcurA
-  have hkp : (world s.stA.t).keypair = some (pk, sk) := by
+  have hkp : (T s.stA.t).keypair = some (pk, sk) := by
     simpa [hek, hdk] using hInv.keypairA
   constructor
   · simp [hInv.correct, hmono]
@@ -115,15 +115,15 @@ private lemma reachableInv_after_sendA_new
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
     (hEkPos : 0 < ecEk.ec.nchunk)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (world : ℕ → EpochTranscript kem onoff)
-    (hInv : WorldInv kem onoff ecEk ecCt0 ecCt1 world s)
+    (T : Transcript kem onoff)
+    (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
     (pk : PK) (sk : SK) (hmem : (pk, sk) ∈ support kem.keygen)
     (hdk : s.stA.dkA = none) :
     let ich := if s.stA.ack.ekRec then 0 else 1
     let ch? := if s.stA.ack.ekRec then none else some (ecEk.encode pk ich)
     let msg : Message Sym := (ch?, s.stA.ack, s.stA.t, none)
-    let old := world s.stA.t
-    let _world' := Function.update world s.stA.t (old.setKeypair pk sk hmem (by
+    let old := T s.stA.t
+    let _T' := Function.update T s.stA.t (old.setKeypair pk sk hmem (by
       have hkpnone : old.keypair = none := by
         have hekNone : s.stA.ekA = none := by
           have := hInv.keypairAShape
@@ -147,33 +147,33 @@ private lemma reachableInv_after_sendA_new
     simp only [hdk, Option.isSome_none, Option.isSome_eq_false_iff,
       Option.isNone_iff_eq_none] at hshape
     exact hshape
-  have hkpnone : (world s.stA.t).keypair = none := by
+  have hkpnone : (T s.stA.t).keypair = none := by
     simpa [hekNone, hdk] using hInv.keypairA
-  have honnone : (world s.stA.t).on = none := by
+  have honnone : (T s.stA.t).on = none := by
     by_contra hon
-    have his : (world s.stA.t).on.isSome := Option.isSome_iff_ne_none.mpr hon
-    simpa [hkpnone] using (world s.stA.t).on_keypair his
-  let tr' := (world s.stA.t).setKeypair pk sk hmem honnone
-  let world' := Function.update world s.stA.t tr'
-  have hworldKey : ∀ t, (world' t).key = (world t).key := by
+    have his : (T s.stA.t).on.isSome := Option.isSome_iff_ne_none.mpr hon
+    simpa [hkpnone] using (T s.stA.t).on_keypair his
+  let tr' := (T s.stA.t).setKeypair pk sk hmem honnone
+  let T' := Function.update T s.stA.t tr'
+  have hTKey : ∀ t, (T' t).key = (T t).key := by
     intro t
     by_cases ht : t = s.stA.t
     · subst t
-      simp [world', tr', EpochTranscript.setKeypair, EpochTranscript.key, honnone]
-    · simp [world', ht]
-  have hworldOff : ∀ t, (world' t).off = (world t).off := by
+      simp [T', tr', EpochTranscript.setKeypair, EpochTranscript.key, honnone]
+    · simp [T', ht]
+  have hTOff : ∀ t, (T' t).off = (T t).off := by
     intro t
     by_cases ht : t = s.stA.t
     · subst t
-      simp [world', tr', EpochTranscript.setKeypair]
-    · simp [world', ht]
-  have hworldOn : ∀ t, (world' t).on = (world t).on := by
+      simp [T', tr', EpochTranscript.setKeypair]
+    · simp [T', ht]
+  have hTOn : ∀ t, (T' t).on = (T t).on := by
     intro t
     by_cases ht : t = s.stA.t
     · subst t
-      simp [world', tr', EpochTranscript.setKeypair]
-    · simp [world', ht]
-  refine ⟨world', ?_⟩
+      simp [T', tr', EpochTranscript.setKeypair]
+    · simp [T', ht]
+  refine ⟨T', ?_⟩
   constructor
   · simp [hInv.correct, hInv.tcurA]
   · exact hInv.epochs
@@ -183,9 +183,9 @@ private lemma reachableInv_after_sendA_new
   · exact hInv.tcurB
   · simp
   · exact hInv.offBShape
-  · simp [world', tr', EpochTranscript.setKeypair]
-  · simpa [hworldOff s.stB.t] using hInv.offB
-  · simpa [hworldOn s.stB.t] using hInv.onB
+  · simp [T', tr', EpochTranscript.setKeypair]
+  · simpa [hTOff s.stB.t] using hInv.offB
+  · simpa [hTOn s.stB.t] using hInv.onB
   · intro pk' hpk'
     obtain ⟨sk', htr⟩ := hInv.decodedEk pk' hpk'
     refine ⟨sk', ?_⟩
@@ -193,32 +193,32 @@ private lemma reachableInv_after_sendA_new
     · rw [ht] at htr
       rw [hkpnone] at htr
       contradiction
-    · simpa [world', ht] using htr
+    · simpa [T', ht] using htr
   · intro ct0 hct0
     obtain ⟨st, htr⟩ := hInv.decodedCt0 ct0 hct0
-    exact ⟨st, by simpa [hworldOff s.stA.t] using htr⟩
-  · simpa [ChunksA, hworldOff s.stA.t, hworldOn s.stA.t] using hInv.chunksA
+    exact ⟨st, by simpa [hTOff s.stA.t] using htr⟩
+  · simpa [ChunksAConsistent, hTOff s.stA.t, hTOn s.stA.t] using hInv.chunksA
   · by_cases ht : s.stB.t = s.stA.t
     · have hchunks : s.stB.ekA = none ∧ s.stB.lch = ∅ := by
-        simpa [ChunksB, ht, hkpnone] using hInv.chunksB
+        simpa [ChunksBConsistent, ht, hkpnone] using hInv.chunksB
       rcases hchunks with ⟨hekB, hlch⟩
-      simp only [ChunksB, EpochTranscript.setKeypair, ht, Function.update_self,
-        hekB, hlch, world', tr']
+      simp only [ChunksBConsistent, EpochTranscript.setKeypair, ht, Function.update_self,
+        hekB, hlch, T', tr']
       exact ⟨∅, by simp [payloadChunks, ErasureCode.encodeChunks], hEkPos⟩
-    · simpa [ChunksB, world', ht] using hInv.chunksB
+    · simpa [ChunksBConsistent, T', ht] using hInv.chunksB
   · intro t ht0 hlt
-    simpa [hworldKey t] using hInv.pastComplete t ht0 hlt
+    simpa [hTKey t] using hInv.pastComplete t ht0 hlt
   · intro t hlt
     have hne : t ≠ s.stA.t := Nat.ne_of_gt hlt
-    simpa [world', hne] using hInv.futureKeypair t hlt
+    simpa [T', hne] using hInv.futureKeypair t hlt
   · intro t hlt
-    simpa [hworldOff t] using hInv.futureOff t hlt
+    simpa [hTOff t] using hInv.futureOff t hlt
   · intro t hlt
-    simpa [hworldOn t] using hInv.futureOn t hlt
+    simpa [hTOn t] using hInv.futureOn t hlt
   · intro t
-    simpa [hworldKey t] using hInv.keyA t
+    simpa [hTKey t] using hInv.keyA t
   · intro t
-    simpa [hworldKey t] using hInv.keyB t
+    simpa [hTKey t] using hInv.keyB t
   · intro n entry hn
     by_cases hnew : n = s.nA + 1
     · subst n
@@ -226,7 +226,7 @@ private lemma reachableInv_after_sendA_new
       subst entry
       by_cases hack : s.stA.ack.ekRec
       · simp [HonestMessageA, hack]
-      · simp [HonestMessageA, hack, world', tr', EpochTranscript.setKeypair]
+      · simp [HonestMessageA, hack, T', tr', EpochTranscript.setKeypair]
     · simp only [Function.update, hnew, ↓reduceDIte] at hn
       have hold := hInv.msgA n entry hn
       rcases entry with ⟨⟨ch?, ack, t, b?⟩, tsnd⟩
@@ -242,7 +242,7 @@ private lemma reachableInv_after_sendA_new
           · subst t
             rw [hkpnone] at htr
             contradiction
-          · simpa [world', ht] using htr
+          · simpa [T', ht] using htr
   · intro n entry hn
     have hold := hInv.msgB n entry hn
     rcases entry with ⟨⟨ch?, ack, t, b?⟩, tsnd⟩
@@ -255,9 +255,9 @@ private lemma reachableInv_after_sendA_new
     · exact hold
     fin_cases b
     · obtain ⟨st, ct0, i, htr, hch⟩ := hold
-      exact ⟨st, ct0, i, by simpa [hworldOff t] using htr, hch⟩
+      exact ⟨st, ct0, i, by simpa [hTOff t] using htr, hch⟩
     · obtain ⟨ct1, key, i, htr, hch⟩ := hold
-      exact ⟨ct1, key, i, by simpa [hworldOn t] using htr, hch⟩
+      exact ⟨ct1, key, i, by simpa [hTOn t] using htr, hch⟩
   · intro n ρ tsnd hn
     by_cases hnew : n = s.nA + 1
     · subst n
@@ -284,7 +284,7 @@ lemma oracleSendA_preserves_reachableInv
       (SCKAScheme.oracleSendA (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak))
       (reachableInv kem onoff ecEk ecCt0 ecCt1) := by
   intro _ s hs z hz
-  rcases hs with ⟨world, hInv⟩
+  rcases hs with ⟨T, hInv⟩
   cases hdk : s.stA.dkA with
   | none =>
       have hz' : ∃ pk sk,
@@ -304,7 +304,7 @@ lemma oracleSendA_preserves_reachableInv
         simpa [scheme, sendA, hdk] using hz
       obtain ⟨pk, sk, hmem, rfl⟩ := hz'
       exact reachableInv_after_sendA_new kem onoff ecEk ecCt0 ecCt1 hEkPos
-        s world hInv pk sk hmem hdk
+        s T hInv pk sk hmem hdk
   | some sk =>
       have hekSome : s.stA.ekA.isSome := by simpa [hdk] using hInv.keypairAShape
       obtain ⟨pk, hek⟩ := Option.isSome_iff_exists.mp hekSome
@@ -324,7 +324,7 @@ lemma oracleSendA_preserves_reachableInv
         simpa [scheme, sendA, hdk, hek] using hz
       subst z
       exact reachableInv_after_sendA_existing kem onoff ecEk ecCt0 ecCt1
-        s world hInv pk sk hek hdk
+        s T hInv pk sk hek hdk
 
 end SendA
 

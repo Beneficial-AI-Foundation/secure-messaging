@@ -14,7 +14,7 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect.Invariant
 message:
 
 * missing — the state is unchanged;
-* stale epoch — only A's receive cursor moves, monotonically;
+* stale epoch — only A's receive index moves, monotonically;
 * current epoch, no usable chunk — only the acknowledgement is processed;
 * current epoch, `ct₀` chunk — accumulated until decoding records the
   offline ciphertext;
@@ -39,7 +39,7 @@ section RecvA
 
 variable [DecidableEq Sym]
 
-/-- Receiving a stale B-to-A message only advances A's receive cursor and
+/-- Receiving a stale B-to-A message only advances A's receive index and
 preserves the existing transcript witness. -/
 private lemma reachableInv_after_recvA_stale
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
@@ -47,8 +47,8 @@ private lemma reachableInv_after_recvA_stale
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (world : ℕ → EpochTranscript kem onoff)
-    (hInv : WorldInv kem onoff ecEk ecCt0 ecCt1 world s)
+    (T : Transcript kem onoff)
+    (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
     (t : ℕ) (ht : t < s.stA.t) :
     reachableInv kem onoff ecEk ecCt0 ecCt1
       { s with
@@ -56,7 +56,7 @@ private lemma reachableInv_after_recvA_stale
         correct := s.correct && decide (t - 1 = t - 1) } := by
   have hrecv : t - 1 ≤ s.stA.t - 1 := by omega
   have hmax : max s.tcurA (t - 1) ≤ s.stA.t - 1 := max_le hInv.tcurA hrecv
-  refine ⟨world, ?_⟩
+  refine ⟨T, ?_⟩
   constructor
   · simp [hInv.correct]
   · exact hInv.epochs
@@ -92,14 +92,14 @@ private lemma reachableInv_after_recvA_same
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (world : ℕ → EpochTranscript kem onoff)
-    (hInv : WorldInv kem onoff ecEk ecCt0 ecCt1 world s)
+    (T : Transcript kem onoff)
+    (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
     (stA' : StA onoff Sym)
     (ht : stA'.t = s.stA.t) (hdk : stA'.dkA = s.stA.dkA)
     (hek : stA'.ekA = s.stA.ekA)
     (hdecoded : ∀ ct0, stA'.ct0 = some ct0 →
-      ∃ st, (world stA'.t).off = some (st, ct0))
-    (hchunks : ChunksA kem onoff ecCt0 ecCt1 world stA') :
+      ∃ st, (T stA'.t).off = some (st, ct0))
+    (hchunks : ChunksAConsistent kem onoff ecCt0 ecCt1 T stA') :
     reachableInv kem onoff ecEk ecCt0 ecCt1
       { s with
         stA := stA'
@@ -107,7 +107,7 @@ private lemma reachableInv_after_recvA_same
         correct := s.correct && decide (s.stA.t - 1 = s.stA.t - 1) } := by
   have htcur : max s.tcurA (s.stA.t - 1) = s.stA.t - 1 :=
     Nat.max_eq_right hInv.tcurA
-  refine ⟨world, ?_⟩
+  refine ⟨T, ?_⟩
   constructor
   · simp [hInv.correct]
   · simpa [ht] using hInv.epochs
@@ -194,10 +194,10 @@ private lemma reachableInv_after_recvA_advance
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (world : ℕ → EpochTranscript kem onoff)
-    (hInv : WorldInv kem onoff ecEk ecCt0 ecCt1 world s)
+    (T : Transcript kem onoff)
+    (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
     (key : K) (htAB : s.stA.t = s.stB.t)
-    (hkey : (world s.stA.t).key = some key) :
+    (hkey : (T s.stA.t).key = some key) :
     let stA' : StA onoff Sym :=
       { s.stA with
         dkA := none
@@ -243,15 +243,15 @@ private lemma reachableInv_after_recvA_advance
         rw [hkeyAt]
         simpa [ht0, hlt] using hk
       simpa [Function.update, hne, ht0] using hkeySome
-  have hkpNext : (world (s.stA.t + 1)).keypair = none :=
+  have hkpNext : (T (s.stA.t + 1)).keypair = none :=
     hInv.futureKeypair _ (by omega)
-  have hoffNext : (world (s.stA.t + 1)).off = none := by
+  have hoffNext : (T (s.stA.t + 1)).off = none := by
     apply hInv.futureOff
     omega
-  have honNext : (world (s.stA.t + 1)).on = none := by
+  have honNext : (T (s.stA.t + 1)).on = none := by
     apply hInv.futureOn
     omega
-  refine ⟨world, ?_⟩
+  refine ⟨T, ?_⟩
   constructor
   · simp [hInv.correct, hkeyAOld, hkeyBOld, hknown]
   · change s.stB.t ≤ s.stA.t + 1 ∧ s.stA.t + 1 ≤ s.stB.t + 1
@@ -270,7 +270,7 @@ private lemma reachableInv_after_recvA_advance
   · exact hInv.onB
   · exact hInv.decodedEk
   · simp
-  · simp [ChunksA, hoffNext]
+  · simp [ChunksAConsistent, hoffNext]
   · exact hInv.chunksB
   · intro t ht0 hlt
     rcases Nat.lt_succ_iff.mp hlt |>.lt_or_eq with hltOld | rfl
@@ -284,7 +284,7 @@ private lemma reachableInv_after_recvA_advance
   · intro t
     change Function.update s.keyA s.stA.t (some key) t =
       if t = 0 then none
-      else if t < s.stA.t + 1 then (world t).key else none
+      else if t < s.stA.t + 1 then (T t).key else none
     have hcur0 : s.stA.t ≠ 0 := Nat.ne_of_gt hInv.epochPosA
     by_cases ht : t = s.stA.t
     · subst t
@@ -308,15 +308,15 @@ private lemma reachableInv_after_recvA_advance
   · exact hInv.msgBEpoch
 
 /-- Processing a current-epoch message with no usable ciphertext chunk updates
-only A's acknowledgement and receive cursor while preserving reachability. -/
+only A's acknowledgement and receive index while preserving reachability. -/
 private lemma reachableInv_after_recvA_ackOnly
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (world : ℕ → EpochTranscript kem onoff)
-    (hInv : WorldInv kem onoff ecEk ecCt0 ecCt1 world s)
+    (T : Transcript kem onoff)
+    (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
     (ack : Ack) :
     let stA' := recvAAckStep kem onoff s.stA ack s.stA.t
     reachableInv kem onoff ecEk ecCt0 ecCt1
@@ -326,13 +326,13 @@ private lemma reachableInv_after_recvA_ackOnly
         correct := s.correct && decide (s.stA.t - 1 = s.stA.t - 1) } := by
   dsimp only
   apply reachableInv_after_recvA_same kem onoff ecEk ecCt0 ecCt1
-    s world hInv (recvAAckStep kem onoff s.stA ack s.stA.t)
+    s T hInv (recvAAckStep kem onoff s.stA ack s.stA.t)
   · simp
   · simp
   · simp
   · intro ct0 hct0
     simpa using hInv.decodedCt0 ct0 (by simpa using hct0)
-  · simpa [ChunksA] using hInv.chunksA
+  · simpa [ChunksAConsistent] using hInv.chunksA
 
 /-- Assuming correctness of the current KEM material, every result of A's
 receive oracle preserves the reachable transcript invariant. -/
@@ -354,14 +354,14 @@ lemma oracleRecvA_preserves_reachableInv_of_current
     (hz : z ∈ support
       ((SCKAScheme.oracleRecvA (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) n).run s)) :
     reachableInv kem onoff ecEk ecCt0 ecCt1 z.2 := by
-  rcases hs with ⟨world, hInv⟩
+  rcases hs with ⟨T, hInv⟩
   cases hentry : s.msgB n with
   | none =>
       have hz' : z = (none, s) := by
         simpa [SCKAScheme.oracleRecvA, hentry, StateT.run_bind, StateT.run_get,
           pure_bind] using hz
       subst z
-      exact ⟨world, hInv⟩
+      exact ⟨T, hInv⟩
   | some entry =>
       rcases entry with ⟨⟨ch?, ack, t, b?⟩, tsnd⟩
       have hhon := hInv.msgB n ((ch?, ack, t, b?), tsnd) hentry
@@ -387,7 +387,7 @@ lemma oracleRecvA_preserves_reachableInv_of_current
                 hentry, scheme, recvA, recvAAckStep, htsnd] using hz
             subst z
             exact reachableInv_after_recvA_ackOnly kem onoff ecEk ecCt0 ecCt1
-              s world hInv ack
+              s T hInv ack
         | some ch =>
           cases b? with
           | none =>
@@ -401,7 +401,7 @@ lemma oracleRecvA_preserves_reachableInv_of_current
                   hentry, scheme, recvA, recvAAckStep, htsnd] using hz
               subst z
               exact reachableInv_after_recvA_ackOnly kem onoff ecEk ecCt0 ecCt1
-                s world hInv ack
+                s T hInv ack
           | some b =>
             fin_cases b
             · cases hct0 : s.stA.ct0 with
@@ -417,16 +417,16 @@ lemma oracleRecvA_preserves_reachableInv_of_current
                       hentry, scheme, recvA, recvAAckStep, htsnd, hct0] using hz
                   subst z
                   exact reachableInv_after_recvA_ackOnly kem onoff ecEk ecCt0 ecCt1
-                    s world hInv ack
+                    s T hInv ack
               | none =>
                   obtain ⟨st, ct0, i, hoff, hch⟩ : ∃ st ct0 i,
-                      (world s.stA.t).off = some (st, ct0) ∧
+                      (T s.stA.t).off = some (st, ct0) ∧
                         ch = ecCt0.encode ct0 i := by
                     simpa [HonestMessageB, htsnd] using hhon
                   obtain ⟨I, hlch, hcard⟩ : ∃ I,
                       s.stA.lch = payloadChunks ecCt0 ct0 I ∧
                         I.card < ecCt0.ec.nchunk := by
-                    simpa [ChunksA, hct0, hoff] using hInv.chunksA
+                    simpa [ChunksAConsistent, hct0, hoff] using hInv.chunksA
                   have hstep := decode_insert_honest ecCt0 hCt0Correct ct0 I i hcard
                   rcases hstep with ⟨hcard', hdec⟩ | ⟨hcard', hdec⟩
                   · let stA0 : StA onoff Sym :=
@@ -444,13 +444,13 @@ lemma oracleRecvA_preserves_reachableInv_of_current
                         hlch, hdec, stA0, stA'] using hz
                     subst z
                     apply reachableInv_after_recvA_same kem onoff ecEk ecCt0 ecCt1
-                      s world hInv stA'
+                      s T hInv stA'
                     · simp [stA', stA0]
                     · simp [stA', stA0]
                     · simp [stA', stA0]
                     · intro ct0' hct0'
                       simp [stA', stA0] at hct0'
-                    · unfold ChunksA
+                    · unfold ChunksAConsistent
                       rw [show stA'.ct0 = none by
                         simp only [stA', recvAAckStep_ct0, stA0]]
                       rw [show stA'.t = s.stA.t by
@@ -477,7 +477,7 @@ lemma oracleRecvA_preserves_reachableInv_of_current
                         hlch, hdec, stA0, stA'] using hz
                     subst z
                     apply reachableInv_after_recvA_same kem onoff ecEk ecCt0 ecCt1
-                      s world hInv stA'
+                      s T hInv stA'
                     · simp [stA', stA0]
                     · simp [stA', stA0]
                     · simp [stA', stA0]
@@ -488,11 +488,11 @@ lemma oracleRecvA_preserves_reachableInv_of_current
                         exact hback.symm
                       subst ct0'
                       exact ⟨st, by simpa [stA', stA0] using hoff⟩
-                    · cases hon : (world s.stA.t).on with
-                      | none => simp [stA', stA0, ChunksA, hoff, hon]
+                    · cases hon : (T s.stA.t).on with
+                      | none => simp [stA', stA0, ChunksAConsistent, hoff, hon]
                       | some pair =>
                           rcases pair with ⟨ct1, key⟩
-                          unfold ChunksA
+                          unfold ChunksAConsistent
                           rw [show stA'.ct0 = some ct0 by
                             simp only [stA', recvAAckStep_ct0, stA0]]
                           rw [show stA'.t = s.stA.t by
@@ -514,7 +514,7 @@ lemma oracleRecvA_preserves_reachableInv_of_current
                       hentry, scheme, recvA, recvAAckStep, htsnd, hdk] using hz
                   subst z
                   exact reachableInv_after_recvA_ackOnly kem onoff ecEk ecCt0 ecCt1
-                    s world hInv ack
+                    s T hInv ack
               | some dk =>
                 cases hct0 : s.stA.ct0 with
                 | none =>
@@ -529,17 +529,17 @@ lemma oracleRecvA_preserves_reachableInv_of_current
                         hentry, scheme, recvA, recvAAckStep, htsnd, hdk, hct0] using hz
                     subst z
                     exact reachableInv_after_recvA_ackOnly kem onoff ecEk ecCt0 ecCt1
-                      s world hInv ack
+                      s T hInv ack
                 | some ct0 =>
                   obtain ⟨ct1, key, i, hon, hch⟩ : ∃ ct1 key i,
-                      (world s.stA.t).on = some (ct1, key) ∧
+                      (T s.stA.t).on = some (ct1, key) ∧
                         ch = ecCt1.encode ct1 i := by
                     simpa [HonestMessageB, htsnd] using hhon
                   obtain ⟨hoffWitness, I, hlch, hcard⟩ :
-                      (∃ st, (world s.stA.t).off = some (st, ct0)) ∧
+                      (∃ st, (T s.stA.t).off = some (st, ct0)) ∧
                       ∃ I, s.stA.lch = payloadChunks ecCt1 ct1 I ∧
                         I.card < ecCt1.ec.nchunk := by
-                    simpa [ChunksA, hct0, hon] using hInv.chunksA
+                    simpa [ChunksAConsistent, hct0, hon] using hInv.chunksA
                   obtain ⟨st, hoff⟩ := hoffWitness
                   have hstep := decode_insert_honest ecCt1 hCt1Correct ct1 I i hcard
                   rcases hstep with ⟨hcard', hdec⟩ | ⟨hcard', hdec⟩
@@ -558,7 +558,7 @@ lemma oracleRecvA_preserves_reachableInv_of_current
                         hch, hlch, hdec, stA0, stA'] using hz
                     subst z
                     apply reachableInv_after_recvA_same kem onoff ecEk ecCt0 ecCt1
-                      s world hInv stA'
+                      s T hInv stA'
                     · simp [stA', stA0]
                     · simp [stA', stA0]
                     · simp [stA', stA0]
@@ -569,7 +569,7 @@ lemma oracleRecvA_preserves_reachableInv_of_current
                         exact (Option.some.inj (hct0.symm.trans hold)).symm
                       subst ct0'
                       exact ⟨st, by simpa [stA', stA0] using hoff⟩
-                    · unfold ChunksA
+                    · unfold ChunksAConsistent
                       rw [show stA'.ct0 = some ct0 by
                         simp only [stA', recvAAckStep_ct0, stA0, hct0]]
                       rw [show stA'.t = s.stA.t by
@@ -586,7 +586,7 @@ lemma oracleRecvA_preserves_reachableInv_of_current
                       rw [hInv.keyB]
                       simp [EpochTranscript.key, hon]
                     have hdecaps := hCurrent dk ct0 ct1 key hdk hct0 hct1B hkeyB
-                    have hkey : (world s.stA.t).key = some key := by
+                    have hkey : (T s.stA.t).key = some key := by
                       simp [EpochTranscript.key, hon]
                     have hz' :
                         let stA' : StA onoff Sym :=
@@ -616,7 +616,7 @@ lemma oracleRecvA_preserves_reachableInv_of_current
                         hdec, hdecaps] using hz
                     subst z
                     exact reachableInv_after_recvA_advance kem onoff ecEk ecCt0 ecCt1
-                      s world hInv key htAB hkey
+                      s T hInv key htAB hkey
       · have htle : t ≤ s.stA.t := htbound.trans hInv.epochs.1
         have htlt : t < s.stA.t := by omega
         have hne : s.stA.t ≠ t := Ne.symm ht
@@ -629,11 +629,12 @@ lemma oracleRecvA_preserves_reachableInv_of_current
             hentry, scheme, recvA, ht, hne, htsnd] using hz
         subst z
         exact reachableInv_after_recvA_stale kem onoff ecEk ecCt0 ecCt1
-          s world hInv t htlt
+          s T hInv t htlt
 
-/-- Perfect KEM correctness discharges the current-material assumption, so the
-full A-receive query implementation preserves `reachableInv`. This lemma is
-public because the parent `Perfect` module composes it with the other oracles. -/
+/-- If `kem` is perfectly correct, then A's receive query implementation
+preserves `reachableInv`. For each reachable state, `currentKEMCorrect_of_perfect`
+establishes the `CurrentKEMCorrect` premise required by
+`oracleRecvA_preserves_reachableInv_of_current`. -/
 lemma oracleRecvA_preserves_reachableInv
     [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)

@@ -13,7 +13,7 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect.Invariant
 `reachableInv` for every recorded A-to-B message.  Cases, by the delivered
 message's epoch:
 
-* stale — only B's receive cursor moves;
+* stale — only B's receive index moves;
 * current — insert an honest public-key chunk, propagate the
   acknowledgement;
 * next — reset B's epoch-local state, then insert and acknowledge as in
@@ -119,16 +119,16 @@ private lemma chunksB_recvBEkStep
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (hcorrect : ecEk.ec.Correct)
     (hEkPos : 0 < ecEk.ec.nchunk)
-    (world : ℕ → EpochTranscript kem onoff) (stB : StB onoff Sym)
+    (T : Transcript kem onoff) (stB : StB onoff Sym)
     (ch? : Option (ℕ × Sym))
-    (hchunks : ChunksB kem onoff ecEk world stB)
+    (hchunks : ChunksBConsistent kem onoff ecEk T stB)
     (hmsg : ∀ ch, ch? = some ch → ∃ pk sk i,
-      (world stB.t).keypair = some (pk, sk) ∧ ch = ecEk.encode pk i) :
-    ChunksB kem onoff ecEk world (recvBEkStep kem onoff ecEk stB ch?) := by
-  cases htr : (world stB.t).keypair with
+      (T stB.t).keypair = some (pk, sk) ∧ ch = ecEk.encode pk i) :
+    ChunksBConsistent kem onoff ecEk T (recvBEkStep kem onoff ecEk stB ch?) := by
+  cases htr : (T stB.t).keypair with
   | none =>
       have hs : stB.ekA = none ∧ stB.lch = ∅ := by
-        simpa [ChunksB, htr] using hchunks
+        simpa [ChunksBConsistent, htr] using hchunks
       rcases hs with ⟨hek, hlch⟩
       cases ch? with
       | none =>
@@ -144,7 +144,7 @@ private lemma chunksB_recvBEkStep
                   simp [payloadChunks, hencempty]
                 rw [hempty, hd] at this
                 contradiction
-          simp [recvBEkStep, hek, hlch, hdec, ChunksB, htr]
+          simp [recvBEkStep, hek, hlch, hdec, ChunksBConsistent, htr]
       | some ch =>
           obtain ⟨pk, sk, i, hkp, _⟩ := hmsg ch rfl
           rw [htr] at hkp
@@ -153,11 +153,11 @@ private lemma chunksB_recvBEkStep
       rcases pair with ⟨pk, sk⟩
       cases hek : stB.ekA with
       | some pk' =>
-          simpa [recvBEkStep, hek, ChunksB, htr] using hchunks
+          simpa [recvBEkStep, hek, ChunksBConsistent, htr] using hchunks
       | none =>
           obtain ⟨I, hlch, hcard⟩ : ∃ I,
               stB.lch = payloadChunks ecEk pk I ∧ I.card < ecEk.ec.nchunk := by
-            simpa [ChunksB, htr, hek] using hchunks
+            simpa [ChunksBConsistent, htr, hek] using hchunks
           cases ch? with
           | none =>
               have hdec := decode_payloadChunks_none ecEk hcorrect pk I hcard
@@ -168,7 +168,7 @@ private lemma chunksB_recvBEkStep
                   (recvBEkStep kem onoff ecEk stB none).lch =
                     payloadChunks ecEk pk I := by
                 simp [recvBEkStep, hek, hlch]
-              unfold ChunksB
+              unfold ChunksBConsistent
               rw [recvBEkStep_t, htr, hstepEk]
               exact ⟨I, hstepLch, hcard⟩
           | some ch =>
@@ -194,7 +194,7 @@ private lemma chunksB_recvBEkStep
                     _ = insert (ecEk.encode pk i) (payloadChunks ecEk pk I) := by
                       rw [hlch]
                     _ = _ := insert_payloadChunks ecEk pk I i
-                unfold ChunksB
+                unfold ChunksBConsistent
                 rw [recvBEkStep_t, htr, hstepEk]
                 exact ⟨insert (counterIndex ecEk i) I, hstepLch, hlt⟩
               · have hstepEk :
@@ -211,26 +211,26 @@ private lemma chunksB_recvBEkStep
                     _ = insert (ecEk.encode pk i) (payloadChunks ecEk pk I) := by
                       rw [hlch]
                     _ = _ := insert_payloadChunks ecEk pk I i
-                unfold ChunksB
+                unfold ChunksBConsistent
                 rw [recvBEkStep_t, htr, hstepEk]
                 exact ⟨rfl, insert (counterIndex ecEk i) I, hstepLch, heq⟩
 
 /-- A public key decoded from an honest B-side chunk buffer belongs to the
 current epoch transcript. -/
-private lemma ChunksB.decodedEk
+private lemma ChunksBConsistent.decodedEk
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
-    (world : ℕ → EpochTranscript kem onoff) (stB : StB onoff Sym)
-    (hchunks : ChunksB kem onoff ecEk world stB) :
-    ∀ pk, stB.ekA = some pk → ∃ sk, (world stB.t).keypair = some (pk, sk) := by
+    (T : Transcript kem onoff) (stB : StB onoff Sym)
+    (hchunks : ChunksBConsistent kem onoff ecEk T stB) :
+    ∀ pk, stB.ekA = some pk → ∃ sk, (T stB.t).keypair = some (pk, sk) := by
   intro pk hpk
-  cases htr : (world stB.t).keypair with
-  | none => simp [ChunksB, htr, hpk] at hchunks
+  cases htr : (T stB.t).keypair with
+  | none => simp [ChunksBConsistent, htr, hpk] at hchunks
   | some pair =>
       rcases pair with ⟨pk', sk⟩
       have hc : pk = pk' ∧ ∃ I,
           stB.lch = payloadChunks ecEk pk' I ∧ I.card = ecEk.ec.nchunk := by
-        simpa [ChunksB, htr, hpk] using hchunks
+        simpa [ChunksBConsistent, htr, hpk] using hchunks
       have : pk = pk' := hc.1
       subst pk'
       exact ⟨sk, rfl⟩
@@ -244,10 +244,10 @@ private lemma reachableInv_after_recvB_current
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (world : ℕ → EpochTranscript kem onoff)
-    (hInv : WorldInv kem onoff ecEk ecCt0 ecCt1 world s)
+    (T : Transcript kem onoff)
+    (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
     (ch? : Option (ℕ × Sym)) (ack : Ack) (b? : Option Bit)
-    (hmsg : HonestMessageA kem onoff ecEk world
+    (hmsg : HonestMessageA kem onoff ecEk T
       ((ch?, ack, s.stB.t, b?), s.stB.t - 1)) :
     let stB' := recvBAckStep kem onoff
       (recvBEkStep kem onoff ecEk s.stB ch?) ack s.stB.t
@@ -258,21 +258,21 @@ private lemma reachableInv_after_recvB_current
         correct := s.correct && decide (s.stB.t - 1 = s.stB.t - 1) } := by
   dsimp only
   have hchunkMsg : ∀ ch, ch? = some ch → ∃ pk sk i,
-      (world s.stB.t).keypair = some (pk, sk) ∧ ch = ecEk.encode pk i := by
+      (T s.stB.t).keypair = some (pk, sk) ∧ ch = ecEk.encode pk i := by
     intro ch hch
     subst ch?
     simpa [HonestMessageA] using hmsg.2.2
   have hchunks := chunksB_recvBEkStep kem onoff ecEk hcorrect hEkPos
-    world s.stB ch? hInv.chunksB hchunkMsg
+    T s.stB ch? hInv.chunksB hchunkMsg
   let stB0 := recvBEkStep kem onoff ecEk s.stB ch?
   let stB' := recvBAckStep kem onoff stB0 ack s.stB.t
   have htB0 : stB0.t = s.stB.t := by simp [stB0]
   have htB' : stB'.t = s.stB.t := by simp [stB', htB0]
-  have hchunks' : ChunksB kem onoff ecEk world stB' := by
+  have hchunks' : ChunksBConsistent kem onoff ecEk T stB' := by
     by_cases hack : ack.ctRec && stB0.t == s.stB.t
     · simpa [stB', recvBAckStep, hack] using hchunks
     · simpa [stB', recvBAckStep, hack] using hchunks
-  refine ⟨world, ?_⟩
+  refine ⟨T, ?_⟩
   constructor
   · simp [hInv.correct]
   · rw [htB']
@@ -286,7 +286,7 @@ private lemma reachableInv_after_recvB_current
   · exact hInv.keypairA
   · simpa [stB', stB0, htB'] using hInv.offB
   · simpa [stB', stB0, htB'] using hInv.onB
-  · exact ChunksB.decodedEk kem onoff ecEk world stB' hchunks'
+  · exact ChunksBConsistent.decodedEk kem onoff ecEk T stB' hchunks'
   · exact hInv.decodedCt0
   · exact hInv.chunksA
   · exact hchunks'
@@ -301,7 +301,7 @@ private lemma reachableInv_after_recvB_current
   · exact hInv.msgAEpoch
   · simpa [htB'] using hInv.msgBEpoch
 
-/-- Delivering a stale A-to-B message changes only B's receive cursor and
+/-- Delivering a stale A-to-B message changes only B's receive index and
 preserves `reachableInv`. -/
 private lemma reachableInv_after_recvB_stale
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
@@ -309,8 +309,8 @@ private lemma reachableInv_after_recvB_stale
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (world : ℕ → EpochTranscript kem onoff)
-    (hInv : WorldInv kem onoff ecEk ecCt0 ecCt1 world s)
+    (T : Transcript kem onoff)
+    (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
     (t : ℕ) (ht : t < s.stB.t) :
     reachableInv kem onoff ecEk ecCt0 ecCt1
       { s with
@@ -319,7 +319,7 @@ private lemma reachableInv_after_recvB_stale
   have hrecv : t - 1 ≤ s.stB.t - 1 := by omega
   have hmax : max s.tcurB (t - 1) ≤ s.stB.t - 1 :=
     max_le hInv.tcurB hrecv
-  refine ⟨world, ?_⟩
+  refine ⟨T, ?_⟩
   constructor
   · simp [hInv.correct]
   · exact hInv.epochs
@@ -370,11 +370,11 @@ private lemma reachableInv_after_recvB_next
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (world : ℕ → EpochTranscript kem onoff)
-    (hInv : WorldInv kem onoff ecEk ecCt0 ecCt1 world s)
+    (T : Transcript kem onoff)
+    (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
     (ch? : Option (ℕ × Sym)) (ack : Ack) (t : ℕ) (b? : Option Bit)
     (ht : t = s.stB.t + 1) (htA : s.stA.t = t)
-    (hmsg : HonestMessageA kem onoff ecEk world ((ch?, ack, t, b?), t - 1)) :
+    (hmsg : HonestMessageA kem onoff ecEk T ((ch?, ack, t, b?), t - 1)) :
     let base := recvBNextBase kem onoff s.stB
     let stB' := recvBAckStep kem onoff
       (recvBEkStep kem onoff ecEk base ch?) ack t
@@ -386,17 +386,17 @@ private lemma reachableInv_after_recvB_next
   dsimp only
   let base := recvBNextBase kem onoff s.stB
   have hbaseT : base.t = t := by simp [base, recvBNextBase, ht]
-  have hoff : (world t).off = none := hInv.futureOff t (by omega)
-  have hon : (world t).on = none := hInv.futureOn t (by omega)
-  have hbaseChunks : ChunksB kem onoff ecEk world base := by
-    cases hkp : (world t).keypair with
+  have hoff : (T t).off = none := hInv.futureOff t (by omega)
+  have hon : (T t).on = none := hInv.futureOn t (by omega)
+  have hbaseChunks : ChunksBConsistent kem onoff ecEk T base := by
+    cases hkp : (T t).keypair with
     | none =>
-        unfold ChunksB
+        unfold ChunksBConsistent
         rw [hbaseT, hkp]
         simp [base, recvBNextBase]
     | some pair =>
         rcases pair with ⟨pk, sk⟩
-        unfold ChunksB
+        unfold ChunksBConsistent
         rw [hbaseT, hkp]
         have hbaseEk : base.ekA = none := by
           simp [base, recvBNextBase]
@@ -404,25 +404,25 @@ private lemma reachableInv_after_recvB_next
         refine ⟨∅, ?_, hEkPos⟩
         simp [base, recvBNextBase, payloadChunks, ErasureCode.encodeChunks]
   have hchunkMsg : ∀ ch, ch? = some ch → ∃ pk sk i,
-      (world t).keypair = some (pk, sk) ∧ ch = ecEk.encode pk i := by
+      (T t).keypair = some (pk, sk) ∧ ch = ecEk.encode pk i := by
     intro ch hch
     subst ch?
     simpa [HonestMessageA] using hmsg.2.2
   have hchunks0 := chunksB_recvBEkStep kem onoff ecEk hcorrect hEkPos
-    world base ch? hbaseChunks (by
+    T base ch? hbaseChunks (by
       intro ch hch
       simpa [hbaseT] using hchunkMsg ch hch)
   let stB0 := recvBEkStep kem onoff ecEk base ch?
   let stB' := recvBAckStep kem onoff stB0 ack t
   have htB' : stB'.t = t := by simp [stB', stB0, hbaseT]
-  have hchunks' : ChunksB kem onoff ecEk world stB' := by
+  have hchunks' : ChunksBConsistent kem onoff ecEk T stB' := by
     by_cases hack : ack.ctRec && stB0.t == t
     · simpa [stB', recvBAckStep, hack] using hchunks0
     · simpa [stB', recvBAckStep, hack] using hchunks0
   have htcur : max s.tcurB (t - 1) = t - 1 := by
     apply Nat.max_eq_right
     exact hInv.tcurB.trans (by omega)
-  refine ⟨world, ?_⟩
+  refine ⟨T, ?_⟩
   constructor
   · simp [hInv.correct]
   · change stB'.t ≤ s.stA.t ∧ s.stA.t ≤ stB'.t + 1
@@ -436,13 +436,13 @@ private lemma reachableInv_after_recvB_next
   · exact hInv.keypairAShape
   · simp [recvBNextBase]
   · simpa [htA] using hInv.keypairA
-  · change (world stB'.t).off = optionPair stB'.stCt stB'.ct0
+  · change (T stB'.t).off = optionPair stB'.stCt stB'.ct0
     rw [htB']
     simp [stB', stB0, base, recvBNextBase, hoff]
-  · change (world stB'.t).on.map Prod.fst = stB'.ct1
+  · change (T stB'.t).on.map Prod.fst = stB'.ct1
     rw [htB']
     simp [stB', stB0, base, recvBNextBase, hon]
-  · exact ChunksB.decodedEk kem onoff ecEk world stB' hchunks'
+  · exact ChunksBConsistent.decodedEk kem onoff ecEk T stB' hchunks'
   · exact hInv.decodedCt0
   · exact hInv.chunksA
   · exact hchunks'
@@ -481,14 +481,14 @@ lemma oracleRecvB_preserves_reachableInv
       (SCKAScheme.oracleRecvB (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak))
       (reachableInv kem onoff ecEk ecCt0 ecCt1) := by
   intro n s hs z hz
-  rcases hs with ⟨world, hInv⟩
+  rcases hs with ⟨T, hInv⟩
   cases hentry : s.msgA n with
   | none =>
       have hz' : z = (none, s) := by
         simpa [SCKAScheme.oracleRecvB, hentry, StateT.run_bind, StateT.run_get,
           pure_bind] using hz
       subst z
-      exact ⟨world, hInv⟩
+      exact ⟨T, hInv⟩
   | some entry =>
       rcases entry with ⟨⟨ch?, ack, t, b?⟩, tsnd⟩
       have hhon := hInv.msgA n ((ch?, ack, t, b?), tsnd) hentry
@@ -509,7 +509,7 @@ lemma oracleRecvB_preserves_reachableInv
             scheme, recvB, htsnd, Nat.not_lt_of_ge (Nat.le_of_lt ht), hne] using hz
         subst z
         exact reachableInv_after_recvB_stale kem onoff ecEk ecCt0 ecCt1
-          s world hInv t ht
+          s T hInv t ht
       · subst t
         have hz' :
             let stB' := recvBAckStep kem onoff
@@ -523,7 +523,7 @@ lemma oracleRecvB_preserves_reachableInv
             scheme, recvB, recvBEkStep, recvBAckStep, htsnd] using hz
         subst z
         exact reachableInv_after_recvB_current kem onoff ecEk hcorrect hEkPos
-          ecCt0 ecCt1 s world hInv ch? ack b? (by simpa [htsnd] using hhon)
+          ecCt0 ecCt1 s T hInv ch? ack b? (by simpa [htsnd] using hhon)
       · have htNext : t = s.stB.t + 1 := by
           have := hInv.epochs.2
           omega
@@ -545,7 +545,7 @@ lemma oracleRecvB_preserves_reachableInv
             htsnd, ht, htNext] using hz
         subst z
         exact reachableInv_after_recvB_next kem onoff ecEk hcorrect hEkPos
-          ecCt0 ecCt1 s world hInv ch? ack t b? htNext htA (by simpa [htsnd] using hhon)
+          ecCt0 ecCt1 s T hInv ch? ack t b? htNext htA (by simpa [htsnd] using hhon)
 
 end RecvB
 

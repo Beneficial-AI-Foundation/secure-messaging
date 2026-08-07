@@ -9,42 +9,69 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Composition
 /-!
 # Opp-UniKEM-CKA — Reduction to KEM Correctness
 
-Main results, for `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak`,
-`G(Adv) := SCKAScheme.correctnessExp Π Adv`, `ε := kem.correctnessError`,
-and
-correct erasure codes with positive reconstruction thresholds:
+Let:
 
-* `correctness_failure_le_reduction` — for at most `q` send queries
-  (`SendQueryBound Adv q`), `Pr[G(Adv) = false] ≤ q · ε`;
-* `correctness_true_ge_reduction` — equivalently,
-  `Pr[G(Adv) = true] ≥ 1 - q · ε`;
-* `correctness_failure_le_of_sendBFailureBound` — the analogous bound from
-  stepwise premises (`SendBFailureBound`, `NonSendBPreservesCurrent`,
-  `SendBQueryBound`).
+* `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` — the Opp-UniKEM-CKA
+  protocol as an `SCKAScheme` (`OppUniKEM.Construction`), given correct
+  erasure codes with positive reconstruction thresholds;
+* `G(Adv) := SCKAScheme.correctnessExp Π Adv` - the outcome of the correctness experiment
+  for an adversary `Adv`;
+* `ε := kem.correctnessError`.
 
-Abbreviate `join := onoff.split⁻¹` and
-`Run o s := ((SCKAScheme.sckaCorrectnessImpl Π) o).run s`.  In the proof,
-`ε` is computed as `factorCorrectnessError kem onoff hDet`, which equals
-`kem.correctnessError` (`factorCorrectnessError_eq`).
+## Main results
 
-## Tracked game
+If the adversary `Adv` makes at most `q` send queries (`SendQueryBound Adv q`), then
 
-* `bad s` (`currentKEMFailure`) — `true` iff `s.stA.t = s.stB.t` and the
-  current epoch has completed inconsistently:
-  `s.stA.dkA = some sk`, `s.stB.ct0 = some ct₀`, `s.stB.ct1 = some ct₁`,
-  `s.keyB s.stB.t = some k`, and
-  `hDet.decapsDet sk (join (ct₀, ct₁)) ≠ some k`.
-* `Ô` (`trackedCorrectnessImpl`) — the game extended with a Boolean that
-  stays `true` once set:
-  `Ô o (s, b) := do (r, s') ← Run o s; return (r, (s', b ∨ bad s'))`.
-* `J` (`trackedInv`) —
-  `J (s, b) := b = true ∨ (reachableInv s ∧ bad s = false)`.
+* `correctness_failure_le_reduction`: `Pr[G(Adv) = false] ≤ q · ε`;
+* `correctness_true_ge_reduction`: `Pr[G(Adv) = true] ≥ 1 - q · ε`.
 
-## Failure probabilities
+The proof is split in modules as follows.
 
-With the conditional errors `χ`, `φ`, `ψ` of `Correctness.KEM`, associate to
-a tracked state the probability that it has already failed, or that its
-epoch in progress completes inconsistently:
+## Tracked game (`Reduction.Core`, `Reduction.Projection`)
+
+We define a *tracked game* whose states are pairs `(s, b)`: a
+correctness-game state `s` together with a Boolean `b` recording whether a
+KEM failure has occurred so far.
+
+* `bad s := currentKEMFailure kem onoff hDet s` — a Boolean on
+  correctness-game states: `true` exactly when both parties are in the
+  same epoch and the completed KEM material is inconsistent:
+
+  ```text
+  join := onoff.split.symm     (a KEM ciphertext from its two components)
+
+  s.stA.dkA          = some sk
+  s.stB.ct0          = some ct₀
+  s.stB.ct1          = some ct₁
+  s.keyB s.stB.t     = some k
+  decaps sk (join (ct₀, ct₁)) ≠ some k
+  ```
+
+* `Ô := trackedCorrectnessImpl` — the tracked game's oracle
+  implementation: it answers one query in the original game and updates
+  the bit:
+
+  ```text
+  Run o s := ((SCKAScheme.sckaCorrectnessImpl Π) o).run s
+
+  Ô o (s, b) := do
+    (r, s') ← Run o s
+    return (r, (s', b ∨ bad s'))
+  ```
+
+* `J := trackedInv` — the invariant of tracked states: either a failure
+  has been recorded, or the state is reachable (`reachableInv`, from
+  `Correctness.Perfect`) and its current KEM material is consistent:
+
+  ```text
+  J (s, b) := b = true ∨ (reachableInv s ∧ bad s = false)
+  ```
+
+## Failure probabilities (`Reduction.Core`)
+
+With the conditional errors `χ`, `φ`, `ψ` defined in `Correctness.KEM`,
+associate to a tracked state the probability that it has already failed, or
+that its epoch in progress completes inconsistently:
 
 ```text
 V s := 0                     no sample drawn, or epoch completed
@@ -56,12 +83,11 @@ S (s, b) := if b then 1 else V s
 E_X[f]   := Pr[X = ⊥] + Σ x, Pr[X = x] · f x
 ```
 
-(`currentFailurePotential`, `trackedFailureScore`, `expectedPayoff`).  The
-epoch in progress reads A's key pair, and B's offline sample when
-`s.stA.t = s.stB.t`; when `s.stA.t = s.stB.t + 1`, B's material belongs to
-the completed previous epoch and is ignored.
+(`currentFailurePotential`, `trackedFailureScore`, `expectedPayoff`).
+`V` reads B's offline sample only while `s.stA.t = s.stB.t`; when A is one
+epoch ahead, B's material belongs to the completed epoch and is ignored.
 
-## One step
+## One step (`Reduction.Send`, `Reduction.Receive`, `Reduction.OneStep`)
 
 For every oracle `o` and every `(s, b)` with `J (s, b)`:
 
@@ -75,10 +101,9 @@ Drawing the epoch's first sample turns `V = 0` into expectation at most `ε`
 (the averaging identities of `Correctness.KEM`); drawing the other
 first-stage sample has expectation exactly `V`; drawing the online sample
 completes the epoch, setting `b' = bad s'` with expectation `χ = V` and
-`V s' = 0`.  Receive oracles move no KEM material; their cases are proved
-for every message index.
+`V s' = 0`.  Receive oracles move no KEM material.
 
-## Composition
+## Composition (`Reduction.Composition`, this module)
 
 1. `tracked_score_adversary_le` — induction over the adversary's query
    tree: `J (s, b)` and at most `q` sends give
@@ -88,15 +113,18 @@ for every message index.
    `S = 1`.  Hence `Pr[G(Adv) = false] ≤ q · ε`, and
    `Pr[G(Adv) = true] ≥ 1 - q · ε` follows since `G(Adv)` is total.
 
-## Stepwise interface
+The proofs state the bound with `factorCorrectnessError kem onoff hDet` and
+rewrite it as `kem.correctnessError` by `factorCorrectnessError_eq`
+(`Correctness.KEM`).
+
+## Stepwise interface (`Reduction.Composition`)
 
 `correctness_failure_le_of_sendBFailureBound` replaces the conditional
-errors by two premises:
-`SendBFailureBound δ` — from a state with consistent current KEM material,
-one `SendB` call sets `bad` with probability at most `δ` — and
-`NonSendBPreservesCurrent` — no other oracle can set `bad`.  It bounds
-`Pr[G(Adv) = false] ≤ q · δ` for at most `q` `SendB` queries
-(`SendBQueryBound Adv q`).
+errors by two premises — `SendBFailureBound δ`: from a state with
+consistent current KEM material, one `SendB` call sets `bad` with
+probability at most `δ`; `NonSendBPreservesCurrent`: no other oracle sets
+`bad` — and bounds `Pr[G(Adv) = false] ≤ q · δ` for at most `q` `SendB`
+queries (`SendBQueryBound Adv q`).
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
@@ -178,8 +206,8 @@ theorem correctness_failure_le_reduction [DecidableEq K]
         (s₀, false) hinit z hz
     rcases hzInv with hbad | ⟨hreach, _hcurrent⟩
     · exact hbad
-    · rcases hreach with ⟨_world, hWorld⟩
-      simp [hWorld.correct] at hincorrect
+    · rcases hreach with ⟨_T, hConsistent⟩
+      simp [hConsistent.correct] at hincorrect
   calc
     Pr[= false |
         SCKAScheme.correctnessExp
