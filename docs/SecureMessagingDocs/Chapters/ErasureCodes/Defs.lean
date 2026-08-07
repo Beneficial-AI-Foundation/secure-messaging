@@ -3,7 +3,7 @@ import VersoBlueprint
 import SecureMessagingDocs.Visuals.Notation
 import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
-import SecureMessaging.ErasureCode.Defs
+import SecureMessaging.ErasureCode.Streaming
 
 set_option linter.style.setOption false
 set_option linter.hashCommand false
@@ -49,6 +49,111 @@ structure ErasureCode (Sym : Type) where
 ```
 
 {githubLabel}`github` {githubIssue 190}[]
+::::
+
+:::defTitle "erasure_code_payload" "Erasure-code payload"
+:::
+
+::::definition "erasure_code_payload" (parent := "erasure_codes") (lean := "ErasureCodePayload")
+$`\todo`
+
+:::leanPillCaption "payload serialization and parsing"
+:::
+
+```anchor ErasureCodePayload (project := ".") (module := SecureMessaging.ErasureCode.Defs)
+structure ErasureCodePayload (M Sym : Type) where
+  /-- The erasure code used for this payload type. -/
+  ec : ErasureCode Sym
+  /-- Serialize a payload as the `nchunk`-symbol message consumed by `ec.encode`. -/
+  serialize : M → Fin ec.nchunk → Sym
+  /-- Parse a decoded `nchunk`-symbol message as a payload, or fail. -/
+  parse : (Fin ec.nchunk → Sym) → Option M
+  /-- Parsing a serialized payload recovers the original payload. -/
+  parse_serialize : ∀ payload, parse (serialize payload) = some payload
+```
+
+{usesLabel}`uses` {uses "erasure_code_scheme"}[] · {githubLabel}`github` {githubIssue 251}[]
+::::
+
+:::defTitle "erasure_code_streaming" "Stateful erasure-code streaming"
+:::
+
+::::definition "erasure_code_streaming" (parent := "erasure_codes") (lean := "ErasureCodePayload.Streaming.EncoderState, ErasureCodePayload.Streaming.EncoderState.init, ErasureCodePayload.Streaming.EncoderState.nextChunk, ErasureCodePayload.Streaming.DecoderState, ErasureCodePayload.Streaming.DecoderState.empty, ErasureCodePayload.Streaming.DecoderState.addChunk, ErasureCodePayload.Streaming.DecoderState.decodedPayload, ErasureCodePayload.Streaming.DecoderState.hasMessage")
+$`\todo`
+
+:::leanPillCaption "encoder state"
+:::
+
+```anchor ErasureCodePayload_Streaming_EncoderState (project := ".") (module := SecureMessaging.ErasureCode.Streaming)
+structure EncoderState (M : Type) where
+  /-- The fixed payload encoded by this stream. -/
+  payload : M
+  /-- The natural-number counter used for the next emitted chunk. -/
+  nextIndex : ℕ
+```
+
+:::leanPillCaption "encoder initialization"
+:::
+
+```anchor ErasureCodePayload_Streaming_EncoderState_init (project := ".") (module := SecureMessaging.ErasureCode.Streaming)
+def init (payload : M) : EncoderState M :=
+  { payload, nextIndex := 0 }
+```
+
+:::leanPillCaption "emit the next indexed chunk"
+:::
+
+```anchor ErasureCodePayload_Streaming_EncoderState_nextChunk (project := ".") (module := SecureMessaging.ErasureCode.Streaming)
+def nextChunk (ecp : ErasureCodePayload M Sym) (state : EncoderState M) :
+    (ℕ × Sym) × EncoderState M :=
+  (ecp.encode state.payload state.nextIndex,
+    { state with nextIndex := state.nextIndex + 1 })
+```
+
+:::leanPillCaption "decoder state"
+:::
+
+```anchor ErasureCodePayload_Streaming_DecoderState (project := ".") (module := SecureMessaging.ErasureCode.Streaming)
+structure DecoderState (Sym : Type) where
+  /-- Indexed chunks retained by the decoder, with at most one symbol per index for
+  states reachable from `empty` through `addChunk`. -/
+  chunks : Finset (ℕ × Sym)
+```
+
+:::leanPillCaption "empty decoder"
+:::
+
+```anchor ErasureCodePayload_Streaming_DecoderState_empty (project := ".") (module := SecureMessaging.ErasureCode.Streaming)
+def empty : DecoderState Sym :=
+  { chunks := ∅ }
+```
+
+:::leanPillCaption "first-wins chunk insertion"
+:::
+
+```anchor ErasureCodePayload_Streaming_DecoderState_addChunk (project := ".") (module := SecureMessaging.ErasureCode.Streaming)
+def addChunk [DecidableEq Sym] (state : DecoderState Sym) (chunk : ℕ × Sym) :
+    DecoderState Sym :=
+  if state.HasIndex chunk.1 then state else { chunks := insert chunk state.chunks }
+```
+
+:::leanPillCaption "decode the accumulated chunks"
+:::
+
+```anchor ErasureCodePayload_Streaming_DecoderState_decodedPayload (project := ".") (module := SecureMessaging.ErasureCode.Streaming)
+def decodedPayload (ecp : ErasureCodePayload M Sym) (state : DecoderState Sym) : Option M :=
+  ecp.decode state.chunks
+```
+
+:::leanPillCaption "decoding readiness"
+:::
+
+```anchor ErasureCodePayload_Streaming_DecoderState_hasMessage (project := ".") (module := SecureMessaging.ErasureCode.Streaming)
+def hasMessage (ecp : ErasureCodePayload M Sym) (state : DecoderState Sym) : Bool :=
+  (state.decodedPayload ecp).isSome
+```
+
+{usesLabel}`uses` {uses "erasure_code_payload"}[] · {githubLabel}`github` {githubIssue 251}[]
 ::::
 
 :::defTitle "erasure_code_correctness" "Erasure code correctness"
