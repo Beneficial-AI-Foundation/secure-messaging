@@ -87,7 +87,8 @@ def empty : DecoderState Sym :=
   { chunks := ∅ }
 
 /-- Add a chunk unless its index is already present. The first symbol received at an
-index is retained, so exact duplicates are harmless and later conflicts are ignored. -/
+index is retained, so exact duplicates are harmless and later conflicts are ignored.
+Streaming guarantees here are erasure-only and assume honest, in-range chunk indices. -/
 def addChunk [DecidableEq Sym] (state : DecoderState Sym) (chunk : ℕ × Sym) :
     DecoderState Sym :=
   if state.HasIndex chunk.1 then state else { chunks := insert chunk state.chunks }

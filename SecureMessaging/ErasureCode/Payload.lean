@@ -67,56 +67,6 @@ theorem payloadChunks_valid {M : Type}
   obtain ⟨bounded, _, rfl⟩ := hchunk
   exact bounded.1.isLt
 
-/-- Convert a natural chunk index back to a bounded index using `payloadChunks_valid`. -/
-def chunkToFin {M : Type}
-    (ecp : ErasureCodePayload M Sym) (payload : M)
-    (I : Finset (Fin ecp.ec.N)) :
-    {chunk // chunk ∈ payloadChunks ecp payload I} ↪ (Fin ecp.ec.N × Sym) where
-  toFun chunk :=
-    (⟨chunk.1.1, payloadChunks_valid ecp payload I chunk.1 chunk.2⟩, chunk.1.2)
-  inj' := by
-    intro a b hab
-    apply Subtype.ext
-    exact Prod.ext
-      (congrArg (fun chunk : Fin ecp.ec.N × Sym => chunk.1.val) hab)
-      (congrArg (fun chunk : Fin ecp.ec.N × Sym => chunk.2) hab)
-
-omit [DecidableEq Sym] in
-/-- Mapping `payloadChunks` back to bounded indices recovers the original chunk set. -/
-theorem payloadChunks_roundtrip {M : Type}
-    (ecp : ErasureCodePayload M Sym) (payload : M)
-    (I : Finset (Fin ecp.ec.N)) :
-    (payloadChunks ecp payload I).attach.map (chunkToFin ecp payload I) =
-      ecp.ec.encodeChunks (ecp.serialize payload) I := by
-  classical
-  apply Finset.ext
-  intro chunk
-  constructor
-  · intro hchunk
-    rw [Finset.mem_map] at hchunk
-    obtain ⟨natChunk, _, hnatChunk⟩ := hchunk
-    have hmem := natChunk.property
-    change natChunk.1 ∈
-      (ecp.ec.encodeChunks (ecp.serialize payload) I).map ErasureCode.chunkToNat at hmem
-    rw [Finset.mem_map] at hmem
-    obtain ⟨bounded, hbounded, hboundedEq⟩ := hmem
-    have hback : chunkToFin ecp payload I natChunk = bounded := by
-      apply Prod.ext
-      · apply Fin.ext
-        exact (congrArg Prod.fst hboundedEq).symm
-      · exact (congrArg Prod.snd hboundedEq).symm
-    rw [← hnatChunk, hback]
-    exact hbounded
-  · intro hchunk
-    have hnat : ErasureCode.chunkToNat chunk ∈ payloadChunks ecp payload I := by
-      rw [payloadChunks, Finset.mem_map]
-      exact ⟨chunk, hchunk, rfl⟩
-    let natChunk : {chunk // chunk ∈ payloadChunks ecp payload I} :=
-      ⟨ErasureCode.chunkToNat chunk, hnat⟩
-    rw [Finset.mem_map]
-    refine ⟨natChunk, by simp, ?_⟩
-    exact Prod.ext (Fin.ext rfl) rfl
-
 omit [DecidableEq Sym] in
 /-- Mapping `payloadChunks` to bounded indices with any validity proof recovers the
 original bounded chunk set. This form matches the bounds check inside `decode`. -/
