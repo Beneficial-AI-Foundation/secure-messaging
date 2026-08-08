@@ -75,12 +75,15 @@ namespace ErasureCodePayload
 
 variable {M Sym : Type}
 
+/-- Map a natural counter index to a bounded chunk position modulo `N`. -/
+def counterIndex (ecp : ErasureCodePayload M Sym) (i : ℕ) : Fin ecp.ec.N :=
+  ⟨i % ecp.ec.N, Nat.mod_lt i ecp.ec.N_pos⟩
+
 /-- Encode at counter `i` modulo `N`, returning the wrapped index and symbol.
 This matches the `ℤ_N` indices in [SCKA] and SPQR's fixed-width chunk index. -/
 def encode (ecp : ErasureCodePayload M Sym) (payload : M) (i : ℕ) : ℕ × Sym :=
-  let j := i % ecp.ec.N
-  let jFin : Fin ecp.ec.N := ⟨j, Nat.mod_lt i ecp.ec.N_pos⟩
-  (j, ecp.ec.encode (ecp.serialize payload) jFin)
+  let j := counterIndex ecp i
+  (j.1, ecp.ec.encode (ecp.serialize payload) j)
 
 /-- Decode received chunks to a payload, rejecting a set containing an index
 outside the valid range `0, …, N - 1`. -/

@@ -152,11 +152,6 @@ theorem decode_payloadChunks_none {M : Type}
     simp [(hcorrect (ecp.serialize payload) I).2 hcard]
   next hvalid => exact False.elim (hvalid (payloadChunks_valid ecp payload I))
 
-/-- Map a natural counter index to a bounded chunk position modulo `N`. -/
-def counterIndex {M : Type} (ecp : ErasureCodePayload M Sym) (i : ℕ) :
-    Fin ecp.ec.N :=
-  ⟨i % ecp.ec.N, Nat.mod_lt i ecp.ec.N_pos⟩
-
 omit [DecidableEq Sym] in
 /-- Encoding at counter `i` produces the natural representation of the bounded chunk. -/
 theorem encode_eq_chunkToNat {M : Type}
