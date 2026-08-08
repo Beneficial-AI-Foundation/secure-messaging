@@ -157,6 +157,7 @@ def parallelCode (rs : ReedSolomon.Code F) : ErasureCode (Chunk F) where
   N := rs.N
   N_pos := rs.N_pos
   nchunk := rs.k
+  nchunk_pos := rs.k_pos
   nchunk_le_N := rs.k_le_N
   encode := encode rs
   decode := decode rs
@@ -197,12 +198,13 @@ def evaluationEquiv : Fin (2 ^ 16) ≃ GF16 :=
 /-- The scalar Reed–Solomon code with threshold `k`, block length `2^16`, and
 evaluation points given by `evaluationEquiv`. -/
 -- ANCHOR: spqrReedSolomon_scalarCode
-def scalarCode (k : ℕ) (hk : k ≤ 2 ^ 16) : ReedSolomon.Code GF16
+def scalarCode (k : ℕ) (hk : k ≤ 2 ^ 16) (hk_pos : 0 < k) : ReedSolomon.Code GF16
 -- ANCHOR_END: spqrReedSolomon_scalarCode
     where
   N := 2 ^ 16
   N_pos := by norm_num
   k := k
+  k_pos := hk_pos
   k_le_N := hk
   point := evaluationEquiv
   point_injective := evaluationEquiv.injective
@@ -210,8 +212,8 @@ def scalarCode (k : ℕ) (hk : k ≤ 2 ^ 16) : ReedSolomon.Code GF16
 /-- The abstract SPQR erasure code at threshold `k`: the 16-coordinate parallel code
 specialized to `GF16`, with one chunk at each codeword position. -/
 -- ANCHOR: spqrReedSolomon_code
-def spqrCode (k : ℕ) (hk : k ≤ 2 ^ 16) : ErasureCode (Chunk GF16) :=
-  parallelCode (scalarCode k hk)
+def spqrCode (k : ℕ) (hk : k ≤ 2 ^ 16) (hk_pos : 0 < k) : ErasureCode (Chunk GF16) :=
+  parallelCode (scalarCode k hk hk_pos)
 -- ANCHOR_END: spqrReedSolomon_code
 
 end

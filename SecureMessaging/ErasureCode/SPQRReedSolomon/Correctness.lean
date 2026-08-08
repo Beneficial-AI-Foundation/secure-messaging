@@ -164,12 +164,14 @@ theorem parallelCode_correct (rs : ReedSolomon.Code F) :
     exact decode_encodeChunks_of_k_le_card rs message I hcard.ge
   · exact decode_encodeChunks_of_card_lt rs message I
 
-/-- Correctness of the abstract SPQR specialization for every threshold `k ≤ 2^16`. -/
+/-- Correctness of the abstract SPQR specialization for every threshold
+`0 < k ≤ 2^16`. -/
 -- ANCHOR: spqrReedSolomon_correct
-theorem correct (k : ℕ) (hk : k ≤ 2 ^ 16) : (spqrCode k hk).Correct
+theorem correct (k : ℕ) (hk : k ≤ 2 ^ 16) (hk_pos : 0 < k) :
+    (spqrCode k hk hk_pos).Correct
 -- ANCHOR_END: spqrReedSolomon_correct
     := by
-  exact parallelCode_correct (scalarCode k hk)
+  exact parallelCode_correct (scalarCode k hk hk_pos)
 
 end
 

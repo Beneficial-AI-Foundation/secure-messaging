@@ -17,7 +17,7 @@ Syntax and correctness of erasure codes following Definition A.6 from:
   USENIX Security 2025, https://eprint.iacr.org/2025/2267.pdf
 
 An *erasure code* over a set of symbols `Σ`, with block length `N` and message size
-`nchunk ≤ N`, consists of two algorithms:
+`0 < nchunk ≤ N`, consists of two algorithms:
 - `Encode(M, i) → c`: encodes message `M ∈ Σ^nchunk` at a bounded chunk index
   `i : Fin N` to a symbol `c ∈ Σ`;
 - `Decode(L) → M`: from a chunk set `L ⊆ Fin N × Σ`, recovers `M ∈ Σ^nchunk`
@@ -39,6 +39,7 @@ Writing `L_I = {(i, Encode(M, i)) | i ∈ I}` for the chunks of `M` at indices
   `0, …, N - 1`;
 - `nchunk`: the number of source symbols and the number of distinct encoded
   chunks required to recover the message;
+- `nchunk > 0`: at least one distinct encoded chunk is required for recovery;
 - `encode M i`: the chunk encoding of message `M` at index `i`;
 - `decode L`: recovers a message from a chunk set `L`, or fails (`none`).
 -/
@@ -50,6 +51,8 @@ structure ErasureCode (Sym : Type) where
   N_pos : 0 < N
   /-- Number of source symbols and distinct encoded chunks needed for recovery. -/
   nchunk : ℕ
+  /-- At least one distinct encoded chunk is required for recovery. -/
+  nchunk_pos : 0 < nchunk
   /-- The message fits within the codeword. -/
   nchunk_le_N : nchunk ≤ N
   /-- `Encode(M, i)`: the chunk encoding of message `M` at index `i`. -/

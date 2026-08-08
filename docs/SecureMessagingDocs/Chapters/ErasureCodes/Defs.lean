@@ -40,6 +40,8 @@ structure ErasureCode (Sym : Type) where
   N_pos : 0 < N
   /-- Number of source symbols and distinct encoded chunks needed for recovery. -/
   nchunk : ℕ
+  /-- At least one distinct encoded chunk is required for recovery. -/
+  nchunk_pos : 0 < nchunk
   /-- The message fits within the codeword. -/
   nchunk_le_N : nchunk ≤ N
   /-- `Encode(M, i)`: the chunk encoding of message `M` at index `i`. -/
