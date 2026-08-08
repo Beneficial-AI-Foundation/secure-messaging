@@ -162,6 +162,20 @@ theorem indexUnique_addChunk [DecidableEq Sym]
         exact False.elim (h ⟨a, haState, hab⟩)
       · exact hunique haState hbState hab
 
+/-- Decoder states reachable from `empty` by repeatedly applying `addChunk`. -/
+inductive Reachable [DecidableEq Sym] : DecoderState Sym → Prop
+  | empty : Reachable DecoderState.empty
+  | addChunk {state : DecoderState Sym} {chunk : ℕ × Sym} :
+      Reachable state → Reachable (state.addChunk chunk)
+
+/-- Every decoder state reachable from `empty` has pairwise distinct stored indices. -/
+theorem indexUnique_of_reachable [DecidableEq Sym]
+    {state : DecoderState Sym} (hreach : Reachable state) :
+    state.IndexUnique := by
+  induction hreach with
+  | empty => simpa using indexUnique_empty
+  | addChunk hreach ih => exact indexUnique_addChunk _ _ ih
+
 /-- The decoder reports a message exactly when decoding returns a payload. -/
 theorem hasMessage_eq_true_iff (ecp : ErasureCodePayload M Sym)
     (state : DecoderState Sym) :
@@ -274,6 +288,20 @@ def honestPrefixDecoder [DecidableEq Sym]
     (ecp : ErasureCodePayload M Sym) (payload : M) : ℕ → DecoderState Sym
   | 0 => empty
   | t + 1 => (honestPrefixDecoder ecp payload t).addChunk (ecp.encode payload t)
+
+/-- The decoder state obtained from the first `t` emitted chunks is reachable from
+`empty` by repeated `addChunk` steps. -/
+theorem honestPrefixDecoder_reachable [DecidableEq Sym]
+    (ecp : ErasureCodePayload M Sym) (payload : M) :
+    ∀ t, Reachable (honestPrefixDecoder ecp payload t)
+  | 0 => Reachable.empty
+  | t + 1 => Reachable.addChunk (honestPrefixDecoder_reachable ecp payload t)
+
+/-- Prefix decoder runs retain at most one stored symbol per index. -/
+theorem indexUnique_honestPrefix [DecidableEq Sym]
+    (ecp : ErasureCodePayload M Sym) (payload : M) (t : ℕ) :
+    (honestPrefixDecoder ecp payload t).IndexUnique :=
+  indexUnique_of_reachable (honestPrefixDecoder_reachable ecp payload t)
 
 /-- One streaming step: extending the first-`t` run feeds exactly the chunk emitted by
 `nextChunk` at encoder counter `t`. -/
