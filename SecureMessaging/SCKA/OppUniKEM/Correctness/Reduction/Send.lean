@@ -112,7 +112,7 @@ def sendBOffOnState [DecidableEq K]
       ich := 1 } msg key
 
 /-- Averaging the potential after fresh key generation costs at most one factor error. -/
-lemma keygen_failurePotential_le [DecidableEq Sym] [DecidableEq K]
+lemma keygen_failurePotential_le [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym)
@@ -162,7 +162,7 @@ lemma keygen_failurePotential_le [DecidableEq Sym] [DecidableEq K]
       (le_of_eq (factorCorrectnessError_eq_avg_keypair kem onoff hDet).symm)
 
 /-- Installing A's first key pair cannot immediately complete a failing KEM epoch. -/
-lemma installAKeypair_currentKEMFailure_false [DecidableEq Sym] [DecidableEq K]
+lemma installAKeypair_currentKEMFailure_false [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym)
@@ -199,7 +199,7 @@ def installBOff
   { s with stB := { s.stB with stCt := some st, ct0 := some ct0 } }
 
 /-- Averaging the potential after fresh offline encapsulation costs at most one factor error. -/
-lemma off_failurePotential_le [DecidableEq Sym] [DecidableEq K]
+lemma off_failurePotential_le [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym)
@@ -253,7 +253,7 @@ lemma off_failurePotential_le [DecidableEq Sym] [DecidableEq K]
         hct0, hst, optionPair, failureAfterKeypair]
 
 /-- Recover A's matching secret key and epoch before B samples the online component. -/
-lemma online_source_shape [DecidableEq Sym]
+lemma online_source_shape
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
@@ -288,7 +288,7 @@ lemma online_source_shape [DecidableEq Sym]
       Option.some_ne_none, exists_and_left, existsAndEq, and_true]
 
 /-- Recover A's matching secret key and epoch before B samples a new offline component. -/
-lemma newOff_source_shape [DecidableEq Sym]
+lemma newOff_source_shape
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)

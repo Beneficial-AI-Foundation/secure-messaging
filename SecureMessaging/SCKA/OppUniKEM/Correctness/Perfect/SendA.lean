@@ -36,6 +36,7 @@ section SendA
 
 variable [DecidableEq Sym]
 
+omit [DecidableEq Sym] in
 /-- If A already holds the current epoch's key pair, sending its next encoded
 public-key chunk preserves the same transcript and the reachable invariant. -/
 private lemma reachableInv_after_sendA_existing
@@ -106,6 +107,7 @@ private lemma reachableInv_after_sendA_existing
       exact hInv.msgAEpoch n ρ tsnd hn
   · exact hInv.msgBEpoch
 
+omit [DecidableEq Sym] in
 /-- If A has no current key pair, sampling and recording a supported key pair,
 then sending its first encoded public-key chunk, preserves `reachableInv`. -/
 private lemma reachableInv_after_sendA_new

@@ -34,6 +34,7 @@ section SendB
 
 variable [DecidableEq Sym]
 
+omit [DecidableEq Sym] in
 /-- Recording B's next honest message without changing the transcript preserves
 `reachableInv`. -/
 private lemma reachableInv_after_sendB_same
@@ -95,6 +96,7 @@ private lemma reachableInv_after_sendB_same
     · simp only [Function.update_of_ne hnew] at hn
       exact hInv.msgBEpoch n ρ tsnd hn
 
+omit [DecidableEq Sym] in
 /-- Adding a fresh offline encapsulation and recording B's honest message
 preserves `reachableInv`. -/
 private lemma reachableInv_after_sendB_newOff
@@ -241,6 +243,7 @@ private lemma reachableInv_after_sendB_newOff
     · simp only [Function.update_of_ne hnew] at hn
       exact hInv.msgBEpoch n ρ tsnd hn
 
+omit [DecidableEq Sym] in
 /-- Adding a fresh online encapsulation and derived key while recording B's
 first online chunk preserves `reachableInv`. -/
 private lemma reachableInv_after_sendB_newOn
@@ -444,6 +447,7 @@ private lemma reachableInv_after_sendB_newOn
     · simp only [Function.update_of_ne hnew] at hn
       exact hInv.msgBEpoch n ρ tsnd hn
 
+omit [DecidableEq Sym] in
 /-- Adding fresh offline and online encapsulations together with the derived key
 preserves `reachableInv`. -/
 private lemma reachableInv_after_sendB_newOffOn

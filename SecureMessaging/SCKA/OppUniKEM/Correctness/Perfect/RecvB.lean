@@ -215,6 +215,7 @@ private lemma chunksB_recvBEkStep
                 rw [recvBEkStep_t, htr, hstepEk]
                 exact ⟨rfl, insert (counterIndex ecEk i) I, hstepLch, heq⟩
 
+omit [DecidableEq Sym] in
 /-- A public key decoded from an honest B-side chunk buffer belongs to the
 current epoch transcript. -/
 private lemma ChunksBConsistent.decodedEk
@@ -301,6 +302,7 @@ private lemma reachableInv_after_recvB_current
   · exact hInv.msgAEpoch
   · simpa [htB'] using hInv.msgBEpoch
 
+omit [DecidableEq Sym] in
 /-- Delivering a stale A-to-B message changes only B's receive index and
 preserves `reachableInv`. -/
 private lemma reachableInv_after_recvB_stale

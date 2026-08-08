@@ -39,6 +39,7 @@ section RecvA
 
 variable [DecidableEq Sym]
 
+omit [DecidableEq Sym] in
 /-- Receiving a stale B-to-A message only advances A's receive index and
 preserves the existing transcript witness. -/
 private lemma reachableInv_after_recvA_stale
@@ -84,6 +85,7 @@ private lemma reachableInv_after_recvA_stale
   · exact hInv.msgAEpoch
   · exact hInv.msgBEpoch
 
+omit [DecidableEq Sym] in
 /-- Replacing A's current-epoch local state while preserving its key material,
 decoded ciphertext witness, and honest chunk buffer preserves reachability. -/
 private lemma reachableInv_after_recvA_same
@@ -185,6 +187,7 @@ omit [DecidableEq Sym] in
     (recvAAckStep kem onoff stA ack t).lch = stA.lch := by
   by_cases h : ack.ekRec && stA.t == t <;> simp [recvAAckStep, h]
 
+omit [DecidableEq Sym] in
 /-- Completing current-epoch decapsulation records A's shared key, clears its
 epoch-local receive state, and advances A while preserving `reachableInv`. -/
 private lemma reachableInv_after_recvA_advance
@@ -307,6 +310,7 @@ private lemma reachableInv_after_recvA_advance
     exact (hInv.msgAEpoch n ρ tsnd hn).trans (Nat.le_succ _)
   · exact hInv.msgBEpoch
 
+omit [DecidableEq Sym] in
 /-- Processing a current-epoch message with no usable ciphertext chunk updates
 only A's acknowledgement and receive index while preserving reachability. -/
 private lemma reachableInv_after_recvA_ackOnly

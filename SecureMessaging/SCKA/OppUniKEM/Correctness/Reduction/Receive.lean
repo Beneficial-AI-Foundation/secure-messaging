@@ -364,6 +364,7 @@ lemma oracleRecvA_preserves_currentFailure [DecidableEq K]
             ((congrArg (fun x => x.t) hzA).trans hadv.1)
             (congrArg (fun x => x.t) hzB)
 
+omit [DecidableEq Sym] in
 /-- In a reachable state, absence of the explicit current KEM failure implies
 the KEM material required by A's receive transition decapsulates correctly. -/
 lemma currentKEMFailure_eq_false_implies_current [DecidableEq K]

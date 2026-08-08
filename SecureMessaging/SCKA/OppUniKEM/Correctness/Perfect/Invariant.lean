@@ -374,6 +374,7 @@ def CurrentKEMCorrect
     s.stB.ct1 = some ct1 → s.keyB s.stA.t = some key →
     hDet.decapsDet dk (onoff.split.symm (ct0, ct1)) = some key
 
+omit [DecidableEq Sym] in
 /-- Internal: the reachable invariant implies KEM material decapsulates
 correctly for a perfect KEM. -/
 lemma currentKEMCorrect_of_perfect [DecidableEq K]
@@ -425,6 +426,7 @@ lemma currentKEMCorrect_of_perfect [DecidableEq K]
   exact decapsDet_eq_some_of_mem_support kem hDet hkem hks
     (mem_support_encaps_of_onoff kem onoff hoffmem honmem)
 
+omit [DecidableEq Sym] in
 /-- The initial game state admits a trivial transcript with empty epochs. -/
 lemma reachableInv_init
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
@@ -443,6 +445,7 @@ lemma reachableInv_init
   (constructor <;> simp [T, EpochTranscript.empty, EpochTranscript.key,
     ChunksAConsistent, ChunksBConsistent, SCKAScheme.initGameState]; omega)
 
+omit [DecidableEq Sym] in
 /-- The uniform oracle preserves the reachable invariant. -/
 lemma oracleUnif_preserves_reachableInv
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
