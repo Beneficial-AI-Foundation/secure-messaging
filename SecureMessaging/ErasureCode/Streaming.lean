@@ -263,6 +263,50 @@ theorem addChunk_honest [DecidableEq Sym]
   simpa [decodedPayload, ErasureCodePayload.insert_payloadChunks] using
     (ErasureCodePayload.decode_insert_honest ecp hcorrect payload I i hcard)
 
+/-- Codeword positions produced by the first `t` encoder counters. -/
+def honestPrefixPositions (ecp : ErasureCodePayload M Sym) : ℕ → Finset (Fin ecp.ec.N)
+  | 0 => ∅
+  | t + 1 => insert (ErasureCodePayload.counterIndex ecp t) (honestPrefixPositions ecp t)
+
+/-- Decoder state after feeding the first `t` chunks emitted by an encoder initialized
+on `payload`. -/
+def honestPrefixDecoder [DecidableEq Sym]
+    (ecp : ErasureCodePayload M Sym) (payload : M) : ℕ → DecoderState Sym
+  | 0 => empty
+  | t + 1 => (honestPrefixDecoder ecp payload t).addChunk (ecp.encode payload t)
+
+/-- One streaming step: extending the first-`t` run feeds exactly the chunk emitted by
+`nextChunk` at encoder counter `t`. -/
+theorem honestPrefixDecoder_succ [DecidableEq Sym]
+    (ecp : ErasureCodePayload M Sym) (payload : M) (t : ℕ) :
+    honestPrefixDecoder ecp payload (t + 1) =
+      (honestPrefixDecoder ecp payload t).addChunk
+        ((EncoderState.nextChunk ecp { payload := payload, nextIndex := t }).1) := by
+  rfl
+
+/-- Running the decoder on the first `t` emitted chunks yields exactly the honest
+chunk-set representation at the corresponding emitted positions. -/
+theorem honestPrefixDecoder_eq_payloadChunks [DecidableEq Sym]
+    (ecp : ErasureCodePayload M Sym) (payload : M) :
+    ∀ t,
+      honestPrefixDecoder ecp payload t =
+        DecoderState.mk
+          (ErasureCodePayload.payloadChunks ecp payload (honestPrefixPositions ecp t))
+  | 0 => by simp [honestPrefixDecoder, honestPrefixPositions, DecoderState.empty]
+  | t + 1 => by
+      simp [honestPrefixDecoder, honestPrefixPositions, honestPrefixDecoder_eq_payloadChunks,
+        addChunk_payloadChunks]
+
+/-- End-to-end threshold recovery for the first `t` emitted chunks from an initialized
+encoder streamed into an empty decoder. -/
+theorem decodedPayload_honestPrefix [DecidableEq Sym]
+    (ecp : ErasureCodePayload M Sym) (hcorrect : ecp.ec.Correct)
+    (payload : M) (t : ℕ)
+    (hcard : (honestPrefixPositions ecp t).card = ecp.ec.nchunk) :
+    (honestPrefixDecoder ecp payload t).decodedPayload ecp = some payload := by
+  rw [honestPrefixDecoder_eq_payloadChunks]
+  exact decodedPayload_payloadChunks ecp hcorrect payload (honestPrefixPositions ecp t) hcard
+
 end DecoderState
 
 end ErasureCodePayload.Streaming
