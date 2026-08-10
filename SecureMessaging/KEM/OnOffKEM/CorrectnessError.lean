@@ -14,9 +14,8 @@ import VCVio.OracleComp.QueryTracking.RandomOracle.DeferredSampling
 This file decomposes the correctness error of an on/off KEM according to the
 stages of its encapsulation algorithm.
 
-Let `kem` be a KEM scheme, `onoff` an on/off factorization of its encapsulation
-algorithm, and `hDet` a deterministic implementation of decapsulation.  The
-factorization expresses honest encapsulation in two parts:
+Let `kem` be a KEM scheme and `onoff` an on/off factorization of its encapsulation
+algorithm:
 
 * `onoff.encapsOff` produces state `st` and the offline ciphertext part `ct₀`
   without using a public key;
@@ -40,10 +39,13 @@ factorCorrectExp := do
   return hDet.decapsDet sk (onoff.split.symm (ct₀, ct₁)) = some k
 ```
 
+Here, `hDet` records the additional assumption that decapsulation is deterministic.
+
 The theorem `factorCorrectExp_eq_correctExp` proves that this staged experiment
 is equal, as a `ProbComp` program, to the standard KEM correctness experiment
-`kem.CorrectExp`.  The theorem `factorCorrectnessError_eq` therefore identifies
-its total error
+`kem.CorrectExp`.
+
+The theorem `factorCorrectnessError_eq` identifies its total error
 
 ```text
 ε := Pr[factorCorrectExp = false] + Pr[factorCorrectExp = ⊥]
@@ -52,63 +54,31 @@ its total error
 with `kem.correctnessError ProbCompRuntime.probComp`.
 
 For `X : ProbComp α`, `Pr[X = x]` is the probability that `X` returns `x`, and
-`Pr[X = ⊥]` is its missing probability mass—the probability that evaluating
-`X` produces no output.  Missing mass counts as correctness error throughout
-this file.
+`Pr[X = ⊥]` is its failure probability.
 
 ## Errors after fixed samples
 
-To describe the contribution of each sampling stage, we fix the outputs of one
-or both of the first two computations and measure the error in the computations
-that remain:
+To decompose the total error, we define:
 
-* `failureAfterBoth` (`χ(pk, sk, st, ct₀)`) fixes the key pair and the offline
-  sample, then measures the error of online encapsulation;
-* `failureAfterKeypair` (`φ(pk, sk)`) fixes the key pair and averages
-  `failureAfterBoth` over offline encapsulation;
-* `failureAfterOff` (`ψ(st, ct₀)`) fixes the offline sample and averages
-  `failureAfterBoth` over key generation.
+* `failureAfterBoth` (`χ`) — the online encapsulation error after fixing the
+  key pair and offline sample;
+* `failureAfterKeypair` (`φ`) — the average of `χ` over offline encapsulation
+  after fixing the key pair;
+* `failureAfterOff` (`ψ`) — the average of `χ` over key generation after
+  fixing the offline sample.
 
-These quantities use the displayed values as parameters.  They do not
-condition the original experiment on an event or divide by the probability of
-the fixed values.  They are therefore defined even for values that their
-samplers never return; such values receive zero weight when the errors are
-averaged.
+Each function treats its arguments as fixed inputs and counts missing
+probability mass as error.
 
-Writing
-
-```text
-KG       := kem.keygen
-OFF      := onoff.encapsOff
-ON st pk := onoff.encapsOn st pk,
-```
-
-the three errors are
-
-```text
-χ(pk, sk, st, ct₀) := Pr[ON st pk = ⊥]
-    + Σ (ct₁, k), Pr[ON st pk = (ct₁, k)] ·
-        (if hDet.decapsDet sk (onoff.split.symm (ct₀, ct₁)) ≠ some k then 1 else 0)
-
-φ(pk, sk)  := Pr[OFF = ⊥]
-    + Σ (st, ct₀), Pr[OFF = (st, ct₀)] · χ(pk, sk, st, ct₀)
-
-ψ(st, ct₀) := Pr[KG = ⊥]
-    + Σ (pk, sk), Pr[KG = (pk, sk)] · χ(pk, sk, st, ct₀).
-```
-
-## Averaging identities and bounds
-
-Key generation and offline encapsulation do not depend on each other's output.
-The total error can consequently be obtained by averaging in either order:
+Writing `KG := kem.keygen` and `OFF := onoff.encapsOff`, the total error has
+two equivalent decompositions:
 
 * `factorCorrectnessError_eq_avg_keypair` proves
   `ε = Pr[KG = ⊥] + Σ (pk, sk), Pr[KG = (pk, sk)] · φ(pk, sk)`;
 * `factorCorrectnessError_eq_avg_off` proves
   `ε = Pr[OFF = ⊥] + Σ (st, ct₀), Pr[OFF = (st, ct₀)] · ψ(st, ct₀)`.
 
-The lemmas `failureAfterBoth_le_one`, `failureAfterKeypair_le_one`, and
-`failureAfterOff_le_one` prove that each of these errors is at most `1`.
+All three stage-specific errors are at most `1`.
 -/
 
 open OracleSpec OracleComp ENNReal
