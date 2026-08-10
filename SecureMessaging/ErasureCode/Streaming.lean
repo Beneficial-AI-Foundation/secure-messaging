@@ -13,6 +13,9 @@ Protocol-independent stateful wrappers over `ErasureCodePayload`. The encoder em
 successive natural-number-indexed chunks. The decoder stores at most one symbol per
 index, retaining the first symbol received at a repeated index.
 
+Each endpoint state retains its fixed `ErasureCodePayload` configuration, ensuring
+that a stream cannot be encoded or decoded under a different erasure-code scheme.
+
 This models the observable streaming behavior used by ML-KEM Braid. It deliberately
 abstracts away the concrete byte representation, polynomial caches, bounded storage,
 and serialization of Signal's implementation.
@@ -28,98 +31,100 @@ namespace ErasureCodePayload.Streaming
 
 variable {M Sym : Type}
 
-/-- Stateful encoder for a fixed payload and the next natural-number counter. -/
--- ANCHOR: ErasureCodePayload_Streaming_Encoder
-structure EncoderState (M : Type) where
+/-- Stateful encoder configured with an erasure-code payload scheme, a fixed payload,
+and the next natural-number counter. -/
+-- ANCHOR: ErasureCodePayload_Streaming_States
+structure EncoderState (M Sym : Type) where
+  /-- The fixed erasure-code payload configuration for this stream. -/
+  ecp : ErasureCodePayload M Sym
   /-- The fixed payload encoded by this stream. -/
   payload : M
   /-- The natural-number counter used for the next emitted chunk. -/
   nextIndex : ℕ
 
-namespace EncoderState
-
-/-- Initialize an encoder before emitting its first chunk. -/
-def init (payload : M) : EncoderState M :=
-  { payload, nextIndex := 0 }
-
-/-- Emit the chunk at the current counter and advance the counter by one. -/
-def nextChunk (ecp : ErasureCodePayload M Sym) (state : EncoderState M) :
-    (ℕ × Sym) × EncoderState M :=
-  (ecp.encode state.payload state.nextIndex,
-    { state with nextIndex := state.nextIndex + 1 })
-
-end EncoderState
--- ANCHOR_END: ErasureCodePayload_Streaming_Encoder
-
-namespace EncoderState
-
-/-- The emitted chunk index is the encoder counter reduced modulo the codeword size. -/
-theorem nextChunk_index (ecp : ErasureCodePayload M Sym) (state : EncoderState M) :
-    (state.nextChunk ecp).1.1 = state.nextIndex % ecp.ec.N := rfl
-
-end EncoderState
-
-/-- Stateful decoder containing the indexed chunks received so far. -/
--- ANCHOR: ErasureCodePayload_Streaming_Decoder
-structure DecoderState (Sym : Type) where
+/-- Stateful decoder configured with an erasure-code payload scheme and containing
+the indexed chunks received so far. -/
+structure DecoderState (M Sym : Type) where
+  /-- The fixed erasure-code payload configuration used to decode this stream. -/
+  ecp : ErasureCodePayload M Sym
   /-- Indexed chunks retained by the decoder, with at most one symbol per index for
   states reachable from `empty` through `addChunk`. -/
   chunks : Finset (ℕ × Sym)
+-- ANCHOR_END: ErasureCodePayload_Streaming_States
+
+namespace EncoderState
+-- ANCHOR: ErasureCodePayload_Streaming_Encoder
+
+/-- Initialize an encoder before emitting its first chunk. -/
+def init (ecp : ErasureCodePayload M Sym) (payload : M) : EncoderState M Sym :=
+  { ecp, payload, nextIndex := 0 }
+
+/-- Emit the chunk at the current counter and advance the counter by one. -/
+def nextChunk (state : EncoderState M Sym) :
+    (ℕ × Sym) × EncoderState M Sym :=
+  (state.ecp.encode state.payload state.nextIndex,
+    { state with nextIndex := state.nextIndex + 1 })
+-- ANCHOR_END: ErasureCodePayload_Streaming_Encoder
+
+/-- The emitted chunk index is the encoder counter reduced modulo the codeword size. -/
+theorem nextChunk_index (state : EncoderState M Sym) :
+    state.nextChunk.1.1 = state.nextIndex % state.ecp.ec.N := rfl
+
+end EncoderState
 
 namespace DecoderState
+-- ANCHOR: ErasureCodePayload_Streaming_Decoder
 
 /-- The decoder already contains a chunk at `index`. -/
-def HasIndex (state : DecoderState Sym) (index : ℕ) : Prop :=
+def HasIndex (state : DecoderState M Sym) (index : ℕ) : Prop :=
   ∃ chunk ∈ state.chunks, chunk.1 = index
 
 /-- Whether the decoder contains a chunk at a given index is decidable. -/
-instance (state : DecoderState Sym) (index : ℕ) :
+instance (state : DecoderState M Sym) (index : ℕ) :
     Decidable (state.HasIndex index) := by
   unfold HasIndex
   infer_instance
 
 /-- Stored chunks have pairwise distinct indices. -/
-def IndexUnique (state : DecoderState Sym) : Prop :=
+def IndexUnique (state : DecoderState M Sym) : Prop :=
   Set.InjOn Prod.fst (state.chunks : Set (ℕ × Sym))
 
 /-- Initialize a decoder with no received chunks. -/
-def empty : DecoderState Sym :=
-  { chunks := ∅ }
+def empty (ecp : ErasureCodePayload M Sym) : DecoderState M Sym :=
+  { ecp, chunks := ∅ }
 
 /-- Add a chunk unless its index is already present. The first symbol received at an
 index is retained, so exact duplicates are harmless and later conflicts are ignored.
 Streaming guarantees here are erasure-only and assume honest, in-range chunk indices. -/
-def addChunk [DecidableEq Sym] (state : DecoderState Sym) (chunk : ℕ × Sym) :
-    DecoderState Sym :=
-  if state.HasIndex chunk.1 then state else { chunks := insert chunk state.chunks }
+def addChunk [DecidableEq Sym] (state : DecoderState M Sym) (chunk : ℕ × Sym) :
+    DecoderState M Sym :=
+  if state.HasIndex chunk.1 then state
+  else { state with chunks := insert chunk state.chunks }
 
 /-- Attempt to decode the chunks accumulated by the decoder. -/
-def decodedPayload (ecp : ErasureCodePayload M Sym) (state : DecoderState Sym) : Option M :=
-  ecp.decode state.chunks
+def decodedPayload (state : DecoderState M Sym) : Option M :=
+  state.ecp.decode state.chunks
 
 /-- Whether the accumulated chunks currently decode to a payload. -/
-def hasMessage (ecp : ErasureCodePayload M Sym) (state : DecoderState Sym) : Bool :=
-  (state.decodedPayload ecp).isSome
-
-end DecoderState
+def hasMessage (state : DecoderState M Sym) : Bool :=
+  state.decodedPayload.isSome
 -- ANCHOR_END: ErasureCodePayload_Streaming_Decoder
-
-namespace DecoderState
 
 /-- The empty decoder has pairwise distinct stored indices. -/
 @[simp]
-theorem indexUnique_empty : (empty : DecoderState Sym).IndexUnique := by
+theorem indexUnique_empty (ecp : ErasureCodePayload M Sym) :
+    (empty ecp).IndexUnique := by
   simp [IndexUnique, empty]
 
 /-- A chunk whose index is already present leaves the decoder state unchanged. -/
 theorem addChunk_eq_self_of_hasIndex [DecidableEq Sym]
-    (state : DecoderState Sym) (chunk : ℕ × Sym) (h : state.HasIndex chunk.1) :
+    (state : DecoderState M Sym) (chunk : ℕ × Sym) (h : state.HasIndex chunk.1) :
     state.addChunk chunk = state := by
   simp [addChunk, h]
 
 /-- After adding a chunk, its index is present in the decoder state. -/
 private theorem hasIndex_addChunk_self [DecidableEq Sym]
-    (state : DecoderState Sym) (chunk : ℕ × Sym) :
+    (state : DecoderState M Sym) (chunk : ℕ × Sym) :
     (state.addChunk chunk).HasIndex chunk.1 := by
   by_cases h : state.HasIndex chunk.1
   · simp [addChunk, h]
@@ -129,13 +134,13 @@ private theorem hasIndex_addChunk_self [DecidableEq Sym]
 /-- Adding the same chunk twice is idempotent. -/
 @[simp]
 theorem addChunk_idempotent [DecidableEq Sym]
-    (state : DecoderState Sym) (chunk : ℕ × Sym) :
+    (state : DecoderState M Sym) (chunk : ℕ × Sym) :
     (state.addChunk chunk).addChunk chunk = state.addChunk chunk := by
   exact addChunk_eq_self_of_hasIndex _ _ (hasIndex_addChunk_self state chunk)
 
 /-- First-received-value behavior for two chunks with the same index. -/
 theorem addChunk_sameIndex [DecidableEq Sym]
-    (state : DecoderState Sym) (first second : ℕ × Sym)
+    (state : DecoderState M Sym) (first second : ℕ × Sym)
     (hindex : first.1 = second.1) :
     (state.addChunk first).addChunk second = state.addChunk first := by
   apply addChunk_eq_self_of_hasIndex
@@ -144,7 +149,7 @@ theorem addChunk_sameIndex [DecidableEq Sym]
 
 /-- First-wins insertion preserves pairwise uniqueness of stored indices. -/
 theorem indexUnique_addChunk [DecidableEq Sym]
-    (state : DecoderState Sym) (chunk : ℕ × Sym) (hunique : state.IndexUnique) :
+    (state : DecoderState M Sym) (chunk : ℕ × Sym) (hunique : state.IndexUnique) :
     (state.addChunk chunk).IndexUnique := by
   by_cases h : state.HasIndex chunk.1
   · simpa [addChunk, h] using hunique
@@ -163,32 +168,32 @@ theorem indexUnique_addChunk [DecidableEq Sym]
         exact False.elim (h ⟨a, haState, hab⟩)
       · exact hunique haState hbState hab
 
-/-- Decoder states reachable from `empty` by repeatedly applying `addChunk`. -/
-inductive Reachable [DecidableEq Sym] : DecoderState Sym → Prop
-  | empty : Reachable DecoderState.empty
-  | addChunk {state : DecoderState Sym} {chunk : ℕ × Sym} :
-      Reachable state → Reachable (state.addChunk chunk)
+/-- Decoder states reachable from `empty ecp` by repeatedly applying `addChunk`. -/
+inductive Reachable [DecidableEq Sym] (ecp : ErasureCodePayload M Sym) :
+    DecoderState M Sym → Prop
+  | empty : Reachable ecp (DecoderState.empty ecp)
+  | addChunk {state : DecoderState M Sym} {chunk : ℕ × Sym} :
+      Reachable ecp state → Reachable ecp (state.addChunk chunk)
 
 /-- Every decoder state reachable from `empty` has pairwise distinct stored indices. -/
 theorem indexUnique_of_reachable [DecidableEq Sym]
-    {state : DecoderState Sym} (hreach : Reachable state) :
+    {ecp : ErasureCodePayload M Sym} {state : DecoderState M Sym}
+    (hreach : Reachable ecp state) :
     state.IndexUnique := by
   induction hreach with
-  | empty => simpa using indexUnique_empty
+  | empty => simp
   | addChunk hreach ih => exact indexUnique_addChunk _ _ ih
 
 /-- The decoder reports a message exactly when decoding returns a payload. -/
-theorem hasMessage_eq_true_iff (ecp : ErasureCodePayload M Sym)
-    (state : DecoderState Sym) :
-    state.hasMessage ecp = true ↔ ∃ payload, state.decodedPayload ecp = some payload := by
+theorem hasMessage_eq_true_iff (state : DecoderState M Sym) :
+    state.hasMessage = true ↔ ∃ payload, state.decodedPayload = some payload := by
   simpa [hasMessage] using
-    (Option.isSome_iff_exists (x := state.decodedPayload ecp))
+    (Option.isSome_iff_exists (x := state.decodedPayload))
 
 /-- If any stored chunk index is out of range, decoding returns `none`. -/
-theorem decodedPayload_eq_none_of_invalid (ecp : ErasureCodePayload M Sym)
-    (state : DecoderState Sym)
-    (hinvalid : ∃ chunk ∈ state.chunks, ecp.ec.N ≤ chunk.1) :
-    state.decodedPayload ecp = none := by
+theorem decodedPayload_eq_none_of_invalid (state : DecoderState M Sym)
+    (hinvalid : ∃ chunk ∈ state.chunks, state.ecp.ec.N ≤ chunk.1) :
+    state.decodedPayload = none := by
   rw [decodedPayload, ErasureCodePayload.decode]
   split
   next hvalid =>
@@ -201,7 +206,7 @@ present exactly when its codeword position has already been received. -/
 private theorem hasIndex_payloadChunks_iff
     (ecp : ErasureCodePayload M Sym) (payload : M)
     (I : Finset (Fin ecp.ec.N)) (i : ℕ) :
-    (DecoderState.mk (ErasureCodePayload.payloadChunks ecp payload I)).HasIndex
+    (DecoderState.mk ecp (ErasureCodePayload.payloadChunks ecp payload I)).HasIndex
         (ecp.encode payload i).1 ↔
       ErasureCodePayload.counterIndex ecp i ∈ I := by
   classical
@@ -235,9 +240,9 @@ payload preserves that representation and records the chunk's codeword position.
 theorem addChunk_payloadChunks [DecidableEq Sym]
     (ecp : ErasureCodePayload M Sym) (payload : M)
     (I : Finset (Fin ecp.ec.N)) (i : ℕ) :
-    (DecoderState.mk (ErasureCodePayload.payloadChunks ecp payload I)).addChunk
+    (DecoderState.mk ecp (ErasureCodePayload.payloadChunks ecp payload I)).addChunk
         (ecp.encode payload i) =
-      DecoderState.mk
+      DecoderState.mk ecp
         (ErasureCodePayload.payloadChunks ecp payload
           (insert (ErasureCodePayload.counterIndex ecp i) I)) := by
   by_cases hmem : ErasureCodePayload.counterIndex ecp i ∈ I
@@ -245,19 +250,19 @@ theorem addChunk_payloadChunks [DecidableEq Sym]
     rw [addChunk_eq_self_of_hasIndex _ _ hhas]
     simp [Finset.insert_eq_of_mem hmem]
   · have hhas :
-        ¬(DecoderState.mk (ErasureCodePayload.payloadChunks ecp payload I)).HasIndex
+        ¬(DecoderState.mk ecp (ErasureCodePayload.payloadChunks ecp payload I)).HasIndex
           (ecp.encode payload i).1 := by
       simpa [hasIndex_payloadChunks_iff ecp payload I i] using hmem
     simp only [addChunk, hhas, ↓reduceIte]
-    exact congrArg DecoderState.mk
+    exact congrArg (DecoderState.mk ecp)
       (ErasureCodePayload.insert_payloadChunks ecp payload I i)
 
-/-- An honest decoder state at the threshold decodes its payload. -/
+/-- An honest decoder state at or above the threshold decodes its payload. -/
 theorem decodedPayload_payloadChunks
     (ecp : ErasureCodePayload M Sym) (hcorrect : ecp.ec.Correct)
     (payload : M) (I : Finset (Fin ecp.ec.N))
-    (hcard : I.card = ecp.ec.nchunk) :
-    (DecoderState.mk (ErasureCodePayload.payloadChunks ecp payload I)).decodedPayload ecp =
+    (hcard : ecp.ec.nchunk ≤ I.card) :
+    (DecoderState.mk ecp (ErasureCodePayload.payloadChunks ecp payload I)).decodedPayload =
       some payload := by
   exact ErasureCodePayload.decode_payloadChunks ecp hcorrect payload I hcard
 
@@ -269,72 +274,101 @@ theorem addChunk_honest [DecidableEq Sym]
     (hcard : I.card < ecp.ec.nchunk) :
     let I' := insert (ErasureCodePayload.counterIndex ecp i) I
     (I'.card < ecp.ec.nchunk ∧
-        ((DecoderState.mk (ErasureCodePayload.payloadChunks ecp payload I)).addChunk
-          (ecp.encode payload i)).decodedPayload ecp = none) ∨
+        ((DecoderState.mk ecp (ErasureCodePayload.payloadChunks ecp payload I)).addChunk
+          (ecp.encode payload i)).decodedPayload = none) ∨
       (I'.card = ecp.ec.nchunk ∧
-        ((DecoderState.mk (ErasureCodePayload.payloadChunks ecp payload I)).addChunk
-          (ecp.encode payload i)).decodedPayload ecp = some payload) := by
+        ((DecoderState.mk ecp (ErasureCodePayload.payloadChunks ecp payload I)).addChunk
+          (ecp.encode payload i)).decodedPayload = some payload) := by
   rw [addChunk_payloadChunks]
   simpa [decodedPayload, ErasureCodePayload.insert_payloadChunks] using
     (ErasureCodePayload.decode_insert_honest ecp hcorrect payload I i hcard)
 
-/-- Codeword positions produced by the first `t` encoder counters. -/
-def honestPrefixPositions (ecp : ErasureCodePayload M Sym) : ℕ → Finset (Fin ecp.ec.N)
+/-- Codeword positions delivered from the first `t` encoder counters. A counter absent
+from `delivered` models a lost chunk. -/
+def honestPrefixPositions (ecp : ErasureCodePayload M Sym)
+    (delivered : Finset ℕ) : ℕ → Finset (Fin ecp.ec.N)
   | 0 => ∅
-  | t + 1 => insert (ErasureCodePayload.counterIndex ecp t) (honestPrefixPositions ecp t)
+  | t + 1 =>
+      if t ∈ delivered then
+        insert (ErasureCodePayload.counterIndex ecp t)
+          (honestPrefixPositions ecp delivered t)
+      else
+        honestPrefixPositions ecp delivered t
 
-/-- Decoder state after feeding the first `t` chunks emitted by an encoder initialized
-on `payload`. -/
+/-- Decoder state after processing the first `t` encoder emissions, adding exactly
+the counters selected by `delivered` and dropping the others. -/
 def honestPrefixDecoder [DecidableEq Sym]
-    (ecp : ErasureCodePayload M Sym) (payload : M) : ℕ → DecoderState Sym
-  | 0 => empty
-  | t + 1 => (honestPrefixDecoder ecp payload t).addChunk (ecp.encode payload t)
+    (ecp : ErasureCodePayload M Sym) (payload : M)
+    (delivered : Finset ℕ) : ℕ → DecoderState M Sym
+  | 0 => empty ecp
+  | t + 1 =>
+      if t ∈ delivered then
+        (honestPrefixDecoder ecp payload delivered t).addChunk (ecp.encode payload t)
+      else
+        honestPrefixDecoder ecp payload delivered t
 
-/-- The decoder state obtained from the first `t` emitted chunks is reachable from
-`empty` by repeated `addChunk` steps. -/
+/-- Every lossy honest prefix run is reachable from `empty` by repeated `addChunk`
+steps. -/
 theorem honestPrefixDecoder_reachable [DecidableEq Sym]
-    (ecp : ErasureCodePayload M Sym) (payload : M) :
-    ∀ t, Reachable (honestPrefixDecoder ecp payload t)
+    (ecp : ErasureCodePayload M Sym) (payload : M) (delivered : Finset ℕ) :
+    ∀ t, Reachable ecp (honestPrefixDecoder ecp payload delivered t)
   | 0 => Reachable.empty
-  | t + 1 => Reachable.addChunk (honestPrefixDecoder_reachable ecp payload t)
+  | t + 1 => by
+      by_cases h : t ∈ delivered
+      · rw [honestPrefixDecoder, if_pos h]
+        exact Reachable.addChunk (honestPrefixDecoder_reachable ecp payload delivered t)
+      · rw [honestPrefixDecoder, if_neg h]
+        exact honestPrefixDecoder_reachable ecp payload delivered t
 
-/-- Prefix decoder runs retain at most one stored symbol per index. -/
+/-- Lossy honest prefix runs retain at most one stored symbol per index. -/
 theorem indexUnique_honestPrefix [DecidableEq Sym]
-    (ecp : ErasureCodePayload M Sym) (payload : M) (t : ℕ) :
-    (honestPrefixDecoder ecp payload t).IndexUnique :=
-  indexUnique_of_reachable (honestPrefixDecoder_reachable ecp payload t)
+    (ecp : ErasureCodePayload M Sym) (payload : M)
+    (delivered : Finset ℕ) (t : ℕ) :
+    (honestPrefixDecoder ecp payload delivered t).IndexUnique :=
+  indexUnique_of_reachable (honestPrefixDecoder_reachable ecp payload delivered t)
 
-/-- One streaming step: extending the first-`t` run feeds exactly the chunk emitted by
-`nextChunk` at encoder counter `t`. -/
+/-- One streaming step: the chunk emitted by `nextChunk` at counter `t` is either
+delivered to the decoder or lost according to `delivered`. -/
 theorem honestPrefixDecoder_succ [DecidableEq Sym]
-    (ecp : ErasureCodePayload M Sym) (payload : M) (t : ℕ) :
-    honestPrefixDecoder ecp payload (t + 1) =
-      (honestPrefixDecoder ecp payload t).addChunk
-        ((EncoderState.nextChunk ecp { payload := payload, nextIndex := t }).1) := by
+    (ecp : ErasureCodePayload M Sym) (payload : M)
+    (delivered : Finset ℕ) (t : ℕ) :
+    honestPrefixDecoder ecp payload delivered (t + 1) =
+      if t ∈ delivered then
+        (honestPrefixDecoder ecp payload delivered t).addChunk
+          ((EncoderState.nextChunk { ecp := ecp, payload := payload, nextIndex := t }).1)
+      else
+        honestPrefixDecoder ecp payload delivered t := by
   rfl
 
-/-- Running the decoder on the first `t` emitted chunks yields exactly the honest
-chunk-set representation at the corresponding emitted positions. -/
+/-- A lossy run over the first `t` emissions yields exactly the honest chunk-set
+representation at the positions that were delivered. -/
 theorem honestPrefixDecoder_eq_payloadChunks [DecidableEq Sym]
-    (ecp : ErasureCodePayload M Sym) (payload : M) :
+    (ecp : ErasureCodePayload M Sym) (payload : M) (delivered : Finset ℕ) :
     ∀ t,
-      honestPrefixDecoder ecp payload t =
-        DecoderState.mk
-          (ErasureCodePayload.payloadChunks ecp payload (honestPrefixPositions ecp t))
-  | 0 => by simp [honestPrefixDecoder, honestPrefixPositions, DecoderState.empty]
+      honestPrefixDecoder ecp payload delivered t =
+        DecoderState.mk ecp
+          (ErasureCodePayload.payloadChunks ecp payload
+            (honestPrefixPositions ecp delivered t))
+  | 0 => by
+      simp [honestPrefixDecoder, honestPrefixPositions, DecoderState.empty,
+        ErasureCodePayload.payloadChunks, ErasureCode.encodeChunks]
   | t + 1 => by
-      simp [honestPrefixDecoder, honestPrefixPositions, honestPrefixDecoder_eq_payloadChunks,
-        addChunk_payloadChunks]
+      by_cases h : t ∈ delivered
+      · simp [honestPrefixDecoder, honestPrefixPositions, h,
+          honestPrefixDecoder_eq_payloadChunks, addChunk_payloadChunks]
+      · simp [honestPrefixDecoder, honestPrefixPositions, h,
+          honestPrefixDecoder_eq_payloadChunks]
 
-/-- End-to-end threshold recovery for the first `t` emitted chunks from an initialized
-encoder streamed into an empty decoder. -/
+/-- End-to-end recovery from an arbitrary lossy subset of the first `t` emissions,
+provided the delivered positions meet the reconstruction threshold. -/
 theorem decodedPayload_honestPrefix [DecidableEq Sym]
     (ecp : ErasureCodePayload M Sym) (hcorrect : ecp.ec.Correct)
-    (payload : M) (t : ℕ)
-    (hcard : (honestPrefixPositions ecp t).card = ecp.ec.nchunk) :
-    (honestPrefixDecoder ecp payload t).decodedPayload ecp = some payload := by
+    (payload : M) (delivered : Finset ℕ) (t : ℕ)
+    (hcard : ecp.ec.nchunk ≤ (honestPrefixPositions ecp delivered t).card) :
+    (honestPrefixDecoder ecp payload delivered t).decodedPayload = some payload := by
   rw [honestPrefixDecoder_eq_payloadChunks]
-  exact decodedPayload_payloadChunks ecp hcorrect payload (honestPrefixPositions ecp t) hcard
+  exact decodedPayload_payloadChunks ecp hcorrect payload
+    (honestPrefixPositions ecp delivered t) hcard
 
 end DecoderState
 

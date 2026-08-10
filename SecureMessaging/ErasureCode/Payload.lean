@@ -120,11 +120,12 @@ theorem payloadChunks_boundedMap {M : Type}
     exact Prod.ext (Fin.ext rfl) rfl
 
 omit [DecidableEq Sym] in
-/-- Decoding an honest chunk set at the reconstruction threshold recovers its payload. -/
+/-- Decoding an honest chunk set at or above the reconstruction threshold recovers
+its payload. -/
 theorem decode_payloadChunks {M : Type}
     (ecp : ErasureCodePayload M Sym) (hcorrect : ecp.ec.Correct)
     (payload : M) (I : Finset (Fin ecp.ec.N))
-    (hcard : I.card = ecp.ec.nchunk) :
+    (hcard : ecp.ec.nchunk ≤ I.card) :
     ecp.decode (payloadChunks ecp payload I) = some payload := by
   classical
   rw [ErasureCodePayload.decode]
@@ -196,6 +197,6 @@ theorem decode_insert_honest {M : Type}
   · right
     exact ⟨heq, by
       rw [insert_payloadChunks]
-      exact decode_payloadChunks ecp hcorrect payload _ heq⟩
+      exact decode_payloadChunks ecp hcorrect payload _ heq.ge⟩
 
 end ErasureCodePayload

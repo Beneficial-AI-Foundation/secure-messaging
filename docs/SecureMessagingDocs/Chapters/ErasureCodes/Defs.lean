@@ -83,75 +83,82 @@ structure ErasureCodePayload (M Sym : Type) where
 ::::definition "erasure_code_streaming" (parent := "erasure_codes") (lean := "ErasureCodePayload.Streaming.EncoderState, ErasureCodePayload.Streaming.EncoderState.init, ErasureCodePayload.Streaming.EncoderState.nextChunk, ErasureCodePayload.Streaming.DecoderState, ErasureCodePayload.Streaming.DecoderState.empty, ErasureCodePayload.Streaming.DecoderState.addChunk, ErasureCodePayload.Streaming.DecoderState.decodedPayload, ErasureCodePayload.Streaming.DecoderState.hasMessage")
 $`\todo`
 
-:::leanPillCaption "encoder interface"
+:::leanPillCaption "configured endpoint states"
 :::
 
-```anchor ErasureCodePayload_Streaming_Encoder (project := ".") (module := SecureMessaging.ErasureCode.Streaming)
-structure EncoderState (M : Type) where
+```anchor ErasureCodePayload_Streaming_States (project := ".") (module := SecureMessaging.ErasureCode.Streaming)
+structure EncoderState (M Sym : Type) where
+  /-- The fixed erasure-code payload configuration for this stream. -/
+  ecp : ErasureCodePayload M Sym
   /-- The fixed payload encoded by this stream. -/
   payload : M
   /-- The natural-number counter used for the next emitted chunk. -/
   nextIndex : ℕ
 
-namespace EncoderState
-
-/-- Initialize an encoder before emitting its first chunk. -/
-def init (payload : M) : EncoderState M :=
-  { payload, nextIndex := 0 }
-
-/-- Emit the chunk at the current counter and advance the counter by one. -/
-def nextChunk (ecp : ErasureCodePayload M Sym) (state : EncoderState M) :
-    (ℕ × Sym) × EncoderState M :=
-  (ecp.encode state.payload state.nextIndex,
-    { state with nextIndex := state.nextIndex + 1 })
-
-end EncoderState
-```
-
-:::leanPillCaption "decoder interface"
-:::
-
-```anchor ErasureCodePayload_Streaming_Decoder (project := ".") (module := SecureMessaging.ErasureCode.Streaming)
-structure DecoderState (Sym : Type) where
+/-- Stateful decoder configured with an erasure-code payload scheme and containing
+the indexed chunks received so far. -/
+structure DecoderState (M Sym : Type) where
+  /-- The fixed erasure-code payload configuration used to decode this stream. -/
+  ecp : ErasureCodePayload M Sym
   /-- Indexed chunks retained by the decoder, with at most one symbol per index for
   states reachable from `empty` through `addChunk`. -/
   chunks : Finset (ℕ × Sym)
+```
 
-namespace DecoderState
+:::leanPillCaption "encoder operations"
+:::
+
+```anchor ErasureCodePayload_Streaming_Encoder (project := ".") (module := SecureMessaging.ErasureCode.Streaming)
+
+/-- Initialize an encoder before emitting its first chunk. -/
+def init (ecp : ErasureCodePayload M Sym) (payload : M) : EncoderState M Sym :=
+  { ecp, payload, nextIndex := 0 }
+
+/-- Emit the chunk at the current counter and advance the counter by one. -/
+def nextChunk (state : EncoderState M Sym) :
+    (ℕ × Sym) × EncoderState M Sym :=
+  (state.ecp.encode state.payload state.nextIndex,
+    { state with nextIndex := state.nextIndex + 1 })
+```
+
+:::leanPillCaption "decoder operations"
+:::
+
+```anchor ErasureCodePayload_Streaming_Decoder (project := ".") (module := SecureMessaging.ErasureCode.Streaming)
 
 /-- The decoder already contains a chunk at `index`. -/
-def HasIndex (state : DecoderState Sym) (index : ℕ) : Prop :=
+def HasIndex (state : DecoderState M Sym) (index : ℕ) : Prop :=
   ∃ chunk ∈ state.chunks, chunk.1 = index
 
 /-- Whether the decoder contains a chunk at a given index is decidable. -/
-instance (state : DecoderState Sym) (index : ℕ) :
+instance (state : DecoderState M Sym) (index : ℕ) :
     Decidable (state.HasIndex index) := by
   unfold HasIndex
   infer_instance
 
 /-- Stored chunks have pairwise distinct indices. -/
-def IndexUnique (state : DecoderState Sym) : Prop :=
+def IndexUnique (state : DecoderState M Sym) : Prop :=
   Set.InjOn Prod.fst (state.chunks : Set (ℕ × Sym))
 
 /-- Initialize a decoder with no received chunks. -/
-def empty : DecoderState Sym :=
-  { chunks := ∅ }
+def empty (ecp : ErasureCodePayload M Sym) : DecoderState M Sym :=
+  { ecp, chunks := ∅ }
 
 /-- Add a chunk unless its index is already present. The first symbol received at an
-index is retained, so exact duplicates are harmless and later conflicts are ignored. -/
-def addChunk [DecidableEq Sym] (state : DecoderState Sym) (chunk : ℕ × Sym) :
-    DecoderState Sym :=
-  if state.HasIndex chunk.1 then state else { chunks := insert chunk state.chunks }
+index is retained, so exact duplicates are harmless and later conflicts are ignored.
+Streaming guarantees here are erasure-only and assume honest, in-range chunk indices. -/
+def addChunk [DecidableEq Sym] (state : DecoderState M Sym) (chunk : ℕ × Sym) :
+    DecoderState M Sym :=
+  if state.HasIndex chunk.1 then state
+  else { state with chunks := insert chunk state.chunks }
 
 /-- Attempt to decode the chunks accumulated by the decoder. -/
-def decodedPayload (ecp : ErasureCodePayload M Sym) (state : DecoderState Sym) : Option M :=
-  ecp.decode state.chunks
+def decodedPayload (state : DecoderState M Sym) : Option M :=
+  state.ecp.decode state.chunks
 
 /-- Whether the accumulated chunks currently decode to a payload. -/
-def hasMessage (ecp : ErasureCodePayload M Sym) (state : DecoderState Sym) : Bool :=
-  (state.decodedPayload ecp).isSome
-
-end DecoderState
+def hasMessage (state : DecoderState M Sym) : Bool :=
+  state.decodedPayload.isSome
 ```
 
 {usesLabel}`uses` {uses "erasure_code_payload"}[] · {githubLabel}`github` {githubIssue 251}[]
@@ -182,7 +189,7 @@ def encodeChunks (ec : ErasureCode Sym)
 ```anchor Correct (project := ".") (module := SecureMessaging.ErasureCode.Defs)
 def Correct (ec : ErasureCode Sym) : Prop :=
   ∀ (M : Fin ec.nchunk → Sym) (I : Finset (Fin ec.N)),
-    (I.card = ec.nchunk → ec.decode (ec.encodeChunks M I) = some M) ∧
+    (ec.nchunk ≤ I.card → ec.decode (ec.encodeChunks M I) = some M) ∧
     (I.card < ec.nchunk → ec.decode (ec.encodeChunks M I) = none)
 ```
 

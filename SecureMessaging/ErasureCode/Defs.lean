@@ -28,7 +28,7 @@ deterministic codes such as Reed-Solomon.
 
 Writing `L_I = {(i, Encode(M, i)) | i ∈ I}` for the chunks of `M` at indices
 `I ⊆ Fin N`, correctness requires, for all `M` and all `I`:
-- `Decode(L_I) = M, if |I| = nchunk`;
+- `Decode(L_I) = M, if nchunk ≤ |I|`;
 - `Decode(L_I) = ⊥, if |I| < nchunk`.
 -/
 
@@ -149,11 +149,11 @@ theorem mem_encodeChunks (ec : ErasureCode Sym)
     exact ⟨chunk.1, hi, Prod.ext rfl hvalue.symm⟩
 
 /-- Correctness: decoding the chunk set `{(i, Encode(M, i)) | i ∈ I}` recovers
-`M` when `|I| = nchunk` and fails when `|I| < nchunk`. -/
+`M` when `nchunk ≤ |I|` and fails when `|I| < nchunk`. -/
 -- ANCHOR: Correct
 def Correct (ec : ErasureCode Sym) : Prop :=
   ∀ (M : Fin ec.nchunk → Sym) (I : Finset (Fin ec.N)),
-    (I.card = ec.nchunk → ec.decode (ec.encodeChunks M I) = some M) ∧
+    (ec.nchunk ≤ I.card → ec.decode (ec.encodeChunks M I) = some M) ∧
     (I.card < ec.nchunk → ec.decode (ec.encodeChunks M I) = none)
 -- ANCHOR_END: Correct
 
