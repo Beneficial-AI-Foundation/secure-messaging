@@ -13,8 +13,8 @@ Protocol-independent stateful wrappers over `ErasureCodePayload`. The encoder em
 successive natural-number-indexed chunks. The decoder stores at most one symbol per
 index, retaining the first symbol received at a repeated index.
 
-Each endpoint state retains its fixed `ErasureCodePayload` configuration, ensuring
-that a stream cannot be encoded or decoded under a different erasure-code scheme.
+Each endpoint state stores its `ErasureCodePayload` scheme, ensuring that a stream
+cannot be encoded or decoded under a different scheme.
 
 This models the observable streaming behavior used by ML-KEM Braid. It deliberately
 abstracts away the concrete byte representation, polynomial caches, bounded storage,
@@ -31,21 +31,21 @@ namespace ErasureCodePayload.Streaming
 
 variable {M Sym : Type}
 
-/-- Stateful encoder configured with an erasure-code payload scheme, a fixed payload,
-and the next natural-number counter. -/
+/-- Encoder state for one erasure-coded payload stream. It stores the erasure-code
+payload scheme, the payload being encoded, and the counter for the next chunk. -/
 -- ANCHOR: ErasureCodePayload_Streaming_States
 structure EncoderState (M Sym : Type) where
-  /-- The fixed erasure-code payload configuration for this stream. -/
+  /-- The erasure-code payload scheme used to encode this stream. -/
   ecp : ErasureCodePayload M Sym
   /-- The fixed payload encoded by this stream. -/
   payload : M
   /-- The natural-number counter used for the next emitted chunk. -/
   nextIndex : ℕ
 
-/-- Stateful decoder configured with an erasure-code payload scheme and containing
-the indexed chunks received so far. -/
+/-- Decoder state for one erasure-coded payload stream. It stores the erasure-code
+payload scheme and the indexed chunks received so far. -/
 structure DecoderState (M Sym : Type) where
-  /-- The fixed erasure-code payload configuration used to decode this stream. -/
+  /-- The erasure-code payload scheme used to decode this stream. -/
   ecp : ErasureCodePayload M Sym
   /-- Indexed chunks retained by the decoder, with at most one symbol per index for
   states reachable from `empty` through `addChunk`. -/

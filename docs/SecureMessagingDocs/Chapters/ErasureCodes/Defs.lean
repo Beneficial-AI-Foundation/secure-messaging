@@ -88,17 +88,17 @@ $`\todo`
 
 ```anchor ErasureCodePayload_Streaming_States (project := ".") (module := SecureMessaging.ErasureCode.Streaming)
 structure EncoderState (M Sym : Type) where
-  /-- The fixed erasure-code payload configuration for this stream. -/
+  /-- The erasure-code payload scheme used to encode this stream. -/
   ecp : ErasureCodePayload M Sym
   /-- The fixed payload encoded by this stream. -/
   payload : M
   /-- The natural-number counter used for the next emitted chunk. -/
   nextIndex : ℕ
 
-/-- Stateful decoder configured with an erasure-code payload scheme and containing
-the indexed chunks received so far. -/
+/-- Decoder state for one erasure-coded payload stream. It stores the erasure-code
+payload scheme and the indexed chunks received so far. -/
 structure DecoderState (M Sym : Type) where
-  /-- The fixed erasure-code payload configuration used to decode this stream. -/
+  /-- The erasure-code payload scheme used to decode this stream. -/
   ecp : ErasureCodePayload M Sym
   /-- Indexed chunks retained by the decoder, with at most one symbol per index for
   states reachable from `empty` through `addChunk`. -/
