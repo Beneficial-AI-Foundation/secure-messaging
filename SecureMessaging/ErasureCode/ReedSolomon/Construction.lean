@@ -139,6 +139,8 @@ structure Code (F : Type) [Field F] where
   N_pos : 0 < N
   /-- Number of message symbols and reconstruction threshold. -/
   k : ℕ
+  /-- At least one message symbol is required for reconstruction. -/
+  k_pos : 0 < k
   /-- The message fits in the codeword. -/
   k_le_N : k ≤ N
   /-- Evaluation point `xⱼ` of each position `j`. -/
@@ -226,6 +228,7 @@ def toErasureCode (rs : Code F) : ErasureCode F where
   N := rs.N
   N_pos := rs.N_pos
   nchunk := rs.k
+  nchunk_pos := rs.k_pos
   nchunk_le_N := rs.k_le_N
   encode := rs.encode
   decode := rs.decode

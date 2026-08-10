@@ -151,7 +151,7 @@ theorem decode_eq_none_of_not_injective (rs : ReedSolomon.Code F)
   simp [decode, Decodable, hconflict]
 
 /-- Correctness of the generic parallel construction: for every message and position
-set `I`, decoding honest chunks returns the message when `|I| = k` and returns `none`
+set `I`, decoding honest chunks returns the message when `k ≤ |I|` and returns `none`
 when `|I| < k`. -/
 -- ANCHOR: parallelReedSolomon_correct
 theorem parallelCode_correct (rs : ReedSolomon.Code F) :
@@ -160,16 +160,17 @@ theorem parallelCode_correct (rs : ReedSolomon.Code F) :
     := by
   intro message I
   constructor
-  · intro hcard
-    exact decode_encodeChunks_of_k_le_card rs message I hcard.ge
+  · exact decode_encodeChunks_of_k_le_card rs message I
   · exact decode_encodeChunks_of_card_lt rs message I
 
-/-- Correctness of the abstract SPQR specialization for every threshold `k ≤ 2^16`. -/
+/-- Correctness of the abstract SPQR specialization for every threshold
+`0 < k ≤ 2^16`. -/
 -- ANCHOR: spqrReedSolomon_correct
-theorem correct (k : ℕ) (hk : k ≤ 2 ^ 16) : (spqrCode k hk).Correct
+theorem correct (k : ℕ) (hk : k ≤ 2 ^ 16) (hk_pos : 0 < k) :
+    (spqrCode k hk hk_pos).Correct
 -- ANCHOR_END: spqrReedSolomon_correct
     := by
-  exact parallelCode_correct (scalarCode k hk)
+  exact parallelCode_correct (scalarCode k hk hk_pos)
 
 end
 

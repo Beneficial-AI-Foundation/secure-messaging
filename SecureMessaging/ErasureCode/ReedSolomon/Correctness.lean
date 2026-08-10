@@ -127,7 +127,7 @@ theorem decode_eq_none_of_not_injective (rs : Code F)
   simp [decode, Decodable, hconflict]
 
 /-- The Reed–Solomon erasure code is correct (`ErasureCode.Correct`, [SCKA] Def.
-A.6): for every message `m` and position set `I`, `Decode(L_I) = m` if `|I| = k`,
+A.6): for every message `m` and position set `I`, `Decode(L_I) = m` if `k ≤ |I|`,
 and `Decode(L_I) = ⊥` if `|I| < k`. -/
 -- ANCHOR: reedSolomon_correct
 theorem correct (rs : Code F) : rs.toErasureCode.Correct
@@ -135,8 +135,7 @@ theorem correct (rs : Code F) : rs.toErasureCode.Correct
     := by
   intro message I
   constructor
-  · intro hcard
-    exact rs.decode_encodeChunks_of_k_le_card message I hcard.ge
+  · exact rs.decode_encodeChunks_of_k_le_card message I
   · exact rs.decode_encodeChunks_of_card_lt message I
 
 end Code

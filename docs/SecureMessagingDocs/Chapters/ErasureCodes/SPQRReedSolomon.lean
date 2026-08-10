@@ -74,6 +74,7 @@ def parallelCode (rs : ReedSolomon.Code F) : ErasureCode (Chunk F) where
   N := rs.N
   N_pos := rs.N_pos
   nchunk := rs.k
+  nchunk_pos := rs.k_pos
   nchunk_le_N := rs.k_le_N
   encode := encode rs
   decode := decode rs
@@ -107,15 +108,15 @@ def evaluationEquiv : Fin (2 ^ 16) ≃ GF16 :=
 :::
 
 ```anchor spqrReedSolomon_scalarCode (project := ".") (module := SecureMessaging.ErasureCode.SPQRReedSolomon.Construction)
-def scalarCode (k : ℕ) (hk : k ≤ 2 ^ 16) : ReedSolomon.Code GF16
+def scalarCode (k : ℕ) (hk : k ≤ 2 ^ 16) (hk_pos : 0 < k) : ReedSolomon.Code GF16
 ```
 
 :::leanPillCaption "SPQR specialization"
 :::
 
 ```anchor spqrReedSolomon_code (project := ".") (module := SecureMessaging.ErasureCode.SPQRReedSolomon.Construction)
-def spqrCode (k : ℕ) (hk : k ≤ 2 ^ 16) : ErasureCode (Chunk GF16) :=
-  parallelCode (scalarCode k hk)
+def spqrCode (k : ℕ) (hk : k ≤ 2 ^ 16) (hk_pos : 0 < k) : ErasureCode (Chunk GF16) :=
+  parallelCode (scalarCode k hk hk_pos)
 ```
 
 {usesLabel}`uses` {uses "parallel_reed_solomon_code"}[]
@@ -149,7 +150,8 @@ $`\todo`
 :::
 
 ```anchor spqrReedSolomon_correct (project := ".") (module := SecureMessaging.ErasureCode.SPQRReedSolomon.Correctness)
-theorem correct (k : ℕ) (hk : k ≤ 2 ^ 16) : (spqrCode k hk).Correct
+theorem correct (k : ℕ) (hk : k ≤ 2 ^ 16) (hk_pos : 0 < k) :
+    (spqrCode k hk hk_pos).Correct
 ```
 
 {usesLabel}`uses` {uses "spqr_reed_solomon_code"}[] ·
