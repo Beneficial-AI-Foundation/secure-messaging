@@ -150,7 +150,8 @@ $`\todo`
 :::
 
 ```anchor spqrReedSolomon_correct (project := ".") (module := SecureMessaging.ErasureCode.SPQRReedSolomon.Correctness)
-theorem correct (k : ℕ) (hk : k ≤ 2 ^ 16) (hk_pos : 0 < k) : (spqrCode k hk hk_pos).Correct
+theorem correct (k : ℕ) (hk : k ≤ 2 ^ 16) (hk_pos : 0 < k) :
+    (spqrCode k hk hk_pos).Correct
 ```
 
 {usesLabel}`uses` {uses "spqr_reed_solomon_code"}[] ·
