@@ -114,6 +114,14 @@ def const {A : Type} (c : ℝ≥0∞) (hc : c ≤ 1) : Risk A where
   toFun := fun _ => c
   le_one := fun _ => hc
 
+/-- As a function, `f.comp g` assigns each `a` the risk `f (g a)`. -/
+@[simp] lemma coe_comp {A B : Type} (f : Risk B) (g : A → B) :
+    ⇑(f.comp g) = fun a => f (g a) := rfl
+
+/-- As a function, `const c hc` assigns the risk `c` to every input. -/
+@[simp] lemma coe_const {A : Type} (c : ℝ≥0∞) (hc : c ≤ 1) :
+    ⇑(const (A := A) c hc) = fun _ => c := rfl
+
 end Risk
 
 /-- Failure-aware expectation for an arbitrary function `g`: a missing output
