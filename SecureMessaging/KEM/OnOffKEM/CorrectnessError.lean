@@ -188,7 +188,7 @@ noncomputable def failureAfterOff [DecidableEq K]
     ∑' kp : PK × SK, Pr[= kp | kem.keygen] *
       failureAfterBoth kem onoff hDet kp.1 kp.2 st ct0
 
-/-- The total staged correctness error is the missing mass of `kem.keygen`
+/-- The total staged correctness error is the missing probability mass of `kem.keygen`
 plus the probability-weighted average of `failureAfterKeypair` over its
 returned key pairs. -/
 lemma factorCorrectnessError_eq_avg_keypair [DecidableEq K]
@@ -206,7 +206,7 @@ lemma factorCorrectnessError_eq_avg_keypair [DecidableEq K]
   unfold failureAfterBoth onlineCorrectExp
   rw [probOutput_false_add_probFailure_bind]
 
-/-- The total staged correctness error is the missing mass of
+/-- The total staged correctness error is the missing probability mass of
 `onoff.encapsOff` plus the probability-weighted average of `failureAfterOff`
 over its returned offline samples. -/
 lemma factorCorrectnessError_eq_avg_off [DecidableEq K]
@@ -287,7 +287,7 @@ lemma failureAfterBoth_le_one [DecidableEq K]
   unfold failureAfterBoth
   exact probOutput_false_add_probFailure_le_one _
 
-/-- `failureAfterBoth` is the missing mass of `onoff.encapsOn st pk` plus,
+/-- `failureAfterBoth` is the missing probability mass of `onoff.encapsOn st pk` plus,
 for every returned `(ct₁, k)`, its probability multiplied by the indicator
 that decapsulation does not recover `k`. -/
 lemma failureAfterBoth_eq_indicator [DecidableEq K]
