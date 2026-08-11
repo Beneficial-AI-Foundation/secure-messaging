@@ -25,14 +25,7 @@ expectedRisk oa f  =  E_{x ← oa}[f(x)]
                    := Pr[oa = ⊥] + Σ_x Pr[oa = x] · f(x).
 ```
 
-The failure probability `Pr[oa = ⊥]` is assigned a risk value `1`.  Given `f ≤ 1`,
-this value is a least upper bound of the range of `f`, and corresponds to
-treating failure of `oa` as certain failure of the event bounded by `f`.
-
-The same formula on an arbitrary integrand `g : A → ℝ≥0∞` (not necessarily
-bounded by `1`) is `expectedRiskOfFun oa g`.  It appears as an intermediate
-quantity; the risk interpretation applies only when the integrand is a
-`Risk`.
+The failure probability `Pr[oa = ⊥]` is assigned a maximum risk value `1`.
 
 ## Interpretation
 
@@ -46,56 +39,72 @@ If a step from state `s` satisfies `E_{x ← oa}[f(x)] ≤ f(s) + ε`, then the
 expected risk increases by at most `ε`.  Iterating over `q` such steps yields
 `f(s₀) + q · ε` (and `q · ε` when `f(s₀) = 0`).
 
-## Laws
+## Proved properties
 
-Relative to the monad structure of `ProbComp`
-(`pure`, bind `>>=`, map `<$>`):
+Relative to the monad structure of `ProbComp` (`pure`, bind `>>=`, map `<$>`), we show:
 
 * `expectedRisk_pure` —
-  `E_{x ← pure a}[f(x)] = f(a)`;
+  `E_{x ← pure a}[f(x)] = f(a)`:
+  a deterministic computation has exactly the risk assigned to its output;
 * `expectedRisk_bind` —
   `E_{y ← oa >>= ob}[f(y)] =
-     Pr[oa = ⊥] + Σ_x Pr[oa = x] · E_{y ← ob x}[f(y)]`;
+     Pr[oa = ⊥] + Σ_x Pr[oa = x] · E_{y ← ob x}[f(y)]`:
+  sequential composition averages the risk of the second computation over
+  outputs of the first;
 * `expectedRisk_map` —
-  `E_{y ← g <$> oa}[f(y)] = E_{x ← oa}[(f ∘ g)(x)]`;
+  `E_{y ← g <$> oa}[f(y)] = E_{x ← oa}[(f ∘ g)(x)]`:
+  transforming an output is equivalent to transforming its risk function;
 * `expectedRisk_mono` —
-  `f ≤ g` pointwise implies `E_{x ← oa}[f(x)] ≤ E_{x ← oa}[g(x)]`;
+  `f ≤ g` pointwise implies `E_{x ← oa}[f(x)] ≤ E_{x ← oa}[g(x)]`:
+  increasing every output risk cannot decrease the expected risk;
 * `expectedRisk_le_one` —
-  `E_{x ← oa}[f(x)] ≤ 1`;
+  `E_{x ← oa}[f(x)] ≤ 1`:
+  expected risk is bounded by 1;
 * `expectedRisk_le_const_of_support` —
-  `Pr[oa = ⊥] = 0` and `f ≤ c` on `support oa` imply `E_{x ← oa}[f(x)] ≤ c`;
+  `Pr[oa = ⊥] = 0` and `f ≤ c` on `support oa` imply
+  `E_{x ← oa}[f(x)] ≤ c`:
+  when the computation always returns, a bound on every possible output
+  bounds its expected risk;
 * `expectedRisk_add_const_le` —
-  `expectedRiskOfFun oa (fun x ↦ f(x) + c) ≤ expectedRisk oa f + c`.
+  `expectedRiskOfFun oa (fun x ↦ f(x) + c) ≤ expectedRisk oa f + c`:
+  adding `c` to each returned-output risk increases the expectation by at
+  most `c`.
 
-For `oc : ProbComp Bool`, write
-`m(oc) := Pr[oc = false] + Pr[oc = ⊥]` for the false-or-failure mass.
-Then `m(oc) = expectedRiskOfFun oc (fun b ↦ if b then 0 else 1)`, and the
-integrand is a risk.  For `oa : ProbComp A` and `ob : A → ProbComp Bool`:
+For a Boolean computation `oc`, assign risk `0` to `true` and risk `1` to
+`false`. Its overall expected risk is
+
+`E_{b ← oc}[if b then 0 else 1] = Pr[oc = false] + Pr[oc = ⊥]`.
+
+Writing `m(oc)` for this false-or-missing mass:
 
 * `probOutput_false_add_probFailure_bind` —
-  `m(oa >>= ob) = Pr[oa = ⊥] + Σ_x Pr[oa = x] · m(ob x)`;
+  `m(oa >>= ob) = Pr[oa = ⊥] + Σ_x Pr[oa = x] · m(ob x)`:
+  sequential composition averages the second computation's false-or-missing
+  mass over outputs of the first;
 * `probOutput_false_add_probFailure_le_one` —
-  `m(oc) ≤ 1`.
+  `m(oc) ≤ 1`:
+  false-or-missing mass is at most the total probability mass.
 -/
 
 open OracleSpec ENNReal
 
 namespace OracleComp
 
-/-- A risk on `A`: a function `A → ℝ≥0∞` bounded above by `1`, intended as a
-pointwise failure-probability bound. -/
+/-- A risk on `A` assigns each value a failure-probability bound at most `1`. -/
 structure Risk (A : Type) where
   /-- Underlying function. -/
   toFun : A → ℝ≥0∞
-  /-- Pointwise bound `toFun a ≤ 1`. -/
+  /-- Proof that every assigned risk is at most `1`. -/
   le_one : ∀ a, toFun a ≤ 1
 
 namespace Risk
 
+/-- Coerce a risk to its underlying function. -/
 instance {A : Type} : CoeFun (Risk A) (fun _ => A → ℝ≥0∞) where
   coe := Risk.toFun
 
-/-- Precomposition: `(f.comp g) a = f (g a)`. -/
+/-- Given a risk `f` on `B` and a function `g : A → B`, `f.comp g` is the
+risk on `A` that assigns each `a` the risk of `g a`. -/
 def comp {A B : Type} (f : Risk B) (g : A → B) : Risk A where
   toFun := fun a => f.toFun (g a)
   le_one := fun a => f.le_one (g a)
@@ -107,24 +116,24 @@ def const {A : Type} (c : ℝ≥0∞) (hc : c ≤ 1) : Risk A where
 
 end Risk
 
-/-- Unrestricted failure-aware expectation of an integrand `g : A → ℝ≥0∞`:
-`Pr[⊥ | oa] + Σ' a, Pr[= a | oa] · g a`, charging failure value `1`.
-Prefer `expectedRisk` when `g` is a `Risk`. -/
+/-- Failure-aware expectation for an arbitrary function `g`: a missing output
+contributes `1`, while a returned value `a` contributes `g a`. -/
 noncomputable def expectedRiskOfFun {A : Type}
     (oa : ProbComp A) (g : A → ℝ≥0∞) : ℝ≥0∞ :=
   Pr[⊥ | oa] + ∑' a, Pr[= a | oa] * g a
 
-/-- Failure-aware expected risk of `f` under `oa`.
-Equals `expectedRiskOfFun oa f`; the `Risk` argument records `f ≤ 1`. -/
+/-- Expected risk of running `oa`: a missing output contributes `1`, while a
+returned value `a` contributes `f a`. -/
 noncomputable def expectedRisk {A : Type}
     (oa : ProbComp A) (f : Risk A) : ℝ≥0∞ :=
   expectedRiskOfFun oa f
 
+/-- Viewing a risk as an ordinary function does not change its expected value. -/
 theorem expectedRisk_eq_ofFun {A : Type}
     (oa : ProbComp A) (f : Risk A) :
     expectedRisk oa f = expectedRiskOfFun oa f := rfl
 
-/-- `expectedRiskOfFun (pure a) g = g a`. -/
+/-- A computation that deterministically returns `a` has expected value `g a`. -/
 lemma expectedRiskOfFun_pure {A : Type} (a : A) (g : A → ℝ≥0∞) :
     expectedRiskOfFun (pure a : ProbComp A) g = g a := by
   unfold expectedRiskOfFun
@@ -134,13 +143,13 @@ lemma expectedRiskOfFun_pure {A : Type} (a : A) (g : A → ℝ≥0∞) :
   · intro b hba
     simp [hba]
 
-/-- `expectedRisk (pure a) f = f a`. -/
+/-- A deterministic computation has exactly the risk assigned to its output. -/
 lemma expectedRisk_pure {A : Type} (a : A) (f : Risk A) :
     expectedRisk (pure a : ProbComp A) f = f a :=
   expectedRiskOfFun_pure a f
 
-/-- `expectedRiskOfFun (oa >>= ob) g =
-Pr[⊥ | oa] + Σ' a, Pr[= a | oa] · expectedRiskOfFun (ob a) g`. -/
+/-- Sequential composition adds the first computation's missing mass to the
+average continuation value. -/
 lemma expectedRiskOfFun_bind {A B : Type} (oa : ProbComp A)
     (ob : A → ProbComp B) (g : B → ℝ≥0∞) :
     expectedRiskOfFun (oa >>= ob) g =
@@ -171,15 +180,16 @@ lemma expectedRiskOfFun_bind {A B : Type} (oa : ProbComp A)
       simp_rw [mul_assoc]
       rw [ENNReal.tsum_mul_left]
 
-/-- `expectedRisk (oa >>= ob) f =
-Pr[⊥ | oa] + Σ' a, Pr[= a | oa] · expectedRisk (ob a) f`. -/
+/-- The expected risk of sequential composition is the first computation's
+missing mass plus the average risk of continuing from its outputs. -/
 lemma expectedRisk_bind {A B : Type} (oa : ProbComp A)
     (ob : A → ProbComp B) (f : Risk B) :
     expectedRisk (oa >>= ob) f =
       Pr[⊥ | oa] + ∑' a, Pr[= a | oa] * expectedRisk (ob a) f :=
   expectedRiskOfFun_bind oa ob f
 
-/-- `expectedRiskOfFun (g <$> oa) h = expectedRiskOfFun oa (h ∘ g)`. -/
+/-- Applying `g` to each output before evaluating `h` is equivalent to
+evaluating `h (g a)` on the original output. -/
 lemma expectedRiskOfFun_map {A B : Type} (g : A → B) (oa : ProbComp A)
     (h : B → ℝ≥0∞) :
     expectedRiskOfFun (g <$> oa) h =
@@ -188,7 +198,8 @@ lemma expectedRiskOfFun_map {A B : Type} (g : A → B) (oa : ProbComp A)
   simp only [Function.comp_apply, expectedRiskOfFun_pure]
   rfl
 
-/-- `expectedRisk (g <$> oa) f = expectedRisk oa (f.comp g)`. -/
+/-- Measuring risk after mapping outputs is equivalent to accounting for the
+map in the risk function. -/
 lemma expectedRisk_map {A B : Type} (g : A → B) (oa : ProbComp A)
     (f : Risk B) :
     expectedRisk (g <$> oa) f = expectedRisk oa (f.comp g) := by
@@ -196,7 +207,8 @@ lemma expectedRisk_map {A B : Type} (g : A → B) (oa : ProbComp A)
   rw [expectedRiskOfFun_map]
   rfl
 
-/-- Monotonicity for unrestricted integrands. -/
+/-- Increasing every returned-output value cannot decrease its failure-aware
+expectation. -/
 lemma expectedRiskOfFun_mono {A : Type} (oa : ProbComp A)
     (f g : A → ℝ≥0∞) (hfg : ∀ a, f a ≤ g a) :
     expectedRiskOfFun oa f ≤ expectedRiskOfFun oa g := by
@@ -204,14 +216,15 @@ lemma expectedRiskOfFun_mono {A : Type} (oa : ProbComp A)
   exact add_le_add le_rfl
     (ENNReal.tsum_le_tsum fun a => mul_le_mul' le_rfl (hfg a))
 
-/-- Monotonicity: `f ≤ g` pointwise implies
-`expectedRisk oa f ≤ expectedRisk oa g`. -/
+/-- Increasing the risk assigned to every output cannot decrease expected
+risk. -/
 lemma expectedRisk_mono {A : Type} (oa : ProbComp A)
     (f g : Risk A) (hfg : ∀ a, f a ≤ g a) :
     expectedRisk oa f ≤ expectedRisk oa g :=
   expectedRiskOfFun_mono oa f g hfg
 
-/-- If `g ≤ 1` pointwise, then `expectedRiskOfFun oa g ≤ 1`. -/
+/-- If every returned-output value is at most `1`, so is its failure-aware
+expectation. -/
 lemma expectedRiskOfFun_le_one {A : Type} (oa : ProbComp A)
     (g : A → ℝ≥0∞) (hg : ∀ a, g a ≤ 1) :
     expectedRiskOfFun oa g ≤ 1 := by
@@ -220,13 +233,13 @@ lemma expectedRiskOfFun_le_one {A : Type} (oa : ProbComp A)
       expectedRiskOfFun_mono oa g (fun _ => 1) hg
     _ = 1 := by simp [expectedRiskOfFun]
 
-/-- `expectedRisk oa f ≤ 1`. -/
+/-- Expected risk is at most `1`. -/
 lemma expectedRisk_le_one {A : Type} (oa : ProbComp A) (f : Risk A) :
     expectedRisk oa f ≤ 1 :=
   expectedRiskOfFun_le_one oa f f.le_one
 
-/-- If `Pr[⊥ | oa] = 0` and `g ≤ c` on `support oa`, then
-`expectedRiskOfFun oa g ≤ c`. -/
+/-- If `oa` has no missing mass and every possible returned-output value is at
+most `c`, then its failure-aware expectation is at most `c`. -/
 lemma expectedRiskOfFun_le_const_of_support {A : Type} (oa : ProbComp A)
     (g : A → ℝ≥0∞) (c : ℝ≥0∞) (hnf : Pr[⊥ | oa] = 0)
     (hg : ∀ a ∈ support oa, g a ≤ c) :
@@ -243,15 +256,16 @@ lemma expectedRiskOfFun_le_const_of_support {A : Type} (oa : ProbComp A)
     _ ≤ 1 * c := mul_le_mul' tsum_probOutput_le_one le_rfl
     _ = c := one_mul c
 
-/-- If `Pr[⊥ | oa] = 0` and `f ≤ c` on `support oa`, then
-`expectedRisk oa f ≤ c`. -/
+/-- If `oa` has no missing mass and every possible output has risk at most
+`c`, then its expected risk is at most `c`. -/
 lemma expectedRisk_le_const_of_support {A : Type} (oa : ProbComp A)
     (f : Risk A) (c : ℝ≥0∞) (hnf : Pr[⊥ | oa] = 0)
     (hf : ∀ a ∈ support oa, f a ≤ c) :
     expectedRisk oa f ≤ c :=
   expectedRiskOfFun_le_const_of_support oa f c hnf hf
 
-/-- `expectedRiskOfFun oa (fun a ↦ f a + c) ≤ expectedRiskOfFun oa f + c`. -/
+/-- Adding `c` to every returned-output value increases the failure-aware
+expectation by at most `c`. -/
 lemma expectedRiskOfFun_add_const_le {A : Type} (oa : ProbComp A)
     (f : A → ℝ≥0∞) (c : ℝ≥0∞) :
     expectedRiskOfFun oa (fun a => f a + c) ≤ expectedRiskOfFun oa f + c := by
@@ -270,16 +284,16 @@ lemma expectedRiskOfFun_add_const_le {A : Type} (oa : ProbComp A)
       exact add_le_add le_rfl (mul_le_mul' tsum_probOutput_le_one le_rfl)
     _ = (Pr[⊥ | oa] + ∑' a, Pr[= a | oa] * f a) + c := by rw [one_mul]
 
-/-- Adding a constant to the integrand increases the failure-aware expectation
-by at most that constant.  The left-hand side uses `expectedRiskOfFun` because
-`fun a ↦ f a + c` need not be a `Risk`. -/
+/-- Adding `c` to every returned-output risk increases the expectation by at
+most `c`.  The shifted function need not itself be a `Risk`. -/
 lemma expectedRisk_add_const_le {A : Type} (oa : ProbComp A)
     (f : Risk A) (c : ℝ≥0∞) :
     expectedRiskOfFun oa (fun a => f a + c) ≤ expectedRisk oa f + c :=
   expectedRiskOfFun_add_const_le oa f c
 
-/-- False-or-failure mass after bind:
-`m(oa >>= ob) = Pr[⊥ | oa] + Σ' a, Pr[= a | oa] · m(ob a)`. -/
+/-- The false-or-missing mass of sequential composition is the first
+computation's missing mass plus the average false-or-missing mass of the
+second. -/
 lemma probOutput_false_add_probFailure_bind {A : Type} (oa : ProbComp A)
     (ob : A → ProbComp Bool) :
     Pr[= false | oa >>= ob] + Pr[⊥ | oa >>= ob] =
@@ -299,7 +313,7 @@ lemma probOutput_false_add_probFailure_bind {A : Type} (oa : ProbComp A)
       refine tsum_congr fun a => ?_
       rw [mul_add]
 
-/-- `Pr[= false | oa] + Pr[⊥ | oa] ≤ 1`. -/
+/-- The false-or-missing mass of a Boolean computation is at most `1`. -/
 lemma probOutput_false_add_probFailure_le_one (oa : ProbComp Bool) :
     Pr[= false | oa] + Pr[⊥ | oa] ≤ 1 := by
   calc
