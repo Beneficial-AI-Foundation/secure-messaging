@@ -35,8 +35,8 @@ produced by one step `oa`, then `E_{x ← oa}[f(x)]` accounts for:
 * failure of the step (`oa` returns `⊥`, charged `1`); and
 * continuation risk `f(x)` when the step returns `x`.
 
-If a step from state `s` satisfies `E_{x ← oa}[f(x)] ≤ f(s) + ε`, then the
-expected risk increases by at most `ε`.  Iterating over `q` such steps yields
+If for every state `s` one has `E_{x ← oa_s}[f(x)] ≤ f(s) + ε`, then after
+`q` steps from an initial state `s₀` the expected risk is at most
 `f(s₀) + q · ε` (and `q · ε` when `f(s₀) = 0`).
 
 ## Proved properties
@@ -73,15 +73,14 @@ Relative to the monad structure of `ProbComp` (`pure`, bind `>>=`, map `<$>`), w
 For a Boolean computation `oc`, assign risk `0` to `true` and risk `1` to
 `false`. Its overall expected risk is
 
-`E_{b ← oc}[if b then 0 else 1] = Pr[oc = false] + Pr[oc = ⊥]`.
+`m(oc) := E_{b ← oc}[if b then 0 else 1] = Pr[oc = false] + Pr[oc = ⊥]`.
 
-Writing `m(oc)` for this false-or-missing mass:
-
-* `probOutput_false_add_probFailure_bind` —
+* `probOutput_false_add_probFailure_bind` — for all `oa : ProbComp A` and
+  `ob : A → ProbComp Bool`,
   `m(oa >>= ob) = Pr[oa = ⊥] + Σ_x Pr[oa = x] · m(ob x)`:
   sequential composition averages the second computation's false-or-missing
   mass over outputs of the first;
-* `probOutput_false_add_probFailure_le_one` —
+* `probOutput_false_add_probFailure_le_one` — for all `oc : ProbComp Bool`,
   `m(oc) ≤ 1`:
   false-or-missing mass is at most the total probability mass.
 -/
