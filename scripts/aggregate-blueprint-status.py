@@ -33,13 +33,15 @@ TRACKED_KINDS = ("definition", "theorem")
 ATOM_RE = re.compile(r":{3,}(definition|theorem)\s+\"([^\"]+)\"")
 ISSUE_RE = re.compile(r"\{githubIssue\s+(\d+)\}")
 CHART_WIDTH = 1280
-CHART_HEIGHT = 620
+CHART_HEIGHT = 582
 CHART_PADDING_LEFT = 44
 CHART_PADDING_RIGHT = 48
 CHART_PADDING_TOP = 36
-CHART_PADDING_BOTTOM = 120
+# Bottom padding holds the rotated date labels and nothing else; keeping it tight
+# pulls the pinned cards up towards the line they belong to.
+CHART_PADDING_BOTTOM = 82
 CHART_TICK_LABEL_X = -8
-CHART_TICK_LABEL_Y = 30
+CHART_TICK_LABEL_Y = 11
 CHART_HIT_MIN_HALF = 18.0
 CHART_HIT_MIN_WIDTH = 4.0
 CHART_HIT_MAX_DRIFT = 6.0
@@ -888,12 +890,17 @@ def commit_entry(
     metrics: tuple[str, ...],
     atom_by_label: dict[str, Atom],
 ) -> dict:
-    # Describe one commit for the hover card: where it links, and what it added.
-    ref, url, subject = commit_ref(snapshots[index])
+    # Describe one commit for its own card: the state it left behind, where it
+    # links, and what it added.
+    snapshot = snapshots[index]
+    ref, url, subject = commit_ref(snapshot)
     return {
         "ref": ref,
         "url": url,
         "subject": subject,
+        "metrics": {
+            metric: metric_value(snapshot, kind, metric) for metric in ("total",) + metrics
+        },
         "newAtoms": new_atoms_at(snapshots, index, kind, metrics, atom_by_label),
     }
 
@@ -1029,10 +1036,10 @@ def progress_chart(
               {week_ticks}
               {hover_layer}
             </svg>
-            <div class="progress-chart-tooltip progress-chart-panel" hidden></div>
+            <div class="progress-chart-tooltip" hidden></div>
           </div>
-          <div class="progress-chart-legend">{legend}</div>
           <div class="progress-chart-pins" aria-label="Pinned snapshots" hidden></div>
+          <div class="progress-chart-legend">{legend}</div>
         </article>'''
 
 

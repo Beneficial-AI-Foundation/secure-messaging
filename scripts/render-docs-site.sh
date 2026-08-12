@@ -549,10 +549,18 @@ cat > "$site_root/index.html" <<'HTML'
     .progress-chart-tooltip {
       position: absolute;
       z-index: 4;
-      min-width: 12.5rem;
-      max-width: min(22rem, calc(100% - 1.2rem));
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      gap: 10px;
+      max-width: min(46rem, calc(100% - 1.2rem));
       /* A preview only: it trails the cursor, so it must never catch events. */
       pointer-events: none;
+    }
+    .progress-chart-tooltip .progress-chart-panel {
+      flex: 1 1 13rem;
+      min-width: 12.5rem;
+      max-width: 22rem;
     }
     .progress-chart-tooltip[hidden] {
       display: none !important;
@@ -562,7 +570,7 @@ cat > "$site_root/index.html" <<'HTML'
       grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
       align-items: start;
       gap: 12px;
-      margin-top: 16px;
+      margin-top: 12px;
     }
     .progress-chart-pins[hidden] {
       display: none !important;
@@ -636,11 +644,6 @@ cat > "$site_root/index.html" <<'HTML'
     .progress-chart-tooltip-ref {
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-weight: 700;
-    }
-    .progress-chart-tooltip-commit + .progress-chart-tooltip-commit {
-      margin-top: 0.55rem;
-      padding-top: 0.5rem;
-      border-top: 1px solid var(--line);
     }
     .progress-chart-tooltip-atoms {
       margin-top: 0.4rem;
@@ -923,10 +926,14 @@ cat >> "$site_root/index.html" <<'HTML'
           .replace(/"/g, "&quot;");
       }
 
-      function metricRows(hit, metrics) {
+      // Each commit reports the state it left behind; the day's own attributes
+      // are the fallback when a point carries no commit detail.
+      function metricRows(hit, metrics, values) {
         return metrics.map(function (metric) {
-          var raw = hit.getAttribute("data-" + metric);
-          if (raw === null || raw === "") return "";
+          var raw = values && values[metric] !== undefined
+            ? values[metric]
+            : hit.getAttribute("data-" + metric);
+          if (raw === null || raw === undefined || raw === "") return "";
           var label = metric.charAt(0).toUpperCase() + metric.slice(1);
           return "<dt>" + escapeHtml(label) + "</dt><dd>" + escapeHtml(raw) + "</dd>";
         }).join("");
@@ -965,36 +972,38 @@ cat >> "$site_root/index.html" <<'HTML'
         );
       }
 
-      function commitsHtml(hit) {
-        // A day can hold several merges; each keeps its own link and atom list.
-        var entries = commits(hit);
-        if (!entries.length) return "";
-        return entries.map(function (entry) {
-          var ref = entry.ref || "";
-          var body =
-            (ref ? '<span class="progress-chart-tooltip-ref">' + escapeHtml(ref) + "</span>" : "") +
-            (entry.subject ? (ref ? " " : "") + escapeHtml(entry.subject) : "");
-          if (!body) return "";
-          return (
-            '<div class="progress-chart-tooltip-commit">' +
-            '<p class="progress-chart-tooltip-meta">' +
-            (entry.url
-              ? '<a href="' + escapeHtml(entry.url) + '" target="_blank" rel="noopener">' + body + "</a>"
-              : body) +
-            "</p>" +
-            newAtomsHtml(entry.newAtoms) +
-            "</div>"
-          );
-        }).join("");
+      function commitHtml(entry) {
+        var ref = entry.ref || "";
+        var body =
+          (ref ? '<span class="progress-chart-tooltip-ref">' + escapeHtml(ref) + "</span>" : "") +
+          (entry.subject ? (ref ? " " : "") + escapeHtml(entry.subject) : "");
+        return (
+          (body
+            ? '<p class="progress-chart-tooltip-meta">' +
+              (entry.url
+                ? '<a href="' + escapeHtml(entry.url) + '" target="_blank" rel="noopener">' + body + "</a>"
+                : body) +
+              "</p>"
+            : "") +
+          newAtomsHtml(entry.newAtoms)
+        );
       }
 
-      function panelHtml(hit, metrics) {
-        var date = hit.getAttribute("data-date") || "";
-        return (
-          "<strong>" + escapeHtml(date) + "</strong>" +
-          "<dl>" + metricRows(hit, metrics) + "</dl>" +
-          commitsHtml(hit)
-        );
+      // A day can hold several merges. Give each one its own box so they sit
+      // side by side rather than stacking inside a single card.
+      function dayBoxes(hit, metrics) {
+        var heading = "<strong>" + escapeHtml(hit.getAttribute("data-date") || "") + "</strong>";
+        var entries = commits(hit);
+        if (!entries.length) {
+          return [heading + "<dl>" + metricRows(hit, metrics, null) + "</dl>"];
+        }
+        return entries.map(function (entry) {
+          return (
+            heading +
+            "<dl>" + metricRows(hit, metrics, entry.metrics) + "</dl>" +
+            commitHtml(entry)
+          );
+        });
       }
 
       // Track the cursor so the card sits clear of the series line and leaves the
@@ -1040,12 +1049,14 @@ cat >> "$site_root/index.html" <<'HTML'
           .filter(Boolean);
         var hits = Array.prototype.slice.call(card.querySelectorAll(".progress-chart-hit"));
         if (!hits.length) return;
-        var pinnedDays = [];
+        var pinnedBoxes = [];
 
         // The preview lives and dies with the pointer. Anything worth reading or
         // clicking gets pinned below the chart, where nothing moves it.
         function showPreview(hit, event) {
-          tooltip.innerHTML = panelHtml(hit, metrics);
+          tooltip.innerHTML = dayBoxes(hit, metrics).map(function (box) {
+            return '<div class="progress-chart-panel">' + box + "</div>";
+          }).join("");
           tooltip.hidden = false;
           card.classList.add("is-hovering");
           hits.forEach(function (node) {
@@ -1060,45 +1071,49 @@ cat >> "$site_root/index.html" <<'HTML'
           hits.forEach(function (node) { node.classList.remove("is-active"); });
         }
 
-        function pinnedDay(hit) {
-          for (var index = 0; index < pinnedDays.length; index += 1) {
-            if (pinnedDays[index].hit === hit) return pinnedDays[index];
-          }
-          return null;
+        function boxesFor(hit) {
+          return pinnedBoxes.filter(function (entry) { return entry.hit === hit; });
+        }
+
+        function dropBox(entry) {
+          entry.panel.remove();
+          pinnedBoxes = pinnedBoxes.filter(function (candidate) { return candidate !== entry; });
+          if (!boxesFor(entry.hit).length) entry.hit.classList.remove("is-pinned");
+          pins.hidden = !pinnedBoxes.length;
         }
 
         function unpin(hit) {
-          var entry = pinnedDay(hit);
-          if (!entry) return;
-          entry.panel.remove();
-          pinnedDays = pinnedDays.filter(function (candidate) { return candidate !== entry; });
-          hit.classList.remove("is-pinned");
-          pins.hidden = !pinnedDays.length;
+          boxesFor(hit).forEach(dropBox);
         }
 
         function pin(hit) {
           var order = hits.indexOf(hit);
           var date = hit.getAttribute("data-date") || "day";
-          var panel = document.createElement("div");
-          panel.className = "progress-chart-pin progress-chart-panel";
-          panel.innerHTML =
-            '<button class="progress-chart-pin-close" type="button" aria-label="Unpin ' +
-            escapeHtml(date) + '">&times;</button>' + panelHtml(hit, metrics);
-          panel.querySelector(".progress-chart-pin-close").addEventListener("click", function () {
-            unpin(hit);
+          dayBoxes(hit, metrics).forEach(function (box, slot) {
+            var panel = document.createElement("div");
+            var entry = { hit: hit, order: order, slot: slot, panel: panel };
+            panel.className = "progress-chart-pin progress-chart-panel";
+            panel.innerHTML =
+              '<button class="progress-chart-pin-close" type="button" aria-label="Unpin ' +
+              escapeHtml(date) + '">&times;</button>' + box;
+            panel.querySelector(".progress-chart-pin-close").addEventListener("click", function () {
+              dropBox(entry);
+            });
+            // Keep pinned boxes in chart order, whichever order they were clicked in.
+            var later = pinnedBoxes.filter(function (candidate) {
+              return candidate.order > order || (candidate.order === order && candidate.slot > slot);
+            })[0];
+            pins.insertBefore(panel, later ? later.panel : null);
+            pinnedBoxes = pinnedBoxes.concat([entry]).sort(function (left, right) {
+              return left.order - right.order || left.slot - right.slot;
+            });
           });
-          // Keep pinned days in chart order, whichever order they were clicked in.
-          var later = pinnedDays.filter(function (entry) { return entry.order > order; })[0];
-          pins.insertBefore(panel, later ? later.panel : null);
-          pinnedDays = pinnedDays.concat([{ hit: hit, order: order, panel: panel }]).sort(
-            function (left, right) { return left.order - right.order; }
-          );
           hit.classList.add("is-pinned");
           pins.hidden = false;
         }
 
         function togglePin(hit) {
-          if (pinnedDay(hit)) unpin(hit);
+          if (boxesFor(hit).length) unpin(hit);
           else pin(hit);
         }
 
@@ -1126,7 +1141,7 @@ cat >> "$site_root/index.html" <<'HTML'
         document.addEventListener("keydown", function (event) {
           if (event.key !== "Escape") return;
           hidePreview();
-          pinnedDays.slice().forEach(function (entry) { unpin(entry.hit); });
+          pinnedBoxes.slice().forEach(dropBox);
         });
       }
 
