@@ -5,7 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.KEM.OnOffKEM.Defs
-import ToVCVio.OracleComp.ExpectedRisk
+import ToVCVio.OracleComp.ExpectedPayoff
 import VCVio.OracleComp.QueryTracking.RandomOracle.DeferredSampling
 
 /-!
