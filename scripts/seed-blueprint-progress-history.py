@@ -29,6 +29,8 @@ SCHEMA_VERSION = 1
 
 ATOM_RE = re.compile(r":{3,}(definition|theorem)\s+\"([^\"]+)\"")
 ISSUE_RE = re.compile(r"\{githubIssue\s+(\d+)\}")
+PULL_SUFFIX_RE = re.compile(r"\(#(\d+)\)\s*$")
+MERGE_SUBJECT_RE = re.compile(r"^Merge pull request #(\d+)\b")
 
 
 @dataclass(frozen=True)
@@ -195,26 +197,156 @@ def issue_completion_time(issue: int, metadata: dict[int, dict], pull_requests: 
     return min(candidates) if candidates else None
 
 
-def issue_closed_by(issues: tuple[int, ...], metadata: dict[int, dict], pull_requests: dict[str, dict], date: datetime) -> bool:
-    # Check whether any linked issue was completed by a commit date.
-    for issue in issues:
+def pull_request_number(url: str) -> int | None:
+    # Read the pull request number off a GitHub API or web URL.
+    match = re.search(r"/(\d+)$", url.rstrip("/"))
+    return int(match.group(1)) if match is not None else None
+
+
+def commit_index_by_pull_request(commits: list[Commit]) -> dict[int, int]:
+    # Map each pull request to the commit that merged it. Squash merges keep the
+    # number as a subject suffix; merge commits name it up front.
+    mapping: dict[int, int] = {}
+    for index, commit in enumerate(commits):
+        match = PULL_SUFFIX_RE.search(commit.subject) or MERGE_SUBJECT_RE.match(commit.subject)
+        if match is not None:
+            mapping.setdefault(int(match.group(1)), index)
+    return mapping
+
+
+def commit_index_for_time(commits: list[Commit], completed_at: datetime) -> int | None:
+    # First commit that is no older than a completion timestamp.
+    for index, commit in enumerate(commits):
+        if commit.date >= completed_at:
+            return index
+    return None
+
+
+def atom_completion_index(
+    atom: AtomIssue,
+    metadata: dict[int, dict],
+    pull_requests: dict[str, dict],
+    commits: list[Commit],
+    index_by_pull_request: dict[int, int],
+) -> int | None:
+    # Find the commit that completed an atom. GitHub closes an issue moments
+    # after its merge commit is written, so matching the closing pull request to
+    # its commit is exact where a timestamp comparison would slip to the next
+    # commit.
+    candidates: list[int] = []
+    for issue in atom.issues:
+        issue_metadata = metadata.get(issue, {})
+        matched_pull_request = False
+        for reference in issue_metadata.get("closedByPullRequestsReferences", []) or []:
+            url = reference.get("url")
+            if not isinstance(url, str):
+                continue
+            number = pull_request_number(url)
+            index = index_by_pull_request.get(number) if number is not None else None
+            if index is not None:
+                candidates.append(index)
+                matched_pull_request = True
+        if matched_pull_request:
+            continue
         completed_at = issue_completion_time(issue, metadata, pull_requests)
-        if completed_at is not None and completed_at <= date:
-            return True
-    return False
+        if completed_at is None:
+            continue
+        index = commit_index_for_time(commits, completed_at)
+        if index is not None:
+            candidates.append(index)
+    return min(candidates) if candidates else None
 
 
-def estimated_snapshot(commit: Commit, atoms: list[AtomIssue], issues: dict[int, dict], pull_requests: dict[str, dict], totals: dict) -> dict:
+def tracked_labels_in_source(text: str) -> set[str]:
+    # Collect Blueprint atom labels that carry a GitHub issue footer, matching
+    # the tracked-atom rule used by aggregate-blueprint-status.py.
+    labels: set[str] = set()
+    lines = text.splitlines()
+    index = 0
+    while index < len(lines):
+        match = ATOM_RE.search(lines[index])
+        if match is None:
+            index += 1
+            continue
+
+        label = match.group(2)
+        fence = re.match(r"\s*(:{3,})", lines[index])
+        close_marker = fence.group(1) if fence is not None else ":::"
+        block = [lines[index]]
+        index += 1
+        while index < len(lines):
+            block.append(lines[index])
+            if lines[index].strip() == close_marker:
+                index += 1
+                break
+            index += 1
+
+        if ISSUE_RE.search("\n".join(block)):
+            labels.add(label)
+    return labels
+
+
+def tracked_labels_at_commit(sha: str, docs_dir: Path) -> set[str]:
+    # Read the documentation sources as they existed at one commit.
+    try:
+        listing = subprocess.check_output(
+            ["git", "ls-tree", "-r", sha, "--", str(docs_dir)],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        )
+    except subprocess.CalledProcessError:
+        return set()
+
+    blobs = []
+    for line in listing.splitlines():
+        metadata, _, path = line.partition("\t")
+        if not path.endswith(".lean"):
+            continue
+        fields = metadata.split()
+        if len(fields) >= 3:
+            blobs.append(fields[2])
+    if not blobs:
+        return set()
+
+    # One batch read keeps per-commit history scans fast.
+    result = subprocess.run(
+        ["git", "cat-file", "--batch"],
+        input=("\n".join(blobs) + "\n").encode(),
+        capture_output=True,
+        check=False,
+    )
+    return tracked_labels_in_source(result.stdout.decode("utf-8", errors="replace"))
+
+
+def estimated_snapshot(
+    commit: Commit,
+    commit_index: int,
+    atoms: list[AtomIssue],
+    completion_index: dict[str, int],
+    totals: dict,
+    kinds_by_label: dict[str, str],
+    docs_dir: Path,
+) -> dict:
     # Estimate progress at one commit from issue/closing-PR completion state.
-    definition_specified = 0
-    theorem_complete = 0
+    definition_labels: list[str] = []
+    theorem_labels: list[str] = []
     for atom in atoms:
-        if not atom.issues or not issue_closed_by(atom.issues, issues, pull_requests, commit.date):
+        completed_at = completion_index.get(atom.label)
+        if completed_at is None or completed_at > commit_index:
             continue
         if atom.kind == "definition":
-            definition_specified += 1
+            definition_labels.append(atom.label)
         elif atom.kind == "theorem":
-            theorem_complete += 1
+            theorem_labels.append(atom.label)
+    definition_specified = len(definition_labels)
+    theorem_complete = len(theorem_labels)
+
+    # Scope the historical totals to the atoms that were actually authored by this
+    # commit, restricted to the set still tracked today so the estimated series
+    # joins the final exact snapshot without a jump.
+    authored = tracked_labels_at_commit(commit.sha, docs_dir) & set(kinds_by_label)
+    definition_total = sum(1 for label in authored if kinds_by_label[label] == "definition")
+    theorem_total = sum(1 for label in authored if kinds_by_label[label] == "theorem")
 
     return {
         "commit": commit.sha,
@@ -224,15 +356,33 @@ def estimated_snapshot(commit: Commit, atoms: list[AtomIssue], issues: dict[int,
         "source": "github-issue-or-closing-pr-estimate",
         "estimated": True,
         "definitions": {
-            "total": totals["definition"]["total"],
+            # Completed work predates the blueprint text, so never report fewer
+            # atoms than the estimate already counts as specified.
+            "total": min(max(definition_total, definition_specified), totals["definition"]["total"]),
+            # A closed issue cannot distinguish the specified and verified stages,
+            # so both estimates track the same completed set.
             "specified": definition_specified,
+            "specifiedLabels": sorted(definition_labels),
+            "verified": definition_specified,
+            "verifiedLabels": sorted(definition_labels),
         },
         "theorems": {
-            "total": totals["theorem"]["total"],
+            "total": min(max(theorem_total, theorem_complete), totals["theorem"]["total"]),
             "specified": theorem_complete,
+            "specifiedLabels": sorted(theorem_labels),
             "verified": theorem_complete,
+            "verifiedLabels": sorted(theorem_labels),
         },
     }
+
+
+def metric_labels(atoms: list, kind: str, metric: str) -> list[str]:
+    # Collect the labels behind one metric count so charts can list new atoms.
+    return sorted(
+        atom.label
+        for atom in atoms
+        if atom.kind == kind and getattr(atom, metric, False)
+    )
 
 
 def exact_snapshot(site_dir: Path, docs_dir: Path) -> dict:
@@ -253,17 +403,22 @@ def exact_snapshot(site_dir: Path, docs_dir: Path) -> dict:
         "definitions": {
             "total": totals["definition"]["total"],
             "specified": totals["definition"]["specified"],
+            "specifiedLabels": metric_labels(atoms, "definition", "specified"),
+            "verified": totals["definition"]["verified"],
+            "verifiedLabels": metric_labels(atoms, "definition", "verified"),
         },
         "theorems": {
             "total": totals["theorem"]["total"],
             "specified": totals["theorem"]["specified"],
+            "specifiedLabels": metric_labels(atoms, "theorem", "specified"),
             "verified": totals["theorem"]["verified"],
+            "verifiedLabels": metric_labels(atoms, "theorem", "verified"),
         },
     }
 
 
 def exact_totals(site_dir: Path, docs_dir: Path) -> dict:
-    # Get current atom totals so historical estimates use today's atom universe.
+    # Cap historical totals by today's tracked atom universe.
     aggregator = load_aggregator()
     totals = aggregator.summarize(aggregator.load_tracked_atoms(site_dir, docs_dir))
     return {
@@ -274,6 +429,12 @@ def exact_totals(site_dir: Path, docs_dir: Path) -> dict:
             "total": totals["theorem"]["total"],
         },
     }
+
+
+def tracked_kinds_by_label(site_dir: Path, docs_dir: Path) -> dict[str, str]:
+    # Map each currently tracked atom label to its kind for historical scoping.
+    aggregator = load_aggregator()
+    return {atom.label: atom.kind for atom in aggregator.load_tracked_atoms(site_dir, docs_dir)}
 
 
 def write_json(path: Path, data: dict) -> None:
@@ -302,7 +463,17 @@ def main() -> None:
     pull_requests = fetch_pull_requests(args.repo, issues)
     atoms = [atom for atom in atoms if atom.issues]
     totals = exact_totals(args.site_dir, args.docs_dir)
-    snapshots = [estimated_snapshot(commit, atoms, issues, pull_requests, totals) for commit in commits]
+    kinds_by_label = tracked_kinds_by_label(args.site_dir, args.docs_dir)
+    index_by_pull_request = commit_index_by_pull_request(commits)
+    completion_index: dict[str, int] = {}
+    for atom in atoms:
+        index = atom_completion_index(atom, issues, pull_requests, commits, index_by_pull_request)
+        if index is not None:
+            completion_index[atom.label] = index
+    snapshots = [
+        estimated_snapshot(commit, index, atoms, completion_index, totals, kinds_by_label, args.docs_dir)
+        for index, commit in enumerate(commits)
+    ]
     latest = exact_snapshot(args.site_dir, args.docs_dir)
 
     by_commit = {snapshot["commit"]: snapshot for snapshot in snapshots}
@@ -318,7 +489,7 @@ def main() -> None:
         "schemaVersion": SCHEMA_VERSION,
         "projectStart": project_start,
         "projectEnd": args.project_end,
-        "historyBasis": "Historical points are estimated from current Blueprint atom-to-issue links, GitHub issue closure dates, and linked closing PR merge dates; the latest point is exact from rendered Blueprint manifests.",
+        "historyBasis": "Historical points are estimated from current Blueprint atom-to-issue links, GitHub issue closure dates, and linked closing PR merge dates; historical atom totals count the tracked atoms authored in the documentation at each commit; the latest point is exact from rendered Blueprint manifests.",
         "updatedAt": datetime.now(timezone.utc).isoformat(),
         "snapshots": ordered,
     }

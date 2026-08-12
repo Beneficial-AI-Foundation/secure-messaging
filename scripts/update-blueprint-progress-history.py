@@ -68,6 +68,11 @@ def snapshot_date(commit: str | None, explicit_date: str | None) -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def metric_labels(atoms: list, kind: str, metric: str) -> list[str]:
+    # Record the labels behind each count so charts can list newly reached atoms.
+    return sorted(atom.label for atom in atoms if atom.kind == kind and getattr(atom, metric, False))
+
+
 def current_snapshot(site_dir: Path, docs_dir: Path, commit: str | None, date: str | None, subject: str | None) -> dict:
     aggregator = load_aggregator()
     atoms = aggregator.load_tracked_atoms(site_dir, docs_dir)
@@ -85,11 +90,16 @@ def current_snapshot(site_dir: Path, docs_dir: Path, commit: str | None, date: s
         "definitions": {
             "total": totals["definition"]["total"],
             "specified": totals["definition"]["specified"],
+            "specifiedLabels": metric_labels(atoms, "definition", "specified"),
+            "verified": totals["definition"]["verified"],
+            "verifiedLabels": metric_labels(atoms, "definition", "verified"),
         },
         "theorems": {
             "total": totals["theorem"]["total"],
             "specified": totals["theorem"]["specified"],
+            "specifiedLabels": metric_labels(atoms, "theorem", "specified"),
             "verified": totals["theorem"]["verified"],
+            "verifiedLabels": metric_labels(atoms, "theorem", "verified"),
         },
     }
 

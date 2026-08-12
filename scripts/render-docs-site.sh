@@ -447,27 +447,236 @@ cat > "$site_root/index.html" <<'HTML'
     }
     .progress-chart-grid {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 16px;
+      grid-template-columns: 1fr;
+      gap: 22px;
     }
     .progress-chart-card {
-      padding: 15px;
+      padding: 18px 18px 16px;
       border: 1px solid var(--line);
-      border-radius: 6px;
+      border-radius: 8px;
       background: var(--panel);
       overflow-x: auto;
       scrollbar-gutter: stable;
     }
+    .progress-chart-card-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
     .progress-chart-card h3 {
-      margin: 0 0 10px;
-      font-size: 1rem;
+      margin: 0;
+      font-size: 1.28rem;
+      letter-spacing: -0.01em;
+    }
+    .progress-chart-hint {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+    .progress-chart-wrap {
+      position: relative;
     }
     .progress-chart {
       display: block;
       width: 100%;
-      min-width: 588px;
+      min-width: 760px;
+      min-height: 360px;
       height: auto;
       overflow: visible;
+    }
+    .progress-chart-hit {
+      cursor: pointer;
+      outline: none;
+    }
+    .progress-chart-hitarea {
+      fill: transparent;
+    }
+    .progress-chart-crosshair {
+      stroke: #64748b;
+      stroke-width: 1.4;
+      stroke-dasharray: 3 5;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .progress-chart-dot {
+      stroke: var(--panel);
+      stroke-width: 1.8;
+      paint-order: stroke fill;
+      opacity: 0.95;
+      pointer-events: none;
+    }
+    .progress-chart-dot.total {
+      fill: #5b6474;
+    }
+    .progress-chart-dot.specified {
+      fill: #2563eb;
+    }
+    .progress-chart-dot.verified {
+      fill: #16a34a;
+    }
+    .progress-chart-card:not(.is-hovering) .progress-chart-hit:last-child .progress-chart-dot {
+      opacity: 1;
+    }
+    .progress-chart-hit.is-active .progress-chart-crosshair,
+    .progress-chart-hit:focus-visible .progress-chart-crosshair {
+      opacity: 0.85;
+    }
+    .progress-chart-hit.is-active .progress-chart-dot,
+    .progress-chart-hit:focus-visible .progress-chart-dot,
+    .progress-chart-hit.is-pinned .progress-chart-dot {
+      opacity: 1;
+    }
+    .progress-chart-hit.is-pinned .progress-chart-crosshair {
+      stroke: var(--link);
+      stroke-dasharray: none;
+      opacity: 0.7;
+    }
+    .progress-chart-card.is-hovering .progress-chart-hit:not(.is-active):not(.is-pinned) {
+      opacity: 0.35;
+    }
+    .progress-chart-panel {
+      padding: 0.7rem 0.8rem;
+      border: 1px solid #9fb0cf;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.98);
+      color: var(--text);
+      box-shadow: 0 10px 28px rgba(23, 32, 51, 0.12);
+    }
+    .progress-chart-tooltip {
+      position: absolute;
+      z-index: 4;
+      min-width: 12.5rem;
+      max-width: min(22rem, calc(100% - 1.2rem));
+      /* A preview only: it trails the cursor, so it must never catch events. */
+      pointer-events: none;
+    }
+    .progress-chart-tooltip[hidden] {
+      display: none !important;
+    }
+    .progress-chart-pins {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+      align-items: start;
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .progress-chart-pins[hidden] {
+      display: none !important;
+    }
+    .progress-chart-pin {
+      position: relative;
+      border-color: var(--link);
+      box-shadow: 0 8px 22px rgba(23, 32, 51, 0.14);
+    }
+    .progress-chart-pin > strong {
+      padding-right: 1.4rem;
+    }
+    .progress-chart-pin-close {
+      position: absolute;
+      top: 0.3rem;
+      right: 0.35rem;
+      width: 1.4rem;
+      height: 1.4rem;
+      padding: 0;
+      border: 0;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 1.1rem;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .progress-chart-pin-close:hover,
+    .progress-chart-pin-close:focus-visible {
+      background: rgba(36, 87, 197, 0.1);
+      color: var(--link);
+    }
+    .progress-chart-panel strong {
+      display: block;
+      margin-bottom: 0.35rem;
+      font-size: 0.95rem;
+    }
+    .progress-chart-panel dl {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.18rem 0.7rem;
+      margin: 0;
+    }
+    .progress-chart-panel dt {
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 650;
+    }
+    .progress-chart-panel dd {
+      margin: 0;
+      font-size: 0.9rem;
+      font-weight: 700;
+      text-align: right;
+    }
+    .progress-chart-panel .progress-chart-tooltip-meta {
+      margin: 0.45rem 0 0;
+      color: var(--muted);
+      font-size: 0.8rem;
+      line-height: 1.35;
+    }
+    .progress-chart-tooltip-atoms ul {
+      max-height: 8.5rem;
+    }
+    .progress-chart-tooltip-meta a {
+      color: var(--link);
+      text-decoration: none;
+    }
+    .progress-chart-tooltip-meta a:hover {
+      text-decoration: underline;
+    }
+    .progress-chart-tooltip-ref {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-weight: 700;
+    }
+    .progress-chart-tooltip-commit + .progress-chart-tooltip-commit {
+      margin-top: 0.55rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--line);
+    }
+    .progress-chart-tooltip-atoms {
+      margin-top: 0.4rem;
+    }
+    .progress-chart-tooltip-atoms-title {
+      display: block;
+      margin-bottom: 0.3rem;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+    .progress-chart-tooltip-atoms ul {
+      display: grid;
+      gap: 0.28rem;
+      max-height: 11rem;
+      overflow-y: auto;
+      margin: 0;
+      padding-left: 1.05rem;
+    }
+    .progress-chart-tooltip-atoms li {
+      font-size: 0.84rem;
+      line-height: 1.3;
+    }
+    .progress-chart-tooltip-atoms a {
+      color: var(--link);
+    }
+    .progress-chart-tooltip-atoms code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.82rem;
+    }
+    .progress-chart-tooltip-atoms .progress-chart-tooltip-atom-note {
+      display: block;
+      color: var(--muted);
+      font-size: 0.78rem;
     }
     .progress-chart-axis {
       stroke: #5d6b7f;
@@ -553,12 +762,12 @@ cat > "$site_root/index.html" <<'HTML'
       display: flex;
       align-items: center;
       flex-wrap: nowrap;
-      gap: 12px;
-      margin-top: 9px;
+      gap: 14px;
+      margin-top: 12px;
       overflow-x: auto;
       white-space: nowrap;
       color: var(--muted);
-      font-size: 0.95rem;
+      font-size: 1rem;
       font-weight: 650;
     }
     .progress-chart-legend span {
@@ -625,11 +834,6 @@ cat > "$site_root/index.html" <<'HTML'
       text-transform: uppercase;
       color: #334155;
     }
-    @media (max-width: 900px) {
-      .progress-chart-grid {
-        grid-template-columns: 1fr;
-      }
-    }
     @media (max-width: 640px) {
       .chapter-row {
         align-items: flex-start;
@@ -641,8 +845,12 @@ cat > "$site_root/index.html" <<'HTML'
       .status-table {
         font-size: 0.85rem;
       }
-      .progress-chart-grid {
-        grid-template-columns: 1fr;
+      .progress-chart {
+        min-width: 640px;
+        min-height: 300px;
+      }
+      .progress-chart-card h3 {
+        font-size: 1.12rem;
       }
     }
     footer {
@@ -705,6 +913,226 @@ python3 scripts/aggregate-blueprint-status.py \
 
 cat >> "$site_root/index.html" <<'HTML'
   </main>
+  <script>
+    (function () {
+      function escapeHtml(value) {
+        return String(value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      function metricRows(hit, metrics) {
+        return metrics.map(function (metric) {
+          var raw = hit.getAttribute("data-" + metric);
+          if (raw === null || raw === "") return "";
+          var label = metric.charAt(0).toUpperCase() + metric.slice(1);
+          return "<dt>" + escapeHtml(label) + "</dt><dd>" + escapeHtml(raw) + "</dd>";
+        }).join("");
+      }
+
+      function commits(hit) {
+        var raw = hit.getAttribute("data-commits");
+        if (!raw) return [];
+        try {
+          var parsed = JSON.parse(raw);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch (error) {
+          return [];
+        }
+      }
+
+      function newAtomsHtml(atoms) {
+        if (!atoms || !atoms.length) return "";
+        var items = atoms.map(function (atom) {
+          var name = "<code>" + escapeHtml(atom.label || "") + "</code>";
+          // Atoms added after the last render have no manifest entry to link to.
+          var body = atom.href
+            ? '<a href="' + escapeHtml(atom.href) + '">' + name + "</a>"
+            : name;
+          var note = [atom.title].concat(atom.metrics || []).filter(Boolean).join(" · ");
+          return (
+            "<li>" + body +
+            (note ? '<span class="progress-chart-tooltip-atom-note">' + escapeHtml(note) + "</span>" : "") +
+            "</li>"
+          );
+        }).join("");
+        return (
+          '<div class="progress-chart-tooltip-atoms">' +
+          '<span class="progress-chart-tooltip-atoms-title">New atoms (' + atoms.length + ")</span>" +
+          "<ul>" + items + "</ul></div>"
+        );
+      }
+
+      function commitsHtml(hit) {
+        // A day can hold several merges; each keeps its own link and atom list.
+        var entries = commits(hit);
+        if (!entries.length) return "";
+        return entries.map(function (entry) {
+          var ref = entry.ref || "";
+          var body =
+            (ref ? '<span class="progress-chart-tooltip-ref">' + escapeHtml(ref) + "</span>" : "") +
+            (entry.subject ? (ref ? " " : "") + escapeHtml(entry.subject) : "");
+          if (!body) return "";
+          return (
+            '<div class="progress-chart-tooltip-commit">' +
+            '<p class="progress-chart-tooltip-meta">' +
+            (entry.url
+              ? '<a href="' + escapeHtml(entry.url) + '" target="_blank" rel="noopener">' + body + "</a>"
+              : body) +
+            "</p>" +
+            newAtomsHtml(entry.newAtoms) +
+            "</div>"
+          );
+        }).join("");
+      }
+
+      function panelHtml(hit, metrics) {
+        var date = hit.getAttribute("data-date") || "";
+        return (
+          "<strong>" + escapeHtml(date) + "</strong>" +
+          "<dl>" + metricRows(hit, metrics) + "</dl>" +
+          commitsHtml(hit)
+        );
+      }
+
+      // Track the cursor so the card sits clear of the series line and leaves the
+      // neighbouring points visible.
+      function positionTooltip(wrap, tooltip, hit, event) {
+        var wrapRect = wrap.getBoundingClientRect();
+        var tipWidth = tooltip.offsetWidth || 200;
+        var tipHeight = tooltip.offsetHeight || 120;
+        var gap = 16;
+        var anchorX;
+        var anchorY;
+        if (event && typeof event.clientX === "number") {
+          anchorX = event.clientX - wrapRect.left;
+          anchorY = event.clientY - wrapRect.top;
+        } else {
+          // Keyboard focus has no cursor, so anchor under the point itself.
+          var hitRect = hit.getBoundingClientRect();
+          anchorX = hitRect.left + hitRect.width / 2 - wrapRect.left;
+          anchorY = hitRect.top + hitRect.height / 2 - wrapRect.top;
+        }
+        var left = anchorX + gap;
+        var top = anchorY + gap;
+        // Flip to the other side of the cursor rather than sliding over the chart.
+        if (left + tipWidth > wrapRect.width - 8) {
+          left = Math.max(8, anchorX - gap - tipWidth);
+        }
+        if (top + tipHeight > wrapRect.height - 8) {
+          top = Math.max(8, anchorY - gap - tipHeight);
+        }
+        tooltip.style.left = left + "px";
+        tooltip.style.top = top + "px";
+      }
+
+      function bindCard(card) {
+        var wrap = card.querySelector(".progress-chart-wrap");
+        var tooltip = card.querySelector(".progress-chart-tooltip");
+        var pins = card.querySelector(".progress-chart-pins");
+        var svg = card.querySelector(".progress-chart");
+        if (!wrap || !tooltip || !pins || !svg) return;
+        var metrics = (card.getAttribute("data-progress-metrics") || "total")
+          .split(",")
+          .map(function (part) { return part.trim(); })
+          .filter(Boolean);
+        var hits = Array.prototype.slice.call(card.querySelectorAll(".progress-chart-hit"));
+        if (!hits.length) return;
+        var pinnedDays = [];
+
+        // The preview lives and dies with the pointer. Anything worth reading or
+        // clicking gets pinned below the chart, where nothing moves it.
+        function showPreview(hit, event) {
+          tooltip.innerHTML = panelHtml(hit, metrics);
+          tooltip.hidden = false;
+          card.classList.add("is-hovering");
+          hits.forEach(function (node) {
+            node.classList.toggle("is-active", node === hit);
+          });
+          positionTooltip(wrap, tooltip, hit, event);
+        }
+
+        function hidePreview() {
+          tooltip.hidden = true;
+          card.classList.remove("is-hovering");
+          hits.forEach(function (node) { node.classList.remove("is-active"); });
+        }
+
+        function pinnedDay(hit) {
+          for (var index = 0; index < pinnedDays.length; index += 1) {
+            if (pinnedDays[index].hit === hit) return pinnedDays[index];
+          }
+          return null;
+        }
+
+        function unpin(hit) {
+          var entry = pinnedDay(hit);
+          if (!entry) return;
+          entry.panel.remove();
+          pinnedDays = pinnedDays.filter(function (candidate) { return candidate !== entry; });
+          hit.classList.remove("is-pinned");
+          pins.hidden = !pinnedDays.length;
+        }
+
+        function pin(hit) {
+          var order = hits.indexOf(hit);
+          var date = hit.getAttribute("data-date") || "day";
+          var panel = document.createElement("div");
+          panel.className = "progress-chart-pin progress-chart-panel";
+          panel.innerHTML =
+            '<button class="progress-chart-pin-close" type="button" aria-label="Unpin ' +
+            escapeHtml(date) + '">&times;</button>' + panelHtml(hit, metrics);
+          panel.querySelector(".progress-chart-pin-close").addEventListener("click", function () {
+            unpin(hit);
+          });
+          // Keep pinned days in chart order, whichever order they were clicked in.
+          var later = pinnedDays.filter(function (entry) { return entry.order > order; })[0];
+          pins.insertBefore(panel, later ? later.panel : null);
+          pinnedDays = pinnedDays.concat([{ hit: hit, order: order, panel: panel }]).sort(
+            function (left, right) { return left.order - right.order; }
+          );
+          hit.classList.add("is-pinned");
+          pins.hidden = false;
+        }
+
+        function togglePin(hit) {
+          if (pinnedDay(hit)) unpin(hit);
+          else pin(hit);
+        }
+
+        hits.forEach(function (hit) {
+          hit.addEventListener("mouseenter", function (event) { showPreview(hit, event); });
+          hit.addEventListener("mousemove", function (event) {
+            if (tooltip.hidden || !hit.classList.contains("is-active")) {
+              showPreview(hit, event);
+              return;
+            }
+            positionTooltip(wrap, tooltip, hit, event);
+          });
+          hit.addEventListener("focus", function () { showPreview(hit, null); });
+          hit.addEventListener("click", function () { togglePin(hit); });
+          hit.addEventListener("keydown", function (event) {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault();
+            togglePin(hit);
+          });
+        });
+        svg.addEventListener("mouseleave", hidePreview);
+        card.addEventListener("focusout", function (event) {
+          if (!card.contains(event.relatedTarget)) hidePreview();
+        });
+        document.addEventListener("keydown", function (event) {
+          if (event.key !== "Escape") return;
+          hidePreview();
+          pinnedDays.slice().forEach(function (entry) { unpin(entry.hit); });
+        });
+      }
+
+      document.querySelectorAll(".progress-chart-card").forEach(bindCard);
+    })();
+  </script>
 </body>
 </html>
 HTML
