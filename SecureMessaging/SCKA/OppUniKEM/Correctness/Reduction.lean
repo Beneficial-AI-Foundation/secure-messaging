@@ -113,7 +113,7 @@ completes the epoch, setting `b' = bad s'` with expectation `χ = V` and
    `S = 1`.  Hence `Pr[G(Adv) = false] ≤ q · ε`, and
    `Pr[G(Adv) = true] ≥ 1 - q · ε` follows since `G(Adv)` is total.
 
-The proofs state the bound with `factorCorrectnessError kem onoff hDet` and
+The proofs state the bound with `factorCorrectnessError kem onoff` and
 rewrite it as `kem.correctnessError` by `factorCorrectnessError_eq`
 (`KEM.OnOffKEM.CorrectnessError`).
 
@@ -166,9 +166,9 @@ theorem correctness_failure_le_reduction [DecidableEq K]
     := by
   let tracked := trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak
   let Inv := trackedInv kem onoff hDet ecEk ecCt0 ecCt1
-  let score := trackedFailureScore (Sym := Sym) kem onoff hDet
+  let score := trackedFailureScore (Sym := Sym) kem onoff
   let s₀ := initialGame (Sym := Sym) kem onoff
-  let epsilon := factorCorrectnessError kem onoff hDet
+  let epsilon := factorCorrectnessError kem onoff
   have hpres : QueryImpl.PreservesInv tracked Inv :=
     trackedCorrectnessImpl_preserves kem onoff hDet ecEk hEkCorrect hEkPos
       ecCt0 hCt0Correct hCt0Pos ecCt1 hCt1Correct hCt1Pos leak
@@ -190,7 +190,7 @@ theorem correctness_failure_le_reduction [DecidableEq K]
       adv q hq epsilon hpres
       (tracked_score_step_le kem onoff hDet ecEk ecCt0 ecCt1 leak)
       (s₀, false) hinit
-    have hscore₀' : trackedFailureScore kem onoff hDet (s₀, false) = 0 := by
+    have hscore₀' : trackedFailureScore kem onoff (s₀, false) = 0 := by
       simpa [score] using hscore₀
     rw [hscore₀', zero_add] at h
     simpa [tracked, score] using h
@@ -224,7 +224,7 @@ theorem correctness_failure_le_reduction [DecidableEq K]
           (simulateQ tracked adv).run (s₀, false)] := hmono
     _ ≤ expectedPayoff ((simulateQ tracked adv).run (s₀, false))
           (fun z => score z.2) :=
-      tracked_bad_probability_le_score kem onoff hDet _
+      tracked_bad_probability_le_score kem onoff _
     _ ≤ (q : ℝ≥0∞) * epsilon := hscore
     _ = (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp := by
       simp only [epsilon, factorCorrectnessError_eq]

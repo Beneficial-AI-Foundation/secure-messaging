@@ -74,11 +74,11 @@ lemma tracked_step_score_le_of_bad [DecidableEq K]
     (hbad : p.2 = true) (epsilon : ℝ≥0∞) :
     expectedPayoff
         (((trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak) t).run p)
-        (fun z => trackedFailureScore kem onoff hDet z.2) ≤
-      trackedFailureScore kem onoff hDet p + epsilon := by
+        (fun z => trackedFailureScore kem onoff z.2) ≤
+      trackedFailureScore kem onoff p + epsilon := by
   refine (expectedPayoff_le_one _ _ ?_).trans ?_
   · intro z
-    exact trackedFailureScore_le_one kem onoff hDet z.2
+    exact trackedFailureScore_le_one kem onoff z.2
   · simp [trackedFailureScore, hbad]
 
 /-- Whether an oracle query is `SendA` or `SendB`, the only queries that run
@@ -113,14 +113,14 @@ lemma tracked_sendA_score_le [DecidableEq K]
     expectedPayoff
         (((trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak) OSendA).run
           (s, false))
-        (fun z => trackedFailureScore kem onoff hDet z.2) ≤
-      trackedFailureScore kem onoff hDet (s, false) +
-        factorCorrectnessError kem onoff hDet := by
+        (fun z => trackedFailureScore kem onoff z.2) ≤
+      trackedFailureScore kem onoff (s, false) +
+        factorCorrectnessError kem onoff := by
   change expectedPayoff (do
       let y ← (SCKAScheme.oracleSendA
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) ()).run s
       pure (y.1, (y.2, false || currentKEMFailure kem onoff hDet y.2)))
-      (fun z => trackedFailureScore kem onoff hDet z.2) ≤ _
+      (fun z => trackedFailureScore kem onoff z.2) ≤ _
   cases hdk : s.stA.dkA with
   | none =>
       simp only [SCKAScheme.oracleSendA, StateT.run_bind, StateT.run_get,
@@ -130,11 +130,11 @@ lemma tracked_sendA_score_le [DecidableEq K]
         StateT.run_set, map_pure]
       rw [expectedPayoff_map]
       change expectedPayoff kem.keygen (fun kp =>
-        trackedFailureScore kem onoff hDet
+        trackedFailureScore kem onoff
           (sendAKeygenState onoff ecEk s kp,
             currentKEMFailure kem onoff hDet (sendAKeygenState onoff ecEk s kp))) ≤ _
       refine (expectedPayoff_mono kem.keygen _
-        (fun kp => currentFailurePotential kem onoff hDet
+        (fun kp => currentFailurePotential kem onoff
           (installAKeypair onoff s kp.1 kp.2)) ?_).trans ?_
       · intro kp
         have hbad := installAKeypair_currentKEMFailure_false kem onoff hDet
@@ -145,7 +145,7 @@ lemma tracked_sendA_score_le [DecidableEq K]
         unfold trackedFailureScore
         rw [hbad']
         simp [currentFailurePotential, sendAKeygenState, installAKeypair]
-      · exact keygen_failurePotential_le kem onoff hDet ecEk ecCt0 ecCt1 s hs hdk
+      · exact keygen_failurePotential_le kem onoff ecEk ecCt0 ecCt1 s hs hdk
   | some sk =>
       rcases hs with ⟨T, hInv⟩
       have hekSome : s.stA.ekA.isSome := by
@@ -161,9 +161,9 @@ lemma tracked_sendA_score_le [DecidableEq K]
         msgA := Function.update s.msgA (s.nA + 1) (some (msg, s.stA.t - 1))
         nA := s.nA + 1
         correct := s.correct && decide (s.tcurA ≤ s.stA.t - 1) }
-      have hpot : currentFailurePotential kem onoff hDet s' =
-          currentFailurePotential kem onoff hDet s := by
-        exact currentFailurePotential_congr kem onoff hDet s s' rfl rfl rfl rfl
+      have hpot : currentFailurePotential kem onoff s' =
+          currentFailurePotential kem onoff s := by
+        exact currentFailurePotential_congr kem onoff s s' rfl rfl rfl rfl
           rfl rfl rfl
       have hfail' : currentKEMFailure kem onoff hDet s' = false := by
         simpa [s', currentKEMFailure] using hfail
@@ -193,14 +193,14 @@ lemma tracked_sendB_score_le [DecidableEq K]
     expectedPayoff
         (((trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak) OSendB).run
           (s, false))
-        (fun z => trackedFailureScore kem onoff hDet z.2) ≤
-      trackedFailureScore kem onoff hDet (s, false) +
-        factorCorrectnessError kem onoff hDet := by
+        (fun z => trackedFailureScore kem onoff z.2) ≤
+      trackedFailureScore kem onoff (s, false) +
+        factorCorrectnessError kem onoff := by
   change expectedPayoff (do
       let y ← (SCKAScheme.oracleSendB
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) ()).run s
       pure (y.1, (y.2, false || currentKEMFailure kem onoff hDet y.2)))
-      (fun z => trackedFailureScore kem onoff hDet z.2) ≤ _
+      (fun z => trackedFailureScore kem onoff z.2) ≤ _
   rcases hs with ⟨T, hInv⟩
   cases hct0 : s.stB.ct0 with
   | none =>
@@ -236,7 +236,7 @@ lemma tracked_sendB_score_le [DecidableEq K]
           simp_rw [sendBOffState_score kem onoff hDet s _ 1 _ hct1]
           unfold expectedPayoff
           simpa [trackedFailureScore] using
-            off_failurePotential_le kem onoff hDet ecEk ecCt0 ecCt1 s
+            off_failurePotential_le kem onoff ecEk ecCt0 ecCt1 s
               ⟨T, hInv⟩ hct0
       | true =>
           cases hek : s.stB.ekA with
@@ -260,7 +260,7 @@ lemma tracked_sendB_score_le [DecidableEq K]
               simp_rw [sendBOffState_score kem onoff hDet s _ s.stB.ich _ hct1]
               unfold expectedPayoff
               simpa [trackedFailureScore] using
-                off_failurePotential_le kem onoff hDet ecEk ecCt0 ecCt1 s
+                off_failurePotential_le kem onoff ecEk ecCt0 ecCt1 s
                   ⟨T, hInv⟩ hct0
           | some pk =>
               obtain ⟨sk, ht, hekA, hdk⟩ :=
@@ -293,11 +293,11 @@ lemma tracked_sendB_score_le [DecidableEq K]
                               (sendBOffOnState onoff s off out.1 out.2
                                 (msg out))))) <$>
                         onoff.encapsOn off.1 pk)
-                      (fun z => trackedFailureScore kem onoff hDet z.2) =
-                    failureAfterBoth kem onoff hDet pk sk off.1 off.2 := by
+                      (fun z => trackedFailureScore kem onoff z.2) =
+                    failureAfterBoth kem onoff pk sk off.1 off.2 := by
                 rw [expectedPayoff_map]
                 unfold expectedPayoff
-                rw [failureAfterBoth_eq_indicator]
+                rw [failureAfterBoth_eq_indicator kem onoff hDet]
                 refine congrArg
                   (fun x : ℝ≥0∞ => Pr[⊥ | onoff.encapsOn off.1 pk] + x) ?_
                 refine tsum_congr fun out => ?_
@@ -305,8 +305,8 @@ lemma tracked_sendB_score_le [DecidableEq K]
                 exact sendBOffOnState_score kem onoff hDet s sk off out.1 out.2
                   (msg out) ht hdk
               rw [hrun, expectedPayoff_bind]
-              have hpot : currentFailurePotential kem onoff hDet s =
-                  failureAfterKeypair kem onoff hDet pk sk := by
+              have hpot : currentFailurePotential kem onoff s =
+                  failureAfterKeypair kem onoff pk sk := by
                 simp [currentFailurePotential, ht, hct1, hekA, hdk, hst, hct0,
                   optionPair]
               calc
@@ -320,15 +320,15 @@ lemma tracked_sendB_score_le [DecidableEq K]
                               (sendBOffOnState onoff s off out.1 out.2
                                 (msg out))))) <$>
                         onoff.encapsOn off.1 pk)
-                      (fun z => trackedFailureScore kem onoff hDet z.2)) =
-                    failureAfterKeypair kem onoff hDet pk sk := by
+                      (fun z => trackedFailureScore kem onoff z.2)) =
+                    failureAfterKeypair kem onoff pk sk := by
                       unfold failureAfterKeypair
                       refine congrArg
                         (fun x : ℝ≥0∞ => Pr[⊥ | onoff.encapsOff] + x) ?_
                       refine tsum_congr fun off => ?_
                       rw [hinner]
-                _ ≤ trackedFailureScore kem onoff hDet (s, false) +
-                    factorCorrectnessError kem onoff hDet := by
+                _ ≤ trackedFailureScore kem onoff (s, false) +
+                    factorCorrectnessError kem onoff := by
                       simp [trackedFailureScore, hpot]
   | some ct0 =>
       have hstSome : s.stB.stCt.isSome := by
@@ -340,9 +340,9 @@ lemma tracked_sendB_score_le [DecidableEq K]
           let msg : Message Sym :=
             (some (ecCt0.encode ct0 ich), s.stB.ack, s.stB.t, some 0)
           let s' := sendBNoneState onoff s { s.stB with ich := ich } msg
-          have hpot : currentFailurePotential kem onoff hDet s' =
-              currentFailurePotential kem onoff hDet s := by
-            exact currentFailurePotential_congr kem onoff hDet s s' rfl rfl rfl rfl
+          have hpot : currentFailurePotential kem onoff s' =
+              currentFailurePotential kem onoff s := by
+            exact currentFailurePotential_congr kem onoff s s' rfl rfl rfl rfl
               rfl rfl rfl
           have hfail' : currentKEMFailure kem onoff hDet s' = false := by
             simpa [s', sendBNoneState, currentKEMFailure] using hfail
@@ -361,9 +361,9 @@ lemma tracked_sendB_score_le [DecidableEq K]
           | none =>
               let msg : Message Sym := (none, s.stB.ack, s.stB.t, none)
               let s' := sendBNoneState onoff s s.stB msg
-              have hpot : currentFailurePotential kem onoff hDet s' =
-                  currentFailurePotential kem onoff hDet s := by
-                exact currentFailurePotential_congr kem onoff hDet s s'
+              have hpot : currentFailurePotential kem onoff s' =
+                  currentFailurePotential kem onoff s := by
+                exact currentFailurePotential_congr kem onoff s s'
                   rfl rfl rfl rfl rfl rfl rfl
               have hfail' : currentKEMFailure kem onoff hDet s' = false := by
                 simpa [s', sendBNoneState, currentKEMFailure] using hfail
@@ -402,13 +402,13 @@ lemma tracked_sendB_score_le [DecidableEq K]
                       sendBOnState, sendBKeyState]
                   rw [hrun, expectedPayoff_map]
                   have hscore : expectedPayoff (onoff.encapsOn st pk) (fun out =>
-                      trackedFailureScore kem onoff hDet
+                      trackedFailureScore kem onoff
                         (sendBOnState onoff s out.1 out.2 (msg out),
                           currentKEMFailure kem onoff hDet
                             (sendBOnState onoff s out.1 out.2 (msg out)))) =
-                      failureAfterBoth kem onoff hDet pk sk st ct0 := by
+                      failureAfterBoth kem onoff pk sk st ct0 := by
                     unfold expectedPayoff
-                    rw [failureAfterBoth_eq_indicator]
+                    rw [failureAfterBoth_eq_indicator kem onoff hDet]
                     refine congrArg
                       (fun x : ℝ≥0∞ => Pr[⊥ | onoff.encapsOn st pk] + x) ?_
                     refine tsum_congr fun out => ?_
@@ -416,8 +416,8 @@ lemma tracked_sendB_score_le [DecidableEq K]
                     exact sendBOnState_score kem onoff hDet s sk ct0 out.1 out.2
                       (msg out) ht hdk hct0
                   rw [hscore]
-                  have hpot : currentFailurePotential kem onoff hDet s =
-                      failureAfterBoth kem onoff hDet pk sk st ct0 := by
+                  have hpot : currentFailurePotential kem onoff s =
+                      failureAfterBoth kem onoff pk sk st ct0 := by
                     simp [currentFailurePotential, ht, hct1, hekA, hdk, hst,
                       hct0, optionPair]
                   simp [trackedFailureScore, hpot]
@@ -426,9 +426,9 @@ lemma tracked_sendB_score_le [DecidableEq K]
                   let msg : Message Sym :=
                     (some (ecCt1.encode ct1 ich), s.stB.ack, s.stB.t, some 1)
                   let s' := sendBNoneState onoff s { s.stB with ich := ich } msg
-                  have hpot : currentFailurePotential kem onoff hDet s' =
-                      currentFailurePotential kem onoff hDet s := by
-                    exact currentFailurePotential_congr kem onoff hDet s s'
+                  have hpot : currentFailurePotential kem onoff s' =
+                      currentFailurePotential kem onoff s := by
+                    exact currentFailurePotential_congr kem onoff s s'
                       rfl rfl rfl rfl rfl rfl rfl
                   have hfail' : currentKEMFailure kem onoff hDet s' = false := by
                     simpa [s', sendBNoneState, currentKEMFailure] using hfail
@@ -464,8 +464,8 @@ lemma tracked_nonSend_score_support_eq [DecidableEq K]
     (hz : z ∈ support
       (((trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak) t).run
         (s, false))) :
-    trackedFailureScore kem onoff hDet z.2 =
-      trackedFailureScore kem onoff hDet (s, false) := by
+    trackedFailureScore kem onoff z.2 =
+      trackedFailureScore kem onoff (s, false) := by
   unfold trackedCorrectnessImpl at hz
   change z ∈ support (do
     let y ← ((SCKAScheme.sckaCorrectnessImpl
@@ -518,8 +518,8 @@ lemma tracked_nonSend_score_le [DecidableEq K]
     expectedPayoff
         (((trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak) t).run
           (s, false))
-        (fun z => trackedFailureScore kem onoff hDet z.2) ≤
-      trackedFailureScore kem onoff hDet (s, false) := by
+        (fun z => trackedFailureScore kem onoff z.2) ≤
+      trackedFailureScore kem onoff (s, false) := by
   have hnf : Pr[⊥ |
       ((trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak) t).run
         (s, false)] = 0 := probFailure_eq_zero

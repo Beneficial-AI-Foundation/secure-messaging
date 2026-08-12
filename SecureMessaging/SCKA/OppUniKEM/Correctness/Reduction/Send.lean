@@ -114,17 +114,16 @@ def sendBOffOnState [DecidableEq K]
 /-- Averaging the potential after fresh key generation costs at most one factor error. -/
 lemma keygen_failurePotential_le [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv kem onoff ecEk ecCt0 ecCt1 s) (hdk : s.stA.dkA = none) :
     (Pr[⊥ | kem.keygen] + ∑' kp : PK × SK, Pr[= kp | kem.keygen] *
-      currentFailurePotential kem onoff hDet
+      currentFailurePotential kem onoff
         (installAKeypair onoff s kp.1 kp.2)) ≤
-      currentFailurePotential kem onoff hDet s +
-        factorCorrectnessError kem onoff hDet := by
+      currentFailurePotential kem onoff s +
+        factorCorrectnessError kem onoff := by
   classical
   rcases hs with ⟨T, hInv⟩
   have hek : s.stA.ekA = none := by
@@ -148,7 +147,7 @@ lemma keygen_failurePotential_le [DecidableEq K]
           simpa [hct0] using hshape
         simpa [currentFailurePotential, installAKeypair, ht, hct1, hdk, hek,
           hct0, hst, optionPair] using
-          (le_of_eq (factorCorrectnessError_eq_avg_keypair kem onoff hDet).symm)
+          (le_of_eq (factorCorrectnessError_eq_avg_keypair kem onoff).symm)
     | some ct0 =>
         have hstSome : s.stB.stCt.isSome := by
           simpa [hct0] using hInv.offBShape
@@ -159,7 +158,7 @@ lemma keygen_failurePotential_le [DecidableEq K]
       have hepochBounds := hInv.epochs
       omega
     simpa [currentFailurePotential, installAKeypair, ht, hdk, hek, optionPair] using
-      (le_of_eq (factorCorrectnessError_eq_avg_keypair kem onoff hDet).symm)
+      (le_of_eq (factorCorrectnessError_eq_avg_keypair kem onoff).symm)
 
 /-- Installing A's first key pair cannot immediately complete a failing KEM epoch. -/
 lemma installAKeypair_currentKEMFailure_false [DecidableEq K]
@@ -201,7 +200,6 @@ def installBOff
 /-- Averaging the potential after fresh offline encapsulation costs at most one factor error. -/
 lemma off_failurePotential_le [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
@@ -209,10 +207,10 @@ lemma off_failurePotential_le [DecidableEq K]
     (hs : reachableInv kem onoff ecEk ecCt0 ecCt1 s) (hct0 : s.stB.ct0 = none) :
     (Pr[⊥ | onoff.encapsOff] +
       ∑' off : onoff.St × onoff.C₀, Pr[= off | onoff.encapsOff] *
-      currentFailurePotential kem onoff hDet
+      currentFailurePotential kem onoff
         (installBOff onoff s off.1 off.2)) ≤
-      currentFailurePotential kem onoff hDet s +
-        factorCorrectnessError kem onoff hDet := by
+      currentFailurePotential kem onoff s +
+        factorCorrectnessError kem onoff := by
   classical
   rcases hs with ⟨T, hInv⟩
   have hst : s.stB.stCt = none := by
@@ -244,7 +242,7 @@ lemma off_failurePotential_le [DecidableEq K]
         simpa [hdk] using hshape
       simpa [currentFailurePotential, installBOff, ht, hct1, hdk, hek,
         hct0, hst, optionPair] using
-        (le_of_eq (factorCorrectnessError_eq_avg_off kem onoff hDet).symm)
+        (le_of_eq (factorCorrectnessError_eq_avg_off kem onoff).symm)
   | some sk =>
       have hekSome : s.stA.ekA.isSome := by
         simpa [hdk] using hInv.keypairAShape
@@ -338,7 +336,7 @@ lemma installBOn_score [DecidableEq K]
     (sk : SK) (st : onoff.St) (ct0 : onoff.C₀) (ct1 : onoff.C₁) (key : K)
     (ht : s.stA.t = s.stB.t) (hdk : s.stA.dkA = some sk)
     (_hst : s.stB.stCt = some st) (hct0 : s.stB.ct0 = some ct0) :
-    trackedFailureScore kem onoff hDet
+    trackedFailureScore kem onoff
         (installBOn onoff s ct1 key,
           currentKEMFailure kem onoff hDet (installBOn onoff s ct1 key)) =
       if hDet.decapsDet sk (onoff.split.symm (ct0, ct1)) ≠ some key
@@ -356,10 +354,10 @@ lemma sendBOffState_score [DecidableEq K]
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (off : onoff.St × onoff.C₀) (ich : ℕ) (msg : Message Sym)
     (hct1 : s.stB.ct1 = none) :
-    trackedFailureScore kem onoff hDet
+    trackedFailureScore kem onoff
         (sendBOffState onoff s off ich msg,
           currentKEMFailure kem onoff hDet (sendBOffState onoff s off ich msg)) =
-      currentFailurePotential kem onoff hDet
+      currentFailurePotential kem onoff
         (installBOff onoff s off.1 off.2) := by
   simp [trackedFailureScore, currentKEMFailure, currentFailurePotential,
     sendBOffState, sendBNoneState, installBOff, hct1]
@@ -373,7 +371,7 @@ lemma sendBOnState_score [DecidableEq K]
     (sk : SK) (ct0 : onoff.C₀) (ct1 : onoff.C₁) (key : K)
     (msg : Message Sym) (ht : s.stA.t = s.stB.t)
     (hdk : s.stA.dkA = some sk) (hct0 : s.stB.ct0 = some ct0) :
-    trackedFailureScore kem onoff hDet
+    trackedFailureScore kem onoff
         (sendBOnState onoff s ct1 key msg,
           currentKEMFailure kem onoff hDet (sendBOnState onoff s ct1 key msg)) =
       if hDet.decapsDet sk (onoff.split.symm (ct0, ct1)) ≠ some key
@@ -392,7 +390,7 @@ lemma sendBOffOnState_score [DecidableEq K]
     (sk : SK) (off : onoff.St × onoff.C₀) (ct1 : onoff.C₁) (key : K)
     (msg : Message Sym) (ht : s.stA.t = s.stB.t)
     (hdk : s.stA.dkA = some sk) :
-    trackedFailureScore kem onoff hDet
+    trackedFailureScore kem onoff
         (sendBOffOnState onoff s off ct1 key msg,
           currentKEMFailure kem onoff hDet
             (sendBOffOnState onoff s off ct1 key msg)) =

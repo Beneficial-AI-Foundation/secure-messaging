@@ -90,10 +90,10 @@ lemma tracked_score_step_le [DecidableEq K]
     (hp : trackedInv kem onoff hDet ecEk ecCt0 ecCt1 p) :
     expectedPayoff
         (((trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak) t).run p)
-        (fun z => trackedFailureScore kem onoff hDet z.2) ≤
-      trackedFailureScore kem onoff hDet p +
+        (fun z => trackedFailureScore kem onoff z.2) ≤
+      trackedFailureScore kem onoff p +
         if IsSendQuery t
-        then factorCorrectnessError kem onoff hDet
+        then factorCorrectnessError kem onoff
         else 0 := by
   cases hbad : p.2 with
   | true =>
@@ -134,23 +134,22 @@ omit [DecidableEq Sym] in
 failure score's expected payoff. -/
 lemma tracked_bad_probability_le_score [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
     (oa : ProbComp
       (Bool ×
         (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) ×
           Bool))) :
     Pr[fun z => z.2.2 = true | oa] ≤
-      expectedPayoff oa (fun z => trackedFailureScore kem onoff hDet z.2) := by
+      expectedPayoff oa (fun z => trackedFailureScore kem onoff z.2) := by
   classical
   unfold expectedPayoff
   calc
     Pr[fun z => z.2.2 = true | oa] ≤
-        ∑' z, Pr[= z | oa] * trackedFailureScore kem onoff hDet z.2 := by
+        ∑' z, Pr[= z | oa] * trackedFailureScore kem onoff z.2 := by
       apply probEvent_le_tsum_probOutput_mul_cost
       intro z hz
       simp [trackedFailureScore, hz]
     _ ≤ Pr[⊥ | oa] +
-        ∑' z, Pr[= z | oa] * trackedFailureScore kem onoff hDet z.2 :=
+        ∑' z, Pr[= z | oa] * trackedFailureScore kem onoff z.2 :=
       le_add_left le_rfl
 
 /-- Lift a per-query tracked-score bound through an adaptive adversary with at
@@ -171,18 +170,18 @@ lemma tracked_score_adversary_le [DecidableEq K]
       trackedInv kem onoff hDet ecEk ecCt0 ecCt1 p →
       expectedPayoff
           (((trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak) t).run p)
-          (fun z => trackedFailureScore kem onoff hDet z.2) ≤
-        trackedFailureScore kem onoff hDet p +
+          (fun z => trackedFailureScore kem onoff z.2) ≤
+        trackedFailureScore kem onoff p +
           if IsSendQuery t then epsilon else 0) :
     ∀ p, trackedInv kem onoff hDet ecEk ecCt0 ecCt1 p →
       expectedPayoff
           ((simulateQ
             (trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak) adv).run p)
-          (fun z => trackedFailureScore kem onoff hDet z.2) ≤
-        trackedFailureScore kem onoff hDet p + (q : ℝ≥0∞) * epsilon := by
+          (fun z => trackedFailureScore kem onoff z.2) ≤
+        trackedFailureScore kem onoff p + (q : ℝ≥0∞) * epsilon := by
   let tracked := trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak
   let Inv := trackedInv kem onoff hDet ecEk ecCt0 ecCt1
-  let score := trackedFailureScore (Sym := Sym) kem onoff hDet
+  let score := trackedFailureScore (Sym := Sym) kem onoff
   unfold SendQueryBound at hq
   induction adv using OracleComp.inductionOn generalizing q with
   | pure x =>

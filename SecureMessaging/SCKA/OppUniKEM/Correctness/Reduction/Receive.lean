@@ -117,8 +117,8 @@ lemma oracleRecvB_preserves_failurePotential [DecidableEq K]
     (hz : z ∈ support
       ((SCKAScheme.oracleRecvB
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) n).run s)) :
-    currentFailurePotential kem onoff hDet z.2 =
-      currentFailurePotential kem onoff hDet s := by
+    currentFailurePotential kem onoff z.2 =
+      currentFailurePotential kem onoff s := by
   rcases hs with ⟨T, hInv⟩
   cases hentry : s.msgA n with
   | none =>
@@ -148,14 +148,14 @@ lemma oracleRecvB_preserves_failurePotential [DecidableEq K]
         subst z
         rcases recvB_kem_source_shape kem onoff ecEk s.stB msg none trcv stB' hlocal with
           hsame | hadv
-        · exact currentFailurePotential_congr kem onoff hDet _ _ rfl hsame.1
+        · exact currentFailurePotential_congr kem onoff _ _ rfl hsame.1
             rfl rfl hsame.2.1 hsame.2.2.1 hsame.2.2.2
         · have htbound := hInv.msgAEpoch n msg tsnd hentry
           have hepoch : s.stA.t = s.stB.t + 1 := by
             have hltA : s.stB.t < s.stA.t := hadv.2.2.2.2.trans_le htbound
             have hle := hInv.epochs.2
             omega
-          exact currentFailurePotential_recvB_advance kem onoff hDet _ _ hepoch
+          exact currentFailurePotential_recvB_advance kem onoff _ _ hepoch
             rfl rfl rfl hadv.1 hadv.2.1 hadv.2.2.1 hadv.2.2.2.1
 
 /-- Receiving any B-to-A message-table entry preserves the residual KEM failure
@@ -174,8 +174,8 @@ lemma oracleRecvA_preserves_failurePotential [DecidableEq K]
     (hz : z ∈ support
       ((SCKAScheme.oracleRecvA
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) n).run s)) :
-    currentFailurePotential kem onoff hDet z.2 =
-      currentFailurePotential kem onoff hDet s := by
+    currentFailurePotential kem onoff z.2 =
+      currentFailurePotential kem onoff s := by
   rcases hs with ⟨T, hInv⟩
   cases hentry : s.msgB n with
   | none =>
@@ -200,7 +200,7 @@ lemma oracleRecvA_preserves_failurePotential [DecidableEq K]
               StateT.run_bind, StateT.run_get] at hz <;> simp_all
         rcases recvA_kem_source_shape kem onoff hDet ecCt0 ecCt1 s.stA msg
             key? trcv stA' hlocal with hsame | hadv
-        · exact currentFailurePotential_congr kem onoff hDet _ _
+        · exact currentFailurePotential_congr kem onoff _ _
             ((congrArg (fun x => x.t) hzA).trans hsame.1)
             (congrArg (fun x => x.t) hzB)
             ((congrArg (fun x => x.ekA) hzA).trans hsame.2.1)
@@ -235,7 +235,7 @@ lemma oracleRecvA_preserves_failurePotential [DecidableEq K]
                 rw [hT] at hmap
                 rw [← hmap]
                 rfl
-          exact currentFailurePotential_recvA_advance kem onoff hDet _ _ hepoch hct1
+          exact currentFailurePotential_recvA_advance kem onoff _ _ hepoch hct1
             ((congrArg (fun x => x.t) hzA).trans hadv.1)
             ((congrArg (fun x => x.ekA) hzA).trans hadv.2.1)
             ((congrArg (fun x => x.dkA) hzA).trans hadv.2.2.1)

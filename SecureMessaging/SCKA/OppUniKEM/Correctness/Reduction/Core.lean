@@ -63,7 +63,6 @@ epoch.  When A is one epoch ahead of B, B's material belongs to the
 completed preceding epoch and only A's new key pair contributes. -/
 noncomputable def currentFailurePotential [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
     ℝ≥0∞ :=
   if s.stA.t = s.stB.t then
@@ -72,24 +71,23 @@ noncomputable def currentFailurePotential [DecidableEq K]
       match optionPair s.stA.ekA s.stA.dkA,
           optionPair s.stB.stCt s.stB.ct0 with
       | none, none => 0
-      | some kp, none => failureAfterKeypair kem onoff hDet kp.1 kp.2
-      | none, some off => failureAfterOff kem onoff hDet off.1 off.2
+      | some kp, none => failureAfterKeypair kem onoff kp.1 kp.2
+      | none, some off => failureAfterOff kem onoff off.1 off.2
       | some kp, some off =>
-          failureAfterBoth kem onoff hDet kp.1 kp.2 off.1 off.2
+          failureAfterBoth kem onoff kp.1 kp.2 off.1 off.2
   else
     match optionPair s.stA.ekA s.stA.dkA with
     | none => 0
-    | some kp => failureAfterKeypair kem onoff hDet kp.1 kp.2
+    | some kp => failureAfterKeypair kem onoff kp.1 kp.2
 
 /-- The probability that the tracked execution has already produced an
 inconsistent epoch (`1` when the failure Boolean is set) or that the epoch
 in progress completes inconsistently (`currentFailurePotential` otherwise). -/
 noncomputable def trackedFailureScore [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
     (p : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) × Bool) :
     ℝ≥0∞ :=
-  if p.2 then 1 else currentFailurePotential kem onoff hDet p.1
+  if p.2 then 1 else currentFailurePotential kem onoff p.1
 
 end Reduction.Internal
 
@@ -154,9 +152,8 @@ lemma currentKEMFailure_recvA_advance_false [DecidableEq K]
 /-- The residual current-epoch failure potential is at most one. -/
 lemma currentFailurePotential_le_one [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
-    currentFailurePotential kem onoff hDet s ≤ 1 := by
+    currentFailurePotential kem onoff s ≤ 1 := by
   classical
   unfold currentFailurePotential
   by_cases ht : s.stA.t = s.stB.t
@@ -172,60 +169,57 @@ lemma currentFailurePotential_le_one [DecidableEq K]
               change (0 : ℝ≥0∞) ≤ 1
               exact bot_le
           | some off =>
-              change failureAfterOff kem onoff hDet off.1 off.2 ≤ 1
-              exact failureAfterOff_le_one kem onoff hDet off.1 off.2
+              change failureAfterOff kem onoff off.1 off.2 ≤ 1
+              exact failureAfterOff_le_one kem onoff off.1 off.2
       | some kp =>
           cases hoff : optionPair s.stB.stCt s.stB.ct0 with
           | none =>
-              change failureAfterKeypair kem onoff hDet kp.1 kp.2 ≤ 1
-              exact failureAfterKeypair_le_one kem onoff hDet kp.1 kp.2
+              change failureAfterKeypair kem onoff kp.1 kp.2 ≤ 1
+              exact failureAfterKeypair_le_one kem onoff kp.1 kp.2
           | some off =>
-              change failureAfterBoth kem onoff hDet kp.1 kp.2 off.1 off.2 ≤ 1
-              exact failureAfterBoth_le_one kem onoff hDet kp.1 kp.2 off.1 off.2
+              change failureAfterBoth kem onoff kp.1 kp.2 off.1 off.2 ≤ 1
+              exact failureAfterBoth_le_one kem onoff kp.1 kp.2 off.1 off.2
   · rw [if_neg ht]
     cases hkp : optionPair s.stA.ekA s.stA.dkA with
     | none =>
         change (0 : ℝ≥0∞) ≤ 1
         exact bot_le
     | some kp =>
-        change failureAfterKeypair kem onoff hDet kp.1 kp.2 ≤ 1
-        exact failureAfterKeypair_le_one kem onoff hDet kp.1 kp.2
+        change failureAfterKeypair kem onoff kp.1 kp.2 ≤ 1
+        exact failureAfterKeypair_le_one kem onoff kp.1 kp.2
 
 /-- The tracked failure score is at most one. -/
 lemma trackedFailureScore_le_one [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
     (p : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) × Bool) :
-    trackedFailureScore kem onoff hDet p ≤ 1 := by
+    trackedFailureScore kem onoff p ≤ 1 := by
   unfold trackedFailureScore
-  split <;> simp_all [currentFailurePotential_le_one kem onoff hDet]
+  split <;> simp_all [currentFailurePotential_le_one kem onoff]
 
 /-- `currentFailurePotential` is unchanged when all KEM fields it reads agree. -/
 lemma currentFailurePotential_congr [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
     (s s' : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (htA : s'.stA.t = s.stA.t) (htB : s'.stB.t = s.stB.t)
     (hek : s'.stA.ekA = s.stA.ekA) (hdk : s'.stA.dkA = s.stA.dkA)
     (hst : s'.stB.stCt = s.stB.stCt) (hct0 : s'.stB.ct0 = s.stB.ct0)
     (hct1 : s'.stB.ct1 = s.stB.ct1) :
-    currentFailurePotential kem onoff hDet s' =
-      currentFailurePotential kem onoff hDet s := by
+    currentFailurePotential kem onoff s' =
+      currentFailurePotential kem onoff s := by
   unfold currentFailurePotential
   rw [htA, htB, hek, hdk, hst, hct0, hct1]
 
 /-- Advancing B into A's epoch preserves the residual failure potential. -/
 lemma currentFailurePotential_recvB_advance [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
     (s s' : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hepoch : s.stA.t = s.stB.t + 1)
     (htA : s'.stA.t = s.stA.t) (hek : s'.stA.ekA = s.stA.ekA)
     (hdk : s'.stA.dkA = s.stA.dkA) (htB : s'.stB.t = s.stB.t + 1)
     (hst : s'.stB.stCt = none) (hct0 : s'.stB.ct0 = none)
     (hct1 : s'.stB.ct1 = none) :
-    currentFailurePotential kem onoff hDet s' =
-      currentFailurePotential kem onoff hDet s := by
+    currentFailurePotential kem onoff s' =
+      currentFailurePotential kem onoff s := by
   have hne : s.stA.t ≠ s.stB.t := by omega
   have heq' : s'.stA.t = s'.stB.t := by omega
   unfold currentFailurePotential
@@ -236,15 +230,14 @@ lemma currentFailurePotential_recvB_advance [DecidableEq K]
 /-- Advancing A after online encapsulation preserves the zero failure potential. -/
 lemma currentFailurePotential_recvA_advance [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
     (s s' : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hepoch : s.stA.t = s.stB.t) (hon : s.stB.ct1.isSome)
     (htA : s'.stA.t = s.stA.t + 1) (hek : s'.stA.ekA = none)
     (hdk : s'.stA.dkA = none) (htB : s'.stB.t = s.stB.t)
     (hst : s'.stB.stCt = s.stB.stCt) (hct0 : s'.stB.ct0 = s.stB.ct0)
     (hct1 : s'.stB.ct1 = s.stB.ct1) :
-    currentFailurePotential kem onoff hDet s' =
-      currentFailurePotential kem onoff hDet s := by
+    currentFailurePotential kem onoff s' =
+      currentFailurePotential kem onoff s := by
   have hne' : s'.stA.t ≠ s'.stB.t := by omega
   have hon' : s'.stB.ct1.isSome := by simpa [hct1] using hon
   unfold currentFailurePotential
