@@ -203,7 +203,7 @@ theorem incrementalCorrectExp_failure_le_mlkem768_easycrypt {failprob hsadv prfa
       ≤ failprob + hsadv + 2 * prfadv
 ```
 
-{usesLabel}`uses` {uses "incremental_kem_from_ml_kem_spec"}[] · {uses "ml_kem_correctness_easycrypt"}[] · {githubLabel}`github` {githubIssue 238}[]
+{usesLabel}`uses` {uses "incremental_kem_from_ml_kem_spec"}[] · {uses "ml_kem_correctness_easycrypt"}[] · {githubLabel}`github` {githubIssue 226}[]
 ::::
 
 :::defTitle "incremental_kem_rand_leak" "Incremental KEM randomness leakage"
