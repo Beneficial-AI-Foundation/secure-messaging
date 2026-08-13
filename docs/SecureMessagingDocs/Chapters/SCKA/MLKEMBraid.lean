@@ -72,7 +72,9 @@ Unchunked ML-KEM Braid core.
 :::
 
 ::::definition "mlkem_braid_unchunked_derive_epoch_key" (parent := "mlkem_braid_unchunked_core") (lean := "MLKEMBraid.EpochKeyDerivation")
-$`\todo`
+`EpochKeyDerivation K EpochKey` abstracts `KDF_OK` as a function of the KEM
+shared secret and epoch. Each role emits its locally derived key and uses that
+value to update the ratcheted authenticator.
 
 :::leanPillCaption "abstract epoch-key derivation"
 :::
@@ -88,7 +90,13 @@ abbrev EpochKeyDerivation (K EpochKey : Type) : Type := K → ℕ → EpochKey
 :::
 
 ::::definition "mlkem_braid_unchunked_ek_sender" (parent := "mlkem_braid_unchunked_core") (lean := "MLKEMBraid.EkSender.Start, MLKEMBraid.EkSender.HeaderSent, MLKEMBraid.EkSender.VectorSent, MLKEMBraid.EkSender.AwaitingCt2, MLKEMBraid.EkSender.sendHeader, MLKEMBraid.EkSender.sendVector, MLKEMBraid.EkSender.recvCt1, MLKEMBraid.EkSender.recvCt2")
-$`\todo`
+The encapsulation-key sender follows `Start → HeaderSent → VectorSent →
+AwaitingCt2`. It authenticates the header under the incoming state, sends the
+key vector, and records `c1`. On receiving `c2`, it decapsulates, derives and
+installs the epoch key, then verifies the tag on `(c1, c2)`. Success emits the
+key and enters `CtSender.Start` at the next epoch; failure returns `none`.
+For ML-KEM, implicit rejection is detected by the authenticator check;
+`decapsDet = none` represents explicit rejection in the generic interface.
 
 :::leanPillCaption "encapsulation-key sender flow"
 :::
@@ -146,7 +154,13 @@ def recvCt2 (inc : kem.IncrementalStructure)
 :::
 
 ::::definition "mlkem_braid_unchunked_ct_sender" (parent := "mlkem_braid_unchunked_core") (lean := "MLKEMBraid.CtSender.Start, MLKEMBraid.CtSender.HeaderReceived, MLKEMBraid.CtSender.Ct1Sent, MLKEMBraid.CtSender.VectorReceived, MLKEMBraid.CtSender.Ct2Sent, MLKEMBraid.CtSender.recvHeader, MLKEMBraid.CtSender.sendCt1, MLKEMBraid.CtSender.recvVector, MLKEMBraid.CtSender.sendCt2, MLKEMBraid.CtSender.recvNextEpoch")
-$`\todo`
+The ciphertext sender follows `Start → HeaderReceived → Ct1Sent →
+VectorReceived → Ct2Sent`. After authenticating the header, it derives and
+emits the epoch key in `sendCt1`, updates the authenticator, validates the key
+vector, and authenticates `(c1, c2)` under the updated state. `recvNextEpoch`
+enters `EkSender.Start` only on the successor epoch; failed guards return
+`none`. The transition signatures order the phases, but their public
+constructors do not certify reachability.
 
 :::leanPillCaption "ciphertext sender flow"
 :::
