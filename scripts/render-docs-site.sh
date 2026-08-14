@@ -941,7 +941,7 @@ cat >> "$site_root/index.html" <<'HTML'
         }).join("");
         return (
           '<div class="progress-chart-tooltip-atoms">' +
-          '<span class="progress-chart-tooltip-atoms-title">New atoms (' + atoms.length + ")</span>" +
+          '<span class="progress-chart-tooltip-atoms-title">New specified or verified atoms</span>' +
           "<ul>" + items + "</ul></div>"
         );
       }
