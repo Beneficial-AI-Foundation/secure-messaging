@@ -87,46 +87,59 @@ abbrev EpochKeyDerivation (K EpochKey : Type) : Type := K → ℕ → EpochKey
 :::defTitle "mlkem_braid_unchunked_ek_sender" "Unchunked encapsulation-key sender"
 :::
 
-::::definition "mlkem_braid_unchunked_ek_sender" (parent := "mlkem_braid_unchunked_core") (lean := "MLKEMBraid.EkSender.Start, MLKEMBraid.EkSender.HeaderSent, MLKEMBraid.EkSender.VectorSent, MLKEMBraid.EkSender.AwaitingCt2, MLKEMBraid.EkSender.sendHeader, MLKEMBraid.EkSender.sendVector, MLKEMBraid.EkSender.recvCt1, MLKEMBraid.EkSender.recvCt2")
+::::definition "mlkem_braid_unchunked_ek_sender" (parent := "mlkem_braid_unchunked_core") (lean := "MLKEMBraid.EkSender.KeysUnsampled, MLKEMBraid.EkSender.HeaderSent, MLKEMBraid.EkSender.EkSent, MLKEMBraid.EkSender.EkSentCt1Received, MLKEMBraid.EkSender.sendHeader, MLKEMBraid.EkSender.sendVector, MLKEMBraid.EkSender.recvCt1, MLKEMBraid.EkSender.recvCt2")
 $`\todo`
 
-:::leanPillCaption "encapsulation-key sender flow"
+:::leanPillCaption "send authenticated encapsulation-key header"
 :::
 
 ```anchor EkSender_sendHeader (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Unchunked)
+/-- Generate a KEM key pair and return the successor state, header, and tag. -/
 def sendHeader (inc : kem.IncrementalStructure)
     (auth : RatchetedAuthenticator InitKey EpochKey AuthState inc.PKheader (inc.C₁ × inc.C₂) Mac)
-    (st : Start AuthState) : m ((inc.PKheader × Mac) × HeaderSent inc AuthState) := do
+    (st : KeysUnsampled AuthState) : m (HeaderSent inc AuthState × inc.PKheader × Mac) := do
   let (pk, sk) ← kem.keygen
   let hdr := inc.toHeader pk
-  pure ((hdr, auth.macHeader st.authSt st.ep hdr), ⟨st.ep, st.authSt, pk, sk⟩)
+  pure (⟨st.ep, st.authSt, pk, sk⟩, hdr, auth.macHeader st.authSt st.ep hdr)
 ```
+
+:::leanPillCaption "send encapsulation-key vector"
+:::
 
 ```anchor EkSender_sendVector (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Unchunked)
+/-- Return the successor state and the vector component of the stored encapsulation key. -/
 def sendVector (inc : kem.IncrementalStructure) (st : HeaderSent inc AuthState) :
-    inc.PKvector × VectorSent inc AuthState :=
-  (inc.toVector st.pk, ⟨st.ep, st.authSt, st.sk⟩)
+    EkSent inc AuthState × inc.PKvector :=
+  (⟨st.ep, st.authSt, st.sk⟩, inc.toVector st.pk)
 ```
 
+:::leanPillCaption "receive first ciphertext component"
+:::
+
 ```anchor EkSender_recvCt1 (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Unchunked)
-def recvCt1 (inc : kem.IncrementalStructure) (st : VectorSent inc AuthState)
-    (c1 : inc.C₁) : AwaitingCt2 inc AuthState :=
+/-- Store the first ciphertext component. -/
+def recvCt1 (inc : kem.IncrementalStructure) (st : EkSent inc AuthState)
+    (c1 : inc.C₁) : EkSentCt1Received inc AuthState :=
   ⟨st.ep, st.authSt, st.sk, c1⟩
 ```
 
+:::leanPillCaption "receive second ciphertext component and tag"
+:::
+
 ```anchor EkSender_recvCt2 (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Unchunked)
+/-- Decapsulate and authenticate the ciphertext, returning the next role state and epoch key. -/
 def recvCt2 (inc : kem.IncrementalStructure)
     (auth : RatchetedAuthenticator InitKey EpochKey AuthState inc.PKheader (inc.C₁ × inc.C₂) Mac)
     (deriveEpochKey : EpochKeyDerivation K EpochKey) (hDet : DeterministicDecaps kem)
-    (st : AwaitingCt2 inc AuthState) (c2 : inc.C₂) (tag : Mac) :
-    Option ((ℕ × EpochKey) × CtSender.Start AuthState) :=
+    (st : EkSentCt1Received inc AuthState) (c2 : inc.C₂) (tag : Mac) :
+    Option (CtSender.NoHeaderReceived AuthState × (ℕ × EpochKey)) :=
   match hDet.decapsDet st.sk (inc.splitC.symm (st.c1, c2)) with
   | none => none
   | some k =>
     let ik := deriveEpochKey k st.ep
     let authSt' := auth.update st.authSt st.ep ik
     if auth.verifyCiphertext authSt' st.ep (st.c1, c2) tag then
-      some ((st.ep, ik), ⟨st.ep + 1, authSt'⟩)
+      some (⟨st.ep + 1, authSt'⟩, (st.ep, ik))
     else none
 ```
 
@@ -136,48 +149,65 @@ def recvCt2 (inc : kem.IncrementalStructure)
 :::defTitle "mlkem_braid_unchunked_ct_sender" "Unchunked ciphertext sender"
 :::
 
-::::definition "mlkem_braid_unchunked_ct_sender" (parent := "mlkem_braid_unchunked_core") (lean := "MLKEMBraid.CtSender.Start, MLKEMBraid.CtSender.HeaderReceived, MLKEMBraid.CtSender.Ct1Sent, MLKEMBraid.CtSender.VectorReceived, MLKEMBraid.CtSender.Ct2Sent, MLKEMBraid.CtSender.recvHeader, MLKEMBraid.CtSender.sendCt1, MLKEMBraid.CtSender.recvVector, MLKEMBraid.CtSender.sendCt2, MLKEMBraid.CtSender.recvNextEpoch")
+::::definition "mlkem_braid_unchunked_ct_sender" (parent := "mlkem_braid_unchunked_core") (lean := "MLKEMBraid.CtSender.NoHeaderReceived, MLKEMBraid.CtSender.HeaderReceived, MLKEMBraid.CtSender.Ct1Sent, MLKEMBraid.CtSender.Ct1SentEkReceived, MLKEMBraid.CtSender.Ct2Sent, MLKEMBraid.CtSender.recvHeader, MLKEMBraid.CtSender.sendCt1, MLKEMBraid.CtSender.recvVector, MLKEMBraid.CtSender.sendCt2, MLKEMBraid.CtSender.recvNextEpoch")
 $`\todo`
 
-:::leanPillCaption "ciphertext sender flow"
+:::leanPillCaption "receive authenticated encapsulation-key header"
 :::
 
 ```anchor CtSender_recvHeader (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Unchunked)
+/-- Verify the header tag and return the successor state on success. -/
 def recvHeader (inc : kem.IncrementalStructure)
     (auth : RatchetedAuthenticator InitKey EpochKey AuthState inc.PKheader (inc.C₁ × inc.C₂) Mac)
-    (st : Start AuthState) (hdr : inc.PKheader) (tag : Mac) :
+    (st : NoHeaderReceived AuthState) (hdr : inc.PKheader) (tag : Mac) :
     Option (HeaderReceived inc AuthState) :=
   if auth.verifyHeader st.authSt st.ep hdr tag then some ⟨st.ep, st.authSt, hdr⟩ else none
 ```
 
+:::leanPillCaption "send first ciphertext component"
+:::
+
 ```anchor CtSender_sendCt1 (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Unchunked)
+/-- Run encapsulation stage one and return the successor state, ciphertext, and epoch key. -/
 def sendCt1 (inc : kem.IncrementalStructure)
     (auth : RatchetedAuthenticator InitKey EpochKey AuthState inc.PKheader (inc.C₁ × inc.C₂) Mac)
     (deriveEpochKey : EpochKeyDerivation K EpochKey) (st : HeaderReceived inc AuthState) :
-    m ((ℕ × EpochKey) × inc.C₁ × Ct1Sent inc AuthState) := do
+    m (Ct1Sent inc AuthState × inc.C₁ × (ℕ × EpochKey)) := do
   let (encapsSt, c1, k) ← inc.encaps1 st.hdr
   let ik := deriveEpochKey k st.ep
-  pure ((st.ep, ik), c1, ⟨st.ep, auth.update st.authSt st.ep ik, st.hdr, encapsSt, c1⟩)
+  pure (⟨st.ep, auth.update st.authSt st.ep ik, st.hdr, encapsSt, c1⟩, c1, (st.ep, ik))
 ```
 
+:::leanPillCaption "receive encapsulation-key vector"
+:::
+
 ```anchor CtSender_recvVector (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Unchunked)
+/-- Validate the encapsulation-key vector and return the successor state on success. -/
 def recvVector (inc : kem.IncrementalStructure) (st : Ct1Sent inc AuthState)
-    (vec : inc.PKvector) : Option (VectorReceived inc AuthState) :=
+    (vec : inc.PKvector) : Option (Ct1SentEkReceived inc AuthState) :=
   if inc.validPK st.hdr vec then
     some ⟨st.ep, st.authSt, st.hdr, st.encapsSt, st.c1, vec⟩
   else none
 ```
 
+:::leanPillCaption "send second ciphertext component and tag"
+:::
+
 ```anchor CtSender_sendCt2 (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Unchunked)
+/-- Run encapsulation stage two and return the successor state, ciphertext, and tag. -/
 def sendCt2 (inc : kem.IncrementalStructure)
     (auth : RatchetedAuthenticator InitKey EpochKey AuthState inc.PKheader (inc.C₁ × inc.C₂) Mac)
-    (st : VectorReceived inc AuthState) : m ((inc.C₂ × Mac) × Ct2Sent AuthState) := do
+    (st : Ct1SentEkReceived inc AuthState) : m (Ct2Sent AuthState × inc.C₂ × Mac) := do
   let c2 ← inc.encaps2 st.encapsSt st.hdr st.vec
-  pure ((c2, auth.macCiphertext st.authSt st.ep (st.c1, c2)), ⟨st.ep, st.authSt⟩)
+  pure (⟨st.ep, st.authSt⟩, c2, auth.macCiphertext st.authSt st.ep (st.c1, c2))
 ```
 
+:::leanPillCaption "advance to the next epoch"
+:::
+
 ```anchor CtSender_recvNextEpoch (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Unchunked)
-def recvNextEpoch (st : Ct2Sent AuthState) (t : ℕ) : Option (EkSender.Start AuthState) :=
+/-- Return the encapsulation-key-sender state exactly when `t` is the successor epoch. -/
+def recvNextEpoch (st : Ct2Sent AuthState) (t : ℕ) : Option (EkSender.KeysUnsampled AuthState) :=
   if t = st.ep + 1 then some ⟨st.ep + 1, st.authSt⟩ else none
 ```
 
