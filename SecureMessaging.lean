@@ -45,6 +45,7 @@ import SecureMessaging.PRFPRNG.Defs
 import SecureMessaging.PRP.Defs
 import SecureMessaging.SCKA.Defs
 import SecureMessaging.SCKA.MLKEMBraid.Authenticator
+import SecureMessaging.SCKA.MLKEMBraid.Unchunked
 import SecureMessaging.SCKA.OppUniKEM.Construction
 import SecureMessaging.SymEnc.Defs
 import ToVCVio.OracleComp.Constructions.SampleableType
