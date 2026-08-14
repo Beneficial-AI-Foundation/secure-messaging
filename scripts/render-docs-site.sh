@@ -50,20 +50,18 @@ recover_previous_progress_history() {
   echo "Starting Blueprint progress history from the current render"
 }
 
-# Decide whether recovered history is compatible with the current tracked atom
-# universe. Re-seeding avoids visual spikes when old deployed exact snapshots
-# used a different counting basis.
+# Decide whether recovered history can be extended or has to be rebuilt.
+# Snapshot totals are not checked: the tracked atom set grows as atoms gain
+# issue footers, so historical totals differ from today's by design.
 history_reseed_reason() {
   local history_file="$1"
-  python3 - "$history_file" "$site_root" "$docs_root" <<'PY'
-import importlib.util
+  python3 - "$history_file" <<'PY'
 import json
 import sys
 from pathlib import Path
 
 history_path = Path(sys.argv[1])
-site_dir = Path(sys.argv[2])
-docs_dir = Path(sys.argv[3])
+expected_schema = 2
 expected_basis = "linked closing PR merge dates"
 
 if not history_path.exists():
@@ -76,34 +74,32 @@ except Exception:
     print("invalid")
     raise SystemExit
 
-snapshots = data if isinstance(data, list) else data.get("snapshots", []) if isinstance(data, dict) else []
+if not isinstance(data, dict):
+    print("stale-schema")
+    raise SystemExit
+
+snapshots = data.get("snapshots", [])
 if not isinstance(snapshots, list) or len(snapshots) < 2:
     print("sparse")
     raise SystemExit
 
-if not isinstance(data, dict) or expected_basis not in str(data.get("historyBasis", "")):
+if data.get("schemaVersion") != expected_schema:
+    print("stale-schema")
+    raise SystemExit
+
+if expected_basis not in str(data.get("historyBasis", "")):
     print("stale-basis")
     raise SystemExit
 
-script = Path("scripts/aggregate-blueprint-status.py")
-spec = importlib.util.spec_from_file_location("aggregate_blueprint_status", script)
-if spec is None or spec.loader is None:
-    print("invalid")
-    raise SystemExit
-module = importlib.util.module_from_spec(spec)
-sys.modules[spec.name] = module
-spec.loader.exec_module(module)
-totals = module.summarize(module.load_tracked_atoms(site_dir, docs_dir))
-expected = {
-    "definitions": totals["definition"]["total"],
-    "theorems": totals["theorem"]["total"],
-}
+# Per-commit attribution reads the labels behind each count. Without them a
+# snapshot cannot say which atoms were already reached, and the next one would
+# claim all of them.
 for snapshot in snapshots:
-    definitions = snapshot.get("definitions", {}) if isinstance(snapshot, dict) else {}
-    theorems = snapshot.get("theorems", {}) if isinstance(snapshot, dict) else {}
-    if definitions.get("total") != expected["definitions"] or theorems.get("total") != expected["theorems"]:
-        print("total-mismatch")
-        raise SystemExit
+    for kind in ("definitions", "theorems"):
+        counts = snapshot.get(kind, {}) if isinstance(snapshot, dict) else {}
+        if not all(isinstance(counts.get(f"{metric}Labels"), list) for metric in ("specified", "verified")):
+            print("missing-labels")
+            raise SystemExit
 
 print("none")
 PY
@@ -447,27 +443,220 @@ cat > "$site_root/index.html" <<'HTML'
     }
     .progress-chart-grid {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 16px;
+      grid-template-columns: 1fr;
+      gap: 22px;
     }
     .progress-chart-card {
-      padding: 15px;
+      padding: 18px 18px 16px;
       border: 1px solid var(--line);
-      border-radius: 6px;
+      border-radius: 8px;
       background: var(--panel);
       overflow-x: auto;
       scrollbar-gutter: stable;
     }
-    .progress-chart-card h3 {
-      margin: 0 0 10px;
-      font-size: 1rem;
+    .progress-chart-wrap {
+      position: relative;
     }
     .progress-chart {
       display: block;
       width: 100%;
-      min-width: 588px;
+      min-width: 760px;
+      min-height: 360px;
       height: auto;
       overflow: visible;
+    }
+    .progress-chart-hit {
+      cursor: pointer;
+      outline: none;
+    }
+    .progress-chart-hitarea {
+      fill: transparent;
+    }
+    .progress-chart-crosshair {
+      stroke: #64748b;
+      stroke-width: 1.4;
+      stroke-dasharray: 3 5;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .progress-chart-dot {
+      stroke: var(--panel);
+      stroke-width: 1.8;
+      paint-order: stroke fill;
+      opacity: 0.95;
+      pointer-events: none;
+    }
+    .progress-chart-dot.total {
+      fill: #5b6474;
+    }
+    .progress-chart-dot.specified {
+      fill: #2563eb;
+    }
+    .progress-chart-dot.verified {
+      fill: #16a34a;
+    }
+    .progress-chart-card:not(.is-hovering) .progress-chart-hit:last-child .progress-chart-dot {
+      opacity: 1;
+    }
+    .progress-chart-hit.is-active .progress-chart-crosshair,
+    .progress-chart-hit:focus-visible .progress-chart-crosshair {
+      opacity: 0.85;
+    }
+    .progress-chart-hit.is-active .progress-chart-dot,
+    .progress-chart-hit:focus-visible .progress-chart-dot,
+    .progress-chart-hit.is-pinned .progress-chart-dot {
+      opacity: 1;
+    }
+    .progress-chart-hit.is-pinned .progress-chart-crosshair {
+      stroke: var(--link);
+      stroke-dasharray: none;
+      opacity: 0.7;
+    }
+    .progress-chart-card.is-hovering .progress-chart-hit:not(.is-active):not(.is-pinned) {
+      opacity: 0.35;
+    }
+    .progress-chart-panel {
+      padding: 0.7rem 0.8rem;
+      border: 1px solid #9fb0cf;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.98);
+      color: var(--text);
+      box-shadow: 0 10px 28px rgba(23, 32, 51, 0.12);
+    }
+    .progress-chart-tooltip {
+      position: absolute;
+      z-index: 4;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      gap: 10px;
+      max-width: min(46rem, calc(100% - 1.2rem));
+      /* A preview only: it trails the cursor, so it must never catch events. */
+      pointer-events: none;
+    }
+    .progress-chart-tooltip .progress-chart-panel {
+      flex: 1 1 13rem;
+      min-width: 12.5rem;
+      max-width: 22rem;
+    }
+    .progress-chart-tooltip[hidden] {
+      display: none !important;
+    }
+    .progress-chart-pins {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+      align-items: start;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .progress-chart-pins[hidden] {
+      display: none !important;
+    }
+    .progress-chart-pin {
+      position: relative;
+      border-color: var(--link);
+      box-shadow: 0 8px 22px rgba(23, 32, 51, 0.14);
+    }
+    .progress-chart-pin > strong {
+      padding-right: 1.4rem;
+    }
+    .progress-chart-pin-close {
+      position: absolute;
+      top: 0.3rem;
+      right: 0.35rem;
+      width: 1.4rem;
+      height: 1.4rem;
+      padding: 0;
+      border: 0;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 1.1rem;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .progress-chart-pin-close:hover,
+    .progress-chart-pin-close:focus-visible {
+      background: rgba(36, 87, 197, 0.1);
+      color: var(--link);
+    }
+    .progress-chart-panel strong {
+      display: block;
+      margin-bottom: 0.35rem;
+      font-size: 0.95rem;
+    }
+    .progress-chart-panel dl {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.18rem 0.7rem;
+      margin: 0;
+    }
+    .progress-chart-panel dt {
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 650;
+    }
+    .progress-chart-panel dd {
+      margin: 0;
+      font-size: 0.9rem;
+      font-weight: 700;
+      text-align: right;
+    }
+    .progress-chart-panel .progress-chart-tooltip-meta {
+      margin: 0.45rem 0 0;
+      color: var(--muted);
+      font-size: 0.8rem;
+      line-height: 1.35;
+    }
+    .progress-chart-tooltip-atoms ul {
+      max-height: 8.5rem;
+    }
+    .progress-chart-tooltip-meta a {
+      color: var(--link);
+      text-decoration: none;
+    }
+    .progress-chart-tooltip-meta a:hover {
+      text-decoration: underline;
+    }
+    .progress-chart-tooltip-ref {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-weight: 700;
+    }
+    .progress-chart-tooltip-atoms {
+      margin-top: 0.4rem;
+    }
+    .progress-chart-tooltip-atoms-title {
+      display: block;
+      margin-bottom: 0.3rem;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+    .progress-chart-tooltip-atoms ul {
+      display: grid;
+      gap: 0.28rem;
+      max-height: 11rem;
+      overflow-y: auto;
+      margin: 0;
+      padding-left: 1.05rem;
+    }
+    .progress-chart-tooltip-atoms li {
+      font-size: 0.84rem;
+      line-height: 1.3;
+    }
+    .progress-chart-tooltip-atoms a {
+      color: var(--link);
+    }
+    .progress-chart-tooltip-atoms code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.82rem;
+    }
+    .progress-chart-tooltip-atoms .progress-chart-tooltip-atom-note {
+      display: block;
+      color: var(--muted);
+      font-size: 0.78rem;
     }
     .progress-chart-axis {
       stroke: #5d6b7f;
@@ -553,12 +742,12 @@ cat > "$site_root/index.html" <<'HTML'
       display: flex;
       align-items: center;
       flex-wrap: nowrap;
-      gap: 12px;
-      margin-top: 9px;
+      gap: 14px;
+      margin-top: 12px;
       overflow-x: auto;
       white-space: nowrap;
       color: var(--muted);
-      font-size: 0.95rem;
+      font-size: 1rem;
       font-weight: 650;
     }
     .progress-chart-legend span {
@@ -625,11 +814,6 @@ cat > "$site_root/index.html" <<'HTML'
       text-transform: uppercase;
       color: #334155;
     }
-    @media (max-width: 900px) {
-      .progress-chart-grid {
-        grid-template-columns: 1fr;
-      }
-    }
     @media (max-width: 640px) {
       .chapter-row {
         align-items: flex-start;
@@ -641,8 +825,9 @@ cat > "$site_root/index.html" <<'HTML'
       .status-table {
         font-size: 0.85rem;
       }
-      .progress-chart-grid {
-        grid-template-columns: 1fr;
+      .progress-chart {
+        min-width: 640px;
+        min-height: 300px;
       }
     }
     footer {
@@ -705,6 +890,238 @@ python3 scripts/aggregate-blueprint-status.py \
 
 cat >> "$site_root/index.html" <<'HTML'
   </main>
+  <script>
+    (function () {
+      function escapeHtml(value) {
+        return String(value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      // Each commit reports the state it left behind; the day's own attributes
+      // are the fallback when a point carries no commit detail.
+      function metricRows(hit, metrics, values) {
+        return metrics.map(function (metric) {
+          var raw = values && values[metric] !== undefined
+            ? values[metric]
+            : hit.getAttribute("data-" + metric);
+          if (raw === null || raw === undefined || raw === "") return "";
+          var label = metric.charAt(0).toUpperCase() + metric.slice(1);
+          return "<dt>" + escapeHtml(label) + "</dt><dd>" + escapeHtml(raw) + "</dd>";
+        }).join("");
+      }
+
+      function commits(hit) {
+        var raw = hit.getAttribute("data-commits");
+        if (!raw) return [];
+        try {
+          var parsed = JSON.parse(raw);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch (error) {
+          return [];
+        }
+      }
+
+      function newAtomsHtml(atoms) {
+        if (!atoms || !atoms.length) return "";
+        var items = atoms.map(function (atom) {
+          var name = "<code>" + escapeHtml(atom.label || "") + "</code>";
+          // Atoms added after the last render have no manifest entry to link to.
+          var body = atom.href
+            ? '<a href="' + escapeHtml(atom.href) + '">' + name + "</a>"
+            : name;
+          var note = [atom.title].concat(atom.metrics || []).filter(Boolean).join(" · ");
+          return (
+            "<li>" + body +
+            (note ? '<span class="progress-chart-tooltip-atom-note">' + escapeHtml(note) + "</span>" : "") +
+            "</li>"
+          );
+        }).join("");
+        return (
+          '<div class="progress-chart-tooltip-atoms">' +
+          '<span class="progress-chart-tooltip-atoms-title">New specified or verified atoms</span>' +
+          "<ul>" + items + "</ul></div>"
+        );
+      }
+
+      function commitHtml(entry) {
+        var ref = entry.ref || "";
+        var body =
+          (ref ? '<span class="progress-chart-tooltip-ref">' + escapeHtml(ref) + "</span>" : "") +
+          (entry.subject ? (ref ? " " : "") + escapeHtml(entry.subject) : "");
+        return (
+          (body
+            ? '<p class="progress-chart-tooltip-meta">' +
+              (entry.url
+                ? '<a href="' + escapeHtml(entry.url) + '" target="_blank" rel="noopener">' + body + "</a>"
+                : body) +
+              "</p>"
+            : "") +
+          newAtomsHtml(entry.newAtoms)
+        );
+      }
+
+      // A day can hold several merges. Give each one its own box so they sit
+      // side by side rather than stacking inside a single card.
+      function dayBoxes(hit, metrics) {
+        var heading = "<strong>" + escapeHtml(hit.getAttribute("data-date") || "") + "</strong>";
+        var entries = commits(hit);
+        if (!entries.length) {
+          return [heading + "<dl>" + metricRows(hit, metrics, null) + "</dl>"];
+        }
+        return entries.map(function (entry) {
+          return (
+            heading +
+            "<dl>" + metricRows(hit, metrics, entry.metrics) + "</dl>" +
+            commitHtml(entry)
+          );
+        });
+      }
+
+      // Track the cursor so the card sits clear of the series line and leaves the
+      // neighbouring points visible.
+      function positionTooltip(wrap, tooltip, hit, event) {
+        var wrapRect = wrap.getBoundingClientRect();
+        var tipWidth = tooltip.offsetWidth || 200;
+        var tipHeight = tooltip.offsetHeight || 120;
+        var gap = 16;
+        var anchorX;
+        var anchorY;
+        if (event && typeof event.clientX === "number") {
+          anchorX = event.clientX - wrapRect.left;
+          anchorY = event.clientY - wrapRect.top;
+        } else {
+          // Keyboard focus has no cursor, so anchor under the point itself.
+          var hitRect = hit.getBoundingClientRect();
+          anchorX = hitRect.left + hitRect.width / 2 - wrapRect.left;
+          anchorY = hitRect.top + hitRect.height / 2 - wrapRect.top;
+        }
+        var left = anchorX + gap;
+        var top = anchorY + gap;
+        // Flip to the other side of the cursor rather than sliding over the chart.
+        if (left + tipWidth > wrapRect.width - 8) {
+          left = Math.max(8, anchorX - gap - tipWidth);
+        }
+        if (top + tipHeight > wrapRect.height - 8) {
+          top = Math.max(8, anchorY - gap - tipHeight);
+        }
+        tooltip.style.left = left + "px";
+        tooltip.style.top = top + "px";
+      }
+
+      function bindCard(card) {
+        var wrap = card.querySelector(".progress-chart-wrap");
+        var tooltip = card.querySelector(".progress-chart-tooltip");
+        var pins = card.querySelector(".progress-chart-pins");
+        var svg = card.querySelector(".progress-chart");
+        if (!wrap || !tooltip || !pins || !svg) return;
+        var metrics = (card.getAttribute("data-progress-metrics") || "total")
+          .split(",")
+          .map(function (part) { return part.trim(); })
+          .filter(Boolean);
+        var hits = Array.prototype.slice.call(card.querySelectorAll(".progress-chart-hit"));
+        if (!hits.length) return;
+        var pinnedBoxes = [];
+
+        // The preview lives and dies with the pointer. Anything worth reading or
+        // clicking gets pinned below the chart, where nothing moves it.
+        function showPreview(hit, event) {
+          tooltip.innerHTML = dayBoxes(hit, metrics).map(function (box) {
+            return '<div class="progress-chart-panel">' + box + "</div>";
+          }).join("");
+          tooltip.hidden = false;
+          card.classList.add("is-hovering");
+          hits.forEach(function (node) {
+            node.classList.toggle("is-active", node === hit);
+          });
+          positionTooltip(wrap, tooltip, hit, event);
+        }
+
+        function hidePreview() {
+          tooltip.hidden = true;
+          card.classList.remove("is-hovering");
+          hits.forEach(function (node) { node.classList.remove("is-active"); });
+        }
+
+        function boxesFor(hit) {
+          return pinnedBoxes.filter(function (entry) { return entry.hit === hit; });
+        }
+
+        function dropBox(entry) {
+          entry.panel.remove();
+          pinnedBoxes = pinnedBoxes.filter(function (candidate) { return candidate !== entry; });
+          if (!boxesFor(entry.hit).length) entry.hit.classList.remove("is-pinned");
+          pins.hidden = !pinnedBoxes.length;
+        }
+
+        function unpin(hit) {
+          boxesFor(hit).forEach(dropBox);
+        }
+
+        function pin(hit) {
+          var order = hits.indexOf(hit);
+          var date = hit.getAttribute("data-date") || "day";
+          dayBoxes(hit, metrics).forEach(function (box, slot) {
+            var panel = document.createElement("div");
+            var entry = { hit: hit, order: order, slot: slot, panel: panel };
+            panel.className = "progress-chart-pin progress-chart-panel";
+            panel.innerHTML =
+              '<button class="progress-chart-pin-close" type="button" aria-label="Unpin ' +
+              escapeHtml(date) + '">&times;</button>' + box;
+            panel.querySelector(".progress-chart-pin-close").addEventListener("click", function () {
+              dropBox(entry);
+            });
+            // Keep pinned boxes in chart order, whichever order they were clicked in.
+            var later = pinnedBoxes.filter(function (candidate) {
+              return candidate.order > order || (candidate.order === order && candidate.slot > slot);
+            })[0];
+            pins.insertBefore(panel, later ? later.panel : null);
+            pinnedBoxes = pinnedBoxes.concat([entry]).sort(function (left, right) {
+              return left.order - right.order || left.slot - right.slot;
+            });
+          });
+          hit.classList.add("is-pinned");
+          pins.hidden = false;
+        }
+
+        function togglePin(hit) {
+          if (boxesFor(hit).length) unpin(hit);
+          else pin(hit);
+        }
+
+        hits.forEach(function (hit) {
+          hit.addEventListener("mouseenter", function (event) { showPreview(hit, event); });
+          hit.addEventListener("mousemove", function (event) {
+            if (tooltip.hidden || !hit.classList.contains("is-active")) {
+              showPreview(hit, event);
+              return;
+            }
+            positionTooltip(wrap, tooltip, hit, event);
+          });
+          hit.addEventListener("focus", function () { showPreview(hit, null); });
+          hit.addEventListener("click", function () { togglePin(hit); });
+          hit.addEventListener("keydown", function (event) {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault();
+            togglePin(hit);
+          });
+        });
+        svg.addEventListener("mouseleave", hidePreview);
+        card.addEventListener("focusout", function (event) {
+          if (!card.contains(event.relatedTarget)) hidePreview();
+        });
+        document.addEventListener("keydown", function (event) {
+          if (event.key !== "Escape") return;
+          hidePreview();
+          pinnedBoxes.slice().forEach(dropBox);
+        });
+      }
+
+      document.querySelectorAll(".progress-chart-card").forEach(bindCard);
+    })();
+  </script>
 </body>
 </html>
 HTML

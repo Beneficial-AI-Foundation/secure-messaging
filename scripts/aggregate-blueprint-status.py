@@ -13,6 +13,7 @@ import html as html_module
 import json
 import posixpath
 import re
+import subprocess
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,18 +22,33 @@ from pathlib import Path
 DEFAULT_SITE_DIR = Path("_out/site/html-multi")
 DEFAULT_DOCS_DIR = Path("docs/SecureMessagingDocs")
 DEFAULT_PROJECT_END = "2027-01-28"
+REPO_COMMIT_URL = "https://github.com/Beneficial-AI-Foundation/secure-messaging/commit/"
+REPO_PULL_URL = "https://github.com/Beneficial-AI-Foundation/secure-messaging/pull/"
+HISTORY_KINDS = ("definitions", "theorems")
+# Pseudo-kind that reads a snapshot as one combined definition/theorem series.
+CHART_ALL_KINDS = "atoms"
+SQUASHED_PULL_RE = re.compile(r"\s*\(#(\d+)\)\s*$")
+MERGE_PULL_RE = re.compile(r"^Merge pull request #(\d+) from \S+\s*")
 MANIFEST_PATH = "-verso-data/blueprint-manifest.json"
 TRACKED_KINDS = ("definition", "theorem")
 ATOM_RE = re.compile(r":{3,}(definition|theorem)\s+\"([^\"]+)\"")
+FULL_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 ISSUE_RE = re.compile(r"\{githubIssue\s+(\d+)\}")
-CHART_WIDTH = 1153
-CHART_HEIGHT = 546
-CHART_PADDING_LEFT = 37
-CHART_PADDING_RIGHT = 44
-CHART_PADDING_TOP = 42
-CHART_PADDING_BOTTOM = 132
+CHART_WIDTH = 1280
+CHART_HEIGHT = 582
+CHART_PADDING_LEFT = 44
+CHART_PADDING_RIGHT = 48
+CHART_PADDING_TOP = 36
+# Bottom padding holds the rotated date labels and nothing else; keeping it tight
+# pulls the pinned cards up towards the line they belong to.
+CHART_PADDING_BOTTOM = 82
 CHART_TICK_LABEL_X = -8
-CHART_TICK_LABEL_Y = 30
+CHART_TICK_LABEL_Y = 11
+CHART_HIT_MIN_HALF = 18.0
+CHART_HIT_MIN_WIDTH = 4.0
+CHART_HIT_MAX_DRIFT = 6.0
+CHART_TICK_MIN_GAP_PX = 28.0
+CHART_DOT_RADIUS = 3.4
 CHAPTER_TITLES = {
     "Authenticated-Encryption-with-Associated-Data": "Authenticated Encryption with Associated Data",
     "Continuous-Key-Agreement": "Continuous Key Agreement",
@@ -137,9 +153,10 @@ def dependency_labels(entry: dict, field: str) -> tuple[str, ...]:
 def classify(entry: dict, chapter: str) -> Atom:
     # Convert one preview manifest entry into an Atom status record.
     decls = code_decls(entry)
-    has_lean_block = bool(decls)
-    verified = has_lean_block and all(decl_proved(decl) for decl in decls)
-    specified = verified if entry.get("kind", "") == "definition" else has_lean_block
+    # Definitions and theorems use the same two-stage rule: a Lean block means the
+    # atom is specified, and every declaration proved means it is verified.
+    specified = bool(decls)
+    verified = specified and all(decl_proved(decl) for decl in decls)
     return Atom(
         kind=entry.get("kind", ""),
         label=entry.get("label", ""),
@@ -359,20 +376,19 @@ def summarize_by_chapter(atoms: list[Atom]) -> dict[str, dict[str, Counter]]:
     return chapters
 
 
-def print_counter(name: str, counter: Counter, show_verified: bool = True) -> None:
+def print_counter(name: str, counter: Counter) -> None:
     # Print one text-report counter block.
     print(name)
     print(f"  Total:     {counter['total']}")
     print(f"  Specified: {counter['specified']}")
-    if show_verified:
-        print(f"  Verified:  {counter['verified']}")
+    print(f"  Verified:  {counter['verified']}")
 
 
 def print_text_report(atoms: list[Atom], by_chapter: bool) -> None:
     # Print the command-line text report.
     totals = summarize(atoms)
     print("Blueprint Status")
-    print_counter("Definitions", totals["definition"], show_verified=False)
+    print_counter("Definitions", totals["definition"])
     print_counter("Theorems", totals["theorem"])
 
     if not by_chapter:
@@ -460,6 +476,40 @@ def load_history_document(path: Path | None) -> dict:
     return data if isinstance(data, dict) else {"snapshots": []}
 
 
+def git_output(args: list[str]) -> str | None:
+    # Return git output, or None when git cannot answer the question at all.
+    try:
+        return subprocess.run(["git", *args], capture_output=True, text=True, check=True).stdout
+    except (subprocess.CalledProcessError, OSError):
+        return None
+
+
+def snapshots_on_this_branch(snapshots: list[dict]) -> list[dict]:
+    # Keep only snapshots whose commit is still reachable from HEAD. A recovered
+    # history is merged by commit and never shrinks, so it accumulates commits
+    # that a rebase, squash, or another branch left behind. Those would draw dots
+    # linking to commits that no longer exist, and since attribution reads the
+    # previous snapshot, they would also absorb the atoms of the commit that
+    # followed them.
+    snapshots = [snapshot for snapshot in snapshots if isinstance(snapshot, dict)]
+    if not any(FULL_SHA_RE.match(str(snapshot.get("commit", ""))) for snapshot in snapshots):
+        return snapshots
+    # A shallow clone cannot tell a rewritten commit from a truncated one.
+    if (git_output(["rev-parse", "--is-shallow-repository"]) or "").strip() != "false":
+        return snapshots
+    listed = git_output(["rev-list", "HEAD"])
+    if not listed:
+        return snapshots
+    reachable = set(listed.split())
+
+    def on_branch(snapshot: dict) -> bool:
+        commit = str(snapshot.get("commit", ""))
+        # Renders outside CI record a placeholder rather than a commit.
+        return commit in reachable if FULL_SHA_RE.match(commit) else True
+
+    return [snapshot for snapshot in snapshots if on_branch(snapshot)]
+
+
 def snapshot_time(snapshot: dict) -> datetime | None:
     # Parse a snapshot's date field for sorting and chart placement.
     raw_date = snapshot.get("date")
@@ -500,7 +550,14 @@ def chart_window(history: dict, snapshots: list[dict]) -> ChartWindow:
 
 def metric_value(snapshot: dict, kind: str, metric: str) -> int:
     # Read one integer metric from a history snapshot.
-    value = snapshot.get(kind, {}).get(metric, 0)
+    if kind == CHART_ALL_KINDS:
+        return sum(metric_value(snapshot, entry, metric) for entry in HISTORY_KINDS)
+    counts = snapshot.get(kind, {})
+    value = counts.get(metric)
+    # Snapshots written before definitions carried both stages recorded their
+    # single merged status as "specified".
+    if value is None and kind == "definitions" and metric == "verified":
+        value = counts.get("specified")
     return value if isinstance(value, int) else 0
 
 
@@ -572,11 +629,11 @@ def svg_path(points: list[tuple[float, float]]) -> str:
     return " ".join(parts)
 
 
-def svg_area(points: list[tuple[float, float]]) -> str:
+def svg_area(points: list[tuple[float, float]], full_width: bool = False) -> str:
     # Build an SVG filled area under a metric line.
     if not points:
         return ""
-    points = displayed_points(points)
+    points = displayed_points(points, full_width=full_width)
     baseline = CHART_HEIGHT - CHART_PADDING_BOTTOM
     first_x = points[0][0]
     last_x = points[-1][0]
@@ -616,43 +673,61 @@ def day_month(time: datetime) -> str:
     return f"{time.day} {time.strftime('%b')}"
 
 
+def chart_tick_markup(time: datetime, window: ChartWindow, baseline: float) -> str:
+    # Render one x-axis tick and rotated date label.
+    x = axis_x_for_time(time, window)
+    label = html_module.escape(short_month_day(time))
+    return (
+        f'<g class="progress-chart-tick" transform="translate({x:.1f} {baseline:.1f})">'
+        f'<line y2="6"/>'
+        f'<text x="{CHART_TICK_LABEL_X}" y="{CHART_TICK_LABEL_Y}" '
+        f'transform="rotate(-38 {CHART_TICK_LABEL_X} {CHART_TICK_LABEL_Y})">{label}</text>'
+        f'</g>'
+    )
+
+
 def chart_week_ticks(window: ChartWindow) -> str:
     # Render weekly x-axis ticks across the chart window.
     if window.start is None or window.end is None:
         return ""
-    ticks = []
+    ticks: list[str] = []
+    tick_times: list[datetime] = []
     baseline = CHART_HEIGHT - CHART_PADDING_BOTTOM
+
+    def append_tick(time: datetime, replace_nearby: bool = False) -> None:
+        x = axis_x_for_time(time, window)
+        if tick_times:
+            prev_x = axis_x_for_time(tick_times[-1], window)
+            if abs(x - prev_x) < CHART_TICK_MIN_GAP_PX:
+                if not replace_nearby:
+                    return
+                # Prefer the project-end label over a weekly tick that sits on top of it.
+                tick_times[-1] = time
+                ticks[-1] = chart_tick_markup(time, window, baseline)
+                return
+        tick_times.append(time)
+        ticks.append(chart_tick_markup(time, window, baseline))
+
     current = window.start
     while current <= window.end:
-        x = axis_x_for_time(current, window)
-        label = html_module.escape(short_month_day(current))
-        ticks.append(
-            f'<g class="progress-chart-tick" transform="translate({x:.1f} {baseline:.1f})">'
-            f'<line y2="6"/>'
-            f'<text x="{CHART_TICK_LABEL_X}" y="{CHART_TICK_LABEL_Y}" '
-            f'transform="rotate(-38 {CHART_TICK_LABEL_X} {CHART_TICK_LABEL_Y})">{label}</text>'
-            f'</g>'
-        )
+        append_tick(current)
         current = current + timedelta(days=7)
-    if ticks and current - timedelta(days=7) < window.end:
-        x = axis_x_for_time(window.end, window)
-        label = html_module.escape(short_month_day(window.end))
-        ticks.append(
-            f'<g class="progress-chart-tick" transform="translate({x:.1f} {baseline:.1f})">'
-            f'<line y2="6"/>'
-            f'<text x="{CHART_TICK_LABEL_X}" y="{CHART_TICK_LABEL_Y}" '
-            f'transform="rotate(-38 {CHART_TICK_LABEL_X} {CHART_TICK_LABEL_Y})">{label}</text>'
-            f'</g>'
-        )
+    if tick_times:
+        append_tick(window.end, replace_nearby=True)
     return "".join(ticks)
+
+
+def plain_human_date(snapshot: dict) -> str:
+    # Format a snapshot date for tooltip/attribute text (unescaped).
+    parsed = snapshot_time(snapshot)
+    if parsed is None:
+        return str(snapshot.get("date", ""))[:10]
+    return f"{parsed.strftime('%b')} {parsed.day}, {parsed.year}"
 
 
 def human_date(snapshot: dict) -> str:
     # Format a snapshot date for human-readable HTML text.
-    parsed = snapshot_time(snapshot)
-    if parsed is None:
-        return html_module.escape(str(snapshot.get("date", ""))[:10])
-    return html_module.escape(f"{parsed.strftime('%b')} {parsed.day}, {parsed.year}")
+    return html_module.escape(plain_human_date(snapshot))
 
 
 def tracking_days(snapshots: list[dict], window: ChartWindow) -> int:
@@ -666,8 +741,13 @@ def tracking_days(snapshots: list[dict], window: ChartWindow) -> int:
 
 
 def chart_guides(snapshots: list[dict], kind: str, metrics: tuple[str, ...], max_value: int, window: ChartWindow) -> str:
-    # Render horizontal guide lines for the latest metric values.
+    # Render horizontal guide lines for the latest metric values, ending at the
+    # latest snapshot so they do not continue past the last commit.
     guides = []
+    latest_points = chart_coordinates(snapshots[-1:], kind, metrics[0] if metrics else "total", max_value, window)
+    if not latest_points:
+        return ""
+    latest_x = latest_points[-1][0]
     latest = snapshots[-1]
     for metric in metrics:
         value = metric_value(latest, kind, metric)
@@ -682,7 +762,7 @@ def chart_guides(snapshots: list[dict], kind: str, metrics: tuple[str, ...], max
         guides.append(
             f'<line class="progress-chart-guide {metric_class}" '
             f'x1="{CHART_PADDING_LEFT}" y1="{y:.1f}" '
-            f'x2="{CHART_WIDTH - CHART_PADDING_RIGHT}" y2="{y:.1f}">'
+            f'x2="{latest_x:.1f}" y2="{y:.1f}">'
             f'<title>{metric_text}: {value}</title></line>'
         )
     return "".join(guides)
@@ -708,29 +788,259 @@ def chart_gridlines(max_value: int) -> str:
 
 
 def chart_timeframe(snapshots: list[dict], window: ChartWindow) -> str:
-    # Summarize the tracked data range for the chart legend.
-    if not snapshots:
-        return ""
-    first = snapshot_time(snapshots[0]) or window.start
-    last = snapshot_time(snapshots[-1]) or window.end
+    # Report the span that carries data. The x-axis runs on to the project
+    # deadline, but that empty tail is not part of the timeframe.
+    first = window.start if window.start is not None else (snapshot_time(snapshots[0]) if snapshots else None)
+    last = snapshot_time(snapshots[-1]) if snapshots else None
+    if last is None:
+        last = window.end
     if first is None or last is None:
         return ""
-    first_text = html_module.escape(day_month(first))
-    last_text = html_module.escape(day_month(last))
-    return f"{first_text} - {last_text}"
+    # Spell the years out once the span crosses a year boundary, where a bare
+    # "7 May - 28 Jan" reads as if the chart ran backwards.
+    same_year = first.year == last.year
+    first_text = html_module.escape(day_month(first) if same_year else f"{day_month(first)} {first.year}")
+    last_text = html_module.escape(day_month(last) if same_year else f"{day_month(last)} {last.year}")
+    return f"Data timeframe: {first_text} - {last_text}"
 
 
-def progress_chart(title: str, kind: str, metrics: tuple[str, ...], snapshots: list[dict], window: ChartWindow, max_value: int) -> str:
+def chart_hit_bounds(xs: list[float]) -> list[tuple[float, float]]:
+    # Split the plot at the midpoints between snapshots so each band covers the
+    # points nearest to it. Overlapping bands would let a later sibling win SVG
+    # hit-testing and highlight a point beside the cursor.
+    if not xs:
+        return []
+    left_edge = CHART_PADDING_LEFT
+    right_edge = CHART_WIDTH - CHART_PADDING_RIGHT
+    if len(xs) == 1:
+        x = xs[0]
+        return [(max(left_edge, x - CHART_HIT_MIN_HALF), min(right_edge, x + CHART_HIT_MIN_HALF))]
+
+    # The window runs past the last commit; do not claim that empty space.
+    last_gap = (xs[-1] - xs[-2]) / 2
+    end_edge = min(right_edge, max(xs[-1] + last_gap, xs[-1] + CHART_HIT_MIN_WIDTH))
+    count = len(xs)
+    # Commits landing on the same day sit a fraction of a pixel apart, which would
+    # leave one of them with no reachable hover band. Hold a minimum width and let
+    # it push the boundaries apart, capped so a band never strays far from its own
+    # point.
+    min_width = min(CHART_HIT_MIN_WIDTH, (end_edge - left_edge) / count)
+    boundaries = [left_edge]
+    for index in range(count - 1):
+        midpoint = (xs[index] + xs[index + 1]) / 2
+        earliest = boundaries[-1] + min_width
+        latest = min(
+            end_edge - (count - 1 - index) * min_width,
+            xs[index + 1] + CHART_HIT_MAX_DRIFT,
+        )
+        boundaries.append(min(max(midpoint, earliest), max(latest, boundaries[-1])))
+    boundaries.append(end_edge)
+    return list(zip(boundaries[:-1], boundaries[1:]))
+
+
+def pull_request_ref(subject: str) -> tuple[str, str]:
+    # Recover the pull request behind a commit subject. Squash merges keep the
+    # number as a suffix; merge commits name it up front.
+    squashed = SQUASHED_PULL_RE.search(subject)
+    if squashed is not None:
+        return squashed.group(1), SQUASHED_PULL_RE.sub("", subject).strip()
+    merged = MERGE_PULL_RE.match(subject)
+    if merged is not None:
+        return merged.group(1), MERGE_PULL_RE.sub("", subject).strip()
+    return "", subject
+
+
+def snapshot_metric_labels(snapshot: dict, kind: str, metric: str) -> set[str] | None:
+    # Read the atom labels recorded behind one metric count. Snapshots written
+    # before labels existed report None: unknown is not the same as empty, and
+    # subtracting an empty set would credit every atom to the next commit.
+    if kind == CHART_ALL_KINDS:
+        parts = [snapshot_metric_labels(snapshot, entry, metric) for entry in HISTORY_KINDS]
+        if any(part is None for part in parts):
+            return None
+        return set().union(*parts)
+    counts = snapshot.get(kind, {})
+    raw = counts.get(f"{metric}Labels")
+    if raw is None and kind == "definitions" and metric == "verified":
+        raw = counts.get("specifiedLabels")
+    if not isinstance(raw, list):
+        return None
+    return {label for label in raw if isinstance(label, str) and label}
+
+
+def new_atoms_at(
+    snapshots: list[dict],
+    index: int,
+    kind: str,
+    metrics: tuple[str, ...],
+    atom_by_label: dict[str, Atom],
+) -> list[dict]:
+    # Report the atoms that first reached a metric at this snapshot.
+    seen: dict[str, dict] = {}
+    for metric in metrics:
+        current = snapshot_metric_labels(snapshots[index], kind, metric)
+        previous = snapshot_metric_labels(snapshots[index - 1], kind, metric) if index > 0 else set()
+        if current is None or previous is None:
+            continue
+        for label in sorted(current - previous):
+            atom = atom_by_label.get(label)
+            entry = seen.setdefault(
+                label,
+                {
+                    "label": label,
+                    "title": atom.title if atom is not None else "",
+                    "href": normalize_atom_href(atom.chapter, atom.href) if atom is not None else "",
+                    "metrics": [],
+                },
+            )
+            entry["metrics"].append(metric)
+    return [seen[label] for label in sorted(seen)]
+
+
+def group_indices_by_day(snapshots: list[dict]) -> list[list[int]]:
+    # Collect the snapshots that share a calendar day. Several commits can land
+    # within minutes of each other, which would otherwise stack points on one x.
+    groups: list[list[int]] = []
+    current_day: str | None = None
+    for index, snapshot in enumerate(snapshots):
+        time = snapshot_time(snapshot)
+        day = time.date().isoformat() if time is not None else str(snapshot.get("date", ""))[:10]
+        if groups and day == current_day:
+            groups[-1].append(index)
+            continue
+        groups.append([index])
+        current_day = day
+    return groups
+
+
+def commit_ref(snapshot: dict) -> tuple[str, str, str]:
+    # Name a snapshot's commit by its pull request where one merged it, and by
+    # the short hash otherwise.
+    pull_request, subject = pull_request_ref(str(snapshot.get("subject") or "").strip())
+    short_commit = str(snapshot.get("shortCommit") or snapshot.get("commit") or "").strip()
+    full_commit = str(snapshot.get("commit") or short_commit).strip()
+    if pull_request:
+        return f"#{pull_request}", f"{REPO_PULL_URL}{pull_request}", subject
+    return short_commit, (f"{REPO_COMMIT_URL}{full_commit}" if full_commit else ""), subject
+
+
+def commit_entry(
+    snapshots: list[dict],
+    index: int,
+    kind: str,
+    metrics: tuple[str, ...],
+    atom_by_label: dict[str, Atom],
+) -> dict:
+    # Describe one commit for its own card: the state it left behind, where it
+    # links, and what it added.
+    snapshot = snapshots[index]
+    ref, url, subject = commit_ref(snapshot)
+    return {
+        "ref": ref,
+        "url": url,
+        "subject": subject,
+        "metrics": {
+            metric: metric_value(snapshot, kind, metric) for metric in ("total",) + metrics
+        },
+        "newAtoms": new_atoms_at(snapshots, index, kind, metrics, atom_by_label),
+    }
+
+
+def chart_hover_layer(
+    snapshots: list[dict],
+    groups: list[list[int]],
+    kind: str,
+    metrics: tuple[str, ...],
+    max_value: int,
+    window: ChartWindow,
+    atom_by_label: dict[str, Atom],
+) -> str:
+    # Emit focusable hover targets, crosshairs, and metric dots for each day.
+    if not snapshots or not groups:
+        return ""
+    points = [snapshots[group[-1]] for group in groups]
+    total_points = chart_coordinates(points, kind, "total", max_value, window)
+    metric_points = {
+        metric: chart_coordinates(points, kind, metric, max_value, window)
+        for metric in metrics
+    }
+    bounds = chart_hit_bounds([x for x, _y in total_points])
+    baseline = CHART_HEIGHT - CHART_PADDING_BOTTOM
+    plot_height = baseline - CHART_PADDING_TOP
+    marks = []
+    for index, group in enumerate(groups):
+        snapshot = points[index]
+        x, total_y = total_points[index]
+        band_start, band_end = bounds[index]
+        date_text = plain_human_date(snapshot)
+        total_text = str(metric_value(snapshot, kind, "total"))
+        attrs = [
+            f'data-date="{html_module.escape(date_text, quote=True)}"',
+            f'data-total="{html_module.escape(total_text, quote=True)}"',
+        ]
+        for metric in metrics:
+            attrs.append(
+                f'data-{html_module.escape(metric, quote=True)}="'
+                f'{html_module.escape(str(metric_value(snapshot, kind, metric)), quote=True)}"'
+            )
+        commits = [
+            commit_entry(snapshots, entry, kind, metrics, atom_by_label) for entry in group
+        ]
+        payload = html_module.escape(json.dumps(commits, separators=(",", ":")), quote=True)
+        attrs.append(f"data-commits='{payload}'")
+        dots = [
+            f'<circle class="progress-chart-dot total" cx="{x:.1f}" cy="{total_y:.1f}" '
+            f'r="{CHART_DOT_RADIUS}"/>'
+        ]
+        for metric in metrics:
+            _mx, my = metric_points[metric][index]
+            metric_class = html_module.escape(metric, quote=True)
+            dots.append(
+                f'<circle class="progress-chart-dot {metric_class}" '
+                f'cx="{x:.1f}" cy="{my:.1f}" r="{CHART_DOT_RADIUS}"/>'
+            )
+        # Cap the crosshair at the highest dot of the day: running it to the top
+        # of the plot would cross the total line and point at nothing.
+        top_y = min([total_y] + [metric_points[metric][index][1] for metric in metrics])
+        marks.append(
+            f'<g class="progress-chart-hit" tabindex="0" role="button" '
+            f'aria-label="{html_module.escape(date_text, quote=True)}: '
+            f'total {html_module.escape(total_text, quote=True)}" '
+            f'{" ".join(attrs)}>'
+            f'<rect class="progress-chart-hitarea" x="{band_start:.1f}" y="{CHART_PADDING_TOP}" '
+            f'width="{band_end - band_start:.1f}" height="{plot_height}" />'
+            f'<line class="progress-chart-crosshair" x1="{x:.1f}" y1="{top_y:.1f}" '
+            f'x2="{x:.1f}" y2="{baseline}" />'
+            f'{"".join(dots)}'
+            f'</g>'
+        )
+    return "".join(marks)
+
+
+def progress_chart(
+    title: str,
+    kind: str,
+    metrics: tuple[str, ...],
+    snapshots: list[dict],
+    window: ChartWindow,
+    max_value: int,
+    atom_by_label: dict[str, Atom],
+) -> str:
     # Render one complete progress chart card.
     if not snapshots:
         return ""
-    total_points = chart_coordinates(snapshots, kind, "total", max_value, window)
-    total_path = html_module.escape(svg_path(displayed_points(total_points, full_width=True)), quote=True)
+    # Plot the end-of-day state: commits hours apart would otherwise stack on one
+    # x and draw a vertical step.
+    groups = group_indices_by_day(snapshots)
+    daily = [snapshots[group[-1]] for group in groups]
+    total_points = chart_coordinates(daily, kind, "total", max_value, window)
+    # Stop series at the latest snapshot/commit; the empty future window stays blank.
+    total_path = html_module.escape(svg_path(displayed_points(total_points)), quote=True)
     metric_paths = []
-    latest = snapshots[-1]
+    latest = daily[-1]
     legend_items = [f'<span><i class="progress-swatch total"></i>Total {metric_value(latest, kind, "total")}</span>']
     for metric in metrics:
-        points = chart_coordinates(snapshots, kind, metric, max_value, window)
+        points = chart_coordinates(daily, kind, metric, max_value, window)
         path = html_module.escape(svg_path(displayed_points(points)), quote=True)
         area = html_module.escape(svg_area(points), quote=True)
         metric_class = html_module.escape(metric, quote=True)
@@ -739,46 +1049,61 @@ def progress_chart(title: str, kind: str, metrics: tuple[str, ...], snapshots: l
         metric_paths.append(f'<path class="progress-chart-line {metric_class}" d="{path}"/>')
         metric_value_text = metric_value(latest, kind, metric)
         legend_items.append(f'<span><i class="progress-swatch {metric_class}"></i>{metric_label} {metric_value_text}</span>')
-    timeframe_text = chart_timeframe(snapshots, window)
+    timeframe_text = chart_timeframe(daily, window)
     title_text = html_module.escape(title)
     gridlines = chart_gridlines(max_value)
-    guides = chart_guides(snapshots, kind, metrics, max_value, window)
+    guides = chart_guides(daily, kind, metrics, max_value, window)
     week_ticks = chart_week_ticks(window)
+    hover_layer = chart_hover_layer(snapshots, groups, kind, metrics, max_value, window, atom_by_label)
     if timeframe_text:
         legend_items.append(f'<span class="progress-chart-timeframe">{timeframe_text}</span>')
     legend = "".join(legend_items)
     metric_markup = "".join(metric_paths)
+    metrics_attr = html_module.escape(",".join(("total",) + metrics), quote=True)
     return f'''
-        <article class="progress-chart-card">
-          <h3>{title_text}</h3>
-          <svg class="progress-chart" viewBox="0 0 {CHART_WIDTH} {CHART_HEIGHT}" role="img" aria-label="{title_text} progress over time">
-            <line class="progress-chart-axis" x1="{CHART_PADDING_LEFT}" y1="{CHART_HEIGHT - CHART_PADDING_BOTTOM}" x2="{CHART_WIDTH - CHART_PADDING_RIGHT}" y2="{CHART_HEIGHT - CHART_PADDING_BOTTOM}"/>
-            <line class="progress-chart-axis" x1="{CHART_PADDING_LEFT}" y1="{CHART_PADDING_TOP}" x2="{CHART_PADDING_LEFT}" y2="{CHART_HEIGHT - CHART_PADDING_BOTTOM}"/>
-            {gridlines}
-            {guides}
-            <path class="progress-chart-line total" d="{total_path}"/>
-            {metric_markup}
-            {week_ticks}
-          </svg>
+        <article class="progress-chart-card" data-progress-metrics="{metrics_attr}">
+          <div class="progress-chart-wrap">
+            <svg class="progress-chart" viewBox="0 0 {CHART_WIDTH} {CHART_HEIGHT}" role="img" aria-label="{title_text} progress over time">
+              <line class="progress-chart-axis" x1="{CHART_PADDING_LEFT}" y1="{CHART_HEIGHT - CHART_PADDING_BOTTOM}" x2="{CHART_WIDTH - CHART_PADDING_RIGHT}" y2="{CHART_HEIGHT - CHART_PADDING_BOTTOM}"/>
+              <line class="progress-chart-axis" x1="{CHART_PADDING_LEFT}" y1="{CHART_PADDING_TOP}" x2="{CHART_PADDING_LEFT}" y2="{CHART_HEIGHT - CHART_PADDING_BOTTOM}"/>
+              {gridlines}
+              {guides}
+              <path class="progress-chart-line total" d="{total_path}"/>
+              {metric_markup}
+              {week_ticks}
+              {hover_layer}
+            </svg>
+            <div class="progress-chart-tooltip" hidden></div>
+          </div>
+          <div class="progress-chart-pins" aria-label="Pinned snapshots" hidden></div>
           <div class="progress-chart-legend">{legend}</div>
         </article>'''
 
 
-def print_progress_charts(history_file: Path | None) -> None:
-    # Print the Definitions and Theorems progress chart section.
+def print_progress_charts(history_file: Path | None, atom_by_label: dict[str, Atom]) -> None:
+    # Print the combined definition and theorem progress chart section.
     history = load_history_document(history_file)
-    snapshots = sorted(history.get("snapshots", []), key=lambda snapshot: snapshot_time(snapshot) or datetime.min.replace(tzinfo=timezone.utc))
+    snapshots = sorted(
+        snapshots_on_this_branch(history.get("snapshots", [])),
+        key=lambda snapshot: snapshot_time(snapshot) or datetime.min.replace(tzinfo=timezone.utc),
+    )
     if not snapshots:
         return
     window = chart_window(history, snapshots)
-    max_value = chart_max_value(max(
-        max(metric_value(snapshot, kind, "total") for snapshot in snapshots)
-        for kind in ("definitions", "theorems")
-    ))
-    print('      <div class="progress-history" aria-label="Blueprint progress charts">')
+    max_value = chart_max_value(
+        max(metric_value(snapshot, CHART_ALL_KINDS, "total") for snapshot in snapshots)
+    )
+    print('      <div class="progress-history" aria-label="Blueprint progress chart">')
     print('        <div class="progress-chart-grid">')
-    print(progress_chart("Definitions", "definitions", ("specified",), snapshots, window, max_value))
-    print(progress_chart("Theorems", "theorems", ("specified", "verified"), snapshots, window, max_value))
+    print(progress_chart(
+        "Specified and verified atoms",
+        CHART_ALL_KINDS,
+        ("specified", "verified"),
+        snapshots,
+        window,
+        max_value,
+        atom_by_label,
+    ))
     print('        </div>')
     print('      </div>')
 
@@ -821,17 +1146,18 @@ def print_html_summary(atoms: list[Atom], history_file: Path | None = None, site
     )
     print('    <section class="blueprint-status" aria-labelledby="blueprint-status-heading">')
     print('      <h2 id="blueprint-status-heading">Blueprint Status and Progress</h2>')
-    print_progress_charts(history_file)
+    print_progress_charts(history_file, atom_by_label)
     print('      <table class="status-table" aria-label="Per-chapter blueprint status">')
     print('        <thead>')
-    print('          <tr><th scope="col" rowspan="2">Chapter</th><th scope="colgroup" colspan="3">Definitions</th><th class="theorem-group" scope="colgroup" colspan="4">Theorems</th></tr>')
-    print('          <tr><th scope="col">Total</th><th scope="col">Specified</th><th scope="col">Ready next</th><th class="theorem-group" scope="col">Total</th><th scope="col">Specified</th><th scope="col">Verified</th><th scope="col">Ready next</th></tr>')
+    print('          <tr><th scope="col" rowspan="2">Chapter</th><th scope="colgroup" colspan="4">Definitions</th><th class="theorem-group" scope="colgroup" colspan="4">Theorems</th></tr>')
+    print('          <tr><th scope="col">Total</th><th scope="col">Specified</th><th scope="col">Verified</th><th scope="col">Ready next</th><th class="theorem-group" scope="col">Total</th><th scope="col">Specified</th><th scope="col">Verified</th><th scope="col">Ready next</th></tr>')
     print('        </thead>')
     print('        <tbody>')
     all_cells = "".join(
         [
             status_count_cell("ALL", "definition", "total", [atom for atom in atoms if atom.kind == "definition"]),
             status_count_cell("ALL", "definition", "specified", [atom for atom in atoms if atom.kind == "definition" and atom.specified]),
+            status_count_cell("ALL", "definition", "verified", [atom for atom in atoms if atom.kind == "definition" and atom.verified]),
             status_count_cell("ALL", "definition", "ready next", all_ready_next_definitions),
             status_count_cell("ALL", "theorem", "total", [atom for atom in atoms if atom.kind == "theorem"], "theorem-group"),
             status_count_cell("ALL", "theorem", "specified", [atom for atom in atoms if atom.kind == "theorem" and atom.specified]),
@@ -844,6 +1170,7 @@ def print_html_summary(atoms: list[Atom], history_file: Path | None = None, site
         chapter_text = html_module.escape(chapter_title(chapter))
         definition_total = atoms_for(atoms, chapter, "definition", "total")
         definition_specified = atoms_for(atoms, chapter, "definition", "specified")
+        definition_verified = atoms_for(atoms, chapter, "definition", "verified")
         theorem_total = atoms_for(atoms, chapter, "theorem", "total")
         theorem_specified = atoms_for(atoms, chapter, "theorem", "specified")
         theorem_verified = atoms_for(atoms, chapter, "theorem", "verified")
@@ -855,6 +1182,7 @@ def print_html_summary(atoms: list[Atom], history_file: Path | None = None, site
             [
                 status_count_cell(chapter, "definition", "total", definition_total),
                 status_count_cell(chapter, "definition", "specified", definition_specified),
+                status_count_cell(chapter, "definition", "verified", definition_verified),
                 status_count_cell(
                     chapter,
                     "definition",
