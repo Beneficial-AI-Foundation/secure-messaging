@@ -6,6 +6,7 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Projection
 import ToVCVio.OracleComp.ExpectedPayoff
+import ToVCVio.OracleComp.SimSemantics.StateT.ExpectedPayoffBound
 
 /-!
 # Opp-UniKEM-CKA Adversary Composition
@@ -13,10 +14,9 @@ import ToVCVio.OracleComp.ExpectedPayoff
 Composes the one-query facts over an adaptive adversary, by induction over
 its oracle-computation tree.  Two routes, with matching query budgets:
 
-* score route (`tracked_score_adversary_le`, budget `SendQueryBound`
-  counting `SendA` and `SendB`) — each send may spend one copy of the step
-  error; the expected-payoff bind laws accumulate the allowance to
-  `q · epsilon`;
+* score route (`expectedPayoff_simulateQ_run_le`, budget `SendQueryBound`
+  counting `SendA` and `SendB`) — the generic expected-payoff theorem
+  accumulates the one-step allowance to `q · epsilon`;
 * stepwise route (`tracked_bad_probability_le`, budget `SendBQueryBound`
   counting only `SendB`) — a union bound charges `δ` per `SendB` and zero
   to every other query.
@@ -151,106 +151,6 @@ lemma tracked_bad_probability_le_score [DecidableEq K]
     _ ≤ Pr[⊥ | oa] +
         ∑' z, Pr[= z | oa] * trackedFailureScore kem onoff z.2 :=
       le_add_left le_rfl
-
-/-- Lift a per-query tracked-score bound through an adaptive adversary with at
-most `q` send queries by induction on its oracle-computation tree. -/
-lemma tracked_score_adversary_le [DecidableEq K]
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
-    (leak : KEMScheme.OnOffRandLeak kem onoff)
-    (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym)) (q : ℕ)
-    (hq : SendQueryBound adv q) (epsilon : ℝ≥0∞)
-    (hpres : QueryImpl.PreservesInv
-      (trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak)
-      (trackedInv kem onoff hDet ecEk ecCt0 ecCt1))
-    (hstep : ∀ t p,
-      trackedInv kem onoff hDet ecEk ecCt0 ecCt1 p →
-      expectedPayoff
-          (((trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak) t).run p)
-          (fun z => trackedFailureScore kem onoff z.2) ≤
-        trackedFailureScore kem onoff p +
-          if IsSendQuery t then epsilon else 0) :
-    ∀ p, trackedInv kem onoff hDet ecEk ecCt0 ecCt1 p →
-      expectedPayoff
-          ((simulateQ
-            (trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak) adv).run p)
-          (fun z => trackedFailureScore kem onoff z.2) ≤
-        trackedFailureScore kem onoff p + (q : ℝ≥0∞) * epsilon := by
-  let tracked := trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak
-  let Inv := trackedInv kem onoff hDet ecEk ecCt0 ecCt1
-  let score := trackedFailureScore (Sym := Sym) kem onoff
-  unfold SendQueryBound at hq
-  induction adv using OracleComp.inductionOn generalizing q with
-  | pure x =>
-      intro p hp
-      simp [simulateQ_pure, StateT.run_pure, expectedPayoff_pure]
-  | @query_bind t cont ih =>
-      intro p hp
-      rw [OracleComp.isQueryBoundP_query_bind_iff] at hq
-      obtain ⟨hcan, hcont⟩ := hq
-      rw [simulateQ_query_bind, StateT.run_bind, expectedPayoff_bind]
-      by_cases ht : IsSendQuery t
-      · have hqpos : 0 < q := hcan.resolve_left (not_not_intro ht)
-        have htail : ∀ z ∈ support ((tracked t).run p),
-            expectedPayoff
-                ((simulateQ tracked (cont z.1)).run z.2)
-                (fun w => score w.2) ≤
-              score z.2 + (((q - 1 : ℕ) : ℝ≥0∞) * epsilon) := by
-          intro z hz
-          exact ih z.1 (q - 1) (by simpa [ht] using hcont z.1) z.2
-            (hpres t p hp z hz)
-        calc
-          (Pr[⊥ | (tracked t).run p] +
-            ∑' z, Pr[= z | (tracked t).run p] *
-              expectedPayoff ((simulateQ tracked (cont z.1)).run z.2)
-                (fun w => score w.2)) ≤
-              Pr[⊥ | (tracked t).run p] +
-                ∑' z, Pr[= z | (tracked t).run p] *
-                (score z.2 + (((q - 1 : ℕ) : ℝ≥0∞) * epsilon)) := by
-            exact add_le_add le_rfl (ENNReal.tsum_le_tsum fun z => by
-              by_cases hz : z ∈ support ((tracked t).run p)
-              · exact mul_le_mul' le_rfl (htail z hz)
-              · simp [(probOutput_eq_zero_iff _ _).2 hz])
-          _ ≤ expectedPayoff ((tracked t).run p) (fun z => score z.2) +
-                (((q - 1 : ℕ) : ℝ≥0∞) * epsilon) :=
-            expectedPayoff_add_const_le _ _ _
-          _ ≤ (score p + epsilon) +
-                (((q - 1 : ℕ) : ℝ≥0∞) * epsilon) := by
-            exact add_le_add (by simpa [tracked, Inv, score, ht] using hstep t p hp) le_rfl
-          _ = score p + (q : ℝ≥0∞) * epsilon := by
-            have hcast : (((q - 1 : ℕ) : ℝ≥0∞) + 1) = (q : ℝ≥0∞) := by
-              exact_mod_cast Nat.sub_add_cancel hqpos
-            rw [← hcast, add_mul, one_mul]
-            ac_rfl
-      · have htail : ∀ z ∈ support ((tracked t).run p),
-            expectedPayoff
-                ((simulateQ tracked (cont z.1)).run z.2)
-                (fun w => score w.2) ≤
-              score z.2 + ((q : ℝ≥0∞) * epsilon) := by
-          intro z hz
-          exact ih z.1 q (by simpa [ht] using hcont z.1) z.2
-            (hpres t p hp z hz)
-        calc
-          (Pr[⊥ | (tracked t).run p] +
-            ∑' z, Pr[= z | (tracked t).run p] *
-              expectedPayoff ((simulateQ tracked (cont z.1)).run z.2)
-                (fun w => score w.2)) ≤
-              Pr[⊥ | (tracked t).run p] +
-                ∑' z, Pr[= z | (tracked t).run p] *
-                (score z.2 + ((q : ℝ≥0∞) * epsilon)) := by
-            exact add_le_add le_rfl (ENNReal.tsum_le_tsum fun z => by
-              by_cases hz : z ∈ support ((tracked t).run p)
-              · exact mul_le_mul' le_rfl (htail z hz)
-              · simp [(probOutput_eq_zero_iff _ _).2 hz])
-          _ ≤ expectedPayoff ((tracked t).run p) (fun z => score z.2) +
-                ((q : ℝ≥0∞) * epsilon) :=
-            expectedPayoff_add_const_le _ _ _
-          _ ≤ score p + ((q : ℝ≥0∞) * epsilon) := by
-            simpa [tracked, Inv, score, ht] using
-              add_le_add (hstep t p hp) (le_refl ((q : ℝ≥0∞) * epsilon))
 
 /-- Relate the tracked bad-event probability for one query from a clear sticky
 bit to the ordinary game's `currentKEMFailure` probability. -/

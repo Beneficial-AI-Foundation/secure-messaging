@@ -16,7 +16,11 @@ Let:
   erasure codes with positive reconstruction thresholds;
 * `G(Adv) := SCKAScheme.correctnessExp Π Adv` - the outcome of the correctness experiment
   for an adversary `Adv`;
-* `ε := kem.correctnessError`.
+* `ε := kem.correctnessError`;
+* `E_X[f] := Pr[X = ⊥] + Σ x, Pr[X = x] · f x` — the expected payoff of
+  `f` under `X` (`expectedPayoff`).  Here every payoff `f x` is a failure
+  probability, so `E_X[f]` is the probability that `X` fails directly
+  (charged `1`) or returns an `x` that fails later (probability `f x`).
 
 ## Main results
 
@@ -27,14 +31,16 @@ If the adversary `Adv` makes at most `q` send queries (`SendQueryBound Adv q`), 
 
 The proof is split in modules as follows.
 
-## Tracked game (`Reduction.Core`, `Reduction.Projection`)
+## Tracked game and tracked states invariant (`Reduction.Core`, `Reduction.Projection`)
 
-We define a *tracked game* whose states are pairs `(s, b)`: a
-correctness-game state `s` together with a Boolean `b` recording whether a
-KEM failure has occurred so far.
+We define a *tracked game* whose states are pairs `(s, b)`, where:
+- `s` is a correctness-game state, and
+- `b` is a Boolean flag recording whether a KEM failure has occurred so far.
 
-* `bad s := currentKEMFailure kem onoff hDet s` — a Boolean on
-  correctness-game states: `true` exactly when both parties are in the
+We also define:
+
+* `bad s := currentKEMFailure kem onoff hDet s` — a Boolean predicate on
+  correctness-game states. It is `true` iff both protocol parties are in the
   same epoch and the completed KEM material is inconsistent:
 
   ```text
@@ -48,8 +54,8 @@ KEM failure has occurred so far.
   ```
 
 * `Ô := trackedCorrectnessImpl` — the tracked game's oracle
-  implementation: it answers one query in the original game and updates
-  the bit:
+  implementation. It answers any query as in the original game and updates
+  the failure flag `b` according to the bad predicate of the next state:
 
   ```text
   Run o s := ((SCKAScheme.sckaCorrectnessImpl Π) o).run s
@@ -59,9 +65,8 @@ KEM failure has occurred so far.
     return (r, (s', b ∨ bad s'))
   ```
 
-* `J := trackedInv` — the invariant of tracked states: either a failure
-  has been recorded, or the state is reachable (`reachableInv`, from
-  `Correctness.Perfect`) and its current KEM material is consistent:
+* `J := trackedInv` — the invariant of tracked states: either the flag
+  `b` is set, or `s` is reachable and no bad event happens:
 
   ```text
   J (s, b) := b = true ∨ (reachableInv s ∧ bad s = false)
@@ -69,9 +74,22 @@ KEM failure has occurred so far.
 
 ## Failure probabilities (`Reduction.Core`)
 
-With the conditional errors `χ`, `φ`, `ψ` defined in `KEM.OnOffKEM.CorrectnessError`,
-associate to a tracked state the probability that it has already failed, or
-that its epoch in progress completes inconsistently:
+The conditional errors from `KEM.OnOffKEM.CorrectnessError` describe the
+probability of failure over the samples that remain to be drawn:
+
+* `φ(pk, sk)` — after fixing the key pair, average over the offline and
+  online samples;
+* `ψ(st, ct₀)` — after fixing the offline sample, average over the key pair
+  and online sample;
+* `χ(pk, sk, st, ct₀)` — after fixing both first-stage samples, average over
+  the online sample.
+
+Each error also counts a computation that produces no output as failure.
+
+We define:
+
+* `V s` — the probability that the epoch in progress of the game state `s`
+  completes inconsistently;
 
 ```text
 V s := 0                     no sample drawn, or epoch completed
@@ -79,52 +97,43 @@ V s := 0                     no sample drawn, or epoch completed
        ψ (st, ct₀)           only the offline sample (stB.stCt, stB.ct0) drawn
        χ (pk, sk, st, ct₀)   both drawn
 
-S (s, b) := if b then 1 else V s
-E_X[f]   := Pr[X = ⊥] + Σ x, Pr[X = x] · f x
 ```
 
-(`currentFailurePotential`, `trackedFailureScore`, `expectedPayoff`).
-`V` reads B's offline sample only while `s.stA.t = s.stB.t`; when A is one
-epoch ahead, B's material belongs to the completed epoch and is ignored.
+* `S (s, b)` — the failure-risk payoff tracked by the proof:
+  an already-recorded failure (`b = true`) has risk payoff `1`;
+  otherwise the payoff is the conditional failure probability `V s` of the epoch in progress.
+
+```text
+S (s, b) := if b then 1 else V s
+```
 
 ## One step (`Reduction.Send`, `Reduction.Receive`, `Reduction.OneStep`)
 
-For every oracle `o` and every `(s, b)` with `J (s, b)`:
+We prove that each oracle query:
+- preserves the tracked states invariant J(s, b), and
+- increases the expected payoff of `S` by at most `ε`.
+
+More precisely, for every oracle `o` and every tracked state `(s, b)` satisfying `J (s, b)`,
+we have:
 
 ```text
-(r, (s', b')) ∈ supp (Ô o (s, b)) → J (s', b')
-E_{Ô o (s, b)}[S] ≤ S (s, b) + ε      if o ∈ {SendA, SendB}
-E_{Ô o (s, b)}[S] ≤ S (s, b)          otherwise.
+(r, (s', b')) ∈ supp (Ô o (s, b)) → J (s', b').             -- the invariant is preserved
+E_{Ô o (s, b)}[S] ≤ S (s, b) + ε      if o ∈ {SendA, SendB} -- bound the expected payoff increase
+E_{Ô o (s, b)}[S] ≤ S (s, b)          otherwise.            -- expected risk payoff is same.
 ```
-
-Drawing the epoch's first sample turns `V = 0` into expectation at most `ε`
-(the averaging identities of `KEM.OnOffKEM.CorrectnessError`); drawing the other
-first-stage sample has expectation exactly `V`; drawing the online sample
-completes the epoch, setting `b' = bad s'` with expectation `χ = V` and
-`V s' = 0`.  Receive oracles move no KEM material.
 
 ## Composition (`Reduction.Composition`, this module)
 
-1. `tracked_score_adversary_le` — induction over the adversary's query
-   tree: `J (s, b)` and at most `q` sends give
-   `E[S final] ≤ S (s, b) + q · ε`; initially `S (s₀, false) = 0`.
-2. `tracked_run_project` — dropping the Boolean projects the tracked run
-   onto the real game; by `J`, `correct = false` forces `b = true`, i.e.
-   `S = 1`.  Hence `Pr[G(Adv) = false] ≤ q · ε`, and
-   `Pr[G(Adv) = true] ≥ 1 - q · ε` follows since `G(Adv)` is total.
+Starting from `S (s₀, false) = 0`, `expectedPayoff_simulateQ_run_le` composes
+the one-step bound over at most `q` send queries.  The invariant `J` makes game
+failure imply score `1`, and `tracked_run_project` transfers the bound to the
+original game:
 
-The proofs state the bound with `factorCorrectnessError kem onoff` and
-rewrite it as `kem.correctnessError` by `factorCorrectnessError_eq`
-(`KEM.OnOffKEM.CorrectnessError`).
+```text
+Pr[G(Adv) = false] ≤ E[S final] ≤ q · ε
+```
 
-## Stepwise interface (`Reduction.Composition`)
-
-`correctness_failure_le_of_sendBFailureBound` replaces the conditional
-errors by two premises — `SendBFailureBound δ`: from a state with
-consistent current KEM material, one `SendB` call sets `bad` with
-probability at most `δ`; `NonSendBPreservesCurrent`: no other oracle sets
-`bad` — and bounds `Pr[G(Adv) = false] ≤ q · δ` for at most `q` `SendB`
-queries (`SendBQueryBound Adv q`).
+The success bound follows because `G(Adv)` is total.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
@@ -186,10 +195,13 @@ theorem correctness_failure_le_reduction [DecidableEq K]
       expectedPayoff ((simulateQ tracked adv).run (s₀, false))
           (fun z => score z.2) ≤
         (q : ℝ≥0∞) * epsilon := by
-    have h := tracked_score_adversary_le kem onoff hDet ecEk ecCt0 ecCt1 leak
-      adv q hq epsilon hpres
+    have h := expectedPayoff_simulateQ_run_le
+      (trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak)
+      (trackedInv kem onoff hDet ecEk ecCt0 ecCt1)
+      (trackedFailureScore kem onoff)
+      (IsSendQuery (Sym := Sym)) epsilon hpres
       (tracked_score_step_le kem onoff hDet ecEk ecCt0 ecCt1 leak)
-      (s₀, false) hinit
+      adv q hq (s₀, false) hinit
     have hscore₀' : trackedFailureScore kem onoff (s₀, false) = 0 := by
       simpa [score] using hscore₀
     rw [hscore₀', zero_add] at h
