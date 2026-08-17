@@ -9,7 +9,8 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect.Invariant
 /-!
 # RecvA Preserves the Perfect-Correctness Invariant
 
-`oracleRecvA_preserves_reachableInv`: A's receive oracle preserves
+`oracleRecvA_preserves_reachableInv_of_current`: assuming the current KEM
+material decapsulates consistently, A's receive oracle preserves
 `reachableInv` for every recorded B-to-A message.  Cases, by the delivered
 message:
 
@@ -634,28 +635,6 @@ lemma oracleRecvA_preserves_reachableInv_of_current
         subst z
         exact reachableInv_after_recvA_stale kem onoff ecEk ecCt0 ecCt1
           s T hInv t htlt
-
-/-- If `kem` is perfectly correct, then A's receive query implementation
-preserves `reachableInv`. For each reachable state, `currentKEMCorrect_of_perfect`
-establishes the `CurrentKEMCorrect` premise required by
-`oracleRecvA_preserves_reachableInv_of_current`. -/
-lemma oracleRecvA_preserves_reachableInv
-    [DecidableEq K]
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0Correct : ecCt0.ec.Correct)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1Correct : ecCt1.ec.Correct)
-    (hCt1Pos : 0 < ecCt1.ec.nchunk)
-    (leak : KEMScheme.OnOffRandLeak kem onoff) :
-    QueryImpl.PreservesInv
-      (SCKAScheme.oracleRecvA (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak))
-      (reachableInv kem onoff ecEk ecCt0 ecCt1) := by
-  intro n s hs z hz
-  exact oracleRecvA_preserves_reachableInv_of_current kem onoff hDet ecEk ecCt0
-    hCt0Correct ecCt1 hCt1Correct hCt1Pos leak n s hs
-    (currentKEMCorrect_of_perfect kem onoff hDet hkem ecEk ecCt0 ecCt1 s hs) z hz
 
 end RecvA
 

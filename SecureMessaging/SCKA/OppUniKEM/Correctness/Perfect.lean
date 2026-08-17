@@ -4,79 +4,32 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppUniKEM.Construction
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect.Invariant
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect.SendA
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect.RecvB
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect.SendB
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect.RecvA
-import VCVio.OracleComp.SimSemantics.StateT.StateProjection
+import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction
 
 /-!
-# Opp-UniKEM-CKA — Game Invariant and Perfect Correctness
+# Opp-UniKEM-CKA — Perfect Correctness
 
 We prove perfect correctness of Opp-UniKEM — `correctness_of_perfectKEM`:
 for a perfectly correct KEM and correct erasure codes with positive reconstruction thresholds,
 `Pr[G(Adv) = true] = 1`, where `G(Adv) := SCKAScheme.correctnessExp Π Adv`
 and `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak`.
 
-## Proof outline
+The transcript relation and oracle-preservation proofs are in
+`Perfect.Invariant`, `Perfect.SendA`, `Perfect.SendB`, `Perfect.RecvA`, and
+`Perfect.RecvB`.  They are shared with the quantitative reduction.
 
-1. We define transcripts `T : Transcript` mapping each epoch of a game run
-   to the samples it has drawn (`EpochTranscript`).
-2. We define the predicate `TranscriptConsistent T s`: the game state `s`
-   is consistent with `T` and `s.correct = true`.
-3. We show that `reachableInv s := ∃ T, TranscriptConsistent T s` holds
-   initially and is preserved by every oracle call; the receive oracles are
-   analysed for every recorded message, in any order and any multiplicity.
-4. We prove that A's decapsulated key always equals B's recorded key: by
-   consistency with `T` both come from an honest key pair and
-   encapsulation, so perfect KEM correctness applies.
-5. We conclude `Pr[G(Adv) = true] = 1`.
-
-The invariant also underlies the probabilistic bounds in
-`Correctness.Reduction`.
-
-## Modules
-
-The shared module `SecureMessaging.ErasureCode.Payload` provides the
-natural-indexed honest chunk representation and threshold decoding lemmas used
-throughout the proof.
-
-The Opp-UniKEM proof is split across:
-
-* `Perfect.Invariant` — `EpochTranscript`, `Transcript`,
-  `TranscriptConsistent`, `reachableInv` (steps 1–2); initialization, the
-  uniform oracle, and `CurrentKEMCorrect` (step 4);
-* `Perfect.SendA`, `Perfect.SendB`, `Perfect.RecvA`, `Perfect.RecvB` —
-  preservation of `reachableInv` by each protocol oracle.
-
-## Composition
-
-This file derives `correctness_of_perfectKEM` from the submodule results.
-Let `s₀` be the initial game state.  For an oracle `o` and a game state
-`s`,
-
-`Run o s := ((SCKAScheme.sckaCorrectnessImpl Π) o).run s`
-
-is the probabilistic computation answering the call; its outputs are pairs
-`(r, s')` of a reply and a next state.  `supp X` denotes the set of
-positive-probability outputs of `X`.  The submodules provide
+The reduction tracks a failure score `S`.  Perfect KEM correctness implies
+`factorCorrectnessError kem onoff = 0`, so its one-step theorem says that no
+oracle increases the expected score.  The generic theorem
+`expectedPayoff_simulateQ_run_le_of_nonincreasing` composes this fact through
+an arbitrary adaptive adversary, without a query bound.  Since the initial
+score is zero,
 
 ```text
-reachableInv s₀                                        (reachableInv_init)
-reachableInv s ∧ (r, s') ∈ supp (Run o s) → reachableInv s'
-                                        (oracle*_preserves_reachableInv)
+Pr[G(Adv) = false] ≤ E[S final] = 0.
 ```
 
-In this file,
-- `correctnessImpl_preserves` combines the five per-oracle lemmas, and
-- the VCVio lemma `OracleComp.simulateQ_run_preservesInv` extends them along
-  the adversary's entire run.
-
-Therefore every final state of positive probability has `correct = true`.
-Since the game never fails (`probFailure_eq_zero`), the
-main theorem `correctness_of_perfectKEM` follows: `Pr[G(Adv) = true] = 1`.
+Totality of the correctness game then gives `Pr[G(Adv) = true] = 1`.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
@@ -86,55 +39,7 @@ namespace oppUniKemCKA
 variable {K PK SK C Sym : Type}
 
 open SCKAScheme.sckaCorrectnessSpec
-
-/-- Assume:
-- the KEM is perfectly correct (`hkem`) and its decapsulation is
-  deterministic (`hDet`),
-- the erasure codes for the three chunked payloads — A's public key and
-  B's two ciphertext parts — are correct (`hEkCorrect`, `hCt0Correct`,
-  `hCt1Correct`), and
-- their reconstruction thresholds are positive (`hEkPos`, `hCt0Pos`,
-  `hCt1Pos`).
-
-Then every oracle in the SCKA correctness implementation preserves
-`reachableInv`. -/
-private lemma correctnessImpl_preserves
-  [DecidableEq Sym] [DecidableEq K]
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym) (hEkCorrect : ecEk.ec.Correct)
-    (hEkPos : 0 < ecEk.ec.nchunk)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0Correct : ecCt0.ec.Correct)
-    (hCt0Pos : 0 < ecCt0.ec.nchunk)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1Correct : ecCt1.ec.Correct)
-    (hCt1Pos : 0 < ecCt1.ec.nchunk)
-    (leak : KEMScheme.OnOffRandLeak kem onoff)
-    (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp) :
-    QueryImpl.PreservesInv
-      (SCKAScheme.sckaCorrectnessImpl
-        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak))
-      (reachableInv kem onoff ecEk ecCt0 ecCt1) := by
-  intro t s hs z hz
-  match t with
-  | OUnif n =>
-      simpa [SCKAScheme.sckaCorrectnessImpl] using
-        oracleUnif_preserves_reachableInv kem onoff ecEk ecCt0 ecCt1 n s hs z hz
-  | OSendA =>
-      simpa [SCKAScheme.sckaCorrectnessImpl] using
-        oracleSendA_preserves_reachableInv kem onoff hDet ecEk ecCt0 ecCt1
-          leak hEkPos () s hs z hz
-  | OSendB =>
-      simpa [SCKAScheme.sckaCorrectnessImpl] using
-        oracleSendB_preserves_reachableInv kem onoff hDet ecEk ecCt0 hCt0Pos
-          ecCt1 hCt1Pos leak () s hs z hz
-  | ORecvA n =>
-      simpa [SCKAScheme.sckaCorrectnessImpl] using
-        oracleRecvA_preserves_reachableInv kem onoff hDet hkem ecEk ecCt0
-          hCt0Correct ecCt1 hCt1Correct hCt1Pos leak n s hs z hz
-  | ORecvB n =>
-      simpa [SCKAScheme.sckaCorrectnessImpl] using
-        oracleRecvB_preserves_reachableInv kem onoff hDet ecEk hEkCorrect hEkPos
-          ecCt0 ecCt1 leak n s hs z hz
+open Reduction.Internal
 
 /-- Perfect correctness of Opp-UniKEM-CKA in the full SCKA correctness game.
 
@@ -159,67 +64,81 @@ theorem correctness_of_perfectKEM [DecidableEq Sym] [DecidableEq K]
       SCKAScheme.correctnessExp
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] = 1
     := by
-  rw [← probEvent_eq_eq_probOutput, probEvent_eq_one_iff]
-  refine ⟨probFailure_eq_zero, ?_⟩
-  intro b hb
-  unfold SCKAScheme.correctnessExp at hb
-  rw [mem_support_bind_iff] at hb
-  rcases hb with ⟨⟨⟩, _hik, hb⟩
-  rw [mem_support_bind_iff] at hb
-  rcases hb with ⟨stA, hstA, hb⟩
-  rw [mem_support_bind_iff] at hb
-  rcases hb with ⟨stB, hstB, hb⟩
-  rw [mem_support_bind_iff] at hb
-  rcases hb with ⟨out, hout, hb⟩
-  have hstA' : stA =
-      ({ dkA := none
-         ekA := none
-         ct0 := none
-         t := 1
-         ich := 0
-         lch := ∅
-         ack := { ekRec := false, ctRec := false } } : StA onoff Sym) := by
-    simpa [scheme, initA, mem_support_pure_iff] using hstA
-  subst stA
-  have hstB' : stB =
-      ({ ekA := none
-         ct0 := none
-         ct1 := none
-         stCt := none
-         t := 1
-         ich := 0
-         lch := ∅
-         ack := { ekRec := false, ctRec := false } } : StB onoff Sym) := by
-    simpa [scheme, initB, mem_support_pure_iff] using hstB
-  subst stB
-  have hInv : reachableInv kem onoff ecEk ecCt0 ecCt1 out.2 := by
-    exact OracleComp.simulateQ_run_preservesInv
-      (impl := SCKAScheme.sckaCorrectnessImpl
-        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak))
-      (Inv := reachableInv kem onoff ecEk ecCt0 ecCt1)
-      (correctnessImpl_preserves kem onoff hDet ecEk hEkCorrect hEkPos
-        ecCt0 hCt0Correct hCt0Pos ecCt1 hCt1Correct hCt1Pos leak hkem)
-      adv
-      (SCKAScheme.initGameState
-        ({ dkA := none
-           ekA := none
-           ct0 := none
-           t := 1
-           ich := 0
-           lch := ∅
-           ack := { ekRec := false, ctRec := false } } : StA onoff Sym)
-        ({ ekA := none
-           ct0 := none
-           ct1 := none
-           stCt := none
-           t := 1
-           ich := 0
-           lch := ∅
-           ack := { ekRec := false, ctRec := false } } : StB onoff Sym))
-      (reachableInv_init kem onoff ecEk ecCt0 ecCt1 hEkPos hCt0Pos)
-      out hout
-  have hb' : b = out.2.correct := by simpa [mem_support_pure_iff] using hb
-  rcases hInv with ⟨_T, hConsistent⟩
-  exact hb'.trans hConsistent.correct
+  let tracked := trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak
+  let Inv := trackedInv kem onoff hDet ecEk ecCt0 ecCt1
+  let score := trackedFailureScore (Sym := Sym) kem onoff
+  let s₀ := initialGame (Sym := Sym) kem onoff
+  have hpres : QueryImpl.PreservesInv tracked Inv :=
+    trackedCorrectnessImpl_preserves kem onoff hDet ecEk hEkCorrect hEkPos
+      ecCt0 hCt0Correct hCt0Pos ecCt1 hCt1Correct hCt1Pos leak
+  have hinit : Inv (s₀, false) := by
+    right
+    refine ⟨?_, ?_⟩
+    · simpa [s₀, initialGame, initialA, initialB] using
+        reachableInv_init kem onoff ecEk ecCt0 ecCt1 hEkPos hCt0Pos
+    · simp [currentKEMFailure, s₀, initialGame, initialA, initialB,
+        SCKAScheme.initGameState]
+  have hscore₀ : score (s₀, false) = 0 := by
+    simp [score, trackedFailureScore, currentFailurePotential, s₀, initialGame,
+      initialA, initialB, SCKAScheme.initGameState, optionPair]
+  have hepsilon : factorCorrectnessError kem onoff = 0 := by
+    rw [factorCorrectnessError_eq]
+    exact (KEMScheme.correctnessError_eq_zero_iff_perfectlyCorrect
+      kem ProbCompRuntime.probComp).2 hkem
+  have hstep : ∀ t p, Inv p →
+      expectedPayoff ((tracked t).run p) (fun z => score z.2) ≤ score p := by
+    intro t p hp
+    have h := tracked_score_step_le kem onoff hDet ecEk ecCt0 ecCt1 leak t p hp
+    simpa [tracked, Inv, score, hepsilon] using h
+  have hscore :
+      expectedPayoff ((simulateQ tracked adv).run (s₀, false))
+          (fun z => score z.2) ≤ 0 := by
+    have h := expectedPayoff_simulateQ_run_le_of_nonincreasing
+      tracked Inv score hpres hstep adv (s₀, false) hinit
+    rw [hscore₀] at h
+    exact h
+  have hmono :
+      Pr[fun z => z.2.1.correct = false |
+          (simulateQ tracked adv).run (s₀, false)] ≤
+        Pr[fun z => z.2.2 = true |
+          (simulateQ tracked adv).run (s₀, false)] := by
+    refine probEvent_mono ?_
+    intro z hz hincorrect
+    have hzInv : Inv z.2 :=
+      OracleComp.simulateQ_run_preservesInv tracked Inv hpres adv
+        (s₀, false) hinit z hz
+    rcases hzInv with hbad | ⟨hreach, _hcurrent⟩
+    · exact hbad
+    · rcases hreach with ⟨_T, hConsistent⟩
+      simp [hConsistent.correct] at hincorrect
+  have hfalse_le :
+      Pr[= false |
+        SCKAScheme.correctnessExp
+          (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] ≤ 0 := by
+    calc
+      Pr[= false |
+          SCKAScheme.correctnessExp
+            (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] =
+          Pr[fun z => z.2.1.correct = false |
+            (simulateQ tracked adv).run (s₀, false)] := by
+        rw [correctnessExp_eq_final_map]
+        rw [← probEvent_eq_eq_probOutput, probEvent_map]
+        have hproject := tracked_run_project kem onoff hDet ecEk ecCt0 ecCt1
+          leak adv (s₀, false)
+        rw [← hproject, probEvent_map]
+        congr 1
+      _ ≤ Pr[fun z => z.2.2 = true |
+            (simulateQ tracked adv).run (s₀, false)] := hmono
+      _ ≤ expectedPayoff ((simulateQ tracked adv).run (s₀, false))
+            (fun z => score z.2) :=
+        tracked_bad_probability_le_score kem onoff _
+      _ ≤ 0 := hscore
+  have hfalse :
+      Pr[= false |
+        SCKAScheme.correctnessExp
+          (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] = 0 :=
+    le_antisymm hfalse_le bot_le
+  rw [probOutput_false_eq_sub, probFailure_eq_zero, tsub_zero] at hfalse
+  exact le_antisymm probOutput_le_one ((tsub_eq_zero_iff_le).mp hfalse)
 
 end oppUniKemCKA

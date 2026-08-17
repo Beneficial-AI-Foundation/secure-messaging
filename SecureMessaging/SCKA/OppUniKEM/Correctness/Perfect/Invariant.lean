@@ -48,41 +48,6 @@ variable {m : Type → Type u} {K PK SK C Sym : Type}
 
 open SCKAScheme.sckaCorrectnessSpec
 
-/-- For a perfectly correct KEM, decapsulation succeeds on honest samples:
-if `(pk, sk)` is a possible output of `kem.keygen` and `(c, key)` of
-`kem.encaps pk`, then `hDet.decapsDet sk c = some key`. -/
-private lemma decapsDet_eq_some_of_mem_support [DecidableEq K]
-    (kem : KEMScheme ProbComp K PK SK C)
-    (hDet : DeterministicDecaps kem)
-    (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
-    {pk : PK} {sk : SK} {c : C} {key : K}
-    (hks : (pk, sk) ∈ support kem.keygen)
-    (hck : (c, key) ∈ support (kem.encaps pk)) :
-    hDet.decapsDet sk c = some key := by
-  have hsup : support kem.CorrectExp = {true} :=
-    (probOutput_eq_one_iff (mx := kem.CorrectExp) (x := true)).mp hkem |>.2
-  rw [KEMScheme.CorrectExp] at hsup
-  simp only [hDet.decaps_eq, bind_pure_comp, map_pure, support_bind, support_map] at hsup
-  have hin : decide (hDet.decapsDet sk c = some key) ∈
-      ⋃ x ∈ support kem.keygen,
-        (fun a => decide (hDet.decapsDet x.2 a.1 = some a.2)) '' support (kem.encaps x.1) := by
-    exact Set.mem_iUnion.2 ⟨(pk, sk), Set.mem_iUnion.2 ⟨hks, ⟨(c, key), hck, rfl⟩⟩⟩
-  exact of_decide_eq_true (by simpa [hsup] using hin)
-
-/-- Honest offline and online samples reassemble into an honest sample of
-ordinary KEM encapsulation: if `(st, ct₀)` is a possible output of
-`onoff.encapsOff` and `(ct₁, key)` of `onoff.encapsOn st pk`, then
-`(onoff.split.symm (ct₀, ct₁), key)` is a possible output of
-`kem.encaps pk`. -/
-private lemma mem_support_encaps_of_onoff
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    {pk : PK} {st : onoff.St} {ct0 : onoff.C₀} {ct1 : onoff.C₁} {key : K}
-    (hoff : (st, ct0) ∈ support onoff.encapsOff)
-    (hon : (ct1, key) ∈ support (onoff.encapsOn st pk)) :
-    (onoff.split.symm (ct0, ct1), key) ∈ support (kem.encaps pk) := by
-  rw [onoff.factor pk, mem_support_bind_iff]
-  exact ⟨(st, ct0), hoff, by simpa [mem_support_pure_iff] using hon⟩
-
 open ErasureCodePayload
 
 section Invariant
@@ -373,58 +338,6 @@ def CurrentKEMCorrect
     s.stA.dkA = some dk → s.stA.ct0 = some ct0 →
     s.stB.ct1 = some ct1 → s.keyB s.stA.t = some key →
     hDet.decapsDet dk (onoff.split.symm (ct0, ct1)) = some key
-
-omit [DecidableEq Sym] in
-/-- Internal: the reachable invariant implies KEM material decapsulates
-correctly for a perfect KEM. -/
-lemma currentKEMCorrect_of_perfect [DecidableEq K]
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (hs : reachableInv kem onoff ecEk ecCt0 ecCt1 s) :
-    CurrentKEMCorrect kem onoff hDet s := by
-  rcases hs with ⟨T, hInv⟩
-  intro dk ct0 ct1 key hdk hct0 hct1 hkeyB
-  have hekSome : s.stA.ekA.isSome := by
-    simpa [hdk] using hInv.keypairAShape
-  obtain ⟨pk, hek⟩ := Option.isSome_iff_exists.mp hekSome
-  have hkp : (T s.stA.t).keypair = some (pk, dk) := by
-    simpa [hek, hdk, optionPair] using hInv.keypairA
-  obtain ⟨st, hoff⟩ := hInv.decodedCt0 ct0 hct0
-  have hTKey : (T s.stA.t).key = some key := by
-    simpa [hInv.keyB] using hkeyB
-  have honSome : (T s.stA.t).on.isSome := by
-    cases hon : (T s.stA.t).on with
-    | some _pair => simp
-    | none => simp [EpochTranscript.key, hon] at hTKey
-  have htEq : s.stA.t = s.stB.t := by
-    by_contra hne
-    have hle : s.stB.t ≤ s.stA.t := hInv.epochs.1
-    have hlt : s.stB.t < s.stA.t := by omega
-    have hfuture := hInv.futureOn s.stA.t hlt
-    simp [hfuture] at honSome
-  obtain ⟨pair, hon⟩ := Option.isSome_iff_exists.mp honSome
-  rcases pair with ⟨ct1', key'⟩
-  have hct1eq : ct1' = ct1 := by
-    have hmap := hInv.onB
-    rw [← htEq, hon] at hmap
-    simpa [hct1] using hmap
-  subst ct1'
-  have hkeyeq : key' = key := by
-    have hTKey : (T s.stA.t).key = some key' := by
-      simp [EpochTranscript.key, hon]
-    rw [hInv.keyB, hTKey] at hkeyB
-    exact Option.some.inj hkeyB
-  subst key'
-  have hks := (T s.stA.t).keypair_mem pk dk hkp
-  have hoffmem := (T s.stA.t).off_mem st ct0 hoff
-  have honmem := (T s.stA.t).on_mem pk dk st ct0 ct1 key hkp hoff hon
-  exact decapsDet_eq_some_of_mem_support kem hDet hkem hks
-    (mem_support_encaps_of_onoff kem onoff hoffmem honmem)
 
 omit [DecidableEq Sym] in
 /-- The initial game state admits a trivial transcript with empty epochs. -/

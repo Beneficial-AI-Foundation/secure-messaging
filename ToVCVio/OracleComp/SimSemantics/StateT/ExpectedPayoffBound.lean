@@ -122,4 +122,24 @@ lemma expectedPayoff_simulateQ_run_le
             simpa [ht] using
               add_le_add (hstep t s hs) (le_refl ((q : ℝ≥0∞) * epsilon))
 
+/-- If every query preserves `Inv` and does not increase the expected score,
+then an arbitrary adaptive computation does not increase it either.  No query
+bound is needed. -/
+lemma expectedPayoff_simulateQ_run_le_of_nonincreasing
+    (impl : QueryImpl spec (StateT σ ProbComp))
+    (Inv : σ → Prop) (score : σ → ℝ≥0∞)
+    (hpres : QueryImpl.PreservesInv impl Inv)
+    (hstep : ∀ t s, Inv s →
+      expectedPayoff ((impl t).run s) (fun z => score z.2) ≤ score s)
+    (oa : OracleComp spec α) :
+    ∀ s, Inv s →
+      expectedPayoff ((simulateQ impl oa).run s) (fun z => score z.2) ≤ score s := by
+  intro s hs
+  have h := expectedPayoff_simulateQ_run_le impl Inv score
+    (fun _ => False) 0 hpres (by
+      intro t s' hs'
+      simpa using hstep t s' hs')
+    oa 0 (isQueryBoundP_false oa 0) s hs
+  simpa using h
+
 end OracleComp

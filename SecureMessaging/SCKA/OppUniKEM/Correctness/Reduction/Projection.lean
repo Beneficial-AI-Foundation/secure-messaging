@@ -1,5 +1,8 @@
 import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.OneStep
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect
+import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect.SendA
+import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect.RecvB
+import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect.SendB
+import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect.RecvA
 import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 
 /-!
