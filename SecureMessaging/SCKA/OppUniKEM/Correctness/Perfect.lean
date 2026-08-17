@@ -15,15 +15,27 @@ import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 /-!
 # Opp-UniKEM-CKA — Game Invariant and Perfect Correctness
 
-We introduce a reachability invariant for the SCKA correctness game with respect to an
-Opp-UniKEM SCKA scheme and prove that it is preserved by every oracle call.
-
-From this invariant, we derive perfect correctness of Opp-UniKEM — `correctness_of_perfectKEM`:
+We prove perfect correctness of Opp-UniKEM — `correctness_of_perfectKEM`:
 for a perfectly correct KEM and correct erasure codes with positive reconstruction thresholds,
 `Pr[G(Adv) = true] = 1`, where `G(Adv) := SCKAScheme.correctnessExp Π Adv`
 and `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak`.
 
-This invariant also underlies the probabilistic bounds in `Correctness.Reduction`.
+## Proof outline
+
+1. We define transcripts `T : Transcript` mapping each epoch of a game run
+   to the samples it has drawn (`EpochTranscript`).
+2. We define the predicate `TranscriptConsistent T s`: the game state `s`
+   is consistent with `T` and `s.correct = true`.
+3. We show that `reachableInv s := ∃ T, TranscriptConsistent T s` holds
+   initially and is preserved by every oracle call; the receive oracles are
+   analysed for every recorded message, in any order and any multiplicity.
+4. We prove that A's decapsulated key always equals B's recorded key: by
+   consistency with `T` both come from an honest key pair and
+   encapsulation, so perfect KEM correctness applies.
+5. We conclude `Pr[G(Adv) = true] = 1`.
+
+The invariant also underlies the probabilistic bounds in
+`Correctness.Reduction`.
 
 ## Modules
 
@@ -33,13 +45,9 @@ throughout the proof.
 
 The Opp-UniKEM proof is split across:
 
-* `Perfect.Invariant` — defines `EpochTranscript` (the samples one epoch
-  has drawn), `TranscriptConsistent T s` (the game state `s` agrees with the
-  transcript `T`), and the state invariant
-  `reachableInv s := ∃ T, TranscriptConsistent T s`; proves that
-  `reachableInv` holds initially, is preserved by the uniform oracle, and,
-  for a perfectly correct KEM, implies `CurrentKEMCorrect` — A's
-  decapsulation agrees with B's recorded key;
+* `Perfect.Invariant` — `EpochTranscript`, `Transcript`,
+  `TranscriptConsistent`, `reachableInv` (steps 1–2); initialization, the
+  uniform oracle, and `CurrentKEMCorrect` (step 4);
 * `Perfect.SendA`, `Perfect.SendB`, `Perfect.RecvA`, `Perfect.RecvB` —
   preservation of `reachableInv` by each protocol oracle.
 

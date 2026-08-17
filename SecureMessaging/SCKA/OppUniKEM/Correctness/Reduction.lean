@@ -124,16 +124,8 @@ E_{Ô o (s, b)}[S] ≤ S (s, b)          otherwise.            -- expected risk 
 
 ## Composition (`Reduction.Composition`, this module)
 
-Starting from `S (s₀, false) = 0`, `expectedPayoff_simulateQ_run_le` composes
-the one-step bound over at most `q` send queries.  The invariant `J` makes game
-failure imply score `1`, and `tracked_run_project` transfers the bound to the
-original game:
-
-```text
-Pr[G(Adv) = false] ≤ E[S final] ≤ q · ε
-```
-
-The success bound follows because `G(Adv)` is total.
+Composes the one-query facts over an adaptive adversary, by induction over
+its oracle-computation tree.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
