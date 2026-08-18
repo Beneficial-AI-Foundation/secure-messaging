@@ -4,13 +4,13 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect.Invariant
+import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
 
 /-!
-# RecvA Preserves the Perfect-Correctness Invariant
+# RecvA Preserves the Reachability Invariant
 
-`oracleRecvA_preserves_reachableInv_of_current`: assuming the current KEM
-material decapsulates consistently, A's receive oracle preserves
+`oracleRecvA_preserves_reachableInv`: assuming the current KEM material
+decapsulates consistently, A's receive oracle preserves
 `reachableInv` for every recorded B-to-A message.  Cases, by the delivered
 message:
 
@@ -341,7 +341,7 @@ private lemma reachableInv_after_recvA_ackOnly
 
 /-- Assuming correctness of the current KEM material, every result of A's
 receive oracle preserves the reachable transcript invariant. -/
-lemma oracleRecvA_preserves_reachableInv_of_current
+lemma oracleRecvA_preserves_reachableInv
     [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)

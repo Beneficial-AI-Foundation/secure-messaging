@@ -11,8 +11,9 @@ import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 /-!
 # Opp-UniKEM-CKA — Game Invariant
 
-Each epoch of the SCKA correctness game of
-`Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` runs one KEM instance:
+Let `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` be the
+Opp-UniKEM-CKA SCKA scheme.
+Each epoch of the correctness game for `Π` runs one KEM instance:
 - Party A samples `(pk, sk) ← kem.keygen`;
 - Party B samples `(st, ct₀) ← onoff.encapsOff`;
 - once it has decoded `pk`, party B samples `(ct₁, k) ← onoff.encapsOn st pk`.
@@ -29,13 +30,11 @@ We define:
 * `CurrentKEMCorrect s` — A's current KEM material and B's recorded key
   decapsulate consistently.
 
-Chunk-buffer consistency is expressed using the shared
-`ErasureCodePayload.payloadChunks` representation and its threshold decoding
-and incremental insertion lemmas from `SecureMessaging.ErasureCode.Payload`.
+This file proves the invariant holds initially and is preserved by the uniform oracle.
+The four protocol specific oracles are handled in `Invariant.SendA`, `Invariant.SendB`,
+`Invariant.RecvA`, and `Invariant.RecvB`.
 
-In this file we show that `reachableInv` holds initially (`reachableInv_init`) and is preserved by
-the uniform oracle (`oracleUnif_preserves_reachableInv`).
-The send and receive oracles are handled in the sibling modules.
+
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme

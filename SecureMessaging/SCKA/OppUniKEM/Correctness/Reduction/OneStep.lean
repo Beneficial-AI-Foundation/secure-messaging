@@ -10,12 +10,10 @@ import ToVCVio.OracleComp.ExpectedPayoff
 /-!
 # Opp-UniKEM-CKA One-Step Score Bounds
 
-For one query from a reachable, failure-free tracked state `(s, b)`:
-
-* a send query (`SendA` or `SendB`) increases the expected score `S` by at
-  most `epsilon`, instantiated with the factor correctness error;
-* every other query preserves `S` on its support, hence does not increase
-  its expectation.
+We define the tracked one-query implementation and its invariant.  We prove
+oracle-specific score bounds and combine them into `tracked_score_step_le`.
+We also formulate the abstract `SendB` failure and non-`SendB` preservation
+premises and prove the bridge to the tracked one-step bad event.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
@@ -59,6 +57,71 @@ def trackedInv [DecidableEq K]
   p.2 = true ∨
     reachableInv kem onoff ecEk ecCt0 ecCt1 p.1 ∧
       currentKEMFailure kem onoff hDet p.1 = false
+
+end Reduction.Internal
+
+/-- From a state whose current KEM material is consistent, one `SendB` call
+produces a state with `currentKEMFailure` with probability at most `δ`. -/
+def SendBFailureBound [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (hDet : DeterministicDecaps kem)
+    (ecEk : ErasureCodePayload PK Sym)
+    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
+    (leak : KEMScheme.OnOffRandLeak kem onoff) (δ : ℝ≥0∞) : Prop :=
+  ∀ s, CurrentKEMCorrect kem onoff hDet s →
+    Pr[fun z => currentKEMFailure kem onoff hDet z.2 = true |
+      (SCKAScheme.oracleSendB
+        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) ()).run s] ≤ δ
+
+/-- From a state whose current KEM material is consistent, no oracle other
+than `SendB` can produce a state with `currentKEMFailure`. -/
+def NonSendBPreservesCurrent [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (hDet : DeterministicDecaps kem)
+    (ecEk : ErasureCodePayload PK Sym)
+    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
+    (leak : KEMScheme.OnOffRandLeak kem onoff) : Prop :=
+  ∀ t, t ≠ (OSendB : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain) →
+    ∀ s, CurrentKEMCorrect kem onoff hDet s →
+      Pr[fun z => currentKEMFailure kem onoff hDet z.2 = true |
+        ((SCKAScheme.sckaCorrectnessImpl
+          (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)) t).run s] = 0
+
+namespace Reduction.Internal
+
+/-- Relate the tracked bad-event probability for one query from a clear sticky
+bit to the ordinary game's `currentKEMFailure` probability. -/
+lemma tracked_step_bad_probability [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (hDet : DeterministicDecaps kem)
+    (ecEk : ErasureCodePayload PK Sym)
+    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
+    (leak : KEMScheme.OnOffRandLeak kem onoff)
+    (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
+    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
+    Pr[fun z => z.2.2 = true |
+      ((trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak) t).run
+        (s, false)] =
+    Pr[fun z => currentKEMFailure kem onoff hDet z.2 = true |
+      ((SCKAScheme.sckaCorrectnessImpl
+        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)) t).run s] := by
+  change Pr[fun z => z.2.2 = true | do
+      let y ← ((SCKAScheme.sckaCorrectnessImpl
+        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)) t).run s
+      pure (y.1, (y.2, false || currentKEMFailure kem onoff hDet y.2))] = _
+  rw [show (do
+      let y ← ((SCKAScheme.sckaCorrectnessImpl
+        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)) t).run s
+      pure (y.1, (y.2, false || currentKEMFailure kem onoff hDet y.2))) =
+      (fun y => (y.1, (y.2, false || currentKEMFailure kem onoff hDet y.2))) <$>
+        ((SCKAScheme.sckaCorrectnessImpl
+          (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)) t).run s from
+      (map_eq_bind_pure_comp _ _ _).symm]
+  rw [probEvent_map]
+  congr 1
 
 /-- Once the sticky failure bit is set, one tracked step has expected score at
 most the current score plus any nonnegative allowance. -/
@@ -527,6 +590,59 @@ lemma tracked_nonSend_score_le [DecidableEq K]
   intro z hz
   exact le_of_eq (tracked_nonSend_score_support_eq kem onoff hDet ecEk ecCt0 ecCt1
     leak t ht s hs hfail z hz)
+
+/-- Combine the oracle-specific one-step bounds into a uniform score increase
+bound that charges exactly the send queries. -/
+lemma tracked_score_step_le [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (hDet : DeterministicDecaps kem)
+    (ecEk : ErasureCodePayload PK Sym)
+    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
+    (leak : KEMScheme.OnOffRandLeak kem onoff)
+    (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
+    (p : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) × Bool)
+    (hp : trackedInv kem onoff hDet ecEk ecCt0 ecCt1 p) :
+    expectedPayoff
+        (((trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak) t).run p)
+        (fun z => trackedFailureScore kem onoff z.2) ≤
+      trackedFailureScore kem onoff p +
+        if IsSendQuery t
+        then factorCorrectnessError kem onoff
+        else 0 := by
+  cases hbad : p.2 with
+  | true =>
+      exact tracked_step_score_le_of_bad kem onoff hDet ecEk ecCt0 ecCt1 leak
+        t p hbad _
+  | false =>
+      have hgood : reachableInv kem onoff ecEk ecCt0 ecCt1 p.1 ∧
+          currentKEMFailure kem onoff hDet p.1 = false := by
+        rcases hp with hpbad | hpGood
+        · simp [hbad] at hpbad
+        · exact hpGood
+      have hpEq : p = (p.1, false) := Prod.ext rfl hbad
+      rw [hpEq]
+      match t with
+      | OUnif n =>
+          simpa [IsSendQuery, isSendQuery] using
+            tracked_nonSend_score_le kem onoff hDet ecEk ecCt0 ecCt1 leak
+              (OUnif n) (by simp [IsSendQuery, isSendQuery]) _ hgood.1 hgood.2
+      | OSendA =>
+          simpa [IsSendQuery, isSendQuery] using
+            tracked_sendA_score_le kem onoff hDet ecEk ecCt0 ecCt1 leak
+              _ hgood.1 hgood.2
+      | OSendB =>
+          simpa [IsSendQuery, isSendQuery] using
+            tracked_sendB_score_le kem onoff hDet ecEk ecCt0 ecCt1 leak
+              _ hgood.1 hgood.2
+      | ORecvA n =>
+          simpa [IsSendQuery, isSendQuery] using
+            tracked_nonSend_score_le kem onoff hDet ecEk ecCt0 ecCt1 leak
+              (ORecvA n) (by simp [IsSendQuery, isSendQuery]) _ hgood.1 hgood.2
+      | ORecvB n =>
+          simpa [IsSendQuery, isSendQuery] using
+            tracked_nonSend_score_le kem onoff hDet ecEk ecCt0 ecCt1 leak
+              (ORecvB n) (by simp [IsSendQuery, isSendQuery]) _ hgood.1 hgood.2
 
 end Reduction.Internal
 

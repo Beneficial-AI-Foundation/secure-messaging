@@ -4,10 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect.Invariant
+import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
 
 /-!
-# SendB Preserves the Perfect-Correctness Invariant
+# SendB Preserves the Reachability Invariant
 
 `oracleSendB_preserves_reachableInv`: B's send oracle preserves
 `reachableInv`.  Cases, by the samples `sendB` draws:

@@ -4,10 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect.Invariant
+import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
 
 /-!
-# RecvB Preserves the Perfect-Correctness Invariant
+# RecvB Preserves the Reachability Invariant
 
 `oracleRecvB_preserves_reachableInv`: B's receive oracle preserves
 `reachableInv` for every recorded A-to-B message.  Cases, by the delivered

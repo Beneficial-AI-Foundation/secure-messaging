@@ -1,8 +1,8 @@
 import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.OneStep
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect.SendA
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect.RecvB
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect.SendB
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Perfect.RecvA
+import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.SendA
+import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.RecvB
+import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.SendB
+import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.RecvA
 import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 
 /-!
@@ -16,7 +16,7 @@ Forgetting the failure bit projects the tracked game onto the ordinary one:
 * `correctnessExp_eq_final_map` — the correctness experiment as a
   final-state map over the simulated run;
 * `trackedCorrectnessImpl_preserves` — the tracked invariant survives
-  every query, by the `Perfect` preservation theorems.
+  every query, by the reachability-preservation theorems.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
@@ -99,7 +99,7 @@ lemma correctnessExp_eq_final_map [DecidableEq K]
     initialGame, initialA, initialB, map_eq_bind_pure_comp]
 
 /-- Every tracked correctness query preserves the tracked invariant, using the
-Perfect oracle theorem for the query's uniform, send, or receive transition. -/
+reachability theorem for the query's uniform, send, or receive transition. -/
 lemma trackedCorrectnessImpl_preserves
     [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
@@ -142,7 +142,7 @@ lemma trackedCorrectnessImpl_preserves
         exact oracleSendB_preserves_reachableInv kem onoff hDet ecEk ecCt0 hCt0Pos
           ecCt1 hCt1Pos leak () p.1 hreach y hy
     | ORecvA n =>
-        exact oracleRecvA_preserves_reachableInv_of_current kem onoff hDet ecEk ecCt0
+        exact oracleRecvA_preserves_reachableInv kem onoff hDet ecEk ecCt0
           hCt0Correct ecCt1 hCt1Correct hCt1Pos leak n p.1 hreach hcurrent y hy
     | ORecvB n =>
         exact oracleRecvB_preserves_reachableInv kem onoff hDet ecEk hEkCorrect hEkPos
