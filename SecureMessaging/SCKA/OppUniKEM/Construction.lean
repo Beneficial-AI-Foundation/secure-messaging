@@ -549,7 +549,7 @@ def recvB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
       { stB with ack := { stB.ack with ctRec := true } }
     else
       stB
-  -- Correct Fig. 16's `t - 1`: the receiving epoch belongs to the delivered message.
+  -- Return the delivered message's sending epoch `t' - 1`.
   some (none, t' - 1, stB)
 -- ANCHOR_END: recvB
 

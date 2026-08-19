@@ -39,8 +39,7 @@ We make two corrections to these algorithms, marked with surrounding boxes:
 
 * $`\mathsf{Rec}\text{-}\A` and $`\mathsf{Rec}\text{-}\B` record
   received acknowledgements only if $`t=t'`;
-* $`\mathsf{Rec}\text{-}\B` returns $`t'-1` rather than $`t-1` when $`\B` has
-  advanced beyond the message's epoch.
+* $`\mathsf{Rec}\text{-}\B` returns $`t'-1` rather than $`t-1`.
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Initialisation}" (kind := "compact")
@@ -451,7 +450,7 @@ def recvB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
       { stB with ack := { stB.ack with ctRec := true } }
     else
       stB
-  -- Correct Fig. 16's `t - 1`: the receiving epoch belongs to the delivered message.
+  -- Return the delivered message's sending epoch `t' - 1`.
   some (none, t' - 1, stB)
 ```
 :::::
