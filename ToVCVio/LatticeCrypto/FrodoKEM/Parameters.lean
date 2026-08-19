@@ -81,13 +81,9 @@ structure Params where
   B : ℕ
   /-- The frodoKEM variants: salted, ephemeral -/
   variant : Variant
-deriving DecidableEq
+deriving Repr, DecidableEq
 
 namespace Params
-
-instance : Repr Params where
-  reprPrec p _ :=
-    f!"{{ n := {p.n}, D := {p.D}, B := {p.B}, variant := {p.variant} }}"
 
 /-- Power of 2 modulus with D ≤ 16 -/
 def q (p : Params) : ℕ := 2 ^ (p.D)
@@ -178,3 +174,4 @@ def params : ParameterSet → Params
 end ParameterSet
 
 end FrodoKEM
+
