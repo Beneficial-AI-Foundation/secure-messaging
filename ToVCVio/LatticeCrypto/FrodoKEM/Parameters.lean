@@ -4,6 +4,8 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 import Mathlib.Data.Nat.Notation
+import Mathlib.Data.ZMod.Basic
+import Mathlib.Data.Matrix.Basic
 
 /-!
 # FrodoKEM Parameters
@@ -17,10 +19,10 @@ published quantity is derived from them — the modulus `q = 2 ^ D`, the length
 `ℓ = B * mbar * nbar` shared by `μ`, `s`, `k`, `pkh` and `ss`, and the
 variant-dependent lengths `lenSeedSE` and `lenSalt` of Table 2.
 
-The tables themselves are checked in `ToVCVio.LatticeCrypto.FrodoKEM.Smoke`.
+Lengths are published in bits but the corresponding types are byte vectors, so
+each length comes in both units and the docstrings name which is which.
 
-Still to come: the parameter-dependent types for messages, shared secrets,
-seeds and matrices.
+The tables themselves are checked in `ToVCVio.LatticeCrypto.FrodoKEM.Smoke`.
 -/
 
 namespace FrodoKEM
@@ -109,7 +111,40 @@ def lenSalt (p : Params) : ℕ := match p.variant with
   | .FrodoKEM => 2 * p.ellBits
   | .eFrodoKEM => 0
 
+/-- The length of seeds expressed in bytes -/
+def lenSeedSEBytes (p : Params) : ℕ := match p.variant with
+  | .FrodoKEM => 2 * p.ellBytes
+  | .eFrodoKEM => p.ellBytes
+
+/-- The length of salt expressed in bytes -/
+def lenSaltBytes (p : Params) : ℕ := match p.variant with
+  | .FrodoKEM => 2 * p.ellBytes
+  | .eFrodoKEM => 0
+
 end Params
+
+/-- Seeds used for pseudorandom bit generation for error sampling, of
+`lenSeedSE` bits, represented as `lenSeedSEBytes` bytes. -/
+abbrev SeedSE (p : Params) := Bytes p.lenSeedSEBytes
+
+/-- Matrices over `ZMod q`. FrodoKEM has no polynomial ring: all of its
+arithmetic happens in plain matrices over the integers mod `q`. -/
+abbrev FrodoMatrix (p : Params) (rows cols : ℕ) := Matrix (Fin rows) (Fin cols) (ZMod p.q)
+
+/-- The message space `M = {0,1}^lenMu` with `lenMu = ℓ`, represented as
+`ellBytes` bytes. -/
+abbrev Message (p : Params) := Bytes p.ellBytes
+
+/-- Shared secrets `ss`, of `lenSS = ℓ` bits, represented as `ellBytes` bytes. -/
+abbrev SharedSecret (p : Params) := Bytes p.ellBytes
+
+/-- The hash `G₁(pk)` of the public key, of `lenPkh = ℓ` bits, represented as
+`ellBytes` bytes. -/
+abbrev PublicKeyHash (p : Params) := Bytes p.ellBytes
+
+/-- Salts, of `lenSalt` bits, represented as `lenSaltBytes` bytes; empty for
+the ephemeral variant. -/
+abbrev Salt (p : Params) := Bytes p.lenSaltBytes
 
 namespace ParameterSet
 
@@ -125,4 +160,6 @@ def params : ParameterSet → Params
   | .eFrodoKEM1344 => {n := 1344, D := 16, B := 4, variant := .eFrodoKEM}
 
 end ParameterSet
+
 end FrodoKEM
+
