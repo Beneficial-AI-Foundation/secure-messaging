@@ -30,8 +30,8 @@ The module introduces:
 * `CurrentKEMCorrect s` — A's current KEM material and B's recorded key
   decapsulate consistently.
 
-The invariant holds initially and is preserved by the uniform oracle. The four
-protocol-specific oracles are handled in `Invariant.SendA`, `Invariant.SendB`,
+This file proves the invariant holds initially and is preserved by the uniform oracle.
+The four protocol specific oracles are handled in `Invariant.SendA`, `Invariant.SendB`,
 `Invariant.RecvA`, and `Invariant.RecvB`.
 
 

@@ -31,9 +31,16 @@ Opp-UniKEM-CKA.
 :::
 
 :::::::definition "opp_unikem_cka_spec" (parent := "cka_protocols_opp_unikem_cka") (lean := "oppUniKemCKA.initKeyGen, oppUniKemCKA.initA, oppUniKemCKA.initB, oppUniKemCKA.vulnA, oppUniKemCKA.vulnB, oppUniKemCKA.sendA, oppUniKemCKA.sendArleak, oppUniKemCKA.recvA, oppUniKemCKA.sendB, oppUniKemCKA.sendBrleak, oppUniKemCKA.recvB, oppUniKemCKA.scheme")
-Figure 16 of {Informal.citet SCKA25}[]. The boxed checks $`\boxed{t=t'}` are our additions. They prevent old
-  acknowledgements from affecting a new epoch. We also correct $`\mathsf{Rec}\text{-}\B`'s returned receiving
-  epoch from $`t-1` to $`t'-1`, so it identifies the delivered message under delayed or replayed delivery.
+Figure 16 of {Informal.citet SCKA25}[]. In the receive algorithms,
+- $`t` is the epoch index of the receiver's state,
+- $`t'` is the epoch index of the delivered message.
+
+We make two corrections to these algorithms, marked with surrounding boxes:
+
+* $`\mathsf{Rec}\text{-}\A` and $`\mathsf{Rec}\text{-}\B` record
+  received acknowledgements only if $`t=t'`;
+* $`\mathsf{Rec}\text{-}\B` returns $`t'-1` rather than $`t-1` when $`\B` has
+  advanced beyond the message's epoch.
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Initialisation}" (kind := "compact")
@@ -408,7 +415,7 @@ $`\begin{array}{l}
   \pcomment{\text{incorporate }\A\text{'s acknowledgment}} \\
 \quad \ack.\ctrec\gets\mathsf{true} \\
 \stB\gets(\ekA,\ctzero,\ctone,\stct,t,\ich,\Lch,\ack) \\
-\mathsf{return}\;((\bot,\bot),t'-1,\stB)
+\mathsf{return}\;((\bot,\bot),\boxed{t'-1},\stB)
 \end{array}`
 
 ```anchor recvB (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
@@ -450,8 +457,8 @@ def recvB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 :::::
 ::::::
 
-The algorithms package into an `SCKAScheme` instance:
-
+:::leanPillCaption "SCKA scheme instance"
+:::
 ```anchor scheme (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
 def scheme (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
   [DecidableEq Sym]
@@ -479,55 +486,27 @@ def scheme (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 :::defTitle "opp_unikem_cka_correctness" "Opp-UniKEM-CKA correctness"
 :::
 
-::::theorem "opp_unikem_cka_correctness" (parent := "cka_protocols_opp_unikem_cka") (lean := "oppUniKemCKA.correctness")
-For any correctness adversary, the experiment returns $`\mathsf{true}` with probability one,
-assuming perfect KEM correctness with deterministic decapsulation, correctness of the three
-erasure codes, and a positive decoding threshold for every encoded payload.
+::::theorem "opp_unikem_cka_correctness" (parent := "cka_protocols_opp_unikem_cka") (lean := "oppUniKemCKA.correctness_true_ge")
+Assume that:
 
-```anchor correctness (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Correctness)
-theorem correctness [DecidableEq K] [DecidableEq Sym]
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
-    (leak : KEMScheme.OnOffRandLeak kem onoff)
-    (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
-    (hEkCorrect : ecEk.ec.Correct) (hCt0Correct : ecCt0.ec.Correct)
-    (hCt1Correct : ecCt1.ec.Correct)
-    (hEkPos : 0 < ecEk.ec.nchunk) (hCt0Pos : 0 < ecCt0.ec.nchunk)
-    (hCt1Pos : 0 < ecCt1.ec.nchunk)
-    (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym)) :
-    Pr[= true |
-      SCKAScheme.correctnessExp
-        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] = 1
-```
+* $`\adv` is any SCKA correctness adversary making at most $`q` send-oracle
+  queries;
+* the underlying KEM has deterministic decapsulation,
+  and has correctness error at most $`\varepsilon`;
+* and the three erasure codes are correct.
 
-For an imperfect KEM, correctness reduces to the KEM's average-case
-correctness error $`\varepsilon`: against an adversary making at most $`q`
-total send queries, the experiment returns $`\mathsf{true}` with
-probability at least $`1 - q\varepsilon`.  The complement of this
-probability includes any missing probability mass; in this development the
-game lives in the total semantics `ProbComp`, so the missing mass is zero
-and the complement equals the probability of returning $`\mathsf{false}`.
-The proof conditions $`\varepsilon` on the samples the current epoch has
-already drawn — only the key pair, only the offline encapsulation, or
-both.  Both send oracles are counted because either can make the first
-random choice of a fresh epoch.  Delayed, reordered, duplicated, and
-replayed receives are not counted.
+Then $`\Pr\bigl[\Exp{\textsf{cor}}{\textsf{Opp-UniKEM-CKA}}(\adv)=1\bigr]
+  \ge 1-q\varepsilon`, i.e., the Opp-UniKEM-CKA protocol is correct with probability at least
+$`1-q\varepsilon`.
 
-:::leanPillCaption "quantitative correctness for an imperfect KEM"
-:::
+
 ```anchor correctnessTrueGe (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Correctness)
 theorem correctness_true_ge [DecidableEq K] [DecidableEq Sym]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym) (hEkCorrect : ecEk.ec.Correct)
-    (hEkPos : 0 < ecEk.ec.nchunk)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0Correct : ecCt0.ec.Correct)
-    (hCt0Pos : 0 < ecCt0.ec.nchunk)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1Correct : ecCt1.ec.Correct)
-    (hCt1Pos : 0 < ecCt1.ec.nchunk)
     (leak : KEMScheme.OnOffRandLeak kem onoff)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
     (q : ℕ) (hq : SendQueryBound adv q) :

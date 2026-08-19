@@ -109,7 +109,7 @@ S (s, b) := if b then 1 else V s
 
 ## One step (`Reduction.Send`, `Reduction.Receive`, `Reduction.OneStep`)
 
-Each oracle query:
+We prove that each oracle query:
 - preserves the tracked states invariant J(s, b), and
 - increases the expected tracked failure score by at most `ε`.
 
@@ -147,8 +147,7 @@ variable [DecidableEq Sym]
 
 * `kem` has deterministic decapsulation and is perfectly correct;
 * `onoff` splits encapsulation into an offline and an online part;
-* `ecEk`, `ecCt0`, and `ecCt1` are correct erasure codes with positive
-  reconstruction thresholds.
+* `ecEk`, `ecCt0`, and `ecCt1` are correct erasure codes.
 
 Then the Opp-UniKEM-CKA correctness game succeeds with probability one. -/
 theorem correctness_of_perfectKEM [DecidableEq K]
@@ -161,13 +160,14 @@ theorem correctness_of_perfectKEM [DecidableEq K]
     (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
     (hEkCorrect : ecEk.ec.Correct) (hCt0Correct : ecCt0.ec.Correct)
     (hCt1Correct : ecCt1.ec.Correct)
-    (hEkPos : 0 < ecEk.ec.nchunk) (hCt0Pos : 0 < ecCt0.ec.nchunk)
-    (hCt1Pos : 0 < ecCt1.ec.nchunk)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym)) :
     Pr[= true |
       SCKAScheme.correctnessExp
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] = 1
     := by
+  have hEkPos := ecEk.ec.nchunk_pos
+  have hCt0Pos := ecCt0.ec.nchunk_pos
+  have hCt1Pos := ecCt1.ec.nchunk_pos
   let tracked := trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak
   let Inv := trackedInv kem onoff hDet ecEk ecCt0 ecCt1
   let score := trackedFailureScore (Sym := Sym) kem onoff
@@ -228,8 +228,7 @@ theorem correctness_of_perfectKEM [DecidableEq K]
 
 * `kem` has deterministic decapsulation;
 * `onoff` splits encapsulation into an offline and an online part;
-* `ecEk`, `ecCt0`, and `ecCt1` are correct erasure codes with positive
-  reconstruction thresholds;
+* `ecEk`, `ecCt0`, and `ecCt1` are correct erasure codes;
 * `adv` makes at most `q` `SendA` and `SendB` queries combined.
 
 Then the Opp-UniKEM-CKA correctness game fails with probability at most
@@ -238,11 +237,8 @@ theorem correctness_failure_le_reduction [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym) (hEkCorrect : ecEk.ec.Correct)
-    (hEkPos : 0 < ecEk.ec.nchunk)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0Correct : ecCt0.ec.Correct)
-    (hCt0Pos : 0 < ecCt0.ec.nchunk)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1Correct : ecCt1.ec.Correct)
-    (hCt1Pos : 0 < ecCt1.ec.nchunk)
     (leak : KEMScheme.OnOffRandLeak kem onoff)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
     (q : ℕ) (hq : SendQueryBound adv q) :
@@ -251,6 +247,9 @@ theorem correctness_failure_le_reduction [DecidableEq K]
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] ≤
       (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp
     := by
+  have hEkPos := ecEk.ec.nchunk_pos
+  have hCt0Pos := ecCt0.ec.nchunk_pos
+  have hCt1Pos := ecCt1.ec.nchunk_pos
   let tracked := trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak
   let Inv := trackedInv kem onoff hDet ecEk ecCt0 ecCt1
   let score := trackedFailureScore (Sym := Sym) kem onoff
@@ -306,11 +305,8 @@ theorem correctness_true_ge_reduction [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym) (hEkCorrect : ecEk.ec.Correct)
-    (hEkPos : 0 < ecEk.ec.nchunk)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0Correct : ecCt0.ec.Correct)
-    (hCt0Pos : 0 < ecCt0.ec.nchunk)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1Correct : ecCt1.ec.Correct)
-    (hCt1Pos : 0 < ecCt1.ec.nchunk)
     (leak : KEMScheme.OnOffRandLeak kem onoff)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
     (q : ℕ) (hq : SendQueryBound adv q) :
@@ -320,8 +316,7 @@ theorem correctness_true_ge_reduction [DecidableEq K]
       1 - (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp
     := by
   have h := correctness_failure_le_reduction kem onoff hDet
-    ecEk hEkCorrect hEkPos ecCt0 hCt0Correct hCt0Pos
-    ecCt1 hCt1Correct hCt1Pos leak adv q hq
+    ecEk hEkCorrect ecCt0 hCt0Correct ecCt1 hCt1Correct leak adv q hq
   rw [probOutput_false_eq_sub, probFailure_eq_zero, tsub_zero] at h
   rw [tsub_le_iff_right] at h
   rw [ge_iff_le, tsub_le_iff_right]

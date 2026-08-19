@@ -59,8 +59,7 @@ variable {K PK SK C Sym : Type}
 
 * `kem` has deterministic decapsulation;
 * `onoff` splits encapsulation into an offline and an online part;
-* `ecEk`, `ecCt0`, and `ecCt1` are correct erasure codes with positive
-  reconstruction thresholds;
+* `ecEk`, `ecCt0`, and `ecCt1` are correct erasure codes;
 * `adv` makes at most `q` `SendA` and `SendB` queries combined.
 
 Then the Opp-UniKEM-CKA correctness game fails with probability at most
@@ -69,11 +68,8 @@ theorem correctness_failure_le [DecidableEq K] [DecidableEq Sym]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym) (hEkCorrect : ecEk.ec.Correct)
-    (hEkPos : 0 < ecEk.ec.nchunk)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0Correct : ecCt0.ec.Correct)
-    (hCt0Pos : 0 < ecCt0.ec.nchunk)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1Correct : ecCt1.ec.Correct)
-    (hCt1Pos : 0 < ecCt1.ec.nchunk)
     (leak : KEMScheme.OnOffRandLeak kem onoff)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
     (q : ℕ) (hq : SendQueryBound adv q) :
@@ -83,15 +79,13 @@ theorem correctness_failure_le [DecidableEq K] [DecidableEq Sym]
       (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp
     := by
   exact correctness_failure_le_reduction kem onoff hDet
-    ecEk hEkCorrect hEkPos ecCt0 hCt0Correct hCt0Pos
-    ecCt1 hCt1Correct hCt1Pos leak adv q hq
+    ecEk hEkCorrect ecCt0 hCt0Correct ecCt1 hCt1Correct leak adv q hq
 
 /-- Assume:
 
 * `kem` has deterministic decapsulation;
 * `onoff` splits encapsulation into an offline and an online part;
-* `ecEk`, `ecCt0`, and `ecCt1` are correct erasure codes with positive
-  reconstruction thresholds;
+* `ecEk`, `ecCt0`, and `ecCt1` are correct erasure codes;
 * `adv` makes at most `q` `SendA` and `SendB` queries combined.
 
 Then the Opp-UniKEM-CKA correctness game succeeds with probability at least
@@ -101,11 +95,8 @@ theorem correctness_true_ge [DecidableEq K] [DecidableEq Sym]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym) (hEkCorrect : ecEk.ec.Correct)
-    (hEkPos : 0 < ecEk.ec.nchunk)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0Correct : ecCt0.ec.Correct)
-    (hCt0Pos : 0 < ecCt0.ec.nchunk)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1Correct : ecCt1.ec.Correct)
-    (hCt1Pos : 0 < ecCt1.ec.nchunk)
     (leak : KEMScheme.OnOffRandLeak kem onoff)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
     (q : ℕ) (hq : SendQueryBound adv q) :
@@ -116,15 +107,13 @@ theorem correctness_true_ge [DecidableEq K] [DecidableEq Sym]
 -- ANCHOR_END: correctnessTrueGe
     := by
   exact correctness_true_ge_reduction kem onoff hDet
-    ecEk hEkCorrect hEkPos ecCt0 hCt0Correct hCt0Pos
-    ecCt1 hCt1Correct hCt1Pos leak adv q hq
+    ecEk hEkCorrect ecCt0 hCt0Correct ecCt1 hCt1Correct leak adv q hq
 
 /-- Assume:
 
 * `kem` has deterministic decapsulation and is perfectly correct;
 * `onoff` splits encapsulation into an offline and an online part;
-* `ecEk`, `ecCt0`, and `ecCt1` are correct erasure codes with positive
-  reconstruction thresholds.
+* `ecEk`, `ecCt0`, and `ecCt1` are correct erasure codes.
 
 Then the Opp-UniKEM-CKA correctness game succeeds with probability one for
 every adversary, without a query bound. -/
@@ -139,8 +128,6 @@ theorem correctness [DecidableEq K] [DecidableEq Sym]
     (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
     (hEkCorrect : ecEk.ec.Correct) (hCt0Correct : ecCt0.ec.Correct)
     (hCt1Correct : ecCt1.ec.Correct)
-    (hEkPos : 0 < ecEk.ec.nchunk) (hCt0Pos : 0 < ecCt0.ec.nchunk)
-    (hCt1Pos : 0 < ecCt1.ec.nchunk)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym)) :
     Pr[= true |
       SCKAScheme.correctnessExp
@@ -148,6 +135,6 @@ theorem correctness [DecidableEq K] [DecidableEq Sym]
 -- ANCHOR_END: correctness
     := by
   exact correctness_of_perfectKEM kem onoff hDet ecEk ecCt0 ecCt1 leak hkem
-    hEkCorrect hCt0Correct hCt1Correct hEkPos hCt0Pos hCt1Pos adv
+    hEkCorrect hCt0Correct hCt1Correct adv
 
 end oppUniKemCKA
