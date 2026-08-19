@@ -9,20 +9,9 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
 /-!
 # RecvA Preserves the Reachability Invariant
 
-`oracleRecvA_preserves_reachableInv`: assuming the current KEM material
-decapsulates to B's recorded key, A's receive oracle preserves
-`reachableInv`: after any receive query, the correctness-game state remains
-consistent with an epoch-indexed transcript. Cases, by the delivered message:
-
-* missing — the state is unchanged;
-* stale epoch — only A's receive index moves, monotonically;
-* current epoch, no usable chunk — only the acknowledgement is processed;
-* current epoch, `ct₀` chunk — accumulated until decoding records the
-  offline ciphertext;
-* current epoch, `ct₁` chunk — accumulated until decoding completes the
-  epoch: A decapsulates, `CurrentKEMCorrect` identifies the result with
-  B's recorded key, A's epoch-local state is cleared, and its epoch
-  advances.
+The main result, `oracleRecvA_preserves_reachableInv`, proves that A's receive
+oracle preserves `reachableInv` from a reachable state with correct current
+KEM material.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme

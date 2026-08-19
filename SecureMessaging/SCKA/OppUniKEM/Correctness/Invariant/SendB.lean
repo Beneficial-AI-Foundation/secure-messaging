@@ -9,15 +9,8 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
 /-!
 # SendB Preserves the Reachability Invariant
 
-`oracleSendB_preserves_reachableInv`: B's send oracle preserves
-`reachableInv`: after the query, the correctness-game state remains consistent
-with an epoch-indexed transcript. Cases, by the samples `sendB` draws:
-
-* none — re-emit chunks from the current transcript;
-* offline — record a fresh `(st, ct₀)` in the current `EpochTranscript`;
-* online — record a fresh `(ct₁, k)`, completing the epoch's transcript
-  and B's key-table entry;
-* offline and online — both of the above in one call.
+The main result, `oracleSendB_preserves_reachableInv`, proves that B's send
+oracle preserves `reachableInv`.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme

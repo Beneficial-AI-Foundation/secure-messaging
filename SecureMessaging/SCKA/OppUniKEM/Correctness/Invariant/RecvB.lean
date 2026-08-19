@@ -9,16 +9,8 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
 /-!
 # RecvB Preserves the Reachability Invariant
 
-`oracleRecvB_preserves_reachableInv`: B's receive oracle preserves
-`reachableInv`: after any receive query, the correctness-game state remains
-consistent with an epoch-indexed transcript. For a recorded A-to-B message,
-the cases are determined by its epoch:
-
-* stale — only B's receive index moves;
-* current — insert an honest public-key chunk, propagate the
-  acknowledgement;
-* next — reset B's epoch-local state, then insert and acknowledge as in
-  the current case.
+The main result, `oracleRecvB_preserves_reachableInv`, proves that B's receive
+oracle preserves `reachableInv`.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
