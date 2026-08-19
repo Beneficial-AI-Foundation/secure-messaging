@@ -8,10 +8,6 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
 
 /-!
 # RecvA Preserves the Reachability Invariant
-
-The main result, `oracleRecvA_preserves_reachableInv`, proves that A's receive
-oracle preserves `reachableInv` from a reachable state with correct current
-KEM material.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme

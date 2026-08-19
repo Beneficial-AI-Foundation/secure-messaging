@@ -8,9 +8,6 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
 
 /-!
 # RecvB Preserves the Reachability Invariant
-
-The main result, `oracleRecvB_preserves_reachableInv`, proves that B's receive
-oracle preserves `reachableInv`.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme

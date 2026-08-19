@@ -8,9 +8,6 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
 
 /-!
 # SendA Preserves the Reachability Invariant
-
-The main result, `oracleSendA_preserves_reachableInv`, proves that A's send
-oracle preserves `reachableInv`.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
