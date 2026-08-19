@@ -11,11 +11,16 @@ import Mathlib.Data.Nat.Notation
 The cryptographic parameters of FrodoKEM, following Tables 1 and 2 of
 [FrodoKEM](https://frodokem.org/).
 
-This file is under construction. It currently fixes the constants that are
-shared by every parameter set, the record `Params` of the quantities that vary
-between them, and the names of the parameter sets and variants. Still missing:
-the derived lengths (`q`, the `ℓ`-family, `lenSeedSE`, `lenSalt`), the
-parameter-dependent types, and the table of values itself.
+The development stays generic over the parameters while exposing the six named
+parameter sets. Only `n`, `D`, `B` and the variant are stored; every other
+published quantity is derived from them — the modulus `q = 2 ^ D`, the length
+`ℓ = B * mbar * nbar` shared by `μ`, `s`, `k`, `pkh` and `ss`, and the
+variant-dependent lengths `lenSeedSE` and `lenSalt` of Table 2.
+
+The tables themselves are checked in `ToVCVio.LatticeCrypto.FrodoKEM.Smoke`.
+
+Still to come: the parameter-dependent types for messages, shared secrets,
+seeds and matrices.
 -/
 
 namespace FrodoKEM
@@ -34,6 +39,9 @@ inductive ParameterSet where
   | FrodoKEM640
   | FrodoKEM976
   | FrodoKEM1344
+  | eFrodoKEM640
+  | eFrodoKEM976
+  | eFrodoKEM1344
 deriving Repr, DecidableEq
 
 /-- The two FrodoKEM variants: the salted `FrodoKEM` and the ephemeral
@@ -69,6 +77,52 @@ structure Params where
   D : ℕ
   /-- The number of bits encoded in each matrix entry, satisfying `B ≤ D`. -/
   B : ℕ
+  /-- The frodoKEM variants: salted, ephemeral -/
+  variant : Variant
 deriving Repr, DecidableEq
 
+namespace Params
+
+/-- Power of 2 modulus with D ≤ 16 -/
+def q (p : Params) : ℕ := 2 ^ (p.D)
+
+/-- The length of bit strings to be encoded in an mbar-by-nbar matrix -/
+def ellBits (p : Params) : ℕ := p.B * mbar * nbar
+
+/-- `ellBits` expressed in bytes. -/
+def ellBytes (p : Params) : ℕ := p.B * 8
+
+/-- `ellBits` is eight times `ellBytes`. -/
+theorem ellBits_eq_eight_ellBytes (p : Params) :
+    p.ellBits = 8 * p.ellBytes := by
+      simp [ellBits, ellBytes, mbar, nbar]
+      omega
+
+/-- The bit length of seeds used for pseudorandom bit generation for error
+sampling -/
+def lenSeedSE (p : Params) : ℕ := match p.variant with
+  | .FrodoKEM => 2 * p.ellBits
+  | .eFrodoKEM => p.ellBits
+
+/-- The bit length of salt -/
+def lenSalt (p : Params) : ℕ := match p.variant with
+  | .FrodoKEM => 2 * p.ellBits
+  | .eFrodoKEM => 0
+
+end Params
+
+namespace ParameterSet
+
+/-- Table 1 cryptographic parameters for FrodoKEM-640, FrodoKEM-976, FrodoKEM-1344 and
+  the ephemeral versions. The rest of the parameters in Table 1 are not included because
+  they can be computed from n, D, B -/
+def params : ParameterSet → Params
+  | .FrodoKEM640 => {n := 640, D := 15, B := 2, variant := .FrodoKEM}
+  | .FrodoKEM976 => {n := 976, D := 16, B := 3, variant := .FrodoKEM}
+  | .FrodoKEM1344 => {n := 1344, D := 16, B := 4, variant := .FrodoKEM}
+  | .eFrodoKEM640 => {n := 640, D := 15, B := 2, variant := .eFrodoKEM}
+  | .eFrodoKEM976 => {n := 976, D := 16, B := 3, variant := .eFrodoKEM}
+  | .eFrodoKEM1344 => {n := 1344, D := 16, B := 4, variant := .eFrodoKEM}
+
+end ParameterSet
 end FrodoKEM
