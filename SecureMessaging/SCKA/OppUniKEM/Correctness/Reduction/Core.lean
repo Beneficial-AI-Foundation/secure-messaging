@@ -55,7 +55,7 @@ def initialB
     lch := ∅, ack := { ekRec := false, ctRec := false } }
 
 /-- The initial correctness-game state built from the empty party states. -/
-def initialGame [DecidableEq K]
+def initialGame
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure) :
     SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) :=
   SCKAScheme.initGameState (initialA kem onoff) (initialB kem onoff)

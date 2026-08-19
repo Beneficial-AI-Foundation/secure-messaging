@@ -164,8 +164,9 @@ def EpochTranscript.setOn
 /-- Pair two optional values exactly when both are present.  This operation is
 part of the small state-invariant interface used by the quantitative proof. -/
 @[simp] def optionPair {A B : Type} : Option A → Option B → Option (A × B)
+  | none, _ => none
+  | some _, none => none
   | some a, some b => some (a, b)
-  | _, _ => none
 
 /-- Internal helper: an A-to-B message is honest when its chunk and receiving
 epoch fields are drawn from the recorded epoch transcript. -/
