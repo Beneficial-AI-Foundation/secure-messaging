@@ -73,6 +73,18 @@ example : (eFrodoKEM640).params.lenSalt = 0 := rfl
 example : (eFrodoKEM976).params.lenSalt = 0 := rfl
 example : (eFrodoKEM1344).params.lenSalt = 0 := rfl
 
+/-! ## Every named parameter set is well formed
+
+The conditions of Section 3: `n ≡ 0 (mod 8)`, `D ≤ 16` and `B ≤ D`.
+-/
+
+example : (FrodoKEM640).params.WellFormed := by constructor <;> decide
+example : (FrodoKEM976).params.WellFormed := by constructor <;> decide
+example : (FrodoKEM1344).params.WellFormed := by constructor <;> decide
+example : (eFrodoKEM640).params.WellFormed := by constructor <;> decide
+example : (eFrodoKEM976).params.WellFormed := by constructor <;> decide
+example : (eFrodoKEM1344).params.WellFormed := by constructor <;> decide
+
 /-! ## The ephemeral sets agree with the salted ones on Table 1 -/
 
 example : (eFrodoKEM640).params.n = (FrodoKEM640).params.n := rfl

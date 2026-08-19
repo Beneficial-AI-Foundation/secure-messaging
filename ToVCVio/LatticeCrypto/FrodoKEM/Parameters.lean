@@ -121,6 +121,18 @@ def lenSaltBytes (p : Params) : ℕ := match p.variant with
   | .FrodoKEM => 2 * p.ellBytes
   | .eFrodoKEM => 0
 
+/-- The conditions of Section 3 that a FrodoKEM parameter record must satisfy.
+They are recorded here rather than as fields of `Params` so that the record
+stays plain data, and are discharged for the named parameter sets in
+`ToVCVio.LatticeCrypto.FrodoKEM.Smoke`. -/
+structure WellFormed (p : Params) : Prop where
+  /-- The lattice dimension is a multiple of eight. -/
+  n_mod_eight : p.n % 8 = 0
+  /-- The modulus exponent is at most sixteen. -/
+  D_le : p.D ≤ 16
+  /-- At most `D` bits are encoded in each matrix entry, so that `2 ^ B ≤ q`. -/
+  B_le_D : p.B ≤ p.D
+
 end Params
 
 /-- Seeds used for pseudorandom bit generation for error sampling, of
