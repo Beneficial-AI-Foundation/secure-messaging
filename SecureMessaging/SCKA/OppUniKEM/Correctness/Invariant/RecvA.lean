@@ -10,9 +10,9 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
 # RecvA Preserves the Reachability Invariant
 
 `oracleRecvA_preserves_reachableInv`: assuming the current KEM material
-decapsulates consistently, A's receive oracle preserves
-`reachableInv` for every recorded B-to-A message.  Cases, by the delivered
-message:
+decapsulates to B's recorded key, A's receive oracle preserves
+`reachableInv`: after any receive query, the correctness-game state remains
+consistent with an epoch-indexed transcript. Cases, by the delivered message:
 
 * missing — the state is unchanged;
 * stale epoch — only A's receive index moves, monotonically;

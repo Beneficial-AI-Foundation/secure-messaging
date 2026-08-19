@@ -10,19 +10,24 @@ import SecureMessaging.KEM.OnOffKEM.CorrectnessError
 /-!
 # Opp-UniKEM-CKA Reduction Core
 
-Definitions of the tracked correctness game, for a game state `s`:
+The reduction augments the Opp-UniKEM-CKA correctness game with a Boolean
+failure flag that remains set once a failure occurs. A tracked state is
+`(s, b)`, where `s` is the ordinary game state and `b` records whether a
+completed KEM epoch has been inconsistent.
+
+This module defines:
 
 * `currentKEMFailure` (`bad s`) — a completed current epoch decapsulated
   inconsistently;
-* `currentFailurePotential` (`V s`) — the residual correctness error of
-  the KEM epoch in progress;
-* `trackedFailureScore` (`S (s, b)`) — `1` once the failure bit `b` is
-  set, `V s` otherwise;
+* `currentFailurePotential` (`V s`) — the conditional probability that the
+  KEM epoch in progress completes inconsistently, given its samples so far;
+* `trackedFailureScore` (`S (s, b)`) — `1` if an inconsistency has already
+  been recorded (`b = true`), and `V s` otherwise;
 * the initial game state, with empty KEM state at epoch one.
 
-The basic laws bound `V` and `S` by `1`, identify the state components
-they depend on, and describe how epoch advancement resets or preserves
-them; later modules use these laws without unfolding the score.
+The remaining lemmas prove `V s ≤ 1` and `S (s, b) ≤ 1`, show that these
+quantities depend only on the relevant epoch and KEM fields, and characterize
+their values when A or B advances to the next epoch.
 -/
 
 open ENNReal KEMScheme
@@ -55,12 +60,7 @@ def initialGame [DecidableEq K]
     SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) :=
   SCKAScheme.initGameState (initialA kem onoff) (initialB kem onoff)
 
-/-- The conditional correctness error of the KEM epoch in progress, given
-the samples already drawn: `failureAfterKeypair` after A's key pair,
-`failureAfterOff` after B's offline sample, `failureAfterBoth` after both,
-and `0` when no sample has been drawn or the online sample has completed the
-epoch.  When A is one epoch ahead of B, B's material belongs to the
-completed preceding epoch and only A's new key pair contributes. -/
+/-- Conditional failure probability of the KEM epoch in progress. -/
 noncomputable def currentFailurePotential [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
@@ -91,12 +91,8 @@ noncomputable def trackedFailureScore [DecidableEq K]
 
 end Reduction.Internal
 
-/-- Whether the current epoch has completed inconsistently: both parties are
-in the same epoch, A holds a secret key, B holds both ciphertext components
-and a key, and decapsulation disagrees.  The check reads B's own `ct0`, so
-the failure is detected as soon as B draws the online sample, before A
-decodes the ciphertext.  Incomplete epochs, and the completed epoch left at
-B while A is one epoch ahead, give `false`. -/
+/-- Whether both parties are in the same completed KEM epoch and decapsulation
+disagrees with B's recorded key. -/
 def currentKEMFailure [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)

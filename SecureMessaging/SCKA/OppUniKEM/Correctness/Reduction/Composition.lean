@@ -11,13 +11,44 @@ import ToVCVio.OracleComp.SimSemantics.StateT.ExpectedPayoffBound
 /-!
 # Opp-UniKEM-CKA Adversary Composition
 
-For an adaptive adversary with `SendQueryBound adv q`, the generic theorem
-`expectedPayoff_simulateQ_run_le` lifts the one-query score bound to
-`E[S final] ≤ S initial + q · epsilon`.
+This module extends the one-query bounds of `Reduction.OneStep` to complete
+adaptive executions of the tracked game.
 
-The alternative theorem `tracked_bad_probability_le` assumes a failure bound
-`δ` only for `SendB`.  Under `SendBQueryBound adv q`, it bounds the probability
-that the tracked failure bit is set by `q · δ`.
+For an execution of the tracked game against an adversary `adv`, let:
+
+* `(s_f, b_f)` denote the final tracked state: ordinary game state `s_f` and
+  failure flag `b_f`;
+* `V(s) := currentFailurePotential s` (`Reduction.Core`), the conditional
+  failure probability of the KEM epoch in progress;
+* `S(s, b) := trackedFailureScore (s, b)` (`Reduction.Core`), equal to `1`
+  when `b = true` and to `V(s)` otherwise;
+* `E[S(s_f, b_f)]` denote `expectedPayoff` of the final score, which assigns
+  score `1` to computation failure.
+
+This module proves two results.
+
+First, for every tracked execution,
+
+```text
+Pr[b_f = true] ≤ E[S(s_f, b_f)].
+```
+
+i.e., the probability that the failure flag is set is at most the expected
+tracked failure score.
+
+Second, if each `SendB` query introduces an inconsistency with probability at
+most `δ`, all other queries preserve consistency, and
+`SendBQueryBound adv q` holds, then
+
+```text
+Pr[b_f = true] ≤ q · δ
+```
+
+As a corollary, the ordinary correctness game satisfies
+
+```text
+Pr[correctnessExp adv = false] ≤ q · δ.
+```
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
@@ -46,8 +77,8 @@ def SendQueryBound (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
 namespace Reduction.Internal
 
 omit [DecidableEq Sym] in
-/-- Bound the probability that the sticky bad bit is set by the tracked
-failure score's expected payoff. -/
+/-- The probability that the failure flag is set is at most the expected
+tracked failure score. -/
 lemma tracked_bad_probability_le_score [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (oa : ProbComp
@@ -208,13 +239,20 @@ lemma tracked_bad_probability_le [DecidableEq K]
 
 end Reduction.Internal
 
-/-- Correctness of Opp-UniKEM-CKA from stepwise premises: if one `SendB`
-step introduces inconsistent current-epoch KEM material with probability at
-most `δ` and no other oracle can, then an adversary making at most `q`
-`SendB` queries makes the correctness experiment fail with probability at
-most `q * δ`.  Receive queries, including delayed, reordered, duplicated,
-and replayed deliveries, are not counted. -/
--- ANCHOR: correctnessFailureLe
+/-- Assume:
+
+* `kem` has deterministic decapsulation;
+* `onoff` splits encapsulation into an offline and an online part;
+* `ecEk`, `ecCt0`, and `ecCt1` are correct erasure codes with positive
+  reconstruction thresholds;
+* from a state with consistent current KEM material, one `SendB` query
+  produces an inconsistency with probability at most `δ`;
+* every other oracle preserves current KEM consistency;
+* `adv` makes at most `q` `SendB` queries.
+
+Then the Opp-UniKEM-CKA correctness game fails with probability at most
+`q · δ`. Receive queries, including delayed, reordered, duplicated, and
+replayed deliveries, are not counted. -/
 theorem correctness_failure_le_of_sendBFailureBound [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -234,56 +272,20 @@ theorem correctness_failure_le_of_sendBFailureBound [DecidableEq K]
       SCKAScheme.correctnessExp
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] ≤
       (q : ℝ≥0∞) * δ
--- ANCHOR_END: correctnessFailureLe
     := by
-  let tracked := trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak
-  let Inv := trackedInv kem onoff hDet ecEk ecCt0 ecCt1
-  let s₀ := initialGame (Sym := Sym) kem onoff
-  have hpres : QueryImpl.PreservesInv tracked Inv :=
-    trackedCorrectnessImpl_preserves kem onoff hDet ecEk hEkCorrect hEkPos
-      ecCt0 hCt0Correct hCt0Pos ecCt1 hCt1Correct hCt1Pos leak
-  have hinit : Inv (s₀, false) := by
-    right
-    refine ⟨?_, ?_⟩
-    · simpa [s₀, initialGame, initialA, initialB] using
-        reachableInv_init kem onoff ecEk ecCt0 ecCt1 hEkPos hCt0Pos
-    · simp [currentKEMFailure, s₀, initialGame, initialA, initialB,
-        SCKAScheme.initGameState]
-  have hmono :
-      Pr[fun z => z.2.1.correct = false |
-          (simulateQ tracked adv).run (s₀, false)] ≤
-        Pr[fun z => z.2.2 = true |
-          (simulateQ tracked adv).run (s₀, false)] := by
-    refine probEvent_mono ?_
-    intro z hz hincorrect
-    have hzInv : Inv z.2 :=
-      OracleComp.simulateQ_run_preservesInv tracked Inv hpres adv
-        (s₀, false) hinit z hz
-    rcases hzInv with hbad | ⟨hreach, _hcurrent⟩
-    · exact hbad
-    · rcases hreach with ⟨_T, hConsistent⟩
-      simp [hConsistent.correct] at hincorrect
   have hbad :
       Pr[fun z => z.2.2 = true |
-          (simulateQ tracked adv).run (s₀, false)] ≤
+          (simulateQ
+            (trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak) adv).run
+              (initialGame (Sym := Sym) kem onoff, false)] ≤
         (q : ℝ≥0∞) * δ := by
     exact tracked_bad_probability_le kem onoff hDet ecEk hEkCorrect hEkPos
       ecCt0 hCt0Correct hCt0Pos ecCt1 hCt1Correct hCt1Pos leak δ
-      hSend hFree adv hq (s₀, false) hinit rfl
-  calc
-    Pr[= false |
-        SCKAScheme.correctnessExp
-          (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] =
-        Pr[fun z => z.2.1.correct = false |
-          (simulateQ tracked adv).run (s₀, false)] := by
-      rw [correctnessExp_eq_final_map]
-      rw [← probEvent_eq_eq_probOutput, probEvent_map]
-      have hproject := tracked_run_project kem onoff hDet ecEk ecCt0 ecCt1
-        leak adv (s₀, false)
-      rw [← hproject, probEvent_map]
-      congr 1
-    _ ≤ Pr[fun z => z.2.2 = true |
-          (simulateQ tracked adv).run (s₀, false)] := hmono
-    _ ≤ (q : ℝ≥0∞) * δ := hbad
+      hSend hFree adv hq
+      (initialGame (Sym := Sym) kem onoff, false)
+      (tracked_initial_inv kem onoff hDet ecEk ecCt0 ecCt1 hEkPos hCt0Pos) rfl
+  exact correctness_failure_le_of_tracked_bad kem onoff hDet
+    ecEk hEkCorrect hEkPos ecCt0 hCt0Correct hCt0Pos
+    ecCt1 hCt1Correct hCt1Pos leak adv ((q : ℝ≥0∞) * δ) hbad
 
 end oppUniKemCKA

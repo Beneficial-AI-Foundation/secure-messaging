@@ -3,19 +3,32 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Core
 /-!
 # Opp-UniKEM-CKA Send Transitions
 
-State constructors and score laws for the send branches of the reduction.
-Cases, by the samples drawn:
+This module analyzes the `SendA` and `SendB` oracle transitions. Helper
+definitions name their resulting correctness-game states; the accompanying
+lemmas compute or bound the failure potential `V` and tracked failure score
+`S` as KEM samples are drawn.
 
-* `SendA`, fresh key pair — the potential moves from `0` to `φ`; with an
-  existing key pair no sample is drawn and the potential is unchanged;
-* `SendB`, offline sample — the potential moves from `0` to `ψ`, or from
-  `φ` to `χ` when A's key pair is already present;
-* `SendB`, online sample — realizes the `χ` failure event: the failure
-  bit is updated and no potential remains;
-* `SendB`, offline and online samples — both of the above in one call.
+Let (`KEM.OnOffKEM.CorrectnessError`):
 
-The source-shape lemmas recover, from `reachableInv`, the secret key and
-the epoch equality that the online transition needs.
+* `φ(pk, sk) := failureAfterKeypair kem onoff pk sk`;
+* `ψ(st, ct₀) := failureAfterOff kem onoff st ct₀`;
+* `χ(pk, sk, st, ct₀) := failureAfterBoth kem onoff pk sk st ct₀`.
+
+Then:
+
+* `SendA`, fresh key pair — `V` changes from `0` to `φ`, or from `ψ` to `χ`
+  if B's offline sample is already present; without a fresh sample, `V` is
+  unchanged;
+* `SendB`, offline sample — `V` changes from `0` to `ψ`, or from `φ` to `χ`
+  if A's key pair is already present;
+* `SendB`, online sample — `V` becomes `0`, while `S` records whether the
+  sampled key disagrees with decapsulation;
+* `SendB`, offline and online samples — the same two updates occur in one
+  query.
+
+The lemmas `online_source_shape` and `newOff_source_shape` prove that, if B
+stores a decoded public key `pk`, then both parties are in the same epoch and
+there exists `sk` such that A stores the key pair `(pk, sk)`.
 -/
 
 open ENNReal KEMScheme
@@ -111,7 +124,8 @@ def sendBOffOnState [DecidableEq K]
       ct1 := some ct1
       ich := 1 } msg key
 
-/-- Averaging the potential after fresh key generation costs at most one factor error. -/
+/-- The expected failure potential after fresh key generation is at most the
+current potential plus `factorCorrectnessError`. -/
 lemma keygen_failurePotential_le [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -160,7 +174,7 @@ lemma keygen_failurePotential_le [DecidableEq K]
     simpa [currentFailurePotential, installAKeypair, ht, hdk, hek, optionPair] using
       (le_of_eq (factorCorrectnessError_eq_avg_keypair kem onoff).symm)
 
-/-- Installing A's first key pair cannot immediately complete a failing KEM epoch. -/
+/-- Installing A's first key pair leaves `currentKEMFailure` equal to `false`. -/
 lemma installAKeypair_currentKEMFailure_false [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -197,7 +211,8 @@ def installBOff
     (st : onoff.St) (ct0 : onoff.C₀) :=
   { s with stB := { s.stB with stCt := some st, ct0 := some ct0 } }
 
-/-- Averaging the potential after fresh offline encapsulation costs at most one factor error. -/
+/-- The expected failure potential after fresh offline encapsulation is at
+most the current potential plus `factorCorrectnessError`. -/
 lemma off_failurePotential_le [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -250,7 +265,8 @@ lemma off_failurePotential_le [DecidableEq K]
       simp [currentFailurePotential, installBOff, ht, hct1, hdk, hek,
         hct0, hst, optionPair, failureAfterKeypair]
 
-/-- Recover A's matching secret key and epoch before B samples the online component. -/
+/-- If B stores `pk` and an incomplete offline sample, then both parties are
+in the same epoch and A stores `(pk, sk)` for some `sk`. -/
 lemma online_source_shape
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -285,7 +301,8 @@ lemma online_source_shape
     simp_all only [optionPair, Option.some.injEq, Prod.mk.injEq,
       Option.some_ne_none, exists_and_left, existsAndEq, and_true]
 
-/-- Recover A's matching secret key and epoch before B samples a new offline component. -/
+/-- If B stores `pk` before sampling a new offline component, then both parties
+are in the same epoch and A stores `(pk, sk)` for some `sk`. -/
 lemma newOff_source_shape
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -328,7 +345,8 @@ def installBOn
     stB := { s.stB with ct1 := some ct1 }
     keyB := Function.update s.keyB s.stB.t (some key) }
 
-/-- Installing the online sample gives score one exactly when decapsulation disagrees. -/
+/-- After installing the online sample, the tracked failure score equals the
+indicator that decapsulation disagrees with the sampled key. -/
 lemma installBOn_score [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -347,7 +365,8 @@ lemma installBOn_score [DecidableEq K]
   · simp [trackedFailureScore, currentKEMFailure, currentFailurePotential,
       installBOn, ht, hdk, hct0, hbad, Function.update]
 
-/-- Sending only a fresh offline sample has the same score as installing that sample. -/
+/-- The tracked failure score after `sendBOffState` equals the failure
+potential after `installBOff`. -/
 lemma sendBOffState_score [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -362,8 +381,8 @@ lemma sendBOffState_score [DecidableEq K]
   simp [trackedFailureScore, currentKEMFailure, currentFailurePotential,
     sendBOffState, sendBNoneState, installBOff, hct1]
 
-/-- Sending an online sample scores one exactly when its sampled key disagrees
-with decapsulation. -/
+/-- The tracked failure score after `sendBOnState` equals the indicator that
+decapsulation disagrees with the sampled key. -/
 lemma sendBOnState_score [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -382,7 +401,8 @@ lemma sendBOnState_score [DecidableEq K]
   · simp [trackedFailureScore, currentKEMFailure, currentFailurePotential,
       sendBOnState, sendBKeyState, ht, hdk, hct0, hbad, Function.update]
 
-/-- Sending fresh offline and online samples scores their decapsulation disagreement. -/
+/-- The tracked failure score after `sendBOffOnState` equals the indicator that
+decapsulation disagrees with the sampled key. -/
 lemma sendBOffOnState_score [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)

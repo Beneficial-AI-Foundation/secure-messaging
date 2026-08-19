@@ -10,10 +10,30 @@ import ToVCVio.OracleComp.ExpectedPayoff
 /-!
 # Opp-UniKEM-CKA One-Step Score Bounds
 
-We define the tracked one-query implementation and its invariant.  We prove
-oracle-specific score bounds and combine them into `tracked_score_step_le`.
-We also formulate the abstract `SendB` failure and non-`SendB` preservation
-premises and prove the bridge to the tracked one-step bad event.
+This module analyzes one oracle query in the Opp-UniKEM-CKA correctness game.
+
+The tracked game extends an ordinary state `s` with a failure flag `b` that
+remains set once a KEM inconsistency occurs. Its invariant is
+
+```text
+trackedInv (s, b) :=
+  b = true ∨ (reachableInv s ∧ currentKEMFailure s = false).
+```
+
+Here `reachableInv s` means that `s` is consistent with an epoch-indexed
+protocol transcript.
+
+Let `ε := factorCorrectnessError kem onoff`, the correctness error of the
+staged key-generation, offline-encapsulation, and online-encapsulation
+experiment for the KEM scheme.
+
+By `factorCorrectnessError_eq` (`KEM.OnOffKEM.CorrectnessError`), `ε` equals
+the standard KEM correctness error.
+
+The main result, `tracked_score_step_le`, applies to every tracked state
+satisfying `trackedInv`. It bounds the increase in expected tracked failure
+score by `ε` for `SendA` and `SendB` queries, and by zero for every other query.
+
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
@@ -27,7 +47,8 @@ open SCKAScheme.sckaCorrectnessSpec
 
 namespace Reduction.Internal
 
-/-- Run one correctness oracle step while updating the sticky KEM-failure bit. -/
+/-- Run one correctness oracle step and update the failure flag, which remains
+set once a KEM inconsistency occurs. -/
 def trackedCorrectnessImpl [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -91,8 +112,8 @@ def NonSendBPreservesCurrent [DecidableEq K]
 
 namespace Reduction.Internal
 
-/-- Relate the tracked bad-event probability for one query from a clear sticky
-bit to the ordinary game's `currentKEMFailure` probability. -/
+/-- Starting with an unset failure flag, its probability of being set after
+one query equals the ordinary game's `currentKEMFailure` probability. -/
 lemma tracked_step_bad_probability [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -123,8 +144,8 @@ lemma tracked_step_bad_probability [DecidableEq K]
   rw [probEvent_map]
   congr 1
 
-/-- Once the sticky failure bit is set, one tracked step has expected score at
-most the current score plus any nonnegative allowance. -/
+/-- Once the failure flag is set, one tracked step has expected failure score
+at most the current score plus any nonnegative allowance. -/
 lemma tracked_step_score_le_of_bad [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -162,7 +183,7 @@ instance : DecidablePred (IsSendQuery (Sym := Sym)) :=
   fun t => inferInstanceAs (Decidable (isSendQuery t = true))
 
 /-- From a reachable state without a current KEM failure, `SendA` increases
-the expected tracked score by at most the factor correctness error. -/
+the expected tracked failure score by at most the staged correctness error. -/
 lemma tracked_sendA_score_le [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -242,7 +263,7 @@ lemma tracked_sendA_score_le [DecidableEq K]
       simp [trackedFailureScore, hfail', hpot]
 
 /-- From a reachable state without a current KEM failure, `SendB` increases
-the expected tracked score by at most the factor correctness error. -/
+the expected tracked failure score by at most the staged correctness error. -/
 lemma tracked_sendB_score_le [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -508,8 +529,8 @@ lemma tracked_sendB_score_le [DecidableEq K]
                   rw [hrun, expectedPayoff_pure]
                   simp [trackedFailureScore, hfail', hpot]
 
-/-- Every non-send transition preserves the tracked score at each state in the
-support of the tracked oracle computation. -/
+/-- Every non-send transition preserves the tracked failure score at each
+state in the support of the tracked oracle computation. -/
 lemma tracked_nonSend_score_support_eq [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -518,7 +539,7 @@ lemma tracked_nonSend_score_support_eq [DecidableEq K]
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
     (leak : KEMScheme.OnOffRandLeak kem onoff)
     (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
-    (ht : ¬IsSendQuery t)
+    (hNonSend : ¬IsSendQuery t)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv kem onoff ecEk ecCt0 ecCt1 s)
     (hfail : currentKEMFailure kem onoff hDet s = false)
@@ -548,9 +569,9 @@ lemma tracked_nonSend_score_support_eq [DecidableEq K]
         simpa [SCKAScheme.oracleUnif] using hy'
       simp [trackedFailureScore, hfail]
   | OSendA =>
-      exact False.elim (ht (by simp [IsSendQuery, isSendQuery]))
+      exact False.elim (hNonSend (by simp [IsSendQuery, isSendQuery]))
   | OSendB =>
-      exact False.elim (ht (by simp [IsSendQuery, isSendQuery]))
+      exact False.elim (hNonSend (by simp [IsSendQuery, isSendQuery]))
   | ORecvA n =>
       have hpot := oracleRecvA_preserves_failurePotential kem onoff hDet ecEk
         ecCt0 ecCt1 leak n s hs y hy
@@ -564,8 +585,8 @@ lemma tracked_nonSend_score_support_eq [DecidableEq K]
         ecCt0 ecCt1 leak n s hs hfail y hy
       simp [trackedFailureScore, hfail', hpot]
 
-/-- Every non-send transition has expected tracked score at most its initial
-score from a reachable state without a current KEM failure. -/
+/-- From a reachable state without a current KEM failure, every non-send
+transition has expected tracked failure score at most its initial score. -/
 lemma tracked_nonSend_score_le [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -574,7 +595,7 @@ lemma tracked_nonSend_score_le [DecidableEq K]
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
     (leak : KEMScheme.OnOffRandLeak kem onoff)
     (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
-    (ht : ¬IsSendQuery t)
+    (hNonSend : ¬IsSendQuery t)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv kem onoff ecEk ecCt0 ecCt1 s)
     (hfail : currentKEMFailure kem onoff hDet s = false) :
@@ -589,9 +610,9 @@ lemma tracked_nonSend_score_le [DecidableEq K]
   apply expectedPayoff_le_const_of_support _ _ _ hnf
   intro z hz
   exact le_of_eq (tracked_nonSend_score_support_eq kem onoff hDet ecEk ecCt0 ecCt1
-    leak t ht s hs hfail z hz)
+    leak t hNonSend s hs hfail z hz)
 
-/-- Combine the oracle-specific one-step bounds into a uniform score increase
+/-- Combine the oracle-specific bounds into a one-step tracked failure-score
 bound that charges exactly the send queries. -/
 lemma tracked_score_step_le [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)

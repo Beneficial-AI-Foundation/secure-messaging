@@ -10,8 +10,9 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
 # RecvB Preserves the Reachability Invariant
 
 `oracleRecvB_preserves_reachableInv`: B's receive oracle preserves
-`reachableInv` for every recorded A-to-B message.  Cases, by the delivered
-message's epoch:
+`reachableInv`: after any receive query, the correctness-game state remains
+consistent with an epoch-indexed transcript. For a recorded A-to-B message,
+the cases are determined by its epoch:
 
 * stale — only B's receive index moves;
 * current — insert an honest public-key chunk, propagate the
@@ -70,8 +71,8 @@ section RecvB
 
 variable [DecidableEq Sym]
 
-/-- Insert an optional public-key chunk into B's current buffer and decode it
-when B has not already recovered the public key. -/
+/-- If B's public-key field is `none`, insert an optional public-key chunk into
+the current buffer and apply the decoder. -/
 private def recvBEkStep
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (stB : StB onoff Sym)
@@ -216,8 +217,8 @@ private lemma chunksB_recvBEkStep
                 exact ⟨rfl, insert (counterIndex ecEk i) I, hstepLch, heq⟩
 
 omit [DecidableEq Sym] in
-/-- A public key decoded from an honest B-side chunk buffer belongs to the
-current epoch transcript. -/
+/-- If an honest B-side chunk buffer decodes to `pk`, then the current epoch
+transcript contains `(pk, sk)` for some `sk`. -/
 private lemma ChunksBConsistent.decodedEk
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)

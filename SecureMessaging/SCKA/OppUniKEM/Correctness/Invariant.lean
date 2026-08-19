@@ -18,9 +18,9 @@ Each epoch of the correctness game for `Π` runs one KEM instance:
 - Party B samples `(st, ct₀) ← onoff.encapsOff`;
 - once it has decoded `pk`, party B samples `(ct₁, k) ← onoff.encapsOn st pk`.
 
-We define:
-* `EpochTranscript` — the samples an epoch has drawn, each with a proof of
-  membership in the support of its sampler.
+The module introduces:
+* `EpochTranscript` — the samples an epoch has drawn, each with a proof that
+  it is an output the corresponding sampler can produce.
 * `Transcript := ℕ → EpochTranscript` — an execution transcript: the
   `EpochTranscript` of each epoch.
 * `TranscriptConsistent T s` — the game state `s` is consistent with the
@@ -30,8 +30,8 @@ We define:
 * `CurrentKEMCorrect s` — A's current KEM material and B's recorded key
   decapsulate consistently.
 
-This file proves the invariant holds initially and is preserved by the uniform oracle.
-The four protocol specific oracles are handled in `Invariant.SendA`, `Invariant.SendB`,
+The invariant holds initially and is preserved by the uniform oracle. The four
+protocol-specific oracles are handled in `Invariant.SendA`, `Invariant.SendB`,
 `Invariant.RecvA`, and `Invariant.RecvB`.
 
 

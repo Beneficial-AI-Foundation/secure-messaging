@@ -29,15 +29,16 @@ If the adversary `Adv` makes at most `q` send queries (`SendQueryBound Adv q`), 
 * `correctness_failure_le_reduction`: `Pr[G(Adv) = false] ≤ q · ε`;
 * `correctness_true_ge_reduction`: `Pr[G(Adv) = true] ≥ 1 - q · ε`.
 
-The proof is split in modules as follows.
+The proof has four parts.
 
 ## Tracked game and tracked states invariant (`Reduction.Core`, `Reduction.Projection`)
 
-We define a *tracked game* whose states are pairs `(s, b)`, where:
+The tracked execution augments each ordinary game state with a failure flag.
+Its states are pairs `(s, b)`, where:
 - `s` is a correctness-game state, and
 - `b` is a Boolean flag recording whether a KEM failure has occurred so far.
 
-We also define:
+The tracked execution uses:
 
 * `bad s := currentKEMFailure kem onoff hDet s` — a Boolean predicate on
   correctness-game states. It is `true` iff both protocol parties are in the
@@ -53,9 +54,10 @@ We also define:
   decaps sk (join (ct₀, ct₁)) ≠ some k
   ```
 
-* `Ô := trackedCorrectnessImpl` — the tracked game's oracle
-  implementation. It answers any query as in the original game and updates
-  the failure flag `b` according to the bad predicate of the next state:
+* `Ô := trackedCorrectnessImpl` — the tracked query handler (`QueryImpl`):
+  given an oracle query and a tracked state, it runs the corresponding
+  ordinary-game query and updates the failure flag `b` according to the bad
+  predicate of the resulting state:
 
   ```text
   Run o s := ((SCKAScheme.sckaCorrectnessImpl Π) o).run s
@@ -66,7 +68,7 @@ We also define:
   ```
 
 * `J := trackedInv` — the invariant of tracked states: either the flag
-  `b` is set, or `s` is reachable and no bad event happens:
+  `b` is set, or `s` is reachable and its current KEM material is consistent:
 
   ```text
   J (s, b) := b = true ∨ (reachableInv s ∧ bad s = false)
@@ -85,10 +87,10 @@ OnOffKEM experiment:
 * `χ(pk, sk, st, ct₀)` — the correctness error after fixing both first-stage
   samples, averaged over the remaining online sample.
 
-Using these in the context of Opp-UniKEM-CKA, we define:
+For an ordinary game state `s` and a failure flag `b`, we define:
 
-* `V s` to be the probability that the epoch in progress at the game state `s`
-  completes inconsistently, i.e:
+* `V(s) := currentFailurePotential kem onoff s`, the conditional probability
+  that the epoch in progress completes inconsistently:
 
 ```text
 V s := 0                     when no sample drawn, or epoch completed
@@ -98,9 +100,8 @@ V s := 0                     when no sample drawn, or epoch completed
 
 ```
 
-* `S (s, b)` — the failure-risk payoff tracked by the proof:
-  an already-recorded failure (`b = true`) has risk payoff `1`;
-  otherwise the payoff is the conditional failure probability `V s` of the epoch in progress.
+* `S(s, b) := trackedFailureScore kem onoff (s, b)`, equal to `1` when
+  `b = true` and to `V(s)` otherwise.
 
 ```text
 S (s, b) := if b then 1 else V s
@@ -108,9 +109,9 @@ S (s, b) := if b then 1 else V s
 
 ## One step (`Reduction.Send`, `Reduction.Receive`, `Reduction.OneStep`)
 
-We prove that each oracle query:
+Each oracle query:
 - preserves the tracked states invariant J(s, b), and
-- increases the expected payoff of `S` by at most `ε`.
+- increases the expected tracked failure score by at most `ε`.
 
 More precisely, for every oracle `o` and every tracked state `(s, b)` satisfying `J (s, b)`,
 we have:
@@ -118,12 +119,13 @@ we have:
 ```text
 (r, (s', b')) ∈ supp (Ô o (s, b)) → J (s', b').             -- the invariant is preserved
 E_{Ô o (s, b)}[S] ≤ S (s, b) + ε      if o ∈ {SendA, SendB} -- expected payoff increase is bounded
-E_{Ô o (s, b)}[S] ≤ S (s, b)          otherwise.            -- expected risk payoff is same.
+E_{Ô o (s, b)}[S] ≤ S (s, b)          otherwise.            -- expected score does not increase
 ```
 
 ## Composition
 In `Reduction.Composition`, we aggregate the one-query facts over an adaptive
-adversary by induction over its oracle-computation tree.
+adversary, whose later queries may depend on earlier responses, by induction
+over its oracle-computation tree.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
@@ -141,11 +143,14 @@ section Reduction
 
 variable [DecidableEq Sym]
 
-/-- Perfect correctness of Opp-UniKEM-CKA in the full SCKA correctness game.
+/-- Assume:
 
-The adversary may delay, reorder, duplicate, and replay honest protocol
-messages.  Perfect KEM correctness makes the tracked one-step error zero, so
-the tracked score remains zero for an arbitrary adaptive adversary. -/
+* `kem` has deterministic decapsulation and is perfectly correct;
+* `onoff` splits encapsulation into an offline and an online part;
+* `ecEk`, `ecCt0`, and `ecCt1` are correct erasure codes with positive
+  reconstruction thresholds.
+
+Then the Opp-UniKEM-CKA correctness game succeeds with probability one. -/
 theorem correctness_of_perfectKEM [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -171,12 +176,8 @@ theorem correctness_of_perfectKEM [DecidableEq K]
     trackedCorrectnessImpl_preserves kem onoff hDet ecEk hEkCorrect hEkPos
       ecCt0 hCt0Correct hCt0Pos ecCt1 hCt1Correct hCt1Pos leak
   have hinit : Inv (s₀, false) := by
-    right
-    refine ⟨?_, ?_⟩
-    · simpa [s₀, initialGame, initialA, initialB] using
-        reachableInv_init kem onoff ecEk ecCt0 ecCt1 hEkPos hCt0Pos
-    · simp [currentKEMFailure, s₀, initialGame, initialA, initialB,
-        SCKAScheme.initGameState]
+    simpa [Inv, s₀] using
+      tracked_initial_inv kem onoff hDet ecEk ecCt0 ecCt1 hEkPos hCt0Pos
   have hscore₀ : score (s₀, false) = 0 := by
     simp [score, trackedFailureScore, currentFailurePotential, s₀, initialGame,
       initialA, initialB, SCKAScheme.initGameState, optionPair]
@@ -196,42 +197,25 @@ theorem correctness_of_perfectKEM [DecidableEq K]
       tracked Inv score hpres hstep adv (s₀, false) hinit
     rw [hscore₀] at h
     exact h
-  have hmono :
-      Pr[fun z => z.2.1.correct = false |
-          (simulateQ tracked adv).run (s₀, false)] ≤
-        Pr[fun z => z.2.2 = true |
-          (simulateQ tracked adv).run (s₀, false)] := by
-    refine probEvent_mono ?_
-    intro z hz hincorrect
-    have hzInv : Inv z.2 :=
-      OracleComp.simulateQ_run_preservesInv tracked Inv hpres adv
-        (s₀, false) hinit z hz
-    rcases hzInv with hbad | ⟨hreach, _hcurrent⟩
-    · exact hbad
-    · rcases hreach with ⟨_T, hConsistent⟩
-      simp [hConsistent.correct] at hincorrect
-  have hfalse_le :
-      Pr[= false |
-        SCKAScheme.correctnessExp
-          (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] ≤ 0 := by
+  have hbad :
+      Pr[ fun z => z.2.2 = true |
+          (simulateQ
+            (trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak) adv).run
+              (initialGame (Sym := Sym) kem onoff, false)] ≤ 0 := by
     calc
-      Pr[= false |
-          SCKAScheme.correctnessExp
-            (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] =
-          Pr[fun z => z.2.1.correct = false |
-            (simulateQ tracked adv).run (s₀, false)] := by
-        rw [correctnessExp_eq_final_map]
-        rw [← probEvent_eq_eq_probOutput, probEvent_map]
-        have hproject := tracked_run_project kem onoff hDet ecEk ecCt0 ecCt1
-          leak adv (s₀, false)
-        rw [← hproject, probEvent_map]
-        congr 1
-      _ ≤ Pr[fun z => z.2.2 = true |
-            (simulateQ tracked adv).run (s₀, false)] := hmono
-      _ ≤ expectedPayoff ((simulateQ tracked adv).run (s₀, false))
+      Pr[ fun z => z.2.2 = true |
+          (simulateQ tracked adv).run (s₀, false)] ≤
+          expectedPayoff ((simulateQ tracked adv).run (s₀, false))
             (fun z => score z.2) :=
         tracked_bad_probability_le_score kem onoff _
       _ ≤ 0 := hscore
+  have hfalse_le :
+      Pr[= false |
+        SCKAScheme.correctnessExp
+          (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] ≤ 0 :=
+    correctness_failure_le_of_tracked_bad kem onoff hDet
+      ecEk hEkCorrect hEkPos ecCt0 hCt0Correct hCt0Pos
+      ecCt1 hCt1Correct hCt1Pos leak adv 0 hbad
   have hfalse :
       Pr[= false |
         SCKAScheme.correctnessExp
@@ -240,11 +224,16 @@ theorem correctness_of_perfectKEM [DecidableEq K]
   rw [probOutput_false_eq_sub, probFailure_eq_zero, tsub_zero] at hfalse
   exact le_antisymm probOutput_le_one ((tsub_eq_zero_iff_le).mp hfalse)
 
-/-- Reduction of Opp-UniKEM-CKA correctness to KEM correctness: an adversary
-making at most `q` send queries makes the correctness experiment fail with
-probability at most `q * kem.correctnessError`.  Both send oracles count
-toward `q`, since either party may draw the first sample of a fresh epoch;
-receive queries are not counted. -/
+/-- Assume:
+
+* `kem` has deterministic decapsulation;
+* `onoff` splits encapsulation into an offline and an online part;
+* `ecEk`, `ecCt0`, and `ecCt1` are correct erasure codes with positive
+  reconstruction thresholds;
+* `adv` makes at most `q` `SendA` and `SendB` queries combined.
+
+Then the Opp-UniKEM-CKA correctness game fails with probability at most
+`q · kem.correctnessError`. -/
 theorem correctness_failure_le_reduction [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -271,12 +260,8 @@ theorem correctness_failure_le_reduction [DecidableEq K]
     trackedCorrectnessImpl_preserves kem onoff hDet ecEk hEkCorrect hEkPos
       ecCt0 hCt0Correct hCt0Pos ecCt1 hCt1Correct hCt1Pos leak
   have hinit : Inv (s₀, false) := by
-    right
-    refine ⟨?_, ?_⟩
-    · simpa [s₀, initialGame, initialA, initialB] using
-        reachableInv_init kem onoff ecEk ecCt0 ecCt1 hEkPos hCt0Pos
-    · simp [currentKEMFailure, s₀, initialGame, initialA, initialB,
-        SCKAScheme.initGameState]
+    simpa [Inv, s₀] using
+      tracked_initial_inv kem onoff hDet ecEk ecCt0 ecCt1 hEkPos hCt0Pos
   have hscore₀ : score (s₀, false) = 0 := by
     simp [score, trackedFailureScore, currentFailurePotential, s₀, initialGame,
       initialA, initialB, SCKAScheme.initGameState, optionPair]
@@ -295,42 +280,27 @@ theorem correctness_failure_le_reduction [DecidableEq K]
       simpa [score] using hscore₀
     rw [hscore₀', zero_add] at h
     simpa [tracked, score] using h
-  have hmono :
-      Pr[fun z => z.2.1.correct = false |
+  have hbad :
+      Pr[ fun z => z.2.2 = true |
+          (simulateQ
+            (trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak) adv).run
+              (initialGame (Sym := Sym) kem onoff, false)] ≤
+        (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp := by
+    calc
+      Pr[ fun z => z.2.2 = true |
           (simulateQ tracked adv).run (s₀, false)] ≤
-        Pr[fun z => z.2.2 = true |
-          (simulateQ tracked adv).run (s₀, false)] := by
-    refine probEvent_mono ?_
-    intro z hz hincorrect
-    have hzInv : Inv z.2 :=
-      OracleComp.simulateQ_run_preservesInv tracked Inv hpres adv
-        (s₀, false) hinit z hz
-    rcases hzInv with hbad | ⟨hreach, _hcurrent⟩
-    · exact hbad
-    · rcases hreach with ⟨_T, hConsistent⟩
-      simp [hConsistent.correct] at hincorrect
-  calc
-    Pr[= false |
-        SCKAScheme.correctnessExp
-          (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] =
-        Pr[fun z => z.2.1.correct = false |
-          (simulateQ tracked adv).run (s₀, false)] := by
-      rw [correctnessExp_eq_final_map]
-      rw [← probEvent_eq_eq_probOutput, probEvent_map]
-      have hproject := tracked_run_project kem onoff hDet ecEk ecCt0 ecCt1
-        leak adv (s₀, false)
-      rw [← hproject, probEvent_map]
-      congr 1
-    _ ≤ Pr[fun z => z.2.2 = true |
-          (simulateQ tracked adv).run (s₀, false)] := hmono
-    _ ≤ expectedPayoff ((simulateQ tracked adv).run (s₀, false))
-          (fun z => score z.2) :=
-      tracked_bad_probability_le_score kem onoff _
-    _ ≤ (q : ℝ≥0∞) * epsilon := hscore
-    _ = (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp := by
-      simp only [epsilon, factorCorrectnessError_eq]
+          expectedPayoff ((simulateQ tracked adv).run (s₀, false))
+            (fun z => score z.2) :=
+        tracked_bad_probability_le_score kem onoff _
+      _ ≤ (q : ℝ≥0∞) * epsilon := hscore
+      _ = (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp := by
+        simp only [epsilon, factorCorrectnessError_eq]
+  exact correctness_failure_le_of_tracked_bad kem onoff hDet
+    ecEk hEkCorrect hEkPos ecCt0 hCt0Correct hCt0Pos
+    ecCt1 hCt1Correct hCt1Pos leak adv
+    ((q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp) hbad
 
-/-- `Pr[G(Adv) = true] ≥ 1 - q * kem.correctnessError` for at most `q` send
+/-- Corollary: `Pr[G(Adv) = true] ≥ 1 - q * kem.correctnessError` for at most `q` send
 queries. -/
 theorem correctness_true_ge_reduction [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)

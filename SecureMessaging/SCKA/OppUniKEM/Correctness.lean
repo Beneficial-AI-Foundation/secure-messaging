@@ -22,8 +22,8 @@ Let:
   ciphertext components;
 * `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak`;
 * `G(Adv) := SCKAScheme.correctnessExp Π Adv` — the adversary `Adv`
-  adaptively schedules the oracles `SendA`, `SendB`, `RecvA`, `RecvB`, and
-  `Unif`; a receive oracle may deliver any previously generated honest
+  adaptively selects oracle queries, the game operations `SendA`, `SendB`,
+  `RecvA`, `RecvB`, and `Unif`; a receive oracle may deliver any previously generated honest
   message (delay, reordering, duplication, replay); the game returns the
   conjunction of all protocol correctness assertions;
 * `ε := kem.correctnessError`.
@@ -55,11 +55,16 @@ namespace oppUniKemCKA
 
 variable {K PK SK C Sym : Type}
 
-/-- Quantitative correctness:
-`Pr[G(Adv) = false] ≤ q · kem.correctnessError` for adversaries making at
-most `q` send queries.  Both send oracles count toward `q`; receive queries
-are not counted. -/
--- ANCHOR: correctnessFailureLeKEM
+/-- Assume:
+
+* `kem` has deterministic decapsulation;
+* `onoff` splits encapsulation into an offline and an online part;
+* `ecEk`, `ecCt0`, and `ecCt1` are correct erasure codes with positive
+  reconstruction thresholds;
+* `adv` makes at most `q` `SendA` and `SendB` queries combined.
+
+Then the Opp-UniKEM-CKA correctness game fails with probability at most
+`q · kem.correctnessError`. -/
 theorem correctness_failure_le [DecidableEq K] [DecidableEq Sym]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -76,14 +81,21 @@ theorem correctness_failure_le [DecidableEq K] [DecidableEq Sym]
       SCKAScheme.correctnessExp
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] ≤
       (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp
--- ANCHOR_END: correctnessFailureLeKEM
     := by
   exact correctness_failure_le_reduction kem onoff hDet
     ecEk hEkCorrect hEkPos ecCt0 hCt0Correct hCt0Pos
     ecCt1 hCt1Correct hCt1Pos leak adv q hq
 
-/-- `Pr[G(Adv) = true] ≥ 1 - q · kem.correctnessError` for at most `q` send
-queries. -/
+/-- Assume:
+
+* `kem` has deterministic decapsulation;
+* `onoff` splits encapsulation into an offline and an online part;
+* `ecEk`, `ecCt0`, and `ecCt1` are correct erasure codes with positive
+  reconstruction thresholds;
+* `adv` makes at most `q` `SendA` and `SendB` queries combined.
+
+Then the Opp-UniKEM-CKA correctness game succeeds with probability at least
+`1 - q · kem.correctnessError`. -/
 -- ANCHOR: correctnessTrueGe
 theorem correctness_true_ge [DecidableEq K] [DecidableEq Sym]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
@@ -107,9 +119,15 @@ theorem correctness_true_ge [DecidableEq K] [DecidableEq Sym]
     ecEk hEkCorrect hEkPos ecCt0 hCt0Correct hCt0Pos
     ecCt1 hCt1Correct hCt1Pos leak adv q hq
 
-/-- Perfect correctness of Opp-UniKEM-CKA: given a perfectly correct KEM and
-correct erasure codes, the unrestricted SCKA correctness game succeeds with
-probability one, `Pr[G(Adv) = true] = 1`. -/
+/-- Assume:
+
+* `kem` has deterministic decapsulation and is perfectly correct;
+* `onoff` splits encapsulation into an offline and an online part;
+* `ecEk`, `ecCt0`, and `ecCt1` are correct erasure codes with positive
+  reconstruction thresholds.
+
+Then the Opp-UniKEM-CKA correctness game succeeds with probability one for
+every adversary, without a query bound. -/
 -- ANCHOR: correctness
 theorem correctness [DecidableEq K] [DecidableEq Sym]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)

@@ -9,17 +9,13 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Send
 /-!
 # Opp-UniKEM-CKA Receive Transitions
 
-Receive-side facts of the reduction:
+This module establishes how receive queries affect the KEM material stored in
+the game state and the conditional failure probability `V`:
 
-* source-shape witnesses — a receive either preserves the local KEM
-  material or advances an epoch and erases it;
+* source-shape lemmas — a receive either preserves the local KEM material or
+  advances an epoch and erases it;
 * preservation lemmas — a receive changes neither the potential `V` nor
   the absence of a realized current failure.
-
-The receive index is arbitrary — no premise requires send order, single
-delivery, or current-epoch selection — so the lemmas cover reordering and
-replay.  `reachableInv` supplies the honest-message and epoch bounds needed
-when a receive advances the receiving party.
 -/
 
 open ENNReal KEMScheme
@@ -101,8 +97,8 @@ lemma recvB_kem_source_shape
       beq_iff_eq, Std.le_refl, forall_const, and_self]
     all_goals (rcases hrecv with ⟨_, _, hstate⟩; subst stB'; simp_all)
 
-/-- Receiving any A-to-B message-table entry preserves the residual KEM failure
-potential, including for out-of-order delivery and replay. -/
+/-- For every A-to-B message-table index `n`, `oracleRecvB` preserves the
+residual KEM failure potential. -/
 lemma oracleRecvB_preserves_failurePotential [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -158,8 +154,8 @@ lemma oracleRecvB_preserves_failurePotential [DecidableEq K]
           exact currentFailurePotential_recvB_advance kem onoff _ _ hepoch
             rfl rfl rfl hadv.1 hadv.2.1 hadv.2.2.1 hadv.2.2.2.1
 
-/-- Receiving any B-to-A message-table entry preserves the residual KEM failure
-potential, independently of delivery order or prior receives. -/
+/-- For every B-to-A message-table index `n`, `oracleRecvA` preserves the
+residual KEM failure potential. -/
 lemma oracleRecvA_preserves_failurePotential [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -244,8 +240,8 @@ lemma oracleRecvA_preserves_failurePotential [DecidableEq K]
             (congrArg (fun x => x.ct0) hzB)
             (congrArg (fun x => x.ct1) hzB)
 
-/-- Receiving any A-to-B message preserves a false current-failure flag for a
-reachable state, even when the chosen table entry is stale or replayed. -/
+/-- For every A-to-B message-table index `n`, `oracleRecvB` preserves
+`currentKEMFailure = false` from a reachable state. -/
 lemma oracleRecvB_preserves_currentFailure [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -302,8 +298,8 @@ lemma oracleRecvB_preserves_currentFailure [DecidableEq K]
           exact currentKEMFailure_recvB_advance_false kem onoff hDet _ _ hepoch
             rfl hadv.1 hadv.2.2.1
 
-/-- Receiving any B-to-A message preserves a false current-failure flag for a
-reachable state, including under arbitrary ordering and replay. -/
+/-- For every B-to-A message-table index `n`, `oracleRecvA` preserves
+`currentKEMFailure = false` from a reachable state. -/
 lemma oracleRecvA_preserves_currentFailure [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
