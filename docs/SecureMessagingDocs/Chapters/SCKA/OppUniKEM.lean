@@ -450,6 +450,29 @@ def recvB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 :::::
 ::::::
 
+The algorithms package into an `SCKAScheme` instance:
+
+```anchor scheme (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
+def scheme (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
+  [DecidableEq Sym]
+    (hDet : kem.DeterministicDecaps)
+    (ecEk : ErasureCodePayload PK Sym)
+    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
+    (leak : KEMScheme.OnOffRandLeak kem onoff) :
+    SCKAScheme m Unit (StA onoff Sym) (StB onoff Sym) K (Message Sym)
+      (SendRand leak.KeygenRand leak.OffRand leak.OnRand) where
+  initKeyGen := initKeyGen
+  initA := initA kem onoff
+  initB := initB kem onoff
+  sendA := sendA kem onoff ecEk
+  sendArleak := sendArleak kem onoff ecEk leak
+  recvA := recvA kem onoff hDet ecCt0 ecCt1
+  sendB := sendB kem onoff ecCt0 ecCt1
+  sendBrleak := sendBrleak kem onoff ecCt0 ecCt1 leak
+  recvB := recvB kem onoff ecEk
+```
+
 {usesLabel}`uses` {uses "scka_scheme"}[] · {uses "erasure_code_scheme"}[] · {uses "on_off_kem_scheme"}[] · {uses "on_off_kem_rand_leak"}[] · {githubLabel}`github` {githubIssue 106}[]
 :::::::
 
