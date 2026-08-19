@@ -10,29 +10,15 @@ import ToVCVio.OracleComp.ExpectedPayoff
 /-!
 # Opp-UniKEM-CKA One-Step Score Bounds
 
-This module analyzes one oracle query in the Opp-UniKEM-CKA correctness game.
-
-The tracked game extends an ordinary state `s` with a failure flag `b` that
-remains set once a KEM inconsistency occurs. Its invariant is
+Let `ε := factorCorrectnessError kem onoff`. For every tracked state satisfying
 
 ```text
 trackedInv (s, b) :=
   b = true ∨ (reachableInv s ∧ currentKEMFailure s = false).
 ```
 
-Here `reachableInv s` means that `s` is consistent with an epoch-indexed
-protocol transcript.
-
-Let `ε := factorCorrectnessError kem onoff`, the correctness error of the
-staged key-generation, offline-encapsulation, and online-encapsulation
-experiment for the KEM scheme.
-
-By `factorCorrectnessError_eq` (`KEM.OnOffKEM.CorrectnessError`), `ε` equals
-the standard KEM correctness error.
-
-The main result, `tracked_score_step_le`, applies to every tracked state
-satisfying `trackedInv`. It bounds the increase in expected tracked failure
-score by `ε` for `SendA` and `SendB` queries, and by zero for every other query.
+this module proves that one oracle query increases the expected tracked failure
+score by at most `ε` for `SendA` and `SendB`, and by zero for every other query.
 
 -/
 
