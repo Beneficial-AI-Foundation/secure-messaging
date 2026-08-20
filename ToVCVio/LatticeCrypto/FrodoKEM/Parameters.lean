@@ -10,19 +10,40 @@ import Mathlib.Data.Matrix.Basic
 /-!
 # FrodoKEM Parameters
 
-The cryptographic parameters of FrodoKEM, following Tables 1 and 2 of
-[FrodoKEM](https://frodokem.org/).
+The cryptographic parameters of FrodoKEM, following Tables 1 and 2 of the
+specification, published at [frodokem.org](https://frodokem.org/) and as
+[Glabush, Longa, Naehrig, Peikert, Stebila and Virdia,
+*FrodoKEM: A CCA-Secure Learning With Errors Key Encapsulation Mechanism*,
+Communications in Cryptology 2:3](https://cic.iacr.org/p/2/3/25).
 
-The development stays generic over the parameters while exposing the six named
-parameter sets. Only `n`, `D`, `B` and the variant are stored; every other
-published quantity is derived from them — the modulus `q = 2 ^ D`, the length
-`ℓ = B * mbar * nbar` shared by `μ`, `s`, `k`, `pkh` and `ss`, and the
-variant-dependent lengths `lenSeedSE` and `lenSalt` of Table 2.
+The published tables are recorded verbatim in `ParameterSet.params`, so that a
+reader can compare them against the specification row by row, and the relations
+between the entries are stated as theorems rather than built into the
+definitions. The quantities are:
+
+* `n`, the lattice dimension, which is also the size of the public matrix `A`;
+* `D`, the exponent of the modulus, and `q = 2 ^ D`, the modulus itself;
+* `B`, the number of bits encoded in each matrix entry by `Frodo.Encode`;
+* `ℓ = B * mbar * nbar`, the bit length shared by `μ`, `s`, `k`, `pkh`
+  and `ss`;
+* `lenSeedSE`, the bit length of the seeds used for error sampling, and
+  `lenSalt`, the bit length of the salt, which is zero for the ephemeral
+  variant.
+
+The constants `mbar = nbar = 8`, `lenSeedA = lenZ = 128` and `lenChi = 16` are
+shared by every parameter set; the remaining entries are:
+
+| parameter set   |  D |     q |    n | B |   ℓ | lenSeedSE | lenSalt |
+| --------------- | --:| -----:| ----:| -:| ---:| ---------:| -------:|
+| FrodoKEM-640    | 15 | 32768 |  640 | 2 | 128 |       256 |     256 |
+| FrodoKEM-976    | 16 | 65536 |  976 | 3 | 192 |       384 |     384 |
+| FrodoKEM-1344   | 16 | 65536 | 1344 | 4 | 256 |       512 |     512 |
+| eFrodoKEM-640   | 15 | 32768 |  640 | 2 | 128 |       128 |       0 |
+| eFrodoKEM-976   | 16 | 65536 |  976 | 3 | 192 |       192 |       0 |
+| eFrodoKEM-1344  | 16 | 65536 | 1344 | 4 | 256 |       256 |       0 |
 
 Lengths are published in bits but the corresponding types are byte vectors, so
 each length comes in both units and the docstrings name which is which.
-
-The tables themselves are checked in `ToVCVio.LatticeCrypto.FrodoKEM.Smoke`.
 -/
 
 namespace FrodoKEM
@@ -36,7 +57,7 @@ abbrev Bytes (n : ℕ) := Vector Byte n
 /-- Seeds used for pseudorandom matrix generation, of `lenSeedA` bits. -/
 abbrev SeedA := Bytes 16
 
-/-- The named FrodoKEM parameter sets (Table 1). -/
+/-- The named FrodoKEM parameter sets of Tables 1 and 2, salted and ephemeral. -/
 inductive ParameterSet where
   | FrodoKEM640
   | FrodoKEM976
@@ -71,60 +92,51 @@ def nbar : ℕ := 8
 /-- Integer matrix dimension; see `nbar`. -/
 def mbar : ℕ := 8
 
-/-- The quantities that vary between the FrodoKEM parameter sets (Table 1). -/
+/-- The quantities that vary between the FrodoKEM parameter sets, one field per
+column of Tables 1 and 2. The fields are independent data: the relations the
+specification asserts between them hold of the published rows and are stated as
+theorems in `ParameterSet`, not built into this record. -/
 structure Params where
+  /-- Exponent of the modulus, satisfying `D ≤ 16`. -/
+  D : ℕ
+  /-- The modulus, `q = 2 ^ D` by `ParameterSet.q_eq_two_pow`. -/
+  q : ℕ
   /-- Integer matrix dimension, satisfying `n ≡ 0 (mod 8)`. -/
   n : ℕ
-  /-- Exponent of the power-of-two modulus `q = 2 ^ D`, satisfying `D ≤ 16`. -/
-  D : ℕ
   /-- The number of bits encoded in each matrix entry, satisfying `B ≤ D`. -/
   B : ℕ
-  /-- The frodoKEM variants: salted, ephemeral -/
+  /-- The length of bit strings to be encoded in an mbar-by-nbar matrix -/
+  ellBits : ℕ
+  /-- The bit length of seeds used for pseudorandom bit generation for error
+  sampling -/
+  lenSeedSE : ℕ
+  /-- The bit length of salt -/
+  lenSalt : ℕ
+  /-- The FrodoKEM variant: salted or ephemeral. -/
   variant : Variant
 deriving Repr, DecidableEq
 
+/- `Repr.reprPrec` takes the precedence of the enclosing context so that a
+printer can parenthesize its output when needed. The derived printer for a
+structure emits `{ ... }`, which is brace-delimited and so never needs
+parentheses, and therefore cannot use that argument. -/
+attribute [nolint unusedArguments] instReprParams.repr
+
 namespace Params
 
-/-- Power of 2 modulus with D ≤ 16 -/
-def q (p : Params) : ℕ := 2 ^ (p.D)
-
-/-- The length of bit strings to be encoded in an mbar-by-nbar matrix -/
-def ellBits (p : Params) : ℕ := p.B * mbar * nbar
-
 /-- `ellBits` expressed in bytes. -/
-def ellBytes (p : Params) : ℕ := p.B * 8
+def ellBytes (p : Params) : ℕ := p.ellBits / 8
 
-/-- `ellBits` is eight times `ellBytes`. -/
-theorem ellBits_eq_eight_ellBytes (p : Params) :
-    p.ellBits = 8 * p.ellBytes := by
-      simp [ellBits, ellBytes, mbar, nbar]
-      omega
+/-- `lenSeedSE` expressed in bytes. -/
+def lenSeedSEBytes (p : Params) : ℕ := p.lenSeedSE / 8
 
-/-- The bit length of seeds used for pseudorandom bit generation for error
-sampling -/
-def lenSeedSE (p : Params) : ℕ := match p.variant with
-  | .FrodoKEM => 2 * p.ellBits
-  | .eFrodoKEM => p.ellBits
-
-/-- The bit length of salt -/
-def lenSalt (p : Params) : ℕ := match p.variant with
-  | .FrodoKEM => 2 * p.ellBits
-  | .eFrodoKEM => 0
-
-/-- The length of seeds expressed in bytes -/
-def lenSeedSEBytes (p : Params) : ℕ := match p.variant with
-  | .FrodoKEM => 2 * p.ellBytes
-  | .eFrodoKEM => p.ellBytes
-
-/-- The length of salt expressed in bytes -/
-def lenSaltBytes (p : Params) : ℕ := match p.variant with
-  | .FrodoKEM => 2 * p.ellBytes
-  | .eFrodoKEM => 0
+/-- `lenSalt` expressed in bytes. -/
+def lenSaltBytes (p : Params) : ℕ := p.lenSalt / 8
 
 /-- The conditions of Section 3 that a FrodoKEM parameter record must satisfy.
 They are recorded here rather than as fields of `Params` so that the record
-stays plain data, and are discharged for the named parameter sets in
-`ToVCVio.LatticeCrypto.FrodoKEM.Smoke`. -/
+stays plain data, and are discharged for the named parameter sets by
+`ParameterSet.params_wellFormed`. -/
 structure WellFormed (p : Params) : Prop where
   /-- The lattice dimension is a multiple of eight. -/
   n_mod_eight : p.n % 8 = 0
@@ -160,16 +172,78 @@ abbrev Salt (p : Params) := Bytes p.lenSaltBytes
 
 namespace ParameterSet
 
-/-- Table 1 cryptographic parameters for FrodoKEM-640, FrodoKEM-976, FrodoKEM-1344 and
-  the ephemeral versions. The rest of the parameters in Table 1 are not included because
-  they can be computed from n, D, B -/
+/-- The published rows of Tables 1 and 2, recorded verbatim so that they can be
+compared against the specification entry by entry. The relations between the
+entries are stated separately as theorems below. -/
 def params : ParameterSet → Params
-  | .FrodoKEM640 => {n := 640, D := 15, B := 2, variant := .FrodoKEM}
-  | .FrodoKEM976 => {n := 976, D := 16, B := 3, variant := .FrodoKEM}
-  | .FrodoKEM1344 => {n := 1344, D := 16, B := 4, variant := .FrodoKEM}
-  | .eFrodoKEM640 => {n := 640, D := 15, B := 2, variant := .eFrodoKEM}
-  | .eFrodoKEM976 => {n := 976, D := 16, B := 3, variant := .eFrodoKEM}
-  | .eFrodoKEM1344 => {n := 1344, D := 16, B := 4, variant := .eFrodoKEM}
+  | .FrodoKEM640 =>
+      {D := 15, q := 32768, n := 640, B := 2, ellBits := 128,
+       lenSeedSE := 256, lenSalt := 256, variant := .FrodoKEM}
+  | .FrodoKEM976 =>
+      {D := 16, q := 65536, n := 976, B := 3, ellBits := 192,
+       lenSeedSE := 384, lenSalt := 384, variant := .FrodoKEM}
+  | .FrodoKEM1344 =>
+      {D := 16, q := 65536, n := 1344, B := 4, ellBits := 256,
+       lenSeedSE := 512, lenSalt := 512, variant := .FrodoKEM}
+  | .eFrodoKEM640 =>
+      {D := 15, q := 32768, n := 640, B := 2, ellBits := 128,
+       lenSeedSE := 128, lenSalt := 0, variant := .eFrodoKEM}
+  | .eFrodoKEM976 =>
+      {D := 16, q := 65536, n := 976, B := 3, ellBits := 192,
+       lenSeedSE := 192, lenSalt := 0, variant := .eFrodoKEM}
+  | .eFrodoKEM1344 =>
+      {D := 16, q := 65536, n := 1344, B := 4, ellBits := 256,
+       lenSeedSE := 256, lenSalt := 0, variant := .eFrodoKEM}
+/-! ### The relations between the published entries
+
+Each theorem below states one relation that the specification asserts between
+the columns of Tables 1 and 2. They hold of the six published rows, not of an
+arbitrary `Params`, whose fields are independent. -/
+
+/-- The modulus is the published power of two, `q = 2 ^ D`. -/
+theorem q_eq_two_pow (p : ParameterSet) :
+    p.params.q = 2 ^ p.params.D := by
+  cases p <;> rfl
+
+/-- `ℓ = B * mbar * nbar`: a message fills an `mbar`-by-`nbar` matrix with `B`
+bits per entry. -/
+theorem ellBits_eq_mul (p : ParameterSet) :
+    p.params.ellBits = p.params.B * mbar * nbar := by
+  cases p <;> rfl
+
+/-- `lenSeedSE` is twice `ℓ` for the salted variant and `ℓ` for the ephemeral
+one (Table 2). -/
+theorem lenSeedSE_eq (p : ParameterSet) :
+    p.params.lenSeedSE = match p.params.variant with
+      | .FrodoKEM => 2 * p.params.ellBits
+      | .eFrodoKEM => p.params.ellBits := by
+  cases p <;> rfl
+
+/-- `lenSalt` is twice `ℓ` for the salted variant, and the ephemeral variant
+carries no salt (Table 2). -/
+theorem lenSalt_eq (p : ParameterSet) :
+    p.params.lenSalt = match p.params.variant with
+      | .FrodoKEM => 2 * p.params.ellBits
+      | .eFrodoKEM => 0 := by
+  cases p <;> rfl
+
+/-- Each published bit length is eight times its byte count, so the divisions
+defining `ellBytes`, `lenSeedSEBytes` and `lenSaltBytes` are exact. -/
+theorem ellBits_eq_eight_mul_ellBytes (p : ParameterSet) :
+    p.params.ellBits = 8 * p.params.ellBytes := by
+  cases p <;> rfl
+
+theorem lenSeedSE_eq_eight_mul_lenSeedSEBytes (p : ParameterSet) :
+    p.params.lenSeedSE = 8 * p.params.lenSeedSEBytes := by
+  cases p <;> rfl
+
+theorem lenSalt_eq_eight_mul_lenSaltBytes (p : ParameterSet) :
+    p.params.lenSalt = 8 * p.params.lenSaltBytes := by
+  cases p <;> rfl
+
+/-- Every named parameter set satisfies the conditions of Section 3. -/
+theorem params_wellFormed (p : ParameterSet) : p.params.WellFormed := by
+  cases p <;> constructor <;> decide
 
 end ParameterSet
 

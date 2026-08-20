@@ -2,7 +2,6 @@ import ToVCVio.Control.StateT
 import ToVCVio.CryptoFoundations.KeyEncapMech
 import ToVCVio.EvalDist.Monad.Basic
 import ToVCVio.LatticeCrypto.FrodoKEM.Parameters
-import ToVCVio.LatticeCrypto.FrodoKEM.Smoke
 import ToVCVio.LatticeCrypto.TransformOps
 import ToVCVio.OracleComp.Constructions.SampleableType
 import ToVCVio.OracleComp.EvalDist
