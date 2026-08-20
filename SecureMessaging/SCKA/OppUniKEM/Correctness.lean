@@ -16,11 +16,12 @@ online part, and each payload travels as erasure-coded chunks.
 
 Let:
 
-* `kem` be a KEM with deterministic decapsulation `hDet` and an on/off
+* `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` be the instantiated
+  Opp-UniKEM-CKA scheme;
+* `kem` be its KEM, with deterministic decapsulation `hDet` and an on/off
   factorization `onoff` of encapsulation;
 * `ecEk`, `ecCt0`, `ecCt1` be erasure codes for the public key and the two
   ciphertext components;
-* `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak`;
 * `G(Adv) := SCKAScheme.correctnessExp Π Adv` — the adversary `Adv`
   adaptively selects oracle queries, the game operations `SendA`, `SendB`,
   `RecvA`, `RecvB`, and `Unif`; a receive oracle may deliver any previously generated honest
@@ -117,7 +118,6 @@ theorem correctness_true_ge [DecidableEq K] [DecidableEq Sym]
 
 Then the Opp-UniKEM-CKA correctness game succeeds with probability one for
 every adversary, without a query bound. -/
--- ANCHOR: correctness
 theorem correctness [DecidableEq K] [DecidableEq Sym]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -132,7 +132,6 @@ theorem correctness [DecidableEq K] [DecidableEq Sym]
     Pr[= true |
       SCKAScheme.correctnessExp
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] = 1
--- ANCHOR_END: correctness
     := by
   exact correctness_of_perfectKEM kem onoff hDet ecEk ecCt0 ecCt1 leak hkem
     hEkCorrect hCt0Correct hCt1Correct adv

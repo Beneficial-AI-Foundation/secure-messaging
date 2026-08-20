@@ -292,7 +292,7 @@ private lemma reachableInv_after_recvA_advance
   · exact hInv.msgA
   · exact hInv.msgB
   · intro n ρ tsnd hn
-    change ρ.2.2.1 ≤ s.stA.t + 1
+    change Message.epoch ρ ≤ s.stA.t + 1
     exact (hInv.msgAEpoch n ρ tsnd hn).trans (Nat.le_succ _)
   · exact hInv.msgBEpoch
 

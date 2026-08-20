@@ -43,7 +43,7 @@ lemma recvA_kem_source_shape
       some (key?, trcv, stA')) :
     (stA'.t = stA.t ∧ stA'.ekA = stA.ekA ∧ stA'.dkA = stA.dkA) ∨
       (stA'.t = stA.t + 1 ∧ stA'.ekA = none ∧ stA'.dkA = none ∧
-        msg.2.2.1 = stA.t ∧ msg.2.2.2 = some 1 ∧ msg.1.isSome) := by
+        Message.epoch msg = stA.t ∧ msg.2.2.2 = some 1 ∧ msg.1.isSome) := by
   classical
   rcases msg with ⟨ch?, ack, t, b?⟩
   by_cases ht : stA.t = t
@@ -71,7 +71,7 @@ lemma recvB_kem_source_shape
     (stB'.t = stB.t ∧ stB'.stCt = stB.stCt ∧ stB'.ct0 = stB.ct0 ∧
         stB'.ct1 = stB.ct1) ∨
       (stB'.t = stB.t + 1 ∧ stB'.stCt = none ∧ stB'.ct0 = none ∧
-        stB'.ct1 = none ∧ stB.t < msg.2.2.1) := by
+        stB'.ct1 = none ∧ stB.t < Message.epoch msg) := by
   classical
   rcases msg with ⟨ch?, ack, t, b?⟩
   by_cases ht : stB.t < t

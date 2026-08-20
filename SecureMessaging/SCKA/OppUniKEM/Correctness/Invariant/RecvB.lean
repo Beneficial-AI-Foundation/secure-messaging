@@ -454,7 +454,7 @@ private lemma reachableInv_after_recvB_next
   · exact hInv.msgB
   · exact hInv.msgAEpoch
   · intro n ρ tsnd hn
-    change ρ.2.2.1 ≤ stB'.t
+    change Message.epoch ρ ≤ stB'.t
     rw [htB']
     exact (hInv.msgBEpoch n ρ tsnd hn).trans (by omega)
 
