@@ -114,9 +114,8 @@ structure Params where
   variant : Variant
 deriving Repr, DecidableEq
 
-/- The precedence argument of `Repr.reprPrec` lets a printer parenthesize its
-output. A derived structure printer emits `{ ... }`, which never needs
-parentheses, so it cannot use that argument. -/
+-- False positive: the precedence argument of `reprPrec` cannot be used by a
+-- derived structure printer, whose `{ ... }` output never needs parentheses.
 attribute [nolint unusedArguments] instReprParams.repr
 
 namespace Params
