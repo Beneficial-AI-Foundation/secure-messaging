@@ -16,16 +16,15 @@ specification, published at [frodokem.org](https://frodokem.org/) and as
 *FrodoKEM: A CCA-Secure Learning With Errors Key Encapsulation Mechanism*,
 Communications in Cryptology 2:3](https://cic.iacr.org/p/2/3/25).
 
-The published tables are recorded verbatim in `ParameterSet.params`, so that a
-reader can compare them against the specification row by row, and the relations
-between the entries are stated as theorems rather than built into the
-definitions. The quantities are:
+The published tables are recorded verbatim in `ParameterSet.params`. The relations
+between the entries are stated as theorems. The quantities are:
 
 * `n`, the lattice dimension, which is also the size of the public matrix `A`;
 * `D`, the exponent of the modulus, and `q = 2 ^ D`, the modulus itself;
 * `B`, the number of bits encoded in each matrix entry by `Frodo.Encode`;
-* `ℓ = B * mbar * nbar`, the bit length shared by `μ`, `s`, `k`, `pkh`
-  and `ss`;
+* `ℓ = B * mbar * nbar`, the bit length shared by the message `μ`, the shared
+  secret `ss`, the intermediate secret `k`, the public-key hash `pkh`, and the
+  vector `s` from which `ss` is derived when decapsulation fails;
 * `lenSeedSE`, the bit length of the seeds used for error sampling, and
   `lenSalt`, the bit length of the salt, which is zero for the ephemeral
   variant.
@@ -92,14 +91,13 @@ def nbar : ℕ := 8
 /-- Integer matrix dimension; see `nbar`. -/
 def mbar : ℕ := 8
 
-/-- The quantities that vary between the FrodoKEM parameter sets, one field per
-column of Tables 1 and 2. The fields are independent data: the relations the
-specification asserts between them hold of the published rows and are stated as
-theorems in `ParameterSet`, not built into this record. -/
+/-- One field per column of Tables 1 and 2. The fields are independent data;
+the relations between them are theorems about the six named parameter sets
+rather than part of this record. -/
 structure Params where
   /-- Exponent of the modulus, satisfying `D ≤ 16`. -/
   D : ℕ
-  /-- The modulus, `q = 2 ^ D` by `ParameterSet.q_eq_two_pow`. -/
+  /-- The modulus `q = 2 ^ D`. -/
   q : ℕ
   /-- Integer matrix dimension, satisfying `n ≡ 0 (mod 8)`. -/
   n : ℕ
@@ -116,10 +114,9 @@ structure Params where
   variant : Variant
 deriving Repr, DecidableEq
 
-/- `Repr.reprPrec` takes the precedence of the enclosing context so that a
-printer can parenthesize its output when needed. The derived printer for a
-structure emits `{ ... }`, which is brace-delimited and so never needs
-parentheses, and therefore cannot use that argument. -/
+/- The precedence argument of `Repr.reprPrec` lets a printer parenthesize its
+output. A derived structure printer emits `{ ... }`, which never needs
+parentheses, so it cannot use that argument. -/
 attribute [nolint unusedArguments] instReprParams.repr
 
 namespace Params
@@ -133,10 +130,7 @@ def lenSeedSEBytes (p : Params) : ℕ := p.lenSeedSE / 8
 /-- `lenSalt` expressed in bytes. -/
 def lenSaltBytes (p : Params) : ℕ := p.lenSalt / 8
 
-/-- The conditions of Section 3 that a FrodoKEM parameter record must satisfy.
-They are recorded here rather than as fields of `Params` so that the record
-stays plain data, and are discharged for the named parameter sets by
-`ParameterSet.params_wellFormed`. -/
+/-- The conditions of Section 3 that a parameter record must satisfy. -/
 structure WellFormed (p : Params) : Prop where
   /-- The lattice dimension is a multiple of eight. -/
   n_mod_eight : p.n % 8 = 0
@@ -147,19 +141,20 @@ structure WellFormed (p : Params) : Prop where
 
 end Params
 
-/-- Seeds used for pseudorandom bit generation for error sampling, of
-`lenSeedSE` bits, represented as `lenSeedSEBytes` bytes. -/
+/-- Seeds used for error sampling, of `lenSeedSE` bits, represented as
+`lenSeedSEBytes` bytes. -/
 abbrev SeedSE (p : Params) := Bytes p.lenSeedSEBytes
 
-/-- Matrices over `ZMod q`. FrodoKEM has no polynomial ring: all of its
-arithmetic happens in plain matrices over the integers mod `q`. -/
+/-- Matrices over `ZMod q`. FrodoKEM has no polynomial ring; all of its
+arithmetic is plain matrix arithmetic. -/
 abbrev FrodoMatrix (p : Params) (rows cols : ℕ) := Matrix (Fin rows) (Fin cols) (ZMod p.q)
 
 /-- The message space `M = {0,1}^lenMu` with `lenMu = ℓ`, represented as
 `ellBytes` bytes. -/
 abbrev Message (p : Params) := Bytes p.ellBytes
 
-/-- Shared secrets `ss`, of `lenSS = ℓ` bits, represented as `ellBytes` bytes. -/
+/-- Shared secrets `ss`, of `lenSS = ℓ` bits, represented as `ellBytes`
+bytes. -/
 abbrev SharedSecret (p : Params) := Bytes p.ellBytes
 
 /-- The hash `G₁(pk)` of the public key, of `lenPkh = ℓ` bits, represented as
@@ -172,9 +167,9 @@ abbrev Salt (p : Params) := Bytes p.lenSaltBytes
 
 namespace ParameterSet
 
-/-- The published rows of Tables 1 and 2, recorded verbatim so that they can be
-compared against the specification entry by entry. The relations between the
-entries are stated separately as theorems below. -/
+/-- The published rows of Tables 1 and 2, recorded verbatim for comparison
+against the specification. The relations between entries are the theorems
+below. -/
 def params : ParameterSet → Params
   | .FrodoKEM640 =>
       {D := 15, q := 32768, n := 640, B := 2, ellBits := 128,
@@ -200,7 +195,7 @@ Each theorem below states one relation that the specification asserts between
 the columns of Tables 1 and 2. They hold of the six published rows, not of an
 arbitrary `Params`, whose fields are independent. -/
 
-/-- The modulus is the published power of two, `q = 2 ^ D`. -/
+/-- The modulus `q = 2 ^ D`. -/
 theorem q_eq_two_pow (p : ParameterSet) :
     p.params.q = 2 ^ p.params.D := by
   cases p <;> rfl
@@ -227,16 +222,20 @@ theorem lenSalt_eq (p : ParameterSet) :
       | .eFrodoKEM => 0 := by
   cases p <;> rfl
 
-/-- Each published bit length is eight times its byte count, so the divisions
+/-! Each published bit length is eight times its byte count, so the divisions
 defining `ellBytes`, `lenSeedSEBytes` and `lenSaltBytes` are exact. -/
+
+/-- `ellBits` is eight times `ellBytes`. -/
 theorem ellBits_eq_eight_mul_ellBytes (p : ParameterSet) :
     p.params.ellBits = 8 * p.params.ellBytes := by
   cases p <;> rfl
 
+/-- `lenSeedSE` is eight times `lenSeedSEBytes`. -/
 theorem lenSeedSE_eq_eight_mul_lenSeedSEBytes (p : ParameterSet) :
     p.params.lenSeedSE = 8 * p.params.lenSeedSEBytes := by
   cases p <;> rfl
 
+/-- `lenSalt` is eight times `lenSaltBytes`. -/
 theorem lenSalt_eq_eight_mul_lenSaltBytes (p : ParameterSet) :
     p.params.lenSalt = 8 * p.params.lenSaltBytes := by
   cases p <;> rfl
