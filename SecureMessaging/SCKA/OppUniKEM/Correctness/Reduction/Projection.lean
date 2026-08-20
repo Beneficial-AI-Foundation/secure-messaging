@@ -15,7 +15,7 @@ The main results are:
   corresponding ordinary query;
 * `tracked_run_project` — a complete tracked adversary execution projects to
   the corresponding ordinary execution;
-* `correctnessExp_eq_final_map` — the correctness experiment as a
+* `correctnessExp_eq_final_map` — the correctness experiment is a
   final-state map over the simulated run;
 * `trackedCorrectnessImpl_preserves` — every query preserves the tracked
   invariant;

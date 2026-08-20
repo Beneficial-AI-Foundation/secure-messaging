@@ -14,8 +14,8 @@ the game state and the conditional failure probability `V`:
 
 * source-shape lemmas — a receive either preserves the local KEM material or
   advances an epoch and erases it;
-* preservation lemmas — a receive changes neither the potential `V` nor
-  the absence of a realized current failure.
+* preservation lemmas — a receive preserves `V`, and preserves
+  `currentKEMFailure = false` from a reachable state.
 -/
 
 open ENNReal KEMScheme

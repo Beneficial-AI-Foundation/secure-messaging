@@ -3,32 +3,8 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Core
 /-!
 # Opp-UniKEM-CKA Send Transitions
 
-This module analyzes the `SendA` and `SendB` oracle transitions. Helper
-definitions name their resulting correctness-game states; the accompanying
-lemmas compute or bound the failure potential `V` and tracked failure score
-`S` as KEM samples are drawn.
-
-Let (`KEM.OnOffKEM.CorrectnessError`):
-
-* `φ(pk, sk) := failureAfterKeypair kem onoff pk sk`;
-* `ψ(st, ct₀) := failureAfterOff kem onoff st ct₀`;
-* `χ(pk, sk, st, ct₀) := failureAfterBoth kem onoff pk sk st ct₀`.
-
-Then:
-
-* `SendA`, fresh key pair — `V` changes from `0` to `φ`, or from `ψ` to `χ`
-  if B's offline sample is already present; without a fresh sample, `V` is
-  unchanged;
-* `SendB`, offline sample — `V` changes from `0` to `ψ`, or from `φ` to `χ`
-  if A's key pair is already present;
-* `SendB`, online sample — `V` becomes `0`, while `S` records whether the
-  sampled key disagrees with decapsulation;
-* `SendB`, offline and online samples — the same two updates occur in one
-  query.
-
-The lemmas `online_source_shape` and `newOff_source_shape` prove that, if B
-stores a decoded public key `pk`, then both parties are in the same epoch and
-there exists `sk` such that A stores the key pair `(pk, sk)`.
+This module establishes the transition laws for the failure potential `V` and
+tracked failure score `S` under `SendA` and `SendB`.
 -/
 
 open ENNReal KEMScheme
