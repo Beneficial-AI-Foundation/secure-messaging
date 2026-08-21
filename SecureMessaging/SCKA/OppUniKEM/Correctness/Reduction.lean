@@ -5,6 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Composition
+import ToVCVio.OracleComp.SimSemantics.StateT.ExpectedPayoffBound
 
 /-!
 # Opp-UniKEM-CKA — Reduction to KEM Correctness
