@@ -365,6 +365,9 @@ lemma oracleRecvA_preserves_reachableInv
       · subst t
         have htAB : s.stA.t = s.stB.t :=
           Nat.le_antisymm htbound hInv.epochs.1
+        have hknown := hInv.knownPrefixA
+          (tcur := max s.tcurA (s.stA.t - 1))
+          (max_le hInv.tcurA le_rfl)
         cases ch? with
         | none =>
             have hz' : z =
@@ -374,7 +377,7 @@ lemma oracleRecvA_preserves_reachableInv
                     tcurA := max s.tcurA (s.stA.t - 1)
                     correct := s.correct && decide (s.stA.t - 1 = s.stA.t - 1) }) := by
               simpa [SCKAScheme.oracleRecvA, StateT.run_bind, StateT.run_get,
-                hentry, scheme, recvA, recvAAckStep, htsnd] using hz
+                hentry, scheme, recvA, recvAAckStep, htsnd, hknown] using hz
             subst z
             exact reachableInv_after_recvA_ackOnly kem onoff ecEk ecCt0 ecCt1
               s T hInv ack
@@ -388,7 +391,7 @@ lemma oracleRecvA_preserves_reachableInv
                       tcurA := max s.tcurA (s.stA.t - 1)
                       correct := s.correct && decide (s.stA.t - 1 = s.stA.t - 1) }) := by
                 simpa [SCKAScheme.oracleRecvA, StateT.run_bind, StateT.run_get,
-                  hentry, scheme, recvA, recvAAckStep, htsnd] using hz
+                  hentry, scheme, recvA, recvAAckStep, htsnd, hknown] using hz
               subst z
               exact reachableInv_after_recvA_ackOnly kem onoff ecEk ecCt0 ecCt1
                 s T hInv ack
@@ -404,7 +407,8 @@ lemma oracleRecvA_preserves_reachableInv
                           correct := s.correct && decide
                             (s.stA.t - 1 = s.stA.t - 1) }) := by
                     simpa [SCKAScheme.oracleRecvA, StateT.run_bind, StateT.run_get,
-                      hentry, scheme, recvA, recvAAckStep, htsnd, hct0] using hz
+                      hentry, scheme, recvA, recvAAckStep, htsnd, hct0,
+                      hknown] using hz
                   subst z
                   exact reachableInv_after_recvA_ackOnly kem onoff ecEk ecCt0 ecCt1
                     s T hInv ack
@@ -431,7 +435,7 @@ lemma oracleRecvA_preserves_reachableInv
                               (s.stA.t - 1 = s.stA.t - 1) }) := by
                       simpa [SCKAScheme.oracleRecvA, StateT.run_bind, StateT.run_get,
                         hentry, scheme, recvA, recvAAckStep, htsnd, hct0, hch,
-                        hlch, hdec, stA0, stA'] using hz
+                        hlch, hdec, stA0, stA', hknown] using hz
                     subst z
                     apply reachableInv_after_recvA_same kem onoff ecEk ecCt0 ecCt1
                       s T hInv stA'
@@ -464,7 +468,7 @@ lemma oracleRecvA_preserves_reachableInv
                               (s.stA.t - 1 = s.stA.t - 1) }) := by
                       simpa [SCKAScheme.oracleRecvA, StateT.run_bind, StateT.run_get,
                         hentry, scheme, recvA, recvAAckStep, htsnd, hct0, hch,
-                        hlch, hdec, stA0, stA'] using hz
+                        hlch, hdec, stA0, stA', hknown] using hz
                     subst z
                     apply reachableInv_after_recvA_same kem onoff ecEk ecCt0 ecCt1
                       s T hInv stA'
@@ -501,7 +505,8 @@ lemma oracleRecvA_preserves_reachableInv
                           correct := s.correct && decide
                             (s.stA.t - 1 = s.stA.t - 1) }) := by
                     simpa [SCKAScheme.oracleRecvA, StateT.run_bind, StateT.run_get,
-                      hentry, scheme, recvA, recvAAckStep, htsnd, hdk] using hz
+                      hentry, scheme, recvA, recvAAckStep, htsnd, hdk,
+                      hknown] using hz
                   subst z
                   exact reachableInv_after_recvA_ackOnly kem onoff ecEk ecCt0 ecCt1
                     s T hInv ack
@@ -516,7 +521,8 @@ lemma oracleRecvA_preserves_reachableInv
                             correct := s.correct && decide
                               (s.stA.t - 1 = s.stA.t - 1) }) := by
                       simpa [SCKAScheme.oracleRecvA, StateT.run_bind, StateT.run_get,
-                        hentry, scheme, recvA, recvAAckStep, htsnd, hdk, hct0] using hz
+                        hentry, scheme, recvA, recvAAckStep, htsnd, hdk, hct0,
+                        hknown] using hz
                     subst z
                     exact reachableInv_after_recvA_ackOnly kem onoff ecEk ecCt0 ecCt1
                       s T hInv ack
@@ -545,7 +551,7 @@ lemma oracleRecvA_preserves_reachableInv
                               (s.stA.t - 1 = s.stA.t - 1) }) := by
                       simpa [SCKAScheme.oracleRecvA, StateT.run_bind, StateT.run_get,
                         hentry, scheme, recvA, recvAAckStep, htsnd, hdk, hct0,
-                        hch, hlch, hdec, stA0, stA'] using hz
+                        hch, hlch, hdec, stA0, stA', hknown] using hz
                     subst z
                     apply reachableInv_after_recvA_same kem onoff ecEk ecCt0 ecCt1
                       s T hInv stA'
@@ -610,13 +616,16 @@ lemma oracleRecvA_preserves_reachableInv
       · have htle : t ≤ s.stA.t := htbound.trans hInv.epochs.1
         have htlt : t < s.stA.t := by omega
         have hne : s.stA.t ≠ t := Ne.symm ht
+        have hknown := hInv.knownPrefixA
+          (tcur := max s.tcurA (t - 1))
+          (max_le hInv.tcurA (by omega))
         have hz' : z =
             (some (t - 1, none),
               { s with
                 tcurA := max s.tcurA (t - 1)
                 correct := s.correct && decide (t - 1 = t - 1) }) := by
           simpa [SCKAScheme.oracleRecvA, StateT.run_bind, StateT.run_get,
-            hentry, scheme, recvA, ht, hne, htsnd] using hz
+            hentry, scheme, recvA, ht, hne, htsnd, hknown] using hz
         subst z
         exact reachableInv_after_recvA_stale kem onoff ecEk ecCt0 ecCt1
           s T hInv t htlt

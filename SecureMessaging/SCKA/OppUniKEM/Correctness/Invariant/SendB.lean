@@ -652,6 +652,7 @@ lemma oracleSendB_preserves_reachableInv
       (reachableInv kem onoff ecEk ecCt0 ecCt1) := by
   intro _ s hs z hz
   rcases hs with ⟨T, hInv⟩
+  have hknown := hInv.knownPrefixB (tcur := s.stB.t - 1) le_rfl
   cases hct0 : s.stB.ct0 with
   | some ct0 =>
       have hstSome : s.stB.stCt.isSome := by simpa [hct0] using hInv.offBShape
@@ -673,10 +674,13 @@ lemma oracleSendB_preserves_reachableInv
                 msgB := Function.update s.msgB (s.nB + 1)
                   (some (msg, s.stB.t - 1))
                 nB := s.nB + 1
-                correct := s.correct && decide (s.tcurB ≤ s.stB.t - 1) }) := by
+                correct := s.correct && decide (s.tcurB ≤ s.stB.t - 1) &&
+                  (List.range (s.stB.t - 1 + 1)).all
+                    (fun t => t = 0 || (s.keyB t).isSome) }) := by
           rw [SCKAScheme.oracleSendB, StateT.run_bind, StateT.run_get] at hz
           simpa [scheme, sendB, hct0, hackFalse, ich, msg] using hz
         subst z
+        simp only [hknown, Bool.and_true]
         apply reachableInv_after_sendB_same kem onoff ecEk ecCt0 ecCt1
           s T hInv ich msg
         change s.stB.t - 1 = s.stB.t - 1 ∧ ∃ st' ct0' i,
@@ -696,10 +700,13 @@ lemma oracleSendB_preserves_reachableInv
                     msgB := Function.update s.msgB (s.nB + 1)
                       (some (msg, s.stB.t - 1))
                     nB := s.nB + 1
-                    correct := s.correct && decide (s.tcurB ≤ s.stB.t - 1) }) := by
+                    correct := s.correct && decide (s.tcurB ≤ s.stB.t - 1) &&
+                      (List.range (s.stB.t - 1 + 1)).all
+                        (fun t => t = 0 || (s.keyB t).isSome) }) := by
               rw [SCKAScheme.oracleSendB, StateT.run_bind, StateT.run_get] at hz
               simpa [scheme, sendB, hct0, hackTrue, hek, msg] using hz
             subst z
+            simp only [hknown, Bool.and_true]
             apply reachableInv_after_sendB_same kem onoff ecEk ecCt0 ecCt1
               s T hInv s.stB.ich msg
             simp [msg, HonestMessageB]
@@ -728,10 +735,13 @@ lemma oracleSendB_preserves_reachableInv
                         msgB := Function.update s.msgB (s.nB + 1)
                           (some (msg, s.stB.t - 1))
                         nB := s.nB + 1
-                        correct := s.correct && decide (s.tcurB ≤ s.stB.t - 1) }) := by
+                        correct := s.correct && decide (s.tcurB ≤ s.stB.t - 1) &&
+                          (List.range (s.stB.t - 1 + 1)).all
+                            (fun t => t = 0 || (s.keyB t).isSome) }) := by
                   rw [SCKAScheme.oracleSendB, StateT.run_bind, StateT.run_get] at hz
                   simpa [scheme, sendB, hct0, hackTrue, hek, hct1, msg, ich] using hz
                 subst z
+                simp only [hknown, Bool.and_true]
                 apply reachableInv_after_sendB_same kem onoff ecEk ecCt0 ecCt1
                   s T hInv ich msg
                 change s.stB.t - 1 = s.stB.t - 1 ∧ ∃ ct1' key' i,
@@ -794,10 +804,13 @@ lemma oracleSendB_preserves_reachableInv
                 msgB := Function.update s.msgB (s.nB + 1)
                   (some (msg, s.stB.t - 1))
                 nB := s.nB + 1
-                correct := s.correct && decide (s.tcurB ≤ s.stB.t - 1) }) = z := by
+                correct := s.correct && decide (s.tcurB ≤ s.stB.t - 1) &&
+                  (List.range (s.stB.t - 1 + 1)).all
+                    (fun t => t = 0 || (s.keyB t).isSome) }) = z := by
           rw [SCKAScheme.oracleSendB, StateT.run_bind, StateT.run_get] at hz
           simpa [scheme, sendB, hct0, hackFalse] using hz
         obtain ⟨st, ct0, hmem, rfl⟩ := hz'
+        simp only [hknown, Bool.and_true]
         let old := T s.stB.t
         let tr' := old.setOff st ct0 hmem honnone
         let T' := Function.update T s.stB.t tr'
@@ -827,10 +840,13 @@ lemma oracleSendB_preserves_reachableInv
                     msgB := Function.update s.msgB (s.nB + 1)
                       (some (msg, s.stB.t - 1))
                     nB := s.nB + 1
-                    correct := s.correct && decide (s.tcurB ≤ s.stB.t - 1) }) = z := by
+                    correct := s.correct && decide (s.tcurB ≤ s.stB.t - 1) &&
+                      (List.range (s.stB.t - 1 + 1)).all
+                        (fun t => t = 0 || (s.keyB t).isSome) }) = z := by
               rw [SCKAScheme.oracleSendB, StateT.run_bind, StateT.run_get] at hz
               simpa [scheme, sendB, hct0, hackTrue, hek] using hz
             obtain ⟨st, ct0, hmem, rfl⟩ := hz'
+            simp only [hknown, Bool.and_true]
             apply reachableInv_after_sendB_newOff kem onoff ecEk ecCt0 hCt0Pos ecCt1
               s T hInv st ct0 hmem hct0 honnone s.stB.ich
                 (none, s.stB.ack, s.stB.t, none)

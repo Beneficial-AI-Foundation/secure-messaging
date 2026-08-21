@@ -492,17 +492,24 @@ lemma oracleRecvB_preserves_reachableInv
       change t ≤ s.stA.t at htbound
       rcases lt_trichotomy t s.stB.t with ht | ht | ht
       · have hne : s.stB.t ≠ t := Nat.ne_of_gt ht
+        have hknown := hInv.knownPrefixB
+          (tcur := max s.tcurB (t - 1))
+          (max_le hInv.tcurB (by omega))
         have hz' :
             z = (some (t - 1, none),
               { s with
                 tcurB := max s.tcurB (t - 1)
                 correct := s.correct && decide (t - 1 = t - 1) }) := by
           simpa [SCKAScheme.oracleRecvB, StateT.run_bind, StateT.run_get, hentry,
-            scheme, recvB, htsnd, Nat.not_lt_of_ge (Nat.le_of_lt ht), hne] using hz
+            scheme, recvB, htsnd, Nat.not_lt_of_ge (Nat.le_of_lt ht), hne,
+            hknown] using hz
         subst z
         exact reachableInv_after_recvB_stale kem onoff ecEk ecCt0 ecCt1
           s T hInv t ht
       · subst t
+        have hknown := hInv.knownPrefixB
+          (tcur := max s.tcurB (s.stB.t - 1))
+          (max_le hInv.tcurB le_rfl)
         have hz' :
             let stB' := recvBAckStep kem onoff
               (recvBEkStep kem onoff ecEk s.stB ch?) ack s.stB.t
@@ -512,7 +519,7 @@ lemma oracleRecvB_preserves_reachableInv
                 tcurB := max s.tcurB (s.stB.t - 1)
                 correct := s.correct && decide (s.stB.t - 1 = s.stB.t - 1) }) := by
           simpa [SCKAScheme.oracleRecvB, StateT.run_bind, StateT.run_get, hentry,
-            scheme, recvB, recvBEkStep, recvBAckStep, htsnd] using hz
+            scheme, recvB, recvBEkStep, recvBAckStep, htsnd, hknown] using hz
         subst z
         exact reachableInv_after_recvB_current kem onoff ecEk hcorrect hEkPos
           ecCt0 ecCt1 s T hInv ch? ack b? (by simpa [htsnd] using hhon)
@@ -523,6 +530,18 @@ lemma oracleRecvB_preserves_reachableInv
           apply Nat.le_antisymm
           · simpa [htNext] using hInv.epochs.2
           · exact htbound
+        have hBehind : s.stB.t < s.stA.t := by omega
+        have htcur : max s.tcurB (t - 1) ≤ s.stB.t := by
+          simp only [htNext, Nat.add_sub_cancel]
+          exact max_le (hInv.tcurB.trans (Nat.sub_le _ _)) le_rfl
+        have hknown := hInv.knownPrefixBThroughCurrent
+          hBehind
+          (tcur := max s.tcurB (t - 1))
+          htcur
+        have hknown' :
+            (List.range (max s.tcurB s.stB.t + 1)).all
+              (fun t => t = 0 || (s.keyB t).isSome) = true := by
+          simpa [htNext] using hknown
         have hz' :
             let base := recvBNextBase kem onoff s.stB
             let stB' := recvBAckStep kem onoff
@@ -534,7 +553,7 @@ lemma oracleRecvB_preserves_reachableInv
                 correct := s.correct && decide (t - 1 = t - 1) }) := by
           simpa [SCKAScheme.oracleRecvB, StateT.run_bind, StateT.run_get, hentry,
             scheme, recvB, recvBNextBase, recvBEkStep, recvBAckStep,
-            htsnd, ht, htNext] using hz
+            htsnd, ht, htNext, hknown'] using hz
         subst z
         exact reachableInv_after_recvB_next kem onoff ecEk hcorrect hEkPos
           ecCt0 ecCt1 s T hInv ch? ack t b? htNext htA (by simpa [htsnd] using hhon)

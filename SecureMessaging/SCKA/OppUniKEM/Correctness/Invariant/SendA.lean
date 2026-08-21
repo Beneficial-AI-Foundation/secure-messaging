@@ -276,6 +276,7 @@ lemma oracleSendA_preserves_reachableInv
       (reachableInv kem onoff ecEk ecCt0 ecCt1) := by
   intro _ s hs z hz
   rcases hs with ⟨T, hInv⟩
+  have hknown := hInv.knownPrefixA (tcur := s.stA.t - 1) le_rfl
   cases hdk : s.stA.dkA with
   | none =>
       have hz' : ∃ pk sk,
@@ -290,12 +291,15 @@ lemma oracleSendA_preserves_reachableInv
               msgA := Function.update s.msgA (s.nA + 1)
                 (some (msg, s.stA.t - 1))
               nA := s.nA + 1
-              correct := s.correct && decide (s.tcurA ≤ s.stA.t - 1) }) = z := by
+              correct := s.correct && decide (s.tcurA ≤ s.stA.t - 1) &&
+                (List.range (s.stA.t - 1 + 1)).all
+                  (fun t => t = 0 || (s.keyA t).isSome) }) = z := by
         rw [SCKAScheme.oracleSendA, StateT.run_bind, StateT.run_get] at hz
         simpa [scheme, sendA, hdk] using hz
       obtain ⟨pk, sk, hmem, rfl⟩ := hz'
-      exact reachableInv_after_sendA_new kem onoff ecEk ecCt0 ecCt1 hEkPos
-        s T hInv pk sk hmem hdk
+      simpa [hknown] using
+        reachableInv_after_sendA_new kem onoff ecEk ecCt0 ecCt1 hEkPos
+          s T hInv pk sk hmem hdk
   | some sk =>
       have hekSome : s.stA.ekA.isSome := by simpa [hdk] using hInv.keypairAShape
       obtain ⟨pk, hek⟩ := Option.isSome_iff_exists.mp hekSome
@@ -310,12 +314,15 @@ lemma oracleSendA_preserves_reachableInv
               msgA := Function.update s.msgA (s.nA + 1)
                 (some (msg, s.stA.t - 1))
               nA := s.nA + 1
-              correct := s.correct && decide (s.tcurA ≤ s.stA.t - 1) }) := by
+              correct := s.correct && decide (s.tcurA ≤ s.stA.t - 1) &&
+                (List.range (s.stA.t - 1 + 1)).all
+                  (fun t => t = 0 || (s.keyA t).isSome) }) := by
         rw [SCKAScheme.oracleSendA, StateT.run_bind, StateT.run_get] at hz
         simpa [scheme, sendA, hdk, hek] using hz
       subst z
-      exact reachableInv_after_sendA_existing kem onoff ecEk ecCt0 ecCt1
-        s T hInv pk sk hek hdk
+      simpa [hknown] using
+        reachableInv_after_sendA_existing kem onoff ecEk ecCt0 ecCt1
+          s T hInv pk sk hek hdk
 
 end SendA
 

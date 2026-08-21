@@ -318,6 +318,73 @@ structure TranscriptConsistent
   /-- B-to-A message sending epochs are at most B's current epoch. -/
   msgBEpoch : ∀ n ρ tsnd, s.msgB n = some (ρ, tsnd) → Message.epoch ρ ≤ s.stB.t
 
+omit [DecidableEq Sym] in
+/-- A has recorded every positive epoch up to any bound below its current
+protocol epoch. -/
+lemma TranscriptConsistent.knownPrefixA
+    {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
+    {ecEk : ErasureCodePayload PK Sym}
+    {ecCt0 : ErasureCodePayload onoff.C₀ Sym}
+    {ecCt1 : ErasureCodePayload onoff.C₁ Sym}
+    {T : Transcript kem onoff}
+    {s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)}
+    (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
+    {tcur : ℕ} (htcur : tcur ≤ s.stA.t - 1) :
+    (List.range (tcur + 1)).all (fun t => t = 0 || (s.keyA t).isSome) = true := by
+  rw [List.all_eq_true]
+  intro t ht
+  have htle : t ≤ tcur := by simpa using List.mem_range.mp ht
+  by_cases ht0 : t = 0
+  · simp [ht0]
+  have hlt : t < s.stA.t := by omega
+  rw [hInv.keyA t]
+  simp [ht0, hlt, hInv.pastComplete t (Nat.pos_of_ne_zero ht0) hlt]
+
+omit [DecidableEq Sym] in
+/-- B has recorded every positive epoch up to any bound below its current
+protocol epoch. -/
+lemma TranscriptConsistent.knownPrefixB
+    {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
+    {ecEk : ErasureCodePayload PK Sym}
+    {ecCt0 : ErasureCodePayload onoff.C₀ Sym}
+    {ecCt1 : ErasureCodePayload onoff.C₁ Sym}
+    {T : Transcript kem onoff}
+    {s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)}
+    (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
+    {tcur : ℕ} (htcur : tcur ≤ s.stB.t - 1) :
+    (List.range (tcur + 1)).all (fun t => t = 0 || (s.keyB t).isSome) = true := by
+  rw [List.all_eq_true]
+  intro t ht
+  have htle : t ≤ tcur := by simpa using List.mem_range.mp ht
+  by_cases ht0 : t = 0
+  · simp [ht0]
+  have hltB : t < s.stB.t := by omega
+  have hltA : t < s.stA.t := hltB.trans_le hInv.epochs.1
+  rw [hInv.keyB t]
+  simpa [ht0] using hInv.pastComplete t (Nat.pos_of_ne_zero ht0) hltA
+
+omit [DecidableEq Sym] in
+/-- If A is ahead of B, B has also recorded its current positive epoch. -/
+lemma TranscriptConsistent.knownPrefixBThroughCurrent
+    {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
+    {ecEk : ErasureCodePayload PK Sym}
+    {ecCt0 : ErasureCodePayload onoff.C₀ Sym}
+    {ecCt1 : ErasureCodePayload onoff.C₁ Sym}
+    {T : Transcript kem onoff}
+    {s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)}
+    (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
+    (hBehind : s.stB.t < s.stA.t)
+    {tcur : ℕ} (htcur : tcur ≤ s.stB.t) :
+    (List.range (tcur + 1)).all (fun t => t = 0 || (s.keyB t).isSome) = true := by
+  rw [List.all_eq_true]
+  intro t ht
+  have htle : t ≤ tcur := by simpa using List.mem_range.mp ht
+  by_cases ht0 : t = 0
+  · simp [ht0]
+  have hltA : t < s.stA.t := (htle.trans htcur).trans_lt hBehind
+  rw [hInv.keyB t]
+  simpa [ht0] using hInv.pastComplete t (Nat.pos_of_ne_zero ht0) hltA
+
 /-- The preserved game-state invariant: `s` is consistent with some execution
 transcript `T`. -/
 def reachableInv

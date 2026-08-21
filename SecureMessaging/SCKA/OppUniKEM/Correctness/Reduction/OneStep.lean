@@ -153,6 +153,7 @@ lemma tracked_sendA_score_le [DecidableEq K]
       · exact keygen_failurePotential_le kem onoff ecEk ecCt0 ecCt1 s hs hdk
   | some sk =>
       rcases hs with ⟨T, hInv⟩
+      have hknown := hInv.knownPrefixA (tcur := s.stA.t - 1) le_rfl
       have hekSome : s.stA.ekA.isSome := by
         simpa [hdk] using hInv.keypairAShape
       obtain ⟨pk, hek⟩ := Option.isSome_iff_exists.mp hekSome
@@ -179,7 +180,7 @@ lemma tracked_sendA_score_le [DecidableEq K]
           pure (some (s.stA.t - 1, none, msg),
             (s', currentKEMFailure kem onoff hDet s')) := by
         simp [SCKAScheme.oracleSendA, StateT.run_bind, StateT.run_get, scheme, sendA,
-          hdk, hek, ich, ch?, msg, s']
+          hdk, hek, ich, ch?, msg, s', hknown]
       rw [hrun, expectedPayoff_pure]
       simp [trackedFailureScore, hfail', hpot]
 
@@ -207,6 +208,7 @@ lemma tracked_sendB_score_le [DecidableEq K]
       pure (y.1, (y.2, false || currentKEMFailure kem onoff hDet y.2)))
       (fun z => trackedFailureScore kem onoff z.2) ≤ _
   rcases hs with ⟨T, hInv⟩
+  have hknown := hInv.knownPrefixB (tcur := s.stB.t - 1) le_rfl
   cases hct0 : s.stB.ct0 with
   | none =>
       have hst : s.stB.stCt = none := by
@@ -236,7 +238,8 @@ lemma tracked_sendB_score_le [DecidableEq K]
                       (sendBOffState onoff s off 1 (msg off))))) <$>
                 onoff.encapsOff := by
             simp [SCKAScheme.oracleSendB, StateT.run_bind, StateT.run_get,
-              scheme, sendB, hct0, hack, msg, sendBOffState, sendBNoneState]
+              scheme, sendB, hct0, hack, msg, sendBOffState, sendBNoneState,
+              hknown]
           rw [hrun, expectedPayoff_map]
           simp_rw [sendBOffState_score kem onoff hDet s _ 1 _ hct1]
           unfold expectedPayoff
@@ -260,7 +263,7 @@ lemma tracked_sendB_score_le [DecidableEq K]
                     onoff.encapsOff := by
                 simp [SCKAScheme.oracleSendB, StateT.run_bind, StateT.run_get,
                   scheme, sendB, hct0, hack, hek, msg, sendBOffState,
-                  sendBNoneState]
+                  sendBNoneState, hknown]
               rw [hrun, expectedPayoff_map]
               simp_rw [sendBOffState_score kem onoff hDet s _ s.stB.ich _ hct1]
               unfold expectedPayoff
@@ -358,7 +361,8 @@ lemma tracked_sendB_score_le [DecidableEq K]
               pure (some (s.stB.t - 1, none, msg),
                 (s', currentKEMFailure kem onoff hDet s')) := by
             simp [SCKAScheme.oracleSendB, StateT.run_bind, StateT.run_get,
-              scheme, sendB, hct0, hack, ich, msg, s', sendBNoneState]
+              scheme, sendB, hct0, hack, ich, msg, s', sendBNoneState,
+              hknown]
           rw [hrun, expectedPayoff_pure]
           simp [trackedFailureScore, hfail', hpot]
       | true =>
@@ -380,7 +384,8 @@ lemma tracked_sendB_score_le [DecidableEq K]
                   pure (some (s.stB.t - 1, none, msg),
                     (s', currentKEMFailure kem onoff hDet s')) := by
                 simp [SCKAScheme.oracleSendB, StateT.run_bind, StateT.run_get,
-                  scheme, sendB, hct0, hack, hek, msg, s', sendBNoneState]
+                  scheme, sendB, hct0, hack, hek, msg, s', sendBNoneState,
+                  hknown]
               rw [hrun, expectedPayoff_pure]
               simp [trackedFailureScore, hfail', hpot]
           | some pk =>
@@ -446,7 +451,7 @@ lemma tracked_sendB_score_le [DecidableEq K]
                         (s', currentKEMFailure kem onoff hDet s')) := by
                     simp [SCKAScheme.oracleSendB, StateT.run_bind, StateT.run_get,
                       scheme, sendB, hct0, hack, hek, hct1, ich, msg, s',
-                      sendBNoneState]
+                      sendBNoneState, hknown]
                   rw [hrun, expectedPayoff_pure]
                   simp [trackedFailureScore, hfail', hpot]
 

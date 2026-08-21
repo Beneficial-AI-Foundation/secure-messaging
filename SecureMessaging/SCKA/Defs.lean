@@ -270,7 +270,7 @@ Send-A:
      assert Key[A, tIA] = ⊥         -- unique epochs
      assert Key[B, tIA] ∈ {IA, ⊥}   -- consistent keys
      Key[A, tIA] ← IA
-     assert ∀ t ≤ t^snd_A : Key[A, t] ≠ ⊥     -- known prefix
+  assert ∀ t ≤ t^snd_A : Key[A, t] ≠ ⊥     -- known prefix
   Msg[A, ++nA] ← (ρ, t^snd_A)
   return (t^snd_A, tIA, ρ)
 ``` -/
@@ -284,24 +284,25 @@ def oracleSendA [DecidableEq I] (scka : SCKAScheme ProbComp IK StA StB I Rho Ran
     | none => pure none
     | some (keyOpt, ρ, tsnd, stA') =>
       let assertMonotonicity := state.tcurA ≤ tsnd
+      let assertKnownPrefix (keyA : ℕ → Option I) :=
+        (List.range (tsnd + 1)).all (fun t => t = 0 || (keyA t).isSome)
       let nA' := state.nA + 1
       let msgA' := Function.update state.msgA nA' (some (ρ, tsnd))
       match keyOpt with
       | none =>
         set { state with
           stA := stA', tcurA := tsnd, msgA := msgA', nA := nA',
-          correct := state.correct && assertMonotonicity }
+          correct := state.correct && assertMonotonicity && assertKnownPrefix state.keyA }
         return some (tsnd, none, ρ)
       | some (tI, key) =>
         let assertUniqueEpochs := (state.keyA tI).isNone
         let assertConsistentKeys := (state.keyB tI).isNone || state.keyB tI == some key
         let keyA' := Function.update state.keyA tI (some key)
-        let assertKnownPrefix := (List.range (tsnd + 1)).all (fun t => t = 0 || (keyA' t).isSome)
         set { state with
           stA := stA', tcurA := tsnd, keyA := keyA', msgA := msgA', nA := nA',
           correct := state.correct
             && assertMonotonicity && assertUniqueEpochs
-            && assertConsistentKeys && assertKnownPrefix }
+            && assertConsistentKeys && assertKnownPrefix keyA' }
         return some (tsnd, some tI, ρ)
 -- ANCHOR_END: oracleSendA
 
@@ -315,7 +316,7 @@ Send-B:
      assert Key[B, tIB] = ⊥               -- unique epochs
      assert Key[A, tIB] ∈ {IB, ⊥}         -- consistent keys
      Key[B, tIB] ← IB
-     assert ∀ t ≤ t^snd_B : Key[B, t] ≠ ⊥    -- known prefix
+  assert ∀ t ≤ t^snd_B : Key[B, t] ≠ ⊥    -- known prefix
   Msg[B, ++nB] ← (ρ, t^snd_B)
   return (t^snd_B, tIB, ρ)
 ``` -/
@@ -329,24 +330,25 @@ def oracleSendB [DecidableEq I] (scka : SCKAScheme ProbComp IK StA StB I Rho Ran
     | none => pure none
     | some (keyOpt, ρ, tsnd, stB') =>
       let assertMonotonicity := state.tcurB ≤ tsnd
+      let assertKnownPrefix (keyB : ℕ → Option I) :=
+        (List.range (tsnd + 1)).all (fun t => t = 0 || (keyB t).isSome)
       let nB' := state.nB + 1
       let msgB' := Function.update state.msgB nB' (some (ρ, tsnd))
       match keyOpt with
       | none =>
         set { state with
           stB := stB', tcurB := tsnd, msgB := msgB', nB := nB',
-          correct := state.correct && assertMonotonicity }
+          correct := state.correct && assertMonotonicity && assertKnownPrefix state.keyB }
         return some (tsnd, none, ρ)
       | some (tI, key) =>
         let assertUniqueEpochs := (state.keyB tI).isNone
         let assertConsistentKeys := (state.keyA tI).isNone || state.keyA tI == some key
         let keyB' := Function.update state.keyB tI (some key)
-        let assertKnownPrefix := (List.range (tsnd + 1)).all (fun t => t = 0 || (keyB' t).isSome)
         set { state with
           stB := stB', tcurB := tsnd, keyB := keyB', msgB := msgB', nB := nB',
           correct := state.correct
             && assertMonotonicity && assertUniqueEpochs
-              && assertConsistentKeys && assertKnownPrefix }
+              && assertConsistentKeys && assertKnownPrefix keyB' }
         return some (tsnd, some tI, ρ)
 -- ANCHOR_END: oracleSendB
 
@@ -368,7 +370,7 @@ Send-A-rleak:
      assert Key[A, tIA] = ⊥               -- unique epochs
      assert Key[B, tIA] ∈ {IA, ⊥}         -- consistent keys
      Key[A, tIA] ← IA
-     assert ∀ t ≤ t^snd_A : Key[A, t] ≠ ⊥    -- known prefix
+  assert ∀ t ≤ t^snd_A : Key[A, t] ≠ ⊥    -- known prefix
   Msg[A, ++nA] ← (ρ, t^snd_A)
   return (t^snd_A, tIA, ρ, rand)
 ``` -/
@@ -389,25 +391,27 @@ def oracleSendArleak [DecidableEq I] (vulnA : StA → Finset ℕ)
       else
         let exposed' := state.exposed ∪ vuln'
         let assertMonotonicity := state.tcurA ≤ tsnd
+        let assertKnownPrefix (keyA : ℕ → Option I) :=
+          (List.range (tsnd + 1)).all (fun t => t = 0 || (keyA t).isSome)
         let nA' := state.nA + 1
         let msgA' := Function.update state.msgA nA' (some (ρ, tsnd))
         match keyOpt with
         | none =>
           set { state with
             stA := stA', tcurA := tsnd, exposed := exposed',
-            msgA := msgA', nA := nA', correct := state.correct && assertMonotonicity }
+            msgA := msgA', nA := nA',
+            correct := state.correct && assertMonotonicity && assertKnownPrefix state.keyA }
           return some (tsnd, none, ρ, rand)
         | some (tI, key) =>
           let assertUniqueEpochs := (state.keyA tI).isNone
           let assertConsistentKeys := (state.keyB tI).isNone || state.keyB tI == some key
           let keyA' := Function.update state.keyA tI (some key)
-          let assertKnownPrefix := (List.range (tsnd + 1)).all (fun t => t = 0 || (keyA' t).isSome)
           set { state with
             stA := stA', tcurA := tsnd, exposed := exposed', keyA := keyA',
             msgA := msgA', nA := nA',
             correct := state.correct
               && assertMonotonicity && assertUniqueEpochs
-              && assertConsistentKeys && assertKnownPrefix }
+              && assertConsistentKeys && assertKnownPrefix keyA' }
           return some (tsnd, some tI, ρ, rand)
 -- ANCHOR_END: oracleSendArleak
 
@@ -429,7 +433,7 @@ Send-B-rleak:
      assert Key[B, tIB] = ⊥              -- unique epochs
      assert Key[A, tIB] ∈ {IB, ⊥}        -- consistent keys
      Key[B, tIB] ← IB
-     assert ∀ t ≤ t^snd_B : Key[B, t] ≠ ⊥   -- known prefix
+  assert ∀ t ≤ t^snd_B : Key[B, t] ≠ ⊥   -- known prefix
   Msg[B, ++nB] ← (ρ, t^snd_B)
   return (t^snd_B, tIB, ρ, rand)
 ``` -/
@@ -449,25 +453,27 @@ def oracleSendBrleak [DecidableEq I] (vulnB : StB → Finset ℕ)
       else
         let exposed' := state.exposed ∪ vuln'
         let assertMonotonicity := state.tcurB ≤ tsnd
+        let assertKnownPrefix (keyB : ℕ → Option I) :=
+          (List.range (tsnd + 1)).all (fun t => t = 0 || (keyB t).isSome)
         let nB' := state.nB + 1
         let msgB' := Function.update state.msgB nB' (some (ρ, tsnd))
         match keyOpt with
         | none =>
           set { state with
             stB := stB', tcurB := tsnd, exposed := exposed',
-            msgB := msgB', nB := nB', correct := state.correct && assertMonotonicity }
+            msgB := msgB', nB := nB',
+            correct := state.correct && assertMonotonicity && assertKnownPrefix state.keyB }
           return some (tsnd, none, ρ, rand)
         | some (tI, key) =>
           let assertUniqueEpochs := (state.keyB tI).isNone
           let assertConsistentKeys := (state.keyA tI).isNone || state.keyA tI == some key
           let keyB' := Function.update state.keyB tI (some key)
-          let assertKnownPrefix := (List.range (tsnd + 1)).all (fun t => t = 0 || (keyB' t).isSome)
           set { state with
             stB := stB', tcurB := tsnd, exposed := exposed', keyB := keyB',
             msgB := msgB', nB := nB',
             correct := state.correct
               && assertMonotonicity && assertUniqueEpochs
-              && assertConsistentKeys && assertKnownPrefix }
+              && assertConsistentKeys && assertKnownPrefix keyB' }
           return some (tsnd, some tI, ρ, rand)
 -- ANCHOR_END: oracleSendBrleak
 
@@ -488,7 +494,7 @@ Receive-A(n):
  7     assert Key[A, tIB] = ⊥       -- unique epochs
  8     assert Key[B, tIB] ∈ {IB, ⊥}        -- consistent keys
  9     Key[A, tIB] ← IB
-10     assert ∀ t ≤ t^cur_A : Key[A, t] ≠ ⊥   -- known prefix
+10  assert ∀ t ≤ t^cur_A : Key[A, t] ≠ ⊥   -- known prefix
 11  return (t^rcv_A, tIB)
 ``` -/
 -- ANCHOR: oracleRecvA
@@ -507,25 +513,25 @@ def oracleRecvA [DecidableEq I] (scka : SCKAScheme ProbComp IK StA StB I Rho Ran
         set { state with correct := false }
         return none
       | some (keyOpt, trcv, stA') =>
-        let assertMatchingEpoch := trcv == tsndB
         let tcurA' := max state.tcurA trcv
+        let assertMatchingEpoch := trcv == tsndB
+        let assertKnownPrefix (keyA : ℕ → Option I) :=
+          (List.range (tcurA' + 1)).all (fun t => t = 0 || (keyA t).isSome)
         match keyOpt with
         | none =>
           set { state with
             stA := stA', tcurA := tcurA',
-            correct := state.correct && assertMatchingEpoch }
+            correct := state.correct && assertMatchingEpoch && assertKnownPrefix state.keyA }
           return some (trcv, none)
         | some (tI, key) =>
           let assertUniqueEpochs := (state.keyA tI).isNone
           let assertConsistentKeys := (state.keyB tI).isNone || state.keyB tI == some key
           let keyA' := Function.update state.keyA tI (some key)
-          let assertKnownPrefix :=
-            (List.range (tcurA' + 1)).all (fun t => t = 0 || (keyA' t).isSome)
           set { state with
             stA := stA', tcurA := tcurA', keyA := keyA',
             correct := state.correct
               && assertMatchingEpoch && assertUniqueEpochs
-              && assertConsistentKeys && assertKnownPrefix }
+              && assertConsistentKeys && assertKnownPrefix keyA' }
           return some (trcv, some tI)
 -- ANCHOR_END: oracleRecvA
 
@@ -544,7 +550,7 @@ Receive-B(n):
  7     assert Key[B, tIA] = ⊥       -- unique epochs
  8     assert Key[A, tIA] ∈ {IA, ⊥}        -- consistent keys
  9     Key[B, tIA] ← IA
-10     assert ∀ t ≤ t^cur_B : Key[B, t] ≠ ⊥   -- known prefix
+10  assert ∀ t ≤ t^cur_B : Key[B, t] ≠ ⊥   -- known prefix
 11  return (t^rcv_B, tIA)
 ``` -/
 -- ANCHOR: oracleRecvB
@@ -561,25 +567,25 @@ def oracleRecvB [DecidableEq I] (scka : SCKAScheme ProbComp IK StA StB I Rho Ran
         set { state with correct := false }
         return none
       | some (keyOpt, trcv, stB') =>
-        let assertMatchingEpoch := trcv == tsndA
         let tcurB' := max state.tcurB trcv
+        let assertMatchingEpoch := trcv == tsndA
+        let assertKnownPrefix (keyB : ℕ → Option I) :=
+          (List.range (tcurB' + 1)).all (fun t => t = 0 || (keyB t).isSome)
         match keyOpt with
         | none =>
           set { state with
             stB := stB', tcurB := tcurB',
-            correct := state.correct && assertMatchingEpoch }
+            correct := state.correct && assertMatchingEpoch && assertKnownPrefix state.keyB }
           return some (trcv, none)
         | some (tI, key) =>
           let assertUniqueEpochs := (state.keyB tI).isNone
           let assertConsistentKeys := (state.keyA tI).isNone || state.keyA tI == some key
           let keyB' := Function.update state.keyB tI (some key)
-          let assertKnownPrefix :=
-            (List.range (tcurB' + 1)).all (fun t => t = 0 || (keyB' t).isSome)
           set { state with
             stB := stB', tcurB := tcurB', keyB := keyB',
             correct := state.correct
               && assertMatchingEpoch && assertUniqueEpochs
-              && assertConsistentKeys && assertKnownPrefix }
+              && assertConsistentKeys && assertKnownPrefix keyB' }
           return some (trcv, some tI)
 -- ANCHOR_END: oracleRecvB
 

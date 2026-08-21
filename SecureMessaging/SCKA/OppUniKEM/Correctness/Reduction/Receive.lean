@@ -138,7 +138,9 @@ lemma oracleRecvB_preserves_failurePotential [DecidableEq K]
               { s with
                 stB := stB'
                 tcurB := max s.tcurB trcv
-                correct := s.correct && decide (trcv = tsnd) }) := by
+                correct := s.correct && decide (trcv = tsnd) &&
+                  (List.range (max s.tcurB trcv + 1)).all
+                    (fun t => t = 0 || (s.keyB t).isSome) }) := by
           simpa [SCKAScheme.oracleRecvB, hentry, scheme, hlocal,
             StateT.run_bind, StateT.run_get] using hz
         subst z
@@ -281,7 +283,9 @@ lemma oracleRecvB_preserves_currentFailure [DecidableEq K]
               { s with
                 stB := stB'
                 tcurB := max s.tcurB trcv
-                correct := s.correct && decide (trcv = tsnd) }) := by
+                correct := s.correct && decide (trcv = tsnd) &&
+                  (List.range (max s.tcurB trcv + 1)).all
+                    (fun t => t = 0 || (s.keyB t).isSome) }) := by
           simpa [SCKAScheme.oracleRecvB, hentry, scheme, hlocal,
             StateT.run_bind, StateT.run_get] using hz
         subst z
