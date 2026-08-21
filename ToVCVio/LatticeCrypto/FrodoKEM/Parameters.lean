@@ -22,9 +22,10 @@ between the entries are stated as theorems. The quantities are:
 * `n`, the lattice dimension, which is also the size of the public matrix `A`;
 * `D`, the exponent of the modulus, and `q = 2 ^ D`, the modulus itself;
 * `B`, the number of bits encoded in each matrix entry by `Frodo.Encode`;
-* `ℓ = B * mbar * nbar`, the bit length shared by the message `μ`, the shared
-  secret `ss`, the intermediate secret `k`, the public-key hash `pkh`, and the
-  vector `s` from which `ss` is derived when decapsulation fails;
+* `ℓ = B * mbar * nbar`, the length of bit strings encoded as `mbar`-by-`nbar`
+  matrices, and also the bit length of the message `μ`, the shared secret `ss`,
+  the intermediate secret `k`, the public-key hash `pkh`, and the vector `s`
+  from which `ss` is derived when decapsulation fails;
 * `lenSeedSE`, the bit length of the seeds used for error sampling, and
   `lenSalt`, the bit length of the salt, which is zero for the ephemeral
   variant.
@@ -53,8 +54,11 @@ abbrev Byte := UInt8
 /-- Fixed-length byte strings used throughout the FrodoKEM specification. -/
 abbrev Bytes (n : ℕ) := Vector Byte n
 
+/-- Bit length of the seeds used for pseudorandom matrix generation. -/
+def lenSeedA : ℕ := 128
+
 /-- Seeds used for pseudorandom matrix generation, of `lenSeedA` bits. -/
-abbrev SeedA := Bytes 16
+abbrev SeedA := Bytes (lenSeedA / 8)
 
 /-- The named FrodoKEM parameter sets of Tables 1 and 2, salted and ephemeral. -/
 inductive ParameterSet where
@@ -72,9 +76,6 @@ inductive Variant where
   | FrodoKEM
   | eFrodoKEM
 deriving Repr, DecidableEq
-
-/-- Bit length of the seeds used for pseudorandom matrix generation. -/
-def lenSeedA : ℕ := 128
 
 /-- Bit length of the seeds used for pseudorandom generation of `seedA`. -/
 def lenZ : ℕ := 128
@@ -103,8 +104,9 @@ structure Params where
   n : ℕ
   /-- The number of bits encoded in each matrix entry, satisfying `B ≤ D`. -/
   B : ℕ
-  /-- The length of bit strings to be encoded in an mbar-by-nbar matrix -/
-  ellBits : ℕ
+  /-- `ℓ = B * mbar * nbar`, the length of bit strings encoded as
+  `mbar`-by-`nbar` matrices. -/
+  ell : ℕ
   /-- The bit length of seeds used for pseudorandom bit generation for error
   sampling -/
   lenSeedSE : ℕ
@@ -120,8 +122,8 @@ attribute [nolint unusedArguments] instReprParams.repr
 
 namespace Params
 
-/-- `ellBits` expressed in bytes. -/
-def ellBytes (p : Params) : ℕ := p.ellBits / 8
+/-- `ell` expressed in bytes. -/
+def ellBytes (p : Params) : ℕ := p.ell / 8
 
 /-- `lenSeedSE` expressed in bytes. -/
 def lenSeedSEBytes (p : Params) : ℕ := p.lenSeedSE / 8
@@ -171,22 +173,22 @@ against the specification. The relations between entries are the theorems
 below. -/
 def params : ParameterSet → Params
   | .FrodoKEM640 =>
-      {D := 15, q := 32768, n := 640, B := 2, ellBits := 128,
+      {D := 15, q := 32768, n := 640, B := 2, ell := 128,
        lenSeedSE := 256, lenSalt := 256, variant := .FrodoKEM}
   | .FrodoKEM976 =>
-      {D := 16, q := 65536, n := 976, B := 3, ellBits := 192,
+      {D := 16, q := 65536, n := 976, B := 3, ell := 192,
        lenSeedSE := 384, lenSalt := 384, variant := .FrodoKEM}
   | .FrodoKEM1344 =>
-      {D := 16, q := 65536, n := 1344, B := 4, ellBits := 256,
+      {D := 16, q := 65536, n := 1344, B := 4, ell := 256,
        lenSeedSE := 512, lenSalt := 512, variant := .FrodoKEM}
   | .eFrodoKEM640 =>
-      {D := 15, q := 32768, n := 640, B := 2, ellBits := 128,
+      {D := 15, q := 32768, n := 640, B := 2, ell := 128,
        lenSeedSE := 128, lenSalt := 0, variant := .eFrodoKEM}
   | .eFrodoKEM976 =>
-      {D := 16, q := 65536, n := 976, B := 3, ellBits := 192,
+      {D := 16, q := 65536, n := 976, B := 3, ell := 192,
        lenSeedSE := 192, lenSalt := 0, variant := .eFrodoKEM}
   | .eFrodoKEM1344 =>
-      {D := 16, q := 65536, n := 1344, B := 4, ellBits := 256,
+      {D := 16, q := 65536, n := 1344, B := 4, ell := 256,
        lenSeedSE := 256, lenSalt := 0, variant := .eFrodoKEM}
 /-! ### The relations between the published entries
 
@@ -201,32 +203,32 @@ theorem q_eq_two_pow (p : ParameterSet) :
 
 /-- `ℓ = B * mbar * nbar`: a message fills an `mbar`-by-`nbar` matrix with `B`
 bits per entry. -/
-theorem ellBits_eq_mul (p : ParameterSet) :
-    p.params.ellBits = p.params.B * mbar * nbar := by
+theorem ell_eq_mul (p : ParameterSet) :
+    p.params.ell = p.params.B * mbar * nbar := by
   cases p <;> rfl
 
 /-- `lenSeedSE` is twice `ℓ` for the salted variant and `ℓ` for the ephemeral
 one (Table 2). -/
 theorem lenSeedSE_eq (p : ParameterSet) :
     p.params.lenSeedSE = match p.params.variant with
-      | .FrodoKEM => 2 * p.params.ellBits
-      | .eFrodoKEM => p.params.ellBits := by
+      | .FrodoKEM => 2 * p.params.ell
+      | .eFrodoKEM => p.params.ell := by
   cases p <;> rfl
 
 /-- `lenSalt` is twice `ℓ` for the salted variant, and the ephemeral variant
 carries no salt (Table 2). -/
 theorem lenSalt_eq (p : ParameterSet) :
     p.params.lenSalt = match p.params.variant with
-      | .FrodoKEM => 2 * p.params.ellBits
+      | .FrodoKEM => 2 * p.params.ell
       | .eFrodoKEM => 0 := by
   cases p <;> rfl
 
 /-! Each published bit length is eight times its byte count, so the divisions
 defining `ellBytes`, `lenSeedSEBytes` and `lenSaltBytes` are exact. -/
 
-/-- `ellBits` is eight times `ellBytes`. -/
-theorem ellBits_eq_eight_mul_ellBytes (p : ParameterSet) :
-    p.params.ellBits = 8 * p.params.ellBytes := by
+/-- `ell` is eight times `ellBytes`. -/
+theorem ell_eq_eight_mul_ellBytes (p : ParameterSet) :
+    p.params.ell = 8 * p.params.ellBytes := by
   cases p <;> rfl
 
 /-- `lenSeedSE` is eight times `lenSeedSEBytes`. -/
