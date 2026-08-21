@@ -168,8 +168,9 @@ part of the small state-invariant interface used by the quantitative proof. -/
   | some _, none => none
   | some a, some b => some (a, b)
 
-/-- Internal helper: an A-to-B message is honest when its chunk and receiving
-epoch fields are drawn from the recorded epoch transcript. -/
+/-- An A-to-B entry `(ρ, tsnd)` has `tsnd = t - 1`, no payload bit, and a
+transcript-consistent public-key chunk when present; acknowledgements are
+unconstrained. -/
 def HonestMessageA
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (T : Transcript kem onoff)
@@ -182,9 +183,8 @@ def HonestMessageA
     | some ch => ∃ pk sk i,
         (T t).keypair = some (pk, sk) ∧ ch = ecEk.encode pk i
 
-/-- A B-to-A message is honest when its chunks and acknowledgement fields are
-drawn from the recorded epoch transcript and its reported receiving epoch is
-the predecessor of its sending epoch. -/
+/-- A B-to-A entry `(ρ, tsnd)` has `tsnd = t - 1` and a transcript-consistent
+`ct₀` or `ct₁` chunk when present; acknowledgements are unconstrained. -/
 def HonestMessageB
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
