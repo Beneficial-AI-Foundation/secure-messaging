@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Render each documentation chapter as its own Verso manual and combine the
-# outputs into one static site.
+# Render the documentation as one Verso manual, then overlay the project landing
+# page (chapter list, Blueprint status table, progress chart).
 output_root="_out/site"
 
 # By default, render the deployable site under `_out/site`. Pass
@@ -21,7 +21,6 @@ while [[ $# -gt 0 ]]; do
 done
 
 site_root="$output_root/html-multi"
-render_root="$output_root/chapter-renders"
 history_root="$output_root/history"
 previous_history="$history_root/blueprint-progress-history.json"
 docs_root="docs/SecureMessagingDocs"
@@ -134,23 +133,29 @@ seed_progress_history_if_needed() {
   fi
 }
 
-# Verso renders each chapter as a standalone manual. Add a project-level link to
-# every page sidebar and inject the small bits of shared styling needed by the
-# combined site.
-add_project_index_links() {
-  local chapter_dir="$1"
-  local contents_label="$2"
+# Point every Verso page sidebar at the project landing page. Home href is
+# relative to the file so nested chapter pages still reach the site root.
+add_project_home_links() {
+  local site_dir="$1"
+  local chapter_dir="$2"
   while IFS= read -r -d '' html_file; do
-    CHAPTER_CONTENTS="$contents_label" perl -0pi -e '
-    my $contents = $ENV{"CHAPTER_CONTENTS"} // "Chapter Contents:";
-    my $chapterHref = "./";
+    local home_href
+    home_href="$(python3 - "$site_dir" "$html_file" <<'PY'
+import os
+import sys
+root, html_file = sys.argv[1], sys.argv[2]
+rel = os.path.relpath(root, os.path.dirname(html_file))
+print("./" if rel == "." else rel.rstrip("/") + "/")
+PY
+)"
+    HOME_HREF="$home_href" perl -0pi -e '
+    my $home = $ENV{"HOME_HREF"} // "../";
     s{</head>}{<style>\n#toc .project-index-toc {\n  margin-bottom: 0.75rem;\n}\n#toc .project-index-toc a {\n  color: inherit;\n  font-weight: 600;\n  text-decoration: none;\n}\n#toc .project-index-toc a:hover {\n  text-decoration: underline;\n}\n.chapter-overview-actions {\n  display: flex;\n  flex-wrap: wrap;\n  gap: 0.55rem;\n  margin: 1rem 0 0;\n}\n.chapter-overview-actions a {\n  display: inline-block;\n  padding: 0.34rem 0.65rem;\n  border: 1px solid #d0d7de;\n  border-radius: 6px;\n  background: #f6f8fa;\n  color: #556070;\n  font-size: 0.9rem;\n  font-weight: 600;\n  text-decoration: none;\n}\n.chapter-overview-actions a:hover {\n  border-color: #9fb0cf;\n  color: #1f2937;\n}\n</style>\n</head>};
     s{\s*<div class="bp_build_metadata" aria-label="Build metadata">.*?</div>\s*}{}s;
     s{\s*<h2>\s*Contents\s*</h2>}{}s;
     if (!/<div class="split-toc project-index-toc">/) {
-      s{<div class="split-toc book">\s*<div class="title">}{<div class="split-toc project-index-toc">\n              <div class="title">\n                <span class="no-toggle"></span><span class=""><a href="../">Table of Contents</a></span>\n                </div>\n              </div>\n            <div class="split-toc book">\n              <div class="title">};
+      s{<div class="split-toc book">\s*<div class="title">}{<div class="split-toc project-index-toc">\n              <div class="title">\n                <span class="no-toggle"></span><span class=""><a href="$home">Project status</a></span>\n                </div>\n              </div>\n            <div class="split-toc book">\n              <div class="title">};
     }
-    s{(<span class="">)Table of Contents(</span>)}{$1<a href="$chapterHref">$contents</a>$2};
   ' "$html_file"
   done < <(find "$chapter_dir" -name '*.html' -type f -print0)
 }
@@ -191,22 +196,39 @@ move_references_to_bottom() {
   done < <(find "$chapter_dir" -name '*.html' -type f -print0)
 }
 
-# runner | overview module | output slug | site title | sidebar contents label
+# slug | site title
 chapters=(
-  "docs/SecureMessagingDocs/Renderers/AEADMain.lean|SecureMessagingDocs.Chapters.AEAD.Overview|Authenticated-Encryption-with-Associated-Data|Authenticated Encryption with Associated Data|AEAD Contents:"
-  "docs/SecureMessagingDocs/Renderers/CKAMain.lean|SecureMessagingDocs.Chapters.CKA.Overview|Continuous-Key-Agreement|Continuous Key Agreement|CKA Contents:"
-  "docs/SecureMessagingDocs/Renderers/ErasureCodesMain.lean|SecureMessagingDocs.Chapters.ErasureCodes.Overview|Erasure-Codes|Erasure Codes|Erasure Codes Contents:"
-  "docs/SecureMessagingDocs/Renderers/FSAEADMain.lean|SecureMessagingDocs.Chapters.FSAEAD.Overview|Forward-Secure-AEAD|Forward-Secure Authenticated Encryption with Associated Data|FS-AEAD Contents:"
-  "docs/SecureMessagingDocs/Renderers/PRFPRNGMain.lean|SecureMessagingDocs.Chapters.PRFPRNG.Overview|PRF-PRNG|Pseudorandom Function and Generator|PRF-PRNG Contents:"
-  "docs/SecureMessagingDocs/Renderers/KEMMain.lean|SecureMessagingDocs.Chapters.KEM.Overview|Key-Encapsulation-Mechanism|Key Encapsulation Mechanism|KEM Contents:"
-  "docs/SecureMessagingDocs/Renderers/RKEMMain.lean|SecureMessagingDocs.Chapters.RKEM.Overview|Ratcheting-KEM|Ratcheting Key Encapsulation Mechanism|RKEM Contents:"
-  "docs/SecureMessagingDocs/Renderers/SCKAMain.lean|SecureMessagingDocs.Chapters.SCKA.Overview|Sparse-Continuous-Key-Agreement|Sparse Continuous Key Agreement|SCKA Contents:"
-  "docs/SecureMessagingDocs/Renderers/SecureMessagingMain.lean|SecureMessagingDocs.Chapters.SecureMessaging.Overview|Secure-Messaging|Secure Messaging|Secure Messaging Contents:"
+  "Authenticated-Encryption-with-Associated-Data|Authenticated Encryption with Associated Data"
+  "Continuous-Key-Agreement|Continuous Key Agreement"
+  "Erasure-Codes|Erasure Codes"
+  "Forward-Secure-Authenticated-Encryption-with-Associated-Data|Forward-Secure Authenticated Encryption with Associated Data"
+  "Key-Encapsulation-Mechanism|Key Encapsulation Mechanism"
+  "Pseudorandom-Function-and-Generator|Pseudorandom Function and Generator"
+  "Ratcheting-Key-Encapsulation-Mechanism|Ratcheting Key Encapsulation Mechanism"
+  "Sparse-Continuous-Key-Agreement|Sparse Continuous Key Agreement"
+  "Secure-Messaging|Secure Messaging"
 )
 
-rm -rf "$site_root" "$render_root"
-mkdir -p "$site_root" "$render_root"
 recover_previous_progress_history
+echo "Rendering unified Verso manual"
+rm -rf "$site_root"
+lake build SecureMessagingDocs.Render SecureMessagingDocs.Contents
+lake env lean --run docs/SecureMessagingDocs/Renderers/ContentsMain.lean --output "$output_root"
+if [[ -f "$site_root/index.html" ]]; then
+  mv "$site_root/index.html" "$site_root/book.html"
+fi
+
+for chapter in "${chapters[@]}"; do
+  IFS='|' read -r slug title <<< "$chapter"
+  add_project_home_links "$site_root" "$site_root/$slug"
+  move_references_to_bottom "$site_root/$slug"
+  if [[ -f "$site_root/$slug/index.html" ]]; then
+    remove_generated_manual_titlepage "$site_root/$slug/index.html"
+  fi
+done
+if [[ -f "$site_root/book.html" ]]; then
+  add_project_home_links "$site_root" "$site_root/book.html"
+fi
 
 # The site root is intentionally plain HTML: chapter manuals remain responsible
 # for their own Verso assets, search indexes, graphs, and previews.
@@ -848,35 +870,19 @@ cat > "$site_root/index.html" <<'HTML'
 HTML
 
 for chapter in "${chapters[@]}"; do
-  IFS='|' read -r runner module slug title contents_label <<< "$chapter"
-  echo "Rendering $title"
-
-  # Render one chapter manual into a temporary directory, then copy only its
-  # html-multi output into the assembled site. The helpers below normalize each
-  # standalone manual so it behaves like one chapter of the combined site.
-  out_dir="$render_root/$slug"
-  lake build SecureMessagingDocs.Render "$module"
-  lake env lean --run "$runner" --output "$out_dir"
-  mkdir -p "$site_root/$slug"
-  cp -R "$out_dir/html-multi/." "$site_root/$slug/"
-  add_project_index_links "$site_root/$slug" "$contents_label"
-  move_references_to_bottom "$site_root/$slug"
-  remove_generated_manual_titlepage "$site_root/$slug/index.html"
+  IFS='|' read -r slug title <<< "$chapter"
   printf '      <li><div class="chapter-row"><a class="chapter-title" href="%s/">%s</a></div></li>\n' "$slug" "$title" >> "$site_root/index.html"
 done
 
-# The chapters are rendered independently, so Verso cannot resolve Blueprint
-# `uses` links that point into a different chapter. Repair those placeholders
-# once all per-chapter manifests and HTML files are present in the combined site.
-python3 scripts/resolve-split-blueprint-uses.py --site-dir "$site_root"
+# Cross-chapter Blueprint `uses` resolve inside the unified manual, so the
+# former split-site href repair is not needed.
 seed_progress_history_if_needed
 
 cat >> "$site_root/index.html" <<'HTML'
     </ul>
 HTML
 
-# Build the root Blueprint status table from the same per-chapter manifests.
-# This avoids importing every rich documentation module into one giant manual.
+# Build the root Blueprint status table from the unified Verso Blueprint manifest.
 python3 scripts/update-blueprint-progress-history.py \
   --site-dir "$site_root" \
   --docs-dir "$docs_root" \
