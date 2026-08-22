@@ -1,0 +1,446 @@
+/-
+Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Beneficial AI Foundation
+-/
+
+import SecureMessaging.SCKA.OppUniKEM.Construction
+import SecureMessaging.ErasureCode.Payload
+import VCVio.OracleComp.SimSemantics.StateT.StateProjection
+
+/-!
+# Opp-UniKEM-CKA — Game Invariant
+
+Let `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` be the
+Opp-UniKEM-CKA SCKA scheme.
+Each epoch of the correctness game for `Π` runs one KEM instance:
+- Party A samples `(pk, sk) ← kem.keygen`;
+- Party B samples `(st, ct₀) ← onoff.encapsOff`;
+- once it has decoded `pk`, party B samples `(ct₁, k) ← onoff.encapsOn st pk`.
+
+The module introduces:
+* `EpochTranscript` — the samples an epoch has drawn, each with a proof that
+  it is an output the corresponding sampler can produce.
+* `Transcript := ℕ → EpochTranscript` — an execution transcript: the
+  `EpochTranscript` of each epoch.
+* `TranscriptConsistent T s` — the game state `s` is consistent with the
+  execution transcript `T : Transcript` and `s.correct = true`.
+* `reachableInv s := ∃ T, TranscriptConsistent T s` — the state invariant:
+  `s` is consistent with some execution transcript.
+* `CurrentKEMCorrect s` — A's current KEM material and B's recorded key
+  decapsulate consistently.
+
+This file proves the invariant holds initially and is preserved by the uniform oracle.
+The four protocol specific oracles are handled in `Invariant.SendA`, `Invariant.SendB`,
+`Invariant.RecvA`, and `Invariant.RecvB`.
+
+
+-/
+
+open OracleSpec OracleComp ENNReal KEMScheme
+
+namespace oppUniKemCKA
+
+universe u
+
+variable {m : Type → Type u} {K PK SK C Sym : Type}
+
+open SCKAScheme.sckaCorrectnessSpec
+
+open ErasureCodePayload
+
+section Invariant
+
+variable [DecidableEq Sym]
+
+/-- The samples drawn so far for one protocol epoch: A's key pair, B's
+offline encapsulation part, and B's online encapsulation part, each with a
+proof of membership in the support of its sampler. -/
+structure EpochTranscript
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure) where
+  /-- The public/secret key pair sampled for this epoch. -/
+  keypair : Option (PK × SK)
+  /-- The offline state and ciphertext sampled for this epoch. -/
+  off : Option (onoff.St × onoff.C₀)
+  /-- The online ciphertext and shared key sampled for this epoch. -/
+  on : Option (onoff.C₁ × K)
+  /-- Each sampled key pair lies in the support of key generation. -/
+  keypair_mem : ∀ pk sk, keypair = some (pk, sk) → (pk, sk) ∈ support kem.keygen
+  /-- Each sampled offline part lies in the support of offline encapsulation. -/
+  off_mem : ∀ st ct0, off = some (st, ct0) → (st, ct0) ∈ support onoff.encapsOff
+  /-- Each sampled online part lies in the support of online encapsulation. -/
+  on_mem : ∀ pk sk st ct0 ct1 key,
+    keypair = some (pk, sk) → off = some (st, ct0) → on = some (ct1, key) →
+      (ct1, key) ∈ support (onoff.encapsOn st pk)
+  /-- The online part requires a key pair. -/
+  on_keypair : on.isSome → keypair.isSome
+  /-- The online part requires the offline part. -/
+  on_off : on.isSome → off.isSome
+
+/-- An execution transcript: the samples drawn in each epoch, indexed by
+epoch number. -/
+abbrev Transcript (kem : KEMScheme ProbComp K PK SK C)
+    (onoff : kem.OnOffStructure) :=
+  ℕ → EpochTranscript kem onoff
+
+/-- Empty epoch transcript with no samples drawn. -/
+private def EpochTranscript.empty
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure) :
+    EpochTranscript kem onoff where
+  keypair := none
+  off := none
+  on := none
+  keypair_mem := by simp
+  off_mem := by simp
+  on_mem := by simp
+  on_keypair := by simp
+  on_off := by simp
+
+/-- The shared key recorded by an epoch transcript once its online stage has
+completed. -/
+def EpochTranscript.key
+    {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
+    (tr : EpochTranscript kem onoff) : Option K := tr.on.map Prod.snd
+
+/-- Update a transcript by setting a key pair, provided the online stage
+has not yet begun. -/
+def EpochTranscript.setKeypair
+    {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
+    (tr : EpochTranscript kem onoff) (pk : PK) (sk : SK)
+    (hmem : (pk, sk) ∈ support kem.keygen) (hon : tr.on = none) :
+    EpochTranscript kem onoff where
+  keypair := some (pk, sk)
+  off := tr.off
+  on := tr.on
+  keypair_mem := by simp [hmem]
+  off_mem := tr.off_mem
+  on_mem := by simp [hon]
+  on_keypair := by simp [hon]
+  on_off := tr.on_off
+
+/-- Update a transcript by setting the offline encapsulation, provided the
+online stage has not yet begun. -/
+def EpochTranscript.setOff
+    {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
+    (tr : EpochTranscript kem onoff) (st : onoff.St) (ct0 : onoff.C₀)
+    (hmem : (st, ct0) ∈ support onoff.encapsOff) (hon : tr.on = none) :
+    EpochTranscript kem onoff where
+  keypair := tr.keypair
+  off := some (st, ct0)
+  on := tr.on
+  keypair_mem := tr.keypair_mem
+  off_mem := by simp [hmem]
+  on_mem := by simp [hon]
+  on_keypair := tr.on_keypair
+  on_off := by simp [hon]
+
+/-- Update a transcript by setting the online encapsulation, provided both
+the key pair and offline part are present. -/
+def EpochTranscript.setOn
+    {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
+    (tr : EpochTranscript kem onoff) (ct1 : onoff.C₁) (key : K)
+    (hkeypair : tr.keypair.isSome) (hoffSome : tr.off.isSome)
+    (hmem : ∀ pk sk st ct0,
+      tr.keypair = some (pk, sk) → tr.off = some (st, ct0) →
+        (ct1, key) ∈ support (onoff.encapsOn st pk)) :
+    EpochTranscript kem onoff where
+  keypair := tr.keypair
+  off := tr.off
+  on := some (ct1, key)
+  keypair_mem := tr.keypair_mem
+  off_mem := tr.off_mem
+  on_mem := by
+    intro pk sk st ct0 ct1' key' hkp hoff hon
+    simp only [Option.some.injEq, Prod.mk.injEq] at hon
+    obtain ⟨rfl, rfl⟩ := hon
+    exact hmem pk sk st ct0 hkp hoff
+  on_keypair := by
+    intro _
+    exact hkeypair
+  on_off := by
+    intro _
+    exact hoffSome
+
+/-- Pair two optional values exactly when both are present.  This operation is
+part of the small state-invariant interface used by the quantitative proof. -/
+@[simp] def optionPair {A B : Type} : Option A → Option B → Option (A × B)
+  | none, _ => none
+  | some _, none => none
+  | some a, some b => some (a, b)
+
+/-- An A-to-B entry `(ρ, tsnd)` has `tsnd = t - 1`, no payload bit, and a
+transcript-consistent public-key chunk when present; acknowledgements are
+unconstrained. -/
+def HonestMessageA
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (ecEk : ErasureCodePayload PK Sym) (T : Transcript kem onoff)
+    (entry : Message Sym × ℕ) : Prop :=
+  let (ρ, tsnd) := entry
+  let (ch?, _ack, t, b?) := ρ
+  tsnd = t - 1 ∧ b? = none ∧
+    match ch? with
+    | none => True
+    | some ch => ∃ pk sk i,
+        (T t).keypair = some (pk, sk) ∧ ch = ecEk.encode pk i
+
+/-- A B-to-A entry `(ρ, tsnd)` has `tsnd = t - 1` and a transcript-consistent
+`ct₀` or `ct₁` chunk when present; acknowledgements are unconstrained. -/
+def HonestMessageB
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
+    (T : Transcript kem onoff) (entry : Message Sym × ℕ) : Prop :=
+  let (ρ, tsnd) := entry
+  let (ch?, _ack, t, b?) := ρ
+  tsnd = t - 1 ∧
+    match ch?, b? with
+    | none, _ => True
+    | some ch, some 0 => ∃ st ct0 i,
+        (T t).off = some (st, ct0) ∧ ch = ecCt0.encode ct0 i
+    | some ch, some 1 => ∃ ct1 key i,
+        (T t).on = some (ct1, key) ∧ ch = ecCt1.encode ct1 i
+    | some _, none => False
+
+omit [DecidableEq Sym] in
+/-- Internal helper: an honest message's sending epoch is at most the
+current epoch. -/
+lemma HonestMessageB.epoch_le {kem : KEMScheme ProbComp K PK SK C}
+    {onoff : kem.OnOffStructure}
+    {ecCt0 : ErasureCodePayload onoff.C₀ Sym}
+    {ecCt1 : ErasureCodePayload onoff.C₁ Sym}
+    {T : Transcript kem onoff} {msg : Message Sym} {tcur : ℕ}
+    (hpos : 0 < tcur)
+    (hmsg : HonestMessageB kem onoff ecCt0 ecCt1 T (msg, tcur - 1)) :
+    Message.epoch msg ≤ tcur := by
+  rcases msg with ⟨ch?, ack, t, b?⟩
+  simp only [HonestMessageB] at hmsg
+  change t ≤ tcur
+  omega
+
+/-- Internal helper: B's chunk buffer is an honest chunk set of the public
+key recorded in the transcript for B's current epoch — below the
+reconstruction threshold while undecoded, exactly at it once decoded. -/
+def ChunksBConsistent
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (ecEk : ErasureCodePayload PK Sym) (T : Transcript kem onoff)
+    (stB : StB onoff Sym) : Prop :=
+  match (T stB.t).keypair with
+  | none => stB.ekA = none ∧ stB.lch = ∅
+  | some (pk, _sk) =>
+      match stB.ekA with
+      | none => ∃ I, stB.lch = payloadChunks ecEk pk I ∧ I.card < ecEk.ec.nchunk
+      | some pk' => pk' = pk ∧ ∃ I,
+          stB.lch = payloadChunks ecEk pk I ∧ I.card = ecEk.ec.nchunk
+
+/-- Internal helper: A's chunk buffer is an honest chunk set of the
+ciphertext part recorded in the transcript for A's current epoch — chunks
+of `ct₀` until it is decoded, then chunks of `ct₁`. -/
+def ChunksAConsistent
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
+    (T : Transcript kem onoff) (stA : StA onoff Sym) : Prop :=
+  match stA.ct0 with
+  | none =>
+      match (T stA.t).off with
+      | none => stA.lch = ∅
+      | some (_st, ct0) => ∃ I,
+          stA.lch = payloadChunks ecCt0 ct0 I ∧ I.card < ecCt0.ec.nchunk
+  | some ct0 =>
+      (∃ st, (T stA.t).off = some (st, ct0)) ∧
+      match (T stA.t).on with
+      | none => stA.lch = ∅
+      | some (ct1, _key) => ∃ I,
+          stA.lch = payloadChunks ecCt1 ct1 I ∧ I.card < ecCt1.ec.nchunk
+
+/-- `TranscriptConsistent T s` states that the concrete game state `s` agrees
+with the execution transcript `T`: epochs, sampled KEM material,
+chunk buffers, message histories, and key tables are consistent, and
+`s.correct = true`.
+
+This is a relation between a particular transcript and state. The preserved
+state invariant is `reachableInv s := ∃ T, TranscriptConsistent T s`. -/
+structure TranscriptConsistent
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (ecEk : ErasureCodePayload PK Sym)
+    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
+    (T : Transcript kem onoff)
+    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) : Prop where
+  /-- The correctness flag is set. -/
+  correct : s.correct = true
+  /-- Epochs are monotone and differ by at most one. -/
+  epochs : s.stB.t ≤ s.stA.t ∧ s.stA.t ≤ s.stB.t + 1
+  /-- A's epoch is positive. -/
+  epochPosA : 0 < s.stA.t
+  /-- B's epoch is positive. -/
+  epochPosB : 0 < s.stB.t
+  /-- A's current receiving epoch is at most the last completed epoch. -/
+  tcurA : s.tcurA ≤ s.stA.t - 1
+  /-- B's current receiving epoch is at most the last completed epoch. -/
+  tcurB : s.tcurB ≤ s.stB.t - 1
+  /-- A's key-pair components are synchronized. -/
+  keypairAShape : s.stA.ekA.isSome = s.stA.dkA.isSome
+  /-- B's offline components are synchronized. -/
+  offBShape : s.stB.stCt.isSome = s.stB.ct0.isSome
+  /-- A's key pair matches the transcript. -/
+  keypairA : (T s.stA.t).keypair = optionPair s.stA.ekA s.stA.dkA
+  /-- B's offline part matches the transcript. -/
+  offB : (T s.stB.t).off = optionPair s.stB.stCt s.stB.ct0
+  /-- B's online ciphertext matches the transcript. -/
+  onB : (T s.stB.t).on.map Prod.fst = s.stB.ct1
+  /-- B's decoded public key comes from the transcript. -/
+  decodedEk : ∀ pk, s.stB.ekA = some pk → ∃ sk, (T s.stB.t).keypair = some (pk, sk)
+  /-- A's decoded offline ciphertext comes from the transcript. -/
+  decodedCt0 : ∀ ct0, s.stA.ct0 = some ct0 → ∃ st, (T s.stA.t).off = some (st, ct0)
+  /-- A's chunk buffer is an honest chunk set. -/
+  chunksA : ChunksAConsistent kem onoff ecCt0 ecCt1 T s.stA
+  /-- B's chunk buffer is an honest chunk set. -/
+  chunksB : ChunksBConsistent kem onoff ecEk T s.stB
+  /-- Past epochs have completed their online stage. -/
+  pastComplete : ∀ t, 0 < t → t < s.stA.t → (T t).key.isSome
+  /-- Future epochs have no key pair. -/
+  futureKeypair : ∀ t, s.stA.t < t → (T t).keypair = none
+  /-- Future epochs (for B) have no offline part. -/
+  futureOff : ∀ t, s.stB.t < t → (T t).off = none
+  /-- Future epochs (for B) have no online part. -/
+  futureOn : ∀ t, s.stB.t < t → (T t).on = none
+  /-- A's key table matches the transcript. -/
+  keyA : ∀ t, s.keyA t = if t = 0 then none else if t < s.stA.t then (T t).key else none
+  /-- B's key table matches the transcript. -/
+  keyB : ∀ t, s.keyB t = (T t).key
+  /-- All A-to-B messages are honest. -/
+  msgA : ∀ n entry, s.msgA n = some entry → HonestMessageA kem onoff ecEk T entry
+  /-- All B-to-A messages are honest. -/
+  msgB : ∀ n entry, s.msgB n = some entry → HonestMessageB kem onoff ecCt0 ecCt1 T entry
+  /-- A-to-B message sending epochs are at most A's current epoch. -/
+  msgAEpoch : ∀ n ρ tsnd, s.msgA n = some (ρ, tsnd) → Message.epoch ρ ≤ s.stA.t
+  /-- B-to-A message sending epochs are at most B's current epoch. -/
+  msgBEpoch : ∀ n ρ tsnd, s.msgB n = some (ρ, tsnd) → Message.epoch ρ ≤ s.stB.t
+
+omit [DecidableEq Sym] in
+/-- A has recorded every positive epoch up to any bound below its current
+protocol epoch. -/
+lemma TranscriptConsistent.knownPrefixA
+    {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
+    {ecEk : ErasureCodePayload PK Sym}
+    {ecCt0 : ErasureCodePayload onoff.C₀ Sym}
+    {ecCt1 : ErasureCodePayload onoff.C₁ Sym}
+    {T : Transcript kem onoff}
+    {s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)}
+    (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
+    {tcur : ℕ} (htcur : tcur ≤ s.stA.t - 1) :
+    (List.range (tcur + 1)).all (fun t => t = 0 || (s.keyA t).isSome) = true := by
+  rw [List.all_eq_true]
+  intro t ht
+  have htle : t ≤ tcur := by simpa using List.mem_range.mp ht
+  by_cases ht0 : t = 0
+  · simp [ht0]
+  have hlt : t < s.stA.t := by omega
+  rw [hInv.keyA t]
+  simp [ht0, hlt, hInv.pastComplete t (Nat.pos_of_ne_zero ht0) hlt]
+
+omit [DecidableEq Sym] in
+/-- B has recorded every positive epoch up to any bound below its current
+protocol epoch. -/
+lemma TranscriptConsistent.knownPrefixB
+    {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
+    {ecEk : ErasureCodePayload PK Sym}
+    {ecCt0 : ErasureCodePayload onoff.C₀ Sym}
+    {ecCt1 : ErasureCodePayload onoff.C₁ Sym}
+    {T : Transcript kem onoff}
+    {s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)}
+    (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
+    {tcur : ℕ} (htcur : tcur ≤ s.stB.t - 1) :
+    (List.range (tcur + 1)).all (fun t => t = 0 || (s.keyB t).isSome) = true := by
+  rw [List.all_eq_true]
+  intro t ht
+  have htle : t ≤ tcur := by simpa using List.mem_range.mp ht
+  by_cases ht0 : t = 0
+  · simp [ht0]
+  have hltB : t < s.stB.t := by omega
+  have hltA : t < s.stA.t := hltB.trans_le hInv.epochs.1
+  rw [hInv.keyB t]
+  simpa [ht0] using hInv.pastComplete t (Nat.pos_of_ne_zero ht0) hltA
+
+omit [DecidableEq Sym] in
+/-- If A is ahead of B, B has also recorded its current positive epoch. -/
+lemma TranscriptConsistent.knownPrefixBThroughCurrent
+    {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
+    {ecEk : ErasureCodePayload PK Sym}
+    {ecCt0 : ErasureCodePayload onoff.C₀ Sym}
+    {ecCt1 : ErasureCodePayload onoff.C₁ Sym}
+    {T : Transcript kem onoff}
+    {s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)}
+    (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
+    (hBehind : s.stB.t < s.stA.t)
+    {tcur : ℕ} (htcur : tcur ≤ s.stB.t) :
+    (List.range (tcur + 1)).all (fun t => t = 0 || (s.keyB t).isSome) = true := by
+  rw [List.all_eq_true]
+  intro t ht
+  have htle : t ≤ tcur := by simpa using List.mem_range.mp ht
+  by_cases ht0 : t = 0
+  · simp [ht0]
+  have hltA : t < s.stA.t := (htle.trans htcur).trans_lt hBehind
+  rw [hInv.keyB t]
+  simpa [ht0] using hInv.pastComplete t (Nat.pos_of_ne_zero ht0) hltA
+
+/-- The preserved game-state invariant: `s` is consistent with some execution
+transcript `T`. -/
+def reachableInv
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (ecEk : ErasureCodePayload PK Sym)
+    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
+    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) : Prop :=
+  ∃ T, TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s
+
+/-- The KEM material currently held by A and the key currently recorded for B
+decapsulate consistently. -/
+def CurrentKEMCorrect
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (hDet : DeterministicDecaps kem)
+    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) : Prop :=
+  ∀ dk ct0 ct1 key,
+    s.stA.dkA = some dk → s.stA.ct0 = some ct0 →
+    s.stB.ct1 = some ct1 → s.keyB s.stA.t = some key →
+    hDet.decapsDet dk (onoff.split.symm (ct0, ct1)) = some key
+
+omit [DecidableEq Sym] in
+/-- The initial game state admits a trivial transcript with empty epochs. -/
+lemma reachableInv_init
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (ecEk : ErasureCodePayload PK Sym)
+    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
+    (_hEkPos : 0 < ecEk.ec.nchunk) (_hCt0Pos : 0 < ecCt0.ec.nchunk) :
+    reachableInv kem onoff ecEk ecCt0 ecCt1
+      (SCKAScheme.initGameState
+        { dkA := none, ekA := none, ct0 := none, t := 1, ich := 0, lch := ∅,
+          ack := { ekRec := false, ctRec := false } }
+        { ekA := none, ct0 := none, ct1 := none, stCt := none, t := 1, ich := 0,
+          lch := ∅, ack := { ekRec := false, ctRec := false } }) := by
+  let T : Transcript kem onoff := fun _ => .empty kem onoff
+  refine ⟨T, ?_⟩
+  (constructor <;> simp [T, EpochTranscript.empty, EpochTranscript.key,
+    ChunksAConsistent, ChunksBConsistent, SCKAScheme.initGameState]; omega)
+
+omit [DecidableEq Sym] in
+/-- The uniform oracle preserves the reachable invariant. -/
+lemma oracleUnif_preserves_reachableInv
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (ecEk : ErasureCodePayload PK Sym)
+    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) :
+    QueryImpl.PreservesInv
+      (SCKAScheme.oracleUnif (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+      (reachableInv kem onoff ecEk ecCt0 ecCt1) := by
+  intro t σ hσ z hz
+  have hz' : ∃ y : unifSpec.Range t, (y, σ) = z := by
+    simpa [SCKAScheme.oracleUnif] using hz
+  rcases hz' with ⟨_, rfl⟩
+  simpa using hσ
+
+end Invariant
+
+end oppUniKemCKA

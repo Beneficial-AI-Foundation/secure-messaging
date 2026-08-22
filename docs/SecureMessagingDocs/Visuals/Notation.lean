@@ -109,6 +109,7 @@ r#"
 \newcommand{\OSendBRLeak}{\mathsf{O}\text{-}\mathsf{Send}\text{-}\B\text{-}\mathsf{rleak}}
 \newcommand{\ORecA}{\mathsf{O}\text{-}\mathsf{Rec}\text{-}\A}
 \newcommand{\ORecB}{\mathsf{O}\text{-}\mathsf{Rec}\text{-}\B}
+\newcommand{\OChall}{\mathsf{O}\text{-}\mathsf{Chall}}
 \newcommand{\OChallA}{\mathsf{O}\text{-}\mathsf{Chall}\text{-}\A}
 \newcommand{\OChallB}{\mathsf{O}\text{-}\mathsf{Chall}\text{-}\B}
 \newcommand{\OCorrA}{\mathsf{O}\text{-}\mathsf{Corr}\text{-}\A}

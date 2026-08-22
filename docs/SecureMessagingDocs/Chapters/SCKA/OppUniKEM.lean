@@ -4,7 +4,7 @@ import VersoBlueprint
 import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessagingDocs.Bibliography
-import SecureMessaging.SCKA.OppUniKEM.Construction
+import SecureMessaging.SCKA.OppUniKEM.Correctness
 
 set_option linter.style.setOption false
 set_option linter.hashCommand false
@@ -31,8 +31,15 @@ Opp-UniKEM-CKA.
 :::
 
 :::::::definition "opp_unikem_cka_spec" (parent := "cka_protocols_opp_unikem_cka") (lean := "oppUniKemCKA.initKeyGen, oppUniKemCKA.initA, oppUniKemCKA.initB, oppUniKemCKA.vulnA, oppUniKemCKA.vulnB, oppUniKemCKA.sendA, oppUniKemCKA.sendArleak, oppUniKemCKA.recvA, oppUniKemCKA.sendB, oppUniKemCKA.sendBrleak, oppUniKemCKA.recvB, oppUniKemCKA.scheme")
-Figure 16 of {Informal.citet SCKA25}[]. The boxed checks $`\boxed{t=t'}` are our additions. They prevent old
-  acknowledgements from affecting a new epoch.
+Figure 16 of {Informal.citet SCKA25}[]. In the receive algorithms,
+- $`t` is the epoch index of the receiver's state,
+- $`t'` is the epoch index of the delivered message.
+
+We make two corrections to these algorithms, marked with surrounding boxes:
+
+* $`\mathsf{Rec}\text{-}\A` and $`\mathsf{Rec}\text{-}\B` record
+  received acknowledgements only if $`t=t'`;
+* $`\mathsf{Rec}\text{-}\B` returns $`t'-1` rather than $`t-1`.
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Initialisation}" (kind := "compact")
@@ -407,7 +414,7 @@ $`\begin{array}{l}
   \pcomment{\text{incorporate }\A\text{'s acknowledgment}} \\
 \quad \ack.\ctrec\gets\mathsf{true} \\
 \stB\gets(\ekA,\ctzero,\ctone,\stct,t,\ich,\Lch,\ack) \\
-\mathsf{return}\;((\bot,\bot),t-1,\stB)
+\mathsf{return}\;((\bot,\bot),\boxed{t'-1},\stB)
 \end{array}`
 
 ```anchor recvB (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
@@ -443,10 +450,34 @@ def recvB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
       { stB with ack := { stB.ack with ctRec := true } }
     else
       stB
-  some (none, stB.t - 1, stB)
+  -- Return the delivered message's sending epoch `t' - 1`.
+  some (none, t' - 1, stB)
 ```
 :::::
 ::::::
+
+:::leanPillCaption "SCKA scheme instance"
+:::
+```anchor scheme (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
+def scheme (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
+  [DecidableEq Sym]
+    (hDet : kem.DeterministicDecaps)
+    (ecEk : ErasureCodePayload PK Sym)
+    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
+    (leak : KEMScheme.OnOffRandLeak kem onoff) :
+    SCKAScheme m Unit (StA onoff Sym) (StB onoff Sym) K (Message Sym)
+      (SendRand leak.KeygenRand leak.OffRand leak.OnRand) where
+  initKeyGen := initKeyGen
+  initA := initA kem onoff
+  initB := initB kem onoff
+  sendA := sendA kem onoff ecEk
+  sendArleak := sendArleak kem onoff ecEk leak
+  recvA := recvA kem onoff hDet ecCt0 ecCt1
+  sendB := sendB kem onoff ecCt0 ecCt1
+  sendBrleak := sendBrleak kem onoff ecCt0 ecCt1 leak
+  recvB := recvB kem onoff ecEk
+```
 
 {usesLabel}`uses` {uses "scka_scheme"}[] · {uses "erasure_code_scheme"}[] · {uses "on_off_kem_scheme"}[] · {uses "on_off_kem_rand_leak"}[] · {githubLabel}`github` {githubIssue 106}[]
 :::::::
@@ -454,11 +485,35 @@ def recvB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 :::defTitle "opp_unikem_cka_correctness" "Opp-UniKEM-CKA correctness"
 :::
 
-::::theorem "opp_unikem_cka_correctness" (parent := "cka_protocols_opp_unikem_cka")
-$`\todo`
+::::theorem "opp_unikem_cka_correctness" (parent := "cka_protocols_opp_unikem_cka") (lean := "oppUniKemCKA.correctness_true_ge")
+Assume that:
 
-:::leanPill "missing"
-:::
+* $`\adv` is any SCKA correctness adversary making at most $`q` send-oracle
+  queries;
+* the underlying KEM has deterministic decapsulation,
+  and has correctness error at most $`\varepsilon`;
+* and the three erasure codes are correct.
+
+Then $`\Pr\bigl[\Exp{\textsf{cor}}{\textsf{Opp-UniKEM-CKA}}(\adv)=1\bigr]
+  \ge 1-q\varepsilon`, i.e., the Opp-UniKEM-CKA protocol is correct with probability at least
+$`1-q\varepsilon`.
+
+
+```anchor correctnessTrueGe (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Correctness)
+theorem correctness_true_ge [DecidableEq K] [DecidableEq Sym]
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (hDet : DeterministicDecaps kem)
+    (ecEk : ErasureCodePayload PK Sym) (hEkCorrect : ecEk.ec.Correct)
+    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0Correct : ecCt0.ec.Correct)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1Correct : ecCt1.ec.Correct)
+    (leak : KEMScheme.OnOffRandLeak kem onoff)
+    (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
+    (q : ℕ) (hq : SendQueryBound adv q) :
+    Pr[= true |
+      SCKAScheme.correctnessExp
+        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] ≥
+      1 - (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp
+```
 
 {usesLabel}`uses` {uses "opp_unikem_cka_spec"}[] · {uses "scka_correctness"}[] · {uses "erasure_code_correctness"}[] · {uses "on_off_kem_scheme"}[] · {uses "on_off_kem_rand_leak"}[] · {githubLabel}`github` {githubIssue 107}[]
 ::::

@@ -10,6 +10,7 @@ import ToVCVio.OracleComp.QueryTracking.LazySampling
 import ToVCVio.OracleComp.QueryTracking.RandomOracle.DiscardQuerySimulate
 import ToVCVio.OracleComp.QueryTracking.RandomOracle.RandomOracleForgery
 import ToVCVio.OracleComp.SimSemantics.SimulateQForward
+import ToVCVio.OracleComp.SimSemantics.StateT.ExpectedPayoffBound
 import ToVCVio.OracleComp.SimSemantics.StateT.PreservesInv
 import ToVCVio.OracleComp.SimSemantics.UnifLift
 import ToVCVio.Probability.IntMeasure

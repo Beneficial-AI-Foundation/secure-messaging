@@ -244,6 +244,7 @@ html[data-bp-style="bold"] .bp_kind_theorem_content,
 html[data-bp-style="bold"] .bp_wrapper div.theorem_thmcontent {
   border-left: 0 !important;
   padding-left: 0 !important;
+  font-style: normal !important;
 }
 
 .split-blueprint-use {
