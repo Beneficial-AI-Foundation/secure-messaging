@@ -3,6 +3,7 @@ import VersoManual
 import VersoBlueprint
 import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
+import SecureMessagingDocs.Bibliography
 import SecureMessaging.SCKA.MLKEMBraid.Authenticator
 import SecureMessagingDocs.Bibliography
 import SecureMessaging.SCKA.MLKEMBraid.Basic
@@ -108,9 +109,9 @@ $`\todo`
 ::::
 
 :::group "mlkem_braid_protocol"
-The ML-KEM Braid transition system of Signal, *The ML-KEM Braid Protocol*: the message
-vocabulary of §2.3, the eleven states of §2.5 with their fields, the per-state send and
-receive procedures of §2.5, and the initialization of §2.6.
+Signal's *The ML-KEM Braid Protocol* defines the transition system formalized here: the
+§2.3 message vocabulary, the eleven states and per-state send and receive procedures of
+§2.5, and the §2.6 initialization.
 
 The primitives are parameters: the KEM operations of §1.2 at their §2.5 call shapes, the
 header hash of §1.2.1, `KDF_OK`, and one erasure-coded stream per §2.2 payload, with §2.4
@@ -118,13 +119,12 @@ authentication supplied by a ratcheted authenticator. A concrete ML-KEM instanti
 supplies SHA3-256, HKDF, HMAC-SHA256, and an erasure code for each stream.
 
 Every send stamps `msg.epoch = state.epoch` and reports `state.epoch - 1`. A receive
-reports `state.epoch - 1` for the state it is called on, except from `ct2Sampled`, where
-the report is read off the state after the transition, so an accepted next-epoch message
-reports the entry epoch. An input matching no guard is ignored: the entry state is
-returned with no output key and `state.epoch - 1`. That covers the types a state does not
-guard, epochs outside its guard, every input in `keysUnsampled` and `headerReceived`, and
-every message whose data presence violates the §2.3 convention, which is tested before
-state dispatch.
+reports `state.epoch - 1` for its entry state, except `ct2Sampled`, which reads the report
+from the successor state. An accepted next-epoch message therefore reports the entry
+epoch. `receive` ignores unguarded message types, epochs outside a guard, every input in
+`keysUnsampled` and `headerReceived`, and any message that violates the §2.3
+data-presence convention checked before state dispatch. In each case it returns the
+entry state with no output key and `state.epoch - 1`.
 :::
 
 :::defTitle "mlkem_braid_protocol_parameters" "Protocol parameters"
@@ -375,10 +375,10 @@ ct1Acknowledged        None, no payload     —
 ct2Sampled             Ct2 chunk            —
 ```
 
-The eleven receive edges, by entry state. A guard names the accepted message type and the
-epoch it requires; `e` is the epoch of the entry state. The states
-`keysUnsampled` and `headerReceived` ignore every input, and so does every unmatched or
-ill-formed input in the other states: the entry state is returned with no output key.
+The eleven receive edges, by entry state. Each guard specifies an accepted message type
+and epoch; `e` is the entry-state epoch. The states `keysUnsampled` and `headerReceived`
+ignore every input. Every other state returns its entry state with no output key when an
+input is ill-formed or matches no guard.
 
 ```
 Entry state            Guard               Figure 1 edge and result
@@ -440,26 +440,30 @@ def initB (P : Parameters m)
 ::::
 
 :::group "mlkem_braid_scka"
-SCKA construction: the ML-KEM Braid transition system packaged as an SCKA scheme, whose
-syntax is §3.1 and whose game is Figure 1 of Auerbach, Dodis, Jost, Katsumata, and
-Schmidt, *How to Compare Bandwidth Constrained Two-Party Secure Messaging Protocols*.
-Both parties run the same send and receive and differ only in their initial state.
+The SCKA construction packages the ML-KEM Braid transition system as a scheme with the
+syntax of §3.1 and the game in Figure 1 of {Informal.citet SCKA25}[],
+*How to Compare Bandwidth Constrained Two-Party Secure Messaging Protocols*. Both
+parties run the same send and receive and differ only in their initial state.
 
 An SCKA scheme asks for a randomness-leaking send, which §2.5 does not describe.
 `RandLeak` pairs `KeyGen` and `Encaps1`, the two randomized operations of §1.2, with
 their sampled randomness. `sendRleak` uses these operations in the `keysUnsampled` and
 `headerReceived` branches and delegates the other nine branches to `send`.
 
-The receive adapter reports `msg.epoch - 1` in place of the state-derived report, and
-maps a failure to the outer `none`, which the game reads as a refusal of the delivery; an
-absent epoch key is the separate inner `none`. The game replays recorded messages in any
-order and asserts on each delivery that the receiving epoch equals the sending epoch
-recorded with the message (`assertMatchingEpoch`). Every send stamps
-`msg.epoch = state.epoch` and reports `state.epoch - 1`, so `msg.epoch - 1` is that
-recorded sending epoch. The two rules agree whenever a guard accepts, since the guards
-force `msg.epoch = state.epoch` and the `ct2Sampled` post-transition report is again
-`msg.epoch - 1`; they differ on ignored messages of another epoch, which the
-state-derived rule reports with the receiver's epoch.
+The receive adapter reports `msg.epoch - 1` instead of the state-derived report. It maps
+a failure to the outer `none`, which tells the game to refuse delivery; the inner `none`
+means that a successful receive produced no epoch key. A failure contains no
+`RecvResult`, so the adapter has no successor state, epoch, or key to report. Refusal
+neither terminates nor renegotiates the session.
+
+The game can replay recorded messages in any order. On each delivery,
+`assertMatchingEpoch` requires the receiving epoch to equal the sending epoch recorded
+with the message. Every send stamps `msg.epoch = state.epoch` and reports
+`state.epoch - 1`, making `msg.epoch - 1` the recorded sending epoch. The adapter's
+epoch report matches `receive` whenever a guard accepts: the guards require
+`msg.epoch = state.epoch`, and an accepted `ct2Sampled` transition again reports
+`msg.epoch - 1`. For an ignored message from another epoch, the adapter reports
+`msg.epoch - 1` and `receive` reports the receiver's epoch.
 :::
 
 :::defTitle "mlkem_braid_scka_leakage" "Disclosed send randomness"

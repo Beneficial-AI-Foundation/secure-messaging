@@ -10,9 +10,9 @@ import SecureMessaging.SCKA.Defs
 /-!
 # ML-KEM Braid as an SCKA scheme
 
-`MLKEMBraid.Basic` packaged as an `SCKAScheme`: both parties run the same `send` and
-`receive`, `initA` and `initB` build the two initial states, and `sampleInitKey` draws
-the initial common value.
+`scheme` packages the transitions from `MLKEMBraid.Basic` as an `SCKAScheme`. Both
+parties run the same `send` and `receive`. `initA` and `initB` build their initial states,
+and `sampleInitKey` draws their initial common value.
 
 `SCKAScheme` asks for a randomness-leaking send. `RandLeak` supplies versions of
 `KeyGen` and `Encaps1` that expose their sampled randomness. `sendRleak` uses them in the
@@ -20,16 +20,20 @@ the initial common value.
 `send`. Its two projection theorems establish agreement with `send` and characterize the
 disclosed randomness.
 
-`recvSCKA` reports `msg.epoch - 1` in place of the state-derived report of `receive`, and
-maps a `Failure` to the outer `none`, which the game reads as a refusal of the delivery;
-an absent epoch key is the separate inner `none`. The game replays recorded messages in
-any order and asserts `t^rcv = t^snd` on each delivery (`assertMatchingEpoch` in
-`SCKAScheme.oracleRecvA`). Every send stamps `msg.epoch = state.epoch` and reports
-`state.epoch - 1`, so `msg.epoch - 1` is exactly the sending epoch recorded with that
-message. The two rules agree whenever a guard accepts, since the guards force
-`msg.epoch = state.epoch`, and on `ct2Sampled` acceptance the post-transition report is
-again `msg.epoch - 1`; they differ on ignored messages of another epoch, which the
-state-derived rule reports with the receiver's epoch instead of the sender's.
+`recvSCKA` reports `msg.epoch - 1` instead of the state-derived report from `receive`.
+It maps a `Failure` to the outer `none`, which tells the game to refuse delivery; the
+inner `none` means that a successful receive produced no epoch key. A `Failure` contains
+no `RecvResult`, so the adapter has no successor state, epoch, or key to report. Refusal
+neither terminates nor renegotiates the session.
+
+The game can replay recorded messages in any order. On each delivery,
+`assertMatchingEpoch` in `SCKAScheme.oracleRecvA` requires `t^rcv = t^snd`. Every send
+stamps `msg.epoch = state.epoch` and reports `state.epoch - 1`, making
+`msg.epoch - 1` the sending epoch recorded with that message. The adapter's epoch
+report matches `receive` whenever a guard accepts: the guards require
+`msg.epoch = state.epoch`, and an accepted `ct2Sampled` transition again reports
+`msg.epoch - 1`. For an ignored message from another epoch, the adapter reports
+`msg.epoch - 1` and `receive` reports the receiver's epoch.
 -/
 
 open ErasureCodePayload.Streaming
@@ -130,9 +134,9 @@ theorem map_snd_sendRleak [LawfulMonad m] (P : Parameters m) (rl : RandLeak P)
     simp only [sendRleak, map_eq_pure_bind, bind_assoc, pure_bind]
   all_goals simp [send, sendRleak]
 
-/-- `receive` in the shape the SCKA game expects: a `Failure` becomes the outer `none`,
-the game's refusal of the delivery, and the receive epoch reported is `msg.epoch - 1`,
-the sending epoch recorded with the message. -/
+/-- Adapt `receive` to the SCKA game. A `Failure` becomes the outer `none`, so the game
+refuses delivery. A success reports `msg.epoch - 1`, the sending epoch recorded with the
+message. -/
 -- ANCHOR: Braid_recvSCKA
 def recvSCKA (P : Parameters m) [DecidableEq P.Sym] [DecidableEq P.Hek]
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
