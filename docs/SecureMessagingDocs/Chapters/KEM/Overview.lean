@@ -4,6 +4,7 @@ import VersoBlueprint.Commands.Graph
 import VersoBlueprint.Commands.Summary
 import SecureMessagingDocs.Bibliography
 import SecureMessagingDocs.Chapters.KEM.MLKEM
+import SecureMessagingDocs.Chapters.KEM.FrodoKEM
 import SecureMessagingDocs.Chapters.KEM.OnOffKEM.Overview
 import SecureMessagingDocs.Chapters.KEM.IncrementalKEM.Overview
 
@@ -20,9 +21,12 @@ set_option linter.hashCommand false
 
 - {Informal.citet SCKA25}[]
 - {Informal.citet FIPS203}[]
+- {Informal.citet FrodoKEM}[]
 - {Informal.citet MLKEM_Braid}[]
 
 {include 1 SecureMessagingDocs.Chapters.KEM.MLKEM}
+
+{include 1 SecureMessagingDocs.Chapters.KEM.FrodoKEM}
 
 {include 1 SecureMessagingDocs.Chapters.KEM.OnOffKEM.Overview}
 

@@ -106,6 +106,28 @@ def MLKEM_Braid : Verso.Genre.Manual.Bibliography.Citable := .article
   , number := inlines!""
   , url := some "https://signal.org/docs/specifications/mlkembraid/" }
 
+@[bib "SPQR"]
+def SPQR : Verso.Genre.Manual.Bibliography.Citable := .article
+  { title := inlines!"Sparse Post Quantum Ratchet"
+  , authors := #[inlines!"Signal"]
+  , journal := inlines!"SparsePostQuantumRatchet"
+  , year := 2025
+  , month := none
+  , volume := inlines!""
+  , number := inlines!""
+  , url := some "https://github.com/signalapp/SparsePostQuantumRatchet" }
+
+@[bib "FrodoKEM"]
+def FrodoKEM : Verso.Genre.Manual.Bibliography.Citable := .article
+  { title := inlines!"FrodoKEM: A CCA-Secure Learning With Errors Key Encapsulation Mechanism"
+  , authors := #[inlines!"Lewis Glabush", inlines!"Patrick Longa", inlines!"Michael Naehrig", inlines!"Chris Peikert", inlines!"Douglas Stebila", inlines!"Fernando Virdia"]
+  , journal := inlines!"IACR Communications in Cryptology"
+  , year := 2025
+  , month := none
+  , volume := inlines!"2"
+  , number := inlines!"3"
+  , url := some "https://cic.iacr.org/p/2/3/25" }
+
 @[bib "FIPS203"]
 def FIPS203 : Verso.Genre.Manual.Bibliography.Citable := .article
   { title := inlines!"Module-Lattice-Based Key-Encapsulation Mechanism Standard"
