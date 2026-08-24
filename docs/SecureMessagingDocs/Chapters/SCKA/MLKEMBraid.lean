@@ -8,6 +8,7 @@ import SecureMessaging.SCKA.MLKEMBraid.Authenticator
 import SecureMessagingDocs.Bibliography
 import SecureMessaging.SCKA.MLKEMBraid.Basic
 import SecureMessaging.SCKA.MLKEMBraid.Construction
+import SecureMessaging.SCKA.MLKEMBraid.Instances
 import SecureMessaging.SCKA.MLKEMBraid.Unchunked
 
 set_option linter.style.setOption false
@@ -113,18 +114,9 @@ Signal's *The ML-KEM Braid Protocol* defines the transition system formalized he
 §2.3 message vocabulary, the eleven states and per-state send and receive procedures of
 §2.5, and the §2.6 initialization.
 
-The primitives are parameters: the KEM operations of §1.2 at their §2.5 call shapes, the
-header hash of §1.2.1, `KDF_OK`, and one erasure-coded stream per §2.2 payload, with §2.4
-authentication supplied by a ratcheted authenticator. A concrete ML-KEM instantiation
-supplies SHA3-256, HKDF, HMAC-SHA256, and an erasure code for each stream.
-
-Every send stamps `msg.epoch = state.epoch` and reports `state.epoch - 1`. A receive
-reports `state.epoch - 1` for its entry state, except `ct2Sampled`, which reads the report
-from the successor state. An accepted next-epoch message therefore reports the entry
-epoch. `receive` ignores unguarded message types, epochs outside a guard, every input in
-`keysUnsampled` and `headerReceived`, and any message that violates the §2.3
-data-presence convention checked before state dispatch. In each case it returns the
-entry state with no output key and `state.epoch - 1`.
+`Parameters` connects the transition system to `KEMScheme.IncrementalStructure`, an
+epoch-key derivation, a ratcheted authenticator, and four erasure-coded streams. The
+normative edge diagram and table are in the module documentation of `MLKEMBraid.Basic`.
 :::
 
 :::defTitle "mlkem_braid_protocol_parameters" "Protocol parameters"
@@ -133,56 +125,139 @@ entry state with no output key and `state.epoch - 1`.
 ::::definition "mlkem_braid_protocol_parameters" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.Parameters")
 $`\todo`
 
-:::leanPillCaption "KEM operations, epoch-key derivation, and the four streams"
+:::leanPillCaption "incremental KEM, pure receive operations, epoch-key derivation, and streams"
 :::
 
 ```anchor Braid_Parameters (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Basic)
-structure Parameters (m : Type → Type u) where
-  /-- `dk`: decapsulation key. -/
-  Dk : Type
-  /-- `ek_seed`: seed part of the encapsulation-key header. -/
-  EkSeed : Type
-  /-- `ek_vector`: vector part of the encapsulation key. -/
-  EkVector : Type
-  /-- `hek`: encapsulation-key hash carried in the header. -/
-  Hek : Type
-  /-- `encaps_secret`: state passed from the first encapsulation stage to the second. -/
-  EncapsSecret : Type
-  /-- `ct₁`: first ciphertext part. -/
-  Ct1 : Type
-  /-- `ct₂`: second ciphertext part. -/
-  Ct2 : Type
+structure Parameters (m : Type → Type u) [Monad m] where
   /-- KEM shared secret. -/
-  SharedSecret : Type
+  K : Type
+  /-- Encapsulation key. -/
+  PK : Type
+  /-- Decapsulation key. -/
+  SK : Type
+  /-- Ciphertext. -/
+  C : Type
+  /-- The key-encapsulation mechanism. -/
+  kem : KEMScheme m K PK SK C
+  /-- The incremental KEM structure. -/
+  inc : kem.IncrementalStructure
+  /-- Pure decapsulation agreeing with `kem.decaps`. -/
+  hDet : kem.DeterministicDecaps
+  /-- Pure second-stage encapsulation agreeing with `inc.encaps2`. -/
+  hEnc2 : inc.DeterministicEncaps2
   /-- Epoch key output by `KDF_OK`. -/
   EpochKey : Type
   /-- MAC tag. -/
   Mac : Type
   /-- Erasure-code symbol alphabet, shared by the four streams. -/
   Sym : Type
-  /-- `KeyGen`, destructured as `(dk, ek_seed, ek_vector)`. -/
-  keyGen : m (Dk × EkSeed × EkVector)
-  /-- Header hash. -/
-  hashEk : EkSeed → EkVector → Hek
-  /-- `Encaps1(ek_seed, hek)`. -/
-  encaps1 : EkSeed → Hek → m (EncapsSecret × Ct1 × SharedSecret)
-  /-- `Encaps2(encaps_secret, ek_seed, ek_vector)`, determined by `encaps_secret`. -/
-  encaps2 : EncapsSecret → EkSeed → EkVector → Ct2
-  /-- `Decaps(dk, ct₁, ct₂)`, total. -/
-  decaps : Dk → Ct1 → Ct2 → SharedSecret
   /-- `KDF_OK(shared_secret, epoch)`. -/
-  kdfOK : SharedSecret → ℕ → EpochKey
+  kdfOK : EpochKeyDerivation K EpochKey
   /-- Header stream, recovering `header ‖ mac`. -/
-  ecpHdr : ErasureCodePayload ((EkSeed × Hek) × Mac) Sym
+  ecpHdr : ErasureCodePayload (inc.PKheader × Mac) Sym
   /-- Encapsulation-key-vector stream. -/
-  ecpEk : ErasureCodePayload EkVector Sym
+  ecpEk : ErasureCodePayload inc.PKvector Sym
   /-- `ct₁` stream. -/
-  ecpCt1 : ErasureCodePayload Ct1 Sym
+  ecpCt1 : ErasureCodePayload inc.C₁ Sym
   /-- `ct₂` stream, recovering `ct₂ ‖ mac`. -/
-  ecpCt2 : ErasureCodePayload (Ct2 × Mac) Sym
+  ecpCt2 : ErasureCodePayload (inc.C₂ × Mac) Sym
 ```
 
-{usesLabel}`uses` {uses "erasure_code_payload"}[]
+{usesLabel}`uses` {uses "incremental_kem_scheme"}[] · {uses "erasure_code_payload"}[]
+::::
+
+:::defTitle "mlkem_braid_protocol_determinism" "Pure KEM operations used by receive"
+:::
+
+::::definition "mlkem_braid_protocol_determinism" (parent := "mlkem_braid_protocol") (lean := "KEMScheme.IncrementalStructure.DeterministicEncaps2, MLKEM.mlkemDeterministicEncaps2, MLKEM.mlkemDeterministicDecaps")
+$`\todo`
+
+:::leanPillCaption "pure second-stage encapsulation witness"
+:::
+
+```anchor DeterministicEncaps2 (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.Defs)
+structure DeterministicEncaps2 where
+  /-- Pure second-stage encapsulation. -/
+  encaps2Det : inc.St → inc.PKheader → inc.PKvector → inc.C₂
+  /-- The monadic second stage returns `encaps2Det` under `pure`. -/
+  encaps2_eq : ∀ st hdr vec, inc.encaps2 st hdr vec = pure (encaps2Det st hdr vec)
+```
+
+:::leanPillCaption "deterministic second stage for incremental ML-KEM"
+:::
+
+```anchor mlkemDeterministicEncaps2 (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
+def mlkemDeterministicEncaps2 (p : ParameterSet) (ring : NTTRingOps)
+    (prims : Primitives (ParameterSet.params p)
+      (Concrete.concreteEncoding (ParameterSet.params p))) :
+    (mlkemIncremental p ring prims).DeterministicEncaps2
+```
+
+:::leanPillCaption "deterministic decapsulation for ML-KEM"
+:::
+
+```anchor mlkemDeterministicDecaps (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
+def mlkemDeterministicDecaps (p : ParameterSet) (ring : NTTRingOps)
+    (prims : Primitives (ParameterSet.params p)
+      (Concrete.concreteEncoding (ParameterSet.params p))) :
+    DeterministicDecaps (mlkemScheme p ring prims)
+```
+
+{usesLabel}`uses` {uses "incremental_kem_scheme"}[]
+::::
+
+:::defTitle "mlkem_braid_protocol_mlkem_adapter" "Concrete ML-KEM adapter"
+:::
+
+::::definition "mlkem_braid_protocol_mlkem_adapter" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.mlkemBraidParameters, MLKEMBraid.mlkemBraidScheme")
+$`\todo`
+
+:::leanPillCaption "parameters over incremental ML-KEM"
+:::
+
+```anchor mlkemBraidParameters (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Instances)
+def mlkemBraidParameters (p : MLKEM.ParameterSet) (ring : MLKEM.NTTRingOps)
+    (prims : MLKEM.Primitives (MLKEM.ParameterSet.params p)
+      (MLKEM.Concrete.concreteEncoding (MLKEM.ParameterSet.params p)))
+    {EpochKey Mac Sym : Type} (kdfOK : EpochKeyDerivation MLKEM.SharedSecret EpochKey)
+    (ecpHdr : ErasureCodePayload
+      ((MLKEM.mlkemIncremental p ring prims).PKheader × Mac) Sym)
+    (ecpEk : ErasureCodePayload (MLKEM.mlkemIncremental p ring prims).PKvector Sym)
+    (ecpCt1 : ErasureCodePayload (MLKEM.mlkemIncremental p ring prims).C₁ Sym)
+    (ecpCt2 : ErasureCodePayload
+      ((MLKEM.mlkemIncremental p ring prims).C₂ × Mac) Sym) : Parameters ProbComp
+```
+
+:::leanPillCaption "SCKA scheme over incremental ML-KEM"
+:::
+
+```anchor mlkemBraidScheme (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Instances)
+def mlkemBraidScheme (p : MLKEM.ParameterSet) (ring : MLKEM.NTTRingOps)
+    (prims : MLKEM.Primitives (MLKEM.ParameterSet.params p)
+      (MLKEM.Concrete.concreteEncoding (MLKEM.ParameterSet.params p)))
+    {InitKey AuthState EpochKey Mac Sym : Type} [DecidableEq Sym]
+    (kdfOK : EpochKeyDerivation MLKEM.SharedSecret EpochKey)
+    (ecpHdr : ErasureCodePayload
+      ((MLKEM.mlkemIncremental p ring prims).PKheader × Mac) Sym)
+    (ecpEk : ErasureCodePayload (MLKEM.mlkemIncremental p ring prims).PKvector Sym)
+    (ecpCt1 : ErasureCodePayload (MLKEM.mlkemIncremental p ring prims).C₁ Sym)
+    (ecpCt2 : ErasureCodePayload
+      ((MLKEM.mlkemIncremental p ring prims).C₂ × Mac) Sym)
+    (auth : RatchetedAuthenticator InitKey EpochKey AuthState
+      (MLKEM.mlkemIncremental p ring prims).PKheader
+      ((MLKEM.mlkemIncremental p ring prims).C₁ ×
+        (MLKEM.mlkemIncremental p ring prims).C₂) Mac)
+    (sampleInitKey : ProbComp InitKey) :
+    SCKAScheme ProbComp InitKey
+      (State (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2) AuthState)
+      (State (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2) AuthState)
+      EpochKey (Message Sym)
+      (SendRand (MLKEM.mlkemIncrementalRandLeak p ring prims).KeygenRand
+        (MLKEM.mlkemIncrementalRandLeak p ring prims).Encaps1Rand)
+```
+
+{usesLabel}`uses` {uses "mlkem_braid_protocol_parameters"}[] · {uses "incremental_kem_scheme"}[]
 ::::
 
 :::defTitle "mlkem_braid_protocol_messages" "Messages"
@@ -191,11 +266,10 @@ structure Parameters (m : Type → Type u) where
 ::::definition "mlkem_braid_protocol_messages" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.MessageType, MLKEMBraid.Message, MLKEMBraid.Message.wellFormed")
 $`\todo`
 
-:::leanPillCaption "message types, the logical protocol message, and the data-presence convention"
+:::leanPillCaption "message types"
 :::
 
-```anchor Braid_Message (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Basic)
-/-- The message types. -/
+```anchor Braid_MessageType (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Basic)
 inductive MessageType where
   /-- `None`: no payload. -/
   | none
@@ -212,9 +286,12 @@ inductive MessageType where
   | ct1
   /-- `Ct2`: `ct₂`-stream chunk. -/
   | ct2
+```
 
-/-- A protocol message: the epoch being negotiated, the type, and an
-optional chunk. -/
+:::leanPillCaption "protocol message"
+:::
+
+```anchor Braid_Message (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Basic)
 structure Message (Sym : Type) where
   /-- `epoch`: the epoch being negotiated. -/
   epoch : ℕ
@@ -222,14 +299,13 @@ structure Message (Sym : Type) where
   type : MessageType
   /-- `data`: the indexed erasure-code chunk, if any. -/
   data : Option (ℕ × Sym)
+```
 
-/-- The data-presence convention: `data` is present exactly when the type is
-neither `None` nor `Ct1Ack`. `receive` tests it before state dispatch and ignores
-messages that violate it. -/
-def Message.wellFormed (msg : Message Sym) : Bool :=
-  match msg.type with
-  | .none | .ct1Ack => msg.data.isNone
-  | .hdr | .ek | .ekCt1Ack | .ct1 | .ct2 => msg.data.isSome
+:::leanPillCaption "message data-presence check"
+:::
+
+```anchor Braid_Message_wellFormed (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Basic)
+def Message.wellFormed (msg : Message Sym) : Bool
 ```
 
 ::::
@@ -240,67 +316,57 @@ def Message.wellFormed (msg : Message Sym) : Bool :=
 ::::definition "mlkem_braid_protocol_states" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.State, MLKEMBraid.State.epoch")
 $`\todo`
 
-:::leanPillCaption "the eleven states and the epoch each carries"
+:::leanPillCaption "the eleven protocol states"
 :::
 
 ```anchor Braid_State (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Basic)
 inductive State (P : Parameters m) (AuthState : Type) where
   /-- "KeysUnsampled": no additional state. -/
   | keysUnsampled (epoch : ℕ) (auth : AuthState)
-  /-- "KeysSampled": `dk`, `ek_vector`, `header_encoder`. -/
-  | keysSampled (epoch : ℕ) (auth : AuthState) (dk : P.Dk) (ekVector : P.EkVector)
-      (headerEncoder : EncoderState ((P.EkSeed × P.Hek) × P.Mac) P.Sym)
-  /-- "HeaderSent": `dk`, `ct1_decoder`, `ek_encoder`. -/
-  | headerSent (epoch : ℕ) (auth : AuthState) (dk : P.Dk)
-      (ct1Decoder : DecoderState P.Ct1 P.Sym)
-      (ekEncoder : EncoderState P.EkVector P.Sym)
-  /-- "Ct1Received": `dk`, `ct1`, `ek_encoder`. -/
-  | ct1Received (epoch : ℕ) (auth : AuthState) (dk : P.Dk) (ct1 : P.Ct1)
-      (ekEncoder : EncoderState P.EkVector P.Sym)
-  /-- "EkSentCt1Received": `dk`, `ct1`, `ct2_decoder`. -/
-  | ekSentCt1Received (epoch : ℕ) (auth : AuthState) (dk : P.Dk) (ct1 : P.Ct1)
-      (ct2Decoder : DecoderState (P.Ct2 × P.Mac) P.Sym)
+  /-- "KeysSampled": `sk`, `ek_vector`, `header_encoder`. -/
+  | keysSampled (epoch : ℕ) (auth : AuthState) (sk : P.SK) (ekVector : P.inc.PKvector)
+      (headerEncoder : EncoderState (P.inc.PKheader × P.Mac) P.Sym)
+  /-- "HeaderSent": `sk`, `ct1_decoder`, `ek_encoder`. -/
+  | headerSent (epoch : ℕ) (auth : AuthState) (sk : P.SK)
+      (ct1Decoder : DecoderState P.inc.C₁ P.Sym)
+      (ekEncoder : EncoderState P.inc.PKvector P.Sym)
+  /-- "Ct1Received": `sk`, `ct1`, `ek_encoder`. -/
+  | ct1Received (epoch : ℕ) (auth : AuthState) (sk : P.SK) (ct1 : P.inc.C₁)
+      (ekEncoder : EncoderState P.inc.PKvector P.Sym)
+  /-- "EkSentCt1Received": `sk`, `ct1`, `ct2_decoder`. -/
+  | ekSentCt1Received (epoch : ℕ) (auth : AuthState) (sk : P.SK) (ct1 : P.inc.C₁)
+      (ct2Decoder : DecoderState (P.inc.C₂ × P.Mac) P.Sym)
   /-- "NoHeaderReceived": `header_decoder`. -/
   | noHeaderReceived (epoch : ℕ) (auth : AuthState)
-      (headerDecoder : DecoderState ((P.EkSeed × P.Hek) × P.Mac) P.Sym)
-  /-- "HeaderReceived": `ek_seed`, `hek`, `ek_decoder`. -/
-  | headerReceived (epoch : ℕ) (auth : AuthState) (ekSeed : P.EkSeed) (hek : P.Hek)
-      (ekDecoder : DecoderState P.EkVector P.Sym)
-  /-- "Ct1Sampled": `ek_seed`, `hek`, `encaps_secret`, `ct1`, `ct1_encoder`, `ek_decoder`. -/
-  | ct1Sampled (epoch : ℕ) (auth : AuthState) (ekSeed : P.EkSeed) (hek : P.Hek)
-      (encapsSecret : P.EncapsSecret) (ct1 : P.Ct1)
-      (ct1Encoder : EncoderState P.Ct1 P.Sym)
-      (ekDecoder : DecoderState P.EkVector P.Sym)
-  /-- "EkReceivedCt1Sampled": `encaps_secret`, `ct1`, `ek_seed`, `ek_vector`,
+      (headerDecoder : DecoderState (P.inc.PKheader × P.Mac) P.Sym)
+  /-- "HeaderReceived": `header`, `ek_decoder`. -/
+  | headerReceived (epoch : ℕ) (auth : AuthState) (header : P.inc.PKheader)
+      (ekDecoder : DecoderState P.inc.PKvector P.Sym)
+  /-- "Ct1Sampled": `header`, `encaps_state`, `ct1`, `ct1_encoder`, `ek_decoder`. -/
+  | ct1Sampled (epoch : ℕ) (auth : AuthState) (header : P.inc.PKheader)
+      (encapsState : P.inc.St) (ct1 : P.inc.C₁)
+      (ct1Encoder : EncoderState P.inc.C₁ P.Sym)
+      (ekDecoder : DecoderState P.inc.PKvector P.Sym)
+  /-- "EkReceivedCt1Sampled": `encaps_state`, `ct1`, `header`, `ek_vector`,
   `ct1_encoder`. -/
   | ekReceivedCt1Sampled (epoch : ℕ) (auth : AuthState)
-      (encapsSecret : P.EncapsSecret) (ct1 : P.Ct1) (ekSeed : P.EkSeed)
-      (ekVector : P.EkVector) (ct1Encoder : EncoderState P.Ct1 P.Sym)
-  /-- "Ct1Acknowledged": `ek_seed`, `hek`, `encaps_secret`, `ct1`, `ek_decoder`. -/
-  | ct1Acknowledged (epoch : ℕ) (auth : AuthState) (ekSeed : P.EkSeed)
-      (hek : P.Hek) (encapsSecret : P.EncapsSecret) (ct1 : P.Ct1)
-      (ekDecoder : DecoderState P.EkVector P.Sym)
+      (encapsState : P.inc.St) (ct1 : P.inc.C₁) (header : P.inc.PKheader)
+      (ekVector : P.inc.PKvector) (ct1Encoder : EncoderState P.inc.C₁ P.Sym)
+  /-- "Ct1Acknowledged": `header`, `encaps_state`, `ct1`, `ek_decoder`. -/
+  | ct1Acknowledged (epoch : ℕ) (auth : AuthState) (header : P.inc.PKheader)
+      (encapsState : P.inc.St) (ct1 : P.inc.C₁)
+      (ekDecoder : DecoderState P.inc.PKvector P.Sym)
   /-- "Ct2Sampled": `ct2_encoder`. -/
   | ct2Sampled (epoch : ℕ) (auth : AuthState)
-      (ct2Encoder : EncoderState (P.Ct2 × P.Mac) P.Sym)
-
-/-- The epoch stored as the first field of every state constructor. -/
-def State.epoch : State P AuthState → ℕ
-  | .keysUnsampled e .. => e
-  | .keysSampled e .. => e
-  | .headerSent e .. => e
-  | .ct1Received e .. => e
-  | .ekSentCt1Received e .. => e
-  | .noHeaderReceived e .. => e
-  | .headerReceived e .. => e
-  | .ct1Sampled e .. => e
-  | .ekReceivedCt1Sampled e .. => e
-  | .ct1Acknowledged e .. => e
-  | .ct2Sampled e .. => e
+      (ct2Encoder : EncoderState (P.inc.C₂ × P.Mac) P.Sym)
 ```
 
-In each equation, `e` binds the first constructor field, `..` ignores the remaining
-fields, and the right-hand side returns that bound epoch.
+:::leanPillCaption "state epoch projection"
+:::
+
+```anchor Braid_State_epoch (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Basic)
+def State.epoch : State P AuthState → ℕ
+```
 
 {usesLabel}`uses` {uses "erasure_code_streaming"}[]
 ::::
@@ -311,11 +377,10 @@ fields, and the right-hand side returns that bound epoch.
 ::::definition "mlkem_braid_protocol_transitions" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.SendResult, MLKEMBraid.RecvResult, MLKEMBraid.Failure, MLKEMBraid.send, MLKEMBraid.receive")
 $`\todo`
 
-:::leanPillCaption "send and receive outputs"
+:::leanPillCaption "send output"
 :::
 
-```anchor Braid_Results (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Basic)
-/-- The `Send` output `(msg, sending_epoch, output_key)` with the successor state. -/
+```anchor Braid_SendResult (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Basic)
 structure SendResult (P : Parameters m) (AuthState : Type) where
   /-- `msg`: the message sent. -/
   msg : Message P.Sym
@@ -326,8 +391,12 @@ structure SendResult (P : Parameters m) (AuthState : Type) where
   outputKey : Option (ℕ × P.EpochKey)
   /-- The state after the send. -/
   state : State P AuthState
+```
 
-/-- The `Receive` output `(receiving_epoch, output_key)` with the successor state. -/
+:::leanPillCaption "receive output"
+:::
+
+```anchor Braid_RecvResult (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Basic)
 structure RecvResult (P : Parameters m) (AuthState : Type) where
   /-- `receiving_epoch`: the `sending_epoch` the other party output when it produced the
   message. -/
@@ -343,71 +412,38 @@ structure RecvResult (P : Parameters m) (AuthState : Type) where
 
 ```anchor Braid_Failure (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Basic)
 inductive Failure where
-  /-- The received encapsulation-key vector does not hash to the stored `hek`. -/
+  /-- The received encapsulation-key vector fails `validPK`. -/
   | ekIntegrity
   /-- `VfyHdr` rejected the header tag. -/
   | headerMac
   /-- `VfyCt` rejected the ciphertext tag. -/
   | ciphertextMac
+  /-- Deterministic decapsulation rejected the ciphertext. This cannot occur for ML-KEM. -/
+  | decapsReject
 ```
 
-Figure 1 on p. 10 of the ML-KEM Braid PDF numbers the state-machine edges. The §2.5
-pseudocode repeats each number as `# Transition (n)` before the corresponding state
-update. Edges 1 and 7 are sends; the other numbered edges are receives.
+:::leanPillCaption "send transition"
+:::
 
-The eleven sends, by entry state. Every send stamps `msg.epoch = state.epoch` and reports
-`state.epoch - 1`. Edge 1 is the send from `keysUnsampled` and edge 7 the send from
-`headerReceived`; the other nine states emit the next chunk of the stream they are
-streaming, or the empty message when they have none.
-
-```
-State                  Message              Randomized operation
-keysUnsampled          Hdr chunk            KeyGen
-keysSampled            Hdr chunk            —
-headerSent             Ek chunk             —
-ct1Received            EkCt1Ack chunk       —
-ekSentCt1Received      None, no payload     —
-noHeaderReceived       None, no payload     —
-headerReceived         Ct1 chunk            Encaps1
-ct1Sampled             Ct1 chunk            —
-ekReceivedCt1Sampled   Ct1 chunk            —
-ct1Acknowledged        None, no payload     —
-ct2Sampled             Ct2 chunk            —
+```anchor Braid_send (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Basic)
+def send (P : Parameters m)
+    (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
+      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
+    (st : State P AuthState) : m (SendResult P AuthState)
 ```
 
-The eleven receive edges, by entry state. Each guard specifies an accepted message type
-and epoch; `e` is the entry-state epoch. The states `keysUnsampled` and `headerReceived`
-ignore every input. Every other state returns its entry state with no output key when an
-input is ill-formed or matches no guard.
+:::leanPillCaption "receive transition"
+:::
 
-```
-Entry state            Guard               Figure 1 edge and result
-keysSampled            Ct1, epoch e        2: headerSent, storing the first ct1 chunk and
-                                                starting the ek_vector stream
-headerSent             Ct1, epoch e        3: ct1Received once ct1 decodes
-ct1Received            Ct2, epoch e        4: ekSentCt1Received, storing the first ct2 chunk
-ekSentCt1Received      Ct2, epoch e        5: once ct2 decodes and VfyCt accepts, output the
-                                                epoch-e key and move to noHeaderReceived at
-                                                e + 1; a VfyCt rejection raises ciphertextMac
-noHeaderReceived       Hdr, epoch e        6: once the header decodes and VfyHdr accepts,
-                                                headerReceived; a rejection raises headerMac
-ct1Sampled             EkCt1Ack, epoch e   8: ct1Acknowledged while ek_vector is incomplete
-ct1Sampled             EkCt1Ack, epoch e   9: once ek_vector decodes and hashes to hek,
-                                                Encaps2 and ct2Sampled; a mismatch raises
-                                                ekIntegrity
-ct1Sampled             Ek, epoch e         10: once ek_vector decodes and hashes to hek,
-                                                ekReceivedCt1Sampled; a mismatch raises
-                                                ekIntegrity
-ct1Acknowledged        EkCt1Ack, epoch e   11: once ek_vector decodes and hashes to hek,
-                                                Encaps2 and ct2Sampled; a mismatch raises
-                                                ekIntegrity
-ekReceivedCt1Sampled   EkCt1Ack, epoch e   12: Encaps2 and ct2Sampled; the carried chunk is
-                                                discarded
-ct2Sampled             well-formed,         13: keysUnsampled at e + 1, reporting epoch e
-                       epoch e + 1
+```anchor Braid_receive (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Basic)
+def receive (P : Parameters m) [DecidableEq P.Sym]
+    (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
+      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
+    (st : State P AuthState) (msg : Message P.Sym) :
+    Except Failure (RecvResult P AuthState)
 ```
 
-{usesLabel}`uses` {uses "mlkem_braid_ratcheted_authenticator"}[] · {uses "erasure_code_streaming"}[]
+{usesLabel}`uses` {uses "mlkem_braid_protocol_parameters"}[] · {uses "mlkem_braid_ratcheted_authenticator"}[] · {uses "erasure_code_streaming"}[]
 ::::
 
 :::defTitle "mlkem_braid_protocol_init" "Initialization"
@@ -416,60 +452,40 @@ ct2Sampled             well-formed,         13: keysUnsampled at e + 1, reportin
 ::::definition "mlkem_braid_protocol_init" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.initA, MLKEMBraid.initB")
 $`\todo`
 
-:::leanPillCaption "the two initial states of an epoch-1 session"
+:::leanPillCaption "Alice's initial state"
 :::
 
-```anchor Braid_init (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Basic)
-/-- Alice's initial state: epoch `1`, an initialized authenticator, and no sampled keys. -/
+```anchor Braid_initA (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Basic)
 def initA (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
-      (P.EkSeed × P.Hek) (P.Ct1 × P.Ct2) P.Mac)
-    (ik : InitKey) : State P AuthState :=
-  .keysUnsampled 1 (auth.init ik 1)
+      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
+    (ik : InitKey) : State P AuthState
+```
 
-/-- Bob's initial state: epoch `1`, an initialized authenticator, and an empty header
-decoder. -/
+:::leanPillCaption "Bob's initial state"
+:::
+
+```anchor Braid_initB (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Basic)
 def initB (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
-      (P.EkSeed × P.Hek) (P.Ct1 × P.Ct2) P.Mac)
-    (ik : InitKey) : State P AuthState :=
-  .noHeaderReceived 1 (auth.init ik 1) (DecoderState.empty P.ecpHdr)
+      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
+    (ik : InitKey) : State P AuthState
 ```
 
 {usesLabel}`uses` {uses "mlkem_braid_ratcheted_authenticator"}[] · {uses "erasure_code_streaming"}[]
 ::::
 
 :::group "mlkem_braid_scka"
-The SCKA construction packages the ML-KEM Braid transition system as a scheme with the
-syntax of §3.1 and the game in Figure 1 of {Informal.citet SCKA25}[],
-*How to Compare Bandwidth Constrained Two-Party Secure Messaging Protocols*. Both
-parties run the same send and receive and differ only in their initial state.
-
-An SCKA scheme asks for a randomness-leaking send, which §2.5 does not describe.
-`RandLeak` pairs `KeyGen` and `Encaps1`, the two randomized operations of §1.2, with
-their sampled randomness. `sendRleak` uses these operations in the `keysUnsampled` and
-`headerReceived` branches and delegates the other nine branches to `send`.
-
-The receive adapter reports `msg.epoch - 1` instead of the state-derived report. It maps
-a failure to the outer `none`, which tells the game to refuse delivery; the inner `none`
-means that a successful receive produced no epoch key. A failure contains no
-`RecvResult`, so the adapter has no successor state, epoch, or key to report. Refusal
-neither terminates nor renegotiates the session.
-
-The game can replay recorded messages in any order. On each delivery,
-`assertMatchingEpoch` requires the receiving epoch to equal the sending epoch recorded
-with the message. Every send stamps `msg.epoch = state.epoch` and reports
-`state.epoch - 1`, making `msg.epoch - 1` the recorded sending epoch. The adapter's
-epoch report matches `receive` whenever a guard accepts: the guards require
-`msg.epoch = state.epoch`, and an accepted `ct2Sampled` transition again reports
-`msg.epoch - 1`. For an ignored message from another epoch, the adapter reports
-`msg.epoch - 1` and `receive` reports the receiver's epoch.
+`scheme` packages the transition system with the SCKA syntax of {Informal.citet SCKA25}[].
+`sendRleak` consumes `KEMScheme.IncrementalRandLeak` for key generation and first-stage
+encapsulation. `recvSCKA` maps failures to refused deliveries and uses the message-derived
+epoch required by SCKA; `Basic.receive` retains the state-derived §2.5 report.
 :::
 
 :::defTitle "mlkem_braid_scka_leakage" "Disclosed send randomness"
 :::
 
-::::definition "mlkem_braid_scka_leakage" (parent := "mlkem_braid_scka") (lean := "MLKEMBraid.SendRand, MLKEMBraid.RandLeak, MLKEMBraid.sendRleak")
+::::definition "mlkem_braid_scka_leakage" (parent := "mlkem_braid_scka") (lean := "MLKEMBraid.SendRand, KEMScheme.IncrementalRandLeak, MLKEMBraid.sendRleak")
 $`\todo`
 
 :::leanPillCaption "what a send discloses"
@@ -485,62 +501,56 @@ inductive SendRand (KeygenRand Encaps1Rand : Type) where
   | encaps1 (r : Encaps1Rand)
 ```
 
-:::leanPillCaption "leaking key generation and first-stage encapsulation"
+:::leanPillCaption "incremental KEM randomness leakage"
 :::
 
-```anchor Braid_RandLeak (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Construction)
-structure RandLeak (P : Parameters m) where
-  /-- Randomness space of `KeyGen`. -/
+```anchor IncrementalRandLeak (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.Defs)
+structure IncrementalRandLeak (kem : KEMScheme m K PK SK C)
+    (inc : kem.IncrementalStructure) where
+  /-- Randomness space for key generation. -/
   KeygenRand : Type
-  /-- Randomness space of `Encaps1`. -/
+  /-- Randomness space for the first encapsulation stage. -/
   Encaps1Rand : Type
-  /-- `KeyGen` with its randomness. -/
-  keyGenRleak : m ((P.Dk × P.EkSeed × P.EkVector) × KeygenRand)
-  /-- `Encaps1` with its randomness. -/
-  encaps1Rleak : P.EkSeed → P.Hek →
-    m ((P.EncapsSecret × P.Ct1 × P.SharedSecret) × Encaps1Rand)
-  /-- Discarding the randomness of `keyGenRleak` gives `P.keyGen`. -/
-  keyGen_fst : (do let out ← keyGenRleak; pure out.1) = P.keyGen
-  /-- Discarding the randomness of `encaps1Rleak` gives `P.encaps1`. -/
-  encaps1_fst : ∀ seed hek,
-    (do let out ← encaps1Rleak seed hek; pure out.1) = P.encaps1 seed hek
+  /-- Randomness space for the second encapsulation stage. -/
+  Encaps2Rand : Type
+  /-- Key generation together with the randomness used to sample the key pair. -/
+  keygenRleak : m ((PK × SK) × KeygenRand)
+  /-- First-stage encapsulation together with its randomness. -/
+  encaps1Rleak : inc.PKheader → m ((inc.St × inc.C₁ × K) × Encaps1Rand)
+  /-- Second-stage encapsulation together with its randomness. -/
+  encaps2Rleak : inc.St → inc.PKheader → inc.PKvector → m (inc.C₂ × Encaps2Rand)
+  /-- First component: ordinary key generation is the first component of
+  `keygenRleak`. -/
+  keygen_fst :
+    (do
+      let out ← keygenRleak
+      pure out.1) = kem.keygen
+  /-- First component: ordinary first-stage encapsulation is the first component of
+  `encaps1Rleak hdr`. -/
+  encaps1_fst : ∀ hdr,
+    (do
+      let out ← encaps1Rleak hdr
+      pure out.1) = inc.encaps1 hdr
+  /-- First component: ordinary second-stage encapsulation is the first component of
+  `encaps2Rleak st hdr vec`. -/
+  encaps2_fst : ∀ st hdr vec,
+    (do
+      let out ← encaps2Rleak st hdr vec
+      pure out.1) = inc.encaps2 st hdr vec
 ```
 
 :::leanPillCaption "randomness-leaking send"
 :::
 
 ```anchor Braid_sendRleak (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Construction)
-def sendRleak (P : Parameters m) (rl : RandLeak P)
+def sendRleak (P : Parameters m) (irl : P.kem.IncrementalRandLeak P.inc)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
-      (P.EkSeed × P.Hek) (P.Ct1 × P.Ct2) P.Mac)
+      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
     (st : State P AuthState) :
-    m (SendResult P AuthState × SendRand rl.KeygenRand rl.Encaps1Rand) :=
-  match st with
-  | .keysUnsampled e a => do
-      let ((dk, ekSeed, ekVector), r) ← rl.keyGenRleak
-      let hek := P.hashEk ekSeed ekVector
-      let tag := auth.macHeader a e (ekSeed, hek)
-      let (chunk, enc) := (EncoderState.init P.ecpHdr ((ekSeed, hek), tag)).nextChunk
-      pure ({ msg := { epoch := e, type := .hdr, data := some chunk },
-              sendingEpoch := e - 1, outputKey := none,
-              state := .keysSampled e a dk ekVector enc }, .keygen r)
-  | .headerReceived e a ekSeed hek ekDecoder => do
-      let ((encapsSecret, ct1, sharedSecret), r) ← rl.encaps1Rleak ekSeed hek
-      let ik := P.kdfOK sharedSecret e
-      let (chunk, enc) := (EncoderState.init P.ecpCt1 ct1).nextChunk
-      pure ({ msg := { epoch := e, type := .ct1, data := some chunk },
-              sendingEpoch := e - 1, outputKey := some (e, ik),
-              state := .ct1Sampled e (auth.update a e ik) ekSeed hek encapsSecret ct1 enc
-                ekDecoder }, .encaps1 r)
-  | st => (fun r => (r, .none)) <$> send P auth st
+    m (SendResult P AuthState × SendRand irl.KeygenRand irl.Encaps1Rand)
 ```
 
-Two branches remain explicit: `keysUnsampled` draws its key pair from `rl.keyGenRleak`
-and discloses `keygen`, and `headerReceived` draws its first encapsulation stage from
-`rl.encaps1Rleak` and discloses `encaps1`. The nine remaining states call `send` and
-disclose `none`.
-
-{usesLabel}`uses` {uses "mlkem_braid_protocol_transitions"}[]
+{usesLabel}`uses` {uses "incremental_kem_scheme"}[] · {uses "mlkem_braid_protocol_transitions"}[]
 ::::
 
 :::defTitle "mlkem_braid_scka_scheme" "SCKA scheme"
@@ -553,41 +563,23 @@ $`\todo`
 :::
 
 ```anchor Braid_recvSCKA (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Construction)
-def recvSCKA (P : Parameters m) [DecidableEq P.Sym] [DecidableEq P.Hek]
+def recvSCKA (P : Parameters m) [DecidableEq P.Sym]
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
-      (P.EkSeed × P.Hek) (P.Ct1 × P.Ct2) P.Mac)
+      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
     (st : State P AuthState) (msg : Message P.Sym) :
-    Option (Option (ℕ × P.EpochKey) × ℕ × State P AuthState) :=
-  match receive P auth st msg with
-  | .error _ => none
-  | .ok r => some (r.outputKey, msg.epoch - 1, r.state)
+    Option (Option (ℕ × P.EpochKey) × ℕ × State P AuthState)
 ```
 
 :::leanPillCaption "the protocol as an SCKA scheme"
 :::
 
 ```anchor Braid_scheme (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Construction)
-def scheme (P : Parameters m) [DecidableEq P.Sym] [DecidableEq P.Hek]
+def scheme (P : Parameters m) [DecidableEq P.Sym]
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
-      (P.EkSeed × P.Hek) (P.Ct1 × P.Ct2) P.Mac)
-    (rl : RandLeak P) (sampleInitKey : m InitKey) :
+      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
+    (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : m InitKey) :
     SCKAScheme m InitKey (State P AuthState) (State P AuthState)
-      P.EpochKey (Message P.Sym) (SendRand rl.KeygenRand rl.Encaps1Rand) :=
-  let sendSCKA (st : State P AuthState) := do
-    let r ← send P auth st
-    pure (some (r.outputKey, r.msg, r.sendingEpoch, r.state))
-  let sendRleakSCKA (st : State P AuthState) := do
-    let (r, rand) ← sendRleak P rl auth st
-    pure (some (r.outputKey, r.msg, r.sendingEpoch, r.state, rand))
-  { initKeyGen := sampleInitKey
-    initA := fun ik => pure (initA P auth ik)
-    initB := fun ik => pure (initB P auth ik)
-    sendA := sendSCKA
-    sendArleak := sendRleakSCKA
-    recvA := recvSCKA P auth
-    sendB := sendSCKA
-    sendBrleak := sendRleakSCKA
-    recvB := recvSCKA P auth }
+      P.EpochKey (Message P.Sym) (SendRand irl.KeygenRand irl.Encaps1Rand)
 ```
 
 {usesLabel}`uses` {uses "scka_scheme"}[] · {uses "mlkem_braid_protocol_transitions"}[] · {uses "mlkem_braid_protocol_init"}[]

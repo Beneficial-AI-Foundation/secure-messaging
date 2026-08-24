@@ -14,26 +14,10 @@ import SecureMessaging.SCKA.Defs
 parties run the same `send` and `receive`. `initA` and `initB` build their initial states,
 and `sampleInitKey` draws their initial common value.
 
-`SCKAScheme` asks for a randomness-leaking send. `RandLeak` supplies versions of
-`KeyGen` and `Encaps1` that expose their sampled randomness. `sendRleak` uses them in the
-`keysUnsampled` and `headerReceived` branches and delegates the other nine branches to
-`send`. Its two projection theorems establish agreement with `send` and characterize the
-disclosed randomness.
-
-`recvSCKA` reports `msg.epoch - 1` instead of the state-derived report from `receive`.
-It maps a `Failure` to the outer `none`, which tells the game to refuse delivery; the
-inner `none` means that a successful receive produced no epoch key. A `Failure` contains
-no `RecvResult`, so the adapter has no successor state, epoch, or key to report. Refusal
-neither terminates nor renegotiates the session.
-
-The game can replay recorded messages in any order. On each delivery,
-`assertMatchingEpoch` in `SCKAScheme.oracleRecvA` requires `t^rcv = t^snd`. Every send
-stamps `msg.epoch = state.epoch` and reports `state.epoch - 1`, making
-`msg.epoch - 1` the sending epoch recorded with that message. The adapter's epoch
-report matches `receive` whenever a guard accepts: the guards require
-`msg.epoch = state.epoch`, and an accepted `ct2Sampled` transition again reports
-`msg.epoch - 1`. For an ignored message from another epoch, the adapter reports
-`msg.epoch - 1` and `receive` reports the receiver's epoch.
+`sendRleak` discloses key-generation or first-stage encapsulation randomness through
+`KEMScheme.IncrementalRandLeak`; the other branches reuse `send`. `recvSCKA` refuses a
+delivery when `receive` returns a `Failure` and reports the message-derived epoch required
+by SCKA. `Basic.receive` keeps the state-derived report from Braid §2.5.
 -/
 
 open ErasureCodePayload.Streaming
@@ -44,7 +28,8 @@ namespace MLKEMBraid
 
 variable {m : Type → Type u} [Monad m] {P : Parameters m} {InitKey AuthState : Type}
 
-/-- The randomness a send discloses. -/
+/-- The randomness disclosed by a send. The second stage runs through `encaps2Det`, so the
+transition system never discloses `IncrementalRandLeak.Encaps2Rand`. -/
 -- ANCHOR: Braid_SendRand
 inductive SendRand (KeygenRand Encaps1Rand : Type) where
   /-- The send ran neither `KeyGen` nor `Encaps1`. -/
@@ -55,113 +40,106 @@ inductive SendRand (KeygenRand Encaps1Rand : Type) where
   | encaps1 (r : Encaps1Rand)
 -- ANCHOR_END: Braid_SendRand
 
-/-- `KeyGen` and `Encaps1` returning the randomness they drew, with the equations
-identifying their first component with the operation of `P`. -/
--- ANCHOR: Braid_RandLeak
-structure RandLeak (P : Parameters m) where
-  /-- Randomness space of `KeyGen`. -/
-  KeygenRand : Type
-  /-- Randomness space of `Encaps1`. -/
-  Encaps1Rand : Type
-  /-- `KeyGen` with its randomness. -/
-  keyGenRleak : m ((P.Dk × P.EkSeed × P.EkVector) × KeygenRand)
-  /-- `Encaps1` with its randomness. -/
-  encaps1Rleak : P.EkSeed → P.Hek →
-    m ((P.EncapsSecret × P.Ct1 × P.SharedSecret) × Encaps1Rand)
-  /-- Discarding the randomness of `keyGenRleak` gives `P.keyGen`. -/
-  keyGen_fst : (do let out ← keyGenRleak; pure out.1) = P.keyGen
-  /-- Discarding the randomness of `encaps1Rleak` gives `P.encaps1`. -/
-  encaps1_fst : ∀ seed hek,
-    (do let out ← encaps1Rleak seed hek; pure out.1) = P.encaps1 seed hek
--- ANCHOR_END: Braid_RandLeak
-
 /-- The send transition paired with its disclosed randomness. -/
 -- ANCHOR: Braid_sendRleak
-def sendRleak (P : Parameters m) (rl : RandLeak P)
+def sendRleak (P : Parameters m) (irl : P.kem.IncrementalRandLeak P.inc)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
-      (P.EkSeed × P.Hek) (P.Ct1 × P.Ct2) P.Mac)
+      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
     (st : State P AuthState) :
-    m (SendResult P AuthState × SendRand rl.KeygenRand rl.Encaps1Rand) :=
+    m (SendResult P AuthState × SendRand irl.KeygenRand irl.Encaps1Rand)
+-- ANCHOR_END: Braid_sendRleak
+    :=
   match st with
   | .keysUnsampled e a => do
-      let ((dk, ekSeed, ekVector), r) ← rl.keyGenRleak
-      let hek := P.hashEk ekSeed ekVector
-      let tag := auth.macHeader a e (ekSeed, hek)
-      let (chunk, enc) := (EncoderState.init P.ecpHdr ((ekSeed, hek), tag)).nextChunk
+      let ((pk, sk), r) ← irl.keygenRleak
+      let hdr := P.inc.toHeader pk
+      let vec := P.inc.toVector pk
+      let tag := auth.macHeader a e hdr
+      let (chunk, enc) := (EncoderState.init P.ecpHdr (hdr, tag)).nextChunk
       pure ({ msg := { epoch := e, type := .hdr, data := some chunk },
               sendingEpoch := e - 1, outputKey := none,
-              state := .keysSampled e a dk ekVector enc }, .keygen r)
-  | .headerReceived e a ekSeed hek ekDecoder => do
-      let ((encapsSecret, ct1, sharedSecret), r) ← rl.encaps1Rleak ekSeed hek
-      let ik := P.kdfOK sharedSecret e
+              state := .keysSampled e a sk vec enc }, .keygen r)
+  | .headerReceived e a hdr ekDecoder => do
+      let ((encapsState, ct1, k), r) ← irl.encaps1Rleak hdr
+      let ik := P.kdfOK k e
       let (chunk, enc) := (EncoderState.init P.ecpCt1 ct1).nextChunk
       pure ({ msg := { epoch := e, type := .ct1, data := some chunk },
               sendingEpoch := e - 1, outputKey := some (e, ik),
-              state := .ct1Sampled e (auth.update a e ik) ekSeed hek encapsSecret ct1 enc
-                ekDecoder }, .encaps1 r)
+              state := .ct1Sampled e (auth.update a e ik) hdr encapsState ct1 enc ekDecoder },
+            .encaps1 r)
   | st => (fun r => (r, .none)) <$> send P auth st
--- ANCHOR_END: Braid_sendRleak
 
 /-- Discarding the randomness disclosed by `sendRleak` gives `send`. -/
-theorem send_eq_map_sendRleak [LawfulMonad m] (P : Parameters m) (rl : RandLeak P)
+theorem send_eq_map_sendRleak [LawfulMonad m] (P : Parameters m)
+    (irl : P.kem.IncrementalRandLeak P.inc)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
-      (P.EkSeed × P.Hek) (P.Ct1 × P.Ct2) P.Mac)
+      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
     (st : State P AuthState) :
-    send P auth st = Prod.fst <$> sendRleak P rl auth st := by
+    send P auth st = Prod.fst <$> sendRleak P irl auth st := by
   cases st
   case keysUnsampled e a =>
-    simp only [send, sendRleak, ← rl.keyGen_fst, map_eq_pure_bind, bind_assoc, pure_bind]
-  case headerReceived e a ekSeed hek ekDecoder =>
-    simp only [send, sendRleak, ← rl.encaps1_fst, map_eq_pure_bind, bind_assoc, pure_bind]
+    simp only [send, sendRleak, ← irl.keygen_fst, map_eq_pure_bind, bind_assoc, pure_bind]
+  case headerReceived e a hdr ekDecoder =>
+    simp only [send, sendRleak, ← irl.encaps1_fst, map_eq_pure_bind, bind_assoc, pure_bind]
   all_goals simp [send, sendRleak]
 
 /-- The randomness disclosed by `sendRleak`, as a function of the entry state. -/
-theorem map_snd_sendRleak [LawfulMonad m] (P : Parameters m) (rl : RandLeak P)
+theorem map_snd_sendRleak [LawfulMonad m] (P : Parameters m)
+    (irl : P.kem.IncrementalRandLeak P.inc)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
-      (P.EkSeed × P.Hek) (P.Ct1 × P.Ct2) P.Mac)
+      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
     (st : State P AuthState) :
-    Prod.snd <$> sendRleak P rl auth st =
+    Prod.snd <$> sendRleak P irl auth st =
       match st with
       | .keysUnsampled .. =>
-          (fun out => SendRand.keygen out.2) <$> rl.keyGenRleak
-      | .headerReceived _ _ ekSeed hek _ =>
-          (fun out => SendRand.encaps1 out.2) <$> rl.encaps1Rleak ekSeed hek
+          (fun out => SendRand.keygen out.2) <$> irl.keygenRleak
+      | .headerReceived _ _ hdr _ =>
+          (fun out => SendRand.encaps1 out.2) <$> irl.encaps1Rleak hdr
       | _ => pure .none := by
   cases st
   case keysUnsampled e a =>
     simp only [sendRleak, map_eq_pure_bind, bind_assoc, pure_bind]
-  case headerReceived e a ekSeed hek ekDecoder =>
+  case headerReceived e a hdr ekDecoder =>
     simp only [sendRleak, map_eq_pure_bind, bind_assoc, pure_bind]
   all_goals simp [send, sendRleak]
 
-/-- Adapt `receive` to the SCKA game. A `Failure` becomes the outer `none`, so the game
-refuses delivery. A success reports `msg.epoch - 1`, the sending epoch recorded with the
-message. -/
+/-- Adapt `receive` to SCKA. Failures refuse delivery; successes report the sender's epoch. -/
 -- ANCHOR: Braid_recvSCKA
-def recvSCKA (P : Parameters m) [DecidableEq P.Sym] [DecidableEq P.Hek]
+def recvSCKA (P : Parameters m) [DecidableEq P.Sym]
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
-      (P.EkSeed × P.Hek) (P.Ct1 × P.Ct2) P.Mac)
+      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
     (st : State P AuthState) (msg : Message P.Sym) :
-    Option (Option (ℕ × P.EpochKey) × ℕ × State P AuthState) :=
-  match receive P auth st msg with
-  | .error _ => none
-  | .ok r => some (r.outputKey, msg.epoch - 1, r.state)
+    Option (Option (ℕ × P.EpochKey) × ℕ × State P AuthState)
 -- ANCHOR_END: Braid_recvSCKA
+    :=
+  match receive P auth st msg with
+  | .error _ =>
+      -- N.B. The Braid spec starts a new session after MAC verification fails.
+      -- SCKA has no termination result. Here `none` refuses delivery and makes the
+      -- correctness oracle reject the trace; it does not model renegotiation.
+      none
+  | .ok r =>
+      -- N.B. For ignored off-epoch messages, this differs from literal §2.5.
+      -- SCKA requires the receive epoch to match the message's recorded send epoch.
+      -- Accepted transitions already report `msg.epoch - 1` under §2.5.
+      some (r.outputKey, msg.epoch - 1, r.state)
 
 /-- ML-KEM Braid as an `SCKAScheme`. Both parties run the same algorithms and differ
 only in their initial state. -/
 -- ANCHOR: Braid_scheme
-def scheme (P : Parameters m) [DecidableEq P.Sym] [DecidableEq P.Hek]
+def scheme (P : Parameters m) [DecidableEq P.Sym]
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
-      (P.EkSeed × P.Hek) (P.Ct1 × P.Ct2) P.Mac)
-    (rl : RandLeak P) (sampleInitKey : m InitKey) :
+      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
+    (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : m InitKey) :
     SCKAScheme m InitKey (State P AuthState) (State P AuthState)
-      P.EpochKey (Message P.Sym) (SendRand rl.KeygenRand rl.Encaps1Rand) :=
+      P.EpochKey (Message P.Sym) (SendRand irl.KeygenRand irl.Encaps1Rand)
+-- ANCHOR_END: Braid_scheme
+    :=
   let sendSCKA (st : State P AuthState) := do
     let r ← send P auth st
     pure (some (r.outputKey, r.msg, r.sendingEpoch, r.state))
   let sendRleakSCKA (st : State P AuthState) := do
-    let (r, rand) ← sendRleak P rl auth st
+    let (r, rand) ← sendRleak P irl auth st
     pure (some (r.outputKey, r.msg, r.sendingEpoch, r.state, rand))
   { initKeyGen := sampleInitKey
     initA := fun ik => pure (initA P auth ik)
@@ -172,6 +150,5 @@ def scheme (P : Parameters m) [DecidableEq P.Sym] [DecidableEq P.Hek]
     sendB := sendSCKA
     sendBrleak := sendRleakSCKA
     recvB := recvSCKA P auth }
--- ANCHOR_END: Braid_scheme
 
 end MLKEMBraid

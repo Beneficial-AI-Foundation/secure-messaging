@@ -172,6 +172,16 @@ open ENNReal
 
 variable {kem : KEMScheme m K PK SK C} (inc : kem.IncrementalStructure)
 
+/-- A pure second-stage encapsulation function for receive transitions, with an equation
+relating it to `inc.encaps2`. -/
+-- ANCHOR: DeterministicEncaps2
+structure DeterministicEncaps2 where
+  /-- Pure second-stage encapsulation. -/
+  encaps2Det : inc.St → inc.PKheader → inc.PKvector → inc.C₂
+  /-- The monadic second stage returns `encaps2Det` under `pure`. -/
+  encaps2_eq : ∀ st hdr vec, inc.encaps2 st hdr vec = pure (encaps2Det st hdr vec)
+-- ANCHOR_END: DeterministicEncaps2
+
 /-- The header of a public key. -/
 def toHeader (pk : PK) : inc.PKheader := ((inc.splitPK pk).1).1
 
