@@ -204,8 +204,10 @@ theorem tvDist_simulateQ_le_probEvent_output_bad_base
       tvDist ((simulateQ impl₁ oa).run' (s₀, false))
           ((simulateQ impl₂ oa).run' (s₀, false))
         ≤ tvDist sim₁ sim₂ := by
-    simpa [sim₁, sim₂, StateT.run'] using
-      (tvDist_map_le (m := OracleComp spec₂) (α := α × σ × Bool) (β := α) Prod.fst sim₁ sim₂)
+    rw [StateT.run'_eq, StateT.run'_eq]
+    change tvDist (Prod.fst <$> sim₁) (Prod.fst <$> sim₂) ≤ tvDist sim₁ sim₂
+    exact tvDist_map_le (m := OracleComp spec₂) (α := α × σ × Bool) (β := α)
+      Prod.fst sim₁ sim₂
   exact le_trans h_map h_tv_joint
 
 end OracleComp.ProgramLogic.Relational

@@ -44,6 +44,12 @@ multiplication is additive convolution: `F * G` assigns to `v` the sum of
 Similarly, `F ^ n` is the finite measure of an `n`-fold independent sum. -/
 abbrev IntMeasure := AddMonoidAlgebra ℕ ℤ
 
+/-- Compatibility coercion to the coefficient Finsupp. -/
+instance : Coe IntMeasure (ℤ →₀ ℕ) := ⟨AddMonoidAlgebra.coeff⟩
+
+/-- Compatibility coercion to coefficient evaluation. -/
+instance : CoeFun IntMeasure (fun _ => ℤ → ℕ) := ⟨fun F => F.coeff⟩
+
 /-- The counting measure `F` has all its nonzero mass inside `[lo, hi]`. -/
 def MeasureWindow (F : IntMeasure) (lo hi : ℤ) : Prop :=
   ∀ v : ℤ, F v ≠ 0 → lo ≤ v ∧ v ≤ hi
@@ -70,7 +76,7 @@ noncomputable def enumMeasure (N : ℕ) (g : ℕ → ℤ) : IntMeasure :=
 /-- The mass of `v` under `enumMeasure N g` counts the preimages of `v`. -/
 theorem enumMeasure_apply (N : ℕ) (g : ℕ → ℤ) (v : ℤ) :
     enumMeasure N g v = ((Finset.range N).filter fun x => g x = v).card := by
-  rw [Finset.card_filter]
+  rw [enumMeasure, AddMonoidAlgebra.coeff_sum, Finset.card_filter]
   refine (Finsupp.finsetSum_apply _ _ _).trans (Finset.sum_congr rfl fun x _ => ?_)
   exact Finsupp.single_apply
 
@@ -88,7 +94,7 @@ theorem measureWindow_enumMeasure {N : ℕ} {g : ℕ → ℤ} {lo hi : ℤ}
 
 /-- The total mass of a finite counting measure. -/
 def totalMass (F : IntMeasure) : ℕ :=
-  Finsupp.sum F fun _ m => m
+  Finsupp.sum F.coeff fun _ m => m
 
 theorem totalMass_single (v : ℤ) (m : ℕ) :
     totalMass (AddMonoidAlgebra.single v m) = m :=
@@ -105,14 +111,14 @@ theorem totalMass_mul (F G : IntMeasure) :
   rw [AddMonoidAlgebra.mul_def]
   refine (map_finsuppSum totalMassHom _ _).trans ?_
   have hinner : ∀ (a : ℤ) (m : ℕ),
-      (Finsupp.sum G fun b k => totalMass (AddMonoidAlgebra.single (a + b) (m * k))) =
+      (Finsupp.sum G.coeff fun b k => totalMass (AddMonoidAlgebra.single (a + b) (m * k))) =
         m * totalMass G := by
     intro a m
     refine (Finsupp.sum_congr fun b _ => totalMass_single _ _).trans ?_
     exact (Finsupp.mul_sum _ _).symm
-  calc (Finsupp.sum F fun a m =>
-          totalMassHom (Finsupp.sum G fun b k => AddMonoidAlgebra.single (a + b) (m * k)))
-      = Finsupp.sum F fun a m => m * totalMass G := by
+  calc (Finsupp.sum F.coeff fun a m =>
+          totalMassHom (Finsupp.sum G.coeff fun b k => AddMonoidAlgebra.single (a + b) (m * k)))
+      = Finsupp.sum F.coeff fun a m => m * totalMass G := by
         refine Finsupp.sum_congr fun a _ => ?_
         refine (map_finsuppSum totalMassHom _ _).trans ?_
         exact hinner a _
@@ -141,7 +147,7 @@ theorem measureWindow_mul {F G : IntMeasure} {lo₁ hi₁ lo₂ hi₂ : ℤ}
     (hF : MeasureWindow F lo₁ hi₁) (hG : MeasureWindow G lo₂ hi₂) :
     MeasureWindow (F * G) (lo₁ + lo₂) (hi₁ + hi₂) := by
   intro v hv
-  have hmem := AddMonoidAlgebra.support_mul F G (Finsupp.mem_support_iff.mpr hv)
+  have hmem := AddMonoidAlgebra.support_coeff_mul_subset F G (Finsupp.mem_support_iff.mpr hv)
   obtain ⟨a, ha, b, hb, rfl⟩ := Finset.mem_add.mp hmem
   have h₁ := hF a (Finsupp.mem_support_iff.mp ha)
   have h₂ := hG b (Finsupp.mem_support_iff.mp hb)
@@ -171,22 +177,25 @@ theorem measureWindow_pow {F : IntMeasure} {lo hi : ℤ} (hF : MeasureWindow F l
 `F (lo + i) * G (v - (lo + i))`. -/
 theorem mul_apply_window {F G : IntMeasure} {lo : ℤ} {n : ℕ}
     (hF : MeasureWindow F lo (lo + n - 1)) (v : ℤ) :
-    (F * G) v = ∑ i ∈ Finset.range n, F (lo + i) * G (v - (lo + i)) := by
-  rw [AddMonoidAlgebra.mul_apply]
+  (F * G) v = ∑ i ∈ Finset.range n, F (lo + i) * G (v - (lo + i)) := by
+  rw [AddMonoidAlgebra.coeff_mul]
   have hinner : ∀ (a : ℤ) (m : ℕ),
-      (Finsupp.sum G fun b k => if a + b = v then m * k else 0) = m * G (v - a) := by
+      (Finsupp.sum G.coeff fun b k => if a + b = v then m * k else 0) =
+        m * G.coeff (v - a) := by
     intro a m
     have hcong : (fun (b : ℤ) (k : ℕ) => if a + b = v then m * k else 0) =
         fun b k => if b = v - a then m * k else 0 := by
       funext b k
       exact if_congr (by omega) rfl rfl
-    rw [hcong, Finsupp.sum_ite_eq' G (v - a) fun _ k => m * k]
-    by_cases hmem : v - a ∈ G.support
+    rw [hcong, Finsupp.sum_ite_eq' G.coeff (v - a) fun _ k => m * k]
+    by_cases hmem : v - a ∈ G.coeff.support
     · rw [if_pos hmem]
     · rw [if_neg hmem, Finsupp.notMem_support_iff.mp hmem, mul_zero]
-  rw [Finsupp.sum_congr (g2 := fun a m => m * G (v - a)) fun a _ => hinner a (F a)]
-  rw [Finsupp.sum_of_support_subset F (s := (Finset.range n).image fun i : ℕ => lo + (i : ℤ))
-    ?_ (fun a m => m * G (v - a)) fun i _ => zero_mul _]
+  rw [Finsupp.sum_congr (g2 := fun a m => m * G.coeff (v - a))
+    fun a _ => hinner a (F.coeff a)]
+  rw [Finsupp.sum_of_support_subset F.coeff
+    (s := (Finset.range n).image fun i : ℕ => lo + (i : ℤ))
+    ?_ (fun a m => m * G.coeff (v - a)) fun i _ => zero_mul _]
   · rw [Finset.sum_image fun i _ j _ h => by omega]
   · intro a ha
     have hw := hF a (Finsupp.mem_support_iff.mp ha)
@@ -199,15 +208,16 @@ theorem mul_apply_window {F G : IntMeasure} {lo : ℤ} {n : ℕ}
 sums of `F a * G b` over `a * b = v`, the finite measure of a product of
 independent draws. -/
 noncomputable def productMeasure (F G : IntMeasure) : IntMeasure :=
-  Finsupp.sum F fun a m => Finsupp.sum G fun b k => AddMonoidAlgebra.single (a * b) (m * k)
+  Finsupp.sum F.coeff fun a m =>
+    Finsupp.sum G.coeff fun b k => AddMonoidAlgebra.single (a * b) (m * k)
 
 theorem totalMass_productMeasure (F G : IntMeasure) :
     totalMass (productMeasure F G) = totalMass F * totalMass G := by
   rw [productMeasure]
   refine (map_finsuppSum totalMassHom _ _).trans ?_
-  calc (Finsupp.sum F fun a m =>
-          totalMassHom (Finsupp.sum G fun b k => AddMonoidAlgebra.single (a * b) (m * k)))
-      = Finsupp.sum F fun a m => m * totalMass G := by
+  calc (Finsupp.sum F.coeff fun a m =>
+          totalMassHom (Finsupp.sum G.coeff fun b k => AddMonoidAlgebra.single (a * b) (m * k)))
+      = Finsupp.sum F.coeff fun a m => m * totalMass G := by
         refine Finsupp.sum_congr fun a _ => ?_
         refine (map_finsuppSum totalMassHom _ _).trans ?_
         refine (Finsupp.sum_congr fun b _ => totalMass_single _ _).trans ?_
@@ -219,10 +229,8 @@ theorem productMeasure_apply (F G : IntMeasure) (v : ℤ) :
     productMeasure F G v =
       Finsupp.sum F fun a m => Finsupp.sum G fun b k =>
         if a * b = v then m * k else 0 := by
-  rw [productMeasure]
-  refine (Finsupp.sum_apply).trans (Finsupp.sum_congr fun a _ => ?_)
-  refine (Finsupp.sum_apply).trans (Finsupp.sum_congr fun b _ => ?_)
-  exact Finsupp.single_apply
+  simp only [productMeasure, AddMonoidAlgebra.coeff_finsuppSum, Finsupp.sum_apply,
+    AddMonoidAlgebra.coeff_single, Finsupp.single_apply]
 
 /-- Any nonzero mass of `productMeasure F G` decomposes as a product of masses. -/
 theorem exists_of_productMeasure_apply_ne_zero {F G : IntMeasure} {v : ℤ}

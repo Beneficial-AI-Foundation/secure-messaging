@@ -58,7 +58,7 @@ theorem flattenStateT_mapStateTBase_apply_run
     ((outer.mapStateTBase inner).flattenStateT t).run (s, q) =
       ((simulateQ outer ((inner t).run s)).run q >>=
         fun y : (spec₀.Range t × σ) × τ => pure (y.1.1, (y.1.2, y.2))) := by
-  rfl
+  simp [QueryImpl.flattenStateT, QueryImpl.mapStateTBase, map_eq_bind_pure_comp]
 
 /-- The outer reinterpretation `outer.mapStateTBase inner` preserves any per-query `σ`-invariant of
 `inner`. The outer interpreter only acts on the base computation `(inner t).run s : OracleComp

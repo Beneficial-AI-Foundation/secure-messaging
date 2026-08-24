@@ -5,6 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 import VCVio.ProgramLogic.Relational.SimulateQ
 import VCVio.OracleComp.Constructions.SampleableType
+import ToVCVio.EvalDist.Monad.Basic
 
 /-!
 # State-relational coupling and external-sample commutation under `simulateQ`
@@ -182,7 +183,7 @@ private theorem probOutput_simulateQ_greedyLazy_run'_some_eq
     refine probOutput_bind_congr' _ y fun p => ?_
     have := ih p.1 p.2
     simp only [StateT.run'_eq] at this
-    exact congrFun (congrArg DFunLike.coe this) y
+    simpa only [map_eq_bind_pure_comp] using probOutput_eq_of_evalDist_eq this y
 
 omit [spec.Fintype] [spec.Inhabited] in
 /-- **External-sample commutation into `simulateQ` via greedy lazy sampling.**
@@ -233,7 +234,7 @@ theorem probOutput_simulateQ_greedyLazy_run'_eq
     have h_cached := probOutput_simulateQ_greedyLazy_run'_some_eq
       implFam (k p.1) a p.2
     simp only [StateT.run'_eq] at h_cached
-    exact congrFun (congrArg DFunLike.coe h_cached) y
+    simpa only [map_eq_bind_pure_comp] using probOutput_eq_of_evalDist_eq h_cached y
 
 /-! ## Consume-site-lazy variant
 
@@ -298,7 +299,7 @@ private theorem probOutput_simulateQ_consumeLazy_run'_some_eq
     refine probOutput_bind_congr' _ y fun p => ?_
     have := ih p.1 p.2
     simp only [StateT.run'_eq] at this
-    exact congrFun (congrArg DFunLike.coe this) y
+    simpa only [map_eq_bind_pure_comp] using probOutput_eq_of_evalDist_eq this y
 
 omit [spec.Fintype] [spec.Inhabited] in
 /-- **External-sample consume-site commutation into `simulateQ`.**
