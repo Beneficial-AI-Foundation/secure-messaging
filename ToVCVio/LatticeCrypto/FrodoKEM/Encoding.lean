@@ -96,7 +96,86 @@ theorem dc_ec_add (p : Params) (hw : p.WellFormed) (k : ZMod (2 ^ p.B))
     (hlo : -(p.noiseRadius : ℤ) ≤ LatticeCrypto.centeredRepr e)
     (hhi : LatticeCrypto.centeredRepr e < (p.noiseRadius : ℤ)) :
     dc p (ec p k + e) = k := by
-  sorry
+  have hQ : p.q = 2 ^ p.D := hw.q_eq
+  have hQpos : 0 < p.q := by rw [hQ]; exact Nat.two_pow_pos _
+  haveI : NeZero p.q := ⟨by omega⟩
+  have hKpos : 0 < 2 ^ p.B := Nat.two_pow_pos _
+  rcases eq_or_lt_of_le hw.B_le_D with hBD | hBD
+  · exfalso
+    have hR : p.noiseRadius = 0 := by
+      rw [Params.noiseRadius, hQ, hBD]
+      exact Nat.div_eq_of_lt (Nat.pow_lt_pow_right one_lt_two (by omega))
+    rw [hR] at hlo hhi; omega
+  have hD1 : 1 ≤ p.D := by omega
+  have hsK : 2 ^ (p.D - p.B) * 2 ^ p.B = p.q := by
+    rw [hQ, ← pow_add]; congr 1; omega
+  have hhalf : p.q / 2 + p.q / 2 = p.q := by
+    have h2 : 2 ∣ p.q := by rw [hQ]; exact dvd_pow_self 2 (by omega)
+    omega
+  have hRK : p.noiseRadius * 2 ^ p.B = p.q / 2 := by
+    rw [Params.noiseRadius, hQ, Nat.pow_div hBD (by norm_num),
+        Nat.pow_div (by omega : 1 ≤ p.D) (by norm_num), ← pow_add]
+    congr 1; omega
+  -- the noise window, transferred from centeredRepr to e.val
+  have hE : e.val < p.noiseRadius ∨ p.q - p.noiseRadius ≤ e.val := by
+    unfold LatticeCrypto.centeredRepr at hlo hhi
+    split at hlo
+    · rename_i h; left; rw [if_pos h] at hhi; exact_mod_cast hhi
+    · rename_i h; right; rw [if_neg h] at hhi; omega
+  have hevQ : e.val < p.q := ZMod.val_lt e
+  -- the rounding term contributes 0 or a full K, either way nothing mod K
+  have hquot : (e.val * 2 ^ p.B + p.q / 2) / p.q = 0
+      ∨ (e.val * 2 ^ p.B + p.q / 2) / p.q = 2 ^ p.B := by
+    have hcomm : p.q * 2 ^ p.B = 2 ^ p.B * p.q := Nat.mul_comm _ _
+    have hQK : p.q ≤ p.q * 2 ^ p.B := Nat.le_mul_of_pos_right _ hKpos
+    rcases hE with h | h
+    · left
+      apply Nat.div_eq_of_lt
+      have h1 : e.val * 2 ^ p.B ≤ (p.noiseRadius - 1) * 2 ^ p.B :=
+        Nat.mul_le_mul_right _ (by omega)
+      have h2 : (p.noiseRadius - 1) * 2 ^ p.B = p.q / 2 - 2 ^ p.B := by
+        rw [Nat.sub_mul, hRK, Nat.one_mul]
+      omega
+    · right
+      apply Nat.div_eq_of_lt_le
+      · have h1 : (p.q - p.noiseRadius) * 2 ^ p.B ≤ e.val * 2 ^ p.B :=
+          Nat.mul_le_mul_right _ h
+        have h2 : (p.q - p.noiseRadius) * 2 ^ p.B = p.q * 2 ^ p.B - p.q / 2 := by
+          rw [Nat.sub_mul, hRK]
+        omega
+      · have h1 : e.val * 2 ^ p.B ≤ (p.q - 1) * 2 ^ p.B :=
+          Nat.mul_le_mul_right _ (by omega)
+        have h2 : (p.q - 1) * 2 ^ p.B = p.q * 2 ^ p.B - 2 ^ p.B := by
+          rw [Nat.sub_mul, Nat.one_mul]
+        have h3 : (2 ^ p.B + 1) * p.q = p.q * 2 ^ p.B + p.q := by
+          rw [Nat.add_mul, Nat.one_mul, hcomm]
+        omega
+  -- the encoded value, and the mod-q wrap it may undergo
+  have hval : (ec p k + e).val = (k.val * 2 ^ (p.D - p.B) + e.val) % p.q := by
+    rw [ZMod.val_add, ec_val p hw k]
+  set u := k.val * 2 ^ (p.D - p.B) + e.val with hu
+  have hkey : (u % p.q * 2 ^ p.B + p.q / 2) / p.q + 2 ^ p.B * (u / p.q)
+      = k.val + (e.val * 2 ^ p.B + p.q / 2) / p.q := by
+    have hsplit : p.q * (u / p.q) + u % p.q = u := Nat.div_add_mod u p.q
+    have step1 : (u % p.q * 2 ^ p.B + p.q / 2 + p.q * (2 ^ p.B * (u / p.q))) / p.q
+        = (u % p.q * 2 ^ p.B + p.q / 2) / p.q + 2 ^ p.B * (u / p.q) :=
+      Nat.add_mul_div_left _ _ hQpos
+    have step2 : u % p.q * 2 ^ p.B + p.q / 2 + p.q * (2 ^ p.B * (u / p.q))
+        = p.q * k.val + (e.val * 2 ^ p.B + p.q / 2) := by
+      have hA : u % p.q * 2 ^ p.B + p.q * (2 ^ p.B * (u / p.q)) = u * 2 ^ p.B := by
+        calc u % p.q * 2 ^ p.B + p.q * (2 ^ p.B * (u / p.q))
+            = (u % p.q + p.q * (u / p.q)) * 2 ^ p.B := by ring
+          _ = u * 2 ^ p.B := by rw [Nat.add_comm (u % p.q), hsplit]
+      have hB : u * 2 ^ p.B = p.q * k.val + e.val * 2 ^ p.B := by
+        rw [hu, Nat.add_mul, Nat.mul_assoc, hsK]; ring
+      omega
+    rw [← step1, step2, Nat.mul_add_div hQpos]
+  -- conclude in ZMod (2 ^ B), where the multiple of K and the rounding term vanish
+  rw [dc, hval, ZMod.natCast_mod]
+  have hcast := congrArg (fun n : ℕ => (n : ZMod (2 ^ p.B))) hkey
+  simp only [Nat.cast_add, Nat.cast_mul, ZMod.natCast_self, zero_mul, add_zero] at hcast
+  rcases hquot with h | h <;> rw [h] at hcast <;> simp at hcast <;>
+    simpa [ZMod.natCast_zmod_val] using hcast
 
 /-! ## The matrix maps
 
