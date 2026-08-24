@@ -621,7 +621,7 @@ private theorem probForge_run_le [Fintype R]
         simp only [simulateQ_pure, StateT.run] at hz
         rw [hz] at hforge
         exact Bool.false_ne_true hforge
-      rw [h0]; exact zero_le'
+      rw [h0]; exact zero_le
   | query_bind t mx ih =>
       -- Unfold one simulated query; split on the oracle index.
       rw [simulateQ_query_bind]

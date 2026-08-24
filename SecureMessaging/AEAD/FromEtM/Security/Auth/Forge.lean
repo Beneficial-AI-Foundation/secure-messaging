@@ -211,7 +211,7 @@ theorem tvDist_authInst_le_probForge
         -- `tg = t'` (forged): both outputs have flag `true` ≠ target flag `false` → both 0;
         -- `tg ≠ t'` (reject): output `none` regardless of `b`.
         by_cases hok : tg = t' <;>
-          simp [hok, ← OracleComp.pure_def, probOutput_pure_eq_indicator,
+          simp [hok, probOutput_pure_eq_indicator,
             Set.mem_singleton_iff, Prod.ext_iff]
   exact OracleComp.ProgramLogic.Relational.tvDist_simulateQ_le_probEvent_output_bad_base
     (authInstImpl se true ke) (authInstImpl se false ke) adv (none, ∅)
@@ -287,7 +287,7 @@ theorem probForge_authInst_le_forgeReduction
       -- composition then reindexes definitionally to the joint `forged` flag.
       unfold forgeReduction etmGameSkeleton
       simp only [pure_bind, simulateQ_map, StateT.run_map, probEvent_map,
-        Function.const, StateT.run_bind, StateT.run_pure,
+        Function.const, StateT.run_pure,
         bind_pure_comp]
       rw [OracleComp.simulateQ_mapStateTBase_run_eq_map_flattenStateT]
       -- The flattened collapsed handler equals the hand-written joint handler
@@ -315,7 +315,7 @@ theorem probForge_authInst_le_forgeReduction
             forgeJointImpl,
             StateT.run_monadLift, StateT.run_mk,
                   
-            bind_pure_comp, Functor.map_map,
+            bind_pure_comp,
             monadLift_self]
           erw [OracleComp.liftM_run_StateT, OracleComp.liftM_run_StateT]
           rw [simulateQ_bind]
@@ -357,10 +357,10 @@ theorem probForge_authInst_le_forgeReduction
           · simp [heq, QueryImpl.add_apply_inr, forgeJointImpl,
               StateT.run_bind, StateT.run_get,
               StateT.run_monadLift, StateT.run_pure,
-              simulateQ_pure, bind_pure_comp, Functor.map_map,
+              simulateQ_pure, bind_pure_comp,
               pure_bind]
           · simp only [add_apply_inr, liftM_pure, Prod.mk.eta, StateT.run_monadLift,
-              monadLift_self, bind_pure_comp, Functor.map_map, liftM_map, bind_map_left, pure_bind,
+              monadLift_self, bind_pure_comp, liftM_map, bind_map_left, pure_bind,
               beq_iff_eq, QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get, heq,
               ↓reduceIte, StateT.run_set, simulateQ_bind, hvfwd, OracleComp.verifyAgainstRO,
               QueryImpl.withCaching_apply, decide_not, bind_assoc, map_bind, forgeJointImpl,
@@ -629,7 +629,7 @@ theorem forgeReduction_isQueryBoundP
       obtain ⟨ch, qc⟩ := s
       cases ch with
       | none =>
-          simp only [add_apply_inr, StateT.run_pure, liftM_pure, bind_pure, StateT.run_monadLift,
+          simp only [add_apply_inr, StateT.run_pure, liftM_pure, StateT.run_monadLift,
             monadLift_self, bind_pure_comp, liftM_map, bind_map_left, pure_bind, StateT.run_bind,
             StateT.run_get, StateT.run_map, StateT.run_set, map_pure, Functor.map_map,
             isQueryBoundP_map_iff]
@@ -648,7 +648,7 @@ theorem forgeReduction_isQueryBoundP
       exact isQueryBoundP_pure OracleComp.isVerifyQuery (none, some (c, tg), qc) 1
     · simp only [beq_iff_eq, hg, ↓reduceIte, StateT.run_bind, StateT.run_set, pure_bind]
       erw [OracleComp.liftM_run_StateT, OracleComp.liftM_run_StateT]
-      simp only [StateT.run_pure, bind_assoc, pure_bind]
+      simp only [bind_assoc, pure_bind]
       refine (isQueryBoundP_bind (m := 0)
         ((isQueryBoundP_query_iff (p := OracleComp.isVerifyQuery)
           (Sum.inr ((ad, c), tg)) 1).mpr (fun _ => Nat.one_pos))

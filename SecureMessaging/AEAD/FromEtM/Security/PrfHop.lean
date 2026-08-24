@@ -207,13 +207,13 @@ theorem game1_eq_prfIdealExp
     simp only at hs
     subst hs
     rcases t with (n | ⟨ad, m⟩) | ⟨ad, c⟩
-    · simp only [add_apply_inl, StateT.run_pure, liftM_pure, bind_pure, StateT.run_monadLift,
+    · simp only [add_apply_inl, StateT.run_pure, liftM_pure, StateT.run_monadLift,
         monadLift_self, bind_pure_comp, liftM_map, bind_map_left, pure_bind, Prod.mk.eta,
         beq_iff_eq, StateT.run_map, Functor.map_map, QueryImpl.add_apply_inl,
         QueryImpl.liftTarget_apply, QueryImpl.ofLift_apply, support_map] at hy
       obtain ⟨a, _, rfl⟩ := hy; rfl
     · cases ch <;>
-        simp only [add_apply_inl, add_apply_inr, StateT.run_pure, liftM_pure, bind_pure,
+        simp only [add_apply_inl, add_apply_inr, StateT.run_pure, liftM_pure,
           StateT.run_monadLift, monadLift_self, bind_pure_comp, liftM_map, bind_map_left,
           pure_bind, Prod.mk.eta, beq_iff_eq, StateT.run_map, Functor.map_map,
           QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get,
@@ -225,7 +225,7 @@ theorem game1_eq_prfIdealExp
       -- cache unchanged; the verify `if … then pure … else pure …` keeps the cache `∅`.
       cases ch with
       | none =>
-        simp only [add_apply_inr, StateT.run_pure, liftM_pure, bind_pure, StateT.run_monadLift,
+        simp only [add_apply_inr, StateT.run_pure, liftM_pure, StateT.run_monadLift,
           monadLift_self, bind_pure_comp, liftM_map, bind_map_left, pure_bind, Prod.mk.eta,
           beq_iff_eq, StateT.run_map, Functor.map_map, ← apply_ite, QueryImpl.add_apply_inr,
           StateT.run_bind, StateT.run_get, reduceCtorEq, ↓reduceIte, StateT.run_set, map_pure,
@@ -234,7 +234,7 @@ theorem game1_eq_prfIdealExp
         obtain ⟨a, _, rfl⟩ := hy; rfl
       | some val =>
         by_cases hv : val = c <;>
-          simp only [add_apply_inr, StateT.run_pure, liftM_pure, bind_pure, StateT.run_monadLift,
+          simp only [add_apply_inr, StateT.run_pure, liftM_pure, StateT.run_monadLift,
             monadLift_self, bind_pure_comp, liftM_map, bind_map_left, pure_bind, Prod.mk.eta,
             beq_iff_eq, StateT.run_map, Functor.map_map, ← apply_ite, QueryImpl.add_apply_inr, hv,
             StateT.run_bind, StateT.run_get, ↓reduceIte, support_pure, Option.some.injEq,
@@ -273,7 +273,7 @@ theorem game1_eq_prfIdealExp
       rw [flattenStateT_mapStateTBase_apply_run]
       cases ch with
       | none =>
-        simp only [add_apply_inr, StateT.run_pure, liftM_pure, bind_pure, StateT.run_monadLift,
+        simp only [add_apply_inr, StateT.run_pure, liftM_pure, StateT.run_monadLift,
           monadLift_self, bind_pure_comp, liftM_map, bind_map_left, pure_bind, Prod.mk.eta,
           beq_iff_eq, StateT.run_map, Functor.map_map, QueryImpl.add_apply_inr, StateT.run_bind,
           StateT.run_get, reduceCtorEq, ↓reduceIte, StateT.run_set, simulateQ_bind, hroI,
@@ -286,7 +286,7 @@ theorem game1_eq_prfIdealExp
           simp [QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get,
             StateT.run_monadLift, StateT.run_pure,
             simulateQ_pure, Prod.map, Functor.map_map]
-        · simp only [add_apply_inr, StateT.run_pure, liftM_pure, bind_pure, StateT.run_monadLift,
+        · simp only [add_apply_inr, StateT.run_pure, liftM_pure, StateT.run_monadLift,
             monadLift_self, bind_pure_comp, liftM_map, bind_map_left, pure_bind, Prod.mk.eta,
             beq_iff_eq, StateT.run_map, Functor.map_map, QueryImpl.add_apply_inr, StateT.run_bind,
             StateT.run_get, Option.some.injEq, hv, ↓reduceIte, StateT.run_set, simulateQ_bind,
