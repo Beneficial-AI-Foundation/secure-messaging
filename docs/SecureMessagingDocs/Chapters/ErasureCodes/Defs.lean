@@ -29,8 +29,11 @@ Erasure Codes.
 :::defTitle "erasure_code_scheme" "Erasure code scheme"
 :::
 
-::::definition "erasure_code_scheme" (parent := "erasure_codes") (lean := "ErasureCode")
+::::definition "erasure_code_scheme" (parent := "erasure_codes") (lean := "ErasureCode, ErasureCode.Decodable")
 $`\todo`
+
+:::leanPillCaption "scheme"
+:::
 
 ```anchor ErasureCode (project := ".") (module := SecureMessaging.ErasureCode.Defs)
 structure ErasureCode (Sym : Type) where
@@ -48,6 +51,14 @@ structure ErasureCode (Sym : Type) where
   encode : (Fin nchunk → Sym) → Fin N → Sym
   /-- `Decode(L)`: recover the message from a chunk set, or fail (`none`). -/
   decode : Finset (Fin N × Sym) → Option (Fin nchunk → Sym)
+```
+
+:::leanPillCaption "decodability predicate"
+:::
+
+```anchor Decodable (project := ".") (module := SecureMessaging.ErasureCode.Defs)
+def Decodable {N : ℕ} (nchunk : ℕ) (chunks : Finset (Fin N × Sym)) : Prop :=
+  nchunk ≤ chunks.card ∧ Set.InjOn Prod.fst (chunks : Set (Fin N × Sym))
 ```
 
 {githubLabel}`github` {githubIssue 190}[]
@@ -87,6 +98,8 @@ $`\todo`
 :::
 
 ```anchor ErasureCodePayload_Streaming_States (project := ".") (module := SecureMessaging.ErasureCode.Streaming)
+/-- Encoder state for one erasure-coded payload stream. It stores the erasure-code
+payload scheme, the payload being encoded, and the counter for the next chunk. -/
 structure EncoderState (M Sym : Type) where
   /-- The erasure-code payload scheme used to encode this stream. -/
   ecp : ErasureCodePayload M Sym

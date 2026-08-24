@@ -154,7 +154,7 @@ PY
     s{\s*<div class="bp_build_metadata" aria-label="Build metadata">.*?</div>\s*}{}s;
     s{\s*<h2>\s*Contents\s*</h2>}{}s;
     if (!/<div class="split-toc project-index-toc">/) {
-      s{<div class="split-toc book">\s*<div class="title">}{<div class="split-toc project-index-toc">\n              <div class="title">\n                <span class="no-toggle"></span><span class=""><a href="$home">Project status</a></span>\n                </div>\n              </div>\n            <div class="split-toc book">\n              <div class="title">};
+      s{<div class="split-toc book">\s*<div class="title">}{<div class="split-toc project-index-toc">\n              <div class="title">\n                <span class="no-toggle"></span><span class=""><a href="$home">Top page</a></span>\n                </div>\n              </div>\n            <div class="split-toc book">\n              <div class="title">};
     }
   ' "$html_file"
   done < <(find "$chapter_dir" -name '*.html' -type f -print0)

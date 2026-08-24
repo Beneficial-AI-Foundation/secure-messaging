@@ -26,6 +26,9 @@ An *erasure code* over a set of symbols `Σ`, with block length `N` and message 
 This model restricts `Encode` and `Decode` to deterministic functions, covering
 deterministic codes such as Reed-Solomon.
 
+A received chunk set `L` is *decodable* for threshold `nchunk` when `nchunk ≤ |L|`
+and the chunks of `L` have pairwise distinct positions.
+
 Writing `L_I = {(i, Encode(M, i)) | i ∈ I}` for the chunks of `M` at indices
 `I ⊆ Fin N`, correctness requires, for all `M` and all `I`:
 - `Decode(L_I) = M, if nchunk ≤ |I|`;
@@ -113,6 +116,13 @@ namespace ErasureCode
 
 variable {Sym : Type}
 
+/-- A received chunk set is *decodable* for threshold `nchunk` when it contains
+at least `nchunk` chunks at pairwise distinct positions. -/
+-- ANCHOR: Decodable
+def Decodable {N : ℕ} (nchunk : ℕ) (chunks : Finset (Fin N × Sym)) : Prop :=
+  nchunk ≤ chunks.card ∧ Set.InjOn Prod.fst (chunks : Set (Fin N × Sym))
+-- ANCHOR_END: Decodable
+
 /-- The honest chunk set of `M` at positions `I`:
 `{(i, Encode(M, i)) | i ∈ I}`.
 
@@ -147,6 +157,22 @@ theorem mem_encodeChunks (ec : ErasureCode Sym)
     exact ⟨hi, rfl⟩
   · rintro ⟨hi, hvalue⟩
     exact ⟨chunk.1, hi, Prod.ext rfl hvalue.symm⟩
+
+/-- Honest chunks at positions `I` are decodable exactly when `nchunk ≤ |I|`:
+there is one chunk per index, so the indices are pairwise distinct. -/
+theorem decodable_encodeChunks_of_nchunk_le_card (ec : ErasureCode Sym)
+    (M : Fin ec.nchunk → Sym) (I : Finset (Fin ec.N))
+    (hcard : ec.nchunk ≤ I.card) :
+    Decodable ec.nchunk (ec.encodeChunks M I) := by
+  constructor
+  · calc
+      ec.nchunk ≤ I.card := hcard
+      _ = (ec.encodeChunks M I).card := (ec.card_encodeChunks M I).symm
+  · intro a ha b hb hab
+    have ha' := (ec.mem_encodeChunks M I a).mp ha
+    have hb' := (ec.mem_encodeChunks M I b).mp hb
+    apply Prod.ext hab
+    rw [ha'.2, hb'.2, hab]
 
 /-- Correctness: decoding the chunk set `{(i, Encode(M, i)) | i ∈ I}` recovers
 `M` when `nchunk ≤ |I|` and fails when `|I| < nchunk`. -/

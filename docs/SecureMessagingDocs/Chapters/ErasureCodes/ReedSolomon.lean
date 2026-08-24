@@ -27,17 +27,17 @@ set_option pp.rawOnError true
 Reed–Solomon erasure codes over arbitrary fields.
 :::
 
-:::defTitle "reed_solomon_code" "Reed–Solomon code"
+:::defTitle "reed_solomon_erasure_code" "Reed–Solomon erasure code"
 :::
 
-::::definition "reed_solomon_code" (parent := "erasure_codes_reed_solomon") (lean := "ErasureCode.ReedSolomon.Code, ErasureCode.ReedSolomon.Code.sourceIndex, ErasureCode.ReedSolomon.Code.sourcePoint, ErasureCode.ReedSolomon.Code.messagePolynomial, ErasureCode.ReedSolomon.Code.receivedPolynomial")
+::::definition "reed_solomon_erasure_code" (parent := "erasure_codes_reed_solomon") (lean := "ErasureCode.ReedSolomon.Parameters, ErasureCode.ReedSolomon.Parameters.sourceIndex, ErasureCode.ReedSolomon.Parameters.sourcePoint, ErasureCode.ReedSolomon.Parameters.encodingPolynomial, ErasureCode.ReedSolomon.Parameters.encode, ErasureCode.ReedSolomon.Parameters.decodingPolynomial, ErasureCode.ReedSolomon.Parameters.decode, ErasureCode.ReedSolomon.Parameters.erasureCode")
 $`\todo`
 
-:::leanPillCaption "code parameters"
+:::leanPillCaption "Reed–Solomon parameters"
 :::
 
-```anchor reedSolomon_Code (project := ".") (module := SecureMessaging.ErasureCode.ReedSolomon.Construction)
-structure Code (F : Type) [Field F] where
+```anchor reedSolomon_Parameters (project := ".") (module := SecureMessaging.ErasureCode.ReedSolomon.Construction)
+structure Parameters (F : Type) [Field F] where
   /-- Number of codeword positions. -/
   N : ℕ
   /-- The codeword has at least one position. -/
@@ -54,73 +54,62 @@ structure Code (F : Type) [Field F] where
   point_injective : Function.Injective point
 ```
 
-:::leanPillCaption "source index"
+:::leanPillCaption "source positions and evaluation points"
 :::
 
-```anchor reedSolomon_sourceIndex (project := ".") (module := SecureMessaging.ErasureCode.ReedSolomon.Construction)
-def sourceIndex (rs : Code F) (i : Fin rs.k) : Fin rs.N :=
-  Fin.castLE rs.k_le_N i
+```anchor reedSolomon_sourcePoints (project := ".") (module := SecureMessaging.ErasureCode.ReedSolomon.Construction)
+/-- The inclusion `{0, …, k-1} ↪ {0, …, N-1}`, `i ↦ i`: a message index as a
+codeword position. -/
+def sourceIndex (params : Parameters F) (i : Fin params.k) : Fin params.N :=
+  Fin.castLE params.k_le_N i
+
+/-- The evaluation-point mapping `point : j ↦ xⱼ` restricted to the message
+positions `{0, …, k-1}`: `i ↦ xᵢ`. -/
+def sourcePoint (params : Parameters F) (i : Fin params.k) : F :=
+  params.point (params.sourceIndex i)
+
+/-- The points `x₀, …, x_(k-1)` are pairwise distinct: the restriction of an
+injective mapping is itself injective. -/
+theorem sourcePoint_injective (params : Parameters F) :
+    Function.Injective params.sourcePoint :=
+  params.point_injective.comp (Fin.castLE_injective params.k_le_N)
 ```
 
-:::leanPillCaption "source evaluation point"
+:::leanPillCaption "encoding polynomial"
 :::
 
-```anchor reedSolomon_sourcePoint (project := ".") (module := SecureMessaging.ErasureCode.ReedSolomon.Construction)
-def sourcePoint (rs : Code F) (i : Fin rs.k) : F :=
-  rs.point (rs.sourceIndex i)
+```anchor reedSolomon_encodingPolynomial (project := ".") (module := SecureMessaging.ErasureCode.ReedSolomon.Construction)
+def encodingPolynomial (params : Parameters F) (message : Fin params.k → F) : F[X] :=
+  Lagrange.interpolate Finset.univ params.sourcePoint message
 ```
-
-:::leanPillCaption "message polynomial"
-:::
-
-```anchor reedSolomon_messagePolynomial (project := ".") (module := SecureMessaging.ErasureCode.ReedSolomon.Construction)
-def messagePolynomial (rs : Code F) (message : Fin rs.k → F) : F[X] :=
-  Lagrange.interpolate Finset.univ rs.sourcePoint message
-```
-
-:::leanPillCaption "received polynomial"
-:::
-
-```anchor reedSolomon_receivedPolynomial (project := ".") (module := SecureMessaging.ErasureCode.ReedSolomon.Construction)
-noncomputable def receivedPolynomial (rs : Code F)
-    (chunks : Finset (Fin rs.N × F)) : F[X] :=
-  letI : DecidableEq F := Classical.decEq F
-  Lagrange.interpolate chunks (fun (j, _) => rs.point j) (fun (_, y) => y)
-```
-::::
-
-:::defTitle "reed_solomon_erasure_code" "Reed–Solomon erasure code"
-:::
-
-:::::definition "reed_solomon_erasure_code" (parent := "erasure_codes_reed_solomon") (lean := "ErasureCode.ReedSolomon.Code.encode, ErasureCode.ReedSolomon.Code.Decodable, ErasureCode.ReedSolomon.Code.decode, ErasureCode.ReedSolomon.Code.toErasureCode")
-$`\todo`
 
 :::leanPillCaption "encode"
 :::
 
 ```anchor reedSolomon_encode (project := ".") (module := SecureMessaging.ErasureCode.ReedSolomon.Construction)
-def encode (rs : Code F) (message : Fin rs.k → F) (i : Fin rs.N) : F :=
-  (rs.messagePolynomial message).eval (rs.point i)
+def encode (params : Parameters F) (message : Fin params.k → F) (i : Fin params.N) : F :=
+  (params.encodingPolynomial message).eval (params.point i)
 ```
 
-:::leanPillCaption "decodability predicate"
+:::leanPillCaption "decoding polynomial"
 :::
 
-```anchor reedSolomon_decodable (project := ".") (module := SecureMessaging.ErasureCode.ReedSolomon.Construction)
-def Decodable (rs : Code F) (chunks : Finset (Fin rs.N × F)) : Prop :=
-  rs.k ≤ chunks.card ∧
-    Set.InjOn (fun ((j, _) : Fin rs.N × F) => rs.point j) chunks
+```anchor reedSolomon_decodingPolynomial (project := ".") (module := SecureMessaging.ErasureCode.ReedSolomon.Construction)
+noncomputable def decodingPolynomial (params : Parameters F)
+    (chunks : Finset (Fin params.N × F)) : F[X] :=
+  letI : DecidableEq F := Classical.decEq F
+  Lagrange.interpolate chunks (fun (j, _) => params.point j) (fun (_, y) => y)
 ```
 
 :::leanPillCaption "decode"
 :::
 
 ```anchor reedSolomon_decode (project := ".") (module := SecureMessaging.ErasureCode.ReedSolomon.Construction)
-noncomputable def decode (rs : Code F)
-    (chunks : Finset (Fin rs.N × F)) : Option (Fin rs.k → F) :=
-  letI : Decidable (rs.Decodable chunks) := Classical.propDecidable _
-  if _h : rs.Decodable chunks then
-    some fun i => (rs.receivedPolynomial chunks).eval (rs.sourcePoint i)
+noncomputable def decode (params : Parameters F)
+    (chunks : Finset (Fin params.N × F)) : Option (Fin params.k → F) :=
+  letI : Decidable (ErasureCode.Decodable params.k chunks) := Classical.propDecidable _
+  if _h : ErasureCode.Decodable params.k chunks then
+    some fun i => (params.decodingPolynomial chunks).eval (params.sourcePoint i)
   else
     none
 ```
@@ -128,32 +117,32 @@ noncomputable def decode (rs : Code F)
 :::leanPillCaption "ErasureCode instance"
 :::
 
-```anchor reedSolomon_code (project := ".") (module := SecureMessaging.ErasureCode.ReedSolomon.Construction)
-def toErasureCode (rs : Code F) : ErasureCode F where
-  N := rs.N
-  N_pos := rs.N_pos
-  nchunk := rs.k
-  nchunk_pos := rs.k_pos
-  nchunk_le_N := rs.k_le_N
-  encode := rs.encode
-  decode := rs.decode
+```anchor reedSolomon_erasureCode (project := ".") (module := SecureMessaging.ErasureCode.ReedSolomon.Construction)
+def erasureCode (params : Parameters F) : ErasureCode F where
+  N := params.N
+  N_pos := params.N_pos
+  nchunk := params.k
+  nchunk_pos := params.k_pos
+  nchunk_le_N := params.k_le_N
+  encode := params.encode
+  decode := params.decode
 ```
 
-{usesLabel}`uses` {uses "reed_solomon_code"}[] · {uses "erasure_code_scheme"}[] ·
+{usesLabel}`uses` {uses "erasure_code_scheme"}[] ·
   {githubLabel}`github` {githubIssue 198}[]
-:::::
+::::
 
 :::defTitle "reed_solomon_erasure_code_correctness" "Reed–Solomon correctness"
 :::
 
-::::theorem "reed_solomon_erasure_code_correctness" (parent := "erasure_codes_reed_solomon") (lean := "ErasureCode.ReedSolomon.Code.correct")
+::::theorem "reed_solomon_erasure_code_correctness" (parent := "erasure_codes_reed_solomon") (lean := "ErasureCode.ReedSolomon.Parameters.erasureCode_correct")
 $`\todo`
 
 :::leanPillCaption "erasure-code correctness"
 :::
 
-```anchor reedSolomon_correct (project := ".") (module := SecureMessaging.ErasureCode.ReedSolomon.Correctness)
-theorem correct (rs : Code F) : rs.toErasureCode.Correct
+```anchor reedSolomon_erasureCode_correct (project := ".") (module := SecureMessaging.ErasureCode.ReedSolomon.Correctness)
+theorem erasureCode_correct (params : Parameters F) : params.erasureCode.Correct
 ```
 
 {usesLabel}`uses` {uses "reed_solomon_erasure_code"}[] ·
