@@ -6,6 +6,7 @@ Authors: Beneficial AI Foundation
 
 import VCVio.OracleComp.SimSemantics.Append
 import VCVio.OracleComp.ProbComp
+import ToMathlib.Control.StateT
 
 /-!
 # Forwarding a lifted base computation through an identity-left `add` handler
@@ -36,5 +37,21 @@ theorem simulateQ_id'_liftTarget_add_liftComp
         (liftM ob : OracleComp (unifSpec + specR) β)
       = (liftM ob : StateT τ ProbComp β) := by
   simp [QueryImpl.simulateQ_add_liftM_left]
+
+/-- Forward a base computation lifted through an inner `StateT` and run at state `s`. -/
+theorem simulateQ_id'_liftTarget_add_run_liftComp
+    {ιR : Type} {specR : OracleSpec ιR} {σ τ : Type}
+    (h : QueryImpl specR (StateT τ ProbComp)) {β : Type} (ob : ProbComp β) (s : σ) :
+    simulateQ ((QueryImpl.id' unifSpec).liftTarget (StateT τ ProbComp) + h)
+        ((liftM ob : StateT σ (OracleComp (unifSpec + specR)) β).run s)
+      = (liftM ((fun x => (x, s)) <$> ob) : StateT τ ProbComp (β × σ)) := by
+  have hrun :
+      (liftM ob : StateT σ (OracleComp (unifSpec + specR)) β).run s =
+        (liftM ((fun x => (x, s)) <$> ob) : OracleComp (unifSpec + specR) (β × σ)) := by
+    change (liftM (liftM ob : StateT σ ProbComp β) :
+      StateT σ (OracleComp (unifSpec + specR)) β).run s = _
+    simp [StateT.run_monadLift, map_eq_bind_pure_comp]
+  rw [hrun]
+  exact simulateQ_id'_liftTarget_add_liftComp h ((fun x => (x, s)) <$> ob)
 
 end OracleComp

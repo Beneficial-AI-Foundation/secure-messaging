@@ -120,9 +120,9 @@ theorem game2_game3_le_enc [Inhabited K_e]
             ((liftM ($ᵗ T : ProbComp T) :
                 StateT (TagCache AD C_e T)
                   (OracleComp (unifSpec + (M →ₒ Option C_e))) T).run qc)
-            = liftM ((fun t => (t, qc)) <$> ($ᵗ T : ProbComp T)) :=
-          OracleComp.simulateQ_id'_liftTarget_add_liftComp _
-            ((fun t => (t, qc)) <$> ($ᵗ T : ProbComp T))
+            = liftM ((fun t => (t, qc)) <$> ($ᵗ T : ProbComp T)) := by
+          exact OracleComp.simulateQ_id'_liftTarget_add_run_liftComp (τ := Bool)
+            (se.oracleEncrypt true key) ($ᵗ T : ProbComp T) qc
         cases ch with
         | none =>
           simp only [add_apply_inl, add_apply_inr, QueryImpl.flattenStateT, QueryImpl.mapStateTBase,
@@ -194,9 +194,9 @@ theorem game2_game3_le_enc [Inhabited K_e]
             ((liftM ($ᵗ T : ProbComp T) :
                 StateT (TagCache AD C_e T)
                   (OracleComp (unifSpec + (M →ₒ Option C_e))) T).run qc)
-            = liftM ((fun t => (t, qc)) <$> ($ᵗ T : ProbComp T)) :=
-          OracleComp.simulateQ_id'_liftTarget_add_liftComp _
-            ((fun t => (t, qc)) <$> ($ᵗ T : ProbComp T))
+            = liftM ((fun t => (t, qc)) <$> ($ᵗ T : ProbComp T)) := by
+          exact OracleComp.simulateQ_id'_liftTarget_add_run_liftComp (τ := Bool)
+            (se.oracleEncrypt true key) ($ᵗ T : ProbComp T) qc
         cases ch <;>
           simp [QueryImpl.flattenStateT, QueryImpl.mapStateTBase, DetSEAlg.indCPAImpl,
             DetSEAlg.oracleEncrypt, DetSEAlg.oracleUnif, QueryImpl.add_apply_inl,
@@ -248,10 +248,9 @@ theorem game2_game3_le_enc [Inhabited K_e]
               QueryImpl.withCaching_apply, uniformSampleImpl, StateT.run_bind, StateT.run_get,
               pure_bind, bind_pure_comp, Prod.mk.eta, beq_iff_eq, Bool.false_eq_true, ↓reduceIte,
               QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, StateT.run_monadLift,
-              monadLift_self, StateT.run_modifyGet, Functor.map_map, liftM_map, bind_map_left,
-              StateT.run_map, StateT.run_set, map_pure, support_map, support_uniformSample,
-              Set.image_univ] at hy
-            obtain ⟨a, rfl⟩ := hy
+              monadLift_self, Functor.map_map, StateT.run_map, StateT.run_set, map_pure,
+              support_map] at hy
+            obtain ⟨a, _, rfl⟩ := hy
             simp
           | some v =>
             simp only [add_apply_inl, add_apply_inr, StateT.run_pure, liftM_pure,
@@ -346,9 +345,9 @@ theorem game2_game3_le_enc [Inhabited K_e]
               ((liftM ($ᵗ T : ProbComp T) :
                   StateT (TagCache AD C_e T)
                     (OracleComp (unifSpec + (M →ₒ Option C_e))) T).run qc)
-              = liftM ((fun t => (t, qc)) <$> ($ᵗ T : ProbComp T)) :=
-            OracleComp.simulateQ_id'_liftTarget_add_liftComp _
-              ((fun t => (t, qc)) <$> ($ᵗ T : ProbComp T))
+              = liftM ((fun t => (t, qc)) <$> ($ᵗ T : ProbComp T)) := by
+            exact OracleComp.simulateQ_id'_liftTarget_add_run_liftComp (τ := Bool)
+              (se.oracleEncrypt false key) ($ᵗ T : ProbComp T) qc
           cases ch with
           | none =>
             simp only [add_apply_inl, add_apply_inr, QueryImpl.flattenStateT,
@@ -420,9 +419,9 @@ theorem game2_game3_le_enc [Inhabited K_e]
               ((liftM ($ᵗ T : ProbComp T) :
                   StateT (TagCache AD C_e T)
                     (OracleComp (unifSpec + (M →ₒ Option C_e))) T).run qc)
-              = liftM ((fun t => (t, qc)) <$> ($ᵗ T : ProbComp T)) :=
-            OracleComp.simulateQ_id'_liftTarget_add_liftComp _
-              ((fun t => (t, qc)) <$> ($ᵗ T : ProbComp T))
+              = liftM ((fun t => (t, qc)) <$> ($ᵗ T : ProbComp T)) := by
+            exact OracleComp.simulateQ_id'_liftTarget_add_run_liftComp (τ := Bool)
+              (se.oracleEncrypt false key) ($ᵗ T : ProbComp T) qc
           cases ch <;>
             simp [QueryImpl.flattenStateT, QueryImpl.mapStateTBase, DetSEAlg.indCPAImpl,
               DetSEAlg.oracleEncrypt, DetSEAlg.oracleUnif, QueryImpl.add_apply_inl,
