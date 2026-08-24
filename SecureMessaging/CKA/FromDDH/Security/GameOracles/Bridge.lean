@@ -215,7 +215,8 @@ lemma probOutput_lazy_honest_eq [Finite G] (gp : GameParams)
     (initGameState
       (CKAState.sendReady (x₀ • gen) : CKAState F G)
       (CKAState.recvReady x₀ : CKAState F G)) adversary
-  exact probOutput_eq_of_evalDist_eq (h₁.trans h₂) false
+  simpa only [StateT.run'_eq, map_eq_bind_pure_comp, Function.comp_def] using
+    probOutput_eq_of_evalDist_eq (h₁.trans h₂) false
 
 end Step2
 

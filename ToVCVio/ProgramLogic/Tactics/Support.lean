@@ -75,7 +75,7 @@ one-counter-bump send shapes, where the bumped record is definitionally equal
 to the goal's projection but not syntactically. -/
 macro "vcvSupport" : tactic =>
   `(tactic|
-    (simp only [StateT.run_bind, StateT.run_get, StateT.run_set, StateT.run_monadLift,
+    (try simp only [StateT.run_bind, StateT.run_get, StateT.run_set, StateT.run_monadLift,
       monadLift_self, StateT.run_pure, pure_bind, bind_assoc, support_bind,
       support_pure, Set.mem_iUnion, Set.mem_singleton_iff] at *
      try casesm* Exists _, _ ∧ _

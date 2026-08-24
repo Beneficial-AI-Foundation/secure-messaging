@@ -73,9 +73,9 @@ private def injectPrefix [SampleableType K] [DecidableEq K]
         (CKAChallengeStepResult leak α) :=
   OracleComp.construct
     (fun a => pure (.done a))
-    (fun t oa rec => do
+    (fun t oa rec =>
       match t with
-      | CKAScheme.ckaSecuritySpec.OSendA =>
+      | CKAScheme.ckaSecuritySpec.OSendA => do
           let σ ← get
           if sendAEffectivelyInjects gp σ then
             pure (.pausedA oa)
@@ -83,7 +83,7 @@ private def injectPrefix [SampleableType K] [DecidableEq K]
             let out ← securityImpl kem hDet leak gp isRandom
               (CKAScheme.ckaSecuritySpec.OSendA : (securitySpec leak).Domain)
             rec out
-      | CKAScheme.ckaSecuritySpec.OSendB =>
+      | CKAScheme.ckaSecuritySpec.OSendB => do
           let σ ← get
           if sendBEffectivelyInjects gp σ then
             pure (.pausedB oa)
@@ -91,7 +91,7 @@ private def injectPrefix [SampleableType K] [DecidableEq K]
             let out ← securityImpl kem hDet leak gp isRandom
               (CKAScheme.ckaSecuritySpec.OSendB : (securitySpec leak).Domain)
             rec out
-      | other =>
+        | other => do
           let out ← securityImpl kem hDet leak gp isRandom other
           rec out)
 
@@ -217,24 +217,17 @@ private lemma simulateQ_run_eq_injectPrefix_bind [SampleableType K] [DecidableEq
       rcases t with
         (((((((((n | uSendA) | uRecvA) | uSendB) | uRecvB) |
           uChallA) | uChallB) | uCorrA) | uCorrB) | uRLeakA) | uRLeakB
-      all_goals
-        try cases uSendA
-        try cases uRecvA
-        try cases uSendB
-        try cases uRecvB
-        try cases uCorrA
-        try cases uCorrB
-        try cases uRLeakA
-        try cases uRLeakB
-      all_goals
-        try
-          simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
-            OracleQuery.cont_query, id_map, bind_assoc, stateTrun, injectPrefix,
-            construct_query_bind]
-          rw [hstep _ _ (by simp) (by simp)]
-          refine bind_congr (m := ProbComp) fun a => ?_
-          simpa using ih a.1 a.2
+      · simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
+          OracleQuery.cont_query, id_map, bind_assoc, stateTrun, injectPrefix,
+          construct_query_bind]
+        rw [hstep _ _ (by simp) (by simp)]
+        refine bind_congr (m := ProbComp) fun a => ?_
+        change (simulateQ impl (cont a.1)).run a.2 =
+          (injectPrefix kem hDet leak gp isRandom (cont a.1)).run a.2 >>=
+            fun x => injectResume kem leak impl x.1 x.2
+        exact ih a.1 a.2
       · -- O-Send-A
+        cases uSendA
         by_cases heff : sendAEffectivelyInjects gp σ = true
         · simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
             OracleQuery.cont_query, id_map, stateTrun,
@@ -247,8 +240,22 @@ private lemma simulateQ_run_eq_injectPrefix_bind [SampleableType K] [DecidableEq
             heffFalse, Bool.false_eq_true, ↓reduceIte]
           rw [hstep _ _ (fun _ => heffFalse) (by simp)]
           refine bind_congr (m := ProbComp) fun a => ?_
-          simpa using ih a.1 a.2
+          change (simulateQ impl (cont a.1)).run a.2 =
+            (injectPrefix kem hDet leak gp isRandom (cont a.1)).run a.2 >>=
+              fun x => injectResume kem leak impl x.1 x.2
+          exact ih a.1 a.2
+      · cases uRecvA
+        simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
+          OracleQuery.cont_query, id_map, bind_assoc, stateTrun, injectPrefix,
+          construct_query_bind]
+        rw [hstep _ _ (by simp) (by simp)]
+        refine bind_congr (m := ProbComp) fun a => ?_
+        change (simulateQ impl (cont a.1)).run a.2 =
+          (injectPrefix kem hDet leak gp isRandom (cont a.1)).run a.2 >>=
+            fun x => injectResume kem leak impl x.1 x.2
+        exact ih a.1 a.2
       · -- O-Send-B
+        cases uSendB
         by_cases heff : sendBEffectivelyInjects gp σ = true
         · simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
             OracleQuery.cont_query, id_map,
@@ -262,7 +269,80 @@ private lemma simulateQ_run_eq_injectPrefix_bind [SampleableType K] [DecidableEq
             heffFalse, Bool.false_eq_true, ↓reduceIte]
           rw [hstep _ _ (by simp) (fun _ => heffFalse)]
           refine bind_congr (m := ProbComp) fun a => ?_
-          simpa using ih a.1 a.2
+          change (simulateQ impl (cont a.1)).run a.2 =
+            (injectPrefix kem hDet leak gp isRandom (cont a.1)).run a.2 >>=
+              fun x => injectResume kem leak impl x.1 x.2
+          exact ih a.1 a.2
+      · cases uRecvB
+        simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
+          OracleQuery.cont_query, id_map, bind_assoc, stateTrun, injectPrefix,
+          construct_query_bind]
+        rw [hstep _ _ (by simp) (by simp)]
+        refine bind_congr (m := ProbComp) fun a => ?_
+        change (simulateQ impl (cont a.1)).run a.2 =
+          (injectPrefix kem hDet leak gp isRandom (cont a.1)).run a.2 >>=
+            fun x => injectResume kem leak impl x.1 x.2
+        exact ih a.1 a.2
+      · cases uChallA
+        simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
+          OracleQuery.cont_query, id_map, bind_assoc, stateTrun, injectPrefix,
+          construct_query_bind]
+        rw [hstep _ _ (by simp) (by simp)]
+        refine bind_congr (m := ProbComp) fun a => ?_
+        change (simulateQ impl (cont a.1)).run a.2 =
+          (injectPrefix kem hDet leak gp isRandom (cont a.1)).run a.2 >>=
+            fun x => injectResume kem leak impl x.1 x.2
+        exact ih a.1 a.2
+      · cases uChallB
+        simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
+          OracleQuery.cont_query, id_map, bind_assoc, stateTrun, injectPrefix,
+          construct_query_bind]
+        rw [hstep _ _ (by simp) (by simp)]
+        refine bind_congr (m := ProbComp) fun a => ?_
+        change (simulateQ impl (cont a.1)).run a.2 =
+          (injectPrefix kem hDet leak gp isRandom (cont a.1)).run a.2 >>=
+            fun x => injectResume kem leak impl x.1 x.2
+        exact ih a.1 a.2
+      · cases uCorrA
+        simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
+          OracleQuery.cont_query, id_map, bind_assoc, stateTrun, injectPrefix,
+          construct_query_bind]
+        rw [hstep _ _ (by simp) (by simp)]
+        refine bind_congr (m := ProbComp) fun a => ?_
+        change (simulateQ impl (cont a.1)).run a.2 =
+          (injectPrefix kem hDet leak gp isRandom (cont a.1)).run a.2 >>=
+            fun x => injectResume kem leak impl x.1 x.2
+        exact ih a.1 a.2
+      · cases uCorrB
+        simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
+          OracleQuery.cont_query, id_map, bind_assoc, stateTrun, injectPrefix,
+          construct_query_bind]
+        rw [hstep _ _ (by simp) (by simp)]
+        refine bind_congr (m := ProbComp) fun a => ?_
+        change (simulateQ impl (cont a.1)).run a.2 =
+          (injectPrefix kem hDet leak gp isRandom (cont a.1)).run a.2 >>=
+            fun x => injectResume kem leak impl x.1 x.2
+        exact ih a.1 a.2
+      · cases uRLeakA
+        simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
+          OracleQuery.cont_query, id_map, bind_assoc, stateTrun, injectPrefix,
+          construct_query_bind]
+        rw [hstep _ _ (by simp) (by simp)]
+        refine bind_congr (m := ProbComp) fun a => ?_
+        change (simulateQ impl (cont a.1)).run a.2 =
+          (injectPrefix kem hDet leak gp isRandom (cont a.1)).run a.2 >>=
+            fun x => injectResume kem leak impl x.1 x.2
+        exact ih a.1 a.2
+      · cases uRLeakB
+        simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
+          OracleQuery.cont_query, id_map, bind_assoc, stateTrun, injectPrefix,
+          construct_query_bind]
+        rw [hstep _ _ (by simp) (by simp)]
+        refine bind_congr (m := ProbComp) fun a => ?_
+        change (simulateQ impl (cont a.1)).run a.2 =
+          (injectPrefix kem hDet leak gp isRandom (cont a.1)).run a.2 >>=
+            fun x => injectResume kem leak impl x.1 x.2
+        exact ih a.1 a.2
 
 /-- A run that stops at an installing send stops in a state where that send is
 indeed installing.
@@ -296,23 +376,13 @@ private lemma injectPrefix_run_support_effInject [SampleableType K] [DecidableEq
       rcases t with
         (((((((((n | uSendA) | uRecvA) | uSendB) | uRecvB) |
           uChallA) | uChallB) | uCorrA) | uCorrB) | uRLeakA) | uRLeakB
-      all_goals
-        try cases uSendA
-        try cases uRecvA
-        try cases uSendB
-        try cases uRecvB
-        try cases uCorrA
-        try cases uCorrB
-        try cases uRLeakA
-        try cases uRLeakB
-      all_goals
-        try
-          intro hmem
-          simp only [injectPrefix, construct_query_bind, stateTrun, support_bind,
-            Set.mem_iUnion₂] at hmem
-          obtain ⟨p, -, hmem'⟩ := hmem
-          exact ih p.1 p.2 hmem'
+      · intro hmem
+        simp only [injectPrefix, construct_query_bind, stateTrun, support_bind,
+          Set.mem_iUnion₂] at hmem
+        obtain ⟨p, -, hmem'⟩ := hmem
+        exact ih p.1 p.2 hmem'
       · -- O-Send-A
+        cases uSendA
         intro hmem
         by_cases heff : sendAEffectivelyInjects gp σ = true
         · simp only [injectPrefix, construct_query_bind, stateTrun, heff] at hmem
@@ -324,7 +394,14 @@ private lemma injectPrefix_run_support_effInject [SampleableType K] [DecidableEq
             Bool.false_eq_true, ↓reduceIte, support_bind, Set.mem_iUnion₂] at hmem
           obtain ⟨p, -, hmem'⟩ := hmem
           exact ih p.1 p.2 hmem'
+      · cases uRecvA
+        intro hmem
+        simp only [injectPrefix, construct_query_bind, stateTrun, support_bind,
+          Set.mem_iUnion₂] at hmem
+        obtain ⟨p, -, hmem'⟩ := hmem
+        exact ih p.1 p.2 hmem'
       · -- O-Send-B
+        cases uSendB
         intro hmem
         by_cases heff : sendBEffectivelyInjects gp σ = true
         · simp only [injectPrefix, construct_query_bind, stateTrun, heff] at hmem
@@ -336,6 +413,48 @@ private lemma injectPrefix_run_support_effInject [SampleableType K] [DecidableEq
             Bool.false_eq_true, ↓reduceIte, support_bind, Set.mem_iUnion₂] at hmem
           obtain ⟨p, -, hmem'⟩ := hmem
           exact ih p.1 p.2 hmem'
+      · cases uRecvB
+        intro hmem
+        simp only [injectPrefix, construct_query_bind, stateTrun, support_bind,
+          Set.mem_iUnion₂] at hmem
+        obtain ⟨p, -, hmem'⟩ := hmem
+        exact ih p.1 p.2 hmem'
+      · cases uChallA
+        intro hmem
+        simp only [injectPrefix, construct_query_bind, stateTrun, support_bind,
+          Set.mem_iUnion₂] at hmem
+        obtain ⟨p, -, hmem'⟩ := hmem
+        exact ih p.1 p.2 hmem'
+      · cases uChallB
+        intro hmem
+        simp only [injectPrefix, construct_query_bind, stateTrun, support_bind,
+          Set.mem_iUnion₂] at hmem
+        obtain ⟨p, -, hmem'⟩ := hmem
+        exact ih p.1 p.2 hmem'
+      · cases uCorrA
+        intro hmem
+        simp only [injectPrefix, construct_query_bind, stateTrun, support_bind,
+          Set.mem_iUnion₂] at hmem
+        obtain ⟨p, -, hmem'⟩ := hmem
+        exact ih p.1 p.2 hmem'
+      · cases uCorrB
+        intro hmem
+        simp only [injectPrefix, construct_query_bind, stateTrun, support_bind,
+          Set.mem_iUnion₂] at hmem
+        obtain ⟨p, -, hmem'⟩ := hmem
+        exact ih p.1 p.2 hmem'
+      · cases uRLeakA
+        intro hmem
+        simp only [injectPrefix, construct_query_bind, stateTrun, support_bind,
+          Set.mem_iUnion₂] at hmem
+        obtain ⟨p, -, hmem'⟩ := hmem
+        exact ih p.1 p.2 hmem'
+      · cases uRLeakB
+        intro hmem
+        simp only [injectPrefix, construct_query_bind, stateTrun, support_bind,
+          Set.mem_iUnion₂] at hmem
+        obtain ⟨p, -, hmem'⟩ := hmem
+        exact ih p.1 p.2 hmem'
 
 /-! ## Combining the split at the installing send -/
 

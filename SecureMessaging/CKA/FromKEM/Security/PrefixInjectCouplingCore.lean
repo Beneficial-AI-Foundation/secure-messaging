@@ -115,9 +115,9 @@ def injectedChallengePrefix [SampleableType K] [DecidableEq K]
         (CKAChallengeStepResult leak α) :=
   OracleComp.construct
     (fun a => pure (.done a))
-    (fun t oa rec => do
+    (fun t oa rec =>
       match t with
-      | CKAScheme.ckaSecuritySpec.OChallA =>
+      | CKAScheme.ckaSecuritySpec.OChallA => do
           let σ ← get
           if willChallengeA gp σ then
             pure (.pausedA oa)
@@ -126,7 +126,7 @@ def injectedChallengePrefix [SampleableType K] [DecidableEq K]
               securityImplWithChallengeKeyPair kem hDet leak gp isRandom pkStar skStar
                 (CKAScheme.ckaSecuritySpec.OChallA : (securitySpec leak).Domain)
             rec out
-      | CKAScheme.ckaSecuritySpec.OChallB =>
+      | CKAScheme.ckaSecuritySpec.OChallB => do
           let σ ← get
           if willChallengeB gp σ then
             pure (.pausedB oa)
@@ -135,7 +135,7 @@ def injectedChallengePrefix [SampleableType K] [DecidableEq K]
               securityImplWithChallengeKeyPair kem hDet leak gp isRandom pkStar skStar
                 (CKAScheme.ckaSecuritySpec.OChallB : (securitySpec leak).Domain)
             rec out
-      | other =>
+      | other => do
           let out ←
             securityImplWithChallengeKeyPair kem hDet leak gp isRandom pkStar skStar other
           rec out)
@@ -204,22 +204,70 @@ private lemma simulateQ_wck_run_eq_injectedChallengePrefix_bind
       rcases t with
         (((((((((n | uSendA) | uRecvA) | uSendB) | uRecvB) |
           uChallA) | uChallB) | uCorrA) | uCorrB) | uRLeakA) | uRLeakB
-      all_goals
-        try cases uSendA
-        try cases uRecvA
-        try cases uSendB
-        try cases uRecvB
-        try cases uCorrA
-        try cases uCorrB
-        try cases uRLeakA
-        try cases uRLeakB
-      all_goals
-        try
-          simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
-            OracleQuery.cont_query, id_map, bind_assoc, stateTrun,
-            injectedChallengePrefix, construct_query_bind]
-          refine bind_congr (m := ProbComp) fun a => ?_
-          simpa using ih a.1 a.2
+      · simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
+          OracleQuery.cont_query, id_map, bind_assoc, stateTrun,
+          injectedChallengePrefix, construct_query_bind]
+        refine bind_congr (m := ProbComp) fun a => ?_
+        change
+          (simulateQ
+            (securityImplWithChallengeKeyPair kem hDet leak gp b pkStar skStar)
+            (cont a.1)).run a.2 =
+          (injectedChallengePrefix kem hDet leak gp false pkStar skStar
+            (cont a.1)).run a.2 >>= fun x =>
+              injectedChallengeResume kem hDet leak gp b pkStar skStar x.1 x.2
+        exact ih a.1 a.2
+      · cases uSendA
+        simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
+          OracleQuery.cont_query, id_map, bind_assoc, stateTrun,
+          injectedChallengePrefix, construct_query_bind]
+        refine bind_congr (m := ProbComp) fun a => ?_
+        change
+          (simulateQ
+            (securityImplWithChallengeKeyPair kem hDet leak gp b pkStar skStar)
+            (cont a.1)).run a.2 =
+          (injectedChallengePrefix kem hDet leak gp false pkStar skStar
+            (cont a.1)).run a.2 >>= fun x =>
+              injectedChallengeResume kem hDet leak gp b pkStar skStar x.1 x.2
+        exact ih a.1 a.2
+      · cases uRecvA
+        simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
+          OracleQuery.cont_query, id_map, bind_assoc, stateTrun,
+          injectedChallengePrefix, construct_query_bind]
+        refine bind_congr (m := ProbComp) fun a => ?_
+        change
+          (simulateQ
+            (securityImplWithChallengeKeyPair kem hDet leak gp b pkStar skStar)
+            (cont a.1)).run a.2 =
+          (injectedChallengePrefix kem hDet leak gp false pkStar skStar
+            (cont a.1)).run a.2 >>= fun x =>
+              injectedChallengeResume kem hDet leak gp b pkStar skStar x.1 x.2
+        exact ih a.1 a.2
+      · cases uSendB
+        simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
+          OracleQuery.cont_query, id_map, bind_assoc, stateTrun,
+          injectedChallengePrefix, construct_query_bind]
+        refine bind_congr (m := ProbComp) fun a => ?_
+        change
+          (simulateQ
+            (securityImplWithChallengeKeyPair kem hDet leak gp b pkStar skStar)
+            (cont a.1)).run a.2 =
+          (injectedChallengePrefix kem hDet leak gp false pkStar skStar
+            (cont a.1)).run a.2 >>= fun x =>
+              injectedChallengeResume kem hDet leak gp b pkStar skStar x.1 x.2
+        exact ih a.1 a.2
+      · cases uRecvB
+        simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
+          OracleQuery.cont_query, id_map, bind_assoc, stateTrun,
+          injectedChallengePrefix, construct_query_bind]
+        refine bind_congr (m := ProbComp) fun a => ?_
+        change
+          (simulateQ
+            (securityImplWithChallengeKeyPair kem hDet leak gp b pkStar skStar)
+            (cont a.1)).run a.2 =
+          (injectedChallengePrefix kem hDet leak gp false pkStar skStar
+            (cont a.1)).run a.2 >>= fun x =>
+              injectedChallengeResume kem hDet leak gp b pkStar skStar x.1 x.2
+        exact ih a.1 a.2
       · -- O-Chall-A
         cases uChallA
         by_cases hWill : willChallengeA gp σ = true
@@ -240,7 +288,14 @@ private lemma simulateQ_wck_run_eq_injectedChallengePrefix_bind
                 (CKAScheme.ckaSecuritySpec.OChallA : (securitySpec leak).Domain)).run σ =
               pure (none, σ) from
             securityImpl_challA_run_of_not_will kem hDet leak gp false σ hWillFalse]
-          simpa using ih none σ
+          change
+            (simulateQ
+              (securityImplWithChallengeKeyPair kem hDet leak gp b pkStar skStar)
+              (cont none)).run σ =
+            (injectedChallengePrefix kem hDet leak gp false pkStar skStar
+              (cont none)).run σ >>= fun x =>
+                injectedChallengeResume kem hDet leak gp b pkStar skStar x.1 x.2
+          exact ih none σ
       · -- O-Chall-B
         cases uChallB
         by_cases hWill : willChallengeB gp σ = true
@@ -261,7 +316,66 @@ private lemma simulateQ_wck_run_eq_injectedChallengePrefix_bind
                 (CKAScheme.ckaSecuritySpec.OChallB : (securitySpec leak).Domain)).run σ =
               pure (none, σ) from
             securityImpl_challB_run_of_not_will kem hDet leak gp false σ hWillFalse]
-          simpa using ih none σ
+          change
+            (simulateQ
+              (securityImplWithChallengeKeyPair kem hDet leak gp b pkStar skStar)
+              (cont none)).run σ =
+            (injectedChallengePrefix kem hDet leak gp false pkStar skStar
+              (cont none)).run σ >>= fun x =>
+                injectedChallengeResume kem hDet leak gp b pkStar skStar x.1 x.2
+          exact ih none σ
+      · cases uCorrA
+        simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
+          OracleQuery.cont_query, id_map, bind_assoc, stateTrun,
+          injectedChallengePrefix, construct_query_bind]
+        refine bind_congr (m := ProbComp) fun a => ?_
+        change
+          (simulateQ
+            (securityImplWithChallengeKeyPair kem hDet leak gp b pkStar skStar)
+            (cont a.1)).run a.2 =
+          (injectedChallengePrefix kem hDet leak gp false pkStar skStar
+            (cont a.1)).run a.2 >>= fun x =>
+              injectedChallengeResume kem hDet leak gp b pkStar skStar x.1 x.2
+        exact ih a.1 a.2
+      · cases uCorrB
+        simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
+          OracleQuery.cont_query, id_map, bind_assoc, stateTrun,
+          injectedChallengePrefix, construct_query_bind]
+        refine bind_congr (m := ProbComp) fun a => ?_
+        change
+          (simulateQ
+            (securityImplWithChallengeKeyPair kem hDet leak gp b pkStar skStar)
+            (cont a.1)).run a.2 =
+          (injectedChallengePrefix kem hDet leak gp false pkStar skStar
+            (cont a.1)).run a.2 >>= fun x =>
+              injectedChallengeResume kem hDet leak gp b pkStar skStar x.1 x.2
+        exact ih a.1 a.2
+      · cases uRLeakA
+        simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
+          OracleQuery.cont_query, id_map, bind_assoc, stateTrun,
+          injectedChallengePrefix, construct_query_bind]
+        refine bind_congr (m := ProbComp) fun a => ?_
+        change
+          (simulateQ
+            (securityImplWithChallengeKeyPair kem hDet leak gp b pkStar skStar)
+            (cont a.1)).run a.2 =
+          (injectedChallengePrefix kem hDet leak gp false pkStar skStar
+            (cont a.1)).run a.2 >>= fun x =>
+              injectedChallengeResume kem hDet leak gp b pkStar skStar x.1 x.2
+        exact ih a.1 a.2
+      · cases uRLeakB
+        simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
+          OracleQuery.cont_query, id_map, bind_assoc, stateTrun,
+          injectedChallengePrefix, construct_query_bind]
+        refine bind_congr (m := ProbComp) fun a => ?_
+        change
+          (simulateQ
+            (securityImplWithChallengeKeyPair kem hDet leak gp b pkStar skStar)
+            (cont a.1)).run a.2 =
+          (injectedChallengePrefix kem hDet leak gp false pkStar skStar
+            (cont a.1)).run a.2 >>= fun x =>
+              injectedChallengeResume kem hDet leak gp b pkStar skStar x.1 x.2
+        exact ih a.1 a.2
 
 /-- `ckaSecurityFixedBranchWithInjectedChallengeKey` splits at the first
 challenge query whose `willChallengeA`/`willChallengeB` guard holds. -/
