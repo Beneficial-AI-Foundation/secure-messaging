@@ -53,13 +53,12 @@ def reductionBranchImpl [SampleableType K] [DecidableEq K]
     (pkStar : PK) (cStar : C) (kStar : K) :
     QueryImpl (securitySpec leak)
       (StateT (ReductionBranchState K PK SK C) ProbComp) :=
-  fun t => do
-    let rs ← get
+  fun t => StateT.mk fun rs =>
     match rs with
     | .pre σ =>
         match t with
         | CKAScheme.ckaSecuritySpec.OChallA =>
-            if willChallengeA gp σ then
+            if willChallengeA gp σ then do
               let (pkNext, skNext) ← liftM kem.keygen
               let msg : Message C PK := (cStar, pkNext)
               let σ' : SecurityState K PK SK C := { σ with
@@ -70,16 +69,14 @@ def reductionBranchImpl [SampleableType K] [DecidableEq K]
                 tA := σ.tA + 1 }
               let ps' : PostChallengeState K PK SK C :=
                 { game := σ', pending := .aToB kStar pkNext msg }
-              set (ReductionBranchState.post ps')
-              return some (msg, kStar)
-            else
+              pure (some (msg, kStar), ReductionBranchState.post ps')
+            else do
               let (out, σ') ←
                 (prefixImpl kem hDet leak gp pkStar
                   (CKAScheme.ckaSecuritySpec.OChallA : (securitySpec leak).Domain)).run σ
-              set (ReductionBranchState.pre σ')
-              return out
+              pure (out, ReductionBranchState.pre σ')
         | CKAScheme.ckaSecuritySpec.OChallB =>
-            if willChallengeB gp σ then
+          if willChallengeB gp σ then do
               let (pkNext, skNext) ← liftM kem.keygen
               let msg : Message C PK := (cStar, pkNext)
               let σ' : SecurityState K PK SK C := { σ with
@@ -90,22 +87,18 @@ def reductionBranchImpl [SampleableType K] [DecidableEq K]
                 tB := σ.tB + 1 }
               let ps' : PostChallengeState K PK SK C :=
                 { game := σ', pending := .bToA kStar pkNext msg }
-              set (ReductionBranchState.post ps')
-              return some (msg, kStar)
-            else
+              pure (some (msg, kStar), ReductionBranchState.post ps')
+            else do
               let (out, σ') ←
                 (prefixImpl kem hDet leak gp pkStar
                   (CKAScheme.ckaSecuritySpec.OChallB : (securitySpec leak).Domain)).run σ
-              set (ReductionBranchState.pre σ')
-              return out
-        | other =>
+              pure (out, ReductionBranchState.pre σ')
+        | other => do
             let (out, σ') ← (prefixImpl kem hDet leak gp pkStar other).run σ
-            set (ReductionBranchState.pre σ')
-            return out
-    | .post ps =>
+            pure (out, ReductionBranchState.pre σ')
+    | .post ps => do
         let (out, ps') ← (postChallengeImpl kem hDet leak gp t).run ps
-        set (ReductionBranchState.post ps')
-        return out
+        pure (out, ReductionBranchState.post ps')
 
 private lemma reductionBranchImpl_post_run [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
@@ -221,9 +214,8 @@ def challengePrefix [SampleableType K] [DecidableEq K]
         (CKAChallengeStepResult leak α) :=
   OracleComp.construct
     (fun a => pure (.done a))
-    (fun t oa rec => do
-      match t with
-      | CKAScheme.ckaSecuritySpec.OChallA =>
+    (fun t oa rec => match t with
+      | CKAScheme.ckaSecuritySpec.OChallA => do
           let σ ← get
           if willChallengeA gp σ then
             pure (.pausedA oa)
@@ -232,7 +224,7 @@ def challengePrefix [SampleableType K] [DecidableEq K]
               (prefixImpl kem hDet leak gp pkStar
                 (CKAScheme.ckaSecuritySpec.OChallA : (securitySpec leak).Domain))
             rec out
-      | CKAScheme.ckaSecuritySpec.OChallB =>
+      | CKAScheme.ckaSecuritySpec.OChallB => do
           let σ ← get
           if willChallengeB gp σ then
             pure (.pausedB oa)
@@ -241,7 +233,7 @@ def challengePrefix [SampleableType K] [DecidableEq K]
               (prefixImpl kem hDet leak gp pkStar
                 (CKAScheme.ckaSecuritySpec.OChallB : (securitySpec leak).Domain))
             rec out
-      | other =>
+            | other => do
           let out ← (prefixImpl kem hDet leak gp pkStar other)
           rec out)
 

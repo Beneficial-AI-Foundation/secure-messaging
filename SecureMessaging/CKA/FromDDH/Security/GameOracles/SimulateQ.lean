@@ -288,7 +288,7 @@ lemma honestImpl_param_rand_preserves_post_challA_special
             simp [h_epoch_false]
       rw [h_run] at hz
       have hz_eq : z = (none, s) := by
-        simpa [support_pure] using hz
+        exact (mem_support_pure_iff _ _).mp hz
       simpa [hz_eq] using hs
   | OChallB =>
       have h_run :
@@ -310,7 +310,7 @@ lemma honestImpl_param_rand_preserves_post_challA_special
             simp [h_cp]
       rw [h_run] at hz
       have hz_eq : z = (none, s) := by
-        simpa [support_pure] using hz
+        exact (mem_support_pure_iff _ _).mp hz
       simpa [hz_eq] using hs
   | OCorruptB =>
       have hz' : z ∈ support ((honestImplParamReal gp gen a b OCorruptB).run s) := by
@@ -426,8 +426,7 @@ lemma evalDist_marginalized_honestSendA_param_eq_oracleSendA_at_chal_B
             -- since `isOtherSendBeforeChall` only reads tA (not stA), it agrees with `h_o`.
             have h_o' : isOtherSendBeforeChall gp
                 { s with stA := (.recvReady x : CKAState F G), tA := s.tA + 1 } = true := by
-              simp only [isOtherSendBeforeChall] at h_o ⊢
-              convert h_o using 2
+              simpa [isOtherSendBeforeChall, GameState.tP, h_cp] using h_o
             simp [honestSendAparam, oracleSendA, StateT.run_bind, StateT.run_get,
               pure_bind, h_v, h_beq, h_o', h_stA, ddhCKA, send]
           | sendReady h =>
@@ -481,8 +480,7 @@ lemma evalDist_marginalized_honestSendB_param_eq_oracleSendB_at_chal_A
           | recvReady x =>
             have h_o' : isOtherSendBeforeChall gp
                 { s with stB := (.recvReady x : CKAState F G), tB := s.tB + 1 } = true := by
-              simp only [isOtherSendBeforeChall] at h_o ⊢
-              convert h_o using 2
+              simpa [isOtherSendBeforeChall, GameState.tP, h_cp] using h_o
             simp [honestSendBparam, oracleSendB, StateT.run_bind, StateT.run_get,
               pure_bind, h_v, h_beq, h_o', h_stB, ddhCKA, send]
           | sendReady h =>
@@ -535,8 +533,7 @@ lemma evalDist_marginalized_honestChallA_param_eq_oracleChallA_at_chal_A
           | recvReady x =>
             have h_e' : isChallengeEpoch gp
                 { s with stA := (.recvReady x : CKAState F G), tA := s.tA + 1 } = true := by
-              simp only [isChallengeEpoch] at h_e ⊢
-              convert h_e using 2
+              simpa [isChallengeEpoch, GameState.tP, h_cp] using h_e
             simp [honestChallAparam, oracleChallA, StateT.run_bind, StateT.run_get,
               pure_bind, h_v, h_beq, h_e', h_stA, ddhCKA, send]
           | sendReady h =>
@@ -593,8 +590,7 @@ lemma evalDist_marginalized_honestChallA_param_rand_eq_oracleChallA_at_chal_A
           | recvReady x =>
             have h_e' : isChallengeEpoch gp
                 { s with stA := (.recvReady x : CKAState F G), tA := s.tA + 1 } = true := by
-              simp only [isChallengeEpoch] at h_e ⊢
-              convert h_e using 2
+              simpa [isChallengeEpoch, GameState.tP, h_cp] using h_e
             simp [honestChallAparamRand, oracleChallA, StateT.run_bind, StateT.run_get,
               pure_bind, h_v, h_beq, h_e', h_stA, ddhCKA,
               send]
@@ -648,8 +644,7 @@ lemma evalDist_marginalized_honestChallB_param_eq_oracleChallB_at_chal_B
           | recvReady x =>
             have h_e' : isChallengeEpoch gp
                 { s with stB := (.recvReady x : CKAState F G), tB := s.tB + 1 } = true := by
-              simp only [isChallengeEpoch] at h_e ⊢
-              convert h_e using 2
+              simpa [isChallengeEpoch, GameState.tP, h_cp] using h_e
             simp [honestChallBparam, oracleChallB, StateT.run_bind, StateT.run_get,
               pure_bind, h_v, h_beq, h_e', h_stB, ddhCKA, send]
           | sendReady h =>

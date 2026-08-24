@@ -221,10 +221,16 @@ lemma factorCorrectnessError_eq_avg_off [DecidableEq K]
     onlineCorrectExp kem onoff pk sk st ct0
   have hreorder :
       evalDist (factorCorrectExp kem onoff) = evalDist reordered := by
-    unfold factorCorrectExp reordered
-    simpa only using
-      (OracleComp.DeferredSampling.evalDist_bind_comm kem.keygen onoff.encapsOff
-        (fun kp off => onlineCorrectExp kem onoff kp.1 kp.2 off.1 off.2))
+    change evalDist (do
+        let kp ← kem.keygen
+        let off ← onoff.encapsOff
+        onlineCorrectExp kem onoff kp.1 kp.2 off.1 off.2) =
+      evalDist (do
+        let off ← onoff.encapsOff
+        let kp ← kem.keygen
+        onlineCorrectExp kem onoff kp.1 kp.2 off.1 off.2)
+    exact OracleComp.DeferredSampling.evalDist_bind_comm kem.keygen onoff.encapsOff
+      (fun kp off => onlineCorrectExp kem onoff kp.1 kp.2 off.1 off.2)
   have hfalse : Pr[= false | factorCorrectExp kem onoff] =
       Pr[= false | reordered] := by
     exact congrArg (fun d : SPMF Bool => d false) hreorder

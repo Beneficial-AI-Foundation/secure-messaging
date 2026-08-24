@@ -47,7 +47,7 @@ noncomputable instance ckaSecuritySpecFintype :
   infer_instance
 
 omit [Field F] [SampleableType F] [SampleableType G] [DecidableEq G] [Inhabited F]
-[Fintype G] [Fintype F] in
+  [Fintype G] [Fintype F] in
 /-- The CKA security spec has at least one oracle index. Required by
 VCVio's existence lemmas that pick a sample query. -/
 noncomputable instance ckaSecuritySpecInhabited :

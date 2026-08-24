@@ -205,7 +205,8 @@ theorem tvDist_authInst_le_probForge
           StateT.run_get, pure_bind, ↓reduceIte, hg, Bool.false_or, StateT.run_monadLift,
           monadLift_self, bind_pure_comp, StateT.run_set, bind_map_left, Bool.false_eq_true,
           ite_self, StateT.run_map, map_pure, Functor.map_map]
-        refine probOutput_bind_congr' _ _ fun p => ?_
+        rw [map_eq_bind_pure_comp]
+        refine probOutput_bind_congr' (m := ProbComp) _ _ fun p => ?_
         obtain ⟨t', qc'⟩ := p
         -- `tg = t'` (forged): both outputs have flag `true` ≠ target flag `false` → both 0;
         -- `tg ≠ t'` (reject): output `none` regardless of `b`.

@@ -102,11 +102,10 @@ def postChallengeImpl [SampleableType K] [DecidableEq K]
     (leak : RandLeak kem)
     (gp : CKAScheme.GameParams) :
     QueryImpl (securitySpec leak) (StateT (PostChallengeState K PK SK C) ProbComp) :=
-  fun t => do
-    let ps ← get
-    match t with
-    | CKAScheme.ckaSecuritySpec.ORecvB =>
-        match ps.pending with
+  fun t => match t with
+    | CKAScheme.ckaSecuritySpec.ORecvB => do
+      let ps ← get
+      match ps.pending with
         | .aToB key nextPk _msg =>
             if CKAScheme.validStep ps.game.lastAction .recvB then
               let ps' : PostChallengeState K PK SK C := {
@@ -126,8 +125,9 @@ def postChallengeImpl [SampleableType K] [DecidableEq K]
         | _ =>
             liftSecurityImplToPost kem hDet leak gp
               (CKAScheme.ckaSecuritySpec.ORecvB : (securitySpec leak).Domain)
-    | CKAScheme.ckaSecuritySpec.ORecvA =>
-        match ps.pending with
+    | CKAScheme.ckaSecuritySpec.ORecvA => do
+      let ps ← get
+      match ps.pending with
         | .bToA key nextPk _msg =>
             if CKAScheme.validStep ps.game.lastAction .recvA then
               let ps' : PostChallengeState K PK SK C := {

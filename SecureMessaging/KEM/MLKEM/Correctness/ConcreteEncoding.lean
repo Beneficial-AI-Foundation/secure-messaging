@@ -109,9 +109,8 @@ theorem compress1_recovery (params : Params) (w : Rq) (m : Message)
         ((concreteEncoding params).byteDecode1 m)).get i
       = w.get i - ((concreteEncoding params).decompress1
         ((concreteEncoding params).byteDecode1 m)).get i := by
-    simpa [vectorBackend_coeff] using
-      vectorBackend_sub_coeff w ((concreteEncoding params).decompress1
-        ((concreteEncoding params).byteDecode1 m)) i
+    exact vectorBackend_sub_coeff w ((concreteEncoding params).decompress1
+      ((concreteEncoding params).byteDecode1 m)) i
   have hdec : ((concreteEncoding params).decompress1
         ((concreteEncoding params).byteDecode1 m)).get i
       = decompress 1 (((concreteEncoding params).byteDecode1 m).get i) :=
