@@ -98,4 +98,41 @@ theorem dc_ec_add (p : Params) (hw : p.WellFormed) (k : ZMod (2 ^ p.B))
     dc p (ec p k + e) = k := by
   sorry
 
+/-! ## The matrix maps
+
+`Frodo.Encode` and `Frodo.Decode` apply the scalar maps entrywise to an
+`mbar`-by-`nbar` matrix. -/
+
+/-- A matrix of `B`-bit chunks, one per entry: the chunked form of a message of
+`ℓ = B * mbar * nbar` bits. -/
+abbrev ChunkMatrix (p : Params) := Matrix (Fin mbar) (Fin nbar) (ZMod (2 ^ p.B))
+
+/-- `Frodo.Encode` (Section 2.2.2), on input already chunked into `B`-bit
+values: apply `ec` to every entry. -/
+def Encode (p : Params) (M : ChunkMatrix p) : FrodoMatrix p mbar nbar :=
+  M.map (ec p)
+
+/-- `Frodo.Decode` (Section 2.2.2), returning the chunked form: apply `dc` to
+every entry. -/
+def Decode (p : Params) (C : FrodoMatrix p mbar nbar) : ChunkMatrix p :=
+  C.map (dc p)
+
+/-- `Frodo.Decode` inverts `Frodo.Encode`. -/
+theorem Decode_Encode (p : Params) (hw : p.WellFormed) (M : ChunkMatrix p) :
+    Decode p (Encode p M) = M := by
+  ext i j
+  simp [Decode, Encode, dc_ec p hw]
+
+/-- `Frodo.Decode` recovers the message from an encoding perturbed by an error
+matrix whose entries all lie in the tolerated window. The hypothesis is stated
+entrywise: `LatticeCrypto.cInfNorm` is defined for polynomials rather than
+matrices, and FrodoKEM has no polynomial ring. -/
+theorem Decode_Encode_add (p : Params) (hw : p.WellFormed) (M : ChunkMatrix p)
+    (E : FrodoMatrix p mbar nbar)
+    (hlo : ∀ i j, -(p.noiseRadius : ℤ) ≤ LatticeCrypto.centeredRepr (E i j))
+    (hhi : ∀ i j, LatticeCrypto.centeredRepr (E i j) < (p.noiseRadius : ℤ)) :
+    Decode p (Encode p M + E) = M := by
+  ext i j
+  simpa [Decode, Encode] using dc_ec_add p hw (M i j) (E i j) (hlo i j) (hhi i j)
+
 end FrodoKEM
