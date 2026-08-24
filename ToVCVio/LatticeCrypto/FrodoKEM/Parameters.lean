@@ -140,6 +140,11 @@ structure WellFormed (p : Params) : Prop where
   D_le : p.D ≤ 16
   /-- At most `D` bits are encoded in each matrix entry, so that `2 ^ B ≤ q`. -/
   B_le_D : p.B ≤ p.D
+  /-- The modulus is the power of two named by `D`. Recorded here as well as in
+  `ParameterSet.q_eq_two_pow` because `Params` stores `q` and `D` as independent
+  fields, so `Frodo.Encode` and `Frodo.Decode` need the relation as a hypothesis
+  rather than reading it off the record. -/
+  q_eq : p.q = 2 ^ p.D
 
 end Params
 
