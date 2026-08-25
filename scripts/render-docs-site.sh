@@ -133,23 +133,13 @@ seed_progress_history_if_needed() {
   fi
 }
 
-# Point every Verso page sidebar at the project landing page. Home href is
-# relative to the file so nested chapter pages still reach the site root.
+# Point every Verso page sidebar at the project landing page. Verso's `<base>`
+# element already resolves `./` to the site root, including on nested pages.
 add_project_home_links() {
-  local site_dir="$1"
-  local chapter_dir="$2"
+  local chapter_dir="$1"
   while IFS= read -r -d '' html_file; do
-    local home_href
-    home_href="$(python3 - "$site_dir" "$html_file" <<'PY'
-import os
-import sys
-root, html_file = sys.argv[1], sys.argv[2]
-rel = os.path.relpath(root, os.path.dirname(html_file))
-print("./" if rel == "." else rel.rstrip("/") + "/")
-PY
-)"
-    HOME_HREF="$home_href" perl -0pi -e '
-    my $home = $ENV{"HOME_HREF"} // "../";
+    perl -0pi -e '
+    my $home = "./";
     s{</head>}{<style>\n#toc .project-index-toc {\n  margin-bottom: 0.75rem;\n}\n#toc .project-index-toc a {\n  color: inherit;\n  font-weight: 600;\n  text-decoration: none;\n}\n#toc .project-index-toc a:hover {\n  text-decoration: underline;\n}\n.chapter-overview-actions {\n  display: flex;\n  flex-wrap: wrap;\n  gap: 0.55rem;\n  margin: 1rem 0 0;\n}\n.chapter-overview-actions a {\n  display: inline-block;\n  padding: 0.34rem 0.65rem;\n  border: 1px solid #d0d7de;\n  border-radius: 6px;\n  background: #f6f8fa;\n  color: #556070;\n  font-size: 0.9rem;\n  font-weight: 600;\n  text-decoration: none;\n}\n.chapter-overview-actions a:hover {\n  border-color: #9fb0cf;\n  color: #1f2937;\n}\n</style>\n</head>};
     s{\s*<div class="bp_build_metadata" aria-label="Build metadata">.*?</div>\s*}{}s;
     s{\s*<h2>\s*Contents\s*</h2>}{}s;
@@ -220,14 +210,14 @@ fi
 
 for chapter in "${chapters[@]}"; do
   IFS='|' read -r slug title <<< "$chapter"
-  add_project_home_links "$site_root" "$site_root/$slug"
+  add_project_home_links "$site_root/$slug"
   move_references_to_bottom "$site_root/$slug"
   if [[ -f "$site_root/$slug/index.html" ]]; then
     remove_generated_manual_titlepage "$site_root/$slug/index.html"
   fi
 done
 if [[ -f "$site_root/book.html" ]]; then
-  add_project_home_links "$site_root" "$site_root/book.html"
+  add_project_home_links "$site_root/book.html"
 fi
 
 # The site root is intentionally plain HTML: chapter manuals remain responsible
