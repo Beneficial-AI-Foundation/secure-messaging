@@ -9,20 +9,21 @@ import SecureMessaging.SCKA.MLKEMBraid.Authenticator
 import ToVCVio.CryptoFoundations.KeyEncapMech
 
 /-!
-# Unchunked ML-KEM Braid core
+# Unchunked SPQR core
 
 Typed role states and transitions for the unchunked `send_ek` and `send_ct` procedures of
-Signal's [SparsePostQuantumRatchet](https://github.com/signalapp/SparsePostQuantumRatchet),
-implementing the cryptographic operations of
-[ML-KEM Braid, §§2.1–2.4](https://signal.org/docs/specifications/mlkembraid/) before
-transport fragmentation.
+Signal's [SparsePostQuantumRatchet](https://github.com/signalapp/SparsePostQuantumRatchet)
+(`src/v1/unchunked/`), before transport fragmentation.
+
+The ratcheted authenticator interface is the one specified for ML-KEM Braid
+internal authentication; SPQR takes it as a parameter.
 -/
 
 open KEMScheme
 
 universe u
 
-namespace MLKEMBraid
+namespace SPQR
 
 variable {m : Type → Type u} [Monad m] {K PK SK C : Type} {kem : KEMScheme m K PK SK C}
 
@@ -229,4 +230,4 @@ def recvNextEpoch (st : Ct2Sent AuthState) (t : ℕ) : Option (EkSender.KeysUnsa
 
 end CtSender
 
-end MLKEMBraid
+end SPQR

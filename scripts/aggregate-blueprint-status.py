@@ -53,14 +53,30 @@ CHAPTER_TITLES = {
     "Authenticated-Encryption-with-Associated-Data": "Authenticated Encryption with Associated Data",
     "Continuous-Key-Agreement": "Continuous Key Agreement",
     "Erasure-Codes": "Erasure Codes",
-    "Forward-Secure-AEAD": "Forward-Secure Authenticated Encryption with Associated Data",
-    "PRF-PRNG": "Pseudorandom Function and Generator",
+    "Forward-Secure-Authenticated-Encryption-with-Associated-Data":
+        "Forward-Secure Authenticated Encryption with Associated Data",
     "Key-Encapsulation-Mechanism": "Key Encapsulation Mechanism",
-    "Ratcheting-KEM": "Ratcheting Key Encapsulation Mechanism",
+    "Pseudorandom-Function-and-Generator": "Pseudorandom Function and Generator",
+    "Ratcheting-Key-Encapsulation-Mechanism": "Ratcheting Key Encapsulation Mechanism",
     "Sparse-Continuous-Key-Agreement": "Sparse Continuous Key Agreement",
     "Secure-Messaging": "Secure Messaging",
+    # Slugs from the former per-chapter render, kept so leftover split sites
+    # and stored history still title correctly.
+    "Forward-Secure-AEAD": "Forward-Secure Authenticated Encryption with Associated Data",
+    "PRF-PRNG": "Pseudorandom Function and Generator",
+    "Ratcheting-KEM": "Ratcheting Key Encapsulation Mechanism",
 }
-CHAPTER_ORDER = tuple(CHAPTER_TITLES)
+CHAPTER_ORDER = (
+    "Authenticated-Encryption-with-Associated-Data",
+    "Continuous-Key-Agreement",
+    "Erasure-Codes",
+    "Forward-Secure-Authenticated-Encryption-with-Associated-Data",
+    "Key-Encapsulation-Mechanism",
+    "Pseudorandom-Function-and-Generator",
+    "Ratcheting-Key-Encapsulation-Mechanism",
+    "Sparse-Continuous-Key-Agreement",
+    "Secure-Messaging",
+)
 
 
 @dataclass(frozen=True)
@@ -170,12 +186,26 @@ def classify(entry: dict, chapter: str) -> Atom:
     )
 
 
+def chapter_from_href(href: str | None, fallback: str) -> str:
+    # Unified Verso hrefs are site-root relative: "<chapter-slug>/...".
+    if not href:
+        return fallback
+    path = href.split("#", 1)[0].strip("/")
+    if not path:
+        return fallback
+    return path.split("/", 1)[0]
+
+
 def load_atoms(site_dir: Path) -> list[Atom]:
-    # Load all non-copy Blueprint atoms from the split site's chapter manifests.
-    # The split site stores one manifest per chapter under
-    # <chapter>/-verso-data/blueprint-manifest.json.
-    manifests = sorted(site_dir.glob(f"*/{MANIFEST_PATH}"))
-    if not manifests:
+    # Prefer the unified root manifest. Fall back to per-chapter manifests from
+    # the older split renderer.
+    root_manifest = site_dir / MANIFEST_PATH
+    chapter_manifests = sorted(site_dir.glob(f"*/{MANIFEST_PATH}"))
+    if root_manifest.exists():
+        manifests: list[tuple[str | None, Path]] = [(None, root_manifest)]
+    elif chapter_manifests:
+        manifests = [(chapter_name(path, site_dir), path) for path in chapter_manifests]
+    else:
         raise SystemExit(
             f"No blueprint preview manifests found under {site_dir}. "
             "Run scripts/render-docs-site.sh first."
@@ -184,14 +214,16 @@ def load_atoms(site_dir: Path) -> list[Atom]:
     atoms: list[Atom] = []
     seen_labels: set[str] = set()
     duplicates: set[str] = set()
-    for manifest in manifests:
-        chapter = chapter_name(manifest, site_dir)
+    for fallback_chapter, manifest in manifests:
         data = json.loads(manifest.read_text())
         for entry in data.get("previews", []):
             if entry.get("splitPreviewCopy"):
                 continue
             if entry.get("targetKind") != "block" or entry.get("kind") not in TRACKED_KINDS:
                 continue
+            chapter = fallback_chapter or chapter_from_href(
+                entry.get("href"), "Overview"
+            )
             atom = classify(entry, chapter)
             if atom.label in seen_labels:
                 duplicates.add(atom.label)
@@ -240,18 +272,29 @@ def load_tracked_atoms(site_dir: Path, docs_dir: Path = DEFAULT_DOCS_DIR) -> lis
     return [atom for atom in load_atoms(site_dir) if atom.label in tracked]
 
 
+def is_site_root_relative_href(href: str) -> bool:
+    path = href.split("#", 1)[0].strip("/")
+    if not path or href.startswith(("http://", "https://", "#")):
+        return False
+    return path.split("/", 1)[0] in CHAPTER_TITLES
+
+
 def normalize_chapter_href(chapter: str, href: str) -> str:
     # Make Blueprint-Summary links usable from the root index page.
     if href.startswith(("http://", "https://", "#")):
         return href
+    if is_site_root_relative_href(href):
+        return posixpath.normpath(href)
     return posixpath.normpath(f"{chapter}/Blueprint-Summary/{href}")
 
 
 def normalize_atom_href(chapter: str, href: str) -> str:
-    # Manifest atom hrefs are relative to the chapter root, unlike links parsed
-    # from the chapter's Blueprint-Summary page.
-    if href.startswith(("http://", "https://", "#")):
+    # Split-chapter hrefs are relative to the chapter root. Unified Verso hrefs
+    # already include the chapter slug.
+    if not href or href.startswith(("http://", "https://", "#")):
         return href
+    if is_site_root_relative_href(href):
+        return posixpath.normpath(href)
     return posixpath.normpath(f"{chapter}/{href}")
 
 
@@ -447,7 +490,7 @@ def status_count_cell(
         label = html_module.escape(atom.label)
         title = html_module.escape(atom.title)
         href_chapter = atom.chapter if chapter == "ALL" else chapter
-        href = html_module.escape(f"{href_chapter}/{atom.href}", quote=True)
+        href = html_module.escape(normalize_atom_href(href_chapter, atom.href), quote=True)
         detail = f" <span>{title}</span>" if title else ""
         atom_items.append(f'<li><a href="{href}"><code>{label}</code></a>{detail}</li>')
     if not atom_items:

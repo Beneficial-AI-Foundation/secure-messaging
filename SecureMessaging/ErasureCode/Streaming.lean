@@ -31,9 +31,9 @@ namespace ErasureCodePayload.Streaming
 
 variable {M Sym : Type}
 
+-- ANCHOR: ErasureCodePayload_Streaming_States
 /-- Encoder state for one erasure-coded payload stream. It stores the erasure-code
 payload scheme, the payload being encoded, and the counter for the next chunk. -/
--- ANCHOR: ErasureCodePayload_Streaming_States
 structure EncoderState (M Sym : Type) where
   /-- The erasure-code payload scheme used to encode this stream. -/
   ecp : ErasureCodePayload M Sym

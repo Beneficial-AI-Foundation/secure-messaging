@@ -97,40 +97,7 @@ jobs:
 
       - name: Build documentation modules
         if: steps.changes.outputs.docs == 'true' || github.event_name == 'workflow_dispatch'
-        run: |
-          lake build \
-            SecureMessagingDocs.Chapters.AEAD.Defs \
-            SecureMessagingDocs.Chapters.AEAD.GCM \
-            SecureMessagingDocs.Chapters.AEAD.EncryptThenMAC \
-            SecureMessagingDocs.Chapters.CKA.Defs \
-            SecureMessagingDocs.Chapters.CKA.FromDDH \
-            SecureMessagingDocs.Chapters.CKA.FromKEM \
-            SecureMessagingDocs.Chapters.CKA.FromLWE \
-            SecureMessagingDocs.Chapters.ErasureCodes.Defs \
-            SecureMessagingDocs.Chapters.ErasureCodes.ReedSolomon \
-            SecureMessagingDocs.Chapters.FSAEAD.Defs \
-            SecureMessagingDocs.Chapters.FSAEAD.FromAEADPRG \
-            SecureMessagingDocs.Chapters.KEM.MLKEM \
-            SecureMessagingDocs.Chapters.KEM.OnOffKEM.Overview \
-            SecureMessagingDocs.Chapters.KEM.IncrementalKEM.Overview \
-            SecureMessagingDocs.Chapters.PRFPRNG.Defs \
-            SecureMessagingDocs.Chapters.PRFPRNG.FromPRPPRG \
-            SecureMessagingDocs.Chapters.RKEM.Defs \
-            SecureMessagingDocs.Chapters.RKEM.FromDDHNonFS \
-            SecureMessagingDocs.Chapters.RKEM.FromDDHFS \
-            SecureMessagingDocs.Chapters.RKEM.FromKEM \
-            SecureMessagingDocs.Chapters.RKEM.KatanaPlain \
-            SecureMessagingDocs.Chapters.RKEM.KatanaOptimised \
-            SecureMessagingDocs.Chapters.SCKA.Defs \
-            SecureMessagingDocs.Chapters.SCKA.OppUniKEM \
-            SecureMessagingDocs.Chapters.SCKA.OppBiKEM \
-            SecureMessagingDocs.Chapters.SCKA.OppRKEM \
-            SecureMessagingDocs.Chapters.SecureMessaging.Defs \
-            SecureMessagingDocs.Chapters.SecureMessaging.DoubleRatchetAbstract \
-            SecureMessagingDocs.Chapters.SecureMessaging.DoubleRatchetSignal \
-            SecureMessagingDocs.Chapters.SecureMessaging.TripleRatchet \
-            SecureMessagingDocs.Chapters.SecureMessaging.SCKA \
-            SecureMessagingDocs.Visuals.Style
+        run: lake build SecureMessagingDocs.Contents
 
       - name: Generate documentation site
         if: steps.changes.outputs.docs == 'true' || github.event_name == 'workflow_dispatch'
@@ -148,10 +115,10 @@ jobs:
             Authenticated-Encryption-with-Associated-Data
             Continuous-Key-Agreement
             Erasure-Codes
-            Forward-Secure-AEAD
+            Forward-Secure-Authenticated-Encryption-with-Associated-Data
             Key-Encapsulation-Mechanism
-            PRF-PRNG
-            Ratcheting-KEM
+            Pseudorandom-Function-and-Generator
+            Ratcheting-Key-Encapsulation-Mechanism
             Sparse-Continuous-Key-Agreement
             Secure-Messaging
           )

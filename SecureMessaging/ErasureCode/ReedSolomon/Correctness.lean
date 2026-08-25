@@ -20,7 +20,7 @@ for the honest chunks of a message `m` at a set of positions `I`, we prove:
 * `Decode(L_I) = ⊥` when `|I| < k` (`decode_encodeChunks_of_card_lt`).
 
 Together these give the erasure-code correctness predicate `ErasureCode.Correct`
-for `toErasureCode` (`correct`).
+for `erasureCode` (`erasureCode_correct`).
 -/
 
 namespace ErasureCode.ReedSolomon
@@ -31,114 +31,123 @@ open Polynomial
 
 variable {F : Type} [Field F]
 
-namespace Code
+namespace Parameters
 
-/-- The interpolation property of the message polynomial: `Pₘ(xᵢ) = mᵢ` for `i < k`. -/
-theorem eval_messagePolynomial_source (rs : Code F) (message : Fin rs.k → F)
-    (i : Fin rs.k) :
-    (rs.messagePolynomial message).eval (rs.sourcePoint i) = message i := by
+/-- The interpolation property of the encoding polynomial: `Pₘ(xᵢ) = mᵢ` for `i < k`. -/
+theorem eval_encodingPolynomial_source (params : Parameters F)
+    (message : Fin params.k → F) (i : Fin params.k) :
+    (params.encodingPolynomial message).eval (params.sourcePoint i) = message i := by
   apply Lagrange.eval_interpolate_at_node
-  · exact rs.sourcePoint_injective.injOn
+  · exact params.sourcePoint_injective.injOn
   · simp
 
-/-- The degree bound of the message polynomial: `deg Pₘ < k`. -/
-theorem degree_messagePolynomial_lt (rs : Code F) (message : Fin rs.k → F) :
-    (rs.messagePolynomial message).degree < rs.k := by
-  simpa [messagePolynomial] using
-    (Lagrange.degree_interpolate_lt (s := Finset.univ) message rs.sourcePoint_injective.injOn)
+/-- The degree bound of the encoding polynomial: `deg Pₘ < k`. -/
+theorem degree_encodingPolynomial_lt (params : Parameters F)
+    (message : Fin params.k → F) :
+    (params.encodingPolynomial message).degree < params.k := by
+  simpa [encodingPolynomial] using
+    (Lagrange.degree_interpolate_lt
+      (s := Finset.univ) message params.sourcePoint_injective.injOn)
 
 /-- The systematic property: `Encode(m, i) = Pₘ(xᵢ) = mᵢ` for message indices `i < k`. -/
 @[simp]
 -- ANCHOR: reedSolomon_systematic
-theorem encode_source (rs : Code F) (message : Fin rs.k → F) (i : Fin rs.k) :
-    rs.encode message (rs.sourceIndex i) = message i := by
-  exact rs.eval_messagePolynomial_source message i
+theorem encode_source (params : Parameters F) (message : Fin params.k → F)
+    (i : Fin params.k) :
+    params.encode message (params.sourceIndex i) = message i := by
+  exact params.eval_encodingPolynomial_source message i
 -- ANCHOR_END: reedSolomon_systematic
 
 /-- The honest chunk set `L_I` is decodable when `k ≤ |I|`: it has one chunk per
-position of `I`, so its evaluation points are pairwise distinct. -/
-theorem decodable_encodeChunks_of_k_le_card (rs : Code F)
-    (message : Fin rs.k → F) (I : Finset (Fin rs.N)) (hcard : rs.k ≤ I.card) :
-    rs.Decodable (rs.toErasureCode.encodeChunks message I) := by
-  constructor
-  · calc
-      rs.k ≤ I.card := hcard
-      _ = (rs.toErasureCode.encodeChunks message I).card :=
-        (rs.toErasureCode.card_encodeChunks message I).symm
-  · intro a ha b hb hab
-    have ha' := (rs.toErasureCode.mem_encodeChunks message I a).mp ha
-    have hb' := (rs.toErasureCode.mem_encodeChunks message I b).mp hb
-    have hindex : a.1 = b.1 := rs.point_injective hab
-    apply Prod.ext hindex
-    rw [ha'.2, hb'.2, hindex]
+position of `I`. -/
+theorem decodable_encodeChunks_of_k_le_card (params : Parameters F)
+    (message : Fin params.k → F) (I : Finset (Fin params.N))
+    (hcard : params.k ≤ I.card) :
+    ErasureCode.Decodable params.k (params.erasureCode.encodeChunks message I) :=
+  params.erasureCode.decodable_encodeChunks_of_nchunk_le_card message I hcard
 
 /-- Uniqueness of interpolation: for `k ≤ |I|`, the interpolant `Q` through the
 honest chunks `L_I` equals `Pₘ` — both have degree `< |I|` and agree at the `|I|`
 distinct points `{xⱼ | j ∈ I}`. -/
-private theorem messagePolynomial_eq_receivedInterpolation (rs : Code F)
-    (message : Fin rs.k → F) (I : Finset (Fin rs.N)) (hcard : rs.k ≤ I.card) :
-    rs.messagePolynomial message =
-      rs.receivedPolynomial (rs.toErasureCode.encodeChunks message I) := by
+private theorem encodingPolynomial_eq_decodingInterpolation (params : Parameters F)
+    (message : Fin params.k → F) (I : Finset (Fin params.N))
+    (hcard : params.k ≤ I.card) :
+    params.encodingPolynomial message =
+      params.decodingPolynomial (params.erasureCode.encodeChunks message I) := by
   classical
-  let chunks := rs.toErasureCode.encodeChunks message I
-  have hdec : rs.Decodable chunks := rs.decodable_encodeChunks_of_k_le_card message I hcard
-  rw [receivedPolynomial]
-  apply Lagrange.eq_interpolate_of_eval_eq _ hdec.2
-  · have hcard' : rs.k ≤ chunks.card := hdec.1
-    exact lt_of_lt_of_le (rs.degree_messagePolynomial_lt message) (by exact_mod_cast hcard')
+  let chunks : Finset (Fin params.N × F) := params.erasureCode.encodeChunks message I
+  have hdec : ErasureCode.Decodable params.k chunks :=
+    params.decodable_encodeChunks_of_k_le_card message I hcard
+  have hpoints : Set.InjOn (fun ((j, _) : Fin params.N × F) => params.point j)
+      (chunks : Set (Fin params.N × F)) := by
+    intro a ha b hb hab
+    exact hdec.2 ha hb (params.point_injective hab)
+  rw [decodingPolynomial]
+  apply Lagrange.eq_interpolate_of_eval_eq _ hpoints
+  · have hcard' : params.k ≤ chunks.card := hdec.1
+    exact lt_of_lt_of_le
+      (params.degree_encodingPolynomial_lt message) (by exact_mod_cast hcard')
   · intro chunk hchunk
-    have hmem := (rs.toErasureCode.mem_encodeChunks message I chunk).mp hchunk
+    have hmem := (params.erasureCode.mem_encodeChunks message I chunk).mp hchunk
     exact hmem.2.symm
 
 /-- Reconstruction above the threshold: `Decode(L_I) = m` when `k ≤ |I|`, by
 `Q = Pₘ` and `Pₘ(xᵢ) = mᵢ`. -/
-theorem decode_encodeChunks_of_k_le_card (rs : Code F)
-    (message : Fin rs.k → F) (I : Finset (Fin rs.N)) (hcard : rs.k ≤ I.card) :
-    rs.toErasureCode.decode (rs.toErasureCode.encodeChunks message I) = some message := by
-  have hdec := rs.decodable_encodeChunks_of_k_le_card message I hcard
-  have hpoly := rs.messagePolynomial_eq_receivedInterpolation message I hcard
-  change rs.decode (rs.toErasureCode.encodeChunks message I) = some message
-  rw [decode, dif_pos hdec]
-  congr 1
-  funext i
-  exact (congrArg (fun poly : F[X] => poly.eval (rs.sourcePoint i)) hpoly.symm).trans
-    (rs.eval_messagePolynomial_source message i)
+theorem decode_encodeChunks_of_k_le_card (params : Parameters F)
+    (message : Fin params.k → F) (I : Finset (Fin params.N))
+    (hcard : params.k ≤ I.card) :
+    params.erasureCode.decode
+      (params.erasureCode.encodeChunks message I) = some message := by
+  have hdec := params.decodable_encodeChunks_of_k_le_card message I hcard
+  have hpoly := params.encodingPolynomial_eq_decodingInterpolation message I hcard
+  change params.decode (params.erasureCode.encodeChunks message I) = some message
+  rw [decode]
+  split_ifs with h
+  · congr 1
+    funext i
+    exact
+      (congrArg (fun poly : F[X] => poly.eval (params.sourcePoint i)) hpoly.symm).trans
+        (params.eval_encodingPolynomial_source message i)
+  · exact (h hdec).elim
 
 /-- Failure below the threshold: `Decode(L_I) = ⊥` when `|I| < k`. -/
-theorem decode_encodeChunks_of_card_lt (rs : Code F)
-    (message : Fin rs.k → F) (I : Finset (Fin rs.N)) (hcard : I.card < rs.k) :
-    rs.toErasureCode.decode (rs.toErasureCode.encodeChunks message I) = none := by
-  change rs.decode (rs.toErasureCode.encodeChunks message I) = none
-  rw [decode, dif_neg]
-  intro hdec
-  apply Nat.not_le_of_lt hcard
-  have hk := hdec.1
-  calc
-    rs.k ≤ (rs.toErasureCode.encodeChunks message I).card := hk
-    _ = I.card := rs.toErasureCode.card_encodeChunks message I
+theorem decode_encodeChunks_of_card_lt (params : Parameters F)
+    (message : Fin params.k → F) (I : Finset (Fin params.N))
+    (hcard : I.card < params.k) :
+    params.erasureCode.decode
+      (params.erasureCode.encodeChunks message I) = none := by
+  change params.decode (params.erasureCode.encodeChunks message I) = none
+  rw [decode]
+  split_ifs with hdec
+  · apply Nat.not_le_of_lt hcard
+    have hk := hdec.1
+    calc
+      params.k ≤ (params.erasureCode.encodeChunks message I).card := hk
+      _ = I.card := params.erasureCode.card_encodeChunks message I
+  · rfl
 
 /-- Rejection of conflicts: `Decode(L) = ⊥` when the chunks of `L` do not have
-pairwise distinct evaluation points — in particular when `L` contains
+pairwise distinct positions — in particular when `L` contains
 `(j, y₁), (j, y₂)` with `y₁ ≠ y₂`. -/
-theorem decode_eq_none_of_not_injective (rs : Code F)
-    (chunks : Finset (Fin rs.N × F))
-    (hconflict : ¬Set.InjOn (fun ((j, _) : Fin rs.N × F) => rs.point j) chunks) :
-    rs.decode chunks = none := by
-  simp [decode, Decodable, hconflict]
+theorem decode_eq_none_of_not_injective (params : Parameters F)
+    (chunks : Finset (Fin params.N × F))
+    (hconflict : ¬Set.InjOn Prod.fst (chunks : Set (Fin params.N × F))) :
+    params.decode chunks = none := by
+  simp [decode, ErasureCode.Decodable, hconflict]
 
 /-- The Reed–Solomon erasure code is correct (`ErasureCode.Correct`, [SCKA] Def.
 A.6): for every message `m` and position set `I`, `Decode(L_I) = m` if `k ≤ |I|`,
 and `Decode(L_I) = ⊥` if `|I| < k`. -/
--- ANCHOR: reedSolomon_correct
-theorem correct (rs : Code F) : rs.toErasureCode.Correct
--- ANCHOR_END: reedSolomon_correct
+-- ANCHOR: reedSolomon_erasureCode_correct
+theorem erasureCode_correct (params : Parameters F) : params.erasureCode.Correct
+-- ANCHOR_END: reedSolomon_erasureCode_correct
     := by
   intro message I
   constructor
-  · exact rs.decode_encodeChunks_of_k_le_card message I
-  · exact rs.decode_encodeChunks_of_card_lt message I
+  · exact params.decode_encodeChunks_of_k_le_card message I
+  · exact params.decode_encodeChunks_of_card_lt message I
 
-end Code
+end Parameters
 
 end
 

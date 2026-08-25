@@ -29,7 +29,7 @@ of the packet-level FEC scheme of [RFC5510].
 
 ## Part 1: The Reed–Solomon code
 
-### Definition (`Code`)
+### Valid parameters (`Parameters`)
 
 A Reed–Solomon code [RS60, RFC5510] with parameters `k ≤ N` and
 pairwise distinct evaluation points `x₀, …, x_(N-1) ∈ F` is the linear code
@@ -39,7 +39,7 @@ pairwise distinct evaluation points `x₀, …, x_(N-1) ∈ F` is the linear cod
 i.e. the set of evaluations of all polynomials of degree less than `k` over
 the points `x₀, …, x_(N-1)`.
 
-The structure `Code F` records these parameters: `N`, `k`, and the evaluation points
+The structure `Parameters F` records these parameters: `N`, `k`, and the evaluation points
 as an injective assignment `j ↦ xⱼ` of positions to field elements (field `point`).
 
 ### Lagrange interpolation
@@ -49,10 +49,10 @@ For any `n` pairwise distinct points `a₀, …, a_(n-1) ∈ F` and any values
 `deg Q < n` and `Q(aᵢ) = bᵢ` for all `i < n`.
 
 
-### Systematic encoding (`messagePolynomial`, `encode`)
+### Systematic encoding (`encodingPolynomial`, `encode`)
 
 By Lagrange interpolation at the `k` distinct points `x₀, …, x_(k-1)` with values
-`m₀, …, m_(k-1)`, a message `m = (m₀, …, m_(k-1)) ∈ F^k` determines its *message
+`m₀, …, m_(k-1)`, a message `m = (m₀, …, m_(k-1)) ∈ F^k` determines its *encoding
 polynomial*: the unique `Pₘ ∈ F[X]` with
 
 * `deg Pₘ < k`, and
@@ -71,7 +71,7 @@ symbol Pₘ(xⱼ)  :  Pₘ(x₀)  Pₘ(x₁)   ⋯  Pₘ(x_(k-1))│  Pₘ(x_k) 
 By the interpolation property, the message appears verbatim in the first `k`
 coordinates: this means the code is *systematic*.
 
-### Reconstruction from partial data (`receivedPolynomial`)
+### Reconstruction from partial data (`decodingPolynomial`)
 
 Suppose the values `yⱼ = Pₘ(xⱼ)` are known at `n ≥ k` distinct positions `j`. By
 Lagrange interpolation at these `n` points, there is a unique polynomial `Q` with
@@ -94,31 +94,30 @@ An erasure code over a set of symbols `Σ`, with block length `N > 0` and messag
 A *chunk* of `M` is a pair `(j, Encode(M, j))`. Correctness: any `nchunk` chunks of
 `M` at distinct positions decode to `M`; fewer decode to `⊥`.
 
-### Instantiation (`Decodable`, `decode`, `toErasureCode`)
+### Instantiation (`decode`, `erasureCode`)
 
-Reed–Solomon Erasure Code instantiates this interface with `Σ = F` and `nchunk = k`, and:
+Reed–Solomon instantiates this interface with `Σ = F` and `nchunk = k`:
 
 * `Encode(m, j) = Pₘ(xⱼ)`;
-* `Decode` takes a received chunk set `L ⊆ {0, …, N-1} × F` — a finite set of pairs
-  `(j, y)` of a position `j` and the symbol `y` received for it.
-* `Decode(L) = (Q(x₀), …, Q(x_(k-1)))` when `L` is *decodable* — `k ≤ |L|` and the
-  chunks of `L` have pairwise distinct points `xⱼ` — where `Q` is the interpolant
-  through the pairs `{(xⱼ, y) | (j, y) ∈ L}`.
+* `Decode(L) = (Q(x₀), …, Q(x_(k-1)))` when `L` is decodable, where `Q` is the interpolant
+  through `{(xⱼ, y) | (j, y) ∈ L}`;
 * `Decode(L) = ⊥` otherwise.
+
+Distinct positions give distinct evaluation points because `point` is injective.
 
 In a sender-receiver protocol, with `n := |L|`, we have:
 
 ```text
 send      :  (j, Pₘ(xⱼ))                    one chunk per position j < N
 receive   :  L = {(j₁, y₁), …, (jₙ, yₙ)}    some chunks lost; need n ≥ k
-                                            and x_(j₁), …, x_(jₙ) distinct
+                                            and distinct positions
 fit       :  Q := interpolant through       deg Q < n
              (x_(j₁), y₁), …, (x_(jₙ), yₙ)
 output    :  (Q(x₀), …, Q(x_(k-1)))         = (m₀, …, m_(k-1)) when all received
                                             chunks are honest
 ```
 
-`toErasureCode` assembles this into the erasure code `(N, nchunk = k, Encode, Decode)`
+`erasureCode` assembles this into the erasure code `(N, nchunk = k, Encode, Decode)`
 over `Σ = F`.
 Correctness is proved in `SecureMessaging.ErasureCode.ReedSolomon.Correctness`
 -/
@@ -129,10 +128,10 @@ noncomputable section
 
 open Polynomial
 
-/-- A Reed–Solomon code over `F`: positions `0, …, N-1`, message size `k ≤ N`, and
-pairwise distinct evaluation points `xⱼ = point j`. -/
--- ANCHOR: reedSolomon_Code
-structure Code (F : Type) [Field F] where
+/-- Valid parameters for a Reed–Solomon code over `F`: positions `0, …, N-1`,
+message size `k ≤ N`, and pairwise distinct evaluation points `xⱼ = point j`. -/
+-- ANCHOR: reedSolomon_Parameters
+structure Parameters (F : Type) [Field F] where
   /-- Number of codeword positions. -/
   N : ℕ
   /-- The codeword has at least one position. -/
@@ -147,94 +146,85 @@ structure Code (F : Type) [Field F] where
   point : Fin N → F
   /-- The evaluation points are pairwise distinct. -/
   point_injective : Function.Injective point
--- ANCHOR_END: reedSolomon_Code
+-- ANCHOR_END: reedSolomon_Parameters
 
 variable {F : Type} [Field F]
 
-namespace Code
+namespace Parameters
 
+-- ANCHOR: reedSolomon_sourcePoints
 /-- The inclusion `{0, …, k-1} ↪ {0, …, N-1}`, `i ↦ i`: a message index as a
 codeword position. -/
--- ANCHOR: reedSolomon_sourceIndex
-def sourceIndex (rs : Code F) (i : Fin rs.k) : Fin rs.N :=
-  Fin.castLE rs.k_le_N i
--- ANCHOR_END: reedSolomon_sourceIndex
+def sourceIndex (params : Parameters F) (i : Fin params.k) : Fin params.N :=
+  Fin.castLE params.k_le_N i
 
 /-- The evaluation-point mapping `point : j ↦ xⱼ` restricted to the message
 positions `{0, …, k-1}`: `i ↦ xᵢ`. -/
--- ANCHOR: reedSolomon_sourcePoint
-def sourcePoint (rs : Code F) (i : Fin rs.k) : F :=
-  rs.point (rs.sourceIndex i)
--- ANCHOR_END: reedSolomon_sourcePoint
+def sourcePoint (params : Parameters F) (i : Fin params.k) : F :=
+  params.point (params.sourceIndex i)
 
 /-- The points `x₀, …, x_(k-1)` are pairwise distinct: the restriction of an
 injective mapping is itself injective. -/
-theorem sourcePoint_injective (rs : Code F) : Function.Injective rs.sourcePoint :=
-  rs.point_injective.comp (Fin.castLE_injective rs.k_le_N)
+theorem sourcePoint_injective (params : Parameters F) :
+    Function.Injective params.sourcePoint :=
+  params.point_injective.comp (Fin.castLE_injective params.k_le_N)
+-- ANCHOR_END: reedSolomon_sourcePoints
 
-/-- The *message polynomial* `Pₘ` of a message `m`: the unique polynomial with
+/-- The *encoding polynomial* `Pₘ` of a message `m`: the unique polynomial with
 `deg Pₘ < k` and `Pₘ(xᵢ) = mᵢ` for `i < k`, by Lagrange interpolation at the points
 `x₀, …, x_(k-1)`. -/
--- ANCHOR: reedSolomon_messagePolynomial
-def messagePolynomial (rs : Code F) (message : Fin rs.k → F) : F[X] :=
-  Lagrange.interpolate Finset.univ rs.sourcePoint message
--- ANCHOR_END: reedSolomon_messagePolynomial
+-- ANCHOR: reedSolomon_encodingPolynomial
+def encodingPolynomial (params : Parameters F) (message : Fin params.k → F) : F[X] :=
+  Lagrange.interpolate Finset.univ params.sourcePoint message
+-- ANCHOR_END: reedSolomon_encodingPolynomial
 
 /-- `Encode(m, j) = Pₘ(xⱼ)`: the codeword symbol of message `m` at position `j`. -/
 -- ANCHOR: reedSolomon_encode
-def encode (rs : Code F) (message : Fin rs.k → F) (i : Fin rs.N) : F :=
-  (rs.messagePolynomial message).eval (rs.point i)
+def encode (params : Parameters F) (message : Fin params.k → F) (i : Fin params.N) : F :=
+  (params.encodingPolynomial message).eval (params.point i)
 -- ANCHOR_END: reedSolomon_encode
-
-/-- A chunk set `L` is *decodable* when `k ≤ |L|` and its chunks have pairwise
-distinct evaluation points `xⱼ`. -/
--- ANCHOR: reedSolomon_decodable
-def Decodable (rs : Code F) (chunks : Finset (Fin rs.N × F)) : Prop :=
-  rs.k ≤ chunks.card ∧
-    Set.InjOn (fun ((j, _) : Fin rs.N × F) => rs.point j) chunks
--- ANCHOR_END: reedSolomon_decodable
 
 /-- The interpolant `Q` through the pairs `{(xⱼ, y) | (j, y) ∈ L}` of a received
 chunk set `L`. For honest chunks `y = Pₘ(xⱼ)` at `n ≥ k` distinct positions,
 `Q = Pₘ`. -/
--- ANCHOR: reedSolomon_receivedPolynomial
-noncomputable def receivedPolynomial (rs : Code F)
-    (chunks : Finset (Fin rs.N × F)) : F[X] :=
+-- ANCHOR: reedSolomon_decodingPolynomial
+noncomputable def decodingPolynomial (params : Parameters F)
+    (chunks : Finset (Fin params.N × F)) : F[X] :=
   letI : DecidableEq F := Classical.decEq F
-  Lagrange.interpolate chunks (fun (j, _) => rs.point j) (fun (_, y) => y)
--- ANCHOR_END: reedSolomon_receivedPolynomial
+  Lagrange.interpolate chunks (fun (j, _) => params.point j) (fun (_, y) => y)
+-- ANCHOR_END: reedSolomon_decodingPolynomial
 
 /-- `Decode(L) = (Q(x₀), …, Q(x_(k-1)))` when `L` is decodable, and `⊥` (`none`)
 otherwise.
 
 Conflicting chunks `(j, y₁), (j, y₂)` with `y₁ ≠ y₂` are rejected because they share
-the evaluation point `xⱼ`. Chunks with distinct positions but corrupted values are
+the position `j`. Chunks with distinct positions but corrupted values are
 outside the erasure-only correctness claim.
 -/
 -- ANCHOR: reedSolomon_decode
-noncomputable def decode (rs : Code F)
-    (chunks : Finset (Fin rs.N × F)) : Option (Fin rs.k → F) :=
-  letI : Decidable (rs.Decodable chunks) := Classical.propDecidable _
-  if _h : rs.Decodable chunks then
-    some fun i => (rs.receivedPolynomial chunks).eval (rs.sourcePoint i)
+noncomputable def decode (params : Parameters F)
+    (chunks : Finset (Fin params.N × F)) : Option (Fin params.k → F) :=
+  letI : Decidable (ErasureCode.Decodable params.k chunks) := Classical.propDecidable _
+  if _h : ErasureCode.Decodable params.k chunks then
+    some fun i => (params.decodingPolynomial chunks).eval (params.sourcePoint i)
   else
     none
 -- ANCHOR_END: reedSolomon_decode
 
 /-- The erasure code `(N, nchunk = k, Encode, Decode)` induced by a Reed–Solomon
 code. -/
--- ANCHOR: reedSolomon_code
-def toErasureCode (rs : Code F) : ErasureCode F where
-  N := rs.N
-  N_pos := rs.N_pos
-  nchunk := rs.k
-  nchunk_pos := rs.k_pos
-  nchunk_le_N := rs.k_le_N
-  encode := rs.encode
-  decode := rs.decode
--- ANCHOR_END: reedSolomon_code
+-- ANCHOR: reedSolomon_erasureCode
+def erasureCode (params : Parameters F) : ErasureCode F where
+  N := params.N
+  N_pos := params.N_pos
+  nchunk := params.k
+  nchunk_pos := params.k_pos
+  nchunk_le_N := params.k_le_N
+  encode := params.encode
+  decode := params.decode
+-- ANCHOR_END: reedSolomon_erasureCode
 
-end Code
+end Parameters
 
 end
 

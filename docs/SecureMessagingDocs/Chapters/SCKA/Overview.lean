@@ -5,6 +5,7 @@ import VersoBlueprint.Commands.Summary
 import SecureMessagingDocs.Bibliography
 import SecureMessagingDocs.Chapters.SCKA.Defs
 import SecureMessagingDocs.Chapters.SCKA.MLKEMBraid
+import SecureMessagingDocs.Chapters.SCKA.SPQR
 import SecureMessagingDocs.Chapters.SCKA.OppUniKEM
 import SecureMessagingDocs.Chapters.SCKA.OppBiKEM
 import SecureMessagingDocs.Chapters.SCKA.OppRKEM
@@ -21,10 +22,14 @@ set_option linter.hashCommand false
 *References:*
 
 - {Informal.citet SCKA25}[]
+- {Informal.citet MLKEM_Braid}[]
+- {Informal.citet SPQR}[]
 
 {include 1 SecureMessagingDocs.Chapters.SCKA.Defs}
 
 {include 1 SecureMessagingDocs.Chapters.SCKA.MLKEMBraid}
+
+{include 1 SecureMessagingDocs.Chapters.SCKA.SPQR}
 
 {include 1 SecureMessagingDocs.Chapters.SCKA.OppUniKEM}
 
