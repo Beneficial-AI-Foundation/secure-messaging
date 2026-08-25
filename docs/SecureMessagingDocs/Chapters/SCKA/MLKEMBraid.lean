@@ -8,8 +8,6 @@ import SecureMessaging.SCKA.MLKEMBraid.Authenticator
 import SecureMessagingDocs.Bibliography
 import SecureMessaging.SCKA.MLKEMBraid.Basic
 import SecureMessaging.SCKA.MLKEMBraid.Construction
-import SecureMessaging.SCKA.MLKEMBraid.Instances
-import SecureMessaging.SCKA.MLKEMBraid.Unchunked
 
 set_option linter.style.setOption false
 set_option linter.hashCommand false
@@ -110,13 +108,7 @@ $`\todo`
 ::::
 
 :::group "mlkem_braid_protocol"
-Signal's *The ML-KEM Braid Protocol* defines the transition system formalized here: the
-§2.3 message vocabulary, the eleven states and per-state send and receive procedures of
-§2.5, and the §2.6 initialization.
-
-`Parameters` connects the transition system to `KEMScheme.IncrementalStructure`, an
-epoch-key derivation, a ratcheted authenticator, and four erasure-coded streams. The
-normative edge diagram and table are in the module documentation of `MLKEMBraid.Basic`.
+ML-KEM Braid.
 :::
 
 :::defTitle "mlkem_braid_protocol_parameters" "Protocol parameters"
@@ -153,7 +145,7 @@ structure Parameters (m : Type → Type u) [Monad m] where
   /-- Erasure-code symbol alphabet, shared by the four streams. -/
   Sym : Type
   /-- `KDF_OK(shared_secret, epoch)`. -/
-  kdfOK : EpochKeyDerivation K EpochKey
+  kdfOK : K → ℕ → EpochKey
   /-- Header stream, recovering `header ‖ mac`. -/
   ecpHdr : ErasureCodePayload (inc.PKheader × Mac) Sym
   /-- Encapsulation-key-vector stream. -/
@@ -167,103 +159,10 @@ structure Parameters (m : Type → Type u) [Monad m] where
 {usesLabel}`uses` {uses "incremental_kem_scheme"}[] · {uses "erasure_code_payload"}[]
 ::::
 
-:::defTitle "mlkem_braid_protocol_determinism" "Pure KEM operations used by receive"
-:::
-
-::::definition "mlkem_braid_protocol_determinism" (parent := "mlkem_braid_protocol") (lean := "KEMScheme.IncrementalStructure.DeterministicEncaps2, MLKEM.mlkemDeterministicEncaps2, MLKEM.mlkemDeterministicDecaps")
-$`\todo`
-
-:::leanPillCaption "pure second-stage encapsulation witness"
-:::
-
-```anchor DeterministicEncaps2 (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.Defs)
-structure DeterministicEncaps2 where
-  /-- Pure second-stage encapsulation. -/
-  encaps2Det : inc.St → inc.PKheader → inc.PKvector → inc.C₂
-  /-- The monadic second stage returns `encaps2Det` under `pure`. -/
-  encaps2_eq : ∀ st hdr vec, inc.encaps2 st hdr vec = pure (encaps2Det st hdr vec)
-```
-
-:::leanPillCaption "deterministic second stage for incremental ML-KEM"
-:::
-
-```anchor mlkemDeterministicEncaps2 (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
-def mlkemDeterministicEncaps2 (p : ParameterSet) (ring : NTTRingOps)
-    (prims : Primitives (ParameterSet.params p)
-      (Concrete.concreteEncoding (ParameterSet.params p))) :
-    (mlkemIncremental p ring prims).DeterministicEncaps2
-```
-
-:::leanPillCaption "deterministic decapsulation for ML-KEM"
-:::
-
-```anchor mlkemDeterministicDecaps (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.FromMLKEM)
-def mlkemDeterministicDecaps (p : ParameterSet) (ring : NTTRingOps)
-    (prims : Primitives (ParameterSet.params p)
-      (Concrete.concreteEncoding (ParameterSet.params p))) :
-    DeterministicDecaps (mlkemScheme p ring prims)
-```
-
-{usesLabel}`uses` {uses "incremental_kem_scheme"}[]
-::::
-
-:::defTitle "mlkem_braid_protocol_mlkem_adapter" "Concrete ML-KEM adapter"
-:::
-
-::::definition "mlkem_braid_protocol_mlkem_adapter" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.mlkemBraidParameters, MLKEMBraid.mlkemBraidScheme")
-$`\todo`
-
-:::leanPillCaption "parameters over incremental ML-KEM"
-:::
-
-```anchor mlkemBraidParameters (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Instances)
-def mlkemBraidParameters (p : MLKEM.ParameterSet) (ring : MLKEM.NTTRingOps)
-    (prims : MLKEM.Primitives (MLKEM.ParameterSet.params p)
-      (MLKEM.Concrete.concreteEncoding (MLKEM.ParameterSet.params p)))
-    {EpochKey Mac Sym : Type} (kdfOK : EpochKeyDerivation MLKEM.SharedSecret EpochKey)
-    (ecpHdr : ErasureCodePayload
-      ((MLKEM.mlkemIncremental p ring prims).PKheader × Mac) Sym)
-    (ecpEk : ErasureCodePayload (MLKEM.mlkemIncremental p ring prims).PKvector Sym)
-    (ecpCt1 : ErasureCodePayload (MLKEM.mlkemIncremental p ring prims).C₁ Sym)
-    (ecpCt2 : ErasureCodePayload
-      ((MLKEM.mlkemIncremental p ring prims).C₂ × Mac) Sym) : Parameters ProbComp
-```
-
-:::leanPillCaption "SCKA scheme over incremental ML-KEM"
-:::
-
-```anchor mlkemBraidScheme (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Instances)
-def mlkemBraidScheme (p : MLKEM.ParameterSet) (ring : MLKEM.NTTRingOps)
-    (prims : MLKEM.Primitives (MLKEM.ParameterSet.params p)
-      (MLKEM.Concrete.concreteEncoding (MLKEM.ParameterSet.params p)))
-    {InitKey AuthState EpochKey Mac Sym : Type} [DecidableEq Sym]
-    (kdfOK : EpochKeyDerivation MLKEM.SharedSecret EpochKey)
-    (ecpHdr : ErasureCodePayload
-      ((MLKEM.mlkemIncremental p ring prims).PKheader × Mac) Sym)
-    (ecpEk : ErasureCodePayload (MLKEM.mlkemIncremental p ring prims).PKvector Sym)
-    (ecpCt1 : ErasureCodePayload (MLKEM.mlkemIncremental p ring prims).C₁ Sym)
-    (ecpCt2 : ErasureCodePayload
-      ((MLKEM.mlkemIncremental p ring prims).C₂ × Mac) Sym)
-    (auth : RatchetedAuthenticator InitKey EpochKey AuthState
-      (MLKEM.mlkemIncremental p ring prims).PKheader
-      ((MLKEM.mlkemIncremental p ring prims).C₁ ×
-        (MLKEM.mlkemIncremental p ring prims).C₂) Mac)
-    (sampleInitKey : ProbComp InitKey) :
-    SCKAScheme ProbComp InitKey
-      (State (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2) AuthState)
-      (State (mlkemBraidParameters p ring prims kdfOK ecpHdr ecpEk ecpCt1 ecpCt2) AuthState)
-      EpochKey (Message Sym)
-      (SendRand (MLKEM.mlkemIncrementalRandLeak p ring prims).KeygenRand
-        (MLKEM.mlkemIncrementalRandLeak p ring prims).Encaps1Rand)
-```
-
-{usesLabel}`uses` {uses "mlkem_braid_protocol_parameters"}[] · {uses "incremental_kem_scheme"}[]
-::::
-
 :::defTitle "mlkem_braid_protocol_messages" "Messages"
 :::
 
-::::definition "mlkem_braid_protocol_messages" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.MessageType, MLKEMBraid.Message, MLKEMBraid.Message.wellFormed")
+::::definition "mlkem_braid_protocol_messages" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.MessageType, MLKEMBraid.Message")
 $`\todo`
 
 :::leanPillCaption "message types"
@@ -299,13 +198,6 @@ structure Message (Sym : Type) where
   type : MessageType
   /-- `data`: the indexed erasure-code chunk, if any. -/
   data : Option (ℕ × Sym)
-```
-
-:::leanPillCaption "message data-presence check"
-:::
-
-```anchor Braid_Message_wellFormed (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Basic)
-def Message.wellFormed (msg : Message Sym) : Bool
 ```
 
 ::::
@@ -374,7 +266,7 @@ def State.epoch : State P AuthState → ℕ
 :::defTitle "mlkem_braid_protocol_transitions" "Send and receive"
 :::
 
-::::definition "mlkem_braid_protocol_transitions" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.SendResult, MLKEMBraid.RecvResult, MLKEMBraid.Failure, MLKEMBraid.send, MLKEMBraid.receive")
+::::definition "mlkem_braid_protocol_transitions" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.SendResult, MLKEMBraid.RecvResult, MLKEMBraid.Failure, MLKEMBraid.SendRand, MLKEMBraid.send, MLKEMBraid.sendRleak, MLKEMBraid.receive")
 $`\todo`
 
 :::leanPillCaption "send output"
@@ -422,6 +314,19 @@ inductive Failure where
   | decapsReject
 ```
 
+:::leanPillCaption "what a send discloses"
+:::
+
+```anchor Braid_SendRand (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Construction)
+inductive SendRand (KeygenRand Encaps1Rand : Type) where
+  /-- The send ran neither `KeyGen` nor `Encaps1`. -/
+  | none
+  /-- The send ran `KeyGen`. -/
+  | keygen (r : KeygenRand)
+  /-- The send ran `Encaps1`. -/
+  | encaps1 (r : Encaps1Rand)
+```
+
 :::leanPillCaption "send transition"
 :::
 
@@ -430,6 +335,17 @@ def send (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
     (st : State P AuthState) : m (SendResult P AuthState)
+```
+
+:::leanPillCaption "randomness-leaking send"
+:::
+
+```anchor Braid_sendRleak (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Construction)
+def sendRleak (P : Parameters m) (irl : P.kem.IncrementalRandLeak P.inc)
+    (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
+      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
+    (st : State P AuthState) :
+    m (SendResult P AuthState × SendRand irl.KeygenRand irl.Encaps1Rand)
 ```
 
 :::leanPillCaption "receive transition"
@@ -443,7 +359,7 @@ def receive (P : Parameters m) [DecidableEq P.Sym]
     Except Failure (RecvResult P AuthState)
 ```
 
-{usesLabel}`uses` {uses "mlkem_braid_protocol_parameters"}[] · {uses "mlkem_braid_ratcheted_authenticator"}[] · {uses "erasure_code_streaming"}[]
+{usesLabel}`uses` {uses "mlkem_braid_protocol_parameters"}[] · {uses "mlkem_braid_ratcheted_authenticator"}[] · {uses "erasure_code_streaming"}[] · {uses "incremental_kem_rand_leak"}[]
 ::::
 
 :::defTitle "mlkem_braid_protocol_init" "Initialization"
@@ -481,77 +397,6 @@ def initB (P : Parameters m)
 encapsulation. `recvSCKA` maps failures to refused deliveries and uses the message-derived
 epoch required by SCKA; `Basic.receive` retains the state-derived §2.5 report.
 :::
-
-:::defTitle "mlkem_braid_scka_leakage" "Disclosed send randomness"
-:::
-
-::::definition "mlkem_braid_scka_leakage" (parent := "mlkem_braid_scka") (lean := "MLKEMBraid.SendRand, KEMScheme.IncrementalRandLeak, MLKEMBraid.sendRleak")
-$`\todo`
-
-:::leanPillCaption "what a send discloses"
-:::
-
-```anchor Braid_SendRand (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Construction)
-inductive SendRand (KeygenRand Encaps1Rand : Type) where
-  /-- The send ran neither `KeyGen` nor `Encaps1`. -/
-  | none
-  /-- The send ran `KeyGen`. -/
-  | keygen (r : KeygenRand)
-  /-- The send ran `Encaps1`. -/
-  | encaps1 (r : Encaps1Rand)
-```
-
-:::leanPillCaption "incremental KEM randomness leakage"
-:::
-
-```anchor IncrementalRandLeak (project := ".") (module := SecureMessaging.KEM.IncrementalKEM.Defs)
-structure IncrementalRandLeak (kem : KEMScheme m K PK SK C)
-    (inc : kem.IncrementalStructure) where
-  /-- Randomness space for key generation. -/
-  KeygenRand : Type
-  /-- Randomness space for the first encapsulation stage. -/
-  Encaps1Rand : Type
-  /-- Randomness space for the second encapsulation stage. -/
-  Encaps2Rand : Type
-  /-- Key generation together with the randomness used to sample the key pair. -/
-  keygenRleak : m ((PK × SK) × KeygenRand)
-  /-- First-stage encapsulation together with its randomness. -/
-  encaps1Rleak : inc.PKheader → m ((inc.St × inc.C₁ × K) × Encaps1Rand)
-  /-- Second-stage encapsulation together with its randomness. -/
-  encaps2Rleak : inc.St → inc.PKheader → inc.PKvector → m (inc.C₂ × Encaps2Rand)
-  /-- First component: ordinary key generation is the first component of
-  `keygenRleak`. -/
-  keygen_fst :
-    (do
-      let out ← keygenRleak
-      pure out.1) = kem.keygen
-  /-- First component: ordinary first-stage encapsulation is the first component of
-  `encaps1Rleak hdr`. -/
-  encaps1_fst : ∀ hdr,
-    (do
-      let out ← encaps1Rleak hdr
-      pure out.1) = inc.encaps1 hdr
-  /-- First component: ordinary second-stage encapsulation is the first component of
-  `encaps2Rleak st hdr vec`. -/
-  encaps2_fst : ∀ st hdr vec,
-    (do
-      let out ← encaps2Rleak st hdr vec
-      pure out.1) = inc.encaps2 st hdr vec
-```
-
-:::leanPillCaption "randomness-leaking send"
-:::
-
-```anchor Braid_sendRleak (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Construction)
-def sendRleak (P : Parameters m) (irl : P.kem.IncrementalRandLeak P.inc)
-    (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
-      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
-    (st : State P AuthState) :
-    m (SendResult P AuthState × SendRand irl.KeygenRand irl.Encaps1Rand)
-```
-
-{usesLabel}`uses` {uses "incremental_kem_scheme"}[] · {uses "mlkem_braid_protocol_transitions"}[]
-::::
 
 :::defTitle "mlkem_braid_scka_scheme" "SCKA scheme"
 :::

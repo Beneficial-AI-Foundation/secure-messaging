@@ -47,7 +47,6 @@ import SecureMessaging.SCKA.Defs
 import SecureMessaging.SCKA.MLKEMBraid.Authenticator
 import SecureMessaging.SCKA.MLKEMBraid.Basic
 import SecureMessaging.SCKA.MLKEMBraid.Construction
-import SecureMessaging.SCKA.MLKEMBraid.Unchunked
 import SecureMessaging.SCKA.SPQR.Unchunked
 import SecureMessaging.SCKA.OppUniKEM.Construction
 import SecureMessaging.SCKA.OppUniKEM.Correctness

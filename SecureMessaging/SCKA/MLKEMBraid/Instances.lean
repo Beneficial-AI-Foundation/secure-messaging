@@ -22,7 +22,7 @@ namespace MLKEMBraid
 def mlkemBraidParameters (p : MLKEM.ParameterSet) (ring : MLKEM.NTTRingOps)
     (prims : MLKEM.Primitives (MLKEM.ParameterSet.params p)
       (MLKEM.Concrete.concreteEncoding (MLKEM.ParameterSet.params p)))
-    {EpochKey Mac Sym : Type} (kdfOK : EpochKeyDerivation MLKEM.SharedSecret EpochKey)
+    {EpochKey Mac Sym : Type} (kdfOK : MLKEM.SharedSecret → ℕ → EpochKey)
     (ecpHdr : ErasureCodePayload
       ((MLKEM.mlkemIncremental p ring prims).PKheader × Mac) Sym)
     (ecpEk : ErasureCodePayload (MLKEM.mlkemIncremental p ring prims).PKvector Sym)
@@ -57,7 +57,7 @@ def mlkemBraidScheme (p : MLKEM.ParameterSet) (ring : MLKEM.NTTRingOps)
     (prims : MLKEM.Primitives (MLKEM.ParameterSet.params p)
       (MLKEM.Concrete.concreteEncoding (MLKEM.ParameterSet.params p)))
     {InitKey AuthState EpochKey Mac Sym : Type} [DecidableEq Sym]
-    (kdfOK : EpochKeyDerivation MLKEM.SharedSecret EpochKey)
+    (kdfOK : MLKEM.SharedSecret → ℕ → EpochKey)
     (ecpHdr : ErasureCodePayload
       ((MLKEM.mlkemIncremental p ring prims).PKheader × Mac) Sym)
     (ecpEk : ErasureCodePayload (MLKEM.mlkemIncremental p ring prims).PKvector Sym)

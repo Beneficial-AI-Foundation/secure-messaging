@@ -5,7 +5,8 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.ErasureCode.Streaming
-import SecureMessaging.SCKA.MLKEMBraid.Unchunked
+import SecureMessaging.KEM.IncrementalKEM.Defs
+import SecureMessaging.SCKA.MLKEMBraid.Authenticator
 
 /-!
 # ML-KEM Braid transition system
@@ -127,7 +128,7 @@ structure Parameters (m : Type → Type u) [Monad m] where
   /-- Erasure-code symbol alphabet, shared by the four streams. -/
   Sym : Type
   /-- `KDF_OK(shared_secret, epoch)`. -/
-  kdfOK : EpochKeyDerivation K EpochKey
+  kdfOK : K → ℕ → EpochKey
   /-- Header stream, recovering `header ‖ mac`. -/
   ecpHdr : ErasureCodePayload (inc.PKheader × Mac) Sym
   /-- Encapsulation-key-vector stream. -/

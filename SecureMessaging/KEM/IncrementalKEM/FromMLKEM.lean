@@ -30,8 +30,8 @@ open OracleComp KEMScheme LatticeCrypto
 
 namespace MLKEM
 
-/-- The Braid public-key header `(ρ, H(ek))`, where `ek` is the FIPS 203 encoding
-`ByteEncode₁₂(t̂) ‖ ρ` and `H` is VCVio's `Primitives.hEncapsulationKey`. -/
+/-- The public-key header `(ρ, H(ek))`: the public-matrix seed and the hash of the complete
+encoded encapsulation key. First-stage encapsulation uses only the header. -/
 -- ANCHOR: incrementalHeader
 def incrementalHeader {params : Params} {encoding : Encoding params}
     (prims : Primitives params encoding) (ek : EncapsulationKey params encoding) :
@@ -83,10 +83,10 @@ def incrementalEncaps2 {params : Params} {encoding : Encoding params} (ring : NT
   encoding.byteEncodeDV (encoding.compressDV v)
 -- ANCHOR_END: incrementalEncaps2
 
-/-- The incremental ML-KEM structure from ML-KEM Braid §1.2.1. Stage 1 produces an
-`EncapsulationState` containing `yHat`, `e2`, and `message`; stage 2 consumes that state
-without retaining raw coins. `validPK` reconstructs `ek` from the received vector and `ρ`,
-then compares its hash with the hash in the header. -/
+/-- The incremental ML-KEM structure. Stage 1 produces an `EncapsulationState` containing
+`yHat`, `e2`, and `message`; stage 2 consumes that state without retaining raw coins. `validPK`
+reconstructs `ek` from the received vector and `ρ`, then compares its hash with the hash in the
+header. -/
 -- ANCHOR: mlkemIncremental
 def mlkemIncremental (p : ParameterSet) (ring : NTTRingOps)
     (prims : Primitives (ParameterSet.params p)
