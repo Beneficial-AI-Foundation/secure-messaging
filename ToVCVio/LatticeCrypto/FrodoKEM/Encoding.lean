@@ -93,40 +93,34 @@ quotient it computes recovers `v` modulo `K`, for any `ev` inside the tolerated
 window. Stated with `Q`, `K = 2 ^ B`, `s = q / 2 ^ B` and `R` abstract so that
 the arithmetic is separated from the parameter bookkeeping.
 
-The wrap of `v * s + ev` past the modulus is never tracked, only its residue:
-it contributes a multiple of `K`, which vanishes mod `K`. What remains is
-`v` plus the rounding term `(ev * K + Q / 2) / Q`, and that term is `0` for
-noise just above zero and exactly `K` for noise just below the modulus. -/
-private theorem dc_quotient {Q K s v ev : ℕ} (R : ℕ) (hQ : 0 < Q) (hK : 0 < K)
-    (hsK : s * K = Q) (hRK : R * K = Q / 2) (hhalf : Q / 2 + Q / 2 = Q)
+Cancelling `K` turns the quotient into a division by `s = 2 * R`, after which
+the wrap past the modulus costs nothing: `Q` is a multiple of `s`, so reducing
+mod `Q` before dividing only shifts the quotient by a multiple of `K`, which
+vanishes mod `K`. What is left is `(v * s + ev + R) / s`, which is `v` for
+noise just above zero and `v + K` for noise just below the modulus. -/
+private theorem dc_quotient {Q K s v ev : ℕ} (R : ℕ) (hK : 0 < K)
+    (hsK : s * K = Q) (hRK : 2 * (R * K) = Q)
     (hv : v < K) (hev : ev < Q) (hwin : ev < R ∨ Q - R ≤ ev) :
     ((v * s + ev) % Q * K + Q / 2) / Q % K = v := by
-  have hcomm : Q * K = K * Q := Nat.mul_comm _ _
-  have hRQ : R ≤ R * K := Nat.le_mul_of_pos_right _ hK
-  have hQK : Q ≤ Q * K := Nat.le_mul_of_pos_right _ hK
-  have hrnd : (ev * K + Q / 2) / Q = 0 ∨ (ev * K + Q / 2) / Q = K := by
-    rcases hwin with h | h
-    · refine Or.inl (Nat.div_eq_of_lt ?_)
-      have := Nat.mul_le_mul_right K (by omega : ev + 1 ≤ R)
-      rw [Nat.add_mul, Nat.one_mul, hRK] at this; omega
-    · refine Or.inr (Nat.div_eq_of_lt_le ?_ ?_)
-      · have := Nat.mul_le_mul_right K (by omega : Q ≤ ev + R)
-        rw [Nat.add_mul, hRK] at this; omega
-      · have h1 := Nat.mul_le_mul_right K (by omega : ev + 1 ≤ Q)
-        have h2 : (K + 1) * Q = K * Q + Q := by ring
-        rw [Nat.add_mul, Nat.one_mul] at h1; omega
-  have hkey : ((v * s + ev) % Q * K + Q / 2) / Q + K * ((v * s + ev) / Q)
-      = v + (ev * K + Q / 2) / Q := by
-    set u := v * s + ev with hu
-    have h1 : u % Q * K + Q * (K * (u / Q)) = u * K := by
-      calc u % Q * K + Q * (K * (u / Q)) = (u % Q + Q * (u / Q)) * K := by ring
-        _ = u * K := by rw [Nat.add_comm (u % Q), Nat.div_add_mod]
-    have h2 : u * K = Q * v + ev * K := by rw [hu, Nat.add_mul, Nat.mul_assoc, hsK]; ring
-    rw [← Nat.add_mul_div_left _ (K * (u / Q)) hQ,
-        show u % Q * K + Q / 2 + Q * (K * (u / Q)) = Q * v + (ev * K + Q / 2) by omega,
-        Nat.mul_add_div hQ]
-  rw [← Nat.add_mul_mod_self_left _ K ((v * s + ev) / Q), hkey]
-  rcases hrnd with h | h <;> rw [h] <;> simp [Nat.mod_eq_of_lt hv]
+  have hR : 0 < R := by rcases Nat.eq_zero_or_pos R with rfl | h <;> omega
+  have hs : s = 2 * R := Nat.eq_of_mul_eq_mul_right hK (by rw [Nat.mul_assoc]; omega)
+  subst hs
+  -- cancel the factor `K` from the quotient, leaving a division by `2 * R`
+  rw [show Q / 2 = R * K by omega, ← hsK, ← Nat.add_mul, Nat.mul_div_mul_right _ _ hK]
+  -- the wrap past the modulus contributes a multiple of `K`
+  have hshift : ∀ x : ℕ, (x % (2 * R * K) + R) / (2 * R) % K = (x + R) / (2 * R) % K := by
+    intro x
+    conv_rhs => rw [← Nat.div_add_mod x (2 * R * K), Nat.mul_assoc, Nat.add_assoc,
+      Nat.mul_add_div (by omega : 0 < 2 * R), Nat.mul_add_mod]
+  rw [hshift]
+  rcases hwin with h | h
+  · rw [Nat.mul_comm v (2 * R), Nat.add_assoc, Nat.mul_add_div (by omega : 0 < 2 * R),
+      Nat.div_eq_of_lt (by omega), Nat.add_zero, Nat.mod_eq_of_lt hv]
+  · rw [show v * (2 * R) + ev + R = 2 * R * (v + K) + (ev + R - 2 * R * K) by
+        have : 2 * R * (v + K) = v * (2 * R) + 2 * R * K := by ring
+        omega,
+      Nat.mul_add_div (by omega : 0 < 2 * R), Nat.div_eq_of_lt (by omega), Nat.add_zero,
+      Nat.add_mod_right, Nat.mod_eq_of_lt hv]
 
 /-- Decoding recovers `k` from an encoding perturbed by noise below the
 rounding half-step. The window is asymmetric, matching the floor division in
@@ -137,8 +131,7 @@ theorem dc_ec_add (p : Params) (hw : p.WellFormed) (k : ZMod (2 ^ p.B))
     (hhi : LatticeCrypto.centeredRepr e < (p.noiseRadius : ℤ)) :
     dc p (ec p k + e) = k := by
   have hQ : p.q = 2 ^ p.D := hw.q_eq
-  have hQpos : 0 < p.q := by rw [hQ]; exact Nat.two_pow_pos _
-  haveI : NeZero p.q := ⟨by omega⟩
+  haveI : NeZero p.q := ⟨by rw [hQ]; positivity⟩
   -- with every bit of an entry carrying message there is no room for error
   rcases eq_or_lt_of_le hw.B_le_D with hBD | hBD
   · have : p.noiseRadius = 0 := by
@@ -146,22 +139,17 @@ theorem dc_ec_add (p : Params) (hw : p.WellFormed) (k : ZMod (2 ^ p.B))
       exact Nat.div_eq_of_lt (Nat.pow_lt_pow_right one_lt_two (by omega))
     omega
   have hsK : 2 ^ (p.D - p.B) * 2 ^ p.B = p.q := by rw [hQ, ← pow_add]; congr 1; omega
-  have hRK : p.noiseRadius * 2 ^ p.B = p.q / 2 := by
-    rw [Params.noiseRadius, hQ, Nat.pow_div hBD (by norm_num),
-        Nat.pow_div (by omega : 1 ≤ p.D) (by norm_num), ← pow_add]
+  have hRK : 2 * (p.noiseRadius * 2 ^ p.B) = p.q := by
+    rw [Params.noiseRadius, hQ, Nat.pow_div (by omega) two_pos, ← pow_add, ← pow_succ']
     congr 1; omega
-  have hhalf : p.q / 2 + p.q / 2 = p.q := by
-    have : 2 ∣ p.q := by rw [hQ]; exact dvd_pow_self 2 (by omega)
-    omega
   -- the window, read off `e.val` rather than its centered representative
   have hwin : e.val < p.noiseRadius ∨ p.q - p.noiseRadius ≤ e.val := by
     unfold LatticeCrypto.centeredRepr at hlo hhi
-    split at hlo
-    · rename_i h; exact Or.inl (by rw [if_pos h] at hhi; exact_mod_cast hhi)
-    · rename_i h; exact Or.inr (by rw [if_neg h] at hhi; omega)
+    split at hlo <;> rename_i h
+    · exact Or.inl (by rw [if_pos h] at hhi; exact_mod_cast hhi)
+    · exact Or.inr (by rw [if_neg h] at hhi; omega)
   rw [dc, ZMod.val_add, ec_val p hw k,
-    dc_quotient p.noiseRadius hQpos (Nat.two_pow_pos p.B) hsK hRK hhalf
-      (ZMod.val_lt k) (ZMod.val_lt e) hwin]
+    dc_quotient p.noiseRadius (Nat.two_pow_pos p.B) hsK hRK (ZMod.val_lt k) (ZMod.val_lt e) hwin]
   exact ZMod.natCast_zmod_val k
 
 /-! ## The matrix maps
