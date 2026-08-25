@@ -9,68 +9,63 @@ import LatticeCrypto.Ring.Norms
 /-!
 # FrodoKEM message encoding
 
-`Frodo.Encode` and `Frodo.Decode` of Section 2.2.2 of the FrodoKEM
-specification, published at [frodokem.org](https://frodokem.org/) and as
+This file specifies `Frodo.Encode` and `Frodo.Decode` of Section 2.2.2 of the
+FrodoKEM specification, published at [frodokem.org](https://frodokem.org/) and as
 [Glabush, Longa, Naehrig, Peikert, Stebila and Virdia,
 *FrodoKEM: A CCA-Secure Learning With Errors Key Encapsulation Mechanism*,
-Communications in Cryptology 2:3](https://cic.iacr.org/p/2/3/25).
+Communications in Cryptology 2:3](https://cic.iacr.org/p/2/3/25), and proves that
+decoding inverts encoding, exactly and in the presence of noise.
 
 Encoding places `B` bits in each entry of an `mbar`-by-`nbar` matrix over
-`ZMod q`, scaled to the top of the modulus so that the low bits are free to
-absorb noise. The scalar maps are
+`ZMod q`. The scalar maps are `ec k = k * q / 2 ^ B` and
+`dc c = ⌊c * 2 ^ B / q⌉ mod 2 ^ B`, which are exact bit arithmetic because
+`q = 2 ^ D` (`Params.WellFormed.q_eq`) and `B ≤ D` (`Params.WellFormed.B_le_D`).
 
-* `ec k = k * q / 2 ^ B`, which spaces the `2 ^ B` representable values evenly
-  across `ZMod q`;
-* `dc c = ⌊c * 2 ^ B / q⌉ mod 2 ^ B`, which rounds back to the nearest one.
+The maps take a message already chunked into `mbar * nbar` values of
+`ZMod (2 ^ B)`, one per matrix entry, rather than as a bit string of length
+`ℓ = B * mbar * nbar`; the bit-string layer is specified alongside `Frodo.Pack`
+and `Frodo.Unpack`.
 
-Because `q = 2 ^ D` the rounding is exact bit arithmetic: `ec` is a shift by
-`D - B`, and `dc` is a shift back after adding the half-step `q / 2`. The
-relation `q = 2 ^ D` is supplied by `Params.WellFormed.q_eq`, and `B ≤ D` by
-`Params.WellFormed.B_le_D`; both are load-bearing rather than cosmetic, since
-`ec` wraps when `B > D` and `ℕ` subtraction truncates `D - B` to zero.
+Names follow the specification: the scalar maps and their lemmas keep its
+abbreviated lowercase names, and the matrix maps built from them keep its
+unabbreviated capitalised ones, as in `ec`/`Encode` and `dc_ec`/`Decode_Encode`.
 
-## Chunked input
+## Main definitions
 
-The specification's `Frodo.Encode` consumes a bit string of length
-`ℓ = B * mbar * nbar`. The maps here consume that string already chunked into
-`mbar * nbar` values of `ZMod (2 ^ B)`, one per matrix entry. The bit-string
-layer that produces the chunks is bit manipulation of the same kind as
-`Frodo.Pack` and `Frodo.Unpack`, and is specified alongside them; composing it
-with `Encode` here recovers the published map.
+* `ec`, `dc`: the scalar maps;
+* `Encode`, `Decode`: the matrix maps, `ec` and `dc` applied entrywise;
+* `Params.noiseRadius`: the half-step `q / 2 ^ (B + 1)`.
 
-## Noise tolerance
+## Main results
 
-`dc` recovers `k` from `ec k + e` when `e` is small, and the tolerated window
-is asymmetric: `centeredRepr e ∈ [-q / 2 ^ (B + 1), q / 2 ^ (B + 1) - 1]`,
-because the half-step is added before a floor division rather than a symmetric
-rounding. This matches the specification, which states the same one-sided
-bound.
+* `dc_ec` and `Decode_Encode`: decoding inverts encoding;
+* `dc_ec_add` and `Decode_Encode_add`: decoding inverts encoding perturbed by
+  noise `e` with `centeredRepr e ∈ [-q / 2 ^ (B + 1), q / 2 ^ (B + 1) - 1]`,
+  the asymmetric window of the specification.
 -/
 
 namespace FrodoKEM
 
 namespace Params
 
-/-- The half-step `q / 2 ^ (B + 1)` that bounds the tolerated noise: the
-representable values `ec k` are `q / 2 ^ B` apart, and `dc` rounds to the
-nearest one. -/
+/-- The half-step `q / 2 ^ (B + 1)`: half the spacing of the representable
+values `ec k`, and the bound on the noise `dc` tolerates. -/
 def noiseRadius (p : Params) : ℕ := p.q / 2 ^ (p.B + 1)
 
 end Params
 
-/-- `Frodo.Encode`'s scalar map (Section 2.2.2): place `k` in the top `B` bits
-of an element of `ZMod q` by scaling it by `q / 2 ^ B = 2 ^ (D - B)`. -/
+/-- `Frodo.Encode`'s scalar map (Section 2.2.2): `k ↦ k * 2 ^ (D - B)`, placing
+`k` in the top `B` bits of an element of `ZMod q`. -/
 def ec (p : Params) (k : ZMod (2 ^ p.B)) : ZMod p.q :=
   (k.val * 2 ^ (p.D - p.B) : ℕ)
 
-/-- `Frodo.Decode`'s scalar map (Section 2.2.2): round `c` to the nearest
-multiple of `q / 2 ^ B` and read off which multiple it is, as
-`⌊c * 2 ^ B / q⌉ mod 2 ^ B`. -/
+/-- `Frodo.Decode`'s scalar map (Section 2.2.2):
+`c ↦ ⌊c * 2 ^ B / q⌉ mod 2 ^ B`, the index of the multiple of `q / 2 ^ B`
+nearest to `c`. -/
 def dc (p : Params) (c : ZMod p.q) : ZMod (2 ^ p.B) :=
   ((c.val * 2 ^ p.B + p.q / 2) / p.q % 2 ^ p.B : ℕ)
 
-/-- `ec` does not wrap: its value is the unreduced product `k * 2 ^ (D - B)`.
-This is where `B ≤ D` is needed, via `2 ^ B * 2 ^ (D - B) = 2 ^ D = q`. -/
+/-- `ec` does not wrap: its value is the unreduced product `k * 2 ^ (D - B)`. -/
 theorem ec_val (p : Params) (hw : p.WellFormed) (k : ZMod (2 ^ p.B)) :
     (ec p k).val = k.val * 2 ^ (p.D - p.B) := by
   apply ZMod.val_cast_of_lt
@@ -88,43 +83,44 @@ theorem dc_ec (p : Params) (hw : p.WellFormed) (k : ZMod (2 ^ p.B)) :
       Nat.add_zero, ZMod.natCast_mod]
   exact ZMod.natCast_zmod_val k
 
-/-- The rounding step of `dc`, as a statement about natural numbers: the
-quotient it computes recovers `v` modulo `K`, for any `ev` inside the tolerated
-window. Stated with `Q`, `K = 2 ^ B`, `s = q / 2 ^ B` and `R` abstract so that
-the arithmetic is separated from the parameter bookkeeping.
+/-- The rounding step of `dc` as natural-number arithmetic, with the parameters
+abstract:
 
-Cancelling `K` turns the quotient into a division by `s = 2 * R`, after which
-the wrap past the modulus costs nothing: `Q` is a multiple of `s`, so reducing
-mod `Q` before dividing only shifts the quotient by a multiple of `K`, which
-vanishes mod `K`. What is left is `(v * s + ev + R) / s`, which is `v` for
-noise just above zero and `v + K` for noise just below the modulus. -/
-private theorem dc_quotient {Q K s v ev : ℕ} (R : ℕ) (hK : 0 < K)
-    (hsK : s * K = Q) (hRK : 2 * (R * K) = Q)
-    (hv : v < K) (hev : ev < Q) (hwin : ev < R ∨ Q - R ≤ ev) :
-    ((v * s + ev) % Q * K + Q / 2) / Q % K = v := by
-  have hR : 0 < R := by rcases Nat.eq_zero_or_pos R with rfl | h <;> omega
-  have hs : s = 2 * R := Nat.eq_of_mul_eq_mul_right hK (by rw [Nat.mul_assoc]; omega)
+* `q` is the modulus and `n = 2 ^ B` the number of values one entry represents;
+* `s = q / n` is the spacing between those values, and `r = s / 2` the half-step
+  that `dc` adds before dividing;
+* `v < n` is the encoded value and `ev` the noise, as a residue mod `q`.
+
+For every `ev` in the window — below the half-step, or within it of `q` — the
+quotient `dc` computes recovers `v` modulo `n`. -/
+private theorem dc_quotient {q n s v ev : ℕ} (r : ℕ) (hn : 0 < n)
+    (hsn : s * n = q) (hrn : 2 * (r * n) = q)
+    (hv : v < n) (hev : ev < q) (hwin : ev < r ∨ q - r ≤ ev) :
+    ((v * s + ev) % q * n + q / 2) / q % n = v := by
+  have hr : 0 < r := by rcases Nat.eq_zero_or_pos r with rfl | h <;> omega
+  have hs : s = 2 * r := Nat.eq_of_mul_eq_mul_right hn (by rw [Nat.mul_assoc]; omega)
   subst hs
-  -- cancel the factor `K` from the quotient, leaving a division by `2 * R`
-  rw [show Q / 2 = R * K by omega, ← hsK, ← Nat.add_mul, Nat.mul_div_mul_right _ _ hK]
-  -- the wrap past the modulus contributes a multiple of `K`
-  have hshift : ∀ x : ℕ, (x % (2 * R * K) + R) / (2 * R) % K = (x + R) / (2 * R) % K := by
+  -- cancel the factor `n` from the quotient, leaving a division by the step `2 * r`
+  rw [show q / 2 = r * n by omega, ← hsn, ← Nat.add_mul, Nat.mul_div_mul_right _ _ hn]
+  -- the wrap past the modulus contributes a multiple of `n`
+  have hshift : ∀ x : ℕ, (x % (2 * r * n) + r) / (2 * r) % n = (x + r) / (2 * r) % n := by
     intro x
-    conv_rhs => rw [← Nat.div_add_mod x (2 * R * K), Nat.mul_assoc, Nat.add_assoc,
-      Nat.mul_add_div (by omega : 0 < 2 * R), Nat.mul_add_mod]
+    conv_rhs => rw [← Nat.div_add_mod x (2 * r * n), Nat.mul_assoc, Nat.add_assoc,
+      Nat.mul_add_div (by omega : 0 < 2 * r), Nat.mul_add_mod]
   rw [hshift]
   rcases hwin with h | h
-  · rw [Nat.mul_comm v (2 * R), Nat.add_assoc, Nat.mul_add_div (by omega : 0 < 2 * R),
+  -- noise below the half-step: the rounding term is `0`
+  · rw [Nat.mul_comm v (2 * r), Nat.add_assoc, Nat.mul_add_div (by omega : 0 < 2 * r),
       Nat.div_eq_of_lt (by omega), Nat.add_zero, Nat.mod_eq_of_lt hv]
-  · rw [show v * (2 * R) + ev + R = 2 * R * (v + K) + (ev + R - 2 * R * K) by
-        have : 2 * R * (v + K) = v * (2 * R) + 2 * R * K := by ring
+  -- noise within the half-step of `q`: the quotient is `v + n`, and `% n` drops the `n`
+  · rw [show v * (2 * r) + ev + r = 2 * r * (v + n) + (ev + r - 2 * r * n) by
+        have : 2 * r * (v + n) = v * (2 * r) + 2 * r * n := by ring
         omega,
-      Nat.mul_add_div (by omega : 0 < 2 * R), Nat.div_eq_of_lt (by omega), Nat.add_zero,
+      Nat.mul_add_div (by omega : 0 < 2 * r), Nat.div_eq_of_lt (by omega), Nat.add_zero,
       Nat.add_mod_right, Nat.mod_eq_of_lt hv]
 
 /-- Decoding recovers `k` from an encoding perturbed by noise below the
-rounding half-step. The window is asymmetric, matching the floor division in
-`dc`: the lower end is closed and the upper end open. -/
+half-step, over a window closed below and open above. -/
 theorem dc_ec_add (p : Params) (hw : p.WellFormed) (k : ZMod (2 ^ p.B))
     (e : ZMod p.q)
     (hlo : -(p.noiseRadius : ℤ) ≤ LatticeCrypto.centeredRepr e)
@@ -138,8 +134,8 @@ theorem dc_ec_add (p : Params) (hw : p.WellFormed) (k : ZMod (2 ^ p.B))
       rw [Params.noiseRadius, hQ, hBD]
       exact Nat.div_eq_of_lt (Nat.pow_lt_pow_right one_lt_two (by omega))
     omega
-  have hsK : 2 ^ (p.D - p.B) * 2 ^ p.B = p.q := by rw [hQ, ← pow_add]; congr 1; omega
-  have hRK : 2 * (p.noiseRadius * 2 ^ p.B) = p.q := by
+  have hsn : 2 ^ (p.D - p.B) * 2 ^ p.B = p.q := by rw [hQ, ← pow_add]; congr 1; omega
+  have hrn : 2 * (p.noiseRadius * 2 ^ p.B) = p.q := by
     rw [Params.noiseRadius, hQ, Nat.pow_div (by omega) two_pos, ← pow_add, ← pow_succ']
     congr 1; omega
   -- the window, read off `e.val` rather than its centered representative
@@ -149,7 +145,7 @@ theorem dc_ec_add (p : Params) (hw : p.WellFormed) (k : ZMod (2 ^ p.B))
     · exact Or.inl (by rw [if_pos h] at hhi; exact_mod_cast hhi)
     · exact Or.inr (by rw [if_neg h] at hhi; omega)
   rw [dc, ZMod.val_add, ec_val p hw k,
-    dc_quotient p.noiseRadius (Nat.two_pow_pos p.B) hsK hRK (ZMod.val_lt k) (ZMod.val_lt e) hwin]
+    dc_quotient p.noiseRadius (Nat.two_pow_pos p.B) hsn hrn (ZMod.val_lt k) (ZMod.val_lt e) hwin]
   exact ZMod.natCast_zmod_val k
 
 /-! ## The matrix maps
@@ -178,9 +174,7 @@ theorem Decode_Encode (p : Params) (hw : p.WellFormed) (M : ChunkMatrix p) :
   simp [Decode, Encode, dc_ec p hw]
 
 /-- `Frodo.Decode` recovers the message from an encoding perturbed by an error
-matrix whose entries all lie in the tolerated window. The hypothesis is stated
-entrywise: `LatticeCrypto.cInfNorm` is defined for polynomials rather than
-matrices, and FrodoKEM has no polynomial ring. -/
+matrix whose entries all lie in the window, stated entrywise. -/
 theorem Decode_Encode_add (p : Params) (hw : p.WellFormed) (M : ChunkMatrix p)
     (E : FrodoMatrix p mbar nbar)
     (hlo : ∀ i j, -(p.noiseRadius : ℤ) ≤ LatticeCrypto.centeredRepr (E i j))
