@@ -43,7 +43,7 @@ finite natural-number expression instead of repeatedly unfolding
 convolutions.
 -/
 
-open LatticeCrypto
+open ToVCVio LatticeCrypto
 open scoped ENNReal
 
 namespace MLKEM

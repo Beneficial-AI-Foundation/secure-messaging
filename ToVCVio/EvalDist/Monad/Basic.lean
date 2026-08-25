@@ -23,6 +23,8 @@ evaluation distribution.
   one, two, or three eager `uniformSample` draws over `ProbComp`.
 -/
 
+namespace ToVCVio
+
 universe u v
 
 variable {α : Type u} {m : Type u → Type v} [Monad m]
@@ -589,3 +591,5 @@ lemma evalDist_sample_bind_eq_of_forall_evalDist_eq {sampleType outputType : Typ
   intro y
   exact probOutput_sample_bind_eq_of_forall_eq f p y
     (fun a => probOutput_eq_of_evalDist_eq (h a) y)
+
+end ToVCVio

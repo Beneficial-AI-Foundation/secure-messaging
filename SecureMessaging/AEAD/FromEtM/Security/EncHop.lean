@@ -12,6 +12,8 @@ import SecureMessaging.AEAD.FromEtM.Security.Games
 `game2_game3_le_enc`: the gap is bounded by the IND$-CPA advantage of `encReduction`.
 -/
 
+namespace EtM
+
 open OracleSpec OracleComp ENNReal PRFScheme AEADScheme
 
 variable {K_e K_m M AD C_e T : Type}
@@ -439,3 +441,4 @@ theorem game2_game3_le_enc [Inhabited K_e]
   rw [hg2, hg3]
   exact le_of_eq (abs_sub_comm _ _)
 
+end EtM

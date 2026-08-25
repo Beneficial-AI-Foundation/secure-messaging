@@ -21,11 +21,13 @@ and per-event marginalization lemmas relating the parameterized honest oracles
 to the regular CKA security oracles.
 -/
 
-open OracleSpec OracleComp ENNReal
+open ToVCVio OracleSpec OracleComp ENNReal
 open OracleComp.ProgramLogic.Relational
 open scoped OracleComp.ProgramLogic
 
 namespace ddhCKA
+
+open DDH
 
 variable {F : Type} [Field F] [Fintype F] [DecidableEq F] [SampleableType F]
 variable {G : Type} [AddCommGroup G] [Module F G] [SampleableType G]

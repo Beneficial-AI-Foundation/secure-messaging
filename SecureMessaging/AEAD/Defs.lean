@@ -80,7 +80,7 @@ random-*message* RoR, whereas ACD19 is random-*ciphertext* IND$, strictly strong
 
 -/
 
-open OracleSpec OracleComp ENNReal
+open ToVCVio OracleSpec OracleComp ENNReal
 
 -- We use only `u` in universe (for the monad),
 -- matching VCVio's crypto-foundations conventions. All type-space parameters (M, AD, K, C)

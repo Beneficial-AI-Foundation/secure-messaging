@@ -22,6 +22,8 @@ variable {G : Type} [AddCommGroup G] [Module F G] [SampleableType G]
 
 namespace ddhCKA
 
+open DDH
+
 /-- **Epoch counter invariant**
 
 At every reachable state, the per-party epoch counters `tA`, `tB` differ by

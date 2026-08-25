@@ -217,7 +217,7 @@ relating the model (4) to the honest sampler is stated separately in
 `NoiseModel.lean`.
 -/
 
-open LatticeCrypto
+open ToVCVio LatticeCrypto
 
 namespace MLKEM
 

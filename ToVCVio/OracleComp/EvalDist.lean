@@ -264,6 +264,8 @@ lemma evalDist_simulateQ_run'_eq_of_bisim
 
 end OracleComp
 
+namespace ToVCVio
+
 /-! ## Point-probability transport for `ProbComp` runtimes and `StateT` projections
 
 Two small `ProbComp`-level bridges, both reusable for any `ProbComp`/`StateT`
@@ -288,3 +290,5 @@ lemma probOutput_run'_true_eq_of_run_probOutput_eq {σ : Type}
   simp only [map_eq_bind_pure_comp]
   rw [probOutput_bind_eq_tsum, probOutput_bind_eq_tsum]
   exact tsum_congr fun z => by rw [h z]
+
+end ToVCVio

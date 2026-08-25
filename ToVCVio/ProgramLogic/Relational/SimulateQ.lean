@@ -38,7 +38,7 @@ while `.run'` returns only the output.
   is enough to show that the right-hand implementation preserves the invariant;
   the full `.run` distributions are equal.
 -/
-open ENNReal OracleSpec OracleComp
+open ToVCVio ENNReal OracleSpec OracleComp
 open scoped OracleSpec.PrimitiveQuery
 
 universe u

@@ -143,6 +143,8 @@ ACD19 is thus the stronger notion. The gap is immaterial for EtM: a query `(a', 
 (`game1_game2_le_auth`) already bounds.
 -/
 
+namespace EtM
+
 open OracleSpec OracleComp ENNReal PRFScheme AEADScheme
 
 variable {K_e K_m M AD C_e T : Type}
@@ -217,3 +219,5 @@ theorem etmAEAD_security [Inhabited K_e]
         DetSEAlg.distAdvantage se (encReduction se adv) :=
       add_le_add (add_le_add (game0_game1_le_prf se prf adv)
         (game1_game2_le_auth se adv q_d hqd)) (game2_game3_le_enc se adv)
+
+end EtM

@@ -14,6 +14,8 @@ Provides `SampleableType (α × β)` from `SampleableType α` and `SampleableTyp
 sampling each component independently.
 -/
 
+namespace ToVCVio
+
 open OracleComp ENNReal
 
 private lemma selectElem_prod_as_seq (α β : Type) [SampleableType α] [SampleableType β] :
@@ -30,3 +32,5 @@ lemma uniformSample_prod_eq_bind (α β : Type) [SampleableType α] [SampleableT
       pure (a, b)) := by
   change Prod.mk <$> ($ᵗ α : ProbComp α) <*> ($ᵗ β : ProbComp β) = _
   exact (selectElem_prod_as_seq α β).symm
+
+end ToVCVio

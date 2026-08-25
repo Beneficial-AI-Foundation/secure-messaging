@@ -12,7 +12,9 @@ import SecureMessaging.AEAD.FromEtM.Security.Games
 `game3_eq_rand`: `game3` equals the random AEAD experiment (given lossless PRF keygen).
 -/
 
-open OracleSpec OracleComp ENNReal PRFScheme AEADScheme
+namespace EtM
+
+open ToVCVio OracleSpec OracleComp ENNReal PRFScheme AEADScheme
 
 variable {K_e K_m M AD C_e T : Type}
   [DecidableEq AD] [DecidableEq C_e] [DecidableEq T]
@@ -76,4 +78,6 @@ theorem game3_eq_rand
           StateT.run_bind, StateT.run_get, StateT.run_set, StateT.run_pure,
           map_pure, Prod.map]
       split_ifs <;> simp [StateT.run_set, StateT.run_pure, map_pure, Prod.map]
+
+end EtM
 

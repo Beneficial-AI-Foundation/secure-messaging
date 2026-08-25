@@ -25,11 +25,13 @@ from `(.sendReady (x₀ • gen), .recvReady x₀)`. In the initial-challenge ca
 The final lemma is `probOutput_securityReductionRealGame_eq_honestFalse`.
 -/
 
-open OracleSpec OracleComp ENNReal
+open ToVCVio OracleSpec OracleComp ENNReal
 open OracleComp.ProgramLogic.Relational
 open scoped OracleComp.ProgramLogic
 
 namespace ddhCKA
+
+open DDH
 
 variable {F : Type} [Field F] [Fintype F] [DecidableEq F] [SampleableType F]
 variable {G : Type} [AddCommGroup G] [Module F G] [SampleableType G]

@@ -15,6 +15,8 @@ by the forge reduction (`tvDist_authInst_le_probForge`, `probForge_authInst_le_f
 `forgeReduction_isQueryBoundP`).
 -/
 
+namespace EtM
+
 open OracleSpec OracleComp ENNReal PRFScheme AEADScheme
 
 variable {K_e K_m M AD C_e T : Type}
@@ -314,7 +316,6 @@ theorem probForge_authInst_le_forgeReduction
             QueryImpl.add_apply_inl, QueryImpl.liftTarget_apply, QueryImpl.ofLift_apply,
             forgeJointImpl,
             StateT.run_monadLift, StateT.run_mk,
-                  
             bind_pure_comp,
             monadLift_self]
           erw [OracleComp.liftM_run_StateT, OracleComp.liftM_run_StateT]
@@ -656,3 +657,4 @@ theorem forgeReduction_isQueryBoundP
       rcases hb : (x : Bool) with _ | _ <;>
         simp only [Bool.false_eq_true, ↓reduceIte, StateT.run_pure, isQueryBoundP_pure]
 
+end EtM

@@ -36,6 +36,8 @@ of three recurring shapes, all closed by `vcvSupport`:
   handled by the explicit pair closers below.
 -/
 
+namespace ToVCVio
+
 /-- Simplify common `StateT` and support combinators in a support hypothesis. -/
 macro "vcv_simp_support" " at " h:ident : tactic =>
   `(tactic|
@@ -141,3 +143,5 @@ private lemma exp_bumpA (σ : VcvSupportExampleState) (z : Unit × VcvSupportExa
     σ.tA ≤ z.2.tA ∧ σ.tB ≤ z.2.tB := by
   unfold bumpA at hz
   vcvSupport
+
+end ToVCVio

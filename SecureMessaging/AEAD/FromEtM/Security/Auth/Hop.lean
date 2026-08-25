@@ -12,6 +12,8 @@ import SecureMessaging.AEAD.FromEtM.Security.Auth.Forge
 `game1_game2_le_auth`: the gap is bounded by `q_d / |T|` via the forge bound.
 -/
 
+namespace EtM
+
 open OracleSpec OracleComp ENNReal PRFScheme AEADScheme
 
 variable {K_e K_m M AD C_e T : Type}
@@ -156,4 +158,6 @@ theorem game1_game2_le_auth
     _ ≤ tvDist (game1 se adv) (game2' se adv) :=
         abs_probOutput_toReal_sub_le_tvDist _ _
     _ ≤ ↑q_d * (Fintype.card T : ℝ)⁻¹ := htv
+
+end EtM
 

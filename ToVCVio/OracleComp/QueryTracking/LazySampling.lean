@@ -92,7 +92,7 @@ program over `OracleSpec`.
 
 -/
 
-open OracleComp OracleSpec ENNReal
+open ToVCVio OracleComp OracleSpec ENNReal
 
 namespace OracleComp.ProgramLogic.Relational
 

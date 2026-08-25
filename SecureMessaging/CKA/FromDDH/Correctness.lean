@@ -20,6 +20,8 @@ open OracleSpec OracleComp ENNReal
 
 namespace ddhCKA
 
+open DDH
+
 variable {F : Type} [Field F] [Fintype F] [DecidableEq F] [SampleableType F]
 variable {G : Type} [AddCommGroup G] [Module F G] [SampleableType G]
 variable {gen : G}

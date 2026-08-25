@@ -13,7 +13,9 @@ Bad-flag-instrumented oracle handlers (`authInstImpl` and components) and the fo
 (`forgeReduction`, `forgeJointImpl`) used to bound the `game1` → `game2` gap.
 -/
 
-open OracleSpec OracleComp ENNReal PRFScheme AEADScheme
+namespace EtM
+
+open ToVCVio OracleSpec OracleComp ENNReal PRFScheme AEADScheme
 
 variable {K_e K_m M AD C_e T : Type}
   [DecidableEq AD] [DecidableEq C_e] [DecidableEq T]
@@ -144,3 +146,5 @@ noncomputable def forgeJointImpl (se : DetSEAlg K_e M C_e) (ke : K_e) :
         if hit then pure (se.decrypt ke c) else pure none :
       QueryImpl (AD × (C_e × T) →ₒ Option M)
         (StateT (EtmGameState AD C_e T × OracleComp.ForgeState (AD × C_e) T) ProbComp))
+
+end EtM

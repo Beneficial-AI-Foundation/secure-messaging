@@ -22,7 +22,7 @@ equality (with the bit reversed across the two games) up to the prepared
 challenge bridges.
 -/
 
-open OracleSpec OracleComp ENNReal KEMScheme
+open ToVCVio OracleSpec OracleComp ENNReal KEMScheme
 open OracleComp.ProgramLogic.Relational
 
 namespace kemCKA

@@ -33,6 +33,8 @@ Encrypt-then-MAC paradigm.
    `M ∪ {⊥}` as in NRS14).
 -/
 
+namespace EtM
+
 open OracleSpec OracleComp
 
 variable {K_e K_m M AD C_e T : Type}
@@ -63,3 +65,5 @@ def etmAEAD (se : DetSEAlg K_e M C_e)
     then se.decrypt ke c
     else none
 -- ANCHOR_END: etmAEAD
+
+end EtM

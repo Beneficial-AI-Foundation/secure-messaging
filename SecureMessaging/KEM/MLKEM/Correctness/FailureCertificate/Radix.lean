@@ -74,7 +74,7 @@ coefficient” is the coefficient of `X^{q-1}` in the product with the reversed
 weight polynomial.
 -/
 
-open LatticeCrypto
+open ToVCVio LatticeCrypto
 open scoped ENNReal
 
 namespace MLKEM

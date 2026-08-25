@@ -25,11 +25,13 @@ pointwise-equal passthrough cases. At the embedding send event, the external
 random output key.
 -/
 
-open OracleSpec OracleComp ENNReal
+open ToVCVio OracleSpec OracleComp ENNReal
 open OracleComp.ProgramLogic.Relational
 open scoped OracleComp.ProgramLogic
 
 namespace ddhCKA
+
+open DDH
 
 variable {F : Type} [Field F] [Fintype F] [DecidableEq F] [SampleableType F]
 variable {G : Type} [AddCommGroup G] [Module F G] [SampleableType G]

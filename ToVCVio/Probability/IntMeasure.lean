@@ -37,6 +37,8 @@ lattice-based schemes, which compose per-coefficient noise measures and
 evaluate their tail masses.
 -/
 
+namespace ToVCVio
+
 /-- An integer-valued finite counting measure on `ℤ`, represented as a finitely
 supported map from integer outcomes to natural-number masses. The inherited
 multiplication is additive convolution: `F * G` assigns to `v` the sum of
@@ -257,3 +259,5 @@ theorem measureWindow_productMeasure {F G : IntMeasure} {a b : ℤ}
     exact mul_le_mul (abs_le.mpr ⟨h₁.1, h₁.2⟩) (abs_le.mpr ⟨h₂.1, h₂.2⟩)
       (abs_nonneg y) ((abs_nonneg x).trans (abs_le.mpr ⟨h₁.1, h₁.2⟩))
   exact abs_le.mp habs
+
+end ToVCVio

@@ -13,6 +13,8 @@ Replace the PRF tag with a random oracle: `game0_game1_le_prf` bounds the gap by
 advantage of `prfReduction`.
 -/
 
+namespace EtM
+
 open OracleSpec OracleComp ENNReal PRFScheme AEADScheme
 
 variable {K_e K_m M AD C_e T : Type}
@@ -309,3 +311,4 @@ theorem game0_game1_le_prf
   unfold PRFScheme.prfAdvantage
   rw [game0_eq_prfRealExp se prf adv, game1_eq_prfIdealExp se adv]
 
+end EtM

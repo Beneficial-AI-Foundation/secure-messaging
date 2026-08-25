@@ -15,6 +15,8 @@ then `etmAEAD se prf` is a correct `AEADScheme`.
 Correctness is standard: for all keys and inputs, `Dec(Enc(m)) = m`.
 -/
 
+namespace EtM
+
 open OracleSpec OracleComp
 
 variable {K_e K_m M AD C_e T : Type}
@@ -36,3 +38,5 @@ theorem etmAEAD_correct (se : DetSEAlg K_e M C_e)
   intro ⟨ke, km⟩ ad msg
   simp only [etmAEAD, beq_self_eq_true, ↓reduceIte]
   exact hse ke msg
+
+end EtM

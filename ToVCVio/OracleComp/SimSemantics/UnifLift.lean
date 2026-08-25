@@ -16,6 +16,8 @@ local game state `σ` unchanged (the `ProbComp` case is `spec := unifSpec`, sinc
 expose the underlying `.liftTarget` form.
 -/
 
+namespace ToVCVio
+
 open OracleSpec OracleComp
 
 
@@ -27,3 +29,5 @@ Specializes to the `ProbComp` handlers via `spec := unifSpec` (`ProbComp = Oracl
     [MonadLiftT (OracleQuery unifSpec) (OracleComp spec)] :
     QueryImpl unifSpec (StateT σ (OracleComp spec)) :=
   (QueryImpl.ofLift unifSpec (OracleComp spec)).liftTarget (StateT σ (OracleComp spec))
+
+end ToVCVio

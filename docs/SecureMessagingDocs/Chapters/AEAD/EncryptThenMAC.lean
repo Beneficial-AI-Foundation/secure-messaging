@@ -40,7 +40,7 @@ Encrypt-then-MAC.
 :::defTitle "aead_etm_spec" "AEAD encrypt-then-MAC construction"
 :::
 
-::::definition "aead_etm_spec" (parent := "aead_encrypt_then_mac") (lean := "etmAEAD")
+::::definition "aead_etm_spec" (parent := "aead_encrypt_then_mac") (lean := "EtM.etmAEAD")
 $`\todo`
 
 ```anchor etmAEAD (project := ".") (module := SecureMessaging.AEAD.FromEtM.Construction)
@@ -67,7 +67,7 @@ def etmAEAD (se : DetSEAlg K_e M C_e)
 :::defTitle "aead_etm_correctness" "AEAD encrypt-then-MAC correctness"
 :::
 
-::::theorem "aead_etm_correctness" (parent := "aead_encrypt_then_mac") (lean := "etmAEAD_correct")
+::::theorem "aead_etm_correctness" (parent := "aead_encrypt_then_mac") (lean := "EtM.etmAEAD_correct")
 $`\todo`
 
 ```anchor etmAEAD_correct (project := ".") (module := SecureMessaging.AEAD.FromEtM.Correctness)
@@ -82,7 +82,7 @@ theorem etmAEAD_correct (se : DetSEAlg K_e M C_e)
 :::defTitle "aead_etm_security" "AEAD encrypt-then-MAC security"
 :::
 
-::::theorem "aead_etm_security" (parent := "aead_encrypt_then_mac") (lean := "etmAEAD_security")
+::::theorem "aead_etm_security" (parent := "aead_encrypt_then_mac") (lean := "EtM.etmAEAD_security")
 $`\todo`
 
 ```anchor etmAEAD_security (project := ".") (module := SecureMessaging.AEAD.FromEtM.Security)

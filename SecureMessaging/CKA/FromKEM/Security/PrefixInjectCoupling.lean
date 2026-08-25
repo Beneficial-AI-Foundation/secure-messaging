@@ -22,7 +22,7 @@ into the gap equality `cka_injected_honest_gap_eq_keygen_swapped_raw_gap`,
 the final hop in the top-level advantage chain.
 -/
 
-open OracleSpec OracleComp ENNReal KEMScheme
+open ToVCVio OracleSpec OracleComp ENNReal KEMScheme
 open OracleComp.ProgramLogic.Relational
 
 namespace kemCKA
