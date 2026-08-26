@@ -9,12 +9,17 @@ import LatticeCrypto.Ring.Norms
 /-!
 # FrodoKEM message encoding
 
-This file specifies `Frodo.Encode` and `Frodo.Decode` of Section 2.2.2 of the
-FrodoKEM specification, published at [frodokem.org](https://frodokem.org/) and as
-[Glabush, Longa, Naehrig, Peikert, Stebila and Virdia,
-*FrodoKEM: A CCA-Secure Learning With Errors Key Encapsulation Mechanism*,
-Communications in Cryptology 2:3](https://cic.iacr.org/p/2/3/25), and proves that
-decoding inverts encoding, exactly and in the presence of noise.
+This file specifies `Frodo.Encode` and `Frodo.Decode`, and proves that decoding
+inverts encoding, exactly and in the presence of noise.
+
+FrodoKEM has been published in several revisions. The one followed here, and by
+`Parameters.lean`, is [Glabush, Longa, Naehrig, Peikert, Stebila and Virdia,
+*FrodoKEM: A CCA-Secure Learning With Errors Key Encapsulation Mechanism*, IACR
+Communications in Cryptology 2:3 (2025)](https://cic.iacr.org/p/2/3/25); every
+reference below is to it.
+
+`Frodo.Encode` and `Frodo.Decode` are defined in Appendix B, "Additional
+algorithms", and named in Section 3.3, "Matrix encoding and packing".
 
 Encoding places `B` bits in each entry of an `mbar`-by-`nbar` matrix over
 `ZMod q`. The scalar maps are `ec k = k * q / 2 ^ B` and
@@ -40,8 +45,8 @@ unabbreviated capitalised ones, as in `ec`/`Encode` and `dc_ec`/`Decode_Encode`.
 
 * `dc_ec` and `Decode_Encode`: decoding inverts encoding;
 * `dc_ec_add` and `Decode_Encode_add`: decoding inverts encoding perturbed by
-  noise `e` with `centeredRepr e ∈ [-q / 2 ^ (B + 1), q / 2 ^ (B + 1) - 1]`,
-  the asymmetric window of the specification.
+  noise `e` with `centeredRepr e ∈ [-q / 2 ^ (B + 1), q / 2 ^ (B + 1) - 1]`.
+  This is Lemma 1, whose window is asymmetric: closed below and open above.
 -/
 
 namespace FrodoKEM
@@ -54,12 +59,12 @@ def noiseRadius (p : Params) : ℕ := p.q / 2 ^ (p.B + 1)
 
 end Params
 
-/-- `Frodo.Encode`'s scalar map (Section 2.2.2): `k ↦ k * 2 ^ (D - B)`, placing
+/-- `Frodo.Encode`'s scalar map (Appendix B): `k ↦ k * 2 ^ (D - B)`, placing
 `k` in the top `B` bits of an element of `ZMod q`. -/
 def ec (p : Params) (k : ZMod (2 ^ p.B)) : ZMod p.q :=
   (k.val * 2 ^ (p.D - p.B) : ℕ)
 
-/-- `Frodo.Decode`'s scalar map (Section 2.2.2):
+/-- `Frodo.Decode`'s scalar map (Appendix B):
 `c ↦ ⌊c * 2 ^ B / q⌉ mod 2 ^ B`, the index of the multiple of `q / 2 ^ B`
 nearest to `c`. -/
 def dc (p : Params) (c : ZMod p.q) : ZMod (2 ^ p.B) :=
@@ -73,7 +78,7 @@ theorem ec_val (p : Params) (hw : p.WellFormed) (k : ZMod (2 ^ p.B)) :
   gcongr
   exact ZMod.val_lt k
 
-/-- Decoding inverts encoding (Section 2.2.2). -/
+/-- Decoding inverts encoding (Appendix B). -/
 theorem dc_ec (p : Params) (hw : p.WellFormed) (k : ZMod (2 ^ p.B)) :
     dc p (ec p k) = k := by
   rw [dc, ec_val p hw k, hw.q_eq, mul_assoc, ← Nat.pow_add,
@@ -157,12 +162,12 @@ theorem dc_ec_add (p : Params) (hw : p.WellFormed) (k : ZMod (2 ^ p.B))
 `ℓ = B * mbar * nbar` bits. -/
 abbrev ChunkMatrix (p : Params) := Matrix (Fin mbar) (Fin nbar) (ZMod (2 ^ p.B))
 
-/-- `Frodo.Encode` (Section 2.2.2), on input already chunked into `B`-bit
+/-- `Frodo.Encode` (Appendix B), on input already chunked into `B`-bit
 values: apply `ec` to every entry. -/
 def Encode (p : Params) (M : ChunkMatrix p) : FrodoMatrix p mbar nbar :=
   M.map (ec p)
 
-/-- `Frodo.Decode` (Section 2.2.2), returning the chunked form: apply `dc` to
+/-- `Frodo.Decode` (Appendix B), returning the chunked form: apply `dc` to
 every entry. -/
 def Decode (p : Params) (C : FrodoMatrix p mbar nbar) : ChunkMatrix p :=
   C.map (dc p)
