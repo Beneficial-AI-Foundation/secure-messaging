@@ -28,13 +28,13 @@ fact: pre-sampling `d` then running `p` has the same output marginal as running 
 `p` reads `d` only via `randomOracle` (which resamples on a cache miss) and, if `p` never queries
 `d`, the extra cache entry is invisible to `run'`.
 
-The Encrypt-then-MAC authenticity hop needs the *lifted* statement: an adversary `adv` over an
-arbitrary spec is folded by `simulateQ` into a stateful interpreter whose state carries a lazy
-random-oracle cache as one component (`σ × (D →ₒ R).QueryCache`); two interpreters `impl₁`,
-`impl₂` agree on every query *except* that, for some queries, `impl₂` additionally performs a
-**discarded** random-oracle query at a point `d` before running `impl₁`'s handler. Provided
-`impl₁` accesses the cache component *only via the random oracle* (`RespectsRO impl₁`), the two
-interpreters produce the same output distribution (`evalDist_simulateQ_run'_discardRO`).
+The lifted statement applies to an adversary `adv` over an arbitrary specification whose
+interpreter state contains a lazy random-oracle cache
+`σ × (D →ₒ R).QueryCache`. Two interpreters `impl₁` and `impl₂` may differ by a
+discarded random-oracle query before selected `impl₁` handlers. If `impl₁`
+accesses the cache only through the random oracle (`RespectsRO impl₁`), the two
+interpreters have the same output distribution
+(`evalDist_simulateQ_run'_discardRO`).
 
 The `RespectsRO` hypothesis is essential: the discard-removal is **false** for interpreters that
 inspect the cache raw (e.g. a bare `get` reading `qc d`), since a discarded `randomOracle d` writes

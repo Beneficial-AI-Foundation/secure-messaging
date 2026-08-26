@@ -17,9 +17,9 @@ computation living purely on the base spec (lifted in via `liftComp`/`liftM`), t
 never consulted and the computation passes through unchanged.
 
 `simulateQ_id'_liftTarget_add_liftComp` specializes
-`QueryImpl.simulateQ_add_liftM_left` to the `liftM`-base shape used by the EtM
-enc-hop forwarders. In this shape the lifted query enters the combined spec in
-one step rather than as a lift of an `OracleComp unifSpec`.
+`QueryImpl.simulateQ_add_liftM_left` to computations introduced into the sum
+specification by `liftM`. In this shape the lifted query enters the combined
+specification in one step rather than as a lift of an `OracleComp unifSpec`.
 -/
 
 open OracleComp OracleSpec

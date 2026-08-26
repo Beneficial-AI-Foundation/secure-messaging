@@ -11,9 +11,8 @@ import VCVio.ProgramLogic.Relational.SimulateQ
 
 VCVio's `tvDist_simulateQ_run_le_probEvent_output_bad` bounds the total variation
 distance between the joint output-and-state distributions of two simulations whose
-implementations agree until a monotone bad flag fires. This file supplies the
-output-only corollary used by SecureMessaging: project both runs with `StateT.run'`
-and apply data processing for total variation distance.
+implementations agree until a monotone bad flag fires. The theorem below projects
+both runs with `StateT.run'` and applies data processing for total variation distance.
 -/
 
 open OracleComp OracleSpec ENNReal

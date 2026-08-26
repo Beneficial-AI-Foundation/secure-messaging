@@ -10,39 +10,30 @@ import VCVio.OracleComp.Constructions.SampleableType
 import VCVio.OracleComp.SimSemantics.SimulateQ
 
 /-!
-# Lazy Random-Oracle One-Time Unforgeability (missing VCVio bricks)
+# Lazy Random-Oracle One-Time Unforgeability
 
-This file isolates the probabilistic "bricks" that the Encrypt-then-MAC authenticity hop
-(`game1_game2_le_auth` in `SecureMessaging.AEAD.FromEtM.Security`) needs but that VCVio does
-not yet provide as assembled lemmas. They are generic facts about the lazy random oracle and are
-independent of `SecureMessaging`.
+This file proves a query-budgeted unforgeability bound for an eval-and-verify
+interface backed by a shared lazy random oracle.
 
-## Brick 1 — `probForge_le_queryBound_div_card`
+## Main theorem
 
 Consider an adversary with two oracles over a *shared* lazy random function `ρ : D → R`:
 
-- an **eval** oracle `D →ₒ R` returning `ρ(d)` (models the EtM encryption oracle generating
-  the challenge tag `t* = ρ(N*,A*,C*)`); and
-- a **verify** oracle `(D × R) →ₒ Bool` reporting whether `r = ρ(d)` (models the EtM
-  decryption oracle). The adversary never sees `ρ`'s outputs through verify — only the
-  accept/reject bit.
+- an **eval** oracle `D →ₒ R` returning `ρ(d)`; and
+- a **verify** oracle `(D × R) →ₒ Bool` reporting whether `r = ρ(d)`. The
+  verify oracle reveals only the accept/reject bit, not `ρ(d)`.
 
 The `forged` flag is set when a verify query `(d, r)` has `r = ρ(d)` **at a point `d` that
 was not eval'd before that verify query**. Then the probability that `forged` ends up set is
 at most `q / |R|`, where `q` upper-bounds the number of verify queries.
 
-The "not eval'd before" clause is essential: a verify at an eval'd point with the revealed
-value would forge with probability one (the adversary knows `ρ(d)`). In the EtM game this
-clause is supplied by the **challenge-ciphertext guard** — a decryption query on the
-challenge `(C*,T*)` (the one revealed pair) is disallowed, and a query on `(C*,T≠T*)` rejects
-because `ρ(N*,A*,C*) = T* ≠ T`.
-
-This is the formal content NRS14 (*Reconsidering Generic Composition*, EUROCRYPT 2014) leaves
-implicit for scheme A5: **Lemma 2** (the `q_d` factor — a hybrid over decryption queries) and
-**Appendix A.2, Case 1** (the `1/|R|` — `ρ_tag` is uniform on a fresh point). The rigorous
-bound is by **per-distinct-point** accounting: for each distinct non-eval'd point `P`, `ρ(P)`
-is uniform and unrevealed, so the probability that any of the `k_P` tags tried there equals
-`ρ(P)` is at most `k_P / |R|`; summing over distinct points gives `Σ_P k_P / |R| = q / |R|`.
+The "not eval'd before" clause is essential: after eval reveals `ρ(d)`, a
+verify query at `(d, ρ(d))` succeeds with probability one. The proof therefore
+uses **per-distinct-point** accounting over points absent from the evaluated
+set. For each such point `P`, `ρ(P)` is uniform and unrevealed, so the
+probability that any of the `k_P` attempted values equals `ρ(P)` is at most
+`k_P / |R|`. Summing over distinct points gives
+`Σ_P k_P / |R| = q / |R|`.
 
 (The discarded-query removal behind `game2' = game2` is handled separately, at the
 `simulateQ randomOracle` level, by `OracleComp.evalDist_simulateQ_run'_discardRO` in
@@ -63,7 +54,7 @@ universe u
 
 variable {D R : Type} [DecidableEq D] [DecidableEq R] [SampleableType R]
 
-/-! ## Brick 1: eval + verify lazy-RO unforgeability -/
+/-! ## Eval-and-verify lazy-RO unforgeability -/
 
 /-- Oracle interface for a one-time-unforgeability adversary: uniform randomness, an **eval**
 oracle returning `ρ(d)`, and a **verify** oracle reporting whether `r = ρ(d)`. -/
@@ -128,8 +119,8 @@ instance : DecidablePred (isVerifyQuery (D := D) (R := R)) :=
 
 The proof delegates to `simulateQ_run_of_step`, so it requires
 `[IsUniformSpec spec']` only for the base oracle. It does not require finite or
-inhabited ranges for the adversary spec `spec₁ + spec₂`; this permits EtM
-adversary interfaces containing unbounded message and ciphertext types. -/
+inhabited ranges for the adversary spec `spec₁ + spec₂`, so the adversary
+interface may contain unbounded query-domain or response types. -/
 theorem simulateQ_run_add_inr_of_step
     {ι₁ ι₂ ι' : Type u} {spec₁ : OracleSpec ι₁} {spec₂ : OracleSpec ι₂}
     {spec' : OracleSpec ι'} [IsUniformSpec spec'] {σ α : Type u}
@@ -830,7 +821,7 @@ flag. It never observes `ρ`'s outputs through verify (only accept/reject), and 
 counted at eval'd points; so each distinct non-eval'd point contributes at most
 `(#tags tried there)/|R|` and the total is `q/|R|`.
 
-This is the brick the EtM authenticity hop reduces to. See the module docstring. -/
+See the module docstring for the per-distinct-point accounting argument. -/
 theorem probForge_le_queryBound_div_card [Fintype R]
     (adv : ForgeAdversary D R) (q : ℕ)
     (hq : adv.IsQueryBoundP isVerifyQuery q) :

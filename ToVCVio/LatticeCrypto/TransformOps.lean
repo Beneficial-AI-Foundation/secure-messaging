@@ -33,9 +33,8 @@ commutative, and finite rearrangement yields the transpose-exchange identity
 
 `dot(s,Aᵀy) = dot(As,y)`.                                (1)
 
-This file proves these generic identities.  In particular, (1) is independent
-of ML-KEM; the ML-KEM decryption-noise proof imports it to cancel the common
-public-matrix term.
+This file proves these identities for every transform satisfying
+`TransformOps.Laws`.
 -/
 
 universe u v
