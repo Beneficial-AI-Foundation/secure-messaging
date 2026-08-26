@@ -18,12 +18,12 @@ maxRecDepth = 10000
 [[require]]
 name = "versoBlueprint"
 git = "https://github.com/leanprover/verso-blueprint"
-rev = "v4.30.0"
+rev = "v4.32.0"
 
 [[require]]
 name = "VCVio"
-git = "https://github.com/Verified-zkEVM/VCV-io"
-rev = "8f5dc4f"
+git = "https://github.com/Verified-zkEVM/VCVio"
+rev = "v4.32.0"
 
 [[lean_lib]]
 name = "ToVCVio"
