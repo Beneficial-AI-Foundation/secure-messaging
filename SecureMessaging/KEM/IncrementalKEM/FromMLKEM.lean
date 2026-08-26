@@ -30,8 +30,8 @@ open OracleComp KEMScheme LatticeCrypto
 
 namespace MLKEM
 
-/-- The incremental public-key header `(ρ, H(ek))`. The first stage uses both values in
-`G(m ‖ H(ek))` and matrix expansion. -/
+/-- The public-key header `(ρ, H(ek))`: the public-matrix seed and the hash of the complete
+encoded encapsulation key. First-stage encapsulation uses only the header. -/
 -- ANCHOR: incrementalHeader
 def incrementalHeader {params : Params} {encoding : Encoding params}
     (prims : Primitives params encoding) (ek : EncapsulationKey params encoding) :
@@ -83,10 +83,10 @@ def incrementalEncaps2 {params : Params} {encoding : Encoding params} (ring : NT
   encoding.byteEncodeDV (encoding.compressDV v)
 -- ANCHOR_END: incrementalEncaps2
 
-/-- The incremental ML-KEM structure of ML-KEM Braid, Section 1.2.1. Stage 1 produces an
-`EncapsulationState` containing `yHat`, `e2`, and `message`; stage 2 consumes that state
-without retaining raw coins. `validPK` checks the header hash against the reconstructed
-public key. -/
+/-- The incremental ML-KEM structure. Stage 1 produces an `EncapsulationState` containing
+`yHat`, `e2`, and `message`; stage 2 consumes that state without retaining raw coins. `validPK`
+reconstructs `ek` from the received vector and `ρ`, then compares its hash with the hash in the
+header. -/
 -- ANCHOR: mlkemIncremental
 def mlkemIncremental (p : ParameterSet) (ring : NTTRingOps)
     (prims : Primitives (ParameterSet.params p)
@@ -125,6 +125,32 @@ def mlkemIncremental (p : ParameterSet) (ring : NTTRingOps)
       bind_assoc, pure_bind]
     rfl
 -- ANCHOR_END: mlkemIncremental
+
+/-- Incremental ML-KEM's second stage as a pure function. Stage 1 has already sampled all
+encapsulation randomness; `mlkemIncremental.encaps2` only wraps `incrementalEncaps2` in
+`ProbComp`. -/
+-- ANCHOR: mlkemDeterministicEncaps2
+def mlkemDeterministicEncaps2 (p : ParameterSet) (ring : NTTRingOps)
+    (prims : Primitives (ParameterSet.params p)
+      (Concrete.concreteEncoding (ParameterSet.params p))) :
+    (mlkemIncremental p ring prims).DeterministicEncaps2
+-- ANCHOR_END: mlkemDeterministicEncaps2
+    where
+  encaps2Det := fun st _hdr vec => incrementalEncaps2 ring st vec
+  encaps2_eq := fun _st _hdr _vec => rfl
+
+/-- ML-KEM decapsulation as a pure function. `mlkemScheme.decaps` wraps
+`some (decapsInternal …)` in `ProbComp`; implicit rejection makes `decapsInternal` total. -/
+-- ANCHOR: mlkemDeterministicDecaps
+def mlkemDeterministicDecaps (p : ParameterSet) (ring : NTTRingOps)
+    (prims : Primitives (ParameterSet.params p)
+      (Concrete.concreteEncoding (ParameterSet.params p))) :
+    DeterministicDecaps (mlkemScheme p ring prims)
+-- ANCHOR_END: mlkemDeterministicDecaps
+    where
+  decapsDet := fun dk c => some (decapsInternal ring
+    (Concrete.concreteEncoding (ParameterSet.params p)) prims dk c)
+  decaps_eq := fun _sk _c => rfl
 
 /-- Randomness-leakage package for `mlkemIncremental`. Key generation leaks the
 FIPS 203 seeds `(d, z)`; first-stage encapsulation leaks the sampled `Message`;
