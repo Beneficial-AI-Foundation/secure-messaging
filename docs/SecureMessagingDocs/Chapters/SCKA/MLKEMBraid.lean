@@ -5,7 +5,6 @@ import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessagingDocs.Bibliography
 import SecureMessaging.SCKA.MLKEMBraid.Authenticator
-import SecureMessagingDocs.Bibliography
 import SecureMessaging.SCKA.MLKEMBraid.Basic
 import SecureMessaging.SCKA.MLKEMBraid.Construction
 
@@ -38,7 +37,6 @@ ML-KEM Braid ({Informal.citet MLKEM_Braid}[]).
 :::
 
 ::::definition "mlkem_braid_ratcheted_authenticator" (parent := "cka_protocols_mlkem_braid") (lean := "RatchetedAuthenticator")
-$`\todo`
 
 :::leanPillCaption "ratcheted authenticator interface"
 :::
@@ -71,42 +69,6 @@ structure RatchetedAuthenticator
 {usesLabel}`uses` {uses "scka_scheme"}[] · {githubLabel}`github` {githubIssue 245}[]
 ::::
 
-:::defTitle "mlkem_braid_spec" "ML-KEM Braid protocol"
-:::
-
-::::definition "mlkem_braid_spec" (parent := "cka_protocols_mlkem_braid")
-$`\todo`
-
-:::leanPill "missing"
-:::
-
-{usesLabel}`uses` {uses "scka_scheme"}[] · {uses "incremental_kem_scheme"}[] · {uses "mlkem_braid_ratcheted_authenticator"}[] · {githubLabel}`github` {githubIssue 271}[]
-::::
-
-:::defTitle "mlkem_braid_correctness" "ML-KEM Braid correctness"
-:::
-
-::::theorem "mlkem_braid_correctness" (parent := "cka_protocols_mlkem_braid")
-$`\todo`
-
-:::leanPill "missing"
-:::
-
-{usesLabel}`uses` {uses "mlkem_braid_spec"}[] · {uses "scka_correctness"}[] · {uses "incremental_kem_scheme"}[] · {githubLabel}`github` {githubIssue 243}[]
-::::
-
-:::defTitle "mlkem_braid_security" "ML-KEM Braid security"
-:::
-
-::::theorem "mlkem_braid_security" (parent := "cka_protocols_mlkem_braid")
-$`\todo`
-
-:::leanPill "missing"
-:::
-
-{usesLabel}`uses` {uses "mlkem_braid_spec"}[] · {uses "scka_security"}[] · {uses "incremental_kem_scheme"}[] · {githubLabel}`github` {githubIssue 244}[]
-::::
-
 :::group "mlkem_braid_protocol"
 ML-KEM Braid.
 :::
@@ -115,7 +77,6 @@ ML-KEM Braid.
 :::
 
 ::::definition "mlkem_braid_protocol_parameters" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.Parameters")
-$`\todo`
 
 :::leanPillCaption "incremental KEM, pure receive operations, epoch-key derivation, and streams"
 :::
@@ -163,7 +124,6 @@ structure Parameters (m : Type → Type u) [Monad m] where
 :::
 
 ::::definition "mlkem_braid_protocol_messages" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.MessageType, MLKEMBraid.Message")
-$`\todo`
 
 :::leanPillCaption "message types"
 :::
@@ -205,8 +165,7 @@ structure Message (Sym : Type) where
 :::defTitle "mlkem_braid_protocol_states" "Protocol states"
 :::
 
-::::definition "mlkem_braid_protocol_states" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.State, MLKEMBraid.State.epoch")
-$`\todo`
+::::definition "mlkem_braid_protocol_states" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.State")
 
 :::leanPillCaption "the eleven protocol states"
 :::
@@ -253,79 +212,13 @@ inductive State (P : Parameters m) (AuthState : Type) where
       (ct2Encoder : EncoderState (P.inc.C₂ × P.Mac) P.Sym)
 ```
 
-:::leanPillCaption "state epoch projection"
-:::
-
-```anchor Braid_State_epoch (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Basic)
-def State.epoch : State P AuthState → ℕ
-```
-
 {usesLabel}`uses` {uses "erasure_code_streaming"}[]
 ::::
 
 :::defTitle "mlkem_braid_protocol_transitions" "Send and receive"
 :::
 
-::::definition "mlkem_braid_protocol_transitions" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.SendResult, MLKEMBraid.RecvResult, MLKEMBraid.Failure, MLKEMBraid.SendRand, MLKEMBraid.send, MLKEMBraid.sendRleak, MLKEMBraid.receive")
-$`\todo`
-
-:::leanPillCaption "send output"
-:::
-
-```anchor Braid_SendResult (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Basic)
-structure SendResult (P : Parameters m) (AuthState : Type) where
-  /-- `msg`: the message sent. -/
-  msg : Message P.Sym
-  /-- `sending_epoch`: the latest epoch the other party is guaranteed to know on receipt
-  of `msg`. -/
-  sendingEpoch : ℕ
-  /-- `output_key`: the epoch and epoch key derived by this send, if any. -/
-  outputKey : Option (ℕ × P.EpochKey)
-  /-- The state after the send. -/
-  state : State P AuthState
-```
-
-:::leanPillCaption "receive output"
-:::
-
-```anchor Braid_RecvResult (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Basic)
-structure RecvResult (P : Parameters m) (AuthState : Type) where
-  /-- `receiving_epoch`: the `sending_epoch` the other party output when it produced the
-  message. -/
-  receivingEpoch : ℕ
-  /-- `output_key`: the epoch and epoch key derived by this receive, if any. -/
-  outputKey : Option (ℕ × P.EpochKey)
-  /-- The state after the receive. -/
-  state : State P AuthState
-```
-
-:::leanPillCaption "receive failures"
-:::
-
-```anchor Braid_Failure (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Basic)
-inductive Failure where
-  /-- The received encapsulation-key vector fails `validPK`. -/
-  | ekIntegrity
-  /-- `VfyHdr` rejected the header tag. -/
-  | headerMac
-  /-- `VfyCt` rejected the ciphertext tag. -/
-  | ciphertextMac
-  /-- Deterministic decapsulation rejected the ciphertext. This cannot occur for ML-KEM. -/
-  | decapsReject
-```
-
-:::leanPillCaption "what a send discloses"
-:::
-
-```anchor Braid_SendRand (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Construction)
-inductive SendRand (KeygenRand Encaps1Rand : Type) where
-  /-- The send ran neither `KeyGen` nor `Encaps1`. -/
-  | none
-  /-- The send ran `KeyGen`. -/
-  | keygen (r : KeygenRand)
-  /-- The send ran `Encaps1`. -/
-  | encaps1 (r : Encaps1Rand)
-```
+::::definition "mlkem_braid_protocol_transitions" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.send, MLKEMBraid.receive")
 
 :::leanPillCaption "send transition"
 :::
@@ -335,17 +228,6 @@ def send (P : Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
     (st : State P AuthState) : m (SendResult P AuthState)
-```
-
-:::leanPillCaption "randomness-leaking send"
-:::
-
-```anchor Braid_sendRleak (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Construction)
-def sendRleak (P : Parameters m) (irl : P.kem.IncrementalRandLeak P.inc)
-    (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
-      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
-    (st : State P AuthState) :
-    m (SendResult P AuthState × SendRand irl.KeygenRand irl.Encaps1Rand)
 ```
 
 :::leanPillCaption "receive transition"
@@ -359,14 +241,13 @@ def receive (P : Parameters m) [DecidableEq P.Sym]
     Except Failure (RecvResult P AuthState)
 ```
 
-{usesLabel}`uses` {uses "mlkem_braid_protocol_parameters"}[] · {uses "mlkem_braid_ratcheted_authenticator"}[] · {uses "erasure_code_streaming"}[] · {uses "incremental_kem_rand_leak"}[]
+{usesLabel}`uses` {uses "mlkem_braid_protocol_parameters"}[] · {uses "mlkem_braid_ratcheted_authenticator"}[] · {uses "erasure_code_streaming"}[]
 ::::
 
 :::defTitle "mlkem_braid_protocol_init" "Initialization"
 :::
 
 ::::definition "mlkem_braid_protocol_init" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.initA, MLKEMBraid.initB")
-$`\todo`
 
 :::leanPillCaption "Alice's initial state"
 :::
@@ -391,31 +272,12 @@ def initB (P : Parameters m)
 {usesLabel}`uses` {uses "mlkem_braid_ratcheted_authenticator"}[] · {uses "erasure_code_streaming"}[]
 ::::
 
-:::group "mlkem_braid_scka"
-`scheme` packages the transition system with the SCKA syntax of {Informal.citet SCKA25}[].
-`sendRleak` consumes `KEMScheme.IncrementalRandLeak` for key generation and first-stage
-encapsulation. `recvSCKA` maps failures to refused deliveries and uses the message-derived
-epoch required by SCKA; `Basic.receive` retains the state-derived §2.5 report.
+:::defTitle "mlkem_braid_spec" "ML-KEM Braid protocol"
 :::
 
-:::defTitle "mlkem_braid_scka_scheme" "SCKA scheme"
-:::
+::::definition "mlkem_braid_spec" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.scheme")
 
-::::definition "mlkem_braid_scka_scheme" (parent := "mlkem_braid_scka") (lean := "MLKEMBraid.recvSCKA, MLKEMBraid.scheme")
-$`\todo`
-
-:::leanPillCaption "receive adapter"
-:::
-
-```anchor Braid_recvSCKA (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Construction)
-def recvSCKA (P : Parameters m) [DecidableEq P.Sym]
-    (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
-      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
-    (st : State P AuthState) (msg : Message P.Sym) :
-    Option (Option (ℕ × P.EpochKey) × ℕ × State P AuthState)
-```
-
-:::leanPillCaption "the protocol as an SCKA scheme"
+:::leanPillCaption "ML-KEM Braid as an SCKA scheme"
 :::
 
 ```anchor Braid_scheme (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Construction)
@@ -425,7 +287,47 @@ def scheme (P : Parameters m) [DecidableEq P.Sym]
     (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : m InitKey) :
     SCKAScheme m InitKey (State P AuthState) (State P AuthState)
       P.EpochKey (Message P.Sym) (SendRand irl.KeygenRand irl.Encaps1Rand)
+    :=
+  let sendSCKA (st : State P AuthState) := do
+    let r ← send P auth st
+    pure (some (r.outputKey, r.msg, r.sendingEpoch, r.state))
+  let sendRleakSCKA (st : State P AuthState) := do
+    let (r, rand) ← sendRleak P irl auth st
+    pure (some (r.outputKey, r.msg, r.sendingEpoch, r.state, rand))
+  { initKeyGen := sampleInitKey
+    initA := fun ik => pure (initA P auth ik)
+    initB := fun ik => pure (initB P auth ik)
+    sendA := sendSCKA
+    sendArleak := sendRleakSCKA
+    recvA := recvSCKA P auth
+    sendB := sendSCKA
+    sendBrleak := sendRleakSCKA
+    recvB := recvSCKA P auth }
 ```
 
-{usesLabel}`uses` {uses "scka_scheme"}[] · {uses "mlkem_braid_protocol_transitions"}[] · {uses "mlkem_braid_protocol_init"}[]
+{usesLabel}`uses` {uses "scka_scheme"}[] · {uses "mlkem_braid_protocol_transitions"}[] · {uses "mlkem_braid_protocol_init"}[] · {githubLabel}`github` {githubIssue 271}[]
+::::
+
+:::defTitle "mlkem_braid_correctness" "ML-KEM Braid correctness"
+:::
+
+::::theorem "mlkem_braid_correctness" (parent := "cka_protocols_mlkem_braid")
+$`\todo`
+
+:::leanPill "missing"
+:::
+
+{usesLabel}`uses` {uses "mlkem_braid_spec"}[] · {uses "scka_correctness"}[] · {uses "incremental_kem_scheme"}[] · {githubLabel}`github` {githubIssue 243}[]
+::::
+
+:::defTitle "mlkem_braid_security" "ML-KEM Braid security"
+:::
+
+::::theorem "mlkem_braid_security" (parent := "cka_protocols_mlkem_braid")
+$`\todo`
+
+:::leanPill "missing"
+:::
+
+{usesLabel}`uses` {uses "mlkem_braid_spec"}[] · {uses "scka_security"}[] · {uses "incremental_kem_scheme"}[] · {githubLabel}`github` {githubIssue 244}[]
 ::::

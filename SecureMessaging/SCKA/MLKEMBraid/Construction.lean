@@ -133,7 +133,6 @@ def scheme (P : Parameters m) [DecidableEq P.Sym]
     (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : m InitKey) :
     SCKAScheme m InitKey (State P AuthState) (State P AuthState)
       P.EpochKey (Message P.Sym) (SendRand irl.KeygenRand irl.Encaps1Rand)
--- ANCHOR_END: Braid_scheme
     :=
   let sendSCKA (st : State P AuthState) := do
     let r ← send P auth st
@@ -150,5 +149,6 @@ def scheme (P : Parameters m) [DecidableEq P.Sym]
     sendB := sendSCKA
     sendBrleak := sendRleakSCKA
     recvB := recvSCKA P auth }
+-- ANCHOR_END: Braid_scheme
 
 end MLKEMBraid
