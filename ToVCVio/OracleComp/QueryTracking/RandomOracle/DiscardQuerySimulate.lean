@@ -14,33 +14,18 @@ import VCVio.OracleComp.SimSemantics.Append
 /-!
 # Discarded random-oracle query removal under `simulateQ`
 
-The lazy random oracle has the property that a *result-discarded* query at a point `d`, prepended
-to any computation `p` that accesses the oracle *only through the random oracle*, is invisible in
-the output distribution. Concretely, at the `OracleComp (D →ₒ R)` level:
+Let `p : OracleComp (unifSpec + (D →ₒ R)) β`. Prepending a query at `d` and
+discarding its result does not change the output distribution under `roImpl`:
 
 ```
-𝒟[(simulateQ randomOracle ((D →ₒ R).query d >>= fun _ => p)).run' qc]
-  = 𝒟[(simulateQ randomOracle p).run' qc]
+𝒟[(simulateQ (roImpl D R) (query d >>= fun _ => p)).run' qc]
+  = 𝒟[(simulateQ (roImpl D R) p).run' qc].
 ```
 
-(`evalDist_simulateQ_roImpl_discard_run'`). This is a genuine *resampling*/lazy-sampling
-fact: pre-sampling `d` then running `p` has the same output marginal as running `p` fresh, because
-`p` reads `d` only via `randomOracle` (which resamples on a cache miss) and, if `p` never queries
-`d`, the extra cache entry is invisible to `run'`.
-
-The Encrypt-then-MAC authenticity hop needs the *lifted* statement: an adversary `adv` over an
-arbitrary spec is folded by `simulateQ` into a stateful interpreter whose state carries a lazy
-random-oracle cache as one component (`σ × (D →ₒ R).QueryCache`); two interpreters `impl₁`,
-`impl₂` agree on every query *except* that, for some queries, `impl₂` additionally performs a
-**discarded** random-oracle query at a point `d` before running `impl₁`'s handler. Provided
-`impl₁` accesses the cache component *only via the random oracle* (`RespectsRO impl₁`), the two
-interpreters produce the same output distribution (`evalDist_simulateQ_run'_discardRO`).
-
-The `RespectsRO` hypothesis is essential: the discard-removal is **false** for interpreters that
-inspect the cache raw (e.g. a bare `get` reading `qc d`), since a discarded `randomOracle d` writes
-`d ↦ r` (uniform) into the cache, which such an interpreter could observe. Routing every cache
-access through `randomOracle` rules this out: a `randomOracle d` read resamples on a miss and is
-hit-consistent, so a pre-sampled fresh entry is distributionally invisible.
+For a query implementation with state `σ × (D →ₒ R).QueryCache`,
+`RespectsRO impl` states that each handler factors through an oracle computation
+simulated by `roImpl`. The theorem `evalDist_simulateQ_run'_discardRO` lifts
+discarded-query removal to such query implementations.
 -/
 
 open OracleComp OracleSpec ENNReal
@@ -50,18 +35,14 @@ namespace OracleComp
 variable {D R : Type} [DecidableEq D] [SampleableType R]
   {ι : Type} {spec : OracleSpec ι} {σ α : Type}
 
-/-- The combined interpreter `unifSpec + (D →ₒ R)` into `StateT (D →ₒ R).QueryCache ProbComp`:
-forward uniform-sampling queries (the cache passes through untouched) and answer `D →ₒ R` queries
-with the lazy random oracle. This is the ambient handler against which a `RespectsRO` body is run:
-the only cache access is via `randomOracle`. -/
+/-- Interpret `unifSpec + (D →ₒ R)` in
+`StateT (D →ₒ R).QueryCache ProbComp`: uniform-sampling queries preserve the
+cache, and `D →ₒ R` queries use the lazy random oracle. -/
 noncomputable def roImpl (D R : Type) [DecidableEq D] [SampleableType R] :
     QueryImpl (unifSpec + (D →ₒ R)) (StateT (D →ₒ R).QueryCache ProbComp) :=
   unifFwdImpl (D →ₒ R) + (D →ₒ R).randomOracle
 
-/-! ## The true absorption lemma
-
-(The independent-bind swap helper `evalDist_bind_bind_swap` lives upstream in
-`VCVio.EvalDist.Monad.Basic`.) -/
+/-! ## Discarded-query absorption -/
 
 /-- Running `randomOracle` on a single query at `d` from a cache that misses `d`: sample uniformly
 and cache the result. -/
@@ -224,12 +205,8 @@ private theorem evalDist_uniformSample_bind_simulateQ_roImpl_run'
           exact congrArg (Pr[= w | $ᵗ R] * ·)
             (congrFun (congrArg DFunLike.coe (ih w (qc.cacheQuery t w) hmiss_d)) x)
 
-/-- **The true absorption lemma.** Prepending a result-discarded random-oracle query at `d` to a
-computation `p` over `D →ₒ R` preserves the output distribution under `simulateQ randomOracle`.
-
-This replaces the (false-for-arbitrary-tail) bare-cache "brick 2": the statement is true here
-because `p` is an `OracleComp (unifSpec + (D →ₒ R))` — it can access the cache *only through* the
-random oracle, never via a raw `get`. -/
+/-- Prepending a query at `d` and discarding its result preserves the output
+distribution of a computation interpreted by `roImpl`. -/
 theorem evalDist_simulateQ_roImpl_discard_run' {β : Type}
     (d : D) (p : OracleComp (unifSpec + (D →ₒ R)) β) (qc : (D →ₒ R).QueryCache) :
     𝒟[(simulateQ (roImpl D R)
@@ -265,16 +242,9 @@ theorem evalDist_simulateQ_roImpl_discard_run' {β : Type}
 
 /-! ## The `RespectsRO` predicate -/
 
-/-- An interpreter `impl : QueryImpl spec (StateT (σ × (D →ₒ R).QueryCache) ProbComp)` *respects the
-random oracle* when its access to the `(D →ₒ R).QueryCache` component is *only via* the random
-oracle: there is a body `B t s : OracleComp (unifSpec + (D →ₒ R)) (Range t × σ)` computing the
-response and next `σ`-state as an `OracleComp` whose only oracles are uniform sampling and the
-random oracle, such that running `impl t` on `(s, qc)` equals running `simulateQ (roImpl D R)
-(B t s)` on `qc`, reshaping `((Range × σ) × QueryCache)` into `(Range × (σ × QueryCache))`.
-
-Because the body's only cache access is the random oracle (resample-on-miss, hit-consistent),
-it can never inspect the cache raw — exactly the condition under which a discarded RO query is
-distributionally invisible. Uniform sampling (`unifSpec`) leaves the cache untouched. -/
+/-- `RespectsRO impl` holds when each handler of `impl` is represented by a
+computation over `unifSpec + (D →ₒ R)` interpreted by `roImpl`. The representation
+threads the auxiliary state `σ` as output data and leaves cache access to `roImpl`. -/
 def RespectsRO (impl : QueryImpl spec (StateT (σ × (D →ₒ R).QueryCache) ProbComp)) : Prop :=
   ∃ B : (t : spec.Domain) → σ → OracleComp (unifSpec + (D →ₒ R)) (spec.Range t × σ),
     ∀ (t : spec.Domain) (s : σ) (qc : (D →ₒ R).QueryCache),
@@ -359,24 +329,9 @@ private theorem run'_simulateQ_eq_compile
 
 /-! ## Discarded random-oracle query removal under `simulateQ` -/
 
-/-- **Discarded random-oracle query removal under `simulateQ`.**
-
-Let `impl₁`, `impl₂` be two interpreters of the adversary spec `spec` into
-`StateT (σ × (D →ₒ R).QueryCache) ProbComp` whose state carries a lazy random-oracle cache for
-`D →ₒ R` as its second component. Suppose `impl₁` `RespectsRO` (accesses the cache only via
-`randomOracle`), and that on every query `t` from every state `(s, qc)`, either
-
-* `impl₂` agrees with `impl₁`: `(impl₂ t).run (s, qc) = (impl₁ t).run (s, qc)`; or
-* `impl₂` is `impl₁` *preceded by a result-discarded random-oracle query* at some point `d`:
-  `(impl₂ t).run (s, qc) =
-     ((D →ₒ R).randomOracle d).run qc >>= fun p => (impl₁ t).run (s, p.2)`.
-
-Then the two interpreters produce the same output distribution: the discarded samples are never
-observed (because `impl₁` reads the cache only through the random oracle), so even though they
-perturb the cache state, the *output marginal* is unchanged.
-
-The `RespectsRO` hypothesis is essential — without it, the statement is false: an interpreter that
-reads the cache raw could detect the discarded sample. -/
+/-- Suppose `impl₁` satisfies `RespectsRO`. If each handler of `impl₂` either
+equals the corresponding handler of `impl₁` or prepends one discarded
+random-oracle query, then their simulated output distributions are equal. -/
 theorem evalDist_simulateQ_run'_discardRO
     (impl₁ impl₂ : QueryImpl spec (StateT (σ × (D →ₒ R).QueryCache) ProbComp))
     (h₁ : RespectsRO (D := D) (R := R) impl₁)

@@ -195,7 +195,7 @@ Other references:
 
 -/
 
-open OracleSpec OracleComp ENNReal
+open ToVCVio OracleSpec OracleComp ENNReal
 
 universe u v
 

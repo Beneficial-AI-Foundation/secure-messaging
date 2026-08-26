@@ -25,11 +25,13 @@ pointwise-equal passthrough cases. At the embedding send event, the external
 random output key.
 -/
 
-open OracleSpec OracleComp ENNReal
+open ToVCVio OracleSpec OracleComp ENNReal
 open OracleComp.ProgramLogic.Relational
 open scoped OracleComp.ProgramLogic
 
 namespace ddhCKA
+
+open DDH
 
 variable {F : Type} [Field F] [Fintype F] [DecidableEq F] [SampleableType F]
 variable {G : Type} [AddCommGroup G] [Module F G] [SampleableType G]
@@ -134,8 +136,7 @@ lemma evalDist_eager_honest_rand_eq_step_at_sendA_chal_B
         (oracleSendA (ddhCKA F G gen) ()).run s
       have h_o' : isOtherSendBeforeChall gp
           { s with stA := (.recvReady x : CKAState F G), tA := s.tA + 1 } = true := by
-        simp only [isOtherSendBeforeChall] at h_o ⊢
-        convert h_o using 2
+        simpa [isOtherSendBeforeChall, GameState.tP, CKAParty.other, h_cp] using h_o
       simp [honestSendAparam, oracleSendA, StateT.run_bind, StateT.run_get,
         pure_bind, h_v, h_cp, h_o', h_stA, ddhCKA, send]
     | sendReady h =>
@@ -185,9 +186,10 @@ lemma evalDist_eager_honest_rand_eq_step_at_sendA_chal_B
       have h_post_inv : ∀ v : F, gp.challengeEpoch - 1 ≤ (post v).tA := fun _ => by
         change gp.challengeEpoch - 1 ≤ s.tA + 1
         omega
-      exact probOutput_rand_send_coupling (gen := gen) gp h post k h_ih
-        (fun x b a gT => simulateQ_honest_param_rand_a_indep_post_sendA (gen := gen) gp h_cp b gT
-          (k (some (x • gen, x • h))) (post x) (h_post_inv x) a x) y
+      simpa only [map_eq_bind_pure_comp, Function.comp_def] using
+        probOutput_rand_send_coupling (gen := gen) gp h post k h_ih
+          (fun x b a gT => simulateQ_honest_param_rand_a_indep_post_sendA (gen := gen) gp h_cp b gT
+            (k (some (x • gen, x • h))) (post x) (h_post_inv x) a x) y
   · have h_pred_false :
         (validStep s.lastAction CKAAction.sendA &&
          (gp.challengedParty == CKAParty.B) &&
@@ -244,8 +246,7 @@ lemma evalDist_eager_honest_rand_eq_step_at_sendB_chal_A
         (oracleSendB (ddhCKA F G gen) ()).run s
       have h_o' : isOtherSendBeforeChall gp
           { s with stB := (.recvReady x : CKAState F G), tB := s.tB + 1 } = true := by
-        simp only [isOtherSendBeforeChall] at h_o ⊢
-        convert h_o using 2
+        simpa [isOtherSendBeforeChall, GameState.tP, CKAParty.other, h_cp] using h_o
       simp [honestSendBparam, oracleSendB, StateT.run_bind, StateT.run_get,
         pure_bind, h_v, h_cp, h_o', h_stB, ddhCKA, send]
     | sendReady h =>
@@ -295,9 +296,10 @@ lemma evalDist_eager_honest_rand_eq_step_at_sendB_chal_A
       have h_post_inv : ∀ v : F, gp.challengeEpoch - 1 ≤ (post v).tB := fun _ => by
         change gp.challengeEpoch - 1 ≤ s.tB + 1
         omega
-      exact probOutput_rand_send_coupling (gen := gen) gp h post k h_ih
-        (fun x b a gT => simulateQ_honest_param_rand_a_indep_post_sendB (gen := gen) gp h_cp b gT
-          (k (some (x • gen, x • h))) (post x) (h_post_inv x) a x) y
+      simpa only [map_eq_bind_pure_comp, Function.comp_def] using
+        probOutput_rand_send_coupling (gen := gen) gp h post k h_ih
+          (fun x b a gT => simulateQ_honest_param_rand_a_indep_post_sendB (gen := gen) gp h_cp b gT
+            (k (some (x • gen, x • h))) (post x) (h_post_inv x) a x) y
   · have h_pred_false :
         (validStep s.lastAction CKAAction.sendB &&
          (gp.challengedParty == CKAParty.A) &&
@@ -353,8 +355,7 @@ lemma evalDist_eager_honest_rand_eq_step_at_challA_chal_A
       have h_e' : isChallengeEpoch gp
           { s with stA := (.recvReady x : CKAState F G),
                    tA := s.tA + 1 } = true := by
-        simp only [isChallengeEpoch] at h_e ⊢
-        convert h_e using 2
+        simpa [isChallengeEpoch, GameState.tP, h_cp] using h_e
       have h_beq : (gp.challengedParty == CKAParty.A) = true := by simp [h_cp]
       simp [honestChallAparamRand, oracleChallA, StateT.run_bind, StateT.run_get,
         pure_bind, h_v, h_beq, h_e', h_stA, ddhCKA, send]
@@ -414,13 +415,14 @@ lemma evalDist_eager_honest_rand_eq_step_at_challA_chal_A
       have h_post_inv : ∀ v : F, gp.challengeEpoch ≤ (post v).tA := fun _ => by
         change gp.challengeEpoch ≤ s.tA + 1
         omega
-      exact probOutput_rand_challenge_coupling (gen := gen) gp post k h_ih
-        (fun x outKey a b gT =>
-          simulateQ_honest_param_rand_b_indep_post_challA (gen := gen) gp h_cp a gT
-            (k (some (x • gen, outKey))) (post x) (h_post_inv x) b x)
-        (fun x outKey a gT =>
-          simulateQ_honest_param_rand_gT_indep_post_challA (gen := gen) gp h_cp a x
-            (k (some (x • gen, outKey))) (post x) (h_post_inv x) gT outKey) y
+      simpa only [map_eq_bind_pure_comp, Function.comp_def] using
+        probOutput_rand_challenge_coupling (gen := gen) gp post k h_ih
+          (fun x outKey a b gT =>
+            simulateQ_honest_param_rand_b_indep_post_challA (gen := gen) gp h_cp a gT
+              (k (some (x • gen, outKey))) (post x) (h_post_inv x) b x)
+          (fun x outKey a gT =>
+            simulateQ_honest_param_rand_gT_indep_post_challA (gen := gen) gp h_cp a x
+              (k (some (x • gen, outKey))) (post x) (h_post_inv x) gT outKey) y
   · have h_pred_false :
         (validStep s.lastAction CKAAction.challA &&
          (gp.challengedParty == CKAParty.A) &&
@@ -476,8 +478,7 @@ lemma evalDist_eager_honest_rand_eq_step_at_challB_chal_B
       have h_e' : isChallengeEpoch gp
           { s with stB := (.recvReady x : CKAState F G),
                    tB := s.tB + 1 } = true := by
-        simp only [isChallengeEpoch] at h_e ⊢
-        convert h_e using 2
+        simpa [isChallengeEpoch, GameState.tP, h_cp] using h_e
       have h_beq : (gp.challengedParty == CKAParty.B) = true := by simp [h_cp]
       simp [honestChallBparamRand, oracleChallB, StateT.run_bind, StateT.run_get,
         pure_bind, h_v, h_beq, h_e', h_stB, ddhCKA, send]
@@ -537,13 +538,14 @@ lemma evalDist_eager_honest_rand_eq_step_at_challB_chal_B
       have h_post_inv : ∀ v : F, gp.challengeEpoch ≤ (post v).tB := fun _ => by
         change gp.challengeEpoch ≤ s.tB + 1
         omega
-      exact probOutput_rand_challenge_coupling (gen := gen) gp post k h_ih
-        (fun x outKey a b gT =>
-          simulateQ_honest_param_rand_b_indep_post_challB (gen := gen) gp h_cp a gT
-            (k (some (x • gen, outKey))) (post x) (h_post_inv x) b x)
-        (fun x outKey a gT =>
-          simulateQ_honest_param_rand_gT_indep_post_challB (gen := gen) gp h_cp a x
-            (k (some (x • gen, outKey))) (post x) (h_post_inv x) gT outKey) y
+      simpa only [map_eq_bind_pure_comp, Function.comp_def] using
+        probOutput_rand_challenge_coupling (gen := gen) gp post k h_ih
+          (fun x outKey a b gT =>
+            simulateQ_honest_param_rand_b_indep_post_challB (gen := gen) gp h_cp a gT
+              (k (some (x • gen, outKey))) (post x) (h_post_inv x) b x)
+          (fun x outKey a gT =>
+            simulateQ_honest_param_rand_gT_indep_post_challB (gen := gen) gp h_cp a x
+              (k (some (x • gen, outKey))) (post x) (h_post_inv x) gT outKey) y
   · have h_pred_false :
         (validStep s.lastAction CKAAction.challB &&
          (gp.challengedParty == CKAParty.B) &&

@@ -487,12 +487,12 @@ lemma tracked_nonSend_score_support_eq [DecidableEq K]
   subst z
   match t with
   | OUnif n =>
-      have hy' : y ∈ support
-          ((SCKAScheme.oracleUnif (StA onoff Sym) (StB onoff Sym) K
-            (Message Sym) n).run s) := by
-        simpa [SCKAScheme.sckaCorrectnessImpl] using hy
-      obtain ⟨r, rfl⟩ : ∃ r, (r, s) = y := by
-        simpa [SCKAScheme.oracleUnif] using hy'
+      change y ∈ support
+        ((SCKAScheme.oracleUnif (StA onoff Sym) (StB onoff Sym) K
+          (Message Sym) n).run s) at hy
+      obtain ⟨r, _, hy'⟩ := Set.mem_iUnion₂.mp hy
+      have hy_eq : y = (r, s) := hy'
+      subst y
       simp [trackedFailureScore, hfail]
   | OSendA =>
       exact False.elim (hNonSend (by simp [IsSendQuery, isSendQuery]))

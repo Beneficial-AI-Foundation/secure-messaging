@@ -7,14 +7,14 @@ Authors: Beneficial AI Foundation
 import VCVio.OracleComp.SimSemantics.QueryImpl.Basic
 
 /-!
-# The canonical `unifSpec → StateT σ` lift handler (shared helper)
+# The canonical `unifSpec → StateT σ` lift handler
 
-`unifLiftStateT` is the single handler shared by the EtM game and reduction definitions: forward
-every `unifSpec` (uniform-sampling) query through the base monad `OracleComp spec`, threading the
-local game state `σ` unchanged (the `ProbComp` case is `spec := unifSpec`, since
-`ProbComp = OracleComp unifSpec`). It is `@[reducible]`, so call sites that `unfold`/`simp` still
-expose the underlying `.liftTarget` form.
+`unifLiftStateT` forwards every `unifSpec` query through the base monad
+`OracleComp spec` while threading state `σ` unchanged. The `ProbComp` case is
+obtained with `spec := unifSpec`, since `ProbComp = OracleComp unifSpec`.
 -/
+
+namespace ToVCVio
 
 open OracleSpec OracleComp
 
@@ -27,3 +27,5 @@ Specializes to the `ProbComp` handlers via `spec := unifSpec` (`ProbComp = Oracl
     [MonadLiftT (OracleQuery unifSpec) (OracleComp spec)] :
     QueryImpl unifSpec (StateT σ (OracleComp spec)) :=
   (QueryImpl.ofLift unifSpec (OracleComp spec)).liftTarget (StateT σ (OracleComp spec))
+
+end ToVCVio

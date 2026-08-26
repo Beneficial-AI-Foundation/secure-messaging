@@ -170,11 +170,13 @@ theorem kpkeCoordinateDecodeFailure_iff_compress {params : Params} (ring : NTTRi
           = (kpkeDecryptRepresentative ring (Concrete.concreteEncoding params) prims d z m).get i -
             ((Concrete.concreteEncoding params).decompress1
               ((Concrete.concreteEncoding params).byteDecode1 m)).get i := by
-      simpa [kpkeDecryptDifference, vectorBackend_coeff] using
-        vectorBackend_sub_coeff
-          (kpkeDecryptRepresentative ring (Concrete.concreteEncoding params) prims d z m)
-          ((Concrete.concreteEncoding params).decompress1
-            ((Concrete.concreteEncoding params).byteDecode1 m)) i
+      change (kpkeDecryptRepresentative ring (Concrete.concreteEncoding params) prims d z m -
+          (Concrete.concreteEncoding params).decompress1
+            ((Concrete.concreteEncoding params).byteDecode1 m)).get i = _
+      exact vectorBackend_sub_coeff
+        (kpkeDecryptRepresentative ring (Concrete.concreteEncoding params) prims d z m)
+        ((Concrete.concreteEncoding params).decompress1
+          ((Concrete.concreteEncoding params).byteDecode1 m)) i
     rw [concreteEncoding_decompress1_get] at hsub
     rw [hsub]; ring
   unfold kpkeCoordinateDecodeFailure

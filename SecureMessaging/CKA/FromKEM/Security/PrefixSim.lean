@@ -227,7 +227,7 @@ private lemma reductionBranchImpl_challA_preAToB_run_of_will
     (reductionBranchImpl kem hDet leak gp pkStar cStar kStar
         (CKAScheme.ckaSecuritySpec.OChallA : (securitySpec leak).Domain)).run
         (ReductionBranchState.pre (preAToBReductionState σ pkStar)) =
-      (do
+      ((do
         let (pkNext, skNext) ← kem.keygen
         let msg : Message C PK := (cStar, pkNext)
         let base : SecurityState K PK SK C := { preAToBReductionState σ pkStar with
@@ -235,7 +235,8 @@ private lemma reductionBranchImpl_challA_preAToB_run_of_will
           lastAction := some CKAScheme.CKAAction.challA,
           tA := σ.tA + 1 }
         pure (some (msg, kStar),
-          ReductionBranchState.post (postAToBReductionState base msg kStar))) := by
+          ReductionBranchState.post (postAToBReductionState base msg kStar))) :
+        ProbComp (Option (Message C PK × K) × ReductionBranchState K PK SK C)) := by
   have hWill' : willChallengeA gp (preAToBReductionState σ pkStar) = true := by
     simpa [preAToBReductionState, willChallengeA] using hWill
   rw [reductionBranchImpl_pre_challA_run_of_will kem hDet leak gp pkStar cStar kStar
@@ -254,7 +255,7 @@ private lemma reductionBranchImpl_challB_preBToA_run_of_will
     (reductionBranchImpl kem hDet leak gp pkStar cStar kStar
         (CKAScheme.ckaSecuritySpec.OChallB : (securitySpec leak).Domain)).run
         (ReductionBranchState.pre (preBToAReductionState σ pkStar)) =
-      (do
+      ((do
         let (pkNext, skNext) ← kem.keygen
         let msg : Message C PK := (cStar, pkNext)
         let base : SecurityState K PK SK C := { preBToAReductionState σ pkStar with
@@ -262,7 +263,8 @@ private lemma reductionBranchImpl_challB_preBToA_run_of_will
           lastAction := some CKAScheme.CKAAction.challB,
           tB := σ.tB + 1 }
         pure (some (msg, kStar),
-          ReductionBranchState.post (postBToAReductionState base msg kStar))) := by
+          ReductionBranchState.post (postBToAReductionState base msg kStar))) :
+        ProbComp (Option (Message C PK × K) × ReductionBranchState K PK SK C)) := by
   have hWill' : willChallengeB gp (preBToAReductionState σ pkStar) = true := by
     simpa [preBToAReductionState, willChallengeB] using hWill
   rw [reductionBranchImpl_pre_challB_run_of_will kem hDet leak gp pkStar cStar kStar
@@ -352,6 +354,10 @@ private lemma challA_sampled_reduction_query_rel
       (fun p q => p.1 = q.1 ∧ reductionStatePostRel kem hDet gp p.2 q.2) := by
   rw [reductionBranchImpl_challA_preAToB_run_of_will kem hDet leak gp σ pkStar cStar
     kStar hWill]
+  change RelTriple _ _
+    (fun (p : Option (Message C PK × K) × SecurityState K PK SK C)
+      (q : Option (Message C PK × K) × ReductionBranchState K PK SK C) =>
+      p.1 = q.1 ∧ reductionStatePostRel kem hDet gp p.2 q.2)
   simpa [preAToBReductionState] using
     challA_sampled_keygen_rel kem hDet hkem gp hgp σ (pkStar := pkStar)
       (skStar := skStar) (cStar := cStar) (realKey := realKey) (fakeKey := kStar)
@@ -445,7 +451,8 @@ lemma challA_sampled_reduction_cont_run'_relTriple
     rw [← hout]
     exact reductionStatePostRel_run'_relTriple kem hDet leak gp pkStar cStar realKey
       (cont p.1) hrel
-  simpa only [bind_assoc] using relTriple_bind hstep hcont
+  rw [← bind_assoc]
+  exact relTriple_bind hstep hcont
 
 /-- Prepared A-challenge step, random-key case: the honest `isRandom = true`
 challenge answer plus honest continuation matches the reduction's challenge
@@ -548,7 +555,7 @@ lemma challA_sampled_reduction_random_cont_run'_relTriple
     rw [← hout]
     exact reductionStatePostRel_run'_relTriple kem hDet leak gp pkStar cStar outKey
       (cont p.1) hrel
-  simpa only [bind_assoc] using relTriple_bind hstep hcont
+  simpa only [StateT.run'_eq, bind_assoc] using relTriple_bind hstep hcont
 
 private lemma challB_sampled_keygen_rel
     [SampleableType K] [DecidableEq K]
@@ -633,6 +640,10 @@ private lemma challB_sampled_reduction_query_rel
       (fun p q => p.1 = q.1 ∧ reductionStatePostRel kem hDet gp p.2 q.2) := by
   rw [reductionBranchImpl_challB_preBToA_run_of_will kem hDet leak gp σ pkStar cStar
     kStar hWill]
+  change RelTriple _ _
+    (fun (p : Option (Message C PK × K) × SecurityState K PK SK C)
+      (q : Option (Message C PK × K) × ReductionBranchState K PK SK C) =>
+      p.1 = q.1 ∧ reductionStatePostRel kem hDet gp p.2 q.2)
   simpa [preBToAReductionState] using
     challB_sampled_keygen_rel kem hDet hkem gp hgp σ (pkStar := pkStar)
       (skStar := skStar) (cStar := cStar) (realKey := realKey) (fakeKey := kStar)
@@ -696,7 +707,8 @@ lemma challB_sampled_reduction_cont_run'_relTriple
     rw [← hout]
     exact reductionStatePostRel_run'_relTriple kem hDet leak gp pkStar cStar realKey
       (cont p.1) hrel
-  simpa only [bind_assoc] using relTriple_bind hstep hcont
+  rw [← bind_assoc]
+  exact relTriple_bind hstep hcont
 
 /-- Prepared B-challenge step, random-key case, the mirror of
 `challA_sampled_reduction_random_cont_run'_relTriple`. -/
@@ -797,6 +809,6 @@ lemma challB_sampled_reduction_random_cont_run'_relTriple
     rw [← hout]
     exact reductionStatePostRel_run'_relTriple kem hDet leak gp pkStar cStar outKey
       (cont p.1) hrel
-  simpa only [bind_assoc] using relTriple_bind hstep hcont
+  simpa only [StateT.run'_eq, bind_assoc] using relTriple_bind hstep hcont
 
 end kemCKA

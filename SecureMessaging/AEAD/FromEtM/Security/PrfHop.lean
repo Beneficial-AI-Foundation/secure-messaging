@@ -13,6 +13,8 @@ Replace the PRF tag with a random oracle: `game0_game1_le_prf` bounds the gap by
 advantage of `prfReduction`.
 -/
 
+namespace EtM
+
 open OracleSpec OracleComp ENNReal PRFScheme AEADScheme
 
 variable {K_e K_m M AD C_e T : Type}
@@ -87,7 +89,7 @@ theorem game0_eq_prfRealExp
       Pr[= true | prf.prfRealExp (prfReduction se adv)] := by
   -- RHS: unfold the reduction + experiment, fold the inner skeleton run to `run'`,
   -- collapse the nested `simulateQ` via `mapStateTBase`, forward `liftComp se.keygen`
-  -- (the upstream `simulateQ_prfRealQueryImpl_liftComp` is the `unifSpec`-transparency fact).
+  -- using the `unifSpec`-transparency theorem `simulateQ_prfRealQueryImpl_liftComp`.
   unfold PRFScheme.prfRealExp prfReduction etmGameSkeleton
   simp only [bind_pure_comp, ← StateT.run'_eq, simulateQ_bind,
     QueryImpl.simulateQ_mapStateTBase_run', PRFScheme.simulateQ_prfRealQueryImpl_liftComp]
@@ -142,8 +144,8 @@ theorem game1_eq_prfIdealExp
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     Pr[= true | game1 se adv] =
       Pr[= true | PRFScheme.prfIdealExp (prfReduction se adv)] := by
-  -- RHS: collapse the nested `simulateQ`, forward keygen (the upstream
-  -- `simulateQ_prfIdealQueryImpl_liftComp` is the cache-threading `unifSpec`-transparency fact),
+  -- RHS: collapse the nested `simulateQ`, forward keygen using the cache-threading
+  -- `unifSpec`-transparency theorem `simulateQ_prfIdealQueryImpl_liftComp`,
   -- then push the outer `.run' ∅` through the `liftM se.keygen` bind so both sides start with
   -- `se.keygen` (the cache threads through unchanged).
   unfold PRFScheme.prfIdealExp prfReduction etmGameSkeleton
@@ -162,9 +164,9 @@ theorem game1_eq_prfIdealExp
   -- LHS: game1.
   unfold game1 etmGameSkeleton
   simp only [bind_pure_comp, ← StateT.run'_eq]
-  -- A forwarded function query `Sum.inr q` is answered by the lazy random oracle at `q`. This is
-  -- exactly the upstream `simulateQ_prfIdealQueryImpl_inr`; the local restatement just pins the
-  -- ambient spec annotation so it matches syntactically in the `simp only` decrypt branches below.
+  -- A forwarded function query `Sum.inr q` is answered by the lazy random oracle at `q`.
+  -- `simulateQ_prfIdealQueryImpl_inr` proves this equality; the local statement pins the ambient
+  -- spec annotation so it matches syntactically in the `simp only` decrypt branches below.
   have hroI : ∀ (q : AD × C_e),
       simulateQ (PRFScheme.prfIdealQueryImpl (D := AD × C_e) (R := T))
         (liftM (OracleSpec.query (Sum.inr q) :
@@ -207,13 +209,13 @@ theorem game1_eq_prfIdealExp
     simp only at hs
     subst hs
     rcases t with (n | ⟨ad, m⟩) | ⟨ad, c⟩
-    · simp only [add_apply_inl, StateT.run_pure, liftM_pure, bind_pure, StateT.run_monadLift,
+    · simp only [add_apply_inl, StateT.run_pure, liftM_pure, StateT.run_monadLift,
         monadLift_self, bind_pure_comp, liftM_map, bind_map_left, pure_bind, Prod.mk.eta,
         beq_iff_eq, StateT.run_map, Functor.map_map, QueryImpl.add_apply_inl,
         QueryImpl.liftTarget_apply, QueryImpl.ofLift_apply, support_map] at hy
       obtain ⟨a, _, rfl⟩ := hy; rfl
     · cases ch <;>
-        simp only [add_apply_inl, add_apply_inr, StateT.run_pure, liftM_pure, bind_pure,
+        simp only [add_apply_inl, add_apply_inr, StateT.run_pure, liftM_pure,
           StateT.run_monadLift, monadLift_self, bind_pure_comp, liftM_map, bind_map_left,
           pure_bind, Prod.mk.eta, beq_iff_eq, StateT.run_map, Functor.map_map,
           QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get,
@@ -225,7 +227,7 @@ theorem game1_eq_prfIdealExp
       -- cache unchanged; the verify `if … then pure … else pure …` keeps the cache `∅`.
       cases ch with
       | none =>
-        simp only [add_apply_inr, StateT.run_pure, liftM_pure, bind_pure, StateT.run_monadLift,
+        simp only [add_apply_inr, StateT.run_pure, liftM_pure, StateT.run_monadLift,
           monadLift_self, bind_pure_comp, liftM_map, bind_map_left, pure_bind, Prod.mk.eta,
           beq_iff_eq, StateT.run_map, Functor.map_map, ← apply_ite, QueryImpl.add_apply_inr,
           StateT.run_bind, StateT.run_get, reduceCtorEq, ↓reduceIte, StateT.run_set, map_pure,
@@ -234,7 +236,7 @@ theorem game1_eq_prfIdealExp
         obtain ⟨a, _, rfl⟩ := hy; rfl
       | some val =>
         by_cases hv : val = c <;>
-          simp only [add_apply_inr, StateT.run_pure, liftM_pure, bind_pure, StateT.run_monadLift,
+          simp only [add_apply_inr, StateT.run_pure, liftM_pure, StateT.run_monadLift,
             monadLift_self, bind_pure_comp, liftM_map, bind_map_left, pure_bind, Prod.mk.eta,
             beq_iff_eq, StateT.run_map, Functor.map_map, ← apply_ite, QueryImpl.add_apply_inr, hv,
             StateT.run_bind, StateT.run_get, ↓reduceIte, support_pure, Option.some.injEq,
@@ -273,7 +275,7 @@ theorem game1_eq_prfIdealExp
       rw [flattenStateT_mapStateTBase_apply_run]
       cases ch with
       | none =>
-        simp only [add_apply_inr, StateT.run_pure, liftM_pure, bind_pure, StateT.run_monadLift,
+        simp only [add_apply_inr, StateT.run_pure, liftM_pure, StateT.run_monadLift,
           monadLift_self, bind_pure_comp, liftM_map, bind_map_left, pure_bind, Prod.mk.eta,
           beq_iff_eq, StateT.run_map, Functor.map_map, QueryImpl.add_apply_inr, StateT.run_bind,
           StateT.run_get, reduceCtorEq, ↓reduceIte, StateT.run_set, simulateQ_bind, hroI,
@@ -286,7 +288,7 @@ theorem game1_eq_prfIdealExp
           simp [QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get,
             StateT.run_monadLift, StateT.run_pure,
             simulateQ_pure, Prod.map, Functor.map_map]
-        · simp only [add_apply_inr, StateT.run_pure, liftM_pure, bind_pure, StateT.run_monadLift,
+        · simp only [add_apply_inr, StateT.run_pure, liftM_pure, StateT.run_monadLift,
             monadLift_self, bind_pure_comp, liftM_map, bind_map_left, pure_bind, Prod.mk.eta,
             beq_iff_eq, StateT.run_map, Functor.map_map, QueryImpl.add_apply_inr, StateT.run_bind,
             StateT.run_get, Option.some.injEq, hv, ↓reduceIte, StateT.run_set, simulateQ_bind,
@@ -309,3 +311,4 @@ theorem game0_game1_le_prf
   unfold PRFScheme.prfAdvantage
   rw [game0_eq_prfRealExp se prf adv, game1_eq_prfIdealExp se adv]
 
+end EtM

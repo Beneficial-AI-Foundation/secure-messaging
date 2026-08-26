@@ -56,6 +56,30 @@ private def recvBAckStep
     (recvBAckStep kem onoff stB ack t).stCt = stB.stCt := by
   by_cases h : ack.ctRec && stB.t == t <;> simp [recvBAckStep, h]
 
+/-- `recvBAckStep` preserves B's decoded public key. -/
+@[simp] private lemma recvBAckStep_ekA
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (stB : StB onoff Sym) (ack : Ack) (t : ℕ) :
+    (recvBAckStep kem onoff stB ack t).ekA = stB.ekA := by
+  by_cases h : ack.ctRec && stB.t == t <;> simp [recvBAckStep, h]
+
+/-- `recvBAckStep` preserves B's public-key chunk buffer. -/
+@[simp] private lemma recvBAckStep_lch
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (stB : StB onoff Sym) (ack : Ack) (t : ℕ) :
+    (recvBAckStep kem onoff stB ack t).lch = stB.lch := by
+  by_cases h : ack.ctRec && stB.t == t <;> simp [recvBAckStep, h]
+
+/-- Updating the ciphertext acknowledgement does not affect chunk consistency. -/
+private lemma ChunksBConsistent.recvBAckStep
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (ecEk : ErasureCodePayload PK Sym) (T : Transcript kem onoff)
+    (stB : StB onoff Sym) (ack : Ack) (t : ℕ)
+    (hchunks : ChunksBConsistent kem onoff ecEk T stB) :
+    ChunksBConsistent kem onoff ecEk T (recvBAckStep kem onoff stB ack t) := by
+  by_cases h : ack.ctRec && stB.t == t <;>
+    simpa [recvBAckStep, h, ChunksBConsistent] using hchunks
+
 section RecvB
 
 variable [DecidableEq Sym]
@@ -259,10 +283,9 @@ private lemma reachableInv_after_recvB_current
   let stB' := recvBAckStep kem onoff stB0 ack s.stB.t
   have htB0 : stB0.t = s.stB.t := by simp [stB0]
   have htB' : stB'.t = s.stB.t := by simp [stB', htB0]
-  have hchunks' : ChunksBConsistent kem onoff ecEk T stB' := by
-    by_cases hack : ack.ctRec && stB0.t == s.stB.t
-    · simpa [stB', recvBAckStep, hack] using hchunks
-    · simpa [stB', recvBAckStep, hack] using hchunks
+  have hchunks' : ChunksBConsistent kem onoff ecEk T stB' :=
+    ChunksBConsistent.recvBAckStep kem onoff ecEk T stB0 ack s.stB.t (by
+      simpa [stB0] using hchunks)
   refine ⟨T, ?_⟩
   constructor
   · simp [hInv.correct]
@@ -353,6 +376,43 @@ private def recvBNextBase
     lch := ∅
     ack := { ekRec := false, ctRec := false } }
 
+/-- Normal form of `recvB` for a message in B's current epoch. -/
+private lemma recvB_current_eq
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (ecEk : ErasureCodePayload PK Sym) (stB : StB onoff Sym)
+    (ch? : Option (ℕ × Sym)) (ack : Ack) (t : ℕ) (b? : Option Bit)
+    (ht : stB.t = t) :
+    recvB kem onoff ecEk stB (ch?, ack, t, b?) =
+      some (none, t - 1,
+        recvBAckStep kem onoff (recvBEkStep kem onoff ecEk stB ch?) ack t) := by
+  subst t
+  by_cases hek : stB.ekA = none
+  · by_cases hack : ack.ctRec
+    · simp [recvB, recvBEkStep, recvBAckStep, hek, hack]
+      exact ⟨rfl, rfl, rfl⟩
+    · simp [recvB, recvBEkStep, recvBAckStep, hek, hack]
+      exact ⟨rfl, rfl, rfl⟩
+  · by_cases hack : ack.ctRec
+    · simp [recvB, recvBEkStep, recvBAckStep, hek, hack]
+    · simp [recvB, recvBEkStep, recvBAckStep, hek, hack]
+
+/-- Normal form of `recvB` for the first message of B's next epoch. -/
+private lemma recvB_next_eq
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (ecEk : ErasureCodePayload PK Sym) (stB : StB onoff Sym)
+    (ch? : Option (ℕ × Sym)) (ack : Ack) (t : ℕ) (b? : Option Bit)
+    (ht : t = stB.t + 1) :
+    recvB kem onoff ecEk stB (ch?, ack, t, b?) =
+      some (none, t - 1,
+        recvBAckStep kem onoff
+          (recvBEkStep kem onoff ecEk (recvBNextBase kem onoff stB) ch?) ack t) := by
+  subst t
+  by_cases hack : ack.ctRec
+  · simp [recvB, recvBNextBase, recvBEkStep, recvBAckStep, hack]
+    exact ⟨rfl, rfl, rfl⟩
+  · simp [recvB, recvBNextBase, recvBEkStep, recvBAckStep, hack]
+    exact ⟨rfl, rfl, rfl⟩
+
 /-- Advancing B by one epoch and processing the first honest message of that
 epoch preserves `reachableInv`. -/
 private lemma reachableInv_after_recvB_next
@@ -407,10 +467,9 @@ private lemma reachableInv_after_recvB_next
   let stB0 := recvBEkStep kem onoff ecEk base ch?
   let stB' := recvBAckStep kem onoff stB0 ack t
   have htB' : stB'.t = t := by simp [stB', stB0, hbaseT]
-  have hchunks' : ChunksBConsistent kem onoff ecEk T stB' := by
-    by_cases hack : ack.ctRec && stB0.t == t
-    · simpa [stB', recvBAckStep, hack] using hchunks0
-    · simpa [stB', recvBAckStep, hack] using hchunks0
+  have hchunks' : ChunksBConsistent kem onoff ecEk T stB' :=
+    ChunksBConsistent.recvBAckStep kem onoff ecEk T stB0 ack t (by
+      simpa [stB0] using hchunks0)
   have htcur : max s.tcurB (t - 1) = t - 1 := by
     apply Nat.max_eq_right
     exact hInv.tcurB.trans (by omega)
@@ -519,7 +578,7 @@ lemma oracleRecvB_preserves_reachableInv
                 tcurB := max s.tcurB (s.stB.t - 1)
                 correct := s.correct && decide (s.stB.t - 1 = s.stB.t - 1) }) := by
           simpa [SCKAScheme.oracleRecvB, StateT.run_bind, StateT.run_get, hentry,
-            scheme, recvB, recvBEkStep, recvBAckStep, htsnd, hknown] using hz
+            scheme, recvB_current_eq, beq_eq_decide, htsnd, hknown] using hz
         subst z
         exact reachableInv_after_recvB_current kem onoff ecEk hcorrect hEkPos
           ecCt0 ecCt1 s T hInv ch? ack b? (by simpa [htsnd] using hhon)
@@ -552,7 +611,7 @@ lemma oracleRecvB_preserves_reachableInv
                 tcurB := max s.tcurB (t - 1)
                 correct := s.correct && decide (t - 1 = t - 1) }) := by
           simpa [SCKAScheme.oracleRecvB, StateT.run_bind, StateT.run_get, hentry,
-            scheme, recvB, recvBNextBase, recvBEkStep, recvBAckStep,
+            scheme, recvB_next_eq, beq_eq_decide,
             htsnd, ht, htNext, hknown'] using hz
         subst z
         exact reachableInv_after_recvB_next kem onoff ecEk hcorrect hEkPos

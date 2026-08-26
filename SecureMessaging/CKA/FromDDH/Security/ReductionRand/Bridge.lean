@@ -26,11 +26,13 @@ from `(.sendReady (x₀ • gen), .recvReady x₀)`. In the initial-challenge ca
 The final lemma is `probOutput_securityReductionRandGame_eq_honestTrue`.
 -/
 
-open OracleSpec OracleComp ENNReal
+open ToVCVio OracleSpec OracleComp ENNReal
 open OracleComp.ProgramLogic.Relational
 open scoped OracleComp.ProgramLogic
 
 namespace ddhCKA
+
+open DDH
 
 variable {F : Type} [Field F] [Fintype F] [DecidableEq F] [SampleableType F]
 variable {G : Type} [AddCommGroup G] [Module F G] [SampleableType G]
@@ -247,15 +249,16 @@ lemma evalDist_special_honest_fixed_a_rand_eq_eager
       evalDist ((simulateQ (honestImplParamRand gp gen x₀ b gT) adversary).run' s) =
       evalDist ((simulateQ (honestImplParamRand gp gen a b gT) adversary).run' s) := by
     intro b gT a
-    exact evalDist_simulateQ_run'_eq_of_impl_evalDist_eq
-      (impl₁ := honestImplParamRand gp gen x₀ b gT)
-      (impl₂ := honestImplParamRand gp gen a b gT)
-      (oa := adversary)
-      (himpl := fun t s' => by
-        exact congrArg evalDist
-          (honestImpl_param_rand_a_indep_special (gen := gen)
-            gp h_special_case b gT t s' x₀ a))
-      s s rfl
+    exact evalDist_eq_of_relTriple_eqRel
+        (relTriple_simulateQ_run'_of_impl_evalDist_eq
+          (impl₁ := honestImplParamRand gp gen x₀ b gT)
+          (impl₂ := honestImplParamRand gp gen a b gT)
+          (oa := adversary)
+          (himpl := fun t s' => by
+            exact congrArg evalDist
+              (honestImpl_param_rand_a_indep_special (gen := gen)
+                gp h_special_case b gT t s' x₀ a))
+          s s rfl)
   have h_bind_fixed : ∀ b gT,
       evalDist (do
         let a ← ($ᵗ F : ProbComp F)

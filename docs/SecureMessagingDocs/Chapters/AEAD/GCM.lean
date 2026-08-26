@@ -35,7 +35,7 @@ GCM.
 :::defTitle "aead_gcm_spec" "AEAD-GCM construction"
 :::
 
-::::definition "aead_gcm_spec" (parent := "aead_gcm") (lean := "gcmOneTimeAEAD")
+::::definition "aead_gcm_spec" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD")
 $`\todo`
 
 The scheme's domain is the NIST-supported length range. A plaintext/ciphertext
@@ -71,7 +71,7 @@ def gcmOneTimeAEAD {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ)
 :::defTitle "aead_gcm_correctness" "AEAD-GCM correctness"
 :::
 
-::::theorem "aead_gcm_correctness" (parent := "aead_gcm") (lean := "gcmOneTimeAEAD_correct")
+::::theorem "aead_gcm_correctness" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD_correct")
 $`\todo`
 
 ```anchor gcmOneTimeAEAD_correct (project := ".") (module := SecureMessaging.AEAD.FromGCM.Correctness)

@@ -15,6 +15,8 @@ recovers the plaintext. The tag check passes because `decrypt` recomputes the sa
 inverts the ciphertext back to the plaintext.
 -/
 
+namespace GCM
+
 open OracleSpec OracleComp
 
 /-- `gcmOneTimeAEAD` satisfies the ACD19 `AEADScheme.Correct`, given that the message
@@ -30,3 +32,5 @@ theorem gcmOneTimeAEAD_correct {K : Type} (prp : PRPScheme K (BitVec 128)) {L : 
   simp only [gcmOneTimeAEAD, gcmEncrypt, gcmDecrypt]
   rw [if_pos hv]
   simp only [if_true, gctr_involution]
+
+end GCM

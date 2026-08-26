@@ -24,6 +24,8 @@ Packages the 96-bit-IV GCM algorithms (`Algorithms`) as the one-time-key `AEADSc
   https://www.rfc-editor.org/rfc/rfc9180
 -/
 
+namespace GCM
+
 open OracleSpec OracleComp
 
 /-- One-time-key GCM as an `AEADScheme` (ACD19 interface). The IV is fixed to `0`; this
@@ -50,3 +52,5 @@ def gcmOneTimeAEAD {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ)
   encrypt := fun k ad m => gcmEncrypt prp.toBlockCipher k (0 : BitVec 96) ad.1.2 m
   decrypt := fun k ad c => gcmDecrypt prp.toBlockCipher k (0 : BitVec 96) ad.1.2 c
 -- ANCHOR_END: gcmOneTimeAEAD
+
+end GCM

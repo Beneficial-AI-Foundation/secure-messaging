@@ -179,7 +179,7 @@ The quantitative theorem uses the exact event (8).  The union bound gives
 
 ## 5. The auxiliary independent one-coefficient model
 
-We now define the finite counting measure used in the numerical certificate.
+The numerical certificate uses the following finite counting measure.
 For `η≥0`, let
 
 `Ω_η={0,1}^{2η}`
@@ -432,7 +432,7 @@ theorem fips203DecapsulationFailureProb_le_bound (p : ParameterSet) (ring : NTTR
 coefficient comparison, honest ML-KEM-512 decapsulation has error at most
 `2^(-138.8)`.  The canonical value for `hRing` is
 `Concrete.concreteNTTRingLaws`; it is kept explicit because its finite inverse
-matrix certificate is currently discharged by `native_decide`. -/
+matrix certificate is discharged by `native_decide`. -/
 theorem deltaCorrect_mlkem512
     (hRing : NTTRingLaws Concrete.concreteNTTRingOps)
     (hModel : CoefficientFailureBound .MLKEM512 Concrete.concreteNTTRingOps

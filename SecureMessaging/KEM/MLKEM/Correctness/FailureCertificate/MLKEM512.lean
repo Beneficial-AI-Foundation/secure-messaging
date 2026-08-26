@@ -32,7 +32,7 @@ The approved parameter sets are split into separate modules so that lake
 checks one large closed arithmetic proof at a time.
 -/
 
-open LatticeCrypto
+open ToVCVio LatticeCrypto
 open scoped ENNReal
 
 namespace MLKEM

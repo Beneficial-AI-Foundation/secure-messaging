@@ -13,7 +13,9 @@ Bad-flag-instrumented oracle handlers (`authInstImpl` and components) and the fo
 (`forgeReduction`, `forgeJointImpl`) used to bound the `game1` → `game2` gap.
 -/
 
-open OracleSpec OracleComp ENNReal PRFScheme AEADScheme
+namespace EtM
+
+open ToVCVio OracleSpec OracleComp ENNReal PRFScheme AEADScheme
 
 variable {K_e K_m M AD C_e T : Type}
   [DecidableEq AD] [DecidableEq C_e] [DecidableEq T]
@@ -70,6 +72,42 @@ noncomputable def authInstImpl (se : DetSEAlg K_e M C_e) (b : Bool) (ke : K_e) :
       (StateT (EtmGameState AD C_e T × Bool) ProbComp) :=
   authUnifImpl (AD := AD) (C_e := C_e) (T := T) + authEncImpl (AD := AD) (T := T) se ke +
     authDecImpl (AD := AD) (T := T) se b ke
+
+/-- Fixed-key auth handler without the `forged` bookkeeping flag. The parameter
+`b` selects real decryption on a valid tag (`true`) or unconditional rejection
+after the random-oracle query (`false`). -/
+noncomputable def authPlainImpl (se : DetSEAlg K_e M C_e) (b : Bool) (ke : K_e) :
+    QueryImpl (aeadOneTimeCCASpec AD M (C_e × T))
+      (StateT (EtmGameState AD C_e T) ProbComp) :=
+  let encImpl : QueryImpl (AD × M →ₒ Option (C_e × T))
+      (StateT (EtmGameState AD C_e T) ProbComp) :=
+    fun (ad, m) => do
+      let (challenge, qc) ← get
+      match challenge with
+      | some _ => pure none
+      | none => do
+        let (c, qc') ←
+          (pure (se.encrypt ke m) : StateT (TagCache AD C_e T) ProbComp C_e).run qc
+        let (t, qc'') ← (((AD × C_e) →ₒ T).randomOracle (ad, c)).run qc'
+        set (some (c, t), qc'')
+        return some (c, t)
+  let decImpl : QueryImpl (AD × (C_e × T) →ₒ Option M)
+      (StateT (EtmGameState AD C_e T) ProbComp) :=
+    fun (ad, (c, t)) => do
+      let (challenge, qc) ← get
+      if challenge == some (c, t) then pure none
+      else do
+        let verifyTag : StateT (TagCache AD C_e T) ProbComp Bool :=
+          if b then do
+            let t' ← ((AD × C_e) →ₒ T).randomOracle (ad, c)
+            pure (t == t')
+          else do
+            let _ ← ((AD × C_e) →ₒ T).randomOracle (ad, c)
+            pure false
+        let (ok, qc') ← verifyTag.run qc
+        set (challenge, qc')
+        if ok then pure (se.decrypt ke c) else pure none
+  gameUnifImpl (AD := AD) (C_e := C_e) (T := T) + encImpl + decImpl
 
 /-- Forge reduction: a `OracleComp.ForgeAdversary` over `forgeSpec (AD × C_e) T` built from the
 AEAD adversary at a fixed key `ke`. It is a skeleton instantiation (`spec = forgeSpec`) that
@@ -144,3 +182,5 @@ noncomputable def forgeJointImpl (se : DetSEAlg K_e M C_e) (ke : K_e) :
         if hit then pure (se.decrypt ke c) else pure none :
       QueryImpl (AD × (C_e × T) →ₒ Option M)
         (StateT (EtmGameState AD C_e T × OracleComp.ForgeState (AD × C_e) T) ProbComp))
+
+end EtM

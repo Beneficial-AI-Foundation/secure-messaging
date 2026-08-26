@@ -34,7 +34,7 @@ This module imports the ML-KEM-512 arithmetic check to serialize the heavy
 closed arithmetic proofs in lake order.
 -/
 
-open LatticeCrypto
+open ToVCVio LatticeCrypto
 open scoped ENNReal
 
 namespace MLKEM

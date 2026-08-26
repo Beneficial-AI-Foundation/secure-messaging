@@ -36,6 +36,8 @@ of three recurring shapes, all closed by `vcvSupport`:
   handled by the explicit pair closers below.
 -/
 
+namespace ToVCVio
+
 /-- Simplify common `StateT` and support combinators in a support hypothesis. -/
 macro "vcv_simp_support" " at " h:ident : tactic =>
   `(tactic|
@@ -75,7 +77,7 @@ one-counter-bump send shapes, where the bumped record is definitionally equal
 to the goal's projection but not syntactically. -/
 macro "vcvSupport" : tactic =>
   `(tactic|
-    (simp only [StateT.run_bind, StateT.run_get, StateT.run_set, StateT.run_monadLift,
+    (try simp only [StateT.run_bind, StateT.run_get, StateT.run_set, StateT.run_monadLift,
       monadLift_self, StateT.run_pure, pure_bind, bind_assoc, support_bind,
       support_pure, Set.mem_iUnion, Set.mem_singleton_iff] at *
      try casesm* Exists _, _ ∧ _
@@ -141,3 +143,5 @@ private lemma exp_bumpA (σ : VcvSupportExampleState) (z : Unit × VcvSupportExa
     σ.tA ≤ z.2.tA ∧ σ.tB ≤ z.2.tB := by
   unfold bumpA at hz
   vcvSupport
+
+end ToVCVio

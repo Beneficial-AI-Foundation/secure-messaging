@@ -36,7 +36,7 @@ so the kernel checks are split into bounded blocks and then reassembled.  The
 computation.
 -/
 
-open LatticeCrypto
+open ToVCVio LatticeCrypto
 open scoped ENNReal
 
 namespace MLKEM

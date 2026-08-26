@@ -74,7 +74,7 @@ coefficient” is the coefficient of `X^{q-1}` in the product with the reversed
 weight polynomial.
 -/
 
-open LatticeCrypto
+open ToVCVio LatticeCrypto
 open scoped ENNReal
 
 namespace MLKEM
@@ -302,20 +302,16 @@ private theorem productMeasure_enumMeasure_left (N : ℕ) (g : ℕ → ℤ) (G :
     productMeasure (enumMeasure N g) G =
       ∑ x ∈ Finset.range N, Finsupp.sum G fun b k =>
         AddMonoidAlgebra.single (g x * b) k := by
-  rw [enumMeasure, productMeasure]
+  rw [enumMeasure, productMeasure, AddMonoidAlgebra.coeff_sum]
   refine Eq.trans (Finsupp.sum_finsetSum_index
-    (fun _ => by
-      simp only [zero_mul, Finsupp.single_zero]
-      exact Finsupp.sum_fun_zero G)
+    (fun _ => by simp)
     fun a m₁ m₂ => ?hadd).symm ?_
   case hadd =>
     refine Eq.trans (Finsupp.sum_congr fun b k => ?_) Finsupp.sum_add
     rw [add_mul]
-    exact Finsupp.single_add _ _ _
+    exact AddMonoidAlgebra.single_add _ _ _
   refine Finset.sum_congr rfl fun x _ => ?_
-  refine (Finsupp.sum_single_index (by
-    simp only [zero_mul, Finsupp.single_zero]
-    exact Finsupp.sum_fun_zero G)).trans ?_
+  refine (Finsupp.sum_single_index (by simp)).trans ?_
   exact Finsupp.sum_congr fun b _ => by rw [one_mul]
 
 /-- The packing of `productMeasure` with an enumerated left factor, as a window sum of
@@ -388,12 +384,13 @@ noncomputable def seqMeasure (q : ℕ) (f : ℕ → ℕ) : IntMeasure :=
 
 theorem seqMeasure_apply {q t : ℕ} (f : ℕ → ℕ) (ht : t < q) :
     seqMeasure q f ((t : ℕ) : ℤ) = f t := by
+  rw [seqMeasure, AddMonoidAlgebra.coeff_sum]
   refine (Finsupp.finsetSum_apply _ _ _).trans ?_
   have hcong : ∀ x ∈ Finset.range q,
       AddMonoidAlgebra.single ((x : ℕ) : ℤ) (f x) ((t : ℕ) : ℤ) =
         if x = t then f x else 0 := by
     intro x _
-    rw [Finsupp.single_apply]
+    rw [AddMonoidAlgebra.coeff_single, Finsupp.single_apply]
     exact if_congr Int.natCast_inj rfl rfl
   rw [Finset.sum_congr rfl hcong, Finset.sum_ite_eq' (Finset.range q) t fun x => f x,
     if_pos (Finset.mem_range.mpr ht)]
@@ -401,6 +398,7 @@ theorem seqMeasure_apply {q t : ℕ} (f : ℕ → ℕ) (ht : t < q) :
 theorem measureWindow_seqMeasure (q : ℕ) (f : ℕ → ℕ) :
     MeasureWindow (seqMeasure q f) 0 ((q : ℤ) - 1) := by
   intro v hv
+  rw [seqMeasure, AddMonoidAlgebra.coeff_sum] at hv
   have hex : ∃ t ∈ Finset.range q, AddMonoidAlgebra.single ((t : ℕ) : ℤ) (f t) v ≠ 0 := by
     by_contra hall
     push Not at hall
@@ -457,7 +455,7 @@ private theorem foldedNoiseMeasure_apply_block (p : ParameterSet) {lo : ℤ} {m 
       ∑ j ∈ Finset.range m,
         coefficientNoiseMeasure p (lo + ((modulus * j + t : ℕ) : ℤ)) := by
   rw [foldedNoiseMeasure, mapDomain_apply_eq_sum]
-  have hsub : (coefficientNoiseMeasure p).support ⊆
+  have hsub : (coefficientNoiseMeasure p).coeff.support ⊆
       (Finset.range (modulus * m)).image fun i : ℕ => lo + (i : ℤ) := by
     intro v hv
     have hw := hwin v (Finsupp.mem_support_iff.mp hv)

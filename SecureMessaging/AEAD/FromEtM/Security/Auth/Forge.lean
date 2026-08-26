@@ -15,6 +15,8 @@ by the forge reduction (`tvDist_authInst_le_probForge`, `probForge_authInst_le_f
 `forgeReduction_isQueryBoundP`).
 -/
 
+namespace EtM
+
 open OracleSpec OracleComp ENNReal PRFScheme AEADScheme
 
 variable {K_e K_m M AD C_e T : Type}
@@ -37,16 +39,18 @@ theorem game2'_eq_game2
   unfold game2' game2 etmGameSkeleton
   simp only [bind_pure_comp, ← StateT.run'_eq]
   refine probOutput_bind_congr' se.keygen true (fun ke => ?_)
-  -- Per key: the two interpreters differ only in `decImpl`'s `verifyTag` — `game2'` makes a
-  -- discarded random-oracle query at `(ad, c)` before rejecting, `game2` rejects directly.
-  -- Reduce the `Pr` equality to a `𝒟` equality and apply the generic discarded-query brick.
+  -- Per key, the two query implementations differ only in `decImpl`'s `verifyTag`: `game2'`
+  -- makes a discarded random-oracle query at `(ad, c)` before rejecting, while `game2`
+  -- rejects directly. Reduce the `Pr` equality to a `𝒟` equality and apply discarded-query
+  -- removal.
   rw [probOutput_def, probOutput_def]
   refine congrFun (congrArg DFunLike.coe ?_) true
   refine OracleComp.evalDist_simulateQ_run'_discardRO
     (D := AD × C_e) (R := T) _ _ ?h₁ ?hstep adv none ∅
   case h₁ =>
-    -- `game2`'s interpreter respects the RO: the only cache access is `computeTag = randomOracle`
-    -- inside `encrypt`; `verifyTag = pure false` and the unif oracle never touch the cache.
+    -- `game2`'s query implementation respects the RO: the only cache access is
+    -- `computeTag = randomOracle` inside `encrypt`; `verifyTag = pure false` and the uniform
+    -- handler do not access the cache.
     -- Exhibit the body `B` that recomputes each oracle's response/state as an `OracleComp` over
     -- `unifSpec + ((AD × C_e) →ₒ T)` (uniform sampling for unif, an RO query for the challenge
     -- tag, pure transitions everywhere else).
@@ -66,7 +70,7 @@ theorem game2'_eq_game2
             pure (some (se.encrypt ke m, t'), some (se.encrypt ke m, t')))
       · -- decrypt: reject unconditionally (`verifyTag = pure false`), state unchanged.
         exact pure (none, s)
-    · -- The body matches the first interpreter's run, reshaped.
+    · -- The body matches the first query implementation's handler run, reshaped.
       rcases t with (n | ⟨ad, m⟩) | ⟨ad, c, tg⟩
       · -- unif: both sides forward a uniform sample, cache + challenge unchanged.
         simp only [QueryImpl.add_apply_inl, simulateQ_bind, simulateQ_spec_query,
@@ -115,6 +119,40 @@ theorem game2'_eq_game2
         refine ⟨(ad, c), ?_⟩
         simp [QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get, StateT.run_set,
           StateT.run_pure, beq_iff_eq, hg, map_bind, Functor.map_map]
+
+omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
+/-- Dropping the write-only `forged` flag from `authInstImpl` yields the
+uninstrumented fixed-key auth handler, independently of the initial flag. -/
+lemma simulateQ_authInstImpl_run'_eq_authPlainImpl
+    (se : DetSEAlg K_e M C_e) (b : Bool) (ke : K_e)
+    (adv : OneTimeCCAAdversary AD M (C_e × T))
+    (s : EtmGameState AD C_e T) (forged : Bool) :
+    (simulateQ (authInstImpl se b ke) adv).run' (s, forged) =
+      (simulateQ (authPlainImpl se b ke) adv).run' s := by
+  refine run'_simulateQ_eq_of_query_map_eq _ _ Prod.fst ?_ adv (s, forged)
+  intro t state
+  obtain ⟨⟨ch, qc⟩, flag⟩ := state
+  rcases t with (n | ⟨ad, m⟩) | ⟨ad, c, tg⟩
+  · simp [authInstImpl, authUnifImpl, authPlainImpl, gameUnifImpl,
+      QueryImpl.add_apply_inl, QueryImpl.liftTarget_apply,
+      StateT.run_monadLift, Prod.map, Functor.map_map]
+  · cases ch <;>
+      simp [authInstImpl, authEncImpl, authPlainImpl, QueryImpl.add_apply_inl,
+        QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get, StateT.run_set,
+        StateT.run_pure, Prod.map, Functor.map_map]
+  · cases ch with
+    | none =>
+      cases b <;>
+        simp [authInstImpl, authDecImpl, authPlainImpl, QueryImpl.add_apply_inr,
+          StateT.run_bind, StateT.run_get, StateT.run_set,
+          Prod.map, Functor.map_map, ← apply_ite]
+    | some val =>
+      by_cases hguard : val = (c, tg)
+      all_goals
+        cases b <;>
+          simp [authInstImpl, authDecImpl, authPlainImpl, QueryImpl.add_apply_inr,
+            StateT.run_bind, StateT.run_get, StateT.run_set, StateT.run_pure,
+            Prod.map, Functor.map_map, ← apply_ite, beq_iff_eq, hguard]
 
 omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
 /-- Per-key identical-until-bad bound (auth hop, brick 3): the flag-instrumented `b = true`
@@ -205,12 +243,13 @@ theorem tvDist_authInst_le_probForge
           StateT.run_get, pure_bind, ↓reduceIte, hg, Bool.false_or, StateT.run_monadLift,
           monadLift_self, bind_pure_comp, StateT.run_set, bind_map_left, Bool.false_eq_true,
           ite_self, StateT.run_map, map_pure, Functor.map_map]
-        refine probOutput_bind_congr' _ _ fun p => ?_
+        rw [map_eq_bind_pure_comp]
+        refine probOutput_bind_congr' (m := ProbComp) _ _ fun p => ?_
         obtain ⟨t', qc'⟩ := p
         -- `tg = t'` (forged): both outputs have flag `true` ≠ target flag `false` → both 0;
         -- `tg ≠ t'` (reject): output `none` regardless of `b`.
         by_cases hok : tg = t' <;>
-          simp [hok, ← OracleComp.pure_def, probOutput_pure_eq_indicator,
+          simp [hok, probOutput_pure_eq_indicator,
             Set.mem_singleton_iff, Prod.ext_iff]
   exact OracleComp.ProgramLogic.Relational.tvDist_simulateQ_le_probEvent_output_bad_base
     (authInstImpl se true ke) (authInstImpl se false ke) adv (none, ∅)
@@ -286,7 +325,7 @@ theorem probForge_authInst_le_forgeReduction
       -- composition then reindexes definitionally to the joint `forged` flag.
       unfold forgeReduction etmGameSkeleton
       simp only [pure_bind, simulateQ_map, StateT.run_map, probEvent_map,
-        Function.const, StateT.run_bind, StateT.run_pure,
+        Function.const, StateT.run_pure,
         bind_pure_comp]
       rw [OracleComp.simulateQ_mapStateTBase_run_eq_map_flattenStateT]
       -- The flattened collapsed handler equals the hand-written joint handler
@@ -313,8 +352,7 @@ theorem probForge_authInst_le_forgeReduction
             QueryImpl.add_apply_inl, QueryImpl.liftTarget_apply, QueryImpl.ofLift_apply,
             forgeJointImpl,
             StateT.run_monadLift, StateT.run_mk,
-                  
-            bind_pure_comp, Functor.map_map,
+            bind_pure_comp,
             monadLift_self]
           erw [OracleComp.liftM_run_StateT, OracleComp.liftM_run_StateT]
           rw [simulateQ_bind]
@@ -356,10 +394,10 @@ theorem probForge_authInst_le_forgeReduction
           · simp [heq, QueryImpl.add_apply_inr, forgeJointImpl,
               StateT.run_bind, StateT.run_get,
               StateT.run_monadLift, StateT.run_pure,
-              simulateQ_pure, bind_pure_comp, Functor.map_map,
+              simulateQ_pure, bind_pure_comp,
               pure_bind]
           · simp only [add_apply_inr, liftM_pure, Prod.mk.eta, StateT.run_monadLift,
-              monadLift_self, bind_pure_comp, Functor.map_map, liftM_map, bind_map_left, pure_bind,
+              monadLift_self, bind_pure_comp, liftM_map, bind_map_left, pure_bind,
               beq_iff_eq, QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get, heq,
               ↓reduceIte, StateT.run_set, simulateQ_bind, hvfwd, OracleComp.verifyAgainstRO,
               QueryImpl.withCaching_apply, decide_not, bind_assoc, map_bind, forgeJointImpl,
@@ -628,7 +666,7 @@ theorem forgeReduction_isQueryBoundP
       obtain ⟨ch, qc⟩ := s
       cases ch with
       | none =>
-          simp only [add_apply_inr, StateT.run_pure, liftM_pure, bind_pure, StateT.run_monadLift,
+          simp only [add_apply_inr, StateT.run_pure, liftM_pure, StateT.run_monadLift,
             monadLift_self, bind_pure_comp, liftM_map, bind_map_left, pure_bind, StateT.run_bind,
             StateT.run_get, StateT.run_map, StateT.run_set, map_pure, Functor.map_map,
             isQueryBoundP_map_iff]
@@ -647,7 +685,7 @@ theorem forgeReduction_isQueryBoundP
       exact isQueryBoundP_pure OracleComp.isVerifyQuery (none, some (c, tg), qc) 1
     · simp only [beq_iff_eq, hg, ↓reduceIte, StateT.run_bind, StateT.run_set, pure_bind]
       erw [OracleComp.liftM_run_StateT, OracleComp.liftM_run_StateT]
-      simp only [StateT.run_pure, bind_assoc, pure_bind]
+      simp only [bind_assoc, pure_bind]
       refine (isQueryBoundP_bind (m := 0)
         ((isQueryBoundP_query_iff (p := OracleComp.isVerifyQuery)
           (Sum.inr ((ad, c), tg)) 1).mpr (fun _ => Nat.one_pos))
@@ -655,3 +693,4 @@ theorem forgeReduction_isQueryBoundP
       rcases hb : (x : Bool) with _ | _ <;>
         simp only [Bool.false_eq_true, ↓reduceIte, StateT.run_pure, isQueryBoundP_pure]
 
+end EtM

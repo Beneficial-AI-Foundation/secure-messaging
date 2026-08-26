@@ -46,6 +46,8 @@ open scoped OracleComp.ProgramLogic
 
 namespace ddhCKA
 
+open DDH
+
 variable {F : Type} [Field F] [Fintype F] [DecidableEq F] [SampleableType F]
 variable {G : Type} [AddCommGroup G] [Module F G] [SampleableType G]
 variable {gen : G}
@@ -682,7 +684,8 @@ lemma reduction_honest_param_rand_step_rel
                 isOtherSendBeforeChall gp {sR with tB := sR.tB + 1} = true := by
               simpa [h_cpA] using h_embed
             have h_tB_embed : sR.tB + 1 = gp.challengeEpoch - 1 := by
-              simpa [isOtherSendBeforeChall, GameState.tP, h_cpA] using h_other
+              simpa [isOtherSendBeforeChall, GameState.tP, CKAParty.other, h_cpA] using
+                h_other
             have h_tB_embedH : sH.tB + 1 = gp.challengeEpoch - 1 := by
               omega
             have h_stAR : sR.stA = (.recvReady y : CKAState F G) := by
@@ -1656,14 +1659,7 @@ lemma evalDist_reduction_honest_param_rand_eq
   · intro t sR sH hrel
     exact reduction_honest_param_rand_step_rel
       (gen := gen) gp hΔFS hΔPCS a b gT t sR sH hrel
-  · change reductionHonestRelRand gp gen a b gT
-      (initGameState
-        (CKAState.sendReady (x₀ • gen) : CKAState F G)
-        (CKAState.recvReady x₀ : CKAState F G))
-      (initGameState
-        (CKAState.sendReady (x₀ • gen) : CKAState F G)
-        (CKAState.recvReady x₀ : CKAState F G))
-    refine ⟨?_, rfl, rfl, rfl, rfl, rfl, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+  · refine ⟨?_, rfl, rfl, rfl, rfl, rfl, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
     · refine ⟨?_, ?_⟩
       · rfl
       · exact ⟨x₀, rfl, rfl, rfl, rfl, rfl, rfl⟩

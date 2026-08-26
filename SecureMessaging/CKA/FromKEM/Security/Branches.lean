@@ -26,7 +26,7 @@ This layer defines the branch experiments and their advantage bridges only. It
 does not prove the hidden-state simulation or the key-injection equivalences.
 -/
 
-open OracleSpec OracleComp ENNReal KEMScheme
+open ToVCVio OracleSpec OracleComp ENNReal KEMScheme
 
 namespace kemCKA
 

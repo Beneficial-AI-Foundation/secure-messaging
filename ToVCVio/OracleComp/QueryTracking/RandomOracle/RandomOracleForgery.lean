@@ -10,48 +10,20 @@ import VCVio.OracleComp.Constructions.SampleableType
 import VCVio.OracleComp.SimSemantics.SimulateQ
 
 /-!
-# Lazy Random-Oracle One-Time Unforgeability (missing VCVio bricks)
+# Lazy Random-Oracle One-Time Unforgeability
 
-This file isolates the probabilistic "bricks" that the Encrypt-then-MAC authenticity hop
-(`game1_game2_le_auth` in `SecureMessaging.AEAD.FromEtM.Security`) needs but that VCVio does
-not yet provide as assembled lemmas. They are generic facts about the lazy random oracle and are
-independent of `SecureMessaging`.
+This file proves a query-budgeted unforgeability bound for an eval-and-verify
+interface backed by a shared lazy random oracle.
 
-## Brick 1 — `probForge_le_queryBound_div_card`
+An adversary has two interfaces to a shared lazy random function `ρ : D → R`:
 
-Consider an adversary with two oracles over a *shared* lazy random function `ρ : D → R`:
+- an **eval** oracle `D →ₒ R` returning `ρ(d)`; and
+- a **verify** oracle `(D × R) →ₒ Bool` reporting whether `r = ρ(d)`. The
+  verify oracle reveals only the accept/reject bit, not `ρ(d)`.
 
-- an **eval** oracle `D →ₒ R` returning `ρ(d)` (models the EtM encryption oracle generating
-  the challenge tag `t* = ρ(N*,A*,C*)`); and
-- a **verify** oracle `(D × R) →ₒ Bool` reporting whether `r = ρ(d)` (models the EtM
-  decryption oracle). The adversary never sees `ρ`'s outputs through verify — only the
-  accept/reject bit.
-
-The `forged` flag is set when a verify query `(d, r)` has `r = ρ(d)` **at a point `d` that
-was not eval'd before that verify query**. Then the probability that `forged` ends up set is
-at most `q / |R|`, where `q` upper-bounds the number of verify queries.
-
-The "not eval'd before" clause is essential: a verify at an eval'd point with the revealed
-value would forge with probability one (the adversary knows `ρ(d)`). In the EtM game this
-clause is supplied by the **challenge-ciphertext guard** — a decryption query on the
-challenge `(C*,T*)` (the one revealed pair) is disallowed, and a query on `(C*,T≠T*)` rejects
-because `ρ(N*,A*,C*) = T* ≠ T`.
-
-This is the formal content NRS14 (*Reconsidering Generic Composition*, EUROCRYPT 2014) leaves
-implicit for scheme A5: **Lemma 2** (the `q_d` factor — a hybrid over decryption queries) and
-**Appendix A.2, Case 1** (the `1/|R|` — `ρ_tag` is uniform on a fresh point). The rigorous
-bound is by **per-distinct-point** accounting: for each distinct non-eval'd point `P`, `ρ(P)`
-is uniform and unrevealed, so the probability that any of the `k_P` tags tried there equals
-`ρ(P)` is at most `k_P / |R|`; summing over distinct points gives `Σ_P k_P / |R| = q / |R|`.
-
-(The discarded-query removal behind `game2' = game2` is handled separately, at the
-`simulateQ randomOracle` level, by `OracleComp.evalDist_simulateQ_run'_discardRO` in
-`ToVCVio.OracleComp.QueryTracking.RandomOracle.DiscardQuerySimulate` — accessing the cache only via
-`randomOracle`, which avoids the false bare-`StateT` formulation that a raw cache read would break.)
-
-## Status
-
-`probForge_le_queryBound_div_card` is proved (sorry-free). TODO(upstream): contribute to VCVio.
+The `forged` flag is set by a successful verify query at a point absent from
+the evaluated set. If the adversary makes at most `q` verify queries, then
+`probForge_le_queryBound_div_card` bounds the forgery probability by `q / |R|`.
 -/
 
 open OracleComp OracleSpec ENNReal
@@ -62,7 +34,7 @@ universe u
 
 variable {D R : Type} [DecidableEq D] [DecidableEq R] [SampleableType R]
 
-/-! ## Brick 1: eval + verify lazy-RO unforgeability -/
+/-! ## Eval-and-verify lazy-RO unforgeability -/
 
 /-- Oracle interface for a one-time-unforgeability adversary: uniform randomness, an **eval**
 oracle returning `ρ(d)`, and a **verify** oracle reporting whether `r = ρ(d)`. -/
@@ -74,7 +46,7 @@ noncomputable instance [Fintype R] [Inhabited R] : IsUniformSpec (forgeSpec D R)
   IsUniformSpec.ofFintypeInhabited _
 
 /-- A one-time-unforgeability adversary: outputs nothing observable; we only care whether it
-ever made a successful verify query at a not-previously-eval'd point. -/
+made a successful verify query at a point absent from the set of evaluated points. -/
 abbrev ForgeAdversary (D R : Type) := OracleComp (forgeSpec D R) Unit
 
 /-- State for the forgery experiment: the lazy random-oracle cache for `D →ₒ R`, the set of
@@ -125,13 +97,10 @@ instance : DecidablePred (isVerifyQuery (D := D) (R := R)) :=
 
 /-- Query-bound transfer for an `add` handler whose left side never matches the predicate.
 
-This is `VCVio`'s `IsQueryBoundP.simulateQ_run_add_inr_of_step` with the spurious
-`[(spec₁ + spec₂).Fintype]`/`[(spec₁ + spec₂).Inhabited]` requirements dropped: the upstream
-wrapper carries them but never uses them (its body only delegates to `simulateQ_run_of_step`, which
-needs nothing on the adversary spec). Our EtM adversary spec mixes the unbounded message/ciphertext
-types `M`/`C_e`, so it has no `Fintype`; only `[IsUniformSpec spec']` on the *base* oracle is real.
-
-TODO(upstream): relax the `_add_*_of_step` wrappers to drop the unused adversary-spec instances. -/
+The proof delegates to `simulateQ_run_of_step`, so it requires
+`[IsUniformSpec spec']` only for the base oracle. It does not require finite or
+inhabited ranges for the adversary spec `spec₁ + spec₂`, so the adversary
+interface may contain unbounded query-domain or response types. -/
 theorem simulateQ_run_add_inr_of_step
     {ι₁ ι₂ ι' : Type u} {spec₁ : OracleSpec ι₁} {spec₂ : OracleSpec ι₂}
     {spec' : OracleSpec ι'} [IsUniformSpec spec'] {σ α : Type u}
@@ -158,21 +127,13 @@ theorem simulateQ_run_add_inr_of_step
       | inr t => exact hstep_np₂ t hnp s)
     s
 
-/-! ### Generalized induction kernel for Brick 1
+/-! ### Generalized induction invariant
 
-The bound is proved by induction on the adversary computation, generalizing over the starting
-random-oracle cache `cache` and the eval'd-point set `evald`, under the invariant `hnc`: every
-non-eval'd point is *uncached* (`d ∉ evald → cache d = none`).
-
-`hnc` is what makes the accounting close without tracking exclusions. Since the forge flag can
-only be set at a non-eval'd point, and such a point is uncached, every forging verify reads a
-*fresh* uniform value `ρ(d)`: it hits its queried tag with probability `1/|R|`. On a miss the
-freshly-sampled value is irrelevant to the forge flag (a later verify at `d` re-reads the same
-value, but a hit there would be at the same fresh draw) — formalized by the resampling marginal
-`evalDist_forgeBit_resample`/`forge_resample_run`, which collapses the freshly-cached value back
-to the bare uncached cache so the induction hypothesis at `n - 1` applies. Dropping the `u = r`
-restriction on the miss sum (union-bound slack) then gives `Pr[forged] ≤ 1/|R| + (n-1)/|R| =
-n/|R|`. This is the formal content of NRS14 Lemma 2 + Appendix A.2 Case 1.
+The induction generalizes over `cache` and `evald` under
+`hnc : ∀ d, d ∉ evald → cache d = none`. Thus each verify query at a
+non-evaluated point reads a fresh uniform value. The resampling lemmas below
+remove the cached value from the forge-flag marginal before applying the
+induction hypothesis.
 -/
 
 omit [DecidableEq R] in
@@ -254,22 +215,9 @@ private theorem probForge_run_eq_zero_of_isEmpty [IsEmpty R]
 
 /-! ### Forge-resampling at a non-eval'd point (the lazy-sampling forgetting lemma)
 
-The single hard kernel needs the *conditional law* of the cached value at a non-eval'd point: when
-a verify query re-hits a non-eval'd point `d`, the cached value is not a fixed `v` but is uniform
-over `R` conditioned on the run so far. We make this explicit by a **forgetting/resampling lemma**:
-pre-sampling a fresh uniform value at a *non-eval'd* point `d` and writing it into the cache has the
-*same forge probability* as not pre-sampling at all.
-
-The lemma is true for the **forge flag** specifically (not the full state distribution, which
-differs on the cache value at `d`): the only way the cached value at `d` influences the forge flag
-is via a verify query at `d` *while `d` is still non-eval'd* — and at the first such access the two
-sides pin to the same value (renaming the two uniform draws). Once `d` becomes eval'd, a verify at
-`d` no longer sets the forge flag (`decide (d ∉ evald) = false`), so the cached value at `d` is
-invisible to the forge flag thereafter. This is exactly the forge-only invisibility that
-distinguishes this from a full distributional resampling. It mirrors
-`evalDist_uniformSample_bind_simulateQ_roImpl_run'` in
-`ToVCVio.OracleComp.QueryTracking.RandomOracle.DiscardQuerySimulate`,
-specialized to the forge-flag marginal of `forgeImpl`. -/
+For `d ∉ evald` and `cache d = none`, pre-sampling `u ← $ᵗ R` and starting
+from `cache.cacheQuery d u` preserves the forge-flag distribution. This is a
+marginal equality; the full state distributions differ at cache entry `d`. -/
 
 /-- The forge-flag marginal of running `oa` from state `s`: the `ProbComp Bool` that returns the
 final forge flag. The forge probability `Pr[forged | run]` is `Pr[= true | forgeBit oa s]`. -/
@@ -570,39 +518,9 @@ private lemma forge_resample_run :
     true
 
 open scoped Classical in
-/-- **Generalized forgery-bound (Brick 1 kernel).**
-
-For any adversary computation `oa` and starting cache/eval'd-set, if `oa` makes at most `n` verify
-queries and the *uncached invariant* `hnc` holds — every non-eval'd point `d` is uncached
-(`cache d = none`) — then the probability the forged flag becomes set (starting unset) is at most
-`n / |R|`.
-
-`probForge_le_queryBound_div_card` instantiates this at the empty initial cache, where `hnc` holds
-vacuously, recovering the headline bound.
-
-**Proof.** Induct on `oa` (`OracleComp.inductionOn`), unfolding `simulateQ forgeImpl` one query at
-a time:
-
-* `pure`: forge stays unset; probability `0 ≤ n/|R|`.
-* `unif` query: forge state threaded unchanged; budget unchanged; apply the IH.
-* `eval` query at `d`: samples `ρ(d)`, adds `d` to `evald`; every still-non-eval'd point is
-  untouched, so `hnc` is preserved; budget unchanged; apply the IH.
-* `verify` query `(d, r)`: consumes one unit of budget. Split on `d ∈ evald`:
-  - `d ∈ evald`: the forge flag cannot be newly set (`decide (d ∉ evald) = false`); `hnc` is
-    preserved (the verify at the eval'd `d` only caches `d`); the IH at `n - 1` gives
-    `≤ (n-1)/|R| ≤ n/|R|`.
-  - `d ∉ evald`: by `hnc`, `cache d = none`, so the lazy RO draws `u : R` uniformly
-    (`withCaching_run_none` ↝ `$ᵗ R`). Decompose over the draw `u` (`probEvent_freshVerify_tsum`):
-    the *hit* `u = r` sets forge (bounded by `1`, total weight `1/|R|`); the *miss* terms `u ≠ r`
-    keep forge unset and cache `u`. After re-adding the nonnegative `u = r` term, the miss terms sum
-    to `∑ᵤ Pr[=u] · Pr[forged | run (mx false) from cacheQuery d u]`, which by **forge-resampling**
-    (`forge_resample_run`, the lazy-sampling forgetting lemma — valid because the cached value at a
-    non-eval'd point is invisible to the forge flag) equals
-    `Pr[forged | run (mx false) from the bare uncached cache]`. The bare cache still
-    satisfies `hnc`,
-    so the IH at `n - 1` bounds it by `(n-1)/|R|`. Total telescopes to `1/|R| + (n-1)/|R| = n/|R|`
-    (NRS14 App. A.2 Case 1 / Lemma 2). The forgetting step supplies the conditional uniformity that
-    the older fixed-`v` formulation could not see. -/
+/-- If `oa` makes at most `n` verify queries and every point outside `evald`
+is absent from `cache`, then the probability of setting the forge flag from
+`false` is at most `n / |R|`. -/
 private theorem probForge_run_le [Fintype R]
     (oa : ForgeAdversary D R) (n : ℕ)
     (cache : (D →ₒ R).QueryCache) (evald : Finset D)
@@ -621,7 +539,7 @@ private theorem probForge_run_le [Fintype R]
         simp only [simulateQ_pure, StateT.run] at hz
         rw [hz] at hforge
         exact Bool.false_ne_true hforge
-      rw [h0]; exact zero_le'
+      rw [h0]; exact zero_le
   | query_bind t mx ih =>
       -- Unfold one simulated query; split on the oracle index.
       rw [simulateQ_query_bind]
@@ -665,7 +583,8 @@ private theorem probForge_run_le [Fintype R]
               (fun rc => pure (rc.1, (rc.2, insert t evald, false))) :=
           forgeImpl_run_eval t (cache, evald, false)
         rw [hstep]
-        -- Bound over the eval step's post-state: forge flag stays `false`, `t` is now eval'd.
+        -- Bound over the eval step's post-state: forge remains `false`, and `t` is recorded
+        -- in the set of evaluated points.
         refine probEvent_bind_le_of_forall_le ?_
         rintro ⟨resp, s'⟩ hxsupp
         -- Read off the post-state from the `pure` in `hstep`'s normal form.
@@ -831,7 +750,7 @@ flag. It never observes `ρ`'s outputs through verify (only accept/reject), and 
 counted at eval'd points; so each distinct non-eval'd point contributes at most
 `(#tags tried there)/|R|` and the total is `q/|R|`.
 
-This is the brick the EtM authenticity hop reduces to. See the module docstring. -/
+See the module docstring for the per-distinct-point accounting argument. -/
 theorem probForge_le_queryBound_div_card [Fintype R]
     (adv : ForgeAdversary D R) (q : ℕ)
     (hq : adv.IsQueryBoundP isVerifyQuery q) :

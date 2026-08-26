@@ -32,11 +32,13 @@ an internal sample), then use generic probability lemmas to couple the lazy
 outer samples with the eager samples produced inside `ckaSecurityImpl`.
 -/
 
-open OracleSpec OracleComp ENNReal
+open ToVCVio OracleSpec OracleComp ENNReal
 open OracleComp.ProgramLogic.Relational
 open scoped OracleComp.ProgramLogic
 
 namespace ddhCKA
+
+open DDH
 
 variable {F : Type} [Field F] [Fintype F] [DecidableEq F] [SampleableType F]
 variable {G : Type} [AddCommGroup G] [Module F G] [SampleableType G]
@@ -156,7 +158,7 @@ lemma probOutput_real_send_coupling
         (simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen))
           (k (some (x • gen, x • peer)))).run (post x)
       pure out] := by
-  exact probOutput_two_sample_active_param_eq
+  simpa only [map_eq_bind_pure_comp, Function.comp_def] using probOutput_two_sample_active_param_eq
     (lazy := fun a b x => Prod.fst <$> (simulateQ (honestImplParamReal gp gen a b)
       (k (some (x • gen, x • peer)))).run (post x))
     (base := fun x => Prod.fst <$> (simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen))
@@ -208,7 +210,8 @@ lemma probOutput_rand_send_coupling
         (simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen))
           (k (some (x • gen, x • peer)))).run (post x)
       pure out] := by
-  exact probOutput_three_sample_active_param_eq
+  simpa only [map_eq_bind_pure_comp, Function.comp_def] using
+    probOutput_three_sample_active_param_eq
     (lazy := fun a b gT x => Prod.fst <$> (simulateQ (honestImplParamRand gp gen a b gT)
       (k (some (x • gen, x • peer)))).run (post x))
     (base := fun x => Prod.fst <$> (simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen))
@@ -302,8 +305,7 @@ lemma evalDist_eager_honest_lazy_eq_step_at_sendA_chal_B
         (oracleSendA (ddhCKA F G gen) ()).run s
       have h_o' : isOtherSendBeforeChall gp
           { s with stA := (.recvReady x : CKAState F G), tA := s.tA + 1 } = true := by
-        simp only [isOtherSendBeforeChall] at h_o ⊢
-        convert h_o using 2
+        simpa [isOtherSendBeforeChall, GameState.tP, h_cp] using h_o
       simp [honestSendAparam, oracleSendA, StateT.run_bind, StateT.run_get,
         pure_bind, h_v, h_cp, h_o', h_stA, ddhCKA, send]
     | sendReady h =>
@@ -360,9 +362,10 @@ lemma evalDist_eager_honest_lazy_eq_step_at_sendA_chal_B
       rw [eq_lhs, eq_rhs]
       have h_post_inv : ∀ v : F, gp.challengeEpoch - 1 ≤ (post v).tA := fun _ => by
         change gp.challengeEpoch - 1 ≤ s.tA + 1; omega
-      exact probOutput_real_send_coupling (gen := gen) gp h post k h_ih
-        (fun x b a => simulateQ_honest_param_a_indep_post_sendA (gen := gen) gp h_cp b
-          (k (some (x • gen, x • h))) (post x) (h_post_inv x) a x) y
+      simpa only [map_eq_bind_pure_comp, Function.comp_def] using
+        probOutput_real_send_coupling (gen := gen) gp h post k h_ih
+          (fun x b a => simulateQ_honest_param_a_indep_post_sendA (gen := gen) gp h_cp b
+            (k (some (x • gen, x • h))) (post x) (h_post_inv x) a x) y
   · -- Non-firing case: lazy = eager pointwise; reduce to passthrough.
     have h_pred_false :
         (validStep s.lastAction CKAAction.sendA &&
@@ -426,8 +429,7 @@ lemma evalDist_eager_honest_lazy_eq_step_at_sendB_chal_A
         (oracleSendB (ddhCKA F G gen) ()).run s
       have h_o' : isOtherSendBeforeChall gp
           { s with stB := (.recvReady x : CKAState F G), tB := s.tB + 1 } = true := by
-        simp only [isOtherSendBeforeChall] at h_o ⊢
-        convert h_o using 2
+        simpa [isOtherSendBeforeChall, GameState.tP, h_cp] using h_o
       simp [honestSendBparam, oracleSendB, StateT.run_bind, StateT.run_get,
         pure_bind, h_v, h_cp, h_o', h_stB, ddhCKA, send]
     | sendReady h =>
@@ -476,9 +478,10 @@ lemma evalDist_eager_honest_lazy_eq_step_at_sendB_chal_A
       rw [eq_lhs, eq_rhs]
       have h_post_inv : ∀ v : F, gp.challengeEpoch - 1 ≤ (post v).tB := fun _ => by
         change gp.challengeEpoch - 1 ≤ s.tB + 1; omega
-      exact probOutput_real_send_coupling (gen := gen) gp h post k h_ih
-        (fun x b a => simulateQ_honest_param_a_indep_post_sendB (gen := gen) gp h_cp b
-          (k (some (x • gen, x • h))) (post x) (h_post_inv x) a x) y
+      simpa only [map_eq_bind_pure_comp, Function.comp_def] using
+        probOutput_real_send_coupling (gen := gen) gp h post k h_ih
+          (fun x b a => simulateQ_honest_param_a_indep_post_sendB (gen := gen) gp h_cp b
+            (k (some (x • gen, x • h))) (post x) (h_post_inv x) a x) y
   · -- Non-firing case.
     have h_pred_false :
         (validStep s.lastAction CKAAction.sendB &&
@@ -530,7 +533,7 @@ lemma probOutput_real_challenge_coupling
         (simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen))
           (k (some (x • gen, x • peer)))).run (post x)
       pure out] := by
-  exact probOutput_two_sample_second_param_eq
+  simpa only [map_eq_bind_pure_comp, Function.comp_def] using probOutput_two_sample_second_param_eq
     (lazy := fun a b x => Prod.fst <$> (simulateQ (honestImplParamReal gp gen a b)
       (k (some (x • gen, x • peer)))).run (post x))
     (base := fun x => Prod.fst <$> (simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen))
@@ -613,7 +616,8 @@ lemma probOutput_rand_challenge_coupling
         (simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen))
           (k (some (x • gen, outKey)))).run (post x)
       pure out] := by
-  exact probOutput_three_sample_second_third_param_eq
+  simpa only [map_eq_bind_pure_comp, Function.comp_def] using
+    probOutput_three_sample_second_third_param_eq
     -- `lazy a b gT x outKey`: run the lazy continuation with sampled
     -- parameters `a`, `b`, `gT` and fixed response parameters `x`, `outKey`.
     (lazy := fun a b gT x outKey =>
@@ -678,8 +682,7 @@ lemma evalDist_eager_honest_lazy_eq_step_at_challA_chal_A
       have h_e' : isChallengeEpoch gp
           { s with stA := (.recvReady x : CKAState F G),
                    tA := s.tA + 1 } = true := by
-        simp only [isChallengeEpoch] at h_e ⊢
-        convert h_e using 2
+        simpa [isChallengeEpoch, GameState.tP, h_cp] using h_e
       have h_beq : (gp.challengedParty == CKAParty.A) = true := by simp [h_cp]
       simp [honestChallAparam, oracleChallA, StateT.run_bind, StateT.run_get,
         pure_bind, h_v, h_beq, h_e', h_stA, ddhCKA, send]
@@ -735,9 +738,10 @@ lemma evalDist_eager_honest_lazy_eq_step_at_challA_chal_A
       rw [eq_lhs, eq_rhs]
       have h_post_inv : ∀ v : F, gp.challengeEpoch ≤ (post v).tA := fun _ => by
         change gp.challengeEpoch ≤ s.tA + 1; omega
-      exact probOutput_real_challenge_coupling (gen := gen) gp h post k h_ih
-        (fun x a b => simulateQ_honest_param_b_indep_post_challA (gen := gen) gp h_cp a
-          (k (some (x • gen, x • h))) (post x) (h_post_inv x) b x) y
+      simpa only [map_eq_bind_pure_comp, Function.comp_def] using
+        probOutput_real_challenge_coupling (gen := gen) gp h post k h_ih
+          (fun x a b => simulateQ_honest_param_b_indep_post_challA (gen := gen) gp h_cp a
+            (k (some (x • gen, x • h))) (post x) (h_post_inv x) b x) y
   · have h_pred_false :
         (validStep s.lastAction CKAAction.challA &&
          (gp.challengedParty == CKAParty.A) &&
@@ -793,8 +797,7 @@ lemma evalDist_eager_honest_lazy_eq_step_at_challB_chal_B
       have h_e' : isChallengeEpoch gp
           { s with stB := (.recvReady x : CKAState F G),
                    tB := s.tB + 1 } = true := by
-        simp only [isChallengeEpoch] at h_e ⊢
-        convert h_e using 2
+        simpa [isChallengeEpoch, GameState.tP, h_cp] using h_e
       have h_beq : (gp.challengedParty == CKAParty.B) = true := by simp [h_cp]
       simp [honestChallBparam, oracleChallB, StateT.run_bind, StateT.run_get,
         pure_bind, h_v, h_beq, h_e', h_stB, ddhCKA, send]
@@ -850,9 +853,10 @@ lemma evalDist_eager_honest_lazy_eq_step_at_challB_chal_B
       rw [eq_lhs, eq_rhs]
       have h_post_inv : ∀ v : F, gp.challengeEpoch ≤ (post v).tB := fun _ => by
         change gp.challengeEpoch ≤ s.tB + 1; omega
-      exact probOutput_real_challenge_coupling (gen := gen) gp h post k h_ih
-        (fun x a b => simulateQ_honest_param_b_indep_post_challB (gen := gen) gp h_cp a
-          (k (some (x • gen, x • h))) (post x) (h_post_inv x) b x) y
+      simpa only [map_eq_bind_pure_comp, Function.comp_def] using
+        probOutput_real_challenge_coupling (gen := gen) gp h post k h_ih
+          (fun x a b => simulateQ_honest_param_b_indep_post_challB (gen := gen) gp h_cp a
+            (k (some (x • gen, x • h))) (post x) (h_post_inv x) b x) y
   · have h_pred_false :
         (validStep s.lastAction CKAAction.challB &&
          (gp.challengedParty == CKAParty.B) &&

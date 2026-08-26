@@ -21,11 +21,13 @@ and per-event marginalization lemmas relating the parameterized honest oracles
 to the regular CKA security oracles.
 -/
 
-open OracleSpec OracleComp ENNReal
+open ToVCVio OracleSpec OracleComp ENNReal
 open OracleComp.ProgramLogic.Relational
 open scoped OracleComp.ProgramLogic
 
 namespace ddhCKA
+
+open DDH
 
 variable {F : Type} [Field F] [Fintype F] [DecidableEq F] [SampleableType F]
 variable {G : Type} [AddCommGroup G] [Module F G] [SampleableType G]
@@ -49,7 +51,8 @@ lemma simulateQ_honest_param_a_indep_post_sendA
     (s : GameState (CKAState F G) G G) (h_post : gp.challengeEpoch - 1 ≤ s.tA) (a₁ a₂ : F) :
     evalDist ((simulateQ (honestImplParamReal gp gen a₁ b) adv).run s) =
     evalDist ((simulateQ (honestImplParamReal gp gen a₂ b) adv).run s) := by
-  exact evalDist_simulateQ_run_eq_of_impl_eq_preservesInv
+  exact evalDist_eq_of_relTriple_eqRel <|
+    relTriple_simulateQ_run_eqRel_of_impl_eq_preservesInv
     (impl₁ := honestImplParamReal gp gen a₁ b)
     (impl₂ := honestImplParamReal gp gen a₂ b)
     (Inv := fun s' : GameState (CKAState F G) G G => gp.challengeEpoch - 1 ≤ s'.tA)
@@ -70,7 +73,8 @@ lemma simulateQ_honest_param_a_indep_post_sendB
     (s : GameState (CKAState F G) G G) (h_post : gp.challengeEpoch - 1 ≤ s.tB) (a₁ a₂ : F) :
     evalDist ((simulateQ (honestImplParamReal gp gen a₁ b) adv).run s) =
     evalDist ((simulateQ (honestImplParamReal gp gen a₂ b) adv).run s) := by
-  exact evalDist_simulateQ_run_eq_of_impl_eq_preservesInv
+  exact evalDist_eq_of_relTriple_eqRel <|
+    relTriple_simulateQ_run_eqRel_of_impl_eq_preservesInv
     (impl₁ := honestImplParamReal gp gen a₁ b)
     (impl₂ := honestImplParamReal gp gen a₂ b)
     (Inv := fun s' : GameState (CKAState F G) G G => gp.challengeEpoch - 1 ≤ s'.tB)
@@ -91,7 +95,8 @@ lemma simulateQ_honest_param_b_indep_post_challA
     (s : GameState (CKAState F G) G G) (h_post : gp.challengeEpoch ≤ s.tA) (b₁ b₂ : F) :
     evalDist ((simulateQ (honestImplParamReal gp gen a b₁) adv).run s) =
     evalDist ((simulateQ (honestImplParamReal gp gen a b₂) adv).run s) := by
-  exact evalDist_simulateQ_run_eq_of_impl_eq_preservesInv
+  exact evalDist_eq_of_relTriple_eqRel <|
+    relTriple_simulateQ_run_eqRel_of_impl_eq_preservesInv
     (impl₁ := honestImplParamReal gp gen a b₁)
     (impl₂ := honestImplParamReal gp gen a b₂)
     (Inv := fun s' : GameState (CKAState F G) G G => gp.challengeEpoch ≤ s'.tA)
@@ -112,7 +117,8 @@ lemma simulateQ_honest_param_b_indep_post_challB
     (s : GameState (CKAState F G) G G) (h_post : gp.challengeEpoch ≤ s.tB) (b₁ b₂ : F) :
     evalDist ((simulateQ (honestImplParamReal gp gen a b₁) adv).run s) =
     evalDist ((simulateQ (honestImplParamReal gp gen a b₂) adv).run s) := by
-  exact evalDist_simulateQ_run_eq_of_impl_eq_preservesInv
+  exact evalDist_eq_of_relTriple_eqRel <|
+    relTriple_simulateQ_run_eqRel_of_impl_eq_preservesInv
     (impl₁ := honestImplParamReal gp gen a b₁)
     (impl₂ := honestImplParamReal gp gen a b₂)
     (Inv := fun s' : GameState (CKAState F G) G G => gp.challengeEpoch ≤ s'.tB)
@@ -132,7 +138,8 @@ lemma simulateQ_honest_param_rand_a_indep_post_sendA
     (s : GameState (CKAState F G) G G) (h_post : gp.challengeEpoch - 1 ≤ s.tA) (a₁ a₂ : F) :
     evalDist ((simulateQ (honestImplParamRand gp gen a₁ b gT) adv).run s) =
     evalDist ((simulateQ (honestImplParamRand gp gen a₂ b gT) adv).run s) := by
-  exact evalDist_simulateQ_run_eq_of_impl_eq_preservesInv
+  exact evalDist_eq_of_relTriple_eqRel <|
+    relTriple_simulateQ_run_eqRel_of_impl_eq_preservesInv
     (impl₁ := honestImplParamRand gp gen a₁ b gT)
     (impl₂ := honestImplParamRand gp gen a₂ b gT)
     (Inv := fun s' : GameState (CKAState F G) G G => gp.challengeEpoch - 1 ≤ s'.tA)
@@ -152,7 +159,8 @@ lemma simulateQ_honest_param_rand_a_indep_post_sendB
     (s : GameState (CKAState F G) G G) (h_post : gp.challengeEpoch - 1 ≤ s.tB) (a₁ a₂ : F) :
     evalDist ((simulateQ (honestImplParamRand gp gen a₁ b gT) adv).run s) =
     evalDist ((simulateQ (honestImplParamRand gp gen a₂ b gT) adv).run s) := by
-  exact evalDist_simulateQ_run_eq_of_impl_eq_preservesInv
+  exact evalDist_eq_of_relTriple_eqRel <|
+    relTriple_simulateQ_run_eqRel_of_impl_eq_preservesInv
     (impl₁ := honestImplParamRand gp gen a₁ b gT)
     (impl₂ := honestImplParamRand gp gen a₂ b gT)
     (Inv := fun s' : GameState (CKAState F G) G G => gp.challengeEpoch - 1 ≤ s'.tB)
@@ -172,7 +180,8 @@ lemma simulateQ_honest_param_rand_b_indep_post_challA
     (s : GameState (CKAState F G) G G) (h_post : gp.challengeEpoch ≤ s.tA) (b₁ b₂ : F) :
     evalDist ((simulateQ (honestImplParamRand gp gen a b₁ gT) adv).run s) =
     evalDist ((simulateQ (honestImplParamRand gp gen a b₂ gT) adv).run s) := by
-  exact evalDist_simulateQ_run_eq_of_impl_eq_preservesInv
+  exact evalDist_eq_of_relTriple_eqRel <|
+    relTriple_simulateQ_run_eqRel_of_impl_eq_preservesInv
     (impl₁ := honestImplParamRand gp gen a b₁ gT)
     (impl₂ := honestImplParamRand gp gen a b₂ gT)
     (Inv := fun s' : GameState (CKAState F G) G G => gp.challengeEpoch ≤ s'.tA)
@@ -192,7 +201,8 @@ lemma simulateQ_honest_param_rand_b_indep_post_challB
     (s : GameState (CKAState F G) G G) (h_post : gp.challengeEpoch ≤ s.tB) (b₁ b₂ : F) :
     evalDist ((simulateQ (honestImplParamRand gp gen a b₁ gT) adv).run s) =
     evalDist ((simulateQ (honestImplParamRand gp gen a b₂ gT) adv).run s) := by
-  exact evalDist_simulateQ_run_eq_of_impl_eq_preservesInv
+  exact evalDist_eq_of_relTriple_eqRel <|
+    relTriple_simulateQ_run_eqRel_of_impl_eq_preservesInv
     (impl₁ := honestImplParamRand gp gen a b₁ gT)
     (impl₂ := honestImplParamRand gp gen a b₂ gT)
     (Inv := fun s' : GameState (CKAState F G) G G => gp.challengeEpoch ≤ s'.tB)
@@ -212,7 +222,8 @@ lemma simulateQ_honest_param_rand_gT_indep_post_challA
     (s : GameState (CKAState F G) G G) (h_post : gp.challengeEpoch ≤ s.tA) (gT₁ gT₂ : G) :
     evalDist ((simulateQ (honestImplParamRand gp gen a b gT₁) adv).run s) =
     evalDist ((simulateQ (honestImplParamRand gp gen a b gT₂) adv).run s) := by
-  exact evalDist_simulateQ_run_eq_of_impl_eq_preservesInv
+  exact evalDist_eq_of_relTriple_eqRel <|
+    relTriple_simulateQ_run_eqRel_of_impl_eq_preservesInv
     (impl₁ := honestImplParamRand gp gen a b gT₁)
     (impl₂ := honestImplParamRand gp gen a b gT₂)
     (Inv := fun s' : GameState (CKAState F G) G G => gp.challengeEpoch ≤ s'.tA)
@@ -232,7 +243,8 @@ lemma simulateQ_honest_param_rand_gT_indep_post_challB
     (s : GameState (CKAState F G) G G) (h_post : gp.challengeEpoch ≤ s.tB) (gT₁ gT₂ : G) :
     evalDist ((simulateQ (honestImplParamRand gp gen a b gT₁) adv).run s) =
     evalDist ((simulateQ (honestImplParamRand gp gen a b gT₂) adv).run s) := by
-  exact evalDist_simulateQ_run_eq_of_impl_eq_preservesInv
+  exact evalDist_eq_of_relTriple_eqRel <|
+    relTriple_simulateQ_run_eqRel_of_impl_eq_preservesInv
     (impl₁ := honestImplParamRand gp gen a b gT₁)
     (impl₂ := honestImplParamRand gp gen a b gT₂)
     (Inv := fun s' : GameState (CKAState F G) G G => gp.challengeEpoch ≤ s'.tB)
@@ -288,7 +300,7 @@ lemma honestImpl_param_rand_preserves_post_challA_special
             simp [h_epoch_false]
       rw [h_run] at hz
       have hz_eq : z = (none, s) := by
-        simpa [support_pure] using hz
+        exact (mem_support_pure_iff _ _).mp hz
       simpa [hz_eq] using hs
   | OChallB =>
       have h_run :
@@ -310,7 +322,7 @@ lemma honestImpl_param_rand_preserves_post_challA_special
             simp [h_cp]
       rw [h_run] at hz
       have hz_eq : z = (none, s) := by
-        simpa [support_pure] using hz
+        exact (mem_support_pure_iff _ _).mp hz
       simpa [hz_eq] using hs
   | OCorruptB =>
       have hz' : z ∈ support ((honestImplParamReal gp gen a b OCorruptB).run s) := by
@@ -359,7 +371,8 @@ lemma simulateQ_honest_param_rand_b_indep_post_challA_special
     (b₁ b₂ : F) :
     evalDist ((simulateQ (honestImplParamRand gp gen a b₁ gT) adv).run s) =
     evalDist ((simulateQ (honestImplParamRand gp gen a b₂ gT) adv).run s) := by
-  exact evalDist_simulateQ_run_eq_of_impl_eq_preservesInv
+  exact evalDist_eq_of_relTriple_eqRel <|
+    relTriple_simulateQ_run_eqRel_of_impl_eq_preservesInv
     (impl₁ := honestImplParamRand gp gen a b₁ gT)
     (impl₂ := honestImplParamRand gp gen a b₂ gT)
     (Inv := fun s' : GameState (CKAState F G) G G => gp.challengeEpoch ≤ s'.tA)
@@ -426,8 +439,7 @@ lemma evalDist_marginalized_honestSendA_param_eq_oracleSendA_at_chal_B
             -- since `isOtherSendBeforeChall` only reads tA (not stA), it agrees with `h_o`.
             have h_o' : isOtherSendBeforeChall gp
                 { s with stA := (.recvReady x : CKAState F G), tA := s.tA + 1 } = true := by
-              simp only [isOtherSendBeforeChall] at h_o ⊢
-              convert h_o using 2
+              simpa [isOtherSendBeforeChall, GameState.tP, h_cp] using h_o
             simp [honestSendAparam, oracleSendA, StateT.run_bind, StateT.run_get,
               pure_bind, h_v, h_beq, h_o', h_stA, ddhCKA, send]
           | sendReady h =>
@@ -481,8 +493,7 @@ lemma evalDist_marginalized_honestSendB_param_eq_oracleSendB_at_chal_A
           | recvReady x =>
             have h_o' : isOtherSendBeforeChall gp
                 { s with stB := (.recvReady x : CKAState F G), tB := s.tB + 1 } = true := by
-              simp only [isOtherSendBeforeChall] at h_o ⊢
-              convert h_o using 2
+              simpa [isOtherSendBeforeChall, GameState.tP, h_cp] using h_o
             simp [honestSendBparam, oracleSendB, StateT.run_bind, StateT.run_get,
               pure_bind, h_v, h_beq, h_o', h_stB, ddhCKA, send]
           | sendReady h =>
@@ -535,8 +546,7 @@ lemma evalDist_marginalized_honestChallA_param_eq_oracleChallA_at_chal_A
           | recvReady x =>
             have h_e' : isChallengeEpoch gp
                 { s with stA := (.recvReady x : CKAState F G), tA := s.tA + 1 } = true := by
-              simp only [isChallengeEpoch] at h_e ⊢
-              convert h_e using 2
+              simpa [isChallengeEpoch, GameState.tP, h_cp] using h_e
             simp [honestChallAparam, oracleChallA, StateT.run_bind, StateT.run_get,
               pure_bind, h_v, h_beq, h_e', h_stA, ddhCKA, send]
           | sendReady h =>
@@ -593,8 +603,7 @@ lemma evalDist_marginalized_honestChallA_param_rand_eq_oracleChallA_at_chal_A
           | recvReady x =>
             have h_e' : isChallengeEpoch gp
                 { s with stA := (.recvReady x : CKAState F G), tA := s.tA + 1 } = true := by
-              simp only [isChallengeEpoch] at h_e ⊢
-              convert h_e using 2
+              simpa [isChallengeEpoch, GameState.tP, h_cp] using h_e
             simp [honestChallAparamRand, oracleChallA, StateT.run_bind, StateT.run_get,
               pure_bind, h_v, h_beq, h_e', h_stA, ddhCKA,
               send]
@@ -648,8 +657,7 @@ lemma evalDist_marginalized_honestChallB_param_eq_oracleChallB_at_chal_B
           | recvReady x =>
             have h_e' : isChallengeEpoch gp
                 { s with stB := (.recvReady x : CKAState F G), tB := s.tB + 1 } = true := by
-              simp only [isChallengeEpoch] at h_e ⊢
-              convert h_e using 2
+              simpa [isChallengeEpoch, GameState.tP, h_cp] using h_e
             simp [honestChallBparam, oracleChallB, StateT.run_bind, StateT.run_get,
               pure_bind, h_v, h_beq, h_e', h_stB, ddhCKA, send]
           | sendReady h =>

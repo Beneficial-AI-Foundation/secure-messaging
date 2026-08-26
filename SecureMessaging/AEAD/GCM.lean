@@ -39,6 +39,8 @@ NIST indexes a block `S = S₀ … S₁₂₇` most-significant-first, so `Sᵢ 
 - [NIST_GCM] Dworkin. *NIST SP 800-38D*, 2007. https://csrc.nist.gov/pubs/sp/800/38/d/final
 -/
 
+namespace GCM
+
 /-! ## Mathematical components (NIST SP 800-38D §6) -/
 
 /-! ### GF(2^128) multiplication (NIST SP 800-38D §6.3) -/
@@ -187,3 +189,5 @@ def gcmDecrypt {K : Type} (ciph : CIPH K) (k : K)
     -- (7–8) recompute `T'` and return `P` on a match, else FAIL
     if t = gctr ciph.perm k j₀ s then some p else none
   else none
+
+end GCM

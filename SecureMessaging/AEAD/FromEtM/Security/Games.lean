@@ -27,7 +27,9 @@ The OracleSpec-polymorphic game skeleton, its `unifSpec` oracle handler, the fou
 (`prfReduction`, `encReduction`). Shared by every game-hop file.
 -/
 
-open OracleSpec OracleComp ENNReal PRFScheme AEADScheme
+namespace EtM
+
+open ToVCVio OracleSpec OracleComp ENNReal PRFScheme AEADScheme
 
 variable {K_e K_m M AD C_e T : Type}
   [DecidableEq AD] [DecidableEq C_e] [DecidableEq T]
@@ -299,3 +301,5 @@ noncomputable def encReduction [Inhabited K_e]
     (fun _ _ => pure false)
     unifImpl
     adv
+
+end EtM

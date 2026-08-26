@@ -73,9 +73,9 @@ private def injectPrefix [SampleableType K] [DecidableEq K]
         (CKAChallengeStepResult leak α) :=
   OracleComp.construct
     (fun a => pure (.done a))
-    (fun t oa rec => do
+    (fun t oa rec =>
       match t with
-      | CKAScheme.ckaSecuritySpec.OSendA =>
+      | CKAScheme.ckaSecuritySpec.OSendA => do
           let σ ← get
           if sendAEffectivelyInjects gp σ then
             pure (.pausedA oa)
@@ -83,7 +83,7 @@ private def injectPrefix [SampleableType K] [DecidableEq K]
             let out ← securityImpl kem hDet leak gp isRandom
               (CKAScheme.ckaSecuritySpec.OSendA : (securitySpec leak).Domain)
             rec out
-      | CKAScheme.ckaSecuritySpec.OSendB =>
+      | CKAScheme.ckaSecuritySpec.OSendB => do
           let σ ← get
           if sendBEffectivelyInjects gp σ then
             pure (.pausedB oa)
@@ -91,7 +91,7 @@ private def injectPrefix [SampleableType K] [DecidableEq K]
             let out ← securityImpl kem hDet leak gp isRandom
               (CKAScheme.ckaSecuritySpec.OSendB : (securitySpec leak).Domain)
             rec out
-      | other =>
+        | other => do
           let out ← securityImpl kem hDet leak gp isRandom other
           rec out)
 
@@ -222,6 +222,8 @@ private lemma simulateQ_run_eq_injectPrefix_bind [SampleableType K] [DecidableEq
         try cases uRecvA
         try cases uSendB
         try cases uRecvB
+        try cases uChallA
+        try cases uChallB
         try cases uCorrA
         try cases uCorrB
         try cases uRLeakA
@@ -233,7 +235,10 @@ private lemma simulateQ_run_eq_injectPrefix_bind [SampleableType K] [DecidableEq
             construct_query_bind]
           rw [hstep _ _ (by simp) (by simp)]
           refine bind_congr (m := ProbComp) fun a => ?_
-          simpa using ih a.1 a.2
+          change (simulateQ impl (cont a.1)).run a.2 =
+            (injectPrefix kem hDet leak gp isRandom (cont a.1)).run a.2 >>=
+              fun x => injectResume kem leak impl x.1 x.2
+          exact ih a.1 a.2
       · -- O-Send-A
         by_cases heff : sendAEffectivelyInjects gp σ = true
         · simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
@@ -247,7 +252,10 @@ private lemma simulateQ_run_eq_injectPrefix_bind [SampleableType K] [DecidableEq
             heffFalse, Bool.false_eq_true, ↓reduceIte]
           rw [hstep _ _ (fun _ => heffFalse) (by simp)]
           refine bind_congr (m := ProbComp) fun a => ?_
-          simpa using ih a.1 a.2
+          change (simulateQ impl (cont a.1)).run a.2 =
+            (injectPrefix kem hDet leak gp isRandom (cont a.1)).run a.2 >>=
+              fun x => injectResume kem leak impl x.1 x.2
+          exact ih a.1 a.2
       · -- O-Send-B
         by_cases heff : sendBEffectivelyInjects gp σ = true
         · simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
@@ -262,7 +270,10 @@ private lemma simulateQ_run_eq_injectPrefix_bind [SampleableType K] [DecidableEq
             heffFalse, Bool.false_eq_true, ↓reduceIte]
           rw [hstep _ _ (by simp) (fun _ => heffFalse)]
           refine bind_congr (m := ProbComp) fun a => ?_
-          simpa using ih a.1 a.2
+          change (simulateQ impl (cont a.1)).run a.2 =
+            (injectPrefix kem hDet leak gp isRandom (cont a.1)).run a.2 >>=
+              fun x => injectResume kem leak impl x.1 x.2
+          exact ih a.1 a.2
 
 /-- A run that stops at an installing send stops in a state where that send is
 indeed installing.
@@ -301,6 +312,8 @@ private lemma injectPrefix_run_support_effInject [SampleableType K] [DecidableEq
         try cases uRecvA
         try cases uSendB
         try cases uRecvB
+        try cases uChallA
+        try cases uChallB
         try cases uCorrA
         try cases uCorrB
         try cases uRLeakA

@@ -32,7 +32,7 @@ CKA from DDH.
 :::defTitle "cka_from_ddh_state" "CKA from DDH state"
 :::
 
-:::definition "cka_from_ddh_state" (parent := "cka_cka_from_ddh") (lean := "CKAState")
+:::definition "cka_from_ddh_state" (parent := "cka_cka_from_ddh") (lean := "DDH.CKAState")
 $`\todo`
 
 ```anchor CKAState (project := ".") (module := SecureMessaging.CKA.FromDDH.Construction)
@@ -50,7 +50,7 @@ inductive CKAState (F G : Type) where
 :::defTitle "cka_from_ddh" "CKA from DDH"
 :::
 
-:::definition "cka_from_ddh" (parent := "cka_cka_from_ddh") (lean := "ddhCKA")
+:::definition "cka_from_ddh" (parent := "cka_cka_from_ddh") (lean := "DDH.ddhCKA")
 $`\todo`
 
 ```anchor ddhCKA (project := ".") (module := SecureMessaging.CKA.FromDDH.Construction)

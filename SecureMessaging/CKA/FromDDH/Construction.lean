@@ -82,6 +82,8 @@ recvA(stA', ρB):
 
 open OracleSpec OracleComp ENNReal
 
+namespace DDH
+
 variable {F : Type} [Field F] [Fintype F] [DecidableEq F] [SampleableType F]
 variable {G : Type} [AddCommGroup G] [Module F G] [SampleableType G]
 
@@ -159,3 +161,5 @@ def ddhCKA (F G : Type) [Field F] [Fintype F] [DecidableEq F] [SampleableType F]
   recvA := recv
   recvB := recv
 -- ANCHOR_END: ddhCKA
+
+end DDH

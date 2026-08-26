@@ -70,6 +70,7 @@ inductive ParameterSet where
   | eFrodoKEM1344
 deriving Repr, DecidableEq
 
+set_option linter.dupNamespace false in
 /-- The two FrodoKEM variants: the salted `FrodoKEM` and the ephemeral
 `eFrodoKEM`, which differ in the lengths of Table 2. -/
 inductive Variant where

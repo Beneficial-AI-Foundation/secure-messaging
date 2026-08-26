@@ -40,11 +40,13 @@ at an adversary node `query t >>= k`, the step lemma handles query `t`, and the
 induction hypothesis applies to the continuation `k` at the related post-state.
 -/
 
-open OracleSpec OracleComp ENNReal
+open ToVCVio OracleSpec OracleComp ENNReal
 open OracleComp.ProgramLogic.Relational
 open scoped OracleComp.ProgramLogic
 
 namespace ddhCKA
+
+open DDH
 
 variable {F : Type} [Field F] [Fintype F] [DecidableEq F] [SampleableType F]
 variable {G : Type} [AddCommGroup G] [Module F G] [SampleableType G]
@@ -775,9 +777,11 @@ lemma reduction_honest_param_real_step_rel
               simpa [h_cpA] using h_embed
             have h_otherH :
                 isOtherSendBeforeChall gp {sH with tB := sH.tB + 1} = true := by
-              simpa [isOtherSendBeforeChall, GameState.tP, h_cpA, h_tB] using h_other
+              simpa [isOtherSendBeforeChall, GameState.tP, CKAParty.other, h_cpA,
+                h_tB] using h_other
             have h_tB_embed : sR.tB + 1 = gp.challengeEpoch - 1 := by
-              simpa [isOtherSendBeforeChall, GameState.tP, h_cpA] using h_other
+              simpa [isOtherSendBeforeChall, GameState.tP, CKAParty.other, h_cpA] using
+                h_other
             have h_tB_embedH : sH.tB + 1 = gp.challengeEpoch - 1 := by
               omega
             have h_stAR : sR.stA = (.recvReady y : CKAState F G) := by
@@ -1686,14 +1690,7 @@ lemma evalDist_reduction_honest_param_real_eq
   · intro t sR sH hrel
     exact reduction_honest_param_real_step_rel
       (gen := gen) gp hΔFS hΔPCS a b t sR sH hrel
-  · change reductionHonestRel gp gen a b
-      (initGameState
-        (CKAState.sendReady (x₀ • gen) : CKAState F G)
-        (CKAState.recvReady x₀ : CKAState F G))
-      (initGameState
-        (CKAState.sendReady (x₀ • gen) : CKAState F G)
-        (CKAState.recvReady x₀ : CKAState F G))
-    refine ⟨?_, rfl, rfl, rfl, rfl, rfl, rfl, rfl,
+  · refine ⟨?_, rfl, rfl, rfl, rfl, rfl, rfl, rfl,
       ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
     · refine ⟨?_, ?_⟩
       · rfl

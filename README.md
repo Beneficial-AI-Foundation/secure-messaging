@@ -1,7 +1,8 @@
 # SecureMessaging
 
 Formal verification of protocols for secure messaging in Lean 4, built on top of
-[VCVio](https://github.com/Verified-zkEVM/VCV-io). Currently targeting cryptographic primitives and protocols from:
+[VCVio](https://github.com/Verified-zkEVM/VCVio). Currently targeting
+cryptographic primitives and protocols from:
 
 - Alwen, Coretti, Dodis.
   *The Double Ratchet: Security Notions, Proofs, and Modularization for the Signal Protocol.*

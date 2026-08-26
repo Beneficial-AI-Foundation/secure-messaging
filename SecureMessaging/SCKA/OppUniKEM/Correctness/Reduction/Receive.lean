@@ -141,7 +141,7 @@ lemma oracleRecvB_preserves_failurePotential [DecidableEq K]
                 correct := s.correct && decide (trcv = tsnd) &&
                   (List.range (max s.tcurB trcv + 1)).all
                     (fun t => t = 0 || (s.keyB t).isSome) }) := by
-          simpa [SCKAScheme.oracleRecvB, hentry, scheme, hlocal,
+          simpa [SCKAScheme.oracleRecvB, hentry, scheme, hlocal, beq_eq_decide,
             StateT.run_bind, StateT.run_get] using hz
         subst z
         rcases recvB_kem_source_shape kem onoff ecEk s.stB msg none trcv stB' hlocal with
@@ -286,7 +286,7 @@ lemma oracleRecvB_preserves_currentFailure [DecidableEq K]
                 correct := s.correct && decide (trcv = tsnd) &&
                   (List.range (max s.tcurB trcv + 1)).all
                     (fun t => t = 0 || (s.keyB t).isSome) }) := by
-          simpa [SCKAScheme.oracleRecvB, hentry, scheme, hlocal,
+          simpa [SCKAScheme.oracleRecvB, hentry, scheme, hlocal, beq_eq_decide,
             StateT.run_bind, StateT.run_get] using hz
         subst z
         rcases recvB_kem_source_shape kem onoff ecEk s.stB msg none trcv stB'
