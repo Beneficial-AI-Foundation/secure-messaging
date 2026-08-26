@@ -675,81 +675,71 @@ lemma postRel_step [SampleableType K] [DecidableEq K]
           uChallA) | uChallB) | uCorrA) | uCorrB) | uRLeakA) | uRLeakB
       · exact postRel_unif_step kem hDet leak gp n hcurrent
       · cases uSendA
-        rcases hlastRecv with hlast | hlast
+        have hvalid : CKAScheme.validStep base.lastAction .sendA = false := by
+          rcases hlastRecv with hlast | hlast <;> simp [hlast, CKAScheme.validStep]
+        refine postRel_step_of_security_runs_eq_pure kem hDet leak gp
+          (CKAScheme.ckaSecuritySpec.OSendA : (securitySpec leak).Domain)
+          (none : (securitySpec leak).Range CKAScheme.ckaSecuritySpec.OSendA)
+          hcurrent rfl ?_ ?_
         all_goals
-          have hvalid : CKAScheme.validStep base.lastAction .sendA = false := by
-            simp [hlast, CKAScheme.validStep]
-          refine postRel_step_of_security_runs_eq_pure kem hDet leak gp
-            (CKAScheme.ckaSecuritySpec.OSendA : (securitySpec leak).Domain)
-            (none : (securitySpec leak).Range CKAScheme.ckaSecuritySpec.OSendA)
-            hcurrent rfl ?_ ?_
-          all_goals
-            change (CKAScheme.oracleSendA (scheme kem hDet leak) ()).run _ = _
-            simp only [CKAScheme.oracleSendA, postAToBHonestState,
-              postAToBReductionState, hvalid, stateTrun, Bool.false_eq_true,
-              ↓reduceIte, StateT.run_pure]
-            rfl
+          change (CKAScheme.oracleSendA (scheme kem hDet leak) ()).run _ = _
+          simp only [CKAScheme.oracleSendA, postAToBHonestState,
+            postAToBReductionState, hvalid, stateTrun, Bool.false_eq_true,
+            ↓reduceIte, StateT.run_pure]
+          rfl
       · cases uRecvA
-        rcases hlastRecv with hlast | hlast
+        have hvalid : CKAScheme.validStep base.lastAction .recvA = false := by
+          rcases hlastRecv with hlast | hlast <;> simp [hlast, CKAScheme.validStep]
+        refine postRel_step_of_security_runs_eq_pure kem hDet leak gp
+          (CKAScheme.ckaSecuritySpec.ORecvA : (securitySpec leak).Domain) ()
+          hcurrent rfl ?_ ?_
         all_goals
-          have hvalid : CKAScheme.validStep base.lastAction .recvA = false := by
-            simp [hlast, CKAScheme.validStep]
-          refine postRel_step_of_security_runs_eq_pure kem hDet leak gp
-            (CKAScheme.ckaSecuritySpec.ORecvA : (securitySpec leak).Domain) ()
-            hcurrent rfl ?_ ?_
-          all_goals
-            change (CKAScheme.oracleRecvA (scheme kem hDet leak) ()).run _ = _
-            simp only [CKAScheme.oracleRecvA, postAToBHonestState,
-              postAToBReductionState, hvalid, stateTrun, Bool.false_eq_true,
-              ↓reduceIte, StateT.run_pure]
-            rfl
+          change (CKAScheme.oracleRecvA (scheme kem hDet leak) ()).run _ = _
+          simp only [CKAScheme.oracleRecvA, postAToBHonestState,
+            postAToBReductionState, hvalid, stateTrun, Bool.false_eq_true,
+            ↓reduceIte, StateT.run_pure]
+          rfl
       · cases uSendB
-        rcases hlastRecv with hlast | hlast
+        have hvalid : CKAScheme.validStep base.lastAction .sendB = false := by
+          rcases hlastRecv with hlast | hlast <;> simp [hlast, CKAScheme.validStep]
+        refine postRel_step_of_security_runs_eq_pure kem hDet leak gp
+          (CKAScheme.ckaSecuritySpec.OSendB : (securitySpec leak).Domain)
+          (none : (securitySpec leak).Range CKAScheme.ckaSecuritySpec.OSendB)
+          hcurrent rfl ?_ ?_
         all_goals
-          have hvalid : CKAScheme.validStep base.lastAction .sendB = false := by
-            simp [hlast, CKAScheme.validStep]
-          refine postRel_step_of_security_runs_eq_pure kem hDet leak gp
-            (CKAScheme.ckaSecuritySpec.OSendB : (securitySpec leak).Domain)
-            (none : (securitySpec leak).Range CKAScheme.ckaSecuritySpec.OSendB)
-            hcurrent rfl ?_ ?_
-          all_goals
-            change (CKAScheme.oracleSendB (scheme kem hDet leak) ()).run _ = _
-            simp only [CKAScheme.oracleSendB, postAToBHonestState,
-              postAToBReductionState, hvalid, stateTrun, Bool.false_eq_true,
-              ↓reduceIte, StateT.run_pure]
-            rfl
+          change (CKAScheme.oracleSendB (scheme kem hDet leak) ()).run _ = _
+          simp only [CKAScheme.oracleSendB, postAToBHonestState,
+            postAToBReductionState, hvalid, stateTrun, Bool.false_eq_true,
+            ↓reduceIte, StateT.run_pure]
+          rfl
       · cases uRecvB
         exact postRel_aToB_recvB kem hDet leak gp base sk msg realKey fakeKey hdec hrecv
       · cases uChallA
-        rcases hlastRecv with hlast | hlast
+        have hvalid : CKAScheme.validStep base.lastAction .challA = false := by
+          rcases hlastRecv with hlast | hlast <;> simp [hlast, CKAScheme.validStep]
+        refine postRel_step_of_security_runs_eq_pure kem hDet leak gp
+          (CKAScheme.ckaSecuritySpec.OChallA : (securitySpec leak).Domain)
+          (none : (securitySpec leak).Range CKAScheme.ckaSecuritySpec.OChallA)
+          hcurrent rfl ?_ ?_
         all_goals
-          have hvalid : CKAScheme.validStep base.lastAction .challA = false := by
-            simp [hlast, CKAScheme.validStep]
-          refine postRel_step_of_security_runs_eq_pure kem hDet leak gp
-            (CKAScheme.ckaSecuritySpec.OChallA : (securitySpec leak).Domain)
-            (none : (securitySpec leak).Range CKAScheme.ckaSecuritySpec.OChallA)
-            hcurrent rfl ?_ ?_
-          all_goals
-            change (CKAScheme.oracleChallA gp false (scheme kem hDet leak) ()).run _ = _
-            simp only [CKAScheme.oracleChallA, postAToBHonestState,
-              postAToBReductionState, hvalid, stateTrun, Bool.false_eq_true,
-              ↓reduceIte, StateT.run_pure]
-            rfl
+          change (CKAScheme.oracleChallA gp false (scheme kem hDet leak) ()).run _ = _
+          simp only [CKAScheme.oracleChallA, postAToBHonestState,
+            postAToBReductionState, hvalid, stateTrun, Bool.false_eq_true,
+            ↓reduceIte, StateT.run_pure]
+          rfl
       · cases uChallB
-        rcases hlastRecv with hlast | hlast
+        have hvalid : CKAScheme.validStep base.lastAction .challB = false := by
+          rcases hlastRecv with hlast | hlast <;> simp [hlast, CKAScheme.validStep]
+        refine postRel_step_of_security_runs_eq_pure kem hDet leak gp
+          (CKAScheme.ckaSecuritySpec.OChallB : (securitySpec leak).Domain)
+          (none : (securitySpec leak).Range CKAScheme.ckaSecuritySpec.OChallB)
+          hcurrent rfl ?_ ?_
         all_goals
-          have hvalid : CKAScheme.validStep base.lastAction .challB = false := by
-            simp [hlast, CKAScheme.validStep]
-          refine postRel_step_of_security_runs_eq_pure kem hDet leak gp
-            (CKAScheme.ckaSecuritySpec.OChallB : (securitySpec leak).Domain)
-            (none : (securitySpec leak).Range CKAScheme.ckaSecuritySpec.OChallB)
-            hcurrent rfl ?_ ?_
-          all_goals
-            change (CKAScheme.oracleChallB gp false (scheme kem hDet leak) ()).run _ = _
-            simp only [CKAScheme.oracleChallB, postAToBHonestState,
-              postAToBReductionState, hvalid, stateTrun, Bool.false_eq_true,
-              ↓reduceIte, StateT.run_pure]
-            rfl
+          change (CKAScheme.oracleChallB gp false (scheme kem hDet leak) ()).run _ = _
+          simp only [CKAScheme.oracleChallB, postAToBHonestState,
+            postAToBReductionState, hvalid, stateTrun, Bool.false_eq_true,
+            ↓reduceIte, StateT.run_pure]
+          rfl
       · cases uCorrA
         rw [securityImpl_corruptA_run kem hDet leak gp
           (postAToBHonestState base sk msg realKey)]
@@ -779,35 +769,31 @@ lemma postRel_step [SampleableType K] [DecidableEq K]
         rw [hleftOut, hrightOut]
         exact relTriple_pure_pure ⟨rfl, hcurrent⟩
       · cases uRLeakA
-        rcases hlastRecv with hlast | hlast
+        have hvalid : CKAScheme.validStep base.lastAction .sendA = false := by
+          rcases hlastRecv with hlast | hlast <;> simp [hlast, CKAScheme.validStep]
+        refine postRel_step_of_security_runs_eq_pure kem hDet leak gp
+          (CKAScheme.ckaSecuritySpec.OSendArleak : (securitySpec leak).Domain)
+          (none : (securitySpec leak).Range CKAScheme.ckaSecuritySpec.OSendArleak)
+          hcurrent rfl ?_ ?_
         all_goals
-          have hvalid : CKAScheme.validStep base.lastAction .sendA = false := by
-            simp [hlast, CKAScheme.validStep]
-          refine postRel_step_of_security_runs_eq_pure kem hDet leak gp
-            (CKAScheme.ckaSecuritySpec.OSendArleak : (securitySpec leak).Domain)
-            (none : (securitySpec leak).Range CKAScheme.ckaSecuritySpec.OSendArleak)
-            hcurrent rfl ?_ ?_
-          all_goals
-            change (CKAScheme.oracleSendArleak gp (scheme kem hDet leak) ()).run _ = _
-            simp only [CKAScheme.oracleSendArleak, postAToBHonestState,
-              postAToBReductionState, hvalid, stateTrun, Bool.false_eq_true,
-              ↓reduceIte, StateT.run_pure]
-            rfl
+          change (CKAScheme.oracleSendArleak gp (scheme kem hDet leak) ()).run _ = _
+          simp only [CKAScheme.oracleSendArleak, postAToBHonestState,
+            postAToBReductionState, hvalid, stateTrun, Bool.false_eq_true,
+            ↓reduceIte, StateT.run_pure]
+          rfl
       · cases uRLeakB
-        rcases hlastRecv with hlast | hlast
+        have hvalid : CKAScheme.validStep base.lastAction .sendB = false := by
+          rcases hlastRecv with hlast | hlast <;> simp [hlast, CKAScheme.validStep]
+        refine postRel_step_of_security_runs_eq_pure kem hDet leak gp
+          (CKAScheme.ckaSecuritySpec.OSendBrleak : (securitySpec leak).Domain)
+          (none : (securitySpec leak).Range CKAScheme.ckaSecuritySpec.OSendBrleak)
+          hcurrent rfl ?_ ?_
         all_goals
-          have hvalid : CKAScheme.validStep base.lastAction .sendB = false := by
-            simp [hlast, CKAScheme.validStep]
-          refine postRel_step_of_security_runs_eq_pure kem hDet leak gp
-            (CKAScheme.ckaSecuritySpec.OSendBrleak : (securitySpec leak).Domain)
-            (none : (securitySpec leak).Range CKAScheme.ckaSecuritySpec.OSendBrleak)
-            hcurrent rfl ?_ ?_
-          all_goals
-            change (CKAScheme.oracleSendBrleak gp (scheme kem hDet leak) ()).run _ = _
-            simp only [CKAScheme.oracleSendBrleak, postAToBHonestState,
-              postAToBReductionState, hvalid, stateTrun, Bool.false_eq_true,
-              ↓reduceIte, StateT.run_pure]
-            rfl
+          change (CKAScheme.oracleSendBrleak gp (scheme kem hDet leak) ()).run _ = _
+          simp only [CKAScheme.oracleSendBrleak, postAToBHonestState,
+            postAToBReductionState, hvalid, stateTrun, Bool.false_eq_true,
+            ↓reduceIte, StateT.run_pure]
+          rfl
   | bToA h =>
       rcases h with ⟨base, sk, msg, realKey, fakeKey, hhonest, hpost, hdec, hrecv, hblock⟩
       subst hhonest
@@ -827,81 +813,71 @@ lemma postRel_step [SampleableType K] [DecidableEq K]
           uChallA) | uChallB) | uCorrA) | uCorrB) | uRLeakA) | uRLeakB
       · exact postRel_unif_step kem hDet leak gp n hcurrent
       · cases uSendA
-        rcases hlastRecv with hlast | hlast
+        have hvalid : CKAScheme.validStep base.lastAction .sendA = false := by
+          rcases hlastRecv with hlast | hlast <;> simp [hlast, CKAScheme.validStep]
+        refine postRel_step_of_security_runs_eq_pure kem hDet leak gp
+          (CKAScheme.ckaSecuritySpec.OSendA : (securitySpec leak).Domain)
+          (none : (securitySpec leak).Range CKAScheme.ckaSecuritySpec.OSendA)
+          hcurrent rfl ?_ ?_
         all_goals
-          have hvalid : CKAScheme.validStep base.lastAction .sendA = false := by
-            simp [hlast, CKAScheme.validStep]
-          refine postRel_step_of_security_runs_eq_pure kem hDet leak gp
-            (CKAScheme.ckaSecuritySpec.OSendA : (securitySpec leak).Domain)
-            (none : (securitySpec leak).Range CKAScheme.ckaSecuritySpec.OSendA)
-            hcurrent rfl ?_ ?_
-          all_goals
-            change (CKAScheme.oracleSendA (scheme kem hDet leak) ()).run _ = _
-            simp only [CKAScheme.oracleSendA, postBToAHonestState,
-              postBToAReductionState, hvalid, stateTrun, Bool.false_eq_true,
-              ↓reduceIte, StateT.run_pure]
-            rfl
+          change (CKAScheme.oracleSendA (scheme kem hDet leak) ()).run _ = _
+          simp only [CKAScheme.oracleSendA, postBToAHonestState,
+            postBToAReductionState, hvalid, stateTrun, Bool.false_eq_true,
+            ↓reduceIte, StateT.run_pure]
+          rfl
       · cases uRecvA
         exact postRel_bToA_recvA kem hDet leak gp base sk msg realKey fakeKey hdec hrecv
       · cases uSendB
-        rcases hlastRecv with hlast | hlast
+        have hvalid : CKAScheme.validStep base.lastAction .sendB = false := by
+          rcases hlastRecv with hlast | hlast <;> simp [hlast, CKAScheme.validStep]
+        refine postRel_step_of_security_runs_eq_pure kem hDet leak gp
+          (CKAScheme.ckaSecuritySpec.OSendB : (securitySpec leak).Domain)
+          (none : (securitySpec leak).Range CKAScheme.ckaSecuritySpec.OSendB)
+          hcurrent rfl ?_ ?_
         all_goals
-          have hvalid : CKAScheme.validStep base.lastAction .sendB = false := by
-            simp [hlast, CKAScheme.validStep]
-          refine postRel_step_of_security_runs_eq_pure kem hDet leak gp
-            (CKAScheme.ckaSecuritySpec.OSendB : (securitySpec leak).Domain)
-            (none : (securitySpec leak).Range CKAScheme.ckaSecuritySpec.OSendB)
-            hcurrent rfl ?_ ?_
-          all_goals
-            change (CKAScheme.oracleSendB (scheme kem hDet leak) ()).run _ = _
-            simp only [CKAScheme.oracleSendB, postBToAHonestState,
-              postBToAReductionState, hvalid, stateTrun, Bool.false_eq_true,
-              ↓reduceIte, StateT.run_pure]
-            rfl
+          change (CKAScheme.oracleSendB (scheme kem hDet leak) ()).run _ = _
+          simp only [CKAScheme.oracleSendB, postBToAHonestState,
+            postBToAReductionState, hvalid, stateTrun, Bool.false_eq_true,
+            ↓reduceIte, StateT.run_pure]
+          rfl
       · cases uRecvB
-        rcases hlastRecv with hlast | hlast
+        have hvalid : CKAScheme.validStep base.lastAction .recvB = false := by
+          rcases hlastRecv with hlast | hlast <;> simp [hlast, CKAScheme.validStep]
+        refine postRel_step_of_security_runs_eq_pure kem hDet leak gp
+          (CKAScheme.ckaSecuritySpec.ORecvB : (securitySpec leak).Domain) ()
+          hcurrent rfl ?_ ?_
         all_goals
-          have hvalid : CKAScheme.validStep base.lastAction .recvB = false := by
-            simp [hlast, CKAScheme.validStep]
-          refine postRel_step_of_security_runs_eq_pure kem hDet leak gp
-            (CKAScheme.ckaSecuritySpec.ORecvB : (securitySpec leak).Domain) ()
-            hcurrent rfl ?_ ?_
-          all_goals
-            change (CKAScheme.oracleRecvB (scheme kem hDet leak) ()).run _ = _
-            simp only [CKAScheme.oracleRecvB, postBToAHonestState,
-              postBToAReductionState, hvalid, stateTrun, Bool.false_eq_true,
-              ↓reduceIte, StateT.run_pure]
-            rfl
+          change (CKAScheme.oracleRecvB (scheme kem hDet leak) ()).run _ = _
+          simp only [CKAScheme.oracleRecvB, postBToAHonestState,
+            postBToAReductionState, hvalid, stateTrun, Bool.false_eq_true,
+            ↓reduceIte, StateT.run_pure]
+          rfl
       · cases uChallA
-        rcases hlastRecv with hlast | hlast
+        have hvalid : CKAScheme.validStep base.lastAction .challA = false := by
+          rcases hlastRecv with hlast | hlast <;> simp [hlast, CKAScheme.validStep]
+        refine postRel_step_of_security_runs_eq_pure kem hDet leak gp
+          (CKAScheme.ckaSecuritySpec.OChallA : (securitySpec leak).Domain)
+          (none : (securitySpec leak).Range CKAScheme.ckaSecuritySpec.OChallA)
+          hcurrent rfl ?_ ?_
         all_goals
-          have hvalid : CKAScheme.validStep base.lastAction .challA = false := by
-            simp [hlast, CKAScheme.validStep]
-          refine postRel_step_of_security_runs_eq_pure kem hDet leak gp
-            (CKAScheme.ckaSecuritySpec.OChallA : (securitySpec leak).Domain)
-            (none : (securitySpec leak).Range CKAScheme.ckaSecuritySpec.OChallA)
-            hcurrent rfl ?_ ?_
-          all_goals
-            change (CKAScheme.oracleChallA gp false (scheme kem hDet leak) ()).run _ = _
-            simp only [CKAScheme.oracleChallA, postBToAHonestState,
-              postBToAReductionState, hvalid, stateTrun, Bool.false_eq_true,
-              ↓reduceIte, StateT.run_pure]
-            rfl
+          change (CKAScheme.oracleChallA gp false (scheme kem hDet leak) ()).run _ = _
+          simp only [CKAScheme.oracleChallA, postBToAHonestState,
+            postBToAReductionState, hvalid, stateTrun, Bool.false_eq_true,
+            ↓reduceIte, StateT.run_pure]
+          rfl
       · cases uChallB
-        rcases hlastRecv with hlast | hlast
+        have hvalid : CKAScheme.validStep base.lastAction .challB = false := by
+          rcases hlastRecv with hlast | hlast <;> simp [hlast, CKAScheme.validStep]
+        refine postRel_step_of_security_runs_eq_pure kem hDet leak gp
+          (CKAScheme.ckaSecuritySpec.OChallB : (securitySpec leak).Domain)
+          (none : (securitySpec leak).Range CKAScheme.ckaSecuritySpec.OChallB)
+          hcurrent rfl ?_ ?_
         all_goals
-          have hvalid : CKAScheme.validStep base.lastAction .challB = false := by
-            simp [hlast, CKAScheme.validStep]
-          refine postRel_step_of_security_runs_eq_pure kem hDet leak gp
-            (CKAScheme.ckaSecuritySpec.OChallB : (securitySpec leak).Domain)
-            (none : (securitySpec leak).Range CKAScheme.ckaSecuritySpec.OChallB)
-            hcurrent rfl ?_ ?_
-          all_goals
-            change (CKAScheme.oracleChallB gp false (scheme kem hDet leak) ()).run _ = _
-            simp only [CKAScheme.oracleChallB, postBToAHonestState,
-              postBToAReductionState, hvalid, stateTrun, Bool.false_eq_true,
-              ↓reduceIte, StateT.run_pure]
-            rfl
+          change (CKAScheme.oracleChallB gp false (scheme kem hDet leak) ()).run _ = _
+          simp only [CKAScheme.oracleChallB, postBToAHonestState,
+            postBToAReductionState, hvalid, stateTrun, Bool.false_eq_true,
+            ↓reduceIte, StateT.run_pure]
+          rfl
       · cases uCorrA
         rw [securityImpl_corruptA_run kem hDet leak gp
           (postBToAHonestState base sk msg realKey)]
@@ -931,81 +907,31 @@ lemma postRel_step [SampleableType K] [DecidableEq K]
             CKAScheme.allowCorrPCS, CKAScheme.allowCorrFS]
         exact relTriple_pure_pure ⟨hout, hcurrent⟩
       · cases uRLeakA
-        rcases hlastRecv with hlast | hlast
+        have hvalid : CKAScheme.validStep base.lastAction .sendA = false := by
+          rcases hlastRecv with hlast | hlast <;> simp [hlast, CKAScheme.validStep]
+        refine postRel_step_of_security_runs_eq_pure kem hDet leak gp
+          (CKAScheme.ckaSecuritySpec.OSendArleak : (securitySpec leak).Domain)
+          (none : (securitySpec leak).Range CKAScheme.ckaSecuritySpec.OSendArleak)
+          hcurrent rfl ?_ ?_
         all_goals
-          have hvalid : CKAScheme.validStep base.lastAction .sendA = false := by
-            simp [hlast, CKAScheme.validStep]
-          have hleft :
-              (securityImpl kem hDet leak gp false
-                (CKAScheme.ckaSecuritySpec.OSendArleak : (securitySpec leak).Domain)).run
-                (postBToAHonestState base sk msg realKey) =
-              pure (none, postBToAHonestState base sk msg realKey) := by
-            change (CKAScheme.oracleSendArleak gp (scheme kem hDet leak) ()).run
-              (postBToAHonestState base sk msg realKey) = _
-            simp only [CKAScheme.oracleSendArleak, postBToAHonestState, hvalid, stateTrun,
-              Bool.false_eq_true, ↓reduceIte, StateT.run_pure]
-          have hgame :
-              (securityImpl kem hDet leak gp false
-                (CKAScheme.ckaSecuritySpec.OSendArleak : (securitySpec leak).Domain)).run
-                (postBToAReductionState base msg fakeKey).game =
-              pure (none, (postBToAReductionState base msg fakeKey).game) := by
-            change (CKAScheme.oracleSendArleak gp (scheme kem hDet leak) ()).run
-              (postBToAReductionState base msg fakeKey).game = _
-            simp only [CKAScheme.oracleSendArleak, postBToAReductionState, hvalid, stateTrun,
-              Bool.false_eq_true, ↓reduceIte, StateT.run_pure]
-          have hright :
-              (postChallengeImpl kem hDet leak gp
-                (CKAScheme.ckaSecuritySpec.OSendArleak : (securitySpec leak).Domain)).run
-                (postBToAReductionState base msg fakeKey) =
-              pure (none, postBToAReductionState base msg fakeKey) := by
-            change (liftSecurityImplToPost kem hDet leak gp
-              (CKAScheme.ckaSecuritySpec.OSendArleak : (securitySpec leak).Domain)).run
-                (postBToAReductionState base msg fakeKey) = _
-            exact liftSecurityImplToPost_run_eq_pure_of_security_run_eq
-              kem hDet leak gp
-              (CKAScheme.ckaSecuritySpec.OSendArleak : (securitySpec leak).Domain)
-              (postBToAReductionState base msg fakeKey)
-              (none : (securitySpec leak).Range CKAScheme.ckaSecuritySpec.OSendArleak) hgame
-          rw [hleft, hright]
-          exact relTriple_pure_pure ⟨rfl, hcurrent⟩
+          change (CKAScheme.oracleSendArleak gp (scheme kem hDet leak) ()).run _ = _
+          simp only [CKAScheme.oracleSendArleak, postBToAHonestState,
+            postBToAReductionState, hvalid, stateTrun, Bool.false_eq_true,
+            ↓reduceIte, StateT.run_pure]
+          rfl
       · cases uRLeakB
-        rcases hlastRecv with hlast | hlast
+        have hvalid : CKAScheme.validStep base.lastAction .sendB = false := by
+          rcases hlastRecv with hlast | hlast <;> simp [hlast, CKAScheme.validStep]
+        refine postRel_step_of_security_runs_eq_pure kem hDet leak gp
+          (CKAScheme.ckaSecuritySpec.OSendBrleak : (securitySpec leak).Domain)
+          (none : (securitySpec leak).Range CKAScheme.ckaSecuritySpec.OSendBrleak)
+          hcurrent rfl ?_ ?_
         all_goals
-          have hvalid : CKAScheme.validStep base.lastAction .sendB = false := by
-            simp [hlast, CKAScheme.validStep]
-          have hleft :
-              (securityImpl kem hDet leak gp false
-                (CKAScheme.ckaSecuritySpec.OSendBrleak : (securitySpec leak).Domain)).run
-                (postBToAHonestState base sk msg realKey) =
-              pure (none, postBToAHonestState base sk msg realKey) := by
-            change (CKAScheme.oracleSendBrleak gp (scheme kem hDet leak) ()).run
-              (postBToAHonestState base sk msg realKey) = _
-            simp only [CKAScheme.oracleSendBrleak, postBToAHonestState, hvalid, stateTrun,
-              Bool.false_eq_true, ↓reduceIte, StateT.run_pure]
-          have hgame :
-              (securityImpl kem hDet leak gp false
-                (CKAScheme.ckaSecuritySpec.OSendBrleak : (securitySpec leak).Domain)).run
-                (postBToAReductionState base msg fakeKey).game =
-              pure (none, (postBToAReductionState base msg fakeKey).game) := by
-            change (CKAScheme.oracleSendBrleak gp (scheme kem hDet leak) ()).run
-              (postBToAReductionState base msg fakeKey).game = _
-            simp only [CKAScheme.oracleSendBrleak, postBToAReductionState, hvalid, stateTrun,
-              Bool.false_eq_true, ↓reduceIte, StateT.run_pure]
-          have hright :
-              (postChallengeImpl kem hDet leak gp
-                (CKAScheme.ckaSecuritySpec.OSendBrleak : (securitySpec leak).Domain)).run
-                (postBToAReductionState base msg fakeKey) =
-              pure (none, postBToAReductionState base msg fakeKey) := by
-            change (liftSecurityImplToPost kem hDet leak gp
-              (CKAScheme.ckaSecuritySpec.OSendBrleak : (securitySpec leak).Domain)).run
-                (postBToAReductionState base msg fakeKey) = _
-            exact liftSecurityImplToPost_run_eq_pure_of_security_run_eq
-              kem hDet leak gp
-              (CKAScheme.ckaSecuritySpec.OSendBrleak : (securitySpec leak).Domain)
-              (postBToAReductionState base msg fakeKey)
-              (none : (securitySpec leak).Range CKAScheme.ckaSecuritySpec.OSendBrleak) hgame
-          rw [hleft, hright]
-          exact relTriple_pure_pure ⟨rfl, hcurrent⟩
+          change (CKAScheme.oracleSendBrleak gp (scheme kem hDet leak) ()).run _ = _
+          simp only [CKAScheme.oracleSendBrleak, postBToAHonestState,
+            postBToAReductionState, hvalid, stateTrun, Bool.false_eq_true,
+            ↓reduceIte, StateT.run_pure]
+          rfl
 
 /-- Whole-run consequence of `postRel_step`: from `PostRel`-related states,
 simulating any adversary under the honest and post-challenge implementations
