@@ -9,16 +9,16 @@ import VCVio.ProgramLogic.Relational.SimulateQ
 import ToVCVio.EvalDist.Monad.Basic
 
 /-!
-# OracleComp EvalDist Compatibility Lemmas
+# OracleComp Coupling and Projection Lemmas
 
-Compatibility wrappers for coupling-based `simulateQ` proofs and two small
-`ProbComp`/`StateT` probability projections.
+This file connects explicit `SPMF` couplings with VCVio's relational program
+logic for stateful oracle simulations. A per-query coupling witness is converted
+to a `RelTriple`, composed through an adversary by `relTriple_simulateQ_run` or
+`relTriple_simulateQ_run'`, and exposed as either an explicit whole-run coupling
+or an equality of output distributions.
 
-VCVio's relational program logic now performs the whole-adversary coupling.
-The lemmas below preserve the older explicit-coupling API by translating a
-per-query coupling witness into a `RelTriple`, applying
-`relTriple_simulateQ_run` or `relTriple_simulateQ_run'`, and translating the
-result back only when the public statement requests an explicit coupling.
+The final section contains point-probability projections for the canonical
+`ProbComp` runtime and for `StateT.run'`.
 -/
 
 open OracleSpec Option ENNReal BigOperators

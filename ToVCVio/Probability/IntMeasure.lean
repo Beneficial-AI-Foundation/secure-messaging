@@ -46,10 +46,10 @@ multiplication is additive convolution: `F * G` assigns to `v` the sum of
 Similarly, `F ^ n` is the finite measure of an `n`-fold independent sum. -/
 abbrev IntMeasure := AddMonoidAlgebra ℕ ℤ
 
-/-- Compatibility coercion to the coefficient Finsupp. -/
+/-- View an integer measure as its finitely supported coefficient function. -/
 instance : Coe IntMeasure (ℤ →₀ ℕ) := ⟨AddMonoidAlgebra.coeff⟩
 
-/-- Compatibility coercion to coefficient evaluation. -/
+/-- Evaluate an integer measure at an integer outcome. -/
 instance : CoeFun IntMeasure (fun _ => ℤ → ℕ) := ⟨fun F => F.coeff⟩
 
 /-- The counting measure `F` has all its nonzero mass inside `[lo, hi]`. -/

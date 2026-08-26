@@ -49,9 +49,10 @@ is uniform and unrevealed, so the probability that any of the `k_P` tags tried t
 `ToVCVio.OracleComp.QueryTracking.RandomOracle.DiscardQuerySimulate` — accessing the cache only via
 `randomOracle`, which avoids the false bare-`StateT` formulation that a raw cache read would break.)
 
-## Status
+## Main result
 
-`probForge_le_queryBound_div_card` is proved (sorry-free). TODO(upstream): contribute to VCVio.
+`probForge_le_queryBound_div_card` bounds the forgery probability by the verify-query budget
+divided by the cardinality of the random-oracle range.
 -/
 
 open OracleComp OracleSpec ENNReal
@@ -74,7 +75,7 @@ noncomputable instance [Fintype R] [Inhabited R] : IsUniformSpec (forgeSpec D R)
   IsUniformSpec.ofFintypeInhabited _
 
 /-- A one-time-unforgeability adversary: outputs nothing observable; we only care whether it
-ever made a successful verify query at a not-previously-eval'd point. -/
+made a successful verify query at a point absent from the set of evaluated points. -/
 abbrev ForgeAdversary (D R : Type) := OracleComp (forgeSpec D R) Unit
 
 /-- State for the forgery experiment: the lazy random-oracle cache for `D →ₒ R`, the set of
@@ -125,13 +126,10 @@ instance : DecidablePred (isVerifyQuery (D := D) (R := R)) :=
 
 /-- Query-bound transfer for an `add` handler whose left side never matches the predicate.
 
-This is `VCVio`'s `IsQueryBoundP.simulateQ_run_add_inr_of_step` with the spurious
-`[(spec₁ + spec₂).Fintype]`/`[(spec₁ + spec₂).Inhabited]` requirements dropped: the upstream
-wrapper carries them but never uses them (its body only delegates to `simulateQ_run_of_step`, which
-needs nothing on the adversary spec). Our EtM adversary spec mixes the unbounded message/ciphertext
-types `M`/`C_e`, so it has no `Fintype`; only `[IsUniformSpec spec']` on the *base* oracle is real.
-
-TODO(upstream): relax the `_add_*_of_step` wrappers to drop the unused adversary-spec instances. -/
+The proof delegates to `simulateQ_run_of_step`, so it requires
+`[IsUniformSpec spec']` only for the base oracle. It does not require finite or
+inhabited ranges for the adversary spec `spec₁ + spec₂`; this permits EtM
+adversary interfaces containing unbounded message and ciphertext types. -/
 theorem simulateQ_run_add_inr_of_step
     {ι₁ ι₂ ι' : Type u} {spec₁ : OracleSpec ι₁} {spec₂ : OracleSpec ι₂}
     {spec' : OracleSpec ι'} [IsUniformSpec spec'] {σ α : Type u}
@@ -602,7 +600,7 @@ a time:
     satisfies `hnc`,
     so the IH at `n - 1` bounds it by `(n-1)/|R|`. Total telescopes to `1/|R| + (n-1)/|R| = n/|R|`
     (NRS14 App. A.2 Case 1 / Lemma 2). The forgetting step supplies the conditional uniformity that
-    the older fixed-`v` formulation could not see. -/
+    is obtained by marginalizing over the cached value. -/
 private theorem probForge_run_le [Fintype R]
     (oa : ForgeAdversary D R) (n : ℕ)
     (cache : (D →ₒ R).QueryCache) (evald : Finset D)
@@ -665,7 +663,8 @@ private theorem probForge_run_le [Fintype R]
               (fun rc => pure (rc.1, (rc.2, insert t evald, false))) :=
           forgeImpl_run_eval t (cache, evald, false)
         rw [hstep]
-        -- Bound over the eval step's post-state: forge flag stays `false`, `t` is now eval'd.
+        -- Bound over the eval step's post-state: forge remains `false`, and `t` is recorded
+        -- in the set of evaluated points.
         refine probEvent_bind_le_of_forall_le ?_
         rintro ⟨resp, s'⟩ hxsupp
         -- Read off the post-state from the `pure` in `hstep`'s normal form.

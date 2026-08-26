@@ -12,8 +12,6 @@ Helper lemmas for `RelTriple` between a computation and itself.  The plain
 diagonal `relTriple_refl` forgets where the outputs come from; the variants
 here keep membership in the support, which is what invariant-preservation
 arguments consume.
-
-Upstream candidates for `VCVio.ProgramLogic.Relational.Basic`.
 -/
 
 open ENNReal OracleSpec OracleComp

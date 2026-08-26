@@ -25,12 +25,10 @@ IND$-CPA (real-or-random) security, following:
   EUROCRYPT 2019.
   — One-time encryption setting where each key is used at most once.
 
-This is a **local placeholder**: VCVio's `SymmEncAlg` has monadic (possibly randomized)
-`encrypt`/`decrypt` and only information-theoretic perfect-secrecy notions, whereas the EtM
-proof needs a *deterministic* cipher with a *computational one-time IND$-CPA* assumption —
-exactly what `DetSEAlg` plus the game below provide. Tracked upstream at
-<https://github.com/Verified-zkEVM/VCV-io/issues/411>; replace with an import once VCVio
-delivers a deterministic IND$-CPA variant.
+VCVio's `SymmEncAlg` has monadic, possibly randomized `encrypt`/`decrypt`
+operations and information-theoretic perfect-secrecy notions. The EtM proof
+instead uses a deterministic cipher with a computational one-time IND$-CPA
+assumption; `DetSEAlg` and its game below provide that interface.
 
 ## Deviations from NRS14
 

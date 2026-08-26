@@ -16,10 +16,10 @@ A reduction's oracle handler is often an `add` of an *identity* handler on the b
 computation living purely on the base spec (lifted in via `liftComp`/`liftM`), the real handler is
 never consulted and the computation passes through unchanged.
 
-`simulateQ_id'_liftTarget_add_liftComp` packages VCVio's `QueryImpl.simulateQ_add_liftM_left` into
-the exact `liftM`-base shape the EtM enc-hop forwarders consume (the upstream lemma does not match
-syntactically: the lifted query enters the combined spec in one step, not as a lift of an
-`OracleComp unifSpec`).
+`simulateQ_id'_liftTarget_add_liftComp` specializes
+`QueryImpl.simulateQ_add_liftM_left` to the `liftM`-base shape used by the EtM
+enc-hop forwarders. In this shape the lifted query enters the combined spec in
+one step rather than as a lift of an `OracleComp unifSpec`.
 -/
 
 open OracleComp OracleSpec

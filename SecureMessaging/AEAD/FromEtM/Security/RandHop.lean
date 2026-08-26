@@ -56,7 +56,7 @@ theorem game3_eq_rand
             Prod.fst ?_ adv ((none, ∅) : EtmGameState AD C_e T)).symm)]
   · -- `prf.keygen` is lossless, so the `(1 - Pr[⊥]) ·` factor is `1`; `rfl` pins `impl₁`.
     rw [NeverFail.probFailure_eq_zero, tsub_zero, one_mul]
-  · -- per-query projection (`impl₁` now pinned to game3's oracle implementation)
+  · -- per-query projection (`impl₁` is game3's oracle implementation)
     intro t s
     obtain ⟨ch, qc⟩ := s
     rcases t with (n | am) | ac

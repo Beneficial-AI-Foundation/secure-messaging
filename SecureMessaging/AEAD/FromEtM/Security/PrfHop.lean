@@ -89,7 +89,7 @@ theorem game0_eq_prfRealExp
       Pr[= true | prf.prfRealExp (prfReduction se adv)] := by
   -- RHS: unfold the reduction + experiment, fold the inner skeleton run to `run'`,
   -- collapse the nested `simulateQ` via `mapStateTBase`, forward `liftComp se.keygen`
-  -- (the upstream `simulateQ_prfRealQueryImpl_liftComp` is the `unifSpec`-transparency fact).
+  -- using the `unifSpec`-transparency theorem `simulateQ_prfRealQueryImpl_liftComp`.
   unfold PRFScheme.prfRealExp prfReduction etmGameSkeleton
   simp only [bind_pure_comp, ← StateT.run'_eq, simulateQ_bind,
     QueryImpl.simulateQ_mapStateTBase_run', PRFScheme.simulateQ_prfRealQueryImpl_liftComp]
@@ -144,8 +144,8 @@ theorem game1_eq_prfIdealExp
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     Pr[= true | game1 se adv] =
       Pr[= true | PRFScheme.prfIdealExp (prfReduction se adv)] := by
-  -- RHS: collapse the nested `simulateQ`, forward keygen (the upstream
-  -- `simulateQ_prfIdealQueryImpl_liftComp` is the cache-threading `unifSpec`-transparency fact),
+  -- RHS: collapse the nested `simulateQ`, forward keygen using the cache-threading
+  -- `unifSpec`-transparency theorem `simulateQ_prfIdealQueryImpl_liftComp`,
   -- then push the outer `.run' ∅` through the `liftM se.keygen` bind so both sides start with
   -- `se.keygen` (the cache threads through unchanged).
   unfold PRFScheme.prfIdealExp prfReduction etmGameSkeleton
@@ -164,9 +164,9 @@ theorem game1_eq_prfIdealExp
   -- LHS: game1.
   unfold game1 etmGameSkeleton
   simp only [bind_pure_comp, ← StateT.run'_eq]
-  -- A forwarded function query `Sum.inr q` is answered by the lazy random oracle at `q`. This is
-  -- exactly the upstream `simulateQ_prfIdealQueryImpl_inr`; the local restatement just pins the
-  -- ambient spec annotation so it matches syntactically in the `simp only` decrypt branches below.
+  -- A forwarded function query `Sum.inr q` is answered by the lazy random oracle at `q`.
+  -- `simulateQ_prfIdealQueryImpl_inr` proves this equality; the local statement pins the ambient
+  -- spec annotation so it matches syntactically in the `simp only` decrypt branches below.
   have hroI : ∀ (q : AD × C_e),
       simulateQ (PRFScheme.prfIdealQueryImpl (D := AD × C_e) (R := T))
         (liftM (OracleSpec.query (Sum.inr q) :

@@ -60,8 +60,8 @@ noncomputable def roImpl (D R : Type) [DecidableEq D] [SampleableType R] :
 
 /-! ## The true absorption lemma
 
-(The independent-bind swap helper `evalDist_bind_bind_swap` lives upstream in
-`VCVio.EvalDist.Monad.Basic`.) -/
+The proof uses the independent-bind swap lemma `evalDist_bind_bind_swap` from
+`VCVio.EvalDist.Monad.Basic`. -/
 
 /-- Running `randomOracle` on a single query at `d` from a cache that misses `d`: sample uniformly
 and cache the result. -/

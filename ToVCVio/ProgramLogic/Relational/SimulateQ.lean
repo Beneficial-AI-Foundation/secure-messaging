@@ -10,8 +10,8 @@ import ToVCVio.EvalDist.Monad.Basic
 # Sampled-Parameter Lemmas for Relational simulateQ
 
 Convenience lemmas for sampled-parameter simulations and handler normalization.
-The generic relational `simulateQ` rules and their `evalDist` projections live
-upstream in VCVio.
+VCVio provides the generic relational `simulateQ` rules and their `evalDist`
+projections.
 
 ## Notation
 

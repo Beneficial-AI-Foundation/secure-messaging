@@ -24,7 +24,7 @@ variable {K PK SK C : Type}
 
 /-! ## The pre-injection invariant, challenged party B
 
-`preTraceB` mirrors `preTraceA` with the B-side bounds: the injection now
+`preTraceB` mirrors `preTraceA` with the B-side bounds: the injection
 happens at an A-send, bumping `tA` to `gp.challengeEpoch - 1`, so the
 alternation trace keeps `tA` at least two epochs below the challenge epoch at
 the receive that could precede the injecting send, and the challenge epoch is
@@ -73,7 +73,7 @@ private lemma willChallengeB_eq_false_of_preInvB
 /-! ## Preservation of the B-side pre-injection invariant
 
 One lemma per state-changing oracle of `securityImpl`, mirroring the A-side
-lemmas with the `preTraceB` bounds.  The guarded send is now `sendA`; the
+lemmas with the `preTraceB` bounds. The guarded send is `sendA`; the
 `sendA` randomness-leaking variant needs the PCS gate and the even challenge
 epoch for its bound, the `sendB` ones need neither. -/
 

@@ -224,8 +224,9 @@ theorem probOutput_simulateQ_greedyLazy_run'_eq
     rw [hg]
     -- Push bind associativity on both sides so the outer `$ᵗ τ` is shared.
     simp only [monad_norm]
-    -- Both sides now share the outer `$ᵗ τ >>= fun a => (implFam a t).run s >>= ...`;
-    -- reduce to pointwise equality and close via the cached-case lemma.
+    -- After reassociation both sides share the outer
+    -- `$ᵗ τ >>= fun a => (implFam a t).run s >>= ...`; reduce to pointwise
+    -- equality and close via the cached-case lemma.
     refine probOutput_bind_congr' _ y fun a => ?_
     refine probOutput_bind_congr' _ y fun p => ?_
     -- At this point, LHS continuation is `(simulateQ (implFam a) (k p.1)).run' p.2`
