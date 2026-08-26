@@ -119,6 +119,40 @@ theorem game2'_eq_game2
           StateT.run_pure, beq_iff_eq, hg, map_bind, Functor.map_map]
 
 omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
+/-- Dropping the write-only `forged` flag from `authInstImpl` yields the
+uninstrumented fixed-key auth handler, independently of the initial flag. -/
+lemma simulateQ_authInstImpl_run'_eq_authPlainImpl
+    (se : DetSEAlg K_e M C_e) (b : Bool) (ke : K_e)
+    (adv : OneTimeCCAAdversary AD M (C_e × T))
+    (s : EtmGameState AD C_e T) (forged : Bool) :
+    (simulateQ (authInstImpl se b ke) adv).run' (s, forged) =
+      (simulateQ (authPlainImpl se b ke) adv).run' s := by
+  refine run'_simulateQ_eq_of_query_map_eq _ _ Prod.fst ?_ adv (s, forged)
+  intro t state
+  obtain ⟨⟨ch, qc⟩, flag⟩ := state
+  rcases t with (n | ⟨ad, m⟩) | ⟨ad, c, tg⟩
+  · simp [authInstImpl, authUnifImpl, authPlainImpl, gameUnifImpl,
+      QueryImpl.add_apply_inl, QueryImpl.liftTarget_apply,
+      StateT.run_monadLift, Prod.map, Functor.map_map]
+  · cases ch <;>
+      simp [authInstImpl, authEncImpl, authPlainImpl, QueryImpl.add_apply_inl,
+        QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get, StateT.run_set,
+        StateT.run_pure, Prod.map, Functor.map_map]
+  · cases ch with
+    | none =>
+      cases b <;>
+        simp [authInstImpl, authDecImpl, authPlainImpl, QueryImpl.add_apply_inr,
+          StateT.run_bind, StateT.run_get, StateT.run_set,
+          Prod.map, Functor.map_map, ← apply_ite]
+    | some val =>
+      by_cases hguard : val = (c, tg)
+      all_goals
+        cases b <;>
+          simp [authInstImpl, authDecImpl, authPlainImpl, QueryImpl.add_apply_inr,
+            StateT.run_bind, StateT.run_get, StateT.run_set, StateT.run_pure,
+            Prod.map, Functor.map_map, ← apply_ite, beq_iff_eq, hguard]
+
+omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
 /-- Per-key identical-until-bad bound (auth hop, brick 3): the flag-instrumented `b = true`
 and `b = false` simulations agree on every non-forged transition (they differ only in the
 verify return when `ok = true`, which also sets the monotone `forged` flag), so the per-key TV

@@ -67,68 +67,24 @@ theorem game1_game2_le_auth
     -- flag is write-only (does not affect the state transition or the output bit), so dropping
     -- it via `proj = Prod.fst` recovers the un-instrumented game
     -- (`run'_simulateQ_eq_of_query_map_eq`).
-    -- The per-oracle `hproj` obligation: unif/encrypt thread the flag unchanged; decrypt's
-    -- flag-write is dropped by `Prod.fst`, leaving the same state transition and output bit.
-    have hproj_unif : ∀ (b : Bool) (ke : K_e) (n : ℕ) (s : EtmGameState AD C_e T × Bool),
-        Prod.map id Prod.fst <$>
-            (authInstImpl se b ke (Sum.inl (Sum.inl n))).run s =
-          (gameUnifImpl (AD := AD) (C_e := C_e) (T := T) n).run (Prod.fst s) := by
-      intro b ke n s
-      obtain ⟨⟨ch, qc⟩, fl⟩ := s
-      simp [authInstImpl, authUnifImpl, gameUnifImpl, QueryImpl.add_apply_inl,
-        QueryImpl.liftTarget_apply, StateT.run_monadLift, Prod.map, Functor.map_map]
     have hflag1 : game1 se adv = se.keygen >>= Y₁ := by
       rw [hY₁]
       unfold game1 etmGameSkeleton
       simp only [bind_pure_comp, ← StateT.run'_eq]
       refine bind_congr fun ke => ?_
-      refine (run'_simulateQ_eq_of_query_map_eq _ _ Prod.fst ?hproj adv ((none, ∅), false)).symm
-      case hproj =>
-        intro t s
-        obtain ⟨⟨ch, qc⟩, fl⟩ := s
-        rcases t with (n | ⟨ad, m⟩) | ⟨ad, c, tg⟩
-        · exact hproj_unif true ke n ((ch, qc), fl)
-        · -- encryption oracle: flag threaded unchanged, dropped by `Prod.fst`
-          cases ch <;>
-            simp [authInstImpl, authEncImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-              StateT.run_bind, StateT.run_get, StateT.run_set, StateT.run_pure, Prod.map,
-              Functor.map_map]
-        · -- decryption oracle (b = true): RO + compare, real return on `ok`, flag dropped
-          cases ch with
-          | none =>
-            simp [authInstImpl, authDecImpl, QueryImpl.add_apply_inr, StateT.run_bind,
-              StateT.run_get, StateT.run_set, StateT.run_pure, Prod.map, Functor.map_map,
-              ← apply_ite]
-          | some val =>
-            by_cases hguard : val = (c, tg) <;>
-              simp [authInstImpl, authDecImpl, QueryImpl.add_apply_inr, StateT.run_bind,
-                StateT.run_get, StateT.run_set, StateT.run_pure, Prod.map, Functor.map_map,
-                ← apply_ite, beq_iff_eq, hguard]
+      change (simulateQ (authPlainImpl se true ke) adv).run' (none, ∅) =
+        (simulateQ (authInstImpl se true ke) adv).run' ((none, ∅), false)
+      exact (simulateQ_authInstImpl_run'_eq_authPlainImpl
+        se true ke adv (none, ∅) false).symm
     have hflag2 : game2' se adv = se.keygen >>= Y₂ := by
       rw [hY₂]
       unfold game2' etmGameSkeleton
       simp only [bind_pure_comp, ← StateT.run'_eq]
       refine bind_congr fun ke => ?_
-      refine (run'_simulateQ_eq_of_query_map_eq _ _ Prod.fst ?hproj adv ((none, ∅), false)).symm
-      case hproj =>
-        intro t s
-        obtain ⟨⟨ch, qc⟩, fl⟩ := s
-        rcases t with (n | ⟨ad, m⟩) | ⟨ad, c, tg⟩
-        · exact hproj_unif false ke n ((ch, qc), fl)
-        · cases ch <;>
-            simp [authInstImpl, authEncImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-              StateT.run_bind, StateT.run_get, StateT.run_set, StateT.run_pure, Prod.map,
-              Functor.map_map]
-        · -- decryption oracle (b = false): RO then reject unconditionally, flag dropped
-          cases ch with
-          | none =>
-            simp [authInstImpl, authDecImpl, QueryImpl.add_apply_inr, StateT.run_bind,
-              StateT.run_get, StateT.run_set, StateT.run_pure, Prod.map, Functor.map_map]
-          | some val =>
-            by_cases hguard : val = (c, tg) <;>
-              simp [authInstImpl, authDecImpl, QueryImpl.add_apply_inr, StateT.run_bind,
-                StateT.run_get, StateT.run_set, StateT.run_pure, Prod.map, Functor.map_map,
-                beq_iff_eq, hguard]
+      change (simulateQ (authPlainImpl se false ke) adv).run' (none, ∅) =
+        (simulateQ (authInstImpl se false ke) adv).run' ((none, ∅), false)
+      exact (simulateQ_authInstImpl_run'_eq_authPlainImpl
+        se false ke adv (none, ∅) false).symm
     rw [hflag1, hflag2]
     -- (3) Per-key identical-until-bad (brick 3): the `b = true`/`b = false` impls agree on every
     -- non-forged transition (they differ only in the verify return when `ok = true`, which also
