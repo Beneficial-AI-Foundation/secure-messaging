@@ -70,12 +70,11 @@ inductive ParameterSet where
   | eFrodoKEM1344
 deriving Repr, DecidableEq
 
-set_option linter.dupNamespace false in
 /-- The two FrodoKEM variants: the salted `FrodoKEM` and the ephemeral
 `eFrodoKEM`, which differ in the lengths of Table 2. -/
 inductive Variant where
-  | FrodoKEM
-  | eFrodoKEM
+  | Salted
+  | Ephemeral
 deriving Repr, DecidableEq
 
 /-- Bit length of the seeds used for pseudorandom generation of `seedA`. -/
@@ -175,22 +174,22 @@ below. -/
 def params : ParameterSet → Params
   | .FrodoKEM640 =>
       {D := 15, q := 32768, n := 640, B := 2, ell := 128,
-       lenSeedSE := 256, lenSalt := 256, variant := .FrodoKEM}
+        lenSeedSE := 256, lenSalt := 256, variant := .Salted}
   | .FrodoKEM976 =>
       {D := 16, q := 65536, n := 976, B := 3, ell := 192,
-       lenSeedSE := 384, lenSalt := 384, variant := .FrodoKEM}
+        lenSeedSE := 384, lenSalt := 384, variant := .Salted}
   | .FrodoKEM1344 =>
       {D := 16, q := 65536, n := 1344, B := 4, ell := 256,
-       lenSeedSE := 512, lenSalt := 512, variant := .FrodoKEM}
+        lenSeedSE := 512, lenSalt := 512, variant := .Salted}
   | .eFrodoKEM640 =>
       {D := 15, q := 32768, n := 640, B := 2, ell := 128,
-       lenSeedSE := 128, lenSalt := 0, variant := .eFrodoKEM}
+        lenSeedSE := 128, lenSalt := 0, variant := .Ephemeral}
   | .eFrodoKEM976 =>
       {D := 16, q := 65536, n := 976, B := 3, ell := 192,
-       lenSeedSE := 192, lenSalt := 0, variant := .eFrodoKEM}
+        lenSeedSE := 192, lenSalt := 0, variant := .Ephemeral}
   | .eFrodoKEM1344 =>
       {D := 16, q := 65536, n := 1344, B := 4, ell := 256,
-       lenSeedSE := 256, lenSalt := 0, variant := .eFrodoKEM}
+        lenSeedSE := 256, lenSalt := 0, variant := .Ephemeral}
 /-! ### The relations between the published entries
 
 Each theorem below states one relation that the specification asserts between
@@ -212,16 +211,16 @@ theorem ell_eq_mul (p : ParameterSet) :
 one (Table 2). -/
 theorem lenSeedSE_eq (p : ParameterSet) :
     p.params.lenSeedSE = match p.params.variant with
-      | .FrodoKEM => 2 * p.params.ell
-      | .eFrodoKEM => p.params.ell := by
+      | .Salted => 2 * p.params.ell
+      | .Ephemeral => p.params.ell := by
   cases p <;> rfl
 
 /-- `lenSalt` is twice `ℓ` for the salted variant, and the ephemeral variant
 carries no salt (Table 2). -/
 theorem lenSalt_eq (p : ParameterSet) :
     p.params.lenSalt = match p.params.variant with
-      | .FrodoKEM => 2 * p.params.ell
-      | .eFrodoKEM => 0 := by
+      | .Salted => 2 * p.params.ell
+      | .Ephemeral => 0 := by
   cases p <;> rfl
 
 /-! Each published bit length is eight times its byte count, so the divisions
