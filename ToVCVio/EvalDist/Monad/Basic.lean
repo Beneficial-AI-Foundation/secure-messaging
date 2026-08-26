@@ -68,10 +68,7 @@ lemma abs_probOutput_true_not_map_gap_eq {n : Type → Type*}
 sample:
 
 `If ∀ a, 𝒟[f a] = 𝒟[g a] then
-  𝒟[a ←$ α; f a] = 𝒟[a ←$ α; g a]`.
-
-This packages the outer-sample congruence used after proving a distributional
-equality for each fixed sampled value. -/
+  𝒟[a ←$ α; f a] = 𝒟[a ←$ α; g a]`. -/
 lemma evalDist_sample_bind_congr_of_forall_evalDist_eq {sampleType outputType : Type 0}
     [SampleableType sampleType] (f g : sampleType → ProbComp outputType)
     (h : ∀ a, evalDist (f a) = evalDist (g a)) :

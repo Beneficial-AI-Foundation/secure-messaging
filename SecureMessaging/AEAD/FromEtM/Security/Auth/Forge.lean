@@ -39,16 +39,18 @@ theorem game2'_eq_game2
   unfold game2' game2 etmGameSkeleton
   simp only [bind_pure_comp, ← StateT.run'_eq]
   refine probOutput_bind_congr' se.keygen true (fun ke => ?_)
-  -- Per key: the two interpreters differ only in `decImpl`'s `verifyTag` — `game2'` makes a
-  -- discarded random-oracle query at `(ad, c)` before rejecting, `game2` rejects directly.
-  -- Reduce the `Pr` equality to a `𝒟` equality and apply the generic discarded-query brick.
+  -- Per key, the two query implementations differ only in `decImpl`'s `verifyTag`: `game2'`
+  -- makes a discarded random-oracle query at `(ad, c)` before rejecting, while `game2`
+  -- rejects directly. Reduce the `Pr` equality to a `𝒟` equality and apply discarded-query
+  -- removal.
   rw [probOutput_def, probOutput_def]
   refine congrFun (congrArg DFunLike.coe ?_) true
   refine OracleComp.evalDist_simulateQ_run'_discardRO
     (D := AD × C_e) (R := T) _ _ ?h₁ ?hstep adv none ∅
   case h₁ =>
-    -- `game2`'s interpreter respects the RO: the only cache access is `computeTag = randomOracle`
-    -- inside `encrypt`; `verifyTag = pure false` and the unif oracle never touch the cache.
+    -- `game2`'s query implementation respects the RO: the only cache access is
+    -- `computeTag = randomOracle` inside `encrypt`; `verifyTag = pure false` and the uniform
+    -- handler do not access the cache.
     -- Exhibit the body `B` that recomputes each oracle's response/state as an `OracleComp` over
     -- `unifSpec + ((AD × C_e) →ₒ T)` (uniform sampling for unif, an RO query for the challenge
     -- tag, pure transitions everywhere else).
@@ -68,7 +70,7 @@ theorem game2'_eq_game2
             pure (some (se.encrypt ke m, t'), some (se.encrypt ke m, t')))
       · -- decrypt: reject unconditionally (`verifyTag = pure false`), state unchanged.
         exact pure (none, s)
-    · -- The body matches the first interpreter's run, reshaped.
+    · -- The body matches the first query implementation's handler run, reshaped.
       rcases t with (n | ⟨ad, m⟩) | ⟨ad, c, tg⟩
       · -- unif: both sides forward a uniform sample, cache + challenge unchanged.
         simp only [QueryImpl.add_apply_inl, simulateQ_bind, simulateQ_spec_query,

@@ -10,31 +10,10 @@ import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 /-!
 # Base-state invariant preservation through `mapStateTBase` / `flattenStateT`
 
-When a reduction is run inside an outer experiment, its handler ends up composed as
-`(outer.mapStateTBase inner).flattenStateT` — an `inner` handler on
-`StateT σ (OracleComp specₒ)` reinterpreted by `outer` and then reassociated into a single
-`StateT (σ × τ) (OracleComp spec')` handler. Projection lemmas such as
-`OracleComp.run'_simulateQ_eq_of_query_map_eq_inv'` carry a per-query invariant side condition
-
-```
-hinv : ∀ t s, inv s → ∀ y ∈ support ((impl₁ t).run s), inv y.2
-```
-
-at the *fully composed* level. In practice the invariant of interest is almost always a property
-of the **inner** handler's `σ`-state alone (e.g. "the reduction never writes its inner cache, so
-the inner cache stays `∅`"): neither the outer reinterpretation nor the `flattenStateT`
-reassociation can touch the `σ`-component. This file proves that transparency once and for all, so
-the composed `hinv` premise reduces to an `inner`-only statement.
-
-`OracleComp.simulateQ_run_preserves_inv_of_query` is the simulation-level analogue; these are the
-composition-level `mapStateTBase` / `flattenStateT` invariant-transparency lemmas.
-
-## Main results
-
-* `mapStateTBase_run_preserves_inv` — a per-query `σ`-invariant of `inner` is preserved by the
-  outer reinterpretation `outer.mapStateTBase inner` (the `σ`-component is untouched).
-* `flattenStateT_mapStateTBase_run_preserves_inv` — the same invariant, transported through the
-  `flattenStateT` reassociation, lives on the `σ`-component of the flattened product state.
+`mapStateTBase` simulates the base computation of an inner query implementation
+without changing its `σ`-state component. Therefore any per-query invariant on
+`σ` is preserved by `outer.mapStateTBase inner`. After `flattenStateT`, the same
+invariant holds on the first component of the product state `σ × τ`.
 -/
 
 open OracleSpec OracleComp
@@ -46,11 +25,9 @@ universe u
 variable {ι₀ ι₁ ι' : Type} {spec₀ : OracleSpec ι₀} {spec₁ : OracleSpec ι₁}
   {spec' : OracleSpec ι'} {σ τ : Type}
 
-/-- Run-shape of the composed `(outer.mapStateTBase inner).flattenStateT` handler: running it on
-the product state `(s, q)` runs `inner`'s base computation `(inner t).run s` under the outer
-interpreter at outer-state `q`, then reassociates `((u, s'), q')` to `(u, (s', q'))`. This packages
-the `flattenStateT` + `mapStateTBase` definitional unfolding into one rewrite, so projection proofs
-do not pay the cost of expanding both composition stages by `simp`/defeq. -/
+/-- Running `(outer.mapStateTBase inner).flattenStateT t` from `(s, q)` simulates
+`(inner t).run s` with `outer` from state `q`, then maps
+`((u, s'), q')` to `(u, (s', q'))`. -/
 theorem flattenStateT_mapStateTBase_apply_run
     (outer : QueryImpl spec₁ (StateT τ (OracleComp spec')))
     (inner : QueryImpl spec₀ (StateT σ (OracleComp spec₁)))
@@ -61,7 +38,7 @@ theorem flattenStateT_mapStateTBase_apply_run
   simp [QueryImpl.flattenStateT, QueryImpl.mapStateTBase, map_eq_bind_pure_comp]
 
 /-- The outer reinterpretation `outer.mapStateTBase inner` preserves any per-query `σ`-invariant of
-`inner`. The outer interpreter only acts on the base computation `(inner t).run s : OracleComp
+`inner`. The outer query implementation acts on the base computation `(inner t).run s : OracleComp
 spec₁ (Range × σ)`, so the `σ`-component of every reachable value is one reachable by `inner`
 itself (`support_simulateQ_run'_subset`). -/
 theorem mapStateTBase_run_preserves_inv

@@ -27,9 +27,7 @@ universe u v
 variable {m : Type u → Type v} {σ α : Type u}
 
 /-- Reading the current state before choosing the next `StateT` computation
-substitutes the initial state: `(do let t ← get; f t).run s = (f s).run s`.
-
-This packages the common `StateT.run_bind`/`StateT.run_get` simplification. -/
+substitutes the initial state: `(do let t ← get; f t).run s = (f s).run s`. -/
 lemma run_get_bind [Monad m] [LawfulMonad m]
     (f : σ → StateT σ m α) (s : σ) :
     (do let t ← (get : StateT σ m σ); f t).run s = (f s).run s := by

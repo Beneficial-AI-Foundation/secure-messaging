@@ -15,35 +15,15 @@ import VCVio.OracleComp.SimSemantics.SimulateQ
 This file proves a query-budgeted unforgeability bound for an eval-and-verify
 interface backed by a shared lazy random oracle.
 
-## Main theorem
-
-Consider an adversary with two oracles over a *shared* lazy random function `ρ : D → R`:
+An adversary has two interfaces to a shared lazy random function `ρ : D → R`:
 
 - an **eval** oracle `D →ₒ R` returning `ρ(d)`; and
 - a **verify** oracle `(D × R) →ₒ Bool` reporting whether `r = ρ(d)`. The
   verify oracle reveals only the accept/reject bit, not `ρ(d)`.
 
-The `forged` flag is set when a verify query `(d, r)` has `r = ρ(d)` **at a point `d` that
-was not eval'd before that verify query**. Then the probability that `forged` ends up set is
-at most `q / |R|`, where `q` upper-bounds the number of verify queries.
-
-The "not eval'd before" clause is essential: after eval reveals `ρ(d)`, a
-verify query at `(d, ρ(d))` succeeds with probability one. The proof therefore
-uses **per-distinct-point** accounting over points absent from the evaluated
-set. For each such point `P`, `ρ(P)` is uniform and unrevealed, so the
-probability that any of the `k_P` attempted values equals `ρ(P)` is at most
-`k_P / |R|`. Summing over distinct points gives
-`Σ_P k_P / |R| = q / |R|`.
-
-(The discarded-query removal behind `game2' = game2` is handled separately, at the
-`simulateQ randomOracle` level, by `OracleComp.evalDist_simulateQ_run'_discardRO` in
-`ToVCVio.OracleComp.QueryTracking.RandomOracle.DiscardQuerySimulate` — accessing the cache only via
-`randomOracle`, which avoids the false bare-`StateT` formulation that a raw cache read would break.)
-
-## Main result
-
-`probForge_le_queryBound_div_card` bounds the forgery probability by the verify-query budget
-divided by the cardinality of the random-oracle range.
+The `forged` flag is set by a successful verify query at a point absent from
+the evaluated set. If the adversary makes at most `q` verify queries, then
+`probForge_le_queryBound_div_card` bounds the forgery probability by `q / |R|`.
 -/
 
 open OracleComp OracleSpec ENNReal
@@ -147,21 +127,13 @@ theorem simulateQ_run_add_inr_of_step
       | inr t => exact hstep_np₂ t hnp s)
     s
 
-/-! ### Generalized induction kernel for Brick 1
+/-! ### Generalized induction invariant
 
-The bound is proved by induction on the adversary computation, generalizing over the starting
-random-oracle cache `cache` and the eval'd-point set `evald`, under the invariant `hnc`: every
-non-eval'd point is *uncached* (`d ∉ evald → cache d = none`).
-
-`hnc` is what makes the accounting close without tracking exclusions. Since the forge flag can
-only be set at a non-eval'd point, and such a point is uncached, every forging verify reads a
-*fresh* uniform value `ρ(d)`: it hits its queried tag with probability `1/|R|`. On a miss the
-freshly-sampled value is irrelevant to the forge flag (a later verify at `d` re-reads the same
-value, but a hit there would be at the same fresh draw) — formalized by the resampling marginal
-`evalDist_forgeBit_resample`/`forge_resample_run`, which collapses the freshly-cached value back
-to the bare uncached cache so the induction hypothesis at `n - 1` applies. Dropping the `u = r`
-restriction on the miss sum (union-bound slack) then gives `Pr[forged] ≤ 1/|R| + (n-1)/|R| =
-n/|R|`. This is the formal content of NRS14 Lemma 2 + Appendix A.2 Case 1.
+The induction generalizes over `cache` and `evald` under
+`hnc : ∀ d, d ∉ evald → cache d = none`. Thus each verify query at a
+non-evaluated point reads a fresh uniform value. The resampling lemmas below
+remove the cached value from the forge-flag marginal before applying the
+induction hypothesis.
 -/
 
 omit [DecidableEq R] in
@@ -243,22 +215,9 @@ private theorem probForge_run_eq_zero_of_isEmpty [IsEmpty R]
 
 /-! ### Forge-resampling at a non-eval'd point (the lazy-sampling forgetting lemma)
 
-The single hard kernel needs the *conditional law* of the cached value at a non-eval'd point: when
-a verify query re-hits a non-eval'd point `d`, the cached value is not a fixed `v` but is uniform
-over `R` conditioned on the run so far. We make this explicit by a **forgetting/resampling lemma**:
-pre-sampling a fresh uniform value at a *non-eval'd* point `d` and writing it into the cache has the
-*same forge probability* as not pre-sampling at all.
-
-The lemma is true for the **forge flag** specifically (not the full state distribution, which
-differs on the cache value at `d`): the only way the cached value at `d` influences the forge flag
-is via a verify query at `d` *while `d` is still non-eval'd* — and at the first such access the two
-sides pin to the same value (renaming the two uniform draws). Once `d` becomes eval'd, a verify at
-`d` no longer sets the forge flag (`decide (d ∉ evald) = false`), so the cached value at `d` is
-invisible to the forge flag thereafter. This is exactly the forge-only invisibility that
-distinguishes this from a full distributional resampling. It mirrors
-`evalDist_uniformSample_bind_simulateQ_roImpl_run'` in
-`ToVCVio.OracleComp.QueryTracking.RandomOracle.DiscardQuerySimulate`,
-specialized to the forge-flag marginal of `forgeImpl`. -/
+For `d ∉ evald` and `cache d = none`, pre-sampling `u ← $ᵗ R` and starting
+from `cache.cacheQuery d u` preserves the forge-flag distribution. This is a
+marginal equality; the full state distributions differ at cache entry `d`. -/
 
 /-- The forge-flag marginal of running `oa` from state `s`: the `ProbComp Bool` that returns the
 final forge flag. The forge probability `Pr[forged | run]` is `Pr[= true | forgeBit oa s]`. -/
@@ -559,39 +518,9 @@ private lemma forge_resample_run :
     true
 
 open scoped Classical in
-/-- **Generalized forgery-bound (Brick 1 kernel).**
-
-For any adversary computation `oa` and starting cache/eval'd-set, if `oa` makes at most `n` verify
-queries and the *uncached invariant* `hnc` holds — every non-eval'd point `d` is uncached
-(`cache d = none`) — then the probability the forged flag becomes set (starting unset) is at most
-`n / |R|`.
-
-`probForge_le_queryBound_div_card` instantiates this at the empty initial cache, where `hnc` holds
-vacuously, recovering the headline bound.
-
-**Proof.** Induct on `oa` (`OracleComp.inductionOn`), unfolding `simulateQ forgeImpl` one query at
-a time:
-
-* `pure`: forge stays unset; probability `0 ≤ n/|R|`.
-* `unif` query: forge state threaded unchanged; budget unchanged; apply the IH.
-* `eval` query at `d`: samples `ρ(d)`, adds `d` to `evald`; every still-non-eval'd point is
-  untouched, so `hnc` is preserved; budget unchanged; apply the IH.
-* `verify` query `(d, r)`: consumes one unit of budget. Split on `d ∈ evald`:
-  - `d ∈ evald`: the forge flag cannot be newly set (`decide (d ∉ evald) = false`); `hnc` is
-    preserved (the verify at the eval'd `d` only caches `d`); the IH at `n - 1` gives
-    `≤ (n-1)/|R| ≤ n/|R|`.
-  - `d ∉ evald`: by `hnc`, `cache d = none`, so the lazy RO draws `u : R` uniformly
-    (`withCaching_run_none` ↝ `$ᵗ R`). Decompose over the draw `u` (`probEvent_freshVerify_tsum`):
-    the *hit* `u = r` sets forge (bounded by `1`, total weight `1/|R|`); the *miss* terms `u ≠ r`
-    keep forge unset and cache `u`. After re-adding the nonnegative `u = r` term, the miss terms sum
-    to `∑ᵤ Pr[=u] · Pr[forged | run (mx false) from cacheQuery d u]`, which by **forge-resampling**
-    (`forge_resample_run`, the lazy-sampling forgetting lemma — valid because the cached value at a
-    non-eval'd point is invisible to the forge flag) equals
-    `Pr[forged | run (mx false) from the bare uncached cache]`. The bare cache still
-    satisfies `hnc`,
-    so the IH at `n - 1` bounds it by `(n-1)/|R|`. Total telescopes to `1/|R| + (n-1)/|R| = n/|R|`
-    (NRS14 App. A.2 Case 1 / Lemma 2). The forgetting step supplies the conditional uniformity that
-    is obtained by marginalizing over the cached value. -/
+/-- If `oa` makes at most `n` verify queries and every point outside `evald`
+is absent from `cache`, then the probability of setting the forge flag from
+`false` is at most `n / |R|`. -/
 private theorem probForge_run_le [Fintype R]
     (oa : ForgeAdversary D R) (n : ℕ)
     (cache : (D →ₒ R).QueryCache) (evald : Finset D)

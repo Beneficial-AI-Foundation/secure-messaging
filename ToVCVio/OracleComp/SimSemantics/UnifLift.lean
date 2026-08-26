@@ -11,9 +11,7 @@ import VCVio.OracleComp.SimSemantics.QueryImpl.Basic
 
 `unifLiftStateT` forwards every `unifSpec` query through the base monad
 `OracleComp spec` while threading state `σ` unchanged. The `ProbComp` case is
-obtained with `spec := unifSpec`, since `ProbComp = OracleComp unifSpec`. The
-definition is `@[reducible]`, so `unfold` and `simp` expose the underlying
-`.liftTarget` form.
+obtained with `spec := unifSpec`, since `ProbComp = OracleComp unifSpec`.
 -/
 
 namespace ToVCVio
