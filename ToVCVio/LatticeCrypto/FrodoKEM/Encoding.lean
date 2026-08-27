@@ -146,8 +146,11 @@ private theorem dc_quotient {q n s v ev : ℕ} (r : ℕ)
       Nat.mul_add_div (by omega : 0 < 2 * r), Nat.div_eq_of_lt (by omega), Nat.add_zero,
       Nat.add_mod_right, Nat.mod_eq_of_lt hv]
 
-/-- Decoding recovers `k` from an encoding perturbed by noise below the
-half-step, over a window closed below and open above. -/
+/-- Decoding recovers `k` after perturbing its encoding by a signed additive
+error whose centered representative lies in
+`[-q / 2 ^ (B + 1), q / 2 ^ (B + 1))`, stated without division as
+`-q ≤ 2 ^ (B + 1) * centeredRepr e < q`. This is Lemma 1. At `B = D` the window
+admits only `e = 0`. -/
 theorem dc_ec_add (p : Params) (hw : p.WellFormed) (k : ZMod (2 ^ p.B))
     (e : ZMod p.q)
     (hlo : -(p.q : ℤ) ≤ 2 ^ (p.B + 1) * LatticeCrypto.centeredRepr e)
