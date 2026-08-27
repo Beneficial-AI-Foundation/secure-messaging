@@ -22,14 +22,33 @@ reference below is to it.
 algorithms", and named in Section 3.3, "Matrix encoding and packing".
 
 Encoding places `B` bits in each entry of an `mbar`-by-`nbar` matrix over
-`ZMod q`. The scalar maps are `ec k = k * q / 2 ^ B` and
-`dc c = ⌊c * 2 ^ B / q⌉ mod 2 ^ B`, which are exact bit arithmetic because
-`q = 2 ^ D` (`Params.WellFormed.q_eq`) and `B ≤ D` (`Params.WellFormed.B_le_D`).
+`ZMod q`. With `p : Params` left implicit, the maps are
+
+* `ec : ZMod (2 ^ B) → ZMod q`, `k ↦ k * q / 2 ^ B`;
+* `dc : ZMod q → ZMod (2 ^ B)`, `c ↦ ⌊c * 2 ^ B / q⌉ mod 2 ^ B`;
+* `EncodeChunks : ChunkMatrix p → FrodoMatrix p mbar nbar`, `ec` entrywise;
+* `DecodeChunks : FrodoMatrix p mbar nbar → ChunkMatrix p`, `dc` entrywise.
+
+Two conditions of `Params.WellFormed` are used throughout:
+
+* `q = 2 ^ D` (`q_eq`) makes `q / 2 ^ B` exact, so both maps are bit shifts;
+* `B ≤ D` (`B_le_D`) gives `2 ^ B ≤ q`, so `ec` does not wrap (`ec_val`).
+
+Two further relations follow, each proved where it is used:
+
+* the encoded values sit at spacing `q / 2 ^ B = 2 ^ (D - B)`;
+* the half-step is `Params.noiseRadius = q / 2 ^ (B + 1)`, which satisfies
+  `q = 2 ^ (B + 1) * noiseRadius` exactly when `B < D`. At `B = D` the true
+  half-step is one half and `noiseRadius` truncates it to zero, so `dc_ec_add`
+  treats that case separately.
+
+The remaining conditions of `WellFormed`, `D ≤ 16` and `n % 8 = 0`, play no part
+here: `n` is the lattice dimension and does not enter encoding.
 
 The maps take a message already chunked into `mbar * nbar` values of
 `ZMod (2 ^ B)`, one per matrix entry, rather than as a bit string of length
-`ℓ = B * mbar * nbar`; the bit-string layer is specified alongside `Frodo.Pack`
-and `Frodo.Unpack`.
+`ℓ = B * mbar * nbar` (`ParameterSet.ell_eq_mul`); the bit-string layer is
+specified alongside `Frodo.Pack` and `Frodo.Unpack`.
 
 Names follow the specification where the maps do. The scalar maps and their
 lemmas keep its abbreviated lowercase names, `ec` and `dc`. The matrix maps are
