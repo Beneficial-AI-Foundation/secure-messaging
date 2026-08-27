@@ -128,27 +128,42 @@ private theorem dc_quotient {q n s v ev : ℕ} (r : ℕ) (hn : 0 < n)
 half-step, over a window closed below and open above. -/
 theorem dc_ec_add (p : Params) (hw : p.WellFormed) (k : ZMod (2 ^ p.B))
     (e : ZMod p.q)
-    (hlo : -(p.noiseRadius : ℤ) ≤ LatticeCrypto.centeredRepr e)
-    (hhi : LatticeCrypto.centeredRepr e < (p.noiseRadius : ℤ)) :
+    (hlo : -(p.q : ℤ) ≤ 2 ^ (p.B + 1) * LatticeCrypto.centeredRepr e)
+    (hhi : 2 ^ (p.B + 1) * LatticeCrypto.centeredRepr e < (p.q : ℤ)) :
     dc p (ec p k + e) = k := by
   have hQ : p.q = 2 ^ p.D := hw.q_eq
   haveI : NeZero p.q := ⟨by rw [hQ]; positivity⟩
-  -- with every bit of an entry carrying message there is no room for error
+  have hq0 : (0 : ℤ) < (p.q : ℤ) := by rw [hQ]; positivity
+  have hpow : (0 : ℤ) < 2 ^ (p.B + 1) := by positivity
+  -- with every bit of an entry carrying message the window admits only `e = 0`
   rcases eq_or_lt_of_le hw.B_le_D with hBD | hBD
-  · have : p.noiseRadius = 0 := by
-      rw [Params.noiseRadius, hQ, hBD]
-      exact Nat.div_eq_of_lt (Nat.pow_lt_pow_right one_lt_two (by omega))
-    omega
+  · rw [show (2 : ℤ) ^ (p.B + 1) = 2 * (p.q : ℤ) by
+        rw [hBD, pow_succ, hQ]; push_cast; ring] at hlo hhi
+    have hz : LatticeCrypto.centeredRepr e = 0 := by
+      rcases lt_trichotomy (LatticeCrypto.centeredRepr e) 0 with h | h | h
+      · nlinarith
+      · exact h
+      · nlinarith
+    have he : e = 0 := by rw [LatticeCrypto.centeredRepr_intCast e, hz]; simp
+    rw [he, add_zero, dc_ec p hw k]
   have hsn : 2 ^ (p.D - p.B) * 2 ^ p.B = p.q := by rw [hQ, ← pow_add]; congr 1; omega
   have hrn : 2 * (p.noiseRadius * 2 ^ p.B) = p.q := by
     rw [Params.noiseRadius, hQ, Nat.pow_div (by omega) two_pos, ← pow_add, ← pow_succ']
     congr 1; omega
-  -- the window, read off `e.val` rather than its centered representative
+  -- `q = 2 ^ (B + 1) * noiseRadius`, so cancelling the factor gives the half-step
+  -- window on `e.val` that `dc_quotient` consumes
   have hwin : e.val < p.noiseRadius ∨ p.q - p.noiseRadius ≤ e.val := by
+    rw [show (p.q : ℤ) = 2 ^ (p.B + 1) * p.noiseRadius by rw [← hrn]; push_cast; ring]
+      at hlo hhi
     unfold LatticeCrypto.centeredRepr at hlo hhi
     split at hlo <;> rename_i h
-    · exact Or.inl (by rw [if_pos h] at hhi; exact_mod_cast hhi)
-    · exact Or.inr (by rw [if_neg h] at hhi; omega)
+    · rw [if_pos h] at hhi
+      exact Or.inl (by exact_mod_cast lt_of_mul_lt_mul_left hhi hpow.le)
+    · refine Or.inr ?_
+      have := le_of_mul_le_mul_left (a := (2 : ℤ) ^ (p.B + 1))
+        (by linarith : (2 : ℤ) ^ (p.B + 1) * (-(p.noiseRadius : ℤ))
+              ≤ 2 ^ (p.B + 1) * ((e.val : ℤ) - (p.q : ℤ))) hpow
+      omega
   rw [dc, ZMod.val_add, ec_val p hw k,
     dc_quotient p.noiseRadius (Nat.two_pow_pos p.B) hsn hrn (ZMod.val_lt k) (ZMod.val_lt e) hwin]
   exact ZMod.natCast_zmod_val k
@@ -182,8 +197,8 @@ theorem Decode_Encode (p : Params) (hw : p.WellFormed) (M : ChunkMatrix p) :
 matrix whose entries all lie in the window, stated entrywise. -/
 theorem Decode_Encode_add (p : Params) (hw : p.WellFormed) (M : ChunkMatrix p)
     (E : FrodoMatrix p mbar nbar)
-    (hlo : ∀ i j, -(p.noiseRadius : ℤ) ≤ LatticeCrypto.centeredRepr (E i j))
-    (hhi : ∀ i j, LatticeCrypto.centeredRepr (E i j) < (p.noiseRadius : ℤ)) :
+    (hlo : ∀ i j, -(p.q : ℤ) ≤ 2 ^ (p.B + 1) * LatticeCrypto.centeredRepr (E i j))
+    (hhi : ∀ i j, 2 ^ (p.B + 1) * LatticeCrypto.centeredRepr (E i j) < (p.q : ℤ)) :
     Decode p (Encode p M + E) = M := by
   ext i j
   simpa [Decode, Encode] using dc_ec_add p hw (M i j) (E i j) (hlo i j) (hhi i j)
