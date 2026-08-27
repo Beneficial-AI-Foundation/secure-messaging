@@ -110,16 +110,15 @@ theorem dc_ec (p : Params) (hw : p.WellFormed) (k : ZMod (2 ^ p.B)) :
       Nat.add_zero, ZMod.natCast_mod]
   exact ZMod.natCast_zmod_val k
 
-/-- The rounding step of `dc` as natural-number arithmetic, with the parameters
-abstract:
+/-- A natural-number quotient identity for residues in `[0, r) ∪ [q - r, q)`.
 
-* `q` is the modulus and `n = 2 ^ B` the number of values one entry represents;
-* `s = q / n` is the spacing between those values, and `r = s / 2` the half-step
-  that `dc` adds before dividing;
-* `v < n` is the encoded value and `ev` the noise, as a residue mod `q`.
+If `s * n = q` and `2 * (r * n) = q`, then for `v < n` and `ev < q` in the
+interval union above,
 
-For every `ev` in the window — below the half-step, or within it of `q` — the
-quotient `dc` computes recovers `v` modulo `n`. -/
+`((v * s + ev) % q * n + q / 2) / q % n = v`.
+
+`dc_ec_add` supplies `q = 2 ^ D`, `n = 2 ^ B`, `s = 2 ^ (D - B)` and
+`r = noiseRadius`. -/
 private theorem dc_quotient {q n s v ev : ℕ} (r : ℕ) (hn : 0 < n)
     (hsn : s * n = q) (hrn : 2 * (r * n) = q)
     (hv : v < n) (hev : ev < q) (hwin : ev < r ∨ q - r ≤ ev) :
