@@ -140,6 +140,8 @@ structure WellFormed (p : Params) : Prop where
   D_le : p.D ≤ 16
   /-- At most `D` bits are encoded in each matrix entry, so that `2 ^ B ≤ q`. -/
   B_le_D : p.B ≤ p.D
+  /-- The modulus satisfies `q = 2 ^ D`. -/
+  q_eq : p.q = 2 ^ p.D
 
 end Params
 
