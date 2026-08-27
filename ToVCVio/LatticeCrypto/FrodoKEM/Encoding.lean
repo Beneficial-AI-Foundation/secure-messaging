@@ -31,20 +31,24 @@ The maps take a message already chunked into `mbar * nbar` values of
 `ℓ = B * mbar * nbar`; the bit-string layer is specified alongside `Frodo.Pack`
 and `Frodo.Unpack`.
 
-Names follow the specification: the scalar maps and their lemmas keep its
-abbreviated lowercase names, and the matrix maps built from them keep its
-unabbreviated capitalised ones, as in `ec`/`Encode` and `dc_ec`/`Decode_Encode`.
+Names follow the specification where the maps do. The scalar maps and their
+lemmas keep its abbreviated lowercase names, `ec` and `dc`. The matrix maps are
+only the chunked half of `Frodo.Encode` and `Frodo.Decode`, so they are named
+`EncodeChunks` and `DecodeChunks`; the names of the published functions are left
+for the composites that include the bit-string layer.
 
 ## Main definitions
 
 * `ec`, `dc`: the scalar maps;
-* `Encode`, `Decode`: the matrix maps, `ec` and `dc` applied entrywise;
+* `EncodeChunks`, `DecodeChunks`: the matrix maps, `ec` and `dc` applied
+  entrywise;
 * `Params.noiseRadius`: the half-step `q / 2 ^ (B + 1)`.
 
 ## Main results
 
-* `dc_ec` and `Decode_Encode`: decoding inverts encoding;
-* `dc_ec_add` and `Decode_Encode_add`: decoding inverts encoding perturbed by
+* `dc_ec` and `DecodeChunks_EncodeChunks`: decoding inverts encoding;
+* `dc_ec_add` and `DecodeChunks_EncodeChunks_add`: decoding inverts encoding
+  perturbed by
   noise `e` with `centeredRepr e ∈ [-q / 2 ^ (B + 1), q / 2 ^ (B + 1) - 1]`.
   This is Lemma 1, whose window is asymmetric: closed below and open above.
 -/
@@ -171,36 +175,41 @@ theorem dc_ec_add (p : Params) (hw : p.WellFormed) (k : ZMod (2 ^ p.B))
 /-! ## The matrix maps
 
 `Frodo.Encode` and `Frodo.Decode` apply the scalar maps entrywise to an
-`mbar`-by-`nbar` matrix. -/
+`mbar`-by-`nbar` matrix. The maps here are that entrywise step alone, on input
+already chunked; composing them with the bit-string layer gives the published
+functions. -/
 
 /-- A matrix of `B`-bit chunks, one per entry: the chunked form of a message of
 `ℓ = B * mbar * nbar` bits. -/
 abbrev ChunkMatrix (p : Params) := Matrix (Fin mbar) (Fin nbar) (ZMod (2 ^ p.B))
 
-/-- `Frodo.Encode` (Appendix B), on input already chunked into `B`-bit
-values: apply `ec` to every entry. -/
-def Encode (p : Params) (M : ChunkMatrix p) : FrodoMatrix p mbar nbar :=
+/-- The entrywise step of `Frodo.Encode` (Appendix B), on input already chunked
+into `B`-bit values: apply `ec` to every entry. -/
+def EncodeChunks (p : Params) (M : ChunkMatrix p) : FrodoMatrix p mbar nbar :=
   M.map (ec p)
 
-/-- `Frodo.Decode` (Appendix B), returning the chunked form: apply `dc` to
-every entry. -/
-def Decode (p : Params) (C : FrodoMatrix p mbar nbar) : ChunkMatrix p :=
+/-- The entrywise step of `Frodo.Decode` (Appendix B), returning the chunked
+form: apply `dc` to every entry. -/
+def DecodeChunks (p : Params) (C : FrodoMatrix p mbar nbar) : ChunkMatrix p :=
   C.map (dc p)
 
-/-- `Frodo.Decode` inverts `Frodo.Encode`. -/
-theorem Decode_Encode (p : Params) (hw : p.WellFormed) (M : ChunkMatrix p) :
-    Decode p (Encode p M) = M := by
+/-- `DecodeChunks` inverts `EncodeChunks`. -/
+theorem DecodeChunks_EncodeChunks (p : Params) (hw : p.WellFormed)
+    (M : ChunkMatrix p) :
+    DecodeChunks p (EncodeChunks p M) = M := by
   ext i j
-  simp [Decode, Encode, dc_ec p hw]
+  simp [DecodeChunks, EncodeChunks, dc_ec p hw]
 
-/-- `Frodo.Decode` recovers the message from an encoding perturbed by an error
+/-- `DecodeChunks` recovers the chunks from an encoding perturbed by an error
 matrix whose entries all lie in the window, stated entrywise. -/
-theorem Decode_Encode_add (p : Params) (hw : p.WellFormed) (M : ChunkMatrix p)
+theorem DecodeChunks_EncodeChunks_add (p : Params) (hw : p.WellFormed)
+    (M : ChunkMatrix p)
     (E : FrodoMatrix p mbar nbar)
     (hlo : ∀ i j, -(p.q : ℤ) ≤ 2 ^ (p.B + 1) * LatticeCrypto.centeredRepr (E i j))
     (hhi : ∀ i j, 2 ^ (p.B + 1) * LatticeCrypto.centeredRepr (E i j) < (p.q : ℤ)) :
-    Decode p (Encode p M + E) = M := by
+    DecodeChunks p (EncodeChunks p M + E) = M := by
   ext i j
-  simpa [Decode, Encode] using dc_ec_add p hw (M i j) (E i j) (hlo i j) (hhi i j)
+  simpa [DecodeChunks, EncodeChunks] using
+    dc_ec_add p hw (M i j) (E i j) (hlo i j) (hhi i j)
 
 end FrodoKEM
