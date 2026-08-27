@@ -119,10 +119,11 @@ interval union above,
 
 `dc_ec_add` supplies `q = 2 ^ D`, `n = 2 ^ B`, `s = 2 ^ (D - B)` and
 `r = noiseRadius`. -/
-private theorem dc_quotient {q n s v ev : ℕ} (r : ℕ) (hn : 0 < n)
+private theorem dc_quotient {q n s v ev : ℕ} (r : ℕ)
     (hsn : s * n = q) (hrn : 2 * (r * n) = q)
     (hv : v < n) (hev : ev < q) (hwin : ev < r ∨ q - r ≤ ev) :
     ((v * s + ev) % q * n + q / 2) / q % n = v := by
+  have hn : 0 < n := by omega
   have hr : 0 < r := by rcases Nat.eq_zero_or_pos r with rfl | h <;> omega
   have hs : s = 2 * r := Nat.eq_of_mul_eq_mul_right hn (by rw [Nat.mul_assoc]; omega)
   subst hs
@@ -186,7 +187,7 @@ theorem dc_ec_add (p : Params) (hw : p.WellFormed) (k : ZMod (2 ^ p.B))
               ≤ 2 ^ (p.B + 1) * ((e.val : ℤ) - (p.q : ℤ))) hpow
       omega
   rw [dc, ZMod.val_add, ec_val p hw k,
-    dc_quotient p.noiseRadius (Nat.two_pow_pos p.B) hsn hrn (ZMod.val_lt k) (ZMod.val_lt e) hwin]
+    dc_quotient p.noiseRadius hsn hrn (ZMod.val_lt k) (ZMod.val_lt e) hwin]
   exact ZMod.natCast_zmod_val k
 
 /-! ## The matrix maps
