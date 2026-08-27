@@ -82,14 +82,13 @@ def noiseRadius (p : Params) : ℕ := p.q / 2 ^ (p.B + 1)
 
 end Params
 
-/-- `Frodo.Encode`'s scalar map (Appendix B): `k ↦ k * 2 ^ (D - B)`, placing
-`k` in the top `B` bits of an element of `ZMod q`. -/
+/-- `Frodo.Encode`'s scalar map (Appendix B): `k ↦ k * 2 ^ (D - B)`, multiplying
+by the spacing `q / 2 ^ B`. -/
 def ec (p : Params) (k : ZMod (2 ^ p.B)) : ZMod p.q :=
   (k.val * 2 ^ (p.D - p.B) : ℕ)
 
-/-- `Frodo.Decode`'s scalar map (Appendix B):
-`c ↦ ⌊c * 2 ^ B / q⌉ mod 2 ^ B`, the index of the multiple of `q / 2 ^ B`
-nearest to `c`. -/
+/-- `Frodo.Decode`'s scalar map (Appendix B): `c ↦ ⌊c * 2 ^ B / q⌉ mod 2 ^ B`,
+dividing by that spacing and rounding to the nearest integer. -/
 def dc (p : Params) (c : ZMod p.q) : ZMod (2 ^ p.B) :=
   ((c.val * 2 ^ p.B + p.q / 2) / p.q % 2 ^ p.B : ℕ)
 
