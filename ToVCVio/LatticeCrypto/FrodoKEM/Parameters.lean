@@ -142,6 +142,8 @@ structure WellFormed (p : Params) : Prop where
   B_le_D : p.B ≤ p.D
   /-- The modulus satisfies `q = 2 ^ D`. -/
   q_eq : p.q = 2 ^ p.D
+  /-- A message fills the matrix: `ℓ = B * mbar * nbar`. -/
+  ell_eq : p.ell = p.B * mbar * nbar
 
 end Params
 
