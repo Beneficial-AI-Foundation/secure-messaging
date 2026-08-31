@@ -55,31 +55,44 @@ Two further relations follow, each proved where it is used:
 The remaining conditions of `WellFormed`, `D ≤ 16` and `n % 8 = 0`, play no part
 here: `n` is the lattice dimension and does not enter encoding.
 
-The maps take a message already chunked into `mbar * nbar` values of
-`ZMod (2 ^ B)`, one per matrix entry, rather than as a bit string of length
-`ℓ = B * mbar * nbar` (`ParameterSet.ell_eq_mul`); the bit-string layer is
-specified alongside `Frodo.Pack` and `Frodo.Unpack`.
+`EncodeChunks` and `DecodeChunks` act on a message already chunked into
+`mbar * nbar` values of `ZMod (2 ^ B)`. The two layers below it are Section 7.1
+of `[ABD+25]`, which writes bit `8 * i + j` of a bit string as bit `j` of octet
+`i`, and Section 7.3, which writes the run `b ((i * nbar + j) * B + t)` as bit
+`t` of entry `(i, j)`, reading the matrix row by row. Both take the least
+significant bit first, where `Packing.lean` takes the most significant.
+
+Composing them gives `Encode` and `Decode` on bit strings of length
+`mbar * nbar * B`, which `ParameterSet.ell_eq_mul` identifies with `ℓ`.
 
 Names follow the specification where the maps do. The scalar maps and their
 lemmas keep its abbreviated lowercase names, `ec` and `dc`. The matrix maps are
 only the chunked half of `Frodo.Encode` and `Frodo.Decode`, so they are named
-`EncodeChunks` and `DecodeChunks`; the names of the published functions are left
-for the composites that include the bit-string layer.
+`EncodeChunks` and `DecodeChunks`, and the published names are taken by the
+composites `Encode` and `Decode`.
 
 ## Main definitions
 
 * `ec`, `dc`: the scalar maps;
 * `EncodeChunks`, `DecodeChunks`: the matrix maps, `ec` and `dc` applied
   entrywise;
+* `byteToBits`, `bitsToByte` and their vector forms `bytesToBits`,
+  `bitsToBytes`: the Section 7.1 octet conversion;
+* `chunkToBits`, `bitsToChunk`, `toChunks`, `ofChunks`: the Section 7.3
+  chunking;
+* `Encode`, `Decode`: the published maps, on bit strings;
 * `Params.noiseRadius`: the half-step `q / 2 ^ (B + 1)`.
 
 ## Main results
 
-* `dc_ec` and `DecodeChunks_EncodeChunks`: decoding inverts encoding;
-* `dc_ec_add` and `DecodeChunks_EncodeChunks_add`: decoding inverts encoding
-  perturbed by
-  noise `e` with `centeredRepr e ∈ [-q / 2 ^ (B + 1), q / 2 ^ (B + 1) - 1]`.
-  This is Lemma 1, whose window is asymmetric: closed below and open above.
+* `dc_ec`, `DecodeChunks_EncodeChunks` and `Decode_Encode`: decoding inverts
+  encoding;
+* `dc_ec_add`, `DecodeChunks_EncodeChunks_add` and `Decode_Encode_add`: decoding
+  inverts encoding perturbed by noise `e` with
+  `centeredRepr e ∈ [-q / 2 ^ (B + 1), q / 2 ^ (B + 1) - 1]`. This is Lemma 1,
+  whose window is asymmetric: closed below and open above;
+* `bitsToBytes_bytesToBits`, `bytesToBits_bitsToBytes`, `ofChunks_toChunks` and
+  `toChunks_ofChunks`: the two layers are inverse.
 -/
 
 namespace FrodoKEM
