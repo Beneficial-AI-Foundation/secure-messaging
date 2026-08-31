@@ -1,0 +1,190 @@
+/-
+Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Beneficial AI Foundation
+-/
+import ToVCVio.LatticeCrypto.FrodoKEM.Encoding
+
+/-!
+# FrodoKEM matrix packing
+
+`Frodo.Pack` and `Frodo.Unpack`, which move between matrices over `ZMod q` and
+byte vectors by way of a bit string of `D` bits per entry.
+
+References are as in `Encoding.lean`: `[CiC25]` for the maps on bit strings,
+Appendix B, and `[ABD+25]` Section 7.4 for the same, Section 7.2 for the octet
+convention.
+
+## A different octet convention
+
+`[ABD+25]` fixes two conversions between bit strings and octets. Section 7.1,
+used everywhere else and specified in `Encoding.lean`, packs bits from the least
+significant bit of each octet upwards. Section 7.2, used only by `Frodo.Pack`
+and `Frodo.Unpack`, packs them from the most significant bit downwards. The two
+are bit-reversed within each octet, so they are specified separately here rather
+than shared with a width or order parameter: sharing them would make the
+difference a flag to be set correctly rather than two functions to be read.
+
+Section 7.2 also records that the bit strings `Frodo.Pack` produces always have
+length a multiple of eight. For FrodoKEM that is because every packed matrix has
+`mbar = nbar = 8` as one of its dimensions.
+
+## Main definitions
+
+* `bytesToBitsPack`, `bitsToBytesPack`: the Section 7.2 octet conversion;
+* `Pack`, `Unpack`: matrices over `ZMod q` to bit strings and back.
+-/
+
+namespace FrodoKEM
+
+/-- The eight bits of one octet, most significant first (Section 7.2). -/
+def byteToBitsPack (x : Byte) : Vector Bool 8 :=
+  Vector.ofFn fun j => x.toNat.testBit (7 - j.val)
+
+/-- The octet with the given eight bits, most significant first. -/
+def bitsToBytePack (v : Vector Bool 8) : Byte :=
+  UInt8.ofNat (Nat.ofBits fun i : Fin 8 => v[7 - i.val]'(by omega))
+
+/-- The convention of Section 7.2 on the same two octets that `Encoding.lean`
+uses for Section 7.1, `0x96 = 0b10010110` and `0x5F = 0b01011111`. -/
+example : (byteToBitsPack 0x96).toList ++ (byteToBitsPack 0x5F).toList =
+    [true, false, false, true, false, true, true, false,
+     false, true, false, true, true, true, true, true] := by decide
+
+/-- The two conventions really do differ. Neither round-trip theorem can detect
+a swap between them, since reading and writing in the same wrong order is
+consistent; only a fixed octet distinguishes them. -/
+example : byteToBitsPack 0x96 ≠ byteToBits 0x96 := by decide
+
+/-- An octet is recovered from its bits. -/
+theorem bitsToBytePack_byteToBitsPack (x : Byte) : bitsToBytePack (byteToBitsPack x) = x := by
+  simpa using (by decide : ∀ m < 256,
+    bitsToBytePack (byteToBitsPack (UInt8.ofNat m)) = UInt8.ofNat m) x.toNat x.toNat_lt
+
+/-- The bits of an octet are recovered from it. -/
+theorem byteToBitsPack_bitsToBytePack (v : Vector Bool 8) :
+    byteToBitsPack (bitsToBytePack v) = v := by
+  simpa using (by decide : ∀ f : Fin 8 → Bool,
+    byteToBitsPack (bitsToBytePack (Vector.ofFn f)) = Vector.ofFn f) fun j => v[j]
+
+/-- Section 7.2 of `[ABD+25]`: read a byte vector as a bit string, most
+significant bit of each octet first. Used only by `Pack` and `Unpack`. -/
+def bytesToBitsPack {n : ℕ} (bs : Bytes n) : Vector Bool (n * 8) :=
+  (bs.map byteToBitsPack).flatten
+
+/-- The inverse of `bytesToBitsPack`. -/
+def bitsToBytesPack {n : ℕ} (b : Vector Bool (n * 8)) : Bytes n :=
+  Vector.ofFn fun i =>
+    bitsToBytePack (Vector.ofFn fun j => b[i.val * 8 + j.val]'(by omega))
+
+/-- The `D` bits of one entry, most significant first: step 1.1.1 of Section 7.4
+writes `b (i * n₂ + j) * D + l` as `c (D - 1 - l)`. -/
+def entryToBits (p : Params) (x : ZMod p.q) : Vector Bool p.D :=
+  Vector.ofFn fun l => x.val.testBit (p.D - 1 - l.val)
+
+/-- The entry with the given `D` bits, most significant first. -/
+def bitsToEntry (p : Params) (v : Vector Bool p.D) : ZMod p.q :=
+  ((Nat.ofBits fun l : Fin p.D => v[p.D - 1 - l.val]'(by omega) : ℕ) : ZMod p.q)
+
+/-- `Frodo.Pack` (Algorithm 11 of `[CiC25]`, Section 7.4 of `[ABD+25]`):
+concatenate the `D`-bit entries, row by row, each most significant bit first. -/
+def Pack (p : Params) {r c : ℕ} (M : FrodoMatrix p r c) : Vector Bool (r * c * p.D) :=
+  (Vector.ofFn fun idx : Fin (r * c) =>
+    entryToBits p (M idx.divNat idx.modNat)).flatten
+
+/-- `Frodo.Unpack` (Algorithm 12), the inverse of `Pack`. -/
+def Unpack (p : Params) {r c : ℕ} (b : Vector Bool (r * c * p.D)) : FrodoMatrix p r c :=
+  Matrix.of fun i j => bitsToEntry p (Vector.ofFn fun l =>
+    b[(i.val * c + j.val) * p.D + l.val]'(bitIndex_lt i.isLt j.isLt l.isLt))
+
+/-- The bits of octet `i` sit at positions `i * 8` to `i * 8 + 7`. -/
+theorem getElem_bytesToBitsPack {n : ℕ} (bs : Bytes n) {i j : ℕ} (hi : i < n) (hj : j < 8) :
+    (bytesToBitsPack bs)[i * 8 + j]'(by omega) = (byteToBitsPack bs[i])[j] := by
+  simp [bytesToBitsPack, Vector.getElem_flatten, Nat.mod_eq_of_lt hj,
+    show (i * 8 + j) / 8 = i by omega]
+
+/-- The bits of entry `(i, j)` sit at positions `(i * c + j) * D` onwards. -/
+theorem getElem_Pack (p : Params) {r c : ℕ} (M : FrodoMatrix p r c) {i j l : ℕ}
+    (hi : i < r) (hj : j < c) (hl : l < p.D) :
+    (Pack p M)[(i * c + j) * p.D + l]'(bitIndex_lt hi hj hl) =
+      (entryToBits p (M ⟨i, hi⟩ ⟨j, hj⟩))[l] := by
+  rw [Pack, Vector.getElem_flatten]
+  simp only [Nat.mul_comm (i * c + j) p.D, Nat.mul_add_div (by omega : 0 < p.D),
+    Nat.mul_add_mod, Nat.div_eq_of_lt hl, Nat.mod_eq_of_lt hl, Nat.add_zero,
+    Vector.getElem_ofFn]
+  congr 3 <;> simp only [Fin.divNat, Fin.modNat, Nat.mul_comm i c,
+    Nat.mul_add_div (by omega : 0 < c), Nat.mul_add_mod, Nat.div_eq_of_lt hj,
+    Nat.mod_eq_of_lt hj, Nat.add_zero]
+
+/-- A byte vector is recovered from its bit string. -/
+theorem bitsToBytesPack_bytesToBitsPack {n : ℕ} (bs : Bytes n) :
+    bitsToBytesPack (bytesToBitsPack bs) = bs := by
+  apply Vector.ext
+  intro i hi
+  rw [bitsToBytesPack, Vector.getElem_ofFn, ← bitsToBytePack_byteToBitsPack bs[i]]
+  congr 1
+  apply Vector.ext
+  intro j hj
+  simpa using getElem_bytesToBitsPack bs hi hj
+
+/-- A bit string is recovered from its byte vector. -/
+theorem bytesToBitsPack_bitsToBytesPack {n : ℕ} (b : Vector Bool (n * 8)) :
+    bytesToBitsPack (bitsToBytesPack b) = b := by
+  apply Vector.ext
+  intro k hk
+  obtain ⟨i, j, hi, hj, rfl⟩ : ∃ i j, i < n ∧ j < 8 ∧ k = i * 8 + j :=
+    ⟨k / 8, k % 8, by omega, by omega, by omega⟩
+  rw [getElem_bytesToBitsPack _ hi hj, bitsToBytesPack, Vector.getElem_ofFn,
+      byteToBitsPack_bitsToBytePack, Vector.getElem_ofFn]
+
+/-- An entry is recovered from its `D` bits. This is where `q = 2 ^ D` is
+needed: `entryToBits` keeps only `D` bits, so no other modulus is recoverable. -/
+theorem bitsToEntry_entryToBits (p : Params) (hw : p.WellFormed) (x : ZMod p.q) :
+    bitsToEntry p (entryToBits p x) = x := by
+  haveI : NeZero p.q := ⟨by rw [hw.q_eq]; positivity⟩
+  rw [bitsToEntry]
+  simp only [entryToBits, Vector.getElem_ofFn,
+    show ∀ l : Fin p.D, p.D - 1 - (p.D - 1 - l.val) = l.val from fun l => by omega,
+    Nat.ofBits_testBit, ← hw.q_eq, ZMod.natCast_mod, ZMod.natCast_zmod_val]
+
+/-- The `D` bits of an entry are recovered from it. -/
+theorem entryToBits_bitsToEntry (p : Params) (hw : p.WellFormed) (v : Vector Bool p.D) :
+    entryToBits p (bitsToEntry p v) = v := by
+  haveI : NeZero p.q := ⟨by rw [hw.q_eq]; positivity⟩
+  apply Vector.ext
+  intro l hl
+  rw [entryToBits, Vector.getElem_ofFn, bitsToEntry, ZMod.val_natCast, hw.q_eq,
+    Nat.mod_eq_of_lt (Nat.ofBits_lt_two_pow _), Nat.testBit_ofBits]
+  simp only [show p.D - 1 - l < p.D by omega, dif_pos]
+  congr 1
+  omega
+
+/-- `Frodo.Unpack` inverts `Frodo.Pack`. -/
+theorem Unpack_Pack (p : Params) (hw : p.WellFormed) {r c : ℕ} (M : FrodoMatrix p r c) :
+    Unpack p (Pack p M) = M := by
+  ext i j
+  simp only [Unpack, Matrix.of_apply]
+  rw [← bitsToEntry_entryToBits p hw (M i j)]
+  congr 1
+  apply Vector.ext
+  intro l hl
+  rw [Vector.getElem_ofFn]
+  exact getElem_Pack p M i.isLt j.isLt hl
+
+/-- `Frodo.Pack` inverts `Frodo.Unpack`. -/
+theorem Pack_Unpack (p : Params) (hw : p.WellFormed) {r c : ℕ}
+    (b : Vector Bool (r * c * p.D)) : Pack p (Unpack p b) = b := by
+  apply Vector.ext
+  intro k hk
+  obtain ⟨i, j, l, hi, hj, hl, rfl⟩ :
+      ∃ i j l, i < r ∧ j < c ∧ l < p.D ∧ k = (i * c + j) * p.D + l :=
+    ⟨k / p.D / c, k / p.D % c, k % p.D,
+      Nat.div_lt_of_lt_mul (Nat.div_lt_of_lt_mul
+        (by rw [Nat.mul_comm p.D (c * r), Nat.mul_comm c r]; exact hk)),
+      Nat.mod_lt _ (Nat.pos_of_ne_zero fun h => absurd hk (by simp [h])),
+      Nat.mod_lt _ (Nat.pos_of_ne_zero fun h => absurd hk (by simp [h])),
+      by rw [Nat.div_add_mod', Nat.div_add_mod']⟩
+  rw [getElem_Pack p _ hi hj hl]
+  simp only [Unpack, Matrix.of_apply, entryToBits_bitsToEntry p hw, Vector.getElem_ofFn]
+
+end FrodoKEM
