@@ -28,7 +28,7 @@ referred to here, because neither covers everything this file needs:
 
 `Frodo.Encode` and `Frodo.Decode` are Appendix B of `[CiC25]`, named in its
 Section 3.3, and Section 7.3 of `[ABD+25]`. The octet encoding of bit strings is
-Section 7.1 of `[ABD+25]`; note that `Frodo.Pack` uses a different one, so it is
+Section 7.1 of `[ABD+25]`; note that `Frodo.Pack` uses a different encoding, so it is
 specified separately in `Packing.lean`.
 
 Encoding places `B` bits in each entry of an `mbar`-by-`nbar` matrix over
@@ -42,7 +42,9 @@ Encoding places `B` bits in each entry of an `mbar`-by-`nbar` matrix over
 Two conditions of `Params.WellFormed` are used throughout:
 
 * `q = 2 ^ D` (`q_eq`) makes `q / 2 ^ B` exact, so both maps are bit shifts;
-* `B ≤ D` (`B_le_D`) gives `2 ^ B ≤ q`, so `ec` does not wrap (`ec_val`).
+* `B ≤ D` (`B_le_D`) gives `2 ^ B ≤ q`, so `ec` does not wrap (`ec_val`);
+* `ℓ = B * mbar * nbar` (`ell_eq`) makes a message fill the matrix exactly,
+  which `encodeMessage` needs.
 
 Two further relations follow, each proved where it is used:
 
@@ -81,6 +83,7 @@ composites `Encode` and `Decode`.
 * `chunkToBits`, `bitsToChunk`, `toChunks`, `ofChunks`: the Section 7.3
   chunking;
 * `Encode`, `Decode`: the published maps, on bit strings;
+* `encodeMessage`, `decodeMessage`: the same on `Message p`;
 * `Params.noiseRadius`: the half-step `q / 2 ^ (B + 1)`.
 
 ## Main results
@@ -91,6 +94,8 @@ composites `Encode` and `Decode`.
   inverts encoding perturbed by noise `e` with
   `centeredRepr e ∈ [-q / 2 ^ (B + 1), q / 2 ^ (B + 1) - 1]`. This is Lemma 1,
   whose window is asymmetric: closed below and open above;
+* `decodeMessage_encodeMessage` and `decodeMessage_encodeMessage_add`: the same
+  on `Message p`;
 * `bitsToBytes_bytesToBits`, `bytesToBits_bitsToBytes`, `ofChunks_toChunks` and
   `toChunks_ofChunks`: the two layers are inverse.
 -/
@@ -444,5 +449,50 @@ theorem Decode_Encode_add (p : Params) (hw : p.WellFormed)
     (hhi : ∀ i j, 2 ^ (p.B + 1) * LatticeCrypto.centeredRepr (E i j) < (p.q : ℤ)) :
     Decode p (Encode p b + E) = b := by
   rw [Decode, Encode, DecodeChunks_EncodeChunks_add p hw _ E hlo hhi, ofChunks_toChunks]
+
+/-! ## Messages
+
+`Message p` is `ellBytes` bytes; `Params.WellFormed.ell_eq` makes that the same
+number of bits the matrix holds. -/
+
+/-- A message has exactly as many bits as the matrix has chunk bits. The
+division in `ellBytes` is exact because `mbar = nbar = 8`. -/
+theorem ellBytes_mul_eight (p : Params) (hw : p.WellFormed) :
+    p.ellBytes * 8 = mbar * nbar * p.B := by
+  rw [Params.ellBytes, hw.ell_eq]
+  simp only [mbar, nbar]
+  omega
+
+/-- `Frodo.Encode` on a message: Section 7.1 then Section 7.3. -/
+def encodeMessage (p : Params) (hw : p.WellFormed) (mu : Message p) :
+    FrodoMatrix p mbar nbar :=
+  Encode p (Vector.cast (ellBytes_mul_eight p hw) (bytesToBits mu))
+
+/-- `Frodo.Decode` returning a message. -/
+def decodeMessage (p : Params) (hw : p.WellFormed) (C : FrodoMatrix p mbar nbar) :
+    Message p :=
+  bitsToBytes (Vector.cast (ellBytes_mul_eight p hw).symm (Decode p C))
+
+/-- The two length casts of `encodeMessage` and `decodeMessage` cancel. -/
+private theorem cast_cast_self (p : Params) (hw : p.WellFormed) (mu : Message p) :
+    Vector.cast (ellBytes_mul_eight p hw).symm
+      (Vector.cast (ellBytes_mul_eight p hw) (bytesToBits mu)) = bytesToBits mu := by
+  apply Vector.ext; intro i hi; simp
+
+/-- `decodeMessage` inverts `encodeMessage`. -/
+theorem decodeMessage_encodeMessage (p : Params) (hw : p.WellFormed) (mu : Message p) :
+    decodeMessage p hw (encodeMessage p hw mu) = mu := by
+  rw [decodeMessage, encodeMessage, Decode_Encode p hw, cast_cast_self p hw,
+    bitsToBytes_bytesToBits]
+
+/-- `decodeMessage` recovers the message from an encoding perturbed by an error
+matrix whose entries all lie in the window. -/
+theorem decodeMessage_encodeMessage_add (p : Params) (hw : p.WellFormed) (mu : Message p)
+    (E : FrodoMatrix p mbar nbar)
+    (hlo : ∀ i j, -(p.q : ℤ) ≤ 2 ^ (p.B + 1) * LatticeCrypto.centeredRepr (E i j))
+    (hhi : ∀ i j, 2 ^ (p.B + 1) * LatticeCrypto.centeredRepr (E i j) < (p.q : ℤ)) :
+    decodeMessage p hw (encodeMessage p hw mu + E) = mu := by
+  rw [decodeMessage, encodeMessage, Decode_Encode_add p hw _ E hlo hhi, cast_cast_self p hw,
+    bitsToBytes_bytesToBits]
 
 end FrodoKEM
