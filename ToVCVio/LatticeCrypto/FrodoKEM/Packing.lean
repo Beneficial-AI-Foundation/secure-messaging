@@ -12,14 +12,13 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Encoding
 7.4 of `[ABD+25]`, with the octet conversion of Section 7.2 of `[ABD+25]`.
 References are as in `Encoding.lean`.
 
-Section 7.4 writes an entry `C i j = ∑ l < D, c l * 2 ^ l` into the bit string
-`b` of length `D * r * c` as `b ((i * c + j) * D + l) = c (D - 1 - l)`, reading
-the matrix row by row. Section 7.2 then writes bit `8 * i + j` of a bit string
-as bit `7 - j` of octet `i`.
-
-Both take the most significant bit first, where Sections 7.1 and 7.3, used by
-`Encoding.lean`, take the least significant. The two octet conversions are
-bit-reversed within each octet and are specified separately.
+Section 7.4 writes an entry `C i j = ∑ l < D, c l * 2 ^ l` into a bit string `b`
+of length `D * r * c` as `b ((i * c + j) * D + l) = c (D - 1 - l)`, reading the
+matrix row by row, and Section 7.2 writes bit `8 * i + j` of a bit string as bit
+`7 - j` of octet `i`. Both read the most significant bit first, where Sections
+7.1 and 7.3 of `Encoding.lean` read the least significant; the two octet
+conversions are bit-reversed within each octet, so they are specified
+separately.
 
 ## Main definitions
 
