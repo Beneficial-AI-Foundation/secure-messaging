@@ -9,69 +9,51 @@ import LatticeCrypto.Ring.Norms
 /-!
 # FrodoKEM message encoding
 
-This file specifies `Frodo.Encode` and `Frodo.Decode`, and proves that decoding
-inverts encoding, exactly and in the presence of noise.
+`Frodo.Encode` and `Frodo.Decode`, with the proof that decoding inverts
+encoding, exactly and in the presence of noise.
 
-FrodoKEM has been published in several revisions. Two of the 2025 ones are
-referred to here, because neither covers everything this file needs:
+Two 2025 revisions are cited, because neither covers everything this file needs:
 
 * `[CiC25]`, Glabush, Longa, Naehrig, Peikert, Stebila and Virdia, *FrodoKEM: A
   CCA-Secure Learning With Errors Key Encapsulation Mechanism*, IACR
-  Communications in Cryptology 2:3, <https://cic.iacr.org/p/2/3/25>. It
-  specifies the maps on bit strings but fixes no octet convention.
+  Communications in Cryptology 2:3, <https://cic.iacr.org/p/2/3/25>: the maps on
+  bit strings, Appendix B, named in Section 3.3;
 * `[ABD+25]`, Alkim, Bos, Ducas, Longa, Mironov, Naehrig, Nikolaenko, Peikert,
   Raghunathan and Stebila, *FrodoKEM Preliminary Standardization Proposal
   (submitted to ISO)*, September 2025,
-  <https://frodokem.org/files/FrodoKEM_standard_proposal_20250929.pdf>. It fixes
-  the octet conventions, which `[CiC25]` leaves open. Both describe the same
-  version of the scheme.
-
-`Frodo.Encode` and `Frodo.Decode` are Appendix B of `[CiC25]`, named in its
-Section 3.3, and Section 7.3 of `[ABD+25]`. The octet encoding of bit strings is
-Section 7.1 of `[ABD+25]`; note that `Frodo.Pack` uses a different encoding, so it is
-specified separately in `Packing.lean`.
+  <https://frodokem.org/files/FrodoKEM_standard_proposal_20250929.pdf>: the same
+  maps in Section 7.3, and the octet convention of Section 7.1, which `[CiC25]`
+  leaves open. Both describe the same version of the scheme.
 
 Encoding places `B` bits in each entry of an `mbar`-by-`nbar` matrix over
-`ZMod q`. With `p : Params` left implicit, the maps are
+`ZMod q`. With `p : Params` left implicit, and the least significant bit read
+first throughout, where `Packing.lean` reads the most significant first:
 
-* `ec : ZMod (2 ^ B) → ZMod q`, `k ↦ k * q / 2 ^ B`;
-* `dc : ZMod q → ZMod (2 ^ B)`, `c ↦ ⌊c * 2 ^ B / q⌉ mod 2 ^ B`;
-* `EncodeChunks : ChunkMatrix p → FrodoMatrix p mbar nbar`, `ec` entrywise;
-* `DecodeChunks : FrodoMatrix p mbar nbar → ChunkMatrix p`, `dc` entrywise.
+* `ec : ZMod (2 ^ B) → ZMod q`, `k ↦ k * q / 2 ^ B`, and `dc` back,
+  `c ↦ ⌊c * 2 ^ B / q⌉ mod 2 ^ B`;
+* `EncodeChunks`, `DecodeChunks`: `ec` and `dc` entrywise, on a message already
+  chunked into `mbar * nbar` values of `ZMod (2 ^ B)`;
+* Section 7.1 writes bit `8 * i + j` of a bit string as bit `j` of octet `i`;
+* Section 7.3 writes bit `(i * nbar + j) * B + t` as bit `t` of entry `(i, j)`,
+  reading the matrix row by row;
+* `Encode` and `Decode` compose these on bit strings of length `mbar * nbar * B`,
+  and `encodeMessage`, `decodeMessage` do the same on `Message p`.
 
-Two conditions of `Params.WellFormed` are used throughout:
+Three conditions of `Params.WellFormed` are used:
 
 * `q = 2 ^ D` (`q_eq`) makes `q / 2 ^ B` exact, so both maps are bit shifts;
 * `B ≤ D` (`B_le_D`) gives `2 ^ B ≤ q`, so `ec` does not wrap (`ec_val`);
-* `ℓ = B * mbar * nbar` (`ell_eq`) makes a message fill the matrix exactly,
-  which `encodeMessage` needs.
+* `ℓ = B * mbar * nbar` (`ell_eq`) makes a message fill the matrix exactly.
 
-Two further relations follow, each proved where it is used:
+The encoded values then sit at spacing `q / 2 ^ B = 2 ^ (D - B)`, with half-step
+`Params.noiseRadius = q / 2 ^ (B + 1)`, which satisfies
+`q = 2 ^ (B + 1) * noiseRadius` exactly when `B < D`. At `B = D` the true
+half-step is one half and `noiseRadius` truncates it to zero, so `dc_ec_add`
+treats that case separately.
 
-* the encoded values sit at spacing `q / 2 ^ B = 2 ^ (D - B)`;
-* the half-step is `Params.noiseRadius = q / 2 ^ (B + 1)`, which satisfies
-  `q = 2 ^ (B + 1) * noiseRadius` exactly when `B < D`. At `B = D` the true
-  half-step is one half and `noiseRadius` truncates it to zero, so `dc_ec_add`
-  treats that case separately.
-
-The remaining conditions of `WellFormed`, `D ≤ 16` and `n % 8 = 0`, play no part
-here: `n` is the lattice dimension and does not enter encoding.
-
-`EncodeChunks` and `DecodeChunks` act on a message already chunked into
-`mbar * nbar` values of `ZMod (2 ^ B)`. The two layers below it are Section 7.1
-of `[ABD+25]`, which writes bit `8 * i + j` of a bit string as bit `j` of octet
-`i`, and Section 7.3, which writes the run `b ((i * nbar + j) * B + t)` as bit
-`t` of entry `(i, j)`, reading the matrix row by row. Both take the least
-significant bit first, where `Packing.lean` takes the most significant.
-
-Composing them gives `Encode` and `Decode` on bit strings of length
-`mbar * nbar * B`, which `ParameterSet.ell_eq_mul` identifies with `ℓ`.
-
-Names follow the specification where the maps do. The scalar maps and their
-lemmas keep its abbreviated lowercase names, `ec` and `dc`. The matrix maps are
-only the chunked half of `Frodo.Encode` and `Frodo.Decode`, so they are named
-`EncodeChunks` and `DecodeChunks`, and the published names are taken by the
-composites `Encode` and `Decode`.
+Names follow the specification: the scalar maps keep its abbreviated lowercase
+`ec` and `dc`, and since `EncodeChunks` and `DecodeChunks` are only its chunked
+half, the published names are left for the composites.
 
 ## Main definitions
 
@@ -459,9 +441,7 @@ number of bits the matrix holds. -/
 division in `ellBytes` is exact because `mbar = nbar = 8`. -/
 theorem ellBytes_mul_eight (p : Params) (hw : p.WellFormed) :
     p.ellBytes * 8 = mbar * nbar * p.B := by
-  rw [Params.ellBytes, hw.ell_eq]
-  simp only [mbar, nbar]
-  omega
+  simp only [Params.ellBytes, hw.ell_eq, mbar, nbar]; omega
 
 /-- `Frodo.Encode` on a message: Section 7.1 then Section 7.3. -/
 def encodeMessage (p : Params) (hw : p.WellFormed) (mu : Message p) :
@@ -473,17 +453,11 @@ def decodeMessage (p : Params) (hw : p.WellFormed) (C : FrodoMatrix p mbar nbar)
     Message p :=
   bitsToBytes (Vector.cast (ellBytes_mul_eight p hw).symm (Decode p C))
 
-/-- The two length casts of `encodeMessage` and `decodeMessage` cancel. -/
-private theorem cast_cast_self (p : Params) (hw : p.WellFormed) (mu : Message p) :
-    Vector.cast (ellBytes_mul_eight p hw).symm
-      (Vector.cast (ellBytes_mul_eight p hw) (bytesToBits mu)) = bytesToBits mu := by
-  apply Vector.ext; intro i hi; simp
-
 /-- `decodeMessage` inverts `encodeMessage`. -/
 theorem decodeMessage_encodeMessage (p : Params) (hw : p.WellFormed) (mu : Message p) :
     decodeMessage p hw (encodeMessage p hw mu) = mu := by
-  rw [decodeMessage, encodeMessage, Decode_Encode p hw, cast_cast_self p hw,
-    bitsToBytes_bytesToBits]
+  rw [decodeMessage, encodeMessage, Decode_Encode p hw]
+  simp [bitsToBytes_bytesToBits]
 
 /-- `decodeMessage` recovers the message from an encoding perturbed by an error
 matrix whose entries all lie in the window. -/
@@ -492,7 +466,7 @@ theorem decodeMessage_encodeMessage_add (p : Params) (hw : p.WellFormed) (mu : M
     (hlo : ∀ i j, -(p.q : ℤ) ≤ 2 ^ (p.B + 1) * LatticeCrypto.centeredRepr (E i j))
     (hhi : ∀ i j, 2 ^ (p.B + 1) * LatticeCrypto.centeredRepr (E i j) < (p.q : ℤ)) :
     decodeMessage p hw (encodeMessage p hw mu + E) = mu := by
-  rw [decodeMessage, encodeMessage, Decode_Encode_add p hw _ E hlo hhi, cast_cast_self p hw,
-    bitsToBytes_bytesToBits]
+  rw [decodeMessage, encodeMessage, Decode_Encode_add p hw _ E hlo hhi]
+  simp [bitsToBytes_bytesToBits]
 
 end FrodoKEM
