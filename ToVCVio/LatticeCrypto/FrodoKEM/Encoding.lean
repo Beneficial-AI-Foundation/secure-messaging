@@ -12,14 +12,24 @@ import LatticeCrypto.Ring.Norms
 This file specifies `Frodo.Encode` and `Frodo.Decode`, and proves that decoding
 inverts encoding, exactly and in the presence of noise.
 
-FrodoKEM has been published in several revisions. The one followed here, and by
-`Parameters.lean`, is [Glabush, Longa, Naehrig, Peikert, Stebila and Virdia,
-*FrodoKEM: A CCA-Secure Learning With Errors Key Encapsulation Mechanism*, IACR
-Communications in Cryptology 2:3 (2025)](https://cic.iacr.org/p/2/3/25); every
-reference below is to it.
+FrodoKEM has been published in several revisions. Two of the 2025 ones are
+referred to here, because neither covers everything this file needs:
 
-`Frodo.Encode` and `Frodo.Decode` are defined in Appendix B, "Additional
-algorithms", and named in Section 3.3, "Matrix encoding and packing".
+* `[CiC25]`, Glabush, Longa, Naehrig, Peikert, Stebila and Virdia, *FrodoKEM: A
+  CCA-Secure Learning With Errors Key Encapsulation Mechanism*, IACR
+  Communications in Cryptology 2:3, <https://cic.iacr.org/p/2/3/25>. It
+  specifies the maps on bit strings but fixes no octet convention.
+* `[ABD+25]`, Alkim, Bos, Ducas, Longa, Mironov, Naehrig, Nikolaenko, Peikert,
+  Raghunathan and Stebila, *FrodoKEM Preliminary Standardization Proposal
+  (submitted to ISO)*, September 2025,
+  <https://frodokem.org/files/FrodoKEM_standard_proposal_20250929.pdf>. It fixes
+  the octet conventions, which `[CiC25]` leaves open. Both describe the same
+  version of the scheme.
+
+`Frodo.Encode` and `Frodo.Decode` are Appendix B of `[CiC25]`, named in its
+Section 3.3, and Section 7.3 of `[ABD+25]`. The octet encoding of bit strings is
+Section 7.1 of `[ABD+25]`; note that `Frodo.Pack` uses a different one, so it is
+specified separately in `Packing.lean`.
 
 Encoding places `B` bits in each entry of an `mbar`-by-`nbar` matrix over
 `ZMod q`. With `p : Params` left implicit, the maps are
@@ -232,5 +242,194 @@ theorem DecodeChunks_EncodeChunks_add (p : Params) (hw : p.WellFormed)
   ext i j
   simpa [DecodeChunks, EncodeChunks] using
     dc_ec_add p hw (M i j) (E i j) (hlo i j) (hhi i j)
+
+/-! ## Bit strings and octets
+
+`Frodo.Encode` consumes a bit string of length `ℓ = B * mbar * nbar`; messages
+are byte vectors. Section 7.1 of `[ABD+25]` fixes the conversion: bits are taken
+left to right and packed from the least significant bit of each octet upwards.
+
+`Frodo.Pack` uses the opposite order within each octet, so that conversion is
+specified separately in `Packing.lean` rather than shared with this one. -/
+
+/-- The eight bits of one octet, least significant first. -/
+def byteToBits (x : Byte) : Vector Bool 8 :=
+  Vector.ofFn fun j => x.toNat.testBit j
+
+/-- The octet with the given eight bits, least significant first. -/
+def bitsToByte (v : Vector Bool 8) : Byte :=
+  UInt8.ofNat (∑ j : Fin 8, if v[j] then 2 ^ j.val else 0)
+
+/-- The convention of Section 7.1 on the two domain separators of the
+specification, `0x96 = 0b10010110` and `0x5F = 0b01011111`. This fixes the bit
+order, which the round-trip theorems below cannot: reading and writing in the
+same wrong order round-trips just as well. -/
+example : (byteToBits 0x96).toList ++ (byteToBits 0x5F).toList =
+    [false, true, true, false, true, false, false, true,
+     true, true, true, true, true, false, true, false] := by decide
+
+/-- An octet is recovered from its bits. -/
+theorem bitsToByte_byteToBits (x : Byte) : bitsToByte (byteToBits x) = x := by
+  simpa using (by decide : ∀ m < 256,
+    bitsToByte (byteToBits (UInt8.ofNat m)) = UInt8.ofNat m) x.toNat x.toNat_lt
+
+/-- Section 7.1 of `[ABD+25]`: read a byte vector as a bit string, least
+significant bit of each octet first. -/
+def bytesToBits {n : ℕ} (bs : Bytes n) : Vector Bool (n * 8) :=
+  (bs.map byteToBits).flatten
+
+/-- The inverse of `bytesToBits`. -/
+def bitsToBytes {n : ℕ} (b : Vector Bool (n * 8)) : Bytes n :=
+  Vector.ofFn fun i =>
+    bitsToByte (Vector.ofFn fun j => b[i.val * 8 + j.val]'(by omega))
+
+/-- The bits of octet `i` sit at positions `i * 8` to `i * 8 + 7`. -/
+theorem getElem_bytesToBits {n : ℕ} (bs : Bytes n) {i j : ℕ} (hi : i < n) (hj : j < 8) :
+    (bytesToBits bs)[i * 8 + j]'(by omega) = (byteToBits bs[i])[j] := by
+  simp [bytesToBits, Vector.getElem_flatten, Nat.mod_eq_of_lt hj,
+    show (i * 8 + j) / 8 = i by omega]
+
+/-- A byte vector is recovered from its bit string. -/
+theorem bitsToBytes_bytesToBits {n : ℕ} (bs : Bytes n) :
+    bitsToBytes (bytesToBits bs) = bs := by
+  apply Vector.ext
+  intro i hi
+  rw [bitsToBytes, Vector.getElem_ofFn, ← bitsToByte_byteToBits bs[i]]
+  congr 1
+  apply Vector.ext
+  intro j hj
+  simpa using getElem_bytesToBits bs hi hj
+
+/-- The bits of an octet are recovered from it. -/
+theorem byteToBits_bitsToByte (v : Vector Bool 8) : byteToBits (bitsToByte v) = v := by
+  simpa using (by decide : ∀ f : Fin 8 → Bool,
+    byteToBits (bitsToByte (Vector.ofFn f)) = Vector.ofFn f) fun j => v[j]
+
+/-- A bit string is recovered from its byte vector. -/
+theorem bytesToBits_bitsToBytes {n : ℕ} (b : Vector Bool (n * 8)) :
+    bytesToBits (bitsToBytes b) = b := by
+  apply Vector.ext
+  intro k hk
+  obtain ⟨i, j, hi, hj, rfl⟩ : ∃ i j, i < n ∧ j < 8 ∧ k = i * 8 + j :=
+    ⟨k / 8, k % 8, by omega, by omega, by omega⟩
+  rw [getElem_bytesToBits _ hi hj, bitsToBytes, Vector.getElem_ofFn, byteToBits_bitsToByte,
+      Vector.getElem_ofFn]
+
+/-! ## Chunking
+
+Section 7.3 of `[ABD+25]`: each `B`-bit run of the input, read from its least
+significant bit, becomes one matrix entry; entries are filled row by row.
+
+The bit strings here have length `mbar * nbar * B`, one `B`-bit run per entry.
+`ParameterSet.ell_eq_mul` identifies that with `ℓ` for the published parameter
+sets. -/
+
+/-- The `B` bits of one chunk, least significant first. -/
+def chunkToBits (p : Params) (k : ZMod (2 ^ p.B)) : Vector Bool p.B :=
+  Vector.ofFn fun t => k.val.testBit t
+
+/-- The chunk with the given `B` bits, least significant first. `Nat.ofBits`
+is that reading, and `[ABD+25]` uses the same convention. -/
+def bitsToChunk (p : Params) (v : Vector Bool p.B) : ZMod (2 ^ p.B) :=
+  ((Nat.ofBits fun t => v[t] : ℕ) : ZMod (2 ^ p.B))
+
+/-- A chunk is recovered from its bits. -/
+theorem bitsToChunk_chunkToBits (p : Params) (k : ZMod (2 ^ p.B)) :
+    bitsToChunk p (chunkToBits p k) = k := by
+  simp only [bitsToChunk, chunkToBits, Fin.getElem_fin, Vector.getElem_ofFn,
+    Nat.ofBits_testBit, ZMod.natCast_mod, ZMod.natCast_zmod_val]
+
+/-- The bits of a chunk are recovered from it. -/
+theorem chunkToBits_bitsToChunk (p : Params) (v : Vector Bool p.B) :
+    chunkToBits p (bitsToChunk p v) = v := by
+  apply Vector.ext
+  intro t ht
+  rw [chunkToBits, Vector.getElem_ofFn, bitsToChunk, ZMod.val_natCast,
+    Nat.mod_eq_of_lt (Nat.ofBits_lt_two_pow _), Nat.testBit_ofBits]
+  simp [ht]
+
+/-- Bit `t` of entry `(i, j)` of an `r`-by-`c` matrix sits at position
+`(i * c + j) * d + t` of a bit string of length `r * c * d`, when each entry
+takes `d` bits and entries are laid out row by row. Used for the chunks here and
+for the packed entries of `Packing.lean`. -/
+theorem bitIndex_lt {r c d i j t : ℕ} (hi : i < r) (hj : j < c) (ht : t < d) :
+    (i * c + j) * d + t < r * c * d :=
+  Nat.lt_of_lt_of_le (Nat.add_lt_add_left ht _)
+    (by rw [← Nat.succ_mul, Nat.mul_comm i c]; gcongr
+        exact Nat.mul_add_lt_mul_of_lt_of_lt hi hj)
+
+/-- Cut a bit string into the `mbar * nbar` values of `B` bits that
+`EncodeChunks` consumes, entry `(i, j)` taking the run at position
+`i * nbar + j`. -/
+def toChunks (p : Params) (b : Vector Bool (mbar * nbar * p.B)) : ChunkMatrix p :=
+  Matrix.of fun i j => bitsToChunk p (Vector.ofFn fun t =>
+    b[(i.val * nbar + j.val) * p.B + t.val]'(bitIndex_lt i.isLt j.isLt t.isLt))
+
+/-- The inverse of `toChunks`: the runs of each entry, row by row. -/
+def ofChunks (p : Params) (M : ChunkMatrix p) : Vector Bool (mbar * nbar * p.B) :=
+  (Vector.ofFn fun c : Fin (mbar * nbar) =>
+    chunkToBits p (M c.divNat c.modNat)).flatten
+
+theorem getElem_ofChunks (p : Params) (M : ChunkMatrix p) {i j t : ℕ}
+    (hi : i < mbar) (hj : j < nbar) (ht : t < p.B) :
+    (ofChunks p M)[(i * nbar + j) * p.B + t]'(bitIndex_lt hi hj ht) =
+      (chunkToBits p (M ⟨i, hi⟩ ⟨j, hj⟩))[t] := by
+  rw [ofChunks, Vector.getElem_flatten]
+  simp only [Nat.mul_comm (i * nbar + j) p.B, Nat.mul_add_div (by omega : 0 < p.B),
+    Nat.mul_add_mod, Nat.div_eq_of_lt ht, Nat.mod_eq_of_lt ht, Nat.add_zero,
+    Vector.getElem_ofFn]
+  congr 3 <;> simp only [Fin.divNat, Fin.modNat, Fin.mk.injEq, nbar] at hj ⊢ <;> omega
+
+theorem toChunks_ofChunks (p : Params) (M : ChunkMatrix p) :
+    toChunks p (ofChunks p M) = M := by
+  ext i j
+  simp only [toChunks, Matrix.of_apply]
+  rw [← bitsToChunk_chunkToBits p (M i j)]
+  congr 1
+  apply Vector.ext
+  intro t ht
+  rw [Vector.getElem_ofFn]
+  exact getElem_ofChunks p M i.isLt j.isLt ht
+
+theorem ofChunks_toChunks (p : Params) (b : Vector Bool (mbar * nbar * p.B)) :
+    ofChunks p (toChunks p b) = b := by
+  apply Vector.ext
+  intro k hk
+  rcases Nat.eq_zero_or_pos p.B with hB | hB
+  · simp [hB] at hk
+  obtain ⟨i, j, t, hi, hj, ht, rfl⟩ :
+      ∃ i j t, i < mbar ∧ j < nbar ∧ t < p.B ∧ k = (i * nbar + j) * p.B + t :=
+    ⟨k / p.B / nbar, k / p.B % nbar, k % p.B,
+      Nat.div_lt_of_lt_mul (Nat.div_lt_of_lt_mul (by simp only [mbar, nbar] at *; omega)),
+      Nat.mod_lt _ (by simp [nbar]), Nat.mod_lt _ hB,
+      by rw [Nat.div_add_mod', Nat.div_add_mod']⟩
+  rw [getElem_ofChunks p _ hi hj ht]
+  simp only [toChunks, Matrix.of_apply, chunkToBits_bitsToChunk, Vector.getElem_ofFn]
+
+/-! ## The published maps -/
+
+/-- `Frodo.Encode` (Appendix B of `[CiC25]`, Section 7.3 of `[ABD+25]`). -/
+def Encode (p : Params) (b : Vector Bool (mbar * nbar * p.B)) :
+    FrodoMatrix p mbar nbar :=
+  EncodeChunks p (toChunks p b)
+
+/-- `Frodo.Decode` (Appendix B of `[CiC25]`, Section 7.3 of `[ABD+25]`). -/
+def Decode (p : Params) (C : FrodoMatrix p mbar nbar) :
+    Vector Bool (mbar * nbar * p.B) :=
+  ofChunks p (DecodeChunks p C)
+
+/-- `Frodo.Decode` inverts `Frodo.Encode`. -/
+theorem Decode_Encode (p : Params) (hw : p.WellFormed)
+    (b : Vector Bool (mbar * nbar * p.B)) : Decode p (Encode p b) = b := by
+  rw [Decode, Encode, DecodeChunks_EncodeChunks p hw, ofChunks_toChunks]
+
+/-- `Frodo.Decode` recovers the message from an encoding perturbed by an error
+matrix whose entries all lie in the window. -/
+theorem Decode_Encode_add (p : Params) (hw : p.WellFormed)
+    (b : Vector Bool (mbar * nbar * p.B)) (E : FrodoMatrix p mbar nbar)
+    (hlo : ∀ i j, -(p.q : ℤ) ≤ 2 ^ (p.B + 1) * LatticeCrypto.centeredRepr (E i j))
+    (hhi : ∀ i j, 2 ^ (p.B + 1) * LatticeCrypto.centeredRepr (E i j) < (p.q : ℤ)) :
+    Decode p (Encode p b + E) = b := by
+  rw [Decode, Encode, DecodeChunks_EncodeChunks_add p hw _ E hlo hhi, ofChunks_toChunks]
 
 end FrodoKEM
