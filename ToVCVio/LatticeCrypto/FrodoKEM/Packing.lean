@@ -8,33 +8,32 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Encoding
 /-!
 # FrodoKEM matrix packing
 
-`Frodo.Pack` and `Frodo.Unpack`, which move between matrices over `ZMod q` and
-byte vectors by way of a bit string of `D` bits per entry.
+`Frodo.Pack` and `Frodo.Unpack`, Algorithms 11 and 12 of `[CiC25]` and Section
+7.4 of `[ABD+25]`, with the octet conversion of Section 7.2 of `[ABD+25]`.
+References are as in `Encoding.lean`.
 
-References are as in `Encoding.lean`: `[CiC25]` for the maps on bit strings,
-Appendix B, and `[ABD+25]` Section 7.4 for the same, Section 7.2 for the octet
-convention.
+Section 7.4 writes an entry `C i j = ∑ l < D, c l * 2 ^ l` into the bit string
+`b` of length `D * r * c` as `b ((i * c + j) * D + l) = c (D - 1 - l)`, reading
+the matrix row by row. Section 7.2 then writes bit `8 * i + j` of a bit string
+as bit `7 - j` of octet `i`.
 
-## A different octet convention
-
-`[ABD+25]` fixes two conversions between bit strings and octets. Section 7.1,
-used everywhere else and specified in `Encoding.lean`, packs bits from the least
-significant bit of each octet upwards. Section 7.2, used only by `Frodo.Pack`
-and `Frodo.Unpack`, packs them from the most significant bit downwards. The two
-are bit-reversed within each octet, so they are specified separately here rather
-than shared with a width or order parameter: sharing them would make the
-difference a flag to be set correctly rather than two functions to be read.
-
-Section 7.2 also records that the bit strings `Frodo.Pack` produces always have
-length a multiple of eight. For FrodoKEM that is because every packed matrix has
-`mbar = nbar = 8` as one of its dimensions.
+Both take the most significant bit first, where Sections 7.1 and 7.3, used by
+`Encoding.lean`, take the least significant. The two octet conversions are
+bit-reversed within each octet and are specified separately.
 
 ## Main definitions
 
-* `bytesToBitsPack`, `bitsToBytesPack`: the Section 7.2 octet conversion;
-* `Pack`, `Unpack`: matrices over `ZMod q` to bit strings and back.
--/
+* `byteToBitsPack`, `bitsToBytePack` and their vector forms `bytesToBitsPack`,
+  `bitsToBytesPack`: the Section 7.2 octet conversion;
+* `entryToBits`, `bitsToEntry`: one entry as `D` bits;
+* `Pack`, `Unpack`.
 
+## Main results
+
+* `bitsToBytesPack_bytesToBitsPack` and `bytesToBitsPack_bitsToBytesPack`;
+* `Unpack_Pack` and `Pack_Unpack`. `Unpack_Pack` requires `q = 2 ^ D`
+  (`Params.WellFormed.q_eq`), since `entryToBits` retains only `D` bits.
+-/
 namespace FrodoKEM
 
 /-- The eight bits of one octet, most significant first (Section 7.2). -/
