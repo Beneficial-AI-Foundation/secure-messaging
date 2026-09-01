@@ -22,10 +22,10 @@ round alongside the shared key.
 
 [SPACES]
 - `Par`: public-parameter space, sampled once by `rsetup` and shared as an
-  implicit input to every other algorithm.
+  input to every other algorithm.
 - `EK`, `DK`: encapsulation- and decapsulation-key spaces. Definition 5.1 lets
   the "fresh" and "updated" ratcheting key spaces `RKP`/`RK̂P` differ; we use a
-  single pair of spaces covering both, with `rkeygenA`/`rkeygenAUpdated` (resp.
+  single pair of spaces covering both, with `rkeygenAFresh`/`rkeygenAUpdated` (resp.
   `B`) selecting the distribution, exactly as in the paper's own shorthand
   `D_RKeyGen-P`/`D̂_RKeyGen-P`.
 - `CT`: ciphertext space.
@@ -34,7 +34,7 @@ round alongside the shared key.
 [ALGORITHMS]
 - `rsetup : m Par`.
   `RSetup(1^λ) → par`: samples the public parameter shared by both parties.
-- `rkeygenA : Par → m (EK × DK)`, `rkeygenB : Par → m (EK × DK)`.
+- `rkeygenAFresh : Par → m (EK × DK)`, `rkeygenBFresh : Par → m (EK × DK)`.
   `RKeyGen-P(par, ⊥) → (ekP, dkP)`: samples a fresh encapsulation/decapsulation
   key pair for party `P`.
 - `rkeygenAUpdated : Par → m (EK × DK)`, `rkeygenBUpdated : Par → m (EK × DK)`.
@@ -78,13 +78,12 @@ structure RKEMScheme (m : Type → Type u) [Monad m] (Par EK DK CT K : Type) whe
   /-- `RSetup(1^λ) → par`: samples the public parameter shared by both parties. -/
   rsetup : m Par
   /-- `RKeyGen-A(par, ⊥) → (ekA, dkA)`: samples a fresh key pair for `A`. -/
-  rkeygenA : Par → m (EK × DK)
+  rkeygenAFresh : Par → m (EK × DK)
   /-- `RKeyGen-A(par, updated) → (ekA, dkA)`: samples an updated-distribution
-  key pair for `A`, i.e. one with the distribution of a key produced by
-  `rencA`/`rdecA`. -/
+  key pair for `A`. -/
   rkeygenAUpdated : Par → m (EK × DK)
   /-- `RKeyGen-B(par, ⊥) → (ekB, dkB)`: samples a fresh key pair for `B`. -/
-  rkeygenB : Par → m (EK × DK)
+  rkeygenBFresh : Par → m (EK × DK)
   /-- `RKeyGen-B(par, updated) → (ekB, dkB)`: samples an updated-distribution
   key pair for `B`. -/
   rkeygenBUpdated : Par → m (EK × DK)
