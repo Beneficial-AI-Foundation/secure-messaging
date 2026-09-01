@@ -47,11 +47,11 @@ round alongside the shared key.
   encapsulation key `ekB` using `A`'s decapsulation key `dkA`, producing a
   ciphertext `ctB` for `B`, the shared key `K`, and `A`'s updated decapsulation
   key `dk̂A`.
-- `rdecA : Par → DK → CT → EK → m (K × EK)`.
+- `rdecA : Par → DK → CT → EK → m (Option (K × EK))`.
   `RDec-A(par, dkA, ctA, ekB) → (K, ek̂B)`: decapsulates `ctA` using `A`'s
   decapsulation key `dkA` and `B`'s encapsulation key `ekB`, producing the
   shared key `K` and `B`'s updated encapsulation key `ek̂B`.
-- `rencB : Par → EK → DK → m (CT × K × DK)`, `rdecB : Par → DK → CT → EK → m (K × EK)`.
+- `rencB : Par → EK → DK → m (CT × K × DK)`, `rdecB : Par → DK → CT → EK → m (Option (K × EK))`.
   `REnc-B`, `RDec-B`: as `rencA`, `rdecA`, with the roles of `A` and `B` swapped.
 
 [REFERENCES]
@@ -94,11 +94,11 @@ structure RKEMScheme (m : Type → Type u) [Monad m] (Par EK DK CT K : Type) whe
   /-- `RDec-A(par, dkA, ctA, ekB) → (K, ek̂B)`: decapsulates using `A`'s
   decapsulation key and `B`'s encapsulation key, producing the shared key and
   `B`'s updated encapsulation key. -/
-  rdecA : Par → DK → CT → EK → m (K × EK)
+  rdecA : Par → DK → CT → EK → m (Option (K × EK))
   /-- `REnc-B(par, ekA, dkB) → (ctA, K, dk̂B)`: as `rencA`, with the roles of
   `A` and `B` swapped. -/
   rencB : Par → EK → DK → m (CT × K × DK)
   /-- `RDec-B(par, dkB, ctB, ekA) → (K, ek̂A)`: as `rdecA`, with the roles of
   `A` and `B` swapped. -/
-  rdecB : Par → DK → CT → EK → m (K × EK)
+  rdecB : Par → DK → CT → EK → m (Option (K × EK))
 -- ANCHOR_END: RKEMScheme
