@@ -89,7 +89,11 @@ left for the composites `Encode` and `Decode`.
 * `bitsToBytes_bytesToBits`, `bytesToBits_bitsToBytes`, `ofChunks_toChunks` and
   `toChunks_ofChunks`: the two layers are inverse;
 * `getElem_bytesToBits` and `getElem_ofChunks`: the position formulas this
-  header states in prose, as theorems.
+  header states in prose, as theorems;
+* `byteToBits_domainSeparators`: the Section 7.1 order on the specification's
+  two domain separators, which the round trips cannot fix. The layouts of the
+  chunking are fixed the same way, by the `example`s beside them, which are
+  probes rather than facts a caller would use.
 -/
 
 namespace FrodoKEM
@@ -326,7 +330,8 @@ def bitsToByte (v : Vector Bool 8) : Byte :=
 specification, `0x96 = 0b10010110` and `0x5F = 0b01011111`. This fixes the bit
 order, which the round-trip theorems below cannot: reading and writing in the
 same wrong order round-trips just as well. -/
-example : (byteToBits 0x96).toList ++ (byteToBits 0x5F).toList =
+theorem byteToBits_domainSeparators :
+    (byteToBits 0x96).toList ++ (byteToBits 0x5F).toList =
     [false, true, true, false, true, false, false, true,
      true, true, true, true, true, false, true, false] := by decide
 

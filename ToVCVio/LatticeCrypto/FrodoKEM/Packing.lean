@@ -42,6 +42,8 @@ them.
 * `bitsToBytesPack_bytesToBitsPack` and `bytesToBitsPack_bitsToBytesPack`;
 * `getElem_bytesToBitsPack` and `getElem_Pack`: the position formulas this
   header states in prose, as theorems;
+* `byteToBitsPack_domainSeparators`: the Section 7.2 order on the same two
+  octets `Encoding.lean` uses, which the round trips cannot fix;
 * `Unpack_Pack` and `Pack_Unpack`. Both require `q = 2 ^ D`
   (`Params.WellFormed.q_eq`), since `entryToBits` retains only `D` bits.
 -/
@@ -57,7 +59,8 @@ def bitsToBytePack (v : Vector Bool 8) : Byte :=
 
 /-- The convention of Section 7.2 on the same two octets that `Encoding.lean`
 uses for Section 7.1, `0x96 = 0b10010110` and `0x5F = 0b01011111`. -/
-example : (byteToBitsPack 0x96).toList ++ (byteToBitsPack 0x5F).toList =
+theorem byteToBitsPack_domainSeparators :
+    (byteToBitsPack 0x96).toList ++ (byteToBitsPack 0x5F).toList =
     [true, false, false, true, false, true, true, false,
      false, true, false, true, true, true, true, true] := by decide
 
