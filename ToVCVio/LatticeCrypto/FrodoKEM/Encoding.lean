@@ -62,8 +62,6 @@ left for the composites `Encode` and `Decode`.
 * `ChunkMatrix`: an `mbar`-by-`nbar` matrix of `B`-bit chunks;
 * `EncodeChunks`, `DecodeChunks`: the matrix maps, `ec` and `dc` applied
   entrywise;
-* `bytesToBitsWith`, `bitsToBytesWith`: the vector layer of an octet
-  conversion, for an arbitrary convention on one octet;
 * `byteToBits`, `bitsToByte` and their vector forms `bytesToBits`,
   `bitsToBytes`: the Section 7.1 octet conversion;
 * `chunkToBits`, `bitsToChunk`, `toChunks`, `ofChunks`: the Section 7.3
@@ -258,10 +256,11 @@ are byte vectors. Section 7.1 of `[ABD+25]` fixes the conversion: bits are taken
 left to right and packed from the least significant bit of each octet upwards.
 
 `Frodo.Pack` uses the opposite order within each octet, so that conversion is
-specified separately in `Packing.lean` rather than shared with this one. What
-the two do share is the vector layer, which only concatenates octets: it is
-written once here for an arbitrary octet convention `f` and its inverse `g`,
-and `Packing.lean` instantiates it at the Section 7.2 pair. -/
+specified separately in `Packing.lean`, each definition written as its own
+section of the specification states it. Only the proofs are shared: the
+`…With` lemmas below take the octet convention as a parameter, since
+concatenating octets is the same work whichever convention holds on one, and
+both files discharge their round trips with them. -/
 
 /-- Read a byte vector as a bit string, `f` giving the eight bits of an octet. -/
 def bytesToBitsWith {n : ℕ} (f : Byte → Vector Bool 8) (bs : Bytes n) :
@@ -336,11 +335,12 @@ theorem byteToBits_bitsToByte (v : Vector Bool 8) : byteToBits (bitsToByte v) = 
 /-- Section 7.1 of `[ABD+25]`: read a byte vector as a bit string, least
 significant bit of each octet first. -/
 def bytesToBits {n : ℕ} (bs : Bytes n) : Vector Bool (n * 8) :=
-  bytesToBitsWith byteToBits bs
+  (bs.map byteToBits).flatten
 
 /-- The inverse of `bytesToBits`. -/
 def bitsToBytes {n : ℕ} (b : Vector Bool (n * 8)) : Bytes n :=
-  bitsToBytesWith bitsToByte b
+  Vector.ofFn fun i =>
+    bitsToByte (Vector.ofFn fun j => b[i.val * 8 + j.val]'(by omega))
 
 /-- The bits of octet `i` sit at positions `i * 8` to `i * 8 + 7`, least
 significant first. -/

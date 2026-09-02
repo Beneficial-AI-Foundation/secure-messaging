@@ -21,8 +21,9 @@ octet `a`, for `0 ≤ t < 8`.
 
 Sections 7.1 and 7.3 of `Encoding.lean` read the least significant bit first
 instead, so the two octet conversions are bit-reversed within each octet and are
-specified separately, sharing only the vector layer `bytesToBitsWith` of
-`Encoding.lean`, which concatenates octets whatever the convention on one.
+specified separately, each as its own section of the specification states it.
+Only the proofs are shared, through the `…With` lemmas of `Encoding.lean`,
+which take the octet convention as a parameter.
 
 ## Main definitions
 
@@ -74,11 +75,12 @@ significant bit of each octet first. `Pack` and `Unpack` are stated on bit
 strings, so this is the conversion their callers need to reach the octets a
 packed matrix is transmitted as. -/
 def bytesToBitsPack {n : ℕ} (bs : Bytes n) : Vector Bool (n * 8) :=
-  bytesToBitsWith byteToBitsPack bs
+  (bs.map byteToBitsPack).flatten
 
 /-- The inverse of `bytesToBitsPack`. -/
 def bitsToBytesPack {n : ℕ} (b : Vector Bool (n * 8)) : Bytes n :=
-  bitsToBytesWith bitsToBytePack b
+  Vector.ofFn fun i =>
+    bitsToBytePack (Vector.ofFn fun j => b[i.val * 8 + j.val]'(by omega))
 
 /-- The `D` bits of one entry, most significant first: step 1.1.1 of Section 7.4
 puts binary digit `D - 1 - l` of the entry at position `l`. -/
