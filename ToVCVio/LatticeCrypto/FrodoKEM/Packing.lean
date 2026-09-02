@@ -39,8 +39,8 @@ the `…_eq` lemmas below identify each definition here with one.
 * `bitsToBytesPack_bytesToBitsPack` and `bytesToBitsPack_bitsToBytesPack`;
 * `getElem_bytesToBitsPack` and `getElem_Pack`: the position formulas this
   header states in prose, as theorems;
-* `Unpack_Pack` and `Pack_Unpack`. Both require `q = 2 ^ D`
-  (`Params.WellFormed.q_eq`), since `entryToBits` retains only `D` bits.
+* `Unpack_Pack` and `Pack_Unpack`. Both take a `Params.WellFormed`, for its
+  `q_eq`, since `entryToBits` retains only `D` bits.
 
 The Section 7.2 octet order and the Section 7.4 bit order and layout, which the
 round trips cannot fix, are fixed by the `example`s beside their definitions.
