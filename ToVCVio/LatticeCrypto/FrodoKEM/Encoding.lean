@@ -60,6 +60,8 @@ half, the published names are left for the composites.
 * `ec`, `dc`: the scalar maps;
 * `EncodeChunks`, `DecodeChunks`: the matrix maps, `ec` and `dc` applied
   entrywise;
+* `bytesToBitsWith`, `bitsToBytesWith`: the vector layer of an octet
+  conversion, for an arbitrary convention on one octet;
 * `byteToBits`, `bitsToByte` and their vector forms `bytesToBits`,
   `bitsToBytes`: the Section 7.1 octet conversion;
 * `chunkToBits`, `bitsToChunk`, `toChunks`, `ofChunks`: the Section 7.3
@@ -250,15 +252,61 @@ are byte vectors. Section 7.1 of `[ABD+25]` fixes the conversion: bits are taken
 left to right and packed from the least significant bit of each octet upwards.
 
 `Frodo.Pack` uses the opposite order within each octet, so that conversion is
-specified separately in `Packing.lean` rather than shared with this one. -/
+specified separately in `Packing.lean` rather than shared with this one. What
+the two do share is the vector layer, which only concatenates octets: it is
+written once here for an arbitrary octet convention `f` and its inverse `g`,
+and `Packing.lean` instantiates it at the Section 7.2 pair. -/
+
+/-- Read a byte vector as a bit string, `f` giving the eight bits of an octet. -/
+def bytesToBitsWith {n : ℕ} (f : Byte → Vector Bool 8) (bs : Bytes n) :
+    Vector Bool (n * 8) :=
+  (bs.map f).flatten
+
+/-- Read a bit string as a byte vector, `g` giving the octet of eight bits. -/
+def bitsToBytesWith {n : ℕ} (g : Vector Bool 8 → Byte) (b : Vector Bool (n * 8)) :
+    Bytes n :=
+  Vector.ofFn fun i => g (Vector.ofFn fun j => b[i.val * 8 + j.val]'(by omega))
+
+/-- The bits of octet `i` sit at positions `i * 8` to `i * 8 + 7`. -/
+theorem getElem_bytesToBitsWith {n : ℕ} (f : Byte → Vector Bool 8) (bs : Bytes n)
+    {i j : ℕ} (hi : i < n) (hj : j < 8) :
+    (bytesToBitsWith f bs)[i * 8 + j]'(by omega) = (f bs[i])[j] := by
+  simp [bytesToBitsWith, Vector.getElem_flatten, Nat.mod_eq_of_lt hj,
+    show (i * 8 + j) / 8 = i by omega]
+
+/-- A byte vector is recovered from its bit string, whenever the octet
+convention is. -/
+theorem bitsToBytesWith_bytesToBitsWith {n : ℕ} {f : Byte → Vector Bool 8}
+    {g : Vector Bool 8 → Byte} (hgf : ∀ x, g (f x) = x) (bs : Bytes n) :
+    bitsToBytesWith g (bytesToBitsWith f bs) = bs := by
+  apply Vector.ext
+  intro i hi
+  rw [bitsToBytesWith, Vector.getElem_ofFn, ← hgf bs[i]]
+  congr 1
+  apply Vector.ext
+  intro j hj
+  simpa using getElem_bytesToBitsWith f bs hi hj
+
+/-- A bit string is recovered from its byte vector, whenever the octet
+convention is. -/
+theorem bytesToBitsWith_bitsToBytesWith {n : ℕ} {f : Byte → Vector Bool 8}
+    {g : Vector Bool 8 → Byte} (hfg : ∀ v, f (g v) = v) (b : Vector Bool (n * 8)) :
+    bytesToBitsWith f (bitsToBytesWith g b) = b := by
+  apply Vector.ext
+  intro k hk
+  obtain ⟨i, j, hi, hj, rfl⟩ : ∃ i j, i < n ∧ j < 8 ∧ k = i * 8 + j :=
+    ⟨k / 8, k % 8, by omega, by omega, by omega⟩
+  rw [getElem_bytesToBitsWith _ _ hi hj, bitsToBytesWith, Vector.getElem_ofFn, hfg,
+      Vector.getElem_ofFn]
 
 /-- The eight bits of one octet, least significant first. -/
 def byteToBits (x : Byte) : Vector Bool 8 :=
   Vector.ofFn fun j => x.toNat.testBit j
 
-/-- The octet with the given eight bits, least significant first. -/
+/-- The octet with the given eight bits, least significant first. `Nat.ofBits`
+is that reading, as it is for `bitsToChunk`. -/
 def bitsToByte (v : Vector Bool 8) : Byte :=
-  UInt8.ofNat (∑ j : Fin 8, if v[j] then 2 ^ j.val else 0)
+  UInt8.ofNat (Nat.ofBits fun j : Fin 8 => v[j])
 
 /-- The convention of Section 7.1 on the two domain separators of the
 specification, `0x96 = 0b10010110` and `0x5F = 0b01011111`. This fixes the bit
@@ -273,47 +321,34 @@ theorem bitsToByte_byteToBits (x : Byte) : bitsToByte (byteToBits x) = x := by
   simpa using (by decide : ∀ m < 256,
     bitsToByte (byteToBits (UInt8.ofNat m)) = UInt8.ofNat m) x.toNat x.toNat_lt
 
-/-- Section 7.1 of `[ABD+25]`: read a byte vector as a bit string, least
-significant bit of each octet first. -/
-def bytesToBits {n : ℕ} (bs : Bytes n) : Vector Bool (n * 8) :=
-  (bs.map byteToBits).flatten
-
-/-- The inverse of `bytesToBits`. -/
-def bitsToBytes {n : ℕ} (b : Vector Bool (n * 8)) : Bytes n :=
-  Vector.ofFn fun i =>
-    bitsToByte (Vector.ofFn fun j => b[i.val * 8 + j.val]'(by omega))
-
-/-- The bits of octet `i` sit at positions `i * 8` to `i * 8 + 7`. -/
-theorem getElem_bytesToBits {n : ℕ} (bs : Bytes n) {i j : ℕ} (hi : i < n) (hj : j < 8) :
-    (bytesToBits bs)[i * 8 + j]'(by omega) = (byteToBits bs[i])[j] := by
-  simp [bytesToBits, Vector.getElem_flatten, Nat.mod_eq_of_lt hj,
-    show (i * 8 + j) / 8 = i by omega]
-
-/-- A byte vector is recovered from its bit string. -/
-theorem bitsToBytes_bytesToBits {n : ℕ} (bs : Bytes n) :
-    bitsToBytes (bytesToBits bs) = bs := by
-  apply Vector.ext
-  intro i hi
-  rw [bitsToBytes, Vector.getElem_ofFn, ← bitsToByte_byteToBits bs[i]]
-  congr 1
-  apply Vector.ext
-  intro j hj
-  simpa using getElem_bytesToBits bs hi hj
-
 /-- The bits of an octet are recovered from it. -/
 theorem byteToBits_bitsToByte (v : Vector Bool 8) : byteToBits (bitsToByte v) = v := by
   simpa using (by decide : ∀ f : Fin 8 → Bool,
     byteToBits (bitsToByte (Vector.ofFn f)) = Vector.ofFn f) fun j => v[j]
 
+/-- Section 7.1 of `[ABD+25]`: read a byte vector as a bit string, least
+significant bit of each octet first. -/
+def bytesToBits {n : ℕ} (bs : Bytes n) : Vector Bool (n * 8) :=
+  bytesToBitsWith byteToBits bs
+
+/-- The inverse of `bytesToBits`. -/
+def bitsToBytes {n : ℕ} (b : Vector Bool (n * 8)) : Bytes n :=
+  bitsToBytesWith bitsToByte b
+
+/-- The bits of octet `i` sit at positions `i * 8` to `i * 8 + 7`. -/
+theorem getElem_bytesToBits {n : ℕ} (bs : Bytes n) {i j : ℕ} (hi : i < n) (hj : j < 8) :
+    (bytesToBits bs)[i * 8 + j]'(by omega) = (byteToBits bs[i])[j] :=
+  getElem_bytesToBitsWith byteToBits bs hi hj
+
+/-- A byte vector is recovered from its bit string. -/
+theorem bitsToBytes_bytesToBits {n : ℕ} (bs : Bytes n) :
+    bitsToBytes (bytesToBits bs) = bs :=
+  bitsToBytesWith_bytesToBitsWith bitsToByte_byteToBits bs
+
 /-- A bit string is recovered from its byte vector. -/
 theorem bytesToBits_bitsToBytes {n : ℕ} (b : Vector Bool (n * 8)) :
-    bytesToBits (bitsToBytes b) = b := by
-  apply Vector.ext
-  intro k hk
-  obtain ⟨i, j, hi, hj, rfl⟩ : ∃ i j, i < n ∧ j < 8 ∧ k = i * 8 + j :=
-    ⟨k / 8, k % 8, by omega, by omega, by omega⟩
-  rw [getElem_bytesToBits _ hi hj, bitsToBytes, Vector.getElem_ofFn, byteToBits_bitsToByte,
-      Vector.getElem_ofFn]
+    bytesToBits (bitsToBytes b) = b :=
+  bytesToBitsWith_bitsToBytesWith byteToBits_bitsToByte b
 
 /-! ## Chunking
 
