@@ -72,7 +72,8 @@ left for the composites `Encode` and `Decode`.
 * `chunkToBits`, `bitsToChunk`, `toChunks`, `ofChunks`: the Section 7.3
   chunking;
 * `Encode`, `Decode`: the published maps, on bit strings;
-* `encodeMessage`, `decodeMessage`: the same on `Message p`;
+* `encodeMessage`, `decodeMessage`: the same on `Message p`, over a
+  `ValidParams` since the length cast needs `ell_eq`;
 * `Params.noiseRadius`: the half-step `q / 2 ^ (B + 1)`.
 
 ## Main results
@@ -562,7 +563,11 @@ theorem Decode_Encode_add (p : Params) (hw : p.WellFormed)
 /-! ## Messages
 
 `Message p` is `ellBytes` bytes; `Params.WellFormed.ell_eq` makes that the same
-number of bits the matrix holds. -/
+number of bits the matrix holds. The two maps here therefore need the proof in
+order to typecheck, not merely to be proved correct, so they take a
+`ValidParams`: a record carrying its own well-formedness, which a caller passes
+as one argument. Everything above this section stays on a bare `Params`, taking
+a `WellFormed` hypothesis only where a theorem needs one. -/
 
 /-- A message has exactly as many bits as the matrix has chunk bits. The
 division in `ellBytes` is exact because `mbar = nbar = 8`. -/
@@ -570,32 +575,33 @@ theorem ellBytes_mul_eight (p : Params) (hw : p.WellFormed) :
     p.ellBytes * 8 = mbar * nbar * p.B := by
   simp only [Params.ellBytes, hw.ell_eq, mbar, nbar]; omega
 
-/-- `Frodo.Encode` on a message: Section 7.1 then Section 7.3. Well-formedness
-enters only through the length cast of `ellBytes_mul_eight`. -/
-def encodeMessage (p : Params) (hw : p.WellFormed) (mu : Message p) :
-    FrodoMatrix p mbar nbar :=
-  Encode p (Vector.cast (ellBytes_mul_eight p hw) (bytesToBits mu))
+/-- `Frodo.Encode` on a message: Section 7.1 then Section 7.3. The
+well-formedness carried by `ValidParams` enters only through the length cast of
+`ellBytes_mul_eight`. -/
+def encodeMessage (p : ValidParams) (mu : Message p.toParams) :
+    FrodoMatrix p.toParams mbar nbar :=
+  Encode p.toParams (Vector.cast (ellBytes_mul_eight p.toParams p.wf) (bytesToBits mu))
 
 /-- `Frodo.Decode` returning a message: Section 7.3 then Section 7.1, with the
 same cast as `encodeMessage` in reverse. -/
-def decodeMessage (p : Params) (hw : p.WellFormed) (C : FrodoMatrix p mbar nbar) :
-    Message p :=
-  bitsToBytes (Vector.cast (ellBytes_mul_eight p hw).symm (Decode p C))
+def decodeMessage (p : ValidParams) (C : FrodoMatrix p.toParams mbar nbar) :
+    Message p.toParams :=
+  bitsToBytes (Vector.cast (ellBytes_mul_eight p.toParams p.wf).symm (Decode p.toParams C))
 
 /-- `decodeMessage` inverts `encodeMessage`. -/
-theorem decodeMessage_encodeMessage (p : Params) (hw : p.WellFormed) (mu : Message p) :
-    decodeMessage p hw (encodeMessage p hw mu) = mu := by
-  rw [decodeMessage, encodeMessage, Decode_Encode p hw]
+theorem decodeMessage_encodeMessage (p : ValidParams) (mu : Message p.toParams) :
+    decodeMessage p (encodeMessage p mu) = mu := by
+  rw [decodeMessage, encodeMessage, Decode_Encode p.toParams p.wf]
   simp [bitsToBytes_bytesToBits]
 
 /-- `decodeMessage` recovers the message from an encoding perturbed by an error
 matrix whose entries all lie in the window of `dc_ec_add`. -/
-theorem decodeMessage_encodeMessage_add (p : Params) (hw : p.WellFormed) (mu : Message p)
-    (E : FrodoMatrix p mbar nbar)
+theorem decodeMessage_encodeMessage_add (p : ValidParams) (mu : Message p.toParams)
+    (E : FrodoMatrix p.toParams mbar nbar)
     (hlo : ∀ i j, -(p.q : ℤ) ≤ 2 ^ (p.B + 1) * centeredRepr (E i j))
     (hhi : ∀ i j, 2 ^ (p.B + 1) * centeredRepr (E i j) < (p.q : ℤ)) :
-    decodeMessage p hw (encodeMessage p hw mu + E) = mu := by
-  rw [decodeMessage, encodeMessage, Decode_Encode_add p hw _ E hlo hhi]
+    decodeMessage p (encodeMessage p mu + E) = mu := by
+  rw [decodeMessage, encodeMessage, Decode_Encode_add p.toParams p.wf _ E hlo hhi]
   simp [bitsToBytes_bytesToBits]
 
 end FrodoKEM
