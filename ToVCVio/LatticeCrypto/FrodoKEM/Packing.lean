@@ -20,14 +20,10 @@ Section 7.2 then writes bit `8 * a + t` of a bit string as digit `7 - t` of
 octet `a`, for `0 ≤ t < 8`.
 
 Sections 7.1 and 7.3 of `Encoding.lean` read the least significant bit first
-instead, so the two octet conversions are bit-reversed within each octet and are
-specified separately, each as its own section of the specification states it.
-The matrix layer is shared the same way: Section 7.4's layout is
-`Encoding.lean`'s Section 7.3 layout at a different codec and width. In both
-cases only the proofs are shared, through the `…With` definitions and lemmas of
-`Encoding.lean`, which take the convention on one octet, resp. one entry, as a
-parameter; the `…_eq` lemmas below record that each definition here is one of
-them.
+instead, so both conversions here are stated separately from theirs, as their
+own sections of the specification state them. Only the proofs are shared,
+through the `…With` definitions and lemmas of `Encoding.lean`, which the `…_eq`
+lemmas below identify with each definition here.
 
 ## Main definitions
 
@@ -45,10 +41,8 @@ them.
 * `Unpack_Pack` and `Pack_Unpack`. Both require `q = 2 ^ D`
   (`Params.WellFormed.q_eq`), since `entryToBits` retains only `D` bits.
 
-The conventions themselves — the Section 7.2 octet order, and the bit order
-and layout of Section 7.4 — are fixed by the `example`s beside their
-definitions, which the round trips cannot do. They are probes rather than facts
-a caller would use, so they are left unnamed.
+The Section 7.2 octet order and the Section 7.4 bit order and layout, which the
+round trips cannot fix, are fixed by the `example`s beside their definitions.
 -/
 namespace FrodoKEM
 
