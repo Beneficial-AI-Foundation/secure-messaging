@@ -359,7 +359,9 @@ theorem bytesToBits_bitsToBytes {n : ℕ} (b : Vector Bool (n * 8)) :
 /-! ## Chunking
 
 Section 7.3 of `[ABD+25]`: each `B`-bit run of the input, read from its least
-significant bit, becomes one matrix entry; entries are filled row by row.
+significant bit, becomes one matrix entry; entries are filled row by row and
+each row is filled left to right, so bits `0` to `B - 1` of the input fill
+entry `(0, 0)`.
 
 The bit strings here have length `mbar * nbar * B`, one `B`-bit run per entry.
 `Params.WellFormed.ell_eq` identifies that with `ℓ`, and `ellBytes_mul_eight`
