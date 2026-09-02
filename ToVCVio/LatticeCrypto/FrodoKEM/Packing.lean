@@ -103,34 +103,48 @@ def Unpack (p : Params) {r c : ℕ} (b : Vector Bool (r * c * p.D)) : FrodoMatri
   Matrix.of fun i j => bitsToEntry p (Vector.ofFn fun l =>
     b[(i.val * c + j.val) * p.D + l.val]'(bitIndex_lt i.isLt j.isLt l.isLt))
 
+/-- `bytesToBitsPack` is the shared layer at the Section 7.2 convention. -/
+theorem bytesToBitsPack_eq {n : ℕ} (bs : Bytes n) :
+    bytesToBitsPack bs = bytesToBitsWith byteToBitsPack bs := rfl
+
+/-- `bitsToBytesPack` is the shared layer at the Section 7.2 convention. -/
+theorem bitsToBytesPack_eq {n : ℕ} (b : Vector Bool (n * 8)) :
+    bitsToBytesPack b = bitsToBytesWith bitsToBytePack b := rfl
+
 /-- The bits of octet `i` sit at positions `i * 8` to `i * 8 + 7`, most
 significant first. -/
 theorem getElem_bytesToBitsPack {n : ℕ} (bs : Bytes n) {i j : ℕ} (hi : i < n) (hj : j < 8) :
-    (bytesToBitsPack bs)[i * 8 + j]'(by omega) = (byteToBitsPack bs[i])[j] :=
-  getElem_bytesToBitsWith byteToBitsPack bs hi hj
+    (bytesToBitsPack bs)[i * 8 + j]'(by omega) = (byteToBitsPack bs[i])[j] := by
+  rw [bytesToBitsPack_eq]
+  exact getElem_bytesToBitsWith byteToBitsPack bs hi hj
+
+/-- `Pack` is the shared layer at the Section 7.4 layout. -/
+theorem Pack_eq (p : Params) {r c : ℕ} (M : FrodoMatrix p r c) :
+    Pack p M = matrixToBitsWith (entryToBits p) M := rfl
+
+/-- `Unpack` is the shared layer at the Section 7.4 layout. -/
+theorem Unpack_eq (p : Params) {r c : ℕ} (b : Vector Bool (r * c * p.D)) :
+    Unpack p b = bitsToMatrixWith (bitsToEntry p) b := rfl
 
 /-- The bits of entry `(i, j)` sit at positions `(i * c + j) * D` onwards. -/
 theorem getElem_Pack (p : Params) {r c : ℕ} (M : FrodoMatrix p r c) {i j l : ℕ}
     (hi : i < r) (hj : j < c) (hl : l < p.D) :
     (Pack p M)[(i * c + j) * p.D + l]'(bitIndex_lt hi hj hl) =
       (entryToBits p (M ⟨i, hi⟩ ⟨j, hj⟩))[l] := by
-  rw [Pack, Vector.getElem_flatten]
-  simp only [Nat.mul_comm (i * c + j) p.D, Nat.mul_add_div (by omega : 0 < p.D),
-    Nat.mul_add_mod, Nat.div_eq_of_lt hl, Nat.mod_eq_of_lt hl, Nat.add_zero,
-    Vector.getElem_ofFn]
-  congr 3 <;> simp only [Fin.divNat, Fin.modNat, Nat.mul_comm i c,
-    Nat.mul_add_div (by omega : 0 < c), Nat.mul_add_mod, Nat.div_eq_of_lt hj,
-    Nat.mod_eq_of_lt hj, Nat.add_zero]
+  rw [Pack_eq]
+  exact getElem_matrixToBitsWith (entryToBits p) M hi hj hl
 
 /-- A byte vector is recovered from its bit string. -/
 theorem bitsToBytesPack_bytesToBitsPack {n : ℕ} (bs : Bytes n) :
-    bitsToBytesPack (bytesToBitsPack bs) = bs :=
-  bitsToBytesWith_bytesToBitsWith bitsToBytePack_byteToBitsPack bs
+    bitsToBytesPack (bytesToBitsPack bs) = bs := by
+  rw [bitsToBytesPack_eq, bytesToBitsPack_eq]
+  exact bitsToBytesWith_bytesToBitsWith bitsToBytePack_byteToBitsPack bs
 
 /-- A bit string is recovered from its byte vector. -/
 theorem bytesToBitsPack_bitsToBytesPack {n : ℕ} (b : Vector Bool (n * 8)) :
-    bytesToBitsPack (bitsToBytesPack b) = b :=
-  bytesToBitsWith_bitsToBytesWith byteToBitsPack_bitsToBytePack b
+    bytesToBitsPack (bitsToBytesPack b) = b := by
+  rw [bytesToBitsPack_eq, bitsToBytesPack_eq]
+  exact bytesToBitsWith_bitsToBytesWith byteToBitsPack_bitsToBytePack b
 
 /-- An entry is recovered from its `D` bits. `q = 2 ^ D` is needed here and in
 `entryToBits_bitsToEntry`: `entryToBits` keeps only `D` bits, so no larger
@@ -158,29 +172,13 @@ theorem entryToBits_bitsToEntry (p : Params) (hw : p.WellFormed) (v : Vector Boo
 /-- `Frodo.Unpack` inverts `Frodo.Pack`. -/
 theorem Unpack_Pack (p : Params) (hw : p.WellFormed) {r c : ℕ} (M : FrodoMatrix p r c) :
     Unpack p (Pack p M) = M := by
-  ext i j
-  simp only [Unpack, Matrix.of_apply]
-  rw [← bitsToEntry_entryToBits p hw (M i j)]
-  congr 1
-  apply Vector.ext
-  intro l hl
-  rw [Vector.getElem_ofFn]
-  exact getElem_Pack p M i.isLt j.isLt hl
+  rw [Unpack_eq, Pack_eq]
+  exact bitsToMatrixWith_matrixToBitsWith (bitsToEntry_entryToBits p hw) M
 
 /-- `Frodo.Pack` inverts `Frodo.Unpack`. -/
 theorem Pack_Unpack (p : Params) (hw : p.WellFormed) {r c : ℕ}
     (b : Vector Bool (r * c * p.D)) : Pack p (Unpack p b) = b := by
-  apply Vector.ext
-  intro k hk
-  obtain ⟨i, j, l, hi, hj, hl, rfl⟩ :
-      ∃ i j l, i < r ∧ j < c ∧ l < p.D ∧ k = (i * c + j) * p.D + l :=
-    ⟨k / p.D / c, k / p.D % c, k % p.D,
-      Nat.div_lt_of_lt_mul (Nat.div_lt_of_lt_mul
-        (by rw [Nat.mul_comm p.D (c * r), Nat.mul_comm c r]; exact hk)),
-      Nat.mod_lt _ (Nat.pos_of_ne_zero fun h => absurd hk (by simp [h])),
-      Nat.mod_lt _ (Nat.pos_of_ne_zero fun h => absurd hk (by simp [h])),
-      by rw [Nat.div_add_mod', Nat.div_add_mod']⟩
-  rw [getElem_Pack p _ hi hj hl]
-  simp only [Unpack, Matrix.of_apply, entryToBits_bitsToEntry p hw, Vector.getElem_ofFn]
+  rw [Pack_eq, Unpack_eq]
+  exact matrixToBitsWith_bitsToMatrixWith (entryToBits_bitsToEntry p hw) b
 
 end FrodoKEM
