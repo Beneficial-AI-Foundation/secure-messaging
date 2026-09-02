@@ -59,6 +59,7 @@ left for the composites `Encode` and `Decode`.
 ## Main definitions
 
 * `ec`, `dc`: the scalar maps;
+* `ChunkMatrix`: an `mbar`-by-`nbar` matrix of `B`-bit chunks;
 * `EncodeChunks`, `DecodeChunks`: the matrix maps, `ec` and `dc` applied
   entrywise;
 * `bytesToBitsWith`, `bitsToBytesWith`: the vector layer of an octet
@@ -87,12 +88,14 @@ left for the composites `Encode` and `Decode`.
 
 namespace FrodoKEM
 
+open LatticeCrypto
+
 namespace Params
 
 /-- The half-step `q / 2 ^ (B + 1)`: half the spacing of the representable
-values `ec k`, and the bound on the noise `dc` tolerates. The division is exact,
-so this is that half-step, only when `B < D`; at `B = D` it truncates to zero
-and `dc_ec_add` takes the case separately. -/
+values `ec k`, and the bound on the noise `dc` tolerates. The division is exact
+only when `B < D`; at `B = D` it truncates to zero, and `dc_ec_add` takes that
+case separately. -/
 def noiseRadius (p : Params) : ℕ := p.q / 2 ^ (p.B + 1)
 
 end Params
@@ -168,8 +171,8 @@ only `e = 0`; for `B < D` it is the half-open interval
 `centeredRepr e ∈ [-q / 2 ^ (B + 1), q / 2 ^ (B + 1))`. -/
 theorem dc_ec_add (p : Params) (hw : p.WellFormed) (k : ZMod (2 ^ p.B))
     (e : ZMod p.q)
-    (hlo : -(p.q : ℤ) ≤ 2 ^ (p.B + 1) * LatticeCrypto.centeredRepr e)
-    (hhi : 2 ^ (p.B + 1) * LatticeCrypto.centeredRepr e < (p.q : ℤ)) :
+    (hlo : -(p.q : ℤ) ≤ 2 ^ (p.B + 1) * centeredRepr e)
+    (hhi : 2 ^ (p.B + 1) * centeredRepr e < (p.q : ℤ)) :
     dc p (ec p k + e) = k := by
   have hQ : p.q = 2 ^ p.D := hw.q_eq
   haveI : NeZero p.q := ⟨by rw [hQ]; positivity⟩
@@ -179,12 +182,12 @@ theorem dc_ec_add (p : Params) (hw : p.WellFormed) (k : ZMod (2 ^ p.B))
   rcases eq_or_lt_of_le hw.B_le_D with hBD | hBD
   · rw [show (2 : ℤ) ^ (p.B + 1) = 2 * (p.q : ℤ) by
         rw [hBD, pow_succ, hQ]; push_cast; ring] at hlo hhi
-    have hz : LatticeCrypto.centeredRepr e = 0 := by
-      rcases lt_trichotomy (LatticeCrypto.centeredRepr e) 0 with h | h | h
+    have hz : centeredRepr e = 0 := by
+      rcases lt_trichotomy (centeredRepr e) 0 with h | h | h
       · nlinarith
       · exact h
       · nlinarith
-    have he : e = 0 := by rw [LatticeCrypto.centeredRepr_intCast e, hz]; simp
+    have he : e = 0 := by rw [centeredRepr_intCast e, hz]; simp
     rw [he, add_zero, dc_ec p hw k]
   have hsn : 2 ^ (p.D - p.B) * 2 ^ p.B = p.q := by rw [hQ, ← pow_add]; congr 1; omega
   have hrn : 2 * (p.noiseRadius * 2 ^ p.B) = p.q := by
@@ -195,11 +198,11 @@ theorem dc_ec_add (p : Params) (hw : p.WellFormed) (k : ZMod (2 ^ p.B))
   have hwin : e.val < p.noiseRadius ∨ p.q - p.noiseRadius ≤ e.val := by
     rw [show (p.q : ℤ) = 2 ^ (p.B + 1) * p.noiseRadius by rw [← hrn]; push_cast; ring]
       at hlo hhi
-    unfold LatticeCrypto.centeredRepr at hlo hhi
-    split at hlo <;> rename_i h
-    · rw [if_pos h] at hhi
+    rcases le_or_gt ((e.val : ℤ)) ((p.q : ℤ) / 2) with h | h
+    · rw [centeredRepr_of_le h] at hhi
       exact Or.inl (by exact_mod_cast lt_of_mul_lt_mul_left hhi hpow.le)
-    · refine Or.inr ?_
+    · rw [centeredRepr_of_gt h] at hlo
+      refine Or.inr ?_
       have := le_of_mul_le_mul_left (a := (2 : ℤ) ^ (p.B + 1))
         (by linarith : (2 : ℤ) ^ (p.B + 1) * (-(p.noiseRadius : ℤ))
               ≤ 2 ^ (p.B + 1) * ((e.val : ℤ) - (p.q : ℤ))) hpow
@@ -241,8 +244,8 @@ matrix whose entries all lie in the window of `dc_ec_add`, stated entrywise. -/
 theorem DecodeChunks_EncodeChunks_add (p : Params) (hw : p.WellFormed)
     (M : ChunkMatrix p)
     (E : FrodoMatrix p mbar nbar)
-    (hlo : ∀ i j, -(p.q : ℤ) ≤ 2 ^ (p.B + 1) * LatticeCrypto.centeredRepr (E i j))
-    (hhi : ∀ i j, 2 ^ (p.B + 1) * LatticeCrypto.centeredRepr (E i j) < (p.q : ℤ)) :
+    (hlo : ∀ i j, -(p.q : ℤ) ≤ 2 ^ (p.B + 1) * centeredRepr (E i j))
+    (hhi : ∀ i j, 2 ^ (p.B + 1) * centeredRepr (E i j) < (p.q : ℤ)) :
     DecodeChunks p (EncodeChunks p M + E) = M := by
   ext i j
   simpa [DecodeChunks, EncodeChunks] using
@@ -265,7 +268,8 @@ def bytesToBitsWith {n : ℕ} (f : Byte → Vector Bool 8) (bs : Bytes n) :
     Vector Bool (n * 8) :=
   (bs.map f).flatten
 
-/-- Read a bit string as a byte vector, `g` giving the octet of eight bits. -/
+/-- Read a bit string as a byte vector, `g` giving the octet with eight given
+bits. -/
 def bitsToBytesWith {n : ℕ} (g : Vector Bool 8 → Byte) (b : Vector Bool (n * 8)) :
     Bytes n :=
   Vector.ofFn fun i => g (Vector.ofFn fun j => b[i.val * 8 + j.val]'(by omega))
@@ -306,8 +310,8 @@ theorem bytesToBitsWith_bitsToBytesWith {n : ℕ} {f : Byte → Vector Bool 8}
 def byteToBits (x : Byte) : Vector Bool 8 :=
   Vector.ofFn fun j => x.toNat.testBit j
 
-/-- The octet with the given eight bits, least significant first. `Nat.ofBits`
-is that reading, as it is for `bitsToChunk`. -/
+/-- The octet with the given eight bits, least significant first: `Nat.ofBits`
+is that reading. -/
 def bitsToByte (v : Vector Bool 8) : Byte :=
   UInt8.ofNat (Nat.ofBits fun j : Fin 8 => v[j])
 
@@ -453,12 +457,14 @@ theorem ofChunks_toChunks (p : Params) (b : Vector Bool (mbar * nbar * p.B)) :
 
 /-! ## The published maps -/
 
-/-- `Frodo.Encode` (Appendix B of `[CiC25]`, Section 7.3 of `[ABD+25]`). -/
+/-- `Frodo.Encode` (Appendix B of `[CiC25]`, Section 7.3 of `[ABD+25]`): cut
+the bit string into `B`-bit chunks, then apply `ec` entrywise. -/
 def Encode (p : Params) (b : Vector Bool (mbar * nbar * p.B)) :
     FrodoMatrix p mbar nbar :=
   EncodeChunks p (toChunks p b)
 
-/-- `Frodo.Decode` (Appendix B of `[CiC25]`, Section 7.3 of `[ABD+25]`). -/
+/-- `Frodo.Decode` (Appendix B of `[CiC25]`, Section 7.3 of `[ABD+25]`): apply
+`dc` entrywise, then concatenate the chunks. -/
 def Decode (p : Params) (C : FrodoMatrix p mbar nbar) :
     Vector Bool (mbar * nbar * p.B) :=
   ofChunks p (DecodeChunks p C)
@@ -472,8 +478,8 @@ theorem Decode_Encode (p : Params) (hw : p.WellFormed)
 error matrix whose entries all lie in the window of `dc_ec_add`. -/
 theorem Decode_Encode_add (p : Params) (hw : p.WellFormed)
     (b : Vector Bool (mbar * nbar * p.B)) (E : FrodoMatrix p mbar nbar)
-    (hlo : ∀ i j, -(p.q : ℤ) ≤ 2 ^ (p.B + 1) * LatticeCrypto.centeredRepr (E i j))
-    (hhi : ∀ i j, 2 ^ (p.B + 1) * LatticeCrypto.centeredRepr (E i j) < (p.q : ℤ)) :
+    (hlo : ∀ i j, -(p.q : ℤ) ≤ 2 ^ (p.B + 1) * centeredRepr (E i j))
+    (hhi : ∀ i j, 2 ^ (p.B + 1) * centeredRepr (E i j) < (p.q : ℤ)) :
     Decode p (Encode p b + E) = b := by
   rw [Decode, Encode, DecodeChunks_EncodeChunks_add p hw _ E hlo hhi, ofChunks_toChunks]
 
@@ -509,8 +515,8 @@ theorem decodeMessage_encodeMessage (p : Params) (hw : p.WellFormed) (mu : Messa
 matrix whose entries all lie in the window of `dc_ec_add`. -/
 theorem decodeMessage_encodeMessage_add (p : Params) (hw : p.WellFormed) (mu : Message p)
     (E : FrodoMatrix p mbar nbar)
-    (hlo : ∀ i j, -(p.q : ℤ) ≤ 2 ^ (p.B + 1) * LatticeCrypto.centeredRepr (E i j))
-    (hhi : ∀ i j, 2 ^ (p.B + 1) * LatticeCrypto.centeredRepr (E i j) < (p.q : ℤ)) :
+    (hlo : ∀ i j, -(p.q : ℤ) ≤ 2 ^ (p.B + 1) * centeredRepr (E i j))
+    (hhi : ∀ i j, 2 ^ (p.B + 1) * centeredRepr (E i j) < (p.q : ℤ)) :
     decodeMessage p hw (encodeMessage p hw mu + E) = mu := by
   rw [decodeMessage, encodeMessage, Decode_Encode_add p hw _ E hlo hhi]
   simp [bitsToBytes_bytesToBits]
