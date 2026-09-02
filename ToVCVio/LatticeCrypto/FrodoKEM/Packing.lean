@@ -12,14 +12,16 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Encoding
 7.4 of `[ABD+25]`, with the octet conversion of Section 7.2 of `[ABD+25]`.
 References are as in `Encoding.lean`.
 
-Section 7.4 writes an entry `C i j = ∑ l < D, c l * 2 ^ l` into a bit string `b`
-of length `r * c * D` as `b ((i * c + j) * D + l) = c (D - 1 - l)`, reading the
-matrix row by row, and Section 7.2 writes bit `8 * i + j` of a bit string as bit
-`7 - j` of octet `i`. Both read the most significant bit first, where Sections
-7.1 and 7.3 of `Encoding.lean` read the least significant; the two octet
-conversions are bit-reversed within each octet, so they are specified
-separately, sharing only the vector layer `bytesToBitsWith` of
-`Encoding.lean`, which concatenates octets whatever the convention on one.
+Section 7.4 writes an entry `C i j = ∑ l < D, c l * 2 ^ l`, in row `i` and
+column `j`, into a bit string `b` of length `r * c * D` as
+`b ((i * c + j) * D + l) = c (D - 1 - l)`, for `0 ≤ i < r`, `0 ≤ j < c` and
+`0 ≤ l < D`, so that the matrix is read row by row; Section 7.2 writes bit
+`8 * a + t` of a bit string as bit `7 - t` of octet `a`, for `0 ≤ t < 8`. Both
+read the most significant bit first, where Sections 7.1 and 7.3 of
+`Encoding.lean` read the least significant; the two octet conversions are
+bit-reversed within each octet, so they are specified separately, sharing only
+the vector layer `bytesToBitsWith` of `Encoding.lean`, which concatenates octets
+whatever the convention on one.
 
 ## Main definitions
 

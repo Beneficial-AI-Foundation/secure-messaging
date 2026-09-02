@@ -33,9 +33,11 @@ first throughout, where `Packing.lean` reads the most significant first:
   `c ↦ ⌊c * 2 ^ B / q⌉ mod 2 ^ B`;
 * `EncodeChunks`, `DecodeChunks`: `ec` and `dc` entrywise, on a message already
   chunked into `mbar * nbar` values of `ZMod (2 ^ B)`;
-* Section 7.1 writes bit `8 * i + j` of a bit string as bit `j` of octet `i`;
-* Section 7.3 writes bit `(i * nbar + j) * B + t` as bit `t` of entry `(i, j)`,
-  reading the matrix row by row;
+* Section 7.1 writes bit `8 * a + t` of a bit string as bit `t` of octet `a`,
+  for `0 ≤ t < 8`;
+* Section 7.3 writes bit `(i * nbar + j) * B + t` as bit `t` of the matrix entry
+  in row `i` and column `j`, for `0 ≤ i < mbar`, `0 ≤ j < nbar` and
+  `0 ≤ t < B`, so that the matrix is read row by row;
 * `Encode` and `Decode` compose these on bit strings of length `mbar * nbar * B`,
   and `encodeMessage`, `decodeMessage` do the same on `Message p`.
 
