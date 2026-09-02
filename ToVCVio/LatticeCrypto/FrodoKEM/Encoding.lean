@@ -47,11 +47,9 @@ Three of the `Params.WellFormed` conditions are used:
 * `B ≤ D` (`B_le_D`) gives `2 ^ B ≤ q`, so `ec` does not wrap (`ec_val`);
 * `ℓ = B * mbar * nbar` (`ell_eq`) makes a message fill the matrix exactly.
 
-The encoded values then sit at spacing `q / 2 ^ B = 2 ^ (D - B)`, with half-step
-`Params.noiseRadius = q / 2 ^ (B + 1)`, which satisfies
-`q = 2 ^ (B + 1) * noiseRadius` exactly when `B < D`. At `B = D` the true
-half-step is one half and `noiseRadius` truncates it to zero, so `dc_ec_add`
-treats that case separately.
+The encoded values then sit at spacing `q / 2 ^ B = 2 ^ (D - B)`. If the added
+noise is less than half of it, then `dc` recovers `k`; `dc_ec_add` states the
+window exactly, and `Params.noiseRadius` is that half-step rounded down.
 
 Names follow the specification: the scalar maps keep its abbreviated lowercase
 `ec` and `dc`, and since `EncodeChunks` and `DecodeChunks` are only the
