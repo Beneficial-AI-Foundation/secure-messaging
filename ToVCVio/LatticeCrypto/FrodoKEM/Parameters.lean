@@ -44,6 +44,13 @@ shared by every parameter set; the remaining entries are:
 
 Lengths are published in bits but the corresponding types are byte vectors, so
 each length comes in both units and the docstrings name which is which.
+
+A `Params` is plain data, so nothing constrains its fields. `Params.WellFormed`
+collects the conditions of Section 3 that the encoding and packing proofs
+depend on, and `params_wellFormed` discharges them for every published set.
+`ValidParams` pairs a record with that proof, for the definitions that need it
+to typecheck rather than only to be proved correct; `ParameterSet.valid` is the
+published sets as such records.
 -/
 
 namespace FrodoKEM
