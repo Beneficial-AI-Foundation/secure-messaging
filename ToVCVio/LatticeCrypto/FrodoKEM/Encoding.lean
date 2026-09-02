@@ -431,9 +431,7 @@ proved once; the published definitions stay as their sections state them and
 bridge to these by `rfl`. -/
 
 /-- Lay the entries of a matrix out as bit blocks of width `d`, row by row and
-each row left to right, `f` giving the `d` bits of one entry. As with the octet
-layer, only the proofs are shared this way: `ofChunks` and `Frodo.Pack` are
-written as their sections state them, and bridge to this by `rfl`. -/
+each row left to right, `f` giving the `d` bits of one entry. -/
 def matrixToBitsWith {α : Type*} {r c d : ℕ} (f : α → Vector Bool d)
     (M : Matrix (Fin r) (Fin c) α) : Vector Bool (r * c * d) :=
   (Vector.ofFn fun idx : Fin (r * c) => f (M idx.divNat idx.modNat)).flatten
