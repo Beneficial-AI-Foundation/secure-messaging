@@ -397,6 +397,11 @@ is that reading, and `[ABD+25]` uses the same convention. -/
 def bitsToChunk (p : Params) (v : Vector Bool p.B) : ZMod (2 ^ p.B) :=
   ((Nat.ofBits fun t => v[t] : ℕ) : ZMod (2 ^ p.B))
 
+/-- The chunk convention on a fixed value: with `B = 2`, the chunk `1` reads as
+the bits `[1, 0]`, least significant first. -/
+example : (chunkToBits ParameterSet.FrodoKEM640.params 1).toList = [true, false] := by
+  decide
+
 /-- A chunk is recovered from its bits. -/
 theorem bitsToChunk_chunkToBits (p : Params) (k : ZMod (2 ^ p.B)) :
     bitsToChunk p (chunkToBits p k) = k := by
@@ -510,6 +515,16 @@ theorem ofChunks_eq (p : Params) (M : ChunkMatrix p) :
 /-- `toChunks` is the shared layer at the Section 7.3 chunking. -/
 theorem toChunks_eq (p : Params) (b : Vector Bool (mbar * nbar * p.B)) :
     toChunks p b = bitsToMatrixWith (bitsToChunk p) b := rfl
+
+/-- The chunking convention on a fixed matrix, as the octet examples do for
+Section 7.1: with `B = 2`, the bit string that has only bits `0` and `3` set
+puts `1` in entry `(0, 0)` and `2` in entry `(0, 1)`. This fixes both orders
+that the round trips leave open, the bits within a chunk and the entries along
+a row; `toChunks` is used rather than `ofChunks` because `Vector.flatten` does
+not reduce. -/
+example : toChunks ParameterSet.FrodoKEM640.params
+    (Vector.ofFn fun i : Fin (mbar * nbar * 2) => decide (i.val = 0 ∨ i.val = 3))
+      ⟨0, by decide⟩ ⟨1, by decide⟩ = 2 := by decide
 
 /-- Bit `t` of entry `(i, j)` sits at position `(i * nbar + j) * B + t`, the
 layout of Section 7.3. -/
