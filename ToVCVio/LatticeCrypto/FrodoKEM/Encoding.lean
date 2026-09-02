@@ -39,7 +39,7 @@ first throughout, where `Packing.lean` reads the most significant first:
 * `Encode` and `Decode` compose these on bit strings of length `mbar * nbar * B`,
   and `encodeMessage`, `decodeMessage` do the same on `Message p`.
 
-Three conditions of `Params.WellFormed` are used:
+Three of the `Params.WellFormed` conditions are used:
 
 * `q = 2 ^ D` (`q_eq`) makes `q / 2 ^ B` exact, so both maps are bit shifts;
 * `B ≤ D` (`B_le_D`) gives `2 ^ B ≤ q`, so `ec` does not wrap (`ec_val`);
@@ -52,8 +52,9 @@ half-step is one half and `noiseRadius` truncates it to zero, so `dc_ec_add`
 treats that case separately.
 
 Names follow the specification: the scalar maps keep its abbreviated lowercase
-`ec` and `dc`, and since `EncodeChunks` and `DecodeChunks` are only its chunked
-half, the published names are left for the composites.
+`ec` and `dc`, and since `EncodeChunks` and `DecodeChunks` are only the
+entrywise half of `Frodo.Encode` and `Frodo.Decode`, the published names are
+left for the composites `Encode` and `Decode`.
 
 ## Main definitions
 
@@ -89,7 +90,9 @@ namespace FrodoKEM
 namespace Params
 
 /-- The half-step `q / 2 ^ (B + 1)`: half the spacing of the representable
-values `ec k`, and the bound on the noise `dc` tolerates. -/
+values `ec k`, and the bound on the noise `dc` tolerates. The division is exact,
+so this is that half-step, only when `B < D`; at `B = D` it truncates to zero
+and `dc_ec_add` takes the case separately. -/
 def noiseRadius (p : Params) : ℕ := p.q / 2 ^ (p.B + 1)
 
 end Params
@@ -234,7 +237,7 @@ theorem DecodeChunks_EncodeChunks (p : Params) (hw : p.WellFormed)
   simp [DecodeChunks, EncodeChunks, dc_ec p hw]
 
 /-- `DecodeChunks` recovers the chunks from an encoding perturbed by an error
-matrix whose entries all lie in the window, stated entrywise. -/
+matrix whose entries all lie in the window of `dc_ec_add`, stated entrywise. -/
 theorem DecodeChunks_EncodeChunks_add (p : Params) (hw : p.WellFormed)
     (M : ChunkMatrix p)
     (E : FrodoMatrix p mbar nbar)
@@ -274,8 +277,8 @@ theorem getElem_bytesToBitsWith {n : ℕ} (f : Byte → Vector Bool 8) (bs : Byt
   simp [bytesToBitsWith, Vector.getElem_flatten, Nat.mod_eq_of_lt hj,
     show (i * 8 + j) / 8 = i by omega]
 
-/-- A byte vector is recovered from its bit string, whenever the octet
-convention is. -/
+/-- A byte vector is recovered from its bit string, whenever an octet is
+recovered from its own bits. -/
 theorem bitsToBytesWith_bytesToBitsWith {n : ℕ} {f : Byte → Vector Bool 8}
     {g : Vector Bool 8 → Byte} (hgf : ∀ x, g (f x) = x) (bs : Bytes n) :
     bitsToBytesWith g (bytesToBitsWith f bs) = bs := by
@@ -287,8 +290,8 @@ theorem bitsToBytesWith_bytesToBitsWith {n : ℕ} {f : Byte → Vector Bool 8}
   intro j hj
   simpa using getElem_bytesToBitsWith f bs hi hj
 
-/-- A bit string is recovered from its byte vector, whenever the octet
-convention is. -/
+/-- A bit string is recovered from its byte vector, whenever the bits of an
+octet are recovered from the octet. -/
 theorem bytesToBitsWith_bitsToBytesWith {n : ℕ} {f : Byte → Vector Bool 8}
     {g : Vector Bool 8 → Byte} (hfg : ∀ v, f (g v) = v) (b : Vector Bool (n * 8)) :
     bytesToBitsWith f (bitsToBytesWith g b) = b := by
@@ -308,7 +311,7 @@ is that reading, as it is for `bitsToChunk`. -/
 def bitsToByte (v : Vector Bool 8) : Byte :=
   UInt8.ofNat (Nat.ofBits fun j : Fin 8 => v[j])
 
-/-- The convention of Section 7.1 on the two domain separators of the
+/-- The convention of Section 7.1 applied to the two domain separators of the
 specification, `0x96 = 0b10010110` and `0x5F = 0b01011111`. This fixes the bit
 order, which the round-trip theorems below cannot: reading and writing in the
 same wrong order round-trips just as well. -/
@@ -335,7 +338,8 @@ def bytesToBits {n : ℕ} (bs : Bytes n) : Vector Bool (n * 8) :=
 def bitsToBytes {n : ℕ} (b : Vector Bool (n * 8)) : Bytes n :=
   bitsToBytesWith bitsToByte b
 
-/-- The bits of octet `i` sit at positions `i * 8` to `i * 8 + 7`. -/
+/-- The bits of octet `i` sit at positions `i * 8` to `i * 8 + 7`, least
+significant first. -/
 theorem getElem_bytesToBits {n : ℕ} (bs : Bytes n) {i j : ℕ} (hi : i < n) (hj : j < 8) :
     (bytesToBits bs)[i * 8 + j]'(by omega) = (byteToBits bs[i])[j] :=
   getElem_bytesToBitsWith byteToBits bs hi hj
@@ -356,8 +360,8 @@ Section 7.3 of `[ABD+25]`: each `B`-bit run of the input, read from its least
 significant bit, becomes one matrix entry; entries are filled row by row.
 
 The bit strings here have length `mbar * nbar * B`, one `B`-bit run per entry.
-`ParameterSet.ell_eq_mul` identifies that with `ℓ` for the published parameter
-sets. -/
+`Params.WellFormed.ell_eq` identifies that with `ℓ`, and `ellBytes_mul_eight`
+turns it into the byte count of a `Message p`. -/
 
 /-- The `B` bits of one chunk, least significant first. -/
 def chunkToBits (p : Params) (k : ZMod (2 ^ p.B)) : Vector Bool p.B :=
@@ -405,6 +409,8 @@ def ofChunks (p : Params) (M : ChunkMatrix p) : Vector Bool (mbar * nbar * p.B) 
   (Vector.ofFn fun c : Fin (mbar * nbar) =>
     chunkToBits p (M c.divNat c.modNat)).flatten
 
+/-- Bit `t` of entry `(i, j)` sits at position `(i * nbar + j) * B + t`, the
+layout of Section 7.3. -/
 theorem getElem_ofChunks (p : Params) (M : ChunkMatrix p) {i j t : ℕ}
     (hi : i < mbar) (hj : j < nbar) (ht : t < p.B) :
     (ofChunks p M)[(i * nbar + j) * p.B + t]'(bitIndex_lt hi hj ht) =
@@ -415,6 +421,7 @@ theorem getElem_ofChunks (p : Params) (M : ChunkMatrix p) {i j t : ℕ}
     Vector.getElem_ofFn]
   congr 3 <;> simp only [Fin.divNat, Fin.modNat, Fin.mk.injEq, nbar] at hj ⊢ <;> omega
 
+/-- The chunks are recovered from their bit string. -/
 theorem toChunks_ofChunks (p : Params) (M : ChunkMatrix p) :
     toChunks p (ofChunks p M) = M := by
   ext i j
@@ -426,6 +433,7 @@ theorem toChunks_ofChunks (p : Params) (M : ChunkMatrix p) :
   rw [Vector.getElem_ofFn]
   exact getElem_ofChunks p M i.isLt j.isLt ht
 
+/-- A bit string is recovered from its chunks. -/
 theorem ofChunks_toChunks (p : Params) (b : Vector Bool (mbar * nbar * p.B)) :
     ofChunks p (toChunks p b) = b := by
   apply Vector.ext
@@ -458,8 +466,8 @@ theorem Decode_Encode (p : Params) (hw : p.WellFormed)
     (b : Vector Bool (mbar * nbar * p.B)) : Decode p (Encode p b) = b := by
   rw [Decode, Encode, DecodeChunks_EncodeChunks p hw, ofChunks_toChunks]
 
-/-- `Frodo.Decode` recovers the message from an encoding perturbed by an error
-matrix whose entries all lie in the window. -/
+/-- `Frodo.Decode` recovers the bit string from an encoding perturbed by an
+error matrix whose entries all lie in the window of `dc_ec_add`. -/
 theorem Decode_Encode_add (p : Params) (hw : p.WellFormed)
     (b : Vector Bool (mbar * nbar * p.B)) (E : FrodoMatrix p mbar nbar)
     (hlo : ∀ i j, -(p.q : ℤ) ≤ 2 ^ (p.B + 1) * LatticeCrypto.centeredRepr (E i j))
@@ -478,7 +486,8 @@ theorem ellBytes_mul_eight (p : Params) (hw : p.WellFormed) :
     p.ellBytes * 8 = mbar * nbar * p.B := by
   simp only [Params.ellBytes, hw.ell_eq, mbar, nbar]; omega
 
-/-- `Frodo.Encode` on a message: Section 7.1 then Section 7.3. -/
+/-- `Frodo.Encode` on a message: Section 7.1 then Section 7.3. Well-formedness
+enters only through the length cast of `ellBytes_mul_eight`. -/
 def encodeMessage (p : Params) (hw : p.WellFormed) (mu : Message p) :
     FrodoMatrix p mbar nbar :=
   Encode p (Vector.cast (ellBytes_mul_eight p hw) (bytesToBits mu))
@@ -495,7 +504,7 @@ theorem decodeMessage_encodeMessage (p : Params) (hw : p.WellFormed) (mu : Messa
   simp [bitsToBytes_bytesToBits]
 
 /-- `decodeMessage` recovers the message from an encoding perturbed by an error
-matrix whose entries all lie in the window. -/
+matrix whose entries all lie in the window of `dc_ec_add`. -/
 theorem decodeMessage_encodeMessage_add (p : Params) (hw : p.WellFormed) (mu : Message p)
     (E : FrodoMatrix p mbar nbar)
     (hlo : ∀ i j, -(p.q : ℤ) ≤ 2 ^ (p.B + 1) * LatticeCrypto.centeredRepr (E i j))
