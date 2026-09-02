@@ -52,8 +52,8 @@ noise is less than half of it, then `dc` recovers `k`; `dc_ec_add` states the
 window exactly, and `Params.noiseRadius` is that half-step rounded down.
 
 Names follow the specification, `ec` and `dc` included; `EncodeChunks` and
-`DecodeChunks` are its entrywise half, the published names left for the
-composites.
+`DecodeChunks` are the entrywise half of `Frodo.Encode` and `Frodo.Decode`,
+whose names are left for the composites.
 
 ## Main definitions
 
@@ -61,8 +61,9 @@ composites.
 * `ChunkMatrix`: an `mbar`-by-`nbar` matrix of `B`-bit chunks;
 * `bytesToBitsWith`, `bitsToBytesWith`, `matrixToBitsWith`,
   `bitsToMatrixWith`: the octet and matrix layers with the convention on one
-  octet, resp. one entry, left as a parameter, which the `…_eq` lemmas
-  identify with each published definition;
+  octet, resp. one entry, left as a parameter. Both files prove their round
+  trips through them, and the `…_eq` lemmas identify each published definition
+  with one;
 * `EncodeChunks`, `DecodeChunks`: the matrix maps, `ec` and `dc` applied
   entrywise;
 * `byteToBits`, `bitsToByte` and their vector forms `bytesToBits`,
@@ -333,11 +334,13 @@ theorem byteToBits_domainSeparators :
      true, true, true, true, true, false, true, false] := by decide
 
 /-- An octet is recovered from its bits. -/
+@[simp]
 theorem bitsToByte_byteToBits (x : Byte) : bitsToByte (byteToBits x) = x := by
   simpa using (by decide : ∀ m < 256,
     bitsToByte (byteToBits (UInt8.ofNat m)) = UInt8.ofNat m) x.toNat x.toNat_lt
 
 /-- The bits of an octet are recovered from it. -/
+@[simp]
 theorem byteToBits_bitsToByte (v : Vector Bool 8) : byteToBits (bitsToByte v) = v := by
   simpa using (by decide : ∀ f : Fin 8 → Bool,
     byteToBits (bitsToByte (Vector.ofFn f)) = Vector.ofFn f) fun j => v[j]
@@ -368,12 +371,14 @@ theorem getElem_bytesToBits {n : ℕ} (bs : Bytes n) {i j : ℕ} (hi : i < n) (h
   exact getElem_bytesToBitsWith byteToBits bs hi hj
 
 /-- A byte vector is recovered from its bit string. -/
+@[simp]
 theorem bitsToBytes_bytesToBits {n : ℕ} (bs : Bytes n) :
     bitsToBytes (bytesToBits bs) = bs := by
   rw [bitsToBytes_eq, bytesToBits_eq]
   exact bitsToBytesWith_bytesToBitsWith bitsToByte_byteToBits bs
 
 /-- A bit string is recovered from its byte vector. -/
+@[simp]
 theorem bytesToBits_bitsToBytes {n : ℕ} (b : Vector Bool (n * 8)) :
     bytesToBits (bitsToBytes b) = b := by
   rw [bytesToBits_eq, bitsToBytes_eq]
@@ -405,12 +410,14 @@ example : (chunkToBits ParameterSet.FrodoKEM640.params 1).toList = [true, false]
   decide
 
 /-- A chunk is recovered from its bits. -/
+@[simp]
 theorem bitsToChunk_chunkToBits (p : Params) (k : ZMod (2 ^ p.B)) :
     bitsToChunk p (chunkToBits p k) = k := by
   simp only [bitsToChunk, chunkToBits, Fin.getElem_fin, Vector.getElem_ofFn,
     Nat.ofBits_testBit, ZMod.natCast_mod, ZMod.natCast_zmod_val]
 
 /-- The bits of a chunk are recovered from it. -/
+@[simp]
 theorem chunkToBits_bitsToChunk (p : Params) (v : Vector Bool p.B) :
     chunkToBits p (bitsToChunk p v) = v := by
   apply Vector.ext
@@ -538,12 +545,14 @@ theorem getElem_ofChunks (p : Params) (M : ChunkMatrix p) {i j t : ℕ}
   exact getElem_matrixToBitsWith (chunkToBits p) M hi hj ht
 
 /-- The chunks are recovered from their bit string. -/
+@[simp]
 theorem toChunks_ofChunks (p : Params) (M : ChunkMatrix p) :
     toChunks p (ofChunks p M) = M := by
   rw [toChunks_eq, ofChunks_eq]
   exact bitsToMatrixWith_matrixToBitsWith (bitsToChunk_chunkToBits p) M
 
 /-- A bit string is recovered from its chunks. -/
+@[simp]
 theorem ofChunks_toChunks (p : Params) (b : Vector Bool (mbar * nbar * p.B)) :
     ofChunks p (toChunks p b) = b := by
   rw [ofChunks_eq, toChunks_eq]
@@ -609,7 +618,7 @@ def decodeMessage (p : ValidParams) (C : FrodoMatrix p.toParams mbar nbar) :
 theorem decodeMessage_encodeMessage (p : ValidParams) (mu : Message p.toParams) :
     decodeMessage p (encodeMessage p mu) = mu := by
   rw [decodeMessage, encodeMessage, Decode_Encode p.toParams p.wf]
-  simp [bitsToBytes_bytesToBits]
+  simp
 
 /-- `decodeMessage` recovers the message from an encoding perturbed by an error
 matrix whose entries all lie in the window of `dc_ec_add`. -/
@@ -619,6 +628,6 @@ theorem decodeMessage_encodeMessage_add (p : ValidParams) (mu : Message p.toPara
     (hhi : ∀ i j, 2 ^ (p.B + 1) * centeredRepr (E i j) < (p.q : ℤ)) :
     decodeMessage p (encodeMessage p mu + E) = mu := by
   rw [decodeMessage, encodeMessage, Decode_Encode_add p.toParams p.wf _ E hlo hhi]
-  simp [bitsToBytes_bytesToBits]
+  simp
 
 end FrodoKEM
