@@ -43,6 +43,7 @@ import SecureMessaging.KEM.OnOffKEM.Defs
 import SecureMessaging.KEM.OnOffKEM.FromKPKE
 import SecureMessaging.PRFPRNG.Defs
 import SecureMessaging.PRP.Defs
+import SecureMessaging.RKEM.Defs
 import SecureMessaging.SCKA.Defs
 import SecureMessaging.SCKA.MLKEMBraid.Authenticator
 import SecureMessaging.SCKA.MLKEMBraid.Basic
