@@ -576,7 +576,8 @@ def encodeMessage (p : Params) (hw : p.WellFormed) (mu : Message p) :
     FrodoMatrix p mbar nbar :=
   Encode p (Vector.cast (ellBytes_mul_eight p hw) (bytesToBits mu))
 
-/-- `Frodo.Decode` returning a message. -/
+/-- `Frodo.Decode` returning a message: Section 7.3 then Section 7.1, with the
+same cast as `encodeMessage` in reverse. -/
 def decodeMessage (p : Params) (hw : p.WellFormed) (C : FrodoMatrix p mbar nbar) :
     Message p :=
   bitsToBytes (Vector.cast (ellBytes_mul_eight p hw).symm (Decode p C))
