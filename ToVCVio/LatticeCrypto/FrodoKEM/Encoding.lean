@@ -60,6 +60,9 @@ left for the composites `Encode` and `Decode`.
 
 * `ec`, `dc`: the scalar maps;
 * `ChunkMatrix`: an `mbar`-by-`nbar` matrix of `B`-bit chunks;
+* `bytesToBitsWith`, `bitsToBytesWith`: the octet conversion with the
+  convention on one octet left as a parameter, used by both files to prove
+  their round trips and stated by neither specification;
 * `EncodeChunks`, `DecodeChunks`: the matrix maps, `ec` and `dc` applied
   entrywise;
 * `byteToBits`, `bitsToByte` and their vector forms `bytesToBits`,
@@ -258,17 +261,17 @@ left to right and packed from the least significant bit of each octet upwards.
 `Frodo.Pack` uses the opposite order within each octet, so that conversion is
 specified separately in `Packing.lean`, each definition written as its own
 section of the specification states it. Only the proofs are shared: the
-`…With` lemmas below take the octet convention as a parameter, since
-concatenating octets is the same work whichever convention holds on one, and
-both files discharge their round trips with them. -/
+`…With` definitions and lemmas below take the octet convention as a parameter,
+since concatenating octets is the same work whichever convention holds on one,
+and both files discharge their round trips through them. -/
 
 /-- Read a byte vector as a bit string, `f` giving the eight bits of an octet. -/
 def bytesToBitsWith {n : ℕ} (f : Byte → Vector Bool 8) (bs : Bytes n) :
     Vector Bool (n * 8) :=
   (bs.map f).flatten
 
-/-- Read a bit string as a byte vector, `g` giving the octet with eight given
-bits. -/
+/-- Read a bit string as a byte vector, `g` giving the octet with the given
+eight bits. -/
 def bitsToBytesWith {n : ℕ} (g : Vector Bool 8 → Byte) (b : Vector Bool (n * 8)) :
     Bytes n :=
   Vector.ofFn fun i => g (Vector.ofFn fun j => b[i.val * 8 + j.val]'(by omega))
