@@ -34,7 +34,7 @@ specified separately, sharing only the vector layer `bytesToBitsWith` of
 ## Main results
 
 * `bitsToBytesPack_bytesToBitsPack` and `bytesToBitsPack_bitsToBytesPack`;
-* `Unpack_Pack` and `Pack_Unpack`. `Unpack_Pack` requires `q = 2 ^ D`
+* `Unpack_Pack` and `Pack_Unpack`. Both require `q = 2 ^ D`
   (`Params.WellFormed.q_eq`), since `entryToBits` retains only `D` bits.
 -/
 namespace FrodoKEM
@@ -95,7 +95,8 @@ def Pack (p : Params) {r c : ℕ} (M : FrodoMatrix p r c) : Vector Bool (r * c *
   (Vector.ofFn fun idx : Fin (r * c) =>
     entryToBits p (M idx.divNat idx.modNat)).flatten
 
-/-- `Frodo.Unpack` (Algorithm 12), the inverse of `Pack`. -/
+/-- `Frodo.Unpack` (Algorithm 12), the inverse of `Pack`: read the `D`-bit
+blocks back as entries, row by row. -/
 def Unpack (p : Params) {r c : ℕ} (b : Vector Bool (r * c * p.D)) : FrodoMatrix p r c :=
   Matrix.of fun i j => bitsToEntry p (Vector.ofFn fun l =>
     b[(i.val * c + j.val) * p.D + l.val]'(bitIndex_lt i.isLt j.isLt l.isLt))
@@ -129,8 +130,9 @@ theorem bytesToBitsPack_bitsToBytesPack {n : ℕ} (b : Vector Bool (n * 8)) :
     bytesToBitsPack (bitsToBytesPack b) = b :=
   bytesToBitsWith_bitsToBytesWith byteToBitsPack_bitsToBytePack b
 
-/-- An entry is recovered from its `D` bits. This is where `q = 2 ^ D` is
-needed: `entryToBits` keeps only `D` bits, so no other modulus is recoverable. -/
+/-- An entry is recovered from its `D` bits. `q = 2 ^ D` is needed here and in
+`entryToBits_bitsToEntry`: `entryToBits` keeps only `D` bits, so no larger
+modulus is recoverable. -/
 theorem bitsToEntry_entryToBits (p : Params) (hw : p.WellFormed) (x : ZMod p.q) :
     bitsToEntry p (entryToBits p x) = x := by
   haveI : NeZero p.q := ⟨by rw [hw.q_eq]; positivity⟩
