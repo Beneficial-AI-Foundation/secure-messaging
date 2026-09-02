@@ -21,9 +21,10 @@ octet `a`, for `0 ≤ t < 8`.
 
 Sections 7.1 and 7.3 of `Encoding.lean` read the least significant bit first
 instead, so both conversions here are stated separately from theirs, as their
-own sections of the specification state them. Only the proofs are shared,
-through the `…With` definitions and lemmas of `Encoding.lean`, which the `…_eq`
-lemmas below identify with each definition here.
+own sections of the specification state them. Only the proofs are shared:
+Section 7.4's layout is `Encoding.lean`'s Section 7.3 layout at a different
+codec and width, so the `…With` definitions and lemmas there serve both, and
+the `…_eq` lemmas below identify each definition here with one.
 
 ## Main definitions
 
@@ -68,11 +69,13 @@ consistent; only a fixed octet distinguishes them. -/
 example : byteToBitsPack 0x96 ≠ byteToBits 0x96 := by decide
 
 /-- An octet is recovered from its bits. -/
+@[simp]
 theorem bitsToBytePack_byteToBitsPack (x : Byte) : bitsToBytePack (byteToBitsPack x) = x := by
   simpa using (by decide : ∀ m < 256,
     bitsToBytePack (byteToBitsPack (UInt8.ofNat m)) = UInt8.ofNat m) x.toNat x.toNat_lt
 
 /-- The bits of an octet are recovered from it. -/
+@[simp]
 theorem byteToBitsPack_bitsToBytePack (v : Vector Bool 8) :
     byteToBitsPack (bitsToBytePack v) = v := by
   simpa using (by decide : ∀ f : Fin 8 → Bool,
@@ -158,12 +161,14 @@ theorem getElem_Pack (p : Params) {r c : ℕ} (M : FrodoMatrix p r c) {i j l : �
   exact getElem_matrixToBitsWith (entryToBits p) M hi hj hl
 
 /-- A byte vector is recovered from its bit string. -/
+@[simp]
 theorem bitsToBytesPack_bytesToBitsPack {n : ℕ} (bs : Bytes n) :
     bitsToBytesPack (bytesToBitsPack bs) = bs := by
   rw [bitsToBytesPack_eq, bytesToBitsPack_eq]
   exact bitsToBytesWith_bytesToBitsWith bitsToBytePack_byteToBitsPack bs
 
 /-- A bit string is recovered from its byte vector. -/
+@[simp]
 theorem bytesToBitsPack_bitsToBytesPack {n : ℕ} (b : Vector Bool (n * 8)) :
     bytesToBitsPack (bitsToBytesPack b) = b := by
   rw [bytesToBitsPack_eq, bitsToBytesPack_eq]
