@@ -26,8 +26,8 @@ Two 2025 revisions are cited, because neither covers everything this file needs:
   leaves open. Both describe the same version of the scheme.
 
 Encoding places `B` bits in each entry of an `mbar`-by-`nbar` matrix over
-`ZMod q`. With `p : Params` left implicit, and the least significant bit read
-first throughout, where `Packing.lean` reads the most significant first:
+`ZMod q`. With `p : Params` left implicit and the least significant bit read
+first throughout:
 
 * `ec : ZMod (2 ^ B) → ZMod q`, `k ↦ k * q / 2 ^ B`, and `dc` back,
   `c ↦ ⌊c * 2 ^ B / q⌉ mod 2 ^ B`;
