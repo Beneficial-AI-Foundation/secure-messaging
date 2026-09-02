@@ -51,10 +51,9 @@ The encoded values then sit at spacing `q / 2 ^ B = 2 ^ (D - B)`. If the added
 noise is less than half of it, then `dc` recovers `k`; `dc_ec_add` states the
 window exactly, and `Params.noiseRadius` is that half-step rounded down.
 
-Names follow the specification: the scalar maps keep its abbreviated lowercase
-`ec` and `dc`, and since `EncodeChunks` and `DecodeChunks` are only the
-entrywise half of `Frodo.Encode` and `Frodo.Decode`, the published names are
-left for the composites `Encode` and `Decode`.
+Names follow the specification, `ec` and `dc` included; `EncodeChunks` and
+`DecodeChunks` are its entrywise half, the published names left for the
+composites.
 
 ## Main definitions
 
@@ -62,9 +61,8 @@ left for the composites `Encode` and `Decode`.
 * `ChunkMatrix`: an `mbar`-by-`nbar` matrix of `B`-bit chunks;
 * `bytesToBitsWith`, `bitsToBytesWith`, `matrixToBitsWith`,
   `bitsToMatrixWith`: the octet and matrix layers with the convention on one
-  octet, resp. one entry, left as a parameter. Both files prove their round
-  trips through these; neither specification states them, and the `…_eq`
-  lemmas record that each published definition is one of them;
+  octet, resp. one entry, left as a parameter, which the `…_eq` lemmas
+  identify with each published definition;
 * `EncodeChunks`, `DecodeChunks`: the matrix maps, `ec` and `dc` applied
   entrywise;
 * `byteToBits`, `bitsToByte` and their vector forms `bytesToBits`,
@@ -73,7 +71,7 @@ left for the composites `Encode` and `Decode`.
   chunking;
 * `Encode`, `Decode`: the published maps, on bit strings;
 * `encodeMessage`, `decodeMessage`: the same on `Message p`, over a
-  `ValidParams` since the length cast needs `ell_eq`;
+  `ValidParams`;
 * `Params.noiseRadius`: the half-step `q / 2 ^ (B + 1)`.
 
 ## Main results
@@ -91,12 +89,8 @@ left for the composites `Encode` and `Decode`.
 * `getElem_bytesToBits` and `getElem_ofChunks`: the position formulas this
   header states in prose, as theorems;
 * `byteToBits_domainSeparators`: the Section 7.1 order on the specification's
-  two domain separators, which the round trips cannot fix. It is named because
-  a caller hashing with those separators may want it.
-
-The chunking's bit order and layout are fixed the same way, by the `example`s
-beside their definitions. They are probes rather than facts a caller would use,
-so they are left unnamed.
+  two domain separators, which the round trips cannot fix. The chunking's bit
+  order and layout are fixed the same way, by the `example`s beside them.
 -/
 
 namespace FrodoKEM
