@@ -13,7 +13,7 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Encoding
 References are as in `Encoding.lean`.
 
 Section 7.4 writes an entry `C i j = ∑ l < D, c l * 2 ^ l` into a bit string `b`
-of length `D * r * c` as `b ((i * c + j) * D + l) = c (D - 1 - l)`, reading the
+of length `r * c * D` as `b ((i * c + j) * D + l) = c (D - 1 - l)`, reading the
 matrix row by row, and Section 7.2 writes bit `8 * i + j` of a bit string as bit
 `7 - j` of octet `i`. Both read the most significant bit first, where Sections
 7.1 and 7.3 of `Encoding.lean` read the least significant; the two octet
@@ -67,7 +67,9 @@ theorem byteToBitsPack_bitsToBytePack (v : Vector Bool 8) :
     byteToBitsPack (bitsToBytePack (Vector.ofFn f)) = Vector.ofFn f) fun j => v[j]
 
 /-- Section 7.2 of `[ABD+25]`: read a byte vector as a bit string, most
-significant bit of each octet first. Used only by `Pack` and `Unpack`. -/
+significant bit of each octet first. `Pack` and `Unpack` are stated on bit
+strings, so this is the conversion their callers need to reach the octets a
+packed matrix is transmitted as. -/
 def bytesToBitsPack {n : ℕ} (bs : Bytes n) : Vector Bool (n * 8) :=
   bytesToBitsWith byteToBitsPack bs
 
@@ -95,7 +97,8 @@ def Unpack (p : Params) {r c : ℕ} (b : Vector Bool (r * c * p.D)) : FrodoMatri
   Matrix.of fun i j => bitsToEntry p (Vector.ofFn fun l =>
     b[(i.val * c + j.val) * p.D + l.val]'(bitIndex_lt i.isLt j.isLt l.isLt))
 
-/-- The bits of octet `i` sit at positions `i * 8` to `i * 8 + 7`. -/
+/-- The bits of octet `i` sit at positions `i * 8` to `i * 8 + 7`, most
+significant first. -/
 theorem getElem_bytesToBitsPack {n : ℕ} (bs : Bytes n) {i j : ℕ} (hi : i < n) (hj : j < 8) :
     (bytesToBitsPack bs)[i * 8 + j]'(by omega) = (byteToBitsPack bs[i])[j] :=
   getElem_bytesToBitsWith byteToBitsPack bs hi hj
