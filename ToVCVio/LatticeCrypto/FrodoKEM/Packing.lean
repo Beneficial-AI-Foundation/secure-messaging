@@ -109,6 +109,12 @@ puts binary digit `D - 1 - l` of the entry at position `l`. -/
 def entryToBits (p : Params) (x : ZMod p.q) : Vector Bool p.D :=
   Vector.ofFn fun l => x.val.testBit (p.D - 1 - l.val)
 
+/-- The convention on a fixed entry: with `D = 15`, the entry `5` reads as
+twelve zeros and then `[1, 0, 1]`, most significant first. -/
+example : (entryToBits ParameterSet.FrodoKEM640.params 5).toList =
+    [false, false, false, false, false, false, false, false, false, false, false,
+     false, true, false, true] := by decide
+
 /-- The entry with the given `D` bits, most significant first. -/
 def bitsToEntry (p : Params) (v : Vector Bool p.D) : ZMod p.q :=
   ((Nat.ofBits fun l : Fin p.D => v[p.D - 1 - l.val]'(by omega) : ℕ) : ZMod p.q)
@@ -124,6 +130,15 @@ blocks back as entries, row by row. -/
 def Unpack (p : Params) {r c : ℕ} (b : Vector Bool (r * c * p.D)) : FrodoMatrix p r c :=
   Matrix.of fun i j => bitsToEntry p (Vector.ofFn fun l =>
     b[(i.val * c + j.val) * p.D + l.val]'(bitIndex_lt i.isLt j.isLt l.isLt))
+
+/-- The Section 7.4 layout on a fixed matrix: with `D = 15`, the bit string
+that has only bits `14` and `28` set unpacks to the row `[1, 2]`. This fixes
+both orders the round trips leave open, the bits within an entry and the
+entries along a row; `Unpack` is used rather than `Pack` because
+`Vector.flatten` does not reduce. -/
+example : Unpack ParameterSet.FrodoKEM640.params
+    (Vector.ofFn fun i : Fin (1 * 2 * 15) => decide (i.val = 14 ∨ i.val = 28)) =
+      Matrix.of ![![(1 : ZMod 32768), 2]] := by decide
 
 /-- `Pack` is the shared layer at the Section 7.4 layout. -/
 theorem Pack_eq (p : Params) {r c : ℕ} (M : FrodoMatrix p r c) :
