@@ -60,9 +60,11 @@ left for the composites `Encode` and `Decode`.
 
 * `ec`, `dc`: the scalar maps;
 * `ChunkMatrix`: an `mbar`-by-`nbar` matrix of `B`-bit chunks;
-* `bytesToBitsWith`, `bitsToBytesWith`: the octet conversion with the
-  convention on one octet left as a parameter, used by both files to prove
-  their round trips and stated by neither specification;
+* `bytesToBitsWith`, `bitsToBytesWith`, `matrixToBitsWith`,
+  `bitsToMatrixWith`: the octet and matrix layers with the convention on one
+  octet, resp. one entry, left as a parameter. Both files prove their round
+  trips through these; neither specification states them, and the `…_eq`
+  lemmas record that each published definition is one of them;
 * `EncodeChunks`, `DecodeChunks`: the matrix maps, `ec` and `dc` applied
   entrywise;
 * `byteToBits`, `bitsToByte` and their vector forms `bytesToBits`,
@@ -345,21 +347,32 @@ def bitsToBytes {n : ℕ} (b : Vector Bool (n * 8)) : Bytes n :=
   Vector.ofFn fun i =>
     bitsToByte (Vector.ofFn fun j => b[i.val * 8 + j.val]'(by omega))
 
+/-- `bytesToBits` is the shared layer at the Section 7.1 convention. -/
+theorem bytesToBits_eq {n : ℕ} (bs : Bytes n) :
+    bytesToBits bs = bytesToBitsWith byteToBits bs := rfl
+
+/-- `bitsToBytes` is the shared layer at the Section 7.1 convention. -/
+theorem bitsToBytes_eq {n : ℕ} (b : Vector Bool (n * 8)) :
+    bitsToBytes b = bitsToBytesWith bitsToByte b := rfl
+
 /-- The bits of octet `i` sit at positions `i * 8` to `i * 8 + 7`, least
 significant first. -/
 theorem getElem_bytesToBits {n : ℕ} (bs : Bytes n) {i j : ℕ} (hi : i < n) (hj : j < 8) :
-    (bytesToBits bs)[i * 8 + j]'(by omega) = (byteToBits bs[i])[j] :=
-  getElem_bytesToBitsWith byteToBits bs hi hj
+    (bytesToBits bs)[i * 8 + j]'(by omega) = (byteToBits bs[i])[j] := by
+  rw [bytesToBits_eq]
+  exact getElem_bytesToBitsWith byteToBits bs hi hj
 
 /-- A byte vector is recovered from its bit string. -/
 theorem bitsToBytes_bytesToBits {n : ℕ} (bs : Bytes n) :
-    bitsToBytes (bytesToBits bs) = bs :=
-  bitsToBytesWith_bytesToBitsWith bitsToByte_byteToBits bs
+    bitsToBytes (bytesToBits bs) = bs := by
+  rw [bitsToBytes_eq, bytesToBits_eq]
+  exact bitsToBytesWith_bytesToBitsWith bitsToByte_byteToBits bs
 
 /-- A bit string is recovered from its byte vector. -/
 theorem bytesToBits_bitsToBytes {n : ℕ} (b : Vector Bool (n * 8)) :
-    bytesToBits (bitsToBytes b) = b :=
-  bytesToBitsWith_bitsToBytesWith byteToBits_bitsToByte b
+    bytesToBits (bitsToBytes b) = b := by
+  rw [bytesToBits_eq, bitsToBytes_eq]
+  exact bytesToBitsWith_bitsToBytesWith byteToBits_bitsToByte b
 
 /-! ## Chunking
 
@@ -406,6 +419,67 @@ theorem bitIndex_lt {r c d i j t : ℕ} (hi : i < r) (hj : j < c) (ht : t < d) :
     (by rw [← Nat.succ_mul, Nat.mul_comm i c]; gcongr
         exact Nat.mul_add_lt_mul_of_lt_of_lt hi hj)
 
+/-- Lay the entries of a matrix out as bit blocks of width `d`, row by row and
+each row left to right, `f` giving the `d` bits of one entry. As with the octet
+layer, only the proofs are shared this way: `ofChunks` and `Frodo.Pack` are
+written as their sections state them, and bridge to this by `rfl`. -/
+def matrixToBitsWith {α : Type*} {r c d : ℕ} (f : α → Vector Bool d)
+    (M : Matrix (Fin r) (Fin c) α) : Vector Bool (r * c * d) :=
+  (Vector.ofFn fun idx : Fin (r * c) => f (M idx.divNat idx.modNat)).flatten
+
+/-- Read a bit string back as a matrix, `g` giving the entry with `d` bits. -/
+def bitsToMatrixWith {α : Type*} {r c d : ℕ} (g : Vector Bool d → α)
+    (b : Vector Bool (r * c * d)) : Matrix (Fin r) (Fin c) α :=
+  Matrix.of fun i j => g (Vector.ofFn fun l =>
+    b[(i.val * c + j.val) * d + l.val]'(bitIndex_lt i.isLt j.isLt l.isLt))
+
+/-- The bits of entry `(i, j)` sit at positions `(i * c + j) * d` onwards. -/
+theorem getElem_matrixToBitsWith {α : Type*} {r c d : ℕ} (f : α → Vector Bool d)
+    (M : Matrix (Fin r) (Fin c) α) {i j l : ℕ} (hi : i < r) (hj : j < c) (hl : l < d) :
+    (matrixToBitsWith f M)[(i * c + j) * d + l]'(bitIndex_lt hi hj hl) =
+      (f (M ⟨i, hi⟩ ⟨j, hj⟩))[l] := by
+  rw [matrixToBitsWith, Vector.getElem_flatten]
+  simp only [Nat.mul_comm (i * c + j) d, Nat.mul_add_div (by omega : 0 < d),
+    Nat.mul_add_mod, Nat.div_eq_of_lt hl, Nat.mod_eq_of_lt hl, Nat.add_zero,
+    Vector.getElem_ofFn]
+  congr 3 <;> simp only [Fin.divNat, Fin.modNat, Nat.mul_comm i c,
+    Nat.mul_add_div (by omega : 0 < c), Nat.mul_add_mod, Nat.div_eq_of_lt hj,
+    Nat.mod_eq_of_lt hj, Nat.add_zero]
+
+/-- A matrix is recovered from its bit string, whenever an entry is recovered
+from its own bits. -/
+theorem bitsToMatrixWith_matrixToBitsWith {α : Type*} {r c d : ℕ}
+    {f : α → Vector Bool d} {g : Vector Bool d → α} (hgf : ∀ x, g (f x) = x)
+    (M : Matrix (Fin r) (Fin c) α) :
+    bitsToMatrixWith g (matrixToBitsWith f M) = M := by
+  ext i j
+  simp only [bitsToMatrixWith, Matrix.of_apply]
+  rw [← hgf (M i j)]
+  congr 1
+  apply Vector.ext
+  intro l hl
+  rw [Vector.getElem_ofFn]
+  exact getElem_matrixToBitsWith f M i.isLt j.isLt hl
+
+/-- A bit string is recovered from its matrix, whenever the bits of an entry
+are recovered from the entry. -/
+theorem matrixToBitsWith_bitsToMatrixWith {α : Type*} {r c d : ℕ}
+    {f : α → Vector Bool d} {g : Vector Bool d → α} (hfg : ∀ v, f (g v) = v)
+    (b : Vector Bool (r * c * d)) :
+    matrixToBitsWith f (bitsToMatrixWith g b) = b := by
+  apply Vector.ext
+  intro k hk
+  obtain ⟨i, j, l, hi, hj, hl, rfl⟩ :
+      ∃ i j l, i < r ∧ j < c ∧ l < d ∧ k = (i * c + j) * d + l :=
+    ⟨k / d / c, k / d % c, k % d,
+      Nat.div_lt_of_lt_mul (Nat.div_lt_of_lt_mul
+        (by rw [Nat.mul_comm d (c * r), Nat.mul_comm c r]; exact hk)),
+      Nat.mod_lt _ (Nat.pos_of_ne_zero fun h => absurd hk (by simp [h])),
+      Nat.mod_lt _ (Nat.pos_of_ne_zero fun h => absurd hk (by simp [h])),
+      by rw [Nat.div_add_mod', Nat.div_add_mod']⟩
+  rw [getElem_matrixToBitsWith _ _ hi hj hl]
+  simp only [bitsToMatrixWith, Matrix.of_apply, hfg, Vector.getElem_ofFn]
+
 /-- Cut a bit string into the `mbar * nbar` values of `B` bits that
 `EncodeChunks` consumes, entry `(i, j)` taking the run at position
 `i * nbar + j`. -/
@@ -418,45 +492,34 @@ def ofChunks (p : Params) (M : ChunkMatrix p) : Vector Bool (mbar * nbar * p.B) 
   (Vector.ofFn fun c : Fin (mbar * nbar) =>
     chunkToBits p (M c.divNat c.modNat)).flatten
 
+/-- `ofChunks` is the shared layer at the Section 7.3 chunking. -/
+theorem ofChunks_eq (p : Params) (M : ChunkMatrix p) :
+    ofChunks p M = matrixToBitsWith (chunkToBits p) M := rfl
+
+/-- `toChunks` is the shared layer at the Section 7.3 chunking. -/
+theorem toChunks_eq (p : Params) (b : Vector Bool (mbar * nbar * p.B)) :
+    toChunks p b = bitsToMatrixWith (bitsToChunk p) b := rfl
+
 /-- Bit `t` of entry `(i, j)` sits at position `(i * nbar + j) * B + t`, the
 layout of Section 7.3. -/
 theorem getElem_ofChunks (p : Params) (M : ChunkMatrix p) {i j t : ℕ}
     (hi : i < mbar) (hj : j < nbar) (ht : t < p.B) :
     (ofChunks p M)[(i * nbar + j) * p.B + t]'(bitIndex_lt hi hj ht) =
       (chunkToBits p (M ⟨i, hi⟩ ⟨j, hj⟩))[t] := by
-  rw [ofChunks, Vector.getElem_flatten]
-  simp only [Nat.mul_comm (i * nbar + j) p.B, Nat.mul_add_div (by omega : 0 < p.B),
-    Nat.mul_add_mod, Nat.div_eq_of_lt ht, Nat.mod_eq_of_lt ht, Nat.add_zero,
-    Vector.getElem_ofFn]
-  congr 3 <;> simp only [Fin.divNat, Fin.modNat, Fin.mk.injEq, nbar] at hj ⊢ <;> omega
+  rw [ofChunks_eq]
+  exact getElem_matrixToBitsWith (chunkToBits p) M hi hj ht
 
 /-- The chunks are recovered from their bit string. -/
 theorem toChunks_ofChunks (p : Params) (M : ChunkMatrix p) :
     toChunks p (ofChunks p M) = M := by
-  ext i j
-  simp only [toChunks, Matrix.of_apply]
-  rw [← bitsToChunk_chunkToBits p (M i j)]
-  congr 1
-  apply Vector.ext
-  intro t ht
-  rw [Vector.getElem_ofFn]
-  exact getElem_ofChunks p M i.isLt j.isLt ht
+  rw [toChunks_eq, ofChunks_eq]
+  exact bitsToMatrixWith_matrixToBitsWith (bitsToChunk_chunkToBits p) M
 
 /-- A bit string is recovered from its chunks. -/
 theorem ofChunks_toChunks (p : Params) (b : Vector Bool (mbar * nbar * p.B)) :
     ofChunks p (toChunks p b) = b := by
-  apply Vector.ext
-  intro k hk
-  rcases Nat.eq_zero_or_pos p.B with hB | hB
-  · simp [hB] at hk
-  obtain ⟨i, j, t, hi, hj, ht, rfl⟩ :
-      ∃ i j t, i < mbar ∧ j < nbar ∧ t < p.B ∧ k = (i * nbar + j) * p.B + t :=
-    ⟨k / p.B / nbar, k / p.B % nbar, k % p.B,
-      Nat.div_lt_of_lt_mul (Nat.div_lt_of_lt_mul (by simp only [mbar, nbar] at *; omega)),
-      Nat.mod_lt _ (by simp [nbar]), Nat.mod_lt _ hB,
-      by rw [Nat.div_add_mod', Nat.div_add_mod']⟩
-  rw [getElem_ofChunks p _ hi hj ht]
-  simp only [toChunks, Matrix.of_apply, chunkToBits_bitsToChunk, Vector.getElem_ofFn]
+  rw [ofChunks_eq, toChunks_eq]
+  exact matrixToBitsWith_bitsToMatrixWith (chunkToBits_bitsToChunk p) b
 
 /-! ## The published maps -/
 
