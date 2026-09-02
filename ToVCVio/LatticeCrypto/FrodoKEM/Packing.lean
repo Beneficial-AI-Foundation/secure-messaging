@@ -22,11 +22,12 @@ octet `a`, for `0 ≤ t < 8`.
 Sections 7.1 and 7.3 of `Encoding.lean` read the least significant bit first
 instead, so the two octet conversions are bit-reversed within each octet and are
 specified separately, each as its own section of the specification states it.
-The same holds of the matrix layer: Section 7.4's layout is `Encoding.lean`'s
-Section 7.3 layout at a different codec and width. Only the proofs are shared,
-through the `…With` definitions and lemmas of `Encoding.lean`, which take the
-convention on one octet, resp. one entry, as a parameter; the `…_eq` lemmas
-below record that each definition here is one of them.
+The matrix layer is shared the same way: Section 7.4's layout is
+`Encoding.lean`'s Section 7.3 layout at a different codec and width. In both
+cases only the proofs are shared, through the `…With` definitions and lemmas of
+`Encoding.lean`, which take the convention on one octet, resp. one entry, as a
+parameter; the `…_eq` lemmas below record that each definition here is one of
+them.
 
 ## Main definitions
 
