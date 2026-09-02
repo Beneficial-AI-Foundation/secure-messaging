@@ -29,8 +29,8 @@ Encoding places `B` bits in each entry of an `mbar`-by-`nbar` matrix over
 `ZMod q`. With `p : Params` left implicit and the least significant bit read
 first throughout:
 
-* `ec : ZMod (2 ^ B) → ZMod q`, `k ↦ k * q / 2 ^ B`, and `dc` back,
-  `c ↦ ⌊c * 2 ^ B / q⌉ mod 2 ^ B`;
+* `ec : ZMod (2 ^ B) → ZMod q`, `k ↦ k * q / 2 ^ B` — written `k * 2 ^ (D - B)`,
+  which agrees under `q = 2 ^ D` — and `dc` back, `c ↦ ⌊c * 2 ^ B / q⌉ mod 2 ^ B`;
 * `EncodeChunks`, `DecodeChunks`: `ec` and `dc` entrywise, on a message already
   chunked into `mbar * nbar` values of `ZMod (2 ^ B)`;
 * Section 7.1 writes bit `8 * a + t` of a bit string as bit `t` of octet `a`,
@@ -86,7 +86,9 @@ left for the composites `Encode` and `Decode`.
 * `decodeMessage_encodeMessage` and `decodeMessage_encodeMessage_add`: the same
   on `Message p`;
 * `bitsToBytes_bytesToBits`, `bytesToBits_bitsToBytes`, `ofChunks_toChunks` and
-  `toChunks_ofChunks`: the two layers are inverse.
+  `toChunks_ofChunks`: the two layers are inverse;
+* `getElem_bytesToBits` and `getElem_ofChunks`: the position formulas this
+  header states in prose, as theorems.
 -/
 
 namespace FrodoKEM
@@ -411,13 +413,22 @@ theorem chunkToBits_bitsToChunk (p : Params) (v : Vector Bool p.B) :
 
 /-- Bit `t` of entry `(i, j)` of an `r`-by-`c` matrix sits at position
 `(i * c + j) * d + t` of a bit string of length `r * c * d`, when each entry
-takes `d` bits and entries are laid out row by row. Used for the chunks here and
-for the packed entries of `Packing.lean`. -/
+takes `d` bits and entries are laid out row by row. This is the bound the
+matrix layer below indexes with, at `d = B` for the chunks and `d = D` for the
+packed entries of `Packing.lean`. -/
 theorem bitIndex_lt {r c d i j t : ℕ} (hi : i < r) (hj : j < c) (ht : t < d) :
     (i * c + j) * d + t < r * c * d :=
   Nat.lt_of_lt_of_le (Nat.add_lt_add_left ht _)
     (by rw [← Nat.succ_mul, Nat.mul_comm i c]; gcongr
         exact Nat.mul_add_lt_mul_of_lt_of_lt hi hj)
+
+/-! ### The shared matrix layer
+
+Both `ofChunks` here and `Frodo.Pack` of `Packing.lean` cut a matrix into one
+bit block per entry, differing only in the codec on one entry and its width.
+Those are parameters below, so that the index lemma and the two round trips are
+proved once; the published definitions stay as their sections state them and
+bridge to these by `rfl`. -/
 
 /-- Lay the entries of a matrix out as bit blocks of width `d`, row by row and
 each row left to right, `f` giving the `d` bits of one entry. As with the octet
@@ -427,7 +438,8 @@ def matrixToBitsWith {α : Type*} {r c d : ℕ} (f : α → Vector Bool d)
     (M : Matrix (Fin r) (Fin c) α) : Vector Bool (r * c * d) :=
   (Vector.ofFn fun idx : Fin (r * c) => f (M idx.divNat idx.modNat)).flatten
 
-/-- Read a bit string back as a matrix, `g` giving the entry with `d` bits. -/
+/-- Read a bit string back as a matrix, `g` giving the entry with the given
+`d` bits. -/
 def bitsToMatrixWith {α : Type*} {r c d : ℕ} (g : Vector Bool d → α)
     (b : Vector Bool (r * c * d)) : Matrix (Fin r) (Fin c) α :=
   Matrix.of fun i j => g (Vector.ofFn fun l =>

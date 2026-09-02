@@ -22,19 +22,25 @@ octet `a`, for `0 ≤ t < 8`.
 Sections 7.1 and 7.3 of `Encoding.lean` read the least significant bit first
 instead, so the two octet conversions are bit-reversed within each octet and are
 specified separately, each as its own section of the specification states it.
-Only the proofs are shared, through the `…With` lemmas of `Encoding.lean`,
-which take the octet convention as a parameter.
+The same holds of the matrix layer: Section 7.4's layout is `Encoding.lean`'s
+Section 7.3 layout at a different codec and width. Only the proofs are shared,
+through the `…With` definitions and lemmas of `Encoding.lean`, which take the
+convention on one octet, resp. one entry, as a parameter; the `…_eq` lemmas
+below record that each definition here is one of them.
 
 ## Main definitions
 
 * `byteToBitsPack`, `bitsToBytePack` and their vector forms `bytesToBitsPack`,
   `bitsToBytesPack`: the Section 7.2 octet conversion;
 * `entryToBits`, `bitsToEntry`: one entry as `D` bits;
-* `Pack`, `Unpack`.
+* `Pack`, `Unpack`, with `Pack_eq` and `Unpack_eq` identifying them with
+  `Encoding.lean`'s shared matrix layer.
 
 ## Main results
 
 * `bitsToBytesPack_bytesToBitsPack` and `bytesToBitsPack_bitsToBytesPack`;
+* `getElem_bytesToBitsPack` and `getElem_Pack`: the position formulas this
+  header states in prose, as theorems;
 * `Unpack_Pack` and `Pack_Unpack`. Both require `q = 2 ^ D`
   (`Params.WellFormed.q_eq`), since `entryToBits` retains only `D` bits.
 -/
@@ -82,6 +88,21 @@ def bitsToBytesPack {n : ℕ} (b : Vector Bool (n * 8)) : Bytes n :=
   Vector.ofFn fun i =>
     bitsToBytePack (Vector.ofFn fun j => b[i.val * 8 + j.val]'(by omega))
 
+/-- `bytesToBitsPack` is the shared layer at the Section 7.2 convention. -/
+theorem bytesToBitsPack_eq {n : ℕ} (bs : Bytes n) :
+    bytesToBitsPack bs = bytesToBitsWith byteToBitsPack bs := rfl
+
+/-- `bitsToBytesPack` is the shared layer at the Section 7.2 convention. -/
+theorem bitsToBytesPack_eq {n : ℕ} (b : Vector Bool (n * 8)) :
+    bitsToBytesPack b = bitsToBytesWith bitsToBytePack b := rfl
+
+/-- The bits of octet `i` sit at positions `i * 8` to `i * 8 + 7`, most
+significant first. -/
+theorem getElem_bytesToBitsPack {n : ℕ} (bs : Bytes n) {i j : ℕ} (hi : i < n) (hj : j < 8) :
+    (bytesToBitsPack bs)[i * 8 + j]'(by omega) = (byteToBitsPack bs[i])[j] := by
+  rw [bytesToBitsPack_eq]
+  exact getElem_bytesToBitsWith byteToBitsPack bs hi hj
+
 /-- The `D` bits of one entry, most significant first: step 1.1.1 of Section 7.4
 puts binary digit `D - 1 - l` of the entry at position `l`. -/
 def entryToBits (p : Params) (x : ZMod p.q) : Vector Bool p.D :=
@@ -102,21 +123,6 @@ blocks back as entries, row by row. -/
 def Unpack (p : Params) {r c : ℕ} (b : Vector Bool (r * c * p.D)) : FrodoMatrix p r c :=
   Matrix.of fun i j => bitsToEntry p (Vector.ofFn fun l =>
     b[(i.val * c + j.val) * p.D + l.val]'(bitIndex_lt i.isLt j.isLt l.isLt))
-
-/-- `bytesToBitsPack` is the shared layer at the Section 7.2 convention. -/
-theorem bytesToBitsPack_eq {n : ℕ} (bs : Bytes n) :
-    bytesToBitsPack bs = bytesToBitsWith byteToBitsPack bs := rfl
-
-/-- `bitsToBytesPack` is the shared layer at the Section 7.2 convention. -/
-theorem bitsToBytesPack_eq {n : ℕ} (b : Vector Bool (n * 8)) :
-    bitsToBytesPack b = bitsToBytesWith bitsToBytePack b := rfl
-
-/-- The bits of octet `i` sit at positions `i * 8` to `i * 8 + 7`, most
-significant first. -/
-theorem getElem_bytesToBitsPack {n : ℕ} (bs : Bytes n) {i j : ℕ} (hi : i < n) (hj : j < 8) :
-    (bytesToBitsPack bs)[i * 8 + j]'(by omega) = (byteToBitsPack bs[i])[j] := by
-  rw [bytesToBitsPack_eq]
-  exact getElem_bytesToBitsWith byteToBitsPack bs hi hj
 
 /-- `Pack` is the shared layer at the Section 7.4 layout. -/
 theorem Pack_eq (p : Params) {r c : ℕ} (M : FrodoMatrix p r c) :
