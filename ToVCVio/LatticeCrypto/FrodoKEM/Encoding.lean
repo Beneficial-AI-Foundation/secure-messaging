@@ -91,9 +91,12 @@ left for the composites `Encode` and `Decode`.
 * `getElem_bytesToBits` and `getElem_ofChunks`: the position formulas this
   header states in prose, as theorems;
 * `byteToBits_domainSeparators`: the Section 7.1 order on the specification's
-  two domain separators, which the round trips cannot fix. The layouts of the
-  chunking are fixed the same way, by the `example`s beside them, which are
-  probes rather than facts a caller would use.
+  two domain separators, which the round trips cannot fix. It is named because
+  a caller hashing with those separators may want it.
+
+The chunking's bit order and layout are fixed the same way, by the `example`s
+beside their definitions. They are probes rather than facts a caller would use,
+so they are left unnamed.
 -/
 
 namespace FrodoKEM

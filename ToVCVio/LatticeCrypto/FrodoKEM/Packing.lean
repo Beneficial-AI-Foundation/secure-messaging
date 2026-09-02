@@ -42,10 +42,13 @@ them.
 * `bitsToBytesPack_bytesToBitsPack` and `bytesToBitsPack_bitsToBytesPack`;
 * `getElem_bytesToBitsPack` and `getElem_Pack`: the position formulas this
   header states in prose, as theorems;
-* `byteToBitsPack_domainSeparators`: the Section 7.2 order on the same two
-  octets `Encoding.lean` uses, which the round trips cannot fix;
 * `Unpack_Pack` and `Pack_Unpack`. Both require `q = 2 ^ D`
   (`Params.WellFormed.q_eq`), since `entryToBits` retains only `D` bits.
+
+The conventions themselves — the Section 7.2 octet order, and the bit order
+and layout of Section 7.4 — are fixed by the `example`s beside their
+definitions, which the round trips cannot do. They are probes rather than facts
+a caller would use, so they are left unnamed.
 -/
 namespace FrodoKEM
 
@@ -58,9 +61,10 @@ def bitsToBytePack (v : Vector Bool 8) : Byte :=
   UInt8.ofNat (Nat.ofBits fun i : Fin 8 => v[7 - i.val]'(by omega))
 
 /-- The convention of Section 7.2 on the same two octets that `Encoding.lean`
-uses for Section 7.1, `0x96 = 0b10010110` and `0x5F = 0b01011111`. -/
-theorem byteToBitsPack_domainSeparators :
-    (byteToBitsPack 0x96).toList ++ (byteToBitsPack 0x5F).toList =
+uses for Section 7.1, `0x96 = 0b10010110` and `0x5F = 0b01011111`. They are the
+specification's domain separators, which this conversion is never applied to;
+reusing them is what makes the difference from `byteToBits` immediate below. -/
+example : (byteToBitsPack 0x96).toList ++ (byteToBitsPack 0x5F).toList =
     [true, false, false, true, false, true, true, false,
      false, true, false, true, true, true, true, true] := by decide
 

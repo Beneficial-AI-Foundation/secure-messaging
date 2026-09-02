@@ -104,16 +104,18 @@ def mbar : ℕ := 8
 the relations between them are theorems about the six named parameter sets
 rather than part of this record. -/
 structure Params where
-  /-- Exponent of the modulus, satisfying `D ≤ 16`. -/
+  /-- Exponent of the modulus; `Params.WellFormed.D_le` bounds it by sixteen. -/
   D : ℕ
-  /-- The modulus `q = 2 ^ D`. -/
+  /-- The modulus; `Params.WellFormed.q_eq` identifies it with `2 ^ D`. -/
   q : ℕ
-  /-- Integer matrix dimension, satisfying `n ≡ 0 (mod 8)`. -/
+  /-- Integer matrix dimension; `Params.WellFormed.n_mod_eight` makes it a
+  multiple of eight. -/
   n : ℕ
-  /-- The number of bits encoded in each matrix entry, satisfying `B ≤ D`. -/
+  /-- The number of bits encoded in each matrix entry;
+  `Params.WellFormed.B_le_D` bounds it by `D`. -/
   B : ℕ
-  /-- `ℓ = B * mbar * nbar`, the length of bit strings encoded as
-  `mbar`-by-`nbar` matrices. -/
+  /-- The length of bit strings encoded as `mbar`-by-`nbar` matrices;
+  `Params.WellFormed.ell_eq` identifies it with `B * mbar * nbar`. -/
   ell : ℕ
   /-- The bit length of seeds used for pseudorandom bit generation for error
   sampling -/
