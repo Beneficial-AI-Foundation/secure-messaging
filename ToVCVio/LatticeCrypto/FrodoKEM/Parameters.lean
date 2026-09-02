@@ -49,8 +49,7 @@ A `Params` is plain data, so nothing constrains its fields. `Params.WellFormed`
 collects the conditions of Section 3 that the encoding and packing proofs
 depend on, and `params_wellFormed` discharges them for every published set.
 `ValidParams` pairs a record with that proof, for the definitions that need it
-to typecheck rather than only to be proved correct; `ParameterSet.valid` is the
-published sets as such records.
+to typecheck rather than only to be proved correct.
 -/
 
 namespace FrodoKEM
@@ -267,9 +266,6 @@ theorem lenSalt_eq_eight_mul_lenSaltBytes (p : ParameterSet) :
 /-- Every named parameter set satisfies the conditions of Section 3. -/
 theorem params_wellFormed (p : ParameterSet) : p.params.WellFormed := by
   cases p <;> constructor <;> decide
-
-/-- Every named parameter set as a `ValidParams`. -/
-def valid (p : ParameterSet) : ValidParams := ⟨p.params, params_wellFormed p⟩
 
 end ParameterSet
 
