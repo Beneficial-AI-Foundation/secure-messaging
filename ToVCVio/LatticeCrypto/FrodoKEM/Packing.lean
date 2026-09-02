@@ -12,16 +12,17 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Encoding
 7.4 of `[ABD+25]`, with the octet conversion of Section 7.2 of `[ABD+25]`.
 References are as in `Encoding.lean`.
 
-Section 7.4 writes an entry `C i j = ∑ l < D, c l * 2 ^ l`, in row `i` and
-column `j`, into a bit string `b` of length `r * c * D` as
-`b ((i * c + j) * D + l) = c (D - 1 - l)`, for `0 ≤ i < r`, `0 ≤ j < c` and
-`0 ≤ l < D`, so that the matrix is read row by row; Section 7.2 writes bit
-`8 * a + t` of a bit string as bit `7 - t` of octet `a`, for `0 ≤ t < 8`. Both
-read the most significant bit first, where Sections 7.1 and 7.3 of
-`Encoding.lean` read the least significant; the two octet conversions are
-bit-reversed within each octet, so they are specified separately, sharing only
-the vector layer `bytesToBitsWith` of `Encoding.lean`, which concatenates octets
-whatever the convention on one.
+Section 7.4 writes each entry of an `r`-by-`c` matrix as its `D` binary digits,
+most significant first, and lays the entries out row by row, each row left to
+right: the entry in row `i` and column `j` takes positions `(i * c + j) * D`
+onwards of a bit string of length `r * c * D`, for `0 ≤ i < r` and `0 ≤ j < c`.
+Section 7.2 then writes bit `8 * a + t` of a bit string as digit `7 - t` of
+octet `a`, for `0 ≤ t < 8`.
+
+Sections 7.1 and 7.3 of `Encoding.lean` read the least significant bit first
+instead, so the two octet conversions are bit-reversed within each octet and are
+specified separately, sharing only the vector layer `bytesToBitsWith` of
+`Encoding.lean`, which concatenates octets whatever the convention on one.
 
 ## Main definitions
 
@@ -80,7 +81,7 @@ def bitsToBytesPack {n : ℕ} (b : Vector Bool (n * 8)) : Bytes n :=
   bitsToBytesWith bitsToBytePack b
 
 /-- The `D` bits of one entry, most significant first: step 1.1.1 of Section 7.4
-writes `b (i * n₂ + j) * D + l` as `c (D - 1 - l)`. -/
+puts binary digit `D - 1 - l` of the entry at position `l`. -/
 def entryToBits (p : Params) (x : ZMod p.q) : Vector Bool p.D :=
   Vector.ofFn fun l => x.val.testBit (p.D - 1 - l.val)
 
