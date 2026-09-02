@@ -18,7 +18,8 @@ matrix row by row, and Section 7.2 writes bit `8 * i + j` of a bit string as bit
 `7 - j` of octet `i`. Both read the most significant bit first, where Sections
 7.1 and 7.3 of `Encoding.lean` read the least significant; the two octet
 conversions are bit-reversed within each octet, so they are specified
-separately.
+separately, sharing only the vector layer `bytesToBitsWith` of
+`Encoding.lean`, which concatenates octets whatever the convention on one.
 
 ## Main definitions
 
@@ -68,12 +69,11 @@ theorem byteToBitsPack_bitsToBytePack (v : Vector Bool 8) :
 /-- Section 7.2 of `[ABD+25]`: read a byte vector as a bit string, most
 significant bit of each octet first. Used only by `Pack` and `Unpack`. -/
 def bytesToBitsPack {n : ℕ} (bs : Bytes n) : Vector Bool (n * 8) :=
-  (bs.map byteToBitsPack).flatten
+  bytesToBitsWith byteToBitsPack bs
 
 /-- The inverse of `bytesToBitsPack`. -/
 def bitsToBytesPack {n : ℕ} (b : Vector Bool (n * 8)) : Bytes n :=
-  Vector.ofFn fun i =>
-    bitsToBytePack (Vector.ofFn fun j => b[i.val * 8 + j.val]'(by omega))
+  bitsToBytesWith bitsToBytePack b
 
 /-- The `D` bits of one entry, most significant first: step 1.1.1 of Section 7.4
 writes `b (i * n₂ + j) * D + l` as `c (D - 1 - l)`. -/
@@ -97,9 +97,8 @@ def Unpack (p : Params) {r c : ℕ} (b : Vector Bool (r * c * p.D)) : FrodoMatri
 
 /-- The bits of octet `i` sit at positions `i * 8` to `i * 8 + 7`. -/
 theorem getElem_bytesToBitsPack {n : ℕ} (bs : Bytes n) {i j : ℕ} (hi : i < n) (hj : j < 8) :
-    (bytesToBitsPack bs)[i * 8 + j]'(by omega) = (byteToBitsPack bs[i])[j] := by
-  simp [bytesToBitsPack, Vector.getElem_flatten, Nat.mod_eq_of_lt hj,
-    show (i * 8 + j) / 8 = i by omega]
+    (bytesToBitsPack bs)[i * 8 + j]'(by omega) = (byteToBitsPack bs[i])[j] :=
+  getElem_bytesToBitsWith byteToBitsPack bs hi hj
 
 /-- The bits of entry `(i, j)` sit at positions `(i * c + j) * D` onwards. -/
 theorem getElem_Pack (p : Params) {r c : ℕ} (M : FrodoMatrix p r c) {i j l : ℕ}
@@ -116,24 +115,13 @@ theorem getElem_Pack (p : Params) {r c : ℕ} (M : FrodoMatrix p r c) {i j l : �
 
 /-- A byte vector is recovered from its bit string. -/
 theorem bitsToBytesPack_bytesToBitsPack {n : ℕ} (bs : Bytes n) :
-    bitsToBytesPack (bytesToBitsPack bs) = bs := by
-  apply Vector.ext
-  intro i hi
-  rw [bitsToBytesPack, Vector.getElem_ofFn, ← bitsToBytePack_byteToBitsPack bs[i]]
-  congr 1
-  apply Vector.ext
-  intro j hj
-  simpa using getElem_bytesToBitsPack bs hi hj
+    bitsToBytesPack (bytesToBitsPack bs) = bs :=
+  bitsToBytesWith_bytesToBitsWith bitsToBytePack_byteToBitsPack bs
 
 /-- A bit string is recovered from its byte vector. -/
 theorem bytesToBitsPack_bitsToBytesPack {n : ℕ} (b : Vector Bool (n * 8)) :
-    bytesToBitsPack (bitsToBytesPack b) = b := by
-  apply Vector.ext
-  intro k hk
-  obtain ⟨i, j, hi, hj, rfl⟩ : ∃ i j, i < n ∧ j < 8 ∧ k = i * 8 + j :=
-    ⟨k / 8, k % 8, by omega, by omega, by omega⟩
-  rw [getElem_bytesToBitsPack _ hi hj, bitsToBytesPack, Vector.getElem_ofFn,
-      byteToBitsPack_bitsToBytePack, Vector.getElem_ofFn]
+    bytesToBitsPack (bitsToBytesPack b) = b :=
+  bytesToBitsWith_bitsToBytesWith byteToBitsPack_bitsToBytePack b
 
 /-- An entry is recovered from its `D` bits. This is where `q = 2 ^ D` is
 needed: `entryToBits` keeps only `D` bits, so no other modulus is recoverable. -/
