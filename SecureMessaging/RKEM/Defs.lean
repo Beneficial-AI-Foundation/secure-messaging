@@ -158,8 +158,10 @@ def correctExpA (rkem : RKEMScheme m Par EK DK CT K) [DecidableEq K] : m Bool :=
   let (ekA, dkA) ← rkem.rkeygenAFresh par
   let (ekB, dkB) ← rkem.rkeygenBUpdated par
   let (ctB, key, _) ← rkem.rencA par ekB dkA
-  let key' ← rkem.rdecB par dkB ctB ekA
-  return decide (some key = key'.map Prod.fst)
+  let res ← rkem.rdecB par dkB ctB ekA
+  match res with
+  | none => return false
+  | some (key', _) => return decide (key = key')
 
 /-- As `correctExpA`, with the roles of `A` and `B` swapped. -/
 def correctExpB (rkem : RKEMScheme m Par EK DK CT K) [DecidableEq K] : m Bool := do
@@ -167,8 +169,10 @@ def correctExpB (rkem : RKEMScheme m Par EK DK CT K) [DecidableEq K] : m Bool :=
   let (ekB, dkB) ← rkem.rkeygenBFresh par
   let (ekA, dkA) ← rkem.rkeygenAUpdated par
   let (ctA, key, _) ← rkem.rencB par ekA dkB
-  let key' ← rkem.rdecA par dkA ctA ekB
-  return decide (key = key'.map Prod.fst)
+  let res ← rkem.rdecA par dkA ctA ekB
+  match res with
+  | none => return false
+  | some (key', _) => return decide (key = key')
 
 /-- Correctness error against `runtime`: missing success mass of `correctExpA`, i.e.
 `1 - Pr[correctExpA = true]`. -/
@@ -196,7 +200,9 @@ def updatedKeyDistA (rkem : RKEMScheme m Par EK DK CT K) : m (Option (EK × DK))
   let (ekB, dkB) ← rkem.rkeygenBUpdated par
   let (ctB, _, dkAHat) ← rkem.rencA par ekB dkA
   let res ← rkem.rdecB par dkB ctB ekA
-  return res.map fun (_, ekAHat) => (ekAHat, dkAHat)
+  match res with
+  | none => return none
+  | some (_, ekAHat) => return some (ekAHat, dkAHat)
 
 /-- As `updatedKeyDistA`, with the roles of `A` and `B` swapped. -/
 def updatedKeyDistB (rkem : RKEMScheme m Par EK DK CT K) : m (Option (EK × DK)) := do
@@ -205,7 +211,9 @@ def updatedKeyDistB (rkem : RKEMScheme m Par EK DK CT K) : m (Option (EK × DK))
   let (ekA, dkA) ← rkem.rkeygenAUpdated par
   let (ctA, _, dkBHat) ← rkem.rencB par ekA dkB
   let res ← rkem.rdecA par dkA ctA ekB
-  return res.map fun (_, ekBHat) => (ekBHat, dkBHat)
+  match res with
+  | none => return none
+  | some (_, ekBHat) => return some (ekBHat, dkBHat)
 
 /-- Total-variation distance, under `runtime`, between `updatedKeyDistA` and sampling directly
 from `distKeyGenAUpdated`. -/
