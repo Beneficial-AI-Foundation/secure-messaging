@@ -122,7 +122,7 @@ stated below only for `A`; the `B` versions swap the roles). Fix `A`'s fresh key
    produced by the round above is statistically close to sampling `(ek̂A, dk̂A)` directly via
    `RKeyGen-A(par, updated)`.
 
-`correctExpP`/`correctnessErrorP` capture property 1; `updatedKeyDistP`/`updateKeyDistErrorP`
+`correctExpP`/`correctnessErrorP` capture property 1; `ratchetRoundOutputP`/`updateKeyDistErrorP`
 capture property 2, using total-variation distance (`SPMF.tvDist`) in place of the paper's
 asymptotic "statistically close".
 -/
@@ -130,26 +130,6 @@ asymptotic "statistically close".
 section Correctness
 
 variable {m : Type → Type u} [Monad m] {Par EK DK CT K : Type}
-
-/-- `D_RKeyGen-A`: sample `par`, then a fresh key pair for `A`. -/
-def distKeyGenAFresh (rkem : RKEMScheme m Par EK DK CT K) : m (EK × DK) := do
-  let par ← rkem.rsetup
-  rkem.rkeygenAFresh par
-
-/-- `D̂_RKeyGen-A`: sample `par`, then an updated-distribution key pair for `A`. -/
-def distKeyGenAUpdated (rkem : RKEMScheme m Par EK DK CT K) : m (EK × DK) := do
-  let par ← rkem.rsetup
-  rkem.rkeygenAUpdated par
-
-/-- `D_RKeyGen-B`: sample `par`, then a fresh key pair for `B`. -/
-def distKeyGenBFresh (rkem : RKEMScheme m Par EK DK CT K) : m (EK × DK) := do
-  let par ← rkem.rsetup
-  rkem.rkeygenBFresh par
-
-/-- `D̂_RKeyGen-B`: sample `par`, then an updated-distribution key pair for `B`. -/
-def distKeyGenBUpdated (rkem : RKEMScheme m Par EK DK CT K) : m (EK × DK) := do
-  let par ← rkem.rsetup
-  rkem.rkeygenBUpdated par
 
 /-- One round of the protocol from `A` towards `B`, with `A`'s keys fresh and `B`'s keys
 updated, returning whether the two parties agree on the shared key (Def. 5.3, property 1). -/
@@ -194,7 +174,7 @@ def deltaCorrectUpdatedKeys (rkem : RKEMScheme m Par EK DK CT K) (runtime : Prob
 /-- The marginal distribution of `A`'s updated key pair `(ek̂A, dk̂A)`, produced by running one
 round of the protocol from `A` towards `B` as in `correctExpA`; `none` if `B`'s decapsulation
 fails. -/
-def updatedKeyDistA (rkem : RKEMScheme m Par EK DK CT K) : m (Option (EK × DK)) := do
+def ratchetRoundOutputA (rkem : RKEMScheme m Par EK DK CT K) : m (Option (EK × DK)) := do
   let par ← rkem.rsetup
   let (ekA, dkA) ← rkem.rkeygenAFresh par
   let (ekB, dkB) ← rkem.rkeygenBUpdated par
@@ -204,8 +184,8 @@ def updatedKeyDistA (rkem : RKEMScheme m Par EK DK CT K) : m (Option (EK × DK))
   | none => return none
   | some (_, ekAHat) => return some (ekAHat, dkAHat)
 
-/-- As `updatedKeyDistA`, with the roles of `A` and `B` swapped. -/
-def updatedKeyDistB (rkem : RKEMScheme m Par EK DK CT K) : m (Option (EK × DK)) := do
+/-- As `ratchetRoundOutputA`, with the roles of `A` and `B` swapped. -/
+def ratchetRoundOutputB (rkem : RKEMScheme m Par EK DK CT K) : m (Option (EK × DK)) := do
   let par ← rkem.rsetup
   let (ekB, dkB) ← rkem.rkeygenBFresh par
   let (ekA, dkA) ← rkem.rkeygenAUpdated par
@@ -215,18 +195,24 @@ def updatedKeyDistB (rkem : RKEMScheme m Par EK DK CT K) : m (Option (EK × DK))
   | none => return none
   | some (_, ekBHat) => return some (ekBHat, dkBHat)
 
-/-- Total-variation distance, under `runtime`, between `updatedKeyDistA` and sampling directly
+/-- Total-variation distance, under `runtime`, between `ratchetRoundOutputA` and sampling directly
 from `distKeyGenAUpdated`. -/
 noncomputable def updateKeyDistErrorA (rkem : RKEMScheme m Par EK DK CT K)
     (runtime : ProbCompRuntime m) : ℝ≥0∞ :=
-  ‖(SPMF.tvDist (runtime.evalDist rkem.updatedKeyDistA)
-                (runtime.evalDist (some <$> rkem.distKeyGenAUpdated)))‖ₑ
+  ‖(SPMF.tvDist (runtime.evalDist rkem.ratchetRoundOutputA)
+                (runtime.evalDist (do
+                                  let par ← rkem.rsetup
+                                  let keys ← rkem.rkeygenAUpdated par
+                                  return some keys)))‖ₑ
 
 /-- As `updateKeyDistErrorA`, with the roles of `A` and `B` swapped. -/
 noncomputable def updateKeyDistErrorB (rkem : RKEMScheme m Par EK DK CT K)
     (runtime : ProbCompRuntime m) : ℝ≥0∞ :=
-  ‖SPMF.tvDist (runtime.evalDist rkem.updatedKeyDistB)
-               (runtime.evalDist (some <$> rkem.distKeyGenBUpdated))‖ₑ
+  ‖SPMF.tvDist (runtime.evalDist rkem.ratchetRoundOutputB)
+               (runtime.evalDist (do
+                                  let par ← rkem.rsetup
+                                  let keys ← rkem.rkeygenBUpdated par
+                                  return some keys))‖ₑ
 
 /-- Def. 5.3, property 2: the updated-key distribution is within statistical distance `delta`
 of the directly sampled updated-key distribution, for both parties. -/
