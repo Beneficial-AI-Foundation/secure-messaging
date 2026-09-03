@@ -81,8 +81,11 @@ whose names are left for the composites.
   encoding;
 * `dc_ec_add`, `DecodeChunks_EncodeChunks_add` and `Decode_Encode_add`: decoding
   inverts encoding perturbed by noise `e` with
-  `-q ≤ 2 ^ (B + 1) * centeredRepr e < q`. This is Lemma 1, whose window is
-  asymmetric: closed below and open above;
+  `-q ≤ 2 ^ (B + 1) * centeredRepr e < q`. This is Lemma 1 of Section 4.1, whose
+  window `-q / 2 ^ (B + 1) ≤ e < q / 2 ^ (B + 1)` is asymmetric: closed below
+  and open above. That division is the rational one, and is why the theorems
+  scale it away: at `B = D` the window is `-1/2 ≤ e < 1/2`, which truncates to
+  the empty `0 ≤ e < 0` in `ℕ`;
 * `decodeMessage_encodeMessage` and `decodeMessage_encodeMessage_add`: the same
   on `Message p`;
 * `bitsToBytes_bytesToBits`, `bytesToBits_bitsToBytes`, `ofChunks_toChunks` and
@@ -173,9 +176,10 @@ private theorem dc_quotient {q n s v ev : ℕ} (r : ℕ)
       Nat.add_mod_right, Nat.mod_eq_of_lt hv]
 
 /-- Decoding recovers `k` after perturbing its encoding by a signed additive
-error `e` with `-q ≤ 2 ^ (B + 1) * centeredRepr e < q`. This is Lemma 1, stated
-without division so that it stays correct at `B = D`, where the window admits
-only `e = 0`; for `B < D` it is the half-open interval
+error `e` with `-q ≤ 2 ^ (B + 1) * centeredRepr e < q`. This is Lemma 1 of
+Section 4.1, stated without division so that it stays correct at `B = D`, where
+its window is `-1/2 ≤ e < 1/2` and so admits only `e = 0`; for `B < D` it is
+the half-open interval
 `centeredRepr e ∈ [-q / 2 ^ (B + 1), q / 2 ^ (B + 1))`. -/
 theorem dc_ec_add (p : Params) (hw : p.WellFormed) (k : ZMod (2 ^ p.B))
     (e : ZMod p.q)

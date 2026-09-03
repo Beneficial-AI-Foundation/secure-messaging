@@ -8,14 +8,22 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Encoding
 /-!
 # FrodoKEM matrix packing
 
-`Frodo.Pack` and `Frodo.Unpack`, Algorithms 11 and 12 of `[CiC25]` and Section
-7.4 of `[ABD+25]`, with the octet conversion of Section 7.2 of `[ABD+25]`.
-References are as in `Encoding.lean`.
+`Frodo.Pack` and `Frodo.Unpack`, Algorithms 11 and 12 of `[CiC25]`, with the
+octet conversion of Section 7.2 of `[ABD+25]`. References are as in
+`Encoding.lean`.
 
-Section 7.4 writes each entry of an `r`-by-`c` matrix as its `D` binary digits,
-most significant first, and lays the entries out row by row, each row left to
-right: the entry in row `i` and column `j` takes positions `(i * c + j) * D`
-onwards of a bit string of length `r * c * D`, for `0 ≤ i < r` and `0 ≤ j < c`.
+The two documents draw the boundary differently. Algorithm 11 takes a matrix to
+a bit string of length `r * c * D`, leaving the octets to the caller; `[ABD+25]`
+gives the same layout as step 1 of Section 7.4 and then, in step 2, outputs its
+octet encoding, so its `Pack` is `bitsToBytesPack` after this one. `Pack` and
+`Unpack` here are Algorithms 11 and 12, on bit strings, and a caller composes
+them with the Section 7.2 conversion below.
+
+The layout is common to both, Algorithm 11 and step 1 of Section 7.4: each
+entry of an `r`-by-`c` matrix is written as its `D` binary digits, most
+significant first, and the entries are laid out row by row, each row left to
+right, so that the entry in row `i` and column `j` takes positions
+`(i * c + j) * D` onwards of the bit string, for `0 ≤ i < r` and `0 ≤ j < c`.
 Section 7.2 then writes bit `8 * a + t` of a bit string as digit `7 - t` of
 octet `a`, for `0 ≤ t < 8`.
 
@@ -83,8 +91,9 @@ theorem byteToBitsPack_bitsToBytePack (v : Vector Bool 8) :
 
 /-- Section 7.2 of `[ABD+25]`: read a byte vector as a bit string, most
 significant bit of each octet first. `Pack` and `Unpack` are stated on bit
-strings, so this is the conversion their callers need to reach the octets a
-packed matrix is transmitted as. -/
+strings, as Algorithms 11 and 12 are, so this is the conversion of Section 7.4's
+step 2, which a caller applies to reach the octets a packed matrix is
+transmitted as. -/
 def bytesToBitsPack {n : ℕ} (bs : Bytes n) : Vector Bool (n * 8) :=
   (bs.map byteToBitsPack).flatten
 
@@ -108,8 +117,9 @@ theorem getElem_bytesToBitsPack {n : ℕ} (bs : Bytes n) {i j : ℕ} (hi : i < n
   rw [bytesToBitsPack_eq]
   exact getElem_bytesToBitsWith byteToBitsPack bs hi hj
 
-/-- The `D` bits of one entry, most significant first: step 1.1.1 of Section 7.4
-puts binary digit `D - 1 - l` of the entry at position `l`. -/
+/-- The `D` bits of one entry, most significant first: line 5 of Algorithm 11,
+and step 1.1.2 of Section 7.4, put binary digit `D - 1 - l` of the entry at
+position `l`. -/
 def entryToBits (p : Params) (x : ZMod p.q) : Vector Bool p.D :=
   Vector.ofFn fun l => x.val.testBit (p.D - 1 - l.val)
 
@@ -123,14 +133,17 @@ example : (entryToBits ParameterSet.FrodoKEM640.params 5).toList =
 def bitsToEntry (p : Params) (v : Vector Bool p.D) : ZMod p.q :=
   ((Nat.ofBits fun l : Fin p.D => v[p.D - 1 - l.val]'(by omega) : ℕ) : ZMod p.q)
 
-/-- `Frodo.Pack` (Algorithm 11 of `[CiC25]`, Section 7.4 of `[ABD+25]`):
-concatenate the `D`-bit entries, row by row, each most significant bit first. -/
+/-- `Frodo.Pack` (Algorithm 11 of `[CiC25]`, step 1 of Section 7.4 of
+`[ABD+25]`): concatenate the `D`-bit entries, row by row, each most significant
+bit first. Section 7.4 goes on to encode the result as octets; that step is
+`bitsToBytesPack`. -/
 def Pack (p : Params) {r c : ℕ} (M : FrodoMatrix p r c) : Vector Bool (r * c * p.D) :=
   (Vector.ofFn fun idx : Fin (r * c) =>
     entryToBits p (M idx.divNat idx.modNat)).flatten
 
 /-- `Frodo.Unpack` (Algorithm 12), the inverse of `Pack`: read the `D`-bit
-blocks back as entries, row by row. -/
+blocks back as entries, row by row. Section 7.4's `Unpack` decodes its octets
+first; that step is `bytesToBitsPack`. -/
 def Unpack (p : Params) {r c : ℕ} (b : Vector Bool (r * c * p.D)) : FrodoMatrix p r c :=
   Matrix.of fun i j => bitsToEntry p (Vector.ofFn fun l =>
     b[(i.val * c + j.val) * p.D + l.val]'(bitIndex_lt i.isLt j.isLt l.isLt))
