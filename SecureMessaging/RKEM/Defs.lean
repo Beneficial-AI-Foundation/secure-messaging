@@ -231,4 +231,92 @@ def deltaCorrect (rkem : RKEMScheme m Par EK DK CT K) (runtime : ProbCompRuntime
 
 end Correctness
 
+/-! ## Forward-Secure IND-CPA Security
+
+[TripleRatchet, Def. 5.4] extends a natural IND-CPA game with forward secrecy: the adversary
+receives, alongside the challenge ciphertext and key, the *updated* decapsulation key produced
+while creating that ciphertext, capturing that a later state compromise should not affect
+already-issued keys. As with the correctness experiments, only the `A`-side game is spelled out
+below; the `B`-side game (`securityExpB`) swaps the roles.
+-/
+
+section Security
+
+variable {Par EK DK CT K : Type}
+
+/-- A one-shot FS-IND-CPA adversary. Receives the challenged party's own encapsulation key,
+its own updated encapsulation key, the peer's updated encapsulation key, the ciphertext sent to
+the peer, the challenger's own updated decapsulation key, and the challenge key; outputs a
+guess bit. Matches the adversary input `A(ekP, ek̂P, ek̂P', ctP, dk̂P, Kb)` of Def. 5.4. -/
+abbrev FSINDCPAAdversary (EK DK CT K : Type) : Type := EK → EK → EK → CT → DK → K → ProbComp Bool
+
+/-- **Definition 5.4** (FS-IND-CPA experiment, party `A`).
+
+```
+b ← {0,1}, K1 ← $K,
+(ekA, dkA) ← D_RKeyGen-A, (ek̂B, dk̂B) ← D̂_RKeyGen-B,
+(ctB, K0, dk̂A) ← REnc-A(par, ek̂B, dkA),
+(·, ek̂A) ← RDec-B(par, dk̂B, ctB, ekA),
+b' ← A(ekA, ek̂A, ek̂B, ctB, dk̂A, K_b)
+```
+returning `b = b'`. -/
+def securityExpA (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    (adversary : FSINDCPAAdversary EK DK CT K) [SampleableType K] : ProbComp Bool := do
+  let b ← $ᵗ Bool
+  let k1 ← $ᵗ K
+  let par ← rkem.rsetup
+  let (ekA, dkA) ← rkem.rkeygenAFresh par
+  let (ekBHat, dkBHat) ← rkem.rkeygenBUpdated par
+  let (ctB, k0, dkAHat) ← rkem.rencA par ekBHat dkA
+  let res ← rkem.rdecB par dkBHat ctB ekA
+  match res with
+  | none => return false
+  | some (_, ekAHat) =>
+    let b' ← adversary ekA ekAHat ekBHat ctB dkAHat (if b then k1 else k0)
+    return b == b'
+
+/-- As `securityExpA`, with the roles of `A` and `B` swapped. -/
+def securityExpB (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    (adversary : FSINDCPAAdversary EK DK CT K) [SampleableType K] : ProbComp Bool := do
+  let b ← $ᵗ Bool
+  let k1 ← $ᵗ K
+  let par ← rkem.rsetup
+  let (ekB, dkB) ← rkem.rkeygenBFresh par
+  let (ekAHat, dkAHat) ← rkem.rkeygenAUpdated par
+  let (ctA, k0, dkBHat) ← rkem.rencB par ekAHat dkB
+  let res ← rkem.rdecA par dkAHat ctA ekB
+  match res with
+  | none => return false
+  | some (_, ekBHat) =>
+    let b' ← adversary ekB ekBHat ekAHat ctA dkBHat (if b then k1 else k0)
+    return b == b'
+
+/-- `Adv^{FS-IND-CPA-A}`: `|Pr[securityExpA = true] - 1/2|`. -/
+noncomputable def fsIndCpaAdvantageA (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    (adversary : FSINDCPAAdversary EK DK CT K) [SampleableType K] : ℝ :=
+  |(Pr[= true | rkem.securityExpA adversary]).toReal - 1 / 2|
+
+/-- `Adv^{FS-IND-CPA-B}`: as `fsIndCpaAdvantageA`, with the roles of `A` and `B` swapped. -/
+noncomputable def fsIndCpaAdvantageB (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    (adversary : FSINDCPAAdversary EK DK CT K) [SampleableType K] : ℝ :=
+  |(Pr[= true | rkem.securityExpB adversary]).toReal - 1 / 2|
+
+/-- `Adv^{FS-IND-CPA} := max_{P ∈ {A,B}} Adv^{FS-IND-CPA-P}`. -/
+noncomputable def fsIndCpaAdvantage (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    (adversaryA adversaryB : FSINDCPAAdversary EK DK CT K) [SampleableType K] : ℝ :=
+  max (rkem.fsIndCpaAdvantageA adversaryA) (rkem.fsIndCpaAdvantageB adversaryB)
+
+/-- **Definition 5.4** (FS-IND-CPA security). `rkem` is `epsilon`-FS-IND-CPA-secure against
+`adversaryA`, `adversaryB` if both per-party advantages are at most `epsilon`. Asymptotic
+FS-IND-CPA security, as stated in [TripleRatchet], additionally quantifies this over every PPT
+adversary and requires `epsilon` to be negligible in the security parameter. -/
+-- ANCHOR: FSINDCPASecure
+def FSINDCPASecure (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    (adversaryA adversaryB : FSINDCPAAdversary EK DK CT K) (epsilon : ℝ) [SampleableType K] :
+    Prop :=
+  rkem.fsIndCpaAdvantage adversaryA adversaryB ≤ epsilon
+-- ANCHOR_END: FSINDCPASecure
+
+end Security
+
 end RKEMScheme
