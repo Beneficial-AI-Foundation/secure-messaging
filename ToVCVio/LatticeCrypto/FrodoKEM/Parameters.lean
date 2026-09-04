@@ -44,6 +44,12 @@ shared by every parameter set; the remaining entries are:
 
 Lengths are published in bits but the corresponding types are byte vectors, so
 each length comes in both units and the docstrings name which is which.
+
+A `Params` is plain data, so nothing constrains its fields. `Params.WellFormed`
+collects the conditions of Section 3 that the encoding and packing proofs
+depend on, and `params_wellFormed` discharges them for every published set.
+`ValidParams` pairs a record with that proof, for the definitions that need it
+to typecheck rather than only to be proved correct.
 -/
 
 namespace FrodoKEM
@@ -97,16 +103,18 @@ def mbar : ℕ := 8
 the relations between them are theorems about the six named parameter sets
 rather than part of this record. -/
 structure Params where
-  /-- Exponent of the modulus, satisfying `D ≤ 16`. -/
+  /-- Exponent of the modulus; `Params.WellFormed.D_le` bounds it by sixteen. -/
   D : ℕ
-  /-- The modulus `q = 2 ^ D`. -/
+  /-- The modulus; `Params.WellFormed.q_eq` identifies it with `2 ^ D`. -/
   q : ℕ
-  /-- Integer matrix dimension, satisfying `n ≡ 0 (mod 8)`. -/
+  /-- Integer matrix dimension; `Params.WellFormed.n_mod_eight` makes it a
+  multiple of eight. -/
   n : ℕ
-  /-- The number of bits encoded in each matrix entry, satisfying `B ≤ D`. -/
+  /-- The number of bits encoded in each matrix entry;
+  `Params.WellFormed.B_le_D` bounds it by `D`. -/
   B : ℕ
-  /-- `ℓ = B * mbar * nbar`, the length of bit strings encoded as
-  `mbar`-by-`nbar` matrices. -/
+  /-- The length of bit strings encoded as `mbar`-by-`nbar` matrices;
+  `Params.WellFormed.ell_eq` identifies it with `B * mbar * nbar`. -/
   ell : ℕ
   /-- The bit length of seeds used for pseudorandom bit generation for error
   sampling -/
@@ -142,8 +150,19 @@ structure WellFormed (p : Params) : Prop where
   B_le_D : p.B ≤ p.D
   /-- The modulus satisfies `q = 2 ^ D`. -/
   q_eq : p.q = 2 ^ p.D
+  /-- A message fills the matrix: `ℓ = B * mbar * nbar`. -/
+  ell_eq : p.ell = p.B * mbar * nbar
 
 end Params
+
+/-- A parameter record with its well-formedness proof. Definitions that need a
+`Params.WellFormed` field in order to typecheck, `encodeMessage` and
+`decodeMessage` for the length of a message, take one of these, so that a
+caller passes one argument rather than a record and a proof about it. The
+scalar maps, `Encode` and `Decode` need no hypothesis and stay on `Params`. -/
+structure ValidParams extends Params where
+  /-- The record satisfies the conditions of Section 3. -/
+  wf : toParams.WellFormed
 
 /-- Seeds used for error sampling, of `lenSeedSE` bits, represented as
 `lenSeedSEBytes` bytes. -/
