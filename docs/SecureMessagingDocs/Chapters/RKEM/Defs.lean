@@ -81,14 +81,18 @@ $`\todo`
 :::defTitle "rkem_forward_security" "RKEM forward security"
 :::
 
-::::definition "rkem_forward_security" (parent := "rkem")
+:::definition "rkem_forward_security" (parent := "rkem") (lean := "RKEMScheme.FSINDCPASecure")
 $`\todo`
 
-:::leanPill "missing"
-:::
+```anchor FSINDCPASecure (project := ".") (module := SecureMessaging.RKEM.Defs)
+def FSINDCPASecure (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    (adversaryA adversaryB : FSINDCPAAdversary EK DK CT K) (epsilon : ℝ) [SampleableType K] :
+    Prop :=
+  rkem.fsIndCpaAdvantage adversaryA adversaryB ≤ epsilon
+```
 
 {usesLabel}`uses` {uses "rkem_scheme"}[] · {githubLabel}`github` {githubIssue 178}[]
-::::
+:::
 
 :::defTitle "rkem_correctness" "RKEM correctness"
 :::
