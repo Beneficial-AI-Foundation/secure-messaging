@@ -3,6 +3,7 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
+import ToVCVio.LatticeCrypto.FrodoKEM.Bits
 import ToVCVio.LatticeCrypto.FrodoKEM.Parameters
 import LatticeCrypto.Ring.Norms
 
@@ -59,11 +60,10 @@ whose names are left for the composites.
 
 * `ec`, `dc`: the scalar maps;
 * `ChunkMatrix`: an `mbar`-by-`nbar` matrix of `B`-bit chunks;
-* `bytesToBitsWith`, `bitsToBytesWith`, `matrixToBitsWith`,
-  `bitsToMatrixWith`: the octet and matrix layers with the convention on one
-  octet, resp. one entry, left as a parameter. Both files prove their round
-  trips through them, and the `…_eq` lemmas identify each published definition
-  with one;
+* `bytesToBitsWith`, `bitsToBytesWith`: the octet layer with the convention on
+  one octet left as a parameter, the matrix layer being `Bits.lean`. Both files
+  prove their round trips through these, and the `…_eq` lemmas identify each
+  published definition with one;
 * `EncodeChunks`, `DecodeChunks`: the matrix maps, `ec` and `dc` applied
   entrywise;
 * `byteToBits`, `bitsToByte` and their vector forms `bytesToBits`,
@@ -429,85 +429,6 @@ theorem chunkToBits_bitsToChunk (p : Params) (v : Vector Bool p.B) :
   rw [chunkToBits, Vector.getElem_ofFn, bitsToChunk, ZMod.val_natCast,
     Nat.mod_eq_of_lt (Nat.ofBits_lt_two_pow _), Nat.testBit_ofBits]
   simp [ht]
-
-/-- Bit `t` of entry `(i, j)` of an `r`-by-`c` matrix sits at position
-`(i * c + j) * d + t` of a bit string of length `r * c * d`, when each entry
-takes `d` bits and entries are laid out row by row. This is the bound the
-matrix layer below indexes with, at `d = B` for the chunks and `d = D` for the
-packed entries of `Packing.lean`. -/
-theorem bitIndex_lt {r c d i j t : ℕ} (hi : i < r) (hj : j < c) (ht : t < d) :
-    (i * c + j) * d + t < r * c * d :=
-  Nat.lt_of_lt_of_le (Nat.add_lt_add_left ht _)
-    (by rw [← Nat.succ_mul, Nat.mul_comm i c]; gcongr
-        exact Nat.mul_add_lt_mul_of_lt_of_lt hi hj)
-
-/-! ### The shared matrix layer
-
-Both `ofChunks` here and `Frodo.Pack` of `Packing.lean` cut a matrix into one
-bit block per entry, differing only in the codec on one entry and its width.
-Those are parameters below, so that the index lemma and the two round trips are
-proved once; the published definitions stay as their sections state them and
-bridge to these by `rfl`. -/
-
-/-- Lay the entries of a matrix out as bit blocks of width `d`, row by row and
-each row left to right, `f` giving the `d` bits of one entry. -/
-def matrixToBitsWith {α : Type*} {r c d : ℕ} (f : α → Vector Bool d)
-    (M : Matrix (Fin r) (Fin c) α) : Vector Bool (r * c * d) :=
-  (Vector.ofFn fun idx : Fin (r * c) => f (M idx.divNat idx.modNat)).flatten
-
-/-- Read a bit string back as a matrix, `g` giving the entry with the given
-`d` bits. -/
-def bitsToMatrixWith {α : Type*} {r c d : ℕ} (g : Vector Bool d → α)
-    (b : Vector Bool (r * c * d)) : Matrix (Fin r) (Fin c) α :=
-  Matrix.of fun i j => g (Vector.ofFn fun l =>
-    b[(i.val * c + j.val) * d + l.val]'(bitIndex_lt i.isLt j.isLt l.isLt))
-
-/-- The bits of entry `(i, j)` sit at positions `(i * c + j) * d` onwards. -/
-theorem getElem_matrixToBitsWith {α : Type*} {r c d : ℕ} (f : α → Vector Bool d)
-    (M : Matrix (Fin r) (Fin c) α) {i j l : ℕ} (hi : i < r) (hj : j < c) (hl : l < d) :
-    (matrixToBitsWith f M)[(i * c + j) * d + l]'(bitIndex_lt hi hj hl) =
-      (f (M ⟨i, hi⟩ ⟨j, hj⟩))[l] := by
-  rw [matrixToBitsWith, Vector.getElem_flatten]
-  simp only [Nat.mul_comm (i * c + j) d, Nat.mul_add_div (by omega : 0 < d),
-    Nat.mul_add_mod, Nat.div_eq_of_lt hl, Nat.mod_eq_of_lt hl, Nat.add_zero,
-    Vector.getElem_ofFn]
-  congr 3 <;> simp only [Fin.divNat, Fin.modNat, Nat.mul_comm i c,
-    Nat.mul_add_div (by omega : 0 < c), Nat.mul_add_mod, Nat.div_eq_of_lt hj,
-    Nat.mod_eq_of_lt hj, Nat.add_zero]
-
-/-- A matrix is recovered from its bit string, whenever an entry is recovered
-from its own bits. -/
-theorem bitsToMatrixWith_matrixToBitsWith {α : Type*} {r c d : ℕ}
-    {f : α → Vector Bool d} {g : Vector Bool d → α} (hgf : ∀ x, g (f x) = x)
-    (M : Matrix (Fin r) (Fin c) α) :
-    bitsToMatrixWith g (matrixToBitsWith f M) = M := by
-  ext i j
-  simp only [bitsToMatrixWith, Matrix.of_apply]
-  rw [← hgf (M i j)]
-  congr 1
-  apply Vector.ext
-  intro l hl
-  rw [Vector.getElem_ofFn]
-  exact getElem_matrixToBitsWith f M i.isLt j.isLt hl
-
-/-- A bit string is recovered from its matrix, whenever the bits of an entry
-are recovered from the entry. -/
-theorem matrixToBitsWith_bitsToMatrixWith {α : Type*} {r c d : ℕ}
-    {f : α → Vector Bool d} {g : Vector Bool d → α} (hfg : ∀ v, f (g v) = v)
-    (b : Vector Bool (r * c * d)) :
-    matrixToBitsWith f (bitsToMatrixWith g b) = b := by
-  apply Vector.ext
-  intro k hk
-  obtain ⟨i, j, l, hi, hj, hl, rfl⟩ :
-      ∃ i j l, i < r ∧ j < c ∧ l < d ∧ k = (i * c + j) * d + l :=
-    ⟨k / d / c, k / d % c, k % d,
-      Nat.div_lt_of_lt_mul (Nat.div_lt_of_lt_mul
-        (by rw [Nat.mul_comm d (c * r), Nat.mul_comm c r]; exact hk)),
-      Nat.mod_lt _ (Nat.pos_of_ne_zero fun h => absurd hk (by simp [h])),
-      Nat.mod_lt _ (Nat.pos_of_ne_zero fun h => absurd hk (by simp [h])),
-      by rw [Nat.div_add_mod', Nat.div_add_mod']⟩
-  rw [getElem_matrixToBitsWith _ _ hi hj hl]
-  simp only [bitsToMatrixWith, Matrix.of_apply, hfg, Vector.getElem_ofFn]
 
 /-- Cut a bit string into the `mbar * nbar` values of `B` bits that
 `EncodeChunks` consumes, entry `(i, j)` taking the run at position
