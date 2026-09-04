@@ -155,15 +155,6 @@ structure WellFormed (p : Params) : Prop where
 
 end Params
 
-/-- A parameter record with its well-formedness proof. Definitions that need a
-`Params.WellFormed` field in order to typecheck, `encodeMessage` and
-`decodeMessage` for the length of a message, take one of these, so that a
-caller passes one argument rather than a record and a proof about it. The
-scalar maps, `Encode` and `Decode` need no hypothesis and stay on `Params`. -/
-structure ValidParams extends Params where
-  /-- The record satisfies the conditions of Section 3. -/
-  wf : toParams.WellFormed
-
 /-- Seeds used for error sampling, of `lenSeedSE` bits, represented as
 `lenSeedSEBytes` bytes. -/
 abbrev SeedSE (p : Params) := Bytes p.lenSeedSEBytes
