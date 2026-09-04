@@ -102,3 +102,133 @@ structure RKEMScheme (m : Type → Type u) [Monad m] (Par EK DK CT K : Type) whe
   `A` and `B` swapped. -/
   rdecB : Par → DK → CT → EK → m (Option (K × EK))
 -- ANCHOR_END: RKEMScheme
+
+namespace RKEMScheme
+
+/-! ## Correctness
+
+[TripleRatchet, Def. 5.3] asks for two properties, checked for both parties (`A` and `B`,
+stated below only for `A`; the `B` versions swap the roles). Fix `A`'s fresh key pair, `B`'s
+*updated* key pair, then run one round of the protocol from `A` towards `B`:
+
+```
+(ekA, dkA)   ← RKeyGen-A(par, ⊥),        (ek̂B, dk̂B) ← RKeyGen-B(par, updated),
+(ctB, K, dk̂A) ← REnc-A(par, ek̂B, dkA),
+(K', ek̂A)     ← RDec-B(par, dk̂B, ctB, ekA)
+```
+
+1. **Correctness with updated keys**: `K = K'` except with negligible probability.
+2. **Correctness of update-key distribution**: the marginal distribution of `(ek̂A, dk̂A)`
+   produced by the round above is statistically close to sampling `(ek̂A, dk̂A)` directly via
+   `RKeyGen-A(par, updated)`.
+
+`correctExpP`/`correctnessErrorP` capture property 1; `ratchetRoundOutputP`/`updateKeyDistErrorP`
+capture property 2, using total-variation distance (`SPMF.tvDist`) in place of the paper's
+asymptotic "statistically close".
+-/
+
+section Correctness
+
+variable {m : Type → Type u} [Monad m] {Par EK DK CT K : Type}
+
+/-- One round of the protocol from `A` towards `B`, with `A`'s keys fresh and `B`'s keys
+updated, returning whether the two parties agree on the shared key (Def. 5.3, property 1). -/
+def correctExpA (rkem : RKEMScheme m Par EK DK CT K) [DecidableEq K] : m Bool := do
+  let par ← rkem.rsetup
+  let (ekA, dkA) ← rkem.rkeygenAFresh par
+  let (ekB, dkB) ← rkem.rkeygenBUpdated par
+  let (ctB, key, _) ← rkem.rencA par ekB dkA
+  let res ← rkem.rdecB par dkB ctB ekA
+  match res with
+  | none => return false
+  | some (key', _) => return decide (key = key')
+
+/-- As `correctExpA`, with the roles of `A` and `B` swapped. -/
+def correctExpB (rkem : RKEMScheme m Par EK DK CT K) [DecidableEq K] : m Bool := do
+  let par ← rkem.rsetup
+  let (ekB, dkB) ← rkem.rkeygenBFresh par
+  let (ekA, dkA) ← rkem.rkeygenAUpdated par
+  let (ctA, key, _) ← rkem.rencB par ekA dkB
+  let res ← rkem.rdecA par dkA ctA ekB
+  match res with
+  | none => return false
+  | some (key', _) => return decide (key = key')
+
+/-- Correctness error against `runtime`: missing success mass of `correctExpA`, i.e.
+`1 - Pr[correctExpA = true]`. -/
+noncomputable def correctnessErrorA (rkem : RKEMScheme m Par EK DK CT K)
+    (runtime : ProbCompRuntime m) [DecidableEq K] : ℝ≥0∞ :=
+  1 - Pr[= true | runtime.evalDist rkem.correctExpA]
+
+/-- As `correctnessErrorA`, with the roles of `A` and `B` swapped. -/
+noncomputable def correctnessErrorB (rkem : RKEMScheme m Par EK DK CT K)
+    (runtime : ProbCompRuntime m) [DecidableEq K] : ℝ≥0∞ :=
+  1 - Pr[= true | runtime.evalDist rkem.correctExpB]
+
+/-- Def. 5.3, property 1: correctness with updated keys holds within error `delta`, for
+both parties. -/
+def deltaCorrectUpdatedKeys (rkem : RKEMScheme m Par EK DK CT K) (runtime : ProbCompRuntime m)
+    (delta : ℝ≥0∞) [DecidableEq K] : Prop :=
+  rkem.correctnessErrorA runtime ≤ delta ∧ rkem.correctnessErrorB runtime ≤ delta
+
+/-- The marginal distribution of `A`'s updated key pair `(ek̂A, dk̂A)`, produced by running one
+round of the protocol from `A` towards `B` as in `correctExpA`; `none` if `B`'s decapsulation
+fails. -/
+def ratchetRoundOutputA (rkem : RKEMScheme m Par EK DK CT K) : m (Option (EK × DK)) := do
+  let par ← rkem.rsetup
+  let (ekA, dkA) ← rkem.rkeygenAFresh par
+  let (ekB, dkB) ← rkem.rkeygenBUpdated par
+  let (ctB, _, dkAHat) ← rkem.rencA par ekB dkA
+  let res ← rkem.rdecB par dkB ctB ekA
+  match res with
+  | none => return none
+  | some (_, ekAHat) => return some (ekAHat, dkAHat)
+
+/-- As `ratchetRoundOutputA`, with the roles of `A` and `B` swapped. -/
+def ratchetRoundOutputB (rkem : RKEMScheme m Par EK DK CT K) : m (Option (EK × DK)) := do
+  let par ← rkem.rsetup
+  let (ekB, dkB) ← rkem.rkeygenBFresh par
+  let (ekA, dkA) ← rkem.rkeygenAUpdated par
+  let (ctA, _, dkBHat) ← rkem.rencB par ekA dkB
+  let res ← rkem.rdecA par dkA ctA ekB
+  match res with
+  | none => return none
+  | some (_, ekBHat) => return some (ekBHat, dkBHat)
+
+/-- Total-variation distance, under `runtime`, between `ratchetRoundOutputA` and sampling directly
+from `distKeyGenAUpdated`. -/
+noncomputable def updateKeyDistErrorA (rkem : RKEMScheme m Par EK DK CT K)
+    (runtime : ProbCompRuntime m) : ℝ≥0∞ :=
+  ‖(SPMF.tvDist (runtime.evalDist rkem.ratchetRoundOutputA)
+                (runtime.evalDist (do
+                                  let par ← rkem.rsetup
+                                  let keys ← rkem.rkeygenAUpdated par
+                                  return some keys)))‖ₑ
+
+/-- As `updateKeyDistErrorA`, with the roles of `A` and `B` swapped. -/
+noncomputable def updateKeyDistErrorB (rkem : RKEMScheme m Par EK DK CT K)
+    (runtime : ProbCompRuntime m) : ℝ≥0∞ :=
+  ‖SPMF.tvDist (runtime.evalDist rkem.ratchetRoundOutputB)
+               (runtime.evalDist (do
+                                  let par ← rkem.rsetup
+                                  let keys ← rkem.rkeygenBUpdated par
+                                  return some keys))‖ₑ
+
+/-- Def. 5.3, property 2: the updated-key distribution is within statistical distance `delta`
+of the directly sampled updated-key distribution, for both parties. -/
+def deltaCloseUpdateKeyDist (rkem : RKEMScheme m Par EK DK CT K) (runtime : ProbCompRuntime m)
+    (delta : ℝ≥0∞) : Prop :=
+  rkem.updateKeyDistErrorA runtime ≤ delta ∧ rkem.updateKeyDistErrorB runtime ≤ delta
+
+/-- **Definition 5.3** (Correctness). `rkem` is `(deltaCorr, deltaDist)`-correct if it
+satisfies both correctness with updated keys (`deltaCorrectUpdatedKeys`) and correctness of
+the update-key distribution (`deltaCloseUpdateKeyDist`). -/
+-- ANCHOR: deltaCorrect
+def deltaCorrect (rkem : RKEMScheme m Par EK DK CT K) (runtime : ProbCompRuntime m)
+    (deltaCorr : ℝ≥0∞) (deltaDist : ℝ≥0∞) [DecidableEq K] : Prop :=
+  rkem.deltaCorrectUpdatedKeys runtime deltaCorr ∧ rkem.deltaCloseUpdateKeyDist runtime deltaDist
+-- ANCHOR_END: deltaCorrect
+
+end Correctness
+
+end RKEMScheme
