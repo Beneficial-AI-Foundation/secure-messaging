@@ -7,6 +7,7 @@ import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessaging.SCKA.SPQR.Unchunked
 import SecureMessaging.SCKA.SPQR.Chunked
 import SecureMessaging.SCKA.SPQR.Construction
+import SecureMessaging.SCKA.SPQR.Correspondence
 import SecureMessaging.SCKA.SPQR.Instances
 
 set_option linter.style.setOption false
@@ -423,6 +424,124 @@ def scheme (P : MLKEMBraid.Parameters m) [DecidableEq P.Sym]
 ```
 
 {usesLabel}`uses` {uses "scka_scheme"}[] · {uses "spqr_chunked_spec"}[] · {uses "incremental_kem_rand_leak"}[] · {githubLabel}`github` {githubIssue 263}[]
+::::
+
+:::defTitle "spqr_chunked_to_mlkem_braid" "Translation of the SPQR chunked protocol into ML-KEM Braid"
+:::
+
+::::definition "spqr_chunked_to_mlkem_braid" (parent := "spqr_chunked") (lean := "SPQR.Chunked.Message.toMLKEMBraid, SPQR.Chunked.PartyState.toMLKEMBraid, SPQR.Chunked.SendResult.toMLKEMBraid")
+
+:::leanPillCaption "wire message"
+:::
+
+```anchor Correspondence_Message_toMLKEMBraid (project := ".") (module := SecureMessaging.SCKA.SPQR.Correspondence)
+def Message.toMLKEMBraid {Sym : Type} (msg : Message Sym) : MLKEMBraid.Message Sym :=
+  match msg.payload with
+  | .none => ⟨msg.epoch, .none, none⟩
+  | .hdr chunk => ⟨msg.epoch, .hdr, some chunk⟩
+  | .ek chunk => ⟨msg.epoch, .ek, some chunk⟩
+  | .ekCt1Ack chunk => ⟨msg.epoch, .ekCt1Ack, some chunk⟩
+  | .ct1Ack => ⟨msg.epoch, .ct1Ack, none⟩
+  | .ct1 chunk => ⟨msg.epoch, .ct1, some chunk⟩
+  | .ct2 chunk => ⟨msg.epoch, .ct2, some chunk⟩
+```
+
+:::leanPillCaption "party state"
+:::
+
+```anchor Correspondence_PartyState_toMLKEMBraid (project := ".") (module := SecureMessaging.SCKA.SPQR.Correspondence)
+def PartyState.toMLKEMBraid : PartyState P AuthState → MLKEMBraid.State P AuthState
+  | .keysUnsampled core => .keysUnsampled core.ep core.authSt
+  | .keysSampled core enc =>
+      .keysSampled core.ep core.authSt core.sk (P.inc.toVector core.pk) enc
+  | .headerSent core enc dec => .headerSent core.ep core.authSt core.sk dec enc
+  | .ct1Received core enc => .ct1Received core.ep core.authSt core.sk core.c1 enc
+  | .ekSentCt1Received core dec => .ekSentCt1Received core.ep core.authSt core.sk core.c1 dec
+  | .noHeaderReceived core dec => .noHeaderReceived core.ep core.authSt dec
+  | .headerReceived core dec => .headerReceived core.ep core.authSt core.hdr dec
+  | .ct1Sampled core enc dec =>
+      .ct1Sampled core.ep core.authSt core.hdr core.encapsSt core.c1 enc dec
+  | .ekReceivedCt1Sampled core enc =>
+      .ekReceivedCt1Sampled core.ep core.authSt core.encapsSt core.c1 core.hdr core.vec enc
+  | .ct1Acknowledged core dec =>
+      .ct1Acknowledged core.ep core.authSt core.hdr core.encapsSt core.c1 dec
+  | .ct2Sampled core enc => .ct2Sampled core.ep core.authSt enc
+```
+
+:::leanPillCaption "send result"
+:::
+
+```anchor Correspondence_SendResult_toMLKEMBraid (project := ".") (module := SecureMessaging.SCKA.SPQR.Correspondence)
+def SendResult.toMLKEMBraid (r : SendResult P AuthState) : MLKEMBraid.SendResult P AuthState :=
+  ⟨r.msg.toMLKEMBraid, r.sendingEpoch, r.outputKey, r.state.toMLKEMBraid⟩
+```
+
+{usesLabel}`uses` {uses "spqr_chunked_spec"}[] · {uses "mlkem_braid_protocol_messages"}[] · {uses "mlkem_braid_protocol_states"}[] · {githubLabel}`github` {githubIssue 263}[]
+::::
+
+:::defTitle "spqr_chunked_correspondence" "Agreement of the SPQR chunked protocol with ML-KEM Braid"
+:::
+
+::::theorem "spqr_chunked_correspondence" (parent := "spqr_chunked") (lean := "SPQR.Chunked.toMLKEMBraid_initA, SPQR.Chunked.toMLKEMBraid_initB, SPQR.Chunked.send_toMLKEMBraid, SPQR.Chunked.send_ekSentCt1Received_toMLKEMBraid, SPQR.recvSCKA_toMLKEMBraid")
+
+:::leanPillCaption "initialisation"
+:::
+
+```anchor Correspondence_toMLKEMBraid_initA (project := ".") (module := SecureMessaging.SCKA.SPQR.Correspondence)
+theorem toMLKEMBraid_initA (P : MLKEMBraid.Parameters m)
+    (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
+      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac) (ik : InitKey) :
+    (initA P auth ik).toMLKEMBraid = MLKEMBraid.initA P auth ik
+```
+
+```anchor Correspondence_toMLKEMBraid_initB (project := ".") (module := SecureMessaging.SCKA.SPQR.Correspondence)
+theorem toMLKEMBraid_initB (P : MLKEMBraid.Parameters m)
+    (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
+      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac) (ik : InitKey) :
+    (initB P auth ik).toMLKEMBraid = MLKEMBraid.initB P auth ik
+```
+
+:::leanPillCaption "send outside `ekSentCt1Received`"
+:::
+
+```anchor Correspondence_send_toMLKEMBraid (project := ".") (module := SecureMessaging.SCKA.SPQR.Correspondence)
+theorem send_toMLKEMBraid [LawfulMonad m] (P : MLKEMBraid.Parameters m)
+    (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
+      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
+    (st : PartyState P AuthState) (h : ∀ core dec, st ≠ .ekSentCt1Received core dec) :
+    SendResult.toMLKEMBraid <$> send P auth st = MLKEMBraid.send P auth st.toMLKEMBraid
+```
+
+:::leanPillCaption "send in `ekSentCt1Received`"
+:::
+
+```anchor Correspondence_send_ekSentCt1Received_toMLKEMBraid (project := ".") (module := SecureMessaging.SCKA.SPQR.Correspondence)
+theorem send_ekSentCt1Received_toMLKEMBraid [LawfulMonad m]
+    (P : MLKEMBraid.Parameters m)
+    (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
+      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
+    (core : EkSender.EkSentCt1Received P.inc AuthState)
+    (dec : DecoderState (P.inc.C₂ × P.Mac) P.Sym) :
+    SendResult.toMLKEMBraid <$> send P auth (.ekSentCt1Received core dec) =
+      (fun r => { r with msg := ⟨r.msg.epoch, .ct1Ack, r.msg.data⟩ }) <$>
+        MLKEMBraid.send P auth (PartyState.toMLKEMBraid (.ekSentCt1Received core dec))
+```
+
+:::leanPillCaption "receive at the SCKA level"
+:::
+
+```anchor Correspondence_recvSCKA_toMLKEMBraid (project := ".") (module := SecureMessaging.SCKA.SPQR.Correspondence)
+theorem recvSCKA_toMLKEMBraid (P : MLKEMBraid.Parameters m) [DecidableEq P.Sym]
+    (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
+      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
+    (st : PartyState P AuthState) (msg : Message P.Sym)
+    (h : MLKEMBraid.receive P auth st.toMLKEMBraid msg.toMLKEMBraid ≠
+      .ok ⟨st.toMLKEMBraid.epoch - 1, none, st.toMLKEMBraid⟩) :
+    (recvSCKA P auth st msg).map (fun r => (r.1, r.2.1, r.2.2.toMLKEMBraid)) =
+      MLKEMBraid.recvSCKA P auth st.toMLKEMBraid msg.toMLKEMBraid
+```
+
+{usesLabel}`uses` {uses "spqr_chunked_to_mlkem_braid"}[] · {uses "spqr_chunked_scheme"}[] · {uses "mlkem_braid_protocol_transitions"}[] · {uses "mlkem_braid_protocol_init"}[] · {uses "mlkem_braid_spec"}[] · {githubLabel}`github` {githubIssue 263}[]
 ::::
 
 :::defTitle "spqr_protocol_spec" "SPQR protocol"

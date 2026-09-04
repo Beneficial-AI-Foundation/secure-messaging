@@ -91,8 +91,8 @@ Storing the first chunk without a test assumes that one chunk does not complete 
 v1 thresholds 30 and 5 satisfy this, and correctness statements for a generic `P` take it as a
 hypothesis together with `ErasureCode.Correct`.
 
-See `SPQR.Construction` for SCKA packaging and `MLKEMBraid` for the transition system of the
-specification.
+See `SPQR.Construction` for SCKA packaging, `MLKEMBraid` for the transition system of the
+specification, and `SPQR.Correspondence` for the translation into it and the agreement theorems.
 -/
 
 open ErasureCodePayload.Streaming
