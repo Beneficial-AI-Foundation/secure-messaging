@@ -13,18 +13,18 @@ import LatticeCrypto.Ring.Norms
 `Frodo.Encode` and `Frodo.Decode`, with the proof that decoding inverts
 encoding, exactly and in the presence of noise.
 
-Two 2025 revisions are cited, because neither covers everything this file needs:
+Two documents are cited, because neither covers everything this file needs:
 
 * `[CiC25]`, Glabush, Longa, Naehrig, Peikert, Stebila and Virdia, *FrodoKEM: A
   CCA-Secure Learning With Errors Key Encapsulation Mechanism*, IACR
   Communications in Cryptology 2:3, <https://cic.iacr.org/p/2/3/25>: the maps on
-  bit strings, Appendix B, named in Section 3.3;
-* `[ABD+25]`, Alkim, Bos, Ducas, Longa, Mironov, Naehrig, Nikolaenko, Peikert,
-  Raghunathan and Stebila, *FrodoKEM Preliminary Standardization Proposal
-  (submitted to ISO)*, September 2025,
-  <https://frodokem.org/files/FrodoKEM_standard_proposal_20250929.pdf>: the same
-  maps in Section 7.3, and the octet convention of Section 7.1, which `[CiC25]`
-  leaves open. Both describe the same version of the scheme.
+  bit strings, Appendix B, named in Section 3.3, and their noise tolerance,
+  Lemma 1 of Section 4.1;
+* `[LBES26]`, Longa, Bos, Ehlen and Stebila, *FrodoKEM: key encapsulation from
+  learning with errors*, draft-longa-cfrg-frodokem-03, 22 June 2026,
+  <https://datatracker.ietf.org/doc/html/draft-longa-cfrg-frodokem-03>: the same
+  maps as pseudocode, Section 6.3, with the chunking layout written out. It
+  states no correctness result, so Lemma 1 is cited from `[CiC25]` alone.
 
 Encoding places `B` bits in each entry of an `mbar`-by-`nbar` matrix over
 `ZMod q`. With `p : Params` left implicit and the least significant bit read
@@ -34,13 +34,10 @@ first throughout:
   which agrees under `q = 2 ^ D` — and `dc` back, `c ↦ ⌊c * 2 ^ B / q⌉ mod 2 ^ B`;
 * `EncodeChunks`, `DecodeChunks`: `ec` and `dc` entrywise, on a message already
   chunked into `mbar * nbar` values of `ZMod (2 ^ B)`;
-* Section 7.1 writes bit `8 * a + t` of a bit string as bit `t` of octet `a`,
-  for `0 ≤ t < 8`;
-* Section 7.3 writes bit `(i * nbar + j) * B + t` as bit `t` of the matrix entry
+* Section 6.3 writes bit `(i * nbar + j) * B + t` as bit `t` of the matrix entry
   in row `i` and column `j`, for `0 ≤ i < mbar`, `0 ≤ j < nbar` and
   `0 ≤ t < B`, so that the matrix is read row by row;
-* `Encode` and `Decode` compose these on bit strings of length `mbar * nbar * B`,
-  and `encodeMessage`, `decodeMessage` do the same on `Message p`.
+* `Encode` and `Decode` compose these on bit strings of length `mbar * nbar * B`.
 
 Three of the `Params.WellFormed` conditions are used:
 
@@ -60,19 +57,12 @@ whose names are left for the composites.
 
 * `ec`, `dc`: the scalar maps;
 * `ChunkMatrix`: an `mbar`-by-`nbar` matrix of `B`-bit chunks;
-* `bytesToBitsWith`, `bitsToBytesWith`: the octet layer with the convention on
-  one octet left as a parameter, the matrix layer being `Bits.lean`. Both files
-  prove their round trips through these, and the `…_eq` lemmas identify each
-  published definition with one;
 * `EncodeChunks`, `DecodeChunks`: the matrix maps, `ec` and `dc` applied
   entrywise;
-* `byteToBits`, `bitsToByte` and their vector forms `bytesToBits`,
-  `bitsToBytes`: the Section 7.1 octet conversion;
-* `chunkToBits`, `bitsToChunk`, `toChunks`, `ofChunks`: the Section 7.3
-  chunking;
+* `chunkToBits`, `bitsToChunk`, `toChunks`, `ofChunks`: the Section 6.3
+  chunking. Its matrix half is the layer `Bits.lean` shares with `Packing.lean`,
+  and `toChunks_eq`, `ofChunks_eq` identify these two with it;
 * `Encode`, `Decode`: the published maps, on bit strings;
-* `encodeMessage`, `decodeMessage`: the same on `Message p`, over a
-  `ValidParams`;
 * `Params.noiseRadius`: the half-step `q / 2 ^ (B + 1)`.
 
 ## Main results
@@ -86,15 +76,10 @@ whose names are left for the composites.
   and open above. That division is the rational one, and is why the theorems
   scale it away: at `B = D` the window is `-1/2 ≤ e < 1/2`, which truncates to
   the empty `0 ≤ e < 0` in `ℕ`;
-* `decodeMessage_encodeMessage` and `decodeMessage_encodeMessage_add`: the same
-  on `Message p`;
-* `bitsToBytes_bytesToBits`, `bytesToBits_bitsToBytes`, `ofChunks_toChunks` and
-  `toChunks_ofChunks`: the two layers are inverse;
-* `getElem_bytesToBits` and `getElem_ofChunks`: the position formulas this
-  header states in prose, as theorems;
-* `byteToBits_domainSeparators`: the Section 7.1 order on the specification's
-  two domain separators, which the round trips cannot fix. The chunking's bit
-  order and layout are fixed the same way, by the `example`s beside them.
+* `ofChunks_toChunks` and `toChunks_ofChunks`: the chunking is a round trip;
+* `getElem_ofChunks`: the position formula this header states in prose, as a
+  theorem. The bit order and layout it fixes are pinned by the `example`s beside
+  the definitions, which no round trip can determine.
 -/
 
 namespace FrodoKEM
@@ -265,21 +250,20 @@ theorem DecodeChunks_EncodeChunks_add (p : Params) (hw : p.WellFormed)
 
 /-! ## Chunking
 
-Section 7.3 of `[ABD+25]`: each `B`-bit run of the input, read from its least
+Section 6.3 of `[LBES26]`: each `B`-bit run of the input, read from its least
 significant bit, becomes one matrix entry; entries are filled row by row and
 each row is filled left to right, so bits `0` to `B - 1` of the input fill
 entry `(0, 0)`.
 
-The bit strings here have length `mbar * nbar * B`, one `B`-bit run per entry.
-`Params.WellFormed.ell_eq` identifies that with `ℓ`, and `ellBytes_mul_eight`
-turns it into the byte count of a `Message p`. -/
+The bit strings here have length `mbar * nbar * B`, one `B`-bit run per entry,
+which `Params.WellFormed.ell_eq` identifies with the message length `ℓ`. -/
 
 /-- The `B` bits of one chunk, least significant first. -/
 def chunkToBits (p : Params) (k : ZMod (2 ^ p.B)) : Vector Bool p.B :=
   Vector.ofFn fun t => k.val.testBit t
 
 /-- The chunk with the given `B` bits, least significant first. `Nat.ofBits`
-is that reading, and `[ABD+25]` uses the same convention. -/
+is that reading, and `[LBES26]` uses the same convention. -/
 def bitsToChunk (p : Params) (v : Vector Bool p.B) : ZMod (2 ^ p.B) :=
   ((Nat.ofBits fun t => v[t] : ℕ) : ZMod (2 ^ p.B))
 
@@ -317,17 +301,17 @@ def ofChunks (p : Params) (M : ChunkMatrix p) : Vector Bool (mbar * nbar * p.B) 
   (Vector.ofFn fun c : Fin (mbar * nbar) =>
     chunkToBits p (M c.divNat c.modNat)).flatten
 
-/-- `ofChunks` is the shared layer at the Section 7.3 chunking. -/
+/-- `ofChunks` is the shared layer at the Section 6.3 chunking. -/
 theorem ofChunks_eq (p : Params) (M : ChunkMatrix p) :
     ofChunks p M = matrixToBitsWith (chunkToBits p) M := rfl
 
-/-- `toChunks` is the shared layer at the Section 7.3 chunking. -/
+/-- `toChunks` is the shared layer at the Section 6.3 chunking. -/
 theorem toChunks_eq (p : Params) (b : Vector Bool (mbar * nbar * p.B)) :
     toChunks p b = bitsToMatrixWith (bitsToChunk p) b := rfl
 
-/-- The chunking convention on a fixed matrix, as the octet examples do for
-Section 7.1: with `B = 2`, the bit string that has only bits `0` and `3` set
-puts `1` in entry `(0, 0)` and `2` in entry `(0, 1)`. This fixes both orders
+/-- The chunking convention on a fixed matrix: with `B = 2`, the bit string
+that has only bits `0` and `3` set puts `1` in entry `(0, 0)` and `2` in entry
+`(0, 1)`. This fixes both orders
 that the round trips leave open, the bits within a chunk and the entries along
 a row; `toChunks` is used rather than `ofChunks` because `Vector.flatten` does
 not reduce. -/
@@ -336,7 +320,7 @@ example : toChunks ParameterSet.FrodoKEM640.params
       ⟨0, by decide⟩ ⟨1, by decide⟩ = 2 := by decide
 
 /-- Bit `t` of entry `(i, j)` sits at position `(i * nbar + j) * B + t`, the
-layout of Section 7.3. -/
+layout of Section 6.3. -/
 theorem getElem_ofChunks (p : Params) (M : ChunkMatrix p) {i j t : ℕ}
     (hi : i < mbar) (hj : j < nbar) (ht : t < p.B) :
     (ofChunks p M)[(i * nbar + j) * p.B + t]'(bitIndex_lt hi hj ht) =
@@ -360,13 +344,13 @@ theorem ofChunks_toChunks (p : Params) (b : Vector Bool (mbar * nbar * p.B)) :
 
 /-! ## The published maps -/
 
-/-- `Frodo.Encode` (Appendix B of `[CiC25]`, Section 7.3 of `[ABD+25]`): cut
+/-- `Frodo.Encode` (Appendix B of `[CiC25]`, Section 6.3 of `[LBES26]`): cut
 the bit string into `B`-bit chunks, then apply `ec` entrywise. -/
 def Encode (p : Params) (b : Vector Bool (mbar * nbar * p.B)) :
     FrodoMatrix p mbar nbar :=
   EncodeChunks p (toChunks p b)
 
-/-- `Frodo.Decode` (Appendix B of `[CiC25]`, Section 7.3 of `[ABD+25]`): apply
+/-- `Frodo.Decode` (Appendix B of `[CiC25]`, Section 6.3 of `[LBES26]`): apply
 `dc` entrywise, then concatenate the chunks. -/
 def Decode (p : Params) (C : FrodoMatrix p mbar nbar) :
     Vector Bool (mbar * nbar * p.B) :=

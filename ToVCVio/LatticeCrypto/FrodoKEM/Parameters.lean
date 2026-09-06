@@ -10,11 +10,12 @@ import Mathlib.Data.Matrix.Basic
 /-!
 # FrodoKEM Parameters
 
-The cryptographic parameters of FrodoKEM, following Tables 1 and 2 of the
-specification, published at [frodokem.org](https://frodokem.org/) and as
+The cryptographic parameters of FrodoKEM, following Tables 1 and 2 of
 [Glabush, Longa, Naehrig, Peikert, Stebila and Virdia,
 *FrodoKEM: A CCA-Secure Learning With Errors Key Encapsulation Mechanism*,
-Communications in Cryptology 2:3](https://cic.iacr.org/p/2/3/25).
+Communications in Cryptology 2:3](https://cic.iacr.org/p/2/3/25). The same
+values are tabulated in Section 9.1 of
+[draft-longa-cfrg-frodokem-03](https://datatracker.ietf.org/doc/html/draft-longa-cfrg-frodokem-03).
 
 The published tables are recorded verbatim in `ParameterSet.params`. The relations
 between the entries are stated as theorems. The quantities are:
@@ -48,8 +49,6 @@ each length comes in both units and the docstrings name which is which.
 A `Params` is plain data, so nothing constrains its fields. `Params.WellFormed`
 collects the conditions of Section 3 that the encoding and packing proofs
 depend on, and `params_wellFormed` discharges them for every published set.
-`ValidParams` pairs a record with that proof, for the definitions that need it
-to typecheck rather than only to be proved correct.
 -/
 
 namespace FrodoKEM
