@@ -26,22 +26,40 @@ Two documents are cited, because neither covers everything this file needs:
   maps as pseudocode, Section 6.3, with the chunking layout written out. It
   states no correctness result, so Lemma 1 is cited from `[CiC25]` alone.
 
+## Main definitions
+
 Encoding places `B` bits in each entry of an `mbar`-by-`nbar` matrix over
-`ZMod q`. With `p : Params` left implicit and the least significant bit read
-first throughout:
+`ZMod q`. Names follow the specification, `ec` and `dc` included. With
+`p : Params` left implicit and the least significant bit read first throughout,
+the scalar maps are
 
 * `ec : ZMod (2 ^ B) → ZMod q`, `k ↦ k * q / 2 ^ B` — written `k * 2 ^ (D - B)`,
   which agrees under `q = 2 ^ D`;
 * `dc : ZMod q → ZMod (2 ^ B)`, `c ↦ ⌊c * 2 ^ B / q⌉ mod 2 ^ B`;
+
+they are applied to every entry of a matrix by
+
 * `EncodeChunks : ChunkMatrix p → FrodoMatrix p mbar nbar`, applying `ec` to
   every entry. The message is already cut into `mbar * nbar` chunks that belong
-  to `ZMod (2 ^ B)`. Each chunk becomes one entry of the matrix;
+  to `ZMod (2 ^ B)`, which is what a `ChunkMatrix p` holds. Each chunk becomes
+  one entry of the matrix;
 * `DecodeChunks : FrodoMatrix p mbar nbar → ChunkMatrix p`, applying `dc` to
   every entry. If an entry stays within the noise window below, then the initial
   chunk is recovered;
-* Section 6.3 writes bit `(i * nbar + j) * B + t` as bit `t` of the matrix entry
-  in row `i` and column `j`, for `0 ≤ i < mbar`, `0 ≤ j < nbar` and
-  `0 ≤ t < B`, so that the matrix is read row by row;
+
+the message is cut into those chunks by
+
+* `chunkToBits : ZMod (2 ^ B) → Vector Bool B` and `bitsToChunk` back, one
+  chunk at a time, with `toChunks` and `ofChunks` doing the same for a whole
+  matrix. This is the layout of Section 6.3, which writes bit
+  `(i * nbar + j) * B + t` as bit `t` of the entry in row `i` and column `j`,
+  for `0 ≤ i < mbar`, `0 ≤ j < nbar` and `0 ≤ t < B`, so that the matrix is
+  read row by row. Its matrix half is the layer `Bits.lean` shares with
+  `Packing.lean`, and `toChunks_eq`, `ofChunks_eq` identify these two with it;
+
+and the two composites, which are `Frodo.Encode` and `Frodo.Decode` of the
+specification and so take those names, are
+
 * `Encode : Vector Bool (mbar * nbar * B) → FrodoMatrix p mbar nbar`, cutting
   the bit vector into chunks with `toChunks` and then applying `EncodeChunks`.
   The bit vector is the message, `ell_eq` fixing `mbar * nbar * B` to be its
@@ -59,22 +77,6 @@ Three of the `Params.WellFormed` conditions are used:
 The encoded values then sit at spacing `q / 2 ^ B = 2 ^ (D - B)`. If the added
 noise is less than half of it, then `dc` recovers `k`; `dc_ec_add` states the
 window exactly, and `Params.noiseRadius` is that half-step rounded down.
-
-Names follow the specification, `ec` and `dc` included; `EncodeChunks` and
-`DecodeChunks` are the entrywise half of `Frodo.Encode` and `Frodo.Decode`,
-whose names are left for the composites.
-
-## Main definitions
-
-* `ec`, `dc`: the scalar maps;
-* `ChunkMatrix`: an `mbar`-by-`nbar` matrix of `B`-bit chunks;
-* `EncodeChunks`, `DecodeChunks`: the matrix maps, `ec` and `dc` applied
-  entrywise;
-* `chunkToBits`, `bitsToChunk`, `toChunks`, `ofChunks`: the Section 6.3
-  chunking. Its matrix half is the layer `Bits.lean` shares with `Packing.lean`,
-  and `toChunks_eq`, `ofChunks_eq` identify these two with it;
-* `Encode`, `Decode`: the published maps, on bit strings;
-* `Params.noiseRadius`: the half-step `q / 2 ^ (B + 1)`.
 
 ## Main results
 
