@@ -31,13 +31,24 @@ Encoding places `B` bits in each entry of an `mbar`-by-`nbar` matrix over
 first throughout:
 
 * `ec : ZMod (2 ^ B) → ZMod q`, `k ↦ k * q / 2 ^ B` — written `k * 2 ^ (D - B)`,
-  which agrees under `q = 2 ^ D` — and `dc` back, `c ↦ ⌊c * 2 ^ B / q⌉ mod 2 ^ B`;
-* `EncodeChunks`, `DecodeChunks`: `ec` and `dc` entrywise, on a message already
-  chunked into `mbar * nbar` values of `ZMod (2 ^ B)`;
+  which agrees under `q = 2 ^ D`;
+* `dc : ZMod q → ZMod (2 ^ B)`, `c ↦ ⌊c * 2 ^ B / q⌉ mod 2 ^ B`;
+* `EncodeChunks : ChunkMatrix p → FrodoMatrix p mbar nbar`, applying `ec` to
+  every entry. The message is already cut into `mbar * nbar` chunks that belong
+  to `ZMod (2 ^ B)`. Each chunk becomes one entry of the matrix;
+* `DecodeChunks : FrodoMatrix p mbar nbar → ChunkMatrix p`, applying `dc` to
+  every entry. If an entry stays within the noise window below, then the initial
+  chunk is recovered;
 * Section 6.3 writes bit `(i * nbar + j) * B + t` as bit `t` of the matrix entry
   in row `i` and column `j`, for `0 ≤ i < mbar`, `0 ≤ j < nbar` and
   `0 ≤ t < B`, so that the matrix is read row by row;
-* `Encode` and `Decode` compose these on bit strings of length `mbar * nbar * B`.
+* `Encode : Vector Bool (mbar * nbar * B) → FrodoMatrix p mbar nbar`, cutting
+  the bit vector into chunks with `toChunks` and then applying `EncodeChunks`.
+  The bit vector is the message, `ell_eq` fixing `mbar * nbar * B` to be its
+  length `ℓ`;
+* `Decode : FrodoMatrix p mbar nbar → Vector Bool (mbar * nbar * B)`, applying
+  `DecodeChunks` and then laying the chunks back out with `ofChunks`. If every
+  entry stays within the noise window, then the initial message is recovered.
 
 Three of the `Params.WellFormed` conditions are used:
 
