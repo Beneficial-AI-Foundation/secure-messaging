@@ -74,13 +74,14 @@ def Unpack (p : Params) {r c : ℕ} (b : Vector Bool (r * c * p.D)) : FrodoMatri
     b[(i.val * c + j.val) * p.D + l.val]'(bitIndex_lt i.isLt j.isLt l.isLt))
 
 /-- The Section 6.4 layout on a fixed matrix: with `D = 15`, the bit string
-that has only bits `14` and `28` set unpacks to the row `[1, 2]`. This fixes
-both orders the round trips leave open, the bits within an entry and the
-entries along a row; `Unpack` is used rather than `Pack` because
-`Vector.flatten` does not reduce. -/
+that has only bits `14`, `28`, `43`, `44` and `57` set unpacks to
+`![![1, 2], ![3, 4]]`. This fixes all three orders the round trips leave open,
+the bits within an entry, the entries along a row, and the rows themselves;
+`Unpack` is used rather than `Pack` because `Vector.flatten` does not reduce. -/
 example : Unpack ParameterSet.FrodoKEM640.params
-    (Vector.ofFn fun i : Fin (1 * 2 * 15) => decide (i.val = 14 ∨ i.val = 28)) =
-      Matrix.of ![![(1 : ZMod 32768), 2]] := by decide
+    (Vector.ofFn fun i : Fin (2 * 2 * 15) =>
+      decide (i.val = 14 ∨ i.val = 28 ∨ i.val = 43 ∨ i.val = 44 ∨ i.val = 57)) =
+      Matrix.of ![![(1 : ZMod 32768), 2], ![3, 4]] := by decide
 
 /-- `Pack` is the shared layer at the Section 6.4 layout. -/
 theorem Pack_eq (p : Params) {r c : ℕ} (M : FrodoMatrix p r c) :

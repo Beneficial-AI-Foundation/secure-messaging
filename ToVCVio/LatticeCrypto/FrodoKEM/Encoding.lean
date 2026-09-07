@@ -341,6 +341,12 @@ example : toChunks ParameterSet.FrodoKEM640.params
     (Vector.ofFn fun i : Fin (mbar * nbar * 2) => decide (i.val = 0 ∨ i.val = 3))
       ⟨0, by decide⟩ ⟨1, by decide⟩ = 2 := by decide
 
+/-- The row order, which the example above leaves open: bit `16` is the first
+bit of entry `(1, 0)`, so it puts `1` in the second row and not in the last. -/
+example : toChunks ParameterSet.FrodoKEM640.params
+    (Vector.ofFn fun i : Fin (mbar * nbar * 2) => decide (i.val = 16))
+      ⟨1, by decide⟩ ⟨0, by decide⟩ = 1 := by decide
+
 /-- Bit `t` of entry `(i, j)` sits at position `(i * nbar + j) * B + t`, the
 layout of Section 6.3. -/
 theorem getElem_ofChunks (p : Params) (M : ChunkMatrix p) {i j t : ℕ}
