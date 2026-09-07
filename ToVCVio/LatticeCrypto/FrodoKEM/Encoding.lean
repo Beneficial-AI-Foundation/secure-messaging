@@ -55,9 +55,9 @@ the message is cut into those chunks by
   `chunkToBits` to every entry and concatenating the results in that same
   order.
 
-`toChunks` and `ofChunks` are the layer `Bits.lean` shares with `Packing.lean`,
-at the chunk maps and width `B`; `toChunks_eq` and `ofChunks_eq` identify them
-with it.
+`toChunks_eq` and `ofChunks_eq` identify these two with `bitsToMatrixWith` and
+`matrixToBitsWith` of `Bits.lean`, which `Packing.lean` uses at `D` bits per
+entry rather than `B`.
 
 The two composites, which are `Frodo.Encode` and `Frodo.Decode` of the
 specification and so take those names, are
@@ -317,11 +317,13 @@ def ofChunks (p : Params) (M : ChunkMatrix p) : Vector Bool (mbar * nbar * p.B) 
   (Vector.ofFn fun c : Fin (mbar * nbar) =>
     chunkToBits p (M c.divNat c.modNat)).flatten
 
-/-- `ofChunks` is the shared layer at the Section 6.3 chunking. -/
+/-- `ofChunks` is `matrixToBitsWith` at `chunkToBits`, by definition. An edit
+breaking the correspondence fails here. -/
 theorem ofChunks_eq (p : Params) (M : ChunkMatrix p) :
     ofChunks p M = matrixToBitsWith (chunkToBits p) M := rfl
 
-/-- `toChunks` is the shared layer at the Section 6.3 chunking. -/
+/-- `toChunks` is `bitsToMatrixWith` at `bitsToChunk`, by definition. An edit
+breaking the correspondence fails here. -/
 theorem toChunks_eq (p : Params) (b : Vector Bool (mbar * nbar * p.B)) :
     toChunks p b = bitsToMatrixWith (bitsToChunk p) mbar nbar b := rfl
 

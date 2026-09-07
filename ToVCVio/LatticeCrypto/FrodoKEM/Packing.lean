@@ -27,8 +27,8 @@ string; Section 6.4 has a second step, encoding it as octets, and Section 6.4's
 ## Main definitions
 
 * `entryToBits`, `bitsToEntry`: one entry as `D` bits;
-* `Pack`, `Unpack`, with `Pack_eq` and `Unpack_eq` identifying them with
-  `Bits.lean`'s shared matrix layer.
+* `Pack`, `Unpack`, which `Pack_eq` and `Unpack_eq` identify with
+  `matrixToBitsWith` and `bitsToMatrixWith` of `Bits.lean`.
 
 ## Main results
 
@@ -85,11 +85,13 @@ example : Unpack ParameterSet.FrodoKEM640.params 2 2
       decide (i.val = 14 ∨ i.val = 28 ∨ i.val = 43 ∨ i.val = 44 ∨ i.val = 57)) =
       Matrix.of ![![(1 : ZMod 32768), 2], ![3, 4]] := by decide
 
-/-- `Pack` is the shared layer at the Section 6.4 layout. -/
+/-- `Pack` is `matrixToBitsWith` at `entryToBits`, by definition. An edit
+breaking the correspondence fails here. -/
 theorem Pack_eq (p : Params) {r c : ℕ} (M : FrodoMatrix p r c) :
     Pack p M = matrixToBitsWith (entryToBits p) M := rfl
 
-/-- `Unpack` is the shared layer at the Section 6.4 layout. -/
+/-- `Unpack` is `bitsToMatrixWith` at `bitsToEntry`, by definition. An edit
+breaking the correspondence fails here. -/
 theorem Unpack_eq (p : Params) (r c : ℕ) (b : Vector Bool (r * c * p.D)) :
     Unpack p r c b = bitsToMatrixWith (bitsToEntry p) r c b := rfl
 
