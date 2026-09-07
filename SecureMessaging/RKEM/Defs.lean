@@ -260,6 +260,7 @@ b ← {0,1}, K1 ← $K,
 b' ← A(ekA, ek̂A, ek̂B, ctB, dk̂A, K_b)
 ```
 returning `b = b'`. -/
+-- ANCHOR: securityExpA
 def securityExpA (rkem : RKEMScheme ProbComp Par EK DK CT K)
     (adversary : FSINDCPAAdversary EK DK CT K) [SampleableType K] : ProbComp Bool := do
   let b ← $ᵗ Bool
@@ -277,6 +278,7 @@ def securityExpA (rkem : RKEMScheme ProbComp Par EK DK CT K)
   | some (_, ekAHat) =>
     let b' ← adversary ekA ekAHat ekBHat ctB dkAHat (if b then k1 else k0)
     return b == b'
+-- ANCHOR_END: securityExpA
 
 /-- As `securityExpA`, with the roles of `A` and `B` swapped. -/
 def securityExpB (rkem : RKEMScheme ProbComp Par EK DK CT K)
@@ -298,9 +300,11 @@ def securityExpB (rkem : RKEMScheme ProbComp Par EK DK CT K)
     return b == b'
 
 /-- `Adv^{FS-IND-CPA-A}`: `|Pr[securityExpA = true] - 1/2|`. -/
+-- ANCHOR: fsIndCpaAdvantageA
 noncomputable def fsIndCpaAdvantageA (rkem : RKEMScheme ProbComp Par EK DK CT K)
     (adversary : FSINDCPAAdversary EK DK CT K) [SampleableType K] : ℝ :=
   |(Pr[= true | rkem.securityExpA adversary]).toReal - 1 / 2|
+-- ANCHOR_END: fsIndCpaAdvantageA
 
 /-- `Adv^{FS-IND-CPA-B}`: as `fsIndCpaAdvantageA`, with the roles of `A` and `B` swapped. -/
 noncomputable def fsIndCpaAdvantageB (rkem : RKEMScheme ProbComp Par EK DK CT K)
@@ -308,9 +312,11 @@ noncomputable def fsIndCpaAdvantageB (rkem : RKEMScheme ProbComp Par EK DK CT K)
   |(Pr[= true | rkem.securityExpB adversary]).toReal - 1 / 2|
 
 /-- `Adv^{FS-IND-CPA} := max_{P ∈ {A,B}} Adv^{FS-IND-CPA-P}`. -/
+-- ANCHOR: fsIndCpaAdvantage
 noncomputable def fsIndCpaAdvantage (rkem : RKEMScheme ProbComp Par EK DK CT K)
     (adversaryA adversaryB : FSINDCPAAdversary EK DK CT K) [SampleableType K] : ℝ :=
   max (rkem.fsIndCpaAdvantageA adversaryA) (rkem.fsIndCpaAdvantageB adversaryB)
+-- ANCHOR_END: fsIndCpaAdvantage
 
 /-- **Definition 5.4** (FS-IND-CPA security). `rkem` is `epsilon`-FS-IND-CPA-secure against
 `adversaryA`, `adversaryB` if both per-party advantages are at most `epsilon`. Asymptotic

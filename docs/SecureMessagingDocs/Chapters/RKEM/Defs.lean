@@ -78,6 +78,65 @@ $`\todo`
 {usesLabel}`uses` {uses "rkem_scheme"}[] · {githubLabel}`github` {githubIssue 179}[]
 ::::
 
+:::defTitle "rkem_security_experiment" "RKEM Security Experiment"
+:::
+
+:::definition "rkem_security_experiment" (parent := "rkem") (lean := "RKEMScheme.securityExpA")
+$`\todo`
+
+```anchor securityExpA (project := ".") (module := SecureMessaging.RKEM.Defs)
+def securityExpA (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    (adversary : FSINDCPAAdversary EK DK CT K) [SampleableType K] : ProbComp Bool := do
+  let b ← $ᵗ Bool
+  let k1 ← $ᵗ K
+  let par ← rkem.rsetup
+  let (ekA, dkA) ← rkem.rkeygenAFresh par
+  let (ekBHat, dkBHat) ← rkem.rkeygenBUpdated par
+  let (ctB, k0, dkAHat) ← rkem.rencA par ekBHat dkA
+  let res ← rkem.rdecB par dkBHat ctB ekA
+  match res with
+  | none =>
+    -- Decapsulation failed in this case, we return a fresh random boolean
+    let b' ← $ᵗ Bool
+    return b'
+  | some (_, ekAHat) =>
+    let b' ← adversary ekA ekAHat ekBHat ctB dkAHat (if b then k1 else k0)
+    return b == b'
+```
+
+{usesLabel}`uses` {uses "rkem_scheme"}[]
+:::
+
+:::defTitle "rkem_guess_advantageA" "RKEM Guess Advantage"
+:::
+
+:::definition "rkem_guess_advantageA" (parent := "rkem") (lean := "RKEMScheme.fsIndCpaAdvantageA")
+$`\todo`
+
+```anchor fsIndCpaAdvantageA (project := ".") (module := SecureMessaging.RKEM.Defs)
+noncomputable def fsIndCpaAdvantageA (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    (adversary : FSINDCPAAdversary EK DK CT K) [SampleableType K] : ℝ :=
+  |(Pr[= true | rkem.securityExpA adversary]).toReal - 1 / 2|
+```
+
+{usesLabel}`uses` {uses "rkem_security_experiment"}[]
+:::
+
+:::defTitle "rkem_guess_advantage" "RKEM Guess Advantage"
+:::
+
+:::definition "rkem_guess_advantage" (parent := "rkem") (lean := "RKEMScheme.fsIndCpaAdvantage")
+$`\todo`
+
+```anchor fsIndCpaAdvantage (project := ".") (module := SecureMessaging.RKEM.Defs)
+noncomputable def fsIndCpaAdvantage (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    (adversaryA adversaryB : FSINDCPAAdversary EK DK CT K) [SampleableType K] : ℝ :=
+  max (rkem.fsIndCpaAdvantageA adversaryA) (rkem.fsIndCpaAdvantageB adversaryB)
+```
+
+{usesLabel}`uses` {uses "rkem_guess_advantageA"}[]
+:::
+
 :::defTitle "rkem_forward_security" "RKEM forward security"
 :::
 
@@ -91,7 +150,7 @@ def FSINDCPASecure (rkem : RKEMScheme ProbComp Par EK DK CT K)
   rkem.fsIndCpaAdvantage adversaryA adversaryB ≤ epsilon
 ```
 
-{usesLabel}`uses` {uses "rkem_scheme"}[] · {githubLabel}`github` {githubIssue 178}[]
+{usesLabel}`uses` {uses "rkem_guess_advantage"}[] · {githubLabel}`github` {githubIssue 178}[]
 :::
 
 :::defTitle "rkem_correctness" "RKEM correctness"
