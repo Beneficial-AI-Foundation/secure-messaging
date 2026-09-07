@@ -91,7 +91,7 @@ theorem Pack_eq (p : Params) {r c : ℕ} (M : FrodoMatrix p r c) :
 
 /-- `Unpack` is the shared layer at the Section 6.4 layout. -/
 theorem Unpack_eq (p : Params) (r c : ℕ) (b : Vector Bool (r * c * p.D)) :
-    Unpack p r c b = bitsToMatrixWith (bitsToEntry p) b := rfl
+    Unpack p r c b = bitsToMatrixWith (bitsToEntry p) r c b := rfl
 
 /-- The bits of entry `(i, j)` sit at positions `(i * c + j) * D` onwards. -/
 theorem getElem_Pack (p : Params) {r c : ℕ} (M : FrodoMatrix p r c) {i j l : ℕ}

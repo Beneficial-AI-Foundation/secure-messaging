@@ -16,7 +16,8 @@ here:
 
 * `matrixToBitsWith f`, for `f : α → Vector Bool d`, writes the entries of an
   `r`-by-`c` matrix into a `Vector Bool (r * c * d)`;
-* `bitsToMatrixWith g`, for `g : Vector Bool d → α`, reads one back.
+* `bitsToMatrixWith g r c`, for `g : Vector Bool d → α`, reads one back. The
+  dimensions are explicit: a `Vector Bool (r * c * d)` does not determine them.
 
 |                      | `Encoding.lean` | `Packing.lean` |
 | -------------------- | --------------- | -------------- |
@@ -57,7 +58,7 @@ def matrixToBitsWith {α : Type*} {r c d : ℕ} (f : α → Vector Bool d)
 
 /-- Read a bit string back as a matrix, `g` giving the entry with the given
 `d` bits. -/
-def bitsToMatrixWith {α : Type*} {r c d : ℕ} (g : Vector Bool d → α)
+def bitsToMatrixWith {α : Type*} {d : ℕ} (g : Vector Bool d → α) (r c : ℕ)
     (b : Vector Bool (r * c * d)) : Matrix (Fin r) (Fin c) α :=
   Matrix.of fun i j => g (Vector.ofFn fun l =>
     b[(i.val * c + j.val) * d + l.val]'(bitIndex_lt i.isLt j.isLt l.isLt))
@@ -80,7 +81,7 @@ from its own bits. -/
 theorem bitsToMatrixWith_matrixToBitsWith {α : Type*} {r c d : ℕ}
     {f : α → Vector Bool d} {g : Vector Bool d → α} (hgf : ∀ x, g (f x) = x)
     (M : Matrix (Fin r) (Fin c) α) :
-    bitsToMatrixWith g (matrixToBitsWith f M) = M := by
+    bitsToMatrixWith g r c (matrixToBitsWith f M) = M := by
   ext i j
   simp only [bitsToMatrixWith, Matrix.of_apply]
   rw [← hgf (M i j)]
@@ -95,7 +96,7 @@ are recovered from the entry. -/
 theorem matrixToBitsWith_bitsToMatrixWith {α : Type*} {r c d : ℕ}
     {f : α → Vector Bool d} {g : Vector Bool d → α} (hfg : ∀ v, f (g v) = v)
     (b : Vector Bool (r * c * d)) :
-    matrixToBitsWith f (bitsToMatrixWith g b) = b := by
+    matrixToBitsWith f (bitsToMatrixWith g r c b) = b := by
   apply Vector.ext
   intro k hk
   obtain ⟨i, j, l, hi, hj, hl, rfl⟩ :

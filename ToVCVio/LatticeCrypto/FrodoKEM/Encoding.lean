@@ -330,7 +330,7 @@ theorem ofChunks_eq (p : Params) (M : ChunkMatrix p) :
 
 /-- `toChunks` is the shared layer at the Section 6.3 chunking. -/
 theorem toChunks_eq (p : Params) (b : Vector Bool (mbar * nbar * p.B)) :
-    toChunks p b = bitsToMatrixWith (bitsToChunk p) b := rfl
+    toChunks p b = bitsToMatrixWith (bitsToChunk p) mbar nbar b := rfl
 
 /-- The chunking convention on a fixed matrix: with `B = 2`, the bit string
 that has only bits `0` and `3` set puts `1` in entry `(0, 0)` and `2` in entry
