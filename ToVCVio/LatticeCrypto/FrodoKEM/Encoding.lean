@@ -272,13 +272,13 @@ theorem DecodeChunks_EncodeChunks_add (p : Params) (hw : p.WellFormed)
 
 /-! ## Chunking
 
-Section 6.3 of `[LBES26]`: each `B`-bit run of the input, read from its least
-significant bit, becomes one matrix entry; entries are filled row by row and
-each row is filled left to right, so bits `0` to `B - 1` of the input fill
-entry `(0, 0)`.
+Section 6.3 of `[LBES26]`: the input is cut every `B` bits, and each piece,
+read from its least significant bit, becomes one matrix entry; entries are
+filled row by row and each row is filled left to right, so bits `0` to `B - 1`
+of the input fill entry `(0, 0)`.
 
-The bit strings here have length `mbar * nbar * B`, one `B`-bit run per entry,
-which `Params.WellFormed.ell_eq` identifies with the message length `ℓ`. -/
+The bit strings here have length `mbar * nbar * B`, `B` bits per entry, which
+`Params.WellFormed.ell_eq` identifies with the message length `ℓ`. -/
 
 /-- The `B` bits of one chunk, least significant first. -/
 def chunkToBits (p : Params) (k : ZMod (2 ^ p.B)) : Vector Bool p.B :=
@@ -312,13 +312,14 @@ theorem chunkToBits_bitsToChunk (p : Params) (v : Vector Bool p.B) :
   simp [ht]
 
 /-- Cut a bit string into the `mbar * nbar` values of `B` bits that
-`EncodeChunks` consumes, entry `(i, j)` taking the run at position
+`EncodeChunks` consumes, entry `(i, j)` taking the piece at position
 `i * nbar + j`. -/
 def toChunks (p : Params) (b : Vector Bool (mbar * nbar * p.B)) : ChunkMatrix p :=
   Matrix.of fun i j => bitsToChunk p (Vector.ofFn fun t =>
     b[(i.val * nbar + j.val) * p.B + t.val]'(bitIndex_lt i.isLt j.isLt t.isLt))
 
-/-- The inverse of `toChunks`: the runs of each entry, row by row. -/
+/-- The inverse of `toChunks`: the bits of each entry, row by row and each row
+left to right. -/
 def ofChunks (p : Params) (M : ChunkMatrix p) : Vector Bool (mbar * nbar * p.B) :=
   (Vector.ofFn fun c : Fin (mbar * nbar) =>
     chunkToBits p (M c.divNat c.modNat)).flatten
@@ -333,10 +334,9 @@ theorem toChunks_eq (p : Params) (b : Vector Bool (mbar * nbar * p.B)) :
 
 /-- The chunking convention on a fixed matrix: with `B = 2`, the bit string
 that has only bits `0` and `3` set puts `1` in entry `(0, 0)` and `2` in entry
-`(0, 1)`. This fixes both orders
-that the round trips leave open, the bits within a chunk and the entries along
-a row; `toChunks` is used rather than `ofChunks` because `Vector.flatten` does
-not reduce. -/
+`(0, 1)`. This fixes both orders that the round trips leave open, the bits
+within a chunk and the entries along a row; `toChunks` is used rather than
+`ofChunks` because `Vector.flatten` does not reduce. -/
 example : toChunks ParameterSet.FrodoKEM640.params
     (Vector.ofFn fun i : Fin (mbar * nbar * 2) => decide (i.val = 0 ∨ i.val = 3))
       ⟨0, by decide⟩ ⟨1, by decide⟩ = 2 := by decide
