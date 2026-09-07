@@ -39,7 +39,8 @@ namespace FrodoKEM
 
 /-- Bit `t` of entry `(i, j)` of an `r`-by-`c` matrix sits at position
 `(i * c + j) * d + t` of a bit string of length `r * c * d`, when each entry
-takes `d` bits and entries are laid out row by row, each row left to right.
+takes `d` bits and entries are laid out row by row from row `0`, each row left
+to right.
 This is the bound the layer below indexes with, at `d = B` for the chunks of
 `Encoding.lean` and `d = D` for the packed entries of `Packing.lean`. -/
 theorem bitIndex_lt {r c d i j t : ℕ} (hi : i < r) (hj : j < c) (ht : t < d) :
@@ -48,8 +49,8 @@ theorem bitIndex_lt {r c d i j t : ℕ} (hi : i < r) (hj : j < c) (ht : t < d) :
     (by rw [← Nat.succ_mul, Nat.mul_comm i c]; gcongr
         exact Nat.mul_add_lt_mul_of_lt_of_lt hi hj)
 
-/-- Concatenate the entries of a matrix, row by row and each row left to right,
-`f` giving the `d` bits of one entry. -/
+/-- Concatenate the entries of a matrix, row by row from row `0` and each row
+left to right, `f` giving the `d` bits of one entry. -/
 def matrixToBitsWith {α : Type*} {r c d : ℕ} (f : α → Vector Bool d)
     (M : Matrix (Fin r) (Fin c) α) : Vector Bool (r * c * d) :=
   (Vector.ofFn fun idx : Fin (r * c) => f (M idx.divNat idx.modNat)).flatten

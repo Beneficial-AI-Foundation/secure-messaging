@@ -13,7 +13,8 @@ step 1 of Section 6.4 of `[LBES26]`. References are as in `Encoding.lean`.
 
 Both documents give the same layout: each entry of an `r`-by-`c` matrix is
 written as its `D` binary digits, most significant first, and the entries are
-laid out row by row, each row left to right, so that the entry in row `i` and
+laid out row by row from row `0`, each row left to right, so that the entry in
+row `i` and
 column `j` takes positions `(i * c + j) * D` onwards of the bit string, for
 `0 ≤ i < r` and `0 ≤ j < c`. Notice that the bit ordering within an entry is the
 reverse of `Encoding.lean`'s, where a chunk is read least significant bit first.
@@ -58,15 +59,16 @@ def bitsToEntry (p : Params) (v : Vector Bool p.D) : ZMod p.q :=
   ((Nat.ofBits fun l : Fin p.D => v[p.D - 1 - l.val]'(by omega) : ℕ) : ZMod p.q)
 
 /-- `Frodo.Pack` (Algorithm 11 of `[CiC25]`, step 1 of Section 6.4 of
-`[LBES26]`): concatenate the `D`-bit entries, row by row and each row left to
-right, most significant bit of an entry first. Step 2 of Section 6.4 goes on to
+`[LBES26]`): concatenate the `D`-bit entries, row by row from row `0` and each
+row left to right, most significant bit of an entry first. Step 2 of Section 6.4 goes on to
 encode the result as octets, which Algorithm 11 does not. -/
 def Pack (p : Params) {r c : ℕ} (M : FrodoMatrix p r c) : Vector Bool (r * c * p.D) :=
   (Vector.ofFn fun idx : Fin (r * c) =>
     entryToBits p (M idx.divNat idx.modNat)).flatten
 
 /-- `Frodo.Unpack` (Algorithm 12), the inverse of `Pack`: read the `D`-bit
-pieces back as entries, row by row and each row left to right. Section 6.4's
+pieces back as entries, row by row from row `0` and each row left to right.
+Section 6.4's
 `Unpack` decodes octets to that bit string first, which Algorithm 12 does
 not. -/
 def Unpack (p : Params) {r c : ℕ} (b : Vector Bool (r * c * p.D)) : FrodoMatrix p r c :=

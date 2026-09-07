@@ -57,7 +57,7 @@ the message is cut into those chunks by
   `mbar * nbar` chunks. Section 6.3 sends bit `(i * nbar + j) * B + t` of the
   message to bit `t` of the entry in row `i` and column `j`, for
   `0 ≤ i < mbar`, `0 ≤ j < nbar` and `0 ≤ t < B`, so the matrix fills row by
-  row, each row left to right;
+  row from row `0`, each row left to right;
 * `ofChunks : ChunkMatrix p → Vector Bool (mbar * nbar * B)`, applying
   `chunkToBits` to every entry and concatenating the results in that same
   order.
@@ -274,7 +274,7 @@ theorem DecodeChunks_EncodeChunks_add (p : Params) (hw : p.WellFormed)
 
 Section 6.3 of `[LBES26]`: the input is cut every `B` bits, and each piece,
 read from its least significant bit, becomes one matrix entry; entries are
-filled row by row and each row is filled left to right, so bits `0` to `B - 1`
+filled row by row from row `0`, each row left to right, so bits `0` to `B - 1`
 of the input fill entry `(0, 0)`.
 
 The bit strings here have length `mbar * nbar * B`, `B` bits per entry, which
@@ -318,8 +318,8 @@ def toChunks (p : Params) (b : Vector Bool (mbar * nbar * p.B)) : ChunkMatrix p 
   Matrix.of fun i j => bitsToChunk p (Vector.ofFn fun t =>
     b[(i.val * nbar + j.val) * p.B + t.val]'(bitIndex_lt i.isLt j.isLt t.isLt))
 
-/-- The inverse of `toChunks`: the bits of each entry, row by row and each row
-left to right. -/
+/-- The inverse of `toChunks`: the bits of each entry, row by row from row `0`,
+each row left to right. -/
 def ofChunks (p : Params) (M : ChunkMatrix p) : Vector Bool (mbar * nbar * p.B) :=
   (Vector.ofFn fun c : Fin (mbar * nbar) =>
     chunkToBits p (M c.divNat c.modNat)).flatten
