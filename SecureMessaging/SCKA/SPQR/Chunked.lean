@@ -9,90 +9,82 @@ import SecureMessaging.SCKA.SPQR.Unchunked
 
 /-! # SPQR chunked protocol
 
-SPQR is Signal's implementation of the ML-KEM Braid key exchange
-([SparsePostQuantumRatchet](https://github.com/signalapp/SparsePostQuantumRatchet)). Two parties
-repeat the exchange throughout a conversation. Each run is an epoch: the encapsulation-key sender
-publishes a fresh KEM public key, the ciphertext sender encapsulates to it, both derive the epoch
-key, and the roles swap for the next epoch. A public key or a ciphertext is too large for one chat
-message, so each value travels as a stream of chunks, one per message. A chunk is an erasure-code
-symbol; any large enough set of chunks reconstructs the value, in any order. The incremental KEM
-splits encapsulation in two: stage one needs only a short header of the public key (for ML-KEM the
-matrix seed and a hash of the key), stage two needs the full vector. The ciphertext sender therefore
-starts its first component while the vector is still arriving, and the two streams cross. The name
-'braid' refers to that crossing.
+SPQR is Signal's implementation of the ML-KEM Braid key exchange. This module models its v1
+send and receive transitions at revision `f2589fe`, using the core operations in `SPQR.Unchunked`.
+
+## One epoch
+
+An epoch is one key exchange. The encapsulation-key sender generates a public key. The ciphertext
+sender uses that key to form a ciphertext and derive a shared key. The encapsulation-key sender
+derives the same key by decapsulation when the underlying key-encapsulation mechanism (KEM) is
+correct. The parties then swap roles for the next epoch.
+
+Incremental encapsulation has two stages. The first uses a short header of the public key; the
+second also uses its vector. The ciphertext sender can therefore start sending `ct₁`, the first
+ciphertext component, while the vector is still arriving.
+
+## Chunk streams
+
+The header, vector, `ct₁`, and `ct₂` travel as separate streams of indexed chunks. The header and
+`ct₂` streams also carry authentication tags. In the concrete v1 instance, each chunk has 32 bytes.
+The Reed-Solomon thresholds are 3, 36, 30, and 5 respectively. Decoding requires enough correct
+chunks at distinct indices.
 
 ```text
-A (encapsulation-key sender)                      B (ciphertext sender)
-KeyGen; hdr chunks ─────────────────────────▶     header verified: encaps stage one; key derived
-first ct₁ chunk: stop hdr                   ◀──   ct₁ chunks ...
-ek chunks ──────────────────────────────────▶     ... ct₁ chunks still arriving
-ct₁ complete: ek chunks now carry the ack ──▶     vector complete and acked: encaps stage two
-first ct₂ chunk: stop ek                    ◀──   ct₂ chunks with tag
-ct₂ complete: decaps; verify tag; key derived
-                        next epoch, roles swapped
+Encapsulation-key sender                       Ciphertext sender
+header and tag chunks -----------------------> verify header; start encapsulation
+                       <---------------------- ct₁ chunks
+vector chunks -------------------------------->
+vector chunks with ct₁ acknowledgement --------> finish encapsulation
+                       <---------------------- ct₂ and tag chunks
+decapsulate and verify
+                         roles swap
 ```
 
-A stream stops when the first chunk of the answering stream arrives: the first `ct₁` chunk shows
-that B holds the header, the first `ct₂` chunk that B holds the vector. B cannot see when A holds
-all of `ct₁`, so A says so on its vector chunks (`ekCt1Ack`). The header carries a tag, and the
-second ciphertext component carries a tag over both components; the authenticator state is
-ratcheted each epoch from the initial key (`RatchetedAuthenticator`). SPQR v1 uses thresholds 3,
-36, 30, and 5 for the header, vector, `ct₁`, and `ct₂` streams (`SPQR.v1Parameters`).
+The first `ct₁` chunk stops header transmission. Once all of `ct₁` has arrived, vector chunks
+carry its acknowledgement (`ekCt1Ack`). The first `ct₂` chunk stops vector transmission.
 
-The SPQR-verify project pins upstream revision `f2589fe`; this module models the SPQR v1 state
-machine at that revision. It reproduces `src/v1/chunked/states.rs` row for row over the unchunked
-core `SPQR.Unchunked`. An ignored message returns `.ok`, leaves the state unchanged, and has
-`outputKey = none`.
+## Epoch reports and errors
 
-The specification defines no epoch report. The SCKA reports follow the Rust adapter:
-`sendingEpoch = st.epoch - 1` is the last epoch the receiver is guaranteed to hold, and
-`receivingEpoch = msg.epoch - 1` (`lib.rs:298`, `lib.rs:425`, `src/test/v1_impls.rs:25`,
+A send reports `st.epoch - 1`; a successful receive reports `msg.epoch - 1`. These are the SCKA
+reports used by the Rust adapter (`lib.rs:298`, `lib.rs:425`, `src/test/v1_impls.rs:25`,
 `src/test/v1_impls.rs:40`).
 
-The model abstracts nine implementation details.
+An ignored message returns `.ok`, keeps the state, and has `outputKey = none`. Receive failures
+return `epochOutOfRange`, `macVerifyFailed`, or `erroneousDataReceived`. `SPQR.recvSCKA` maps these
+errors to `none` for the current `SCKAScheme` interface.
 
-1. Byte serialization and `Message::deserialize` (`MsgDecode`, `serialize.rs`) are outside the
-   transition model. Comparison with Rust is limited to messages accepted by byte decoding,
-   `Message.Deserializable`: a nonzero `u64` epoch and a chunk `index < 2^16`
-   (`serialize.rs:249-278`, `serialize.rs:191-201`). The successor bound is a transition
-   condition (item 9).
-2. The Double-Ratchet chain `index` and the operations in `chain.rs` are omitted.
-3. `Ct1Ack(bool)` is represented by chunkless `ct1Ack`; the false flag is unreachable
-   (`states.rs:182`, `serialize.rs:268`).
-4. The byte-decoding `hax_lib::assume!` and `expect` panic paths are omitted.
-5. Rust's `u16` chunk index may wrap on send, while `counterIndex` reduces modulo the code length;
-   the model also omits the receive-side bound enforced during byte decoding.
-6. The concrete KDF, authenticator, and serializers are parameters.
-7. Rust's transactional `SerializedState` discipline is represented by a pure function into
-   `Except`; the caller retains the old state on an error.
-8. Concrete `PolyEncoder` and `PolyDecoder` are represented by `ErasureCodePayload`.
-9. Rust uses `Epoch = u64` (`lib.rs:39`) and requires successor epochs below `u64::MAX` in
-   `recv_next_epoch` (`unchunked/send_ct.rs:200`, `chunked/send_ct.rs:294`); Lean uses unbounded
-   natural numbers.
+## Relation to the Rust implementation
 
-The Rust state machine differs from the paper model in several places. `Payload` is the typed form
-of the well-formed messages of specification §2.3 (`MLKEMBraid.Message.wellFormed`), so ill-formed
-type/data combinations have no counterpart; messages rejected by byte decoding are outside the
-comparison (`serialize.rs`). The `ekSentCt1Received` state sends
-`Ct1Ack(true)` (`states.rs:182`). At an equal epoch, a standalone `ct1Ack` received by
-`ekReceivedCt1Sampled` completes stage two (`states.rs:466-473`), and `ct1Acknowledged` accepts
-plain `ek` chunks (`states.rs:479-520`, comment 487).
+The transition cases follow `src/v1/chunked/states.rs`.
 
-A future epoch outside the `ct2Sampled` successor case returns `EpochOutOfRange`
-(`states.rs:284-524`). Receive reports use the incoming epoch minus one (`states.rs`, `lib.rs:425`).
-Rust exposes three error names and collapses its two authentication failures (`states.rs`,
-`lib.rs:145`); the model additionally folds a generic-KEM decapsulation refusal, which ML-KEM
-never produces, into `macVerifyFailed`.
+- Messages are typed values. Byte decoding, the Double Ratchet chain index, and byte-decoding
+  assumptions and panic paths are omitted.
+- Epochs and chunk indices are natural numbers. Rust byte decoding accepts nonzero `u64` epochs
+  and indices below `2^16` (`states/serialize.rs:191-201`, `:249-278`). The model does not enforce
+  these bounds or the Rust successor-epoch bound (`unchunked/send_ct.rs:200`,
+  `chunked/send_ct.rs:294`).
+- Rust's send index can wrap at `u16`; the model's `counterIndex` reduces modulo the code length.
+- `ct1Ack` represents `Ct1Ack(true)`, the value emitted by send and accepted by byte decoding
+  (`states.rs:182`, `states/serialize.rs:268`).
+- The key-derivation function (KDF), authenticator, and payload serializers are parameters.
+  `ErasureCodePayload` represents the encoder and decoder; its correctness is a separate property.
+- Receive is a pure function into `Except`. On error, the caller retains the old state, modeling
+  Rust's transactional state handling.
+- The first `ct₁` chunk in `keysSampled` and the first `ct₂` chunk in `ct1Received` are stored
+  without testing completion. The v1 thresholds for these streams are 30 and 5.
 
-Both models ignore stale messages and `ct1Sampled` with `ct1Ack`; both discard the chunk in
-`ekReceivedCt1Sampled` with `ekCt1Ack`; both store the first chunk in `keysSampled` and
-`ct1Received` without a completeness test; and both advance `ct2Sampled` on the successor epoch.
-Storing the first chunk without a test assumes that one chunk does not complete `ct₁` or `ct₂`; the
-v1 thresholds 30 and 5 satisfy this, and correctness statements for a generic `P` take it as a
-hypothesis together with `ErasureCode.Correct`.
+The generic KEM may refuse decapsulation. This refusal maps to `macVerifyFailed`; the ML-KEM
+instance does not refuse decapsulation.
 
-See `SPQR.Construction` for SCKA packaging, `MLKEMBraid` for the transition system of the
-specification, and `SPQR.Correspondence` for the translation into it and the agreement theorems.
+## Relation to the paper model
+
+The paper model is `MLKEMBraid`. SPQR sends `ct1Ack` in `ekSentCt1Received`, accepts it in
+`ekReceivedCt1Sampled`, and accepts plain `ek` chunks in `ct1Acknowledged`. A future epoch is an
+error except for the `ct2Sampled` successor case. These cases differ from the paper transitions.
+
+`SPQR.Construction` packages this model as an SCKA scheme. `SPQR.Correspondence` translates states
+and messages into `MLKEMBraid` and states the hypotheses under which their transitions agree.
 -/
 
 open ErasureCodePayload.Streaming
@@ -133,17 +125,6 @@ structure Message (Sym : Type) where
   /-- The typed payload. -/
   payload : Payload Sym
 -- ANCHOR_END: Chunked_Message
-
-/-- Membership in the image of Rust `Message::deserialize`: a nonzero `u64` epoch and, for a
-chunk-bearing payload, a chunk index below `2^16` (`serialize.rs:249-278`, `serialize.rs:191-201`).
-Comparison with Rust is limited to these messages. -/
--- ANCHOR: Chunked_Message_Deserializable
-def Message.Deserializable {Sym : Type} (msg : Message Sym) : Prop :=
-  0 < msg.epoch ∧ msg.epoch < 2 ^ 64 ∧
-    match msg.payload with
-    | .hdr chunk | .ek chunk | .ekCt1Ack chunk | .ct1 chunk | .ct2 chunk => chunk.1 < 2 ^ 16
-    | .none | .ct1Ack => True
--- ANCHOR_END: Chunked_Message_Deserializable
 
 /-- The eleven states of Rust `States` (`states.rs:16-29`), combining an unchunked core with
 the stream states stored by Rust. -/
@@ -244,18 +225,17 @@ structure RecvResult (P : MLKEMBraid.Parameters m) (AuthState : Type) where
 def initA (P : MLKEMBraid.Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
-    (ik : InitKey) : PartyState P AuthState
+    (ik : InitKey) : PartyState P AuthState := .keysUnsampled ⟨1, auth.init ik 1⟩
 -- ANCHOR_END: Chunked_initA
-    := .keysUnsampled ⟨1, auth.init ik 1⟩
 
 /-- Direction B2A starts at epoch one with an empty header decoder. -/
 -- ANCHOR: Chunked_initB
 def initB (P : MLKEMBraid.Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
-    (ik : InitKey) : PartyState P AuthState
+    (ik : InitKey) : PartyState P AuthState :=
+  .noHeaderReceived ⟨1, auth.init ik 1⟩ (DecoderState.empty P.ecpHdr)
 -- ANCHOR_END: Chunked_initB
-    := .noHeaderReceived ⟨1, auth.init ik 1⟩ (DecoderState.empty P.ecpHdr)
 
 /-- Rust `States::send` (`states.rs:115-273`), one arm per state. The `ekSentCt1Received` arm sends
 `Ct1Ack(true)`. -/
@@ -263,9 +243,7 @@ def initB (P : MLKEMBraid.Parameters m)
 def send (P : MLKEMBraid.Parameters m)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
-    (st : PartyState P AuthState) : m (SendResult P AuthState)
--- ANCHOR_END: Chunked_send
-    := match st with
+    (st : PartyState P AuthState) : m (SendResult P AuthState) := match st with
   | .keysUnsampled core => do
       -- states.rs:120-136
       let (core', hdr, tag) ← EkSender.sendHeader P.inc auth core
@@ -309,6 +287,7 @@ def send (P : MLKEMBraid.Parameters m)
       -- states.rs:259-271
       let (chunk, enc') := enc.nextChunk
       pure ⟨⟨core.ep, .ct2 chunk⟩, core.ep - 1, none, .ct2Sampled core enc'⟩
+-- ANCHOR_END: Chunked_send
 
 /-- Complete stage two at the receive site: `send_ct2` (`unchunked/send_ct.rs:177-195`) and the
 encoder at the three completion sites (`chunked/send_ct.rs:177-184`, `:233-239`, `:266-272`). -/
@@ -330,9 +309,7 @@ def recv (P : MLKEMBraid.Parameters m) [DecidableEq P.Sym]
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
     (st : PartyState P AuthState) (msg : Message P.Sym) :
-    Except Error (RecvResult P AuthState)
--- ANCHOR_END: Chunked_recv
-    :=
+    Except Error (RecvResult P AuthState) :=
   let ignore : Except Error (RecvResult P AuthState) :=
     .ok ⟨msg.epoch - 1, none, st⟩
   if msg.epoch < st.epoch then
@@ -448,5 +425,6 @@ def recv (P : MLKEMBraid.Parameters m) [DecidableEq P.Sym]
     | _, _ =>
         -- states.rs:275-533, cell 17
         ignore
+-- ANCHOR_END: Chunked_recv
 
 end SPQR.Chunked

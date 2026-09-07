@@ -37,9 +37,7 @@ def sendRleak (P : MLKEMBraid.Parameters m) (irl : P.kem.IncrementalRandLeak P.i
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
     (st : PartyState P AuthState) :
-    m (SendResult P AuthState × SendRand irl.KeygenRand irl.Encaps1Rand)
--- ANCHOR_END: SPQR_sendRleak
-    := match st with
+    m (SendResult P AuthState × SendRand irl.KeygenRand irl.Encaps1Rand) := match st with
   | .keysUnsampled core => do
       let ((pk, sk), r) ← irl.keygenRleak
       let hdr := P.inc.toHeader pk
@@ -57,6 +55,7 @@ def sendRleak (P : MLKEMBraid.Parameters m) (irl : P.kem.IncrementalRandLeak P.i
       pure (⟨⟨core.ep, .ct1 chunk⟩, core.ep - 1, some (core.ep, ik),
         .ct1Sampled core' enc dec⟩, .encaps1 r)
   | _ => (fun r => (r, .none)) <$> send P auth st
+-- ANCHOR_END: SPQR_sendRleak
 
 /-- Discarding the disclosed randomness gives `Chunked.send`. -/
 theorem send_eq_map_sendRleak [LawfulMonad m] (P : MLKEMBraid.Parameters m)
@@ -98,11 +97,10 @@ def recvSCKA (P : MLKEMBraid.Parameters m) [DecidableEq P.Sym]
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
     (st : PartyState P AuthState) (msg : Message P.Sym) :
-    Option (Option (ℕ × P.EpochKey) × ℕ × PartyState P AuthState)
--- ANCHOR_END: SPQR_recvSCKA
-    := match recv P auth st msg with
+    Option (Option (ℕ × P.EpochKey) × ℕ × PartyState P AuthState) := match recv P auth st msg with
   | .error _ => none
   | .ok r => some (r.outputKey, r.receivingEpoch, r.state)
+-- ANCHOR_END: SPQR_recvSCKA
 
 /-- SPQR as an `SCKAScheme`; both parties use the same algorithms and distinct initial states. -/
 -- ANCHOR: SPQR_scheme

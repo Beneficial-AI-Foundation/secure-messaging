@@ -100,9 +100,7 @@ noncomputable def v1Scheme {InitKey AuthState EpochKey Mac : Type}
       (SendRand (MLKEM.mlkemIncrementalRandLeak .MLKEM768 MLKEM.Concrete.concreteNTTRingOps
           MLKEM.Concrete.mlkem768Primitives).KeygenRand
         (MLKEM.mlkemIncrementalRandLeak .MLKEM768 MLKEM.Concrete.concreteNTTRingOps
-          MLKEM.Concrete.mlkem768Primitives).Encaps1Rand)
--- ANCHOR_END: SPQR_v1Scheme
-    := by
+          MLKEM.Concrete.mlkem768Primitives).Encaps1Rand) := by
   letI : DecidableEq (v1Parameters kdfOK serializeHdr parseHdr parseHdr_serializeHdr
       serializeEk parseEk parseEk_serializeEk serializeCt1 parseCt1 parseCt1_serializeCt1
       serializeCt2 parseCt2 parseCt2_serializeCt2).Sym := by
@@ -116,5 +114,6 @@ noncomputable def v1Scheme {InitKey AuthState EpochKey Mac : Type}
     (MLKEM.mlkemIncrementalRandLeak .MLKEM768 MLKEM.Concrete.concreteNTTRingOps
       MLKEM.Concrete.mlkem768Primitives)
     sampleInitKey
+-- ANCHOR_END: SPQR_v1Scheme
 
 end SPQR
