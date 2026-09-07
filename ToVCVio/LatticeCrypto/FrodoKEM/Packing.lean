@@ -9,7 +9,7 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Encoding
 # FrodoKEM matrix packing
 
 `Frodo.Pack` and `Frodo.Unpack`, Algorithms 11 and 12 of `[CiC25]`, which are
-step 1 of Section 6.4 of `[LBES26]`. References are as in `Parameters.lean`.
+the loop of Section 6.4 of `[LBES26]`. References are as in `Parameters.lean`.
 
 Both documents give the same layout: each entry of an `r`-by-`c` matrix is
 written as its `D` binary digits, most significant first, and the entries are
@@ -20,9 +20,10 @@ column `j` takes positions `(i * c + j) * D` onwards of the bit string, for
 reverse of `Encoding.lean`'s, where a chunk is read least significant bit first.
 
 The two documents stop in different places. Algorithm 11 returns that bit
-string; Section 6.4 has a second step, encoding it as octets, and Section 6.4's
-`Unpack` decodes those octets before reading the entries back. `Pack` and
-`Unpack` here are the algorithms, so the octet step is not part of this file.
+string; Section 6.4's `Pack` goes on to return the byte array it encodes to,
+by Section 6.2, and its `Unpack` decodes those bytes before reading the entries
+back. `Pack` and `Unpack` here are the algorithms, so that byte conversion is
+not part of this file.
 
 ## Main definitions
 
@@ -43,8 +44,8 @@ fixed by the `example`s beside their definitions.
 namespace FrodoKEM
 
 /-- The `D` bits of one entry, most significant first: line 5 of Algorithm 11,
-and step 1.1.2 of Section 6.4, put binary digit `D - 1 - l` of the entry at
-position `l`. -/
+and `b[(i * n2 + j)D + k] = c[D-1-k]` of Section 6.4, put binary digit
+`D - 1 - l` of the entry at position `l`. -/
 def entryToBits (p : Params) (x : ZMod p.q) : Vector Bool p.D :=
   Vector.ofFn fun l => x.val.testBit (p.D - 1 - l.val)
 
@@ -58,10 +59,10 @@ example : (entryToBits ParameterSet.FrodoKEM640.params 5).toList =
 def bitsToEntry (p : Params) (v : Vector Bool p.D) : ZMod p.q :=
   ((Nat.ofBits fun l : Fin p.D => v[p.D - 1 - l.val]'(by omega) : ℕ) : ZMod p.q)
 
-/-- `Frodo.Pack` (Algorithm 11 of `[CiC25]`, step 1 of Section 6.4 of
+/-- `Frodo.Pack` (Algorithm 11 of `[CiC25]`, the loop of Section 6.4 of
 `[LBES26]`): concatenate the `D`-bit entries, row by row from row `0` and each
-row left to right, most significant bit of an entry first. Step 2 of Section 6.4 goes on to
-encode the result as octets, which Algorithm 11 does not. -/
+row left to right, most significant bit of an entry first. Section 6.4 returns
+the byte array this encodes to, which Algorithm 11 does not. -/
 def Pack (p : Params) {r c : ℕ} (M : FrodoMatrix p r c) : Vector Bool (r * c * p.D) :=
   (Vector.ofFn fun idx : Fin (r * c) =>
     entryToBits p (M idx.divNat idx.modNat)).flatten
