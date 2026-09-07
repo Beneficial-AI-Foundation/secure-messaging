@@ -47,8 +47,10 @@ Lengths are published in bits but the corresponding types are byte vectors, so
 each length comes in both units and the docstrings name which is which.
 
 A `Params` is plain data, so nothing constrains its fields. `Params.WellFormed`
-collects the conditions of Section 3 that the encoding and packing proofs
-depend on, and `params_wellFormed` discharges them for every published set.
+collects the conditions Section 5 of `draft-longa-cfrg-frodokem-03` places on
+them, and `params_wellFormed` discharges them for every published set. Section
+3 of the CiC article introduces the same parameters but leaves their positivity
+and the bound `n < q` unstated, so the draft is the one transcribed here.
 -/
 
 namespace FrodoKEM
@@ -98,6 +100,27 @@ def nbar : ℕ := 8
 /-- Integer matrix dimension; see `nbar`. -/
 def mbar : ℕ := 8
 
+/-- `nbar` is positive. -/
+theorem nbar_pos : 0 < nbar := by decide
+
+/-- `nbar` is a multiple of eight. -/
+theorem nbar_mod_eight : nbar % 8 = 0 := by decide
+
+/-- `mbar` is positive. -/
+theorem mbar_pos : 0 < mbar := by decide
+
+/-- `mbar` is a multiple of eight. -/
+theorem mbar_mod_eight : mbar % 8 = 0 := by decide
+
+/-- `lenSeedA` is positive. -/
+theorem lenSeedA_pos : 0 < lenSeedA := by decide
+
+/-- `lenZ` is positive. -/
+theorem lenZ_pos : 0 < lenZ := by decide
+
+/-- `lenChi` is positive. -/
+theorem lenChi_pos : 0 < lenChi := by decide
+
 /-- One field per column of Tables 1 and 2. The fields are independent data;
 the relations between them are theorems about the six named parameter sets
 rather than part of this record. -/
@@ -139,12 +162,23 @@ def lenSeedSEBytes (p : Params) : ℕ := p.lenSeedSE / 8
 /-- `lenSalt` expressed in bytes. -/
 def lenSaltBytes (p : Params) : ℕ := p.lenSalt / 8
 
-/-- The conditions of Section 3 that a parameter record must satisfy. -/
+/-- The conditions of Section 5 of `draft-longa-cfrg-frodokem-03` that a
+parameter record must satisfy. Its `lensalt` positivity is not among them: the
+ephemeral variant carries no salt, so `lenSalt = 0` for three of the six
+published sets. -/
 structure WellFormed (p : Params) : Prop where
+  /-- The lattice dimension is positive. -/
+  n_pos : 0 < p.n
   /-- The lattice dimension is a multiple of eight. -/
   n_mod_eight : p.n % 8 = 0
+  /-- The lattice dimension is below the modulus. -/
+  n_lt_q : p.n < p.q
+  /-- The modulus exponent is positive. -/
+  D_pos : 0 < p.D
   /-- The modulus exponent is at most sixteen. -/
   D_le : p.D ≤ 16
+  /-- At least one bit is encoded in each matrix entry. -/
+  B_pos : 0 < p.B
   /-- At most `D` bits are encoded in each matrix entry, so that `2 ^ B ≤ q`. -/
   B_le_D : p.B ≤ p.D
   /-- The modulus satisfies `q = 2 ^ D`. -/
