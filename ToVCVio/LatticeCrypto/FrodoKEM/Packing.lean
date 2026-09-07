@@ -9,7 +9,7 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Encoding
 # FrodoKEM matrix packing
 
 `Frodo.Pack` and `Frodo.Unpack`, Algorithms 11 and 12 of `[CiC25]`, which are
-step 1 of Section 6.4 of `[LBES26]`. References are as in `Encoding.lean`.
+step 1 of Section 6.4 of `[LBES26]`. References are as in `Parameters.lean`.
 
 Both documents give the same layout: each entry of an `r`-by-`c` matrix is
 written as its `D` binary digits, most significant first, and the entries are

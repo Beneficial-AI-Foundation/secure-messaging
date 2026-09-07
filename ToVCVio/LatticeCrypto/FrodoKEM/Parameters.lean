@@ -11,11 +11,20 @@ import Mathlib.Data.Matrix.Basic
 # FrodoKEM Parameters
 
 The cryptographic parameters of FrodoKEM, following Tables 1 and 2 of
-[Glabush, Longa, Naehrig, Peikert, Stebila and Virdia,
-*FrodoKEM: A CCA-Secure Learning With Errors Key Encapsulation Mechanism*,
-Communications in Cryptology 2:3](https://cic.iacr.org/p/2/3/25). The same
-values are tabulated in Section 9.1 of
-[draft-longa-cfrg-frodokem-03](https://datatracker.ietf.org/doc/html/draft-longa-cfrg-frodokem-03).
+`[CiC25]`, which Section 9.1 of `[LBES26]` tabulates as well.
+
+Two documents are cited by this file and the three that build on it, because
+neither covers everything they need:
+
+* `[CiC25]`, Glabush, Longa, Naehrig, Peikert, Stebila and Virdia, *FrodoKEM: A
+  CCA-Secure Learning With Errors Key Encapsulation Mechanism*, IACR
+  Communications in Cryptology 2:3, <https://cic.iacr.org/p/2/3/25>;
+* `[LBES26]`, Longa, Bos, Ehlen and Stebila, *FrodoKEM: key encapsulation from
+  learning with errors*, draft-longa-cfrg-frodokem-03, 22 June 2026,
+  <https://datatracker.ietf.org/doc/html/draft-longa-cfrg-frodokem-03>.
+
+The version and date are part of the second citation because an
+Internet-Draft expires, this one on 24 December 2026.
 
 The published tables are recorded verbatim in `ParameterSet.params`. The relations
 between the entries are stated as theorems. The quantities are:
@@ -47,10 +56,10 @@ Lengths are published in bits but the corresponding types are byte vectors, so
 each length comes in both units and the docstrings name which is which.
 
 A `Params` is plain data, so nothing constrains its fields. `Params.WellFormed`
-collects the conditions Section 5 of `draft-longa-cfrg-frodokem-03` places on
-them, and `params_wellFormed` discharges them for every published set. Section
-3 of the CiC article introduces the same parameters but leaves their positivity
-and the bound `n < q` unstated, so the draft is the one transcribed here.
+collects the conditions Section 5 of `[LBES26]` places on them, and
+`params_wellFormed` discharges them for every published set. Section 3 of
+`[CiC25]` introduces the same parameters but leaves their positivity and the
+bound `n < q` unstated, so `[LBES26]` is the one transcribed here.
 -/
 
 namespace FrodoKEM
@@ -162,10 +171,9 @@ def lenSeedSEBytes (p : Params) : ℕ := p.lenSeedSE / 8
 /-- `lenSalt` expressed in bytes. -/
 def lenSaltBytes (p : Params) : ℕ := p.lenSalt / 8
 
-/-- The conditions of Section 5 of `draft-longa-cfrg-frodokem-03` that a
-parameter record must satisfy. Its `lensalt` positivity is not among them: the
-ephemeral variant carries no salt, so `lenSalt = 0` for three of the six
-published sets. -/
+/-- The conditions of Section 5 of `[LBES26]` that a parameter record must
+satisfy. Its `lensalt` positivity is not among them: the ephemeral variant
+carries no salt, so `lenSalt = 0` for three of the six published sets. -/
 structure WellFormed (p : Params) : Prop where
   /-- The lattice dimension is positive. -/
   n_pos : 0 < p.n

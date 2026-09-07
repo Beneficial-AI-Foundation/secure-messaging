@@ -13,18 +13,11 @@ import LatticeCrypto.Ring.Norms
 `Frodo.Encode` and `Frodo.Decode`, with the proof that decoding inverts
 encoding, exactly and in the presence of noise.
 
-Two documents are cited, because neither covers everything this file needs:
-
-* `[CiC25]`, Glabush, Longa, Naehrig, Peikert, Stebila and Virdia, *FrodoKEM: A
-  CCA-Secure Learning With Errors Key Encapsulation Mechanism*, IACR
-  Communications in Cryptology 2:3, <https://cic.iacr.org/p/2/3/25>: the maps on
-  bit strings, Appendix B, named in Section 3.3, and their noise tolerance,
-  Lemma 1 of Section 4.1;
-* `[LBES26]`, Longa, Bos, Ehlen and Stebila, *FrodoKEM: key encapsulation from
-  learning with errors*, draft-longa-cfrg-frodokem-03, 22 June 2026,
-  <https://datatracker.ietf.org/doc/html/draft-longa-cfrg-frodokem-03>: the same
-  maps as pseudocode, Section 6.3, with the chunking layout written out. It
-  states no correctness result, so Lemma 1 is cited from `[CiC25]` alone.
+References are as in `Parameters.lean`. `[CiC25]` gives the maps on bit strings
+in Appendix B, named in Section 3.3, and their noise tolerance in Lemma 1 of
+Section 4.1. `[LBES26]` gives the same maps as pseudocode in Section 6.3, with
+the chunking layout written out, and states no correctness result, so Lemma 1
+is cited from `[CiC25]` alone.
 
 ## Main definitions
 
