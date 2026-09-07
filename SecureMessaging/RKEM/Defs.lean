@@ -270,7 +270,10 @@ def securityExpA (rkem : RKEMScheme ProbComp Par EK DK CT K)
   let (ctB, k0, dkAHat) ← rkem.rencA par ekBHat dkA
   let res ← rkem.rdecB par dkBHat ctB ekA
   match res with
-  | none => return false
+  | none =>
+    -- Decapsulation failed in this case, we return a fresh random boolean
+    let b' ← $ᵗ Bool
+    return b'
   | some (_, ekAHat) =>
     let b' ← adversary ekA ekAHat ekBHat ctB dkAHat (if b then k1 else k0)
     return b == b'
@@ -286,7 +289,10 @@ def securityExpB (rkem : RKEMScheme ProbComp Par EK DK CT K)
   let (ctA, k0, dkBHat) ← rkem.rencB par ekAHat dkB
   let res ← rkem.rdecA par dkAHat ctA ekB
   match res with
-  | none => return false
+  | none =>
+    -- Decapsulation failed in this case, we return a fresh random boolean
+    let b' ← $ᵗ Bool
+    return b'
   | some (_, ekBHat) =>
     let b' ← adversary ekB ekBHat ekAHat ctA dkBHat (if b then k1 else k0)
     return b == b'
