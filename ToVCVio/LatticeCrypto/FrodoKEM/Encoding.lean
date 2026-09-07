@@ -49,15 +49,24 @@ they are applied to every entry of a matrix by
 
 the message is cut into those chunks by
 
-* `chunkToBits : ZMod (2 ^ B) → Vector Bool B` and `bitsToChunk` back, one
-  chunk at a time, with `toChunks` and `ofChunks` doing the same for a whole
-  matrix. This is the layout of Section 6.3, which writes bit
-  `(i * nbar + j) * B + t` as bit `t` of the entry in row `i` and column `j`,
-  for `0 ≤ i < mbar`, `0 ≤ j < nbar` and `0 ≤ t < B`, so that the matrix is
-  read row by row. Its matrix half is the layer `Bits.lean` shares with
-  `Packing.lean`, and `toChunks_eq`, `ofChunks_eq` identify these two with it;
+* `chunkToBits : ZMod (2 ^ B) → Vector Bool B`, the `B` binary digits of one
+  chunk, least significant first;
+* `bitsToChunk : Vector Bool B → ZMod (2 ^ B)`, reading those digits back;
+* `toChunks : Vector Bool (mbar * nbar * B) → ChunkMatrix p`, cutting the
+  message every `B` bits and applying `bitsToChunk` to each piece, giving the
+  `mbar * nbar` chunks. Section 6.3 sends bit `(i * nbar + j) * B + t` of the
+  message to bit `t` of the entry in row `i` and column `j`, for
+  `0 ≤ i < mbar`, `0 ≤ j < nbar` and `0 ≤ t < B`, so the matrix fills row by
+  row, each row left to right;
+* `ofChunks : ChunkMatrix p → Vector Bool (mbar * nbar * B)`, applying
+  `chunkToBits` to every entry and concatenating the results in that same
+  order.
 
-and the two composites, which are `Frodo.Encode` and `Frodo.Decode` of the
+`toChunks` and `ofChunks` are the layer `Bits.lean` shares with `Packing.lean`,
+at the chunk maps and width `B`; `toChunks_eq` and `ofChunks_eq` identify them
+with it.
+
+The two composites, which are `Frodo.Encode` and `Frodo.Decode` of the
 specification and so take those names, are
 
 * `Encode : Vector Bool (mbar * nbar * B) → FrodoMatrix p mbar nbar`, cutting
