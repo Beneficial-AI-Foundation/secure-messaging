@@ -86,7 +86,7 @@ $`\todo`
 
 ```anchor securityExpA (project := ".") (module := SecureMessaging.RKEM.Defs)
 def securityExpA (rkem : RKEMScheme ProbComp Par EK DK CT K)
-    (adversary : FSINDCPAAdversary EK DK CT K) [SampleableType K] : ProbComp Bool := do
+    (adversary : FSINDCPAAdversary Par EK DK CT K) [SampleableType K] : ProbComp Bool := do
   let b ← $ᵗ Bool
   let k1 ← $ᵗ K
   let par ← rkem.rsetup
@@ -100,7 +100,7 @@ def securityExpA (rkem : RKEMScheme ProbComp Par EK DK CT K)
     let b' ← $ᵗ Bool
     return b'
   | some (_, ekAHat) =>
-    let b' ← adversary ekA ekAHat ekBHat ctB dkAHat (if b then k1 else k0)
+    let b' ← adversary par ekA ekAHat ekBHat ctB dkAHat (if b then k1 else k0)
     return b == b'
 ```
 
@@ -115,7 +115,7 @@ $`\todo`
 
 ```anchor fsIndCpaAdvantageA (project := ".") (module := SecureMessaging.RKEM.Defs)
 noncomputable def fsIndCpaAdvantageA (rkem : RKEMScheme ProbComp Par EK DK CT K)
-    (adversary : FSINDCPAAdversary EK DK CT K) [SampleableType K] : ℝ :=
+    (adversary : FSINDCPAAdversary Par EK DK CT K) [SampleableType K] : ℝ :=
   |(Pr[= true | rkem.securityExpA adversary]).toReal - 1 / 2|
 ```
 
@@ -130,7 +130,7 @@ $`\todo`
 
 ```anchor fsIndCpaAdvantage (project := ".") (module := SecureMessaging.RKEM.Defs)
 noncomputable def fsIndCpaAdvantage (rkem : RKEMScheme ProbComp Par EK DK CT K)
-    (adversaryA adversaryB : FSINDCPAAdversary EK DK CT K) [SampleableType K] : ℝ :=
+    (adversaryA adversaryB : FSINDCPAAdversary Par EK DK CT K) [SampleableType K] : ℝ :=
   max (rkem.fsIndCpaAdvantageA adversaryA) (rkem.fsIndCpaAdvantageB adversaryB)
 ```
 
@@ -145,7 +145,7 @@ $`\todo`
 
 ```anchor FSINDCPASecure (project := ".") (module := SecureMessaging.RKEM.Defs)
 def FSINDCPASecure (rkem : RKEMScheme ProbComp Par EK DK CT K)
-    (adversaryA adversaryB : FSINDCPAAdversary EK DK CT K) (epsilon : ℝ) [SampleableType K] :
+    (adversaryA adversaryB : FSINDCPAAdversary Par EK DK CT K) (epsilon : ℝ) [SampleableType K] :
     Prop :=
   rkem.fsIndCpaAdvantage adversaryA adversaryB ≤ epsilon
 ```

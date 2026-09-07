@@ -248,7 +248,7 @@ variable {Par EK DK CT K : Type}
 its own updated encapsulation key, the peer's updated encapsulation key, the ciphertext sent to
 the peer, the challenger's own updated decapsulation key, and the challenge key; outputs a
 guess bit. Matches the adversary input `A(ekP, ek̂P, ek̂P', ctP, dk̂P, Kb)` of Def. 5.4. -/
-abbrev FSINDCPAAdversary (EK DK CT K : Type) : Type := EK → EK → EK → CT → DK → K → ProbComp Bool
+abbrev FSINDCPAAdversary (Par EK DK CT K : Type) : Type := Par → EK → EK → EK → CT → DK → K → ProbComp Bool
 
 /-- **Definition 5.4** (FS-IND-CPA experiment, party `A`).
 
@@ -262,7 +262,7 @@ b' ← A(ekA, ek̂A, ek̂B, ctB, dk̂A, K_b)
 returning `b = b'`. -/
 -- ANCHOR: securityExpA
 def securityExpA (rkem : RKEMScheme ProbComp Par EK DK CT K)
-    (adversary : FSINDCPAAdversary EK DK CT K) [SampleableType K] : ProbComp Bool := do
+    (adversary : FSINDCPAAdversary Par EK DK CT K) [SampleableType K] : ProbComp Bool := do
   let b ← $ᵗ Bool
   let k1 ← $ᵗ K
   let par ← rkem.rsetup
@@ -276,13 +276,13 @@ def securityExpA (rkem : RKEMScheme ProbComp Par EK DK CT K)
     let b' ← $ᵗ Bool
     return b'
   | some (_, ekAHat) =>
-    let b' ← adversary ekA ekAHat ekBHat ctB dkAHat (if b then k1 else k0)
+    let b' ← adversary par ekA ekAHat ekBHat ctB dkAHat (if b then k1 else k0)
     return b == b'
 -- ANCHOR_END: securityExpA
 
 /-- As `securityExpA`, with the roles of `A` and `B` swapped. -/
 def securityExpB (rkem : RKEMScheme ProbComp Par EK DK CT K)
-    (adversary : FSINDCPAAdversary EK DK CT K) [SampleableType K] : ProbComp Bool := do
+    (adversary : FSINDCPAAdversary Par EK DK CT K) [SampleableType K] : ProbComp Bool := do
   let b ← $ᵗ Bool
   let k1 ← $ᵗ K
   let par ← rkem.rsetup
@@ -296,25 +296,25 @@ def securityExpB (rkem : RKEMScheme ProbComp Par EK DK CT K)
     let b' ← $ᵗ Bool
     return b'
   | some (_, ekBHat) =>
-    let b' ← adversary ekB ekBHat ekAHat ctA dkBHat (if b then k1 else k0)
+    let b' ← adversary par ekB ekBHat ekAHat ctA dkBHat (if b then k1 else k0)
     return b == b'
 
 /-- `Adv^{FS-IND-CPA-A}`: `|Pr[securityExpA = true] - 1/2|`. -/
 -- ANCHOR: fsIndCpaAdvantageA
 noncomputable def fsIndCpaAdvantageA (rkem : RKEMScheme ProbComp Par EK DK CT K)
-    (adversary : FSINDCPAAdversary EK DK CT K) [SampleableType K] : ℝ :=
+    (adversary : FSINDCPAAdversary Par EK DK CT K) [SampleableType K] : ℝ :=
   |(Pr[= true | rkem.securityExpA adversary]).toReal - 1 / 2|
 -- ANCHOR_END: fsIndCpaAdvantageA
 
 /-- `Adv^{FS-IND-CPA-B}`: as `fsIndCpaAdvantageA`, with the roles of `A` and `B` swapped. -/
 noncomputable def fsIndCpaAdvantageB (rkem : RKEMScheme ProbComp Par EK DK CT K)
-    (adversary : FSINDCPAAdversary EK DK CT K) [SampleableType K] : ℝ :=
+    (adversary : FSINDCPAAdversary Par EK DK CT K) [SampleableType K] : ℝ :=
   |(Pr[= true | rkem.securityExpB adversary]).toReal - 1 / 2|
 
 /-- `Adv^{FS-IND-CPA} := max_{P ∈ {A,B}} Adv^{FS-IND-CPA-P}`. -/
 -- ANCHOR: fsIndCpaAdvantage
 noncomputable def fsIndCpaAdvantage (rkem : RKEMScheme ProbComp Par EK DK CT K)
-    (adversaryA adversaryB : FSINDCPAAdversary EK DK CT K) [SampleableType K] : ℝ :=
+    (adversaryA adversaryB : FSINDCPAAdversary Par EK DK CT K) [SampleableType K] : ℝ :=
   max (rkem.fsIndCpaAdvantageA adversaryA) (rkem.fsIndCpaAdvantageB adversaryB)
 -- ANCHOR_END: fsIndCpaAdvantage
 
@@ -324,7 +324,7 @@ FS-IND-CPA security, as stated in [TripleRatchet], additionally quantifies this 
 adversary and requires `epsilon` to be negligible in the security parameter. -/
 -- ANCHOR: FSINDCPASecure
 def FSINDCPASecure (rkem : RKEMScheme ProbComp Par EK DK CT K)
-    (adversaryA adversaryB : FSINDCPAAdversary EK DK CT K) (epsilon : ℝ) [SampleableType K] :
+    (adversaryA adversaryB : FSINDCPAAdversary Par EK DK CT K) (epsilon : ℝ) [SampleableType K] :
     Prop :=
   rkem.fsIndCpaAdvantage adversaryA adversaryB ≤ epsilon
 -- ANCHOR_END: FSINDCPASecure
