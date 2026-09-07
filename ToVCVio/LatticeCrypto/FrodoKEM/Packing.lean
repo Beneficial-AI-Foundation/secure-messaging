@@ -71,7 +71,7 @@ pieces back as entries, row by row from row `0` and each row left to right.
 Section 6.4's
 `Unpack` decodes octets to that bit string first, which Algorithm 12 does
 not. -/
-def Unpack (p : Params) {r c : ℕ} (b : Vector Bool (r * c * p.D)) : FrodoMatrix p r c :=
+def Unpack (p : Params) (r c : ℕ) (b : Vector Bool (r * c * p.D)) : FrodoMatrix p r c :=
   Matrix.of fun i j => bitsToEntry p (Vector.ofFn fun l =>
     b[(i.val * c + j.val) * p.D + l.val]'(bitIndex_lt i.isLt j.isLt l.isLt))
 
@@ -80,7 +80,7 @@ that has only bits `14`, `28`, `43`, `44` and `57` set unpacks to
 `![![1, 2], ![3, 4]]`. This fixes all three orders the round trips leave open,
 the bits within an entry, the entries along a row, and the rows themselves;
 `Unpack` is used rather than `Pack` because `Vector.flatten` does not reduce. -/
-example : Unpack ParameterSet.FrodoKEM640.params
+example : Unpack ParameterSet.FrodoKEM640.params 2 2
     (Vector.ofFn fun i : Fin (2 * 2 * 15) =>
       decide (i.val = 14 ∨ i.val = 28 ∨ i.val = 43 ∨ i.val = 44 ∨ i.val = 57)) =
       Matrix.of ![![(1 : ZMod 32768), 2], ![3, 4]] := by decide
@@ -90,8 +90,8 @@ theorem Pack_eq (p : Params) {r c : ℕ} (M : FrodoMatrix p r c) :
     Pack p M = matrixToBitsWith (entryToBits p) M := rfl
 
 /-- `Unpack` is the shared layer at the Section 6.4 layout. -/
-theorem Unpack_eq (p : Params) {r c : ℕ} (b : Vector Bool (r * c * p.D)) :
-    Unpack p b = bitsToMatrixWith (bitsToEntry p) b := rfl
+theorem Unpack_eq (p : Params) (r c : ℕ) (b : Vector Bool (r * c * p.D)) :
+    Unpack p r c b = bitsToMatrixWith (bitsToEntry p) b := rfl
 
 /-- The bits of entry `(i, j)` sit at positions `(i * c + j) * D` onwards. -/
 theorem getElem_Pack (p : Params) {r c : ℕ} (M : FrodoMatrix p r c) {i j l : ℕ}
@@ -126,13 +126,13 @@ theorem entryToBits_bitsToEntry (p : Params) (hw : p.WellFormed) (v : Vector Boo
 
 /-- `Frodo.Unpack` inverts `Frodo.Pack`. -/
 theorem Unpack_Pack (p : Params) (hw : p.WellFormed) {r c : ℕ} (M : FrodoMatrix p r c) :
-    Unpack p (Pack p M) = M := by
+    Unpack p r c (Pack p M) = M := by
   rw [Unpack_eq, Pack_eq]
   exact bitsToMatrixWith_matrixToBitsWith (bitsToEntry_entryToBits p hw) M
 
 /-- `Frodo.Pack` inverts `Frodo.Unpack`. -/
-theorem Pack_Unpack (p : Params) (hw : p.WellFormed) {r c : ℕ}
-    (b : Vector Bool (r * c * p.D)) : Pack p (Unpack p b) = b := by
+theorem Pack_Unpack (p : Params) (hw : p.WellFormed) (r c : ℕ)
+    (b : Vector Bool (r * c * p.D)) : Pack p (Unpack p r c b) = b := by
   rw [Pack_eq, Unpack_eq]
   exact matrixToBitsWith_bitsToMatrixWith (entryToBits_bitsToEntry p hw) b
 
