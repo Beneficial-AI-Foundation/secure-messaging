@@ -14,7 +14,7 @@ def ACD19 : Verso.Genre.Manual.Bibliography.Citable := .inProceedings
 @[bib "TR25"]
 def TR25 : Verso.Genre.Manual.Bibliography.Citable := .inProceedings
   { title := inlines!"Triple Ratchet: A Bandwidth-Efficient Hybrid-Secure Signal Protocol"
-  , authors := #[inlines!"Yevgeniy Dodis", inlines!"Daniel Jost", inlines!"Shuichi Katsumata", inlines!"Thomas Prest", inlines!"Sebastian Schmidt"]
+  , authors := #[inlines!"Yevgeniy Dodis", inlines!"Daniel Jost", inlines!"Shuichi Katsumata", inlines!"Thomas Prest", inlines!"Rolfe Schmidt"]
   , year := 2025
   , booktitle := inlines!"EUROCRYPT 2025"
   , url := some "https://eprint.iacr.org/2025/078" }
@@ -22,7 +22,7 @@ def TR25 : Verso.Genre.Manual.Bibliography.Citable := .inProceedings
 @[bib "SCKA25"]
 def SCKA25 : Verso.Genre.Manual.Bibliography.Citable := .inProceedings
   { title := inlines!"How to Compare Bandwidth-Constrained Two-Party Secure Messaging Protocols: A Quest for a More Efficient and Secure Post-Quantum Protocol"
-  , authors := #[inlines!"Benedikt Auerbach", inlines!"Yevgeniy Dodis", inlines!"Daniel Jost", inlines!"Shuichi Katsumata", inlines!"Sebastian Schmidt"]
+  , authors := #[inlines!"Benedikt Auerbach", inlines!"Yevgeniy Dodis", inlines!"Daniel Jost", inlines!"Shuichi Katsumata", inlines!"Rolfe Schmidt"]
   , year := 2025
   , booktitle := inlines!"USENIX Security 2025"
   , url := some "https://eprint.iacr.org/2025/2267" }
