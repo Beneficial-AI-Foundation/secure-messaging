@@ -32,10 +32,12 @@ between the entries are stated as theorems. The quantities are:
 * `n`, the lattice dimension, which is also the size of the public matrix `A`;
 * `D`, the exponent of the modulus, and `q = 2 ^ D`, the modulus itself;
 * `B`, the number of bits encoded in each matrix entry by `Frodo.Encode`;
-* `ℓ = B * mbar * nbar`, the length of bit strings encoded as `mbar`-by-`nbar`
-  matrices, and also the bit length of the message `μ`, the shared secret `ss`,
-  the intermediate secret `k`, the public-key hash `pkh`, and the vector `s`
-  from which `ss` is derived when decapsulation fails;
+* `ℓ`, the security parameter, which is the bit length of the message `μ`, the
+  shared secret `ss`, the intermediate secret `k`, the public-key hash `pkh`,
+  and the vector `s` from which `ss` is derived when decapsulation fails. The
+  algorithms need `ℓ = B * mbar * nbar`, so that `μ` fills the matrix that
+  `Frodo.Encode` puts it in; neither document states that equation, and
+  `Params.WellFormed.ell_eq` is it;
 * `lenSeedSE`, the bit length of the seeds used for error sampling, and
   `lenSalt`, the bit length of the salt, which is zero for the ephemeral
   variant.
@@ -130,8 +132,11 @@ structure Params where
   /-- The number of bits encoded in each matrix entry;
   `Params.WellFormed.B_le_D` bounds it by `D`. -/
   B : ℕ
-  /-- The length of bit strings encoded as `mbar`-by-`nbar` matrices;
-  `Params.WellFormed.ell_eq` identifies it with `B * mbar * nbar`. -/
+  /-- The security parameter, Section 5's `lensec`: the bit length of the
+  message, the shared secret and the public-key hash.
+  `Params.WellFormed.ell_values` restricts it to `128`, `192` and `256`, and
+  `Params.WellFormed.ell_eq` asks that a message of that length fill the
+  matrix. -/
   ell : ℕ
   /-- The bit length of seeds used for pseudorandom bit generation for error
   sampling -/
@@ -181,6 +186,8 @@ structure WellFormed (p : Params) : Prop where
   q_eq : p.q = 2 ^ p.D
   /-- A message fills the matrix: `ℓ = B * mbar * nbar`. -/
   ell_eq : p.ell = p.B * mbar * nbar
+  /-- The security parameter is one of the three Section 5 allows. -/
+  ell_values : p.ell = 128 ∨ p.ell = 192 ∨ p.ell = 256
   /-- The bit length of the error sampling seed is positive. -/
   lenSeedSE_pos : 0 < p.lenSeedSE
 
