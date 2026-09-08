@@ -63,4 +63,53 @@ example (L : ℕ) (ε : ℝ≥0∞) :
           ghash H (gcmEncode p.1 p.2)) ε :=
   rfl
 
+/-! ## Witnessed pair
+
+Two explicit distinct inhabitants of the AXU domain, distinct in the AAD
+component: at `L = 0` the ciphertext component lives in the `Unique` type
+`BitVec 0`, so only the AAD can separate a pair. -/
+
+/-- The empty AAD (`lenA = 0`). -/
+def aadZero : SupportedAAD := ⟨⟨0, 0⟩, by norm_num, by norm_num⟩
+
+/-- A one-byte zero AAD (`lenA = 8`). -/
+def aadEight : SupportedAAD := ⟨⟨8, 0⟩, by norm_num, by norm_num⟩
+
+/-- The witnesses are distinct: their AAD bit-lengths differ (`0 ≠ 8`), so no
+`HEq` reasoning on the payloads is needed. -/
+theorem aadZero_ne_aadEight : aadZero ≠ aadEight := by
+  intro h
+  have h' : (0 : ℕ) = 8 := congrArg (fun a : SupportedAAD => a.1.1) h
+  omega
+
+/-- The witnessed domain pair is distinct at every `L`, including `L = 0`: the
+first components differ. -/
+theorem witness_pair_ne (L : ℕ) :
+    ((aadZero, 0) : SupportedAAD × BitVec L) ≠ (aadEight, 0) :=
+  fun h => aadZero_ne_aadEight (congrArg Prod.fst h)
+
+/-! ## The `2⁻¹²⁸` floor (criterion 6) -/
+
+/-- Floor in `Fintype.card` normal form: any `ε` witnessing `GhashIsAXU L ε`
+satisfies `(Fintype.card (BitVec 128))⁻¹ ≤ ε`, by the generic
+`IsAlmostXorUniversal.card_inv_le` at the witnessed pair. -/
+theorem ghashAXU_card_inv_le {L : ℕ} {ε : ℝ≥0∞} (h : GhashIsAXU L ε) :
+    (Fintype.card (BitVec 128) : ℝ≥0∞)⁻¹ ≤ ε :=
+  IsAlmostXorUniversal.card_inv_le h (witness_pair_ne L)
+
+/-- **The `2⁻¹²⁸` floor** (Phase 1 criterion 6): any `ε` witnessing
+`GhashIsAXU L ε` satisfies `2⁻¹²⁸ ≤ ε`.
+
+This floor is why Phase 4's authenticity term is `q_d · ε` with no separate
+`2⁻¹²⁸` guessing term: a blind pre-challenge tag guess succeeds with probability
+exactly `2⁻¹²⁸ ≤ ε`, so it is already charged to the AXU bound. -/
+theorem ghashAXU_eps_lower {L : ℕ} {ε : ℝ≥0∞} (h : GhashIsAXU L ε) :
+    ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹ ≤ ε := by
+  have hcard : (Fintype.card (BitVec 128) : ℝ≥0∞) = (2 : ℝ≥0∞) ^ (128 : ℕ) := by
+    rw [← FinEnum.card_eq_fintypeCard, FinEnum.card_bitVec]
+    push_cast
+    norm_num
+  rw [← hcard]
+  exact ghashAXU_card_inv_le h
+
 end GCM
