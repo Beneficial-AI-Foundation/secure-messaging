@@ -292,7 +292,7 @@ theorem lenSalt_eq_eight_mul_lenSaltBytes (p : ParameterSet) :
     p.params.lenSalt = 8 * p.params.lenSaltBytes := by
   cases p <;> rfl
 
-/-- Every named parameter set satisfies the conditions of Section 3. -/
+/-- Every named parameter set satisfies `Params.WellFormed`. -/
 theorem params_wellFormed (p : ParameterSet) : p.params.WellFormed := by
   cases p <;> constructor <;> decide
 
