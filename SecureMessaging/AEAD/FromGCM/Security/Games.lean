@@ -250,4 +250,85 @@ noncomputable def game4 (_prp : PRPScheme K (BitVec 128)) (L : ℕ) (_hL : Valid
 
 end Games
 
+/-! ## Instrumented pair (criterion 4): `game3♭` / `game2♭`
+
+Bad-flag-instrumented eager variants of `game3`/`game2` for the Phase-4
+identical-until-bad step (`tvDist_simulateQ_le_probEvent_output_bad_base`,
+`IdenticalUntilBad.lean`). The Lean identifiers `game3Flat`/`game2Flat` realize the
+roadmap's `game3♭`/`game2♭`.
+
+The tuple is sampled EAGERLY at the top level (state `Option C × Bool`, mirroring EtM
+`authInstImpl`'s `EtmGameState × Bool`): the flag update at a decrypt query evaluates
+"verification would accept", which reads `H`/`mask`, so no flag-carrying family is
+`τ`-independent and `consumeLazy`'s `h_indep` cannot hold for it; the Phase-4 brick
+consumes an eager `StateT (σ × Bool)` pair anyway. Flag erasure (`Prod.fst`) plus the
+lazy commutations (`greedyLazy` for `game2`, `consumeLazy` for `game3`) recover the
+uninstrumented games — the projection lemmas below. -/
+
+section Instrumented
+
+variable {K : Type} {L : ℕ}
+
+/-- Flag-instrumented per-tuple handler for the identical-until-bad step. State is
+`Option (BitVec L × BitVec 128) × Bool` with the monotone `forged` flag RIGHTMOST (the
+brick reads `z.2.2` and `Prod.fst` erases exactly the flag). The decrypt oracle sets the
+flag whenever "verification would accept" (`forged || ok`, identical in both `b`
+branches, never cleared); `b` selects only the return on `ok = true`: live decryption
+(`b = true`, ≈ `game2`) or rejection (`b = false`, ≈ `game3`). This shared flag update
+is what makes the brick's `h_agree_good` hold in Phase 4. -/
+noncomputable def gcmInstImpl (a : BitVec 128 × BitVec 128 × BitVec L) (b : Bool) :
+    QueryImpl (aeadOneTimeCCASpec SupportedAAD (BitVec L) (BitVec L × BitVec 128))
+      (StateT (Option (BitVec L × BitVec 128) × Bool) ProbComp) :=
+  -- unif: thread both state slots unchanged.
+  (unifLiftStateT (Option (BitVec L × BitVec 128) × Bool) unifSpec)
+  -- encrypt: one-shot, real GCM ciphertext from the tuple; flag threaded unchanged.
+  + ((fun (ad, m) => do
+      let (challenge, forged) ← get
+      match challenge with
+      | some _ => pure none
+      | none => do
+        let (h, mask, ks) := a
+        let c := m ^^^ ks
+        let e := (c, ghash h (gcmEncode ad c) ^^^ mask)
+        set ((some e, forged) : Option (BitVec L × BitVec 128) × Bool)
+        return some e) :
+    QueryImpl (SupportedAAD × BitVec L →ₒ Option (BitVec L × BitVec 128))
+      (StateT (Option (BitVec L × BitVec 128) × Bool) ProbComp))
+  -- decrypt: challenge guard; else compute "would accept", set the flag on accept,
+  -- and return per `b`.
+  + ((fun (ad, e) => do
+      let (challenge, forged) ← get
+      if challenge == some e then pure none
+      else do
+        let (h, mask, ks) := a
+        let ok : Bool := decide (e.2 = ghash h (gcmEncode ad e.1) ^^^ mask)
+        set ((challenge, forged || ok) : Option (BitVec L × BitVec 128) × Bool)
+        if ok then (if b then pure (some (e.1 ^^^ ks)) else pure none) else pure none) :
+    QueryImpl (SupportedAAD × (BitVec L × BitVec 128) →ₒ Option (BitVec L))
+      (StateT (Option (BitVec L × BitVec 128) × Bool) ProbComp))
+
+/-- Game 3♭: the flag-instrumented ALWAYS-REJECT execution (`b = false`), tuple sampled
+eagerly at the top level. Defined BEFORE `game2Flat`: it occupies the `impl₁` slot of
+Phase 4's `tvDist_simulateQ_le_probEvent_output_bad_base` (`IdenticalUntilBad.lean:35`),
+which charges the bad event of its FIRST implementation argument. -/
+@[nolint unusedArguments]
+noncomputable def game3Flat (_prp : PRPScheme K (BitVec 128)) (L : ℕ)
+    (_hL : ValidMsgLength L)
+    (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
+    ProbComp Bool := do
+  let a ← ($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _)
+  (simulateQ (gcmInstImpl a false) adv).run' (none, false)
+
+/-- Game 2♭: the flag-instrumented LIVE-DECRYPT execution (`b = true`), tuple sampled
+eagerly at the top level. Goes in the brick's `impl₂` slot in Phase 4. -/
+@[nolint unusedArguments]
+noncomputable def game2Flat (_prp : PRPScheme K (BitVec 128)) (L : ℕ)
+    (_hL : ValidMsgLength L)
+    (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
+    ProbComp Bool := do
+  let a ← ($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _)
+  (simulateQ (gcmInstImpl a true) adv).run' (none, false)
+
+end Instrumented
+
 end GCM
