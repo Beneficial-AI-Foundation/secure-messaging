@@ -65,3 +65,77 @@ lemma getMsbD_blocksToBitVecFrom (blocks : List (BitVec 128)) {s p j : ℕ} (hj 
     (blocksToBitVecFrom blocks s p).getMsbD j =
       (blocks.getD ((s + j) / 128) 0).getMsbD ((s + j) % 128) := by
   simp [blocksToBitVecFrom, List.getD_eq_getElem?_getD, hj]
+
+/-- Split the concatenation of `n` 128-bit blocks at position `L`: the pair of the
+first `L` bits and the remaining `128 * n - L` bits. Bijective when `L ≤ 128 * n`
+(`blocksSplit_bijective`), which makes `blocksToBitVec · L` the first coordinate of
+a bijective image of the blocks — the key to `probOutput_blocksToBitVec_uniform`. -/
+def blocksSplit (n L : ℕ) (v : Vector (BitVec 128) n) :
+    BitVec L × BitVec (128 * n - L) :=
+  (blocksToBitVec v.toList L, blocksToBitVecFrom v.toList L (128 * n - L))
+
+lemma blocksSplit_injective (n L : ℕ) (hL : L ≤ 128 * n) :
+    Function.Injective (blocksSplit n L) := by
+  intro v w h
+  rw [blocksSplit, blocksSplit, Prod.ext_iff] at h
+  obtain ⟨h1, h2⟩ := h
+  -- The two components together determine every bit of the concatenation.
+  have hbit : ∀ j, j < 128 * n →
+      (v.toList.getD (j / 128) 0).getMsbD (j % 128) =
+        (w.toList.getD (j / 128) 0).getMsbD (j % 128) := by
+    intro j hj
+    rcases lt_or_ge j L with hjL | hjL
+    · simpa [getMsbD_blocksToBitVec _ hjL] using congrArg (·.getMsbD j) h1
+    · have hj' : j - L < 128 * n - L := by omega
+      have hbit' := congrArg (·.getMsbD (j - L)) h2
+      simp only [getMsbD_blocksToBitVecFrom _ hj'] at hbit'
+      rwa [Nat.add_sub_cancel' hjL] at hbit'
+  -- Hence the blocks agree bit by bit.
+  refine Vector.ext fun i hi => ?_
+  refine BitVec.eq_of_getMsbD_eq fun b hb => ?_
+  have hj := hbit (128 * i + b) (by omega)
+  have hdiv : (128 * i + b) / 128 = i := by omega
+  have hmod : (128 * i + b) % 128 = b := by omega
+  rw [hdiv, hmod] at hj
+  simpa [List.getD_eq_getElem?_getD, hi] using hj
+
+lemma blocksSplit_bijective (n L : ℕ) (hL : L ≤ 128 * n) :
+    Function.Bijective (blocksSplit n L) := by
+  refine (Fintype.bijective_iff_injective_and_card _).mpr
+    ⟨blocksSplit_injective n L hL, ?_⟩
+  rw [Fintype.card_vector, card_bitVec, ← pow_mul, Fintype.card_prod,
+    card_bitVec, card_bitVec, ← pow_add]
+  exact congrArg (2 ^ ·) (by omega)
+
+/-- **Truncated concatenation of uniform blocks is uniform** (distribution form):
+mapping a uniform `Vector (BitVec 128) n` through `blocksToBitVec · L` yields the
+uniform distribution on `BitVec L`, for any `L ≤ 128 * n`. -/
+theorem evalDist_blocksToBitVec_uniform (n L : ℕ) (hL : L ≤ 128 * n) :
+    𝒟[(fun v : Vector (BitVec 128) n => blocksToBitVec v.toList L) <$>
+        ($ᵗ Vector (BitVec 128) n)] = 𝒟[$ᵗ BitVec L] :=
+  calc 𝒟[(fun v : Vector (BitVec 128) n => blocksToBitVec v.toList L) <$>
+        ($ᵗ Vector (BitVec 128) n)]
+      = 𝒟[Prod.fst <$> (blocksSplit n L <$> ($ᵗ Vector (BitVec 128) n))] := by
+        rw [Functor.map_map]; rfl
+    _ = 𝒟[Prod.fst <$> ($ᵗ (BitVec L × BitVec (128 * n - L)))] :=
+        evalDist_map_eq_of_evalDist_eq
+          (evalDist_map_bijective_uniform_cross (α := Vector (BitVec 128) n)
+            (blocksSplit n L) (blocksSplit_bijective n L hL)) Prod.fst
+    _ = 𝒟[$ᵗ BitVec L] := evalDist_map_fst_uniformSample_prod
+
+/-- **Truncated concatenation of uniform blocks is uniform**: every `y : BitVec L`
+is hit with probability `(Fintype.card (BitVec L))⁻¹` when `n` independent uniform
+128-bit blocks are concatenated and truncated to `L ≤ 128 * n` bits. -/
+theorem probOutput_blocksToBitVec_uniform (n L : ℕ) (hL : L ≤ 128 * n) (y : BitVec L) :
+    Pr[= y | (fun v : Vector (BitVec 128) n => blocksToBitVec v.toList L) <$>
+        ($ᵗ Vector (BitVec 128) n)] = (Fintype.card (BitVec L) : ℝ≥0∞)⁻¹ := by
+  rw [evalDist_ext_iff.mp (evalDist_blocksToBitVec_uniform n L hL) y,
+    probOutput_uniformSample]
+
+/-- The degenerate case `L = 0`: `BitVec 0` is a singleton, so the truncated
+concatenation hits its unique value with probability `1`. The main theorem covers
+this case rather than excluding it. -/
+example (n : ℕ) (y : BitVec 0) :
+    Pr[= y | (fun v : Vector (BitVec 128) n => blocksToBitVec v.toList 0) <$>
+        ($ᵗ Vector (BitVec 128) n)] = 1 := by
+  simpa using probOutput_blocksToBitVec_uniform n 0 (Nat.zero_le _) y
