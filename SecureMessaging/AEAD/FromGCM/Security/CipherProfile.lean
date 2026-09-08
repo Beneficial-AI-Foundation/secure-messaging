@@ -9,8 +9,44 @@ import SecureMessaging.AEAD.FromGCM.Construction
 /-!
 # GCM — cipher-call profile
 
-The exact multiset of cipher inputs made by one-time GCM encryption (Phase 1
-criterion 1): the hash-key call `CIPH_K(0¹²⁸)`, the pre-tag call on `J₀`, and the
-GCTR counter chain starting at `inc₃₂(J₀)`, all as a function of the message and
-AAD lengths.
+The exact cipher-call profile of one-time GCM (Phase 1 criterion 1): at the all-zero
+96-bit IV, `gcmEncrypt`/`gcmDecrypt` consume exactly three separated cipher outputs —
+the hash key `H = CIPH_K(0¹²⁸)`, the tag mask `CIPH_K(J₀)` with `J₀ = 1`, and the GCTR
+keystream blocks `CIPH_K` over `counterChain 2 ⌈lenP/128⌉`.
+
+Foundations: the single-block keystream identity, the `J₀ = 1` and `inc₃₂(1) = 2`
+numeral identities, and the single-block `gctr` mask identity.
 -/
+
+namespace GCM
+
+/-! ## Foundation lemmas -/
+
+/-- The GCTR keystream of a single block, untruncated, is the block itself
+(`MSB₁₂₈(b) = b`). -/
+theorem keystream_singleton (b : BitVec 128) : keystream [b] 128 = b := by
+  apply BitVec.eq_of_getMsbD_eq
+  intro i hi
+  simp [keystream, hi, Nat.div_eq_of_lt hi, Nat.mod_eq_of_lt hi]
+
+/-- At the all-zero 96-bit IV, the pre-counter block `J₀ = IV ‖ 0³¹ ‖ 1`
+(NIST SP 800-38D §7.1 step 2) is the numeral `1`. -/
+theorem j0_zero_iv : ((0 : BitVec 96) ++ (0 : BitVec 31) ++ (1 : BitVec 1)) = (1 : BitVec 128) := by
+  decide
+
+/-- `inc₃₂(1) = 2`: the first GCTR counter block after `J₀ = 1` (NIST SP 800-38D §6.2). -/
+theorem inc32_one : inc32 (1 : BitVec 128) = 2 := by
+  decide
+
+/-- A single-step counter chain is just the initial counter block. -/
+theorem counterChain_one (icb : BitVec 128) : counterChain icb 1 = [icb] := rfl
+
+/-- `gctr` on a single 128-bit block XORs in one cipher output: the tag-mask identity
+`GCTR_K(ICB, S) = S ⊕ CIPH_K(ICB)` (NIST SP 800-38D §7.1 step 6, `MSB₁₂₈` trivial). -/
+theorem gctr_single_block {K : Type} (ciph : K → BitVec 128 → BitVec 128) (k : K)
+    (icb : BitVec 128) (s : BitVec 128) :
+    gctr ciph k icb s = s ^^^ ciph k icb := by
+  simp only [gctr, Nat.reduceAdd, Nat.reduceDiv, counterChain_one, List.map_cons,
+    List.map_nil, keystream_singleton]
+
+end GCM
