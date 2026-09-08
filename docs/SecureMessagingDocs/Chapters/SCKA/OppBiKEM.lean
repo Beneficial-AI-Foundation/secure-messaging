@@ -34,134 +34,48 @@ Opp-BiKEM-CKA.
 Figures 17 and 18 of {Informal.citet SCKA25}[]. This construction uses a standard
 KEM: $`A` encapsulates in odd epochs and $`B` encapsulates in even epochs. Both parties
 send public-key chunks opportunistically, before transmitting ciphertext chunks.
-There is no offline/online ciphertext split. TODO: check this claim
+There is no offline/online ciphertext split (unlike in OppUniKEM).
 
 Each party has two counters:
 
 - $`t_{\mathrm{req}}` for the epoch in which it plays the *requester* role (a requester decapsulates the received encapsulated key).
 - $`t_{\mathrm{res}}` for the epoch in which it plays the *responder* role (a responder encapsulates the key using the requester's public key).
 
-The two roles share Lean helpers, with offsets $`\delta_\A=1` and
+The two roles share Lean helpers, using offset variables $`\delta_\A=1` and
 $`\delta_\B=-1`.
 
 We make the following corrections with respect to the pseudocode:
 
 * In Figure 18, $`\mathsf{CKA}\text{-}\SendB`, lines 8, 9, and 13, replace
-  $`\boxed{t_{\mathrm{res},A}\mapsto t_{\mathrm{res},B}}`.
+  $`\boxed{t_{\mathrm{res}\text{-}A}\mapsto t_{\mathrm{res}\text{-}B}}`.
   B's local state contains B's responder counter.
 * In Figure 17, $`\mathsf{CKA}\text{-}\mathsf{Rec}\text{-}\A`, line 22, replace
   $`\boxed{\mathit{ct}_A\mapsto\mathit{ct}_B}`. Lines 23 and 27 already use B's ciphertext.
 * Public-key acknowledgement indices are corrected at both ends of each message:
   in Figure 17, Send-A line 21 uses
-  $`\boxed{t_{\mathrm{req},A}-1}` and Rec-A line 8 uses
-  $`\boxed{t_{\mathrm{req},B}+1}`;
+  $`\boxed{t_{\mathrm{req}\text{-}A}-1}` and Rec-A line 8 uses
+  $`\boxed{t_{\mathrm{req}\text{-}B}+1}`;
   in Figure 18, Send-B line 21 uses
-  $`\boxed{t_{\mathrm{req},B}+1}` and Rec-B line 8 uses
-  $`\boxed{t_{\mathrm{req},A}-1}`.
+  $`\boxed{t_{\mathrm{req}\text{-}B}+1}` and Rec-B line 8 uses
+  $`\boxed{t_{\mathrm{req}\text{-}A}-1}`.
   These are the public-key entries set by decoding. The printed formulas
   advertise different entries, leaving the first public keys unacknowledged.
-* The KEM interface returns $`(\ek,\dk)` from key generation and takes the
-  secret key before the ciphertext in decapsulation. We follow that interface.
-* Encoding an absent payload sends no chunk. Missing decapsulation prerequisites
-  or failed decapsulation return no key, without acknowledging the ciphertext or
-  erasing its secret key. These make the partial pseudocode total, following the
-  Opp-UniKEM convention.
-* The outdated-message `break` returns after incorporating the message's indexed
-  acknowledgements, without processing its payload or running the later cleanup.
 
-Unlike Opp-UniKEM's single current-epoch acknowledgement, these acknowledgements
-are stored by epoch. An old message may acknowledge an old payload; it does not
-acknowledge the receiver's newest payload.
 
 ::::::gameGrid
 
-:::::gameCell "\\textsf{Roles, state, and messages}" (kind := "compact")
-
-The arrays of public keys and secret keys are indexed by epoch. In Lean, public
-keys use a function returning `Option PK`; stored secret keys use a finite
-association list. Removing an entry models secret-key erasure. The chunk buffer
-is a `Finset`, so receiving the same indexed chunk twice does not add information.
-
-Internal counters use `ℤ`, since the paper starts at $`-1`. Actual SCKA key
-outputs and sending epochs use `ℕ`. The initialized dummy epochs never generate
-honest keys.
-
-```anchor role (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
-inductive Role where
-  | A
-  | B
-  deriving DecidableEq
-
-def Role.offset : Role → ℤ
-  | .A => 1
-  | .B => -1
-```
-```anchor state (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
-structure State (PK SK C Sym : Type) where
-  resEpoch : ℤ
-  ekPeer : ℤ → Option PK
-  ct : Option C
-  ich : ℕ
-  reqEpoch : ℤ
-  dk : List (ℤ × SK)
-  ek : Option PK
-  received_chunks : Finset (ℕ × Sym)
-  ack : Acknowledgements
-
-abbrev StA := State
-abbrev StB := State
-```
-```anchor message (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
-abbrev Bit := Fin 2
-
-structure Message (Sym : Type) where
-  ch : Option (ℕ × Sym)
-  resEpoch : ℤ
-  reqEpoch : ℤ
-  sendingEpoch : ℕ
-  ack : Ack
-  bit : Option Bit
-```
-```anchor sendRand (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
-structure SendRand (KeygenRand EncapsRand : Type) where
-  keygen : Option KeygenRand
-  encaps : Option EncapsRand
-```
-:::::
-
-:::::gameCell "\\textsf{Acknowledgements and sending epoch}" (kind := "compact")
-
-$`t^{\mathrm{snd}}=\max\{t\ge0:\mathsf{ACK}[t].\mathsf{ctRec}
-\wedge\mathsf{ACK}[t-1].\mathsf{ctRec}\}`.
-
-The two finite sets represent the true entries of the acknowledgement array.
-`Finset.sup` computes the maximum, using zero for an empty set. A message carries
-this sending epoch explicitly; receive returns that value even on delayed delivery.
-
-```anchor acknowledgements (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
-structure Acknowledgements where
-  ekRec : Finset ℤ
-  ctRec : Finset ℤ
-
-/-- Largest nonnegative index with two adjacent acknowledged ciphertexts
-(both t and t-1 in act.ctRec).
-The empty maximum is zero; honest states initially acknowledge `-1` and `0`. -/
-def Acknowledgements.sendingEpoch (ack : Acknowledgements) : ℕ :=
-  (ack.ctRec.filter fun t => t - 1 ∈ ack.ctRec).sup Int.toNat
-```
-:::::
 
 :::::gameCell "\\textsf{Initialisation}" (kind := "compact")
 
-$`I_{\mathsf{CKA}}=\bot`,
-$`(t_{\mathrm{res}\text{-}\A},t_{\mathrm{req}\text{-}\A})=(-1,0)`, and
-$`(t_{\mathrm{res}\text{-}\B},t_{\mathrm{req}\text{-}\B})=(0,-1)`.
-All payloads and arrays start empty, except for the ciphertext acknowledgements
-at $`-1` and $`0`, which enable the first key generation.
-
+$`\begin{array}{l}
+\mathsf{CKA}\text{-}\mathsf{InitKeyGen}(): \\
+\quad I_{\mathsf{CKA}}\gets\bot \\
+\quad \mathsf{return}\;I_{\mathsf{CKA}}
+\end{array}`
 ```anchor initKeyGen (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
 def initKeyGen : m Unit := pure ()
 ```
+
 ```anchor init (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
 def init (role : Role) (_ik : Unit) : m (State PK SK C Sym) :=
   pure { resEpoch := if role = .A then -1 else 0
@@ -170,17 +84,48 @@ def init (role : Role) (_ik : Unit) : m (State PK SK C Sym) :=
          ct := none, ich := 0, dk := [], ek := none, received_chunks := ∅
          ack := { ekRec := ∅, ctRec := {-1, 0} } }
 ```
+
+$`\begin{array}{l}
+\mathsf{CKA}\text{-}\mathsf{InitA}(\bot): \\
+\quad \mathsf{EK}_{B}[t]\gets\bot,\ \mathsf{DK}_{A}[t]\gets\bot\quad\text{for all }t \\
+\quad (\mathsf{ACK}[t].\mathsf{ekRec},\mathsf{ACK}[t].\mathsf{ctRec}) \\
+\qquad\gets(\mathsf{false},\mathsf{false})\quad\text{for all }t \\
+\quad (\mathsf{ACK}[-1].\mathsf{ctRec},\mathsf{ACK}[0].\mathsf{ctRec}) \\
+\qquad\gets(\mathsf{true},\mathsf{true}) \\
+\quad \mathsf{st}_{\mathrm{res}}\gets(-1,\mathsf{EK}_{B},\bot,0) \\
+\quad \mathsf{st}_{\mathrm{req}}\gets(0,\mathsf{DK}_{A},\bot,\emptyset) \\
+\quad \mathsf{return}\;(\mathsf{st}_{\mathrm{res}},\mathsf{st}_{\mathrm{req}},\mathsf{ACK})
+\end{array}`
 ```anchor initA (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
 def initA : Unit → m (StA PK SK C Sym) := init .A
 ```
+
+$`\begin{array}{l}
+\mathsf{CKA}\text{-}\mathsf{InitB}(\bot): \\
+\quad \mathsf{EK}_{A}[t]\gets\bot,\ \mathsf{DK}_{B}[t]\gets\bot\quad\text{for all }t \\
+\quad (\mathsf{ACK}[t].\mathsf{ekRec},\mathsf{ACK}[t].\mathsf{ctRec}) \\
+\qquad\gets(\mathsf{false},\mathsf{false})\quad\text{for all }t \\
+\quad (\mathsf{ACK}[-1].\mathsf{ctRec},\mathsf{ACK}[0].\mathsf{ctRec}) \\
+\qquad\gets(\mathsf{true},\mathsf{true}) \\
+\quad \mathsf{st}_{\mathrm{res}}\gets(0,\mathsf{EK}_{A},\bot,0) \\
+\quad \mathsf{st}_{\mathrm{req}}\gets(-1,\mathsf{DK}_{B},\bot,\emptyset) \\
+\quad \mathsf{return}\;(\mathsf{st}_{\mathrm{res}},\mathsf{st}_{\mathrm{req}},\mathsf{ACK})
+\end{array}`
 ```anchor initB (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
 def initB : Unit → m (StB PK SK C Sym) := init .B
 ```
+
 :::::
 
 :::::gameCell "\\textsf{Vulnerable epochs}" (kind := "compact")
 
-$`\mathsf{st}_P.\mathsf{vuln}=\{t>0:\mathsf{DK}_P[t]\ne\bot\}`.
+$`\begin{array}{l}
+\mathsf{st}_A.\mathsf{vuln}:\quad\mathsf{return}\;\{t:\mathsf{DK}_A[t]\ne\bot\}
+\end{array}`
+$`\begin{array}{l}
+\mathsf{st}_B.\mathsf{vuln}:\quad\mathsf{return}\;\{t:\mathsf{DK}_B[t]\ne\bot\}
+\end{array}`
+
 Only retained decapsulation keys contribute. Public keys and ciphertexts do not
 require secrecy. Dummy epochs are excluded from the natural-number SCKA interface.
 
@@ -192,22 +137,199 @@ def vulnA (st : StA PK SK C Sym) : Finset ℕ := vuln st
 
 def vulnB (st : StB PK SK C Sym) : Finset ℕ := vuln st
 ```
+
 :::::
 
-:::::gameCell "\\mathsf{CKA}\\text{-}\\mathsf{Send}\\text{-}P" (kind := "compact")
+:::::gameCell "\\mathsf{CKA}\\text{-}\\mathsf{Send}\\text{-}A(\\mathsf{st}_A)" (kind := "compact-send")
 
-Writing $`r=t_{\mathrm{res}}` and $`\delta=\delta_P`, the shared send follows
-Figures 17–18 in this order:
+$`\begin{array}{l}
+(t_{\mathrm{res}\text{-}A},\mathsf{EK}_B,\mathit{ct}_A,i_{\mathrm{ch}})\gets\mathsf{st}_{\mathrm{res}} \\
+(t_{\mathrm{req}\text{-}A},\mathsf{DK}_A,\mathit{ek}_A,L_{\mathrm{ch}})\gets\mathsf{st}_{\mathrm{req}} \\
+I_A\gets\bot,\ t_{I_A}\gets\bot,\ \mathit{ch}\gets\bot,\ b\gets\bot \\
+\mathsf{if}\;\mathit{ek}_A=\bot\wedge\mathsf{ACK}[t_{\mathrm{res}\text{-}A}].\mathsf{ctRec} \\
+\qquad\wedge\mathsf{ACK}[t_{\mathrm{res}\text{-}A}+1].\mathsf{ctRec}\;\mathsf{then} \\
+\quad t_{\mathrm{res}\text{-}A}\gets t_{\mathrm{res}\text{-}A}+2,\quad i_{\mathrm{ch}}\gets0 \\
+\quad (\mathit{ek}_A,\mathit{dk}_A)\sample\KeyGen \\
+\quad \mathsf{DK}_A[t_{\mathrm{res}\text{-}A}+1]\gets\mathit{dk}_A \\
+\mathsf{if}\;\neg\mathsf{ACK}[t_{\mathrm{res}\text{-}A}+1].\mathsf{ekRec}\;\mathsf{then} \\
+\quad i_{\mathrm{ch}}\gets i_{\mathrm{ch}}+1,\quad b\gets0 \\
+\quad \mathit{ch}\gets\mathsf{Encode}(\mathit{ek}_A,i_{\mathrm{ch}}) \\
+\mathsf{else\ if}\;\neg\mathsf{ACK}[t_{\mathrm{res}\text{-}A}].\mathsf{ctRec}\;\mathsf{then} \\
+\quad\mathsf{if}\;\mathit{ct}_A=\bot\wedge\mathsf{ACK}[t_{\mathrm{res}\text{-}A}].\mathsf{ekRec}\;\mathsf{then} \\
+\qquad t_{I_A}\gets t_{\mathrm{res}\text{-}A},\quad i_{\mathrm{ch}}\gets0 \\
+\qquad(\mathit{ct}_A,I_A)\sample\Encaps(\mathsf{EK}_B[t_{\mathrm{res}\text{-}A}]) \\
+\quad i_{\mathrm{ch}}\gets i_{\mathrm{ch}}+1,\quad b\gets1 \\
+\quad \mathit{ch}\gets\mathsf{Encode}(\mathit{ct}_A,i_{\mathrm{ch}}) \\
+t^{\mathrm{snd}}_A\gets\max\{t:\mathsf{ACK}[t].\mathsf{ctRec} \\
+\qquad\wedge\mathsf{ACK}[t-1].\mathsf{ctRec}\} \\
+\mathit{ack}\gets(\mathsf{ACK}[\boxed{t_{\mathrm{req}\text{-}A}-1}].\mathsf{ekRec},\mathsf{ACK}[t_{\mathrm{req}\text{-}A}].\mathsf{ctRec}) \\
+\rho\gets(\mathit{ch},t_{\mathrm{res}\text{-}A},t_{\mathrm{req}\text{-}A},t^{\mathrm{snd}}_A,\mathit{ack},b) \\
+\mathsf{st}_{\mathrm{res}}\gets(t_{\mathrm{res}\text{-}A},\mathsf{EK}_B,\mathit{ct}_A,i_{\mathrm{ch}}) \\
+\mathsf{st}_{\mathrm{req}}\gets(t_{\mathrm{req}\text{-}A},\mathsf{DK}_A,\mathit{ek}_A,L_{\mathrm{ch}}) \\
+\mathsf{return}\;((t_{I_A},I_A),\rho,t^{\mathrm{snd}}_A, \\
+\qquad(\mathsf{st}_{\mathrm{res}},\mathsf{st}_{\mathrm{req}},\mathsf{ACK}))
+\end{array}`
 
-* If the local public key is absent and ciphertexts $`r` and $`r+\delta` are
-  acknowledged, advance $`r` by two, generate a key pair, and store its secret
-  key at $`r+\delta`.
-* Until that public key is acknowledged, send its next chunk (selector zero).
-* Otherwise, if ciphertext $`r` is not acknowledged, encapsulate once the peer's
-  public key at $`r` is available, output key $`(r,I_P)`, and send ciphertext
-  chunks (selector one). Reset the chunk counter when generating the ciphertext.
-* Attach the counters, sending epoch, and acknowledgements for the peer's public
-  key at $`t_{\mathrm{req}}-\delta` and ciphertext at $`t_{\mathrm{req}}`.
+```anchor sendA (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
+def sendA (kem : KEMScheme m K PK SK C)
+    (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
+    (stA : StA PK SK C Sym) := send .A kem ecEk ecCt stA
+```
+
+:::leanPillCaption "rleak version leaking key generation and encapsulation coins"
+:::
+```anchor sendArleak (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
+def sendArleak (kem : KEMScheme m K PK SK C)
+    (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
+    (leak : kem.RandLeak) (stA : StA PK SK C Sym) :=
+  sendWith .A leak.keygenRleak leak.encapsRleak ecEk ecCt stA
+```
+
+:::::
+
+:::::gameCell "\\mathsf{CKA}\\text{-}\\mathsf{Rec}\\text{-}A(\\mathsf{st}_A,\\rho)" (kind := "compact-recv")
+
+$`\begin{array}{l}
+(t_{\mathrm{res}\text{-}A},\mathsf{EK}_B,\mathit{ct}_A,i_{\mathrm{ch}})\gets\mathsf{st}_{\mathrm{res}} \\
+(t_{\mathrm{req}\text{-}A},\mathsf{DK}_A,\mathit{ek}_A,L_{\mathrm{ch}})\gets\mathsf{st}_{\mathrm{req}} \\
+(\mathit{ch},t_{\mathrm{res}\text{-}B},t_{\mathrm{req}\text{-}B},t^{\mathrm{snd}}_B,\mathit{ack},b)\gets\rho \\
+I_B\gets\bot,\quad t_{I_B}\gets\bot \\
+\mathsf{if}\;\mathit{ack}.\mathsf{ctRec}\;\mathsf{then} \\
+\quad\mathsf{ACK}[t_{\mathrm{req}\text{-}B}].\mathsf{ctRec}\gets\mathsf{true} \\
+\mathsf{if}\;\mathit{ack}.\mathsf{ekRec}\;\mathsf{then} \\
+\quad\mathsf{ACK}[\boxed{t_{\mathrm{req}\text{-}B}+1}].\mathsf{ekRec}\gets\mathsf{true} \\
+\mathsf{if}\;t_{\mathrm{res}\text{-}B}<t_{\mathrm{req}\text{-}A}\;\mathsf{then}\;\mathsf{break} \\
+\mathsf{else\ if}\;t_{\mathrm{res}\text{-}B}>t_{\mathrm{req}\text{-}A}\;\mathsf{then}\;t_{\mathrm{req}\text{-}A}\gets t_{\mathrm{req}\text{-}A}+2 \\
+\mathsf{if}\;\mathsf{EK}_B[t_{\mathrm{req}\text{-}A}-1]=\bot\wedge b=0\;\mathsf{then} \\
+\quad L_{\mathrm{ch}}\gets L_{\mathrm{ch}}\cup\{\mathit{ch}\} \\
+\quad \mathit{ek}_B\gets\mathsf{Decode}(L_{\mathrm{ch}}) \\
+\quad\mathsf{if}\;\mathit{ek}_B\ne\bot\;\mathsf{then} \\
+\qquad L_{\mathrm{ch}}\gets\emptyset \\
+\qquad\mathsf{EK}_B[t_{\mathrm{req}\text{-}A}-1]\gets\mathit{ek}_B \\
+\qquad\mathsf{ACK}[t_{\mathrm{req}\text{-}A}-1].\mathsf{ekRec}\gets\mathsf{true} \\
+\mathsf{else\ if}\;\neg\mathsf{ACK}[t_{\mathrm{req}\text{-}A}].\mathsf{ctRec}\wedge b=1\;\mathsf{then} \\
+\quad L_{\mathrm{ch}}\gets L_{\mathrm{ch}}\cup\{\mathit{ch}\} \\
+\quad \boxed{\mathit{ct}_B}\gets\mathsf{Decode}(L_{\mathrm{ch}}) \\
+\quad\mathsf{if}\;\mathit{ct}_B\ne\bot\;\mathsf{then} \\
+\qquad L_{\mathrm{ch}}\gets\emptyset \\
+\qquad\mathsf{ACK}[t_{\mathrm{req}\text{-}A}].\mathsf{ctRec}\gets\mathsf{true} \\
+\qquad t_{I_B}\gets t_{\mathrm{req}\text{-}A} \\
+\qquad I_B\gets\Decaps(\mathsf{DK}_A[t_{\mathrm{req}\text{-}A}],\mathit{ct}_B) \\
+\qquad\mathsf{DK}_A[t_{\mathrm{req}\text{-}A}]\gets\bot \\
+\mathsf{if}\;\mathsf{ACK}[t_{\mathrm{res}\text{-}A}].\mathsf{ctRec}\;\mathsf{then}\;\mathit{ct}_A\gets\bot \\
+\mathsf{if}\;\mathsf{ACK}[t_{\mathrm{res}\text{-}A}+1].\mathsf{ekRec}\;\mathsf{then}\;\mathit{ek}_A\gets\bot \\
+\mathsf{st}_{\mathrm{res}}\gets(t_{\mathrm{res}\text{-}A},\mathsf{EK}_B,\mathit{ct}_A,i_{\mathrm{ch}}) \\
+\mathsf{st}_{\mathrm{req}}\gets(t_{\mathrm{req}\text{-}A},\mathsf{DK}_A,\mathit{ek}_A,L_{\mathrm{ch}}) \\
+\mathsf{return}\;((t_{I_B},I_B),t^{\mathrm{snd}}_B, \\
+\qquad(\mathsf{st}_{\mathrm{res}},\mathsf{st}_{\mathrm{req}},\mathsf{ACK}))
+\end{array}`
+
+```anchor recvA (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
+def recvA (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
+    (hDet : kem.DeterministicDecaps)
+    (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
+    (stA : StA PK SK C Sym) (ρ : Message Sym) := recv .A kem hDet ecEk ecCt stA ρ
+```
+
+:::::
+
+:::::gameCell "\\mathsf{CKA}\\text{-}\\mathsf{Send}\\text{-}B(\\mathsf{st}_B)" (kind := "compact-send")
+
+$`\begin{array}{l}
+(t_{\mathrm{res}\text{-}B},\mathsf{EK}_A,\mathit{ct}_B,i_{\mathrm{ch}})\gets\mathsf{st}_{\mathrm{res}} \\
+(t_{\mathrm{req}\text{-}B},\mathsf{DK}_B,\mathit{ek}_B,L_{\mathrm{ch}})\gets\mathsf{st}_{\mathrm{req}} \\
+I_B\gets\bot,\ t_{I_B}\gets\bot,\ \mathit{ch}\gets\bot,\ b\gets\bot \\
+\mathsf{if}\;\mathit{ek}_B=\bot\wedge\mathsf{ACK}[t_{\mathrm{res}\text{-}B}].\mathsf{ctRec} \\
+\qquad\wedge\mathsf{ACK}[t_{\mathrm{res}\text{-}B}-1].\mathsf{ctRec}\;\mathsf{then} \\
+\quad t_{\mathrm{res}\text{-}B}\gets t_{\mathrm{res}\text{-}B}+2,\quad i_{\mathrm{ch}}\gets0 \\
+\quad (\mathit{ek}_B,\mathit{dk}_B)\sample\KeyGen \\
+\quad \mathsf{DK}_B[\boxed{t_{\mathrm{res}\text{-}B}-1}]\gets\mathit{dk}_B \\
+\mathsf{if}\;\neg\mathsf{ACK}[\boxed{t_{\mathrm{res}\text{-}B}-1}].\mathsf{ekRec}\;\mathsf{then} \\
+\quad i_{\mathrm{ch}}\gets i_{\mathrm{ch}}+1,\quad b\gets0 \\
+\quad \mathit{ch}\gets\mathsf{Encode}(\mathit{ek}_B,i_{\mathrm{ch}}) \\
+\mathsf{else\ if}\;\neg\mathsf{ACK}[\boxed{t_{\mathrm{res}\text{-}B}}].\mathsf{ctRec}\;\mathsf{then} \\
+\quad\mathsf{if}\;\mathit{ct}_B=\bot\wedge\mathsf{ACK}[t_{\mathrm{res}\text{-}B}].\mathsf{ekRec}\;\mathsf{then} \\
+\qquad t_{I_B}\gets t_{\mathrm{res}\text{-}B},\quad i_{\mathrm{ch}}\gets0 \\
+\qquad(\mathit{ct}_B,I_B)\sample\Encaps(\mathsf{EK}_A[t_{\mathrm{res}\text{-}B}]) \\
+\quad i_{\mathrm{ch}}\gets i_{\mathrm{ch}}+1,\quad b\gets1 \\
+\quad \mathit{ch}\gets\mathsf{Encode}(\mathit{ct}_B,i_{\mathrm{ch}}) \\
+t^{\mathrm{snd}}_B\gets\max\{t:\mathsf{ACK}[t].\mathsf{ctRec} \\
+\qquad\wedge\mathsf{ACK}[t-1].\mathsf{ctRec}\} \\
+\mathit{ack}\gets(\mathsf{ACK}[\boxed{t_{\mathrm{req}\text{-}B}+1}].\mathsf{ekRec},\mathsf{ACK}[t_{\mathrm{req}\text{-}B}].\mathsf{ctRec}) \\
+\rho\gets(\mathit{ch},t_{\mathrm{res}\text{-}B},t_{\mathrm{req}\text{-}B},t^{\mathrm{snd}}_B,\mathit{ack},b) \\
+\mathsf{st}_{\mathrm{res}}\gets(t_{\mathrm{res}\text{-}B},\mathsf{EK}_A,\mathit{ct}_B,i_{\mathrm{ch}}) \\
+\mathsf{st}_{\mathrm{req}}\gets(t_{\mathrm{req}\text{-}B},\mathsf{DK}_B,\mathit{ek}_B,L_{\mathrm{ch}}) \\
+\mathsf{return}\;((t_{I_B},I_B),\rho,t^{\mathrm{snd}}_B, \\
+\qquad(\mathsf{st}_{\mathrm{res}},\mathsf{st}_{\mathrm{req}},\mathsf{ACK}))
+\end{array}`
+
+```anchor sendB (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
+def sendB (kem : KEMScheme m K PK SK C)
+    (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
+    (stB : StB PK SK C Sym) := send .B kem ecEk ecCt stB
+```
+
+:::leanPillCaption "rleak version leaking key generation and encapsulation coins"
+:::
+```anchor sendBrleak (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
+def sendBrleak (kem : KEMScheme m K PK SK C)
+    (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
+    (leak : kem.RandLeak) (stB : StB PK SK C Sym) :=
+  sendWith .B leak.keygenRleak leak.encapsRleak ecEk ecCt stB
+```
+
+:::::
+
+:::::gameCell "\\mathsf{CKA}\\text{-}\\mathsf{Rec}\\text{-}B(\\mathsf{st}_B,\\rho)" (kind := "compact-recv")
+
+$`\begin{array}{l}
+(t_{\mathrm{res}\text{-}B},\mathsf{EK}_A,\mathit{ct}_B,i_{\mathrm{ch}})\gets\mathsf{st}_{\mathrm{res}} \\
+(t_{\mathrm{req}\text{-}B},\mathsf{DK}_B,\mathit{ek}_B,L_{\mathrm{ch}})\gets\mathsf{st}_{\mathrm{req}} \\
+(\mathit{ch},t_{\mathrm{res}\text{-}A},t_{\mathrm{req}\text{-}A},t^{\mathrm{snd}}_A,\mathit{ack},b)\gets\rho \\
+I_A\gets\bot,\quad t_{I_A}\gets\bot \\
+\mathsf{if}\;\mathit{ack}.\mathsf{ctRec}\;\mathsf{then} \\
+\quad\mathsf{ACK}[t_{\mathrm{req}\text{-}A}].\mathsf{ctRec}\gets\mathsf{true} \\
+\mathsf{if}\;\mathit{ack}.\mathsf{ekRec}\;\mathsf{then} \\
+\quad\mathsf{ACK}[\boxed{t_{\mathrm{req}\text{-}A}-1}].\mathsf{ekRec}\gets\mathsf{true} \\
+\mathsf{if}\;t_{\mathrm{res}\text{-}A}<t_{\mathrm{req}\text{-}B}\;\mathsf{then}\;\mathsf{break} \\
+\mathsf{else\ if}\;t_{\mathrm{res}\text{-}A}>t_{\mathrm{req}\text{-}B}\;\mathsf{then}\;t_{\mathrm{req}\text{-}B}\gets t_{\mathrm{req}\text{-}B}+2 \\
+\mathsf{if}\;\mathsf{EK}_A[t_{\mathrm{req}\text{-}B}+1]=\bot\wedge b=0\;\mathsf{then} \\
+\quad L_{\mathrm{ch}}\gets L_{\mathrm{ch}}\cup\{\mathit{ch}\} \\
+\quad \mathit{ek}_A\gets\mathsf{Decode}(L_{\mathrm{ch}}) \\
+\quad\mathsf{if}\;\mathit{ek}_A\ne\bot\;\mathsf{then} \\
+\qquad L_{\mathrm{ch}}\gets\emptyset \\
+\qquad\mathsf{EK}_A[t_{\mathrm{req}\text{-}B}+1]\gets\mathit{ek}_A \\
+\qquad\mathsf{ACK}[t_{\mathrm{req}\text{-}B}+1].\mathsf{ekRec}\gets\mathsf{true} \\
+\mathsf{else\ if}\;\neg\mathsf{ACK}[t_{\mathrm{req}\text{-}B}].\mathsf{ctRec}\wedge b=1\;\mathsf{then} \\
+\quad L_{\mathrm{ch}}\gets L_{\mathrm{ch}}\cup\{\mathit{ch}\} \\
+\quad \mathit{ct}_A\gets\mathsf{Decode}(L_{\mathrm{ch}}) \\
+\quad\mathsf{if}\;\mathit{ct}_A\ne\bot\;\mathsf{then} \\
+\qquad L_{\mathrm{ch}}\gets\emptyset \\
+\qquad\mathsf{ACK}[t_{\mathrm{req}\text{-}B}].\mathsf{ctRec}\gets\mathsf{true} \\
+\qquad t_{I_A}\gets t_{\mathrm{req}\text{-}B} \\
+\qquad I_A\gets\Decaps(\mathsf{DK}_B[t_{\mathrm{req}\text{-}B}],\mathit{ct}_A) \\
+\qquad\mathsf{DK}_B[t_{\mathrm{req}\text{-}B}]\gets\bot \\
+\mathsf{if}\;\mathsf{ACK}[t_{\mathrm{res}\text{-}B}].\mathsf{ctRec}\;\mathsf{then}\;\mathit{ct}_B\gets\bot \\
+\mathsf{if}\;\mathsf{ACK}[t_{\mathrm{res}\text{-}B}-1].\mathsf{ekRec}\;\mathsf{then}\;\mathit{ek}_B\gets\bot \\
+\mathsf{st}_{\mathrm{res}}\gets(t_{\mathrm{res}\text{-}B},\mathsf{EK}_A,\mathit{ct}_B,i_{\mathrm{ch}}) \\
+\mathsf{st}_{\mathrm{req}}\gets(t_{\mathrm{req}\text{-}B},\mathsf{DK}_B,\mathit{ek}_B,L_{\mathrm{ch}}) \\
+\mathsf{return}\;((t_{I_A},I_A),t^{\mathrm{snd}}_A, \\
+\qquad(\mathsf{st}_{\mathrm{res}},\mathsf{st}_{\mathrm{req}},\mathsf{ACK}))
+\end{array}`
+
+```anchor recvB (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
+def recvB (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
+    (hDet : kem.DeterministicDecaps)
+    (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
+    (stB : StB PK SK C Sym) (ρ : Message Sym) := recv .B kem hDet ecEk ecCt stB ρ
+```
+
+:::::
+
+:::::gameCell "\\textsf{Shared Lean send implementation}" (kind := "compact")
+
+For party $`P`, with offset $`\delta_P`, the shared send follows Figures 17–18.
+For clarity, the docs show per-party pseudocode.
 
 The shared helper takes the randomized KEM calls as arguments. Ordinary sends
 supply calls with dummy `Unit` coins; leaking sends supply the existing
@@ -262,48 +384,12 @@ def send (role : Role) (kem : KEMScheme m K PK SK C)
     (fun pk => do let out ← kem.encaps pk; pure (out, ())) ecEk ecCt st
   pure (out.map fun (key?, ρ, t, st, _) => (key?, ρ, t, st))
 ```
-```anchor sendA (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
-def sendA (kem : KEMScheme m K PK SK C)
-    (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
-    (stA : StA PK SK C Sym) := send .A kem ecEk ecCt stA
-```
-```anchor sendB (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
-def sendB (kem : KEMScheme m K PK SK C)
-    (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
-    (stB : StB PK SK C Sym) := send .B kem ecEk ecCt stB
-```
-```anchor sendArleak (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
-def sendArleak (kem : KEMScheme m K PK SK C)
-    (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
-    (leak : kem.RandLeak) (stA : StA PK SK C Sym) :=
-  sendWith .A leak.keygenRleak leak.encapsRleak ecEk ecCt stA
-```
-```anchor sendBrleak (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
-def sendBrleak (kem : KEMScheme m K PK SK C)
-    (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
-    (leak : kem.RandLeak) (stB : StB PK SK C Sym) :=
-  sendWith .B leak.keygenRleak leak.encapsRleak ecEk ecCt stB
-```
 :::::
 
-:::::gameCell "\\mathsf{CKA}\\text{-}\\mathsf{Rec}\\text{-}P" (kind := "compact")
+:::::gameCell "\\textsf{Shared Lean receive implementation}" (kind := "compact")
 
-A received acknowledgement concerns the sender's requestor counter: record
-ciphertext receipt at $`t'_{\mathrm{req}}` and public-key receipt at
-$`t'_{\mathrm{req}}+\delta_P`.
-
-Ignore outdated payloads; if the peer's responder counter is newer, advance the
-local requestor counter by two. Decode public-key chunks into the peer-key array
-at $`t_{\mathrm{req}}-\delta_P`. Decode ciphertext chunks for epoch
-$`t_{\mathrm{req}}`; successful decapsulation outputs that epoch's key,
-acknowledges its ciphertext, clears the chunk buffer, and erases its secret key.
-Finally, clear acknowledged outgoing payloads.
-
-For a Lean beginner, the pattern `some dk` unwraps an available secret key.
-`hDet.decapsDet` is a pure decapsulation function whose witness proves agreement
-with the KEM's monadic operation. This is needed because SCKA receive functions
-are pure. An inner `none` means no epoch key was produced; the outer `some`
-means the receive operation returned successfully.
+For party $`P`, with offset $`\delta_P`, the shared receive follows Figures 17–18.
+For clarity, the docs show per-party pseudocode.
 
 ```anchor recv (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
 def recv (role : Role) (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
@@ -317,10 +403,16 @@ def recv (role : Role) (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
       { ack with ekRec := insert (ρ.reqEpoch + role.offset) ack.ekRec } else ack
   let st := { st with ack }
   if ρ.resEpoch < st.reqEpoch then
+  -- outdated message
     some (none, ρ.sendingEpoch, st)
   else
-    let st := if st.reqEpoch < ρ.resEpoch then
-        { st with reqEpoch := st.reqEpoch + 2 } else st
+    let st := if st.reqEpoch < ρ.resEpoch
+              -- first message of the new epoch
+              then { st with reqEpoch := st.reqEpoch + 2 }
+              else st
+    -- Captures the relation of "1 removed" epochs
+    --   - if A is requesting the key for epoch t, it receives B's public key for t-1
+    --   - if B is requesting the key for epoch t, it receives A's public key for t+1
     let peerKeyEpoch := st.reqEpoch - role.offset
     let (key?, st) :=
       match ρ.bit, ρ.ch with
@@ -353,21 +445,10 @@ def recv (role : Role) (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
                                       ctRec := insert st.reqEpoch st.ack.ctRec } })
           else (none, st)
       | _, _ => (none, st)
+    -- deleting the stored material that has been fully delivered
     let st := if st.resEpoch ∈ st.ack.ctRec then { st with ct := none } else st
     let st := if st.resEpoch + role.offset ∈ st.ack.ekRec then { st with ek := none } else st
     some (key?, ρ.sendingEpoch, st)
-```
-```anchor recvA (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
-def recvA (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
-    (hDet : kem.DeterministicDecaps)
-    (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
-    (stA : StA PK SK C Sym) (ρ : Message Sym) := recv .A kem hDet ecEk ecCt stA ρ
-```
-```anchor recvB (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
-def recvB (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
-    (hDet : kem.DeterministicDecaps)
-    (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
-    (stB : StB PK SK C Sym) (ρ : Message Sym) := recv .B kem hDet ecEk ecCt stB ρ
 ```
 :::::
 
