@@ -59,4 +59,32 @@ theorem nistPoly_natDegree : nistPoly.natDegree = 128 := by
   unfold nistPoly
   compute_degree!
 
+set_option maxRecDepth 4000 in
+/-- The reduction identity: in `AdjoinRoot nistPoly` the adjoined root satisfies
+`root¹²⁸ = root⁷ + root² + root + 1`.
+
+This is the algebraic content of the `⊕ gcmReductionConst` step in `gfmul`: the constant
+`R = 0xE1 <<< 120` reads (MSB = coefficient of `x⁰`) as `x⁷ + x² + x + 1 = x¹²⁸ mod nistPoly`,
+so shifting a `x¹²⁷` coefficient up to `x¹²⁸` and XORing `R` is exactly this substitution.
+Plan 07a-03's `reflect_gfmulStep` rewrites with this lemma at the reduction bit.
+
+Proof is `CommRing`-only: `AdjoinRoot.mk_self` gives `root¹²⁸ + (root⁷+root²+root+1) = 0`,
+and `(2 : AdjoinRoot nistPoly) = 0` (from the `ZMod 2` base, `AdjoinRoot.of`) turns the sign
+flip into the stated equality. No irreducibility / `Field` / `IsDomain`. -/
+theorem nistPoly_root_pow :
+    (AdjoinRoot.root nistPoly) ^ 128
+      = (AdjoinRoot.root nistPoly) ^ 7 + (AdjoinRoot.root nistPoly) ^ 2
+        + (AdjoinRoot.root nistPoly) + 1 := by
+  -- `root` annihilates `nistPoly`: `mk nistPoly nistPoly = 0`. Keep the modulus written as
+  -- `nistPoly` (only the reduced element is spelled out) so `mk_X` yields `root nistPoly`.
+  have h : (AdjoinRoot.mk nistPoly) (X ^ 128 + (X ^ 7 + X ^ 2 + X + 1)) = 0 :=
+    AdjoinRoot.mk_self
+  simp only [map_add, map_pow, map_one, AdjoinRoot.mk_X] at h
+  -- char 2: `(2 : AdjoinRoot nistPoly) = 0` via `of (2 : ZMod 2) = of 0`.
+  have h2 : (2 : AdjoinRoot nistPoly) = 0 := by
+    rw [← map_ofNat (AdjoinRoot.of nistPoly) 2, show (2 : ZMod 2) = 0 from rfl, map_zero]
+  linear_combination h
+    - (AdjoinRoot.root nistPoly ^ 7 + AdjoinRoot.root nistPoly ^ 2
+        + AdjoinRoot.root nistPoly + 1) * h2
+
 end GCM
