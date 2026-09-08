@@ -38,6 +38,7 @@ namespace GCM
 
 open OracleSpec OracleComp ENNReal AEADScheme ToVCVio
 open AEADScheme.aeadOneTimeCCASpec
+open OracleComp.ProgramLogic.Relational
 
 /-! ## Structural instances (criterion 7)
 
@@ -154,7 +155,7 @@ end TupleFamilies
 
 section Games
 
-variable {K : Type}
+variable {K : Type} {L : ℕ}
 
 /-- Game 0: real cipher. The key is sampled OUTSIDE the skeleton and the oracles use the
 scheme's `encrypt`/`decrypt` directly (not the spec/profile form), so `game0_eq_real` is
@@ -180,6 +181,45 @@ noncomputable def game1 (_prp : PRPScheme K (BitVec 128)) (L : ℕ) (_hL : Valid
     ProbComp Bool := do
   let a ← ($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _)
   (simulateQ (gcmTupleImpl a) adv).run' none
+
+/-- Game 2: game1's tuple moved inside the oracles via `greedyLazy` — the sample happens
+at the adversary's first query instead of at the top level, live decrypt. State grows a
+one-slot cache: `Option (BitVec L × BitVec 128) × Option (BitVec 128 × BitVec 128 × BitVec L)`,
+starting empty at `(none, none)`. -/
+@[nolint unusedArguments]
+noncomputable def game2 (_prp : PRPScheme K (BitVec 128)) (L : ℕ) (_hL : ValidMsgLength L)
+    (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
+    ProbComp Bool :=
+  (simulateQ (greedyLazy gcmTupleImpl) adv).run' (none, none)
+
+/-- Criterion 3: the always-reject family `gcmTupleImplReject` is independent of the tuple
+`a` at every non-encryption query, in the exact `h_indep` shape
+`probOutput_simulateQ_consumeLazy_run'_eq` demands. At `OUnif` the handler is the lifted
+uniform oracle and at `ODecrypt` the response is `pure none` (up to the challenge guard) —
+neither mentions `a`, so both branches close definitionally. -/
+theorem gcmTupleImplReject_indep :
+    ∀ (t : (aeadOneTimeCCASpec SupportedAAD (BitVec L) (BitVec L × BitVec 128)).Domain)
+      (s : Option (BitVec L × BitVec 128)) (a₁ a₂ : BitVec 128 × BitVec 128 × BitVec L),
+      (fun t => t matches OEncrypt _) t = false →
+      (gcmTupleImplReject a₁ t).run s = (gcmTupleImplReject a₂ t).run s := by
+  intro t s a₁ a₂ h
+  rcases t with (n | am) | ac
+  · -- OUnif: the lifted unif handler never mentions the tuple.
+    rfl
+  · -- OEncrypt: hit = true, contradicting `h`.
+    simp at h
+  · -- ODecrypt: `pure none` (behind the challenge guard) never mentions the tuple.
+    rfl
+
+/-- Game 3: tuple sampled at the encryption query via `consumeLazy` over the always-reject
+family `gcmTupleImplReject`; the non-hit queries are `τ`-independent per
+`gcmTupleImplReject_indep`. Same augmented state as `game2`, starting at `(none, none)`. -/
+@[nolint unusedArguments]
+noncomputable def game3 (_prp : PRPScheme K (BitVec 128)) (L : ℕ) (_hL : ValidMsgLength L)
+    (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
+    ProbComp Bool :=
+  (simulateQ (consumeLazy gcmTupleImplReject (fun t => t matches OEncrypt _))
+    adv).run' (none, none)
 
 end Games
 
