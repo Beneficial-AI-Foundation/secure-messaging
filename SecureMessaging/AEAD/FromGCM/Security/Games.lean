@@ -484,6 +484,76 @@ theorem game0_eq_real (prp : PRPScheme K (BitVec 128)) (L : ℕ) (hL : ValidMsgL
       simp [gcmGameSkeleton, AEADScheme.aeadSecurityImpl, AEADScheme.oracleDecrypt,
         QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get]
 
+/-- Criterion 6, right end: `game4` IS the random ACD19 experiment
+(`securityExpFixedBit … true`), given `[NeverFail prp.keygen]` (the endpoint's keygen
+is dead on the random side; eliminating a dead sample needs losslessness).
+
+Proof order (load-bearing, not stylistic):
+1. UNCONSUME — rewrite `game4` OUT of `consumeLazy` form
+   (`probOutput_simulateQ_consumeLazy_run'_eq`; `h_indep` is the inline
+   `fun _ _ _ _ _ => rfl`, since `gcmRandRejectImpl` ignores its `τ`-argument at EVERY
+   query, so the two runs are the SAME term). This removes the cache's extra `$ᵗ τ`
+   sample — a strict per-query projection cannot erase a probabilistic sample, so it
+   must be gone before projecting.
+2. Kill the now-top-level dead `$ᵗ τ` sample (uniform losslessness,
+   `probOutput_bind_of_const`).
+3. Kill the RHS's dead keygen (`NeverFail.probFailure_eq_zero`).
+4. Project the eager `gcmRandRejectImpl` (state `Option C`, NO cache) onto
+   `aeadSecurityImpl … true k` with `proj = id` (NOT `Prod.fst`). -/
+theorem game4_eq_rand (prp : PRPScheme K (BitVec 128)) (L : ℕ) (hL : ValidMsgLength L)
+    (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
+    [NeverFail prp.keygen] :
+    Pr[= true | game4 prp L hL adv] =
+      Pr[= true | AEADScheme.securityExpFixedBit (gcmOneTimeAEAD prp L hL) adv true] := by
+  -- (1) Unconsume: `game4` = top-level tuple sample over the eager reject family.
+  have hunc : Pr[= true | game4 prp L hL adv] =
+      Pr[= true | do
+        let a ← ($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _)
+        (simulateQ (gcmRandRejectImpl a) adv).run' none] := by
+    unfold game4
+    exact (probOutput_eq_of_evalDist_eq
+      (probOutput_simulateQ_consumeLazy_run'_eq gcmRandRejectImpl
+        (fun t => t matches OEncrypt _) (fun _ _ _ _ _ => rfl) adv none) true).symm
+  rw [hunc]
+  -- (2) The tuple sample is dead (`gcmRandRejectImpl` ignores it); `$ᵗ τ` is lossless.
+  rw [probOutput_bind_of_const ($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _)
+      (my := fun a => (simulateQ (gcmRandRejectImpl a) adv).run' none)
+      (r := Pr[= true | (simulateQ (gcmRandRejectImpl (L := L) default) adv).run' none])
+      (fun _ _ => rfl),
+    NeverFail.probFailure_eq_zero, tsub_zero, one_mul]
+  -- (3) RHS: the endpoint's keygen is dead on the random side; fold the tail to `.run'`.
+  have hkg : (gcmOneTimeAEAD prp L hL).keygen = prp.keygen := rfl
+  unfold AEADScheme.securityExpFixedBit
+  rw [hkg]
+  simp only [bind_pure_comp, ← StateT.run'_eq]
+  -- (4) Kill it with losslessness; the per-key body is constant (= the LHS value by
+  -- the `id`-projection).
+  rw [probOutput_bind_of_const prp.keygen
+      (my := fun k => (simulateQ (AEADScheme.aeadSecurityImpl (gcmOneTimeAEAD prp L hL)
+        true k) adv).run' none)
+      (fun k _ => congrArg (fun o => Pr[= true | o])
+        (run'_simulateQ_eq_of_query_map_eq _
+          (AEADScheme.aeadSecurityImpl (gcmOneTimeAEAD prp L hL) true k)
+          id ?_ adv none).symm)]
+  · -- `prp.keygen` is lossless, so the `(1 - Pr[⊥]) ·` factor is `1`; `rfl` pins `impl₁`.
+    rw [NeverFail.probFailure_eq_zero, tsub_zero, one_mul]
+  · -- Per-query `id`-projection (`impl₁` is the eager `gcmRandRejectImpl`).
+    intro t s
+    rcases t with (n | ⟨ad, m⟩) | ⟨ad, e⟩
+    · -- OUnif: both handlers are the lifted uniform oracle, state threaded unchanged.
+      simp [gcmRandRejectImpl, gcmGameSkeleton, AEADScheme.aeadSecurityImpl,
+        AEADScheme.oracleUnif, unifLiftStateT, QueryImpl.add_apply_inl,
+        QueryImpl.liftTarget_apply, StateT.run_monadLift, Functor.map_map]
+    · -- OEncrypt: both draw the challenge uniformly from `$ᵗ (BitVec L × BitVec 128)`
+      -- (the `b = true` branch of `oracleEncrypt` is the same joint product sample).
+      cases s <;>
+        simp [gcmRandRejectImpl, gcmGameSkeleton, AEADScheme.aeadSecurityImpl,
+          AEADScheme.oracleEncrypt, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
+          StateT.run_bind, StateT.run_get, StateT.run_set, StateT.run_pure, map_pure]
+    · -- ODecrypt: both sides always reject (`b = true` short-circuits `oracleDecrypt`).
+      simp [gcmRandRejectImpl, gcmGameSkeleton, AEADScheme.aeadSecurityImpl,
+        AEADScheme.oracleDecrypt, QueryImpl.add_apply_inr]
+
 end Endpoints
 
 end GCM
