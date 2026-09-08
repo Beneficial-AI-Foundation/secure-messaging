@@ -172,4 +172,84 @@ theorem reflect_gcmReductionConst :
   simp only [bt, bf, one_smul, zero_smul, add_zero, zero_add, pow_zero, pow_one]
   ring
 
+/-! ## The single-step multiplicativity crux
+
+One iteration of `gfmul`'s `v`-update multiplies `reflectN` by `root`. The `v`-update
+`vStep` right-shifts (moving coefficient `xʲ ↦ xʲ⁺¹`, dropping the old `x¹²⁷`) and, when the
+reduction bit `getLsbD 0 = getMsbD 127` fires, XORs in `R`. Reflected, the right shift is
+`· root` minus the escaped `x¹²⁷` coefficient's `root¹²⁸` term; the `⊕ R` restores exactly that
+`root¹²⁸` (via `reflect_gcmReductionConst` + `nistPoly_root_pow`), and in char 2 the two copies
+cancel — so both branches equal `reflectN v * root`. -/
+
+/-- The reduction bit: the arithmetic LSB is the coefficient of `x¹²⁷` in reflected coordinates. -/
+theorem getLsbD0_eq_getMsbD127 (v : BitVec 128) : v.getLsbD 0 = v.getMsbD 127 := by
+  rw [BitVec.getLsbD_eq_getMsbD]; simp
+
+/-- `reflectN v * root` in coordinate form: reindex `xⁱ ↦ xⁱ⁺¹` and peel the `i = 127` top term
+into `root¹²⁸`. Kept a top-level lemma (not an inline `have`) so it elaborates within its own
+heartbeat budget — the repo convention for these coordinate manipulations. -/
+private theorem reflectN_mul_root_left (v : BitVec 128) :
+    reflectN v * AdjoinRoot.root nistPoly
+      = (∑ i : Fin 127, boolToZMod2 (v.getMsbD (i : ℕ)) • AdjoinRoot.root nistPoly ^ ((i : ℕ) + 1))
+        + boolToZMod2 (v.getMsbD 127) • AdjoinRoot.root nistPoly ^ 128 := by
+  rw [reflectN_apply, Finset.sum_mul]
+  simp only [smul_mul_assoc, ← pow_succ]
+  rw [Fin.sum_univ_castSucc]
+  simp only [Fin.val_castSucc, Fin.val_last]
+
+/-- `reflectN (v ≫ 1)` in coordinate form: the same reindex as `· root`, but the old `x¹²⁷`
+coefficient shifts off the top (index `0` produces nothing), so only `∑_{i<127} vᵢ • root^(i+1)`
+survives. Top-level for the heartbeat budget. -/
+private theorem reflectN_ushiftRight_eq (v : BitVec 128) :
+    reflectN (v >>> 1)
+      = ∑ i : Fin 127,
+          boolToZMod2 (v.getMsbD (i : ℕ)) • AdjoinRoot.root nistPoly ^ ((i : ℕ) + 1) := by
+  rw [reflectN_apply, Fin.sum_univ_succ]
+  have hz : boolToZMod2 ((v >>> 1).getMsbD 0) • AdjoinRoot.root nistPoly ^ (0 : ℕ) = 0 := by
+    simp [BitVec.getMsbD_ushiftRight, boolToZMod2]
+  rw [Fin.val_zero, hz, zero_add]
+  refine Finset.sum_congr rfl fun i _ => ?_
+  have hi := i.isLt
+  rw [Fin.val_succ, BitVec.getMsbD_ushiftRight]
+  have ha : (i : ℕ) + 1 < 128 := by omega
+  have hb : ¬ ((i : ℕ) + 1 < 1) := by omega
+  simp [ha, hb]
+
+/-- The right-shift `v ≫ 1` reflects to `reflectN v * root` up to the escaped top coefficient's
+`root¹²⁸` term. Both sides collapse to `∑_{i<127} vᵢ • root^(i+1)` plus `v₁₂₇ • root¹²⁸`:
+multiplying by `root` reindexes `xⁱ ↦ xⁱ⁺¹` and peels the `i = 127` top term (which becomes
+`root¹²⁸`); the shift does the same reindex but drops that top coefficient (it shifts off the
+end). -/
+theorem reflectN_mul_root (v : BitVec 128) :
+    reflectN v * AdjoinRoot.root nistPoly
+      = reflectN (v >>> 1)
+        + boolToZMod2 (v.getMsbD 127) • AdjoinRoot.root nistPoly ^ 128 := by
+  rw [reflectN_mul_root_left, reflectN_ushiftRight_eq]
+
+/-- The `v`-update performed by one iteration of `gfmul`'s 128-step fold (NIST SP 800-38D §6.3):
+right-shift and conditionally reduce by `R = gcmReductionConst`. This is exactly the second
+component of the `foldl` body in `GCM.gfmul`. -/
+def vStep (v : BitVec 128) : BitVec 128 :=
+  if v.getLsbD 0 then (v >>> 1) ^^^ gcmReductionConst else v >>> 1
+
+/-- **The phase's crux single-step lemma.** One `vStep` corresponds to multiplication by `root`
+in `AdjoinRoot nistPoly`: `reflectN (vStep v) = reflectN v * root`. Proven from `reflectN_mul_root`
+(the shift is `· root` up to the escaped `root¹²⁸` term), `reflect_gcmReductionConst`, and
+`nistPoly_root_pow` — `CommRing`-only, no irreducibility. Plan 07a-04's fold invariant lifts this
+across `gfmul`'s `List.range 128` fold to close full multiplicativity. -/
+theorem reflect_gfmulStep (v : BitVec 128) :
+    reflectN (vStep v) = reflectN v * AdjoinRoot.root nistPoly := by
+  have bt : boolToZMod2 true = (1 : ZMod 2) := by decide
+  have bf : boolToZMod2 false = (0 : ZMod 2) := by decide
+  have hcond : v.getLsbD 0 = v.getMsbD 127 := getLsbD0_eq_getMsbD127 v
+  have key := reflectN_mul_root v
+  unfold vStep
+  by_cases h : v.getMsbD 127 = true
+  · have hif : v.getLsbD 0 = true := by rw [hcond]; exact h
+    rw [if_pos hif, reflectN_xor, key, reflect_gcmReductionConst, ← nistPoly_root_pow, h, bt,
+      one_smul]
+  · have hif : ¬ (v.getLsbD 0 = true) := by rw [hcond]; exact h
+    have h127 : v.getMsbD 127 = false := by simpa using h
+    rw [if_neg hif, key, h127, bf, zero_smul, add_zero]
+
 end GCM
