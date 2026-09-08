@@ -106,4 +106,81 @@ noncomputable def gcmGameSkeleton {ι : Type} {spec : OracleSpec ι}
 
 end Skeleton
 
+/-! ## Per-tuple implementation families
+
+The tuple `a = (H, mask, ks) : BitVec 128 × BitVec 128 × BitVec L` collects the three
+separated cipher outputs of one-time GCM at the all-zero IV (`CipherProfile.lean`): the
+GHASH key `H`, the tag mask, and the (flattened) GCTR keystream. The encrypt/decrypt
+bodies below are the SAME expressions across both families and are written via
+`gcmEncode` so the AXU/`ghash` lemmas apply downstream; the bridge from
+`gcmEncryptSpec`/`gcmDecryptSpec` (which take keystream *blocks*) to this `ks : BitVec L`
+form is Phase 3's job. -/
+
+section TupleFamilies
+
+variable {L : ℕ}
+
+/-- LIVE per-tuple implementation family (`game1`/`game2`): encryption produces the real
+GCM ciphertext from the tuple `a = (H, mask, ks)` (`c = m ^^^ ks`,
+`t = ghash H (gcmEncode ad c) ^^^ mask`), and decryption runs live verification and
+keystream removal from the same tuple. -/
+noncomputable def gcmTupleImpl (a : BitVec 128 × BitVec 128 × BitVec L) :
+    QueryImpl (aeadOneTimeCCASpec SupportedAAD (BitVec L) (BitVec L × BitVec 128))
+      (StateT (Option (BitVec L × BitVec 128)) ProbComp) :=
+  gcmGameSkeleton (spec := unifSpec)
+    (fun ad m => pure (let (h, mask, ks) := a
+      let c := m ^^^ ks
+      (c, ghash h (gcmEncode ad c) ^^^ mask)))
+    (fun ad e => pure (let (h, mask, ks) := a
+      if e.2 = ghash h (gcmEncode ad e.1) ^^^ mask
+      then some (e.1 ^^^ ks) else none))
+    (oracleUnif (BitVec L × BitVec 128))
+
+/-- REJECT per-tuple implementation family (`game3`): identical encryption to
+`gcmTupleImpl`, but the decryption oracle always rejects. -/
+noncomputable def gcmTupleImplReject (a : BitVec 128 × BitVec 128 × BitVec L) :
+    QueryImpl (aeadOneTimeCCASpec SupportedAAD (BitVec L) (BitVec L × BitVec 128))
+      (StateT (Option (BitVec L × BitVec 128)) ProbComp) :=
+  gcmGameSkeleton (spec := unifSpec)
+    (fun ad m => pure (let (h, mask, ks) := a
+      let c := m ^^^ ks
+      (c, ghash h (gcmEncode ad c) ^^^ mask)))
+    (fun _ _ => pure none)
+    (oracleUnif (BitVec L × BitVec 128))
+
+end TupleFamilies
+
+/-! ## Games -/
+
+section Games
+
+variable {K : Type}
+
+/-- Game 0: real cipher. The key is sampled OUTSIDE the skeleton and the oracles use the
+scheme's `encrypt`/`decrypt` directly (not the spec/profile form), so `game0_eq_real` is
+a clean `id`-projection against `aeadSecurityImpl … false k`. State is plain
+`Option (BitVec L × BitVec 128)`, matching the endpoint's. -/
+noncomputable def game0 (prp : PRPScheme K (BitVec 128)) (L : ℕ) (hL : ValidMsgLength L)
+    (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
+    ProbComp Bool := do
+  let k ← prp.keygen
+  (simulateQ (gcmGameSkeleton (spec := unifSpec)
+      (fun ad m => pure ((gcmOneTimeAEAD prp L hL).encrypt k ad m))
+      (fun ad e => pure ((gcmOneTimeAEAD prp L hL).decrypt k ad e))
+      (oracleUnif (BitVec L × BitVec 128))) adv).run' none
+
+/-- Game 1: one uniform tuple `(H, mask, ks)` sampled at the top level, live decrypt
+(`gcmTupleImpl`). This is the eager form the greedy lazy-sampling lemma consumes in the
+`game1 = game2` hop. -/
+-- `_prp`/`_hL` are unused in the body but kept to pin `K`/`L` and align the signature
+-- with the other games (matching EtM `encReduction`).
+@[nolint unusedArguments]
+noncomputable def game1 (_prp : PRPScheme K (BitVec 128)) (L : ℕ) (_hL : ValidMsgLength L)
+    (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
+    ProbComp Bool := do
+  let a ← ($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _)
+  (simulateQ (gcmTupleImpl a) adv).run' none
+
+end Games
+
 end GCM
