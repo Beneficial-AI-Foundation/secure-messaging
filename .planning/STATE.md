@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-09-08)
 ## Current Position
 
 Phase: 07a of 10 (GHASH Polynomial Form) — parallel phase, depends on Phase 1
-Plan: 3 of 5 complete in phase 07a (07a-01, 07a-02, 07a-03 done; 07a-04, 07a-05 remain)
-Status: 07a-03 complete — the phase crux: reflectN : BitVec 128 ≃ AdjoinRoot nistPoly + reflect_gfmulStep (one gfmul v-update = ·root), reflect_gcmReductionConst, CommRing-only, sorry-free, standard axioms only
-Last activity: 2026-09-08 — Executed 07a-03 (reflectN via reflect nistPoly_monic + BitVec.cast bridge; reflectN_apply coordinate=coeff over Fin 128; reflectN_xor; reflect_gcmReductionConst = root^7+root^2+root+1 via range-8 cut + per-bit decide; reflectN_mul_root shift-vs-multiply; vStep; reflect_gfmulStep two-case char-2 argument)
+Plan: 4 of 5 complete in phase 07a (07a-01..07a-04 done; 07a-05 remains)
+Status: 07a-04 complete — criterion 1 closed: reflect_gfmul (reflectN (gfmul x y) = reflectN x * reflectN y) by lifting reflect_gfmulStep across gfmul's 128-step fold (dual v/z invariant, range_succ/foldl_append peel); gfmul_eq_reflect_symm; CommRing-only, sorry-free, standard axioms only
+Last activity: 2026-09-08 — Executed 07a-04 (gfmulStep names gfmul's foldl body; reflectN_zero; gfmul_eq_foldl by rfl; reflect_gfmul_aux dual invariant; reflect_gfmul at k=128 via reflectN_apply coefficient-sum = reflectN x; gfmul_eq_reflect_symm via Equiv.symm_apply_apply)
 
-Progress: [██░░░░░░░░] 14% (phase 1 complete: 9/9; phase 07a: 3/5)
+Progress: [██░░░░░░░░] 15% (phase 1 complete: 9/9; phase 07a: 4/5)
 
 ## Performance Metrics
 
@@ -45,6 +45,7 @@ Progress: [██░░░░░░░░] 14% (phase 1 complete: 9/9; phase 07a
 | Phase 07a P01 | 4 min | 2 tasks | 2 files |
 | Phase 07a P02 | 10 min | 2 tasks | 2 files |
 | Phase 07a P03 | 19 min | 2 tasks | 1 files |
+| Phase 07a P04 | 3 min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -66,6 +67,7 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-09: floor shipped in both normal forms (card-form direct from generic lemma, 2^128-form via FinEnum.card_eq_fintypeCard bridge) so Phase 4 consumes either without conversion; witness distinctness via congrArg on a.1.1 (0 vs 8), no Subtype.ext_iff/HEq; GhashIsAXU kept a def with a rfl example pinning the unfolding in CI
 - [Phase 07a]: 01: nistPoly grouped as X^128 + (X^7+X^2+X+1) so monic_X_pow_add applies with the tail as p; monic + natDegree=128 both via compute_degree!; root annihilation stated with modulus written literally as nistPoly (only the reduced element spelled out) so mk_X yields root nistPoly and avoids an atom mismatch under ring; char 2 taken as (2 : AdjoinRoot nistPoly)=0 via map_ofNat on AdjoinRoot.of (no CharP/CharTwo instance exists for AdjoinRoot), reduction closed by linear_combination; set_option maxRecDepth 4000 needed for ring over root^128, and it must precede the docstring
 - [Phase 07a]: 07a-02: BitVec half is a plain Equiv + separate reflect_xor (Mathlib BitVec + is arithmetic not XOR); cross PowerBasis.dim=natDegree defeq with change not rw; Basis renamed to Module.Basis
+- [Phase 07a]: 07a-04: reflect_gfmul_aux dropped the plan's k ≤ 128 hypothesis (invariant is unconditional since reflect_gfmulStep is bit-index agnostic — unused binder avoided); stated as a DUAL conjunction so the z-step's ⊕v term can read the v-step's reflectN y·root^k; gfmulStep's 2nd component IS vStep p.2 so gfmul_eq_foldl is rfl and the succ .2 is defeq (change, not rw); reflectN_zero via reflectN_apply + Finset.sum_eq_zero (not self-cancellation — 0^^^0's 0#128 misses BitVec.xor_zero's 0#w); base case by `change` onto (0 : BitVec 128) (simp normalizes to 0#128 which reflectN_zero won't rewrite); reflect_gfmul = invariant at k=128 with coefficient-sum = reflectN x via Fin.sum_univ_eq_sum_range
 - [Phase 07a]: 07a-03: reflectN defined as an Equiv structure literal using BitVec.cast on both legs (not `▸`/_root_.cast) so ⇑reflectN unfolds by defeq and getMsbD_cast/xor_cast reduce; the natDegree=128 transport is discharged once in reflectN_apply (Fintype.sum_equiv (finCongr nistPoly_natDegree)) and never fought again; reflect_gcmReductionConst collapses the 128-term sum to range 8 (generic vanishing above) + 8 single-index decides (no full-128 decide); reflect_gfmulStep = two-case boolean split on getMsbD 127 (= getLsbD 0), the ⊕R branch supplies root^128 that duplicates the shift's escaped term and cancels via 2•root^128=0; heavy coordinate lemmas (reflectN_mul_root_left/reflectN_ushiftRight_eq) pulled top-level for heartbeat budget — congr 1 on the AdjoinRoot sum equation times out, replaced by simp only [smul_mul_assoc, ← pow_succ] + one Fin.sum_univ_castSucc
 
 ### Pending Todos
@@ -79,5 +81,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-09-08
-Stopped at: Completed 07a-03-PLAN.md (reflectN + reflect_gfmulStep crux, sorry-free, standard axioms)
+Stopped at: Completed 07a-04-PLAN.md (reflect_gfmul criterion 1 via 128-step fold invariant, sorry-free, standard axioms)
 Resume file: None
