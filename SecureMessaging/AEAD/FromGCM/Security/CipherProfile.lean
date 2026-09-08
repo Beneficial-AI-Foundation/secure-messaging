@@ -49,4 +49,30 @@ theorem gctr_single_block {K : Type} (ciph : K → BitVec 128 → BitVec 128) (k
   simp only [gctr, Nat.reduceAdd, Nat.reduceDiv, counterChain_one, List.map_cons,
     List.map_nil, keystream_singleton]
 
+/-! ## Encryption profile -/
+
+/-- GCM encryption parameterized by its three separated cipher outputs: hash key `h`,
+tag mask `mask`, and keystream blocks `ksBlocks`. Phases 2–3 substitute sampled values
+for exactly these three parameters. -/
+def gcmEncryptSpec (h mask : BitVec 128) (ksBlocks : List (BitVec 128))
+    {lenA lenP : ℕ} (ad : BitVec lenA) (m : BitVec lenP) :
+    BitVec lenP × BitVec 128 :=
+  let c := m ^^^ keystream ksBlocks lenP
+  (c, ghash h (padBlocks ad ++ padBlocks c ++
+        [BitVec.ofNat 64 lenA ++ BitVec.ofNat 64 lenP]) ^^^ mask)
+
+/-- The cipher-call profile of GCM encryption at the all-zero IV: `gcmEncrypt` consumes
+exactly `H = CIPH_K(0)` (the ghash key), `CIPH_K(1)` (the tag mask, `J₀ = 1`), and the
+keystream blocks `CIPH_K` over `counterChain 2 ⌈lenP/128⌉` (message ICB `inc₃₂(J₀) = 2`). -/
+-- ANCHOR: gcmEncrypt_profile
+theorem gcmEncrypt_profile {K : Type} (ciph : CIPH K) (k : K) {lenA lenP : ℕ}
+    (ad : BitVec lenA) (m : BitVec lenP) :
+    gcmEncrypt ciph k 0 ad m =
+      gcmEncryptSpec (ciph.perm k 0) (ciph.perm k 1)
+        ((counterChain 2 ((lenP + 127) / 128)).map (ciph.perm k)) ad m := by
+-- ANCHOR_END: gcmEncrypt_profile
+  simp only [gcmEncrypt, gcmEncryptSpec]
+  rw [j0_zero_iv, gctr_single_block, inc32_one]
+  simp only [gctr]
+
 end GCM
