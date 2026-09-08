@@ -93,9 +93,9 @@ theorem bitsToMatrixWith_matrixToBitsWith {α : Type*} {r c d : ℕ}
 
 /-- A bit string is recovered from its matrix, whenever the bits of an entry
 are recovered from the entry. -/
-theorem matrixToBitsWith_bitsToMatrixWith {α : Type*} {r c d : ℕ}
+theorem matrixToBitsWith_bitsToMatrixWith {α : Type*} {d : ℕ}
     {f : α → Vector Bool d} {g : Vector Bool d → α} (hfg : ∀ v, f (g v) = v)
-    (b : Vector Bool (r * c * d)) :
+    (r c : ℕ) (b : Vector Bool (r * c * d)) :
     matrixToBitsWith f (bitsToMatrixWith g r c b) = b := by
   apply Vector.ext
   intro k hk

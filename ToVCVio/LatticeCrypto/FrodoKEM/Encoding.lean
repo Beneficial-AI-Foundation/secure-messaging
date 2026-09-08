@@ -347,7 +347,7 @@ theorem toChunks_ofChunks (p : Params) (M : ChunkMatrix p) :
 @[simp]
 theorem ofChunks_toChunks (p : Params) (b : Vector Bool (mbar * nbar * p.B)) :
     ofChunks p (toChunks p b) = b :=
-  matrixToBitsWith_bitsToMatrixWith (chunkToBits_bitsToChunk p) b
+  matrixToBitsWith_bitsToMatrixWith (chunkToBits_bitsToChunk p) mbar nbar b
 
 /-! ## The published maps -/
 

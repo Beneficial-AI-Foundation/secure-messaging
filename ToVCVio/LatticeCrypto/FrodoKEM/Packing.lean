@@ -122,6 +122,6 @@ theorem Unpack_Pack (p : Params) (hw : p.WellFormed) {r c : ℕ} (M : FrodoMatri
 /-- `Frodo.Pack` inverts `Frodo.Unpack`. -/
 theorem Pack_Unpack (p : Params) (hw : p.WellFormed) (r c : ℕ)
     (b : Vector Bool (r * c * p.D)) : Pack p (Unpack p r c b) = b :=
-  matrixToBitsWith_bitsToMatrixWith (entryToBits_bitsToEntry p hw) b
+  matrixToBitsWith_bitsToMatrixWith (entryToBits_bitsToEntry p hw) r c b
 
 end FrodoKEM
