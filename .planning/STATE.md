@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-09-08)
 ## Current Position
 
 Phase: 07a of 10 (GHASH Polynomial Form) — parallel phase, depends on Phase 1
-Plan: 4 of 5 complete in phase 07a (07a-01..07a-04 done; 07a-05 remains)
-Status: 07a-04 complete — criterion 1 closed: reflect_gfmul (reflectN (gfmul x y) = reflectN x * reflectN y) by lifting reflect_gfmulStep across gfmul's 128-step fold (dual v/z invariant, range_succ/foldl_append peel); gfmul_eq_reflect_symm; CommRing-only, sorry-free, standard axioms only
-Last activity: 2026-09-08 — Executed 07a-04 (gfmulStep names gfmul's foldl body; reflectN_zero; gfmul_eq_foldl by rfl; reflect_gfmul_aux dual invariant; reflect_gfmul at k=128 via reflectN_apply coefficient-sum = reflectN x; gfmul_eq_reflect_symm via Equiv.symm_apply_apply)
+Plan: 5 of 5 complete in phase 07a (07a-01..07a-05 done) — PHASE 7a COMPLETE
+Status: 07a-05 complete — criterion 2 closed: reflect_ghash (reflectN (ghash h blocks) = ∑ reflectN(reverse[i])*(reflectN h)^(i+1)), reversed-block indexed with zero constant term; ghashPoly + reflect_ghash_eval + ghashPoly_coeff_zero + ghashPoly_natDegree_le. Phase 7a's two deliverables (criteria 1+2) both landed, lake build green, sorry-free (criterion 3). CommRing-only, standard axioms only
+Last activity: 2026-09-08 — Executed 07a-05 (reflect_ghash_foldl_gen seed-generalized induction reflect_gfmul+reflectN_xor; horner_foldl_eq_sum via List.reverseRecOn + Finset.sum_range_succ'; reflect_ghash sum form; ghashPoly packaging via eval_finsetSum/finsetSum_coeff; coeff 0 = 0; natDegree ≤ blocks.length)
 
-Progress: [██░░░░░░░░] 15% (phase 1 complete: 9/9; phase 07a: 4/5)
+Progress: [██░░░░░░░░] 16% (phase 1 complete: 9/9; phase 07a complete: 5/5)
 
 ## Performance Metrics
 
@@ -46,6 +46,8 @@ Progress: [██░░░░░░░░] 15% (phase 1 complete: 9/9; phase 07a
 | Phase 07a P02 | 10 min | 2 tasks | 2 files |
 | Phase 07a P03 | 19 min | 2 tasks | 1 files |
 | Phase 07a P04 | 3 min | 2 tasks | 1 files |
+| Phase 07a P05 | 4 min | 2 tasks | 1 files |
+| Phase 07a P05 | 4 min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -67,6 +69,7 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-09: floor shipped in both normal forms (card-form direct from generic lemma, 2^128-form via FinEnum.card_eq_fintypeCard bridge) so Phase 4 consumes either without conversion; witness distinctness via congrArg on a.1.1 (0 vs 8), no Subtype.ext_iff/HEq; GhashIsAXU kept a def with a rfl example pinning the unfolding in CI
 - [Phase 07a]: 01: nistPoly grouped as X^128 + (X^7+X^2+X+1) so monic_X_pow_add applies with the tail as p; monic + natDegree=128 both via compute_degree!; root annihilation stated with modulus written literally as nistPoly (only the reduced element spelled out) so mk_X yields root nistPoly and avoids an atom mismatch under ring; char 2 taken as (2 : AdjoinRoot nistPoly)=0 via map_ofNat on AdjoinRoot.of (no CharP/CharTwo instance exists for AdjoinRoot), reduction closed by linear_combination; set_option maxRecDepth 4000 needed for ring over root^128, and it must precede the docstring
 - [Phase 07a]: 07a-02: BitVec half is a plain Equiv + separate reflect_xor (Mathlib BitVec + is arithmetic not XOR); cross PowerBasis.dim=natDegree defeq with change not rw; Basis renamed to Module.Basis
+- [Phase 07a]: 07a-05: reversed-block indexing locked (coefficient of h^(i+1) is blocks.reverse[i], verbatim match to Encoding.lean gcmEncode_tail_distinct — Phase 7b transport index-for-index); horner_foldl_eq_sum by List.reverseRecOn (append-singleton multiplies acc by H and prepends b at reverse index 0), reindex via one Finset.sum_range_succ' + sum_mul + mul_assoc + pow_succ; reflect_ghash_foldl_gen seed-generalized (foldl accumulator varies; seed 0 via reflectN_zero); ghashPoly packaging uses renamed eval_finsetSum/finsetSum_coeff (old eval_finset_sum/finset_sum_coeff deprecated 2026-04-08); ghashPoly_natDegree_le ≤ blocks.length proven (natDegree_C_mul_le∘natDegree_X_pow_le∘omega) as the maxBlocks bound for 7b
 - [Phase 07a]: 07a-04: reflect_gfmul_aux dropped the plan's k ≤ 128 hypothesis (invariant is unconditional since reflect_gfmulStep is bit-index agnostic — unused binder avoided); stated as a DUAL conjunction so the z-step's ⊕v term can read the v-step's reflectN y·root^k; gfmulStep's 2nd component IS vStep p.2 so gfmul_eq_foldl is rfl and the succ .2 is defeq (change, not rw); reflectN_zero via reflectN_apply + Finset.sum_eq_zero (not self-cancellation — 0^^^0's 0#128 misses BitVec.xor_zero's 0#w); base case by `change` onto (0 : BitVec 128) (simp normalizes to 0#128 which reflectN_zero won't rewrite); reflect_gfmul = invariant at k=128 with coefficient-sum = reflectN x via Fin.sum_univ_eq_sum_range
 - [Phase 07a]: 07a-03: reflectN defined as an Equiv structure literal using BitVec.cast on both legs (not `▸`/_root_.cast) so ⇑reflectN unfolds by defeq and getMsbD_cast/xor_cast reduce; the natDegree=128 transport is discharged once in reflectN_apply (Fintype.sum_equiv (finCongr nistPoly_natDegree)) and never fought again; reflect_gcmReductionConst collapses the 128-term sum to range 8 (generic vanishing above) + 8 single-index decides (no full-128 decide); reflect_gfmulStep = two-case boolean split on getMsbD 127 (= getLsbD 0), the ⊕R branch supplies root^128 that duplicates the shift's escaped term and cancels via 2•root^128=0; heavy coordinate lemmas (reflectN_mul_root_left/reflectN_ushiftRight_eq) pulled top-level for heartbeat budget — congr 1 on the AdjoinRoot sum equation times out, replaced by simp only [smul_mul_assoc, ← pow_succ] + one Fin.sum_univ_castSucc
 
@@ -81,5 +84,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-09-08
-Stopped at: Completed 07a-04-PLAN.md (reflect_gfmul criterion 1 via 128-step fold invariant, sorry-free, standard axioms)
+Stopped at: Completed 07a-05-PLAN.md (reflect_ghash criterion 2; Phase 7a complete — criteria 1+2+3, sorry-free, standard axioms). Next: /gsd:plan-phase 2 (or 7b root bound)
 Resume file: None
