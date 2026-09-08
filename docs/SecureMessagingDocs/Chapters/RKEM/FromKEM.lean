@@ -33,7 +33,7 @@ RKEM from KEM.
 :::definition "rkem_from_kem_spec" (parent := "rkem_rkem_from_kem") (lean := "kemRKEM.scheme")
 $`\todo`
 
-```anchor scheme (project := ".") (module := SecureMessaging.RKEM.FromKem.Construction)
+```anchor scheme (project := ".") (module := SecureMessaging.RKEM.FromKEM.Construction)
 def scheme {m : Type → Type u} [Monad m] {K PK SK C : Type}
     (kem : KEMScheme m K PK SK C) : RKEMScheme m Unit PK SK (PK × C) K where
   rsetup := pure ()
