@@ -221,6 +221,33 @@ noncomputable def game3 (_prp : PRPScheme K (BitVec 128)) (L : ℕ) (_hL : Valid
   (simulateQ (consumeLazy gcmTupleImplReject (fun t => t matches OEncrypt _))
     adv).run' (none, none)
 
+/-- UNIFORM-cipher + always-reject implementation family (`game4`): the challenge
+ciphertext is drawn from `$ᵗ (BitVec L × BitVec 128)` and the decryption oracle always
+rejects. The family ignores its tuple argument `a` at EVERY query, so it is trivially
+`τ`-independent everywhere (its own `h_indep` is immediate); the tuple sample at the hit
+query is dead and gets eliminated in `game4_eq_rand` (02-04) via uniform-sample
+losslessness. Kept parameterized so `game4` stays in `consumeLazy` shape at the encryption
+query — Phase 5 couples `game3` and `game4` at that shared sample site. If splitting the
+product draw is convenient, `uniformSample_prod_eq_bind (BitVec L) (BitVec 128)` applies. -/
+@[nolint unusedArguments]
+noncomputable def gcmRandRejectImpl (_a : BitVec 128 × BitVec 128 × BitVec L) :
+    QueryImpl (aeadOneTimeCCASpec SupportedAAD (BitVec L) (BitVec L × BitVec 128))
+      (StateT (Option (BitVec L × BitVec 128)) ProbComp) :=
+  gcmGameSkeleton (spec := unifSpec)
+    (fun _ _ => liftM ($ᵗ (BitVec L × BitVec 128) : ProbComp (BitVec L × BitVec 128)))
+    (fun _ _ => pure none)
+    (oracleUnif (BitVec L × BitVec 128))
+
+/-- Game 4: `game3` with the challenge ciphertext drawn uniformly instead of computed from
+the tuple — `consumeLazy` over `gcmRandRejectImpl` at the same hit predicate and the same
+empty cache, so Phase 5's per-query coupling lands at the same sample site. -/
+@[nolint unusedArguments]
+noncomputable def game4 (_prp : PRPScheme K (BitVec 128)) (L : ℕ) (_hL : ValidMsgLength L)
+    (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
+    ProbComp Bool :=
+  (simulateQ (consumeLazy gcmRandRejectImpl (fun t => t matches OEncrypt _))
+    adv).run' (none, none)
+
 end Games
 
 end GCM
