@@ -131,4 +131,24 @@ theorem lenBlock_ne_of_ne {L : ℕ} {a b : ℕ} (ha : a < 2 ^ 64) (hb : b < 2 ^ 
   simp only [BitVec.extractLsb'_append_eq_left] at h'
   exact h'
 
+/-! ## Tail-aligned distinctness: the unequal-lenA case -/
+
+/-- Position `0` of the REVERSED encoding is the length block
+`[len(A)]₆₄ ‖ [len(C)]₆₄`: the tail-aligned view puts the length block first,
+independently of how many AAD/ciphertext blocks precede it. -/
+theorem gcmEncode_reverse_getD_zero {L : ℕ} (ad : SupportedAAD) (c : BitVec L) :
+    (gcmEncode ad c).reverse.getD 0 0 = BitVec.ofNat 64 ad.1.1 ++ BitVec.ofNat 64 L := by
+  simp [gcmEncode]
+
+/-- Unequal AAD lengths force the encodings to differ at the TAIL (reversed position
+`0`, the length block), regardless of whether the two encodings have the same block
+count. This is the roadmap-locked argument: a longer AAD beginning with zero blocks
+shares its leading coefficient with a shorter encoding, so leading-coefficient
+comparison is unsound — the length block is not. -/
+theorem gcmEncode_getLast_ne_of_lenA_ne {L : ℕ} {ad ad' : SupportedAAD}
+    (h : ad.1.1 ≠ ad'.1.1) (c c' : BitVec L) :
+    (gcmEncode ad c).reverse.getD 0 0 ≠ (gcmEncode ad' c').reverse.getD 0 0 := by
+  rw [gcmEncode_reverse_getD_zero, gcmEncode_reverse_getD_zero]
+  exact lenBlock_ne_of_ne (by have := ad.2.1; omega) (by have := ad'.2.1; omega) h
+
 end GCM
