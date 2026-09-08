@@ -55,9 +55,8 @@ the message is cut into those chunks by
   `chunkToBits` to every entry and concatenating the results in that same
   order.
 
-`toChunks_eq` and `ofChunks_eq` identify these two with `bitsToMatrixWith` and
-`matrixToBitsWith` of `Bits.lean`, which `Packing.lean` uses at `D` bits per
-entry rather than `B`.
+These two are `bitsToMatrixWith` and `matrixToBitsWith` of `Bits.lean` at `B`
+bits per entry, which `Packing.lean` uses at `D` bits instead.
 
 The two composites, which are `Frodo.Encode` and `Frodo.Decode` of the
 specification and so take those names, are
@@ -308,24 +307,12 @@ theorem chunkToBits_bitsToChunk (p : Params) (v : Vector Bool p.B) :
 `EncodeChunks` consumes, entry `(i, j)` taking the piece at position
 `i * nbar + j`. -/
 def toChunks (p : Params) (b : Vector Bool (mbar * nbar * p.B)) : ChunkMatrix p :=
-  Matrix.of fun i j => bitsToChunk p (Vector.ofFn fun t =>
-    b[(i.val * nbar + j.val) * p.B + t.val]'(bitIndex_lt i.isLt j.isLt t.isLt))
+  bitsToMatrixWith (bitsToChunk p) mbar nbar b
 
 /-- The inverse of `toChunks`: the bits of each entry, row by row from row `0`,
 each row left to right. -/
 def ofChunks (p : Params) (M : ChunkMatrix p) : Vector Bool (mbar * nbar * p.B) :=
-  (Vector.ofFn fun c : Fin (mbar * nbar) =>
-    chunkToBits p (M c.divNat c.modNat)).flatten
-
-/-- `ofChunks` is `matrixToBitsWith` at `chunkToBits`, by definition. An edit
-breaking the correspondence fails here. -/
-theorem ofChunks_eq (p : Params) (M : ChunkMatrix p) :
-    ofChunks p M = matrixToBitsWith (chunkToBits p) M := rfl
-
-/-- `toChunks` is `bitsToMatrixWith` at `bitsToChunk`, by definition. An edit
-breaking the correspondence fails here. -/
-theorem toChunks_eq (p : Params) (b : Vector Bool (mbar * nbar * p.B)) :
-    toChunks p b = bitsToMatrixWith (bitsToChunk p) mbar nbar b := rfl
+  matrixToBitsWith (chunkToBits p) M
 
 /-- The chunking convention on a fixed matrix: with `B = 2`, the bit string
 that has only bits `0` and `3` set puts `1` in entry `(0, 0)` and `2` in entry
@@ -347,23 +334,20 @@ layout of Section 6.3. -/
 theorem getElem_ofChunks (p : Params) (M : ChunkMatrix p) {i j t : ℕ}
     (hi : i < mbar) (hj : j < nbar) (ht : t < p.B) :
     (ofChunks p M)[(i * nbar + j) * p.B + t]'(bitIndex_lt hi hj ht) =
-      (chunkToBits p (M ⟨i, hi⟩ ⟨j, hj⟩))[t] := by
-  rw [ofChunks_eq]
-  exact getElem_matrixToBitsWith (chunkToBits p) M hi hj ht
+      (chunkToBits p (M ⟨i, hi⟩ ⟨j, hj⟩))[t] :=
+  getElem_matrixToBitsWith (chunkToBits p) M hi hj ht
 
 /-- The chunks are recovered from their bit string. -/
 @[simp]
 theorem toChunks_ofChunks (p : Params) (M : ChunkMatrix p) :
-    toChunks p (ofChunks p M) = M := by
-  rw [toChunks_eq, ofChunks_eq]
-  exact bitsToMatrixWith_matrixToBitsWith (bitsToChunk_chunkToBits p) M
+    toChunks p (ofChunks p M) = M :=
+  bitsToMatrixWith_matrixToBitsWith (bitsToChunk_chunkToBits p) M
 
 /-- A bit string is recovered from its chunks. -/
 @[simp]
 theorem ofChunks_toChunks (p : Params) (b : Vector Bool (mbar * nbar * p.B)) :
-    ofChunks p (toChunks p b) = b := by
-  rw [ofChunks_eq, toChunks_eq]
-  exact matrixToBitsWith_bitsToMatrixWith (chunkToBits_bitsToChunk p) b
+    ofChunks p (toChunks p b) = b :=
+  matrixToBitsWith_bitsToMatrixWith (chunkToBits_bitsToChunk p) b
 
 /-! ## The published maps -/
 

@@ -28,8 +28,8 @@ not part of this file.
 ## Main definitions
 
 * `entryToBits`, `bitsToEntry`: one entry as `D` bits;
-* `Pack`, `Unpack`, which `Pack_eq` and `Unpack_eq` identify with
-  `matrixToBitsWith` and `bitsToMatrixWith` of `Bits.lean`.
+* `Pack`, `Unpack`, which are `matrixToBitsWith` and `bitsToMatrixWith` of
+  `Bits.lean` at `entryToBits` and `bitsToEntry`.
 
 ## Main results
 
@@ -64,8 +64,7 @@ def bitsToEntry (p : Params) (v : Vector Bool p.D) : ZMod p.q :=
 row left to right, most significant bit of an entry first. Section 6.4 returns
 the byte array this encodes to, which Algorithm 11 does not. -/
 def Pack (p : Params) {r c : ℕ} (M : FrodoMatrix p r c) : Vector Bool (r * c * p.D) :=
-  (Vector.ofFn fun idx : Fin (r * c) =>
-    entryToBits p (M idx.divNat idx.modNat)).flatten
+  matrixToBitsWith (entryToBits p) M
 
 /-- `Frodo.Unpack` (Algorithm 12), the inverse of `Pack`: read the `D`-bit
 pieces back as entries, row by row from row `0` and each row left to right.
@@ -73,8 +72,7 @@ Section 6.4's
 `Unpack` decodes octets to that bit string first, which Algorithm 12 does
 not. -/
 def Unpack (p : Params) (r c : ℕ) (b : Vector Bool (r * c * p.D)) : FrodoMatrix p r c :=
-  Matrix.of fun i j => bitsToEntry p (Vector.ofFn fun l =>
-    b[(i.val * c + j.val) * p.D + l.val]'(bitIndex_lt i.isLt j.isLt l.isLt))
+  bitsToMatrixWith (bitsToEntry p) r c b
 
 /-- The Section 6.4 layout on a fixed matrix: with `D = 15`, the bit string
 that has only bits `14`, `28`, `43`, `44` and `57` set unpacks to
@@ -86,23 +84,12 @@ example : Unpack ParameterSet.FrodoKEM640.params 2 2
       decide (i.val = 14 ∨ i.val = 28 ∨ i.val = 43 ∨ i.val = 44 ∨ i.val = 57)) =
       Matrix.of ![![(1 : ZMod 32768), 2], ![3, 4]] := by decide
 
-/-- `Pack` is `matrixToBitsWith` at `entryToBits`, by definition. An edit
-breaking the correspondence fails here. -/
-theorem Pack_eq (p : Params) {r c : ℕ} (M : FrodoMatrix p r c) :
-    Pack p M = matrixToBitsWith (entryToBits p) M := rfl
-
-/-- `Unpack` is `bitsToMatrixWith` at `bitsToEntry`, by definition. An edit
-breaking the correspondence fails here. -/
-theorem Unpack_eq (p : Params) (r c : ℕ) (b : Vector Bool (r * c * p.D)) :
-    Unpack p r c b = bitsToMatrixWith (bitsToEntry p) r c b := rfl
-
 /-- The bits of entry `(i, j)` sit at positions `(i * c + j) * D` onwards. -/
 theorem getElem_Pack (p : Params) {r c : ℕ} (M : FrodoMatrix p r c) {i j l : ℕ}
     (hi : i < r) (hj : j < c) (hl : l < p.D) :
     (Pack p M)[(i * c + j) * p.D + l]'(bitIndex_lt hi hj hl) =
-      (entryToBits p (M ⟨i, hi⟩ ⟨j, hj⟩))[l] := by
-  rw [Pack_eq]
-  exact getElem_matrixToBitsWith (entryToBits p) M hi hj hl
+      (entryToBits p (M ⟨i, hi⟩ ⟨j, hj⟩))[l] :=
+  getElem_matrixToBitsWith (entryToBits p) M hi hj hl
 
 /-- An entry is recovered from its `D` bits. `q = 2 ^ D` is needed here and in
 `entryToBits_bitsToEntry`: `entryToBits` keeps only `D` bits, so no larger
@@ -129,14 +116,12 @@ theorem entryToBits_bitsToEntry (p : Params) (hw : p.WellFormed) (v : Vector Boo
 
 /-- `Frodo.Unpack` inverts `Frodo.Pack`. -/
 theorem Unpack_Pack (p : Params) (hw : p.WellFormed) {r c : ℕ} (M : FrodoMatrix p r c) :
-    Unpack p r c (Pack p M) = M := by
-  rw [Unpack_eq, Pack_eq]
-  exact bitsToMatrixWith_matrixToBitsWith (bitsToEntry_entryToBits p hw) M
+    Unpack p r c (Pack p M) = M :=
+  bitsToMatrixWith_matrixToBitsWith (bitsToEntry_entryToBits p hw) M
 
 /-- `Frodo.Pack` inverts `Frodo.Unpack`. -/
 theorem Pack_Unpack (p : Params) (hw : p.WellFormed) (r c : ℕ)
-    (b : Vector Bool (r * c * p.D)) : Pack p (Unpack p r c b) = b := by
-  rw [Pack_eq, Unpack_eq]
-  exact matrixToBitsWith_bitsToMatrixWith (entryToBits_bitsToEntry p hw) b
+    (b : Vector Bool (r * c * p.D)) : Pack p (Unpack p r c b) = b :=
+  matrixToBitsWith_bitsToMatrixWith (entryToBits_bitsToEntry p hw) b
 
 end FrodoKEM
