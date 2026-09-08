@@ -330,4 +330,28 @@ theorem reflect_gfmul_aux (x y : BitVec 128) (k : ℕ) :
         rw [Bool.not_eq_true] at h
         rw [ihz, h, bf, zero_smul, zero_mul, add_zero]
 
+/-! ## Criterion 1: `gfmul` is multiplication in `AdjoinRoot nistPoly` -/
+
+/-- **Criterion 1.** `gfmul` is multiplication in `AdjoinRoot nistPoly` transported through the
+reflected equivalence: `reflectN (gfmul x y) = reflectN x * reflectN y`. Specializes the fold
+invariant `reflect_gfmul_aux` at `k = 128` — where the coefficient sum `∑_{i<128} xᵢ • root^i` is
+exactly `reflectN x` (`reflectN_apply`, `nistPoly.natDegree = 128`) — and rewrites `gfmul` as its
+`gfmulStep` fold. `CommRing`-only: no irreducibility, `Field`, or `IsDomain` enters. -/
+theorem reflect_gfmul (x y : BitVec 128) :
+    reflectN (gfmul x y) = reflectN x * reflectN y := by
+  have hx : (∑ i ∈ Finset.range 128,
+      boolToZMod2 (x.getMsbD i) • AdjoinRoot.root nistPoly ^ i) = reflectN x := by
+    rw [reflectN_apply]
+    exact (Fin.sum_univ_eq_sum_range
+      (fun i => boolToZMod2 (x.getMsbD i) • AdjoinRoot.root nistPoly ^ i) 128).symm
+  rw [gfmul_eq_foldl, (reflect_gfmul_aux x y 128).2, hx]
+
+/-- `gfmul` phrased as multiplication carried back through the bijection:
+`gfmul x y = reflectN.symm (reflectN x * reflectN y)`. This is the "reflected linear equivalence
+transporting `gfmul`" form the roadmap describes — a convenient rewrite for plan 07a-05's
+`reflect_ghash` and Phase 7b. Immediate from `reflect_gfmul` and `Equiv.symm_apply_apply`. -/
+theorem gfmul_eq_reflect_symm (x y : BitVec 128) :
+    gfmul x y = reflectN.symm (reflectN x * reflectN y) := by
+  rw [← reflect_gfmul, Equiv.symm_apply_apply]
+
 end GCM
