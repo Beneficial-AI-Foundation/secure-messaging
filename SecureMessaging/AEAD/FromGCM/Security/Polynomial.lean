@@ -386,4 +386,92 @@ theorem reflect_ghash_foldl (h : BitVec 128) (blocks : List (BitVec 128)) :
   have := reflect_ghash_foldl_gen h blocks 0
   rwa [reflectN_zero] at this
 
+/-- The Horner fold in `AdjoinRoot nistPoly` unrolls to the reversed-block-indexed sum
+`∑_{i<m} reflectN (blocks.reverse[i]) · H^(i+1)`. Proven by `List.reverseRecOn`: appending a
+block `b` at the end multiplies the whole accumulator by `H` (raising every power by one) and adds
+`reflectN b · H¹`, which is exactly the reversed list gaining `b` at index `0` (`H¹`) and every
+prior coefficient's power rising by one. The lowest power is `H¹` (index `0`), so the sum has no
+`H⁰` term. -/
+theorem horner_foldl_eq_sum (H : AdjoinRoot nistPoly) (blocks : List (BitVec 128)) :
+    blocks.foldl (fun (acc : AdjoinRoot nistPoly) (x : BitVec 128) => (acc + reflectN x) * H) 0
+      = ∑ i ∈ Finset.range blocks.length,
+          reflectN (blocks.reverse.getD i 0) * H ^ (i + 1) := by
+  induction blocks using List.reverseRecOn with
+  | nil => simp
+  | append_singleton l b ih =>
+    rw [List.foldl_append]
+    simp only [List.foldl_cons, List.foldl_nil, ih, List.length_append, List.length_cons,
+      List.length_nil, List.reverse_append, List.reverse_cons, List.reverse_nil, List.nil_append,
+      List.singleton_append]
+    rw [Finset.sum_range_succ']
+    simp only [List.getD_cons_succ, List.getD_cons_zero, zero_add, pow_one]
+    rw [add_mul, Finset.sum_mul]
+    congr 1
+    refine Finset.sum_congr rfl fun i _ => ?_
+    rw [mul_assoc, ← pow_succ]
+
+/-- **Criterion 2 (sum form).** `ghash h [X₁,…,X_m]` reflects to the reversed-block-indexed sum
+`∑_{i<m} reflectN (blocks.reverse[i]) · (reflectN h)^(i+1)` — i.e. `X₁·hᵐ ⊕ ⋯ ⊕ X_m·h`.
+
+Reversed-block indexing (locked design note, matching `Encoding.lean`'s `gcmEncode_tail_distinct`
+docstring verbatim): index `i` in `blocks.reverse` carries power `h^(i+1)`, so `X_m`
+(`blocks.reverse[0]`) pairs with `h¹` and `X₁` with `h^m`. The lowest power is `h¹`, so the
+**constant term is zero** (`ghashPoly_coeff_zero`).
+
+Phase 7b transport: the coefficient of `h^(i+1)` is `blocks.reverse[i]`, so a differing reversed
+position of degree `≥ 1` (`gcmEncode_tail_distinct`) yields a nonzero difference polynomial of
+degree `≤ maxBlocks`, immune to every constant offset `Δ`. No irreducibility is used here (it
+enters only in Phase 7b, for the root count). -/
+theorem reflect_ghash (h : BitVec 128) (blocks : List (BitVec 128)) :
+    reflectN (ghash h blocks)
+      = ∑ i ∈ Finset.range blocks.length,
+          reflectN (blocks.reverse.getD i 0) * (reflectN h) ^ (i + 1) := by
+  unfold ghash
+  rw [reflect_ghash_foldl, horner_foldl_eq_sum]
+
+/-! ## Polynomial packaging (exposes the coefficient structure for Phase 7b) -/
+
+/-- The GHASH block-coefficient polynomial in `(AdjoinRoot nistPoly)[X]`:
+`∑_{i<m} C (reflectN (blocks.reverse[i])) · X^(i+1)`. Evaluating at `reflectN h` reproduces
+`reflectN (ghash h blocks)` (`reflect_ghash_eval`). Every summand carries `X^(i+1)` with `i+1 ≥ 1`,
+so the constant term is zero (`ghashPoly_coeff_zero`) and `natDegree ≤ blocks.length`
+(`ghashPoly_natDegree_le`, the degree the Phase 7b root count uses — `maxBlocks`). The coefficient
+of `X^(i+1)` is `blocks.reverse[i]`, the reversed-block convention of `Encoding.lean`. -/
+noncomputable def ghashPoly (blocks : List (BitVec 128)) : (AdjoinRoot nistPoly)[X] :=
+  ∑ i ∈ Finset.range blocks.length,
+    Polynomial.C (reflectN (blocks.reverse.getD i 0)) * Polynomial.X ^ (i + 1)
+
+/-- `reflectN (ghash h blocks)` is the evaluation of `ghashPoly blocks` at `reflectN h` — the
+polynomial-evaluation packaging of criterion 2, from `reflect_ghash` and the `eval` homomorphism
+lemmas. -/
+theorem reflect_ghash_eval (h : BitVec 128) (blocks : List (BitVec 128)) :
+    reflectN (ghash h blocks) = (ghashPoly blocks).eval (reflectN h) := by
+  rw [reflect_ghash, ghashPoly, Polynomial.eval_finsetSum]
+  refine Finset.sum_congr rfl fun i _ => ?_
+  simp only [Polynomial.eval_mul, Polynomial.eval_pow, Polynomial.eval_C, Polynomial.eval_X]
+
+/-- **Zero constant term.** `(ghashPoly blocks).coeff 0 = 0`: every summand is `C c · X^(i+1)` with
+`i+1 ≥ 1`, so no summand contributes to degree `0`. This is the algebraic content of "every `ghash`
+position has degree `≥ 1`", the fact Phase 7b uses to make a differing reversed position immune to
+any constant offset `Δ`. -/
+theorem ghashPoly_coeff_zero (blocks : List (BitVec 128)) :
+    (ghashPoly blocks).coeff 0 = 0 := by
+  rw [ghashPoly, Polynomial.finsetSum_coeff]
+  refine Finset.sum_eq_zero fun i _ => ?_
+  rw [Polynomial.coeff_C_mul, Polynomial.coeff_X_pow]
+  simp
+
+/-- `natDegree (ghashPoly blocks) ≤ blocks.length`: each summand `C c · X^(i+1)` has degree
+`≤ i+1 ≤ blocks.length` (for `i < blocks.length`). This is the `maxBlocks` degree bound the Phase
+7b root count consumes. -/
+theorem ghashPoly_natDegree_le (blocks : List (BitVec 128)) :
+    (ghashPoly blocks).natDegree ≤ blocks.length := by
+  rw [ghashPoly]
+  apply Polynomial.natDegree_sum_le_of_forall_le
+  intro i hi
+  rw [Finset.mem_range] at hi
+  refine (Polynomial.natDegree_C_mul_le _ _).trans ?_
+  refine (Polynomial.natDegree_X_pow_le _).trans ?_
+  omega
+
 end GCM
