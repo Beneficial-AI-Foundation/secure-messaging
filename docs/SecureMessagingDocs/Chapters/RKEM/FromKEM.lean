@@ -3,12 +3,23 @@ import VersoManual
 import VersoBlueprint
 import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
+import SecureMessaging.RKEM.FromKEM.Construction
+
+set_option linter.style.setOption false
+set_option linter.hashCommand false
+set_option linter.style.emptyLine false
+set_option linter.style.longLine false
+set_option linter.style.whitespace false
+set_option verso.docstring.allowMissing true
 
 open Verso.Genre
 open Verso.Genre.Manual
+open Verso.Genre.Manual.InlineLean
+open Verso.Code.External
 open Informal
 
 set_option doc.verso true
+set_option pp.rawOnError true
 
 #doc (Manual) "RKEM from KEM" =>
 
@@ -19,14 +30,24 @@ RKEM from KEM.
 :::defTitle "rkem_from_kem_spec" "RKEM from KEM construction"
 :::
 
-::::definition "rkem_from_kem_spec" (parent := "rkem_rkem_from_kem")
+:::definition "rkem_from_kem_spec" (parent := "rkem_rkem_from_kem") (lean := "kemRKEM.scheme")
 $`\todo`
 
-:::leanPill "missing"
-:::
-
+```anchor scheme (project := ".") (module := SecureMessaging.RKEM.FromKem.Construction)
+def scheme {m : Type → Type u} [Monad m] {K PK SK C : Type}
+    (kem : KEMScheme m K PK SK C) : RKEMScheme m Unit PK SK (PK × C) K where
+  rsetup := pure ()
+  rkeygenAFresh := rkeygen kem
+  rkeygenAUpdated := rkeygen kem
+  rkeygenBFresh := rkeygen kem
+  rkeygenBUpdated := rkeygen kem
+  rencA := renc kem
+  rdecA := rdec kem
+  rencB := renc kem
+  rdecB := rdec kem
+```
 {usesLabel}`uses` {uses "rkem_scheme"}[] · {githubLabel}`github` {githubIssue 75}[]
-::::
+:::
 
 :::defTitle "rkem_from_kem_correctness" "RKEM from KEM correctness"
 :::
