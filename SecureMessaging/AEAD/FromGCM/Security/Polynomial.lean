@@ -252,4 +252,82 @@ theorem reflect_gfmulStep (v : BitVec 128) :
     have h127 : v.getMsbD 127 = false := by simpa using h
     rw [if_neg hif, key, h127, bf, zero_smul, add_zero]
 
+/-! ## The `gfmul` fold invariant (criterion 1)
+
+`gfmul x y` runs a 128-step `List.range 128 |>.foldl` accumulating a pair `(z, v)`. Lifting the
+single-step lemma `reflect_gfmulStep` across the whole fold shows `gfmul` is multiplication in
+`AdjoinRoot nistPoly` transported through `reflectN` — the identity
+`reflectN (gfmul x y) = reflectN x * reflectN y`. The proof is a loop invariant peeled with
+`List.range_succ` + `List.foldl_append`, using ring structure only (no irreducibility). -/
+
+/-- One iteration of `gfmul`'s 128-step fold body (NIST SP 800-38D §6.3, Algorithm 1), named so the
+invariant can peel it: `z ↦ z ⊕ v` when the multiplier bit `xᵢ` is set, and `v ↦ vStep v`. This is
+definitionally the `foldl` body of `GCM.gfmul` (its second component is exactly `vStep p.2`). -/
+def gfmulStep (x : BitVec 128) (p : BitVec 128 × BitVec 128) (i : ℕ) :
+    BitVec 128 × BitVec 128 :=
+  (if x.getMsbD i then p.1 ^^^ p.2 else p.1, vStep p.2)
+
+/-- `reflectN` sends the XOR-identity `0` to the ring `0` (the additive identity is preserved). Used
+for the fold invariant's base case. Proven from `reflectN_xor` and self-cancellation, so it needs no
+`getMsbD`-of-zero fact. -/
+theorem reflectN_zero : reflectN (0 : BitVec 128) = 0 := by
+  rw [reflectN_apply]
+  refine Finset.sum_eq_zero (fun i _ => ?_)
+  have hb : (0 : BitVec 128).getMsbD (i : ℕ) = false := by simp
+  rw [hb, boolToZMod2]
+  simp
+
+/-- `gfmul` written as the `gfmulStep` fold — definitional, since `gfmulStep x` is the exact body of
+`gfmul`'s `List.range 128 |>.foldl` (`vStep` unfolds to the literal `v`-update). Lets the
+invariant at `k = 128` specialize directly onto `gfmul`. -/
+theorem gfmul_eq_foldl (x y : BitVec 128) :
+    gfmul x y = ((List.range 128).foldl (gfmulStep x) (0, y)).1 := rfl
+
+/-- **The fold invariant.** After the first `k` steps of `gfmul x y`, the `v`-accumulator is
+`reflectN y * root^k` and the `z`-accumulator is `(∑_{i<k} xᵢ • root^i) * reflectN y`. Both
+halves are proven simultaneously by peeling the last step with `List.range_succ` /
+`List.foldl_append`: the
+`v`-half advances by one `reflect_gfmulStep` (`· root`); the `z`-half either extends the coefficient
+sum by the `i = k` term (bit set, via `reflectN_xor` and `Finset.sum_range_succ`) or leaves it
+unchanged (bit clear, the new coefficient being `0`). Holds unconditionally — no `k ≤ 128` bound is
+needed, since the single-step lemma is bit-index agnostic. -/
+theorem reflect_gfmul_aux (x y : BitVec 128) (k : ℕ) :
+    reflectN ((List.range k).foldl (gfmulStep x) (0, y)).2
+        = reflectN y * AdjoinRoot.root nistPoly ^ k ∧
+    reflectN ((List.range k).foldl (gfmulStep x) (0, y)).1
+        = (∑ i ∈ Finset.range k,
+            boolToZMod2 (x.getMsbD i) • AdjoinRoot.root nistPoly ^ i) * reflectN y := by
+  induction k with
+  | zero =>
+    refine ⟨?_, ?_⟩
+    · rw [List.range_zero, List.foldl_nil]
+      change reflectN y = reflectN y * AdjoinRoot.root nistPoly ^ 0
+      rw [pow_zero, mul_one]
+    · rw [List.range_zero, List.foldl_nil]
+      change reflectN (0 : BitVec 128)
+          = (∑ i ∈ Finset.range 0, boolToZMod2 (x.getMsbD i) • AdjoinRoot.root nistPoly ^ i)
+            * reflectN y
+      rw [reflectN_zero, Finset.sum_range_zero, zero_mul]
+  | succ k ih =>
+    obtain ⟨ihv, ihz⟩ := ih
+    have bt : boolToZMod2 true = (1 : ZMod 2) := by decide
+    have bf : boolToZMod2 false = (0 : ZMod 2) := by decide
+    rw [List.range_succ, List.foldl_append]
+    set p := (List.range k).foldl (gfmulStep x) (0, y) with hp
+    simp only [List.foldl_cons, List.foldl_nil]
+    refine ⟨?_, ?_⟩
+    · change reflectN (vStep p.2) = reflectN y * AdjoinRoot.root nistPoly ^ (k + 1)
+      rw [reflect_gfmulStep, ihv, pow_succ]
+      ring
+    · change reflectN (if x.getMsbD k then p.1 ^^^ p.2 else p.1)
+          = (∑ i ∈ Finset.range (k + 1),
+              boolToZMod2 (x.getMsbD i) • AdjoinRoot.root nistPoly ^ i) * reflectN y
+      rw [Finset.sum_range_succ, add_mul]
+      by_cases h : x.getMsbD k = true
+      · rw [if_pos h, reflectN_xor, ihz, ihv, h, bt, one_smul]
+        ring
+      · rw [if_neg h]
+        rw [Bool.not_eq_true] at h
+        rw [ihz, h, bf, zero_smul, zero_mul, add_zero]
+
 end GCM
