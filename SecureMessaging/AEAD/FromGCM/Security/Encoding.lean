@@ -86,4 +86,49 @@ theorem gcmEncode_length_le {L : ℕ} (ad : SupportedAAD) (c : BitVec L) :
     List.length_cons, List.length_nil]
   omega
 
+/-! ## Injectivity helpers -/
+
+/-- `BitVec.ofNat 64` is injective below `2 ^ 64`: distinct valid lengths give distinct
+64-bit length fields. -/
+theorem ofNat64_inj {a b : ℕ} (ha : a < 2 ^ 64) (hb : b < 2 ^ 64)
+    (h : BitVec.ofNat 64 a = BitVec.ofNat 64 b) : a = b := by
+  have h' : a % 2 ^ 64 = b % 2 ^ 64 := by
+    simpa using BitVec.toNat_inj.mpr h
+  rwa [Nat.mod_eq_of_lt ha, Nat.mod_eq_of_lt hb] at h'
+
+/-- Bit `i` of `x` sits at position `i % 128` of block `i / 128`: the bridge between
+`padBlocks` blocks and the bits of `x`. Holds for all `i` (out-of-range reads are
+`false` on both sides). -/
+theorem getMsbD_paddedBlock {n : ℕ} (x : BitVec n) (i : ℕ) :
+    (paddedBlock x (i / 128)).getMsbD (i % 128) = x.getMsbD i := by
+  have hm : i % 128 < 128 := Nat.mod_lt _ (by omega)
+  simp only [paddedBlock, BitVec.getMsbD_cast, BitVec.getMsbD_ofBoolListBE,
+    List.getD_eq_getElem?_getD, List.getElem?_map, List.getElem?_range hm,
+    Option.map_some, Option.getD_some]
+  rw [Nat.div_add_mod]
+
+/-- At a fixed bit-width, `padBlocks` is injective: the blocks determine the
+bit-string (zero-padding adds no ambiguity once the width is fixed). -/
+theorem padBlocks_injective {n : ℕ} : Function.Injective (padBlocks (n := n)) := by
+  intro x y h
+  apply BitVec.eq_of_getMsbD_eq
+  intro i hi
+  have hlen : i / 128 < (n + 127) / 128 := by omega
+  have hblock : paddedBlock x (i / 128) = paddedBlock y (i / 128) := by
+    have h' := congrArg (fun l => l[i / 128]?) h
+    simpa [padBlocks, List.getElem?_range hlen] using h'
+  rw [← getMsbD_paddedBlock x i, ← getMsbD_paddedBlock y i, hblock]
+
+/-- Distinct AAD lengths below `2 ^ 64` give distinct length blocks
+`[len(A)]₆₄ ‖ [len(C)]₆₄`, whatever the (equal) ciphertext length `L`: the unequal-lenA
+case of the encoding distinctness theorem. -/
+theorem lenBlock_ne_of_ne {L : ℕ} {a b : ℕ} (ha : a < 2 ^ 64) (hb : b < 2 ^ 64)
+    (hab : a ≠ b) :
+    BitVec.ofNat 64 a ++ BitVec.ofNat 64 L ≠ BitVec.ofNat 64 b ++ BitVec.ofNat 64 L := by
+  intro h
+  refine hab (ofNat64_inj ha hb ?_)
+  have h' := congrArg (BitVec.extractLsb' 64 64) h
+  simp only [BitVec.extractLsb'_append_eq_left] at h'
+  exact h'
+
 end GCM
