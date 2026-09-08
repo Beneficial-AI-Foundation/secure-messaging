@@ -109,26 +109,12 @@ def nbar : ℕ := 8
 /-- Integer matrix dimension; see `nbar`. -/
 def mbar : ℕ := 8
 
-/-- `nbar` is positive. -/
-theorem nbar_pos : 0 < nbar := by decide
-
-/-- `nbar` is a multiple of eight. -/
-theorem nbar_mod_eight : nbar % 8 = 0 := by decide
-
-/-- `mbar` is positive. -/
-theorem mbar_pos : 0 < mbar := by decide
-
-/-- `mbar` is a multiple of eight. -/
-theorem mbar_mod_eight : mbar % 8 = 0 := by decide
-
-/-- `lenSeedA` is positive. -/
-theorem lenSeedA_pos : 0 < lenSeedA := by decide
-
-/-- `lenZ` is positive. -/
-theorem lenZ_pos : 0 < lenZ := by decide
-
-/-- `lenChi` is positive. -/
-theorem lenChi_pos : 0 < lenChi := by decide
+/-- Section 5's conditions on the constants that do not vary per parameter set:
+the matrix dimensions are positive multiples of eight, and the seed and
+precision lengths are positive. -/
+theorem constants_wellFormed :
+    0 < mbar ∧ mbar % 8 = 0 ∧ 0 < nbar ∧ nbar % 8 = 0 ∧
+      0 < lenSeedA ∧ 0 < lenZ ∧ 0 < lenChi := by decide
 
 /-- One field per column of Tables 1 and 2. The fields are independent data;
 the relations between them are theorems about the six named parameter sets
