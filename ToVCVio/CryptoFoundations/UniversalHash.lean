@@ -45,3 +45,37 @@ example (hash : BitVec 128 → BitVec 128 → BitVec 128) : Prop :=
 the domain is (supported AAD) × (bit-vector ciphertext) (type-check only). -/
 example (hash : BitVec 128 → List (BitVec 8) × BitVec 256 → BitVec 128) : Prop :=
   IsAlmostXorUniversal hash (2 ^ (128 : ℕ) : ℝ≥0∞)⁻¹
+
+/-- Generic floor on the AXU bound: if `hash` is `ε`-almost-XOR-universal and the
+domain has two distinct points, then `ε` is at least `(Fintype.card T)⁻¹`. At any
+fixed pair `x ≠ y` the offset probabilities sum to `1` (the mapped uniform sample
+never fails), and each is at most `ε`, so `1 ≤ card T * ε`.
+
+This is what lets an authenticity bound built on the predicate be `q · ε` alone,
+with no separate `(card T)⁻¹` guessing term. -/
+theorem IsAlmostXorUniversal.card_inv_le {K D T : Type} [SampleableType K]
+    [DecidableEq T] [XorOp T] [Fintype T] {hash : K → D → T} {ε : ℝ≥0∞}
+    (h : IsAlmostXorUniversal hash ε) {x y : D} (hxy : x ≠ y) :
+    (Fintype.card T : ℝ≥0∞)⁻¹ ≤ ε := by
+  -- The offset probabilities at the fixed pair `(x, y)` sum to `1`.
+  have hsum : ∑ Δ : T, Pr[= Δ | (fun k => hash k x ^^^ hash k y) <$> ($ᵗ K)] = 1 :=
+    sum_probOutput_eq_one (by simp)
+  -- Each summand is at most `ε`, hence `1 ≤ card T * ε`.
+  have hone_le : (1 : ℝ≥0∞) ≤ (Fintype.card T : ℝ≥0∞) * ε :=
+    calc (1 : ℝ≥0∞)
+        = ∑ Δ : T, Pr[= Δ | (fun k => hash k x ^^^ hash k y) <$> ($ᵗ K)] := hsum.symm
+      _ ≤ ∑ _Δ : T, ε := Finset.sum_le_sum fun Δ _ => h x y hxy Δ
+      _ = (Fintype.card T : ℝ≥0∞) * ε := by
+          simp [Finset.sum_const, Finset.card_univ, nsmul_eq_mul]
+  -- `card T ≠ 0`, else the previous step reads `1 ≤ 0`.
+  have hcard : (Fintype.card T : ℝ≥0∞) ≠ 0 := by
+    intro h0
+    rw [h0, zero_mul] at hone_le
+    exact one_ne_zero (le_antisymm hone_le zero_le)
+  -- Cancel `card T` in `ℝ≥0∞` (a natural cast, so never `⊤`).
+  calc (Fintype.card T : ℝ≥0∞)⁻¹
+      = (Fintype.card T : ℝ≥0∞)⁻¹ * 1 := (mul_one _).symm
+    _ ≤ (Fintype.card T : ℝ≥0∞)⁻¹ * ((Fintype.card T : ℝ≥0∞) * ε) :=
+        mul_le_mul_right hone_le _
+    _ = ε := by
+        rw [← mul_assoc, ENNReal.inv_mul_cancel hcard (ENNReal.natCast_ne_top _), one_mul]
