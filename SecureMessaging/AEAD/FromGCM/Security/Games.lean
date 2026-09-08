@@ -429,4 +429,61 @@ theorem game3Flat_eq_game3 (prp : PRPScheme K (BitVec 128)) (L : ℕ)
 
 end Instrumented
 
+/-! ## Endpoints (criteria 5/6): `game0` = real, `game4` = random
+
+Both are `Pr[= true | ·]` equalities against
+`AEADScheme.securityExpFixedBit (gcmOneTimeAEAD prp L hL) adv <bit>`, carrying
+`[NeverFail prp.keygen]` as the only extra hypothesis (ROADMAP criterion 6; on the
+current VCVio checkout the instance is derivable for ANY `ProbComp` via the blanket
+total-PMF-lift instance, so it is redundant but harmless — kept for contract
+stability against a future failure-capable keygen monad). These two statements are
+the anchors Phase 6's triangle inequality attaches to. -/
+
+section Endpoints
+
+variable {K : Type}
+
+/-- Criterion 5, left end: `game0` IS the real ACD19 experiment
+(`securityExpFixedBit … false`).
+
+Mirrors EtM `PrfHop.game0_eq_real` but SIMPLER: GCM has a single key
+(`gcmOneTimeAEAD.keygen = prp.keygen`), so there is no independent-key swap, and
+`game0`'s state is plain `Option C` matching the endpoint's, so the projection is
+`id`, not `Prod.fst`. -/
+theorem game0_eq_real (prp : PRPScheme K (BitVec 128)) (L : ℕ) (hL : ValidMsgLength L)
+    (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
+    [NeverFail prp.keygen] :
+    Pr[= true | game0 prp L hL adv] =
+      Pr[= true | AEADScheme.securityExpFixedBit (gcmOneTimeAEAD prp L hL) adv false] := by
+  -- Unfold only the keygen projection (keep `aeadSecurityImpl` folded to match the RHS).
+  have hkg : (gcmOneTimeAEAD prp L hL).keygen = prp.keygen := rfl
+  unfold game0 AEADScheme.securityExpFixedBit
+  rw [hkg]
+  simp only [bind_pure_comp, ← StateT.run'_eq]
+  -- Both sides start with `prp.keygen`; descend under the single key bind.
+  refine probOutput_bind_congr' prp.keygen true (fun k => ?_)
+  -- Inner per-key equality: game0's skeleton impl projects onto
+  -- `aeadSecurityImpl … false k` with `proj = id` (state `Option C` on both sides).
+  refine congrArg (fun o => Pr[= true | o]) ?_
+  refine run'_simulateQ_eq_of_query_map_eq _
+    (AEADScheme.aeadSecurityImpl (gcmOneTimeAEAD prp L hL) false k) id ?hproj adv none
+  case hproj =>
+    intro t s
+    rcases t with (n | ⟨ad, m⟩) | ⟨ad, e⟩
+    · -- OUnif: both handlers are the lifted uniform oracle, state threaded unchanged.
+      simp [gcmGameSkeleton, AEADScheme.aeadSecurityImpl, AEADScheme.oracleUnif,
+        unifLiftStateT, QueryImpl.add_apply_inl, QueryImpl.liftTarget_apply,
+        StateT.run_monadLift, Functor.map_map]
+    · -- OEncrypt: identical one-shot real-cipher bodies (the `b = false` branch of
+      -- `oracleEncrypt` is `pure (ae.encrypt k a m)`, matching the skeleton's `encStar`).
+      cases s <;>
+        simp [gcmGameSkeleton, AEADScheme.aeadSecurityImpl, AEADScheme.oracleEncrypt,
+          QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, StateT.run_bind,
+          StateT.run_get, StateT.run_set, StateT.run_pure, map_pure]
+    · -- ODecrypt: `false || guard = guard`; the live decrypt body matches verbatim.
+      simp [gcmGameSkeleton, AEADScheme.aeadSecurityImpl, AEADScheme.oracleDecrypt,
+        QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get]
+
+end Endpoints
+
 end GCM
