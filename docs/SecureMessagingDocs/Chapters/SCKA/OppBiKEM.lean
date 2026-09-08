@@ -34,7 +34,7 @@ Opp-BiKEM-CKA.
 Figures 17 and 18 of {Informal.citet SCKA25}[]. This construction uses a standard
 KEM: $`A` encapsulates in odd epochs and $`B` encapsulates in even epochs. Both parties
 send public-key chunks opportunistically, before transmitting ciphertext chunks.
-There is no offline/online ciphertext split.[TODO: check this claim]
+There is no offline/online ciphertext split. TODO: check this claim
 
 Each party has two counters:
 
@@ -105,7 +105,7 @@ structure State (PK SK C Sym : Type) where
   reqEpoch : ℤ
   dk : List (ℤ × SK)
   ek : Option PK
-  lch : Finset (ℕ × Sym)
+  received_chunks : Finset (ℕ × Sym)
   ack : Acknowledgements
 
 abbrev StA := State
@@ -143,10 +143,11 @@ structure Acknowledgements where
   ekRec : Finset ℤ
   ctRec : Finset ℤ
 
-/-- Largest nonnegative index with two adjacent acknowledged ciphertexts.
+/-- Largest nonnegative index with two adjacent acknowledged ciphertexts
+(both t and t-1 in act.ctRec).
 The empty maximum is zero; honest states initially acknowledge `-1` and `0`. -/
 def Acknowledgements.sendingEpoch (ack : Acknowledgements) : ℕ :=
-  ack.ctRec.sup fun t => if t - 1 ∈ ack.ctRec then t.toNat else 0
+  (ack.ctRec.filter fun t => t - 1 ∈ ack.ctRec).sup Int.toNat
 ```
 :::::
 
@@ -166,7 +167,7 @@ def init (role : Role) (_ik : Unit) : m (State PK SK C Sym) :=
   pure { resEpoch := if role = .A then -1 else 0
          reqEpoch := if role = .A then 0 else -1
          ekPeer := fun _ => none
-         ct := none, ich := 0, dk := [], ek := none, lch := ∅
+         ct := none, ich := 0, dk := [], ek := none, received_chunks := ∅
          ack := { ekRec := ∅, ctRec := {-1, 0} } }
 ```
 ```anchor initA (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
@@ -325,11 +326,11 @@ def recv (role : Role) (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
       match ρ.bit, ρ.ch with
       | some 0, some ch =>
           if (st.ekPeer peerKeyEpoch).isNone then
-            let lch := insert ch st.lch
-            match ecEk.decode lch with
-            | none => (none, { st with lch })
+            let received_chunks := insert ch st.received_chunks
+            match ecEk.decode received_chunks with
+            | none => (none, { st with received_chunks })
             | some ekPeer =>
-                (none, { st with lch := ∅
+                (none, { st with received_chunks := ∅
                                  ekPeer := Function.update st.ekPeer peerKeyEpoch (some ekPeer)
                                  ack := { st.ack with ekRec := insert peerKeyEpoch st.ack.ekRec } })
           else (none, st)
@@ -338,15 +339,15 @@ def recv (role : Role) (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
             match st.dk.lookup st.reqEpoch with
             | none => (none, st)
             | some dk =>
-                let lch := insert ch st.lch
-                match ecCt.decode lch with
-                | none => (none, { st with lch })
+                let received_chunks := insert ch st.received_chunks
+                match ecCt.decode received_chunks with
+                | none => (none, { st with received_chunks })
                 | some ct =>
                     match hDet.decapsDet dk ct with
                     | none => (none, st)
                     | some key =>
                         (some (st.reqEpoch.toNat, key),
-                          { st with lch := ∅
+                          { st with received_chunks := ∅
                                     dk := st.dk.filter (fun p => p.1 != st.reqEpoch)
                                     ack := { st.ack with
                                       ctRec := insert st.reqEpoch st.ack.ctRec } })
