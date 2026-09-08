@@ -75,4 +75,53 @@ theorem gcmEncrypt_profile {K : Type} (ciph : CIPH K) (k : K) {lenA lenP : ℕ}
   rw [j0_zero_iv, gctr_single_block, inc32_one]
   simp only [gctr]
 
+/-! ## Decryption profile -/
+
+/-- GCM decryption parameterized by its three separated cipher outputs, mirroring
+`gcmEncryptSpec`: recompute the tag as `ghash h (…) ^^^ mask` and, on a match, undo the
+keystream XOR. -/
+def gcmDecryptSpec (h mask : BitVec 128) (ksBlocks : List (BitVec 128))
+    {lenA lenP : ℕ} (ad : BitVec lenA) (ct : BitVec lenP × BitVec 128) :
+    Option (BitVec lenP) :=
+  if ct.2 = ghash h (padBlocks ad ++ padBlocks ct.1 ++
+        [BitVec.ofNat 64 lenA ++ BitVec.ofNat 64 lenP]) ^^^ mask
+  then some (ct.1 ^^^ keystream ksBlocks lenP) else none
+
+/-- The cipher-call profile of GCM decryption at the all-zero IV, for supported lengths.
+The hypothesis is required: `gcmDecrypt` fails on unsupported lengths before any cipher
+call, so the unguarded equality is false. -/
+-- ANCHOR: gcmDecrypt_profile
+theorem gcmDecrypt_profile {K : Type} (ciph : CIPH K) (k : K) {lenA lenP : ℕ}
+    (ad : BitVec lenA) (ct : BitVec lenP × BitVec 128)
+    (hv : ValidMsgLength lenP ∧ ValidAADLength lenA) :
+    gcmDecrypt ciph k 0 ad ct =
+      gcmDecryptSpec (ciph.perm k 0) (ciph.perm k 1)
+        ((counterChain 2 ((lenP + 127) / 128)).map (ciph.perm k)) ad ct := by
+-- ANCHOR_END: gcmDecrypt_profile
+  obtain ⟨c, t⟩ := ct
+  simp only [gcmDecrypt, gcmDecryptSpec]
+  rw [if_pos hv, j0_zero_iv, gctr_single_block, inc32_one]
+  simp only [gctr]
+
+/-! ## Specialization to `gcmOneTimeAEAD` -/
+
+/-- `gcmEncrypt_profile` at the `gcmOneTimeAEAD` call shape: the one-time AEAD's
+`encrypt` is `gcmEncryptSpec` at the three separated cipher outputs. -/
+theorem gcmOneTimeAEAD_encrypt_profile {K : Type} (prp : PRPScheme K (BitVec 128))
+    {L : ℕ} (hL : ValidMsgLength L) (k : K) (ad : SupportedAAD) (m : BitVec L) :
+    (gcmOneTimeAEAD prp L hL).encrypt k ad m =
+      gcmEncryptSpec (prp.toBlockCipher.perm k 0) (prp.toBlockCipher.perm k 1)
+        ((counterChain 2 ((L + 127) / 128)).map (prp.toBlockCipher.perm k)) ad.1.2 m :=
+  gcmEncrypt_profile prp.toBlockCipher k ad.1.2 m
+
+/-- `gcmDecrypt_profile` at the `gcmOneTimeAEAD` call shape; the validity guard is
+discharged by `hL` and the AAD's `ValidAADLength` witness `ad.2`. -/
+theorem gcmOneTimeAEAD_decrypt_profile {K : Type} (prp : PRPScheme K (BitVec 128))
+    {L : ℕ} (hL : ValidMsgLength L) (k : K) (ad : SupportedAAD)
+    (ct : BitVec L × BitVec 128) :
+    (gcmOneTimeAEAD prp L hL).decrypt k ad ct =
+      gcmDecryptSpec (prp.toBlockCipher.perm k 0) (prp.toBlockCipher.perm k 1)
+        ((counterChain 2 ((L + 127) / 128)).map (prp.toBlockCipher.perm k)) ad.1.2 ct :=
+  gcmDecrypt_profile prp.toBlockCipher k ad.1.2 ct ⟨hL, ad.2⟩
+
 end GCM
