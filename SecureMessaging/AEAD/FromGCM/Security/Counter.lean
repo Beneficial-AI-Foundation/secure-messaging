@@ -80,4 +80,52 @@ theorem counterChain_two (n : ℕ) (h : n + 1 ≤ 2 ^ 32 - 1) :
   have h2 : (2 : BitVec 128) = BitVec.ofNat 128 2 := rfl
   rw [h2, counterChain_ofNat 2 n (by omega)]
 
+/-! ## Pairwise distinctness of the cipher inputs -/
+
+/-- Arithmetic bridge from REQ-05: the supported-length bound `L ≤ 2 ^ 39 - 256`
+alone (the `8 ∣ L` conjunct of `ValidMsgLength` is unused) keeps the block count
+`n = ⌈L / 128⌉` and its successor inside the 32-bit counter field:
+`2 ^ 39 - 256 = 128 * (2 ^ 32 - 2)`, so `n ≤ 2 ^ 32 - 2`. -/
+theorem blockCount_add_one_le {L : ℕ} (hL : ValidMsgLength L) :
+    (L + 127) / 128 + 1 ≤ 2 ^ 32 - 1 := by
+  have h := hL.1
+  omega
+
+/-- The full cipher-input list of one GCM call at the zero IV in numeral form:
+`H = CIPH_K(0)`, tag mask `CIPH_K(1)`, keystream blocks `CIPH_K(2), …, CIPH_K(n + 1)`
+— together `{0, 1, …, n + 1}` as `BitVec 128` numerals. -/
+theorem cipherInputs_eq (n : ℕ) (h : n + 1 ≤ 2 ^ 32 - 1) :
+    0 :: 1 :: counterChain (2 : BitVec 128) n =
+      (List.range (n + 2)).map (fun i => BitVec.ofNat 128 i) := by
+  rw [counterChain_two n h, List.range_succ_eq_map, List.range_succ_eq_map]
+  simp only [List.map_cons, List.map_map, List.cons.injEq]
+  refine ⟨rfl, rfl, ?_⟩
+  exact List.map_congr_left fun i _ => by
+    simp only [Function.comp_apply]
+    congr 1
+    omega
+
+/-- Criterion 2, distinctness: the `n + 2` cipher inputs `{0, 1, …, n + 1}` of one
+GCM call (`n = ⌈L / 128⌉`) are pairwise distinct in `BitVec 128`, with the counter
+bound derived from `ValidMsgLength` (REQ-05) — only its `L ≤ 2 ^ 39 - 256` conjunct
+is used. Phase 3's ideal-PRF projection answers these `n + 2` eager queries with
+independent uniforms, which is valid exactly because the query points never collide. -/
+theorem cipherInputs_nodup {L : ℕ} (hL : ValidMsgLength L) :
+    ((List.range ((L + 127) / 128 + 2)).map (fun i => BitVec.ofNat 128 i)).Nodup := by
+  have hn := blockCount_add_one_le hL
+  refine List.Nodup.map_on ?_ List.nodup_range
+  intro i hi j hj hij
+  rw [List.mem_range] at hi hj
+  have h128 : i % 2 ^ 128 = j % 2 ^ 128 := by
+    simpa only [BitVec.toNat_ofNat] using congrArg BitVec.toNat hij
+  omega
+
+/-- Criterion 2 in the shape downstream consumers take the list: the concrete
+cipher-input list `0 :: 1 :: counterChain 2 n` is `Pairwise (· ≠ ·)`, from
+`ValidMsgLength L` alone. -/
+theorem cipherInputs_pairwise_ne {L : ℕ} (hL : ValidMsgLength L) :
+    (0 :: 1 :: counterChain (2 : BitVec 128) ((L + 127) / 128)).Pairwise (· ≠ ·) := by
+  rw [cipherInputs_eq _ (blockCount_add_one_le hL)]
+  exact cipherInputs_nodup hL
+
 end GCM
