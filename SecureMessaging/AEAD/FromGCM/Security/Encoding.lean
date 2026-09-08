@@ -151,4 +151,79 @@ theorem gcmEncode_getLast_ne_of_lenA_ne {L : ℕ} {ad ad' : SupportedAAD}
   rw [gcmEncode_reverse_getD_zero, gcmEncode_reverse_getD_zero]
   exact lenBlock_ne_of_ne (by have := ad.2.1; omega) (by have := ad'.2.1; omega) h
 
+/-! ## Equal-lenA case and the assembled theorems -/
+
+/-- Equal AAD lengths give equal encoding lengths (each of the three segments —
+AAD blocks, ciphertext blocks, length block — has length determined by `lenA` and
+`L` alone). -/
+theorem gcmEncode_length_eq_of_lenA_eq {L : ℕ} {ad ad' : SupportedAAD}
+    (h : ad.1.1 = ad'.1.1) (c c' : BitVec L) :
+    (gcmEncode ad c).length = (gcmEncode ad' c').length := by
+  simp [gcmEncode, h]
+
+/-- With equal AAD lengths, distinct domain points give distinct encodings: the
+segments have pairwise equal lengths, so `List.append_inj` splits the equality
+segment-wise and `padBlocks_injective` recovers the inputs. -/
+theorem gcmEncode_ne_of_lenA_eq {L : ℕ} {ad ad' : SupportedAAD} {c c' : BitVec L}
+    (hlen : ad.1.1 = ad'.1.1) (hne : (ad, c) ≠ (ad', c')) :
+    gcmEncode ad c ≠ gcmEncode ad' c' := by
+  obtain ⟨⟨a, x⟩, hx⟩ := ad
+  obtain ⟨⟨a', x'⟩, hx'⟩ := ad'
+  dsimp only at hlen
+  subst hlen
+  intro h
+  simp only [gcmEncode] at h
+  obtain ⟨h₁, -⟩ := List.append_inj h (by simp)
+  obtain ⟨hA, hC⟩ := List.append_inj h₁ (by simp)
+  obtain rfl := padBlocks_injective hA
+  obtain rfl := padBlocks_injective hC
+  exact hne rfl
+
+/-- Equal-length lists that are unequal differ at some `getD` position (the
+contrapositive of `List.ext_getElem`, packaged in the `getD` form the tail-aligned
+theorem uses). -/
+theorem exists_getD_ne_of_ne {α : Type _} (d : α) {l₁ l₂ : List α}
+    (hlen : l₁.length = l₂.length) (hne : l₁ ≠ l₂) :
+    ∃ i, l₁.getD i d ≠ l₂.getD i d := by
+  by_contra hc
+  push Not at hc
+  refine hne (List.ext_getElem hlen fun i h₁ h₂ => ?_)
+  have h := hc i
+  rwa [List.getD_eq_getElem?_getD, List.getD_eq_getElem?_getD,
+    List.getElem?_eq_getElem h₁, List.getElem?_eq_getElem h₂,
+    Option.getD_some, Option.getD_some] at h
+
+/-- **Tail-aligned coefficient distinctness** (Phase 1 criterion 4, strengthened
+form): distinct domain points give encodings whose REVERSED block lists differ at
+some position.
+
+Transport to Phase 7b (root bound): since
+`ghash h [X₁, …, X_m] = X₁·h^m ⊕ ⋯ ⊕ X_m·h`, reversed-list index `i` is exactly
+the coefficient of `h^(i+1)` — every position has degree `≥ 1`, so a differing
+position is immune to every constant offset `Δ` (constant terms live at degree
+`0`, which no `ghash` position occupies). Combined with `gcmEncode_length_le`,
+the difference polynomial of two distinct encodings is nonzero of degree
+`≤ maxBlocks L`, so it has at most `maxBlocks L` roots in `h`. -/
+theorem gcmEncode_tail_distinct {L : ℕ} {p q : SupportedAAD × BitVec L}
+    (h : p ≠ q) :
+    ∃ i, ((gcmEncode p.1 p.2).reverse).getD i 0 ≠ ((gcmEncode q.1 q.2).reverse).getD i 0 := by
+  by_cases hlen : p.1.1.1 = q.1.1.1
+  · have hne : gcmEncode p.1 p.2 ≠ gcmEncode q.1 q.2 := gcmEncode_ne_of_lenA_eq hlen h
+    have hlens : ((gcmEncode p.1 p.2).reverse).length = ((gcmEncode q.1 q.2).reverse).length := by
+      simpa using gcmEncode_length_eq_of_lenA_eq hlen p.2 q.2
+    exact exists_getD_ne_of_ne 0 hlens fun hr => hne (List.reverse_injective hr)
+  · exact ⟨0, gcmEncode_getLast_ne_of_lenA_ne hlen p.2 q.2⟩
+
+/-- **Encoding injectivity** (Phase 1 criterion 4): `gcmEncode` is injective on the
+AEAD domain `SupportedAAD × BitVec L`. A collision at two distinct domain points
+would make the AXU corollary's `maxBlocks / 2¹²⁸` instantiation unprovable; this is
+the well-posedness prerequisite for criterion 5, Phase 4's degenerate case, and
+Phase 7b's root bound. -/
+theorem gcmEncode_injective {L : ℕ} :
+    Function.Injective (fun p : SupportedAAD × BitVec L => gcmEncode p.1 p.2) := by
+  intro p q h
+  by_contra hne
+  obtain ⟨i, hi⟩ := gcmEncode_tail_distinct hne
+  exact hi (by simp only at h; rw [h])
+
 end GCM
