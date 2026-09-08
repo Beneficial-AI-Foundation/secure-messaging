@@ -56,10 +56,10 @@ Lengths are published in bits but the corresponding types are byte vectors, so
 each length comes in both units and the docstrings name which is which.
 
 A `Params` is plain data, so nothing constrains its fields. `Params.WellFormed`
-collects the conditions Section 5 of `[LBES26]` places on them, and
-`params_wellFormed` discharges them for every published set. Section 3 of
-`[CiC25]` introduces the same parameters but leaves their positivity and the
-bound `n < q` unstated, so `[LBES26]` is the one transcribed here.
+collects the conditions `[LBES26]` places on them, and `params_wellFormed`
+discharges them for every published set. Section 3 of `[CiC25]` introduces the
+same parameters but leaves their positivity and the bound `n < q` unstated, so
+`[LBES26]` is the one transcribed here.
 -/
 
 namespace FrodoKEM
@@ -171,9 +171,11 @@ def lenSeedSEBytes (p : Params) : ℕ := p.lenSeedSE / 8
 /-- `lenSalt` expressed in bytes. -/
 def lenSaltBytes (p : Params) : ℕ := p.lenSalt / 8
 
-/-- The conditions of Section 5 of `[LBES26]` that a parameter record must
-satisfy. Its `lensalt` positivity is not among them: the ephemeral variant
-carries no salt, so `lenSalt = 0` for three of the six published sets. -/
+/-- The conditions of `[LBES26]` that a parameter record must satisfy. All come
+from Section 5 except `ell_eq`, which is found in Section 6.3 as
+`l = B * nHat^2`. Section 5 also states that `lensalt` is positive. It is not
+included here because the ephemeral variant carries no salt, so `lenSalt = 0`
+for three of the six published sets. -/
 structure WellFormed (p : Params) : Prop where
   /-- The lattice dimension is positive. -/
   n_pos : 0 < p.n
@@ -193,6 +195,8 @@ structure WellFormed (p : Params) : Prop where
   q_eq : p.q = 2 ^ p.D
   /-- A message fills the matrix: `ℓ = B * mbar * nbar`. -/
   ell_eq : p.ell = p.B * mbar * nbar
+  /-- The bit length of the error sampling seed is positive. -/
+  lenSeedSE_pos : 0 < p.lenSeedSE
 
 end Params
 
