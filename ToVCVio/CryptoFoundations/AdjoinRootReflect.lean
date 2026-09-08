@@ -21,10 +21,10 @@ that reflects NIST bit order: `getMsbD` index `i` maps to the coefficient of
 (`reflect_xor`), the coordinate-is-coefficient lemma (`reflect_apply`), and the
 bijection / cardinality facts consumed downstream.
 
-Everything here is polymorphic in the monic polynomial: there is no `nistPoly`,
-`gfmul`, `ghash`, or `SecureMessaging` reference, and monicity is the only hypothesis
-(no irreducibility / domain / field). This is why it lives in `ToVCVio/` and can run
-in parallel with the GCM-specific plans.
+Everything here is polymorphic in the monic polynomial: there is no reference to any
+concrete GCM polynomial, multiplication, or hash, nor to the downstream application,
+and monicity is the only hypothesis (no irreducibility / domain / field). This is why
+it lives in `ToVCVio/` and can run in parallel with the GCM-specific plans.
 
 ## Design decision (locked)
 
@@ -96,5 +96,58 @@ theorem bitVecEquivFun_xor (n : ℕ) (x y : BitVec n) :
     bitVecEquivFun n (x ^^^ y) = bitVecEquivFun n x + bitVecEquivFun n y := by
   funext i
   simp only [bitVecEquivFun_apply, Pi.add_apply, BitVec.getMsbD_xor, boolToZMod2_xor]
+
+/-! ### The reflected equivalence for a monic polynomial -/
+
+/-- The reflected equivalence for a monic `p : (ZMod 2)[X]`: composes the `BitVec`
+coordinate half with the (inverse of the) `AdjoinRoot` power-basis coordinate map. NIST
+bit `i` becomes the coefficient of `root p ^ i`. Needs monicity only — no irreducibility
+or domain hypothesis. -/
+noncomputable def reflect {p : (ZMod 2)[X]} (hp : p.Monic) :
+    BitVec p.natDegree ≃ AdjoinRoot p :=
+  (bitVecEquivFun p.natDegree).trans
+    ((AdjoinRoot.powerBasis' hp).basis.equivFun.symm.toEquiv)
+
+/-- The headline additivity lemma: `reflect` sends bit-vector XOR to `AdjoinRoot`
+addition. The `AdjoinRoot` half is a linear equiv, so it preserves `+`; the `BitVec`
+half contributes `bitVecEquivFun_xor`. -/
+theorem reflect_xor {p : (ZMod 2)[X]} (hp : p.Monic) (x y : BitVec p.natDegree) :
+    reflect hp (x ^^^ y) = reflect hp x + reflect hp y := by
+  -- Unfold `reflect` to the `AdjoinRoot`-side linear equiv (defeq through the
+  -- `PowerBasis.dim = natDegree` gap), then use linearity.
+  change (AdjoinRoot.powerBasis' hp).basis.equivFun.symm (bitVecEquivFun p.natDegree (x ^^^ y))
+     = (AdjoinRoot.powerBasis' hp).basis.equivFun.symm (bitVecEquivFun p.natDegree x)
+     + (AdjoinRoot.powerBasis' hp).basis.equivFun.symm (bitVecEquivFun p.natDegree y)
+  rw [bitVecEquivFun_xor]
+  exact map_add _ _ _
+
+/-- Coordinate = coefficient: `reflect hp x` expands in the power basis as the sum of
+`boolToZMod2 (x.getMsbD i)` scaled by `root p ^ i`. This is the lemma downstream code
+reads coefficients off of. -/
+theorem reflect_apply {p : (ZMod 2)[X]} (hp : p.Monic) (x : BitVec p.natDegree) :
+    reflect hp x
+      = ∑ i : Fin p.natDegree, boolToZMod2 (x.getMsbD (i : ℕ)) • AdjoinRoot.root p ^ (i : ℕ) := by
+  change (AdjoinRoot.powerBasis' hp).basis.equivFun.symm (bitVecEquivFun p.natDegree x) = _
+  rw [Module.Basis.equivFun_symm_apply]
+  refine Finset.sum_congr rfl (fun i _ => ?_)
+  rw [bitVecEquivFun_apply, (AdjoinRoot.powerBasis' hp).basis_eq_pow i,
+    AdjoinRoot.powerBasis'_gen]
+
+/-! ### Bijection and cardinality transport -/
+
+/-- `reflect hp` is a bijection (it is an `Equiv`). -/
+theorem reflect_bijective {p : (ZMod 2)[X]} (hp : p.Monic) :
+    Function.Bijective (reflect hp) := (reflect hp).bijective
+
+/-- Cardinality transport: since `reflect hp` is a bijection, the preimage of any finset
+of `AdjoinRoot` elements has the same cardinality. Downstream this turns a root-set
+cardinality into a probability over a uniform `BitVec p.natDegree`. -/
+theorem card_preimage_reflect {p : (ZMod 2)[X]} (hp : p.Monic)
+    (S : Finset (AdjoinRoot p)) :
+    (S.preimage (reflect hp) ((reflect hp).injective.injOn)).card = S.card := by
+  classical
+  rw [Finset.card_preimage]
+  refine congrArg Finset.card (Finset.filter_true_of_mem ?_)
+  exact fun x _ => Set.mem_range.2 ((reflect hp).surjective x)
 
 end AdjoinRootReflect
