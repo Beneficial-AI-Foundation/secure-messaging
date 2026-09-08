@@ -329,6 +329,104 @@ noncomputable def game2Flat (_prp : PRPScheme K (BitVec 128)) (L : ℕ)
   let a ← ($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _)
   (simulateQ (gcmInstImpl a true) adv).run' (none, false)
 
+/-! ### Projection lemmas (criterion 4)
+
+Each is proved in two steps (mirroring EtM `Auth/Hop.lean`):
+(i) FLAG ERASURE — the `forged` flag is write-only (it never gates the state transition
+    or the output bit), so dropping it via `Prod.fst`
+    (`run'_simulateQ_eq_of_query_map_eq`) recovers the eager top-level-tuple game over
+    `gcmTupleImpl` (`b = true`) resp. `gcmTupleImplReject` (`b = false`);
+(ii) LAZY COMMUTATION — the eager form is exactly what the lazy lemmas commute:
+    `probOutput_simulateQ_greedyLazy_run'_eq` yields `game2`, and
+    `probOutput_simulateQ_consumeLazy_run'_eq` (with `gcmTupleImplReject_indep` as
+    `h_indep`) yields `game3`.
+
+Both are stated as `evalDist` (full-distribution) equalities — NOT `Pr[= true | ·]` —
+because Phase 4 feeds them into a `tvDist` chain
+(`abs_probOutput_toReal_sub_le_tvDist`). -/
+
+/-- Flag erasure at `b = true`: dropping the write-only `forged` flag (`Prod.fst`) from
+`gcmInstImpl a true` recovers the live per-tuple family `gcmTupleImpl a`, independently
+of the initial flag. -/
+lemma simulateQ_gcmInstImpl_true_run'_eq_gcmTupleImpl
+    (a : BitVec 128 × BitVec 128 × BitVec L)
+    (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
+    (s : Option (BitVec L × BitVec 128)) (forged : Bool) :
+    (simulateQ (gcmInstImpl a true) adv).run' (s, forged) =
+      (simulateQ (gcmTupleImpl a) adv).run' s := by
+  refine run'_simulateQ_eq_of_query_map_eq _ _ Prod.fst ?_ adv (s, forged)
+  intro t state
+  obtain ⟨challenge, flag⟩ := state
+  obtain ⟨h, mask, ks⟩ := a
+  rcases t with (n | ⟨ad, m⟩) | ⟨ad, e⟩
+  · -- OUnif: both handlers are the lifted uniform oracle, state threaded unchanged.
+    simp [gcmInstImpl, gcmTupleImpl, gcmGameSkeleton, oracleUnif, unifLiftStateT,
+      QueryImpl.liftTarget_apply, StateT.run_monadLift, Prod.map, Functor.map_map]
+  · -- OEncrypt: identical one-shot bodies; the flag is written back unchanged.
+    cases challenge <;>
+      simp [gcmInstImpl, gcmTupleImpl, gcmGameSkeleton, StateT.run_bind,
+        StateT.run_get, StateT.run_set, StateT.run_pure, Prod.map]
+  · -- ODecrypt: guard split, then `ok` split; live return matches `gcmTupleImpl`'s
+    -- verification body and the flag write is erased by the projection.
+    by_cases hguard : challenge = some e
+    all_goals
+      simp [gcmInstImpl, gcmTupleImpl, gcmGameSkeleton, StateT.run_bind,
+        StateT.run_get, StateT.run_set, StateT.run_pure,
+        Prod.map, ← apply_ite, beq_iff_eq, hguard]
+
+/-- Flag erasure at `b = false`: dropping the write-only `forged` flag (`Prod.fst`) from
+`gcmInstImpl a false` recovers the always-reject family `gcmTupleImplReject a`,
+independently of the initial flag. -/
+lemma simulateQ_gcmInstImpl_false_run'_eq_gcmTupleImplReject
+    (a : BitVec 128 × BitVec 128 × BitVec L)
+    (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
+    (s : Option (BitVec L × BitVec 128)) (forged : Bool) :
+    (simulateQ (gcmInstImpl a false) adv).run' (s, forged) =
+      (simulateQ (gcmTupleImplReject a) adv).run' s := by
+  refine run'_simulateQ_eq_of_query_map_eq _ _ Prod.fst ?_ adv (s, forged)
+  intro t state
+  obtain ⟨challenge, flag⟩ := state
+  obtain ⟨h, mask, ks⟩ := a
+  rcases t with (n | ⟨ad, m⟩) | ⟨ad, e⟩
+  · -- OUnif: both handlers are the lifted uniform oracle, state threaded unchanged.
+    simp [gcmInstImpl, gcmTupleImplReject, gcmGameSkeleton, oracleUnif, unifLiftStateT,
+      QueryImpl.liftTarget_apply, StateT.run_monadLift, Prod.map, Functor.map_map]
+  · -- OEncrypt: identical one-shot bodies; the flag is written back unchanged.
+    cases challenge <;>
+      simp [gcmInstImpl, gcmTupleImplReject, gcmGameSkeleton, StateT.run_bind,
+        StateT.run_get, StateT.run_set, StateT.run_pure, Prod.map]
+  · -- ODecrypt: both `ok` branches return `none`; the flag write is erased by the
+    -- projection, matching the unconditional `pure none`.
+    by_cases hguard : challenge = some e
+    all_goals
+      simp [gcmInstImpl, gcmTupleImplReject, gcmGameSkeleton, StateT.run_bind,
+        StateT.run_get, StateT.run_set, StateT.run_pure,
+        Prod.map, beq_iff_eq, hguard]
+
+/-- Criterion 4 projection, live side: `evalDist game2♭ = evalDist game2`, by flag
+erasure (`Prod.fst`) followed by `greedyLazy` commutation (premise-free). -/
+theorem game2Flat_eq_game2 (prp : PRPScheme K (BitVec 128)) (L : ℕ)
+    (hL : ValidMsgLength L)
+    (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
+    evalDist (game2Flat prp L hL adv) = evalDist (game2 prp L hL adv) := by
+  unfold game2Flat game2
+  rw [bind_congr fun a =>
+    simulateQ_gcmInstImpl_true_run'_eq_gcmTupleImpl a adv none false]
+  exact probOutput_simulateQ_greedyLazy_run'_eq gcmTupleImpl adv none
+
+/-- Criterion 4 projection, reject side: `evalDist game3♭ = evalDist game3`, by flag
+erasure (`Prod.fst`) followed by `consumeLazy` commutation at
+`hit = (fun t => t matches OEncrypt _)` with `gcmTupleImplReject_indep` as `h_indep`. -/
+theorem game3Flat_eq_game3 (prp : PRPScheme K (BitVec 128)) (L : ℕ)
+    (hL : ValidMsgLength L)
+    (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
+    evalDist (game3Flat prp L hL adv) = evalDist (game3 prp L hL adv) := by
+  unfold game3Flat game3
+  rw [bind_congr fun a =>
+    simulateQ_gcmInstImpl_false_run'_eq_gcmTupleImplReject a adv none false]
+  exact probOutput_simulateQ_consumeLazy_run'_eq gcmTupleImplReject
+    (fun t => t matches OEncrypt _) gcmTupleImplReject_indep adv none
+
 end Instrumented
 
 end GCM
