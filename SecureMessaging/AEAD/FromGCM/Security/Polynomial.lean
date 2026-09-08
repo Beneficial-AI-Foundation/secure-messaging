@@ -354,4 +354,36 @@ theorem gfmul_eq_reflect_symm (x y : BitVec 128) :
     gfmul x y = reflectN.symm (reflectN x * reflectN y) := by
   rw [← reflect_gfmul, Equiv.symm_apply_apply]
 
+/-! ## Criterion 2: `ghash` as polynomial evaluation
+
+`ghash h blocks = blocks.foldl (fun y x => gfmul (y ⊕ x) h) 0` (NIST SP 800-38D §6.4). Rewriting
+each `gfmul` step by `reflect_gfmul` (07a-04) and each `⊕` by `reflectN_xor` (07a-02) turns the
+fold into a Horner accumulation in `AdjoinRoot nistPoly`, which unrolls to the evaluation of the
+reversed-block-coefficient polynomial at `reflectN h` — with the constant term zero (the lowest
+power is `h¹`). No new bit-level work here: this is the mechanical composition of criterion 1
+across `ghash`'s fold, plus a Horner-to-sum reassociation. -/
+
+/-- Generalized-seed Horner rewrite: for **any** starting accumulator `y`, `ghash`'s fold reflects
+to the Horner fold in `AdjoinRoot nistPoly` seeded at `reflectN y`. Induction on `blocks`; each
+step is `reflect_gfmul` (07a-04) composed with `reflectN_xor` (07a-02). The seed generalization is
+what makes the induction go through (the fold's accumulator changes at every step). -/
+theorem reflect_ghash_foldl_gen (h : BitVec 128) (blocks : List (BitVec 128)) (y : BitVec 128) :
+    reflectN (blocks.foldl (fun y x => gfmul (y ^^^ x) h) y)
+      = blocks.foldl (fun (acc : AdjoinRoot nistPoly) (x : BitVec 128) =>
+          (acc + reflectN x) * reflectN h) (reflectN y) := by
+  induction blocks generalizing y with
+  | nil => simp
+  | cons b bs ih =>
+    simp only [List.foldl_cons]
+    rw [ih (gfmul (y ^^^ b) h), reflect_gfmul, reflectN_xor]
+
+/-- `ghash`'s fold reflected at the actual seed `0`: `reflectN 0 = 0` (`reflectN_zero`) turns the
+generalized form into the Horner fold seeded at the ring `0`. -/
+theorem reflect_ghash_foldl (h : BitVec 128) (blocks : List (BitVec 128)) :
+    reflectN (blocks.foldl (fun y x => gfmul (y ^^^ x) h) 0)
+      = blocks.foldl (fun (acc : AdjoinRoot nistPoly) (x : BitVec 128) =>
+          (acc + reflectN x) * reflectN h) 0 := by
+  have := reflect_ghash_foldl_gen h blocks 0
+  rwa [reflectN_zero] at this
+
 end GCM
