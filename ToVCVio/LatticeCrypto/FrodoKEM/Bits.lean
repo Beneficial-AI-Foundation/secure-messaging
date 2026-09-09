@@ -19,10 +19,10 @@ here:
 * `bitsToMatrixWith g r c`, for `g : Vector Bool d → α`, reads one back. The
   dimensions are explicit: a `Vector Bool (r * c * d)` does not determine them.
 
-|                      | `Encoding.lean` | `Packing.lean` |
-| -------------------- | --------------- | -------------- |
-| `matrixToBitsWith f` | `chunkMatrixToBits`      | `Pack`         |
-| `bitsToMatrixWith g` | `bitsToChunkMatrix`      | `Unpack`       |
+|                      | `Encoding.lean`     | `Packing.lean` |
+| -------------------- | ------------------- | -------------- |
+| `matrixToBitsWith f` | `chunkMatrixToBits` | `Pack`         |
+| `bitsToMatrixWith g` | `bitsToChunkMatrix` | `Unpack`       |
 
 ## Main definitions
 
@@ -31,9 +31,7 @@ here:
 ## Main results
 
 * `bitIndex_lt`: bit `t` of entry `(i, j)` lands in range;
-* `getElem_matrixToBitsWith`: where the bits of an entry sit;
-* `bitsToMatrixWith_matrixToBitsWith`, `matrixToBitsWith_bitsToMatrixWith`: the
-  layer is a round trip whenever the map on one entry is.
+* `getElem_matrixToBitsWith`: where the bits of an entry sit.
 -/
 
 namespace FrodoKEM
