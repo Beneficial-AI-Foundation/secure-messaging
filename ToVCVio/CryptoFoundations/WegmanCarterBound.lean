@@ -27,9 +27,14 @@ per index one can only charge `Pr ≤ ε + 2⁻¹²⁸ ≤ 2 · ε`, giving `2 �
 off the target.
 
 The sound structure charges the two randomness sources to DISJOINT index sets. A
-post-challenge entry has `X'ᵢ ≠ X*` (the guard rejected the challenge ciphertext before
-verification, and injectivity of the encoding turns that into distinctness of the digest
-points), so AXU over the hoisted `H` gives `≤ ε` — that is `probEvent_post_axu_le`. A
+post-challenge entry differs from the challenge as a DIGEST-POINT/TAG PAIR — not as a
+digest point alone. The guard compares the full ciphertext `(C, T)`, so `(ad*, (C*, T))`
+with `T ≠ T*` clears it and is logged post-challenge at the very digest point `X*`
+(ROADMAP criterion 5 makes the same distinction). Hence the two sub-cases: at a distinct
+digest point AXU over the hoisted `H` gives `≤ ε`, and at an equal digest point acceptance
+forces `T'ᵢ = T*`, contradicting pair-distinctness, so the entry contributes exactly `0`.
+Either way `≤ ε` — that is `probEvent_post_axu_le`, whose hypothesis `hne` is accordingly
+pair-inequality and NOT distinctness of digest points. A
 pre-challenge entry is a blind guess at the not-yet-drawn 128-bit mask, of probability
 exactly `2⁻¹²⁸` — that is `probEvent_pre_fresh_le`.
 
