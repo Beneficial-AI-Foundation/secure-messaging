@@ -322,8 +322,12 @@ theorem probEvent_bad_wcInst_eq_wcLog {α : Type} [DecidableEq Cb]
     Pr[fun z : α × (Option (Cb × BitVec 128) × Bool) => z.2.2 = true |
         (simulateQ (wcInstImpl hash enc H mask padMsg unpad false) oa).run (none, false)] =
       Pr[fun z : α × WCLogState A Cb => wcFlag hash enc H mask z.2 = true |
-        (simulateQ (wcLogImpl hash enc H mask padMsg) oa).run (none, [])] :=
-  sorry
+        (simulateQ (wcLogImpl hash enc H mask padMsg) oa).run (none, [])] := by
+  have hs : wcProj hash enc H mask ((none, []) : WCLogState A Cb) = (none, false) := rfl
+  have h1 := map_run_simulateQ_wcLogImpl_eq hash enc H mask padMsg unpad oa (none, [])
+  rw [hs] at h1
+  rw [← h1, probEvent_map]
+  rfl
 
 end StagedRefinement
 
@@ -364,6 +368,103 @@ theorem wcLogImpl_log_length_le {α : Type} [DecidableEq Cb]
       z.2.2.length ≤ q :=
   sorry
 
+/-! ### The post-challenge guard invariant
+
+WC3b is proved as a support-level invariant of the run, carried by
+`simulateQ_run_preserves_inv_of_query` (VCVio `SimSemantics/StateT/StateProjection.lean`),
+which is already in scope here. VCVio's `QueryImpl.PreservesInv` packaging would serve
+equally well but lives behind an import this file does not otherwise need. -/
+
+/-- The two-clause state invariant behind `wcLogImpl_post_ne_challenge`.
+
+The FIRST clause is load-bearing: the second alone is not inductive at the encrypt step.
+From `s = (none, [(ad, e, true)])`, which satisfies the second clause vacuously, an encrypt
+query emitting exactly `e` sets the challenge to `some (ad, e)` and leaves the log alone, so
+the post-tagged entry now equals the challenge. The first clause rules that initial state
+out, and it is what supplies "every existing entry is PRE-tagged" at the encrypt step, where
+no appeal to the entry's history is available under the generalised induction. -/
+private def PostInv (s : WCLogState A Cb) : Prop :=
+  (s.1 = none → ∀ q ∈ s.2, q.2.2 = false) ∧
+    (∀ q ∈ s.2, q.2.2 = true → ∀ c ∈ s.1, q.2.1 ≠ c.2)
+
+/-- The initial state of the run satisfies both clauses vacuously. -/
+private lemma postInv_nil : PostInv ((none, []) : WCLogState A Cb) :=
+  ⟨fun _ q hq => absurd hq (by simp), fun q hq => absurd hq (by simp)⟩
+
+/-- Every oracle step of `wcLogImpl` preserves `PostInv` on the support.
+
+Unif leaves the state alone. Encrypt at `some _` does not write; at `none` the challenge
+becomes `some (ad, e)` while the log is unchanged, and the first clause makes the second
+clause's `q.2.2 = true` premise vacuous for every existing entry (the successor's first
+clause is then vacuous because its challenge is `some`). Decrypt under the guard does not
+write; off the guard the appended entry is tagged `challenge.isSome`, and when that is
+`true` the failed guard `challenge.map Prod.snd ≠ some e` says exactly `e ≠ c.2` for the
+challenge's `c`. -/
+private lemma postInv_step [DecidableEq Cb]
+    (hash : K → D → BitVec 128) (enc : A × Cb → D) (H : K) (mask : BitVec 128)
+    (padMsg : M → Cb) :
+    ∀ (t : (wcSpec A M Cb).Domain) (s : WCLogState A Cb), PostInv s →
+      ∀ y ∈ support ((wcLogImpl hash enc H mask padMsg t).run s), PostInv y.2 := by
+  rintro ((n | ⟨ad, m⟩) | ⟨ad, e⟩) ⟨ch, log⟩ hinv y hy
+  · -- OUnif: the state is threaded unchanged.
+    simp only [add_apply_inl, wcLogImpl, unifLiftStateT, QueryImpl.ofLift_eq_id',
+      bind_pure_comp, beq_iff_eq, Option.map_eq_some_iff, Prod.exists, exists_eq_right,
+      QueryImpl.add_apply_inl, QueryImpl.liftTarget_apply, QueryImpl.id'_apply,
+      StateT.run_monadLift, monadLift_self, support_map, support_liftM,
+      OracleQuery.input_query, OracleQuery.cont_query, Set.range_id, Set.image_univ] at hy
+    obtain ⟨u, hu⟩ := hy
+    simpa [← hu] using hinv
+  · -- OEncrypt: one-shot; only the `none` branch writes, and only the challenge slot.
+    cases ch with
+    | none =>
+      simp only [add_apply_inl, add_apply_inr, wcLogImpl, bind_pure_comp, beq_iff_eq,
+        Option.map_eq_some_iff, Prod.exists, exists_eq_right, QueryImpl.add_apply_inl,
+        QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get, pure_bind,
+        StateT.run_map, StateT.run_set, map_pure, support_pure] at hy
+      subst hy
+      refine ⟨by simp, ?_⟩
+      intro q hq hqt c hc
+      exact absurd (hinv.1 rfl q hq) (by simp [hqt])
+    | some c0 =>
+      simp only [add_apply_inl, add_apply_inr, wcLogImpl, bind_pure_comp, beq_iff_eq,
+        Option.map_eq_some_iff, Prod.exists, exists_eq_right, QueryImpl.add_apply_inl,
+        QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get, pure_bind,
+        StateT.run_pure, support_pure] at hy
+      subst hy
+      exact hinv
+  · -- ODecrypt: the guard branch does not write; otherwise one tagged entry is appended.
+    by_cases hg : (Option.map Prod.snd ch : Option (Cb × BitVec 128)) = some e
+    · simp only [add_apply_inr, wcLogImpl, bind_pure_comp, beq_iff_eq,
+        Option.map_eq_some_iff, Prod.exists, exists_eq_right, QueryImpl.add_apply_inr,
+        StateT.run_bind, StateT.run_get, pure_bind, hg, BEq.rfl, ↓reduceIte,
+        StateT.run_pure, support_pure] at hy
+      subst hy
+      exact hinv
+    · simp only [add_apply_inr, wcLogImpl, bind_pure_comp, beq_iff_eq,
+        Option.map_eq_some_iff, Prod.exists, exists_eq_right, QueryImpl.add_apply_inr,
+        StateT.run_bind, StateT.run_get, pure_bind, hg, ↓reduceIte, StateT.run_map,
+        StateT.run_set, map_pure, support_pure] at hy
+      subst hy
+      constructor
+      · rintro (h1 : ch = none) q hq
+        subst h1
+        simp only [List.mem_append, List.mem_singleton] at hq
+        rcases hq with hq | rfl
+        · exact hinv.1 rfl q hq
+        · simp
+      · intro q hq hqt c hc
+        simp only [List.mem_append, List.mem_singleton] at hq
+        rcases hq with hq | rfl
+        · exact hinv.2 q hq hqt c hc
+        · simp only at hqt hc ⊢
+          cases ch with
+          | none => simp at hc
+          | some c1 =>
+            simp only [Option.mem_def, Option.some.injEq] at hc
+            subst hc
+            intro hcontra
+            exact hg (by simp [hcontra])
+
 /-- **Obligation WC3b** (staged here, discharged by plan 04-03). The guard invariant the
 post-challenge half of the bound consumes: a POST-tagged log entry is never the challenge
 ciphertext, because the guard branch returns before appending.
@@ -379,8 +480,10 @@ theorem wcLogImpl_post_ne_challenge {α : Type} [DecidableEq Cb]
     (hash : K → D → BitVec 128) (enc : A × Cb → D) (H : K) (mask : BitVec 128)
     (padMsg : M → Cb) (oa : OracleComp (wcSpec A M Cb) α) :
     ∀ z ∈ support ((simulateQ (wcLogImpl hash enc H mask padMsg) oa).run (none, [])),
-      ∀ e ∈ z.2.2, e.2.2 = true → ∀ c ∈ z.2.1, e.2.1 ≠ c.2 :=
-  sorry
+      ∀ e ∈ z.2.2, e.2.2 = true → ∀ c ∈ z.2.1, e.2.1 ≠ c.2 := by
+  intro z hz
+  exact (simulateQ_run_preserves_inv_of_query (wcLogImpl hash enc H mask padMsg) PostInv
+    (postInv_step hash enc H mask padMsg) oa (none, []) postInv_nil z hz).2
 
 end StagedCounting
 
