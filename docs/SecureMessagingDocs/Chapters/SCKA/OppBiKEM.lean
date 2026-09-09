@@ -73,6 +73,7 @@ $`\begin{array}{l}
 \quad \mathsf{return}\;I_{\mathsf{CKA}}
 \end{array}`
 ```anchor initKeyGen (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
+/-- Return the trivial initialization key: OppBiKEM protocol does not need initialization key -/
 def initKeyGen : m Unit := pure ()
 ```
 
@@ -97,6 +98,7 @@ $`\begin{array}{l}
 \quad \mathsf{return}\;(\mathsf{st}_{\mathrm{res}},\mathsf{st}_{\mathrm{req}},\mathsf{ACK})
 \end{array}`
 ```anchor initA (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
+/-- Initialize A -/
 def initA : Unit → m (StA PK SK C Sym) := init .A
 ```
 
@@ -112,6 +114,7 @@ $`\begin{array}{l}
 \quad \mathsf{return}\;(\mathsf{st}_{\mathrm{res}},\mathsf{st}_{\mathrm{req}},\mathsf{ACK})
 \end{array}`
 ```anchor initB (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
+/-- Initialize B -/
 def initB : Unit → m (StB PK SK C Sym) := init .B
 ```
 
@@ -133,8 +136,10 @@ require secrecy. Dummy epochs are excluded from the natural-number SCKA interfac
 def vuln (st : State PK SK C Sym) : Finset ℕ :=
   ((st.dk.map Prod.fst).toFinset.filter fun t => 0 < t).image Int.toNat
 
+/-- Positive epochs whose secret decapsulation keys remain in A's state. -/
 def vulnA (st : StA PK SK C Sym) : Finset ℕ := vuln st
 
+/-- Positive epochs whose secret decapsulation keys remain in B's state. -/
 def vulnB (st : StB PK SK C Sym) : Finset ℕ := vuln st
 ```
 
@@ -171,6 +176,7 @@ t^{\mathrm{snd}}_A\gets\max\{t:\mathsf{ACK}[t].\mathsf{ctRec} \\
 \end{array}`
 
 ```anchor sendA (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
+/-- Run A's send step. -/
 def sendA (kem : KEMScheme m K PK SK C)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (stA : StA PK SK C Sym) := send .A kem ecEk ecCt stA
@@ -179,6 +185,7 @@ def sendA (kem : KEMScheme m K PK SK C)
 :::leanPillCaption "rleak version leaking key generation and encapsulation coins"
 :::
 ```anchor sendArleak (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
+/-- Run A's send step, also returning randomness used for key generation and encapsulation. -/
 def sendArleak (kem : KEMScheme m K PK SK C)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (leak : kem.RandLeak) (stA : StA PK SK C Sym) :=
@@ -225,6 +232,7 @@ I_B\gets\bot,\quad t_{I_B}\gets\bot \\
 \end{array}`
 
 ```anchor recvA (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
+/-- Process a message at A (by specializing `recv` function) -/
 def recvA (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
     (hDet : kem.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
@@ -264,6 +272,7 @@ t^{\mathrm{snd}}_B\gets\max\{t:\mathsf{ACK}[t].\mathsf{ctRec} \\
 \end{array}`
 
 ```anchor sendB (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
+/-- Run B's send step. -/
 def sendB (kem : KEMScheme m K PK SK C)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (stB : StB PK SK C Sym) := send .B kem ecEk ecCt stB
@@ -272,6 +281,7 @@ def sendB (kem : KEMScheme m K PK SK C)
 :::leanPillCaption "rleak version leaking key generation and encapsulation coins"
 :::
 ```anchor sendBrleak (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
+/-- Run B's send step, also returning randomness used for key generation and encapsulation. -/
 def sendBrleak (kem : KEMScheme m K PK SK C)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (leak : kem.RandLeak) (stB : StB PK SK C Sym) :=
@@ -318,6 +328,7 @@ I_A\gets\bot,\quad t_{I_A}\gets\bot \\
 \end{array}`
 
 ```anchor recvB (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
+/-- Process a message at B (by specializing `recv` function) -/
 def recvB (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
     (hDet : kem.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
@@ -457,6 +468,8 @@ def recv (role : Role) (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
 :::leanPillCaption "SCKA scheme instance"
 :::
 ```anchor scheme (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
+/-- Assemble Opp-BiKEM as an SCKA scheme from a KEM with deterministic decapsulation,
+public-key and ciphertext erasure codes, and randomness-leaking KEM operations. -/
 def scheme (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
     (hDet : kem.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
