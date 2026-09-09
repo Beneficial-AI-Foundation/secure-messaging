@@ -101,7 +101,7 @@ theorem gcmInstImpl_eq_wcInstImpl (L : ℕ) (h mask : BitVec 128) (ks : BitVec L
 
 /-! ## Staged obligations -/
 
-/-- **Obligation WC9** (staged here, discharged by plan 04-06). The per-`ks` forgery bound
+/-- **Obligation WC9** (PROVED by plan 04-06). The per-`ks` forgery bound
 on the GCM instrumented handler: with the GHASH key and the tag mask sampled at the top and
 the keystream held fixed, the always-reject execution raises its `forged` flag with
 probability at most `q_d · ε`.
@@ -114,8 +114,16 @@ Route: rewrite with `gcmInstImpl_eq_wcInstImpl` and apply
 * `hfloor := ghashAXU_eps_lower haxu` (`Axu.lean`) — free, so no floor hypothesis leaks
   into this statement's hypothesis set;
 * `henc_inj := Function.injective_id`;
-* `hq` directly: `AEADScheme.decryptQueryBound` is a `def` for
-  `IsQueryBoundP (· matches Sum.inr _)`. -/
+* `hq` — **NOT directly**, contrary to what this docstring claimed before the phase's
+  Codex interface review (finding F2, confirmed by a WC8→WC9 composition probe).
+  `AEADScheme.decryptQueryBound` is indeed a `def` for
+  `IsQueryBoundP (· matches Sum.inr _)`, but the two `matches` predicates elaborate to
+  DIFFERENT matcher auxiliaries — `AEADScheme.decryptQueryBound.match_1` versus the one
+  shared by the generic bound's declarations — and a direct application fails with a type
+  mismatch. The transport is `isQueryBoundP_congr_pred` (VCVio
+  `OracleComp/QueryTracking/QueryBound.lean`) at the pointwise `Iff`, which is `rfl` after
+  a `cases` on the query index. Same predicate extensionally, same budget,
+  `decryptQueryBound` still the sole counting hypothesis. -/
 theorem probEvent_forge_gcmInst_le (L : ℕ) {ε : ℝ≥0∞} (haxu : GhashIsAXU L ε)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
     (q_d : ℕ) (hq : AEADScheme.decryptQueryBound adv q_d) (ks : BitVec L) :
@@ -123,8 +131,24 @@ theorem probEvent_forge_gcmInst_le (L : ℕ) {ε : ℝ≥0∞} (haxu : GhashIsAX
         (do let h ← ($ᵗ (BitVec 128) : ProbComp _)
             let mask ← ($ᵗ (BitVec 128) : ProbComp _)
             (simulateQ (gcmInstImpl (h, mask, ks) false) adv).run (none, false))]
-      ≤ (q_d : ℝ≥0∞) * ε :=
-  sorry
+      ≤ (q_d : ℝ≥0∞) * ε := by
+  have hrw :
+      (do let h ← ($ᵗ (BitVec 128) : ProbComp _)
+          let mask ← ($ᵗ (BitVec 128) : ProbComp _)
+          (simulateQ (gcmInstImpl (L := L) (h, mask, ks) false) adv).run (none, false)) =
+        (do let H ← ($ᵗ (BitVec 128) : ProbComp (BitVec 128))
+            let mask ← ($ᵗ (BitVec 128) : ProbComp (BitVec 128))
+            (simulateQ (OracleComp.WegmanCarter.wcInstImpl
+                (A := SupportedAAD) (M := BitVec L) (Cb := BitVec L)
+                (K := BitVec 128) (D := SupportedAAD × BitVec L)
+                (fun H p => ghash H (gcmEncode p.1 p.2)) id H mask
+                (fun m => m ^^^ ks) (fun c => c ^^^ ks) false) adv).run (none, false)) :=
+    bind_congr fun h => bind_congr fun mask => by
+      rw [gcmInstImpl_eq_wcInstImpl]
+  rw [hrw]
+  exact probEvent_wcInst_forge_le haxu (ghashAXU_eps_lower haxu) Function.injective_id
+    (fun m => m ^^^ ks) (fun c => c ^^^ ks) adv q_d
+    ((isQueryBoundP_congr_pred (fun queryIndex => by cases queryIndex <;> rfl)).mp hq)
 
 /-- **Obligation WC-IUB0** (staged here, discharged by plan 04-06). THE
 IDENTICAL-UNTIL-BAD STATE RELATION: the three per-oracle conditions of
