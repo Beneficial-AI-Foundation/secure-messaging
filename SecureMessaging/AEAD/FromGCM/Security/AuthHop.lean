@@ -386,12 +386,16 @@ private theorem probEvent_forge_gcmInstFlat_le (L : ℕ) {ε : ℝ≥0∞} (haxu
   exact probEvent_bind_le_of_forall_le fun ks _ =>
     probEvent_forge_gcmInst_le L haxu adv q_d hq ks
 
-/-- **Obligation WC10 — THE PHASE THEOREM** (staged here, discharged by plan 04-06).
+/-- **Obligation WC10 — THE PHASE THEOREM** (PROVED by plan 04-06).
 
-`|Pr[game3] − Pr[game2]| ≤ q_d · ε`: suppressing live decryption costs at most the
-one-time Wegman–Carter forgery probability. The argument order matches EtM's landed
-`game1_game2_le_auth` (`FromEtM/Security/Auth/Hop.lean`); Phase 6's triangle inequality
-consumes this exact orientation.
+**ROADMAP Phase 4 criterion 6, verbatim.** `|Pr[game3] − Pr[game2]| ≤ q_d · ε`:
+suppressing live decryption costs at most the one-time Wegman–Carter forgery probability.
+The argument order matches EtM's landed `game1_game2_le_auth`
+(`FromEtM/Security/Auth/Hop.lean`); **Phase 6's triangle inequality consumes this exact
+`|Pr[game3] − Pr[game2]|` orientation**, alongside `game0_game1_le_prf`'s
+`|Pr[game1] − Pr[game0]|`. `AEADScheme.decryptQueryBound adv q_d` is the ONLY counting
+hypothesis and `GhashIsAXU L ε` the only cryptographic one; `hε : ε ≠ ⊤` is pure `ℝ≥0∞`
+hygiene and is free at the intended `ε := maxBlocks / 2¹²⁸`.
 
 Route: `tvDist_bind_left_le` (VCVio `EvalDist/TVDist.lean` — NOT
 `tvDist_bind_left_le_const'`, unusable here since at a fixed tuple the forgery probability
@@ -400,14 +404,40 @@ supplied by `gcmInst_tvDist_le_probEvent_forge` and the per-tuple bad probabilit
 `probEvent_forge_gcmInst_le`; then the two Phase-2 projections `game3Flat_eq_game3` and
 `game2Flat_eq_game2` (`Games.lean`) to move from the instrumented games to `game3`/`game2`;
 then `abs_probOutput_toReal_sub_le_tvDist` (`TVDist.lean`) to leave `ℝ≥0∞` for `ℝ`, which
-is where `hε : ε ≠ ⊤` is consumed. -/
+is where `hε : ε ≠ ⊤` is consumed.
+
+## ROADMAP criterion 8 — the pad-leakage note
+
+`game2` is the LIVE-decrypt game: a successful decryption there returns `C' ^^^ ks` and so
+leaks the keystream pad. This authenticity hop therefore carries the confidentiality
+consequence of live decryption, and the privacy hop (Phase 5) is well-posed only between
+the suppressed-decryption games `game3`, `game4`. -/
 theorem game2_game3_le_auth {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ)
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
     (q_d : ℕ) (hq : AEADScheme.decryptQueryBound adv q_d)
     {ε : ℝ≥0∞} (hε : ε ≠ ⊤) (haxu : GhashIsAXU L ε) :
     |(Pr[= true | game3 prp L hL adv]).toReal -
-      (Pr[= true | game2 prp L hL adv]).toReal| ≤ (q_d : ℝ) * ε.toReal :=
-  sorry
+      (Pr[= true | game2 prp L hL adv]).toReal| ≤ (q_d : ℝ) * ε.toReal := by
+  -- The Phase-2 projections, consumed as `evalDist` equalities. `Games.lean` is FROZEN:
+  -- everything below is transport, nothing there is touched.
+  have h3 : Pr[= true | game3 prp L hL adv] = Pr[= true | game3Flat prp L hL adv] :=
+    (probOutput_congr rfl (game3Flat_eq_game3 prp L hL adv)).symm
+  have h2 : Pr[= true | game2 prp L hL adv] = Pr[= true | game2Flat prp L hL adv] :=
+    (probOutput_congr rfl (game2Flat_eq_game2 prp L hL adv)).symm
+  rw [h3, h2]
+  calc |(Pr[= true | game3Flat prp L hL adv]).toReal -
+        (Pr[= true | game2Flat prp L hL adv]).toReal|
+      ≤ tvDist (game3Flat prp L hL adv) (game2Flat prp L hL adv) :=
+        abs_probOutput_toReal_sub_le_tvDist _ _
+    _ ≤ (Pr[fun z : Bool × (Option (BitVec L × BitVec 128) × Bool) => z.2.2 = true |
+            (($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _) >>=
+              fun a => (simulateQ (gcmInstImpl a false) adv).run (none, false))]).toReal :=
+        tvDist_gcmInstFlat_le_probEvent_forge L adv
+    _ ≤ ((q_d : ℝ≥0∞) * ε).toReal :=
+        ENNReal.toReal_mono (ENNReal.mul_ne_top (ENNReal.natCast_ne_top q_d) hε)
+          (probEvent_forge_gcmInstFlat_le L haxu adv q_d hq)
+    _ = (q_d : ℝ) * ε.toReal := by
+        rw [ENNReal.toReal_mul, ENNReal.toReal_natCast]
 
 end GCM
