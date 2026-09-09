@@ -29,10 +29,13 @@ Contents:
 - `gcmInstImpl_eq_wcInstImpl` — the bridging lemma (PROVED), identifying the Phase-2
   instrumented handler with the generic Wegman–Carter handler at `enc := id`,
   `hash := fun H p => ghash H (gcmEncode p.1 p.2)`;
-- `probEvent_forge_gcmInst_le` — the per-`ks` forgery bound (staged, plan 04-06);
+- `probEvent_forge_gcmInst_le` — the per-`ks` forgery bound (PROVED, plan 04-06);
 - `gcmInstImpl_identicalUntilBad` and `gcmInst_tvDist_le_probEvent_forge` — the
-  identical-until-bad state relation and the distance bound it feeds (staged, plan 04-06);
-- `game2_game3_le_auth` — the phase theorem (staged, plan 04-06).
+  identical-until-bad state relation and the distance bound it feeds (PROVED, plan 04-06);
+- `game2_game3_le_auth` — the phase theorem (PROVED, plan 04-06).
+
+The four declarations above were staged as typed `sorry`-bodied lemmas by plan 04-01 and
+are all discharged; this module is sorry-free.
 
 ## AXU domain
 
