@@ -351,4 +351,86 @@ lemma prfIdealExp_prfReduction_eq (L : ℕ) (hL : ValidMsgLength L)
 
 end IdealPeel
 
+/-! ## The ideal-side projection: `game1` = `prfIdealExp (prfReduction …)`
+
+The peel above leaves the ideal experiment as three independent draws — `H`, the tag mask,
+and a LIST of `⌈L/128⌉` keystream blocks — while `game1` draws a single tuple
+`(H, mask, ks) : BitVec 128 × BitVec 128 × BitVec L`. Reconciling them is criterion 4: the
+keystream must enter `game1` as ONE `ks : BitVec L`, never as a list-indexed lazy cache.
+
+Two structural facts do it: `uniformSample_prod_eq_bind` splits the tuple draw into three
+independent draws (term-level, so no distributional plumbing), and Phase 1's
+concatenate-and-truncate theorem `evalDist_blocksToBitVec_uniform`, composed with 03-01's
+`evalDist_mapM_const_uniform`, says that `⌈L/128⌉` independent 128-bit blocks concatenated
+and truncated to `L` bits ARE a uniform `BitVec L`. The latter is a genuinely
+distributional statement (the map is not injective when `L < 128 * ⌈L/128⌉`), which is why
+this projection is proven at `evalDist` level and converted at the end — unlike the real
+side, which is a term equality throughout. -/
+
+section IdealProjection
+
+variable {K : Type}
+
+/-- Left-factor congruence for `evalDist`: distributionally equal computations can be
+swapped under a `bind` with a fixed continuation. (VCVio's `evalDist_bind_congr_left`
+is the *right*-factor version — it varies the continuation.) -/
+private lemma evalDist_bind_left {α β : Type} {x y : ProbComp α} (h : 𝒟[x] = 𝒟[y])
+    (f : α → ProbComp β) : 𝒟[x >>= f] = 𝒟[y >>= f] := by
+  rw [evalDist_bind, evalDist_bind, h]
+
+/-- **The keystream reshape** (ROADMAP Phase 3 criterion 4): fetching `⌈L/128⌉` independent
+uniform blocks and flattening them to `L` bits is distributionally the same as drawing one
+uniform `ks : BitVec L`, under any continuation.
+
+Chain: `evalDist_mapM_const_uniform` (03-01) turns the fetch loop into one uniform
+`Vector (BitVec 128) (counterChain …).length`; `counterChain_length` rewrites that length
+to `⌈L/128⌉`; `Functor.map_map` fuses the flattening with `Vector.toList`; and Phase 1's
+`evalDist_blocksToBitVec_uniform` lands on `$ᵗ BitVec L` (its side condition
+`L ≤ 128 * ⌈L/128⌉` is `omega`). Pulled out as a top-level lemma so the projection proof
+below stays a three-liner. -/
+private lemma evalDist_keystream_bind {β : Type} (L : ℕ) (f : BitVec L → ProbComp β) :
+    𝒟[(counterChain 2 ((L + 127) / 128)).mapM (fun _ => ($ᵗ (BitVec 128) : ProbComp _)) >>=
+        fun blocks => f (blocksToBitVec blocks L)] =
+      𝒟[($ᵗ (BitVec L) : ProbComp _) >>= f] := by
+  have hlen : (counterChain (2 : BitVec 128) ((L + 127) / 128)).length = (L + 127) / 128 :=
+    counterChain_length 2 _
+  have h1 : 𝒟[(fun blocks => blocksToBitVec blocks L) <$>
+      (counterChain (2 : BitVec 128) ((L + 127) / 128)).mapM
+        (fun _ => ($ᵗ (BitVec 128) : ProbComp _))] = 𝒟[($ᵗ (BitVec L) : ProbComp _)] := by
+    refine Eq.trans (evalDist_map_eq_of_evalDist_eq
+      (evalDist_mapM_const_uniform (R := BitVec 128)
+        (counterChain (2 : BitVec 128) ((L + 127) / 128))) _) ?_
+    rw [Functor.map_map, hlen]
+    exact evalDist_blocksToBitVec_uniform ((L + 127) / 128) L (by omega)
+  rw [← bind_map_left]
+  exact evalDist_bind_left h1 f
+
+/-- **ROADMAP Phase 3 criterion 2, ideal side**: running `prfReduction` in the ideal PRF
+experiment IS `game1`.
+
+Stated at the `Pr[= true | ·]` level, the form `prfAdvantage` consumes in
+`game0_game1_le_prf`. Proof: peel the ideal experiment's cache
+(`prfIdealExp_prfReduction_eq`), split `game1`'s tuple draw into its three independent
+components, descend under the shared `H` and mask draws, and close the keystream factor
+with `evalDist_keystream_bind`. -/
+theorem game1_eq_prfIdealExp (prp : PRPScheme K (BitVec 128)) (L : ℕ)
+    (hL : ValidMsgLength L)
+    (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
+    Pr[= true | game1 prp L hL adv] =
+      Pr[= true | PRFScheme.prfIdealExp (prfReduction L adv)] := by
+  rw [prfIdealExp_prfReduction_eq L hL adv]
+  refine probOutput_eq_of_evalDist_eq ?_ true
+  unfold game1
+  -- Split `(H, mask, ks)` into three independent draws. `uniformSample_prod_eq_bind` is a
+  -- term equality, so this is plain `rw` — no distributional step yet.
+  rw [uniformSample_prod_eq_bind (BitVec 128) (BitVec 128 × BitVec L)]
+  simp only [bind_assoc, pure_bind]
+  rw [uniformSample_prod_eq_bind (BitVec 128) (BitVec L)]
+  simp only [bind_assoc, pure_bind]
+  -- Both sides now share the `H` and mask draws; only the keystream factor differs.
+  refine evalDist_bind_congr' _ (fun h => evalDist_bind_congr' _ (fun mask => ?_))
+  exact (evalDist_keystream_bind L _).symm
+
+end IdealProjection
+
 end GCM
