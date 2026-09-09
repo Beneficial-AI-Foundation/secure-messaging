@@ -74,8 +74,8 @@ hop is well-posed only between the suppressed-decryption games.
 - `wcInstImpl_decrypt_run` — the decrypt normal form (PROVED here).
 - `probEvent_wcInst_forge_le` — the public `q · ε` forgery bound.
 
-The remaining declarations below are typed `sorry`-bodied lemmas staged by plan 04-01 and
-discharged by later plans of the phase; each docstring names its owning plan.
+The declarations below were staged as typed `sorry`-bodied lemmas by plan 04-01 and are
+all discharged; each docstring names its owning plan. This module is sorry-free.
 -/
 
 open OracleSpec OracleComp ENNReal ToVCVio
