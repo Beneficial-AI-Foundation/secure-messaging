@@ -10,14 +10,11 @@ import LatticeCrypto.Ring.Norms
 /-!
 # FrodoKEM message encoding
 
-`Frodo.Encode` and `Frodo.Decode`, with the proof that decoding inverts
-encoding, exactly and in the presence of noise.
+`Frodo.Encode` and `Frodo.Decode`.
 
 References are as in `Parameters.lean`. `[CiC25]` gives the maps on bit strings
-in Appendix B, named in Section 3.3, and their noise tolerance in Lemma 1 of
-Section 4.1. `[LBES26]` gives the same maps as pseudocode in Section 6.3, with
-the chunking layout written out, and states no correctness result, so Lemma 1
-is cited from `[CiC25]` alone.
+in Appendix B, named in Section 3.3. `[LBES26]` gives the same maps as
+pseudocode in Section 6.3, with the chunking layout written out.
 
 ## Main definitions
 
@@ -37,8 +34,7 @@ they are applied to every entry of a matrix by
   to `ZMod (2 ^ B)`, which is what a `ChunkMatrix p` holds. Each chunk becomes
   one entry of the matrix;
 * `DecodeChunks : FrodoMatrix p mbar nbar → ChunkMatrix p`, applying `dc` to
-  every entry. If an entry stays within the noise window below, then the initial
-  chunk is recovered;
+  every entry;
 
 the message is cut into those chunks by
 
@@ -66,46 +62,18 @@ specification and so take those names, are
   The bit vector is the message, `ell_eq` fixing `mbar * nbar * B` to be its
   length `ℓ`;
 * `Decode : FrodoMatrix p mbar nbar → Vector Bool (mbar * nbar * B)`, applying
-  `DecodeChunks` and then laying the chunks back out with `ofChunks`. If every
-  entry stays within the noise window, then the initial message is recovered.
-
-Three of the `Params.WellFormed` conditions are used:
-
-* `q = 2 ^ D` (`q_eq`) makes `q / 2 ^ B` exact, so both maps are bit shifts;
-* `B ≤ D` (`B_le_D`) gives `2 ^ B ≤ q`, so `ec` does not wrap (`ec_val`);
-* `ℓ = B * mbar * nbar` (`ell_eq`) makes a message fill the matrix exactly.
-
-The encoded values then sit at spacing `q / 2 ^ B = 2 ^ (D - B)`. If the added
-noise is less than half of it, then `dc` recovers `k`; `dc_ec_add` states the
-window exactly, and `Params.noiseRadius` is that half-step rounded down.
+  `DecodeChunks` and then laying the chunks back out with `ofChunks`.
 
 ## Main results
 
-* `dc_ec`, `DecodeChunks_EncodeChunks` and `Decode_Encode`: decoding inverts
-  encoding;
-* `dc_ec_add`, `DecodeChunks_EncodeChunks_add` and `Decode_Encode_add`: decoding
-  inverts encoding perturbed by noise `e` with
-  `-q ≤ 2 ^ (B + 1) * centeredRepr e < q`, which is Lemma 1 of Section 4.1
-  cleared of its denominator;
-* `ofChunks_toChunks` and `toChunks_ofChunks`: the chunking is a round trip;
 * `getElem_ofChunks`: the position formula this header states in prose, as a
   theorem. The bit order and layout it fixes are pinned by the `example`s beside
-  the definitions, which no round trip can determine.
+  the definitions.
 -/
 
 namespace FrodoKEM
 
 open LatticeCrypto
-
-namespace Params
-
-/-- The half-step `q / 2 ^ (B + 1)`: half the spacing of the representable
-values `ec k`, and the bound on the noise `dc` tolerates. The division is exact
-only when `B < D`; at `B = D` it truncates to zero, and `dc_ec_add` takes that
-case separately. -/
-def noiseRadius (p : Params) : ℕ := p.q / 2 ^ (p.B + 1)
-
-end Params
 
 /-- `Frodo.Encode`'s scalar map (Appendix B): `k ↦ k * 2 ^ (D - B)`, multiplying
 by the spacing `q / 2 ^ B`. -/

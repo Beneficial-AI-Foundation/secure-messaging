@@ -16,6 +16,16 @@ namespace FrodoKEM
 
 open LatticeCrypto
 
+namespace Params
+
+/-- The half-step `q / 2 ^ (B + 1)`: half the spacing of the representable
+values `ec k`, and the bound on the noise `dc` tolerates. The division is exact
+only when `B < D`; at `B = D` it truncates to zero, and `dc_ec_add` takes that
+case separately. -/
+def noiseRadius (p : Params) : ℕ := p.q / 2 ^ (p.B + 1)
+
+end Params
+
 /-- A matrix is recovered from its bit string, whenever an entry is recovered
 from its own bits. -/
 theorem bitsToMatrixWith_matrixToBitsWith {α : Type*} {r c d : ℕ}
