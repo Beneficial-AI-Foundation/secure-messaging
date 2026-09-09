@@ -659,6 +659,51 @@ private lemma probEvent_bind_congr₂ {α β γ : Type} (mx : ProbComp α)
   rw [probEvent_bind_eq_tsum, probEvent_bind_eq_tsum]
   exact tsum_congr fun x => by rw [h x]
 
+/-! ### The pre-challenge half
+
+At the point where the mask is drawn the pre-challenge log is a FIXED list `L`, and the
+observed key/mask pair is reported faithfully by the continuation. That is exactly the
+shape of `probEvent_pre_fresh_le` at `ν := $ᵗ K`: the hash key is the prefix, the mask is
+the fresh draw, and the locus is `L`'s targets `T'ᵢ ^^^ hash H X'ᵢ`. -/
+
+/-- **Pre-challenge half.** Over a uniform key and a fresh uniform mask, the probability
+that some entry of the FIXED pre-challenge log `L` accepts is at most `|L| · 2⁻¹²⁸`, under
+an arbitrary continuation `k` that reports the drawn pair (`hk`).
+
+Route: `probEvent_pre_fresh_le` (WC5) at `ν := $ᵗ K` and
+`pre H := L.map (fun r => T'ᵣ ^^^ hash H X'ᵣ)`; the acceptance test is solved for the mask
+by `tag_eq_iff_mask_eq`. -/
+private lemma pre_half_le [SampleableType K]
+    (hash : K → D → BitVec 128) (enc : A × Cb → D)
+    (L : List (A × (Cb × BitVec 128) × Bool))
+    {β : Type} (k : K → BitVec 128 → ProbComp β) (obs : β → K × BitVec 128)
+    (hk : ∀ H m, ∀ y ∈ support (k H m), obs y = (H, m)) :
+    Pr[fun y => L.any (wcAccepts hash enc (obs y).1 (obs y).2) = true
+       | ($ᵗ K : ProbComp K) >>= fun H =>
+           ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun m => k H m]
+      ≤ (L.length : ℝ≥0∞) * ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹ := by
+  refine le_trans (probEvent_pre_fresh_le ($ᵗ K)
+      (fun H => L.map (fun r => r.2.1.2 ^^^ hash H (enc (r.1, r.2.1.1)))) k _ ?_) ?_
+  · intro H m y hy
+    rw [hk H m y hy]
+    simp only [List.any_eq_true, wcAccepts, decide_eq_true_eq, List.mem_map]
+    constructor
+    · rintro ⟨r, hr, he⟩
+      exact ⟨r, hr, ((tag_eq_iff_mask_eq _ _ _).1 he).symm⟩
+    · rintro ⟨r, hr, he⟩
+      exact ⟨r, hr, (tag_eq_iff_mask_eq _ _ _).2 he.symm⟩
+  · simp only [List.length_map]
+    calc ∑' H : K, Pr[= H | ($ᵗ K : ProbComp K)] * (L.length : ℝ≥0∞)
+            * ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹
+        = (∑' H : K, Pr[= H | ($ᵗ K : ProbComp K)])
+            * ((L.length : ℝ≥0∞) * ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹) := by
+          rw [← ENNReal.tsum_mul_right]
+          exact tsum_congr fun H => mul_assoc _ _ _
+      _ ≤ 1 * ((L.length : ℝ≥0∞) * ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹) := by
+          gcongr
+          exact tsum_probOutput_le_one
+      _ = (L.length : ℝ≥0∞) * ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹ := one_mul _
+
 /-! ### The challenge-set run is key- and mask-free
 
 Once the challenge slot is `some`, the encrypt oracle returns `none` without touching
@@ -990,6 +1035,94 @@ private lemma post_half_reshape [SampleableType K] [DecidableEq Cb] {α : Type}
   Eq.trans (evalDist_bind_congr' _ fun H => reparam_bind hash enc padMsg ob ad c0 L H H0)
     (hoist_H hash (enc (ad, c0)) _)
 
+/-- An expected count bounded on the support collapses to the constant bound. -/
+private lemma tsum_count_le {Z : Type} (μ : ProbComp Z) (cnt : Z → ℕ) (n : ℕ) (ε : ℝ≥0∞)
+    (h : ∀ z ∈ support μ, cnt z ≤ n) :
+    ∑' z, Pr[= z | μ] * (cnt z : ℝ≥0∞) * ε ≤ (n : ℝ≥0∞) * ε := by
+  calc ∑' z, Pr[= z | μ] * (cnt z : ℝ≥0∞) * ε
+      ≤ ∑' _z : Z, Pr[= _z | μ] * ((n : ℝ≥0∞) * ε) := by
+        refine ENNReal.tsum_le_tsum fun z => ?_
+        rcases Classical.em (z ∈ support μ) with hz | hz
+        · rw [mul_assoc]
+          gcongr
+          exact Nat.cast_le.2 (h z hz)
+        · rw [probOutput_eq_zero_of_not_mem_support hz]
+          simp
+    _ = (∑' z : Z, Pr[= z | μ]) * ((n : ℝ≥0∞) * ε) := ENNReal.tsum_mul_right
+    _ ≤ 1 * ((n : ℝ≥0∞) * ε) := by
+        gcongr
+        exact tsum_probOutput_le_one
+    _ = (n : ℝ≥0∞) * ε := one_mul _
+
+/-- **Post-challenge half.** The entries appended AFTER the challenge was set accept with
+probability at most `n · ε`, where `n` bounds the adversary's remaining decrypt budget.
+
+Route: `post_half_reshape` puts the run in `probEvent_post_axu_le`'s shape, `post_event_iff`
+turns the acceptance test into the AXU form, `wcLogImpl_extends` supplies the PAIR
+inequality `hne` (through `henc_inj`: equal encodings force equal `(ad, C)`, and an equal
+tag then makes the entry the challenge ciphertext, which the guard excluded), and
+`log_length_le_from` bounds the number of post-challenge entries. -/
+private lemma post_half_le [SampleableType K] [DecidableEq Cb] {α : Type}
+    {hash : K → D → BitVec 128} {ε : ℝ≥0∞} (haxu : IsAlmostXorUniversal hash ε)
+    {enc : A × Cb → D} (henc_inj : Function.Injective enc)
+    (padMsg : M → Cb)
+    (ob : Option (Cb × BitVec 128) → OracleComp (wcSpec A M Cb) α) (n : ℕ)
+    (hn : ∀ y, (ob y).IsQueryBoundP (· matches Sum.inr _) n)
+    (ad : A) (c0 : Cb) (L : List (A × (Cb × BitVec 128) × Bool)) :
+    Pr[fun z : (K × BitVec 128) × WCLogState A Cb =>
+         (z.2.2.drop L.length).any (wcAccepts hash enc z.1.1 z.1.2) = true
+       | ($ᵗ K : ProbComp K) >>= fun H =>
+           ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun m =>
+             (fun z : α × WCLogState A Cb => ((H, m), z.2)) <$>
+               (simulateQ (wcLogImpl hash enc H m padMsg)
+                   (ob (some (c0, hash H (enc (ad, c0)) ^^^ m)))).run
+                 (some (ad, (c0, hash H (enc (ad, c0)) ^^^ m)), L)]
+      ≤ (n : ℝ≥0∞) * ε := by
+  obtain ⟨H0⟩ := nonempty_of_sampleable K
+  rw [probEvent_congr' (fun _ _ => Iff.rfl)
+    (post_half_reshape hash enc padMsg ob ad c0 L H0), probEvent_map]
+  simp only [Function.comp_def]
+  have hiff : ∀ p : (BitVec 128 × (α × WCLogState A Cb)) × K,
+      ((p.1.2.2.2.drop L.length).any
+          (wcAccepts hash enc p.2 (hash p.2 (enc (ad, c0)) ^^^ p.1.1)) = true)
+        ↔ (∃ x ∈ (p.1.2.2.2.drop L.length).map
+              (fun r : A × (Cb × BitVec 128) × Bool => (enc (r.1, r.2.1.1), r.2.1.2)),
+            hash p.2 x.1 ^^^ hash p.2 (enc (ad, c0), p.1.1).1
+              = x.2 ^^^ (enc (ad, c0), p.1.1).2) := by
+    intro p
+    simp only [List.any_eq_true, wcAccepts, decide_eq_true_eq, List.mem_map]
+    constructor
+    · rintro ⟨r, hr, he⟩
+      exact ⟨_, ⟨r, hr, rfl⟩, (post_event_iff _ _ _ _).1 he⟩
+    · rintro ⟨x, ⟨r, hr, rfl⟩, he⟩
+      exact ⟨r, hr, (post_event_iff _ _ _ _).2 he⟩
+  rw [probEvent_ext (fun p _ => hiff p)]
+  refine le_trans (probEvent_post_axu_le haxu _
+    (fun w : BitVec 128 × (α × WCLogState A Cb) => (enc (ad, c0), w.1))
+    (fun w : BitVec 128 × (α × WCLogState A Cb) => (w.2.2.2.drop L.length).map
+      (fun r : A × (Cb × BitVec 128) × Bool => (enc (r.1, r.2.1.1), r.2.1.2))) ?_) ?_
+  · rintro w hw x hx
+    simp only [mem_support_bind_iff, support_pure, Set.mem_singleton_iff] at hw
+    obtain ⟨T, -, z, hz, rfl⟩ := hw
+    obtain ⟨-, rest, hrest, hnec⟩ :=
+      wcLogImpl_extends hash enc padMsg H0 0 (ad, (c0, T)) L (ob (some (c0, T))) z hz
+    simp only [hrest, List.drop_left, List.mem_map] at hx
+    obtain ⟨r, hr, rfl⟩ := hx
+    intro hcontra
+    rw [Prod.ext_iff] at hcontra
+    obtain ⟨h1, h2⟩ := hcontra
+    have h3 : (r.1, r.2.1.1) = (ad, c0) := henc_inj h1
+    exact hnec r hr (by rw [Prod.ext_iff]; exact ⟨(Prod.ext_iff.1 h3).2, h2⟩)
+  · refine tsum_count_le _ _ n ε ?_
+    rintro w hw
+    simp only [mem_support_bind_iff, support_pure, Set.mem_singleton_iff] at hw
+    obtain ⟨T, -, z, hz, rfl⟩ := hw
+    have hlen := log_length_le_from hash enc H0 0 padMsg (ob (some (c0, T))) n (hn _)
+      (some (ad, (c0, T)), L) z hz
+    dsimp only at hlen
+    simp only [List.length_map, List.length_drop]
+    omega
+
 /-! ### Assembling the two halves -/
 
 /-- Two independent draws in front of a `(H, mask)`-free step commute past it. -/
@@ -1004,7 +1137,94 @@ private lemma hoist_step [SampleableType K] {α β : Type}
     (DeferredSampling.evalDist_bind_comm ($ᵗ K) Q (fun H p =>
       ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun m => F H m p))
 
+/-- **The challenge case of the criterion-4 split.** At the moment the challenge is set the
+pre-challenge log is the FIXED list `L` and the remaining decrypt budget is `n`; the bad
+event splits along `L ++ rest`, the two halves are charged to disjoint randomness sources,
+and they are combined at the SHARED count `L.length + n` by `combine_pre_post_le` — never
+bounded by the budget separately. -/
+private lemma post_phase [SampleableType K] [DecidableEq Cb] {α : Type}
+    {hash : K → D → BitVec 128} {ε : ℝ≥0∞} (haxu : IsAlmostXorUniversal hash ε)
+    (hfloor : ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹ ≤ ε)
+    {enc : A × Cb → D} (henc_inj : Function.Injective enc)
+    (padMsg : M → Cb)
+    (ob : Option (Cb × BitVec 128) → OracleComp (wcSpec A M Cb) α) (n : ℕ)
+    (hn : ∀ y, (ob y).IsQueryBoundP (· matches Sum.inr _) n)
+    (ad : A) (c0 : Cb) (L : List (A × (Cb × BitVec 128) × Bool)) :
+    Pr[fun z : (K × BitVec 128) × WCLogState A Cb => wcFlag hash enc z.1.1 z.1.2 z.2 = true
+       | ($ᵗ K : ProbComp K) >>= fun H =>
+           ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun m =>
+             (fun z : α × WCLogState A Cb => ((H, m), z.2)) <$>
+               (simulateQ (wcLogImpl hash enc H m padMsg)
+                   (ob (some (c0, hash H (enc (ad, c0)) ^^^ m)))).run
+                 (some (ad, (c0, hash H (enc (ad, c0)) ^^^ m)), L)]
+      ≤ ((L.length + n : ℕ) : ℝ≥0∞) * ε := by
+  refine le_trans (probEvent_mono (q := fun z : (K × BitVec 128) × WCLogState A Cb =>
+    L.any (wcAccepts hash enc z.1.1 z.1.2) = true
+      ∨ (z.2.2.drop L.length).any (wcAccepts hash enc z.1.1 z.1.2) = true) ?_) ?_
+  · rintro z hz hflag
+    simp only [mem_support_bind_iff, support_map, Set.mem_image] at hz
+    obtain ⟨H, -, m, -, zz, hzz, rfl⟩ := hz
+    obtain ⟨-, rest, hrest, -⟩ := wcLogImpl_extends hash enc padMsg H m
+      (ad, (c0, hash H (enc (ad, c0)) ^^^ m)) L _ zz hzz
+    rw [wcFlag] at hflag
+    dsimp only at hflag ⊢
+    rw [hrest] at hflag ⊢
+    rw [List.drop_left]
+    rw [List.any_append, Bool.or_eq_true] at hflag
+    exact hflag
+  · refine le_trans (probEvent_or_le _ _ _) ?_
+    refine combine_pre_post_le (pure () : ProbComp Unit) (L.length + n) ε
+      (fun _ => L.length) (fun _ => n) _ _ ?_ ?_ (fun _ _ => le_rfl) hfloor
+    · refine le_trans (pre_half_le hash enc L _ Prod.fst ?_) ?_
+      · intro H m y hy
+        simp only [support_map, Set.mem_image] at hy
+        obtain ⟨z, -, rfl⟩ := hy
+        rfl
+      · simp [tsum_fintype]
+    · refine le_trans (post_half_le haxu henc_inj padMsg ob n hn ad c0 L) ?_
+      simp [tsum_fintype]
+
 /-! ### The pre-challenge phase -/
+
+/-- One `(H, mask)`-free step in front of the induction hypothesis. -/
+private lemma pre_phase_bind_le [SampleableType K] [DecidableEq Cb] {α β : Type}
+    (hash : K → D → BitVec 128) (enc : A × Cb → D) (padMsg : M → Cb)
+    (Q : ProbComp (β × WCLogState A Cb))
+    (F : β → OracleComp (wcSpec A M Cb) α) (bnd : ℝ≥0∞)
+    (hstate : ∀ p ∈ support Q, p.2.1 = none)
+    (hIH : ∀ p ∈ support Q,
+      Pr[ fun z : (K × BitVec 128) × WCLogState A Cb => wcFlag hash enc z.1.1 z.1.2 z.2 = true
+         | ($ᵗ K : ProbComp K) >>= fun H =>
+             ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun m =>
+               (fun z : α × WCLogState A Cb => ((H, m), z.2)) <$>
+                 (simulateQ (wcLogImpl hash enc H m padMsg) (F p.1)).run
+                   ((none, p.2.2) : WCLogState A Cb)] ≤ bnd) :
+    Pr[fun z : (K × BitVec 128) × WCLogState A Cb => wcFlag hash enc z.1.1 z.1.2 z.2 = true
+       | Q >>= fun p => ($ᵗ K : ProbComp K) >>= fun H =>
+           ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun m =>
+             (fun z : α × WCLogState A Cb => ((H, m), z.2)) <$>
+               (simulateQ (wcLogImpl hash enc H m padMsg) (F p.1)).run p.2] ≤ bnd := by
+  rw [probEvent_bind_eq_tsum]
+  calc ∑' p : β × WCLogState A Cb, Pr[= p | Q] * Pr[fun z : (K × BitVec 128) × WCLogState A Cb =>
+          wcFlag hash enc z.1.1 z.1.2 z.2 = true
+        | ($ᵗ K : ProbComp K) >>= fun H =>
+            ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun m =>
+              (fun z : α × WCLogState A Cb => ((H, m), z.2)) <$>
+                (simulateQ (wcLogImpl hash enc H m padMsg) (F p.1)).run p.2]
+      ≤ ∑' _p : β × WCLogState A Cb, Pr[= _p | Q] * bnd := by
+        refine ENNReal.tsum_le_tsum fun p => ?_
+        rcases Classical.em (p ∈ support Q) with hp | hp
+        · gcongr
+          have hp2 : p.2 = ((none, p.2.2) : WCLogState A Cb) := by
+            rw [← hstate p hp]
+          rw [hp2]
+          exact hIH p hp
+        · rw [probOutput_eq_zero_of_not_mem_support hp, zero_mul, zero_mul]
+    _ = (∑' p : β × WCLogState A Cb, Pr[= p | Q]) * bnd := ENNReal.tsum_mul_right
+    _ ≤ 1 * bnd := by
+        gcongr
+        exact tsum_probOutput_le_one
+    _ = bnd := one_mul _
 
 /-- Peeling one query off the simulated run. -/
 private lemma run_query_step [DecidableEq Cb] {α : Type}
@@ -1070,6 +1290,100 @@ private lemma encrypt_step_run [DecidableEq Cb] {α : Type}
   simp [simulateQ_bind, simulateQ_query, wcLogImpl, StateT.run_bind, StateT.run_get,
     StateT.run_set]
 
+/-- **The pre-challenge phase, by induction on the adversary.** While the challenge slot is
+`none` the run is `(H, mask)`-free, so the two top-level draws hoist past every step and the
+induction charges one log entry per decrypt query. The `pure` leaf is
+ROADMAP criterion 4's second case (the encrypt oracle was never queried): every entry is
+pre-tagged, the post half is empty and contributes `0`, and the mask can be sampled at
+termination. The encrypt query hands over to `post_phase`. -/
+private lemma pre_phase [SampleableType K] [DecidableEq Cb] {α : Type}
+    {hash : K → D → BitVec 128} {ε : ℝ≥0∞} (haxu : IsAlmostXorUniversal hash ε)
+    (hfloor : ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹ ≤ ε)
+    {enc : A × Cb → D} (henc_inj : Function.Injective enc)
+    (padMsg : M → Cb) (oa : OracleComp (wcSpec A M Cb) α) :
+    ∀ (n : ℕ), oa.IsQueryBoundP (· matches Sum.inr _) n →
+      ∀ L : List (A × (Cb × BitVec 128) × Bool),
+        Pr[fun z : (K × BitVec 128) × WCLogState A Cb =>
+             wcFlag hash enc z.1.1 z.1.2 z.2 = true
+           | ($ᵗ K : ProbComp K) >>= fun H =>
+               ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun m =>
+                 (fun z : α × WCLogState A Cb => ((H, m), z.2)) <$>
+                   (simulateQ (wcLogImpl hash enc H m padMsg) oa).run
+                     ((none, L) : WCLogState A Cb)]
+          ≤ ((L.length + n : ℕ) : ℝ≥0∞) * ε := by
+  induction oa using OracleComp.inductionOn with
+  | pure x =>
+      intro n _ L
+      simp only [simulateQ_pure, StateT.run_pure, map_pure]
+      refine le_trans (le_of_eq (probEvent_ext
+        (q := fun y : (K × BitVec 128) × WCLogState A Cb =>
+          L.any (wcAccepts hash enc (Prod.fst y).1 (Prod.fst y).2) = true)
+        (fun z hz => ?_))) ?_
+      · simp only [mem_support_bind_iff, support_pure, Set.mem_singleton_iff] at hz
+        obtain ⟨H, -, m, -, rfl⟩ := hz
+        exact Iff.rfl
+      refine le_trans (pre_half_le hash enc L _ Prod.fst (fun H m y hy => ?_)) ?_
+      · simp only [support_pure, Set.mem_singleton_iff] at hy
+        rw [hy]
+      · exact mul_le_mul' (Nat.cast_le.2 (Nat.le_add_right _ _)) hfloor
+  | query_bind t ob ih =>
+      intro n hq L
+      rw [isQueryBoundP_query_bind_iff] at hq
+      obtain ⟨hq1, hq2⟩ := hq
+      obtain ⟨H0⟩ := nonempty_of_sampleable K
+      by_cases ht : ∀ (ad : A) (mm : M), t ≠ Sum.inl (Sum.inr (ad, mm))
+      · have hrun : ∀ (H : K) (m : BitVec 128),
+            ((fun z : α × WCLogState A Cb => ((H, m), z.2)) <$>
+              (simulateQ (wcLogImpl hash enc H m padMsg)
+                ((liftM (OracleSpec.query t) :
+                    OracleComp (wcSpec A M Cb) ((wcSpec A M Cb).Range t))
+                  >>= ob)).run ((none, L) : WCLogState A Cb))
+              = (wcLogImpl hash enc H0 0 padMsg t).run ((none, L) : WCLogState A Cb) >>=
+                  fun p => (fun z : α × WCLogState A Cb => ((H, m), z.2)) <$>
+                    (simulateQ (wcLogImpl hash enc H m padMsg) (ob p.1)).run p.2 := by
+          intro H m
+          rw [run_query_step hash enc padMsg H m t ob (none, L),
+            nonEncrypt_step_eq hash enc padMsg H H0 m 0 L t ht, map_bind]
+        simp only [hrun]
+        rw [probEvent_of_evalDist_eq (p := fun z : (K × BitVec 128) × WCLogState A Cb =>
+          wcFlag hash enc z.1.1 z.1.2 z.2 = true)
+          (hoist_step ((wcLogImpl hash enc H0 0 padMsg t).run ((none, L) : WCLogState A Cb))
+            (fun H m p => (fun z : α × WCLogState A Cb => ((H, m), z.2)) <$>
+              (simulateQ (wcLogImpl hash enc H m padMsg) (ob p.1)).run p.2))]
+        refine pre_phase_bind_le hash enc padMsg _ ob _
+          (nonEncrypt_step_state hash enc padMsg H0 0 L t ht) (fun p hp => ?_)
+        refine le_trans (ih p.1 _ (hq2 p.1) p.2.2) ?_
+        refine mul_le_mul' (Nat.cast_le.2 ?_) le_rfl
+        split_ifs with hpt
+        · have hlen := log_step_le_one hash enc H0 0 padMsg t (none, L) p hp
+          have hn1 : 0 < n := hq1.resolve_left (not_not_intro hpt)
+          dsimp only at hlen
+          omega
+        · have hlen := log_step_le_zero hash enc H0 0 padMsg t
+            (fun y hy => hpt (by rw [hy])) (none, L) p hp
+          dsimp only at hlen
+          omega
+      · have ht' : ∃ (ad : A) (mm : M), t = Sum.inl (Sum.inr (ad, mm)) := by
+          by_contra hc
+          exact ht fun ad mm h => hc ⟨ad, mm, h⟩
+        obtain ⟨ad, mm, rfl⟩ := ht'
+        have hrunE : ∀ (H : K) (m : BitVec 128),
+            ((fun z : α × WCLogState A Cb => ((H, m), z.2)) <$>
+              (simulateQ (wcLogImpl hash enc H m padMsg)
+                ((liftM (OracleSpec.query (Sum.inl (Sum.inr (ad, mm)))) :
+                    OracleComp (wcSpec A M Cb)
+                      ((wcSpec A M Cb).Range (Sum.inl (Sum.inr (ad, mm)))))
+                  >>= ob)).run ((none, L) : WCLogState A Cb))
+              = ((fun z : α × WCLogState A Cb => ((H, m), z.2)) <$>
+                  (simulateQ (wcLogImpl hash enc H m padMsg)
+                    (ob (some (padMsg mm, hash H (enc (ad, padMsg mm)) ^^^ m)))).run
+                      ((some (ad, (padMsg mm, hash H (enc (ad, padMsg mm)) ^^^ m)), L) :
+                        WCLogState A Cb)) := by
+          intro H m
+          rw [encrypt_step_run hash enc padMsg H m L ad mm ob]
+        simp only [hrunE]
+        exact post_phase haxu hfloor henc_inj padMsg _ n
+          (fun y => by simpa using hq2 y) ad (padMsg mm) L
 
 end ProbabilityCore
 
@@ -1101,8 +1415,8 @@ theorem probEvent_bad_wcLog_le {α K A M Cb D : Type} [SampleableType K] [Decida
            let mask ← ($ᵗ (BitVec 128) : ProbComp (BitVec 128))
            (fun z : α × WCLogState A Cb => ((H, mask), z.2)) <$>
              (simulateQ (wcLogImpl hash enc H mask padMsg) oa).run (none, []))]
-      ≤ (q : ℝ≥0∞) * ε :=
-  sorry
+      ≤ (q : ℝ≥0∞) * ε := by
+  simpa using pre_phase haxu hfloor henc_inj padMsg oa q hq []
 
 /-- **Obligation WC8 — THE PUBLIC BRICK** (staged here, discharged by plan 04-05).
 
