@@ -3,6 +3,7 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
+import ToVCVio.LatticeCrypto.FrodoKEM.Encoding
 import ToVCVio.LatticeCrypto.FrodoKEM.Packing
 import LatticeCrypto.Ring.Norms
 
@@ -39,7 +40,8 @@ stays within half of that, `dc` recovers the chunk it was given.
 * `bitsToMatrixWith_matrixToBitsWith` and `matrixToBitsWith_bitsToMatrixWith`:
   if `g` inverts `f` on one entry, then `bitsToMatrixWith g` inverts
   `matrixToBitsWith f` on the whole matrix. `Unpack_Pack` and `Pack_Unpack` are
-  this at `D` bits per entry, `Decode_Encode` at `B`;
+  this at `D` bits per entry, `bitsToChunkMatrix_chunkMatrixToBits` and
+  `chunkMatrixToBits_bitsToChunkMatrix` at `B`;
 * `bitsToChunk_chunkToBits`, `chunkToBits_bitsToChunk`,
   `bitsToEntry_entryToBits` and `entryToBits_bitsToEntry`: those maps on one
   chunk and on one entry.

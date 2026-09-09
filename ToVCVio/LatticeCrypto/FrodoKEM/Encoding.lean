@@ -71,13 +71,14 @@ The specification's `Frodo.Encode` and `Frodo.Decode` are
 
 namespace FrodoKEM
 
-/-- `Frodo.Encode`'s scalar map (Appendix B): `k ↦ k * 2 ^ (D - B)`, multiplying
-by the spacing `q / 2 ^ B`. -/
+/-- `Frodo.Encode`'s scalar map (Appendix B of `[CiC25]`, Section 6.3 of
+`[LBES26]`): `k ↦ k * 2 ^ (D - B)`, multiplying by the spacing `q / 2 ^ B`. -/
 def ec (p : Params) (k : ZMod (2 ^ p.B)) : ZMod p.q :=
   (k.val * 2 ^ (p.D - p.B) : ℕ)
 
-/-- `Frodo.Decode`'s scalar map (Appendix B): `c ↦ ⌊c * 2 ^ B / q⌉ mod 2 ^ B`,
-dividing by that spacing and rounding to the nearest integer. -/
+/-- `Frodo.Decode`'s scalar map (Appendix B of `[CiC25]`, Section 6.3 of
+`[LBES26]`): `c ↦ ⌊c * 2 ^ B / q⌉ mod 2 ^ B`, dividing by that spacing and
+rounding to the nearest integer, ties upward. -/
 def dc (p : Params) (c : ZMod p.q) : ZMod (2 ^ p.B) :=
   ((c.val * 2 ^ p.B + p.q / 2) / p.q % 2 ^ p.B : ℕ)
 
@@ -143,9 +144,10 @@ that has only bits `0` and `3` set puts `1` in entry `(0, 0)` and `2` in entry
 within a chunk and the entries along a row; `bitsToChunkMatrix` is used rather
 than `chunkMatrixToBits` because the latter does not reduce: the
 `Vector.flatten` inside `matrixToBitsWith` blocks it. -/
-example : bitsToChunkMatrix ParameterSet.FrodoKEM640.params
-    (Vector.ofFn fun i : Fin (mbar * nbar * 2) => decide (i.val = 0 ∨ i.val = 3))
-      ⟨0, by decide⟩ ⟨1, by decide⟩ = 2 := by decide
+example :
+    letI M := bitsToChunkMatrix ParameterSet.FrodoKEM640.params
+      (Vector.ofFn fun i : Fin (mbar * nbar * 2) => decide (i.val = 0 ∨ i.val = 3))
+    M ⟨0, by decide⟩ ⟨0, by decide⟩ = 1 ∧ M ⟨0, by decide⟩ ⟨1, by decide⟩ = 2 := by decide
 
 /-- The row order, which the example above leaves open: bit `16` is the first
 bit of entry `(1, 0)`, so it puts `1` in the second row and not in the last. -/

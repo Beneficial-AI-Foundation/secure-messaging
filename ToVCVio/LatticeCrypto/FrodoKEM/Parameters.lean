@@ -34,7 +34,7 @@ between the entries are stated as theorems. The quantities are:
 * `B`, the number of bits encoded in each matrix entry by `Frodo.Encode`;
 * `ℓ`, the security parameter, which is the bit length of the message `μ`, the
   shared secret `ss`, the intermediate secret `k`, the public-key hash `pkh`,
-  and the vector `s` from which `ss` is derived when decapsulation fails. The
+  and the value `s` from which `ss` is derived when decapsulation fails. The
   algorithms need `ℓ = B * mbar * nbar`, so that `μ` fills the matrix that
   `Frodo.Encode` puts it in. `[CiC25]` states it in Section 3 and Table 1;
   `[LBES26]` states it of the encoder's input in Section 6.3 but never ties it
@@ -44,7 +44,7 @@ between the entries are stated as theorems. The quantities are:
   variant.
 
 The constants `mbar = nbar = 8`, `lenSeedA = lenZ = 128` and `lenChi = 16` are
-shared by every parameter set; the remaining entries are:
+shared by every parameter set; the per-set entries `Params` carries are:
 
 | parameter set   |  D |     q |    n | B |   ℓ | lenSeedSE | lenSalt |
 | --------------- | --:| -----:| ----:| -:| ---:| ---------:| -------:|
@@ -54,6 +54,9 @@ shared by every parameter set; the remaining entries are:
 | eFrodoKEM-640   | 15 | 32768 |  640 | 2 | 128 |       128 |       0 |
 | eFrodoKEM-976   | 16 | 65536 |  976 | 3 | 192 |       192 |       0 |
 | eFrodoKEM-1344  | 16 | 65536 | 1344 | 4 | 256 |       256 |       0 |
+
+Table 1's `χ` and SHAKE rows are not fields of `Params`, nor is the `-AES` /
+`-SHAKE` choice of generator for `A` that doubles these six sets to twelve.
 
 Lengths are published in bits but the corresponding types are byte vectors, so
 each length comes in both units and the docstrings name which is which.
