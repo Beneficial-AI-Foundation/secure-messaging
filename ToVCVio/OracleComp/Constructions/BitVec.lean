@@ -139,3 +139,91 @@ example (n : ℕ) (y : BitVec 0) :
     Pr[= y | (fun v : Vector (BitVec 128) n => blocksToBitVec v.toList 0) <$>
         ($ᵗ Vector (BitVec 128) n)] = 1 := by
   simpa using probOutput_blocksToBitVec_uniform n 0 (Nat.zero_le _) y
+
+/-! ## From a list of independent draws to one uniform vector
+
+A fetch loop `pts.mapM (fun _ => $ᵗ R)` — one independent uniform draw per element of a fixed
+list — is distributed as `Vector.toList` of a single uniform `Vector R pts.length` draw. Stated
+with the same `Vector` type as `evalDist_blocksToBitVec_uniform` above, so the two compose
+through `Functor.map_map` to take a list of independent uniform blocks to a uniform `BitVec L`.
+
+`[Fintype R]` is needed on top of `[SampleableType R]` (which does not bundle it) because the
+proof is a cardinality computation: `probOutput_uniformSample` requires a `Fintype`. -/
+
+/-- The probability that `pts.mapM (fun _ => $ᵗ R)` outputs a given list: uniform
+`(card R)⁻¹ ^ pts.length` on lists of the right length, and `0` on any other list. -/
+private lemma probOutput_mapM_const_uniform {D R : Type} [SampleableType R] [Fintype R]
+    (pts : List D) (xs : List R) :
+    Pr[= xs | pts.mapM (fun _ => ($ᵗ R : ProbComp R))] =
+      if xs.length = pts.length then ((Fintype.card R : ℝ≥0∞)⁻¹) ^ pts.length else 0 := by
+  letI : DecidableEq R := Classical.decEq R
+  induction pts generalizing xs with
+  | nil =>
+      rw [List.mapM_nil]
+      cases xs with
+      | nil => simp
+      | cons y ys => simp
+  | cons t ts ih =>
+      rw [List.mapM_cons, probOutput_bind_eq_sum_fintype]
+      simp only [bind_pure_comp, probOutput_uniformSample]
+      cases xs with
+      | nil =>
+          -- Every output of the loop is a cons, so the empty list is never produced.
+          have hin : ∀ r : R,
+              Pr[= ([] : List R) | ((r :: ·) <$> List.mapM (fun _ => ($ᵗ R : ProbComp R)) ts)]
+                = 0 := by
+            intro r
+            rw [probOutput_map]
+            simp
+          simp [hin]
+      | cons y ys =>
+          -- Only the draw `r = y` can produce the head of `y :: ys`, and `(y :: ·)` is
+          -- injective, so the tail probability is the one supplied by the induction.
+          have hin : ∀ r : R,
+              Pr[= y :: ys | ((r :: ·) <$> List.mapM (fun _ => ($ᵗ R : ProbComp R)) ts)]
+                = if r = y then Pr[= ys | List.mapM (fun _ => ($ᵗ R : ProbComp R)) ts]
+                  else 0 := by
+            intro r
+            by_cases hr : r = y
+            · subst hr
+              rw [if_pos rfl]
+              exact probOutput_map_injective _ (fun a b hab => by simpa using hab) ys
+            · rw [if_neg hr, probOutput_map]
+              simp [hr]
+          simp only [hin, mul_ite, mul_zero, Finset.sum_ite_eq' Finset.univ y,
+            Finset.mem_univ, if_true, ih ys, List.length_cons]
+          by_cases hlen : ys.length = ts.length
+          · simp [hlen, pow_succ, mul_comm]
+          · simp [hlen]
+
+/-- The probability that a uniform `Vector R n`, read as a list, is a given list: uniform
+`(card R)⁻¹ ^ n` on lists of length `n` (`Vector.toList` is injective and hits every such
+list), and `0` on any other list (no vector reads as a list of the wrong length). -/
+private lemma probOutput_toList_uniformSample_vector {R : Type} [SampleableType R] [Fintype R]
+    (n : ℕ) (xs : List R) :
+    Pr[= xs | (Vector.toList <$> ($ᵗ Vector R n : ProbComp (Vector R n)))] =
+      if xs.length = n then ((Fintype.card R : ℝ≥0∞)⁻¹) ^ n else 0 := by
+  by_cases hlen : xs.length = n
+  · rw [if_pos hlen]
+    have hv : (⟨xs.toArray, by simpa using hlen⟩ : Vector R n).toList = xs := by
+      simp [Vector.toList]
+    rw [← hv, probOutput_map_injective _ (fun a b hab => Vector.toList_inj.mp hab),
+      probOutput_uniformSample, Fintype.card_vector, Nat.cast_pow, ENNReal.inv_pow]
+  · rw [if_neg hlen, probOutput_map]
+    refine probEvent_eq_zero fun v _ hv => hlen ?_
+    rw [← hv]
+    simp [Vector.toList]
+
+-- `[Fintype R]` appears only in the proof (the cardinality computation), not in the statement:
+-- it is kept as an explicit hypothesis because consumers pass it verbatim alongside
+-- `evalDist_blocksToBitVec_uniform`, and `SampleableType R` supplies only `Finite R`.
+set_option linter.unusedFintypeInType false in
+/-- **A fixed-length list of independent uniform draws is one uniform vector**: `pts.mapM`
+of a constant uniform draw is distributed as `Vector.toList` of a single uniform
+`Vector R pts.length`. -/
+theorem evalDist_mapM_const_uniform {D R : Type} [SampleableType R] [Fintype R]
+    (pts : List D) :
+    evalDist (pts.mapM (fun _ => ($ᵗ R : ProbComp R))) =
+      evalDist (Vector.toList <$> ($ᵗ Vector R pts.length : ProbComp _)) := by
+  refine evalDist_ext fun xs => ?_
+  rw [probOutput_mapM_const_uniform, probOutput_toList_uniformSample_vector]
