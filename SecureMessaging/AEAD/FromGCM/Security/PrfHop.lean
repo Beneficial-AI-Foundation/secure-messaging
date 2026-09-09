@@ -6,6 +6,7 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.AEAD.FromGCM.Security.Games
 import SecureMessaging.AEAD.FromGCM.Security.Counter
+import ToVCVio.CryptoFoundations.PRF
 
 /-!
 # GCM — the PRF hop (`game0` → `game1`)
@@ -26,8 +27,10 @@ Contents:
   `gcmTupleImpl` oracle bodies at `ks := blocksToBitVec ksBlocks L`.
 - `game1_eq_game2` — the lazy-sampling hop, moving the eager tuple sample inside the
   oracles (premise-free, zero advantage cost).
+- `run'_game0Impl_eq_tupleImpl` / `game0_eq_prfRealExp` — the REAL-side projection:
+  running `prfReduction` in the real PRF experiment is exactly `game0`.
 
-The projections of `prfReduction` onto the real and ideal PRF experiments, and the bound
+The projection of `prfReduction` onto the ideal PRF experiment, and the bound
 `|Pr[game1] − Pr[game0]| ≤ prfAdvantage`, are proven in the companion plans of this phase.
 -/
 
@@ -157,5 +160,71 @@ theorem game1_eq_game2 (prp : PRPScheme K (BitVec 128)) (L : ℕ)
   exact probOutput_simulateQ_greedyLazy_run'_eq gcmTupleImpl adv none
 
 end LazyHop
+
+/-! ## The real-side projection: `game0` = `prfRealExp (prfReduction …)`
+
+Half of ROADMAP Phase 3 criterion 2. The eager design makes this the EtM
+`game0_eq_prfRealExp` pattern minus its two hard parts:
+
+* no nested-`simulateQ` collapse — the reduction's tail is a *closed* `ProbComp` injected
+  with `OracleComp.liftComp`, which `PRFScheme.simulateQ_prfRealQueryImpl_liftComp` erases
+  outright (there is no per-call forwarding to fold);
+* no key swap — GCM has a single key and `(prp.toPRFScheme).keygen = prp.keygen` is `rfl`,
+  so no `[NeverFail prp.keygen]` and no `probEvent_bind_bind_swap` are needed.
+
+What remains: collapse the three eager fetches to `pure` of the real cipher outputs
+(`simulateQ_prfRealQueryImpl_inr` for `H`/`mask`, `simulateQ_prfRealQueryImpl_mapM_inr`
+for the keystream block list), then a per-key `id`-projection of `game0`'s handler onto
+`gcmTupleImpl` at the real tuple. -/
+
+section RealProjection
+
+variable {K : Type}
+
+/-- Per-key projection: at a fixed key `k`, `game0`'s oracle implementation — the real
+scheme's `encrypt`/`decrypt` — projects onto the per-tuple family `gcmTupleImpl` at the
+REAL tuple `(CIPH_k(0), CIPH_k(1), blocksToBitVec (CIPH_k ∘ counterChain 2 ⌈L/128⌉) L)`.
+
+The projection is `id`: both sides carry the same state `Option (BitVec L × BitVec 128)`
+(the challenge ciphertext), so there is no cache to erase and no state invariant to
+maintain. The three branches:
+
+* `OUnif` — both handlers are `oracleUnif`, threading the state unchanged;
+* `OEncrypt` — `gcmOneTimeAEAD_encrypt_profile` turns the scheme's `encrypt` into
+  `gcmEncryptSpec` at exactly this tuple's components, and `gcmEncryptSpec_eq_tuple`
+  flattens the keystream block list, landing on `gcmTupleImpl`'s `encStar` body verbatim;
+* `ODecrypt` — the same with `gcmOneTimeAEAD_decrypt_profile` (whose validity guard is
+  already discharged by `hL` and the AAD's own `ValidAADLength` witness) and
+  `gcmDecryptSpec_eq_tuple`. The ACD19 ciphertext-only challenge guard
+  `(← get) == some e` is shared by both sides, so only the `decryptResp` bodies differ. -/
+lemma run'_game0Impl_eq_tupleImpl (prp : PRPScheme K (BitVec 128)) (L : ℕ)
+    (hL : ValidMsgLength L) (k : K)
+    (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
+    (simulateQ (gcmGameSkeleton (spec := unifSpec)
+        (fun ad m => pure ((gcmOneTimeAEAD prp L hL).encrypt k ad m))
+        (fun ad e => pure ((gcmOneTimeAEAD prp L hL).decrypt k ad e))
+        (oracleUnif (BitVec L × BitVec 128))) adv).run' none =
+      (simulateQ (gcmTupleImpl (prp.toBlockCipher.perm k 0, prp.toBlockCipher.perm k 1,
+        blocksToBitVec ((counterChain 2 ((L + 127) / 128)).map
+          (prp.toBlockCipher.perm k)) L)) adv).run' none := by
+  refine run'_simulateQ_eq_of_query_map_eq _ _ id ?hproj adv none
+  case hproj =>
+    intro t s
+    rcases t with (n | ⟨ad, m⟩) | ⟨ad, e⟩
+    · -- OUnif: both handlers are the lifted uniform oracle, state threaded unchanged.
+      simp [gcmGameSkeleton, gcmTupleImpl, oracleUnif, unifLiftStateT,
+        QueryImpl.liftTarget_apply, StateT.run_monadLift, Functor.map_map]
+    · -- OEncrypt: one-shot; the real cipher body becomes the tuple body by
+      -- profile + encryption bridge.
+      cases s <;>
+        simp [gcmGameSkeleton, gcmTupleImpl, StateT.run_bind, StateT.run_get,
+          StateT.run_set, StateT.run_pure, map_pure,
+          gcmOneTimeAEAD_encrypt_profile prp hL k, gcmEncryptSpec_eq_tuple]
+    · -- ODecrypt: shared challenge guard; the live verification body becomes the tuple
+      -- body by profile + decryption bridge.
+      simp [gcmGameSkeleton, gcmTupleImpl, StateT.run_bind, StateT.run_get,
+        gcmOneTimeAEAD_decrypt_profile prp hL k, gcmDecryptSpec_eq_tuple]
+
+end RealProjection
 
 end GCM
