@@ -225,6 +225,35 @@ lemma run'_game0Impl_eq_tupleImpl (prp : PRPScheme K (BitVec 128)) (L : ℕ)
       simp [gcmGameSkeleton, gcmTupleImpl, StateT.run_bind, StateT.run_get,
         gcmOneTimeAEAD_decrypt_profile prp hL k, gcmDecryptSpec_eq_tuple]
 
+/-- **ROADMAP Phase 3 criterion 2, real side**: running `prfReduction` in the real PRF
+experiment of the PRF view of the block cipher IS `game0`.
+
+Stated at the `Pr[= true | ·]` level, which is the form `prfAdvantage` consumes by
+rewriting in the assembly of `game0_game1_le_prf`.
+
+Proof shape: the reduction's eager prefix collapses to `pure` of the real cipher outputs
+and its `liftComp`'d tail loses the PRF spec, leaving both sides as the SAME
+`prp.keygen`-bind; `probOutput_bind_congr'` descends under that single key sample and
+`run'_game0Impl_eq_tupleImpl` closes the per-key body. -/
+theorem game0_eq_prfRealExp (prp : PRPScheme K (BitVec 128)) (L : ℕ)
+    (hL : ValidMsgLength L)
+    (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
+    Pr[= true | game0 prp L hL adv] =
+      Pr[= true | (prp.toPRFScheme).prfRealExp (prfReduction L adv)] := by
+  -- Keygen alignment is definitional: `toPRFScheme` keeps `keygen` and sets `eval := perm`.
+  have hkg : (prp.toPRFScheme).keygen = prp.keygen := rfl
+  unfold game0 PRFScheme.prfRealExp prfReduction
+  rw [hkg]
+  -- Collapse the eager fetches (`H`, `mask`, the keystream block list) and erase the
+  -- `liftComp` on the closed tail. `simp only` is mandatory here: full `simp` would first
+  -- apply `simulateQ_spec_query` and reduce past the forwarding lemmas.
+  simp only [simulateQ_bind, PRFScheme.simulateQ_prfRealQueryImpl_inr,
+    PRFScheme.simulateQ_prfRealQueryImpl_mapM_inr,
+    PRFScheme.simulateQ_prfRealQueryImpl_liftComp, pure_bind]
+  -- Both sides are now the same `prp.keygen` bind; descend and project per key.
+  refine probOutput_bind_congr' prp.keygen true (fun k => ?_)
+  exact congrArg (fun o => Pr[= true | o]) (run'_game0Impl_eq_tupleImpl prp L hL k adv)
+
 end RealProjection
 
 end GCM
