@@ -128,11 +128,17 @@ post-challenge target `x` collides with the challenge `chal z` in the Wegman–C
 is at most the expected number of targets times `ε`.
 
 Route: condition on `z` FIRST (`probEvent_bind_eq_tsum`, VCVio `EvalDist/Monad/Basic.lean`),
-THEN apply `probEvent_exists_finset_le_sum` (ibid.) at `Finset.range (post z).length` —
-legal only after conditioning, since `(post z).length` is random beforehand. Per index:
-when `x.1 ≠ (chal z).1`, `IsAlmostXorUniversal` applies at offset `Δ := x.2 ^^^ (chal z).2`;
-when `x.1 = (chal z).1`, `hne` forces `x.2 ≠ (chal z).2`, so the event reads
-`0 = x.2 ^^^ (chal z).2`, is impossible, and contributes `0`. -/
+THEN apply `probEvent_exists_finset_le_sum` (ibid.) at the index set of the now-fixed list
+`post z` — legal only after conditioning, since `(post z).length` is random beforehand.
+The index set is spelled `(Finset.univ : Finset (Fin (post z).length))` rather than
+`Finset.range (post z).length`, so that `(post z).get i` is total and needs no in-bounds
+side goal; the two are the same index set. Per index: when `x.1 ≠ (chal z).1`,
+`IsAlmostXorUniversal` applies at offset `Δ := x.2 ^^^ (chal z).2`; when
+`x.1 = (chal z).1`, `hne` forces `x.2 ≠ (chal z).2`, so the event reads
+`0 = x.2 ^^^ (chal z).2`, is impossible, and contributes `0`.
+
+The per-`z` conditional bound is the private `probEvent_post_axu_le_run`; off the support
+of `μ` the summand vanishes because `Pr[= z | μ] = 0`. -/
 theorem probEvent_post_axu_le {Z K D : Type} [SampleableType K] {ε : ℝ≥0∞}
     {hash : K → D → BitVec 128} (haxu : IsAlmostXorUniversal hash ε)
     (μ : ProbComp Z) (chal : Z → D × BitVec 128) (post : Z → List (D × BitVec 128))
