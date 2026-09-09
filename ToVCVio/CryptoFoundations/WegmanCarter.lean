@@ -339,7 +339,16 @@ then along every run in the support it grows by at most the `p`-query budget.
 Route: an induction modelled on `IsQueryBoundP.simulateQ_run_of_step`
 (VCVio `QueryTracking/QueryBound.lean:1331-1357`), which itself CANNOT deliver this: its
 conclusion bounds the number of TARGET-spec queries made by the simulated run, not a
-functional of the simulated state. -/
+functional of the simulated state. Only its PROOF SHAPE carries over — induction on `oa`
+generalizing the budget and the state, `isQueryBoundP_query_bind_iff` to peel one query,
+then a `support`-of-bind membership step feeding the induction hypothesis with the residual
+budget, split on `p t` to spend `1` or `0`.
+
+This bound is deliberately SUPPORT-LEVEL and deliberately decoupled from the probability
+argument. An interleaved induction (the Encrypt-then-MAC analogue, `probForge_run_le`) charges
+`ε` per query as it goes, which is incompatible with hoisting the hash key `H` past the whole
+run to the end; here the count is established once, on the support, and consumed later as a
+pure cardinality fact. No counter is threaded through the handler state. -/
 theorem support_state_measure_le_of_isQueryBoundP
     {ι : Type} {spec : OracleSpec ι} {σ α : Type}
     (impl : QueryImpl spec (StateT σ ProbComp)) (f : σ → ℕ)
@@ -347,8 +356,28 @@ theorem support_state_measure_le_of_isQueryBoundP
     (hstep_p : ∀ t, p t → ∀ s, ∀ z ∈ support ((impl t).run s), f z.2 ≤ f s + 1)
     (hstep_np : ∀ t, ¬ p t → ∀ s, ∀ z ∈ support ((impl t).run s), f z.2 ≤ f s)
     (oa : OracleComp spec α) (n : ℕ) (hq : oa.IsQueryBoundP p n) (s : σ) :
-    ∀ z ∈ support ((simulateQ impl oa).run s), f z.2 ≤ f s + n :=
-  sorry
+    ∀ z ∈ support ((simulateQ impl oa).run s), f z.2 ≤ f s + n := by
+  induction oa using OracleComp.inductionOn generalizing n s with
+  | pure x =>
+      intro z hz
+      simp only [simulateQ_pure, StateT.run_pure, support_pure, Set.mem_singleton_iff] at hz
+      subst hz
+      simp
+  | query_bind t oa ih =>
+      intro z hz
+      rw [isQueryBoundP_query_bind_iff] at hq
+      simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
+        OracleQuery.cont_query, id_map, StateT.run_bind, mem_support_bind_iff] at hz
+      obtain ⟨x, hx, hzx⟩ := hz
+      have hrec := ih x.1 (if p t then n - 1 else n) (hq.2 x.1) x.2 z hzx
+      by_cases hpt : p t
+      · have h1 := hstep_p t hpt s x hx
+        have h2 : 0 < n := hq.1.resolve_left (not_not_intro hpt)
+        simp only [if_pos hpt] at hrec
+        omega
+      · have h1 := hstep_np t hpt s x hx
+        simp only [if_neg hpt] at hrec
+        omega
 
 section StagedCounting
 
@@ -359,14 +388,67 @@ log never exceeds the adversary's decrypt-query budget, at the support level.
 
 Route: `support_state_measure_le_of_isQueryBoundP` at `f := fun s => s.2.length`,
 `p := (· matches Sum.inr _)` — the encrypt and unif oracles never append, and the decrypt
-oracle appends at most one entry. -/
+oracle appends at most one entry (exactly one off the challenge guard, none under it).
+
+As with the generic lemma, this is a support-level fact established independently of the
+probability charge, and the handler carries no query counter: the budget lives entirely in
+`decryptQueryBound` (`IsQueryBoundP`) on the adversary. -/
 theorem wcLogImpl_log_length_le {α : Type} [DecidableEq Cb]
     (hash : K → D → BitVec 128) (enc : A × Cb → D) (H : K) (mask : BitVec 128)
     (padMsg : M → Cb) (oa : OracleComp (wcSpec A M Cb) α) (q : ℕ)
     (hq : oa.IsQueryBoundP (· matches Sum.inr _) q) :
     ∀ z ∈ support ((simulateQ (wcLogImpl hash enc H mask padMsg) oa).run (none, [])),
-      z.2.2.length ≤ q :=
-  sorry
+      z.2.2.length ≤ q := by
+  have hp : ∀ t : (wcSpec A M Cb).Domain, (t matches Sum.inr _) →
+      ∀ s : WCLogState A Cb, ∀ z ∈ support ((wcLogImpl hash enc H mask padMsg t).run s),
+        z.2.2.length ≤ s.2.length + 1 := by
+    rintro ((n | ⟨ad, m⟩) | ⟨ad, e⟩) ht ⟨ch, log⟩ z hz
+    · simp at ht
+    · simp at ht
+    · by_cases hg : (Option.map Prod.snd ch : Option (Cb × BitVec 128)) = some e
+      · simp only [add_apply_inr, wcLogImpl, bind_pure_comp, beq_iff_eq,
+          Option.map_eq_some_iff, Prod.exists, exists_eq_right, QueryImpl.add_apply_inr,
+          StateT.run_bind, StateT.run_get, pure_bind, hg, BEq.rfl, ↓reduceIte,
+          StateT.run_pure, support_pure] at hz
+        subst hz
+        simp
+      · simp only [add_apply_inr, wcLogImpl, bind_pure_comp, beq_iff_eq,
+          Option.map_eq_some_iff, Prod.exists, exists_eq_right, QueryImpl.add_apply_inr,
+          StateT.run_bind, StateT.run_get, pure_bind, hg, ↓reduceIte, StateT.run_map,
+          StateT.run_set, map_pure, support_pure] at hz
+        subst hz
+        simp
+  have hnp : ∀ t : (wcSpec A M Cb).Domain, ¬ (t matches Sum.inr _) →
+      ∀ s : WCLogState A Cb, ∀ z ∈ support ((wcLogImpl hash enc H mask padMsg t).run s),
+        z.2.2.length ≤ s.2.length := by
+    rintro ((n | ⟨ad, m⟩) | ⟨ad, e⟩) ht ⟨ch, log⟩ z hz
+    · simp only [add_apply_inl, wcLogImpl, unifLiftStateT, QueryImpl.ofLift_eq_id',
+        bind_pure_comp, beq_iff_eq, Option.map_eq_some_iff, Prod.exists, exists_eq_right,
+        QueryImpl.add_apply_inl, QueryImpl.liftTarget_apply, QueryImpl.id'_apply,
+        StateT.run_monadLift, monadLift_self, support_map, support_liftM,
+        OracleQuery.input_query, OracleQuery.cont_query, Set.range_id, Set.image_univ] at hz
+      obtain ⟨u, hu⟩ := hz
+      simp [← hu]
+    · cases ch with
+      | none =>
+        simp only [add_apply_inl, add_apply_inr, wcLogImpl, bind_pure_comp, beq_iff_eq,
+          Option.map_eq_some_iff, Prod.exists, exists_eq_right, QueryImpl.add_apply_inl,
+          QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get, pure_bind,
+          StateT.run_map, StateT.run_set, map_pure, support_pure] at hz
+        subst hz
+        simp
+      | some c0 =>
+        simp only [add_apply_inl, add_apply_inr, wcLogImpl, bind_pure_comp, beq_iff_eq,
+          Option.map_eq_some_iff, Prod.exists, exists_eq_right, QueryImpl.add_apply_inl,
+          QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get, pure_bind,
+          StateT.run_pure, support_pure] at hz
+        subst hz
+        simp
+    · simp at ht
+  intro z hz
+  simpa using support_state_measure_le_of_isQueryBoundP
+    (wcLogImpl hash enc H mask padMsg) (fun s : WCLogState A Cb => s.2.length)
+    (· matches Sum.inr _) hp hnp oa q hq (none, []) z hz
 
 /-! ### The post-challenge guard invariant
 
