@@ -14,32 +14,39 @@ the loop of Section 6.4 of `[LBES26]`. References are as in `Parameters.lean`.
 Both documents give the same layout: each entry of an `r`-by-`c` matrix is
 written as its `D` binary digits, most significant first, and the entries are
 laid out row by row from row `0`, each row left to right, so that the entry in
-row `i` and
-column `j` takes positions `(i * c + j) * D` onwards of the bit string, for
+row `i` and column `j` takes positions `(i * c + j) * D` onwards, for
 `0 ≤ i < r` and `0 ≤ j < c`. Notice that the bit ordering within an entry is the
 reverse of `Encoding.lean`'s, where a chunk is read least significant bit first.
 
-The two documents stop in different places. Algorithm 11 returns that bit
-string; Section 6.4's `Pack` goes on to return the byte array it encodes to,
-by Section 6.2, and its `Unpack` decodes those bytes before reading the entries
-back. `Pack` and `Unpack` here are the algorithms, so that byte conversion is
-not part of this file.
+The two documents stop in different places. Algorithms 11 and 12 stop at the
+bit string. Section 6.4 goes one step further, packing it eight bits to a byte,
+most significant bit first, and unpacking them back. Byte encoding of bit strings
+is found in Section 6.2.
+This file is the algorithms, so the byte step is not here.
 
 ## Main definitions
 
-* `entryToBits`, `bitsToEntry`: one entry as `D` bits;
-* `Pack`, `Unpack`, which are `matrixToBitsWith` and `bitsToMatrixWith` of
-  `Bits.lean` at `entryToBits` and `bitsToEntry`.
+Writing `D` and `q` for `p.D` and `p.q`, and reading the most significant bit
+of an entry first throughout:
+
+* `entryToBits : ZMod q → Vector Bool D`, the `D` binary digits of one entry,
+  most significant first;
+* `bitsToEntry : Vector Bool D → ZMod q`, reading those digits back;
+* `Pack : FrodoMatrix p r c → Vector Bool (r * c * D)`, applying `entryToBits`
+  to every entry and concatenating the results;
+* `Unpack : Vector Bool (r * c * D) → FrodoMatrix p r c`, cutting the bit
+  string every `D` bits and applying `bitsToEntry` to each piece.
+
+`Pack` is `matrixToBitsWith` of `Bits.lean` and `Unpack` is `bitsToMatrixWith`,
+at `D` bits per entry, which `Encoding.lean` uses at `B` bits instead.
 
 ## Main results
 
-* `getElem_Pack`: the position formula this header states in prose, as a
-  theorem;
-* `Unpack_Pack` and `Pack_Unpack`. Both take a `Params.WellFormed`, for its
-  `q_eq`, since `entryToBits` retains only `D` bits.
+* `getElem_Pack`: bit `l` of entry `(i, j)` sits at position
+  `(i * c + j) * D + l`, as a theorem.
 
-The Section 6.4 bit order and layout, which the round trips cannot fix, are
-fixed by the `example`s beside their definitions.
+The Section 6.4 bit order and layout are fixed by the `example`s beside their
+definitions.
 -/
 namespace FrodoKEM
 
@@ -68,17 +75,17 @@ def Pack (p : Params) {r c : ℕ} (M : FrodoMatrix p r c) : Vector Bool (r * c *
 
 /-- `Frodo.Unpack` (Algorithm 12), the inverse of `Pack`: read the `D`-bit
 pieces back as entries, row by row from row `0` and each row left to right.
-Section 6.4's
-`Unpack` decodes octets to that bit string first, which Algorithm 12 does
-not. -/
+Section 6.4's `Unpack` decodes octets to that bit string first, which
+Algorithm 12 does not. -/
 def Unpack (p : Params) (r c : ℕ) (b : Vector Bool (r * c * p.D)) : FrodoMatrix p r c :=
   bitsToMatrixWith (bitsToEntry p) r c b
 
 /-- The Section 6.4 layout on a fixed matrix: with `D = 15`, the bit string
 that has only bits `14`, `28`, `43`, `44` and `57` set unpacks to
-`![![1, 2], ![3, 4]]`. This fixes all three orders the round trips leave open,
-the bits within an entry, the entries along a row, and the rows themselves;
-`Unpack` is used rather than `Pack` because `Vector.flatten` does not reduce. -/
+`![![1, 2], ![3, 4]]`. This fixes all three orders: the bits within an entry,
+the entries along a row, and the rows themselves;
+`Unpack` is used rather than `Pack` because `Pack` does not reduce: the
+`Vector.flatten` inside `matrixToBitsWith` blocks it. -/
 example : Unpack ParameterSet.FrodoKEM640.params 2 2
     (Vector.ofFn fun i : Fin (2 * 2 * 15) =>
       decide (i.val = 14 ∨ i.val = 28 ∨ i.val = 43 ∨ i.val = 44 ∨ i.val = 57)) =

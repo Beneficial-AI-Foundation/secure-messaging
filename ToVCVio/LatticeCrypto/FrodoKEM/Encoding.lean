@@ -144,7 +144,8 @@ def chunkMatrixToBits (p : Params) (M : ChunkMatrix p) : Vector Bool (mbar * nba
 that has only bits `0` and `3` set puts `1` in entry `(0, 0)` and `2` in entry
 `(0, 1)`. This fixes both orders that the round trips leave open, the bits
 within a chunk and the entries along a row; `bitsToChunkMatrix` is used rather
-than `chunkMatrixToBits` because `Vector.flatten` does not reduce. -/
+than `chunkMatrixToBits` because the latter does not reduce: the
+`Vector.flatten` inside `matrixToBitsWith` blocks it. -/
 example : bitsToChunkMatrix ParameterSet.FrodoKEM640.params
     (Vector.ofFn fun i : Fin (mbar * nbar * 2) => decide (i.val = 0 ∨ i.val = 3))
       ⟨0, by decide⟩ ⟨1, by decide⟩ = 2 := by decide
