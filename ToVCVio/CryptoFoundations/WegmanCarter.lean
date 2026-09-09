@@ -1449,7 +1449,12 @@ theorem probEvent_wcInst_forge_le {α K A M Cb D : Type}
             let mask ← ($ᵗ (BitVec 128) : ProbComp (BitVec 128))
             (simulateQ (wcInstImpl hash enc H mask padMsg unpad false) oa).run
               (none, false))]
-      ≤ (q : ℝ≥0∞) * ε :=
-  sorry
+      ≤ (q : ℝ≥0∞) * ε := by
+  refine le_trans (le_of_eq ?_)
+    (probEvent_bad_wcLog_le haxu hfloor henc_inj padMsg oa q hq)
+  refine probEvent_bind_congr₂ ($ᵗ K : ProbComp K) fun H =>
+    probEvent_bind_congr₂ ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) fun mask => ?_
+  rw [probEvent_bad_wcInst_eq_wcLog hash enc H mask padMsg unpad oa, probEvent_map]
+  rfl
 
 end OracleComp.WegmanCarter
