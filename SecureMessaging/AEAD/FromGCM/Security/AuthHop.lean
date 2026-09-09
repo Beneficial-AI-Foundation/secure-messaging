@@ -305,6 +305,87 @@ theorem gcmInst_tvDist_le_probEvent_forge (L : ℕ)
   exact tvDist_simulateQ_le_probEvent_output_bad_base (gcmInstImpl a false)
     (gcmInstImpl a true) adv none h_agree_good h_mono₁ h_mono₂
 
+/-! ### S0b — lifting the per-tuple bound across the outer tuple sample
+
+The two pieces EtM got for free and Phase 4 does not: the `tvDist` convexity step with the
+`ℝ≥0∞ ↔ ℝ` conversion, and the reordering that puts the keystream `ks` outermost so that
+`probEvent_forge_gcmInst_le` (which is stated at a FIXED `ks`) applies uniformly. -/
+
+/-- **S0b, convexity half.** Lift `gcmInst_tvDist_le_probEvent_forge` across the eager
+tuple sample of `game3♭`/`game2♭`.
+
+`tvDist_bind_left_le_const'` is NOT usable: at a fixed tuple the forgery probability is
+`0` or `1`, so there is no constant per-instance bound (ROADMAP criterion 6). The averaged
+form `tvDist_bind_left_le` (VCVio `EvalDist/TVDist.lean`) is what applies, and its `ℝ`
+`tsum` is reassembled into a single `probEvent` by `probEvent_bind_eq_tsum` (in `ℝ≥0∞`)
+plus `ENNReal.tsum_toReal_eq`. The index type `BitVec 128 × BitVec 128 × BitVec L` is a
+`Fintype`, so both `tsum`s are `Summable.of_finite` and no summability side condition
+survives. -/
+private theorem tvDist_gcmInstFlat_le_probEvent_forge (L : ℕ)
+    (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
+    tvDist (($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _) >>=
+              fun a => (simulateQ (gcmInstImpl a false) adv).run' (none, false))
+        (($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _) >>=
+              fun a => (simulateQ (gcmInstImpl a true) adv).run' (none, false))
+      ≤ (Pr[fun z : Bool × (Option (BitVec L × BitVec 128) × Bool) => z.2.2 = true |
+            (($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _) >>=
+              fun a => (simulateQ (gcmInstImpl a false) adv).run (none, false))]).toReal := by
+  refine le_trans (tvDist_bind_left_le _ _ _) ?_
+  rw [probEvent_bind_eq_tsum]
+  rw [ENNReal.tsum_toReal_eq (fun a => ENNReal.mul_ne_top
+    (ne_top_of_le_ne_top one_ne_top probOutput_le_one)
+    (ne_top_of_le_ne_top one_ne_top probEvent_le_one))]
+  refine Summable.tsum_le_tsum (fun a => ?_) Summable.of_finite Summable.of_finite
+  rw [ENNReal.toReal_mul]
+  exact mul_le_mul_of_nonneg_left (gcmInst_tvDist_le_probEvent_forge L a adv)
+    ENNReal.toReal_nonneg
+
+/-- **S0b, reordering half.** The eager triple sample of `game3♭` split into three
+independent draws with the keystream `ks` moved OUTERMOST, so that the two remaining draws
+are exactly the `h`/`mask` pair `probEvent_forge_gcmInst_le` samples internally.
+
+The split is `uniformSample_prod_eq_bind` (`ToVCVio/OracleComp/Constructions/`) applied
+twice; the two swaps are `OracleComp.DeferredSampling.evalDist_bind_comm` (the first under
+the `h` binder via `evalDist_bind_congr'`, the second at the top level). All three draws
+are independent, so no `NeverFail` instance is needed anywhere. -/
+private theorem evalDist_gcmInstRun_ks_outer (L : ℕ)
+    (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
+    𝒟[($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _) >>=
+        fun a => (simulateQ (gcmInstImpl a false) adv).run (none, false)] =
+      𝒟[($ᵗ (BitVec L) : ProbComp _) >>= fun ks =>
+          (do let h ← ($ᵗ (BitVec 128) : ProbComp _)
+              let mask ← ($ᵗ (BitVec 128) : ProbComp _)
+              (simulateQ (gcmInstImpl (h, mask, ks) false) adv).run (none, false))] := by
+  rw [uniformSample_prod_eq_bind (BitVec 128) (BitVec 128 × BitVec L)]
+  simp only [bind_assoc, pure_bind]
+  rw [uniformSample_prod_eq_bind (BitVec 128) (BitVec L)]
+  simp only [bind_assoc, pure_bind]
+  refine (evalDist_bind_congr' _ (fun h =>
+      OracleComp.DeferredSampling.evalDist_bind_comm ($ᵗ (BitVec 128) : ProbComp _)
+        ($ᵗ (BitVec L) : ProbComp _)
+        (fun mask ks =>
+          (simulateQ (gcmInstImpl (h, mask, ks) false) adv).run (none, false)))).trans
+    (OracleComp.DeferredSampling.evalDist_bind_comm ($ᵗ (BitVec 128) : ProbComp _)
+      ($ᵗ (BitVec L) : ProbComp _)
+      (fun h ks =>
+        (do let mask ← ($ᵗ (BitVec 128) : ProbComp _)
+            (simulateQ (gcmInstImpl (h, mask, ks) false) adv).run (none, false))))
+
+/-- **S0b, assembled.** The forgery bound of WC9, transported from a fixed keystream to
+`game3♭`'s eager triple sample: reorder by `evalDist_gcmInstRun_ks_outer`, then bound
+uniformly in `ks` by `probEvent_forge_gcmInst_le`. `GhashIsAXU L ε` and
+`AEADScheme.decryptQueryBound adv q_d` remain the only hypotheses. -/
+private theorem probEvent_forge_gcmInstFlat_le (L : ℕ) {ε : ℝ≥0∞} (haxu : GhashIsAXU L ε)
+    (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
+    (q_d : ℕ) (hq : AEADScheme.decryptQueryBound adv q_d) :
+    Pr[fun z : Bool × (Option (BitVec L × BitVec 128) × Bool) => z.2.2 = true |
+        (($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _) >>=
+          fun a => (simulateQ (gcmInstImpl a false) adv).run (none, false))]
+      ≤ (q_d : ℝ≥0∞) * ε := by
+  rw [probEvent_congr' (fun _ _ => Iff.rfl) (evalDist_gcmInstRun_ks_outer L adv)]
+  exact probEvent_bind_le_of_forall_le fun ks _ =>
+    probEvent_forge_gcmInst_le L haxu adv q_d hq ks
+
 /-- **Obligation WC10 — THE PHASE THEOREM** (staged here, discharged by plan 04-06).
 
 `|Pr[game3] − Pr[game2]| ≤ q_d · ε`: suppressing live decryption costs at most the
