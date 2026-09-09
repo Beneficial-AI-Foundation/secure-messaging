@@ -91,37 +91,4 @@ theorem getElem_Pack (p : Params) {r c : ℕ} (M : FrodoMatrix p r c) {i j l : �
       (entryToBits p (M ⟨i, hi⟩ ⟨j, hj⟩))[l] :=
   getElem_matrixToBitsWith (entryToBits p) M hi hj hl
 
-/-- An entry is recovered from its `D` bits. `q = 2 ^ D` is needed here and in
-`entryToBits_bitsToEntry`: `entryToBits` keeps only `D` bits, so no larger
-modulus is recoverable. -/
-theorem bitsToEntry_entryToBits (p : Params) (hw : p.WellFormed) (x : ZMod p.q) :
-    bitsToEntry p (entryToBits p x) = x := by
-  haveI : NeZero p.q := ⟨by rw [hw.q_eq]; positivity⟩
-  rw [bitsToEntry]
-  simp only [entryToBits, Vector.getElem_ofFn,
-    show ∀ l : Fin p.D, p.D - 1 - (p.D - 1 - l.val) = l.val from fun l => by omega,
-    Nat.ofBits_testBit, ← hw.q_eq, ZMod.natCast_mod, ZMod.natCast_zmod_val]
-
-/-- The `D` bits of an entry are recovered from it. -/
-theorem entryToBits_bitsToEntry (p : Params) (hw : p.WellFormed) (v : Vector Bool p.D) :
-    entryToBits p (bitsToEntry p v) = v := by
-  haveI : NeZero p.q := ⟨by rw [hw.q_eq]; positivity⟩
-  apply Vector.ext
-  intro l hl
-  rw [entryToBits, Vector.getElem_ofFn, bitsToEntry, ZMod.val_natCast, hw.q_eq,
-    Nat.mod_eq_of_lt (Nat.ofBits_lt_two_pow _), Nat.testBit_ofBits]
-  simp only [show p.D - 1 - l < p.D by omega, dif_pos]
-  congr 1
-  omega
-
-/-- `Frodo.Unpack` inverts `Frodo.Pack`. -/
-theorem Unpack_Pack (p : Params) (hw : p.WellFormed) {r c : ℕ} (M : FrodoMatrix p r c) :
-    Unpack p r c (Pack p M) = M :=
-  bitsToMatrixWith_matrixToBitsWith (bitsToEntry_entryToBits p hw) M
-
-/-- `Frodo.Pack` inverts `Frodo.Unpack`. -/
-theorem Pack_Unpack (p : Params) (hw : p.WellFormed) (r c : ℕ)
-    (b : Vector Bool (r * c * p.D)) : Pack p (Unpack p r c b) = b :=
-  matrixToBitsWith_bitsToMatrixWith (entryToBits_bitsToEntry p hw) r c b
-
 end FrodoKEM

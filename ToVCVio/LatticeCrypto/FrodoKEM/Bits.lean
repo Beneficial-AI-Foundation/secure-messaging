@@ -76,38 +76,4 @@ theorem getElem_matrixToBitsWith {α : Type*} {r c d : ℕ} (f : α → Vector B
     Nat.mul_add_div (by omega : 0 < c), Nat.mul_add_mod, Nat.div_eq_of_lt hj,
     Nat.mod_eq_of_lt hj, Nat.add_zero]
 
-/-- A matrix is recovered from its bit string, whenever an entry is recovered
-from its own bits. -/
-theorem bitsToMatrixWith_matrixToBitsWith {α : Type*} {r c d : ℕ}
-    {f : α → Vector Bool d} {g : Vector Bool d → α} (hgf : ∀ x, g (f x) = x)
-    (M : Matrix (Fin r) (Fin c) α) :
-    bitsToMatrixWith g r c (matrixToBitsWith f M) = M := by
-  ext i j
-  simp only [bitsToMatrixWith, Matrix.of_apply]
-  rw [← hgf (M i j)]
-  congr 1
-  apply Vector.ext
-  intro l hl
-  rw [Vector.getElem_ofFn]
-  exact getElem_matrixToBitsWith f M i.isLt j.isLt hl
-
-/-- A bit string is recovered from its matrix, whenever the bits of an entry
-are recovered from the entry. -/
-theorem matrixToBitsWith_bitsToMatrixWith {α : Type*} {d : ℕ}
-    {f : α → Vector Bool d} {g : Vector Bool d → α} (hfg : ∀ v, f (g v) = v)
-    (r c : ℕ) (b : Vector Bool (r * c * d)) :
-    matrixToBitsWith f (bitsToMatrixWith g r c b) = b := by
-  apply Vector.ext
-  intro k hk
-  obtain ⟨i, j, l, hi, hj, hl, rfl⟩ :
-      ∃ i j l, i < r ∧ j < c ∧ l < d ∧ k = (i * c + j) * d + l :=
-    ⟨k / d / c, k / d % c, k % d,
-      Nat.div_lt_of_lt_mul (Nat.div_lt_of_lt_mul
-        (by rw [Nat.mul_comm d (c * r), Nat.mul_comm c r]; exact hk)),
-      Nat.mod_lt _ (Nat.pos_of_ne_zero fun h => absurd hk (by simp [h])),
-      Nat.mod_lt _ (Nat.pos_of_ne_zero fun h => absurd hk (by simp [h])),
-      by rw [Nat.div_add_mod', Nat.div_add_mod']⟩
-  rw [getElem_matrixToBitsWith _ _ hi hj hl]
-  simp only [bitsToMatrixWith, Matrix.of_apply, hfg, Vector.getElem_ofFn]
-
 end FrodoKEM
