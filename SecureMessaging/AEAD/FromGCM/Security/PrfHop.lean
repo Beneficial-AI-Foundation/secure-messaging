@@ -30,9 +30,11 @@ Contents:
   oracles (premise-free, zero advantage cost).
 - `run'_game0Impl_eq_tupleImpl` / `game0_eq_prfRealExp` — the REAL-side projection:
   running `prfReduction` in the real PRF experiment is exactly `game0`.
-
-The projection of `prfReduction` onto the ideal PRF experiment, and the bound
-`|Pr[game1] − Pr[game0]| ≤ prfAdvantage`, are proven in the companion plans of this phase.
+- `prfIdealExp_prfReduction_eq` / `game1_eq_prfIdealExp` — the IDEAL-side projection:
+  the lazy random oracle answers the eager query prefix with that many independent
+  uniforms, which reshape into `game1`'s single tuple `(H, mask, ks)`.
+- `game0_game1_le_prf` — the phase's bound
+  `|Pr[game1] − Pr[game0]| ≤ prfAdvantage prp.toPRFScheme (prfReduction L adv)`.
 -/
 
 namespace GCM
@@ -430,6 +432,30 @@ theorem game1_eq_prfIdealExp (prp : PRPScheme K (BitVec 128)) (L : ℕ)
   -- Both sides now share the `H` and mask draws; only the keystream factor differs.
   refine evalDist_bind_congr' _ (fun h => evalDist_bind_congr' _ (fun mask => ?_))
   exact (evalDist_keystream_bind L _).symm
+
+/-- **The PRF hop** (ROADMAP Phase 3 criterion 2, assembled): idealizing the block cipher
+costs exactly the PRF advantage of the named reduction `prfReduction L adv`.
+
+This is the ROADMAP target-bound's PRF term, and it is stated in the ROADMAP's spelling
+`|Pr[game1] − Pr[game0]|` — the order Phase 6's triangle inequality consumes. Since
+`prfAdvantage` is defined as `|real − ideal|` and the two projections put `game0` on the
+real side and `game1` on the ideal side, the two differ by `abs_sub_comm` only.
+
+No hypothesis beyond `hL` and no PRF/PRP assumption enters: the bound is unconditional in
+the block cipher. What makes it useful is that `prfReduction` is EXPLICIT and its query
+count is the fixed `⌈L/128⌉ + 2` (criterion 1, `counterChain_length`) rather than
+adversary-dependent — Phase 9's PRP/PRF switching lemma is stated against this same
+reduction, and needs that constant. -/
+theorem game0_game1_le_prf (prp : PRPScheme K (BitVec 128)) (L : ℕ)
+    (hL : ValidMsgLength L)
+    (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
+    |(Pr[= true | game1 prp L hL adv]).toReal -
+      (Pr[= true | game0 prp L hL adv]).toReal| ≤
+      PRFScheme.prfAdvantage prp.toPRFScheme (prfReduction L adv) := by
+  unfold PRFScheme.prfAdvantage
+  rw [game0_eq_prfRealExp prp L hL adv, game1_eq_prfIdealExp prp L hL adv]
+  -- `prfAdvantage` is `|real − ideal|`; the ROADMAP states the hop as `|ideal − real|`.
+  exact le_of_eq (abs_sub_comm _ _)
 
 end IdealProjection
 
