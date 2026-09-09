@@ -40,32 +40,32 @@ the message is cut into those chunks by
 * `chunkToBits : ZMod (2 ^ B) → Vector Bool B`, the `B` binary digits of one
   chunk, least significant first;
 * `bitsToChunk : Vector Bool B → ZMod (2 ^ B)`, reading those digits back;
-* `toChunks : Vector Bool (mbar * nbar * B) → ChunkMatrix p`, cutting the
-  message every `B` bits and applying `bitsToChunk` to each piece, giving the
-  `mbar * nbar` chunks. Section 6.3 sends bit `(i * nbar + j) * B + t` of the
+* `bitsToChunkMatrix : Vector Bool (mbar * nbar * B) → ChunkMatrix p`, cutting
+  the message every `B` bits and applying `bitsToChunk` to each piece, giving
+  the `mbar * nbar` chunks. Section 6.3 sends bit `(i * nbar + j) * B + t` of the
   message to bit `t` of the entry in row `i` and column `j`, for
   `0 ≤ i < mbar`, `0 ≤ j < nbar` and `0 ≤ t < B`, so the matrix fills row by
   row from row `0`, each row left to right;
-* `ofChunks : ChunkMatrix p → Vector Bool (mbar * nbar * B)`, applying
+* `chunkMatrixToBits : ChunkMatrix p → Vector Bool (mbar * nbar * B)`, applying
   `chunkToBits` to every entry and concatenating the results in that same
   order.
 
-`toChunks` and `ofChunks` are `bitsToMatrixWith` and `matrixToBitsWith` of
-`Bits.lean` at `B` bits per entry, which `Packing.lean` uses at `D` bits
-instead.
+`bitsToChunkMatrix` is `bitsToMatrixWith` of `Bits.lean` and
+`chunkMatrixToBits` is `matrixToBitsWith`, at `B` bits per entry, which
+`Packing.lean` uses at `D` bits instead.
 
 The specification's `Frodo.Encode` and `Frodo.Decode` are
 
 * `Encode : Vector Bool (mbar * nbar * B) → FrodoMatrix p mbar nbar`, cutting
-  the bit vector into chunks with `toChunks` and then applying `EncodeChunks`.
+  the bit vector into chunks with `bitsToChunkMatrix` and then applying `EncodeChunks`.
   The bit vector is the message, `ell_eq` fixing `mbar * nbar * B` to be its
   length `ℓ`;
 * `Decode : FrodoMatrix p mbar nbar → Vector Bool (mbar * nbar * B)`, applying
-  `DecodeChunks` and then laying the chunks back out with `ofChunks`.
+  `DecodeChunks` and then laying the chunks back out with `chunkMatrixToBits`.
 
 ## Main results
 
-* `getElem_ofChunks`: bit `t` of entry `(i, j)` sits at position
+* `getElem_chunkMatrixToBits`: bit `t` of entry `(i, j)` sits at position
   `(i * nbar + j) * B + t`, as a theorem. The bit order and layout it fixes are
   pinned by the `example`s beside the definitions.
 -/
@@ -132,34 +132,34 @@ example : (chunkToBits ParameterSet.FrodoKEM640.params 1).toList = [true, false]
 /-- Cut a bit string into the `mbar * nbar` values of `B` bits that
 `EncodeChunks` consumes, entry `(i, j)` taking the piece at position
 `i * nbar + j`. -/
-def toChunks (p : Params) (b : Vector Bool (mbar * nbar * p.B)) : ChunkMatrix p :=
+def bitsToChunkMatrix (p : Params) (b : Vector Bool (mbar * nbar * p.B)) : ChunkMatrix p :=
   bitsToMatrixWith (bitsToChunk p) mbar nbar b
 
-/-- The inverse of `toChunks`: the bits of each entry, row by row from row `0`,
-each row left to right. -/
-def ofChunks (p : Params) (M : ChunkMatrix p) : Vector Bool (mbar * nbar * p.B) :=
+/-- The inverse of `bitsToChunkMatrix`: the bits of each entry, row by row from
+row `0`, each row left to right. -/
+def chunkMatrixToBits (p : Params) (M : ChunkMatrix p) : Vector Bool (mbar * nbar * p.B) :=
   matrixToBitsWith (chunkToBits p) M
 
 /-- The chunking convention on a fixed matrix: with `B = 2`, the bit string
 that has only bits `0` and `3` set puts `1` in entry `(0, 0)` and `2` in entry
 `(0, 1)`. This fixes both orders that the round trips leave open, the bits
-within a chunk and the entries along a row; `toChunks` is used rather than
-`ofChunks` because `Vector.flatten` does not reduce. -/
-example : toChunks ParameterSet.FrodoKEM640.params
+within a chunk and the entries along a row; `bitsToChunkMatrix` is used rather
+than `chunkMatrixToBits` because `Vector.flatten` does not reduce. -/
+example : bitsToChunkMatrix ParameterSet.FrodoKEM640.params
     (Vector.ofFn fun i : Fin (mbar * nbar * 2) => decide (i.val = 0 ∨ i.val = 3))
       ⟨0, by decide⟩ ⟨1, by decide⟩ = 2 := by decide
 
 /-- The row order, which the example above leaves open: bit `16` is the first
 bit of entry `(1, 0)`, so it puts `1` in the second row and not in the last. -/
-example : toChunks ParameterSet.FrodoKEM640.params
+example : bitsToChunkMatrix ParameterSet.FrodoKEM640.params
     (Vector.ofFn fun i : Fin (mbar * nbar * 2) => decide (i.val = 16))
       ⟨1, by decide⟩ ⟨0, by decide⟩ = 1 := by decide
 
 /-- Bit `t` of entry `(i, j)` sits at position `(i * nbar + j) * B + t`, the
 layout of Section 6.3 of `[LBES26]`. -/
-theorem getElem_ofChunks (p : Params) (M : ChunkMatrix p) {i j t : ℕ}
+theorem getElem_chunkMatrixToBits (p : Params) (M : ChunkMatrix p) {i j t : ℕ}
     (hi : i < mbar) (hj : j < nbar) (ht : t < p.B) :
-    (ofChunks p M)[(i * nbar + j) * p.B + t]'(bitIndex_lt hi hj ht) =
+    (chunkMatrixToBits p M)[(i * nbar + j) * p.B + t]'(bitIndex_lt hi hj ht) =
       (chunkToBits p (M ⟨i, hi⟩ ⟨j, hj⟩))[t] :=
   getElem_matrixToBitsWith (chunkToBits p) M hi hj ht
 
@@ -169,12 +169,12 @@ theorem getElem_ofChunks (p : Params) (M : ChunkMatrix p) {i j t : ℕ}
 the bit string into `B`-bit chunks, then apply `ec` entrywise. -/
 def Encode (p : Params) (b : Vector Bool (mbar * nbar * p.B)) :
     FrodoMatrix p mbar nbar :=
-  EncodeChunks p (toChunks p b)
+  EncodeChunks p (bitsToChunkMatrix p b)
 
 /-- `Frodo.Decode` (Appendix B of `[CiC25]`, Section 6.3 of `[LBES26]`): apply
 `dc` entrywise, then concatenate the chunks. -/
 def Decode (p : Params) (C : FrodoMatrix p mbar nbar) :
     Vector Bool (mbar * nbar * p.B) :=
-  ofChunks p (DecodeChunks p C)
+  chunkMatrixToBits p (DecodeChunks p C)
 
 end FrodoKEM

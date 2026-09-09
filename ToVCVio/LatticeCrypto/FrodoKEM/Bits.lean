@@ -21,8 +21,8 @@ here:
 
 |                      | `Encoding.lean` | `Packing.lean` |
 | -------------------- | --------------- | -------------- |
-| `matrixToBitsWith f` | `ofChunks`      | `Pack`         |
-| `bitsToMatrixWith g` | `toChunks`      | `Unpack`       |
+| `matrixToBitsWith f` | `chunkMatrixToBits`      | `Pack`         |
+| `bitsToMatrixWith g` | `bitsToChunkMatrix`      | `Unpack`       |
 
 ## Main definitions
 

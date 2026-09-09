@@ -203,20 +203,21 @@ theorem chunkToBits_bitsToChunk (p : Params) (v : Vector Bool p.B) :
 
 /-- The chunks are recovered from their bit string. -/
 @[simp]
-theorem toChunks_ofChunks (p : Params) (M : ChunkMatrix p) :
-    toChunks p (ofChunks p M) = M :=
+theorem bitsToChunkMatrix_chunkMatrixToBits (p : Params) (M : ChunkMatrix p) :
+    bitsToChunkMatrix p (chunkMatrixToBits p M) = M :=
   bitsToMatrixWith_matrixToBitsWith (bitsToChunk_chunkToBits p) M
 
 /-- A bit string is recovered from its chunks. -/
 @[simp]
-theorem ofChunks_toChunks (p : Params) (b : Vector Bool (mbar * nbar * p.B)) :
-    ofChunks p (toChunks p b) = b :=
+theorem chunkMatrixToBits_bitsToChunkMatrix (p : Params)
+    (b : Vector Bool (mbar * nbar * p.B)) :
+    chunkMatrixToBits p (bitsToChunkMatrix p b) = b :=
   matrixToBitsWith_bitsToMatrixWith (chunkToBits_bitsToChunk p) mbar nbar b
 
 /-- `Frodo.Decode` inverts `Frodo.Encode`. -/
 theorem Decode_Encode (p : Params) (hw : p.WellFormed)
     (b : Vector Bool (mbar * nbar * p.B)) : Decode p (Encode p b) = b := by
-  rw [Decode, Encode, DecodeChunks_EncodeChunks p hw, ofChunks_toChunks]
+  rw [Decode, Encode, DecodeChunks_EncodeChunks p hw, chunkMatrixToBits_bitsToChunkMatrix]
 
 /-- `Frodo.Decode` recovers the bit string from an encoding perturbed by an
 error matrix whose entries all lie in the window of `dc_ec_add`. -/
@@ -225,7 +226,8 @@ theorem Decode_Encode_add (p : Params) (hw : p.WellFormed)
     (hlo : ∀ i j, -(p.q : ℤ) ≤ 2 ^ (p.B + 1) * centeredRepr (E i j))
     (hhi : ∀ i j, 2 ^ (p.B + 1) * centeredRepr (E i j) < (p.q : ℤ)) :
     Decode p (Encode p b + E) = b := by
-  rw [Decode, Encode, DecodeChunks_EncodeChunks_add p hw _ E hlo hhi, ofChunks_toChunks]
+  rw [Decode, Encode, DecodeChunks_EncodeChunks_add p hw _ E hlo hhi,
+    chunkMatrixToBits_bitsToChunkMatrix]
 
 /-- An entry is recovered from its `D` bits. `q = 2 ^ D` is needed here and in
 `entryToBits_bitsToEntry`: `entryToBits` keeps only `D` bits, so no larger
