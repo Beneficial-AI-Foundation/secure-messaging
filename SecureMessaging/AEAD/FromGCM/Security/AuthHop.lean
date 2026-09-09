@@ -150,7 +150,78 @@ theorem probEvent_forge_gcmInst_le (L : ℕ) {ε : ℝ≥0∞} (haxu : GhashIsAX
     (fun m => m ^^^ ks) (fun c => c ^^^ ks) adv q_d
     ((isQueryBoundP_congr_pred (fun queryIndex => by cases queryIndex <;> rfl)).mp hq)
 
-/-- **Obligation WC-IUB0** (staged here, discharged by plan 04-06). THE
+/-! ### The flag-monotonicity helper
+
+WC-IUB0's second and third conjuncts are the SAME statement at `b = false` and `b = true`,
+so they are proved once here, generically in `b`. -/
+
+/-- The `forged` flag is monotone in every oracle of `gcmInstImpl a b`, at either `b`:
+started from a state whose flag is already set, every reachable state has it set. The unif
+and encrypt oracles thread the flag unchanged; the decrypt oracle either returns under the
+challenge guard (flag unchanged) or writes `forged || ok = true || ok = true`. -/
+private theorem gcmInstImpl_flag_mono (L : ℕ)
+    (a : BitVec 128 × BitVec 128 × BitVec L) (b : Bool)
+    (t : (aeadOneTimeCCASpec SupportedAAD (BitVec L) (BitVec L × BitVec 128)).Domain)
+    (p : Option (BitVec L × BitVec 128) × Bool) (hp : p.2 = true) :
+    ∀ z ∈ support (((gcmInstImpl a b) t).run p), z.2.2 = true := by
+  obtain ⟨ch, fg⟩ := p
+  obtain rfl : fg = true := hp
+  intro z hz
+  rcases t with (n | ⟨ad, m⟩) | ⟨ad, e⟩
+  · -- OUnif: the lifted uniform oracle threads both state slots unchanged.
+    simp only [add_apply_inl, gcmInstImpl, unifLiftStateT, QueryImpl.ofLift_eq_id',
+      bind_pure_comp, beq_iff_eq, decide_eq_true_eq, QueryImpl.add_apply_inl,
+      QueryImpl.liftTarget_apply, QueryImpl.id'_apply, StateT.run_monadLift,
+      monadLift_self, support_map, support_liftM, OracleQuery.input_query,
+      OracleQuery.cont_query, Set.range_id, Set.image_univ] at hz
+    obtain ⟨w, hw⟩ := hz
+    exact hw ▸ rfl
+  · -- OEncrypt: one-shot; the flag is written back unchanged in both branches.
+    obtain ⟨h, mask, ks⟩ := a
+    cases ch
+    · simp only [add_apply_inl, add_apply_inr, gcmInstImpl, bind_pure_comp, beq_iff_eq,
+        decide_eq_true_eq, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
+        StateT.run_bind, StateT.run_get, pure_bind, StateT.run_map, StateT.run_set,
+        map_pure, support_pure] at hz
+      exact Set.eq_of_mem_singleton hz ▸ rfl
+    · simp only [add_apply_inl, add_apply_inr, gcmInstImpl, bind_pure_comp, beq_iff_eq,
+        decide_eq_true_eq, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
+        StateT.run_bind, StateT.run_get, pure_bind, StateT.run_pure, support_pure] at hz
+      exact Set.eq_of_mem_singleton hz ▸ rfl
+  · -- ODecrypt: guard split, then `ok` split; `true || ok = true` in every branch.
+    obtain ⟨h, mask, ks⟩ := a
+    by_cases hguard : ch = some e
+    · simp only [add_apply_inr, gcmInstImpl, bind_pure_comp, beq_iff_eq,
+        decide_eq_true_eq, QueryImpl.add_apply_inr, hguard, StateT.run_bind,
+        StateT.run_get, pure_bind, ↓reduceIte, StateT.run_pure, support_pure] at hz
+      exact Set.eq_of_mem_singleton hz ▸ rfl
+    · by_cases hok : (e.2 = ghash h (gcmEncode ad e.1) ^^^ mask)
+      · cases b
+        · simp only [add_apply_inr, gcmInstImpl, bind_pure_comp, beq_iff_eq,
+            decide_eq_true_eq, Bool.false_eq_true, ↓reduceIte, ite_self,
+            QueryImpl.add_apply_inr, hok, decide_true, Bool.or_true, StateT.run_bind,
+            StateT.run_get, pure_bind, hguard, StateT.run_map, StateT.run_set, map_pure,
+            support_pure] at hz
+          exact Set.eq_of_mem_singleton hz ▸ rfl
+        · simp only [add_apply_inr, gcmInstImpl, bind_pure_comp, beq_iff_eq,
+            decide_eq_true_eq, ↓reduceIte, QueryImpl.add_apply_inr, hok, decide_true,
+            Bool.or_true, StateT.run_bind, StateT.run_get, pure_bind, hguard,
+            StateT.run_map, StateT.run_set, map_pure, support_pure] at hz
+          exact Set.eq_of_mem_singleton hz ▸ rfl
+      · cases b
+        · simp only [add_apply_inr, gcmInstImpl, bind_pure_comp, beq_iff_eq,
+            decide_eq_true_eq, Bool.false_eq_true, ↓reduceIte, ite_self,
+            QueryImpl.add_apply_inr, hok, decide_false, Bool.or_false, Prod.mk.eta,
+            StateT.run_bind, StateT.run_get, pure_bind, hguard, StateT.run_map,
+            StateT.run_set, map_pure, support_pure] at hz
+          exact Set.eq_of_mem_singleton hz ▸ rfl
+        · simp only [add_apply_inr, gcmInstImpl, bind_pure_comp, beq_iff_eq,
+            decide_eq_true_eq, ↓reduceIte, QueryImpl.add_apply_inr, hok, decide_false,
+            Bool.or_false, Prod.mk.eta, StateT.run_bind, StateT.run_get, pure_bind,
+            hguard, StateT.run_map, StateT.run_set, map_pure, support_pure] at hz
+          exact Set.eq_of_mem_singleton hz ▸ rfl
+
+/-- **Obligation WC-IUB0** (PROVED by plan 04-06). THE
 IDENTICAL-UNTIL-BAD STATE RELATION: the three per-oracle conditions of
 `tvDist_simulateQ_le_probEvent_output_bad_base` (`IdenticalUntilBad.lean`), at the GCM
 state and query types, bundled as one lemma.
@@ -193,10 +264,27 @@ theorem gcmInstImpl_identicalUntilBad (L : ℕ)
     ∧ (∀ (t : (aeadOneTimeCCASpec SupportedAAD (BitVec L)
                  (BitVec L × BitVec 128)).Domain)
           (p : Option (BitVec L × BitVec 128) × Bool), p.2 = true →
-        ∀ z ∈ support (((gcmInstImpl a true) t).run p), z.2.2 = true) :=
-  sorry
+        ∀ z ∈ support (((gcmInstImpl a true) t).run p), z.2.2 = true) := by
+  refine ⟨?_, fun t p hp => gcmInstImpl_flag_mono L a false t p hp,
+    fun t p hp => gcmInstImpl_flag_mono L a true t p hp⟩
+  rintro ((n | ⟨ad, m⟩) | ⟨ad, e⟩) s u s'
+  · -- OUnif: `b` does not occur in this summand.
+    rfl
+  · -- OEncrypt: `b` does not occur in this summand.
+    rfl
+  · -- ODecrypt: under the guard both branches are `pure none` at an unchanged state; off
+    -- the guard, `ok = false` makes both `pure none` at flag `false`, and `ok = true`
+    -- makes BOTH sides write flag `true`, so the observed `false`-flag transition has
+    -- probability `0` on each side (this is the transition the two handlers differ on).
+    obtain ⟨h, mask, ks⟩ := a
+    by_cases hguard : s = some e
+    · simp [gcmInstImpl, StateT.run_bind, StateT.run_get,
+        StateT.run_pure, beq_iff_eq, hguard]
+    · by_cases hok : (e.2 = ghash h (gcmEncode ad e.1) ^^^ mask) <;>
+        simp [gcmInstImpl, StateT.run_bind, StateT.run_get, StateT.run_set,
+          beq_iff_eq, hguard, hok]
 
-/-- **Obligation WC-IUB** (staged here, discharged by plan 04-06). The identical-until-bad
+/-- **Obligation WC-IUB** (PROVED by plan 04-06). The identical-until-bad
 DISTANCE BOUND at a fixed tuple: `gcmInstImpl_identicalUntilBad` (WC-IUB0) fed through
 `tvDist_simulateQ_le_probEvent_output_bad_base` (`IdenticalUntilBad.lean`) at
 `impl₁ := gcmInstImpl a false`, `impl₂ := gcmInstImpl a true`.
@@ -212,8 +300,10 @@ theorem gcmInst_tvDist_le_probEvent_forge (L : ℕ)
     tvDist ((simulateQ (gcmInstImpl a false) adv).run' (none, false))
         ((simulateQ (gcmInstImpl a true) adv).run' (none, false))
       ≤ Pr[fun z : Bool × (Option (BitVec L × BitVec 128) × Bool) => z.2.2 = true |
-          (simulateQ (gcmInstImpl a false) adv).run (none, false)].toReal :=
-  sorry
+          (simulateQ (gcmInstImpl a false) adv).run (none, false)].toReal := by
+  obtain ⟨h_agree_good, h_mono₁, h_mono₂⟩ := gcmInstImpl_identicalUntilBad L a
+  exact tvDist_simulateQ_le_probEvent_output_bad_base (gcmInstImpl a false)
+    (gcmInstImpl a true) adv none h_agree_good h_mono₁ h_mono₂
 
 /-- **Obligation WC10 — THE PHASE THEOREM** (staged here, discharged by plan 04-06).
 
