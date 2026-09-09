@@ -20,8 +20,8 @@ reverse of `Encoding.lean`'s, where a chunk is read least significant bit first.
 
 The two documents stop in different places. Algorithms 11 and 12 stop at the
 bit string. Section 6.4 goes one step further, packing it eight bits to a byte,
-most significant bit first, and unpacking them back. Byte encoding of bit strings
-is found in Section 6.2.
+most significant bit first, and unpacking them back. The byte encoding the
+packing functions use is Section 6.2.
 This file is the algorithms, so the byte step is not here.
 
 ## Main definitions

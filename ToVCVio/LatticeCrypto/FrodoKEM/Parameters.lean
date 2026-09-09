@@ -36,8 +36,9 @@ between the entries are stated as theorems. The quantities are:
   shared secret `ss`, the intermediate secret `k`, the public-key hash `pkh`,
   and the vector `s` from which `ss` is derived when decapsulation fails. The
   algorithms need `ℓ = B * mbar * nbar`, so that `μ` fills the matrix that
-  `Frodo.Encode` puts it in; neither document states that equation, and
-  `Params.WellFormed.ell_eq` is it;
+  `Frodo.Encode` puts it in. `[CiC25]` states it in Section 3 and Table 1;
+  `[LBES26]` states it of the encoder's input in Section 6.3 but never ties it
+  to `lensec`, which is what `Params.WellFormed.ell_eq` does;
 * `lenSeedSE`, the bit length of the seeds used for error sampling, and
   `lenSalt`, the bit length of the salt, which is zero for the ephemeral
   variant.
@@ -75,7 +76,8 @@ abbrev Bytes (n : ℕ) := Vector Byte n
 /-- Bit length of the seeds used for pseudorandom matrix generation. -/
 def lenSeedA : ℕ := 128
 
-/-- Seeds used for pseudorandom matrix generation, of `lenSeedA` bits. -/
+/-- Seeds used for pseudorandom matrix generation, of `lenSeedA` bits,
+represented as `lenSeedA / 8` bytes. -/
 abbrev SeedA := Bytes (lenSeedA / 8)
 
 /-- The named FrodoKEM parameter sets of Tables 1 and 2, salted and ephemeral. -/
@@ -100,7 +102,7 @@ deriving Repr, DecidableEq
 def lenZ : ℕ := 128
 
 /-- Precision parameter of the error-distribution table `Tχ`, whose entries satisfy
-`Tχ 0 = 2 ^ (lenChi - 1) * χ 0 - 1` (Section 3.1). -/
+`Tχ 0 = 2 ^ (lenChi - 1) * χ 0 - 1` (Section 3.1 of `[CiC25]`). -/
 def lenChi : ℕ := 16
 
 /-- Integer matrix dimension. Together with `mbar` it fixes the shape of encoded
@@ -111,9 +113,10 @@ def nbar : ℕ := 8
 /-- Integer matrix dimension; see `nbar`. -/
 def mbar : ℕ := 8
 
-/-- Section 5's conditions on the constants that do not vary per parameter set:
-the matrix dimensions are positive multiples of eight, and the seed and
-precision lengths are positive. -/
+/-- Conditions on the constants that do not vary per parameter set. Section 5
+of `[LBES26]` states them for the matrix dimensions and `lenSeedA`, and
+Section 3.1 of `[CiC25]` calls `lenChi` a positive integer. `lenZ` is positive
+because `z` is a seed the algorithms sample. -/
 theorem constants_wellFormed :
     0 < mbar ∧ mbar % 8 = 0 ∧ 0 < nbar ∧ nbar % 8 = 0 ∧
       0 < lenSeedA ∧ 0 < lenZ ∧ 0 < lenChi := by decide

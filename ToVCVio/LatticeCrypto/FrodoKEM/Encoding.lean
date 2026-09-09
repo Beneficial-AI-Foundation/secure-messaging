@@ -5,7 +5,6 @@ Authors: Beneficial AI Foundation
 -/
 import ToVCVio.LatticeCrypto.FrodoKEM.Bits
 import ToVCVio.LatticeCrypto.FrodoKEM.Parameters
-import LatticeCrypto.Ring.Norms
 
 /-!
 # FrodoKEM message encoding
@@ -71,8 +70,6 @@ The specification's `Frodo.Encode` and `Frodo.Decode` are
 -/
 
 namespace FrodoKEM
-
-open LatticeCrypto
 
 /-- `Frodo.Encode`'s scalar map (Appendix B): `k ↦ k * 2 ^ (D - B)`, multiplying
 by the spacing `q / 2 ^ B`. -/

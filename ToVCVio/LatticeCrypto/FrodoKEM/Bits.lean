@@ -26,7 +26,7 @@ here:
 
 ## Main definitions
 
-* `matrixToBitsWith`, `bitsToMatrixWith`: the layout and its inverse.
+* `matrixToBitsWith`, `bitsToMatrixWith`: the layout and the reading back.
 
 ## Main results
 
@@ -40,8 +40,8 @@ namespace FrodoKEM
 `(i * c + j) * d + t` of a bit string of length `r * c * d`, when each entry
 takes `d` bits and entries are laid out row by row from row `0`, each row left
 to right.
-This is the bound the layer below indexes with, at `d = B` for the chunks of
-`Encoding.lean` and `d = D` for the packed entries of `Packing.lean`. -/
+`Encoding.lean` uses this at `d = B` for its chunks, `Packing.lean` at `d = D`
+for its packed entries. -/
 theorem bitIndex_lt {r c d i j t : ℕ} (hi : i < r) (hj : j < c) (ht : t < d) :
     (i * c + j) * d + t < r * c * d :=
   Nat.lt_of_lt_of_le (Nat.add_lt_add_left ht _)

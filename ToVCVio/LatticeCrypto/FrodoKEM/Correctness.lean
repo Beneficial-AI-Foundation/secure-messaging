@@ -4,21 +4,23 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 import ToVCVio.LatticeCrypto.FrodoKEM.Packing
+import LatticeCrypto.Ring.Norms
 
 /-!
 # FrodoKEM encoding and packing correctness
 
 The proofs about the maps that `Bits.lean`, `Encoding.lean` and `Packing.lean`
-specify. References are as in `Parameters.lean`: `[CiC25]` gives the noise
-tolerance of `dc` as Lemma 1 of Section 4.1, and `[LBES26]` states no
-correctness result, so that lemma is cited from `[CiC25]` alone.
+specify. References are as in `Parameters.lean`. Both documents state the exact
+round trip `dc (ec k) = k`, `[CiC25]` in Appendix B and `[LBES26]` in
+Section 6.3. Only `[CiC25]` bounds the noise `dc` tolerates, as Lemma 1 of
+Section 4.1, so `dc_ec_add` is cited from it alone.
 
 Two of the `Params.WellFormed` conditions are used. `q = 2 ^ D` (`q_eq`) makes
 `q / 2 ^ B` exact, so `ec` and `dc` are bit shifts, and `entryToBits` loses
 nothing. `B ≤ D` (`B_le_D`) gives `2 ^ B ≤ q`, so `ec` does not wrap.
 
 The encoded values sit at spacing `q / 2 ^ B = 2 ^ (D - B)`. If the noise added
-is less than half of that, `dc` recovers the chunk it was given.
+stays within half of that, `dc` recovers the chunk it was given.
 
 ## Main definitions
 
@@ -35,8 +37,9 @@ is less than half of that, `dc` recovers the chunk it was given.
   `-q ≤ 2 ^ (B + 1) * centeredRepr e < q`, which is Lemma 1 of Section 4.1
   cleared of its denominator;
 * `bitsToMatrixWith_matrixToBitsWith` and `matrixToBitsWith_bitsToMatrixWith`:
-  the layer of `Bits.lean` is a round trip whenever the map on one entry is,
-  which is what the four above are proved from;
+  if `g` inverts `f` on one entry, then `bitsToMatrixWith g` inverts
+  `matrixToBitsWith f` on the whole matrix. `Unpack_Pack` and `Pack_Unpack` are
+  this at `D` bits per entry, `Decode_Encode` at `B`;
 * `bitsToChunk_chunkToBits`, `chunkToBits_bitsToChunk`,
   `bitsToEntry_entryToBits` and `entryToBits_bitsToEntry`: those maps on one
   chunk and on one entry.
