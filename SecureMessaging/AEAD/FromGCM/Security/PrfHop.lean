@@ -7,6 +7,7 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.AEAD.FromGCM.Security.Games
 import SecureMessaging.AEAD.FromGCM.Security.Counter
 import ToVCVio.CryptoFoundations.PRF
+import ToVCVio.OracleComp.QueryTracking.RandomOracle.FreshQueries
 
 /-!
 # GCM — the PRF hop (`game0` → `game1`)
@@ -255,5 +256,99 @@ theorem game0_eq_prfRealExp (prp : PRPScheme K (BitVec 128)) (L : ℕ)
   exact congrArg (fun o => Pr[= true | o]) (run'_game0Impl_eq_tupleImpl prp L hL k adv)
 
 end RealProjection
+
+/-! ## The ideal-side cache peel
+
+The other half of ROADMAP Phase 3 criterion 2 starts here. Running `prfReduction` in the
+IDEAL PRF experiment answers its `⌈L/128⌉ + 2` eager function queries with a *lazy* random
+oracle: each query first consults the `QueryCache`, and only a cache MISS samples a fresh
+uniform. The payoff of the eager design is that the cache exists only during the query
+prefix — the adversary never touches the function oracle — so instead of a state-relocation
+invariant (the hard part of EtM's ideal side, `AEAD/FromEtM/Security/PrfHop.lean:141`) all
+that is needed is: every one of the `⌈L/128⌉ + 2` queries misses.
+
+That is exactly `cipherInputs_pairwise_ne hL` (Phase 1 criterion 2), and it is where
+`ValidMsgLength` becomes load-bearing rather than cosmetic: `inc32` wraps modulo `2 ^ 32`
+(`AEAD/GCM.lean`), so for an unrestricted `L` the counter chain can return to the hash-key
+point `0` and the random oracle would answer that query with the CACHED `H` instead of a
+fresh uniform — the peel below would then be false. `ValidMsgLength`'s
+`L ≤ 2 ^ 39 - 256` conjunct rules the wrap out. -/
+
+section IdealPeel
+
+/-- One cache-miss peel step: a lazy random-oracle query at a point absent from the cache
+is a top-level uniform draw, after which the continuation runs from the extended cache.
+
+`randomOracle` is `uniformSampleImpl.withCaching` (reducible), so this is
+`QueryImpl.withCaching_run_none` at the miss, plus a targeted push of `run'` through the
+single leading bind — deliberately NOT the global `@[simp] StateT.run'_bind'`, which would
+also dismantle the folded `simulateQ … |>.run' none` in the tail (research Pitfall 3). -/
+private lemma run'_randomOracle_bind_of_none {D R β : Type} [DecidableEq D] [SampleableType R]
+    (t : D) (c : (D →ₒ R).QueryCache) (hc : c t = none)
+    (G : R → StateT ((D →ₒ R).QueryCache) ProbComp β) :
+    (((D →ₒ R).randomOracle t >>= G : StateT ((D →ₒ R).QueryCache) ProbComp β)).run' c =
+      ($ᵗ R : ProbComp R) >>= fun u => (G u).run' (c.cacheQuery t u) := by
+  have hunif : (uniformSampleImpl (spec := (D →ₒ R)) t) = ($ᵗ R : ProbComp R) := rfl
+  rw [StateT.run'_eq, StateT.run_bind,
+    QueryImpl.withCaching_run_none uniformSampleImpl hc]
+  simp [bind_map_left, StateT.run'_eq, hunif]
+
+/-- **The ideal experiment of `prfReduction`, peeled**: the lazy random oracle answers the
+`⌈L/128⌉ + 2` eager queries with that many INDEPENDENT uniform draws, and the query cache
+disappears with them.
+
+This is a `ProbComp`-*term* equality, not merely an `evalDist` one: every step is exact
+(`withCaching_run_none` at a miss, and 03-01's `run'_mapM_randomOracle_fresh`, which is
+itself term-level).
+
+`hL` is not a convenience hypothesis. The two singleton peels need only `(1 : BitVec 128) ≠ 0`
+(`decide`), but the keystream loop needs the chain to be `Nodup` AND disjoint from the two
+already-cached points `{0, 1}`, and both come from `cipherInputs_pairwise_ne hL`. Without
+`ValidMsgLength L` the statement is false (see the section docstring). -/
+lemma prfIdealExp_prfReduction_eq (L : ℕ) (hL : ValidMsgLength L)
+    (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
+    PRFScheme.prfIdealExp (prfReduction L adv) =
+      (($ᵗ (BitVec 128) : ProbComp _) >>= fun h =>
+       ($ᵗ (BitVec 128) : ProbComp _) >>= fun mask =>
+       (counterChain 2 ((L + 127) / 128)).mapM
+         (fun _ => ($ᵗ (BitVec 128) : ProbComp _)) >>= fun blocks =>
+       (simulateQ (gcmTupleImpl (h, mask, blocksToBitVec blocks L)) adv).run' none) := by
+  unfold PRFScheme.prfIdealExp prfReduction
+  -- Collapse the eager fetches to random-oracle calls and erase the `liftComp` on the
+  -- closed tail. `simp only` is mandatory: full `simp` would reduce past the forwarding
+  -- lemmas via `simulateQ_spec_query`.
+  simp only [simulateQ_bind, PRFScheme.simulateQ_prfIdealQueryImpl_inr,
+    PRFScheme.simulateQ_prfIdealQueryImpl_mapM_inr,
+    PRFScheme.simulateQ_prfIdealQueryImpl_liftComp]
+  -- The peels are applied in TERM mode (`Eq.trans`), not by `rw`: in the goal the bound
+  -- variable's type is the reducible `(PRFOracleSpec _ _).Range (Sum.inr _)`, so keyed
+  -- matching would have to solve `Range (Sum.inr ?d) =?= BitVec 128` (03-01's α-pinning
+  -- wall). Term elaboration unifies up to definitional unfolding and just works.
+  -- Peel 1: the hash-key fetch at `0`, against the empty cache.
+  refine Eq.trans (run'_randomOracle_bind_of_none (0 : BitVec 128) ∅
+    (QueryCache.empty_apply _) _) ?_
+  refine bind_congr fun h => ?_
+  -- Peel 2: the tag-mask fetch at `1`; `1 ≠ 0`, so the entry just written is invisible.
+  have h10 : ((∅ : (BitVec 128 →ₒ BitVec 128).QueryCache).cacheQuery 0 h) 1 = none := by
+    rw [QueryCache.cacheQuery_of_ne _ _ (by decide : (1 : BitVec 128) ≠ 0)]
+    exact QueryCache.empty_apply _
+  refine Eq.trans (run'_randomOracle_bind_of_none (1 : BitVec 128) _ h10 _) ?_
+  refine bind_congr fun mask => ?_
+  -- The keystream loop: `0 :: 1 :: counterChain 2 ⌈L/128⌉` is `Pairwise (· ≠ ·)`, whose
+  -- three components are exactly what the fresh-queries brick asks for — the tail-of-tail
+  -- `Pairwise` is the chain's `Nodup`, and the two head clauses give freshness of every
+  -- chain point against the two cached entries.
+  have hpw := cipherInputs_pairwise_ne hL
+  rw [List.pairwise_cons] at hpw
+  obtain ⟨h0, hpw⟩ := hpw
+  rw [List.pairwise_cons] at hpw
+  obtain ⟨h1, hnd⟩ := hpw
+  refine randomOracle.run'_mapM_randomOracle_fresh _ _ hnd ?_ _
+  intro t ht
+  rw [QueryCache.cacheQuery_of_ne _ _ (Ne.symm (h1 t ht)),
+    QueryCache.cacheQuery_of_ne _ _ (Ne.symm (h0 t (List.mem_cons_of_mem _ ht)))]
+  exact QueryCache.empty_apply _
+
+end IdealPeel
 
 end GCM
