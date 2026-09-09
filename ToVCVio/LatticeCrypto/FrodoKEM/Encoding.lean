@@ -12,16 +12,15 @@ import LatticeCrypto.Ring.Norms
 
 `Frodo.Encode` and `Frodo.Decode`.
 
-References are as in `Parameters.lean`. `[CiC25]` gives the maps on bit strings
-in Appendix B, named in Section 3.3. `[LBES26]` gives the same maps as
-pseudocode in Section 6.3, with the chunking layout written out.
+References are as in `Parameters.lean`. The maps on bit strings are named
+in Section 3.3 and given in Appendix B of `[CiC25]`. `[LBES26]` gives the
+same maps as pseudocode in Section 6.3, with the chunking layout written out.
 
 ## Main definitions
 
 Encoding places `B` bits in each entry of an `mbar`-by-`nbar` matrix over
-`ZMod q`. Names follow the specification, `ec` and `dc` included. With
-`p : Params` left implicit and the least significant bit read first throughout,
-the scalar maps are
+`ZMod q`. Writing `B`, `D` and `q` for `p.B`, `p.D` and `p.q`, and reading the
+least significant bit first throughout, the scalar maps are
 
 * `ec : ZMod (2 ^ B) → ZMod q`, `k ↦ k * q / 2 ^ B` — written `k * 2 ^ (D - B)`,
   which agrees under `q = 2 ^ D`;
@@ -51,11 +50,11 @@ the message is cut into those chunks by
   `chunkToBits` to every entry and concatenating the results in that same
   order.
 
-These two are `bitsToMatrixWith` and `matrixToBitsWith` of `Bits.lean` at `B`
-bits per entry, which `Packing.lean` uses at `D` bits instead.
+`toChunks` and `ofChunks` are `bitsToMatrixWith` and `matrixToBitsWith` of
+`Bits.lean` at `B` bits per entry, which `Packing.lean` uses at `D` bits
+instead.
 
-The two composites, which are `Frodo.Encode` and `Frodo.Decode` of the
-specification and so take those names, are
+The specification's `Frodo.Encode` and `Frodo.Decode` are
 
 * `Encode : Vector Bool (mbar * nbar * B) → FrodoMatrix p mbar nbar`, cutting
   the bit vector into chunks with `toChunks` and then applying `EncodeChunks`.
@@ -66,9 +65,9 @@ specification and so take those names, are
 
 ## Main results
 
-* `getElem_ofChunks`: the position formula this header states in prose, as a
-  theorem. The bit order and layout it fixes are pinned by the `example`s beside
-  the definitions.
+* `getElem_ofChunks`: bit `t` of entry `(i, j)` sits at position
+  `(i * nbar + j) * B + t`, as a theorem. The bit order and layout it fixes are
+  pinned by the `example`s beside the definitions.
 -/
 
 namespace FrodoKEM
@@ -157,7 +156,7 @@ example : toChunks ParameterSet.FrodoKEM640.params
       ⟨1, by decide⟩ ⟨0, by decide⟩ = 1 := by decide
 
 /-- Bit `t` of entry `(i, j)` sits at position `(i * nbar + j) * B + t`, the
-layout of Section 6.3. -/
+layout of Section 6.3 of `[LBES26]`. -/
 theorem getElem_ofChunks (p : Params) (M : ChunkMatrix p) {i j t : ℕ}
     (hi : i < mbar) (hj : j < nbar) (ht : t < p.B) :
     (ofChunks p M)[(i * nbar + j) * p.B + t]'(bitIndex_lt hi hj ht) =
