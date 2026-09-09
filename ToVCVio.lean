@@ -3,6 +3,8 @@ import ToVCVio.CryptoFoundations.AdjoinRootReflect
 import ToVCVio.CryptoFoundations.KeyEncapMech
 import ToVCVio.CryptoFoundations.PRF
 import ToVCVio.CryptoFoundations.UniversalHash
+import ToVCVio.CryptoFoundations.WegmanCarter
+import ToVCVio.CryptoFoundations.WegmanCarterBound
 import ToVCVio.EvalDist.Monad.Basic
 import ToVCVio.LatticeCrypto.FrodoKEM.Parameters
 import ToVCVio.LatticeCrypto.FrodoKEM.Encoding
