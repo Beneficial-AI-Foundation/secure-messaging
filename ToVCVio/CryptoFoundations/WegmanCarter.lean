@@ -228,6 +228,67 @@ section StagedRefinement
 
 variable {K A M Cb D : Type}
 
+/-! ### The three per-oracle projection steps
+
+WC1's single obligation is a per-query identity, discharged one oracle at a time. Splitting
+it is not cosmetic: a single monolithic `rfl`/`simp` over the three handler summands makes
+the kernel unfold all of them at once, which has already timed out once in this phase. -/
+
+/-- Per-oracle projection step at the uniform oracle: both handlers forward the query
+through `unifLiftStateT`, threading the state unchanged, so `wcProj` commutes trivially. -/
+private lemma hproj_unif [DecidableEq Cb]
+    (hash : K → D → BitVec 128) (enc : A × Cb → D) (H : K) (mask : BitVec 128)
+    (padMsg : M → Cb) (unpad : Cb → M)
+    (n : ℕ) (s : WCLogState A Cb) :
+    Prod.map id (wcProj hash enc H mask) <$>
+        ((wcLogImpl hash enc H mask padMsg) (Sum.inl (Sum.inl n))).run s =
+      ((wcInstImpl hash enc H mask padMsg unpad false) (Sum.inl (Sum.inl n))).run
+        (wcProj hash enc H mask s) := by
+  simp [wcLogImpl, wcInstImpl, unifLiftStateT,
+    QueryImpl.liftTarget_apply, StateT.run_monadLift, Prod.map, Functor.map_map]
+
+/-- Per-oracle projection step at the one-shot encrypt oracle. The challenge slot is cased
+FIRST: at a stuck `Option` discriminant the two `match` auxiliaries are not `isDefEq`, and
+making it a constructor lets both iota-reduce. In the `none` branch the log-refined handler
+writes `some (ad, e)` while the instrumented one writes `some e`; `wcProj`'s
+`Option.map Prod.snd` bridges them, and the log is untouched so `wcFlag` is unchanged. -/
+private lemma hproj_encrypt [DecidableEq Cb]
+    (hash : K → D → BitVec 128) (enc : A × Cb → D) (H : K) (mask : BitVec 128)
+    (padMsg : M → Cb) (unpad : Cb → M)
+    (ad : A) (m : M) (s : WCLogState A Cb) :
+    Prod.map id (wcProj hash enc H mask) <$>
+        ((wcLogImpl hash enc H mask padMsg) (Sum.inl (Sum.inr (ad, m)))).run s =
+      ((wcInstImpl hash enc H mask padMsg unpad false) (Sum.inl (Sum.inr (ad, m)))).run
+        (wcProj hash enc H mask s) := by
+  obtain ⟨ch, log⟩ := s
+  cases ch <;>
+    simp [wcLogImpl, wcInstImpl, wcProj, wcFlag, StateT.run_bind, StateT.run_get,
+      StateT.run_set, StateT.run_pure, Prod.map]
+
+/-- Per-oracle projection step at the decrypt oracle, the only one with content. The
+instrumented side is rewritten through the normal form `wcInstImpl_decrypt_run` rather than
+unfolded again. Under the guard both sides leave their state alone, and the two guards are
+the SAME test because `wcProj`'s challenge component is `Option.map Prod.snd`. Off the guard
+the log grows by one entry and `List.any_append` turns the fold into
+`wcFlag log || wcAccepts (ad, e, _)`, which is exactly the `forged || ok` of the normal form:
+`wcAccepts` ignores the entry's pre/post tag. -/
+private lemma hproj_decrypt [DecidableEq Cb]
+    (hash : K → D → BitVec 128) (enc : A × Cb → D) (H : K) (mask : BitVec 128)
+    (padMsg : M → Cb) (unpad : Cb → M)
+    (ad : A) (e : Cb × BitVec 128) (s : WCLogState A Cb) :
+    Prod.map id (wcProj hash enc H mask) <$>
+        ((wcLogImpl hash enc H mask padMsg) (Sum.inr (ad, e))).run s =
+      ((wcInstImpl hash enc H mask padMsg unpad false) (Sum.inr (ad, e))).run
+        (wcProj hash enc H mask s) := by
+  obtain ⟨ch, log⟩ := s
+  rw [show (wcProj hash enc H mask (ch, log)) =
+        (ch.map Prod.snd, wcFlag hash enc H mask (ch, log)) from rfl,
+    wcInstImpl_decrypt_run hash enc H mask padMsg unpad ad e]
+  by_cases hg : ch.map Prod.snd = some e
+  · simp [wcLogImpl, wcProj, StateT.run_bind, StateT.run_get, Prod.map, hg]
+  · simp [wcLogImpl, wcProj, wcFlag, wcAccepts, StateT.run_bind, StateT.run_get,
+      StateT.run_set, Prod.map, hg, List.any_append]
+
 /-- **Obligation WC1** (staged here, discharged by plan 04-03). Log refinement, JOINT
 (output AND state): projecting the log-refined run with `wcProj` recovers the
 instrumented run.
@@ -243,8 +304,12 @@ theorem map_run_simulateQ_wcLogImpl_eq {α : Type} [DecidableEq Cb]
     Prod.map id (wcProj hash enc H mask) <$>
         (simulateQ (wcLogImpl hash enc H mask padMsg) oa).run s =
       (simulateQ (wcInstImpl hash enc H mask padMsg unpad false) oa).run
-        (wcProj hash enc H mask s) :=
-  sorry
+        (wcProj hash enc H mask s) := by
+  refine map_run_simulateQ_eq_of_query_map_eq _ _ (wcProj hash enc H mask) ?_ oa s
+  rintro ((n | ⟨ad, m⟩) | ⟨ad, e⟩) s
+  · exact hproj_unif hash enc H mask padMsg unpad n s
+  · exact hproj_encrypt hash enc H mask padMsg unpad ad m s
+  · exact hproj_decrypt hash enc H mask padMsg unpad ad e s
 
 /-- **Obligation WC2** (staged here, discharged by plan 04-03). Transport of the bad event
 across the log refinement WC1.
