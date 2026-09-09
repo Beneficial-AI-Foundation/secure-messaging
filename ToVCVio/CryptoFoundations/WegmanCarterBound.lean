@@ -51,8 +51,16 @@ two terms by `q` independently is exactly where the factor two reappears.
   128-bit draw.
 - `combine_pre_post_le` — the combination at a shared support count.
 
-All three are typed `sorry`-bodied lemmas staged by plan 04-01 and discharged by plan
-04-04.
+All three were staged as typed `sorry`-bodied lemmas by plan 04-01 and are PROVED here by
+plan 04-04; this module is sorry-free.
+
+## Composition note for callers
+
+`probEvent_pre_fresh_le` expresses its expectation over the PREFIX distribution `ν` (the
+run up to the mask draw), while `combine_pre_post_le` requires both expectations over the
+SAME distribution `μ`. A caller must therefore transport the frozen pre-count through the
+continuation onto `μ` before invoking the combination. Bounding the two expectations
+separately by `q` and adding is not a legal shortcut — it is the factor-two leak again.
 -/
 
 open OracleSpec OracleComp ENNReal
@@ -215,14 +223,47 @@ bounded by `q` separately, which is exactly where the factor two reappears. `hfl
 
 Route: `ENNReal.tsum_add`, then per-`z` arithmetic
 `npre z * 2⁻¹²⁸ + npost z * ε ≤ (npre z + npost z) * ε ≤ q * ε` from `hfloor` and
-`hcount`, then `∑' z, Pr[= z | μ] ≤ 1`. -/
+`hcount`, then `∑' z, Pr[= z | μ] ≤ 1`.
+
+**WARNING TO FUTURE READERS — do NOT bound the two terms by `q` separately.** The
+temptation is to read off `P ≤ q * 2⁻¹²⁸` and `Q ≤ q * ε` and add them, giving
+`q * 2⁻¹²⁸ + q * ε ≤ 2 * q * ε`. That is the factor-two leak: it double-spends the query
+budget, once on each half. The two counts are combined FIRST — inside a single expectation
+over one distribution `μ`, at a single `z` — and only the combined count `npre z + npost z`
+is charged against `q`. This is why `hcount` is a hypothesis about the SUM and why both
+`hP` and `hQ` must already be expectations over the SAME `μ`; a caller holding WC5 over a
+prefix distribution `ν` must transport it to `μ` before invoking this lemma, not bound it
+separately. -/
 theorem combine_pre_post_le {Z : Type} (μ : ProbComp Z) (q : ℕ) (ε : ℝ≥0∞)
     (npre npost : Z → ℕ) (P Q : ℝ≥0∞)
     (hP : P ≤ ∑' z, Pr[= z | μ] * (npre z : ℝ≥0∞) * ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹)
     (hQ : Q ≤ ∑' z, Pr[= z | μ] * (npost z : ℝ≥0∞) * ε)
     (hcount : ∀ z ∈ support μ, npre z + npost z ≤ q)
     (hfloor : ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹ ≤ ε) :
-    P + Q ≤ (q : ℝ≥0∞) * ε :=
-  sorry
+    P + Q ≤ (q : ℝ≥0∞) * ε := by
+  calc P + Q
+      ≤ (∑' z, Pr[= z | μ] * (npre z : ℝ≥0∞) * ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹)
+          + ∑' z, Pr[= z | μ] * (npost z : ℝ≥0∞) * ε := add_le_add hP hQ
+      -- Merge the two expectations into ONE sum over ONE distribution.
+    _ = ∑' z, (Pr[= z | μ] * (npre z : ℝ≥0∞) * ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹
+          + Pr[= z | μ] * (npost z : ℝ≥0∞) * ε) := (ENNReal.tsum_add).symm
+      -- Only now is the COMBINED count charged against the budget `q`.
+    _ ≤ ∑' _z : Z, Pr[= _z | μ] * ((q : ℝ≥0∞) * ε) := by
+        refine ENNReal.tsum_le_tsum fun z => ?_
+        rcases Classical.em (z ∈ support μ) with hz | hz
+        · calc Pr[= z | μ] * (npre z : ℝ≥0∞) * ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹
+                + Pr[= z | μ] * (npost z : ℝ≥0∞) * ε
+              ≤ Pr[= z | μ] * (npre z : ℝ≥0∞) * ε + Pr[= z | μ] * (npost z : ℝ≥0∞) * ε := by
+                gcongr
+            _ = Pr[= z | μ] * ((npre z : ℝ≥0∞) + (npost z : ℝ≥0∞)) * ε := by ring
+            _ ≤ Pr[= z | μ] * (q : ℝ≥0∞) * ε := by
+                gcongr
+                exact_mod_cast hcount z hz
+            _ = Pr[= z | μ] * ((q : ℝ≥0∞) * ε) := mul_assoc _ _ _
+        · rw [probOutput_eq_zero_of_not_mem_support hz]
+          simp
+    _ = (∑' z, Pr[= z | μ]) * ((q : ℝ≥0∞) * ε) := ENNReal.tsum_mul_right
+    _ ≤ 1 * ((q : ℝ≥0∞) * ε) := by gcongr; exact tsum_probOutput_le_one
+    _ = (q : ℝ≥0∞) * ε := one_mul _
 
 end OracleComp.WegmanCarter
