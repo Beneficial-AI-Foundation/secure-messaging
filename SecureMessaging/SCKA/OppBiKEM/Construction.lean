@@ -98,8 +98,8 @@ structure State (PK SK C Sym : Type) where
   reqEpoch : ℤ
   dk : List (ℤ × SK)
   ek : Option PK
-  -- received_chunks corresponds L_ch in the paper
-  received_chunks : Finset (ℕ × Sym)
+  -- receivedChunks corresponds L_ch in the paper
+  receivedChunks : Finset (ℕ × Sym)
   ack : Acknowledgements
 
 abbrev StA := State
@@ -129,7 +129,7 @@ def init (role : Role) (_ik : Unit) : m (State PK SK C Sym) :=
   pure { resEpoch := if role = .A then -1 else 0
          reqEpoch := if role = .A then 0 else -1
          ekPeer := fun _ => none
-         ct := none, ich := 0, dk := [], ek := none, received_chunks := ∅
+         ct := none, ich := 0, dk := [], ek := none, receivedChunks := ∅
          ack := { ekRec := ∅, ctRec := {-1, 0} } }
 -- ANCHOR_END: init
 
@@ -271,11 +271,11 @@ def recv (role : Role) (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
       match ρ.bit, ρ.ch with
       | some 0, some ch =>
           if (st.ekPeer peerKeyEpoch).isNone then
-            let received_chunks := insert ch st.received_chunks
-            match ecEk.decode received_chunks with
-            | none => (none, { st with received_chunks })
+            let receivedChunks := insert ch st.receivedChunks
+            match ecEk.decode receivedChunks with
+            | none => (none, { st with receivedChunks })
             | some ekPeer =>
-                (none, { st with received_chunks := ∅
+                (none, { st with receivedChunks := ∅
                                  ekPeer := Function.update st.ekPeer peerKeyEpoch (some ekPeer)
                                  ack := { st.ack with ekRec := insert peerKeyEpoch st.ack.ekRec } })
           else (none, st)
@@ -284,15 +284,15 @@ def recv (role : Role) (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
             match st.dk.lookup st.reqEpoch with
             | none => (none, st)
             | some dk =>
-                let received_chunks := insert ch st.received_chunks
-                match ecCt.decode received_chunks with
-                | none => (none, { st with received_chunks })
+                let receivedChunks := insert ch st.receivedChunks
+                match ecCt.decode receivedChunks with
+                | none => (none, { st with receivedChunks })
                 | some ct =>
                     match hDet.decapsDet dk ct with
                     | none => (none, st)
                     | some key =>
                         (some (st.reqEpoch.toNat, key),
-                          { st with received_chunks := ∅
+                          { st with receivedChunks := ∅
                                     dk := st.dk.filter (fun p => p.1 != st.reqEpoch)
                                     ack := { st.ack with
                                       ctRec := insert st.reqEpoch st.ack.ctRec } })
