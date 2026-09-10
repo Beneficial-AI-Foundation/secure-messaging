@@ -44,6 +44,66 @@ Each party has two counters:
 The two roles share Lean helpers, using offset variables $`\delta_\A=1` and
 $`\delta_\B=-1`.
 
+The Lean state groups these roles into `st.req : RequesterState PK SK Sym` and
+`st.res : ResponderState PK C`, corresponding to $`\mathsf{st}_{\mathrm{req}}` and
+$`\mathsf{st}_{\mathrm{res}}` in Figures 17–18. The shared `st.ack` remains alongside
+both substates, matching the paper's
+$`(\mathsf{st}_{\mathrm{res}},\mathsf{st}_{\mathrm{req}},\mathsf{ACK})`.
+
+The requester owns `reqEpoch`, retained secret keys `dk`, the local public key `ek`,
+and `receivedChunks`. The responder owns `resEpoch`, decoded peer public keys
+`ekPeer`, the outgoing ciphertext `ct`, and the outgoing chunk counter `ich`.
+The chunk counter serves both outgoing payload types, and the incoming chunk set
+serves both peer public keys and ciphertexts. Sending and receiving can therefore
+update both substates; acknowledgements are shared by both.
+
+The shared send and receive implementations first unpack both substates into local
+variables, following the opening lines of the pseudocode. Later bindings reuse
+these names for updated values, and the algorithms repack the substates on return.
+Receive also unpacks the incoming message before processing it.
+
+```anchor state (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
+/-- Responder substate `st_res = (t_res, EK_peer, ct, i_ch)` in Figures 17–18.
+The outgoing chunk counter is used for both public keys and ciphertexts. -/
+structure ResponderState (PK C : Type) where
+  /-- Current responder epoch, used for outgoing ciphertexts. -/
+  resEpoch : ℤ
+  /-- Decoded peer public keys indexed by their encapsulation epochs. -/
+  ekPeer : ℤ → Option PK
+  /-- Outgoing ciphertext, retained until the peer acknowledges it. -/
+  ct : Option C
+  /-- Last outgoing chunk index, reset to zero when a new payload is prepared. -/
+  ich : ℕ
+
+/-- Requester substate `st_req = (t_req, DK, ek, L_ch)` in Figures 17–18.
+The incoming chunk set is used for both peer public keys and ciphertexts. -/
+structure RequesterState (PK SK Sym : Type) where
+  /-- Current requester epoch, used for incoming ciphertexts. -/
+  reqEpoch : ℤ
+  /-- Retained secret keys indexed by their decapsulation epochs. -/
+  dk : List (ℤ × SK)
+  /-- Local public key, retained until the peer acknowledges it. -/
+  ek : Option PK
+  /-- Chunks accumulated for decoding the incoming payload (`L_ch` in the paper).
+  Each chunk is represented as `(position, encodedSymbol)`. -/
+  receivedChunks : Finset (ℕ × Sym)
+
+/-- A party's local state: requester and responder substates with shared `ACK`.
+The paper writes this as `(st_res, st_req, ACK)`; the named fields expose each component. -/
+structure State (PK SK C Sym : Type) where
+  /-- Requester state containing retained decapsulation keys and incoming chunks. -/
+  req : RequesterState PK SK Sym
+  /-- Responder state containing decoded peer public keys and outgoing ciphertext. -/
+  res : ResponderState PK C
+  /-- Locally recorded and peer-reported receipt acknowledgements. -/
+  ack : Acknowledgements
+
+/-- Party A's local protocol state. -/
+abbrev StA := State
+/-- Party B's local protocol state. -/
+abbrev StB := State
+```
+
 We make the following corrections with respect to the pseudocode:
 
 * In Figure 18, $`\mathsf{CKA}\text{-}\SendB`, lines 8, 9, and 13, replace
@@ -79,10 +139,11 @@ def initKeyGen : m Unit := pure ()
 
 ```anchor init (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
 def init (role : Role) (_ik : Unit) : m (State PK SK C Sym) :=
-  pure { resEpoch := if role = .A then -1 else 0
-         reqEpoch := if role = .A then 0 else -1
-         ekPeer := fun _ => none
-         ct := none, ich := 0, dk := [], ek := none, receivedChunks := ∅
+  pure { req := { reqEpoch := if role = .A then 0 else -1
+                  dk := [], ek := none, receivedChunks := ∅ }
+         res := { resEpoch := if role = .A then -1 else 0
+                  ekPeer := fun _ => none
+                  ct := none, ich := 0 }
          ack := { ekRec := ∅, ctRec := {-1, 0} } }
 ```
 
@@ -134,7 +195,9 @@ require secrecy. Dummy epochs are excluded from the natural-number SCKA interfac
 
 ```anchor vuln (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
 def vuln (st : State PK SK C Sym) : Finset ℕ :=
-  ((st.dk.map Prod.fst).toFinset.filter fun t => 0 < t).image Int.toNat
+  let storedEpochs := (st.req.dk.map Prod.fst).toFinset
+  let positiveEpochs := storedEpochs.filter fun t => 0 < t
+  positiveEpochs.image Int.toNat
 
 /-- Positive epochs whose secret decapsulation keys remain in A's state. -/
 def vulnA (st : StA PK SK C Sym) : Finset ℕ := vuln st
@@ -353,35 +416,47 @@ def sendWith {RKey REnc : Type} (role : Role)
     (st : State PK SK C Sym) :
     m (Option (Option (ℕ × K) × Message Sym × ℕ × State PK SK C Sym ×
       SendRand RKey REnc)) := do
-  let (st, rKey?) ←
-    if st.ek.isNone && decide (st.resEpoch ∈ st.ack.ctRec ∧
-        st.resEpoch + role.offset ∈ st.ack.ctRec) then do
-      let ((ek, dk), rKey) ← keygen
-      let t := st.resEpoch + 2
+  let ⟨resEpoch, ekPeer, ct, ich⟩ := st.res
+  let ⟨reqEpoch, dk, ek, receivedChunks⟩ := st.req
+  let ack := st.ack
+  let (resEpoch, dk, ek, ich, rKey?) ←
+    -- if ready to advance the epoch (Line 4 in the paper CKA-Send-P)
+    if ek.isNone && decide (resEpoch ∈ ack.ctRec ∧
+        resEpoch + role.offset ∈ ack.ctRec) then do
+      let ((newEk, newDk), rKey) ← keygen
+      let t := resEpoch + 2
+      -- the epoch for which the decapsulation key was generated
+      -- (t+1 in CKA-Send-A, line 8; t-1 in CKA-Send-B, line 8)
       let keyEpoch := t + role.offset
-      pure ({ st with resEpoch := t, ich := 0, ek := some ek
-                      dk := (keyEpoch, dk) :: st.dk.filter (fun p => p.1 != keyEpoch) },
-            some rKey)
-    else pure (st, none)
-  let (key?, ch?, bit?, st, rEnc?) ←
-    if st.resEpoch + role.offset ∉ st.ack.ekRec then do
-      let ich := st.ich + 1
-      let ch? := st.ek.map (fun ek => ecEk.encode ek ich)
-      pure (none, ch?, some (0 : Bit), { st with ich }, none)
-    else if st.resEpoch ∉ st.ack.ctRec then do
-      let (key?, st, rEnc?) ←
-        if st.ct.isNone && decide (st.resEpoch ∈ st.ack.ekRec) then
-          match st.ekPeer st.resEpoch with
-          | none => pure (none, st, none)
-          | some ekPeer => do
-              let ((ct, key), rEnc) ← encaps ekPeer
-              pure (some (st.resEpoch.toNat, key), { st with ct := some ct, ich := 0 },
-                some rEnc)
-        else pure (none, st, none)
-      let ich := st.ich + 1
-      let ch? := st.ct.map (fun ct => ecCt.encode ct ich)
-      pure (key?, ch?, some (1 : Bit), { st with ich }, rEnc?)
-    else pure (none, none, none, st, none)
+      pure (t, (keyEpoch, newDk) :: dk.filter (fun p => p.1 != keyEpoch),
+        some newEk, 0, some rKey)
+    else pure (resEpoch, dk, ek, ich, none)
+  let (key?, ch?, bit?, ct, ich, rEnc?) ←
+    -- if the encapsulation key was not yet received by the peer (lines 9-12 in CKA-Send-P)
+    if resEpoch + role.offset ∉ ack.ekRec then do
+      let ich := ich + 1
+      let ch? := ek.map (fun ek => ecEk.encode ek ich)
+      pure (none, ch?, some (0 : Bit), ct, ich, none)
+    -- if the encapsulation key was received, but ciphertext was **not** yet received by the peer
+    else if resEpoch ∉ ack.ctRec then do
+      let (key?, ct, ich, rEnc?) ←
+        -- if no ciphertext is stored and the peer's encapsulation key has been received
+        -- (lines 14-16 in CKA-Send-P)
+        if ct.isNone && decide (resEpoch ∈ ack.ekRec) then
+          match ekPeer resEpoch with
+          | none => pure (none, ct, ich, none)
+          | some peerEk => do
+              let ((newCt, key), rEnc) ← encaps peerEk
+              pure (some (resEpoch.toNat, key), some newCt, 0, some rEnc)
+        else pure (none, ct, ich, none)
+      let ich := ich + 1
+      let ch? := ct.map (fun ct => ecCt.encode ct ich)
+      pure (key?, ch?, some (1 : Bit), ct, ich, rEnc?)
+    else pure (none, none, none, ct, ich, none)
+  let st : State PK SK C Sym :=
+    { res := ⟨resEpoch, ekPeer, ct, ich⟩
+      req := ⟨reqEpoch, dk, ek, receivedChunks⟩
+      ack }
   let ρ := message role st ch? bit?
   pure (some (key?, ρ, ρ.sendingEpoch, st, { keygen := rKey?, encaps := rEnc? }))
 ```
@@ -408,58 +483,61 @@ def recv (role : Role) (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (st : State PK SK C Sym) (ρ : Message Sym) :
     Option (Option (ℕ × K) × ℕ × State PK SK C Sym) :=
+  let ⟨resEpoch, ekPeer, ct, ich⟩ := st.res
+  let ⟨reqEpoch, dk, ek, receivedChunks⟩ := st.req
+  let ⟨ch?, peerResEpoch, peerReqEpoch, sendingEpoch, peerAck, bit?⟩ := ρ
   let ack := st.ack
-  let ack := if ρ.ack.ctRec then { ack with ctRec := insert ρ.reqEpoch ack.ctRec } else ack
-  let ack := if ρ.ack.ekRec then
-      { ack with ekRec := insert (ρ.reqEpoch + role.offset) ack.ekRec } else ack
-  let st := { st with ack }
-  if ρ.resEpoch < st.reqEpoch then
-  -- outdated message
-    some (none, ρ.sendingEpoch, st)
+  let ack := if peerAck.ctRec then { ack with ctRec := insert peerReqEpoch ack.ctRec } else ack
+  let ack := if peerAck.ekRec then
+      { ack with ekRec := insert (peerReqEpoch + role.offset) ack.ekRec } else ack
+  if peerResEpoch < reqEpoch then
+    -- outdated message: retain only the acknowledgement updates
+    some (none, sendingEpoch,
+      { res := ⟨resEpoch, ekPeer, ct, ich⟩
+        req := ⟨reqEpoch, dk, ek, receivedChunks⟩
+        ack })
   else
-    let st := if st.reqEpoch < ρ.resEpoch
-              -- first message of the new epoch
-              then { st with reqEpoch := st.reqEpoch + 2 }
-              else st
+    -- first message of the new epoch
+    let reqEpoch := if reqEpoch < peerResEpoch then reqEpoch + 2 else reqEpoch
     -- Captures the relation of "1 removed" epochs
     --   - if A is requesting the key for epoch t, it receives B's public key for t-1
     --   - if B is requesting the key for epoch t, it receives A's public key for t+1
-    let peerKeyEpoch := st.reqEpoch - role.offset
-    let (key?, st) :=
-      match ρ.bit, ρ.ch with
+    let peerKeyEpoch := reqEpoch - role.offset
+    let (key?, ekPeer, dk, receivedChunks, ack) :=
+      match bit?, ch? with
       | some 0, some ch =>
-          if (st.ekPeer peerKeyEpoch).isNone then
-            let receivedChunks := insert ch st.receivedChunks
-            match ecEk.decode receivedChunks with
-            | none => (none, { st with receivedChunks })
-            | some ekPeer =>
-                (none, { st with receivedChunks := ∅
-                                 ekPeer := Function.update st.ekPeer peerKeyEpoch (some ekPeer)
-                                 ack := { st.ack with ekRec := insert peerKeyEpoch st.ack.ekRec } })
-          else (none, st)
+          if (ekPeer peerKeyEpoch).isNone then
+            let chunks := insert ch receivedChunks
+            match ecEk.decode chunks with
+            | none => (none, ekPeer, dk, chunks, ack)
+            | some peerEk =>
+                (none, Function.update ekPeer peerKeyEpoch (some peerEk), dk, ∅,
+                  { ack with ekRec := insert peerKeyEpoch ack.ekRec })
+          else (none, ekPeer, dk, receivedChunks, ack)
       | some 1, some ch =>
-          if st.reqEpoch ∉ st.ack.ctRec then
-            match st.dk.lookup st.reqEpoch with
-            | none => (none, st)
-            | some dk =>
-                let receivedChunks := insert ch st.receivedChunks
-                match ecCt.decode receivedChunks with
-                | none => (none, { st with receivedChunks })
-                | some ct =>
-                    match hDet.decapsDet dk ct with
-                    | none => (none, st)
+          if reqEpoch ∉ ack.ctRec then
+            match dk.lookup reqEpoch with
+            | none => (none, ekPeer, dk, receivedChunks, ack)
+            | some secretKey =>
+                let chunks := insert ch receivedChunks
+                match ecCt.decode chunks with
+                | none => (none, ekPeer, dk, chunks, ack)
+                | some peerCt =>
+                    match hDet.decapsDet secretKey peerCt with
+                    | none => (none, ekPeer, dk, receivedChunks, ack)
                     | some key =>
-                        (some (st.reqEpoch.toNat, key),
-                          { st with receivedChunks := ∅
-                                    dk := st.dk.filter (fun p => p.1 != st.reqEpoch)
-                                    ack := { st.ack with
-                                      ctRec := insert st.reqEpoch st.ack.ctRec } })
-          else (none, st)
-      | _, _ => (none, st)
+                        (some (reqEpoch.toNat, key), ekPeer,
+                          dk.filter (fun p => p.1 != reqEpoch), ∅,
+                          { ack with ctRec := insert reqEpoch ack.ctRec })
+          else (none, ekPeer, dk, receivedChunks, ack)
+      | _, _ => (none, ekPeer, dk, receivedChunks, ack)
     -- deleting the stored material that has been fully delivered
-    let st := if st.resEpoch ∈ st.ack.ctRec then { st with ct := none } else st
-    let st := if st.resEpoch + role.offset ∈ st.ack.ekRec then { st with ek := none } else st
-    some (key?, ρ.sendingEpoch, st)
+    let ct := if resEpoch ∈ ack.ctRec then none else ct
+    let ek := if resEpoch + role.offset ∈ ack.ekRec then none else ek
+    some (key?, sendingEpoch,
+      { res := ⟨resEpoch, ekPeer, ct, ich⟩
+        req := ⟨reqEpoch, dk, ek, receivedChunks⟩
+        ack })
 ```
 :::::
 
