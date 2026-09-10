@@ -75,7 +75,7 @@ structure Acknowledgements where
   ctRec : Finset ℤ
 
 /-- Largest nonnegative index with two adjacent acknowledged ciphertexts
-(both t and t-1 in act.ctRec).
+(both t and t-1 in ack.ctRec).
 The empty maximum is zero; honest states initially acknowledge `-1` and `0`. -/
 def Acknowledgements.sendingEpoch (ack : Acknowledgements) : ℕ :=
   (ack.ctRec.filter fun t => t - 1 ∈ ack.ctRec).sup Int.toNat
@@ -123,7 +123,7 @@ structure State (PK SK C Sym : Type) where
   /-- Local public key, retained until the peer acknowledges it. -/
   ek : Option PK
   /-- Chunks accumulated for decoding the incoming payload (`L_ch` in the paper).
-  Each chunk is represented as `(position, encodedSymbol)`, where `position`. -/
+  Each chunk is represented as `(position, encodedSymbol)`. -/
   receivedChunks : Finset (ℕ × Sym)
   /-- Locally recorded and peer-reported receipt acknowledgements. -/
   ack : Acknowledgements
@@ -154,7 +154,7 @@ variable {m : Type → Type u} [Monad m] {K PK SK C Sym : Type}
 def initKeyGen : m Unit := pure ()
 -- ANCHOR_END: initKeyGen
 
-/-- Dummy ciphertexts `-1` and `0` are set to enable the first send. -/
+/-- Placeholder epoch indices `-1` and `0` are set to enable the first send. -/
 -- ANCHOR: init
 def init (role : Role) (_ik : Unit) : m (State PK SK C Sym) :=
   pure { resEpoch := if role = .A then -1 else 0
