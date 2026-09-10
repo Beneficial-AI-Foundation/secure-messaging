@@ -4,6 +4,7 @@ import VersoBlueprint
 import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessaging.RKEM.FromKEM.Construction
+import SecureMessaging.RKEM.FromKEM.Correctness
 
 set_option linter.style.setOption false
 set_option linter.hashCommand false
@@ -52,14 +53,17 @@ def scheme {m : Type → Type u} [Monad m] {K PK SK C : Type}
 :::defTitle "rkem_from_kem_correctness" "RKEM from KEM correctness"
 :::
 
-::::theorem "rkem_from_kem_correctness" (parent := "rkem_rkem_from_kem")
+:::theorem "rkem_from_kem_correctness" (parent := "rkem_rkem_from_kem") (lean := "kemRKEM.deltaCorrect")
 $`\todo`
 
-:::leanPill "missing"
-:::
+```anchor deltaCorrect (project := ".") (module := SecureMessaging.RKEM.FromKEM.Correctness)
+theorem deltaCorrect [DecidableEq K] (kem : KEMScheme ProbComp K PK SK C)
+    (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp) :
+    RKEMScheme.deltaCorrect (scheme kem) ProbCompRuntime.probComp 0 0
+```
 
 {usesLabel}`uses` {uses "rkem_from_kem_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_correctness"}[] · {githubLabel}`github` {githubIssue 76}[]
-::::
+:::
 
 :::defTitle "rkem_from_kem_forward_security" "RKEM from KEM forward security"
 :::
