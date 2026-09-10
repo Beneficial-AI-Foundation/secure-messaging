@@ -207,22 +207,30 @@ def sendWith {RKey REnc : Type} (role : Role)
     m (Option (Option (ℕ × K) × Message Sym × ℕ × State PK SK C Sym ×
       SendRand RKey REnc)) := do
   let (st, rKey?) ←
+    -- if ready to advance the epoch (Line 4 in the paper CKA-Send-P)
     if st.ek.isNone && decide (st.resEpoch ∈ st.ack.ctRec ∧
         st.resEpoch + role.offset ∈ st.ack.ctRec) then do
       let ((ek, dk), rKey) ← keygen
       let t := st.resEpoch + 2
+      -- the epoch for which the decapsulation key was generated
+      -- (t+1 in CKA-Send-A, line 8; t-1 in CKA-Send-B, line 8)
       let keyEpoch := t + role.offset
+      -- updates corresponding to lines 5-8 in CKA-Send-P
       pure ({ st with resEpoch := t, ich := 0, ek := some ek
                       dk := (keyEpoch, dk) :: st.dk.filter (fun p => p.1 != keyEpoch) },
             some rKey)
     else pure (st, none)
   let (key?, ch?, bit?, st, rEnc?) ←
+    -- if the encapsulation key was not yet received by the peer (lines 9-12 in CKA-Send-P)
     if st.resEpoch + role.offset ∉ st.ack.ekRec then do
       let ich := st.ich + 1
       let ch? := st.ek.map (fun ek => ecEk.encode ek ich)
       pure (none, ch?, some (0 : Bit), { st with ich }, none)
+    -- if the encapsulation key was received, but ciphertext was **not** yet received by the peer
     else if st.resEpoch ∉ st.ack.ctRec then do
       let (key?, st, rEnc?) ←
+        -- if no ciphertext is stored and the peer's encapsulation key has been received
+        -- (lines 14-16 in CKA-Send-P)
         if st.ct.isNone && decide (st.resEpoch ∈ st.ack.ekRec) then
           match st.ekPeer st.resEpoch with
           | none => pure (none, st, none)
