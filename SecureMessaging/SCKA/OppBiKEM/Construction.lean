@@ -173,10 +173,14 @@ def initA : Unit → m (StA PK SK C Sym) := init .A
 def initB : Unit → m (StB PK SK C Sym) := init .B
 -- ANCHOR_END: initB
 
-/-- Only stored decapsulation keys expose epoch keys. Dummy indices are excluded. -/
+
+/-- For a state `st`, `vuln st` is the set of epochs `n : ℕ` such that
+`0 < n` and `st` still stores a decapsulation key at index `(n : ℤ)`. (not yet deleted) -/
 -- ANCHOR: vuln
 def vuln (st : State PK SK C Sym) : Finset ℕ :=
-  ((st.dk.map Prod.fst).toFinset.filter fun t => 0 < t).image Int.toNat
+  let storedEpochs := (st.dk.map Prod.fst).toFinset
+  let positiveEpochs := storedEpochs.filter fun t => 0 < t
+  positiveEpochs.image Int.toNat
 
 /-- Positive epochs whose secret decapsulation keys remain in A's state. -/
 def vulnA (st : StA PK SK C Sym) : Finset ℕ := vuln st
