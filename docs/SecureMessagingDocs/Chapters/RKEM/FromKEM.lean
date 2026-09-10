@@ -58,29 +58,8 @@ $`\todo`
 
 ```anchor deltaCorrect (project := ".") (module := SecureMessaging.RKEM.FromKEM.Correctness)
 theorem deltaCorrect [DecidableEq K] (kem : KEMScheme ProbComp K PK SK C)
-    (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp) :
-    RKEMScheme.deltaCorrect (scheme kem) ProbCompRuntime.probComp 0 0 := by
-  refine ⟨⟨?_, ?_⟩, ?_, ?_⟩
-  · unfold RKEMScheme.correctnessErrorA
-    change 1 - Pr[= true | RKEMScheme.correctExpA (scheme kem)] ≤ 0
-    rw [probOutput_correctExpA_eq_one kem hkem]
-    simp
-  · unfold RKEMScheme.correctnessErrorB
-    change 1 - Pr[= true | RKEMScheme.correctExpB (scheme kem)] ≤ 0
-    rw [show (scheme kem).correctExpB = (scheme kem).correctExpA by rfl,
-        probOutput_correctExpA_eq_one kem hkem]
-    simp
-  · unfold RKEMScheme.updateKeyDistErrorA
-    change ‖SPMF.tvDist (𝒟[RKEMScheme.ratchetRoundOutputA (scheme kem)])
-      (𝒟[(do let keys ← kem.keygen; pure (some keys) : ProbComp (Option (PK × SK)))])‖ₑ ≤ 0
-    rw [evalDist_ratchetRoundOutputA_eq kem hkem]
-    simp
-  · unfold RKEMScheme.updateKeyDistErrorB
-    change ‖SPMF.tvDist (𝒟[RKEMScheme.ratchetRoundOutputB (scheme kem)])
-      (𝒟[(do let keys ← kem.keygen; pure (some keys) : ProbComp (Option (PK × SK)))])‖ₑ ≤ 0
-    rw [show (scheme kem).ratchetRoundOutputB = (scheme kem).ratchetRoundOutputA by rfl,
-        evalDist_ratchetRoundOutputA_eq kem hkem]
-    simp
+    (δ : ℝ≥0∞) (hkem : kem.deltaCorrect ProbCompRuntime.probComp δ) :
+    RKEMScheme.deltaCorrect (scheme kem) ProbCompRuntime.probComp δ δ
 ```
 
 {usesLabel}`uses` {uses "rkem_from_kem_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_correctness"}[] · {githubLabel}`github` {githubIssue 76}[]
