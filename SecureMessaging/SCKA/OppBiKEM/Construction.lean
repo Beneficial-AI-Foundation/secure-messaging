@@ -15,11 +15,10 @@ Algorithms from Figures 17–18 of https://eprint.iacr.org/2025/2267.pdf.
 A encapsulates in odd epochs and B in even epochs. Each party sends its next
 public key before its ciphertext, overlapping the two directions of exchange.
 
-Internal counters use integers because initialization uses the dummy epoch `-1`.
-The SCKA interface uses natural epochs; dummy epochs never produce honest keys.
+Epoch counters are naturals, but we model them as integers because initialization
+uses the placeholder epoch `-1`.
 Acknowledgements are finite sets of integer indices, making the maximum sending
-epoch computable. Secret keys are a finite association list, so erasure really
-removes the corresponding entry and the vulnerable epoch set is computable.
+epoch directly computable. Similarly, secret keys are a finite association list.
 
 We make the following corrections wrt the paper (more info in the docs)
 
