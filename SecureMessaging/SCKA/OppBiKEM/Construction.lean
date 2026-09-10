@@ -288,7 +288,6 @@ def sendBrleak (kem : KEMScheme m K PK SK C)
 /-- Common receive algorithm. A stale payload is ignored, but its explicitly
 indexed acknowledgements are retained. Decapsulation failure does not acknowledge
 receipt of an epoch key or erase the secret key needed to recover it.
-TODO: When it comes to proving, how do we make sure that there is no decapsulation failure?
 -/
 -- ANCHOR: recv
 def recv (role : Role) (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
