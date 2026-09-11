@@ -214,14 +214,6 @@ def vulnA (st : StA PK SK C Sym) : Finset ℕ := vuln st
 def vulnB (st : StB PK SK C Sym) : Finset ℕ := vuln st
 -- ANCHOR_END: vuln
 
-/-- Attach the two acknowledgement bits with their requester-epoch meaning. -/
-def message (role : Role) (st : State PK SK C Sym)
-    (ch : Option (ℕ × Sym)) (bit : Option Bit) : Message Sym :=
-  { ch, bit, resEpoch := st.res.resEpoch, reqEpoch := st.req.reqEpoch
-    sendingEpoch := st.ack.sendingEpoch
-    ack := { ekRec := decide (st.req.reqEpoch - role.offset ∈ st.ack.ekRec)
-             ctRec := decide (st.req.reqEpoch ∈ st.ack.ctRec) } }
-
 /-- Common send algorithm. Supplying the randomized primitives explicitly lets
 ordinary and leaking sends share the same state transitions. -/
 -- ANCHOR: sendWith
@@ -272,7 +264,11 @@ def sendWith {RKey REnc : Type} (role : Role)
     { res := ⟨resEpoch, ekPeer, ct, ich⟩
       req := ⟨reqEpoch, dk, ek, receivedChunks⟩
       ack }
-  let ρ := message role st ch? bit?
+  let ρ : Message Sym :=
+    { ch := ch?, bit := bit?, resEpoch, reqEpoch
+      sendingEpoch := ack.sendingEpoch
+      ack := { ekRec := decide (reqEpoch - role.offset ∈ ack.ekRec)
+               ctRec := decide (reqEpoch ∈ ack.ctRec) } }
   pure (some (key?, ρ, ρ.sendingEpoch, st, { keygen := rKey?, encaps := rEnc? }))
 -- ANCHOR_END: sendWith
 

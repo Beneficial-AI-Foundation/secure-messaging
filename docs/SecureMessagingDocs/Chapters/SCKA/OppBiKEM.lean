@@ -484,7 +484,11 @@ def sendWith {RKey REnc : Type} (role : Role)
     { res := ⟨resEpoch, ekPeer, ct, ich⟩
       req := ⟨reqEpoch, dk, ek, receivedChunks⟩
       ack }
-  let ρ := message role st ch? bit?
+  let ρ : Message Sym :=
+    { ch := ch?, bit := bit?, resEpoch, reqEpoch
+      sendingEpoch := ack.sendingEpoch
+      ack := { ekRec := decide (reqEpoch - role.offset ∈ ack.ekRec)
+               ctRec := decide (reqEpoch ∈ ack.ctRec) } }
   pure (some (key?, ρ, ρ.sendingEpoch, st, { keygen := rKey?, encaps := rEnc? }))
 ```
 ```anchor send (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
