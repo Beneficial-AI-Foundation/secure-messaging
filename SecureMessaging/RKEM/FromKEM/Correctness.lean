@@ -42,26 +42,6 @@ theorem probOutput_correctExpA_eq_probOutput_CorrectExp [DecidableEq K]
   · rfl
   · simp [eq_comm]
 
-/-- Decapsulating an honestly-generated ciphertext fails no more often than the underlying KEM's
-own correctness experiment returns `false`: whenever decapsulation returns `none`, it certainly
-doesn't recover the encapsulated key. Holds unconditionally, for any KEM. -/
-theorem probOutput_none_decaps_le_probOutput_false_CorrectExp [DecidableEq K]
-    (kem : KEMScheme ProbComp K PK SK C) :
-    Pr[= (none : Option K) |
-        do let (pk, sk) ← kem.keygen; let (c, _k) ← kem.encaps pk; kem.decaps sk c] ≤
-      Pr[= false | kem.CorrectExp] := by
-  unfold KEMScheme.CorrectExp
-  refine probOutput_bind_mono (mx := kem.keygen) fun p _ => ?_
-  obtain ⟨pk, sk⟩ := p
-  refine probOutput_bind_mono (mx := kem.encaps pk) fun q _ => ?_
-  obtain ⟨c, k⟩ := q
-  dsimp only
-  conv_lhs => rw [← bind_pure (kem.decaps sk c)]
-  refine probOutput_bind_mono (mx := kem.decaps sk c) fun r _ => ?_
-  rcases r with _ | k'
-  · simp
-  · simp
-
 /-- `ratchetRoundOutputA` has the same distribution as first running the underlying
 "success chain" (`B`'s keys, encapsulation, decapsulation) to a raw result `r`, then generating
 `A`'s fresh updated key pair independently and returning it wrapped in `r`'s success/failure. -/
