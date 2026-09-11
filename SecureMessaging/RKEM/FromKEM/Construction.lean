@@ -54,10 +54,16 @@ def rkeygen {m : Type → Type u} [Monad m] {K PK SK C : Type}
     (kem : KEMScheme m K PK SK C) : Unit → m (PK × SK) :=
   fun _ => kem.keygen
 
-/-- KEM-RKEM encapsulation towards a peer's current encapsulation key `ekPeer`.
-Encapsulates under `ekPeer`, then independently generates a fresh key pair for the
-sender's own next round; the fresh public key is bundled into the ciphertext. The public
-parameter and the sender's current decapsulation key are unused. -/
+/-- KEM-RKEM encapsulation:
+
+REnc-P(êkP̄, dkP):                 -- dkP is unused
+  (ct, K)     ←$ Enc(êkP̄)
+  (êkP, d̂kP)  ←  KeyGen()
+  ctP̄        := (êkP, ct)
+  return (ctP̄, K, d̂kP)
+
+P̄ above corresponds to Peer below, while P corresponds to Self.
+-/
 def renc {m : Type → Type u} [Monad m] {K PK SK C : Type}
     (kem : KEMScheme m K PK SK C) (_par : Unit) (ekPeer : PK) (_dkSelf : SK) :
     m ((PK × C) × K × SK) := do
@@ -65,10 +71,15 @@ def renc {m : Type → Type u} [Monad m] {K PK SK C : Type}
   let (ekSelfHat, dkSelfHat) ← kem.keygen
   return ((ekSelfHat, ct), key, dkSelfHat)
 
-/-- KEM-RKEM decapsulation: parse the peer's freshly bundled public key out of the
-ciphertext, decapsulate the underlying KEM ciphertext with the receiver's updated
-decapsulation key, and return the peer's new public key as-is. The public parameter and
-the `ekPeer` input, the receiver's previously-known peer key, are unused. -/
+/-- KEM-RKEM decapsulation:
+
+RDec-P(d̂kP, ctP, ekP̄):            -- ekP̄ input is unused
+  parse (êkP̄, ct) ← ctP
+  K ← Dec(d̂kP, ct)
+  return (K, êkP̄)
+
+P̄ above corresponds to Peer below, while P corresponds to Self.
+-/
 def rdec {m : Type → Type u} [Monad m] {K PK SK C : Type}
     (kem : KEMScheme m K PK SK C) (_par : Unit) (dkSelfHat : SK) (ctSelf : PK × C) (_ekPeer : PK) :
     m (Option (K × PK)) := do
