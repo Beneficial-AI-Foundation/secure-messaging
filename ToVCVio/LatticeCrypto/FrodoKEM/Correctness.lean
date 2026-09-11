@@ -5,13 +5,14 @@ Authors: Beneficial AI Foundation
 -/
 import ToVCVio.LatticeCrypto.FrodoKEM.Encoding
 import ToVCVio.LatticeCrypto.FrodoKEM.Packing
+import ToVCVio.LatticeCrypto.FrodoKEM.Sampling
 import LatticeCrypto.Ring.Norms
 
 /-!
-# FrodoKEM encoding and packing correctness
+# FrodoKEM encoding, packing and sampling correctness
 
-The proofs about the maps that `Bits.lean`, `Encoding.lean` and `Packing.lean`
-specify. References are as in `Parameters.lean`. Both documents state the exact
+The proofs about the maps that `Bits.lean`, `Encoding.lean`, `Packing.lean` and
+`Sampling.lean` specify. References are as in `Parameters.lean`. Both documents state the exact
 round trip `dc (ec k) = k`, `[CiC25]` in Appendix B and `[LBES26]` in
 Section 6.3. Only `[CiC25]` bounds the noise `dc` tolerates, as Lemma 1 of
 Section 4.1, so `dc_ec_add` is cited from it alone.
@@ -30,6 +31,8 @@ stays within half of that, `dc` recovers the chunk it was given.
 
 ## Main results
 
+* `Sample_bounds` and `SampleMatrix_bounds`: sampled integers lie between `-d` and `d`,
+  as stated in Section 6.5 of `[LBES26]` and Section 3.1 of `[CiC25]`;
 * `dc_ec`, `DecodeChunks_EncodeChunks` and `Decode_Encode`: decoding inverts
   encoding;
 * `Unpack_Pack` and `Pack_Unpack`: unpacking inverts packing, and back;
@@ -296,5 +299,26 @@ theorem Unpack_Pack (p : Params) (hw : p.WellFormed) {r c : ℕ} (M : FrodoMatri
 theorem Pack_Unpack (p : Params) (hw : p.WellFormed) (r c : ℕ)
     (b : Vector Bool (r * c * p.D)) : Pack p (Unpack p r c b) = b :=
   matrixToBitsWith_bitsToMatrixWith (entryToBits_bitsToEntry p hw) r c b
+
+/-- `Sample` returns an integer between `-d` and `d`: it counts at most `d`
+comparisons and then chooses a sign. No assumptions on the thresholds are needed. -/
+theorem Sample_bounds (table : ErrorTable) (r : Vector Bool lenChi) :
+    -(table.d : ℤ) ≤ Sample table r ∧ Sample table r ≤ (table.d : ℤ) := by
+  unfold Sample
+  dsimp only
+  split <;> constructor <;> try simp only [neg_le_neg_iff, Int.ofNat_le]
+  all_goals first
+    | omega
+    | simpa only [List.length_finRange] using
+        (List.countP_le_length (l := List.finRange table.d) (p := _))
+
+/-- Every entry of `SampleMatrix` lies between `-d` and `d`, by the scalar
+bound applied to its input block. -/
+theorem SampleMatrix_bounds (table : ErrorTable) (rows cols : ℕ)
+    (r : Vector Bool (rows * cols * lenChi)) (i : Fin rows) (j : Fin cols) :
+    -(table.d : ℤ) ≤ SampleMatrix table rows cols r i j ∧
+      SampleMatrix table rows cols r i j ≤ (table.d : ℤ) := by
+  dsimp only [SampleMatrix, bitsToMatrixWith, Matrix.of_apply]
+  exact Sample_bounds table _
 
 end FrodoKEM
