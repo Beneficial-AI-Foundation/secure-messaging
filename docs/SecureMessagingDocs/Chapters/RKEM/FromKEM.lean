@@ -31,8 +31,46 @@ RKEM from KEM.
 :::defTitle "rkem_from_kem_spec" "RKEM from KEM construction"
 :::
 
-:::definition "rkem_from_kem_spec" (parent := "rkem_rkem_from_kem") (lean := "kemRKEM.scheme")
+::::definition "rkem_from_kem_spec" (parent := "rkem_rkem_from_kem") (lean := "kemRKEM.scheme")
 $`\todo`
+
+:::leanPillCaption "fresh/updated ratcheting key generation"
+:::
+
+```anchor rkeygen (project := ".") (module := SecureMessaging.RKEM.FromKEM.Construction)
+def rkeygen {m : Type → Type u} [Monad m] {K PK SK C : Type}
+    (kem : KEMScheme m K PK SK C) : Unit → m (PK × SK) :=
+  fun _ => kem.keygen
+```
+
+:::leanPillCaption "encapsulation"
+:::
+
+```anchor renc (project := ".") (module := SecureMessaging.RKEM.FromKEM.Construction)
+def renc {m : Type → Type u} [Monad m] {K PK SK C : Type}
+    (kem : KEMScheme m K PK SK C) (_par : Unit) (ekPeer : PK) (_dkSelf : SK) :
+    m ((PK × C) × K × SK) := do
+  let (ct, key) ← kem.encaps ekPeer
+  let (ekSelfHat, dkSelfHat) ← kem.keygen
+  return ((ekSelfHat, ct), key, dkSelfHat)
+```
+
+:::leanPillCaption "decapsulation"
+:::
+
+```anchor rdec (project := ".") (module := SecureMessaging.RKEM.FromKEM.Construction)
+def rdec {m : Type → Type u} [Monad m] {K PK SK C : Type}
+    (kem : KEMScheme m K PK SK C) (_par : Unit) (dkSelfHat : SK) (ctSelf : PK × C) (_ekPeer : PK) :
+    m (Option (K × PK)) := do
+  let (ekPeerHat, ct) := ctSelf
+  let res ← kem.decaps dkSelfHat ct
+  match res with
+  | none => return none
+  | some k => return (k, ekPeerHat)
+```
+
+:::leanPillCaption "generic RKEM scheme"
+:::
 
 ```anchor scheme (project := ".") (module := SecureMessaging.RKEM.FromKEM.Construction)
 def scheme {m : Type → Type u} [Monad m] {K PK SK C : Type}
@@ -48,7 +86,7 @@ def scheme {m : Type → Type u} [Monad m] {K PK SK C : Type}
   rdecB := rdec kem
 ```
 {usesLabel}`uses` {uses "rkem_scheme"}[] · {githubLabel}`github` {githubIssue 75}[]
-:::
+::::
 
 :::defTitle "rkem_from_kem_correctness" "RKEM from KEM correctness"
 :::

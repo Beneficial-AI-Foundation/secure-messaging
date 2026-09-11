@@ -50,9 +50,11 @@ namespace kemRKEM
 
 /-- Fresh/updated ratcheting key generation for the KEM construction: both distributions
 coincide with the underlying KEM's own key generation. -/
+-- ANCHOR: rkeygen
 def rkeygen {m : Type → Type u} [Monad m] {K PK SK C : Type}
     (kem : KEMScheme m K PK SK C) : Unit → m (PK × SK) :=
   fun _ => kem.keygen
+-- ANCHOR_END: rkeygen
 
 /-- KEM-RKEM encapsulation:
 
@@ -64,12 +66,14 @@ REnc-P(êkP̄, dkP):                 -- dkP is unused
 
 P̄ above corresponds to Peer below, while P corresponds to Self.
 -/
+-- ANCHOR: renc
 def renc {m : Type → Type u} [Monad m] {K PK SK C : Type}
     (kem : KEMScheme m K PK SK C) (_par : Unit) (ekPeer : PK) (_dkSelf : SK) :
     m ((PK × C) × K × SK) := do
   let (ct, key) ← kem.encaps ekPeer
   let (ekSelfHat, dkSelfHat) ← kem.keygen
   return ((ekSelfHat, ct), key, dkSelfHat)
+-- ANCHOR_END: renc
 
 /-- KEM-RKEM decapsulation:
 
@@ -80,6 +84,7 @@ RDec-P(d̂kP, ctP, ekP̄):            -- ekP̄ input is unused
 
 P̄ above corresponds to Peer below, while P corresponds to Self.
 -/
+-- ANCHOR: rdec
 def rdec {m : Type → Type u} [Monad m] {K PK SK C : Type}
     (kem : KEMScheme m K PK SK C) (_par : Unit) (dkSelfHat : SK) (ctSelf : PK × C) (_ekPeer : PK) :
     m (Option (K × PK)) := do
@@ -88,6 +93,7 @@ def rdec {m : Type → Type u} [Monad m] {K PK SK C : Type}
   match res with
   | none => return none
   | some k => return (k, ekPeerHat)
+-- ANCHOR_END: rdec
 
 /-- Generic RKEM scheme induced by a KEM ([TripleRatchet, Appendix A.1, Fig. 26]). Public
 parameters are vacuous; the ratcheting key spaces are the KEM's own key spaces, with fresh
