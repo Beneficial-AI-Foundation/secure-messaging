@@ -5,6 +5,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 
 import SecureMessaging.CKA.FromKEM.Security.ChallengeBridge
 import ToVCVio.ProgramLogic.Tactics.Support
+import ToVCVio.EvalDist.Monad.Basic
 
 /-!
 # CKA from KEM — Prefix Injection Simulation
@@ -16,7 +17,7 @@ challenge key pair to the point where the honest game would generate that key
 pair.
 -/
 
-open OracleSpec OracleComp ENNReal KEMScheme
+open ToVCVio OracleSpec OracleComp ENNReal KEMScheme
 open OracleComp.ProgramLogic.Relational
 
 namespace kemCKA
@@ -148,16 +149,14 @@ private lemma ckaSecurityFixedBranch_challenge_key_probOutput_true_eq
   by_cases hinit :
       (gp.challengeEpoch == 1 && gp.challengedParty == .A) = true
   · simp only [hinit, ↓reduceIte]
-    rw [probOutput_bind_const]
-    simp only [probFailure_eq_zero, tsub_zero, one_mul]
+    exact (probOutput_bind_of_const' kem.keygen fun _ _ => rfl).symm
   · have hinitFalse :
         (gp.challengeEpoch == 1 && gp.challengedParty == .A) = false :=
       Bool.eq_false_of_not_eq_true hinit
     simp only [hinitFalse, Bool.false_eq_true, ↓reduceIte]
     refine probOutput_bind_congr' kem.keygen true ?_
     intro pk0_sk0
-    rw [probOutput_bind_const]
-    simp only [probFailure_eq_zero, tsub_zero, one_mul]
+    exact (probOutput_bind_of_const' kem.keygen fun _ _ => rfl).symm
 
 /-- Game hop: the honest fixed branch and
 `ckaSecurityFixedBranchWithChallengeKey` have the same true-output gap. Per

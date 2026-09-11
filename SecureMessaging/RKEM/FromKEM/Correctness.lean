@@ -5,6 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 import SecureMessaging.RKEM.FromKEM.Construction
 import ToVCVio.CryptoFoundations.KeyEncapMech
+import ToVCVio.EvalDist.Monad.Basic
 
 /-!
 # RKEM from KEM — Correctness
@@ -15,19 +16,11 @@ construction is `(δ, δ)`-correct in the sense of [TripleRatchet, Def. 5.3]. Pe
 of the construction (`δ = 0`) is a corollary.
 -/
 
-open OracleSpec OracleComp ENNReal KEMScheme RKEMScheme
+open ToVCVio OracleSpec OracleComp ENNReal KEMScheme RKEMScheme
 
 namespace kemRKEM
 
 variable {K PK SK C : Type}
-
-/-- `probOutput_bind_of_const` specialized to `ProbComp`, where the outer computation never
-fails, so the missing-mass factor `1 - Pr[⊥ | mx]` is always exactly `1`. -/
-private lemma probOutput_bind_of_const' {α β : Type} (mx : ProbComp α) {my : α → ProbComp β}
-    {y : β} {r : ℝ≥0∞} (h : ∀ x ∈ support mx, Pr[= y | my x] = r) :
-    Pr[= y | mx >>= my] = r := by
-  rw [probOutput_bind_of_const mx h, probFailure_eq_zero]
-  simp
 
 /-- `correctExpA` at the KEM-from-KEM scheme agrees on the shared key exactly as often as the
 underlying KEM's own correctness experiment: the extra independent key pairs sampled along the
