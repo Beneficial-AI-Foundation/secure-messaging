@@ -6,6 +6,7 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.RKEM.FromKEM.Construction
 import ToVCVio.CryptoFoundations.KeyEncapMech
 import ToVCVio.EvalDist.Monad.Basic
+import ToVCVio.EvalDist.TVDist
 
 /-!
 # RKEM from KEM — Correctness
@@ -82,13 +83,6 @@ private lemma tvDist_ratchetRoundOutputA_eq_prefixBind
                    | some _ => pure (some (ekAHat, dkAHat)) : ProbComp (Option (PK × SK))) my := by
   unfold tvDist
   rw [evalDist_ratchetRoundOutputA_eq_prefixBind]
-
-/-- Total-variation distance is unaffected by a trailing bind whose result is discarded: `mx`
-never fails, so `mx >>= fun _ => my` has exactly the same distribution as `my`. -/
-private lemma tvDist_bind_const_right {α β : Type} (mx' : ProbComp β) (mx : ProbComp α)
-    (my : ProbComp β) :
-    tvDist mx' (mx >>= fun _ => my) = tvDist mx' my := by
-  unfold tvDist; rw [evalDist_ext (mx := mx >>= fun _ => my) (mx':= my) fun y => by simp]
 
 /-- The distribution of `ratchetRoundOutputA` is within total-variation distance
 `Pr[= false | kem.CorrectExp]` of sampling a fresh pair of keys directly: the two only differ
