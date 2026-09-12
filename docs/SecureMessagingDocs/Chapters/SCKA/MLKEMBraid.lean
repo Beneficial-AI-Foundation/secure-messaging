@@ -7,6 +7,7 @@ import SecureMessagingDocs.Bibliography
 import SecureMessaging.SCKA.MLKEMBraid.Authenticator
 import SecureMessaging.SCKA.MLKEMBraid.Basic
 import SecureMessaging.SCKA.MLKEMBraid.Construction
+import SecureMessaging.SCKA.MLKEMBraid.Correctness
 
 set_option linter.style.setOption false
 set_option linter.hashCommand false
@@ -28,6 +29,7 @@ set_option pp.rawOnError true
 *References:*
 
 - {Informal.citet MLKEM_Braid}[]
+- {Informal.citet SCKA25}[]
 
 :::group "cka_protocols_mlkem_braid"
 ML-KEM Braid ({Informal.citet MLKEM_Braid}[]).
@@ -311,13 +313,14 @@ def scheme (P : Parameters m) [DecidableEq P.Sym]
 :::defTitle "mlkem_braid_correctness" "ML-KEM Braid correctness"
 :::
 
-::::theorem "mlkem_braid_correctness" (parent := "cka_protocols_mlkem_braid")
-$`\todo`
-
-:::leanPill "missing"
+::::theorem "mlkem_braid_correctness" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.correctness_error_le")
+:::leanPillCaption "Formal statements; proofs pending"
 :::
 
-{usesLabel}`uses` {uses "mlkem_braid_spec"}[] · {uses "scka_correctness"}[] · {uses "incremental_kem_scheme"}[] · {githubLabel}`github` {githubIssue 243}[]
+:::leanPill "partial"
+:::
+
+{usesLabel}`uses` {uses "mlkem_braid_spec"}[] · {uses "scka_correctness"}[] · {uses "incremental_kem_scheme"}[] · {uses "erasure_code_correctness"}[] · {githubLabel}`github` {githubIssue 243}[]
 ::::
 
 :::defTitle "mlkem_braid_security" "ML-KEM Braid security"
