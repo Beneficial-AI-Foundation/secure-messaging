@@ -36,7 +36,7 @@ GCM.
 :::defTitle "aead_gcm_spec" "AEAD-GCM construction"
 :::
 
-::::definition "aead_gcm_spec" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD") (tags := "gh-21") (uses := "aead")
+::::definition "aead_gcm_spec" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD") (tags := "gh-21") (uses := "aead, prp")
 GCM-AE of NIST SP 800-38D at a fixed public 96-bit IV, packaged as a one-time AEAD scheme
 over a pseudorandom permutation: the key is the block-cipher key, encryption is GCTR
 counter-mode encryption of the message followed by a GHASH tag over the associated data and
@@ -73,7 +73,7 @@ def gcmOneTimeAEAD {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ)
 :::defTitle "aead_gcm_correctness" "AEAD-GCM correctness"
 :::
 
-::::theorem "aead_gcm_correctness" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD_correct") (tags := "gh-22") (uses := "aead_gcm_spec, aead_correctness")
+::::theorem "aead_gcm_correctness" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD_correct") (tags := "gh-22") (uses := "aead_gcm_spec, aead_correctness, prp")
 Decrypting an honestly produced ciphertext under the same key and associated data returns the
 plaintext: the keystream is deterministic in the key and IV, so GCTR is its own inverse, and
 the recomputed tag matches.
@@ -88,7 +88,7 @@ theorem gcmOneTimeAEAD_correct {K : Type} (prp : PRPScheme K (BitVec 128)) {L : 
 :::defTitle "aead_gcm_security" "AEAD-GCM security"
 :::
 
-::::theorem "aead_gcm_security" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD_security") (tags := "gh-23") (uses := "aead_gcm_spec, aead_security_exp, aead_dist_advantage, aead_decrypt_query_bound")
+::::theorem "aead_gcm_security" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD_security") (tags := "gh-23") (uses := "aead_gcm_spec, aead_security_exp, aead_dist_advantage, aead_decrypt_query_bound, prp")
 One-time IND-CCA security of GCM at the all-zero 96-bit IV reduces to the PRP
 security of its block cipher. The distinguishing advantage is at most
 $`\mathrm{Adv}^{\mathrm{prp}}` of the explicit reduction
