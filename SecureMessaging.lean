@@ -2,9 +2,12 @@ import SecureMessaging.AEAD.GCM
 import SecureMessaging.AEAD.Defs
 import SecureMessaging.AEAD.FromGCM.Construction
 import SecureMessaging.AEAD.FromGCM.Correctness
+import SecureMessaging.AEAD.FromGCM.Security.Axu
 import SecureMessaging.AEAD.FromGCM.Security.CipherProfile
 import SecureMessaging.AEAD.FromGCM.Security.Counter
 import SecureMessaging.AEAD.FromGCM.Security.Encoding
+import SecureMessaging.AEAD.FromGCM.Security.GhashAXU
+import SecureMessaging.AEAD.FromGCM.Security.GhashPolynomial
 import SecureMessaging.AEAD.FromEtM.Construction
 import SecureMessaging.AEAD.FromEtM.Correctness
 import SecureMessaging.AEAD.FromEtM.Security
