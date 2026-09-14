@@ -2,6 +2,7 @@ import SecureMessaging.AEAD.GCM
 import SecureMessaging.AEAD.Defs
 import SecureMessaging.AEAD.FromGCM.Construction
 import SecureMessaging.AEAD.FromGCM.Correctness
+import SecureMessaging.AEAD.FromGCM.Security
 import SecureMessaging.AEAD.FromGCM.Security.AuthHop
 import SecureMessaging.AEAD.FromGCM.Security.Axu
 import SecureMessaging.AEAD.FromGCM.Security.CipherProfile
@@ -13,6 +14,7 @@ import SecureMessaging.AEAD.FromGCM.Security.NistIrreducible
 import SecureMessaging.AEAD.FromGCM.Security.GhashPolynomial
 import SecureMessaging.AEAD.FromGCM.Security.PrfHop
 import SecureMessaging.AEAD.FromGCM.Security.PrivacyHop
+import SecureMessaging.AEAD.FromGCM.Security.PrpSwitch
 import SecureMessaging.AEAD.FromEtM.Construction
 import SecureMessaging.AEAD.FromEtM.Correctness
 import SecureMessaging.AEAD.FromEtM.Security
