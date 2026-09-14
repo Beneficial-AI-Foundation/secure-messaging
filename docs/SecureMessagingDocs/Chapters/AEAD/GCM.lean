@@ -66,7 +66,7 @@ def gcmOneTimeAEAD {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ)
   decrypt := fun k ad c => gcmDecrypt prp.toBlockCipher k (0 : BitVec 96) ad.1.2 c
 ```
 
-{usesLabel}`uses` {uses "aead"}[] · {githubLabel}`github` {githubIssue 21}[]
+{usesLabel}`uses` {uses "aead"}[] · {uses "prp"}[] · {githubLabel}`github` {githubIssue 21}[]
 ::::
 
 :::defTitle "aead_gcm_correctness" "AEAD-GCM correctness"
@@ -81,7 +81,7 @@ theorem gcmOneTimeAEAD_correct {K : Type} (prp : PRPScheme K (BitVec 128)) {L : 
     (gcmOneTimeAEAD prp L hL).Correct
 ```
 
-{usesLabel}`uses` {uses "aead_gcm_spec"}[] · {uses "aead_correctness"}[] · {githubLabel}`github` {githubIssue 22}[]
+{usesLabel}`uses` {uses "aead_gcm_spec"}[] · {uses "aead_correctness"}[] · {uses "prp"}[] · {githubLabel}`github` {githubIssue 22}[]
 ::::
 
 :::defTitle "aead_gcm_security" "AEAD-GCM security"
@@ -114,5 +114,5 @@ theorem gcmOneTimeAEAD_security (prp : PRPScheme K (BitVec 128)) (L : ℕ)
       (q_d : ℝ) * ((maxBlocks L : ℝ) / 2 ^ (128 : ℕ))
 ```
 
-{usesLabel}`uses` {uses "aead_gcm_spec"}[] · {uses "aead_security_exp"}[] · {uses "aead_dist_advantage"}[] · {uses "aead_decrypt_query_bound"}[] · {githubLabel}`github` {githubIssue 23}[]
+{usesLabel}`uses` {uses "aead_gcm_spec"}[] · {uses "aead_security_exp"}[] · {uses "aead_dist_advantage"}[] · {uses "aead_decrypt_query_bound"}[] · {uses "prp"}[] · {githubLabel}`github` {githubIssue 23}[]
 ::::

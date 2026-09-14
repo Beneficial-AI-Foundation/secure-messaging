@@ -4,9 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.PRP.Defs
-import SecureMessaging.AEAD.FromGCM.Security.PrfHop
+import ToVCVio.CryptoFoundations.PRP
 import ToVCVio.EvalDist.UniformInjection
+import SecureMessaging.AEAD.FromGCM.Security.PrfHop
 
 /-!
 # GCM: PRP/PRF switching

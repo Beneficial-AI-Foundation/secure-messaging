@@ -30,7 +30,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "prf_prng_scheme"}[] · {githubLabel}`github` {githubIssue 36}[]
+{usesLabel}`uses` {uses "prf_prng_scheme"}[] · {uses "prp"}[] · {githubLabel}`github` {githubIssue 36}[]
 ::::
 
 :::defTitle "prf_prng_from_prp_prg_security" "PRF-PRNG from PRP and PRG security"
@@ -42,5 +42,5 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "prf_prng_from_prp_prg_spec"}[] · {uses "prf_prng_scheme"}[] · {uses "prf_prng_security"}[] · {githubLabel}`github` {githubIssue 37}[]
+{usesLabel}`uses` {uses "prf_prng_from_prp_prg_spec"}[] · {uses "prf_prng_scheme"}[] · {uses "prf_prng_security"}[] · {uses "prp"}[] · {githubLabel}`github` {githubIssue 37}[]
 ::::
