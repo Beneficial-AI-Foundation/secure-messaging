@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.AEAD.GCM
 import SecureMessaging.AEAD.Defs
-import SecureMessaging.PRP.Defs
+import ToVCVio.CryptoFoundations.PRP
 
 /-!
 # One-time-key GCM as an `AEADScheme` (ACD19)

@@ -14,31 +14,23 @@ A pseudorandom permutation (PRP) is the abstract model of a block cipher: a keye
 invertible map on a block space `X` that no efficient adversary can distinguish
 from a uniformly random permutation of `X`.
 
-## Main definitions
-
-- `PRPScheme.prpRealExp` is *defined* to be `PRFScheme.prfRealExp prp.toPRFScheme`, so the PRP
-  and the PRF game share one and the same real experiment and differ only on their ideal sides.
-  That is the premise the PRP/PRF switching inequality rests on: the two advantages are
-  `|R - I_prp|` and `|R - I_prf|` over a common real term `R`. `PRPScheme.prpRealExp_eq` records
-  that this body is definitionally the experiment built from `oracleUnif` and `oraclePerm` via
-  `prpQueryImpl`, so choosing it discards nothing.
-- `PRPScheme.prpIdealExp` draws its permutation wholesale with `$ᵗ (Equiv.Perm X)`, the
-  canonical ideal experiment.
-- Its tractable companion (a without-replacement sampler over a *fixed list* of query points,
-  together with the distributional equivalence relating the two) is generic, so it lives in
-  `ToVCVio/CryptoFoundations/PRPSwitching.lean` rather than here.
+The PRP game is set up exactly like VCVio's PRF game: same oracle spec, same adversary type,
+real/ideal experiments and an absolute-difference advantage. The real experiment `prpRealExp`
+is *defined* as the PRF real experiment of `toPRFScheme`, so the two games share their real
+side and differ only in the ideal one, which is what the PRP/PRF switching lemma [BR]
+compares. Candidate for upstream VCVio.
 
 ## References
 
-- [BR] Bellare, Rogaway. *Code-Based Game-Playing Proofs and the Security of
-  Triple Encryption.* EUROCRYPT 2006, https://eprint.iacr.org/2004/331.pdf —
-  the PRP/PRF switching lemma and its `q²/2ⁿ⁺¹` bound.
+- [BR] Bellare, Rogaway. *The Security of Triple Encryption and a Framework for Code-Based
+  Game-Playing Proofs.* EUROCRYPT 2006, https://eprint.iacr.org/2004/331.pdf
 -/
 
 open OracleSpec OracleComp
 
 /-- A block cipher (NIST SP 800-38D §5.1): a keyed permutation on `X`, given as
 forward/inverse functions that are mutually inverse for every key (`correct`). -/
+-- ANCHOR: BlockCipher
 structure BlockCipher (K X : Type) where
   /-- The forward cipher function `CIPHₖ`. -/
   perm : K → X → X
@@ -46,20 +38,21 @@ structure BlockCipher (K X : Type) where
   invPerm : K → X → X
   /-- `perm k` and `invPerm k` are mutually inverse for every key `k`. -/
   correct : ∀ k x, invPerm k (perm k x) = x ∧ perm k (invPerm k x) = x
+-- ANCHOR_END: BlockCipher
 
 /-- A pseudorandom permutation scheme: a `BlockCipher` plus randomized key
 generation (`keygen`). -/
+-- ANCHOR: PRPScheme
 structure PRPScheme (K X : Type) extends BlockCipher K X where
   /-- Randomized key generation. -/
   keygen : ProbComp K
+-- ANCHOR_END: PRPScheme
 
 namespace PRPScheme
 
 variable {K X : Type}
 
-/-- View a PRP as a `PRFScheme` by forgetting invertibility and keeping only the
-forward permutation (`eval := perm`). The PRP/PRF switching lemma transfers PRP
-security to this PRF view. -/
+/-- A PRP viewed as a PRF: keep the forward permutation, forget the inverse. -/
 def toPRFScheme (prp : PRPScheme K X) : PRFScheme K X X :=
   { keygen := prp.keygen, eval := prp.perm }
 
@@ -83,35 +76,37 @@ def oraclePerm (g : X → X) : QueryImpl (X →ₒ X) ProbComp :=
 def prpQueryImpl (g : X → X) : QueryImpl (PRPOracleSpec X) ProbComp :=
   oracleUnif + oraclePerm g
 
-/-- Real experiment: runs the adversary against the keyed permutation. -/
-noncomputable def prpRealExp (prp : PRPScheme K X) (adversary : PRPAdversary X) :
+/-- Real experiment: the adversary against the keyed permutation, shared with the PRF game of
+`toPRFScheme`. `prpRealExp_eq` is the unfolded form. -/
+def prpRealExp (prp : PRPScheme K X) (adversary : PRPAdversary X) :
     ProbComp Bool :=
   PRFScheme.prfRealExp prp.toPRFScheme adversary
 
-/-- The real experiment, unfolded. -/
 theorem prpRealExp_eq (prp : PRPScheme K X) (adversary : PRPAdversary X) :
     prpRealExp prp adversary =
       (do let k ← prp.keygen; simulateQ (prpQueryImpl (prp.perm k)) adversary) :=
   rfl
 
-/-- Ideal experiment: runs the adversary against a uniformly random permutation. -/
+/-- Ideal experiment: the adversary against a uniformly random permutation. -/
 def prpIdealExp [SampleableType (Equiv.Perm X)] (adversary : PRPAdversary X) :
     ProbComp Bool := do
   let π ← $ᵗ (Equiv.Perm X)
   simulateQ (prpQueryImpl fun x => π x) adversary
 
-/-- The PRP advantage: the gap between the adversary's success probabilities in
-the real and ideal experiments. -/
+/-- The PRP advantage: the gap between the adversary's acceptance probabilities in the real
+and ideal experiments. Its real term is literally that of `prfAdvantage prp.toPRFScheme`, so
+the two advantages differ only through their ideal experiments. -/
+-- ANCHOR: prpAdvantage
 noncomputable def prpAdvantage [SampleableType (Equiv.Perm X)]
     (prp : PRPScheme K X) (adversary : PRPAdversary X) : ℝ :=
   |(Pr[= true | prpRealExp prp adversary]).toReal -
     (Pr[= true | prpIdealExp adversary]).toReal|
+-- ANCHOR_END: prpAdvantage
 
-/-- `prpQueryImpl g` viewed as a PRF scheme with a trivial key. -/
+/-- `prpQueryImpl g` as a PRF scheme with a trivial key, to reuse the PRF forwarding lemmas. -/
 private def asPRF (g : X → X) : PRFScheme Unit X X :=
   { keygen := pure (), eval := fun _ x => g x }
 
-/-- A single permutation-oracle (`Sum.inr`) query under `prpQueryImpl g` returns `g d`. -/
 theorem simulateQ_prpQueryImpl_inr (g : X → X) (d : X) :
     simulateQ (prpQueryImpl g)
       ((liftM (OracleSpec.query (Sum.inr d) :
@@ -119,9 +114,6 @@ theorem simulateQ_prpQueryImpl_inr (g : X → X) (d : X) :
       = pure (g d) :=
   PRFScheme.simulateQ_prfRealQueryImpl_inr (asPRF g) () d
 
-/-- A fixed list of permutation-oracle queries under `prpQueryImpl g` collapses to `pure` of
-the list of images: the eager fetch loop of a non-adaptive distinguisher carries no
-probabilistic content on the real side. -/
 theorem simulateQ_prpQueryImpl_mapM_inr (g : X → X) (pts : List X) :
     simulateQ (prpQueryImpl g)
       (pts.mapM (fun t => liftM (OracleSpec.query (Sum.inr t) :
@@ -131,7 +123,7 @@ theorem simulateQ_prpQueryImpl_mapM_inr (g : X → X) (pts : List X) :
     OracleQuery.cont_query, prpQueryImpl, QueryImpl.add_apply_inr, oraclePerm, map_pure, id_eq,
     List.mapM_pure]
 
-/-- A computation using only the uniform-sampling oracles is unchanged by `prpQueryImpl g`. -/
+/-- A computation that only samples uniformly is unchanged by `prpQueryImpl g`. -/
 theorem simulateQ_prpQueryImpl_liftComp {β : Type} (g : X → X)
     (ob : OracleComp unifSpec β) :
     simulateQ (prpQueryImpl g)

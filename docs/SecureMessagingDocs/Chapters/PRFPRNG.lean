@@ -2,6 +2,7 @@ import VersoManual
 import VersoBlueprint
 import SecureMessagingDocs.Bibliography
 import SecureMessagingDocs.Chapters.PRFPRNG.Defs
+import SecureMessagingDocs.Chapters.PRFPRNG.PRP
 import SecureMessagingDocs.Chapters.PRFPRNG.FromPRPPRG
 
 open Verso.Genre
@@ -17,5 +18,7 @@ set_option doc.verso true
 - {Informal.citet ACD19}[]
 
 {include 1 SecureMessagingDocs.Chapters.PRFPRNG.Defs}
+
+{include 1 SecureMessagingDocs.Chapters.PRFPRNG.PRP}
 
 {include 1 SecureMessagingDocs.Chapters.PRFPRNG.FromPRPPRG}

@@ -1,6 +1,7 @@
 import ToVCVio.Control.StateT
 import ToVCVio.CryptoFoundations.AdjoinRootReflect
 import ToVCVio.CryptoFoundations.KeyEncapMech
+import ToVCVio.CryptoFoundations.PRP
 import ToVCVio.CryptoFoundations.PRPSwitching
 import ToVCVio.CryptoFoundations.RabinIrreducibility
 import ToVCVio.CryptoFoundations.UniversalHash
