@@ -41,6 +41,8 @@ Relative to the monad structure of `ProbComp`:
   most `1`;
 * `expectedPayoff_le_const_of_support` — without missing mass, a bound on every
   possible output payoff bounds the expectation;
+* `tsum_probOutput_count_le` — an expected count charged at a fixed rate and
+  bounded on the support collapses to the constant bound;
 * `expectedPayoff_add_const_le` — adding `c` to every returned-output payoff
   increases the expectation by at most `c`.
 
@@ -151,6 +153,27 @@ lemma expectedPayoff_le_const_of_support {A : Type} (oa : ProbComp A)
     _ = (∑' a, Pr[= a | oa]) * c := ENNReal.tsum_mul_right
     _ ≤ 1 * c := mul_le_mul' tsum_probOutput_le_one le_rfl
     _ = c := one_mul c
+
+/-- An expected count charged at rate `ε` and bounded by `n` on the support collapses to
+`n * ε`: the failure-free sibling of `expectedPayoff_le_const_of_support`, and the public,
+support-restricted form of VCVio's private `tsum_probOutput_mul_le_const`. -/
+theorem tsum_probOutput_count_le {Z : Type} (μ : ProbComp Z) (cnt : Z → ℕ) (n : ℕ) (ε : ℝ≥0∞)
+    (h : ∀ z ∈ support μ, cnt z ≤ n) :
+    ∑' z, Pr[= z | μ] * (cnt z : ℝ≥0∞) * ε ≤ (n : ℝ≥0∞) * ε := by
+  calc ∑' z, Pr[= z | μ] * (cnt z : ℝ≥0∞) * ε
+      ≤ ∑' _z : Z, Pr[= _z | μ] * ((n : ℝ≥0∞) * ε) := by
+        refine ENNReal.tsum_le_tsum fun z => ?_
+        rcases Classical.em (z ∈ support μ) with hz | hz
+        · rw [mul_assoc]
+          gcongr
+          exact Nat.cast_le.2 (h z hz)
+        · rw [probOutput_eq_zero_of_not_mem_support hz]
+          simp
+    _ = (∑' z : Z, Pr[= z | μ]) * ((n : ℝ≥0∞) * ε) := ENNReal.tsum_mul_right
+    _ ≤ 1 * ((n : ℝ≥0∞) * ε) := by
+        gcongr
+        exact tsum_probOutput_le_one
+    _ = (n : ℝ≥0∞) * ε := one_mul _
 
 /-- Adding `c` to every returned-output payoff increases the failure-aware
 expectation by at most `c`. -/
