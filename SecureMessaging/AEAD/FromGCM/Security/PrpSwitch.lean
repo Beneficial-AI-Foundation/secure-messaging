@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.PRP.Defs
+import ToVCVio.CryptoFoundations.PRP
 import ToVCVio.CryptoFoundations.PRPSwitching
 import SecureMessaging.AEAD.FromGCM.Security.PrfHop
 

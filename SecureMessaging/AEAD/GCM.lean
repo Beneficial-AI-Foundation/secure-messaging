@@ -5,7 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import Mathlib.Data.BitVec
-import SecureMessaging.PRP.Defs
+import ToVCVio.CryptoFoundations.PRP
 
 /-!
 # GCM authenticated encryption (NIST SP 800-38D §6–§7)
