@@ -7,6 +7,7 @@ import SecureMessaging.AEAD.FromGCM.Security.CipherProfile
 import SecureMessaging.AEAD.FromGCM.Security.Counter
 import SecureMessaging.AEAD.FromGCM.Security.Encoding
 import SecureMessaging.AEAD.FromGCM.Security.GhashAXU
+import SecureMessaging.AEAD.FromGCM.Security.NistIrreducible
 import SecureMessaging.AEAD.FromGCM.Security.OneTimePad
 import SecureMessaging.AEAD.FromGCM.Security.Polynomial
 import SecureMessaging.AEAD.FromEtM.Construction
