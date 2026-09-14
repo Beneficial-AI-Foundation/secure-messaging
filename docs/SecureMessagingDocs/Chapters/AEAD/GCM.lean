@@ -6,6 +6,7 @@ import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessaging.AEAD.FromGCM.Construction
 import SecureMessaging.AEAD.FromGCM.Correctness
+import SecureMessaging.AEAD.FromGCM.Security
 
 set_option linter.style.setOption false
 set_option linter.hashCommand false
@@ -86,11 +87,32 @@ theorem gcmOneTimeAEAD_correct {K : Type} (prp : PRPScheme K (BitVec 128)) {L : 
 :::defTitle "aead_gcm_security" "AEAD-GCM security"
 :::
 
-::::theorem "aead_gcm_security" (parent := "aead_gcm")
-$`\todo`
+::::theorem "aead_gcm_security" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD_security")
+One-time IND-CCA security of GCM at the all-zero 96-bit IV reduces to the PRP
+security of its block cipher. The distinguishing advantage is at most
+$`\mathrm{Adv}^{\mathrm{prp}}` of the explicit reduction
+$`B = \mathsf{prfReduction}\ L\ A`, plus the PRP/PRF switching term
+$`(n+2)(n+1)/2^{129}` with $`n = \lceil L/128 \rceil`, plus
+$`q_d \cdot \mathsf{maxBlocks}(L)/2^{128}`, where $`q_d` bounds the adversary's
+decryption queries.
 
-:::leanPill "missing"
-:::
+The switching term is a birthday term in the number of *block-cipher calls* made by
+one encryption (the hash key, the tag mask, and one keystream block per message
+block, so $`q = n + 2`), not in the number of adversary queries; it does not
+disappear in the one-time setting. Neither an almost-XOR-universality hypothesis nor
+a PRF hypothesis remains.
 
-{usesLabel}`uses` {uses "aead_gcm_spec"}[] · {uses "aead_security_exp"}[] · {githubLabel}`github` {githubIssue 23}[]
+```anchor gcmOneTimeAEAD_security (project := ".") (module := SecureMessaging.AEAD.FromGCM.Security)
+theorem gcmOneTimeAEAD_security (prp : PRPScheme K (BitVec 128)) (L : ℕ)
+    (hL : ValidMsgLength L)
+    (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
+    (q_d : ℕ) (hq : AEADScheme.decryptQueryBound adv q_d) :
+    AEADScheme.distAdvantage (gcmOneTimeAEAD prp L hL) adv ≤
+      PRPScheme.prpAdvantage prp (prfReduction L adv) +
+      ((((L + 127) / 128 : ℕ) : ℝ) + 2) * ((((L + 127) / 128 : ℕ) : ℝ) + 1)
+        / 2 ^ (129 : ℕ) +
+      (q_d : ℝ) * ((maxBlocks L : ℝ) / 2 ^ (128 : ℕ))
+```
+
+{usesLabel}`uses` {uses "aead_gcm_spec"}[] · {uses "aead_security_exp"}[] · {uses "aead_dist_advantage"}[] · {uses "aead_decrypt_query_bound"}[] · {githubLabel}`github` {githubIssue 23}[]
 ::::
