@@ -84,17 +84,18 @@ certificates report exactly `[propext, Quot.sound]`, and this theorem reports ex
 `[propext, Classical.choice, Quot.sound]`.
 
 The soundness layer is `ToVCVio.irreducible_of_rabin_root`, cryptography-free and generic over any
-finite field. Its forward half is Mathlib's own
-`Irreducible.natDegree_dvd_of_dvd_X_pow_card_pow_sub_X`
-(`Mathlib/FieldTheory/Finite/Extension.lean:161`); only the converse had to be supplied.
+finite field. Its degree-theoretic input, `ToVCVio.natDegree_dvd_iff_dvd_X_pow_card_pow_sub_X`, has
+its forward direction in Mathlib (`Irreducible.natDegree_dvd_of_dvd_X_pow_card_pow_sub_X`,
+`Mathlib/FieldTheory/Finite/Extension.lean`); the converse landed upstream as Mathlib PR #39239
+(v4.33.0) and is carried locally until the toolchain bump.
 
 The transport from `BitVec 128` arithmetic into `AdjoinRoot nistPoly` is `reflectN`, via
 `reflectN_alpha`, `reflectN_sqIter` and `reflect_gfmul`. The characteristic-2 collapse of the
 subtraction is `adjoinRoot_neg_eq_self` (`Security/GhashAXU.lean`). -/
 theorem nistPoly_irreducible : Irreducible nistPoly := by
-  have hcard : Fintype.card (ZMod 2) = 2 := ZMod.card 2
+  have hcard : Nat.card (ZMod 2) = 2 := Nat.card_zmod 2
   have hpos : 0 < nistPoly.natDegree := by rw [nistPoly_natDegree]; omega
-  refine ToVCVio.irreducible_of_rabin_root nistPoly_monic hpos ?_ (fun p hp hpn => ?_)
+  refine ToVCVio.irreducible_of_rabin_root hpos ?_ (fun p hp hpn => ?_)
   · rw [hcard, nistPoly_natDegree, ← reflectN_alpha, ← reflectN_sqIter, kernel_rabin1]
   · rw [nistPoly_natDegree] at hpn
     have hp2 : p = 2 := by
