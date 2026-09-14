@@ -1,7 +1,9 @@
 import ToVCVio.Control.StateT
 import ToVCVio.CryptoFoundations.KeyEncapMech
+import ToVCVio.CryptoFoundations.PRPSwitching
 import ToVCVio.EvalDist.Monad.Basic
 import ToVCVio.EvalDist.TVDist
+import ToVCVio.EvalDist.UniformInjection
 import ToVCVio.LatticeCrypto.FrodoKEM.Parameters
 import ToVCVio.LatticeCrypto.FrodoKEM.Bits
 import ToVCVio.LatticeCrypto.FrodoKEM.Encoding
