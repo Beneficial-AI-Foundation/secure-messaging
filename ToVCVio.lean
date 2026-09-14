@@ -1,7 +1,9 @@
 import ToVCVio.Control.StateT
+import ToVCVio.CryptoFoundations.AdjoinRootReflect
 import ToVCVio.CryptoFoundations.KeyEncapMech
 import ToVCVio.CryptoFoundations.PRF
 import ToVCVio.CryptoFoundations.PRPSwitching
+import ToVCVio.CryptoFoundations.RabinIrreducibility
 import ToVCVio.CryptoFoundations.UniversalHash
 import ToVCVio.CryptoFoundations.WegmanCarter
 import ToVCVio.CryptoFoundations.WegmanCarterBound
