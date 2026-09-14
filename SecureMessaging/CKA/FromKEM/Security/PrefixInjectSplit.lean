@@ -171,7 +171,7 @@ private lemma securityImplWithChallengeKeyPair_run_eq_securityImpl_of_step
 For `.pausedA`/`.pausedB`, run the installing send under `impl` and simulate the
 recorded continuation on the resulting state.  For `.done`, the run already
 finished, so its result and final state are returned unchanged. -/
-private def injectResume [SampleableType K] [DecidableEq K]
+private def injectResume
     (kem : KEMScheme ProbComp K PK SK C)
     (leak : RandLeak kem)
     (impl : QueryImpl (securitySpec leak) (StateT (SecurityState K PK SK C) ProbComp))
