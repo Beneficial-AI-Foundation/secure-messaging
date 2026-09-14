@@ -58,7 +58,7 @@ theorem decapsInternal_eq_encapsKey_of_decrypt_eq
       = (encapsInternal ring encoding prims
           (keygenInternal ring encoding prims d z).1 m).1 := by
   simp only [keygenInternal, encapsInternal, decapsInternal] at hrec ⊢
-  rw [hrec]
+  simp only [hrec]
   simp
 
 /-- The K-PKE recovery experiment: sample the same `(d, z, m)` as the ML-KEM

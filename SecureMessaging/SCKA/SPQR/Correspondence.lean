@@ -165,8 +165,9 @@ theorem recvSCKA_toMLKEMBraid (P : MLKEMBraid.Parameters m) [DecidableEq P.Sym]
     := by
   obtain ⟨e, payload⟩ := msg
   cases st <;> cases payload <;>
+    simp only [Chunked.Message.toMLKEMBraid] at h ⊢ <;>
     simp [recvSCKA, Chunked.recv, MLKEMBraid.recvSCKA, MLKEMBraid.receive,
-      Chunked.PartyState.toMLKEMBraid, Chunked.Message.toMLKEMBraid,
+      Chunked.PartyState.toMLKEMBraid,
       Chunked.PartyState.epoch, MLKEMBraid.State.epoch, MLKEMBraid.Message.wellFormed,
       Chunked.completeCt2, EkSender.sendVector, EkSender.recvCt1, EkSender.recvCt2,
       CtSender.recvHeader, CtSender.recvVector, CtSender.recvNextEpoch] at h ⊢ <;>

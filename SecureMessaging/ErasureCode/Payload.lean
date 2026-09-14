@@ -40,8 +40,8 @@ def chunkToNat {ec : ErasureCode Sym} :
 theorem encodeChunks_insert (ec : ErasureCode Sym)
     (M : Fin ec.nchunk → Sym) (I : Finset (Fin ec.N)) (i : Fin ec.N) :
     ec.encodeChunks M (insert i I) = insert (i, ec.encode M i) (ec.encodeChunks M I) := by
-  ext chunk
-  simp [ErasureCode.encodeChunks, eq_comm]
+  rw [ErasureCode.encodeChunks, Finset.map_insert]
+  rfl
 
 end ErasureCode
 

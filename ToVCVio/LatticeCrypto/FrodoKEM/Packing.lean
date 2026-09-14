@@ -90,7 +90,7 @@ the entries along a row, and the rows themselves;
 example : Unpack ParameterSet.FrodoKEM640.params 2 2
     (Vector.ofFn fun i : Fin (2 * 2 * 15) =>
       decide (i.val = 14 ∨ i.val = 28 ∨ i.val = 43 ∨ i.val = 44 ∨ i.val = 57)) =
-      Matrix.of ![![(1 : ZMod 32768), 2], ![3, 4]] := by decide
+      Matrix.of ![![(1 : ZMod ParameterSet.FrodoKEM640.params.q), 2], ![3, 4]] := by decide
 
 /-- The bits of entry `(i, j)` sit at positions `(i * c + j) * D` onwards. -/
 theorem getElem_Pack (p : Params) {r c : ℕ} (M : FrodoMatrix p r c) {i j l : ℕ}
