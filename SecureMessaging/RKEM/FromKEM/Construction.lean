@@ -50,25 +50,41 @@ namespace kemRKEM
 
 /-- Fresh/updated ratcheting key generation for the KEM construction: both distributions
 coincide with the underlying KEM's own key generation. -/
+-- ANCHOR: rkeygen
 def rkeygen {m : Type → Type u} [Monad m] {K PK SK C : Type}
     (kem : KEMScheme m K PK SK C) : Unit → m (PK × SK) :=
   fun _ => kem.keygen
+-- ANCHOR_END: rkeygen
 
-/-- KEM-RKEM encapsulation towards a peer's current encapsulation key `ekPeer`.
-Encapsulates under `ekPeer`, then independently generates a fresh key pair for the
-sender's own next round; the fresh public key is bundled into the ciphertext. The public
-parameter and the sender's current decapsulation key are unused. -/
+/-- KEM-RKEM encapsulation:
+
+REnc-P(êkP̄, dkP):                 -- dkP is unused
+  (ct, K)     ←$ Enc(êkP̄)
+  (êkP, d̂kP)  ←  KeyGen()
+  ctP̄        := (êkP, ct)
+  return (ctP̄, K, d̂kP)
+
+P̄ above corresponds to Peer below, while P corresponds to Self.
+-/
+-- ANCHOR: renc
 def renc {m : Type → Type u} [Monad m] {K PK SK C : Type}
     (kem : KEMScheme m K PK SK C) (_par : Unit) (ekPeer : PK) (_dkSelf : SK) :
     m ((PK × C) × K × SK) := do
   let (ct, key) ← kem.encaps ekPeer
   let (ekSelfHat, dkSelfHat) ← kem.keygen
   return ((ekSelfHat, ct), key, dkSelfHat)
+-- ANCHOR_END: renc
 
-/-- KEM-RKEM decapsulation: parse the peer's freshly bundled public key out of the
-ciphertext, decapsulate the underlying KEM ciphertext with the receiver's updated
-decapsulation key, and return the peer's new public key as-is. The public parameter and
-the `ekPeer` input, the receiver's previously-known peer key, are unused. -/
+/-- KEM-RKEM decapsulation:
+
+RDec-P(d̂kP, ctP, ekP̄):            -- ekP̄ input is unused
+  parse (êkP̄, ct) ← ctP
+  K ← Dec(d̂kP, ct)
+  return (K, êkP̄)
+
+P̄ above corresponds to Peer below, while P corresponds to Self.
+-/
+-- ANCHOR: rdec
 def rdec {m : Type → Type u} [Monad m] {K PK SK C : Type}
     (kem : KEMScheme m K PK SK C) (_par : Unit) (dkSelfHat : SK) (ctSelf : PK × C) (_ekPeer : PK) :
     m (Option (K × PK)) := do
@@ -77,6 +93,7 @@ def rdec {m : Type → Type u} [Monad m] {K PK SK C : Type}
   match res with
   | none => return none
   | some k => return (k, ekPeerHat)
+-- ANCHOR_END: rdec
 
 /-- Generic RKEM scheme induced by a KEM ([TripleRatchet, Appendix A.1, Fig. 26]). Public
 parameters are vacuous; the ratcheting key spaces are the KEM's own key spaces, with fresh
