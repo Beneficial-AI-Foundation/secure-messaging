@@ -27,7 +27,7 @@ open OracleSpec OracleComp
 /-- A block cipher (NIST SP 800-38D §5.1): a keyed permutation on `X`, given as
 forward/inverse functions that are mutually inverse for every key (`correct`). -/
 structure BlockCipher (K X : Type) where
-  /-- The forward cipher function `CIPHₖ` (§5.1). -/
+  /-- The forward cipher function `CIPHₖ`. -/
   perm : K → X → X
   /-- The inverse cipher function `CIPHₖ⁻¹`. -/
   invPerm : K → X → X
@@ -50,7 +50,8 @@ security to this PRF view. -/
 def toPRFScheme (prp : PRPScheme K X) : PRFScheme K X X :=
   { keygen := prp.keygen, eval := prp.perm }
 
-/-- Oracle spec for the PRP game: uniform randomness plus a permutation oracle. -/
+/-- Oracle spec for the PRP game: uniform randomness plus a permutation oracle. Reducibly equal to
+`PRFScheme.PRFOracleSpec X X`, which is what lets the PRF forwarding lemmas below apply. -/
 def PRPOracleSpec (X : Type) := unifSpec + (X →ₒ X)
 
 /-- A PRP adversary: a computation with access to the PRP oracles, outputting a
