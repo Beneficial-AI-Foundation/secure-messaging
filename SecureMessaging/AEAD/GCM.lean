@@ -95,7 +95,7 @@ def inc32 (x : BitVec 128) : BitVec 128 :=
 
 /-- The GCTR keystream truncated to `p` bits: `MSB_p(blocks[0] ‖ blocks[1] ‖ …)`,
 bit `j` is bit `j % 128` of `blocks[j / 128]` (NIST SP 800-38D §6.5). -/
-private def keystream (blocks : List (BitVec 128)) (p : ℕ) : BitVec p :=
+def keystream (blocks : List (BitVec 128)) (p : ℕ) : BitVec p :=
   (BitVec.ofBoolListBE
     ((List.range p).map fun j => (blocks.getD (j / 128) 0).getMsbD (j % 128))).cast (by simp)
 
