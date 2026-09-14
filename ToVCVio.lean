@@ -2,6 +2,9 @@ import ToVCVio.Control.StateT
 import ToVCVio.CryptoFoundations.KeyEncapMech
 import ToVCVio.CryptoFoundations.PRF
 import ToVCVio.CryptoFoundations.PRPSwitching
+import ToVCVio.CryptoFoundations.UniversalHash
+import ToVCVio.CryptoFoundations.WegmanCarter
+import ToVCVio.CryptoFoundations.WegmanCarterBound
 import ToVCVio.EvalDist.Monad.Basic
 import ToVCVio.EvalDist.TVDist
 import ToVCVio.EvalDist.UniformInjection
