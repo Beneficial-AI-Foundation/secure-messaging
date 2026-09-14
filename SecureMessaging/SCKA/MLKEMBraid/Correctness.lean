@@ -5,6 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.SCKA.MLKEMBraid.Instances
+import SecureMessaging.SCKA.MLKEMBraid.Correctness.MessageReports
 import SecureMessaging.KEM.IncrementalKEM.Correctness.SelectedTrial
 import VCVio.OracleComp.QueryTracking.QueryBound
 
