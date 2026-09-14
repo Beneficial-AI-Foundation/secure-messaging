@@ -10,37 +10,41 @@ import Mathlib.Algebra.Ring.GeomSum
 /-!
 # Rabin's irreducibility test over a finite field
 
-Rabin's test recognises irreducibility of a monic polynomial `f` of positive degree `n` over a
-finite field `K` with `q = Fintype.card K` elements from two conditions:
+Rabin's test characterises irreducibility of a polynomial `f` of positive degree `n` over a
+finite field `K` with `q = Nat.card K` elements by two conditions:
 
 1. `f ∣ X ^ (q ^ n) - X`, and
 2. `IsCoprime f (X ^ (q ^ (n / p)) - X)` for every prime `p ∣ n`.
 
-Mathlib supplies the hard half of the first condition, the forward implication
-`Irreducible.natDegree_dvd_of_dvd_X_pow_card_pow_sub_X`. Missing is its converse,
-`dvd_X_pow_card_pow_natDegree_sub_X` below, which follows from `FiniteField.pow_card` in the
-finite field `AdjoinRoot g` together with the power basis of that extension. Everything else in
-this file is bookkeeping around those two facts.
+The degree-theoretic input is `natDegree_dvd_iff_dvd_X_pow_card_pow_sub_X`: an irreducible `g`
+divides `X ^ (q ^ m) - X` exactly when `g.natDegree ∣ m`. Everything else in this file is
+bookkeeping around that fact.
 
 ## Main Results
 
-- `dvd_X_pow_card_pow_natDegree_sub_X`: an irreducible `g` divides `X ^ (q ^ g.natDegree) - X`,
-  the converse Mathlib lacks.
-- `dvd_X_pow_card_pow_sub_X_of_natDegree_dvd`: the same divisibility at any multiple of
-  `g.natDegree`.
+- `natDegree_dvd_iff_dvd_X_pow_card_pow_sub_X`: the degree/divisibility characterisation for an
+  irreducible `g`. Mathlib at this toolchain (v4.32.0) has only the forward direction,
+  `Irreducible.natDegree_dvd_of_dvd_X_pow_card_pow_sub_X`; the converse is proved here.
 - `exists_prime_dvd_and_dvd_div`: a proper divisor `d` of `n` divides `n / p` for some prime
   `p ∣ n`.
 - `isCoprime_of_isUnit_mk`: a unit in `AdjoinRoot f` read off as a Bézout certificate for
   coprimality.
 - `irreducible_of_rabin`: Rabin's test in its classical divisibility/coprimality form.
+- `irreducible_iff_rabin`: the same, as a characterisation.
 - `irreducible_of_rabin_root`: Rabin's test with both conditions phrased inside `AdjoinRoot f`,
   the interface downstream callers consume.
 
-## Upstream candidates
+## Upstream status
 
-`dvd_X_pow_card_pow_natDegree_sub_X` and `dvd_X_pow_card_pow_sub_X_of_natDegree_dvd` are Mathlib
-upstream candidates: they belong beside the forward direction in
-`Mathlib/FieldTheory/Finite/Extension.lean`. They live here only until that upstreaming happens.
+`natDegree_dvd_iff_dvd_X_pow_card_pow_sub_X` is already in Mathlib master as
+`Irreducible.natDegree_dvd_iff_dvd_X_pow_card_pow_sub_X` (Mathlib PR #39239, 2026-07-28, first
+released in v4.33.0), with the same statement. Delete the local copy at the next toolchain bump
+and replace `natDegree_dvd_iff_dvd_X_pow_card_pow_sub_X hg` by
+`hg.natDegree_dvd_iff_dvd_X_pow_card_pow_sub_X`.
+
+Mathlib has no Rabin test. `irreducible_iff_rabin` and its supporting lemmas are stated with
+`Nat.card` and `Finite`, matching `Mathlib/FieldTheory/Finite/Extension.lean`, so that they can
+move there as they stand.
 
 This module is cryptography-free: nothing here knows about any concrete polynomial, block cipher,
 hash or bit-vector representation, and the whole import list is the two Mathlib modules above.
@@ -53,17 +57,24 @@ open Polynomial
 namespace ToVCVio
 
 section Rabin
-variable {K : Type*} [Field K] [Fintype K]
+variable {K : Type*} [Field K] [Finite K]
 
-/-- The converse of `Irreducible.natDegree_dvd_of_dvd_X_pow_card_pow_sub_X`: an irreducible
-polynomial `g` over a finite field `K` divides `X ^ (Fintype.card K) ^ g.natDegree - X`.
+/-- An irreducible `g` over a finite field `K` divides `X ^ (Nat.card K) ^ n - X` exactly when
+`g.natDegree ∣ n`.
 
-The content is `FiniteField.pow_card` applied to the image of `X` in the finite field
-`AdjoinRoot g`, whose cardinality is `Fintype.card K ^ g.natDegree` by the power basis of the
-extension. Together with the forward direction already in Mathlib this makes the first of
-Rabin's two conditions an exact characterisation. -/
-theorem dvd_X_pow_card_pow_natDegree_sub_X {g : K[X]} (hg : Irreducible g) :
-    g ∣ X ^ (Fintype.card K) ^ g.natDegree - X := by
+The forward direction is Mathlib's `Irreducible.natDegree_dvd_of_dvd_X_pow_card_pow_sub_X`. The
+converse is `FiniteField.pow_card` applied to the image of `X` in the finite field `AdjoinRoot g`,
+whose cardinality is `Nat.card K ^ g.natDegree` by the power basis of the extension, followed by
+`dvd_pow_pow_sub_self_of_dvd` to pass from `g.natDegree` to any multiple of it.
+
+Superseded by `Irreducible.natDegree_dvd_iff_dvd_X_pow_card_pow_sub_X` (Mathlib PR #39239) from
+Mathlib v4.33.0 on; see the module docstring. -/
+theorem natDegree_dvd_iff_dvd_X_pow_card_pow_sub_X {g : K[X]} (hg : Irreducible g) {n : ℕ} :
+    g.natDegree ∣ n ↔ g ∣ X ^ (Nat.card K) ^ n - X := by
+  refine ⟨fun hdvd => dvd_trans ?_ (dvd_pow_pow_sub_self_of_dvd hdvd),
+    hg.natDegree_dvd_of_dvd_X_pow_card_pow_sub_X⟩
+  have := Fintype.ofFinite K
+  rw [Nat.card_eq_fintype_card]
   haveI : Fact (Irreducible g) := ⟨hg⟩
   haveI : Module.Finite K (AdjoinRoot g) :=
     Module.Finite.of_basis (AdjoinRoot.powerBasis hg.ne_zero).basis
@@ -76,16 +87,6 @@ theorem dvd_X_pow_card_pow_natDegree_sub_X {g : K[X]} (hg : Irreducible g) :
   have h := FiniteField.pow_card (AdjoinRoot.root g)
   rw [hcard] at h
   simp [AdjoinRoot.mk_X, h]
-
-/-- Degree-divisibility upgrade of `dvd_X_pow_card_pow_natDegree_sub_X`: an irreducible `g`
-divides `X ^ (Fintype.card K) ^ n - X` for every multiple `n` of `g.natDegree`.
-
-The upgrade is one application of `dvd_pow_pow_sub_self_of_dvd`, so no geometric-sum argument
-has to be repeated here. -/
-theorem dvd_X_pow_card_pow_sub_X_of_natDegree_dvd {n : ℕ} {g : K[X]}
-    (hg : Irreducible g) (h : g.natDegree ∣ n) :
-    g ∣ X ^ (Fintype.card K) ^ n - X :=
-  (dvd_X_pow_card_pow_natDegree_sub_X hg).trans (dvd_pow_pow_sub_self_of_dvd h)
 
 /-- A proper divisor `d` of `n` divides `n / p` for some prime `p ∣ n`. -/
 theorem exists_prime_dvd_and_dvd_div {d n : ℕ} (hdvd : d ∣ n) (hne : d ≠ n) :
@@ -109,29 +110,27 @@ theorem isCoprime_of_isUnit_mk {R : Type*} [CommRing R] {f a : R[X]}
   obtain ⟨c, hc⟩ := AdjoinRoot.mk_eq_zero.1 hz
   exact ⟨-c, b, by linear_combination hc⟩
 
-/-- Rabin's irreducibility test in its classical divisibility/coprimality form: a monic `f` of
-positive degree `n` over a finite field `K` with `q` elements is irreducible as soon as
+/-- Rabin's irreducibility test in its classical divisibility/coprimality form: `f` of positive
+degree `n` over a finite field `K` with `q` elements is irreducible as soon as
 `f ∣ X ^ (q ^ n) - X` and `f` is coprime to `X ^ (q ^ (n / p)) - X` for every prime `p ∣ n`.
 
-The proof takes an irreducible factor `g` of `f`. Mathlib's forward direction bounds its degree
-to a divisor of `n`; the coprimality conditions rule out every proper divisor, so `g` has degree
-`n` and the cofactor is a unit. -/
-theorem irreducible_of_rabin {f : K[X]} (hf : f.Monic) (hdeg : 0 < f.natDegree)
-    (h1 : f ∣ X ^ (Fintype.card K) ^ f.natDegree - X)
+The proof takes an irreducible factor `g` of `f`. `natDegree_dvd_iff_dvd_X_pow_card_pow_sub_X`
+bounds its degree to a divisor of `n`; the coprimality conditions rule out every proper divisor,
+so `g` has degree `n` and the cofactor is a unit. -/
+theorem irreducible_of_rabin {f : K[X]} (hdeg : 0 < f.natDegree)
+    (h1 : f ∣ X ^ (Nat.card K) ^ f.natDegree - X)
     (h2 : ∀ p : ℕ, p.Prime → p ∣ f.natDegree →
-      IsCoprime f (X ^ (Fintype.card K) ^ (f.natDegree / p) - X)) :
+      IsCoprime f (X ^ (Nat.card K) ^ (f.natDegree / p) - X)) :
     Irreducible f := by
-  have hf0 : f ≠ 0 := hf.ne_zero
+  have hf0 : f ≠ 0 := by rintro rfl; simp at hdeg
   obtain ⟨g, hg, hgf⟩ := Polynomial.exists_irreducible_of_natDegree_pos hdeg
-  have hgn : g.natDegree ∣ f.natDegree := by
-    refine _root_.Irreducible.natDegree_dvd_of_dvd_X_pow_card_pow_sub_X hg ?_
-    rw [Nat.card_eq_fintype_card]
-    exact hgf.trans h1
+  have hgn : g.natDegree ∣ f.natDegree :=
+    (natDegree_dvd_iff_dvd_X_pow_card_pow_sub_X hg).2 (hgf.trans h1)
   have hgeq : g.natDegree = f.natDegree := by
     by_contra hne
     obtain ⟨p, hp, hpn, hdiv⟩ := exists_prime_dvd_and_dvd_div hgn hne
     exact hg.not_isUnit ((h2 p hp hpn).isUnit_of_dvd' hgf
-      (dvd_X_pow_card_pow_sub_X_of_natDegree_dvd hg hdiv))
+      ((natDegree_dvd_iff_dvd_X_pow_card_pow_sub_X hg).1 hdiv))
   obtain ⟨c, rfl⟩ := hgf
   have hc0 : c ≠ 0 := fun h => by simp [h] at hf0
   have hcdeg : c.natDegree = 0 := by
@@ -143,28 +142,37 @@ theorem irreducible_of_rabin {f : K[X]} (hf : f.Monic) (hdeg : 0 < f.natDegree)
     exact isUnit_iff_ne_zero.2 (by simpa using hc0)
   · exact (Polynomial.eq_C_of_natDegree_eq_zero hcdeg).symm
 
-/-- Rabin's irreducibility test, quotient-ring interface: the form callers consume. Both
-conditions are stated about the image of `X` inside `AdjoinRoot f`, namely the Frobenius
-fixed-point equation at exponent `Fintype.card K ^ f.natDegree` and, for every prime
-`p ∣ f.natDegree`, the unit condition at exponent `Fintype.card K ^ (f.natDegree / p)`.
+/-- Rabin's criterion: a polynomial of positive degree `n` over a finite field with `q` elements
+is irreducible if and only if it divides `X ^ (q ^ n) - X` and is coprime to
+`X ^ (q ^ (n / p)) - X` for every prime `p ∣ n`.
 
-Phrasing both hypotheses in `AdjoinRoot f` is mandatory, not stylistic. At a concrete base field
-such as `ZMod 2` an equivalent statement written with polynomial subtraction elaborates with its
-`Semiring` instance coming through `ZMod.commRing` while its `Sub` comes through the
-`ZMod.instField` path; closing such a goal by `exact` then diverges, first hitting the recursion
-limit and eventually overflowing the stack after several seconds and gigabytes of memory. Raising
-the recursion limit makes the behaviour worse, so no downstream statement should be restated in
-the polynomial-subtraction shape.
+The forward direction is `natDegree_dvd_iff_dvd_X_pow_card_pow_sub_X` twice: `f` divides
+`X ^ (q ^ n) - X` because `n ∣ n`, and does not divide `X ^ (q ^ (n / p)) - X` because
+`n ∤ n / p` for `0 < n / p < n`, which for an irreducible `f` is coprimality
+(`Irreducible.coprime_iff_not_dvd`). The reverse direction is `irreducible_of_rabin`. -/
+theorem irreducible_iff_rabin {f : K[X]} (hdeg : 0 < f.natDegree) :
+    Irreducible f ↔
+      f ∣ X ^ (Nat.card K) ^ f.natDegree - X ∧
+      ∀ p : ℕ, p.Prime → p ∣ f.natDegree →
+        IsCoprime f (X ^ (Nat.card K) ^ (f.natDegree / p) - X) := by
+  refine ⟨fun hi => ⟨(natDegree_dvd_iff_dvd_X_pow_card_pow_sub_X hi).1 dvd_rfl,
+    fun p hp hpn => hi.coprime_iff_not_dvd.2 fun h => ?_⟩,
+    fun h => irreducible_of_rabin hdeg h.1 h.2⟩
+  have hle := Nat.le_of_dvd (Nat.div_pos (Nat.le_of_dvd hdeg hpn) hp.pos)
+    ((natDegree_dvd_iff_dvd_X_pow_card_pow_sub_X hi).2 h)
+  have hlt := Nat.div_lt_self hdeg hp.one_lt
+  omega
 
-The two exponents differ by design: the first is `Fintype.card K ^ f.natDegree`, the second
-`Fintype.card K ^ (f.natDegree / p)`. Callers apply this positionally, so the binders are a
-fixed interface. -/
-theorem irreducible_of_rabin_root {f : K[X]} (hf : f.Monic) (hdeg : 0 < f.natDegree)
-    (h1 : (AdjoinRoot.root f) ^ (Fintype.card K ^ f.natDegree) = AdjoinRoot.root f)
+/-- Rabin's test with both conditions stated about `root f` in `AdjoinRoot f`: the root is fixed
+by the `n`-fold Frobenius, and `root ^ (q ^ (n / p)) - root` is a unit for every prime `p ∣ n`.
+Keep this shape: at `ZMod 2` the polynomial-subtraction form of the same hypotheses makes
+elaboration diverge through mismatched `Semiring`/`Sub` instance paths. -/
+theorem irreducible_of_rabin_root {f : K[X]} (hdeg : 0 < f.natDegree)
+    (h1 : (AdjoinRoot.root f) ^ (Nat.card K ^ f.natDegree) = AdjoinRoot.root f)
     (h2 : ∀ p : ℕ, p.Prime → p ∣ f.natDegree →
-      IsUnit ((AdjoinRoot.root f) ^ (Fintype.card K ^ (f.natDegree / p)) - AdjoinRoot.root f)) :
+      IsUnit ((AdjoinRoot.root f) ^ (Nat.card K ^ (f.natDegree / p)) - AdjoinRoot.root f)) :
     Irreducible f := by
-  refine irreducible_of_rabin hf hdeg ?_ (fun p hp hpn => ?_)
+  refine irreducible_of_rabin hdeg ?_ (fun p hp hpn => ?_)
   · rw [← AdjoinRoot.mk_eq_zero, map_sub, map_pow, AdjoinRoot.mk_X, h1, sub_self]
   · refine isCoprime_of_isUnit_mk ?_
     rw [map_sub, map_pow, AdjoinRoot.mk_X]
