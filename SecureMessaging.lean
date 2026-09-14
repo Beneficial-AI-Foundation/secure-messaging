@@ -2,6 +2,7 @@ import SecureMessaging.AEAD.GCM
 import SecureMessaging.AEAD.Defs
 import SecureMessaging.AEAD.FromGCM.Construction
 import SecureMessaging.AEAD.FromGCM.Correctness
+import SecureMessaging.AEAD.FromGCM.Security.AuthHop
 import SecureMessaging.AEAD.FromGCM.Security.Axu
 import SecureMessaging.AEAD.FromGCM.Security.CipherProfile
 import SecureMessaging.AEAD.FromGCM.Security.Counter
