@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 import VCVio.CryptoFoundations.SecExp
 import VCVio.CryptoFoundations.PRF
 import VCVio.OracleComp.Constructions.SampleableType
-import VCVio.OracleComp.SimSemantics.Append
+import ToVCVio.CryptoFoundations.PRF
 
 /-!
 # Pseudorandom permutations (PRPs)
@@ -14,6 +14,20 @@ import VCVio.OracleComp.SimSemantics.Append
 A pseudorandom permutation (PRP) is the abstract model of a block cipher: a keyed,
 invertible map on a block space `X` that no efficient adversary can distinguish
 from a uniformly random permutation of `X`.
+
+## Main definitions
+
+- `PRPScheme.prpRealExp` is *defined* to be `PRFScheme.prfRealExp prp.toPRFScheme`, so the PRP
+  and the PRF game share one and the same real experiment and differ only on their ideal sides.
+  That is the premise the PRP/PRF switching inequality rests on: the two advantages are
+  `|R - I_prp|` and `|R - I_prf|` over a common real term `R`. `PRPScheme.prpRealExp_eq` records
+  that this body is definitionally the experiment built from `oracleUnif` and `oraclePerm` via
+  `prpQueryImpl`, so choosing it discards nothing.
+- `PRPScheme.prpIdealExp` draws its permutation wholesale with `$ᵗ (Equiv.Perm X)`, the
+  canonical ideal experiment.
+- Its tractable companion (a without-replacement sampler over a *fixed list* of query points,
+  together with the distributional equivalence relating the two) is generic, so it lives in
+  `ToVCVio/CryptoFoundations/PRPSwitching.lean` rather than here.
 
 ## References
 
@@ -51,7 +65,7 @@ def toPRFScheme (prp : PRPScheme K X) : PRFScheme K X X :=
   { keygen := prp.keygen, eval := prp.perm }
 
 /-- Oracle spec for the PRP game: uniform randomness plus a permutation oracle. -/
-def PRPOracleSpec (X : Type) := unifSpec + (X →ₒ X)
+abbrev PRPOracleSpec (X : Type) := unifSpec + (X →ₒ X)
 
 /-- A PRP adversary: a computation with access to the PRP oracles, outputting a
 guess bit. -/
@@ -70,9 +84,15 @@ def prpQueryImpl (g : X → X) : QueryImpl (PRPOracleSpec X) ProbComp :=
   oracleUnif + oraclePerm g
 
 /-- Real experiment: runs the adversary against the keyed permutation. -/
-def prpRealExp (prp : PRPScheme K X) (adversary : PRPAdversary X) :
+noncomputable def prpRealExp (prp : PRPScheme K X) (adversary : PRPAdversary X) :
     ProbComp Bool :=
-    sorry
+  PRFScheme.prfRealExp prp.toPRFScheme adversary
+
+/-- The real experiment, unfolded. -/
+theorem prpRealExp_eq (prp : PRPScheme K X) (adversary : PRPAdversary X) :
+    prpRealExp prp adversary =
+      (do let k ← prp.keygen; simulateQ (prpQueryImpl (prp.perm k)) adversary) :=
+  rfl
 
 /-- Ideal experiment: runs the adversary against a uniformly random permutation. -/
 def prpIdealExp [SampleableType (Equiv.Perm X)] (adversary : PRPAdversary X) :
@@ -84,6 +104,36 @@ def prpIdealExp [SampleableType (Equiv.Perm X)] (adversary : PRPAdversary X) :
 the real and ideal experiments. -/
 noncomputable def prpAdvantage [SampleableType (Equiv.Perm X)]
     (prp : PRPScheme K X) (adversary : PRPAdversary X) : ℝ :=
-    sorry
+  |(Pr[= true | prpRealExp prp adversary]).toReal -
+    (Pr[= true | prpIdealExp adversary]).toReal|
+
+/-- `prpQueryImpl g` viewed as a PRF scheme with a trivial key. -/
+private def asPRF (g : X → X) : PRFScheme Unit X X :=
+  { keygen := pure (), eval := fun _ x => g x }
+
+/-- A single permutation-oracle (`Sum.inr`) query under `prpQueryImpl g` returns `g d`. -/
+theorem simulateQ_prpQueryImpl_inr (g : X → X) (d : X) :
+    simulateQ (prpQueryImpl g)
+      ((liftM (OracleSpec.query (Sum.inr d) :
+        OracleQuery (PRFScheme.PRFOracleSpec X X) X)) : OracleComp (PRPOracleSpec X) X)
+      = pure (g d) :=
+  PRFScheme.simulateQ_prfRealQueryImpl_inr (asPRF g) () d
+
+/-- A fixed list of permutation-oracle queries under `prpQueryImpl g` collapses to `pure` of
+the list of images: the eager fetch loop of a non-adaptive distinguisher carries no
+probabilistic content on the real side. -/
+theorem simulateQ_prpQueryImpl_mapM_inr (g : X → X) (pts : List X) :
+    simulateQ (prpQueryImpl g)
+      (pts.mapM (fun t => liftM (OracleSpec.query (Sum.inr t) :
+        OracleQuery (PRFScheme.PRFOracleSpec X X) X)))
+      = pure (pts.map g) :=
+  PRFScheme.simulateQ_prfRealQueryImpl_mapM_inr (asPRF g) () pts
+
+/-- A computation using only the uniform-sampling oracles is unchanged by `prpQueryImpl g`. -/
+theorem simulateQ_prpQueryImpl_liftComp {β : Type} (g : X → X)
+    (ob : OracleComp unifSpec β) :
+    simulateQ (prpQueryImpl g)
+      (OracleComp.liftComp ob (PRFScheme.PRFOracleSpec X X)) = ob :=
+  PRFScheme.simulateQ_prfRealQueryImpl_liftComp (asPRF g) () ob
 
 end PRPScheme
