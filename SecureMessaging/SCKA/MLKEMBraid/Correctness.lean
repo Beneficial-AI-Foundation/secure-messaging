@@ -5,6 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.SCKA.MLKEMBraid.Instances
+import SecureMessaging.KEM.IncrementalKEM.Correctness.SelectedTrial
 import VCVio.OracleComp.QueryTracking.QueryBound
 
 /-!
@@ -80,8 +81,19 @@ theorem scheme_paper_correspondence
           | .error _ => (none, none)
           | .ok r =>
               (some (r.outputKey, msg.epoch - 1, r.state),
-               some (r.outputKey, msg.epoch - 1, r.state))) :=
-  sorry
+               some (r.outputKey, msg.epoch - 1, r.state))) := by
+  dsimp only [scheme]
+  constructor
+  · rfl
+  constructor
+  · intro ik
+    exact ⟨rfl, rfl⟩
+  constructor
+  · intro st
+    constructor <;> simp only [map_eq_pure_bind]
+  · intro st msg
+    simp only [recvSCKA]
+    split <;> simp_all
 
 /-- Under the four erasure-code correctness laws, the missing success mass of
 the SCKA correctness game is at most `q` times the underlying KEM correctness
