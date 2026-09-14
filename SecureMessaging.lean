@@ -11,6 +11,7 @@ import SecureMessaging.AEAD.FromGCM.Security.GhashAXU
 import SecureMessaging.AEAD.FromGCM.Security.NistIrreducible
 import SecureMessaging.AEAD.FromGCM.Security.OneTimePad
 import SecureMessaging.AEAD.FromGCM.Security.Polynomial
+import SecureMessaging.AEAD.FromGCM.Security.PrfHop
 import SecureMessaging.AEAD.FromEtM.Construction
 import SecureMessaging.AEAD.FromEtM.Correctness
 import SecureMessaging.AEAD.FromEtM.Security
