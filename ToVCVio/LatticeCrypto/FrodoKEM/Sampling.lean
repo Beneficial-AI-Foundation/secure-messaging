@@ -20,8 +20,11 @@ FrodoKEM parameter set shares its table with the corresponding eFrodoKEM set.
 For a fixed `table : ErrorTable`, with `lenChi = 16`, the sampling maps are
 
 * `Sample table : Vector Bool lenChi → ℤ`,
-  `r ↦ (-1) ^ r[0] * #{i < table.d | table.thresholds[i] < t}`, where
-  `t = r[1] * 2^0 + ... + r[15] * 2^14` and bits are read as `0` or `1`;
+  `r ↦ (-1) ^ r[0] * e_abs`, where bits are read as `0` or `1`,
+  `t = r[1] * 2^0 + ... + r[15] * 2^14`, and
+  `e_abs = #{i < table.d | table.thresholds[i] < t}`.
+  Thus `e_abs` counts the thresholds strictly below `t` and is the
+  absolute value of the returned error;
 * `SampleMatrix table rows cols : Vector Bool (rows * cols * lenChi) →
   Matrix (Fin rows) (Fin cols) ℤ`,
   `r ↦ ((i,j) ↦ Sample table (r^(i * cols + j)))`, where `r^(k)` denotes
@@ -34,8 +37,7 @@ namespace FrodoKEM
 
 /-- The table `Tχ` of Section 6.5 of `[LBES26]`, together with `d`.
 For the intended distribution, the support is the integers from `-d` to `d`,
-with `2 * d + 1` elements. This structure records the table's length;
-it does not impose positivity, increasing thresholds, or a final value. -/
+with `2 * d + 1` elements. This structure records the table's length. -/
 structure ErrorTable where
   /-- Maximum magnitude in the intended error distribution. -/
   d : ℕ

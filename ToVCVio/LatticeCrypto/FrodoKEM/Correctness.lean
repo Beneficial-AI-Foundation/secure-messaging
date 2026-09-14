@@ -300,8 +300,8 @@ theorem Pack_Unpack (p : Params) (hw : p.WellFormed) (r c : ℕ)
     (b : Vector Bool (r * c * p.D)) : Pack p (Unpack p r c b) = b :=
   matrixToBitsWith_bitsToMatrixWith (entryToBits_bitsToEntry p hw) r c b
 
-/-- `Sample` returns an integer between `-d` and `d`: it counts at most `d`
-comparisons and then chooses a sign. No assumptions on the thresholds are needed. -/
+/-- `Sample` returns an integer between `-d` and `d`: the number of successful
+comparisons is at most `d`, and `r[0]` determines its sign. -/
 theorem Sample_bounds (table : ErrorTable) (r : Vector Bool lenChi) :
     -(table.d : ℤ) ≤ Sample table r ∧ Sample table r ≤ (table.d : ℤ) := by
   unfold Sample
