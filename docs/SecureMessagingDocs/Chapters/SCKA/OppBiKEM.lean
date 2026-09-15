@@ -301,6 +301,15 @@ def sendWith {RKey REnc : Type} (role : Role)
 
 :::::gameCell "\\textsf{Shared receive implementation}" (kind := "compact")
 
+The assignments below are tentative until the receive succeeds. By the
+“Notational conventions” at the end of Section 2 of {Informal.citet SCKA25}[],
+a missing required secret key or failing decapsulation aborts the whole receive
+and discards all its state changes, including earlier acknowledgement and counter updates. Lean represents
+this error by outer `none`; the caller retains the original state. Incomplete
+erasure decoding is explicitly handled and retains chunks, returning a successful
+receive with no epoch key. The secret key is looked up only after ciphertext
+decoding succeeds, so incomplete decoding retains chunks even when that key is absent.
+
 For party $`P`, the shared receive follows Figures 17–18 with offset $`\delta_P`,
 where $`\delta_A=1` and $`\delta_B=-1`. We write $`\bar P` for the peer of party $`P`.
 
@@ -345,73 +354,57 @@ def recv (role : Role) (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
     (hDet : kem.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (st : State PK SK C Sym) (ρ : Message Sym) :
-    Option (Option (ℕ × K) × ℕ × State PK SK C Sym) :=
-  let ⟨resEpoch, ekPeer, ct, ich⟩ := st.res
-  let ⟨reqEpoch, dk, ek, receivedChunks⟩ := st.req
+    Option (Option (ℕ × K) × ℕ × State PK SK C Sym) := do
+  let mut ⟨resEpoch, ekPeer, ct, ich⟩ := st.res
+  let mut ⟨reqEpoch, dk, ek, receivedChunks⟩ := st.req
   let ⟨ch?, peerResEpoch, peerReqEpoch, sendingEpoch, peerAck, bit?⟩ := ρ
-  -- NOTE: in the paper's pseudocode, local state acknowledgement is called `ACK` while the
-  -- acknowledgment received from the peer is called `ack`.
-  --  Here, we are explicitly calling the state acknowledgement `localAck`
-  --  and peer acknowledgement `peerAck`.
-  let localAck := st.ack
-  -- incorporate acknowledgements received from the peer (lines 5-8 in CKA-Rec-P)
-  let localAck := if peerAck.ctRec
-    then { localAck with ctRec := insert peerReqEpoch localAck.ctRec }
-    else localAck
-  let localAck := if peerAck.ekRec then
-      { localAck with ekRec := insert (peerReqEpoch + role.offset) localAck.ekRec } else localAck
+  let mut localAck := st.ack
+  let mut key? : Option (ℕ × K) := none
+  -- Incorporate the peer's acknowledgements first.
+  if peerAck.ctRec then
+    localAck := { localAck with ctRec := insert peerReqEpoch localAck.ctRec }
+  if peerAck.ekRec then
+    localAck := { localAck with
+      ekRec := insert (peerReqEpoch + role.offset) localAck.ekRec }
   -- outdated message: retain only the acknowledgement updates
   if peerResEpoch < reqEpoch then
-    some (none, sendingEpoch, { st with ack := localAck })
-  else
-    -- first message of the new epoch, lines 11-12
-    let reqEpoch := if reqEpoch < peerResEpoch then reqEpoch + 2 else reqEpoch
-    -- Captures the relation of "1 removed" epochs
-    --   - if A is requesting the key for epoch t, it receives B's public key for t-1
-    --   - if B is requesting the key for epoch t, it receives A's public key for t+1
-    let peerKeyEpoch := reqEpoch - role.offset
-    let (key?, ekPeer, dk, receivedChunks, localAck) :=
-      -- if the peer's encapsulating key has not been received yet, lines 13-19
-      if (ekPeer peerKeyEpoch).isNone ∧ bit? = some 0 then
-        let (chunks, peerEk?) := insertChunkAndDecode ecEk receivedChunks ch?
-        match peerEk? with
-        | none => (none, ekPeer, dk, chunks, localAck)
-        | some peerEk =>
-            (none, Function.update ekPeer peerKeyEpoch (some peerEk), dk, ∅,
-              { localAck with ekRec := insert peerKeyEpoch localAck.ekRec })
-      -- if ciphertext has not been received and the selector is 1, lines 20-28
-      else if reqEpoch ∉ localAck.ctRec ∧ bit? = some 1 then
-        match dk.lookup reqEpoch with
-        -- Missing secret key: preserve payload state. Unreachable under honest executions.
-        | none => (none, ekPeer, dk, receivedChunks, localAck)
-        | some secretKey =>
-            let (updatedReceivedChunks, peerCt?) := insertChunkAndDecode ecCt receivedChunks ch?
-            match peerCt? with
-            | none => (none, ekPeer, dk, updatedReceivedChunks, localAck)
-            -- the ciphertext was recovered (lines 23-28): receipt and erasure,
-            -- regardless of whether decapsulation succeeds
-            | some peerCt =>
-                let receivedChunks : Finset (ℕ × Sym) := ∅
-                let localAck := { localAck with ctRec := insert reqEpoch localAck.ctRec }
-                let key? :=
-                  match hDet.decapsDet secretKey peerCt with
-                  | none => none
-                  | some key => some (reqEpoch.toNat, key)
-                let dk := dk.filter (fun p => p.1 != reqEpoch)
-                (key?, ekPeer, dk, receivedChunks, localAck)
-      --  This branch corresponds to a situation in which neither is true:
-      --   * the encapsulating key not received and bit=0
-      --   * the ciphertext not received and bit=1
-      -- Reachable in honest executions while the peer is waiting for an acknowledgement
-      -- (and thus keeps sending more encapsulation key chunks)
-      else (none, ekPeer, dk, receivedChunks, localAck)
-    -- deleting the stored material that has been fully delivered (lines 29-32)
-    let ct := if resEpoch ∈ localAck.ctRec then none else ct
-    let ek := if resEpoch + role.offset ∈ localAck.ekRec then none else ek
-    some (key?, sendingEpoch,
-      { res := ⟨resEpoch, ekPeer, ct, ich⟩
-        req := ⟨reqEpoch, dk, ek, receivedChunks⟩
-        ack := localAck })
+    return (none, sendingEpoch, { st with ack := localAck })
+   -- first message of the new epoch, lines 11-12
+  if reqEpoch < peerResEpoch then
+    reqEpoch := reqEpoch + 2
+  -- Captures the relation of "1 removed" epochs
+  --   - if A is requesting the key for epoch t, it receives B's public key for t-1
+  --   - if B is requesting the key for epoch t, it receives A's public key for t+1
+  let peerKeyEpoch := reqEpoch - role.offset
+  -- if the peer's encapsulating key has not been received yet, lines 13-19
+  if (ekPeer peerKeyEpoch).isNone ∧ bit? = some 0 then
+    let (chunks, peerEk?) := insertChunkAndDecode ecEk receivedChunks ch?
+    receivedChunks := chunks
+    if let some peerEk := peerEk? then
+      ekPeer := Function.update ekPeer peerKeyEpoch (some peerEk)
+      receivedChunks := ∅
+      localAck := { localAck with ekRec := insert peerKeyEpoch localAck.ekRec }
+  -- if ciphertext has not been received and the bit is 1, lines 20-28
+  else if reqEpoch ∉ localAck.ctRec ∧ bit? = some 1 then
+    let (chunks, peerCt?) := insertChunkAndDecode ecCt receivedChunks ch?
+    receivedChunks := chunks
+    if let some peerCt := peerCt? then
+      -- paper convention: A missing required key or failed decapsulation aborts the entire receive.
+      let secretKey ← dk.lookup reqEpoch
+      let key ← hDet.decapsDet secretKey peerCt
+      receivedChunks := ∅
+      localAck := { localAck with ctRec := insert reqEpoch localAck.ctRec }
+      key? := some (reqEpoch.toNat, key)
+      dk := dk.filter (fun p => p.1 != reqEpoch)
+   -- deleting the stored material that has been fully delivered (lines 29-32)
+  if resEpoch ∈ localAck.ctRec then
+    ct := none
+  if resEpoch + role.offset ∈ localAck.ekRec then
+    ek := none
+  return (key?, sendingEpoch,
+    { res := ⟨resEpoch, ekPeer, ct, ich⟩
+      req := ⟨reqEpoch, dk, ek, receivedChunks⟩
+      ack := localAck })
 ```
 :::::
 
