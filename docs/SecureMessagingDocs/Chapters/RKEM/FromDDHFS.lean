@@ -19,47 +19,47 @@ RKEM from DDH (FS).
 :::defTitle "rkem_from_ddh_fs_spec" "RKEM from DDH FS construction"
 :::
 
-::::definition "rkem_from_ddh_fs_spec" (parent := "rkem_rkem_from_ddh_fs")
+::::definition "rkem_from_ddh_fs_spec" (parent := "rkem_rkem_from_ddh_fs") (tags := "gh-70")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "rkem_scheme"}[] · {githubLabel}`github` {githubIssue 70}[]
+{usesLabel}`uses` {uses "rkem_scheme"}[]
 ::::
 
 :::defTitle "rkem_from_ddh_fs_correctness" "RKEM from DDH FS correctness"
 :::
 
-::::theorem "rkem_from_ddh_fs_correctness" (parent := "rkem_rkem_from_ddh_fs")
+::::theorem "rkem_from_ddh_fs_correctness" (parent := "rkem_rkem_from_ddh_fs") (tags := "gh-71")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "rkem_from_ddh_fs_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_correctness"}[] · {githubLabel}`github` {githubIssue 71}[]
+{usesLabel}`uses` {uses "rkem_from_ddh_fs_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_correctness"}[]
 ::::
 
 :::defTitle "rkem_from_ddh_fs_forward_security" "RKEM from DDH FS forward security"
 :::
 
-::::theorem "rkem_from_ddh_fs_forward_security" (parent := "rkem_rkem_from_ddh_fs")
+::::theorem "rkem_from_ddh_fs_forward_security" (parent := "rkem_rkem_from_ddh_fs") (tags := "gh-72")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "rkem_from_ddh_fs_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_forward_security"}[] · {githubLabel}`github` {githubIssue 72}[]
+{usesLabel}`uses` {uses "rkem_from_ddh_fs_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_forward_security"}[]
 ::::
 
 :::defTitle "rkem_from_ddh_fs_ratchet_sim" "RKEM from DDH FS ratchet simulatability"
 :::
 
-::::theorem "rkem_from_ddh_fs_ratchet_sim" (parent := "rkem_rkem_from_ddh_fs")
+::::theorem "rkem_from_ddh_fs_ratchet_sim" (parent := "rkem_rkem_from_ddh_fs") (tags := "gh-73")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "rkem_from_ddh_fs_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_ratchet_sim"}[] · {githubLabel}`github` {githubIssue 73}[]
+{usesLabel}`uses` {uses "rkem_from_ddh_fs_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_ratchet_sim"}[]
 ::::

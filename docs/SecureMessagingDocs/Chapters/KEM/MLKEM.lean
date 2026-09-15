@@ -31,7 +31,7 @@ Module-Lattice Key Encapsulation Mechanism (ML-KEM, FIPS 203).
 :::defTitle "ml_kem_scheme" "ML-KEM scheme"
 :::
 
-::::definition "ml_kem_scheme" (parent := "ml_kem") (lean := "MLKEM.mlkemScheme")
+::::definition "ml_kem_scheme" (parent := "ml_kem") (lean := "MLKEM.mlkemScheme") (tags := "gh-215")
 $`\todo`
 
 ```anchor mlkemScheme (project := ".") (module := SecureMessaging.KEM.MLKEM.Construction)
@@ -48,7 +48,7 @@ def mlkemScheme (p : ParameterSet) (ring : NTTRingOps)
   asKEMScheme ring (Concrete.concreteEncoding (ParameterSet.params p)) prims
 ```
 
-{usesLabel}`uses` {uses "kpke"}[] · {githubLabel}`github` {githubIssue 215}[]
+{usesLabel}`uses` {uses "kpke"}[]
 ::::
 
 :::defTitle "ml_kem_rand_leak" "ML-KEM randomness leakage"
@@ -88,7 +88,7 @@ def mlkemRandLeak (p : ParameterSet) (ring : NTTRingOps)
 :::defTitle "ml_kem_correctness" "ML-KEM correctness"
 :::
 
-::::theorem "ml_kem_correctness" (parent := "ml_kem") (lean := "MLKEM.deltaCorrect_fips203")
+::::theorem "ml_kem_correctness" (parent := "ml_kem") (lean := "MLKEM.deltaCorrect_fips203") (tags := "gh-219")
 $`\todo`
 
 ```anchor deltaCorrectFips203 (project := ".") (module := SecureMessaging.KEM.MLKEM.Correctness)
@@ -127,13 +127,13 @@ noncomputable def fips203DecapsulationFailureBound (p : ParameterSet) : ℝ≥0�
   2 ^ (-(decapsulationFailureExponent p : ℝ))
 ```
 
-{usesLabel}`uses` {uses "ml_kem_scheme"}[] · {githubLabel}`github` {githubIssue 219}[]
+{usesLabel}`uses` {uses "ml_kem_scheme"}[]
 ::::
 
 :::defTitle "ml_kem_correctness_easycrypt" "ML-KEM-768 correctness from EasyCrypt assumptions"
 :::
 
-::::theorem "ml_kem_correctness_easycrypt" (parent := "ml_kem") (lean := "MLKEM.deltaCorrect_mlkem768_easycrypt_of_le")
+::::theorem "ml_kem_correctness_easycrypt" (parent := "ml_kem") (lean := "MLKEM.deltaCorrect_mlkem768_easycrypt_of_le") (tags := "gh-226")
 $`\todo`
 
 :::leanPillCaption "δ-correctness from EasyCrypt bounds"
@@ -148,17 +148,17 @@ theorem deltaCorrect_mlkem768_easycrypt_of_le {failprob hsadv prfadv : ℝ≥0�
     mlkem768Scheme.deltaCorrect ProbCompRuntime.probComp (failprob + hsadv + 2 * prfadv)
 ```
 
-{usesLabel}`uses` {uses "ml_kem_scheme"}[] · {githubLabel}`github` {githubIssue 226}[]
+{usesLabel}`uses` {uses "ml_kem_scheme"}[]
 ::::
 
 :::defTitle "ml_kem_security" "ML-KEM security"
 :::
 
-::::theorem "ml_kem_security" (parent := "ml_kem")
+::::theorem "ml_kem_security" (parent := "ml_kem") (tags := "gh-216")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "ml_kem_scheme"}[] · {githubLabel}`github` {githubIssue 216}[]
+{usesLabel}`uses` {uses "ml_kem_scheme"}[]
 ::::
