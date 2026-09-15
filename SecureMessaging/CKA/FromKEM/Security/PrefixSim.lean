@@ -272,7 +272,7 @@ private lemma reductionBranchImpl_challB_preBToA_run_of_will
   rfl
 
 private lemma challA_sampled_keygen_rel
-    [SampleableType K] [DecidableEq K]
+    [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
     (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
@@ -558,7 +558,7 @@ lemma challA_sampled_reduction_random_cont_run'_relTriple
   simpa only [StateT.run'_eq, bind_assoc] using relTriple_bind hstep hcont
 
 private lemma challB_sampled_keygen_rel
-    [SampleableType K] [DecidableEq K]
+    [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
     (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)

@@ -485,7 +485,8 @@ private theorem foldedNoiseMeasure_apply_block (p : ParameterSet) {lo : ℤ} {m 
   have hfilter : (Finset.range (modulus * m)).filter (fun i => i % modulus = t) =
       (Finset.range m).image fun j => modulus * j + t := by
     ext i
-    simp only [Finset.mem_filter, Finset.mem_range, Finset.mem_image, modulus]
+    rw [Finset.mem_filter]
+    simp only [Finset.mem_range, Finset.mem_image, modulus]
     constructor
     · rintro ⟨hi, hmod⟩
       refine ⟨i / 3329, by omega, by omega⟩

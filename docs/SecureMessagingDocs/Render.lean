@@ -26,12 +26,18 @@ private partial def copyHoverDocsToSubdirs (root : System.FilePath) : IO Unit :=
         visit entry.path
   visit root
 
-def renderManual (manual : Verso.Doc.Part Manual) (args : List String) : IO UInt32 := do
+/-- The Blueprint rendering data is captured by an auto-param, so it is collected in the
+environment of the *caller*: each renderer main imports the chapters it renders, while this
+module does not. Forward it explicitly, otherwise the model is empty and traversal reports
+every label as unknown. -/
+def renderManual (manual : Verso.Doc.Part Manual) (args : List String)
+    (model : RenderModel := by exact blueprint_render_model%) : IO UInt32 := do
   let exitCode ← PreviewManifest.blueprintMainWithPreviewData
     manual
     args
     (extensionImpls := by exact extension_impls%)
     (config := docsConfig)
+    (model := model)
   if exitCode == 0 then
     if let some out := outputDir? args then
       copyHoverDocsToSubdirs (out / "html-multi")

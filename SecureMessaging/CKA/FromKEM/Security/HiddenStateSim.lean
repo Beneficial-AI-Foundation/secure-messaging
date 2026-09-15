@@ -66,6 +66,20 @@ def postBToAReductionState
 private def noPendingPostState (s : SecurityState K PK SK C) : PostChallengeState K PK SK C :=
   { game := s, pending := PendingChallengeRecv.none }
 
+/-- `allowCorr … .A = false` as a pair of strict inequalities on the epoch counters. Stated for
+a general state so that no `decide` instance mentions a structure update; simp then reduces the
+projections on both sides of a `rw` without leaving mismatched instances behind. -/
+private lemma allowCorr_A_eq_false_iff (gp : CKAScheme.GameParams) (s : SecurityState K PK SK C) :
+    CKAScheme.allowCorr gp s .A = false ↔
+      gp.challengeEpoch < max s.tA s.tB + gp.ΔPCS ∧ s.tA < gp.challengeEpoch + gp.ΔFS := by
+  simp [CKAScheme.allowCorr, CKAScheme.allowCorrPCS, CKAScheme.allowCorrFS]
+
+/-- `allowCorr … .B = false`, the `B` mirror of `allowCorr_A_eq_false_iff`. -/
+private lemma allowCorr_B_eq_false_iff (gp : CKAScheme.GameParams) (s : SecurityState K PK SK C) :
+    CKAScheme.allowCorr gp s .B = false ↔
+      gp.challengeEpoch < max s.tA s.tB + gp.ΔPCS ∧ s.tB < gp.challengeEpoch + gp.ΔFS := by
+  simp [CKAScheme.allowCorr, CKAScheme.allowCorrPCS, CKAScheme.allowCorrFS]
+
 /-- Relation for the post-challenge A-to-B window.
 
 The honest CKA game still contains the receiver secret key `sk`, while the
@@ -161,8 +175,8 @@ private lemma postRel_aToB_after_challA
   have hblock :
       CKAScheme.allowCorr gp
         (postAToBReductionState base msg fakeKey).game .B = false := by
-    simpa [postAToBReductionState, CKAScheme.allowCorr, CKAScheme.allowCorrPCS,
-      CKAScheme.allowCorrFS] using hblockBase
+    rw [allowCorr_B_eq_false_iff] at hblockBase ⊢
+    simpa [postAToBReductionState] using hblockBase
   exact PostRel.aToB
     (PostAToBRel.intro base skStar msg realKey fakeKey rfl rfl hdec hrecv hblock)
 
@@ -235,8 +249,8 @@ private lemma postRel_bToA_after_challB
   have hblock :
       CKAScheme.allowCorr gp
         (postBToAReductionState base msg fakeKey).game .A = false := by
-    simpa [postBToAReductionState, CKAScheme.allowCorr, CKAScheme.allowCorrPCS,
-      CKAScheme.allowCorrFS] using hblockBase
+    rw [allowCorr_A_eq_false_iff] at hblockBase ⊢
+    simpa [postBToAReductionState] using hblockBase
   exact PostRel.bToA
     (PostBToARel.intro base skStar msg realKey fakeKey rfl rfl hdec hrecv hblock)
 
@@ -471,6 +485,7 @@ private lemma postRel_aToB_recvB_noPending [SampleableType K] [DecidableEq K]
     (key := fakeKey) (nextPk := msg.2) (msg := msg) hrecv']
   apply relTriple_pure_pure
   simp [noPendingPostState]
+  rfl
 
 private lemma postRel_aToB_recvB [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
@@ -532,6 +547,7 @@ private lemma postRel_bToA_recvA_noPending [SampleableType K] [DecidableEq K]
     (key := fakeKey) (nextPk := msg.2) (msg := msg) hrecv']
   apply relTriple_pure_pure
   simp [noPendingPostState]
+  rfl
 
 private lemma postRel_bToA_recvA [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
@@ -668,8 +684,8 @@ lemma postRel_step [SampleableType K] [DecidableEq K]
       have hlastRecv := lastAction_of_valid_recvB hrecv
       have hblockHonest :
           CKAScheme.allowCorr gp (postAToBHonestState base sk msg realKey) .B = false := by
-        simpa [postAToBHonestState, postAToBReductionState, CKAScheme.allowCorr,
-          CKAScheme.allowCorrPCS, CKAScheme.allowCorrFS] using hblock
+        rw [allowCorr_B_eq_false_iff] at hblock ⊢
+        simpa [postAToBHonestState, postAToBReductionState] using hblock
       rcases t with
         (((((((((n | uSendA) | uRecvA) | uSendB) | uRecvB) |
           uChallA) | uChallB) | uCorrA) | uCorrB) | uRLeakA) | uRLeakB
@@ -750,8 +766,7 @@ lemma postRel_step [SampleableType K] [DecidableEq K]
                 some (postAToBHonestState base sk msg realKey).stA else none) =
               (if CKAScheme.allowCorr gp (postAToBReductionState base msg fakeKey).game .A then
                 some (postAToBReductionState base msg fakeKey).game.stA else none) := by
-          simp [postAToBHonestState, postAToBReductionState, CKAScheme.allowCorr,
-            CKAScheme.allowCorrPCS, CKAScheme.allowCorrFS]
+          rfl
         exact relTriple_pure_pure ⟨hout, hcurrent⟩
       · cases uCorrB
         rw [securityImpl_corruptB_run kem hDet leak gp
@@ -806,8 +821,8 @@ lemma postRel_step [SampleableType K] [DecidableEq K]
       have hlastRecv := lastAction_of_valid_recvA hrecv
       have hblockHonest :
           CKAScheme.allowCorr gp (postBToAHonestState base sk msg realKey) .A = false := by
-        simpa [postBToAHonestState, postBToAReductionState, CKAScheme.allowCorr,
-          CKAScheme.allowCorrPCS, CKAScheme.allowCorrFS] using hblock
+        rw [allowCorr_A_eq_false_iff] at hblock ⊢
+        simpa [postBToAHonestState, postBToAReductionState] using hblock
       rcases t with
         (((((((((n | uSendA) | uRecvA) | uSendB) | uRecvB) |
           uChallA) | uChallB) | uCorrA) | uCorrB) | uRLeakA) | uRLeakB
@@ -903,8 +918,7 @@ lemma postRel_step [SampleableType K] [DecidableEq K]
                 some (postBToAHonestState base sk msg realKey).stB else none) =
               (if CKAScheme.allowCorr gp (postBToAReductionState base msg fakeKey).game .B then
                 some (postBToAReductionState base msg fakeKey).game.stB else none) := by
-          simp [postBToAHonestState, postBToAReductionState, CKAScheme.allowCorr,
-            CKAScheme.allowCorrPCS, CKAScheme.allowCorrFS]
+          rfl
         exact relTriple_pure_pure ⟨hout, hcurrent⟩
       · cases uRLeakA
         have hvalid : CKAScheme.validStep base.lastAction .sendA = false := by

@@ -108,7 +108,8 @@ private theorem encodingPolynomial_eq_decodingPolynomial
       (chunks : Set (Fin params.N × F)) := by
     intro a ha b hb hab
     exact hdec.2 ha hb (params.point_injective hab)
-  rw [coordinateChunks_encodeChunks, ReedSolomon.Parameters.decodingPolynomial]
+  rw [coordinateChunks_encodeChunks]
+  unfold ReedSolomon.Parameters.decodingPolynomial
   apply Lagrange.eq_interpolate_of_eval_eq _ hpoints
   · have hdegree := params.degree_encodingPolynomial_lt scalarMessage
     have hcard' : params.k ≤ chunks.card := hdec.1
@@ -127,7 +128,7 @@ theorem decode_encodeChunks_of_k_le_card (params : ReedSolomon.Parameters F)
       ((parallelErasureCode params).encodeChunks message I) = some message := by
   have hdec := decodable_encodeChunks_of_k_le_card params message I hcard
   change decode params ((parallelErasureCode params).encodeChunks message I) = some message
-  rw [decode]
+  unfold decode
   split_ifs with h
   · congr 1
     funext i coordinate
@@ -146,7 +147,7 @@ theorem decode_encodeChunks_of_card_lt (params : ReedSolomon.Parameters F)
     (parallelErasureCode params).decode
       ((parallelErasureCode params).encodeChunks message I) = none := by
   change decode params ((parallelErasureCode params).encodeChunks message I) = none
-  rw [decode]
+  unfold decode
   split_ifs with hdec
   · apply Nat.not_le_of_lt hcard
     have hk := hdec.1

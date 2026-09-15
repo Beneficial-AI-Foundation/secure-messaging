@@ -5,7 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 import SecureMessaging.KEM.OnOffKEM.Defs
 import LatticeCrypto.MLKEM.KPKE
-import LatticeCrypto.MLKEM.Concrete.Instance
+import Extern.MLKEM.Instance
 
 /-!
 # ML-KEM's K-PKE as an online-offline KEM

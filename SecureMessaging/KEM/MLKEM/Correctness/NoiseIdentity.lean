@@ -215,7 +215,7 @@ theorem kpkeDecryptDifference_eq_noise {params : Params} {encoding : Encoding pa
     (ring : NTTRingOps) (prims : Primitives params encoding)
     (hEnc : encoding.Laws) (hRing : NTTRingLaws ring) (d z : Seed32) (m : Message) :
     kpkeDecryptDifference ring encoding prims d z m = kpkeNoiseExpression ring prims d m := by
-  haveI : LatticeCrypto.TransformOps.Laws ring := hRing
+  have : LatticeCrypto.TransformOps.Laws ring := hRing
   have hv : encoding.decompressDV (encoding.compressDV (kpkeV ring prims d m)) =
       kpkeV ring prims d m + kpkeCompressionErrorV ring prims d m := by
     unfold kpkeCompressionErrorV
