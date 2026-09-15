@@ -474,7 +474,7 @@ lemma evalDist_ckaSecurityImpl_lazy_eq_eager
       let b ← ($ᵗ F : ProbComp F)
       let a ← ($ᵗ F : ProbComp F)
       (simulateQ (honestImplParamReal gp gen a b) adversary).run' s) := by
-  letI : Fintype G := Fintype.ofFinite G
+  let : Fintype G := Fintype.ofFinite G
   unfold ckaSecurityImplLazyReal
   rw [← OracleComp.ProgramLogic.Relational.probOutput_simulateQ_consumeLazy_run'_eq
         (spec := ckaSecuritySpec (CKAState F G) G G F) (τ := F)

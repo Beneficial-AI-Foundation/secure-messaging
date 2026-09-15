@@ -1628,7 +1628,7 @@ lemma probOutput_reduction_rand_sample_gT
       let gT ← ($ᵗ G : ProbComp G)
       m gT] := by
   classical
-  letI : Fintype F := Fintype.ofFinite F
+  let : Fintype F := Fintype.ofFinite F
   exact probOutput_bind_bijective_uniform_cross (α := F) (β := G) (γ := γ)
     (f := fun c : F => c • gen) hg m z
 

@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import LatticeCrypto.MLKEM.Concrete.Instance
+import Extern.MLKEM.Instance
 import LatticeCrypto.MLKEM.KEM
 import ToVCVio.CryptoFoundations.KeyEncapMech
 

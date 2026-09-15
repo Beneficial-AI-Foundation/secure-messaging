@@ -62,7 +62,7 @@ theorem game0_eq_real
     rcases t with (n | am) | ac
     · -- uniform-sampling oracle: state threaded unchanged on both sides
       simp [AEADScheme.aeadSecurityImpl, gameUnifImpl, AEADScheme.oracleUnif,
-        QueryImpl.add_apply_inl, QueryImpl.liftTarget_apply, Prod.map]
+        QueryImpl.add_apply_inl, Prod.map]
     · -- encryption oracle
       obtain ⟨ad, m⟩ := am
       cases ch <;>
@@ -116,7 +116,7 @@ theorem game0_eq_prfRealExp
         PRFScheme.simulateQ_prfRealQueryImpl_liftComp prf k
           (liftM (OracleSpec.query n) : OracleComp unifSpec (unifSpec.Range n))
       simp [gameUnifImpl, QueryImpl.mapStateTBase, QueryImpl.add_apply_inl,
-        QueryImpl.liftTarget_apply, hq, StateT.run_monadLift,
+        hq, StateT.run_monadLift,
         Functor.map_map]
     · -- encryption oracle: `se.encrypt ke m` + tag forwarded to `pure (prf.eval k (ad,c))`
       obtain ⟨ad, m⟩ := am
@@ -260,7 +260,7 @@ theorem game1_eq_prfIdealExp
           (liftM (OracleSpec.query n) : OracleComp unifSpec (unifSpec.Range n))
       rw [flattenStateT_mapStateTBase_apply_run]
       simp [gameUnifImpl,
-        QueryImpl.add_apply_inl, QueryImpl.liftTarget_apply, hq,
+        QueryImpl.add_apply_inl, hq,
         StateT.run_bind, StateT.run_monadLift, Prod.map, Functor.map_map]
     · -- encryption oracle: `se.encrypt ke m` + tag = `randomOracle (ad,c)` on the relocated
       -- cache; the inner TagCache (∅) is dropped by proj

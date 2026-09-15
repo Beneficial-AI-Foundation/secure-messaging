@@ -132,11 +132,9 @@ private lemma rawResume_probOutput_decomp [SampleableType K] [DecidableEq K]
   cases res with
   | done g =>
       simp only [rawResume, finishChallengeStepRaw, rawResumeKilled, injDone]
-      rw [probOutput_bind_const]
-      simp only [probFailure_eq_zero, tsub_zero, one_mul]
-      rw [probOutput_bind_const]
-      simp only [probFailure_of_liftM_PMF, tsub_zero, probOutput_pure, Bool.true_eq, mul_ite,
-        mul_one, mul_zero, Bool.false_eq_true, ↓reduceIte, zero_add]
+      rw [probOutput_bind_of_const' (kem.encaps pkStar) fun _ _ => rfl,
+        probOutput_bind_of_const' ($ᵗ K : ProbComp K) fun _ _ => rfl]
+      simp only [probOutput_pure, Bool.true_eq, Bool.false_eq_true, ↓reduceIte, zero_add]
   | pausedA cont => simp [rawResumeKilled, injDone]
   | pausedB cont => simp [rawResumeKilled, injDone]
 

@@ -1,6 +1,7 @@
 import ToVCVio.Control.StateT
 import ToVCVio.CryptoFoundations.KeyEncapMech
 import ToVCVio.EvalDist.Monad.Basic
+import ToVCVio.EvalDist.TVDist
 import ToVCVio.LatticeCrypto.FrodoKEM.Parameters
 import ToVCVio.LatticeCrypto.FrodoKEM.Bits
 import ToVCVio.LatticeCrypto.FrodoKEM.Encoding

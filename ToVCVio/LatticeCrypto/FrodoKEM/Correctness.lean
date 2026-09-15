@@ -167,7 +167,7 @@ theorem dc_ec_add (p : Params) (hw : p.WellFormed) (k : ZMod (2 ^ p.B))
     (hhi : 2 ^ (p.B + 1) * centeredRepr e < (p.q : ℤ)) :
     dc p (ec p k + e) = k := by
   have hQ : p.q = 2 ^ p.D := hw.q_eq
-  haveI : NeZero p.q := ⟨by rw [hQ]; positivity⟩
+  have : NeZero p.q := ⟨by rw [hQ]; positivity⟩
   have hq0 : (0 : ℤ) < (p.q : ℤ) := by rw [hQ]; positivity
   have hpow : (0 : ℤ) < 2 ^ (p.B + 1) := by positivity
   -- with every bit of an entry carrying message the window admits only `e = 0`
@@ -272,7 +272,7 @@ theorem Decode_Encode_add (p : Params) (hw : p.WellFormed)
 modulus is recoverable. -/
 theorem bitsToEntry_entryToBits (p : Params) (hw : p.WellFormed) (x : ZMod p.q) :
     bitsToEntry p (entryToBits p x) = x := by
-  haveI : NeZero p.q := ⟨by rw [hw.q_eq]; positivity⟩
+  have : NeZero p.q := ⟨by rw [hw.q_eq]; positivity⟩
   rw [bitsToEntry]
   simp only [entryToBits, Vector.getElem_ofFn,
     show ∀ l : Fin p.D, p.D - 1 - (p.D - 1 - l.val) = l.val from fun l => by omega,
@@ -281,7 +281,7 @@ theorem bitsToEntry_entryToBits (p : Params) (hw : p.WellFormed) (x : ZMod p.q) 
 /-- The `D` bits of an entry are recovered from it. -/
 theorem entryToBits_bitsToEntry (p : Params) (hw : p.WellFormed) (v : Vector Bool p.D) :
     entryToBits p (bitsToEntry p v) = v := by
-  haveI : NeZero p.q := ⟨by rw [hw.q_eq]; positivity⟩
+  have : NeZero p.q := ⟨by rw [hw.q_eq]; positivity⟩
   apply Vector.ext
   intro l hl
   rw [entryToBits, Vector.getElem_ofFn, bitsToEntry, ZMod.val_natCast, hw.q_eq,

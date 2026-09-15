@@ -160,6 +160,27 @@ theorem correctnessError_eq_probOutput_false_of_probFailure_eq_zero
       Pr[= false | runtime.evalDist kem.CorrectExp] := by
   rw [correctnessError_eq_probOutput_false_add_probFailure, hfail, add_zero]
 
+/-- Decapsulating an honestly-generated ciphertext fails no more often than `kem`'s own
+correctness experiment returns `false`: whenever decapsulation returns `none`, it certainly
+doesn't recover the encapsulated key. -/
+theorem probOutput_none_decaps_le_probOutput_false_CorrectExp [LawfulMonad m]
+    [MonadLiftT m SPMF] [LawfulMonadLiftT m SPMF]
+    [MonadLiftT m SetM] [EvalDistCompatible m] (kem : KEMScheme m K PK SK C) :
+    Pr[= (none : Option K) |
+        do let (pk, sk) ← kem.keygen; let (c, _k) ← kem.encaps pk; kem.decaps sk c] ≤
+      Pr[= false | kem.CorrectExp] := by
+  unfold KEMScheme.CorrectExp
+  refine probOutput_bind_mono (mx := kem.keygen) fun p _ => ?_
+  obtain ⟨pk, sk⟩ := p
+  refine probOutput_bind_mono (mx := kem.encaps pk) fun q _ => ?_
+  obtain ⟨c, k⟩ := q
+  dsimp only
+  conv_lhs => rw [← bind_pure (kem.decaps sk c)]
+  refine probOutput_bind_mono (mx := kem.decaps sk c) fun r _ => ?_
+  rcases r with _ | k'
+  · simp
+  · simp
+
 /-- `delta`-correctness of `kem` under `runtime`: the correctness error is at most `delta`. -/
 -- ANCHOR: deltaCorrect
 def deltaCorrect (kem : KEMScheme m K PK SK C)

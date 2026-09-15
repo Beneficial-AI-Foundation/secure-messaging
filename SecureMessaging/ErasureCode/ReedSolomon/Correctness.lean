@@ -82,7 +82,7 @@ private theorem encodingPolynomial_eq_decodingInterpolation (params : Parameters
       (chunks : Set (Fin params.N × F)) := by
     intro a ha b hb hab
     exact hdec.2 ha hb (params.point_injective hab)
-  rw [decodingPolynomial]
+  unfold decodingPolynomial
   apply Lagrange.eq_interpolate_of_eval_eq _ hpoints
   · have hcard' : params.k ≤ chunks.card := hdec.1
     exact lt_of_lt_of_le
@@ -101,7 +101,7 @@ theorem decode_encodeChunks_of_k_le_card (params : Parameters F)
   have hdec := params.decodable_encodeChunks_of_k_le_card message I hcard
   have hpoly := params.encodingPolynomial_eq_decodingInterpolation message I hcard
   change params.decode (params.erasureCode.encodeChunks message I) = some message
-  rw [decode]
+  unfold decode
   split_ifs with h
   · congr 1
     funext i
@@ -117,7 +117,7 @@ theorem decode_encodeChunks_of_card_lt (params : Parameters F)
     params.erasureCode.decode
       (params.erasureCode.encodeChunks message I) = none := by
   change params.decode (params.erasureCode.encodeChunks message I) = none
-  rw [decode]
+  unfold decode
   split_ifs with hdec
   · apply Nat.not_le_of_lt hcard
     have hk := hdec.1

@@ -62,7 +62,7 @@ theorem game3_eq_rand
     rcases t with (n | am) | ac
     · -- uniform-sampling oracle
       simp [AEADScheme.aeadSecurityImpl, gameUnifImpl, AEADScheme.oracleUnif,
-        QueryImpl.add_apply_inl, QueryImpl.liftTarget_apply, Prod.map]
+        QueryImpl.add_apply_inl, Prod.map]
     · -- encryption oracle: random `(c, t)` vs `$ᵗ (C_e × T)` (product sampling)
       obtain ⟨ad, m⟩ := am
       cases ch <;>

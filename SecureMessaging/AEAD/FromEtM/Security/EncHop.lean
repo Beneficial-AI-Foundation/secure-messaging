@@ -160,7 +160,7 @@ private theorem encFixedGame_eq_reductionBranch [Inhabited K_e]
         OracleComp.simulateQ_id'_liftTarget_add_liftComp _
           (liftM (OracleSpec.query n) : OracleComp unifSpec (unifSpec.Range n))
       simp [QueryImpl.flattenStateT, QueryImpl.mapStateTBase, DetSEAlg.indCPAImpl,
-        DetSEAlg.oracleUnif, gameUnifImpl, QueryImpl.add_apply_inl, QueryImpl.liftTarget_apply,
+        DetSEAlg.oracleUnif, gameUnifImpl, QueryImpl.add_apply_inl,
         hq, StateT.run_bind, StateT.run_monadLift, Prod.map, Functor.map_map]
     · have hqT : simulateQ ((QueryImpl.id' unifSpec).liftTarget (StateT Bool ProbComp) +
             se.oracleEncrypt bit key)
@@ -300,7 +300,7 @@ theorem game2_game3_le_enc [Inhabited K_e]
         obtain ⟨ch, qc⟩ := s
         rcases t with (n | ⟨ad, m⟩) | ⟨ad, c⟩
         · -- uniform-sampling oracle: state threaded unchanged on both sides, cache reset by proj
-          simp [gameUnifImpl, QueryImpl.add_apply_inl, QueryImpl.liftTarget_apply,
+          simp [gameUnifImpl, QueryImpl.add_apply_inl,
             StateT.run_bind, StateT.run_monadLift, Prod.map, Functor.map_map]
         · -- encryption oracle: at `ch = none` the cache is `∅` (invariant), so the random oracle
           -- query is fresh and equals `$ᵗ T`, matching the `$ᵗ T`-tag skeleton; the cache write
