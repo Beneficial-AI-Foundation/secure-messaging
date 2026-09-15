@@ -57,13 +57,13 @@ abbrev SupportedAAD := { x : (a : ℕ) × BitVec a // ValidAADLength x.1 }
 ```
 
 ```anchor gcmOneTimeAEAD (project := ".") (module := SecureMessaging.AEAD.FromGCM.Construction)
-def gcmOneTimeAEAD {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ)
+def gcmOneTimeAEAD {K : Type} (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
     (_hL : ValidMsgLength L) :
     AEADScheme ProbComp (BitVec L) SupportedAAD
       K (BitVec L × BitVec 128) where
   keygen := prp.keygen
-  encrypt := fun k ad m => gcmEncrypt prp.toBlockCipher k (0 : BitVec 96) ad.1.2 m
-  decrypt := fun k ad c => gcmDecrypt prp.toBlockCipher k (0 : BitVec 96) ad.1.2 c
+  encrypt := fun k ad m => gcmEncrypt prp.toBlockCipher k iv ad.1.2 m
+  decrypt := fun k ad c => gcmDecrypt prp.toBlockCipher k iv ad.1.2 c
 ```
 
 {usesLabel}`uses` {uses "aead"}[] · {uses "prp"}[] · {githubLabel}`github` {githubIssue 21}[]
@@ -76,9 +76,9 @@ def gcmOneTimeAEAD {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ)
 $`\todo`
 
 ```anchor gcmOneTimeAEAD_correct (project := ".") (module := SecureMessaging.AEAD.FromGCM.Correctness)
-theorem gcmOneTimeAEAD_correct {K : Type} (prp : PRPScheme K (BitVec 128)) {L : ℕ}
-    (hL : ValidMsgLength L) :
-    (gcmOneTimeAEAD prp L hL).Correct
+theorem gcmOneTimeAEAD_correct {K : Type} (prp : PRPScheme K (BitVec 128))
+    (iv : BitVec 96) {L : ℕ} (hL : ValidMsgLength L) :
+    (gcmOneTimeAEAD prp iv L hL).Correct
 ```
 
 {usesLabel}`uses` {uses "aead_gcm_spec"}[] · {uses "aead_correctness"}[] · {uses "prp"}[] · {githubLabel}`github` {githubIssue 22}[]
@@ -88,10 +88,10 @@ theorem gcmOneTimeAEAD_correct {K : Type} (prp : PRPScheme K (BitVec 128)) {L : 
 :::
 
 ::::theorem "aead_gcm_security" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD_security")
-One-time IND-CCA security of GCM at the all-zero 96-bit IV reduces to the PRP
-security of its block cipher. The distinguishing advantage is at most
-$`\mathrm{Adv}^{\mathrm{prp}}` of the explicit reduction
-$`B = \mathsf{prfReduction}\ L\ A`, plus the PRP/PRF switching term
+One-time IND-CCA security of GCM at any fixed public 96-bit IV reduces to the PRP
+security of its block cipher; the bound is uniform in the IV. The distinguishing
+advantage is at most $`\mathrm{Adv}^{\mathrm{prp}}` of the explicit reduction
+$`B = \mathsf{prfReduction}\ iv\ L\ A`, plus the PRP/PRF switching term
 $`(n+2)(n+1)/2^{129}` with $`n = \lceil L/128 \rceil`, plus
 $`q_d \cdot \mathsf{maxBlocks}(L)/2^{128}`, where $`q_d` bounds the adversary's
 decryption queries.
@@ -103,12 +103,12 @@ disappear in the one-time setting. Neither an almost-XOR-universality hypothesis
 a PRF hypothesis remains.
 
 ```anchor gcmOneTimeAEAD_security (project := ".") (module := SecureMessaging.AEAD.FromGCM.Security)
-theorem gcmOneTimeAEAD_security (prp : PRPScheme K (BitVec 128)) (L : ℕ)
+theorem gcmOneTimeAEAD_security (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
     (q_d : ℕ) (hq : AEADScheme.decryptQueryBound adv q_d) :
-    AEADScheme.distAdvantage (gcmOneTimeAEAD prp L hL) adv ≤
-      PRPScheme.prpAdvantage prp (prfReduction L adv) +
+    AEADScheme.distAdvantage (gcmOneTimeAEAD prp iv L hL) adv ≤
+      PRPScheme.prpAdvantage prp (prfReduction iv L adv) +
       ((((L + 127) / 128 : ℕ) : ℝ) + 2) * ((((L + 127) / 128 : ℕ) : ℝ) + 1)
         / 2 ^ (129 : ℕ) +
       (q_d : ℝ) * ((maxBlocks L : ℝ) / 2 ^ (128 : ℕ))
