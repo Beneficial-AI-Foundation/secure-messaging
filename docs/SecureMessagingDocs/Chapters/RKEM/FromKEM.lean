@@ -5,6 +5,7 @@ import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessaging.RKEM.FromKEM.Construction
 import SecureMessaging.RKEM.FromKEM.Correctness
+import SecureMessaging.RKEM.FromKEM.Security
 
 set_option linter.style.setOption false
 set_option linter.hashCommand false
@@ -106,11 +107,39 @@ theorem deltaCorrect [DecidableEq K] (kem : KEMScheme ProbComp K PK SK C)
 :::defTitle "rkem_from_kem_forward_security" "RKEM from KEM forward security"
 :::
 
-::::theorem "rkem_from_kem_forward_security" (parent := "rkem_rkem_from_kem")
+::::theorem "rkem_from_kem_forward_security" (parent := "rkem_rkem_from_kem") (lean := "kemRKEM.FSINDCPASecure")
 $`\todo`
 
-:::leanPill "missing"
+:::leanPillCaption "IND-CPA reduction adversary"
 :::
+
+```anchor indCpaReduction (project := ".") (module := SecureMessaging.RKEM.FromKEM.Security)
+def indCpaReduction (kem : KEMScheme ProbComp K PK SK C)
+    (adversary : RKEMScheme.FSINDCPAAdversary Unit PK SK (PK × C) K) :
+    kem.IND_CPA_Adversary where
+  State := PK
+  preChallenge := fun ekBHat => pure ekBHat
+  postChallenge := fun ekBHat ct kb => do
+    let (ekA, _dkA) ← kem.keygen
+    let (ekAHat, dkAHat) ← kem.keygen
+    let b' ← adversary () ekA ekAHat ekBHat (ekAHat, ct) dkAHat kb
+    return !b'
+```
+
+:::leanPillCaption "FS-IND-CPA security reduction bound"
+:::
+
+```anchor FSINDCPASecure (project := ".") (module := SecureMessaging.RKEM.FromKEM.Security)
+theorem FSINDCPASecure [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (adversaryA adversaryB : RKEMScheme.FSINDCPAAdversary Unit PK SK (PK × C) K) :
+    RKEMScheme.FSINDCPASecure (scheme kem) adversaryA adversaryB
+      (max
+        (kem.IND_CPA_Advantage ProbCompRuntime.probComp (indCpaReduction kem adversaryA) / 2 +
+          (Pr[= false | kem.CorrectExp]).toReal)
+        (kem.IND_CPA_Advantage ProbCompRuntime.probComp (indCpaReduction kem adversaryB) / 2 +
+          (Pr[= false | kem.CorrectExp]).toReal))
+```
 
 {usesLabel}`uses` {uses "rkem_from_kem_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_forward_security"}[] · {githubLabel}`github` {githubIssue 77}[]
 ::::

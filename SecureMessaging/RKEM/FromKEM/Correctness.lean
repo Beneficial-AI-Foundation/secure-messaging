@@ -23,7 +23,7 @@ namespace kemRKEM
 
 variable {K PK SK C : Type}
 
-/-- `correctExpA` at the KEM-from-KEM scheme agrees on the shared key exactly as often as the
+/-- `correctExpA` at the RKEM-from-KEM scheme agrees on the shared key exactly as often as the
 underlying KEM's own correctness experiment: the extra independent key pairs sampled along the
 way (`A`'s own fresh pair, and the fresh pair generated inside `rencA`) don't affect the
 comparison. Holds unconditionally, for any KEM (not just a correct one). -/
