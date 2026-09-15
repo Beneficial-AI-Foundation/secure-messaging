@@ -9,6 +9,19 @@ import SecureMessaging.AEAD.FromGCM.Security.GhashPolynomial
 import ToVCVio.CryptoFoundations.AdjoinRootReflect
 import ToVCVio.CryptoFoundations.RabinIrreducibility
 
+/-!
+# Irreducibility of GCM's field polynomial
+
+`nistPoly_irreducible`: `x¹²⁸ + x⁷ + x² + x + 1` is irreducible over `𝔽₂`. With it the GHASH AXU
+bound holds with no hypothesis, `ghash_isAXU_unconditional`.
+
+The proof is Rabin's test, `ToVCVio.irreducible_of_rabin_root`. At `q = 2` and `n = 128 = 2⁷` it
+has two conditions, `2` being the only prime dividing `128`: `α^(2¹²⁸) = α`, and `α^(2⁶⁴) − α` is
+a unit, where `α` is the class of `x`. Both are computed with GCM's own `gfmul` on `BitVec 128`
+and checked by `decide +kernel`, which reduces in the kernel and adds no axiom; `native_decide`
+would have added `Lean.ofReduceBool`. The results are then transported into `AdjoinRoot nistPoly`
+through `reflectN`.
+-/
 
 open OracleComp OracleSpec ENNReal ToVCVio Polynomial ToVCVio.AdjoinRootReflect
 
@@ -65,35 +78,9 @@ theorem reflectN_sqIter (n : ℕ) (x : BitVec 128) :
 
 /-! ### Assembly -/
 
-/-- The NIST GCM pentanomial `x¹²⁸ + x⁷ + x² + x + 1` is irreducible over `𝔽₂`.
-
-This is an arithmetic fact about a fixed polynomial, not one of the cryptographic assumptions the
-project admits unproved (the PRF/PRP security of a block cipher is such an assumption; this is
-not). It therefore may not enter the development as an `axiom`, as a `sorry`, or through
-`native_decide`, and it does not: see the axiom report below.
-
-Mathlib at this toolchain has no irreducibility decision procedure that reaches degree `128` over
-`GF(2)`, and no polynomial factorisation algorithm at all (`grep -rn "Rabin" Mathlib/` returns
-nothing), so the test is built here.
-
-The route is Rabin's irreducibility test at `q = 2`, `n = 128 = 2⁷`. Since `2` is the only prime
-dividing `128`, the test has exactly two conditions: the `128`-fold Frobenius fixes the root
-(`kernel_rabin1`), and `α^(2⁶⁴) − α` is a unit in the quotient (`kernel_rabin2`, as a Bézout
-witness). Both are checked by `decide +kernel`, which asks the Lean kernel to reduce the decidable
-proposition and adds no axiom; `native_decide` would instead mint a generated
-`_native.<tacticName>.ax` auxiliary axiom, which would be visible in the axiom report. The
-certificates report exactly `[propext, Quot.sound]`, and this theorem reports exactly
-`[propext, Classical.choice, Quot.sound]`.
-
-The soundness layer is `ToVCVio.irreducible_of_rabin_root`, cryptography-free and generic over any
-finite field. Its degree-theoretic input, `ToVCVio.natDegree_dvd_iff_dvd_X_pow_card_pow_sub_X`, has
-its forward direction in Mathlib (`Irreducible.natDegree_dvd_of_dvd_X_pow_card_pow_sub_X`,
-`Mathlib/FieldTheory/Finite/Extension.lean`); the converse landed upstream as Mathlib PR #39239
-(v4.33.0) and is carried locally until the toolchain bump.
-
-The transport from `BitVec 128` arithmetic into `AdjoinRoot nistPoly` is `reflectN`, via
-`reflectN_alpha`, `reflectN_sqIter` and `reflect_gfmul`. The characteristic-2 collapse of the
-subtraction is `adjoinRoot_neg_eq_self` (`Security/GhashAXU.lean`). -/
+/-- GCM's field polynomial is irreducible over `𝔽₂`: Rabin's test with the two kernel-checked
+conditions transported through `reflectN`. Axioms: `propext`, `Classical.choice`, `Quot.sound`
+only. -/
 theorem nistPoly_irreducible : Irreducible nistPoly := by
   have hcard : Nat.card (ZMod 2) = 2 := Nat.card_zmod 2
   have hpos : 0 < nistPoly.natDegree := by rw [nistPoly_natDegree]; omega
