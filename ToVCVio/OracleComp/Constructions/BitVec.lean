@@ -126,6 +126,7 @@ example (n : ℕ) (y : BitVec 0) :
         ($ᵗ Vector (BitVec 128) n)] = 1 := by
   simpa using probOutput_blocksToBitVec_uniform n 0 (Nat.zero_le _) y
 
+/-! ## A masked value and a masked function of it are jointly uniform -/
 
 /-- Xor with a fixed `BitVec` is a bijection (it is its own inverse). -/
 lemma bitVec_xor_left_bijective {k : ℕ} (x : BitVec k) : Function.Bijective (x ^^^ ·) :=
@@ -175,6 +176,7 @@ example {n : ℕ} (msg : BitVec n) (g : BitVec n → BitVec 0) :
       = evalDist ($ᵗ (BitVec n × BitVec 0) : ProbComp (BitVec n × BitVec 0)) :=
   evalDist_pair_xor_uniform msg g
 
+/-! ## From a list of independent draws to one uniform vector -/
 
 /-- One independent uniform draw per element of `pts` puts mass `(card R)⁻¹ ^ pts.length` on
 each list of length `pts.length` and `0` elsewhere. -/
@@ -182,7 +184,7 @@ lemma probOutput_mapM_const_uniform {D R : Type} [SampleableType R] [Fintype R]
     (pts : List D) (xs : List R) :
     Pr[= xs | pts.mapM (fun _ => ($ᵗ R : ProbComp R))] =
       if xs.length = pts.length then ((Fintype.card R : ℝ≥0∞)⁻¹) ^ pts.length else 0 := by
-  letI : DecidableEq R := Classical.decEq R
+  let : DecidableEq R := Classical.decEq R
   induction pts generalizing xs with
   | nil =>
       rw [List.mapM_nil]
@@ -245,7 +247,7 @@ theorem evalDist_mapM_const_uniform {D R : Type} [SampleableType R]
     (pts : List D) :
     evalDist (pts.mapM (fun _ => ($ᵗ R : ProbComp R))) =
       evalDist (Vector.toList <$> ($ᵗ Vector R pts.length : ProbComp _)) := by
-  letI : Fintype R := Fintype.ofFinite R
+  let : Fintype R := Fintype.ofFinite R
   refine evalDist_ext fun xs => ?_
   rw [probOutput_mapM_const_uniform, probOutput_toList_uniformSample_vector]
 

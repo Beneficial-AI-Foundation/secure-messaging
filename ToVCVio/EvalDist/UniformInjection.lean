@@ -41,8 +41,8 @@ theorem tvDist_map_injective_uniformSample {A B : Type} [Fintype A] [Fintype B]
       = 1 - (Fintype.card A : ℝ) / (Fintype.card B : ℝ) := by
   -- `DecidableEq` is supplied explicitly rather than by `classical`: instance search from a
   -- bare `SampleableType` context times out at 20000 synthesis heartbeats in this build.
-  letI : DecidableEq A := Classical.decEq A
-  letI : DecidableEq B := Classical.decEq B
+  let : DecidableEq A := Classical.decEq A
+  let : DecidableEq B := Classical.decEq B
   set S : Finset B := Finset.univ.image ι with hS
   have hcard : Fintype.card A ≤ Fintype.card B := Fintype.card_le_of_injective ι hι
   have hApos : 0 < Fintype.card A := Fintype.card_pos
@@ -145,6 +145,7 @@ theorem two_mul_sub_descFactorial_le (N : ℕ) : ∀ q : ℕ,
             Nat.mul_le_mul_left _ key
         _ = N * (2 * N * (N ^ q - N.descFactorial q)) + 2 * q * (N * N ^ q) := by ring
     refine step.trans ?_
+    -- The closing step is nonlinear in `q` and `N`, so `omega` cannot finish it.
     have h5 : N * (2 * N * (N ^ q - N.descFactorial q)) ≤ N * (q * (q - 1) * N ^ q) :=
       Nat.mul_le_mul_left _ ih
     calc N * (2 * N * (N ^ q - N.descFactorial q)) + 2 * q * (N * N ^ q)
@@ -165,7 +166,7 @@ theorem evalDist_listMapM_uniform_eq_map_ofFn {X : Type} [FinEnum X] [Nonempty X
     evalDist (pts.mapM (fun _ => ($ᵗ X : ProbComp X)))
       = evalDist ((List.ofFn : (Fin pts.length → X) → List X) <$>
           ($ᵗ (Fin pts.length → X) : ProbComp (Fin pts.length → X))) := by
-  letI : DecidableEq X := Classical.decEq X
+  let : DecidableEq X := Classical.decEq X
   have hRHS : ∀ xs : List X,
       Pr[= xs | (List.ofFn : (Fin pts.length → X) → List X) <$>
           ($ᵗ (Fin pts.length → X) : ProbComp (Fin pts.length → X))]
@@ -210,8 +211,8 @@ theorem tvDist_map_uniformPerm_mapM_const_uniform_le {X : Type} [FinEnum X] [Non
         ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X)))
         (pts.mapM (fun _ => ($ᵗ X : ProbComp X)))
       ≤ (pts.length * (pts.length - 1) : ℝ) / (2 * Fintype.card X) := by
-  letI : DecidableEq X := Classical.decEq X
-  haveI hq : Nonempty (Fin pts.length ↪ X) := nonempty_embedding_of_nodup pts hpts
+  let : DecidableEq X := Classical.decEq X
+  have hq : Nonempty (Fin pts.length ↪ X) := nonempty_embedding_of_nodup pts hpts
   have hNpos : 0 < Fintype.card X := Fintype.card_pos
   have hN0 : (Fintype.card X : ℝ) ≠ 0 := Nat.cast_ne_zero.mpr hNpos.ne'
   -- (a) The permutation side, as a without-replacement draw. `sampleDistinctFrom`'s body is

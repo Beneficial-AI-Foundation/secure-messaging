@@ -285,7 +285,7 @@ lemma simulateQ_gcmInstImpl_true_run'_eq_gcmTupleImpl
   rcases t with (n | ⟨ad, m⟩) | ⟨ad, e⟩
   · -- OUnif: both handlers are the lifted uniform oracle, state threaded unchanged.
     simp [gcmInstImpl, gcmTupleImpl, gcmGameSkeleton, oracleUnif, unifLiftStateT,
-      QueryImpl.liftTarget_apply, StateT.run_monadLift, Prod.map, Functor.map_map]
+      StateT.run_monadLift, Prod.map, Functor.map_map]
   · -- OEncrypt: identical one-shot bodies; the flag is written back unchanged.
     cases challenge <;>
       simp [gcmInstImpl, gcmTupleImpl, gcmGameSkeleton, StateT.run_bind,
@@ -311,7 +311,7 @@ lemma simulateQ_gcmInstImpl_false_run'_eq_gcmTupleImplReject
   rcases t with (n | ⟨ad, m⟩) | ⟨ad, e⟩
   · -- OUnif: both handlers are the lifted uniform oracle, state threaded unchanged.
     simp [gcmInstImpl, gcmTupleImplReject, gcmGameSkeleton, oracleUnif, unifLiftStateT,
-      QueryImpl.liftTarget_apply, StateT.run_monadLift, Prod.map, Functor.map_map]
+      StateT.run_monadLift, Prod.map, Functor.map_map]
   · -- OEncrypt: identical one-shot bodies; the flag is written back unchanged.
     cases challenge <;>
       simp [gcmInstImpl, gcmTupleImplReject, gcmGameSkeleton, StateT.run_bind,
@@ -372,7 +372,7 @@ theorem game0_eq_real (prp : PRPScheme K (BitVec 128)) (L : ℕ) (hL : ValidMsgL
     rcases t with (n | ⟨ad, m⟩) | ⟨ad, e⟩
     · -- OUnif: both handlers are the lifted uniform oracle, state threaded unchanged.
       simp [gcmGameSkeleton, AEADScheme.aeadSecurityImpl, AEADScheme.oracleUnif,
-        unifLiftStateT, QueryImpl.add_apply_inl, QueryImpl.liftTarget_apply,
+        unifLiftStateT, QueryImpl.add_apply_inl,
         StateT.run_monadLift, Functor.map_map]
     · -- OEncrypt: identical one-shot real-cipher bodies (the `b = false` branch of
       -- `oracleEncrypt` is `pure (ae.encrypt k a m)`, matching the skeleton's `encStar`).
@@ -429,7 +429,7 @@ theorem game4_eq_rand (prp : PRPScheme K (BitVec 128)) (L : ℕ) (hL : ValidMsgL
     · -- OUnif: both handlers are the lifted uniform oracle, state threaded unchanged.
       simp [gcmRandRejectImpl, gcmGameSkeleton, AEADScheme.aeadSecurityImpl,
         AEADScheme.oracleUnif, unifLiftStateT, QueryImpl.add_apply_inl,
-        QueryImpl.liftTarget_apply, StateT.run_monadLift, Functor.map_map]
+        StateT.run_monadLift, Functor.map_map]
     · -- OEncrypt: both draw the challenge uniformly from `$ᵗ (BitVec L × BitVec 128)`
       -- (the `b = true` branch of `oracleEncrypt` is the same joint product sample).
       cases s <;>

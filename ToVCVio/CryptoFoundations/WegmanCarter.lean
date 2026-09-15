@@ -104,6 +104,12 @@ theorem wcInstImpl_decrypt_run [DecidableEq Cb]
 
 end DecryptNormalForm
 
+/-! ## The log-refined handler
+
+The `forged` flag is replaced by a log of the guard-passing decrypt queries, each tagged
+pre-challenge (`false`) or post-challenge (`true`), so that the decrypt oracle no longer reads
+`(H, mask)`; the flag is recovered by the fold `wcFlag`. The challenge slot also keeps its
+AAD, which the AXU step needs for the digest point `enc (ad*, c*)`. -/
 
 /-- The challenge ciphertext with its AAD, and the log of guard-passing decrypt queries with
 their pre/post-challenge tags. -/
@@ -158,6 +164,9 @@ section LogRefinement
 
 variable {K A M Cb D : Type}
 
+/-! ### Per-oracle projection steps
+
+One lemma per oracle: a single `simp` over all three handler summands times out. -/
 
 private lemma hproj_unif [DecidableEq Cb]
     (hash : K → D → BitVec 128) (enc : A × Cb → D) (H : K) (mask : BitVec 128)
@@ -168,7 +177,7 @@ private lemma hproj_unif [DecidableEq Cb]
       ((wcInstImpl hash enc H mask padMsg unpad false) (Sum.inl (Sum.inl n))).run
         (wcProj hash enc H mask s) := by
   simp [wcLogImpl, wcInstImpl, unifLiftStateT,
-    QueryImpl.liftTarget_apply, StateT.run_monadLift, Prod.map, Functor.map_map]
+    StateT.run_monadLift, Prod.map, Functor.map_map]
 
 private lemma hproj_encrypt [DecidableEq Cb]
     (hash : K → D → BitVec 128) (enc : A × Cb → D) (H : K) (mask : BitVec 128)
@@ -268,11 +277,26 @@ theorem support_state_measure_le_of_isQueryBoundP
         omega
 
 
+/-! ## The probability core
+
+An induction over the adversary that conditions on the run so far:
+
+* while no challenge is set the handler does not read `(H, mask)`, so both draws commute
+  past each step (`hoist_step`, `pre_phase`);
+* at the encrypt query the pre-challenge log is a fixed list and the mask is still fresh, so
+  the pre-challenge entries are a blind guess at it (`pre_half_le`);
+* afterwards the handler never reads `(H, mask)` again (`run_challenge_some_indep`); the mask
+  draw is reparameterised by `mask ↦ hash H X* ^^^ mask`, making the challenge tag uniform
+  and the run `H`-free (`reparam_bind`), `H` moves to the end (`hoist_H`) and the
+  post-challenge entries are bounded by AXU (`post_half_le`);
+* the two halves are added under one budget (`post_phase`).
+-/
 
 section ProbabilityCore
 
 variable {K A M Cb D : Type}
 
+/-! ### `BitVec` rearrangements -/
 
 private lemma tag_eq_iff_mask_eq (a h m : BitVec 128) :
     a = h ^^^ m ↔ m = a ^^^ h := by
@@ -303,6 +327,7 @@ private lemma probEvent_bind_congr₂ {α β γ : Type} (mx : ProbComp α)
   rw [probEvent_bind_eq_tsum, probEvent_bind_eq_tsum]
   exact tsum_congr fun x => by rw [h x]
 
+/-! ### The pre-challenge half -/
 
 /-- Over a uniform key and a fresh uniform mask, some entry of the fixed pre-challenge log `L`
 accepts with probability at most `|L| · 2⁻¹²⁸`, under any continuation `k` that reports the
@@ -338,6 +363,7 @@ private lemma pre_half_le [SampleableType K]
           exact tsum_probOutput_le_one
       _ = (L.length : ℝ≥0∞) * ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹ := one_mul _
 
+/-! ### After the challenge, the run does not read `(H, mask)` -/
 
 /-- One handler step from a challenge-set state does not read `(H, mask)`. -/
 private lemma step_eq [DecidableEq Cb]
@@ -397,6 +423,7 @@ private lemma run_challenge_some_indep [DecidableEq Cb] {α : Type}
       rw [hL']
       exact ih p.1 L'
 
+/-! ### The post-challenge log extends the fixed prefix -/
 
 /-- Invariant of the post-challenge run: the challenge slot is fixed, the log extends the
 prefix `L`, and every appended entry differs from the challenge ciphertext (the guard rejects
@@ -463,6 +490,10 @@ private lemma wcLogImpl_extends [DecidableEq Cb] {α : Type}
   fun z hz => simulateQ_run_preserves_inv_of_query (wcLogImpl hash enc H m padMsg)
     (ExtInv c L) (extInv_step hash enc padMsg H m c L) oa (some c, L) (extInv_init c L) z hz
 
+/-! ### Counting the log
+
+Only the decrypt oracle appends, at most one entry per query, so the log length is bounded by
+the decrypt-query budget (`support_state_measure_le_of_isQueryBoundP`). -/
 
 /-- Every step appends at most one log entry. -/
 private lemma log_step_le_one [DecidableEq Cb]
@@ -555,7 +586,7 @@ theorem wcLogImpl_log_length_le [DecidableEq Cb] {α : Type}
       z.2.2.length ≤ q :=
   fun z hz => by simpa using log_length_le_from hash enc H mask padMsg oa q hq (none, []) z hz
 
-/-! ### `BitVec` rearrangements -/
+/-! ### The local bijection and the hoisted key -/
 
 /-- At the encrypt query, reparameterise the mask draw along the bijection
 `mask ↦ hash H X* ^^^ mask`. On the right the challenge tag `T` is drawn uniformly and the
@@ -726,7 +757,7 @@ private lemma post_half_le [SampleableType K] [DecidableEq Cb] {α : Type}
     simp only [List.length_map, List.length_drop]
     omega
 
-/-! ### The pre-challenge half -/
+/-! ### Assembling the two halves -/
 
 /-- Two independent draws in front of a `(H, mask)`-free step commute past it. -/
 private lemma hoist_step [SampleableType K] {α β : Type}
@@ -785,7 +816,7 @@ private lemma post_phase [SampleableType K] [DecidableEq Cb] {α : Type}
     · refine le_trans (post_half_le haxu henc_inj padMsg ob n hn ad c0 L) ?_
       simp [tsum_fintype]
 
-/-! ### After the challenge, the run does not read `(H, mask)` -/
+/-! ### The pre-challenge phase -/
 
 /-- A prefix `Q` that does not read `(H, mask)` and leaves the challenge unset can be peeled
 off in front of the induction hypothesis. -/

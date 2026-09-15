@@ -11,11 +11,25 @@ import Mathlib.Algebra.Polynomial.Roots
 import Mathlib.Algebra.Field.ZMod
 import Mathlib.Data.List.GetD
 
+/-!
+# GHASH is almost-XOR-universal
+
+`ghash_isAXU`: for two distinct inputs and any target `Δ`, a uniformly random GHASH key `H` makes
+the two hashes XOR to `Δ` with probability at most `maxBlocks L / 2¹²⁸`. This is the
+almost-XOR-universality (AXU) property the authenticity hop of the GCM proof consumes.
+
+The argument: by `Polynomial.lean` the event says `H` is a root of the nonzero polynomial
+`ghashPoly bp - ghashPoly bq - C Δ` of degree at most `maxBlocks L`, which has at most that
+many roots in a field. Irreducibility of `nistPoly` makes the quotient a field and is used only
+in `card_filter_le`; it is an explicit hypothesis here and is discharged in
+`NistIrreducible.lean`.
+-/
 
 open OracleComp OracleSpec ENNReal ToVCVio Polynomial
 
 namespace GCM
 
+/-! ## Characteristic 2 in the quotient -/
 
 theorem adjoinRoot_two_eq_zero : (2 : AdjoinRoot nistPoly) = 0 := by
   rw [← map_ofNat (AdjoinRoot.of nistPoly) 2, show (2 : ZMod 2) = 0 from rfl, map_zero]
@@ -23,7 +37,7 @@ theorem adjoinRoot_two_eq_zero : (2 : AdjoinRoot nistPoly) = 0 := by
 theorem adjoinRoot_neg_eq_self (a : AdjoinRoot nistPoly) : -a = a := by
   linear_combination (-a) * adjoinRoot_two_eq_zero
 
-/-! ## Characteristic 2 in the quotient -/
+/-! ## The coefficients of `ghashPoly` -/
 
 /-- Holds for every `i`: out of range both sides are `0`. -/
 theorem ghashPoly_coeff_succ (blocks : List (BitVec 128)) (i : ℕ) :
@@ -42,6 +56,7 @@ theorem ghashPoly_coeff_succ (blocks : List (BitVec 128)) (i : ℕ) :
     rw [Finset.mem_range] at hj
     exact if_neg (by omega)
 
+/-! ## The difference polynomial -/
 
 /-- The polynomial whose roots are the keys `H` with `ghash H bp ^^^ ghash H bq = Δ`
 (`eval_ghashDiffPoly`). The offset `Δ` is a constant term, so it adds no degree. -/
@@ -83,16 +98,11 @@ theorem card_bitVec128_enn : (Fintype.card (BitVec 128) : ℝ≥0∞) = (2 : ℝ
   push_cast
   norm_num
 
-/-! ## The coefficients of `ghashPoly` -/
+/-! ### The root bound -/
 
+-- Pins the import `Mathlib.Algebra.Field.ZMod`: without `Field (ZMod 2)`, the `Fact` below does
+-- not yield `IsDomain (AdjoinRoot nistPoly)`.
 example : Field (ZMod 2) := inferInstance
-
--- The instance path the `example` above guards, in full:
--- `Fact (Irreducible nistPoly)` → `AdjoinRoot.span_maximal_of_irreducible`
---   → `AdjoinRoot.instGroupWithZero` → `AdjoinRoot.instField` (needs `Field (ZMod 2)` on the
---   base ring) → `Field.isDomain` → `IsDomain (AdjoinRoot nistPoly)`.
--- Every link is Mathlib's; the only local input is the `Fact`, built from the explicit `hirr`
--- argument inside the proof below.
 
 /-- At most `n` keys send two block lists of length `≤ n`, differing at some position, to a fixed
 XOR offset. This is the only place irreducibility is used: it makes `AdjoinRoot nistPoly` a
@@ -104,7 +114,7 @@ theorem card_filter_le (hirr : Irreducible nistPoly) (bp bq : List (BitVec 128))
     {i : ℕ} (hne : bp.reverse.getD i 0 ≠ bq.reverse.getD i 0) :
     (Finset.univ.filter
       (fun H : BitVec 128 => ghash H bp ^^^ ghash H bq = Δ)).card ≤ n := by
-  haveI : Fact (Irreducible nistPoly) := ⟨hirr⟩
+  have : Fact (Irreducible nistPoly) := ⟨hirr⟩
   set P := ghashDiffPoly bp bq Δ with hP
   have hPne : P ≠ 0 := ghashDiffPoly_ne_zero bp bq Δ hne
   set S := Finset.univ.filter
@@ -124,7 +134,7 @@ theorem card_filter_le (hirr : Irreducible nistPoly) (bp bq : List (BitVec 128))
     _ ≤ P.natDegree := Polynomial.card_le_degree_of_subset_roots hsub
     _ ≤ n := ghashDiffPoly_natDegree_le bp bq Δ hp hq
 
-/-! ## The difference polynomial -/
+/-! ### GHASH is almost-XOR-universal -/
 
 /-- GHASH composed with GCM's input encoding is AXU at `ε = maxBlocks L / 2¹²⁸`. The encoding
 matters: on raw block lists the property fails (`ghash h [0, X] = ghash h [X]`), and it is the

@@ -34,8 +34,8 @@ same length: post-composition acts transitively on such lists. -/
 theorem exists_perm_map_eq {X : Type} [Finite X]
     (l l' : List X) (hl : l.Nodup) (hl' : l'.Nodup) (hlen : l.length = l'.length) :
     ∃ σ : Equiv.Perm X, l.map σ = l' := by
-  letI : DecidableEq X := Classical.decEq X
-  letI : Fintype X := Fintype.ofFinite X
+  let : DecidableEq X := Classical.decEq X
+  let : Fintype X := Fintype.ofFinite X
   let e : {x // x ∈ l} ≃ {x // x ∈ l'} :=
     (hl.getEquiv l).symm.trans ((finCongr hlen).trans (hl'.getEquiv l'))
   refine ⟨Equiv.extendSubtype e, ?_⟩
@@ -58,11 +58,11 @@ theorem evalDist_eq_uniformSample_of_uniform {β : Type} [SampleableType β]
     (oa : ProbComp β) (hsupp : ∀ x : β, x ∈ support oa)
     (huni : ∀ x y : β, Pr[= x | oa] = Pr[= y | oa]) :
     evalDist oa = evalDist ($ᵗ β) := by
-  letI : Fintype β := Fintype.ofFinite β
+  let : Fintype β := Fintype.ofFinite β
   refine evalDist_ext fun x => ?_
   have h2 : Pr[= x | ($ᵗ β)] = (Fintype.card β : ℝ≥0∞)⁻¹ :=
     probOutput_uniformSample β x
-  letI h : SampleableType β := ⟨oa, hsupp, huni⟩
+  let h : SampleableType β := ⟨oa, hsupp, huni⟩
   have h1 : Pr[= x | oa] = (Fintype.card β : ℝ≥0∞)⁻¹ :=
     probOutput_uniformSample (hα := h) β x
   exact h1.trans h2.symm
@@ -94,8 +94,8 @@ theorem exists_perm_comp_embedding_eq {X : Type} [Finite X] {q : ℕ}
   -- `DecidableEq X` from a bare `Finite X`/`FinEnum X` context times out at 20000 synthesis
   -- heartbeats in this build, and `classical`'s `Classical.propDecidable` is low priority, so
   -- the search would still be attempted first.
-  letI : DecidableEq X := Classical.decEq X
-  letI : Fintype X := Fintype.ofFinite X
+  let : DecidableEq X := Classical.decEq X
+  let : Fintype X := Fintype.ofFinite X
   obtain ⟨σ, hσ⟩ := List.exists_perm_map_eq (List.ofFn e) (List.ofFn e')
     (List.nodup_ofFn_ofInjective e.injective) (List.nodup_ofFn_ofInjective e'.injective)
     (by simp)
@@ -161,7 +161,7 @@ theorem evalDist_map_uniformPerm_eq_uniformDistinct {X : Type} [FinEnum X]
     evalDist ((fun π : Equiv.Perm X => pts.map π) <$>
         ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X)))
       = evalDist (sampleDistinctFrom X pts.length (nonempty_embedding_of_nodup pts hpts)) := by
-  haveI hq : Nonempty (Fin pts.length ↪ X) := nonempty_embedding_of_nodup pts hpts
+  have hq : Nonempty (Fin pts.length ↪ X) := nonempty_embedding_of_nodup pts hpts
   have hfun : ∀ π : Equiv.Perm X,
       pts.map π = List.ofFn ((nodupEmbedding pts hpts).trans π.toEmbedding) := by
     intro π

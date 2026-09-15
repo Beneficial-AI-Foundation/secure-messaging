@@ -72,7 +72,7 @@ def gcmPrivacyRel {L : ℕ} :
       Option (BitVec L × BitVec 128) → Prop :=
   fun p ch₂ => p.1 = ch₂ ∧ p.2.isSome = p.1.isSome
 
-
+/-! ## The three deterministic per-query cases -/
 
 /-- `StateT.run_lift` in the beta-reduced shape the `consumeLazy` reductions leave behind. -/
 private lemma stateT_liftM_apply {σ α : Type} (x : ProbComp α) (s : σ) :
@@ -98,13 +98,12 @@ private lemma gcmPrivacy_step_unif {L : ℕ} (n : ℕ)
       (fun u => (u, ch, cache)) <$>
         (liftM (OracleSpec.query (spec := unifSpec) n) : ProbComp _) := by
     simp [consumeLazy, StateT.run, gcmTupleImplReject, gcmGameSkeleton, oracleUnif,
-      unifLiftStateT, QueryImpl.liftTarget_apply, stateT_liftM_apply]
+      unifLiftStateT, stateT_liftM_apply]
   have hrun₂ : (gcmRandRejectImpl (L := L) default
       (OUnif n : (aeadOneTimeCCASpec SupportedAAD (BitVec L)
         (BitVec L × BitVec 128)).Domain)).run s₂ =
       (fun u => (u, s₂)) <$> (liftM (OracleSpec.query (spec := unifSpec) n) : ProbComp _) := by
-    simp [gcmRandRejectImpl, gcmGameSkeleton, oracleUnif, unifLiftStateT,
-      QueryImpl.liftTarget_apply]
+    simp [gcmRandRejectImpl, gcmGameSkeleton, oracleUnif, unifLiftStateT]
   rw [hrun₁, hrun₂]
   exact relTriple_map_map_of_pointwise _ _ _ (fun _ => ⟨rfl, hs⟩)
 
@@ -197,7 +196,7 @@ private lemma gcmPrivacy_step_decrypt {L : ℕ} (ad : SupportedAAD)
   rw [hrun₁, hrun₂]
   exact relTriple_pure_pure ⟨rfl, hs⟩
 
-/-! ## The three deterministic per-query cases -/
+/-! ## The one probabilistic per-query case -/
 
 /-- `OEncrypt` at an empty challenge slot, the one probabilistic case: `game3` draws a fresh tuple
 and computes the challenge from it, `game4` draws the challenge directly.
@@ -253,7 +252,7 @@ private lemma gcmPrivacy_step_encrypt_none {L : ℕ} (ad : SupportedAAD) (m : Bi
   exact relTriple_map (relTriple_post_mono hgraph (fun a e hae => by
     subst hae; exact ⟨rfl, rfl, rfl⟩))
 
-/-! ## The one probabilistic per-query case -/
+/-! ## The per-query coupling -/
 
 /-- The per-query coupling: from `gcmPrivacyRel`-related states, one step of `game3`'s handler
 and one of `game4`'s return the same response and re-establish the relation. Only the encryption
@@ -285,7 +284,7 @@ theorem gcmPrivacy_step {L : ℕ}
       | some a => exact gcmPrivacy_step_encrypt_some ad m e₀ a
   · exact gcmPrivacy_step_decrypt ad e (ch, cache) s₂ hs
 
-/-! ## The per-query coupling -/
+/-! ## The hop theorem -/
 
 /-- The privacy hop: `game3` and `game4` are equidistributed, with no advantage term. The
 coupling runs against the collapsed form of `game4` (`game4_eq_plain`), so only `game3` carries a
