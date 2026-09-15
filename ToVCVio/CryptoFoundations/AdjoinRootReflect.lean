@@ -92,10 +92,16 @@ coefficient of `root p ^ i`. -/
 theorem reflect_apply {p : (ZMod 2)[X]} (hp : p.Monic) (x : BitVec p.natDegree) :
     reflect hp x
       = ∑ i : Fin p.natDegree, boolToZMod2 (x.getMsbD (i : ℕ)) • AdjoinRoot.root p ^ (i : ℕ) := by
-  change (AdjoinRoot.powerBasis' hp).basis.equivFun.symm (bitVecEquivFun p.natDegree x) = _
-  rw [Module.Basis.equivFun_symm_apply]
-  refine Finset.sum_congr rfl (fun i _ => ?_)
-  rw [bitVecEquivFun_apply, (AdjoinRoot.powerBasis' hp).basis_eq_pow i,
-    AdjoinRoot.powerBasis'_gen]
+  -- Expand the power basis at a coordinate function indexed by `powerBasis'.dim`, not by
+  -- `p.natDegree`: the two are defeq but only the former keeps the statement type-correct
+  -- at the transparency `rw` checks its motive under. `exact` crosses the gap.
+  have key : ∀ c : Fin (AdjoinRoot.powerBasis' hp).dim → ZMod 2,
+      (AdjoinRoot.powerBasis' hp).basis.equivFun.symm c
+        = ∑ i, c i • AdjoinRoot.root p ^ (i : ℕ) := by
+    intro c
+    rw [Module.Basis.equivFun_symm_apply]
+    refine Finset.sum_congr rfl (fun i _ => ?_)
+    rw [(AdjoinRoot.powerBasis' hp).basis_eq_pow i, AdjoinRoot.powerBasis'_gen]
+  exact key _
 
 end ToVCVio.AdjoinRootReflect

@@ -33,7 +33,7 @@ lemma Fintype.card_vector (α : Type) [Fintype α] (n : ℕ) :
     { toFun := fun (v : Vector α n) (i : Fin n) => v.get i
       invFun := Vector.ofFn
       left_inv := fun v => Vector.ext fun i hi => by simp [Vector.ofFn, Vector.get]
-      right_inv := fun f => funext fun i => by simp [Vector.get, Vector.ofFn] }]
+      right_inv := fun f => funext fun i => Vector.getElem_ofFn .. }]
   simp
 
 namespace ToVCVio
