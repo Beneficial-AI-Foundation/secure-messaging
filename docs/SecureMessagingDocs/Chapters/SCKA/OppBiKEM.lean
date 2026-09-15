@@ -31,76 +31,15 @@ Opp-BiKEM-CKA.
 :::
 
 :::::::definition "opp_bikem_cka_spec" (parent := "cka_protocols_opp_bikem_cka") (lean := "oppBiKemCKA.initKeyGen, oppBiKemCKA.initA, oppBiKemCKA.initB, oppBiKemCKA.vulnA, oppBiKemCKA.vulnB, oppBiKemCKA.sendA, oppBiKemCKA.sendArleak, oppBiKemCKA.recvA, oppBiKemCKA.sendB, oppBiKemCKA.sendBrleak, oppBiKemCKA.recvB, oppBiKemCKA.scheme")
-Figures 17 and 18 of {Informal.citet SCKA25}[]. This construction uses a standard
-KEM: $`A` encapsulates in odd epochs and $`B` encapsulates in even epochs. Both parties
-send public-key chunks opportunistically, before transmitting ciphertext chunks.
-There is no offline/online ciphertext split (unlike in OppUniKEM).
+Figures 17 and 18 of {Informal.citet SCKA25}[].
 
-Each party has two counters:
-
-- $`t_{\mathrm{req}}` for the epoch in which it plays the *requester* role (a requester decapsulates the received encapsulated key).
-- $`t_{\mathrm{res}}` for the epoch in which it plays the *responder* role (a responder encapsulates the key using the requester's public key).
-
-The two roles share Lean helpers, using offset variables $`\delta_\A=1` and
-$`\delta_\B=-1`.
-
-The Lean state groups these roles into `st.req : RequesterState PK SK Sym` and
-`st.res : ResponderState PK C`, corresponding to $`\mathsf{st}_{\mathrm{req}}` and
-$`\mathsf{st}_{\mathrm{res}}` in Figures 17–18. The shared `st.ack` remains alongside
-both substates, matching the paper's
-$`(\mathsf{st}_{\mathrm{res}},\mathsf{st}_{\mathrm{req}},\mathsf{ACK})`.
-
-The requester owns `reqEpoch`, retained secret keys `dk`, the local public key `ek`,
-and `receivedChunks`. The responder owns `resEpoch`, decoded peer public keys
-`ekPeer`, the outgoing ciphertext `ct`, and the outgoing chunk counter `ich`.
-The chunk counter serves both outgoing payload types, and the incoming chunk set
-serves both peer public keys and ciphertexts. Sending and receiving can therefore
-update both substates; acknowledgements are shared by both.
+Instead of directly following the paper's presentation of `A`'s (Figure 17) and `B`'s (Figure 18)
+protocols, we implement shared functions, parameterized by `Role`.
+These functions specialize for `A` or `B` by using the `Role.offset` variable,
+that distinguishes between roles at different indices that `A` and `B` play.
 
 
-```anchor state (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
-/-- Responder substate `st_res = (t_res, EK_peer, ct, i_ch)` in Figures 17–18.
-The outgoing chunk counter is used for both public keys and ciphertexts. -/
-structure ResponderState (PK C : Type) where
-  /-- Current responder epoch, used for outgoing ciphertexts. -/
-  resEpoch : ℤ
-  /-- Decoded peer public keys, indexed by epoch. -/
-  ekPeer : ℤ → Option PK
-  /-- Outgoing ciphertext, retained until the peer acknowledges it. -/
-  ct : Option C
-  /-- Last outgoing chunk index, reset to zero when a new payload is prepared. -/
-  ich : ℕ
-
-/-- Requester substate `st_req = (t_req, DK, ek, L_ch)` in Figures 17–18.
-The incoming chunk set is used for both peer public keys and ciphertexts. -/
-structure RequesterState (PK SK Sym : Type) where
-  /-- Current requester epoch, used for incoming ciphertexts. -/
-  reqEpoch : ℤ
-  /-- Retained decapsulation keys, indexed by epoch. -/
-  dk : List (ℤ × SK)
-  /-- Local public key, retained until the peer acknowledges it. -/
-  ek : Option PK
-  /-- Chunks accumulated for decoding the incoming payload (`L_ch` in the paper).
-  Each chunk is represented as `(position, encodedSymbol)`. -/
-  receivedChunks : Finset (ℕ × Sym)
-
-/-- A party's local state: requester and responder substates with shared `ACK`.
-The paper writes this as `(st_res, st_req, ACK)`; the named fields expose each component. -/
-structure State (PK SK C Sym : Type) where
-  /-- Requester state containing retained decapsulation keys and incoming chunks. -/
-  req : RequesterState PK SK Sym
-  /-- Responder state containing decoded peer public keys and outgoing ciphertext. -/
-  res : ResponderState PK C
-  /-- Locally recorded and peer-reported receipt acknowledgements. -/
-  ack : Acknowledgements
-
-/-- Party A's local protocol state. -/
-abbrev StA := State
-/-- Party B's local protocol state. -/
-abbrev StB := State
-```
-
-We make the following corrections with respect to the pseudocode:
+We make the following corrections with respect to the pseudocode (marked with surrounding boxes in the pseudocode):
 
 * In Figure 18, $`\mathsf{CKA}\text{-}\SendB`, lines 8, 9, and 13, replace
   $`\boxed{t_{\mathrm{res}\text{-}A}\mapsto t_{\mathrm{res}\text{-}B}}`.
@@ -117,44 +56,36 @@ We make the following corrections with respect to the pseudocode:
   These are the public-key entries set by decoding. The printed formulas
   advertise different entries, leaving the first public keys unacknowledged.
 
-Because `CKA-Send-B` and `CKA-Send-A` are symmetric, we implement them using a single
-function, `sendWith`. This function specializes for `A` or `B` by using the `Role.offset` variable,
-that distinguishes between roles at different indices that `A` and `B` play.
-The same is true for `CKA-Rec-A` and `CKA-Rec-B`, both of which are implemented in
-function `recv`, parameterized by `Role.offset`.
-
-
-We also make absent-payload handling explicit.
-Our `insertChunkAndDecode` helper treats an absent chunk as no decoding progress: it leaves
-the accumulated set unchanged and returns no payload without calling the decoder,
-even if the retained set is already decodable. A present chunk is inserted before
-decoding. This is our modeling convention for a case left implicit in the
-pseudocode. Receipt acknowledgements, epoch processing,
-and cleanup follow the usual receive path even when the chunk is absent; stale
-messages still only update peer-reported acknowledgements.
-
-There are two further checks for optional keys. If the encapsulation guard holds
-but `ekPeer resEpoch` is absent, send skips encapsulation and produces no epoch
-key. If the ciphertext receive guard holds but `dk.lookup reqEpoch` is absent,
-receive preserves the payload state without accumulating or decoding the chunk;
-acknowledgement processing, counter updates, and cleanup still apply. The paper
-does not specify KEM calls on absent keys.
-
-
 ::::::gameGrid
 
 
 :::::gameCell "\\textsf{Initialisation}" (kind := "compact")
 
+
+
 $`\begin{array}{l}
-\mathsf{CKA}\text{-}\mathsf{InitKeyGen}(): \\
-\quad I_{\mathsf{CKA}}\gets\bot \\
-\quad \mathsf{return}\;I_{\mathsf{CKA}}
+\mathsf{CKA}\text{-}\mathsf{InitA}(I_{\mathsf{CKA}}=\bot): \\
+\quad \mathsf{EK}_{B}[t]\gets\bot,\ \mathsf{DK}_{A}[t]\gets\bot\quad\text{for all }t \\
+\quad (\mathsf{ACK}[t].\mathsf{ekRec},\mathsf{ACK}[t].\mathsf{ctRec}) \\
+\qquad\gets(\mathsf{false},\mathsf{false})\quad\text{for all }t \\
+\quad (\mathsf{ACK}[-1].\mathsf{ctRec},\mathsf{ACK}[0].\mathsf{ctRec}) \\
+\qquad\gets(\mathsf{true},\mathsf{true}) \\
+\quad \mathsf{st}_{\mathrm{res}}\gets(-1,\mathsf{EK}_{B},\bot,0) \\
+\quad \mathsf{st}_{\mathrm{req}}\gets(0,\mathsf{DK}_{A},\bot,\emptyset) \\
+\quad \mathsf{return}\;(\mathsf{st}_{\mathrm{res}},\mathsf{st}_{\mathrm{req}},\mathsf{ACK})
 \end{array}`
-```anchor initKeyGen (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
-/-- Return the trivial initialization key: OppBiKEM protocol does not need initialization key -/
-def initKeyGen : m Unit := pure ()
-```
+
+$`\begin{array}{l}
+\mathsf{CKA}\text{-}\mathsf{InitB}(I_{\mathsf{CKA}}=\bot): \\
+\quad \mathsf{EK}_{A}[t]\gets\bot,\ \mathsf{DK}_{B}[t]\gets\bot\quad\text{for all }t \\
+\quad (\mathsf{ACK}[t].\mathsf{ekRec},\mathsf{ACK}[t].\mathsf{ctRec}) \\
+\qquad\gets(\mathsf{false},\mathsf{false})\quad\text{for all }t \\
+\quad (\mathsf{ACK}[-1].\mathsf{ctRec},\mathsf{ACK}[0].\mathsf{ctRec}) \\
+\qquad\gets(\mathsf{true},\mathsf{true}) \\
+\quad \mathsf{st}_{\mathrm{res}}\gets(0,\mathsf{EK}_{A},\bot,0) \\
+\quad \mathsf{st}_{\mathrm{req}}\gets(-1,\mathsf{DK}_{B},\bot,\emptyset) \\
+\quad \mathsf{return}\;(\mathsf{st}_{\mathrm{res}},\mathsf{st}_{\mathrm{req}},\mathsf{ACK})
+\end{array}`
 
 ```anchor init (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
 def init (role : Role) (_ik : Unit) : m (State PK SK C Sym) :=
@@ -165,39 +96,6 @@ def init (role : Role) (_ik : Unit) : m (State PK SK C Sym) :=
                   ct := none, ich := 0 }
          ack := { ekRec := ∅, ctRec := {-1, 0} } }
 ```
-
-$`\begin{array}{l}
-\mathsf{CKA}\text{-}\mathsf{InitA}(\bot): \\
-\quad \mathsf{EK}_{B}[t]\gets\bot,\ \mathsf{DK}_{A}[t]\gets\bot\quad\text{for all }t \\
-\quad (\mathsf{ACK}[t].\mathsf{ekRec},\mathsf{ACK}[t].\mathsf{ctRec}) \\
-\qquad\gets(\mathsf{false},\mathsf{false})\quad\text{for all }t \\
-\quad (\mathsf{ACK}[-1].\mathsf{ctRec},\mathsf{ACK}[0].\mathsf{ctRec}) \\
-\qquad\gets(\mathsf{true},\mathsf{true}) \\
-\quad \mathsf{st}_{\mathrm{res}}\gets(-1,\mathsf{EK}_{B},\bot,0) \\
-\quad \mathsf{st}_{\mathrm{req}}\gets(0,\mathsf{DK}_{A},\bot,\emptyset) \\
-\quad \mathsf{return}\;(\mathsf{st}_{\mathrm{res}},\mathsf{st}_{\mathrm{req}},\mathsf{ACK})
-\end{array}`
-```anchor initA (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
-/-- Initialize A -/
-def initA : Unit → m (StA PK SK C Sym) := init .A
-```
-
-$`\begin{array}{l}
-\mathsf{CKA}\text{-}\mathsf{InitB}(\bot): \\
-\quad \mathsf{EK}_{A}[t]\gets\bot,\ \mathsf{DK}_{B}[t]\gets\bot\quad\text{for all }t \\
-\quad (\mathsf{ACK}[t].\mathsf{ekRec},\mathsf{ACK}[t].\mathsf{ctRec}) \\
-\qquad\gets(\mathsf{false},\mathsf{false})\quad\text{for all }t \\
-\quad (\mathsf{ACK}[-1].\mathsf{ctRec},\mathsf{ACK}[0].\mathsf{ctRec}) \\
-\qquad\gets(\mathsf{true},\mathsf{true}) \\
-\quad \mathsf{st}_{\mathrm{res}}\gets(0,\mathsf{EK}_{A},\bot,0) \\
-\quad \mathsf{st}_{\mathrm{req}}\gets(-1,\mathsf{DK}_{B},\bot,\emptyset) \\
-\quad \mathsf{return}\;(\mathsf{st}_{\mathrm{res}},\mathsf{st}_{\mathrm{req}},\mathsf{ACK})
-\end{array}`
-```anchor initB (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
-/-- Initialize B -/
-def initB : Unit → m (StB PK SK C Sym) := init .B
-```
-
 :::::
 
 :::::gameCell "\\textsf{Vulnerable epochs}" (kind := "compact")
@@ -208,9 +106,6 @@ $`\begin{array}{l}
 $`\begin{array}{l}
 \mathsf{st}_B.\mathsf{vuln}:\quad\mathsf{return}\;\{t:\mathsf{DK}_B[t]\ne\bot\}
 \end{array}`
-
-Only retained decapsulation keys contribute. Public keys and ciphertexts do not
-require secrecy. Dummy epochs are excluded from the natural-number SCKA interface.
 
 ```anchor vuln (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Construction)
 def vuln (st : State PK SK C Sym) : Finset ℕ :=
