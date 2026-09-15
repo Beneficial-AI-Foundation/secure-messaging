@@ -50,7 +50,7 @@ inductive CKAState (F G : Type) where
 :::defTitle "cka_from_ddh" "CKA from DDH"
 :::
 
-:::definition "cka_from_ddh" (parent := "cka_cka_from_ddh") (lean := "DDH.ddhCKA")
+:::definition "cka_from_ddh" (parent := "cka_cka_from_ddh") (lean := "DDH.ddhCKA") (tags := "gh-8")
 $`\todo`
 
 ```anchor ddhCKA (project := ".") (module := SecureMessaging.CKA.FromDDH.Construction)
@@ -70,13 +70,13 @@ def ddhCKA (F G : Type) [Field F] [Fintype F] [DecidableEq F] [SampleableType F]
   recvB := recv
 ```
 
-{usesLabel}`uses` {uses "cka"}[] · {uses "cka_from_ddh_state"}[] · {githubLabel}`github` {githubIssue 8}[]
+{usesLabel}`uses` {uses "cka"}[] · {uses "cka_from_ddh_state"}[]
 :::
 
 :::defTitle "cka_from_ddh_correctness" "CKA from DDH correctness"
 :::
 
-:::theorem "cka_from_ddh_correctness" (parent := "cka_cka_from_ddh") (lean := "ddhCKA.correctness")
+:::theorem "cka_from_ddh_correctness" (parent := "cka_cka_from_ddh") (lean := "ddhCKA.correctness") (tags := "gh-9")
 $`\todo`
 
 $$`\Pr[\,\textsf{correctnessExp} = \mathsf{true}\,] = 1`
@@ -86,13 +86,13 @@ theorem correctness [DecidableEq G] (adv : CKACorrectnessAdversary G G) :
   Pr[= true | correctnessExp (ddhCKA F G gen) adv] = 1
 ```
 
-{usesLabel}`uses` {uses "cka_from_ddh"}[] · {uses "cka_correctness"}[] · {githubLabel}`github` {githubIssue 9}[]
+{usesLabel}`uses` {uses "cka_from_ddh"}[] · {uses "cka_correctness"}[]
 :::
 
 :::defTitle "cka_from_ddh_security" "CKA from DDH security"
 :::
 
-::::theorem "cka_from_ddh_security" (parent := "cka_cka_from_ddh") (lean := "ddhCKA.security")
+::::theorem "cka_from_ddh_security" (parent := "cka_cka_from_ddh") (lean := "ddhCKA.security") (tags := "gh-10")
 $`\todo`
 
 ```anchor security (project := ".") (module := SecureMessaging.CKA.FromDDH.Security)
@@ -104,5 +104,5 @@ theorem security (gp : GameParams)
       ddhGuessAdvantage gen (securityReduction gp adversary)
 ```
 
-{usesLabel}`uses` {uses "cka_from_ddh"}[] · {uses "cka_security"}[] · {githubLabel}`github` {githubIssue 10}[]
+{usesLabel}`uses` {uses "cka_from_ddh"}[] · {uses "cka_security"}[]
 ::::

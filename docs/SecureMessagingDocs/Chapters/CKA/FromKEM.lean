@@ -37,7 +37,7 @@ CKA from KEM.
 :::defTitle "cka_from_kem_spec" "CKA from KEM construction"
 :::
 
-::::definition "cka_from_kem_spec" (parent := "cka_cka_from_kem") (lean := "kemCKA.scheme")
+::::definition "cka_from_kem_spec" (parent := "cka_cka_from_kem") (lean := "kemCKA.scheme") (tags := "gh-3")
 $`\todo`
 
 ```anchor scheme (project := ".") (module := SecureMessaging.CKA.FromKEM.Construction)
@@ -57,13 +57,13 @@ def scheme {m : Type → Type u} [Monad m] {K PK SK C : Type}
   recvB := recv hDet
 ```
 
-{usesLabel}`uses` {uses "cka"}[] · {githubLabel}`github` {githubIssue 3}[]
+{usesLabel}`uses` {uses "cka"}[]
 ::::
 
 :::defTitle "cka_from_kem_correctness" "CKA from KEM correctness"
 :::
 
-::::theorem "cka_from_kem_correctness" (parent := "cka_cka_from_kem") (lean := "kemCKA.correctness")
+::::theorem "cka_from_kem_correctness" (parent := "cka_cka_from_kem") (lean := "kemCKA.correctness") (tags := "gh-4")
 $`\todo`
 
 ```anchor correctness (project := ".") (module := SecureMessaging.CKA.FromKEM.Correctness)
@@ -76,13 +76,13 @@ theorem correctness [DecidableEq K]
     Pr[= true | CKAScheme.correctnessExp (scheme kem hDet leak) adv] = 1
 ```
 
-{usesLabel}`uses` {uses "cka_from_kem_spec"}[] · {uses "cka_correctness"}[] · {githubLabel}`github` {githubIssue 4}[]
+{usesLabel}`uses` {uses "cka_from_kem_spec"}[] · {uses "cka_correctness"}[]
 ::::
 
 :::defTitle "cka_from_kem_security" "CKA from KEM security"
 :::
 
-::::theorem "cka_from_kem_security" (parent := "cka_cka_from_kem") (lean := "kemCKA.security")
+::::theorem "cka_from_kem_security" (parent := "cka_cka_from_kem") (lean := "kemCKA.security") (tags := "gh-5")
 $`\todo`
 
 ```anchor security (project := ".") (module := SecureMessaging.CKA.FromKEM.Security)
@@ -99,5 +99,5 @@ theorem security [SampleableType K] [DecidableEq K]
         (ckaToINDCPAReduction kem hDet leak adv gp)
 ```
 
-{usesLabel}`uses` {uses "cka_from_kem_spec"}[] · {uses "cka_security"}[] · {githubLabel}`github` {githubIssue 5}[]
+{usesLabel}`uses` {uses "cka_from_kem_spec"}[] · {uses "cka_security"}[]
 ::::

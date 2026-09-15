@@ -30,7 +30,7 @@ Reed–Solomon erasure codes over arbitrary fields.
 :::defTitle "reed_solomon_erasure_code" "Reed–Solomon erasure code"
 :::
 
-::::definition "reed_solomon_erasure_code" (parent := "erasure_codes_reed_solomon") (lean := "ErasureCode.ReedSolomon.Parameters, ErasureCode.ReedSolomon.Parameters.sourceIndex, ErasureCode.ReedSolomon.Parameters.sourcePoint, ErasureCode.ReedSolomon.Parameters.encodingPolynomial, ErasureCode.ReedSolomon.Parameters.encode, ErasureCode.ReedSolomon.Parameters.decodingPolynomial, ErasureCode.ReedSolomon.Parameters.decode, ErasureCode.ReedSolomon.Parameters.erasureCode")
+::::definition "reed_solomon_erasure_code" (parent := "erasure_codes_reed_solomon") (lean := "ErasureCode.ReedSolomon.Parameters, ErasureCode.ReedSolomon.Parameters.sourceIndex, ErasureCode.ReedSolomon.Parameters.sourcePoint, ErasureCode.ReedSolomon.Parameters.encodingPolynomial, ErasureCode.ReedSolomon.Parameters.encode, ErasureCode.ReedSolomon.Parameters.decodingPolynomial, ErasureCode.ReedSolomon.Parameters.decode, ErasureCode.ReedSolomon.Parameters.erasureCode") (tags := "gh-198")
 $`\todo`
 
 :::leanPillCaption "Reed–Solomon parameters"
@@ -129,13 +129,12 @@ def erasureCode (params : Parameters F) : ErasureCode F where
 ```
 
 {usesLabel}`uses` {uses "erasure_code_scheme"}[] ·
-  {githubLabel}`github` {githubIssue 198}[]
 ::::
 
 :::defTitle "reed_solomon_erasure_code_correctness" "Reed–Solomon correctness"
 :::
 
-::::theorem "reed_solomon_erasure_code_correctness" (parent := "erasure_codes_reed_solomon") (lean := "ErasureCode.ReedSolomon.Parameters.erasureCode_correct")
+::::theorem "reed_solomon_erasure_code_correctness" (parent := "erasure_codes_reed_solomon") (lean := "ErasureCode.ReedSolomon.Parameters.erasureCode_correct") (tags := "gh-199")
 $`\todo`
 
 :::leanPillCaption "erasure-code correctness"
@@ -146,7 +145,7 @@ theorem erasureCode_correct (params : Parameters F) : params.erasureCode.Correct
 ```
 
 {usesLabel}`uses` {uses "reed_solomon_erasure_code"}[] ·
-  {uses "erasure_code_correctness"}[] · {githubLabel}`github` {githubIssue 199}[]
+  {uses "erasure_code_correctness"}[]
 ::::
 
 *References:*

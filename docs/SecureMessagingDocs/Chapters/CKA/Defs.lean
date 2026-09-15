@@ -26,7 +26,7 @@ set_option pp.rawOnError true
 :::defTitle "cka" "(Continuous Key Agreement - CKA scheme)"
 :::
 
-:::definition "cka" (lean := "CKAScheme")
+:::definition "cka" (lean := "CKAScheme") (tags := "gh-195")
 $`\todo`
 
 ```anchor CKAScheme (project := ".") (module := SecureMessaging.CKA.Defs)
@@ -51,7 +51,6 @@ structure CKAScheme (m : Type → Type u) [Monad m] (IK St I Rho Rand : Type) wh
   recvB : St → Rho → Option (I × St)
 ```
 
-{githubLabel}`github` {githubIssue 195}[]
 :::
 
 
@@ -440,7 +439,7 @@ def oracleCorruptB (gp : GameParams) (St I Rho : Type) :
 :::defTitle "cka_correctness" "CKA correctness"
 :::
 
-:::::::definition "cka_correctness" (lean := "CKAScheme.correctnessExp, CKAScheme.ckaCorrectnessImpl, CKAScheme.CKACorrectnessAdversary")
+:::::::definition "cka_correctness" (lean := "CKAScheme.correctnessExp, CKAScheme.ckaCorrectnessImpl, CKAScheme.CKACorrectnessAdversary") (tags := "gh-196")
 $`\todo`
 
 Let $`\O = \{\OSendA, \ORecA, \OSendB, \ORecB\}`.
@@ -494,13 +493,13 @@ def correctnessExp [DecidableEq I] (cka : CKAScheme ProbComp IK St I Rho Rand)
   return state.correct
 ```
 
-{usesLabel}`uses` {uses "cka"}[] · {uses "cka_oracles"}[] · {githubLabel}`github` {githubIssue 196}[]
+{usesLabel}`uses` {uses "cka"}[] · {uses "cka_oracles"}[]
 :::::::
 
 :::defTitle "cka_security" "CKA security experiment"
 :::
 
-:::::::definition "cka_security" (lean := "CKAScheme.securityExp, CKAScheme.ckaSecurityImpl, CKAScheme.CKAAdversary")
+:::::::definition "cka_security" (lean := "CKAScheme.securityExp, CKAScheme.ckaSecurityImpl, CKAScheme.CKAAdversary") (tags := "gh-197")
 $`\todo`
 
 Let $`\O = \{\OSendA, \ORecA, \OChallA, \OCorrA, \OSendARLeak, \OSendB, \ORecB, \OChallB, \OCorrB, \OSendBRLeak\}`.
@@ -559,7 +558,7 @@ def securityExp [SampleableType I] [DecidableEq I] (cka : CKAScheme ProbComp IK 
   return (b == b')
 ```
 
-{usesLabel}`uses` {uses "cka"}[] · {uses "cka_oracles"}[] · {githubLabel}`github` {githubIssue 197}[]
+{usesLabel}`uses` {uses "cka"}[] · {uses "cka_oracles"}[]
 :::::::
 
 
