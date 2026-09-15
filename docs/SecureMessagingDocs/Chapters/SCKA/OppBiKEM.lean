@@ -247,53 +247,60 @@ def sendWith {RKey REnc : Type} (role : Role)
     (st : State PK SK C Sym) :
     m (Option (Option (ℕ × K) × Message Sym × ℕ × State PK SK C Sym ×
       SendRand RKey REnc)) := do
-  let ⟨resEpoch, ekPeer, ct, ich⟩ := st.res
-  let ⟨reqEpoch, dk, ek, receivedChunks⟩ := st.req
+  let mut ⟨t_res, ekPeer, ct, ich⟩ := st.res
+  let mut ⟨t_req, dk, ek, receivedChunks⟩ := st.req
   let ack := st.ack
-  let (resEpoch, dk, ek, ich, rKey?) ←
-    -- if ready to advance the epoch (Line 4 in the paper CKA-Send-P)
-    if ek.isNone && decide (resEpoch ∈ ack.ctRec ∧
-        resEpoch + role.offset ∈ ack.ctRec) then do
-      let ((newEk, newDk), rKey) ← keygen
-      let t := resEpoch + 2
-      -- the epoch for which the decapsulation key was generated
-      -- (t+1 in CKA-Send-A, line 8; t-1 in CKA-Send-B, line 8)
-      let keyEpoch := t + role.offset
-      pure (t, (keyEpoch, newDk) :: dk.filter (fun p => p.1 != keyEpoch),
-        some newEk, 0, some rKey)
-    else pure (resEpoch, dk, ek, ich, none)
-  let (key?, ch?, bit?, ct, ich, rEnc?) ←
-    -- if the encapsulation key was not yet received by the peer (lines 9-12 in CKA-Send-P)
-    if resEpoch + role.offset ∉ ack.ekRec then do
-      let ich := ich + 1
-      let ch? := ek.map (fun ek => ecEk.encode ek ich)
-      pure (none, ch?, some (0 : Bit), ct, ich, none)
-    -- if the encapsulation key was received, but ciphertext was **not** yet received by the peer
-    else if resEpoch ∉ ack.ctRec then do
-      let (key?, ct, ich, rEnc?) ←
-        -- if no ciphertext is stored and the peer's encapsulation key has been received
-        -- (lines 14-16 in CKA-Send-P)
-        if ct.isNone && decide (resEpoch ∈ ack.ekRec) then
-          match ekPeer resEpoch with
-          | none => pure (none, ct, ich, none)
-          | some peerEk => do
-              let ((newCt, key), rEnc) ← encaps peerEk
-              pure (some (resEpoch.toNat, key), some newCt, 0, some rEnc)
-        else pure (none, ct, ich, none)
-      let ich := ich + 1
-      let ch? := ct.map (fun ct => ecCt.encode ct ich)
-      pure (key?, ch?, some (1 : Bit), ct, ich, rEnc?)
-    else pure (none, none, none, ct, ich, none)
+  let mut key? : Option (ℕ × K) := none
+  let mut ch? : Option (ℕ × Sym) := none
+  let mut bit? : Option Bit := none
+  let mut rKey? : Option RKey := none
+  let mut rEnc? : Option REnc := none
+  -- if ready to advance the epoch (Line 4 in the paper CKA-Send-P)
+  if ek.isNone && decide (t_res ∈ ack.ctRec ∧
+      t_res + role.offset ∈ ack.ctRec) then
+    let ((newEk, newDk), rKey) ← keygen
+    t_res := t_res + 2
+    -- the epoch for which the decapsulation key was generated
+    -- (t_res+1 in CKA-Send-A, line 8; t_res-1 in CKA-Send-B, line 8)
+    let keyEpoch := t_res + role.offset
+    dk := (keyEpoch, newDk) :: dk.filter (fun p => p.1 != keyEpoch)
+    ek := some newEk
+    ich := 0
+    rKey? := some rKey
+  -- if the encapsulation key was not yet received by the peer (lines 9-12 in CKA-Send-P)
+  if t_res + role.offset ∉ ack.ekRec then
+    -- Per paper's convention: if there is no key, return error
+    let some localEk := ek | return none
+    ich := ich + 1
+    ch? := some (ecEk.encode localEk ich)
+    bit? := some 0
+  -- if the encapsulation key was received, but ciphertext was **not** yet received by the peer
+  else if t_res ∉ ack.ctRec then
+    -- if no ciphertext is stored and the peer's encapsulation key has been received
+    -- (lines 14-16 in CKA-Send-P)
+    if ct.isNone && decide (t_res ∈ ack.ekRec) then
+      -- Receipt was recorded, so encapsulation now requires this key.
+      let some peerEk := ekPeer t_res | return none
+      let ((newCt, key), rEnc) ← encaps peerEk
+      ct := some newCt
+      key? := some (t_res.toNat, key)
+      ich := 0
+      rEnc? := some rEnc
+    ich := ich + 1
+    -- Waiting for the peer's public key can legitimately leave ct absent.
+    ch? := ct.map (fun ciphertext => ecCt.encode ciphertext ich)
+    bit? := some 1
   let st : State PK SK C Sym :=
-    { res := ⟨resEpoch, ekPeer, ct, ich⟩
-      req := ⟨reqEpoch, dk, ek, receivedChunks⟩
+    { res := ⟨t_res, ekPeer, ct, ich⟩
+      req := ⟨t_req, dk, ek, receivedChunks⟩
       ack }
   let ρ : Message Sym :=
-    { ch := ch?, bit := bit?, resEpoch, reqEpoch
+    { ch := ch?, bit := bit?, t_res, t_req
       sendingEpoch := ack.sendingEpoch
-      ack := { ekRec := decide (reqEpoch - role.offset ∈ ack.ekRec)
-               ctRec := decide (reqEpoch ∈ ack.ctRec) } }
-  pure (some (key?, ρ, ρ.sendingEpoch, st, { keygenRand := rKey?, encapsRand := rEnc? }))
+      ack := { ekRec := decide (t_req - role.offset ∈ ack.ekRec)
+               ctRec := decide (t_req ∈ ack.ctRec) } }
+  return some (key?, ρ, ρ.sendingEpoch, st,
+    { keygenRand := rKey?, encapsRand := rEnc? })
 ```
 
 
