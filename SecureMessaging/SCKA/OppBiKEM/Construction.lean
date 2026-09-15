@@ -79,7 +79,7 @@ structure Acknowledgements where
   /-- Epochs for which the public key has been received locally or acknowledged by the peer. -/
   ekRec : Finset ℤ
   /-- Epochs for which ciphertext receipt has been committed locally or acknowledged
-  by the peer. A failed local decapsulation does not commit receipt. -/
+  by the peer. -/
   ctRec : Finset ℤ
 
 /-- Largest nonnegative index with two adjacent acknowledged ciphertexts
@@ -90,7 +90,7 @@ def Acknowledgements.sendingEpoch (ack : Acknowledgements) : ℕ :=
 -- ANCHOR_END: acknowledgements
 
 /-- Message `(ch, t_res, t_req, t_snd, ack, b)`; selector `0` means public
-key and `1` means ciphertext. The explicit sending epoch survives delayed delivery. -/
+key and `1` means ciphertext. -/
 -- ANCHOR: message
 abbrev Bit := Fin 2
 
@@ -109,8 +109,7 @@ structure Message (Sym : Type) where
   /-- Receipt flags for ciphertext epoch `t_req` and public-key epoch
 `t_req - role.offset`, using the sender's role. -/
   ack : Ack
-  /-- Payload selector: `0` for a public key, `1` for a ciphertext, or `none` for no payload.
-  While waiting for a ciphertext, `bit = some 1` can accompany `ch = none`. -/
+  /-- Payload selector: `0` for a public key, `1` for a ciphertext, or `none` for no payload. -/
   bit : Option Bit
 -- ANCHOR_END: message
 
@@ -217,7 +216,7 @@ def vulnB (st : StB PK SK C Sym) : Finset ℕ := vuln st
 /-- Common send algorithm. Supplying the randomized primitives explicitly lets
 ordinary and leaking sends share the same state transitions.
 A missing local public key when encoding it, or a missing peer key when
-encapsulation is required, returns `pure none`. No updated protocol state is
+encapsulation is required, returns `pure none`; no updated protocol state is
 returned; the caller retains its original state. Effects already performed by
 `m`, such as key-generation randomness, are not rolled back. -/
 -- ANCHOR: sendWith
@@ -283,7 +282,7 @@ def sendWith {RKey REnc : Type} (role : Role)
     { keygenRand := rKey?, encapsRand := rEnc? })
 -- ANCHOR_END: sendWith
 
-/-- Ordinary send: dummy `Unit` coins are discarded.
+/-- Ordinary send (no randomness leaking)
 Returns an effectful optional result containing:
 1. an optional newly established `(epoch, key)`,
 2. the outgoing protocol message,
