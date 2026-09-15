@@ -300,8 +300,14 @@ theorem Pack_Unpack (p : Params) (hw : p.WellFormed) (r c : ℕ)
     (b : Vector Bool (r * c * p.D)) : Pack p (Unpack p r c b) = b :=
   matrixToBitsWith_bitsToMatrixWith (entryToBits_bitsToEntry p hw) r c b
 
-/-- `Sample` returns an integer between `-d` and `d`: the number of successful
-comparisons is at most `d`, and `r[0]` determines its sign. -/
+/-- Each parameter set's thresholds satisfy the conditions relating them
+to the published probability numerators. -/
+theorem ParameterSet.errorTable_wellFormed (p : ParameterSet) :
+    p.errorTable.WellFormed p.errorProbNumerators := by
+  cases p <;> constructor <;> decide
+
+/-- `Sample` returns an integer between `-d` and `d` because it counts
+successes among `d` comparisons and applies the sign determined by `r[0]`. -/
 theorem Sample_bounds (table : ErrorTable) (r : Vector Bool lenChi) :
     -(table.d : ℤ) ≤ Sample table r ∧ Sample table r ≤ (table.d : ℤ) := by
   unfold Sample
@@ -312,8 +318,8 @@ theorem Sample_bounds (table : ErrorTable) (r : Vector Bool lenChi) :
     | simpa only [List.length_finRange] using
         (List.countP_le_length (l := List.finRange table.d) (p := _))
 
-/-- Every entry of `SampleMatrix` lies between `-d` and `d`, by the scalar
-bound applied to its input block. -/
+/-- Every entry of `SampleMatrix` lies between `-d` and `d`,
+by `Sample_bounds`. -/
 theorem SampleMatrix_bounds (table : ErrorTable) (rows cols : ℕ)
     (r : Vector Bool (rows * cols * lenChi)) (i : Fin rows) (j : Fin cols) :
     -(table.d : ℤ) ≤ SampleMatrix table rows cols r i j ∧

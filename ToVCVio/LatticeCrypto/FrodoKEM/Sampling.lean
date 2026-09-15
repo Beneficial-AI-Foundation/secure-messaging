@@ -45,6 +45,24 @@ structure ErrorTable where
   probabilities. `Sample` uses only the first `d` entries. -/
   thresholds : Vector ℕ (d + 1)
 
+/-- Conditions relating the thresholds to the intended probabilities.
+For `0 ≤ z ≤ d`, `χ(z) = probs[z] / 2 ^ lenChi` is the probability
+of the outcome `z`. Symmetry gives `χ(-z) = χ(z)`. -/
+structure ErrorTable.WellFormed (table : ErrorTable)
+    (probs : Vector ℕ (table.d + 1)) : Prop where
+  /-- The paper's equation for `χ(0)`, with the denominator cleared. -/
+  zero_eq : 2 * (table.thresholds[0] + 1) = probs[0]
+  /-- Each positive magnitude contributes its numerator to the threshold. -/
+  cumulative_eq : ∀ z : Fin (table.d + 1),
+    table.thresholds[z] = table.thresholds[0] +
+      ∑ i : Fin table.d, if i.val < z.val then probs[i.val + 1] else 0
+  /-- Successive thresholds are strictly increasing. -/
+  strictMono : StrictMono (fun i : Fin (table.d + 1) => table.thresholds[i])
+  /-- The final threshold is the largest value of the magnitude bits. -/
+  last_eq : table.thresholds[table.d] = 2 ^ (lenChi - 1) - 1
+  /-- The probabilities of zero and both signs sum to one. -/
+  normalized : probs[0] + 2 * (∑ i : Fin table.d, probs[i.val + 1]) = 2 ^ lenChi
+
 namespace ParameterSet
 
 /-- The three threshold tables of Table 5 of `[LBES26]`. Each table includes
@@ -61,6 +79,22 @@ def errorTable : ParameterSet → ErrorTable
   | .FrodoKEM1344 | .eFrodoKEM1344 =>
       { d := 6
         thresholds := #v[9142, 23462, 30338, 32361, 32725, 32765, 32767] }
+
+/-- Probability numerators transcribed from Table 4 of `[LBES26]`
+and cross-checked against Table 3 of `[CiC25]`.
+Writing `probs = p.errorProbNumerators` and
+`d = p.errorTable.d`, for `0 ≤ z ≤ d`,
+`χ(z) = probs[z] / 2 ^ lenChi = probs[z] / 65536` is the probability
+of the outcome `z`. Symmetry gives `χ(-z) = χ(z)`, and `χ(z) = 0`
+outside `[-d, d]`. -/
+def errorProbNumerators (p : ParameterSet) : Vector ℕ (p.errorTable.d + 1) :=
+  match p with
+  | .FrodoKEM640 | .eFrodoKEM640 =>
+      #v[9288, 8720, 7216, 5264, 3384, 1918, 958, 422, 164, 56, 17, 4, 1]
+  | .FrodoKEM976 | .eFrodoKEM976 =>
+      #v[11278, 10277, 7774, 4882, 2545, 1101, 396, 118, 29, 6, 1]
+  | .FrodoKEM1344 | .eFrodoKEM1344 =>
+      #v[18286, 14320, 6876, 2023, 364, 40, 2]
 
 end ParameterSet
 
