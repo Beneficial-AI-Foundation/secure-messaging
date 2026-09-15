@@ -148,6 +148,11 @@ abbrev SupportedAAD := { x : (a : ℕ) × BitVec a // ValidAADLength x.1 }
 the forward direction `ciph.perm k = CIPH_K` is used. -/
 abbrev CIPH (K : Type) := BlockCipher K (BitVec 128)
 
+/-- The pre-counter block `J₀ = IV ‖ 0³¹ ‖ 1` at a 96-bit IV (NIST SP 800-38D §7.1
+step 2). GCM uses it twice: `CIPH_K(J₀)` is the tag mask, and `inc₃₂(J₀)` is the initial
+counter block of the GCTR keystream. -/
+def j0 (iv : BitVec 96) : BitVec 128 := iv ++ (0 : BitVec 31) ++ (1 : BitVec 1)
+
 /-- GCM authenticated encryption `GCM-AE_K(IV, P, A)` (NIST SP 800-38D §7.1,
 Algorithm 4): AAD `ad : BitVec lenA`, plaintext `m : BitVec lenP`, ciphertext
 `BitVec lenP` (GCTR preserves length), 96-bit `iv`, forward cipher `ciph.perm k = CIPH_K`.
@@ -160,7 +165,7 @@ def gcmEncrypt {K : Type} (ciph : CIPH K) (k : K)
     (iv : BitVec 96) {lenA lenP : ℕ} (ad : BitVec lenA) (m : BitVec lenP) :
     BitVec lenP × BitVec 128 :=
   let h := ciph.perm k 0
-  let j₀ := iv ++ (0 : BitVec 31) ++ (1 : BitVec 1)
+  let j₀ := j0 iv
   let c := gctr ciph.perm k (inc32 j₀) m
   -- trailing GHASH block `[len(A)]₆₄ ‖ [len(C)]₆₄` (NIST SP 800-38D §7.1 step 5)
   let s := ghash h (padBlocks ad ++ padBlocks c ++ [BitVec.ofNat 64 lenA ++ BitVec.ofNat 64 lenP])
@@ -182,7 +187,7 @@ def gcmDecrypt {K : Type} (ciph : CIPH K) (k : K)
   if ValidMsgLength lenP ∧ ValidAADLength lenA then
     let (c, t) := ct
     let h := ciph.perm k 0                          -- (2)
-    let j₀ := iv ++ (0 : BitVec 31) ++ (1 : BitVec 1) -- (3)
+    let j₀ := j0 iv                                 -- (3)
     let p := gctr ciph.perm k (inc32 j₀) c          -- (4)
     -- (5–6) `S = GHASH_H(A ‖ 0^v ‖ C ‖ 0^u ‖ [len(A)]₆₄ ‖ [len(C)]₆₄)`
     let s := ghash h (padBlocks ad ++ padBlocks c ++ [BitVec.ofNat 64 lenA ++ BitVec.ofNat 64 lenP])

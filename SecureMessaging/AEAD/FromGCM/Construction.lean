@@ -11,7 +11,7 @@ import ToVCVio.CryptoFoundations.PRP
 /-!
 # One-time-key GCM as an `AEADScheme` (ACD19)
 
-Packages the 96-bit-IV GCM algorithms (`Algorithms`) as the one-time-key `AEADScheme`
+Packages the 96-bit-IV GCM algorithms (`SecureMessaging.AEAD.GCM`) as the one-time-key `AEADScheme`
 `gcmOneTimeAEAD`, targeting the ACD19 AEAD interface (`SecureMessaging.AEAD.Defs`).
 
 ## References
@@ -28,29 +28,23 @@ namespace GCM
 
 open OracleSpec OracleComp
 
-/-- One-time-key GCM as an `AEADScheme` (ACD19 interface). The IV is fixed to `0`; this
-is sound because `keygen` draws a fresh key per encryption, so the `(key, IV)` pair is
-never reused (GCM's uniqueness requirement, NIST §8). For a multi-invocation interface
-call `gcmEncrypt`/`gcmDecrypt` directly.
+/-- One-time-key GCM as an `AEADScheme` on the ACD19 interface: `gcmEncrypt`/`gcmDecrypt` under
+the block cipher of `prp`, at a public 96-bit IV fixed at construction time. Fixing the IV is
+sound in the one-time model: each key encrypts a single message, so no `(key, IV)` pair is ever
+reused, which is the uniqueness requirement of NIST SP 800-38D §8. Its value is irrelevant:
+every security theorem in `FromGCM/Security.lean` is quantified over `iv`.
 
-`prp` supplies the block cipher and key generation; the mode itself uses only
-`prp.toBlockCipher` (the PRP→PRF switch lives in the security reduction). The AEAD key
-is the block-cipher key `K`, with no IV bundled in, and the ciphertext is `(C, T)`. The
-message is fixed to `BitVec L` so the ciphertext `BitVec L × BitVec 128` is a
-`SampleableType`, as the IND-CCA game needs; `SupportedAAD` and `_hL : ValidMsgLength L`
-keep the domain within NIST's supported lengths.
-
-`_hL` records the length requirement at construction but is unused in the body
-(correctness supplies its own), hence `nolint`. -/
-@[nolint unusedArguments]
+The message length is fixed to `L` so that the ciphertext type `BitVec L × BitVec 128` is a
+`SampleableType`, which the IND-CCA game needs. `_hL` pins the scheme to supported lengths;
+the body does not use it. -/
 -- ANCHOR: gcmOneTimeAEAD
-def gcmOneTimeAEAD {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ)
+def gcmOneTimeAEAD {K : Type} (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
     (_hL : ValidMsgLength L) :
     AEADScheme ProbComp (BitVec L) SupportedAAD
       K (BitVec L × BitVec 128) where
   keygen := prp.keygen
-  encrypt := fun k ad m => gcmEncrypt prp.toBlockCipher k (0 : BitVec 96) ad.1.2 m
-  decrypt := fun k ad c => gcmDecrypt prp.toBlockCipher k (0 : BitVec 96) ad.1.2 c
+  encrypt := fun k ad m => gcmEncrypt prp.toBlockCipher k iv ad.1.2 m
+  decrypt := fun k ad c => gcmDecrypt prp.toBlockCipher k iv ad.1.2 c
 -- ANCHOR_END: gcmOneTimeAEAD
 
 end GCM
