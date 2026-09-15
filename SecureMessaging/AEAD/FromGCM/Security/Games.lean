@@ -39,6 +39,11 @@ open AEADScheme.aeadOneTimeCCASpec
 open OracleComp.ProgramLogic.Relational
 open OracleComp.WegmanCarter
 
+/-! ## Structural instances
+
+Pinned as `example`s so CI fails if one regresses. `DecidableEq SupportedAAD` is not needed:
+the challenge guard compares the ciphertext only (ACD19 Def 2, as `oracleDecrypt` in
+`AEAD/Defs.lean`). -/
 
 section InstancePins
 
@@ -94,12 +99,10 @@ end Skeleton
 
 /-! ## Per-tuple implementation families
 
-The tuple `a = (H, mask, ks) : BitVec 128 × BitVec 128 × BitVec L` collects the three
-separated cipher outputs of one-time GCM at the all-zero IV (`CipherProfile.lean`): the
-GHASH key `H`, the tag mask, and the flattened GCTR keystream. The encrypt/decrypt bodies
-below are the same expressions across both families and are written via `gcmEncode` so the
-AXU/`ghash` lemmas apply downstream. The bridge from `gcmEncryptSpec`/`gcmDecryptSpec`
-(which take keystream *blocks*) to this `ks : BitVec L` form is in `PrfHop.lean`. -/
+The tuple `a = (H, mask, ks) : BitVec 128 × BitVec 128 × BitVec L` holds the three block-cipher
+outputs one-time GCM uses (`CipherProfile.lean`): the GHASH key, the tag mask and the
+keystream, flattened to `L` bits. Given the tuple, encryption and decryption are
+deterministic. -/
 
 section TupleFamilies
 
@@ -138,17 +141,16 @@ section Games
 
 variable {K : Type} {L : ℕ}
 
-/-- Game 0: real cipher. The key is sampled outside the skeleton and the oracles use the
-scheme's `encrypt`/`decrypt` directly (not the spec/profile form), so `game0_eq_real` is
-an `id`-projection against `aeadSecurityImpl … false k`. State is plain
-`Option (BitVec L × BitVec 128)`, matching the endpoint's. -/
-def game0 (prp : PRPScheme K (BitVec 128)) (L : ℕ) (hL : ValidMsgLength L)
+/-- Game 0: the real scheme at a sampled key. It is the only game mentioning the IV; from
+`game1` on the block cipher is gone and the IV matters only through which cipher inputs
+produced the tuple. -/
+def game0 (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ) (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
     ProbComp Bool := do
   let k ← prp.keygen
   (simulateQ (gcmGameSkeleton (spec := unifSpec)
-      (fun ad m => pure ((gcmOneTimeAEAD prp L hL).encrypt k ad m))
-      (fun ad e => pure ((gcmOneTimeAEAD prp L hL).decrypt k ad e))
+      (fun ad m => pure ((gcmOneTimeAEAD prp iv L hL).encrypt k ad m))
+      (fun ad e => pure ((gcmOneTimeAEAD prp iv L hL).decrypt k ad e))
       (oracleUnif (BitVec L × BitVec 128))) adv).run' none
 
 /-- Game 1: the block cipher's outputs replaced by one uniform tuple, sampled up front. -/
@@ -212,6 +214,17 @@ noncomputable def game4 (_prp : PRPScheme K (BitVec 128)) (L : ℕ) (_hL : Valid
 
 end Games
 
+/-! ## Instrumented pair: `game3♭` / `game2♭`
+
+`game2` and `game3` differ only in what a decryption query returns when the tag verifies. Two
+games that behave identically until a flag is raised differ by at most the probability of the
+flag, so both are restated with a `forged` flag set whenever a tag verifies, and the
+authenticity hop bounds their distance by the probability of that flag. The Lean names
+`game2Flat`/`game3Flat` spell `game2♭`/`game3♭`.
+
+The flag update reads the tuple at decryption queries, so these variants cannot use
+`consumeLazy`; the tuple is sampled up front, and the projection lemmas below recover
+`game2`/`game3`. -/
 
 section Instrumented
 
@@ -246,6 +259,7 @@ def game2Flat (_prp : PRPScheme K (BitVec 128)) (L : ℕ)
   let a ← ($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _)
   (simulateQ (gcmInstImpl a true) adv).run' (none, false)
 
+/-! ### Projection lemmas: the flag is write-only, so erasing it recovers the plain games. -/
 
 lemma simulateQ_gcmInstImpl_true_run'_eq_gcmTupleImpl
     (a : BitVec 128 × BitVec 128 × BitVec L)
@@ -320,18 +334,20 @@ theorem game3Flat_eq_game3 (prp : PRPScheme K (BitVec 128)) (L : ℕ)
 
 end Instrumented
 
+/-! ## Endpoints: `game0` is the real experiment, `game4` the random one -/
 
 section Endpoints
 
 variable {K : Type}
 
 /-- `game0` is the real ACD19 experiment: the oracles agree query by query at every key. -/
-theorem game0_eq_real (prp : PRPScheme K (BitVec 128)) (L : ℕ) (hL : ValidMsgLength L)
+theorem game0_eq_real (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
+    (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    Pr[= true | game0 prp L hL adv] =
-      Pr[= true | AEADScheme.securityExpFixedBit (gcmOneTimeAEAD prp L hL) adv false] := by
+    Pr[= true | game0 prp iv L hL adv] =
+      Pr[= true | AEADScheme.securityExpFixedBit (gcmOneTimeAEAD prp iv L hL) adv false] := by
   -- Unfold only the keygen projection (keep `aeadSecurityImpl` folded to match the RHS).
-  have hkg : (gcmOneTimeAEAD prp L hL).keygen = prp.keygen := rfl
+  have hkg : (gcmOneTimeAEAD prp iv L hL).keygen = prp.keygen := rfl
   unfold game0 AEADScheme.securityExpFixedBit
   rw [hkg]
   simp only [bind_pure_comp, ← StateT.run'_eq]
@@ -341,7 +357,7 @@ theorem game0_eq_real (prp : PRPScheme K (BitVec 128)) (L : ℕ) (hL : ValidMsgL
   -- `aeadSecurityImpl … false k` with `proj = id` (state `Option C` on both sides).
   refine congrArg (fun o => Pr[= true | o]) ?_
   refine run'_simulateQ_eq_of_query_map_eq _
-    (AEADScheme.aeadSecurityImpl (gcmOneTimeAEAD prp L hL) false k) id ?hproj adv none
+    (AEADScheme.aeadSecurityImpl (gcmOneTimeAEAD prp iv L hL) false k) id ?hproj adv none
   case hproj =>
     intro t s
     rcases t with (n | ⟨ad, m⟩) | ⟨ad, e⟩
@@ -375,25 +391,26 @@ theorem game4_eq_plain (prp : PRPScheme K (BitVec 128)) (L : ℕ) (hL : ValidMsg
 
 /-- `game4` is the random ACD19 experiment. The experiment's key is unused on the random side
 and is eliminated because `prp.keygen` never fails; `NeverFail` holds for every `ProbComp`. -/
-theorem game4_eq_rand (prp : PRPScheme K (BitVec 128)) (L : ℕ) (hL : ValidMsgLength L)
+theorem game4_eq_rand (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
+    (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
     Pr[= true | game4 prp L hL adv] =
-      Pr[= true | AEADScheme.securityExpFixedBit (gcmOneTimeAEAD prp L hL) adv true] := by
+      Pr[= true | AEADScheme.securityExpFixedBit (gcmOneTimeAEAD prp iv L hL) adv true] := by
   -- (1)-(2) Unconsume and kill the dead tuple sample: both steps are `game4_eq_plain`.
   rw [probOutput_eq_of_evalDist_eq (game4_eq_plain prp L hL adv) true]
   -- (3) RHS: the endpoint's keygen is dead on the random side; fold the tail to `.run'`.
-  have hkg : (gcmOneTimeAEAD prp L hL).keygen = prp.keygen := rfl
+  have hkg : (gcmOneTimeAEAD prp iv L hL).keygen = prp.keygen := rfl
   unfold AEADScheme.securityExpFixedBit
   rw [hkg]
   simp only [bind_pure_comp, ← StateT.run'_eq]
   -- (4) Kill it with losslessness; the per-key body is constant (= the LHS value by
   -- the `id`-projection).
   rw [probOutput_bind_of_const prp.keygen
-      (my := fun k => (simulateQ (AEADScheme.aeadSecurityImpl (gcmOneTimeAEAD prp L hL)
+      (my := fun k => (simulateQ (AEADScheme.aeadSecurityImpl (gcmOneTimeAEAD prp iv L hL)
         true k) adv).run' none)
       (fun k _ => congrArg (fun o => Pr[= true | o])
         (run'_simulateQ_eq_of_query_map_eq _
-          (AEADScheme.aeadSecurityImpl (gcmOneTimeAEAD prp L hL) true k)
+          (AEADScheme.aeadSecurityImpl (gcmOneTimeAEAD prp iv L hL) true k)
           id ?_ adv none).symm)]
   · -- `prp.keygen` is lossless, so the `(1 - Pr[⊥]) ·` factor is `1`; `rfl` pins `impl₁`.
     rw [NeverFail.probFailure_eq_zero, tsub_zero, one_mul]

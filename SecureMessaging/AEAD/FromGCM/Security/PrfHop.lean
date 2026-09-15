@@ -15,27 +15,16 @@ import VCVio.OracleComp.QueryTracking.SubSpec
 /-!
 # GCM: the PRF hop (`game0` → `game1`)
 
-Idealize the block cipher: replace the three separated cipher outputs of one-time GCM
-(`CipherProfile.lean`) by the answers of a random function, at the cost of the PRF
-advantage of one explicit reduction.
+Replacing the block cipher's outputs by uniform values costs the pseudorandom-function (PRF)
+advantage of one explicit distinguisher, `prfReduction`. The distinguisher queries its
+function oracle at the `⌈L/128⌉ + 2` inputs GCM uses (GHASH key, tag mask, keystream blocks)
+before running the adversary, so its query list is fixed and independent of the adversary.
 
-Contents:
-- `prfReduction`: the named eager PRF distinguisher. It fetches the hash key, the tag mask
-  and all `⌈L/128⌉` keystream blocks from its function oracle before running the adversary,
-  then runs the closed `gcmTupleImpl` game at the fetched tuple. Its query list is fixed, of
-  length `⌈L/128⌉ + 2`, regardless of the adversary's decryption traffic.
-- `gcmEncryptSpec_eq_tuple`/`gcmDecryptSpec_eq_tuple`: the profile-to-tuple bridges. The
-  block-list specs of `CipherProfile.lean` equal the `gcmTupleImpl` oracle bodies at
-  `ks := blocksToBitVec ksBlocks L`.
-- `game1_eq_game2`: the lazy-sampling hop, moving the eager tuple sample inside the oracles
-  at zero advantage cost.
-- `run'_game0Impl_eq_tupleImpl`/`game0_eq_prfRealExp`: the real-side projection. Running
-  `prfReduction` in the real PRF experiment is exactly `game0`.
-- `prfIdealExp_prfReduction_eq`/`game1_eq_prfIdealExp`: the ideal-side projection. The lazy
-  random oracle answers the eager query prefix with that many independent uniforms, which
-  reshape into `game1`'s single tuple `(H, mask, ks)`.
-- `game0_game1_le_prf`: the hop's bound
-  `|Pr[game1] − Pr[game0]| ≤ prfAdvantage prp.toPRFScheme (prfReduction L adv)`.
+Main results:
+- `game0_eq_prfRealExp`, `game1_eq_prfIdealExp`: with a real cipher the distinguisher runs
+  `game0`, with a random function it runs `game1`.
+- `game0_game1_le_prf`: hence `|Pr[game1] − Pr[game0]|` is at most its PRF advantage.
+- `game1_eq_game2`: moving the tuple sample inside the oracles changes nothing.
 -/
 
 namespace GCM
@@ -46,37 +35,24 @@ open OracleComp.ProgramLogic.Relational
 
 /-! ## The eager PRF reduction -/
 
-/-- The PRF distinguisher for the GCM hash key, tag mask and keystream: one explicit named
-reduction rather than an existential.
-
-`prfReduction L adv` queries its function oracle at exactly the cipher inputs of one-time
-GCM at the all-zero IV (`gcmOneTimeAEAD_encrypt_profile`): the GHASH key at `0`, the tag
-mask at `J₀ = 1`, and the GCTR keystream at `counterChain 2 ⌈L/128⌉`. It then runs `adv`
-against the closed tuple game `gcmTupleImpl (h, mask, blocksToBitVec blocks L)`, lifted
-back into the PRF spec; that tail makes no function query, so the eager prefix is all of
-the reduction's oracle traffic.
-
-The queries happen before the adversary runs, so the query list is the *fixed*
-`0 :: 1 :: counterChain 2 ⌈L/128⌉`, of length `1 + 1 + ⌈L/128⌉ = ⌈L/128⌉ + 2` by
-`counterChain_length`, independently of how many decryption queries the adversary makes; an
-on-demand reduction would make the count adversary-dependent. `prfReduction_isQueryBoundP`
-below records that count, and the switching bound (`PrpSwitch.lean`) derives the same count
-from the literal query list. Distinctness of the query points, needed on the ideal side, is
-`cipherInputs_pairwise_ne`, which is where `ValidMsgLength` enters; the definition itself
-carries no such hypothesis. -/
+/-- The PRF distinguisher built from a GCM adversary. It fetches the GHASH key at `0`, the tag
+mask at `j0 iv` and the `⌈L/128⌉` keystream blocks along the counter chain from its function
+oracle, then runs `adv` against `gcmTupleImpl` at that tuple; the tail makes no further
+function-oracle query. Fetching everything up front keeps the query count fixed at
+`⌈L/128⌉ + 2`, whatever the adversary does. -/
 -- The outer ascription to `OracleComp (PRFOracleSpec …) Bool` is required: `PRFAdversary`
 -- is a two-argument abbrev whose *second* argument is the oracle range, not the return
 -- type, so `do`-notation would otherwise unify the monad with `PRFAdversary (BitVec 128)`
 -- and fail to find `Monad`/`MonadLiftT` instances.
-noncomputable def prfReduction (L : ℕ)
+noncomputable def prfReduction (iv : BitVec 96) (L : ℕ)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
     PRFScheme.PRFAdversary (BitVec 128) (BitVec 128) :=
   (do
     let h ← liftM (OracleSpec.query (Sum.inr (0 : BitVec 128)) :
         OracleQuery (PRFScheme.PRFOracleSpec (BitVec 128) (BitVec 128)) (BitVec 128))
-    let mask ← liftM (OracleSpec.query (Sum.inr (1 : BitVec 128)) :
+    let mask ← liftM (OracleSpec.query (Sum.inr (j0 iv)) :
         OracleQuery (PRFScheme.PRFOracleSpec (BitVec 128) (BitVec 128)) (BitVec 128))
-    let blocks ← (counterChain 2 ((L + 127) / 128)).mapM
+    let blocks ← (counterChain (inc32 (j0 iv)) ((L + 127) / 128)).mapM
       (fun t => liftM (OracleSpec.query (Sum.inr t) :
         OracleQuery (PRFScheme.PRFOracleSpec (BitVec 128) (BitVec 128)) (BitVec 128)))
     OracleComp.liftComp
@@ -84,6 +60,10 @@ noncomputable def prfReduction (L : ℕ)
       (PRFScheme.PRFOracleSpec (BitVec 128) (BitVec 128)) :
     OracleComp (PRFScheme.PRFOracleSpec (BitVec 128) (BitVec 128)) Bool)
 
+/-! ## Profile-to-tuple bridges
+
+`CipherProfile.lean` describes encryption and decryption with the keystream as a list of
+blocks; the games carry it flattened to `L` bits. The two agree at `blocksToBitVec`. -/
 
 section Bridges
 
@@ -126,36 +106,24 @@ theorem game1_eq_game2 (prp : PRPScheme K (BitVec 128)) (L : ℕ)
 
 end LazyHop
 
+/-! ## The real-side projection: `game0` = `prfRealExp (prfReduction …)` -/
 
 section RealProjection
 
 variable {K : Type}
 
-/-- Per-key projection: at a fixed key `k`, `game0`'s oracle implementation (the real
-scheme's `encrypt`/`decrypt`) projects onto the per-tuple family `gcmTupleImpl` at the real
-tuple `(CIPH_k(0), CIPH_k(1), blocksToBitVec (CIPH_k ∘ counterChain 2 ⌈L/128⌉) L)`.
-
-The projection is `id`: both sides carry the same state `Option (BitVec L × BitVec 128)`
-(the challenge ciphertext), so there is no cache to erase and no state invariant to
-maintain. The three branches:
-
-* `OUnif`: both handlers are `oracleUnif`, threading the state unchanged;
-* `OEncrypt`: `gcmOneTimeAEAD_encrypt_profile` turns the scheme's `encrypt` into
-  `gcmEncryptSpec` at exactly this tuple's components, and `gcmEncryptSpec_eq_tuple`
-  flattens the keystream block list, landing on `gcmTupleImpl`'s `encStar` body verbatim;
-* `ODecrypt`: the same with `gcmOneTimeAEAD_decrypt_profile` (whose validity guard comes
-  from `hL` and the AAD's own `ValidAADLength` witness) and `gcmDecryptSpec_eq_tuple`. The
-  ACD19 ciphertext-only challenge guard `(← get) == some e` is shared by both sides, so
-  only the `decryptResp` bodies differ. -/
-lemma run'_game0Impl_eq_tupleImpl (prp : PRPScheme K (BitVec 128)) (L : ℕ)
+/-- At a fixed key, the real scheme's oracles are `gcmTupleImpl` at the tuple of the cipher's
+outputs on GCM's inputs. -/
+lemma run'_game0Impl_eq_tupleImpl (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
     (hL : ValidMsgLength L) (k : K)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
     (simulateQ (gcmGameSkeleton (spec := unifSpec)
-        (fun ad m => pure ((gcmOneTimeAEAD prp L hL).encrypt k ad m))
-        (fun ad e => pure ((gcmOneTimeAEAD prp L hL).decrypt k ad e))
+        (fun ad m => pure ((gcmOneTimeAEAD prp iv L hL).encrypt k ad m))
+        (fun ad e => pure ((gcmOneTimeAEAD prp iv L hL).decrypt k ad e))
         (oracleUnif (BitVec L × BitVec 128))) adv).run' none =
-      (simulateQ (gcmTupleImpl (prp.toBlockCipher.perm k 0, prp.toBlockCipher.perm k 1,
-        blocksToBitVec ((counterChain 2 ((L + 127) / 128)).map
+      (simulateQ (gcmTupleImpl (prp.toBlockCipher.perm k 0,
+        prp.toBlockCipher.perm k (j0 iv),
+        blocksToBitVec ((counterChain (inc32 (j0 iv)) ((L + 127) / 128)).map
           (prp.toBlockCipher.perm k)) L)) adv).run' none := by
   refine run'_simulateQ_eq_of_query_map_eq _ _ id ?hproj adv none
   case hproj =>
@@ -169,17 +137,17 @@ lemma run'_game0Impl_eq_tupleImpl (prp : PRPScheme K (BitVec 128)) (L : ℕ)
       cases s <;>
         simp [gcmGameSkeleton, gcmTupleImpl, StateT.run_bind, StateT.run_get,
           StateT.run_set, StateT.run_pure, map_pure,
-          gcmOneTimeAEAD_encrypt_profile prp hL k, gcmEncryptSpec_eq_tuple]
+          gcmOneTimeAEAD_encrypt_profile prp iv hL k, gcmEncryptSpec_eq_tuple]
     · -- ODecrypt: shared challenge guard; the live verification body becomes the tuple
       -- body by profile + decryption bridge.
       simp [gcmGameSkeleton, gcmTupleImpl, StateT.run_bind, StateT.run_get,
-        gcmOneTimeAEAD_decrypt_profile prp hL k, gcmDecryptSpec_eq_tuple]
+        gcmOneTimeAEAD_decrypt_profile prp iv hL k, gcmDecryptSpec_eq_tuple]
 
-theorem game0_eq_prfRealExp (prp : PRPScheme K (BitVec 128)) (L : ℕ)
+theorem game0_eq_prfRealExp (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    Pr[= true | game0 prp L hL adv] =
-      Pr[= true | (prp.toPRFScheme).prfRealExp (prfReduction L adv)] := by
+    Pr[= true | game0 prp iv L hL adv] =
+      Pr[= true | (prp.toPRFScheme).prfRealExp (prfReduction iv L adv)] := by
   -- Keygen alignment is definitional: `toPRFScheme` keeps `keygen` and sets `eval := perm`.
   have hkg : (prp.toPRFScheme).keygen = prp.keygen := rfl
   unfold game0 PRFScheme.prfRealExp prfReduction
@@ -192,10 +160,19 @@ theorem game0_eq_prfRealExp (prp : PRPScheme K (BitVec 128)) (L : ℕ)
     List.mapM_pure, PRFScheme.simulateQ_prfRealQueryImpl_liftComp, pure_bind]
   -- Both sides are now the same `prp.keygen` bind; descend and project per key.
   refine probOutput_bind_congr' prp.keygen true (fun k => ?_)
-  exact congrArg (fun o => Pr[= true | o]) (run'_game0Impl_eq_tupleImpl prp L hL k adv)
+  exact congrArg (fun o => Pr[= true | o]) (run'_game0Impl_eq_tupleImpl prp iv L hL k adv)
 
 end RealProjection
 
+/-! ## The ideal-side cache peel
+
+VCVio's ideal PRF is a lazily sampled random function: a query at a new point draws a fresh
+uniform value, a repeated point returns the cached one. The `⌈L/128⌉ + 2` query points are
+pairwise distinct (`cipherInputs_pairwise_ne`), so every query is fresh. This is one of the two
+places `hL` enters the PRF hop: `inc32` wraps modulo `2³²`, and for a long enough message the
+counter chain would repeat a point and the peel would return a cached value instead of a fresh
+draw. The other is the real-side decrypt projection above, where `gcmDecrypt`'s length check
+must pass (`gcmOneTimeAEAD_decrypt_profile`). -/
 
 section IdealPeel
 
@@ -210,24 +187,16 @@ private lemma run'_randomOracle_bind_of_none {D R β : Type} [DecidableEq D] [Sa
     QueryImpl.withCaching_run_none uniformSampleImpl hc]
   simp [bind_map_left, StateT.run'_eq]
 
-/-- The ideal experiment of `prfReduction`, peeled: the lazy random oracle answers the
-`⌈L/128⌉ + 2` eager queries with that many independent uniform draws, and the query cache
-disappears with them.
-
-This is a `ProbComp`-*term* equality, not merely an `evalDist` one: every step is exact
-(`withCaching_run_none` at a miss, and the term-level `run'_mapM_randomOracle_fresh`).
-
-`hL` is not a convenience hypothesis. The two singleton peels need only
-`(1 : BitVec 128) ≠ 0` (`decide`), but the keystream loop needs the chain to be `Nodup` and
-disjoint from the two already-cached points `{0, 1}`, and both come from
-`cipherInputs_pairwise_ne hL`. Without `ValidMsgLength L` the statement is false (see the
-section docstring). -/
-lemma prfIdealExp_prfReduction_eq (L : ℕ) (hL : ValidMsgLength L)
+/-- In the ideal PRF experiment, `prfReduction`'s `⌈L/128⌉ + 2` queries are answered by that
+many independent uniform draws. `hL` makes the query points distinct; for a message long
+enough to wrap the 32-bit counter a repeated point returns its cached value and the
+statement is false. -/
+lemma prfIdealExp_prfReduction_eq (iv : BitVec 96) (L : ℕ) (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    PRFScheme.prfIdealExp (prfReduction L adv) =
+    PRFScheme.prfIdealExp (prfReduction iv L adv) =
       (($ᵗ (BitVec 128) : ProbComp _) >>= fun h =>
        ($ᵗ (BitVec 128) : ProbComp _) >>= fun mask =>
-       (counterChain 2 ((L + 127) / 128)).mapM
+       (counterChain (inc32 (j0 iv)) ((L + 127) / 128)).mapM
          (fun _ => ($ᵗ (BitVec 128) : ProbComp _)) >>= fun blocks =>
        (simulateQ (gcmTupleImpl (h, mask, blocksToBitVec blocks L)) adv).run' none) := by
   unfold PRFScheme.prfIdealExp prfReduction
@@ -245,17 +214,17 @@ lemma prfIdealExp_prfReduction_eq (L : ℕ) (hL : ValidMsgLength L)
   refine Eq.trans (run'_randomOracle_bind_of_none (0 : BitVec 128) ∅
     (QueryCache.empty_apply _) _) ?_
   refine bind_congr fun h => ?_
-  -- Peel 2: the tag-mask fetch at `1`; `1 ≠ 0`, so the entry just written is invisible.
-  have h10 : ((∅ : (BitVec 128 →ₒ BitVec 128).QueryCache).cacheQuery 0 h) 1 = none := by
-    rw [QueryCache.cacheQuery_of_ne _ _ (by decide : (1 : BitVec 128) ≠ 0)]
+  -- Peel 2: the tag-mask fetch at `J₀`; `J₀ ≠ 0`, so the entry just written is invisible.
+  have h10 : ((∅ : (BitVec 128 →ₒ BitVec 128).QueryCache).cacheQuery 0 h) (j0 iv) = none := by
+    rw [QueryCache.cacheQuery_of_ne _ _ (j0_ne_zero iv)]
     exact QueryCache.empty_apply _
-  refine Eq.trans (run'_randomOracle_bind_of_none (1 : BitVec 128) _ h10 _) ?_
+  refine Eq.trans (run'_randomOracle_bind_of_none (j0 iv) _ h10 _) ?_
   refine bind_congr fun mask => ?_
-  -- The keystream loop: `0 :: 1 :: counterChain 2 ⌈L/128⌉` is `Pairwise (· ≠ ·)`, whose
+  -- The keystream loop: `0 :: J₀ :: counterChain (inc₃₂ J₀) ⌈L/128⌉` is `Pairwise (· ≠ ·)`, whose
   -- three components are what the fresh-queries lemma asks for: the tail-of-tail
   -- `Pairwise` is the chain's `Nodup`, and the two head clauses give freshness of every
   -- chain point against the two cached entries.
-  have hpw := cipherInputs_pairwise_ne hL
+  have hpw := cipherInputs_pairwise_ne iv hL
   rw [List.pairwise_cons] at hpw
   obtain ⟨h0, hpw⟩ := hpw
   rw [List.pairwise_cons] at hpw
@@ -268,6 +237,12 @@ lemma prfIdealExp_prfReduction_eq (L : ℕ) (hL : ValidMsgLength L)
 
 end IdealPeel
 
+/-! ## The ideal-side projection: `game1` = `prfIdealExp (prfReduction …)`
+
+After the peel, the ideal experiment draws `⌈L/128⌉` uniform keystream blocks where `game1`
+draws one uniform `BitVec L`; concatenating independent uniform blocks and truncating to `L`
+bits is uniform (`evalDist_blocksToBitVec_uniform`). Truncation is not injective, so this
+step is an equality of distributions, not of terms. -/
 
 section IdealProjection
 
@@ -282,29 +257,30 @@ private lemma evalDist_bind_left {α β : Type} {x y : ProbComp α} (h : 𝒟[x]
 
 /-- Drawing `⌈L/128⌉` uniform blocks and flattening them to `L` bits is, under any
 continuation, the same as drawing one uniform `BitVec L`. -/
-private lemma evalDist_keystream_bind {β : Type} (L : ℕ) (f : BitVec L → ProbComp β) :
-    𝒟[(counterChain 2 ((L + 127) / 128)).mapM (fun _ => ($ᵗ (BitVec 128) : ProbComp _)) >>=
+private lemma evalDist_keystream_bind {β : Type} (icb : BitVec 128) (L : ℕ)
+    (f : BitVec L → ProbComp β) :
+    𝒟[(counterChain icb ((L + 127) / 128)).mapM (fun _ => ($ᵗ (BitVec 128) : ProbComp _)) >>=
         fun blocks => f (blocksToBitVec blocks L)] =
       𝒟[($ᵗ (BitVec L) : ProbComp _) >>= f] := by
-  have hlen : (counterChain (2 : BitVec 128) ((L + 127) / 128)).length = (L + 127) / 128 :=
-    counterChain_length 2 _
+  have hlen : (counterChain icb ((L + 127) / 128)).length = (L + 127) / 128 :=
+    counterChain_length icb _
   have h1 : 𝒟[(fun blocks => blocksToBitVec blocks L) <$>
-      (counterChain (2 : BitVec 128) ((L + 127) / 128)).mapM
+      (counterChain icb ((L + 127) / 128)).mapM
         (fun _ => ($ᵗ (BitVec 128) : ProbComp _))] = 𝒟[($ᵗ (BitVec L) : ProbComp _)] := by
     refine Eq.trans (evalDist_map_eq_of_evalDist_eq
       (evalDist_mapM_const_uniform (R := BitVec 128)
-        (counterChain (2 : BitVec 128) ((L + 127) / 128))) _) ?_
+        (counterChain icb ((L + 127) / 128))) _) ?_
     rw [Functor.map_map, hlen]
     exact evalDist_blocksToBitVec_uniform ((L + 127) / 128) L (by omega)
   rw [← bind_map_left]
   exact evalDist_bind_left h1 f
 
-theorem game1_eq_prfIdealExp (prp : PRPScheme K (BitVec 128)) (L : ℕ)
+theorem game1_eq_prfIdealExp (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
     Pr[= true | game1 prp L hL adv] =
-      Pr[= true | PRFScheme.prfIdealExp (prfReduction L adv)] := by
-  rw [prfIdealExp_prfReduction_eq L hL adv]
+      Pr[= true | PRFScheme.prfIdealExp (prfReduction iv L adv)] := by
+  rw [prfIdealExp_prfReduction_eq iv L hL adv]
   refine probOutput_eq_of_evalDist_eq ?_ true
   unfold game1
   -- Split `(H, mask, ks)` into three independent draws. `uniformSample_prod_eq_bind` is a
@@ -315,49 +291,31 @@ theorem game1_eq_prfIdealExp (prp : PRPScheme K (BitVec 128)) (L : ℕ)
   simp only [bind_assoc, pure_bind]
   -- Both sides now share the `H` and mask draws; only the keystream factor differs.
   refine evalDist_bind_congr' _ (fun h => evalDist_bind_congr' _ (fun mask => ?_))
-  exact (evalDist_keystream_bind L _).symm
+  exact (evalDist_keystream_bind _ L _).symm
 
-/-- The PRF hop: idealizing the block cipher costs exactly the PRF advantage of the named
-reduction `prfReduction L adv`.
-
-This is the PRF term of the final bound, stated as `|Pr[game1] − Pr[game0]|`, the order the
-triangle inequality in `Security/Assembly.lean` consumes. Since `prfAdvantage` is defined
-as `|real − ideal|` and the two projections put `game0` on the real side and `game1` on the
-ideal side, the two differ by `abs_sub_comm` only.
-
-No hypothesis beyond `hL` and no PRF/PRP assumption enters: the bound is unconditional in
-the block cipher. It is usable because `prfReduction` is explicit and its query count is
-the fixed `⌈L/128⌉ + 2` (`counterChain_length`) rather than adversary-dependent; the
-switching bound (`PrpSwitch.lean`) is stated against this same reduction and needs that
-count. -/
-theorem game0_game1_le_prf (prp : PRPScheme K (BitVec 128)) (L : ℕ)
+/-- The PRF hop: replacing the block cipher by a random function changes the adversary's
+success probability by at most the PRF advantage of `prfReduction`. -/
+theorem game0_game1_le_prf (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
     |(Pr[= true | game1 prp L hL adv]).toReal -
-      (Pr[= true | game0 prp L hL adv]).toReal| ≤
-      PRFScheme.prfAdvantage prp.toPRFScheme (prfReduction L adv) := by
+      (Pr[= true | game0 prp iv L hL adv]).toReal| ≤
+      PRFScheme.prfAdvantage prp.toPRFScheme (prfReduction iv L adv) := by
   unfold PRFScheme.prfAdvantage
-  rw [game0_eq_prfRealExp prp L hL adv, game1_eq_prfIdealExp prp L hL adv]
+  rw [game0_eq_prfRealExp prp iv L hL adv, game1_eq_prfIdealExp prp iv L hL adv]
   -- `prfAdvantage` is `|real − ideal|`; the hop is stated as `|ideal − real|`.
   exact le_of_eq (abs_sub_comm _ _)
 
 end IdealProjection
 
-/-! ## The real-side projection: `game0` = `prfRealExp (prfReduction …)` -/
+/-! ## The reduction's query complexity -/
 
-/-- `prfReduction` makes at most `⌈L/128⌉ + 2` function-oracle calls, for symbolic `L` and
-independently of the adversary's decryption traffic: the reduction fetches its whole query list
-`0 :: 1 :: counterChain 2 ⌈L/128⌉` eagerly and its tail makes no function query at all. The
-count is exact by construction; it is stated as an upper bound because `IsQueryBoundP` has no
-lower-bound counterpart in VCVio.
-
-The switching term in `Security/PrpSwitch.lean` derives `q = n + 2` from the literal length of
-the query list rather than from this bound, so this theorem is the reduction's resource
-statement, not an input to the security proof. -/
-theorem prfReduction_isQueryBoundP (L : ℕ)
+/-- `prfReduction` makes at most `⌈L/128⌉ + 2` function-oracle queries, whatever the
+adversary does. This records the reduction's cost; the security proof does not use it. -/
+theorem prfReduction_isQueryBoundP (iv : BitVec 96) (L : ℕ)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    (prfReduction L adv).IsQueryBoundP (· matches Sum.inr _) ((L + 127) / 128 + 2) := by
-  have key : (prfReduction L adv).IsQueryBoundP (· matches Sum.inr _)
+    (prfReduction iv L adv).IsQueryBoundP (· matches Sum.inr _) ((L + 127) / 128 + 2) := by
+  have key : (prfReduction iv L adv).IsQueryBoundP (· matches Sum.inr _)
       (1 + (1 + ((L + 127) / 128 * 1 + 0))) := by
     unfold prfReduction
     refine isQueryBoundP_bind ((isQueryBoundP_query_iff _ _ _).mpr (by omega)) fun h _ => ?_
