@@ -169,7 +169,7 @@ lemma run'_game0Impl_eq_tupleImpl (prp : PRPScheme K (BitVec 128)) (L : ℕ)
     rcases t with (n | ⟨ad, m⟩) | ⟨ad, e⟩
     · -- OUnif: both handlers are the lifted uniform oracle, state threaded unchanged.
       simp [gcmGameSkeleton, gcmTupleImpl, oracleUnif, unifLiftStateT,
-        QueryImpl.liftTarget_apply, StateT.run_monadLift, Functor.map_map]
+        StateT.run_monadLift, Functor.map_map]
     · -- OEncrypt: one-shot; the real cipher body becomes the tuple body by
       -- profile + encryption bridge.
       cases s <;>
@@ -212,10 +212,9 @@ private lemma run'_randomOracle_bind_of_none {D R β : Type} [DecidableEq D] [Sa
     (G : R → StateT ((D →ₒ R).QueryCache) ProbComp β) :
     (((D →ₒ R).randomOracle t >>= G : StateT ((D →ₒ R).QueryCache) ProbComp β)).run' c =
       ($ᵗ R : ProbComp R) >>= fun u => (G u).run' (c.cacheQuery t u) := by
-  have hunif : (uniformSampleImpl (spec := (D →ₒ R)) t) = ($ᵗ R : ProbComp R) := rfl
   rw [StateT.run'_eq, StateT.run_bind,
     QueryImpl.withCaching_run_none uniformSampleImpl hc]
-  simp [bind_map_left, StateT.run'_eq, hunif]
+  simp [bind_map_left, StateT.run'_eq]
 
 /-- The ideal experiment of `prfReduction`, peeled: the lazy random oracle answers the
 `⌈L/128⌉ + 2` eager queries with that many independent uniform draws, and the query cache
