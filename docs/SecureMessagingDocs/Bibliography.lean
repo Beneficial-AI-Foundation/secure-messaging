@@ -51,6 +51,14 @@ def NRS14 : Verso.Genre.Manual.Bibliography.Citable := .inProceedings
   , booktitle := inlines!"EUROCRYPT 2014"
   , url := some "https://eprint.iacr.org/2013/765" }
 
+@[bib "BR06"]
+def BR06 : Verso.Genre.Manual.Bibliography.Citable := .inProceedings
+  { title := inlines!"Code-Based Game-Playing Proofs and the Security of Triple Encryption"
+  , authors := #[inlines!"Mihir Bellare", inlines!"Phillip Rogaway"]
+  , year := 2006
+  , booktitle := inlines!"EUROCRYPT 2006"
+  , url := some "https://eprint.iacr.org/2004/331" }
+
 @[bib "NIST-GCM"]
 def NIST_GCM : Verso.Genre.Manual.Bibliography.Citable := .article
   { title := inlines!"Recommendation for Block Cipher Modes of Operation: Galois/Counter Mode (GCM) and GMAC"
