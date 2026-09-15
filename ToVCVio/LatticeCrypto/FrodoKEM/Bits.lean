@@ -27,11 +27,13 @@ here:
 ## Main definitions
 
 * `matrixToBitsWith`, `bitsToMatrixWith`: the layout and the reading back.
+* `Bits`, `splitBits`, `reverseOctets`: fixed-length strings, splitting and octet reversal.
 
 ## Main results
 
 * `bitIndex_lt`: bit `t` of entry `(i, j)` lands in range;
 * `getElem_matrixToBitsWith`: where the bits of an entry sit.
+* `reverseOctetIndex_lt`: reversing an index within a complete octet stays in range.
 -/
 
 namespace FrodoKEM
@@ -73,5 +75,25 @@ theorem getElem_matrixToBitsWith {α : Type*} {r c d : ℕ} (f : α → Vector B
   congr 3 <;> simp only [Fin.divNat, Fin.modNat, Nat.mul_comm i c,
     Nat.mul_add_div (by omega : 0 < c), Nat.mul_add_mod, Nat.div_eq_of_lt hj,
     Nat.mod_eq_of_lt hj, Nat.add_zero]
+
+/-- A fixed-length ordinary bit string. -/
+abbrev Bits (n : ℕ) := Vector Bool n
+
+/-- Split a bit string at the given prefix length without padding or truncation. -/
+def splitBits {a b : ℕ} (v : Bits (a + b)) : Bits a × Bits b :=
+  (Vector.ofFn fun i : Fin a => v[Fin.castAdd b i],
+   Vector.ofFn fun i : Fin b => v[Fin.natAdd a i])
+
+/-- Reversing the position inside a complete octet preserves the string bound. -/
+theorem reverseOctetIndex_lt {n i : ℕ}
+    (hn : n % 8 = 0) (hi : i < n) :
+    (i / 8) * 8 + (7 - i % 8) < n := by
+  omega
+
+/-- Reverse the eight bits of each octet, admitting the empty string. -/
+def reverseOctets {n : ℕ} (v : Bits n) (hn : n % 8 = 0) : Bits n :=
+  Vector.ofFn fun i =>
+    v[(i.val / 8) * 8 + (7 - i.val % 8)]'
+      (reverseOctetIndex_lt hn i.isLt)
 
 end FrodoKEM

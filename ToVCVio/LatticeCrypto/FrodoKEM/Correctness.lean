@@ -6,6 +6,7 @@ Authors: Beneficial AI Foundation
 import ToVCVio.LatticeCrypto.FrodoKEM.Encoding
 import ToVCVio.LatticeCrypto.FrodoKEM.Packing
 import ToVCVio.LatticeCrypto.FrodoKEM.Sampling
+import ToVCVio.LatticeCrypto.FrodoKEM.Construction
 import LatticeCrypto.Ring.Norms
 
 /-!
@@ -326,5 +327,79 @@ theorem SampleMatrix_bounds (table : ErrorTable) (rows cols : ℕ)
       SampleMatrix table rows cols r i j ≤ (table.d : ℤ) := by
   dsimp only [SampleMatrix, bitsToMatrixWith, Matrix.of_apply]
   exact Sample_bounds table _
+
+/-- Splitting recovers both vectors concatenated at the declared boundary. -/
+theorem splitBits_append {a b : ℕ} (x : Bits a) (y : Bits b) :
+    splitBits (x ++ y) = (x, y) := by
+  apply Prod.ext
+  · apply Vector.ext
+    intro i hi
+    simp [splitBits]
+  · apply Vector.ext
+    intro i hi
+    simp [splitBits]
+
+/-- Reversing every complete octet twice recovers the original bit string. -/
+theorem reverseOctets_reverseOctets {n : ℕ}
+    (v : Bits n) (hn : n % 8 = 0) :
+    reverseOctets (reverseOctets v hn) hn = v := by
+  apply Vector.ext
+  intro i hi
+  simp only [reverseOctets, Vector.getElem_ofFn]
+  congr 1
+  omega
+
+/-- The packed-byte bridge preserves the existing matrix round trip. -/
+theorem unpackBits_packBits (ps : ParameterSet) (r c : ℕ)
+    (h : (r * c * ps.params.D) % 8 = 0)
+    (M : FrodoMatrix ps.params r c) :
+    unpackBits ps r c h (packBits ps r c h M) = M := by
+  rw [unpackBits, packBits, reverseOctets_reverseOctets]
+  exact Unpack_Pack ps.params ps.params_wellFormed M
+
+/-- The packed-byte bridge preserves the existing bit-string round trip. -/
+theorem packBits_unpackBits (ps : ParameterSet) (r c : ℕ)
+    (h : (r * c * ps.params.D) % 8 = 0)
+    (b : Bits (r * c * ps.params.D)) :
+    packBits ps r c h (unpackBits ps r c h b) = b := by
+  rw [packBits, unpackBits, Pack_Unpack ps.params ps.params_wellFormed,
+    reverseOctets_reverseOctets]
+
+/-- Key-generation domain separation uses byte 0x5F in ordinary bit order. -/
+theorem keygenPrefix_value :
+    (Nat.ofBits fun i : Fin 8 => keygenPrefix[i]) = 95 := by decide
+
+/-- Encryption domain separation uses byte 0x96 in ordinary bit order. -/
+theorem encryptionPrefix_value :
+    (Nat.ofBits fun i : Fin 8 => encryptionPrefix[i]) = 150 := by decide
+
+/-- Packed bytes 0x00, 0x03 cross a 15-bit coefficient boundary as specified. -/
+theorem unpackBits_640_boundary :
+    unpackBits ParameterSet.FrodoKEM640 mbar nbar
+      (ciphertext2Bits_mod_eight ParameterSet.FrodoKEM640)
+      (Vector.ofFn fun i => decide (i.val = 8 ∨ i.val = 9)) =
+    Matrix.of (fun i j =>
+      if i.val = 0 ∧ j.val = 0 then
+        (1 : ZMod ParameterSet.FrodoKEM640.params.q)
+      else if i.val = 0 ∧ j.val = 1 then 16384
+      else 0) := by
+  ext i j
+  simp only [unpackBits, Unpack, bitsToMatrixWith, Matrix.of_apply, bitsToEntry,
+    reverseOctets, Vector.getElem_ofFn]
+  fin_cases i <;> fin_cases j <;> decide
+
+/-- Packed byte 0x80 is the high bit of a 16-bit coefficient. -/
+theorem unpackBits_976_boundary :
+    unpackBits ParameterSet.FrodoKEM976 mbar nbar
+      (ciphertext2Bits_mod_eight ParameterSet.FrodoKEM976)
+      (Vector.ofFn fun i => decide (i.val = 7)) =
+    Matrix.of (fun i j =>
+      if i.val = 0 ∧ j.val = 0 then
+        (32768 : ZMod ParameterSet.FrodoKEM976.params.q)
+      else 0) := by
+  ext i j
+  simp only [unpackBits, Unpack, bitsToMatrixWith, Matrix.of_apply, bitsToEntry,
+    reverseOctets, Vector.getElem_ofFn]
+  fin_cases i <;> fin_cases j <;> decide
 
 end FrodoKEM
