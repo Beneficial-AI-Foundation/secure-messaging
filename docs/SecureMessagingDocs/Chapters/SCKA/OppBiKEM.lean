@@ -64,7 +64,7 @@ The outgoing chunk counter is used for both public keys and ciphertexts. -/
 structure ResponderState (PK C : Type) where
   /-- Current responder epoch, used for outgoing ciphertexts. -/
   resEpoch : ℤ
-  /-- Decoded peer public keys indexed by their encapsulation epochs. -/
+  /-- Decoded peer public keys, indexed by epoch. -/
   ekPeer : ℤ → Option PK
   /-- Outgoing ciphertext, retained until the peer acknowledges it. -/
   ct : Option C
@@ -76,7 +76,7 @@ The incoming chunk set is used for both peer public keys and ciphertexts. -/
 structure RequesterState (PK SK Sym : Type) where
   /-- Current requester epoch, used for incoming ciphertexts. -/
   reqEpoch : ℤ
-  /-- Retained secret keys indexed by their decapsulation epochs. -/
+  /-- Retained decapsulation keys, indexed by epoch. -/
   dk : List (ℤ × SK)
   /-- Local public key, retained until the peer acknowledges it. -/
   ek : Option PK
@@ -125,7 +125,7 @@ function `recv`, parameterized by `Role.offset`.
 
 
 We also make absent-payload handling explicit.
-Our `decodeAndInsertChunk` helper treats an absent chunk as no decoding progress: it leaves
+Our `insertChunkAndDecode` helper treats an absent chunk as no decoding progress: it leaves
 the accumulated set unchanged and returns no payload without calling the decoder,
 even if the retained set is already decodable. A present chunk is inserted before
 decoding. This is our modeling convention for a case left implicit in the
@@ -398,7 +398,7 @@ def sendWith {RKey REnc : Type} (role : Role)
       sendingEpoch := ack.sendingEpoch
       ack := { ekRec := decide (reqEpoch - role.offset ∈ ack.ekRec)
                ctRec := decide (reqEpoch ∈ ack.ctRec) } }
-  pure (some (key?, ρ, ρ.sendingEpoch, st, { keygen := rKey?, encaps := rEnc? }))
+  pure (some (key?, ρ, ρ.sendingEpoch, st, { keygenRand := rKey?, encapsRand := rEnc? }))
 ```
 
 
@@ -465,12 +465,9 @@ def recv (role : Role) (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
     else localAck
   let localAck := if peerAck.ekRec then
       { localAck with ekRec := insert (peerReqEpoch + role.offset) localAck.ekRec } else localAck
+  -- outdated message: retain only the acknowledgement updates
   if peerResEpoch < reqEpoch then
-    -- outdated message: retain only the acknowledgement updates
-    some (none, sendingEpoch,
-      { res := ⟨resEpoch, ekPeer, ct, ich⟩
-        req := ⟨reqEpoch, dk, ek, receivedChunks⟩
-        ack := localAck })
+    some (none, sendingEpoch, { st with ack := localAck })
   else
     -- first message of the new epoch, lines 11-12
     let reqEpoch := if reqEpoch < peerResEpoch then reqEpoch + 2 else reqEpoch
@@ -481,7 +478,7 @@ def recv (role : Role) (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
     let (key?, ekPeer, dk, receivedChunks, localAck) :=
       -- if the peer's encapsulating key has not been received yet, lines 13-19
       if (ekPeer peerKeyEpoch).isNone ∧ bit? = some 0 then
-        let (chunks, peerEk?) := decodeAndInsertChunk ecEk receivedChunks ch?
+        let (chunks, peerEk?) := insertChunkAndDecode ecEk receivedChunks ch?
         match peerEk? with
         | none => (none, ekPeer, dk, chunks, localAck)
         | some peerEk =>
@@ -493,7 +490,7 @@ def recv (role : Role) (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
         -- Missing secret key: preserve payload state. Unreachable under honest executions.
         | none => (none, ekPeer, dk, receivedChunks, localAck)
         | some secretKey =>
-            let (updatedReceivedChunks, peerCt?) := decodeAndInsertChunk ecCt receivedChunks ch?
+            let (updatedReceivedChunks, peerCt?) := insertChunkAndDecode ecCt receivedChunks ch?
             match peerCt? with
             | none => (none, ekPeer, dk, updatedReceivedChunks, localAck)
             -- the ciphertext was recovered (lines 23-28): receipt and erasure,
