@@ -81,10 +81,45 @@ def load_aggregator():
     return module
 
 
-def block_issues(block: str) -> set[int]:
-    # Issue numbers of one directive block: its `gh-<n>` tags, plus legacy footers.
-    numbers = {int(issue) for issue in ISSUE_RE.findall(block)}
-    for value in TAGS_RE.findall(block):
+def iter_atom_blocks(lines: list[str]):
+    # Yield (kind, label, block lines) for each definition/theorem directive,
+    # where the block runs from the opener to the matching colon-only closer.
+    index = 0
+    while index < len(lines):
+        match = ATOM_RE.search(lines[index])
+        if match is None:
+            index += 1
+            continue
+        fence = re.match(r"\s*(:{3,})", lines[index])
+        close_marker = fence.group(1) if fence is not None else ":::"
+        block = [lines[index]]
+        index += 1
+        while index < len(lines):
+            block.append(lines[index])
+            if lines[index].strip() == close_marker:
+                index += 1
+                break
+            index += 1
+        yield match.group(1), match.group(2), block
+
+
+def opener_text(block: list[str]) -> str:
+    # The directive opener, continued onto following lines while its parentheses
+    # are unbalanced (the rule scripts/lint-blueprint-issue-tags.py enforces).
+    opener = block[0]
+    index = 1
+    while opener.count("(") > opener.count(")") and index < len(block):
+        opener += "\n" + block[index]
+        index += 1
+    return opener
+
+
+def block_issues(block: list[str]) -> set[int]:
+    # Issue numbers of one directive block: `gh-<n>` tags read from the opener
+    # only, so a tag quoted in the body (e.g. inside a code fence) does not count,
+    # plus legacy footers anywhere in the block.
+    numbers = {int(issue) for issue in ISSUE_RE.findall("\n".join(block))}
+    for value in TAGS_RE.findall(opener_text(block)):
         for token in value.split(","):
             match = GH_TAG_RE.match(token.strip().lower())
             if match:
@@ -96,27 +131,8 @@ def parse_atom_issues(docs_dir: Path) -> list[AtomIssue]:
     # Read authored Blueprint atoms and collect their linked GitHub issue numbers.
     atoms: list[AtomIssue] = []
     for path in sorted(docs_dir.rglob("*.lean")):
-        lines = path.read_text().splitlines()
-        index = 0
-        while index < len(lines):
-            match = ATOM_RE.search(lines[index])
-            if match is None:
-                index += 1
-                continue
-
-            kind, label = match.group(1), match.group(2)
-            fence = re.match(r"\s*(:{3,})", lines[index])
-            close_marker = fence.group(1) if fence is not None else ":::"
-            block = [lines[index]]
-            index += 1
-            while index < len(lines):
-                block.append(lines[index])
-                if lines[index].strip() == close_marker:
-                    index += 1
-                    break
-                index += 1
-
-            issues = tuple(sorted(block_issues("\n".join(block))))
+        for kind, label, block in iter_atom_blocks(path.read_text().splitlines()):
+            issues = tuple(sorted(block_issues(block)))
             atoms.append(AtomIssue(kind=kind, label=label, issues=issues))
     return atoms
 
@@ -277,27 +293,8 @@ def tracked_labels_in_source(text: str) -> set[str]:
     # Collect Blueprint atom labels that carry a GitHub issue tag (or, in older
     # commits, footer), matching the tracked-atom rule of aggregate-blueprint-status.py.
     labels: set[str] = set()
-    lines = text.splitlines()
-    index = 0
-    while index < len(lines):
-        match = ATOM_RE.search(lines[index])
-        if match is None:
-            index += 1
-            continue
-
-        label = match.group(2)
-        fence = re.match(r"\s*(:{3,})", lines[index])
-        close_marker = fence.group(1) if fence is not None else ":::"
-        block = [lines[index]]
-        index += 1
-        while index < len(lines):
-            block.append(lines[index])
-            if lines[index].strip() == close_marker:
-                index += 1
-                break
-            index += 1
-
-        if block_issues("\n".join(block)):
+    for _kind, label, block in iter_atom_blocks(text.splitlines()):
+        if block_issues(block):
             labels.add(label)
     return labels
 

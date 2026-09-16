@@ -106,14 +106,6 @@ class ReadyNextItem:
     href: str
 
 
-def chapter_name(manifest: Path, site_dir: Path) -> str:
-    # Derive the chapter slug that owns a preview manifest.
-    try:
-        return manifest.relative_to(site_dir).parts[0]
-    except ValueError:
-        return manifest.parent.parent.name
-
-
 def chapter_title(chapter: str) -> str:
     # Match the display titles used by the generated root chapter index.
     return CHAPTER_TITLES.get(chapter, chapter.replace("-", " "))
@@ -208,38 +200,32 @@ def chapter_from_href(href: str | None, fallback: str) -> str:
 
 
 def load_atoms(site_dir: Path) -> list[Atom]:
-    # Prefer the unified root manifest. Fall back to per-chapter manifests from
-    # the older split renderer.
+    # Only the unified root manifest is read. Per-chapter manifests from the
+    # former split renderer predate issue tags, so an aggregate over them would
+    # silently track nothing; reject them instead of guessing.
     root_manifest = site_dir / MANIFEST_PATH
-    chapter_manifests = sorted(site_dir.glob(f"*/{MANIFEST_PATH}"))
-    if root_manifest.exists():
-        manifests: list[tuple[str | None, Path]] = [(None, root_manifest)]
-    elif chapter_manifests:
-        manifests = [(chapter_name(path, site_dir), path) for path in chapter_manifests]
-    else:
-        raise SystemExit(
-            f"No blueprint preview manifests found under {site_dir}. "
-            "Run scripts/render-docs-site.sh first."
+    if not root_manifest.exists():
+        hint = (
+            "Only the retired split-site render is present; it carries no issue tags."
+            if any(site_dir.glob(f"*/{MANIFEST_PATH}"))
+            else "Run scripts/render-docs-site.sh first."
         )
+        raise SystemExit(f"No blueprint manifest at {root_manifest}. {hint}")
 
     atoms: list[Atom] = []
     seen_labels: set[str] = set()
     duplicates: set[str] = set()
-    for fallback_chapter, manifest in manifests:
-        data = json.loads(manifest.read_text())
-        for entry in data.get("previews", []):
-            if entry.get("splitPreviewCopy"):
-                continue
-            if entry.get("targetKind") != "block" or entry.get("kind") not in TRACKED_KINDS:
-                continue
-            chapter = fallback_chapter or chapter_from_href(
-                entry.get("href"), "Overview"
-            )
-            atom = classify(entry, chapter)
-            if atom.label in seen_labels:
-                duplicates.add(atom.label)
-            seen_labels.add(atom.label)
-            atoms.append(atom)
+    data = json.loads(root_manifest.read_text())
+    for entry in data.get("previews", []):
+        if entry.get("splitPreviewCopy"):
+            continue
+        if entry.get("targetKind") != "block" or entry.get("kind") not in TRACKED_KINDS:
+            continue
+        atom = classify(entry, chapter_from_href(entry.get("href"), "Overview"))
+        if atom.label in seen_labels:
+            duplicates.add(atom.label)
+        seen_labels.add(atom.label)
+        atoms.append(atom)
 
     if duplicates:
         duplicate_list = ", ".join(sorted(duplicates))
