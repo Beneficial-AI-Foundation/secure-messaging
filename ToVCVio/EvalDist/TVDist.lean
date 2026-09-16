@@ -37,12 +37,13 @@ lemma tvDist_bind_const_right [MonadLiftT m SPMF] [LawfulMonadLiftT m SPMF]
   unfold tvDist
   rw [evalDist_ext (mx := mx >>= fun _ => my) (mx' := my) fun y => by simp]
 
+omit [Monad m] in
 /-- As VCVio's `tsum_probOutput_toReal_mul_tvDist_le_probEvent`, but with a tunable bound `c` on
 the total-variation distance on the bad branch in place of the trivial bound `1`, giving the
 tighter conclusion `c * Pr[bad]` whenever the two continuations are known to stay within `c` of
 each other even when the bad event holds. -/
 lemma tsum_probOutput_toReal_mul_tvDist_le_const_mul_probEvent [MonadLiftT m PMF]
-    [LawfulMonadLiftT m PMF] {β : Type u} (mx : m α) (f g : α → m β) (bad : α → Prop)
+    {β : Type u} (mx : m α) (f g : α → m β) (bad : α → Prop)
     (c : ℝ) (hc : 0 ≤ c)
     (h_eq : ∀ a, ¬ bad a → 𝒟[f a] = 𝒟[g a])
     (h_le : ∀ a, bad a → tvDist (f a) (g a) ≤ c) :
@@ -95,7 +96,7 @@ also differ from another by shifting mass to/from failure), this is an equality 
 ruled out on both sides: the whole `Option Bool` mass then splits exactly between `some true` and
 `some false`, so total-variation distance collapses to the single-coordinate gap. -/
 lemma tvDist_eq_abs_probOutput_true_sub {m : Type → Type v} [Monad m]
-    [MonadLiftT m SPMF] [LawfulMonadLiftT m SPMF]
+    [MonadLiftT m SPMF]
     (p q : m Bool) [NeverFail p] [NeverFail q] :
     tvDist p q = |(Pr[= true | p]).toReal - (Pr[= true | q]).toReal| := by
   have hp_none : (𝒟[p]).toPMF none = 0 := NeverFail.probFailure_eq_zero
