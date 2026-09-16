@@ -136,7 +136,7 @@ theorem FSINDCPASecure [DecidableEq K] (kem : KEMScheme ProbComp K PK SK C)
       kem.IND_CPA_Advantage ProbCompRuntime.probComp adv ≤ ε)
     (hcorr : kem.deltaCorrect ProbCompRuntime.probComp δ)
     (adversaryA adversaryB : RKEMScheme.FSINDCPAAdversary Unit PK SK (PK × C) K) :
-    RKEMScheme.FSINDCPASecure (scheme kem) adversaryA adversaryB (ε / 2 + δ)
+    RKEMScheme.FSINDCPASecure (scheme kem) adversaryA adversaryB (ε / 2 + δ / 2)
 ```
 
 {usesLabel}`uses` {uses "rkem_from_kem_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_forward_security"}[] · {githubLabel}`github` {githubIssue 77}[]
