@@ -128,7 +128,7 @@ def erasureCode (params : Parameters F) : ErasureCode F where
   decode := params.decode
 ```
 
-{usesLabel}`uses` {uses "erasure_code_scheme"}[] ·
+{usesLabel}`uses` {uses "erasure_code_scheme"}[]
 ::::
 
 :::defTitle "reed_solomon_erasure_code_correctness" "Reed–Solomon correctness"
