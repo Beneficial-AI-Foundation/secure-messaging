@@ -21,6 +21,9 @@ evaluation distribution.
   `probOutput_bind_of_const` for a never-failing outer computation (`[NeverFail mx]`);
 * `abs_probOutput_true_not_map_gap_eq` absorbs a final Boolean negation into the
   absolute two-branch gap (for never-failing computations);
+* `probOutput_true_uniformBool_bind_not` relabels a uniform challenge-bit sample by negation,
+  absorbing a `Bool` negation on the final comparison in the process — the "flip the challenge
+  bit" step of hybrid arguments;
 * the `evalDist_sample_bind*` and `probOutput_*sample*` lemmas collapse or couple
   one, two, or three eager `uniformSample` draws over `ProbComp`.
 -/
@@ -77,6 +80,46 @@ lemma abs_probOutput_true_not_map_gap_eq {n : Type → Type*}
   rw [show -Pr[= true | my].toReal + Pr[= true | mx].toReal =
       Pr[= true | mx].toReal - Pr[= true | my].toReal by ring]
   exact abs_sub_comm (Pr[= true | my].toReal) (Pr[= true | mx].toReal)
+
+/-- Relabeling a uniform coin flip by negation, together with negating which side of the final
+comparison is complemented, doesn't change the success probability: feeding `f` the coin `b` and
+comparing against `!b'` is the same as feeding `f` the negated coin `!b` and comparing directly
+against `b'`. This is the general fact underlying the "flip the challenge bit" step of hybrid
+arguments. -/
+lemma probOutput_true_uniformBool_bind_not (f : Bool → ProbComp Bool) :
+    Pr[= true | do
+        let b ← ($ᵗ Bool : ProbComp Bool)
+        let b' ← f b
+        pure (b == !b')] =
+      Pr[= true | do
+        let b ← ($ᵗ Bool : ProbComp Bool)
+        let b' ← f !b
+        pure (b == b')] := by
+  rw [probOutput_bind_uniformBool, probOutput_bind_uniformBool]
+  have h1 : Pr[= true | f true >>= fun b' => (pure (true == !b') : ProbComp Bool)] =
+      Pr[= false | f true] := by
+    have heq : (f true >>= fun b' => (pure (true == !b') : ProbComp Bool)) = (!·) <$> f true := by
+      rw [map_eq_bind_pure_comp]; congr 1; funext b'; cases b' <;> rfl
+    rw [heq, probOutput_not_map]
+  have h2 : Pr[= true | f false >>= fun b' => (pure (false == !b') : ProbComp Bool)] =
+      Pr[= true | f false] := by
+    have heq : (f false >>= fun b' => (pure (false == !b') : ProbComp Bool)) = f false := by
+      conv_rhs => rw [← bind_pure (f false)]
+      congr 1; funext b'; cases b' <;> rfl
+    rw [heq]
+  have h3 : Pr[= true | f (!true) >>= fun b' => (pure (true == b') : ProbComp Bool)] =
+      Pr[= true | f false] := by
+    have heq : (f (!true) >>= fun b' => (pure (true == b') : ProbComp Bool)) = f false := by
+      conv_rhs => rw [← bind_pure (f false)]
+      congr 1; funext b'; cases b' <;> rfl
+    rw [heq]
+  have h4 : Pr[= true | f (!false) >>= fun b' => (pure (false == b') : ProbComp Bool)] =
+      Pr[= false | f true] := by
+    have heq : (f (!false) >>= fun b' => (pure (false == b') : ProbComp Bool)) =
+        (!·) <$> f true := by
+      rw [map_eq_bind_pure_comp]; congr 1; funext b'; cases b' <;> rfl
+    rw [heq, probOutput_not_map]
+  rw [h1, h2, h3, h4, add_comm]
 
 /-- Pointwise distribution equality implies congruence under one eager uniform
 sample:
