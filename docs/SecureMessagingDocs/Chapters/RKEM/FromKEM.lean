@@ -124,19 +124,17 @@ def indCpaReduction (kem : KEMScheme ProbComp K PK SK C)
     return !b'
 ```
 
-:::leanPillCaption "FS-IND-CPA security reduction bound"
+:::leanPillCaption "FS-IND-CPA security"
 :::
 
 ```anchor FSINDCPASecure (project := ".") (module := SecureMessaging.RKEM.FromKEM.Security)
-theorem FSINDCPASecure [DecidableEq K]
-    (kem : KEMScheme ProbComp K PK SK C)
+theorem FSINDCPASecure [DecidableEq K] (kem : KEMScheme ProbComp K PK SK C)
+    (ε : ℝ) (δ : ℝ≥0)
+    (hcpa : ∀ adv : kem.IND_CPA_Adversary,
+      kem.IND_CPA_Advantage ProbCompRuntime.probComp adv ≤ ε)
+    (hcorr : kem.deltaCorrect ProbCompRuntime.probComp δ)
     (adversaryA adversaryB : RKEMScheme.FSINDCPAAdversary Unit PK SK (PK × C) K) :
-    RKEMScheme.FSINDCPASecure (scheme kem) adversaryA adversaryB
-      (max
-        (kem.IND_CPA_Advantage ProbCompRuntime.probComp (indCpaReduction kem adversaryA) / 2 +
-          (Pr[= false | kem.CorrectExp]).toReal)
-        (kem.IND_CPA_Advantage ProbCompRuntime.probComp (indCpaReduction kem adversaryB) / 2 +
-          (Pr[= false | kem.CorrectExp]).toReal))
+    RKEMScheme.FSINDCPASecure (scheme kem) adversaryA adversaryB (ε / 2 + δ)
 ```
 
 {usesLabel}`uses` {uses "rkem_from_kem_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_forward_security"}[] · {githubLabel}`github` {githubIssue 77}[]

@@ -23,11 +23,23 @@ adversary, negating its guess to align the two games' conventions
 for the probability that the underlying KEM's decapsulation fails, which is bounded via a
 total-variation-distance argument against an "idealized" experiment that never falls back to a
 random bit on decapsulation failure (`tvDist_securityExpA_idealSecurityExpA_le`). Combining the two
-gives the per-party reduction bounds `fsIndCpaAdvantageA_le`/`fsIndCpaAdvantageB_le`, and hence the
-top-level `FSINDCPASecure`.
+gives the per-party reduction bounds `fsIndCpaAdvantageA_le`/`fsIndCpaAdvantageB_le`, and hence
+`fsIndCpaAdvantage_le`, which states the same bound directly as `RKEMScheme.FSINDCPASecure`.
+
+The top-level `FSINDCPASecure` repackages `fsIndCpaAdvantage_le` against a uniform IND-CPA bound
+`ε` (assumed for every adversary of the underlying KEM, not just the specific reduction adversaries)
+together with a `δ`-correctness hypothesis on the KEM, giving the clean bound `ε / 2 + δ` that
+matches Theorem A.1's statement. `FSINDCPASecure_of_perfectlyCorrect` further specializes this to
+`ε / 2` when the underlying KEM is perfectly correct, so no correctness slack remains.
+
+The `/ 2` in these bounds is not lossiness in the reduction: VCVio's `IND_CPA_Advantage` uses the
+*distinguishing* convention `|Pr[true] - Pr[false]|`, twice [TripleRatchet]'s Def. 5.4 *bias*
+convention `|Pr[true] - 1/2|`, so dividing by `2` exactly converts between the two conventions and
+the reduction is tight in the advantage as `|Pr[true] − Pr[false]| = 2·|Pr[true] − 1/2|`.
 -/
 
 open ToVCVio KEMScheme RKEMScheme
+open scoped NNReal ENNReal
 
 namespace kemRKEM
 
@@ -323,7 +335,9 @@ private lemma tvDist_securityExpA_idealSecurityExpA_le [DecidableEq K]
 
 /-- Reduction bound: the RKEM-from-KEM construction's `A`-side FS-IND-CPA advantage is bounded by
 half the underlying KEM's IND-CPA advantage against the reduction adversary, plus the probability
-that the KEM's own correctness experiment returns `false`. -/
+that the KEM's own correctness experiment returns `false`. (The `/ 2` is not lossiness: it converts
+VCVio's `IND_CPA_Advantage` distinguishing convention into Def. 5.4's bias convention — see the
+module docstring.) -/
 theorem fsIndCpaAdvantageA_le [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (adversary : RKEMScheme.FSINDCPAAdversary Unit PK SK (PK × C) K) :
@@ -374,7 +388,8 @@ theorem fsIndCpaAdvantageA_le [DecidableEq K]
 
 /-- As `fsIndCpaAdvantageA_le`, with the roles of `A` and `B` swapped: since the RKEM-from-KEM
 construction treats both parties identically (`securityExpB_eq_securityExpA`), the same reduction
-bound applies to the `B`-side advantage against the very same reduction adversary. -/
+bound applies to the `B`-side advantage against the very same reduction adversary. (Same `/ 2`
+convention-conversion caveat as `fsIndCpaAdvantageA_le`.) -/
 theorem fsIndCpaAdvantageB_le [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (adversary : RKEMScheme.FSINDCPAAdversary Unit PK SK (PK × C) K) :
@@ -385,52 +400,76 @@ theorem fsIndCpaAdvantageB_le [DecidableEq K]
   rw [securityExpB_eq_securityExpA]
   exact fsIndCpaAdvantageA_le kem adversary
 
-/-- **FS-IND-CPA security** (Def. 5.4) of the RKEM-from-KEM construction: against any pair of
-adversaries, the construction is FS-IND-CPA-secure at the epsilon obtained by combining
+/-- **FS-IND-CPA security reduction bound** for the RKEM-from-KEM construction: against any pair
+of adversaries, the construction is FS-IND-CPA-secure at the epsilon obtained by combining
 `fsIndCpaAdvantageA_le` and `fsIndCpaAdvantageB_le` — half the worse of the two IND-CPA advantages
 against the corresponding reduction adversaries, plus the underlying KEM's own
-correctness-failure probability. -/
--- ANCHOR: FSINDCPASecure
-theorem FSINDCPASecure [DecidableEq K]
+correctness-failure probability. (Same `/ 2` convention-conversion caveat as `fsIndCpaAdvantageA_le`
+— see the module docstring.) -/
+theorem fsIndCpaAdvantage_le [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (adversaryA adversaryB : RKEMScheme.FSINDCPAAdversary Unit PK SK (PK × C) K) :
     RKEMScheme.FSINDCPASecure (scheme kem) adversaryA adversaryB
       (max
-        (kem.IND_CPA_Advantage ProbCompRuntime.probComp (indCpaReduction kem adversaryA) / 2 +
-          (Pr[= false | kem.CorrectExp]).toReal)
-        (kem.IND_CPA_Advantage ProbCompRuntime.probComp (indCpaReduction kem adversaryB) / 2 +
-          (Pr[= false | kem.CorrectExp]).toReal))
--- ANCHOR_END: FSINDCPASecure
-    := by
+        (kem.IND_CPA_Advantage ProbCompRuntime.probComp (indCpaReduction kem adversaryA))
+        (kem.IND_CPA_Advantage ProbCompRuntime.probComp (indCpaReduction kem adversaryB)) / 2 +
+        (Pr[= false | kem.CorrectExp]).toReal) := by
   unfold RKEMScheme.FSINDCPASecure RKEMScheme.fsIndCpaAdvantage
+  set a := kem.IND_CPA_Advantage ProbCompRuntime.probComp (indCpaReduction kem adversaryA)
+  set b := kem.IND_CPA_Advantage ProbCompRuntime.probComp (indCpaReduction kem adversaryB)
+  set c := (Pr[= false | kem.CorrectExp]).toReal
+  have hmax : max a b / 2 + c = max (a / 2 + c) (b / 2 + c) := by
+    rcases le_total a b with h | h
+    · rw [max_eq_right h, max_eq_right (by gcongr)]
+    · rw [max_eq_left h, max_eq_left (by gcongr)]
+  rw [hmax]
   exact max_le_max (fsIndCpaAdvantageA_le kem adversaryA) (fsIndCpaAdvantageB_le kem adversaryB)
 
+/-- **FS-IND-CPA security** of the RKEM-from-KEM construction: if the underlying KEM is
+`ε`-IND-CPA-secure (uniformly over every adversary) and `δ`-correct, the construction is
+FS-IND-CPA-secure at `ε / 2 + δ`. (The `/ 2` is the same convention conversion as in
+`fsIndCpaAdvantageA_le`, not a lossy step — see the module docstring.) -/
+-- ANCHOR: FSINDCPASecure
+theorem FSINDCPASecure [DecidableEq K] (kem : KEMScheme ProbComp K PK SK C)
+    (ε : ℝ) (δ : ℝ≥0)
+    (hcpa : ∀ adv : kem.IND_CPA_Adversary,
+      kem.IND_CPA_Advantage ProbCompRuntime.probComp adv ≤ ε)
+    (hcorr : kem.deltaCorrect ProbCompRuntime.probComp δ)
+    (adversaryA adversaryB : RKEMScheme.FSINDCPAAdversary Unit PK SK (PK × C) K) :
+    RKEMScheme.FSINDCPASecure (scheme kem) adversaryA adversaryB (ε / 2 + δ)
+-- ANCHOR_END: FSINDCPASecure
+    := by
+  have hfail : Pr[= false | kem.CorrectExp] ≤ (δ : ℝ≥0∞) :=
+    calc Pr[= false | kem.CorrectExp]
+        ≤ Pr[= false | kem.CorrectExp] + Pr[⊥ | kem.CorrectExp] := le_self_add
+      _ = kem.correctnessError ProbCompRuntime.probComp :=
+          (correctnessError_eq_probOutput_false_add_probFailure kem ProbCompRuntime.probComp).symm
+      _ ≤ (δ : ℝ≥0∞) := hcorr
+  have hfail_toReal : (Pr[= false | kem.CorrectExp]).toReal ≤ (δ : ℝ) := by
+    have h := ENNReal.toReal_mono ENNReal.coe_ne_top hfail
+    rwa [ENNReal.coe_toReal] at h
+  unfold RKEMScheme.FSINDCPASecure RKEMScheme.fsIndCpaAdvantage
+  refine max_le ((fsIndCpaAdvantageA_le kem adversaryA).trans ?_)
+    ((fsIndCpaAdvantageB_le kem adversaryB).trans ?_)
+  · exact add_le_add (by gcongr; exact hcpa _) hfail_toReal
+  · exact add_le_add (by gcongr; exact hcpa _) hfail_toReal
+
 /-- **FS-IND-CPA security** of the RKEM-from-KEM construction, as the perfectly-correct special
-case of `FSINDCPASecure`: if the underlying KEM is perfectly correct, its correctness-failure
-probability vanishes, so the additive slack in `FSINDCPASecure`'s epsilon drops out and the
-construction is FS-IND-CPA-secure at exactly half the worse of the two IND-CPA advantages against
-the corresponding reduction adversaries. -/
-theorem FSINDCPASecure_of_perfectlyCorrect [DecidableEq K]
-    (kem : KEMScheme ProbComp K PK SK C)
+case of `FSINDCPASecure`: if the underlying KEM is `ε`-IND-CPA-secure (uniformly over every
+adversary) and perfectly correct, the construction is FS-IND-CPA-secure at exactly `ε / 2`, with
+no additive correctness slack (`δ = 0`). (The `/ 2` is the same convention conversion as in
+`fsIndCpaAdvantageA_le`, not a lossy step.) -/
+theorem FSINDCPASecure_of_perfectlyCorrect [DecidableEq K] (kem : KEMScheme ProbComp K PK SK C)
+    (ε : ℝ)
+    (hcpa : ∀ adv : kem.IND_CPA_Adversary,
+      kem.IND_CPA_Advantage ProbCompRuntime.probComp adv ≤ ε)
     (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
     (adversaryA adversaryB : RKEMScheme.FSINDCPAAdversary Unit PK SK (PK × C) K) :
-    RKEMScheme.FSINDCPASecure (scheme kem) adversaryA adversaryB
-      (max
-        (kem.IND_CPA_Advantage ProbCompRuntime.probComp (indCpaReduction kem adversaryA) / 2)
-        (kem.IND_CPA_Advantage ProbCompRuntime.probComp (indCpaReduction kem adversaryB) / 2)) := by
-  have heq : kem.correctnessError ProbCompRuntime.probComp =
-      Pr[= false | kem.CorrectExp] + Pr[⊥ | kem.CorrectExp] :=
-    correctnessError_eq_probOutput_false_add_probFailure kem ProbCompRuntime.probComp
-  have hzero' : kem.correctnessError ProbCompRuntime.probComp = 0 :=
-    (correctnessError_eq_zero_iff_perfectlyCorrect kem ProbCompRuntime.probComp).mpr hkem
-  have hzero : Pr[= false | kem.CorrectExp] = 0 :=
-    le_antisymm
-      (calc Pr[= false | kem.CorrectExp]
-          ≤ Pr[= false | kem.CorrectExp] + Pr[⊥ | kem.CorrectExp] := le_self_add
-        _ = kem.correctnessError ProbCompRuntime.probComp := heq.symm
-        _ = 0 := hzero')
-      bot_le
-  have h := FSINDCPASecure kem adversaryA adversaryB
-  rwa [hzero, ENNReal.toReal_zero, add_zero, add_zero] at h
+    RKEMScheme.FSINDCPASecure (scheme kem) adversaryA adversaryB (ε / 2) := by
+  have hcorr : kem.deltaCorrect ProbCompRuntime.probComp 0 := by
+    rw [KEMScheme.deltaCorrect,
+      (correctnessError_eq_zero_iff_perfectlyCorrect kem ProbCompRuntime.probComp).mpr hkem]
+  have h := FSINDCPASecure kem ε 0 hcpa hcorr adversaryA adversaryB
+  rwa [NNReal.coe_zero, add_zero] at h
 
 end kemRKEM
