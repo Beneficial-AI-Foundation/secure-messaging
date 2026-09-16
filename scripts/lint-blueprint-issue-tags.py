@@ -41,7 +41,7 @@ ANY_OPEN = re.compile(r"^(:{3,})\s*(\w+)(.*)$")
 LABEL = re.compile(r'^\s*"([^"\\]+)"')
 INDENTED_OPEN = re.compile(r"^\s+:{3,}\s*\w+")
 FENCE = re.compile(r"^\s*(`{3,})")
-TAGS_OPT = re.compile(r'\(tags\s*:=\s*"([^"]*)"\)')
+TAGS_OPT = re.compile(r'\(tags\s*:=\s*"([^"\\\r\n]*)"\)')  # no escapes, no line breaks
 TAGS_ANY = re.compile(r"\btags\s*:=")  # every tags option, well-formed or not
 GH_TAG = re.compile(r"^gh-([1-9][0-9]*)$")
 LEGACY_FOOTER = re.compile(r"githubIssue|githubLabel")
@@ -56,7 +56,7 @@ class Block:
     label: str | None
     tags_options: list[str]  # raw values of every well-formed (tags := "...") on the opener
     malformed_tags: int = 0  # `tags :=` occurrences the well-formed pattern did not match
-    legacy: list[int] = field(default_factory=list)  # lines with retired footer roles
+    legacy: list[tuple[int, str]] = field(default_factory=list)  # (line, retired role found there)
 
     def tag_tokens(self) -> list[str]:
         return [t.strip() for v in self.tags_options for t in v.split(",") if t.strip()]
@@ -120,11 +120,12 @@ def scan_blocks(path: Path, lines: list[str]) -> tuple[list[Block], list[Diag]]:
                 blocks.append(stack.pop())
             i += 1
             continue
-        if LEGACY_FOOTER.search(line):
+        lf = LEGACY_FOOTER.search(line)
+        if lf:
             if stack:
-                stack[-1].legacy.append(i)
+                stack[-1].legacy.append((i, lf.group(0)))
             else:
-                diags.append(Diag(path, i + 1, "retired githubIssue footer role outside any directive"))
+                diags.append(Diag(path, i + 1, f"retired {lf.group(0)} footer role outside any directive"))
         i += 1
     if fence:
         diags.append(Diag(path, 0, "code fence open at end of file"))
@@ -157,9 +158,9 @@ def lint_block(b: Block) -> list[Diag]:
                 )
     if has_issue_tag and (b.kind not in STATEMENT_KINDS or b.label is None):
         diags.append(Diag(b.path, opener_line, f"issue tags on a `{b.kind}` block; they belong on the definition/theorem directive"))
-    for line in b.legacy:
+    for line, role in b.legacy:
         diags.append(
-            Diag(b.path, line + 1, f'{who}: the githubIssue footer role was retired; write (tags := "gh-<n>") on the statement directive')
+            Diag(b.path, line + 1, f'{who}: the {role} footer role was retired; write (tags := "gh-<n>") on the statement directive')
         )
     return diags
 

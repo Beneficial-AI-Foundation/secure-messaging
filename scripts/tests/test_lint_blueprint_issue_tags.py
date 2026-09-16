@@ -72,6 +72,15 @@ class LintTest(unittest.TestCase):
                 diags = self.node(bad)
                 self.assertTrue(any("malformed (tags" in str(d) for d in diags), [str(d) for d in diags])
 
+    def test_tags_value_with_line_break_or_escape_is_malformed(self):
+        # The opener is joined across continuation lines, so the value pattern
+        # must refuse line breaks itself; escapes are outside the grammar too.
+        for bad in ('(tags := "gh-1,\ngh-2")', '(tags := "gh-1\\")', '(tags := "gh-1\\" gh-2")'):
+            with self.subTest(bad=bad):
+                diags = self.node(bad)
+                self.assertTrue(any("malformed (tags" in str(d) for d in diags), [str(d) for d in diags])
+                self.assertFalse(any("is not a valid issue tag" in str(d) for d in diags), [str(d) for d in diags])
+
     def test_repeated_tags_option(self):
         self.assertErrors(self.node('(tags := "gh-1") (tags := "gh-2")'), 1, "more than one (tags")
 
@@ -100,7 +109,13 @@ class LintTest(unittest.TestCase):
 
     def test_legacy_footer_outside_directive(self):
         self.chapter(FOOTER + "\n")
-        self.assertErrors(self.run_lint(), 1, "outside any directive")
+        self.assertErrors(self.run_lint(), 1, "retired githubLabel footer role outside any directive")
+
+    def test_legacy_footer_names_the_role_found(self):
+        self.assertErrors(self.node('(tags := "gh-5")', body="Text. {githubIssue 5}[]"), 1, "the githubIssue footer role was retired")
+        self.assertErrors(self.node('(tags := "gh-5")', body="Text. {githubLabel}`github`"), 1, "the githubLabel footer role was retired")
+        self.chapter("{githubIssue 5}[]\n")
+        self.assertErrors(self.run_lint(), 1, "retired githubIssue footer role outside any directive")
 
     def test_legacy_footer_inside_fence_ignored(self):
         self.assertEqual(self.node('(tags := "gh-5")', body=f"```\n{FOOTER}\n```"), [])
