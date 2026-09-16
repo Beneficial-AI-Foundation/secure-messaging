@@ -15,6 +15,12 @@ This file proves `RKEMScheme.FSINDCPASecure` for the generic RKEM-from-KEM const
 `SecureMessaging.RKEM.FromKEM.Construction`: if the underlying KEM is IND-CPA-secure, the
 construction is FS-IND-CPA-secure in the sense of [TripleRatchet, Def. 5.4].
 
+The bound proved here differs slightly from [TripleRatchet]'s Theorem A.1: the paper implicitly
+treats KEM decapsulation as never failing, whereas here decapsulation failure is accounted for
+explicitly and contributes a `δ / 2` correctness-slack term to the final bound. This slack vanishes
+and the paper's bound is recovered exactly in the perfectly-correct case, `δ = 0`
+(`FSINDCPASecure_of_perfectlyCorrect`).
+
 The proof builds a reduction, `indCpaReduction`, from an FS-IND-CPA adversary against the
 construction to an IND-CPA adversary against the underlying KEM: it independently samples the
 extra key pairs the construction generates each round and hands everything to the RKEM-level
