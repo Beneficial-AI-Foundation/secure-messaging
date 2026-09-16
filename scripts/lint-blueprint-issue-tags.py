@@ -10,8 +10,9 @@ lowercases and dedupes tags, so this lint enforces the contract:
 
 - every tag starting with `gh-` matches `^gh-[1-9][0-9]*$`, written in lowercase
   (the source must spell what the manifest carries);
-- no two tag tokens normalize to the same value, and an opener has at most one
-  `tags` option;
+- no two tag tokens normalize to the same value, an opener has at most one
+  `tags` option, and its value is one double-quoted string (anything else is
+  reported rather than treated as "no tags");
 - issue tags appear only on `definition`/`theorem` directives (verso-blueprint
   rejects `tags` on proof blocks; other directives are not tracked atoms);
 - the retired `{githubIssue N}` / `{githubLabel}` footer roles do not appear.
@@ -41,6 +42,7 @@ LABEL = re.compile(r'^\s*"([^"\\]+)"')
 INDENTED_OPEN = re.compile(r"^\s+:{3,}\s*\w+")
 FENCE = re.compile(r"^\s*(`{3,})")
 TAGS_OPT = re.compile(r'\(tags\s*:=\s*"([^"]*)"\)')
+TAGS_ANY = re.compile(r"\btags\s*:=")  # every tags option, well-formed or not
 GH_TAG = re.compile(r"^gh-([1-9][0-9]*)$")
 LEGACY_FOOTER = re.compile(r"githubIssue|githubLabel")
 
@@ -52,7 +54,8 @@ class Block:
     colons: str
     kind: str
     label: str | None
-    tags_options: list[str]  # raw values of every (tags := "...") on the opener
+    tags_options: list[str]  # raw values of every well-formed (tags := "...") on the opener
+    malformed_tags: int = 0  # `tags :=` occurrences the well-formed pattern did not match
     legacy: list[int] = field(default_factory=list)  # lines with retired footer roles
 
     def tag_tokens(self) -> list[str]:
@@ -104,7 +107,10 @@ def scan_blocks(path: Path, lines: list[str]) -> tuple[list[Block], list[Diag]]:
             if rest.count("(") != rest.count(")"):
                 diags.append(Diag(path, i + 1, "directive opener has unbalanced parentheses"))
             lm = LABEL.match(rest)
-            stack.append(Block(path, i, m.group(1), m.group(2), lm.group(1) if lm else None, TAGS_OPT.findall(rest)))
+            tags = TAGS_OPT.findall(rest)
+            stack.append(
+                Block(path, i, m.group(1), m.group(2), lm.group(1) if lm else None, tags, len(TAGS_ANY.findall(rest)) - len(tags))
+            )
             i = j + 1
             continue
         if re.fullmatch(r":{3,}", stripped):
@@ -132,6 +138,8 @@ def lint_block(b: Block) -> list[Diag]:
     diags: list[Diag] = []
     opener_line = b.start + 1
     who = b.label or b.kind
+    if b.malformed_tags:
+        diags.append(Diag(b.path, opener_line, f'{who}: malformed (tags := ...) option; the value must be one double-quoted string'))
     if len(b.tags_options) > 1:
         diags.append(Diag(b.path, opener_line, f"{who}: more than one (tags := ...) option"))
     seen: set[str] = set()

@@ -66,6 +66,12 @@ class LintTest(unittest.TestCase):
     def test_duplicate_tag_tokens(self):
         self.assertErrors(self.node('(tags := "gh-109, GH-109")'), 2, "duplicate tag", "is not a valid issue tag")
 
+    def test_malformed_tags_option_is_reported(self):
+        for bad in ("(tags := 'gh-1')", "(tags := gh-1)", '(tags := "gh-1)'):
+            with self.subTest(bad=bad):
+                diags = self.node(bad)
+                self.assertTrue(any("malformed (tags" in str(d) for d in diags), [str(d) for d in diags])
+
     def test_repeated_tags_option(self):
         self.assertErrors(self.node('(tags := "gh-1") (tags := "gh-2")'), 1, "more than one (tags")
 
