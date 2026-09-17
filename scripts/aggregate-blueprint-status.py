@@ -60,8 +60,8 @@ CHAPTER_TITLES = {
     "Ratcheting-Key-Encapsulation-Mechanism": "Ratcheting Key Encapsulation Mechanism",
     "Sparse-Continuous-Key-Agreement": "Sparse Continuous Key Agreement",
     "Secure-Messaging": "Secure Messaging",
-    # Slugs from the former per-chapter render, kept so leftover split sites
-    # and stored history still title correctly.
+    # Slugs from the former per-chapter render, kept so stored history still
+    # titles correctly.
     "Forward-Secure-AEAD": "Forward-Secure Authenticated Encryption with Associated Data",
     "PRF-PRNG": "Pseudorandom Function and Generator",
     "Ratcheting-KEM": "Ratcheting Key Encapsulation Mechanism",
@@ -1255,7 +1255,7 @@ def json_report(atoms: list[Atom]) -> dict:
 
 def main() -> None:
     # Parse CLI options and choose text, JSON, or HTML output.
-    parser = argparse.ArgumentParser(description="Aggregate Verso blueprint atom status from rendered chapter manifests.")
+    parser = argparse.ArgumentParser(description="Aggregate Verso blueprint atom status from the rendered site manifest.")
     parser.add_argument("--site-dir", type=Path, default=DEFAULT_SITE_DIR)
     parser.add_argument("--all-atoms", action="store_true", help="Report every rendered Blueprint atom, including untracked helpers.")
     parser.add_argument("--by-chapter", action="store_true")
