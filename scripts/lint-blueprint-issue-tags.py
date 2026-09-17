@@ -4,8 +4,9 @@
 A `definition`/`theorem` block under `docs/SecureMessagingDocs/Chapters/` links
 the GitHub issue tracking its formalization with `(tags := "gh-<n>")` on its
 opening directive. verso-blueprint carries the tag into `blueprint-manifest.json`,
-where the coverage scripts and downstream tooling read it, and the render
-script turns the rendered chip into a link. verso-blueprint itself only trims,
+where the coverage scripts and downstream tooling read it, and
+`link-blueprint-issue-tags.py` turns the rendered chip into a link after the
+render. verso-blueprint itself only trims,
 lowercases and dedupes tags, so this lint enforces the contract:
 
 - every tag starting with `gh-` matches `^gh-[1-9][0-9]*$`, written in lowercase

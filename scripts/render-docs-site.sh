@@ -186,51 +186,14 @@ move_references_to_bottom() {
   done < <(find "$chapter_dir" -name '*.html' -type f -print0)
 }
 
-# verso-blueprint renders a node's tags as plain chips. Turn every `gh-<n>` chip
-# into a link to that GitHub issue. Fail when the manifest carries issue tags
-# that the page markup did not expose, so a verso-blueprint upgrade that changes
-# the chip markup cannot silently drop the links.
+# verso-blueprint renders a node's tags as plain chips under a hard-coded `Tags`
+# label, and as `tag: gh-<n>` badges on the Blueprint Summary pages. Relabel and
+# link both surfaces to the GitHub issues. The script validates every node's
+# links against the manifest and fails the build when a verso-blueprint upgrade
+# changes the markup, so the links cannot be dropped silently.
 issue_repository="Beneficial-AI-Foundation/secure-messaging"
 link_issue_tags() {
-  local root="$1"
-  python3 - "$root" "$issue_repository" <<'PY'
-import json
-import re
-import sys
-from pathlib import Path
-
-root, repository = Path(sys.argv[1]), sys.argv[2]
-manifest = json.loads((root / "-verso-data" / "blueprint-manifest.json").read_text())
-expected = sum(
-    1
-    for entry in manifest["previews"]
-    if entry.get("targetKind") == "block"
-    for tag in entry.get("tags", [])
-    if re.fullmatch(r"gh-[1-9][0-9]*", tag)
-)
-chip = re.compile(r'<span class="bp_metadata_tag">gh-([1-9][0-9]*)</span>')
-
-
-def link(match):
-    number = match.group(1)
-    return (
-        '<span class="bp_metadata_tag"><a class="github-issue-link" '
-        f'href="https://github.com/{repository}/issues/{number}" '
-        f'target="_blank" rel="noopener noreferrer">#{number}</a></span>'
-    )
-
-
-replaced = 0
-for page in sorted(root.rglob("*.html")):
-    text = page.read_text()
-    text, count = chip.subn(link, text)
-    if count:
-        page.write_text(text)
-        replaced += count
-if replaced != expected:
-    sys.exit(f"issue tag links: rewrote {replaced} chips but the manifest carries {expected} issue tags")
-print(f"Linked {replaced} issue tag chips")
-PY
+  scripts/link-blueprint-issue-tags.py --site-dir "$1" --repository "$issue_repository"
 }
 
 # slug | site title

@@ -385,6 +385,11 @@ p.lean-pill-caption {
   color: #1f2937;
   text-decoration-color: currentColor;
 }
+.bp_summary_badge .github-issue-link,
+.bp_summary_badge .github-issue-link:hover {
+  color: inherit;
+  text-decoration-color: currentColor;
+}
 "#
 
 /-- Client-side script: wrap framed anchor code in a "Lean" collapsible pill; optional
