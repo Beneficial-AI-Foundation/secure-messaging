@@ -148,8 +148,31 @@ class LintTest(unittest.TestCase):
         self.assertEqual(self.run_lint(), [])
 
     def test_opener_never_balances(self):
+        # The continuation stops at the closer, which then closes the block.
         self.chapter('::::definition "lbl" (lean := "A.b,\nText.\n::::\n')
-        self.assertErrors(self.run_lint(), 2, "unbalanced parentheses", "unclosed directive")
+        self.assertErrors(self.run_lint(), 1, "unbalanced parentheses")
+
+    def test_parenthesis_inside_title_does_not_swallow_following_directives(self):
+        # Before the fix the `(` in the first title swallowed everything up to the
+        # `)` in the second, so the retired footer in between went unreported.
+        self.chapter(
+            """
+            :::defTitle "a" "Foo (RS"
+            :::
+
+            ::::definition "a"
+            {githubLabel}`github` {githubIssue 999}[]
+            ::::
+
+            :::defTitle "b" "Bar RS)"
+            :::
+            """
+        )
+        self.assertErrors(self.run_lint(), 1, "githubLabel footer role was retired")
+
+    def test_unbalanced_opener_stops_at_next_directive(self):
+        self.chapter('::::definition "a" (tags := "gh-1"\nText.\n::::\n::::theorem "b" (tags := "GH-2")\nText.\n::::\n')
+        self.assertErrors(self.run_lint(), 3, "unbalanced parentheses", "malformed (tags := ...)", "'GH-2' is not a valid issue tag")
 
     def test_closer_mismatch(self):
         self.chapter('::::definition "lbl"\nText.\n:::\n::::\n')

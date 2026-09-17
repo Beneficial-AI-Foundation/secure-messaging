@@ -20,7 +20,7 @@ lowercases and dedupes tags, so this lint enforces the contract:
 
 Supported syntax is deliberately restricted: unindented colon-run openers
 (`:{3,}kind "label" (opts…)`), continued onto following lines while parentheses
-are unbalanced; closers are colon-only lines matching the opener; fences are
+outside quoted values are unbalanced, never past a closer or another opener; closers are colon-only lines matching the opener; fences are
 backtick runs of three or more, closed by a run at least as long; `tags` values
 are double-quoted with no escaped quotes or newlines. Anything outside the
 subset is an error, not silently accepted. Only chapter files are scanned; they
@@ -46,6 +46,18 @@ TAGS_OPT = re.compile(r'\(tags\s*:=\s*"([^"\\\r\n]*)"\)')  # no escapes, no line
 TAGS_ANY = re.compile(r"\btags\s*:=")  # every tags option, well-formed or not
 GH_TAG = re.compile(r"^gh-([1-9][0-9]*)$")
 LEGACY_FOOTER = re.compile(r"githubIssue|githubLabel")
+QUOTED = re.compile(r'"(?:[^"\\]|\\.)*"', re.DOTALL)  # a complete double-quoted value, escapes and line breaks allowed
+
+
+def paren_depth(text: str) -> int:
+    # Unclosed `(` outside quoted values: a `(` inside a title must not start a continuation.
+    unquoted = QUOTED.sub('""', text)
+    return unquoted.count("(") - unquoted.count(")")
+
+
+def ends_opener(line: str) -> bool:
+    # A closer or another opener can never be part of the current opener.
+    return re.fullmatch(r":{3,}", line.strip()) is not None or ANY_OPEN.match(line) is not None
 
 
 @dataclass
@@ -101,11 +113,12 @@ def scan_blocks(path: Path, lines: list[str]) -> tuple[list[Block], list[Diag]]:
         if m:
             rest, j = m.group(3), i
             # An opener continues onto following lines until its parentheses balance
-            # (e.g. a long `lean := "..."` list).
-            while rest.count("(") > rest.count(")") and j + 1 < len(lines):
+            # (e.g. a long `lean := "..."` list). Parentheses inside quoted values do
+            # not count, and a closer or another opener always ends the continuation.
+            while paren_depth(rest) > 0 and j + 1 < len(lines) and not ends_opener(lines[j + 1]):
                 j += 1
                 rest += "\n" + lines[j]
-            if rest.count("(") != rest.count(")"):
+            if paren_depth(rest) != 0:
                 diags.append(Diag(path, i + 1, "directive opener has unbalanced parentheses"))
             lm = LABEL.match(rest)
             tags = TAGS_OPT.findall(rest)
