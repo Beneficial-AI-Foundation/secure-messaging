@@ -20,7 +20,7 @@ each `block` entry with issue tags it locates the node by the fragment of its
 issue numbers to equal the block's tags; site-wide, no raw issue chip may
 remain and the number of tag items must equal the number of tagged blocks;
 each Summary page must link one rollup head per distinct issue, at least one
-item badge per issue tag, exactly the manifest's set of issues, and no `tag:
+item badge per node tagged with the issue, exactly the manifest's set of issues, and no `tag:
 gh-` text. Any violation fails the run and leaves every file untouched, so a
 verso-blueprint upgrade that changes either markup cannot drop the links.
 """
@@ -31,6 +31,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import sys
 import tempfile
 from collections import Counter
@@ -190,8 +191,9 @@ def validate_panel(block: Block, pages: dict[Path, str], repository: str) -> Non
 def validate(blocks: list[Block], pages: dict[Path, str], repository: str) -> None:
     tagged = [block for block in blocks if block.tags]
     with_issues = [block for block in tagged if block.issues]
-    gh_total = sum(len(block.issues) for block in with_issues)
-    gh_set = {number for block in with_issues for number in block.issues}
+    # How many nodes carry each issue: the Summary must show at least that many item badges for it.
+    expected = Counter(number for block in with_issues for number in block.issues)
+    gh_set = set(expected)
 
     for block in with_issues:
         validate_panel(block, pages, repository)
@@ -223,10 +225,11 @@ def validate(blocks: list[Block], pages: dict[Path, str], repository: str) -> No
             raise ValidationError(
                 f"{relative}: rollup heads link {sorted(heads.elements())}, expected one per issue in {sorted(gh_set)}"
             )
-        if sum(items.values()) < gh_total or set(items) != gh_set:
+        short = {number: (items[number], count) for number, count in expected.items() if items[number] < count}
+        if short or set(items) != gh_set:
             raise ValidationError(
-                f"{relative}: item badges link {sum(items.values())} badges over {len(items)} issues, "
-                f"expected at least {gh_total} over {len(gh_set)}"
+                f"{relative}: item badges per issue {dict(sorted(items.items()))} do not cover the tagged nodes "
+                f"{dict(sorted(expected.items()))}"
             )
 
 
@@ -235,6 +238,7 @@ def write_atomic(path: Path, data: bytes) -> None:
     try:
         with os.fdopen(fd, "wb") as handle:
             handle.write(data)
+        shutil.copymode(path, tmp)  # mkstemp creates the file 0600
         os.replace(tmp, path)
     except BaseException:
         if os.path.exists(tmp):

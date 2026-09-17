@@ -268,7 +268,21 @@ class LinkTest(unittest.TestCase):
     def test_summary_page_missing_item_badges_is_rejected(self):
         self.raw_site()
         self.write("Authenticated-Encryption-with-Associated-Data/Blueprint-Summary/index.html", summary_page(HEADS, []))
-        self.assertRejected("Authenticated-Encryption-with-Associated-Data/Blueprint-Summary/index.html", "item badges link 0 badges")
+        self.assertRejected("Authenticated-Encryption-with-Associated-Data/Blueprint-Summary/index.html", "item badges per issue {} do not cover the tagged nodes {5: 1, 192: 2}")
+
+    def test_summary_page_short_on_one_issue_is_rejected(self):
+        # Same total as the manifest (3) and the same issue set, but gh-192 is
+        # tagged on two nodes and linked once.
+        self.raw_site()
+        self.write("Blueprint-Summary/index.html", summary_page(HEADS, [("aead", 192), ("aead_mixed", 5), ("aead_mixed", 5)]))
+        self.assertRejected("Blueprint-Summary/index.html", "item badges per issue {5: 2, 192: 1} do not cover the tagged nodes {5: 1, 192: 2}")
+
+    def test_rewritten_page_keeps_its_mode(self):
+        self.raw_site()
+        page = self.site / PAGE / "index.html"
+        page.chmod(0o644)
+        self.assertEqual(self.run_link(), 0)
+        self.assertEqual(page.stat().st_mode & 0o777, 0o644)
 
     def test_leftover_raw_badge_is_rejected(self):
         self.raw_site()
