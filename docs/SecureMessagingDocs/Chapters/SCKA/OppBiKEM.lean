@@ -19,35 +19,35 @@ Opp-BiKEM-CKA.
 :::defTitle "opp_bikem_cka_spec" "Opp-BiKEM-CKA protocol"
 :::
 
-::::definition "opp_bikem_cka_spec" (parent := "cka_protocols_opp_bikem_cka")
+::::definition "opp_bikem_cka_spec" (parent := "cka_protocols_opp_bikem_cka") (tags := "gh-109")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "scka_scheme"}[] · {uses "erasure_code_scheme"}[] · {githubLabel}`github` {githubIssue 109}[]
+{usesLabel}`uses` {uses "scka_scheme"}[] · {uses "erasure_code_scheme"}[]
 ::::
 
 :::defTitle "opp_bikem_cka_correctness" "Opp-BiKEM-CKA correctness"
 :::
 
-::::theorem "opp_bikem_cka_correctness" (parent := "cka_protocols_opp_bikem_cka")
+::::theorem "opp_bikem_cka_correctness" (parent := "cka_protocols_opp_bikem_cka") (tags := "gh-110")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "opp_bikem_cka_spec"}[] · {uses "scka_correctness"}[] · {uses "erasure_code_correctness"}[] · {githubLabel}`github` {githubIssue 110}[]
+{usesLabel}`uses` {uses "opp_bikem_cka_spec"}[] · {uses "scka_correctness"}[] · {uses "erasure_code_correctness"}[]
 ::::
 
 :::defTitle "opp_bikem_cka_security" "Opp-BiKEM-CKA security"
 :::
 
-::::theorem "opp_bikem_cka_security" (parent := "cka_protocols_opp_bikem_cka")
+::::theorem "opp_bikem_cka_security" (parent := "cka_protocols_opp_bikem_cka") (tags := "gh-111")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "opp_bikem_cka_spec"}[] · {uses "scka_security"}[] · {uses "erasure_code_scheme"}[] · {githubLabel}`github` {githubIssue 111}[]
+{usesLabel}`uses` {uses "opp_bikem_cka_spec"}[] · {uses "scka_security"}[] · {uses "erasure_code_scheme"}[]
 ::::

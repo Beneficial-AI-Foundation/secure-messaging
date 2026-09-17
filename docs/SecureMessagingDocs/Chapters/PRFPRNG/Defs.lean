@@ -19,23 +19,22 @@ Pseudorandom Function-Generator (PRF-PRNG).
 :::defTitle "prf_prng_scheme" "PRF-PRNG scheme"
 :::
 
-::::definition "prf_prng_scheme" (parent := "prf_prng")
+::::definition "prf_prng_scheme" (parent := "prf_prng") (tags := "gh-188")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{githubLabel}`github` {githubIssue 188}[]
 ::::
 
 :::defTitle "prf_prng_security" "PRF-PRNG security"
 :::
 
-::::definition "prf_prng_security" (parent := "prf_prng")
+::::definition "prf_prng_security" (parent := "prf_prng") (tags := "gh-189")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "prf_prng_scheme"}[] · {githubLabel}`github` {githubIssue 189}[]
+{usesLabel}`uses` {uses "prf_prng_scheme"}[]
 ::::

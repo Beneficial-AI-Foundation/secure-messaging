@@ -28,6 +28,12 @@ DEFAULT_PROJECT_END = "2027-01-28"
 SCHEMA_VERSION = 2
 
 ATOM_RE = re.compile(r":{3,}(definition|theorem)\s+\"([^\"]+)\"")
+FENCE_RE = re.compile(r"^\s*(`{3,})")
+# A node's GitHub issues: `(tags := "gh-<n>")` on its directive. Commits before
+# 2026-09-15 wrote them as `{githubIssue n}` footers instead; the history scan
+# must read both.
+TAGS_RE = re.compile(r'\(tags\s*:=\s*"([^"]*)"\)')
+GH_TAG_RE = re.compile(r"^gh-([1-9][0-9]*)$")
 ISSUE_RE = re.compile(r"\{githubIssue\s+(\d+)\}")
 PULL_SUFFIX_RE = re.compile(r"\(#(\d+)\)\s*$")
 MERGE_SUBJECT_RE = re.compile(r"^Merge pull request #(\d+)\b")
@@ -76,31 +82,78 @@ def load_aggregator():
     return module
 
 
+def unfenced(lines: list[str]) -> list[str]:
+    # The lines outside backtick code fences, so a directive quoted as an example
+    # is neither an atom nor part of one (the rule scripts/lint-blueprint-issue-tags.py applies).
+    kept: list[str] = []
+    fence: str | None = None
+    for line in lines:
+        stripped = line.strip()
+        if fence:
+            if re.fullmatch(r"`{%d,}" % len(fence), stripped):
+                fence = None
+            continue
+        match = FENCE_RE.match(line)
+        if match:
+            fence = match.group(1)
+            continue
+        kept.append(line)
+    return kept
+
+
+def iter_atom_blocks(lines: list[str]):
+    # Yield (kind, label, block lines) for each definition/theorem directive,
+    # where the block runs from the opener to the matching colon-only closer.
+    lines = unfenced(lines)
+    index = 0
+    while index < len(lines):
+        match = ATOM_RE.search(lines[index])
+        if match is None:
+            index += 1
+            continue
+        fence = re.match(r"\s*(:{3,})", lines[index])
+        close_marker = fence.group(1) if fence is not None else ":::"
+        block = [lines[index]]
+        index += 1
+        while index < len(lines):
+            block.append(lines[index])
+            if lines[index].strip() == close_marker:
+                index += 1
+                break
+            index += 1
+        yield match.group(1), match.group(2), block
+
+
+def opener_text(block: list[str]) -> str:
+    # The directive opener, continued onto following lines while its parentheses
+    # are unbalanced (the rule scripts/lint-blueprint-issue-tags.py enforces).
+    opener = block[0]
+    index = 1
+    while opener.count("(") > opener.count(")") and index < len(block):
+        opener += "\n" + block[index]
+        index += 1
+    return opener
+
+
+def block_issues(block: list[str]) -> set[int]:
+    # Issue numbers of one directive block: `gh-<n>` tags read from the opener
+    # only, so a tag quoted in the body (e.g. inside a code fence) does not count,
+    # plus legacy footers anywhere in the block.
+    numbers = {int(issue) for issue in ISSUE_RE.findall("\n".join(block))}
+    for value in TAGS_RE.findall(opener_text(block)):
+        for token in value.split(","):
+            match = GH_TAG_RE.match(token.strip().lower())
+            if match:
+                numbers.add(int(match.group(1)))
+    return numbers
+
+
 def parse_atom_issues(docs_dir: Path) -> list[AtomIssue]:
     # Read authored Blueprint atoms and collect their linked GitHub issue numbers.
     atoms: list[AtomIssue] = []
     for path in sorted(docs_dir.rglob("*.lean")):
-        lines = path.read_text().splitlines()
-        index = 0
-        while index < len(lines):
-            match = ATOM_RE.search(lines[index])
-            if match is None:
-                index += 1
-                continue
-
-            kind, label = match.group(1), match.group(2)
-            fence = re.match(r"\s*(:{3,})", lines[index])
-            close_marker = fence.group(1) if fence is not None else ":::"
-            block = [lines[index]]
-            index += 1
-            while index < len(lines):
-                block.append(lines[index])
-                if lines[index].strip() == close_marker:
-                    index += 1
-                    break
-                index += 1
-
-            issues = tuple(sorted({int(issue) for issue in ISSUE_RE.findall("\n".join(block))}))
+        for kind, label, block in iter_atom_blocks(path.read_text().splitlines()):
+            issues = tuple(sorted(block_issues(block)))
             atoms.append(AtomIssue(kind=kind, label=label, issues=issues))
     return atoms
 
@@ -258,30 +311,11 @@ def atom_completion_index(
 
 
 def tracked_labels_in_source(text: str) -> set[str]:
-    # Collect Blueprint atom labels that carry a GitHub issue footer, matching
-    # the tracked-atom rule used by aggregate-blueprint-status.py.
+    # Collect Blueprint atom labels that carry a GitHub issue tag (or, in older
+    # commits, footer), matching the tracked-atom rule of aggregate-blueprint-status.py.
     labels: set[str] = set()
-    lines = text.splitlines()
-    index = 0
-    while index < len(lines):
-        match = ATOM_RE.search(lines[index])
-        if match is None:
-            index += 1
-            continue
-
-        label = match.group(2)
-        fence = re.match(r"\s*(:{3,})", lines[index])
-        close_marker = fence.group(1) if fence is not None else ":::"
-        block = [lines[index]]
-        index += 1
-        while index < len(lines):
-            block.append(lines[index])
-            if lines[index].strip() == close_marker:
-                index += 1
-                break
-            index += 1
-
-        if ISSUE_RE.search("\n".join(block)):
+    for _kind, label, block in iter_atom_blocks(text.splitlines()):
+        if block_issues(block):
             labels.add(label)
     return labels
 
@@ -385,10 +419,10 @@ def metric_labels(atoms: list, kind: str, metric: str) -> list[str]:
     )
 
 
-def exact_snapshot(site_dir: Path, docs_dir: Path) -> dict:
+def exact_snapshot(site_dir: Path) -> dict:
     # Compute the exact latest progress from the rendered Blueprint manifests.
     aggregator = load_aggregator()
-    atoms = aggregator.load_tracked_atoms(site_dir, docs_dir)
+    atoms = aggregator.load_tracked_atoms(site_dir)
     totals = aggregator.summarize(atoms)
     commit = run_git(["rev-parse", "HEAD"])
     date = run_git(["show", "-s", "--format=%cI", commit])
@@ -417,10 +451,10 @@ def exact_snapshot(site_dir: Path, docs_dir: Path) -> dict:
     }
 
 
-def exact_totals(site_dir: Path, docs_dir: Path) -> dict:
+def exact_totals(site_dir: Path) -> dict:
     # Cap historical totals by today's tracked atom universe.
     aggregator = load_aggregator()
-    totals = aggregator.summarize(aggregator.load_tracked_atoms(site_dir, docs_dir))
+    totals = aggregator.summarize(aggregator.load_tracked_atoms(site_dir))
     return {
         "definition": {
             "total": totals["definition"]["total"],
@@ -431,10 +465,10 @@ def exact_totals(site_dir: Path, docs_dir: Path) -> dict:
     }
 
 
-def tracked_kinds_by_label(site_dir: Path, docs_dir: Path) -> dict[str, str]:
+def tracked_kinds_by_label(site_dir: Path) -> dict[str, str]:
     # Map each currently tracked atom label to its kind for historical scoping.
     aggregator = load_aggregator()
-    return {atom.label: atom.kind for atom in aggregator.load_tracked_atoms(site_dir, docs_dir)}
+    return {atom.label: atom.kind for atom in aggregator.load_tracked_atoms(site_dir)}
 
 
 def write_json(path: Path, data: dict) -> None:
@@ -462,8 +496,8 @@ def main() -> None:
     issues = fetch_issues(args.repo, args.issues_json)
     pull_requests = fetch_pull_requests(args.repo, issues)
     atoms = [atom for atom in atoms if atom.issues]
-    totals = exact_totals(args.site_dir, args.docs_dir)
-    kinds_by_label = tracked_kinds_by_label(args.site_dir, args.docs_dir)
+    totals = exact_totals(args.site_dir)
+    kinds_by_label = tracked_kinds_by_label(args.site_dir)
     index_by_pull_request = commit_index_by_pull_request(commits)
     completion_index: dict[str, int] = {}
     for atom in atoms:
@@ -474,7 +508,7 @@ def main() -> None:
         estimated_snapshot(commit, index, atoms, completion_index, totals, kinds_by_label, args.docs_dir)
         for index, commit in enumerate(commits)
     ]
-    latest = exact_snapshot(args.site_dir, args.docs_dir)
+    latest = exact_snapshot(args.site_dir)
 
     by_commit = {snapshot["commit"]: snapshot for snapshot in snapshots}
     ordered = [

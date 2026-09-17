@@ -19,23 +19,22 @@ Forward-Secure AEAD (FS-AEAD).
 :::defTitle "fs_aead_scheme" "FS-AEAD scheme"
 :::
 
-::::definition "fs_aead_scheme" (parent := "fs_aead")
+::::definition "fs_aead_scheme" (parent := "fs_aead") (tags := "gh-186")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{githubLabel}`github` {githubIssue 186}[]
 ::::
 
 :::defTitle "fs_aead_security" "FS-AEAD security"
 :::
 
-::::definition "fs_aead_security" (parent := "fs_aead")
+::::definition "fs_aead_security" (parent := "fs_aead") (tags := "gh-187")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "fs_aead_scheme"}[] · {githubLabel}`github` {githubIssue 187}[]
+{usesLabel}`uses` {uses "fs_aead_scheme"}[]
 ::::

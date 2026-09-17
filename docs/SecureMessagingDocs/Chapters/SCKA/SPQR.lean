@@ -43,7 +43,7 @@ Unchunked SPQR core.
 :::defTitle "spqr_unchunked_ek_sender" "SPQR unchunked encapsulation-key sender"
 :::
 
-::::definition "spqr_unchunked_ek_sender" (parent := "spqr_unchunked_core") (lean := "SPQR.EkSender.KeysUnsampled, SPQR.EkSender.HeaderSent, SPQR.EkSender.EkSent, SPQR.EkSender.EkSentCt1Received, SPQR.EkSender.sendHeader, SPQR.EkSender.sendVector, SPQR.EkSender.recvCt1, SPQR.EkSender.recvCt2")
+::::definition "spqr_unchunked_ek_sender" (parent := "spqr_unchunked_core") (lean := "SPQR.EkSender.KeysUnsampled, SPQR.EkSender.HeaderSent, SPQR.EkSender.EkSent, SPQR.EkSender.EkSentCt1Received, SPQR.EkSender.sendHeader, SPQR.EkSender.sendVector, SPQR.EkSender.recvCt1, SPQR.EkSender.recvCt2") (tags := "gh-252")
 $`\todo`
 
 :::leanPillCaption "send authenticated encapsulation-key header"
@@ -99,13 +99,13 @@ def recvCt2 (inc : kem.IncrementalStructure)
     else none
 ```
 
-{usesLabel}`uses` {uses "incremental_kem_scheme"}[] · {githubLabel}`github` {githubIssue 252}[]
+{usesLabel}`uses` {uses "incremental_kem_scheme"}[]
 ::::
 
 :::defTitle "spqr_unchunked_ct_sender" "SPQR unchunked ciphertext sender"
 :::
 
-::::definition "spqr_unchunked_ct_sender" (parent := "spqr_unchunked_core") (lean := "SPQR.CtSender.NoHeaderReceived, SPQR.CtSender.HeaderReceived, SPQR.CtSender.Ct1Sent, SPQR.CtSender.Ct1SentEkReceived, SPQR.CtSender.Ct2Sent, SPQR.CtSender.recvHeader, SPQR.CtSender.sendCt1, SPQR.CtSender.recvVector, SPQR.CtSender.sendCt2, SPQR.CtSender.recvNextEpoch")
+::::definition "spqr_unchunked_ct_sender" (parent := "spqr_unchunked_core") (lean := "SPQR.CtSender.NoHeaderReceived, SPQR.CtSender.HeaderReceived, SPQR.CtSender.Ct1Sent, SPQR.CtSender.Ct1SentEkReceived, SPQR.CtSender.Ct2Sent, SPQR.CtSender.recvHeader, SPQR.CtSender.sendCt1, SPQR.CtSender.recvVector, SPQR.CtSender.sendCt2, SPQR.CtSender.recvNextEpoch") (tags := "gh-252")
 $`\todo`
 
 :::leanPillCaption "receive authenticated encapsulation-key header"
@@ -167,7 +167,7 @@ def recvNextEpoch (st : Ct2Sent AuthState) (t : ℕ) : Option (EkSender.KeysUnsa
   if t = st.ep + 1 then some ⟨st.ep + 1, st.authSt⟩ else none
 ```
 
-{usesLabel}`uses` {uses "incremental_kem_scheme"}[] · {githubLabel}`github` {githubIssue 252}[]
+{usesLabel}`uses` {uses "incremental_kem_scheme"}[]
 ::::
 
 :::group "spqr_chunked"
@@ -177,7 +177,7 @@ Chunked SPQR.
 :::defTitle "spqr_chunked_spec" "SPQR chunked data and helpers"
 :::
 
-::::definition "spqr_chunked_spec" (parent := "spqr_chunked") (lean := "SPQR.Chunked.Payload, SPQR.Chunked.Message, SPQR.Chunked.PartyState, SPQR.Chunked.Error, SPQR.Chunked.SendResult, SPQR.Chunked.RecvResult, SPQR.Chunked.completeCt2")
+::::definition "spqr_chunked_spec" (parent := "spqr_chunked") (lean := "SPQR.Chunked.Payload, SPQR.Chunked.Message, SPQR.Chunked.PartyState, SPQR.Chunked.Error, SPQR.Chunked.SendResult, SPQR.Chunked.RecvResult, SPQR.Chunked.completeCt2") (tags := "gh-263")
 $`\todo`
 
 :::leanPillCaption "wire payload"
@@ -313,13 +313,13 @@ def completeCt2 (P : MLKEMBraid.Parameters m)
   .ct2Sampled ⟨core.ep, core.authSt⟩ (EncoderState.init P.ecpCt2 (c2, tag))
 ```
 
-{usesLabel}`uses` {uses "spqr_unchunked_ek_sender"}[] · {uses "spqr_unchunked_ct_sender"}[] · {uses "erasure_code_payload"}[] · {uses "erasure_code_streaming"}[] · {uses "mlkem_braid_protocol_parameters"}[] · {githubLabel}`github` {githubIssue 263}[]
+{usesLabel}`uses` {uses "spqr_unchunked_ek_sender"}[] · {uses "spqr_unchunked_ct_sender"}[] · {uses "erasure_code_payload"}[] · {uses "erasure_code_streaming"}[] · {uses "mlkem_braid_protocol_parameters"}[]
 ::::
 
 :::defTitle "spqr_chunked_scheme" "SPQR chunked protocol"
 :::
 
-::::definition "spqr_chunked_scheme" (parent := "spqr_chunked") (lean := "SPQR.Chunked.initA, SPQR.Chunked.initB, SPQR.Chunked.send, SPQR.sendRleak, SPQR.Chunked.recv, SPQR.recvSCKA, SPQR.scheme")
+::::definition "spqr_chunked_scheme" (parent := "spqr_chunked") (lean := "SPQR.Chunked.initA, SPQR.Chunked.initB, SPQR.Chunked.send, SPQR.sendRleak, SPQR.Chunked.recv, SPQR.recvSCKA, SPQR.scheme") (tags := "gh-263")
 
 :::leanPillCaption "initial encapsulation-key sender"
 :::
@@ -589,13 +589,13 @@ def scheme (P : MLKEMBraid.Parameters m) [DecidableEq P.Sym]
     recvB := recvSCKA P auth }
 ```
 
-{usesLabel}`uses` {uses "scka_scheme"}[] · {uses "spqr_chunked_spec"}[] · {uses "incremental_kem_rand_leak"}[] · {githubLabel}`github` {githubIssue 263}[]
+{usesLabel}`uses` {uses "scka_scheme"}[] · {uses "spqr_chunked_spec"}[] · {uses "incremental_kem_rand_leak"}[]
 ::::
 
 :::defTitle "spqr_protocol_spec" "SPQR protocol"
 :::
 
-::::definition "spqr_protocol_spec" (parent := "cka_protocols_spqr") (lean := "SPQR.v1Incremental, SPQR.v1ErasureCodePayload, SPQR.v1Parameters, SPQR.v1Scheme")
+::::definition "spqr_protocol_spec" (parent := "cka_protocols_spqr") (lean := "SPQR.v1Incremental, SPQR.v1ErasureCodePayload, SPQR.v1Parameters, SPQR.v1Scheme") (tags := "gh-268")
 $`\todo`
 
 :::leanPillCaption "incremental ML-KEM-768"
@@ -697,29 +697,29 @@ noncomputable def v1Scheme {InitKey AuthState EpochKey Mac : Type}
     sampleInitKey
 ```
 
-{usesLabel}`uses` {uses "scka_scheme"}[] · {uses "spqr_unchunked_ek_sender"}[] · {uses "spqr_unchunked_ct_sender"}[] · {uses "spqr_chunked_spec"}[] · {uses "erasure_code_scheme"}[] · {uses "spqr_chunked_scheme"}[] · {uses "spqr_reed_solomon_code"}[] · {uses "incremental_kem_rand_leak"}[] · {githubLabel}`github` {githubIssue 268}[]
+{usesLabel}`uses` {uses "scka_scheme"}[] · {uses "spqr_unchunked_ek_sender"}[] · {uses "spqr_unchunked_ct_sender"}[] · {uses "spqr_chunked_spec"}[] · {uses "erasure_code_scheme"}[] · {uses "spqr_chunked_scheme"}[] · {uses "spqr_reed_solomon_code"}[] · {uses "incremental_kem_rand_leak"}[]
 ::::
 
 :::defTitle "spqr_protocol_correctness" "SPQR protocol correctness"
 :::
 
-::::theorem "spqr_protocol_correctness" (parent := "cka_protocols_spqr")
+::::theorem "spqr_protocol_correctness" (parent := "cka_protocols_spqr") (tags := "gh-269")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "spqr_protocol_spec"}[] · {uses "scka_correctness"}[] · {uses "erasure_code_correctness"}[] · {githubLabel}`github` {githubIssue 269}[]
+{usesLabel}`uses` {uses "spqr_protocol_spec"}[] · {uses "scka_correctness"}[] · {uses "erasure_code_correctness"}[]
 ::::
 
 :::defTitle "spqr_protocol_security" "SPQR protocol security"
 :::
 
-::::theorem "spqr_protocol_security" (parent := "cka_protocols_spqr")
+::::theorem "spqr_protocol_security" (parent := "cka_protocols_spqr") (tags := "gh-270")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "spqr_protocol_spec"}[] · {uses "scka_security"}[] · {uses "erasure_code_scheme"}[] · {githubLabel}`github` {githubIssue 270}[]
+{usesLabel}`uses` {uses "spqr_protocol_spec"}[] · {uses "scka_security"}[] · {uses "erasure_code_scheme"}[]
 ::::
