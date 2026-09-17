@@ -40,7 +40,7 @@ Encrypt-then-MAC.
 :::defTitle "aead_etm_spec" "AEAD encrypt-then-MAC construction"
 :::
 
-::::definition "aead_etm_spec" (parent := "aead_encrypt_then_mac") (lean := "EtM.etmAEAD")
+::::definition "aead_etm_spec" (parent := "aead_encrypt_then_mac") (lean := "EtM.etmAEAD") (tags := "gh-24")
 $`\todo`
 
 ```anchor etmAEAD (project := ".") (module := SecureMessaging.AEAD.FromEtM.Construction)
@@ -61,13 +61,13 @@ def etmAEAD (se : DetSEAlg K_e M C_e)
     else none
 ```
 
-{usesLabel}`uses` {uses "aead"}[] · {githubLabel}`github` {githubIssue 24}[]
+{usesLabel}`uses` {uses "aead"}[]
 ::::
 
 :::defTitle "aead_etm_correctness" "AEAD encrypt-then-MAC correctness"
 :::
 
-::::theorem "aead_etm_correctness" (parent := "aead_encrypt_then_mac") (lean := "EtM.etmAEAD_correct")
+::::theorem "aead_etm_correctness" (parent := "aead_encrypt_then_mac") (lean := "EtM.etmAEAD_correct") (tags := "gh-25")
 $`\todo`
 
 ```anchor etmAEAD_correct (project := ".") (module := SecureMessaging.AEAD.FromEtM.Correctness)
@@ -76,13 +76,13 @@ theorem etmAEAD_correct (se : DetSEAlg K_e M C_e)
     (etmAEAD se prf).Correct
 ```
 
-{usesLabel}`uses` {uses "aead_etm_spec"}[] · {uses "aead_correctness"}[] · {githubLabel}`github` {githubIssue 25}[]
+{usesLabel}`uses` {uses "aead_etm_spec"}[] · {uses "aead_correctness"}[]
 ::::
 
 :::defTitle "aead_etm_security" "AEAD encrypt-then-MAC security"
 :::
 
-::::theorem "aead_etm_security" (parent := "aead_encrypt_then_mac") (lean := "EtM.etmAEAD_security")
+::::theorem "aead_etm_security" (parent := "aead_encrypt_then_mac") (lean := "EtM.etmAEAD_security") (tags := "gh-26")
 $`\todo`
 
 ```anchor etmAEAD_security (project := ".") (module := SecureMessaging.AEAD.FromEtM.Security)
@@ -98,5 +98,5 @@ theorem etmAEAD_security [Inhabited K_e]
       DetSEAlg.distAdvantage se (encReduction se adv)
 ```
 
-{usesLabel}`uses` {uses "aead_etm_spec"}[] · {uses "aead_security_exp"}[] · {uses "aead_dist_advantage"}[] · {uses "aead_decrypt_query_bound"}[] · {githubLabel}`github` {githubIssue 26}[]
+{usesLabel}`uses` {uses "aead_etm_spec"}[] · {uses "aead_security_exp"}[] · {uses "aead_dist_advantage"}[] · {uses "aead_decrypt_query_bound"}[]
 ::::

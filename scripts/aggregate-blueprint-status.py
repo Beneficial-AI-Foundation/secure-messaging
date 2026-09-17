@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Summarize Blueprint atom coverage from a rendered split Verso site.
+"""Summarize Blueprint atom coverage from a rendered Verso site.
 
-Each chapter render emits a Blueprint preview manifest. This script reads those
-manifests and counts definition/theorem atoms. Definitions are specified only
-when they have a complete Lean block, while theorems separately track whether a
-Lean statement exists and whether it appears fully verified.
+The render emits a Blueprint preview manifest. This script reads it and counts
+definition/theorem atoms. Tracked atoms are the blueprint nodes carrying a
+`gh-<n>` tag, the GitHub issue that tracks their formalization. Definitions are
+specified only when they have a complete Lean block, while theorems separately
+track whether a Lean statement exists and whether it appears fully verified.
 """
 
 import argparse
@@ -20,7 +21,6 @@ from pathlib import Path
 
 
 DEFAULT_SITE_DIR = Path("_out/site/html-multi")
-DEFAULT_DOCS_DIR = Path("docs/SecureMessagingDocs")
 DEFAULT_PROJECT_END = "2027-01-28"
 REPO_COMMIT_URL = "https://github.com/Beneficial-AI-Foundation/secure-messaging/commit/"
 REPO_PULL_URL = "https://github.com/Beneficial-AI-Foundation/secure-messaging/pull/"
@@ -31,9 +31,9 @@ SQUASHED_PULL_RE = re.compile(r"\s*\(#(\d+)\)\s*$")
 MERGE_PULL_RE = re.compile(r"^Merge pull request #(\d+) from \S+\s*")
 MANIFEST_PATH = "-verso-data/blueprint-manifest.json"
 TRACKED_KINDS = ("definition", "theorem")
-ATOM_RE = re.compile(r":{3,}(definition|theorem)\s+\"([^\"]+)\"")
 FULL_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
-ISSUE_RE = re.compile(r"\{githubIssue\s+(\d+)\}")
+# Issue tag on a blueprint node: `(tags := "gh-<n>")` in the chapter source.
+GH_TAG_RE = re.compile(r"^gh-([1-9][0-9]*)$")
 CHART_WIDTH = 1280
 CHART_HEIGHT = 582
 CHART_PADDING_LEFT = 44
@@ -60,8 +60,8 @@ CHAPTER_TITLES = {
     "Ratcheting-Key-Encapsulation-Mechanism": "Ratcheting Key Encapsulation Mechanism",
     "Sparse-Continuous-Key-Agreement": "Sparse Continuous Key Agreement",
     "Secure-Messaging": "Secure Messaging",
-    # Slugs from the former per-chapter render, kept so leftover split sites
-    # and stored history still title correctly.
+    # Slugs from the former per-chapter render, kept so stored history still
+    # titles correctly.
     "Forward-Secure-AEAD": "Forward-Secure Authenticated Encryption with Associated Data",
     "PRF-PRNG": "Pseudorandom Function and Generator",
     "Ratcheting-KEM": "Ratcheting Key Encapsulation Mechanism",
@@ -96,6 +96,7 @@ class Atom:
     verified: bool
     statement_uses: tuple[str, ...]
     proof_uses: tuple[str, ...]
+    issues: tuple[int, ...]
 
 
 @dataclass(frozen=True)
@@ -103,14 +104,6 @@ class ReadyNextItem:
     chapter: str
     label: str
     href: str
-
-
-def chapter_name(manifest: Path, site_dir: Path) -> str:
-    # Derive the chapter slug that owns a preview manifest.
-    try:
-        return manifest.relative_to(site_dir).parts[0]
-    except ValueError:
-        return manifest.parent.parent.name
 
 
 def chapter_title(chapter: str) -> str:
@@ -166,6 +159,15 @@ def dependency_labels(entry: dict, field: str) -> tuple[str, ...]:
     )
 
 
+def issue_numbers(entry: dict) -> tuple[int, ...]:
+    # GitHub issue numbers from the node's `gh-<n>` tags.
+    tags = entry.get("tags", [])
+    if not isinstance(tags, list):
+        return ()
+    numbers = {int(m.group(1)) for tag in tags if isinstance(tag, str) and (m := GH_TAG_RE.match(tag))}
+    return tuple(sorted(numbers))
+
+
 def classify(entry: dict, chapter: str) -> Atom:
     # Convert one preview manifest entry into an Atom status record.
     decls = code_decls(entry)
@@ -183,6 +185,7 @@ def classify(entry: dict, chapter: str) -> Atom:
         verified=verified,
         statement_uses=dependency_labels(entry, "statementUses"),
         proof_uses=dependency_labels(entry, "proofUses"),
+        issues=issue_numbers(entry),
     )
 
 
@@ -197,38 +200,32 @@ def chapter_from_href(href: str | None, fallback: str) -> str:
 
 
 def load_atoms(site_dir: Path) -> list[Atom]:
-    # Prefer the unified root manifest. Fall back to per-chapter manifests from
-    # the older split renderer.
+    # Only the unified root manifest is read. Per-chapter manifests from the
+    # former split renderer predate issue tags, so an aggregate over them would
+    # silently track nothing; reject them instead of guessing.
     root_manifest = site_dir / MANIFEST_PATH
-    chapter_manifests = sorted(site_dir.glob(f"*/{MANIFEST_PATH}"))
-    if root_manifest.exists():
-        manifests: list[tuple[str | None, Path]] = [(None, root_manifest)]
-    elif chapter_manifests:
-        manifests = [(chapter_name(path, site_dir), path) for path in chapter_manifests]
-    else:
-        raise SystemExit(
-            f"No blueprint preview manifests found under {site_dir}. "
-            "Run scripts/render-docs-site.sh first."
+    if not root_manifest.exists():
+        hint = (
+            "Only the retired split-site render is present; it carries no issue tags."
+            if any(site_dir.glob(f"*/{MANIFEST_PATH}"))
+            else "Run scripts/render-docs-site.sh first."
         )
+        raise SystemExit(f"No blueprint manifest at {root_manifest}. {hint}")
 
     atoms: list[Atom] = []
     seen_labels: set[str] = set()
     duplicates: set[str] = set()
-    for fallback_chapter, manifest in manifests:
-        data = json.loads(manifest.read_text())
-        for entry in data.get("previews", []):
-            if entry.get("splitPreviewCopy"):
-                continue
-            if entry.get("targetKind") != "block" or entry.get("kind") not in TRACKED_KINDS:
-                continue
-            chapter = fallback_chapter or chapter_from_href(
-                entry.get("href"), "Overview"
-            )
-            atom = classify(entry, chapter)
-            if atom.label in seen_labels:
-                duplicates.add(atom.label)
-            seen_labels.add(atom.label)
-            atoms.append(atom)
+    data = json.loads(root_manifest.read_text())
+    for entry in data.get("previews", []):
+        if entry.get("splitPreviewCopy"):
+            continue
+        if entry.get("targetKind") != "block" or entry.get("kind") not in TRACKED_KINDS:
+            continue
+        atom = classify(entry, chapter_from_href(entry.get("href"), "Overview"))
+        if atom.label in seen_labels:
+            duplicates.add(atom.label)
+        seen_labels.add(atom.label)
+        atoms.append(atom)
 
     if duplicates:
         duplicate_list = ", ".join(sorted(duplicates))
@@ -237,39 +234,9 @@ def load_atoms(site_dir: Path) -> list[Atom]:
     return atoms
 
 
-def load_tracked_labels(docs_dir: Path) -> set[str]:
-    # Track only authored Blueprint atoms that carry a GitHub issue footer.
-    labels: set[str] = set()
-    for path in sorted(docs_dir.rglob("*.lean")):
-        lines = path.read_text().splitlines()
-        index = 0
-        while index < len(lines):
-            match = ATOM_RE.search(lines[index])
-            if match is None:
-                index += 1
-                continue
-
-            label = match.group(2)
-            fence = re.match(r"\s*(:{3,})", lines[index])
-            close_marker = fence.group(1) if fence is not None else ":::"
-            block = [lines[index]]
-            index += 1
-            while index < len(lines):
-                block.append(lines[index])
-                if lines[index].strip() == close_marker:
-                    index += 1
-                    break
-                index += 1
-
-            if ISSUE_RE.search("\n".join(block)):
-                labels.add(label)
-    return labels
-
-
-def load_tracked_atoms(site_dir: Path, docs_dir: Path = DEFAULT_DOCS_DIR) -> list[Atom]:
-    # Filter rendered atoms to the one-to-one tracked issue set.
-    tracked = load_tracked_labels(docs_dir)
-    return [atom for atom in load_atoms(site_dir) if atom.label in tracked]
+def load_tracked_atoms(site_dir: Path) -> list[Atom]:
+    # Track only authored Blueprint atoms that carry a GitHub issue tag.
+    return [atom for atom in load_atoms(site_dir) if atom.issues]
 
 
 def is_site_root_relative_href(href: str) -> bool:
@@ -1281,15 +1248,15 @@ def json_report(atoms: list[Atom]) -> dict:
             }
             for chapter, chapter_totals in sorted(chapters.items())
         },
-        "atoms": [atom.__dict__ for atom in atoms],
+        # Issue numbers select the tracked set but are not part of the report format.
+        "atoms": [{k: v for k, v in atom.__dict__.items() if k != "issues"} for atom in atoms],
     }
 
 
 def main() -> None:
     # Parse CLI options and choose text, JSON, or HTML output.
-    parser = argparse.ArgumentParser(description="Aggregate Verso blueprint atom status from rendered chapter manifests.")
+    parser = argparse.ArgumentParser(description="Aggregate Verso blueprint atom status from the rendered site manifest.")
     parser.add_argument("--site-dir", type=Path, default=DEFAULT_SITE_DIR)
-    parser.add_argument("--docs-dir", type=Path, default=DEFAULT_DOCS_DIR)
     parser.add_argument("--all-atoms", action="store_true", help="Report every rendered Blueprint atom, including untracked helpers.")
     parser.add_argument("--by-chapter", action="store_true")
     parser.add_argument("--html-summary", action="store_true")
@@ -1297,7 +1264,7 @@ def main() -> None:
     parser.add_argument("--json", action="store_true", dest="as_json")
     args = parser.parse_args()
 
-    atoms = load_atoms(args.site_dir) if args.all_atoms else load_tracked_atoms(args.site_dir, args.docs_dir)
+    atoms = load_atoms(args.site_dir) if args.all_atoms else load_tracked_atoms(args.site_dir)
     if args.html_summary:
         print_html_summary(atoms, args.history_file, args.site_dir)
     elif args.as_json:

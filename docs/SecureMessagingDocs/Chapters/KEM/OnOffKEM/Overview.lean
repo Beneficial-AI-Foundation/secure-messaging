@@ -33,7 +33,7 @@ Online-Offline Key Encapsulation Mechanism (On-Off KEM).
 :::defTitle "on_off_kem_scheme" "On-Off KEM scheme"
 :::
 
-::::definition "on_off_kem_scheme" (parent := "on_off_kem") (lean := "KEMScheme.OnOffStructure")
+::::definition "on_off_kem_scheme" (parent := "on_off_kem") (lean := "KEMScheme.OnOffStructure") (tags := "gh-40")
 $`\todo`
 
 ```anchor OnOffStructure (project := ".") (module := SecureMessaging.KEM.OnOffKEM.Defs)
@@ -58,7 +58,6 @@ structure OnOffStructure (kem : KEMScheme m K PK SK C) where
     pure (split.symm (c0, c1), k))
 ```
 
-{githubLabel}`github` {githubIssue 40}[]
 ::::
 
 :::defTitle "kpke" "Kyber Public-Key Encryption (K-PKE)"
@@ -260,7 +259,7 @@ def scheme :
 :::defTitle "on_off_kem_from_kpke_spec" "On-off instance from K-PKE"
 :::
 
-:::::::definition "on_off_kem_from_kpke_spec" (parent := "on_off_kem_from_kpke") (lean := "KPKEOnOff.encapsOff, KPKEOnOff.encapsOn, KPKEOnOff.onOff")
+:::::::definition "on_off_kem_from_kpke_spec" (parent := "on_off_kem_from_kpke") (lean := "KPKEOnOff.encapsOff, KPKEOnOff.encapsOn, KPKEOnOff.onOff") (tags := "gh-41")
 Online-offline structure for the KEM specified in {bpref "kem_from_kpke"}[]
 ({Informal.citet SCKA25}[], Def. 2.1). The ciphertext space splits as
 $`\C=\C_0\times\C_1` with $`\ct=(\ctzero,\ctone)`, and the offline state space is
@@ -330,13 +329,13 @@ def onOff : (scheme params encoding ring prims rho).OnOffStructure where
       KPKE.encrypt, bind_assoc, pure_bind, Equiv.refl_symm, Equiv.coe_refl, id_eq]
 ```
 
-{usesLabel}`uses` {uses "on_off_kem_scheme"}[] · {uses "kem_from_kpke"}[] · {githubLabel}`github` {githubIssue 41}[]
+{usesLabel}`uses` {uses "on_off_kem_scheme"}[] · {uses "kem_from_kpke"}[]
 :::::::
 
 :::defTitle "on_off_kem_rand_leak" "On-Off KEM randomness leakage"
 :::
 
-::::definition "on_off_kem_rand_leak" (parent := "on_off_kem") (lean := "KEMScheme.OnOffRandLeak, KPKEOnOff.onOffRandLeak")
+::::definition "on_off_kem_rand_leak" (parent := "on_off_kem") (lean := "KEMScheme.OnOffRandLeak, KPKEOnOff.onOffRandLeak") (tags := "gh-248")
 
 :::leanPillCaption "On-Off KEM randomness leakage"
 :::
@@ -404,5 +403,5 @@ def onOffRandLeak :
     simp only [onOff, encapsOn, encapsOnFromMessage, bind_assoc, pure_bind]
 ```
 
-{usesLabel}`uses` {uses "on_off_kem_scheme"}[] · {uses "on_off_kem_from_kpke_spec"}[] · {githubLabel}`github` {githubIssue 248}[]
+{usesLabel}`uses` {uses "on_off_kem_scheme"}[] · {uses "on_off_kem_from_kpke_spec"}[]
 ::::

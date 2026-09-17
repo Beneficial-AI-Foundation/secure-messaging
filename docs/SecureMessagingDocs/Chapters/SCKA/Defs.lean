@@ -33,7 +33,7 @@ SCKA.
 :::defTitle "scka_scheme" "SCKA protocol scheme"
 :::
 
-::::definition "scka_scheme" (parent := "cka_protocols_scka") (lean := "SCKAScheme")
+::::definition "scka_scheme" (parent := "cka_protocols_scka") (lean := "SCKAScheme") (tags := "gh-183")
 $`\todo`
 
 ```anchor SCKAScheme (project := ".") (module := SecureMessaging.SCKA.Defs)
@@ -62,7 +62,6 @@ structure SCKAScheme (m : Type → Type u) [Monad m] (IK StA StB I Rho Rand : Ty
   recvB : StB → Rho → Option (Option (ℕ × I) × ℕ × StB)
 ```
 
-{githubLabel}`github` {githubIssue 183}[]
 ::::
 
 :::defTitle "scka_oracles" "SCKA game state and oracles"
@@ -532,7 +531,7 @@ def oracleCorruptB (vulnB : StB → Finset ℕ) (StA I Rho : Type) :
 :::defTitle "scka_correctness" "SCKA protocol correctness"
 :::
 
-:::::::definition "scka_correctness" (parent := "cka_protocols_scka") (lean := "SCKAScheme.sckaCorrectnessSpec, SCKAScheme.sckaCorrectnessImpl, SCKAScheme.SCKACorrectnessAdversary, SCKAScheme.correctnessExp")
+:::::::definition "scka_correctness" (parent := "cka_protocols_scka") (lean := "SCKAScheme.sckaCorrectnessSpec, SCKAScheme.sckaCorrectnessImpl, SCKAScheme.SCKACorrectnessAdversary, SCKAScheme.correctnessExp") (tags := "gh-184")
 $$`\Ocor=\{\mathsf{O\text{-}Unif},\OSendA,\OSendB,
 \ORecA(n),\ORecB(n)\}`
 
@@ -598,13 +597,13 @@ def correctnessExp [DecidableEq I]
   return state.correct
 ```
 
-{usesLabel}`uses` {uses "scka_scheme"}[] · {uses "scka_oracles"}[] · {githubLabel}`github` {githubIssue 184}[]
+{usesLabel}`uses` {uses "scka_scheme"}[] · {uses "scka_oracles"}[]
 :::::::
 
 :::defTitle "scka_security" "SCKA protocol security"
 :::
 
-:::::::definition "scka_security" (parent := "cka_protocols_scka") (lean := "SCKAScheme.sckaSecuritySpec, SCKAScheme.sckaSecurityImpl, SCKAScheme.SCKAAdversary, SCKAScheme.securityExp, SCKAScheme.sckaGuessAdvantage")
+:::::::definition "scka_security" (parent := "cka_protocols_scka") (lean := "SCKAScheme.sckaSecuritySpec, SCKAScheme.sckaSecurityImpl, SCKAScheme.SCKAAdversary, SCKAScheme.securityExp, SCKAScheme.sckaGuessAdvantage") (tags := "gh-185")
 $$`\Osec=\Ocor\cup
 \{\OSendARLeak,\OSendBRLeak,\OChall(t),\OCorrA,\OCorrB\}`
 
@@ -692,5 +691,5 @@ noncomputable def sckaGuessAdvantage [SampleableType I] [DecidableEq I]
   |(Pr[= true | securityExp scka adversary vulnA vulnB]).toReal - 1 / 2|
 ```
 
-{usesLabel}`uses` {uses "scka_scheme"}[] · {uses "scka_oracles"}[] · {githubLabel}`github` {githubIssue 185}[]
+{usesLabel}`uses` {uses "scka_scheme"}[] · {uses "scka_oracles"}[]
 :::::::

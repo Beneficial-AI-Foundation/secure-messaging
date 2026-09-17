@@ -32,7 +32,7 @@ RKEM from KEM.
 :::defTitle "rkem_from_kem_spec" "RKEM from KEM construction"
 :::
 
-::::definition "rkem_from_kem_spec" (parent := "rkem_rkem_from_kem") (lean := "kemRKEM.scheme")
+::::definition "rkem_from_kem_spec" (parent := "rkem_rkem_from_kem") (lean := "kemRKEM.scheme") (tags := "gh-75")
 $`\todo`
 
 :::leanPillCaption "fresh/updated ratcheting key generation"
@@ -86,13 +86,13 @@ def scheme {m : Type → Type u} [Monad m] {K PK SK C : Type}
   rencB := renc kem
   rdecB := rdec kem
 ```
-{usesLabel}`uses` {uses "rkem_scheme"}[] · {githubLabel}`github` {githubIssue 75}[]
+{usesLabel}`uses` {uses "rkem_scheme"}[]
 ::::
 
 :::defTitle "rkem_from_kem_correctness" "RKEM from KEM correctness"
 :::
 
-:::theorem "rkem_from_kem_correctness" (parent := "rkem_rkem_from_kem") (lean := "kemRKEM.deltaCorrect")
+:::theorem "rkem_from_kem_correctness" (parent := "rkem_rkem_from_kem") (lean := "kemRKEM.deltaCorrect") (tags := "gh-76")
 $`\todo`
 
 ```anchor deltaCorrect (project := ".") (module := SecureMessaging.RKEM.FromKEM.Correctness)
@@ -101,13 +101,13 @@ theorem deltaCorrect [DecidableEq K] (kem : KEMScheme ProbComp K PK SK C)
     RKEMScheme.deltaCorrect (scheme kem) ProbCompRuntime.probComp δ δ
 ```
 
-{usesLabel}`uses` {uses "rkem_from_kem_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_correctness"}[] · {githubLabel}`github` {githubIssue 76}[]
+{usesLabel}`uses` {uses "rkem_from_kem_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_correctness"}[]
 :::
 
 :::defTitle "rkem_from_kem_forward_security" "RKEM from KEM forward security"
 :::
 
-::::theorem "rkem_from_kem_forward_security" (parent := "rkem_rkem_from_kem") (lean := "kemRKEM.FSINDCPASecure")
+::::theorem "rkem_from_kem_forward_security" (parent := "rkem_rkem_from_kem") (lean := "kemRKEM.FSINDCPASecure") (tags := "gh-77")
 $`\todo`
 
 :::leanPillCaption "IND-CPA reduction adversary"
@@ -139,17 +139,17 @@ theorem FSINDCPASecure [DecidableEq K] (kem : KEMScheme ProbComp K PK SK C)
     RKEMScheme.FSINDCPASecure (scheme kem) adversaryA adversaryB (ε / 2 + δ / 2)
 ```
 
-{usesLabel}`uses` {uses "rkem_from_kem_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_forward_security"}[] · {githubLabel}`github` {githubIssue 77}[]
+{usesLabel}`uses` {uses "rkem_from_kem_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_forward_security"}[]
 ::::
 
 :::defTitle "rkem_from_kem_ratchet_sim" "RKEM from KEM ratchet simulatability"
 :::
 
-::::theorem "rkem_from_kem_ratchet_sim" (parent := "rkem_rkem_from_kem")
+::::theorem "rkem_from_kem_ratchet_sim" (parent := "rkem_rkem_from_kem") (tags := "gh-78")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "rkem_from_kem_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_ratchet_sim"}[] · {githubLabel}`github` {githubIssue 78}[]
+{usesLabel}`uses` {uses "rkem_from_kem_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_ratchet_sim"}[]
 ::::

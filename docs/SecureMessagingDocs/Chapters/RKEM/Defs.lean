@@ -30,7 +30,7 @@ Ratcheting Key Encapsulation Mechanism (RKEM).
 :::defTitle "rkem_scheme" "RKEM scheme"
 :::
 
-:::definition "rkem_scheme" (parent := "rkem") (lean := "RKEMScheme")
+:::definition "rkem_scheme" (parent := "rkem") (lean := "RKEMScheme") (tags := "gh-176")
 $`\todo`
 
 ```anchor RKEMScheme (project := ".") (module := SecureMessaging.RKEM.Defs)
@@ -63,19 +63,18 @@ structure RKEMScheme (m : Type → Type u) [Monad m] (Par EK DK CT K : Type) whe
   rdecB : Par → DK → CT → EK → m (Option (K × EK))
 ```
 
-{githubLabel}`github` {githubIssue 176}[]
 :::
 
 :::defTitle "rkem_ratchet_sim" "RKEM ratchet simulatability"
 :::
 
-::::definition "rkem_ratchet_sim" (parent := "rkem")
+::::definition "rkem_ratchet_sim" (parent := "rkem") (tags := "gh-179")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "rkem_scheme"}[] · {githubLabel}`github` {githubIssue 179}[]
+{usesLabel}`uses` {uses "rkem_scheme"}[]
 ::::
 
 :::defTitle "rkem_security_experiment" "RKEM Security Experiment"
@@ -140,7 +139,7 @@ noncomputable def fsIndCpaAdvantage (rkem : RKEMScheme ProbComp Par EK DK CT K)
 :::defTitle "rkem_forward_security" "RKEM forward security"
 :::
 
-:::definition "rkem_forward_security" (parent := "rkem") (lean := "RKEMScheme.FSINDCPASecure")
+:::definition "rkem_forward_security" (parent := "rkem") (lean := "RKEMScheme.FSINDCPASecure") (tags := "gh-178")
 $`\todo`
 
 ```anchor FSINDCPASecure (project := ".") (module := SecureMessaging.RKEM.Defs)
@@ -150,13 +149,13 @@ def FSINDCPASecure (rkem : RKEMScheme ProbComp Par EK DK CT K)
   rkem.fsIndCpaAdvantage adversaryA adversaryB ≤ epsilon
 ```
 
-{usesLabel}`uses` {uses "rkem_guess_advantage"}[] · {githubLabel}`github` {githubIssue 178}[]
+{usesLabel}`uses` {uses "rkem_guess_advantage"}[]
 :::
 
 :::defTitle "rkem_correctness" "RKEM correctness"
 :::
 
-:::definition "rkem_correctness" (parent := "rkem") (lean := "RKEMScheme.deltaCorrect")
+:::definition "rkem_correctness" (parent := "rkem") (lean := "RKEMScheme.deltaCorrect") (tags := "gh-177")
 $`\todo`
 
 ```anchor deltaCorrect (project := ".") (module := SecureMessaging.RKEM.Defs)
@@ -165,5 +164,5 @@ def deltaCorrect (rkem : RKEMScheme m Par EK DK CT K) (runtime : ProbCompRuntime
   rkem.deltaCorrectUpdatedKeys runtime deltaCorr ∧ rkem.deltaCloseUpdateKeyDist runtime deltaDist
 ```
 
-{usesLabel}`uses` {uses "rkem_scheme"}[] · {githubLabel}`github` {githubIssue 177}[]
+{usesLabel}`uses` {uses "rkem_scheme"}[]
 :::

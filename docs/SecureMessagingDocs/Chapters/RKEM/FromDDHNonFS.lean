@@ -19,35 +19,35 @@ RKEM from DDH (non-FS).
 :::defTitle "rkem_from_ddh_nonfs_spec" "RKEM from DDH non-FS construction"
 :::
 
-::::definition "rkem_from_ddh_nonfs_spec" (parent := "rkem_rkem_from_ddh_non_fs")
+::::definition "rkem_from_ddh_nonfs_spec" (parent := "rkem_rkem_from_ddh_non_fs") (tags := "gh-66")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "rkem_scheme"}[] · {githubLabel}`github` {githubIssue 66}[]
+{usesLabel}`uses` {uses "rkem_scheme"}[]
 ::::
 
 :::defTitle "rkem_from_ddh_nonfs_correctness" "RKEM from DDH non-FS correctness"
 :::
 
-::::theorem "rkem_from_ddh_nonfs_correctness" (parent := "rkem_rkem_from_ddh_non_fs")
+::::theorem "rkem_from_ddh_nonfs_correctness" (parent := "rkem_rkem_from_ddh_non_fs") (tags := "gh-67")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "rkem_from_ddh_nonfs_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_correctness"}[] · {githubLabel}`github` {githubIssue 67}[]
+{usesLabel}`uses` {uses "rkem_from_ddh_nonfs_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_correctness"}[]
 ::::
 
 :::defTitle "rkem_from_ddh_nonfs_ratchet_sim" "RKEM from DDH non-FS ratchet simulatability"
 :::
 
-::::theorem "rkem_from_ddh_nonfs_ratchet_sim" (parent := "rkem_rkem_from_ddh_non_fs")
+::::theorem "rkem_from_ddh_nonfs_ratchet_sim" (parent := "rkem_rkem_from_ddh_non_fs") (tags := "gh-68")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "rkem_from_ddh_nonfs_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_ratchet_sim"}[] · {githubLabel}`github` {githubIssue 68}[]
+{usesLabel}`uses` {uses "rkem_from_ddh_nonfs_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_ratchet_sim"}[]
 ::::

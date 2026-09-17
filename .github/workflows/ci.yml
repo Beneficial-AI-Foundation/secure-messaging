@@ -95,6 +95,12 @@ jobs:
           annotate-new-sorries: "true"
           extract-args: "--library SecureMessaging,ToVCVio"
 
+      - name: Lint blueprint issue tags
+        if: steps.changes.outputs.docs == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          python3 -m unittest discover -s scripts/tests -p 'test_*.py'
+          scripts/lint-blueprint-issue-tags.py
+
       - name: Build documentation modules
         if: steps.changes.outputs.docs == 'true' || github.event_name == 'workflow_dispatch'
         run: lake build SecureMessagingDocs.Contents

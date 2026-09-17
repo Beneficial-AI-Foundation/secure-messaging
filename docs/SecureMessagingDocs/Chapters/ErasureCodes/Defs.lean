@@ -29,7 +29,7 @@ Erasure Codes.
 :::defTitle "erasure_code_scheme" "Erasure code scheme"
 :::
 
-::::definition "erasure_code_scheme" (parent := "erasure_codes") (lean := "ErasureCode, ErasureCode.Decodable")
+::::definition "erasure_code_scheme" (parent := "erasure_codes") (lean := "ErasureCode, ErasureCode.Decodable") (tags := "gh-190")
 $`\todo`
 
 :::leanPillCaption "scheme"
@@ -61,13 +61,12 @@ def Decodable {N : ℕ} (nchunk : ℕ) (chunks : Finset (Fin N × Sym)) : Prop :
   nchunk ≤ chunks.card ∧ Set.InjOn Prod.fst (chunks : Set (Fin N × Sym))
 ```
 
-{githubLabel}`github` {githubIssue 190}[]
 ::::
 
 :::defTitle "erasure_code_payload" "Erasure-code payload"
 :::
 
-::::definition "erasure_code_payload" (parent := "erasure_codes") (lean := "ErasureCodePayload")
+::::definition "erasure_code_payload" (parent := "erasure_codes") (lean := "ErasureCodePayload") (tags := "gh-251")
 $`\todo`
 
 :::leanPillCaption "payload serialization and parsing"
@@ -85,13 +84,13 @@ structure ErasureCodePayload (M Sym : Type) where
   parse_serialize : ∀ payload, parse (serialize payload) = some payload
 ```
 
-{usesLabel}`uses` {uses "erasure_code_scheme"}[] · {githubLabel}`github` {githubIssue 251}[]
+{usesLabel}`uses` {uses "erasure_code_scheme"}[]
 ::::
 
 :::defTitle "erasure_code_streaming" "Stateful erasure-code streaming"
 :::
 
-::::definition "erasure_code_streaming" (parent := "erasure_codes") (lean := "ErasureCodePayload.Streaming.EncoderState, ErasureCodePayload.Streaming.EncoderState.init, ErasureCodePayload.Streaming.EncoderState.nextChunk, ErasureCodePayload.Streaming.DecoderState, ErasureCodePayload.Streaming.DecoderState.empty, ErasureCodePayload.Streaming.DecoderState.addChunk, ErasureCodePayload.Streaming.DecoderState.decodedPayload, ErasureCodePayload.Streaming.DecoderState.hasMessage")
+::::definition "erasure_code_streaming" (parent := "erasure_codes") (lean := "ErasureCodePayload.Streaming.EncoderState, ErasureCodePayload.Streaming.EncoderState.init, ErasureCodePayload.Streaming.EncoderState.nextChunk, ErasureCodePayload.Streaming.DecoderState, ErasureCodePayload.Streaming.DecoderState.empty, ErasureCodePayload.Streaming.DecoderState.addChunk, ErasureCodePayload.Streaming.DecoderState.decodedPayload, ErasureCodePayload.Streaming.DecoderState.hasMessage") (tags := "gh-251")
 $`\todo`
 
 :::leanPillCaption "configured endpoint states"
@@ -174,13 +173,13 @@ def hasMessage (state : DecoderState M Sym) : Bool :=
   state.decodedPayload.isSome
 ```
 
-{usesLabel}`uses` {uses "erasure_code_payload"}[] · {githubLabel}`github` {githubIssue 251}[]
+{usesLabel}`uses` {uses "erasure_code_payload"}[]
 ::::
 
 :::defTitle "erasure_code_correctness" "Erasure code correctness"
 :::
 
-::::definition "erasure_code_correctness" (parent := "erasure_codes") (lean := "ErasureCode.encodeChunks, ErasureCode.Correct")
+::::definition "erasure_code_correctness" (parent := "erasure_codes") (lean := "ErasureCode.encodeChunks, ErasureCode.Correct") (tags := "gh-191")
 $`\todo`
 
 :::leanPillCaption "chunk set $`L_I = \\{(i, \\mathsf{Encode}(M, i)) \\mid i \\in I\\}`"
@@ -206,5 +205,5 @@ def Correct (ec : ErasureCode Sym) : Prop :=
     (I.card < ec.nchunk → ec.decode (ec.encodeChunks M I) = none)
 ```
 
-{usesLabel}`uses` {uses "erasure_code_scheme"}[] · {githubLabel}`github` {githubIssue 191}[]
+{usesLabel}`uses` {uses "erasure_code_scheme"}[]
 ::::
