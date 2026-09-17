@@ -28,6 +28,7 @@ DEFAULT_PROJECT_END = "2027-01-28"
 SCHEMA_VERSION = 2
 
 ATOM_RE = re.compile(r":{3,}(definition|theorem)\s+\"([^\"]+)\"")
+FENCE_RE = re.compile(r"^\s*(`{3,})")
 # A node's GitHub issues: `(tags := "gh-<n>")` on its directive. Commits before
 # 2026-09-15 wrote them as `{githubIssue n}` footers instead; the history scan
 # must read both.
@@ -81,9 +82,29 @@ def load_aggregator():
     return module
 
 
+def unfenced(lines: list[str]) -> list[str]:
+    # The lines outside backtick code fences, so a directive quoted as an example
+    # is neither an atom nor part of one (the rule scripts/lint-blueprint-issue-tags.py applies).
+    kept: list[str] = []
+    fence: str | None = None
+    for line in lines:
+        stripped = line.strip()
+        if fence:
+            if re.fullmatch(r"`{%d,}" % len(fence), stripped):
+                fence = None
+            continue
+        match = FENCE_RE.match(line)
+        if match:
+            fence = match.group(1)
+            continue
+        kept.append(line)
+    return kept
+
+
 def iter_atom_blocks(lines: list[str]):
     # Yield (kind, label, block lines) for each definition/theorem directive,
     # where the block runs from the opener to the matching colon-only closer.
+    lines = unfenced(lines)
     index = 0
     while index < len(lines):
         match = ATOM_RE.search(lines[index])
