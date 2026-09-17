@@ -90,6 +90,9 @@ def oracleDecrypt [DecidableEq C] (ae : AEADScheme ProbComp M AD K C)
 :::::
 ::::::
 
+The decrypt oracle rejects the challenge ciphertext $`e^*` under *every* associated data,
+as in ACD19, so the notion does not cover substituting the associated data of the challenge.
+
 {usesLabel}`uses` {uses "aead"}[]
 :::::::
 
