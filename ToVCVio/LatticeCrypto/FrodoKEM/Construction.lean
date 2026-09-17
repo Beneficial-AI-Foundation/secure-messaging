@@ -318,7 +318,14 @@ def encaps {ps : ParameterSet} (ops : Operations ps)
   let salt ← $ᵗ (SaltBits ps)
   return encapsFromCoins ops pk message salt
 
-/-- Installed KEM interface: implicit rejection returns a key, hence always `some`. -/
+/-- Package the FrodoKEM algorithms in the installed KEM interface.
+Implicit rejection returns a shared secret, so decapsulation always returns `some`.
+
+For ephemeral parameter sets, draft03 Section 8 requires fewer than 256 ciphertexts
+per public key. This stateless adapter does not enforce that bound; the surrounding
+protocol must ensure it, and security results must account for it.
+
+This adapter alone asserts no correctness or security guarantee. -/
 def asKEMScheme {ps : ParameterSet} (ops : Operations ps) :
     KEMScheme ProbComp (SharedSecretBits ps)
       (PublicKey ps) (SecretKey ps) (Ciphertext ps) where
