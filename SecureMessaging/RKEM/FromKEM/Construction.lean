@@ -99,6 +99,9 @@ def rdec {m : Type → Type u} [Monad m] {K PK SK C : Type}
   | some key => return (key, ekPeerHat)
 -- ANCHOR_END: rdec
 
+/-- As `rdec`, but going straight through `total.decapsTotal` instead of `kem.decaps`, so there is
+no `Option` in the data flow at all — no redundant `none` arm to justify away, unlike `rdec` itself
+(see `rdec_eq_rdec'`). -/
 def rdec' {m : Type → Type u} [Monad m] {K PK SK C : Type}
     (kem : KEMScheme m K PK SK C) (total : TotalDecaps kem)
     (_par : Unit) (dkSelfHat : SK) (ctSelf : PK × C) (_ekPeer : PK) :
