@@ -43,49 +43,41 @@ $`\todo`
 :::defTitle "secure_messaging_double_ratchet_correctness" "Double Ratchet correctness"
 :::
 
-::::definition "secure_messaging_double_ratchet_correctness" (parent := "secure_messaging_double_ratchet") (tags := "gh-162")
+::::definition "secure_messaging_double_ratchet_correctness" (parent := "secure_messaging_double_ratchet") (tags := "gh-162") (uses := "secure_messaging_double_ratchet_scheme")
 $`\todo`
 
 :::leanPill "missing"
 :::
-
-{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[]
 ::::
 
 :::defTitle "secure_messaging_double_ratchet_authenticity" "Double Ratchet authenticity"
 :::
 
-::::definition "secure_messaging_double_ratchet_authenticity" (parent := "secure_messaging_double_ratchet") (tags := "gh-163")
+::::definition "secure_messaging_double_ratchet_authenticity" (parent := "secure_messaging_double_ratchet") (tags := "gh-163") (uses := "secure_messaging_double_ratchet_scheme")
 $`\todo`
 
 :::leanPill "missing"
 :::
-
-{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[]
 ::::
 
 :::defTitle "secure_messaging_double_ratchet_privacy" "Double Ratchet privacy"
 :::
 
-::::definition "secure_messaging_double_ratchet_privacy" (parent := "secure_messaging_double_ratchet") (tags := "gh-164")
+::::definition "secure_messaging_double_ratchet_privacy" (parent := "secure_messaging_double_ratchet") (tags := "gh-164") (uses := "secure_messaging_double_ratchet_scheme")
 $`\todo`
 
 :::leanPill "missing"
 :::
-
-{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[]
 ::::
 
 :::defTitle "secure_messaging_double_ratchet_security" "Double Ratchet security"
 :::
 
-::::definition "secure_messaging_double_ratchet_security" (parent := "secure_messaging_double_ratchet") (tags := "gh-165")
+::::definition "secure_messaging_double_ratchet_security" (parent := "secure_messaging_double_ratchet") (tags := "gh-165") (uses := "secure_messaging_double_ratchet_scheme, secure_messaging_double_ratchet_correctness, secure_messaging_double_ratchet_authenticity, secure_messaging_double_ratchet_privacy")
 $`\todo`
 
 :::leanPill "missing"
 :::
-
-{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[] · {uses "secure_messaging_double_ratchet_correctness"}[] · {uses "secure_messaging_double_ratchet_authenticity"}[] · {uses "secure_messaging_double_ratchet_privacy"}[]
 ::::
 
 {include 1 SecureMessagingDocs.Chapters.SecureMessaging.DoubleRatchetAbstract}

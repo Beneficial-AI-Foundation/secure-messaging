@@ -51,7 +51,7 @@ structure AEADScheme (m : Type → Type u) [Monad m] (M AD K C : Type) where
 :::defTitle "aead_oracles" "AEAD game oracles"
 :::
 
-:::::::definition "aead_oracles" (lean := "AEADScheme.oracleEncrypt, AEADScheme.oracleDecrypt")
+:::::::definition "aead_oracles" (lean := "AEADScheme.oracleEncrypt, AEADScheme.oracleDecrypt") (uses := "aead")
 $`\todo`
 
 ::::::gameGrid
@@ -89,28 +89,24 @@ def oracleDecrypt [DecidableEq C] (ae : AEADScheme ProbComp M AD K C)
 ```
 :::::
 ::::::
-
-{usesLabel}`uses` {uses "aead"}[]
 :::::::
 
 :::defTitle "aead_correctness" "AEAD correctness"
 :::
 
-:::definition "aead_correctness" (lean := "AEADScheme.Correct") (tags := "gh-193")
+:::definition "aead_correctness" (lean := "AEADScheme.Correct") (tags := "gh-193") (uses := "aead")
 $`\todo`
 
 ```anchor Correct (project := ".") (module := SecureMessaging.AEAD.Defs)
 def Correct (ae : AEADScheme m M AD K C) : Prop :=
   ∀ (k : K) (a : AD) (msg : M), ae.decrypt k a (ae.encrypt k a msg) = some msg
 ```
-
-{usesLabel}`uses` {uses "aead"}[]
 :::
 
 :::defTitle "aead_security_exp" "AEAD security experiment"
 :::
 
-:::::::definition "aead_security_exp" (lean := "AEADScheme.securityExp, AEADScheme.aeadSecurityImpl, AEADScheme.OneTimeCCAAdversary") (tags := "gh-194")
+:::::::definition "aead_security_exp" (lean := "AEADScheme.securityExp, AEADScheme.aeadSecurityImpl, AEADScheme.OneTimeCCAAdversary") (tags := "gh-194") (uses := "aead, aead_oracles")
 $`\todo`
 
 Let $`\O = \{\Oenc, \Odec\}` and denote by $`\adv^{\O}` an adversary with oracle access to $`\O`.
@@ -156,15 +152,13 @@ def securityExp [SampleableType C] [DecidableEq C]
   let (b', _) ← (simulateQ (aeadSecurityImpl ae b k) adversary).run none
   return (b == b')
 ```
-
-{usesLabel}`uses` {uses "aead"}[] · {uses "aead_oracles"}[]
 :::::::
 
 
 :::defTitle "aead_decrypt_query_bound" "AEAD decryption-query bound"
 :::
 
-:::definition "aead_decrypt_query_bound" (lean := "AEADScheme.decryptQueryBound")
+:::definition "aead_decrypt_query_bound" (lean := "AEADScheme.decryptQueryBound") (uses := "aead_security_exp")
 $`\todo`
 
 $`\mathsf{decryptQueryBound}(\adv, q_d)` asserts that the adversary $`\adv` makes at
@@ -176,14 +170,12 @@ def decryptQueryBound (adv : OneTimeCCAAdversary AD M C)
     (q_d : ℕ) : Prop :=
   adv.IsQueryBoundP (· matches Sum.inr _) q_d
 ```
-
-{usesLabel}`uses` {uses "aead_security_exp"}[]
 :::
 
 :::defTitle "aead_guess_advantage" "AEAD guess advantage"
 :::
 
-:::definition "aead_guess_advantage" (lean := "AEADScheme.guessAdvantage")
+:::definition "aead_guess_advantage" (lean := "AEADScheme.guessAdvantage") (uses := "aead_security_exp")
 $`\todo`
 
 $$`\mathsf{Adv}^{\textsf{guess}}_{\textsf{AEAD}}(\adv)
@@ -195,14 +187,12 @@ noncomputable def guessAdvantage [SampleableType C] [DecidableEq C]
     (adversary : OneTimeCCAAdversary AD M C) : ℝ :=
   |(Pr[= true | securityExp ae adversary]).toReal - 1 / 2|
 ```
-
-{usesLabel}`uses` {uses "aead_security_exp"}[]
 :::
 
 :::defTitle "aead_dist_advantage" "AEAD distinguishing advantage"
 :::
 
-:::::definition "aead_dist_advantage" (lean := "AEADScheme.distAdvantage, AEADScheme.securityExpFixedBit")
+:::::definition "aead_dist_advantage" (lean := "AEADScheme.distAdvantage, AEADScheme.securityExpFixedBit") (uses := "aead_security_exp")
 $`\todo`
 
 $$`\mathsf{Adv}^{\textsf{dist}}_{\textsf{AEAD}}(\adv)
@@ -235,14 +225,12 @@ noncomputable def distAdvantage [SampleableType C] [DecidableEq C]
   |(Pr[= true | securityExpFixedBit ae adversary true]).toReal -
    (Pr[= true | securityExpFixedBit ae adversary false]).toReal|
 ```
-
-{usesLabel}`uses` {uses "aead_security_exp"}[]
 :::::
 
 :::defTitle "aead_guess_dist_advantage" "Guess vs. distinguishing advantage"
 :::
 
-:::theorem "aead_guess_dist_advantage" (lean := "AEADScheme.guessAdvantage_eq_distAdvantage_div_two")
+:::theorem "aead_guess_dist_advantage" (lean := "AEADScheme.guessAdvantage_eq_distAdvantage_div_two") (uses := "aead_guess_advantage, aead_dist_advantage")
 $`\todo`
 
 $$`\mathsf{Adv}^{\textsf{guess}}_{\textsf{AEAD}}(\adv)
@@ -254,6 +242,4 @@ lemma guessAdvantage_eq_distAdvantage_div_two [SampleableType C] [DecidableEq C]
     (adversary : OneTimeCCAAdversary AD M C) :
     guessAdvantage ae adversary = distAdvantage ae adversary / 2
 ```
-
-{usesLabel}`uses` {uses "aead_guess_advantage"}[] · {uses "aead_dist_advantage"}[]
 :::

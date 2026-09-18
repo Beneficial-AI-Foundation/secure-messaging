@@ -193,26 +193,3 @@ feel like content while still rendering on the heading line. -/
 def defTitle : DirectiveExpanderOf DefTitleConfig
   | cfg, _contents => do
     ``(Block.other (Block.defTitle $(quote cfg.label) $(quote cfg.title)) #[])
-
-/-! ## Dependency ("uses") label
-
-The `{usesLabel}` role renders the small muted label that introduces a node's
-dependency list, matching the "used by" chip font in the heading. -/
-
--- Wraps its content in a `<span class="uses-label">` styled like the heading chip.
-inline_extension Inline.usesLabel where
-  data := Json.null
-  traverse _id _data _contents := do
-    pure none
-  toTeX := none
-  toHtml :=
-    some <| fun goI _id _data contents => do
-      let inner ← contents.mapM goI
-      pure <| Verso.Output.Html.tag "span" (attrsWithClass "uses-label") (.seq inner)
-
-/-- usesLabel role: inline label introducing a dependency list. -/
-@[role]
-def usesLabel : RoleExpanderOf Unit
-  | (), contents => do
-    let contents ← contents.mapM Elab.elabInline
-    ``(Inline.other Inline.usesLabel #[$contents,*])

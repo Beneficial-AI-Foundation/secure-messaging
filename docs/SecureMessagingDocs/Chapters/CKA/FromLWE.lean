@@ -23,35 +23,29 @@ CKA from LWE.
 :::defTitle "cka_from_lwe_spec" "CKA from LWE construction"
 :::
 
-::::definition "cka_from_lwe_spec" (parent := "cka_cka_from_lwe") (tags := "gh-12")
+::::definition "cka_from_lwe_spec" (parent := "cka_cka_from_lwe") (tags := "gh-12") (uses := "cka")
 $`\todo`
 
 :::leanPill "missing"
 :::
-
-{usesLabel}`uses` {uses "cka"}[]
 ::::
 
 :::defTitle "cka_from_lwe_correctness" "CKA from LWE correctness"
 :::
 
-::::theorem "cka_from_lwe_correctness" (parent := "cka_cka_from_lwe") (tags := "gh-13")
+::::theorem "cka_from_lwe_correctness" (parent := "cka_cka_from_lwe") (tags := "gh-13") (uses := "cka_from_lwe_spec, cka_correctness")
 $`\todo`
 
 :::leanPill "missing"
 :::
-
-{usesLabel}`uses` {uses "cka_from_lwe_spec"}[] · {uses "cka_correctness"}[]
 ::::
 
 :::defTitle "cka_from_lwe_security" "CKA from LWE security"
 :::
 
-::::theorem "cka_from_lwe_security" (parent := "cka_cka_from_lwe") (tags := "gh-14")
+::::theorem "cka_from_lwe_security" (parent := "cka_cka_from_lwe") (tags := "gh-14") (uses := "cka_from_lwe_spec, cka_security")
 $`\todo`
 
 :::leanPill "missing"
 :::
-
-{usesLabel}`uses` {uses "cka_from_lwe_spec"}[] · {uses "cka_security"}[]
 ::::

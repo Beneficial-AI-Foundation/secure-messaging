@@ -35,59 +35,49 @@ $`\todo`
 :::defTitle "secure_messaging_triple_ratchet_spec" "Triple Ratchet protocol"
 :::
 
-::::definition "secure_messaging_triple_ratchet_spec" (parent := "secure_messaging_triple_ratchet") (tags := "gh-136")
+::::definition "secure_messaging_triple_ratchet_spec" (parent := "secure_messaging_triple_ratchet") (tags := "gh-136") (uses := "secure_messaging_triple_ratchet_scheme, erasure_code_scheme, rkem_scheme, fs_aead_scheme, prf_prng_scheme")
 $`\todo`
 
 :::leanPill "missing"
 :::
-
-{usesLabel}`uses` {uses "secure_messaging_triple_ratchet_scheme"}[] · {uses "erasure_code_scheme"}[] · {uses "rkem_scheme"}[] · {uses "fs_aead_scheme"}[] · {uses "prf_prng_scheme"}[]
 ::::
 
 :::defTitle "secure_messaging_triple_ratchet_correctness" "Triple Ratchet correctness"
 :::
 
-::::theorem "secure_messaging_triple_ratchet_correctness" (parent := "secure_messaging_triple_ratchet") (tags := "gh-137")
+::::theorem "secure_messaging_triple_ratchet_correctness" (parent := "secure_messaging_triple_ratchet") (tags := "gh-137") (uses := "secure_messaging_triple_ratchet_spec")
 $`\todo`
 
 :::leanPill "missing"
 :::
-
-{usesLabel}`uses` {uses "secure_messaging_triple_ratchet_spec"}[]
 ::::
 
 :::defTitle "secure_messaging_triple_ratchet_authenticity" "Triple Ratchet authenticity"
 :::
 
-::::theorem "secure_messaging_triple_ratchet_authenticity" (parent := "secure_messaging_triple_ratchet") (tags := "gh-138")
+::::theorem "secure_messaging_triple_ratchet_authenticity" (parent := "secure_messaging_triple_ratchet") (tags := "gh-138") (uses := "secure_messaging_triple_ratchet_spec")
 $`\todo`
 
 :::leanPill "missing"
 :::
-
-{usesLabel}`uses` {uses "secure_messaging_triple_ratchet_spec"}[]
 ::::
 
 :::defTitle "secure_messaging_triple_ratchet_privacy" "Triple Ratchet privacy"
 :::
 
-::::theorem "secure_messaging_triple_ratchet_privacy" (parent := "secure_messaging_triple_ratchet") (tags := "gh-139")
+::::theorem "secure_messaging_triple_ratchet_privacy" (parent := "secure_messaging_triple_ratchet") (tags := "gh-139") (uses := "secure_messaging_triple_ratchet_spec")
 $`\todo`
 
 :::leanPill "missing"
 :::
-
-{usesLabel}`uses` {uses "secure_messaging_triple_ratchet_spec"}[]
 ::::
 
 :::defTitle "secure_messaging_triple_ratchet_security" "Triple Ratchet security"
 :::
 
-::::theorem "secure_messaging_triple_ratchet_security" (parent := "secure_messaging_triple_ratchet") (tags := "gh-140")
+::::theorem "secure_messaging_triple_ratchet_security" (parent := "secure_messaging_triple_ratchet") (tags := "gh-140") (uses := "secure_messaging_triple_ratchet_spec, secure_messaging_triple_ratchet_correctness, secure_messaging_triple_ratchet_authenticity, secure_messaging_triple_ratchet_privacy")
 $`\todo`
 
 :::leanPill "missing"
 :::
-
-{usesLabel}`uses` {uses "secure_messaging_triple_ratchet_spec"}[] · {uses "secure_messaging_triple_ratchet_correctness"}[] · {uses "secure_messaging_triple_ratchet_authenticity"}[] · {uses "secure_messaging_triple_ratchet_privacy"}[]
 ::::

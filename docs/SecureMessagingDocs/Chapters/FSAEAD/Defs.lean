@@ -30,11 +30,9 @@ $`\todo`
 :::defTitle "fs_aead_security" "FS-AEAD security"
 :::
 
-::::definition "fs_aead_security" (parent := "fs_aead") (tags := "gh-187")
+::::definition "fs_aead_security" (parent := "fs_aead") (tags := "gh-187") (uses := "fs_aead_scheme")
 $`\todo`
 
 :::leanPill "missing"
 :::
-
-{usesLabel}`uses` {uses "fs_aead_scheme"}[]
 ::::
