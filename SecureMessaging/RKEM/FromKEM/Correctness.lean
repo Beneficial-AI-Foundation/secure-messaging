@@ -13,16 +13,18 @@ import ToVCVio.EvalDist.TVDist
 
 This file proves `RKEMScheme.deltaCorrect` for the generic RKEM-from-KEM construction of
 `SecureMessaging.RKEM.FromKEM.Construction`: if the underlying KEM is `δ`-correct and its
-decapsulation is total (`KEMScheme.TotalDecaps`), the construction is `(δ, δ)`-correct in the
-sense of [TripleRatchet, Def. 5.3]. Perfect correctness of the construction (`δ = 0`) is a
-corollary.
+decapsulation is total (`KEMScheme.TotalDecaps`), the construction is `(δ, 0)`-correct in the
+sense of [TripleRatchet, Def. 5.3] — sharper than the `(δ, δ)` one would get by just reusing `δ`
+for both halves. Perfect correctness of the construction (`δ = 0`) is a corollary.
 
-Totality of decapsulation makes the second half of Def. 5.3 — closeness of the ratcheted key
-distribution to sampling directly — hold with error *exactly* zero, for any KEM, whether or not
-it is correct: `ratchetRoundOutputA` returns the very key pair `rencA` samples internally, and
-decapsulation's (always-defined) output is otherwise fully discarded
-(`evalDist_ratchetRoundOutputA_eq_evalDist_keygen`). So the underlying KEM's own perfect
-correctness is never needed for this half; it only matters, as before, for the `K = K'` half.
+The `(δ, 0)` split reflects a genuine asymmetry between the two halves of Def. 5.3. The second
+half — closeness of the ratcheted key distribution to sampling directly — holds with error
+*exactly* zero, for any KEM, whether or not it is correct: `ratchetRoundOutputA` returns the very
+key pair `rencA` samples internally, and decapsulation's (always-defined) output is otherwise
+fully discarded (`evalDist_ratchetRoundOutputA_eq_evalDist_keygen`). So the underlying KEM's own
+correctness is never needed for this half, and the `0` cannot be improved to depend on `δ` in the
+other direction either — it already is the tightest possible bound. The first half (`K = K'`) has
+no such shortcut and genuinely inherits `δ` from the underlying KEM.
 -/
 
 open ToVCVio OracleSpec OracleComp ENNReal KEMScheme RKEMScheme
