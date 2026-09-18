@@ -17,11 +17,15 @@ evaluation distribution.
   equality of evaluation distributions `𝒟[_]`;
 * `probOutput_true_bind_add_of_pointwise` splits the `true`-output probability
   of a `bind` whose continuation splits pointwise;
+* `probOutput_bind_of_const'` drops the missing-mass factor from
+  `probOutput_bind_of_const` for a never-failing outer computation (`[NeverFail mx]`);
 * `abs_probOutput_true_not_map_gap_eq` absorbs a final Boolean negation into the
   absolute two-branch gap (for never-failing computations);
 * the `evalDist_sample_bind*` and `probOutput_*sample*` lemmas collapse or couple
   one, two, or three eager `uniformSample` draws over `ProbComp`.
 -/
+
+open scoped ENNReal
 
 namespace ToVCVio
 
@@ -48,6 +52,16 @@ lemma probOutput_true_bind_add_of_pointwise {β : Type} {n : Type → Type*}
   rw [probOutput_bind_eq_tsum, probOutput_bind_eq_tsum, probOutput_bind_eq_tsum,
     ← ENNReal.tsum_add]
   exact tsum_congr fun z => by rw [hpt z, mul_add]
+
+/-- `probOutput_bind_of_const` for a never-failing outer computation: the missing-mass factor
+`1 - Pr[⊥ | mx]` is always exactly `1`. -/
+lemma probOutput_bind_of_const' [MonadLiftT m SPMF] [LawfulMonadLiftT m SPMF]
+    [MonadLiftT m SetM] [EvalDistCompatible m]
+    {β : Type u} (mx : m α) [NeverFail mx] {my : α → m β}
+    {y : β} {r : ℝ≥0∞} (h : ∀ x ∈ support mx, Pr[= y | my x] = r) :
+    Pr[= y | mx >>= my] = r := by
+  rw [probOutput_bind_of_const mx h, NeverFail.probFailure_eq_zero]
+  simp
 
 /-- A final `(! ·)` map turns `true`-output probability into `false`-output
 probability, so the absolute two-branch gap is unchanged by negating both

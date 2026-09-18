@@ -32,7 +32,7 @@ set_option pp.rawOnError true
 :::defTitle "aead" "Authenticated Encryption with Associated Data - AEAD scheme"
 :::
 
-:::definition "aead" (lean := "AEADScheme")
+:::definition "aead" (lean := "AEADScheme") (tags := "gh-192")
 $`\todo`
 
 ```anchor AEADScheme (project := ".") (module := SecureMessaging.AEAD.Defs)
@@ -45,7 +45,6 @@ structure AEADScheme (m : Type → Type u) [Monad m] (M AD K C : Type) where
   decrypt : K → AD → C → Option M
 ```
 
-{githubLabel}`github` {githubIssue 192}[]
 :::
 
 
@@ -97,7 +96,7 @@ def oracleDecrypt [DecidableEq C] (ae : AEADScheme ProbComp M AD K C)
 :::defTitle "aead_correctness" "AEAD correctness"
 :::
 
-:::definition "aead_correctness" (lean := "AEADScheme.Correct")
+:::definition "aead_correctness" (lean := "AEADScheme.Correct") (tags := "gh-193")
 $`\todo`
 
 ```anchor Correct (project := ".") (module := SecureMessaging.AEAD.Defs)
@@ -105,13 +104,13 @@ def Correct (ae : AEADScheme m M AD K C) : Prop :=
   ∀ (k : K) (a : AD) (msg : M), ae.decrypt k a (ae.encrypt k a msg) = some msg
 ```
 
-{usesLabel}`uses` {uses "aead"}[] · {githubLabel}`github` {githubIssue 193}[]
+{usesLabel}`uses` {uses "aead"}[]
 :::
 
 :::defTitle "aead_security_exp" "AEAD security experiment"
 :::
 
-:::::::definition "aead_security_exp" (lean := "AEADScheme.securityExp, AEADScheme.aeadSecurityImpl, AEADScheme.OneTimeCCAAdversary")
+:::::::definition "aead_security_exp" (lean := "AEADScheme.securityExp, AEADScheme.aeadSecurityImpl, AEADScheme.OneTimeCCAAdversary") (tags := "gh-194")
 $`\todo`
 
 Let $`\O = \{\Oenc, \Odec\}` and denote by $`\adv^{\O}` an adversary with oracle access to $`\O`.
@@ -158,7 +157,7 @@ def securityExp [SampleableType C] [DecidableEq C]
   return (b == b')
 ```
 
-{usesLabel}`uses` {uses "aead"}[] · {uses "aead_oracles"}[] · {githubLabel}`github` {githubIssue 194}[]
+{usesLabel}`uses` {uses "aead"}[] · {uses "aead_oracles"}[]
 :::::::
 
 

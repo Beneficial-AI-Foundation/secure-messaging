@@ -30,8 +30,8 @@ Opp-BiKEM-CKA.
 :::defTitle "opp_bikem_cka_spec" "Opp-BiKEM-CKA protocol"
 :::
 
-:::::::definition "opp_bikem_cka_spec" (parent := "cka_protocols_opp_bikem_cka") (lean := "oppBiKemCKA.initKeyGen, oppBiKemCKA.initA, oppBiKemCKA.initB, oppBiKemCKA.vulnA, oppBiKemCKA.vulnB, oppBiKemCKA.sendA, oppBiKemCKA.sendArleak, oppBiKemCKA.recvA, oppBiKemCKA.sendB, oppBiKemCKA.sendBrleak, oppBiKemCKA.recvB, oppBiKemCKA.scheme")
-Figures 17 and 18 of {Informal.citet SCKA25}[].
+::::definition "opp_bikem_cka_spec" (parent := "cka_protocols_opp_bikem_cka") (tags := "gh-109")
+$`\todo`
 
 Instead of directly following the paper's presentation of `A`'s (Figure 17) and `B`'s (Figure 18)
 protocols, we implement shared functions, parameterized by `Role`.
@@ -439,29 +439,29 @@ def scheme (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
   recvB := recvB kem hDet ecEk ecCt
 ```
 
-{usesLabel}`uses` {uses "scka_scheme"}[] · {uses "erasure_code_scheme"}[] · {githubLabel}`github` {githubIssue 109}[]
-:::::::
+{usesLabel}`uses` {uses "scka_scheme"}[] · {uses "erasure_code_scheme"}[]
+::::
 
 :::defTitle "opp_bikem_cka_correctness" "Opp-BiKEM-CKA correctness"
 :::
 
-::::theorem "opp_bikem_cka_correctness" (parent := "cka_protocols_opp_bikem_cka")
+::::theorem "opp_bikem_cka_correctness" (parent := "cka_protocols_opp_bikem_cka") (tags := "gh-110")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "opp_bikem_cka_spec"}[] · {uses "scka_correctness"}[] · {uses "erasure_code_correctness"}[] · {githubLabel}`github` {githubIssue 110}[]
+{usesLabel}`uses` {uses "opp_bikem_cka_spec"}[] · {uses "scka_correctness"}[] · {uses "erasure_code_correctness"}[]
 ::::
 
 :::defTitle "opp_bikem_cka_security" "Opp-BiKEM-CKA security"
 :::
 
-::::theorem "opp_bikem_cka_security" (parent := "cka_protocols_opp_bikem_cka")
+::::theorem "opp_bikem_cka_security" (parent := "cka_protocols_opp_bikem_cka") (tags := "gh-111")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "opp_bikem_cka_spec"}[] · {uses "scka_security"}[] · {uses "erasure_code_scheme"}[] · {githubLabel}`github` {githubIssue 111}[]
+{usesLabel}`uses` {uses "opp_bikem_cka_spec"}[] · {uses "scka_security"}[] · {uses "erasure_code_scheme"}[]
 ::::

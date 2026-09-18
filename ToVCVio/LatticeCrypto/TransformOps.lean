@@ -53,7 +53,7 @@ private theorem foldl_add_eq_sum {k : Nat} (w : PolyVec Hat k) :
     subst hw
     simp
   | succ n ih =>
-    haveI : NeZero (n + 1) := ⟨Nat.succ_ne_zero n⟩
+    have : NeZero (n + 1) := ⟨Nat.succ_ne_zero n⟩
     obtain ⟨w', x, rfl⟩ : ∃ (w' : Vector Hat n) (x : Hat), w = w'.push x :=
       ⟨w.pop, w.back, (Vector.push_pop_back w).symm⟩
     rw [Vector.foldl_push, ih w', Fin.sum_univ_castSucc]

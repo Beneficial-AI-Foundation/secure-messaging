@@ -10,11 +10,21 @@ import Mathlib.Data.Matrix.Basic
 /-!
 # FrodoKEM Parameters
 
-The cryptographic parameters of FrodoKEM, following Tables 1 and 2 of the
-specification, published at [frodokem.org](https://frodokem.org/) and as
-[Glabush, Longa, Naehrig, Peikert, Stebila and Virdia,
-*FrodoKEM: A CCA-Secure Learning With Errors Key Encapsulation Mechanism*,
-Communications in Cryptology 2:3](https://cic.iacr.org/p/2/3/25).
+The cryptographic parameters of FrodoKEM, following Tables 1 and 2 of
+`[CiC25]`, which Section 9.1 of `[LBES26]` tabulates as well.
+
+Two documents are cited by this file and the three that build on it, because
+neither covers everything they need:
+
+* `[CiC25]`, Glabush, Longa, Naehrig, Peikert, Stebila and Virdia, *FrodoKEM: A
+  CCA-Secure Learning With Errors Key Encapsulation Mechanism*, IACR
+  Communications in Cryptology 2:3, <https://cic.iacr.org/p/2/3/25>;
+* `[LBES26]`, Longa, Bos, Ehlen and Stebila, *FrodoKEM: key encapsulation from
+  learning with errors*, draft-longa-cfrg-frodokem-03, 22 June 2026,
+  <https://datatracker.ietf.org/doc/html/draft-longa-cfrg-frodokem-03>.
+
+The version and date are part of the second citation because an
+Internet-Draft expires, this one on 24 December 2026.
 
 The published tables are recorded verbatim in `ParameterSet.params`. The relations
 between the entries are stated as theorems. The quantities are:
@@ -22,16 +32,19 @@ between the entries are stated as theorems. The quantities are:
 * `n`, the lattice dimension, which is also the size of the public matrix `A`;
 * `D`, the exponent of the modulus, and `q = 2 ^ D`, the modulus itself;
 * `B`, the number of bits encoded in each matrix entry by `Frodo.Encode`;
-* `ℓ = B * mbar * nbar`, the length of bit strings encoded as `mbar`-by-`nbar`
-  matrices, and also the bit length of the message `μ`, the shared secret `ss`,
-  the intermediate secret `k`, the public-key hash `pkh`, and the vector `s`
-  from which `ss` is derived when decapsulation fails;
+* `ℓ`, the security parameter, which is the bit length of the message `μ`, the
+  shared secret `ss`, the intermediate secret `k`, the public-key hash `pkh`,
+  and the value `s` from which `ss` is derived when decapsulation fails. The
+  algorithms need `ℓ = B * mbar * nbar`, so that `μ` fills the matrix that
+  `Frodo.Encode` puts it in. `[CiC25]` states it in Section 3 and Table 1;
+  `[LBES26]` states it of the encoder's input in Section 6.3 but never ties it
+  to `lensec`, which is what `Params.WellFormed.ell_eq` does;
 * `lenSeedSE`, the bit length of the seeds used for error sampling, and
   `lenSalt`, the bit length of the salt, which is zero for the ephemeral
   variant.
 
 The constants `mbar = nbar = 8`, `lenSeedA = lenZ = 128` and `lenChi = 16` are
-shared by every parameter set; the remaining entries are:
+shared by every parameter set; the per-set entries `Params` carries are:
 
 | parameter set   |  D |     q |    n | B |   ℓ | lenSeedSE | lenSalt |
 | --------------- | --:| -----:| ----:| -:| ---:| ---------:| -------:|
@@ -42,8 +55,17 @@ shared by every parameter set; the remaining entries are:
 | eFrodoKEM-976   | 16 | 65536 |  976 | 3 | 192 |       192 |       0 |
 | eFrodoKEM-1344  | 16 | 65536 | 1344 | 4 | 256 |       256 |       0 |
 
+Table 1's `χ` and SHAKE rows are not fields of `Params`, nor is the `-AES` /
+`-SHAKE` choice of generator for `A` that doubles these six sets to twelve.
+
 Lengths are published in bits but the corresponding types are byte vectors, so
 each length comes in both units and the docstrings name which is which.
+
+A `Params` is plain data, so nothing constrains its fields. `Params.WellFormed`
+collects the conditions `[LBES26]` places on them, and `params_wellFormed`
+discharges them for every published set. Section 3 of `[CiC25]` introduces the
+same parameters but leaves their positivity and the bound `n < q` unstated, so
+`[LBES26]` is the one transcribed here.
 -/
 
 namespace FrodoKEM
@@ -57,7 +79,8 @@ abbrev Bytes (n : ℕ) := Vector Byte n
 /-- Bit length of the seeds used for pseudorandom matrix generation. -/
 def lenSeedA : ℕ := 128
 
-/-- Seeds used for pseudorandom matrix generation, of `lenSeedA` bits. -/
+/-- Seeds used for pseudorandom matrix generation, of `lenSeedA` bits,
+represented as `lenSeedA / 8` bytes. -/
 abbrev SeedA := Bytes (lenSeedA / 8)
 
 /-- The named FrodoKEM parameter sets of Tables 1 and 2, salted and ephemeral. -/
@@ -82,7 +105,7 @@ deriving Repr, DecidableEq
 def lenZ : ℕ := 128
 
 /-- Precision parameter of the error-distribution table `Tχ`, whose entries satisfy
-`Tχ 0 = 2 ^ (lenChi - 1) * χ 0 - 1` (Section 3.1). -/
+`Tχ 0 = 2 ^ (lenChi - 1) * χ 0 - 1` (Section 3.1 of `[CiC25]`). -/
 def lenChi : ℕ := 16
 
 /-- Integer matrix dimension. Together with `mbar` it fixes the shape of encoded
@@ -93,20 +116,33 @@ def nbar : ℕ := 8
 /-- Integer matrix dimension; see `nbar`. -/
 def mbar : ℕ := 8
 
+/-- Conditions on the constants that do not vary per parameter set. Section 5
+of `[LBES26]` states them for the matrix dimensions and `lenSeedA`, and
+Section 3.1 of `[CiC25]` calls `lenChi` a positive integer. `lenZ` is positive
+because `z` is a seed the algorithms sample. -/
+theorem constants_wellFormed :
+    0 < mbar ∧ mbar % 8 = 0 ∧ 0 < nbar ∧ nbar % 8 = 0 ∧
+      0 < lenSeedA ∧ 0 < lenZ ∧ 0 < lenChi := by decide
+
 /-- One field per column of Tables 1 and 2. The fields are independent data;
 the relations between them are theorems about the six named parameter sets
 rather than part of this record. -/
 structure Params where
-  /-- Exponent of the modulus, satisfying `D ≤ 16`. -/
+  /-- Exponent of the modulus; `Params.WellFormed.D_le` bounds it by sixteen. -/
   D : ℕ
-  /-- The modulus `q = 2 ^ D`. -/
+  /-- The modulus; `Params.WellFormed.q_eq` identifies it with `2 ^ D`. -/
   q : ℕ
-  /-- Integer matrix dimension, satisfying `n ≡ 0 (mod 8)`. -/
+  /-- Integer matrix dimension; `Params.WellFormed.n_mod_eight` makes it a
+  multiple of eight. -/
   n : ℕ
-  /-- The number of bits encoded in each matrix entry, satisfying `B ≤ D`. -/
+  /-- The number of bits encoded in each matrix entry;
+  `Params.WellFormed.B_le_D` bounds it by `D`. -/
   B : ℕ
-  /-- `ℓ = B * mbar * nbar`, the length of bit strings encoded as
-  `mbar`-by-`nbar` matrices. -/
+  /-- The security parameter, Section 5's `lensec`: the bit length of the
+  message, the shared secret and the public-key hash.
+  `Params.WellFormed.ell_values` restricts it to `128`, `192` and `256`, and
+  `Params.WellFormed.ell_eq` asks that a message of that length fill the
+  matrix. -/
   ell : ℕ
   /-- The bit length of seeds used for pseudorandom bit generation for error
   sampling -/
@@ -132,16 +168,34 @@ def lenSeedSEBytes (p : Params) : ℕ := p.lenSeedSE / 8
 /-- `lenSalt` expressed in bytes. -/
 def lenSaltBytes (p : Params) : ℕ := p.lenSalt / 8
 
-/-- The conditions of Section 3 that a parameter record must satisfy. -/
+/-- The conditions of `[LBES26]` that a parameter record must satisfy. All come
+from Section 5 except `ell_eq`, which is found in Section 6.3 as
+`l = B * nHat^2`. Section 5 also states that `lensalt` is positive. It is not
+included here because the ephemeral variant carries no salt, so `lenSalt = 0`
+for three of the six published sets. -/
 structure WellFormed (p : Params) : Prop where
+  /-- The lattice dimension is positive. -/
+  n_pos : 0 < p.n
   /-- The lattice dimension is a multiple of eight. -/
   n_mod_eight : p.n % 8 = 0
+  /-- The lattice dimension is below the modulus. -/
+  n_lt_q : p.n < p.q
+  /-- The modulus exponent is positive. -/
+  D_pos : 0 < p.D
   /-- The modulus exponent is at most sixteen. -/
   D_le : p.D ≤ 16
+  /-- At least one bit is encoded in each matrix entry. -/
+  B_pos : 0 < p.B
   /-- At most `D` bits are encoded in each matrix entry, so that `2 ^ B ≤ q`. -/
   B_le_D : p.B ≤ p.D
   /-- The modulus satisfies `q = 2 ^ D`. -/
   q_eq : p.q = 2 ^ p.D
+  /-- A message fills the matrix: `ℓ = B * mbar * nbar`. -/
+  ell_eq : p.ell = p.B * mbar * nbar
+  /-- The security parameter is one of the three Section 5 allows. -/
+  ell_values : p.ell = 128 ∨ p.ell = 192 ∨ p.ell = 256
+  /-- The bit length of the error sampling seed is positive. -/
+  lenSeedSE_pos : 0 < p.lenSeedSE
 
 end Params
 
@@ -244,7 +298,7 @@ theorem lenSalt_eq_eight_mul_lenSaltBytes (p : ParameterSet) :
     p.params.lenSalt = 8 * p.params.lenSaltBytes := by
   cases p <;> rfl
 
-/-- Every named parameter set satisfies the conditions of Section 3. -/
+/-- Every named parameter set satisfies `Params.WellFormed`. -/
 theorem params_wellFormed (p : ParameterSet) : p.params.WellFormed := by
   cases p <;> constructor <;> decide
 

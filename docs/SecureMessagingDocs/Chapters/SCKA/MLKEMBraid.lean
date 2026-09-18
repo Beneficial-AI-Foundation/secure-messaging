@@ -36,7 +36,7 @@ ML-KEM Braid ({Informal.citet MLKEM_Braid}[]).
 :::defTitle "mlkem_braid_ratcheted_authenticator" "ML-KEM Braid ratcheted authenticator"
 :::
 
-::::definition "mlkem_braid_ratcheted_authenticator" (parent := "cka_protocols_mlkem_braid") (lean := "RatchetedAuthenticator")
+::::definition "mlkem_braid_ratcheted_authenticator" (parent := "cka_protocols_mlkem_braid") (lean := "RatchetedAuthenticator") (tags := "gh-245")
 
 :::leanPillCaption "ratcheted authenticator interface"
 :::
@@ -66,7 +66,7 @@ structure RatchetedAuthenticator
       verifyCiphertext s ep c (macCiphertext s ep c) = true
 ```
 
-{usesLabel}`uses` {uses "scka_scheme"}[] · {githubLabel}`github` {githubIssue 245}[]
+{usesLabel}`uses` {uses "scka_scheme"}[]
 ::::
 
 :::group "mlkem_braid_protocol"
@@ -275,7 +275,7 @@ def initB (P : Parameters m)
 :::defTitle "mlkem_braid_spec" "ML-KEM Braid protocol"
 :::
 
-::::definition "mlkem_braid_spec" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.scheme")
+::::definition "mlkem_braid_spec" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.scheme") (tags := "gh-271")
 
 :::leanPillCaption "ML-KEM Braid as an SCKA scheme"
 :::
@@ -305,29 +305,29 @@ def scheme (P : Parameters m) [DecidableEq P.Sym]
     recvB := recvSCKA P auth }
 ```
 
-{usesLabel}`uses` {uses "scka_scheme"}[] · {uses "mlkem_braid_protocol_transitions"}[] · {uses "mlkem_braid_protocol_init"}[] · {githubLabel}`github` {githubIssue 271}[]
+{usesLabel}`uses` {uses "scka_scheme"}[] · {uses "mlkem_braid_protocol_transitions"}[] · {uses "mlkem_braid_protocol_init"}[]
 ::::
 
 :::defTitle "mlkem_braid_correctness" "ML-KEM Braid correctness"
 :::
 
-::::theorem "mlkem_braid_correctness" (parent := "cka_protocols_mlkem_braid")
+::::theorem "mlkem_braid_correctness" (parent := "cka_protocols_mlkem_braid") (tags := "gh-243")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "mlkem_braid_spec"}[] · {uses "scka_correctness"}[] · {uses "incremental_kem_scheme"}[] · {githubLabel}`github` {githubIssue 243}[]
+{usesLabel}`uses` {uses "mlkem_braid_spec"}[] · {uses "scka_correctness"}[] · {uses "incremental_kem_scheme"}[]
 ::::
 
 :::defTitle "mlkem_braid_security" "ML-KEM Braid security"
 :::
 
-::::theorem "mlkem_braid_security" (parent := "cka_protocols_mlkem_braid")
+::::theorem "mlkem_braid_security" (parent := "cka_protocols_mlkem_braid") (tags := "gh-244")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "mlkem_braid_spec"}[] · {uses "scka_security"}[] · {uses "incremental_kem_scheme"}[] · {githubLabel}`github` {githubIssue 244}[]
+{usesLabel}`uses` {uses "mlkem_braid_spec"}[] · {uses "scka_security"}[] · {uses "incremental_kem_scheme"}[]
 ::::

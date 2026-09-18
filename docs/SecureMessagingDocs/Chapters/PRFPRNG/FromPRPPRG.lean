@@ -24,23 +24,23 @@ PRF-PRNG from PRP and PRG.
 :::defTitle "prf_prng_from_prp_prg_spec" "PRF-PRNG from PRP and PRG construction"
 :::
 
-::::definition "prf_prng_from_prp_prg_spec" (parent := "prf_prng_prf_prng_from_prp_prg")
+::::definition "prf_prng_from_prp_prg_spec" (parent := "prf_prng_prf_prng_from_prp_prg") (tags := "gh-36")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "prf_prng_scheme"}[] · {githubLabel}`github` {githubIssue 36}[]
+{usesLabel}`uses` {uses "prf_prng_scheme"}[]
 ::::
 
 :::defTitle "prf_prng_from_prp_prg_security" "PRF-PRNG from PRP and PRG security"
 :::
 
-::::theorem "prf_prng_from_prp_prg_security" (parent := "prf_prng_prf_prng_from_prp_prg")
+::::theorem "prf_prng_from_prp_prg_security" (parent := "prf_prng_prf_prng_from_prp_prg") (tags := "gh-37")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "prf_prng_from_prp_prg_spec"}[] · {uses "prf_prng_scheme"}[] · {uses "prf_prng_security"}[] · {githubLabel}`github` {githubIssue 37}[]
+{usesLabel}`uses` {uses "prf_prng_from_prp_prg_spec"}[] · {uses "prf_prng_scheme"}[] · {uses "prf_prng_security"}[]
 ::::

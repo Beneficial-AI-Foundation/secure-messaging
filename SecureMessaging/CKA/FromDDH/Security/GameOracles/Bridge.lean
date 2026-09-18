@@ -206,7 +206,7 @@ lemma probOutput_lazy_honest_eq [Finite G] (gp : GameParams)
           (CKAState.sendReady (x₀ • gen) : CKAState F G)
           (CKAState.recvReady x₀ : CKAState F G))
       return b'] := by
-  letI : Fintype G := Fintype.ofFinite G
+  let : Fintype G := Fintype.ofFinite G
   -- Compose Step 1 (consumeLazy commutation × 2) and Step 2 (adversary
   -- induction via bijection at hits + bind-swap at non-hits).
   have h₁ := evalDist_ckaSecurityImpl_lazy_eq_eager (gen := gen) gp adversary

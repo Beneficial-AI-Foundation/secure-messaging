@@ -44,10 +44,16 @@ import SecureMessaging.KEM.OnOffKEM.FromKPKE
 import SecureMessaging.PRFPRNG.Defs
 import SecureMessaging.PRP.Defs
 import SecureMessaging.RKEM.Defs
+import SecureMessaging.RKEM.FromKEM.Construction
+import SecureMessaging.RKEM.FromKEM.Correctness
 import SecureMessaging.SCKA.Defs
 import SecureMessaging.SCKA.MLKEMBraid.Authenticator
 import SecureMessaging.SCKA.MLKEMBraid.Basic
 import SecureMessaging.SCKA.MLKEMBraid.Construction
+import SecureMessaging.SCKA.SPQR.Chunked
+import SecureMessaging.SCKA.SPQR.Construction
+import SecureMessaging.SCKA.SPQR.Correspondence
+import SecureMessaging.SCKA.SPQR.Instances
 import SecureMessaging.SCKA.SPQR.Unchunked
 import SecureMessaging.SCKA.OppUniKEM.Construction
 import SecureMessaging.SCKA.OppBiKEM.Construction

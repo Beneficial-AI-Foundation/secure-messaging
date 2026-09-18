@@ -19,47 +19,47 @@ Katana RKEM (optimised).
 :::defTitle "optimised_katana_rkem_spec" "Optimised Katana RKEM construction"
 :::
 
-::::definition "optimised_katana_rkem_spec" (parent := "rkem_katana_rkem_optimised")
+::::definition "optimised_katana_rkem_spec" (parent := "rkem_katana_rkem_optimised") (tags := "gh-85")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "rkem_scheme"}[] · {githubLabel}`github` {githubIssue 85}[]
+{usesLabel}`uses` {uses "rkem_scheme"}[]
 ::::
 
 :::defTitle "optimised_katana_rkem_correctness" "Optimised Katana RKEM correctness"
 :::
 
-::::theorem "optimised_katana_rkem_correctness" (parent := "rkem_katana_rkem_optimised")
+::::theorem "optimised_katana_rkem_correctness" (parent := "rkem_katana_rkem_optimised") (tags := "gh-86")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "optimised_katana_rkem_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_correctness"}[] · {githubLabel}`github` {githubIssue 86}[]
+{usesLabel}`uses` {uses "optimised_katana_rkem_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_correctness"}[]
 ::::
 
 :::defTitle "optimised_katana_rkem_forward_security" "Optimised Katana RKEM forward security"
 :::
 
-::::theorem "optimised_katana_rkem_forward_security" (parent := "rkem_katana_rkem_optimised")
+::::theorem "optimised_katana_rkem_forward_security" (parent := "rkem_katana_rkem_optimised") (tags := "gh-87")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "optimised_katana_rkem_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_forward_security"}[] · {githubLabel}`github` {githubIssue 87}[]
+{usesLabel}`uses` {uses "optimised_katana_rkem_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_forward_security"}[]
 ::::
 
 :::defTitle "optimised_katana_rkem_ratchet_sim" "Optimised Katana RKEM ratchet simulatability"
 :::
 
-::::theorem "optimised_katana_rkem_ratchet_sim" (parent := "rkem_katana_rkem_optimised")
+::::theorem "optimised_katana_rkem_ratchet_sim" (parent := "rkem_katana_rkem_optimised") (tags := "gh-88")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "optimised_katana_rkem_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_ratchet_sim"}[] · {githubLabel}`github` {githubIssue 88}[]
+{usesLabel}`uses` {uses "optimised_katana_rkem_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_ratchet_sim"}[]
 ::::

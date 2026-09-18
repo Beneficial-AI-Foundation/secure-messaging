@@ -134,7 +134,7 @@ lemma simulateQ_authInstImpl_run'_eq_authPlainImpl
   obtain ⟨⟨ch, qc⟩, flag⟩ := state
   rcases t with (n | ⟨ad, m⟩) | ⟨ad, c, tg⟩
   · simp [authInstImpl, authUnifImpl, authPlainImpl, gameUnifImpl,
-      QueryImpl.add_apply_inl, QueryImpl.liftTarget_apply,
+      QueryImpl.add_apply_inl,
       StateT.run_monadLift, Prod.map, Functor.map_map]
   · cases ch <;>
       simp [authInstImpl, authEncImpl, authPlainImpl, QueryImpl.add_apply_inl,
@@ -354,16 +354,12 @@ theorem probForge_authInst_le_forgeReduction
             StateT.run_monadLift, StateT.run_mk,
             bind_pure_comp,
             monadLift_self]
-          erw [OracleComp.liftM_run_StateT, OracleComp.liftM_run_StateT]
-          rw [simulateQ_bind]
+          rw [simulateQ_map]
           erw [hufwd]
-          simp only [simulateQ_pure, OracleComp.forgeUnifImpl, QueryImpl.liftTarget_apply,
-            QueryImpl.ofLift_apply, StateT.run_bind, StateT.run_pure,
-            bind_assoc, pure_bind,
-            ← bind_pure_comp]
+          simp only [OracleComp.forgeUnifImpl, QueryImpl.liftTarget_apply,
+            QueryImpl.ofLift_apply, StateT.run_map, Functor.map_map]
           erw [OracleComp.liftM_run_StateT]
-          simp only [Functor.map_map, bind_pure_comp,
-            ]
+          simp only [Functor.map_map, bind_pure_comp]
         · -- encrypt oracle: forwards the tag query to the shared eval RO, records challenge
           have hefwd : ∀ q : AD × C_e, simulateQ OracleComp.forgeImpl
               (liftM (OracleSpec.query (spec := OracleComp.forgeSpec (AD × C_e) T)
@@ -633,7 +629,7 @@ theorem forgeReduction_isQueryBoundP
       (OracleComp.isVerifyQuery (D := AD × C_e) (R := T)) q_d := by
   -- `forgeSpec`'s `IsUniformSpec` witness (needed by the query-bound lemma) wants `Fintype T`;
   -- the tag type is sampleable, so it is finite.
-  letI : Fintype T := SampleableType.Fintype T
+  let : Fintype T := SampleableType.Fintype T
   unfold forgeReduction etmGameSkeleton
   simp only [pure_bind, bind_pure_comp, Functor.map_map]
   rw [isQueryBoundP_def, isQueryBound_map_iff, ← isQueryBoundP_def]
