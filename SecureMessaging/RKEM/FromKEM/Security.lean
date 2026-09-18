@@ -11,40 +11,37 @@ import ToVCVio.EvalDist.TVDist
 /-!
 # RKEM from KEM — FS-IND-CPA Security
 
-This file proves `RKEMScheme.FSINDCPASecure` for the generic RKEM-from-KEM construction of
-`SecureMessaging.RKEM.FromKEM.Construction`: if the underlying KEM is IND-CPA-secure, the
-construction is FS-IND-CPA-secure in the sense of [TripleRatchet, Def. 5.4].
+This file proves `RKEMScheme.FSINDCPASecure` for the RKEM-from-KEM construction of
+`SecureMessaging.RKEM.FromKEM.Construction`: an IND-CPA-secure, correct KEM gives an
+FS-IND-CPA-secure RKEM in the sense of [TripleRatchet, Def. 5.4]. This is the security half of
+[TripleRatchet, Thm. A.1], which the paper states without a bound and proves in one sentence; the
+concrete bound `ε / 2 + δ / 2`, for arbitrary adversaries, is ours.
 
-The bound proved here differs slightly from [TripleRatchet]'s Theorem A.1: the paper implicitly
-treats KEM decapsulation as never failing, whereas here decapsulation failure is accounted for
-explicitly and contributes a `δ / 2` correctness-slack term to the final bound. This slack vanishes
-and the paper's bound is recovered exactly in the perfectly-correct case, `δ = 0`
-(`FSINDCPASecure_of_perfectlyCorrect`).
+The argument has two steps.
 
-The proof builds a reduction, `indCpaReduction`, from an FS-IND-CPA adversary against the
-construction to an IND-CPA adversary against the underlying KEM: it independently samples the
-extra key pairs the construction generates each round and hands everything to the RKEM-level
-adversary, negating its guess to align the two games' conventions
-(`probOutput_true_indCpaGame_eq_probOutput_true_idealSecurityExpA`). This reduction is exact except
-for half the probability that the underlying KEM's decapsulation fails, bounded via a
-total-variation-distance argument against an "idealized" experiment that never falls back to a
-random bit on decapsulation failure (`tvDist_securityExpA_idealSecurityExpA_le`): the two
-experiments agree exactly off the (rare) decapsulation-failure event, and even on that event they
-only differ by a fresh coin flip versus an arbitrary `Bool`, which is at most `1/2` apart in
-total-variation distance rather than the trivial `1`. Combining the two gives the per-party
-reduction bounds `fsIndCpaAdvantageA_le`/`fsIndCpaAdvantageB_le`, and hence `fsIndCpaAdvantage_le`,
-which states the same bound directly as `RKEMScheme.FSINDCPASecure`.
+1. `indCpaReduction` turns an FS-IND-CPA adversary against the construction into an IND-CPA
+   adversary against the KEM. It samples the two key pairs the construction generates on its own
+   and negates the guess, because `IND_CPA_Game` hands out the real key on `true` while
+   `securityExpA` hands out the random one.
+   `probOutput_true_indCpaGame_eq_probOutput_true_idealSecurityExpA` shows the reduction's game
+   succeeds exactly as often as `idealSecurityExpA`, the FS-IND-CPA experiment with decapsulation
+   removed.
 
-The top-level `FSINDCPASecure` repackages `fsIndCpaAdvantage_le` against a uniform IND-CPA bound
-`ε` (assumed for every adversary of the underlying KEM, not just the specific reduction adversaries)
-together with a `δ`-correctness hypothesis on the KEM, giving the clean bound `ε / 2 + δ / 2` that
-matches Theorem A.1's statement. `FSINDCPASecure_of_perfectlyCorrect` further specializes this to
-`ε / 2` when the underlying KEM is perfectly correct, so no correctness slack remains.
+2. `securityExpA` differs from `idealSecurityExpA` only when KEM decapsulation fails.
+   `SecureMessaging.RKEM.Defs` models that case by returning a fresh coin, a choice the paper does
+   not face since its Def. 5.4 assumes decapsulation always returns a key. On the failure event
+   the two experiments are a fair coin versus an arbitrary `Bool`, at total-variation distance at
+   most `1/2`, so `tvDist_securityExpA_idealSecurityExpA_le` charges `Pr[decaps fails] / 2`
+   rather than `Pr[decaps fails]`.
 
-The `/ 2` in these bounds is not lossiness in the reduction: VCVio's `IND_CPA_Advantage` uses the
-*distinguishing* convention `|Pr[true] - Pr[false]|`, twice [TripleRatchet]'s Def. 5.4 *bias*
-convention `|Pr[true] - 1/2|`, so dividing by `2` exactly converts between the two conventions and
-the reduction is tight in the advantage as `|Pr[true] − Pr[false]| = 2·|Pr[true] − 1/2|`.
+`fsIndCpaAdvantageA_le` combines the two steps. `fsIndCpaAdvantageB_le` is the same statement,
+since the construction treats both parties identically, and `fsIndCpaAdvantage_le` takes the
+`max`. `FSINDCPASecure` then assumes a uniform IND-CPA bound `ε` over all KEM adversaries and
+`δ`-correctness, giving `ε / 2 + δ / 2`; `FSINDCPASecure_of_perfectlyCorrect` is the `δ = 0` case.
+
+The `/ 2` on `ε` is a change of convention, not a loss: VCVio's `IND_CPA_Advantage` is
+`|Pr[true] - Pr[false]|`, Def. 5.4 uses `|Pr[true] - 1/2|`, and for a game that never fails the
+former is twice the latter.
 -/
 
 open ToVCVio KEMScheme RKEMScheme
@@ -62,12 +59,13 @@ private lemma securityExpB_eq_securityExpA
     RKEMScheme.securityExpB (scheme kem) adversary =
       RKEMScheme.securityExpA (scheme kem) adversary := rfl
 
-/-- The KEM IND-CPA adversary built from an FS-IND-CPA adversary against the RKEM-from-KEM
-construction: independently sample `A`'s own fresh key pair and its next-round key pair (both
-unrelated to the challenge), then hand everything to the RKEM-level adversary. The returned guess
-is negated to align this reduction's "real ciphertext ↦ `true`" convention with the RKEM
-experiment's "`true` ↦ random key" convention; this doesn't affect the resulting `IND_CPA`
-advantage, which is invariant under negating the adversary's guess. -/
+/-- The KEM IND-CPA adversary built from an FS-IND-CPA adversary against the construction. The
+challenge public key plays `B`'s updated key; `A`'s fresh pair and next-round pair are sampled
+here, as the construction would, since neither depends on the challenge. The guess is negated
+because `IND_CPA_Game` reads `b = true` as the real key and `securityExpA` reads it as the random
+key; with the negation `probOutput_true_indCpaGame_eq_probOutput_true_idealSecurityExpA` is an
+equality of `Pr[= true]`. Negating a guess leaves `IND_CPA_Advantage` unchanged, so nothing is
+lost. -/
 -- ANCHOR: indCpaReduction
 def indCpaReduction (kem : KEMScheme ProbComp K PK SK C)
     (adversary : RKEMScheme.FSINDCPAAdversary Unit PK SK (PK × C) K) :
@@ -94,14 +92,12 @@ private def idealSecurityExpA (kem : KEMScheme ProbComp K PK SK C)
   let b' ← adversary () ekA ekAHat ekBHat (ekAHat, ct) dkAHat (if b then k1 else k0)
   return b == b'
 
-/-- The reduction's single-game IND-CPA experiment against `indCpaReduction` succeeds exactly as
-often as the idealized FS-IND-CPA experiment returns `true`. The two games sample the same
-underlying randomness (`A`'s fresh key, `B`'s key, the challenge encapsulation, `A`'s next-round
-key, the challenge bit, and the random key) in different orders and with a flipped success
-convention (`IND_CPA_Game`'s "real ciphertext ↦ `true`" versus `securityExpA`'s "`true` ↦ random
-key"); this proof relabels the challenge coin by negation
-(`probOutput_true_uniformBool_bind_not`) to absorb that flipped convention in one step, then
-reorders the remaining independent samples to align the two games. -/
+/-- The reduction's `IND_CPA_Game` and `idealSecurityExpA` output `true` equally often. Both
+sample the same randomness in different orders and read the challenge bit oppositely: the KEM
+game hands out the real key on `true`, `securityExpA` the random one. The proof moves the coin to
+the front, relabels it by negation with `probOutput_true_uniformBool_bind_not`, which also absorbs
+the `!b'` from `indCpaReduction`, then commutes the remaining independent samples into
+`idealSecurityExpA`'s order with `probOutput_bind_bind_swap`. -/
 private lemma probOutput_true_indCpaGame_eq_probOutput_true_idealSecurityExpA
     (kem : KEMScheme ProbComp K PK SK C)
     (adversary : RKEMScheme.FSINDCPAAdversary Unit PK SK (PK × C) K) :
@@ -157,82 +153,11 @@ private lemma probOutput_true_indCpaGame_eq_probOutput_true_idealSecurityExpA
   -- Now reorder the shared randomness (`B`'s key + encapsulation, `A`'s next-round key, and the
   -- random key) to match `idealSecurityExpA`'s sampling order, keeping `B`'s key and its
   -- encapsulation adjacent throughout (the encapsulation depends on the key).
-  have s1 : Pr[= true | do
-      let a ← kem.keygen
-      let e ← kem.encaps a.1
-      let kRand ← ($ᵗ K : ProbComp K)
-      let ekA ← kem.keygen
-      let ekAHat ← kem.keygen
-      let b' ← adversary () ekA.1 ekAHat.1 a.1 (ekAHat.1, e.1) ekAHat.2 (if b then kRand else e.2)
-      pure (b == b')] =
-    Pr[= true | do
-      let a ← kem.keygen
-      let kRand ← ($ᵗ K : ProbComp K)
-      let e ← kem.encaps a.1
-      let ekA ← kem.keygen
-      let ekAHat ← kem.keygen
-      let b' ← adversary () ekA.1 ekAHat.1 a.1 (ekAHat.1, e.1) ekAHat.2 (if b then kRand else e.2)
-      pure (b == b')] := by
-    refine probOutput_bind_congr fun a _ => ?_
-    exact probOutput_bind_bind_swap _ _ _ _
-  rw [s1]
-  have s2 : Pr[= true | do
-      let a ← kem.keygen
-      let kRand ← ($ᵗ K : ProbComp K)
-      let e ← kem.encaps a.1
-      let ekA ← kem.keygen
-      let ekAHat ← kem.keygen
-      let b' ← adversary () ekA.1 ekAHat.1 a.1 (ekAHat.1, e.1) ekAHat.2 (if b then kRand else e.2)
-      pure (b == b')] =
-    Pr[= true | do
-      let kRand ← ($ᵗ K : ProbComp K)
-      let a ← kem.keygen
-      let e ← kem.encaps a.1
-      let ekA ← kem.keygen
-      let ekAHat ← kem.keygen
-      let b' ← adversary () ekA.1 ekAHat.1 a.1 (ekAHat.1, e.1) ekAHat.2 (if b then kRand else e.2)
-      pure (b == b')] :=
-    probOutput_bind_bind_swap _ _ _ _
-  rw [s2]
-  have s3 : Pr[= true | do
-      let kRand ← ($ᵗ K : ProbComp K)
-      let a ← kem.keygen
-      let e ← kem.encaps a.1
-      let ekA ← kem.keygen
-      let ekAHat ← kem.keygen
-      let b' ← adversary () ekA.1 ekAHat.1 a.1 (ekAHat.1, e.1) ekAHat.2 (if b then kRand else e.2)
-      pure (b == b')] =
-    Pr[= true | do
-      let kRand ← ($ᵗ K : ProbComp K)
-      let a ← kem.keygen
-      let ekA ← kem.keygen
-      let e ← kem.encaps a.1
-      let ekAHat ← kem.keygen
-      let b' ← adversary () ekA.1 ekAHat.1 a.1 (ekAHat.1, e.1) ekAHat.2 (if b then kRand else e.2)
-      pure (b == b')] := by
-    refine probOutput_bind_congr fun kRand _ => ?_
-    refine probOutput_bind_congr fun a _ => ?_
-    exact probOutput_bind_bind_swap _ _ _ _
-  rw [s3]
-  have s4 : Pr[= true | do
-      let kRand ← ($ᵗ K : ProbComp K)
-      let a ← kem.keygen
-      let ekA ← kem.keygen
-      let e ← kem.encaps a.1
-      let ekAHat ← kem.keygen
-      let b' ← adversary () ekA.1 ekAHat.1 a.1 (ekAHat.1, e.1) ekAHat.2 (if b then kRand else e.2)
-      pure (b == b')] =
-    Pr[= true | do
-      let kRand ← ($ᵗ K : ProbComp K)
-      let ekA ← kem.keygen
-      let a ← kem.keygen
-      let e ← kem.encaps a.1
-      let ekAHat ← kem.keygen
-      let b' ← adversary () ekA.1 ekAHat.1 a.1 (ekAHat.1, e.1) ekAHat.2 (if b then kRand else e.2)
-      pure (b == b')] := by
-    refine probOutput_bind_congr fun kRand _ => ?_
-    exact probOutput_bind_bind_swap _ _ _ _
-  rw [s4]
+  refine (probOutput_bind_congr fun a _ => probOutput_bind_bind_swap _ _ _ _).trans ?_
+  refine (probOutput_bind_bind_swap _ _ _ _).trans ?_
+  refine (probOutput_bind_congr fun kRand _ => probOutput_bind_congr fun a _ =>
+    probOutput_bind_bind_swap _ _ _ _).trans ?_
+  exact probOutput_bind_congr fun kRand _ => probOutput_bind_bind_swap _ _ _ _
 
 /-- The real FS-IND-CPA experiment (`securityExpA`) and the idealized one (`idealSecurityExpA`,
 which never substitutes a fresh random bit for a decapsulation failure) are within total-variation
@@ -460,9 +385,7 @@ theorem fsIndCpaAdvantage_le [DecidableEq K]
   set b := kem.IND_CPA_Advantage ProbCompRuntime.probComp (indCpaReduction kem adversaryB)
   set c := (Pr[= false | kem.CorrectExp]).toReal / 2
   have hmax : max a b / 2 + c = max (a / 2 + c) (b / 2 + c) := by
-    rcases le_total a b with h | h
-    · rw [max_eq_right h, max_eq_right (by gcongr)]
-    · rw [max_eq_left h, max_eq_left (by gcongr)]
+    rw [max_add_add_right, max_div_div_right (by norm_num)]
   rw [hmax]
   exact max_le_max (fsIndCpaAdvantageA_le kem adversaryA) (fsIndCpaAdvantageB_le kem adversaryB)
 
