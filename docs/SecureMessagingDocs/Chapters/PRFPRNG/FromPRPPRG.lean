@@ -30,7 +30,7 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "prf_prng_scheme"}[]
+{usesLabel}`uses` {uses "prf_prng_scheme"}[] · {uses "prp"}[]
 ::::
 
 :::defTitle "prf_prng_from_prp_prg_security" "PRF-PRNG from PRP and PRG security"
@@ -42,5 +42,5 @@ $`\todo`
 :::leanPill "missing"
 :::
 
-{usesLabel}`uses` {uses "prf_prng_from_prp_prg_spec"}[] · {uses "prf_prng_scheme"}[] · {uses "prf_prng_security"}[]
+{usesLabel}`uses` {uses "prf_prng_from_prp_prg_spec"}[] · {uses "prf_prng_scheme"}[] · {uses "prf_prng_security"}[] · {uses "prp"}[]
 ::::

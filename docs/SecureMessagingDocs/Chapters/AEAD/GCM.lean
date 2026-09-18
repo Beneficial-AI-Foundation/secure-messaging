@@ -6,6 +6,7 @@ import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessaging.AEAD.FromGCM.Construction
 import SecureMessaging.AEAD.FromGCM.Correctness
+import SecureMessaging.AEAD.FromGCM.Security
 
 set_option linter.style.setOption false
 set_option linter.hashCommand false
@@ -36,7 +37,10 @@ GCM.
 :::
 
 ::::definition "aead_gcm_spec" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD") (tags := "gh-21")
-$`\todo`
+GCM-AE of NIST SP 800-38D at a fixed public 96-bit IV, packaged as a one-time AEAD scheme
+over a pseudorandom permutation: the key is the block-cipher key, encryption is GCTR
+counter-mode encryption of the message followed by a GHASH tag over the associated data and
+the ciphertext, and decryption recomputes the tag and rejects on mismatch.
 
 The scheme's domain is the NIST-supported length range. A plaintext/ciphertext
 bit-length is supported when it is at most `2^39 - 256` and byte-aligned:
@@ -56,41 +60,68 @@ abbrev SupportedAAD := { x : (a : ℕ) × BitVec a // ValidAADLength x.1 }
 ```
 
 ```anchor gcmOneTimeAEAD (project := ".") (module := SecureMessaging.AEAD.FromGCM.Construction)
-def gcmOneTimeAEAD {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ)
+def gcmOneTimeAEAD {K : Type} (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
     (_hL : ValidMsgLength L) :
     AEADScheme ProbComp (BitVec L) SupportedAAD
       K (BitVec L × BitVec 128) where
   keygen := prp.keygen
-  encrypt := fun k ad m => gcmEncrypt prp.toBlockCipher k (0 : BitVec 96) ad.1.2 m
-  decrypt := fun k ad c => gcmDecrypt prp.toBlockCipher k (0 : BitVec 96) ad.1.2 c
+  encrypt := fun k ad m => gcmEncrypt prp.toBlockCipher k iv ad.1.2 m
+  decrypt := fun k ad c => gcmDecrypt prp.toBlockCipher k iv ad.1.2 c
 ```
 
-{usesLabel}`uses` {uses "aead"}[]
+{usesLabel}`uses` {uses "aead"}[] · {uses "prp"}[]
 ::::
 
 :::defTitle "aead_gcm_correctness" "AEAD-GCM correctness"
 :::
 
 ::::theorem "aead_gcm_correctness" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD_correct") (tags := "gh-22")
-$`\todo`
+Decrypting an honestly produced ciphertext under the same key and associated data returns the
+plaintext: the keystream is deterministic in the key and IV, so GCTR is its own inverse, and
+the recomputed tag matches.
 
 ```anchor gcmOneTimeAEAD_correct (project := ".") (module := SecureMessaging.AEAD.FromGCM.Correctness)
-theorem gcmOneTimeAEAD_correct {K : Type} (prp : PRPScheme K (BitVec 128)) {L : ℕ}
-    (hL : ValidMsgLength L) :
-    (gcmOneTimeAEAD prp L hL).Correct
+theorem gcmOneTimeAEAD_correct {K : Type} (prp : PRPScheme K (BitVec 128))
+    (iv : BitVec 96) {L : ℕ} (hL : ValidMsgLength L) :
+    (gcmOneTimeAEAD prp iv L hL).Correct
 ```
 
-{usesLabel}`uses` {uses "aead_gcm_spec"}[] · {uses "aead_correctness"}[]
+{usesLabel}`uses` {uses "aead_gcm_spec"}[] · {uses "aead_correctness"}[] · {uses "prp"}[]
 ::::
 
 :::defTitle "aead_gcm_security" "AEAD-GCM security"
 :::
 
-::::theorem "aead_gcm_security" (parent := "aead_gcm") (tags := "gh-23")
-$`\todo`
+::::theorem "aead_gcm_security" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD_security") (tags := "gh-23")
+One-time IND-CCA security of GCM at any fixed public 96-bit IV reduces to the PRP
+security of its block cipher; the bound is uniform in the IV. The distinguishing
+advantage is at most $`\mathrm{Adv}^{\mathrm{prp}}` of the explicit reduction
+$`B = \mathsf{prfReduction}\ iv\ L\ A`, plus the PRP/PRF switching term
+$`(n+2)(n+1)/2^{129}` with $`n = \lceil L/128 \rceil`, plus
+$`q_d \cdot \mathsf{maxBlocks}(L)/2^{128}`, where $`q_d` bounds the adversary's
+decryption queries.
 
-:::leanPill "missing"
-:::
+The switching term is a birthday term in the number of *block-cipher calls* made by
+one encryption (the hash key, the tag mask, and one keystream block per message
+block, so $`q = n + 2`), not in the number of adversary queries; it does not
+disappear in the one-time setting. Neither an almost-XOR-universality hypothesis nor
+a PRF hypothesis remains.
 
-{usesLabel}`uses` {uses "aead_gcm_spec"}[] · {uses "aead_security_exp"}[]
+Here $`\mathsf{maxBlocks}(L) = 2^{57} + n + 1` is the block count of the longest GHASH
+input, with $`2^{64} - 1` bits of associated data, so the forgery term charges every
+decryption query the worst-case associated-data length.
+
+```anchor gcmOneTimeAEAD_security (project := ".") (module := SecureMessaging.AEAD.FromGCM.Security)
+theorem gcmOneTimeAEAD_security (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
+    (hL : ValidMsgLength L)
+    (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
+    (q_d : ℕ) (hq : AEADScheme.decryptQueryBound adv q_d) :
+    AEADScheme.distAdvantage (gcmOneTimeAEAD prp iv L hL) adv ≤
+      PRPScheme.prpAdvantage prp (prfReduction iv L adv) +
+      ((((L + 127) / 128 : ℕ) : ℝ) + 2) * ((((L + 127) / 128 : ℕ) : ℝ) + 1)
+        / 2 ^ (129 : ℕ) +
+      (q_d : ℝ) * ((maxBlocks L : ℝ) / 2 ^ (128 : ℕ))
+```
+
+{usesLabel}`uses` {uses "aead_gcm_spec"}[] · {uses "aead_security_exp"}[] · {uses "aead_dist_advantage"}[] · {uses "aead_decrypt_query_bound"}[] · {uses "prp"}[]
 ::::
