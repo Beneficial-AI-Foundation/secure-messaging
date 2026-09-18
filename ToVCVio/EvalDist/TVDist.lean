@@ -12,8 +12,8 @@ import VCVio.EvalDist.Bool
 Generic total-variation-distance (`tvDist`) facts that hold for any monad with an
 evaluation distribution.
 
-* `tvDist_bind_const_right` drops a never-failing, discarded trailing bind from the
-  right-hand side of a total-variation distance.
+* `tvDist_bind_const_right` removes a never-failing leading sample whose value is discarded from
+  the right-hand computation.
 * `tvDist_bind_left_event_le_const` (with its underlying tsum form
   `tsum_probOutput_toReal_mul_tvDist_le_const_mul_probEvent`) is VCVio's `tvDist_bind_left_event_le`
   with a tunable per-branch bound `c` in place of the trivial bound `1`.
