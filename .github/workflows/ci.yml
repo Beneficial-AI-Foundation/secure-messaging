@@ -150,10 +150,7 @@ jobs:
           path: _out/site/html-multi
 
   deploy:
-    name: Deploy Pages
-    # Deploy only from main: a branch dispatch would publish the branch's entire
-    # site and can overwrite a freshly recorded main progress snapshot (the
-    # concurrency group is per ref, history is fetched at render start).
+    name: Deploy Pages    
     if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && needs.build.outputs.docs == 'true'))
     needs: build
     runs-on: ubuntu-latest
