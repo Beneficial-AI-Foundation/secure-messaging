@@ -30,7 +30,7 @@ The 16-coordinate parallel Reed–Solomon construction and its SPQR specializati
 :::defTitle "parallel_reed_solomon_code" "Parallel Reed–Solomon erasure code"
 :::
 
-:::::definition "parallel_reed_solomon_code" (parent := "erasure_codes_spqr_reed_solomon") (lean := "ErasureCode.SPQRReedSolomon.Chunk, ErasureCode.SPQRReedSolomon.encode, ErasureCode.SPQRReedSolomon.coordinateChunks, ErasureCode.SPQRReedSolomon.decode, ErasureCode.SPQRReedSolomon.parallelErasureCode")
+:::::definition "parallel_reed_solomon_code" (parent := "erasure_codes_spqr_reed_solomon") (lean := "ErasureCode.SPQRReedSolomon.Chunk, ErasureCode.SPQRReedSolomon.encode, ErasureCode.SPQRReedSolomon.coordinateChunks, ErasureCode.SPQRReedSolomon.decode, ErasureCode.SPQRReedSolomon.parallelErasureCode") (uses := "reed_solomon_erasure_code, erasure_code_scheme")
 $`\todo`
 
 :::leanPillCaption "16-coordinate chunk"
@@ -88,14 +88,12 @@ def parallelErasureCode (params : ReedSolomon.Parameters F) : ErasureCode (Chunk
   encode := encode params
   decode := decode params
 ```
-
-{usesLabel}`uses` {uses "reed_solomon_erasure_code"}[] · {uses "erasure_code_scheme"}[]
 :::::
 
 :::defTitle "spqr_reed_solomon_code" "SPQR erasure code"
 :::
 
-::::definition "spqr_reed_solomon_code" (parent := "erasure_codes_spqr_reed_solomon") (lean := "ErasureCode.SPQRReedSolomon.GF16, ErasureCode.SPQRReedSolomon.spqrEvaluationPoints, ErasureCode.SPQRReedSolomon.spqrParameters, ErasureCode.SPQRReedSolomon.erasureCode")
+::::definition "spqr_reed_solomon_code" (parent := "erasure_codes_spqr_reed_solomon") (lean := "ErasureCode.SPQRReedSolomon.GF16, ErasureCode.SPQRReedSolomon.spqrEvaluationPoints, ErasureCode.SPQRReedSolomon.spqrParameters, ErasureCode.SPQRReedSolomon.erasureCode") (uses := "parallel_reed_solomon_code")
 $`\todo`
 
 :::leanPillCaption "galois field"
@@ -136,14 +134,12 @@ def spqrParameters (k : ℕ) (hk : k ≤ 2 ^ 16) (hk_pos : 0 < k) :
 def erasureCode (k : ℕ) (hk : k ≤ 2 ^ 16) (hk_pos : 0 < k) : ErasureCode (Chunk GF16) :=
   parallelErasureCode (spqrParameters k hk hk_pos)
 ```
-
-{usesLabel}`uses` {uses "parallel_reed_solomon_code"}[]
 ::::
 
 :::defTitle "parallel_reed_solomon_correctness" "Parallel Reed–Solomon correctness"
 :::
 
-::::theorem "parallel_reed_solomon_correctness" (parent := "erasure_codes_spqr_reed_solomon") (lean := "ErasureCode.SPQRReedSolomon.parallelErasureCode_correct")
+::::theorem "parallel_reed_solomon_correctness" (parent := "erasure_codes_spqr_reed_solomon") (lean := "ErasureCode.SPQRReedSolomon.parallelErasureCode_correct") (uses := "parallel_reed_solomon_code, reed_solomon_erasure_code_correctness, erasure_code_correctness")
 $`\todo`
 
 :::leanPillCaption "parallel correctness"
@@ -153,15 +149,12 @@ $`\todo`
 theorem parallelErasureCode_correct (params : ReedSolomon.Parameters F) :
     (parallelErasureCode params).Correct
 ```
-
-{usesLabel}`uses` {uses "parallel_reed_solomon_code"}[] ·
-  {uses "reed_solomon_erasure_code_correctness"}[] · {uses "erasure_code_correctness"}[]
 ::::
 
 :::defTitle "spqr_reed_solomon_correctness" "SPQR Reed–Solomon correctness"
 :::
 
-::::theorem "spqr_reed_solomon_correctness" (parent := "erasure_codes_spqr_reed_solomon") (lean := "ErasureCode.SPQRReedSolomon.erasureCode_correct")
+::::theorem "spqr_reed_solomon_correctness" (parent := "erasure_codes_spqr_reed_solomon") (lean := "ErasureCode.SPQRReedSolomon.erasureCode_correct") (uses := "spqr_reed_solomon_code, parallel_reed_solomon_correctness")
 $`\todo`
 
 :::leanPillCaption "SPQR correctness"
@@ -171,9 +164,6 @@ $`\todo`
 theorem erasureCode_correct (k : ℕ) (hk : k ≤ 2 ^ 16) (hk_pos : 0 < k) :
     (erasureCode k hk hk_pos).Correct
 ```
-
-{usesLabel}`uses` {uses "spqr_reed_solomon_code"}[] ·
-  {uses "parallel_reed_solomon_correctness"}[]
 ::::
 
 *References:*

@@ -19,35 +19,29 @@ Opp-RKEM-CKA.
 :::defTitle "opp_rkem_cka_spec" "Opp-RKEM-CKA protocol"
 :::
 
-::::definition "opp_rkem_cka_spec" (parent := "cka_protocols_opp_rkem_cka") (tags := "gh-112")
+::::definition "opp_rkem_cka_spec" (parent := "cka_protocols_opp_rkem_cka") (tags := "gh-112") (uses := "scka_scheme, erasure_code_scheme, rkem_scheme")
 $`\todo`
 
 :::leanPill "missing"
 :::
-
-{usesLabel}`uses` {uses "scka_scheme"}[] · {uses "erasure_code_scheme"}[] · {uses "rkem_scheme"}[]
 ::::
 
 :::defTitle "opp_rkem_cka_correctness" "Opp-RKEM-CKA correctness"
 :::
 
-::::theorem "opp_rkem_cka_correctness" (parent := "cka_protocols_opp_rkem_cka") (tags := "gh-113")
+::::theorem "opp_rkem_cka_correctness" (parent := "cka_protocols_opp_rkem_cka") (tags := "gh-113") (uses := "opp_rkem_cka_spec, scka_correctness, erasure_code_correctness, rkem_correctness")
 $`\todo`
 
 :::leanPill "missing"
 :::
-
-{usesLabel}`uses` {uses "opp_rkem_cka_spec"}[] · {uses "scka_correctness"}[] · {uses "erasure_code_correctness"}[] · {uses "rkem_correctness"}[]
 ::::
 
 :::defTitle "opp_rkem_cka_security" "Opp-RKEM-CKA security"
 :::
 
-::::theorem "opp_rkem_cka_security" (parent := "cka_protocols_opp_rkem_cka") (tags := "gh-114")
+::::theorem "opp_rkem_cka_security" (parent := "cka_protocols_opp_rkem_cka") (tags := "gh-114") (uses := "opp_rkem_cka_spec, scka_security, erasure_code_scheme, rkem_forward_security, rkem_ratchet_sim")
 $`\todo`
 
 :::leanPill "missing"
 :::
-
-{usesLabel}`uses` {uses "opp_rkem_cka_spec"}[] · {uses "scka_security"}[] · {uses "erasure_code_scheme"}[] · {uses "rkem_forward_security"}[] · {uses "rkem_ratchet_sim"}[]
 ::::
