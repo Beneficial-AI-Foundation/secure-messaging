@@ -46,6 +46,7 @@ import SecureMessaging.PRP.Defs
 import SecureMessaging.RKEM.Defs
 import SecureMessaging.RKEM.FromKEM.Construction
 import SecureMessaging.RKEM.FromKEM.Correctness
+import SecureMessaging.RKEM.FromKEM.Security
 import SecureMessaging.SCKA.Defs
 import SecureMessaging.SCKA.MLKEMBraid.Authenticator
 import SecureMessaging.SCKA.MLKEMBraid.Basic
