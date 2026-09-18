@@ -76,6 +76,17 @@ def current_snapshot(site_dir: Path, commit: str | None, date: str | None, subje
     aggregator = load_aggregator()
     atoms = aggregator.load_tracked_atoms(site_dir)
     totals = aggregator.summarize(atoms)
+    # All-unspecified regression guard: an empty tracked set, or tracked atoms
+    # with zero specified in both kinds, means the aggregator no longer reads
+    # the manifest (a manifest schema change zeroed every count this way once).
+    # Fail before CI deploys zeros. A drift that loses one kind or only
+    # verified status still passes.
+    if not atoms or all(totals[kind]["specified"] == 0 for kind in totals):
+        raise SystemExit(
+            f"refusing to record a snapshot: {len(atoms)} tracked atoms and no "
+            "specified declarations in any kind; the manifest schema likely "
+            "changed under scripts/aggregate-blueprint-status.py"
+        )
     # CI normally records the checked-out commit; overrides are useful for recovery.
     resolved_commit = commit or git_output(["rev-parse", "HEAD"], "working-tree")
     resolved_subject = subject or git_output(["show", "-s", "--format=%s", resolved_commit], "Working tree")
@@ -108,11 +119,26 @@ def sort_key(snapshot: dict) -> tuple[str, str]:
     return (snapshot.get("date", ""), snapshot.get("commit", ""))
 
 
+def poisoned_snapshot(entry: dict) -> bool:
+    # A rendered snapshot that tracks atoms yet specifies none in either kind
+    # was written by a broken parser (the v4.33 manifest schema change), not by
+    # real regress. Snapshots from other sources (seeded, estimated) are kept
+    # regardless of counts; only the render pipeline could have written poisoned
+    # counts, and the tripwire in current_snapshot stops it from writing new ones.
+    if entry.get("source") != "rendered-blueprint-manifest":
+        return False
+    kinds = [entry.get(kind, {}) for kind in ("definitions", "theorems")]
+    counts = [kind if isinstance(kind, dict) else {} for kind in kinds]
+    return any(counts_for.get("total", 0) > 0 for counts_for in counts) and all(
+        counts_for.get("specified", 0) == 0 for counts_for in counts
+    )
+
+
 def merge_history(existing: dict, snapshot: dict) -> dict:
     # Key by commit so repeated renders replace the current snapshot instead of duplicating it.
     by_commit: dict[str, dict] = {}
     for entry in existing.get("snapshots", []):
-        if not isinstance(entry, dict):
+        if not isinstance(entry, dict) or poisoned_snapshot(entry):
             continue
         commit = entry.get("commit")
         if isinstance(commit, str) and commit:

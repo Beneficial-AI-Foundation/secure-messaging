@@ -133,12 +133,27 @@ def code_decls(entry: dict) -> list[dict]:
     code = entry.get("codeData")
     if not isinstance(code, dict):
         return []
+    # verso-blueprint <= v4.32 wrote one source per node; v4.33 merged them into
+    # literate declarations plus external anchors. Keep the legacy branches so
+    # the script still reads pre-bump renders.
     if "external" in code:
         return code["external"].get("decls", [])
     if "inline" in code:
         node = code["inline"]
         return node.get("definedDefs", []) + node.get("definedTheorems", [])
-    return []
+    literate = code.get("literateDeclarations", {})
+    if not isinstance(literate, dict):
+        # A present but unreadable value must not fall back to "no declarations":
+        # dropped declarations only make an atom easier to classify as verified.
+        raise SystemExit(
+            f"unreadable literateDeclarations for {entry.get('label', '<unlabeled>')}; "
+            "the manifest schema likely changed again"
+        )
+    return (
+        literate.get("definedDefs", [])
+        + literate.get("definedTheorems", [])
+        + code.get("externalDecls", [])
+    )
 
 
 def decl_proved(decl: dict) -> bool:
