@@ -53,14 +53,14 @@ structure RKEMScheme (m : Type → Type u) [Monad m] (Par EK DK CT K : Type) whe
   rencA : Par → EK → DK → m (CT × K × DK)
   /-- `RDec-A(par, dkA, ctA, ekB) → (K, ek̂B)`: decapsulates using `A`'s
   decapsulation key and `B`'s encapsulation key, producing the shared key and
-  `B`'s updated encapsulation key. -/
-  rdecA : Par → DK → CT → EK → m (Option (K × EK))
+  `B`'s updated encapsulation key. Never fails. -/
+  rdecA : Par → DK → CT → EK → m (K × EK)
   /-- `REnc-B(par, ekA, dkB) → (ctA, K, dk̂B)`: as `rencA`, with the roles of
   `A` and `B` swapped. -/
   rencB : Par → EK → DK → m (CT × K × DK)
   /-- `RDec-B(par, dkB, ctB, ekA) → (K, ek̂A)`: as `rdecA`, with the roles of
   `A` and `B` swapped. -/
-  rdecB : Par → DK → CT → EK → m (Option (K × EK))
+  rdecB : Par → DK → CT → EK → m (K × EK)
 ```
 
 :::
@@ -90,15 +90,9 @@ def securityExpA (rkem : RKEMScheme ProbComp Par EK DK CT K)
   let (ekA, dkA) ← rkem.rkeygenAFresh par
   let (ekBHat, dkBHat) ← rkem.rkeygenBUpdated par
   let (ctB, k0, dkAHat) ← rkem.rencA par ekBHat dkA
-  let res ← rkem.rdecB par dkBHat ctB ekA
-  match res with
-  | none =>
-    -- Decapsulation failed in this case, we return a fresh random boolean
-    let b' ← $ᵗ Bool
-    return b'
-  | some (_, ekAHat) =>
-    let b' ← adversary par ekA ekAHat ekBHat ctB dkAHat (if b then k1 else k0)
-    return b == b'
+  let (_, ekAHat) ← rkem.rdecB par dkBHat ctB ekA
+  let b' ← adversary par ekA ekAHat ekBHat ctB dkAHat (if b then k1 else k0)
+  return b == b'
 ```
 :::
 

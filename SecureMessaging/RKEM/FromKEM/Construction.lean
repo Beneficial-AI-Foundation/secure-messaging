@@ -5,6 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 import SecureMessaging.RKEM.Defs
 import VCVio.CryptoFoundations.KeyEncapMech
+import ToVCVio.CryptoFoundations.KeyEncapMech
 
 /-!
 # Ratcheting Key Encapsulation Mechanism from a Key Encapsulation Mechanism
@@ -82,37 +83,60 @@ RDec-P(d̂kP, ctP, ekP̄):            -- ekP̄ input is unused
   K ← Dec(d̂kP, ct)
   return (K, êkP̄)
 
-P̄ above corresponds to Peer below, while P corresponds to Self.
--/
+P̄ above corresponds to Peer below, while P corresponds to Self. Uses `total`, a witness that
+`kem`'s decapsulation is total, so that the construction's own decapsulation can be total too
+(`RKEMScheme.rdecA`/`rdecB` never fail). -/
 -- ANCHOR: rdec
 def rdec {m : Type → Type u} [Monad m] {K PK SK C : Type}
-    (kem : KEMScheme m K PK SK C) (_par : Unit) (dkSelfHat : SK) (ctSelf : PK × C) (_ekPeer : PK) :
-    m (Option (K × PK)) := do
+    (kem : KEMScheme m K PK SK C) (total : TotalDecaps kem)
+    (_par : Unit) (dkSelfHat : SK) (ctSelf : PK × C) (_ekPeer : PK) :
+    m (K × PK) := do
   let (ekPeerHat, ct) := ctSelf
   let res ← kem.decaps dkSelfHat ct
   match res with
-  | none => return none
-  | some k => return (k, ekPeerHat)
+  | none => let key ← total.decapsTotal dkSelfHat ct
+            return (key, ekPeerHat)
+  | some key => return (key, ekPeerHat)
 -- ANCHOR_END: rdec
+
+def rdec' {m : Type → Type u} [Monad m] {K PK SK C : Type}
+    (kem : KEMScheme m K PK SK C) (total : TotalDecaps kem)
+    (_par : Unit) (dkSelfHat : SK) (ctSelf : PK × C) (_ekPeer : PK) :
+    m (K × PK) := do
+  let (ekPeerHat, ct) := ctSelf
+  let key ← total.decapsTotal dkSelfHat ct
+  return (key, ekPeerHat)
+
+/-- `rdec` and `rdec'` compute the same thing: since `kem.decaps` always agrees with
+`some <$> total.decapsTotal` (`total.decaps_eq`), the `none` branch of `rdec` — which redundantly
+calls `total.decapsTotal` again — is never taken. -/
+theorem rdec_eq_rdec' {m : Type → Type u} [Monad m] [LawfulMonad m] {K PK SK C : Type}
+    (kem : KEMScheme m K PK SK C) (total : TotalDecaps kem)
+    (par : Unit) (dkSelfHat : SK) (ctSelf : PK × C) (ekPeer : PK) :
+    rdec kem total par dkSelfHat ctSelf ekPeer = rdec' kem total par dkSelfHat ctSelf ekPeer := by
+  unfold rdec rdec'
+  simp only [total.decaps_eq, map_eq_bind_pure_comp, bind_assoc, pure_bind, Function.comp]
 
 /-- Generic RKEM scheme induced by a KEM ([TripleRatchet, Appendix A.1, Fig. 26]). Public
 parameters are vacuous; the ratcheting key spaces are the KEM's own key spaces, with fresh
 and updated distributions coinciding; ciphertexts bundle a freshly generated public key
-with the underlying KEM ciphertext.
+with the underlying KEM ciphertext. Requires a witness `total` that `kem`'s decapsulation is
+total, matching `RKEMScheme`'s decapsulation algorithms, which never fail.
 
 The encapsulation and decapsulation algorithms are the same for `A` and `B`. -/
 -- ANCHOR: scheme
 def scheme {m : Type → Type u} [Monad m] {K PK SK C : Type}
-    (kem : KEMScheme m K PK SK C) : RKEMScheme m Unit PK SK (PK × C) K where
+    (kem : KEMScheme m K PK SK C) (total : TotalDecaps kem) :
+    RKEMScheme m Unit PK SK (PK × C) K where
   rsetup := pure ()
   rkeygenAFresh := rkeygen kem
   rkeygenAUpdated := rkeygen kem
   rkeygenBFresh := rkeygen kem
   rkeygenBUpdated := rkeygen kem
   rencA := renc kem
-  rdecA := rdec kem
+  rdecA := rdec kem total
   rencB := renc kem
-  rdecB := rdec kem
+  rdecB := rdec kem total
 -- ANCHOR_END: scheme
 
 end kemRKEM

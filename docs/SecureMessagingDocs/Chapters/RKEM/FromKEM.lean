@@ -60,13 +60,15 @@ def renc {m : Type → Type u} [Monad m] {K PK SK C : Type}
 
 ```anchor rdec (project := ".") (module := SecureMessaging.RKEM.FromKEM.Construction)
 def rdec {m : Type → Type u} [Monad m] {K PK SK C : Type}
-    (kem : KEMScheme m K PK SK C) (_par : Unit) (dkSelfHat : SK) (ctSelf : PK × C) (_ekPeer : PK) :
-    m (Option (K × PK)) := do
+    (kem : KEMScheme m K PK SK C) (total : TotalDecaps kem)
+    (_par : Unit) (dkSelfHat : SK) (ctSelf : PK × C) (_ekPeer : PK) :
+    m (K × PK) := do
   let (ekPeerHat, ct) := ctSelf
   let res ← kem.decaps dkSelfHat ct
   match res with
-  | none => return none
-  | some k => return (k, ekPeerHat)
+  | none => let key ← total.decapsTotal dkSelfHat ct
+            return (key, ekPeerHat)
+  | some key => return (key, ekPeerHat)
 ```
 
 :::leanPillCaption "generic RKEM scheme"
@@ -74,16 +76,17 @@ def rdec {m : Type → Type u} [Monad m] {K PK SK C : Type}
 
 ```anchor scheme (project := ".") (module := SecureMessaging.RKEM.FromKEM.Construction)
 def scheme {m : Type → Type u} [Monad m] {K PK SK C : Type}
-    (kem : KEMScheme m K PK SK C) : RKEMScheme m Unit PK SK (PK × C) K where
+    (kem : KEMScheme m K PK SK C) (total : TotalDecaps kem) :
+    RKEMScheme m Unit PK SK (PK × C) K where
   rsetup := pure ()
   rkeygenAFresh := rkeygen kem
   rkeygenAUpdated := rkeygen kem
   rkeygenBFresh := rkeygen kem
   rkeygenBUpdated := rkeygen kem
   rencA := renc kem
-  rdecA := rdec kem
+  rdecA := rdec kem total
   rencB := renc kem
-  rdecB := rdec kem
+  rdecB := rdec kem total
 ```
 ::::
 
@@ -95,8 +98,8 @@ $`\todo`
 
 ```anchor deltaCorrect (project := ".") (module := SecureMessaging.RKEM.FromKEM.Correctness)
 theorem deltaCorrect [DecidableEq K] (kem : KEMScheme ProbComp K PK SK C)
-    (δ : ℝ≥0∞) (hkem : kem.deltaCorrect ProbCompRuntime.probComp δ) :
-    RKEMScheme.deltaCorrect (scheme kem) ProbCompRuntime.probComp δ δ
+    (total : TotalDecaps kem) (δ : ℝ≥0∞) (hkem : kem.deltaCorrect ProbCompRuntime.probComp δ) :
+    RKEMScheme.deltaCorrect (scheme kem total) ProbCompRuntime.probComp δ 0
 ```
 :::
 
