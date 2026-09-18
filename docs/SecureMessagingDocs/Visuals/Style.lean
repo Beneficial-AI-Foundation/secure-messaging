@@ -600,6 +600,56 @@ def smDocsJs : String := r#"
       });
     });
   }
+  function revealFragment() {
+    var hash = window.location.hash;
+    if (!hash) return;
+    var target;
+    try {
+      target = document.getElementById(decodeURIComponent(hash.slice(1)));
+    } catch (_) {
+      return;
+    }
+    if (!target) return;
+    // Open only the disclosures containing the destination.
+    for (var node = target; node; node = node.parentElement) {
+      if (node.tagName === "DETAILS") node.open = true;
+      if (node.classList.contains("lean-anchor-body")) {
+        node.hidden = false;
+        node.parentElement.querySelector(".lean-anchor-head > .lean-pill-btn")
+          .setAttribute("aria-expanded", "true");
+      }
+      if (node.classList.contains("game-cell-body") &&
+          node.parentElement.classList.contains("game-foldable")) {
+        node.hidden = false;
+        node.parentElement.classList.add("is-open");
+        node.parentElement.querySelector(":scope > .game-cell-header")
+          .setAttribute("aria-expanded", "true");
+      }
+    }
+    window.requestAnimationFrame(function () {
+      if (window.location.hash === hash) {
+        target.scrollIntoView({ block: "center", inline: "nearest" });
+      }
+    });
+  }
+  window.addEventListener("hashchange", revealFragment);
+  document.addEventListener("click", function (event) {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey ||
+        event.ctrlKey || event.shiftKey || event.altKey ||
+        !(event.target instanceof Element)) return;
+    var link = event.target.closest("a[href]");
+    if (!link || link.hasAttribute("download") ||
+        (link.target && link.target !== "_self")) return;
+    var url = new URL(link.href, document.baseURI);
+    if (url.origin !== window.location.origin ||
+        url.pathname !== window.location.pathname ||
+        url.search !== window.location.search || !url.hash ||
+        url.hash !== window.location.hash) return;
+    // Reopening the current fragment does not emit hashchange.
+    window.setTimeout(function () {
+      if (!event.defaultPrevented) revealFragment();
+    }, 0);
+  });
   function initLeanPills() {
     installHeadingTitles();
     wrapLeanBlocks();
@@ -607,6 +657,7 @@ def smDocsJs : String := r#"
     foldGameCells();
     window.setTimeout(function () {
       renderMathIn(document.body);
+      revealFragment();
     }, 0);
   }
   if (document.readyState === "loading") {
