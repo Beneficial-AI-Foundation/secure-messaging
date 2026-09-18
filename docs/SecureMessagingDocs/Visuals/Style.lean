@@ -203,16 +203,7 @@ def smDocsCss : String := r#"
   font-weight: inherit;
   color: inherit;
 }
-/* Label introducing a node's dependency list, emitted by the `{usesLabel}`
-   role. Matches the "used by" chip font in the blueprint heading. */
-.uses-label {
-  font-size: 0.78rem;
-  font-weight: 600;
-  font-style: normal;
-  color: var(--bp-color-text-muted);
-}
-
-/* Tone down the dependency hyperlinks ("uses Definition …") to a sombre slate,
+/* Tone down inline node references ({bpref}, citations) to a sombre slate,
    with a faint underline; darken slightly on hover. */
 .bp_inline_preview_ref a {
   color: #556070;

@@ -36,7 +36,7 @@ ML-KEM Braid ({Informal.citet MLKEM_Braid}[]).
 :::defTitle "mlkem_braid_ratcheted_authenticator" "ML-KEM Braid ratcheted authenticator"
 :::
 
-::::definition "mlkem_braid_ratcheted_authenticator" (parent := "cka_protocols_mlkem_braid") (lean := "RatchetedAuthenticator") (tags := "gh-245")
+::::definition "mlkem_braid_ratcheted_authenticator" (parent := "cka_protocols_mlkem_braid") (lean := "RatchetedAuthenticator") (tags := "gh-245") (uses := "scka_scheme")
 
 :::leanPillCaption "ratcheted authenticator interface"
 :::
@@ -65,8 +65,6 @@ structure RatchetedAuthenticator
     ∀ (s : AuthState) (ep : ℕ) (c : Ciphertext),
       verifyCiphertext s ep c (macCiphertext s ep c) = true
 ```
-
-{usesLabel}`uses` {uses "scka_scheme"}[]
 ::::
 
 :::group "mlkem_braid_protocol"
@@ -76,7 +74,7 @@ ML-KEM Braid.
 :::defTitle "mlkem_braid_protocol_parameters" "Protocol parameters"
 :::
 
-::::definition "mlkem_braid_protocol_parameters" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.Parameters")
+::::definition "mlkem_braid_protocol_parameters" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.Parameters") (uses := "incremental_kem_scheme, erasure_code_payload")
 
 :::leanPillCaption "incremental KEM, pure receive operations, epoch-key derivation, and streams"
 :::
@@ -116,8 +114,6 @@ structure Parameters (m : Type → Type u) [Monad m] where
   /-- `ct₂` stream, recovering `ct₂ ‖ mac`. -/
   ecpCt2 : ErasureCodePayload (inc.C₂ × Mac) Sym
 ```
-
-{usesLabel}`uses` {uses "incremental_kem_scheme"}[] · {uses "erasure_code_payload"}[]
 ::::
 
 :::defTitle "mlkem_braid_protocol_messages" "Messages"
@@ -165,7 +161,7 @@ structure Message (Sym : Type) where
 :::defTitle "mlkem_braid_protocol_states" "Protocol states"
 :::
 
-::::definition "mlkem_braid_protocol_states" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.State")
+::::definition "mlkem_braid_protocol_states" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.State") (uses := "erasure_code_streaming")
 
 :::leanPillCaption "the eleven protocol states"
 :::
@@ -211,14 +207,12 @@ inductive State (P : Parameters m) (AuthState : Type) where
   | ct2Sampled (epoch : ℕ) (auth : AuthState)
       (ct2Encoder : EncoderState (P.inc.C₂ × P.Mac) P.Sym)
 ```
-
-{usesLabel}`uses` {uses "erasure_code_streaming"}[]
 ::::
 
 :::defTitle "mlkem_braid_protocol_transitions" "Send and receive"
 :::
 
-::::definition "mlkem_braid_protocol_transitions" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.send, MLKEMBraid.receive")
+::::definition "mlkem_braid_protocol_transitions" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.send, MLKEMBraid.receive") (uses := "mlkem_braid_protocol_parameters, mlkem_braid_ratcheted_authenticator, erasure_code_streaming")
 
 :::leanPillCaption "send transition"
 :::
@@ -240,14 +234,12 @@ def receive (P : Parameters m) [DecidableEq P.Sym]
     (st : State P AuthState) (msg : Message P.Sym) :
     Except Failure (RecvResult P AuthState)
 ```
-
-{usesLabel}`uses` {uses "mlkem_braid_protocol_parameters"}[] · {uses "mlkem_braid_ratcheted_authenticator"}[] · {uses "erasure_code_streaming"}[]
 ::::
 
 :::defTitle "mlkem_braid_protocol_init" "Initialization"
 :::
 
-::::definition "mlkem_braid_protocol_init" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.initA, MLKEMBraid.initB")
+::::definition "mlkem_braid_protocol_init" (parent := "mlkem_braid_protocol") (lean := "MLKEMBraid.initA, MLKEMBraid.initB") (uses := "mlkem_braid_ratcheted_authenticator, erasure_code_streaming")
 
 :::leanPillCaption "Alice's initial state"
 :::
@@ -268,14 +260,12 @@ def initB (P : Parameters m)
       P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
     (ik : InitKey) : State P AuthState
 ```
-
-{usesLabel}`uses` {uses "mlkem_braid_ratcheted_authenticator"}[] · {uses "erasure_code_streaming"}[]
 ::::
 
 :::defTitle "mlkem_braid_spec" "ML-KEM Braid protocol"
 :::
 
-::::definition "mlkem_braid_spec" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.scheme") (tags := "gh-271")
+::::definition "mlkem_braid_spec" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.scheme") (tags := "gh-271") (uses := "scka_scheme, mlkem_braid_protocol_transitions, mlkem_braid_protocol_init")
 
 :::leanPillCaption "ML-KEM Braid as an SCKA scheme"
 :::
@@ -304,30 +294,24 @@ def scheme (P : Parameters m) [DecidableEq P.Sym]
     sendBrleak := sendRleakSCKA
     recvB := recvSCKA P auth }
 ```
-
-{usesLabel}`uses` {uses "scka_scheme"}[] · {uses "mlkem_braid_protocol_transitions"}[] · {uses "mlkem_braid_protocol_init"}[]
 ::::
 
 :::defTitle "mlkem_braid_correctness" "ML-KEM Braid correctness"
 :::
 
-::::theorem "mlkem_braid_correctness" (parent := "cka_protocols_mlkem_braid") (tags := "gh-243")
+::::theorem "mlkem_braid_correctness" (parent := "cka_protocols_mlkem_braid") (tags := "gh-243") (uses := "mlkem_braid_spec, scka_correctness, incremental_kem_scheme")
 $`\todo`
 
 :::leanPill "missing"
 :::
-
-{usesLabel}`uses` {uses "mlkem_braid_spec"}[] · {uses "scka_correctness"}[] · {uses "incremental_kem_scheme"}[]
 ::::
 
 :::defTitle "mlkem_braid_security" "ML-KEM Braid security"
 :::
 
-::::theorem "mlkem_braid_security" (parent := "cka_protocols_mlkem_braid") (tags := "gh-244")
+::::theorem "mlkem_braid_security" (parent := "cka_protocols_mlkem_braid") (tags := "gh-244") (uses := "mlkem_braid_spec, scka_security, incremental_kem_scheme")
 $`\todo`
 
 :::leanPill "missing"
 :::
-
-{usesLabel}`uses` {uses "mlkem_braid_spec"}[] · {uses "scka_security"}[] · {uses "incremental_kem_scheme"}[]
 ::::

@@ -35,7 +35,7 @@ GCM.
 :::defTitle "aead_gcm_spec" "AEAD-GCM construction"
 :::
 
-::::definition "aead_gcm_spec" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD") (tags := "gh-21")
+::::definition "aead_gcm_spec" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD") (tags := "gh-21") (uses := "aead")
 $`\todo`
 
 The scheme's domain is the NIST-supported length range. A plaintext/ciphertext
@@ -64,14 +64,12 @@ def gcmOneTimeAEAD {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ)
   encrypt := fun k ad m => gcmEncrypt prp.toBlockCipher k (0 : BitVec 96) ad.1.2 m
   decrypt := fun k ad c => gcmDecrypt prp.toBlockCipher k (0 : BitVec 96) ad.1.2 c
 ```
-
-{usesLabel}`uses` {uses "aead"}[]
 ::::
 
 :::defTitle "aead_gcm_correctness" "AEAD-GCM correctness"
 :::
 
-::::theorem "aead_gcm_correctness" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD_correct") (tags := "gh-22")
+::::theorem "aead_gcm_correctness" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD_correct") (tags := "gh-22") (uses := "aead_gcm_spec, aead_correctness")
 $`\todo`
 
 ```anchor gcmOneTimeAEAD_correct (project := ".") (module := SecureMessaging.AEAD.FromGCM.Correctness)
@@ -79,18 +77,14 @@ theorem gcmOneTimeAEAD_correct {K : Type} (prp : PRPScheme K (BitVec 128)) {L : 
     (hL : ValidMsgLength L) :
     (gcmOneTimeAEAD prp L hL).Correct
 ```
-
-{usesLabel}`uses` {uses "aead_gcm_spec"}[] · {uses "aead_correctness"}[]
 ::::
 
 :::defTitle "aead_gcm_security" "AEAD-GCM security"
 :::
 
-::::theorem "aead_gcm_security" (parent := "aead_gcm") (tags := "gh-23")
+::::theorem "aead_gcm_security" (parent := "aead_gcm") (tags := "gh-23") (uses := "aead_gcm_spec, aead_security_exp")
 $`\todo`
 
 :::leanPill "missing"
 :::
-
-{usesLabel}`uses` {uses "aead_gcm_spec"}[] · {uses "aead_security_exp"}[]
 ::::

@@ -30,11 +30,9 @@ $`\todo`
 :::defTitle "prf_prng_security" "PRF-PRNG security"
 :::
 
-::::definition "prf_prng_security" (parent := "prf_prng") (tags := "gh-189")
+::::definition "prf_prng_security" (parent := "prf_prng") (tags := "gh-189") (uses := "prf_prng_scheme")
 $`\todo`
 
 :::leanPill "missing"
 :::
-
-{usesLabel}`uses` {uses "prf_prng_scheme"}[]
 ::::

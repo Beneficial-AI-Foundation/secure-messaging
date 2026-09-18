@@ -31,7 +31,7 @@ RKEM from KEM.
 :::defTitle "rkem_from_kem_spec" "RKEM from KEM construction"
 :::
 
-::::definition "rkem_from_kem_spec" (parent := "rkem_rkem_from_kem") (lean := "kemRKEM.scheme") (tags := "gh-75")
+::::definition "rkem_from_kem_spec" (parent := "rkem_rkem_from_kem") (lean := "kemRKEM.scheme") (tags := "gh-75") (uses := "rkem_scheme")
 $`\todo`
 
 :::leanPillCaption "fresh/updated ratcheting key generation"
@@ -85,13 +85,12 @@ def scheme {m : Type → Type u} [Monad m] {K PK SK C : Type}
   rencB := renc kem
   rdecB := rdec kem
 ```
-{usesLabel}`uses` {uses "rkem_scheme"}[]
 ::::
 
 :::defTitle "rkem_from_kem_correctness" "RKEM from KEM correctness"
 :::
 
-:::theorem "rkem_from_kem_correctness" (parent := "rkem_rkem_from_kem") (lean := "kemRKEM.deltaCorrect") (tags := "gh-76")
+:::theorem "rkem_from_kem_correctness" (parent := "rkem_rkem_from_kem") (lean := "kemRKEM.deltaCorrect") (tags := "gh-76") (uses := "rkem_from_kem_spec, rkem_scheme, rkem_correctness")
 $`\todo`
 
 ```anchor deltaCorrect (project := ".") (module := SecureMessaging.RKEM.FromKEM.Correctness)
@@ -99,30 +98,24 @@ theorem deltaCorrect [DecidableEq K] (kem : KEMScheme ProbComp K PK SK C)
     (δ : ℝ≥0∞) (hkem : kem.deltaCorrect ProbCompRuntime.probComp δ) :
     RKEMScheme.deltaCorrect (scheme kem) ProbCompRuntime.probComp δ δ
 ```
-
-{usesLabel}`uses` {uses "rkem_from_kem_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_correctness"}[]
 :::
 
 :::defTitle "rkem_from_kem_forward_security" "RKEM from KEM forward security"
 :::
 
-::::theorem "rkem_from_kem_forward_security" (parent := "rkem_rkem_from_kem") (tags := "gh-77")
+::::theorem "rkem_from_kem_forward_security" (parent := "rkem_rkem_from_kem") (tags := "gh-77") (uses := "rkem_from_kem_spec, rkem_scheme, rkem_forward_security")
 $`\todo`
 
 :::leanPill "missing"
 :::
-
-{usesLabel}`uses` {uses "rkem_from_kem_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_forward_security"}[]
 ::::
 
 :::defTitle "rkem_from_kem_ratchet_sim" "RKEM from KEM ratchet simulatability"
 :::
 
-::::theorem "rkem_from_kem_ratchet_sim" (parent := "rkem_rkem_from_kem") (tags := "gh-78")
+::::theorem "rkem_from_kem_ratchet_sim" (parent := "rkem_rkem_from_kem") (tags := "gh-78") (uses := "rkem_from_kem_spec, rkem_scheme, rkem_ratchet_sim")
 $`\todo`
 
 :::leanPill "missing"
 :::
-
-{usesLabel}`uses` {uses "rkem_from_kem_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_ratchet_sim"}[]
 ::::

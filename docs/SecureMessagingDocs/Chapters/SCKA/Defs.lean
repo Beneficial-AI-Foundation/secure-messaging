@@ -67,7 +67,7 @@ structure SCKAScheme (m : Type → Type u) [Monad m] (IK StA StB I Rho Rand : Ty
 :::defTitle "scka_oracles" "SCKA game state and oracles"
 :::
 
-:::::::definition "scka_oracles" (parent := "cka_protocols_scka") (lean := "SCKAScheme.GameState, SCKAScheme.oracleSendA, SCKAScheme.oracleSendB, SCKAScheme.oracleSendArleak, SCKAScheme.oracleSendBrleak, SCKAScheme.oracleRecvA, SCKAScheme.oracleRecvB, SCKAScheme.oracleChall, SCKAScheme.oracleCorruptA, SCKAScheme.oracleCorruptB")
+:::::::definition "scka_oracles" (parent := "cka_protocols_scka") (lean := "SCKAScheme.GameState, SCKAScheme.oracleSendA, SCKAScheme.oracleSendB, SCKAScheme.oracleSendArleak, SCKAScheme.oracleSendBrleak, SCKAScheme.oracleRecvA, SCKAScheme.oracleRecvB, SCKAScheme.oracleChall, SCKAScheme.oracleCorruptA, SCKAScheme.oracleCorruptB") (uses := "scka_scheme")
 $$`\mathsf{state}=
 (\stA,\stB,\mathsf{Key},\mathsf{Msg},n_\A,n_\B,
 t^\mathsf{cur}_\A,t^\mathsf{cur}_\B,
@@ -524,14 +524,12 @@ def oracleCorruptB (vulnB : StB → Finset ℕ) (StA I Rho : Type) :
 ```
 :::::
 ::::::
-
-{usesLabel}`uses` {uses "scka_scheme"}[]
 :::::::
 
 :::defTitle "scka_correctness" "SCKA protocol correctness"
 :::
 
-:::::::definition "scka_correctness" (parent := "cka_protocols_scka") (lean := "SCKAScheme.sckaCorrectnessSpec, SCKAScheme.sckaCorrectnessImpl, SCKAScheme.SCKACorrectnessAdversary, SCKAScheme.correctnessExp") (tags := "gh-184")
+:::::::definition "scka_correctness" (parent := "cka_protocols_scka") (lean := "SCKAScheme.sckaCorrectnessSpec, SCKAScheme.sckaCorrectnessImpl, SCKAScheme.SCKACorrectnessAdversary, SCKAScheme.correctnessExp") (tags := "gh-184") (uses := "scka_scheme, scka_oracles")
 $$`\Ocor=\{\mathsf{O\text{-}Unif},\OSendA,\OSendB,
 \ORecA(n),\ORecB(n)\}`
 
@@ -596,14 +594,12 @@ def correctnessExp [DecidableEq I]
     (initGameState stA stB)
   return state.correct
 ```
-
-{usesLabel}`uses` {uses "scka_scheme"}[] · {uses "scka_oracles"}[]
 :::::::
 
 :::defTitle "scka_security" "SCKA protocol security"
 :::
 
-:::::::definition "scka_security" (parent := "cka_protocols_scka") (lean := "SCKAScheme.sckaSecuritySpec, SCKAScheme.sckaSecurityImpl, SCKAScheme.SCKAAdversary, SCKAScheme.securityExp, SCKAScheme.sckaGuessAdvantage") (tags := "gh-185")
+:::::::definition "scka_security" (parent := "cka_protocols_scka") (lean := "SCKAScheme.sckaSecuritySpec, SCKAScheme.sckaSecurityImpl, SCKAScheme.SCKAAdversary, SCKAScheme.securityExp, SCKAScheme.sckaGuessAdvantage") (tags := "gh-185") (uses := "scka_scheme, scka_oracles")
 $$`\Osec=\Ocor\cup
 \{\OSendARLeak,\OSendBRLeak,\OChall(t),\OCorrA,\OCorrB\}`
 
@@ -690,6 +686,4 @@ noncomputable def sckaGuessAdvantage [SampleableType I] [DecidableEq I]
     (vulnA : StA → Finset ℕ) (vulnB : StB → Finset ℕ) : ℝ :=
   |(Pr[= true | securityExp scka adversary vulnA vulnB]).toReal - 1 / 2|
 ```
-
-{usesLabel}`uses` {uses "scka_scheme"}[] · {uses "scka_oracles"}[]
 :::::::
