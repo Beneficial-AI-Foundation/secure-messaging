@@ -307,16 +307,6 @@ def sendWith {RKey REnc : Type} (role : Role)
 :::::
 
 :::::gameCell "\\textsf{Shared receive implementation}" (kind := "compact")
-
-The assignments below are tentative until the receive succeeds. By the
-“Notational conventions” at the end of Section 2 of {Informal.citet SCKA25}[],
-a missing required secret key or failing decapsulation aborts the whole receive
-and discards all its state changes, including earlier acknowledgement and counter updates. Lean represents
-this error by outer `none`; the caller retains the original state. Incomplete
-erasure decoding is explicitly handled and retains chunks, returning a successful
-receive with no epoch key. The secret key is looked up only after ciphertext
-decoding succeeds, so incomplete decoding retains chunks even when that key is absent.
-
 For party $`P`, the shared receive follows Figures 17–18 with offset $`\delta_P`,
 where $`\delta_A=1` and $`\delta_B=-1`. We write $`\bar P` for the peer of party $`P`.
 
