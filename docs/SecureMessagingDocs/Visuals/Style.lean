@@ -381,6 +381,16 @@ p.lean-pill-caption {
   color: inherit;
   text-decoration-color: currentColor;
 }
+
+/* The node metadata panel (GitHub issue links): drop the boxed light-blue
+   background so it reads as a footnote line, not a banner. `smDocsJs` moves it
+   below the statement body. */
+.bp_wrapper > .bp_metadata_panel {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0.5rem 0 0.2rem;
+}
 "#
 
 /-- Client-side script: wrap framed anchor code in a "Lean" collapsible pill; optional
@@ -473,6 +483,13 @@ def smDocsJs : String := r#"
       }
     });
   }
+  function moveMetadataPanels() {
+    // Render order puts the metadata panel (GitHub issue links) between the
+    // heading and the statement body; show it after the body instead.
+    document.querySelectorAll(".bp_wrapper > .bp_metadata_panel").forEach(function (panel) {
+      panel.parentNode.appendChild(panel);
+    });
+  }
   function foldGameCells() {
     document.querySelectorAll("section.game-cell:not(.game-foldable)").forEach(function (cell) {
       var header = cell.querySelector(":scope > .game-cell-header");
@@ -508,6 +525,7 @@ def smDocsJs : String := r#"
   function initLeanPills() {
     installHeadingTitles();
     wrapLeanBlocks();
+    moveMetadataPanels();
     foldGameCells();
     window.setTimeout(function () {
       renderMathIn(document.body);
