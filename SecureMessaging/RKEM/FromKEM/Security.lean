@@ -400,11 +400,7 @@ theorem FSINDCPASecure [DecidableEq K] (kem : KEMScheme ProbComp K PK SK C)
 -- ANCHOR_END: FSINDCPASecure
     := by
   have hfail : Pr[= false | kem.CorrectExp] ≤ (δ : ℝ≥0∞) :=
-    calc Pr[= false | kem.CorrectExp]
-        ≤ Pr[= false | kem.CorrectExp] + Pr[⊥ | kem.CorrectExp] := le_self_add
-      _ = kem.correctnessError ProbCompRuntime.probComp :=
-          (correctnessError_eq_probOutput_false_add_probFailure kem ProbCompRuntime.probComp).symm
-      _ ≤ (δ : ℝ≥0∞) := hcorr
+    probOutput_false_CorrectExp_le_of_deltaCorrect kem ProbCompRuntime.probComp hcorr
   have hfail_toReal : (Pr[= false | kem.CorrectExp]).toReal / 2 ≤ (δ : ℝ) / 2 := by
     have h := ENNReal.toReal_mono ENNReal.coe_ne_top hfail
     rw [ENNReal.coe_toReal] at h

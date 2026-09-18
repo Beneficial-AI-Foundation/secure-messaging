@@ -121,14 +121,8 @@ theorem deltaCorrect [DecidableEq K] (kem : KEMScheme ProbComp K PK SK C)
     RKEMScheme.deltaCorrect (scheme kem) ProbCompRuntime.probComp δ δ
 -- ANCHOR_END: deltaCorrect
     := by
-  have hdelta : Pr[= false | kem.CorrectExp] ≤ δ := by
-    have heq : kem.correctnessError ProbCompRuntime.probComp =
-        Pr[= false | kem.CorrectExp] + Pr[⊥ | kem.CorrectExp] :=
-      correctnessError_eq_probOutput_false_add_probFailure kem ProbCompRuntime.probComp
-    calc Pr[= false | kem.CorrectExp]
-        ≤ Pr[= false | kem.CorrectExp] + Pr[⊥ | kem.CorrectExp] := le_self_add
-      _ = kem.correctnessError ProbCompRuntime.probComp := heq.symm
-      _ ≤ δ := hkem
+  have hdelta : Pr[= false | kem.CorrectExp] ≤ δ :=
+    probOutput_false_CorrectExp_le_of_deltaCorrect kem ProbCompRuntime.probComp hkem
   refine ⟨⟨?_, ?_⟩, ?_, ?_⟩
   · unfold RKEMScheme.correctnessErrorA
     change 1 - Pr[= true | RKEMScheme.correctExpA (scheme kem)] ≤ δ

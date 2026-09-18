@@ -188,6 +188,15 @@ def deltaCorrect (kem : KEMScheme m K PK SK C)
   kem.correctnessError runtime ≤ delta
 -- ANCHOR_END: deltaCorrect
 
+/-- `delta`-correctness bounds the probability that the correctness experiment returns `false`;
+failure/nontermination mass only adds to the error. -/
+theorem probOutput_false_CorrectExp_le_of_deltaCorrect
+    (kem : KEMScheme m K PK SK C) (runtime : ProbCompRuntime m) {delta : ℝ≥0∞}
+    (h : kem.deltaCorrect runtime delta) :
+    Pr[= false | runtime.evalDist kem.CorrectExp] ≤ delta :=
+  le_self_add.trans
+    ((correctnessError_eq_probOutput_false_add_probFailure kem runtime).symm.le.trans h)
+
 end Correctness
 
 end KEMScheme
