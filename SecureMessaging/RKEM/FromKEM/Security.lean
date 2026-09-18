@@ -143,11 +143,6 @@ private lemma probOutput_true_indCpaGame_eq_probOutput_true_idealSecurityExpA
       let ekAHat ← kem.keygen
       let b' ← adversary () ekA.1 ekAHat.1 a.1 (ekAHat.1, e.1) ekAHat.2 (if b then kRand else e.2)
       pure (b == b')] := by
-    refine probOutput_bind_congr fun a _ => ?_
-    refine probOutput_bind_congr fun e _ => ?_
-    refine probOutput_bind_congr fun kRand _ => ?_
-    refine probOutput_bind_congr fun ekA _ => ?_
-    refine probOutput_bind_congr fun ekAHat _ => ?_
     cases b <;> rfl
   rw [hflip]
   -- Now reorder the shared randomness (`B`'s key + encapsulation, `A`'s next-round key, and the
