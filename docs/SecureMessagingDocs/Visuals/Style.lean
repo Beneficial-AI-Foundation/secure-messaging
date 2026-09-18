@@ -382,14 +382,68 @@ p.lean-pill-caption {
   text-decoration-color: currentColor;
 }
 
-/* The node metadata panel (GitHub issue links): drop the boxed light-blue
-   background so it reads as a footnote line, not a banner. `smDocsJs` moves it
-   below the statement body. */
+/* Keep issue links beside the title and use consistent text for header controls. */
+.bp_header_issues + .bp_extras {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.55rem;
+}
+.bp_header_issues,
+.bp_extras .bp_relation_chip {
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.bp_header_issues {
+  color: var(--bp-color-text-muted);
+  margin-inline-start: 0.45rem;
+}
+.bp_header_issues .bp_metadata_tag,
+.bp_header_issues .github-issue-link {
+  font: inherit;
+  color: inherit;
+}
+.bp_header_issues .bp_metadata_tag {
+  border: none;
+  background: none;
+  padding: 0;
+}
+.bp_header_issues .github-issue-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.12rem 0.4rem;
+  border: 1px solid var(--bp-color-border-panel);
+  border-radius: 999px;
+  background: var(--bp-color-surface);
+  text-decoration: none;
+}
+.bp_header_issues .github-issue-link:hover,
+.bp_header_issues .github-issue-link:focus-visible {
+  background: var(--bp-color-surface-muted);
+  border-color: var(--bp-color-text-faint);
+}
+.bp_issue_icon {
+  width: 0.75rem;
+  height: 0.75rem;
+  flex: none;
+}
+
+/* Keep remaining metadata, or the fallback without a toolbar, below the body. */
 .bp_wrapper > .bp_metadata_panel {
   background: transparent;
   border: none;
   padding: 0;
   margin: 0.5rem 0 0.2rem;
+}
+
+/* Hash navigation should highlight declarations, not an entire section. */
+section.bp_decl_target {
+  background: transparent;
+  box-shadow: none;
+  animation: none;
 }
 "#
 
@@ -484,10 +538,34 @@ def smDocsJs : String := r#"
     });
   }
   function moveMetadataPanels() {
-    // Render order puts the metadata panel (GitHub issue links) between the
-    // heading and the statement body; show it after the body instead.
     document.querySelectorAll(".bp_wrapper > .bp_metadata_panel").forEach(function (panel) {
-      panel.parentNode.appendChild(panel);
+      var wrapper = panel.parentNode;
+      var toolbar = wrapper.querySelector(":scope > .bp_heading > .bp_extras");
+      if (toolbar) {
+        panel.querySelectorAll(":scope > .bp_metadata_item").forEach(function (item) {
+          var key = item.querySelector(".bp_metadata_key");
+          // Move only dedicated GitHub metadata; preserve other tags below the body.
+          if (!key || key.textContent.trim() !== "GitHub" ||
+              !item.querySelector("a.github-issue-link")) return;
+          key.remove();
+          item.querySelectorAll("a.github-issue-link").forEach(function (link) {
+            var label = "GitHub issue " + link.textContent.trim();
+            link.title = label;
+            link.setAttribute("aria-label", label);
+            link.insertAdjacentHTML("afterbegin",
+              '<svg class="bp_issue_icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">' +
+              '<circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/>' +
+              '<circle cx="8" cy="8" r="1.5" fill="currentColor"/></svg>');
+          });
+          item.classList.add("bp_header_issues");
+          toolbar.parentNode.insertBefore(item, toolbar);
+        });
+      }
+      if (panel.children.length) {
+        wrapper.appendChild(panel);
+      } else {
+        panel.remove();
+      }
     });
   }
   function foldGameCells() {
