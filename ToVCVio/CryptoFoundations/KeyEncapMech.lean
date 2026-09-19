@@ -50,6 +50,14 @@ structure DeterministicDecaps (kem : KEMScheme m K PK SK C) where
   /-- `decapsDet` agrees with the KEM's monadic decapsulation. -/
   decaps_eq : ∀ sk c, kem.decaps sk c = pure (decapsDet sk c)
 
+/-- Witness that a KEM's decapsulation never fails: it always recovers *some* key, though not
+necessarily the encapsulated one. -/
+structure TotalDecaps (kem : KEMScheme m K PK SK C) where
+  /-- Decapsulation, repackaged with its `Option` wrapper removed. -/
+  decapsTotal : SK → C → m K
+  /-- `decapsTotal` agrees with the KEM's own decapsulation, up to the removed `Option` wrapper. -/
+  decaps_eq : ∀ sk c, kem.decaps sk c = some <$> decapsTotal sk c
+
 /-- Randomness-leaking versions of the two randomized KEM algorithms: key
 generation and encapsulation.
 

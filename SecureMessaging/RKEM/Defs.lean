@@ -47,11 +47,12 @@ round alongside the shared key.
   encapsulation key `ekB` using `A`'s decapsulation key `dkA`, producing a
   ciphertext `ctB` for `B`, the shared key `K`, and `A`'s updated decapsulation
   key `dk̂A`.
-- `rdecA : Par → DK → CT → EK → m (Option (K × EK))`.
+- `rdecA : Par → DK → CT → EK → m (K × EK)`.
   `RDec-A(par, dkA, ctA, ekB) → (K, ek̂B)`: decapsulates `ctA` using `A`'s
   decapsulation key `dkA` and `B`'s encapsulation key `ekB`, producing the
-  shared key `K` and `B`'s updated encapsulation key `ek̂B`.
-- `rencB : Par → EK → DK → m (CT × K × DK)`, `rdecB : Par → DK → CT → EK → m (Option (K × EK))`.
+  shared key `K` and `B`'s updated encapsulation key `ek̂B`. Decapsulation never
+  fails.
+- `rencB : Par → EK → DK → m (CT × K × DK)`, `rdecB : Par → DK → CT → EK → m (K × EK)`.
   `REnc-B`, `RDec-B`: as `rencA`, `rdecA`, with the roles of `A` and `B` swapped.
 
 [REFERENCES]
@@ -93,14 +94,14 @@ structure RKEMScheme (m : Type → Type u) [Monad m] (Par EK DK CT K : Type) whe
   rencA : Par → EK → DK → m (CT × K × DK)
   /-- `RDec-A(par, dkA, ctA, ekB) → (K, ek̂B)`: decapsulates using `A`'s
   decapsulation key and `B`'s encapsulation key, producing the shared key and
-  `B`'s updated encapsulation key. -/
-  rdecA : Par → DK → CT → EK → m (Option (K × EK))
+  `B`'s updated encapsulation key. Never fails. -/
+  rdecA : Par → DK → CT → EK → m (K × EK)
   /-- `REnc-B(par, ekA, dkB) → (ctA, K, dk̂B)`: as `rencA`, with the roles of
   `A` and `B` swapped. -/
   rencB : Par → EK → DK → m (CT × K × DK)
   /-- `RDec-B(par, dkB, ctB, ekA) → (K, ek̂A)`: as `rdecA`, with the roles of
   `A` and `B` swapped. -/
-  rdecB : Par → DK → CT → EK → m (Option (K × EK))
+  rdecB : Par → DK → CT → EK → m (K × EK)
 -- ANCHOR_END: RKEMScheme
 
 namespace RKEMScheme
@@ -138,10 +139,8 @@ def correctExpA (rkem : RKEMScheme m Par EK DK CT K) [DecidableEq K] : m Bool :=
   let (ekA, dkA) ← rkem.rkeygenAFresh par
   let (ekB, dkB) ← rkem.rkeygenBUpdated par
   let (ctB, key, _) ← rkem.rencA par ekB dkA
-  let res ← rkem.rdecB par dkB ctB ekA
-  match res with
-  | none => return false
-  | some (key', _) => return decide (key = key')
+  let (key', _) ← rkem.rdecB par dkB ctB ekA
+  return decide (key = key')
 
 /-- As `correctExpA`, with the roles of `A` and `B` swapped. -/
 def correctExpB (rkem : RKEMScheme m Par EK DK CT K) [DecidableEq K] : m Bool := do
@@ -149,10 +148,8 @@ def correctExpB (rkem : RKEMScheme m Par EK DK CT K) [DecidableEq K] : m Bool :=
   let (ekB, dkB) ← rkem.rkeygenBFresh par
   let (ekA, dkA) ← rkem.rkeygenAUpdated par
   let (ctA, key, _) ← rkem.rencB par ekA dkB
-  let res ← rkem.rdecA par dkA ctA ekB
-  match res with
-  | none => return false
-  | some (key', _) => return decide (key = key')
+  let (key', _) ← rkem.rdecA par dkA ctA ekB
+  return decide (key = key')
 
 /-- Correctness error against `runtime`: missing success mass of `correctExpA`, i.e.
 `1 - Pr[correctExpA = true]`. -/
@@ -172,28 +169,23 @@ def deltaCorrectUpdatedKeys (rkem : RKEMScheme m Par EK DK CT K) (runtime : Prob
   rkem.correctnessErrorA runtime ≤ delta ∧ rkem.correctnessErrorB runtime ≤ delta
 
 /-- The marginal distribution of `A`'s updated key pair `(ek̂A, dk̂A)`, produced by running one
-round of the protocol from `A` towards `B` as in `correctExpA`; `none` if `B`'s decapsulation
-fails. -/
-def ratchetRoundOutputA (rkem : RKEMScheme m Par EK DK CT K) : m (Option (EK × DK)) := do
+round of the protocol from `A` towards `B` as in `correctExpA`. -/
+def ratchetRoundOutputA (rkem : RKEMScheme m Par EK DK CT K) : m (EK × DK) := do
   let par ← rkem.rsetup
   let (ekA, dkA) ← rkem.rkeygenAFresh par
   let (ekB, dkB) ← rkem.rkeygenBUpdated par
   let (ctB, _, dkAHat) ← rkem.rencA par ekB dkA
-  let res ← rkem.rdecB par dkB ctB ekA
-  match res with
-  | none => return none
-  | some (_, ekAHat) => return some (ekAHat, dkAHat)
+  let (_, ekAHat) ← rkem.rdecB par dkB ctB ekA
+  return (ekAHat, dkAHat)
 
 /-- As `ratchetRoundOutputA`, with the roles of `A` and `B` swapped. -/
-def ratchetRoundOutputB (rkem : RKEMScheme m Par EK DK CT K) : m (Option (EK × DK)) := do
+def ratchetRoundOutputB (rkem : RKEMScheme m Par EK DK CT K) : m (EK × DK) := do
   let par ← rkem.rsetup
   let (ekB, dkB) ← rkem.rkeygenBFresh par
   let (ekA, dkA) ← rkem.rkeygenAUpdated par
   let (ctA, _, dkBHat) ← rkem.rencB par ekA dkB
-  let res ← rkem.rdecA par dkA ctA ekB
-  match res with
-  | none => return none
-  | some (_, ekBHat) => return some (ekBHat, dkBHat)
+  let (_, ekBHat) ← rkem.rdecA par dkA ctA ekB
+  return (ekBHat, dkBHat)
 
 /-- Total-variation distance, under `runtime`, between `ratchetRoundOutputA` and sampling directly
 from `distKeyGenAUpdated`. -/
@@ -202,8 +194,7 @@ noncomputable def updateKeyDistErrorA (rkem : RKEMScheme m Par EK DK CT K)
   ‖(SPMF.tvDist (runtime.evalDist rkem.ratchetRoundOutputA)
                 (runtime.evalDist (do
                                   let par ← rkem.rsetup
-                                  let keys ← rkem.rkeygenAUpdated par
-                                  return some keys)))‖ₑ
+                                  rkem.rkeygenAUpdated par)))‖ₑ
 
 /-- As `updateKeyDistErrorA`, with the roles of `A` and `B` swapped. -/
 noncomputable def updateKeyDistErrorB (rkem : RKEMScheme m Par EK DK CT K)
@@ -211,8 +202,7 @@ noncomputable def updateKeyDistErrorB (rkem : RKEMScheme m Par EK DK CT K)
   ‖SPMF.tvDist (runtime.evalDist rkem.ratchetRoundOutputB)
                (runtime.evalDist (do
                                   let par ← rkem.rsetup
-                                  let keys ← rkem.rkeygenBUpdated par
-                                  return some keys))‖ₑ
+                                  rkem.rkeygenBUpdated par))‖ₑ
 
 /-- Def. 5.3, property 2: the updated-key distribution is within statistical distance `delta`
 of the directly sampled updated-key distribution, for both parties. -/
@@ -270,15 +260,9 @@ def securityExpA (rkem : RKEMScheme ProbComp Par EK DK CT K)
   let (ekA, dkA) ← rkem.rkeygenAFresh par
   let (ekBHat, dkBHat) ← rkem.rkeygenBUpdated par
   let (ctB, k0, dkAHat) ← rkem.rencA par ekBHat dkA
-  let res ← rkem.rdecB par dkBHat ctB ekA
-  match res with
-  | none =>
-    -- Decapsulation failed in this case, we return a fresh random boolean
-    let b' ← $ᵗ Bool
-    return b'
-  | some (_, ekAHat) =>
-    let b' ← adversary par ekA ekAHat ekBHat ctB dkAHat (if b then k1 else k0)
-    return b == b'
+  let (_, ekAHat) ← rkem.rdecB par dkBHat ctB ekA
+  let b' ← adversary par ekA ekAHat ekBHat ctB dkAHat (if b then k1 else k0)
+  return b == b'
 -- ANCHOR_END: securityExpA
 
 /-- As `securityExpA`, with the roles of `A` and `B` swapped. -/
@@ -290,15 +274,9 @@ def securityExpB (rkem : RKEMScheme ProbComp Par EK DK CT K)
   let (ekB, dkB) ← rkem.rkeygenBFresh par
   let (ekAHat, dkAHat) ← rkem.rkeygenAUpdated par
   let (ctA, k0, dkBHat) ← rkem.rencB par ekAHat dkB
-  let res ← rkem.rdecA par dkAHat ctA ekB
-  match res with
-  | none =>
-    -- Decapsulation failed in this case, we return a fresh random boolean
-    let b' ← $ᵗ Bool
-    return b'
-  | some (_, ekBHat) =>
-    let b' ← adversary par ekB ekBHat ekAHat ctA dkBHat (if b then k1 else k0)
-    return b == b'
+  let (_, ekBHat) ← rkem.rdecA par dkAHat ctA ekB
+  let b' ← adversary par ekB ekBHat ekAHat ctA dkBHat (if b then k1 else k0)
+  return b == b'
 
 /-- `Adv^{FS-IND-CPA-A}`: `|Pr[securityExpA = true] - 1/2|`. -/
 -- ANCHOR: fsIndCpaAdvantageA
