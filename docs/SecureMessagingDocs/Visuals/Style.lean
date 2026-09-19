@@ -447,8 +447,8 @@ section.bp_decl_target {
 }
 "#
 
-/-- Client-side script: wrap framed anchor code in a "Lean" collapsible pill; optional
-text from a preceding leanPillCaption block is shown inline after the pill. -/
+/-- Client-side documentation UI: heading titles, issue badges, collapsible Lean blocks
+and game boxes, math rendering, and fragment navigation. -/
 def smDocsJs : String := r#"
 (function () {
   function installHeadingTitles() {
@@ -671,7 +671,7 @@ def smDocsJs : String := r#"
 def smDocsAssets : HtmlAssets :=
   { extraCss := [smDocsCss], extraJs := [smDocsJs] }
 
-/-- The site render configuration, with our custom CSS assets attached. -/
+/-- The site render configuration, with our custom CSS and JavaScript assets attached. -/
 def docsConfig : RenderConfig :=
   let cfg : RenderConfig := {}
   let htmlConfig := cfg.toHtmlConfig
