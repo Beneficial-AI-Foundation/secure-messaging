@@ -64,11 +64,9 @@ def rdec {m : Type → Type u} [Monad m] {K PK SK C : Type}
     (_par : Unit) (dkSelfHat : SK) (ctSelf : PK × C) (_ekPeer : PK) :
     m (K × PK) := do
   let (ekPeerHat, ct) := ctSelf
-  let res ← kem.decaps dkSelfHat ct
-  match res with
-  | none => let key ← total.decapsTotal dkSelfHat ct
-            return (key, ekPeerHat)
-  | some key => return (key, ekPeerHat)
+  -- We have that kem.decaps dkSelfHat ct = some <$> decapsTotal dkSelfHat ct
+  let key ← total.decapsTotal dkSelfHat ct
+  return (key, ekPeerHat)
 ```
 
 :::leanPillCaption "generic RKEM scheme"

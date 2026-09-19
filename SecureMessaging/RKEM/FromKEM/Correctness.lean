@@ -41,7 +41,7 @@ theorem probOutput_correctExpA_eq_probOutput_CorrectExp [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (total : TotalDecaps kem) :
     Pr[= true | RKEMScheme.correctExpA (scheme kem total)] = Pr[= true | kem.CorrectExp] := by
   unfold RKEMScheme.correctExpA KEMScheme.CorrectExp
-  simp only [scheme, rkeygen, renc, rdec_eq_rdec', rdec', total.decaps_eq,
+  simp only [scheme, rkeygen, renc, rdec, total.decaps_eq,
     map_eq_bind_pure_comp, Function.comp, pure_bind, bind_assoc]
   refine probOutput_bind_of_const' kem.keygen fun _ _ => ?_
   refine probOutput_bind_congr fun p _ => ?_
@@ -63,7 +63,7 @@ theorem evalDist_ratchetRoundOutputA_eq_evalDist_keygen
       ProbCompRuntime.probComp.evalDist kem.keygen := by
   change (𝒟[RKEMScheme.ratchetRoundOutputA (scheme kem total)] : SPMF (PK × SK)) = 𝒟[kem.keygen]
   unfold RKEMScheme.ratchetRoundOutputA
-  simp only [scheme, rkeygen, renc, rdec_eq_rdec', rdec', pure_bind, bind_assoc]
+  simp only [scheme, rkeygen, renc, rdec, pure_bind, bind_assoc]
   refine evalDist_ext fun y => ?_
   refine probOutput_bind_of_const' kem.keygen fun _ _ => ?_
   refine probOutput_bind_of_const' kem.keygen fun p _ => ?_

@@ -83,42 +83,19 @@ RDec-P(d̂kP, ctP, ekP̄):            -- ekP̄ input is unused
   K ← Dec(d̂kP, ct)
   return (K, êkP̄)
 
-P̄ above corresponds to Peer below, while P corresponds to Self. Uses `total`, a witness that
-`kem`'s decapsulation is total, so that the construction's own decapsulation can be total too
-(`RKEMScheme.rdecA`/`rdecB` never fail). -/
+P̄ above corresponds to Peer below, while P corresponds to Self. Goes through `total.decapsTotal`
+rather than `kem.decaps` directly, so that the construction's own decapsulation is total too
+(`RKEMScheme.rdecA`/`rdecB` never fail) with no `Option` in the data flow to justify away. -/
 -- ANCHOR: rdec
 def rdec {m : Type → Type u} [Monad m] {K PK SK C : Type}
     (kem : KEMScheme m K PK SK C) (total : TotalDecaps kem)
     (_par : Unit) (dkSelfHat : SK) (ctSelf : PK × C) (_ekPeer : PK) :
     m (K × PK) := do
   let (ekPeerHat, ct) := ctSelf
-  let res ← kem.decaps dkSelfHat ct
-  match res with
-  | none => let key ← total.decapsTotal dkSelfHat ct
-            return (key, ekPeerHat)
-  | some key => return (key, ekPeerHat)
--- ANCHOR_END: rdec
-
-/-- As `rdec`, but going straight through `total.decapsTotal` instead of `kem.decaps`, so there is
-no `Option` in the data flow at all — no redundant `none` arm to justify away, unlike `rdec` itself
-(see `rdec_eq_rdec'`). -/
-def rdec' {m : Type → Type u} [Monad m] {K PK SK C : Type}
-    (kem : KEMScheme m K PK SK C) (total : TotalDecaps kem)
-    (_par : Unit) (dkSelfHat : SK) (ctSelf : PK × C) (_ekPeer : PK) :
-    m (K × PK) := do
-  let (ekPeerHat, ct) := ctSelf
+  -- We have that kem.decaps dkSelfHat ct = some <$> decapsTotal dkSelfHat ct
   let key ← total.decapsTotal dkSelfHat ct
   return (key, ekPeerHat)
-
-/-- `rdec` and `rdec'` compute the same thing: since `kem.decaps` always agrees with
-`some <$> total.decapsTotal` (`total.decaps_eq`), the `none` branch of `rdec` — which redundantly
-calls `total.decapsTotal` again — is never taken. -/
-theorem rdec_eq_rdec' {m : Type → Type u} [Monad m] [LawfulMonad m] {K PK SK C : Type}
-    (kem : KEMScheme m K PK SK C) (total : TotalDecaps kem)
-    (par : Unit) (dkSelfHat : SK) (ctSelf : PK × C) (ekPeer : PK) :
-    rdec kem total par dkSelfHat ctSelf ekPeer = rdec' kem total par dkSelfHat ctSelf ekPeer := by
-  unfold rdec rdec'
-  simp only [total.decaps_eq, map_eq_bind_pure_comp, bind_assoc, pure_bind, Function.comp]
+-- ANCHOR_END: rdec
 
 /-- Generic RKEM scheme induced by a KEM ([TripleRatchet, Appendix A.1, Fig. 26]). Public
 parameters are vacuous; the ratcheting key spaces are the KEM's own key spaces, with fresh
