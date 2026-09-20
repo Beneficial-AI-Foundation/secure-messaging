@@ -23,35 +23,30 @@ FrodoKEM, a Learning-With-Errors key encapsulation mechanism
 :::defTitle "frodo_kem_scheme" "FrodoKEM scheme"
 :::
 
-::::definition "frodo_kem_scheme" (parent := "frodo_kem")
+::::definition "frodo_kem_scheme" (parent := "frodo_kem") (tags := "gh-259")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{githubLabel}`github` {githubIssue 259}[]
 ::::
 
 :::defTitle "frodo_kem_correctness" "FrodoKEM correctness"
 :::
 
-::::theorem "frodo_kem_correctness" (parent := "frodo_kem")
+::::theorem "frodo_kem_correctness" (parent := "frodo_kem") (tags := "gh-260") (uses := "frodo_kem_scheme")
 $`\todo`
 
 :::leanPill "missing"
 :::
-
-{usesLabel}`uses` {uses "frodo_kem_scheme"}[] · {githubLabel}`github` {githubIssue 260}[]
 ::::
 
 :::defTitle "frodo_kem_security" "FrodoKEM security"
 :::
 
-::::theorem "frodo_kem_security" (parent := "frodo_kem")
+::::theorem "frodo_kem_security" (parent := "frodo_kem") (tags := "gh-261") (uses := "frodo_kem_scheme")
 $`\todo`
 
 :::leanPill "missing"
 :::
-
-{usesLabel}`uses` {uses "frodo_kem_scheme"}[] · {githubLabel}`github` {githubIssue 261}[]
 ::::

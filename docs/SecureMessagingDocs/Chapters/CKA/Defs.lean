@@ -26,7 +26,7 @@ set_option pp.rawOnError true
 :::defTitle "cka" "(Continuous Key Agreement - CKA scheme)"
 :::
 
-:::definition "cka" (lean := "CKAScheme")
+:::definition "cka" (lean := "CKAScheme") (tags := "gh-195")
 $`\todo`
 
 ```anchor CKAScheme (project := ".") (module := SecureMessaging.CKA.Defs)
@@ -51,7 +51,6 @@ structure CKAScheme (m : Type → Type u) [Monad m] (IK St I Rho Rand : Type) wh
   recvB : St → Rho → Option (I × St)
 ```
 
-{githubLabel}`github` {githubIssue 195}[]
 :::
 
 
@@ -62,7 +61,7 @@ structure CKAScheme (m : Type → Type u) [Monad m] (IK St I Rho Rand : Type) wh
 :::::::definition "cka_oracles" (lean := "CKAScheme.GameState, CKAScheme.GameParams, CKAScheme.isChallengeEpoch,
 CKAScheme.allowCorrPCS, CKAScheme.allowCorrFS, CKAScheme.allowCorr, CKAScheme.oracleSendA, CKAScheme.oracleSendB,
 CKAScheme.oracleSendArleak, CKAScheme.oracleSendBrleak, CKAScheme.oracleRecvA, CKAScheme.oracleRecvB,
-CKAScheme.oracleChallA, CKAScheme.oracleChallB, CKAScheme.oracleCorruptA, CKAScheme.oracleCorruptB")
+CKAScheme.oracleChallA, CKAScheme.oracleChallB, CKAScheme.oracleCorruptA, CKAScheme.oracleCorruptB") (uses := "cka")
 $`\todo`
 
 *Game state* $`(\stA, \stB, \rho_\mathsf{A}, \rho_\mathsf{B}, K_\mathsf{A}, K_\mathsf{B}, \mathsf{correct}, \mathsf{last}, t_\mathsf{A}, t_\mathsf{B})`
@@ -432,15 +431,13 @@ def oracleCorruptB (gp : GameParams) (St I Rho : Type) :
 ```
 :::::
 ::::::
-
-{usesLabel}`uses` {uses "cka"}[]
 :::::::
 
 
 :::defTitle "cka_correctness" "CKA correctness"
 :::
 
-:::::::definition "cka_correctness" (lean := "CKAScheme.correctnessExp, CKAScheme.ckaCorrectnessImpl, CKAScheme.CKACorrectnessAdversary")
+:::::::definition "cka_correctness" (lean := "CKAScheme.correctnessExp, CKAScheme.ckaCorrectnessImpl, CKAScheme.CKACorrectnessAdversary") (tags := "gh-196") (uses := "cka, cka_oracles")
 $`\todo`
 
 Let $`\O = \{\OSendA, \ORecA, \OSendB, \ORecB\}`.
@@ -493,14 +490,12 @@ def correctnessExp [DecidableEq I] (cka : CKAScheme ProbComp IK St I Rho Rand)
     (simulateQ (ckaCorrectnessImpl cka) adversary).run (initGameState stA stB)
   return state.correct
 ```
-
-{usesLabel}`uses` {uses "cka"}[] · {uses "cka_oracles"}[] · {githubLabel}`github` {githubIssue 196}[]
 :::::::
 
 :::defTitle "cka_security" "CKA security experiment"
 :::
 
-:::::::definition "cka_security" (lean := "CKAScheme.securityExp, CKAScheme.ckaSecurityImpl, CKAScheme.CKAAdversary")
+:::::::definition "cka_security" (lean := "CKAScheme.securityExp, CKAScheme.ckaSecurityImpl, CKAScheme.CKAAdversary") (tags := "gh-197") (uses := "cka, cka_oracles")
 $`\todo`
 
 Let $`\O = \{\OSendA, \ORecA, \OChallA, \OCorrA, \OSendARLeak, \OSendB, \ORecB, \OChallB, \OCorrB, \OSendBRLeak\}`.
@@ -558,15 +553,13 @@ def securityExp [SampleableType I] [DecidableEq I] (cka : CKAScheme ProbComp IK 
   let (b', _) ← (simulateQ (ckaSecurityImpl gp b cka) adversary).run (initGameState stA stB)
   return (b == b')
 ```
-
-{usesLabel}`uses` {uses "cka"}[] · {uses "cka_oracles"}[] · {githubLabel}`github` {githubIssue 197}[]
 :::::::
 
 
 :::defTitle "cka_advantage" "CKA guess advantage"
 :::
 
-:::definition "cka_advantage" (lean := "CKAScheme.ckaGuessAdvantage")
+:::definition "cka_advantage" (lean := "CKAScheme.ckaGuessAdvantage") (uses := "cka_security")
 $`\todo`
 
 $$`\Adv{\textsf{guess}}(\adv, gp)
@@ -579,6 +572,4 @@ noncomputable def ckaGuessAdvantage [SampleableType I] [DecidableEq I]
     (gp : GameParams) : ℝ :=
   |(Pr[= true | securityExp cka adversary gp]).toReal - 1 / 2|
 ```
-
-{usesLabel}`uses` {uses "cka_security"}[]
 :::

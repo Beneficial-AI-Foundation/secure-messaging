@@ -33,7 +33,7 @@ Incremental Key Encapsulation Mechanism (Incremental KEM).
 :::defTitle "incremental_kem_scheme" "Incremental KEM scheme"
 :::
 
-::::definition "incremental_kem_scheme" (parent := "incremental_kem") (lean := "KEMScheme.IncrementalStructure")
+::::definition "incremental_kem_scheme" (parent := "incremental_kem") (lean := "KEMScheme.IncrementalStructure") (tags := "gh-224")
 $`\todo`
 
 :::leanPillCaption "incremental KEM interface"
@@ -70,7 +70,6 @@ structure IncrementalStructure (kem : KEMScheme m K PK SK C) where
     pure (splitC.symm (c1, c2), k))
 ```
 
-{githubLabel}`github` {githubIssue 224}[]
 ::::
 
 :::group "incremental_kem_incremental_kem_from_ml_kem"
@@ -80,7 +79,7 @@ Incremental KEM from ML-KEM.
 :::defTitle "incremental_kem_from_ml_kem_spec" "Incremental KEM from ML-KEM construction"
 :::
 
-::::definition "incremental_kem_from_ml_kem_spec" (parent := "incremental_kem_incremental_kem_from_ml_kem") (lean := "MLKEM.incrementalHeader, MLKEM.EncapsulationState, MLKEM.incrementalEncaps1, MLKEM.incrementalEncaps2, MLKEM.mlkemIncremental")
+::::definition "incremental_kem_from_ml_kem_spec" (parent := "incremental_kem_incremental_kem_from_ml_kem") (lean := "MLKEM.incrementalHeader, MLKEM.EncapsulationState, MLKEM.incrementalEncaps1, MLKEM.incrementalEncaps2, MLKEM.mlkemIncremental") (tags := "gh-226") (uses := "incremental_kem_scheme, ml_kem_scheme")
 $`\todo`
 
 :::leanPillCaption "public-key header (ρ, H(ek))"
@@ -178,14 +177,12 @@ def mlkemIncremental (p : ParameterSet) (ring : NTTRingOps)
       bind_assoc, pure_bind]
     rfl
 ```
-
-{usesLabel}`uses` {uses "incremental_kem_scheme"}[] · {uses "ml_kem_scheme"}[] · {githubLabel}`github` {githubIssue 226}[]
 ::::
 
 :::defTitle "incremental_kem_from_ml_kem_correctness" "Incremental ML-KEM-768 correctness from EasyCrypt assumptions"
 :::
 
-::::theorem "incremental_kem_from_ml_kem_correctness" (parent := "incremental_kem_incremental_kem_from_ml_kem") (lean := "MLKEM.incrementalCorrectExp_failure_le_mlkem768_easycrypt")
+::::theorem "incremental_kem_from_ml_kem_correctness" (parent := "incremental_kem_incremental_kem_from_ml_kem") (lean := "MLKEM.incrementalCorrectExp_failure_le_mlkem768_easycrypt") (tags := "gh-226") (uses := "incremental_kem_from_ml_kem_spec, ml_kem_correctness_easycrypt")
 $`\todo`
 
 :::leanPillCaption "staged ML-KEM-768 correctness bound"
@@ -202,14 +199,12 @@ theorem incrementalCorrectExp_failure_le_mlkem768_easycrypt {failprob hsadv prfa
           Concrete.mlkem768Primitives).CorrectExp]
       ≤ failprob + hsadv + 2 * prfadv
 ```
-
-{usesLabel}`uses` {uses "incremental_kem_from_ml_kem_spec"}[] · {uses "ml_kem_correctness_easycrypt"}[] · {githubLabel}`github` {githubIssue 226}[]
 ::::
 
 :::defTitle "incremental_kem_rand_leak" "Incremental KEM randomness leakage"
 :::
 
-::::definition "incremental_kem_rand_leak" (parent := "incremental_kem") (lean := "KEMScheme.IncrementalRandLeak, MLKEM.mlkemIncrementalRandLeak")
+::::definition "incremental_kem_rand_leak" (parent := "incremental_kem") (lean := "KEMScheme.IncrementalRandLeak, MLKEM.mlkemIncrementalRandLeak") (tags := "gh-246") (uses := "incremental_kem_scheme, incremental_kem_from_ml_kem_spec")
 
 :::leanPillCaption "incremental KEM randomness leakage"
 :::
@@ -277,8 +272,6 @@ def mlkemIncrementalRandLeak (p : ParameterSet) (ring : NTTRingOps)
   encaps2_fst := fun _st _hdr _vec => by
     simp only [mlkemIncremental, pure_bind]
 ```
-
-{usesLabel}`uses` {uses "incremental_kem_scheme"}[] · {uses "incremental_kem_from_ml_kem_spec"}[] · {githubLabel}`github` {githubIssue 246}[]
 ::::
 
 *References:*

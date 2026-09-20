@@ -32,61 +32,52 @@ Double Ratchet.
 :::defTitle "secure_messaging_double_ratchet_scheme" "Secure messaging scheme (Double Ratchet)"
 :::
 
-::::definition "secure_messaging_double_ratchet_scheme" (parent := "secure_messaging_double_ratchet")
+::::definition "secure_messaging_double_ratchet_scheme" (parent := "secure_messaging_double_ratchet") (tags := "gh-161")
 $`\todo`
 
 :::leanPill "missing"
 :::
 
-{githubLabel}`github` {githubIssue 161}[]
 ::::
 
 :::defTitle "secure_messaging_double_ratchet_correctness" "Double Ratchet correctness"
 :::
 
-::::definition "secure_messaging_double_ratchet_correctness" (parent := "secure_messaging_double_ratchet")
+::::definition "secure_messaging_double_ratchet_correctness" (parent := "secure_messaging_double_ratchet") (tags := "gh-162") (uses := "secure_messaging_double_ratchet_scheme")
 $`\todo`
 
 :::leanPill "missing"
 :::
-
-{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[] · {githubLabel}`github` {githubIssue 162}[]
 ::::
 
 :::defTitle "secure_messaging_double_ratchet_authenticity" "Double Ratchet authenticity"
 :::
 
-::::definition "secure_messaging_double_ratchet_authenticity" (parent := "secure_messaging_double_ratchet")
+::::definition "secure_messaging_double_ratchet_authenticity" (parent := "secure_messaging_double_ratchet") (tags := "gh-163") (uses := "secure_messaging_double_ratchet_scheme")
 $`\todo`
 
 :::leanPill "missing"
 :::
-
-{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[] · {githubLabel}`github` {githubIssue 163}[]
 ::::
 
 :::defTitle "secure_messaging_double_ratchet_privacy" "Double Ratchet privacy"
 :::
 
-::::definition "secure_messaging_double_ratchet_privacy" (parent := "secure_messaging_double_ratchet")
+::::definition "secure_messaging_double_ratchet_privacy" (parent := "secure_messaging_double_ratchet") (tags := "gh-164") (uses := "secure_messaging_double_ratchet_scheme")
 $`\todo`
 
 :::leanPill "missing"
 :::
-
-{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[] · {githubLabel}`github` {githubIssue 164}[]
 ::::
 
 :::defTitle "secure_messaging_double_ratchet_security" "Double Ratchet security"
 :::
 
-::::definition "secure_messaging_double_ratchet_security" (parent := "secure_messaging_double_ratchet")
+::::definition "secure_messaging_double_ratchet_security" (parent := "secure_messaging_double_ratchet") (tags := "gh-165") (uses := "secure_messaging_double_ratchet_scheme, secure_messaging_double_ratchet_correctness, secure_messaging_double_ratchet_authenticity, secure_messaging_double_ratchet_privacy")
 $`\todo`
 
 :::leanPill "missing"
 :::
-
-{usesLabel}`uses` {uses "secure_messaging_double_ratchet_scheme"}[] · {uses "secure_messaging_double_ratchet_correctness"}[] · {uses "secure_messaging_double_ratchet_authenticity"}[] · {uses "secure_messaging_double_ratchet_privacy"}[] · {githubLabel}`github` {githubIssue 165}[]
 ::::
 
 {include 1 SecureMessagingDocs.Chapters.SecureMessaging.DoubleRatchetAbstract}

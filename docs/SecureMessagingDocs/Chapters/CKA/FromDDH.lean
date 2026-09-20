@@ -32,7 +32,7 @@ CKA from DDH.
 :::defTitle "cka_from_ddh_state" "CKA from DDH state"
 :::
 
-:::definition "cka_from_ddh_state" (parent := "cka_cka_from_ddh") (lean := "DDH.CKAState")
+:::definition "cka_from_ddh_state" (parent := "cka_cka_from_ddh") (lean := "DDH.CKAState") (uses := "cka")
 $`\todo`
 
 ```anchor CKAState (project := ".") (module := SecureMessaging.CKA.FromDDH.Construction)
@@ -43,14 +43,12 @@ inductive CKAState (F G : Type) where
   | recvReady : F → CKAState F G
   deriving DecidableEq, Fintype, Repr
 ```
-
-{usesLabel}`uses` {uses "cka"}[]
 :::
 
 :::defTitle "cka_from_ddh" "CKA from DDH"
 :::
 
-:::definition "cka_from_ddh" (parent := "cka_cka_from_ddh") (lean := "DDH.ddhCKA")
+:::definition "cka_from_ddh" (parent := "cka_cka_from_ddh") (lean := "DDH.ddhCKA") (tags := "gh-8") (uses := "cka, cka_from_ddh_state")
 $`\todo`
 
 ```anchor ddhCKA (project := ".") (module := SecureMessaging.CKA.FromDDH.Construction)
@@ -69,14 +67,12 @@ def ddhCKA (F G : Type) [Field F] [Fintype F] [DecidableEq F] [SampleableType F]
   recvA := recv
   recvB := recv
 ```
-
-{usesLabel}`uses` {uses "cka"}[] · {uses "cka_from_ddh_state"}[] · {githubLabel}`github` {githubIssue 8}[]
 :::
 
 :::defTitle "cka_from_ddh_correctness" "CKA from DDH correctness"
 :::
 
-:::theorem "cka_from_ddh_correctness" (parent := "cka_cka_from_ddh") (lean := "ddhCKA.correctness")
+:::theorem "cka_from_ddh_correctness" (parent := "cka_cka_from_ddh") (lean := "ddhCKA.correctness") (tags := "gh-9") (uses := "cka_from_ddh, cka_correctness")
 $`\todo`
 
 $$`\Pr[\,\textsf{correctnessExp} = \mathsf{true}\,] = 1`
@@ -85,14 +81,12 @@ $$`\Pr[\,\textsf{correctnessExp} = \mathsf{true}\,] = 1`
 theorem correctness [DecidableEq G] (adv : CKACorrectnessAdversary G G) :
   Pr[= true | correctnessExp (ddhCKA F G gen) adv] = 1
 ```
-
-{usesLabel}`uses` {uses "cka_from_ddh"}[] · {uses "cka_correctness"}[] · {githubLabel}`github` {githubIssue 9}[]
 :::
 
 :::defTitle "cka_from_ddh_security" "CKA from DDH security"
 :::
 
-::::theorem "cka_from_ddh_security" (parent := "cka_cka_from_ddh") (lean := "ddhCKA.security")
+::::theorem "cka_from_ddh_security" (parent := "cka_cka_from_ddh") (lean := "ddhCKA.security") (tags := "gh-10") (uses := "cka_from_ddh, cka_security")
 $`\todo`
 
 ```anchor security (project := ".") (module := SecureMessaging.CKA.FromDDH.Security)
@@ -103,6 +97,4 @@ theorem security (gp : GameParams)
     ckaGuessAdvantage (ddhCKA F G gen) adversary gp ≤
       ddhGuessAdvantage gen (securityReduction gp adversary)
 ```
-
-{usesLabel}`uses` {uses "cka_from_ddh"}[] · {uses "cka_security"}[] · {githubLabel}`github` {githubIssue 10}[]
 ::::

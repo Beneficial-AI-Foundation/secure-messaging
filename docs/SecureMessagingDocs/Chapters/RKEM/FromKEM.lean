@@ -31,7 +31,7 @@ RKEM from KEM.
 :::defTitle "rkem_from_kem_spec" "RKEM from KEM construction"
 :::
 
-::::definition "rkem_from_kem_spec" (parent := "rkem_rkem_from_kem") (lean := "kemRKEM.scheme")
+::::definition "rkem_from_kem_spec" (parent := "rkem_rkem_from_kem") (lean := "kemRKEM.scheme") (tags := "gh-75") (uses := "rkem_scheme")
 $`\todo`
 
 :::leanPillCaption "fresh/updated ratcheting key generation"
@@ -60,13 +60,13 @@ def renc {m : Type → Type u} [Monad m] {K PK SK C : Type}
 
 ```anchor rdec (project := ".") (module := SecureMessaging.RKEM.FromKEM.Construction)
 def rdec {m : Type → Type u} [Monad m] {K PK SK C : Type}
-    (kem : KEMScheme m K PK SK C) (_par : Unit) (dkSelfHat : SK) (ctSelf : PK × C) (_ekPeer : PK) :
-    m (Option (K × PK)) := do
+    (kem : KEMScheme m K PK SK C) (total : TotalDecaps kem)
+    (_par : Unit) (dkSelfHat : SK) (ctSelf : PK × C) (_ekPeer : PK) :
+    m (K × PK) := do
   let (ekPeerHat, ct) := ctSelf
-  let res ← kem.decaps dkSelfHat ct
-  match res with
-  | none => return none
-  | some k => return (k, ekPeerHat)
+  -- We have that kem.decaps dkSelfHat ct = some <$> decapsTotal dkSelfHat ct
+  let key ← total.decapsTotal dkSelfHat ct
+  return (key, ekPeerHat)
 ```
 
 :::leanPillCaption "generic RKEM scheme"
@@ -74,55 +74,49 @@ def rdec {m : Type → Type u} [Monad m] {K PK SK C : Type}
 
 ```anchor scheme (project := ".") (module := SecureMessaging.RKEM.FromKEM.Construction)
 def scheme {m : Type → Type u} [Monad m] {K PK SK C : Type}
-    (kem : KEMScheme m K PK SK C) : RKEMScheme m Unit PK SK (PK × C) K where
+    (kem : KEMScheme m K PK SK C) (total : TotalDecaps kem) :
+    RKEMScheme m Unit PK SK (PK × C) K where
   rsetup := pure ()
   rkeygenAFresh := rkeygen kem
   rkeygenAUpdated := rkeygen kem
   rkeygenBFresh := rkeygen kem
   rkeygenBUpdated := rkeygen kem
   rencA := renc kem
-  rdecA := rdec kem
+  rdecA := rdec kem total
   rencB := renc kem
-  rdecB := rdec kem
+  rdecB := rdec kem total
 ```
-{usesLabel}`uses` {uses "rkem_scheme"}[] · {githubLabel}`github` {githubIssue 75}[]
 ::::
 
 :::defTitle "rkem_from_kem_correctness" "RKEM from KEM correctness"
 :::
 
-:::theorem "rkem_from_kem_correctness" (parent := "rkem_rkem_from_kem") (lean := "kemRKEM.deltaCorrect")
+:::theorem "rkem_from_kem_correctness" (parent := "rkem_rkem_from_kem") (lean := "kemRKEM.deltaCorrect") (tags := "gh-76") (uses := "rkem_from_kem_spec, rkem_scheme, rkem_correctness")
 $`\todo`
 
 ```anchor deltaCorrect (project := ".") (module := SecureMessaging.RKEM.FromKEM.Correctness)
 theorem deltaCorrect [DecidableEq K] (kem : KEMScheme ProbComp K PK SK C)
-    (δ : ℝ≥0∞) (hkem : kem.deltaCorrect ProbCompRuntime.probComp δ) :
-    RKEMScheme.deltaCorrect (scheme kem) ProbCompRuntime.probComp δ δ
+    (total : TotalDecaps kem) (δ : ℝ≥0∞) (hkem : kem.deltaCorrect ProbCompRuntime.probComp δ) :
+    RKEMScheme.deltaCorrect (scheme kem total) ProbCompRuntime.probComp δ 0
 ```
-
-{usesLabel}`uses` {uses "rkem_from_kem_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_correctness"}[] · {githubLabel}`github` {githubIssue 76}[]
 :::
 
 :::defTitle "rkem_from_kem_forward_security" "RKEM from KEM forward security"
 :::
 
-::::theorem "rkem_from_kem_forward_security" (parent := "rkem_rkem_from_kem")
+::::theorem "rkem_from_kem_forward_security" (parent := "rkem_rkem_from_kem") (tags := "gh-77") (uses := "rkem_from_kem_spec, rkem_scheme, rkem_forward_security")
 $`\todo`
 
 :::leanPill "missing"
 :::
-
-{usesLabel}`uses` {uses "rkem_from_kem_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_forward_security"}[] · {githubLabel}`github` {githubIssue 77}[]
 ::::
 
 :::defTitle "rkem_from_kem_ratchet_sim" "RKEM from KEM ratchet simulatability"
 :::
 
-::::theorem "rkem_from_kem_ratchet_sim" (parent := "rkem_rkem_from_kem")
+::::theorem "rkem_from_kem_ratchet_sim" (parent := "rkem_rkem_from_kem") (tags := "gh-78") (uses := "rkem_from_kem_spec, rkem_scheme, rkem_ratchet_sim")
 $`\todo`
 
 :::leanPill "missing"
 :::
-
-{usesLabel}`uses` {uses "rkem_from_kem_spec"}[] · {uses "rkem_scheme"}[] · {uses "rkem_ratchet_sim"}[] · {githubLabel}`github` {githubIssue 78}[]
 ::::

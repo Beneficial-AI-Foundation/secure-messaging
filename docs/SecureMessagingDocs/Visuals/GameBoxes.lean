@@ -42,10 +42,6 @@ structure DefTitleConfig where
   title : String
 deriving Inhabited
 
-structure GithubIssueConfig where
-  issue : Nat
-deriving Inhabited
-
 section
 variable [Monad m] [MonadError m]
 
@@ -65,12 +61,6 @@ def DefTitleConfig.parse : ArgParse m DefTitleConfig :=
 /-- Lets the `defTitle` directive consume its label/title pair. -/
 instance : FromArgs DefTitleConfig m where
   fromArgs := DefTitleConfig.parse
-
-def GithubIssueConfig.parse : ArgParse m GithubIssueConfig :=
-  GithubIssueConfig.mk <$> .positional `issue .nat
-
-instance : FromArgs GithubIssueConfig m where
-  fromArgs := GithubIssueConfig.parse
 
 end
 
@@ -203,71 +193,3 @@ feel like content while still rendering on the heading line. -/
 def defTitle : DirectiveExpanderOf DefTitleConfig
   | cfg, _contents => do
     ``(Block.other (Block.defTitle $(quote cfg.label) $(quote cfg.title)) #[])
-
-/-! ## Dependency ("uses") label
-
-The `{usesLabel}` role renders the small muted label that introduces a node's
-dependency list, matching the "used by" chip font in the heading. -/
-
--- Wraps its content in a `<span class="uses-label">` styled like the heading chip.
-inline_extension Inline.usesLabel where
-  data := Json.null
-  traverse _id _data _contents := do
-    pure none
-  toTeX := none
-  toHtml :=
-    some <| fun goI _id _data contents => do
-      let inner ← contents.mapM goI
-      pure <| Verso.Output.Html.tag "span" (attrsWithClass "uses-label") (.seq inner)
-
-/-- usesLabel role: inline label introducing a dependency list. -/
-@[role]
-def usesLabel : RoleExpanderOf Unit
-  | (), contents => do
-    let contents ← contents.mapM Elab.elabInline
-    ``(Inline.other Inline.usesLabel #[$contents,*])
-
-/-! ## GitHub issue links
-
-The `{githubLabel}` role and `{githubIssue N}` role render a compact footer for
-issue links, matching the dependency label style used by `{usesLabel}`. -/
-
-inline_extension Inline.githubLabel where
-  data := Json.null
-  traverse _id _data _contents := do
-    pure none
-  toTeX := none
-  toHtml :=
-    some <| fun goI _id _data contents => do
-      let inner ← contents.mapM goI
-      pure <| Verso.Output.Html.tag "span" (attrsWithClass "uses-label github-label") (.seq inner)
-
-inline_extension Inline.githubIssue (issue : Nat) where
-  data := toJson issue
-  traverse _id _data _contents := do
-    pure none
-  toTeX := none
-  toHtml :=
-    some <| fun _goI _id data _contents => do
-      let issue :=
-        match fromJson? (α := Nat) data with
-        | .ok n => n
-        | .error _ => 0
-      let issueText := s!"#{issue}"
-      let href := s!"https://github.com/Beneficial-AI-Foundation/secure-messaging/issues/{issue}"
-      pure <| Verso.Output.Html.tag "a"
-        #[("class", "github-issue-link"), ("href", href), ("target", "_blank"), ("rel", "noopener noreferrer")]
-        (Verso.Output.Html.text true issueText)
-
-/-- githubLabel role: inline label introducing GitHub issue links. -/
-@[role]
-def githubLabel : RoleExpanderOf Unit
-  | (), contents => do
-    let contents ← contents.mapM Elab.elabInline
-    ``(Inline.other Inline.githubLabel #[$contents,*])
-
-/-- githubIssue role: compact link to one repository issue, e.g. `{githubIssue 123}[]`. -/
-@[role]
-def githubIssue : RoleExpanderOf GithubIssueConfig
-  | cfg, _contents => do
-    ``(Inline.other (Inline.githubIssue $(quote cfg.issue)) #[])

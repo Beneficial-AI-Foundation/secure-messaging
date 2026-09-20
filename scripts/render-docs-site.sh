@@ -186,6 +186,16 @@ move_references_to_bottom() {
   done < <(find "$chapter_dir" -name '*.html' -type f -print0)
 }
 
+# verso-blueprint renders a node's tags as plain chips under a hard-coded `Tags`
+# label, and as `tag: gh-<n>` badges on the Blueprint Summary pages. Relabel and
+# link both surfaces to the GitHub issues. The script validates every node's
+# links against the manifest and fails the build when a verso-blueprint upgrade
+# changes the markup, so the links cannot be dropped silently.
+issue_repository="Beneficial-AI-Foundation/secure-messaging"
+link_issue_tags() {
+  scripts/link-blueprint-issue-tags.py --site-dir "$1" --repository "$issue_repository"
+}
+
 # slug | site title
 chapters=(
   "Authenticated-Encryption-with-Associated-Data|Authenticated Encryption with Associated Data"
@@ -207,6 +217,7 @@ lake env lean --run docs/SecureMessagingDocs/Renderers/ContentsMain.lean --outpu
 if [[ -f "$site_root/index.html" ]]; then
   mv "$site_root/index.html" "$site_root/book.html"
 fi
+link_issue_tags "$site_root"
 
 for chapter in "${chapters[@]}"; do
   IFS='|' read -r slug title <<< "$chapter"
@@ -875,12 +886,10 @@ HTML
 # Build the root Blueprint status table from the unified Verso Blueprint manifest.
 python3 scripts/update-blueprint-progress-history.py \
   --site-dir "$site_root" \
-  --docs-dir "$docs_root" \
   --history "$previous_history" \
   --output "$site_root/blueprint-progress-history.json"
 python3 scripts/aggregate-blueprint-status.py \
   --site-dir "$site_root" \
-  --docs-dir "$docs_root" \
   --history-file "$site_root/blueprint-progress-history.json" \
   --html-summary >> "$site_root/index.html"
 

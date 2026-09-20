@@ -203,16 +203,7 @@ def smDocsCss : String := r#"
   font-weight: inherit;
   color: inherit;
 }
-/* Label introducing a node's dependency list, emitted by the `{usesLabel}`
-   role. Matches the "used by" chip font in the blueprint heading. */
-.uses-label {
-  font-size: 0.78rem;
-  font-weight: 600;
-  font-style: normal;
-  color: var(--bp-color-text-muted);
-}
-
-/* Tone down the dependency hyperlinks ("uses Definition …") to a sombre slate,
+/* Tone down inline node references ({bpref}, citations) to a sombre slate,
    with a faint underline; darken slightly on hover. */
 .bp_inline_preview_ref a {
   color: #556070;
@@ -385,10 +376,79 @@ p.lean-pill-caption {
   color: #1f2937;
   text-decoration-color: currentColor;
 }
+.bp_summary_badge .github-issue-link,
+.bp_summary_badge .github-issue-link:hover {
+  color: inherit;
+  text-decoration-color: currentColor;
+}
+
+/* Keep issue links beside the title and use consistent text for header controls. */
+.bp_header_issues + .bp_extras {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.55rem;
+}
+.bp_header_issues,
+.bp_extras .bp_relation_chip {
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.bp_header_issues {
+  color: var(--bp-color-text-muted);
+  margin-inline-start: 0.45rem;
+}
+.bp_header_issues .bp_metadata_tag,
+.bp_header_issues .github-issue-link {
+  font: inherit;
+  color: inherit;
+}
+.bp_header_issues .bp_metadata_tag {
+  border: none;
+  background: none;
+  padding: 0;
+}
+.bp_header_issues .github-issue-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.12rem 0.4rem;
+  border: 1px solid var(--bp-color-border-panel);
+  border-radius: 999px;
+  background: var(--bp-color-surface);
+  text-decoration: none;
+}
+.bp_header_issues .github-issue-link:hover,
+.bp_header_issues .github-issue-link:focus-visible {
+  background: var(--bp-color-surface-muted);
+  border-color: var(--bp-color-text-faint);
+}
+.bp_issue_icon {
+  width: 0.75rem;
+  height: 0.75rem;
+  flex: none;
+}
+
+/* Keep remaining metadata, or the fallback without a toolbar, below the body. */
+.bp_wrapper > .bp_metadata_panel {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0.5rem 0 0.2rem;
+}
+
+/* Hash navigation should highlight declarations, not an entire section. */
+section.bp_decl_target {
+  background: transparent;
+  box-shadow: none;
+  animation: none;
+}
 "#
 
-/-- Client-side script: wrap framed anchor code in a "Lean" collapsible pill; optional
-text from a preceding leanPillCaption block is shown inline after the pill. -/
+/-- Client-side documentation UI: heading titles, issue badges, collapsible Lean blocks
+and game boxes, math rendering, and fragment navigation. -/
 def smDocsJs : String := r#"
 (function () {
   function installHeadingTitles() {
@@ -477,6 +537,37 @@ def smDocsJs : String := r#"
       }
     });
   }
+  function moveMetadataPanels() {
+    document.querySelectorAll(".bp_wrapper > .bp_metadata_panel").forEach(function (panel) {
+      var wrapper = panel.parentNode;
+      var toolbar = wrapper.querySelector(":scope > .bp_heading > .bp_extras");
+      if (toolbar) {
+        panel.querySelectorAll(":scope > .bp_metadata_item").forEach(function (item) {
+          var key = item.querySelector(".bp_metadata_key");
+          // Move only dedicated GitHub metadata; preserve other tags below the body.
+          if (!key || key.textContent.trim() !== "GitHub" ||
+              !item.querySelector("a.github-issue-link")) return;
+          key.remove();
+          item.querySelectorAll("a.github-issue-link").forEach(function (link) {
+            var label = "GitHub issue " + link.textContent.trim();
+            link.title = label;
+            link.setAttribute("aria-label", label);
+            link.insertAdjacentHTML("afterbegin",
+              '<svg class="bp_issue_icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">' +
+              '<circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/>' +
+              '<circle cx="8" cy="8" r="1.5" fill="currentColor"/></svg>');
+          });
+          item.classList.add("bp_header_issues");
+          toolbar.parentNode.insertBefore(item, toolbar);
+        });
+      }
+      if (panel.children.length) {
+        wrapper.appendChild(panel);
+      } else {
+        panel.remove();
+      }
+    });
+  }
   function foldGameCells() {
     document.querySelectorAll("section.game-cell:not(.game-foldable)").forEach(function (cell) {
       var header = cell.querySelector(":scope > .game-cell-header");
@@ -509,12 +600,64 @@ def smDocsJs : String := r#"
       });
     });
   }
+  function revealFragment() {
+    var hash = window.location.hash;
+    if (!hash) return;
+    var target;
+    try {
+      target = document.getElementById(decodeURIComponent(hash.slice(1)));
+    } catch (_) {
+      return;
+    }
+    if (!target) return;
+    // Open only the disclosures containing the destination.
+    for (var node = target; node; node = node.parentElement) {
+      if (node.tagName === "DETAILS") node.open = true;
+      if (node.classList.contains("lean-anchor-body")) {
+        node.hidden = false;
+        node.parentElement.querySelector(".lean-anchor-head > .lean-pill-btn")
+          .setAttribute("aria-expanded", "true");
+      }
+      if (node.classList.contains("game-cell-body") &&
+          node.parentElement.classList.contains("game-foldable")) {
+        node.hidden = false;
+        node.parentElement.classList.add("is-open");
+        node.parentElement.querySelector(":scope > .game-cell-header")
+          .setAttribute("aria-expanded", "true");
+      }
+    }
+    window.requestAnimationFrame(function () {
+      if (window.location.hash === hash) {
+        target.scrollIntoView({ block: "center", inline: "nearest" });
+      }
+    });
+  }
+  window.addEventListener("hashchange", revealFragment);
+  document.addEventListener("click", function (event) {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey ||
+        event.ctrlKey || event.shiftKey || event.altKey ||
+        !(event.target instanceof Element)) return;
+    var link = event.target.closest("a[href]");
+    if (!link || link.hasAttribute("download") ||
+        (link.target && link.target !== "_self")) return;
+    var url = new URL(link.href, document.baseURI);
+    if (url.origin !== window.location.origin ||
+        url.pathname !== window.location.pathname ||
+        url.search !== window.location.search || !url.hash ||
+        url.hash !== window.location.hash) return;
+    // Reopening the current fragment does not emit hashchange.
+    window.setTimeout(function () {
+      if (!event.defaultPrevented) revealFragment();
+    }, 0);
+  });
   function initLeanPills() {
     installHeadingTitles();
     wrapLeanBlocks();
+    moveMetadataPanels();
     foldGameCells();
     window.setTimeout(function () {
       renderMathIn(document.body);
+      revealFragment();
     }, 0);
   }
   if (document.readyState === "loading") {
@@ -528,7 +671,7 @@ def smDocsJs : String := r#"
 def smDocsAssets : HtmlAssets :=
   { extraCss := [smDocsCss], extraJs := [smDocsJs] }
 
-/-- The site render configuration, with our custom CSS assets attached. -/
+/-- The site render configuration, with our custom CSS and JavaScript assets attached. -/
 def docsConfig : RenderConfig :=
   let cfg : RenderConfig := {}
   let htmlConfig := cfg.toHtmlConfig
