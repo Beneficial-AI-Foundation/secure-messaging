@@ -228,4 +228,243 @@ theorem transcriptConsistent_init
       simp [SCKAScheme.initGameState, initA, initB,
         State.completedEpoch, State.epoch]
 
+theorem transcript_send_lifecycle
+    (P : Parameters ProbComp)
+    {InitKey AuthState : Type}
+    (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
+      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
+    (ik : InitKey) (T : ℕ → EpochTranscript P)
+    (s : SCKAScheme.GameState
+      (State P AuthState) (State P AuthState)
+      P.EpochKey (Message P.Sym))
+    (hT : TranscriptConsistent P auth ik T s) :
+    (∀ (party : Bool) e a,
+      (if party then s.stA else s.stB) = .keysUnsampled e a →
+        ∃ b dec,
+          (if party then s.stB else s.stA) = .noHeaderReceived e b dec) ∧
+    (∀ (party : Bool) e a hdr dec,
+      (if party then s.stA else s.stB) = .headerReceived e a hdr dec →
+        ∃ pk sk b enc,
+          (T e).keypair = some (pk, sk) ∧
+          (if party then s.stB else s.stA) =
+            .keysSampled e b sk (P.inc.toVector pk) enc ∧
+          hdr = P.inc.toHeader pk) := by
+  rcases hT with
+    ⟨_, hControl, hPair, _, _, _, _, hLocalA, hLocalB, _, _⟩
+  have hEpoch := hControl.1
+  simp only [EpochKnowledgeInv] at hEpoch
+  have hPrefix := hEpoch.1
+  simp only [KeyPrefixInv] at hPrefix
+  have hPosA := hPrefix.1
+  have hPosB := hPrefix.2.1
+  have hCrossA := hEpoch.2.1
+  have hCrossB := hEpoch.2.2.1
+  have hCompletedA : s.stA.completedEpoch ≤ s.stA.epoch := by
+    cases s.stA <;> simp [State.completedEpoch, State.epoch]
+  have hCompletedB : s.stB.completedEpoch ≤ s.stB.epoch := by
+    cases s.stB <;> simp [State.completedEpoch, State.epoch]
+  have hPairA := hPair true
+  have hPairB := hPair false
+  have hRoleA := (hControl.2.2.2.2 true).1
+  have hRoleB := (hControl.2.2.2.2 false).1
+  simp only [if_true] at hPairA hRoleA
+  simp only [Bool.false_eq_true, ↓reduceIte] at hPairB hRoleB
+  constructor
+  · intro party e a hst
+    cases party
+    · change s.stB = .keysUnsampled e a at hst
+      change ∃ b dec, s.stA = .noHeaderReceived e b dec
+      have hUpper : s.stA.epoch ≤ e := by
+        have h := hCrossA
+        rw [hst] at h
+        simp only [State.completedEpoch, State.epoch] at h
+        have he : 0 < e := by
+          simpa [hst, State.epoch] using hPosB
+        have heq : e - 1 + 1 = e := by omega
+        simpa only [State.epoch, heq] using h
+      have hLower : e ≤ s.stA.epoch + 1 := by
+        have h := hCrossB
+        rw [hst] at h
+        simp only [State.epoch] at h
+        omega
+      have hNotLag : ¬ e = s.stA.epoch + 1 := by
+        intro hLag
+        have hLag' : s.stB.epoch = s.stA.epoch + 1 := by
+          rw [hst]
+          exact hLag
+        rcases hPairA.2 hLag' with ⟨a', enc, b, dec, _, hPeer⟩
+        rw [hst] at hPeer
+        cases hPeer
+      have hEqual : s.stA.epoch = e := by omega
+      have hSame : s.stB.epoch = s.stA.epoch := by
+        rw [hst]
+        exact hEqual.symm
+      have hGenerator : s.stB.controlPosition.1 = true := by
+        rw [hst]
+        rfl
+      have hAllowed := hPairB.1 hSame hGenerator
+      cases ha : s.stA
+      case noHeaderReceived e' b dec =>
+        have he' : e' = e := by
+          simpa [ha, State.epoch] using hEqual
+        subst e'
+        exact ⟨b, dec, rfl⟩
+      all_goals simp [hst, ha] at hAllowed
+    · change s.stA = .keysUnsampled e a at hst
+      change ∃ b dec, s.stB = .noHeaderReceived e b dec
+      have hUpper : s.stB.epoch ≤ e := by
+        have h := hCrossB
+        rw [hst] at h
+        simp only [State.completedEpoch, State.epoch] at h
+        have he : 0 < e := by
+          simpa [hst, State.epoch] using hPosA
+        have heq : e - 1 + 1 = e := by omega
+        simpa only [State.epoch, heq] using h
+      have hLower : e ≤ s.stB.epoch + 1 := by
+        have h := hCrossA
+        rw [hst] at h
+        simp only [State.epoch] at h
+        omega
+      have hNotLag : ¬ e = s.stB.epoch + 1 := by
+        intro hLag
+        have hLag' : s.stA.epoch = s.stB.epoch + 1 := by
+          rw [hst]
+          exact hLag
+        rcases hPairB.2 hLag' with ⟨a', enc, b, dec, _, hPeer⟩
+        rw [hst] at hPeer
+        cases hPeer
+      have hEqual : s.stB.epoch = e := by omega
+      have hSame : s.stA.epoch = s.stB.epoch := by
+        rw [hst]
+        exact hEqual.symm
+      have hGenerator : s.stA.controlPosition.1 = true := by
+        rw [hst]
+        rfl
+      have hAllowed := hPairA.1 hSame hGenerator
+      cases hb : s.stB
+      case noHeaderReceived e' b dec =>
+        have he' : e' = e := by
+          simpa [hb, State.epoch] using hEqual
+        subst e'
+        exact ⟨b, dec, rfl⟩
+      all_goals simp [hst, hb] at hAllowed
+  · intro party e a hdr dec hst
+    cases party
+    · change s.stB = .headerReceived e a hdr dec at hst
+      change ∃ pk sk b enc,
+        (T e).keypair = some (pk, sk) ∧
+          s.stA = .keysSampled e b sk (P.inc.toVector pk) enc ∧
+          hdr = P.inc.toHeader pk
+      have hUpper : s.stA.epoch ≤ e := by
+        have h := hCrossA
+        rw [hst] at h
+        simp only [State.completedEpoch, State.epoch] at h
+        have he : 0 < e := by
+          simpa [hst, State.epoch] using hPosB
+        have heq : e - 1 + 1 = e := by omega
+        simpa only [State.epoch, heq] using h
+      have hLower : e ≤ s.stA.epoch + 1 := by
+        have h := hCrossB
+        rw [hst] at h
+        simp only [State.epoch] at h
+        omega
+      have hNotLag : ¬ e = s.stA.epoch + 1 := by
+        intro hLag
+        have hLag' : s.stB.epoch = s.stA.epoch + 1 := by
+          rw [hst]
+          exact hLag
+        rcases hPairA.2 hLag' with ⟨a', enc, b, dec, _, hPeer⟩
+        rw [hst] at hPeer
+        cases hPeer
+      have hEqual : s.stA.epoch = e := by omega
+      have hMod : e % 2 = 1 := by
+        have hLt : e % 2 < 2 := Nat.mod_lt _ (by omega)
+        rw [hst] at hRoleB
+        simp only [State.controlPosition, State.epoch] at hRoleB
+        have hNot : e % 2 ≠ 0 := by
+          simpa only [decide_eq_false_iff_not] using hRoleB.symm
+        omega
+      have hGenerator : s.stA.controlPosition.1 = true := by
+        rw [hRoleA, hEqual]
+        simp [hMod]
+      have hSame : s.stA.epoch = s.stB.epoch := by
+        rw [hst]
+        exact hEqual
+      have hAllowed := hPairA.1 hSame hGenerator
+      cases ha : s.stA
+      case keysSampled e' b sk vec enc =>
+        have he' : e' = e := by
+          simpa [ha, State.epoch] using hEqual
+        subst e'
+        rw [ha] at hLocalA
+        rw [hst] at hLocalB
+        simp only [LocalPayloadInv] at hLocalA hLocalB
+        rcases hLocalA with ⟨_, pk, hkeyA, hvec, _⟩
+        rcases hLocalB with ⟨_, _, kp, hkeyB, hhdr, _⟩
+        have hkp : kp = (pk, sk) :=
+          Option.some.inj (hkeyB.symm.trans hkeyA)
+        subst kp
+        refine ⟨pk, sk, b, enc, hkeyA, ?_, ?_⟩
+        · simp [hvec] at ha ⊢
+        · simpa using hhdr
+      all_goals simp [hst, ha] at hAllowed
+    · change s.stA = .headerReceived e a hdr dec at hst
+      change ∃ pk sk b enc,
+        (T e).keypair = some (pk, sk) ∧
+          s.stB = .keysSampled e b sk (P.inc.toVector pk) enc ∧
+          hdr = P.inc.toHeader pk
+      have hUpper : s.stB.epoch ≤ e := by
+        have h := hCrossB
+        rw [hst] at h
+        simp only [State.completedEpoch, State.epoch] at h
+        have he : 0 < e := by
+          simpa [hst, State.epoch] using hPosA
+        have heq : e - 1 + 1 = e := by omega
+        simpa only [State.epoch, heq] using h
+      have hLower : e ≤ s.stB.epoch + 1 := by
+        have h := hCrossA
+        rw [hst] at h
+        simp only [State.epoch] at h
+        omega
+      have hNotLag : ¬ e = s.stB.epoch + 1 := by
+        intro hLag
+        have hLag' : s.stA.epoch = s.stB.epoch + 1 := by
+          rw [hst]
+          exact hLag
+        rcases hPairB.2 hLag' with ⟨a', enc, b, dec, _, hPeer⟩
+        rw [hst] at hPeer
+        cases hPeer
+      have hEqual : s.stB.epoch = e := by omega
+      have hMod : e % 2 = 0 := by
+        have hLt : e % 2 < 2 := Nat.mod_lt _ (by omega)
+        rw [hst] at hRoleA
+        simp only [State.controlPosition, State.epoch] at hRoleA
+        have hNot : e % 2 ≠ 1 := by
+          simpa only [decide_eq_false_iff_not] using hRoleA.symm
+        omega
+      have hGenerator : s.stB.controlPosition.1 = true := by
+        rw [hRoleB, hEqual]
+        simp [hMod]
+      have hSame : s.stB.epoch = s.stA.epoch := by
+        rw [hst]
+        exact hEqual
+      have hAllowed := hPairB.1 hSame hGenerator
+      cases hb : s.stB
+      case keysSampled e' b sk vec enc =>
+        have he' : e' = e := by
+          simpa [hb, State.epoch] using hEqual
+        subst e'
+        rw [hb] at hLocalB
+        rw [hst] at hLocalA
+        simp only [LocalPayloadInv] at hLocalA hLocalB
+        rcases hLocalB with ⟨_, pk, hkeyB, hvec, _⟩
+        rcases hLocalA with ⟨_, _, kp, hkeyA, hhdr, _⟩
+        have hkp : kp = (pk, sk) :=
+          Option.some.inj (hkeyA.symm.trans hkeyB)
+        subst kp
+        refine ⟨pk, sk, b, enc, hkeyB, ?_, ?_⟩
+        · simp [hvec] at hb ⊢
+        · simpa using hhdr
+      all_goals simp [hst, hb] at hAllowed
+
 end MLKEMBraid
