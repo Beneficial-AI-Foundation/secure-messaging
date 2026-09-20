@@ -125,123 +125,130 @@ namespace FrodoKEM
 
 open OracleComp
 
-/-- Ordinary bits of the seed for the public matrix. -/
+/-- Bit string of seedA used to generate the public matrix A. -/
 abbrev SeedABits := Bits lenSeedA
 
-/-- Ordinary bits of the seed for error sampling. -/
+/-- Bit string of seedSE used to sample the secret and error matrices. -/
 abbrev SeedSEBits (ps : ParameterSet) := Bits ps.params.lenSeedSE
 
-/-- Ordinary message bits. -/
+/-- Message bit string of length ℓ for the chosen parameter set. -/
 abbrev MessageBits (ps : ParameterSet) := Bits ps.params.ell
 
-/-- Ordinary shared-secret bits. -/
+/-- Shared-secret bit string of length ℓ for the chosen parameter set. -/
 abbrev SharedSecretBits (ps : ParameterSet) := Bits ps.params.ell
 
-/-- Ordinary bits of a public-key hash. -/
+/-- Public-key hash bit string of length ℓ for the chosen parameter set. -/
 abbrev PublicKeyHashBits (ps : ParameterSet) := Bits ps.params.ell
 
-/-- Ordinary salt bits, empty for ephemeral parameter sets. -/
+/-- Salt bit string of length lenSalt for the chosen parameter set; empty for ephemeral sets. -/
 abbrev SaltBits (ps : ParameterSet) := Bits ps.params.lenSalt
 
-/-- Supplied deterministic operations, without conformance or security assumptions. -/
+/-- Gen and SHAKE functions that must be supplied when instantiating the PKE and KEM algorithms
+for the chosen parameter set. -/
 structure Operations (ps : ParameterSet) where
-  /-- Public-matrix generation; the caller supplies the chosen Gen implementation. -/
+  /-- Gen function mapping seedA to the n × n public matrix A. -/
   gen : SeedABits →
     FrodoMatrix ps.params ps.params.n ps.params.n
-  /-- SHAKE at a requested bit length; `[LBES26]` selects SHAKE128/256 by parameter level. -/
+  /-- SHAKE function with variable output length. Maps an input bit string and output length
+  outBits to a bit string of length outBits. -/
   shake : List Bool → (outBits : ℕ) → Bits outBits
 
-/-- Ordinary bits of the key-generation domain separator 0x5F. -/
+/-- Bit string of the key-generation domain separator 0x5F, least-significant bit first. -/
 def keygenPrefix : Bits 8 :=
   #v[true, true, true, true, true, false, true, false]
 
-/-- Ordinary bits of the encryption domain separator 0x96. -/
+/-- Bit string of the encryption domain separator 0x96, least-significant bit first. -/
 def encryptionPrefix : Bits 8 :=
   #v[false, true, true, false, true, false, false, true]
 
-/-- A message fills all encoded matrix entries. -/
+/-- The matrix dimensions mbar and nbar and the number B of bits encoded per entry
+satisfy ℓ = mbar × nbar × B, where ℓ is the message length. -/
 theorem messageBits_length (ps : ParameterSet) :
     ps.params.ell = mbar * nbar * ps.params.B := by
   rw [ps.ell_eq_mul]
   ac_rfl
 
-/-- The packed public matrix consists of complete octets. -/
+/-- The packed matrix B of the public key has n × nbar × D bits, a multiple of 8. -/
 theorem publicKeyBits_mod_eight (ps : ParameterSet) :
     (ps.params.n * nbar * ps.params.D) % 8 = 0 := by
   simp [nbar, Nat.mul_mod]
 
-/-- The first packed ciphertext matrix consists of complete octets. -/
+/-- Ciphertext component c₁ has mbar × n × D bits, a multiple of 8. -/
 theorem ciphertext1Bits_mod_eight (ps : ParameterSet) :
     (mbar * ps.params.n * ps.params.D) % 8 = 0 := by
   simp [mbar, Nat.mul_mod]
 
-/-- The second packed ciphertext matrix consists of complete octets. -/
+/-- Ciphertext component c₂ has mbar × nbar × D bits, a multiple of 8. -/
 theorem ciphertext2Bits_mod_eight (ps : ParameterSet) :
     (mbar * nbar * ps.params.D) % 8 = 0 := by
   simp [mbar, Nat.mul_mod]
 
-/-- Convert raw `Pack` output into ordinary bits representing packed bytes in `[LBES26]`. -/
+/-- Pack matrix M into a bit string by applying `Pack` and reversing the bits within each
+octet, so each packed byte is represented least-significant bit first as in `[LBES26]`. -/
 def packBits (ps : ParameterSet) (r c : ℕ)
     (h : (r * c * ps.params.D) % 8 = 0)
     (M : FrodoMatrix ps.params r c) :
     Bits (r * c * ps.params.D) :=
   reverseOctets (Pack ps.params M) h
 
-/-- Read ordinary packed-byte bits through the octet bridge before raw `Unpack`. -/
+/-- Recover a matrix from a bit string whose bytes are represented least-significant bit first,
+by reversing the bits within each octet and applying `Unpack`. -/
 def unpackBits (ps : ParameterSet) (r c : ℕ)
     (h : (r * c * ps.params.D) % 8 = 0)
     (b : Bits (r * c * ps.params.D)) :
     FrodoMatrix ps.params r c :=
   Unpack ps.params r c (reverseOctets b h)
 
-/-- The public seed and modular matrix used by FrodoPKE. -/
+/-- FrodoPKE public key (seedA, B). -/
 structure PKEPublicKey (ps : ParameterSet) where
   /-- Seed used to regenerate the public matrix A. -/
   seedA : SeedABits
   /-- Modular matrix B = A S + E. -/
   matrixB : FrodoMatrix ps.params ps.params.n nbar
 
-/-- The modular transpose of the PKE secret matrix, before signed serialization. -/
+/-- FrodoPKE secret key Sᵀ, an nbar × n matrix over ZMod q. -/
 abbrev PKESecretKey (ps : ParameterSet) :=
   FrodoMatrix ps.params nbar ps.params.n
 
-/-- The two modular matrices output by FrodoPKE encryption. -/
+/-- FrodoPKE ciphertext (C₁, C₂). -/
 structure PKECiphertext (ps : ParameterSet) where
-  /-- First encrypted matrix. -/
+  /-- Matrix C₁ = S′ * A + E′. -/
   c1 : FrodoMatrix ps.params mbar ps.params.n
-  /-- Second encrypted matrix, containing the encoded message. -/
+  /-- Matrix C₂ = S′ * B + E″ + Encode(μ). -/
   c2 : FrodoMatrix ps.params mbar nbar
 
-/-- The KEM public key with its matrix in ordinary packed-byte bits. -/
+/-- FrodoKEM public key (seedA, b). -/
 structure PublicKey (ps : ParameterSet) where
-  /-- Seed used to regenerate A. -/
+  /-- Seed used to generate the public matrix A. -/
   seedA : SeedABits
-  /-- Ordinary bits of packed B. -/
+  /-- Packed matrix B, with each byte represented least-significant bit first. -/
   b : Bits (ps.params.n * nbar * ps.params.D)
 
-/-- Stored decapsulation data, without a consistency proof for the cached hash. -/
+/-- FrodoKEM secret key (s, pk, Sᵀ, pkh). -/
 structure SecretKey (ps : ParameterSet) where
-  /-- Secret selected when matrix validation fails. -/
+  /-- Fallback value s used in shared-secret derivation when ciphertext validation fails. -/
   fallback : SharedSecretBits ps
-  /-- Public key used in reencryption. -/
+  /-- Public key pk used for reencryption during decapsulation. -/
   publicKey : PublicKey ps
-  /-- Modular transpose of the PKE secret matrix. -/
+  /-- PKE secret matrix Sᵀ. -/
   secretTranspose : PKESecretKey ps
-  /-- Stored hash used directly in seed derivation. -/
+  /-- Stored public-key hash pkh used to derive the reencryption seed and intermediate key. -/
   publicKeyHash : PublicKeyHashBits ps
 
-/-- A typed KEM ciphertext, including empty salt in the ephemeral variant. -/
+/-- FrodoKEM ciphertext (c₁, c₂, salt). -/
 structure Ciphertext (ps : ParameterSet) where
-  /-- Ordinary bits of the first packed ciphertext matrix. -/
+  /-- Ciphertext component c₁: packed matrix B′, with each byte least-significant bit first. -/
   c1 : Bits (mbar * ps.params.n * ps.params.D)
-  /-- Ordinary bits of the second packed ciphertext matrix. -/
+  /-- Ciphertext component c₂: packed matrix C, with each byte least-significant bit first. -/
   c2 : Bits (mbar * nbar * ps.params.D)
-  /-- Salt included in seed derivation and final hashing. -/
+  /-- Salt used in seed derivation and shared-secret hashing; empty for ephemeral sets. -/
   salt : SaltBits ps
 
 namespace PKE
 
-/-- PKE key generation from direct public and error seeds (Algorithm 5 of `[CiC25]`). -/
+/-- FrodoPKE key generation from supplied seeds seedA and seedSE.
+Returns the public key (seedA, B) and secret key Sᵀ, where B = A * S + E
+(Algorithm 5 of `[CiC25]`). -/
 def keygenFromSeeds {ps : ParameterSet} (ops : Operations ps)
     (seedA : SeedABits) (seedSE : SeedSEBits ps) :
     PKEPublicKey ps × PKESecretKey ps :=
@@ -258,7 +265,9 @@ def keygenFromSeeds {ps : ParameterSet} (ops : Operations ps)
     (fun x : ℤ => (x : ZMod p.q))
   ({ seedA := seedA, matrixB := ops.gen seedA * st.transpose + e }, st)
 
-/-- PKE encryption from an explicit error seed (Algorithm 6 of `[CiC25]`). -/
+/-- FrodoPKE encryption of message μ under public key (seedA, B), using supplied seedSE.
+Returns ciphertext (C₁, C₂), where C₁ = S′ * A + E′ and
+C₂ = S′ * B + E″ + Encode(μ) (Algorithm 6 of `[CiC25]`). -/
 def encryptFromSeed {ps : ParameterSet} (ops : Operations ps)
     (pk : PKEPublicKey ps) (message : MessageBits ps)
     (seedSE : SeedSEBits ps) : PKECiphertext ps :=
@@ -283,20 +292,24 @@ def encryptFromSeed {ps : ParameterSet} (ops : Operations ps)
     c2 := sp * pk.matrixB + epp +
       Encode p (message.cast (messageBits_length ps)) }
 
-/-- PKE decryption by subtracting the secret product (Algorithm 7 of `[CiC25]`). -/
+/-- FrodoPKE decryption of ciphertext (C₁, C₂) using secret key Sᵀ.
+Returns Decode(C₂ - C₁ * S) (Algorithm 7 of `[CiC25]`). -/
 def decrypt {ps : ParameterSet} (sk : PKESecretKey ps)
     (c : PKECiphertext ps) : MessageBits ps :=
   (Decode ps.params (c.c2 - c.c1 * sk.transpose)).cast
     (messageBits_length ps).symm
 
-/-- PKE key generation samples its two seeds independently and uniformly. -/
+/-- FrodoPKE key generation: samples seedA and seedSE independently and uniformly,
+then returns the key pair produced by `PKE.keygenFromSeeds`. -/
 def keygen {ps : ParameterSet} (ops : Operations ps) :
     ProbComp (PKEPublicKey ps × PKESecretKey ps) := do
   let seedA ← $ᵗ SeedABits
   let seedSE ← $ᵗ (SeedSEBits ps)
   return keygenFromSeeds ops seedA seedSE
 
-/-- FrodoPKE packaged with its explicit encryption coins and total decryption. -/
+/-- FrodoPKE as an `AsymmEncAlg.ExplicitCoins` instance.
+Key generation samples its seeds; encryption takes seedSE as an explicit input.
+Decryption always produces a bit string, so it is returned as `some`. -/
 def asExplicitCoins {ps : ParameterSet} (ops : Operations ps) :
     AsymmEncAlg.ExplicitCoins ProbComp
       (MessageBits ps) (PKEPublicKey ps) (PKESecretKey ps)
@@ -305,7 +318,8 @@ def asExplicitCoins {ps : ParameterSet} (ops : Operations ps) :
   encrypt := encryptFromSeed ops
   decrypt := fun sk c => some (decrypt sk c)
 
-/-- FrodoPKE using the installed probability runtime to sample encryption coins. -/
+/-- FrodoPKE as an `AsymmEncAlg` instance.
+Encryption samples seedSE uniformly instead of taking it as an explicit input. -/
 noncomputable def asAsymmEncAlg {ps : ParameterSet}
     (ops : Operations ps) :
     AsymmEncAlg ProbComp (MessageBits ps)
@@ -316,12 +330,14 @@ end PKE
 
 namespace KEM
 
-/-- Hash the ordinary bits of the public seed followed by the packed public matrix. -/
+/-- Compute the public-key hash pkh = SHAKE(seedA || b, ℓ),
+where b is the packed public matrix B. -/
 def hashPublicKey {ps : ParameterSet} (ops : Operations ps)
     (pk : PublicKey ps) : PublicKeyHashBits ps :=
   ops.shake (pk.seedA.toList ++ pk.b.toList) ps.params.ell
 
-/-- Derive the encryption seed followed by the intermediate key from hash/message/salt. -/
+/-- Derive seedSE and intermediate key k from SHAKE(pkh || μ || salt, lenSeedSE + ℓ).
+The first lenSeedSE bits form seedSE; the remaining ℓ bits form k. -/
 def deriveSeedAndKey {ps : ParameterSet} (ops : Operations ps)
     (pkh : PublicKeyHashBits ps) (message : MessageBits ps)
     (salt : SaltBits ps) : SeedSEBits ps × SharedSecretBits ps :=
@@ -329,7 +345,7 @@ def deriveSeedAndKey {ps : ParameterSet} (ops : Operations ps)
     (ops.shake (pkh.toList ++ message.toList ++ salt.toList)
       (ps.params.lenSeedSE + ps.params.ell))
 
-/-- KEM key generation from explicit coins
+/-- Generate a FrodoKEM key pair from supplied fallback value s and seeds seedSE and z
 (Section 7.1.1 of `[LBES26]`, Algorithm 8 of `[CiC25]`). -/
 def keygenFromSeeds {ps : ParameterSet} (ops : Operations ps)
     (fallback : SharedSecretBits ps) (seedSE : SeedSEBits ps)
@@ -346,7 +362,8 @@ def keygenFromSeeds {ps : ParameterSet} (ops : Operations ps)
       secretTranspose := keys.2
       publicKeyHash := hashPublicKey ops pk })
 
-/-- KEM encapsulation from explicit coins
+/-- Generate a FrodoKEM ciphertext and shared secret under public key pk,
+using supplied message μ and salt
 (Section 7.2 of `[LBES26]`, Algorithm 9 of `[CiC25]`). -/
 def encapsFromCoins {ps : ParameterSet} (ops : Operations ps)
     (pk : PublicKey ps) (message : MessageBits ps)
@@ -367,7 +384,8 @@ def encapsFromCoins {ps : ParameterSet} (ops : Operations ps)
     (c.c1.toList ++ c.c2.toList ++ c.salt.toList ++ derived.2.toList)
     ps.params.ell)
 
-/-- KEM decapsulation with implicit rejection
+/-- FrodoKEM decapsulation using secret key sk, with implicit rejection:
+if ciphertext validation fails, derive the shared secret using fallback value s
 (Section 7.3 of `[LBES26]`, Algorithm 10 of `[CiC25]`). -/
 def decaps {ps : ParameterSet} (ops : Operations ps)
     (sk : SecretKey ps) (c : Ciphertext ps) : SharedSecretBits ps :=
@@ -391,7 +409,8 @@ def decaps {ps : ParameterSet} (ops : Operations ps)
     (c.c1.toList ++ c.c2.toList ++ c.salt.toList ++ selected.toList)
     ps.params.ell
 
-/-- KEM key generation with independent uniform fallback, error seed and pre-seed z. -/
+/-- FrodoKEM key generation: samples fallback value s and seeds seedSE and z
+independently and uniformly, then returns the key pair produced by `KEM.keygenFromSeeds`. -/
 def keygen {ps : ParameterSet} (ops : Operations ps) :
     ProbComp (PublicKey ps × SecretKey ps) := do
   let fallback ← $ᵗ (SharedSecretBits ps)
@@ -399,7 +418,9 @@ def keygen {ps : ParameterSet} (ops : Operations ps) :
   let z ← $ᵗ (Bits lenZ)
   return keygenFromSeeds ops fallback seedSE z
 
-/-- KEM encapsulation with uniform message and salt, including zero-length salt. -/
+/-- FrodoKEM encapsulation: samples message μ and salt independently and uniformly,
+then returns the ciphertext and shared secret produced by `KEM.encapsFromCoins`.
+The salt is empty for ephemeral parameter sets. -/
 def encaps {ps : ParameterSet} (ops : Operations ps)
     (pk : PublicKey ps) :
     ProbComp (Ciphertext ps × SharedSecretBits ps) := do
@@ -411,7 +432,7 @@ def encaps {ps : ParameterSet} (ops : Operations ps)
 Implicit rejection returns a shared secret, so decapsulation always returns `some`.
 
 For ephemeral parameter sets, Section 8 of `[LBES26]` requires fewer than 256 ciphertexts
-per public key. This stateless adapter does not apply that bound.
+per public key. This adapter does not check that usage restriction.
 
 This adapter alone asserts no correctness or security guarantee. -/
 def asKEMScheme {ps : ParameterSet} (ops : Operations ps) :

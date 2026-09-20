@@ -328,7 +328,8 @@ theorem SampleMatrix_bounds (table : ErrorTable) (rows cols : ℕ)
   dsimp only [SampleMatrix, bitsToMatrixWith, Matrix.of_apply]
   exact Sample_bounds table _
 
-/-- Splitting recovers both vectors concatenated at the declared boundary. -/
+/-- Splitting the concatenation x ++ y of bit strings x and y after the length of x
+recovers (x, y). -/
 theorem splitBits_append {a b : ℕ} (x : Bits a) (y : Bits b) :
     splitBits (x ++ y) = (x, y) := by
   apply Prod.ext
@@ -339,7 +340,7 @@ theorem splitBits_append {a b : ℕ} (x : Bits a) (y : Bits b) :
     intro i hi
     simp [splitBits]
 
-/-- Reversing every complete octet twice recovers the original bit string. -/
+/-- Reversing the bits within each octet twice recovers the original bit string. -/
 theorem reverseOctets_reverseOctets {n : ℕ}
     (v : Bits n) (hn : n % 8 = 0) :
     reverseOctets (reverseOctets v hn) hn = v := by
@@ -349,7 +350,7 @@ theorem reverseOctets_reverseOctets {n : ℕ}
   congr 1
   omega
 
-/-- The packed-byte bridge preserves the existing matrix round trip. -/
+/-- Packing matrix M with `packBits` and then unpacking with `unpackBits` recovers M. -/
 theorem unpackBits_packBits (ps : ParameterSet) (r c : ℕ)
     (h : (r * c * ps.params.D) % 8 = 0)
     (M : FrodoMatrix ps.params r c) :
@@ -357,7 +358,7 @@ theorem unpackBits_packBits (ps : ParameterSet) (r c : ℕ)
   rw [unpackBits, packBits, reverseOctets_reverseOctets]
   exact Unpack_Pack ps.params ps.params_wellFormed M
 
-/-- The packed-byte bridge preserves the existing bit-string round trip. -/
+/-- Unpacking bit string b with `unpackBits` and then packing with `packBits` recovers b. -/
 theorem packBits_unpackBits (ps : ParameterSet) (r c : ℕ)
     (h : (r * c * ps.params.D) % 8 = 0)
     (b : Bits (r * c * ps.params.D)) :
@@ -365,15 +366,16 @@ theorem packBits_unpackBits (ps : ParameterSet) (r c : ℕ)
   rw [packBits, unpackBits, Pack_Unpack ps.params ps.params_wellFormed,
     reverseOctets_reverseOctets]
 
-/-- Key-generation domain separation uses byte 0x5F in ordinary bit order. -/
+/-- Reading keygenPrefix least-significant bit first gives 95 (0x5F). -/
 theorem keygenPrefix_value :
     (Nat.ofBits fun i : Fin 8 => keygenPrefix[i]) = 95 := by decide
 
-/-- Encryption domain separation uses byte 0x96 in ordinary bit order. -/
+/-- Reading encryptionPrefix least-significant bit first gives 150 (0x96). -/
 theorem encryptionPrefix_value :
     (Nat.ofBits fun i : Fin 8 => encryptionPrefix[i]) = 150 := by decide
 
-/-- Packed bytes 0x00, 0x03 cross a 15-bit coefficient boundary as specified. -/
+/-- For FrodoKEM-640, unpacking bytes 0x00, 0x03 followed by zeros gives entries
+(0,0) = 1 and (0,1) = 16384, with all other entries zero. -/
 theorem unpackBits_640_boundary :
     unpackBits ParameterSet.FrodoKEM640 mbar nbar
       (ciphertext2Bits_mod_eight ParameterSet.FrodoKEM640)
@@ -388,7 +390,8 @@ theorem unpackBits_640_boundary :
     reverseOctets, Vector.getElem_ofFn]
   fin_cases i <;> fin_cases j <;> decide
 
-/-- Packed byte 0x80 is the high bit of a 16-bit coefficient. -/
+/-- For FrodoKEM-976, unpacking byte 0x80 followed by zeros gives entry
+(0,0) = 32768, with all other entries zero. -/
 theorem unpackBits_976_boundary :
     unpackBits ParameterSet.FrodoKEM976 mbar nbar
       (ciphertext2Bits_mod_eight ParameterSet.FrodoKEM976)

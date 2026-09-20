@@ -76,21 +76,22 @@ theorem getElem_matrixToBitsWith {α : Type*} {r c d : ℕ} (f : α → Vector B
     Nat.mul_add_div (by omega : 0 < c), Nat.mul_add_mod, Nat.div_eq_of_lt hj,
     Nat.mod_eq_of_lt hj, Nat.add_zero]
 
-/-- A fixed-length ordinary bit string. -/
+/-- Bit string of length n. -/
 abbrev Bits (n : ℕ) := Vector Bool n
 
-/-- Split a bit string at the given prefix length without padding or truncation. -/
+/-- Split a bit string of length a + b into its first a bits and remaining b bits. -/
 def splitBits {a b : ℕ} (v : Bits (a + b)) : Bits a × Bits b :=
   (Vector.ofFn fun i : Fin a => v[Fin.castAdd b i],
    Vector.ofFn fun i : Fin b => v[Fin.natAdd a i])
 
-/-- Reversing the position inside a complete octet preserves the string bound. -/
+/-- Reversing the position of a bit inside its octet keeps its index
+within a bit string whose length is a multiple of 8. -/
 theorem reverseOctetIndex_lt {n i : ℕ}
     (hn : n % 8 = 0) (hi : i < n) :
     (i / 8) * 8 + (7 - i % 8) < n := by
   omega
 
-/-- Reverse the eight bits of each octet, admitting the empty string. -/
+/-- Reverse the bits within each octet of a bit string whose length is a multiple of 8. -/
 def reverseOctets {n : ℕ} (v : Bits n) (hn : n % 8 = 0) : Bits n :=
   Vector.ofFn fun i =>
     v[(i.val / 8) * 8 + (7 - i.val % 8)]'
