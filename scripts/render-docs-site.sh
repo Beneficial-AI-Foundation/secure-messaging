@@ -211,7 +211,10 @@ chapters=(
 
 recover_previous_progress_history
 echo "Rendering unified Verso manual"
-rm -rf "$site_root"
+# Also drop the per-chapter render tree from before the unified manual (#272):
+# leftover blueprint-manifest.json copies there corrupt manifest discovery in
+# downstream tools (probe-leanblueprint#29).
+rm -rf "$site_root" "$output_root/chapter-renders"
 lake build SecureMessagingDocs.Render SecureMessagingDocs.Contents
 lake env lean --run docs/SecureMessagingDocs/Renderers/ContentsMain.lean --output "$output_root"
 if [[ -f "$site_root/index.html" ]]; then
