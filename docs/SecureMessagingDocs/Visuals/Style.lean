@@ -188,6 +188,101 @@ def smDocsCss : String := r#"
   overflow-x: visible;
 }
 
+/* Scheme interfaces and game state retain paper-style typography. */
+.game-cell[data-kind="scheme"],
+.game-cell[data-kind="scheme-notation"],
+.game-cell[data-kind="scheme-algorithms"],
+.game-cell[data-kind="scheme-diagram"] {
+  grid-column: 1 / -1;
+}
+.game-cell[data-kind^="scheme"] {
+  border-radius: 0;
+  font-family: "Times New Roman", Times, serif;
+}
+.game-cell[data-kind^="scheme"] .game-cell-body > p {
+  margin: 0.8rem 0 0.3rem;
+}
+.game-cell[data-kind^="scheme"] .game-cell-body :is(p, li) {
+  font-family: inherit;
+  font-style: italic;
+}
+.game-cell[data-kind^="scheme"] .game-cell-body > p:first-child {
+  margin-top: 0;
+}
+.game-cell[data-kind^="scheme"] .bp_math.display {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  padding-block: 0.15rem;
+}
+
+/* Notation and explicit party algorithms use two columns when space permits. */
+.game-cell:is([data-kind="scheme-notation"], [data-kind="scheme-algorithms"]) {
+  container-type: inline-size;
+}
+.game-cell:is([data-kind="scheme-notation"], [data-kind="scheme-algorithms"]) table.tabular {
+  width: 100%;
+  table-layout: fixed;
+  border-spacing: 0;
+  margin: 0;
+}
+.game-cell:is([data-kind="scheme-notation"], [data-kind="scheme-algorithms"]) td {
+  width: 50%;
+  padding: 0 1rem 0 0;
+}
+.game-cell:is([data-kind="scheme-notation"], [data-kind="scheme-algorithms"]) td + td {
+  padding: 0 0 0 1rem;
+}
+.game-cell:is([data-kind="scheme-notation"], [data-kind="scheme-algorithms"]) td > p {
+  margin: 0.8rem 0 0.3rem;
+}
+.game-cell[data-kind="scheme-algorithms"] table.tabular {
+  width: calc(100% + 1.5rem);
+  margin: 1rem -0.75rem 0;
+  border-spacing: 0.75rem 0;
+}
+.game-cell[data-kind="scheme-notation"] td > ul {
+  margin: 0;
+  padding-inline-start: 1.25rem;
+}
+@container (max-width: 46rem) {
+  .game-cell:is([data-kind="scheme-notation"], [data-kind="scheme-algorithms"]) td {
+    display: block;
+    width: auto;
+    padding: 0;
+  }
+  .game-cell:is([data-kind="scheme-notation"], [data-kind="scheme-algorithms"]) td + td {
+    padding: 1rem 0 0;
+  }
+}
+
+/* Frame each party's algorithms within the shared Algorithms box. */
+.game-cell[data-kind="scheme-algorithms"] td,
+.game-cell[data-kind="scheme-algorithms"] td + td {
+  border: 1px solid #334155;
+  padding: 0.65rem 0.75rem;
+}
+.game-cell[data-kind="scheme-algorithms"] td > p:first-child {
+  margin-top: 0;
+}
+@container (max-width: 46rem) {
+  .game-cell[data-kind="scheme-algorithms"] table.tabular {
+    width: 100%;
+    margin-inline: 0;
+    border-spacing: 0;
+  }
+  .game-cell[data-kind="scheme-algorithms"] td + td {
+    margin-top: 0.75rem;
+  }
+}
+
+/* Centre the communication diagram while retaining readable math on narrow screens. */
+.game-cell[data-kind="scheme-diagram"] .katex-display > .katex {
+  width: max-content;
+  min-width: 100%;
+  text-align: center;
+}
+
 /* Informative names shown next to each definition/theorem number.
    Verso's blueprint title row is a 2-column grid (caption + number); we add a
    third column so the name sits inline on the same line, in the heading font. */

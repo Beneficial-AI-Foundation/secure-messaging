@@ -3,6 +3,8 @@ import VersoBlueprint
 import SecureMessagingDocs.Visuals.Notation
 import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
+import SecureMessagingDocs.Visuals.SCKAAdversary
+import SecureMessagingDocs.Bibliography
 import SecureMessaging.SCKA.Defs
 
 set_option linter.style.setOption false
@@ -33,8 +35,69 @@ SCKA.
 :::defTitle "scka_scheme" "SCKA protocol scheme"
 :::
 
-::::definition "scka_scheme" (parent := "cka_protocols_scka") (lean := "SCKAScheme") (tags := "gh-183")
-$`\todo`
+:::::::definition "scka_scheme" (parent := "cka_protocols_scka") (lean := "SCKAScheme") (tags := "gh-183")
+{Informal.citet SCKA25}[], Definition 3.1.
+
+::::::gameGrid
+:::::gameCell "\\textsf{Notation}" (kind := "scheme-notation")
+::::table -header
+*
+  *
+    * $`\lambda`: security parameter.
+    * $`\mathcal{I}_{\mathsf{CKA}}`: initial key space.
+    * $`\mathcal{I}`: derived key space.
+    * $`\stA`, $`\stB`: local states of A and B.
+    * $`\rho`: protocol message.
+  *
+    * $`(t,I)\in(\mathbb{N}\times\mathcal{I})\cup\{(\bot,\bot)\}`:
+      an epoch and its associated derived key.
+    * $`t_\A^\mathsf{snd},t_\B^\mathsf{snd}\in\mathbb{N}`: key epochs safe for sending messages.
+    * $`t_\A^\mathsf{rcv},t_\B^\mathsf{rcv}\in\mathbb{N}`: sending epochs of received messages.
+::::
+:::::
+
+:::::gameCell "\\textsf{Algorithms}" (kind := "scheme-algorithms")
+Generate the shared initial key for security parameter $`\lambda`.
+
+$$`\Init\text{-}\KeyGen(1^\lambda)
+  \to I_{\mathsf{CKA}}\in\mathcal{I}_{\mathsf{CKA}}`
+
+::::table -header
+*
+  * *Party A*
+
+    Initialize A's local state.
+
+    $$`\InitA(I_{\mathsf{CKA}})\to\stA`
+
+    Send a message, optionally deriving an epoch key.
+
+    $$`\SendA(\stA)\to((t_{I_\A},I_\A),\rho,t^\mathsf{snd}_\A,\stA')`
+
+    Receive a message, optionally deriving an epoch key.
+
+    $$`\RecA(\stA,\rho)\to((t_{I_\B},I_\B),t^\mathsf{rcv}_\A,\stA')`
+
+  * *Party B*
+
+    Initialize B's local state.
+
+    $$`\InitB(I_{\mathsf{CKA}})\to\stB`
+
+    Send a message, optionally deriving an epoch key.
+
+    $$`\SendB(\stB)\to((t_{I_\B},I_\B),\rho,t^\mathsf{snd}_\B,\stB')`
+
+    Receive a message, optionally deriving an epoch key.
+
+    $$`\RecB(\stB,\rho)\to((t_{I_\A},I_\A),t^\mathsf{rcv}_\B,\stB')`
+::::
+:::::
+
+::::::
+
+:::leanPillCaption "SCKAScheme"
+:::
 
 ```anchor SCKAScheme (project := ".") (module := SecureMessaging.SCKA.Defs)
 structure SCKAScheme (m : Type → Type u) [Monad m] (IK StA StB I Rho Rand : Type) where
@@ -62,24 +125,48 @@ structure SCKAScheme (m : Type → Type u) [Monad m] (IK StA StB I Rho Rand : Ty
   recvB : StB → Rho → Option (Option (ℕ × I) × ℕ × StB)
 ```
 
-::::
+::::::gameGrid
+:::::gameCell "\\textsf{Illustration}" (kind := "scheme-diagram")
+One possible schedule: either party may send repeatedly without waiting for a reply.
+
+$$`\begin{array}{rcccl}
+ & \textsf{Party A} & & \textsf{Party B} & \\
+ & \boxed{\InitA} & \xleftarrow{\hspace{1.5em}I\hspace{1.5em}}\boxed{\Init\text{-}\KeyGen}\xrightarrow{\hspace{1.5em}I\hspace{1.5em}} & \boxed{\InitB} & \\
+ & \Big\downarrow\mathrlap{\,\scriptstyle\mathsf{st}} & & \Big\downarrow\mathrlap{\,\scriptstyle\mathsf{st}} & \\
+ & \boxed{\SendA} & \xrightarrow{\hspace{7em}\rho_1\hspace{7em}} & \boxed{\RecB} & \\
+ & \Big\downarrow\mathrlap{\,\scriptstyle\mathsf{st}} & & \Big\downarrow\mathrlap{\,\scriptstyle\mathsf{st}} & \\
+ & \boxed{\SendA} & \xrightarrow{\hspace{7em}\rho_2\hspace{7em}} & \boxed{\RecB} & \\
+ & \Big\downarrow\mathrlap{\,\scriptstyle\mathsf{st}} & & \Big\downarrow\mathrlap{\,\scriptstyle\mathsf{st}} & \\
+ & \boxed{\RecA} & \xleftarrow{\hspace{7em}\rho_3\hspace{7em}} & \boxed{\SendB}\mathrlap{\to(t,I_\B)} & \phantom{\to(t,I_\B)} \\
+ & \Big\downarrow\mathrlap{\,\scriptstyle\mathsf{st}} & & \Big\downarrow\mathrlap{\,\scriptstyle\mathsf{st}} & \\
+ & \boxed{\RecA} & \xleftarrow{\hspace{7em}\rho_4\hspace{7em}} & \boxed{\SendB} & \\
+ & \Big\downarrow\mathrlap{\,\scriptstyle\mathsf{st}} & & \Big\downarrow\mathrlap{\,\scriptstyle\mathsf{st}} & \\
+ \phantom{(t,I_\A)\gets} & \mathllap{(t,I_\A)\gets}\boxed{\RecA} & \xleftarrow{\hspace{7em}\rho_5\hspace{7em}} & \boxed{\SendB} & \\
+ & & I_\A\overset{?}{=}I_\B & &
+\end{array}`
+:::::
+::::::
+:::::::
 
 :::defTitle "scka_oracles" "SCKA game state and oracles"
 :::
 
-:::::::definition "scka_oracles" (parent := "cka_protocols_scka") (lean := "SCKAScheme.GameState, SCKAScheme.oracleSendA, SCKAScheme.oracleSendB, SCKAScheme.oracleSendArleak, SCKAScheme.oracleSendBrleak, SCKAScheme.oracleRecvA, SCKAScheme.oracleRecvB, SCKAScheme.oracleChall, SCKAScheme.oracleCorruptA, SCKAScheme.oracleCorruptB") (uses := "scka_scheme")
-$$`\mathsf{state}=
-(\stA,\stB,\mathsf{Key},\mathsf{Msg},n_\A,n_\B,
-t^\mathsf{cur}_\A,t^\mathsf{cur}_\B,
-\mathsf{Exposed},\mathsf{Challenged},\mathsf{correct})`
+:::::::definition "scka_oracles" (parent := "cka_protocols_scka") (lean := "SCKAScheme.GameState, SCKAScheme.oracleSendA, SCKAScheme.oracleSendB, SCKAScheme.oracleSendArleak, SCKAScheme.oracleSendBrleak, SCKAScheme.oracleRecvA, SCKAScheme.oracleRecvB, SCKAScheme.oracleChall, SCKAScheme.oracleCorruptA, SCKAScheme.oracleCorruptB, SCKAScheme.sckaCorrectnessSpec, SCKAScheme.sckaCorrectnessImpl, SCKAScheme.SCKACorrectnessAdversary, SCKAScheme.sckaSecuritySpec, SCKAScheme.sckaSecurityImpl, SCKAScheme.SCKAAdversary") (uses := "scka_scheme")
+::::::gameGrid
+:::::gameCell "\\textsf{Game state}" (kind := "scheme")
+The game state consists of:
 
 - $`\stA`, $`\stB`: local protocol states for parties A and B.
-- $`\mathsf{Key}[P,t]`: party $`P`'s key for epoch $`t`.
-- $`\mathsf{Msg}[P,n]`: party $`P`'s $`n`th message and its sending epoch.
+- $`\mathsf{Key}[\A,t]`, $`\mathsf{Key}[\B,t]`: keys held by A and B for epoch $`t`.
+- $`\mathsf{Msg}[\A,n]`, $`\mathsf{Msg}[\B,n]`: $`n`-th messages sent by A and B, with their sending epochs.
 - $`n_\A`, $`n_\B`: numbers of messages sent by A and B.
 - $`t^\mathsf{cur}_\A`, $`t^\mathsf{cur}_\B`: current epochs of A and B.
-- $`\mathsf{Exposed}`, $`\mathsf{Challenged}`: exposed and challenged epochs.
+- $`\mathsf{Exposed}\subseteq\mathbb{N}`: epochs exposed by corruption and randomness leakage oracle calls.
+- $`\mathsf{Challenged}\subseteq\mathbb{N}`: epochs $`t` for which $`\OChall(t)` has been called.
 - $`\mathsf{correct}`: whether all correctness assertions have held.
+
+:::leanPillCaption "SCKAScheme.GameState"
+:::
 
 ```anchor SCKAGameState (project := ".") (module := SecureMessaging.SCKA.Defs)
 structure GameState (StA StB I Rho : Type) where
@@ -110,20 +197,26 @@ structure GameState (StA StB I Rho : Type) where
   /-- Whether all correctness asserts have held so far. -/
   correct : Bool
 ```
+:::::
 
-::::::gameGrid
 :::::gameCell "\\OSendA" (kind := "compact")
 $`\begin{array}{l}
+\pcommentline{\text{Send from A to B}} \\
 ((t_{I_\A},I_\A),\rho,t^\mathsf{snd}_\A,\stA')
   \sample \SendA(\stA); \\
+\pcommentline{\text{Correctness: no rollback of current epoch}} \\
 \mathsf{assert}\;t^\mathsf{snd}_\A\ge t^\mathsf{cur}_\A; \\
 t^\mathsf{cur}_\A\gets t^\mathsf{snd}_\A; \\
 \pif\;(t_{I_\A},I_\A)\ne(\bot,\bot)\;\pthen \\
+\quad\pcommentline{\text{Correctness: epoch output only once}} \\
 \quad\mathsf{assert}\;\mathsf{Key}[\A,t_{I_\A}]=\bot; \\
+\quad\pcommentline{\text{Correctness: keys agree when both defined}} \\
 \quad\mathsf{assert}\;\mathsf{Key}[\B,t_{I_\A}]\in\{I_\A,\bot\}; \\
 \quad\mathsf{Key}[\A,t_{I_\A}]\gets I_\A; \\
+\pcommentline{\text{Correctness: keys known through sending epoch}} \\
 \mathsf{assert}\;\forall t\in\{1,\ldots,t^\mathsf{snd}_\A\},\;
   \mathsf{Key}[\A,t]\ne\bot; \\
+\pcommentline{\text{Record message for delivery}} \\
 \mathsf{Msg}[\A,{+}{+}n_\A]\gets(\rho,t^\mathsf{snd}_\A); \\
 \Return(t^\mathsf{snd}_\A,t_{I_\A},\rho)
 \end{array}`
@@ -163,16 +256,22 @@ def oracleSendA [DecidableEq I] (scka : SCKAScheme ProbComp IK StA StB I Rho Ran
 
 :::::gameCell "\\OSendB" (kind := "compact")
 $`\begin{array}{l}
+\pcommentline{\text{Send from B to A}} \\
 ((t_{I_\B},I_\B),\rho,t^\mathsf{snd}_\B,\stB')
   \sample \SendB(\stB); \\
+\pcommentline{\text{Correctness: no rollback of current epoch}} \\
 \mathsf{assert}\;t^\mathsf{snd}_\B\ge t^\mathsf{cur}_\B; \\
 t^\mathsf{cur}_\B\gets t^\mathsf{snd}_\B; \\
 \pif\;(t_{I_\B},I_\B)\ne(\bot,\bot)\;\pthen \\
+\quad\pcommentline{\text{Correctness: epoch output only once}} \\
 \quad\mathsf{assert}\;\mathsf{Key}[\B,t_{I_\B}]=\bot; \\
+\quad\pcommentline{\text{Correctness: keys agree when both defined}} \\
 \quad\mathsf{assert}\;\mathsf{Key}[\A,t_{I_\B}]\in\{I_\B,\bot\}; \\
 \quad\mathsf{Key}[\B,t_{I_\B}]\gets I_\B; \\
+\pcommentline{\text{Correctness: keys known through sending epoch}} \\
 \mathsf{assert}\;\forall t\in\{1,\ldots,t^\mathsf{snd}_\B\},\;
   \mathsf{Key}[\B,t]\ne\bot; \\
+\pcommentline{\text{Record message for delivery}} \\
 \mathsf{Msg}[\B,{+}{+}n_\B]\gets(\rho,t^\mathsf{snd}_\B); \\
 \Return(t^\mathsf{snd}_\B,t_{I_\B},\rho)
 \end{array}`
@@ -212,20 +311,28 @@ def oracleSendB [DecidableEq I] (scka : SCKAScheme ProbComp IK StA StB I Rho Ran
 
 :::::gameCell "\\OSendARLeak" (kind := "compact")
 $`\begin{array}{l}
+\pcommentline{\text{Send from A to B; reveal randomness}} \\
 V\gets\mathsf{vuln}_\A(\stA); \\
 ((t_{I_\A},I_\A),\rho,t^\mathsf{snd}_\A,\stA',r)
   \sample \SendARLeak(\stA); \\
+\pcommentline{\text{Track newly exposed epochs}} \\
 V'\gets\mathsf{vuln}_\A(\stA')\setminus V; \\
+\pcommentline{\text{Reject exposure of challenged epochs}} \\
 \req\;V'\cap\mathsf{Challenged}=\emptyset; \\
 \mathsf{Exposed}\gets\mathsf{Exposed}\cup V'; \\
+\pcommentline{\text{Correctness: no rollback of current epoch}} \\
 \mathsf{assert}\;t^\mathsf{snd}_\A\ge t^\mathsf{cur}_\A; \\
 t^\mathsf{cur}_\A\gets t^\mathsf{snd}_\A; \\
 \pif\;(t_{I_\A},I_\A)\ne(\bot,\bot)\;\pthen \\
+\quad\pcommentline{\text{Correctness: epoch output only once}} \\
 \quad\mathsf{assert}\;\mathsf{Key}[\A,t_{I_\A}]=\bot; \\
+\quad\pcommentline{\text{Correctness: keys agree when both defined}} \\
 \quad\mathsf{assert}\;\mathsf{Key}[\B,t_{I_\A}]\in\{I_\A,\bot\}; \\
 \quad\mathsf{Key}[\A,t_{I_\A}]\gets I_\A; \\
+\pcommentline{\text{Correctness: keys known through sending epoch}} \\
 \mathsf{assert}\;\forall t\in\{1,\ldots,t^\mathsf{snd}_\A\},\;
   \mathsf{Key}[\A,t]\ne\bot; \\
+\pcommentline{\text{Record message for delivery}} \\
 \mathsf{Msg}[\A,{+}{+}n_\A]\gets(\rho,t^\mathsf{snd}_\A); \\
 \Return(t^\mathsf{snd}_\A,t_{I_\A},\rho,r)
 \end{array}`
@@ -274,20 +381,28 @@ def oracleSendArleak [DecidableEq I] (vulnA : StA → Finset ℕ)
 
 :::::gameCell "\\OSendBRLeak" (kind := "compact")
 $`\begin{array}{l}
+\pcommentline{\text{Send from B to A; reveal randomness}} \\
 V\gets\mathsf{vuln}_\B(\stB); \\
 ((t_{I_\B},I_\B),\rho,t^\mathsf{snd}_\B,\stB',r)
   \sample \SendBRLeak(\stB); \\
+\pcommentline{\text{Track newly exposed epochs}} \\
 V'\gets\mathsf{vuln}_\B(\stB')\setminus V; \\
+\pcommentline{\text{Reject exposure of challenged epochs}} \\
 \req\;V'\cap\mathsf{Challenged}=\emptyset; \\
 \mathsf{Exposed}\gets\mathsf{Exposed}\cup V'; \\
+\pcommentline{\text{Correctness: no rollback of current epoch}} \\
 \mathsf{assert}\;t^\mathsf{snd}_\B\ge t^\mathsf{cur}_\B; \\
 t^\mathsf{cur}_\B\gets t^\mathsf{snd}_\B; \\
 \pif\;(t_{I_\B},I_\B)\ne(\bot,\bot)\;\pthen \\
+\quad\pcommentline{\text{Correctness: epoch output only once}} \\
 \quad\mathsf{assert}\;\mathsf{Key}[\B,t_{I_\B}]=\bot; \\
+\quad\pcommentline{\text{Correctness: keys agree when both defined}} \\
 \quad\mathsf{assert}\;\mathsf{Key}[\A,t_{I_\B}]\in\{I_\B,\bot\}; \\
 \quad\mathsf{Key}[\B,t_{I_\B}]\gets I_\B; \\
+\pcommentline{\text{Correctness: keys known through sending epoch}} \\
 \mathsf{assert}\;\forall t\in\{1,\ldots,t^\mathsf{snd}_\B\},\;
   \mathsf{Key}[\B,t]\ne\bot; \\
+\pcommentline{\text{Record message for delivery}} \\
 \mathsf{Msg}[\B,{+}{+}n_\B]\gets(\rho,t^\mathsf{snd}_\B); \\
 \Return(t^\mathsf{snd}_\B,t_{I_\B},\rho,r)
 \end{array}`
@@ -335,19 +450,25 @@ def oracleSendBrleak [DecidableEq I] (vulnB : StB → Finset ℕ)
 
 :::::gameCell "\\ORecA(n)" (kind := "compact")
 $`\begin{array}{l}
+\pcommentline{\text{Deliver B's message n to A}} \\
 \req\;\mathsf{Msg}[\B,n]\ne\bot; \\
 (\rho,t^\mathsf{snd}_\B)\gets\mathsf{Msg}[\B,n]; \\
 r\getsval\RecA(\stA,\rho); \\
+\pcommentline{\text{Correctness: honest delivery succeeds}} \\
 \pif\;r=\bot\;\pthen\;
   \mathsf{correct}\gets\mathsf{false};\;\Return\bot; \\
 ((t_{I_\B},I_\B),t^\mathsf{rcv}_\A,\stA')\gets r; \\
+\pcommentline{\text{Correctness: receive epoch matches sender}} \\
 \mathsf{assert}\;t^\mathsf{rcv}_\A=t^\mathsf{snd}_\B; \\
 t^\mathsf{cur}_\A\gets
   \max(t^\mathsf{cur}_\A,t^\mathsf{rcv}_\A); \\
 \pif\;(t_{I_\B},I_\B)\ne(\bot,\bot)\;\pthen \\
+\quad\pcommentline{\text{Correctness: epoch output only once}} \\
 \quad\mathsf{assert}\;\mathsf{Key}[\A,t_{I_\B}]=\bot; \\
+\quad\pcommentline{\text{Correctness: keys agree when both defined}} \\
 \quad\mathsf{assert}\;\mathsf{Key}[\B,t_{I_\B}]\in\{I_\B,\bot\}; \\
 \quad\mathsf{Key}[\A,t_{I_\B}]\gets I_\B; \\
+\pcommentline{\text{Correctness: keys known through current epoch}} \\
 \mathsf{assert}\;\forall t\in\{1,\ldots,t^\mathsf{cur}_\A\},\;
   \mathsf{Key}[\A,t]\ne\bot; \\
 \Return(t^\mathsf{rcv}_\A,t_{I_\B})
@@ -394,19 +515,25 @@ def oracleRecvA [DecidableEq I] (scka : SCKAScheme ProbComp IK StA StB I Rho Ran
 
 :::::gameCell "\\ORecB(n)" (kind := "compact")
 $`\begin{array}{l}
+\pcommentline{\text{Deliver A's message n to B}} \\
 \req\;\mathsf{Msg}[\A,n]\ne\bot; \\
 (\rho,t^\mathsf{snd}_\A)\gets\mathsf{Msg}[\A,n]; \\
 r\getsval\RecB(\stB,\rho); \\
+\pcommentline{\text{Correctness: honest delivery succeeds}} \\
 \pif\;r=\bot\;\pthen\;
   \mathsf{correct}\gets\mathsf{false};\;\Return\bot; \\
 ((t_{I_\A},I_\A),t^\mathsf{rcv}_\B,\stB')\gets r; \\
+\pcommentline{\text{Correctness: receive epoch matches sender}} \\
 \mathsf{assert}\;t^\mathsf{rcv}_\B=t^\mathsf{snd}_\A; \\
 t^\mathsf{cur}_\B\gets
   \max(t^\mathsf{cur}_\B,t^\mathsf{rcv}_\B); \\
 \pif\;(t_{I_\A},I_\A)\ne(\bot,\bot)\;\pthen \\
+\quad\pcommentline{\text{Correctness: epoch output only once}} \\
 \quad\mathsf{assert}\;\mathsf{Key}[\B,t_{I_\A}]=\bot; \\
+\quad\pcommentline{\text{Correctness: keys agree when both defined}} \\
 \quad\mathsf{assert}\;\mathsf{Key}[\A,t_{I_\A}]\in\{I_\A,\bot\}; \\
 \quad\mathsf{Key}[\B,t_{I_\A}]\gets I_\A; \\
+\pcommentline{\text{Correctness: keys known through current epoch}} \\
 \mathsf{assert}\;\forall t\in\{1,\ldots,t^\mathsf{cur}_\B\},\;
   \mathsf{Key}[\B,t]\ne\bot; \\
 \Return(t^\mathsf{rcv}_\B,t_{I_\A})
@@ -451,13 +578,19 @@ def oracleRecvB [DecidableEq I] (scka : SCKAScheme ProbComp IK StA StB I Rho Ran
 
 :::::gameCell "\\OChall(t)" (kind := "challenge")
 $`\begin{array}{l}
+\pcommentline{\text{Return a real or random epoch key}} \\
+\pcommentline{\text{Reject exposed or previously challenged epochs}} \\
 \req\;t\notin\mathsf{Exposed}\cup\mathsf{Challenged}; \\
+\pcommentline{\text{Use either party's derived key}} \\
 \pif\;\mathsf{Key}[\A,t]\ne\bot\;\pthen \\
 \quad K\gets\mathsf{Key}[\A,t]; \\
 \pelse \\
 \quad K\gets\mathsf{Key}[\B,t]; \\
+\pcommentline{\text{A party must have derived the key}} \\
 \req\;K\ne\bot; \\
+\pcommentline{\text{Replace the key in the random case}} \\
 \pif\;b=1\;\pthen\;K\sample I; \\
+\pcommentline{\text{Record this epoch to prevent another challenge}} \\
 \mathsf{Challenged}\gets\mathsf{Challenged}\cup\{t\}; \\
 \Return K
 \end{array}`
@@ -484,8 +617,11 @@ def oracleChall (isRandom : Bool) (StA StB I Rho : Type) [SampleableType I] :
 
 :::::gameCell "\\OCorrA" (kind := "compact")
 $`\begin{array}{l}
+\pcommentline{\text{Reveal A's local state}} \\
 V\gets\mathsf{vuln}_\A(\stA); \\
+\pcommentline{\text{Reject exposure of challenged epochs}} \\
 \req\;V\cap\mathsf{Challenged}=\emptyset; \\
+\pcommentline{\text{Record exposed epochs}} \\
 \mathsf{Exposed}\gets\mathsf{Exposed}\cup V; \\
 \Return\stA
 \end{array}`
@@ -505,8 +641,11 @@ def oracleCorruptA (vulnA : StA → Finset ℕ) (StB I Rho : Type) :
 
 :::::gameCell "\\OCorrB" (kind := "compact")
 $`\begin{array}{l}
+\pcommentline{\text{Reveal B's local state}} \\
 V\gets\mathsf{vuln}_\B(\stB); \\
+\pcommentline{\text{Reject exposure of challenged epochs}} \\
 \req\;V\cap\mathsf{Challenged}=\emptyset; \\
+\pcommentline{\text{Record exposed epochs}} \\
 \mathsf{Exposed}\gets\mathsf{Exposed}\cup V; \\
 \Return\stB
 \end{array}`
@@ -523,16 +662,18 @@ def oracleCorruptB (vulnB : StB → Finset ℕ) (StA I Rho : Type) :
       return some state.stB
 ```
 :::::
-::::::
-:::::::
 
-:::defTitle "scka_correctness" "SCKA protocol correctness"
-:::
-
-:::::::definition "scka_correctness" (parent := "cka_protocols_scka") (lean := "SCKAScheme.sckaCorrectnessSpec, SCKAScheme.sckaCorrectnessImpl, SCKAScheme.SCKACorrectnessAdversary, SCKAScheme.correctnessExp") (tags := "gh-184") (uses := "scka_scheme, scka_oracles")
+:::::gameCell "\\textsf{Oracle set for correctness experiment}" (kind := "scheme")
 $$`\Ocor=\{\mathsf{O\text{-}Unif},\OSendA,\OSendB,
 \ORecA(n),\ORecB(n)\}`
 
+$`\begin{array}{ll}
+\mathsf{O\text{-}Unif} & \text{Sample uniform randomness.} \\
+\OSendA & \text{Trigger A to send a message to B.} \\
+\OSendB & \text{Trigger B to send a message to A.} \\
+\ORecA(n) & \text{Deliver B's recorded message }n\text{ to A.} \\
+\ORecB(n) & \text{Deliver A's recorded message }n\text{ to B.}
+\end{array}`
 :::leanPillCaption "Correctness oracle interface"
 :::
 
@@ -565,43 +706,21 @@ abbrev SCKACorrectnessAdversary (Rho : Type) :=
   OracleComp (sckaCorrectnessSpec Rho) Bool
 ```
 
-::::::gameGrid
-:::::gameCell "\\Exp{\\textsf{cor}}{\\textsf{SCKA}}(\\adv)" (kind := "game")
-$`\begin{array}{l}
-ik\sample\mathsf{InitKeyGen}(); \\
-\stA\sample\InitA(ik);\quad\stB\sample\InitB(ik); \\
-\mathsf{Key}[P,t]\gets\bot;\quad\mathsf{Msg}[P,n]\gets\bot; \\
-n_\A,n_\B,t^\mathsf{cur}_\A,t^\mathsf{cur}_\B\gets0; \\
-\mathsf{Exposed},\mathsf{Challenged}\gets\emptyset;\quad
-  \mathsf{correct}\gets\mathsf{true}; \\
-(\_,\mathsf{state})\getsval\adv^{\Ocor}; \\
-\Return\mathsf{state.correct}
-\end{array}`
 :::::
-::::::
 
-:::leanPillCaption "Correctness experiment"
-:::
-
-```anchor correctnessExp (project := ".") (module := SecureMessaging.SCKA.Defs)
-def correctnessExp [DecidableEq I]
-    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
-    (adversary : SCKACorrectnessAdversary Rho) : ProbComp Bool := do
-  let ik ← scka.initKeyGen
-  let stA ← scka.initA ik
-  let stB ← scka.initB ik
-  let (_, state) ← (simulateQ (sckaCorrectnessImpl scka) adversary).run
-    (initGameState stA stB)
-  return state.correct
-```
-:::::::
-
-:::defTitle "scka_security" "SCKA protocol security"
-:::
-
-:::::::definition "scka_security" (parent := "cka_protocols_scka") (lean := "SCKAScheme.sckaSecuritySpec, SCKAScheme.sckaSecurityImpl, SCKAScheme.SCKAAdversary, SCKAScheme.securityExp, SCKAScheme.sckaGuessAdvantage") (tags := "gh-185") (uses := "scka_scheme, scka_oracles")
+:::::gameCell "\\textsf{Oracle set for security experiment}" (kind := "scheme")
 $$`\Osec=\Ocor\cup
 \{\OSendARLeak,\OSendBRLeak,\OChall(t),\OCorrA,\OCorrB\}`
+
+In addition to $`\Ocor`:
+
+$`\begin{array}{ll}
+\OSendARLeak & \text{Trigger A to send and reveal the randomness used.} \\
+\OSendBRLeak & \text{Trigger B to send and reveal the randomness used.} \\
+\OChall(t) & \text{Real or random key challenge for epoch }t\text{.} \\
+\OCorrA & \text{Reveal A's current local state.} \\
+\OCorrB & \text{Reveal B's current local state.}
+\end{array}`
 
 :::leanPillCaption "Security oracle interface"
 :::
@@ -638,22 +757,81 @@ abbrev SCKAAdversary (StA StB I Rho Rand : Type) :=
   OracleComp (sckaSecuritySpec StA StB I Rho Rand) Bool
 ```
 
+:::::
+
+:::::gameCell "\\textsf{Illustration: adversarial scheduling}" (kind := "scheme")
+Red boxes are oracle calls chosen by the adversary. Message indices are per sender.
+
+:::sckaAdversaryIllustration
+:::
+:::::
+::::::
+:::::::
+
+:::defTitle "scka_correctness" "SCKA protocol correctness"
+:::
+
+:::::::definition "scka_correctness" (parent := "cka_protocols_scka") (lean := "SCKAScheme.correctnessExp") (tags := "gh-184") (uses := "scka_scheme, scka_oracles")
+
 ::::::gameGrid
-:::::gameCell "\\Exp{\\textsf{sec}}{\\textsf{SCKA}}(\\adv)" (kind := "game")
+:::::gameCell "\\Exp{\\textsf{cor}}{\\textsf{SCKA}}(\\adv)" (kind := "game")
 $`\begin{array}{l}
+\pcommentline{\text{Check correctness under adversarial scheduling}} \\
+\pcommentline{\text{Initialize both parties with a shared key}} \\
 ik\sample\mathsf{InitKeyGen}(); \\
 \stA\sample\InitA(ik);\quad\stB\sample\InitB(ik); \\
+\pcommentline{\text{Initialize the game records}} \\
 \mathsf{Key}[P,t]\gets\bot;\quad\mathsf{Msg}[P,n]\gets\bot; \\
 n_\A,n_\B,t^\mathsf{cur}_\A,t^\mathsf{cur}_\B\gets0; \\
 \mathsf{Exposed},\mathsf{Challenged}\gets\emptyset;\quad
   \mathsf{correct}\gets\mathsf{true}; \\
-b\sample\{0,1\}; \\
-(b',\_)\getsval\adv^{\Osec}; \\
-\Return[b'=b]
+\pcommentline{\text{Let the adversary schedule sends and deliveries}} \\
+(\_,\mathsf{state})\getsval\adv^{\Ocor}; \\
+\pcommentline{\text{Accept iff all correctness conditions held}} \\
+\Return\mathsf{state.correct}
 \end{array}`
+:::leanPillCaption "Correctness experiment"
+:::
+
+```anchor correctnessExp (project := ".") (module := SecureMessaging.SCKA.Defs)
+def correctnessExp [DecidableEq I]
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (adversary : SCKACorrectnessAdversary Rho) : ProbComp Bool := do
+  let ik ← scka.initKeyGen
+  let stA ← scka.initA ik
+  let stB ← scka.initB ik
+  let (_, state) ← (simulateQ (sckaCorrectnessImpl scka) adversary).run
+    (initGameState stA stB)
+  return state.correct
+```
 :::::
 ::::::
+:::::::
 
+:::defTitle "scka_security" "SCKA protocol security"
+:::
+
+:::::::definition "scka_security" (parent := "cka_protocols_scka") (lean := "SCKAScheme.securityExp, SCKAScheme.sckaGuessAdvantage") (tags := "gh-185") (uses := "scka_scheme, scka_oracles")
+
+::::::gameGrid
+:::::gameCell "\\Exp{\\textsf{sec}}{\\textsf{SCKA}}(\\adv)" (kind := "game")
+$`\begin{array}{l}
+\pcommentline{\text{Distinguish real epoch keys from random keys}} \\
+\pcommentline{\text{Initialize both parties with a shared key}} \\
+ik\sample\mathsf{InitKeyGen}(); \\
+\stA\sample\InitA(ik);\quad\stB\sample\InitB(ik); \\
+\pcommentline{\text{Initialize the game records}} \\
+\mathsf{Key}[P,t]\gets\bot;\quad\mathsf{Msg}[P,n]\gets\bot; \\
+n_\A,n_\B,t^\mathsf{cur}_\A,t^\mathsf{cur}_\B\gets0; \\
+\mathsf{Exposed},\mathsf{Challenged}\gets\emptyset;\quad
+  \mathsf{correct}\gets\mathsf{true}; \\
+\pcommentline{b=0:\text{ real keys; }b=1:\text{ random keys}} \\
+b\sample\{0,1\}; \\
+\pcommentline{\text{Run the adversary with the security oracles}} \\
+(b',\_)\getsval\adv^{\Osec}; \\
+\pcommentline{\text{Accept iff the adversary guesses the hidden bit}} \\
+\Return[b'=b]
+\end{array}`
 :::leanPillCaption "Security experiment"
 :::
 
@@ -686,4 +864,6 @@ noncomputable def sckaGuessAdvantage [SampleableType I] [DecidableEq I]
     (vulnA : StA → Finset ℕ) (vulnB : StB → Finset ℕ) : ℝ :=
   |(Pr[= true | securityExp scka adversary vulnA vulnB]).toReal - 1 / 2|
 ```
+:::::
+::::::
 :::::::
