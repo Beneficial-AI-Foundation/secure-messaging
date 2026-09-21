@@ -30,8 +30,9 @@ Opp-BiKEM-CKA.
 :::defTitle "opp_bikem_cka_spec" "Opp-BiKEM-CKA protocol"
 :::
 
-::::definition "opp_bikem_cka_spec" (parent := "cka_protocols_opp_bikem_cka") (tags := "gh-109") (uses := "scka_scheme, erasure_code_scheme")
-$`\todo`
+:::::::definition "opp_bikem_cka_spec"(parent := "cka_protocols_opp_bikem_cka")(lean := "oppBiKemCKA.initKeyGen, oppBiKemCKA.initA, oppBiKemCKA.initB, oppBiKemCKA.vulnA, oppBiKemCKA.vulnB, oppBiKemCKA.sendA, oppBiKemCKA.sendArleak, oppBiKemCKA.recvA, oppBiKemCKA.sendB, oppBiKemCKA.sendBrleak, oppBiKemCKA.recvB, oppBiKemCKA.scheme")(tags := "gh-109")(uses := "scka_scheme, erasure_code_scheme")
+
+Figures 17 and 18 of {Informal.citet SCKA25}[].
 
 Instead of directly following the paper's presentation of `A`'s (Figure 17) and `B`'s (Figure 18)
 protocols, we implement shared functions, parameterized by `Role`.
@@ -386,8 +387,8 @@ def recv (role : Role) (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
     let (chunks, peerCt?) := insertChunkAndDecode ecCt receivedChunks ch?
     receivedChunks := chunks
     if let some peerCt := peerCt? then
-      -- Paper convention: A missing required key or failed decapsulation should fail the whole function
-      -- (return `none` in our Option), accomplished here by bindings
+      -- Paper convention: A missing required key or failed decapsulation should
+      -- fail the whole function (return `none` in our Option), accomplished here by bindings.
       let secretKey ← dk.lookup reqEpoch
       let key ← hDet.decapsDet secretKey peerCt
       receivedChunks := ∅
@@ -430,8 +431,7 @@ def scheme (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
   recvB := recvB kem hDet ecEk ecCt
 ```
 
-{usesLabel}`uses` {uses "scka_scheme"}[] · {uses "erasure_code_scheme"}[]
-::::
+:::::::
 
 :::defTitle "opp_bikem_cka_correctness" "Opp-BiKEM-CKA correctness"
 :::
