@@ -297,7 +297,10 @@ def sendWith {RKey REnc : Type} (role : Role)
       ack }
   let ρ : Message Sym :=
     { ch := ch?, bit := bit?, tRes, tReq
-      sendingEpoch := ack.sendingEpoch
+      -- Largest nonnegative index with two adjacent acknowledged ciphertexts
+      -- (both t and t-1 in ack.ctRec).
+      -- The empty maximum is zero; honest states initially acknowledge `-1` and `0`.
+      sendingEpoch := (ack.ctRec.filter fun t => t - 1 ∈ ack.ctRec).sup Int.toNat
       ack := { ekRec := decide (tReq - role.offset ∈ ack.ekRec)
                ctRec := decide (tReq ∈ ack.ctRec) } }
   return some (key?, ρ, ρ.sendingEpoch, st,

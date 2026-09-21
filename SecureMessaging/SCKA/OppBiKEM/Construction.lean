@@ -82,11 +82,6 @@ structure Acknowledgements where
   by the peer. -/
   ctRec : Finset ℤ
 
-/-- Largest nonnegative index with two adjacent acknowledged ciphertexts
-(both t and t-1 in ack.ctRec).
-The empty maximum is zero; honest states initially acknowledge `-1` and `0`. -/
-def Acknowledgements.sendingEpoch (ack : Acknowledgements) : ℕ :=
-  (ack.ctRec.filter fun t => t - 1 ∈ ack.ctRec).sup Int.toNat
 -- ANCHOR_END: acknowledgements
 
 /-- Message `(ch, tRes, tReq, sendingEpoch, ack, b)`; selector `0` means public
@@ -275,7 +270,10 @@ def sendWith {RKey REnc : Type} (role : Role)
       ack }
   let ρ : Message Sym :=
     { ch := ch?, bit := bit?, tRes, tReq
-      sendingEpoch := ack.sendingEpoch
+      -- Largest nonnegative index with two adjacent acknowledged ciphertexts
+      -- (both t and t-1 in ack.ctRec).
+      -- The empty maximum is zero; honest states initially acknowledge `-1` and `0`.
+      sendingEpoch := (ack.ctRec.filter fun t => t - 1 ∈ ack.ctRec).sup Int.toNat
       ack := { ekRec := decide (tReq - role.offset ∈ ack.ekRec)
                ctRec := decide (tReq ∈ ack.ctRec) } }
   return some (key?, ρ, ρ.sendingEpoch, st,
