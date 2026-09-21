@@ -393,7 +393,8 @@ def recv (role : Role) (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
     let (chunks, peerCt?) := insertChunkAndDecode ecCt receivedChunks ch?
     receivedChunks := chunks
     if let some peerCt := peerCt? then
-      -- paper convention: A missing required key or failed decapsulation aborts the entire receive.
+      -- Paper convention: A missing required key or failed decapsulation should fail the whole function
+      -- (return `none` in our Option), accomplished here by bindings
       let secretKey ← dk.lookup reqEpoch
       let key ← hDet.decapsDet secretKey peerCt
       receivedChunks := ∅
