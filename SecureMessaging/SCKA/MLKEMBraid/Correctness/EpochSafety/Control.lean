@@ -174,7 +174,9 @@ private theorem receive_control_encapsulator
     all_goals cases hr
     all_goals simp_all [ReceiveControlStep, State.epoch, State.controlPosition]
 
-private theorem oracleSendA_preserves_controlInv
+namespace EpochSafetyInternal
+
+theorem oracleSendA_preserves_controlInv
     (P : Parameters ProbComp)
     [DecidableEq P.EpochKey] [DecidableEq P.Sym]
     {InitKey AuthState : Type}
@@ -303,7 +305,7 @@ private theorem oracleSendA_preserves_controlInv
           · simpa [MessageControl] using
               And.intro hrole (And.intro hlagA hmsgA)⟩
 
-private theorem oracleSendB_preserves_controlInv
+theorem oracleSendB_preserves_controlInv
     (P : Parameters ProbComp)
     [DecidableEq P.EpochKey] [DecidableEq P.Sym]
     {InitKey AuthState : Type}
@@ -432,7 +434,7 @@ private theorem oracleSendB_preserves_controlInv
           · simpa [MessageControl] using
               And.intro hA.1 (And.intro hlagA hA.2.2)⟩
 
-private theorem oracleRecvA_preserves_controlInv
+theorem oracleRecvA_preserves_controlInv
     (P : Parameters ProbComp)
     [DecidableEq P.EpochKey] [DecidableEq P.Sym]
     {InitKey AuthState : Type}
@@ -673,7 +675,7 @@ private theorem oracleRecvA_preserves_controlInv
         · simpa [MessageControl] using
             And.intro htransition.2.2.2 (And.intro hlags.1 hmsgA)⟩
 
-private theorem oracleRecvB_preserves_controlInv
+theorem oracleRecvB_preserves_controlInv
     (P : Parameters ProbComp)
     [DecidableEq P.EpochKey] [DecidableEq P.Sym]
     {InitKey AuthState : Type}
@@ -913,6 +915,10 @@ private theorem oracleRecvB_preserves_controlInv
             And.intro htransition.2.2.2 (And.intro hlags.1 hmsgB)
         · simpa [MessageControl] using
             And.intro hA.1 (And.intro hlags.2 hA.2.2)⟩
+
+end EpochSafetyInternal
+
+open EpochSafetyInternal
 
 theorem correctnessImpl_preserves_controlInv
     (P : Parameters ProbComp)
