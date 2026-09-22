@@ -388,9 +388,13 @@ private lemma recvB_current_eq
   subst t
   by_cases hek : stB.ekA = none
   · by_cases hack : ack.ctRec
-    · simp [recvB, recvBEkStep, recvBAckStep, hek, hack]
+    · simp only [recvB, hack, lt_self_iff_false, ↓reduceIte, hek, Option.isNone_none,
+        and_self, BEq.rfl, Bool.and_self, recvBAckStep, recvBEkStep, Option.some.injEq,
+        Prod.mk.injEq, StateB.mk.injEq, Ack.mk.injEq, and_true, true_and]
       exact ⟨rfl, rfl, rfl⟩
-    · simp [recvB, recvBEkStep, recvBAckStep, hek, hack]
+    · simp only [recvB, hack, lt_self_iff_false, ↓reduceIte, hek, Option.isNone_none,
+        and_self, BEq.rfl, Bool.and_true, Bool.false_eq_true, recvBAckStep, recvBEkStep,
+        Option.some.injEq, Prod.mk.injEq, StateB.mk.injEq, Ack.mk.injEq, and_true, true_and]
       exact ⟨rfl, rfl, rfl⟩
   · by_cases hack : ack.ctRec
     · simp [recvB, recvBEkStep, recvBAckStep, hek, hack]
@@ -408,9 +412,15 @@ private lemma recvB_next_eq
           (recvBEkStep kem onoff ecEk (recvBNextBase kem onoff stB) ch?) ack t) := by
   subst t
   by_cases hack : ack.ctRec
-  · simp [recvB, recvBNextBase, recvBEkStep, recvBAckStep, hack]
+  · simp only [recvB, add_tsub_cancel_right, hack, lt_add_iff_pos_right, Order.lt_one_iff,
+      ↓reduceIte, Option.isNone_none, and_self, insert_empty_eq,
+      BEq.rfl, Bool.and_self, recvBAckStep, recvBEkStep, recvBNextBase, Option.some.injEq,
+      Prod.mk.injEq, StateB.mk.injEq, Ack.mk.injEq, and_true, true_and]
     exact ⟨rfl, rfl, rfl⟩
-  · simp [recvB, recvBNextBase, recvBEkStep, recvBAckStep, hack]
+  · simp only [recvB, add_tsub_cancel_right, hack, lt_add_iff_pos_right, Order.lt_one_iff,
+      ↓reduceIte, Option.isNone_none, and_self, insert_empty_eq,
+      BEq.rfl, Bool.and_true, Bool.false_eq_true, recvBAckStep, recvBEkStep, recvBNextBase,
+      Option.some.injEq, Prod.mk.injEq, StateB.mk.injEq, Ack.mk.injEq, and_true, true_and]
     exact ⟨rfl, rfl, rfl⟩
 
 /-- Advancing B by one epoch and processing the first honest message of that
