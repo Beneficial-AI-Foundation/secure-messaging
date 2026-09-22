@@ -723,7 +723,12 @@ def smDocsJs : String := r#"
     }
     window.requestAnimationFrame(function () {
       if (window.location.hash === hash) {
-        target.scrollIntoView({ block: "center", inline: "nearest" });
+        // Section links align at the top; Verso's scroll margin clears the header.
+        // Keep individual declarations centered after opening their disclosures.
+        var isSection = target.matches("h1, h2, h3, h4, h5, h6") ||
+          (target.tagName === "SECTION" &&
+            target.querySelector(":scope > :is(h1, h2, h3, h4, h5, h6)"));
+        target.scrollIntoView({ block: isSection ? "start" : "center", inline: "nearest" });
       }
     });
   }
