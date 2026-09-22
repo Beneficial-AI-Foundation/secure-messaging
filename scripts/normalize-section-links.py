@@ -1,94 +1,63 @@
 #!/usr/bin/env python3
-"""Remove redundant fragments pointing to a rendered page's top-level section.
+"""Remove the redundant fragment from links to a chapter's own top heading.
 
-Doing this in the generated HTML avoids both the browser's initial fragment jump
-and the later disclosure-reveal scroll. Anchors within a page remain intact.
+Verso writes chapter links as ``Chapter/#chapter-heading``. Since that heading
+is already at the top of the destination page, the fragment makes the browser
+scroll once while loading and again after the page initializes. This script
+rewrites those links to ``Chapter/`` in the rendered site. Links to anything
+inside a page, such as a Lean declaration or nested section, keep their anchor.
 """
 
 import argparse
-from html import escape
-from html.parser import HTMLParser
 from pathlib import Path
 import re
 from urllib.parse import unquote, urljoin, urlsplit, urlunsplit
 
 
-class Page(HTMLParser):
-    def __init__(self, text):
-        super().__init__(convert_charrefs=True)
-        self.line_offsets = [0]
-        for line in text.splitlines(keepends=True):
-            self.line_offsets.append(self.line_offsets[-1] + len(line))
-        self.base = ''
-        self.in_main = False
-        self.section_depth = 0
-        self.sections = []
-        self.links = []
-        self.feed(text)
-
-    def handle_starttag(self, tag, attrs):
-        attrs = dict(attrs)
-        if tag == 'base':
-            self.base = attrs.get('href', '')
-        if tag == 'a' and 'href' in attrs:
-            line, column = self.getpos()
-            self.links.append((self.get_starttag_text(), attrs['href'],
-                               self.line_offsets[line - 1] + column))
-        if tag == 'main':
-            self.in_main = True
-        if self.in_main and tag == 'section':
-            self.section_depth += 1
-            if self.section_depth == 1:
-                self.sections.append([attrs.get('id'), False])
-        if self.in_main and tag == 'h1' and self.section_depth == 1:
-            self.sections[-1][1] = True
-
-    def handle_endtag(self, tag):
-        if self.in_main and tag == 'section':
-            self.section_depth -= 1
-        if tag == 'main':
-            self.in_main = False
+CHAPTER = re.compile(r'<main\b.*?<section\s+id="([^"]+)"\s*>\s*<h1\b', re.DOTALL)
+HREF = re.compile(r'(?P<prefix><a\b[^>]*\bhref=")(?P<href>[^"]+)(?P<suffix>")')
+ORIGIN = "https://rendered.invalid/"
 
 
-def normalize(site):
-    origin = 'https://rendered.invalid/'
-    pages = {}
+def chapter_targets(site_dir: Path) -> dict[str, str]:
+    """Map each rendered chapter URL to the id of its top heading."""
     targets = {}
-    for path in site.rglob('*.html'):
-        text = path.read_text()
-        page = Page(text)
-        url = urljoin(origin, path.relative_to(site).as_posix())
-        pages[path] = (text, page, url)
-        if len(page.sections) == 1:
-            identifier, has_heading = page.sections[0]
-            if identifier and has_heading:
-                targets[url] = identifier
-                if url.endswith('/index.html'):
-                    targets[url[:-len('index.html')]] = identifier
+    for page in site_dir.rglob("*.html"):
+        match = CHAPTER.search(page.read_text())
+        if not match:
+            continue
+        url = urljoin(ORIGIN, page.relative_to(site_dir).as_posix())
+        targets[url] = match[1]
+        if url.endswith("/index.html"):
+            targets[url[:-len("index.html")]] = match[1]
+    return targets
+
+
+def normalize(site_dir: Path) -> int:
+    targets = chapter_targets(site_dir)
     changed = 0
-    for path, (text, page, url) in pages.items():
-        base = urljoin(url, page.base)
-        for tag, href, offset in reversed(page.links):
-            destination = urlsplit(urljoin(base, href))
-            key = urlunsplit(destination._replace(query='', fragment=''))
-            if not destination.fragment or targets.get(key) != unquote(destination.fragment):
-                continue
-            # Keep fragment-only links: they can reset a currently scrolled page.
-            if not urlsplit(href).path:
-                continue
-            replacement = href.split('#', 1)[0]
-            new_tag = re.sub(r'''(\s+href\s*=\s*)(["'])(.*?)\2''',
-                             lambda m: m[1] + m[2] + escape(replacement, quote=True) + m[2],
-                             tag, count=1, flags=re.IGNORECASE | re.DOTALL)
-            text = text[:offset] + new_tag + text[offset + len(tag):]
-        if text != pages[path][0]:
-            path.write_text(text)
+    for page in site_dir.rglob("*.html"):
+        text = page.read_text()
+        page_url = urljoin(ORIGIN, page.relative_to(site_dir).as_posix())
+
+        def rewrite(match: re.Match[str]) -> str:
+            href = match["href"]
+            target = urlsplit(urljoin(page_url, href))
+            target_url = urlunsplit(target._replace(query="", fragment=""))
+            # An empty path is a same-page link and should remain an anchor.
+            if not urlsplit(href).path or targets.get(target_url) != unquote(target.fragment):
+                return match[0]
+            return match["prefix"] + href.split("#", 1)[0] + match["suffix"]
+
+        rewritten = HREF.sub(rewrite, text)
+        if rewritten != text:
+            page.write_text(rewritten)
             changed += 1
     return changed
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--site-dir', type=Path, required=True)
+    parser.add_argument("--site-dir", type=Path, required=True)
     args = parser.parse_args()
-    print(f'Section navigation: normalized {normalize(args.site_dir)} pages')
+    print(f"Section navigation: normalized {normalize(args.site_dir)} pages")
