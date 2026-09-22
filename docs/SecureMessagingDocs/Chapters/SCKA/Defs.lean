@@ -38,6 +38,8 @@ SCKA.
 :::::::definition "scka_scheme" (parent := "cka_protocols_scka") (lean := "SCKAScheme") (tags := "gh-183")
 {Informal.citet SCKA25}[], Definition 3.1.
 
+An SCKA scheme is defined by the parameters and algorithms described below.
+
 ::::::gameGrid
 :::::gameCell "\\textsf{Notation}" (kind := "scheme-notation")
 ::::table -header
@@ -152,6 +154,8 @@ $$`\begin{array}{rcccl}
 :::
 
 :::::::definition "scka_oracles" (parent := "cka_protocols_scka") (lean := "SCKAScheme.GameState, SCKAScheme.oracleSendA, SCKAScheme.oracleSendB, SCKAScheme.oracleSendArleak, SCKAScheme.oracleSendBrleak, SCKAScheme.oracleRecvA, SCKAScheme.oracleRecvB, SCKAScheme.oracleChall, SCKAScheme.oracleCorruptA, SCKAScheme.oracleCorruptB, SCKAScheme.sckaCorrectnessSpec, SCKAScheme.sckaCorrectnessImpl, SCKAScheme.SCKACorrectnessAdversary, SCKAScheme.sckaSecuritySpec, SCKAScheme.sckaSecurityImpl, SCKAScheme.SCKAAdversary") (uses := "scka_scheme")
+Game state and oracles following {Informal.citet SCKA25}[], Figure 1.
+
 ::::::gameGrid
 :::::gameCell "\\textsf{Game state}" (kind := "scheme")
 The game state consists of:
@@ -663,7 +667,7 @@ def oracleCorruptB (vulnB : StB → Finset ℕ) (StA I Rho : Type) :
 ```
 :::::
 
-:::::gameCell "\\textsf{Oracle set for correctness experiment}" (kind := "scheme")
+:::::gameCell "\\textsf{Oracle sets for correctness and security}" (kind := "scheme")
 $$`\Ocor=\{\mathsf{O\text{-}Unif},\OSendA,\OSendB,
 \ORecA(n),\ORecB(n)\}`
 
@@ -706,9 +710,6 @@ abbrev SCKACorrectnessAdversary (Rho : Type) :=
   OracleComp (sckaCorrectnessSpec Rho) Bool
 ```
 
-:::::
-
-:::::gameCell "\\textsf{Oracle set for security experiment}" (kind := "scheme")
 $$`\Osec=\Ocor\cup
 \{\OSendARLeak,\OSendBRLeak,\OChall(t),\OCorrA,\OCorrB\}`
 
@@ -760,8 +761,6 @@ abbrev SCKAAdversary (StA StB I Rho Rand : Type) :=
 :::::
 
 :::::gameCell "\\textsf{Illustration: adversarial scheduling}" (kind := "scheme")
-Red boxes are oracle calls chosen by the adversary. Message indices are per sender.
-
 :::sckaAdversaryIllustration
 :::
 :::::
