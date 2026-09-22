@@ -218,6 +218,7 @@ if [[ -f "$site_root/index.html" ]]; then
   mv "$site_root/index.html" "$site_root/book.html"
 fi
 link_issue_tags "$site_root"
+python3 scripts/normalize-section-links.py --site-dir "$site_root"
 
 for chapter in "${chapters[@]}"; do
   IFS='|' read -r slug title <<< "$chapter"
