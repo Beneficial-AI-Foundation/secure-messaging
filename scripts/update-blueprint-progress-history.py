@@ -73,6 +73,7 @@ def metric_labels(atoms: list, kind: str, metric: str) -> list[str]:
 
 
 def current_snapshot(site_dir: Path, commit: str | None, date: str | None, subject: str | None) -> dict:
+    """Build the current progress snapshot from the rendered site."""
     aggregator = load_aggregator()
     atoms = aggregator.load_tracked_atoms(site_dir)
     totals = aggregator.summarize(atoms)

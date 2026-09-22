@@ -130,6 +130,7 @@ def compact_text(html: str) -> str:
 
 
 def code_decls(entry: dict) -> list[dict]:
+    """Return the declarations recorded for one manifest entry."""
     code = entry.get("codeData")
     if not isinstance(code, dict):
         return []
@@ -157,6 +158,7 @@ def code_decls(entry: dict) -> list[dict]:
 
 
 def decl_proved(decl: dict) -> bool:
+    """Report whether a manifest declaration is present and proved."""
     if decl.get("present") is False:
         return False
     return decl.get("provedStatus") == "proved"
@@ -255,6 +257,7 @@ def load_tracked_atoms(site_dir: Path) -> list[Atom]:
 
 
 def is_site_root_relative_href(href: str) -> bool:
+    """Report whether a link is rooted at a rendered chapter."""
     path = href.split("#", 1)[0].strip("/")
     if not path or href.startswith(("http://", "https://", "#")):
         return False
@@ -313,6 +316,7 @@ def dependencies_formalized(
     dependency_field: str,
     visited: frozenset[str] = frozenset(),
 ) -> bool:
+    """Report whether every dependency is formalized."""
     # Reproduce Verso's dependency-closure check over the assembled split site.
     # Unlike a per-chapter render, this global index can follow cross-chapter
     # dependencies after all manifests have been generated.
@@ -334,6 +338,7 @@ def dependencies_formalized(
 
 
 def atom_ready_next(atom: Atom, atom_by_label: dict[str, Atom]) -> bool:
+    """Report whether an unverified atom is ready for formalization."""
     if atom.verified:
         return False
     if atom.kind == "theorem":
@@ -458,6 +463,7 @@ def status_count_cell(
     atoms: list[Atom],
     extra_class: str = "",
 ) -> str:
+    """Render one status-table count cell and its atom popover."""
     # Render one status-table cell with a count and atom popover.
     count = len(atoms)
     class_attr = f' class="{extra_class}"' if extra_class else ""
@@ -593,6 +599,7 @@ def chart_coordinates(
     max_value: int,
     window: ChartWindow,
 ) -> list[tuple[float, float]]:
+    """Map snapshot metrics to SVG coordinates."""
     # Map history metric values into SVG coordinates.
     if not snapshots:
         return []
@@ -900,6 +907,7 @@ def new_atoms_at(
     metrics: tuple[str, ...],
     atom_by_label: dict[str, Atom],
 ) -> list[dict]:
+    """Return atoms that first reached a metric at one snapshot."""
     # Report the atoms that first reached a metric at this snapshot.
     seen: dict[str, dict] = {}
     for metric in metrics:
@@ -956,6 +964,7 @@ def commit_entry(
     metrics: tuple[str, ...],
     atom_by_label: dict[str, Atom],
 ) -> dict:
+    """Build the history-card data for one commit."""
     # Describe one commit for its own card: the state it left behind, where it
     # links, and what it added.
     snapshot = snapshots[index]
@@ -980,6 +989,7 @@ def chart_hover_layer(
     window: ChartWindow,
     atom_by_label: dict[str, Atom],
 ) -> str:
+    """Render chart hover targets and metric markers."""
     # Emit focusable hover targets, crosshairs, and metric dots for each day.
     if not snapshots or not groups:
         return ""
@@ -1051,6 +1061,7 @@ def progress_chart(
     max_value: int,
     atom_by_label: dict[str, Atom],
 ) -> str:
+    """Render one complete progress-chart card."""
     # Render one complete progress chart card.
     if not snapshots:
         return ""

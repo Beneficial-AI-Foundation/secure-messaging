@@ -15,12 +15,13 @@ from urllib.parse import unquote, urljoin, urlsplit, urlunsplit
 
 
 CHAPTER = re.compile(r'<main\b.*?<section\s+id="([^"]+)"\s*>\s*<h1\b', re.DOTALL)
+BASE = re.compile(r'<base\s+href="([^"]+)"')
 HREF = re.compile(r'(?P<prefix><a\b[^>]*\bhref=")(?P<href>[^"]+)(?P<suffix>")')
 ORIGIN = "https://rendered.invalid/"
 
 
 def chapter_targets(site_dir: Path) -> dict[str, str]:
-    """Map each rendered chapter URL to the id of its top heading."""
+    """Map each rendered chapter URL to its top heading id."""
     targets = {}
     for page in site_dir.rglob("*.html"):
         match = CHAPTER.search(page.read_text())
@@ -34,15 +35,19 @@ def chapter_targets(site_dir: Path) -> dict[str, str]:
 
 
 def normalize(site_dir: Path) -> int:
+    """Remove only redundant top-heading fragments from rendered links."""
     targets = chapter_targets(site_dir)
     changed = 0
     for page in site_dir.rglob("*.html"):
         text = page.read_text()
         page_url = urljoin(ORIGIN, page.relative_to(site_dir).as_posix())
+        base = BASE.search(text)
+        link_base = urljoin(page_url, base[1]) if base else page_url
 
         def rewrite(match: re.Match[str]) -> str:
+            """Keep deep links; strip a fragment that only names the page itself."""
             href = match["href"]
-            target = urlsplit(urljoin(page_url, href))
+            target = urlsplit(urljoin(link_base, href))
             target_url = urlunsplit(target._replace(query="", fragment=""))
             # An empty path is a same-page link and should remain an anchor.
             if not urlsplit(href).path or targets.get(target_url) != unquote(target.fragment):

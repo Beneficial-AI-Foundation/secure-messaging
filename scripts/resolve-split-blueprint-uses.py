@@ -161,6 +161,7 @@ def patch_manifest_cross_chapter_relations(
     site_dir: Path,
     targets: dict[str, AtomTarget],
 ) -> int:
+    """Add cross-chapter dependency targets to each chapter manifest."""
     # Preserve globally resolved relation metadata for downstream consumers.
     # Per-chapter Verso renders know the labels of cross-chapter dependencies,
     # but leave their hrefs unset because the target manual is not in scope.
@@ -217,6 +218,7 @@ def process_html_file(
     uses_by_label: dict[str, list[str]],
     targets: dict[str, AtomTarget],
 ) -> int:
+    """Resolve cross-chapter use links in one rendered HTML page."""
     # Repair unresolved cross-chapter uses in one generated HTML file.
     text = html_file.read_text()
     try:
@@ -266,6 +268,7 @@ def copy_cross_preview_entries(
     uses_by_label: dict[str, list[str]],
     targets: dict[str, AtomTarget],
 ) -> int:
+    """Copy previews needed by cross-chapter references."""
     # Copy target preview manifest entries into chapters that reference them.
     needed_by_chapter: dict[str, dict[str, dict]] = {}
     for label, deps in uses_by_label.items():

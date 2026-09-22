@@ -150,6 +150,7 @@ def scan_blocks(path: Path, lines: list[str]) -> tuple[list[Block], list[Diag]]:
 
 
 def lint_block(b: Block) -> list[Diag]:
+    """Return diagnostics for one parsed blueprint block."""
     diags: list[Diag] = []
     opener_line = b.start + 1
     who = b.label or b.kind
@@ -180,6 +181,7 @@ def lint_block(b: Block) -> list[Diag]:
 
 
 def lint(chapters: Path = DEFAULT_CHAPTERS) -> list[Diag]:
+    """Lint issue-tag use across all chapter files."""
     paths = sorted(chapters.rglob("*.lean"))
     if not paths:
         return [Diag(chapters, 0, "no chapter files found")]
@@ -193,6 +195,7 @@ def lint(chapters: Path = DEFAULT_CHAPTERS) -> list[Diag]:
 
 
 def main() -> int:
+    """Run the command-line linter."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--chapters", type=Path, default=DEFAULT_CHAPTERS)
     args = parser.parse_args()
