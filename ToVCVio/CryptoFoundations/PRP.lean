@@ -107,6 +107,7 @@ noncomputable def prpAdvantage [SampleableType (Equiv.Perm X)]
 private def asPRF (g : X → X) : PRFScheme Unit X X :=
   { keygen := pure (), eval := fun _ x => g x }
 
+/-- For a fixed function `g : X → X`, a query at `d` always returns `g d`. -/
 theorem simulateQ_prpQueryImpl_inr (g : X → X) (d : X) :
     simulateQ (prpQueryImpl g)
       ((liftM (OracleSpec.query (Sum.inr d) :
@@ -114,6 +115,8 @@ theorem simulateQ_prpQueryImpl_inr (g : X → X) (d : X) :
       = pure (g d) :=
   PRFScheme.simulateQ_prfRealQueryImpl_inr (asPRF g) () d
 
+/-- For a fixed function `g : X → X`, queries at `d₁, …, dₙ` always return
+`g d₁, …, g dₙ`. -/
 theorem simulateQ_prpQueryImpl_mapM_inr (g : X → X) (pts : List X) :
     simulateQ (prpQueryImpl g)
       (pts.mapM (fun t => liftM (OracleSpec.query (Sum.inr t) :
@@ -123,7 +126,7 @@ theorem simulateQ_prpQueryImpl_mapM_inr (g : X → X) (pts : List X) :
     OracleQuery.cont_query, prpQueryImpl, QueryImpl.add_apply_inr, oraclePerm, map_pure, id_eq,
     List.mapM_pure]
 
-/-- A computation that only samples uniformly is unchanged by `prpQueryImpl g`. -/
+/-- A computation that makes no queries to `g` is unchanged by giving it access to `g`. -/
 theorem simulateQ_prpQueryImpl_liftComp {β : Type} (g : X → X)
     (ob : OracleComp unifSpec β) :
     simulateQ (prpQueryImpl g)
