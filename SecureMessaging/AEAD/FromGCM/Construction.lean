@@ -28,15 +28,8 @@ namespace GCM
 
 open OracleSpec OracleComp
 
-/-- One-time-key GCM as an `AEADScheme` on the ACD19 interface: `gcmEncrypt`/`gcmDecrypt` under
-the block cipher of `prp`, at a public 96-bit IV fixed at construction time. Fixing the IV is
-sound in the one-time model: each key encrypts a single message, so no `(key, IV)` pair is ever
-reused, which is the uniqueness requirement of NIST SP 800-38D §8. Its value is irrelevant:
-every security theorem in `FromGCM/Security.lean` is quantified over `iv`.
-
-The message length is fixed to `L` so that the ciphertext type `BitVec L × BitVec 128` is a
-`SampleableType`, which the IND-CCA game needs. `_hL` pins the scheme to supported lengths;
-the body does not use it. -/
+/-- GCM under the block cipher of `prp` with a fixed public IV `iv`. A fixed IV is safe here
+because each key encrypts only one message, so no `(key, IV)` pair repeats. -/
 -- ANCHOR: gcmOneTimeAEAD
 def gcmOneTimeAEAD {K : Type} (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
     (_hL : ValidMsgLength L) :

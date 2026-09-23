@@ -19,72 +19,77 @@ message per key, with the block cipher abstracted as a `PRPScheme K (BitVec 128)
 
 ## Main result
 
-`gcmOneTimeAEAD_security`, with `n = ⌈L/128⌉` and the pseudorandom-permutation (PRP)
-security of the block cipher as its only assumption:
+`gcmOneTimeAEAD_security`, whose only assumption is the pseudorandom-permutation (PRP) security
+of the block cipher:
 
   `Adv^{ot-cca-ror}(A) ≤ Adv^{prp}(B) + (n + 2)(n + 1) / 2¹²⁹ + q_d · maxBlocks L / 2¹²⁸`
 
-* `B = prfReduction iv L A` (`Security/PrfHop.lean`) is the explicit reduction. It queries the
-  block cipher at the `n + 2` fixed points one GCM encryption uses (the GHASH key, the tag mask,
-  one keystream block per message block), whatever `A` does.
-* `(n + 2)(n + 1) / 2¹²⁹` is the PRP/PRF switching term, a birthday bound in those `n + 2` calls
-  (`Security/PrpSwitch.lean`).
-* `q_d · maxBlocks L / 2¹²⁸` bounds the forgery probability: each decryption query forges with
-  probability at most `maxBlocks L / 2¹²⁸`, the GHASH polynomial's degree over the tag-field
-  size (`Security/GhashAXU.lean`), and there are at most `q_d` such queries.
+Its docstring defines the terms. The proof combines three results, each proved in the files
+named above it:
 
-The GHASH bound counts roots of a nonzero polynomial over `𝔽₂[x]/(nistPoly)`, which is a field
-because the GCM polynomial `x¹²⁸ + x⁷ + x² + x + 1` is irreducible. That fact is a theorem here,
-not a hypothesis: `nistPoly_irreducible` (`Security/NistIrreducible.lean`) proves it by Rabin's
-test with the two conditions checked by kernel computation.
+```text
+ Games, PrfHop,                  GhashAXU,                   PrpSwitch
+ AuthHop, PrivacyHop             NistIrreducible
+        │                               │                           │
+        ▼                               ▼                           ▼
+ gcmOneTimeAEAD_security_of_axu  ghash_isAXU_unconditional   prfAdvantage_le_prpAdvantage_switching
+ Adv ≤ Adv^{prf}(B) + q_d · ε    GHASH is AXU with           Adv^{prf}(B) ≤ Adv^{prp}(B)
+ for any AXU bound ε             ε = maxBlocks L / 2¹²⁸                     + (n + 2)(n + 1) / 2¹²⁹
+        │                               │                           │
+        └───────────────────────────────┼───────────────────────────┘
+                                        ▼
+                             gcmOneTimeAEAD_security
+```
+
+The AXU bound needs the GCM polynomial `x¹²⁸ + x⁷ + x² + x + 1` to be irreducible. That is
+proved, not assumed: `nistPoly_irreducible` checks Rabin's test by kernel computation.
 
 ## Game chain
 
-The proof walks five games `game0 … game4` (`Security/Games.lean`), `game0` the real one-time
-IND-CCA experiment and `game4` the ideal one, so
-`Adv^{ot-cca-ror}(A) = |Pr[game4 = 1] − Pr[game0 = 1]|`. Each hop changes one component:
+The advantage compares two experiments (ACD19, Fig. 1). In the real one, encryption returns
+`Enc_k(a, m)` and decryption returns `Dec_k(a, e)`, except on the challenge ciphertext. In the
+ideal one, encryption returns a uniform `(c, t) ∈ C` and decryption always returns `⊥`. The
+proof walks five games `game0 … game4` (`Security/Games.lean`) from the real experiment to the
+ideal one, so `Adv^{ot-cca-ror}(A) = |Pr[game4 = 1] − Pr[game0 = 1]|`. Rows are games, which
+differ only in the three columns. Each arrow says what the hop changes and what it costs:
 
 ```text
-        block-cipher source          encrypt oracle        decrypt oracle
-        ───────────────────          ──────────────        ──────────────
-game0   real `perm k`                c = m ^^^ ks          verify tag, then unmask
-  │                            Adv^{prf}   (game0_game1_le_prf)
-  ▼   replace `perm k` by one uniform tuple `(H, mask, ks)` drawn at the top level
-game1   uniform tuple, eager         c = m ^^^ ks          verify tag, then unmask
-  │                            0           (game1_eq_game2)
-  ▼   move the tuple draw inside the oracles (`greedyLazy`); same distribution
-game2   uniform tuple, lazy          c = m ^^^ ks          verify tag, then unmask
-  │                            q_d · ε     (game2_game3_le_auth)
-  ▼   suppress decryption: each forgery needs a fresh GHASH collision, w.p. ≤ ε
-game3   tuple drawn at `OEncrypt`    c = m ^^^ ks          ⊥ (always reject)
-  │                            0           (game3_eq_game4)
-  ▼   replace the real challenge by a uniform one; exactly equidistributed
-game4   the tuple draw is dead       (c, t) ←$ C           ⊥ (always reject)
+        block-cipher outputs    encrypt oracle       decrypt oracle    hop cost
+        ────────────────────    ──────────────       ──────────────    ────────
+game0   perm k at k ← keygen    (m ^^^ ks, tag)      verify, unmask
+  │
+  │   replace perm k by a uniform tuple (H, mask, ks)                  Adv^{prf}    (1)
+  ▼
+game1   uniform, up front       (m ^^^ ks, tag)      verify, unmask
+  │
+  │   sample the tuple at the first query (greedyLazy)                 0            (2)
+  ▼
+game2   uniform, 1st query      (m ^^^ ks, tag)      verify, unmask
+  │
+  │   reject every decryption, sample at encrypt (consumeLazy)         q_d · ε      (3)
+  ▼
+game3   uniform, at encrypt     (m ^^^ ks, tag)      ⊥
+  │
+  │   replace the challenge by a uniform one                           0            (4)
+  ▼
+game4   unused                  (c, t) ←$ C          ⊥
 
-  game0 = the real ACD19 experiment                  (game0_eq_real)
-  game4 = the ideal one ($ ciphertext, ⊥ decrypt)    (game4_eq_rand)
+tag = GHASH_H(ad, c) ^^^ mask;  C = BitVec L × BitVec 128;  ε = GHASH's AXU bound
+in every game: one encryption, and decrypting the challenge ciphertext returns ⊥
+(1) game0_game1_le_prf   (2) game1_eq_game2   (3) game2_game3_le_auth   (4) game3_eq_game4
+game0 = real experiment (game0_eq_real), game4 = ideal experiment (game4_eq_rand)
 ```
 
-Two hops are exact distribution equalities, so after the triangle inequality only the PRF and
-the authenticity summands survive. `gcmOneTimeAEAD_security_of_axu` below assembles the chain
-with the almost-XOR-universality (AXU) of GHASH as a hypothesis `GhashIsAXU L ε`; the theorems
-after it discharge that hypothesis and trade the PRF advantage for the PRP one.
+Hops (2) and (4) are exact, so only the PRF and authenticity terms survive. This is
+`gcmOneTimeAEAD_security_of_axu`, with the almost-XOR-universality (AXU) of GHASH as a
+hypothesis `GhashIsAXU L ε`.
 
-There is no separate `2⁻¹²⁸` tag-guessing term: a blind guess succeeds with probability exactly
-`2⁻¹²⁸`, and `ghashAXU_eps_lower` (`Security/Axu.lean`) shows `2⁻¹²⁸ ≤ ε` for every witnessing
-`ε`, so guessing is already inside the AXU bound.
+The hop order is forced. Hop (4) forgets the cached tuple, which is sound only once decryption
+is dead: a live decryption returns `e.1 ^^^ ks` and leaks the keystream.
 
-The hop order is forced: the privacy hop forgets the cached tuple, which is sound only once
-decryption is dead, since a live decryption returns `e.1 ^^^ ks` and leaks the keystream.
-
-Adversaries are failure-free by type (`OracleComp` has only `pure` and `queryBind`), and this
-loses nothing: `distAdvantage` compares probabilities of the output `true`, on which aborting
-mass never lands, so replacing every `failure` by `pure false` leaves the advantage unchanged.
-
-The plain games `game0`–`game4` share one skeleton (`gcmGameSkeleton`, `Security/Games.lean`)
-and the reduction reuses their tuple handler; the instrumented `game2♭`/`game3♭` are the generic
-Wegman–Carter handler `wcInstImpl` at GCM's hash. The lazy-sampling caches carried by
-`game2`/`game3` are proof artifacts, invisible to the adversary.
+There is no separate `2⁻¹²⁸` tag-guessing term. `ghashAXU_eps_lower` (`Security/Axu.lean`)
+shows `2⁻¹²⁸ ≤ ε` for every witnessing `ε`, so a blind guess is already covered by the AXU
+bound.
 
 ## Notation
 
@@ -93,7 +98,7 @@ Wegman–Carter handler `wcInstImpl` at GCM's hash. The lazy-sampling caches car
 | `prp` | the underlying block cipher, a `PRPScheme K (BitVec 128)` (AES in practice) |
 | `iv` | the scheme's fixed public 96-bit IV; `J₀ = j0 iv = iv ‖ 0³¹ ‖ 1` |
 | `L` / `hL` | the fixed message length in bits, and `ValidMsgLength L` (`AEAD/GCM.lean`) |
-| `n` | `⌈L/128⌉ = (L + 127) / 128`, the number of message blocks |
+| `n` | `numBlocks L = ⌈L/128⌉`, the number of message blocks |
 | `A` (`adv`) | the one-time IND-CCA adversary, an `OneTimeCCAAdversary` |
 | `q_d` | upper bound on `A`'s number of decryption queries (`decryptQueryBound`) |
 | `maxBlocks L` | `2⁵⁷ + n + 1`, the GHASH degree bound (`Security/Encoding.lean`) |
@@ -110,6 +115,9 @@ Wegman–Carter handler `wcInstImpl` at GCM's hash. The lazy-sampling caches car
   `8 ∣ L`), which keeps the GCTR counter from wrapping.
 - The tag is the full 128 bits.
 - One encryption per key; key non-reuse across invocations is the caller's responsibility.
+- Adversaries are failure-free by type (`OracleComp` has only `pure` and `queryBind`). This
+  loses nothing: `distAdvantage` compares probabilities of the output `true`, on which aborting
+  mass never lands, so replacing every `failure` by `pure false` leaves the advantage unchanged.
 - The decrypt oracle rejects the challenge ciphertext under *any* associated data (ACD19), so
   AAD-substitution resistance for the challenge ciphertext is not claimed.
 - The forgery bound uses the worst-case AAD length. A post-challenge decryption query forges
@@ -138,7 +146,7 @@ Wegman–Carter handler `wcInstImpl` at GCM's hash. The lazy-sampling caches car
 
 ## Reading order
 
-1. This file: the assembled reduction and the hypothesis-free statements.
+1. This file: the game chain for an abstract AXU bound, and the main result.
 2. `Security/Games.lean`, `Security/PrfHop.lean`, `Security/AuthHop.lean` and
    `Security/PrivacyHop.lean`: the games and the three hops (supporting: `Encoding`, `Axu`,
    `Counter`, `CipherProfile`).
@@ -155,14 +163,11 @@ open OracleSpec OracleComp ENNReal AEADScheme ToVCVio
 
 variable {K : Type}
 
-/-! ## The general reduction -/
+/-! ## The game chain, for any AXU bound -/
 
-/-- **GCM one-time IND-CCA security**, with the AXU parameter `ε` of GHASH left as a hypothesis:
-
-  `Adv^{ot-cca-ror}_{GCM}(A) ≤ Adv^{prf}(B) + q_d · ε`
-
-for the explicit distinguisher `B = prfReduction iv L adv`. No upper bound on `ε` is assumed; it
-is instantiated downstream (`gcmOneTimeAEAD_security_maxBlocks`).
+/-- Assembles the game chain of the module doc for any AXU bound `ε` of GHASH:
+`Adv^{ot-cca-ror}(adv) ≤ Adv^{prf}(B) + q_d · ε` with `B = prfReduction iv L adv`.
+`gcmOneTimeAEAD_security` uses it at `ε = maxBlocks L / 2¹²⁸`.
 
 `hε : ε ≠ ⊤` is necessary: the bound is read in `ℝ` via `ε.toReal`, and `(⊤ : ℝ≥0∞).toReal = 0`
 would make the conclusion false at the trivially true `GhashIsAXU L ⊤`. -/
@@ -198,72 +203,18 @@ theorem gcmOneTimeAEAD_security_of_axu (prp : PRPScheme K (BitVec 128)) (iv : Bi
       add_le_add (game0_game1_le_prf prp iv L hL adv)
         (game2_game3_le_auth prp L hL adv q_d hq hε haxu)
 
-/-! ## The concrete constant -/
+/-! ## Main result -/
 
-theorem one_le_maxBlocks (L : ℕ) : 1 ≤ maxBlocks L := by
-  unfold maxBlocks; omega
+/-- **One-time IND-CCA security of GCM.** Let `adv` be an adversary against GCM with block
+cipher `prp`, 96-bit IV `iv` and `L`-bit messages, making at most `q_d` decryption queries. Its
+advantage is at most
 
-theorem maxBlocks_lt_two_pow (L : ℕ) (hL : ValidMsgLength L) : maxBlocks L < 2 ^ 128 := by
-  have h := hL.1
-  unfold maxBlocks
-  rw [lenAMax_blocks]
-  have : (L + 127) / 128 ≤ (2 ^ 39 - 256 + 127) / 128 := Nat.div_le_div_right (by omega)
-  norm_num at this ⊢
-  omega
+  `Adv^{prp}(B) + (n + 2)(n + 1) / 2¹²⁹ + q_d · maxBlocks L / 2¹²⁸`
 
-/-- The concrete AXU constant sits between the blind-guess floor and `1`. The upper half needs
-`ValidMsgLength L`, since `maxBlocks L` grows with `L`. A sanity check that the bound is not
-vacuous; the main theorem does not use it. -/
-theorem maxBlocks_div_nontrivial (L : ℕ) (hL : ValidMsgLength L) :
-    ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹ ≤ (maxBlocks L : ℝ≥0∞) / 2 ^ (128 : ℕ) ∧
-      (maxBlocks L : ℝ≥0∞) / 2 ^ (128 : ℕ) < 1 := by
-  refine ⟨?_, ?_⟩
-  · rw [← one_div]
-    exact ENNReal.div_le_div_right (by exact_mod_cast one_le_maxBlocks L) _
-  · rw [ENNReal.div_lt_iff (Or.inl (by positivity)) (Or.inl (by simp)), one_mul]
-    exact_mod_cast maxBlocks_lt_two_pow L hL
-
-/-- `gcmOneTimeAEAD_security_of_axu` at `ε := maxBlocks L / 2¹²⁸`: `maxBlocks L` bounds the
-degree of the GHASH polynomial and `2¹²⁸` is the size of the tag field. The exponent is spelled
-`2 ^ (128 : ℕ)` so that `haxu` is syntactically the conclusion of `ghash_isAXU`
-(`Security/GhashAXU.lean`), which `gcmOneTimeAEAD_security_prf` below feeds in. -/
-theorem gcmOneTimeAEAD_security_maxBlocks (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96)
-    (L : ℕ) (hL : ValidMsgLength L)
-    (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
-    (q_d : ℕ) (hq : AEADScheme.decryptQueryBound adv q_d)
-    (haxu : GhashIsAXU L ((maxBlocks L : ℝ≥0∞) / 2 ^ (128 : ℕ))) :
-    AEADScheme.distAdvantage (gcmOneTimeAEAD prp iv L hL) adv ≤
-      PRFScheme.prfAdvantage prp.toPRFScheme (prfReduction iv L adv) +
-      (q_d : ℝ) * ((maxBlocks L : ℝ) / 2 ^ (128 : ℕ)) := by
-  have h := gcmOneTimeAEAD_security_of_axu prp iv L hL adv q_d hq
-    (ε := (maxBlocks L : ℝ≥0∞) / 2 ^ (128 : ℕ))
-    (ENNReal.div_ne_top (ENNReal.natCast_ne_top _) (by positivity)) haxu
-  rwa [ENNReal.toReal_div, ENNReal.toReal_pow, ENNReal.toReal_natCast,
-    ENNReal.toReal_ofNat] at h
-
-/-! ## The PRF-stated bound -/
-
-/-- The PRF-stated bound with no hypothesis: `gcmOneTimeAEAD_security_maxBlocks` with `haxu`
-supplied by `ghash_isAXU_unconditional`, which is `ghash_isAXU` at `nistPoly_irreducible`
-(`Security/NistIrreducible.lean`). -/
--- ANCHOR: gcmOneTimeAEAD_security_prf
-theorem gcmOneTimeAEAD_security_prf (prp : PRPScheme K (BitVec 128))
-    (iv : BitVec 96) (L : ℕ) (hL : ValidMsgLength L)
-    (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
-    (q_d : ℕ) (hq : AEADScheme.decryptQueryBound adv q_d) :
-    AEADScheme.distAdvantage (gcmOneTimeAEAD prp iv L hL) adv ≤
-      PRFScheme.prfAdvantage prp.toPRFScheme (prfReduction iv L adv) +
-      (q_d : ℝ) * ((maxBlocks L : ℝ) / 2 ^ (128 : ℕ))
--- ANCHOR_END: gcmOneTimeAEAD_security_prf
-  :=
-  gcmOneTimeAEAD_security_maxBlocks prp iv L hL adv q_d hq (ghash_isAXU_unconditional L)
-
-/-! ## The PRP-stated bound -/
-
-/-- The main result: one-time IND-CCA security of GCM from the PRP security of the block cipher.
-The PRF summand of `gcmOneTimeAEAD_security_prf` is traded for the PRP advantage of the same
-reduction plus the switching term `(n + 2)(n + 1) / 2¹²⁹`, `n = ⌈L/128⌉`
-(`prfAdvantage_le_prpAdvantage_switching`, `Security/PrpSwitch.lean`). -/
+where `B = prfReduction iv L adv` is an adversary against `prp`, `n = numBlocks L` is the
+number of message blocks and `maxBlocks L = 2⁵⁷ + n + 1`. The first term is the PRP advantage
+of `B`, the second the cost of replacing the random permutation by a random function, and the
+third bounds the probability that a decryption query forges a valid tag. -/
 -- ANCHOR: gcmOneTimeAEAD_security
 theorem gcmOneTimeAEAD_security (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
     (hL : ValidMsgLength L)
@@ -271,13 +222,17 @@ theorem gcmOneTimeAEAD_security (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96
     (q_d : ℕ) (hq : AEADScheme.decryptQueryBound adv q_d) :
     AEADScheme.distAdvantage (gcmOneTimeAEAD prp iv L hL) adv ≤
       PRPScheme.prpAdvantage prp (prfReduction iv L adv) +
-      ((((L + 127) / 128 : ℕ) : ℝ) + 2) * ((((L + 127) / 128 : ℕ) : ℝ) + 1)
-        / 2 ^ (129 : ℕ) +
-      (q_d : ℝ) * ((maxBlocks L : ℝ) / 2 ^ (128 : ℕ))
+      ((numBlocks L : ℝ) + 2) * ((numBlocks L : ℝ) + 1) / 2 ^ 129 +
+      (q_d : ℝ) * ((maxBlocks L : ℝ) / 2 ^ 128)
 -- ANCHOR_END: gcmOneTimeAEAD_security
   := by
-  refine le_trans (gcmOneTimeAEAD_security_prf prp iv L hL adv q_d hq) ?_
-  have h := prfAdvantage_le_prpAdvantage_switching prp iv L hL adv
+  have hprf := gcmOneTimeAEAD_security_of_axu prp iv L hL adv q_d hq
+    (ENNReal.div_ne_top (ENNReal.natCast_ne_top _) (by positivity))
+    (ghash_isAXU_unconditional L)
+  rw [ENNReal.toReal_div, ENNReal.toReal_pow, ENNReal.toReal_natCast,
+    ENNReal.toReal_ofNat] at hprf
+  have hswitch := prfAdvantage_le_prpAdvantage_switching prp iv L hL adv
+  unfold numBlocks
   linarith
 
 end GCM

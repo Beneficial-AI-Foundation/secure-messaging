@@ -30,6 +30,10 @@ outputs GCM uses (GHASH key, tag mask, keystream); the chain:
 - `game4`: `game3` with the challenge ciphertext drawn uniformly.
 - `game2♭`/`game3♭`: `game2`/`game3` with a forgery flag, for the identical-until-bad step
   of the authenticity hop.
+
+The PRF reduction reuses the skeleton's tuple handler, and `game2♭`/`game3♭` are the generic
+Wegman–Carter handler `wcInstImpl` at GCM's hash. The lazy-sampling caches of `game2`/`game3`
+are proof artifacts, invisible to the adversary.
 -/
 
 namespace GCM

@@ -27,6 +27,9 @@ def gcmEncode {L : ℕ} (ad : SupportedAAD) (c : BitVec L) : List (BitVec 128) :
 
 /-! ## Block budget -/
 
+/-- The number of 128-bit blocks in an `L`-bit message, `⌈L/128⌉`. -/
+def numBlocks (L : ℕ) : ℕ := (L + 127) / 128
+
 /-- The largest AAD bit-length `ValidAADLength` admits (NIST SP 800-38D §5.2.1.1). -/
 def lenAMax : ℕ := 2 ^ 64 - 8
 
