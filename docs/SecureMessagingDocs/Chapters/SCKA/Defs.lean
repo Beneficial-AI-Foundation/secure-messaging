@@ -36,9 +36,9 @@ SCKA.
 :::
 
 :::::::definition "scka_scheme" (parent := "cka_protocols_scka") (lean := "SCKAScheme") (tags := "gh-183")
-{Informal.citet SCKA25}[], Definition 3.1.
+Adapted from {Informal.citet SCKA25}[], Definition 3.1 and Figure 1.
 
-An SCKA scheme is defined by the parameters and algorithms described below.
+An SCKA scheme is defined by the parameters and algorithms described below, with explicit randomness-leaking send variants.
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Notation}" (kind := "scheme-notation")
@@ -69,6 +69,8 @@ $`\Init\text{-}\KeyGen(1^\lambda) \to I_{\mathsf{CKA}}\in\mathcal{I}_{\mathsf{CK
 
     $`\SendA(\stA)\to((t_{I_\A},I_\A),\rho,t^\mathsf{snd}_\A,\stA')`: On input a state $`\stA` of party A, output a pair $`(t_{I_\A},I_\A)\in(\mathbb{N}\times\mathcal{I})\cup\{(\bot,\bot)\}` of epoch counter and key, a message $`\rho`, a sending epoch $`t^\mathsf{snd}_\A`, and an updated state $`\stA'`.
 
+    $`\SendARLeak(\stA)\to((t_{I_\A},I_\A),\rho,t^\mathsf{snd}_\A,\stA',r)`: As $`\SendA`, also outputting the randomness $`r` used for the send.
+
     $`\RecA(\stA,\rho)\to((t_{I_\B},I_\B),t^\mathsf{rcv}_\A,\stA')`: On input a state $`\stA` of party A and a message $`\rho`, output a pair $`(t_{I_\B},I_\B)\in(\mathbb{N}\times\mathcal{I})\cup\{(\bot,\bot)\}` of epoch counter and key, a receiving epoch $`t^\mathsf{rcv}_\A`, and an updated state $`\stA'`. This algorithm is deterministic.
 
   * *Party B*
@@ -76,6 +78,8 @@ $`\Init\text{-}\KeyGen(1^\lambda) \to I_{\mathsf{CKA}}\in\mathcal{I}_{\mathsf{CK
     $`\InitB(I_{\mathsf{CKA}})\to\stB`: On input an initial key $`I_{\mathsf{CKA}}\in\mathcal{I}_{\mathsf{CKA}}`, output an initial state $`\stB` for party B.
 
     $`\SendB(\stB)\to((t_{I_\B},I_\B),\rho,t^\mathsf{snd}_\B,\stB')`: On input a state $`\stB` of party B, output a pair $`(t_{I_\B},I_\B)\in(\mathbb{N}\times\mathcal{I})\cup\{(\bot,\bot)\}` of epoch counter and key, a message $`\rho`, a sending epoch $`t^\mathsf{snd}_\B`, and an updated state $`\stB'`.
+
+    $`\SendBRLeak(\stB)\to((t_{I_\B},I_\B),\rho,t^\mathsf{snd}_\B,\stB',r)`: As $`\SendB`, also outputting the randomness $`r` used for the send.
 
     $`\RecB(\stB,\rho)\to((t_{I_\A},I_\A),t^\mathsf{rcv}_\B,\stB')`: On input a state $`\stB` of party B and a message $`\rho`, output a pair $`(t_{I_\A},I_\A)\in(\mathbb{N}\times\mathcal{I})\cup\{(\bot,\bot)\}` of epoch counter and key, a receiving epoch $`t^\mathsf{rcv}_\B`, and an updated state $`\stB'`. This algorithm is deterministic.
 ::::
