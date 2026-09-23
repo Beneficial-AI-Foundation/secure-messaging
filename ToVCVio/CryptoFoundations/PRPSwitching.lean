@@ -65,10 +65,9 @@ def sampleDistinctFrom (X : Type) [FinEnum X] (q : ℕ)
   letI := hq
   (fun e : Fin q ↪ X => List.ofFn e) <$> ($ᵗ (Fin q ↪ X) : ProbComp (Fin q ↪ X))
 
-/-- Post-composing a uniform permutation onto a fixed embedding gives a uniform embedding.
-The pushed-forward law is invariant under post-composition by every `σ`, and that action is
-transitive (Mathlib's `Equiv.Perm.exists_extending_pair`), so the law is uniform; no permutation
-is ever counted. -/
+/-- Let `e₀ : Fin q ↪ X` be a fixed injective function and let `π` be a uniformly random
+permutation of `X`. Then `π ∘ e₀` is uniformly distributed over all injective functions
+`Fin q ↪ X`. -/
 theorem evalDist_map_trans_uniformPerm {X : Type} [FinEnum X] {q : ℕ}
     [Nonempty (Fin q ↪ X)] (e₀ : Fin q ↪ X) :
     evalDist ((fun π : Equiv.Perm X => e₀.trans π.toEmbedding) <$>
