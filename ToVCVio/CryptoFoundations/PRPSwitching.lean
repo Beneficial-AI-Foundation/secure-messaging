@@ -55,16 +55,10 @@ namespace OracleComp
 def nodupEmbedding {X : Type} (pts : List X) (hpts : pts.Nodup) : Fin pts.length ↪ X :=
   ⟨fun i => pts[i], fun i j hij => Fin.ext (hpts.getElem_inj_iff.mp hij)⟩
 
-/-- A duplicate-free list of length `q` is an embedding `Fin q ↪ X`; this is how callers of
-`sampleDistinctFrom` discharge its `Nonempty` argument. -/
-theorem nonempty_embedding_of_nodup {X : Type} (pts : List X) (hpts : pts.Nodup) :
-    Nonempty (Fin pts.length ↪ X) :=
-  ⟨nodupEmbedding pts hpts⟩
-
 /-- Drawing `q` points of `X` without replacement: a uniform injective `q`-tuple, as a list.
 
-`hq` is explicit because callers hold it as a term, `nonempty_embedding_of_nodup pts hpts`, and
-it appears in the statement of `evalDist_map_uniformPerm_eq_uniformDistinct`. There is no
+`hq` is explicit because callers hold it as a term, `⟨nodupEmbedding pts hpts⟩`, and it
+appears in the statement of `evalDist_map_uniformPerm_eq_uniformDistinct`. There is no
 instance to find anyway: `Nonempty (Fin q ↪ X)` needs `q ≤ Fintype.card X`. -/
 def sampleDistinctFrom (X : Type) [FinEnum X] (q : ℕ)
     (hq : Nonempty (Fin q ↪ X)) : ProbComp (List X) :=
@@ -128,14 +122,14 @@ theorem evalDist_map_uniformPerm_eq_uniformDistinct {X : Type} [FinEnum X]
     (pts : List X) (hpts : pts.Nodup) :
     evalDist ((fun π : Equiv.Perm X => pts.map π) <$>
         ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X)))
-      = evalDist (sampleDistinctFrom X pts.length (nonempty_embedding_of_nodup pts hpts)) := by
-  have hq : Nonempty (Fin pts.length ↪ X) := nonempty_embedding_of_nodup pts hpts
+      = evalDist (sampleDistinctFrom X pts.length ⟨nodupEmbedding pts hpts⟩) := by
+  have hq : Nonempty (Fin pts.length ↪ X) := ⟨nodupEmbedding pts hpts⟩
   have hfun : ∀ π : Equiv.Perm X,
       pts.map π = List.ofFn ((nodupEmbedding pts hpts).trans π.toEmbedding) := by
     intro π
     rw [← List.ofFn_getElem_eq_map pts (π : X → X)]
     rfl
-  have hRHS : sampleDistinctFrom X pts.length (nonempty_embedding_of_nodup pts hpts)
+  have hRHS : sampleDistinctFrom X pts.length ⟨nodupEmbedding pts hpts⟩
       = (fun e : Fin pts.length ↪ X => List.ofFn e) <$>
         ($ᵗ (Fin pts.length ↪ X) : ProbComp (Fin pts.length ↪ X)) := rfl
   have hmapeq : ((fun π : Equiv.Perm X => pts.map π) <$>
@@ -171,12 +165,12 @@ theorem tvDist_map_uniformPerm_mapM_const_uniform_le {X : Type} [FinEnum X] [Non
         (pts.mapM (fun _ => ($ᵗ X : ProbComp X)))
       ≤ (pts.length * (pts.length - 1) : ℝ) / (2 * Fintype.card X) := by
   let : DecidableEq X := Classical.decEq X
-  have hq : Nonempty (Fin pts.length ↪ X) := nonempty_embedding_of_nodup pts hpts
+  have hq : Nonempty (Fin pts.length ↪ X) := ⟨nodupEmbedding pts hpts⟩
   have hNpos : 0 < Fintype.card X := Fintype.card_pos
   have hN0 : (Fintype.card X : ℝ) ≠ 0 := Nat.cast_ne_zero.mpr hNpos.ne'
   -- (a) The permutation side, as a without-replacement draw. `sampleDistinctFrom`'s body is
   -- `rfl`-equal to the explicit map, the `Nonempty` witness being a `Prop`.
-  have hRHSperm : sampleDistinctFrom X pts.length (nonempty_embedding_of_nodup pts hpts)
+  have hRHSperm : sampleDistinctFrom X pts.length ⟨nodupEmbedding pts hpts⟩
       = (fun e : Fin pts.length ↪ X => List.ofFn (e : Fin pts.length → X)) <$>
         ($ᵗ (Fin pts.length ↪ X) : ProbComp (Fin pts.length ↪ X)) := rfl
   have hperm : evalDist ((fun π : Equiv.Perm X => pts.map π) <$>
