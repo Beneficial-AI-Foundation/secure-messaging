@@ -37,10 +37,11 @@ GCM.
 :::
 
 ::::definition "aead_gcm_spec" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD") (tags := "gh-21") (uses := "aead, prp")
-GCM-AE of NIST SP 800-38D at a fixed public 96-bit IV, packaged as a one-time AEAD scheme
-over a pseudorandom permutation: the key is the block-cipher key, encryption is GCTR
-counter-mode encryption of the message followed by a GHASH tag over the associated data and
-the ciphertext, and decryption recomputes the tag and rejects on mismatch.
+GCM authenticated encryption from NIST SP 800-38D, used as a one-time AEAD scheme built on a
+pseudorandom permutation, with a fixed public 96-bit initialisation vector `iv`. The key is
+the permutation's key. Encryption returns the encrypted message together with an
+authentication tag computed over the associated data and the encrypted message; decryption
+recomputes the tag and rejects on mismatch.
 
 The scheme's domain is the NIST-supported length range. A plaintext/ciphertext
 bit-length is supported when it is at most `2^39 - 256` and byte-aligned:
@@ -74,9 +75,7 @@ def gcmOneTimeAEAD {K : Type} (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) 
 :::
 
 ::::theorem "aead_gcm_correctness" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD_correct") (tags := "gh-22") (uses := "aead_gcm_spec, aead_correctness, prp")
-Decrypting an honestly produced ciphertext under the same key and associated data returns the
-plaintext: the keystream is deterministic in the key and IV, so GCTR is its own inverse, and
-the recomputed tag matches.
+$`\todo`
 
 ```anchor gcmOneTimeAEAD_correct (project := ".") (module := SecureMessaging.AEAD.FromGCM.Correctness)
 theorem gcmOneTimeAEAD_correct {K : Type} (prp : PRPScheme K (BitVec 128))
@@ -89,24 +88,16 @@ theorem gcmOneTimeAEAD_correct {K : Type} (prp : PRPScheme K (BitVec 128))
 :::
 
 ::::theorem "aead_gcm_security" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD_security") (tags := "gh-23") (uses := "aead_gcm_spec, aead_security_exp, aead_dist_advantage, aead_decrypt_query_bound, prp")
-One-time IND-CCA security of GCM at any fixed public 96-bit IV reduces to the PRP
-security of its block cipher; the bound is uniform in the IV. The distinguishing
-advantage is at most $`\mathrm{Adv}^{\mathrm{prp}}` of the explicit reduction
-$`B = \mathsf{prfReduction}\ iv\ L\ A`, plus the PRP/PRF switching term
-$`(n+2)(n+1)/2^{129}` with $`n = \lceil L/128 \rceil`, plus
-$`q_d \cdot \mathsf{maxBlocks}(L)/2^{128}`, where $`q_d` bounds the adversary's
-decryption queries.
+For every PRP scheme $`P` on 128-bit blocks, every 96-bit IV $`iv`, every
+supported message length $`L` and every adversary $`\adv` making at most $`q_d` decryption
+queries,
 
-The switching term is a birthday term in the number of *block-cipher calls* made by
-one encryption (the hash key, the tag mask, and one keystream block per message
-block, so $`q = n + 2`), not in the number of adversary queries; it does not
-disappear in the one-time setting. Neither an almost-XOR-universality hypothesis nor
-a PRF hypothesis remains.
+$$`\mathsf{Adv}^{\textsf{dist}}_{\textsf{GCM}}(\adv)
+  \le \mathsf{Adv}^{\textsf{prp}}_{P}(B)
+  + \frac{(n+2)(n+1)}{2^{129}}
+  + q_d \cdot \frac{2^{57} + n + 1}{2^{128}}`
 
-Here $`\mathsf{maxBlocks}(L) = 2^{57} + n + 1` is the block count of the longest GHASH
-input, with $`2^{64} - 8` bits of associated data, the largest byte-aligned length the
-scheme admits, so the forgery term charges every decryption query the worst-case
-associated-data length.
+where $`n = \lceil L/128 \rceil` and $`B = \mathsf{prfReduction}\ iv\ L\ \adv`.
 
 ```anchor gcmOneTimeAEAD_security (project := ".") (module := SecureMessaging.AEAD.FromGCM.Security)
 theorem gcmOneTimeAEAD_security (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)

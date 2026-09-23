@@ -36,11 +36,21 @@ Pseudorandom permutation (PRP).
 :::
 
 :::::::definition "prp" (parent := "prp") (lean := "BlockCipher, PRPScheme, PRPScheme.prpAdvantage") (tags := "gh-240")
-A pseudorandom permutation is the abstract model of a block cipher: a keyed, invertible
-map on a block space $`\mathcal X` that no adversary can distinguish from a uniformly
-random permutation of $`\mathcal X`.
+A block cipher on a key space $`\mathcal K` and a block space $`\mathcal X` is a pair of
+maps $`\mathsf{perm}, \mathsf{perm}^{-1} : \mathcal K \times \mathcal X \to \mathcal X`
+with $`\mathsf{perm}^{-1}(k, \mathsf{perm}(k, x)) = x` and
+$`\mathsf{perm}(k, \mathsf{perm}^{-1}(k, x)) = x` for all $`k` and $`x`. A PRP scheme is a
+block cipher together with a key generation algorithm $`\mathsf{keygen}`. Its PRP
+advantage against an adversary $`\adv` is
 
-:::leanPillCaption "a keyed permutation, given as mutually inverse forward and inverse maps"
+$$`\mathsf{Adv}^{\textsf{prp}}_{\textsf{PRP}}(\adv)
+  = \Bigl|\, \Pr\bigl[\Exp{\textsf{prp}\text{-}\textsf{real}}{\textsf{PRP}}(\adv) = 1\bigr]
+  - \Pr\bigl[\Exp{\textsf{prp}\text{-}\textsf{ideal}}{\textsf{PRP}}(\adv) = 1\bigr] \,\Bigr|`
+
+for the experiments below, where $`\mathsf{Perm}(\mathcal X)` is the set of permutations
+of $`\mathcal X`.
+
+:::leanPillCaption "block cipher"
 :::
 
 ```anchor BlockCipher (project := ".") (module := ToVCVio.CryptoFoundations.PRP)
@@ -53,7 +63,7 @@ structure BlockCipher (K X : Type) where
   correct : ∀ k x, invPerm k (perm k x) = x ∧ perm k (invPerm k x) = x
 ```
 
-:::leanPillCaption "a block cipher plus randomized key generation"
+:::leanPillCaption "PRP scheme"
 :::
 
 ```anchor PRPScheme (project := ".") (module := ToVCVio.CryptoFoundations.PRP)
@@ -71,11 +81,7 @@ $`\pi \sample \mathsf{Perm}(\mathcal X);\quad b' \gets \adv^{\pi};\quad \Return 
 :::::
 ::::::
 
-The real experiment is *defined* to be the PRF real experiment at the forward permutation,
-so the PRP and PRF games differ only on their ideal sides. That shared real term is what
-the PRP/PRF switching inequality of {Informal.citet BR06}[] rests on.
-
-:::leanPillCaption "the advantage: the gap between the real and ideal experiments"
+:::leanPillCaption "PRP advantage"
 :::
 
 ```anchor prpAdvantage (project := ".") (module := ToVCVio.CryptoFoundations.PRP)

@@ -91,7 +91,8 @@ def gcmGameSkeleton {ι : Type} {spec : OracleSpec ι}
   let decImpl : QueryImpl (SupportedAAD × (BitVec L × BitVec 128) →ₒ Option (BitVec L))
       (StateT (Option (BitVec L × BitVec 128)) (OracleComp spec)) :=
     fun (ad, e) => do
-      if (← get) == some e then pure none
+      let eStar ← get
+      if eStar == some e then pure none
       else liftM (decryptResp ad e)
   unifImpl + encImpl + decImpl
 
