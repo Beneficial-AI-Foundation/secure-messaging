@@ -310,4 +310,257 @@ def FSINDCPASecure (rkem : RKEMScheme ProbComp Par EK DK CT K)
 
 end Security
 
+/-! ## Ratchet Simulatability
+
+[TripleRatchet, Def. 5.5] captures two further properties beyond correctness and FS-IND-CPA
+security, needed to prove security of the generic CKA-from-RKEM construction (Thm. 5.6) by
+induction over the ping-pong rounds. It asks for simulators, one per party, each with three
+components:
+
+* `simKeyP` (`RSimKey-P1` in the paper) witnesses **base-key simulatability**: `P`'s *updated* key
+  pair can be produced from a *fresh* key pair alone, with no access to the peer's key material.
+  It also outputs auxiliary state consumed by `simRencP`.
+* `simRencP` (`RSimKey-P2`) witnesses **updated-key simulatability**: the ciphertext, shared key,
+  and "other" key of an honest `P`-towards-peer round — normally computed from `P`'s own fresh
+  decapsulation key — can instead be produced from the peer's *simulated* updated key pair and
+  `simKeyP`'s auxiliary state alone. This breaks the round's dependence on `P`'s actual fresh
+  secret, the key property the CKA induction relies on.
+* `simCtxtP` (`RSimCtxt-P`) witnesses **ciphertext simulatability**: the same round's outputs can
+  instead be produced *directly from both parties' simulated updated key pairs* (including the
+  peer's updated decapsulation key), again without `P`'s fresh decapsulation key. This is what
+  lets the CKA proof argue post-compromise security: once `P` refreshes its key, a corrupted
+  peer's prior view of `P`'s ciphertexts reveals nothing about `P`'s fresh secret.
+
+Each property is phrased as a `Bool`-guessing advantage between the honest ("real", `b = false`)
+and simulated (`b = true`) distribution, in the style of `securityExpA`/`fsIndCpaAdvantageA`.
+Unlike [TripleRatchet]'s Figs. 10–12, this formalization does not expose the simulators' internal
+random coins to the distinguisher: the paper tracks them explicitly only for its own hybrid-style
+proof of Thm. 5.6, not as part of Def. 5.5's mathematical content. A coin-exposing variant (in the
+style of `KEMScheme.RandLeak`) can be added later if some proof needs the stronger notion.
+-/
+
+section RatchetSimulatability
+
+variable {Par EK DK CT K : Type}
+
+/-- A pair of ratchet simulators (Def. 5.5), one per party. Bundled together (rather than split
+per-party) because `keyUpdSimA`/`ctxtSimA` below need both `simKeyA` *and* `simKeyB` at once: the
+peer's updated key pair is always produced via the peer's own simulator, even in the "real" world,
+so that the only thing being tested is whether *this* party's side can be simulated too. -/
+structure RatchetSim (rkem : RKEMScheme ProbComp Par EK DK CT K) where
+  /-- Auxiliary state threaded from `simKeyA` into `simRencA`. -/
+  AuxA : Type
+  /-- Auxiliary state threaded from `simKeyB` into `simRencB`. -/
+  AuxB : Type
+  /-- `RSimKey-A1`: simulates `A`'s updated key pair from a freshly sampled one, producing the
+  auxiliary state `simRencA` needs. -/
+  simKeyA : EK → DK → ProbComp (EK × DK × AuxA)
+  /-- `RSimKey-A2`: simulates the ciphertext, shared key, and "other" key of an `A`-towards-`B`
+  round from `B`'s simulated updated key pair and `simKeyA`'s auxiliary state, without `A`'s fresh
+  decapsulation key. -/
+  simRencA : EK → DK → AuxA → ProbComp (CT × K × K)
+  /-- `RSimCtxt-A`: simulates `A`'s ciphertext, a fresh-looking encapsulation key for `A`, and the
+  two keys of an `A`-towards-`B` round directly from both parties' simulated updated key pairs,
+  without `A`'s fresh decapsulation key. -/
+  simCtxtA : EK → EK → DK → ProbComp (CT × EK × K × K)
+  /-- `RSimKey-B1`, as `simKeyA` with the roles of `A` and `B` swapped. -/
+  simKeyB : EK → DK → ProbComp (EK × DK × AuxB)
+  /-- `RSimKey-B2`, as `simRencA` with the roles of `A` and `B` swapped. -/
+  simRencB : EK → DK → AuxB → ProbComp (CT × K × K)
+  /-- `RSimCtxt-B`, as `simCtxtA` with the roles of `A` and `B` swapped. -/
+  simCtxtB : EK → EK → DK → ProbComp (CT × EK × K × K)
+
+/-- Base-key simulatability distribution (`D^{KeyBaseSim}_{A,b}`, Fig. 10): `b = false` samples
+`A`'s updated key pair directly; `b = true` samples a fresh pair and simulates the updated one
+from it via `simKeyA`. -/
+def keyBaseSimA (rkem : RKEMScheme ProbComp Par EK DK CT K) (sim : RatchetSim rkem) (b : Bool) :
+    ProbComp (EK × DK) := do
+  let par ← rkem.rsetup
+  if b then
+    let (ekA, dkA) ← rkem.rkeygenAFresh par
+    let (ekAHat, dkAHat, _) ← sim.simKeyA ekA dkA
+    return (ekAHat, dkAHat)
+  else
+    rkem.rkeygenAUpdated par
+
+/-- As `keyBaseSimA`, with the roles of `A` and `B` swapped. -/
+def keyBaseSimB (rkem : RKEMScheme ProbComp Par EK DK CT K) (sim : RatchetSim rkem) (b : Bool) :
+    ProbComp (EK × DK) := do
+  let par ← rkem.rsetup
+  if b then
+    let (ekB, dkB) ← rkem.rkeygenBFresh par
+    let (ekBHat, dkBHat, _) ← sim.simKeyB ekB dkB
+    return (ekBHat, dkBHat)
+  else
+    rkem.rkeygenBUpdated par
+
+/-- Updated-key simulatability distribution (`D^{KeyUpdSim}_{A,b}`, Fig. 11): both worlds first
+simulate `B`'s updated key pair from a fresh one via `simKeyB`. `b = false` then runs an honest
+`A`-towards-`B` round using `A`'s own fresh key; `b = true` instead simulates `A`'s updated key
+pair and the round's outputs via `simKeyA`/`simRencA`, without `A`'s fresh decapsulation key. -/
+def keyUpdSimA (rkem : RKEMScheme ProbComp Par EK DK CT K) (sim : RatchetSim rkem) (b : Bool) :
+    ProbComp ((EK × DK) × (EK × DK) × CT × K × K) := do
+  let par ← rkem.rsetup
+  let (ekB, dkB) ← rkem.rkeygenBFresh par
+  let (ekBHat, dkBHat, _) ← sim.simKeyB ekB dkB
+  let (ekA, dkA) ← rkem.rkeygenAFresh par
+  if b then
+    let (ekAHat, dkAHat, auxA) ← sim.simKeyA ekA dkA
+    let (ctB, key, key') ← sim.simRencA ekBHat dkBHat auxA
+    return ((ekBHat, dkBHat), (ekAHat, dkAHat), ctB, key, key')
+  else
+    let (ctB, key, dkAHat) ← rkem.rencA par ekBHat dkA
+    let (key', ekAHat) ← rkem.rdecB par dkBHat ctB ekA
+    return ((ekBHat, dkBHat), (ekAHat, dkAHat), ctB, key, key')
+
+/-- As `keyUpdSimA`, with the roles of `A` and `B` swapped. -/
+def keyUpdSimB (rkem : RKEMScheme ProbComp Par EK DK CT K) (sim : RatchetSim rkem) (b : Bool) :
+    ProbComp ((EK × DK) × (EK × DK) × CT × K × K) := do
+  let par ← rkem.rsetup
+  let (ekA, dkA) ← rkem.rkeygenAFresh par
+  let (ekAHat, dkAHat, _) ← sim.simKeyA ekA dkA
+  let (ekB, dkB) ← rkem.rkeygenBFresh par
+  if b then
+    let (ekBHat, dkBHat, auxB) ← sim.simKeyB ekB dkB
+    let (ctA, key, key') ← sim.simRencB ekAHat dkAHat auxB
+    return ((ekAHat, dkAHat), (ekBHat, dkBHat), ctA, key, key')
+  else
+    let (ctA, key, dkBHat) ← rkem.rencB par ekAHat dkB
+    let (key', ekBHat) ← rkem.rdecA par dkAHat ctA ekB
+    return ((ekAHat, dkAHat), (ekBHat, dkBHat), ctA, key, key')
+
+/-- Ciphertext simulatability distribution (`D^{CtxtSim}_{A,b}`, Fig. 12): both worlds first
+simulate `B`'s updated key pair. `b = false` then runs an honest `A`-towards-`B` round using `A`'s
+own fresh key, with `B` decapsulating via its simulated key; `b = true` instead samples `A`'s
+updated key pair directly and simulates the ciphertext/keys/`A`'s fresh-looking key via
+`simCtxtA`, without `A`'s fresh decapsulation key. -/
+def ctxtSimA (rkem : RKEMScheme ProbComp Par EK DK CT K) (sim : RatchetSim rkem) (b : Bool) :
+    ProbComp ((EK × DK) × CT × (EK × EK) × K × K) := do
+  let par ← rkem.rsetup
+  let (ekB, dkB) ← rkem.rkeygenBFresh par
+  let (ekBHat, dkBHat, _) ← sim.simKeyB ekB dkB
+  if b then
+    let (ekAHat, _dkAHat) ← rkem.rkeygenAUpdated par
+    let (ctB, ekA, key, key') ← sim.simCtxtA ekAHat ekBHat dkBHat
+    return ((ekBHat, dkBHat), ctB, (ekA, ekAHat), key, key')
+  else
+    let (ekA, dkA) ← rkem.rkeygenAFresh par
+    let (ctB, key, _dkAHat) ← rkem.rencA par ekBHat dkA
+    let (key', ekAHat) ← rkem.rdecB par dkBHat ctB ekA
+    return ((ekBHat, dkBHat), ctB, (ekA, ekAHat), key, key')
+
+/-- As `ctxtSimA`, with the roles of `A` and `B` swapped. -/
+def ctxtSimB (rkem : RKEMScheme ProbComp Par EK DK CT K) (sim : RatchetSim rkem) (b : Bool) :
+    ProbComp ((EK × DK) × CT × (EK × EK) × K × K) := do
+  let par ← rkem.rsetup
+  let (ekA, dkA) ← rkem.rkeygenAFresh par
+  let (ekAHat, dkAHat, _) ← sim.simKeyA ekA dkA
+  if b then
+    let (ekBHat, _dkBHat) ← rkem.rkeygenBUpdated par
+    let (ctA, ekB, key, key') ← sim.simCtxtB ekBHat ekAHat dkAHat
+    return ((ekAHat, dkAHat), ctA, (ekB, ekBHat), key, key')
+  else
+    let (ekB, dkB) ← rkem.rkeygenBFresh par
+    let (ctA, key, _dkBHat) ← rkem.rencB par ekAHat dkB
+    let (key', ekBHat) ← rkem.rdecA par dkAHat ctA ekB
+    return ((ekAHat, dkAHat), ctA, (ekB, ekBHat), key, key')
+
+/-- Advantage of `distinguisher` at telling apart the real (`b = false`) and simulated (`b = true`)
+`keyBaseSimA` distributions: `|Pr[b' = true] - 1/2|`, in the style of `fsIndCpaAdvantageA`. -/
+noncomputable def keyBaseSimAdvantageA (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    (sim : RatchetSim rkem) (distinguisher : EK × DK → ProbComp Bool) : ℝ :=
+  |(Pr[= true | do
+      let b ← $ᵗ Bool
+      let x ← keyBaseSimA rkem sim b
+      let b' ← distinguisher x
+      pure (b == b')]).toReal - 1 / 2|
+
+/-- As `keyBaseSimAdvantageA`, with the roles of `A` and `B` swapped. -/
+noncomputable def keyBaseSimAdvantageB (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    (sim : RatchetSim rkem) (distinguisher : EK × DK → ProbComp Bool) : ℝ :=
+  |(Pr[= true | do
+      let b ← $ᵗ Bool
+      let x ← keyBaseSimB rkem sim b
+      let b' ← distinguisher x
+      pure (b == b')]).toReal - 1 / 2|
+
+/-- `Adv^{KeyBaseSim} := max_{P ∈ {A,B}} Adv^{KeyBaseSim-P}`. -/
+noncomputable def keyBaseSimAdvantage (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    (sim : RatchetSim rkem) (distinguisherA distinguisherB : EK × DK → ProbComp Bool) : ℝ :=
+  max (keyBaseSimAdvantageA rkem sim distinguisherA) (keyBaseSimAdvantageB rkem sim distinguisherB)
+
+/-- Advantage of `distinguisher` at telling apart the real and simulated `keyUpdSimA`
+distributions. -/
+noncomputable def keyUpdSimAdvantageA (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    (sim : RatchetSim rkem)
+    (distinguisher : (EK × DK) × (EK × DK) × CT × K × K → ProbComp Bool) : ℝ :=
+  |(Pr[= true | do
+      let b ← $ᵗ Bool
+      let x ← keyUpdSimA rkem sim b
+      let b' ← distinguisher x
+      pure (b == b')]).toReal - 1 / 2|
+
+/-- As `keyUpdSimAdvantageA`, with the roles of `A` and `B` swapped. -/
+noncomputable def keyUpdSimAdvantageB (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    (sim : RatchetSim rkem)
+    (distinguisher : (EK × DK) × (EK × DK) × CT × K × K → ProbComp Bool) : ℝ :=
+  |(Pr[= true | do
+      let b ← $ᵗ Bool
+      let x ← keyUpdSimB rkem sim b
+      let b' ← distinguisher x
+      pure (b == b')]).toReal - 1 / 2|
+
+/-- `Adv^{KeyUpdSim} := max_{P ∈ {A,B}} Adv^{KeyUpdSim-P}`. -/
+noncomputable def keyUpdSimAdvantage (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    (sim : RatchetSim rkem)
+    (distinguisherA distinguisherB : (EK × DK) × (EK × DK) × CT × K × K → ProbComp Bool) : ℝ :=
+  max (keyUpdSimAdvantageA rkem sim distinguisherA) (keyUpdSimAdvantageB rkem sim distinguisherB)
+
+/-- Advantage of `distinguisher` at telling apart the real and simulated `ctxtSimA`
+distributions. -/
+noncomputable def ctxtSimAdvantageA (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    (sim : RatchetSim rkem)
+    (distinguisher : (EK × DK) × CT × (EK × EK) × K × K → ProbComp Bool) : ℝ :=
+  |(Pr[= true | do
+      let b ← $ᵗ Bool
+      let x ← ctxtSimA rkem sim b
+      let b' ← distinguisher x
+      pure (b == b')]).toReal - 1 / 2|
+
+/-- As `ctxtSimAdvantageA`, with the roles of `A` and `B` swapped. -/
+noncomputable def ctxtSimAdvantageB (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    (sim : RatchetSim rkem)
+    (distinguisher : (EK × DK) × CT × (EK × EK) × K × K → ProbComp Bool) : ℝ :=
+  |(Pr[= true | do
+      let b ← $ᵗ Bool
+      let x ← ctxtSimB rkem sim b
+      let b' ← distinguisher x
+      pure (b == b')]).toReal - 1 / 2|
+
+/-- `Adv^{CtxtSim} := max_{P ∈ {A,B}} Adv^{CtxtSim-P}`. -/
+noncomputable def ctxtSimAdvantage (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    (sim : RatchetSim rkem)
+    (distinguisherA distinguisherB : (EK × DK) × CT × (EK × EK) × K × K → ProbComp Bool) : ℝ :=
+  max (ctxtSimAdvantageA rkem sim distinguisherA) (ctxtSimAdvantageB rkem sim distinguisherB)
+
+/-- **Definition 5.5** (Ratchet Simulatability). `rkem` is
+`(epsilonBase, epsilonUpd, epsilonCtxt)`-ratchet-simulatable if there is a simulator pair `sim`
+against which every distinguisher's base-key, updated-key, and ciphertext simulatability
+advantages are respectively at most `epsilonBase`, `epsilonUpd`, `epsilonCtxt`. Asymptotic ratchet
+simulatability, as stated in [TripleRatchet], additionally requires the simulators to be PPT,
+quantifies over every PPT distinguisher, and requires the epsilons to be negligible. -/
+-- ANCHOR: RatchetSimulatable
+def RatchetSimulatable (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    (epsilonBase epsilonUpd epsilonCtxt : ℝ) : Prop :=
+  ∃ sim : RatchetSim rkem,
+    (∀ distinguisherA distinguisherB,
+      keyBaseSimAdvantage rkem sim distinguisherA distinguisherB ≤ epsilonBase) ∧
+    (∀ distinguisherA distinguisherB,
+      keyUpdSimAdvantage rkem sim distinguisherA distinguisherB ≤ epsilonUpd) ∧
+    (∀ distinguisherA distinguisherB,
+      ctxtSimAdvantage rkem sim distinguisherA distinguisherB ≤ epsilonCtxt)
+-- ANCHOR_END: RatchetSimulatable
+
+end RatchetSimulatability
+
 end RKEMScheme
