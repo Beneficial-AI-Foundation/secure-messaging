@@ -282,6 +282,7 @@ def atom_completion_index(
     commits: list[Commit],
     index_by_pull_request: dict[int, int],
 ) -> int | None:
+    """Return the commit index that completed an atom, if known."""
     # Find the commit that completed an atom. GitHub closes an issue moments
     # after its merge commit is written, so matching the closing pull request to
     # its commit is exact where a timestamp comparison would slip to the next
@@ -361,6 +362,7 @@ def estimated_snapshot(
     kinds_by_label: dict[str, str],
     docs_dir: Path,
 ) -> dict:
+    """Estimate progress after one historical commit."""
     # Estimate progress at one commit from issue/closing-PR completion state.
     definition_labels: list[str] = []
     theorem_labels: list[str] = []

@@ -34,7 +34,8 @@ r#"
 \newcommand{\pif}{\mathsf{if}}                                           % pseudocode "if"
 \newcommand{\pthen}{\mathsf{then}}                                       % pseudocode "then"
 \newcommand{\pelse}{\mathsf{else}}                                       % pseudocode "else"
-\newcommand{\pcomment}[1]{\qquad{\color{gray}/\!/\;{\small #1}}}          % inline pseudocode comment (shaded, offset from content)
+\newcommand{\pcommentline}[1]{{\color{gray}/\!/\;{\small #1}}}          % standalone comment, aligned with code
+\newcommand{\pcomment}[1]{\qquad\pcommentline{#1}}                     % inline comment, offset from content
 
 % --- CKA party state and operations ---
 \newcommand{\A}{\mathsf{A}}                              % party A

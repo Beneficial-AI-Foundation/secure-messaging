@@ -43,14 +43,14 @@ We make two corrections to these algorithms, marked with surrounding boxes:
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Initialisation}" (kind := "compact")
-$`\mathsf{CKA}\text{-}\mathsf{InitKeyGen}(): \quad
+$`\Init\text{-}\KeyGen(): \quad
 I_{\mathsf{CKA}}\gets\bot;\quad \mathsf{return}\;I_{\mathsf{CKA}}`
 ```anchor initKeyGen (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
 def initKeyGen : m Unit := pure ()
 ```
 
 $`\begin{array}{l}
-\mathsf{CKA}\text{-}\InitA(\bot): \\
+\InitA(\bot): \\
 \quad(\dkA,\ekA,\ctzero,t,\ich,\Lch,\ack)
   \gets(\bot,\bot,\bot,1,0,\emptyset,(\mathsf{false},\mathsf{false})); \\
 \quad\stA\gets(\dkA,\ekA,\ctzero,t,\ich,\Lch,\ack); \\
@@ -64,7 +64,7 @@ def initA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 ```
 
 $`\begin{array}{l}
-\mathsf{CKA}\text{-}\InitB(\bot): \\
+\InitB(\bot): \\
 \quad(\ekA,\ctzero,\ctone,\stct,t,\ich,\Lch,\ack)
   \gets(\bot,\bot,\bot,\bot,1,0,\emptyset,(\mathsf{false},\mathsf{false})); \\
 \quad\stB\gets(\ekA,\ctzero,\ctone,\stct,t,\ich,\Lch,\ack); \\
@@ -96,7 +96,7 @@ def vulnB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 ```
 :::::
 
-:::::gameCell "\\mathsf{CKA}\text{-}\\SendA(\\stA)" (kind := "compact-send")
+:::::gameCell "\\SendA(\\stA)" (kind := "compact-send")
 $`\begin{array}{l}
 (\dkA,\ekA,\ctzero,t,\ich,\Lch,\ack)\gets\stA, \chunk\gets\bot \\
 \mathsf{if}\;\dkA=\bot\;\mathsf{then}\pcomment{\text{first message of epoch}} \\
@@ -169,7 +169,7 @@ def sendArleak (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 ```
 :::::
 
-:::::gameCell "\\mathsf{CKA}\text{-}\\RecA(\\stA,\\rho)" (kind := "compact-recv")
+:::::gameCell "\\RecA(\\stA,\\rho)" (kind := "compact-recv")
 $`\begin{array}{l}
 (\dkA,\ekA,\ctzero,t,\ich,\Lch,\ack)\gets\stA \\
 (\chunk,\ack',t',b)\gets\rho \\
@@ -263,7 +263,7 @@ def recvA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 ```
 :::::
 
-:::::gameCell "\\mathsf{CKA}\text{-}\\SendB(\\stB)" (kind := "compact-send")
+:::::gameCell "\\SendB(\\stB)" (kind := "compact-send")
 $`\begin{array}{l}
 (\ekA,\ctzero,\ctone,\stct,t,\ich,\Lch,\ack)\gets\stB \\
 I_{\B}\gets\bot, t_{I_{\B}}\gets\bot, \chunk\gets\bot \\
@@ -396,7 +396,7 @@ def sendBrleak (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 ```
 :::::
 
-:::::gameCell "\\mathsf{CKA}\text{-}\\RecB(\\stB,\\rho)" (kind := "compact-recv")
+:::::gameCell "\\RecB(\\stB,\\rho)" (kind := "compact-recv")
 $`\begin{array}{l}
 (\ekA,\ctzero,\ctone,\stct,t,\ich,\Lch,\ack)\gets\stB \\
 (\chunk,\ack',t',\_)\gets\rho \\
