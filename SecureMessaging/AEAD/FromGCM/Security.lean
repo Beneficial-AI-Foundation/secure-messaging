@@ -129,9 +129,10 @@ Wegman–Carter handler `wcInstImpl` at GCM's hash. The lazy-sampling caches car
   Modularization*): the notion targeted here, formalised in `AEAD/Defs.lean`.
 - **McGrew–Viega**, *The Security and Performance of the Galois/Counter Mode of Operation*: the
   original GCM security proof, whose shape the game chain follows.
-- **Iwata–Ohashi–Minematsu**, *Breaking and Repairing GCM Security Proofs*: their attack concerns
-  the non-96-bit-IV path, where the IV itself is GHASHed; the 96-bit IV fixed here is the regime
-  their repair leaves intact.
+- **Iwata–Ohashi–Minematsu**, *Breaking and Repairing GCM Security Proofs*: the original proof
+  is flawed in bounding counter collisions between GHASHed nonces. Their attack needs a
+  non-96-bit IV and does not apply to a fixed 96-bit IV, whose counter blocks are distinct by
+  construction; their repaired bounds are tighter in that case.
 - **Bellare–Rogaway**, *Code-Based Game-Playing Proofs and the Security of Triple Encryption*:
   the PRP/PRF switching lemma.
 
