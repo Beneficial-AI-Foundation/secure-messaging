@@ -139,4 +139,29 @@ theorem ghash_isAXU (L : ℕ) (hirr : Irreducible nistPoly) :
       (gcmEncode_length_le q.1 q.2) hi
   rwa [ToVCVio.natCast_card_bitVec] at hb
 
+/-! ### The constant is nontrivial -/
+
+theorem one_le_maxBlocks (L : ℕ) : 1 ≤ maxBlocks L := by
+  unfold maxBlocks; omega
+
+theorem maxBlocks_lt_two_pow (L : ℕ) (hL : ValidMsgLength L) : maxBlocks L < 2 ^ 128 := by
+  have h := hL.1
+  unfold maxBlocks
+  rw [lenAMax_blocks]
+  have : (L + 127) / 128 ≤ (2 ^ 39 - 256 + 127) / 128 := Nat.div_le_div_right (by omega)
+  norm_num at this ⊢
+  omega
+
+/-- The concrete AXU constant sits between the blind-guess floor and `1`. The upper half needs
+`ValidMsgLength L`, since `maxBlocks L` grows with `L`. A sanity check that the bound is not
+vacuous; the main theorem does not use it. -/
+theorem maxBlocks_div_nontrivial (L : ℕ) (hL : ValidMsgLength L) :
+    ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹ ≤ (maxBlocks L : ℝ≥0∞) / 2 ^ (128 : ℕ) ∧
+      (maxBlocks L : ℝ≥0∞) / 2 ^ (128 : ℕ) < 1 := by
+  refine ⟨?_, ?_⟩
+  · rw [← one_div]
+    exact ENNReal.div_le_div_right (by exact_mod_cast one_le_maxBlocks L) _
+  · rw [ENNReal.div_lt_iff (Or.inl (by positivity)) (Or.inl (by simp)), one_mul]
+    exact_mod_cast maxBlocks_lt_two_pow L hL
+
 end GCM

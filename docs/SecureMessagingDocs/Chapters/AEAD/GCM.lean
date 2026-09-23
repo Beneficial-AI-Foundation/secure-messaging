@@ -106,8 +106,7 @@ theorem gcmOneTimeAEAD_security (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96
     (q_d : ℕ) (hq : AEADScheme.decryptQueryBound adv q_d) :
     AEADScheme.distAdvantage (gcmOneTimeAEAD prp iv L hL) adv ≤
       PRPScheme.prpAdvantage prp (prfReduction iv L adv) +
-      ((((L + 127) / 128 : ℕ) : ℝ) + 2) * ((((L + 127) / 128 : ℕ) : ℝ) + 1)
-        / 2 ^ (129 : ℕ) +
-      (q_d : ℝ) * ((maxBlocks L : ℝ) / 2 ^ (128 : ℕ))
+      ((numBlocks L : ℝ) + 2) * ((numBlocks L : ℝ) + 1) / 2 ^ 129 +
+      (q_d : ℝ) * ((maxBlocks L : ℝ) / 2 ^ 128)
 ```
 ::::
