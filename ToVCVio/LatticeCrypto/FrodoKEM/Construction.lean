@@ -149,20 +149,28 @@ structure Operations (ps : ParameterSet) where
   /-- Gen function mapping seedA to the n × n public matrix A. -/
   gen : SeedABits →
     FrodoMatrix ps.params ps.params.n ps.params.n
-  /-- SHAKE function with variable output length. Maps an input bit string and output length
-  outBits to a bit string of length outBits. -/
+  /-- SHAKE function with variable output length: the `H(x, L)` of the module header. -/
   shake : List Bool → (outBits : ℕ) → Bits outBits
 
 /-- Bit string of the key-generation domain separator 0x5F, least-significant bit first. -/
 def keygenPrefix : Bits 8 :=
   #v[true, true, true, true, true, false, true, false]
 
+/-- Check that the key-generation prefix represents 0x5F. -/
+example :
+    (Nat.ofBits fun i : Fin 8 => keygenPrefix[i]) = 95 := by decide
+
 /-- Bit string of the encryption domain separator 0x96, least-significant bit first. -/
 def encryptionPrefix : Bits 8 :=
   #v[false, true, true, false, true, false, false, true]
 
-/-- The matrix dimensions mbar and nbar and the number B of bits encoded per entry
-satisfy ℓ = mbar × nbar × B, where ℓ is the message length. -/
+/-- Check that the encryption prefix represents 0x96. -/
+example :
+    (Nat.ofBits fun i : Fin 8 => encryptionPrefix[i]) = 150 := by decide
+
+/-- A message exactly fills the `mbar × nbar` matrix, with `B` bits per entry.
+This equality converts between the message length and the bit length expected
+by `Encode` and `Decode`. -/
 theorem messageBits_length (ps : ParameterSet) :
     ps.params.ell = mbar * nbar * ps.params.B := by
   rw [ps.ell_eq_mul]
@@ -198,6 +206,44 @@ def unpackBits (ps : ParameterSet) (r c : ℕ)
     (b : Bits (r * c * ps.params.D)) :
     FrodoMatrix ps.params r c :=
   Unpack ps.params r c (reverseOctets b h)
+
+/-- For FrodoKEM-640, each entry uses 15 bits, so byte and entry boundaries do not align.
+With input bytes `0x00, 0x03` followed by zeros, the two consecutive `1` bits in
+`0x03` (binary `00000011`) become the least significant bit of entry `(0, 0)` and
+the most significant bit of entry `(0, 1)`, giving `1` and `2 ^ 14 = 16384`;
+all other entries are zero. -/
+example :
+    unpackBits ParameterSet.FrodoKEM640 mbar nbar
+      (ciphertext2Bits_mod_eight ParameterSet.FrodoKEM640)
+      (Vector.ofFn fun i => decide (i.val = 8 ∨ i.val = 9)) =
+    Matrix.of (fun i j =>
+      if i.val = 0 ∧ j.val = 0 then
+        (1 : ZMod ParameterSet.FrodoKEM640.params.q)
+      else if i.val = 0 ∧ j.val = 1 then 16384
+      else 0) := by
+  ext i j
+  simp only [unpackBits, Unpack, bitsToMatrixWith, Matrix.of_apply, bitsToEntry,
+    reverseOctets, Vector.getElem_ofFn]
+  revert i j
+  decide +kernel
+
+/-- For FrodoKEM-976, each 16-bit entry occupies exactly two bytes.
+With input bytes `0x80, 0x00` followed by zeros, the most significant bit of the first byte
+becomes the most significant bit of entry `(0, 0)`, giving `2 ^ 15 = 32768`;
+all other entries are zero. -/
+example :
+    unpackBits ParameterSet.FrodoKEM976 mbar nbar
+      (ciphertext2Bits_mod_eight ParameterSet.FrodoKEM976)
+      (Vector.ofFn fun i => decide (i.val = 7)) =
+    Matrix.of (fun i j =>
+      if i.val = 0 ∧ j.val = 0 then
+        (32768 : ZMod ParameterSet.FrodoKEM976.params.q)
+      else 0) := by
+  ext i j
+  simp only [unpackBits, Unpack, bitsToMatrixWith, Matrix.of_apply, bitsToEntry,
+    reverseOctets, Vector.getElem_ofFn]
+  revert i j
+  decide +kernel
 
 /-- FrodoPKE public key (seedA, B). -/
 structure PKEPublicKey (ps : ParameterSet) where
@@ -428,7 +474,7 @@ def encaps {ps : ParameterSet} (ops : Operations ps)
   let salt ← $ᵗ (SaltBits ps)
   return encapsFromCoins ops pk message salt
 
-/-- Package the FrodoKEM algorithms in the installed KEM interface.
+/-- Package the FrodoKEM algorithms as a VCVio `KEMScheme`.
 Implicit rejection returns a shared secret, so decapsulation always returns `some`.
 
 For ephemeral parameter sets, Section 8 of `[LBES26]` requires fewer than 256 ciphertexts

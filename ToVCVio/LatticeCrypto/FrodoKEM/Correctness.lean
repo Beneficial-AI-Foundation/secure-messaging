@@ -328,17 +328,10 @@ theorem SampleMatrix_bounds (table : ErrorTable) (rows cols : ℕ)
   dsimp only [SampleMatrix, bitsToMatrixWith, Matrix.of_apply]
   exact Sample_bounds table _
 
-/-- Splitting the concatenation x ++ y of bit strings x and y after the length of x
-recovers (x, y). -/
+/-- `splitBits` inverts concatenation. -/
 theorem splitBits_append {a b : ℕ} (x : Bits a) (y : Bits b) :
     splitBits (x ++ y) = (x, y) := by
-  apply Prod.ext
-  · apply Vector.ext
-    intro i hi
-    simp [splitBits]
-  · apply Vector.ext
-    intro i hi
-    simp [splitBits]
+  apply Prod.ext <;> apply Vector.ext <;> intro i hi <;> simp [splitBits]
 
 /-- Reversing the bits within each octet twice recovers the original bit string. -/
 theorem reverseOctets_reverseOctets {n : ℕ}
@@ -350,7 +343,7 @@ theorem reverseOctets_reverseOctets {n : ℕ}
   congr 1
   omega
 
-/-- Packing matrix M with `packBits` and then unpacking with `unpackBits` recovers M. -/
+/-- `unpackBits` inverts `packBits`. -/
 theorem unpackBits_packBits (ps : ParameterSet) (r c : ℕ)
     (h : (r * c * ps.params.D) % 8 = 0)
     (M : FrodoMatrix ps.params r c) :
@@ -358,51 +351,12 @@ theorem unpackBits_packBits (ps : ParameterSet) (r c : ℕ)
   rw [unpackBits, packBits, reverseOctets_reverseOctets]
   exact Unpack_Pack ps.params ps.params_wellFormed M
 
-/-- Unpacking bit string b with `unpackBits` and then packing with `packBits` recovers b. -/
+/-- `packBits` inverts `unpackBits`. -/
 theorem packBits_unpackBits (ps : ParameterSet) (r c : ℕ)
     (h : (r * c * ps.params.D) % 8 = 0)
     (b : Bits (r * c * ps.params.D)) :
     packBits ps r c h (unpackBits ps r c h b) = b := by
   rw [packBits, unpackBits, Pack_Unpack ps.params ps.params_wellFormed,
     reverseOctets_reverseOctets]
-
-/-- Reading keygenPrefix least-significant bit first gives 95 (0x5F). -/
-theorem keygenPrefix_value :
-    (Nat.ofBits fun i : Fin 8 => keygenPrefix[i]) = 95 := by decide
-
-/-- Reading encryptionPrefix least-significant bit first gives 150 (0x96). -/
-theorem encryptionPrefix_value :
-    (Nat.ofBits fun i : Fin 8 => encryptionPrefix[i]) = 150 := by decide
-
-/-- For FrodoKEM-640, unpacking bytes 0x00, 0x03 followed by zeros gives entries
-(0,0) = 1 and (0,1) = 16384, with all other entries zero. -/
-theorem unpackBits_640_boundary :
-    unpackBits ParameterSet.FrodoKEM640 mbar nbar
-      (ciphertext2Bits_mod_eight ParameterSet.FrodoKEM640)
-      (Vector.ofFn fun i => decide (i.val = 8 ∨ i.val = 9)) =
-    Matrix.of (fun i j =>
-      if i.val = 0 ∧ j.val = 0 then
-        (1 : ZMod ParameterSet.FrodoKEM640.params.q)
-      else if i.val = 0 ∧ j.val = 1 then 16384
-      else 0) := by
-  ext i j
-  simp only [unpackBits, Unpack, bitsToMatrixWith, Matrix.of_apply, bitsToEntry,
-    reverseOctets, Vector.getElem_ofFn]
-  fin_cases i <;> fin_cases j <;> decide
-
-/-- For FrodoKEM-976, unpacking byte 0x80 followed by zeros gives entry
-(0,0) = 32768, with all other entries zero. -/
-theorem unpackBits_976_boundary :
-    unpackBits ParameterSet.FrodoKEM976 mbar nbar
-      (ciphertext2Bits_mod_eight ParameterSet.FrodoKEM976)
-      (Vector.ofFn fun i => decide (i.val = 7)) =
-    Matrix.of (fun i j =>
-      if i.val = 0 ∧ j.val = 0 then
-        (32768 : ZMod ParameterSet.FrodoKEM976.params.q)
-      else 0) := by
-  ext i j
-  simp only [unpackBits, Unpack, bitsToMatrixWith, Matrix.of_apply, bitsToEntry,
-    reverseOctets, Vector.getElem_ofFn]
-  fin_cases i <;> fin_cases j <;> decide
 
 end FrodoKEM
