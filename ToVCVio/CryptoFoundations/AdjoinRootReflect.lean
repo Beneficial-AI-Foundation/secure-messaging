@@ -10,16 +10,23 @@ import Mathlib.Data.BitVec
 import Mathlib.Data.ZMod.Basic
 
 /-!
-# Reflected equivalence between bit vectors and `AdjoinRoot p`
+# Bit vectors as elements of `AdjoinRoot p`
 
-For any monic `p : (ZMod 2)[X]`, a bijection `reflect hp : BitVec p.natDegree ≃ AdjoinRoot p`
-sending the `i`-th most-significant bit to the coefficient of `root p ^ i`, with XOR additivity
-(`reflect_xor`) and the coordinate expansion (`reflect_apply`). Monicity is the only hypothesis.
-The most-significant-bit-first order is the bit order NIST fixes for GCM, so GCM's `BitVec 128`
-constants transport without a reversal.
+For monic `p : (ZMod 2)[X]` of degree `n`, write `α = root p`. `reflect hp` is the bijection
 
-The `BitVec` half is a plain `Equiv` with a separate additivity lemma rather than a
-`≃ₗ[ZMod 2]`: Mathlib's `AddCommGroup (BitVec n)` is arithmetic `+`, not XOR.
+```text
+φ : {0,1}ⁿ ≃ F₂[X]/(p)
+φ(b₀ … bₙ₋₁) = b₀ + b₁α + ⋯ + bₙ₋₁αⁿ⁻¹
+```
+
+with `reflect_apply` giving this expansion and `reflect_xor` proving `φ(x ⊕ y) = φ(x) + φ(y)`.
+Irreducibility is not required.
+
+The leftmost bit is the constant coefficient. This is the bit order NIST fixes for GHASH, so GCM's
+`BitVec 128` constants transport without a reversal.
+
+`reflect` is a plain `Equiv` with a separate additivity lemma rather than a `≃ₗ[ZMod 2]`, because
+Mathlib's `AddCommGroup (BitVec n)` is arithmetic `+`, not XOR.
 -/
 
 open Polynomial
