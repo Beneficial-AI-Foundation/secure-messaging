@@ -52,47 +52,32 @@ An SCKA scheme is defined by the parameters and algorithms described below.
     * $`\rho`: protocol message.
   *
     * $`(t,I)\in(\mathbb{N}\times\mathcal{I})\cup\{(\bot,\bot)\}`:
-      an epoch and its associated derived key.
+      an epoch and its derived key, or $`(\bot,\bot)` if no key is derived.
     * $`t_\A^\mathsf{snd},t_\B^\mathsf{snd}\in\mathbb{N}`: key epochs safe for sending messages.
     * $`t_\A^\mathsf{rcv},t_\B^\mathsf{rcv}\in\mathbb{N}`: sending epochs of received messages.
 ::::
 :::::
 
 :::::gameCell "\\textsf{Algorithms}" (kind := "scheme-algorithms")
-Generate the shared initial key for security parameter $`\lambda`.
-
-$$`\Init\text{-}\KeyGen(1^\lambda)
-  \to I_{\mathsf{CKA}}\in\mathcal{I}_{\mathsf{CKA}}`
+$`\Init\text{-}\KeyGen(1^\lambda) \to I_{\mathsf{CKA}}\in\mathcal{I}_{\mathsf{CKA}}`: On input the security parameter $`1^\lambda`, output an initial key $`I_{\mathsf{CKA}}\in\mathcal{I}_{\mathsf{CKA}}`.
 
 ::::table -header
 *
   * *Party A*
 
-    Initialize A's local state.
+    $`\InitA(I_{\mathsf{CKA}})\to\stA`: On input an initial key $`I_{\mathsf{CKA}}\in\mathcal{I}_{\mathsf{CKA}}`, output an initial state $`\stA` for party A.
 
-    $$`\InitA(I_{\mathsf{CKA}})\to\stA`
+    $`\SendA(\stA)\to((t_{I_\A},I_\A),\rho,t^\mathsf{snd}_\A,\stA')`: On input a state $`\stA` of party A, output a pair $`(t_{I_\A},I_\A)\in(\mathbb{N}\times\mathcal{I})\cup\{(\bot,\bot)\}` of epoch counter and key, a message $`\rho`, a sending epoch $`t^\mathsf{snd}_\A`, and an updated state $`\stA'`.
 
-    Send a message, optionally deriving an epoch key.
-
-    $$`\SendA(\stA)\to((t_{I_\A},I_\A),\rho,t^\mathsf{snd}_\A,\stA')`
-
-    Receive a message, optionally deriving an epoch key.
-
-    $$`\RecA(\stA,\rho)\to((t_{I_\B},I_\B),t^\mathsf{rcv}_\A,\stA')`
+    $`\RecA(\stA,\rho)\to((t_{I_\B},I_\B),t^\mathsf{rcv}_\A,\stA')`: On input a state $`\stA` of party A and a message $`\rho`, output a pair $`(t_{I_\B},I_\B)\in(\mathbb{N}\times\mathcal{I})\cup\{(\bot,\bot)\}` of epoch counter and key, a receiving epoch $`t^\mathsf{rcv}_\A`, and an updated state $`\stA'`. This algorithm is deterministic.
 
   * *Party B*
 
-    Initialize B's local state.
+    $`\InitB(I_{\mathsf{CKA}})\to\stB`: On input an initial key $`I_{\mathsf{CKA}}\in\mathcal{I}_{\mathsf{CKA}}`, output an initial state $`\stB` for party B.
 
-    $$`\InitB(I_{\mathsf{CKA}})\to\stB`
+    $`\SendB(\stB)\to((t_{I_\B},I_\B),\rho,t^\mathsf{snd}_\B,\stB')`: On input a state $`\stB` of party B, output a pair $`(t_{I_\B},I_\B)\in(\mathbb{N}\times\mathcal{I})\cup\{(\bot,\bot)\}` of epoch counter and key, a message $`\rho`, a sending epoch $`t^\mathsf{snd}_\B`, and an updated state $`\stB'`.
 
-    Send a message, optionally deriving an epoch key.
-
-    $$`\SendB(\stB)\to((t_{I_\B},I_\B),\rho,t^\mathsf{snd}_\B,\stB')`
-
-    Receive a message, optionally deriving an epoch key.
-
-    $$`\RecB(\stB,\rho)\to((t_{I_\A},I_\A),t^\mathsf{rcv}_\B,\stB')`
+    $`\RecB(\stB,\rho)\to((t_{I_\A},I_\A),t^\mathsf{rcv}_\B,\stB')`: On input a state $`\stB` of party B and a message $`\rho`, output a pair $`(t_{I_\A},I_\A)\in(\mathbb{N}\times\mathcal{I})\cup\{(\bot,\bot)\}` of epoch counter and key, a receiving epoch $`t^\mathsf{rcv}_\B`, and an updated state $`\stB'`. This algorithm is deterministic.
 ::::
 :::::
 
