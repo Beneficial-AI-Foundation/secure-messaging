@@ -143,7 +143,8 @@ theorem evalDist_map_uniformPerm_eq_uniformDistinct {X : Type} [FinEnum X]
 
 /-! ## The assembled fixed-list switching bound -/
 
-/-- `tvDist` depends only on the distributions of its arguments. -/
+/-- Replacing each of two probabilistic computations by one with the same output distribution
+leaves their total-variation distance unchanged. -/
 private theorem tvDist_congr {α : Type} {m₁ m₂ m₃ m₄ : ProbComp α}
     (h₁ : evalDist m₁ = evalDist m₂) (h₂ : evalDist m₃ = evalDist m₄) :
     tvDist m₁ m₃ = tvDist m₂ m₄ := by
