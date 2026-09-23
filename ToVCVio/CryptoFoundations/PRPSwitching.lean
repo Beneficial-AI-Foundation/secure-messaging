@@ -113,10 +113,9 @@ theorem evalDist_map_trans_uniformPerm {X : Type} [FinEnum X] {q : ℕ}
           evalDist_ext_iff.mp (hinv σ) _
       _ = Pr[= e' | Φ <$> ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X))] := by rw [he']
 
-/-- Applying a uniform permutation of `X` to a fixed list `pts` of pairwise-distinct points is
-equal in distribution to drawing `pts.length` points of `X` without replacement. The switching
-distance `tvDist_map_uniformPerm_mapM_const_uniform_le` rewrites its permutation side through
-this identity. -/
+/-- Let `pts = x₁, …, x_q` be fixed, pairwise-distinct elements of a finite set `X`. If `π` is a
+uniformly random permutation of `X`, then `(π(x₁), …, π(x_q))` is uniformly distributed over all
+ordered `q`-tuples of distinct elements of `X`. -/
 theorem evalDist_map_uniformPerm_eq_uniformDistinct {X : Type} [FinEnum X]
     (pts : List X) (hpts : pts.Nodup) :
     evalDist ((fun π : Equiv.Perm X => pts.map π) <$>
