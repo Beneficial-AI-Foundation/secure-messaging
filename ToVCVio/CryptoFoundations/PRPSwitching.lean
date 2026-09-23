@@ -150,13 +150,12 @@ private theorem tvDist_congr {α : Type} {m₁ m₂ m₃ m₄ : ProbComp α}
     tvDist m₁ m₃ = tvDist m₂ m₄ := by
   rw [tvDist, tvDist, h₁, h₂]
 
-/-- The fixed-list PRP/PRF switching bound: for a duplicate-free list `pts` of `q` points,
-applying a uniform permutation of `X` to `pts` and drawing `q` independent uniform elements of
-`X` are within total-variation distance `q (q - 1) / (2 * card X)`.
+/-- Fixed-list PRP/PRF switching bound. Let `X` be a finite nonempty set of size
+`N = Fintype.card X`, and let `pts = x₁, …, x_q` be fixed, pairwise-distinct points of `X`.
 
-The bound is read in `ℝ`: `pts.length - 1` is a real subtraction, and `q (q - 1)` is `0` at
-`q = 0` and nonnegative otherwise. `[Nonempty X]` is what makes `X` sampleable; `[FinEnum X]`
-alone does not. -/
+The distributions of `(π(x₁), …, π(x_q))`, for a uniformly random permutation `π` of `X`, and
+`(y₁, …, y_q)`, for independent uniform samples `yᵢ` from `X`, have total-variation distance at
+most `q(q - 1)/(2N)`. -/
 theorem tvDist_map_uniformPerm_mapM_const_uniform_le {X : Type} [FinEnum X] [Nonempty X]
     (pts : List X) (hpts : pts.Nodup) :
     tvDist ((fun π : Equiv.Perm X => pts.map π) <$>
