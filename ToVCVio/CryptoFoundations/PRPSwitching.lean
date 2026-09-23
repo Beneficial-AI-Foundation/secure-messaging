@@ -13,26 +13,38 @@ import Mathlib.Data.Fintype.CardEmbedding
 /-!
 # Fixed-list PRP/PRF switching
 
-Applying a uniformly random permutation `π : Equiv.Perm X` to a fixed list `pts` of
-pairwise-distinct points is equal in distribution to drawing `pts.length` points of `X`
-without replacement (`OracleComp.evalDist_map_uniformPerm_eq_uniformDistinct`). This is the
-identity that lets a proof consume a random-permutation experiment without ever counting the
-`(card X)!` permutations: post-composition by permutations acts transitively on the
-embeddings `Fin q ↪ X` (Mathlib's `Equiv.Perm.exists_extending_pair`), and a distribution
-invariant under a transitive action is uniform.
+Let `X` be a finite nonempty set of size `N = Fintype.card X`, and let `x₁, …, x_q` be a fixed
+list `pts` of pairwise-distinct points of `X`, so `q = pts.length`. Consider two distributions on
+lists of outputs:
 
-The switching bound itself, `OracleComp.tvDist_map_uniformPerm_mapM_const_uniform_le`, puts
-that draw at total-variation distance at most `q(q-1)/(2 * card X)` from `q` independent
-uniform draws. The constant is the birthday bound: `q(q-1)/2` unordered pairs of positions,
-each colliding with probability `1 / card X`. Here `q` counts the distinct points at which the
-permutation is evaluated, which for a mode of operation may exceed its message-block count. At
-`card X = 2ⁿ` this is `q(q-1)/2ⁿ⁺¹`, the bound of Lemma 1 in Bellare and Rogaway, *The Security
-of Triple Encryption and a Framework for Code-Based Game-Playing Proofs*,
-<https://eprint.iacr.org/2004/331.pdf>.
+* `P`, the law of `π(x₁), …, π(x_q)` for a uniformly random permutation `π` of `X`;
+* `F`, the law of `q` independent uniform elements of `X`. For distinct points this is also the
+  law of `f(x₁), …, f(x_q)` for a uniformly random function `f : X → X`.
 
-Only this non-adaptive, fixed-list form is provided; the adaptive lazy random-permutation
-simulator of the textbook switching lemma is not built here, since the reductions that use
-this file query the permutation on a fixed list of points. Candidate for upstream VCVio.
+We prove that `P` is uniform over lists of `q` distinct elements of `X`, that is, `P` samples `q`
+elements without replacement. We then prove that the total-variation distance between `P` and
+`F` is at most `q(q - 1)/(2N)`, so any test of the output list accepts with probabilities that
+differ by at most this bound.
+
+The proof shows by symmetry that all lists of distinct outputs are equally likely under `P`,
+without counting permutations, then compares sampling without replacement to independent
+sampling. The bound is the birthday bound: `q(q - 1)/2` pairs of positions, each equal under `F`
+with probability `1/N`. At `N = 2ⁿ` it is `q(q - 1)/2ⁿ⁺¹`, Lemma 1 of the reference below.
+
+The points must be fixed in advance: choosing later points from earlier outputs is not covered,
+since the reductions that use this file query the permutation on a fixed list. `q` counts every
+point at which the permutation is evaluated, which for a mode of operation may exceed its
+message-block count.
+
+## Main results
+
+* `evalDist_map_uniformPerm_eq_uniformDistinct`: `P` is sampling without replacement.
+* `tvDist_map_uniformPerm_mapM_const_uniform_le`: the bound on the distance between `P` and `F`.
+
+## Reference
+
+Bellare and Rogaway, *The Security of Triple Encryption and a Framework for Code-Based
+Game-Playing Proofs*, EUROCRYPT 2006, <https://eprint.iacr.org/2004/331.pdf>.
 -/
 
 open ENNReal OracleComp
