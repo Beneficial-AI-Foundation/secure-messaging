@@ -11,7 +11,7 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Parameters
 
 `Frodo.Encode` and `Frodo.Decode`.
 
-References are as in `Parameters.lean`. The maps on bit strings are named
+References are listed in `Construction.lean`. The maps on bit strings are named
 in Section 3.3 and given in Appendix B of `[CiC25]`. `[LBES26]` gives the
 same maps as pseudocode in Section 6.3, with the chunking layout written out.
 
@@ -22,7 +22,7 @@ Encoding places `B` bits in each entry of an `mbar`-by-`nbar` matrix over
 least significant bit first throughout, the scalar maps are
 
 * `ec : ZMod (2 ^ B) → ZMod q`, `k ↦ k * q / 2 ^ B` — written `k * 2 ^ (D - B)`,
-  which agrees under `q = 2 ^ D`;
+  which agrees under `q = 2 ^ D` and `B ≤ D`;
 * `dc : ZMod q → ZMod (2 ^ B)`, `c ↦ ⌊c * 2 ^ B / q⌉ mod 2 ^ B`;
 
 they are applied to every entry of a matrix by
@@ -72,13 +72,13 @@ The specification's `Frodo.Encode` and `Frodo.Decode` are
 namespace FrodoKEM
 
 /-- `Frodo.Encode`'s scalar map (Appendix B of `[CiC25]`, Section 6.3 of
-`[LBES26]`): `k ↦ k * 2 ^ (D - B)`, multiplying by the spacing `q / 2 ^ B`. -/
+`[LBES26]`): `k ↦ k * 2 ^ (D - B)`. -/
 def ec (p : Params) (k : ZMod (2 ^ p.B)) : ZMod p.q :=
   (k.val * 2 ^ (p.D - p.B) : ℕ)
 
-/-- `Frodo.Decode`'s scalar map (Appendix B of `[CiC25]`, Section 6.3 of
-`[LBES26]`): `c ↦ ⌊c * 2 ^ B / q⌉ mod 2 ^ B`, dividing by that spacing and
-rounding to the nearest integer, ties upward. -/
+/-- Recover a message chunk by rounding to the nearest encoding level.
+Ties round upward; `dc_ec_add` gives the error bound for recovery.
+See Appendix B of `[CiC25]` and Section 6.3 of `[LBES26]`. -/
 def dc (p : Params) (c : ZMod p.q) : ZMod (2 ^ p.B) :=
   ((c.val * 2 ^ p.B + p.q / 2) / p.q % 2 ^ p.B : ℕ)
 
@@ -89,8 +89,8 @@ def dc (p : Params) (c : ZMod p.q) : ZMod (2 ^ p.B) :=
 already chunked; composing them with the bit-string layer gives the published
 functions. -/
 
-/-- A matrix of `B`-bit chunks, one per entry: the chunked form of a message of
-`ℓ = B * mbar * nbar` bits. -/
+/-- A matrix of `B`-bit chunks, one per entry, holding `mbar * nbar * B` bits.
+For well-formed parameters, this equals the message length `p.ell`. -/
 abbrev ChunkMatrix (p : Params) := Matrix (Fin mbar) (Fin nbar) (ZMod (2 ^ p.B))
 
 /-- The entrywise step of `Frodo.Encode` (Appendix B), on input already chunked

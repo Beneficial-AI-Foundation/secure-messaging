@@ -16,6 +16,7 @@ set_option doc.verso true
 *References:*
 
 - {Informal.citet FrodoKEM}[]
+- {Informal.citet LBES26}[]
 
 :::group "frodo_kem"
 FrodoKEM, a Learning-With-Errors key encapsulation mechanism
@@ -32,11 +33,14 @@ The construction turns an underlying public-key encryption scheme called FrodoPK
 into a KEM using a Fujisaki–Okamoto transform.
 Encapsulation produces a ciphertext and a shared secret; decapsulation
 uses the secret key to recover that shared secret. FrodoKEM has two variants:
-salted and ephemeral. Each offers three parameter sets—640, 976, and 1344—corresponding
-to different security levels. The salted variant adds a
-public salt and longer error seeds to address attacks targeting many ciphertexts.
-The ephemeral variant, eFrodoKEM, omits the salt and is intended for limited use
-of each public key ({Informal.citet FrodoKEM}[], §§1.1–1.3).
+salted and ephemeral. Each variant offers three parameter sizes—640, 976, and 1344—with
+AES128 or SHAKE128 used to generate the public matrix. The two variants, three sizes,
+and two matrix generators give twelve combinations in total
+({Informal.citet FrodoKEM}[], §6.2). The salted variant adds a
+public salt and longer error seeds to address attacks targeting many ciphertexts
+({Informal.citet FrodoKEM}[], §§1.1–1.3).
+The ephemeral variant, eFrodoKEM, omits the salt and requires fewer than 256
+ciphertexts per public key ({Informal.citet LBES26}[], §8).
 
 :::defTitle "frodo_kem_scheme" "FrodoKEM scheme"
 :::
@@ -59,7 +63,7 @@ its public key is a seed and a matrix, and its secret key is a transposed matrix
   * SHAKE applied to $`x`, producing $`L` bits.
 *
   * $`P(M), U(b)`
-  * Pack a matrix into bits, or unpack those bits into a matrix.
+  * Pack matrix $`M` into a bit string, or recover a matrix from packed bits $`b`.
 *
   * $`x \| y`
   * Concatenate two bit strings.
@@ -68,10 +72,17 @@ its public key is a seed and a matrix, and its secret key is a transposed matrix
   * Sample an independent, uniformly random $`L`-bit string.
 :::
 
+$`P(M)` uses the draft's packing convention, representing each packed byte
+least-significant-bit first. $`U(b)` reverses this conversion. In Lean, these
+operations are implemented by `packBits` and `unpackBits`.
+
 ::::::gameGrid
 
 :::::gameCell "\\mathsf{KeyGen}()" (kind := "game")
 Generate a key pair and store a fallback secret for ciphertexts that fail validation.
+
+Here $`\mathsf{PKE.KeyGen}(a,\mathsf{seed}_{SE})` denotes key generation with supplied
+seeds, implemented by `PKE.keygenFromSeeds`.
 
 $`\begin{array}{l}
 s \sample \{0,1\}^{\ell};\quad

@@ -10,7 +10,7 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Parameters
 # FrodoKEM error sampling
 
 `Sample` and `SampleMatrix` follow Sections 6.5 and 6.6 of `[LBES26]` and
-Section 3.1 of `[CiC25]`. References are as in `Parameters.lean`.
+Section 3.1 of `[CiC25]`. References are listed in `Construction.lean`.
 
 The three threshold tables are transcribed from Table 5 of `[LBES26]`.
 The error probabilities in its Table 4 agree with Table 3 of `[CiC25]`;

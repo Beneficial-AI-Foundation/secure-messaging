@@ -12,7 +12,7 @@ import VCVio.CryptoFoundations.KeyEncapMech
 /-!
 # FrodoPKE and FrodoKEM constructions
 
-References are as in `Parameters.lean`, with `[LBES26]` as the primary reference.
+Full citations are listed in the References section below; `[LBES26]` is the primary reference.
 FrodoPKE key generation, encryption and decryption follow Algorithms 5–7 of `[CiC25]`,
 using the corresponding arithmetic in Sections 7.1.1, 7.2 and 7.3 of `[LBES26]`,
 which does not define standalone PKE interfaces. FrodoKEM key generation,
@@ -21,11 +21,48 @@ corresponding to Algorithms 8–10 of `[CiC25]`.
 
 ## Parameters and representation
 
+`Parameters.lean` defines the supported parameter sets. Their numerical values are
+recorded in `ParameterSet.params` and summarized below; relations between these
+values are stated as theorems in that file.
+
 `Operations ps` supplies deterministic Gen and SHAKE functions for a parameter set
-`ps`. Given `ops : Operations ps`, the descriptions below use the shorthands
-`n = ps.params.n`, `q = ps.params.q`, `ℓ = ps.params.ell`,
-`mbar = nbar = 8`, `A = ops.gen seedA`, and
-`H(x, L) = ops.shake x L` for an `L`-bit output. The intended SHAKE is SHAKE128
+`ps`. Given `ops : Operations ps`, the descriptions below use the following notation:
+
+| Notation                  | Meaning                                                      |
+|---------------------------|--------------------------------------------------------------|
+| `ps`                      | The chosen parameter set, such as FrodoKEM-640               |
+| `n = ps.params.n`         | Large matrix dimension: 640, 976, or 1344                    |
+| `q = ps.params.q`         | Modulus for matrix arithmetic                                |
+| `D = ps.params.D`         | Exponent of the modulus: `q = 2 ^ D`                         |
+| `B = ps.params.B`         | Bits encoded in each matrix entry by `Frodo.Encode`          |
+| `ℓ = ps.params.ell`       | Message and shared-secret length: 128, 192, or 256 bits      |
+| `lenSeedSE`               | Bit length of the seed used for error sampling               |
+| `lenSalt`                 | Bit length of the salt; zero for the ephemeral variant       |
+| `mbar = nbar = 8`         | Small matrix dimensions; encoded messages are 8 × 8 matrices |
+| `A = ops.gen seedA`       | Public n × n matrix generated from its seed                  |
+| `H(x, L) = ops.shake x L` | SHAKE applied to input x, requesting L output bits           |
+
+`ℓ` also determines the lengths of the intermediate key, public-key hash, and
+fallback secret. The identity `ℓ = B * mbar * nbar` ensures that the message fills
+the encoding matrix.
+
+The constants `mbar = nbar = 8`, `lenSeedA = lenZ = 128` and `lenChi = 16` are
+shared by every parameter set; the per-set entries `Params` carries are:
+
+| parameter set   |  D |     q |    n | B |   ℓ | lenSeedSE | lenSalt |
+| --------------- | --:| -----:| ----:| -:| ---:| ---------:| -------:|
+| FrodoKEM-640    | 15 | 32768 |  640 | 2 | 128 |       256 |     256 |
+| FrodoKEM-976    | 16 | 65536 |  976 | 3 | 192 |       384 |     384 |
+| FrodoKEM-1344   | 16 | 65536 | 1344 | 4 | 256 |       512 |     512 |
+| eFrodoKEM-640   | 15 | 32768 |  640 | 2 | 128 |       128 |       0 |
+| eFrodoKEM-976   | 16 | 65536 |  976 | 3 | 192 |       192 |       0 |
+| eFrodoKEM-1344  | 16 | 65536 | 1344 | 4 | 256 |       256 |       0 |
+
+The `χ` and SHAKE rows in Table 1 of `[CiC25]` are not fields of `Params`,
+nor is the `-AES` or `-SHAKE` choice of generator for `A` that doubles these
+six sets to twelve.
+
+The intended SHAKE is SHAKE128
 at level 640 and SHAKE256 at levels 976/1344; GenSHAKE always uses SHAKE128
 (Sections 6.7 and 9.1 of `[LBES26]`).
 
@@ -34,6 +71,22 @@ The symbol `||` denotes concatenation of ordinary bit
 strings, whose octets are least-significant-bit first. Raw `Pack` emits coefficient
 bits most-significant first; `packBits` and `unpackBits` reverse each octet to bridge
 these conventions. The secret matrix is stored transposed over `ZMod q`.
+
+## Building blocks
+
+* **Message encoding** (`Encoding.lean`): `Encode` divides the message into `B`-bit
+  chunks and maps them to evenly spaced values modulo `q` in an 8 × 8 matrix.
+  `Decode` rounds back to these values, recovering the message when the added
+  error is sufficiently small.
+* **Matrix packing** (`Packing.lean`): `Pack` writes each matrix entry as `D` bits,
+  row by row; `Unpack` reads the entries back. Packing preserves the matrix entries,
+  whereas message encoding spaces out the possible values to tolerate errors.
+  The `packBits` and `unpackBits` wrappers below adapt the packed bit order to the
+  octet convention described above.
+* **Error sampling** (`Sampling.lean`): `Sample` converts 16 supplied bits into a
+  small signed integer using the parameter set's error table. `SampleMatrix`
+  applies it to consecutive blocks of bits to fill a matrix row by row. These
+  functions consume bits; the construction supplies them from SHAKE output.
 
 ## FrodoPKE
 
@@ -119,6 +172,20 @@ Gen and SHAKE algorithms or satisfy the assumptions needed for security proofs.
 
 Section 8 of `[LBES26]` requires fewer than 256 ciphertexts per ephemeral public key.
 This module does not enforce that usage restriction.
+
+## References
+
+The FrodoKEM modules use the following references:
+
+* `[CiC25]`, Glabush, Longa, Naehrig, Peikert, Stebila and Virdia, *FrodoKEM: A
+  CCA-Secure Learning With Errors Key Encapsulation Mechanism*, IACR
+  Communications in Cryptology 2:3, <https://cic.iacr.org/p/2/3/25>;
+* `[LBES26]`, Longa, Bos, Ehlen and Stebila, *FrodoKEM: key encapsulation from
+  learning with errors*, draft-longa-cfrg-frodokem-03, 22 June 2026,
+  <https://datatracker.ietf.org/doc/html/draft-longa-cfrg-frodokem-03>.
+
+The version and date are part of the second citation because an
+Internet-Draft expires, this one on 24 December 2026.
 -/
 
 namespace FrodoKEM
