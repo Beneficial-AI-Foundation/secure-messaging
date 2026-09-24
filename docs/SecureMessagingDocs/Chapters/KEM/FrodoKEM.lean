@@ -99,29 +99,33 @@ b \gets P(B);\quad \mathsf{pk} \gets (a,b) \\[0.35em]
 :::
 
 ```anchor frodoKEM_keyGeneration (project := ".") (module := ToVCVio.LatticeCrypto.FrodoKEM.Construction)
-def keygenFromSeeds {ps : ParameterSet} (ops : Operations ps)
-    (fallback : SharedSecretBits ps) (seedSE : SeedSEBits ps)
-    (z : Bits lenZ) : PublicKey ps × SecretKey ps :=
-  let seedA := ops.shake z.toList lenSeedA
-  let keys := PKE.keygenFromSeeds ops seedA seedSE
-  let pk : PublicKey ps :=
-    { seedA := seedA
-      b := packBits ps ps.params.n nbar
-        (publicKeyBits_mod_eight ps) keys.1.matrixB }
-  (pk,
-    { fallback := fallback
-      publicKey := pk
-      secretTranspose := keys.2
-      publicKeyHash := hashPublicKey ops pk })
-
-/-- FrodoKEM key generation: samples fallback value s and seeds seedSE and z
-independently and uniformly, then returns the key pair produced by `KEM.keygenFromSeeds`. -/
 def keygen {ps : ParameterSet} (ops : Operations ps) :
     ProbComp (PublicKey ps × SecretKey ps) := do
   let fallback ← $ᵗ (SharedSecretBits ps)
   let seedSE ← $ᵗ (SeedSEBits ps)
   let z ← $ᵗ (Bits lenZ)
-  return keygenFromSeeds ops fallback seedSE z
+  let p := ps.params
+  let seedA := ops.shake z.toList lenSeedA
+  let a := ops.gen seedA
+  let stream := ops.shake
+    (keygenPrefix.toList ++ seedSE.toList)
+    (nbar * p.n * lenChi + p.n * nbar * lenChi)
+  let samples := splitBits
+    (a := nbar * p.n * lenChi)
+    (b := p.n * nbar * lenChi) stream
+  let st := (SampleMatrix ps.errorTable nbar p.n samples.1).map
+    (fun x : ℤ => (x : ZMod p.q))
+  let e := (SampleMatrix ps.errorTable p.n nbar samples.2).map
+    (fun x : ℤ => (x : ZMod p.q))
+  let b := a * st.transpose + e
+  let pk : PublicKey ps :=
+    { seedA := seedA
+      b := packBits ps p.n nbar (publicKeyBits_mod_eight ps) b }
+  return (pk,
+    { fallback := fallback
+      publicKey := pk
+      secretTranspose := st
+      publicKeyHash := hashPublicKey ops pk })
 ```
 :::::
 
@@ -144,34 +148,40 @@ c_1 \gets P(B');\quad c_2 \gets P(C);\quad c \gets (c_1,c_2,\mathsf{salt}) \\[0.
 :::
 
 ```anchor frodoKEM_encapsulation (project := ".") (module := ToVCVio.LatticeCrypto.FrodoKEM.Construction)
-def encapsFromCoins {ps : ParameterSet} (ops : Operations ps)
-    (pk : PublicKey ps) (message : MessageBits ps)
-    (salt : SaltBits ps) : Ciphertext ps × SharedSecretBits ps :=
-  let derived := deriveSeedAndKey ops (hashPublicKey ops pk) message salt
-  let pkePK : PKEPublicKey ps :=
-    { seedA := pk.seedA
-      matrixB := unpackBits ps ps.params.n nbar
-        (publicKeyBits_mod_eight ps) pk.b }
-  let encrypted := PKE.encryptFromSeed ops pkePK message derived.1
-  let c : Ciphertext ps :=
-    { c1 := packBits ps mbar ps.params.n
-        (ciphertext1Bits_mod_eight ps) encrypted.c1
-      c2 := packBits ps mbar nbar
-        (ciphertext2Bits_mod_eight ps) encrypted.c2
-      salt := salt }
-  (c, ops.shake
-    (c.c1.toList ++ c.c2.toList ++ c.salt.toList ++ derived.2.toList)
-    ps.params.ell)
-
-/-- FrodoKEM encapsulation: samples message μ and salt independently and uniformly,
-then returns the ciphertext and shared secret produced by `KEM.encapsFromCoins`.
-The salt is empty for ephemeral parameter sets. -/
 def encaps {ps : ParameterSet} (ops : Operations ps)
     (pk : PublicKey ps) :
     ProbComp (Ciphertext ps × SharedSecretBits ps) := do
   let message ← $ᵗ (MessageBits ps)
   let salt ← $ᵗ (SaltBits ps)
-  return encapsFromCoins ops pk message salt
+  let p := ps.params
+  let derived := deriveSeedAndKey ops (hashPublicKey ops pk) message salt
+  let stream := ops.shake
+    (encryptionPrefix.toList ++ derived.1.toList)
+    (mbar * p.n * lenChi +
+      (mbar * p.n * lenChi + mbar * nbar * lenChi))
+  let first := splitBits
+    (a := mbar * p.n * lenChi)
+    (b := mbar * p.n * lenChi + mbar * nbar * lenChi) stream
+  let rest := splitBits
+    (a := mbar * p.n * lenChi)
+    (b := mbar * nbar * lenChi) first.2
+  let sp := (SampleMatrix ps.errorTable mbar p.n first.1).map
+    (fun x : ℤ => (x : ZMod p.q))
+  let ep := (SampleMatrix ps.errorTable mbar p.n rest.1).map
+    (fun x : ℤ => (x : ZMod p.q))
+  let a := ops.gen pk.seedA
+  let bp := sp * a + ep
+  let c1 := packBits ps mbar p.n (ciphertext1Bits_mod_eight ps) bp
+  let epp := (SampleMatrix ps.errorTable mbar nbar rest.2).map
+    (fun x : ℤ => (x : ZMod p.q))
+  let b := unpackBits ps p.n nbar (publicKeyBits_mod_eight ps) pk.b
+  let v := sp * b + epp
+  let c2 := packBits ps mbar nbar (ciphertext2Bits_mod_eight ps)
+    (v + Encode p (message.cast (messageBits_length ps)))
+  let c : Ciphertext ps := { c1 := c1, c2 := c2, salt := salt }
+  return (c, ops.shake
+    (c.c1.toList ++ c.c2.toList ++ c.salt.toList ++ derived.2.toList)
+    p.ell)
 ```
 :::::
 
@@ -200,25 +210,37 @@ $`\begin{array}{l}
 ```anchor frodoKEM_decaps (project := ".") (module := ToVCVio.LatticeCrypto.FrodoKEM.Construction)
 def decaps {ps : ParameterSet} (ops : Operations ps)
     (sk : SecretKey ps) (c : Ciphertext ps) : SharedSecretBits ps :=
-  let received : PKECiphertext ps :=
-    { c1 := unpackBits ps mbar ps.params.n
-        (ciphertext1Bits_mod_eight ps) c.c1
-      c2 := unpackBits ps mbar nbar
-        (ciphertext2Bits_mod_eight ps) c.c2 }
-  let message := PKE.decrypt sk.secretTranspose received
+  let p := ps.params
+  let bp := unpackBits ps mbar p.n (ciphertext1Bits_mod_eight ps) c.c1
+  let cm := unpackBits ps mbar nbar (ciphertext2Bits_mod_eight ps) c.c2
+  let m := cm - bp * sk.secretTranspose.transpose
+  let message := (Decode p m).cast (messageBits_length ps).symm
   let derived := deriveSeedAndKey ops sk.publicKeyHash message c.salt
-  let pkePK : PKEPublicKey ps :=
-    { seedA := sk.publicKey.seedA
-      matrixB := unpackBits ps ps.params.n nbar
-        (publicKeyBits_mod_eight ps) sk.publicKey.b }
-  let regenerated := PKE.encryptFromSeed ops pkePK message derived.1
-  let selected :=
-    if received.c1 = regenerated.c1 ∧ received.c2 = regenerated.c2
-    then derived.2
-    else sk.fallback
+  let stream := ops.shake
+    (encryptionPrefix.toList ++ derived.1.toList)
+    (mbar * p.n * lenChi +
+      (mbar * p.n * lenChi + mbar * nbar * lenChi))
+  let first := splitBits
+    (a := mbar * p.n * lenChi)
+    (b := mbar * p.n * lenChi + mbar * nbar * lenChi) stream
+  let rest := splitBits
+    (a := mbar * p.n * lenChi)
+    (b := mbar * nbar * lenChi) first.2
+  let sp := (SampleMatrix ps.errorTable mbar p.n first.1).map
+    (fun x : ℤ => (x : ZMod p.q))
+  let ep := (SampleMatrix ps.errorTable mbar p.n rest.1).map
+    (fun x : ℤ => (x : ZMod p.q))
+  let a := ops.gen sk.publicKey.seedA
+  let bpp := sp * a + ep
+  let epp := (SampleMatrix ps.errorTable mbar nbar rest.2).map
+    (fun x : ℤ => (x : ZMod p.q))
+  let b := unpackBits ps p.n nbar (publicKeyBits_mod_eight ps) sk.publicKey.b
+  let v := sp * b + epp
+  let cp := v + Encode p (message.cast (messageBits_length ps))
+  let selected := if bp = bpp ∧ cm = cp then derived.2 else sk.fallback
   ops.shake
     (c.c1.toList ++ c.c2.toList ++ c.salt.toList ++ selected.toList)
-    ps.params.ell
+    p.ell
 ```
 :::::
 
