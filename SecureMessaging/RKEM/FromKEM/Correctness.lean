@@ -52,7 +52,7 @@ theorem probOutput_correctExpA_eq_probOutput_CorrectExp [DecidableEq K]
   refine probOutput_bind_congr fun key' _ => ?_
   simp [eq_comm]
 
-/-- `ratchetRoundOutputA` at the KEM-from-KEM scheme has exactly the same distribution as `A`'s
+/-- `ratchetRoundOutputA` at the RKEM-from-KEM scheme has exactly the same distribution as `A`'s
 own fresh key generation: the pair it returns is literally the fresh key pair sampled inside
 `rencA`, and decapsulation's output — always defined, thanks to `total` — is otherwise discarded.
 Holds unconditionally, for any KEM (not just a correct one), which is why the construction's
@@ -84,8 +84,6 @@ theorem deltaCorrect [DecidableEq K] (kem : KEMScheme ProbComp K PK SK C)
     RKEMScheme.deltaCorrect (scheme kem total) ProbCompRuntime.probComp δ 0
 -- ANCHOR_END: deltaCorrect
     := by
-  have hdelta : Pr[= false | kem.CorrectExp] ≤ δ :=
-    probOutput_false_CorrectExp_le_of_deltaCorrect kem ProbCompRuntime.probComp hkem
   refine ⟨⟨?_, ?_⟩, ?_, ?_⟩
   · unfold RKEMScheme.correctnessErrorA
     change 1 - Pr[= true | RKEMScheme.correctExpA (scheme kem total)] ≤ δ

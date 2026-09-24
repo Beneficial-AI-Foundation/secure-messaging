@@ -82,10 +82,14 @@ lemma abs_probOutput_true_not_map_gap_eq {n : Type → Type*}
   exact abs_sub_comm (Pr[= true | my].toReal) (Pr[= true | mx].toReal)
 
 /-- Relabeling a uniform coin flip by negation, together with negating which side of the final
-comparison is complemented, doesn't change the success probability: feeding `f` the coin `b` and
-comparing against `!b'` is the same as feeding `f` the negated coin `!b` and comparing directly
-against `b'`. This is the general fact underlying the "flip the challenge bit" step of hybrid
-arguments. -/
+comparison is complemented, doesn't change the success probability:
+
+Pr[b ← {0; 1}; b' ← f(b) | b == !b'] = Pr[b ← {0; 1}; b' ← f(!b) | b == b']
+
+Feeding `f` the coin `b` and comparing against `!b'` is the same as feeding `f` the negated coin
+`!b` and comparing directly against `b'`. This is the general fact underlying the "flip the
+challenge bit" step of hybrid arguments.
+-/
 lemma probOutput_true_uniformBool_bind_not (f : Bool → ProbComp Bool) :
     Pr[= true | do
         let b ← ($ᵗ Bool : ProbComp Bool)

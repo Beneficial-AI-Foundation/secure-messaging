@@ -38,10 +38,12 @@ lemma tvDist_bind_const_right [MonadLiftT m SPMF] [LawfulMonadLiftT m SPMF]
   rw [evalDist_ext (mx := mx >>= fun _ => my) (mx' := my) fun y => by simp]
 
 omit [Monad m] in
-/-- As VCVio's `tsum_probOutput_toReal_mul_tvDist_le_probEvent`, but with a tunable bound `c` on
-the total-variation distance on the bad branch in place of the trivial bound `1`, giving the
-tighter conclusion `c * Pr[bad]` whenever the two continuations are known to stay within `c` of
-each other even when the bad event holds. -/
+/-- A weighted identical-until-bad bound, in the style of the fundamental lemma of game playing:
+if `𝒟[f a] = 𝒟[g a]` for all `a` such that `¬ bad a`, and `tvDist (f a) (g a) ≤ c` even when `bad a`
+holds, then averaging over any `mx : m α`,
+`∑ₐ Pr[= a | mx] · tvDist (f a) (g a) ≤ c · Pr[bad | mx]`.
+Sharpens VCVio's `tsum_probOutput_toReal_mul_tvDist_le_probEvent`, which only gets the trivial
+worst-case slack `c = 1`. -/
 lemma tsum_probOutput_toReal_mul_tvDist_le_const_mul_probEvent [MonadLiftT m PMF]
     {β : Type u} (mx : m α) (f g : α → m β) (bad : α → Prop)
     (c : ℝ) (hc : 0 ≤ c)
@@ -77,10 +79,12 @@ lemma tsum_probOutput_toReal_mul_tvDist_le_const_mul_probEvent [MonadLiftT m PMF
           · simp [ha]]
         exact tsum_congr fun a => by by_cases ha : bad a <;> simp [ha]
 
-/-- As VCVio's `tvDist_bind_left_event_le`, but with a tunable bound `c` on the total-variation
-distance on the bad branch in place of the trivial bound `1`, giving the tighter conclusion
-`c * Pr[bad]` whenever the two continuations are known to stay within `c` of each other even when
-the bad event holds. -/
+/-- Bind-level identical-until-bad bound:
+if `𝒟[f a] = 𝒟[g a]` for all `a` such that `¬ bad a`, and `tvDist (f a) (g a) ≤ c` even when `bad a`
+holds, then averaging over any `mx : m α`,
+`tvDist (mx >>= f) (mx >>= g) ≤ c · Pr[bad | mx]`.
+Sharpens VCVio's `tvDist_bind_left_event_le`, which only gets the trivial worst-case slack
+`c = 1`. -/
 lemma tvDist_bind_left_event_le_const [LawfulMonad m] [MonadLiftT m PMF] [LawfulMonadLiftT m PMF]
     {β : Type u} (mx : m α) (f g : α → m β) (bad : α → Prop) (c : ℝ) (hc : 0 ≤ c)
     (h_eq : ∀ a, ¬ bad a → 𝒟[f a] = 𝒟[g a])
@@ -89,12 +93,11 @@ lemma tvDist_bind_left_event_le_const [LawfulMonad m] [MonadLiftT m PMF] [Lawful
   le_trans (tvDist_bind_left_le mx f g)
     (tsum_probOutput_toReal_mul_tvDist_le_const_mul_probEvent mx f g bad c hc h_eq h_le)
 
-/-- Two `Bool`-valued computations that never fail have total-variation distance exactly the gap
-between their `true`-output probabilities. Unlike the general `Bool` bound
-`abs_probOutput_toReal_sub_le_tvDist`, which only lower-bounds `tvDist` (since a computation may
-also differ from another by shifting mass to/from failure), this is an equality once failure is
-ruled out on both sides: the whole `Option Bool` mass then splits exactly between `some true` and
-`some false`, so total-variation distance collapses to the single-coordinate gap. -/
+/-- For _never-failing_ `Bool`-valued experiments, total-variation distance equals the optimal
+distinguishing advantage exactly: `tvDist p q = |Pr[p = true] − Pr[q = true]|` — the best possible
+distinguisher against `p`/`q` is just "guess the bit you observed," and no distinguisher can do
+better.
+Sharpens VCVio's `abs_probOutput_toReal_sub_le_tvDist` which only lower-bounds `tvDist`. -/
 lemma tvDist_eq_abs_probOutput_true_sub {m : Type → Type v} [Monad m]
     [MonadLiftT m SPMF]
     (p q : m Bool) [NeverFail p] [NeverFail q] :
