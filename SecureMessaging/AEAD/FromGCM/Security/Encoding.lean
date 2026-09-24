@@ -7,7 +7,7 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.AEAD.GCM
 
 /-!
-# GCM — GHASH encoding domain and injectivity
+# GCM: GHASH encoding domain and injectivity
 
 The block sequence `A ‖ 0ᵛ ‖ C ‖ 0ᵘ ‖ [len(A)]₆₄ ‖ [len(C)]₆₄` that GCM feeds to its keyed
 hash GHASH (`gcmEncode`), the bound `maxBlocks` on its length, and its injectivity on
@@ -33,9 +33,9 @@ def numBlocks (L : ℕ) : ℕ := (L + 127) / 128
 /-- The largest AAD bit-length `ValidAADLength` admits (NIST SP 800-38D §5.2.1.1). -/
 def lenAMax : ℕ := 2 ^ 64 - 8
 
-/-- Upper bound on the block count of `gcmEncode ad c` for `c : BitVec L`, proved in
-`gcmEncode_length_le`. It bounds the degree of the GHASH difference polynomial in
-`GhashAXU.lean` and is the numerator of the AXU bound `maxBlocks L / 2¹²⁸`. -/
+/-- `maxBlocks L = ⌈lenAMax/128⌉ + ⌈L/128⌉ + 1`, an upper bound on the number of blocks of
+`gcmEncode ad c` for every supported AAD `ad` and `c : BitVec L`. The GHASH AXU bound is
+`maxBlocks L / 2¹²⁸`. -/
 def maxBlocks (L : ℕ) : ℕ := (lenAMax + 127) / 128 + (L + 127) / 128 + 1
 
 theorem lenAMax_blocks : (lenAMax + 127) / 128 = 2 ^ 57 := by
@@ -138,12 +138,11 @@ theorem exists_getD_ne_of_ne {α : Type _} (d : α) {l₁ l₂ : List α}
     List.getElem?_eq_getElem h₁, List.getElem?_eq_getElem h₂,
     Option.getD_some, Option.getD_some] at h
 
-/-- Distinct domain points give encodings that differ at some position of the *reversed* block
-list. This is the shape `card_filter_le` in `GhashAXU.lean` consumes: since
-`ghash h [X₁, …, Xₘ] = X₁·hᵐ ⊕ ⋯ ⊕ Xₘ·h`, reversed index `i` is the coefficient of `h^(i+1)`,
-and a differing position is a differing coefficient of the difference polynomial. A front
-index would not do: for encodings of different lengths, the blocks at one front index multiply
-different powers of `h`. -/
+/-- Let `p ≠ q` in `SupportedAAD × BitVec L`. Then `gcmEncode p` and `gcmEncode q` differ at
+some position `i`, counted from `0` at the last block, reading missing blocks as `0`. Counting
+from the end makes this a statement about polynomial coefficients: in
+`ghash h [X₁, …, Xₘ] = X₁·hᵐ ⊕ ⋯ ⊕ Xₘ·h` the block at position `i` multiplies `hⁱ⁺¹` whatever
+the length `m`. -/
 theorem gcmEncode_tail_distinct {L : ℕ} {p q : SupportedAAD × BitVec L}
     (h : p ≠ q) :
     ∃ i, ((gcmEncode p.1 p.2).reverse).getD i 0 ≠ ((gcmEncode q.1 q.2).reverse).getD i 0 := by
@@ -154,8 +153,7 @@ theorem gcmEncode_tail_distinct {L : ℕ} {p q : SupportedAAD × BitVec L}
     exact exists_getD_ne_of_ne 0 hlens fun hr => hne (List.reverse_injective hr)
   · exact ⟨0, gcmEncode_getLast_ne_of_lenA_ne hlen p.2 q.2⟩
 
-/-- The padded encoding with trailing length block is unambiguous. The AXU proof uses the
-positional form `gcmEncode_tail_distinct` rather than this. -/
+/-- The GHASH encoding `(A, C) ↦ gcmEncode A C` is injective on `SupportedAAD × BitVec L`. -/
 theorem gcmEncode_injective {L : ℕ} :
     Function.Injective (fun p : SupportedAAD × BitVec L => gcmEncode p.1 p.2) := by
   intro p q h

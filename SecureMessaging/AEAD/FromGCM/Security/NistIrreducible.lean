@@ -16,7 +16,7 @@ import ToVCVio.CryptoFoundations.RabinIrreducibility
 bound holds with no hypothesis, `ghash_isAXU_unconditional`.
 
 The proof is Rabin's test, `ToVCVio.irreducible_of_rabin_root`. At `q = 2` and `n = 128 = 2⁷` it
-has two conditions, `2` being the only prime dividing `128`: `α^(2¹²⁸) = α`, and `α^(2⁶⁴) − α` is
+has two conditions, `2` being the only prime dividing `128`: `α^(2¹²⁸) = α`, and `α^(2⁶⁴) + α` is
 a unit, where `α` is the class of `x`. Both are computed with GCM's own `gfmul` on `BitVec 128`
 and checked by `decide +kernel`, which reduces in the kernel and adds no axiom; `native_decide`
 would have added `Lean.ofReduceBool`. The results are then transported into `AdjoinRoot nistPoly`
@@ -47,9 +47,7 @@ def sqIter : ℕ → BitVec 128 → BitVec 128
 
 /-! ### The kernel certificate -/
 
-/-- Rabin's first condition, `α^(2¹²⁸) = α`, computed on `BitVec 128`. `nistPoly_irreducible`
-transports it to `root nistPoly ^ (2 ^ 128) = root nistPoly` via `reflectN_sqIter` and
-`reflectN_alpha`. -/
+/-- Rabin condition 1: `α^(2¹²⁸) = α`, computed on `BitVec 128` by `gfmul` squaring. -/
 theorem kernel_rabin1 : sqIter 128 alpha = alpha := by decide +kernel
 
 /-- Rabin condition 2: `α^(2⁶⁴) + α` is a unit, witnessed by `gammaInv`. The weaker
@@ -78,9 +76,8 @@ theorem reflectN_sqIter (n : ℕ) (x : BitVec 128) :
 
 /-! ### Assembly -/
 
-/-- GCM's field polynomial is irreducible over `𝔽₂`: Rabin's test with the two kernel-checked
-conditions transported through `reflectN`. Axioms: `propext`, `Classical.choice`, `Quot.sound`
-only. -/
+/-- `x¹²⁸ + x⁷ + x² + x + 1` is irreducible over `𝔽₂`. The proof uses only the axioms
+`propext`, `Classical.choice` and `Quot.sound`. -/
 theorem nistPoly_irreducible : Irreducible nistPoly := by
   have hcard : Nat.card (ZMod 2) = 2 := Nat.card_zmod 2
   have hpos : 0 < nistPoly.natDegree := by rw [nistPoly_natDegree]; omega

@@ -15,7 +15,7 @@ distinct inputs, the XOR of their hashes under a uniformly random key equals any
 authenticator (`WegmanCarter.lean`).
 
 The offset `Δ = 0` is admitted on purpose. The forgery bound applies the predicate at the offset
-`tag ^^^ challengeTag`, which is `0` exactly when a forgery reuses the challenge tag on a
+`tag ⊕ challengeTag`, which is `0` exactly when a forgery reuses the challenge tag on a
 different message; a predicate excluding `Δ = 0` would leave that forgery uncovered.
 -/
 
@@ -24,16 +24,14 @@ open OracleComp OracleSpec ENNReal
 namespace ToVCVio
 
 /-- `hash` is `ε`-almost-XOR-universal: for distinct inputs `x ≠ y` and any offset `Δ`,
-`hash k x ^^^ hash k y = Δ` with probability at most `ε` over a uniform key `k`. The offset
+`hash k x ⊕ hash k y = Δ` with probability at most `ε` over a uniform key `k`. The offset
 `Δ = 0` is not excluded; the module header says why. -/
 def IsAlmostXorUniversal {K D T : Type} [SampleableType K] [XorOp T]
     (hash : K → D → T) (ε : ℝ≥0∞) : Prop :=
   ∀ x y : D, x ≠ y → ∀ Δ : T,
     Pr[= Δ | (fun k => hash k x ^^^ hash k y) <$> ($ᵗ K)] ≤ ε
 
-/-- An AXU bound is at least `1 / |T|` once the domain has two distinct points: at a fixed
-pair the offset probabilities sum to `1` and each is at most `ε`. This discharges the `hfloor`
-hypothesis of `probEvent_wcInst_forge_le` for every hash whose domain has two points. -/
+/-- Let `hash` be `ε`-AXU and let `x ≠ y` be points of `D`. Then `1/|T| ≤ ε`. -/
 theorem IsAlmostXorUniversal.card_inv_le {K D T : Type} [SampleableType K]
     [XorOp T] [Fintype T] {hash : K → D → T} {ε : ℝ≥0∞}
     (h : IsAlmostXorUniversal hash ε) {x y : D} (hxy : x ≠ y) :
@@ -61,9 +59,8 @@ theorem IsAlmostXorUniversal.card_inv_le {K D T : Type} [SampleableType K]
     _ = ε := by
         rw [← mul_assoc, ENNReal.inv_mul_cancel hcard (ENNReal.natCast_ne_top _), one_mul]
 
-/-- Counting form of AXU: if at most `d` keys send any fixed distinct pair to any fixed
-offset, the family is `d / |K|`-AXU. A consumer proves a `Finset.card` bound and never touches
-probabilities. -/
+/-- Counting form of AXU. If for all distinct `x, y : D` and every offset `Δ` at most `d` keys
+`k` satisfy `hash k x ⊕ hash k y = Δ`, then `hash` is `d/|K|`-AXU. -/
 theorem isAlmostXorUniversal_of_card_le {K D T : Type} [SampleableType K] [Fintype K]
     [XorOp T] [DecidableEq T] {hash : K → D → T} {d : ℕ}
     (h : ∀ x y : D, x ≠ y → ∀ Δ : T,

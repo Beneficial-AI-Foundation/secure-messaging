@@ -42,8 +42,7 @@ def boolToZMod2 : Bool → ZMod 2 := fun b => if b then 1 else 0
 
 @[simp] theorem boolToZMod2_false : boolToZMod2 false = 0 := rfl
 
-/-- Send `0 ↦ false`, `1 ↦ true`. Two-sided inverse of `boolToZMod2`, by
-`zmod2ToBool_boolToZMod2` and `boolToZMod2_zmod2ToBool`. -/
+/-- Send `0 ↦ false`, `1 ↦ true`, the inverse of `boolToZMod2`. -/
 def zmod2ToBool : ZMod 2 → Bool := fun z => decide (z ≠ 0)
 
 @[simp] theorem zmod2ToBool_boolToZMod2 (b : Bool) : zmod2ToBool (boolToZMod2 b) = b := by
@@ -82,8 +81,9 @@ theorem bitVecEquivFun_xor (n : ℕ) (x y : BitVec n) :
 
 /-! ### The reflected equivalence for a monic polynomial -/
 
-/-- The `i`-th most-significant bit becomes the coefficient of `root p ^ i` in the power
-basis of `AdjoinRoot p`. -/
+/-- For monic `p` of degree `n` and `α = root p`, `reflect hp` is the bijection
+`BitVec n ≃ AdjoinRoot p` sending the bits `(b₀, …, bₙ₋₁)` to `b₀ + b₁α + ⋯ + bₙ₋₁αⁿ⁻¹`, where
+`b₀` is the most significant bit. -/
 noncomputable def reflect {p : (ZMod 2)[X]} (hp : p.Monic) :
     BitVec p.natDegree ≃ AdjoinRoot p :=
   (bitVecEquivFun p.natDegree).trans

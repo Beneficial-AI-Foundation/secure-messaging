@@ -7,7 +7,7 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.AEAD.FromGCM.Construction
 
 /-!
-# One-time-key GCM — Correctness
+# One-time-key GCM: correctness
 
 Correctness proof for `gcmOneTimeAEAD`: for supported message lengths, decryption
 recovers the plaintext. The tag check passes because `decrypt` recomputes the same

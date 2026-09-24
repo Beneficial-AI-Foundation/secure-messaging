@@ -174,8 +174,8 @@ noncomputable def game2 (_prp : PRPScheme K (BitVec 128)) (L : ℕ) (_hL : Valid
     ProbComp Bool :=
   (simulateQ (greedyLazy gcmTupleImpl) adv).run' (none, none)
 
-/-- The always-reject oracles read the tuple only at the encryption query, which is what
-`consumeLazy` needs to defer its sampling there. -/
+/-- Let `t` be a query other than encryption. Then running `gcmTupleImplReject a t` from any
+state gives the same result (response and next state) for every tuple `a`. -/
 theorem gcmTupleImplReject_indep :
     ∀ (t : (aeadOneTimeCCASpec SupportedAAD (BitVec L) (BitVec L × BitVec 128)).Domain)
       (s : Option (BitVec L × BitVec 128)) (a₁ a₂ : BitVec 128 × BitVec 128 × BitVec L),
@@ -199,8 +199,7 @@ noncomputable def game3 (_prp : PRPScheme K (BitVec 128)) (L : ℕ) (_hL : Valid
 
 /-- Oracles drawing the challenge ciphertext uniformly and rejecting every decryption
 (`game4`). The tuple argument is ignored; it is there only so that `game4` can be stated
-through `consumeLazy` like `game3`. `game4_eq_plain` strips that wrapper again, and the
-privacy hop couples `game3` against the stripped form. -/
+through `consumeLazy` like `game3`. -/
 def gcmRandRejectImpl (_a : BitVec 128 × BitVec 128 × BitVec L) :
     QueryImpl (aeadOneTimeCCASpec SupportedAAD (BitVec L) (BitVec L × BitVec 128))
       (StateT (Option (BitVec L × BitVec 128)) ProbComp) :=
@@ -345,7 +344,8 @@ section Endpoints
 
 variable {K : Type}
 
-/-- `game0` is the real ACD19 experiment: the oracles agree query by query at every key. -/
+/-- `game0` outputs `true` with the same probability as the real ACD19 experiment, the one with
+challenge bit `false`. -/
 theorem game0_eq_real (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
@@ -380,8 +380,8 @@ theorem game0_eq_real (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ
       simp [gcmGameSkeleton, AEADScheme.aeadSecurityImpl, AEADScheme.oracleDecrypt,
         QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get]
 
-/-- `game4` without its `consumeLazy` wrapper: `gcmRandRejectImpl` ignores the tuple, so the
-deferred draw is dead and drops out because uniform sampling never fails. -/
+/-- `game4` has the same output distribution as running `adv` against
+`gcmRandRejectImpl default`, without sampling a tuple: `gcmRandRejectImpl` ignores the tuple. -/
 theorem game4_eq_plain (prp : PRPScheme K (BitVec 128)) (L : ℕ) (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
     evalDist (game4 prp L hL adv) =
@@ -394,8 +394,9 @@ theorem game4_eq_plain (prp : PRPScheme K (BitVec 128)) (L : ℕ) (hL : ValidMsg
     (probFailure_uniformSample _)
     ((simulateQ (gcmRandRejectImpl (L := L) default) adv).run' none)
 
-/-- `game4` is the random ACD19 experiment. The experiment's key is unused on the random side
-and is eliminated because `prp.keygen` never fails; `NeverFail` holds for every `ProbComp`. -/
+/-- `game4` outputs `true` with the same probability as the ideal ACD19 experiment, the one with
+challenge bit `true`. The key is unused on the ideal side, and no hypothesis on `prp.keygen` is
+needed because every `ProbComp` is failure-free. -/
 theorem game4_eq_rand (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :

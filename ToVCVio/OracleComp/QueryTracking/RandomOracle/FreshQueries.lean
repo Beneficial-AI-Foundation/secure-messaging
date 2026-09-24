@@ -20,9 +20,10 @@ open OracleComp OracleSpec
 
 namespace randomOracle
 
-/-- Querying the random oracle on distinct (`hnd`) points absent from the cache `c` (`hfresh`),
-then running an oracle-free `body`, is the same computation as `body` on `pts.length`
-independent uniform draws. Either hypothesis failing would make some answer a cache hit. -/
+/-- Let `pts = x₁, …, x_q` be distinct points (`hnd`), none of them in the cache `c` (`hfresh`).
+Querying the lazy random oracle at `x₁, …, x_q` from cache `c` and passing the answers to an
+oracle-free `body` is the same computation as running `body` on `q` independent uniform samples
+from `R`. -/
 theorem run'_mapM_randomOracle_fresh {D R β : Type} [DecidableEq D] [SampleableType R]
     (pts : List D) (c : (D →ₒ R).QueryCache)
     (hnd : pts.Nodup) (hfresh : ∀ t ∈ pts, c t = none)

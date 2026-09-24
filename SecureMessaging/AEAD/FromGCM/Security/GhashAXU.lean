@@ -15,15 +15,21 @@ import Mathlib.Data.List.GetD
 /-!
 # GHASH is almost-XOR-universal
 
-`ghash_isAXU`: for two distinct inputs and any target `Δ`, a uniformly random GHASH key `H`
-makes the two hashes XOR to `Δ` with probability at most `maxBlocks L / 2¹²⁸`. This is the
-almost-XOR-universality (AXU) property the authenticity hop of the GCM proof consumes.
+`ghash_isAXU`: if `nistPoly` is irreducible, then for distinct inputs `p ≠ q` of
+`SupportedAAD × BitVec L`, any `Δ` and a uniformly random key `H`,
 
-The argument: `Polynomial.lean` turns `ghash H` into evaluation of `ghashPoly` at `H`, so the
-event says `H` is a root of `ghashDiffPoly bp bq Δ = ghashPoly bp - ghashPoly bq - C Δ`, a
-nonzero polynomial of degree at most `maxBlocks L`, which has at most that many roots in a
-field. Irreducibility of `nistPoly` makes the quotient a field and is used only in
-`card_filter_le`; it is an explicit hypothesis here and is discharged in `NistIrreducible.lean`.
+```text
+Pr[GHASH_H(gcmEncode p) ⊕ GHASH_H(gcmEncode q) = Δ] ≤ maxBlocks L / 2¹²⁸
+```
+
+This is the almost-XOR-universality (AXU) property the authenticity hop of the GCM proof uses.
+
+The argument: `GhashPolynomial.lean` writes `GHASH_H` as evaluation of `ghashPoly` at
+`reflectN H`, so the event says `reflectN H` is a root of
+`ghashDiffPoly bp bq Δ = ghashPoly bp - ghashPoly bq - C (reflectN Δ)`, a nonzero polynomial of
+degree at most `maxBlocks L`, which has at most that many roots in a field. Irreducibility of
+`nistPoly` makes `AdjoinRoot nistPoly` a field and is used only in `card_filter_le`. It is an
+explicit hypothesis here and is discharged in `NistIrreducible.lean`.
 -/
 
 open OracleComp OracleSpec ENNReal ToVCVio Polynomial
@@ -32,8 +38,8 @@ namespace GCM
 
 /-! ## The coefficients of `ghashPoly` -/
 
-/-- Coefficient `i + 1` of `ghashPoly` is reversed block `i`, with no range hypothesis on `i`:
-past the block count both sides are `0`. -/
+/-- For blocks `B₁, …, Bₘ`, the coefficient of `Xⁱ⁺¹` in `ghashPoly` is `reflectN Bₘ₋ᵢ` for
+`i < m` and `0` for `i ≥ m`. -/
 theorem ghashPoly_coeff_succ (blocks : List (BitVec 128)) (i : ℕ) :
     (ghashPoly blocks).coeff (i + 1) = reflectN (blocks.reverse.getD i 0) := by
   rw [ghashPoly, Polynomial.finsetSum_coeff]
@@ -52,7 +58,7 @@ theorem ghashPoly_coeff_succ (blocks : List (BitVec 128)) (i : ℕ) :
 
 /-! ## The difference polynomial -/
 
-/-- The polynomial whose roots are the keys `H` with `ghash H bp ^^^ ghash H bq = Δ`
+/-- The polynomial whose roots are the keys `H` with `ghash H bp ⊕ ghash H bq = Δ`
 (`eval_ghashDiffPoly`). The offset `Δ` is a constant term, so it adds no degree. -/
 noncomputable def ghashDiffPoly (bp bq : List (BitVec 128)) (Δ : BitVec 128) :
     (AdjoinRoot nistPoly)[X] :=
@@ -66,8 +72,8 @@ theorem ghashDiffPoly_natDegree_le (bp bq : List (BitVec 128)) (Δ : BitVec 128)
   refine ⟨(Polynomial.natDegree_sub_le _ _).trans ?_, Nat.zero_le _⟩
   exact max_le ((ghashPoly_natDegree_le bp).trans hp) ((ghashPoly_natDegree_le bq).trans hq)
 
-/-- A differing block makes the difference polynomial nonzero: the coefficient of `X^(i+1)`
-differs, and the constant offset cannot cancel a positive-degree coefficient. -/
+/-- If `bp` and `bq` differ at position `i` counted from `0` at the last block, reading missing
+blocks as `0`, then `ghashDiffPoly bp bq Δ ≠ 0` for every `Δ`. -/
 theorem ghashDiffPoly_ne_zero (bp bq : List (BitVec 128)) (Δ : BitVec 128) {i : ℕ}
     (hne : bp.reverse.getD i 0 ≠ bq.reverse.getD i 0) :
     ghashDiffPoly bp bq Δ ≠ 0 := by
@@ -78,7 +84,9 @@ theorem ghashDiffPoly_ne_zero (bp bq : List (BitVec 128)) (Δ : BitVec 128) {i :
     Nat.succ_ne_zero, if_false, sub_zero] at hc
   exact hne (reflectN.injective (sub_eq_zero.1 hc))
 
-/-- `H` is a root of `ghashDiffPoly bp bq Δ` iff `ghash H bp ^^^ ghash H bq = Δ`. -/
+/-- Evaluating `ghashDiffPoly bp bq Δ` at `reflectN H` gives
+`reflectN (ghash H bp ⊕ ghash H bq) - reflectN Δ`, so `reflectN H` is a root iff
+`ghash H bp ⊕ ghash H bq = Δ`. -/
 theorem eval_ghashDiffPoly (H : BitVec 128) (bp bq : List (BitVec 128)) (Δ : BitVec 128) :
     (ghashDiffPoly bp bq Δ).eval (reflectN H)
       = reflectN (ghash H bp ^^^ ghash H bq) - reflectN Δ := by
@@ -92,11 +100,13 @@ theorem eval_ghashDiffPoly (H : BitVec 128) (bp bq : List (BitVec 128)) (Δ : Bi
 -- not yield `IsDomain (AdjoinRoot nistPoly)`.
 example : Field (ZMod 2) := inferInstance
 
-/-- At most `n` keys send two block lists of length `≤ n`, differing at some reversed position,
-to a fixed XOR offset. This is the only place irreducibility is used: it makes
-`AdjoinRoot nistPoly` a field, where a nonzero polynomial has at most `natDegree` roots; over a
-ring with zero divisors that bound fails. `hirr` is an explicit argument rather than a `Fact`
-instance so that it stays visible in the signature. -/
+/-- Let `nistPoly` be irreducible, and let `bp`, `bq` be block lists of length at most `n` that
+differ at some position counted from the last block, reading missing blocks as `0`. Then for
+every `Δ`, at most `n` keys `H` satisfy `ghash H bp ⊕ ghash H bq = Δ`.
+
+This is the only use of irreducibility: it makes `AdjoinRoot nistPoly` a field. Over a ring with
+zero divisors a nonzero polynomial can have more roots than its degree. `hirr` is an explicit
+argument rather than a `Fact` instance so that it stays visible in the signature. -/
 theorem card_filter_le (hirr : Irreducible nistPoly) (bp bq : List (BitVec 128))
     (Δ : BitVec 128) {n : ℕ} (hp : bp.length ≤ n) (hq : bq.length ≤ n)
     {i : ℕ} (hne : bp.reverse.getD i 0 ≠ bq.reverse.getD i 0) :
@@ -124,11 +134,9 @@ theorem card_filter_le (hirr : Irreducible nistPoly) (bp bq : List (BitVec 128))
 
 /-! ### GHASH is almost-XOR-universal -/
 
-/-- GHASH composed with GCM's input encoding is AXU at `ε = maxBlocks L / 2¹²⁸`. The encoding is
-essential: `Axu.lean` shows AXU fails on raw block lists. `gcmEncode_tail_distinct` supplies the
-differing reversed position `card_filter_le` needs: two distinct inputs differ either in AAD
-length, which the trailing length block records, or in some content block at the same block
-count. -/
+/-- Let `nistPoly` be irreducible. Then GHASH composed with GCM's input encoding is `ε`-AXU on
+`SupportedAAD × BitVec L` with `ε = maxBlocks L / 2¹²⁸`. The encoding is essential: on raw
+block lists GHASH is not AXU, see `Axu.lean`. -/
 theorem ghash_isAXU (L : ℕ) (hirr : Irreducible nistPoly) :
     GhashIsAXU L ((maxBlocks L : ℝ≥0∞) / 2 ^ (128 : ℕ)) := by
   have hb : GhashIsAXU L ((maxBlocks L : ℝ≥0∞) / Fintype.card (BitVec 128)) := by
@@ -152,9 +160,9 @@ theorem maxBlocks_lt_two_pow (L : ℕ) (hL : ValidMsgLength L) : maxBlocks L < 2
   norm_num at this ⊢
   omega
 
-/-- The concrete AXU constant sits between the blind-guess floor and `1`. The upper half needs
-`ValidMsgLength L`, since `maxBlocks L` grows with `L`. A sanity check that the bound is not
-vacuous; the main theorem does not use it. -/
+/-- Let `ValidMsgLength L`. Then `2⁻¹²⁸ ≤ maxBlocks L / 2¹²⁸ < 1`: the AXU constant lies between
+the floor every AXU constant satisfies (`ghashAXU_eps_lower`) and the trivial bound `1`. Only
+the upper bound needs `ValidMsgLength L`. -/
 theorem maxBlocks_div_nontrivial (L : ℕ) (hL : ValidMsgLength L) :
     ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹ ≤ (maxBlocks L : ℝ≥0∞) / 2 ^ (128 : ℕ) ∧
       (maxBlocks L : ℝ≥0∞) / 2 ^ (128 : ℕ) < 1 := by

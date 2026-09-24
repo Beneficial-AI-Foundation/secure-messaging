@@ -15,7 +15,7 @@ import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 /-!
 # Wegman-Carter one-time authenticity
 
-A one-time authenticated encryption scheme whose tag is `hash H X ^^^ mask`, with `H` a
+A one-time authenticated encryption scheme whose tag is `hash H X ⊕ mask`, with `H` a
 uniformly random key of an almost-XOR-universal (AXU) hash family and `mask` a uniformly
 random one-time pad, admits forgery probability at most `q · ε` against an adversary making at
 most `q` decryption queries, `ε` being the AXU bound. The public result is
@@ -28,7 +28,7 @@ Two points a consumer must get right:
   AEAD's length encoding separates such pairs. Instantiate `hash := hash ∘ encode` and
   `enc := id`.
 * The live-decrypt handler (`b = true`) returns `unpad e.1`, which for a stream cipher is
-  `C' ^^^ keystream`: a successful decryption leaks the pad. A privacy argument built on this
+  `C' ⊕ keystream`: a successful decryption leaks the pad. A privacy argument built on this
   file must be made between the always-reject executions.
 
 ## Main declarations
@@ -55,10 +55,11 @@ abbrev wcSpec (A M Cb : Type) :=
 
 /-! ## The flag-instrumented handler -/
 
-/-- The flag-instrumented Wegman-Carter handler. The state is the challenge ciphertext slot
-and a `forged` flag, in that order as the identical-until-bad lemmas expect. Decryption rejects
-the challenge ciphertext, raises the flag whenever the tag verifies and never lowers it, and
-returns the plaintext only when `b = true`; `b = false` is the always-reject execution. -/
+/-- `wcInstImpl hash enc H mask padMsg unpad b` is the flag-instrumented Wegman-Carter handler
+with key `H` and mask `mask`. Its state is the challenge ciphertext slot and a `forged` flag.
+Decryption rejects the challenge ciphertext, raises the flag whenever the tag verifies and never
+lowers it, and returns the plaintext only when `b = true`; `b = false` is the always-reject
+execution. -/
 def wcInstImpl {K A M Cb D : Type} [DecidableEq Cb]
     (hash : K → D → BitVec 128) (enc : A × Cb → D)
     (H : K) (mask : BitVec 128)
@@ -90,8 +91,8 @@ section DecryptNormalForm
 
 variable {K A M Cb D : Type}
 
-/-- Normal form of the always-reject decrypt step, a pure flag update returning `none`.
-`hproj_decrypt` rewrites the instrumented side with it instead of unfolding `wcInstImpl`. -/
+/-- In the always-reject execution a decryption query `(ad, e)` returns `none` and only updates
+the flag: it is raised when `e` is not the challenge and its tag verifies. -/
 theorem wcInstImpl_decrypt_run [DecidableEq Cb]
     (hash : K → D → BitVec 128) (enc : A × Cb → D) (H : K) (mask : BitVec 128)
     (padMsg : M → Cb) (unpad : Cb → M)
@@ -229,8 +230,7 @@ theorem map_run_simulateQ_wcLogImpl_eq {α : Type} [DecidableEq Cb]
   · exact hproj_decrypt hash enc H mask padMsg unpad ad e s
 
 /-- The instrumented always-reject run raises `forged` with exactly the probability that the
-log-refined run raises `wcFlag`. `probEvent_wcInst_forge_le` uses it to move the forgery event
-to `wcLogImpl`, where `probEvent_bad_wcLog_le` bounds it. -/
+log-refined run raises `wcFlag`. -/
 theorem probEvent_bad_wcInst_eq_wcLog {α : Type} [DecidableEq Cb]
     (hash : K → D → BitVec 128) (enc : A × Cb → D) (H : K) (mask : BitVec 128)
     (padMsg : M → Cb) (unpad : Cb → M) (oa : OracleComp (wcSpec A M Cb) α) :
@@ -288,7 +288,7 @@ An induction over the adversary that conditions on the run so far:
 * at the encrypt query the pre-challenge log is a fixed list and the mask is still fresh, so
   the pre-challenge entries are a blind guess at it (`pre_half_le`);
 * afterwards the handler never reads `(H, mask)` again (`run_challenge_some_indep`); the mask
-  draw is reparameterised by `mask ↦ hash H X* ^^^ mask`, making the challenge tag uniform
+  draw is reparameterised by `mask ↦ hash H X* ⊕ mask`, making the challenge tag uniform
   and the run `H`-free (`reparam_bind`), `H` moves to the end (`hoist_H`) and the
   post-challenge entries are bounded by AXU (`post_half_le`);
 * the two halves are added under one budget (`post_phase`).
@@ -560,8 +560,7 @@ private lemma log_step_le_zero [DecidableEq Cb]
   · exact absurd rfl (ht (ad, e))
 
 /-- An adversary making at most `q` decrypt queries extends the log by at most `q` entries, from
-any start state. `post_half_le` applies it from the challenge-set state with prefix `L`,
-bounding the extension by the remaining budget `n`. -/
+any start state. -/
 lemma log_length_le_from [DecidableEq Cb] {α : Type}
     (hash : K → D → BitVec 128) (enc : A × Cb → D) (H : K) (mask : BitVec 128)
     (padMsg : M → Cb) (oa : OracleComp (wcSpec A M Cb) α) (q : ℕ)
@@ -576,10 +575,10 @@ lemma log_length_le_from [DecidableEq Cb] {α : Type}
 
 /-! ### The local bijection and the hoisted key -/
 
-/-- At the encrypt query, reparameterise the mask draw along the bijection
-`mask ↦ hash H X* ^^^ mask`. On the right the challenge tag `T` is drawn uniformly and the
-run is executed with a dummy key `H0` and mask `0`, which `run_challenge_some_indep` allows;
-the real mask survives only in the observed value, as `hash H X* ^^^ T`. -/
+/-- Let `X* = enc (ad, c0)`. Drawing the mask `m` uniformly and running from the challenge
+`(c0, hash H X* ⊕ m)` is equal in distribution to drawing the challenge tag `T` uniformly and
+running with a dummy key `H0` and mask `0`, the mask being reported as `hash H X* ⊕ T`. This is
+the bijection `m ↦ hash H X* ⊕ m`. -/
 private lemma reparam_bind [DecidableEq Cb] {α : Type}
     (hash : K → D → BitVec 128) (enc : A × Cb → D) (padMsg : M → Cb)
     (ob : Option (Cb × BitVec 128) → OracleComp (wcSpec A M Cb) α)
@@ -617,8 +616,7 @@ private lemma reparam_bind [DecidableEq Cb] {α : Type}
           (ob (some (c0, hash H (enc (ad, c0)) ^^^ m)))).run
         (some (ad, (c0, hash H (enc (ad, c0)) ^^^ m)), L)) z).symm
 
-/-- With the run `H`-free, the key draw moves to the end, the shape `probEvent_post_axu_le`
-expects. -/
+/-- When the run `R` does not depend on the key `H`, the key can be drawn after it. -/
 private lemma hoist_H [SampleableType K] {α : Type}
     (hash : K → D → BitVec 128) (X : D)
     (R : BitVec 128 → ProbComp (α × WCLogState A Cb)) :
@@ -643,8 +641,8 @@ private lemma hoist_H [SampleableType K] {α : Type}
   congr 1
   simp [bind_assoc, map_eq_bind_pure_comp]
 
-/-- The post-challenge run in the shape `probEvent_post_axu_le` expects: challenge tag drawn
-uniformly, run executed with the dummy `(H0, 0)`, key drawn last. -/
+/-- The post-challenge run is equal in distribution to one where the challenge tag is drawn
+uniformly, the run is executed with the dummy `(H0, 0)`, and the key is drawn last. -/
 private lemma post_half_reshape [SampleableType K] [DecidableEq Cb] {α : Type}
     (hash : K → D → BitVec 128) (enc : A × Cb → D) (padMsg : M → Cb)
     (ob : Option (Cb × BitVec 128) → OracleComp (wcSpec A M Cb) α)
@@ -664,9 +662,10 @@ private lemma post_half_reshape [SampleableType K] [DecidableEq Cb] {α : Type}
   Eq.trans (evalDist_bind_congr' _ fun H => reparam_bind hash enc padMsg ob ad c0 L H H0)
     (hoist_H hash (enc (ad, c0)) _)
 
-/-- The entries appended after the challenge was set accept with probability at most `n · ε`,
-`n` being the remaining decrypt budget. `henc_inj` is what turns "differs from the challenge
-ciphertext" (`ExtInv`) into the pair inequality `probEvent_post_axu_le` needs. -/
+/-- Let `hash` be `ε`-AXU and `enc` injective. From the state where the challenge has just been
+set with pre-challenge log `L`, if the rest of the adversary makes at most `n` decrypt queries,
+then over a uniform key and mask, some entry logged after `L` carries a valid tag with
+probability at most `n · ε`. -/
 private lemma post_half_le [SampleableType K] [DecidableEq Cb] {α : Type}
     {hash : K → D → BitVec 128} {ε : ℝ≥0∞} (haxu : IsAlmostXorUniversal hash ε)
     {enc : A × Cb → D} (henc_inj : Function.Injective enc)
@@ -742,9 +741,10 @@ private lemma hoist_step [SampleableType K] {α β : Type}
     (evalDist_bind_bind_swap ($ᵗ K) Q (fun H p =>
       ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun m => F H m p))
 
-/-- From the moment the challenge is set, with pre-challenge log `L` and remaining decrypt
-budget `n`: the flag is raised with probability at most `(|L| + n) · ε`, the two halves being
-added under the one budget by `combine_pre_post_le`. -/
+/-- Let `hash` be `ε`-AXU, `enc` injective and `2⁻¹²⁸ ≤ ε`. From the state where the challenge
+has just been set with pre-challenge log `L`, if the rest of the adversary makes at most `n`
+decrypt queries, then over a uniform key and mask the flag is raised with probability at most
+`(|L| + n) · ε`. -/
 private lemma post_phase [SampleableType K] [DecidableEq Cb] {α : Type}
     {hash : K → D → BitVec 128} {ε : ℝ≥0∞} (haxu : IsAlmostXorUniversal hash ε)
     (hfloor : ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹ ≤ ε)
@@ -860,10 +860,9 @@ private lemma encrypt_step_run [DecidableEq Cb] {α : Type}
   simp [simulateQ_bind, simulateQ_query, wcLogImpl, StateT.run_bind, StateT.run_get,
     StateT.run_set]
 
-/-- The whole bound, by induction on the adversary from a challenge-unset state with log `L`
-and decrypt budget `n`. Non-encrypt steps commute past the draws and spend at most one log
-entry each; the encrypt step hands over to `post_phase`; if the adversary never encrypts,
-every entry is a pre-challenge guess. -/
+/-- Let `hash` be `ε`-AXU, `enc` injective and `2⁻¹²⁸ ≤ ε`. From a state with no challenge and
+log `L`, over a uniform key and mask, an adversary making at most `n` decrypt queries raises the
+flag with probability at most `(|L| + n) · ε`. -/
 private lemma pre_phase [SampleableType K] [DecidableEq Cb] {α : Type}
     {hash : K → D → BitVec 128} {ε : ℝ≥0∞} (haxu : IsAlmostXorUniversal hash ε)
     (hfloor : ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹ ≤ ε)
@@ -973,16 +972,17 @@ theorem probEvent_bad_wcLog_le {α K A M Cb D : Type} [SampleableType K] [Decida
       ≤ (q : ℝ≥0∞) * ε := by
   simpa using pre_phase haxu hfloor henc_inj padMsg oa q hq []
 
-/-- One-time Wegman-Carter authenticity: against an adversary making at most `q` decryption
-queries, the always-reject instrumented execution raises its `forged` flag with probability
-at most `q · ε`, where `hash` is `ε`-AXU on the encoded domain.
+/-- One-time Wegman-Carter authenticity. Let `hash` be `ε`-AXU on the encoded domain `D`, let
+`enc` be injective, and let `2⁻¹²⁸ ≤ ε`. Draw a key `H` and a mask uniformly and independently.
+Against an adversary making at most `q` decryption queries, the always-reject execution raises
+its `forged` flag with probability at most `q · ε`.
 
 Both side hypotheses are needed and are usually free. `henc_inj`: with a non-injective `enc`,
-a query `(ad', C')` with `enc (ad', C') = enc (ad*, C*)`, `C' ≠ C*` and the challenge tag
-passes the ciphertext-only guard and verifies with probability `1`; at `enc := id` it is
-`Function.injective_id`. `hfloor`: on a subsingleton domain AXU is vacuous and admits `ε = 0`,
-while a blind tag guess still succeeds with probability `2⁻¹²⁸`; with two distinct domain
-points it follows from `IsAlmostXorUniversal.card_inv_le`. -/
+for the challenge `(ad*, C*)`, a query `(ad', C')` with `enc (ad', C') = enc (ad*, C*)`,
+`C' ≠ C*` and the challenge tag passes the ciphertext-only guard and verifies with probability
+`1`; at `enc := id` it is `Function.injective_id`. `hfloor`: on a subsingleton domain AXU is
+vacuous and admits `ε = 0`, while a blind tag guess still succeeds with probability `2⁻¹²⁸`;
+with two distinct domain points it follows from `IsAlmostXorUniversal.card_inv_le`. -/
 theorem probEvent_wcInst_forge_le {α K A M Cb D : Type}
     [SampleableType K] [DecidableEq Cb]
     {hash : K → D → BitVec 128} {ε : ℝ≥0∞} (haxu : IsAlmostXorUniversal hash ε)

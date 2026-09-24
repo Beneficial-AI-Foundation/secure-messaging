@@ -17,12 +17,13 @@ difference: a distinguisher making `q` queries at distinct points tells a random
 from a random function with probability at most `q(q − 1) / (2 · 2¹²⁸)`, the chance that two
 of its `q` uniform answers collide.
 
-Here `q = n + 2` with `n = ⌈L/128⌉`, the length of the fixed query list of `prfReduction`
-(GHASH key, tag mask, `n` keystream blocks), giving `(n + 2)(n + 1) / 2¹²⁹`. The list is
-fixed, so the random permutation is only ever seen through its values on that list, and its
-points are distinct by `cipherInputs_pairwise_ne`, which needs `hL`, so those values are a
-without-replacement sample; the generic bound is `tvDist_map_uniformPerm_mapM_const_uniform_le`
-in `ToVCVio/EvalDist/UniformInjection.lean`.
+Here `n = ⌈L/128⌉` and `q = n + 2` is the length of the fixed query list of `prfReduction`:
+the GHASH key, the tag mask and `n` keystream blocks. The bound is `(n + 2)(n + 1) / 2¹²⁹`.
+Because the list is fixed, the random permutation is seen only through its values on the list.
+For a supported message length (`hL : ValidMsgLength L`) the points of the list are distinct by
+`cipherInputs_pairwise_ne`, so those values are a sample without replacement, and the generic
+bound `tvDist_map_uniformPerm_mapM_const_uniform_le` of
+`ToVCVio/CryptoFoundations/PRPSwitching.lean` applies.
 
 Main results:
 - `abs_prfAdvantage_sub_prpAdvantage_le`: the PRF and PRP advantages of `prfReduction` differ
@@ -118,11 +119,10 @@ end Bridge
 
 /-! ## The switching inequality -/
 
-/-- PRP/PRF switching [BR] at `prfReduction`: its PRF and PRP advantages differ by at most
-`q(q − 1) / 2¹²⁹` with `q = ⌈L/128⌉ + 2`. The two advantages share the real experiment, since
-`prpRealExp` is `prfRealExp` at `toPRFScheme`, so the bound is the distance between the two
-ideal experiments. `hL` makes the query points distinct; with a repeated point the proof
-route, though not necessarily the inequality, breaks. -/
+/-- PRP/PRF switching [BR] at `prfReduction`. Let `L` be a supported message length
+(`hL : ValidMsgLength L`) and `q = ⌈L/128⌉ + 2`. Then the PRF and PRP advantages of
+`prfReduction` differ by at most `q(q − 1) / 2¹²⁹`. The proof needs `hL` only to make the `q`
+query points distinct: a longer message wraps the 32-bit counter and repeats a point. -/
 theorem abs_prfAdvantage_sub_prpAdvantage_le {K : Type}
     (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ) (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :

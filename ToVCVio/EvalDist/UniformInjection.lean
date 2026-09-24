@@ -17,7 +17,7 @@ The distributional ingredients of the fixed-list PRP/PRF switching bound, which
 * `tvDist_map_injective_uniformSample`: a uniform sample pushed through an injection
   `A → B` is at total-variation distance exactly `1 - card A / card B` from uniform on `B`;
 * `two_mul_sub_descFactorial_le`: the birthday inequality
-  `1 - N.descFactorial q / N ^ q ≤ q (q - 1) / (2 N)`, in `ℕ` with denominators cleared;
+  `1 - N.descFactorial q / N^q ≤ q(q - 1)/(2N)`, in `ℕ` with denominators cleared;
 * `evalDist_listMapM_uniform_eq_map_ofFn`: `q` independent uniform draws are one uniform
   draw from `Fin q → X`.
 
@@ -30,9 +30,8 @@ namespace OracleComp
 
 /-! ## A uniform sample pushed through an injection -/
 
-/-- A uniform sample pushed through an injection `ι : A → B` is at total-variation distance
-exactly `1 - card A / card B` from the uniform sample on `B`: on the image of `ι` the two
-masses are `(card A)⁻¹` and `(card B)⁻¹`, off it they are `0` and `(card B)⁻¹`. -/
+/-- Let `ι : A → B` be injective, `a` uniform on `A` and `b` uniform on `B`. The
+total-variation distance between the laws of `ι(a)` and `b` is exactly `1 - |A|/|B|`. -/
 theorem tvDist_map_injective_uniformSample {A B : Type} [Fintype A] [Fintype B]
     [SampleableType A] [SampleableType B] (ι : A → B) (hι : Function.Injective ι) :
     tvDist (ι <$> ($ᵗ A : ProbComp A)) ($ᵗ B : ProbComp B)
@@ -113,8 +112,9 @@ theorem tvDist_map_injective_uniformSample {A B : Type} [Fintype A] [Fintype B]
 
 /-! ## The birthday arithmetic -/
 
-/-- The birthday inequality `1 - N.descFactorial q / N ^ q ≤ q (q - 1) / (2 N)` with the
-denominators cleared, so that it is a single induction in `ℕ`. -/
+/-- For all `N q : ℕ`, `2N · (N^q - N.descFactorial q) ≤ q(q - 1) · N^q`, where
+`N.descFactorial q = N(N - 1)⋯(N - q + 1)`. This is the birthday inequality
+`1 - N.descFactorial q / N^q ≤ q(q - 1)/(2N)` with the denominators cleared. -/
 theorem two_mul_sub_descFactorial_le (N : ℕ) : ∀ q : ℕ,
     2 * N * (N ^ q - N.descFactorial q) ≤ q * (q - 1) * N ^ q := by
   intro q
@@ -157,9 +157,8 @@ theorem two_mul_sub_descFactorial_le (N : ℕ) : ∀ q : ℕ,
 
 /-! ## The i.i.d. bridge -/
 
-/-- A list of `pts.length` independent uniform draws is `List.ofFn` of one uniform draw from
-`Fin pts.length → X`: `ToVCVio.evalDist_mapM_const_uniform` gives the `Vector` form, and
-`arrayVectorEquivFin` carries a uniform draw across. -/
+/-- Let `q = pts.length`. A list of `q` independent uniform samples from `X` has the same law as
+the list `f(0), …, f(q - 1)` for a uniformly random function `f : Fin q → X`. -/
 theorem evalDist_listMapM_uniform_eq_map_ofFn {X : Type} [FinEnum X] [Nonempty X]
     (pts : List X) :
     evalDist (pts.mapM (fun _ => ($ᵗ X : ProbComp X)))

@@ -55,11 +55,9 @@ namespace OracleComp
 def nodupEmbedding {X : Type} (pts : List X) (hpts : pts.Nodup) : Fin pts.length ↪ X :=
   ⟨fun i => pts[i], fun i j hij => Fin.ext (hpts.getElem_inj_iff.mp hij)⟩
 
-/-- Drawing `q` points of `X` without replacement: a uniform injective `q`-tuple, as a list.
-
-`hq` is explicit because callers hold it as a term, `⟨nodupEmbedding pts hpts⟩`, and it
-appears in the statement of `evalDist_map_uniformPerm_eq_uniformDistinct`. There is no
-instance to find anyway: `Nonempty (Fin q ↪ X)` needs `q ≤ Fintype.card X`. -/
+/-- `sampleDistinctFrom X q hq` samples `q` points of `X` without replacement: it draws a
+uniformly random injection `f : Fin q ↪ X` and returns the list `f(0), …, f(q − 1)`. The
+hypothesis `hq`, that such an `f` exists, amounts to `q ≤ Fintype.card X`. -/
 def sampleDistinctFrom (X : Type) [FinEnum X] (q : ℕ)
     (hq : Nonempty (Fin q ↪ X)) : ProbComp (List X) :=
   letI := hq

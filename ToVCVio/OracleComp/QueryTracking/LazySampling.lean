@@ -311,12 +311,15 @@ theorem run_simulateQ_consumeLazy_some_eq
   rw [hp]
 
 omit [spec.Fintype] [spec.Inhabited] in
-/-- A top-level draw `a ← $ᵗ τ` that is consumed only at `hit` queries (`h_indep`) may be
-deferred to the first such query without changing the joint law of the sample, the output and
-the final state. On the deferred side the sample is read back from the cache; if no `hit`
-query fired the cache is still `none` and the run did not depend on `a`, so a fresh uniform
-draw stands in for it. That branch must stay a fresh `$ᵗ τ`: `pure default` would be a
-different distribution. -/
+/-- Let `oa : OracleComp spec α`, let `s : σ` be the starting state, and let `h_indep` say that
+`implFam a` does not depend on `a` at queries `t` with `hit t = false`. The eager run of `oa`
+draws `a ← $ᵗ τ` up front and simulates `oa` with `implFam a` from `s`. The lazy run simulates
+`oa` with `consumeLazy implFam hit` from `(s, none)`, which draws `a` at the first `hit` query
+and caches it. Then the two runs give the same joint law of `a`, the output and the final `σ`
+state. In the lazy run `a` is read back from the cache. If no `hit` query fired, the cache is
+still `none` and the run did not depend on `a`, so `a` is drawn uniformly afresh. With
+`pure default` there instead, `a` would always be `default` on those runs, while in the eager
+run it is uniform. -/
 theorem evalDist_simulateQ_consumeLazy_run_sample_eq
     (implFam : τ → QueryImpl spec (StateT σ ProbComp))
     (hit : spec.Domain → Bool) [Inhabited τ]
@@ -400,9 +403,11 @@ theorem evalDist_simulateQ_consumeLazy_run_sample_eq
       exact congrFun (congrArg DFunLike.coe (ih p.1 p.2)) y
 
 omit [spec.Fintype] [spec.Inhabited] in
-/-- `evalDist_simulateQ_consumeLazy_run_sample_eq` without the sample: deferring the draw
-preserves the joint law of the output and the final state. The cache slot is projected away by
-`Prod.map id Prod.fst`. -/
+/-- Let `oa : OracleComp spec α`, let `s : σ` be the starting state, and let `h_indep` say that
+`implFam a` does not depend on `a` at queries `t` with `hit t = false`. The eager run of `oa`
+draws `a ← $ᵗ τ` up front and simulates `oa` with `implFam a` from `s`. The lazy run simulates
+`oa` with `consumeLazy implFam hit` from `(s, none)`. Then the two runs give the same joint law
+of the output and the final `σ` state (the cache slot dropped). -/
 theorem evalDist_simulateQ_consumeLazy_run_eq
     (implFam : τ → QueryImpl spec (StateT σ ProbComp))
     (hit : spec.Domain → Bool) [Inhabited τ]
@@ -448,10 +453,11 @@ theorem evalDist_simulateQ_consumeLazy_run_eq
   · simp [Prod.map]
 
 omit [spec.Fintype] [spec.Inhabited] in
-/-- Drawing `a ← $ᵗ τ` up front and deferring it to the first `hit` query via `consumeLazy`
-from the empty cache give the same output distribution. The hypothesis `h_indep`, that
-`implFam a` depends on `a` only at `hit` queries, is what lets the draw commute past the
-non-hit queries. -/
+/-- Let `oa : OracleComp spec α`, let `s : σ` be the starting state, and let `h_indep` say that
+`implFam a` does not depend on `a` at queries `t` with `hit t = false`. The eager run of `oa`
+draws `a ← $ᵗ τ` up front and simulates `oa` with `implFam a` from `s`. The lazy run simulates
+`oa` with `consumeLazy implFam hit` from `(s, none)`. Then the two runs give the same output
+distribution. -/
 theorem probOutput_simulateQ_consumeLazy_run'_eq
     (implFam : τ → QueryImpl spec (StateT σ ProbComp))
     (hit : spec.Domain → Bool) [Inhabited τ]
