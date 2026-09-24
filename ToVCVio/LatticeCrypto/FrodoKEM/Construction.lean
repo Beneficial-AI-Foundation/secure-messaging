@@ -145,12 +145,14 @@ abbrev SaltBits (ps : ParameterSet) := Bits ps.params.lenSalt
 
 /-- Gen and SHAKE functions that must be supplied when instantiating the PKE and KEM algorithms
 for the chosen parameter set. -/
+-- ANCHOR: frodoKEM_operations
 structure Operations (ps : ParameterSet) where
   /-- Gen function mapping seedA to the n × n public matrix A. -/
   gen : SeedABits →
     FrodoMatrix ps.params ps.params.n ps.params.n
   /-- SHAKE function with variable output length: the `H(x, L)` of the module header. -/
   shake : List Bool → (outBits : ℕ) → Bits outBits
+-- ANCHOR_END: frodoKEM_operations
 
 /-- Bit string of the key-generation domain separator 0x5F, least-significant bit first. -/
 def keygenPrefix : Bits 8 :=
@@ -264,13 +266,16 @@ structure PKECiphertext (ps : ParameterSet) where
   c2 : FrodoMatrix ps.params mbar nbar
 
 /-- FrodoKEM public key (seedA, b). -/
+-- ANCHOR: frodoKEM_publicKey
 structure PublicKey (ps : ParameterSet) where
   /-- Seed used to generate the public matrix A. -/
   seedA : SeedABits
   /-- Packed matrix B, with each byte represented least-significant bit first. -/
   b : Bits (ps.params.n * nbar * ps.params.D)
+-- ANCHOR_END: frodoKEM_publicKey
 
 /-- FrodoKEM secret key (s, pk, Sᵀ, pkh). -/
+-- ANCHOR: frodoKEM_secretKey
 structure SecretKey (ps : ParameterSet) where
   /-- Fallback value s used in shared-secret derivation when ciphertext validation fails. -/
   fallback : SharedSecretBits ps
@@ -280,8 +285,10 @@ structure SecretKey (ps : ParameterSet) where
   secretTranspose : PKESecretKey ps
   /-- Stored public-key hash pkh used to derive the reencryption seed and intermediate key. -/
   publicKeyHash : PublicKeyHashBits ps
+-- ANCHOR_END: frodoKEM_secretKey
 
 /-- FrodoKEM ciphertext (c₁, c₂, salt). -/
+-- ANCHOR: frodoKEM_ciphertext
 structure Ciphertext (ps : ParameterSet) where
   /-- Ciphertext component c₁: packed matrix B′, with each byte least-significant bit first. -/
   c1 : Bits (mbar * ps.params.n * ps.params.D)
@@ -289,6 +296,7 @@ structure Ciphertext (ps : ParameterSet) where
   c2 : Bits (mbar * nbar * ps.params.D)
   /-- Salt used in seed derivation and shared-secret hashing; empty for ephemeral sets. -/
   salt : SaltBits ps
+-- ANCHOR_END: frodoKEM_ciphertext
 
 namespace PKE
 
@@ -393,6 +401,8 @@ def deriveSeedAndKey {ps : ParameterSet} (ops : Operations ps)
 
 /-- Generate a FrodoKEM key pair from supplied fallback value s and seeds seedSE and z
 (Section 7.1.1 of `[LBES26]`, Algorithm 8 of `[CiC25]`). -/
+-- ANCHOR: frodoKEM_keyGeneration
+-- ANCHOR: frodoKEM_keygenFromSeeds
 def keygenFromSeeds {ps : ParameterSet} (ops : Operations ps)
     (fallback : SharedSecretBits ps) (seedSE : SeedSEBits ps)
     (z : Bits lenZ) : PublicKey ps × SecretKey ps :=
@@ -407,10 +417,25 @@ def keygenFromSeeds {ps : ParameterSet} (ops : Operations ps)
       publicKey := pk
       secretTranspose := keys.2
       publicKeyHash := hashPublicKey ops pk })
+-- ANCHOR_END: frodoKEM_keygenFromSeeds
+
+/-- FrodoKEM key generation: samples fallback value s and seeds seedSE and z
+independently and uniformly, then returns the key pair produced by `KEM.keygenFromSeeds`. -/
+-- ANCHOR: frodoKEM_keygen
+def keygen {ps : ParameterSet} (ops : Operations ps) :
+    ProbComp (PublicKey ps × SecretKey ps) := do
+  let fallback ← $ᵗ (SharedSecretBits ps)
+  let seedSE ← $ᵗ (SeedSEBits ps)
+  let z ← $ᵗ (Bits lenZ)
+  return keygenFromSeeds ops fallback seedSE z
+-- ANCHOR_END: frodoKEM_keygen
+-- ANCHOR_END: frodoKEM_keyGeneration
 
 /-- Generate a FrodoKEM ciphertext and shared secret under public key pk,
 using supplied message μ and salt
 (Section 7.2 of `[LBES26]`, Algorithm 9 of `[CiC25]`). -/
+-- ANCHOR: frodoKEM_encapsulation
+-- ANCHOR: frodoKEM_encapsFromCoins
 def encapsFromCoins {ps : ParameterSet} (ops : Operations ps)
     (pk : PublicKey ps) (message : MessageBits ps)
     (salt : SaltBits ps) : Ciphertext ps × SharedSecretBits ps :=
@@ -429,10 +454,25 @@ def encapsFromCoins {ps : ParameterSet} (ops : Operations ps)
   (c, ops.shake
     (c.c1.toList ++ c.c2.toList ++ c.salt.toList ++ derived.2.toList)
     ps.params.ell)
+-- ANCHOR_END: frodoKEM_encapsFromCoins
+
+/-- FrodoKEM encapsulation: samples message μ and salt independently and uniformly,
+then returns the ciphertext and shared secret produced by `KEM.encapsFromCoins`.
+The salt is empty for ephemeral parameter sets. -/
+-- ANCHOR: frodoKEM_encaps
+def encaps {ps : ParameterSet} (ops : Operations ps)
+    (pk : PublicKey ps) :
+    ProbComp (Ciphertext ps × SharedSecretBits ps) := do
+  let message ← $ᵗ (MessageBits ps)
+  let salt ← $ᵗ (SaltBits ps)
+  return encapsFromCoins ops pk message salt
+-- ANCHOR_END: frodoKEM_encaps
+-- ANCHOR_END: frodoKEM_encapsulation
 
 /-- FrodoKEM decapsulation using secret key sk, with implicit rejection:
 if ciphertext validation fails, derive the shared secret using fallback value s
 (Section 7.3 of `[LBES26]`, Algorithm 10 of `[CiC25]`). -/
+-- ANCHOR: frodoKEM_decaps
 def decaps {ps : ParameterSet} (ops : Operations ps)
     (sk : SecretKey ps) (c : Ciphertext ps) : SharedSecretBits ps :=
   let received : PKECiphertext ps :=
@@ -454,25 +494,7 @@ def decaps {ps : ParameterSet} (ops : Operations ps)
   ops.shake
     (c.c1.toList ++ c.c2.toList ++ c.salt.toList ++ selected.toList)
     ps.params.ell
-
-/-- FrodoKEM key generation: samples fallback value s and seeds seedSE and z
-independently and uniformly, then returns the key pair produced by `KEM.keygenFromSeeds`. -/
-def keygen {ps : ParameterSet} (ops : Operations ps) :
-    ProbComp (PublicKey ps × SecretKey ps) := do
-  let fallback ← $ᵗ (SharedSecretBits ps)
-  let seedSE ← $ᵗ (SeedSEBits ps)
-  let z ← $ᵗ (Bits lenZ)
-  return keygenFromSeeds ops fallback seedSE z
-
-/-- FrodoKEM encapsulation: samples message μ and salt independently and uniformly,
-then returns the ciphertext and shared secret produced by `KEM.encapsFromCoins`.
-The salt is empty for ephemeral parameter sets. -/
-def encaps {ps : ParameterSet} (ops : Operations ps)
-    (pk : PublicKey ps) :
-    ProbComp (Ciphertext ps × SharedSecretBits ps) := do
-  let message ← $ᵗ (MessageBits ps)
-  let salt ← $ᵗ (SaltBits ps)
-  return encapsFromCoins ops pk message salt
+-- ANCHOR_END: frodoKEM_decaps
 
 /-- Package the FrodoKEM algorithms as a VCVio `KEMScheme`.
 Implicit rejection returns a shared secret, so decapsulation always returns `some`.
@@ -481,12 +503,14 @@ For ephemeral parameter sets, Section 8 of `[LBES26]` requires fewer than 256 ci
 per public key. This adapter does not check that usage restriction.
 
 This adapter alone asserts no correctness or security guarantee. -/
+-- ANCHOR: frodoKEM_scheme
 def asKEMScheme {ps : ParameterSet} (ops : Operations ps) :
     KEMScheme ProbComp (SharedSecretBits ps)
       (PublicKey ps) (SecretKey ps) (Ciphertext ps) where
   keygen := keygen ops
   encaps := encaps ops
   decaps := fun sk c => return some (decaps ops sk c)
+-- ANCHOR_END: frodoKEM_scheme
 
 end KEM
 
