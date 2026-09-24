@@ -57,7 +57,7 @@ def toPRFScheme (prp : PRPScheme K X) : PRFScheme K X X :=
   { keygen := prp.keygen, eval := prp.perm }
 
 /-- Oracle spec for the PRP game: uniform randomness plus a permutation oracle. Reducibly equal to
-`PRFScheme.PRFOracleSpec X X`, which is what lets the PRF forwarding lemmas below apply. -/
+`PRFScheme.PRFOracleSpec X X`, which is what lets the PRF simulation lemmas below apply. -/
 abbrev PRPOracleSpec (X : Type) := unifSpec + (X →ₒ X)
 
 /-- A PRP adversary: a computation with access to the PRP oracles, outputting a
@@ -76,8 +76,8 @@ def oraclePerm (g : X → X) : QueryImpl (X →ₒ X) ProbComp :=
 def prpQueryImpl (g : X → X) : QueryImpl (PRPOracleSpec X) ProbComp :=
   oracleUnif + oraclePerm g
 
-/-- Real experiment: the adversary against the keyed permutation, shared with the PRF game of
-`toPRFScheme`. `prpRealExp_eq` is the unfolded form. -/
+/-- Real experiment: sample a key `k` and run the adversary against the permutation `perm k`.
+It is by definition the PRF real experiment of `toPRFScheme`. -/
 def prpRealExp (prp : PRPScheme K X) (adversary : PRPAdversary X) :
     ProbComp Bool :=
   PRFScheme.prfRealExp prp.toPRFScheme adversary
@@ -93,9 +93,8 @@ def prpIdealExp [SampleableType (Equiv.Perm X)] (adversary : PRPAdversary X) :
   let π ← $ᵗ (Equiv.Perm X)
   simulateQ (prpQueryImpl fun x => π x) adversary
 
-/-- The PRP advantage: the gap between the adversary's acceptance probabilities in the real
-and ideal experiments. Its real term is literally that of `prfAdvantage prp.toPRFScheme`, so
-the two advantages differ only through their ideal experiments. -/
+/-- The PRP advantage of an adversary: the absolute difference between the probabilities that
+it outputs `true` in the real and in the ideal experiment. -/
 -- ANCHOR: prpAdvantage
 noncomputable def prpAdvantage [SampleableType (Equiv.Perm X)]
     (prp : PRPScheme K X) (adversary : PRPAdversary X) : ℝ :=
@@ -103,7 +102,8 @@ noncomputable def prpAdvantage [SampleableType (Equiv.Perm X)]
     (Pr[= true | prpIdealExp adversary]).toReal|
 -- ANCHOR_END: prpAdvantage
 
-/-- `prpQueryImpl g` as a PRF scheme with a trivial key, to reuse the PRF forwarding lemmas. -/
+/-- `asPRF g` is the fixed function `g` viewed as a PRF scheme with a trivial key, so that the
+PRF simulation lemmas apply to `prpQueryImpl g`. -/
 private def asPRF (g : X → X) : PRFScheme Unit X X :=
   { keygen := pure (), eval := fun _ x => g x }
 

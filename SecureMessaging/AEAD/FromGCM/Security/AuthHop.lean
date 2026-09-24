@@ -14,18 +14,18 @@ import ToVCVio.ProgramLogic.Relational.IdenticalUntilBad
 
 Replaces the live-verification game `game2` by the always-reject game `game3`. The two agree
 unless some decryption query carries a valid tag for a ciphertext the adversary was never
-given. Such a forgery means the adversary hit the output of GHASH at the unknown key `H`,
-which the almost-XOR-universal (AXU) bound `GhashIsAXU L ε` (`Axu.lean`) caps at `ε` per
-query, so the hop costs `q_d · ε` (the Wegman–Carter forgery bound).
+given. After the challenge `(x, T)`, a forgery `(x', T')` needs GHASH at the unknown key `H`
+to hit a chosen XOR difference, `ghash H x ⊕ ghash H x' = T ⊕ T'`; before it, a forgery
+needs a guess of the tag. The almost-XOR-universal (AXU) bound `GhashIsAXU L ε` (`Axu.lean`)
+caps both at `ε` per query, so the hop costs `q_d · ε`, the Wegman–Carter forgery bound.
 
 The GCM handlers are, by definition, the generic Wegman–Carter handler of
 `ToVCVio/CryptoFoundations/WegmanCarter.lean` (`gcmInstImpl_eq_wcInstImpl` is `rfl`), and the
-two games
-are compared by the identical-until-bad principle: games whose oracles behave identically until
-a flag is set differ by at most the probability of the flag
+two games are compared by the identical-until-bad principle: games whose oracles behave
+identically until a flag is set differ by at most the probability of the flag
 (`ToVCVio/ProgramLogic/Relational/IdenticalUntilBad.lean`).
 
-A successful decryption in `game2` returns `C' ^^^ ks` and so leaks the keystream, which is why
+A successful decryption in `game2` returns `C' ⊕ ks` and so leaks the keystream, which is why
 the privacy hop (`PrivacyHop.lean`) comes after this one.
 
 Main result: `game2_game3_le_auth`.
@@ -63,10 +63,9 @@ theorem gcmInstImpl_eq_wcInstImpl (L : ℕ) (h mask : BitVec 128) (ks : BitVec L
 
 /-! ## The per-tuple forgery bound -/
 
-/-- At a fixed keystream, with the GHASH key and the tag mask uniform, the always-reject
-execution raises its `forged` flag with probability at most `q_d · ε`. This is the generic
-`probEvent_wcInst_forge_le` itself, since `gcmInstImpl` is definitionally the Wegman–Carter
-handler (`gcmInstImpl_eq_wcInstImpl`). -/
+/-- Let GHASH be `ε`-AXU, let `adv` make at most `q_d` decryption queries, let `ks` be a fixed
+keystream and let `H` and `mask` be independent uniform 128-bit values. Then running `adv`
+against the always-reject oracles raises the `forged` flag with probability at most `q_d · ε`. -/
 theorem probEvent_forge_gcmInst_le (L : ℕ) {ε : ℝ≥0∞} (haxu : GhashIsAXU L ε)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
     (q_d : ℕ) (hq : AEADScheme.decryptQueryBound adv q_d) (ks : BitVec L) :
@@ -112,11 +111,9 @@ private theorem gcmInstImpl_flag_mono (L : ℕ)
     simp [gcmInstImpl, wcInstImpl, StateT.run_bind, StateT.run_get] at hz
     split_ifs at hz <;> simp_all
 
-/-- The three conditions the identical-until-bad lemma
-(`tvDist_simulateQ_le_probEvent_output_bad_base`) asks of the always-reject and live handlers:
-on every transition that leaves the flag unset they agree exactly, and once the flag is set it
-stays set on both. They hold because the two handlers differ only in what a decryption query
-returns when the tag verifies, and that transition sets the flag. -/
+/-- The identical-until-bad conditions for a fixed `a = (H, mask, ks)`: the always-reject and
+live handlers give every oracle call from an unset flag to an unset flag the same probability,
+and on both handlers a set flag stays set. -/
 theorem gcmInstImpl_identicalUntilBad (L : ℕ)
     (a : BitVec 128 × BitVec 128 × BitVec L) :
     (∀ (t : (aeadOneTimeCCASpec SupportedAAD (BitVec L)
@@ -154,10 +151,9 @@ theorem gcmInstImpl_identicalUntilBad (L : ℕ)
         simp [gcmInstImpl, wcInstImpl, StateT.run_bind, StateT.run_get, StateT.run_set,
           beq_iff_eq, hguard, hok]
 
-/-- The identical-until-bad principle at a fixed tuple: the always-reject and the live runs are
-within total-variation distance `Pr[forged]` of each other, where the flag is read on the
-always-reject side. That side is the one `probEvent_forge_gcmInst_le` can bound, since it never
-returns a decrypted ciphertext and so never leaks the keystream. -/
+/-- For a fixed tuple `a`, the outputs of `adv` against the always-reject and the live oracles
+have total-variation distance at most the probability that the always-reject run raises the
+`forged` flag. -/
 theorem gcmInst_tvDist_le_probEvent_forge (L : ℕ)
     (a : BitVec 128 × BitVec 128 × BitVec L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
@@ -191,8 +187,8 @@ private theorem tvDist_gcmInstFlat_le_probEvent_forge (L : ℕ)
   exact mul_le_mul_of_nonneg_left (gcmInst_tvDist_le_probEvent_forge L a adv)
     ENNReal.toReal_nonneg
 
-/-- The tuple draw split into three independent draws with the keystream outermost, the shape
-`probEvent_forge_gcmInst_le` is stated in. -/
+/-- Drawing the tuple `(H, mask, ks)` uniformly is the same as drawing `ks`, then `H`, then
+`mask`, independently and uniformly. -/
 private theorem evalDist_gcmInstRun_ks_outer (L : ℕ)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
     𝒟[($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _) >>=
@@ -227,10 +223,8 @@ private theorem probEvent_forge_gcmInstFlat_le (L : ℕ) {ε : ℝ≥0∞} (haxu
   exact probEvent_bind_le_of_forall_le fun ks _ =>
     probEvent_forge_gcmInst_le L haxu adv q_d hq ks
 
-/-- The authenticity hop: `|Pr[game3] − Pr[game2]| ≤ q_d · ε`. Suppressing decryption is
-noticed only if some decryption query forges a valid tag, and the AXU bound caps each attempt
-at `ε`. `hε` lets the `ℝ≥0∞` bound be read in `ℝ`; it is free at the concrete
-`ε = maxBlocks L / 2¹²⁸`. -/
+/-- The authenticity hop. Let GHASH be `ε`-AXU with `ε` finite (`ε ≠ ⊤`), and let `adv` make
+at most `q_d` decryption queries. Then `|Pr[game3 = 1] − Pr[game2 = 1]| ≤ q_d · ε`. -/
 theorem game2_game3_le_auth {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ)
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))

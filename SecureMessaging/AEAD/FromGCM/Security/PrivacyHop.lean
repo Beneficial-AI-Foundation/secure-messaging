@@ -12,7 +12,7 @@ import ToVCVio.ProgramLogic.Relational.Basic
 # GCM: the privacy hop (`game3` → `game4`)
 
 Replaces the real challenge ciphertext by a uniform one. The hop is free: the challenge
-`(C, T) = (m ^^^ ks, ghash H (gcmEncode ad C) ^^^ mask)` is built from one fresh uniform tuple
+`(C, T) = (m ⊕ ks, GHASH_H(gcmEncode ad C) ⊕ mask)` is built from one fresh uniform tuple
 `(H, mask, ks)` that nothing else in `game3` reads, so `C` is a one-time pad of `m`, `T` is
 masked by a fresh `mask`, and the pair is jointly uniform on `BitVec L × BitVec 128`; this is
 `evalDist_gcmChallenge_uniform`. The two games are therefore equidistributed, `game3_eq_game4`,
@@ -27,10 +27,9 @@ open OracleComp.ProgramLogic.Relational
 
 /-! ## Joint uniformity of the GCM challenge -/
 
-/-- The one-time GCM challenge built from a uniform tuple `(H, mask, ks)` is jointly uniform on
-`BitVec L × BitVec 128`: for each `H`, `C = m ^^^ ks` is uniform because `ks` is, and `mask` is
-independent of `C`, so `T` is uniform given `C`. The statement is against the single product
-draw; uniformity of `C` and `T` separately would not suffice for the coupling. -/
+/-- Let `m : BitVec L` and `ad` be fixed, let `H`, `mask` and `ks` be independent and uniform on
+`BitVec 128`, `BitVec 128` and `BitVec L`, and let `C = m ⊕ ks`. Then the challenge
+`(C, GHASH_H(gcmEncode ad C) ⊕ mask)` is jointly uniform on `BitVec L × BitVec 128`. -/
 theorem evalDist_gcmChallenge_uniform {L : ℕ} (ad : SupportedAAD) (m : BitVec L) :
     evalDist ((fun a : BitVec 128 × BitVec 128 × BitVec L =>
         (m ^^^ a.2.2, ghash a.1 (gcmEncode ad (m ^^^ a.2.2)) ^^^ a.2.1)) <$>
@@ -146,8 +145,8 @@ private lemma gcmPrivacy_step_encrypt_some {L : ℕ} (ad : SupportedAAD) (m : Bi
   rw [hrun₁, hrun₂]
   exact relTriple_pure_pure ⟨rfl, rfl, rfl⟩
 
-/-- `ODecrypt`: both sides always reject, whatever tuple `consumeLazy` feeds in, which is what
-`gcmTupleImplReject_indep` supplies. -/
+/-- `ODecrypt`: both sides reject, whatever tuple `consumeLazy` feeds in, so the responses are
+equal and the state relation is preserved. -/
 private lemma gcmPrivacy_step_decrypt {L : ℕ} (ad : SupportedAAD)
     (e : BitVec L × BitVec 128)
     (s₁ : Option (BitVec L × BitVec 128) × Option (BitVec 128 × BitVec 128 × BitVec L))
@@ -198,8 +197,8 @@ private lemma gcmPrivacy_step_decrypt {L : ℕ} (ad : SupportedAAD)
 /-! ## The one probabilistic per-query case -/
 
 /-- `OEncrypt` at an empty challenge slot, the one probabilistic case: `game3` draws a fresh tuple
-and computes the challenge from it, `game4` draws the challenge directly.
-`evalDist_gcmChallenge_uniform` couples the two draws along the challenge map. -/
+and computes the challenge from it, `game4` draws the challenge directly. The two responses can
+be coupled to be equal, with the state relation preserved. -/
 private lemma gcmPrivacy_step_encrypt_none {L : ℕ} (ad : SupportedAAD) (m : BitVec L) :
     RelTriple
       ((consumeLazy gcmTupleImplReject (fun t => t matches OEncrypt _)
@@ -285,9 +284,8 @@ theorem gcmPrivacy_step {L : ℕ}
 
 /-! ## The hop theorem -/
 
-/-- The privacy hop: `game3` and `game4` are equidistributed, with no advantage term. The
-coupling runs against the collapsed form of `game4` given by `game4_eq_plain`, so only the
-`game3` side of `gcmPrivacyRel` carries a lazy-sampling cache. -/
+/-- The privacy hop: `game3` and `game4` have the same output distribution, so the hop costs
+no advantage. -/
 theorem game3_eq_game4 {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ)
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :

@@ -141,8 +141,13 @@ private theorem reflectN_ushiftRight_eq (v : BitVec 128) :
   have hb : ¬ ((i : ℕ) + 1 < 1) := by omega
   simp [ha, hb]
 
-/-- Right shift is multiplication by `root`, up to the `x¹²⁸` term of the dropped bit
-`getMsbD 127`, the `x¹²⁷` coefficient. -/
+/-- Right shift is multiplication by `α = root nistPoly` up to the `α¹²⁸` term of the bit
+`v₁₂₇ = v.getMsbD 127` it shifts out:
+
+```text
+reflectN v · α = reflectN (v ≫ 1) + v₁₂₇ · α¹²⁸
+```
+-/
 theorem reflectN_mul_root (v : BitVec 128) :
     reflectN v * AdjoinRoot.root nistPoly
       = reflectN (v >>> 1)

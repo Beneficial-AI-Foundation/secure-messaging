@@ -7,13 +7,13 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.AEAD.FromGCM.Construction
 
 /-!
-# GCM — cipher-call profile
+# GCM: cipher-call profile
 
-One-time GCM calls the block cipher on `n + 2` inputs in three separated groups: `0¹²⁸`, whose
-output is the GHASH key `H`; `J₀`, whose output is the tag mask; and the counter chain from
-`inc₃₂(J₀)`, whose outputs form the GCTR keystream, one call per message block.
-`gcmEncrypt_profile`/`gcmDecrypt_profile` rewrite the algorithms as functions
-`gcmEncryptSpec`/`gcmDecryptSpec` of these outputs, which is where the security proof
+For a message of `n` blocks, one-time GCM calls the block cipher on `n + 2` inputs in three
+groups: `0¹²⁸`, whose output is the GHASH key `H`; `J₀`, whose output is the tag mask; and the
+`n` counter blocks from `inc₃₂(J₀)`, whose outputs form the GCTR keystream.
+`gcmEncrypt_profile` and `gcmDecrypt_profile` rewrite the algorithms as functions
+`gcmEncryptSpec` and `gcmDecryptSpec` of these outputs, which is where the security proof
 substitutes random values for them. Distinctness of the inputs is in `Security/Counter.lean`.
 -/
 
@@ -28,8 +28,7 @@ theorem keystream_singleton (b : BitVec 128) : keystream [b] 128 = b := by
 
 theorem counterChain_one (icb : BitVec 128) : counterChain icb 1 = [icb] := rfl
 
-/-- GCTR on a single block is one XOR with a cipher output; this is how the tag mask
-`CIPH_K(J₀)` enters (NIST SP 800-38D §7.1 step 6). -/
+/-- On a single block `s`, `GCTR_K(icb, s) = s ⊕ CIPH_K(icb)`. -/
 theorem gctr_single_block {K : Type} (ciph : K → BitVec 128 → BitVec 128) (k : K)
     (icb : BitVec 128) (s : BitVec 128) :
     gctr ciph k icb s = s ^^^ ciph k icb := by
@@ -69,8 +68,11 @@ def gcmDecryptSpec (h mask : BitVec 128) (ksBlocks : List (BitVec 128))
         [BitVec.ofNat 64 lenA ++ BitVec.ofNat 64 lenP]) ^^^ mask
   then some (ct.1 ^^^ keystream ksBlocks lenP) else none
 
-/-- The length hypothesis is required: `gcmDecrypt` fails on unsupported lengths before any
-cipher call, so the unguarded equality is false. -/
+/-- For supported message and AAD lengths, `gcmDecrypt` is `gcmDecryptSpec` at the cipher
+outputs on `0`, `J₀` and the counter chain from `inc₃₂(J₀)`. Without the length hypothesis the
+equation is false: at an unsupported length the left side is `none`, since `gcmDecrypt` checks
+lengths first, but the right side is `some` whenever the tag verifies, since `gcmDecryptSpec`
+checks no lengths. -/
 -- ANCHOR: gcmDecrypt_profile
 theorem gcmDecrypt_profile {K : Type} (ciph : CIPH K) (k : K) (iv : BitVec 96)
     {lenA lenP : ℕ} (ad : BitVec lenA) (ct : BitVec lenP × BitVec 128)

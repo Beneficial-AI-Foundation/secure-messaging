@@ -11,7 +11,7 @@ import SecureMessaging.AEAD.FromGCM.Security.NistIrreducible
 import SecureMessaging.AEAD.FromGCM.Security.PrpSwitch
 
 /-!
-# GCM — Security
+# GCM: security
 
 Entry point for the security of the one-time GCM AEAD `gcmOneTimeAEAD prp iv L hL`
 (`AEAD/FromGCM/Construction.lean`): NIST SP 800-38D GCM-AE at a fixed public 96-bit IV, one
@@ -85,7 +85,7 @@ Hops (2) and (4) are exact, so only the PRF and authenticity terms survive. This
 hypothesis `GhashIsAXU L ε`.
 
 The hop order is forced. Hop (4) forgets the cached tuple, which is sound only once decryption
-is dead: a live decryption returns `e.1 ^^^ ks` and leaks the keystream.
+is dead: a live decryption returns `e.1 ⊕ ks` and leaks the keystream.
 
 There is no separate `2⁻¹²⁸` tag-guessing term. `ghashAXU_eps_lower` (`Security/Axu.lean`)
 shows `2⁻¹²⁸ ≤ ε` for every witnessing `ε`, so a blind guess is already covered by the AXU
@@ -165,12 +165,13 @@ variable {K : Type}
 
 /-! ## The game chain, for any AXU bound -/
 
-/-- Assembles the game chain of the module doc for any AXU bound `ε` of GHASH:
+/-- Let GHASH be `ε`-AXU on encoded (AAD, `L`-bit message) pairs, with `ε` finite
+(`ε ≠ ⊤`, where `⊤ = ∞` in `ℝ≥0∞`), and let `adv` make at most `q_d` decryption queries. Then
 `Adv^{ot-cca-ror}(adv) ≤ Adv^{prf}(B) + q_d · ε` with `B = prfReduction iv L adv`.
-`gcmOneTimeAEAD_security` uses it at `ε = maxBlocks L / 2¹²⁸`.
 
-`hε : ε ≠ ⊤` is necessary: the bound is read in `ℝ` via `ε.toReal`, and `(⊤ : ℝ≥0∞).toReal = 0`
-would make the conclusion false at the trivially true `GhashIsAXU L ⊤`. -/
+The hypothesis `ε ≠ ⊤` is necessary: `GhashIsAXU L ⊤` holds trivially and `(⊤).toReal = 0`, so
+without it the bound would reduce to `Adv^{ot-cca-ror}(adv) ≤ Adv^{prf}(B)`, which is false in
+general. -/
 -- ANCHOR: gcmOneTimeAEAD_security_of_axu
 theorem gcmOneTimeAEAD_security_of_axu (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
     (hL : ValidMsgLength L)

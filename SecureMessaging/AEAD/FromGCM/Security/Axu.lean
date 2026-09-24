@@ -9,7 +9,7 @@ import ToVCVio.CryptoFoundations.UniversalHash
 import ToVCVio.OracleComp.Constructions.BitVec
 
 /-!
-# GHASH — almost-XOR-universality statement
+# GHASH: almost-XOR-universality statement
 
 `GhashIsAXU L ε` says that `ghash ∘ gcmEncode` is `ε`-almost-XOR-universal (AXU) on
 `SupportedAAD × BitVec L`: for distinct inputs and any target `Δ`, a uniform key `H` gives
@@ -59,14 +59,7 @@ theorem ghashAXU_card_inv_le {L : ℕ} {ε : ℝ≥0∞} (h : GhashIsAXU L ε) :
     (Fintype.card (BitVec 128) : ℝ≥0∞)⁻¹ ≤ ε :=
   IsAlmostXorUniversal.card_inv_le h (witness_pair_ne L)
 
-/-- The AXU bound of GHASH is at least the blind-tag-guess probability `2⁻¹²⁸`.
-
-The authenticity hop bounds forgery by a union bound over the at most `q_d` decryption
-queries. A query after the challenge succeeds only through a GHASH collision, with probability
-at most `ε`. A query before the challenge has seen no tag and succeeds only by guessing one,
-with probability exactly `2⁻¹²⁸`. Summing these caps would give the two-term
-`q_post · ε + q_pre · 2⁻¹²⁸`; because `2⁻¹²⁸ ≤ ε`, every query can be charged `ε` and the sum is
-`q_d · ε`. `probEvent_wcInst_forge_le` takes this inequality as its `hfloor` hypothesis. -/
+/-- Every AXU bound `ε` of GHASH satisfies `2⁻¹²⁸ ≤ ε`. -/
 theorem ghashAXU_eps_lower {L : ℕ} {ε : ℝ≥0∞} (h : GhashIsAXU L ε) :
     ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹ ≤ ε := by
   rw [← ToVCVio.natCast_card_bitVec 128]

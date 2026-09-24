@@ -11,16 +11,16 @@ import ToVCVio.OracleComp.Constructions.BitVec
 # Wegman-Carter authenticity: the probability core
 
 The abstract probability statements behind `probEvent_wcInst_forge_le` (`WegmanCarter.lean`).
-The two per-query bounds are stated over an arbitrary run distribution so that they depend on
-nothing but the almost-XOR-universal (AXU) predicate of `UniversalHash.lean`.
+They are stated over an arbitrary run distribution, so that they depend on nothing but the
+almost-XOR-universal (AXU) predicate of `UniversalHash.lean`.
 
 A forgery attempt is a decryption query `(X', T')` made either before or after the adversary
 sees the challenge `(X*, T*)`. The two kinds are bounded using different randomness:
 
 * `probEvent_post_axu_le`: a post-challenge query accepts only if
-  `hash H X' ^^^ hash H X* = T' ^^^ T*`, which AXU over the hash key `H` bounds by `ε`;
+  `hash H X' ⊕ hash H X* = T' ⊕ T*`, which AXU over the hash key `H` bounds by `ε`;
 * `probEvent_pre_fresh_le`: a pre-challenge query is a blind guess at the not-yet-drawn
-  128-bit tag mask, of probability exactly `2⁻¹²⁸`;
+  128-bit tag mask, which succeeds with probability `2⁻¹²⁸`;
 * `combine_pre_post_le`: the two are added under a single budget `q` on the number of
   decryption queries, which is what gives `q · ε` rather than `2 · q · ε`.
 -/
@@ -29,10 +29,13 @@ open OracleSpec OracleComp ENNReal ToVCVio
 
 namespace OracleComp.WegmanCarter
 
-/-- `probEvent_post_axu_le` at a fixed challenge `c` and target list `l`: a union bound over
-`l`. An entry with the same digest point as `c` contributes `0`, not `ε`: acceptance would
-force its tag to equal `c`'s, contradicting `hne`. Such entries exist, since the challenge
-guard compares the whole ciphertext, which is why `hne` is a pair inequality. -/
+/-- Fix a challenge `c = (X*, T*)` and a list `l` of pairs `(X', T')` none of which equals `c`.
+For a uniform key `H`, the probability that some entry of `l` satisfies
+`hash H X' ⊕ hash H X* = T' ⊕ T*` is at most `|l| · ε`.
+
+An entry with `X' = X*` contributes `0`: it would need `T' = T*`, i.e. `(X', T') = c`. Such
+entries can occur, because the decryption guard compares ciphertexts rather than digest points,
+which is why the hypothesis is `(X', T') ≠ c` and not `X' ≠ X*`. -/
 private theorem probEvent_post_axu_le_run {K D : Type} [SampleableType K] {ε : ℝ≥0∞}
     {hash : K → D → BitVec 128} (haxu : IsAlmostXorUniversal hash ε)
     (c : D × BitVec 128) (l : List (D × BitVec 128)) (hne : ∀ x ∈ l, x ≠ c) :
@@ -71,9 +74,10 @@ private theorem probEvent_post_axu_le_run {K D : Type} [SampleableType K] {ε : 
     _ = (l.length : ℝ≥0∞) * ε := by
         simp [Finset.sum_const, Finset.card_univ, nsmul_eq_mul]
 
-/-- Post-challenge half: with the hash key `H` drawn after the run `μ`, some target in
-`post z` collides with the challenge `chal z` in the AXU sense with probability at most the
-expected number of targets times `ε`. -/
+/-- Post-challenge half. Let `z` be drawn from `μ` and then `H` uniformly and independently.
+Write `chal z = (X*, T*)` and suppose no entry of `post z` equals `chal z` for `z` in the support
+of `μ`. Then the probability that some `(X', T') ∈ post z` satisfies
+`hash H X' ⊕ hash H X* = T' ⊕ T*` is at most `𝔼[|post z|] · ε`. -/
 theorem probEvent_post_axu_le {Z K D : Type} [SampleableType K] {ε : ℝ≥0∞}
     {hash : K → D → BitVec 128} (haxu : IsAlmostXorUniversal hash ε)
     (μ : ProbComp Z) (chal : Z → D × BitVec 128) (post : Z → List (D × BitVec 128))
@@ -95,11 +99,11 @@ theorem probEvent_post_axu_le {Z K D : Type} [SampleableType K] {ε : ℝ≥0∞
     exact probEvent_post_axu_le_run haxu (chal z) (post z) (hne z hz)
   · rw [probOutput_eq_zero_of_not_mem_support hz, zero_mul, zero_mul, zero_mul]
 
-/-- Pre-challenge half: once the prefix `ν` has fixed a list `pre w` of target values, a fresh
-uniform 128-bit draw `m` hits one of them with probability at most `|pre w| · 2⁻¹²⁸`. `hk`
-says the event `E` observed at the end of the continuation `k` is exactly `m ∈ pre w`. Same
-mathematics as VCVio's `probEvent_hiddenReadMany_le` (`RandomOracle/ProbeEps.lean`), stated for
-an arbitrary continuation instead of the `readMany` game shape. -/
+/-- Pre-challenge half. Let `w` be drawn from `ν` and then `m` uniformly from `{0,1}¹²⁸`, and
+let the continuation `k w m` end in the event `E` exactly when `m ∈ pre w`. Then `E` holds with
+probability at most `𝔼[|pre w|] · 2⁻¹²⁸`. Same mathematics as VCVio's
+`probEvent_hiddenReadMany_le` (`RandomOracle/ProbeEps.lean`), stated for an arbitrary
+continuation instead of the `readMany` game shape. -/
 theorem probEvent_pre_fresh_le {W β : Type} (ν : ProbComp W)
     (pre : W → List (BitVec 128)) (k : W → BitVec 128 → ProbComp β)
     (E : β → Prop)

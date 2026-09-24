@@ -7,7 +7,7 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.AEAD.GCM
 
 /-!
-# GCM — `inc₃₂` and counter-block distinctness
+# GCM: `inc₃₂` and counter-block distinctness
 
 Arithmetic of `GCM.inc32` in numeral (`toNat`) form, and pairwise distinctness of the `n + 2`
 block-cipher inputs of one GCM call: the GHASH-key input `0¹²⁸`, `J₀`, and the counter chain
@@ -47,8 +47,7 @@ private lemma succ_mod_two_pow_32 (c : ℕ) (h : c % 2 ^ 32 < 2 ^ 32 - 1) :
   rw [Nat.add_mod, Nat.mod_eq_of_lt (show (1 : ℕ) < 2 ^ 32 by norm_num),
     Nat.mod_eq_of_lt (by omega)]
 
-/-- Only the counter field `c % 2³²` is constrained; the high 96 bits (the IV) are
-arbitrary. -/
+/-- If `c mod 2³² < 2³² - 1`, then `inc₃₂` maps the 128-bit numeral `c` to `c + 1`. -/
 theorem inc32_ofNat (c : ℕ) (h : c % 2 ^ 32 < 2 ^ 32 - 1) :
     inc32 (BitVec.ofNat 128 c) = BitVec.ofNat 128 (c + 1) := by
   have hlow : (BitVec.ofNat 128 c).toNat % 2 ^ 32 < 2 ^ 32 - 1 := by
@@ -59,8 +58,8 @@ theorem inc32_ofNat (c : ℕ) (h : c % 2 ^ 32 < 2 ^ 32 - 1) :
   simp only [BitVec.toNat_add, BitVec.ofNat_eq_ofNat, BitVec.toNat_ofNat]
   omega
 
-/-- The counter chain from a numeral is a run of consecutive numerals, provided the run stays
-inside the 32-bit counter field so that no `inc₃₂` wraps. -/
+/-- If `c mod 2³² + m ≤ 2³²`, the counter chain of length `m` from the 128-bit numeral `c` is
+`c, c + 1, …, c + m - 1`. -/
 theorem counterChain_ofNat (c m : ℕ) (h : c % 2 ^ 32 + m ≤ 2 ^ 32) :
     counterChain (BitVec.ofNat 128 c) m =
       (List.range m).map (fun i => BitVec.ofNat 128 (c + i)) := by
@@ -111,8 +110,14 @@ theorem blockCount_add_one_le {L : ℕ} (hL : ValidMsgLength L) :
   have h := hL.1
   omega
 
-/-- The `n + 2` cipher inputs of one GCM call (GHASH key, tag mask, `n` keystream blocks) in
-numeral form: `0¹²⁸` and the run `iv.toNat · 2³² + 1, …, iv.toNat · 2³² + n + 1`. -/
+/-- The `n + 2` cipher inputs of one GCM call are the GHASH-key input `0`, the tag-mask input
+`J₀` and `n` counter blocks. If `n + 1 ≤ 2³² - 1`, then as 128-bit numerals, with
+`v = iv.toNat · 2³²`,
+
+```text
+0, J₀, inc₃₂(J₀), …, inc₃₂ⁿ(J₀)  =  0, v + 1, v + 2, …, v + n + 1
+```
+-/
 theorem cipherInputs_eq (iv : BitVec 96) (n : ℕ) (h : n + 1 ≤ 2 ^ 32 - 1) :
     (0 : BitVec 128) :: j0 iv :: counterChain (inc32 (j0 iv)) n =
       (0 : BitVec 128) :: (List.range (n + 1)).map
@@ -125,9 +130,8 @@ theorem cipherInputs_eq (iv : BitVec 96) (n : ℕ) (h : n + 1 ≤ 2 ^ 32 - 1) :
   have hi : iv.toNat * 2 ^ 32 + 1 + 1 + i = iv.toNat * 2 ^ 32 + 1 + Nat.succ i := by omega
   rw [Function.comp_apply, hi]
 
-/-- The numeral list of `cipherInputs_eq` has no duplicates: every chain numeral has counter
-field at least `1`, so none is `0¹²⁸`, and the run is injective because it stays below the
-field maximum. -/
+/-- If `n + 1 ≤ 2³² - 1` and `v = iv.toNat · 2³²`, the 128-bit numerals `0, v + 1, …, v + n + 1` are
+pairwise distinct. -/
 theorem cipherInputs_nodup (iv : BitVec 96) (n : ℕ) (h : n + 1 ≤ 2 ^ 32 - 1) :
     ((0 : BitVec 128) :: (List.range (n + 1)).map
       (fun i => BitVec.ofNat 128 (iv.toNat * 2 ^ 32 + 1 + i))).Nodup := by

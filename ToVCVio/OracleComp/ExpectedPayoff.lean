@@ -41,8 +41,8 @@ Relative to the monad structure of `ProbComp`:
   most `1`;
 * `expectedPayoff_le_const_of_support` — without missing mass, a bound on every
   possible output payoff bounds the expectation;
-* `tsum_probOutput_count_le` — an expected count charged at a fixed rate and
-  bounded on the support collapses to the constant bound;
+* `tsum_probOutput_count_le` — if `cnt z ≤ n` for every possible output `z`
+  of `μ`, then the expected value of `cnt z · ε` is at most `n · ε`;
 * `expectedPayoff_add_const_le` — adding `c` to every returned-output payoff
   increases the expectation by at most `c`.
 
@@ -154,9 +154,8 @@ lemma expectedPayoff_le_const_of_support {A : Type} (oa : ProbComp A)
     _ ≤ 1 * c := mul_le_mul' tsum_probOutput_le_one le_rfl
     _ = c := one_mul c
 
-/-- An expected count charged at rate `ε` and bounded by `n` on the support collapses to
-`n * ε`: the failure-free sibling of `expectedPayoff_le_const_of_support`, and the public,
-support-restricted form of VCVio's private `tsum_probOutput_mul_le_const`. -/
+/-- Let `h : cnt z ≤ n` hold for every possible output `z` of `μ`, and let `ε : ℝ≥0∞`. Then
+`∑_z Pr[μ = z] · cnt z · ε ≤ n · ε`. -/
 theorem tsum_probOutput_count_le {Z : Type} (μ : ProbComp Z) (cnt : Z → ℕ) (n : ℕ) (ε : ℝ≥0∞)
     (h : ∀ z ∈ support μ, cnt z ≤ n) :
     ∑' z, Pr[= z | μ] * (cnt z : ℝ≥0∞) * ε ≤ (n : ℝ≥0∞) * ε := by

@@ -11,13 +11,14 @@ import Mathlib.FieldTheory.Finite.Extension
 
 A polynomial `f` of positive degree `n` over a finite field with `q` elements is irreducible iff
 
-1. `f ∣ X ^ (q ^ n) - X`, and
-2. `IsCoprime f (X ^ (q ^ (n / p)) - X)` for every prime `p ∣ n`
+1. `f ∣ X^(qⁿ) − X`, and
+2. `f` is coprime to `X^(q^(n/p)) − X` for every prime `p ∣ n`.
 
-(Rabin, *Probabilistic algorithms in finite fields*, 1980). The only finite-field input is
-Mathlib's `Irreducible.natDegree_dvd_iff_dvd_X_pow_card_pow_sub_X`. `irreducible_of_rabin_root`
-restates both conditions inside `AdjoinRoot f`, where they can be checked by kernel computation
-for a concrete `f`.
+This is Rabin's test (M. O. Rabin, *Probabilistic algorithms in finite fields*, SIAM J. Comput.
+9(2), 1980). The only finite-field input is Mathlib's
+`Irreducible.natDegree_dvd_iff_dvd_X_pow_card_pow_sub_X`. `irreducible_of_rabin_root` restates
+both conditions inside `AdjoinRoot f`, where they can be checked by kernel computation for a
+concrete `f`.
 -/
 
 open Polynomial
@@ -37,9 +38,7 @@ theorem exists_prime_dvd_and_dvd_div {d n : ℕ} (hdvd : d ∣ n) (hne : d ≠ n
   obtain ⟨e, rfl⟩ := hpc
   exact ⟨e, by rw [← mul_assoc, mul_comm d p, mul_assoc, Nat.mul_div_cancel_left _ hp.pos]⟩
 
-/-- A unit modulo `f` is coprime to `f`: an inverse `b` of `a` in `AdjoinRoot f` is a Bézout
-certificate `a * b - 1 = f * c`. This lets coprimality be certified by one multiplication against
-a precomputed inverse. -/
+/-- If `a` is a unit modulo `f`, then `f` and `a` are coprime. -/
 theorem isCoprime_of_isUnit_mk {R : Type*} [CommRing R] {f a : R[X]}
     (h : IsUnit (AdjoinRoot.mk f a)) : IsCoprime f a := by
   obtain ⟨u, hu⟩ := h
@@ -49,8 +48,9 @@ theorem isCoprime_of_isUnit_mk {R : Type*} [CommRing R] {f a : R[X]}
   obtain ⟨c, hc⟩ := AdjoinRoot.mk_eq_zero.1 hz
   exact ⟨-c, b, by linear_combination hc⟩
 
-/-- Rabin's test, sufficiency: any irreducible factor of `f` has degree dividing `n`, the
-coprimality conditions exclude every proper divisor, so the factor has full degree. -/
+/-- Rabin's test, sufficiency. Let `f` have degree `n > 0` over a finite field with `q`
+elements. If `f ∣ X^(qⁿ) − X` and `f` is coprime to `X^(q^(n/p)) − X` for every prime
+`p ∣ n`, then `f` is irreducible. -/
 theorem irreducible_of_rabin {f : K[X]} (hdeg : 0 < f.natDegree)
     (h1 : f ∣ X ^ (Nat.card K) ^ f.natDegree - X)
     (h2 : ∀ p : ℕ, p.Prime → p ∣ f.natDegree →
@@ -76,8 +76,9 @@ theorem irreducible_of_rabin {f : K[X]} (hdeg : 0 < f.natDegree)
     exact isUnit_iff_ne_zero.2 (by simpa using hc0)
   · exact (Polynomial.eq_C_of_natDegree_eq_zero hcdeg).symm
 
-/-- Rabin's test as an iff. Necessity is Mathlib's `natDegree_dvd_iff_dvd_X_pow_card_pow_sub_X`
-at `f` itself: `f ∣ X ^ (q ^ (n / p)) - X` would force `n ∣ n / p` with `0 < n / p < n`. -/
+/-- Rabin's test. A polynomial `f` of degree `n > 0` over a finite field with `q` elements is
+irreducible iff `f ∣ X^(qⁿ) − X` and `f` is coprime to `X^(q^(n/p)) − X` for every prime
+`p ∣ n`. -/
 theorem irreducible_iff_rabin {f : K[X]} (hdeg : 0 < f.natDegree) :
     Irreducible f ↔
       f ∣ X ^ (Nat.card K) ^ f.natDegree - X ∧
@@ -91,8 +92,10 @@ theorem irreducible_iff_rabin {f : K[X]} (hdeg : 0 < f.natDegree) :
   have hlt := Nat.div_lt_self hdeg hp.one_lt
   omega
 
-/-- Rabin's test with both conditions stated about `root f` in `AdjoinRoot f`: the root is fixed
-by the `n`-fold Frobenius, and `root ^ (q ^ (n / p)) - root` is a unit for every prime `p ∣ n`.
+/-- Rabin's test in `AdjoinRoot f`, sufficiency. Let `f` have degree `n > 0` over a finite field
+with `q` elements, and let `α = root f`. If `α^(qⁿ) = α` and `α^(q^(n/p)) − α` is a unit for
+every prime `p ∣ n`, then `f` is irreducible.
+
 Keep this shape: at `ZMod 2` the polynomial-subtraction form of the same hypotheses makes
 elaboration diverge through mismatched `Semiring`/`Sub` instance paths. -/
 theorem irreducible_of_rabin_root {f : K[X]} (hdeg : 0 < f.natDegree)

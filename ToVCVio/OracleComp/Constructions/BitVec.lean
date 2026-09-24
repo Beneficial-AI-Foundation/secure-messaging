@@ -66,8 +66,9 @@ lemma getMsbD_blocksToBitVecFrom (blocks : List (BitVec w)) {s p j : ℕ} (hj : 
       (blocks.getD ((s + j) / w) 0).getMsbD ((s + j) % w) := by
   simp [blocksToBitVecFrom, List.getD_eq_getElem?_getD, hj]
 
-/-- The concatenation of `n` `w`-bit blocks cut at bit `L`: the first `L` bits and the rest.
-A bijection when `L ≤ w * n` (`blocksSplit_bijective`). -/
+/-- `blocksSplit n L v` cuts the concatenation of the `n` `w`-bit blocks of `v` at bit `L`,
+returning the first `L` bits and the remaining `w * n - L`. It is a bijection when `L ≤ w * n`
+(`blocksSplit_bijective`). -/
 def blocksSplit (n L : ℕ) (v : Vector (BitVec w) n) :
     BitVec L × BitVec (w * n - L) :=
   (blocksToBitVec v.toList L, blocksToBitVecFrom v.toList L (w * n - L))
@@ -140,9 +141,8 @@ example (n : ℕ) (y : BitVec 0) :
 
 /-! ## A masked value and a masked function of it are jointly uniform -/
 
-/-- One-time pad: a uniform draw xored with a fixed value is still uniform, under any
-continuation. Xor with a fixed `BitVec` is Mathlib's permutation `Equiv.xor`, hence a
-bijection. -/
+/-- One-time pad: for fixed `x` and uniform `y`, `x ⊕ y` is uniform, also when passed to an
+arbitrary continuation. -/
 private lemma evalDist_bind_xor_left_uniform {k : ℕ} {γ : Type} (x : BitVec k)
     (cont : BitVec k → ProbComp γ) :
     𝒟[($ᵗ BitVec k : ProbComp (BitVec k)) >>= fun y => cont (x ^^^ y)] =
@@ -151,9 +151,9 @@ private lemma evalDist_bind_xor_left_uniform {k : ℕ} {γ : Type} (x : BitVec k
     probOutput_bind_bijective_uniform_cross (BitVec k) (x ^^^ ·)
       (Equiv.xor x).bijective cont z
 
-/-- A value masked by a uniform `ks`, paired with an arbitrary function `g` of it masked by an
-independent uniform `mask`, is jointly uniform on `BitVec n × BitVec m`, not merely uniform in
-each component: given the first component, `mask` still re-randomizes the second. -/
+/-- Let `msg : BitVec n` and `g : BitVec n → BitVec m` be fixed, and let `ks` and `mask` be
+independent uniform samples from `BitVec n` and `BitVec m`. Then the pair
+`(msg ⊕ ks, g(msg ⊕ ks) ⊕ mask)` is uniform on `BitVec n × BitVec m`. -/
 theorem evalDist_pair_xor_uniform {n m : ℕ} (msg : BitVec n) (g : BitVec n → BitVec m) :
     evalDist (do
       let mask ← ($ᵗ BitVec m : ProbComp (BitVec m))
@@ -187,9 +187,8 @@ example {n : ℕ} (msg : BitVec n) (g : BitVec n → BitVec 0) :
 
 /-! ## From a list of independent draws to one uniform vector -/
 
-/-- Pointwise law of `pts.mapM (fun _ => $ᵗ R)`: the draws are independent, so a list of the
-right length has mass `(card R)⁻¹ ^ pts.length`. The list side of the i.i.d. bridge
-`evalDist_mapM_const_uniform`. -/
+/-- Let `q = pts.length`. A list of `q` independent uniform samples from `R` equals `xs` with
+probability `|R|⁻¹ ^ q` if `xs` has length `q`, and `0` otherwise. -/
 lemma probOutput_mapM_const_uniform {D R : Type} [SampleableType R] [Fintype R]
     (pts : List D) (xs : List R) :
     Pr[= xs | pts.mapM (fun _ => ($ᵗ R : ProbComp R))] =
@@ -203,8 +202,8 @@ lemma probOutput_mapM_const_uniform {D R : Type} [SampleableType R] [Fintype R]
     simp [probOutput_uniformSample]
   · rw [if_neg h, if_neg h]
 
-/-- The same pointwise law for a uniform `Vector R n` read as a list, so that
-`evalDist_mapM_const_uniform` closes by `evalDist_ext` from the two formulas. -/
+/-- A uniform `v : Vector R n` has `v.toList = xs` with probability `|R|⁻¹ ^ n` if `xs` has
+length `n`, and `0` otherwise. -/
 private lemma probOutput_toList_uniformSample_vector {R : Type} [SampleableType R] [Fintype R]
     (n : ℕ) (xs : List R) :
     Pr[= xs | (Vector.toList <$> ($ᵗ Vector R n : ProbComp (Vector R n)))] =

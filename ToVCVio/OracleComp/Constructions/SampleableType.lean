@@ -35,9 +35,9 @@ lemma uniformSample_prod_eq_bind (α β : Type) [SampleableType α] [SampleableT
   change Prod.mk <$> ($ᵗ α : ProbComp α) <*> ($ᵗ β : ProbComp β) = _
   exact (selectElem_prod_as_seq α β).symm
 
-/-- A computation with full support and the same probability at every output is the uniform
-sample: full support and pointwise-constant mass are literally the two fields of
-`SampleableType`, so `probOutput_uniformSample` evaluates both sides. -/
+/-- Let `oa : ProbComp β` output every element of `β` (`hsupp`) and give any two elements the
+same probability (`huni : Pr[= x | oa] = Pr[= y | oa]`). Then `oa` has the same distribution
+as the uniform sample: `evalDist oa = evalDist ($ᵗ β)`. -/
 theorem evalDist_eq_uniformSample_of_uniform {β : Type} [SampleableType β]
     (oa : ProbComp β) (hsupp : ∀ x : β, x ∈ support oa)
     (huni : ∀ x y : β, Pr[= x | oa] = Pr[= y | oa]) :

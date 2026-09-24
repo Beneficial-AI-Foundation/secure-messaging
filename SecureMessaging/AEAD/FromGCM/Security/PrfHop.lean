@@ -69,8 +69,8 @@ section Bridges
 
 variable {L : ℕ}
 
-/-- The specification states `keystream` as the NIST SP 800-38D §6.5 formula; it is
-`blocksToBitVec` at width 128, whose uniformity lemmas make it a one-time pad. -/
+/-- `keystream`, the NIST SP 800-38D §6.5 formula `MSB_p(blocks[0] ‖ blocks[1] ‖ …)`, is
+`blocksToBitVec` at block width 128. -/
 theorem keystream_eq_blocksToBitVec (blocks : List (BitVec 128)) (p : ℕ) :
     keystream blocks p = blocksToBitVec blocks p :=
   rfl
