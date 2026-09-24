@@ -49,13 +49,20 @@ private lemma securityExpB_eq_securityExpA
     RKEMScheme.securityExpB (scheme kem total) adversary =
       RKEMScheme.securityExpA (scheme kem total) adversary := rfl
 
-/-- The KEM IND-CPA adversary built from an FS-IND-CPA adversary against the construction. The
-challenge public key plays `B`'s updated key; `A`'s fresh pair and next-round pair are sampled
-here, as the construction would, since neither depends on the challenge. The guess is negated
-because `IND_CPA_Game` reads `b = true` as the real key and `securityExpA` reads it as the random
-key; with the negation `probOutput_true_indCpaGame_eq_probOutput_true_securityExpACore` is an
-equality of `Pr[= true]`. Negating a guess leaves `IND_CPA_Advantage` unchanged, so nothing is
-lost. -/
+/-- The IND-CPA reduction `𝓑` built from an FS-IND-CPA adversary `𝓐`:
+
+𝓑.preChallenge(êkB) := êkB
+𝓑.postChallenge(êkB, ctB, Kb):
+  (ekA, _)   ← KeyGen()
+  (êkA, d̂kA) ← KeyGen()
+  b'      ←$ 𝓐(ekA, êkA, êkB, (êkA, ctB), d̂kA, Kb)
+  return ¬b'
+
+`𝓑`'s own challenge key plays `B`'s updated key `êkB`; `A`'s fresh pair and next-round pair are
+sampled independently, as the construction itself would, since neither depends on the challenge.
+The final negation aligns conventions: `IND_CPA_Game` scores `b = true ↔ real key`, while
+`securityExpA` scores `b = true ↔ random key`. With it, `Pr[IND_CPA_Game(𝓑) = true] =
+Pr[securityExpACore(𝓐) = true]`. -/
 -- ANCHOR: indCpaReduction
 def indCpaReduction (kem : KEMScheme ProbComp K PK SK C)
     (adversary : RKEMScheme.FSINDCPAAdversary Unit PK SK (PK × C) K) :
