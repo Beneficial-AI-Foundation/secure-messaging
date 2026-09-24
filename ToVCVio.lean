@@ -7,6 +7,7 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Bits
 import ToVCVio.LatticeCrypto.FrodoKEM.Encoding
 import ToVCVio.LatticeCrypto.FrodoKEM.Packing
 import ToVCVio.LatticeCrypto.FrodoKEM.Sampling
+import ToVCVio.LatticeCrypto.FrodoKEM.Construction
 import ToVCVio.LatticeCrypto.FrodoKEM.Correctness
 import ToVCVio.LatticeCrypto.TransformOps
 import ToVCVio.OracleComp.Constructions.SampleableType
