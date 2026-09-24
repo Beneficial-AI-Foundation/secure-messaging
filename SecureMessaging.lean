@@ -58,6 +58,7 @@ import SecureMessaging.SCKA.SPQR.Unchunked
 import SecureMessaging.SCKA.OppUniKEM.Construction
 import SecureMessaging.SCKA.OppBiKEM.Construction
 import SecureMessaging.SCKA.OppBiKEM.Correctness.Invariant
+import SecureMessaging.SCKA.OppBiKEM.Correctness.Receive
 import SecureMessaging.SCKA.OppUniKEM.Correctness
 import SecureMessaging.SymEnc.Defs
 import ToVCVio.OracleComp.Constructions.SampleableType

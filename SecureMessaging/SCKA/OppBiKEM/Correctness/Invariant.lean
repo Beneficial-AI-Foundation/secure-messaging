@@ -133,19 +133,11 @@ private theorem oracleRecvA_preserves_messageEpochsConsistent
       exact hs
     | some out =>
       rcases out with ⟨key?, trcv, st'⟩
-      cases key? with
-      | none =>
+      cases key? <;>
         simp only [SCKAScheme.oracleRecvA, bind_pure_comp, StateT.run_bind, StateT.run_get,
           pure_bind, hmsg, hrecv, StateT.run_map, StateT.run_set, map_pure, support_pure,
-          Set.mem_singleton_iff] at hz
-        subst z
-        exact hs
-      | some key =>
-        rcases key with ⟨tI, key⟩
-        simp only [SCKAScheme.oracleRecvA, bind_pure_comp, StateT.run_bind, StateT.run_get,
-          pure_bind, hmsg, hrecv, StateT.run_map, StateT.run_set, map_pure, support_pure,
-          Set.mem_singleton_iff] at hz
-        subst z
+          Set.mem_singleton_iff] at hz <;>
+        subst z <;>
         exact hs
 
 private theorem oracleRecvB_preserves_messageEpochsConsistent
@@ -170,19 +162,11 @@ private theorem oracleRecvB_preserves_messageEpochsConsistent
       exact hs
     | some out =>
       rcases out with ⟨key?, trcv, st'⟩
-      cases key? with
-      | none =>
+      cases key? <;>
         simp only [SCKAScheme.oracleRecvB, bind_pure_comp, StateT.run_bind, StateT.run_get,
           pure_bind, hmsg, hrecv, StateT.run_map, StateT.run_set, map_pure, support_pure,
-          Set.mem_singleton_iff] at hz
-        subst z
-        exact hs
-      | some key =>
-        rcases key with ⟨tI, key⟩
-        simp only [SCKAScheme.oracleRecvB, bind_pure_comp, StateT.run_bind, StateT.run_get,
-          pure_bind, hmsg, hrecv, StateT.run_map, StateT.run_set, map_pure, support_pure,
-          Set.mem_singleton_iff] at hz
-        subst z
+          Set.mem_singleton_iff] at hz <;>
+        subst z <;>
         exact hs
 
 /-- Every correctness-game query preserves the message tables' epoch consistency. -/
@@ -218,15 +202,9 @@ theorem sckaCorrectnessImpl_preserves_messageEpochsConsistent
       have hepoch := send_reports_message_sendingEpoch .A kem ecEk ecCt s.stA
         key? ρ tsnd st' hout
       have htable := messageTable_update s.msgA hs.1 (s.nA + 1) ρ tsnd hepoch
-      cases key? with
-      | none =>
-        simp at hz
-        subst z
-        exact ⟨htable, hs.2⟩
-      | some key =>
-        rcases key with ⟨tI, key⟩
-        simp at hz
-        subst z
+      cases key? <;>
+        simp at hz <;>
+        subst z <;>
         exact ⟨htable, hs.2⟩
   · change z ∈ support ((SCKAScheme.oracleSendB (scheme kem hDet ecEk ecCt leak) ()).run s)
       at hz
@@ -243,15 +221,9 @@ theorem sckaCorrectnessImpl_preserves_messageEpochsConsistent
       have hepoch := send_reports_message_sendingEpoch .B kem ecEk ecCt s.stB
         key? ρ tsnd st' hout
       have htable := messageTable_update s.msgB hs.2 (s.nB + 1) ρ tsnd hepoch
-      cases key? with
-      | none =>
-        simp at hz
-        subst z
-        exact ⟨hs.1, htable⟩
-      | some key =>
-        rcases key with ⟨tI, key⟩
-        simp at hz
-        subst z
+      cases key? <;>
+        simp at hz <;>
+        subst z <;>
         exact ⟨hs.1, htable⟩
   · exact oracleRecvA_preserves_messageEpochsConsistent (scheme kem hDet ecEk ecCt leak)
       n s hs z hz
