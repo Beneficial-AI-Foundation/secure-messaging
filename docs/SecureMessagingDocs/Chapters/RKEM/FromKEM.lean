@@ -5,6 +5,7 @@ import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessaging.RKEM.FromKEM.Construction
 import SecureMessaging.RKEM.FromKEM.Correctness
+import SecureMessaging.RKEM.FromKEM.Security
 
 set_option linter.style.setOption false
 set_option linter.hashCommand false
@@ -104,11 +105,36 @@ theorem deltaCorrect [DecidableEq K] (kem : KEMScheme ProbComp K PK SK C)
 :::defTitle "rkem_from_kem_forward_security" "RKEM from KEM forward security"
 :::
 
-::::theorem "rkem_from_kem_forward_security" (parent := "rkem_rkem_from_kem") (tags := "gh-77") (uses := "rkem_from_kem_spec, rkem_scheme, rkem_forward_security")
+::::theorem "rkem_from_kem_forward_security" (parent := "rkem_rkem_from_kem") (lean := "kemRKEM.FSINDCPASecure") (tags := "gh-77") (uses := "rkem_from_kem_spec, rkem_scheme, rkem_forward_security")
 $`\todo`
 
-:::leanPill "missing"
+:::leanPillCaption "IND-CPA reduction adversary"
 :::
+
+```anchor indCpaReduction (project := ".") (module := SecureMessaging.RKEM.FromKEM.Security)
+def indCpaReduction (kem : KEMScheme ProbComp K PK SK C)
+    (adversary : RKEMScheme.FSINDCPAAdversary Unit PK SK (PK × C) K) :
+    kem.IND_CPA_Adversary where
+  State := PK
+  preChallenge := fun ekBHat => pure ekBHat
+  postChallenge := fun ekBHat ct kb => do
+    let (ekA, _dkA) ← kem.keygen
+    let (ekAHat, dkAHat) ← kem.keygen
+    let b' ← adversary () ekA ekAHat ekBHat (ekAHat, ct) dkAHat kb
+    return !b'
+```
+
+:::leanPillCaption "FS-IND-CPA security"
+:::
+
+```anchor FSINDCPASecure (project := ".") (module := SecureMessaging.RKEM.FromKEM.Security)
+theorem FSINDCPASecure (kem : KEMScheme ProbComp K PK SK C) (total : TotalDecaps kem)
+    (ε : ℝ)
+    (hcpa : ∀ adv : kem.IND_CPA_Adversary,
+      kem.IND_CPA_Advantage ProbCompRuntime.probComp adv ≤ ε)
+    (adversaryA adversaryB : RKEMScheme.FSINDCPAAdversary Unit PK SK (PK × C) K) :
+    RKEMScheme.FSINDCPASecure (scheme kem total) adversaryA adversaryB (ε / 2)
+```
 ::::
 
 :::defTitle "rkem_from_kem_ratchet_sim" "RKEM from KEM ratchet simulatability"
