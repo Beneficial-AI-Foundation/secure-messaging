@@ -22,10 +22,28 @@ message per key, with the block cipher abstracted as a `PRPScheme K (BitVec 128)
 `gcmOneTimeAEAD_security`, whose only assumption is the pseudorandom-permutation (PRP) security
 of the block cipher:
 
-  `Adv^{ot-cca-ror}(A) ≤ Adv^{prp}(B) + (n + 2)(n + 1) / 2¹²⁹ + q_d · maxBlocks L / 2¹²⁸`
+```text
+Adv^{ot-cca-ror}(A) ≤ Adv^{prp}(B) + (n + 2)(n + 1) / 2¹²⁹ + q_d · maxBlocks L / 2¹²⁸
+                                     └─────────┬─────────┘   └──────────┬───────────┘
+                                    PRP/PRF switching bound       forgery bound
+```
 
-Its docstring defines the terms. The proof combines three results, each proved in the files
-named above it:
+The forgery bound caps the probability that some decryption query other than the challenge
+would pass tag verification in the always-reject game `game3` (see the game chain below).
+`maxBlocks L` bounds the degree of the GHASH polynomial by the number of blocks GCM feeds to
+GHASH (`gcmEncode`):
+
+```text
+[ zero-padded AAD ] ‖ [ zero-padded ciphertext ] ‖ [ len(AAD)₆₄ ‖ len(C)₆₄ ]
+   ≤ 2⁵⁷ blocks                n blocks                     1 block
+```
+
+AAD is byte-aligned and at most `2⁶⁴ − 1` bits, hence at most `2⁶⁴ − 8` bits, which pad to at
+most `⌈(2⁶⁴ − 8)/128⌉ = 2⁵⁷` blocks (`lenAMax_blocks`). The `L`-bit ciphertext pads to
+`n = ⌈L/128⌉` blocks.
+
+The symbols are listed under Notation below. The proof combines three results, each proved in
+the files named above it:
 
 ```text
  Games, PrfHop,                  GhashAXU,                   PrpSwitch
@@ -101,6 +119,7 @@ bound.
 | `n` | `numBlocks L = ⌈L/128⌉`, the number of message blocks |
 | `A` (`adv`) | the one-time IND-CCA adversary, an `OneTimeCCAAdversary` |
 | `q_d` | upper bound on `A`'s number of decryption queries (`decryptQueryBound`) |
+| `B` | `prfReduction iv L adv`, the adversary against `prp` built from `A` |
 | `maxBlocks L` | `2⁵⁷ + n + 1`, the GHASH degree bound (`Security/Encoding.lean`) |
 | `Adv^{ot-cca-ror}` | one-time IND-CCA (real-or-random) advantage, `AEADScheme.distAdvantage` |
 | `Adv^{prf}` / `Adv^{prp}` | `PRFScheme.prfAdvantage` / `PRPScheme.prpAdvantage` |
@@ -115,19 +134,10 @@ bound.
   `8 ∣ L`), which keeps the GCTR counter from wrapping.
 - The tag is the full 128 bits.
 - One encryption per key; key non-reuse across invocations is the caller's responsibility.
-- Adversaries are failure-free by type (`OracleComp` has only `pure` and `queryBind`). This
-  loses nothing: `distAdvantage` compares probabilities of the output `true`, on which aborting
-  mass never lands, so replacing every `failure` by `pure false` leaves the advantage unchanged.
 - The decrypt oracle rejects the challenge ciphertext under *any* associated data (ACD19), so
   AAD-substitution resistance for the challenge ciphertext is not claimed.
-- The forgery bound uses the worst-case AAD length. A post-challenge decryption query forges
-  only if `H` is a root of the difference of its GHASH polynomial and the challenge's, whose
-  degree is governed by the *longer* of the two encodings: `max(⌈a/128⌉, ⌈a*/128⌉) + n + 1` for
-  a query with `a` AAD bits against a challenge with `a*`. A pre-challenge query can only guess
-  the tag mask, with probability `2⁻¹²⁸ ≤ ε`, so both kinds are charged `ε`. The theorem
-  replaces both AAD lengths by the maximum `2⁵⁷` (`lenAMax_blocks`), which is where
-  `maxBlocks L = 2⁵⁷ + n + 1` comes from. So the bound holds whatever AAD lengths are used, but
-  overcounts whenever both are shorter than the maximum.
+- The forgery bound charges every decryption query, before or after the challenge, at the
+  maximum AAD length, so it does not improve when shorter AAD is used.
 
 ## Paper references
 
@@ -165,9 +175,23 @@ variable {K : Type}
 
 /-! ## The game chain, for any AXU bound -/
 
-/-- Let GHASH be `ε`-AXU on encoded (AAD, `L`-bit message) pairs, with `ε` finite
-(`ε ≠ ⊤`, where `⊤ = ∞` in `ℝ≥0∞`), and let `adv` make at most `q_d` decryption queries. Then
-`Adv^{ot-cca-ror}(adv) ≤ Adv^{prf}(B) + q_d · ε` with `B = prfReduction iv L adv`.
+/-- **One-time IND-CCA security of GCM, for any AXU bound.** Let
+
+- `gcmOneTimeAEAD prp iv L hL` be GCM with block cipher `prp`, 96-bit IV `iv` and `L`-bit
+  messages, whose GHASH is `ε`-AXU on encoded (AAD, `L`-bit message) pairs for a finite `ε`
+  (`ε ≠ ⊤`, where `⊤ = ∞` in `ℝ≥0∞`), and
+- `adv` be a one-time IND-CCA adversary against it making at most `q_d` decryption queries.
+
+Then
+
+```text
+Adv^{ot-cca-ror}(adv) ≤ Adv^{prf}(B) + q_d · ε
+```
+
+where `B` (`reduction`) is the adversary `prfReduction iv L adv` against `prp`. The first term
+is the PRF advantage of `B`. The second, `forgeryBound`, bounds the probability that a
+decryption query forges a valid tag. `gcmOneTimeAEAD_security` uses it at
+`ε = maxBlocks L / 2¹²⁸`.
 
 The hypothesis `ε ≠ ⊤` is necessary: `GhashIsAXU L ⊤` holds trivially and `(⊤).toReal = 0`, so
 without it the bound would reduce to `Adv^{ot-cca-ror}(adv) ≤ Adv^{prf}(B)`, which is false in
@@ -178,11 +202,13 @@ theorem gcmOneTimeAEAD_security_of_axu (prp : PRPScheme K (BitVec 128)) (iv : Bi
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
     (q_d : ℕ) (hq : AEADScheme.decryptQueryBound adv q_d)
     {ε : ℝ≥0∞} (hε : ε ≠ ⊤) (haxu : GhashIsAXU L ε) :
+    let reduction := prfReduction iv L adv
+    let forgeryBound : ℝ := (q_d : ℝ) * ε.toReal
     AEADScheme.distAdvantage (gcmOneTimeAEAD prp iv L hL) adv ≤
-      PRFScheme.prfAdvantage prp.toPRFScheme (prfReduction iv L adv) +
-      (q_d : ℝ) * ε.toReal
+      PRFScheme.prfAdvantage prp.toPRFScheme reduction + forgeryBound
 -- ANCHOR_END: gcmOneTimeAEAD_security_of_axu
   := by
+  dsimp only
   have hg12 : Pr[= true | game1 prp L hL adv] = Pr[= true | game2 prp L hL adv] :=
     probOutput_eq_of_evalDist_eq (game1_eq_game2 prp L hL adv) true
   unfold AEADScheme.distAdvantage
@@ -206,34 +232,48 @@ theorem gcmOneTimeAEAD_security_of_axu (prp : PRPScheme K (BitVec 128)) (iv : Bi
 
 /-! ## Main result -/
 
-/-- **One-time IND-CCA security of GCM.** Let `adv` be an adversary against GCM with block
-cipher `prp`, 96-bit IV `iv` and `L`-bit messages, making at most `q_d` decryption queries. Its
-advantage is at most
+/-- **One-time IND-CCA security of GCM.** Let
 
-  `Adv^{prp}(B) + (n + 2)(n + 1) / 2¹²⁹ + q_d · maxBlocks L / 2¹²⁸`
+- `gcmOneTimeAEAD prp iv L hL` be GCM with block cipher `prp`, 96-bit IV `iv` and `L`-bit
+  messages, and
+- `adv` be a one-time IND-CCA adversary against it making at most `q_d` decryption queries.
 
-where `B = prfReduction iv L adv` is an adversary against `prp`, `n = numBlocks L` is the
-number of message blocks and `maxBlocks L = 2⁵⁷ + n + 1`. The first term is the PRP advantage
-of `B`, the second the cost of replacing the random permutation by a random function, and the
-third bounds the probability that a decryption query forges a valid tag. -/
+Then
+
+```text
+Adv^{ot-cca-ror}(adv) ≤ Adv^{prp}(B) + (n + 2)(n + 1) / 2¹²⁹ + q_d · (2⁵⁷ + n + 1) / 2¹²⁸
+```
+
+where `B` (`reduction`) is the adversary `prfReduction iv L adv` against `prp`, and
+`n = ⌈L/128⌉` (`blocks`) is the number of message blocks. The first term is the PRP advantage
+of `B`. The second, `switchingBound`, is the cost of replacing the random permutation by a
+random function. The third, `forgeryBound`, bounds the probability that a decryption query
+forges a valid tag; its `2⁵⁷ + n + 1` is `maxBlocks L`. -/
 -- ANCHOR: gcmOneTimeAEAD_security
 theorem gcmOneTimeAEAD_security (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
     (q_d : ℕ) (hq : AEADScheme.decryptQueryBound adv q_d) :
+    let blocks : ℕ := (L + 127) / 128
+    let reduction := prfReduction iv L adv
+    let switchingBound : ℝ := ((blocks : ℝ) + 2) * ((blocks : ℝ) + 1) / 2 ^ 129
+    let forgeryBound : ℝ := (q_d : ℝ) * ((2 ^ 57 + (blocks : ℝ) + 1) / 2 ^ 128)
     AEADScheme.distAdvantage (gcmOneTimeAEAD prp iv L hL) adv ≤
-      PRPScheme.prpAdvantage prp (prfReduction iv L adv) +
-      ((numBlocks L : ℝ) + 2) * ((numBlocks L : ℝ) + 1) / 2 ^ 129 +
-      (q_d : ℝ) * ((maxBlocks L : ℝ) / 2 ^ 128)
+      PRPScheme.prpAdvantage prp reduction + switchingBound + forgeryBound
 -- ANCHOR_END: gcmOneTimeAEAD_security
   := by
+  dsimp only
+  have hmax : (maxBlocks L : ℝ) = 2 ^ 57 + (((L + 127) / 128 : ℕ) : ℝ) + 1 := by
+    simp only [maxBlocks, lenAMax_blocks]
+    push_cast
+    ring
   have hprf := gcmOneTimeAEAD_security_of_axu prp iv L hL adv q_d hq
     (ENNReal.div_ne_top (ENNReal.natCast_ne_top _) (by positivity))
     (ghash_isAXU_unconditional L)
+  dsimp only at hprf
   rw [ENNReal.toReal_div, ENNReal.toReal_pow, ENNReal.toReal_natCast,
-    ENNReal.toReal_ofNat] at hprf
+    ENNReal.toReal_ofNat, hmax] at hprf
   have hswitch := prfAdvantage_le_prpAdvantage_switching prp iv L hL adv
-  unfold numBlocks
   linarith
 
 end GCM
