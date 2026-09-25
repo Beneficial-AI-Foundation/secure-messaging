@@ -50,7 +50,13 @@ theorem isCoprime_of_isUnit_mk {R : Type*} [CommRing R] {f a : R[X]}
 
 /-- Rabin's test, sufficiency. Let `f` have degree `n > 0` over a finite field with `q`
 elements. If `f ∣ X^(qⁿ) − X` and `f` is coprime to `X^(q^(n/p)) − X` for every prime
-`p ∣ n`, then `f` is irreducible. -/
+`p ∣ n`, then `f` is irreducible.
+
+Proof: an irreducible polynomial of degree `d` divides `X^(qᵐ) − X` exactly when `d ∣ m`.
+Take an irreducible factor `g` of `f`, of degree `d`. Since `g ∣ f ∣ X^(qⁿ) − X`, we get
+`d ∣ n`. If `d ≠ n`, then `d ∣ n/p` for some prime `p ∣ n`, so `g` divides both `f` and
+`X^(q^(n/p)) − X`, contradicting their coprimality. Hence `d = n`, so `f` is `g` times a
+nonzero constant and is irreducible. -/
 theorem irreducible_of_rabin {f : K[X]} (hdeg : 0 < f.natDegree)
     (h1 : f ∣ X ^ (Nat.card K) ^ f.natDegree - X)
     (h2 : ∀ p : ℕ, p.Prime → p ∣ f.natDegree →
@@ -76,25 +82,41 @@ theorem irreducible_of_rabin {f : K[X]} (hdeg : 0 < f.natDegree)
     exact isUnit_iff_ne_zero.2 (by simpa using hc0)
   · exact (Polynomial.eq_C_of_natDegree_eq_zero hcdeg).symm
 
-/-- Rabin's test. A polynomial `f` of degree `n > 0` over a finite field with `q` elements is
-irreducible iff `f ∣ X^(qⁿ) − X` and `f` is coprime to `X^(q^(n/p)) − X` for every prime
-`p ∣ n`. -/
+/-- Rabin's test. Let `f` have degree `n > 0` over a finite field with `q` elements. Then `f` is
+irreducible iff
+
+1. `f ∣ X^(qⁿ) − X`, and
+2. `f` is coprime to `X^(q^(n/p)) − X` for every prime `p ∣ n`. -/
 theorem irreducible_iff_rabin {f : K[X]} (hdeg : 0 < f.natDegree) :
     Irreducible f ↔
       f ∣ X ^ (Nat.card K) ^ f.natDegree - X ∧
       ∀ p : ℕ, p.Prime → p ∣ f.natDegree →
         IsCoprime f (X ^ (Nat.card K) ^ (f.natDegree / p) - X) := by
-  refine ⟨fun hi => ⟨hi.natDegree_dvd_iff_dvd_X_pow_card_pow_sub_X.1 dvd_rfl,
-    fun p hp hpn => hi.coprime_iff_not_dvd.2 fun h => ?_⟩,
-    fun h => irreducible_of_rabin hdeg h.1 h.2⟩
-  have hle := Nat.le_of_dvd (Nat.div_pos (Nat.le_of_dvd hdeg hpn) hp.pos)
-    (hi.natDegree_dvd_iff_dvd_X_pow_card_pow_sub_X.2 h)
-  have hlt := Nat.div_lt_self hdeg hp.one_lt
-  omega
+  constructor
+  · intro hi
+    constructor
+    · -- An irreducible polynomial of degree `n` divides `X^(qᵐ) − X` exactly when `n ∣ m`.
+      -- Take `m = n`.
+      exact hi.natDegree_dvd_iff_dvd_X_pow_card_pow_sub_X.1 dvd_rfl
+    · intro p hp hpn
+      -- For irreducible `f`, coprimality is non-divisibility. Suppose `f ∣ X^(q^(n/p)) − X`.
+      apply hi.coprime_iff_not_dvd.2
+      intro h
+      -- Then `n ∣ n/p`, and `n/p > 0` because `p ∣ n`, so `n ≤ n/p`.
+      have hle := Nat.le_of_dvd (Nat.div_pos (Nat.le_of_dvd hdeg hpn) hp.pos)
+        (hi.natDegree_dvd_iff_dvd_X_pow_card_pow_sub_X.2 h)
+      -- But `p > 1`, so `n/p < n`.
+      have hlt := Nat.div_lt_self hdeg hp.one_lt
+      omega
+  · intro h
+    exact irreducible_of_rabin hdeg h.1 h.2
 
 /-- Rabin's test in `AdjoinRoot f`, sufficiency. Let `f` have degree `n > 0` over a finite field
-with `q` elements, and let `α = root f`. If `α^(qⁿ) = α` and `α^(q^(n/p)) − α` is a unit for
-every prime `p ∣ n`, then `f` is irreducible.
+with `q` elements, and let `α = root f` be the class of `X` in `K[X]/(f)`. Then `f` is
+irreducible if
+
+1. `α^(qⁿ) = α`, and
+2. `α^(q^(n/p)) − α` is a unit in `K[X]/(f)` for every prime `p ∣ n`.
 
 Keep this shape: at `ZMod 2` the polynomial-subtraction form of the same hypotheses makes
 elaboration diverge through mismatched `Semiring`/`Sub` instance paths. -/
@@ -104,8 +126,12 @@ theorem irreducible_of_rabin_root {f : K[X]} (hdeg : 0 < f.natDegree)
       IsUnit ((AdjoinRoot.root f) ^ (Nat.card K ^ (f.natDegree / p)) - AdjoinRoot.root f)) :
     Irreducible f := by
   refine irreducible_of_rabin hdeg ?_ (fun p hp hpn => ?_)
-  · rw [← AdjoinRoot.mk_eq_zero, map_sub, map_pow, AdjoinRoot.mk_X, h1, sub_self]
-  · refine isCoprime_of_isUnit_mk ?_
+  · -- `f` divides a polynomial exactly when its class mod `f` is zero, and the class of
+    -- `X^(qⁿ) − X` is `α^(qⁿ) − α = 0`.
+    rw [← AdjoinRoot.mk_eq_zero, map_sub, map_pow, AdjoinRoot.mk_X, h1, sub_self]
+  · -- A polynomial whose class mod `f` is a unit is coprime to `f`, and the class of
+    -- `X^(q^(n/p)) − X` is `α^(q^(n/p)) − α`.
+    refine isCoprime_of_isUnit_mk ?_
     rw [map_sub, map_pow, AdjoinRoot.mk_X]
     exact h2 p hp hpn
 

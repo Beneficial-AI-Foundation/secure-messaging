@@ -35,7 +35,11 @@ For a uniform key `H`, the probability that some entry of `l` satisfies
 
 An entry with `X' = X*` contributes `0`: it would need `T' = T*`, i.e. `(X', T') = c`. Such
 entries can occur, because the decryption guard compares ciphertexts rather than digest points,
-which is why the hypothesis is `(X', T') ≠ c` and not `X' ≠ X*`. -/
+which is why the hypothesis is `(X', T') ≠ c` and not `X' ≠ X*`.
+
+An entry with `X' ≠ X*` and `T' = T*` reuses the challenge tag on a different input. AXU is
+applied at offset `T' ⊕ T* = 0` there, so the bound relies on `IsAlmostXorUniversal` covering
+`Δ = 0`. -/
 private theorem probEvent_post_axu_le_run {K D : Type} [SampleableType K] {ε : ℝ≥0∞}
     {hash : K → D → BitVec 128} (haxu : IsAlmostXorUniversal hash ε)
     (c : D × BitVec 128) (l : List (D × BitVec 128)) (hne : ∀ x ∈ l, x ≠ c) :

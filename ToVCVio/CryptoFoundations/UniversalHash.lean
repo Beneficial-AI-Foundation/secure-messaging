@@ -9,29 +9,36 @@ import VCVio.OracleComp.Constructions.SampleableType
 /-!
 # Almost-XOR-universal hash families
 
-A keyed hash family `hash : K → D → T` is `ε`-almost-XOR-universal (AXU) when, for any two
-distinct inputs, the XOR of their hashes under a uniformly random key equals any fixed offset
-`Δ` with probability at most `ε`. This is the property of the hash inside a Wegman-Carter
-authenticator (`WegmanCarter.lean`).
-
-The offset `Δ = 0` is admitted on purpose. The forgery bound applies the predicate at the offset
-`tag ⊕ challengeTag`, which is `0` exactly when a forgery reuses the challenge tag on a
-different message; a predicate excluding `Δ = 0` would leave that forgery uncovered.
+The definition of an `ε`-almost-XOR-universal (AXU) keyed hash family, the lower bound
+`1/|T| ≤ ε`, and a counting criterion for AXU.
 -/
 
 open OracleComp OracleSpec ENNReal
 
 namespace ToVCVio
 
-/-- `hash` is `ε`-almost-XOR-universal: for distinct inputs `x ≠ y` and any offset `Δ`,
-`hash k x ⊕ hash k y = Δ` with probability at most `ε` over a uniform key `k`. The offset
-`Δ = 0` is not excluded; the module header says why. -/
+/-- A keyed hash family `hash : K → D → T` is `ε`-almost-XOR-universal (AXU) if, for any fixed
+pair of distinct inputs, no particular XOR difference between their hashes occurs with
+probability greater than `ε`:
+
+`∀ x ≠ y, ∀ Δ ∈ T, Pr[k ←$ K : hash k x ⊕ hash k y = Δ] ≤ ε`.
+
+Here `x, y ∈ D`, the key `k` is sampled uniformly from `K`, and the same key is used for both
+hashes. The value `Δ` is fixed independently of `k`. -/
 def IsAlmostXorUniversal {K D T : Type} [SampleableType K] [XorOp T]
     (hash : K → D → T) (ε : ℝ≥0∞) : Prop :=
   ∀ x y : D, x ≠ y → ∀ Δ : T,
     Pr[= Δ | (fun k => hash k x ^^^ hash k y) <$> ($ᵗ K)] ≤ ε
 
-/-- Let `hash` be `ε`-AXU and let `x ≠ y` be points of `D`. Then `1/|T| ≤ ε`. -/
+/-- Lower bound on an AXU parameter. If `hash` is `ε`-AXU, its domain `D` contains two distinct
+inputs `x ≠ y`, and its output type `T` is finite, then `1/|T| ≤ ε`.
+
+Proof: for a uniform key `k`, the probabilities of the possible values of `hash k x ⊕ hash k y`
+sum to `1`, and each is at most `ε` by AXU, so
+
+`1 = ∑ Δ ∈ T, Pr[k ←$ K : hash k x ⊕ hash k y = Δ] ≤ |T| · ε`.
+
+Dividing by `|T|` gives the result. -/
 theorem IsAlmostXorUniversal.card_inv_le {K D T : Type} [SampleableType K]
     [XorOp T] [Fintype T] {hash : K → D → T} {ε : ℝ≥0∞}
     (h : IsAlmostXorUniversal hash ε) {x y : D} (hxy : x ≠ y) :
