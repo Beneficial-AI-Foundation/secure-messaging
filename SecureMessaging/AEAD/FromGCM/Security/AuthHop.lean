@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.AEAD.FromGCM.Security.Axu
 import SecureMessaging.AEAD.FromGCM.Security.Games
-import ToVCVio.CryptoFoundations.WegmanCarter
+import ToVCVio.CryptoFoundations.WegmanCarter.Security
 import ToVCVio.ProgramLogic.Relational.IdenticalUntilBad
 
 /-!
@@ -20,8 +20,8 @@ needs a guess of the tag. The almost-XOR-universal (AXU) bound `GhashIsAXU L ε`
 caps both at `ε` per query, so the hop costs `q_d · ε`, the Wegman–Carter forgery bound.
 
 The GCM handlers are, by definition, the generic Wegman–Carter handler of
-`ToVCVio/CryptoFoundations/WegmanCarter.lean` (`gcmInstImpl_eq_wcInstImpl` is `rfl`), and the
-two games are compared by the identical-until-bad principle: games whose oracles behave
+`ToVCVio/CryptoFoundations/WegmanCarter/Defs.lean` (`gcmInstImpl_eq_wcInstImpl` is `rfl`), and
+the two games are compared by the identical-until-bad principle: games whose oracles behave
 identically until a flag is set differ by at most the probability of the flag
 (`ToVCVio/ProgramLogic/Relational/IdenticalUntilBad.lean`).
 
