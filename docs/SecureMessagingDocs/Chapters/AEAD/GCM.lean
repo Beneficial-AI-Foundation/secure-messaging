@@ -104,9 +104,11 @@ theorem gcmOneTimeAEAD_security (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
     (q_d : ℕ) (hq : AEADScheme.decryptQueryBound adv q_d) :
+    let blocks : ℕ := (L + 127) / 128
+    let reduction := prfReduction iv L adv
+    let switchingBound : ℝ := ((blocks : ℝ) + 2) * ((blocks : ℝ) + 1) / 2 ^ 129
+    let forgeryBound : ℝ := (q_d : ℝ) * ((2 ^ 57 + (blocks : ℝ) + 1) / 2 ^ 128)
     AEADScheme.distAdvantage (gcmOneTimeAEAD prp iv L hL) adv ≤
-      PRPScheme.prpAdvantage prp (prfReduction iv L adv) +
-      ((numBlocks L : ℝ) + 2) * ((numBlocks L : ℝ) + 1) / 2 ^ 129 +
-      (q_d : ℝ) * ((maxBlocks L : ℝ) / 2 ^ 128)
+      PRPScheme.prpAdvantage prp reduction + switchingBound + forgeryBound
 ```
 ::::
