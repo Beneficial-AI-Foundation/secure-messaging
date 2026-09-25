@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.AEAD.FromGCM.Construction
 import SecureMessaging.AEAD.FromGCM.Security.Encoding
-import ToVCVio.CryptoFoundations.WegmanCarter
+import ToVCVio.CryptoFoundations.WegmanCarter.Defs
 import ToVCVio.OracleComp.QueryTracking.LazySampling
 import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 import VCVio.OracleComp.QueryTracking.RandomOracle.DeferredSampling
@@ -236,7 +236,8 @@ variable {K : Type} {L : ℕ}
 
 /-- `gcmTupleImpl` (`b = true`) or `gcmTupleImplReject` (`b = false`) with a `forged` flag
 added to the state, set and never cleared once a decryption query's tag verifies. It is the
-generic Wegman–Carter handler `wcInstImpl` (`ToVCVio/CryptoFoundations/WegmanCarter.lean`) at
+generic Wegman–Carter handler `wcInstImpl`
+(`ToVCVio/CryptoFoundations/WegmanCarter/Defs.lean`) at
 `hash := fun H p => ghash H (gcmEncode p.1 p.2)`, `enc := id` and `(· ^^^ ks)` as both pad and
 unpad; the encoding sits inside `hash` rather than `enc` because GHASH on raw block lists is not
 AXU (`Axu.lean`). The response depends on `b` only in the branch that sets the flag, so the two

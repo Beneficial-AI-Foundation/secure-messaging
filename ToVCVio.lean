@@ -5,8 +5,10 @@ import ToVCVio.CryptoFoundations.PRP
 import ToVCVio.CryptoFoundations.PRPSwitching
 import ToVCVio.CryptoFoundations.RabinIrreducibility
 import ToVCVio.CryptoFoundations.UniversalHash
-import ToVCVio.CryptoFoundations.WegmanCarter
-import ToVCVio.CryptoFoundations.WegmanCarterBound
+import ToVCVio.CryptoFoundations.WegmanCarter.AbstractBounds
+import ToVCVio.CryptoFoundations.WegmanCarter.Defs
+import ToVCVio.CryptoFoundations.WegmanCarter.LogRefinement
+import ToVCVio.CryptoFoundations.WegmanCarter.Security
 import ToVCVio.EvalDist.Monad.Basic
 import ToVCVio.EvalDist.TVDist
 import ToVCVio.EvalDist.UniformInjection

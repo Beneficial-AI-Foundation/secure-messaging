@@ -8,9 +8,9 @@ import ToVCVio.CryptoFoundations.UniversalHash
 import ToVCVio.OracleComp.Constructions.BitVec
 
 /-!
-# Wegman-Carter authenticity: the probability core
+# Wegman-Carter one-time authenticity: the abstract bounds
 
-The abstract probability statements behind `probEvent_wcInst_forge_le` (`WegmanCarter.lean`).
+The abstract probability statements behind `probEvent_wcInst_forge_le` (`Security.lean`).
 They are stated over an arbitrary run distribution, so that they depend on nothing but the
 almost-XOR-universal (AXU) predicate of `UniversalHash.lean`.
 

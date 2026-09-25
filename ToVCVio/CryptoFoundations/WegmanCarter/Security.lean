@@ -5,246 +5,41 @@ Authors: Beneficial AI Foundation
 -/
 
 import ToVCVio.CryptoFoundations.UniversalHash
-import ToVCVio.CryptoFoundations.WegmanCarterBound
-import ToVCVio.OracleComp.Constructions.BitVec
+import ToVCVio.CryptoFoundations.WegmanCarter.AbstractBounds
+import ToVCVio.CryptoFoundations.WegmanCarter.LogRefinement
 import ToVCVio.OracleComp.ExpectedPayoff
-import ToVCVio.OracleComp.SimSemantics.UnifLift
 import VCVio.OracleComp.QueryTracking.QueryBound
-import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 
 /-!
-# Wegman-Carter one-time authenticity
+# Wegman-Carter one-time authenticity: the forgery bound
 
-A one-time authenticated encryption scheme whose tag is `hash H X ⊕ mask`, with `H` a
-uniformly random key of an almost-XOR-universal (AXU) hash family and `mask` a uniformly
-random one-time pad, admits forgery probability at most `q · ε` against an adversary making at
-most `q` decryption queries, `ε` being the AXU bound. The public result is
-`probEvent_wcInst_forge_le`. GCM is the motivating instance, but nothing here depends on it.
+For the scheme and game of `Defs.lean`: assume `[SampleableType K]`, `[DecidableEq Cb]`, an
+injective `enc`, and `ε : ℝ≥0∞` with `2⁻¹²⁸ ≤ ε` and `IsAlmostXorUniversal hash ε`, i.e. for
+all distinct `x, y : D` and every `Δ : BitVec 128`,
+
+    Pr[H ←$ K : hash(H, x) ⊕ hash(H, y) = Δ] ≤ ε.
+
+Then for every adversary making at most `q` decryption queries, `probEvent_wcInst_forge_le`
+proves, in the `b = false` execution,
+
+    Pr[forged = true] ≤ q · ε,
+
+over `H`, `mask` and the adversary's randomness.
 
 Two points a consumer must get right:
 
-* AXU is assumed of `hash` on the *encoded* domain `D`. A polynomial hash on raw block lists
-  is not AXU: `[0, X]` and `[X]` are distinct inputs with the same hash under every key. The
-  AEAD's length encoding separates such pairs. Instantiate `hash := hash ∘ encode` and
-  `enc := id`.
-* The live-decrypt handler (`b = true`) returns `unpad e.1`, which for a stream cipher is
-  `C' ⊕ keystream`: a successful decryption leaks the pad. A privacy argument built on this
-  file must be made between the always-reject executions.
-
-## Main declarations
-
-* `wcSpec`, `wcInstImpl`: the one-time AEAD chosen-ciphertext oracle spec and the
-  flag-instrumented handler, whose `forged` flag records whether any decryption query would
-  have verified.
-* `WCLogState`, `wcLogImpl`, `wcProj`: a log-refined handler whose decrypt oracle does not
-  read `(H, mask)`, and the projection back onto `wcInstImpl`'s state.
-* `probEvent_wcInst_forge_le`: the `q · ε` bound.
+* AXU is assumed on all of `D`, the encoded domain. A polynomial hash on raw block lists is not
+  AXU: `[0, X]` and `[X]` are distinct inputs with the same hash under every key. A scheme that
+  encodes lengths into the hash input should prove AXU of the composite and instantiate
+  `hash := hash ∘ encode` and `enc := id`; injectivity of the encoding alone is not enough.
+* At `b = true` a verifying decryption returns `unpad c`. If the body is a stream-cipher
+  ciphertext this reveals the keystream, so a privacy argument built on this bound must compare
+  `b = false` executions.
 -/
 
 open OracleSpec OracleComp ENNReal ToVCVio
 
 namespace OracleComp.WegmanCarter
-
-/-! ## The spec -/
-
-/-- The one-time AEAD chosen-ciphertext oracle spec: uniform sampling, a one-shot encrypt
-oracle and a decrypt oracle. The same spec as `aeadOneTimeCCASpec` in
-`SecureMessaging/AEAD/Defs.lean`, restated so that `ToVCVio` does not import `SecureMessaging`. -/
-abbrev wcSpec (A M Cb : Type) :=
-  unifSpec + (A × M →ₒ Option (Cb × BitVec 128)) + (A × (Cb × BitVec 128) →ₒ Option M)
-
-/-! ## The flag-instrumented handler -/
-
-/-- `wcInstImpl hash enc H mask padMsg unpad b` is the flag-instrumented Wegman-Carter handler
-with key `H` and mask `mask`. Its state is the challenge ciphertext slot and a `forged` flag.
-Decryption rejects the challenge ciphertext, raises the flag whenever the tag verifies and never
-lowers it, and returns the plaintext only when `b = true`; `b = false` is the always-reject
-execution. -/
-def wcInstImpl {K A M Cb D : Type} [DecidableEq Cb]
-    (hash : K → D → BitVec 128) (enc : A × Cb → D)
-    (H : K) (mask : BitVec 128)
-    (padMsg : M → Cb) (unpad : Cb → M) (b : Bool) :
-    QueryImpl (wcSpec A M Cb)
-      (StateT (Option (Cb × BitVec 128) × Bool) ProbComp) :=
-  (unifLiftStateT (Option (Cb × BitVec 128) × Bool) unifSpec)
-  + ((fun (ad, m) => do
-      let (challenge, forged) ← get
-      match challenge with
-      | some _ => pure none
-      | none => do
-        let c := padMsg m
-        let e := (c, hash H (enc (ad, c)) ^^^ mask)
-        set ((some e, forged) : Option (Cb × BitVec 128) × Bool)
-        return some e) : QueryImpl (A × M →ₒ Option (Cb × BitVec 128))
-      (StateT (Option (Cb × BitVec 128) × Bool) ProbComp))
-  + ((fun (ad, e) => do
-      let (challenge, forged) ← get
-      if challenge == some e then pure none
-      else do
-        let ok : Bool := decide (e.2 = hash H (enc (ad, e.1)) ^^^ mask)
-        set ((challenge, forged || ok) : Option (Cb × BitVec 128) × Bool)
-        if ok then (if b then pure (some (unpad e.1)) else pure none) else pure none) :
-    QueryImpl (A × (Cb × BitVec 128) →ₒ Option M)
-      (StateT (Option (Cb × BitVec 128) × Bool) ProbComp))
-
-section DecryptNormalForm
-
-variable {K A M Cb D : Type}
-
-/-- In the always-reject execution a decryption query `(ad, e)` returns `none` and only updates
-the flag: it is raised when `e` is not the challenge and its tag verifies. -/
-theorem wcInstImpl_decrypt_run [DecidableEq Cb]
-    (hash : K → D → BitVec 128) (enc : A × Cb → D) (H : K) (mask : BitVec 128)
-    (padMsg : M → Cb) (unpad : Cb → M)
-    (ad : A) (e : Cb × BitVec 128)
-    (ch : Option (Cb × BitVec 128)) (fg : Bool) :
-    ((wcInstImpl hash enc H mask padMsg unpad false) (Sum.inr (ad, e))).run (ch, fg) =
-      (pure (none, (ch, if ch = some e then fg
-        else fg || decide (e.2 = hash H (enc (ad, e.1)) ^^^ mask))) : ProbComp _) := by
-  by_cases hg : ch = some e <;>
-    simp [wcInstImpl, StateT.run_bind, StateT.run_get, StateT.run_set, StateT.run_pure,
-      beq_iff_eq, hg]
-
-end DecryptNormalForm
-
-/-! ## The log-refined handler
-
-The `forged` flag is replaced by a log of the guard-passing decrypt queries, so that the
-decrypt oracle no longer reads `(H, mask)`; the flag is recovered by the fold `wcFlag`. The
-challenge slot also keeps its AAD, which the AXU step needs for the digest point
-`enc (ad*, c*)`. -/
-
-/-- The challenge ciphertext with its AAD, and the log of guard-passing decrypt queries. -/
-abbrev WCLogState (A Cb : Type) :=
-  Option (A × (Cb × BitVec 128)) × List (A × (Cb × BitVec 128))
-
-/-- The log-refined handler: observably the same as `wcInstImpl … false`, but its decrypt
-oracle only appends the query to the log and never reads `H` or `mask`. -/
-def wcLogImpl {K A M Cb D : Type} [DecidableEq Cb]
-    (hash : K → D → BitVec 128) (enc : A × Cb → D)
-    (H : K) (mask : BitVec 128) (padMsg : M → Cb) :
-    QueryImpl (wcSpec A M Cb) (StateT (WCLogState A Cb) ProbComp) :=
-  (unifLiftStateT (WCLogState A Cb) unifSpec)
-  + ((fun (ad, m) => do
-      let (challenge, log) ← get
-      match challenge with
-      | some _ => pure none
-      | none => do
-        let c := padMsg m
-        let e := (c, hash H (enc (ad, c)) ^^^ mask)
-        set ((some (ad, e), log) : WCLogState A Cb)
-        return some e) : QueryImpl (A × M →ₒ Option (Cb × BitVec 128))
-      (StateT (WCLogState A Cb) ProbComp))
-  + ((fun (ad, e) => do
-      let (challenge, log) ← get
-      if challenge.map Prod.snd == some e then pure none
-      else do
-        set ((challenge, log ++ [(ad, e)]) : WCLogState A Cb)
-        pure none) : QueryImpl (A × (Cb × BitVec 128) →ₒ Option M)
-      (StateT (WCLogState A Cb) ProbComp))
-
-/-- Whether a logged decrypt query carries the correct tag for its digest point. -/
-def wcAccepts {K A Cb D : Type} (hash : K → D → BitVec 128) (enc : A × Cb → D)
-    (H : K) (mask : BitVec 128) (q : A × (Cb × BitVec 128)) : Bool :=
-  decide (q.2.2 = hash H (enc (q.1, q.2.1)) ^^^ mask)
-
-/-- The `forged` flag, recovered as a pure fold over the log. -/
-def wcFlag {K A Cb D : Type} (hash : K → D → BitVec 128) (enc : A × Cb → D)
-    (H : K) (mask : BitVec 128) (s : WCLogState A Cb) : Bool :=
-  s.2.any (wcAccepts hash enc H mask)
-
-/-- Projection from the log-refined state onto `wcInstImpl`'s: drop the challenge AAD and
-collapse the log to the flag. -/
-def wcProj {K A Cb D : Type} (hash : K → D → BitVec 128) (enc : A × Cb → D)
-    (H : K) (mask : BitVec 128) (s : WCLogState A Cb) :
-    Option (Cb × BitVec 128) × Bool :=
-  (s.1.map Prod.snd, wcFlag hash enc H mask s)
-
-/-! ## Transport across the log refinement -/
-
-section LogRefinement
-
-variable {K A M Cb D : Type}
-
-/-! ### Per-oracle projection steps
-
-One lemma per oracle: a single `simp` over all three handler summands times out. -/
-
-private lemma hproj_unif [DecidableEq Cb]
-    (hash : K → D → BitVec 128) (enc : A × Cb → D) (H : K) (mask : BitVec 128)
-    (padMsg : M → Cb) (unpad : Cb → M)
-    (n : ℕ) (s : WCLogState A Cb) :
-    Prod.map id (wcProj hash enc H mask) <$>
-        ((wcLogImpl hash enc H mask padMsg) (Sum.inl (Sum.inl n))).run s =
-      ((wcInstImpl hash enc H mask padMsg unpad false) (Sum.inl (Sum.inl n))).run
-        (wcProj hash enc H mask s) := by
-  simp [wcLogImpl, wcInstImpl, unifLiftStateT,
-    StateT.run_monadLift, Prod.map, Functor.map_map]
-
-private lemma hproj_encrypt [DecidableEq Cb]
-    (hash : K → D → BitVec 128) (enc : A × Cb → D) (H : K) (mask : BitVec 128)
-    (padMsg : M → Cb) (unpad : Cb → M)
-    (ad : A) (m : M) (s : WCLogState A Cb) :
-    Prod.map id (wcProj hash enc H mask) <$>
-        ((wcLogImpl hash enc H mask padMsg) (Sum.inl (Sum.inr (ad, m)))).run s =
-      ((wcInstImpl hash enc H mask padMsg unpad false) (Sum.inl (Sum.inr (ad, m)))).run
-        (wcProj hash enc H mask s) := by
-  obtain ⟨ch, log⟩ := s
-  cases ch <;>
-    simp [wcLogImpl, wcInstImpl, wcProj, wcFlag, StateT.run_bind, StateT.run_get,
-      StateT.run_set, StateT.run_pure, Prod.map]
-
-/-- The decrypt step, the only one with content: appending an entry to the log corresponds to
-`forged || ok` on the flag. -/
-private lemma hproj_decrypt [DecidableEq Cb]
-    (hash : K → D → BitVec 128) (enc : A × Cb → D) (H : K) (mask : BitVec 128)
-    (padMsg : M → Cb) (unpad : Cb → M)
-    (ad : A) (e : Cb × BitVec 128) (s : WCLogState A Cb) :
-    Prod.map id (wcProj hash enc H mask) <$>
-        ((wcLogImpl hash enc H mask padMsg) (Sum.inr (ad, e))).run s =
-      ((wcInstImpl hash enc H mask padMsg unpad false) (Sum.inr (ad, e))).run
-        (wcProj hash enc H mask s) := by
-  obtain ⟨ch, log⟩ := s
-  rw [show (wcProj hash enc H mask (ch, log)) =
-        (ch.map Prod.snd, wcFlag hash enc H mask (ch, log)) from rfl,
-    wcInstImpl_decrypt_run hash enc H mask padMsg unpad ad e]
-  by_cases hg : ch.map Prod.snd = some e
-  · simp [wcLogImpl, wcProj, StateT.run_bind, StateT.run_get, Prod.map, hg]
-  · simp [wcLogImpl, wcProj, wcFlag, wcAccepts, StateT.run_bind, StateT.run_get,
-      StateT.run_set, Prod.map, hg, List.any_append]
-
-/-- Projecting the log-refined run through `wcProj` gives the instrumented always-reject run,
-outputs and final states jointly. -/
-theorem map_run_simulateQ_wcLogImpl_eq {α : Type} [DecidableEq Cb]
-    (hash : K → D → BitVec 128) (enc : A × Cb → D) (H : K) (mask : BitVec 128)
-    (padMsg : M → Cb) (unpad : Cb → M)
-    (oa : OracleComp (wcSpec A M Cb) α) (s : WCLogState A Cb) :
-    Prod.map id (wcProj hash enc H mask) <$>
-        (simulateQ (wcLogImpl hash enc H mask padMsg) oa).run s =
-      (simulateQ (wcInstImpl hash enc H mask padMsg unpad false) oa).run
-        (wcProj hash enc H mask s) := by
-  refine map_run_simulateQ_eq_of_query_map_eq _ _ (wcProj hash enc H mask) ?_ oa s
-  rintro ((n | ⟨ad, m⟩) | ⟨ad, e⟩) s
-  · exact hproj_unif hash enc H mask padMsg unpad n s
-  · exact hproj_encrypt hash enc H mask padMsg unpad ad m s
-  · exact hproj_decrypt hash enc H mask padMsg unpad ad e s
-
-/-- The instrumented always-reject run raises `forged` with exactly the probability that the
-log-refined run raises `wcFlag`. -/
-theorem probEvent_bad_wcInst_eq_wcLog {α : Type} [DecidableEq Cb]
-    (hash : K → D → BitVec 128) (enc : A × Cb → D) (H : K) (mask : BitVec 128)
-    (padMsg : M → Cb) (unpad : Cb → M) (oa : OracleComp (wcSpec A M Cb) α) :
-    Pr[fun z : α × (Option (Cb × BitVec 128) × Bool) => z.2.2 = true |
-        (simulateQ (wcInstImpl hash enc H mask padMsg unpad false) oa).run (none, false)] =
-      Pr[fun z : α × WCLogState A Cb => wcFlag hash enc H mask z.2 = true |
-        (simulateQ (wcLogImpl hash enc H mask padMsg) oa).run (none, [])] := by
-  have hs : wcProj hash enc H mask ((none, []) : WCLogState A Cb) = (none, false) := rfl
-  have h1 := map_run_simulateQ_wcLogImpl_eq hash enc H mask padMsg unpad oa (none, [])
-  rw [hs] at h1
-  rw [← h1, probEvent_map]
-  rfl
-
-end LogRefinement
 
 /-- If a state functional `f` grows by at most one at every `p`-query and not at all at other
 queries, then along any run in the support it grows by at most the `p`-query budget `n`. -/
@@ -277,7 +72,6 @@ theorem support_state_measure_le_of_isQueryBoundP
       · have h1 := hstep_np t hpt s x hx
         simp only [if_neg hpt] at hrec
         omega
-
 
 /-! ## The probability core
 
