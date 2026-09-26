@@ -272,7 +272,7 @@ private lemma evalDist_keystream_bind {β : Type} (icb : BitVec 128) (L : ℕ)
     rw [Functor.map_map, hlen]
     exact evalDist_blocksToBitVec_uniform ((L + 127) / 128) L (by omega)
   rw [← bind_map_left]
-  exact evalDist_bind_congr_fst h1 f
+  rw [evalDist_bind, evalDist_bind, h1]
 
 theorem game1_eq_prfIdealExp (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
     (hL : ValidMsgLength L)
