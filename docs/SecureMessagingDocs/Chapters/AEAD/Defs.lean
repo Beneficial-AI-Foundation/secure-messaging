@@ -84,11 +84,15 @@ def oracleDecrypt [DecidableEq C] (ae : AEADScheme ProbComp M AD K C)
     (b : Bool) (k : K) :
     QueryImpl (AD × C →ₒ Option M) (StateT (Option C) ProbComp) :=
   fun (a, e) => do
-    if b || (← get) == some e then pure none
+    let eStar ← get
+    if b || eStar == some e then pure none
     else pure (ae.decrypt k a e)
 ```
 :::::
 ::::::
+
+As in ACD19, the decrypt oracle rejects the challenge ciphertext $`e^*` under every
+associated data, not only under the challenge's own.
 :::::::
 
 :::defTitle "aead_correctness" "AEAD correctness"

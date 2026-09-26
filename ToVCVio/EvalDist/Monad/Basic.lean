@@ -15,6 +15,8 @@ evaluation distribution.
 
 * `probOutput_eq_of_evalDist_eq` transports a point probability across an
   equality of evaluation distributions `𝒟[_]`;
+* `evalDist_bind_congr_fst` swaps distributionally equal computations on the
+  left of a `bind`;
 * `probOutput_true_bind_add_of_pointwise` splits the `true`-output probability
   of a `bind` whose continuation splits pointwise;
 * `probOutput_bind_of_const'` drops the missing-mass factor from
@@ -43,6 +45,15 @@ lemma probOutput_eq_of_evalDist_eq [MonadLiftT m SPMF] {mx my : m α}
     (h : 𝒟[mx] = 𝒟[my]) (x : α) :
     Pr[= x | mx] = Pr[= x | my] := by
   simpa [probOutput] using congrFun (congrArg DFunLike.coe h) x
+
+/-- If `mx` and `my` have the same distribution, then so do `mx >>= mz` and `my >>= mz` for
+every continuation `mz`. The suffix is `_fst` because upstream
+`DeferredSampling.evalDist_bind_congr_left` already uses `_left` for congruence in the
+continuation. -/
+lemma evalDist_bind_congr_fst [MonadLiftT m SPMF] [LawfulMonadLiftT m SPMF]
+    {β : Type u} {mx my : m α} (h : 𝒟[mx] = 𝒟[my]) (mz : α → m β) :
+    𝒟[mx >>= mz] = 𝒟[my >>= mz] := by
+  rw [evalDist_bind, evalDist_bind, h]
 
 /-- Splitting a `bind`'s continuation pointwise splits the `true`-output
 probability of the whole computation: if `Pr[= true | f z]` decomposes as
