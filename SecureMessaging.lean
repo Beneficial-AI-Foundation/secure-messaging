@@ -61,6 +61,7 @@ import SecureMessaging.SCKA.OppBiKEM.Correctness.Invariant
 import SecureMessaging.SCKA.OppBiKEM.Correctness.Receive
 import SecureMessaging.SCKA.OppBiKEM.Correctness.SendA
 import SecureMessaging.SCKA.OppBiKEM.Correctness.SendB
+import SecureMessaging.SCKA.OppBiKEM.Correctness.ReceiveState
 import SecureMessaging.SCKA.OppUniKEM.Correctness
 import SecureMessaging.SymEnc.Defs
 import ToVCVio.OracleComp.Constructions.SampleableType
