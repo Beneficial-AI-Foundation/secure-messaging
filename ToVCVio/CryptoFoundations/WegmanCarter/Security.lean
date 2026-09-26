@@ -7,7 +7,7 @@ Authors: Beneficial AI Foundation
 import ToVCVio.CryptoFoundations.UniversalHash
 import ToVCVio.CryptoFoundations.WegmanCarter.AbstractBounds
 import ToVCVio.CryptoFoundations.WegmanCarter.LogRefinement
-import ToVCVio.OracleComp.ExpectedPayoff
+import ToVCVio.EvalDist.Monad.Basic
 import VCVio.OracleComp.QueryTracking.QueryBound
 
 /-!
@@ -140,8 +140,9 @@ private lemma pre_half_le [SampleableType K]
       exact ⟨r, hr, ((tag_eq_iff_mask_eq _ _ _).1 he).symm⟩
     · rintro ⟨r, hr, he⟩
       exact ⟨r, hr, (tag_eq_iff_mask_eq _ _ _).2 he.symm⟩
-  · simp only [List.length_map]
-    exact tsum_probOutput_count_le ($ᵗ K) (fun _ => L.length) L.length _ fun _ _ => le_rfl
+  · simp only [List.length_map, mul_assoc]
+    rw [ENNReal.tsum_mul_right]
+    exact mul_le_of_le_one_left zero_le tsum_probOutput_le_one
 
 /-! ### After the challenge, the run does not read `(H, mask)` -/
 
@@ -511,13 +512,14 @@ private lemma post_half_le [SampleableType K] [DecidableEq Cb] {α : Type}
     obtain ⟨h1, h2⟩ := hcontra
     have h3 : (r.1, r.2.1) = (ad, c0) := henc_inj h1
     exact hnec r hr (by rw [Prod.ext_iff]; exact ⟨(Prod.ext_iff.1 h3).2, h2⟩)
-  · refine tsum_probOutput_count_le _ _ n ε ?_
-    rintro w hw
+  · simp_rw [mul_assoc]
+    refine tsum_probOutput_mul_le_of_forall_mem_support _ fun w hw => ?_
     simp only [mem_support_bind_iff, support_pure, Set.mem_singleton_iff] at hw
     obtain ⟨T, -, z, hz, rfl⟩ := hw
     have hlen := log_length_le_from hash enc H0 0 padMsg (ob (some (c0, T))) n (hn _)
       (some (ad, (c0, T)), L) z hz
     dsimp only at hlen
+    gcongr
     simp only [List.length_map, List.length_drop]
     omega
 

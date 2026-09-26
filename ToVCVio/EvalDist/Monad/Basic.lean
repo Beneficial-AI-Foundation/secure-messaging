@@ -23,6 +23,8 @@ evaluation distribution.
   `probOutput_bind_of_const` for a never-failing outer computation (`[NeverFail mx]`);
 * `abs_probOutput_true_not_map_gap_eq` absorbs a final Boolean negation into the
   absolute two-branch gap (for never-failing computations);
+* `tsum_probOutput_mul_le_of_forall_mem_support` bounds the expectation
+  `∑' z, Pr[= z | mx] * F z` by any bound on `F` over the support of `mx`;
 * the `evalDist_sample_bind*` and `probOutput_*sample*` lemmas collapse or couple
   one, two, or three eager `uniformSample` draws over `ProbComp`.
 -/
@@ -88,6 +90,21 @@ lemma abs_probOutput_true_not_map_gap_eq {n : Type → Type*}
   rw [show -Pr[= true | my].toReal + Pr[= true | mx].toReal =
       Pr[= true | mx].toReal - Pr[= true | my].toReal by ring]
   exact abs_sub_comm (Pr[= true | my].toReal) (Pr[= true | mx].toReal)
+
+omit [Monad m] in
+/-- If `F z ≤ c` for every possible output `z` of `mx`, then the expectation of `F` under
+`mx` is at most `c`. Missing mass only lowers the sum, so `mx` may fail. -/
+lemma tsum_probOutput_mul_le_of_forall_mem_support [MonadLiftT m SPMF] [MonadLiftT m SetM]
+    [EvalDistCompatible m] (mx : m α) {F : α → ℝ≥0∞} {c : ℝ≥0∞}
+    (h : ∀ z ∈ support mx, F z ≤ c) :
+    ∑' z, Pr[= z | mx] * F z ≤ c := by
+  calc ∑' z, Pr[= z | mx] * F z ≤ ∑' z, Pr[= z | mx] * c := by
+        refine ENNReal.tsum_le_tsum fun z => ?_
+        by_cases hz : z ∈ support mx
+        · exact mul_le_mul' le_rfl (h z hz)
+        · rw [probOutput_eq_zero_of_not_mem_support hz, zero_mul, zero_mul]
+    _ = (∑' z, Pr[= z | mx]) * c := ENNReal.tsum_mul_right
+    _ ≤ c := mul_le_of_le_one_left zero_le tsum_probOutput_le_one
 
 /-- Pointwise distribution equality implies congruence under one eager uniform
 sample:
