@@ -245,7 +245,9 @@ private lemma gcmPrivacy_step_encrypt_none {L : ℕ} (ad : SupportedAAD) (m : Bi
       ($ᵗ (BitVec L × BitVec 128) : ProbComp _)
       (fun (a : BitVec 128 × BitVec 128 × BitVec L) (e : BitVec L × BitVec 128) =>
         (m ^^^ a.2.2, ghash a.1 (gcmEncode ad (m ^^^ a.2.2)) ^^^ a.2.1) = e) :=
-    relTriple_graph_of_evalDist_map_eq _ (evalDist_gcmChallenge_uniform ad m)
+    relTriple_of_evalDist_eq_right (evalDist_gcmChallenge_uniform ad m)
+      (relTriple_of_evalDist_eq_left (by rw [id_map])
+        (relTriple_map_map_of_pointwise _ id _ fun _ => rfl))
   rw [hrun₁, hrun₂]
   exact relTriple_map (relTriple_post_mono hgraph (fun a e hae => by
     subst hae; exact ⟨rfl, rfl, rfl⟩))
