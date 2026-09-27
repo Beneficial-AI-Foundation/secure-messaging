@@ -26,9 +26,8 @@ For every Boolean computation `oa` and initial state `s` satisfying `Inv`,
 the signed difference of ordinary acceptance probabilities equals the
 signed difference of stopped acceptance probabilities. The proof inducts
 on `oa`: equal queries share a response/state sample, terminated continuations
-cancel by assumption, and differing queries enter a preserved region where
-termination is impossible. `committed` identifies that region; it need not
-be a syntactic flag in the state.
+cancel by assumption, and differing queries enter the preserved region
+`committed`, where the termination test remains false.
 -/
 
 open OracleSpec ENNReal

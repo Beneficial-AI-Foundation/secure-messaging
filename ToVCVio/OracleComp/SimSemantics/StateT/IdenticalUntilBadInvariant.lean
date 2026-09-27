@@ -16,9 +16,11 @@ state predicates `Inv bad : σ → Prop`. Their queries are lossless because
 the underlying monad is `ProbComp`.
 
 **Assumptions.** For every query `t : spec.Domain` and state `s : σ`:
+
 * if `Inv s`, then `Inv s'` for every `(a, s')` in the support of `(left t).run s`;
 * if `bad s`, then `bad s'` for every `(a, s')` in that same support;
 * if `Inv s ∧ ¬bad s`, then `(left t).run s = (right t).run s`.
+
 Here each response `a` has type `spec.Range t`.
 
 **Conclusion.** For every computation `oa : OracleComp spec α`, initial
