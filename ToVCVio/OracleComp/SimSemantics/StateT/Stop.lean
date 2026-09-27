@@ -37,9 +37,9 @@ namespace OracleComp
 
 variable {ι σ : Type} {spec : OracleSpec ι}
 
-/-- Execute a query under `impl`, then terminate if its resulting state
-satisfies `stop`. A terminated computation retains that state but does not
-invoke the adversary's continuation. -/
+/-- Execute a query under `impl`, then test `stop` on its successor state.
+If the test is true, return `none` with that state; otherwise return the
+query response as `some` and continue the adversary's computation. -/
 def stopOnState (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool) :
     QueryImpl spec (OptionT (StateT σ ProbComp)) :=
   fun t => OptionT.mk fun s => do
