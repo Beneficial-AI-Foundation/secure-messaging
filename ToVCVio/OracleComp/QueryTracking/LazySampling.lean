@@ -10,9 +10,10 @@ import ToVCVio.EvalDist.Monad.Basic
 /-!
 # State-relational coupling and external-sample commutation under `simulateQ`
 
-Two distributional equivalence theorems for `simulateQ`-based oracle simulation
+Distributional equivalence theorems for `simulateQ`-based oracle simulation
 targeting `StateT σ ProbComp`, stated at the level of an arbitrary adversary
-program over `OracleSpec`.
+program over `OracleSpec`: a state-relational coupling principle, and the
+commutation of an external sample into the first oracle query that consumes it.
 
 ## Preliminaries
 
@@ -89,6 +90,13 @@ program over `OracleSpec`.
   hypothesis,
   `evalDist (do let a ← $ᵗ τ; (simulateQ (implFam a) oa).run' s)`
     `= evalDist ((simulateQ (consumeLazy implFam hit) oa).run' (s, none))`.
+
+* The joint output-and-state forms behind it, which keep the final state and so
+  are the ones that induct:
+  `run_simulateQ_consumeLazy_some_eq` (a populated cache runs as `implFam a`),
+  `evalDist_simulateQ_consumeLazy_run_sample_eq` (the commutation with the
+  top-level sample retained) and `evalDist_simulateQ_consumeLazy_run_eq` (the
+  sample deferred).
 
 -/
 
@@ -190,8 +198,8 @@ omit [spec.Fintype] [spec.Inhabited] in
 
 Sampling `a ← $ᵗ τ` at the top level and then running `simulateQ (implFam a)`
 on the adversary is output-equivalent to running `simulateQ (greedyLazy implFam)`
-starting from an empty cache. Both sample `a` exactly once; in the lazy form,
-the sample happens at the first invocation rather than at the top.
+starting from an empty cache. The lazy form samples at most once, at the first
+query; with no query the eager sample is discarded.
 
 For multi-sample cases (e.g. two external scalars `a, b`), apply sequentially:
 peel `a` with this lemma, then `b` on the resulting half-lazy impl. -/
@@ -268,48 +276,188 @@ noncomputable def consumeLazy
       let (u, state') ← (implFam a t) state
       pure (u, (state', cache))
 
-omit [spec.Fintype] [spec.Inhabited] in
-/-- Auxiliary for `probOutput_simulateQ_consumeLazy_run'_eq`.
+/-! ## Joint output-and-state consume-site commutation
 
-For any adversary `oa : OracleComp spec α`, running it under `consumeLazy implFam hit`
-starting from the augmented state `(s, some a)` (cache pre-populated to `a`)
-yields the same output distribution as running it directly under
-`implFam a` starting from `s`. -/
-private theorem probOutput_simulateQ_consumeLazy_run'_some_eq
+The commutation is proved for the pair `(output, final state)` with the top-level sample
+retained, `evalDist_simulateQ_consumeLazy_run_sample_eq`, and the `run'`-level statement
+`probOutput_simulateQ_consumeLazy_run'_eq` is obtained from it by projection. Keeping the
+state is what makes the statement inductive: the induction hypothesis is applied at the
+post-query state. -/
+
+omit [spec.Fintype] [spec.Inhabited] in
+/-- From a populated cache `some a`, `consumeLazy implFam hit` runs exactly as `implFam a` and
+never overwrites the cache. -/
+theorem run_simulateQ_consumeLazy_some_eq
     (implFam : τ → QueryImpl spec (StateT σ ProbComp))
     (hit : spec.Domain → Bool) [Inhabited τ]
     (oa : OracleComp spec α) (a : τ) (s : σ) :
-    evalDist ((simulateQ (implFam a) oa).run' s) =
-      evalDist ((simulateQ (consumeLazy implFam hit) oa).run' (s, some a)) := by
-  revert s
-  induction oa using OracleComp.inductionOn with
-  | pure x => intro s; simp [simulateQ_pure]
-  | query_bind t k ih =>
-    intro s
-    apply evalDist_ext
-    intro y
-    simp only [simulateQ_bind, simulateQ_query, OracleQuery.cont_query, id_map,
-      OracleQuery.input_query, StateT.run'_eq, StateT.run_bind, map_bind]
-    -- Unfold `consumeLazy` at `some a` — same behavior whether `hit t` or not.
-    have hg : (consumeLazy implFam hit t).run (s, some a) =
-        (implFam a t).run s >>= fun p => (pure (p.1, p.2, some a) : ProbComp _) := by
-      simp only [consumeLazy, StateT.run]
-      split_ifs <;> simp [Option.getD]
-    rw [hg]
-    simp only [monad_norm]
-    refine probOutput_bind_congr' _ y fun p => ?_
-    have := ih p.1 p.2
-    simp only [StateT.run'_eq] at this
-    simpa only [map_eq_bind_pure_comp] using probOutput_eq_of_evalDist_eq this y
+    (simulateQ (consumeLazy implFam hit) oa).run (s, some a) =
+      (fun p => (p.1, (p.2, some a))) <$> (simulateQ (implFam a) oa).run s := by
+  -- One step from a populated cache behaves as `implFam a` and keeps the cache, whether or
+  -- not `hit t`; `simulateQ_run_eq_of_snd_invariant` then fixes the cache along the whole run.
+  have hg : ∀ (t : spec.Domain) (s : σ), (consumeLazy implFam hit t).run (s, some a) =
+      (implFam a t).run s >>= fun p => (pure (p.1, p.2, some a) : ProbComp _) := by
+    intro t s
+    simp only [consumeLazy, StateT.run]
+    split_ifs <;> simp [Option.getD]
+  have hfix : QueryImpl.fixSndStateT (consumeLazy implFam hit) (some a) = implFam a := by
+    funext t
+    refine StateT.ext fun s => ?_
+    simp [QueryImpl.fixSndStateT, hg, Prod.map]
+  rw [simulateQ_run_eq_of_snd_invariant _ (some a) (fun t s x hx => ?_) oa s, hfix]
+  rw [hg] at hx
+  obtain ⟨p, -, hp⟩ := (mem_support_bind_iff _ _ _).mp hx
+  rw [mem_support_pure_iff] at hp
+  rw [hp]
 
 omit [spec.Fintype] [spec.Inhabited] in
-/-- **External-sample consume-site commutation into `simulateQ`.**
+/-- Let `oa : OracleComp spec α`, let `s : σ` be the starting state, and let `h_indep` say that
+`implFam a` does not depend on `a` at queries `t` with `hit t = false`. The eager run of `oa`
+draws `a ← $ᵗ τ` up front and simulates `oa` with `implFam a` from `s`. The lazy run simulates
+`oa` with `consumeLazy implFam hit` from `(s, none)`, which draws `a` at the first `hit` query
+and caches it. Then the two runs give the same joint law of `a`, the output and the final `σ`
+state. In the lazy run `a` is read back from the cache. If no `hit` query fired, the cache is
+still `none` and the run did not depend on `a`, so `a` is drawn uniformly afresh. With
+`pure default` there instead, `a` would always be `default` on those runs, while in the eager
+run it is uniform. -/
+theorem evalDist_simulateQ_consumeLazy_run_sample_eq
+    (implFam : τ → QueryImpl spec (StateT σ ProbComp))
+    (hit : spec.Domain → Bool) [Inhabited τ]
+    (h_indep : ∀ (t : spec.Domain) (s : σ) (a₁ a₂ : τ),
+      hit t = false → (implFam a₁ t).run s = (implFam a₂ t).run s)
+    (oa : OracleComp spec α) (s : σ) :
+    evalDist (do
+      let a ← ($ᵗ τ : ProbComp τ)
+      (fun z => (a, z)) <$> (simulateQ (implFam a) oa).run s) =
+    evalDist (do
+      let z ← (simulateQ (consumeLazy implFam hit) oa).run (s, none)
+      let a ← (match z.2.2 with
+               | some a => (pure a : ProbComp τ)
+               | none => ($ᵗ τ : ProbComp τ))
+      pure (a, z.1, z.2.1)) := by
+  revert s
+  induction oa using OracleComp.inductionOn with
+  | pure x =>
+    -- No query fires, so the cache is still `none`: both sides are
+    -- (uniform on `τ`) ⊗ (the trivial run).
+    intro s
+    simp [simulateQ_pure]
+  | query_bind t k ih =>
+    intro s
+    by_cases h : hit t = true
+    · -- Hit query at empty cache: sample `a`, cache it, and let
+      -- `run_simulateQ_consumeLazy_some_eq` carry `some a` to the end, where the completion
+      -- `match` reads it back. Both sides are equal as terms, not merely in distribution.
+      refine congrArg evalDist ?_
+      simp only [simulateQ_bind, simulateQ_query, OracleQuery.cont_query, id_map,
+        OracleQuery.input_query, StateT.run_bind, map_bind, bind_assoc]
+      have hg : (consumeLazy implFam hit t).run (s, none) =
+          (do let a ← ($ᵗ τ : ProbComp τ)
+              let p ← (implFam a t).run s
+              pure (p.1, p.2, some a)) := by
+        simp [consumeLazy, StateT.run, h]
+      rw [hg]
+      simp only [bind_assoc, pure_bind]
+      refine bind_congr fun a => ?_
+      refine bind_congr fun p => ?_
+      rw [run_simulateQ_consumeLazy_some_eq implFam hit (k p.1) a p.2]
+      simp only [map_eq_bind_pure_comp, bind_assoc, pure_bind, Function.comp_def]
+    · -- Non-hit query at empty cache: the impl is `τ`-independent here, so the outer
+      -- sample commutes past this query and the induction hypothesis applies.
+      have h_false : hit t = false := by
+        cases ht : hit t with
+        | true => exact absurd ht h
+        | false => rfl
+      apply evalDist_ext
+      intro y
+      simp only [simulateQ_bind, simulateQ_query, OracleQuery.cont_query, id_map,
+        OracleQuery.input_query, StateT.run_bind, map_bind]
+      have hg : (consumeLazy implFam hit t).run (s, none) =
+          (implFam (default : τ) t).run s >>= fun p =>
+            (pure (p.1, p.2, (none : Option τ)) : ProbComp _) := by
+        simp [consumeLazy, StateT.run, h_false, Option.getD]
+      rw [hg]
+      -- Keep this in `do`/`<$>` form so the pointwise replacement `eq1` matches below.
+      simp only [bind_assoc, pure_bind]
+      have h_impl : ∀ a : τ, (implFam a t).run s = (implFam default t).run s :=
+        fun a => h_indep t s a default h_false
+      -- Step 1: replace `implFam a t s` by `implFam default t s` in LHS (under `a ← $ᵗ τ`).
+      have eq1 : Pr[= y | do
+            let a ← ($ᵗ τ : ProbComp τ)
+            let p ← (implFam a t).run s
+            (fun z => (a, z)) <$> (simulateQ (implFam a) (k p.1)).run p.2] =
+          Pr[= y | do
+            let a ← ($ᵗ τ : ProbComp τ)
+            let p ← (implFam default t).run s
+            (fun z => (a, z)) <$> (simulateQ (implFam a) (k p.1)).run p.2] := by
+        refine probOutput_bind_congr' _ y fun a => ?_
+        rw [h_impl a]
+      rw [eq1]
+      -- Step 2: swap `a ← $ᵗ τ` past `p ← implFam default t s`.
+      rw [probOutput_bind_bind_swap (mx := ($ᵗ τ : ProbComp τ))
+          (my := (implFam default t).run s)
+          (f := fun a p =>
+            (fun z => (a, z)) <$> (simulateQ (implFam a) (k p.1)).run p.2) (z := y)]
+      -- Step 3: pointwise over `p`, apply the induction hypothesis at `p.2`.
+      refine probOutput_bind_congr' _ y fun p => ?_
+      exact congrFun (congrArg DFunLike.coe (ih p.1 p.2)) y
 
-If `implFam a` depends on `a` only at queries `t` with `hit t = true` (the
-`h_indep` hypothesis), then sampling `a ← $ᵗ τ` at the top and running
-`simulateQ (implFam a)` is output-equivalent to running
-`simulateQ (consumeLazy implFam hit)` from the empty cache. The external
-sample is effectively deferred to the first hit query. -/
+omit [spec.Fintype] [spec.Inhabited] in
+/-- Let `oa : OracleComp spec α`, let `s : σ` be the starting state, and let `h_indep` say that
+`implFam a` does not depend on `a` at queries `t` with `hit t = false`. The eager run of `oa`
+draws `a ← $ᵗ τ` up front and simulates `oa` with `implFam a` from `s`. The lazy run simulates
+`oa` with `consumeLazy implFam hit` from `(s, none)`. Then the two runs give the same joint law
+of the output and the final `σ` state (the cache slot dropped). -/
+theorem evalDist_simulateQ_consumeLazy_run_eq
+    (implFam : τ → QueryImpl spec (StateT σ ProbComp))
+    (hit : spec.Domain → Bool) [Inhabited τ]
+    (h_indep : ∀ (t : spec.Domain) (s : σ) (a₁ a₂ : τ),
+      hit t = false → (implFam a₁ t).run s = (implFam a₂ t).run s)
+    (oa : OracleComp spec α) (s : σ) :
+    evalDist (do
+      let a ← ($ᵗ τ : ProbComp τ)
+      (simulateQ (implFam a) oa).run s) =
+    evalDist (Prod.map id Prod.fst <$>
+      (simulateQ (consumeLazy implFam hit) oa).run (s, none)) := by
+  -- Map the sample-preserving form by `Prod.snd`, dropping the `τ` component.
+  have hplus := congrArg (fun d => (Prod.snd : τ × (α × σ) → α × σ) <$> d)
+    (evalDist_simulateQ_consumeLazy_run_sample_eq implFam hit h_indep oa s)
+  simp only [← evalDist_map] at hplus
+  have hL : (Prod.snd : τ × (α × σ) → α × σ) <$> (do
+        let a ← ($ᵗ τ : ProbComp τ)
+        (fun z => (a, z)) <$> (simulateQ (implFam a) oa).run s) =
+      (do let a ← ($ᵗ τ : ProbComp τ)
+          (simulateQ (implFam a) oa).run s) := by
+    simp [map_bind, Functor.map_map]
+  have hR : (Prod.snd : τ × (α × σ) → α × σ) <$> (do
+        let z ← (simulateQ (consumeLazy implFam hit) oa).run (s, none)
+        let a ← (match z.2.2 with
+                 | some a => (pure a : ProbComp τ)
+                 | none => ($ᵗ τ : ProbComp τ))
+        pure (a, z.1, z.2.1)) =
+      (do let z ← (simulateQ (consumeLazy implFam hit) oa).run (s, none)
+          let _ ← (match z.2.2 with
+                   | some a => (pure a : ProbComp τ)
+                   | none => ($ᵗ τ : ProbComp τ))
+          (pure (z.1, z.2.1) : ProbComp (α × σ))) := by
+    simp [map_bind, Functor.map_map]
+  rw [hL, hR] at hplus
+  rw [hplus]
+  -- The completion draw is value-irrelevant and never fails, so it drops out.
+  apply evalDist_ext
+  intro y
+  rw [map_eq_bind_pure_comp]
+  refine probOutput_bind_congr' _ y fun z => ?_
+  rcases z.2.2 with _ | a
+  · simp [Prod.map]
+  · simp [Prod.map]
+
+omit [spec.Fintype] [spec.Inhabited] in
+/-- Let `oa : OracleComp spec α`, let `s : σ` be the starting state, and let `h_indep` say that
+`implFam a` does not depend on `a` at queries `t` with `hit t = false`. The eager run of `oa`
+draws `a ← $ᵗ τ` up front and simulates `oa` with `implFam a` from `s`. The lazy run simulates
+`oa` with `consumeLazy implFam hit` from `(s, none)`. Then the two runs give the same output
+distribution. -/
 theorem probOutput_simulateQ_consumeLazy_run'_eq
     (implFam : τ → QueryImpl spec (StateT σ ProbComp))
     (hit : spec.Domain → Bool) [Inhabited τ]
@@ -320,75 +468,9 @@ theorem probOutput_simulateQ_consumeLazy_run'_eq
       let a ← ($ᵗ τ : ProbComp τ)
       (simulateQ (implFam a) oa).run' s) =
     evalDist ((simulateQ (consumeLazy implFam hit) oa).run' (s, none)) := by
-  revert s
-  induction oa using OracleComp.inductionOn with
-  | pure x =>
-    intro s
-    apply evalDist_ext
-    intro y
-    simp [simulateQ_pure]
-  | query_bind t k ih =>
-    intro s
-    apply evalDist_ext
-    intro y
-    simp only [simulateQ_bind, simulateQ_query, OracleQuery.cont_query, id_map,
-      OracleQuery.input_query, StateT.run'_eq, StateT.run_bind, map_bind]
-    by_cases h : hit t = true
-    · -- Hit query at empty cache: sample `a`, cache it, delegate to cached-case for the rest.
-      have hg : (consumeLazy implFam hit t).run (s, none) =
-          (do let a ← ($ᵗ τ : ProbComp τ)
-              let p ← (implFam a t).run s
-              pure (p.1, p.2, some a)) := by
-        simp [consumeLazy, StateT.run, h]
-      rw [hg]
-      -- Keep this in `do`/`<$>` form so the pointwise replacement `eq1` matches below.
-      simp only [bind_assoc, pure_bind]
-      refine probOutput_bind_congr' _ y fun a => ?_
-      refine probOutput_bind_congr' _ y fun p => ?_
-      have h_cached := probOutput_simulateQ_consumeLazy_run'_some_eq
-        implFam hit (k p.1) a p.2
-      simp only [StateT.run'_eq] at h_cached
-      exact congrFun (congrArg DFunLike.coe h_cached) y
-    · -- Non-hit query at empty cache: impl is `τ`-independent; commute the outer sample
-      -- past this query via `probOutput_bind_bind_swap`, then apply IH.
-      have h_false : hit t = false := by
-        cases ht : hit t with
-        | true => exact absurd ht h
-        | false => rfl
-      have hg : (consumeLazy implFam hit t).run (s, none) =
-          (implFam (default : τ) t).run s >>= fun p =>
-            (pure (p.1, p.2, (none : Option τ)) : ProbComp _) := by
-        simp [consumeLazy, StateT.run, h_false, Option.getD]
-      rw [hg]
-      -- Keep this in `do`/`<$>` form so the pointwise replacement `eq1` matches below.
-      simp only [bind_assoc, pure_bind]
-      -- Goal:
-      --   Pr[= y | do a ← $F; p ← impl a t s; simulateQ (impl a) (k p.1) .run' p.2]
-      --   = Pr[= y | do p ← impl default t s;
-      --        simulateQ (consumeLazy impl hit) (k p.1) .run' (p.2, none)]
-      have h_impl : ∀ a : τ, (implFam a t).run s = (implFam default t).run s :=
-        fun a => h_indep t s a default h_false
-      -- Step 1: replace `impl a t s` with `impl default t s` in LHS (under `a ← $F`).
-      have eq1 : Pr[= y | do
-            let a ← ($ᵗ τ : ProbComp τ)
-            let p ← (implFam a t).run s
-            Prod.fst <$> (simulateQ (implFam a) (k p.1)).run p.2] =
-          Pr[= y | do
-            let a ← ($ᵗ τ : ProbComp τ)
-            let p ← (implFam default t).run s
-            Prod.fst <$> (simulateQ (implFam a) (k p.1)).run p.2] := by
-        refine probOutput_bind_congr' _ y fun a => ?_
-        rw [h_impl a]
-      rw [eq1]
-      -- Step 2: swap `a ← $F` past `p ← impl default t s`.
-      rw [probOutput_bind_bind_swap (mx := ($ᵗ τ : ProbComp τ))
-          (my := (implFam default t).run s)
-          (f := fun a p =>
-            Prod.fst <$> (simulateQ (implFam a) (k p.1)).run p.2) (z := y)]
-      -- Step 3: pointwise over `p`, apply IH at `p.2` (converting `.run'` ↔ `fst <$> .run`).
-      refine probOutput_bind_congr' _ y fun p => ?_
-      have h_ih := ih p.1 p.2
-      simp only [StateT.run'_eq] at h_ih
-      exact congrFun (congrArg DFunLike.coe h_ih) y
+  have h := congrArg (fun d => (Prod.fst : α × σ → α) <$> d)
+    (evalDist_simulateQ_consumeLazy_run_eq implFam hit h_indep oa s)
+  simp only [← evalDist_map, map_bind, Functor.map_map] at h
+  simpa only [StateT.run'_eq, Function.comp_def, Prod.map_fst, id] using h
 
 end OracleComp.ProgramLogic.Relational

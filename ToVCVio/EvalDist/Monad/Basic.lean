@@ -24,6 +24,8 @@ evaluation distribution.
 * `probOutput_true_uniformBool_bind_not` relabels a uniform challenge-bit sample by negation,
   absorbing a `Bool` negation on the final comparison in the process — the "flip the challenge
   bit" step of hybrid arguments;
+* `tsum_probOutput_mul_le_of_forall_mem_support` bounds the expectation
+  `∑' z, Pr[= z | mx] * F z` by any bound on `F` over the support of `mx`;
 * the `evalDist_sample_bind*` and `probOutput_*sample*` lemmas collapse or couple
   one, two, or three eager `uniformSample` draws over `ProbComp`.
 -/
@@ -124,6 +126,21 @@ lemma probOutput_true_uniformBool_bind_not (f : Bool → ProbComp Bool) :
       rw [map_eq_bind_pure_comp]; congr 1; funext b'; cases b' <;> rfl
     rw [heq, probOutput_not_map]
   rw [h1, h2, h3, h4, add_comm]
+
+omit [Monad m] in
+/-- If `F z ≤ c` for every possible output `z` of `mx`, then the expectation of `F` under
+`mx` is at most `c`. Missing mass only lowers the sum, so `mx` may fail. -/
+lemma tsum_probOutput_mul_le_of_forall_mem_support [MonadLiftT m SPMF] [MonadLiftT m SetM]
+    [EvalDistCompatible m] (mx : m α) {F : α → ℝ≥0∞} {c : ℝ≥0∞}
+    (h : ∀ z ∈ support mx, F z ≤ c) :
+    ∑' z, Pr[= z | mx] * F z ≤ c := by
+  calc ∑' z, Pr[= z | mx] * F z ≤ ∑' z, Pr[= z | mx] * c := by
+        refine ENNReal.tsum_le_tsum fun z => ?_
+        by_cases hz : z ∈ support mx
+        · exact mul_le_mul' le_rfl (h z hz)
+        · rw [probOutput_eq_zero_of_not_mem_support hz, zero_mul, zero_mul]
+    _ = (∑' z, Pr[= z | mx]) * c := ENNReal.tsum_mul_right
+    _ ≤ c := mul_le_of_le_one_left zero_le tsum_probOutput_le_one
 
 /-- Pointwise distribution equality implies congruence under one eager uniform
 sample:

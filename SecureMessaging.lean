@@ -2,6 +2,19 @@ import SecureMessaging.AEAD.GCM
 import SecureMessaging.AEAD.Defs
 import SecureMessaging.AEAD.FromGCM.Construction
 import SecureMessaging.AEAD.FromGCM.Correctness
+import SecureMessaging.AEAD.FromGCM.Security
+import SecureMessaging.AEAD.FromGCM.Security.AuthHop
+import SecureMessaging.AEAD.FromGCM.Security.Axu
+import SecureMessaging.AEAD.FromGCM.Security.CipherProfile
+import SecureMessaging.AEAD.FromGCM.Security.Counter
+import SecureMessaging.AEAD.FromGCM.Security.Encoding
+import SecureMessaging.AEAD.FromGCM.Security.Games
+import SecureMessaging.AEAD.FromGCM.Security.GhashAXU
+import SecureMessaging.AEAD.FromGCM.Security.NistIrreducible
+import SecureMessaging.AEAD.FromGCM.Security.GhashPolynomial
+import SecureMessaging.AEAD.FromGCM.Security.PrfHop
+import SecureMessaging.AEAD.FromGCM.Security.PrivacyHop
+import SecureMessaging.AEAD.FromGCM.Security.PrpSwitch
 import SecureMessaging.AEAD.FromEtM.Construction
 import SecureMessaging.AEAD.FromEtM.Correctness
 import SecureMessaging.AEAD.FromEtM.Security
@@ -42,7 +55,6 @@ import SecureMessaging.KEM.OnOffKEM.CorrectnessError
 import SecureMessaging.KEM.OnOffKEM.Defs
 import SecureMessaging.KEM.OnOffKEM.FromKPKE
 import SecureMessaging.PRFPRNG.Defs
-import SecureMessaging.PRP.Defs
 import SecureMessaging.RKEM.Defs
 import SecureMessaging.RKEM.FromKEM.Construction
 import SecureMessaging.RKEM.FromKEM.Correctness
