@@ -9,22 +9,32 @@ import VCVio.OracleComp.SimSemantics.StateT.Basic
 import VCVio.OracleComp.ProbComp
 
 /-!
-# State counters bounded by a query budget
+# State counters bounded by adaptive queries
 
-A natural-valued state counter may increase by at most one on queries
-selected by a predicate and may not increase on other queries. A
-syntactic query bound then bounds that counter on every supported
-execution, even when queries are selected adaptively.
+**Parameters.** Fix a specification `spec : OracleSpec ι`, implementation
+`impl : QueryImpl spec (StateT σ ProbComp)`, counter `count : σ → ℕ`, and
+decidable query predicate `p : ι → Prop`.
+
+**Assumption.** For every query `t`, state `s`, and supported successor
+`(a, s')`, require `count s' ≤ count s + (if p t then 1 else 0)`.
+
+**Conclusion.** For every output type `α`, computation `oa : OracleComp spec α`,
+budget `q : ℕ` with `oa.IsQueryBoundP p q`, initial state `s`, and supported
+final pair `(x, s')`, `count s' ≤ count s + q`.
+
+**Proof.** Induct on the adaptive computation and subtract each query's cost
+from the remaining budget. The bound applies separately to every supported
+response and successor state.
 -/
 
 open OracleSpec
 
 namespace OracleComp
 
-/-- If each query satisfying `p` increases state counter `count` by at
-most one, and other queries do not increase it, then every supported run
-of an adversary with at most `q` such queries ends with counter at most
-`count s + q`. No monotonicity or exact-increment assumption is needed. -/
+/-- Assume every supported successor of query `t` from state `s` satisfies
+`count s' ≤ count s + (if p t then 1 else 0)`. For every computation `oa`,
+budget `q` with `oa.IsQueryBoundP p q`, initial state `s`, and supported
+final pair `z`, `count z.2 ≤ count s + q`. -/
 theorem stateCounter_simulateQ_run_le
     {ι : Type} {spec : OracleSpec ι} {σ α : Type}
     (impl : QueryImpl spec (StateT σ ProbComp)) (count : σ → ℕ)

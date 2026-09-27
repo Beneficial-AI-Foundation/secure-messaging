@@ -7,14 +7,23 @@ Authors: Beneficial AI Foundation
 import ToVCVio.OracleComp.QueryTracking.LazySampling
 
 /-!
-# Sampling at a state-dependent first use
+# Sampling at the first state-dependent use
 
-A sample from an arbitrary `ProbComp τ` can be drawn in advance or delayed
-until the first oracle query whose input state satisfies `hit`. Before that
-query, the implementation must be independent of the sample. Afterwards the
-same cached value is reused. The joint-distribution theorem retains the
-sample, adversary output, and final protocol state, so correlations between
-components of a sampled record are preserved.
+**Parameters.** Fix a sampler `sample : ProbComp τ`, an implementation family
+`implFam : τ → QueryImpl spec (StateT σ ProbComp)`, and a use test
+`hit : spec.Domain → σ → Bool`. Assume that, for every `t`, `s`, `a₁`, and
+`a₂`, `hit t s = false` implies equality of the query computations under
+`implFam a₁` and `implFam a₂`.
+
+**Statement.** For every adaptive computation and initial state, sampling
+once before execution and sampling at the first query satisfying `hit` give
+the same joint law of sample, adversary output, and final state. The latter
+execution caches the first sample; an empty final cache is completed by a
+fresh draw from `sample`.
+
+**Proof.** At the first use, both runs draw from the same sampler. Before
+that use, query independence permits commuting the sample past the query.
+Projection gives equality of output/state laws and output probabilities.
 -/
 
 open OracleComp OracleSpec ENNReal
@@ -23,11 +32,11 @@ namespace OracleComp.ProgramLogic.Relational
 
 variable {ι : Type} {spec : OracleSpec ι} {σ α τ : Type}
 
-/-- **Consume-site-lazy lift.** Samples `a ← sample` only at queries whose input state satisfies
-`hit t s = true` (and caches the first such sample). At `hit t s = false`, uses
-whatever is in the cache (or `default` if still empty) without observable
-effect — under the hypothesis that `implFam` doesn't depend on `τ` at such
-queries. -/
+/-- Stateful implementation with cache `Option τ`. For each query `t`
+from `(s, cache)`, if `hit t s = true`, use the cached value or draw from
+`sample`, execute `implFam` with that value, and retain it in the cache.
+Otherwise execute `implFam (cache.getD default)` and retain the cache.
+The commutation theorems assume sample-independence when `hit t s = false`. -/
 noncomputable def sampleOnDemand
     (sample : ProbComp τ)
     (implFam : τ → QueryImpl spec (StateT σ ProbComp))
@@ -55,8 +64,9 @@ retained, `evalDist_simulateQ_sampleOnDemand_run_sample_eq`, and the `run'`-leve
 state is what makes the statement inductive: the induction hypothesis is applied at the
 post-query state. -/
 
-/-- From a populated cache `some a`, `sampleOnDemand sample implFam hit` runs as
-`implFam a` and never overwrites the cache. -/
+/-- For every computation `oa`, sample value `a`, and initial state `s`,
+execution from `(s, some a)` under `sampleOnDemand` equals execution under
+`implFam a` with cache `some a` appended to the final state. -/
 theorem run_simulateQ_sampleOnDemand_some_eq
     (sample : ProbComp τ)
     (implFam : τ → QueryImpl spec (StateT σ ProbComp))
@@ -81,15 +91,14 @@ theorem run_simulateQ_sampleOnDemand_some_eq
   rw [mem_support_pure_iff] at hp
   rw [hp]
 
-/-- Let `oa : OracleComp spec α`, let `s : σ` be the starting state, and let `h_indep` say that
-`implFam a` does not depend on `a` at queries `t` with `hit t s = false`. The eager run of `oa`
-draws `a ← sample` up front and simulates `oa` with `implFam a` from `s`. The lazy run
-simulates `oa` with `sampleOnDemand sample implFam hit` from `(s, none)`, drawing `a` at first use
-and caches it. Then the two runs give the same joint law of `a`, the output and the final `σ`
-state. In the lazy run `a` is read back from the cache. If no `hit` query fired, the cache is
-still `none` and the run did not depend on `a`, so `a` is drawn afresh from `sample`. With
-`pure default` there instead, `a` would always be `default` on those runs, while in the eager
-run it follows `sample`. -/
+/-- **Assumption.** For every query `t`, state `u`, and values `a₁ a₂`,
+`hit t u = false` implies `(implFam a₁ t).run u = (implFam a₂ t).run u`.
+
+**Statement.** For every computation `oa` and initial state `s`, the eager
+experiment samples `a ← sample` and runs `implFam a`; the delayed experiment
+runs `sampleOnDemand` from `(s, none)` and obtains `a` from the final cache,
+sampling from `sample` when that cache is empty. Their joint distributions
+of `(a, output, finalState)` are equal. -/
 theorem evalDist_simulateQ_sampleOnDemand_run_sample_eq
     (sample : ProbComp τ)
     (implFam : τ → QueryImpl spec (StateT σ ProbComp))
@@ -173,11 +182,11 @@ theorem evalDist_simulateQ_sampleOnDemand_run_sample_eq
       refine probOutput_bind_congr' _ y fun p => ?_
       exact congrFun (congrArg DFunLike.coe (ih p.1 p.2)) y
 
-/-- Let `oa : OracleComp spec α`, let `s : σ` be the starting state, and let `h_indep` say that
-`implFam a` does not depend on `a` at queries `t` with `hit t s = false`. The eager run of `oa`
-draws `a ← sample` up front and simulates `oa` with `implFam a` from `s`. The lazy run simulates
-`oa` with `sampleOnDemand sample implFam hit` from `(s, none)`. The two runs give the same joint law
-of the output and the final `σ` state (the cache slot dropped). -/
+/-- Assume that, for every query and state with `hit = false`, the query
+computation is equal for all sample values. For every computation `oa` and
+initial state `s`, sampling before execution and running `sampleOnDemand`
+from `(s, none)` induce equal distributions of `(output, finalState)`.
+The equality projects away the sample and cache. -/
 theorem evalDist_simulateQ_sampleOnDemand_run_eq
     (sample : ProbComp τ)
     (implFam : τ → QueryImpl spec (StateT σ ProbComp))
@@ -223,11 +232,10 @@ theorem evalDist_simulateQ_sampleOnDemand_run_eq
   · simp [Prod.map]
   · simp [Prod.map]
 
-/-- Let `oa : OracleComp spec α`, let `s : σ` be the starting state, and let `h_indep` say that
-`implFam a` does not depend on `a` at queries `t` with `hit t s = false`. The eager run of `oa`
-draws `a ← sample` up front and simulates `oa` with `implFam a` from `s`. The lazy run simulates
-`oa` with `sampleOnDemand sample implFam hit` from `(s, none)`. The two runs give the same output
-distribution. -/
+/-- Assume that, for every query and state with `hit = false`, the query
+computation is equal for all sample values. For every computation `oa`,
+initial state `s`, and output value, its probability is equal when sampling
+before execution and when using `sampleOnDemand` from `(s, none)`. -/
 theorem probOutput_simulateQ_sampleOnDemand_run'_eq
     (sample : ProbComp τ)
     (implFam : τ → QueryImpl spec (StateT σ ProbComp))

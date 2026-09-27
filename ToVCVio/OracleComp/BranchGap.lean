@@ -7,28 +7,31 @@ Authors: Beneficial AI Foundation
 import ToVCVio.EvalDist.Monad.Basic
 
 /-!
-# Discarding common paths in a distinguishing experiment
+# Cancellation of common continuations
 
-Two experiments first sample a common prefix `x`, then run continuations
-`left x` and `right x`. If their acceptance probabilities agree whenever
-`stop x = true`, replacing both continuations by `return false` on those
-prefixes preserves their signed acceptance-probability difference. No bound
-on the probability of stopping is needed.
+**Parameters.** Fix `sample : ProbComp α`, continuations
+`left right : α → ProbComp Bool`, and a test `stop : α → Bool`.
+
+**Statement.** If, for every `x : α` with `stop x = true`,
+`Pr[left x = true] = Pr[right x = true]`, then replacing both continuations
+by `pure false` at those `x` preserves the real-valued signed difference
+`Pr[sample >>= left = true] - Pr[sample >>= right = true]`.
+
+**Proof.** Split each acceptance probability into the contribution from
+`stop = true` and the contribution from `stop = false`. The first contributions
+are equal and cancel on subtraction. This supports reductions that terminate
+on exposures for which the compared games have equal continuation probabilities.
 -/
 
 open OracleComp ENNReal
 
 namespace ProbComp
 
-/-- Let `X` be a shared prefix distribution and `L(x)`, `R(x)` two Boolean
-continuations. Suppose `Pr[L(x) = true] = Pr[R(x) = true]` on prefixes
-selected by `stop`. Replacing both continuations by `return false` on those
-prefixes preserves `Pr[X >>= L = true] - Pr[X >>= R = true]`.
-
-In a reduction, `stop` may select executions in which a target secret is
-exposed and hence cannot be challenged. This lemma requires equality of the
-two continuation probabilities on those executions, not merely the fact
-that the stopping decision is independent of the challenge bit. -/
+/-- For every sampler `sample : ProbComp α`, continuations
+`left right : α → ProbComp Bool`, and test `stop : α → Bool`, assume
+`∀ x, stop x = true → Pr[left x = true] = Pr[right x = true]`.
+Replacing each continuation by `pure false` on the selected values preserves
+the signed real-valued acceptance gap of the two sampled experiments. -/
 theorem signed_gap_eq_stop_false {α : Type} (sample : ProbComp α)
     (left right : α → ProbComp Bool) (stop : α → Bool)
     (hstop : ∀ x, stop x = true →
