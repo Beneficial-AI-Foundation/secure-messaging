@@ -10,11 +10,26 @@ import VCVio.OracleComp.ProbComp
 /-!
 # Identical until bad on invariant states
 
-Two stateful simulations need only agree on reachable good states. If the
-first simulation preserves an invariant and a persistent bad predicate,
-the difference of any observable event probabilities is bounded by that
-simulation's final bad probability. The second simulation has no
-preservation obligation after the executions diverge.
+Fix types `ι σ α : Type`, an oracle specification `spec : OracleSpec ι`,
+implementations `left right : QueryImpl spec (StateT σ ProbComp)`, and
+state predicates `Inv bad : σ → Prop`. Their queries are lossless because
+the underlying monad is `ProbComp`.
+
+**Assumptions.** For every query `t : spec.Domain` and state `s : σ`:
+* if `Inv s`, then `Inv s'` for every `(a, s')` in the support of `(left t).run s`;
+* if `bad s`, then `bad s'` for every `(a, s')` in that same support;
+* if `Inv s ∧ ¬bad s`, then `(left t).run s = (right t).run s`.
+Here each response `a` has type `spec.Range t`.
+
+**Conclusion.** For every computation `oa : OracleComp spec α`, initial
+state `s₀ : σ` satisfying `Inv s₀`, and output event `E : α → Prop`, define
+`L := (simulateQ left oa).run s₀` and `R := (simulateQ right oa).run s₀`.
+Both computations return `(a, s') : α × σ`. The real-valued probabilities satisfy
+`|Pr[E(a) : (a, s') ← L] − Pr[E(a) : (a, s') ← R]| ≤ Pr[bad(s') : (a, s') ← L]`.
+
+**Proof.** Induct on `oa`. Queries from good invariant states share their
+response/state computation. From bad states, persistence makes the final
+bad probability one, which bounds either event probability.
 -/
 
 open OracleSpec ENNReal
@@ -33,12 +48,29 @@ private theorem bad_run_probability_one
   apply probEvent_eq_one_iff.mpr
   exact ⟨probFailure_eq_zero, simulateQ_run_preservesInv impl bad hmono oa s hs⟩
 
-/-- Suppose `left` preserves `Inv` and a persistent predicate `bad`, and
-`left` and `right` answer each query identically on states satisfying
-`Inv ∧ ¬bad`. For any output event `E`, their complete adaptive runs from
-an `Inv` state satisfy both `Pr_L[E] ≤ Pr_R[E] + Pr_L[bad]` and
-`Pr_R[E] ≤ Pr_L[E] + Pr_L[bad]`. No invariant or bad-persistence assumption
-is required of `right` after a bad state is reached. -/
+/-- Probability bounds for two lossless stateful oracle implementations
+`left` and `right`, an adaptive computation `oa`, and an output event `event`.
+
+**Assumptions.**
+
+* The initial state `s` satisfies `Inv`.
+* Every query under `left` preserves `Inv` and `bad`.
+* On any state satisfying `Inv ∧ ¬bad`, each query has the same joint
+  distribution of response and next state under `left` and `right`.
+
+**Notation.** Define the computations
+`L := (simulateQ left oa).run s` and `R := (simulateQ right oa).run s`,
+each returning a pair `(a, s') : α × σ`. Define
+
+* `pL := Pr[fun (a, _) => event a | L]`;
+* `pR := Pr[fun (a, _) => event a | R]`;
+* `pBad := Pr[fun (_, s') => bad s' | L]`.
+
+**Conclusion.** `pL ≤ pR + pBad` and `pR ≤ pL + pBad`, as inequalities
+in `ℝ≥0∞`.
+
+The proof uses persistence of `bad` under `left` and query equality on
+good invariant states. -/
 theorem probEvent_simulateQ_run_bounds_of_inv
     (left right : QueryImpl spec (StateT σ ProbComp))
     (Inv bad : σ → Prop)
@@ -79,10 +111,22 @@ theorem probEvent_simulateQ_run_bounds_of_inv
           simpa only [mul_add, id] using mul_le_mul' (le_refl (Pr[= y | (left t).run s])) h
         · simp only [probOutput_eq_zero_of_not_mem_support hy, zero_mul, add_zero, le_refl]
 
-/-- Under invariant-restricted query equality until a persistent bad
-state, the absolute difference of any output-event probabilities is at
-most the first simulation's bad probability. Probabilities are expressed
-as real numbers, matching cryptographic distinguishing advantages. -/
+/-- Real-valued distinguishing bound for two lossless stateful oracle
+implementations `left` and `right` and an adaptive computation `oa`.
+
+**Assumptions.** The initial state `s` satisfies `Inv`; `left` preserves
+`Inv` and `bad`; and both implementations give the same joint distribution
+of response and next state for each query on states satisfying `Inv ∧ ¬bad`.
+
+**Notation.** Set `L := (simulateQ left oa).run s` and
+`R := (simulateQ right oa).run s`. For the output event `event : α → Prop`,
+define the real numbers
+
+* `pL := (Pr[fun (a, _) => event a | L]).toReal`;
+* `pR := (Pr[fun (a, _) => event a | R]).toReal`;
+* `pBad := (Pr[fun (_, s') => bad s' | L]).toReal`.
+
+**Conclusion.** `|pL − pR| ≤ pBad`. -/
 theorem abs_probEvent_simulateQ_run_sub_le_bad_of_inv
     (left right : QueryImpl spec (StateT σ ProbComp))
     (Inv bad : σ → Prop)

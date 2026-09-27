@@ -33,12 +33,14 @@ import ToVCVio.OracleComp.QueryTracking.LazySampling
 import ToVCVio.OracleComp.QueryTracking.QueryBound
 import ToVCVio.OracleComp.QueryTracking.SampleOnDemand
 import ToVCVio.OracleComp.QueryTracking.StateBudget
+import ToVCVio.OracleComp.QueryTracking.StateBudgetSimulation
 import ToVCVio.OracleComp.QueryTracking.RandomOracle.DiscardQuerySimulate
 import ToVCVio.OracleComp.QueryTracking.RandomOracle.FreshQueries
 import ToVCVio.OracleComp.SimSemantics.SimulateQForward
 import ToVCVio.OracleComp.SimSemantics.StateT.ExpectedPayoffBound
 import ToVCVio.OracleComp.SimSemantics.StateT.IdenticalUntilBadInvariant
 import ToVCVio.OracleComp.SimSemantics.StateT.MapStateTBase
+import ToVCVio.OracleComp.SimSemantics.StateT.StopGap
 import ToVCVio.OracleComp.SimSemantics.UnifLift
 import ToVCVio.Probability.IntMeasure
 import ToVCVio.ProgramLogic.Tactics.Support
