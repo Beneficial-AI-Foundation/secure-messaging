@@ -2,6 +2,7 @@ import ToVCVio.Control.SimpAttr
 import ToVCVio.Control.StateT
 import ToVCVio.CryptoFoundations.AdjoinRootReflect
 import ToVCVio.CryptoFoundations.KeyEncapMech
+import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
 import ToVCVio.CryptoFoundations.PRP
 import ToVCVio.CryptoFoundations.PRPSwitching
 import ToVCVio.CryptoFoundations.RabinIrreducibility
@@ -24,11 +25,13 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Correctness
 import ToVCVio.LatticeCrypto.TransformOps
 import ToVCVio.OracleComp.Constructions.BitVec
 import ToVCVio.OracleComp.Constructions.SampleableType
+import ToVCVio.OracleComp.BranchGap
 import ToVCVio.OracleComp.EvalDist
 import ToVCVio.OracleComp.ExpectedPayoff
 import ToVCVio.OracleComp.QueryTracking.CachingOracle
 import ToVCVio.OracleComp.QueryTracking.LazySampling
 import ToVCVio.OracleComp.QueryTracking.QueryBound
+import ToVCVio.OracleComp.QueryTracking.SampleOnDemand
 import ToVCVio.OracleComp.QueryTracking.RandomOracle.DiscardQuerySimulate
 import ToVCVio.OracleComp.QueryTracking.RandomOracle.FreshQueries
 import ToVCVio.OracleComp.SimSemantics.SimulateQForward
