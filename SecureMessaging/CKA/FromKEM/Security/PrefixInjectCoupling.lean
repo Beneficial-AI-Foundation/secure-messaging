@@ -269,21 +269,12 @@ private lemma reduction_probOutput_eq_killed_add_done
 
 /-! ## Toward the paused-run chains
 
-For Boolean computations without failure, equal success probabilities give the
-equality-relation triple, which is the form the killed-game chain composes.
+The killed-game chain composes equality-relation triples, obtained from equal
+success probabilities by `relTriple_eqRel_of_probOutput_true_eq`.
 The two support lemmas pin the counters after a fired challenge query: the
 challenged party's counter is bumped once, the other counter is unchanged.
 The apexes' `injectionPassed`/`challengePassed` hypotheses follow from them at
 the paused states. -/
-
-private lemma relTriple_eqRel_of_probOutput_true_eq
-    {mx my : ProbComp Bool}
-    (h : Pr[= true | mx] = Pr[= true | my]) :
-    RelTriple mx my (EqRel Bool) := by
-  refine relTriple_eqRel_of_probOutput_eq fun x => ?_
-  cases x
-  · simp only [probOutput_false_eq_sub, probFailure_eq_zero, h]
-  · exact h
 
 private lemma challA_run_support_counters [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)

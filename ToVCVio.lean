@@ -24,6 +24,7 @@ import ToVCVio.OracleComp.Constructions.BitVec
 import ToVCVio.OracleComp.Constructions.SampleableType
 import ToVCVio.OracleComp.EvalDist
 import ToVCVio.OracleComp.ExpectedPayoff
+import ToVCVio.OracleComp.QueryTracking.CachingOracle
 import ToVCVio.OracleComp.QueryTracking.LazySampling
 import ToVCVio.OracleComp.QueryTracking.RandomOracle.DiscardQuerySimulate
 import ToVCVio.OracleComp.QueryTracking.RandomOracle.FreshQueries

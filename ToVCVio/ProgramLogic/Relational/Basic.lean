@@ -6,13 +6,19 @@ Authors: Beneficial AI Foundation
 import VCVio.ProgramLogic.Relational.FromUnary
 
 /-!
-# Support-Refined Diagonal Triples
+# Small `RelTriple` Helpers
 
 Helper lemmas for `RelTriple` between a computation and itself.  The plain
 diagonal `relTriple_refl` forgets where the outputs come from; the variants
 here keep membership in the support, which is what invariant-preservation
 arguments consume.
+
+The remaining lemmas relate two computations that are equal to pure values or
+to images of a shared computation, and relate two Boolean computations with
+the same probability of `true` by output equality.
 -/
+
+universe u v
 
 open ENNReal OracleSpec OracleComp
 
@@ -55,5 +61,43 @@ lemma relTriple_map_map_of_pointwise {α β γ : Type} (mx : ProbComp α)
     RelTriple (f <$> mx) (g <$> mx) R :=
   relTriple_map (R := R) (relTriple_post_mono (relTriple_refl_support mx)
     (by rintro a b ⟨rfl, _⟩; exact h a))
+
+/-- Let `oa` and `ob` be the images of a common computation `mx` under `f` and
+`g`, and let `f a` and `g a` be `R`-related for every `a`. Then `oa` and `ob`
+are `R`-related. -/
+lemma relTriple_of_eq_map_map {α β γ : Type} {oa : ProbComp β} {ob : ProbComp γ}
+    {mx : ProbComp α} {f : α → β} {g : α → γ} {R : β → γ → Prop}
+    (hoa : oa = f <$> mx) (hob : ob = g <$> mx) (h : ∀ a, R (f a) (g a)) :
+    RelTriple oa ob R :=
+  hoa ▸ hob ▸ relTriple_map_map_of_pointwise mx f g h
+
+section AnySpec
+
+variable {ι₁ : Type u} {ι₂ : Type v} {spec₁ : OracleSpec ι₁} {spec₂ : OracleSpec ι₂}
+  [IsUniformSpec spec₁] [IsUniformSpec spec₂]
+
+/-- Let `oa` and `ob` be the pure computations returning `a` and `b`, and let `a`
+and `b` be `R`-related. Then `oa` and `ob` are `R`-related. -/
+lemma relTriple_of_eq_pure_pure {α β : Type}
+    {oa : OracleComp spec₁ α} {ob : OracleComp spec₂ β}
+    {a : α} {b : β} {R : α → β → Prop}
+    (hoa : oa = pure a) (hob : ob = pure b) (hR : R a b) :
+    RelTriple oa ob R :=
+  hoa ▸ hob ▸ relTriple_pure_pure hR
+
+/-- Let `mx` and `my` be Boolean computations over uniform specs that output
+`true` with equal probability. Then `mx` and `my` are related by output
+equality. Neither can fail, so they also output `false` with equal probability.
+Converse of upstream `probOutput_true_eq_of_relTriple_eqRel`. -/
+lemma relTriple_eqRel_of_probOutput_true_eq
+    {mx : OracleComp spec₁ Bool} {my : OracleComp spec₂ Bool}
+    (h : Pr[= true | mx] = Pr[= true | my]) :
+    RelTriple mx my (EqRel Bool) := by
+  refine relTriple_eqRel_of_probOutput_eq fun x => ?_
+  cases x
+  · simp only [probOutput_false_eq_sub, probFailure_eq_zero, h]
+  · exact h
+
+end AnySpec
 
 end OracleComp.ProgramLogic.Relational

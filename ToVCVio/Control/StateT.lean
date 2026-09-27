@@ -44,4 +44,15 @@ lemma run_get_bind_ite_eq_else_of_pred_false [Monad m] [LawfulMonad m]
   rw [run_get_bind]
   simp [h_pred]
 
+/-- Let the guard hold at the initial state. Then reading the state and branching
+on the guard runs as the then branch instantiated at that state. -/
+lemma run_get_bind_ite_eq_then_of_pred_true [Monad m] [LawfulMonad m]
+    (cond : σ → Bool) (thenBranch : σ → StateT σ m α) (elseBranch : StateT σ m α)
+    (s : σ) (h_pred : cond s = true) :
+    (do let t ← (get : StateT σ m σ);
+        if cond t then thenBranch t else elseBranch).run s =
+      (thenBranch s).run s := by
+  rw [run_get_bind]
+  simp [h_pred]
+
 end StateT

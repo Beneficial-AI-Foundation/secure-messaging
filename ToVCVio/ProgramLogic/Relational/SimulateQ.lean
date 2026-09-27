@@ -83,6 +83,24 @@ theorem evalDist_sample_param_query_bind_passthrough
   simp only [StateT.run'_eq] at hi
   exact probOutput_eq_of_evalDist_eq hi y
 
+/-- Let `impl` be a family of stateful query handlers indexed by a parameter, such
+that at every query and state each member has the same answer/state
+distribution as `impl x₀`. Then sampling the parameter uniformly and simulating
+`oa` under the sampled member has the same output distribution as simulating
+`oa` under `impl x₀`. -/
+theorem evalDist_sample_simulateQ_run'_eq_of_param_indep
+    {ι : Type} {spec : OracleSpec ι} {σ θ α : Type} [SampleableType θ]
+    (impl : θ → QueryImpl spec (StateT σ ProbComp))
+    (oa : OracleComp spec α) (s : σ) (x₀ : θ)
+    (h : ∀ param t s', 𝒟[(impl param t).run s'] = 𝒟[(impl x₀ t).run s']) :
+    𝒟[do
+      let param ← $ᵗ θ
+      (simulateQ (impl param) oa).run' s] =
+    𝒟[(simulateQ (impl x₀) oa).run' s] :=
+  evalDist_sample_bind_eq_of_forall_evalDist_eq _ _ fun param =>
+    evalDist_eq_of_relTriple_eqRel
+      (relTriple_simulateQ_run'_of_impl_evalDist_eq _ _ oa (h param) s s rfl)
+
 /-- Normalize a sampled family of pure query handlers. If, for each sampled
 parameter `param`, the handler for query `t` at state `s` is already the pure
 answer/post-state pair `(out param, post param)`, then binding the handler result

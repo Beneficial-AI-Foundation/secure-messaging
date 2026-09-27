@@ -147,20 +147,13 @@ theorem game1_eq_prfIdealExp
   -- RHS: collapse the nested `simulateQ`, forward keygen using the cache-threading
   -- `unifSpec`-transparency theorem `simulateQ_prfIdealQueryImpl_liftComp`,
   -- then push the outer `.run' ∅` through the `liftM se.keygen` bind so both sides start with
-  -- `se.keygen` (the cache threads through unchanged).
+  -- `se.keygen` (the cache threads through unchanged). `StateT.run'_liftM_bind` is used rather
+  -- than the general `StateT.run'_bind'`, which unfolds *every* `run'`-of-bind and would
+  -- dismantle the per-key `simulateQ … .run'` recovered below.
   unfold PRFScheme.prfIdealExp prfReduction etmGameSkeleton
-  -- Targeted push of `run'` through the `liftM se.keygen` bind. Stated as a local `have` (a
-  -- one-line `simp` fact) rather than via the general `StateT.run'_bind'`, which unfolds *every*
-  -- `run'`-of-bind and would dismantle the per-key `simulateQ … .run'` recovered below.
-  have hpush : ∀ {β : Type} (G : K_e → StateT (TagCache AD C_e T) ProbComp β)
-      (s : TagCache AD C_e T),
-      ((liftM se.keygen : StateT (TagCache AD C_e T) ProbComp K_e) >>= G).run' s
-        = se.keygen >>= fun a => (G a).run' s :=
-    fun G s => by
-      simp [StateT.run'_eq, StateT.run_bind, StateT.run_monadLift, bind_map_left, map_bind]
   simp only [bind_pure_comp, ← StateT.run'_eq, simulateQ_bind,
     QueryImpl.simulateQ_mapStateTBase_run', PRFScheme.simulateQ_prfIdealQueryImpl_liftComp,
-    hpush]
+    StateT.run'_liftM_bind]
   -- LHS: game1.
   unfold game1 etmGameSkeleton
   simp only [bind_pure_comp, ← StateT.run'_eq]
