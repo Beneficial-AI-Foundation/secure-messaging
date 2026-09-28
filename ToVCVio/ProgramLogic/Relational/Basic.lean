@@ -8,14 +8,38 @@ import VCVio.ProgramLogic.Relational.FromUnary
 /-!
 # Small `RelTriple` Helpers
 
-Helper lemmas for `RelTriple` between a computation and itself.  The plain
-diagonal `relTriple_refl` forgets where the outputs come from; the variants
-here keep membership in the support, which is what invariant-preservation
-arguments consume.
+Lemmas about `RelTriple` that VCVio's `VCVio/ProgramLogic/Relational/Basic.lean` does not yet
+provide.
 
-The remaining lemmas relate two computations that are equal to pure values or
-to images of a shared computation, and relate two Boolean computations with
-the same probability of `true` by output equality.
+For `ProbComp` computations `A`, `B` and `C`:
+
+* `relTriple_refl_support`: `RelTriple A A (fun a b => a = b ∧ a ∈ support A)`.
+  Running `A` on both sides gives the same output, and that output is a possible output of `A`.
+  This strengthens `relTriple_refl`.
+
+* `relTriple_refl_support_post`: `RelTriple A A R` if `R a a` for every `a ∈ support A`.
+  Running `A` on both sides, `R a a` only has to hold for outputs `a` that `A` can produce.
+
+* `relTriple_map_map_of_pointwise`: `RelTriple (f <$> C) (g <$> C) R`
+  if `R (f c) (g c)` for every `c`.
+  Both sides share one run of `C`, so `R` only needs to hold for the pairs `(f c, g c)`.
+
+* `relTriple_of_eq_map_map`: `RelTriple A B R`
+  if `A = f <$> C`, `B = g <$> C` and `R (f c) (g c)` for every `c`.
+  Same as the previous rule, with `A` and `B` given by equations.
+
+For `A : OracleComp spec₁ α` and `B : OracleComp spec₂ β`, where both specs are
+`IsUniformSpec`:
+
+* `relTriple_of_eq_pure_pure`: `RelTriple A B R` if `A = pure a`, `B = pure b` and `R a b`.
+  Computations that just return a value are related when their values are.
+
+* `relTriple_eqRel_of_probOutput_true_eq`: `RelTriple A B (EqRel Bool)`
+  if both return `Bool` and `Pr[= true | A] = Pr[= true | B]`.
+  Games with the same success probability can be coupled to output the same bit.
+
+Candidate for upstream VCVio, next to `relTriple_refl`, `relTriple_map`, `relTriple_pure_pure`
+and `probOutput_true_eq_of_relTriple_eqRel` in that file.
 -/
 
 universe u v
