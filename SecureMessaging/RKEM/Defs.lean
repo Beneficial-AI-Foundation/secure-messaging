@@ -312,34 +312,69 @@ end Security
 
 /-! ## Ratchet Simulatability
 
-[TripleRatchet, Def. 5.5] asks for three simulation properties, each checked for both
-parties, given efficient simulators `(RSimKey-P₁, RSimKey-P₂, RSimCtxt-P)` for `P ∈ {A, B}`:
+[TripleRatchet, Def. 5.5] asks for simulators `(RSimKey-P₁, RSimKey-P₂, RSimCtxt-P)` for
+`P ∈ {A, B}` such that the two distributions of each of [TripleRatchet, Figs. 10–12] are
+indistinguishable, for both parties. Lines marked `*` are the ones the paper highlights as the
+differences between the real (`0`) and simulated (`1`) distributions.
 
-1. **Base-key simulatability** ([TripleRatchet, Fig. 10]): feeding a *fresh* key pair
-   `(ekP, dkP)` through `RSimKey-P₁` yields a key pair indistinguishable from a directly
-   sampled *updated* one. Used once, for the initial key of `B` shared at CKA setup.
-2. **Updated-key simulatability** ([TripleRatchet, Fig. 11]): `P`'s updated key pair
-   `(ekP̂, dkP̂)` can be simulated by `RSimKey-P₁` from `P`'s fresh key pair alone, *without* the
-   peer's encapsulation key needed to actually run `REnc-P`; `RSimKey-P₂` then completes the
-   round (ciphertext, both parties' keys, and `REnc-P`'s coins) from the peer's updated key pair.
-   This decouples each round's updated keys from the peer's keys, driving the induction over
-   ping-pong rounds in the CKA-from-RKEM proof ([TripleRatchet, Thm. 5.6]).
-3. **Ciphertext simulatability** ([TripleRatchet, Fig. 12]): the ciphertext `ctP̄` sent by `P`
-   can be simulated by `RSimCtxt-P` from the *peer's* updated decapsulation key instead of `P`'s
-   own, i.e. `ctP̄`, together with the peer's decapsulation key, leaks nothing about `P`'s
-   decapsulation key. Used for post-compromise security of the CKA.
+```text
+Figure 10 (base-key simulatability):
++-- D^KeyBaseSim_{A,0} ----------------------------------------+
+|   1: (ekÂ, dkÂ) ←$ D̂_RKeyGen-A                               |
+|   2: return (ekÂ, dkÂ)                                       |
++-- D^KeyBaseSim_{A,1} ----------------------------------------+
+|   1: (ekA, dkA) ←$ D_RKeyGen-A                               |
+|   2: (ekÂ, dkÂ, _) ←$ RSimKey-A₁(ekA, dkA)                   |
+|   3: return (ekÂ, dkÂ)                                       |
++--------------------------------------------------------------+
+```
+
+```text
+Figure 11 (updated-key simulatability):
++-- D^KeyUpdSim_{A,0} -----------------------------------------+
+|   1: (ekB, dkB) ←$ D_RKeyGen-B{rand₀}                        |
+|   2: (ekB̂, dkB̂, aux₀) ←$ RSimKey-B₁(ekB, dkB)                |
+|   3: (ekA, dkA) ←$ D_RKeyGen-A{rand₁}                        |
+| * 4: (ctB, K, dkÂ) ← REnc-A(ekB̂, dkA; rand₂)                 |
+| * 5: (K', ekÂ) ←$ RDec-B(dkB̂, ctB, ekA)                      |
+|   6: return ((ekB̂, dkB̂), (ekÂ, dkÂ), ctB, K, K',             |
+|               aux₀, rand₀, rand₁, rand₂)                     |
++-- D^KeyUpdSim_{A,1} -----------------------------------------+
+|   1: (ekB, dkB) ←$ D_RKeyGen-B{rand₀}                        |
+|   2: (ekB̂, dkB̂, aux₀) ←$ RSimKey-B₁(ekB, dkB)                |
+|   3: (ekA, dkA) ←$ D_RKeyGen-A{rand₁}                        |
+| * 4: (ekÂ, dkÂ, aux₁) ←$ RSimKey-A₁(ekA, dkA)                |
+| * 5: (ctB, K, K', rand₂) ←$ RSimKey-A₂(ekB̂, dkB̂, aux₁)       |
+|   6: return ((ekB̂, dkB̂), (ekÂ, dkÂ), ctB, K, K',             |
+|               aux₀, rand₀, rand₁, rand₂)                     |
++--------------------------------------------------------------+
+```
+
+```text
+Figure 12 (ciphertext simulatability):
++-- D^CtxtSim_{B,0} -------------------------------------------+
+|   1: (ekA, dkA) ←$ D_RKeyGen-A{rand}                         |
+|   2: (ekÂ, dkÂ, aux) ←$ RSimKey-A₁(ekA, dkA)                 |
+| * 3: (ekB, dkB) ←$ D_RKeyGen-B                               |
+| * 4: (ctA, K, dkB̂) ←$ REnc-B(ekÂ, dkB)                       |
+|   5: (K', ekB̂) ←$ RDec-A(dkÂ, ctA, ekB)                      |
+|   6: return (aux, rand, (ekÂ, dkÂ), ctA,                     |
+|               (ekB, ekB̂), (K, K'))                           |
++-- D^CtxtSim_{B,1} -------------------------------------------+
+|   1: (ekA, dkA) ←$ D_RKeyGen-A{rand}                         |
+|   2: (ekÂ, dkÂ, aux) ←$ RSimKey-A₁(ekA, dkA)                 |
+| * 3: (ekB̂, dkB̂) ←$ D̂_RKeyGen-B                               |
+| * 4: (ctA, ekB, K, K') ←$ RSimCtxt-B(ekB̂, ekÂ, dkÂ)          |
+|   5: return (aux, rand, (ekÂ, dkÂ), ctA,                     |
+|               (ekB, ekB̂), (K, K'))                           |
++--------------------------------------------------------------+
+```
 
 Each property is a pair of distributions `D_{P,0}` (real) and `D_{P,1}` (simulated), with
 advantage `|Pr[b ← {0,1}, x ← D_{P,b}, b' ← 𝒜(x) : b' = b] - 1/2|`. Below, only the `A`-side
 distribution of each property from [TripleRatchet, Figs. 10–12] is described in full (for
 ciphertext simulatability the paper spells out the `B` side, `D^CtxtSim_{B,b}`); the other side
-swaps the roles. `b = false` selects `D_{P,0}` and `b = true` selects `D_{P,1}`, matching
-`securityExpA`'s `if b then k1 else k0`.
-
-The updated-key and ciphertext distributions hand the distinguisher the *coins* of some
-algorithms (`D{rand}` in Figs. 11–12), since the CKA game of [TripleRatchet, Fig. 15] leaks
-send randomness. As the algorithms of `RKEMScheme` do not expose their coins, these are
-supplied by a separate randomness-leak package `RandLeak`, as for `KEMScheme.RandLeak`.
+swaps the roles. `b = false` selects `D_{P,0}` and `b = true` selects `D_{P,1}`.
 -/
 
 section RandLeak
@@ -352,6 +387,7 @@ distributions of [TripleRatchet, Figs. 11–12] expose: fresh key generation `RK
 both parties. Each returns the ordinary output together with the coins it sampled; the `_fst`
 fields say that the ordinary algorithm is the first component. The coins of updated key
 generation and of decapsulation are never exposed, so they have no leaking version. -/
+-- ANCHOR: RandLeak
 structure RandLeak (rkem : RKEMScheme m Par EK DK CT K) where
   /-- Randomness space of one fresh key generation `RKeyGen-P(par, ⊥)`. -/
   KeygenRand : Type
@@ -385,16 +421,18 @@ structure RandLeak (rkem : RKEMScheme m Par EK DK CT K) where
     (do
       let out ← rencBRleak par ek dk
       pure out.1) = rkem.rencB par ek dk
+-- ANCHOR_END: RandLeak
 
 end RandLeak
 
-section Simulatability
+section RatchetSimulatability
 
 variable {Par EK DK CT K : Type}
 
 /-- Ratchet simulators `(RSimKey-P₁, RSimKey-P₂, RSimCtxt-P)_{P ∈ {A,B}}` of
 [TripleRatchet, Def. 5.5], for `rkem` with randomness-leak package `leak`. `Aux` is the
 simulator's own auxiliary-state space, passed from `RSimKey-P₁` to `RSimKey-P₂`. -/
+-- ANCHOR: RatchetSimulator
 structure RatchetSimulator (rkem : RKEMScheme ProbComp Par EK DK CT K) (leak : rkem.RandLeak)
     where
   /-- Auxiliary state produced by `RSimKey-P₁` and consumed by `RSimKey-P₂`. -/
@@ -415,6 +453,7 @@ structure RatchetSimulator (rkem : RKEMScheme ProbComp Par EK DK CT K) (leak : r
   rsimKeyB2 : Par → EK → DK → Aux → ProbComp (CT × K × K × leak.EncRand)
   /-- `RSimCtxt-B`: as `rsimCtxtA`, with the roles of `A` and `B` swapped. -/
   rsimCtxtB : Par → EK → EK → DK → ProbComp (CT × EK × K × K)
+-- ANCHOR_END: RatchetSimulator
 
 /-! ### Base-key simulatability -/
 
@@ -430,6 +469,7 @@ D_{A,0}:  (ekÂ, dkÂ) ← D̂_RKeyGen-A
 D_{A,1}:  (ekA, dkA) ← D_RKeyGen-A,  (ekÂ, dkÂ, _) ← RSimKey-A₁(ekA, dkA)
 return (ekÂ, dkÂ)
 ``` -/
+-- ANCHOR: keyBaseSimDistA
 def keyBaseSimDistA (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandLeak}
     (sim : rkem.RatchetSimulator leak) (par : Par) (b : Bool) : ProbComp (EK × DK) :=
   if b then do
@@ -438,6 +478,7 @@ def keyBaseSimDistA (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.Ran
     return (ekAHat, dkAHat)
   else
     rkem.rkeygenAUpdated par
+-- ANCHOR_END: keyBaseSimDistA
 
 /-- As `keyBaseSimDistA`, with the roles of `A` and `B` swapped. -/
 def keyBaseSimDistB (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandLeak}
@@ -512,6 +553,7 @@ D_{A,1}:  (ekÂ, dkÂ, aux₁) ← RSimKey-A₁(ekA, dkA),
           (ctB, K, K', rand₂) ← RSimKey-A₂(ekB̂, dkB̂, aux₁)
 return ((ekB̂, dkB̂), (ekÂ, dkÂ), ctB, K, K', aux₀, rand₀, rand₁, rand₂)
 ``` -/
+-- ANCHOR: keyUpdSimDistA
 def keyUpdSimDistA (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandLeak}
     (sim : rkem.RatchetSimulator leak) (par : Par) (b : Bool) :
     ProbComp (KeyUpdSimView EK DK CT K sim.Aux leak.KeygenRand leak.EncRand) := do
@@ -526,6 +568,7 @@ def keyUpdSimDistA (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.Rand
     let ((ctB, key, dkAHat), rand2) ← leak.rencARleak par ekBHat dkA
     let (key', ekAHat) ← rkem.rdecB par dkBHat ctB ekA
     return ((ekBHat, dkBHat), (ekAHat, dkAHat), ctB, key, key', aux0, rand0, rand1, rand2)
+-- ANCHOR_END: keyUpdSimDistA
 
 /-- As `keyUpdSimDistA`, with the roles of `A` and `B` swapped. -/
 def keyUpdSimDistB (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandLeak}
@@ -633,6 +676,7 @@ D_{B,0}:  (ekB, dkB) ← D_RKeyGen-B,
 D_{B,1}:  (ekB̂, dkB̂) ← D̂_RKeyGen-B,  (ctA, ekB, K, K') ← RSimCtxt-B(ekB̂, ekÂ, dkÂ)
 return (aux, rand, (ekÂ, dkÂ), ctA, (ekB, ekB̂), (K, K'))
 ``` -/
+-- ANCHOR: ctxtSimDistB
 def ctxtSimDistB (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandLeak}
     (sim : rkem.RatchetSimulator leak) (par : Par) (b : Bool) :
     ProbComp (CtxtSimView EK DK CT K sim.Aux leak.KeygenRand) := do
@@ -647,6 +691,7 @@ def ctxtSimDistB (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandLe
     let (ctA, key, _) ← rkem.rencB par ekAHat dkB
     let (key', ekBHat) ← rkem.rdecA par dkAHat ctA ekB
     return (aux, rand, (ekAHat, dkAHat), ctA, (ekB, ekBHat), (key, key'))
+-- ANCHOR_END: ctxtSimDistB
 
 /-- Ciphertext-simulatability experiment for party `A`: `b ← {0,1}, x ← D^CtxtSim_{A,b},
 b' ← 𝒜(x)`, returning `b = b'`. -/
@@ -692,23 +737,23 @@ noncomputable def ctxtSimAdvantage (rkem : RKEMScheme ProbComp Par EK DK CT K)
 /-! ### Ratchet simulatability -/
 
 /-- **Definition 5.5** (Ratchet simulatability). `rkem`, with randomness-leak package `leak`,
-is `epsilon`-ratchet-simulatable via the simulators `sim` against the given distinguishers if
+is `ε`-ratchet-simulatable via the simulators `sim` against the given distinguishers if
 its base-key, updated-key and ciphertext simulatability advantages (each a maximum over both
-parties) are all at most `epsilon`. Asymptotic ratchet simulatability, as stated in
+parties) are all at most `ε`. Asymptotic ratchet simulatability, as stated in
 [TripleRatchet], additionally asks for `sim` to be efficient, quantifies over every PPT
-distinguisher and requires `epsilon` to be negligible in the security parameter. -/
+distinguisher and requires `ε` to be negligible in the security parameter. -/
 -- ANCHOR: RatchetSimulatable
 def RatchetSimulatable (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandLeak}
     (sim : rkem.RatchetSimulator leak)
     (baseA baseB : KeyBaseSimAdversary Par EK DK)
     (updA updB : KeyUpdSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand leak.EncRand)
     (ctxtA ctxtB : CtxtSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand)
-    (epsilon : ℝ) : Prop :=
-  rkem.keyBaseSimAdvantage sim baseA baseB ≤ epsilon ∧
-    rkem.keyUpdSimAdvantage sim updA updB ≤ epsilon ∧
-    rkem.ctxtSimAdvantage sim ctxtA ctxtB ≤ epsilon
+    (ε : ℝ) : Prop :=
+  rkem.keyBaseSimAdvantage sim baseA baseB ≤ ε ∧
+    rkem.keyUpdSimAdvantage sim updA updB ≤ ε ∧
+    rkem.ctxtSimAdvantage sim ctxtA ctxtB ≤ ε
 -- ANCHOR_END: RatchetSimulatable
 
-end Simulatability
+end RatchetSimulatability
 
 end RKEMScheme
