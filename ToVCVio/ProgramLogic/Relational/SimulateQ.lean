@@ -111,11 +111,45 @@ theorem evalDist_sample_simulateQ_run'_eq_of_param_indep
     evalDist_eq_of_relTriple_eqRel
       (relTriple_simulateQ_run'_of_impl_evalDist_eq _ _ oa (h param) s s rfl)
 
-/-- Normalize a sampled family of pure query handlers. If, for each pair of sampled
-parameters `param₁ param₂`, the handler for query `t` at state `s` is already the pure
-answer/post-state pair `(out param₁ param₂, post param₁ param₂)`, then binding the
-handler result and passing its components to the continuation has the same point
-probability as passing `out param₁ param₂` and `post param₁ param₂` directly. -/
+/-- A deterministic handler call can be skipped.
+
+If (`h_run`) for every `param`
+
+    (impl param t).run s = pure (out param, post param),
+
+then `Pr[= y | P] = Pr[= y | Q]`. `P` makes the call to the oracle; `Q` uses its result
+directly:
+
+    P = do
+      let param ← sample
+      let p ← (impl param t).run s
+      Prod.fst <$> (simulateQ (impl param) (k p.1)).run p.2
+
+    Q = do
+      let param ← sample
+      Prod.fst <$> (simulateQ (impl param) (k (out param))).run (post param)
+-/
+theorem probOutput_sample_param_handler_pure_eq
+    {ι : Type} {spec : OracleSpec ι} {σ θ α : Type}
+    (sample : ProbComp θ)
+    (impl : θ → QueryImpl spec (StateT σ ProbComp))
+    (s : σ) (t : spec.Domain)
+    (k : spec.Range t → OracleComp spec α)
+    (out : θ → spec.Range t) (post : θ → σ)
+    (h_run : ∀ param, (impl param t).run s = pure (out param, post param))
+    (y : α) :
+    Pr[= y | do
+      let param ← sample
+      let p ← (impl param t).run s
+      Prod.fst <$> (simulateQ (impl param) (k p.1)).run p.2] =
+    Pr[= y | do
+      let param ← sample
+      Prod.fst <$> (simulateQ (impl param) (k (out param))).run (post param)] := by
+  refine probOutput_bind_congr' _ y fun param => ?_
+  rw [h_run param]
+  rfl
+
+/-- Two-parameter version of `probOutput_sample_param_handler_pure_eq`. -/
 theorem probOutput_sample_param₂_handler_pure_eq
     {ι : Type} {spec : OracleSpec ι} {σ θ₁ θ₂ α : Type}
     (sample₁ : ProbComp θ₁) (sample₂ : ProbComp θ₂)
@@ -141,7 +175,7 @@ theorem probOutput_sample_param₂_handler_pure_eq
   rw [h_run param₁ param₂]
   rfl
 
-/-- Three-parameter version of `probOutput_sample_param₂_handler_pure_eq`. -/
+/-- Three-parameter version of `probOutput_sample_param_handler_pure_eq`. -/
 theorem probOutput_sample_param₃_handler_pure_eq
     {ι : Type} {spec : OracleSpec ι} {σ θ₁ θ₂ θ₃ α : Type}
     (sample₁ : ProbComp θ₁) (sample₂ : ProbComp θ₂) (sample₃ : ProbComp θ₃)
