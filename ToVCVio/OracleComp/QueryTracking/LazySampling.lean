@@ -105,12 +105,10 @@ open ToVCVio OracleComp OracleSpec ENNReal
 namespace OracleComp.ProgramLogic.Relational
 
 variable {ι : Type} {spec : OracleSpec ι}
-variable [spec.Fintype] [spec.Inhabited]
 variable {σ α : Type}
 
 /-! ## State-relational coupling -/
 
-omit [spec.Fintype] [spec.Inhabited] in
 /-- **State-relational coupling under `simulateQ`.**
 
 Lifts per-query `RelTriple`s on "output equality and `R`-preservation on
@@ -160,7 +158,6 @@ noncomputable def greedyLazy
     let (u, state') ← (implFam a t) state
     pure (u, (state', some a))
 
-omit [spec.Fintype] [spec.Inhabited] in
 /-- **Auxiliary for `probOutput_simulateQ_greedyLazy_run'_eq`**.
 
 For any adversary `oa : OracleComp spec α`, running it under `greedyLazy implFam` starting
@@ -193,7 +190,6 @@ private theorem probOutput_simulateQ_greedyLazy_run'_some_eq
     simp only [StateT.run'_eq] at this
     simpa only [map_eq_bind_pure_comp] using probOutput_eq_of_evalDist_eq this y
 
-omit [spec.Fintype] [spec.Inhabited] in
 /-- **External-sample commutation into `simulateQ` via greedy lazy sampling.**
 
 Sampling `a ← $ᵗ τ` at the top level and then running `simulateQ (implFam a)`
@@ -284,7 +280,6 @@ retained, `evalDist_simulateQ_consumeLazy_run_sample_eq`, and the `run'`-level s
 state is what makes the statement inductive: the induction hypothesis is applied at the
 post-query state. -/
 
-omit [spec.Fintype] [spec.Inhabited] in
 /-- From a populated cache `some a`, `consumeLazy implFam hit` runs exactly as `implFam a` and
 never overwrites the cache. -/
 theorem run_simulateQ_consumeLazy_some_eq
@@ -310,7 +305,6 @@ theorem run_simulateQ_consumeLazy_some_eq
   rw [mem_support_pure_iff] at hp
   rw [hp]
 
-omit [spec.Fintype] [spec.Inhabited] in
 /-- Let `oa : OracleComp spec α`, let `s : σ` be the starting state, and let `h_indep` say that
 `implFam a` does not depend on `a` at queries `t` with `hit t = false`. The eager run of `oa`
 draws `a ← $ᵗ τ` up front and simulates `oa` with `implFam a` from `s`. The lazy run simulates
@@ -402,7 +396,6 @@ theorem evalDist_simulateQ_consumeLazy_run_sample_eq
       refine probOutput_bind_congr' _ y fun p => ?_
       exact congrFun (congrArg DFunLike.coe (ih p.1 p.2)) y
 
-omit [spec.Fintype] [spec.Inhabited] in
 /-- Let `oa : OracleComp spec α`, let `s : σ` be the starting state, and let `h_indep` say that
 `implFam a` does not depend on `a` at queries `t` with `hit t = false`. The eager run of `oa`
 draws `a ← $ᵗ τ` up front and simulates `oa` with `implFam a` from `s`. The lazy run simulates
@@ -452,7 +445,6 @@ theorem evalDist_simulateQ_consumeLazy_run_eq
   · simp [Prod.map]
   · simp [Prod.map]
 
-omit [spec.Fintype] [spec.Inhabited] in
 /-- Let `oa : OracleComp spec α`, let `s : σ` be the starting state, and let `h_indep` say that
 `implFam a` does not depend on `a` at queries `t` with `hit t = false`. The eager run of `oa`
 draws `a ← $ᵗ τ` up front and simulates `oa` with `implFam a` from `s`. The lazy run simulates
