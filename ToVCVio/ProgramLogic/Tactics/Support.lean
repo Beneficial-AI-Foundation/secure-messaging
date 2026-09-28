@@ -35,9 +35,8 @@ of three recurring shapes, all closed by `vcvSupport`:
   record is definitionally equal to the goal's projection but not syntactically,
   handled by the explicit pair closers below.
 
-The pair closers (`⟨le_refl _, Nat.le_succ _⟩` and friends) target the two send
-counters of the CKA game state; their consumers are the KEM-CKA proofs under
-`SecureMessaging.CKA.FromKEM.Security`.
+The pair closers (`⟨le_refl _, Nat.le_succ _⟩` and friends) target a pair of
+counters where each step bumps at most one of them.
 -/
 
 namespace ToVCVio

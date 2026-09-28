@@ -20,9 +20,6 @@ never consulted and the computation passes through unchanged.
 `QueryImpl.simulateQ_add_liftM_left` to computations introduced into the sum
 specification by `liftM`. In this shape the lifted query enters the combined
 specification in one step rather than as a lift of an `OracleComp unifSpec`.
-
-Both lemmas are proof-route adapters for `SecureMessaging.AEAD.FromEtM.Security.EncHop`,
-restating the upstream lemma in the shape that hop's handlers produce.
 -/
 
 open OracleComp OracleSpec

@@ -23,9 +23,7 @@ evaluation distribution.
 * `tsum_probOutput_mul_le_of_forall_mem_support` bounds the expectation
   `∑' z, Pr[= z | mx] * F z` by any bound on `F` over the support of `mx`;
 * the four `probOutput_*_sample_*_param_eq` lemmas couple two or three eager
-  `uniformSample` draws over `ProbComp`. They are proof-route adapters: their
-  hypotheses are shaped by the step lemmas of
-  `SecureMessaging.CKA.FromDDH.Security.GameOracles.Step`, their only consumer.
+  `uniformSample` draws over `ProbComp`.
 -/
 
 open scoped ENNReal
