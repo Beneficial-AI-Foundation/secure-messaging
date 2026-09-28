@@ -7,6 +7,7 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.CKA.FromKEM.Security.ReductionBranch
 import ToVCVio.OracleComp.EvalDist
+import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
 
 /-!
 # CKA from KEM — Branch and IND-CPA Bridge
@@ -223,81 +224,6 @@ private lemma indCPAExpProb_ckaToINDCPAReduction_eq_branch
     refine bind_congr (m := ProbComp) fun res_σ => ?_
     cases res_σ.1 <;> simp [finishChallengeStep]
 
-/-- The game underlying VCVio's `IND_CPA_Advantage`, spelled out: sample the
-challenge bit inside the game and compare it with the reduction's guess.
-Definitionally equal to the library's game. -/
-private def indCPAGameProb [SampleableType K]
-    (kem : KEMScheme ProbComp K PK SK C)
-    (red : kem.IND_CPA_Adversary) : ProbComp Bool := do
-  let (pk, _sk) ← kem.keygen
-  let st ← red.preChallenge pk
-  let b ← ($ᵗ Bool)
-  let (cStar, kReal) ← kem.encaps pk
-  let kRand ← ($ᵗ K)
-  let b' ← red.postChallenge st cStar (if b then kReal else kRand)
-  return (b == b')
-
-/-- `indCPAGameProb` with the bit-independent prefix hoisted before the bit
-draw, the bridge between the sampled-bit game and the fixed-bit branches. -/
-private def indCPABranchGameProb [SampleableType K]
-    (kem : KEMScheme ProbComp K PK SK C)
-    (red : kem.IND_CPA_Adversary) : ProbComp Bool := do
-  let p ← indCPAPrefix kem red
-  let b ← ($ᵗ Bool)
-  let z ← if b then red.postChallenge p.st p.cStar p.kReal
-          else red.postChallenge p.st p.cStar p.kRand
-  pure (b == z)
-
-/-- Hoisting the prefix past the bit draw does not change the game's output
-distribution: the bit is independent of the prefix samples. -/
-private lemma indCPAGameProb_evalDist_eq_branch [SampleableType K]
-    (kem : KEMScheme ProbComp K PK SK C)
-    (red : kem.IND_CPA_Adversary) :
-    𝒟[indCPAGameProb kem red] = 𝒟[indCPABranchGameProb kem red] := by
-  apply evalDist_ext
-  intro x
-  unfold indCPAGameProb indCPABranchGameProb indCPAPrefix
-  simp only [monad_norm]
-  refine probOutput_bind_congr' kem.keygen x ?_
-  intro pk_sk
-  refine probOutput_bind_congr' (red.preChallenge pk_sk.1) x ?_
-  intro st
-  rw [probOutput_bind_bind_swap ($ᵗ Bool) (kem.encaps pk_sk.1)
-    (fun b ck => do
-      let kRand ← ($ᵗ K)
-      let b' ← red.postChallenge st ck.1 (if b then ck.2 else kRand)
-      pure (b == b')) x]
-  refine probOutput_bind_congr' (kem.encaps pk_sk.1) x ?_
-  intro ck
-  rw [probOutput_bind_bind_swap ($ᵗ Bool) ($ᵗ K)
-    (fun b kRand => do
-      let b' ← red.postChallenge st ck.1 (if b then ck.2 else kRand)
-      pure (b == b')) x]
-  refine probOutput_bind_congr' ($ᵗ K) x ?_
-  intro kRand
-  refine probOutput_bind_congr' ($ᵗ Bool) x ?_
-  intro b
-  cases b <;> rfl
-
-/-- The sampled-bit bias advantage of the IND-CPA game equals the
-distinguishing advantage of its two fixed-bit experiments. -/
-private lemma indCPAGameProb_advantage_eq_fixed_dist [SampleableType K]
-    (kem : KEMScheme ProbComp K PK SK C)
-    (red : kem.IND_CPA_Adversary) :
-    (indCPAGameProb kem red).boolBiasAdvantage =
-      (indCPAExpProb kem red true).boolDistAdvantage
-        (indCPAExpProb kem red false) := by
-  rw [show (indCPAGameProb kem red).boolBiasAdvantage =
-      (indCPABranchGameProb kem red).boolBiasAdvantage by
-    unfold ProbComp.boolBiasAdvantage
-    rw [evalDist_ext_iff.mp (indCPAGameProb_evalDist_eq_branch kem red) true]
-    rw [evalDist_ext_iff.mp (indCPAGameProb_evalDist_eq_branch kem red) false]]
-  simpa [indCPABranchGameProb, indCPAExpProb] using
-    ProbComp.boolBiasAdvantage_bind_uniformBool_eq_boolDistAdvantage
-      (indCPAPrefix kem red)
-      (fun p => red.postChallenge p.st p.cStar p.kReal)
-      (fun p => red.postChallenge p.st p.cStar p.kRand)
-
 /-- The local fixed-bit experiment matches the library's `IND_CPA_Exp` on
 `true`-output probability. -/
 private lemma indCPAExpProb_probOutput_true_eq [SampleableType K]
@@ -339,13 +265,8 @@ lemma kem_ind_cpa_advantage_eq_fixed_branch_dist [SampleableType K]
     (red : kem.IND_CPA_Adversary) :
     kem.IND_CPA_Advantage ProbCompRuntime.probComp red =
       |(Pr[= true | kem.IND_CPA_Exp ProbCompRuntime.probComp red true]).toReal -
-        (Pr[= true | kem.IND_CPA_Exp ProbCompRuntime.probComp red false]).toReal| := by
-  rw [show kem.IND_CPA_Advantage ProbCompRuntime.probComp red =
-      (indCPAGameProb kem red).boolBiasAdvantage by rfl]
-  rw [indCPAGameProb_advantage_eq_fixed_dist]
-  unfold ProbComp.boolDistAdvantage
-  rw [indCPAExpProb_probOutput_true_eq kem red true]
-  rw [indCPAExpProb_probOutput_true_eq kem red false]
+        (Pr[= true | kem.IND_CPA_Exp ProbCompRuntime.probComp red false]).toReal| :=
+  KEMScheme.IND_CPA_Advantage_eq_fixed_branch_dist kem red
 
 
 end kemCKA
