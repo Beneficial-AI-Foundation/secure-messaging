@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.OracleComp.QueryTracking.QueryBound
+import ToVCVio.OracleComp.QueryTracking.QueryBound
 import VCVio.OracleComp.SimSemantics.StateT.Basic
 import VCVio.OracleComp.ProbComp
 
@@ -22,9 +22,8 @@ decidable query predicate `p : ι → Prop`.
 budget `q : ℕ` with `oa.IsQueryBoundP p q`, initial state `s`, and supported
 final pair `(x, s')`, `count s' ≤ count s + q`.
 
-**Proof.** Induct on the adaptive computation and subtract each query's cost
-from the remaining budget. The bound applies separately to every supported
-response and successor state.
+**Proof.** Separate the per-query estimate into counted and uncounted queries,
+then apply the adaptive state-measure bound to each supported final state.
 -/
 
 open OracleSpec
@@ -44,22 +43,10 @@ theorem stateCounter_simulateQ_run_le
     (oa : OracleComp spec α) (q : ℕ) (hq : oa.IsQueryBoundP p q)
     (s : σ) (z : α × σ) (hz : z ∈ support ((simulateQ impl oa).run s)) :
     count z.2 ≤ count s + q := by
-  induction oa using OracleComp.inductionOn generalizing q s with
-  | pure a =>
-    have hz' : z = (a, s) := by simpa using hz
-    obtain rfl := hz'
-    exact Nat.le_add_right _ _
-  | query_bind t cont ih =>
-    rw [isQueryBoundP_query_bind_iff] at hq
-    rw [simulateQ_query_bind, StateT.run_bind, mem_support_bind_iff] at hz
-    obtain ⟨y, hy, hz⟩ := hz
-    have htail := ih y.1 _ (hq.2 y.1) y.2 hz
-    have hhead := hstep t s y hy
-    by_cases ht : p t
-    · have hpos : 0 < q := hq.1.resolve_left (not_not_intro ht)
-      simp only [ht, ↓reduceIte] at htail hhead
-      omega
-    · simp only [ht, ↓reduceIte] at htail hhead
-      omega
+  apply support_state_measure_le_of_isQueryBoundP impl count p ?_ ?_ oa q hq s z hz
+  · intro t ht s z hz
+    simpa [ht] using hstep t s z hz
+  · intro t ht s z hz
+    simpa [ht] using hstep t s z hz
 
 end OracleComp

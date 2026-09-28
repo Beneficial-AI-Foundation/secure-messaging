@@ -45,13 +45,13 @@ theorem signed_gap_eq_stop_false {α : Type} (sample : ProbComp α)
   let keptRight : ProbComp Bool := sample >>= fun x => if stop x then pure false else right x
   have hl : Pr[= true | sample >>= left] =
       Pr[= true | common] + Pr[= true | keptLeft] := by
-    apply ToVCVio.probOutput_true_bind_add_of_pointwise
-    intro x
+    apply probOutput_bind_congr_eq_add
+    intro x _
     cases stop x <;> simp
   have hr : Pr[= true | sample >>= right] =
       Pr[= true | common] + Pr[= true | keptRight] := by
-    apply ToVCVio.probOutput_true_bind_add_of_pointwise
-    intro x
+    apply probOutput_bind_congr_eq_add
+    intro x _
     cases hs : stop x
     · simp
     · simpa using (hstop x hs).symm
