@@ -280,7 +280,7 @@ theorem game1_eq_prfIdealExp (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (
     Pr[= true | game1 prp L hL adv] =
       Pr[= true | PRFScheme.prfIdealExp (prfReduction iv L adv)] := by
   rw [prfIdealExp_prfReduction_eq iv L hL adv]
-  refine probOutput_eq_of_evalDist_eq ?_ true
+  refine evalDist_ext_iff.mp ?_ true
   unfold game1
   -- Split `(H, mask, ks)` into three independent draws. `uniformSample_prod_eq_bind` is a
   -- term equality, so this is plain `rw`, with no distributional step yet.

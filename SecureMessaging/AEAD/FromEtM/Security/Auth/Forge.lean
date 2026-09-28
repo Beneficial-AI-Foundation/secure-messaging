@@ -6,6 +6,7 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.AEAD.FromEtM.Security.Auth.Defs
 import ToVCVio.OracleComp.QueryTracking.CachingOracle
+import ToVCVio.OracleComp.QueryTracking.QueryBound
 import ToVCVio.ProgramLogic.Relational.Basic
 import ToVCVio.ProgramLogic.Relational.IdenticalUntilBad
 
@@ -77,11 +78,11 @@ theorem game2'_eq_game2
       · -- unif: both sides forward a uniform sample, cache + challenge unchanged.
         simp only [QueryImpl.add_apply_inl, simulateQ_bind, simulateQ_spec_query,
           StateT.run_bind, simulateQ_pure, StateT.run_pure]
-        rw [show ((OracleComp.roImpl (AD × C_e) T) (Sum.inl n)).run qc =
+        rw [show (PRFScheme.prfIdealQueryImpl (D := AD × C_e) (R := T) (Sum.inl n)).run qc =
               (fun u => (u, qc)) <$> (liftM (OracleSpec.query (spec := unifSpec) n) :
                 ProbComp ((unifSpec + ((AD × C_e) →ₒ T)).Range (Sum.inl n))) from by
-            rw [OracleComp.roImpl, QueryImpl.add_apply_inl]; unfold unifFwdImpl
-            rw [QueryImpl.liftTarget_apply, HasQuery.toQueryImpl]
+            rw [PRFScheme.prfIdealQueryImpl, QueryImpl.add_apply_inl,
+              QueryImpl.liftTarget_apply, HasQuery.toQueryImpl]
             simp [StateT.run_monadLift, bind_pure_comp, HasQuery.query]]
         unfold gameUnifImpl
         simp only [QueryImpl.liftTarget_apply, QueryImpl.ofLift_apply,
@@ -91,12 +92,12 @@ theorem game2'_eq_game2
         rfl
       · -- encrypt: case on whether the challenge is already set.
         cases s <;>
-          simp [OracleComp.roImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
+          simp [PRFScheme.prfIdealQueryImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
             StateT.run_bind, StateT.run_get,
             StateT.run_set, StateT.run_pure, map_bind, Functor.map_map]
       · -- decrypt: reject unconditionally; case on the challenge guard, both reject identically.
         by_cases hg : s = some (c, tg) <;>
-          simp [OracleComp.roImpl, QueryImpl.add_apply_inr,
+          simp [PRFScheme.prfIdealQueryImpl, QueryImpl.add_apply_inr,
             StateT.run_bind, StateT.run_get, StateT.run_set, StateT.run_pure, map_pure,
             beq_iff_eq, hg]
   case hstep =>

@@ -8,7 +8,7 @@ import ToVCVio.CryptoFoundations.UniversalHash
 import ToVCVio.CryptoFoundations.WegmanCarter.AbstractBounds
 import ToVCVio.CryptoFoundations.WegmanCarter.LogRefinement
 import ToVCVio.EvalDist.Monad.Basic
-import VCVio.OracleComp.QueryTracking.QueryBound
+import ToVCVio.OracleComp.QueryTracking.QueryBound
 
 /-!
 # Wegman-Carter one-time authenticity: the forgery bound
@@ -40,38 +40,6 @@ Two points a consumer must get right:
 open OracleSpec OracleComp ENNReal ToVCVio
 
 namespace OracleComp.WegmanCarter
-
-/-- If a state functional `f` grows by at most one at every `p`-query and not at all at other
-queries, then along any run in the support it grows by at most the `p`-query budget `n`. -/
-theorem support_state_measure_le_of_isQueryBoundP
-    {ι : Type} {spec : OracleSpec ι} {σ α : Type}
-    (impl : QueryImpl spec (StateT σ ProbComp)) (f : σ → ℕ)
-    (p : ι → Prop) [DecidablePred p]
-    (hstep_p : ∀ t, p t → ∀ s, ∀ z ∈ support ((impl t).run s), f z.2 ≤ f s + 1)
-    (hstep_np : ∀ t, ¬ p t → ∀ s, ∀ z ∈ support ((impl t).run s), f z.2 ≤ f s)
-    (oa : OracleComp spec α) (n : ℕ) (hq : oa.IsQueryBoundP p n) (s : σ) :
-    ∀ z ∈ support ((simulateQ impl oa).run s), f z.2 ≤ f s + n := by
-  induction oa using OracleComp.inductionOn generalizing n s with
-  | pure x =>
-      intro z hz
-      simp only [simulateQ_pure, StateT.run_pure, support_pure, Set.mem_singleton_iff] at hz
-      subst hz
-      simp
-  | query_bind t oa ih =>
-      intro z hz
-      rw [isQueryBoundP_query_bind_iff] at hq
-      simp only [simulateQ_bind, simulateQ_query, OracleQuery.input_query,
-        OracleQuery.cont_query, id_map, StateT.run_bind, mem_support_bind_iff] at hz
-      obtain ⟨x, hx, hzx⟩ := hz
-      have hrec := ih x.1 (if p t then n - 1 else n) (hq.2 x.1) x.2 z hzx
-      by_cases hpt : p t
-      · have h1 := hstep_p t hpt s x hx
-        have h2 : 0 < n := hq.1.resolve_left (not_not_intro hpt)
-        simp only [if_pos hpt] at hrec
-        omega
-      · have h1 := hstep_np t hpt s x hx
-        simp only [if_neg hpt] at hrec
-        omega
 
 /-! ## The probability core
 

@@ -187,21 +187,6 @@ example {n : ℕ} (msg : BitVec n) (g : BitVec n → BitVec 0) :
 
 /-! ## From a list of independent draws to one uniform vector -/
 
-/-- Let `q = pts.length`. A list of `q` independent uniform samples from `R` equals `xs` with
-probability `|R|⁻¹ ^ q` if `xs` has length `q`, and `0` otherwise. -/
-lemma probOutput_mapM_const_uniform {D R : Type} [SampleableType R] [Fintype R]
-    (pts : List D) (xs : List R) :
-    Pr[= xs | pts.mapM (fun _ => ($ᵗ R : ProbComp R))] =
-      if xs.length = pts.length then ((Fintype.card R : ℝ≥0∞)⁻¹) ^ pts.length else 0 := by
-  rw [probOutput_list_mapM]
-  by_cases h : xs.length = pts.length
-  · rw [if_pos h, if_pos h, List.prod_eq_pow_card _ ((Fintype.card R : ℝ≥0∞)⁻¹),
-      List.length_zipWith, h, Nat.min_self]
-    intro x hx
-    obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.mp hx
-    simp [probOutput_uniformSample]
-  · rw [if_neg h, if_neg h]
-
 /-- A uniform `v : Vector R n` has `v.toList = xs` with probability `|R|⁻¹ ^ n` if `xs` has
 length `n`, and `0` otherwise. -/
 private lemma probOutput_toList_uniformSample_vector {R : Type} [SampleableType R] [Fintype R]
@@ -227,6 +212,13 @@ theorem evalDist_mapM_const_uniform {D R : Type} [SampleableType R]
       evalDist (Vector.toList <$> ($ᵗ Vector R pts.length : ProbComp _)) := by
   let : Fintype R := Fintype.ofFinite R
   refine evalDist_ext fun xs => ?_
-  rw [probOutput_mapM_const_uniform, probOutput_toList_uniformSample_vector]
+  rw [probOutput_list_mapM, probOutput_toList_uniformSample_vector]
+  by_cases h : xs.length = pts.length
+  · rw [if_pos h, if_pos h, List.prod_eq_pow_card _ ((Fintype.card R : ℝ≥0∞)⁻¹),
+      List.length_zipWith, h, Nat.min_self]
+    intro x hx
+    obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.mp hx
+    simp [probOutput_uniformSample]
+  · rw [if_neg h, if_neg h]
 
 end ToVCVio

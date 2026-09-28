@@ -484,12 +484,11 @@ lemma evalDist_ckaSecurityImpl_lazy_eq_eager
         (hit := hitB gp)
         (h_indep := fun t s' b₁ b₂ h => hindepB_param_honest gp t s' b₁ b₂ h)
         adversary (s, none)]
-  exact evalDist_sample_bind_congr_of_forall_evalDist_eq
-    (f := fun b =>
+  exact evalDist_bind_congr' _ (ob₁ := fun b =>
       (simulateQ (OracleComp.ProgramLogic.Relational.consumeLazy
         (hit := hitA gp)
         (implFam := fun a => honestImplParamReal gp gen a b)) adversary).run' (s, none))
-    (g := fun b => do
+    (ob₂ := fun b => do
       let a ← ($ᵗ F : ProbComp F)
       (simulateQ (honestImplParamReal gp gen a b) adversary).run' s)
     (fun b => by

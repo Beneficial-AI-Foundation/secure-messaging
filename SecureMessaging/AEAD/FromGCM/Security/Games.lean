@@ -404,7 +404,7 @@ theorem game4_eq_rand (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ
     Pr[= true | game4 prp L hL adv] =
       Pr[= true | AEADScheme.securityExpFixedBit (gcmOneTimeAEAD prp iv L hL) adv true] := by
   -- (1)-(2) Unconsume and kill the dead tuple sample: both steps are `game4_eq_plain`.
-  rw [probOutput_eq_of_evalDist_eq (game4_eq_plain prp L hL adv) true]
+  rw [evalDist_ext_iff.mp (game4_eq_plain prp L hL adv) true]
   -- (3) RHS: the endpoint's keygen is dead on the random side; fold the tail to `.run'`.
   have hkg : (gcmOneTimeAEAD prp iv L hL).keygen = prp.keygen := rfl
   unfold AEADScheme.securityExpFixedBit
