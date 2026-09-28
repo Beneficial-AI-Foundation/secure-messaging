@@ -25,6 +25,13 @@ An adversary has two interfaces to a shared lazy random function `ρ : D → R`:
 The `forged` flag is set by a successful verify query at a point absent from
 the evaluated set. If the adversary makes at most `q` verify queries, then
 `probForge_le_queryBound_div_card` bounds the forgery probability by `q / |R|`.
+
+The proof is by induction on the adversary. A verify query `(d, r)` at a
+non-evaluated, uncached point `d` draws `u = ρ(d)` uniformly: the hit `r = u`
+contributes `1/|R|`, and on a miss the continuation runs from a cache with
+`d ↦ u`. Averaging over `u`, that cache entry can be forgotten by lazy
+random-oracle resampling (see the forge-resampling section), so the induction
+hypothesis applies at the original cache with one verify query fewer.
 -/
 
 open OracleComp OracleSpec ENNReal
@@ -185,11 +192,43 @@ private theorem probForge_run_eq_zero_of_isEmpty [IsEmpty R]
 
 /-! ### Forge-resampling at an uncached point (the lazy-sampling forgetting lemma)
 
-For `cache d = none`, pre-sampling `u ← $ᵗ R` and starting from
-`cache.cacheQuery d u` preserves the forge-flag distribution. This is a marginal
-equality; the full state distributions differ at cache entry `d`. The proof
-compiles the forgery oracles into bodies over `unifSpec + (D →ₒ R)`
-(`forgeBody`), so that the resampling lemma of `DiscardQuerySimulate` applies. -/
+Fix an adversary `ob : ForgeAdversary D R`, a cache `c : (D →ₒ R).QueryCache`
+and a point `d : D` with `c d = none`. Write `Forged(s)` for
+`Pr[forged | (simulateQ forgeImpl ob).run s]`. The goal (`forge_resample_run`) is
+
+```
+∑' u : R, Pr[= u | $ᵗ R] · Forged(c.cacheQuery d u, evald, fl) = Forged(c, evald, fl).
+```
+
+Only the forge-flag marginal agrees; the full state distributions differ at `d`.
+The equation is derived from the lazy random-oracle resampling lemma of
+`DiscardQuerySimulate` rather than by a separate induction on `ob`.
+
+[OBJECTS]
+- `σ := Finset D × Bool`: the non-cache part `(evald, fl)` of `ForgeState`,
+  i.e. the evaluated points and the forge flag.
+- `spec₀ := unifSpec + (D →ₒ R)`: uniform randomness and the random oracle,
+  without the verify oracle.
+- `forgeBody t s : OracleComp spec₀ (Range t × σ)`: the handler for query `t`
+  at `s : σ`. It makes at most one `spec₀` query and returns the response and
+  the next `σ`-state; the cache is not part of its state.
+- `compile forgeBody ob s : OracleComp spec₀ (Unit × σ)`: `ob` with each query
+  replaced by its body, threading `σ` as a return value.
+
+[REDUCTION]
+1. `forgeImpl_run_eq_forgeBody`: for all `t`, `s : σ` and `c`,
+   `(forgeImpl t).run (c, s)` is `(simulateQ prfIdealQueryImpl (forgeBody t s)).run c`
+   with the output components reordered. That is, `forgeImpl` respects the random
+   oracle in the sense of `RespectsRO`, with the cache as first state component.
+2. `forgeBit_eq_simulateQ_compile`: by `run_simulateQ_eq_compile`,
+   `forgeBit ob (c, evald, fl)` is the forge-flag projection of
+   `(simulateQ prfIdealQueryImpl (compile forgeBody ob (evald, fl))).run' c`.
+3. `forge_resample_run`: for every `p : OracleComp spec₀ β` and `c d = none`,
+   `evalDist_uniformSample_bind_simulateQ_prfIdealQueryImpl_run'` gives
+   `𝒟[$ᵗ R >>= fun u => (simulateQ prfIdealQueryImpl p).run' (c.cacheQuery d u)]
+     = 𝒟[(simulateQ prfIdealQueryImpl p).run' c]`.
+   Instantiating `p` with the compiled adversary of step 2 and reading off
+   `Pr[= true]` yields the goal. -/
 
 /-- The forge-flag marginal of running `oa` from state `s`: the `ProbComp Bool` that returns the
 final forge flag. The forge probability `Pr[forged | run]` is `Pr[= true | forgeBit oa s]`. -/
@@ -226,9 +265,12 @@ private lemma forgeImpl_run_verify (d : D) (r : R) (s : ForgeState D R) :
   obtain ⟨c, ev, fl⟩ := s
   exact verifyAgainstRO_run d r c ev fl
 
-/-- The forgery oracles as bodies over `unifSpec + (D →ₒ R)`: each makes at most one query,
-to the uniform or the random oracle, and computes the response and the next evaluated set and
-forge flag from its answer. -/
+/-- The forgery oracles as bodies over `spec₀ = unifSpec + (D →ₒ R)`, with state
+`(evald, fl) : Finset D × Bool`:
+- `inl (inl n)` (uniform): query `n` and return `u`; state unchanged.
+- `inl (inr t)` (eval): query `ρ(t)` and return it; state `(insert t evald, fl)`.
+- `inr (d, r)` (verify): query `u = ρ(d)` and return `r == u`; state
+  `(evald, fl || (r == u && d ∉ evald))`. -/
 def forgeBody : (t : (forgeSpec D R).Domain) → Finset D × Bool →
     OracleComp (unifSpec + (D →ₒ R)) ((forgeSpec D R).Range t × (Finset D × Bool))
   | .inl (.inl n), s => do
@@ -276,11 +318,7 @@ private lemma forgeBit_eq_simulateQ_compile (ob : ForgeAdversary D R)
       forgeImpl_run_eq_forgeBody ob (evald, fl) cache,
     simulateQ_map, StateT.run'_eq, StateT.run_map, Functor.map_map, Functor.map_map]
 
-/-- **Forge-resampling at an uncached point.** For a cache that misses `d`, the `u`-average over
-a fresh uniform sample `u` of the forge probability of the run from the cache extended with
-`d ↦ u` equals the forge probability of the run from the bare cache. This is lazy random-oracle
-resampling, `evalDist_uniformSample_bind_simulateQ_prfIdealQueryImpl_run'`, transported through
-`forgeBit_eq_simulateQ_compile`. -/
+/-- **Forge-resampling at an uncached point.** -/
 private lemma forge_resample_run (ob : ForgeAdversary D R) (cache : (D →ₒ R).QueryCache)
     (evald : Finset D) (fl : Bool) (d : D) (hcd : cache d = none) :
     (∑' u : R, Pr[= u | ($ᵗ R : ProbComp R)] *
