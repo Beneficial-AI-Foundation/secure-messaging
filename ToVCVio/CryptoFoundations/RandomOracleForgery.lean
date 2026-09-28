@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
+import ToVCVio.OracleComp.QueryTracking.RandomOracle.DiscardQuerySimulate
 import VCVio.OracleComp.QueryTracking.RandomOracle.Basic
 import VCVio.OracleComp.QueryTracking.QueryBound
 import VCVio.OracleComp.Constructions.SampleableType
@@ -27,6 +28,7 @@ the evaluated set. If the adversary makes at most `q` verify queries, then
 -/
 
 open OracleComp OracleSpec ENNReal
+open PRFScheme (prfIdealQueryImpl prfIdealQueryImpl_apply_inr)
 
 namespace OracleComp
 
@@ -181,11 +183,13 @@ private theorem probForge_run_eq_zero_of_isEmpty [IsEmpty R]
     (fun s : ForgeState D R => s.2.2 = false) hPres oa (cache, evald, false) rfl z hz
   rw [this] at hforge; exact Bool.false_ne_true hforge
 
-/-! ### Forge-resampling at a non-eval'd point (the lazy-sampling forgetting lemma)
+/-! ### Forge-resampling at an uncached point (the lazy-sampling forgetting lemma)
 
-For `d ∉ evald` and `cache d = none`, pre-sampling `u ← $ᵗ R` and starting
-from `cache.cacheQuery d u` preserves the forge-flag distribution. This is a
-marginal equality; the full state distributions differ at cache entry `d`. -/
+For `cache d = none`, pre-sampling `u ← $ᵗ R` and starting from
+`cache.cacheQuery d u` preserves the forge-flag distribution. This is a marginal
+equality; the full state distributions differ at cache entry `d`. The proof
+compiles the forgery oracles into bodies over `unifSpec + (D →ₒ R)`
+(`forgeBody`), so that the resampling lemma of `DiscardQuerySimulate` applies. -/
 
 /-- The forge-flag marginal of running `oa` from state `s`: the `ProbComp Bool` that returns the
 final forge flag. The forge probability `Pr[forged | run]` is `Pr[= true | forgeBit oa s]`. -/
@@ -200,36 +204,6 @@ private lemma probEvent_forged_eq_probOutput_forgeBit (oa : ForgeAdversary D R)
       Pr[= true | forgeBit oa s] := by
   rw [forgeBit, ← probEvent_eq_eq_probOutput, probEvent_map]
   rfl
-
-/-- `forgeBit` of `pure x` ignores the output and returns the forge flag in the state. -/
-private lemma forgeBit_pure (x : Unit) (s : ForgeState D R) :
-    forgeBit (pure x : OracleComp (forgeSpec D R) Unit) s = (pure s.2.2 : ProbComp Bool) := by
-  rw [forgeBit, simulateQ_pure, StateT.run_pure, map_pure]
-
-/-- Recursion for `forgeBit` over one simulated query: run the `forgeImpl` step, then continue. -/
-private lemma forgeBit_query_bind (t : (forgeSpec D R).Domain)
-    (k : (forgeSpec D R).Range t → OracleComp (forgeSpec D R) Unit) (s : ForgeState D R) :
-    forgeBit ((liftM (OracleSpec.query t) : OracleComp (forgeSpec D R) _) >>= k) s =
-      (forgeImpl (D := D) (R := R) t).run s >>= fun z => forgeBit (k z.1) z.2 := by
-  rw [forgeBit, simulateQ_bind, simulateQ_spec_query]
-  simp only [StateT.run_bind, map_bind]
-  rfl
-
-/-- Run form for a `unif` step under `forgeImpl`, fused with a continuation: forward a uniform
-sample, state unchanged. -/
-private lemma forgeImpl_run_inl_bind {β : Type} (t : unifSpec.Domain) (s : ForgeState D R)
-    (g : unifSpec.Range t × ForgeState D R → ProbComp β) :
-    ((forgeImpl (D := D) (R := R) (Sum.inl (Sum.inl t))).run s >>= g) =
-      (liftM (OracleSpec.query t) : ProbComp _) >>= fun u => g (u, s) := by
-  have hrun : (forgeImpl (D := D) (R := R) (Sum.inl (Sum.inl t))).run s =
-      (fun u => (u, s)) <$> (liftM (OracleSpec.query t) : ProbComp _) := by
-    simp only [forgeImpl, QueryImpl.add_apply_inl, forgeUnifImpl, QueryImpl.liftTarget_apply,
-      QueryImpl.ofLift_apply]
-    erw [OracleComp.liftM_run_StateT]
-    rw [map_eq_bind_pure_comp]
-    rfl
-  rw [hrun, map_eq_bind_pure_comp]
-  erw [bind_assoc]
 
 /-- Run form for an `eval` step under `forgeImpl`. -/
 private lemma forgeImpl_run_eval (t : D) (s : ForgeState D R) :
@@ -252,238 +226,73 @@ private lemma forgeImpl_run_verify (d : D) (r : R) (s : ForgeState D R) :
   obtain ⟨c, ev, fl⟩ := s
   exact verifyAgainstRO_run d r c ev fl
 
-/-- Eval step fused with a continuation: sample `ρ(t)`, record `t`, continue. -/
-private lemma forgeImpl_run_eval_bind {β : Type} (t : D) (s : ForgeState D R)
-    (g : R × ForgeState D R → ProbComp β) :
-    ((forgeImpl (D := D) (R := R) (Sum.inl (Sum.inr t))).run s >>= g) =
-      (((D →ₒ R).randomOracle t).run s.1) >>= fun rc =>
-        g (rc.1, (rc.2, insert t s.2.1, s.2.2)) := by
-  rw [forgeImpl_run_eval]
-  erw [bind_assoc]
-  exact bind_congr fun rc => pure_bind _ _
+/-- The forgery oracles as bodies over `unifSpec + (D →ₒ R)`: each makes at most one query,
+to the uniform or the random oracle, and computes the response and the next evaluated set and
+forge flag from its answer. -/
+def forgeBody : (t : (forgeSpec D R).Domain) → Finset D × Bool →
+    OracleComp (unifSpec + (D →ₒ R)) ((forgeSpec D R).Range t × (Finset D × Bool))
+  | .inl (.inl n), s => do
+      let u ← (unifSpec + (D →ₒ R)).query (.inl n)
+      pure (u, s)
+  | .inl (.inr t), (evald, fl) => do
+      let r ← (unifSpec + (D →ₒ R)).query (.inr t)
+      pure (r, (insert t evald, fl))
+  | .inr (d, r), (evald, fl) => do
+      let u ← (unifSpec + (D →ₒ R)).query (.inr d)
+      pure (r == u, (evald, fl || ((r == u) && decide (d ∉ evald))))
 
-/-- Verify step fused with a continuation: sample `ρ(d)`, flag/return, continue. -/
-private lemma forgeImpl_run_verify_bind {β : Type} (d : D) (r : R) (s : ForgeState D R)
-    (g : Bool × ForgeState D R → ProbComp β) :
-    ((forgeImpl (D := D) (R := R) (Sum.inr (d, r))).run s >>= g) =
-      (((D →ₒ R).randomOracle d).run s.1) >>= fun rc =>
-        g ((r == rc.1), (rc.2, s.2.1, s.2.2 || ((r == rc.1) && decide (d ∉ s.2.1)))) := by
-  rw [forgeImpl_run_verify]
-  erw [bind_assoc]
-  exact bind_congr fun rc => pure_bind _ _
+/-- Each `forgeImpl` handler runs as its `forgeBody` under the lazy random oracle. -/
+private lemma forgeImpl_run_eq_forgeBody (t : (forgeSpec D R).Domain) (s : Finset D × Bool)
+    (qc : (D →ₒ R).QueryCache) :
+    (forgeImpl (D := D) (R := R) t).run (qc, s) =
+      (fun z : ((forgeSpec D R).Range t × (Finset D × Bool)) × (D →ₒ R).QueryCache =>
+        (z.1.1, (z.2, z.1.2))) <$>
+        (simulateQ prfIdealQueryImpl (forgeBody t s)).run qc := by
+  obtain ⟨evald, fl⟩ := s
+  rcases t with (n | t) | ⟨d, r⟩
+  · simp only [forgeBody, simulateQ_bind, simulateQ_spec_query, simulateQ_pure,
+      StateT.run_bind, StateT.run_pure]
+    rw [prfIdealQueryImpl, QueryImpl.add_apply_inl, QueryImpl.liftTarget_apply,
+      HasQuery.toQueryImpl]
+    simp only [forgeImpl, QueryImpl.add_apply_inl, forgeUnifImpl, QueryImpl.liftTarget_apply,
+      QueryImpl.ofLift_apply]
+    erw [OracleComp.liftM_run_StateT]
+    simp [StateT.run_monadLift, bind_pure_comp, HasQuery.query]
+  all_goals
+    simp only [forgeBody, simulateQ_bind, simulateQ_spec_query, simulateQ_pure,
+      StateT.run_bind, StateT.run_pure, prfIdealQueryImpl_apply_inr, forgeImpl_run_eval,
+      forgeImpl_run_verify, map_bind, map_pure]
+    rfl
 
-open scoped Classical in
-/-- **Forge-bit resampling.** Pre-sampling a fresh uniform value at a non-eval'd, uncached point `d`
-has the same forge-bit distribution as not pre-sampling. Proven by induction on the continuation,
-generalizing `cache`, `evald`, `fl`, maintaining `cache d = none` and `d ∉ evald`. -/
-private lemma evalDist_forgeBit_resample :
-    ∀ (ob : ForgeAdversary D R) (cache : (D →ₒ R).QueryCache) (evald : Finset D) (fl : Bool)
-      (d : D), cache d = none → d ∉ evald →
-      𝒟[($ᵗ R : ProbComp R) >>= fun u => forgeBit ob (cache.cacheQuery d u, evald, fl)] =
-        𝒟[forgeBit ob (cache, evald, fl)] := by
-  intro ob
-  induction ob using OracleComp.inductionOn with
-  | pure x =>
-      intro cache evald fl d _ _
-      simp only [forgeBit_pure]
-      -- LHS: `($ᵗR) >>= fun _ => pure fl`; the constant marginal collapses.
-      refine evalDist_ext fun y => ?_
-      rw [probOutput_bind_const, probFailure_uniformSample]
-      simp
-  | query_bind t k ih =>
-      intro cache evald fl d hcd hde
-      -- Reduce both sides to the step-run of `forgeImpl t`, then continue with `forgeBit (k ·)`.
-      simp only [forgeBit_query_bind]
-      rcases t with (n | t) | ⟨td, tr⟩
-      · -- Uniform-sampling query: state untouched; commute the presample, IH on continuation.
-        simp only [forgeImpl_run_inl_bind]
-        -- Both sides: `query n` then continue with state `(·, evald, fl)`.
-        rw [evalDist_bind_bind_swap ($ᵗ R)
-          (liftM (OracleSpec.query n) : ProbComp (unifSpec.Range n))
-          (fun u w => forgeBit (k w) (cache.cacheQuery d u, evald, fl))]
-        refine evalDist_ext fun x => ?_
-        simp only [probOutput_bind_eq_tsum]
-        refine tsum_congr fun w => ?_
-        rw [← probOutput_bind_eq_tsum]
-        exact congrArg (Pr[= w | (liftM (OracleSpec.query n) : ProbComp (unifSpec.Range n))] * ·)
-          (congrFun (congrArg DFunLike.coe (ih w cache evald fl d hcd hde)) x)
-      · -- Eval query at `t`.  Normalize the post-`pure` continuation away.
-        simp only [forgeImpl_run_eval_bind]
-        by_cases htd : t = d
-        · -- `t = d`: presampled side hits cache; bare side samples fresh; rename the draws.
-          subst htd
-          have hL : (($ᵗ R) >>= fun u =>
-                (((D →ₒ R).randomOracle t).run (cache.cacheQuery t u)) >>= fun rc =>
-                  forgeBit (k rc.1) (rc.2, insert t evald, fl)) =
-              (($ᵗ R) >>= fun u =>
-                forgeBit (k u) (cache.cacheQuery t u, insert t evald, fl)) := by
-            refine bind_congr fun u => ?_
-            rw [QueryImpl.withCaching_run_some _ (QueryCache.cacheQuery_self cache t u), pure_bind]
-          have hR : ((((D →ₒ R).randomOracle t).run cache) >>= fun rc =>
-                forgeBit (k rc.1) (rc.2, insert t evald, fl)) =
-              (($ᵗ R) >>= fun u =>
-                forgeBit (k u) (cache.cacheQuery t u, insert t evald, fl)) := by
-            rw [QueryImpl.withCaching_run_none _ hcd]
-            simp only [map_eq_bind_pure_comp, bind_assoc, pure_bind, Function.comp_apply]
-            rfl
-          rw [hL, hR]
-        · -- `t ≠ d`: the `d`-entry is untouched; continuation cache still misses `d`.
-          have hmiss_t : ∀ u : R, (cache.cacheQuery d u) t = cache t := fun u =>
-            QueryCache.cacheQuery_of_ne cache u htd
-          by_cases hct : ∃ v, cache t = some v
-          · -- `t` already cached: deterministic hit on both sides.
-            obtain ⟨v, hv⟩ := hct
-            rw [QueryImpl.withCaching_run_some _ hv, pure_bind]
-            have hLrw : (($ᵗ R) >>= fun u =>
-                  (((D →ₒ R).randomOracle t).run (cache.cacheQuery d u)) >>= fun rc =>
-                    forgeBit (k rc.1) (rc.2, insert t evald, fl)) =
-                (($ᵗ R) >>= fun u =>
-                  forgeBit (k v) (cache.cacheQuery d u, insert t evald, fl)) := by
-              refine bind_congr fun u => ?_
-              rw [QueryImpl.withCaching_run_some _ (by rw [hmiss_t u]; exact hv), pure_bind]
-            rw [hLrw]
-            exact ih v cache (insert t evald) fl d hcd
-              (fun h => hde (Finset.mem_insert.1 h |>.resolve_left (fun e => htd e.symm)))
-          · -- `t` uncached: fresh sample on both sides; commute and apply IH.
-            push Not at hct
-            have hctn : cache t = none := by
-              cases h : cache t with
-              | none => rfl
-              | some v => exact absurd h (by simpa using hct v)
-            rw [QueryImpl.withCaching_run_none _ hctn]
-            simp only [map_eq_bind_pure_comp, bind_assoc, pure_bind, Function.comp_apply]
-            have hLrw : (($ᵗ R) >>= fun u =>
-                  (((D →ₒ R).randomOracle t).run (cache.cacheQuery d u)) >>= fun rc =>
-                    forgeBit (k rc.1) (rc.2, insert t evald, fl)) =
-                (($ᵗ R) >>= fun u => ($ᵗ R) >>= fun w =>
-                  forgeBit (k w) ((cache.cacheQuery d u).cacheQuery t w, insert t evald, fl)) := by
-              refine bind_congr fun u => ?_
-              rw [QueryImpl.withCaching_run_none _ (by rw [hmiss_t u]; exact hctn)]
-              rw [map_eq_bind_pure_comp]
-              erw [bind_assoc]
-              exact bind_congr fun w => pure_bind _ _
-            rw [hLrw]
-            rw [evalDist_bind_bind_swap ($ᵗ R) ($ᵗ R)
-              (fun u w => forgeBit (k w)
-                ((cache.cacheQuery d u).cacheQuery t w, insert t evald, fl))]
-            refine evalDist_ext fun x => ?_
-            simp only [probOutput_bind_eq_tsum]
-            refine tsum_congr fun w => ?_
-            have hcomm : ∀ u : R, (cache.cacheQuery d u).cacheQuery t w =
-                (cache.cacheQuery t w).cacheQuery d u := by
-              intro u
-              simp only [QueryCache.cacheQuery]
-              exact Function.update_comm (fun h => htd h.symm) u w cache
-            have hmiss_d : (cache.cacheQuery t w) d = none := by
-              rw [QueryCache.cacheQuery_of_ne cache w (fun h => htd h.symm)]; exact hcd
-            simp only [hcomm]
-            rw [← probOutput_bind_eq_tsum]
-            exact congrArg (Pr[= w | ($ᵗ R : ProbComp R)] * ·)
-              (congrFun (congrArg DFunLike.coe
-                (ih w (cache.cacheQuery t w) (insert t evald) fl d hmiss_d
-                  (fun h => hde (Finset.mem_insert.1 h |>.resolve_left (fun e => htd e.symm))))) x)
-      · -- Verify query at `(td, tr)`.  Normalize the post-`pure` continuation away.
-        simp only [forgeImpl_run_verify_bind]
-        by_cases htd : td = d
-        · -- `td = d`: presampled side hits; bare side samples fresh; rename the draws.
-          subst htd
-          have hL : (($ᵗ R) >>= fun u =>
-                (((D →ₒ R).randomOracle td).run (cache.cacheQuery td u)) >>= fun rc =>
-                  forgeBit (k (tr == rc.1))
-                    (rc.2, evald, fl || ((tr == rc.1) && decide (td ∉ evald)))) =
-              (($ᵗ R) >>= fun u =>
-                forgeBit (k (tr == u))
-                  (cache.cacheQuery td u, evald, fl || ((tr == u) && decide (td ∉ evald)))) := by
-            refine bind_congr fun u => ?_
-            rw [QueryImpl.withCaching_run_some _ (QueryCache.cacheQuery_self cache td u), pure_bind]
-          have hR : ((((D →ₒ R).randomOracle td).run cache) >>= fun rc =>
-                forgeBit (k (tr == rc.1))
-                  (rc.2, evald, fl || ((tr == rc.1) && decide (td ∉ evald)))) =
-              (($ᵗ R) >>= fun u =>
-                forgeBit (k (tr == u))
-                  (cache.cacheQuery td u, evald, fl || ((tr == u) && decide (td ∉ evald)))) := by
-            rw [QueryImpl.withCaching_run_none _ hcd]
-            simp only [map_eq_bind_pure_comp, bind_assoc, pure_bind, Function.comp_apply]
-            rfl
-          rw [hL, hR]
-        · -- `td ≠ d`: the `d`-entry is untouched; continuation cache still misses `d`.
-          have hmiss_t : ∀ u : R, (cache.cacheQuery d u) td = cache td := fun u =>
-            QueryCache.cacheQuery_of_ne cache u htd
-          by_cases hct : ∃ v, cache td = some v
-          · obtain ⟨v, hv⟩ := hct
-            rw [QueryImpl.withCaching_run_some _ hv, pure_bind]
-            have hLrw : (($ᵗ R) >>= fun u =>
-                  (((D →ₒ R).randomOracle td).run (cache.cacheQuery d u)) >>= fun rc =>
-                    forgeBit (k (tr == rc.1))
-                      (rc.2, evald, fl || ((tr == rc.1) && decide (td ∉ evald)))) =
-                (($ᵗ R) >>= fun u =>
-                  forgeBit (k (tr == v))
-                    (cache.cacheQuery d u, evald, fl || ((tr == v) && decide (td ∉ evald)))) := by
-              refine bind_congr fun u => ?_
-              rw [QueryImpl.withCaching_run_some _ (by rw [hmiss_t u]; exact hv), pure_bind]
-            rw [hLrw]
-            exact ih (tr == v) cache evald (fl || ((tr == v) && decide (td ∉ evald))) d hcd hde
-          · push Not at hct
-            have hctn : cache td = none := by
-              cases h : cache td with
-              | none => rfl
-              | some v => exact absurd h (by simpa using hct v)
-            rw [QueryImpl.withCaching_run_none _ hctn]
-            simp only [map_eq_bind_pure_comp, bind_assoc, pure_bind, Function.comp_apply]
-            have hLrw : (($ᵗ R) >>= fun u =>
-                  (((D →ₒ R).randomOracle td).run (cache.cacheQuery d u)) >>= fun rc =>
-                    forgeBit (k (tr == rc.1))
-                      (rc.2, evald, fl || ((tr == rc.1) && decide (td ∉ evald)))) =
-                (($ᵗ R) >>= fun u => ($ᵗ R) >>= fun w =>
-                  forgeBit (k (tr == w))
-                    ((cache.cacheQuery d u).cacheQuery td w, evald,
-                      fl || ((tr == w) && decide (td ∉ evald)))) := by
-              refine bind_congr fun u => ?_
-              rw [QueryImpl.withCaching_run_none _ (by rw [hmiss_t u]; exact hctn)]
-              rw [map_eq_bind_pure_comp]
-              erw [bind_assoc]
-              exact bind_congr fun w => pure_bind _ _
-            rw [hLrw]
-            rw [evalDist_bind_bind_swap ($ᵗ R) ($ᵗ R)
-              (fun u w => forgeBit (k (tr == w))
-                ((cache.cacheQuery d u).cacheQuery td w, evald,
-                  fl || ((tr == w) && decide (td ∉ evald))))]
-            refine evalDist_ext fun x => ?_
-            simp only [probOutput_bind_eq_tsum]
-            refine tsum_congr fun w => ?_
-            have hcomm : ∀ u : R, (cache.cacheQuery d u).cacheQuery td w =
-                (cache.cacheQuery td w).cacheQuery d u := by
-              intro u
-              simp only [QueryCache.cacheQuery]
-              exact Function.update_comm (fun h => htd h.symm) u w cache
-            have hmiss_d : (cache.cacheQuery td w) d = none := by
-              rw [QueryCache.cacheQuery_of_ne cache w (fun h => htd h.symm)]; exact hcd
-            simp only [hcomm]
-            rw [← probOutput_bind_eq_tsum]
-            exact congrArg (Pr[= w | ($ᵗ R : ProbComp R)] * ·)
-              (congrFun (congrArg DFunLike.coe
-                (ih (tr == w) (cache.cacheQuery td w) evald
-                  (fl || ((tr == w) && decide (td ∉ evald))) d hmiss_d hde)) x)
+/-- `forgeBit` is the random-oracle simulation of the compiled forgery bodies, read at the
+forge flag. -/
+private lemma forgeBit_eq_simulateQ_compile (ob : ForgeAdversary D R)
+    (cache : (D →ₒ R).QueryCache) (evald : Finset D) (fl : Bool) :
+    forgeBit ob (cache, evald, fl) =
+      (simulateQ prfIdealQueryImpl
+        ((fun z : Unit × (Finset D × Bool) => z.2.2) <$>
+          compile forgeBody ob (evald, fl))).run' cache := by
+  rw [forgeBit, run_simulateQ_eq_compile (fun s qc => (qc, s)) forgeImpl forgeBody
+      forgeImpl_run_eq_forgeBody ob (evald, fl) cache,
+    simulateQ_map, StateT.run'_eq, StateT.run_map, Functor.map_map, Functor.map_map]
 
-open scoped Classical in
-/-- **Forge-resampling at a non-eval'd point.** For a cache that misses `d` and a point `d` not in
-the eval'd set, the `u`-average over a fresh uniform sample `u` of the forge probability of the
-continuation run from the cache extended with `d ↦ u` equals the forge probability run from the bare
-cache. The eval'd set and forge flag are arbitrary (carried unchanged through the resampling). -/
-private lemma forge_resample_run :
-    ∀ (ob : ForgeAdversary D R) (cache : (D →ₒ R).QueryCache) (evald : Finset D) (fl : Bool)
-      (d : D), cache d = none → d ∉ evald →
-      (∑' u : R, Pr[= u | ($ᵗ R : ProbComp R)] *
-        Pr[fun z : Unit × ForgeState D R => z.2.2.2 = true |
-          (simulateQ forgeImpl ob).run (cache.cacheQuery d u, evald, fl)]) =
+/-- **Forge-resampling at an uncached point.** For a cache that misses `d`, the `u`-average over
+a fresh uniform sample `u` of the forge probability of the run from the cache extended with
+`d ↦ u` equals the forge probability of the run from the bare cache. This is lazy random-oracle
+resampling, `evalDist_uniformSample_bind_simulateQ_prfIdealQueryImpl_run'`, transported through
+`forgeBit_eq_simulateQ_compile`. -/
+private lemma forge_resample_run (ob : ForgeAdversary D R) (cache : (D →ₒ R).QueryCache)
+    (evald : Finset D) (fl : Bool) (d : D) (hcd : cache d = none) :
+    (∑' u : R, Pr[= u | ($ᵗ R : ProbComp R)] *
+      Pr[fun z : Unit × ForgeState D R => z.2.2.2 = true |
+        (simulateQ forgeImpl ob).run (cache.cacheQuery d u, evald, fl)]) =
       Pr[fun z : Unit × ForgeState D R => z.2.2.2 = true |
         (simulateQ forgeImpl ob).run (cache, evald, fl)] := by
-  intro ob cache evald fl d hcd hde
   simp only [probEvent_forged_eq_probOutput_forgeBit]
   rw [← probOutput_bind_eq_tsum]
-  rw [probOutput_def, probOutput_def]
-  exact congrFun (congrArg DFunLike.coe (evalDist_forgeBit_resample ob cache evald fl d hcd hde))
-    true
+  refine evalDist_ext_iff.mp ?_ true
+  simp only [forgeBit_eq_simulateQ_compile]
+  exact evalDist_uniformSample_bind_simulateQ_prfIdealQueryImpl_run' d _ cache hcd
 
 open scoped Classical in
 /-- If `oa` makes at most `n` verify queries and every point outside `evald`
@@ -692,7 +501,7 @@ private theorem probForge_run_le [Fintype R]
           rw [hhit]
           -- **Forgetting/resampling.**  Average over the fresh draw `u` of the continuation's forge
           -- probability equals the forge probability run from the bare uncached cache.
-          rw [forge_resample_run (mx false) cache evald false d hcd hde]
+          rw [forge_resample_run (mx false) cache evald false d hcd]
           -- The bare-cache run is bounded by the IH at `n - 1` (the uncached invariant `hnc` is
           -- unchanged at `cache`).
           refine le_trans (add_le_add le_rfl (ih false (n - 1) cache evald (hmx' false) hnc)) ?_

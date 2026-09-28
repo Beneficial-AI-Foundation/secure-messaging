@@ -73,7 +73,7 @@ continuation directly. On a `D →ₒ R` query at `t`: if `t = d`, the pre-sampl
 (deterministic) while the bare side misses and samples fresh — the two uniform samples are renamed
 into each other. If `t ≠ d`, the `d`-entry is untouched and the continuation cache still misses
 `d`, so the IH applies after commuting the two independent samples. -/
-private theorem evalDist_uniformSample_bind_simulateQ_prfIdealQueryImpl_run'
+theorem evalDist_uniformSample_bind_simulateQ_prfIdealQueryImpl_run'
     {β : Type} (d : D) :
     ∀ (p : OracleComp (unifSpec + (D →ₒ R)) β) (qc : (D →ₒ R).QueryCache), qc d = none →
       𝒟[($ᵗ R) >>= fun r => (simulateQ prfIdealQueryImpl p).run' (qc.cacheQuery d r)] =
@@ -268,16 +268,14 @@ def compile (B : (t : spec.Domain) → σ → OracleComp (unifSpec + (D →ₒ R
   (simulateQ (bodyImpl B) adv).run s
 
 omit [DecidableEq D] [SampleableType R] in
-/-- Internal unfolding lemma for `compile` on `pure` (used only inside this file's
-`run_simulateQ_eq_compile`). -/
+/-- `compile` on `pure`. -/
 @[simp] private lemma compile_pure
     (B : (t : spec.Domain) → σ → OracleComp (unifSpec + (D →ₒ R)) (spec.Range t × σ))
     (x : α) (s : σ) : compile (α := α) B (pure x) s = pure (x, s) := by
   simp [compile]
 
 omit [DecidableEq D] [SampleableType R] in
-/-- Internal unfolding lemma for `compile` on a `query >>= k` (used only inside this file's
-`run_simulateQ_eq_compile`). -/
+/-- `compile` on a `query >>= k`. -/
 private lemma compile_query_bind
     (B : (t : spec.Domain) → σ → OracleComp (unifSpec + (D →ₒ R)) (spec.Range t × σ))
     (t : spec.Domain) (k : spec.Range t → OracleComp spec α) (s : σ) :
@@ -286,19 +284,20 @@ private lemma compile_query_bind
   simp only [compile, bodyImpl, simulateQ_bind, simulateQ_spec_query, StateT.run_bind,
     StateT.run_mk]
 
-/-- **Bridge.** If `impl₁` `RespectsRO` with body `B`, then `simulateQ impl₁ adv` over the product
-state `(σ × cache)` equals `simulateQ randomOracle (compile B adv s)` over the cache, with the
-returned `σ`-state reshaped back into the product. -/
-private theorem run_simulateQ_eq_compile
-    (impl₁ : QueryImpl spec (StateT (σ × (D →ₒ R).QueryCache) ProbComp))
+/-- **Bridge.** Let `pack s qc : S` store the auxiliary state `s` and the random-oracle cache `qc`
+in the handler state. If every handler of `impl₁` runs as the body `B` simulated by
+`prfIdealQueryImpl`, repacked, then so does the whole simulation of `adv`, with body
+`compile B adv`. `RespectsRO` is the case `pack := Prod.mk`. -/
+theorem run_simulateQ_eq_compile {S : Type} (pack : σ → (D →ₒ R).QueryCache → S)
+    (impl₁ : QueryImpl spec (StateT S ProbComp))
     (B : (t : spec.Domain) → σ → OracleComp (unifSpec + (D →ₒ R)) (spec.Range t × σ))
     (hB : ∀ (t : spec.Domain) (s : σ) (qc : (D →ₒ R).QueryCache),
-      (impl₁ t).run (s, qc) =
-        (fun z : (spec.Range t × σ) × (D →ₒ R).QueryCache => (z.1.1, (z.1.2, z.2))) <$>
+      (impl₁ t).run (pack s qc) =
+        (fun z : (spec.Range t × σ) × (D →ₒ R).QueryCache => (z.1.1, pack z.1.2 z.2)) <$>
           (simulateQ prfIdealQueryImpl (B t s)).run qc)
     (adv : OracleComp spec α) (s : σ) (qc : (D →ₒ R).QueryCache) :
-    (simulateQ impl₁ adv).run (s, qc) =
-      (fun z : (α × σ) × (D →ₒ R).QueryCache => (z.1.1, (z.1.2, z.2))) <$>
+    (simulateQ impl₁ adv).run (pack s qc) =
+      (fun z : (α × σ) × (D →ₒ R).QueryCache => (z.1.1, pack z.1.2 z.2)) <$>
         (simulateQ prfIdealQueryImpl (compile B adv s)).run qc := by
   induction adv using OracleComp.inductionOn generalizing s qc with
   | pure x =>
@@ -310,20 +309,19 @@ private theorem run_simulateQ_eq_compile
     refine bind_congr fun z => ?_
     exact ih z.1.1 z.1.2 z.2
 
-/-- `run'` corollary of `run_simulateQ_eq_compile`: the output distribution of the product-state
-simulation is the `Prod.fst`-marginal of the random-oracle simulation of the compiled computation,
-which is itself `simulateQ randomOracle` of `Prod.fst <$> compile B adv s`. -/
-private theorem run'_simulateQ_eq_compile
-    (impl₁ : QueryImpl spec (StateT (σ × (D →ₒ R).QueryCache) ProbComp))
+/-- `run'` corollary of `run_simulateQ_eq_compile`: the output distribution of the simulation
+is that of `Prod.fst <$> compile B adv s` under `prfIdealQueryImpl`. -/
+theorem run'_simulateQ_eq_compile {S : Type} (pack : σ → (D →ₒ R).QueryCache → S)
+    (impl₁ : QueryImpl spec (StateT S ProbComp))
     (B : (t : spec.Domain) → σ → OracleComp (unifSpec + (D →ₒ R)) (spec.Range t × σ))
     (hB : ∀ (t : spec.Domain) (s : σ) (qc : (D →ₒ R).QueryCache),
-      (impl₁ t).run (s, qc) =
-        (fun z : (spec.Range t × σ) × (D →ₒ R).QueryCache => (z.1.1, (z.1.2, z.2))) <$>
+      (impl₁ t).run (pack s qc) =
+        (fun z : (spec.Range t × σ) × (D →ₒ R).QueryCache => (z.1.1, pack z.1.2 z.2)) <$>
           (simulateQ prfIdealQueryImpl (B t s)).run qc)
     (adv : OracleComp spec α) (s : σ) (qc : (D →ₒ R).QueryCache) :
-    (simulateQ impl₁ adv).run' (s, qc) =
+    (simulateQ impl₁ adv).run' (pack s qc) =
       (simulateQ prfIdealQueryImpl (Prod.fst <$> compile B adv s)).run' qc := by
-  rw [StateT.run'_eq, run_simulateQ_eq_compile impl₁ B hB adv s qc, simulateQ_map,
+  rw [StateT.run'_eq, run_simulateQ_eq_compile pack impl₁ B hB adv s qc, simulateQ_map,
     StateT.run'_eq, StateT.run_map, Functor.map_map, Functor.map_map]
 
 /-! ## Discarded random-oracle query removal under `simulateQ` -/
@@ -363,7 +361,7 @@ theorem evalDist_simulateQ_run'_discardRO
       have hbridge : ∀ c : (D →ₒ R).QueryCache,
           (simulateQ impl₁ adv').run' (s₀, c) =
             (simulateQ prfIdealQueryImpl P).run' c := by
-        intro c; rw [hP]; exact run'_simulateQ_eq_compile impl₁ B hB adv' s₀ c
+        intro c; rw [hP]; exact run'_simulateQ_eq_compile Prod.mk impl₁ B hB adv' s₀ c
       -- Step 1: the `impl₁` side is `simulateQ prfIdealQueryImpl P`.
       have key1 :
           𝒟[(simulateQ impl₁ adv').run' (s₀, qc₀)] =

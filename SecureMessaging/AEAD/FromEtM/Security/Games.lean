@@ -13,7 +13,7 @@ import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 import VCVio.OracleComp.QueryTracking.SubSpec
 import VCVio.EvalDist.TVDist
 import VCVio.ProgramLogic.Relational.SimulateQ
-import ToVCVio.OracleComp.QueryTracking.RandomOracle.RandomOracleForgery
+import ToVCVio.CryptoFoundations.RandomOracleForgery
 import ToVCVio.OracleComp.QueryTracking.RandomOracle.DiscardQuerySimulate
 import ToVCVio.OracleComp.SimSemantics.SimulateQForward
 import ToVCVio.OracleComp.SimSemantics.StateT.MapStateTBase

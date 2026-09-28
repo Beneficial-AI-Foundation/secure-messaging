@@ -5,6 +5,7 @@ import ToVCVio.CryptoFoundations.KeyEncapMech
 import ToVCVio.CryptoFoundations.PRP
 import ToVCVio.CryptoFoundations.PRPSwitching
 import ToVCVio.CryptoFoundations.RabinIrreducibility
+import ToVCVio.CryptoFoundations.RandomOracleForgery
 import ToVCVio.CryptoFoundations.UniversalHash
 import ToVCVio.CryptoFoundations.WegmanCarter.AbstractBounds
 import ToVCVio.CryptoFoundations.WegmanCarter.Defs
@@ -30,7 +31,6 @@ import ToVCVio.OracleComp.QueryTracking.LazySampling
 import ToVCVio.OracleComp.QueryTracking.QueryBound
 import ToVCVio.OracleComp.QueryTracking.RandomOracle.DiscardQuerySimulate
 import ToVCVio.OracleComp.QueryTracking.RandomOracle.FreshQueries
-import ToVCVio.OracleComp.QueryTracking.RandomOracle.RandomOracleForgery
 import ToVCVio.OracleComp.SimSemantics.SimulateQForward
 import ToVCVio.OracleComp.SimSemantics.StateT.ExpectedPayoffBound
 import ToVCVio.OracleComp.SimSemantics.StateT.MapStateTBase
