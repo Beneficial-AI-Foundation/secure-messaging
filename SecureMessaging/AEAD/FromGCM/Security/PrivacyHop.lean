@@ -310,6 +310,6 @@ theorem probOutput_game3_eq_game4 {K : Type} (prp : PRPScheme K (BitVec 128)) (L
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
     Pr[= true | game3 prp L hL adv] = Pr[= true | game4 prp L hL adv] :=
-  probOutput_eq_of_evalDist_eq (game3_eq_game4 prp L hL adv) true
+  evalDist_ext_iff.mp (game3_eq_game4 prp L hL adv) true
 
 end GCM

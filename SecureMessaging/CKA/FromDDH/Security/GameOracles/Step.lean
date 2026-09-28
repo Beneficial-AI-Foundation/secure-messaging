@@ -166,7 +166,7 @@ lemma probOutput_real_send_coupling
     (h_ih := fun x => by
     have hi := h_ih (some (x • gen, x • peer)) (post x)
     simp only [StateT.run'_eq] at hi
-    exact probOutput_eq_of_evalDist_eq hi.symm y)
+    exact evalDist_ext_iff.mp hi.symm y)
     (h_indep := fun x b a =>
       probOutput_map_eq_of_evalDist_eq (h_a_indep x b a) Prod.fst y)
 
@@ -219,7 +219,7 @@ lemma probOutput_rand_send_coupling
     (h_ih := fun x => by
     have hi := h_ih (some (x • gen, x • peer)) (post x)
     simp only [StateT.run'_eq] at hi
-    exact probOutput_eq_of_evalDist_eq hi.symm y)
+    exact evalDist_ext_iff.mp hi.symm y)
     (h_indep := fun x b a gT =>
       probOutput_map_eq_of_evalDist_eq (h_a_indep x b a gT) Prod.fst y)
 
@@ -541,7 +541,7 @@ lemma probOutput_real_challenge_coupling
     (h_ih := fun x => by
     have hi := h_ih (some (x • gen, x • peer)) (post x)
     simp only [StateT.run'_eq] at hi
-    exact probOutput_eq_of_evalDist_eq hi.symm y)
+    exact evalDist_ext_iff.mp hi.symm y)
     (h_indep := fun x a b =>
       probOutput_map_eq_of_evalDist_eq (h_b_indep x a b) Prod.fst y)
 
@@ -631,7 +631,7 @@ lemma probOutput_rand_challenge_coupling
     (h_ih := fun x outKey => by
       have hi := h_ih (some (x • gen, outKey)) (post x)
       simp only [StateT.run'_eq] at hi
-      exact probOutput_eq_of_evalDist_eq hi.symm y)
+      exact evalDist_ext_iff.mp hi.symm y)
     (h_second_indep := fun x outKey a b gT =>
       probOutput_map_eq_of_evalDist_eq (h_b_indep x outKey a b gT) Prod.fst y)
     (h_third_indep := fun x outKey a gT =>

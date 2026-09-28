@@ -239,11 +239,11 @@ private lemma injected_probOutput_eq_killed_add_done
         Pr[= true | injectedDoneGame kem hDet leak adv gp] := by
   rw [ckaSecurityFixedBranchWithInjectedChallengeKey_eq_split]
   simp only [injectedKilledGame, injectedDoneGame]
-  refine probOutput_true_bind_add_of_pointwise kem.keygen _ _ _ fun ks0 => ?_
+  refine probOutput_bind_congr_eq_add fun ks0 _ => ?_
   obtain ⟨pk0, sk0⟩ := ks0
-  refine probOutput_true_bind_add_of_pointwise kem.keygen _ _ _ fun ksS => ?_
+  refine probOutput_bind_congr_eq_add fun ksS _ => ?_
   obtain ⟨pkStar, skStar⟩ := ksS
-  refine probOutput_true_bind_add_of_pointwise _ _ _ _ fun z => ?_
+  refine probOutput_bind_congr_eq_add fun z _ => ?_
   exact injResume_probOutput_decomp kem hDet leak gp b pkStar skStar z
 
 /-- The reduction game's success probability splits over the first pause. -/
@@ -260,11 +260,11 @@ private lemma reduction_probOutput_eq_killed_add_done
         Pr[= true | reductionDoneGame kem hDet leak adv gp] := by
   simp only [ckaReductionINDCPABranchRawKeygenSwapped, reductionKilledGame,
     reductionDoneGame]
-  refine probOutput_true_bind_add_of_pointwise kem.keygen _ _ _ fun ks0 => ?_
+  refine probOutput_bind_congr_eq_add fun ks0 _ => ?_
   obtain ⟨pk0, sk0⟩ := ks0
-  refine probOutput_true_bind_add_of_pointwise kem.keygen _ _ _ fun ksS => ?_
+  refine probOutput_bind_congr_eq_add fun ksS _ => ?_
   obtain ⟨pkStar, skStar⟩ := ksS
-  refine probOutput_true_bind_add_of_pointwise _ _ _ _ fun z => ?_
+  refine probOutput_bind_congr_eq_add fun z _ => ?_
   exact rawResume_probOutput_decomp kem hDet leak gp b pkStar z
 
 /-! ## Toward the paused-run chains

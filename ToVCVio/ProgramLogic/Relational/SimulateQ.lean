@@ -3,6 +3,7 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
+import VCVio.OracleComp.QueryTracking.RandomOracle.DeferredSampling
 import VCVio.ProgramLogic.Relational.SimulateQ
 import ToVCVio.EvalDist.Monad.Basic
 
@@ -89,7 +90,7 @@ theorem evalDist_sample_param_query_bind_passthrough
   intro p hp_support
   have hi := h_ih p.1 p.2 (h_preserves p hp_support)
   simp only [StateT.run'_eq] at hi
-  exact probOutput_eq_of_evalDist_eq hi y
+  exact evalDist_ext_iff.mp hi y
 
 /-- A parameter that does not affect the handlers' distributions can be fixed instead of sampled.
 
@@ -107,9 +108,9 @@ theorem evalDist_sample_simulateQ_run'_eq_of_param_indep
       let param ← $ᵗ θ
       (simulateQ (impl param) oa).run' s] =
     𝒟[(simulateQ (impl x₀) oa).run' s] :=
-  evalDist_sample_bind_eq_of_forall_evalDist_eq _ _ fun param =>
-    evalDist_eq_of_relTriple_eqRel
-      (relTriple_simulateQ_run'_of_impl_evalDist_eq _ _ oa (h param) s s rfl)
+  (evalDist_bind_congr' _ fun param => evalDist_eq_of_relTriple_eqRel
+    (relTriple_simulateQ_run'_of_impl_evalDist_eq _ _ oa (h param) s s rfl)).trans
+      (DeferredSampling.evalDist_bind_const_neverFails _ (probFailure_uniformSample _) _)
 
 /-- A deterministic handler call can be skipped.
 
@@ -240,7 +241,7 @@ theorem probOutput_handler_sample_pure_eq
     rw [bind_assoc]
     refine bind_congr fun param => ?_
     rw [pure_bind]
-  exact probOutput_eq_of_evalDist_eq (congrArg evalDist h_term_eq) y
+  exact evalDist_ext_iff.mp (congrArg evalDist h_term_eq) y
 
 /-- Two-sample version of `probOutput_handler_sample_pure_eq`. -/
 theorem probOutput_handler_sample₂_pure_eq
@@ -275,6 +276,6 @@ theorem probOutput_handler_sample₂_pure_eq
     rw [bind_assoc]
     refine bind_congr fun param₂ => ?_
     rw [pure_bind]
-  exact probOutput_eq_of_evalDist_eq (congrArg evalDist h_term_eq) y
+  exact evalDist_ext_iff.mp (congrArg evalDist h_term_eq) y
 
 end OracleComp.ProgramLogic.Relational

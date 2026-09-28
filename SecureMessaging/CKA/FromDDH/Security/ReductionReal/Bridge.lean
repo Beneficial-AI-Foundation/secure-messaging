@@ -78,12 +78,7 @@ lemma evalDist_special_honest_fixed_a_eq_eager
           let b ← ($ᵗ F : ProbComp F)
           let a ← ($ᵗ F : ProbComp F)
           (simulateQ (honestImplParamReal gp gen a b) adversary).run' s) := by
-          exact evalDist_sample_bind_congr_of_forall_evalDist_eq
-            (f := fun b => (simulateQ (honestImplParamReal gp gen x₀ b) adversary).run' s)
-            (g := fun b => do
-              let a ← ($ᵗ F : ProbComp F)
-              (simulateQ (honestImplParamReal gp gen a b) adversary).run' s)
-            (fun b => (h_bind_fixed b).symm)
+          exact evalDist_bind_congr' _ fun b => (h_bind_fixed b).symm
     _ =
         evalDist ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) adversary).run' s) := by
           exact evalDist_eager_honest_lazy_eq (gen := gen) gp s adversary
@@ -111,7 +106,7 @@ lemma probOutput_general_per_x₀
         (initGameState
           (CKAState.sendReady (x₀ • gen) : CKAState F G)
           (CKAState.recvReady x₀ : CKAState F G))] := by
-  exact probOutput_eq_of_evalDist_eq
+  exact evalDist_ext_iff.mp
     (evalDist_eager_reduction_lazy_eq
       (gen := gen) gp hΔFS hΔPCS h_general_case x₀ adversary)
     false
@@ -214,11 +209,11 @@ lemma probOutput_special_per_x₀
           let b ← ($ᵗ F : ProbComp F)
           (simulateQ (honestImplParamReal gp gen x₀ b) adversary).run' s₀H] := by
             refine probOutput_bind_congr' _ false fun b => ?_
-            exact probOutput_eq_of_evalDist_eq
-              (OracleComp.ProgramLogic.Relational.probOutput_simulateQ_run'_eq_of_state_rel
+            exact OracleComp.ProgramLogic.Relational.probOutput_eq_of_relTriple_eqRel
+              (OracleComp.ProgramLogic.Relational.relTriple_simulateQ_run'
                 (impl₁ := reductionOracleImpl gp gen (x₀ • gen) (b • gen) ((x₀ * b) • gen))
                 (impl₂ := honestImplParamReal gp gen x₀ b)
-                (R := reductionHonestRel gp gen x₀ b)
+                (R_state := reductionHonestRel gp gen x₀ b)
                 (oa := adversary)
                 (s₁ := s₀R) (s₂ := s₀H)
                 (by
@@ -233,7 +228,7 @@ lemma probOutput_special_per_x₀
               false
     _ = Pr[= false |
           (simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) adversary).run' s₀H] := by
-            exact probOutput_eq_of_evalDist_eq
+            exact evalDist_ext_iff.mp
               (evalDist_special_honest_fixed_a_eq_eager (gen := gen)
                 gp h_special_case x₀ adversary s₀H)
               false

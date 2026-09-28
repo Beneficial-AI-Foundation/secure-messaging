@@ -446,10 +446,8 @@ lemma evalDist_marginalized_honestSendA_param_eq_oracleSendA_at_chal_B
             -- Contradicts h_fire (which says NOT all of validStep ∧ OtherSend ∧ stA=.sendReady).
             push Not at h_fire
             exact absurd h_stA (h_fire h_v h_o h)
-    exact evalDist_sample_bind_eq_of_forall_eq
-      (f := fun a => (honestSendAparam (F := F) gp gen a ()).run s)
-      (p := (oracleSendA (ddhCKA F G gen) ()).run s)
-      h_param_eq_eager
+    simp only [h_param_eq_eager,
+      DeferredSampling.evalDist_bind_const_neverFails _ (probFailure_uniformSample _)]
 
 omit [Inhabited F] [Fintype G] [DecidableEq G] in
 /-- At `challengedParty = .A`, pre-sampling `a ← $ᵗ F` for `honestSendBparam`
@@ -499,10 +497,8 @@ lemma evalDist_marginalized_honestSendB_param_eq_oracleSendB_at_chal_A
           | sendReady h =>
             push Not at h_fire
             exact absurd h_stB (h_fire h_v h_o h)
-    exact evalDist_sample_bind_eq_of_forall_eq
-      (f := fun a => (honestSendBparam (F := F) gp gen a ()).run s)
-      (p := (oracleSendB (ddhCKA F G gen) ()).run s)
-      h_param_eq_eager
+    simp only [h_param_eq_eager,
+      DeferredSampling.evalDist_bind_const_neverFails _ (probFailure_uniformSample _)]
 
 omit [Inhabited F] [Fintype G] [DecidableEq G] in
 /-- At `challengedParty = .A`, pre-sampling `b ← $ᵗ F` for `honestChallAparam`
@@ -552,10 +548,8 @@ lemma evalDist_marginalized_honestChallA_param_eq_oracleChallA_at_chal_A
           | sendReady h =>
             push Not at h_fire
             exact absurd h_stA (h_fire h_v h_e h)
-    exact evalDist_sample_bind_eq_of_forall_eq
-      (f := fun b' => (honestChallAparam (F := F) gp gen b' ()).run s)
-      (p := (oracleChallA gp false (ddhCKA F G gen) ()).run s)
-      h_param_eq_eager
+    simp only [h_param_eq_eager,
+      DeferredSampling.evalDist_bind_const_neverFails _ (probFailure_uniformSample _)]
 
 omit [Inhabited F] [Fintype G] [DecidableEq G] in
 /-- At `challengedParty = .A`, pre-sampling both the challenge scalar
@@ -610,10 +604,8 @@ lemma evalDist_marginalized_honestChallA_param_rand_eq_oracleChallA_at_chal_A
           | sendReady h =>
             push Not at h_fire
             exact absurd h_stA (h_fire h_v h_e h)
-    exact evalDist_sample_bind₂_eq_of_forall_eq
-      (f := fun b' gT => (honestChallAparamRand (F := F) gp gen b' gT ()).run s)
-      (p := (oracleChallA gp true (ddhCKA F G gen) ()).run s)
-      h_param_eq_eager
+    simp only [h_param_eq_eager,
+      DeferredSampling.evalDist_bind_const_neverFails _ (probFailure_uniformSample _)]
 
 omit [Inhabited F] [Fintype G] [DecidableEq G] in
 /-- At `challengedParty = .B`, pre-sampling `b ← $ᵗ F` for `honestChallBparam`
@@ -663,10 +655,8 @@ lemma evalDist_marginalized_honestChallB_param_eq_oracleChallB_at_chal_B
           | sendReady h =>
             push Not at h_fire
             exact absurd h_stB (h_fire h_v h_e h)
-    exact evalDist_sample_bind_eq_of_forall_eq
-      (f := fun b' => (honestChallBparam (F := F) gp gen b' ()).run s)
-      (p := (oracleChallB gp false (ddhCKA F G gen) ()).run s)
-      h_param_eq_eager
+    simp only [h_param_eq_eager,
+      DeferredSampling.evalDist_bind_const_neverFails _ (probFailure_uniformSample _)]
 
 
 

@@ -1600,8 +1600,9 @@ lemma evalDist_reduction_honest_param_rand_eq
       (initGameState
         (CKAState.sendReady (x₀ • gen) : CKAState F G)
         (CKAState.recvReady x₀ : CKAState F G))) := by
-  apply OracleComp.ProgramLogic.Relational.probOutput_simulateQ_run'_eq_of_state_rel
-    (R := reductionHonestRelRand gp gen a b gT)
+  refine OracleComp.ProgramLogic.Relational.evalDist_eq_of_relTriple_eqRel
+    (OracleComp.ProgramLogic.Relational.relTriple_simulateQ_run' _ _
+      (reductionHonestRelRand gp gen a b gT) _ ?_ _ _ ?_)
   · intro t sR sH hrel
     exact reduction_honest_param_rand_step_rel
       (gen := gen) gp hΔFS hΔPCS a b gT t sR sH hrel
