@@ -117,7 +117,7 @@ private lemma reachableInv_after_sendB_newOff
   have hst : s.stB.stCt = none := by
     simpa [hct0] using hInv.offBShape
   have hoff : (T s.stB.t).off = none := by
-    simpa [hct0, hst, optionPair] using hInv.offB
+    simpa [hct0, hst] using hInv.offB
   let tr' := (T s.stB.t).setOff st ct0 hmem honNone
   let T' := Function.update T s.stB.t tr'
   have hTKey : ∀ t, (T' t).key = (T t).key := by
@@ -147,7 +147,7 @@ private lemma reachableInv_after_sendB_newOff
   · exact hInv.keypairAShape
   · simp
   · simpa [hTKp s.stA.t] using hInv.keypairA
-  · simp [T', tr', EpochTranscript.setOff, optionPair]
+  · simp [T', tr', EpochTranscript.setOff]
   · simpa [hTOn s.stB.t] using hInv.onB
   · intro pk hpk
     obtain ⟨sk, htr⟩ := hInv.decodedEk pk hpk
@@ -479,7 +479,7 @@ private lemma reachableInv_after_sendB_newOffOn
   have hstnone : s.stB.stCt = none := by
     simpa [hct0none] using hInv.offBShape
   have hoffnone : (T s.stB.t).off = none := by
-    simpa [hct0none, hstnone, optionPair] using hInv.offB
+    simpa [hct0none, hstnone] using hInv.offB
   have honnone : (T s.stB.t).on = none := by
     by_contra hon
     simpa [hoffnone] using (T s.stB.t).on_off (Option.isSome_iff_ne_none.mpr hon)
@@ -540,7 +540,7 @@ private lemma reachableInv_after_sendB_newOffOn
   · exact hInv.keypairAShape
   · simp
   · simpa [hTKp s.stA.t] using hInv.keypairA
-  · simp [T', tr', offTr, EpochTranscript.setOn, EpochTranscript.setOff, optionPair]
+  · simp [T', tr', offTr, EpochTranscript.setOn, EpochTranscript.setOff]
   · simp [T', tr', EpochTranscript.setOn]
   · intro pk' hpk'
     obtain ⟨sk', htr⟩ := hInv.decodedEk pk' hpk'
@@ -658,7 +658,7 @@ lemma oracleSendB_preserves_reachableInv
       have hstSome : s.stB.stCt.isSome := by simpa [hct0] using hInv.offBShape
       obtain ⟨st, hst⟩ := Option.isSome_iff_exists.mp hstSome
       have hoff : (T s.stB.t).off = some (st, ct0) := by
-        simpa [hst, hct0, optionPair] using hInv.offB
+        simpa [hst, hct0] using hInv.offB
       cases hack : !s.stB.ack.ctRec
       case true =>
         have hackFalse : s.stB.ack.ctRec = false := by
@@ -784,7 +784,7 @@ lemma oracleSendB_preserves_reachableInv
       have hstnone : s.stB.stCt = none := by
         simpa [hct0] using hInv.offBShape
       have hoffnone : (T s.stB.t).off = none := by
-        simpa [hct0, hstnone, optionPair] using hInv.offB
+        simpa [hct0, hstnone] using hInv.offB
       have honnone : (T s.stB.t).on = none := by
         by_contra hn
         simpa [hoffnone] using (T s.stB.t).on_off

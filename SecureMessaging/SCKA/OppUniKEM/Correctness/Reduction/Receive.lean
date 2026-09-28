@@ -395,7 +395,7 @@ lemma currentKEMFailure_eq_false_implies_current [DecidableEq K]
       simp
     simp [EpochTranscript.key, hfuture] at hTKey
   obtain ⟨st, hoffA⟩ := hInv.decodedCt0 ct0 hct0A
-  have hoffB : (T s.stA.t).off = optionPair s.stB.stCt s.stB.ct0 := by
+  have hoffB : (T s.stA.t).off = Option.map₂ Prod.mk s.stB.stCt s.stB.ct0 := by
     simpa [htEq] using hInv.offB
   have hct0B : s.stB.ct0 = some ct0 := by
     rw [hoffA] at hoffB

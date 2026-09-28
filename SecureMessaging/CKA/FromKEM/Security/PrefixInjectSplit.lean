@@ -352,15 +352,6 @@ private lemma injectPrefix_run_support_effInject [SampleableType K] [DecidableEq
 
 /-! ## Combining the split at the installing send -/
 
-/-- Two state-output computations with the same output distribution have the same
-distribution on their Boolean component. -/
-private lemma probOutput_fst_true_eq_of_run_eq
-    {X Y : ProbComp (Bool × SecurityState K PK SK C)}
-    (h : ∀ z, Pr[= z | X] = Pr[= z | Y]) :
-    Pr[= true | X >>= fun x => pure x.1] = Pr[= true | Y >>= fun x => pure x.1] := by
-  rw [probOutput_bind_eq_tsum, probOutput_bind_eq_tsum]
-  exact tsum_congr fun z => by rw [h z]
-
 /-- The keygen commute at an installing send, abstracted over the post-send state.
 
 After the installing send is reduced to its normal form, the injecting branch
@@ -396,10 +387,11 @@ private lemma keygen_commute_after_install_tail [SampleableType K] [DecidableEq 
   refine probOutput_bind_congr fun ck _ => ?_
   refine probOutput_bind_congr fun p _ => ?_
   rw [probOutput_bind_of_const' kem.keygen fun _ _ => rfl]
-  exact probOutput_fst_true_eq_of_run_eq fun z =>
-    probOutput_simulateQ_securityImplWithChallengeKeyPair_run_eq_of_injectionPassed
-      kem hDet leak gp isRandom p.1 p.2 (cont (some ((ck.1, p.1), ck.2)))
-      (mkState p.1 p.2 ck.1 ck.2) (hpass p ck) z
+  simpa only [StateT.run'_eq, map_eq_bind_pure_comp, Function.comp_def] using
+    ToVCVio.probOutput_run'_true_eq_of_run_probOutput_eq _ fun z =>
+      probOutput_simulateQ_securityImplWithChallengeKeyPair_run_eq_of_injectionPassed
+        kem hDet leak gp isRandom p.1 p.2 (cont (some ((ck.1, p.1), ck.2)))
+        (mkState p.1 p.2 ck.1 ck.2) (hpass p ck) z
 
 /-- The keygen commute at the installing A-send.
 
@@ -627,9 +619,10 @@ private lemma ckaSecurityFixedBranchWithChallengeKey_injected_probOutput_true_eq
       rw [beq_iff_eq] at hce hcp
       simp only [injectionPassed, hcp, CKAScheme.initGameState]
       omega
-    exact (probOutput_fst_true_eq_of_run_eq fun z =>
-      probOutput_simulateQ_securityImplWithChallengeKeyPair_run_eq_of_injectionPassed
-        kem hDet leak gp isRandom pkStar_skStar.1 pkStar_skStar.2 adv _ hpass z).symm
+    simpa only [StateT.run'_eq, map_eq_bind_pure_comp, Function.comp_def] using
+      (ToVCVio.probOutput_run'_true_eq_of_run_probOutput_eq _ fun z =>
+        probOutput_simulateQ_securityImplWithChallengeKeyPair_run_eq_of_injectionPassed
+          kem hDet leak gp isRandom pkStar_skStar.1 pkStar_skStar.2 adv _ hpass z).symm
   · have hinitFalse :
         (gp.challengeEpoch == 1 && gp.challengedParty == .A) = false :=
       Bool.eq_false_of_not_eq_true hinit

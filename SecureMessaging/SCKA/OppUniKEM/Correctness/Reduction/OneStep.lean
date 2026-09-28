@@ -215,7 +215,7 @@ lemma tracked_sendB_score_le [DecidableEq K]
         simpa [hct0] using hInv.offBShape
       have hct1 : s.stB.ct1 = none := by
         have hoff : (T s.stB.t).off = none := by
-          simpa [hct0, hst, optionPair] using hInv.offB
+          simpa [hct0, hst] using hInv.offB
         have hon : (T s.stB.t).on = none := by
           by_contra hne
           simpa [hoff] using (T s.stB.t).on_off
@@ -315,8 +315,7 @@ lemma tracked_sendB_score_le [DecidableEq K]
               rw [hrun, expectedPayoff_bind]
               have hpot : currentFailurePotential kem onoff s =
                   failureAfterKeypair kem onoff pk sk := by
-                simp [currentFailurePotential, ht, hct1, hekA, hdk, hst, hct0,
-                  optionPair]
+                simp [currentFailurePotential, ht, hct1, hekA, hdk, hst, hct0]
               calc
                 (Pr[⊥ | onoff.encapsOff] +
                   ∑' off : onoff.St × onoff.C₀, Pr[= off | onoff.encapsOff] *
@@ -429,7 +428,7 @@ lemma tracked_sendB_score_le [DecidableEq K]
                   have hpot : currentFailurePotential kem onoff s =
                       failureAfterBoth kem onoff pk sk st ct0 := by
                     simp [currentFailurePotential, ht, hct1, hekA, hdk, hst,
-                      hct0, optionPair]
+                      hct0]
                   simp [trackedFailureScore, hpot]
               | some ct1 =>
                   let ich := s.stB.ich + 1

@@ -6,6 +6,7 @@ Authors: Beneficial AI Foundation
 
 
 import SecureMessaging.CKA.FromKEM.Security.PostChallenge
+import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 
 /-!
 # CKA from KEM — Concrete Reduction Branch
@@ -117,7 +118,7 @@ private lemma reductionBranchImpl_post_run [SampleableType K] [DecidableEq K]
 
 /-- Once in `.post`, simulating a whole adversary under `reductionBranchImpl`
 is the same as simulating it under `postChallengeImpl`, with the state
-re-wrapped. Proved by query induction from the single-query run reduction. -/
+re-wrapped. -/
 lemma reductionBranchImpl_post_simulateQ_run [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -132,15 +133,12 @@ lemma reductionBranchImpl_post_simulateQ_run [SampleableType K] [DecidableEq K]
       (do
         let (out, ps') ← (simulateQ (postChallengeImpl kem hDet leak gp) adv).run ps
         pure (out, ReductionBranchState.post ps')) := by
-  induction adv using OracleComp.inductionOn generalizing ps with
-  | pure a =>
-      simp
-  | query_bind t cont ih =>
-      simp only [simulateQ_bind, simulateQ_spec_query, stateTrun]
+  rw [← map_run_simulateQ_eq_of_query_map_eq (postChallengeImpl kem hDet leak gp)
+    (reductionBranchImpl kem hDet leak gp pkStar cStar kStar) ReductionBranchState.post
+    (fun t ps => by
       rw [reductionBranchImpl_post_run]
-      simp only [bind_assoc, pure_bind]
-      refine bind_congr (m := ProbComp) fun p => ?_
-      simpa using ih p.1 p.2
+      simp [map_eq_bind_pure_comp, Prod.map_def]) adv ps]
+  simp [map_eq_bind_pure_comp, Prod.map_def]
 
 /-- Run reduction for the due A-challenge: the reduction consumes
 `(cStar, kStar)`, builds the challenge message, installs the pending receive,

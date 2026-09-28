@@ -254,7 +254,7 @@ private lemma reachableInv_after_recvA_advance
   · exact hInv.tcurB
   · simp
   · exact hInv.offBShape
-  · simp [hkpNext, optionPair]
+  · simp [hkpNext]
   · exact hInv.offB
   · exact hInv.onB
   · exact hInv.decodedEk

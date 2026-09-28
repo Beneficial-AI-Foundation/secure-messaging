@@ -497,7 +497,7 @@ private lemma reachableInv_after_recvB_next
   · exact hInv.keypairAShape
   · simp [recvBNextBase]
   · simpa [htA] using hInv.keypairA
-  · change (T stB'.t).off = optionPair stB'.stCt stB'.ct0
+  · change (T stB'.t).off = Option.map₂ Prod.mk stB'.stCt stB'.ct0
     rw [htB']
     simp [stB', stB0, base, recvBNextBase, hoff]
   · change (T stB'.t).on.map Prod.fst = stB'.ct1
