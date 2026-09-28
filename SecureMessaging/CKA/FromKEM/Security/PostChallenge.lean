@@ -77,7 +77,10 @@ structure PostChallengeState
   pending : PendingChallengeRecv K PK C
 
 /-- Answer a query with the honest implementation, acting on the `game`
-component of the post-challenge state and leaving `pending` unchanged. -/
+component of the post-challenge state and leaving `pending` unchanged.
+
+Up to `PostChallengeState ≃ SecurityState K PK SK C × PendingChallengeRecv K PK C`, this
+is `QueryImpl.extendState (securityImpl kem hDet leak gp false) (fun _ _ _ _ q => q)`. -/
 def liftSecurityImplToPost [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)

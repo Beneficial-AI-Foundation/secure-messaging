@@ -181,7 +181,7 @@ theorem correctness_of_perfectKEM [DecidableEq K]
       tracked_initial_inv kem onoff hDet ecEk ecCt0 ecCt1 hEkPos hCt0Pos
   have hscore₀ : score (s₀, false) = 0 := by
     simp [score, trackedFailureScore, currentFailurePotential, s₀, initialGame,
-      initialA, initialB, SCKAScheme.initGameState, optionPair]
+      initialA, initialB, SCKAScheme.initGameState]
   have hepsilon : factorCorrectnessError kem onoff = 0 := by
     rw [factorCorrectnessError_eq]
     exact (KEMScheme.correctnessError_eq_zero_iff_perfectlyCorrect
@@ -264,7 +264,7 @@ theorem correctness_failure_le_reduction [DecidableEq K]
       tracked_initial_inv kem onoff hDet ecEk ecCt0 ecCt1 hEkPos hCt0Pos
   have hscore₀ : score (s₀, false) = 0 := by
     simp [score, trackedFailureScore, currentFailurePotential, s₀, initialGame,
-      initialA, initialB, SCKAScheme.initGameState, optionPair]
+      initialA, initialB, SCKAScheme.initGameState]
   have hscore :
       expectedPayoff ((simulateQ tracked adv).run (s₀, false))
           (fun z => score z.2) ≤

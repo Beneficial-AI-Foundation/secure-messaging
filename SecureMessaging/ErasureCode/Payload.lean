@@ -28,13 +28,8 @@ namespace ErasureCode
 variable {Sym : Type} [DecidableEq Sym]
 
 /-- Convert a bounded chunk index to a natural number, forgetting the bound. -/
-def chunkToNat {ec : ErasureCode Sym} :
-    (Fin ec.N × Sym) ↪ (ℕ × Sym) where
-  toFun chunk := (chunk.1.val, chunk.2)
-  inj' := by
-    intro a b h
-    exact Prod.ext (Fin.ext (congrArg Prod.fst h))
-      (congrArg (fun chunk : ℕ × Sym => chunk.2) h)
+def chunkToNat {N : ℕ} : (Fin N × Sym) ↪ (ℕ × Sym) :=
+  Fin.valEmbedding.prodMap (Function.Embedding.refl Sym)
 
 /-- Encoding chunks at `insert i I` adds the chunk at `i` to the chunk set at `I`. -/
 theorem encodeChunks_insert (ec : ErasureCode Sym)
@@ -86,38 +81,14 @@ theorem payloadChunks_boundedMap {M : Type}
             (congrArg (fun chunk : Fin ecp.ec.N × Sym => chunk.2) hab) }
     (payloadChunks ecp payload I).attach.map toBounded =
       ecp.ec.encodeChunks (ecp.serialize payload) I := by
-  classical
-  dsimp only
-  apply Finset.ext
-  intro chunk
+  ext chunk
+  simp only [Finset.mem_map, Finset.mem_attach, true_and, Subtype.exists]
   constructor
-  · intro hchunk
-    rw [Finset.mem_map] at hchunk
-    obtain ⟨natChunk, _, hnatChunk⟩ := hchunk
-    have hmem := natChunk.property
-    change natChunk.1 ∈
-      (ecp.ec.encodeChunks (ecp.serialize payload) I).map ErasureCode.chunkToNat at hmem
-    rw [Finset.mem_map] at hmem
-    obtain ⟨bounded, hbounded, hboundedEq⟩ := hmem
-    rw [← hnatChunk]
-    have : (⟨natChunk.1.1, hvalid natChunk.1 natChunk.2⟩, natChunk.1.2) = bounded := by
-      apply Prod.ext
-      · apply Fin.ext
-        exact (congrArg Prod.fst hboundedEq).symm
-      · exact (congrArg Prod.snd hboundedEq).symm
-    change (⟨natChunk.1.1, hvalid natChunk.1 natChunk.2⟩, natChunk.1.2) ∈
-      ecp.ec.encodeChunks (ecp.serialize payload) I
-    rw [this]
+  · rintro ⟨_, hnat, rfl⟩
+    obtain ⟨bounded, hbounded, rfl⟩ := Finset.mem_map.mp hnat
     exact hbounded
   · intro hchunk
-    have hnat : ErasureCode.chunkToNat chunk ∈ payloadChunks ecp payload I := by
-      rw [payloadChunks, Finset.mem_map]
-      exact ⟨chunk, hchunk, rfl⟩
-    let natChunk : {chunk // chunk ∈ payloadChunks ecp payload I} :=
-      ⟨ErasureCode.chunkToNat chunk, hnat⟩
-    rw [Finset.mem_map]
-    refine ⟨natChunk, by simp, ?_⟩
-    exact Prod.ext (Fin.ext rfl) rfl
+    exact ⟨_, Finset.mem_map_of_mem _ hchunk, rfl⟩
 
 omit [DecidableEq Sym] in
 /-- Decoding an honest chunk set at or above the reconstruction threshold recovers

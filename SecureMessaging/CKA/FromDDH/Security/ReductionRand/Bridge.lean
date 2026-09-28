@@ -94,8 +94,8 @@ lemma probOutput_general_per_x₀_rand
             s₀R] := by
               refine probOutput_bind_congr' _ false fun a => ?_
               refine probOutput_bind_congr' _ false fun b => ?_
-              exact probOutput_reduction_rand_sample_gT (gen := gen) hg
-                (m := fun gT =>
+              exact probOutput_bind_bijective_uniform_cross F (fun c => c • gen) hg
+                (fun gT =>
                   (simulateQ
                       (reductionOracleImpl gp gen (a • gen) (b • gen) gT) adversary).run'
                     s₀R)
@@ -332,8 +332,8 @@ lemma probOutput_special_per_x₀_rand
               (reductionOracleImpl gp gen (x₀ • gen) (b • gen) gT) adversary).run'
             s₀R] := by
               refine probOutput_bind_congr' _ false fun b => ?_
-              exact probOutput_reduction_rand_sample_gT (gen := gen) hg
-                (m := fun gT =>
+              exact probOutput_bind_bijective_uniform_cross F (fun c => c • gen) hg
+                (fun gT =>
                   (simulateQ
                       (reductionOracleImpl gp gen (x₀ • gen) (b • gen) gT) adversary).run'
                     s₀R)

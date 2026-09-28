@@ -161,13 +161,6 @@ def EpochTranscript.setOn
     intro _
     exact hoffSome
 
-/-- Pair two optional values exactly when both are present.  This operation is
-part of the small state-invariant interface used by the quantitative proof. -/
-@[simp] def optionPair {A B : Type} : Option A → Option B → Option (A × B)
-  | none, _ => none
-  | some _, none => none
-  | some a, some b => some (a, b)
-
 /-- An A-to-B entry `(ρ, tsnd)` has `tsnd = t - 1`, no payload bit, and a
 transcript-consistent public-key chunk when present; acknowledgements are
 unconstrained. -/
@@ -284,9 +277,9 @@ structure TranscriptConsistent
   /-- B's offline components are synchronized. -/
   offBShape : s.stB.stCt.isSome = s.stB.ct0.isSome
   /-- A's key pair matches the transcript. -/
-  keypairA : (T s.stA.t).keypair = optionPair s.stA.ekA s.stA.dkA
+  keypairA : (T s.stA.t).keypair = Option.map₂ Prod.mk s.stA.ekA s.stA.dkA
   /-- B's offline part matches the transcript. -/
-  offB : (T s.stB.t).off = optionPair s.stB.stCt s.stB.ct0
+  offB : (T s.stB.t).off = Option.map₂ Prod.mk s.stB.stCt s.stB.ct0
   /-- B's online ciphertext matches the transcript. -/
   onB : (T s.stB.t).on.map Prod.fst = s.stB.ct1
   /-- B's decoded public key comes from the transcript. -/

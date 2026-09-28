@@ -1578,24 +1578,6 @@ lemma reduction_honest_param_rand_step_rel
           (sL := sR) (sR := sH) h_last h_v hrel_self
 
 
-omit [DecidableEq F] [DecidableEq G] [Inhabited F] [Fintype F] [Fintype G] in
-/-- Rand-branch outer DDH sample rewrite: replace `c ← $ᵗ F; c • gen` by an
-equivalent direct sample `gT ← $ᵗ G` using the bijection `c ↦ c • gen`. -/
-lemma probOutput_reduction_rand_sample_gT
-    (hg : Function.Bijective (· • gen : F → G))
-  {γ : Type} [Finite F]
-    (m : G → ProbComp γ) (z : γ) :
-    Pr[= z | do
-      let c ← ($ᵗ F : ProbComp F)
-      m (c • gen)] =
-    Pr[= z | do
-      let gT ← ($ᵗ G : ProbComp G)
-      m gT] := by
-  classical
-  let : Fintype F := Fintype.ofFinite F
-  exact probOutput_bind_bijective_uniform_cross (α := F) (β := G) (γ := γ)
-    (f := fun c : F => c • gen) hg m z
-
 omit [Inhabited F] [Fintype G] in
 /-- Fixed-parameter random-branch reduction/honest bridge.
 
