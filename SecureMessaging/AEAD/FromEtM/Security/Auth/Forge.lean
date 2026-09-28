@@ -5,6 +5,8 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.AEAD.FromEtM.Security.Auth.Defs
+import ToVCVio.OracleComp.QueryTracking.CachingOracle
+import ToVCVio.ProgramLogic.Relational.Basic
 import ToVCVio.ProgramLogic.Relational.IdenticalUntilBad
 
 /-!
@@ -531,46 +533,17 @@ theorem probForge_authInst_le_forgeReduction
           exact ProgramLogic.Relational.relTriple_pure_pure
             ⟨rfl, rfl, rfl, hg ▸ hev, hflagimp⟩
         · simp only [beq_iff_eq, hg, if_false]
-          set ro := (((AD × C_e) →ₒ T).randomOracle (ad, c)).run fs₂.1 with hro
-          -- Support facts for the shared RO query: the resulting cache extends `fs₂.1`
-          -- (existing entries persist) and maps the queried point `(ad, c)` to the response.
-          have hsupp : ∀ p ∈ support ro,
-              fs₂.1 ≤ p.2 ∧ p.2 (ad, c) = some p.1 := by
-            intro p hp
-            rw [hro] at hp
-            rcases hlk : fs₂.1 (ad, c) with _ | u
-            · -- cache miss: the RO samples and inserts `(ad, c) ↦ p.1`
-              rw [QueryImpl.withCaching_run_none _ hlk] at hp
-              rw [support_map] at hp
-              obtain ⟨v, _, rfl⟩ := hp
-              refine ⟨QueryCache.le_cacheQuery (cache := fs₂.1) hlk, ?_⟩
-              simp only [QueryCache.cacheQuery_self]
-            · -- cache hit: the RO returns the cached value, leaving the cache unchanged
-              rw [QueryImpl.withCaching_run_some _ hlk] at hp
-              rw [support_pure] at hp
-              simp only [Set.mem_singleton_iff] at hp
-              subst hp
-              exact ⟨le_refl _, hlk⟩
+          set ro := (((AD × C_e) →ₒ T).randomOracle (ad, c)).run fs₂.1
           erw [StateT.run_bind, StateT.run_bind,
             OracleComp.liftM_run_StateT, OracleComp.liftM_run_StateT]
           simp only [bind_assoc, pure_bind, if_true]
-          -- Diagonal coupling of the shared RO query carrying the support facts.
+          -- Diagonal coupling of the shared RO query: the resulting cache extends `fs₂.1`
+          -- (existing entries persist) and maps the queried point `(ad, c)` to the response.
           have hcouple : ProgramLogic.Relational.RelTriple ro ro
-              (fun a b => a = b ∧ fs₂.1 ≤ a.2 ∧ a.2 (ad, c) = some a.1) := by
-            rw [ProgramLogic.Relational.relTriple_iff_relWP,
-              ProgramLogic.Relational.relWP_iff_couplingPost]
-            refine ⟨_root_.SPMF.Coupling.refl (𝒟[ro]), ?_⟩
-            intro z hz
-            rcases (mem_support_bind_iff (𝒟[ro])
-              (fun a => (pure (a, a) : SPMF _)) z).1 hz with ⟨a, ha, hz'⟩
-            have ha_supp : a ∈ support ro :=
-              (mem_support_iff (mx := ro) (x := a)).2
-                (by simpa [probOutput_def] using
-                  (mem_support_iff (mx := 𝒟[ro]) (x := a)).1 ha)
-            have hzEq : z = (a, a) := by
-              simpa [support_pure, Set.mem_singleton_iff] using hz'
-            subst hzEq
-            exact ⟨rfl, hsupp a ha_supp⟩
+              (fun a b => a = b ∧ fs₂.1 ≤ a.2 ∧ a.2 (ad, c) = some a.1) :=
+            ProgramLogic.Relational.relTriple_refl_support_post fun p hp =>
+              ⟨rfl, QueryImpl.withCaching_cache_le _ _ _ p hp,
+                QueryImpl.withCaching_run_caches _ _ _ p hp⟩
           refine ProgramLogic.Relational.relTriple_bind hcouple ?_
           rintro ⟨t', qc'⟩ ⟨resp, cache'⟩ ⟨hEq, hmono, hqcc⟩
           simp only [Prod.mk.injEq] at hEq

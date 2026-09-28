@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 import SecureMessaging.CKA.FromDDH.Security.GameOracles.Bridge
+import ToVCVio.ProgramLogic.Relational.Basic
 
 /-!
 # Shared Left/Right Per-Query Relational Lemmas
@@ -72,46 +73,23 @@ lemma relTriple_oracleCorruptB_of_state_rel
   · have hR : (allowCorrPCS gp sR || allowCorrFS gp sR .B) = true := by
       rw [h_guard]
       exact h
-    convert (OracleComp.ProgramLogic.Relational.relTriple_pure_pure
-      (spec₁ := unifSpec) (spec₂ := unifSpec)
-      (R := fun pL pR => pL.1 = pR.1 ∧ R pL.2 pR.2)
-      (a := (some sL.stB, sL)) (b := (some sR.stB, sR))
-      ⟨by simp [h_safeB h], hrel⟩) using 1 <;>
-      (change ((get : StateT _ ProbComp _) >>= fun state =>
-          if (allowCorrPCS gp state || allowCorrFS gp state .B) = true then
-            pure (some state.stB) else pure none).run _ = _
-       rw [StateT.run_get_bind]
-       first
-       | rw [if_pos h]
-       | rw [if_pos hR]
-       rfl)
+    exact relTriple_of_eq_pure_pure
+      ((StateT.run_get_bind_ite_eq_then_of_pred_true (fun state => allowCorr gp state .B)
+        _ _ sL h).trans (StateT.run_pure _ _))
+      ((StateT.run_get_bind_ite_eq_then_of_pred_true (fun state => allowCorr gp state .B)
+        _ _ sR hR).trans (StateT.run_pure _ _))
+      ⟨by simp [h_safeB h], hrel⟩
   · have hL : (allowCorrPCS gp sL || allowCorrFS gp sL .B) = false :=
       Bool.eq_false_iff.mpr h
     have hR : (allowCorrPCS gp sR || allowCorrFS gp sR .B) = false := by
       rw [h_guard]
       exact hL
-    have hNotL : ¬ ((allowCorrPCS gp sL || allowCorrFS gp sL .B) = true) := by
-      simp [hL]
-    have hNotR : ¬ ((allowCorrPCS gp sR || allowCorrFS gp sR .B) = true) := by
-      simp [hR]
-    have hp : OracleComp.ProgramLogic.Relational.RelTriple
-        (pure (none, sL) : ProbComp (Option (CKAState F G) × GameState (CKAState F G) G G))
-        (pure (none, sR) : ProbComp (Option (CKAState F G) × GameState (CKAState F G) G G))
-        (fun pL pR => pL.1 = pR.1 ∧ R pL.2 pR.2) :=
-      OracleComp.ProgramLogic.Relational.relTriple_pure_pure
-        (spec₁ := unifSpec) (spec₂ := unifSpec)
-        (R := fun pL pR => pL.1 = pR.1 ∧ R pL.2 pR.2)
-        (a := (none, sL)) (b := (none, sR))
-        ⟨rfl, hrel⟩
-    convert hp using 1 <;>
-      (change ((get : StateT _ ProbComp _) >>= fun state =>
-          if (allowCorrPCS gp state || allowCorrFS gp state .B) = true then
-            pure (some state.stB) else pure none).run _ = _
-       rw [StateT.run_get_bind]
-       first
-       | rw [if_neg hNotL]
-       | rw [if_neg hNotR]
-       rfl)
+    exact relTriple_of_eq_pure_pure
+      ((StateT.run_get_bind_ite_eq_else_of_pred_false (fun state => allowCorr gp state .B)
+        _ _ sL hL).trans (StateT.run_pure _ _))
+      ((StateT.run_get_bind_ite_eq_else_of_pred_false (fun state => allowCorr gp state .B)
+        _ _ sR hR).trans (StateT.run_pure _ _))
+      ⟨rfl, hrel⟩
 
 omit [Field F] [Fintype F] [DecidableEq F] [SampleableType F]
   [AddCommGroup G] [Module F G] [SampleableType G] [DecidableEq G]
@@ -140,46 +118,23 @@ lemma relTriple_oracleCorruptA_of_state_rel
   · have hR : (allowCorrPCS gp sR || allowCorrFS gp sR .A) = true := by
       rw [h_guard]
       exact h
-    convert (OracleComp.ProgramLogic.Relational.relTriple_pure_pure
-      (spec₁ := unifSpec) (spec₂ := unifSpec)
-      (R := fun pL pR => pL.1 = pR.1 ∧ R pL.2 pR.2)
-      (a := (some sL.stA, sL)) (b := (some sR.stA, sR))
-      ⟨by simp [h_safeA h], hrel⟩) using 1 <;>
-      (change ((get : StateT _ ProbComp _) >>= fun state =>
-          if (allowCorrPCS gp state || allowCorrFS gp state .A) = true then
-            pure (some state.stA) else pure none).run _ = _
-       rw [StateT.run_get_bind]
-       first
-       | rw [if_pos h]
-       | rw [if_pos hR]
-       rfl)
+    exact relTriple_of_eq_pure_pure
+      ((StateT.run_get_bind_ite_eq_then_of_pred_true (fun state => allowCorr gp state .A)
+        _ _ sL h).trans (StateT.run_pure _ _))
+      ((StateT.run_get_bind_ite_eq_then_of_pred_true (fun state => allowCorr gp state .A)
+        _ _ sR hR).trans (StateT.run_pure _ _))
+      ⟨by simp [h_safeA h], hrel⟩
   · have hL : (allowCorrPCS gp sL || allowCorrFS gp sL .A) = false :=
       Bool.eq_false_iff.mpr h
     have hR : (allowCorrPCS gp sR || allowCorrFS gp sR .A) = false := by
       rw [h_guard]
       exact hL
-    have hNotL : ¬ ((allowCorrPCS gp sL || allowCorrFS gp sL .A) = true) := by
-      simp [hL]
-    have hNotR : ¬ ((allowCorrPCS gp sR || allowCorrFS gp sR .A) = true) := by
-      simp [hR]
-    have hp : OracleComp.ProgramLogic.Relational.RelTriple
-        (pure (none, sL) : ProbComp (Option (CKAState F G) × GameState (CKAState F G) G G))
-        (pure (none, sR) : ProbComp (Option (CKAState F G) × GameState (CKAState F G) G G))
-        (fun pL pR => pL.1 = pR.1 ∧ R pL.2 pR.2) :=
-      OracleComp.ProgramLogic.Relational.relTriple_pure_pure
-        (spec₁ := unifSpec) (spec₂ := unifSpec)
-        (R := fun pL pR => pL.1 = pR.1 ∧ R pL.2 pR.2)
-        (a := (none, sL)) (b := (none, sR))
-        ⟨rfl, hrel⟩
-    convert hp using 1 <;>
-      (change ((get : StateT _ ProbComp _) >>= fun state =>
-          if (allowCorrPCS gp state || allowCorrFS gp state .A) = true then
-            pure (some state.stA) else pure none).run _ = _
-       rw [StateT.run_get_bind]
-       first
-       | rw [if_neg hNotL]
-       | rw [if_neg hNotR]
-       rfl)
+    exact relTriple_of_eq_pure_pure
+      ((StateT.run_get_bind_ite_eq_else_of_pred_false (fun state => allowCorr gp state .A)
+        _ _ sL hL).trans (StateT.run_pure _ _))
+      ((StateT.run_get_bind_ite_eq_else_of_pred_false (fun state => allowCorr gp state .A)
+        _ _ sR hR).trans (StateT.run_pure _ _))
+      ⟨rfl, hrel⟩
 
 omit [Field F] [Fintype F] [DecidableEq F] [SampleableType F]
   [AddCommGroup G] [Module F G] [SampleableType G] [DecidableEq G]

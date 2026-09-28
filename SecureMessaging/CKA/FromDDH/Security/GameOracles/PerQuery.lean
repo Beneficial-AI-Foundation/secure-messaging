@@ -1034,20 +1034,6 @@ lemma allowCorr_of_allowCorr_tA_succ
   simp [allowCorrPCS] at h ⊢
   omega
 
-omit [Field F] [Fintype F] [DecidableEq F] [SampleableType F] [AddCommGroup G]
-  [Module F G] [SampleableType G] [DecidableEq G] [Inhabited F] [Fintype G] in
-/-- Transport a relational triple across pointwise reductions to pure computations.
-Useful after unfolding stateful oracle bodies: prove each `.run` is a `pure`
-state/result pair, then close with the desired postcondition. -/
-lemma relTriple_of_eq_pure_pure
-    {α β : Type} {oa : ProbComp α} {ob : ProbComp β}
-    {a : α} {b : β} {R : α → β → Prop}
-    (hoa : oa = pure a) (hob : ob = pure b) (hR : R a b) :
-    OracleComp.ProgramLogic.Relational.RelTriple oa ob R := by
-  rw [hoa, hob]
-  exact OracleComp.ProgramLogic.Relational.relTriple_pure_pure
-    (spec₁ := unifSpec) (spec₂ := unifSpec) hR
-
 omit [Inhabited F] [Fintype G] in
 /-- **Per-query `tA`/`tB` monotonicity.**
 

@@ -35,12 +35,20 @@ namespace OracleComp.ProgramLogic.Relational
 variable {ι : Type u} {spec : OracleSpec ι}
 variable {α : Type}
 
-/-- Sampled-parameter passthrough for one `simulateQ` query. If the sampled
-implementation `impl param` and the reference implementation `base` have the
-same handler for the current query at state `s`, the reference handler reaches
-only states satisfying `Inv`, and the continuation outputs agree from such
-states, then the whole one-query program has the same output distribution with
-the sampled implementation as with `base`. -/
+/-- One query of a sampled-parameter simulation can be answered by a fixed reference handler.
+
+Let `impl` be a family of stateful query handlers indexed by `param : θ`, let `base` be a
+reference handler and let `sample : ProbComp θ`. Fix an initial state `s`, a query `t` and a
+continuation `k`. Assume that
+* (`h_impl_eq`) for every `param`, one call of `impl param t` from `s` is the same computation
+  as `base t` from `s`;
+* (`h_preserves`) every next state that `base t` can reach from `s` satisfies `Inv`;
+* (`h_ih`) for every answer `u` and every state `s'` satisfying `Inv`, drawing
+  `param ← sample` and simulating `k u` under `impl param` from `s'` gives the same output
+  distribution as simulating `k u` under `base` from `s'`.
+
+Then drawing `param ← sample` and simulating `query t >>= k` under `impl param` from `s` gives
+the same output distribution as simulating it under `base` from `s`. -/
 theorem evalDist_sample_param_query_bind_passthrough
     {ι : Type} {spec : OracleSpec ι} {σ θ α : Type}
     (sample : ProbComp θ)
@@ -82,6 +90,26 @@ theorem evalDist_sample_param_query_bind_passthrough
   have hi := h_ih p.1 p.2 (h_preserves p hp_support)
   simp only [StateT.run'_eq] at hi
   exact probOutput_eq_of_evalDist_eq hi y
+
+/-- A parameter that does not affect the handlers' distributions can be fixed instead of sampled.
+
+Let `impl` be a family of stateful query handlers indexed by `param : θ`, and let `x₀ : θ`.
+Assume (`h`) that for every `param`, query `t` and state `s'`, one call of `impl param t` from
+`s'` has the same joint distribution of answer and next state as `impl x₀ t`. Then, from any
+initial state `s`, drawing `param ← $ᵗ θ` and simulating `oa` under `impl param` gives the
+same output distribution as simulating `oa` under `impl x₀`. -/
+theorem evalDist_sample_simulateQ_run'_eq_of_param_indep
+    {ι : Type} {spec : OracleSpec ι} {σ θ α : Type} [SampleableType θ]
+    (impl : θ → QueryImpl spec (StateT σ ProbComp))
+    (oa : OracleComp spec α) (s : σ) (x₀ : θ)
+    (h : ∀ param t s', 𝒟[(impl param t).run s'] = 𝒟[(impl x₀ t).run s']) :
+    𝒟[do
+      let param ← $ᵗ θ
+      (simulateQ (impl param) oa).run' s] =
+    𝒟[(simulateQ (impl x₀) oa).run' s] :=
+  evalDist_sample_bind_eq_of_forall_evalDist_eq _ _ fun param =>
+    evalDist_eq_of_relTriple_eqRel
+      (relTriple_simulateQ_run'_of_impl_evalDist_eq _ _ oa (h param) s s rfl)
 
 /-- Normalize a sampled family of pure query handlers. If, for each sampled
 parameter `param`, the handler for query `t` at state `s` is already the pure
