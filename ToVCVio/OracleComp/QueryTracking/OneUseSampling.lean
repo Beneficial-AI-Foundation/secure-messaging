@@ -142,4 +142,60 @@ theorem optionRun_sample_once_eq_sampleEachQuery [Inhabited τ]
           hpres hused (fun t s hi hu => hindep t s hi (hnohit t s hi hu))
           (cont answer) a z.2 (hpres a t s hs z hz ha) (hfirst a t s hs hh z hz ha)
 
+
+/-- Supported-parameter form of one-use sampling. Assume invariant and
+used-state preservation for every `a ∈ support sample`; parameter
+independence compares supported values, and each continuing first use
+establishes `used`. Then eager and per-query sampling have equal acceptance
+probabilities for every Boolean adversary and invariant initial state. -/
+theorem optionRun_sample_once_eq_sampleEachQuery_of_support
+    (sample : ProbComp τ) (impl : τ → QueryImpl spec (OptionT (StateT σ ProbComp)))
+    (Inv used : σ → Prop) (hit : spec.Domain → σ → Bool)
+    (hpres : ∀ a ∈ support sample, ∀ t s, Inv s →
+      ∀ z ∈ support (((impl a t).run).run s), z.1.isSome → Inv z.2)
+    (hused : ∀ a ∈ support sample, ∀ t s, Inv s → used s →
+      ∀ z ∈ support (((impl a t).run).run s), z.1.isSome → used z.2)
+    (hindep : ∀ t s, Inv s → hit t s = false →
+      ∀ a ∈ support sample, ∀ a' ∈ support sample,
+      ((impl a t).run).run s = ((impl a' t).run).run s)
+    (hnohit : ∀ t s, Inv s → used s → hit t s = false)
+    (hfirst : ∀ a ∈ support sample, ∀ t s, Inv s → hit t s = true →
+      ∀ z ∈ support (((impl a t).run).run s), z.1.isSome → used z.2)
+    (oa : OracleComp spec Bool) (s : σ) (hs : Inv s) :
+    Pr[= true | do let a ← sample; optionRun (impl a) oa s] =
+      Pr[= true | optionRun (sampleEachQuery sample impl) oa s] := by
+  classical
+  have hne : (support sample).Nonempty := by
+    simp [Set.nonempty_iff_ne_empty, ← probFailure_eq_one_iff]
+  obtain ⟨a₀, ha₀⟩ := hne
+  let adjust (a : τ) := if a ∈ support sample then a else a₀
+  have hadjust (a : τ) : adjust a ∈ support sample := by
+    dsimp [adjust]
+    split <;> assumption
+  have hadjust_eq (a : τ) (ha : a ∈ support sample) : adjust a = a := by
+    simp [adjust, ha]
+  let adjusted := fun a => impl (adjust a)
+  let : Inhabited τ := ⟨a₀⟩
+  calc
+    _ = Pr[= true | do let a ← sample; optionRun (adjusted a) oa s] := by
+      apply probOutput_bind_congr
+      intro a ha
+      simp only [adjusted, hadjust_eq a ha]
+    _ = Pr[= true | optionRun (sampleEachQuery sample adjusted) oa s] :=
+      optionRun_sample_once_eq_sampleEachQuery sample adjusted Inv used hit
+        (fun a => hpres _ (hadjust a))
+        (fun a => hused _ (hadjust a))
+        (fun t s hi hh a a' => hindep t s hi hh _ (hadjust a) _ (hadjust a'))
+        hnohit (fun a => hfirst _ (hadjust a)) oa s hs
+    _ = _ := by
+      apply probOutput_optionRun_eq_of_state_map
+        (sampleEachQuery sample impl) (sampleEachQuery sample adjusted) id (fun _ => True)
+      · intros; trivial
+      · intro t s _
+        simp only [sampleEachQuery_run, id_eq, Prod.map_id, id_map]
+        apply evalDist_bind_congr
+        intro a ha
+        simp only [adjusted, hadjust_eq a ha]
+      · trivial
+
 end OracleComp
