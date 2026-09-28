@@ -142,8 +142,34 @@ $$`\begin{array}{rcccl}
 :::defTitle "scka_oracles" "SCKA game state and oracles"
 :::
 
-:::::::definition "scka_oracles" (parent := "cka_protocols_scka") (lean := "SCKAScheme.GameState, SCKAScheme.oracleSendA, SCKAScheme.oracleSendB, SCKAScheme.oracleSendArleak, SCKAScheme.oracleSendBrleak, SCKAScheme.oracleRecvA, SCKAScheme.oracleRecvB, SCKAScheme.oracleChall, SCKAScheme.oracleCorruptA, SCKAScheme.oracleCorruptB, SCKAScheme.sckaCorrectnessSpec, SCKAScheme.sckaCorrectnessImpl, SCKAScheme.SCKACorrectnessAdversary, SCKAScheme.sckaSecuritySpec, SCKAScheme.sckaSecurityImpl, SCKAScheme.SCKAAdversary") (uses := "scka_scheme")
-Game state and oracles following {Informal.citet SCKA25}[], Figure 1.
+:::::::definition "scka_oracles" (parent := "cka_protocols_scka") (lean := "SCKAScheme.ExposurePolicy, SCKAScheme.GameState, SCKAScheme.oracleSendA, SCKAScheme.oracleSendB, SCKAScheme.oracleSendArleak, SCKAScheme.oracleSendBrleak, SCKAScheme.oracleRecvA, SCKAScheme.oracleRecvB, SCKAScheme.oracleChall, SCKAScheme.oracleCorruptA, SCKAScheme.oracleCorruptB, SCKAScheme.sckaCorrectnessSpec, SCKAScheme.sckaCorrectnessImpl, SCKAScheme.SCKACorrectnessAdversary, SCKAScheme.sckaSecuritySpec, SCKAScheme.sckaSecurityImpl, SCKAScheme.SCKAAdversary") (uses := "scka_scheme")
+Game state and oracles adapted from {Informal.citet SCKA25}[], Figure 1.
+
+For each party $`X\in\{\A,\B\}`, the game takes an exposure policy:
+$`V_X(\mathsf{st})` lists epochs compromised by state corruption, and
+$`L_X(\mathsf{st},\mathsf{st}',r)` lists epochs compromised by returned send coins.
+Both values are finite epoch sets. They annotate the existing protocol algorithms.
+
+A leaking send computes $`E=L_X(\mathsf{st},\mathsf{st}',r)`. It rejects and retains
+the entire input game state if $`E\cap\mathsf{Challenged}\ne\emptyset`.
+Otherwise it records the send and adds $`E` to $`\mathsf{Exposed}`.
+
+This corrects the original rule
+$`E=V_X(\mathsf{st}')\setminus V_X(\mathsf{st})`: newly returned coins can
+compromise a key whose epoch was already vulnerable in the local state.
+The correction weakens the original SCKA requirement by excluding these
+compromised challenges. The KEM IND-CPA definition remains unchanged.
+The concrete online-coin trace is given beside the exposure rules in
+{bpref "opp_unikem_cka_spec"}[].
+
+```anchor ExposurePolicy (project := ".") (module := SecureMessaging.SCKA.Defs)
+structure ExposurePolicy (St Rand : Type) where
+  /-- Epochs compromised by revealing the local state. -/
+  corrupt : St → Finset ℕ
+  /-- Epochs compromised by send coins, given the old and new local states. -/
+  send : St → St → Rand → Finset ℕ
+```
+
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Game state}" (kind := "scheme")
@@ -305,14 +331,13 @@ def oracleSendB [DecidableEq I] (scka : SCKAScheme ProbComp IK StA StB I Rho Ran
 :::::gameCell "\\OSendARLeak" (kind := "compact")
 $`\begin{array}{l}
 \pcommentline{\text{Send from A to B; reveal randomness}} \\
-V\gets\mathsf{vuln}_\A(\stA); \\
 ((t_{I_\A},I_\A),\rho,t^\mathsf{snd}_\A,\stA',r)
   \sample \SendARLeak(\stA); \\
-\pcommentline{\text{Track newly exposed epochs}} \\
-V'\gets\mathsf{vuln}_\A(\stA')\setminus V; \\
+\pcommentline{\text{Epochs compromised by returned coins}} \\
+E\gets L_\A(\stA,\stA',r); \\
 \pcommentline{\text{Reject exposure of challenged epochs}} \\
-\req\;V'\cap\mathsf{Challenged}=\emptyset; \\
-\mathsf{Exposed}\gets\mathsf{Exposed}\cup V'; \\
+\req\;E\cap\mathsf{Challenged}=\emptyset; \\
+\mathsf{Exposed}\gets\mathsf{Exposed}\cup E; \\
 \pcommentline{\text{Correctness: no rollback of current epoch}} \\
 \mathsf{assert}\;t^\mathsf{snd}_\A\ge t^\mathsf{cur}_\A; \\
 t^\mathsf{cur}_\A\gets t^\mathsf{snd}_\A; \\
@@ -331,17 +356,16 @@ t^\mathsf{cur}_\A\gets t^\mathsf{snd}_\A; \\
 \end{array}`
 
 ```anchor oracleSendArleak (project := ".") (module := SecureMessaging.SCKA.Defs)
-def oracleSendArleak [DecidableEq I] (vulnA : StA → Finset ℕ)
+def oracleSendArleak [DecidableEq I] (leakA : StA → StA → Rand → Finset ℕ)
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) :
     QueryImpl (Unit →ₒ Option (ℕ × Option ℕ × Rho × Rand))
       (StateT (GameState StA StB I Rho) ProbComp) :=
   fun () => do
     let state ← get
-    let vulnOld := vulnA state.stA
     match ← liftM (scka.sendArleak state.stA) with
     | none => pure none
     | some (keyOpt, ρ, tsnd, stA', rand) =>
-      let vuln' := vulnA stA' \ vulnOld
+      let vuln' := leakA state.stA stA' rand
       -- req vuln' ∩ Challenged = ∅
       if vuln' ∩ state.challenged ≠ ∅ then pure none
       else
@@ -375,14 +399,13 @@ def oracleSendArleak [DecidableEq I] (vulnA : StA → Finset ℕ)
 :::::gameCell "\\OSendBRLeak" (kind := "compact")
 $`\begin{array}{l}
 \pcommentline{\text{Send from B to A; reveal randomness}} \\
-V\gets\mathsf{vuln}_\B(\stB); \\
 ((t_{I_\B},I_\B),\rho,t^\mathsf{snd}_\B,\stB',r)
   \sample \SendBRLeak(\stB); \\
-\pcommentline{\text{Track newly exposed epochs}} \\
-V'\gets\mathsf{vuln}_\B(\stB')\setminus V; \\
+\pcommentline{\text{Epochs compromised by returned coins}} \\
+E\gets L_\B(\stB,\stB',r); \\
 \pcommentline{\text{Reject exposure of challenged epochs}} \\
-\req\;V'\cap\mathsf{Challenged}=\emptyset; \\
-\mathsf{Exposed}\gets\mathsf{Exposed}\cup V'; \\
+\req\;E\cap\mathsf{Challenged}=\emptyset; \\
+\mathsf{Exposed}\gets\mathsf{Exposed}\cup E; \\
 \pcommentline{\text{Correctness: no rollback of current epoch}} \\
 \mathsf{assert}\;t^\mathsf{snd}_\B\ge t^\mathsf{cur}_\B; \\
 t^\mathsf{cur}_\B\gets t^\mathsf{snd}_\B; \\
@@ -401,17 +424,16 @@ t^\mathsf{cur}_\B\gets t^\mathsf{snd}_\B; \\
 \end{array}`
 
 ```anchor oracleSendBrleak (project := ".") (module := SecureMessaging.SCKA.Defs)
-def oracleSendBrleak [DecidableEq I] (vulnB : StB → Finset ℕ)
+def oracleSendBrleak [DecidableEq I] (leakB : StB → StB → Rand → Finset ℕ)
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) :
     QueryImpl (Unit →ₒ Option (ℕ × Option ℕ × Rho × Rand))
       (StateT (GameState StA StB I Rho) ProbComp) :=
   fun () => do
     let state ← get
-    let vulnOld := vulnB state.stB
     match ← liftM (scka.sendBrleak state.stB) with
     | none => pure none
     | some (keyOpt, ρ, tsnd, stB', rand) =>
-      let vuln' := vulnB stB' \ vulnOld
+      let vuln' := leakB state.stB stB' rand
       if vuln' ∩ state.challenged ≠ ∅ then pure none
       else
         let exposed' := state.exposed ∪ vuln'
@@ -611,7 +633,6 @@ def oracleChall (isRandom : Bool) (StA StB I Rho : Type) [SampleableType I] :
 :::::gameCell "\\OCorrA" (kind := "compact")
 $`\begin{array}{l}
 \pcommentline{\text{Reveal A's local state}} \\
-V\gets\mathsf{vuln}_\A(\stA); \\
 \pcommentline{\text{Reject exposure of challenged epochs}} \\
 \req\;V\cap\mathsf{Challenged}=\emptyset; \\
 \pcommentline{\text{Record exposed epochs}} \\
@@ -635,7 +656,6 @@ def oracleCorruptA (vulnA : StA → Finset ℕ) (StB I Rho : Type) :
 :::::gameCell "\\OCorrB" (kind := "compact")
 $`\begin{array}{l}
 \pcommentline{\text{Reveal B's local state}} \\
-V\gets\mathsf{vuln}_\B(\stB); \\
 \pcommentline{\text{Reject exposure of challenged epochs}} \\
 \req\;V\cap\mathsf{Challenged}=\emptyset; \\
 \pcommentline{\text{Record exposed epochs}} \\
@@ -671,7 +691,7 @@ $`\begin{array}{ll}
 :::
 
 ```anchor sckaCorrectnessSpec (project := ".") (module := SecureMessaging.SCKA.Defs)
-def sckaCorrectnessSpec (Rho : Type) :=
+abbrev sckaCorrectnessSpec (Rho : Type) :=
   unifSpec                                  -- Uniform randomness
   + (Unit →ₒ Option (ℕ × Option ℕ × Rho))       -- O-Send-A
   + (Unit →ₒ Option (ℕ × Option ℕ × Rho))       -- O-Send-B
@@ -716,7 +736,7 @@ $`\begin{array}{ll}
 :::
 
 ```anchor sckaSecuritySpec (project := ".") (module := SecureMessaging.SCKA.Defs)
-def sckaSecuritySpec (StA StB I Rho Rand : Type) :=
+abbrev sckaSecuritySpec (StA StB I Rho Rand : Type) :=
   sckaCorrectnessSpec Rho
   + (Unit →ₒ Option (ℕ × Option ℕ × Rho × Rand))    -- O-Send-A-rleak
   + (Unit →ₒ Option (ℕ × Option ℕ × Rho × Rand))    -- O-Send-B-rleak
@@ -729,14 +749,15 @@ def sckaSecuritySpec (StA StB I Rho Rand : Type) :=
 :::
 
 ```anchor sckaSecurityImpl (project := ".") (module := SecureMessaging.SCKA.Defs)
-def sckaSecurityImpl (isRandom : Bool) (vulnA : StA → Finset ℕ) (vulnB : StB → Finset ℕ)
+def sckaSecurityImpl (isRandom : Bool) (exposureA : ExposurePolicy StA Rand)
+    (exposureB : ExposurePolicy StB Rand)
     [SampleableType I] [DecidableEq I] (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) :
     QueryImpl (sckaSecuritySpec StA StB I Rho Rand)
       (StateT (GameState StA StB I Rho) ProbComp) :=
   sckaCorrectnessImpl scka
-    + oracleSendArleak vulnA scka + oracleSendBrleak vulnB scka
+    + oracleSendArleak exposureA.send scka + oracleSendBrleak exposureB.send scka
     + oracleChall isRandom StA StB I Rho
-    + oracleCorruptA vulnA StB I Rho + oracleCorruptB vulnB StA I Rho
+    + oracleCorruptA exposureA.corrupt StB I Rho + oracleCorruptB exposureB.corrupt StA I Rho
 ```
 
 :::leanPillCaption "Security adversary"
@@ -799,7 +820,7 @@ def correctnessExp [DecidableEq I]
 :::defTitle "scka_security" "SCKA protocol security"
 :::
 
-:::::::definition "scka_security" (parent := "cka_protocols_scka") (lean := "SCKAScheme.securityExp, SCKAScheme.sckaGuessAdvantage") (tags := "gh-185") (uses := "scka_scheme, scka_oracles")
+:::::::definition "scka_security" (parent := "cka_protocols_scka") (lean := "SCKAScheme.securityExp, SCKAScheme.securityExpFixedBit, SCKAScheme.sckaGuessAdvantage, SCKAScheme.sckaDistAdvantage, SCKAScheme.sckaGuessAdvantage_eq_sckaDistAdvantage_div_two") (tags := "gh-185") (uses := "scka_scheme, scka_oracles")
 
 ::::::gameGrid
 :::::gameCell "\\Exp{\\textsf{sec}}{\\textsf{SCKA}}(\\adv)" (kind := "game")
@@ -827,12 +848,13 @@ b\sample\{0,1\}; \\
 def securityExp [SampleableType I] [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (adversary : SCKAAdversary StA StB I Rho Rand)
-    (vulnA : StA → Finset ℕ) (vulnB : StB → Finset ℕ) : ProbComp Bool := do
+    (exposureA : ExposurePolicy StA Rand)
+      (exposureB : ExposurePolicy StB Rand) : ProbComp Bool := do
   let ik ← scka.initKeyGen
   let stA ← scka.initA ik
   let stB ← scka.initB ik
   let b ← $ᵗ Bool
-  let (b', _) ← (simulateQ (sckaSecurityImpl b vulnA vulnB scka) adversary).run
+  let (b', _) ← (simulateQ (sckaSecurityImpl b exposureA exposureB scka) adversary).run
     (initGameState stA stB)
   return (b == b')
 ```
@@ -849,9 +871,58 @@ $$`\mathsf{Adv}^{\mathsf{guess}}_{\mathsf{SCKA}}(\adv)
 noncomputable def sckaGuessAdvantage [SampleableType I] [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (adversary : SCKAAdversary StA StB I Rho Rand)
-    (vulnA : StA → Finset ℕ) (vulnB : StB → Finset ℕ) : ℝ :=
-  |(Pr[= true | securityExp scka adversary vulnA vulnB]).toReal - 1 / 2|
+    (exposureA : ExposurePolicy StA Rand) (exposureB : ExposurePolicy StB Rand) : ℝ :=
+  |(Pr[= true | securityExp scka adversary exposureA exposureB]).toReal - 1 / 2|
 ```
 :::::
 ::::::
+
+
+For fixed $`b\in\{0,1\}`, write $`G_b(\adv)` for the adversary's output under
+the same game with challenge bit $`b`. The bit is shared across all adaptive
+challenges: $`b=0` returns recorded keys and $`b=1` samples independent uniform
+keys. Exposed, repeated, and unavailable-key challenges return $`\bot`.
+The exposure policies are fixed public parameters in both experiments.
+
+$$`\operatorname{Adv}^{\mathsf{dist}}_{\mathsf{SCKA}}(\adv)
+=|\Pr[G_1(\adv)=1]-\Pr[G_0(\adv)=1]|,\qquad
+\operatorname{Adv}^{\mathsf{guess}}_{\mathsf{SCKA}}(\adv)
+=\tfrac12\operatorname{Adv}^{\mathsf{dist}}_{\mathsf{SCKA}}(\adv).`
+
+```anchor securityExpFixedBit (project := ".") (module := SecureMessaging.SCKA.Defs)
+def securityExpFixedBit [SampleableType I] [DecidableEq I]
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (adversary : SCKAAdversary StA StB I Rho Rand)
+    (b : Bool) (exposureA : ExposurePolicy StA Rand)
+      (exposureB : ExposurePolicy StB Rand) : ProbComp Bool := do
+  let ik ← scka.initKeyGen
+  let stA ← scka.initA ik
+  let stB ← scka.initB ik
+  let (b', _) ← (simulateQ (sckaSecurityImpl b exposureA exposureB scka) adversary).run
+    (initGameState stA stB)
+  return b'
+```
+
+```anchor sckaDistAdvantage (project := ".") (module := SecureMessaging.SCKA.Defs)
+noncomputable def sckaDistAdvantage [SampleableType I] [DecidableEq I]
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (adversary : SCKAAdversary StA StB I Rho Rand)
+    (exposureA : ExposurePolicy StA Rand) (exposureB : ExposurePolicy StB Rand) : ℝ :=
+  |(Pr[= true | securityExpFixedBit scka adversary true exposureA exposureB]).toReal -
+   (Pr[= true | securityExpFixedBit scka adversary false exposureA exposureB]).toReal|
+```
+
+```anchor sckaAdvantageNormalization (project := ".") (module := SecureMessaging.SCKA.Defs)
+lemma sckaGuessAdvantage_eq_sckaDistAdvantage_div_two [SampleableType I] [DecidableEq I]
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (adversary : SCKAAdversary StA StB I Rho Rand)
+    (exposureA : ExposurePolicy StA Rand) (exposureB : ExposurePolicy StB Rand) :
+    sckaGuessAdvantage scka adversary exposureA exposureB =
+      sckaDistAdvantage scka adversary exposureA exposureB / 2 := by
+  simp only [sckaGuessAdvantage, sckaDistAdvantage]
+  rw [securityExp_toReal_sub_half, abs_div]
+  congr 1
+  exact abs_of_pos two_pos
+```
+
 :::::::

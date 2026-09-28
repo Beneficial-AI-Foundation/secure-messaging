@@ -44,10 +44,12 @@ abbrev SimState {base : KEMScheme ProbComp K PK SK C} (onoff : base.OnOffStructu
 
 /-- Recover an optional secret field. An erased field returns `some none`;
 a present unavailable secret returns `none`, signaling termination. -/
+-- ANCHOR: embedding_revealField
 def revealField {α : Type} : Option (Option α) → Option (Option α)
   | none => some none
   | some none => none
   | some (some a) => some (some a)
+-- ANCHOR_END: embedding_revealField
 
 /-- Recover A's original state for a permitted corruption, failing exactly
 when its current decapsulation key is present but unavailable. -/
@@ -68,6 +70,7 @@ def revealB {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
 /-- Recover the coins returned by a leaking send. Deterministic sends
 return `some SendRand.none`; a sampling phase with unavailable coins
 returns `none`, signaling termination. -/
+-- ANCHOR: embedding_revealCoins
 def revealCoins {KG OFF ON : Type} :
     SendRand (Option KG) (Option OFF) (Option ON) → Option (SendRand KG OFF ON)
   | .none => some .none
@@ -75,6 +78,7 @@ def revealCoins {KG OFF ON : Type} :
   | .off r => .off <$> r
   | .on r => .on <$> r
   | .offOn r₀ r₁ => do pure (.offOn (← r₀) (← r₁))
+-- ANCHOR_END: embedding_revealCoins
 
 /-- Convert an optional oracle response using `reveal`. Rejection (`none`)
 is returned normally; an unavailable successful response terminates. -/

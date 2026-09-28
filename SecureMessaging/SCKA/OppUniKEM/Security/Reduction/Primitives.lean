@@ -36,6 +36,7 @@ variable {K PK SK C : Type}
 /-- Key generation for a simulator query. When `selected = true`, return
 `pkStar` with an unavailable secret; otherwise sample an honest key pair
 and mark its secret as known. -/
+-- ANCHOR: embedding_primitives
 def keygen (kem : KEMScheme ProbComp K PK SK C) (selected : Bool) (pkStar : PK) :
     ProbComp (PK × Option SK) :=
   if selected then pure (pkStar, none) else Prod.map id some <$> kem.keygen
@@ -56,6 +57,7 @@ def encapsOn {kem : KEMScheme ProbComp K PK SK C} (onoff : kem.OnOffStructure)
   match st with
   | none => pure ((onoff.split ctStar).2, none)
   | some st => Prod.map id some <$> onoff.encapsOn st pk
+-- ANCHOR_END: embedding_primitives
 
 /-- KEM used for one simulator query. `selectedA` and `selectedB` identify
 whether each role is in the selected epoch. `key` is B's recorded symbolic

@@ -826,12 +826,14 @@ def securityExpFixedBit [SampleableType I] [DecidableEq I]
 
 Here `SCKA_real` is `securityExpFixedBit scka adversary false exposureA exposureB` and
 `SCKA_rand` is `securityExpFixedBit scka adversary true exposureA exposureB`. -/
+-- ANCHOR: sckaDistAdvantage
 noncomputable def sckaDistAdvantage [SampleableType I] [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (adversary : SCKAAdversary StA StB I Rho Rand)
     (exposureA : ExposurePolicy StA Rand) (exposureB : ExposurePolicy StB Rand) : ℝ :=
   |(Pr[= true | securityExpFixedBit scka adversary true exposureA exposureB]).toReal -
    (Pr[= true | securityExpFixedBit scka adversary false exposureA exposureB]).toReal|
+-- ANCHOR_END: sckaDistAdvantage
 
 /-- The single-game SCKA experiment can be decomposed as a uniform-bit branch over
 the two fixed-bit experiments:
@@ -892,6 +894,7 @@ lemma securityExp_toReal_sub_half [SampleableType I] [DecidableEq I]
 
 /-- The SCKA guess advantage equals half the distinguishing advantage:
 `sckaGuessAdvantage = sckaDistAdvantage / 2`. -/
+-- ANCHOR: sckaAdvantageNormalization
 lemma sckaGuessAdvantage_eq_sckaDistAdvantage_div_two [SampleableType I] [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (adversary : SCKAAdversary StA StB I Rho Rand)
@@ -902,6 +905,7 @@ lemma sckaGuessAdvantage_eq_sckaDistAdvantage_div_two [SampleableType I] [Decida
   rw [securityExp_toReal_sub_half, abs_div]
   congr 1
   exact abs_of_pos two_pos
+-- ANCHOR_END: sckaAdvantageNormalization
 
 end Games
 
