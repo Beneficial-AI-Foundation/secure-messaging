@@ -6,11 +6,27 @@ Authors: Beneficial AI Foundation
 import VCVio.OracleComp.QueryTracking.CachingOracle
 
 /-!
-# The queried point is cached after `withCaching`
+/-!
+# A caching oracle records its answer in its table
 
-Upstream `QueryImpl.withCaching_cache_le` states that a `withCaching` step only
-extends the cache. This file adds the complementary fact: the final cache maps
-the queried point to the returned answer. Both apply to `randomOracle`.
+Let `O` be a possibly randomized oracle that answers a query `x` with some `y ← O(x)`. The caching oracle `Cache[O]` keeps a table `T` of past answers, where `T[x] = ⊥` means that `x` has no entry:
+
+```
+Cache[O](x):
+  if T[x] ≠ ⊥ then return T[x]
+  y ← O(x)
+  T[x] ← y
+  return y
+```
+
+**Claim.** Fix a query `x` and an initial table `T`. Run `Cache[O](x)` from `T`, and let `(y, T′)` be any possible outcome, where `y` is the returned answer and `T′` is the final table. Then `T′[x] = y`.
+
+**Lazy random oracle.** Let `O(x)` sample `y ←$ R_x`, where `R_x` is the set of answers to `x`. Then `Cache[O]` is the lazy random oracle, so the claim holds for each of its queries.
+
+**In Lean.**
+* `Cache[O]` is `so.withCaching`, and the lazy random oracle is `randomOracle`;
+* the claim is `withCaching_run_caches`
+ 
 Candidate for upstream VCVio, next to `withCaching_cache_le` in
 `VCVio/OracleComp/QueryTracking/CachingOracle.lean`.
 -/
