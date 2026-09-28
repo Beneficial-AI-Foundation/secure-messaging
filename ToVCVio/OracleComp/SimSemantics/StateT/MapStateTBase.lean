@@ -14,11 +14,6 @@ import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 without changing its `σ`-state component. Therefore any per-query invariant on
 `σ` is preserved by `outer.mapStateTBase inner`. After `flattenStateT`, the same
 invariant holds on the first component of the product state `σ × τ`.
-
-Upstream `mapStateTBase_preserves_inv` covers a stateless outer handler and asks
-it to preserve support exactly. `mapStateTBase_run_preserves_inv` allows a
-stateful outer handler and needs no side condition on it, since support can only
-shrink under `simulateQ`.
 -/
 
 open OracleSpec OracleComp
