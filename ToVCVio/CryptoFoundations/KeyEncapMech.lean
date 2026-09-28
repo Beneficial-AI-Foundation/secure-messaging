@@ -168,6 +168,13 @@ theorem correctnessError_eq_probOutput_false_of_probFailure_eq_zero
       Pr[= false | runtime.evalDist kem.CorrectExp] := by
   rw [correctnessError_eq_probOutput_false_add_probFailure, hfail, add_zero]
 
+/-- For a `ProbComp` KEM, the correctness error is exactly the probability that the
+correctness experiment returns `false`, since `ProbComp` never fails. -/
+theorem correctnessError_probComp_eq_probOutput_false (kem : KEMScheme ProbComp K PK SK C) :
+    kem.correctnessError ProbCompRuntime.probComp = Pr[= false | kem.CorrectExp] :=
+  correctnessError_eq_probOutput_false_of_probFailure_eq_zero kem _
+    (show Pr[⊥ | kem.CorrectExp] = 0 from probFailure_eq_zero)
+
 /-- Decapsulating an honestly-generated ciphertext fails no more often than `kem`'s own
 correctness experiment returns `false`: whenever decapsulation returns `none`, it certainly
 doesn't recover the encapsulated key. -/

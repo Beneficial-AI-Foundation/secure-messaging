@@ -85,14 +85,8 @@ theorem correctnessError_le_underlyingCorrectnessError
     [DecidableEq encoding.EncodedV] :
     (asKEMScheme ring encoding prims).correctnessError ProbCompRuntime.probComp ≤
       underlyingCorrectnessError ring encoding prims := by
-  have hbridge : (asKEMScheme ring encoding prims).correctnessError ProbCompRuntime.probComp
-      = Pr[= false | (asKEMScheme ring encoding prims).CorrectExp] := by
-    rw [KEMScheme.correctnessError]
-    change 1 - Pr[= true | (asKEMScheme ring encoding prims).CorrectExp] =
-      Pr[= false | (asKEMScheme ring encoding prims).CorrectExp]
-    rw [probOutput_false_eq_sub, probFailure_eq_zero, tsub_zero]
-  rw [hbridge, underlyingCorrectnessError, ← probEvent_eq_eq_probOutput,
-    ← probEvent_eq_eq_probOutput]
+  rw [KEMScheme.correctnessError_probComp_eq_probOutput_false, underlyingCorrectnessError,
+    ← probEvent_eq_eq_probOutput, ← probEvent_eq_eq_probOutput]
   simp only [KEMScheme.CorrectExp, asKEMScheme, keygen, underlyingCorrectExp, monad_norm]
   refine probEvent_bind_mono fun d _ => probEvent_bind_mono fun z _ =>
     probEvent_bind_mono fun m _ => ?_
