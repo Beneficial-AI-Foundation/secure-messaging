@@ -30,6 +30,7 @@ import ToVCVio.OracleComp.EvalDist
 import ToVCVio.OracleComp.ExpectedPayoff
 import ToVCVio.OracleComp.QueryTracking.CachingOracle
 import ToVCVio.OracleComp.QueryTracking.LazySampling
+import ToVCVio.OracleComp.QueryTracking.OneUseSampling
 import ToVCVio.OracleComp.QueryTracking.QueryBound
 import ToVCVio.OracleComp.QueryTracking.SampleOnDemand
 import ToVCVio.OracleComp.QueryTracking.StateBudget
