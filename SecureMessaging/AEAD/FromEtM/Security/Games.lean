@@ -16,7 +16,7 @@ import VCVio.ProgramLogic.Relational.SimulateQ
 import ToVCVio.OracleComp.QueryTracking.RandomOracle.RandomOracleForgery
 import ToVCVio.OracleComp.QueryTracking.RandomOracle.DiscardQuerySimulate
 import ToVCVio.OracleComp.SimSemantics.SimulateQForward
-import ToVCVio.OracleComp.SimSemantics.StateT.PreservesInv
+import ToVCVio.OracleComp.SimSemantics.StateT.MapStateTBase
 import ToVCVio.OracleComp.SimSemantics.UnifLift
 
 /-!

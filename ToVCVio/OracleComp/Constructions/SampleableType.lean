@@ -8,12 +8,12 @@ import VCVio.OracleComp.Constructions.SampleableType
 import VCVio.EvalDist.Prod
 
 /-!
-# `SampleableType` instance for `Prod`, and uniqueness of the uniform law
+# Uniform sampling on products, and uniqueness of the uniform law
 
-Provides `SampleableType (α × β)` from `SampleableType α` and `SampleableType β`,
-sampling each component independently, and `evalDist_eq_uniformSample_of_uniform`:
-a computation with full support and pointwise-constant output probability is the
-uniform sample.
+`uniformSample_prod_eq_bind` unfolds upstream's `SampleableType (α × β)` instance
+into two independent component samples, and `evalDist_eq_uniformSample_of_uniform`
+shows that a computation with full support and pointwise-constant output
+probability is the uniform sample.
 -/
 
 namespace ToVCVio

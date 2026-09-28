@@ -6,6 +6,7 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.AEAD.FromEtM.Security.Auth.Defs
 import ToVCVio.OracleComp.QueryTracking.CachingOracle
+import ToVCVio.OracleComp.QueryTracking.QueryBound
 import ToVCVio.ProgramLogic.Relational.Basic
 import ToVCVio.ProgramLogic.Relational.IdenticalUntilBad
 

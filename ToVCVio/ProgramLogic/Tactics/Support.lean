@@ -34,6 +34,10 @@ of three recurring shapes, all closed by `vcvSupport`:
 * *one-counter-bump support* — a counter-bumping send oracle, where the bumped
   record is definitionally equal to the goal's projection but not syntactically,
   handled by the explicit pair closers below.
+
+The pair closers (`⟨le_refl _, Nat.le_succ _⟩` and friends) target the two send
+counters of the CKA game state; their consumers are the KEM-CKA proofs under
+`SecureMessaging.CKA.FromKEM.Security`.
 -/
 
 namespace ToVCVio

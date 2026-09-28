@@ -95,38 +95,6 @@ def isVerifyQuery : (forgeSpec D R).Domain → Prop := (· matches Sum.inr _)
 instance : DecidablePred (isVerifyQuery (D := D) (R := R)) :=
   fun _ => by unfold isVerifyQuery; infer_instance
 
-/-- Query-bound transfer for an `add` handler whose left side never matches the predicate.
-
-The proof delegates to `simulateQ_run_of_step`, so it requires
-`[IsUniformSpec spec']` only for the base oracle. It does not require finite or
-inhabited ranges for the adversary spec `spec₁ + spec₂`, so the adversary
-interface may contain unbounded query-domain or response types. -/
-theorem simulateQ_run_add_inr_of_step
-    {ι₁ ι₂ ι' : Type u} {spec₁ : OracleSpec ι₁} {spec₂ : OracleSpec ι₂}
-    {spec' : OracleSpec ι'} [IsUniformSpec spec'] {σ α : Type u}
-    {p : ι₁ ⊕ ι₂ → Prop} [DecidablePred p]
-    {q : ι' → Prop} [DecidablePred q]
-    {impl₁ : QueryImpl spec₁ (StateT σ (OracleComp spec'))}
-    {impl₂ : QueryImpl spec₂ (StateT σ (OracleComp spec'))}
-    {oa : OracleComp (spec₁ + spec₂) α} {n : ℕ}
-    (hp_inl : ∀ t, ¬ p (.inl t))
-    (h : IsQueryBoundP oa p n)
-    (hstep_left : ∀ t s, IsQueryBoundP ((impl₁ t).run s) q 0)
-    (hstep_p₂ : ∀ t, p (.inr t) → ∀ s, IsQueryBoundP ((impl₂ t).run s) q 1)
-    (hstep_np₂ : ∀ t, ¬ p (.inr t) → ∀ s, IsQueryBoundP ((impl₂ t).run s) q 0)
-    (s : σ) :
-    IsQueryBoundP ((simulateQ (impl₁ + impl₂) oa).run s) q n :=
-  IsQueryBoundP.simulateQ_run_of_step h
-    (fun t hp s => by
-      cases t with
-      | inl t => exact absurd hp (hp_inl t)
-      | inr t => exact hstep_p₂ t hp s)
-    (fun t hnp s => by
-      cases t with
-      | inl t => exact hstep_left t s
-      | inr t => exact hstep_np₂ t hnp s)
-    s
-
 /-! ### Generalized induction invariant
 
 The induction generalizes over `cache` and `evald` under

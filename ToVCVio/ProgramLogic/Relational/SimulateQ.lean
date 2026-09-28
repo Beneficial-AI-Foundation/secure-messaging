@@ -14,6 +14,10 @@ Convenience lemmas for sampled-parameter simulations and handler normalization.
 VCVio provides the generic relational `simulateQ` rules and their `evalDist`
 projections.
 
+These are proof-route adapters for the DDH-CKA reduction under
+`SecureMessaging.CKA.FromDDH.Security`: each is stated in the shape one of its
+eager/lazy sampling steps needs.
+
 ## Notation
 
 `RelTriple oa ob R` is the relational Hoare-style triple with precondition

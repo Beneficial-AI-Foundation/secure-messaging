@@ -12,6 +12,10 @@ import VCVio.OracleComp.SimSemantics.QueryImpl.Basic
 `unifLiftStateT` forwards every `unifSpec` query through the base monad
 `OracleComp spec` while threading state `σ` unchanged. The `ProbComp` case is
 obtained with `spec := unifSpec`, since `ProbComp = OracleComp unifSpec`.
+
+Upstream's `unifFwdImpl` does the same forwarding only for
+`σ := hashSpec.QueryCache` and `spec := unifSpec`. The game handlers of this
+project need an arbitrary state `σ`.
 -/
 
 namespace ToVCVio
