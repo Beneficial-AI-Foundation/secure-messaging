@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
+import VCVio.CryptoFoundations.PRF
 import VCVio.OracleComp.QueryTracking.RandomOracle.Basic
 import VCVio.OracleComp.QueryTracking.RandomOracle.Simulation
 import VCVio.OracleComp.SimSemantics.SimulateQ
@@ -14,33 +15,28 @@ import VCVio.OracleComp.SimSemantics.Append
 /-!
 # Discarded random-oracle query removal under `simulateQ`
 
-Let `p : OracleComp (unifSpec + (D →ₒ R)) β`. Prepending a query at `d` and
-discarding its result does not change the output distribution under `roImpl`:
+Let `p : OracleComp (unifSpec + (D →ₒ R)) β`, run against the lazy random oracle
+`PRFScheme.prfIdealQueryImpl`. Prepending a query at `d` and discarding its result
+does not change the output distribution:
 
 ```
-𝒟[(simulateQ (roImpl D R) (query d >>= fun _ => p)).run' qc]
-  = 𝒟[(simulateQ (roImpl D R) p).run' qc].
+𝒟[(simulateQ prfIdealQueryImpl (query d >>= fun _ => p)).run' qc]
+  = 𝒟[(simulateQ prfIdealQueryImpl p).run' qc].
 ```
 
 For a query implementation with state `σ × (D →ₒ R).QueryCache`,
 `RespectsRO impl` states that each handler factors through an oracle computation
-simulated by `roImpl`. The theorem `evalDist_simulateQ_run'_discardRO` lifts
+simulated by `prfIdealQueryImpl`. The theorem `evalDist_simulateQ_run'_discardRO` lifts
 discarded-query removal to such query implementations.
 -/
 
 open OracleComp OracleSpec ENNReal
+open PRFScheme (prfIdealQueryImpl prfIdealQueryImpl_apply_inr)
 
 namespace OracleComp
 
 variable {D R : Type} [DecidableEq D] [SampleableType R]
   {ι : Type} {spec : OracleSpec ι} {σ α : Type}
-
-/-- Interpret `unifSpec + (D →ₒ R)` in
-`StateT (D →ₒ R).QueryCache ProbComp`: uniform-sampling queries preserve the
-cache, and `D →ₒ R` queries use the lazy random oracle. -/
-noncomputable def roImpl (D R : Type) [DecidableEq D] [SampleableType R] :
-    QueryImpl (unifSpec + (D →ₒ R)) (StateT (D →ₒ R).QueryCache ProbComp) :=
-  unifFwdImpl (D →ₒ R) + (D →ₒ R).randomOracle
 
 /-! ## Discarded-query absorption -/
 
@@ -59,30 +55,29 @@ private theorem randomOracle_run_some
     ((D →ₒ R).randomOracle d).run qc = pure (r, qc) :=
   QueryImpl.withCaching_run_some _ hqc
 
-/-- Running `roImpl` on a uniform-sampling query leaves the cache unchanged: the response is a
-uniform `ProbComp` sample and the cache `c` passes through. -/
-private theorem roImpl_run_inl (n : unifSpec.Domain) (c : (D →ₒ R).QueryCache) :
-    (roImpl D R (Sum.inl n)).run c =
+/-- Running `prfIdealQueryImpl` on a uniform-sampling query leaves the cache unchanged: the
+response is a uniform `ProbComp` sample and the cache `c` passes through. -/
+private theorem prfIdealQueryImpl_run_inl (n : unifSpec.Domain) (c : (D →ₒ R).QueryCache) :
+    (prfIdealQueryImpl (D := D) (R := R) (Sum.inl n)).run c =
       (fun u => (u, c)) <$> (liftM (OracleSpec.query n) : ProbComp _) := by
-  rw [roImpl, QueryImpl.add_apply_inl]
-  unfold unifFwdImpl
-  rw [QueryImpl.liftTarget_apply, HasQuery.toQueryImpl]
+  rw [prfIdealQueryImpl, QueryImpl.add_apply_inl, QueryImpl.liftTarget_apply,
+    HasQuery.toQueryImpl]
   simp [StateT.run_monadLift, bind_pure_comp, HasQuery.query]
 
 /-- **Resampling marginal.** For any `p` and any cache `qc` that *misses* `d`, pre-sampling a fresh
-uniform value at `d` (writing it into the cache) and then running `simulateQ (roImpl D R) p` has
-the same output distribution as running `simulateQ (roImpl D R) p` from `qc` directly.
+uniform value at `d` (writing it into the cache) and then running `simulateQ prfIdealQueryImpl p`
+has the same output distribution as running `simulateQ prfIdealQueryImpl p` from `qc` directly.
 
 Induction over `p`. On a uniform-sampling query the cache is untouched, so the IH applies on the
 continuation directly. On a `D →ₒ R` query at `t`: if `t = d`, the pre-sampled side hits the cache
 (deterministic) while the bare side misses and samples fresh — the two uniform samples are renamed
 into each other. If `t ≠ d`, the `d`-entry is untouched and the continuation cache still misses
 `d`, so the IH applies after commuting the two independent samples. -/
-private theorem evalDist_uniformSample_bind_simulateQ_roImpl_run'
+private theorem evalDist_uniformSample_bind_simulateQ_prfIdealQueryImpl_run'
     {β : Type} (d : D) :
     ∀ (p : OracleComp (unifSpec + (D →ₒ R)) β) (qc : (D →ₒ R).QueryCache), qc d = none →
-      𝒟[($ᵗ R) >>= fun r => (simulateQ (roImpl D R) p).run' (qc.cacheQuery d r)] =
-        𝒟[(simulateQ (roImpl D R) p).run' qc] := by
+      𝒟[($ᵗ R) >>= fun r => (simulateQ prfIdealQueryImpl p).run' (qc.cacheQuery d r)] =
+        𝒟[(simulateQ prfIdealQueryImpl p).run' qc] := by
   intro p
   induction p using OracleComp.inductionOn with
   | pure x =>
@@ -97,12 +92,14 @@ private theorem evalDist_uniformSample_bind_simulateQ_roImpl_run'
     rcases t with n | t
     · -- Uniform-sampling query: cache untouched; IH applies on the continuation directly.
       have hredU : ∀ c : (D →ₒ R).QueryCache,
-          (simulateQ (roImpl D R) (liftM ((unifSpec + (D →ₒ R)).query (Sum.inl n)) >>= k)).run' c =
+          (simulateQ prfIdealQueryImpl
+              (liftM ((unifSpec + (D →ₒ R)).query (Sum.inl n)) >>= k)).run' c =
             (liftM (OracleSpec.query (spec := unifSpec) n) :
                 ProbComp ((unifSpec + (D →ₒ R)).Range (Sum.inl n))) >>= fun u =>
-              (simulateQ (roImpl D R) (k u)).run' c := by
+              (simulateQ prfIdealQueryImpl (k u)).run' c := by
         intro c
-        rw [simulateQ_bind, simulateQ_spec_query, StateT.run'_eq, StateT.run_bind, roImpl_run_inl]
+        rw [simulateQ_bind, simulateQ_spec_query, StateT.run'_eq, StateT.run_bind,
+          prfIdealQueryImpl_run_inl]
         simp [map_eq_bind_pure_comp, bind_assoc, StateT.run'_eq]
       simp only [hredU]
       -- Both sides: `query n` then continue. Commute the `d`-presample past the unif sample, apply
@@ -110,7 +107,7 @@ private theorem evalDist_uniformSample_bind_simulateQ_roImpl_run'
       rw [evalDist_bind_bind_swap ($ᵗ R)
         (liftM (OracleSpec.query (spec := unifSpec) n) :
           ProbComp ((unifSpec + (D →ₒ R)).Range (Sum.inl n)))
-        (fun r u => (simulateQ (roImpl D R) (k u)).run' (qc.cacheQuery d r))]
+        (fun r u => (simulateQ prfIdealQueryImpl (k u)).run' (qc.cacheQuery d r))]
       refine evalDist_ext fun x => ?_
       simp only [probOutput_bind_eq_tsum]
       refine tsum_congr fun u => ?_
@@ -121,11 +118,12 @@ private theorem evalDist_uniformSample_bind_simulateQ_roImpl_run'
         (congrFun (congrArg DFunLike.coe (ih u qc hqc)) x)
     · -- `D →ₒ R` query at `t`. Reduce both runs to `randomOracle t` then continue.
       have hred : ∀ c : (D →ₒ R).QueryCache,
-          (simulateQ (roImpl D R) (liftM ((unifSpec + (D →ₒ R)).query (Sum.inr t)) >>= k)).run' c =
+          (simulateQ prfIdealQueryImpl
+              (liftM ((unifSpec + (D →ₒ R)).query (Sum.inr t)) >>= k)).run' c =
             ((D →ₒ R).randomOracle t).run c >>= fun z =>
-              (simulateQ (roImpl D R) (k z.1)).run' z.2 := by
+              (simulateQ prfIdealQueryImpl (k z.1)).run' z.2 := by
         intro c
-        simp only [roImpl, simulateQ_bind, simulateQ_spec_query, QueryImpl.add_apply_inr,
+        simp only [simulateQ_bind, simulateQ_spec_query, prfIdealQueryImpl_apply_inr,
           StateT.run'_eq, StateT.run_bind, map_bind]
         rfl
       by_cases htd : t = d
@@ -134,16 +132,16 @@ private theorem evalDist_uniformSample_bind_simulateQ_roImpl_run'
         simp only [hred]
         have hL : (($ᵗ R) >>= fun r =>
               ((D →ₒ R).randomOracle t).run (qc.cacheQuery t r) >>= fun z =>
-                (simulateQ (roImpl D R) (k z.1)).run' z.2) =
+                (simulateQ prfIdealQueryImpl (k z.1)).run' z.2) =
             (($ᵗ R) >>= fun r =>
-              (simulateQ (roImpl D R) (k r)).run' (qc.cacheQuery t r)) := by
+              (simulateQ prfIdealQueryImpl (k r)).run' (qc.cacheQuery t r)) := by
           refine bind_congr fun r => ?_
           rw [randomOracle_run_some t (qc.cacheQuery t r) r (QueryCache.cacheQuery_self qc t r),
             pure_bind]
         have hR : (((D →ₒ R).randomOracle t).run qc >>= fun z =>
-              (simulateQ (roImpl D R) (k z.1)).run' z.2) =
+              (simulateQ prfIdealQueryImpl (k z.1)).run' z.2) =
             (($ᵗ R) >>= fun r =>
-              (simulateQ (roImpl D R) (k r)).run' (qc.cacheQuery t r)) := by
+              (simulateQ prfIdealQueryImpl (k r)).run' (qc.cacheQuery t r)) := by
           rw [randomOracle_run_none t qc hqc]
           simp only [Function.comp_def, map_eq_bind_pure_comp,
             bind_assoc, pure_bind]
@@ -157,9 +155,9 @@ private theorem evalDist_uniformSample_bind_simulateQ_roImpl_run'
           rw [randomOracle_run_some t qc v hv, pure_bind]
           have hL : (($ᵗ R) >>= fun r =>
                 ((D →ₒ R).randomOracle t).run (qc.cacheQuery d r) >>= fun z =>
-                  (simulateQ (roImpl D R) (k z.1)).run' z.2) =
+                  (simulateQ prfIdealQueryImpl (k z.1)).run' z.2) =
               (($ᵗ R) >>= fun r =>
-                (simulateQ (roImpl D R) (k v)).run' (qc.cacheQuery d r)) := by
+                (simulateQ prfIdealQueryImpl (k v)).run' (qc.cacheQuery d r)) := by
             refine bind_congr fun r => ?_
             rw [randomOracle_run_some t (qc.cacheQuery d r) v (hpres r), pure_bind]
           rw [hL]
@@ -170,25 +168,25 @@ private theorem evalDist_uniformSample_bind_simulateQ_roImpl_run'
             | some v => exact absurd h (by simpa using hqt v)
           rw [randomOracle_run_none t qc hqtn]
           have hRHS : (((fun w => (w, qc.cacheQuery t w)) <$> ($ᵗ R)) >>= fun z =>
-                (simulateQ (roImpl D R) (k z.1)).run' z.2) =
+                (simulateQ prfIdealQueryImpl (k z.1)).run' z.2) =
               (($ᵗ R) >>= fun w =>
-                (simulateQ (roImpl D R) (k w)).run' (qc.cacheQuery t w)) := by
+                (simulateQ prfIdealQueryImpl (k w)).run' (qc.cacheQuery t w)) := by
             rw [map_eq_bind_pure_comp]; simp [bind_assoc]
           rw [hRHS]
           have hmiss_t : ∀ r : R, (qc.cacheQuery d r) t = none := by
             intro r; rw [QueryCache.cacheQuery_of_ne qc r htd, hqtn]
           have hL : (($ᵗ R) >>= fun r =>
                 ((D →ₒ R).randomOracle t).run (qc.cacheQuery d r) >>= fun z =>
-                  (simulateQ (roImpl D R) (k z.1)).run' z.2) =
+                  (simulateQ prfIdealQueryImpl (k z.1)).run' z.2) =
               (($ᵗ R) >>= fun r => ($ᵗ R) >>= fun w =>
-                (simulateQ (roImpl D R) (k w)).run'
+                (simulateQ prfIdealQueryImpl (k w)).run'
                   ((qc.cacheQuery d r).cacheQuery t w)) := by
             refine bind_congr fun r => ?_
             rw [randomOracle_run_none t (qc.cacheQuery d r) (hmiss_t r), map_eq_bind_pure_comp]
             simp [bind_assoc]
           rw [hL]
           rw [evalDist_bind_bind_swap ($ᵗ R) ($ᵗ R)
-            (fun r w => (simulateQ (roImpl D R) (k w)).run'
+            (fun r w => (simulateQ prfIdealQueryImpl (k w)).run'
               ((qc.cacheQuery d r).cacheQuery t w))]
           refine evalDist_ext fun x => ?_
           simp only [probOutput_bind_eq_tsum]
@@ -206,18 +204,19 @@ private theorem evalDist_uniformSample_bind_simulateQ_roImpl_run'
             (congrFun (congrArg DFunLike.coe (ih w (qc.cacheQuery t w) hmiss_d)) x)
 
 /-- Prepending a query at `d` and discarding its result preserves the output
-distribution of a computation interpreted by `roImpl`. -/
-theorem evalDist_simulateQ_roImpl_discard_run' {β : Type}
+distribution of a computation interpreted by `PRFScheme.prfIdealQueryImpl`. -/
+theorem evalDist_simulateQ_prfIdealQueryImpl_discard_run' {β : Type}
     (d : D) (p : OracleComp (unifSpec + (D →ₒ R)) β) (qc : (D →ₒ R).QueryCache) :
-    𝒟[(simulateQ (roImpl D R)
+    𝒟[(simulateQ (prfIdealQueryImpl (D := D) (R := R))
         ((unifSpec + (D →ₒ R)).query (Sum.inr d) >>= fun _ => p)).run' qc] =
-      𝒟[(simulateQ (roImpl D R) p).run' qc] := by
+      𝒟[(simulateQ prfIdealQueryImpl p).run' qc] := by
   -- Reduce the prepended query to `randomOracle d` then continue.
   have hred :
-      (simulateQ (roImpl D R) ((unifSpec + (D →ₒ R)).query (Sum.inr d) >>= fun _ => p)).run' qc =
+      (simulateQ (prfIdealQueryImpl (D := D) (R := R))
+          ((unifSpec + (D →ₒ R)).query (Sum.inr d) >>= fun _ => p)).run' qc =
         ((D →ₒ R).randomOracle d).run qc >>= fun z =>
-          (simulateQ (roImpl D R) p).run' z.2 := by
-    simp only [roImpl, simulateQ_bind, simulateQ_spec_query, QueryImpl.add_apply_inr,
+          (simulateQ prfIdealQueryImpl p).run' z.2 := by
+    simp only [simulateQ_bind, simulateQ_spec_query, prfIdealQueryImpl_apply_inr,
       StateT.run'_eq, StateT.run_bind, map_bind]
     rfl
   rw [hred]
@@ -233,24 +232,24 @@ theorem evalDist_simulateQ_roImpl_discard_run' {β : Type}
     rw [randomOracle_run_none d qc hqcn]
     have hL :
         𝒟[((fun r => (r, qc.cacheQuery d r)) <$> ($ᵗ R)) >>= fun z =>
-            (simulateQ (roImpl D R) p).run' z.2] =
+            (simulateQ prfIdealQueryImpl p).run' z.2] =
           𝒟[($ᵗ R) >>= fun r =>
-            (simulateQ (roImpl D R) p).run' (qc.cacheQuery d r)] := by
+            (simulateQ prfIdealQueryImpl p).run' (qc.cacheQuery d r)] := by
       rw [map_eq_bind_pure_comp]; simp [bind_assoc]
     rw [hL]
-    exact evalDist_uniformSample_bind_simulateQ_roImpl_run' d p qc hqcn
+    exact evalDist_uniformSample_bind_simulateQ_prfIdealQueryImpl_run' d p qc hqcn
 
 /-! ## The `RespectsRO` predicate -/
 
 /-- `RespectsRO impl` holds when each handler of `impl` is represented by a
-computation over `unifSpec + (D →ₒ R)` interpreted by `roImpl`. The representation
-threads the auxiliary state `σ` as output data and leaves cache access to `roImpl`. -/
+computation over `unifSpec + (D →ₒ R)` interpreted by `prfIdealQueryImpl`. The representation
+threads the auxiliary state `σ` as output data and leaves cache access to `prfIdealQueryImpl`. -/
 def RespectsRO (impl : QueryImpl spec (StateT (σ × (D →ₒ R).QueryCache) ProbComp)) : Prop :=
   ∃ B : (t : spec.Domain) → σ → OracleComp (unifSpec + (D →ₒ R)) (spec.Range t × σ),
     ∀ (t : spec.Domain) (s : σ) (qc : (D →ₒ R).QueryCache),
       (impl t).run (s, qc) =
         (fun z : (spec.Range t × σ) × (D →ₒ R).QueryCache => (z.1.1, (z.1.2, z.2))) <$>
-          (simulateQ (roImpl D R) (B t s)).run qc
+          (simulateQ prfIdealQueryImpl (B t s)).run qc
 
 /-! ## Compiling a `RespectsRO` simulation to the random oracle -/
 
@@ -262,7 +261,7 @@ def bodyImpl (B : (t : spec.Domain) → σ → OracleComp (unifSpec + (D →ₒ 
 
 /-- Inline a `RespectsRO` body `B` along an adversary `adv`, threading the `σ`-state as a *return
 value*: a single `OracleComp (unifSpec + (D →ₒ R)) (α × σ)`. The `simulateQ impl₁` run over the
-product state `(σ × cache)` then equals `simulateQ (roImpl D R)` of this compiled computation
+product state `(σ × cache)` then equals `simulateQ prfIdealQueryImpl` of this compiled computation
 (`run_simulateQ_eq_compile`). -/
 def compile (B : (t : spec.Domain) → σ → OracleComp (unifSpec + (D →ₒ R)) (spec.Range t × σ))
     (adv : OracleComp spec α) (s : σ) : OracleComp (unifSpec + (D →ₒ R)) (α × σ) :=
@@ -296,11 +295,11 @@ private theorem run_simulateQ_eq_compile
     (hB : ∀ (t : spec.Domain) (s : σ) (qc : (D →ₒ R).QueryCache),
       (impl₁ t).run (s, qc) =
         (fun z : (spec.Range t × σ) × (D →ₒ R).QueryCache => (z.1.1, (z.1.2, z.2))) <$>
-          (simulateQ (roImpl D R) (B t s)).run qc)
+          (simulateQ prfIdealQueryImpl (B t s)).run qc)
     (adv : OracleComp spec α) (s : σ) (qc : (D →ₒ R).QueryCache) :
     (simulateQ impl₁ adv).run (s, qc) =
       (fun z : (α × σ) × (D →ₒ R).QueryCache => (z.1.1, (z.1.2, z.2))) <$>
-        (simulateQ (roImpl D R) (compile B adv s)).run qc := by
+        (simulateQ prfIdealQueryImpl (compile B adv s)).run qc := by
   induction adv using OracleComp.inductionOn generalizing s qc with
   | pure x =>
     simp only [simulateQ_pure, StateT.run_pure, compile_pure, map_pure]
@@ -320,10 +319,10 @@ private theorem run'_simulateQ_eq_compile
     (hB : ∀ (t : spec.Domain) (s : σ) (qc : (D →ₒ R).QueryCache),
       (impl₁ t).run (s, qc) =
         (fun z : (spec.Range t × σ) × (D →ₒ R).QueryCache => (z.1.1, (z.1.2, z.2))) <$>
-          (simulateQ (roImpl D R) (B t s)).run qc)
+          (simulateQ prfIdealQueryImpl (B t s)).run qc)
     (adv : OracleComp spec α) (s : σ) (qc : (D →ₒ R).QueryCache) :
     (simulateQ impl₁ adv).run' (s, qc) =
-      (simulateQ (roImpl D R) (Prod.fst <$> compile B adv s)).run' qc := by
+      (simulateQ prfIdealQueryImpl (Prod.fst <$> compile B adv s)).run' qc := by
   rw [StateT.run'_eq, run_simulateQ_eq_compile impl₁ B hB adv s qc, simulateQ_map,
     StateT.run'_eq, StateT.run_map, Functor.map_map, Functor.map_map]
 
@@ -359,40 +358,39 @@ theorem evalDist_simulateQ_run'_discardRO
       -- Abbreviate the per-step adversary and the compiled RO computation of its `impl₁`-tail.
       set adv' : OracleComp spec α := liftM (spec.query t) >>= k with hadv'
       set P : OracleComp (unifSpec + (D →ₒ R)) α := Prod.fst <$> compile B adv' s₀ with hP
-      -- Both `(simulateQ implᵢ adv').run'` equal `simulateQ (roImpl D R) P` over the cache via the
-      -- compile bridge (for impl₁) resp. the same bridge prefixed by a discarded query (impl₂).
+      -- Both `(simulateQ implᵢ adv').run'` equal `simulateQ prfIdealQueryImpl P` over the cache via
+      -- the compile bridge (for impl₁) resp. the same bridge prefixed by a discarded query (impl₂).
       have hbridge : ∀ c : (D →ₒ R).QueryCache,
           (simulateQ impl₁ adv').run' (s₀, c) =
-            (simulateQ (roImpl D R) P).run' c := by
+            (simulateQ prfIdealQueryImpl P).run' c := by
         intro c; rw [hP]; exact run'_simulateQ_eq_compile impl₁ B hB adv' s₀ c
-      -- Step 1: the `impl₁` side is `simulateQ (roImpl D R) P`.
+      -- Step 1: the `impl₁` side is `simulateQ prfIdealQueryImpl P`.
       have key1 :
           𝒟[(simulateQ impl₁ adv').run' (s₀, qc₀)] =
-            𝒟[(simulateQ (roImpl D R) P).run' qc₀] := by
+            𝒟[(simulateQ prfIdealQueryImpl P).run' qc₀] := by
         rw [hbridge]
       -- Step 2: the `impl₂` side is the discarded query prepended to that (`𝒟`-level).
       have key2 :
           𝒟[(simulateQ impl₂ adv').run' (s₀, qc₀)] =
-            𝒟[(simulateQ (roImpl D R)
+            𝒟[(simulateQ prfIdealQueryImpl
                 ((unifSpec + (D →ₒ R)).query (Sum.inr d) >>= fun _ => P :
                   OracleComp (unifSpec + (D →ₒ R)) α)).run' qc₀] := by
         -- Reduce the prepended-query side to `𝒟[randomOracle d] >>= fun r => 𝒟[run' P at r.2]`.
         have hfoldc :
-            (simulateQ (roImpl D R)
+            (simulateQ prfIdealQueryImpl
                 ((unifSpec + (D →ₒ R)).query (Sum.inr d) >>= fun _ => P :
                   OracleComp (unifSpec + (D →ₒ R)) α)).run' qc₀ =
               ((D →ₒ R).randomOracle d).run qc₀ >>= fun r =>
-                (simulateQ (roImpl D R) P).run' r.2 := by
-          rw [roImpl]
-          simp only [simulateQ_bind, simulateQ_spec_query, QueryImpl.add_apply_inr,
+                (simulateQ prfIdealQueryImpl P).run' r.2 := by
+          simp only [simulateQ_bind, simulateQ_spec_query, prfIdealQueryImpl_apply_inr,
             StateT.run'_eq, StateT.run_bind, map_bind]
           rfl
         have hfold :
-            𝒟[(simulateQ (roImpl D R)
+            𝒟[(simulateQ prfIdealQueryImpl
                 ((unifSpec + (D →ₒ R)).query (Sum.inr d) >>= fun _ => P :
                   OracleComp (unifSpec + (D →ₒ R)) α)).run' qc₀] =
               𝒟[((D →ₒ R).randomOracle d).run qc₀] >>= fun r =>
-                𝒟[(simulateQ (roImpl D R) P).run' r.2] := by
+                𝒟[(simulateQ prfIdealQueryImpl P).run' r.2] := by
           rw [hfoldc, evalDist_bind]
         rw [hfold]
         -- LHS: reduce `simulateQ impl₂ adv'` and apply `hdisc` to the head query.
@@ -427,6 +425,6 @@ theorem evalDist_simulateQ_run'_discardRO
           simp only [simulateQ_bind, simulateQ_spec_query, StateT.run'_eq, StateT.run_bind,
             map_bind]
         rw [hfold₁, hbridge]
-      rw [key1, key2, evalDist_simulateQ_roImpl_discard_run' d P qc₀]
+      rw [key1, key2, evalDist_simulateQ_prfIdealQueryImpl_discard_run' d P qc₀]
 
 end OracleComp
