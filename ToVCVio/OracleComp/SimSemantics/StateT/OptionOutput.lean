@@ -55,6 +55,25 @@ theorem optionRun_query_bind (impl : QueryImpl spec (OptionT (StateT σ ProbComp
   intro z
   cases z.1 <;> simp [StateT.run_pure]
 
+/-- Fix two stateful implementations and a state map `f`. For query `t`
+from left state `s`, suppose the right kernel at `f s` equals the left
+kernel followed by mapping the successor through `f`, and every supported
+left successor has `stop = false`. Lifting the right query into `OptionT`
+then equals stopping the left query and mapping its successor through `f`. -/
+theorem evalDist_lift_eq_stopOnState_map {τ : Type}
+    (left : QueryImpl spec (StateT σ ProbComp))
+    (right : QueryImpl spec (StateT τ ProbComp)) (f : σ → τ)
+    (stop : σ → Bool) (t : spec.Domain) (s : σ)
+    (hmap : 𝒟[(right t).run (f s)] = 𝒟[Prod.map id f <$> (left t).run s])
+    (hstop : ∀ z ∈ support ((left t).run s), stop z.2 = false) :
+    𝒟[((liftM (right t) : OptionT (StateT τ ProbComp) (spec.Range t)).run).run (f s)] =
+      𝒟[Prod.map id f <$> ((stopOnState left stop t).run).run s] := by
+  rw [evalDist_map, evalDist_stopOnState_eq_of_support left stop t s hstop]
+  simp only [OptionT.liftM_def, OptionT.lift, OptionT.run_mk,
+    StateT.run_map, bind_pure_comp, evalDist_map, hmap,
+    Functor.map_map]
+  rfl
+
 /-- Fix implementations `left` and `right`, a state map `f`, and an
 invariant `Inv` on left states. Assume that every continuing left query
 preserves `Inv`, and for every query `t` and invariant state `s`, the right

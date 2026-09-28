@@ -46,6 +46,23 @@ def stopOnState (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool
     let (answer, next) ← (impl t).run s
     pure (if stop next then none else some answer, next)
 
+/-- For every implementation, query, and initial state, if `stop` is false
+on every supported successor, the stopped query's joint distribution is
+the ordinary response/state distribution with each response wrapped in `some`. -/
+theorem evalDist_stopOnState_eq_of_support
+    (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool)
+    (t : spec.Domain) (s : σ)
+    (hstop : ∀ z ∈ support ((impl t).run s), stop z.2 = false) :
+    𝒟[((stopOnState impl stop t).run).run s] =
+      𝒟[(fun z => (some z.1, z.2)) <$> (impl t).run s] := by
+  change 𝒟[(do
+    let z ← (impl t).run s
+    pure (if stop z.2 then none else some z.1, z.2))] = _
+  rw [map_eq_pure_bind]
+  apply evalDist_bind_congr
+  intro z hz
+  simp [hstop z hz]
+
 /-- Run a Boolean adversary `oa` from `s` using `stopOnState impl stop`.
 Return its output if it completes, and `false` if a query terminates it. -/
 def stoppedRun (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool)
