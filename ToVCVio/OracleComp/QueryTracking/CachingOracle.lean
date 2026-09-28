@@ -6,10 +6,11 @@ Authors: Beneficial AI Foundation
 import VCVio.OracleComp.QueryTracking.CachingOracle
 
 /-!
-/-!
 # A caching oracle records its answer in its table
 
-Let `O` be a possibly randomized oracle that answers a query `x` with some `y ← O(x)`. The caching oracle `Cache[O]` keeps a table `T` of past answers, where `T[x] = ⊥` means that `x` has no entry:
+Let `O` be a possibly randomized oracle that answers a query `x` with some `y ← O(x)`. The
+caching oracle `Cache[O]` keeps a table `T` of past answers, where `T[x] = ⊥` means that `x`
+has no entry:
 
 ```
 Cache[O](x):
@@ -19,14 +20,17 @@ Cache[O](x):
   return y
 ```
 
-**Claim.** Fix a query `x` and an initial table `T`. Run `Cache[O](x)` from `T`, and let `(y, T′)` be any possible outcome, where `y` is the returned answer and `T′` is the final table. Then `T′[x] = y`.
+**Claim.** Fix a query `x` and an initial table `T`. Run `Cache[O](x)` from `T`, and let
+`(y, T′)` be any possible outcome, where `y` is the returned answer and `T′` is the final table.
+Then `T′[x] = y`.
 
-**Lazy random oracle.** Let `O(x)` sample `y ←$ R_x`, where `R_x` is the set of answers to `x`. Then `Cache[O]` is the lazy random oracle, so the claim holds for each of its queries.
+**Lazy random oracle.** Let `O(x)` sample `y ←$ R_x`, where `R_x` is the set of answers to `x`.
+Then `Cache[O]` is the lazy random oracle, so the claim holds for each of its queries.
 
 **In Lean.**
 * `Cache[O]` is `so.withCaching`, and the lazy random oracle is `randomOracle`;
 * the claim is `withCaching_run_caches`
- 
+
 Candidate for upstream VCVio, next to `withCaching_cache_le` in
 `VCVio/OracleComp/QueryTracking/CachingOracle.lean`.
 -/
