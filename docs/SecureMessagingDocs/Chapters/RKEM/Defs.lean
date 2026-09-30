@@ -155,7 +155,7 @@ structure RatchetSimulator (rkem : RKEMScheme ProbComp Par EK DK CT K) (leak : r
 
 The updated-key and ciphertext distributions give the distinguisher the coins of some algorithms: $`\mathcal{D}\{\rand\}` samples from $`\mathcal{D}` with coins $`\rand`, which are uniformly distributed unless a simulator outputs them. These coins come from the RKEM's randomness-leak package (see the RKEM scheme).
 
-*Base-key simulatability.* A fresh key pair passed through $`\RSimKey\text{-}\mathsf{P}_1` is indistinguishable from an updated key pair. This captures the first keys shared between the parties in the CKA protocol.
+*Base-key simulatability* ($`\mathsf{KeyBaseSim}`). A fresh key pair passed through $`\RSimKey\text{-}\mathsf{P}_1` is indistinguishable from an updated key pair. This captures the first keys shared between the parties in the CKA protocol.
 
 ::::::gameGrid
 :::::gameCell "\\mathcal{D}^{\\mathsf{KeyBaseSim}}_{\\A,0}" (kind := "compact")
@@ -188,7 +188,7 @@ def keyBaseSimDistA (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.Ran
     rkem.rkeygenAUpdated par
 ```
 
-*Updated-key simulatability.* $`\mathsf{P}`'s updated key pair can be simulated from $`\mathsf{P}`'s fresh key pair alone, without the peer's encapsulation key that $`\REnc\text{-}\mathsf{P}` needs. This breaks the dependence of the updated keys on the peer's keys, which drives the induction in the proof of CKA security from RKEM ({Informal.citet TR25}[], Theorem 5.6).
+*Updated-key simulatability* ($`\mathsf{KeyUpdSim}`). $`\mathsf{P}`'s updated key pair can be simulated from $`\mathsf{P}`'s fresh key pair alone, without the peer's encapsulation key that $`\REnc\text{-}\mathsf{P}` needs. This breaks the dependence of the updated keys on the peer's keys, which drives the induction in the proof of CKA security from RKEM ({Informal.citet TR25}[], Theorem 5.6).
 
 ::::::gameGrid
 :::::gameCell "\\mathcal{D}^{\\mathsf{KeyUpdSim}}_{\\A,0}" (kind := "compact")
@@ -236,7 +236,7 @@ def keyUpdSimDistA (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.Rand
     return ((ekBHat, dkBHat), (ekAHat, dkAHat), ctB, key, key', aux0, rand0, rand1, rand2)
 ```
 
-*Ciphertext simulatability.* The ciphertext that $`\mathsf{P}` sends to its peer $`\mathsf{\bar P}` can be simulated from $`\mathsf{\bar P}`'s updated decapsulation key instead of $`\mathsf{P}`'s own: together with $`\mathsf{\bar P}`'s decapsulation key, it leaks nothing about $`\mathsf{P}`'s decapsulation key. This is used to argue post-compromise security of the CKA.
+*Ciphertext simulatability* ($`\mathsf{CtxtSim}`). The ciphertext that $`\mathsf{P}` sends to its peer $`\mathsf{\bar P}` can be simulated from $`\mathsf{\bar P}`'s updated decapsulation key instead of $`\mathsf{P}`'s own: together with $`\mathsf{\bar P}`'s decapsulation key, it leaks nothing about $`\mathsf{P}`'s decapsulation key. This is used to argue post-compromise security of the CKA.
 
 ::::::gameGrid
 :::::gameCell "\\mathcal{D}^{\\mathsf{CtxtSim}}_{\\B,0}" (kind := "compact")
