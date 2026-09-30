@@ -180,12 +180,12 @@ $`\begin{array}{l}
 ```anchor keyBaseSimDistA (project := ".") (module := SecureMessaging.RKEM.Defs)
 def keyBaseSimDistA (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandLeak}
     (sim : rkem.RatchetSimulator leak) (par : Par) (b : Bool) : ProbComp (EK × DK) :=
-  if b then do
+  if b = false then
+    rkem.rkeygenAUpdated par
+  else do
     let (ekA, dkA) ← rkem.rkeygenAFresh par
     let (ekAHat, dkAHat, _) ← sim.rsimKeyA1 par ekA dkA
     return (ekAHat, dkAHat)
-  else
-    rkem.rkeygenAUpdated par
 ```
 
 :::leanPillCaption "Base-key experiment"
@@ -260,13 +260,13 @@ def keyUpdSimDistA (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.Rand
   let ((ekB, dkB), rand0) ← leak.rkeygenBFreshRleak par
   let (ekBHat, dkBHat, aux0) ← sim.rsimKeyB1 par ekB dkB
   let ((ekA, dkA), rand1) ← leak.rkeygenAFreshRleak par
-  if b then
-    let (ekAHat, dkAHat, aux1) ← sim.rsimKeyA1 par ekA dkA
-    let (ctB, key, key', rand2) ← sim.rsimKeyA2 par ekBHat dkBHat aux1
-    return ((ekBHat, dkBHat), (ekAHat, dkAHat), ctB, key, key', aux0, rand0, rand1, rand2)
-  else
+  if b = false then
     let ((ctB, key, dkAHat), rand2) ← leak.rencARleak par ekBHat dkA
     let (key', ekAHat) ← rkem.rdecB par dkBHat ctB ekA
+    return ((ekBHat, dkBHat), (ekAHat, dkAHat), ctB, key, key', aux0, rand0, rand1, rand2)
+  else
+    let (ekAHat, dkAHat, aux1) ← sim.rsimKeyA1 par ekA dkA
+    let (ctB, key, key', rand2) ← sim.rsimKeyA2 par ekBHat dkBHat aux1
     return ((ekBHat, dkBHat), (ekAHat, dkAHat), ctB, key, key', aux0, rand0, rand1, rand2)
 ```
 
@@ -342,14 +342,14 @@ def ctxtSimDistB (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandLe
     ProbComp (CtxtSimView EK DK CT K sim.Aux leak.KeygenRand) := do
   let ((ekA, dkA), rand) ← leak.rkeygenAFreshRleak par
   let (ekAHat, dkAHat, aux) ← sim.rsimKeyA1 par ekA dkA
-  if b then
-    let (ekBHat, _) ← rkem.rkeygenBUpdated par
-    let (ctA, ekB, key, key') ← sim.rsimCtxtB par ekBHat ekAHat dkAHat
-    return (aux, rand, (ekAHat, dkAHat), ctA, (ekB, ekBHat), (key, key'))
-  else
+  if b = false then
     let (ekB, dkB) ← rkem.rkeygenBFresh par
     let (ctA, key, _) ← rkem.rencB par ekAHat dkB
     let (key', ekBHat) ← rkem.rdecA par dkAHat ctA ekB
+    return (aux, rand, (ekAHat, dkAHat), ctA, (ekB, ekBHat), (key, key'))
+  else
+    let (ekBHat, _) ← rkem.rkeygenBUpdated par
+    let (ctA, ekB, key, key') ← sim.rsimCtxtB par ekBHat ekAHat dkAHat
     return (aux, rand, (ekAHat, dkAHat), ctA, (ekB, ekBHat), (key, key'))
 ```
 

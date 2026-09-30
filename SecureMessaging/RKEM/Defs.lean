@@ -480,23 +480,23 @@ return (ekÂ, dkÂ)
 -- ANCHOR: keyBaseSimDistA
 def keyBaseSimDistA (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandLeak}
     (sim : rkem.RatchetSimulator leak) (par : Par) (b : Bool) : ProbComp (EK × DK) :=
-  if b then do
+  if b = false then
+    rkem.rkeygenAUpdated par
+  else do
     let (ekA, dkA) ← rkem.rkeygenAFresh par
     let (ekAHat, dkAHat, _) ← sim.rsimKeyA1 par ekA dkA
     return (ekAHat, dkAHat)
-  else
-    rkem.rkeygenAUpdated par
 -- ANCHOR_END: keyBaseSimDistA
 
 /-- As `keyBaseSimDistA`, with the roles of `A` and `B` swapped. -/
 def keyBaseSimDistB (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandLeak}
     (sim : rkem.RatchetSimulator leak) (par : Par) (b : Bool) : ProbComp (EK × DK) :=
-  if b then do
+  if b = false then
+    rkem.rkeygenBUpdated par
+  else do
     let (ekB, dkB) ← rkem.rkeygenBFresh par
     let (ekBHat, dkBHat, _) ← sim.rsimKeyB1 par ekB dkB
     return (ekBHat, dkBHat)
-  else
-    rkem.rkeygenBUpdated par
 
 /-- Base-key-simulatability experiment for party `A`: `b ← {0,1}, x ← D^KeyBaseSim_{A,b},
 b' ← 𝒜(x)`, returning `b = b'`. -/
@@ -574,13 +574,13 @@ def keyUpdSimDistA (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.Rand
   let ((ekB, dkB), rand0) ← leak.rkeygenBFreshRleak par
   let (ekBHat, dkBHat, aux0) ← sim.rsimKeyB1 par ekB dkB
   let ((ekA, dkA), rand1) ← leak.rkeygenAFreshRleak par
-  if b then
-    let (ekAHat, dkAHat, aux1) ← sim.rsimKeyA1 par ekA dkA
-    let (ctB, key, key', rand2) ← sim.rsimKeyA2 par ekBHat dkBHat aux1
-    return ((ekBHat, dkBHat), (ekAHat, dkAHat), ctB, key, key', aux0, rand0, rand1, rand2)
-  else
+  if b = false then
     let ((ctB, key, dkAHat), rand2) ← leak.rencARleak par ekBHat dkA
     let (key', ekAHat) ← rkem.rdecB par dkBHat ctB ekA
+    return ((ekBHat, dkBHat), (ekAHat, dkAHat), ctB, key, key', aux0, rand0, rand1, rand2)
+  else
+    let (ekAHat, dkAHat, aux1) ← sim.rsimKeyA1 par ekA dkA
+    let (ctB, key, key', rand2) ← sim.rsimKeyA2 par ekBHat dkBHat aux1
     return ((ekBHat, dkBHat), (ekAHat, dkAHat), ctB, key, key', aux0, rand0, rand1, rand2)
 -- ANCHOR_END: keyUpdSimDistA
 
@@ -591,13 +591,13 @@ def keyUpdSimDistB (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.Rand
   let ((ekA, dkA), rand0) ← leak.rkeygenAFreshRleak par
   let (ekAHat, dkAHat, aux0) ← sim.rsimKeyA1 par ekA dkA
   let ((ekB, dkB), rand1) ← leak.rkeygenBFreshRleak par
-  if b then
-    let (ekBHat, dkBHat, aux1) ← sim.rsimKeyB1 par ekB dkB
-    let (ctA, key, key', rand2) ← sim.rsimKeyB2 par ekAHat dkAHat aux1
-    return ((ekAHat, dkAHat), (ekBHat, dkBHat), ctA, key, key', aux0, rand0, rand1, rand2)
-  else
+  if b = false then
     let ((ctA, key, dkBHat), rand2) ← leak.rencBRleak par ekAHat dkB
     let (key', ekBHat) ← rkem.rdecA par dkAHat ctA ekB
+    return ((ekAHat, dkAHat), (ekBHat, dkBHat), ctA, key, key', aux0, rand0, rand1, rand2)
+  else
+    let (ekBHat, dkBHat, aux1) ← sim.rsimKeyB1 par ekB dkB
+    let (ctA, key, key', rand2) ← sim.rsimKeyB2 par ekAHat dkAHat aux1
     return ((ekAHat, dkAHat), (ekBHat, dkBHat), ctA, key, key', aux0, rand0, rand1, rand2)
 
 /-- Updated-key-simulatability experiment for party `A`: `b ← {0,1}, x ← D^KeyUpdSim_{A,b},
@@ -677,14 +677,14 @@ def ctxtSimDistA (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandLe
     ProbComp (CtxtSimView EK DK CT K sim.Aux leak.KeygenRand) := do
   let ((ekB, dkB), rand) ← leak.rkeygenBFreshRleak par
   let (ekBHat, dkBHat, aux) ← sim.rsimKeyB1 par ekB dkB
-  if b then
-    let (ekAHat, _) ← rkem.rkeygenAUpdated par
-    let (ctB, ekA, key, key') ← sim.rsimCtxtA par ekAHat ekBHat dkBHat
-    return (aux, rand, (ekBHat, dkBHat), ctB, (ekA, ekAHat), (key, key'))
-  else
+  if b = false then
     let (ekA, dkA) ← rkem.rkeygenAFresh par
     let (ctB, key, _) ← rkem.rencA par ekBHat dkA
     let (key', ekAHat) ← rkem.rdecB par dkBHat ctB ekA
+    return (aux, rand, (ekBHat, dkBHat), ctB, (ekA, ekAHat), (key, key'))
+  else
+    let (ekAHat, _) ← rkem.rkeygenAUpdated par
+    let (ctB, ekA, key, key') ← sim.rsimCtxtA par ekAHat ekBHat dkBHat
     return (aux, rand, (ekBHat, dkBHat), ctB, (ekA, ekAHat), (key, key'))
 
 /-- **Figure 12** (`D^CtxtSim_{B,b}`).
@@ -702,14 +702,14 @@ def ctxtSimDistB (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandLe
     ProbComp (CtxtSimView EK DK CT K sim.Aux leak.KeygenRand) := do
   let ((ekA, dkA), rand) ← leak.rkeygenAFreshRleak par
   let (ekAHat, dkAHat, aux) ← sim.rsimKeyA1 par ekA dkA
-  if b then
-    let (ekBHat, _) ← rkem.rkeygenBUpdated par
-    let (ctA, ekB, key, key') ← sim.rsimCtxtB par ekBHat ekAHat dkAHat
-    return (aux, rand, (ekAHat, dkAHat), ctA, (ekB, ekBHat), (key, key'))
-  else
+  if b = false then
     let (ekB, dkB) ← rkem.rkeygenBFresh par
     let (ctA, key, _) ← rkem.rencB par ekAHat dkB
     let (key', ekBHat) ← rkem.rdecA par dkAHat ctA ekB
+    return (aux, rand, (ekAHat, dkAHat), ctA, (ekB, ekBHat), (key, key'))
+  else
+    let (ekBHat, _) ← rkem.rkeygenBUpdated par
+    let (ctA, ekB, key, key') ← sim.rsimCtxtB par ekBHat ekAHat dkAHat
     return (aux, rand, (ekAHat, dkAHat), ctA, (ekB, ekBHat), (key, key'))
 -- ANCHOR_END: ctxtSimDistB
 
