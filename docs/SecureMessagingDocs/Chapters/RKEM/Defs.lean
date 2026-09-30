@@ -156,14 +156,14 @@ structure RandLeak (rkem : RKEMScheme m Par EK DK CT K) where
 *Base-key simulatability.* A fresh key pair passed through $`\RSimKey\text{-}\mathsf{P}_1` is indistinguishable from an updated key pair. This captures the first keys shared between the parties in the CKA protocol.
 
 ::::::gameGrid
-:::::gameCell "\\mathcal{D}^{\\mathsf{KeyBaseSim}}_{\\A,0}" (kind := "game")
+:::::gameCell "\\mathcal{D}^{\\mathsf{KeyBaseSim}}_{\\A,0}" (kind := "compact")
 $`\begin{array}{l}
 (\ekh{\A},\dkh{\A})\sample\DRKGup{\A} \\
 \Return(\ekh{\A},\dkh{\A})
 \end{array}`
 :::::
 
-:::::gameCell "\\mathcal{D}^{\\mathsf{KeyBaseSim}}_{\\A,1}" (kind := "game")
+:::::gameCell "\\mathcal{D}^{\\mathsf{KeyBaseSim}}_{\\A,1}" (kind := "compact")
 $`\begin{array}{l}
 (\ekA,\dkA)\sample\DRKG{\A} \\
 (\ekh{\A},\dkh{\A},\_)\sample\RSimKey\text{-}\A_1(\ekA,\dkA) \\
@@ -189,7 +189,7 @@ def keyBaseSimDistA (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.Ran
 *Updated-key simulatability.* $`\mathsf{P}`'s updated key pair can be simulated from $`\mathsf{P}`'s fresh key pair alone, without the peer's encapsulation key that $`\REnc\text{-}\mathsf{P}` needs. This breaks the dependence of the updated keys on the peer's keys, which drives the induction in the proof of CKA security from RKEM ({Informal.citet TR25}[], Theorem 5.6).
 
 ::::::gameGrid
-:::::gameCell "\\mathcal{D}^{\\mathsf{KeyUpdSim}}_{\\A,0}" (kind := "game")
+:::::gameCell "\\mathcal{D}^{\\mathsf{KeyUpdSim}}_{\\A,0}" (kind := "compact")
 $`\begin{array}{l}
 (\ek_\B,\dk_\B)\sample\DRKG{\B}\{\rand_0\} \\
 (\ekh{\B},\dkh{\B},\aux_0)\sample\RSimKey\text{-}\B_1(\ek_\B,\dk_\B) \\
@@ -201,7 +201,7 @@ $`\begin{array}{l}
 \end{array}`
 :::::
 
-:::::gameCell "\\mathcal{D}^{\\mathsf{KeyUpdSim}}_{\\A,1}" (kind := "game")
+:::::gameCell "\\mathcal{D}^{\\mathsf{KeyUpdSim}}_{\\A,1}" (kind := "compact")
 $`\begin{array}{l}
 (\ek_\B,\dk_\B)\sample\DRKG{\B}\{\rand_0\} \\
 (\ekh{\B},\dkh{\B},\aux_0)\sample\RSimKey\text{-}\B_1(\ek_\B,\dk_\B) \\
@@ -237,7 +237,7 @@ def keyUpdSimDistA (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.Rand
 *Ciphertext simulatability.* The ciphertext that $`\mathsf{P}` sends to its peer $`\mathsf{\bar P}` can be simulated from $`\mathsf{\bar P}`'s updated decapsulation key instead of $`\mathsf{P}`'s own: together with $`\mathsf{\bar P}`'s decapsulation key, it leaks nothing about $`\mathsf{P}`'s decapsulation key. This is used to argue post-compromise security of the CKA.
 
 ::::::gameGrid
-:::::gameCell "\\mathcal{D}^{\\mathsf{CtxtSim}}_{\\B,0}" (kind := "game")
+:::::gameCell "\\mathcal{D}^{\\mathsf{CtxtSim}}_{\\B,0}" (kind := "compact")
 $`\begin{array}{l}
 (\ekA,\dkA)\sample\DRKG{\A}\{\rand\} \\
 (\ekh{\A},\dkh{\A},\aux)\sample\RSimKey\text{-}\A_1(\ekA,\dkA) \\
@@ -249,7 +249,7 @@ $`\begin{array}{l}
 \end{array}`
 :::::
 
-:::::gameCell "\\mathcal{D}^{\\mathsf{CtxtSim}}_{\\B,1}" (kind := "game")
+:::::gameCell "\\mathcal{D}^{\\mathsf{CtxtSim}}_{\\B,1}" (kind := "compact")
 $`\begin{array}{l}
 (\ekA,\dkA)\sample\DRKG{\A}\{\rand\} \\
 (\ekh{\A},\dkh{\A},\aux)\sample\RSimKey\text{-}\A_1(\ekA,\dkA) \\
