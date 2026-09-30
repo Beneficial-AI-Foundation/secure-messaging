@@ -110,7 +110,7 @@ structure RandLeak (rkem : RKEMScheme m Par EK DK CT K) where
 :::defTitle "rkem_ratchet_sim" "RKEM ratchet simulatability"
 :::
 
-:::::::definition "rkem_ratchet_sim" (parent := "rkem") (lean := "RKEMScheme.RatchetSimulator, RKEMScheme.keyBaseSimDistA, RKEMScheme.keyUpdSimDistA, RKEMScheme.ctxtSimDistB, RKEMScheme.RatchetSimulatable") (tags := "gh-179") (uses := "rkem_scheme")
+:::::::definition "rkem_ratchet_sim" (parent := "rkem") (lean := "RKEMScheme.RatchetSimulator, RKEMScheme.keyBaseSimDistA, RKEMScheme.keyBaseSimExpA, RKEMScheme.keyUpdSimDistA, RKEMScheme.keyUpdSimExpA, RKEMScheme.ctxtSimDistB, RKEMScheme.ctxtSimExpA, RKEMScheme.keyBaseSimAdvantageA, RKEMScheme.keyBaseSimAdvantage, RKEMScheme.keyUpdSimAdvantageA, RKEMScheme.keyUpdSimAdvantage, RKEMScheme.ctxtSimAdvantageA, RKEMScheme.ctxtSimAdvantage, RKEMScheme.RatchetSimulatable") (tags := "gh-179") (uses := "rkem_scheme")
 Adapted from {Informal.citet TR25}[], Definition 5.5 and Figures 10–12.
 
 An RKEM is ratchet simulatable if there exist efficient simulators $`(\RSimKey\text{-}\mathsf{P}_1,\RSimKey\text{-}\mathsf{P}_2,\RSimCtxt\text{-}\mathsf{P})_{\mathsf{P}\in\{\A,\B\}}` such that, for both parties $`\mathsf{P}`, the real distribution $`\mathcal{D}_{\mathsf{P},0}` and the simulated distribution $`\mathcal{D}_{\mathsf{P},1}` of each of the three properties below are indistinguishable. Each property is shown for one party only, as in the paper; the other party's distributions swap the roles of $`\A` and $`\B`.
@@ -188,6 +188,40 @@ def keyBaseSimDistA (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.Ran
     rkem.rkeygenAUpdated par
 ```
 
+:::leanPillCaption "Base-key experiment"
+:::
+
+```anchor keyBaseSimExpA (project := ".") (module := SecureMessaging.RKEM.Defs)
+def keyBaseSimExpA (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandLeak}
+    (sim : rkem.RatchetSimulator leak) (adversary : KeyBaseSimAdversary Par EK DK) :
+    ProbComp Bool := do
+  let b ← $ᵗ Bool
+  let par ← rkem.rsetup
+  let x ← rkem.keyBaseSimDistA sim par b
+  let b' ← adversary par x
+  return b == b'
+```
+
+:::leanPillCaption "Base-key advantage"
+:::
+
+```anchor keyBaseSimAdvantageA (project := ".") (module := SecureMessaging.RKEM.Defs)
+noncomputable def keyBaseSimAdvantageA (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    {leak : rkem.RandLeak} (sim : rkem.RatchetSimulator leak)
+    (adversary : KeyBaseSimAdversary Par EK DK) : ℝ :=
+  |(Pr[= true | rkem.keyBaseSimExpA sim adversary]).toReal - 1 / 2|
+```
+
+:::leanPillCaption "Base-key advantage, maximum over both parties"
+:::
+
+```anchor keyBaseSimAdvantage (project := ".") (module := SecureMessaging.RKEM.Defs)
+noncomputable def keyBaseSimAdvantage (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    {leak : rkem.RandLeak} (sim : rkem.RatchetSimulator leak)
+    (adversaryA adversaryB : KeyBaseSimAdversary Par EK DK) : ℝ :=
+  max (rkem.keyBaseSimAdvantageA sim adversaryA) (rkem.keyBaseSimAdvantageB sim adversaryB)
+```
+
 *Updated-key simulatability* ($`\mathsf{KeyUpdSim}`). $`\mathsf{P}`'s updated key pair can be simulated from $`\mathsf{P}`'s fresh key pair alone, without the peer's encapsulation key that $`\REnc\text{-}\mathsf{P}` needs. This breaks the dependence of the updated keys on the peer's keys, which drives the induction in the proof of CKA security from RKEM ({Informal.citet TR25}[], Theorem 5.6).
 
 ::::::gameGrid
@@ -236,6 +270,42 @@ def keyUpdSimDistA (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.Rand
     return ((ekBHat, dkBHat), (ekAHat, dkAHat), ctB, key, key', aux0, rand0, rand1, rand2)
 ```
 
+:::leanPillCaption "Updated-key experiment"
+:::
+
+```anchor keyUpdSimExpA (project := ".") (module := SecureMessaging.RKEM.Defs)
+def keyUpdSimExpA (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandLeak}
+    (sim : rkem.RatchetSimulator leak)
+    (adversary : KeyUpdSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand leak.EncRand) :
+    ProbComp Bool := do
+  let b ← $ᵗ Bool
+  let par ← rkem.rsetup
+  let x ← rkem.keyUpdSimDistA sim par b
+  let b' ← adversary par x
+  return b == b'
+```
+
+:::leanPillCaption "Updated-key advantage"
+:::
+
+```anchor keyUpdSimAdvantageA (project := ".") (module := SecureMessaging.RKEM.Defs)
+noncomputable def keyUpdSimAdvantageA (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    {leak : rkem.RandLeak} (sim : rkem.RatchetSimulator leak)
+    (adversary : KeyUpdSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand leak.EncRand) : ℝ :=
+  |(Pr[= true | rkem.keyUpdSimExpA sim adversary]).toReal - 1 / 2|
+```
+
+:::leanPillCaption "Updated-key advantage, maximum over both parties"
+:::
+
+```anchor keyUpdSimAdvantage (project := ".") (module := SecureMessaging.RKEM.Defs)
+noncomputable def keyUpdSimAdvantage (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    {leak : rkem.RandLeak} (sim : rkem.RatchetSimulator leak)
+    (adversaryA adversaryB :
+      KeyUpdSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand leak.EncRand) : ℝ :=
+  max (rkem.keyUpdSimAdvantageA sim adversaryA) (rkem.keyUpdSimAdvantageB sim adversaryB)
+```
+
 *Ciphertext simulatability* ($`\mathsf{CtxtSim}`). The ciphertext that $`\mathsf{P}` sends to its peer $`\mathsf{\bar P}` can be simulated from $`\mathsf{\bar P}`'s updated decapsulation key instead of $`\mathsf{P}`'s own: together with $`\mathsf{\bar P}`'s decapsulation key, it leaks nothing about $`\mathsf{P}`'s decapsulation key. This is used to argue post-compromise security of the CKA.
 
 ::::::gameGrid
@@ -281,6 +351,41 @@ def ctxtSimDistB (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandLe
     let (ctA, key, _) ← rkem.rencB par ekAHat dkB
     let (key', ekBHat) ← rkem.rdecA par dkAHat ctA ekB
     return (aux, rand, (ekAHat, dkAHat), ctA, (ekB, ekBHat), (key, key'))
+```
+
+:::leanPillCaption "Ciphertext experiment"
+:::
+
+```anchor ctxtSimExpA (project := ".") (module := SecureMessaging.RKEM.Defs)
+def ctxtSimExpA (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandLeak}
+    (sim : rkem.RatchetSimulator leak)
+    (adversary : CtxtSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand) :
+    ProbComp Bool := do
+  let b ← $ᵗ Bool
+  let par ← rkem.rsetup
+  let x ← rkem.ctxtSimDistA sim par b
+  let b' ← adversary par x
+  return b == b'
+```
+
+:::leanPillCaption "Ciphertext advantage"
+:::
+
+```anchor ctxtSimAdvantageA (project := ".") (module := SecureMessaging.RKEM.Defs)
+noncomputable def ctxtSimAdvantageA (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    {leak : rkem.RandLeak} (sim : rkem.RatchetSimulator leak)
+    (adversary : CtxtSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand) : ℝ :=
+  |(Pr[= true | rkem.ctxtSimExpA sim adversary]).toReal - 1 / 2|
+```
+
+:::leanPillCaption "Ciphertext advantage, maximum over both parties"
+:::
+
+```anchor ctxtSimAdvantage (project := ".") (module := SecureMessaging.RKEM.Defs)
+noncomputable def ctxtSimAdvantage (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    {leak : rkem.RandLeak} (sim : rkem.RatchetSimulator leak)
+    (adversaryA adversaryB : CtxtSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand) : ℝ :=
+  max (rkem.ctxtSimAdvantageA sim adversaryA) (rkem.ctxtSimAdvantageB sim adversaryB)
 ```
 
 For each property $`\mathsf{X}\in\{\mathsf{KeyBaseSim},\mathsf{KeyUpdSim},\mathsf{CtxtSim}\}` and party $`\mathsf{P}`, the advantage of a distinguisher $`\adv` is
