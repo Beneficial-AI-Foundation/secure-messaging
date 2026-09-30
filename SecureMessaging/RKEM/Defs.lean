@@ -106,6 +106,62 @@ structure RKEMScheme (m : Type → Type u) [Monad m] (Par EK DK CT K : Type) whe
 
 namespace RKEMScheme
 
+/-! ## Randomness leakage
+
+The algorithms of `RKEMScheme` do not expose their coins. Security notions that hand the
+adversary some of these coins are stated relative to a separate randomness-leak package, as for
+`KEMScheme.RandLeak`.
+-/
+
+section RandLeak
+
+variable {m : Type → Type u} [Monad m] {Par EK DK CT K : Type}
+
+/-- Randomness-leaking versions of fresh key generation `RKeyGen-P(par, ⊥)` and encapsulation
+`REnc-P`, for both parties, as needed by security notions that expose these algorithms' coins,
+such as the ratchet-simulatability distributions of [TripleRatchet, Figs. 11–12] (their
+`D_RKeyGen-P{rand}` and `REnc-A(…; rand₂)` lines). Each returns the ordinary output together
+with the coins it sampled; the `_fst` fields say that the ordinary algorithm is the first
+component. The coins of updated key generation and of decapsulation are never exposed, so they
+have no leaking version. -/
+-- ANCHOR: RandLeak
+structure RandLeak (rkem : RKEMScheme m Par EK DK CT K) where
+  /-- Randomness space of one fresh key generation `RKeyGen-P(par, ⊥)`. -/
+  KeygenRand : Type
+  /-- Randomness space of one encapsulation `REnc-P`. -/
+  EncRand : Type
+  /-- `RKeyGen-A(par, ⊥)`, also returning its coins. -/
+  rkeygenAFreshRleak : Par → m ((EK × DK) × KeygenRand)
+  /-- `RKeyGen-B(par, ⊥)`, also returning its coins. -/
+  rkeygenBFreshRleak : Par → m ((EK × DK) × KeygenRand)
+  /-- `REnc-A(par, ekB, dkA)`, also returning its coins. -/
+  rencARleak : Par → EK → DK → m ((CT × K × DK) × EncRand)
+  /-- `REnc-B(par, ekA, dkB)`, also returning its coins. -/
+  rencBRleak : Par → EK → DK → m ((CT × K × DK) × EncRand)
+  /-- Ordinary fresh key generation for `A` is the first component of `rkeygenAFreshRleak`. -/
+  rkeygenAFresh_fst : ∀ par,
+    (do
+      let out ← rkeygenAFreshRleak par
+      pure out.1) = rkem.rkeygenAFresh par
+  /-- Ordinary fresh key generation for `B` is the first component of `rkeygenBFreshRleak`. -/
+  rkeygenBFresh_fst : ∀ par,
+    (do
+      let out ← rkeygenBFreshRleak par
+      pure out.1) = rkem.rkeygenBFresh par
+  /-- Ordinary encapsulation for `A` is the first component of `rencARleak`. -/
+  rencA_fst : ∀ par ek dk,
+    (do
+      let out ← rencARleak par ek dk
+      pure out.1) = rkem.rencA par ek dk
+  /-- Ordinary encapsulation for `B` is the first component of `rencBRleak`. -/
+  rencB_fst : ∀ par ek dk,
+    (do
+      let out ← rencBRleak par ek dk
+      pure out.1) = rkem.rencB par ek dk
+-- ANCHOR_END: RandLeak
+
+end RandLeak
+
 /-! ## Correctness
 
 [TripleRatchet, Def. 5.3] asks for two properties, checked for both parties (`A` and `B`,
@@ -376,54 +432,6 @@ distribution of each property from [TripleRatchet, Figs. 10–12] is described i
 ciphertext simulatability the paper spells out the `B` side, `D^CtxtSim_{B,b}`); the other side
 swaps the roles. `b = false` selects `D_{P,0}` and `b = true` selects `D_{P,1}`.
 -/
-
-section RandLeak
-
-variable {m : Type → Type u} [Monad m] {Par EK DK CT K : Type}
-
-/-- Randomness-leaking versions of the RKEM algorithms whose coins the ratchet-simulatability
-distributions of [TripleRatchet, Figs. 11–12] expose: fresh key generation `RKeyGen-P(par, ⊥)`
-(the `D_RKeyGen-P{rand}` lines) and encapsulation `REnc-P` (the `REnc-A(…; rand₂)` line), for
-both parties. Each returns the ordinary output together with the coins it sampled; the `_fst`
-fields say that the ordinary algorithm is the first component. The coins of updated key
-generation and of decapsulation are never exposed, so they have no leaking version. -/
--- ANCHOR: RandLeak
-structure RandLeak (rkem : RKEMScheme m Par EK DK CT K) where
-  /-- Randomness space of one fresh key generation `RKeyGen-P(par, ⊥)`. -/
-  KeygenRand : Type
-  /-- Randomness space of one encapsulation `REnc-P`. -/
-  EncRand : Type
-  /-- `RKeyGen-A(par, ⊥)`, also returning its coins. -/
-  rkeygenAFreshRleak : Par → m ((EK × DK) × KeygenRand)
-  /-- `RKeyGen-B(par, ⊥)`, also returning its coins. -/
-  rkeygenBFreshRleak : Par → m ((EK × DK) × KeygenRand)
-  /-- `REnc-A(par, ekB, dkA)`, also returning its coins. -/
-  rencARleak : Par → EK → DK → m ((CT × K × DK) × EncRand)
-  /-- `REnc-B(par, ekA, dkB)`, also returning its coins. -/
-  rencBRleak : Par → EK → DK → m ((CT × K × DK) × EncRand)
-  /-- Ordinary fresh key generation for `A` is the first component of `rkeygenAFreshRleak`. -/
-  rkeygenAFresh_fst : ∀ par,
-    (do
-      let out ← rkeygenAFreshRleak par
-      pure out.1) = rkem.rkeygenAFresh par
-  /-- Ordinary fresh key generation for `B` is the first component of `rkeygenBFreshRleak`. -/
-  rkeygenBFresh_fst : ∀ par,
-    (do
-      let out ← rkeygenBFreshRleak par
-      pure out.1) = rkem.rkeygenBFresh par
-  /-- Ordinary encapsulation for `A` is the first component of `rencARleak`. -/
-  rencA_fst : ∀ par ek dk,
-    (do
-      let out ← rencARleak par ek dk
-      pure out.1) = rkem.rencA par ek dk
-  /-- Ordinary encapsulation for `B` is the first component of `rencBRleak`. -/
-  rencB_fst : ∀ par ek dk,
-    (do
-      let out ← rencBRleak par ek dk
-      pure out.1) = rkem.rencB par ek dk
--- ANCHOR_END: RandLeak
-
-end RandLeak
 
 section RatchetSimulatability
 

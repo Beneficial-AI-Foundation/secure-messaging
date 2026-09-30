@@ -31,7 +31,7 @@ Ratcheting Key Encapsulation Mechanism (RKEM).
 :::defTitle "rkem_scheme" "RKEM scheme"
 :::
 
-:::definition "rkem_scheme" (parent := "rkem") (lean := "RKEMScheme") (tags := "gh-176")
+::::definition "rkem_scheme" (parent := "rkem") (lean := "RKEMScheme, RKEMScheme.RandLeak") (tags := "gh-176")
 $`\todo`
 
 ```anchor RKEMScheme (project := ".") (module := SecureMessaging.RKEM.Defs)
@@ -64,12 +64,53 @@ structure RKEMScheme (m : Type → Type u) [Monad m] (Par EK DK CT K : Type) whe
   rdecB : Par → DK → CT → EK → m (K × EK)
 ```
 
+The algorithms of an RKEM do not expose their coins. Security notions that give the adversary some of these coins, such as ratchet simulatability, are stated relative to a randomness-leak package: fresh key generation and encapsulation algorithms that also return the coins they sampled, and agree with the RKEM's own algorithms on their other outputs.
+
+:::leanPillCaption "RandLeak"
 :::
+
+```anchor RandLeak (project := ".") (module := SecureMessaging.RKEM.Defs)
+structure RandLeak (rkem : RKEMScheme m Par EK DK CT K) where
+  /-- Randomness space of one fresh key generation `RKeyGen-P(par, ⊥)`. -/
+  KeygenRand : Type
+  /-- Randomness space of one encapsulation `REnc-P`. -/
+  EncRand : Type
+  /-- `RKeyGen-A(par, ⊥)`, also returning its coins. -/
+  rkeygenAFreshRleak : Par → m ((EK × DK) × KeygenRand)
+  /-- `RKeyGen-B(par, ⊥)`, also returning its coins. -/
+  rkeygenBFreshRleak : Par → m ((EK × DK) × KeygenRand)
+  /-- `REnc-A(par, ekB, dkA)`, also returning its coins. -/
+  rencARleak : Par → EK → DK → m ((CT × K × DK) × EncRand)
+  /-- `REnc-B(par, ekA, dkB)`, also returning its coins. -/
+  rencBRleak : Par → EK → DK → m ((CT × K × DK) × EncRand)
+  /-- Ordinary fresh key generation for `A` is the first component of `rkeygenAFreshRleak`. -/
+  rkeygenAFresh_fst : ∀ par,
+    (do
+      let out ← rkeygenAFreshRleak par
+      pure out.1) = rkem.rkeygenAFresh par
+  /-- Ordinary fresh key generation for `B` is the first component of `rkeygenBFreshRleak`. -/
+  rkeygenBFresh_fst : ∀ par,
+    (do
+      let out ← rkeygenBFreshRleak par
+      pure out.1) = rkem.rkeygenBFresh par
+  /-- Ordinary encapsulation for `A` is the first component of `rencARleak`. -/
+  rencA_fst : ∀ par ek dk,
+    (do
+      let out ← rencARleak par ek dk
+      pure out.1) = rkem.rencA par ek dk
+  /-- Ordinary encapsulation for `B` is the first component of `rencBRleak`. -/
+  rencB_fst : ∀ par ek dk,
+    (do
+      let out ← rencBRleak par ek dk
+      pure out.1) = rkem.rencB par ek dk
+```
+
+::::
 
 :::defTitle "rkem_ratchet_sim" "RKEM ratchet simulatability"
 :::
 
-:::::::definition "rkem_ratchet_sim" (parent := "rkem") (lean := "RKEMScheme.RandLeak, RKEMScheme.RatchetSimulator, RKEMScheme.keyBaseSimDistA, RKEMScheme.keyUpdSimDistA, RKEMScheme.ctxtSimDistB, RKEMScheme.RatchetSimulatable") (tags := "gh-179") (uses := "rkem_scheme")
+:::::::definition "rkem_ratchet_sim" (parent := "rkem") (lean := "RKEMScheme.RatchetSimulator, RKEMScheme.keyBaseSimDistA, RKEMScheme.keyUpdSimDistA, RKEMScheme.ctxtSimDistB, RKEMScheme.RatchetSimulatable") (tags := "gh-179") (uses := "rkem_scheme")
 Adapted from {Informal.citet TR25}[], Definition 5.5 and Figures 10–12.
 
 An RKEM is ratchet simulatable if there exist efficient simulators $`(\RSimKey\text{-}\mathsf{P}_1,\RSimKey\text{-}\mathsf{P}_2,\RSimCtxt\text{-}\mathsf{P})_{\mathsf{P}\in\{\A,\B\}}` such that, for both parties $`\mathsf{P}`, the real distribution $`\mathcal{D}_{\mathsf{P},0}` and the simulated distribution $`\mathcal{D}_{\mathsf{P},1}` of each of the three properties below are indistinguishable. Each property is shown for one party only, as in the paper; the other party's distributions swap the roles of $`\A` and $`\B`.
@@ -112,46 +153,7 @@ structure RatchetSimulator (rkem : RKEMScheme ProbComp Par EK DK CT K) (leak : r
   rsimCtxtB : Par → EK → EK → DK → ProbComp (CT × EK × K × K)
 ```
 
-The updated-key and ciphertext distributions give the distinguisher the coins of some algorithms: $`\mathcal{D}\{\rand\}` samples from $`\mathcal{D}` with coins $`\rand`, which are uniformly distributed unless a simulator outputs them. Since the algorithms of an RKEM do not expose their coins, the definition is relative to a package of randomness-leaking fresh key generation and encapsulation algorithms.
-
-:::leanPillCaption "RandLeak"
-:::
-
-```anchor RandLeak (project := ".") (module := SecureMessaging.RKEM.Defs)
-structure RandLeak (rkem : RKEMScheme m Par EK DK CT K) where
-  /-- Randomness space of one fresh key generation `RKeyGen-P(par, ⊥)`. -/
-  KeygenRand : Type
-  /-- Randomness space of one encapsulation `REnc-P`. -/
-  EncRand : Type
-  /-- `RKeyGen-A(par, ⊥)`, also returning its coins. -/
-  rkeygenAFreshRleak : Par → m ((EK × DK) × KeygenRand)
-  /-- `RKeyGen-B(par, ⊥)`, also returning its coins. -/
-  rkeygenBFreshRleak : Par → m ((EK × DK) × KeygenRand)
-  /-- `REnc-A(par, ekB, dkA)`, also returning its coins. -/
-  rencARleak : Par → EK → DK → m ((CT × K × DK) × EncRand)
-  /-- `REnc-B(par, ekA, dkB)`, also returning its coins. -/
-  rencBRleak : Par → EK → DK → m ((CT × K × DK) × EncRand)
-  /-- Ordinary fresh key generation for `A` is the first component of `rkeygenAFreshRleak`. -/
-  rkeygenAFresh_fst : ∀ par,
-    (do
-      let out ← rkeygenAFreshRleak par
-      pure out.1) = rkem.rkeygenAFresh par
-  /-- Ordinary fresh key generation for `B` is the first component of `rkeygenBFreshRleak`. -/
-  rkeygenBFresh_fst : ∀ par,
-    (do
-      let out ← rkeygenBFreshRleak par
-      pure out.1) = rkem.rkeygenBFresh par
-  /-- Ordinary encapsulation for `A` is the first component of `rencARleak`. -/
-  rencA_fst : ∀ par ek dk,
-    (do
-      let out ← rencARleak par ek dk
-      pure out.1) = rkem.rencA par ek dk
-  /-- Ordinary encapsulation for `B` is the first component of `rencBRleak`. -/
-  rencB_fst : ∀ par ek dk,
-    (do
-      let out ← rencBRleak par ek dk
-      pure out.1) = rkem.rencB par ek dk
-```
+The updated-key and ciphertext distributions give the distinguisher the coins of some algorithms: $`\mathcal{D}\{\rand\}` samples from $`\mathcal{D}` with coins $`\rand`, which are uniformly distributed unless a simulator outputs them. These coins come from the RKEM's randomness-leak package (see the RKEM scheme).
 
 *Base-key simulatability.* A fresh key pair passed through $`\RSimKey\text{-}\mathsf{P}_1` is indistinguishable from an updated key pair. This captures the first keys shared between the parties in the CKA protocol.
 
