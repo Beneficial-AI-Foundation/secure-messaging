@@ -123,16 +123,16 @@ r#"
 \newcommand{\allow}{\mathsf{allow\text{-}corr}}
 
 % --- RKEM and ratchet simulatability ---
-\newcommand{\REnc}{\mathsf{REnc}}                                           % RKEM encapsulation
-\newcommand{\RDec}{\mathsf{RDec}}                                           % RKEM decapsulation
-\newcommand{\RSimKey}{\mathsf{RSimKey}}                                     % key simulator
-\newcommand{\RSimCtxt}{\mathsf{RSimCtxt}}                                   % ciphertext simulator
-\newcommand{\DRKG}[1]{\mathcal{D}_{\mathsf{RKeyGen}\text{-}#1}}             % fresh key distribution of party #1
-\newcommand{\DRKGup}[1]{\widehat{\mathcal{D}}_{\mathsf{RKeyGen}\text{-}#1}} % updated key distribution of party #1
-\newcommand{\ekh}[1]{\widehat{\mathsf{ek}}_{#1}}                            % updated encapsulation key
-\newcommand{\dkh}[1]{\widehat{\mathsf{dk}}_{#1}}                            % updated decapsulation key
-\newcommand{\aux}{\mathsf{aux}}                                             % simulator auxiliary state
-\newcommand{\rand}{\mathsf{rand}}                                           % algorithm coins
+\newcommand{\REnc}{\mathsf{REnc}}                                                    % RKEM encapsulation
+\newcommand{\RDec}{\mathsf{RDec}}                                                    % RKEM decapsulation
+\newcommand{\RSimKey}{\mathsf{RSimKey}}                                              % key simulator
+\newcommand{\RSimCtxt}{\mathsf{RSimCtxt}}                                            % ciphertext simulator
+\newcommand{\DRKG}[1]{\mathcal{D}_{\mathsf{RKeyGen}\text{-}\mathsf{#1}}}             % fresh key distribution of party #1
+\newcommand{\DRKGup}[1]{\widehat{\mathcal{D}}_{\mathsf{RKeyGen}\text{-}\mathsf{#1}}} % updated key distribution of party #1
+\newcommand{\ekh}[1]{\widehat{\mathsf{ek}}_\mathsf{#1}}                              % updated encapsulation key
+\newcommand{\dkh}[1]{\widehat{\mathsf{dk}}_\mathsf{#1}}                              % updated decapsulation key
+\newcommand{\aux}{\mathsf{aux}}                                                      % simulator auxiliary state
+\newcommand{\rand}{\mathsf{rand}}                                                    % algorithm coins
 "#
 
 /-- Register `cryptoTexPrelude` once, globally, with VersoBlueprint's TeX-prelude

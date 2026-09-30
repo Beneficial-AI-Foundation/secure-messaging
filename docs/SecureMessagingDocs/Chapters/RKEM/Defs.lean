@@ -72,17 +72,17 @@ structure RKEMScheme (m : Type → Type u) [Monad m] (Par EK DK CT K : Type) whe
 :::::::definition "rkem_ratchet_sim" (parent := "rkem") (lean := "RKEMScheme.RandLeak, RKEMScheme.RatchetSimulator, RKEMScheme.keyBaseSimDistA, RKEMScheme.keyUpdSimDistA, RKEMScheme.ctxtSimDistB, RKEMScheme.RatchetSimulatable") (tags := "gh-179") (uses := "rkem_scheme")
 Adapted from {Informal.citet TR25}[], Definition 5.5 and Figures 10–12.
 
-An RKEM is ratchet simulatable if there exist efficient simulators $`(\RSimKey\text{-}P_1,\RSimKey\text{-}P_2,\RSimCtxt\text{-}P)_{P\in\{\A,\B\}}` such that, for both parties $`P`, the real distribution $`\mathcal{D}_{P,0}` and the simulated distribution $`\mathcal{D}_{P,1}` of each of the three properties below are indistinguishable. Each property is shown for one party only, as in the paper; the other party's distributions swap the roles of $`\A` and $`\B`.
+An RKEM is ratchet simulatable if there exist efficient simulators $`(\RSimKey\text{-}\mathsf{P}_1,\RSimKey\text{-}\mathsf{P}_2,\RSimCtxt\text{-}\mathsf{P})_{\mathsf{P}\in\{\A,\B\}}` such that, for both parties $`\mathsf{P}`, the real distribution $`\mathcal{D}_{\mathsf{P},0}` and the simulated distribution $`\mathcal{D}_{\mathsf{P},1}` of each of the three properties below are indistinguishable. Each property is shown for one party only, as in the paper; the other party's distributions swap the roles of $`\A` and $`\B`.
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Simulators}" (kind := "scheme-algorithms")
-For each party $`P\in\{\A,\B\}`, with peer $`\bar P`:
+For each party $`\mathsf{P}\in\{\A,\B\}`, with peer $`\mathsf{\bar P}`:
 
-$`\RSimKey\text{-}P_1(\ek_P,\dk_P)\to(\ekh{P},\dkh{P},\aux)`: from $`P`'s fresh key pair, simulate $`P`'s updated key pair, with auxiliary state $`\aux`.
+$`\RSimKey\text{-}\mathsf{P}_1(\ek_\mathsf{P},\dk_\mathsf{P})\to(\ekh{P},\dkh{P},\aux)`: from $`\mathsf{P}`'s fresh key pair, simulate $`\mathsf{P}`'s updated key pair, with auxiliary state $`\aux`.
 
-$`\RSimKey\text{-}P_2(\ekh{\bar P},\dkh{\bar P},\aux)\to(\ct_{\bar P},K,K',\rand)`: from the peer's updated key pair and $`\aux`, simulate the rest of $`P`'s round: the ciphertext sent to the peer, both parties' shared keys, and coins explaining $`\REnc\text{-}P`.
+$`\RSimKey\text{-}\mathsf{P}_2(\ekh{\bar P},\dkh{\bar P},\aux)\to(\ct_{\mathsf{\bar P}},K,K',\rand)`: from the peer's updated key pair and $`\aux`, simulate the rest of $`\mathsf{P}`'s round: the ciphertext sent to the peer, both parties' shared keys, and coins explaining $`\REnc\text{-}\mathsf{P}`.
 
-$`\RSimCtxt\text{-}P(\ekh{P},\ekh{\bar P},\dkh{\bar P})\to(\ct_{\bar P},\ek_P,K,K')`: from $`P`'s updated encapsulation key and the peer's updated key pair, simulate $`P`'s ciphertext, $`P`'s fresh encapsulation key and both shared keys, without $`P`'s decapsulation key.
+$`\RSimCtxt\text{-}\mathsf{P}(\ekh{P},\ekh{\bar P},\dkh{\bar P})\to(\ct_{\mathsf{\bar P}},\ek_\mathsf{P},K,K')`: from $`\mathsf{P}`'s updated encapsulation key and the peer's updated key pair, simulate $`\mathsf{P}`'s ciphertext, $`\mathsf{P}`'s fresh encapsulation key and both shared keys, without $`\mathsf{P}`'s decapsulation key.
 :::::
 ::::::
 
@@ -153,7 +153,7 @@ structure RandLeak (rkem : RKEMScheme m Par EK DK CT K) where
       pure out.1) = rkem.rencB par ek dk
 ```
 
-*Base-key simulatability.* A fresh key pair passed through $`\RSimKey\text{-}P_1` is indistinguishable from an updated key pair. This captures the first keys shared between the parties in the CKA protocol.
+*Base-key simulatability.* A fresh key pair passed through $`\RSimKey\text{-}\mathsf{P}_1` is indistinguishable from an updated key pair. This captures the first keys shared between the parties in the CKA protocol.
 
 ::::::gameGrid
 :::::gameCell "\\mathcal{D}^{\\mathsf{KeyBaseSim}}_{\\A,0}" (kind := "game")
@@ -186,7 +186,7 @@ def keyBaseSimDistA (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.Ran
     rkem.rkeygenAUpdated par
 ```
 
-*Updated-key simulatability.* $`P`'s updated key pair can be simulated from $`P`'s fresh key pair alone, without the peer's encapsulation key that $`\REnc\text{-}P` needs. This breaks the dependence of the updated keys on the peer's keys, which drives the induction in the proof of CKA security from RKEM ({Informal.citet TR25}[], Theorem 5.6).
+*Updated-key simulatability.* $`\mathsf{P}`'s updated key pair can be simulated from $`\mathsf{P}`'s fresh key pair alone, without the peer's encapsulation key that $`\REnc\text{-}\mathsf{P}` needs. This breaks the dependence of the updated keys on the peer's keys, which drives the induction in the proof of CKA security from RKEM ({Informal.citet TR25}[], Theorem 5.6).
 
 ::::::gameGrid
 :::::gameCell "\\mathcal{D}^{\\mathsf{KeyUpdSim}}_{\\A,0}" (kind := "game")
@@ -234,7 +234,7 @@ def keyUpdSimDistA (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.Rand
     return ((ekBHat, dkBHat), (ekAHat, dkAHat), ctB, key, key', aux0, rand0, rand1, rand2)
 ```
 
-*Ciphertext simulatability.* The ciphertext that $`P` sends to its peer $`\bar P` can be simulated from $`\bar P`'s updated decapsulation key instead of $`P`'s own: together with $`\bar P`'s decapsulation key, it leaks nothing about $`P`'s decapsulation key. This is used to argue post-compromise security of the CKA.
+*Ciphertext simulatability.* The ciphertext that $`\mathsf{P}` sends to its peer $`\mathsf{\bar P}` can be simulated from $`\mathsf{\bar P}`'s updated decapsulation key instead of $`\mathsf{P}`'s own: together with $`\mathsf{\bar P}`'s decapsulation key, it leaks nothing about $`\mathsf{P}`'s decapsulation key. This is used to argue post-compromise security of the CKA.
 
 ::::::gameGrid
 :::::gameCell "\\mathcal{D}^{\\mathsf{CtxtSim}}_{\\B,0}" (kind := "game")
@@ -281,9 +281,9 @@ def ctxtSimDistB (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandLe
     return (aux, rand, (ekAHat, dkAHat), ctA, (ekB, ekBHat), (key, key'))
 ```
 
-For each property $`\mathsf{X}\in\{\mathsf{KeyBaseSim},\mathsf{KeyUpdSim},\mathsf{CtxtSim}\}` and party $`P`, the advantage of a distinguisher $`\adv` is
+For each property $`\mathsf{X}\in\{\mathsf{KeyBaseSim},\mathsf{KeyUpdSim},\mathsf{CtxtSim}\}` and party $`\mathsf{P}`, the advantage of a distinguisher $`\adv` is
 
-$$`\mathsf{Adv}^{\mathsf{X}\text{-}P}(\adv)=\left|\Pr\left[b\sample\bit,\;x\sample\mathcal{D}^{\mathsf{X}}_{P,b},\;b'\sample\adv(x):b'=b\right]-\frac12\right|,\qquad \mathsf{Adv}^{\mathsf{X}}(\adv_\A,\adv_\B)=\max_{P\in\{\A,\B\}}\mathsf{Adv}^{\mathsf{X}\text{-}P}(\adv_P)`
+$$`\mathsf{Adv}^{\mathsf{X}\text{-}\mathsf{P}}(\adv)=\left|\Pr\left[b\sample\bit,\;x\sample\mathcal{D}^{\mathsf{X}}_{\mathsf{P},b},\;b'\sample\adv(x):b'=b\right]-\frac12\right|,\qquad \mathsf{Adv}^{\mathsf{X}}(\adv_\A,\adv_\B)=\max_{\mathsf{P}\in\{\A,\B\}}\mathsf{Adv}^{\mathsf{X}\text{-}\mathsf{P}}(\adv_\mathsf{P})`
 
 and the RKEM is $`\varepsilon`-ratchet-simulatable when all three advantages are at most $`\varepsilon`.
 
