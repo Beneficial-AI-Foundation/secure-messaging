@@ -399,12 +399,12 @@ and the RKEM is $`\varepsilon`-ratchet-simulatable when all three advantages are
 
 ```anchor RatchetSimulatable (project := ".") (module := SecureMessaging.RKEM.Defs)
 def RatchetSimulatable (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandLeak}
-    (sim : rkem.RatchetSimulator leak)
-    (baseA baseB : KeyBaseSimAdversary Par EK DK)
-    (updA updB : KeyUpdSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand leak.EncRand)
-    (ctxtA ctxtB : CtxtSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand)
     (ε : ℝ) : Prop :=
-  rkem.keyBaseSimAdvantage sim baseA baseB ≤ ε ∧
+    ∃ (sim : rkem.RatchetSimulator leak),
+    ∀ (baseA baseB : KeyBaseSimAdversary Par EK DK)
+      (updA updB : KeyUpdSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand leak.EncRand)
+      (ctxtA ctxtB : CtxtSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand),
+    rkem.keyBaseSimAdvantage sim baseA baseB ≤ ε ∧
     rkem.keyUpdSimAdvantage sim updA updB ≤ ε ∧
     rkem.ctxtSimAdvantage sim ctxtA ctxtB ≤ ε
 ```

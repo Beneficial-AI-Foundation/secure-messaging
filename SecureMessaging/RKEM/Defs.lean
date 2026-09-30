@@ -762,20 +762,23 @@ noncomputable def ctxtSimAdvantage (rkem : RKEMScheme ProbComp Par EK DK CT K)
 
 /-! ### Ratchet simulatability -/
 
-/-- **Definition 5.5** (Ratchet simulatability). `rkem`, with randomness-leak package `leak`,
-is `ε`-ratchet-simulatable via the simulators `sim` against the given distinguishers if
-its base-key, updated-key and ciphertext simulatability advantages (each a maximum over both
-parties) are all at most `ε`. Asymptotic ratchet simulatability, as stated in
-[TripleRatchet], additionally asks for `sim` to be efficient, quantifies over every PPT
-distinguisher and requires `ε` to be negligible in the security parameter. -/
+/-- **Definition 5.5** (Ratchet simulatability). An RKEM `rkem` is `ε`-ratchet-simulatable with
+respect to `leak` if there exists a family of simulators `sim` such that, for every choice of
+distinguishers:
+
+- the base-key simulatability advantage is at most `ε`;
+- the updated-key simulatability advantage is at most `ε`;
+- the ciphertext simulatability advantage is at most `ε`.
+
+Each advantage is the maximum over parties `A` and `B`. -/
 -- ANCHOR: RatchetSimulatable
 def RatchetSimulatable (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandLeak}
-    (sim : rkem.RatchetSimulator leak)
-    (baseA baseB : KeyBaseSimAdversary Par EK DK)
-    (updA updB : KeyUpdSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand leak.EncRand)
-    (ctxtA ctxtB : CtxtSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand)
     (ε : ℝ) : Prop :=
-  rkem.keyBaseSimAdvantage sim baseA baseB ≤ ε ∧
+    ∃ (sim : rkem.RatchetSimulator leak),
+    ∀ (baseA baseB : KeyBaseSimAdversary Par EK DK)
+      (updA updB : KeyUpdSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand leak.EncRand)
+      (ctxtA ctxtB : CtxtSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand),
+    rkem.keyBaseSimAdvantage sim baseA baseB ≤ ε ∧
     rkem.keyUpdSimAdvantage sim updA updB ≤ ε ∧
     rkem.ctxtSimAdvantage sim ctxtA ctxtB ≤ ε
 -- ANCHOR_END: RatchetSimulatable
