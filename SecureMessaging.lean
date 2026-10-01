@@ -66,6 +66,7 @@ import SecureMessaging.SCKA.OppBiKEM.Correctness.ReceiveKeyInvariant
 import SecureMessaging.SCKA.OppBiKEM.Correctness.SendProvenance
 import SecureMessaging.SCKA.OppBiKEM.Correctness.PublicKeyEpochHistory
 import SecureMessaging.SCKA.OppBiKEM.Correctness.PublicKeyReconstruction
+import SecureMessaging.SCKA.OppBiKEM.Correctness.PublicKeyBufferProvenance
 import SecureMessaging.SCKA.OppUniKEM.Correctness
 import SecureMessaging.SymEnc.Defs
 import ToVCVio.OracleComp.Constructions.SampleableType
