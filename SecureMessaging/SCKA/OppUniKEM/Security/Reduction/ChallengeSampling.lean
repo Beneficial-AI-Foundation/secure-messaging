@@ -115,12 +115,11 @@ theorem honestStopped_sample_key_eq (m : Material leak) (e : ℕ) (sample : Prob
       optionRun (honestStopped base onoff ecEk ecCt0 ecCt1 leak m e k) adv s] =
     Pr[= true | optionRun
       (sampleEachQuery sample (honestStopped base onoff ecEk ecCt0 ecCt1 leak m e)) adv s] := by
-  let : Inhabited K := Classical.inhabited_of_nonempty inferInstance
   apply optionRun_sample_once_eq_sampleEachQuery sample
     (honestStopped base onoff ecEk ecCt0 ecCt1 leak m e)
     (fun _ => True) (fun s => e ∈ s.challenged) (usesChallengeKey e)
   · intros; trivial
-  · intro k t s _ hs z hz _
+  · intro k _ t s _ hs z hz _
     change z ∈ support (do
       let out ← (honestOracle base onoff ecEk ecCt0 ecCt1 leak m e k t).run s
       pure (if decide (e ∈ out.2.exposed) then none else some out.1, out.2)) at hz
@@ -128,7 +127,8 @@ theorem honestStopped_sample_key_eq (m : Material leak) (e : ℕ) (sample : Prob
     obtain rfl := (mem_support_pure_iff _ _).mp hz
     exact honestOracle_preserves_challenged base onoff ecEk ecCt0 ecCt1 leak m e k e
       t s hs out hout
-  · intro t s _ h k k'
+  · intro t s _ h k _ k' _
+    refine congrArg evalDist ?_
     change (do
       let out ← (honestOracle base onoff ecEk ecCt0 ecCt1 leak m e k t).run s
       pure (if decide (e ∈ out.2.exposed) then none else some out.1, out.2)) = _
@@ -137,7 +137,7 @@ theorem honestStopped_sample_key_eq (m : Material leak) (e : ℕ) (sample : Prob
   · intro t s _ hs
     rcases t with (((((t | a) | a) | t) | a) | a)
     all_goals simp [usesChallengeKey, hs]
-  · intro k t s _ h z hz _
+  · intro k _ t s _ h z hz _
     change z ∈ support (do
       let out ← (honestOracle base onoff ecEk ecCt0 ecCt1 leak m e k t).run s
       pure (if decide (e ∈ out.2.exposed) then none else some out.1, out.2)) at hz

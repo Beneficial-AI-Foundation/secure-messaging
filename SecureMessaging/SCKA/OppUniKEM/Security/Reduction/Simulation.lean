@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Invariant
 import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Oracle
-import ToVCVio.OracleComp.SimSemantics.StateT.OptionOutput
+import ToVCVio.OracleComp.SimSemantics.StateT.Stop
 
 /-!
 # Adaptive simulation with fixed selected-epoch material

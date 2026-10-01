@@ -5,7 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.SourceFirstUse
-import ToVCVio.OracleComp.QueryTracking.OneUseDistribution
+import ToVCVio.OracleComp.QueryTracking.OneUseSampling
 
 /-!
 # Independence from unused selected offline material

@@ -225,7 +225,7 @@ theorem hybridStopped_sample_online_eq
       (sampleEachQuery (leak.encapsOnRleak m.off.1.1 m.keygen.1.1)
         (fun online => hybridStopped base onoff ecEk ecCt0 ecCt1 leak
           { m with on := online } e b)) adv s] := by
-  apply optionRun_sample_once_eq_sampleEachQuery_of_support _ _
+  apply optionRun_sample_once_eq_sampleEachQuery _ _
     (fun s => reachableInv base onoff ecEk ecCt0 ecCt1 s ∧ pinnedSources m e s)
     (fun s => (s.keyB e).isSome) (usesOnline e)
   · intro online hon t s hs z hz _
@@ -249,6 +249,7 @@ theorem hybridStopped_sample_online_eq
     exact hybridOracle_preserves_keyB_available base onoff ecEk ecCt0 ecCt1 leak
       { m with on := online } e b t s hu out hout
   · intro t s _ hh online _ online' _
+    refine congrArg evalDist ?_
     change (do
       let out ← (hybridOracle base onoff ecEk ecCt0 ecCt1 leak
         { m with on := online } e b t).run s

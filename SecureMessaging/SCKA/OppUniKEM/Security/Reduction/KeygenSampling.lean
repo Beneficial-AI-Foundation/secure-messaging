@@ -45,7 +45,7 @@ theorem stopped_sample_keygen_eq
     Pr[= true | optionRun (sampleEachQuery leak.keygenRleak
       (fun keygen => stopped base onoff ecEk ecCt0 ecCt1 leak
         .encapsFresh { m with keygen := keygen } e b)) adv s] := by
-  apply optionRun_sample_once_eq_sampleEachQuery_of_evalDist _ _ (fun _ => True)
+  apply optionRun_sample_once_eq_sampleEachQuery _ _ (fun _ => True)
     (fun s => sourceUsed .keygen e s.stA s.stB) (usesSource .keygen e)
   · intros; trivial
   · intro keygen _ t s _ hu z hz _

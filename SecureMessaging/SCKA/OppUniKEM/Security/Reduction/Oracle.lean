@@ -8,7 +8,7 @@ import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.OracleLeakage
 import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.OracleReceive
 import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Corruption
 import SecureMessaging.SCKA.Security.Bookkeeping
-import ToVCVio.OracleComp.SimSemantics.StateT.OptionOutput
+import ToVCVio.OracleComp.SimSemantics.StateT.Stop
 
 /-!
 # Per-query comparison of the reduction and the honest intermediate game

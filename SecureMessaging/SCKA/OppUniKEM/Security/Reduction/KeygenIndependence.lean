@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.SourceFirstUse
 import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.KeygenOracle
-import ToVCVio.OracleComp.QueryTracking.OneUseDistribution
+import ToVCVio.OracleComp.QueryTracking.OneUseSampling
 
 /-!
 # Independence from unused selected key-generation material

@@ -45,7 +45,7 @@ theorem stopped_sample_offline_eq
     Pr[= true | optionRun (sampleEachQuery leak.encapsOffRleak
       (fun offline => stopped base onoff ecEk ecCt0 ecCt1 leak
         .onlineFresh { m with off := offline } e b)) adv s] := by
-  apply optionRun_sample_once_eq_sampleEachQuery_of_evalDist _ _ (fun _ => True)
+  apply optionRun_sample_once_eq_sampleEachQuery _ _ (fun _ => True)
     (fun s => sourceUsed .offline e s.stA s.stB) (usesSource .offline e)
   · intros; trivial
   · intro offline _ t s _ hu z hz _
