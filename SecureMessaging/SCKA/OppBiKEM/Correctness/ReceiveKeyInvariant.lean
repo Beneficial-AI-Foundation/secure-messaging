@@ -37,7 +37,7 @@ structure ReceiveKeyInvariant
 def GameReceiveKeyInvariant
     (s : SCKAScheme.GameState
       (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)) : Prop :=
-  ReceiveKeyInvariant .A s.stA s.keyA ∧
+    ReceiveKeyInvariant .A s.stA s.keyA ∧
     ReceiveKeyInvariant .B s.stB s.keyB
 
 theorem initGameState_receiveKeyInvariant
