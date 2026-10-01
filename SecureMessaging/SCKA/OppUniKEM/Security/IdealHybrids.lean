@@ -8,7 +8,7 @@ import SecureMessaging.SCKA.OppUniKEM.Security.IdealGame
 import SecureMessaging.SCKA.Security.HybridExposure
 import SecureMessaging.SCKA.OppUniKEM.Security.IdealBounds
 import SecureMessaging.SCKA.OppUniKEM.Security.ZeroEpoch
-import ToVCVio.OracleComp.QueryTracking.StateBudgetSimulation
+import ToVCVio.OracleComp.QueryTracking.StateBudget
 
 /-!
 # Auxiliary epoch hybrids

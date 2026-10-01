@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.SCKA.OppUniKEM.Security.IdealHybrids
 import SecureMessaging.SCKA.Security.Bookkeeping
-import ToVCVio.OracleComp.SimSemantics.StateT.StopGap
+import ToVCVio.OracleComp.SimSemantics.StateT.Stop
 
 /-!
 # Termination at exposure of the selected epoch
