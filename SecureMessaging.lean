@@ -46,6 +46,7 @@ import SecureMessaging.ErasureCode.ReedSolomon.Correctness
 import SecureMessaging.ErasureCode.SPQRReedSolomon.Construction
 import SecureMessaging.ErasureCode.SPQRReedSolomon.Correctness
 import SecureMessaging.ErasureCode.Streaming
+import SecureMessaging.KEM.IncrementalKEM.Correctness
 import SecureMessaging.KEM.IncrementalKEM.Defs
 import SecureMessaging.KEM.IncrementalKEM.FromMLKEM
 import SecureMessaging.KEM.MLKEM.Construction
@@ -59,6 +60,7 @@ import SecureMessaging.RKEM.Defs
 import SecureMessaging.RKEM.FromKEM.Construction
 import SecureMessaging.RKEM.FromKEM.Correctness
 import SecureMessaging.RKEM.FromKEM.Security
+import SecureMessaging.SCKA.Correctness
 import SecureMessaging.SCKA.Defs
 import SecureMessaging.SCKA.MLKEMBraid.Authenticator
 import SecureMessaging.SCKA.MLKEMBraid.Basic

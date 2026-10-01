@@ -283,6 +283,35 @@ theorem addChunk_honest [DecidableEq Sym]
   simpa [decodedPayload, ErasureCodePayload.insert_payloadChunks] using
     (ErasureCodePayload.decode_insert_honest ecp hcorrect payload I i hcard)
 
+/-- Adding a correctly encoded chunk to a decoder that holds chunks of the same payload gives a
+decoder that again holds chunks of that payload, and that has decoded either nothing or the
+payload. -/
+theorem addChunk_encode_of_payloadChunks [DecidableEq Sym]
+    (ecp : ErasureCodePayload M Sym) (hcorrect : ecp.ec.Correct)
+    (payload : M) (dec : DecoderState M Sym)
+    (hdec : dec.ecp = ecp ∧
+      ∃ I : Finset (Fin ecp.ec.N),
+        dec.chunks = ErasureCodePayload.payloadChunks ecp payload I)
+    (i : ℕ) :
+    let dec' := dec.addChunk (ecp.encode payload i)
+    dec'.ecp = ecp ∧
+      (∃ I' : Finset (Fin ecp.ec.N),
+        dec'.chunks = ErasureCodePayload.payloadChunks ecp payload I') ∧
+      (dec'.decodedPayload = none ∨ dec'.decodedPayload = some payload) := by
+  obtain ⟨actualEcp, chunks⟩ := dec
+  obtain ⟨hecp, I, hchunks⟩ := hdec
+  change actualEcp = ecp at hecp
+  subst actualEcp
+  change chunks = ErasureCodePayload.payloadChunks ecp payload I at hchunks
+  subst chunks
+  let I' := insert (ErasureCodePayload.counterIndex ecp i) I
+  rw [addChunk_payloadChunks]
+  refine ⟨rfl, ⟨I', rfl⟩, ?_⟩
+  by_cases hcard : ecp.ec.nchunk ≤ I'.card
+  · exact Or.inr (decodedPayload_payloadChunks ecp hcorrect payload I' hcard)
+  · exact Or.inl (ErasureCodePayload.decode_payloadChunks_none
+      ecp hcorrect payload I' (Nat.lt_of_not_ge hcard))
+
 /-- Codeword positions delivered from the first `t` encoder counters. A counter absent
 from `delivered` models a lost chunk. -/
 def honestPrefixPositions (ecp : ErasureCodePayload M Sym)
