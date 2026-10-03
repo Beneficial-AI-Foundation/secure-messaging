@@ -32,25 +32,6 @@ variable {P : Parameters ProbComp} [DecidableEq P.EpochKey] [DecidableEq P.Sym]
 abbrev GameState (P : Parameters ProbComp) (AuthState : Type) : Type :=
   SCKAScheme.GameState (State P AuthState) (State P AuthState) P.EpochKey (Message P.Sym)
 
-omit [DecidableEq P.EpochKey] in
-/-- `recvSCKA` accepts `msg` exactly when `receive` does. It then returns the output key and the
-successor state of `receive` and reports `msg.epoch - 1`. -/
-theorem recvSCKA_eq_some_iff {st : State P AuthState} {msg : Message P.Sym}
-    {keyOpt : Option (ℕ × P.EpochKey)} {treport : ℕ} {st' : State P AuthState} :
-    recvSCKA P auth st msg = some (keyOpt, treport, st') ↔
-      ∃ r, receive P auth st msg = .ok r ∧
-        r.outputKey = keyOpt ∧ r.state = st' ∧ treport = msg.epoch - 1 := by
-  cases hraw : receive P auth st msg with
-  | error err => simp [recvSCKA, hraw]
-  | ok r =>
-      simp only [recvSCKA, hraw, Option.some.injEq, Prod.mk.injEq, Except.ok.injEq,
-        exists_eq_left']
-      constructor
-      · rintro ⟨h1, h2, h3⟩
-        exact ⟨h1, h3, h2.symm⟩
-      · rintro ⟨h1, h2, h3⟩
-        exact ⟨h1, h3.symm, h2⟩
-
 /-- A `SendA` query runs `send` on A's state and maps its result `r` to the response
 `(r.sendingEpoch, r.outputKey.map Prod.fst, r.msg)` and the state `sendAUpdate`. -/
 theorem oracleSendA_run_eq (s : GameState P AuthState) :

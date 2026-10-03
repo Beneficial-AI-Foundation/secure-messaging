@@ -29,6 +29,38 @@ variable {P : Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
     P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
 
+/-- The send update before the oracle updates the correctness flag. -/
+private def sendSuccessor (s : GameState P AuthState) (party : Bool)
+    (r : SendResult P AuthState) : GameState P AuthState :=
+  if party then
+    { s with
+      stA := r.state, tcurA := r.sendingEpoch, nA := s.nA + 1,
+      msgA := Function.update s.msgA (s.nA + 1) (some (r.msg, r.sendingEpoch)),
+      keyA := match r.outputKey with
+        | none => s.keyA
+        | some (e, key) => Function.update s.keyA e (some key) }
+  else
+    { s with
+      stB := r.state, tcurB := r.sendingEpoch, nB := s.nB + 1,
+      msgB := Function.update s.msgB (s.nB + 1) (some (r.msg, r.sendingEpoch)),
+      keyB := match r.outputKey with
+        | none => s.keyB
+        | some (e, key) => Function.update s.keyB e (some key) }
+
+/-- Recording one valid payload preserves the payload condition for the message table. -/
+private theorem messagePayloads_update {ik : InitKey} {T : ℕ → EpochTranscript P}
+    {messages : ℕ → Option (Message P.Sym × ℕ)} {msg : Message P.Sym} {tsnd k : ℕ}
+    (hOld : ∀ n m t, messages n = some (m, t) → MessagePayloadInv auth ik T m)
+    (hNew : MessagePayloadInv auth ik T msg) :
+    ∀ n m t, Function.update messages k (some (msg, tsnd)) n = some (m, t) →
+      MessagePayloadInv auth ik T m := by
+  apply (Function.forall_update_iff messages
+    (fun _ record => ∀ m t, record = some (m, t) → MessagePayloadInv auth ik T m)).2
+  refine ⟨?_, fun n _ => hOld n⟩
+  intro m t h
+  cases h
+  exact hNew
+
 /-- The key-pair sample of a send from `keysUnsampled` fills the empty key-pair record of its
 epoch; the extended transcript is consistent with the successor state. -/
 private theorem send_keysUnsampled_transcript {ik : InitKey} {T : ℕ → EpochTranscript P}
@@ -36,20 +68,7 @@ private theorem send_keysUnsampled_transcript {ik : InitKey} {T : ℕ → EpochT
     (party : Bool) {r : SendResult P AuthState}
     (hr : r ∈ support (send P auth (if party then s.stA else s.stB)))
     {e : ℕ} {a : AuthState} (hst : (if party then s.stA else s.stB) = .keysUnsampled e a) :
-    let s' := if party then
-      { s with
-        stA := r.state, tcurA := r.sendingEpoch, nA := s.nA + 1,
-        msgA := Function.update s.msgA (s.nA + 1) (some (r.msg, r.sendingEpoch)),
-        keyA := match r.outputKey with
-          | none => s.keyA
-          | some (e, key) => Function.update s.keyA e (some key) }
-    else
-      { s with
-        stB := r.state, tcurB := r.sendingEpoch, nB := s.nB + 1,
-        msgB := Function.update s.msgB (s.nB + 1) (some (r.msg, r.sendingEpoch)),
-        keyB := match r.outputKey with
-          | none => s.keyB
-          | some (e, key) => Function.update s.keyB e (some key) }
+    let s' := sendSuccessor s party r
     (ControlInv s' ∧ StatePairInv s') →
       ∃ pk sk,
         TranscriptConsistent auth ik
@@ -103,11 +122,8 @@ private theorem send_keysUnsampled_transcript {ik : InitKey} {T : ℕ → EpochT
     simp only [Function.update_self]
   have hAuth : ∀ n, transcriptAuth auth ik
       (Function.update T e { (T e) with keypair := some (pk, sk) }) n =
-      transcriptAuth auth ik T n := by
-    intro n
-    induction n with
-    | zero => rfl
-    | succ n ih => simp only [transcriptAuth, hTe, ih]
+      transcriptAuth auth ik T n :=
+    fun n => transcriptAuth_congr auth n (fun i _ => hTe i)
   have haT : a = transcriptAuth auth ik
       (Function.update T e { (T e) with keypair := some (pk, sk) }) (e - 1) :=
     ha.trans (hAuth (e - 1)).symm
@@ -127,33 +143,11 @@ private theorem send_keysUnsampled_transcript {ik : InitKey} {T : ℕ → EpochT
       MessagePayloadInv auth ik
         (Function.update T e { (T e) with keypair := some (pk, sk) }) msg := by
     intro msg h
-    rcases msg with ⟨ep, ty, data⟩
-    cases ty
-    case none => exact h
-    case hdr =>
-      simp only [MessagePayloadInv] at h ⊢
-      obtain ⟨pk', sk', i, hk, hd⟩ := h
-      exact ⟨pk', sk', i, hKeyMono ep _ hk, by rw [hAuth]; exact hd⟩
-    case ek =>
-      simp only [MessagePayloadInv] at h ⊢
-      obtain ⟨pk', sk', i, hk, hd⟩ := h
-      exact ⟨pk', sk', i, hKeyMono ep _ hk, hd⟩
-    case ekCt1Ack =>
-      simp only [MessagePayloadInv] at h ⊢
-      obtain ⟨pk', sk', i, hk, hd⟩ := h
-      exact ⟨pk', sk', i, hKeyMono ep _ hk, hd⟩
-    case ct1 =>
-      simp only [MessagePayloadInv] at h ⊢
-      obtain ⟨es, ct1', key', i, hc, hd⟩ := h
-      exact ⟨es, ct1', key', i, (hTe ep).trans hc, hd⟩
-    case ct2 =>
-      simp only [MessagePayloadInv] at h ⊢
-      obtain ⟨pk', sk', es, ct1', key', i, hk, hc, hd⟩ := h
-      exact ⟨pk', sk', es, ct1', key', i, hKeyMono ep _ hk, (hTe ep).trans hc,
-        by rw [hAuth]; exact hd⟩
-    case ct1Ack => exact h
+    exact h.transport auth (hKeyMono msg.epoch)
+      (fun _ hc => (hTe msg.epoch).trans hc) (hAuth (msg.epoch - 1))
+      (fun _ _ => hAuth msg.epoch)
   cases party
-  · simp only [Bool.false_eq_true, ↓reduceIte] at hst hpeer hpar ⊢
+  · simp only [sendSuccessor, Bool.false_eq_true, ↓reduceIte] at hst hpeer hpar ⊢
     rintro ⟨hC', hP'⟩
     refine ⟨pk, sk, ?_⟩
     have hepB : s.stB.epoch = e := by rw [hst]; rfl
@@ -204,18 +198,14 @@ private theorem send_keysUnsampled_transcript {ik : InitKey} {T : ℕ → EpochT
       simp [DecoderState.empty]
     · exact ⟨haT, pk, hTke, rfl, rfl,
         congrArg (fun x => (P.inc.toHeader pk, auth.macHeader x e (P.inc.toHeader pk))) haT⟩
-    · intro party' n msg tsnd hmsg
+    · intro party'
       cases party'
-      · simp only [Bool.false_eq_true, ↓reduceIte] at hmsg
-        by_cases hn : n = s.nB + 1
-        · subst hn
-          rw [Function.update_self] at hmsg
-          cases hmsg
-          exact ⟨pk, sk, 0, hTke, congrArg (fun x => some (P.ecpHdr.encode
+      · exact messagePayloads_update auth
+          (fun n msg tsnd hmsg => hMsgOld msg (hMessages false n msg tsnd hmsg))
+          ⟨pk, sk, 0, hTke, congrArg (fun x => some (P.ecpHdr.encode
             (P.inc.toHeader pk, auth.macHeader x e (P.inc.toHeader pk)) 0)) haT⟩
-        · rw [Function.update_of_ne hn] at hmsg
-          exact hMsgOld msg (hMessages false n msg tsnd hmsg)
-      · exact hMsgOld msg (hMessages true n msg tsnd hmsg)
+      · intro n msg tsnd hmsg
+        exact hMsgOld msg (hMessages true n msg tsnd hmsg)
     · intro party' e'
       have hK := hKeys party' e'
       cases party'
@@ -226,7 +216,7 @@ private theorem send_keysUnsampled_transcript {ik : InitKey} {T : ℕ → EpochT
       · simp only [↓reduceIte] at hK ⊢
         rw [hTe]
         exact hK
-  · simp only [↓reduceIte] at hst hpeer hpar ⊢
+  · simp only [sendSuccessor, ↓reduceIte] at hst hpeer hpar ⊢
     rintro ⟨hC', hP'⟩
     refine ⟨pk, sk, ?_⟩
     have hepA : s.stA.epoch = e := by rw [hst]; rfl
@@ -277,18 +267,14 @@ private theorem send_keysUnsampled_transcript {ik : InitKey} {T : ℕ → EpochT
       simp only [LocalPayloadInv, hTke]
       refine ⟨hbT, rfl, ∅, ?_⟩
       simp [DecoderState.empty]
-    · intro party' n msg tsnd hmsg
+    · intro party'
       cases party'
-      · exact hMsgOld msg (hMessages false n msg tsnd hmsg)
-      · simp only [↓reduceIte] at hmsg
-        by_cases hn : n = s.nA + 1
-        · subst hn
-          rw [Function.update_self] at hmsg
-          cases hmsg
-          exact ⟨pk, sk, 0, hTke, congrArg (fun x => some (P.ecpHdr.encode
+      · intro n msg tsnd hmsg
+        exact hMsgOld msg (hMessages false n msg tsnd hmsg)
+      · exact messagePayloads_update auth
+          (fun n msg tsnd hmsg => hMsgOld msg (hMessages true n msg tsnd hmsg))
+          ⟨pk, sk, 0, hTke, congrArg (fun x => some (P.ecpHdr.encode
             (P.inc.toHeader pk, auth.macHeader x e (P.inc.toHeader pk)) 0)) haT⟩
-        · rw [Function.update_of_ne hn] at hmsg
-          exact hMsgOld msg (hMessages true n msg tsnd hmsg)
     · intro party' e'
       have hK := hKeys party' e'
       cases party'
@@ -309,20 +295,7 @@ private theorem send_headerReceived_transcript {ik : InitKey} {T : ℕ → Epoch
     (hr : r ∈ support (send P auth (if party then s.stA else s.stB)))
     {e : ℕ} {a : AuthState} {hdr : P.inc.PKheader} {dec : DecoderState P.inc.PKvector P.Sym}
     (hst : (if party then s.stA else s.stB) = .headerReceived e a hdr dec) :
-    let s' := if party then
-      { s with
-        stA := r.state, tcurA := r.sendingEpoch, nA := s.nA + 1,
-        msgA := Function.update s.msgA (s.nA + 1) (some (r.msg, r.sendingEpoch)),
-        keyA := match r.outputKey with
-          | none => s.keyA
-          | some (e, key) => Function.update s.keyA e (some key) }
-    else
-      { s with
-        stB := r.state, tcurB := r.sendingEpoch, nB := s.nB + 1,
-        msgB := Function.update s.msgB (s.nB + 1) (some (r.msg, r.sendingEpoch)),
-        keyB := match r.outputKey with
-          | none => s.keyB
-          | some (e, key) => Function.update s.keyB e (some key) }
+    let s' := sendSuccessor s party r
     (ControlInv s' ∧ StatePairInv s') →
       ∃ pk sk encapsState ct1 key,
         (T e).keypair = some (pk, sk) ∧
@@ -382,13 +355,8 @@ private theorem send_headerReceived_transcript {ik : InitKey} {T : ℕ → Epoch
     simp only [Function.update_self]
   have hAuthLt : ∀ n, n < e → transcriptAuth auth ik
       (Function.update T e { (T e) with encaps1 := some (es, ct1, k) }) n =
-      transcriptAuth auth ik T n := by
-    intro n
-    induction n with
-    | zero => intro _; rfl
-    | succ n ih =>
-        intro hn
-        simp only [transcriptAuth, hTc (n + 1) (by omega), ih (by omega)]
+      transcriptAuth auth ik T n :=
+    fun n hn => transcriptAuth_congr auth n (fun i hi => hTc i (by omega))
   have hAuthE : transcriptAuth auth ik
       (Function.update T e { (T e) with encaps1 := some (es, ct1, k) }) e =
       auth.update a e (P.kdfOK k e) := by
@@ -399,40 +367,16 @@ private theorem send_headerReceived_transcript {ik : InitKey} {T : ℕ → Epoch
       MessagePayloadInv auth ik
         (Function.update T e { (T e) with encaps1 := some (es, ct1, k) }) msg := by
     intro msg hle h
-    rcases msg with ⟨ep, ty, data⟩
-    change ep ≤ e at hle
-    cases ty
-    case none => exact h
-    case hdr =>
-      simp only [MessagePayloadInv] at h ⊢
-      obtain ⟨pk', sk', i, hk, hd⟩ := h
-      exact ⟨pk', sk', i, (hTk ep).trans hk, by rw [hAuthLt (ep - 1) (by omega)]; exact hd⟩
-    case ek =>
-      simp only [MessagePayloadInv] at h ⊢
-      obtain ⟨pk', sk', i, hk, hd⟩ := h
-      exact ⟨pk', sk', i, (hTk ep).trans hk, hd⟩
-    case ekCt1Ack =>
-      simp only [MessagePayloadInv] at h ⊢
-      obtain ⟨pk', sk', i, hk, hd⟩ := h
-      exact ⟨pk', sk', i, (hTk ep).trans hk, hd⟩
-    case ct1 =>
-      simp only [MessagePayloadInv] at h ⊢
-      obtain ⟨es, ct1', key', i, hc', hd⟩ := h
-      have hne : ep ≠ e := by
-        rintro rfl
-        rw [hc0] at hc'
-        cases hc'
-      exact ⟨es, ct1', key', i, (hTc ep hne).trans hc', hd⟩
-    case ct2 =>
-      simp only [MessagePayloadInv] at h ⊢
-      obtain ⟨pk', sk', es, ct1', key', i, hk, hc', hd⟩ := h
-      have hne : ep ≠ e := by
-        rintro rfl
-        rw [hc0] at hc'
-        cases hc'
-      exact ⟨pk', sk', es, ct1', key', i, (hTk ep).trans hk, (hTc ep hne).trans hc',
-        by rw [hAuthLt ep (by omega)]; exact hd⟩
-    case ct1Ack => exact h
+    have hlt : ∀ c, (T msg.epoch).encaps1 = some c → msg.epoch < e := by
+      intro c hc
+      have hne : msg.epoch ≠ e := by
+        rintro he
+        rw [he, hc0] at hc
+        cases hc
+      omega
+    exact h.transport auth (fun _ hk => (hTk msg.epoch).trans hk)
+      (fun c hc => (hTc msg.epoch (ne_of_lt (hlt c hc))).trans hc)
+      (hAuthLt (msg.epoch - 1) (by omega)) (fun c hc => hAuthLt msg.epoch (hlt c hc))
   have hBnd : s.stA.epoch = e → s.stB.epoch = e → ∀ (party' : Bool) n msg tsnd,
       (if party' then s.msgA else s.msgB) n = some (msg, tsnd) → msg.epoch ≤ e := by
     intro hepA hepB party' n msg tsnd h
@@ -444,7 +388,7 @@ private theorem send_headerReceived_transcript {ik : InitKey} {T : ℕ → Epoch
       ErasureCodePayload.payloadChunks P.ecpEk (P.inc.toVector pk) ∅ := by
     simp [DecoderState.empty]
   cases party
-  · simp only [Bool.false_eq_true, ↓reduceIte] at hst hpeer hpar ⊢
+  · simp only [sendSuccessor, Bool.false_eq_true, ↓reduceIte] at hst hpeer hpar ⊢
     rintro ⟨hC', hP'⟩
     refine ⟨pk, sk, es, ct1, k, hkpT, rfl, ?_⟩
     have hodd : e % 2 = 1 := by omega
@@ -501,18 +445,13 @@ private theorem send_headerReceived_transcript {ik : InitKey} {T : ℕ → Epoch
       exact hpay
     · exact ⟨hAuthE.symm, pk, sk, k, by rw [hTk]; exact hkpT, hTce, rfl, ⟨rfl, rfl⟩, rfl,
         ∅, hempty⟩
-    · intro party' n msg tsnd hmsg
+    · intro party'
       cases party'
-      · simp only [Bool.false_eq_true, ↓reduceIte] at hmsg
-        by_cases hn : n = s.nB + 1
-        · subst hn
-          rw [Function.update_self] at hmsg
-          cases hmsg
-          exact ⟨es, ct1, k, 0, hTce, rfl⟩
-        · rw [Function.update_of_ne hn] at hmsg
-          exact hMsgOld msg (hBnd hepA hepB false n msg tsnd hmsg)
-            (hMessages false n msg tsnd hmsg)
-      · exact hMsgOld msg (hBnd hepA hepB true n msg tsnd hmsg)
+      · exact messagePayloads_update auth
+          (fun n msg tsnd hmsg => hMsgOld msg (hBnd hepA hepB false n msg tsnd hmsg)
+            (hMessages false n msg tsnd hmsg)) ⟨es, ct1, k, 0, hTce, rfl⟩
+      · intro n msg tsnd hmsg
+        exact hMsgOld msg (hBnd hepA hepB true n msg tsnd hmsg)
           (hMessages true n msg tsnd hmsg)
     · intro party' e'
       have hK := hKeys party' e'
@@ -536,7 +475,7 @@ private theorem send_headerReceived_transcript {ik : InitKey} {T : ℕ → Epoch
           exact hK
         · rw [hTc e' he]
           exact hK
-  · simp only [↓reduceIte] at hst hpeer hpar ⊢
+  · simp only [sendSuccessor, ↓reduceIte] at hst hpeer hpar ⊢
     rintro ⟨hC', hP'⟩
     refine ⟨pk, sk, es, ct1, k, hkpT, rfl, ?_⟩
     have hepA : s.stA.epoch = e := by rw [hst]; rfl
@@ -592,19 +531,14 @@ private theorem send_headerReceived_transcript {ik : InitKey} {T : ℕ → Epoch
         hecp, ?_⟩
       rw [hAuthLt (e - 1) (by omega)]
       exact hpay
-    · intro party' n msg tsnd hmsg
+    · intro party'
       cases party'
-      · exact hMsgOld msg (hBnd hepA hepB false n msg tsnd hmsg)
+      · intro n msg tsnd hmsg
+        exact hMsgOld msg (hBnd hepA hepB false n msg tsnd hmsg)
           (hMessages false n msg tsnd hmsg)
-      · simp only [↓reduceIte] at hmsg
-        by_cases hn : n = s.nA + 1
-        · subst hn
-          rw [Function.update_self] at hmsg
-          cases hmsg
-          exact ⟨es, ct1, k, 0, hTce, rfl⟩
-        · rw [Function.update_of_ne hn] at hmsg
-          exact hMsgOld msg (hBnd hepA hepB true n msg tsnd hmsg)
-            (hMessages true n msg tsnd hmsg)
+      · exact messagePayloads_update auth
+          (fun n msg tsnd hmsg => hMsgOld msg (hBnd hepA hepB true n msg tsnd hmsg)
+            (hMessages true n msg tsnd hmsg)) ⟨es, ct1, k, 0, hTce, rfl⟩
     · intro party' e'
       have hK := hKeys party' e'
       cases party'
@@ -702,115 +636,54 @@ private theorem send_existing_transcript {ik : InitKey} {T : ℕ → EpochTransc
     (party : Bool) {r : SendResult P AuthState}
     (hr : r ∈ support (send P auth (if party then s.stA else s.stB)))
     (hsteady : (if party then s.stA else s.stB).SendsNoSample) :
-    let s' := if party then
-      { s with
-        stA := r.state, tcurA := r.sendingEpoch, nA := s.nA + 1,
-        msgA := Function.update s.msgA (s.nA + 1) (some (r.msg, r.sendingEpoch)),
-        keyA := match r.outputKey with
-          | none => s.keyA
-          | some (e, key) => Function.update s.keyA e (some key) }
-    else
-      { s with
-        stB := r.state, tcurB := r.sendingEpoch, nB := s.nB + 1,
-        msgB := Function.update s.msgB (s.nB + 1) (some (r.msg, r.sendingEpoch)),
-        keyB := match r.outputKey with
-          | none => s.keyB
-          | some (e, key) => Function.update s.keyB e (some key) }
+    let s' := sendSuccessor s party r
     (ControlInv s' ∧ StatePairInv s') → TranscriptConsistent auth ik T s' := by
-  obtain ⟨hcorr, -, -, h0k, h0e, hKeypair, hEncaps, hLocalA, hLocalB, hMessages, hKeys⟩ := hT
   have hLocal : LocalPayloadInv auth ik T (if party then s.stA else s.stB) := by
     cases party
-    · exact hLocalB
-    · exact hLocalA
-  have hstep := send_steady_step auth ((mem_support_send_iff auth).mp hr) hsteady hLocal
-  obtain ⟨hnone, hep, hcomp, hLocalNew, hMsgNew⟩ := hstep
+    · exact hT.localB
+    · exact hT.localA
+  obtain ⟨hnone, hep, hcomp, hLocalNew, hMsgNew⟩ :=
+    send_steady_step auth ((mem_support_send_iff auth).mp hr) hsteady hLocal
   cases party
-  · simp only [Bool.false_eq_true, ↓reduceIte] at hep hcomp ⊢
+  · simp only [sendSuccessor, Bool.false_eq_true, ↓reduceIte] at hep hcomp ⊢
     rintro ⟨hC', hP'⟩
-    refine ⟨hcorr, hC', hP', h0k, h0e, ?_, ?_, hLocalA, hLocalNew, ?_, ?_⟩
-    · intro e pk sk hk
-      obtain ⟨h0, hle⟩ := hKeypair e pk sk hk
-      refine ⟨h0, ?_⟩
-      by_cases hpar : e % 2 = 1
-      · rw [if_pos hpar] at hle ⊢
-        exact hle
-      · rw [if_neg hpar] at hle ⊢
-        exact hle.trans_eq hep.symm
-    · intro e encapsState ct1 key hc
-      obtain ⟨h0, hle, pk, sk, hkp, hdec⟩ := hEncaps e encapsState ct1 key hc
-      refine ⟨h0, ?_, pk, sk, hkp, fun hle' => hdec ?_⟩
-      · by_cases hpar : e % 2 = 1
-        · rw [if_pos hpar] at hle ⊢
-          exact hle.trans_eq hcomp.symm
-        · rw [if_neg hpar] at hle ⊢
-          exact hle
-      · by_cases hpar : e % 2 = 1
-        · rw [if_pos hpar] at hle' ⊢
-          exact hle'
-        · rw [if_neg hpar] at hle' ⊢
-          exact hle'.trans_eq hcomp
-    · intro party' n msg tsnd hmsg
-      cases party'
-      · simp only [Bool.false_eq_true, ↓reduceIte] at hmsg
-        by_cases hn : n = s.nB + 1
-        · subst hn
-          rw [Function.update_self] at hmsg
-          cases hmsg
-          exact hMsgNew
-        · rw [Function.update_of_ne hn] at hmsg
-          exact hMessages false n msg tsnd hmsg
-      · exact hMessages true n msg tsnd hmsg
-    · intro party' e
-      have hK := hKeys party' e
-      cases party'
-      · simp only [Bool.false_eq_true, ↓reduceIte] at hK ⊢
-        rw [hnone, hcomp]
-        exact hK
-      · simp only [↓reduceIte] at hK ⊢
-        exact hK
-  · simp only [↓reduceIte] at hep hcomp ⊢
+    refine hT.of_fields auth hT.correct hC' hP' rfl hep rfl hcomp hT.localA hLocalNew
+      ?_ rfl (by simp [hnone])
+    intro party'
+    cases party'
+    · exact messagePayloads_update auth (hT.messages false) hMsgNew
+    · exact hT.messages true
+  · simp only [sendSuccessor, ↓reduceIte] at hep hcomp ⊢
     rintro ⟨hC', hP'⟩
-    refine ⟨hcorr, hC', hP', h0k, h0e, ?_, ?_, hLocalNew, hLocalB, ?_, ?_⟩
-    · intro e pk sk hk
-      obtain ⟨h0, hle⟩ := hKeypair e pk sk hk
-      refine ⟨h0, ?_⟩
-      by_cases hpar : e % 2 = 1
-      · rw [if_pos hpar] at hle ⊢
-        exact hle.trans_eq hep.symm
-      · rw [if_neg hpar] at hle ⊢
-        exact hle
-    · intro e encapsState ct1 key hc
-      obtain ⟨h0, hle, pk, sk, hkp, hdec⟩ := hEncaps e encapsState ct1 key hc
-      refine ⟨h0, ?_, pk, sk, hkp, fun hle' => hdec ?_⟩
-      · by_cases hpar : e % 2 = 1
-        · rw [if_pos hpar] at hle ⊢
-          exact hle
-        · rw [if_neg hpar] at hle ⊢
-          exact hle.trans_eq hcomp.symm
-      · by_cases hpar : e % 2 = 1
-        · rw [if_pos hpar] at hle' ⊢
-          exact hle'.trans_eq hcomp
-        · rw [if_neg hpar] at hle' ⊢
-          exact hle'
-    · intro party' n msg tsnd hmsg
-      cases party'
-      · exact hMessages false n msg tsnd hmsg
-      · simp only [↓reduceIte] at hmsg
-        by_cases hn : n = s.nA + 1
-        · subst hn
-          rw [Function.update_self] at hmsg
-          cases hmsg
-          exact hMsgNew
-        · rw [Function.update_of_ne hn] at hmsg
-          exact hMessages true n msg tsnd hmsg
-    · intro party' e
-      have hK := hKeys party' e
-      cases party'
-      · simp only [Bool.false_eq_true, ↓reduceIte] at hK ⊢
-        exact hK
-      · simp only [↓reduceIte] at hK ⊢
-        rw [hnone, hcomp]
-        exact hK
+    refine hT.of_fields auth hT.correct hC' hP' hep rfl hcomp rfl hLocalNew hT.localB
+      ?_ (by simp [hnone]) rfl
+    intro party'
+    cases party'
+    · exact hT.messages false
+    · exact messagePayloads_update auth (hT.messages true) hMsgNew
+
+/-- A supported send leaves the game consistent with a transcript whenever its successor
+satisfies the control and pair invariants. -/
+private theorem send_preserves_transcript {ik : InitKey} {T : ℕ → EpochTranscript P}
+    {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
+    (party : Bool) {r : SendResult P AuthState}
+    (hr : r ∈ support (send P auth (if party then s.stA else s.stB))) :
+    (ControlInv (sendSuccessor s party r) ∧ StatePairInv (sendSuccessor s party r)) →
+      ∃ T', TranscriptConsistent auth ik T' (sendSuccessor s party r) := by
+  cases hst : (if party then s.stA else s.stB) with
+  | keysUnsampled e a =>
+      intro hCP
+      obtain ⟨pk, sk, h⟩ := send_keysUnsampled_transcript auth hT party hr hst hCP
+      exact ⟨_, h⟩
+  | headerReceived e a hdr dec =>
+      intro hCP
+      obtain ⟨pk, sk, es, ct1, key, -, -, h⟩ :=
+        send_headerReceived_transcript auth hT party hr hst hCP
+      exact ⟨_, h⟩
+  | _ =>
+      intro hCP
+      exact ⟨T, send_existing_transcript auth hT party hr
+        (by simp only [hst, State.SendsNoSample]) hCP⟩
 
 variable [DecidableEq P.EpochKey] [DecidableEq P.Sym]
   (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : ProbComp InitKey)
@@ -838,41 +711,13 @@ theorem oracleSend_preserves_correctnessInv (ik : InitKey) (party : Bool) :
     · rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;>
         simp [SCKAScheme.sendBUpdate, hkey, hsf] at hzc
     have hCPz := hCP T hT
+    have h := send_preserves_transcript auth hT false hr
     rcases hkey : r.outputKey with _ | ⟨tI, key⟩
     all_goals
+      simp only [sendSuccessor, Bool.false_eq_true, ↓reduceIte, hkey, hT.correct] at h
       simp only [SCKAScheme.sendBUpdate, hkey] at hzc hCPz ⊢
       rw [hzc] at hCPz ⊢
-    · cases hB : s.stB with
-      | keysUnsampled e a =>
-          have h := send_keysUnsampled_transcript auth hT false hr hB
-          simp only [Bool.false_eq_true, ↓reduceIte, hkey, hT.correct] at h
-          obtain ⟨_, _, hK⟩ := h hCPz
-          exact Or.inr ⟨_, hK⟩
-      | headerReceived _ _ _ _ =>
-          rw [hB] at hr
-          cases (mem_support_send_iff auth).mp hr
-          simp at hkey
-      | _ =>
-          have h := send_existing_transcript auth hT false hr
-            (by simp only [Bool.false_eq_true, ↓reduceIte, hB, State.SendsNoSample])
-          simp only [Bool.false_eq_true, ↓reduceIte, hkey, hT.correct] at h
-          exact Or.inr ⟨T, h hCPz⟩
-    · cases hB : s.stB with
-      | keysUnsampled e a =>
-          have h := send_keysUnsampled_transcript auth hT false hr hB
-          simp only [Bool.false_eq_true, ↓reduceIte, hkey, hT.correct] at h
-          obtain ⟨_, _, hK⟩ := h hCPz
-          exact Or.inr ⟨_, hK⟩
-      | headerReceived e a hdr dec =>
-          have h := send_headerReceived_transcript auth hT false hr hB
-          simp only [Bool.false_eq_true, ↓reduceIte, hkey, hT.correct] at h
-          obtain ⟨_, _, _, _, _, -, -, hK⟩ := h hCPz
-          exact Or.inr ⟨_, hK⟩
-      | _ =>
-          have h := send_existing_transcript auth hT false hr
-            (by simp only [Bool.false_eq_true, ↓reduceIte, hB, State.SendsNoSample])
-          simp only [Bool.false_eq_true, ↓reduceIte, hkey, hT.correct] at h
-          exact Or.inr ⟨T, h hCPz⟩
+      exact Or.inr (h hCPz)
   · intro t s hs z hz
     cases t
     change z ∈ support ((SCKAScheme.oracleSendA (scheme P auth irl sampleInitKey) ()).run s) at hz
@@ -886,40 +731,12 @@ theorem oracleSend_preserves_correctnessInv (ik : InitKey) (party : Bool) :
     · rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;>
         simp [SCKAScheme.sendAUpdate, hkey, hsf] at hzc
     have hCPz := hCP T hT
+    have h := send_preserves_transcript auth hT true hr
     rcases hkey : r.outputKey with _ | ⟨tI, key⟩
     all_goals
+      simp only [sendSuccessor, ↓reduceIte, hkey, hT.correct] at h
       simp only [SCKAScheme.sendAUpdate, hkey] at hzc hCPz ⊢
       rw [hzc] at hCPz ⊢
-    · cases hA : s.stA with
-      | keysUnsampled e a =>
-          have h := send_keysUnsampled_transcript auth hT true hr hA
-          simp only [↓reduceIte, hkey, hT.correct] at h
-          obtain ⟨_, _, hK⟩ := h hCPz
-          exact Or.inr ⟨_, hK⟩
-      | headerReceived _ _ _ _ =>
-          rw [hA] at hr
-          cases (mem_support_send_iff auth).mp hr
-          simp at hkey
-      | _ =>
-          have h := send_existing_transcript auth hT true hr
-            (by simp only [↓reduceIte, hA, State.SendsNoSample])
-          simp only [↓reduceIte, hkey, hT.correct] at h
-          exact Or.inr ⟨T, h hCPz⟩
-    · cases hA : s.stA with
-      | keysUnsampled e a =>
-          have h := send_keysUnsampled_transcript auth hT true hr hA
-          simp only [↓reduceIte, hkey, hT.correct] at h
-          obtain ⟨_, _, hK⟩ := h hCPz
-          exact Or.inr ⟨_, hK⟩
-      | headerReceived e a hdr dec =>
-          have h := send_headerReceived_transcript auth hT true hr hA
-          simp only [↓reduceIte, hkey, hT.correct] at h
-          obtain ⟨_, _, _, _, _, -, -, hK⟩ := h hCPz
-          exact Or.inr ⟨_, hK⟩
-      | _ =>
-          have h := send_existing_transcript auth hT true hr
-            (by simp only [↓reduceIte, hA, State.SendsNoSample])
-          simp only [↓reduceIte, hkey, hT.correct] at h
-          exact Or.inr ⟨T, h hCPz⟩
+      exact Or.inr (h hCPz)
 
 end MLKEMBraid

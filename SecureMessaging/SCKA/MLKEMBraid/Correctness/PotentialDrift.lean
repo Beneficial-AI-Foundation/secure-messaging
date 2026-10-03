@@ -526,56 +526,10 @@ private theorem recv_currentEpochFailure_le_of_epochs_eq
     (hzc : z.2.correct = true)
     (hepA : z.2.stA.epoch = s.stA.epoch) (hepB : z.2.stB.epoch = s.stB.epoch) :
     currentEpochFailure z.2 ≤ currentEpochFailure s := by
-  -- Such a receive emits no key and keeps both completed epochs, so the entry transcript still
-  -- describes the successor, and `currentEpochFailure_eq_transcript` gives the same value
-  -- before and after.
-  cases party
-  · change z ∈ support ((SCKAScheme.oracleRecvB (scheme P auth irl sampleInitKey) n).run s)
-      at hz
-    have hCP : ControlInv z.2 ∧ StatePairInv z.2 :=
-      correctnessImpl_preserves_controlInv_statePairInv auth irl sampleInitKey
-        (ORecvB (Rho := Message P.Sym) n) s ⟨hT.control, hT.statePair⟩ z hz
-    rcases oracleRecvB_run_cases auth irl sampleInitKey hz with
-      ⟨-, rfl⟩ | ⟨msg, tsnd, err, -, -, rfl⟩ | ⟨msg, tsnd, r, hentry, hraw, rfl⟩
-    · exact le_rfl
-    · cases hzc
-    have hedge := ReceiveEdge.of_eq_ok auth hraw
-    rcases hedge.epoch_eq_or_succ with ⟨hnone, hep⟩ | hep
-    · simp only [SCKAScheme.recvBUpdate, hnone] at hzc hCP hepB ⊢
-      have hcomp := (hedge.completedEpoch hT.control.epochKnowledge.keyPrefix.posB).2
-      simp only [hnone] at hcomp
-      have hLocal := (receive_recorded_payload auth hHdrCorrect hEkCorrect hCt1Correct
-        hCt2Correct hT false n msg tsnd hentry).1 r hraw (fun e key h => by simp [hnone] at h)
-      have hTz := hT.of_eq auth hzc hCP.1 hCP.2 rfl hep rfl hcomp hT.localA hLocal rfl rfl rfl rfl
-      refine le_of_eq ?_
-      rw [currentEpochFailure_eq_transcript auth hTz, currentEpochFailure_eq_transcript auth hT]
-      simp only [hep]
-    · exfalso
-      rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;>
-        simp only [SCKAScheme.recvBUpdate, hkey] at hepB <;> omega
-  · change z ∈ support ((SCKAScheme.oracleRecvA (scheme P auth irl sampleInitKey) n).run s)
-      at hz
-    have hCP : ControlInv z.2 ∧ StatePairInv z.2 :=
-      correctnessImpl_preserves_controlInv_statePairInv auth irl sampleInitKey
-        (ORecvA (Rho := Message P.Sym) n) s ⟨hT.control, hT.statePair⟩ z hz
-    rcases oracleRecvA_run_cases auth irl sampleInitKey hz with
-      ⟨-, rfl⟩ | ⟨msg, tsnd, err, -, -, rfl⟩ | ⟨msg, tsnd, r, hentry, hraw, rfl⟩
-    · exact le_rfl
-    · cases hzc
-    have hedge := ReceiveEdge.of_eq_ok auth hraw
-    rcases hedge.epoch_eq_or_succ with ⟨hnone, hep⟩ | hep
-    · simp only [SCKAScheme.recvAUpdate, hnone] at hzc hCP hepA ⊢
-      have hcomp := (hedge.completedEpoch hT.control.epochKnowledge.keyPrefix.posA).2
-      simp only [hnone] at hcomp
-      have hLocal := (receive_recorded_payload auth hHdrCorrect hEkCorrect hCt1Correct
-        hCt2Correct hT true n msg tsnd hentry).1 r hraw (fun e key h => by simp [hnone] at h)
-      have hTz := hT.of_eq auth hzc hCP.1 hCP.2 hep rfl hcomp rfl hLocal hT.localB rfl rfl rfl rfl
-      refine le_of_eq ?_
-      rw [currentEpochFailure_eq_transcript auth hTz, currentEpochFailure_eq_transcript auth hT]
-      simp only [hep]
-    · exfalso
-      rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;>
-        simp only [SCKAScheme.recvAUpdate, hkey] at hepA <;> omega
+  have hTz := oracleRecv_preserves_transcriptConsistent auth irl sampleInitKey hHdrCorrect
+    hEkCorrect hCt1Correct hCt2Correct hT party n z hz hzc
+  rw [currentEpochFailure_eq_transcript auth hTz, currentEpochFailure_eq_transcript auth hT,
+    hepA, hepB]
 
 /-- A successful receive that changes an epoch leaves `currentEpochFailure` equal to `0`. -/
 private theorem recv_currentEpochFailure_eq_zero_of_epoch_ne
@@ -594,13 +548,9 @@ private theorem recv_currentEpochFailure_eq_zero_of_epoch_ne
     currentEpochFailure z.2 = 0 := by
   -- Only the receiver moves. Finishing `ct₂` leaves the receiver one epoch ahead of its peer.
   -- A next-epoch message leaves the new generator with no sampled key pair.
-  obtain ⟨T', hT'⟩ : ∃ T', TranscriptConsistent auth ik T' z.2 := by
-    rcases oracleRecv_preserves_correctnessInv auth irl sampleInitKey hHdrCorrect
-        hEkCorrect hCt1Correct hCt2Correct ik party n s (Or.inr ⟨T, hT⟩) z hz with h | h
-    · rw [hzc] at h
-      cases h
-    · exact h
-  rw [currentEpochFailure_eq_transcript auth hT']
+  have hTz := oracleRecv_preserves_transcriptConsistent auth irl sampleInitKey hHdrCorrect
+    hEkCorrect hCt1Correct hCt2Correct hT party n z hz hzc
+  rw [currentEpochFailure_eq_transcript auth hTz]
   cases party
   · change z ∈ support ((SCKAScheme.oracleRecvB (scheme P auth irl sampleInitKey) n).run s)
       at hz
@@ -620,7 +570,7 @@ private theorem recv_currentEpochFailure_eq_zero_of_epoch_ne
     split_ifs with hzep
     · rcases hedge.advance hne with ⟨-, -, a', hks⟩ | ⟨hgen, -, -, a', dec', hnh⟩
       · -- The receiver generates the next epoch and has not sampled its key pair.
-        have hLB := hT'.localB
+        have hLB := hTz.localB
         rw [hzB, hks] at hLB
         simp only [LocalPayloadInv] at hLB
         obtain ⟨-, hkp0, -⟩ := hLB
@@ -652,7 +602,7 @@ private theorem recv_currentEpochFailure_eq_zero_of_epoch_ne
       · exact absurd (congrArg State.epoch hzB) h
     split_ifs with hzep
     · rcases hedge.advance hne with ⟨-, -, a', hks⟩ | ⟨hgen, -, -, a', dec', hnh⟩
-      · have hLA := hT'.localA
+      · have hLA := hTz.localA
         rw [hzA, hks] at hLA
         simp only [LocalPayloadInv] at hLA
         obtain ⟨-, hkp0, -⟩ := hLA

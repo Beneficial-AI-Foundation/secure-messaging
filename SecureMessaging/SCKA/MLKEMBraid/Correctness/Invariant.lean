@@ -48,6 +48,18 @@ def transcriptAuth (ik : InitKey) (T : ℕ → EpochTranscript P) : ℕ → Auth
       | none => transcriptAuth ik T e
       | some (_, _, key) => auth.update (transcriptAuth ik T e) (e + 1) (P.kdfOK key (e + 1))
 
+/-- Transcripts with the same encapsulation records through epoch `n` have the same
+authenticator state after that epoch. -/
+theorem transcriptAuth_congr {ik : InitKey} {T T' : ℕ → EpochTranscript P} (n : ℕ)
+    (h : ∀ i, i ≤ n → (T' i).encaps1 = (T i).encaps1) :
+    transcriptAuth auth ik T' n = transcriptAuth auth ik T n := by
+  induction n with
+  | zero => rfl
+  | succ n ih =>
+      have hprev := ih fun i hi => h i (Nat.le_succ_of_le hi)
+      rw [transcriptAuth, transcriptAuth, h (n + 1) le_rfl]
+      cases (T (n + 1)).encaps1 <;> simp only [hprev]
+
 /-- A party's state agrees with the transcript. Its authenticator is the transcript authenticator,
 its keys and ciphertexts are the samples recorded for its epoch, its encoders encode the payloads
 of that epoch, and its decoders hold chunks of them. -/
@@ -146,6 +158,39 @@ def MessagePayloadInv (ik : InitKey) (T : ℕ → EpochTranscript P) (msg : Mess
         msg.data = some (P.ecpCt2.encode
           (ct2, auth.macCiphertext (transcriptAuth auth ik T msg.epoch) msg.epoch (ct1, ct2)) i)
   | .ct1Ack => False
+
+/-- A message remains consistent with an extended transcript when its recorded samples are
+preserved and its header and ciphertext authenticator states agree. Agreement at the message's
+epoch is needed only when that epoch already has an encapsulation in the original transcript. -/
+theorem MessagePayloadInv.transport {ik : InitKey} {T T' : ℕ → EpochTranscript P}
+    {msg : Message P.Sym} (h : MessagePayloadInv auth ik T msg)
+    (hkeypair : ∀ kp, (T msg.epoch).keypair = some kp →
+      (T' msg.epoch).keypair = some kp)
+    (hencaps : ∀ c, (T msg.epoch).encaps1 = some c →
+      (T' msg.epoch).encaps1 = some c)
+    (hprev : transcriptAuth auth ik T' (msg.epoch - 1) =
+      transcriptAuth auth ik T (msg.epoch - 1))
+    (hcurrent : ∀ c, (T msg.epoch).encaps1 = some c →
+      transcriptAuth auth ik T' msg.epoch = transcriptAuth auth ik T msg.epoch) :
+    MessagePayloadInv auth ik T' msg := by
+  cases htype : msg.type <;> simp only [MessagePayloadInv, htype] at h ⊢
+  case none => exact h
+  case hdr =>
+    obtain ⟨pk, sk, i, hk, hd⟩ := h
+    exact ⟨pk, sk, i, hkeypair _ hk, by rw [hprev]; exact hd⟩
+  case ek =>
+    obtain ⟨pk, sk, i, hk, hd⟩ := h
+    exact ⟨pk, sk, i, hkeypair _ hk, hd⟩
+  case ekCt1Ack =>
+    obtain ⟨pk, sk, i, hk, hd⟩ := h
+    exact ⟨pk, sk, i, hkeypair _ hk, hd⟩
+  case ct1 =>
+    obtain ⟨es, ct1, key, i, hc, hd⟩ := h
+    exact ⟨es, ct1, key, i, hencaps _ hc, hd⟩
+  case ct2 =>
+    obtain ⟨pk, sk, es, ct1, key, i, hk, hc, hd⟩ := h
+    exact ⟨pk, sk, es, ct1, key, i, hkeypair _ hk, hencaps _ hc,
+      by rw [hcurrent _ hc]; exact hd⟩
 
 /-- The epoch-`e` key derived by decapsulating, with the key pair `(pk, sk)`, the ciphertext of
 the staged encapsulation `(encapsState, ct1)`, or `none` if decapsulation fails. -/
@@ -320,21 +365,23 @@ theorem peer_keysSampled_of_headerReceived {ik : InitKey} {T : ℕ → EpochTran
 
 /-! ### Transcript consistency of states that agree on the relevant fields -/
 
-/-- `TranscriptConsistent` depends on the game state only through the correctness flag, the
-control and pair invariants, the epochs, completed epochs and payload invariants of the two
-parties, the recorded messages and the key tables. -/
-theorem TranscriptConsistent.of_eq {ik : InitKey} {T : ℕ → EpochTranscript P}
+/-- A state is consistent with the same transcript when its epochs, completed epochs and key
+tables are unchanged, its local states and recorded messages agree with the transcript, and its
+correctness flag, control invariant and pair invariant hold. -/
+theorem TranscriptConsistent.of_fields {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s s' : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
     (hc : s'.correct = true) (hC : ControlInv s') (hP : StatePairInv s')
     (hA : s'.stA.epoch = s.stA.epoch) (hB : s'.stB.epoch = s.stB.epoch)
     (hcA : s'.stA.completedEpoch = s.stA.completedEpoch)
     (hcB : s'.stB.completedEpoch = s.stB.completedEpoch)
     (hLA : LocalPayloadInv auth ik T s'.stA) (hLB : LocalPayloadInv auth ik T s'.stB)
-    (hmA : s'.msgA = s.msgA) (hmB : s'.msgB = s.msgB)
+    (hMessages : ∀ (party : Bool) n msg tsnd,
+      (if party then s'.msgA else s'.msgB) n = some (msg, tsnd) →
+        MessagePayloadInv auth ik T msg)
     (hkA : s'.keyA = s.keyA) (hkB : s'.keyB = s.keyB) :
     TranscriptConsistent auth ik T s' := by
-  obtain ⟨-, -, -, h0k, h0e, hKeypair, hEncaps, -, -, hMessages, hKeys⟩ := hT
-  refine ⟨hc, hC, hP, h0k, h0e, ?_, ?_, hLA, hLB, ?_, ?_⟩
+  obtain ⟨-, -, -, h0k, h0e, hKeypair, hEncaps, -, -, -, hKeys⟩ := hT
+  refine ⟨hc, hC, hP, h0k, h0e, ?_, ?_, hLA, hLB, hMessages, ?_⟩
   · intro e pk sk hk
     obtain ⟨h0, hle⟩ := hKeypair e pk sk hk
     have h1 : (if e % 2 = 1 then s'.stA else s'.stB).epoch =
@@ -352,11 +399,6 @@ theorem TranscriptConsistent.of_eq {ik : InitKey} {T : ℕ → EpochTranscript P
     refine ⟨h0, by rw [h1]; exact hle, pk, sk, hkp, fun h => hdec ?_⟩
     rw [← h2]
     exact h
-  · intro party m msg tsnd hmsg
-    apply hMessages party m msg tsnd
-    cases party
-    · simpa [hmB] using hmsg
-    · simpa [hmA] using hmsg
   · intro party e
     have hK := hKeys party e
     cases party
@@ -366,5 +408,23 @@ theorem TranscriptConsistent.of_eq {ik : InitKey} {T : ℕ → EpochTranscript P
     · simp only [↓reduceIte] at hK ⊢
       rw [hkA, hcA]
       exact hK
+
+/-- `TranscriptConsistent.of_fields` when the recorded-message tables are unchanged. -/
+theorem TranscriptConsistent.of_eq {ik : InitKey} {T : ℕ → EpochTranscript P}
+    {s s' : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
+    (hc : s'.correct = true) (hC : ControlInv s') (hP : StatePairInv s')
+    (hA : s'.stA.epoch = s.stA.epoch) (hB : s'.stB.epoch = s.stB.epoch)
+    (hcA : s'.stA.completedEpoch = s.stA.completedEpoch)
+    (hcB : s'.stB.completedEpoch = s.stB.completedEpoch)
+    (hLA : LocalPayloadInv auth ik T s'.stA) (hLB : LocalPayloadInv auth ik T s'.stB)
+    (hmA : s'.msgA = s.msgA) (hmB : s'.msgB = s.msgB)
+    (hkA : s'.keyA = s.keyA) (hkB : s'.keyB = s.keyB) :
+    TranscriptConsistent auth ik T s' := by
+  refine hT.of_fields auth hc hC hP hA hB hcA hcB hLA hLB ?_ hkA hkB
+  intro party n msg tsnd hmsg
+  apply hT.messages party n msg tsnd
+  cases party
+  · simpa [hmB] using hmsg
+  · simpa [hmA] using hmsg
 
 end MLKEMBraid
