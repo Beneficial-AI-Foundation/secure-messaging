@@ -277,50 +277,32 @@ lemma oracleSendA_preserves_reachableInv
   intro _ s hs z hz
   rcases hs with ⟨T, hInv⟩
   have hknown := hInv.knownPrefixA (tcur := s.stA.t - 1) le_rfl
+  obtain ⟨out, hout, rfl⟩ := (SCKAScheme.mem_support_oracleSendA_run_iff _ s z).mp hz
   cases hdk : s.stA.dkA with
   | none =>
-      have hz' : ∃ pk sk,
+      have hout' : ∃ pk sk,
           (pk, sk) ∈ support kem.keygen ∧
           let ich := if s.stA.ack.ekRec then 0 else 1
           let ch? := if s.stA.ack.ekRec then none else some (ecEk.encode pk ich)
           let msg : Message Sym := (ch?, s.stA.ack, s.stA.t, none)
-          (some (s.stA.t - 1, none, msg),
-            { s with
-              stA := { s.stA with dkA := some sk, ekA := some pk, ich := ich }
-              tcurA := s.stA.t - 1
-              msgA := Function.update s.msgA (s.nA + 1)
-                (some (msg, s.stA.t - 1))
-              nA := s.nA + 1
-              correct := s.correct && decide (s.tcurA ≤ s.stA.t - 1) &&
-                (List.range (s.stA.t - 1 + 1)).all
-                  (fun t => t = 0 || (s.keyA t).isSome) }) = z := by
-        rw [SCKAScheme.oracleSendA, StateT.run_bind, StateT.run_get] at hz
-        simpa [scheme, sendA, hdk] using hz
-      obtain ⟨pk, sk, hmem, rfl⟩ := hz'
-      simpa [hknown] using
+          some (none, msg, s.stA.t - 1,
+            { s.stA with dkA := some sk, ekA := some pk, ich := ich }) = out := by
+        simpa [scheme, sendA, hdk] using hout
+      obtain ⟨pk, sk, hmem, rfl⟩ := hout'
+      simpa [SCKAScheme.sendAUpdate, SCKAScheme.knownPrefix, hknown] using
         reachableInv_after_sendA_new kem onoff ecEk ecCt0 ecCt1 hEkPos
           s T hInv pk sk hmem hdk
   | some sk =>
       have hekSome : s.stA.ekA.isSome := by simpa [hdk] using hInv.keypairAShape
       obtain ⟨pk, hek⟩ := Option.isSome_iff_exists.mp hekSome
-      have hz' :
+      have hout' :
           let ich := if s.stA.ack.ekRec then s.stA.ich else s.stA.ich + 1
           let ch? := if s.stA.ack.ekRec then none else some (ecEk.encode pk ich)
           let msg : Message Sym := (ch?, s.stA.ack, s.stA.t, none)
-          z = (some (s.stA.t - 1, none, msg),
-            { s with
-              stA := { s.stA with ich := ich }
-              tcurA := s.stA.t - 1
-              msgA := Function.update s.msgA (s.nA + 1)
-                (some (msg, s.stA.t - 1))
-              nA := s.nA + 1
-              correct := s.correct && decide (s.tcurA ≤ s.stA.t - 1) &&
-                (List.range (s.stA.t - 1 + 1)).all
-                  (fun t => t = 0 || (s.keyA t).isSome) }) := by
-        rw [SCKAScheme.oracleSendA, StateT.run_bind, StateT.run_get] at hz
-        simpa [scheme, sendA, hdk, hek] using hz
-      subst z
-      simpa [hknown] using
+          out = some (none, msg, s.stA.t - 1, { s.stA with ich := ich }) := by
+        simpa [scheme, sendA, hdk, hek] using hout
+      subst out
+      simpa [SCKAScheme.sendAUpdate, SCKAScheme.knownPrefix, hknown] using
         reachableInv_after_sendA_existing kem onoff ecEk ecCt0 ecCt1
           s T hInv pk sk hek hdk
 

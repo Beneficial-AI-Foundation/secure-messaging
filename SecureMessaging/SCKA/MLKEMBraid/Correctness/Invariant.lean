@@ -241,6 +241,14 @@ structure TranscriptConsistent (ik : InitKey) (T : ℕ → EpochTranscript P)
         (T e).encaps1.map (fun (_, _, key) => P.kdfOK key e)
       else none
 
+/-- The state of either party agrees with the transcript. -/
+theorem TranscriptConsistent.local {ik : InitKey} {T : ℕ → EpochTranscript P}
+    {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s) (party : Bool) :
+    LocalPayloadInv auth ik T (s.stateAt party) := by
+  cases party
+  · exact hT.localB
+  · exact hT.localA
+
 /-- Either the correctness flag is already false, or some transcript is consistent with the game
 state. -/
 def CorrectnessInv (ik : InitKey) (s : GameState P AuthState) : Prop :=
@@ -408,6 +416,20 @@ theorem TranscriptConsistent.of_fields {ik : InitKey} {T : ℕ → EpochTranscri
     · simp only [↓reduceIte] at hK ⊢
       rw [hkA, hcA]
       exact hK
+
+/-- Party-indexed form of `TranscriptConsistent.of_fields`. -/
+theorem TranscriptConsistent.of_party {ik : InitKey} {T : ℕ → EpochTranscript P}
+    {s s' : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
+    (hc : s'.correct = true) (hC : ControlInv s') (hP : StatePairInv s')
+    (he : ∀ party, (s'.stateAt party).epoch = (s.stateAt party).epoch)
+    (hcomp : ∀ party, (s'.stateAt party).completedEpoch = (s.stateAt party).completedEpoch)
+    (hLocal : ∀ party, LocalPayloadInv auth ik T (s'.stateAt party))
+    (hMessages : ∀ party n msg tsnd, s'.messagesAt party n = some (msg, tsnd) →
+      MessagePayloadInv auth ik T msg)
+    (hKeys : ∀ party, s'.keysAt party = s.keysAt party) :
+    TranscriptConsistent auth ik T s' :=
+  hT.of_fields auth hc hC hP (he true) (he false) (hcomp true) (hcomp false)
+    (hLocal true) (hLocal false) hMessages (hKeys true) (hKeys false)
 
 /-- `TranscriptConsistent.of_fields` when the recorded-message tables are unchanged. -/
 theorem TranscriptConsistent.of_eq {ik : InitKey} {T : ℕ → EpochTranscript P}

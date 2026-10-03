@@ -164,89 +164,91 @@ private theorem recv_correct_of_decaps_eq
       (((if party then SCKAScheme.oracleRecvA (scheme P auth irl sampleInitKey)
         else SCKAScheme.oracleRecvB (scheme P auth irl sampleInitKey)) n).run s)) :
     z.2.correct = true := by
-  -- `receive_recorded_payload` gives a successful receive whose output key agrees with the
-  -- peer. The report matches the recorded epoch, a new key is at an unused epoch, and the
-  -- completed epoch covers the known prefix.
   have hControl := hT.control
-  cases party
-  · change z ∈ support ((SCKAScheme.oracleRecvB (scheme P auth irl sampleInitKey) n).run s)
-      at hz
-    rcases oracleRecvB_run_cases auth irl sampleInitKey hz with
-      ⟨-, rfl⟩ | ⟨msg, tsnd, err, hentry, hraw, rfl⟩ | ⟨msg, tsnd, r, hentry, hraw, rfl⟩
-    · exact hT.correct
-    all_goals
-      obtain ⟨r₀, hr₀, hagree⟩ :=
-        (receive_recorded_payload auth hHdrCorrect hEkCorrect hCt1Correct hCt2Correct hT false n
-          msg tsnd hentry).2 hgood
-      simp only [Bool.false_eq_true, ↓reduceIte] at hr₀ hagree
-    · rw [hr₀] at hraw
-      cases hraw
-    rw [Except.ok.inj (hr₀.symm.trans hraw)] at hagree
-    have hr := hraw
-    have hrep : tsnd = msg.epoch - 1 := hControl.recordedReport.msgA n msg tsnd hentry
-    have hbound : msg.epoch ≤ s.stB.completedEpoch + 1 :=
-      (hControl.epochKnowledge.msgA n msg tsnd hentry).2.1
-    have htcur : s.tcurB ≤ s.stB.completedEpoch := hControl.epochKnowledge.tcurB_le
-    have hkeyB := hControl.epochKnowledge.keyPrefix.prefixB
-    have hmax : max s.tcurB (msg.epoch - 1) ≤ s.stB.completedEpoch := by omega
-    rcases hkey : r.outputKey with _ | ⟨tI, key⟩
-    · simp only [SCKAScheme.recvBUpdate, Bool.and_eq_true]
-      exact ⟨⟨hT.correct, by simp [hrep]⟩,
-        SCKAScheme.knownPrefix_eq_true fun t h0 hle => (hkeyB t).2 ⟨h0, hle.trans hmax⟩⟩
-    · have hstep := ((ReceiveEdge.of_eq_ok auth hr).completedEpoch
-        hControl.epochKnowledge.keyPrefix.posB).2
-      simp only [hkey] at hstep
-      obtain ⟨htI, -⟩ := hstep
-      have hnone : s.keyB tI = none := by
-        by_contra hne
-        have := ((hkeyB tI).1 hne).2
-        omega
-      have hpeer : s.keyA tI = some key := hagree tI key hkey
-      simp only [SCKAScheme.recvBUpdate, Bool.and_eq_true]
-      refine ⟨⟨⟨⟨hT.correct, by simp [hrep]⟩, by simp [hnone]⟩, by simp [hpeer]⟩,
-        SCKAScheme.knownPrefix_eq_true fun t h0 hle => ?_⟩
-      have hle' := hle.trans hmax
-      rw [Function.update_of_ne (by omega)]
-      exact (hkeyB t).2 ⟨h0, hle'⟩
-  · change z ∈ support ((SCKAScheme.oracleRecvA (scheme P auth irl sampleInitKey) n).run s)
-      at hz
-    rcases oracleRecvA_run_cases auth irl sampleInitKey hz with
-      ⟨-, rfl⟩ | ⟨msg, tsnd, err, hentry, hraw, rfl⟩ | ⟨msg, tsnd, r, hentry, hraw, rfl⟩
-    · exact hT.correct
-    all_goals
-      obtain ⟨r₀, hr₀, hagree⟩ :=
-        (receive_recorded_payload auth hHdrCorrect hEkCorrect hCt1Correct hCt2Correct hT true n
-          msg tsnd hentry).2 hgood
-      simp only [↓reduceIte] at hr₀ hagree
-    · rw [hr₀] at hraw
-      cases hraw
-    rw [Except.ok.inj (hr₀.symm.trans hraw)] at hagree
-    have hr := hraw
-    have hrep : tsnd = msg.epoch - 1 := hControl.recordedReport.msgB n msg tsnd hentry
-    have hbound : msg.epoch ≤ s.stA.completedEpoch + 1 :=
-      (hControl.epochKnowledge.msgB n msg tsnd hentry).2.1
-    have htcur : s.tcurA ≤ s.stA.completedEpoch := hControl.epochKnowledge.tcurA_le
-    have hkeyA := hControl.epochKnowledge.keyPrefix.prefixA
-    have hmax : max s.tcurA (msg.epoch - 1) ≤ s.stA.completedEpoch := by omega
-    rcases hkey : r.outputKey with _ | ⟨tI, key⟩
-    · simp only [SCKAScheme.recvAUpdate, Bool.and_eq_true]
-      exact ⟨⟨hT.correct, by simp [hrep]⟩,
-        SCKAScheme.knownPrefix_eq_true fun t h0 hle => (hkeyA t).2 ⟨h0, hle.trans hmax⟩⟩
-    · have hstep := ((ReceiveEdge.of_eq_ok auth hr).completedEpoch
-        hControl.epochKnowledge.keyPrefix.posA).2
-      simp only [hkey] at hstep
-      obtain ⟨htI, -⟩ := hstep
-      have hnone : s.keyA tI = none := by
-        by_contra hne
-        have := ((hkeyA tI).1 hne).2
-        omega
-      have hpeer : s.keyB tI = some key := hagree tI key hkey
-      simp only [SCKAScheme.recvAUpdate, Bool.and_eq_true]
-      refine ⟨⟨⟨⟨hT.correct, by simp [hrep]⟩, by simp [hnone]⟩, by simp [hpeer]⟩,
-        SCKAScheme.knownPrefix_eq_true fun t h0 hle => ?_⟩
-      have hle' := hle.trans hmax
-      rw [Function.update_of_ne (by omega)]
-      exact (hkeyA t).2 ⟨h0, hle'⟩
+  rcases oracleRecv_run_cases auth irl sampleInitKey party hz with
+    ⟨-, rfl⟩ | ⟨msg, tsnd, err, hentry, hraw, rfl⟩ | ⟨msg, tsnd, r, hentry, hraw, rfl⟩
+  · exact hT.correct
+  all_goals
+    have hentry' : (if party then s.msgB else s.msgA) n = some (msg, tsnd) := by
+      cases party <;> exact hentry
+    obtain ⟨r₀, hr₀, hagree⟩ :=
+      (receive_recorded_payload auth hHdrCorrect hEkCorrect hCt1Correct hCt2Correct hT party n
+        msg tsnd hentry').2 hgood
+    change receive P auth (s.stateAt party) msg = .ok r₀ at hr₀
+  · rw [hr₀] at hraw
+    cases hraw
+  rw [Except.ok.inj (hr₀.symm.trans hraw)] at hagree
+  have hrep : tsnd = msg.epoch - 1 := by
+    cases party
+    · exact hControl.recordedReport.msgA n msg tsnd hentry
+    · exact hControl.recordedReport.msgB n msg tsnd hentry
+  have hbound : msg.epoch ≤ (s.stateAt party).completedEpoch + 1 := by
+    cases party
+    · exact (hControl.epochKnowledge.msgA n msg tsnd hentry).2.1
+    · exact (hControl.epochKnowledge.msgB n msg tsnd hentry).2.1
+  have htcur : s.tcurAt party ≤ (s.stateAt party).completedEpoch := by
+    cases party
+    · exact hControl.epochKnowledge.tcurB_le
+    · exact hControl.epochKnowledge.tcurA_le
+  have hprefix : ∀ t, s.keysAt party t ≠ none ↔
+      0 < t ∧ t ≤ (s.stateAt party).completedEpoch := by
+    cases party
+    · exact hControl.epochKnowledge.keyPrefix.prefixB
+    · exact hControl.epochKnowledge.keyPrefix.prefixA
+  have hmax : max (s.tcurAt party) (msg.epoch - 1) ≤ (s.stateAt party).completedEpoch := by omega
+  rw [recvUpdate_correct]
+  rcases hkey : r.outputKey with _ | ⟨tI, key⟩
+  · simp only [Bool.and_eq_true]
+    exact ⟨⟨hT.correct, by simp [hrep]⟩,
+      SCKAScheme.knownPrefix_eq_true fun t h0 hle => (hprefix t).2 ⟨h0, hle.trans hmax⟩⟩
+  · have hpos : 0 < (s.stateAt party).epoch := by
+      cases party
+      · exact hControl.epochKnowledge.keyPrefix.posB
+      · exact hControl.epochKnowledge.keyPrefix.posA
+    have hstep := ((ReceiveEdge.of_eq_ok auth hraw).completedEpoch hpos).2
+    simp only [hkey] at hstep
+    obtain ⟨htI, -⟩ := hstep
+    have hnone : s.keysAt party tI = none := by
+      by_contra hne
+      have := ((hprefix tI).1 hne).2
+      omega
+    have hpeer : s.keysAt (!party) tI = some key := by
+      cases party <;> exact hagree tI key hkey
+    simp only [Bool.and_eq_true]
+    refine ⟨⟨⟨⟨hT.correct, by simp [hrep]⟩, by simp [hnone]⟩, by simp [hpeer]⟩,
+      SCKAScheme.knownPrefix_eq_true fun t h0 hle => ?_⟩
+    have hle' := hle.trans hmax
+    rw [Function.update_of_ne (by omega)]
+    exact (hprefix t).2 ⟨h0, hle'⟩
+
+omit [DecidableEq P.K] [DecidableEq P.EpochKey] [DecidableEq P.Sym] in
+/-- The control bound and key-prefix condition of either party. -/
+private theorem send_prefix {s : GameState P AuthState} (hControl : ControlInv s)
+    (party : Bool) :
+    s.tcurAt party ≤ (s.stateAt party).epoch - 1 ∧
+      ∀ t, 0 < t → t ≤ (s.stateAt party).epoch - 1 → s.keysAt party t ≠ none := by
+  have hcur : s.tcurAt party ≤ (s.stateAt party).epoch - 1 := by
+    cases party
+    · exact hControl.tcurB_le_sub_one
+    · exact hControl.tcurA_le_sub_one
+  refine ⟨hcur, fun t h0 hle => ?_⟩
+  have hprefix : s.keysAt party t ≠ none ↔
+      0 < t ∧ t ≤ (s.stateAt party).completedEpoch := by
+    cases party
+    · exact hControl.epochKnowledge.keyPrefix.prefixB t
+    · exact hControl.epochKnowledge.keyPrefix.prefixA t
+  exact hprefix.2 ⟨h0, hle.trans (s.stateAt party).epoch_sub_one_le_completedEpoch⟩
+
+omit [DecidableEq P.Sym] in
+/-- Identify the generator and encapsulator from their roles, for either ordering of the parties. -/
+private theorem currentEpochFailure_eq_pair
+    (s : GameState P AuthState) (party : Bool)
+    (hgen : (s.stateAt party).controlPosition.isGenerator = true)
+    (henc : (s.stateAt (!party)).controlPosition.isGenerator = false) :
+    currentEpochFailure s =
+      if (s.stateAt party).epoch ≠ (s.stateAt (!party)).epoch then 0
+      else pairFailure (s.stateAt party) (s.stateAt (!party)) (s.keysAt (!party)) := by
+  cases party <;> simp_all [currentEpochFailure, GameState.stateAt, GameState.keysAt]
 
 /-- A send that samples a key pair has expected potential equal to the KEM correctness error. -/
 private theorem expectedPayoff_failurePotential_send_keysUnsampled
@@ -258,61 +260,28 @@ private theorem expectedPayoff_failurePotential_send_keysUnsampled
           else SCKAScheme.oracleSendB (scheme P auth irl sampleInitKey)) ()).run s)
         (fun z => failurePotential z.2) =
       P.kem.correctnessError ProbCompRuntime.probComp := by
-  -- Every sampled key pair keeps the flag true and gives potential `decapsFailureProb` of that
-  -- pair; its average over key generation is the correctness error.
   obtain ⟨b, dec, hpeer⟩ := peer_noHeaderReceived_of_keysUnsampled auth hT party hst
-  have hcorr : s.correct = true := hT.correct
-  have hControl := hT.control
-  rw [← P.inc.expectedPayoff_keygen_decapsFailureProb P.hDet P.hEnc2]
-  cases party
-  · simp only [Bool.false_eq_true, ↓reduceIte] at hst hpeer ⊢
-    have htcur : s.tcurB ≤ e - 1 := by
-      have h := hControl.tcurB_le_sub_one
-      rw [hst] at h
-      exact h
-    have hkeys : ∀ t, 0 < t → t ≤ e - 1 → s.keyB t ≠ none := by
-      intro t h0 hle
-      refine (hControl.epochKnowledge.keyPrefix.prefixB t).2 ⟨h0, ?_⟩
-      rw [hst]
-      exact hle
-    rw [oracleSendB_run_eq auth irl sampleInitKey, expectedPayoff_map, hst,
-      send_keysUnsampled_eq, expectedPayoff_map]
-    congr 1
-    funext kp
-    obtain ⟨pk, sk⟩ := kp
-    simp only [SCKAScheme.sendBUpdate]
-    unfold failurePotential
-    split_ifs with hflag
-    · simp [currentEpochFailure, pairFailure, hpeer, State.controlPosition, State.epoch,
-        EncoderState.nextChunk, EncoderState.init]
-    · exfalso
-      apply hflag
-      simp only [Bool.and_eq_true, decide_eq_true_eq]
-      exact ⟨⟨hcorr, htcur⟩, SCKAScheme.knownPrefix_eq_true hkeys⟩
-  · simp only [↓reduceIte] at hst hpeer ⊢
-    have htcur : s.tcurA ≤ e - 1 := by
-      have h := hControl.tcurA_le_sub_one
-      rw [hst] at h
-      exact h
-    have hkeys : ∀ t, 0 < t → t ≤ e - 1 → s.keyA t ≠ none := by
-      intro t h0 hle
-      refine (hControl.epochKnowledge.keyPrefix.prefixA t).2 ⟨h0, ?_⟩
-      rw [hst]
-      exact hle
-    rw [oracleSendA_run_eq auth irl sampleInitKey, expectedPayoff_map, hst,
-      send_keysUnsampled_eq, expectedPayoff_map]
-    congr 1
-    funext kp
-    obtain ⟨pk, sk⟩ := kp
-    simp only [SCKAScheme.sendAUpdate]
-    unfold failurePotential
-    split_ifs with hflag
-    · simp [currentEpochFailure, pairFailure, hpeer, State.controlPosition, State.epoch,
-        EncoderState.nextChunk, EncoderState.init]
-    · exfalso
-      apply hflag
-      simp only [Bool.and_eq_true, decide_eq_true_eq]
-      exact ⟨⟨hcorr, htcur⟩, SCKAScheme.knownPrefix_eq_true hkeys⟩
+  change s.stateAt party = .keysUnsampled e a at hst
+  have hpeer : s.stateAt (!party) = .noHeaderReceived e b dec := by
+    cases party <;> exact hpeer
+  obtain ⟨htcur, hkeys⟩ := send_prefix hT.control party
+  rw [hst] at htcur hkeys
+  rw [← P.inc.expectedPayoff_keygen_decapsFailureProb P.hDet P.hEnc2,
+    oracleSend_run_eq auth irl sampleInitKey, expectedPayoff_map, hst,
+    send_keysUnsampled_eq, expectedPayoff_map]
+  congr 1
+  funext kp
+  obtain ⟨pk, sk⟩ := kp
+  dsimp only [Function.comp_def]
+  have hflag : (s.correct && decide (s.tcurAt party ≤ e - 1) &&
+      SCKAScheme.knownPrefix (s.keysAt party) (e - 1)) = true := by
+    simp only [Bool.and_eq_true, decide_eq_true_eq]
+    exact ⟨⟨hT.correct, htcur⟩, SCKAScheme.knownPrefix_eq_true hkeys⟩
+  simp only [failurePotential, sendUpdate_correct, hflag, if_true]
+  rw [currentEpochFailure_eq_pair _ party]
+  · simp [hpeer, pairFailure, State.epoch, EncoderState.nextChunk, EncoderState.init]
+  · simp [State.controlPosition]
+  · simp [hpeer, State.controlPosition]
 
 /-- Encapsulating against the recorded key pair has expected potential at most
 `currentEpochFailure`. -/
@@ -326,117 +295,66 @@ private theorem expectedPayoff_failurePotential_send_headerReceived_le
           else SCKAScheme.oracleSendB (scheme P auth irl sampleInitKey)) ()).run s)
         (fun z => failurePotential z.2) ≤
       currentEpochFailure s := by
-  -- `currentEpochFailure` is `decapsFailureProb` of the recorded key pair. Each encapsulation
-  -- keeps the flag true and gives potential `derivedKeyFailure`, which is at most the failure of
-  -- decapsulation (`derivedKeyFailure_le`).
   obtain ⟨pk, sk, b, enc, hkpT, hpeer, hhdr⟩ := peer_keysSampled_of_headerReceived auth hT party hst
   subst hhdr
-  have hcorr : s.correct = true := hT.correct
-  have hControl := hT.control
-  have hLocal : LocalPayloadInv auth ik T (if party then s.stA else s.stB) := by
-    cases party
-    · exact hT.localB
-    · exact hT.localA
-  rw [hst] at hLocal
-  simp only [LocalPayloadInv] at hLocal
-  obtain ⟨-, hc0, -⟩ := hLocal
-  have hep : s.stA.epoch = e ∧ s.stB.epoch = e := by
-    cases party
-    · exact ⟨congrArg State.epoch hpeer, congrArg State.epoch hst⟩
-    · exact ⟨congrArg State.epoch hst, congrArg State.epoch hpeer⟩
+  change s.stateAt party = .headerReceived e a (P.inc.toHeader pk) dec at hst
+  have hpeer : s.stateAt (!party) = .keysSampled e b sk (P.inc.toVector pk) enc := by
+    cases party <;> exact hpeer
   have hΦ : currentEpochFailure s =
       P.inc.decapsFailureProb P.hDet P.hEnc2 (P.inc.toHeader pk) (P.inc.toVector pk) sk := by
-    rw [currentEpochFailure_eq_transcript auth hT, if_pos (hep.1.trans hep.2.symm)]
-    simp only [hep.1, hkpT, hc0]
+    rw [currentEpochFailure_eq_pair s (!party)]
+    · have hLocal := hT.local auth (!party)
+      rw [hpeer] at hLocal
+      obtain ⟨-, pk', hkp', -, -, hpayload⟩ := hLocal
+      have hpk : pk' = pk := congrArg Prod.fst (Option.some.inj (hkp'.symm.trans hkpT))
+      subst hpk
+      simp [hpeer, hst, pairFailure, State.epoch, hpayload]
+    · simp [hpeer, State.controlPosition]
+    · simp [hst, State.controlPosition]
+  obtain ⟨htcur, hkeys⟩ := send_prefix hT.control party
+  rw [hst] at htcur hkeys
+  have hnone : ∀ who, s.keysAt who e = none := by
+    intro who
+    have hprefix : s.keysAt who e ≠ none ↔
+        0 < e ∧ e ≤ (s.stateAt who).completedEpoch := by
+      cases who
+      · exact hT.control.epochKnowledge.keyPrefix.prefixB e
+      · exact hT.control.epochKnowledge.keyPrefix.prefixA e
+    by_contra hne
+    obtain ⟨hpos, hbound⟩ := hprefix.1 hne
+    by_cases hw : who = party
+    · subst hw
+      rw [hst] at hbound
+      change e ≤ e - 1 at hbound
+      omega
+    · have hw : who = !party := by cases who <;> cases party <;> simp_all
+      subst hw
+      rw [hpeer] at hbound
+      change e ≤ e - 1 at hbound
+      omega
   rw [hΦ]
   unfold KEMScheme.IncrementalStructure.decapsFailureProb
-  cases party
-  · simp only [Bool.false_eq_true, ↓reduceIte] at hst hpeer ⊢
-    have hpos : 0 < e := by
-      have h := hControl.epochKnowledge.keyPrefix.posB
-      rw [hst] at h
-      exact h
-    have htcur : s.tcurB ≤ e - 1 := by
-      have h := hControl.tcurB_le_sub_one
-      rw [hst] at h
-      exact h
-    have hBnone : s.keyB e = none := by
-      by_contra hne
-      have h := ((hControl.epochKnowledge.keyPrefix.prefixB e).1 hne).2
-      rw [hst] at h
-      change e ≤ e - 1 at h
-      omega
-    have hAnone : s.keyA e = none := by
-      by_contra hne
-      have h := ((hControl.epochKnowledge.keyPrefix.prefixA e).1 hne).2
-      rw [hpeer] at h
-      change e ≤ e - 1 at h
-      omega
-    have hkeys : ∀ t, 0 < t → t ≤ e - 1 → s.keyB t ≠ none := by
-      intro t h0 hle
-      refine (hControl.epochKnowledge.keyPrefix.prefixB t).2 ⟨h0, ?_⟩
-      rw [hst]
-      exact hle
-    rw [oracleSendB_run_eq auth irl sampleInitKey, expectedPayoff_map, hst,
-      send_headerReceived_eq, expectedPayoff_map]
-    refine expectedPayoff_mono _ _ _ fun c => ?_
-    obtain ⟨es, ct1, k⟩ := c
-    simp only [SCKAScheme.sendBUpdate]
-    have hd := derivedKeyFailure_le e pk sk es ct1 k
-    refine le_trans (le_of_eq ?_) hd
-    unfold failurePotential
-    split_ifs with hflag
-    · simp [currentEpochFailure, pairFailure, hpeer, State.controlPosition, State.epoch]
-    · exfalso
-      apply hflag
-      simp only [Bool.and_eq_true, decide_eq_true_eq]
-      refine ⟨⟨⟨⟨hcorr, htcur⟩, by simp [hBnone]⟩, by simp [hAnone]⟩,
-        SCKAScheme.knownPrefix_eq_true fun t h0 hle => ?_⟩
-      rw [Function.update_of_ne (by omega)]
-      exact hkeys t h0 hle
-  · simp only [↓reduceIte] at hst hpeer ⊢
-    have hpos : 0 < e := by
-      have h := hControl.epochKnowledge.keyPrefix.posA
-      rw [hst] at h
-      exact h
-    have htcur : s.tcurA ≤ e - 1 := by
-      have h := hControl.tcurA_le_sub_one
-      rw [hst] at h
-      exact h
-    have hAnone : s.keyA e = none := by
-      by_contra hne
-      have h := ((hControl.epochKnowledge.keyPrefix.prefixA e).1 hne).2
-      rw [hst] at h
-      change e ≤ e - 1 at h
-      omega
-    have hBnone : s.keyB e = none := by
-      by_contra hne
-      have h := ((hControl.epochKnowledge.keyPrefix.prefixB e).1 hne).2
-      rw [hpeer] at h
-      change e ≤ e - 1 at h
-      omega
-    have hkeys : ∀ t, 0 < t → t ≤ e - 1 → s.keyA t ≠ none := by
-      intro t h0 hle
-      refine (hControl.epochKnowledge.keyPrefix.prefixA t).2 ⟨h0, ?_⟩
-      rw [hst]
-      exact hle
-    rw [oracleSendA_run_eq auth irl sampleInitKey, expectedPayoff_map, hst,
-      send_headerReceived_eq, expectedPayoff_map]
-    refine expectedPayoff_mono _ _ _ fun c => ?_
-    obtain ⟨es, ct1, k⟩ := c
-    simp only [SCKAScheme.sendAUpdate]
-    have hd := derivedKeyFailure_le e pk sk es ct1 k
-    refine le_trans (le_of_eq ?_) hd
-    unfold failurePotential
-    split_ifs with hflag
-    · simp [currentEpochFailure, pairFailure, hpeer, State.controlPosition, State.epoch]
-    · exfalso
-      apply hflag
-      simp only [Bool.and_eq_true, decide_eq_true_eq]
-      refine ⟨⟨⟨⟨hcorr, htcur⟩, by simp [hAnone]⟩, by simp [hBnone]⟩,
-        SCKAScheme.knownPrefix_eq_true fun t h0 hle => ?_⟩
-      rw [Function.update_of_ne (by omega)]
-      exact hkeys t h0 hle
+  rw [oracleSend_run_eq auth irl sampleInitKey, expectedPayoff_map, hst,
+    send_headerReceived_eq, expectedPayoff_map]
+  refine expectedPayoff_mono _ _ _ fun c => ?_
+  obtain ⟨es, ct1, k⟩ := c
+  dsimp only [Function.comp_def]
+  have hflag : (s.correct && decide (s.tcurAt party ≤ e - 1) &&
+      (s.keysAt party e).isNone &&
+      ((s.keysAt (!party) e).isNone || s.keysAt (!party) e == some (P.kdfOK k e)) &&
+      SCKAScheme.knownPrefix
+        (Function.update (s.keysAt party) e (some (P.kdfOK k e))) (e - 1)) = true := by
+    simp only [Bool.and_eq_true, decide_eq_true_eq]
+    refine ⟨⟨⟨⟨hT.correct, htcur⟩, by simp [hnone]⟩, by simp [hnone]⟩,
+      SCKAScheme.knownPrefix_eq_true fun t h0 hle => ?_⟩
+    rw [Function.update_of_ne (by omega)]
+    exact hkeys t h0 hle
+  refine le_trans (le_of_eq ?_) (derivedKeyFailure_le e pk sk es ct1 k)
+  simp only [failurePotential, sendUpdate_correct, hflag, if_true]
+  rw [currentEpochFailure_eq_pair _ (!party)]
+  · simp [hpeer, pairFailure, State.epoch]
+  · simp [hpeer, State.controlPosition]
+  · simp [State.controlPosition]
 
 /-- A send that samples nothing keeps the flag true and `currentEpochFailure` unchanged. -/
 private theorem send_correct_and_currentEpochFailure_eq
@@ -448,68 +366,33 @@ private theorem send_correct_and_currentEpochFailure_eq
       (((if party then SCKAScheme.oracleSendA (scheme P auth irl sampleInitKey)
         else SCKAScheme.oracleSendB (scheme P auth irl sampleInitKey)) ()).run s)) :
     z.2.correct = true ∧ currentEpochFailure z.2 = currentEpochFailure s := by
-  -- The sender only advances an encoder or keeps its state, emits no key, and reports the
-  -- epoch before its current one.
-  have hcorr : s.correct = true := hT.correct
-  have hControl := hT.control
-  cases party
-  · simp only [Bool.false_eq_true, ↓reduceIte] at hsteady hz
-    have htcur : s.tcurB ≤ s.stB.epoch - 1 := hControl.tcurB_le_sub_one
-    have hkeys : ∀ t, 0 < t → t ≤ s.stB.epoch - 1 → s.keyB t ≠ none := fun t h0 hle =>
-      (hControl.epochKnowledge.keyPrefix.prefixB t).2
-        ⟨h0, hle.trans s.stB.epoch_sub_one_le_completedEpoch⟩
-    obtain ⟨r, hr, rfl⟩ := (mem_support_oracleSendB_run_iff auth irl sampleInitKey s z).mp hz
-    have hedge := (mem_support_send_iff auth).mp hr
-    have hsend : r.sendingEpoch = s.stB.epoch - 1 := hedge.sendingEpoch_eq
-    -- The sender's state keeps its constructor, so the pair of states keeps its failure value.
-    have hshape : r.outputKey = none ∧
-        ∀ s0 : GameState P AuthState,
-          s0.stA = s.stA → s0.keyA = s.keyA → s0.keyB = s.keyB → s0.stB = r.state →
-            currentEpochFailure s0 = currentEpochFailure s := by
-      cases hB : s.stB
-      all_goals try simp [hB, State.SendsNoSample] at hsteady
-      all_goals rw [hB] at hedge
-      all_goals cases hedge
-      all_goals refine ⟨rfl, fun s0 hA0 hkA hkB hB0 => ?_⟩
-      all_goals unfold currentEpochFailure pairFailure
-      all_goals rw [hA0, hkA, hkB, hB0, hB]
-      all_goals first
-        | rfl
-        | (cases s.stA <;>
-            simp [State.controlPosition, State.epoch, EncoderState.nextChunk])
-    simp only [SCKAScheme.sendBUpdate, hshape.1]
-    refine ⟨?_, hshape.2 _ rfl rfl rfl rfl⟩
+  obtain ⟨r, hr, rfl⟩ := (mem_support_oracleSend_run_iff auth irl sampleInitKey s party z).mp hz
+  have hedge := (mem_support_send_iff auth).mp hr
+  obtain ⟨htcur, hkeys⟩ := send_prefix hT.control party
+  change (s.stateAt party).SendsNoSample at hsteady
+  have hkey : r.outputKey = none := hedge.outputKey_eq_none fun e a hdr dec hst => by
+    rw [hst] at hsteady
+    exact hsteady
+  have hzc : (sendUpdate s party r).correct = true := by
+    rw [sendUpdate_correct, hkey, hedge.sendingEpoch_eq]
     simp only [Bool.and_eq_true, decide_eq_true_eq]
-    rw [hsend]
-    exact ⟨⟨hcorr, htcur⟩, SCKAScheme.knownPrefix_eq_true hkeys⟩
-  · simp only [↓reduceIte] at hsteady hz
-    have htcur : s.tcurA ≤ s.stA.epoch - 1 := hControl.tcurA_le_sub_one
-    have hkeys : ∀ t, 0 < t → t ≤ s.stA.epoch - 1 → s.keyA t ≠ none := fun t h0 hle =>
-      (hControl.epochKnowledge.keyPrefix.prefixA t).2
-        ⟨h0, hle.trans s.stA.epoch_sub_one_le_completedEpoch⟩
-    obtain ⟨r, hr, rfl⟩ := (mem_support_oracleSendA_run_iff auth irl sampleInitKey s z).mp hz
-    have hedge := (mem_support_send_iff auth).mp hr
-    have hsend : r.sendingEpoch = s.stA.epoch - 1 := hedge.sendingEpoch_eq
-    have hshape : r.outputKey = none ∧
-        ∀ s0 : GameState P AuthState,
-          s0.stB = s.stB → s0.keyA = s.keyA → s0.keyB = s.keyB → s0.stA = r.state →
-            currentEpochFailure s0 = currentEpochFailure s := by
-      cases hA : s.stA
-      all_goals try simp [hA, State.SendsNoSample] at hsteady
-      all_goals rw [hA] at hedge
-      all_goals cases hedge
-      all_goals refine ⟨rfl, fun s0 hB0 hkA hkB hA0 => ?_⟩
-      all_goals unfold currentEpochFailure pairFailure
-      all_goals rw [hB0, hkA, hkB, hA0, hA]
-      all_goals first
-        | rfl
-        | (cases s.stB <;>
-            simp [State.controlPosition, State.epoch, EncoderState.nextChunk])
-    simp only [SCKAScheme.sendAUpdate, hshape.1]
-    refine ⟨?_, hshape.2 _ rfl rfl rfl rfl⟩
-    simp only [Bool.and_eq_true, decide_eq_true_eq]
-    rw [hsend]
-    exact ⟨⟨hcorr, htcur⟩, SCKAScheme.knownPrefix_eq_true hkeys⟩
+    exact ⟨⟨hT.correct, htcur⟩, SCKAScheme.knownPrefix_eq_true hkeys⟩
+  refine ⟨hzc, ?_⟩
+  have hCP := oracleSend_preserves_controlInv_statePairInv auth irl sampleInitKey party
+    () s ⟨hT.control, hT.statePair⟩ _
+    ((mem_support_oracleSend_run_iff auth irl sampleInitKey s party _).2 ⟨r, hr, rfl⟩)
+  have hup := sendUpdate_eq_successor_of_correct s party r hT.correct hzc
+  rw [hup] at hCP ⊢
+  have hTz := send_existing_transcript auth hT party hr hsteady hCP
+  rw [currentEpochFailure_eq_transcript auth hTz, currentEpochFailure_eq_transcript auth hT]
+  have hEpoch : ∀ who, ((sendSuccessor s party r).stateAt who).epoch = (s.stateAt who).epoch := by
+    intro who
+    by_cases hw : who = party
+    · subst hw
+      simpa using hedge.epoch_eq.1
+    · simp [hw]
+  rw [show (sendSuccessor s party r).stA.epoch = s.stA.epoch from hEpoch true,
+    show (sendSuccessor s party r).stB.epoch = s.stB.epoch from hEpoch false]
 
 /-- A successful receive that keeps both epochs does not raise `currentEpochFailure`. -/
 private theorem recv_currentEpochFailure_le_of_epochs_eq
@@ -531,6 +414,31 @@ private theorem recv_currentEpochFailure_le_of_epochs_eq
   rw [currentEpochFailure_eq_transcript auth hTz, currentEpochFailure_eq_transcript auth hT,
     hepA, hepB]
 
+omit [DecidableEq P.Sym] in
+/-- Compute the transcript potential using either party's epoch. -/
+private theorem currentEpochFailure_eq_transcript_party
+    {ik : InitKey} {T : ℕ → EpochTranscript P} {s : GameState P AuthState}
+    (hT : TranscriptConsistent auth ik T s) (party : Bool) :
+    currentEpochFailure s =
+      if (s.stateAt party).epoch = (s.stateAt (!party)).epoch then
+        let e := (s.stateAt party).epoch
+        match (T e).keypair, (T e).encaps1 with
+        | none, _ => 0
+        | some (pk, sk), none =>
+            P.inc.decapsFailureProb P.hDet P.hEnc2 (P.inc.toHeader pk) (P.inc.toVector pk) sk
+        | some (pk, sk), some (encapsState, ct1, key) =>
+            derivedKeyFailure e sk ct1
+              (P.hEnc2.encaps2Det encapsState (P.inc.toHeader pk) (P.inc.toVector pk))
+              (P.kdfOK key e)
+      else 0 := by
+  rw [currentEpochFailure_eq_transcript auth hT]
+  cases party
+  · by_cases heq : s.stA.epoch = s.stB.epoch
+    · simp [GameState.stateAt, heq]
+      rfl
+    · simp [GameState.stateAt, heq, Ne.symm heq]
+  · rfl
+
 /-- A successful receive that changes an epoch leaves `currentEpochFailure` equal to `0`. -/
 private theorem recv_currentEpochFailure_eq_zero_of_epoch_ne
     (hHdrCorrect : P.ecpHdr.ec.Correct)
@@ -546,76 +454,49 @@ private theorem recv_currentEpochFailure_eq_zero_of_epoch_ne
     (hzc : z.2.correct = true)
     (hchange : z.2.stA.epoch ≠ s.stA.epoch ∨ z.2.stB.epoch ≠ s.stB.epoch) :
     currentEpochFailure z.2 = 0 := by
-  -- Only the receiver moves. Finishing `ct₂` leaves the receiver one epoch ahead of its peer.
-  -- A next-epoch message leaves the new generator with no sampled key pair.
   have hTz := oracleRecv_preserves_transcriptConsistent auth irl sampleInitKey hHdrCorrect
     hEkCorrect hCt1Correct hCt2Correct hT party n z hz hzc
-  rw [currentEpochFailure_eq_transcript auth hTz]
-  cases party
-  · change z ∈ support ((SCKAScheme.oracleRecvB (scheme P auth irl sampleInitKey) n).run s)
-      at hz
-    rcases oracleRecvB_run_cases auth irl sampleInitKey hz with
-      ⟨-, rfl⟩ | ⟨msg, tsnd, err, -, -, rfl⟩ | ⟨msg, tsnd, r, hentry, hraw, hzeq⟩
-    · simp at hchange
-    · cases hzc
-    have hedge := ReceiveEdge.of_eq_ok auth hraw
-    have hzAB : z.2.stA = s.stA ∧ z.2.stB = r.state := by
-      rw [hzeq]
-      rcases r.outputKey with _ | ⟨tI, key⟩ <;> simp [SCKAScheme.recvBUpdate]
-    obtain ⟨hzA, hzB⟩ := hzAB
-    have hne : r.state.epoch ≠ s.stB.epoch := by
-      rcases hchange with h | h
-      · exact absurd (congrArg State.epoch hzA) h
-      · rwa [hzB] at h
-    split_ifs with hzep
-    · rcases hedge.advance hne with ⟨-, -, a', hks⟩ | ⟨hgen, -, -, a', dec', hnh⟩
-      · -- The receiver generates the next epoch and has not sampled its key pair.
-        have hLB := hTz.localB
-        rw [hzB, hks] at hLB
-        simp only [LocalPayloadInv] at hLB
-        obtain ⟨-, hkp0, -⟩ := hLB
-        have he : z.2.stA.epoch = s.stB.epoch + 1 :=
-          hzep.trans ((congrArg State.epoch hzB).trans (congrArg State.epoch hks))
-        simp only [he, hkp0]
-      · -- A key generator one epoch ahead of its peer contradicts the pair invariant.
-        exfalso
-        have h1 : s.stA.epoch = s.stB.epoch + 1 :=
-          ((congrArg State.epoch hzA).symm.trans hzep).trans
-            ((congrArg State.epoch hzB).trans (congrArg State.epoch hnh))
-        rw [(hT.statePair.2.2 h1).1] at hgen
-        simp at hgen
-    · rfl
-  · change z ∈ support ((SCKAScheme.oracleRecvA (scheme P auth irl sampleInitKey) n).run s)
-      at hz
-    rcases oracleRecvA_run_cases auth irl sampleInitKey hz with
-      ⟨-, rfl⟩ | ⟨msg, tsnd, err, -, -, rfl⟩ | ⟨msg, tsnd, r, hentry, hraw, hzeq⟩
-    · simp at hchange
-    · cases hzc
-    have hedge := ReceiveEdge.of_eq_ok auth hraw
-    have hzAB : z.2.stA = r.state ∧ z.2.stB = s.stB := by
-      rw [hzeq]
-      rcases r.outputKey with _ | ⟨tI, key⟩ <;> simp [SCKAScheme.recvAUpdate]
-    obtain ⟨hzA, hzB⟩ := hzAB
-    have hne : r.state.epoch ≠ s.stA.epoch := by
-      rcases hchange with h | h
-      · rwa [hzA] at h
-      · exact absurd (congrArg State.epoch hzB) h
-    split_ifs with hzep
-    · rcases hedge.advance hne with ⟨-, -, a', hks⟩ | ⟨hgen, -, -, a', dec', hnh⟩
-      · have hLA := hTz.localA
-        rw [hzA, hks] at hLA
-        simp only [LocalPayloadInv] at hLA
-        obtain ⟨-, hkp0, -⟩ := hLA
-        have he : z.2.stA.epoch = s.stA.epoch + 1 :=
-          (congrArg State.epoch hzA).trans (congrArg State.epoch hks)
-        simp only [he, hkp0]
-      · exfalso
-        have h1 : s.stB.epoch = s.stA.epoch + 1 :=
-          ((congrArg State.epoch hzB).symm.trans hzep.symm).trans
-            ((congrArg State.epoch hzA).trans (congrArg State.epoch hnh))
-        rw [(hT.statePair.1.2 h1).1] at hgen
-        simp at hgen
-    · rfl
+  rw [currentEpochFailure_eq_transcript_party auth hTz party]
+  rcases oracleRecv_run_cases auth irl sampleInitKey party hz with
+    ⟨-, rfl⟩ | ⟨msg, tsnd, err, -, -, rfl⟩ | ⟨msg, tsnd, r, hentry, hraw, hzeq⟩
+  · simp at hchange
+  · cases hzc
+  have hedge := ReceiveEdge.of_eq_ok auth hraw
+  have hzLocal : z.2.stateAt party = r.state := by rw [hzeq]; simp
+  have hzPeer : z.2.stateAt (!party) = s.stateAt (!party) := by rw [hzeq]; simp
+  have hne : r.state.epoch ≠ (s.stateAt party).epoch := by
+    intro heq
+    have hEpoch : ∀ who, (z.2.stateAt who).epoch = (s.stateAt who).epoch := by
+      intro who
+      by_cases hw : who = party
+      · subst hw; rw [hzLocal]; exact heq
+      · have hw : who = !party := by cases who <;> cases party <;> simp_all
+        subst hw; rw [hzPeer]
+    rcases hchange with h | h
+    · exact h (hEpoch true)
+    · exact h (hEpoch false)
+  split_ifs with hzep
+  · rcases hedge.advance hne with ⟨-, -, a', hks⟩ | ⟨hgen, -, -, a', dec', hnh⟩
+    · -- The new generator has no sampled key pair.
+      have hLocal := hTz.local auth party
+      rw [hzLocal, hks] at hLocal
+      simp only [LocalPayloadInv] at hLocal
+      obtain ⟨-, hkp0, -⟩ := hLocal
+      have he : (z.2.stateAt party).epoch = (s.stateAt party).epoch + 1 :=
+        (congrArg State.epoch hzLocal).trans (congrArg State.epoch hks)
+      simp only [he, hkp0]
+    · -- A generator one epoch behind its peer contradicts the pair invariant.
+      exfalso
+      have h1 : (s.stateAt (!party)).epoch = (s.stateAt party).epoch + 1 :=
+        ((congrArg State.epoch hzPeer).symm.trans hzep.symm).trans
+          ((congrArg State.epoch hzLocal).trans (congrArg State.epoch hnh))
+      have hPair : PairInv (s.stateAt party) (s.stateAt (!party)) := by
+        cases party
+        · exact hT.statePair.2
+        · exact hT.statePair.1
+      rw [(hPair.2 h1).1] at hgen
+      simp at hgen
+  · rfl
 
 /-- A send query raises the expected potential by at most the KEM correctness error. -/
 private theorem expectedPayoff_failurePotential_send_le

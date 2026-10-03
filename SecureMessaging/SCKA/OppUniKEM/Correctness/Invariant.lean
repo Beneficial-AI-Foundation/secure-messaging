@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
+import SecureMessaging.SCKA.Correctness
 import SecureMessaging.SCKA.OppUniKEM.Construction
 import SecureMessaging.ErasureCode.Payload
 import VCVio.OracleComp.SimSemantics.StateT.StateProjection
