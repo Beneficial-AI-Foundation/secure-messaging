@@ -376,7 +376,8 @@ private def recvBNextBase
     lch := ∅
     ack := { ekRec := false, ctRec := false } }
 
-/-- Normal form of `recvB` for a message in B's current epoch. -/
+/-- On a message of B's current epoch, `recvB` outputs no key, reports the epoch before it, and
+applies `recvBEkStep` and then `recvBAckStep` to B's state. -/
 private lemma recvB_current_eq
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (stB : StB onoff Sym)
@@ -400,7 +401,8 @@ private lemma recvB_current_eq
     · simp [recvB, recvBEkStep, recvBAckStep, hek, hack]
     · simp [recvB, recvBEkStep, recvBAckStep, hek, hack]
 
-/-- Normal form of `recvB` for the first message of B's next epoch. -/
+/-- On the first message of B's next epoch, `recvB` outputs no key, reports the epoch before it,
+and applies `recvBEkStep` and then `recvBAckStep` to `recvBNextBase` of B's state. -/
 private lemma recvB_next_eq
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (stB : StB onoff Sym)

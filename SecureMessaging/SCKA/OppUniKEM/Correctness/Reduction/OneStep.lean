@@ -523,8 +523,8 @@ lemma tracked_nonSend_score_le [DecidableEq K]
   exact le_of_eq (tracked_nonSend_score_support_eq kem onoff hDet ecEk ecCt0 ecCt1
     leak t hNonSend s hs hfail z hz)
 
-/-- Combine the oracle-specific bounds into a one-step tracked failure-score
-bound that charges exactly the send queries. -/
+/-- One tracked query raises the expected `trackedFailureScore` by at most
+`factorCorrectnessError` for a send query and not at all for any other query. -/
 lemma tracked_score_step_le [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)

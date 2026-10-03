@@ -196,8 +196,7 @@ def HonestMessageB
     | some _, none => False
 
 omit [DecidableEq Sym] in
-/-- Internal helper: an honest message's sending epoch is at most the
-current epoch. -/
+/-- An honest message's sending epoch is at most the current epoch. -/
 lemma HonestMessageB.epoch_le {kem : KEMScheme ProbComp K PK SK C}
     {onoff : kem.OnOffStructure}
     {ecCt0 : ErasureCodePayload onoff.C₀ Sym}

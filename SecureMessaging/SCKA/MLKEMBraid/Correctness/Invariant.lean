@@ -159,9 +159,9 @@ def MessagePayloadInv (ik : InitKey) (T : ℕ → EpochTranscript P) (msg : Mess
           (ct2, auth.macCiphertext (transcriptAuth auth ik T msg.epoch) msg.epoch (ct1, ct2)) i)
   | .ct1Ack => False
 
-/-- A message remains consistent with an extended transcript when its recorded samples are
-preserved and its header and ciphertext authenticator states agree. Agreement at the message's
-epoch is needed only when that epoch already has an encapsulation in the original transcript. -/
+/-- A message consistent with `T` is consistent with `T'` if `T'` keeps the recorded samples of the
+message's epoch, the authenticator states of the previous epoch agree, and, when the message's
+epoch has an encapsulation in `T`, the authenticator states of that epoch agree. -/
 theorem MessagePayloadInv.transport {ik : InitKey} {T T' : ℕ → EpochTranscript P}
     {msg : Message P.Sym} (h : MessagePayloadInv auth ik T msg)
     (hkeypair : ∀ kp, (T msg.epoch).keypair = some kp →
@@ -417,7 +417,9 @@ theorem TranscriptConsistent.of_fields {ik : InitKey} {T : ℕ → EpochTranscri
       rw [hkA, hcA]
       exact hK
 
-/-- Party-indexed form of `TranscriptConsistent.of_fields`. -/
+/-- A state with a true correctness flag, the control and pair invariants, each party's epoch,
+completed epoch and keys as in a transcript-consistent state, states satisfying
+`LocalPayloadInv`, and recorded messages satisfying `MessagePayloadInv` is transcript-consistent. -/
 theorem TranscriptConsistent.of_party {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s s' : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
     (hc : s'.correct = true) (hC : ControlInv s') (hP : StatePairInv s')
@@ -431,7 +433,9 @@ theorem TranscriptConsistent.of_party {ik : InitKey} {T : ℕ → EpochTranscrip
   hT.of_fields auth hc hC hP (he true) (he false) (hcomp true) (hcomp false)
     (hLocal true) (hLocal false) hMessages (hKeys true) (hKeys false)
 
-/-- `TranscriptConsistent.of_fields` when the recorded-message tables are unchanged. -/
+/-- A state with a true correctness flag and the control and pair invariants that agrees with a
+transcript-consistent state in epochs, completed epochs, message tables and key tables, and whose
+states satisfy `LocalPayloadInv`, is transcript-consistent. -/
 theorem TranscriptConsistent.of_eq {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s s' : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
     (hc : s'.correct = true) (hC : ControlInv s') (hP : StatePairInv s')

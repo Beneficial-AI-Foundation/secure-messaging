@@ -111,7 +111,9 @@ def sendUpdate (s : GameState P AuthState) (party : Bool)
   if party then SCKAScheme.sendAUpdate s r.outputKey r.msg r.sendingEpoch r.state
   else SCKAScheme.sendBUpdate s r.outputKey r.msg r.sendingEpoch r.state
 
-/-- The correctness checks performed by a send, expressed using the sender and its peer. -/
+/-- The correctness flag of `sendUpdate` is `s.correct` together with the sender's checks: the
+report is at least its `tcur`, an output key fills an empty epoch of the sender and agrees with any
+key of the peer there, and the sender knows every epoch up to the report. -/
 theorem sendUpdate_correct (s : GameState P AuthState) (party : Bool)
     (r : SendResult P AuthState) :
     (sendUpdate s party r).correct =
@@ -162,7 +164,9 @@ def recvUpdate (s : GameState P AuthState) (party : Bool) (tsnd : ℕ)
   if party then SCKAScheme.recvAUpdate s tsnd r.outputKey trcv r.state
   else SCKAScheme.recvBUpdate s tsnd r.outputKey trcv r.state
 
-/-- The correctness checks performed by a receive, using the receiver and its peer. -/
+/-- The correctness flag of `recvUpdate` is `s.correct` together with the receiver's checks: the
+report equals the recorded one, an output key fills an empty epoch of the receiver and agrees with
+any key of the peer there, and the receiver knows every epoch up to its new `tcur`. -/
 theorem recvUpdate_correct (s : GameState P AuthState) (party : Bool) (tsnd : ℕ)
     (r : RecvResult P AuthState) (trcv : ℕ) :
     (recvUpdate s party tsnd r trcv).correct =
@@ -254,7 +258,8 @@ theorem oracleSend_run_eq (s : GameState P AuthState) (party : Bool) :
   · simpa only [↓reduceIte, sendUpdate, GameState.stateAt] using
       oracleSendA_run_eq auth irl sampleInitKey s
 
-/-- The supported results of a send, expressed using the selected party and its send update. -/
+/-- An outcome of the send query of `party` is the response and `sendUpdate` of some result of
+`send` on that party's state, and every such pair is an outcome. -/
 theorem mem_support_oracleSend_run_iff (s : GameState P AuthState) (party : Bool)
     (z : Option (ℕ × Option ℕ × Message P.Sym) × GameState P AuthState) :
     z ∈ support
@@ -303,8 +308,9 @@ theorem oracleRecvB_run_eq_of_error {s : GameState P AuthState} {n tsnd : ℕ}
       pure (none, { s with correct := false }) :=
   SCKAScheme.oracleRecvB_run_eq_of_refuse _ _ h (by simp [scheme, recvSCKA, hr])
 
-/-- The three outcomes of a `RecvA n` query: no recorded message `n`, a recorded message that
-`receive` refuses, or a recorded message that `receive` accepts. -/
+/-- A `RecvA n` query finds no recorded message `n` and leaves the state unchanged, or delivers a
+recorded message that `receive` refuses and clears the correctness flag, or delivers one that
+`receive` accepts and writes `recvAUpdate`. -/
 theorem oracleRecvA_run_cases {s : GameState P AuthState} {n : ℕ}
     {z : Option (ℕ × Option ℕ) × GameState P AuthState}
     (hz : z ∈ support ((SCKAScheme.oracleRecvA (scheme P auth irl sampleInitKey) n).run s)) :
@@ -323,7 +329,9 @@ theorem oracleRecvA_run_cases {s : GameState P AuthState} {n : ℕ}
   · rw [oracleRecvA_run_eq_of_ok auth irl sampleInitKey hentry hraw, mem_support_pure_iff] at hz
     exact Or.inr (Or.inr ⟨msg, tsnd, r, rfl, hraw, hz⟩)
 
-/-- The three outcomes of a `RecvB n` query; the mirror image of `oracleRecvA_run_cases`. -/
+/-- A `RecvB n` query finds no recorded message `n`, or delivers a recorded message that `receive`
+refuses, or delivers one that `receive` accepts and writes `recvBUpdate`; the mirror image of
+`oracleRecvA_run_cases`. -/
 theorem oracleRecvB_run_cases {s : GameState P AuthState} {n : ℕ}
     {z : Option (ℕ × Option ℕ) × GameState P AuthState}
     (hz : z ∈ support ((SCKAScheme.oracleRecvB (scheme P auth irl sampleInitKey) n).run s)) :

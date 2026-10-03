@@ -33,11 +33,12 @@ variable {P : Parameters ProbComp} {InitKey AuthState : Type}
 private theorem party_eq_or_peer (who party : Bool) : who = party ∨ who = !party := by
   cases who <;> cases party <;> simp
 
-/-- Select the generator and encapsulator from the parity of an epoch. -/
+/-- The state of the generator of epoch `e`: A's state if `e` is odd, B's state otherwise. -/
 private theorem stateAt_generator (s : GameState P AuthState) (e : ℕ) :
     s.stateAt (decide (e % 2 = 1)) = if e % 2 = 1 then s.stA else s.stB := by
   simp [GameState.stateAt]
 
+/-- The state of the encapsulator of epoch `e`: B's state if `e` is odd, A's state otherwise. -/
 private theorem stateAt_encapsulator (s : GameState P AuthState) (e : ℕ) :
     s.stateAt (!decide (e % 2 = 1)) = if e % 2 = 1 then s.stB else s.stA := by
   by_cases h : e % 2 = 1 <;> simp [GameState.stateAt, h]

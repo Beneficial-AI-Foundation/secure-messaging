@@ -222,7 +222,8 @@ private theorem recv_correct_of_decaps_eq
     exact (hprefix t).2 ⟨h0, hle'⟩
 
 omit [DecidableEq P.K] [DecidableEq P.EpochKey] [DecidableEq P.Sym] in
-/-- The control bound and key-prefix condition of either party. -/
+/-- Each party's `tcur` is at most its epoch minus one, and the party has a key for every epoch from
+`1` to its epoch minus one. -/
 private theorem send_prefix {s : GameState P AuthState} (hControl : ControlInv s)
     (party : Bool) :
     s.tcurAt party ≤ (s.stateAt party).epoch - 1 ∧
@@ -240,7 +241,9 @@ private theorem send_prefix {s : GameState P AuthState} (hControl : ControlInv s
   exact hprefix.2 ⟨h0, hle.trans (s.stateAt party).epoch_sub_one_le_completedEpoch⟩
 
 omit [DecidableEq P.Sym] in
-/-- Identify the generator and encapsulator from their roles, for either ordering of the parties. -/
+/-- If `party` is the generator and its peer the encapsulator, `currentEpochFailure` is `0` when
+their epochs differ and `pairFailure` of the generator, the encapsulator and the encapsulator's keys
+otherwise. -/
 private theorem currentEpochFailure_eq_pair
     (s : GameState P AuthState) (party : Bool)
     (hgen : (s.stateAt party).controlPosition.isGenerator = true)
@@ -415,7 +418,10 @@ private theorem recv_currentEpochFailure_le_of_epochs_eq
     hepA, hepB]
 
 omit [DecidableEq P.Sym] in
-/-- Compute the transcript potential using either party's epoch. -/
+/-- In a state consistent with `T`, `currentEpochFailure` is `0` if the parties are at different
+epochs; otherwise, at the epoch `e` of `party`, it is `0` without a key pair at `e`,
+`decapsFailureProb` of the key pair without an encapsulation, and `derivedKeyFailure` of the
+recorded samples with one. -/
 private theorem currentEpochFailure_eq_transcript_party
     {ik : InitKey} {T : ℕ → EpochTranscript P} {s : GameState P AuthState}
     (hT : TranscriptConsistent auth ik T s) (party : Bool) :

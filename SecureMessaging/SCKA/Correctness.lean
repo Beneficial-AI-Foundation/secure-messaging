@@ -150,7 +150,8 @@ theorem oracleSendB_run_eq :
   rcases out with _ | ⟨_ | ⟨tI, key⟩, ρ, tsnd, stB'⟩ <;>
     simp [sendBUpdate, knownPrefix, StateT.run_set, StateT.run_pure]
 
-/-- The outcomes of a `SendA` query, as a set. -/
+/-- An outcome of a `SendA` query is the response and `sendAUpdate` state of some result of `sendA`
+on A's state, and every such pair is an outcome. -/
 theorem mem_support_oracleSendA_run_iff
     (z : Option (ℕ × Option ℕ × Rho) × GameState StA StB I Rho) :
     z ∈ support ((oracleSendA scka ()).run s) ↔
@@ -162,7 +163,8 @@ theorem mem_support_oracleSendA_run_iff
   rw [oracleSendA_run_eq, support_map, Set.mem_image]
   exact exists_congr fun out => and_congr_right fun _ => eq_comm
 
-/-- The outcomes of a `SendB` query, as a set. -/
+/-- An outcome of a `SendB` query is the response and `sendBUpdate` state of some result of `sendB`
+on B's state, and every such pair is an outcome. -/
 theorem mem_support_oracleSendB_run_iff
     (z : Option (ℕ × Option ℕ × Rho) × GameState StA StB I Rho) :
     z ∈ support ((oracleSendB scka ()).run s) ↔
