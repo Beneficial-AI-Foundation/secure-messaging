@@ -60,6 +60,11 @@ variable {P : Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
     P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
 
+/-- Either party satisfies the pair conditions with respect to its peer. -/
+theorem StatePairInv.pair {s : GameState P AuthState} (hs : StatePairInv s) (party : Bool) :
+    PairInv (s.stateAt party) (s.stateAt (!party)) := by
+  cases party; exacts [hs.2, hs.1]
+
 /-- A send by the party in state `st` preserves the pair conditions in both directions. -/
 theorem PairInv.send {st peer : State P AuthState} {r : SendResult P AuthState}
     (hedge : SendEdge auth st r) (h : PairInv st peer) (h' : PairInv peer st) :

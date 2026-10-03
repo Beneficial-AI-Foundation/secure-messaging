@@ -37,9 +37,9 @@ theorem receive_recorded_payload
     {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
     (party : Bool) (n : ℕ) (msg : Message P.Sym) (tsnd : ℕ)
-    (hmsg : (if party then s.msgB else s.msgA) n = some (msg, tsnd)) :
-    let st := if party then s.stA else s.stB
-    let peerKeys := if party then s.keyB else s.keyA
+    (hmsg : s.messagesAt (!party) n = some (msg, tsnd)) :
+    let st := s.stateAt party
+    let peerKeys := s.keysAt (!party)
     let outputsAgree := fun r : RecvResult P AuthState =>
       ∀ e key, r.outputKey = some (e, key) → peerKeys e = some key
     (∀ r, receive P auth st msg = .ok r →
@@ -51,41 +51,32 @@ theorem receive_recorded_payload
       ∃ r, receive P auth st msg = .ok r ∧ outputsAgree r) := by
   have hpeer := generator_peer_key auth hT party
   dsimp only at hpeer ⊢
-  have hRole := (hT.control.roles party).1
-  have hLocal : LocalPayloadInv auth ik T (if party then s.stA else s.stB) := by
-    cases party
-    · exact hT.localB
-    · exact hT.localA
-  have hPayload : MessagePayloadInv auth ik T msg := by
-    cases party
-    · exact hT.messages true n msg tsnd hmsg
-    · exact hT.messages false n msg tsnd hmsg
-  have hpos : 0 < (if party then s.stA else s.stB).epoch := by
-    cases party
-    · exact hT.control.epochKnowledge.keyPrefix.posB
-    · exact hT.control.epochKnowledge.keyPrefix.posA
+  have hRole := hT.control.role party
+  have hLocal := hT.local auth party
+  have hPayload := hT.messages (!party) n msg tsnd hmsg
+  have hpos := hT.control.epochKnowledge.keyPrefix.pos party
   -- An encapsulator at epoch `t` also generates epoch `t + 1`, so the parity expressions for
   -- the encapsulator of `t` and the generator of `t + 1` both select the receiver's state.
-  have hF : (if party then s.stA else s.stB).controlPosition.isGenerator = false →
-      ∀ t, t = (if party then s.stA else s.stB).epoch →
-        (if t % 2 = 1 then s.stB else s.stA) = (if party then s.stA else s.stB) ∧
-          (if (t + 1) % 2 = 1 then s.stA else s.stB) = (if party then s.stA else s.stB) := by
+  have hF : (s.stateAt party).controlPosition.isGenerator = false →
+      ∀ t, t = (s.stateAt party).epoch →
+        (if t % 2 = 1 then s.stB else s.stA) = (s.stateAt party) ∧
+          (if (t + 1) % 2 = 1 then s.stA else s.stB) = (s.stateAt party) := by
     intro hencapsulator t ht
     cases party
-    · simp only [Bool.false_eq_true, ↓reduceIte] at hRole hencapsulator ht ⊢
+    · simp only [GameState.stateAt, Bool.false_eq_true, ↓reduceIte] at hRole hencapsulator ht ⊢
       rw [hencapsulator] at hRole
       have hne := of_decide_eq_false hRole.symm
       rw [if_pos (by omega), if_neg (by omega)]
       exact ⟨rfl, rfl⟩
-    · simp only [↓reduceIte] at hRole hencapsulator ht ⊢
+    · simp only [GameState.stateAt, ↓reduceIte] at hRole hencapsulator ht ⊢
       rw [hencapsulator] at hRole
       have hne := of_decide_eq_false hRole.symm
       rw [if_neg (by omega), if_pos (by omega)]
       exact ⟨rfl, rfl⟩
   -- Case on the receiver's state; each case applies the matching lemma of `Generator` or
   -- `Encapsulator`. Only `ekSentCt1Received` can output a key.
-  obtain ⟨st, hst⟩ : ∃ st, (if party then s.stA else s.stB) = st := ⟨_, rfl⟩
-  obtain ⟨peerKeys, hpk⟩ : ∃ k, (if party then s.keyB else s.keyA) = k := ⟨_, rfl⟩
+  obtain ⟨st, hst⟩ : ∃ st, s.stateAt party = st := ⟨_, rfl⟩
+  obtain ⟨peerKeys, hpk⟩ : ∃ k, s.keysAt (!party) = k := ⟨_, rfl⟩
   rw [hst] at hLocal hpos hpeer hF ⊢
   rw [hpk] at hpeer ⊢
   have hnoKey : ∀ r, receive P auth st msg = .ok r → r.outputKey = none →

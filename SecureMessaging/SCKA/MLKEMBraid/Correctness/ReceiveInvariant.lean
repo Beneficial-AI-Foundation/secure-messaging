@@ -39,11 +39,11 @@ theorem receive_preserves_transcriptConsistent
     {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
     (party : Bool) (n : ℕ) (msg : Message P.Sym) (tsnd : ℕ)
-    (hmsg : (if party then s.msgB else s.msgA) n = some (msg, tsnd))
+    (hmsg : s.messagesAt (!party) n = some (msg, tsnd))
     (r : RecvResult P AuthState)
-    (hr : receive P auth (if party then s.stA else s.stB) msg = .ok r)
+    (hr : receive P auth (s.stateAt party) msg = .ok r)
     (hOutputs : ∀ e key, r.outputKey = some (e, key) →
-      (if party then s.keyB else s.keyA) e = some key) :
+      s.keysAt (!party) e = some key) :
     let s' := if party then
       { s with
         stA := r.state,
@@ -65,16 +65,13 @@ theorem receive_preserves_transcriptConsistent
     (receive_recorded_payload auth hHdrCorrect hEkCorrect hCt1Correct hCt2Correct hT
       party n msg tsnd hmsg).1 r hr hOutputs
   have hedge := ReceiveEdge.of_eq_ok auth hr
-  have hmono : (if party then s.stA else s.stB).epoch ≤ r.state.epoch := hedge.epoch_le.1
-  have hpos : 0 < (if party then s.stA else s.stB).epoch := by
-    cases party
-    · exact hT.control.epochKnowledge.keyPrefix.posB
-    · exact hT.control.epochKnowledge.keyPrefix.posA
+  have hmono : (s.stateAt party).epoch ≤ r.state.epoch := hedge.epoch_le.1
+  have hpos := hT.control.epochKnowledge.keyPrefix.pos party
   have hstep := (hedge.completedEpoch hpos).2
   have hcomp : (r.outputKey = none ∧
-        r.state.completedEpoch = (if party then s.stA else s.stB).completedEpoch) ∨
+        r.state.completedEpoch = (s.stateAt party).completedEpoch) ∨
       ∃ t key, r.outputKey = some (t, key) ∧
-        t = (if party then s.stA else s.stB).completedEpoch + 1 ∧
+        t = (s.stateAt party).completedEpoch + 1 ∧
         r.state.completedEpoch = t := by
     cases hkey : r.outputKey with
     | none =>
@@ -97,7 +94,7 @@ theorem receive_preserves_transcriptConsistent
     exact ⟨pk, sk, encapsState, ct1, k, hkp, hc, hdec, rfl⟩
   obtain ⟨hcorr, -, -, h0k, h0e, hKeypair, hEncaps, hLocalA, hLocalB, hMessages, hKeys⟩ := hT
   cases party
-  · simp only [Bool.false_eq_true, ↓reduceIte] at hmono hcomp ⊢
+  · simp only [GameState.stateAt, Bool.false_eq_true, ↓reduceIte] at hmono hcomp ⊢
     have hcompMono : s.stB.completedEpoch ≤ r.state.completedEpoch := by
       rcases hcomp with ⟨-, h⟩ | ⟨t, key, -, ht, h⟩ <;> omega
     rintro ⟨hC', hP'⟩
@@ -155,7 +152,7 @@ theorem receive_preserves_transcriptConsistent
             · rw [if_neg h1, if_neg (by omega)]
       · simp only [↓reduceIte] at hK ⊢
         exact hK
-  · simp only [↓reduceIte] at hmono hcomp ⊢
+  · simp only [GameState.stateAt, ↓reduceIte] at hmono hcomp ⊢
     have hcompMono : s.stA.completedEpoch ≤ r.state.completedEpoch := by
       rcases hcomp with ⟨-, h⟩ | ⟨t, key, -, ht, h⟩ <;> omega
     rintro ⟨hC', hP'⟩
@@ -228,8 +225,7 @@ theorem oracleRecv_preserves_transcriptConsistent
     (hT : TranscriptConsistent auth ik T s) (party : Bool) (n : ℕ)
     (z : Option (ℕ × Option ℕ) × GameState P AuthState)
     (hz : z ∈ support
-      (((if party then SCKAScheme.oracleRecvA (scheme P auth irl sampleInitKey)
-        else SCKAScheme.oracleRecvB (scheme P auth irl sampleInitKey)) n).run s))
+      ((oracleRecv auth irl sampleInitKey party n).run s))
     (hzc : z.2.correct = true) :
     TranscriptConsistent auth ik T z.2 := by
   -- A missing record keeps the state, and a refusal clears the flag. If a successful receive
@@ -237,8 +233,7 @@ theorem oracleRecv_preserves_transcriptConsistent
   -- `receive_preserves_transcriptConsistent` keeps the new state consistent with the same
   -- transcript.
   cases party
-  · change z ∈ support ((SCKAScheme.oracleRecvB (scheme P auth irl sampleInitKey) n).run s) at hz
-    have hCPz : ControlInv z.2 ∧ StatePairInv z.2 :=
+  · have hCPz : ControlInv z.2 ∧ StatePairInv z.2 :=
       correctnessImpl_preserves_controlInv_statePairInv auth irl sampleInitKey
         (ORecvB (Rho := Message P.Sym) n) s ⟨hT.control, hT.statePair⟩ z hz
     rcases oracleRecvB_run_cases auth irl sampleInitKey hz with
@@ -249,7 +244,7 @@ theorem oracleRecv_preserves_transcriptConsistent
       intro e key hkey
       obtain ⟨-, -, _, _, _, _, _, -, -, -, hpeer⟩ :=
         receive_recorded_output auth hCt2Correct hT false n msg tsnd hentry r hraw e key hkey
-      simp only [Bool.false_eq_true, ↓reduceIte] at hpeer
+      simp only [GameState.keysAt, Bool.not_false, ↓reduceIte] at hpeer
       simp only [SCKAScheme.recvBUpdate, hkey, Bool.and_eq_true, Bool.or_eq_true] at hzc
       obtain ⟨⟨-, hcons⟩, -⟩ := hzc
       rcases hcons with hnone | hbeq
@@ -264,8 +259,7 @@ theorem oracleRecv_preserves_transcriptConsistent
       rw [hzc] at hCPz ⊢
       simp only [hkey, hT.correct] at h
       exact h hCPz
-  · change z ∈ support ((SCKAScheme.oracleRecvA (scheme P auth irl sampleInitKey) n).run s) at hz
-    have hCPz : ControlInv z.2 ∧ StatePairInv z.2 :=
+  · have hCPz : ControlInv z.2 ∧ StatePairInv z.2 :=
       correctnessImpl_preserves_controlInv_statePairInv auth irl sampleInitKey
         (ORecvA (Rho := Message P.Sym) n) s ⟨hT.control, hT.statePair⟩ z hz
     rcases oracleRecvA_run_cases auth irl sampleInitKey hz with
@@ -276,7 +270,7 @@ theorem oracleRecv_preserves_transcriptConsistent
       intro e key hkey
       obtain ⟨-, -, _, _, _, _, _, -, -, -, hpeer⟩ :=
         receive_recorded_output auth hCt2Correct hT true n msg tsnd hentry r hraw e key hkey
-      simp only [↓reduceIte] at hpeer
+      simp only [GameState.keysAt, Bool.not_true, Bool.false_eq_true, ↓reduceIte] at hpeer
       simp only [SCKAScheme.recvAUpdate, hkey, Bool.and_eq_true, Bool.or_eq_true] at hzc
       obtain ⟨⟨-, hcons⟩, -⟩ := hzc
       rcases hcons with hnone | hbeq
@@ -300,23 +294,20 @@ theorem oracleRecv_preserves_correctnessInv
     (hCt2Correct : P.ecpCt2.ec.Correct)
     (ik : InitKey) (party : Bool) :
     QueryImpl.PreservesInv
-      (if party then SCKAScheme.oracleRecvA (scheme P auth irl sampleInitKey)
-        else SCKAScheme.oracleRecvB (scheme P auth irl sampleInitKey))
+      (oracleRecv auth irl sampleInitKey party)
       (CorrectnessInv auth ik) := by
   intro n s hs z hz
   cases hzc : z.2.correct
   · exact Or.inl hzc
   rcases hs with hsf | ⟨T, hT⟩
   · cases party
-    · change z ∈ support ((SCKAScheme.oracleRecvB (scheme P auth irl sampleInitKey) n).run s) at hz
-      rcases oracleRecvB_run_cases auth irl sampleInitKey hz with
+    · rcases oracleRecvB_run_cases auth irl sampleInitKey hz with
         ⟨-, rfl⟩ | ⟨msg, tsnd, err, -, -, rfl⟩ | ⟨msg, tsnd, r, -, -, rfl⟩
       · simp [hsf] at hzc
       · cases hzc
       · rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;>
           simp [SCKAScheme.recvBUpdate, hkey, hsf] at hzc
-    · change z ∈ support ((SCKAScheme.oracleRecvA (scheme P auth irl sampleInitKey) n).run s) at hz
-      rcases oracleRecvA_run_cases auth irl sampleInitKey hz with
+    · rcases oracleRecvA_run_cases auth irl sampleInitKey hz with
         ⟨-, rfl⟩ | ⟨msg, tsnd, err, -, -, rfl⟩ | ⟨msg, tsnd, r, -, -, rfl⟩
       · simp [hsf] at hzc
       · cases hzc

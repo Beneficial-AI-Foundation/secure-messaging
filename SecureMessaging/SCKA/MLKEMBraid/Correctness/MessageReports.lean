@@ -33,6 +33,12 @@ structure RecordedReportInv {StA StB I Sym : Type}
   msgB : ∀ (n : ℕ) (msg : Message Sym) (tsnd : ℕ),
     s.msgB n = some (msg, tsnd) → tsnd = msg.epoch - 1
 
+/-- A message recorded by either party carries the report `msg.epoch - 1`. -/
+theorem RecordedReportInv.report {s : GameState P AuthState} (hs : RecordedReportInv s)
+    (party : Bool) (n : ℕ) (msg : Message P.Sym) (tsnd : ℕ)
+    (hentry : s.messagesAt party n = some (msg, tsnd)) : tsnd = msg.epoch - 1 := by
+  cases party; exacts [hs.msgB n msg tsnd hentry, hs.msgA n msg tsnd hentry]
+
 /-- The initial game state has no recorded message. -/
 theorem recordedReportInv_initGameState {StA StB I Sym : Type} (stA : StA) (stB : StB) :
     RecordedReportInv (SCKAScheme.initGameState (I := I) (Rho := Message Sym) stA stB) := by

@@ -55,6 +55,26 @@ structure EpochKnowledgeInv {P : Parameters ProbComp} {AuthState : Type}
       msg.epoch ≤ s.stA.completedEpoch + 1 ∧
       (msg.type = .ct2 → msg.epoch ≤ s.stB.completedEpoch)
 
+/-- Each party's current game epoch is at most its completed epoch. -/
+theorem EpochKnowledgeInv.tcur_le {s : GameState P AuthState} (hs : EpochKnowledgeInv s)
+    (party : Bool) : s.tcurAt party ≤ (s.stateAt party).completedEpoch := by
+  cases party; exacts [hs.tcurB_le, hs.tcurA_le]
+
+/-- Each party is at most one epoch past its peer's completed epoch. -/
+theorem EpochKnowledgeInv.epoch_le {s : GameState P AuthState} (hs : EpochKnowledgeInv s)
+    (party : Bool) : (s.stateAt party).epoch ≤ (s.stateAt (!party)).completedEpoch + 1 := by
+  cases party; exacts [hs.epochB_le, hs.epochA_le]
+
+/-- A recorded message is at most one epoch past both completed epochs; a `ct₂` message comes
+from an epoch its sender has completed. -/
+theorem EpochKnowledgeInv.msgs {s : GameState P AuthState} (hs : EpochKnowledgeInv s)
+    (party : Bool) (n : ℕ) (msg : Message P.Sym) (tsnd : ℕ)
+    (hentry : s.messagesAt party n = some (msg, tsnd)) :
+    msg.epoch ≤ (s.stateAt party).completedEpoch + 1 ∧
+      msg.epoch ≤ (s.stateAt (!party)).completedEpoch + 1 ∧
+      (msg.type = .ct2 → msg.epoch ≤ (s.stateAt party).completedEpoch) := by
+  cases party; exacts [hs.msgB n msg tsnd hentry, hs.msgA n msg tsnd hentry]
+
 /-- The initial game state satisfies `EpochKnowledgeInv`. -/
 theorem epochKnowledgeInv_initGameState (ik : InitKey) :
     EpochKnowledgeInv

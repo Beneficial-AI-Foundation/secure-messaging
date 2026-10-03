@@ -302,35 +302,27 @@ that epoch has an encapsulation. -/
 theorem generator_peer_key {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
     (party : Bool)
-    (hgenerator : (if party then s.stA else s.stB).controlPosition.isGenerator = true) :
-    let st := if party then s.stA else s.stB
-    let peerKeys := if party then s.keyB else s.keyA
+    (hgenerator : (s.stateAt party).controlPosition.isGenerator = true) :
+    let st := s.stateAt party
+    let peerKeys := s.keysAt (!party)
     ∀ encapsState ct1 key, (T st.epoch).encaps1 = some (encapsState, ct1, key) →
       peerKeys st.epoch = some (P.kdfOK key st.epoch) := by
-  have hRole := (hT.control.roles party).1
-  have hEncaps := hT.encaps
-  have hKeys := hT.keys (!party)
-  cases party
-  · dsimp only
-    intro encapsState ct1 key hencaps
-    simp only [Bool.false_eq_true, ↓reduceIte] at hgenerator hencaps hRole ⊢
-    simp only [Bool.not_false, ↓reduceIte] at hKeys
-    rw [hgenerator] at hRole
-    have hEven : s.stB.epoch % 2 = 0 := of_decide_eq_true hRole.symm
-    obtain ⟨hpos, hbound, -⟩ := hEncaps s.stB.epoch encapsState ct1 key hencaps
-    have hbound' : s.stB.epoch ≤ s.stA.completedEpoch := by simpa [hEven] using hbound
-    rw [hKeys]
-    simp [hpos, hbound', hencaps]
-  · dsimp only
-    intro encapsState ct1 key hencaps
-    simp only [↓reduceIte] at hgenerator hencaps hRole ⊢
-    simp only [Bool.not_true, Bool.false_eq_true, ↓reduceIte] at hKeys
-    rw [hgenerator] at hRole
-    have hOdd : s.stA.epoch % 2 = 1 := of_decide_eq_true hRole.symm
-    obtain ⟨hpos, hbound, -⟩ := hEncaps s.stA.epoch encapsState ct1 key hencaps
-    have hbound' : s.stA.epoch ≤ s.stB.completedEpoch := by simpa [hOdd] using hbound
-    rw [hKeys]
-    simp [hpos, hbound', hencaps]
+  dsimp only
+  intro encapsState ct1 key hencaps
+  have hRole := hT.control.role party
+  rw [hgenerator] at hRole
+  have hpar := of_decide_eq_true hRole.symm
+  obtain ⟨hpos, hbound, -⟩ := hT.encaps _ encapsState ct1 key hencaps
+  have hpeer : (if (s.stateAt party).epoch % 2 = 1 then s.stB else s.stA) =
+      s.stateAt (!party) := by
+    cases party
+    · simp only [GameState.stateAt, Bool.not_false, Bool.false_eq_true, ↓reduceIte] at hpar ⊢
+      rw [if_neg (by omega)]
+    · simp only [GameState.stateAt, Bool.not_true, Bool.false_eq_true, ↓reduceIte] at hpar ⊢
+      rw [if_pos hpar]
+  rw [hpeer] at hbound
+  rw [GameState.keysAt, hT.keys (!party), if_pos ⟨hpos, hbound⟩, hencaps]
+  rfl
 
 /-- A receive of a recorded message outputs a key only from `ekSentCt1Received`, at the party's
 epoch; the key is the decapsulated epoch key of the recorded samples, and the peer has recorded
@@ -340,42 +332,33 @@ theorem receive_recorded_output [DecidableEq P.Sym]
     {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
     (party : Bool) (n : ℕ) (msg : Message P.Sym) (tsnd : ℕ)
-    (hmsg : (if party then s.msgB else s.msgA) n = some (msg, tsnd))
+    (hmsg : s.messagesAt (!party) n = some (msg, tsnd))
     (r : RecvResult P AuthState)
-    (hr : receive P auth (if party then s.stA else s.stB) msg = .ok r)
+    (hr : receive P auth (s.stateAt party) msg = .ok r)
     (t : ℕ) (outKey : P.EpochKey)
     (hout : r.outputKey = some (t, outKey)) :
-    t = (if party then s.stA else s.stB).epoch ∧
-      (if party then s.stA else s.stB).controlPosition.isGenerator = true ∧
+    t = (s.stateAt party).epoch ∧
+      (s.stateAt party).controlPosition.isGenerator = true ∧
       ∃ pk sk encapsState ct1 key,
         (T t).keypair = some (pk, sk) ∧
         (T t).encaps1 = some (encapsState, ct1, key) ∧
         decapsEpochKey t pk sk encapsState ct1 = some outKey ∧
-        (if party then s.keyB else s.keyA) t = some (P.kdfOK key t) := by
-  have hLocal : LocalPayloadInv auth ik T (if party then s.stA else s.stB) := by
-    cases party
-    · exact hT.localB
-    · exact hT.localA
-  have hPayload : MessagePayloadInv auth ik T msg := by
-    cases party
-    · exact hT.messages true n msg tsnd hmsg
-    · exact hT.messages false n msg tsnd hmsg
-  have hpos : 0 < (if party then s.stA else s.stB).epoch := by
-    cases party
-    · exact hT.control.epochKnowledge.keyPrefix.posB
-    · exact hT.control.epochKnowledge.keyPrefix.posA
-  obtain ⟨st, hst⟩ : ∃ st, (if party then s.stA else s.stB) = st := ⟨_, rfl⟩
+        s.keysAt (!party) t = some (P.kdfOK key t) := by
+  have hLocal := hT.local auth party
+  have hPayload := hT.messages (!party) n msg tsnd hmsg
+  have hpos := hT.control.epochKnowledge.keyPrefix.pos party
+  obtain ⟨st, hst⟩ : ∃ st, s.stateAt party = st := ⟨_, rfl⟩
   rw [hst] at hr hLocal hpos ⊢
   cases st
   case ekSentCt1Received e a sk ct1 dec =>
     -- Only this state outputs a key; `receive_ekSentCt1Received_payload` gives its value.
-    have hgen : (if party then s.stA else s.stB).controlPosition.isGenerator = true := by
+    have hgen : (s.stateAt party).controlPosition.isGenerator = true := by
       simp only [hst, State.controlPosition]
     have hpeer := generator_peer_key auth hT party hgen
     dsimp only at hpeer
     rw [hst] at hpeer
     obtain ⟨-, -, hout4⟩ := receive_ekSentCt1Received_payload auth hCt2Correct ik T e a sk
-      ct1 dec (if party then s.keyB else s.keyA) msg hLocal hPayload hpos
+      ct1 dec (s.keysAt (!party)) msg hLocal hPayload hpos
       (fun encapsState key hc => hpeer encapsState ct1 key hc)
     obtain ⟨rfl, pk, encapsState, key, hkp, hc, hkey⟩ := hout4 r t outKey hr hout
     exact ⟨rfl, rfl, pk, sk, encapsState, ct1, key, hkp, hc, hkey, hpeer encapsState ct1 key hc⟩

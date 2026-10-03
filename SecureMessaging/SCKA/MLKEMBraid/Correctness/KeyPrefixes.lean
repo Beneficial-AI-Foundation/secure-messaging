@@ -37,6 +37,16 @@ structure KeyPrefixInv {P : Parameters ProbComp} {AuthState : Type}
   /-- B has keys for exactly the epochs from `1` through its completed epoch. -/
   prefixB : ∀ t : ℕ, s.keyB t ≠ none ↔ 0 < t ∧ t ≤ s.stB.completedEpoch
 
+/-- Each party's epoch is positive. -/
+theorem KeyPrefixInv.pos {s : GameState P AuthState} (hs : KeyPrefixInv s) (party : Bool) :
+    0 < (s.stateAt party).epoch := by
+  cases party; exacts [hs.posB, hs.posA]
+
+/-- Each party has keys for exactly the positive epochs through its completed epoch. -/
+theorem KeyPrefixInv.keys {s : GameState P AuthState} (hs : KeyPrefixInv s) (party : Bool)
+    (t : ℕ) : s.keysAt party t ≠ none ↔ 0 < t ∧ t ≤ (s.stateAt party).completedEpoch := by
+  cases party; exacts [hs.prefixB t, hs.prefixA t]
+
 /-- The initial game state satisfies `KeyPrefixInv`: both parties are at epoch `1` and have
 output no key. -/
 theorem keyPrefixInv_initGameState (ik : InitKey) :

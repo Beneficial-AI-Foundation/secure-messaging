@@ -86,6 +86,25 @@ variable {P : Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
     P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
 
+/-- Each party's current game epoch is below its local epoch. -/
+theorem ControlInv.tcur_le_sub_one {s : GameState P AuthState} (hs : ControlInv s)
+    (party : Bool) : s.tcurAt party ≤ (s.stateAt party).epoch - 1 := by
+  cases party; exacts [hs.tcurB_le_sub_one, hs.tcurA_le_sub_one]
+
+/-- Each party's generator role matches the parity of its epoch. -/
+theorem ControlInv.role {s : GameState P AuthState} (hs : ControlInv s) (party : Bool) :
+    (s.stateAt party).controlPosition.isGenerator =
+      decide ((s.stateAt party).epoch % 2 = if party then 1 else 0) := by
+  cases party <;> exact (hs.roles _).1
+
+/-- Each party's current game epoch is below its local epoch, and it has a key for every
+positive epoch below its local epoch. -/
+theorem ControlInv.send_prefix {s : GameState P AuthState} (hs : ControlInv s) (party : Bool) :
+    s.tcurAt party ≤ (s.stateAt party).epoch - 1 ∧
+      ∀ t, 0 < t → t ≤ (s.stateAt party).epoch - 1 → s.keysAt party t ≠ none := by
+  exact ⟨hs.tcur_le_sub_one party, fun t h0 hle => (hs.epochKnowledge.keyPrefix.keys party t).2
+    ⟨h0, hle.trans (s.stateAt party).epoch_sub_one_le_completedEpoch⟩⟩
+
 /-- The message of a send satisfies `MessageControl` for the sender's successor state, given
 that the sender's role matches the parity of its epoch. -/
 theorem SendEdge.messageControl (party : Bool) {st : State P AuthState}

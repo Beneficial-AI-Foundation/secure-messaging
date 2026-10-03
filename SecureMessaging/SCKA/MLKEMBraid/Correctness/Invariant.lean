@@ -245,9 +245,7 @@ structure TranscriptConsistent (ik : InitKey) (T : ℕ → EpochTranscript P)
 theorem TranscriptConsistent.local {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s) (party : Bool) :
     LocalPayloadInv auth ik T (s.stateAt party) := by
-  cases party
-  · exact hT.localB
-  · exact hT.localA
+  cases party; exacts [hT.localB, hT.localA]
 
 /-- Either the correctness flag is already false, or some transcript is consistent with the game
 state. -/
@@ -316,29 +314,29 @@ theorem PairInv.peer_of_headerReceived {st peer : State P AuthState}
 `PairInv.peer_of_headerReceived` need, for `party` and its peer. -/
 theorem TranscriptConsistent.pairBounds {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s) (party : Bool) :
-    let st := if party then s.stA else s.stB
-    let peer := if party then s.stB else s.stA
+    let st := s.stateAt party
+    let peer := s.stateAt (!party)
     PairInv st peer ∧ PairInv peer st ∧ 0 < st.epoch ∧ 0 < peer.epoch ∧
       st.epoch ≤ peer.completedEpoch + 1 ∧ peer.epoch ≤ st.completedEpoch + 1 ∧
       (st.epoch = peer.epoch →
         st.controlPosition.isGenerator = (!peer.controlPosition.isGenerator)) := by
   have hE := hT.control.epochKnowledge
+  refine ⟨hT.statePair.pair party, by simpa using hT.statePair.pair (!party),
+    hE.keyPrefix.pos party, hE.keyPrefix.pos (!party), hE.epoch_le party,
+    by simpa using hE.epoch_le (!party), ?_⟩
   cases party
-  · simp only [Bool.false_eq_true, ↓reduceIte]
-    refine ⟨hT.statePair.2, hT.statePair.1, hE.keyPrefix.posB, hE.keyPrefix.posA, hE.epochB_le,
-      hE.epochA_le, fun heq => ?_⟩
-    rw [roles_opposite hT.control heq.symm, Bool.not_not]
-  · simp only [↓reduceIte]
-    exact ⟨hT.statePair.1, hT.statePair.2, hE.keyPrefix.posA, hE.keyPrefix.posB, hE.epochA_le,
-      hE.epochB_le, roles_opposite hT.control⟩
+  · intro heq
+    simpa only [GameState.stateAt, Bool.not_false, Bool.false_eq_true, ↓reduceIte,
+      Bool.not_not] using (congrArg Bool.not (roles_opposite hT.control heq.symm)).symm
+  · exact roles_opposite hT.control
 
 /-- When a party is about to sample its key pair, its peer is waiting for the header of the same
 epoch. -/
 theorem peer_noHeaderReceived_of_keysUnsampled {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
     (party : Bool) {e : ℕ} {a : AuthState}
-    (hst : (if party then s.stA else s.stB) = .keysUnsampled e a) :
-    ∃ b dec, (if party then s.stB else s.stA) = .noHeaderReceived e b dec := by
+    (hst : s.stateAt party = .keysUnsampled e a) :
+    ∃ b dec, s.stateAt (!party) = .noHeaderReceived e b dec := by
   obtain ⟨h, h', hpos, hposP, hcross, hcrossP, -⟩ := hT.pairBounds auth party
   exact PairInv.peer_of_keysUnsampled h h' hpos hposP hcross hcrossP hst
 
@@ -348,22 +346,16 @@ theorem peer_keysSampled_of_headerReceived {ik : InitKey} {T : ℕ → EpochTran
     {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
     (party : Bool) {e : ℕ} {a : AuthState} {hdr : P.inc.PKheader}
     {dec : DecoderState P.inc.PKvector P.Sym}
-    (hst : (if party then s.stA else s.stB) = .headerReceived e a hdr dec) :
+    (hst : s.stateAt party = .headerReceived e a hdr dec) :
     ∃ pk sk b enc,
       (T e).keypair = some (pk, sk) ∧
-      (if party then s.stB else s.stA) = .keysSampled e b sk (P.inc.toVector pk) enc ∧
+      s.stateAt (!party) = .keysSampled e b sk (P.inc.toVector pk) enc ∧
       hdr = P.inc.toHeader pk := by
   obtain ⟨h, h', hpos, hposP, hcross, hcrossP, hroles⟩ := hT.pairBounds auth party
   obtain ⟨b, sk', vec, enc, hpeer⟩ :=
     PairInv.peer_of_headerReceived h h' hpos hposP hcross hcrossP hroles hst
-  have hLs : LocalPayloadInv auth ik T (if party then s.stA else s.stB) := by
-    cases party
-    · exact hT.localB
-    · exact hT.localA
-  have hLp : LocalPayloadInv auth ik T (if party then s.stB else s.stA) := by
-    cases party
-    · exact hT.localA
-    · exact hT.localB
+  have hLs := hT.local auth party
+  have hLp := hT.local auth (!party)
   rw [hst] at hLs
   rw [hpeer] at hLp
   obtain ⟨-, -, pk, sk, hkp, hhdr, -⟩ := hLs

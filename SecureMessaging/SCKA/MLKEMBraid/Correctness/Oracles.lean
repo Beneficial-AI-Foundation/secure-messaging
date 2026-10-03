@@ -16,6 +16,12 @@ writes `SCKAScheme.sendAUpdate` or `sendBUpdate`. A receive query of a recorded 
 when `receive` refuses it. The lemmas of this module state each query of
 `sckaCorrectnessImpl (scheme …)` in these terms, so that a proof about the game reasons about
 `SendEdge`, `ReceiveEdge` and the updates.
+
+The party-indexed layer uses `true` for A and `false` for B. The `GameState` accessors select a
+party's local state, keys, messages and report, while `oracleSend` and `oracleRecv` select its
+queries. Their execution and support lemmas expose the common Braid transitions and the selected
+party's `sendUpdate` or `recvUpdate`. The raw `sendSuccessor` retains the input correctness flag;
+it equals `sendUpdate` when both the input and output flags are true.
 -/
 
 open OracleComp
@@ -77,6 +83,24 @@ def sendSuccessor (s : GameState P AuthState) (party : Bool)
     (r : SendResult P AuthState) :
     (sendSuccessor s party r).stateAt who = if who = party then r.state else s.stateAt who := by
   cases party <;> cases who <;> rfl
+
+/-- A send that keeps the sender's epoch keeps the epoch of either party. -/
+theorem epoch_stateAt_sendSuccessor (s : GameState P AuthState) (party who : Bool)
+    (r : SendResult P AuthState) (h : r.state.epoch = (s.stateAt party).epoch) :
+    ((sendSuccessor s party r).stateAt who).epoch = (s.stateAt who).epoch := by
+  by_cases hwho : who = party
+  · subst who; simpa only [stateAt_sendSuccessor, ↓reduceIte] using h
+  · simp only [stateAt_sendSuccessor, if_neg hwho]
+
+/-- A send that keeps the sender's completed epoch keeps the completed epoch of either party. -/
+theorem completedEpoch_stateAt_sendSuccessor (s : GameState P AuthState) (party who : Bool)
+    (r : SendResult P AuthState)
+    (h : r.state.completedEpoch = (s.stateAt party).completedEpoch) :
+    ((sendSuccessor s party r).stateAt who).completedEpoch =
+      (s.stateAt who).completedEpoch := by
+  by_cases hwho : who = party
+  · subst who; simpa only [stateAt_sendSuccessor, ↓reduceIte] using h
+  · simp only [stateAt_sendSuccessor, if_neg hwho]
 
 /-- Sending records a new key only in the sender's key table. -/
 @[simp] theorem keysAt_sendSuccessor (s : GameState P AuthState) (party who : Bool)
@@ -191,6 +215,16 @@ theorem recvUpdate_correct (s : GameState P AuthState) (party : Bool) (tsnd : �
 
 variable [DecidableEq P.Sym]
 
+/-- The correctness game's send query for `party`; `true` denotes A and `false` denotes B. -/
+abbrev oracleSend (party : Bool) :=
+  if party then SCKAScheme.oracleSendA (scheme P auth irl sampleInitKey)
+  else SCKAScheme.oracleSendB (scheme P auth irl sampleInitKey)
+
+/-- The correctness game's receive query for `party`; `true` denotes A and `false` denotes B. -/
+abbrev oracleRecv (party : Bool) :=
+  if party then SCKAScheme.oracleRecvA (scheme P auth irl sampleInitKey)
+  else SCKAScheme.oracleRecvB (scheme P auth irl sampleInitKey)
+
 /-- A `SendA` query runs `send` on A's state and maps its result `r` to the response
 `(r.sendingEpoch, r.outputKey.map Prod.fst, r.msg)` and the state `sendAUpdate`. -/
 theorem oracleSendA_run_eq (s : GameState P AuthState) :
@@ -247,24 +281,21 @@ theorem mem_support_oracleSendB_run_iff (s : GameState P AuthState)
 
 /-- Sending at either party runs the same Braid sampler and applies that party's send update. -/
 theorem oracleSend_run_eq (s : GameState P AuthState) (party : Bool) :
-    (((if party then SCKAScheme.oracleSendA (scheme P auth irl sampleInitKey)
-      else SCKAScheme.oracleSendB (scheme P auth irl sampleInitKey)) ()).run s) =
+    (oracleSend auth irl sampleInitKey party ()).run s =
       (fun r : SendResult P AuthState =>
         (some (r.sendingEpoch, r.outputKey.map Prod.fst, r.msg), sendUpdate s party r)) <$>
         send P auth (s.stateAt party) := by
   cases party
-  · simpa only [Bool.false_eq_true, ↓reduceIte, sendUpdate, GameState.stateAt] using
+  · simpa only [oracleSend, Bool.false_eq_true, ↓reduceIte, sendUpdate, GameState.stateAt] using
       oracleSendB_run_eq auth irl sampleInitKey s
-  · simpa only [↓reduceIte, sendUpdate, GameState.stateAt] using
+  · simpa only [oracleSend, ↓reduceIte, sendUpdate, GameState.stateAt] using
       oracleSendA_run_eq auth irl sampleInitKey s
 
 /-- An outcome of the send query of `party` is the response and `sendUpdate` of some result of
 `send` on that party's state, and every such pair is an outcome. -/
 theorem mem_support_oracleSend_run_iff (s : GameState P AuthState) (party : Bool)
     (z : Option (ℕ × Option ℕ × Message P.Sym) × GameState P AuthState) :
-    z ∈ support
-      (((if party then SCKAScheme.oracleSendA (scheme P auth irl sampleInitKey)
-        else SCKAScheme.oracleSendB (scheme P auth irl sampleInitKey)) ()).run s) ↔
+    z ∈ support ((oracleSend auth irl sampleInitKey party ()).run s) ↔
       ∃ r ∈ support (send P auth (s.stateAt party)),
         z = (some (r.sendingEpoch, r.outputKey.map Prod.fst, r.msg), sendUpdate s party r) := by
   rw [oracleSend_run_eq auth irl sampleInitKey, support_map, Set.mem_image]
@@ -354,9 +385,7 @@ theorem oracleRecvB_run_cases {s : GameState P AuthState} {n : ℕ}
 receiver's successful update. -/
 theorem oracleRecv_run_cases {s : GameState P AuthState} (party : Bool) {n : ℕ}
     {z : Option (ℕ × Option ℕ) × GameState P AuthState}
-    (hz : z ∈ support
-      (((if party then SCKAScheme.oracleRecvA (scheme P auth irl sampleInitKey)
-        else SCKAScheme.oracleRecvB (scheme P auth irl sampleInitKey)) n).run s)) :
+    (hz : z ∈ support ((oracleRecv auth irl sampleInitKey party n).run s)) :
     (s.messagesAt (!party) n = none ∧ z = (none, s)) ∨
     (∃ msg tsnd err, s.messagesAt (!party) n = some (msg, tsnd) ∧
       receive P auth (s.stateAt party) msg = .error err ∧
@@ -366,9 +395,9 @@ theorem oracleRecv_run_cases {s : GameState P AuthState} (party : Bool) {n : ℕ
       z = (some (msg.epoch - 1, r.outputKey.map Prod.fst),
         recvUpdate s party tsnd r (msg.epoch - 1))) := by
   cases party
-  · simpa only [Bool.not_false, Bool.false_eq_true, ↓reduceIte, GameState.messagesAt,
+  · simpa only [oracleRecv, Bool.not_false, Bool.false_eq_true, ↓reduceIte, GameState.messagesAt,
       GameState.stateAt, recvUpdate] using oracleRecvB_run_cases auth irl sampleInitKey hz
-  · simpa only [Bool.not_true, Bool.false_eq_true, ↓reduceIte, GameState.messagesAt,
+  · simpa only [oracleRecv, Bool.not_true, Bool.false_eq_true, ↓reduceIte, GameState.messagesAt,
       GameState.stateAt, recvUpdate] using oracleRecvA_run_cases auth irl sampleInitKey hz
 
 end MLKEMBraid
