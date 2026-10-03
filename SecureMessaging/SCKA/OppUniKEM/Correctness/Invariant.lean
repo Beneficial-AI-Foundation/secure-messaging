@@ -418,22 +418,6 @@ lemma reachableInv_init
   (constructor <;> simp [T, EpochTranscript.empty, EpochTranscript.key,
     ChunksAConsistent, ChunksBConsistent, SCKAScheme.initGameState]; omega)
 
-omit [DecidableEq Sym] in
-/-- The uniform oracle preserves the reachable invariant. -/
-lemma oracleUnif_preserves_reachableInv
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) :
-    QueryImpl.PreservesInv
-      (SCKAScheme.oracleUnif (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-      (reachableInv kem onoff ecEk ecCt0 ecCt1) := by
-  intro t σ hσ z hz
-  have hz' : ∃ y : unifSpec.Range t, (y, σ) = z := by
-    simpa [SCKAScheme.oracleUnif] using hz
-  rcases hz' with ⟨_, rfl⟩
-  simpa using hσ
-
 end Invariant
 
 end oppUniKemCKA

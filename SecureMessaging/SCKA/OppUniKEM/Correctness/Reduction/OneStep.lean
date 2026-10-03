@@ -86,22 +86,10 @@ lemma tracked_step_score_le_of_bad [DecidableEq K]
     exact trackedFailureScore_le_one kem onoff z.2
   · simp [trackedFailureScore, hbad]
 
-/-- Whether an oracle query is `SendA` or `SendB`, the only queries that run
-KEM key generation or offline or online encapsulation. -/
-def isSendQuery
-    (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain) : Bool :=
-  match t with
-  | OSendA | OSendB => true
-  | _ => false
-
-/-- The proposition that a correctness-oracle query is a send query. -/
-def IsSendQuery
-    (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain) : Prop :=
-  isSendQuery t = true
-
-/-- Decides whether a correctness-oracle query is `SendA` or `SendB`. -/
-instance : DecidablePred (IsSendQuery (Sym := Sym)) :=
-  fun t => inferInstanceAs (Decidable (isSendQuery t = true))
+/-- The proposition that a correctness-oracle query is `SendA` or `SendB`, the only queries that
+run KEM key generation or offline or online encapsulation (`SCKAScheme.isSendQuery`). -/
+abbrev IsSendQuery (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain) : Prop :=
+  SCKAScheme.isSendQuery t = true
 
 /-- From a reachable state without a current KEM failure, `SendA` increases
 the expected tracked failure score by at most the staged correctness error. -/
@@ -494,9 +482,9 @@ lemma tracked_nonSend_score_support_eq [DecidableEq K]
       subst y
       simp [trackedFailureScore, hfail]
   | OSendA =>
-      exact False.elim (hNonSend (by simp [IsSendQuery, isSendQuery]))
+      exact False.elim (hNonSend (by simp [IsSendQuery, SCKAScheme.isSendQuery]))
   | OSendB =>
-      exact False.elim (hNonSend (by simp [IsSendQuery, isSendQuery]))
+      exact False.elim (hNonSend (by simp [IsSendQuery, SCKAScheme.isSendQuery]))
   | ORecvA n =>
       have hpot := oracleRecvA_preserves_failurePotential kem onoff hDet ecEk
         ecCt0 ecCt1 leak n s hs y hy
@@ -570,25 +558,25 @@ lemma tracked_score_step_le [DecidableEq K]
       rw [hpEq]
       match t with
       | OUnif n =>
-          simpa [IsSendQuery, isSendQuery] using
+          simpa [IsSendQuery, SCKAScheme.isSendQuery] using
             tracked_nonSend_score_le kem onoff hDet ecEk ecCt0 ecCt1 leak
-              (OUnif n) (by simp [IsSendQuery, isSendQuery]) _ hgood.1 hgood.2
+              (OUnif n) (by simp [IsSendQuery, SCKAScheme.isSendQuery]) _ hgood.1 hgood.2
       | OSendA =>
-          simpa [IsSendQuery, isSendQuery] using
+          simpa [IsSendQuery, SCKAScheme.isSendQuery] using
             tracked_sendA_score_le kem onoff hDet ecEk ecCt0 ecCt1 leak
               _ hgood.1 hgood.2
       | OSendB =>
-          simpa [IsSendQuery, isSendQuery] using
+          simpa [IsSendQuery, SCKAScheme.isSendQuery] using
             tracked_sendB_score_le kem onoff hDet ecEk ecCt0 ecCt1 leak
               _ hgood.1 hgood.2
       | ORecvA n =>
-          simpa [IsSendQuery, isSendQuery] using
+          simpa [IsSendQuery, SCKAScheme.isSendQuery] using
             tracked_nonSend_score_le kem onoff hDet ecEk ecCt0 ecCt1 leak
-              (ORecvA n) (by simp [IsSendQuery, isSendQuery]) _ hgood.1 hgood.2
+              (ORecvA n) (by simp [IsSendQuery, SCKAScheme.isSendQuery]) _ hgood.1 hgood.2
       | ORecvB n =>
-          simpa [IsSendQuery, isSendQuery] using
+          simpa [IsSendQuery, SCKAScheme.isSendQuery] using
             tracked_nonSend_score_le kem onoff hDet ecEk ecCt0 ecCt1 leak
-              (ORecvB n) (by simp [IsSendQuery, isSendQuery]) _ hgood.1 hgood.2
+              (ORecvB n) (by simp [IsSendQuery, SCKAScheme.isSendQuery]) _ hgood.1 hgood.2
 
 end Reduction.Internal
 
