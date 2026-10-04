@@ -9,15 +9,16 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.EpochSafety.StatePair
 /-!
 # The transcript invariant of the Braid correctness game
 
-An `EpochTranscript P` records an epoch's optional key pair and first-stage encapsulation.
-A transcript `T : ℕ → EpochTranscript P` supplies these records for all epochs.
-`transcriptAuth auth ik T e` reconstructs the authenticator from the initial key `ik` and the
-recorded epoch keys through epoch `e`.
+An `EpochTranscript P` records the key pair and the first-stage encapsulation sampled in an epoch,
+if any. A transcript `T : ℕ → EpochTranscript P` records all epochs; `transcriptAuth auth ik T e`
+is the authenticator state it determines after epoch `e`.
 
-`TranscriptConsistent auth ik T s` requires a true correctness flag and agreement between `s`
-and `T`, including control and pair conditions, local payloads, recorded messages and keys,
-and decapsulation of completed generator epochs. `CorrectnessInv auth ik s` also permits a
-false flag.
+`TranscriptConsistent auth ik T s` states that the game state `s` has a true correctness flag,
+satisfies `ControlInv` and `StatePairInv`, and agrees with `T`: the parties' states, recorded
+messages and output keys are computed from the samples of `T`, and once the generator of an epoch
+has completed it, the recorded encapsulation decapsulates to the recorded key.
+`CorrectnessInv auth ik s` holds if the correctness flag is false or `s` is consistent with some
+transcript.
 -/
 
 open OracleSpec OracleComp
@@ -309,8 +310,9 @@ theorem PairInv.peer_of_headerReceived {st peer : State P AuthState}
       State.completedEpoch] at * <;>
     omega
 
-/-- The epoch bounds and roles that `PairInv.peer_of_keysUnsampled` and
-`PairInv.peer_of_headerReceived` need, for `party` and its peer. -/
+/-- In a transcript-consistent state, the states `st` of `party` and `peer` of its peer satisfy
+`PairInv` in both directions, have positive epochs, each have an epoch at most the other's completed
+epoch plus one, and have opposite roles at equal epochs. -/
 theorem TranscriptConsistent.pairBounds {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s) (party : Bool) :
     let st := s.stateAt party
@@ -364,8 +366,9 @@ theorem peer_keysSampled_of_headerReceived {ik : InitKey} {T : ℕ → EpochTran
 
 /-! ### Transcript consistency of states that agree on the relevant fields -/
 
-/-- Transfer transcript consistency to a state with the same local and completed epochs and keys,
-consistent payloads and messages, and the required correctness, control and pair conditions. -/
+/-- If `s'` has a true correctness flag, satisfies `ControlInv` and `StatePairInv`, has the epochs,
+completed epochs and keys of a state `s` consistent with `T`, and its party states and recorded
+messages agree with `T`, then `s'` is consistent with `T`. -/
 theorem TranscriptConsistent.of_party {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s s' : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
     (hc : s'.correct = true) (hC : ControlInv s') (hP : StatePairInv s')

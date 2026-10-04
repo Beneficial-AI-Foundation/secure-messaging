@@ -9,9 +9,9 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.Oracles
 /-!
 # Reports of recorded messages
 
-A Braid send reports `msg.epoch - 1`. `RecordedReportInv` requires this report beside every
-recorded message, so receive reports can be checked against it. Every query preserves the
-invariant.
+A Braid send of a message `msg` reports the epoch `msg.epoch - 1`, and the game stores the report
+with the message. `RecordedReportInv` states that every stored report is `msg.epoch - 1`; every
+oracle preserves it.
 -/
 
 open OracleSpec OracleComp
@@ -25,10 +25,10 @@ variable {P : Parameters ProbComp} {InitKey AuthState : Type}
 /-- Every recorded message is stored with the report `msg.epoch - 1`. -/
 structure RecordedReportInv {StA StB I Sym : Type}
     (s : SCKAScheme.GameState StA StB I (Message Sym)) : Prop where
-  /-- The report stored with a message of A. -/
+  /-- Every message of A is stored with the report `msg.epoch - 1`. -/
   msgA : ∀ (n : ℕ) (msg : Message Sym) (tsnd : ℕ),
     s.msgA n = some (msg, tsnd) → tsnd = msg.epoch - 1
-  /-- The report stored with a message of B. -/
+  /-- Every message of B is stored with the report `msg.epoch - 1`. -/
   msgB : ∀ (n : ℕ) (msg : Message Sym) (tsnd : ℕ),
     s.msgB n = some (msg, tsnd) → tsnd = msg.epoch - 1
 

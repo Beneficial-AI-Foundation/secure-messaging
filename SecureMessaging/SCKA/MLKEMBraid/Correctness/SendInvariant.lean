@@ -9,9 +9,9 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
 /-!
 # Sends preserve the correctness invariant
 
-Either party's send oracle preserves `CorrectnessInv` on supported outcomes.
-The transcript lemmas record samples from `keysUnsampled` and `headerReceived`, and keep the
-transcript unchanged for other sends.
+The send oracle of either party preserves `CorrectnessInv` (`oracleSend_preserves_correctnessInv`).
+A send from `keysUnsampled` or `headerReceived` extends the transcript with its sample; every other
+send keeps the transcript.
 -/
 
 open OracleSpec OracleComp
@@ -24,7 +24,8 @@ variable {P : Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
     P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
 
-/-- Recording one valid payload preserves the payload condition for the message table. -/
+/-- If every message of a table and `msg` satisfy `MessagePayloadInv`, then so does every message of
+the table after recording `msg` at index `k`. -/
 private theorem messagePayloads_update {ik : InitKey} {T : ℕ → EpochTranscript P}
     {messages : ℕ → Option (Message P.Sym × ℕ)} {msg : Message P.Sym} {tsnd k : ℕ}
     (hOld : ∀ n m t, messages n = some (m, t) → MessagePayloadInv auth ik T m)
@@ -463,8 +464,8 @@ private theorem send_steady_step {ik : InitKey} {T : ℕ → EpochTranscript P}
     · simp only [EncoderState.nextChunk]
       rw [hecp, hpay]
 
-/-- A send without sampling preserves the transcript if its successor satisfies the control and pair
-invariants. -/
+/-- A send that samples nothing keeps the game state consistent with the same transcript, provided
+its successor satisfies the control and pair invariants. -/
 theorem send_existing_transcript {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
     (party : Bool) {r : SendResult P AuthState}
@@ -520,7 +521,7 @@ private theorem send_preserves_transcript {ik : InitKey} {T : ℕ → EpochTrans
 variable [DecidableEq P.EpochKey] [DecidableEq P.Sym]
   (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : ProbComp InitKey)
 
-/-- Sending at either party preserves the control and state-pair invariants. -/
+/-- The send oracle of either party preserves `ControlInv ∧ StatePairInv`. -/
 theorem oracleSend_preserves_controlInv_statePairInv (party : Bool) :
     QueryImpl.PreservesInv
       (oracleSend auth irl sampleInitKey party)

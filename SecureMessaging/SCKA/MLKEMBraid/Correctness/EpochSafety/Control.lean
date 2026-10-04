@@ -7,14 +7,20 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.SCKA.MLKEMBraid.Correctness.EpochKnowledge
 
 /-!
-# Roles and message order in the Braid correctness game
+# Roles and recorded messages in the Braid correctness game
 
-Roles follow epoch parity: A generates key pairs in odd epochs and B in even epochs.
-`PartyControl` enforces this role, ownership and order of recorded messages, and `ct2Sampled`
-when the peer is one epoch ahead.
+The generator of epoch `e`, which samples its key pair, is A if `e` is odd and B if `e` is even;
+the other party encapsulates. `State.controlPosition st = (isGenerator, step)` gives the role of a
+state and its step `0`–`4` within that role.
 
-`ControlInv` combines these conditions with `EpochKnowledgeInv`, `RecordedReportInv`, and
-bounds on game counters by local epochs minus one. Every query preserves it.
+For a party with state `st`, `PartyControl` requires:
+
+1. `st` is key-generating if and only if the party generates the key pair of `st.epoch`;
+2. `st` is in `ct2Sampled` if the peer is one epoch ahead;
+3. every message recorded by the party satisfies `MessageControl` for `st`.
+
+`ControlInv` adds `EpochKnowledgeInv`, `RecordedReportInv` and `tcur ≤ epoch - 1` for both
+parties. Every oracle of the correctness game preserves it (`correctnessImpl_preserves_controlInv`).
 -/
 
 open OracleSpec OracleComp
@@ -22,7 +28,8 @@ open SCKAScheme.sckaCorrectnessSpec
 
 namespace MLKEMBraid
 
-/-- A lower bound on the sender's control step after sending this message type. -/
+/-- A lower bound on the step of the sender's control position after it sends a message of this
+type. -/
 def MessageType.sendStep : MessageType → ℕ
   | .none | .ct1Ack => 0
   | .hdr => 1
@@ -30,8 +37,9 @@ def MessageType.sendStep : MessageType → ℕ
   | .ekCt1Ack => 3
   | .ct2 => 4
 
-/-- Whether `party` owns `msg` according to its type and epoch's generator. Either party owns empty
-messages; neither owns `ct1Ack`. -/
+/-- `party` owns `msg` if it may send a message of that type and epoch: the generator of
+`msg.epoch` sends `hdr`, `ek` and `ekCt1Ack`, the other party sends `ct1` and `ct2`, either party
+sends empty messages, and no party sends `ct1Ack`. -/
 def MessageOwner {Sym : Type} (party : Bool) (msg : Message Sym) : Prop :=
   match msg.type with
   | .none => True
@@ -39,16 +47,18 @@ def MessageOwner {Sym : Type} (party : Bool) (msg : Message Sym) : Prop :=
   | .ct1 | .ct2 => party ≠ decide (msg.epoch % 2 = 1)
   | .ct1Ack => False
 
-/-- A well-formed message owned by `party`, no newer than `st`, with a send step reached by `st`
-when their epochs agree. -/
+/-- `MessageControl party st msg` holds if `msg` is well-formed, `party` owns it,
+`msg.epoch ≤ st.epoch`, and, when `msg.epoch = st.epoch`, `st` is at least at step
+`msg.type.sendStep`. -/
 def MessageControl {P : Parameters ProbComp} {AuthState : Type}
     (party : Bool) (st : State P AuthState) (msg : Message P.Sym) : Prop :=
   msg.wellFormed = true ∧ msg.epoch ≤ st.epoch ∧
     (msg.epoch = st.epoch → msg.type.sendStep ≤ st.controlPosition.step) ∧
     MessageOwner party msg
 
-/-- The party's role matches its epoch parity, its recorded messages satisfy `MessageControl`, and
-it is in `ct2Sampled` when its peer is one epoch ahead. -/
+/-- `PartyControl party s` holds if the state `st` of `party` is key-generating exactly when
+`party` generates the key pair of `st.epoch`, `st` is in `ct2Sampled` when the peer is one epoch
+ahead, and every message recorded by `party` satisfies `MessageControl` for `st`. -/
 def PartyControl {P : Parameters ProbComp} {AuthState : Type}
     (party : Bool) (s : GameState P AuthState) : Prop :=
   let st := s.stateAt party
@@ -58,45 +68,46 @@ def PartyControl {P : Parameters ProbComp} {AuthState : Type}
     (peer.epoch = st.epoch + 1 → st.controlPosition = ⟨false, 4⟩) ∧
     ∀ n msg tsnd, messages n = some (msg, tsnd) → MessageControl party st msg
 
-/-- The game-counter bounds and both parties' control conditions, extending the epoch and report
-invariants. -/
+/-- The control invariant of a game state: the epoch and report invariants, each party's current
+game epoch at most its epoch minus one, and `PartyControl` for both parties. -/
 structure ControlInv {P : Parameters ProbComp} {AuthState : Type}
     (s : GameState P AuthState) : Prop where
-  /-- The epoch bounds hold. -/
+  /-- `EpochKnowledgeInv` holds. -/
   epochKnowledge : EpochKnowledgeInv s
-  /-- Recorded messages carry the report `msg.epoch - 1`. -/
+  /-- Every recorded message is stored with the report `msg.epoch - 1`. -/
   recordedReport : RecordedReportInv s
-  /-- `tcurA` is below A's epoch. -/
+  /-- A's current game epoch is at most A's epoch minus one. -/
   tcurA_le_sub_one : s.tcurA ≤ s.stA.epoch - 1
-  /-- `tcurB` is below B's epoch. -/
+  /-- B's current game epoch is at most B's epoch minus one. -/
   tcurB_le_sub_one : s.tcurB ≤ s.stB.epoch - 1
-  /-- The control conditions of both parties. -/
+  /-- `PartyControl` holds for both parties. -/
   roles : ∀ party : Bool, PartyControl party s
 
 variable {P : Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
     P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
 
-/-- Each party's current game epoch is below its local epoch. -/
+/-- Each party's current game epoch is at most its epoch minus one. -/
 theorem ControlInv.tcur_le_sub_one {s : GameState P AuthState} (hs : ControlInv s)
     (party : Bool) : s.tcurAt party ≤ (s.stateAt party).epoch - 1 := by
   cases party; exacts [hs.tcurB_le_sub_one, hs.tcurA_le_sub_one]
 
-/-- Each party's generator role matches the parity of its epoch. -/
+/-- Each party is key-generating exactly when it generates the key pair of its epoch. -/
 theorem ControlInv.role {s : GameState P AuthState} (hs : ControlInv s) (party : Bool) :
     (s.stateAt party).controlPosition.isGenerator =
       decide ((s.stateAt party).epoch % 2 = if party then 1 else 0) := by
   exact (hs.roles party).1
 
-/-- Each party's current game epoch is below its local epoch, and it has a key for every
-positive epoch below its local epoch. -/
+/-- Each party's current game epoch is at most its epoch minus one, and the party has a key for
+every epoch from `1` to its epoch minus one. -/
 theorem ControlInv.send_prefix {s : GameState P AuthState} (hs : ControlInv s) (party : Bool) :
     s.tcurAt party ≤ (s.stateAt party).epoch - 1 ∧
       ∀ t, 0 < t → t ≤ (s.stateAt party).epoch - 1 → s.keysAt party t ≠ none := by
   exact ⟨hs.tcur_le_sub_one party, fun t h0 hle => (hs.epochKnowledge.keyPrefix.keys party t).2
     ⟨h0, hle.trans (s.stateAt party).epoch_sub_one_le_completedEpoch⟩⟩
 
-/-- A send's message satisfies `MessageControl` for the successor state. -/
+/-- If `st` is key-generating exactly when `party` generates the key pair of `st.epoch`, a send
+from `st` emits a message satisfying `MessageControl party` for the successor state. -/
 theorem SendEdge.messageControl (party : Bool) {st : State P AuthState}
     {r : SendResult P AuthState} (hedge : SendEdge auth st r)
     (hrole : st.controlPosition.isGenerator = decide (st.epoch % 2 = if party then 1 else 0)) :
@@ -108,8 +119,8 @@ theorem SendEdge.messageControl (party : Bool) {st : State P AuthState}
       at hrole hparity ⊢ <;>
     rcases hparity with h | h <;> cases party <;> simp_all
 
-/-- A send preserves the sender's control conditions and records a message satisfying
-`MessageControl`. -/
+/-- A send preserves the three conditions of `PartyControl` for the sender, with the sent message
+recorded at any index `k`. -/
 theorem partyControl_send (party : Bool) {st peer : State P AuthState}
     {messages : ℕ → Option (Message P.Sym × ℕ)} {r : SendResult P AuthState}
     (hedge : SendEdge auth st r)
@@ -137,8 +148,9 @@ theorem partyControl_send (party : Bool) {st peer : State P AuthState}
       obtain ⟨hwf, hle, hcur, howner⟩ := hmsgs n msg tsnd hn
       exact ⟨hwf, by omega, fun h => (hcur (by omega)).trans hstep, howner⟩
 
-/-- Receiving a peer's recorded message preserves the receiver's control conditions and the peer's
-lag condition, and bounds the receiver's new game counter. -/
+/-- Accepting a message recorded by the peer preserves the `ct2Sampled` conditions of both parties
+and the receiver's role and `MessageControl` conditions, and the receiver's new current game epoch
+`max tcur (msg.epoch - 1)` is at most its new epoch minus one. -/
 theorem partyControl_receive [DecidableEq P.Sym] (party : Bool) {st peer : State P AuthState}
     {messages : ℕ → Option (Message P.Sym × ℕ)} {msg : Message P.Sym}
     {r : RecvResult P AuthState} {tcur : ℕ}
@@ -228,7 +240,7 @@ theorem partyControl_receive [DecidableEq P.Sym] (party : Bool) {st peer : State
 variable [DecidableEq P.EpochKey] [DecidableEq P.Sym]
   (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : ProbComp InitKey)
 
-/-- A send by either party preserves the control invariant. -/
+/-- The send oracle of either party preserves `ControlInv`. -/
 theorem oracleSend_preserves_controlInv (party : Bool) :
     QueryImpl.PreservesInv (oracleSend auth irl sampleInitKey party) ControlInv := by
   rintro t (s : GameState P AuthState) hs z hz
@@ -263,7 +275,7 @@ theorem oracleSend_preserves_controlInv (party : Bool) :
     | exact ⟨hEpoch, hReports, ht, htP, fun who => by
         cases who; exacts [⟨hroleP, hlagP', hmsgP⟩, ⟨hgen, hlag, hmsgs⟩]⟩
 
-/-- A receive by either party preserves the control invariant. -/
+/-- The receive oracle of either party preserves `ControlInv`. -/
 theorem oracleRecv_preserves_controlInv (party : Bool) :
     QueryImpl.PreservesInv (oracleRecv auth irl sampleInitKey party) ControlInv := by
   rintro n (s : GameState P AuthState) hs z hz

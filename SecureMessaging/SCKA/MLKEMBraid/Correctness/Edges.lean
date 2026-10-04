@@ -9,14 +9,17 @@ import SecureMessaging.SCKA.MLKEMBraid.Construction
 /-!
 # The edges of the Braid state machine
 
-`SendEdge auth st r` characterizes the supported results of `send P auth st`
-(`mem_support_send_iff`). `ReceiveEdge auth st msg r` contains every successful receive
-transition (`ReceiveEdge.of_eq_ok`), but its `ignore` and `nextEpoch` constructors omit guards.
+Edge numbers refer to Figure 1 of the ML-KEM Braid specification.
 
-`State.completedEpoch` records the last epoch whose key a party has computed;
-`State.controlPosition` records its role and step. Sends keep the epoch; receives keep it or
-advance it by one. From positive epochs, completed epochs never decrease, and output keys
-complete the next previously uncompleted epoch.
+* `SendEdge auth st r` holds exactly when `r` is a possible result of `send P auth st`
+  (`mem_support_send_iff`).
+* `ReceiveEdge auth st msg r` holds whenever `receive P auth st msg` accepts with result `r`
+  (`ReceiveEdge.of_eq_ok`). The converse fails: `ignore` and `nextEpoch` omit the guards of
+  `receive`.
+
+Sends keep the epoch; receives keep it or increase it by one. From a positive epoch, a transition
+that outputs the key of epoch `t` moves the completed epoch (`State.completedEpoch`) from `t - 1`
+to `t`, and every other transition keeps it.
 -/
 
 open ErasureCodePayload.Streaming OracleComp
@@ -29,8 +32,8 @@ variable {P : Parameters ProbComp} {InitKey AuthState : Type}
 
 /-! ### Projections of a state -/
 
-/-- The last epoch whose key the party has computed: its local epoch after encapsulation, and the
-previous epoch otherwise. -/
+/-- The last epoch whose key the party has output: `st.epoch` in the four encapsulating states after
+`encaps1`, and `st.epoch - 1` otherwise. -/
 def State.completedEpoch : State P AuthState → ℕ
   | .ct1Sampled e .. => e
   | .ekReceivedCt1Sampled e .. => e
@@ -70,8 +73,8 @@ def State.controlPosition : State P AuthState → ControlPosition
   | .ct1Acknowledged .. => ⟨false, 3⟩
   | .ct2Sampled .. => ⟨false, 4⟩
 
-/-- An encapsulator from step `2` has completed its epoch; every other state has completed only the
-previous one. -/
+/-- An encapsulating state at step `2` or later has completed its epoch; every other state has
+completed the previous epoch. -/
 theorem State.completedEpoch_eq (st : State P AuthState) :
     st.completedEpoch =
       if st.controlPosition.isGenerator = false ∧ 2 ≤ st.controlPosition.step then st.epoch
@@ -92,8 +95,8 @@ theorem State.eq_ct2Sampled_of_controlPosition (st : State P AuthState)
 
 /-! ### Send edges -/
 
-/-- The supported send transitions. Only `keygen` and `encaps1` sample; the other transitions emit a
-chunk or an empty message. -/
+/-- `SendEdge auth st r` holds if `r` is a possible result of `send P auth st`. Only `keygen` and
+`encaps1` sample; the other edges emit the next chunk of a stream or an empty message. -/
 inductive SendEdge : State P AuthState → SendResult P AuthState → Prop
   /-- Edge 1: sample a key pair and emit the first header chunk. -/
   | keygen (e : ℕ) (a : AuthState) (pk : P.PK) (sk : P.SK)
@@ -161,7 +164,7 @@ inductive SendEdge : State P AuthState → SendResult P AuthState → Prop
       SendEdge (.ct2Sampled e a enc)
         ⟨⟨e, .ct2, some enc.nextChunk.1⟩, e - 1, none, .ct2Sampled e a enc.nextChunk.2⟩
 
-/-- `send` from `keysUnsampled` maps the sampled key pair to its result (edge 1). -/
+/-- From `keysUnsampled`, `send` samples a key pair and returns the result of edge 1 for it. -/
 theorem send_keysUnsampled_eq (e : ℕ) (a : AuthState) :
     send P auth (.keysUnsampled e a) =
       (fun kp : P.PK × P.SK =>
@@ -174,7 +177,7 @@ theorem send_keysUnsampled_eq (e : ℕ) (a : AuthState) :
   simp only [send, map_eq_bind_pure_comp]
   exact bind_congr fun kp => by cases kp; rfl
 
-/-- `send` from `headerReceived` maps the sampled encapsulation to its result (edge 7). -/
+/-- From `headerReceived`, `send` runs `encaps1` and returns the result of edge 7 for its output. -/
 theorem send_headerReceived_eq (e : ℕ) (a : AuthState) (hdr : P.inc.PKheader)
     (dec : DecoderState P.inc.PKvector P.Sym) :
     send P auth (.headerReceived e a hdr dec) =
@@ -219,11 +222,11 @@ namespace SendEdge
 
 variable {auth} {st : State P AuthState} {r : SendResult P AuthState}
 
-/-- A send keeps the epoch and stamps it on the message. -/
+/-- A send keeps the epoch, and the sent message carries it. -/
 theorem epoch_eq (h : SendEdge auth st r) : r.state.epoch = st.epoch ∧ r.msg.epoch = st.epoch := by
   cases h <;> simp [State.epoch]
 
-/-- A send reports the epoch before the current one. -/
+/-- A send reports the epoch `st.epoch - 1`. -/
 theorem sendingEpoch_eq (h : SendEdge auth st r) : r.sendingEpoch = st.epoch - 1 := by
   cases h <;> rfl
 
@@ -231,19 +234,19 @@ theorem sendingEpoch_eq (h : SendEdge auth st r) : r.sendingEpoch = st.epoch - 1
 theorem wellFormed (h : SendEdge auth st r) : r.msg.wellFormed = true := by
   cases h <;> rfl
 
-/-- A send keeps the role and does not move the step backwards. -/
+/-- A send keeps the role and does not decrease the step. -/
 theorem controlPosition (h : SendEdge auth st r) :
     r.state.controlPosition.isGenerator = st.controlPosition.isGenerator ∧
       st.controlPosition.step ≤ r.state.controlPosition.step := by
   cases h <;> simp [State.controlPosition]
 
-/-- Only an encapsulator with the completed epoch sends `ct₂`. -/
+/-- A sent `ct₂` message is of an epoch that the sender has completed. -/
 theorem completedEpoch_of_ct2 (h : SendEdge auth st r) (hty : r.msg.type = .ct2) :
     r.msg.epoch ≤ st.completedEpoch := by
   cases h <;> simp_all [State.completedEpoch]
 
-/-- A send without output key keeps the completed epoch. A send with output key `(tI, _)`
-completes epoch `tI`, the epoch after the previously completed one. -/
+/-- From a positive epoch, a send without output key keeps the completed epoch, and a send with the
+output key of epoch `tI` moves the completed epoch from `tI - 1` to `tI`. -/
 theorem completedEpoch (h : SendEdge auth st r) (hpos : 0 < st.epoch) :
     match r.outputKey with
     | none => r.state.completedEpoch = st.completedEpoch
@@ -252,7 +255,7 @@ theorem completedEpoch (h : SendEdge auth st r) (hpos : 0 < st.epoch) :
   all_goals simp only [State.completedEpoch, State.epoch, and_true] at hpos ⊢
   all_goals omega
 
-/-- A send does not lower the completed epoch. -/
+/-- From a positive epoch, a send does not lower the completed epoch. -/
 theorem completedEpoch_mono (h : SendEdge auth st r) (hpos : 0 < st.epoch) :
     st.completedEpoch ≤ r.state.completedEpoch := by
   have := h.completedEpoch hpos
@@ -269,11 +272,11 @@ end SendEdge
 
 variable [DecidableEq P.Sym]
 
-/-- An overapproximation of successful `receive` transitions. The `ignore` and `nextEpoch`
-constructors omit guards, so the converse of `ReceiveEdge.of_eq_ok` does not hold. -/
+/-- `ReceiveEdge auth st msg r` holds whenever `receive P auth st msg` accepts with result `r`
+(`ReceiveEdge.of_eq_ok`). The converse fails: `ignore` and `nextEpoch` omit the guards of `receive`.
+-/
 inductive ReceiveEdge : State P AuthState → Message P.Sym → RecvResult P AuthState → Prop
-  /-- An unchanged state with the previous epoch as report, permitted without `receive`'s message
-  guards. -/
+  /-- Any message leaves the state unchanged and reports `st.epoch - 1`. -/
   | ignore (st : State P AuthState) (msg : Message P.Sym) :
       ReceiveEdge st msg ⟨st.epoch - 1, none, st⟩
   /-- Edge 2: the first `ct₁` chunk reaches the key generator, which starts the vector stream. -/
@@ -366,7 +369,7 @@ inductive ReceiveEdge : State P AuthState → Message P.Sym → RecvResult P Aut
         ⟨e - 1, none, .ct2Sampled e a (EncoderState.init P.ecpCt2
           (P.hEnc2.encaps2Det es hdr vec,
             auth.macCiphertext a e (ct1, P.hEnc2.encaps2Det es hdr vec)))⟩
-  /-- An acknowledgement chunk after the acknowledgement that does not complete the vector. -/
+  /-- A further acknowledgement chunk that does not complete the vector. -/
   | ackChunk (e : ℕ) (a : AuthState) (hdr : P.inc.PKheader) (es : P.inc.St) (ct1 : P.inc.C₁)
       (dec : DecoderState P.inc.PKvector P.Sym) (chunk : ℕ × P.Sym)
       (h : (dec.addChunk chunk).decodedPayload = none) :
@@ -469,13 +472,13 @@ theorem epoch_le (h : ReceiveEdge auth st msg r) :
   case ignore => exact ⟨le_rfl, Nat.le_succ _⟩
   all_goals simp only [State.epoch]; omega
 
-/-- A receive that outputs a key or changes the epoch is an epoch advance. -/
+/-- A receive either keeps the epoch and outputs no key, or increases the epoch by one. -/
 theorem epoch_eq_or_succ (h : ReceiveEdge auth st msg r) :
     (r.outputKey = none ∧ r.state.epoch = st.epoch) ∨ r.state.epoch = st.epoch + 1 := by
   cases h <;> first | exact Or.inl ⟨rfl, rfl⟩ | exact Or.inr rfl
 
-/-- An epoch advance switches roles: `ct2Sampled` to `keysUnsampled`, or `ekSentCt1Received` to
-`noHeaderReceived`. -/
+/-- A receive that changes the epoch takes an encapsulator, on a message of the next epoch, to
+`keysUnsampled`, or takes a generator, on a `ct₂` message of its epoch, to `noHeaderReceived`. -/
 theorem advance (h : ReceiveEdge auth st msg r) (hne : r.state.epoch ≠ st.epoch) :
     (st.controlPosition.isGenerator = false ∧ msg.epoch = st.epoch + 1 ∧
         ∃ a, r.state = .keysUnsampled (st.epoch + 1) a) ∨
@@ -486,8 +489,9 @@ theorem advance (h : ReceiveEdge auth st msg r) (hne : r.state.epoch ≠ st.epoc
     | exact Or.inl ⟨rfl, ‹_›, _, rfl⟩
     | exact Or.inr ⟨rfl, rfl, rfl, _, _, rfl⟩
 
-/-- A receive keeps the completed epoch unless it outputs a key, which completes the next epoch. The
-successor epoch stays positive. -/
+/-- From a positive epoch, a receive keeps the epoch positive; without output key it keeps the
+completed epoch, and with the output key of epoch `tI` it moves the completed epoch from `tI - 1` to
+`tI`. -/
 theorem completedEpoch (h : ReceiveEdge auth st msg r) (hpos : 0 < st.epoch) :
     0 < r.state.epoch ∧
       match r.outputKey with
@@ -504,7 +508,8 @@ theorem completedEpoch_mono (h : ReceiveEdge auth st msg r) (hpos : 0 < st.epoch
   have := (h.completedEpoch hpos).2
   cases hk : r.outputKey <;> simp only [hk] at this <;> omega
 
-/-- A receive preserves the upper epoch bound `c + 1` under the corresponding message bounds. -/
+/-- If `st.epoch ≤ c + 1`, `msg.epoch ≤ c + 1`, and `msg.epoch ≤ c` for a `ct₂` message, then the
+epoch after a receive is at most `c + 1`. -/
 theorem epoch_le_of_le (h : ReceiveEdge auth st msg r) (c : ℕ) (hst : st.epoch ≤ c + 1)
     (hmsg : msg.epoch ≤ c + 1) (hct2 : msg.type = .ct2 → msg.epoch ≤ c) :
     r.state.epoch ≤ c + 1 := by
@@ -513,7 +518,7 @@ theorem epoch_le_of_le (h : ReceiveEdge auth st msg r) (c : ℕ) (hst : st.epoch
   all_goals simp only [State.epoch] at hst hmsg hct2 ⊢
   all_goals first | omega | (have := hct2 trivial; omega)
 
-/-- A receive within the same epoch keeps the role and does not move the step backwards. -/
+/-- A receive within the same epoch keeps the role and does not decrease the step. -/
 theorem controlPosition_of_epoch_eq (h : ReceiveEdge auth st msg r)
     (heq : r.state.epoch = st.epoch) :
     r.state.controlPosition.isGenerator = st.controlPosition.isGenerator ∧

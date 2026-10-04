@@ -7,14 +7,17 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.SCKA.MLKEMBraid.Correctness.EpochSafety.Control
 
 /-!
-# The pairs of states of the two parties
+# Joint states of the two parties
 
-`AllowedStatePair` lists the generator/encapsulator pairs at equal epochs. `PairInv` also requires
-a party one epoch behind to be in `ct2Sampled` while its peer waits for the next header.
-`StatePairInv` imposes these conditions in both directions.
+`AllowedStatePair gen enc` lists the pairs of a key-generating state `gen` and an encapsulating
+state `enc` that occur at the same epoch. For states `st` and `peer` of the two parties,
+`PairInv st peer` requires:
 
-Every query preserves `ControlInv` together with `StatePairInv`; `PairInv.send` and
-`PairInv.receive` give the local preservation results.
+1. if the epochs are equal and `st` is key-generating, then `AllowedStatePair st peer`;
+2. if `peer.epoch = st.epoch + 1`, then `st` is in `ct2Sampled` and `peer` in `noHeaderReceived`.
+
+`StatePairInv` requires `PairInv` in both directions. Every oracle of the correctness game
+preserves `ControlInv ∧ StatePairInv` (`correctnessImpl_preserves_controlInv_statePairInv`).
 -/
 
 open OracleSpec OracleComp
@@ -39,14 +42,15 @@ def AllowedStatePair {P : Parameters ProbComp} {AuthState : Type} :
   | .ekSentCt1Received .., .ct2Sampled .. => True
   | _, _ => False
 
-/-- At equal epochs, a generator forms an `AllowedStatePair` with its peer; a party one epoch behind
-is in `ct2Sampled` with its peer in `noHeaderReceived`. -/
+/-- `PairInv st peer` holds if, at equal epochs, a key-generating `st` forms an `AllowedStatePair`
+with `peer`, and, if `peer` is one epoch ahead, `st` is in `ct2Sampled` and `peer` in
+`noHeaderReceived`. -/
 def PairInv {P : Parameters ProbComp} {AuthState : Type} (st peer : State P AuthState) : Prop :=
   (st.epoch = peer.epoch → st.controlPosition.isGenerator = true → AllowedStatePair st peer) ∧
     (peer.epoch = st.epoch + 1 →
       st.controlPosition = ⟨false, 4⟩ ∧ peer.controlPosition = ⟨false, 0⟩)
 
-/-- The pair conditions of A with respect to B and of B with respect to A. -/
+/-- `PairInv` holds for A's state against B's and for B's state against A's. -/
 def StatePairInv {P : Parameters ProbComp} {AuthState : Type} (s : GameState P AuthState) : Prop :=
   PairInv s.stA s.stB ∧ PairInv s.stB s.stA
 
@@ -54,19 +58,20 @@ variable {P : Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
     P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
 
-/-- Either party satisfies the pair conditions with respect to its peer. -/
+/-- Each party's state satisfies `PairInv` against its peer's state. -/
 theorem StatePairInv.pair {s : GameState P AuthState} (hs : StatePairInv s) (party : Bool) :
     PairInv (s.stateAt party) (s.stateAt (!party)) := by
   cases party; exacts [hs.2, hs.1]
 
-/-- A send by the party in state `st` preserves the pair conditions in both directions. -/
+/-- A send from `st` preserves `PairInv` between `st` and `peer` in both directions. -/
 theorem PairInv.send {st peer : State P AuthState} {r : SendResult P AuthState}
     (hedge : SendEdge auth st r) (h : PairInv st peer) (h' : PairInv peer st) :
     PairInv r.state peer ∧ PairInv peer r.state := by
   cases hedge <;> cases peer <;>
     simp_all [PairInv, AllowedStatePair, State.controlPosition, State.epoch]
 
-/-- Receiving a peer's recorded message preserves the pair conditions in both directions. -/
+/-- A receive by `st` of a message recorded by `peer` preserves `PairInv` between `st` and `peer`
+in both directions. -/
 theorem PairInv.receive [DecidableEq P.Sym] {st peer : State P AuthState} {msg : Message P.Sym}
     {r : RecvResult P AuthState} (hedge : ReceiveEdge auth st msg r)
     (hpos : 0 < st.epoch) (hposP : 0 < peer.epoch)

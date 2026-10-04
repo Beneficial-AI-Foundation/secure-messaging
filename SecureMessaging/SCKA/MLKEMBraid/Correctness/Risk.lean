@@ -39,11 +39,11 @@ def derivedKeyFailure [DecidableEq P.EpochKey]
   if (P.hDet.decapsDet sk (P.inc.splitC.symm (ct1, ct2))).map (fun k => P.kdfOK k e) = some key
   then 0 else 1
 
-/-- The current-epoch contribution for a key generator in state `gen` and an encapsulator in
-state `encap`, where `keys` is the encapsulator's epoch-key table. Before encapsulation, the
-sampling cases use `decapsFailureProb` for the fixed key pair. After encapsulation, the comparison
-cases use `derivedKeyFailure` if the encapsulator has recorded its epoch key, and `0` otherwise.
-All remaining state pairs give `0`. -/
+/-- The failure contribution of a key generator in state `gen` and an encapsulator in state `encap`,
+where `keys` is the encapsulator's key table. If `gen` is in `keysSampled` and `encap` has not
+encapsulated, it is `decapsFailureProb` of the generator's key pair. Once `encap` has encapsulated,
+it is `derivedKeyFailure` of the generator's secret key, the ciphertext, and the encapsulator's key
+for the epoch, or `0` if `keys` has none. All other pairs give `0`. -/
 noncomputable def pairFailure [DecidableEq P.K] [DecidableEq P.EpochKey]
     (gen encap : State P AuthState) (keys : ℕ → Option P.EpochKey) : ℝ≥0∞ :=
   let test := fun sk ct1 ct2 =>

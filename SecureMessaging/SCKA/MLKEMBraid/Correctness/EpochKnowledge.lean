@@ -10,14 +10,15 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.MessageReports
 /-!
 # Epoch bounds in the Braid correctness game
 
-`EpochKnowledgeInv` combines `KeyPrefixInv` with bounds on:
+`EpochKnowledgeInv s` combines `KeyPrefixInv s` with bounds in terms of the parties' completed
+epochs (`State.completedEpoch`):
 
-* each local epoch by its peer's completed epoch plus one;
-* each game counter by its party's completed epoch;
-* each recorded message's epoch by both completed epochs plus one.
+* each party's epoch is at most its peer's completed epoch plus one;
+* each party's current game epoch (`tcurA`, `tcurB`) is at most its own completed epoch;
+* each recorded message's epoch is at most both completed epochs plus one, and at most its
+  sender's completed epoch for a `ct₂` message.
 
-A recorded `ct₂` message also belongs to an epoch its sender has completed.
-Initialization satisfies this invariant, and every query preserves it.
+The initial state satisfies the invariant, and every oracle preserves it.
 -/
 
 open OracleSpec OracleComp
@@ -86,7 +87,7 @@ theorem epochKnowledgeInv_initGameState (ik : InitKey) :
 variable [DecidableEq P.EpochKey] [DecidableEq P.Sym]
   (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : ProbComp InitKey)
 
-/-- A send by either party preserves the epoch bounds. -/
+/-- The send oracle of either party preserves `EpochKnowledgeInv`. -/
 theorem oracleSend_preserves_epochKnowledgeInv (party : Bool) :
     QueryImpl.PreservesInv (oracleSend auth irl sampleInitKey party) EpochKnowledgeInv := by
   rintro _ (s : GameState P AuthState) hs z hz
@@ -139,7 +140,7 @@ theorem oracleSend_preserves_epochKnowledgeInv (party : Bool) :
     | exact ⟨hprefix, hcP, hc, htcurP, ht, hmsgsP, hmsgs⟩
     | exact ⟨hprefix, hc, hcP, ht, htcurP, hmsgs, hmsgsP⟩
 
-/-- A receive by either party preserves the epoch bounds. -/
+/-- The receive oracle of either party preserves `EpochKnowledgeInv`. -/
 theorem oracleRecv_preserves_epochKnowledgeInv (party : Bool) :
     QueryImpl.PreservesInv (oracleRecv auth irl sampleInitKey party) EpochKnowledgeInv := by
   rintro n (s : GameState P AuthState) hs z hz

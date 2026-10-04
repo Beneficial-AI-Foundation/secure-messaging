@@ -21,11 +21,12 @@ Let `Π := scheme P auth irl sampleInitKey` and let
 
 The correctness game lets a scheduling adversary
 `adv : SCKAScheme.SCKACorrectnessAdversary (Message P.Sym)` choose sends and deliveries by recorded
-message index. Its flag checks agreement and uniqueness of epoch keys, matching send/receive
-reports, monotone send reports, and key availability through each party's game counter.
-These counters, `tcurA` and `tcurB`, track reports separately from local protocol epochs.
-Missing messages leave the state unchanged; refused receives clear the flag. Braid sends never
-refuse. The game returns the final flag.
+message index. Its correctness flag checks that the parties agree on epoch keys, output at most one
+key per epoch, receive each message with the report of its send, never send with a report below
+their current epoch, and have keys for every epoch from `1` to their current epoch. A party's
+current epoch (`tcurA`, `tcurB`) is the largest epoch it has reported, which lags its local
+protocol epoch. Missing messages leave the state unchanged; refused receives clear the flag. Braid
+sends never refuse. The game returns the final flag.
 
 Assume the four erasure codes of `P` are correct. Then every adversary with at most `q` send
 queries across both parties (`SCKAScheme.SendQueryBound adv q`) satisfies

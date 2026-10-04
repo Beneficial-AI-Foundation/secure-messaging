@@ -152,8 +152,8 @@ theorem receive_preserves_transcriptConsistent
 variable [DecidableEq P.EpochKey]
   (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : ProbComp InitKey)
 
-/-- A supported receive preserves the same transcript whenever the successor's correctness flag is
-true. -/
+/-- A receive whose successor has a true correctness flag keeps the game state consistent with the
+same transcript. -/
 theorem oracleRecv_preserves_transcriptConsistent
     (hHdrCorrect : P.ecpHdr.ec.Correct)
     (hEkCorrect : P.ecpEk.ec.Correct)

@@ -10,13 +10,15 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.Edges
 /-!
 # The oracles of the Braid correctness game
 
-The party-indexed interface uses `true` for A and `false` for B. `GameState` accessors select
-local states, keys, messages and counters; `oracleSend` and `oracleRecv` select the corresponding
-queries. Execution and support lemmas describe their joint responses and successor states.
+A party is a `Bool`: `true` is A and `false` is B. `s.stateAt party`, `keysAt`, `messagesAt`,
+`countAt` and `tcurAt` select the fields of `party` in a game state `s`; `oracleSend party` and
+`oracleRecv party` are its queries.
 
-The raw `sendSuccessor` and `recvSuccessor` retain the input correctness flag. `sendUpdate` and
-`recvUpdate` perform the game's correctness checks; they equal the raw successors when both
-input and output flags are true.
+For a send result `r`, `sendUpdate s party r` is the state written by the send query, and
+`sendSuccessor s party r` is the same state with the correctness flag of `s`; the two agree when
+both flags are true. `recvUpdate` and `recvSuccessor` are the receive analogues.
+`oracleSend_run_eq` and `oracleRecv_run_cases` state the responses and successor states of the
+queries in these terms.
 -/
 
 open OracleComp
@@ -38,34 +40,36 @@ abbrev GameState (P : Parameters ProbComp) (AuthState : Type) : Type :=
 def GameState.stateAt (s : GameState P AuthState) (party : Bool) : State P AuthState :=
   if party then s.stA else s.stB
 
-/-- The generator of epoch `e` is A in odd epochs and B in even epochs. -/
+/-- The state of the generator of epoch `e`, the party `decide (e % 2 = 1)`, is A's state if `e` is
+odd and B's state otherwise. -/
 theorem GameState.stateAt_generator (s : GameState P AuthState) (e : ℕ) :
     s.stateAt (decide (e % 2 = 1)) = if e % 2 = 1 then s.stA else s.stB := by
   simp [GameState.stateAt]
 
-/-- The encapsulator of epoch `e` is the peer of its generator. -/
+/-- The state of the encapsulator of epoch `e`, the peer of its generator, is B's state if `e` is
+odd and A's state otherwise. -/
 theorem GameState.stateAt_encapsulator (s : GameState P AuthState) (e : ℕ) :
     s.stateAt (!decide (e % 2 = 1)) = if e % 2 = 1 then s.stB else s.stA := by
   by_cases h : e % 2 = 1 <;> simp [GameState.stateAt, h]
 
-/-- The keys recorded by `party`. -/
+/-- The key table of `party`. -/
 def GameState.keysAt (s : GameState P AuthState) (party : Bool) : ℕ → Option P.EpochKey :=
   if party then s.keyA else s.keyB
 
-/-- The messages recorded by `party`. -/
+/-- The messages sent by `party`, each stored with its reported epoch. -/
 def GameState.messagesAt (s : GameState P AuthState) (party : Bool) :
     ℕ → Option (Message P.Sym × ℕ) :=
   if party then s.msgA else s.msgB
 
-/-- The number of messages recorded by `party`. -/
+/-- The number of messages sent by `party`. -/
 def GameState.countAt (s : GameState P AuthState) (party : Bool) : ℕ :=
   if party then s.nA else s.nB
 
-/-- The correctness game's current-epoch counter for `party`. -/
+/-- The current epoch of `party` in the correctness game. -/
 def GameState.tcurAt (s : GameState P AuthState) (party : Bool) : ℕ :=
   if party then s.tcurA else s.tcurB
 
-/-- The send successor before the oracle updates the correctness flag. -/
+/-- The game state after `party` sends with result `r`, with the correctness flag of `s`. -/
 def sendSuccessor (s : GameState P AuthState) (party : Bool)
     (r : SendResult P AuthState) : GameState P AuthState :=
   if party then
@@ -89,7 +93,7 @@ def sendSuccessor (s : GameState P AuthState) (party : Bool)
     (sendSuccessor s party r).stateAt who = if who = party then r.state else s.stateAt who := by
   cases party <;> cases who <;> rfl
 
-/-- A send that keeps the sender's epoch keeps the epoch of either party. -/
+/-- A send that keeps the sender's epoch keeps every party's epoch. -/
 theorem epoch_stateAt_sendSuccessor (s : GameState P AuthState) (party who : Bool)
     (r : SendResult P AuthState) (h : r.state.epoch = (s.stateAt party).epoch) :
     ((sendSuccessor s party r).stateAt who).epoch = (s.stateAt who).epoch := by
@@ -97,7 +101,7 @@ theorem epoch_stateAt_sendSuccessor (s : GameState P AuthState) (party who : Boo
   · subst who; simpa only [stateAt_sendSuccessor, ↓reduceIte] using h
   · simp only [stateAt_sendSuccessor, if_neg hwho]
 
-/-- A send that keeps the sender's completed epoch keeps the completed epoch of either party. -/
+/-- A send that keeps the sender's completed epoch keeps every party's completed epoch. -/
 theorem completedEpoch_stateAt_sendSuccessor (s : GameState P AuthState) (party who : Bool)
     (r : SendResult P AuthState)
     (h : r.state.completedEpoch = (s.stateAt party).completedEpoch) :
@@ -127,12 +131,13 @@ theorem completedEpoch_stateAt_sendSuccessor (s : GameState P AuthState) (party 
       else s.messagesAt who := by
   cases party <;> cases who <;> rfl
 
-/-- The raw send successor keeps the input correctness flag. -/
+/-- `sendSuccessor` keeps the correctness flag. -/
 @[simp] theorem correct_sendSuccessor (s : GameState P AuthState) (party : Bool)
     (r : SendResult P AuthState) : (sendSuccessor s party r).correct = s.correct := by
   cases party <;> rfl
 
-/-- The receive successor before the oracle updates the correctness flag. -/
+/-- The game state after `party` receives with result `r` and report `trcv`, with the correctness
+flag of `s`. -/
 def recvSuccessor (s : GameState P AuthState) (party : Bool)
     (r : RecvResult P AuthState) (trcv : ℕ) : GameState P AuthState :=
   if party then
@@ -172,7 +177,7 @@ def recvSuccessor (s : GameState P AuthState) (party : Bool)
     (recvSuccessor s party r trcv).messagesAt who = s.messagesAt who := by
   cases party <;> cases who <;> rfl
 
-/-- The raw receive successor keeps the input correctness flag. -/
+/-- `recvSuccessor` keeps the correctness flag. -/
 @[simp] theorem correct_recvSuccessor (s : GameState P AuthState) (party : Bool)
     (r : RecvResult P AuthState) (trcv : ℕ) :
     (recvSuccessor s party r trcv).correct = s.correct := by
@@ -180,7 +185,8 @@ def recvSuccessor (s : GameState P AuthState) (party : Bool)
 
 variable [DecidableEq P.EpochKey]
 
-/-- The correctness oracle's send update for either party. -/
+/-- The game state written by the send query of `party` for the send result `r`: `sendAUpdate` for A
+and `sendBUpdate` for B. -/
 def sendUpdate (s : GameState P AuthState) (party : Bool)
     (r : SendResult P AuthState) : GameState P AuthState :=
   if party then SCKAScheme.sendAUpdate s r.outputKey r.msg r.sendingEpoch r.state
@@ -222,7 +228,8 @@ theorem sendUpdate_correct (s : GameState P AuthState) (party : Bool)
   cases party <;> cases who <;> rcases hkey : r.outputKey with _ | ⟨e, key⟩ <;>
     simp [sendUpdate, SCKAScheme.sendAUpdate, SCKAScheme.sendBUpdate, hkey, GameState.keysAt]
 
-/-- A send that keeps the correctness flag true has the raw send successor. -/
+/-- If `s` and `sendUpdate s party r` both have a true correctness flag, then
+`sendUpdate s party r = sendSuccessor s party r`. -/
 theorem sendUpdate_eq_successor_of_correct (s : GameState P AuthState) (party : Bool)
     (r : SendResult P AuthState) (hc : s.correct = true)
     (hc' : (sendUpdate s party r).correct = true) :
@@ -232,7 +239,8 @@ theorem sendUpdate_eq_successor_of_correct (s : GameState P AuthState) (party : 
       hkey, Bool.false_eq_true, ↓reduceIte] at hc' ⊢ <;>
     rw [hc', hc]
 
-/-- The correctness oracle's receive update for either party. -/
+/-- The game state written by the receive query of `party` for the receive result `r`: `recvAUpdate`
+for A and `recvBUpdate` for B. -/
 def recvUpdate (s : GameState P AuthState) (party : Bool) (tsnd : ℕ)
     (r : RecvResult P AuthState) (trcv : ℕ) : GameState P AuthState :=
   if party then SCKAScheme.recvAUpdate s tsnd r.outputKey trcv r.state
@@ -262,7 +270,8 @@ theorem recvUpdate_correct (s : GameState P AuthState) (party : Bool) (tsnd : �
   cases party <;> cases who <;> rcases hkey : r.outputKey with _ | ⟨e, key⟩ <;>
     simp [recvUpdate, SCKAScheme.recvAUpdate, SCKAScheme.recvBUpdate, hkey, GameState.stateAt]
 
-/-- A receive that keeps the correctness flag true has the raw receive successor. -/
+/-- If `s` and `recvUpdate s party tsnd r trcv` both have a true correctness flag, then the update
+equals `recvSuccessor s party r trcv`. -/
 theorem recvUpdate_eq_successor_of_correct (s : GameState P AuthState) (party : Bool) (tsnd : ℕ)
     (r : RecvResult P AuthState) (trcv : ℕ) (hc : s.correct = true)
     (hc' : (recvUpdate s party tsnd r trcv).correct = true) :
@@ -335,7 +344,7 @@ theorem mem_support_oracleSendB_run_iff (s : GameState P AuthState)
   · rintro ⟨r, hr, hz⟩
     exact ⟨_, ⟨r, hr, rfl⟩, hz⟩
 
-/-- Sending at either party runs the same Braid sampler and applies that party's send update. -/
+/-- The send query of `party` runs `send` on the state of `party` and writes `sendUpdate`. -/
 theorem oracleSend_run_eq (s : GameState P AuthState) (party : Bool) :
     (oracleSend auth irl sampleInitKey party ()).run s =
       (fun r : SendResult P AuthState =>
@@ -393,8 +402,9 @@ theorem oracleRecvB_run_eq_of_error {s : GameState P AuthState} {n tsnd : ℕ}
       pure (none, { s with correct := false }) :=
   SCKAScheme.oracleRecvB_run_eq_of_refuse _ _ h (by simp [scheme, recvSCKA, hr])
 
-/-- A receive query either finds no message and leaves the state unchanged, refuses it and clears
-the correctness flag, or accepts it and writes `recvAUpdate`. -/
+/-- A `RecvA n` query finds no recorded message `n` and leaves the state unchanged, or delivers one
+that `receive` refuses and clears the correctness flag, or delivers one that `receive` accepts and
+writes `recvAUpdate`. -/
 theorem oracleRecvA_run_cases {s : GameState P AuthState} {n : ℕ}
     {z : Option (ℕ × Option ℕ) × GameState P AuthState}
     (hz : z ∈ support ((SCKAScheme.oracleRecvA (scheme P auth irl sampleInitKey) n).run s)) :
@@ -432,8 +442,8 @@ theorem oracleRecvB_run_cases {s : GameState P AuthState} {n : ℕ}
   · rw [oracleRecvB_run_eq_of_ok auth irl sampleInitKey hentry hraw, mem_support_pure_iff] at hz
     exact Or.inr (Or.inr ⟨msg, tsnd, r, rfl, hraw, hz⟩)
 
-/-- A receive at either party either has no recorded message, refuses it, or applies the
-receiver's successful update. -/
+/-- The receive query of `party` finds no recorded message, or delivers one that `receive` refuses
+and clears the correctness flag, or delivers one that `receive` accepts and writes `recvUpdate`. -/
 theorem oracleRecv_run_cases {s : GameState P AuthState} (party : Bool) {n : ℕ}
     {z : Option (ℕ × Option ℕ) × GameState P AuthState}
     (hz : z ∈ support ((oracleRecv auth irl sampleInitKey party n).run s)) :

@@ -9,8 +9,9 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.Oracles
 /-!
 # Key prefixes in the Braid correctness game
 
-`KeyPrefixInv` requires positive local epochs and key tables populated exactly from epoch `1`
-through each party's completed epoch. Initialization satisfies it, and every query preserves it.
+`KeyPrefixInv` requires both epochs to be positive and each party to have keys for exactly the
+epochs from `1` through its completed epoch. The initial state satisfies it, and every oracle
+preserves it.
 -/
 
 open OracleSpec OracleComp

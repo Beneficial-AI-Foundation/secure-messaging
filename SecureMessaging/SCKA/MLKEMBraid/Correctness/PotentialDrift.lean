@@ -202,8 +202,8 @@ private theorem recv_correct_of_decaps_eq
       SCKAScheme.knownPrefix_update_some hknown tI key⟩
 
 omit [DecidableEq P.Sym] in
-/-- For generator `party`, `currentEpochFailure` is `pairFailure` of the parties at equal epochs and
-`0` otherwise. -/
+/-- If `party` is key-generating and its peer is not, `currentEpochFailure` is `pairFailure` of
+their states at equal epochs and `0` otherwise. -/
 private theorem currentEpochFailure_eq_pair
     (s : GameState P AuthState) (party : Bool)
     (hgen : (s.stateAt party).controlPosition.isGenerator = true)
