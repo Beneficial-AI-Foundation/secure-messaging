@@ -19,8 +19,9 @@ failure probability of the generator's fixed key pair over a fresh first-stage e
 recorded ciphertext derives the recorded epoch key (`derivedKeyFailure`). `failurePotential` is
 this quantity while the correctness flag is true, and `1` once the flag is false.
 
-`currentEpochFailure_eq_transcript` computes the potential of a state consistent with a transcript
-from the transcript entry of the current epoch alone.
+`EpochTranscript.failurePotential` assigns this potential to an epoch's transcript entry.
+`currentEpochFailure_eq_transcript` and its party-indexed variant compute the potential of a
+transcript-consistent state from that entry alone.
 -/
 
 open OracleSpec OracleComp
@@ -89,6 +90,20 @@ noncomputable def failurePotential [DecidableEq P.K] [DecidableEq P.EpochKey]
     (s : GameState P AuthState) : ℝ≥0∞ :=
   if s.correct then currentEpochFailure s else 1
 
+/-- The failure potential recorded for epoch `e`: zero without a key pair, the key pair's
+`decapsFailureProb` before encapsulation, and `derivedKeyFailure` of the recorded samples
+after encapsulation. -/
+noncomputable def EpochTranscript.failurePotential [DecidableEq P.K] [DecidableEq P.EpochKey]
+    (tr : EpochTranscript P) (e : ℕ) : ℝ≥0∞ :=
+  match tr.keypair, tr.encaps1 with
+  | none, _ => 0
+  | some (pk, sk), none =>
+      P.inc.decapsFailureProb P.hDet P.hEnc2 (P.inc.toHeader pk) (P.inc.toVector pk) sk
+  | some (pk, sk), some (encapsState, ct1, key) =>
+      derivedKeyFailure e sk ct1
+        (P.hEnc2.encaps2Det encapsState (P.inc.toHeader pk) (P.inc.toVector pk))
+        (P.kdfOK key e)
+
 /-- In a state consistent with the transcript `T`, `currentEpochFailure` is `0` if the parties are
 at different epochs or the current epoch has no key pair, `decapsFailureProb` of the recorded key
 pair if the current epoch has no encapsulation, and `derivedKeyFailure` of the recorded samples
@@ -98,26 +113,9 @@ theorem currentEpochFailure_eq_transcript [DecidableEq P.K] [DecidableEq P.Epoch
     (hT : TranscriptConsistent auth ik T s) :
     currentEpochFailure s =
       if s.stA.epoch = s.stB.epoch then
-        let e := s.stA.epoch
-        match (T e).keypair, (T e).encaps1 with
-        | none, _ => 0
-        | some (pk, sk), none =>
-            P.inc.decapsFailureProb P.hDet P.hEnc2 (P.inc.toHeader pk) (P.inc.toVector pk) sk
-        | some (pk, sk), some (encapsState, ct1, key) =>
-            derivedKeyFailure e sk ct1
-              (P.hEnc2.encaps2Det encapsState (P.inc.toHeader pk) (P.inc.toVector pk))
-              (P.kdfOK key e)
+        (T s.stA.epoch).failurePotential s.stA.epoch
       else 0 := by
   rcases hT with ⟨_, hControl, hPair, _, _, _, hEncaps, hLocalA, hLocalB, _, hKeys⟩
-  let transcriptFailure := fun e =>
-    match (T e).keypair, (T e).encaps1 with
-    | none, _ => 0
-    | some (pk, sk), none =>
-        P.inc.decapsFailureProb P.hDet P.hEnc2 (P.inc.toHeader pk) (P.inc.toVector pk) sk
-    | some (pk, sk), some (encapsState, ct1, key) =>
-        derivedKeyFailure e sk ct1
-          (P.hEnc2.encaps2Det encapsState (P.inc.toHeader pk) (P.inc.toVector pk))
-          (P.kdfOK key e)
   -- For an allowed pair at epoch `e`, the local payload invariants identify the fields of the
   -- two states with the transcript samples of `e`.
   have hRecover : ∀
@@ -135,7 +133,7 @@ theorem currentEpochFailure_eq_transcript [DecidableEq P.K] [DecidableEq P.Epoch
         (T e).encaps1 = some c →
           0 < e ∧ e ≤ encap.completedEpoch ∧
             ∃ kp, (T e).keypair = some kp) →
-      pairFailure gen encap keys = transcriptFailure e := by
+      pairFailure gen encap keys = (T e).failurePotential e := by
     intro gen encap keys e hGenEpoch hEncapEpoch hAllowed
       hLocalGen hLocalEncap hKeyPeer hEncapsCurrent
     cases hg : gen <;> simp [AllowedStatePair, hg] at hAllowed
@@ -150,12 +148,12 @@ theorem currentEpochFailure_eq_transcript [DecidableEq P.K] [DecidableEq P.Epoch
       rw [hEncapEpoch] at hLocalEncap
     next =>
       rcases hLocalGen with ⟨_, hkp, henc⟩
-      simp [pairFailure, transcriptFailure, hkp, henc]
+      simp [pairFailure, EpochTranscript.failurePotential, hkp, henc]
     next =>
       rcases hLocalGen with ⟨_, pk, hkp, hvec, _, hpayload⟩
       cases hc : (T e).encaps1 with
       | none =>
-          simp [pairFailure, transcriptFailure, hkp, hc, hvec, hpayload]
+          simp [pairFailure, EpochTranscript.failurePotential, hkp, hc, hvec, hpayload]
       | some c =>
           have hf := hEncapsCurrent hc
           simp [he, State.completedEpoch, State.epoch, hEncapEpoch] at hf
@@ -163,7 +161,7 @@ theorem currentEpochFailure_eq_transcript [DecidableEq P.K] [DecidableEq P.Epoch
     next =>
       rcases hLocalGen with ⟨_, pk, hkp, hvec, _, hpayload⟩
       rcases hLocalEncap with ⟨_, henc, _⟩
-      simp [pairFailure, transcriptFailure, hkp, henc, hvec, hpayload]
+      simp [pairFailure, EpochTranscript.failurePotential, hkp, henc, hvec, hpayload]
     next =>
       rcases hLocalGen with ⟨_, pk, hkp, hvec, _, _⟩
       rcases hLocalEncap with ⟨_, pk', sk', key, hkp', henc, hhdr, _⟩
@@ -172,7 +170,7 @@ theorem currentEpochFailure_eq_transcript [DecidableEq P.K] [DecidableEq P.Epoch
       have hkpEq := Option.some.inj (hkp.symm.trans hkp')
       have hhdrGen := hhdr.trans
         (congrArg (fun x : P.PK × P.SK => P.inc.toHeader x.1) hkpEq).symm
-      simp [pairFailure, transcriptFailure, State.epoch,
+      simp [pairFailure, EpochTranscript.failurePotential, State.epoch,
         hGenEpoch, hKeyPeer, hkp, henc, hvec, hhdrGen]
     next =>
       rcases hLocalGen with ⟨_, pk, es, c1, k, hkp, henc', _, hEncOK⟩
@@ -184,7 +182,7 @@ theorem currentEpochFailure_eq_transcript [DecidableEq P.K] [DecidableEq P.Epoch
       have hencEq := Option.some.inj (henc'.symm.trans henc)
       have hhdrGen := hhdr.trans
         (congrArg (fun x : P.PK × P.SK => P.inc.toHeader x.1) hkpEq).symm
-      simp [pairFailure, transcriptFailure, State.epoch,
+      simp [pairFailure, EpochTranscript.failurePotential, State.epoch,
         hGenEpoch, hKeyPeer, hkp, henc', hvec, hhdrGen, hencEq]
     next =>
       rcases hLocalGen with ⟨_, pk, es, c1, k, hkp, henc', _, _⟩
@@ -198,7 +196,7 @@ theorem currentEpochFailure_eq_transcript [DecidableEq P.K] [DecidableEq P.Epoch
         (congrArg (fun x : P.PK × P.SK => P.inc.toHeader x.1) hkpEq).symm
       have hvecGen := hvec'.trans
         (congrArg (fun x : P.PK × P.SK => P.inc.toVector x.1) hkpEq).symm
-      simp [pairFailure, transcriptFailure, State.epoch,
+      simp [pairFailure, EpochTranscript.failurePotential, State.epoch,
         hGenEpoch, hKeyPeer, hkp, henc', hhdrGen, hvecGen, hencEq]
     next =>
       rcases hLocalGen with ⟨_, pk, es, k, hkp, henc', hEncOK⟩
@@ -210,7 +208,7 @@ theorem currentEpochFailure_eq_transcript [DecidableEq P.K] [DecidableEq P.Epoch
       have hencEq := Option.some.inj (henc'.symm.trans henc)
       have hhdrGen := hhdr.trans
         (congrArg (fun x : P.PK × P.SK => P.inc.toHeader x.1) hkpEq).symm
-      simp [pairFailure, transcriptFailure, State.epoch,
+      simp [pairFailure, EpochTranscript.failurePotential, State.epoch,
         hGenEpoch, hKeyPeer, hkp, henc', hvec,
         hhdrGen, hencEq]
     next =>
@@ -225,7 +223,7 @@ theorem currentEpochFailure_eq_transcript [DecidableEq P.K] [DecidableEq P.Epoch
         (congrArg (fun x : P.PK × P.SK => P.inc.toHeader x.1) hkpEq).symm
       have hvecGen := hvec'.trans
         (congrArg (fun x : P.PK × P.SK => P.inc.toVector x.1) hkpEq).symm
-      simp [pairFailure, transcriptFailure, State.epoch,
+      simp [pairFailure, EpochTranscript.failurePotential, State.epoch,
         hGenEpoch, hKeyPeer, hkp, henc', hhdrGen,
         hvecGen, hencEq]
     next =>
@@ -238,7 +236,7 @@ theorem currentEpochFailure_eq_transcript [DecidableEq P.K] [DecidableEq P.Epoch
       have hencEq := Option.some.inj (henc'.symm.trans henc)
       have hhdrGen := hhdr.trans
         (congrArg (fun x : P.PK × P.SK => P.inc.toHeader x.1) hkpEq).symm
-      simp [pairFailure, transcriptFailure, State.epoch,
+      simp [pairFailure, EpochTranscript.failurePotential, State.epoch,
         hGenEpoch, hKeyPeer, hkp, henc', hvec,
         hhdrGen, hencEq]
     next =>
@@ -252,7 +250,8 @@ theorem currentEpochFailure_eq_transcript [DecidableEq P.K] [DecidableEq P.Epoch
       simp only [Option.some.injEq, Prod.mk.injEq] at hkpEq hencEq
       obtain ⟨rfl, rfl⟩ := hkpEq
       obtain ⟨rfl, rfl, rfl⟩ := hencEq
-      simp [pairFailure, transcriptFailure, State.epoch, hGenEpoch, hKeyPeer, hkp, henc', hpayload]
+      simp [pairFailure, EpochTranscript.failurePotential, State.epoch,
+        hGenEpoch, hKeyPeer, hkp, henc', hpayload]
     next =>
       rcases hLocalGen with ⟨_, pk, es, k, hkp, henc', _⟩
       rcases hLocalEncap with ⟨_, pk', sk', es', c1', k', hkp', henc, hEncOK'⟩
@@ -264,12 +263,13 @@ theorem currentEpochFailure_eq_transcript [DecidableEq P.K] [DecidableEq P.Epoch
       simp only [Option.some.injEq, Prod.mk.injEq] at hkpEq hencEq
       obtain ⟨rfl, rfl⟩ := hkpEq
       obtain ⟨rfl, rfl, rfl⟩ := hencEq
-      simp [pairFailure, transcriptFailure, State.epoch, hGenEpoch, hKeyPeer, hkp, henc', hpayload]
+      simp [pairFailure, EpochTranscript.failurePotential, State.epoch,
+        hGenEpoch, hKeyPeer, hkp, henc', hpayload]
   -- Identify the generator and the encapsulator from the roles.
   have hRoleA := (hControl.roles true).1
   have hRoleB := (hControl.roles false).1
-  simp only [↓reduceIte] at hRoleA
-  simp only [Bool.false_eq_true, ↓reduceIte] at hRoleB
+  simp only [GameState.stateAt, ↓reduceIte] at hRoleA
+  simp only [GameState.stateAt, Bool.false_eq_true, ↓reduceIte] at hRoleB
   by_cases hepoch : s.stA.epoch = s.stB.epoch
   · rw [if_pos hepoch]
     by_cases hrole : s.stA.controlPosition.isGenerator = true
@@ -290,7 +290,7 @@ theorem currentEpochFailure_eq_transcript [DecidableEq P.K] [DecidableEq P.Epoch
         exact ⟨hpos, hbound', (pk, sk), hkp⟩
       simp only [currentEpochFailure, hrole, if_true]
       rw [if_neg (not_ne_iff.mpr hepoch)]
-      change pairFailure s.stA s.stB s.keyB = transcriptFailure s.stA.epoch
+      change pairFailure s.stA s.stB s.keyB = (T s.stA.epoch).failurePotential s.stA.epoch
       exact hRecover s.stA s.stB s.keyB s.stA.epoch rfl hepoch.symm
         hAllowed hLocalA hLocalB hKeyPeer hEncapsCurrent
     · have hroleFalse : s.stA.controlPosition.isGenerator = false :=
@@ -317,7 +317,7 @@ theorem currentEpochFailure_eq_transcript [DecidableEq P.K] [DecidableEq P.Epoch
         exact ⟨hpos, hbound', (pk, sk), hkp⟩
       simp only [currentEpochFailure, hroleFalse, Bool.false_eq_true, ↓reduceIte]
       rw [if_neg (not_ne_iff.mpr hepoch.symm)]
-      change pairFailure s.stB s.stA s.keyA = transcriptFailure s.stA.epoch
+      change pairFailure s.stB s.stA s.keyA = (T s.stA.epoch).failurePotential s.stA.epoch
       exact hRecover s.stB s.stA s.keyA s.stA.epoch hepoch.symm rfl
         hAllowed hLocalB hLocalA hKeyPeer hEncapsCurrent
   · rw [if_neg hepoch]
@@ -328,5 +328,22 @@ theorem currentEpochFailure_eq_transcript [DecidableEq P.K] [DecidableEq P.Epoch
         Bool.eq_false_of_not_eq_true hrole
       simp only [currentEpochFailure, hroleFalse, Bool.false_eq_true, ↓reduceIte]
       rw [if_pos (Ne.symm hepoch)]
+
+/-- In a transcript-consistent state, the current potential is the recorded potential at either
+party's epoch when the epochs agree, and zero otherwise. -/
+theorem currentEpochFailure_eq_transcript_party [DecidableEq P.K] [DecidableEq P.EpochKey]
+    {ik : InitKey} {T : ℕ → EpochTranscript P} {s : GameState P AuthState}
+    (hT : TranscriptConsistent auth ik T s) (party : Bool) :
+    currentEpochFailure s =
+      if (s.stateAt party).epoch = (s.stateAt (!party)).epoch then
+        (T (s.stateAt party).epoch).failurePotential (s.stateAt party).epoch
+      else 0 := by
+  rw [currentEpochFailure_eq_transcript auth hT]
+  cases party
+  · by_cases heq : s.stA.epoch = s.stB.epoch
+    · simp only [GameState.stateAt, Bool.not_false, Bool.false_eq_true, ↓reduceIte, heq]
+    · simp only [GameState.stateAt, Bool.not_false, Bool.false_eq_true, ↓reduceIte,
+        if_neg heq, if_neg (Ne.symm heq)]
+  · rfl
 
 end MLKEMBraid

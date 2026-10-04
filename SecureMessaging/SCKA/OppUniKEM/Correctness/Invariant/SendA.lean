@@ -289,7 +289,7 @@ lemma oracleSendA_preserves_reachableInv
             { s.stA with dkA := some sk, ekA := some pk, ich := ich }) = out := by
         simpa [scheme, sendA, hdk] using hout
       obtain ⟨pk, sk, hmem, rfl⟩ := hout'
-      simpa [SCKAScheme.sendAUpdate, SCKAScheme.knownPrefix, hknown] using
+      simpa [SCKAScheme.sendAUpdate, hknown] using
         reachableInv_after_sendA_new kem onoff ecEk ecCt0 ecCt1 hEkPos
           s T hInv pk sk hmem hdk
   | some sk =>
@@ -302,7 +302,7 @@ lemma oracleSendA_preserves_reachableInv
           out = some (none, msg, s.stA.t - 1, { s.stA with ich := ich }) := by
         simpa [scheme, sendA, hdk, hek] using hout
       subst out
-      simpa [SCKAScheme.sendAUpdate, SCKAScheme.knownPrefix, hknown] using
+      simpa [SCKAScheme.sendAUpdate, hknown] using
         reachableInv_after_sendA_existing kem onoff ecEk ecCt0 ecCt1
           s T hInv pk sk hek hdk
 

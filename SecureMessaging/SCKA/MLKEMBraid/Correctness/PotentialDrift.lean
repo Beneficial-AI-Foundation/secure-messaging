@@ -107,7 +107,7 @@ private theorem decaps_eq_of_currentEpochFailure_ne_one
       · rfl
     rw [he] at hkp hc ⊢
     rw [if_pos hep] at hformula
-    simp only [hkp, hc] at hformula
+    simp only [EpochTranscript.failurePotential, hkp, hc] at hformula
     rw [hformula] at hpot
     unfold derivedKeyFailure at hpot
     split_ifs at hpot with hd
@@ -184,11 +184,12 @@ private theorem recv_correct_of_decaps_eq
   have htcur := hControl.epochKnowledge.tcur_le party
   have hprefix := hControl.epochKnowledge.keyPrefix.keys party
   have hmax : max (s.tcurAt party) (msg.epoch - 1) ≤ (s.stateAt party).completedEpoch := by omega
+  have hknown := SCKAScheme.knownPrefix_eq_true
+    fun t h0 hle => (hprefix t).2 ⟨h0, hle.trans hmax⟩
   rw [recvUpdate_correct]
   rcases hkey : r.outputKey with _ | ⟨tI, key⟩
   · simp only [Bool.and_eq_true]
-    exact ⟨⟨hT.correct, by simp [hrep]⟩,
-      SCKAScheme.knownPrefix_eq_true fun t h0 hle => (hprefix t).2 ⟨h0, hle.trans hmax⟩⟩
+    exact ⟨⟨hT.correct, by simp [hrep]⟩, hknown⟩
   · have hpos := hControl.epochKnowledge.keyPrefix.pos party
     have hstep := ((ReceiveEdge.of_eq_ok auth hraw).completedEpoch hpos).2
     simp only [hkey] at hstep
@@ -199,39 +200,8 @@ private theorem recv_correct_of_decaps_eq
       omega
     have hpeer := hagree tI key hkey
     simp only [Bool.and_eq_true]
-    refine ⟨⟨⟨⟨hT.correct, by simp [hrep]⟩, by simp [hnone]⟩, by simp [hpeer]⟩,
-      SCKAScheme.knownPrefix_eq_true fun t h0 hle => ?_⟩
-    have hle' := hle.trans hmax
-    rw [Function.update_of_ne (by omega)]
-    exact (hprefix t).2 ⟨h0, hle'⟩
-
-omit [DecidableEq P.Sym] in
-/-- In a state consistent with `T`, `currentEpochFailure` is `0` if the parties are at different
-epochs; otherwise, at the epoch `e` of `party`, it is `0` without a key pair at `e`,
-`decapsFailureProb` of the key pair without an encapsulation, and `derivedKeyFailure` of the
-recorded samples with one. -/
-private theorem currentEpochFailure_eq_transcript_party
-    {ik : InitKey} {T : ℕ → EpochTranscript P} {s : GameState P AuthState}
-    (hT : TranscriptConsistent auth ik T s) (party : Bool) :
-    currentEpochFailure s =
-      if (s.stateAt party).epoch = (s.stateAt (!party)).epoch then
-        let e := (s.stateAt party).epoch
-        match (T e).keypair, (T e).encaps1 with
-        | none, _ => 0
-        | some (pk, sk), none =>
-            P.inc.decapsFailureProb P.hDet P.hEnc2 (P.inc.toHeader pk) (P.inc.toVector pk) sk
-        | some (pk, sk), some (encapsState, ct1, key) =>
-            derivedKeyFailure e sk ct1
-              (P.hEnc2.encaps2Det encapsState (P.inc.toHeader pk) (P.inc.toVector pk))
-              (P.kdfOK key e)
-      else 0 := by
-  rw [currentEpochFailure_eq_transcript auth hT]
-  cases party
-  · by_cases heq : s.stA.epoch = s.stB.epoch
-    · simp [GameState.stateAt, heq]
-      rfl
-    · simp [GameState.stateAt, heq, Ne.symm heq]
-  · rfl
+    exact ⟨⟨⟨⟨hT.correct, by simp [hrep]⟩, by simp [hnone]⟩, by simp [hpeer]⟩,
+      SCKAScheme.knownPrefix_update_some hknown tI key⟩
 
 omit [DecidableEq P.Sym] in
 /-- If `party` is the generator and its peer the encapsulator, `currentEpochFailure` is `0` when
@@ -301,7 +271,7 @@ private theorem expectedPayoff_failurePotential_send_headerReceived_le
   have hΦ : currentEpochFailure s =
       P.inc.decapsFailureProb P.hDet P.hEnc2 (P.inc.toHeader pk) (P.inc.toVector pk) sk := by
     rw [currentEpochFailure_eq_transcript_party auth hT party]
-    simp only [hst, hpeer, State.epoch, hkpT, hc0, if_true]
+    simp only [hst, hpeer, State.epoch, EpochTranscript.failurePotential, hkpT, hc0, if_true]
   obtain ⟨htcur, hkeys⟩ := hT.control.send_prefix party
   rw [hst] at htcur hkeys
   have hnone : ∀ who, s.keysAt who e = none := by
@@ -329,10 +299,8 @@ private theorem expectedPayoff_failurePotential_send_headerReceived_le
       SCKAScheme.knownPrefix
         (Function.update (s.keysAt party) e (some (P.kdfOK k e))) (e - 1)) = true := by
     simp only [Bool.and_eq_true, decide_eq_true_eq]
-    refine ⟨⟨⟨⟨hT.correct, htcur⟩, by simp [hnone]⟩, by simp [hnone]⟩,
-      SCKAScheme.knownPrefix_eq_true fun t h0 hle => ?_⟩
-    rw [Function.update_of_ne (by omega)]
-    exact hkeys t h0 hle
+    exact ⟨⟨⟨⟨hT.correct, htcur⟩, by simp [hnone]⟩, by simp [hnone]⟩,
+      SCKAScheme.knownPrefix_update_some (SCKAScheme.knownPrefix_eq_true hkeys) e (P.kdfOK k e)⟩
   refine le_trans (le_of_eq ?_) (derivedKeyFailure_le e pk sk es ct1 k)
   simp only [failurePotential, sendUpdate_correct, hflag, if_true]
   rw [currentEpochFailure_eq_pair _ (!party)]
@@ -433,7 +401,7 @@ private theorem recv_currentEpochFailure_eq_zero_of_epoch_ne
       obtain ⟨-, hkp0, -⟩ := hLocal
       have he : (z.2.stateAt party).epoch = (s.stateAt party).epoch + 1 :=
         (congrArg State.epoch hzLocal).trans (congrArg State.epoch hks)
-      simp only [he, hkp0]
+      simp only [he, EpochTranscript.failurePotential, hkp0]
     · -- A generator one epoch behind its peer contradicts the pair invariant.
       exfalso
       have h1 : (s.stateAt (!party)).epoch = (s.stateAt party).epoch + 1 :=

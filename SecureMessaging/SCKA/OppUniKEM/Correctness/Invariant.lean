@@ -323,15 +323,12 @@ lemma TranscriptConsistent.knownPrefixA
     {s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)}
     (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
     {tcur : ℕ} (htcur : tcur ≤ s.stA.t - 1) :
-    (List.range (tcur + 1)).all (fun t => t = 0 || (s.keyA t).isSome) = true := by
-  rw [List.all_eq_true]
-  intro t ht
-  have htle : t ≤ tcur := by simpa using List.mem_range.mp ht
-  by_cases ht0 : t = 0
-  · simp [ht0]
+    SCKAScheme.knownPrefix s.keyA tcur = true := by
+  apply SCKAScheme.knownPrefix_eq_true
+  intro t hpos htle
   have hlt : t < s.stA.t := by omega
   rw [hInv.keyA t]
-  simp [ht0, hlt, hInv.pastComplete t (Nat.pos_of_ne_zero ht0) hlt]
+  simpa [hpos.ne', hlt, Option.isSome_iff_ne_none] using hInv.pastComplete t hpos hlt
 
 omit [DecidableEq Sym] in
 /-- B has recorded every positive epoch up to any bound below its current
@@ -345,16 +342,13 @@ lemma TranscriptConsistent.knownPrefixB
     {s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)}
     (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
     {tcur : ℕ} (htcur : tcur ≤ s.stB.t - 1) :
-    (List.range (tcur + 1)).all (fun t => t = 0 || (s.keyB t).isSome) = true := by
-  rw [List.all_eq_true]
-  intro t ht
-  have htle : t ≤ tcur := by simpa using List.mem_range.mp ht
-  by_cases ht0 : t = 0
-  · simp [ht0]
+    SCKAScheme.knownPrefix s.keyB tcur = true := by
+  apply SCKAScheme.knownPrefix_eq_true
+  intro t hpos htle
   have hltB : t < s.stB.t := by omega
   have hltA : t < s.stA.t := hltB.trans_le hInv.epochs.1
   rw [hInv.keyB t]
-  simpa [ht0] using hInv.pastComplete t (Nat.pos_of_ne_zero ht0) hltA
+  simpa only [Option.isSome_iff_ne_none] using hInv.pastComplete t hpos hltA
 
 omit [DecidableEq Sym] in
 /-- If A is ahead of B, B has also recorded its current positive epoch. -/
@@ -368,15 +362,12 @@ lemma TranscriptConsistent.knownPrefixBThroughCurrent
     (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
     (hBehind : s.stB.t < s.stA.t)
     {tcur : ℕ} (htcur : tcur ≤ s.stB.t) :
-    (List.range (tcur + 1)).all (fun t => t = 0 || (s.keyB t).isSome) = true := by
-  rw [List.all_eq_true]
-  intro t ht
-  have htle : t ≤ tcur := by simpa using List.mem_range.mp ht
-  by_cases ht0 : t = 0
-  · simp [ht0]
+    SCKAScheme.knownPrefix s.keyB tcur = true := by
+  apply SCKAScheme.knownPrefix_eq_true
+  intro t hpos htle
   have hltA : t < s.stA.t := (htle.trans htcur).trans_lt hBehind
   rw [hInv.keyB t]
-  simpa [ht0] using hInv.pastComplete t (Nat.pos_of_ne_zero ht0) hltA
+  simpa only [Option.isSome_iff_ne_none] using hInv.pastComplete t hpos hltA
 
 /-- The preserved game-state invariant: `s` is consistent with some execution
 transcript `T`. -/

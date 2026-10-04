@@ -107,7 +107,7 @@ theorem roles_opposite {s : GameState P AuthState} (hs : ControlInv s)
     s.stA.controlPosition.isGenerator = (!s.stB.controlPosition.isGenerator) := by
   have hA := (hs.roles true).1
   have hB := (hs.roles false).1
-  simp only [Bool.false_eq_true, ↓reduceIte] at hA hB
+  simp only [GameState.stateAt, Bool.false_eq_true, ↓reduceIte] at hA hB
   rw [hA, hB, heq]
   rcases Nat.mod_two_eq_zero_or_one s.stB.epoch with h | h <;> simp [h]
 
@@ -118,18 +118,18 @@ theorem correctnessImpl_preserves_controlInv_statePairInv :
   refine SCKAScheme.sckaCorrectnessImpl_preservesInv _ ?_ ?_ ?_ ?_
   · intro t s hs z hz
     cases t
-    refine ⟨oracleSendA_preserves_controlInv auth irl sampleInitKey () s hs.1 z hz, ?_⟩
+    refine ⟨oracleSend_preserves_controlInv auth irl sampleInitKey true () s hs.1 z hz, ?_⟩
     obtain ⟨r, hr, rfl⟩ := (mem_support_oracleSendA_run_iff auth irl sampleInitKey s z).mp hz
     have hpair := PairInv.send auth ((mem_support_send_iff auth).mp hr) hs.2.1 hs.2.2
     rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;> exact hpair
   · intro t s hs z hz
     cases t
-    refine ⟨oracleSendB_preserves_controlInv auth irl sampleInitKey () s hs.1 z hz, ?_⟩
+    refine ⟨oracleSend_preserves_controlInv auth irl sampleInitKey false () s hs.1 z hz, ?_⟩
     obtain ⟨r, hr, rfl⟩ := (mem_support_oracleSendB_run_iff auth irl sampleInitKey s z).mp hz
     have hpair := PairInv.send auth ((mem_support_send_iff auth).mp hr) hs.2.2 hs.2.1
     rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;> exact ⟨hpair.2, hpair.1⟩
   · intro n s hs z hz
-    refine ⟨oracleRecvA_preserves_controlInv auth irl sampleInitKey n s hs.1 z hz, ?_⟩
+    refine ⟨oracleRecv_preserves_controlInv auth irl sampleInitKey true n s hs.1 z hz, ?_⟩
     rcases oracleRecvA_run_cases auth irl sampleInitKey hz with
       ⟨-, rfl⟩ | ⟨msg, tsnd, err, -, -, rfl⟩ | ⟨msg, tsnd, r, hentry, hraw, rfl⟩
     · exact hs.2
@@ -143,7 +143,7 @@ theorem correctnessImpl_preserves_controlInv_statePairInv :
       hs.2.1 hs.2.2
     rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;> exact hpair
   · intro n s hs z hz
-    refine ⟨oracleRecvB_preserves_controlInv auth irl sampleInitKey n s hs.1 z hz, ?_⟩
+    refine ⟨oracleRecv_preserves_controlInv auth irl sampleInitKey false n s hs.1 z hz, ?_⟩
     rcases oracleRecvB_run_cases auth irl sampleInitKey hz with
       ⟨-, rfl⟩ | ⟨msg, tsnd, err, -, -, rfl⟩ | ⟨msg, tsnd, r, hentry, hraw, rfl⟩
     · exact hs.2

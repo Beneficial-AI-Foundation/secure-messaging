@@ -83,141 +83,116 @@ theorem epochKnowledgeInv_initGameState (ik : InitKey) :
   refine ⟨keyPrefixInv_initGameState auth ik, ?_, ?_, ?_, ?_, ?_, ?_⟩ <;>
     simp [SCKAScheme.initGameState, initA, initB, State.epoch, State.completedEpoch]
 
+variable [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+  (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : ProbComp InitKey)
+
+/-- A send by either party preserves the epoch bounds. -/
+theorem oracleSend_preserves_epochKnowledgeInv (party : Bool) :
+    QueryImpl.PreservesInv (oracleSend auth irl sampleInitKey party) EpochKnowledgeInv := by
+  rintro _ (s : GameState P AuthState) hs z hz
+  have hprefix : KeyPrefixInv z.2 := by
+    cases party
+    · exact correctnessImpl_preserves_keyPrefixInv auth irl sampleInitKey
+        (OSendB (Rho := Message P.Sym)) s hs.keyPrefix z hz
+    · exact correctnessImpl_preserves_keyPrefixInv auth irl sampleInitKey
+        (OSendA (Rho := Message P.Sym)) s hs.keyPrefix z hz
+  obtain ⟨r, hr, rfl⟩ := (mem_support_oracleSend_run_iff auth irl sampleInitKey s party z).mp hz
+  have hedge := (mem_support_send_iff auth).mp hr
+  obtain ⟨hep, hmsgEp⟩ := hedge.epoch_eq
+  have hmono := hedge.completedEpoch_mono (hs.keyPrefix.pos party)
+  have hlocal := (s.stateAt party).epoch_sub_one_le_completedEpoch
+  have hreport := hedge.sendingEpoch_eq
+  have hcross := hs.epoch_le party
+  have hcrossP := hs.epoch_le (!party)
+  simp only [Bool.not_not] at hcrossP
+  have hmsgs : ∀ n msg tsnd,
+      Function.update (s.messagesAt party) (s.countAt party + 1)
+        (some (r.msg, r.sendingEpoch)) n = some (msg, tsnd) →
+      msg.epoch ≤ r.state.completedEpoch + 1 ∧
+        msg.epoch ≤ (s.stateAt (!party)).completedEpoch + 1 ∧
+        (msg.type = .ct2 → msg.epoch ≤ r.state.completedEpoch) := by
+    intro n msg tsnd hn
+    by_cases hnew : n = s.countAt party + 1
+    · subst n
+      rw [Function.update_self] at hn
+      obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hn)
+      exact ⟨by omega, by omega, fun hty => (hedge.completedEpoch_of_ct2 hty).trans hmono⟩
+    · rw [Function.update_of_ne hnew] at hn
+      obtain ⟨h1, h2, h3⟩ := hs.msgs party n msg tsnd hn
+      exact ⟨by omega, h2, fun hty => (h3 hty).trans hmono⟩
+  have hmsgsP : ∀ n msg tsnd, s.messagesAt (!party) n = some (msg, tsnd) →
+      msg.epoch ≤ (s.stateAt (!party)).completedEpoch + 1 ∧
+        msg.epoch ≤ r.state.completedEpoch + 1 ∧
+        (msg.type = .ct2 → msg.epoch ≤ (s.stateAt (!party)).completedEpoch) := by
+    intro n msg tsnd hn
+    obtain ⟨h1, h2, h3⟩ := hs.msgs (!party) n msg tsnd hn
+    simp only [Bool.not_not] at h2
+    exact ⟨h1, by omega, h3⟩
+  have htcurP := hs.tcur_le (!party)
+  have hc : r.state.epoch ≤ (s.stateAt (!party)).completedEpoch + 1 := by omega
+  have hcP : (s.stateAt (!party)).epoch ≤ r.state.completedEpoch + 1 := by omega
+  have ht : r.sendingEpoch ≤ r.state.completedEpoch := by omega
+  cases party <;> rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;>
+    simp only [sendUpdate, SCKAScheme.sendAUpdate, SCKAScheme.sendBUpdate, hkey,
+      Bool.false_eq_true, ↓reduceIte] at hprefix ⊢
+  all_goals first
+    | exact ⟨hprefix, hcP, hc, htcurP, ht, hmsgsP, hmsgs⟩
+    | exact ⟨hprefix, hc, hcP, ht, htcurP, hmsgs, hmsgsP⟩
+
+/-- A receive by either party preserves the epoch bounds. -/
+theorem oracleRecv_preserves_epochKnowledgeInv (party : Bool) :
+    QueryImpl.PreservesInv (oracleRecv auth irl sampleInitKey party) EpochKnowledgeInv := by
+  rintro n (s : GameState P AuthState) hs z hz
+  have hprefix : KeyPrefixInv z.2 := by
+    cases party
+    · exact correctnessImpl_preserves_keyPrefixInv auth irl sampleInitKey
+        (ORecvB (Rho := Message P.Sym) n) s hs.keyPrefix z hz
+    · exact correctnessImpl_preserves_keyPrefixInv auth irl sampleInitKey
+        (ORecvA (Rho := Message P.Sym) n) s hs.keyPrefix z hz
+  rcases oracleRecv_run_cases auth irl sampleInitKey party hz with
+    ⟨-, rfl⟩ | ⟨msg, tsnd, err, -, -, rfl⟩ | ⟨msg, tsnd, r, hentry, hraw, rfl⟩
+  · exact hs
+  · exact ⟨hprefix, hs.epochA_le, hs.epochB_le, hs.tcurA_le, hs.tcurB_le, hs.msgA, hs.msgB⟩
+  have hedge := ReceiveEdge.of_eq_ok auth hraw
+  obtain ⟨h1, h2, h3⟩ := hs.msgs (!party) n msg tsnd hentry
+  have hbound := hedge.epoch_le_of_le _ (hs.epoch_le party) h1 h3
+  have hmono := hedge.completedEpoch_mono (hs.keyPrefix.pos party)
+  have hcrossP := hs.epoch_le (!party)
+  have htcur := hs.tcur_le party
+  have htcurP := hs.tcur_le (!party)
+  simp only [Bool.not_not] at hcrossP h2
+  have hcP : (s.stateAt (!party)).epoch ≤ r.state.completedEpoch + 1 := by omega
+  have ht : max (s.tcurAt party) (msg.epoch - 1) ≤ r.state.completedEpoch := by omega
+  have hmsgs : ∀ i m t, s.messagesAt party i = some (m, t) →
+      m.epoch ≤ r.state.completedEpoch + 1 ∧
+        m.epoch ≤ (s.stateAt (!party)).completedEpoch + 1 ∧
+        (m.type = .ct2 → m.epoch ≤ r.state.completedEpoch) := by
+    intro i m t hi
+    obtain ⟨a, b, c⟩ := hs.msgs party i m t hi
+    exact ⟨by omega, b, fun hty => (c hty).trans hmono⟩
+  have hmsgsP : ∀ i m t, s.messagesAt (!party) i = some (m, t) →
+      m.epoch ≤ (s.stateAt (!party)).completedEpoch + 1 ∧
+        m.epoch ≤ r.state.completedEpoch + 1 ∧
+        (m.type = .ct2 → m.epoch ≤ (s.stateAt (!party)).completedEpoch) := by
+    intro i m t hi
+    obtain ⟨a, b, c⟩ := hs.msgs (!party) i m t hi
+    simp only [Bool.not_not] at b
+    exact ⟨a, by omega, c⟩
+  cases party <;> rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;>
+    simp only [recvUpdate, SCKAScheme.recvAUpdate, SCKAScheme.recvBUpdate, hkey,
+      Bool.false_eq_true, ↓reduceIte] at hprefix ⊢
+  all_goals first
+    | exact ⟨hprefix, hcP, hbound, htcurP, ht, hmsgsP, hmsgs⟩
+    | exact ⟨hprefix, hbound, hcP, ht, htcurP, hmsgs, hmsgsP⟩
+
 /-- Every oracle of the correctness game preserves `EpochKnowledgeInv`. -/
-theorem correctnessImpl_preserves_epochKnowledgeInv
-    [DecidableEq P.EpochKey] [DecidableEq P.Sym]
-    (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : ProbComp InitKey) :
+theorem correctnessImpl_preserves_epochKnowledgeInv :
     QueryImpl.PreservesInv
-      (SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey)) EpochKnowledgeInv := by
-  have hKeyPrefix := correctnessImpl_preserves_keyPrefixInv auth irl sampleInitKey
-  refine SCKAScheme.sckaCorrectnessImpl_preservesInv _ ?_ ?_ ?_ ?_
-  -- A send keeps the sender's epoch, may complete an epoch, and records a message of its epoch.
-  · intro _ s hs z hz
-    have hprefix := hKeyPrefix (OSendA (Rho := Message P.Sym)) s hs.keyPrefix z hz
-    obtain ⟨r, hr, rfl⟩ := (mem_support_oracleSendA_run_iff auth irl sampleInitKey s z).mp hz
-    have hedge := (mem_support_send_iff auth).mp hr
-    obtain ⟨hep, hmsgEp⟩ := hedge.epoch_eq
-    have hmono := hedge.completedEpoch_mono hs.keyPrefix.posA
-    have hlocal := s.stA.epoch_sub_one_le_completedEpoch
-    have hreport := hedge.sendingEpoch_eq
-    have hcrossA : r.state.epoch ≤ s.stB.completedEpoch + 1 := by have := hs.epochA_le; omega
-    have hcrossB : s.stB.epoch ≤ r.state.completedEpoch + 1 := by have := hs.epochB_le; omega
-    have htA : r.sendingEpoch ≤ r.state.completedEpoch := by omega
-    have hmsgA : ∀ (n : ℕ) (msg : Message P.Sym) (tsnd : ℕ),
-        Function.update s.msgA (s.nA + 1) (some (r.msg, r.sendingEpoch)) n = some (msg, tsnd) →
-          msg.epoch ≤ r.state.completedEpoch + 1 ∧ msg.epoch ≤ s.stB.completedEpoch + 1 ∧
-            (msg.type = .ct2 → msg.epoch ≤ r.state.completedEpoch) := by
-      intro n msg tsnd hn
-      by_cases hnew : n = s.nA + 1
-      · subst hnew
-        rw [Function.update_self] at hn
-        obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hn)
-        exact ⟨by omega, by omega, fun hty => (hedge.completedEpoch_of_ct2 hty).trans hmono⟩
-      · rw [Function.update_of_ne hnew] at hn
-        obtain ⟨h1, h2, h3⟩ := hs.msgA n msg tsnd hn
-        exact ⟨by omega, h2, fun hty => (h3 hty).trans hmono⟩
-    have hmsgB : ∀ (n : ℕ) (msg : Message P.Sym) (tsnd : ℕ),
-        s.msgB n = some (msg, tsnd) →
-          msg.epoch ≤ s.stB.completedEpoch + 1 ∧ msg.epoch ≤ r.state.completedEpoch + 1 ∧
-            (msg.type = .ct2 → msg.epoch ≤ s.stB.completedEpoch) := by
-      intro n msg tsnd hn
-      obtain ⟨h1, h2, h3⟩ := hs.msgB n msg tsnd hn
-      exact ⟨h1, by omega, h3⟩
-    rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;>
-      exact ⟨by rwa [hkey] at hprefix, hcrossA, hcrossB, htA, hs.tcurB_le, hmsgA, hmsgB⟩
-  · intro _ s hs z hz
-    have hprefix := hKeyPrefix (OSendB (Rho := Message P.Sym)) s hs.keyPrefix z hz
-    obtain ⟨r, hr, rfl⟩ := (mem_support_oracleSendB_run_iff auth irl sampleInitKey s z).mp hz
-    have hedge := (mem_support_send_iff auth).mp hr
-    obtain ⟨hep, hmsgEp⟩ := hedge.epoch_eq
-    have hmono := hedge.completedEpoch_mono hs.keyPrefix.posB
-    have hlocal := s.stB.epoch_sub_one_le_completedEpoch
-    have hreport := hedge.sendingEpoch_eq
-    have hcrossA : s.stA.epoch ≤ r.state.completedEpoch + 1 := by have := hs.epochA_le; omega
-    have hcrossB : r.state.epoch ≤ s.stA.completedEpoch + 1 := by have := hs.epochB_le; omega
-    have htB : r.sendingEpoch ≤ r.state.completedEpoch := by omega
-    have hmsgA : ∀ (n : ℕ) (msg : Message P.Sym) (tsnd : ℕ),
-        s.msgA n = some (msg, tsnd) →
-          msg.epoch ≤ s.stA.completedEpoch + 1 ∧ msg.epoch ≤ r.state.completedEpoch + 1 ∧
-            (msg.type = .ct2 → msg.epoch ≤ s.stA.completedEpoch) := by
-      intro n msg tsnd hn
-      obtain ⟨h1, h2, h3⟩ := hs.msgA n msg tsnd hn
-      exact ⟨h1, by omega, h3⟩
-    have hmsgB : ∀ (n : ℕ) (msg : Message P.Sym) (tsnd : ℕ),
-        Function.update s.msgB (s.nB + 1) (some (r.msg, r.sendingEpoch)) n = some (msg, tsnd) →
-          msg.epoch ≤ r.state.completedEpoch + 1 ∧ msg.epoch ≤ s.stA.completedEpoch + 1 ∧
-            (msg.type = .ct2 → msg.epoch ≤ r.state.completedEpoch) := by
-      intro n msg tsnd hn
-      by_cases hnew : n = s.nB + 1
-      · subst hnew
-        rw [Function.update_self] at hn
-        obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hn)
-        exact ⟨by omega, by omega, fun hty => (hedge.completedEpoch_of_ct2 hty).trans hmono⟩
-      · rw [Function.update_of_ne hnew] at hn
-        obtain ⟨h1, h2, h3⟩ := hs.msgB n msg tsnd hn
-        exact ⟨by omega, h2, fun hty => (h3 hty).trans hmono⟩
-    rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;>
-      exact ⟨by rwa [hkey] at hprefix, hcrossA, hcrossB, hs.tcurA_le, htB, hmsgA, hmsgB⟩
-  -- A receive raises the receiver's epoch at most to the bound of the delivered message.
-  · intro n s hs z hz
-    have hprefix := hKeyPrefix (ORecvA (Rho := Message P.Sym) n) s hs.keyPrefix z hz
-    rcases oracleRecvA_run_cases auth irl sampleInitKey hz with
-      ⟨-, rfl⟩ | ⟨msg, tsnd, err, -, -, rfl⟩ | ⟨msg, tsnd, r, hentry, hraw, rfl⟩
-    · exact hs
-    · exact ⟨hprefix, hs.epochA_le, hs.epochB_le, hs.tcurA_le, hs.tcurB_le, hs.msgA, hs.msgB⟩
-    have hedge := ReceiveEdge.of_eq_ok auth hraw
-    obtain ⟨h1, h2, h3⟩ := hs.msgB n msg tsnd hentry
-    have hbound := hedge.epoch_le_of_le s.stB.completedEpoch hs.epochA_le h1 h3
-    have hmono := hedge.completedEpoch_mono hs.keyPrefix.posA
-    have hcrossB : s.stB.epoch ≤ r.state.completedEpoch + 1 := by have := hs.epochB_le; omega
-    have htA : max s.tcurA (msg.epoch - 1) ≤ r.state.completedEpoch := by
-      have := hs.tcurA_le
-      omega
-    have hmsgA : ∀ (i : ℕ) (m : Message P.Sym) (t : ℕ),
-        s.msgA i = some (m, t) →
-          m.epoch ≤ r.state.completedEpoch + 1 ∧ m.epoch ≤ s.stB.completedEpoch + 1 ∧
-            (m.type = .ct2 → m.epoch ≤ r.state.completedEpoch) := by
-      intro i m t hi
-      obtain ⟨a, b, c⟩ := hs.msgA i m t hi
-      exact ⟨by omega, b, fun hty => (c hty).trans hmono⟩
-    have hmsgB : ∀ (i : ℕ) (m : Message P.Sym) (t : ℕ),
-        s.msgB i = some (m, t) →
-          m.epoch ≤ s.stB.completedEpoch + 1 ∧ m.epoch ≤ r.state.completedEpoch + 1 ∧
-            (m.type = .ct2 → m.epoch ≤ s.stB.completedEpoch) := by
-      intro i m t hi
-      obtain ⟨a, b, c⟩ := hs.msgB i m t hi
-      exact ⟨a, by omega, c⟩
-    rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;>
-      exact ⟨by rwa [hkey] at hprefix, hbound, hcrossB, htA, hs.tcurB_le, hmsgA, hmsgB⟩
-  · intro n s hs z hz
-    have hprefix := hKeyPrefix (ORecvB (Rho := Message P.Sym) n) s hs.keyPrefix z hz
-    rcases oracleRecvB_run_cases auth irl sampleInitKey hz with
-      ⟨-, rfl⟩ | ⟨msg, tsnd, err, -, -, rfl⟩ | ⟨msg, tsnd, r, hentry, hraw, rfl⟩
-    · exact hs
-    · exact ⟨hprefix, hs.epochA_le, hs.epochB_le, hs.tcurA_le, hs.tcurB_le, hs.msgA, hs.msgB⟩
-    have hedge := ReceiveEdge.of_eq_ok auth hraw
-    obtain ⟨h1, h2, h3⟩ := hs.msgA n msg tsnd hentry
-    have hbound := hedge.epoch_le_of_le s.stA.completedEpoch hs.epochB_le h1 h3
-    have hmono := hedge.completedEpoch_mono hs.keyPrefix.posB
-    have hcrossA : s.stA.epoch ≤ r.state.completedEpoch + 1 := by have := hs.epochA_le; omega
-    have htB : max s.tcurB (msg.epoch - 1) ≤ r.state.completedEpoch := by
-      have := hs.tcurB_le
-      omega
-    have hmsgA : ∀ (i : ℕ) (m : Message P.Sym) (t : ℕ),
-        s.msgA i = some (m, t) →
-          m.epoch ≤ s.stA.completedEpoch + 1 ∧ m.epoch ≤ r.state.completedEpoch + 1 ∧
-            (m.type = .ct2 → m.epoch ≤ s.stA.completedEpoch) := by
-      intro i m t hi
-      obtain ⟨a, b, c⟩ := hs.msgA i m t hi
-      exact ⟨a, by omega, c⟩
-    have hmsgB : ∀ (i : ℕ) (m : Message P.Sym) (t : ℕ),
-        s.msgB i = some (m, t) →
-          m.epoch ≤ r.state.completedEpoch + 1 ∧ m.epoch ≤ s.stA.completedEpoch + 1 ∧
-            (m.type = .ct2 → m.epoch ≤ r.state.completedEpoch) := by
-      intro i m t hi
-      obtain ⟨a, b, c⟩ := hs.msgB i m t hi
-      exact ⟨by omega, b, fun hty => (c hty).trans hmono⟩
-    rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;>
-      exact ⟨by rwa [hkey] at hprefix, hcrossA, hbound, hs.tcurA_le, htB, hmsgA, hmsgB⟩
+      (SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey)) EpochKnowledgeInv :=
+  SCKAScheme.sckaCorrectnessImpl_preservesInv _
+    (oracleSend_preserves_epochKnowledgeInv auth irl sampleInitKey true)
+    (oracleSend_preserves_epochKnowledgeInv auth irl sampleInitKey false)
+    (oracleRecv_preserves_epochKnowledgeInv auth irl sampleInitKey true)
+    (oracleRecv_preserves_epochKnowledgeInv auth irl sampleInitKey false)
 
 end MLKEMBraid

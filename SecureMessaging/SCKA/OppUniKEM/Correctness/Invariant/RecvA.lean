@@ -206,32 +206,16 @@ private lemma reachableInv_after_recvA_advance
           && decide (s.stA.t - 1 = s.stA.t - 1)
           && (s.keyA s.stA.t).isNone
           && ((s.keyB s.stA.t).isNone || s.keyB s.stA.t == some key)
-          && (List.range (tcurA' + 1)).all (fun t =>
-            t = 0 || (keyA' t).isSome) } := by
+          && SCKAScheme.knownPrefix keyA' tcurA' } := by
   dsimp only
   have htcur : max s.tcurA (s.stA.t - 1) = s.stA.t - 1 :=
     Nat.max_eq_right hInv.tcurA
   have hkeyAOld : s.keyA s.stA.t = none := by simp [hInv.keyA]
   have hkeyBOld : s.keyB s.stA.t = some key := by simpa [hInv.keyB] using hkey
-  have hknown :
-      (List.range (max s.tcurA (s.stA.t - 1) + 1)).all (fun t =>
-        t = 0 || (Function.update s.keyA s.stA.t (some key) t).isSome) = true := by
-    rw [List.all_eq_true]
-    intro t htmem
-    have hlt : t < s.stA.t := by
-      have hlt' : t < max s.tcurA (s.stA.t - 1) + 1 := List.mem_range.mp htmem
-      rw [htcur, Nat.sub_add_cancel (Nat.one_le_iff_ne_zero.mpr
-        (Nat.ne_of_gt hInv.epochPosA))] at hlt'
-      exact hlt'
-    by_cases ht0 : t = 0
-    · simp [ht0]
-    · have hk := hInv.pastComplete t (Nat.pos_of_ne_zero ht0) hlt
-      have hne : t ≠ s.stA.t := Nat.ne_of_lt hlt
-      have hkeyAt := hInv.keyA t
-      have hkeySome : (s.keyA t).isSome = true := by
-        rw [hkeyAt]
-        simpa [ht0, hlt] using hk
-      simpa [Function.update, hne, ht0] using hkeySome
+  have hknown : SCKAScheme.knownPrefix
+      (Function.update s.keyA s.stA.t (some key)) (max s.tcurA (s.stA.t - 1)) = true :=
+    SCKAScheme.knownPrefix_update_some
+      (hInv.knownPrefixA (max_le hInv.tcurA le_rfl)) s.stA.t key
   have hkpNext : (T (s.stA.t + 1)).keypair = none :=
     hInv.futureKeypair _ (by omega)
   have hoffNext : (T (s.stA.t + 1)).off = none := by
@@ -374,7 +358,7 @@ lemma oracleRecvA_preserves_reachableInv
             rw [SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hentry hrecv,
               mem_support_pure_iff] at hz
             subst z
-            simpa [SCKAScheme.recvAUpdate, SCKAScheme.knownPrefix,
+            simpa [SCKAScheme.recvAUpdate,
               beq_eq_decide, htsnd, hknown] using
               reachableInv_after_recvA_ackOnly kem onoff ecEk ecCt0 ecCt1
                 s T hInv ack
@@ -388,7 +372,7 @@ lemma oracleRecvA_preserves_reachableInv
               rw [SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hentry hrecv,
                 mem_support_pure_iff] at hz
               subst z
-              simpa [SCKAScheme.recvAUpdate, SCKAScheme.knownPrefix,
+              simpa [SCKAScheme.recvAUpdate,
                 beq_eq_decide, htsnd, hknown] using
                 reachableInv_after_recvA_ackOnly kem onoff ecEk ecCt0 ecCt1
                   s T hInv ack
@@ -403,7 +387,7 @@ lemma oracleRecvA_preserves_reachableInv
                   rw [SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hentry hrecv,
                     mem_support_pure_iff] at hz
                   subst z
-                  simpa [SCKAScheme.recvAUpdate, SCKAScheme.knownPrefix,
+                  simpa [SCKAScheme.recvAUpdate,
                     beq_eq_decide, htsnd, hknown] using
                     reachableInv_after_recvA_ackOnly kem onoff ecEk ecCt0 ecCt1
                       s T hInv ack
@@ -431,7 +415,7 @@ lemma oracleRecvA_preserves_reachableInv
                     have hsame := reachableInv_after_recvA_same kem onoff ecEk ecCt0 ecCt1
                       s T hInv stA'
                     simp only [eq_self, decide_true, Bool.and_true] at hsame
-                    simp only [SCKAScheme.recvAUpdate, SCKAScheme.knownPrefix,
+                    simp only [SCKAScheme.recvAUpdate,
                       htsnd, hknown, Bool.and_true, beq_eq_decide, decide_true]
                     apply hsame
                     · simp [stA', stA0]
@@ -464,7 +448,7 @@ lemma oracleRecvA_preserves_reachableInv
                     have hsame := reachableInv_after_recvA_same kem onoff ecEk ecCt0 ecCt1
                       s T hInv stA'
                     simp only [eq_self, decide_true, Bool.and_true] at hsame
-                    simp only [SCKAScheme.recvAUpdate, SCKAScheme.knownPrefix,
+                    simp only [SCKAScheme.recvAUpdate,
                       htsnd, hknown, Bool.and_true, beq_eq_decide, decide_true]
                     apply hsame
                     · simp [stA', stA0]
@@ -499,7 +483,7 @@ lemma oracleRecvA_preserves_reachableInv
                   rw [SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hentry hrecv,
                     mem_support_pure_iff] at hz
                   subst z
-                  simpa [SCKAScheme.recvAUpdate, SCKAScheme.knownPrefix,
+                  simpa [SCKAScheme.recvAUpdate,
                     beq_eq_decide, htsnd, hknown] using
                     reachableInv_after_recvA_ackOnly kem onoff ecEk ecCt0 ecCt1
                       s T hInv ack
@@ -513,7 +497,7 @@ lemma oracleRecvA_preserves_reachableInv
                     rw [SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hentry hrecv,
                       mem_support_pure_iff] at hz
                     subst z
-                    simpa [SCKAScheme.recvAUpdate, SCKAScheme.knownPrefix,
+                    simpa [SCKAScheme.recvAUpdate,
                       beq_eq_decide, htsnd, hknown] using
                       reachableInv_after_recvA_ackOnly kem onoff ecEk ecCt0 ecCt1
                         s T hInv ack
@@ -543,7 +527,7 @@ lemma oracleRecvA_preserves_reachableInv
                     have hsame := reachableInv_after_recvA_same kem onoff ecEk ecCt0 ecCt1
                       s T hInv stA'
                     simp only [eq_self, decide_true, Bool.and_true] at hsame
-                    simp only [SCKAScheme.recvAUpdate, SCKAScheme.knownPrefix,
+                    simp only [SCKAScheme.recvAUpdate,
                       htsnd, hknown, Bool.and_true, beq_eq_decide, decide_true]
                     apply hsame
                     · simp [stA', stA0]
@@ -589,7 +573,7 @@ lemma oracleRecvA_preserves_reachableInv
                     rw [SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hentry hrecv,
                       mem_support_pure_iff] at hz
                     subst z
-                    simpa [SCKAScheme.recvAUpdate, SCKAScheme.knownPrefix,
+                    simpa [SCKAScheme.recvAUpdate,
                       beq_eq_decide, htsnd] using
                       reachableInv_after_recvA_advance kem onoff ecEk ecCt0 ecCt1
                         s T hInv key htAB hkey
@@ -605,7 +589,7 @@ lemma oracleRecvA_preserves_reachableInv
         rw [SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hentry hrecv,
           mem_support_pure_iff] at hz
         subst z
-        simpa [SCKAScheme.recvAUpdate, SCKAScheme.knownPrefix,
+        simpa [SCKAScheme.recvAUpdate,
           beq_eq_decide, htsnd, hknown] using
           reachableInv_after_recvA_stale kem onoff ecEk ecCt0 ecCt1
             s T hInv t htlt

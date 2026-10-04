@@ -20,8 +20,8 @@ when `receive` refuses it. The lemmas of this module state each query of
 The party-indexed layer uses `true` for A and `false` for B. The `GameState` accessors select a
 party's local state, keys, messages and report, while `oracleSend` and `oracleRecv` select its
 queries. Their execution and support lemmas expose the common Braid transitions and the selected
-party's `sendUpdate` or `recvUpdate`. The raw `sendSuccessor` retains the input correctness flag;
-it equals `sendUpdate` when both the input and output flags are true.
+party's `sendUpdate` or `recvUpdate`. The raw `sendSuccessor` and `recvSuccessor` retain the input
+correctness flag; each equals its oracle update when both the input and output flags are true.
 -/
 
 open OracleComp
@@ -42,6 +42,16 @@ abbrev GameState (P : Parameters ProbComp) (AuthState : Type) : Type :=
 /-- The protocol state of `party`; `true` denotes A and `false` denotes B. -/
 def GameState.stateAt (s : GameState P AuthState) (party : Bool) : State P AuthState :=
   if party then s.stA else s.stB
+
+/-- The generator of epoch `e` is A in odd epochs and B in even epochs. -/
+theorem GameState.stateAt_generator (s : GameState P AuthState) (e : ℕ) :
+    s.stateAt (decide (e % 2 = 1)) = if e % 2 = 1 then s.stA else s.stB := by
+  simp [GameState.stateAt]
+
+/-- The encapsulator of epoch `e` is the peer of its generator. -/
+theorem GameState.stateAt_encapsulator (s : GameState P AuthState) (e : ℕ) :
+    s.stateAt (!decide (e % 2 = 1)) = if e % 2 = 1 then s.stB else s.stA := by
+  by_cases h : e % 2 = 1 <;> simp [GameState.stateAt, h]
 
 /-- The keys recorded by `party`. -/
 def GameState.keysAt (s : GameState P AuthState) (party : Bool) : ℕ → Option P.EpochKey :=
@@ -125,6 +135,52 @@ theorem completedEpoch_stateAt_sendSuccessor (s : GameState P AuthState) (party 
 /-- The raw send successor keeps the input correctness flag. -/
 @[simp] theorem correct_sendSuccessor (s : GameState P AuthState) (party : Bool)
     (r : SendResult P AuthState) : (sendSuccessor s party r).correct = s.correct := by
+  cases party <;> rfl
+
+/-- The receive successor before the oracle updates the correctness flag. -/
+def recvSuccessor (s : GameState P AuthState) (party : Bool)
+    (r : RecvResult P AuthState) (trcv : ℕ) : GameState P AuthState :=
+  if party then
+    { s with
+      stA := r.state, tcurA := max s.tcurA trcv,
+      keyA := match r.outputKey with
+        | none => s.keyA
+        | some (e, key) => Function.update s.keyA e (some key) }
+  else
+    { s with
+      stB := r.state, tcurB := max s.tcurB trcv,
+      keyB := match r.outputKey with
+        | none => s.keyB
+        | some (e, key) => Function.update s.keyB e (some key) }
+
+/-- Receiving changes only the receiver's protocol state. -/
+@[simp] theorem stateAt_recvSuccessor (s : GameState P AuthState) (party who : Bool)
+    (r : RecvResult P AuthState) (trcv : ℕ) :
+    (recvSuccessor s party r trcv).stateAt who =
+      if who = party then r.state else s.stateAt who := by
+  cases party <;> cases who <;> rfl
+
+/-- Receiving records a new key only in the receiver's key table. -/
+@[simp] theorem keysAt_recvSuccessor (s : GameState P AuthState) (party who : Bool)
+    (r : RecvResult P AuthState) (trcv : ℕ) :
+    (recvSuccessor s party r trcv).keysAt who =
+      if who = party then
+        match r.outputKey with
+        | none => s.keysAt who
+        | some (e, key) => Function.update (s.keysAt who) e (some key)
+      else s.keysAt who := by
+  cases party <;> cases who <;> rfl
+
+/-- Receiving keeps both message tables. -/
+@[simp] theorem messagesAt_recvSuccessor (s : GameState P AuthState) (party who : Bool)
+    (r : RecvResult P AuthState) (trcv : ℕ) :
+    (recvSuccessor s party r trcv).messagesAt who = s.messagesAt who := by
+  cases party <;> cases who <;> rfl
+
+/-- The raw receive successor keeps the input correctness flag. -/
+@[simp] theorem correct_recvSuccessor (s : GameState P AuthState) (party : Bool)
+    (r : RecvResult P AuthState) (trcv : ℕ) :
+    (recvSuccessor s party r trcv).correct = s.correct := by
   cases party <;> rfl
 
 variable [DecidableEq P.EpochKey]
@@ -212,6 +268,16 @@ theorem recvUpdate_correct (s : GameState P AuthState) (party : Bool) (tsnd : �
       if who = party then r.state else s.stateAt who := by
   cases party <;> cases who <;> rcases hkey : r.outputKey with _ | ⟨e, key⟩ <;>
     simp [recvUpdate, SCKAScheme.recvAUpdate, SCKAScheme.recvBUpdate, hkey, GameState.stateAt]
+
+/-- A receive that keeps the correctness flag true has the raw receive successor. -/
+theorem recvUpdate_eq_successor_of_correct (s : GameState P AuthState) (party : Bool) (tsnd : ℕ)
+    (r : RecvResult P AuthState) (trcv : ℕ) (hc : s.correct = true)
+    (hc' : (recvUpdate s party tsnd r trcv).correct = true) :
+    recvUpdate s party tsnd r trcv = recvSuccessor s party r trcv := by
+  cases party <;> rcases hkey : r.outputKey with _ | ⟨e, key⟩ <;>
+    simp only [recvUpdate, recvSuccessor, SCKAScheme.recvAUpdate, SCKAScheme.recvBUpdate,
+      hkey, Bool.false_eq_true, ↓reduceIte] at hc' ⊢ <;>
+    rw [hc', hc]
 
 variable [DecidableEq P.Sym]
 

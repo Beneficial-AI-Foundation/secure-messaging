@@ -309,19 +309,8 @@ private lemma reachableInv_after_sendB_newOn
     simp [hInv.keyA, htEq]
   have hknown :
       SCKAScheme.knownPrefix (Function.update s.keyB s.stB.t (some key)) (s.stB.t - 1) = true := by
-    rw [SCKAScheme.knownPrefix, List.all_eq_true]
-    intro t htmem
-    have hlt : t < s.stB.t := by
-      have hlt' : t < s.stB.t - 1 + 1 := List.mem_range.mp htmem
-      rw [Nat.sub_add_cancel (Nat.one_le_iff_ne_zero.mpr
-        (Nat.ne_of_gt hInv.epochPosB))] at hlt'
-      exact hlt'
-    by_cases ht0 : t = 0
-    · simp [ht0]
-    · have hkey := hInv.pastComplete t (Nat.pos_of_ne_zero ht0)
-          (lt_of_lt_of_le hlt hInv.epochs.1)
-      have hne : t ≠ s.stB.t := Nat.ne_of_lt hlt
-      simp [Function.update, hne, hInv.keyB, hkey]
+    exact SCKAScheme.knownPrefix_update_some
+      (hInv.knownPrefixB (tcur := s.stB.t - 1) le_rfl) s.stB.t key
   refine ⟨T', ?_⟩
   constructor
   · simp [hInv.correct, hInv.tcurB, hkeyBOld, hkeyAOld, hknown]
@@ -515,18 +504,8 @@ private lemma reachableInv_after_sendB_newOffOn
   have hkeyAOld : s.keyA s.stB.t = none := by simp [hInv.keyA, htEq]
   have hknown :
       SCKAScheme.knownPrefix (Function.update s.keyB s.stB.t (some key)) (s.stB.t - 1) = true := by
-    rw [SCKAScheme.knownPrefix, List.all_eq_true]
-    intro t htmem
-    have hlt : t < s.stB.t := by
-      have hlt' : t < s.stB.t - 1 + 1 := List.mem_range.mp htmem
-      rw [Nat.sub_add_cancel (Nat.one_le_iff_ne_zero.mpr
-        (Nat.ne_of_gt hInv.epochPosB))] at hlt'
-      exact hlt'
-    by_cases ht0 : t = 0
-    · simp [ht0]
-    · have hk := hInv.pastComplete t (Nat.pos_of_ne_zero ht0)
-          (lt_of_lt_of_le hlt hInv.epochs.1)
-      simp [Function.update, Nat.ne_of_lt hlt, hInv.keyB, hk]
+    exact SCKAScheme.knownPrefix_update_some
+      (hInv.knownPrefixB (tcur := s.stB.t - 1) le_rfl) s.stB.t key
   refine ⟨T', ?_⟩
   constructor
   · simp [hInv.correct, hInv.tcurB, hkeyBOld, hkeyAOld, hknown]

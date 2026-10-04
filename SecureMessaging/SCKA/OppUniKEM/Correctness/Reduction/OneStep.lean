@@ -165,7 +165,7 @@ lemma tracked_sendA_score_le [DecidableEq K]
           pure (some (s.stA.t - 1, none, msg),
             (s', currentKEMFailure kem onoff hDet s')) := by
         rw [SCKAScheme.oracleSendA_run_eq]
-        simp [scheme, sendA, SCKAScheme.sendAUpdate, SCKAScheme.knownPrefix,
+        simp [scheme, sendA, SCKAScheme.sendAUpdate,
           hdk, hek, ich, ch?, msg, s', hknown]
       rw [hrun, expectedPayoff_pure]
       simp [trackedFailureScore, hfail', hpot]
@@ -224,7 +224,7 @@ lemma tracked_sendB_score_le [DecidableEq K]
                       (sendBOffState onoff s off 1 (msg off))))) <$>
                 onoff.encapsOff := by
             rw [SCKAScheme.oracleSendB_run_eq]
-            simp [scheme, sendB, SCKAScheme.sendBUpdate, SCKAScheme.knownPrefix,
+            simp [scheme, sendB, SCKAScheme.sendBUpdate,
               hct0, hack, msg, sendBOffState, sendBNoneState, hknown]
           rw [hrun, expectedPayoff_map]
           simp_rw [sendBOffState_score kem onoff hDet s _ 1 _ hct1]
@@ -248,7 +248,7 @@ lemma tracked_sendB_score_le [DecidableEq K]
                           (sendBOffState onoff s off s.stB.ich msg)))) <$>
                     onoff.encapsOff := by
                 rw [SCKAScheme.oracleSendB_run_eq]
-                simp [scheme, sendB, SCKAScheme.sendBUpdate, SCKAScheme.knownPrefix,
+                simp [scheme, sendB, SCKAScheme.sendBUpdate,
                   hct0, hack, hek, msg, sendBOffState, sendBNoneState, hknown]
               rw [hrun, expectedPayoff_map]
               simp_rw [sendBOffState_score kem onoff hDet s _ s.stB.ich _ hct1]
@@ -276,7 +276,7 @@ lemma tracked_sendB_score_le [DecidableEq K]
                               (msg out))))) <$>
                       onoff.encapsOn off.1 pk := by
                 rw [SCKAScheme.oracleSendB_run_eq]
-                simp [scheme, sendB, SCKAScheme.sendBUpdate, SCKAScheme.knownPrefix,
+                simp [scheme, sendB, SCKAScheme.sendBUpdate,
                   hct0, hack, hek, hct1, msg, sendBOffOnState, sendBKeyState]
               have hinner (off : onoff.St × onoff.C₀) :
                   expectedPayoff
@@ -346,7 +346,7 @@ lemma tracked_sendB_score_le [DecidableEq K]
               pure (some (s.stB.t - 1, none, msg),
                 (s', currentKEMFailure kem onoff hDet s')) := by
             rw [SCKAScheme.oracleSendB_run_eq]
-            simp [scheme, sendB, SCKAScheme.sendBUpdate, SCKAScheme.knownPrefix,
+            simp [scheme, sendB, SCKAScheme.sendBUpdate,
               hct0, hack, ich, msg, s', sendBNoneState, hknown]
           rw [hrun, expectedPayoff_pure]
           simp [trackedFailureScore, hfail', hpot]
@@ -369,7 +369,7 @@ lemma tracked_sendB_score_le [DecidableEq K]
                   pure (some (s.stB.t - 1, none, msg),
                     (s', currentKEMFailure kem onoff hDet s')) := by
                 rw [SCKAScheme.oracleSendB_run_eq]
-                simp [scheme, sendB, SCKAScheme.sendBUpdate, SCKAScheme.knownPrefix,
+                simp [scheme, sendB, SCKAScheme.sendBUpdate,
                   hct0, hack, hek, msg, s', sendBNoneState, hknown]
               rw [hrun, expectedPayoff_pure]
               simp [trackedFailureScore, hfail', hpot]
@@ -393,7 +393,7 @@ lemma tracked_sendB_score_le [DecidableEq K]
                               (sendBOnState onoff s out.1 out.2 (msg out))))) <$>
                         onoff.encapsOn st pk := by
                     rw [SCKAScheme.oracleSendB_run_eq]
-                    simp [scheme, sendB, SCKAScheme.sendBUpdate, SCKAScheme.knownPrefix,
+                    simp [scheme, sendB, SCKAScheme.sendBUpdate,
                       hct0, hack, hek, hct1, hst, msg, sendBOnState, sendBKeyState]
                   rw [hrun, expectedPayoff_map]
                   have hscore : expectedPayoff (onoff.encapsOn st pk) (fun out =>
@@ -435,7 +435,7 @@ lemma tracked_sendB_score_le [DecidableEq K]
                       pure (some (s.stB.t - 1, none, msg),
                         (s', currentKEMFailure kem onoff hDet s')) := by
                     rw [SCKAScheme.oracleSendB_run_eq]
-                    simp [scheme, sendB, SCKAScheme.sendBUpdate, SCKAScheme.knownPrefix,
+                    simp [scheme, sendB, SCKAScheme.sendBUpdate,
                       hct0, hack, hek, hct1, ich, msg, s', sendBNoneState, hknown]
                   rw [hrun, expectedPayoff_pure]
                   simp [trackedFailureScore, hfail', hpot]

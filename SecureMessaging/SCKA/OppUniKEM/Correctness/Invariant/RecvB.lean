@@ -570,7 +570,7 @@ lemma oracleRecvB_preserves_reachableInv
         rw [SCKAScheme.oracleRecvB_run_eq_of_accept _ _ hentry hr,
           mem_support_pure_iff] at hz
         subst z
-        simpa [SCKAScheme.recvBUpdate, SCKAScheme.knownPrefix,
+        simpa [SCKAScheme.recvBUpdate,
           beq_eq_decide, htsnd, hknown] using
           reachableInv_after_recvB_stale kem onoff ecEk ecCt0 ecCt1 s T hInv t ht
       · subst t
@@ -581,7 +581,7 @@ lemma oracleRecvB_preserves_reachableInv
           (recvB_current_eq kem onoff ecEk s.stB ch? ack s.stB.t b? rfl),
           mem_support_pure_iff] at hz
         subst z
-        simpa [SCKAScheme.recvBUpdate, SCKAScheme.knownPrefix,
+        simpa [SCKAScheme.recvBUpdate,
           beq_eq_decide, htsnd, hknown] using
           reachableInv_after_recvB_current kem onoff ecEk hcorrect hEkPos
             ecCt0 ecCt1 s T hInv ch? ack b? (by simpa [htsnd] using hhon)
@@ -601,14 +601,13 @@ lemma oracleRecvB_preserves_reachableInv
           (tcur := max s.tcurB (t - 1))
           htcur
         have hknown' :
-            (List.range (max s.tcurB s.stB.t + 1)).all
-              (fun t => t = 0 || (s.keyB t).isSome) = true := by
+            SCKAScheme.knownPrefix s.keyB (max s.tcurB s.stB.t) = true := by
           simpa [htNext] using hknown
         rw [SCKAScheme.oracleRecvB_run_eq_of_accept _ _ hentry
           (recvB_next_eq kem onoff ecEk s.stB ch? ack t b? htNext),
           mem_support_pure_iff] at hz
         subst z
-        simpa [SCKAScheme.recvBUpdate, SCKAScheme.knownPrefix,
+        simpa [SCKAScheme.recvBUpdate,
           beq_eq_decide, htsnd, htNext, hknown'] using
           reachableInv_after_recvB_next kem onoff ecEk hcorrect hEkPos
             ecCt0 ecCt1 s T hInv ch? ack t b? htNext htA (by simpa [htsnd] using hhon)

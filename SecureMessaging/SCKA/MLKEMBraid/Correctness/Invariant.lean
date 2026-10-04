@@ -265,8 +265,8 @@ theorem transcriptConsistent_initGameState (ik : InitKey) :
     · simp [SCKAScheme.initGameState, initB, State.epoch]
     · intro party
       cases party <;>
-        simp [PartyControl, SCKAScheme.initGameState, initA, initB, State.controlPosition,
-          State.epoch]
+        simp [PartyControl, GameState.stateAt, GameState.messagesAt,
+          SCKAScheme.initGameState, initA, initB, State.controlPosition, State.epoch]
   refine ⟨rfl, hControl, ?_, rfl, rfl, ?_, ?_, ?_, ?_, ?_, ?_⟩
   · simp [StatePairInv, PairInv, SCKAScheme.initGameState, initA, initB, State.controlPosition,
       State.epoch, AllowedStatePair]
@@ -365,50 +365,6 @@ theorem peer_keysSampled_of_headerReceived {ik : InitKey} {T : ℕ → EpochTran
 
 /-! ### Transcript consistency of states that agree on the relevant fields -/
 
-/-- A state is consistent with the same transcript when its epochs, completed epochs and key
-tables are unchanged, its local states and recorded messages agree with the transcript, and its
-correctness flag, control invariant and pair invariant hold. -/
-theorem TranscriptConsistent.of_fields {ik : InitKey} {T : ℕ → EpochTranscript P}
-    {s s' : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
-    (hc : s'.correct = true) (hC : ControlInv s') (hP : StatePairInv s')
-    (hA : s'.stA.epoch = s.stA.epoch) (hB : s'.stB.epoch = s.stB.epoch)
-    (hcA : s'.stA.completedEpoch = s.stA.completedEpoch)
-    (hcB : s'.stB.completedEpoch = s.stB.completedEpoch)
-    (hLA : LocalPayloadInv auth ik T s'.stA) (hLB : LocalPayloadInv auth ik T s'.stB)
-    (hMessages : ∀ (party : Bool) n msg tsnd,
-      (if party then s'.msgA else s'.msgB) n = some (msg, tsnd) →
-        MessagePayloadInv auth ik T msg)
-    (hkA : s'.keyA = s.keyA) (hkB : s'.keyB = s.keyB) :
-    TranscriptConsistent auth ik T s' := by
-  obtain ⟨-, -, -, h0k, h0e, hKeypair, hEncaps, -, -, -, hKeys⟩ := hT
-  refine ⟨hc, hC, hP, h0k, h0e, ?_, ?_, hLA, hLB, hMessages, ?_⟩
-  · intro e pk sk hk
-    obtain ⟨h0, hle⟩ := hKeypair e pk sk hk
-    have h1 : (if e % 2 = 1 then s'.stA else s'.stB).epoch =
-        (if e % 2 = 1 then s.stA else s.stB).epoch := by
-      split_ifs <;> assumption
-    exact ⟨h0, h1 ▸ hle⟩
-  · intro e es ct1 key hc'
-    obtain ⟨h0, hle, pk, sk, hkp, hdec⟩ := hEncaps e es ct1 key hc'
-    have h1 : (if e % 2 = 1 then s'.stB else s'.stA).completedEpoch =
-        (if e % 2 = 1 then s.stB else s.stA).completedEpoch := by
-      split_ifs <;> assumption
-    have h2 : (if e % 2 = 1 then s'.stA else s'.stB).completedEpoch =
-        (if e % 2 = 1 then s.stA else s.stB).completedEpoch := by
-      split_ifs <;> assumption
-    refine ⟨h0, by rw [h1]; exact hle, pk, sk, hkp, fun h => hdec ?_⟩
-    rw [← h2]
-    exact h
-  · intro party e
-    have hK := hKeys party e
-    cases party
-    · simp only [Bool.false_eq_true, ↓reduceIte] at hK ⊢
-      rw [hkB, hcB]
-      exact hK
-    · simp only [↓reduceIte] at hK ⊢
-      rw [hkA, hcA]
-      exact hK
-
 /-- A state with a true correctness flag, the control and pair invariants, each party's epoch,
 completed epoch and keys as in a transcript-consistent state, states satisfying
 `LocalPayloadInv`, and recorded messages satisfying `MessagePayloadInv` is transcript-consistent. -/
@@ -421,28 +377,26 @@ theorem TranscriptConsistent.of_party {ik : InitKey} {T : ℕ → EpochTranscrip
     (hMessages : ∀ party n msg tsnd, s'.messagesAt party n = some (msg, tsnd) →
       MessagePayloadInv auth ik T msg)
     (hKeys : ∀ party, s'.keysAt party = s.keysAt party) :
-    TranscriptConsistent auth ik T s' :=
-  hT.of_fields auth hc hC hP (he true) (he false) (hcomp true) (hcomp false)
-    (hLocal true) (hLocal false) hMessages (hKeys true) (hKeys false)
-
-/-- A state with a true correctness flag and the control and pair invariants that agrees with a
-transcript-consistent state in epochs, completed epochs, message tables and key tables, and whose
-states satisfy `LocalPayloadInv`, is transcript-consistent. -/
-theorem TranscriptConsistent.of_eq {ik : InitKey} {T : ℕ → EpochTranscript P}
-    {s s' : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
-    (hc : s'.correct = true) (hC : ControlInv s') (hP : StatePairInv s')
-    (hA : s'.stA.epoch = s.stA.epoch) (hB : s'.stB.epoch = s.stB.epoch)
-    (hcA : s'.stA.completedEpoch = s.stA.completedEpoch)
-    (hcB : s'.stB.completedEpoch = s.stB.completedEpoch)
-    (hLA : LocalPayloadInv auth ik T s'.stA) (hLB : LocalPayloadInv auth ik T s'.stB)
-    (hmA : s'.msgA = s.msgA) (hmB : s'.msgB = s.msgB)
-    (hkA : s'.keyA = s.keyA) (hkB : s'.keyB = s.keyB) :
     TranscriptConsistent auth ik T s' := by
-  refine hT.of_fields auth hc hC hP hA hB hcA hcB hLA hLB ?_ hkA hkB
-  intro party n msg tsnd hmsg
-  apply hT.messages party n msg tsnd
-  cases party
-  · simpa [hmB] using hmsg
-  · simpa [hmA] using hmsg
+  refine ⟨hc, hC, hP, hT.keypair_zero, hT.encaps_zero, ?_, ?_,
+    hLocal true, hLocal false, hMessages, ?_⟩
+  · intro e pk sk hk
+    obtain ⟨hpos, hle⟩ := hT.keypair e pk sk hk
+    refine ⟨hpos, ?_⟩
+    rw [← GameState.stateAt_generator, he, GameState.stateAt_generator]
+    exact hle
+  · intro e es ct1 key hc'
+    obtain ⟨hpos, hle, pk, sk, hkp, hdec⟩ := hT.encaps e es ct1 key hc'
+    refine ⟨hpos, ?_, pk, sk, hkp, fun h => hdec ?_⟩
+    · rw [← GameState.stateAt_encapsulator, hcomp, GameState.stateAt_encapsulator]
+      exact hle
+    · rw [← GameState.stateAt_generator, ← hcomp, GameState.stateAt_generator]
+      exact h
+  · intro party e
+    change s'.keysAt party e =
+      if 0 < e ∧ e ≤ (s'.stateAt party).completedEpoch then
+        (T e).encaps1.map (fun (_, _, key) => P.kdfOK key e) else none
+    rw [hKeys, hcomp]
+    exact hT.keys party e
 
 end MLKEMBraid

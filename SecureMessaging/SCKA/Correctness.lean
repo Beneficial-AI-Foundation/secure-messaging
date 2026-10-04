@@ -244,16 +244,37 @@ theorem sckaCorrectnessImpl_preservesInv [DecidableEq I]
     QueryImpl.PreservesInv (sckaCorrectnessImpl scka) Inv :=
   ((((oracleUnif_preservesInv Inv).add hSendA).add hSendB).add hRecvA).add hRecvB
 
+/-- The known-prefix check holds exactly when every positive epoch through `n` has a key. -/
+theorem knownPrefix_eq_true_iff {key : ℕ → Option I} {n : ℕ} :
+    knownPrefix key n = true ↔ ∀ t, 0 < t → t ≤ n → key t ≠ none := by
+  rw [knownPrefix, List.all_eq_true]
+  constructor
+  · intro h t hpos hle
+    have ht := h t (List.mem_range.mpr (Nat.lt_succ_iff.mpr hle))
+    simpa [hpos.ne', Option.isSome_iff_ne_none] using ht
+  · intro h t ht
+    rcases Nat.eq_zero_or_pos t with rfl | hpos
+    · simp
+    · simpa [Option.isSome_iff_ne_none, hpos.ne'] using
+        h t hpos (Nat.lt_succ_iff.mp (List.mem_range.mp ht))
+
 /-- `knownPrefix key n` holds when every epoch from `1` to `n` has a key. -/
 theorem knownPrefix_eq_true {key : ℕ → Option I} {n : ℕ}
     (hkey : ∀ t, 0 < t → t ≤ n → key t ≠ none) :
-    knownPrefix key n = true := by
-  rw [knownPrefix, List.all_eq_true]
-  intro t ht
-  rcases Nat.eq_zero_or_pos t with rfl | hpos
-  · simp
-  · simpa [Option.isSome_iff_ne_none, hpos.ne'] using
-      hkey t hpos (Nat.lt_succ_iff.mp (List.mem_range.mp ht))
+    knownPrefix key n = true :=
+  knownPrefix_eq_true_iff.2 hkey
+
+/-- Recording a key preserves any prefix of already known keys. -/
+theorem knownPrefix_update_some {key : ℕ → Option I} {n : ℕ}
+    (h : knownPrefix key n = true) (tI : ℕ) (k : I) :
+    knownPrefix (Function.update key tI (some k)) n = true := by
+  apply knownPrefix_eq_true
+  intro t hpos hle
+  by_cases ht : t = tI
+  · subst t
+    simp
+  · rw [Function.update_of_ne ht]
+    exact knownPrefix_eq_true_iff.1 h t hpos hle
 
 /-- If `key` has keys for exactly the epochs from `1` through `c`, then recording a key for epoch
 `c + 1` gives keys for exactly the epochs from `1` through `c + 1`. -/

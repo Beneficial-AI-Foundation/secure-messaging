@@ -29,16 +29,6 @@ variable {P : Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
     P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
 
-/-- The state of the generator of epoch `e`: A's state if `e` is odd, B's state otherwise. -/
-private theorem stateAt_generator (s : GameState P AuthState) (e : ℕ) :
-    s.stateAt (decide (e % 2 = 1)) = if e % 2 = 1 then s.stA else s.stB := by
-  simp [GameState.stateAt]
-
-/-- The state of the encapsulator of epoch `e`: B's state if `e` is odd, A's state otherwise. -/
-private theorem stateAt_encapsulator (s : GameState P AuthState) (e : ℕ) :
-    s.stateAt (!decide (e % 2 = 1)) = if e % 2 = 1 then s.stB else s.stA := by
-  by_cases h : e % 2 = 1 <;> simp [GameState.stateAt, h]
-
 /-- Recording one valid payload preserves the payload condition for the message table. -/
 private theorem messagePayloads_update {ik : InitKey} {T : ℕ → EpochTranscript P}
     {messages : ℕ → Option (Message P.Sym × ℕ)} {msg : Message P.Sym} {tsnd k : ℕ}
@@ -164,13 +154,13 @@ private theorem send_keysUnsampled_transcript {ik : InitKey} {T : ℕ → EpochT
       rw [hTke] at hk
       cases hk
       refine ⟨hpos, ?_⟩
-      rw [← stateAt_generator]
+      rw [← GameState.stateAt_generator]
       rw [hep', hep]
     · rw [hTk e' he] at hk
       obtain ⟨h0, hle⟩ := hKeypair e' pk' sk' hk
       refine ⟨h0, ?_⟩
-      rw [← stateAt_generator]
-      rw [hep', stateAt_generator]
+      rw [← GameState.stateAt_generator]
+      rw [hep', GameState.stateAt_generator]
       exact hle
   · intro e' es ct1 key hc
     rw [hTe] at hc
@@ -180,11 +170,11 @@ private theorem send_keysUnsampled_transcript {ik : InitKey} {T : ℕ → EpochT
       cases hc
     obtain ⟨h0, hle, pk', sk', hkp', hdec⟩ := hEncaps e' es ct1 key hc
     refine ⟨h0, ?_, pk', sk', by rw [hTk e' he]; exact hkp', fun hle' => hdec ?_⟩
-    · rw [← stateAt_encapsulator]
-      rw [hcomp', stateAt_encapsulator]
+    · rw [← GameState.stateAt_encapsulator]
+      rw [hcomp', GameState.stateAt_encapsulator]
       exact hle
-    · rw [← stateAt_generator]
-      rw [← stateAt_generator] at hle'
+    · rw [← GameState.stateAt_generator]
+      rw [← GameState.stateAt_generator] at hle'
       rwa [hcomp'] at hle'
   · intro who
     change ∀ n msg tsnd, (sendSuccessor s party r').messagesAt who n = some (msg, tsnd) → _
@@ -348,8 +338,8 @@ private theorem send_headerReceived_transcript {ik : InitKey} {T : ℕ → Epoch
     rw [hTk] at hk
     obtain ⟨h0, hle⟩ := hKeypair e' pk'' sk'' hk
     refine ⟨h0, ?_⟩
-    rw [← stateAt_generator]
-    rw [hep', stateAt_generator]
+    rw [← GameState.stateAt_generator]
+    rw [hep', GameState.stateAt_generator]
     exact hle
   · intro e' es' ct1' key' hc'
     by_cases he : e' = e
@@ -357,22 +347,22 @@ private theorem send_headerReceived_transcript {ik : InitKey} {T : ℕ → Epoch
       rw [hTce] at hc'
       cases hc'
       refine ⟨hpos, ?_, pk, sk, by rw [hTk]; exact hkpT, fun hle' => ?_⟩
-      · rw [← stateAt_encapsulator]
+      · rw [← GameState.stateAt_encapsulator]
         rw [hcomp', howner]
         simp
-      · rw [← stateAt_generator] at hle'
+      · rw [← GameState.stateAt_generator] at hle'
         rw [hcomp', howner] at hle'
         simp only [Bool.not_eq_self, ↓reduceIte] at hle'
         omega
     · rw [hTc e' he] at hc'
       obtain ⟨h0, hle, pk'', sk'', hkp'', hdec⟩ := hEncaps e' es' ct1' key' hc'
       have hleOld : e' ≤ e - 1 := by
-        rw [← stateAt_encapsulator] at hle
+        rw [← GameState.stateAt_encapsulator] at hle
         rwa [hcomp] at hle
       refine ⟨h0, ?_, pk'', sk'', by rw [hTk]; exact hkp'', fun _ => hdec ?_⟩
-      · rw [← stateAt_encapsulator]
+      · rw [← GameState.stateAt_encapsulator]
         rw [hcomp']; split_ifs <;> omega
-      · rw [← stateAt_generator]
+      · rw [← GameState.stateAt_generator]
         rwa [hcomp]
   · intro who
     change ∀ n msg tsnd, (sendSuccessor s party r').messagesAt who n = some (msg, tsnd) → _

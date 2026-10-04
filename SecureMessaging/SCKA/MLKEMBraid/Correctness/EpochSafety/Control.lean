@@ -60,9 +60,9 @@ epoch, it has sent `ct₂` if its peer is one epoch ahead, and every message it 
 `MessageControl`. -/
 def PartyControl {P : Parameters ProbComp} {AuthState : Type}
     (party : Bool) (s : GameState P AuthState) : Prop :=
-  let st := if party then s.stA else s.stB
-  let peer := if party then s.stB else s.stA
-  let messages := if party then s.msgA else s.msgB
+  let st := s.stateAt party
+  let peer := s.stateAt (!party)
+  let messages := s.messagesAt party
   st.controlPosition.isGenerator = decide (st.epoch % 2 = if party then 1 else 0) ∧
     (peer.epoch = st.epoch + 1 → st.controlPosition = ⟨false, 4⟩) ∧
     ∀ n msg tsnd, messages n = some (msg, tsnd) → MessageControl party st msg
@@ -95,7 +95,7 @@ theorem ControlInv.tcur_le_sub_one {s : GameState P AuthState} (hs : ControlInv 
 theorem ControlInv.role {s : GameState P AuthState} (hs : ControlInv s) (party : Bool) :
     (s.stateAt party).controlPosition.isGenerator =
       decide ((s.stateAt party).epoch % 2 = if party then 1 else 0) := by
-  cases party <;> exact (hs.roles _).1
+  exact (hs.roles party).1
 
 /-- Each party's current game epoch is below its local epoch, and it has a key for every
 positive epoch below its local epoch. -/
@@ -240,130 +240,84 @@ theorem partyControl_receive [DecidableEq P.Sym] (party : Bool) {st peer : State
 variable [DecidableEq P.EpochKey] [DecidableEq P.Sym]
   (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : ProbComp InitKey)
 
-/-- `SendA` preserves `ControlInv`. -/
-theorem oracleSendA_preserves_controlInv :
-    QueryImpl.PreservesInv (SCKAScheme.oracleSendA (scheme P auth irl sampleInitKey))
-      ControlInv := by
-  intro t s hs z hz
+/-- A send by either party preserves the control invariant. -/
+theorem oracleSend_preserves_controlInv (party : Bool) :
+    QueryImpl.PreservesInv (oracleSend auth irl sampleInitKey party) ControlInv := by
+  rintro t (s : GameState P AuthState) hs z hz
   cases t
-  have hEpoch := correctnessImpl_preserves_epochKnowledgeInv auth irl sampleInitKey
-    (OSendA (Rho := Message P.Sym)) s hs.epochKnowledge z hz
-  have hReports := correctnessImpl_preserves_recordedReportInv auth irl sampleInitKey
-    (OSendA (Rho := Message P.Sym)) s hs.recordedReport z hz
-  obtain ⟨r, hr, rfl⟩ := (mem_support_oracleSendA_run_iff auth irl sampleInitKey s z).mp hz
+  have hEpoch := oracleSend_preserves_epochKnowledgeInv auth irl sampleInitKey party
+    () s hs.epochKnowledge z hz
+  have hReports : RecordedReportInv z.2 := by
+    cases party
+    · exact correctnessImpl_preserves_recordedReportInv auth irl sampleInitKey
+        (OSendB (Rho := Message P.Sym)) s hs.recordedReport z hz
+    · exact correctnessImpl_preserves_recordedReportInv auth irl sampleInitKey
+        (OSendA (Rho := Message P.Sym)) s hs.recordedReport z hz
+  obtain ⟨r, hr, rfl⟩ := (mem_support_oracleSend_run_iff auth irl sampleInitKey s party z).mp hz
   have hedge := (mem_support_send_iff auth).mp hr
-  have hA := hs.roles true
-  have hB := hs.roles false
-  simp only [PartyControl, Bool.false_eq_true, ↓reduceIte] at hA hB
-  obtain ⟨hroleA, hlagA, hmsgA⟩ := hA
-  obtain ⟨hroleB, hlagB, hmsgB⟩ := hB
-  obtain ⟨hgen, hlag, hmsgs⟩ := partyControl_send auth true hedge hroleA hlagA hmsgA (s.nA + 1)
+  obtain ⟨hrole, hlag, hmsg⟩ := hs.roles party
+  have hPeer := hs.roles (!party)
+  simp only [PartyControl, Bool.not_not] at hPeer
+  obtain ⟨hroleP, hlagP, hmsgP⟩ := hPeer
+  obtain ⟨hgen, hlag, hmsgs⟩ := partyControl_send auth party hedge hrole hlag hmsg
+    (s.countAt party + 1)
   have hep := hedge.epoch_eq.1
-  have htsend : r.sendingEpoch ≤ r.state.epoch - 1 := by rw [hedge.sendingEpoch_eq, hep]
-  have hlagB' : r.state.epoch = s.stB.epoch + 1 → s.stB.controlPosition = ⟨false, 4⟩ := by
-    rw [hep]
-    exact hlagB
-  rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;>
-    exact ⟨by rwa [hkey] at hEpoch, by rwa [hkey] at hReports, htsend, hs.tcurB_le_sub_one,
-      fun party => by
-        cases party
-        · exact ⟨hroleB, hlagB', hmsgB⟩
-        · exact ⟨hgen, hlag, hmsgs⟩⟩
+  have ht : r.sendingEpoch ≤ r.state.epoch - 1 := by rw [hedge.sendingEpoch_eq, hep]
+  have htP := hs.tcur_le_sub_one (!party)
+  have hlagP' : r.state.epoch = (s.stateAt (!party)).epoch + 1 →
+      (s.stateAt (!party)).controlPosition = ⟨false, 4⟩ := by rw [hep]; exact hlagP
+  cases party <;> rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;>
+    simp only [sendUpdate, SCKAScheme.sendAUpdate, SCKAScheme.sendBUpdate, hkey,
+      Bool.false_eq_true, ↓reduceIte] at hEpoch hReports ⊢
+  all_goals first
+    | exact ⟨hEpoch, hReports, htP, ht, fun who => by
+        cases who; exacts [⟨hgen, hlag, hmsgs⟩, ⟨hroleP, hlagP', hmsgP⟩]⟩
+    | exact ⟨hEpoch, hReports, ht, htP, fun who => by
+        cases who; exacts [⟨hroleP, hlagP', hmsgP⟩, ⟨hgen, hlag, hmsgs⟩]⟩
 
-/-- `SendB` preserves `ControlInv`. -/
-theorem oracleSendB_preserves_controlInv :
-    QueryImpl.PreservesInv (SCKAScheme.oracleSendB (scheme P auth irl sampleInitKey))
-      ControlInv := by
-  intro t s hs z hz
-  cases t
-  have hEpoch := correctnessImpl_preserves_epochKnowledgeInv auth irl sampleInitKey
-    (OSendB (Rho := Message P.Sym)) s hs.epochKnowledge z hz
-  have hReports := correctnessImpl_preserves_recordedReportInv auth irl sampleInitKey
-    (OSendB (Rho := Message P.Sym)) s hs.recordedReport z hz
-  obtain ⟨r, hr, rfl⟩ := (mem_support_oracleSendB_run_iff auth irl sampleInitKey s z).mp hz
-  have hedge := (mem_support_send_iff auth).mp hr
-  have hA := hs.roles true
-  have hB := hs.roles false
-  simp only [PartyControl, Bool.false_eq_true, ↓reduceIte] at hA hB
-  obtain ⟨hroleA, hlagA, hmsgA⟩ := hA
-  obtain ⟨hroleB, hlagB, hmsgB⟩ := hB
-  obtain ⟨hgen, hlag, hmsgs⟩ := partyControl_send auth false hedge hroleB hlagB hmsgB (s.nB + 1)
-  have hep := hedge.epoch_eq.1
-  have htsend : r.sendingEpoch ≤ r.state.epoch - 1 := by rw [hedge.sendingEpoch_eq, hep]
-  have hlagA' : r.state.epoch = s.stA.epoch + 1 → s.stA.controlPosition = ⟨false, 4⟩ := by
-    rw [hep]
-    exact hlagA
-  rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;>
-    exact ⟨by rwa [hkey] at hEpoch, by rwa [hkey] at hReports, hs.tcurA_le_sub_one, htsend,
-      fun party => by
-        cases party
-        · exact ⟨hgen, hlag, hmsgs⟩
-        · exact ⟨hroleA, hlagA', hmsgA⟩⟩
-
-/-- `RecvA` preserves `ControlInv`. -/
-theorem oracleRecvA_preserves_controlInv :
-    QueryImpl.PreservesInv (SCKAScheme.oracleRecvA (scheme P auth irl sampleInitKey))
-      ControlInv := by
-  intro n s hs z hz
-  have hEpoch := correctnessImpl_preserves_epochKnowledgeInv auth irl sampleInitKey
-    (ORecvA (Rho := Message P.Sym) n) s hs.epochKnowledge z hz
-  have hReports := correctnessImpl_preserves_recordedReportInv auth irl sampleInitKey
-    (ORecvA (Rho := Message P.Sym) n) s hs.recordedReport z hz
-  rcases oracleRecvA_run_cases auth irl sampleInitKey hz with
+/-- A receive by either party preserves the control invariant. -/
+theorem oracleRecv_preserves_controlInv (party : Bool) :
+    QueryImpl.PreservesInv (oracleRecv auth irl sampleInitKey party) ControlInv := by
+  rintro n (s : GameState P AuthState) hs z hz
+  have hEpoch := oracleRecv_preserves_epochKnowledgeInv auth irl sampleInitKey party
+    n s hs.epochKnowledge z hz
+  have hReports : RecordedReportInv z.2 := by
+    cases party
+    · exact correctnessImpl_preserves_recordedReportInv auth irl sampleInitKey
+        (ORecvB (Rho := Message P.Sym) n) s hs.recordedReport z hz
+    · exact correctnessImpl_preserves_recordedReportInv auth irl sampleInitKey
+        (ORecvA (Rho := Message P.Sym) n) s hs.recordedReport z hz
+  rcases oracleRecv_run_cases auth irl sampleInitKey party hz with
     ⟨-, rfl⟩ | ⟨msg, tsnd, err, -, -, rfl⟩ | ⟨msg, tsnd, r, hentry, hraw, rfl⟩
   · exact hs
   · exact ⟨hEpoch, hReports, hs.tcurA_le_sub_one, hs.tcurB_le_sub_one, hs.roles⟩
-  have hA := hs.roles true
-  have hB := hs.roles false
-  simp only [PartyControl, Bool.false_eq_true, ↓reduceIte] at hA hB
-  obtain ⟨hroleA, hlagA, hmsgA⟩ := hA
-  obtain ⟨hroleB, hlagB, hmsgB⟩ := hB
-  obtain ⟨hgen, hlag, hmsgs, hlagP, htcur⟩ := partyControl_receive auth true hraw hroleA hroleB
-    hlagA hlagB hmsgA (hmsgB n msg tsnd hentry) hs.epochKnowledge.keyPrefix.posA
-    hs.epochKnowledge.epochB_le hs.tcurA_le_sub_one
-  rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;>
-    exact ⟨by rwa [hkey] at hEpoch, by rwa [hkey] at hReports, htcur, hs.tcurB_le_sub_one,
-      fun party => by
-        cases party
-        · exact ⟨hroleB, hlagP, hmsgB⟩
-        · exact ⟨hgen, hlag, hmsgs⟩⟩
-
-/-- `RecvB` preserves `ControlInv`. -/
-theorem oracleRecvB_preserves_controlInv :
-    QueryImpl.PreservesInv (SCKAScheme.oracleRecvB (scheme P auth irl sampleInitKey))
-      ControlInv := by
-  intro n s hs z hz
-  have hEpoch := correctnessImpl_preserves_epochKnowledgeInv auth irl sampleInitKey
-    (ORecvB (Rho := Message P.Sym) n) s hs.epochKnowledge z hz
-  have hReports := correctnessImpl_preserves_recordedReportInv auth irl sampleInitKey
-    (ORecvB (Rho := Message P.Sym) n) s hs.recordedReport z hz
-  rcases oracleRecvB_run_cases auth irl sampleInitKey hz with
-    ⟨-, rfl⟩ | ⟨msg, tsnd, err, -, -, rfl⟩ | ⟨msg, tsnd, r, hentry, hraw, rfl⟩
-  · exact hs
-  · exact ⟨hEpoch, hReports, hs.tcurA_le_sub_one, hs.tcurB_le_sub_one, hs.roles⟩
-  have hA := hs.roles true
-  have hB := hs.roles false
-  simp only [PartyControl, Bool.false_eq_true, ↓reduceIte] at hA hB
-  obtain ⟨hroleA, hlagA, hmsgA⟩ := hA
-  obtain ⟨hroleB, hlagB, hmsgB⟩ := hB
-  obtain ⟨hgen, hlag, hmsgs, hlagP, htcur⟩ := partyControl_receive auth false hraw hroleB hroleA
-    hlagB hlagA hmsgB (hmsgA n msg tsnd hentry) hs.epochKnowledge.keyPrefix.posB
-    hs.epochKnowledge.epochA_le hs.tcurB_le_sub_one
-  rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;>
-    exact ⟨by rwa [hkey] at hEpoch, by rwa [hkey] at hReports, hs.tcurA_le_sub_one, htcur,
-      fun party => by
-        cases party
-        · exact ⟨hgen, hlag, hmsgs⟩
-        · exact ⟨hroleA, hlagP, hmsgA⟩⟩
+  obtain ⟨hrole, hlag, hmsg⟩ := hs.roles party
+  have hPeer := hs.roles (!party)
+  simp only [PartyControl, Bool.not_not] at hPeer
+  obtain ⟨hroleP, hlagP, hmsgP⟩ := hPeer
+  have hcrossP := hs.epochKnowledge.epoch_le (!party)
+  simp only [Bool.not_not] at hcrossP
+  obtain ⟨hgen, hlag, hmsgs, hlagP, ht⟩ := partyControl_receive auth party hraw hrole
+    (by cases party <;> exact hroleP) hlag hlagP hmsg (hmsgP n msg tsnd hentry)
+    (hs.epochKnowledge.keyPrefix.pos party) hcrossP (hs.tcur_le_sub_one party)
+  have htP := hs.tcur_le_sub_one (!party)
+  cases party <;> rcases hkey : r.outputKey with _ | ⟨tI, key⟩ <;>
+    simp only [recvUpdate, SCKAScheme.recvAUpdate, SCKAScheme.recvBUpdate, hkey,
+      Bool.false_eq_true, ↓reduceIte] at hEpoch hReports ⊢
+  all_goals first
+    | exact ⟨hEpoch, hReports, htP, ht, fun who => by
+        cases who; exacts [⟨hgen, hlag, hmsgs⟩, ⟨hroleP, hlagP, hmsgP⟩]⟩
+    | exact ⟨hEpoch, hReports, ht, htP, fun who => by
+        cases who; exacts [⟨hroleP, hlagP, hmsgP⟩, ⟨hgen, hlag, hmsgs⟩]⟩
 
 /-- Every oracle of the correctness game preserves `ControlInv`. -/
 theorem correctnessImpl_preserves_controlInv :
     QueryImpl.PreservesInv (SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey))
       ControlInv :=
   SCKAScheme.sckaCorrectnessImpl_preservesInv _
-    (oracleSendA_preserves_controlInv auth irl sampleInitKey)
-    (oracleSendB_preserves_controlInv auth irl sampleInitKey)
-    (oracleRecvA_preserves_controlInv auth irl sampleInitKey)
-    (oracleRecvB_preserves_controlInv auth irl sampleInitKey)
+    (oracleSend_preserves_controlInv auth irl sampleInitKey true)
+    (oracleSend_preserves_controlInv auth irl sampleInitKey false)
+    (oracleRecv_preserves_controlInv auth irl sampleInitKey true)
+    (oracleRecv_preserves_controlInv auth irl sampleInitKey false)
 
 end MLKEMBraid
