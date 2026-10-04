@@ -37,9 +37,12 @@ queries can only preserve or decrease it.
 - `stateCounter_simulateQ_run_le`: if `impl` satisfies the counter condition,
   then for every initial state `s`, each supported final state `s'` satisfies
   `count s' ≤ count s + q`.
-- `simulateQ_run_eq_of_query_eq_stateBudget`: lifts query equality up to a
-  counter limit `Q` to equality of complete output/state computations from
-  an initial state `s` with `count s + q ≤ Q`, under the hypotheses below.
+- `simulateQ_run_eq_of_query_eq_stateBudget`: let
+  `left right : QueryImpl spec (StateT σ ProbComp)`, `Inv : σ → Prop`, and `Q : ℕ`. If `left`
+  preserves `Inv`, satisfies the counter condition, and
+  `(left t).run u = (right t).run u` whenever `Inv u` and `count u ≤ Q`, then
+  `(simulateQ left oa).run s = (simulateQ right oa).run s` for every `s` with `Inv s` and
+  `count s + q ≤ Q`.
 -/
 
 open OracleSpec
@@ -48,12 +51,12 @@ namespace OracleComp
 
 /-- Let `impl` be a stateful oracle implementation, `count : σ → ℕ` a counter,
 and `p` the predicate selecting queries to count. Assume that for every
-query `t`, state `s`, and supported response/state pair `(a, s')`,
+query `t`, state `s`, and `(a, s')` in the support of `(impl t).run s`,
 `count s' ≤ count s + (if p t then 1 else 0)`.
 
-For every computation `oa` making at most `q` queries satisfying `p` on each
+Then for every computation `oa` making at most `q` queries satisfying `p` on each
 oracle-response path, initial state `s`, and
-`z ∈ support ((simulateQ impl oa).run s)`, we have `count z.2 ≤ count s + q`. -/
+`z ∈ support ((simulateQ impl oa).run s)`, `count z.2 ≤ count s + q`. -/
 theorem stateCounter_simulateQ_run_le
     {ι : Type} {spec : OracleSpec ι} {σ α : Type}
     (impl : QueryImpl spec (StateT σ ProbComp)) (count : σ → ℕ)
@@ -73,9 +76,10 @@ theorem stateCounter_simulateQ_run_le
 invariant, `count` a state counter, `p` the predicate selecting queries to
 count, and `Q : ℕ` a counter limit. Assume:
 
-- every supported `left` successor of an `Inv` state satisfies `Inv`;
-- for every query `t` and state `u`, each supported `left` successor `u'`
-  satisfies `count u' ≤ count u + (if p t then 1 else 0)`;
+- `left` preserves `Inv`: for every query `t` and state `u` with `Inv u`, every `(a, u')` in
+  the support of `(left t).run u` satisfies `Inv u'`;
+- for every query `t`, state `u`, and `(a, u')` in the support of `(left t).run u`,
+  `count u' ≤ count u + (if p t then 1 else 0)`;
 - for every query `t` and state `u` with `Inv u` and `count u ≤ Q`,
   `(left t).run u = (right t).run u`.
 

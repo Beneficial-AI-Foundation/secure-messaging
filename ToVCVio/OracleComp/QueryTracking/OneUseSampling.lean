@@ -19,8 +19,8 @@ import ToVCVio.OracleComp.SimSemantics.StateT.Stop
   interface `spec` and state space `σ`.
 
 For an adaptive adversary `oa : OracleComp spec Bool` and initial state
-`s : σ`, let `Run(I, oa, s)` run `oa` with oracle implementation `I` from `s`.
-It returns the adversary's output bit, or `false` if an oracle returns `none`.
+`s : σ`, let `Run(I, oa, s) := optionRun I oa s` run `oa` with oracle implementation `I` from
+`s`. It returns the adversary's output bit, or `false` if an oracle returns `none`.
 
 **Two experiments.** Define
 
@@ -48,12 +48,12 @@ and a test `hit : spec.Domain → σ → Bool`, with the following roles:
 Assume that for every query `t`, state `s` satisfying `Inv s`, and parameters
 `a, a' ∈ S`:
 
-1. Every supported continuing successor of `impl a t` from `s` satisfies `Inv`.
-2. If `used s`, every such continuing successor also satisfies `used`.
+1. Every `(some r, s')` in the support of `((impl a t).run).run s` satisfies `Inv s'`.
+2. If `used s`, every such `s'` also satisfies `used s'`.
 3. If `hit t s = false`, running `impl a t` and `impl a' t` from `s` gives
    the same joint distribution of response and next state.
 4. If `used s`, then `hit t s = false`.
-5. If `hit t s = true`, every supported continuing successor satisfies `used`.
+5. If `hit t s = true`, every such `s'` satisfies `used s'`.
 
 Then, for every adaptive adversary `oa : OracleComp spec Bool` and
 initial state `s` satisfying `Inv s`,

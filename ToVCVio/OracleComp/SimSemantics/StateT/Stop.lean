@@ -13,30 +13,62 @@ import ToVCVio.EvalDist.Monad.Basic
 
 **Setting.** Let
 
-- `spec : OracleSpec ι` be a query interface;
-- `σ` be a state space;
-- `oa : OracleComp spec Bool` be an adaptive Boolean oracle computation.
+- `ι` be a type and `spec : OracleSpec ι` a query interface with query type `spec.Domain = ι`
+  and answer type `spec.Range t` for each query `t : ι`;
+- `σ` be a state space, `s : σ` a state, and `stop : σ → Bool` a test on states;
+- `oa : OracleComp spec Bool` be a Boolean oracle computation;
+- `impl : QueryImpl spec (OptionT (StateT σ ProbComp))` and
+  `base : QueryImpl spec (StateT σ ProbComp)` be stateful oracles.
 
-**Boolean output.** For an implementation
-`impl : QueryImpl spec (OptionT (StateT σ ProbComp))` and an initial state `s`,
-`optionRun impl oa s` returns the output of `oa` on completion, or `false`
-if a query returns `none`. It discards the final state.
+**Notation.**
 
-**Stopping rule.** For an implementation `impl : QueryImpl spec (StateT σ ProbComp)`
-and a test `stop : σ → Bool`, `stopOnState impl stop` answers a query `t`
-from state `s` by sampling `(a, s') ← (impl t).run s`.
-It returns `(none, s')` if `stop s' = true`,
-and `(some a, s')` otherwise. The Boolean execution is
-`stoppedRun impl stop oa s := optionRun (stopOnState impl stop) oa s`.
+Write `O(t; u)` for the computation in which a stateful oracle `O` answers a query
+`t : spec.Domain` from a state `u : σ`; it returns the answer together with the successor state.
+The possible answers depend on the type of `O`:
 
-**Results.** Under the hypotheses in the corresponding theorem docstrings:
+- if `O` has the type of `base`, it always answers with some `a : spec.Range t`, and
+  `O(t; u)` is `(O t).run u`;
+- if `O` has the type of `impl`, it may also answer `⊥`, which stands for `none`, while an
+  answer `a ≠ ⊥` stands for `some a`; here `O(t; u)` is `((O t).run).run u`.
 
-- `probOutput_optionRun_eq_of_state_map` lifts equality of query distributions
-  under a state map to equality of probabilities of returning `true`.
-- `probOutput_stoppedRun_eq_of_inv` shows that stopping preserves the probability
-  of returning `true` when a preserved invariant ensures `stop = false`.
-- `signed_gap_stoppedRun_eq` shows that stopping preserves the signed difference
-  between two simulations' probabilities of returning `true`.
+**Definitions.**
+
+`optionRun impl oa s : ProbComp Bool` runs `oa` from `s`, answering its queries
+with `impl`. It returns the output bit of `oa` if no answer is `⊥`, and `false` at the first
+answer `⊥` without issuing further queries; the final state is discarded.
+
+```text
+Base case:
+  optionRun(impl, return b, s) = return b
+Induction:
+  optionRun(impl, (a ← query(t); cont(a)), s) =
+      (a, s') ← impl(t; s)
+      if a = ⊥ then return false
+      optionRun(impl, cont(a), s')
+```
+
+`stopOnState base stop : QueryImpl spec (OptionT (StateT σ ProbComp))` answers each query as
+`base` does, except that the answer becomes `⊥` when `stop` holds on the successor state:
+
+```text
+stopOnState(base, stop)(t; s) =
+  (a, s') ← base(t; s)
+  if stop(s') = true then return (⊥, s')
+  return (a, s')
+```
+
+`stoppedRun base stop oa s : ProbComp Bool` runs `oa` from `s`, answering its queries with `base`.
+It returns `false` at the first query whose successor state satisfies `stop`, and otherwise the
+output bit of `oa`: `stoppedRun base stop oa s = optionRun (stopOnState base stop) oa s`.
+
+**Results.**
+
+- `probOutput_optionRun_eq_of_state_map`: lifts query distribution equality
+  through a state map to equality of acceptance probabilities.
+- `probOutput_stoppedRun_eq_of_inv`: stopping preserves acceptance when an
+  invariant ensures that `stop` is false.
+- `signed_gap_stoppedRun_eq`: stopping preserves a signed acceptance gap
+  under the theorem's conditions.
 -/
 
 open OracleSpec OracleComp ENNReal
@@ -47,8 +79,10 @@ variable {ι σ : Type} {spec : OracleSpec ι}
 
 /-! ### Boolean output of an `OptionT` simulation -/
 
-/-- Execute `oa` under `impl` from state `s`. Return the output bit on
-completion, or `false` if a query returns `none`; discard the final state. -/
+/-- Execute an oracle computation `oa : OracleComp spec Bool` from an initial
+state `s : σ`, answering its queries with the stateful implementation
+`impl : QueryImpl spec (OptionT (StateT σ ProbComp))`. Return the output bit
+on completion, or `false` if a query returns `none`; discard the final state. -/
 def optionRun (impl : QueryImpl spec (OptionT (StateT σ ProbComp)))
     (oa : OracleComp spec Bool) (s : σ) : ProbComp Bool :=
   (fun z => z.1.getD false) <$> ((simulateQ impl oa).run).run s
@@ -59,9 +93,16 @@ theorem optionRun_pure (impl : QueryImpl spec (OptionT (StateT σ ProbComp)))
     (a : Bool) (s : σ) : optionRun impl (pure a) s = pure a := by
   simp [optionRun, OptionT.run_pure]
 
-/-- For every query `t`, Boolean continuation `cont`, and state `s`, the
-simulation first samples the query's optional response and successor state.
-It returns `false` for `none` and resumes `cont a` for `some a`. -/
+/-- For a query `t : spec.Domain` and continuation
+`cont : spec.Range t → OracleComp spec Bool`, the following computations are equal:
+
+```text
+optionRun(impl, (a ← query(t); cont(a)), s) =
+  (a, s') ← impl(t; s)
+  if a = ⊥ then return false
+  optionRun(impl, cont(a), s')
+```
+-/
 theorem optionRun_query_bind (impl : QueryImpl spec (OptionT (StateT σ ProbComp)))
     (t : spec.Domain) (cont : spec.Range t → OracleComp spec Bool) (s : σ) :
     optionRun impl (liftM (OracleSpec.query t) >>= cont) s = (do
@@ -79,7 +120,7 @@ theorem optionRun_query_bind (impl : QueryImpl spec (OptionT (StateT σ ProbComp
 and `τ`, `f : σ → τ` a state map, and `Inv : σ → Prop` an invariant. Assume
 that for every query `t` and state `s` satisfying `Inv s`:
 
-- each supported `left` response/state pair `(some a, s')` satisfies `Inv s'`;
+- every `(some a, s')` in the support of `((left t).run).run s` satisfies `Inv s'`;
 - the joint distribution of response and next state under `right` from `f s`
   equals that under `left` from `s` after mapping the next state through `f`.
 
@@ -119,18 +160,17 @@ theorem probOutput_optionRun_eq_of_state_map {τ : Type}
 
 /-! ### Stopping on a state test -/
 
-/-- Execute a query under `impl`, then test `stop` on its successor state.
-If the test is true, return `none` with that state; otherwise return the
-query response as `some` and continue the adversary's computation. -/
+/-- Stateful oracle implementation for `spec` that answers each query as `impl` does, except
+that the answer becomes `none` when `stop` holds on the successor state; that state is kept. -/
 def stopOnState (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool) :
     QueryImpl spec (OptionT (StateT σ ProbComp)) :=
   fun t => OptionT.mk fun s => do
     let (answer, next) ← (impl t).run s
     pure (if stop next then none else some answer, next)
 
-/-- For every implementation, query, and initial state, if `stop` is false
-on every supported successor, the stopped query's joint distribution is
-the ordinary response/state distribution with each response wrapped in `some`. -/
+/-- For every query `t` and state `s`, if `stop s' = false` for every `(a, s')` in the support
+of `(impl t).run s`, then the joint distribution of response and next state under
+`stopOnState impl stop t` is that of `(impl t).run s` with each response wrapped in `some`. -/
 theorem evalDist_stopOnState_eq_of_support
     (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool)
     (t : spec.Domain) (s : σ)
@@ -149,7 +189,7 @@ theorem evalDist_stopOnState_eq_of_support
 state map. For a query `t` and state `s`, assume that the joint response/state
 distribution under `right` from `f s` equals that under `left` from `s` after
 mapping the next state through `f`. Assume also that `stop s' = false` for
-every supported `left` successor `s'`.
+every `(a, s')` in the support of `(left t).run s`.
 
 Then lifting `right t` into `OptionT` from `f s` has the same joint
 distribution as `stopOnState left stop t` from `s` with its next state
@@ -168,9 +208,9 @@ theorem evalDist_lift_eq_stopOnState_map {τ : Type}
     Functor.map_map]
   rfl
 
-/-- Run a Boolean adversary `oa` from `s` using `stopOnState impl stop`:
-`optionRun (stopOnState impl stop) oa s`. It returns the output of `oa` if
-execution completes and `false` if a query stops it. -/
+/-- Run a Boolean computation `oa` from `s`, answering its queries with `impl`; return `false` at
+the first query whose successor state satisfies `stop`, and otherwise the output bit of `oa`.
+By definition, `stoppedRun impl stop oa s = optionRun (stopOnState impl stop) oa s`. -/
 def stoppedRun (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool)
     (oa : OracleComp spec Bool) (s : σ) : ProbComp Bool :=
   optionRun (stopOnState impl stop) oa s
@@ -181,9 +221,16 @@ theorem stoppedRun_pure (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ 
     (a : Bool) (s : σ) : stoppedRun impl stop (pure a) s = pure a :=
   optionRun_pure _ a s
 
-/-- A stopped execution first performs the next query. It returns `false`
-if `stop` holds on the resulting state, and otherwise executes the
-adversary's response-dependent continuation from that state. -/
+/-- For a query `t : spec.Domain` and continuation
+`cont : spec.Range t → OracleComp spec Bool`, the following computations are equal:
+
+```text
+stoppedRun(impl, stop, (a ← query(t); cont(a)), s) =
+  (a, s') ← impl(t; s)
+  if stop(s') = true then return false
+  stoppedRun(impl, stop, cont(a), s')
+```
+-/
 theorem stoppedRun_query_bind (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool)
     (t : spec.Domain) (cont : spec.Range t → OracleComp spec Bool) (s : σ) :
     stoppedRun impl stop (liftM (OracleSpec.query t) >>= cont) s = (do
@@ -227,10 +274,9 @@ theorem probOutput_stoppedRun_eq_of_inv
 
 /-! ### Cancellation of terminated paths -/
 
-/-- For every query `t`, Boolean continuation `cont`, and initial state `s`,
-stopped and ordinary query/continuation runs have equal acceptance probability
-if every supported query successor satisfies a preserved invariant `Inv`
-with `∀ u, Inv u → stop u = false`. -/
+/-- If `impl` preserves `Inv`, `Inv u` implies `stop u = false`, and every `(a, s')` in the
+support of `(impl t).run s` satisfies `Inv s'`, then the stopped and ordinary runs of
+`a ← query(t); cont(a)` from `s` return `true` with equal probability. -/
 private theorem probOutput_stoppedRun_query_eq
     (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool) (Inv : σ → Prop)
     (hpres : QueryImpl.PreservesInv impl Inv) (hstop : ∀ s, Inv s → stop s = false)
@@ -301,8 +347,8 @@ without stopping. Assume:
 - `left` preserves `Inv`, and both implementations preserve `committed`;
 - for every state `u`, `committed u` implies `stop u = false`;
 - for every query `t` and state `u` satisfying `Inv u`, either
-  `(left t).run u = (right t).run u`, or every supported successor under
-  either implementation satisfies `committed`;
+  `(left t).run u = (right t).run u`, or every `(a, u')` in the support of
+  `(left t).run u` or of `(right t).run u` satisfies `committed u'`;
 - for every state `u` with `Inv u` and `stop u = true`, every Boolean
   computation has equal probabilities of returning `true` under `left`
   and `right` from `u`.

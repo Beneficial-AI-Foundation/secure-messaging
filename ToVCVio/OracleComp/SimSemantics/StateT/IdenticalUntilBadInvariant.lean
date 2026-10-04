@@ -10,28 +10,30 @@ import VCVio.OracleComp.ProbComp
 /-!
 # Identical until bad on invariant states
 
-Fix types `ι σ α : Type`, an oracle specification `spec : OracleSpec ι`,
-implementations `left right : QueryImpl spec (StateT σ ProbComp)`, and
-state predicates `Inv bad : σ → Prop`. Their queries are lossless because
-the underlying monad is `ProbComp`.
+**Setting.** Let
 
-**Assumptions.** For every query `t : spec.Domain` and state `s : σ`:
+- `spec : OracleSpec ι` be a query interface and `σ` a state space;
+- `left right : QueryImpl spec (StateT σ ProbComp)` be stateful oracle implementations;
+- `Inv bad : σ → Prop` be state predicates;
+- `oa : OracleComp spec α` be an oracle computation, `event : α → Prop` an event on its output,
+  and `s : σ` an initial state.
 
-* if `Inv s`, then `Inv s'` for every `(a, s')` in the support of `(left t).run s`;
-* if `bad s`, then `bad s'` for every `(a, s')` in that same support;
-* if `Inv s ∧ ¬bad s`, then `(left t).run s = (right t).run s`.
+**Notation.** `L := (simulateQ left oa).run s` and `R := (simulateQ right oa).run s` return the
+output of `oa` together with the final state. Write `pE(X) := Pr[fun z => event z.1 | X]` and
+`pBad := Pr[fun z => bad z.2 | L]`.
 
-Here each response `a` has type `spec.Range t`.
+**Results.** Assume that
 
-**Conclusion.** For every computation `oa : OracleComp spec α`, initial
-state `s₀ : σ` satisfying `Inv s₀`, and output event `E : α → Prop`, define
-`L := (simulateQ left oa).run s₀` and `R := (simulateQ right oa).run s₀`.
-Both computations return `(a, s') : α × σ`. The real-valued probabilities satisfy
-`|Pr[E(a) : (a, s') ← L] − Pr[E(a) : (a, s') ← R]| ≤ Pr[bad(s') : (a, s') ← L]`.
+- `left` preserves `Inv` and `bad`: for every query `t`, state `u`, and `(a, u')` in the support
+  of `(left t).run u`, `Inv u` implies `Inv u'`, and `bad u` implies `bad u'`;
+- `(left t).run u = (right t).run u` for every query `t` and state `u` with `Inv u` and `¬bad u`;
+- `Inv s`.
 
-**Proof.** Induct on `oa`. Queries from good invariant states share their
-response/state computation. From bad states, persistence makes the final
-bad probability one, which bounds either event probability.
+Then
+
+- `probEvent_simulateQ_run_bounds_of_inv`: `pE(L) ≤ pE(R) + pBad` and `pE(R) ≤ pE(L) + pBad`;
+- `abs_probEvent_simulateQ_run_sub_le_bad_of_inv`: `|pE(L) - pE(R)| ≤ pBad` for the real values
+  of these probabilities.
 -/
 
 open OracleSpec ENNReal
@@ -40,8 +42,8 @@ namespace OracleComp
 
 variable {ι σ α : Type} {spec : OracleSpec ι}
 
-/-- A lossless stateful simulation started in a persistent bad state ends
-in a bad state with probability one. -/
+/-- If `impl` preserves `bad` and `bad s`, then `(simulateQ impl oa).run s` ends in a state
+satisfying `bad` with probability one. -/
 private theorem bad_run_probability_one
     (impl : QueryImpl spec (StateT σ ProbComp)) (bad : σ → Prop)
     (hmono : QueryImpl.PreservesInv impl bad) (oa : OracleComp spec α)
@@ -50,29 +52,11 @@ private theorem bad_run_probability_one
   apply probEvent_eq_one_iff.mpr
   exact ⟨probFailure_eq_zero, simulateQ_run_preservesInv impl bad hmono oa s hs⟩
 
-/-- Probability bounds for two lossless stateful oracle implementations
-`left` and `right`, an adaptive computation `oa`, and an output event `event`.
-
-**Assumptions.**
-
-* The initial state `s` satisfies `Inv`.
-* Every query under `left` preserves `Inv` and `bad`.
-* On any state satisfying `Inv ∧ ¬bad`, each query has the same joint
-  distribution of response and next state under `left` and `right`.
-
-**Notation.** Define the computations
-`L := (simulateQ left oa).run s` and `R := (simulateQ right oa).run s`,
-each returning a pair `(a, s') : α × σ`. Define
-
-* `pL := Pr[fun (a, _) => event a | L]`;
-* `pR := Pr[fun (a, _) => event a | R]`;
-* `pBad := Pr[fun (_, s') => bad s' | L]`.
-
-**Conclusion.** `pL ≤ pR + pBad` and `pR ≤ pL + pBad`, as inequalities
-in `ℝ≥0∞`.
-
-The proof uses persistence of `bad` under `left` and query equality on
-good invariant states. -/
+/-- Let `left` preserve `Inv` and `bad`, and let `(left t).run u = (right t).run u` for every
+query `t` and state `u` with `Inv u` and `¬bad u`. Then, for every computation `oa`, event
+`event : α → Prop`, and state `s` with `Inv s`, `pE(L) ≤ pE(R) + pBad` and
+`pE(R) ≤ pE(L) + pBad`, where `L := (simulateQ left oa).run s`, `R := (simulateQ right oa).run s`,
+`pE(X) := Pr[fun z => event z.1 | X]`, and `pBad := Pr[fun z => bad z.2 | L]`. -/
 theorem probEvent_simulateQ_run_bounds_of_inv
     (left right : QueryImpl spec (StateT σ ProbComp))
     (Inv bad : σ → Prop)
@@ -113,22 +97,8 @@ theorem probEvent_simulateQ_run_bounds_of_inv
           simpa only [mul_add, id] using mul_le_mul' (le_refl (Pr[= y | (left t).run s])) h
         · simp only [probOutput_eq_zero_of_not_mem_support hy, zero_mul, add_zero, le_refl]
 
-/-- Real-valued distinguishing bound for two lossless stateful oracle
-implementations `left` and `right` and an adaptive computation `oa`.
-
-**Assumptions.** The initial state `s` satisfies `Inv`; `left` preserves
-`Inv` and `bad`; and both implementations give the same joint distribution
-of response and next state for each query on states satisfying `Inv ∧ ¬bad`.
-
-**Notation.** Set `L := (simulateQ left oa).run s` and
-`R := (simulateQ right oa).run s`. For the output event `event : α → Prop`,
-define the real numbers
-
-* `pL := (Pr[fun (a, _) => event a | L]).toReal`;
-* `pR := (Pr[fun (a, _) => event a | R]).toReal`;
-* `pBad := (Pr[fun (_, s') => bad s' | L]).toReal`.
-
-**Conclusion.** `|pL − pR| ≤ pBad`. -/
+/-- Under the hypotheses of `probEvent_simulateQ_run_bounds_of_inv` and with its notation, the
+real values satisfy `|pE(L) - pE(R)| ≤ pBad`. -/
 theorem abs_probEvent_simulateQ_run_sub_le_bad_of_inv
     (left right : QueryImpl spec (StateT σ ProbComp))
     (Inv bad : σ → Prop)

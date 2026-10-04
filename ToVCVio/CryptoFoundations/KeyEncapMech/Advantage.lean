@@ -18,8 +18,7 @@ The distinguishing advantage `Adv_dist` is the absolute difference between
 the probabilities that the same adversary outputs `true` in the real-key
 and random-key experiments.
 
-We show that, for every KEM and every IND-CPA adversary against it, these two advantages
-are equal.
+For every KEM and every IND-CPA adversary against it, these two advantages are equal.
 
 **Setting.** Let
 
@@ -46,7 +45,6 @@ let `p_b := Pr[G_b = true]` be the probability that `adv` outputs `true`.
 The distinguishing advantage of `adv` against `kem` is defined as
 `Adv_dist := |p_true - p_false|`.
 
-
 **Guessing game.** Let `H` be the experiment that:
 
 1. Samples a uniform bit `b`, hidden from `adv`.
@@ -72,19 +70,9 @@ namespace KEMScheme
 
 variable {K PK SK C : Type}
 
-/-- Common data for the two fixed-bit experiments of adversary `adv` against `kem`.
-
-**Adversary phases.**
-
-- `adv.preChallenge pk` receives the public key and returns state `st`.
-- `adv.postChallenge st cStar kStar` receives that state and the IND-CPA
-  challenge `(cStar, kStar)`, and returns a bit.
-
-**Stored data.**
-
-- `st`: the state returned by the first phase.
-- `cStar`, `kReal`: the encapsulation ciphertext and its shared key.
-- `kRand`: the independent uniform key used in the random-key experiment. -/
+/-- Data shared by the two fixed-bit experiments of `adv` against `kem`: the state `st`
+returned by `adv.preChallenge pk`, the encapsulation ciphertext `cStar` with its shared key
+`kReal`, and the independent uniform key `kRand` of the random-key experiment. -/
 private structure INDCPAPrefixState
     (kem : KEMScheme ProbComp K PK SK C)
     (adv : kem.IND_CPA_Adversary) where
@@ -104,8 +92,8 @@ private def indCPAPrefix [SampleableType K]
   let kRand ← ($ᵗ K)
   pure { st := st, cStar := cStar, kReal := kReal, kRand := kRand }
 
-/-- The IND-CPA experiment with a fixed challenge bit, phrased over
-`indCPAPrefix`. -/
+/-- A formulation of the fixed-bit experiment `G_b` over `indCPAPrefix`: it returns
+`adv.postChallenge st cStar k*`, where `k* = kReal` if `b = true` and `k* = kRand` otherwise. -/
 private def indCPAExpProb [SampleableType K]
     (kem : KEMScheme ProbComp K PK SK C)
     (adv : kem.IND_CPA_Adversary) (b : Bool) : ProbComp Bool := do
