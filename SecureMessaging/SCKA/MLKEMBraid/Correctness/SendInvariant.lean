@@ -9,9 +9,9 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
 /-!
 # Sends preserve the correctness invariant
 
-The send oracle of either party preserves `CorrectnessInv` (`oracleSend_preserves_correctnessInv`).
-A send from `keysUnsampled` or `headerReceived` extends the transcript with its sample; every other
-send keeps the transcript.
+A send samples a key pair, encapsulates against a received header, sends the next chunk of a
+recorded stream, or emits an empty `none` message. The transcript, extended when a new sample is
+drawn, is consistent with the successor state. Thus the send oracles preserve `CorrectnessInv`.
 -/
 
 open OracleSpec OracleComp

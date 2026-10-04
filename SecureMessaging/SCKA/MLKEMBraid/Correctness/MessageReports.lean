@@ -9,9 +9,10 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.Oracles
 /-!
 # Reports of recorded messages
 
-A Braid send of a message `msg` reports the epoch `msg.epoch - 1`, and the game stores the report
-with the message. `RecordedReportInv` states that every stored report is `msg.epoch - 1`; every
-oracle preserves it.
+The correctness game stores each sent message with the epoch that the send reports, and checks
+that the receive of the message reports the same epoch. A Braid send of `msg` reports
+`msg.epoch - 1`. `RecordedReportInv` states that every recorded message is stored with this
+report, and every oracle of the correctness game preserves it.
 -/
 
 open OracleSpec OracleComp

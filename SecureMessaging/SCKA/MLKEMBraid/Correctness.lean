@@ -10,33 +10,41 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.PotentialDrift
 /-!
 # ML-KEM Braid correctness
 
-Each Braid epoch uses an incremental-KEM key pair and encapsulation to derive both parties'
-epoch keys. Public keys and ciphertexts travel in erasure-coded chunks. A generates key pairs
-in odd epochs and B in even epochs.
+In each epoch of ML-KEM Braid one party samples a key pair of an incremental KEM and the other
+encapsulates against it; both parties then derive the key of the epoch. The public key and the
+ciphertext travel in erasure-coded chunks. `MLKEMBraid.Basic` traces one epoch.
 
-Fix parameters `P : Parameters ProbComp`, a ratcheted authenticator `auth`, an incremental-KEM
-randomness-leakage package `irl`, and an initial-key sampler `sampleInitKey : ProbComp InitKey`.
-Let `Π := scheme P auth irl sampleInitKey` and let
-`ε := P.kem.correctnessError ProbCompRuntime.probComp` be the KEM's correctness error.
+Let:
 
-The correctness game lets a scheduling adversary
-`adv : SCKAScheme.SCKACorrectnessAdversary (Message P.Sym)` choose sends and deliveries by recorded
-message index. Its correctness flag checks that the parties agree on epoch keys, output at most one
-key per epoch, receive each message with the report of its send, never send with a report below
-their current epoch, and have keys for every epoch from `1` to their current epoch. A party's
-current epoch (`tcurA`, `tcurB`) is the largest epoch it has reported, which lags its local
-protocol epoch. Missing messages leave the state unchanged; refused receives clear the flag. Braid
-sends never refuse. The game returns the final flag.
+* `Π := scheme P auth irl sampleInitKey` be the ML-KEM Braid SCKA scheme;
+* `G(Adv) := SCKAScheme.correctnessExp Π Adv` be its correctness game for an adversary `Adv`;
+* `ε := P.kem.correctnessError ProbCompRuntime.probComp` be the correctness error of the
+  underlying KEM.
 
-Assume the four erasure codes of `P` are correct. Then every adversary with at most `q` send
-queries across both parties (`SCKAScheme.SendQueryBound adv q`) satisfies
+The adversary chooses which party sends and which recorded message each party receives. It names
+a recorded message by its index, so it may omit, delay, reorder, duplicate or replay messages.
+The game keeps a correctness flag. The flag becomes false when a receive refuses a recorded
+message, or when one of the following checks fails:
 
-```
-1 - Pr[SCKAScheme.correctnessExp Π adv = true] ≤ q · ε.
-```
+* the two parties never output different keys for the same epoch;
+* each party outputs at most one key per epoch;
+* the receive of a message reports the epoch that its send reported;
+* no send reports an epoch below the sender's current epoch;
+* every epoch from `1` up to a party's current epoch has a key of that party.
 
-`correctness_error_le` gives this bound, and `mlkemBraidScheme_correctness_error_le` specializes
-it to ML-KEM. Every query preserves `CorrectnessInv auth ik`.
+Braid sends never refuse.
+
+## Main results
+
+If the four erasure codes of `P` are correct and `Adv` makes at most `q` send queries
+(`SCKAScheme.SendQueryBound Adv q`), then
+
+* `correctness_error_le`: `1 - Pr[G(Adv) = true] ≤ q · ε`;
+* `mlkemBraidScheme_correctness_error_le`: the same bound for `mlkemBraidScheme`, where `ε` is
+  the correctness error of ML-KEM.
+
+Deterministic decapsulation and deterministic second-stage encapsulation are part of `P`.
+The scheme also takes an incremental-KEM randomness-leakage package `irl`.
 
 ## References
 

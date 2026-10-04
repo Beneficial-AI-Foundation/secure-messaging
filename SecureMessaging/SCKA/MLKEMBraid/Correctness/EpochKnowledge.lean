@@ -10,15 +10,10 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.MessageReports
 /-!
 # Epoch bounds in the Braid correctness game
 
-`EpochKnowledgeInv s` combines `KeyPrefixInv s` with bounds in terms of the parties' completed
-epochs (`State.completedEpoch`):
-
-* each party's epoch is at most its peer's completed epoch plus one;
-* each party's current game epoch (`tcurA`, `tcurB`) is at most its own completed epoch;
-* each recorded message's epoch is at most both completed epochs plus one, and at most its
-  sender's completed epoch for a `ct₂` message.
-
-The initial state satisfies the invariant, and every oracle preserves it.
+`EpochKnowledgeInv` bounds each party's epoch by its peer's completed epoch plus one, the game's
+current epochs `tcurA`, `tcurB` (the largest epoch reported by the party's sends and receives) by
+the party's completed epoch, and the epoch of every recorded message by both completed epochs plus
+one. Every oracle of the correctness game preserves it.
 -/
 
 open OracleSpec OracleComp

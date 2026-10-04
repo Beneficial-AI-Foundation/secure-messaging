@@ -10,26 +10,18 @@ import ToVCVio.OracleComp.SimSemantics.StateT.ExpectedPayoffBound
 import ToVCVio.OracleComp.SimSemantics.StateT.PreservesInv
 
 /-!
-# The SCKA correctness game: oracle steps and the potential method
+# Invariants of the SCKA correctness game
 
-Let `scka : SCKAScheme ProbComp IK StA StB I Rho Rand` be an SCKA scheme with initial keys
-in `IK`, party states in `StA` and `StB`, epoch keys in `I`, and messages in `Rho`.
-Its correctness game lets an adversary schedule sends and deliveries of recorded messages.
-`correctnessExp scka adv` returns the final correctness flag; `false` denotes an error.
+If the two send oracles and the two receive oracles of the correctness game preserve a predicate
+on the game state, then every query of the game preserves it, since the uniform-randomness oracle
+leaves the state unchanged. The known-prefix assertion of those oracles holds whenever every
+epoch from `1` to the checked epoch has a key, and recording the key of the next epoch extends
+such a prefix.
 
-The update, execution and support lemmas describe individual oracle steps.
-`sckaCorrectnessImpl_preservesInv` combines preservation by the four protocol oracles.
-
-For an invariant family `Inv ik`, a potential `V : GameState StA StB I Rho → ℝ≥0∞`, and
-`ε : ℝ≥0∞`, `correctness_error_le_of_potential` gives
-
-```
-1 - Pr[correctnessExp scka adv = true] ≤ q · ε
-```
-
-for every adversary with at most `q` send queries across both parties. Its hypotheses require
-invariant initialization with zero potential, invariant preservation, potential at least `1`
-when the flag is false, and expected increases of at most `ε` on sends and `0` on other queries.
+If a potential on game states is `0` initially and at least `1` when the correctness flag is false,
+and a query from a state satisfying an invariant raises the expected potential by at most `ε` for a
+send and `0` for any other query, then every adversary making at most `q` send queries ends with a
+false correctness flag with probability at most `q · ε` (`correctness_error_le_of_potential`).
 -/
 
 open OracleSpec OracleComp ENNReal

@@ -9,8 +9,7 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.RecordedPayload.Generator
 /-!
 # Recorded messages received by an encapsulator
 
-For each encapsulating state, conditions under which receiving a message recorded by the peer
-succeeds, outputs no key, and preserves `LocalPayloadInv`.
+An encapsulator that receives a recorded message keeps `LocalPayloadInv` and outputs no key.
 -/
 
 open OracleSpec OracleComp

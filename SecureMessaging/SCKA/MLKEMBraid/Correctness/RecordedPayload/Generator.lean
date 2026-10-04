@@ -9,8 +9,9 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
 /-!
 # Recorded messages received by a key generator
 
-Successful receives preserve `LocalPayloadInv` when output keys agree with the peer's.
-Only `ekSentCt1Received` can output a key: the decapsulated epoch key (`receive_recorded_output`).
+A successful receive of a recorded message by a key generator keeps `LocalPayloadInv` when any
+output key agrees with the peer's recorded key for that epoch. Only `ekSentCt1Received` outputs a
+key: the epoch key decapsulated from the recorded ciphertext.
 -/
 
 open OracleSpec OracleComp

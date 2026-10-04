@@ -12,16 +12,31 @@ import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 /-!
 # Opp-UniKEM-CKA — Game Invariant
 
-Each epoch uses A's KEM key pair, B's offline encapsulation, and B's online encapsulation after
-receiving the public key. `EpochTranscript` records these supported samples;
-`Transcript := ℕ → EpochTranscript` supplies one record per epoch.
+Let `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` be the
+Opp-UniKEM-CKA SCKA scheme.
+Each epoch of the correctness game for `Π` runs one KEM instance:
+- Party A samples `(pk, sk) ← kem.keygen`;
+- Party B samples `(st, ct₀) ← onoff.encapsOff`;
+- once it has decoded `pk`, party B samples `(ct₁, k) ← onoff.encapsOn st pk`.
 
-`TranscriptConsistent T s` requires a true correctness flag and agreement between the game state
-`s` and transcript `T`. `reachableInv s := ∃ T, TranscriptConsistent T s` permits any such
-transcript. `CurrentKEMCorrect s` requires A's current KEM material to decapsulate to B's key.
+The module introduces:
+* `EpochTranscript` — the samples an epoch has drawn, each with a proof that
+  it is an output the corresponding sampler can produce.
+* `Transcript := ℕ → EpochTranscript` — an execution transcript: the
+  `EpochTranscript` of each epoch.
+* `TranscriptConsistent T s` — the game state `s` is consistent with the
+  execution transcript `T : Transcript` and `s.correct = true`.
+* `reachableInv s := ∃ T, TranscriptConsistent T s` — the state invariant:
+  `s` is consistent with some execution transcript.
+* `CurrentKEMCorrect s` — A's current KEM material and B's recorded key
+  decapsulate consistently.
 
-Initialization satisfies `reachableInv`; its preservation results are in the four send/receive
-modules. A's receive additionally requires `CurrentKEMCorrect`.
+This file proves the invariant holds initially; `SCKAScheme.oracleUnif_preservesInv` shows that
+the uniform oracle preserves it.
+The four protocol specific oracles are handled in `Invariant.SendA`, `Invariant.SendB`,
+`Invariant.RecvA`, and `Invariant.RecvB`.
+
+
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme

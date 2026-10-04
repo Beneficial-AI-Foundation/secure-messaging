@@ -11,17 +11,7 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.ReceiveInvariant
 /-!
 # Drift of the failure potential
 
-Let `Π := scheme P auth irl sampleInitKey` be a Braid SCKA scheme and let
-`ε := P.kem.correctnessError ProbCompRuntime.probComp`. Put `V(s) := failurePotential s`.
-
-Assume the four erasure codes are correct. For every initial key `ik`, state `s` satisfying
-`CorrectnessInv auth ik s`, and query `t`, `expectedPayoff_failurePotential_query_le` gives
-
-```
-E[V(s')] ≤ V(s) + if SCKAScheme.isSendQuery t then ε else 0.
-```
-
-The expectation is over the successor state `s'` of the oracle answering `t` from `s`.
+Per-query bounds for `failurePotential`, used by `MLKEMBraid.correctness_error_le`.
 -/
 
 open OracleSpec OracleComp

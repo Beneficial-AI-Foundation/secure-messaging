@@ -7,17 +7,11 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.SCKA.MLKEMBraid.Correctness.EpochSafety.Control
 
 /-!
-# Joint states of the two parties
+# Preservation of the role and state-pair invariants
 
-`AllowedStatePair gen enc` lists the pairs of a key-generating state `gen` and an encapsulating
-state `enc` that occur at the same epoch. For states `st` and `peer` of the two parties,
-`PairInv st peer` requires:
-
-1. if the epochs are equal and `st` is key-generating, then `AllowedStatePair st peer`;
-2. if `peer.epoch = st.epoch + 1`, then `st` is in `ct2Sampled` and `peer` in `noHeaderReceived`.
-
-`StatePairInv` requires `PairInv` in both directions. Every oracle of the correctness game
-preserves `ControlInv ∧ StatePairInv` (`correctnessImpl_preserves_controlInv_statePairInv`).
+`StatePairInv` lists the pairs of states the two parties can be in. Every oracle of the
+correctness game preserves `ControlInv s ∧ StatePairInv s`
+(`correctnessImpl_preserves_controlInv_statePairInv`).
 -/
 
 open OracleSpec OracleComp

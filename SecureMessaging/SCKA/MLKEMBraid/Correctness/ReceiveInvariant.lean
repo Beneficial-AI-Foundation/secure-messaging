@@ -9,9 +9,10 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.RecordedPayload
 /-!
 # Receives preserve the correctness invariant
 
-With correct erasure codes, either party's receive oracle preserves `CorrectnessInv` on
-supported outcomes. While the correctness flag remains true, it preserves consistency with
-the same transcript (`oracleRecv_preserves_transcriptConsistent`).
+A successful receive of a recorded message keeps the game state consistent with the same
+transcript when any output key agrees with the peer's recorded key for that epoch. A refusal
+or a key disagreement clears the correctness flag. Thus the receive oracles preserve
+`CorrectnessInv`.
 -/
 
 open OracleSpec OracleComp

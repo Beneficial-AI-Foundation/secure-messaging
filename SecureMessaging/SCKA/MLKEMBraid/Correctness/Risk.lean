@@ -12,13 +12,9 @@ import VCVio.EvalDist.Defs.NeverFails
 /-!
 # Failure potential of the current epoch
 
-An epoch's potential is `0` without a key pair, the fixed pair's KEM failure probability before
-encapsulation, and afterwards the indicator that decapsulation fails to recover the recorded
-epoch key (`EpochTranscript.failurePotential`).
-
-For a state consistent with its transcript, `currentEpochFailure_eq_transcript` recovers the
-epoch potential when the parties' epochs agree, and gives `0` otherwise. `failurePotential`
-uses it while the correctness flag is true, and is `1` once the flag is false.
+The definitions used in the potential argument of `MLKEMBraid.correctness_error_le`.
+`currentEpochFailure_eq_transcript` computes the current-epoch quantity from a consistent
+sampling transcript.
 -/
 
 open OracleSpec OracleComp

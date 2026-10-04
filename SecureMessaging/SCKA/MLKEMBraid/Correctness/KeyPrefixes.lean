@@ -9,8 +9,10 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.Oracles
 /-!
 # Key prefixes in the Braid correctness game
 
-`KeyPrefixInv` requires both epochs to be positive and each party to have keys for exactly the
-epochs from `1` through its completed epoch. The initial state satisfies it, and every oracle
+`State.completedEpoch` is the last epoch whose key a party has computed. A send or a successful
+receive either keeps it, or outputs the key of the next epoch and completes that epoch.
+`KeyPrefixInv` states that both epochs are positive and that each party has output keys for
+exactly the epochs from `1` through its completed epoch. Every oracle of the correctness game
 preserves it.
 -/
 

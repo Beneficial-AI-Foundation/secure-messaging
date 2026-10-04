@@ -7,20 +7,13 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.SCKA.MLKEMBraid.Correctness.EpochKnowledge
 
 /-!
-# Roles and recorded messages in the Braid correctness game
+# Roles and message order in the Braid correctness game
 
-The generator of epoch `e`, which samples its key pair, is A if `e` is odd and B if `e` is even;
-the other party encapsulates. `State.controlPosition st = (isGenerator, step)` gives the role of a
-state and its step `0`–`4` within that role.
-
-For a party with state `st`, `PartyControl` requires:
-
-1. `st` is key-generating if and only if the party generates the key pair of `st.epoch`;
-2. `st` is in `ct2Sampled` if the peer is one epoch ahead;
-3. every message recorded by the party satisfies `MessageControl` for `st`.
-
-`ControlInv` adds `EpochKnowledgeInv`, `RecordedReportInv` and `tcur ≤ epoch - 1` for both
-parties. Every oracle of the correctness game preserves it (`correctnessImpl_preserves_controlInv`).
+In each epoch one party generates the key pair and the other encapsulates; A generates the key
+pairs of the odd epochs. `State.controlPosition` records the role of a state and its step within
+the epoch. `ControlInv` states that each party's role matches the parity of its epoch and that
+every recorded message fits its sender's role and step (`MessageControl`). This module proves
+that every send and receive oracle preserves `ControlInv`.
 -/
 
 open OracleSpec OracleComp

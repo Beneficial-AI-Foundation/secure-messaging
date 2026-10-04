@@ -9,16 +9,11 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.EpochSafety.StatePair
 /-!
 # The transcript invariant of the Braid correctness game
 
-An `EpochTranscript P` records the key pair and the first-stage encapsulation sampled in an epoch,
-if any. A transcript `T : ℕ → EpochTranscript P` records all epochs; `transcriptAuth auth ik T e`
-is the authenticator state it determines after epoch `e`.
-
-`TranscriptConsistent auth ik T s` states that the game state `s` has a true correctness flag,
-satisfies `ControlInv` and `StatePairInv`, and agrees with `T`: the parties' states, recorded
-messages and output keys are computed from the samples of `T`, and once the generator of an epoch
-has completed it, the recorded encapsulation decapsulates to the recorded key.
-`CorrectnessInv auth ik s` holds if the correctness flag is false or `s` is consistent with some
-transcript.
+An `EpochTranscript` records the key pair and the first-stage encapsulation sampled in an epoch.
+`TranscriptConsistent T s` states that the game state `s` agrees with the transcript `T`: the
+party states and recorded messages carry the recorded samples, decapsulation in a completed epoch
+gives the recorded key, and the output keys are the transcript keys. `CorrectnessInv s` states
+that the correctness flag is false or that `s` is consistent with some transcript.
 -/
 
 open OracleSpec OracleComp

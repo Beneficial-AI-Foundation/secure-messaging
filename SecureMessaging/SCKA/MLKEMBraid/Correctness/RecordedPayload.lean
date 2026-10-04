@@ -9,9 +9,10 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.RecordedPayload.Encapsulator
 /-!
 # Receiving a recorded message
 
-A party that accepts a message recorded by its peer keeps `LocalPayloadInv` whenever its output
-key agrees with the peer's. If decapsulation at its epoch gives the recorded key, the receive
-succeeds with such agreement (`receive_recorded_payload`).
+`receive_recorded_payload` combines the key-generator and encapsulator cases. A successful
+receive of a recorded message keeps `LocalPayloadInv` when any output key agrees with the peer's
+recorded key for that epoch. It succeeds whenever decapsulation at the receiver's epoch derives
+the recorded key.
 -/
 
 open OracleSpec OracleComp
