@@ -9,9 +9,8 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.RecordedPayload.Generator
 /-!
 # Recorded messages received by an encapsulator
 
-An encapsulator that receives a recorded message accepts it, outputs no key, and keeps
-`LocalPayloadInv`: a complete header carries the tag of the transcript authenticator, and a
-complete vector belongs to the recorded key pair and passes `validPK`.
+Conditions under which an encapsulator accepts a message without outputting a key and preserves
+`LocalPayloadInv auth ik T`.
 -/
 
 open OracleSpec OracleComp
@@ -25,8 +24,8 @@ variable {P : Parameters ProbComp} [DecidableEq P.Sym] {InitKey AuthState : Type
     P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
   (ik : InitKey) (T : ℕ → EpochTranscript P)
 
-/-- An encapsulator in `noHeaderReceived`, in an epoch without encapsulation, accepts every
-recorded message, outputs no key, and keeps `LocalPayloadInv`. -/
+/-- Receiving a recorded message in `noHeaderReceived` succeeds without key output and preserves
+`LocalPayloadInv`. -/
 theorem receive_noHeaderReceived_payload (hHdrCorrect : P.ecpHdr.ec.Correct)
     (e : ℕ) (a : AuthState) (dec : DecoderState (P.inc.PKheader × P.Mac) P.Sym)
     (msg : Message P.Sym)
@@ -65,7 +64,7 @@ theorem receive_noHeaderReceived_payload (hHdrCorrect : P.ecpHdr.ec.Correct)
               by simp [receive, Message.wellFormed, State.epoch, he], rfl, hLocal⟩
   | _ => cases md <;> exact ⟨_, rfl, rfl, hLocal⟩
 
-/-- An encapsulator in `ct1Sampled` accepts every recorded message, outputs no key, and keeps
+/-- Receiving a recorded message in `ct1Sampled` succeeds without key output and preserves
 `LocalPayloadInv`. -/
 theorem receive_ct1Sampled_payload (hEkCorrect : P.ecpEk.ec.Correct)
     (e : ℕ) (a : AuthState) (hdr : P.inc.PKheader)
@@ -138,8 +137,8 @@ theorem receive_ct1Sampled_payload (hEkCorrect : P.ecpEk.ec.Correct)
               by simp [receive, Message.wellFormed, State.epoch, he], rfl, hLocal⟩
   | _ => cases md <;> exact ⟨_, rfl, rfl, hLocal⟩
 
-/-- An encapsulator in `ekReceivedCt1Sampled` accepts every recorded message, outputs no key,
-and keeps `LocalPayloadInv`. -/
+/-- Receiving any message in `ekReceivedCt1Sampled` succeeds without key output and preserves
+`LocalPayloadInv`. -/
 theorem receive_ekReceivedCt1Sampled_payload
     (e : ℕ) (a : AuthState) (encapsState : P.inc.St)
     (ct1 : P.inc.C₁) (hdr : P.inc.PKheader) (vec : P.inc.PKvector)
@@ -172,8 +171,8 @@ theorem receive_ekReceivedCt1Sampled_payload
               by simp [receive, Message.wellFormed, State.epoch, he], rfl, hLocal⟩
   | _ => cases md <;> exact ⟨_, rfl, rfl, hLocal⟩
 
-/-- An encapsulator in `ct1Acknowledged` accepts every recorded message, outputs no key, and
-keeps `LocalPayloadInv`. -/
+/-- Receiving a recorded message in `ct1Acknowledged` succeeds without key output and preserves
+`LocalPayloadInv`. -/
 theorem receive_ct1Acknowledged_payload (hEkCorrect : P.ecpEk.ec.Correct)
     (e : ℕ) (a : AuthState) (hdr : P.inc.PKheader)
     (encapsState : P.inc.St) (ct1 : P.inc.C₁)
@@ -220,8 +219,8 @@ theorem receive_ct1Acknowledged_payload (hEkCorrect : P.ecpEk.ec.Correct)
               by simp [receive, Message.wellFormed, State.epoch, he], rfl, hLocal⟩
   | _ => cases md <;> exact ⟨_, rfl, rfl, hLocal⟩
 
-/-- An encapsulator in `ct2Sampled`, whose next epoch has no samples yet, accepts every recorded
-message, outputs no key, and keeps `LocalPayloadInv`. -/
+/-- With no next-epoch samples recorded, `ct2Sampled` accepts any message without key output and
+preserves `LocalPayloadInv`. -/
 theorem receive_ct2Sampled_payload
     (e : ℕ) (a : AuthState) (enc : EncoderState (P.inc.C₂ × P.Mac) P.Sym)
     (msg : Message P.Sym)

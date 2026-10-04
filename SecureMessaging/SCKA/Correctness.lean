@@ -12,19 +12,24 @@ import ToVCVio.OracleComp.SimSemantics.StateT.PreservesInv
 /-!
 # The SCKA correctness game: oracle steps and the potential method
 
-Tools for proving correctness bounds of SCKA schemes, independent of the scheme.
+Let `scka : SCKAScheme ProbComp IK StA StB I Rho Rand` be an SCKA scheme with initial keys
+in `IK`, party states in `StA` and `StB`, epoch keys in `I`, and messages in `Rho`.
+Its correctness game lets an adversary schedule sends and deliveries of recorded messages.
+`correctnessExp scka adv` returns the final correctness flag; `false` denotes an error.
 
-* `sendAUpdate`, `sendBUpdate`, `recvAUpdate`, `recvBUpdate` name the game state that the four
-  oracles of `sckaCorrectnessImpl` write, and `mem_support_oracleSendA_run_iff`,
-  `oracleRecvA_run_eq_of_accept` and their variants characterize each oracle in terms of the
-  scheme's `send` and `receive` results. A proof about an oracle step reasons about the
-  scheme's step and one of these records, not about the oracle's monadic code.
-* `sckaCorrectnessImpl_preservesInv`: an invariant preserved by the four send and receive oracles
-  is preserved by every query of the game.
-* `correctness_error_le_of_potential`: the potential method. A potential `V` on game states that
-  is `1` on states with a false correctness flag, is `0` initially, and grows in expectation by at
-  most `ε` on a send query and not at all otherwise, bounds the correctness error of the scheme by
-  `q · ε` for adversaries with at most `q` send queries.
+The update, execution and support lemmas describe individual oracle steps.
+`sckaCorrectnessImpl_preservesInv` combines preservation by the four protocol oracles.
+
+For an invariant family `Inv ik`, a potential `V : GameState StA StB I Rho → ℝ≥0∞`, and
+`ε : ℝ≥0∞`, `correctness_error_le_of_potential` gives
+
+```
+1 - Pr[correctnessExp scka adv = true] ≤ q · ε
+```
+
+for every adversary with at most `q` send queries across both parties. Its hypotheses require
+invariant initialization with zero potential, invariant preservation, potential at least `1`
+when the flag is false, and expected increases of at most `ε` on sends and `0` on other queries.
 -/
 
 open OracleSpec OracleComp ENNReal
@@ -39,10 +44,8 @@ variable {IK StA StB I Rho Rand : Type}
 def knownPrefix (key : ℕ → Option I) (n : ℕ) : Bool :=
   (List.range (n + 1)).all fun t => t = 0 || (key t).isSome
 
-/-- The state after A sends `ρ` reporting `tsnd`, with output key `keyOpt` and successor state
-`stA'`. The message is recorded, `tcurA` becomes `tsnd`, a new key is stored, and the correctness
-flag records the monotonicity, unique-epoch, consistent-key and known-prefix checks of
-`oracleSendA`. -/
+/-- A's send successor: record the message and optional key, set `tcurA` to the send report `tsnd`,
+and update the correctness flag. -/
 def sendAUpdate [DecidableEq I] (s : GameState StA StB I Rho) (keyOpt : Option (ℕ × I))
     (ρ : Rho) (tsnd : ℕ) (stA' : StA) : GameState StA StB I Rho :=
   let msgA' := Function.update s.msgA (s.nA + 1) (some (ρ, tsnd))
@@ -58,8 +61,7 @@ def sendAUpdate [DecidableEq I] (s : GameState StA StB I Rho) (keyOpt : Option (
         correct := s.correct && decide (s.tcurA ≤ tsnd) && (s.keyA tI).isNone &&
           ((s.keyB tI).isNone || s.keyB tI == some key) && knownPrefix keyA' tsnd }
 
-/-- The state after B sends `ρ` reporting `tsnd`, with output key `keyOpt` and successor state
-`stB'`; the mirror image of `sendAUpdate`. -/
+/-- The version of `sendAUpdate` for B. -/
 def sendBUpdate [DecidableEq I] (s : GameState StA StB I Rho) (keyOpt : Option (ℕ × I))
     (ρ : Rho) (tsnd : ℕ) (stB' : StB) : GameState StA StB I Rho :=
   let msgB' := Function.update s.msgB (s.nB + 1) (some (ρ, tsnd))
@@ -75,10 +77,8 @@ def sendBUpdate [DecidableEq I] (s : GameState StA StB I Rho) (keyOpt : Option (
         correct := s.correct && decide (s.tcurB ≤ tsnd) && (s.keyB tI).isNone &&
           ((s.keyA tI).isNone || s.keyA tI == some key) && knownPrefix keyB' tsnd }
 
-/-- The state after A receives a message recorded with report `tsnd`, obtaining output key
-`keyOpt`, report `trcv` and successor state `stA'`. `tcurA` becomes `max tcurA trcv`, a new key is
-stored, and the correctness flag records the matching-epoch, unique-epoch, consistent-key and
-known-prefix checks of `oracleRecvA`. -/
+/-- A's receive successor: record the optional key, set `tcurA` to `max tcurA trcv`, and update the
+correctness flag using the stored send report `tsnd`. -/
 def recvAUpdate [DecidableEq I] (s : GameState StA StB I Rho) (tsnd : ℕ)
     (keyOpt : Option (ℕ × I)) (trcv : ℕ) (stA' : StA) : GameState StA StB I Rho :=
   let tcurA' := max s.tcurA trcv
@@ -94,8 +94,7 @@ def recvAUpdate [DecidableEq I] (s : GameState StA StB I Rho) (tsnd : ℕ)
         correct := s.correct && (trcv == tsnd) && (s.keyA tI).isNone &&
           ((s.keyB tI).isNone || s.keyB tI == some key) && knownPrefix keyA' tcurA' }
 
-/-- The state after B receives a message recorded with report `tsnd`, obtaining output key
-`keyOpt`, report `trcv` and successor state `stB'`; the mirror image of `recvAUpdate`. -/
+/-- The version of `recvAUpdate` for B. -/
 def recvBUpdate [DecidableEq I] (s : GameState StA StB I Rho) (tsnd : ℕ)
     (keyOpt : Option (ℕ × I)) (trcv : ℕ) (stB' : StB) : GameState StA StB I Rho :=
   let tcurB' := max s.tcurB trcv
@@ -135,8 +134,7 @@ theorem oracleSendA_run_eq :
   rcases out with _ | ⟨_ | ⟨tI, key⟩, ρ, tsnd, stA'⟩ <;>
     simp [sendAUpdate, knownPrefix, StateT.run_set, StateT.run_pure]
 
-/-- A `SendB` query runs `sendB` on B's state and maps its result; the mirror image of
-`oracleSendA_run_eq`. -/
+/-- The version of `oracleSendA_run_eq` for B. -/
 theorem oracleSendB_run_eq :
     (oracleSendB scka ()).run s =
       (fun out => match out with
@@ -150,8 +148,8 @@ theorem oracleSendB_run_eq :
   rcases out with _ | ⟨_ | ⟨tI, key⟩, ρ, tsnd, stB'⟩ <;>
     simp [sendBUpdate, knownPrefix, StateT.run_set, StateT.run_pure]
 
-/-- An outcome of a `SendA` query is the response and `sendAUpdate` state of some result of `sendA`
-on A's state, and every such pair is an outcome. -/
+/-- A send-query outcome is obtained from a supported `sendA` result: refusal gives `(none, s)`, and
+acceptance gives the response paired with `sendAUpdate`. -/
 theorem mem_support_oracleSendA_run_iff
     (z : Option (ℕ × Option ℕ × Rho) × GameState StA StB I Rho) :
     z ∈ support ((oracleSendA scka ()).run s) ↔
@@ -163,8 +161,7 @@ theorem mem_support_oracleSendA_run_iff
   rw [oracleSendA_run_eq, support_map, Set.mem_image]
   exact exists_congr fun out => and_congr_right fun _ => eq_comm
 
-/-- An outcome of a `SendB` query is the response and `sendBUpdate` state of some result of `sendB`
-on B's state, and every such pair is an outcome. -/
+/-- The version of `mem_support_oracleSendA_run_iff` for B. -/
 theorem mem_support_oracleSendB_run_iff
     (z : Option (ℕ × Option ℕ × Rho) × GameState StA StB I Rho) :
     z ∈ support ((oracleSendB scka ()).run s) ↔
@@ -200,21 +197,18 @@ theorem oracleRecvA_run_eq_of_accept {n tsnd trcv : ℕ} {ρ : Rho} {keyOpt : Op
     simp [oracleRecvA, recvAUpdate, knownPrefix, StateT.run_bind, StateT.run_get, StateT.run_set,
       h, hr]
 
-/-- A `RecvB n` query with no recorded message `n` from A returns `none` and leaves the state
-unchanged. -/
+/-- The version of `oracleRecvA_run_eq_of_none` for B. -/
 theorem oracleRecvB_run_eq_of_none {n : ℕ} (h : s.msgA n = none) :
     (oracleRecvB scka n).run s = pure (none, s) := by
   simp [oracleRecvB, StateT.run_bind, StateT.run_get, h]
 
-/-- A `RecvB n` query whose delivery `recvB` refuses returns `none` and clears the correctness
-flag. -/
+/-- The version of `oracleRecvA_run_eq_of_refuse` for B. -/
 theorem oracleRecvB_run_eq_of_refuse {n tsnd : ℕ} {ρ : Rho} (h : s.msgA n = some (ρ, tsnd))
     (hr : scka.recvB s.stB ρ = none) :
     (oracleRecvB scka n).run s = pure (none, { s with correct := false }) := by
   simp [oracleRecvB, StateT.run_bind, StateT.run_get, StateT.run_set, h, hr]
 
-/-- A `RecvB n` query whose delivery `recvB` accepts with `(keyOpt, trcv, stB')` returns
-`(trcv, keyOpt.map Prod.fst)` and writes `recvBUpdate`. -/
+/-- The version of `oracleRecvA_run_eq_of_accept` for B. -/
 theorem oracleRecvB_run_eq_of_accept {n tsnd trcv : ℕ} {ρ : Rho} {keyOpt : Option (ℕ × I)}
     {stB' : StB} (h : s.msgA n = some (ρ, tsnd))
     (hr : scka.recvB s.stB ρ = some (keyOpt, trcv, stB')) :
@@ -264,7 +258,7 @@ theorem knownPrefix_eq_true {key : ℕ → Option I} {n : ℕ}
     knownPrefix key n = true :=
   knownPrefix_eq_true_iff.2 hkey
 
-/-- Recording a key preserves any prefix of already known keys. -/
+/-- Assigning `some k` at any index preserves `knownPrefix key n`. -/
 theorem knownPrefix_update_some {key : ℕ → Option I} {n : ℕ}
     (h : knownPrefix key n = true) (tI : ℕ) (k : I) :
     knownPrefix (Function.update key tI (some k)) n = true := by
@@ -289,13 +283,18 @@ theorem update_succ_ne_none_iff {key : ℕ → Option I} {c : ℕ}
 
 /-! ### The potential method -/
 
-/-- The potential method for the correctness game. Let `V` be a potential on game states that is
-at least `1` on states whose correctness flag is false, and let `Inv ik` be a predicate on game
-states for each initial key `ik`. Assume that every initial state satisfies `Inv ik` and has
-potential `0`, that every query preserves `Inv ik`, and that from a state satisfying `Inv ik` a
-query raises the expected potential by at most `ε` if it is a send query and not at all otherwise.
-Then an adversary making at most `q` send queries fails the correctness game with probability at
-most `q · ε`. -/
+/-- Let `scka` be an SCKA scheme, `Inv ik` a predicate on game states for each initial key `ik`,
+`V` a potential with values in `ℝ≥0∞`, and `ε : ℝ≥0∞`. Assume:
+
+* `V s ≥ 1` for every state with a false correctness flag;
+* for every supported initial key and pair of supported initial party states, the initial game
+  state satisfies `Inv ik` and has potential `0`;
+* every query preserves `Inv ik` on supported outcomes;
+* for every `ik`, query and state satisfying `Inv ik`, the expected successor potential is at
+  most `V s + ε` for a send query and at most `V s` otherwise.
+
+Then every adversary `adv` with at most `q` send queries in total across both parties satisfies
+`1 - Pr[correctnessExp scka adv = true] ≤ q · ε`. -/
 theorem correctness_error_le_of_potential [DecidableEq I]
     (Inv : IK → GameState StA StB I Rho → Prop) (V : GameState StA StB I Rho → ℝ≥0∞)
     (ε : ℝ≥0∞)

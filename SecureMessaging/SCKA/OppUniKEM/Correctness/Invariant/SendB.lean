@@ -8,6 +8,9 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
 
 /-!
 # SendB Preserves the Reachability Invariant
+
+With positive chunk counts for both ciphertext erasure codes, B's sends preserve `reachableInv`
+and record newly sampled encapsulations in the transcript (`oracleSendB_preserves_reachableInv`).
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
@@ -614,8 +617,8 @@ private lemma reachableInv_after_sendB_newOffOn
     · simp only [Function.update_of_ne hnew] at hn
       exact hInv.msgBEpoch n ρ tsnd hn
 
-/-- B's send oracle preserves `reachableInv` across all transcript-update
-cases. -/
+/-- With positive chunk counts for both ciphertext erasure codes, B's send preserves `reachableInv`.
+-/
 lemma oracleSendB_preserves_reachableInv
     [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)

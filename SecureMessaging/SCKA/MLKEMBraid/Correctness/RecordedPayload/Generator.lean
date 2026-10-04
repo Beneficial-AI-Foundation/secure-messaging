@@ -9,11 +9,8 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
 /-!
 # Recorded messages received by a key generator
 
-A key generator that receives a recorded message accepts it and keeps `LocalPayloadInv`, with one
-exception: in `ekSentCt1Received` the chunk completing `ct₂` makes it decapsulate, and the receive
-succeeds exactly when the derived key is the key its peer recorded
-(`receive_ekSentCt1Received_payload`). Only this state outputs a key, the decapsulated epoch key
-(`receive_recorded_output`).
+Successful receives preserve `LocalPayloadInv` when output keys agree with the peer's.
+Only `ekSentCt1Received` can output a key: the decapsulated epoch key (`receive_recorded_output`).
 -/
 
 open OracleSpec OracleComp
@@ -26,7 +23,7 @@ variable {P : Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
     P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
 
-/-- A key generator in `keysSampled` accepts every recorded message, outputs no key, and keeps
+/-- Receiving a recorded message in `keysSampled` succeeds without key output and preserves
 `LocalPayloadInv`. -/
 theorem receive_keysSampled_payload [DecidableEq P.Sym]
     (ik : InitKey) (T : ℕ → EpochTranscript P)
@@ -63,7 +60,7 @@ theorem receive_keysSampled_payload [DecidableEq P.Sym]
               by simp [receive, Message.wellFormed, State.epoch, he], rfl, hLocal⟩
   | _ => cases md <;> exact ⟨_, rfl, rfl, hLocal⟩
 
-/-- A key generator in `headerSent` accepts every recorded message, outputs no key, and keeps
+/-- Receiving a recorded message in `headerSent` succeeds without key output and preserves
 `LocalPayloadInv`. -/
 theorem receive_headerSent_payload [DecidableEq P.Sym]
     (hCt1Correct : P.ecpCt1.ec.Correct)
@@ -107,7 +104,7 @@ theorem receive_headerSent_payload [DecidableEq P.Sym]
               by simp [receive, Message.wellFormed, State.epoch, he], rfl, hLocal⟩
   | _ => cases md <;> exact ⟨_, rfl, rfl, hLocal⟩
 
-/-- A key generator in `ct1Received` accepts every recorded message, outputs no key, and keeps
+/-- Receiving a recorded message in `ct1Received` succeeds without key output and preserves
 `LocalPayloadInv`. -/
 theorem receive_ct1Received_payload [DecidableEq P.Sym]
     (ik : InitKey) (T : ℕ → EpochTranscript P)
@@ -152,10 +149,8 @@ theorem receive_ct1Received_payload [DecidableEq P.Sym]
               by simp [receive, Message.wellFormed, State.epoch, he], rfl, hLocal⟩
   | _ => cases md <;> exact ⟨_, rfl, rfl, hLocal⟩
 
-/-- A key generator in `ekSentCt1Received` and a recorded message. A successful receive keeps
-`LocalPayloadInv` if any output key agrees with the peer's recorded key. The receive succeeds, with
-such an output key, if decapsulating the recorded ciphertext derives the recorded key. Any output
-key is the decapsulated epoch key of the recorded samples. -/
+/-- A successful receive preserves `LocalPayloadInv` when output keys agree with the peer's.
+Correct decapsulation ensures acceptance; any output key is the decapsulated epoch key. -/
 theorem receive_ekSentCt1Received_payload [DecidableEq P.Sym]
     (hCt2Correct : P.ecpCt2.ec.Correct)
     (ik : InitKey) (T : ℕ → EpochTranscript P)
@@ -297,8 +292,8 @@ theorem receive_ekSentCt1Received_payload [DecidableEq P.Sym]
       obtain ⟨rfl, rfl⟩ := Prod.mk.inj (Option.some.inj hout)
       exact ⟨rfl, pk, encapsState, key, hkp, hc, by simp [decapsEpochKey, hdk]⟩
 
-/-- The peer of a key generator has recorded the transcript key of the generator's epoch whenever
-that epoch has an encapsulation. -/
+/-- The peer of a generator holds the derived transcript key whenever the current epoch has a
+recorded encapsulation. -/
 theorem generator_peer_key {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
     (party : Bool)
@@ -324,9 +319,8 @@ theorem generator_peer_key {ik : InitKey} {T : ℕ → EpochTranscript P}
   rw [GameState.keysAt, hT.keys (!party), if_pos ⟨hpos, hbound⟩, hencaps]
   rfl
 
-/-- A receive of a recorded message outputs a key only from `ekSentCt1Received`, at the party's
-epoch; the key is the decapsulated epoch key of the recorded samples, and the peer has recorded
-the transcript key of that epoch. -/
+/-- Any output key comes from recorded decapsulation at the generator's epoch; the peer holds the
+derived epoch key of the encapsulation. -/
 theorem receive_recorded_output [DecidableEq P.Sym]
     (hCt2Correct : P.ecpCt2.ec.Correct)
     {ik : InitKey} {T : ℕ → EpochTranscript P}

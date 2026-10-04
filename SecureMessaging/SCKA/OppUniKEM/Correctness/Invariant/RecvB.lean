@@ -8,6 +8,9 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
 
 /-!
 # RecvB Preserves the Reachability Invariant
+
+B's receive preserves `reachableInv` when the public-key erasure code is correct and has a
+positive chunk count (`oracleRecvB_preserves_reachableInv`).
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
@@ -401,8 +404,7 @@ private lemma recvB_current_eq
     · simp [recvB, recvBEkStep, recvBAckStep, hek, hack]
     · simp [recvB, recvBEkStep, recvBAckStep, hek, hack]
 
-/-- On the first message of B's next epoch, `recvB` outputs no key, reports the epoch before it,
-and applies `recvBEkStep` and then `recvBAckStep` to `recvBNextBase` of B's state. -/
+/-- The version of `recvB_current_eq` for the next epoch, starting from `recvBNextBase`. -/
 private lemma recvB_next_eq
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (stB : StB onoff Sym)
@@ -529,8 +531,8 @@ private lemma reachableInv_after_recvB_next
     rw [htB']
     exact (hInv.msgBEpoch n ρ tsnd hn).trans (by omega)
 
-/-- B's receive oracle preserves `reachableInv` for missing, stale, current,
-and next-epoch message deliveries. -/
+/-- With a correct public-key erasure code and positive chunk count, B's receive preserves
+`reachableInv`. -/
 lemma oracleRecvB_preserves_reachableInv
     [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)

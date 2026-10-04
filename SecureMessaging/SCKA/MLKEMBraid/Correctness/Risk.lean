@@ -12,16 +12,13 @@ import VCVio.EvalDist.Defs.NeverFails
 /-!
 # Failure potential of the current epoch
 
-The potential of the correctness proof measures the chance that the epoch the two parties are
-negotiating ends with inconsistent keys. Before the encapsulator has encapsulated, it is the
-failure probability of the generator's fixed key pair over a fresh first-stage encapsulation
-(`decapsFailureProb`); afterwards it is `0` or `1` according to whether decapsulation of the
-recorded ciphertext derives the recorded epoch key (`derivedKeyFailure`). `failurePotential` is
-this quantity while the correctness flag is true, and `1` once the flag is false.
+An epoch's potential is `0` without a key pair, the fixed pair's KEM failure probability before
+encapsulation, and afterwards the indicator that decapsulation fails to recover the recorded
+epoch key (`EpochTranscript.failurePotential`).
 
-`EpochTranscript.failurePotential` assigns this potential to an epoch's transcript entry.
-`currentEpochFailure_eq_transcript` and its party-indexed variant compute the potential of a
-transcript-consistent state from that entry alone.
+For a state consistent with its transcript, `currentEpochFailure_eq_transcript` recovers the
+epoch potential when the parties' epochs agree, and gives `0` otherwise. `failurePotential`
+uses it while the correctness flag is true, and is `1` once the flag is false.
 -/
 
 open OracleSpec OracleComp
@@ -104,10 +101,8 @@ noncomputable def EpochTranscript.failurePotential [DecidableEq P.K] [DecidableE
         (P.hEnc2.encaps2Det encapsState (P.inc.toHeader pk) (P.inc.toVector pk))
         (P.kdfOK key e)
 
-/-- In a state consistent with the transcript `T`, `currentEpochFailure` is `0` if the parties are
-at different epochs or the current epoch has no key pair, `decapsFailureProb` of the recorded key
-pair if the current epoch has no encapsulation, and `derivedKeyFailure` of the recorded samples
-otherwise. -/
+/-- In a consistent state, `currentEpochFailure` is the transcript potential at equal party epochs
+and `0` otherwise. -/
 theorem currentEpochFailure_eq_transcript [DecidableEq P.K] [DecidableEq P.EpochKey]
     {ik : InitKey} {T : ℕ → EpochTranscript P} {s : GameState P AuthState}
     (hT : TranscriptConsistent auth ik T s) :
@@ -329,8 +324,7 @@ theorem currentEpochFailure_eq_transcript [DecidableEq P.K] [DecidableEq P.Epoch
       simp only [currentEpochFailure, hroleFalse, Bool.false_eq_true, ↓reduceIte]
       rw [if_pos (Ne.symm hepoch)]
 
-/-- In a transcript-consistent state, the current potential is the recorded potential at either
-party's epoch when the epochs agree, and zero otherwise. -/
+/-- The version of `currentEpochFailure_eq_transcript` using `party` to name the epoch. -/
 theorem currentEpochFailure_eq_transcript_party [DecidableEq P.K] [DecidableEq P.EpochKey]
     {ik : InitKey} {T : ℕ → EpochTranscript P} {s : GameState P AuthState}
     (hT : TranscriptConsistent auth ik T s) (party : Bool) :

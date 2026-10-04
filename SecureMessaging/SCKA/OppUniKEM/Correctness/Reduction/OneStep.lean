@@ -86,8 +86,7 @@ lemma tracked_step_score_le_of_bad [DecidableEq K]
     exact trackedFailureScore_le_one kem onoff z.2
   · simp [trackedFailureScore, hbad]
 
-/-- The proposition that a correctness-oracle query is `SendA` or `SendB`, the only queries that
-run KEM key generation or offline or online encapsulation (`SCKAScheme.isSendQuery`). -/
+/-- `SendA` or `SendB`, viewed as a proposition (`SCKAScheme.isSendQuery`). -/
 abbrev IsSendQuery (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain) : Prop :=
   SCKAScheme.isSendQuery t = true
 

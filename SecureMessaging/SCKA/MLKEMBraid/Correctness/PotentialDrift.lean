@@ -11,20 +11,17 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.ReceiveInvariant
 /-!
 # Drift of the failure potential
 
-One query of the correctness game raises the expected `failurePotential` by at most the KEM
-correctness error for a send query and not at all otherwise
-(`expectedPayoff_failurePotential_query_le`). The cases:
+Let `Π := scheme P auth irl sampleInitKey` be a Braid SCKA scheme and let
+`ε := P.kem.correctnessError ProbCompRuntime.probComp`. Put `V(s) := failurePotential s`.
 
-* a send that samples a key pair has expected potential exactly the correctness error, since the
-  potential of the new state is `decapsFailureProb` of the sampled pair
-  (`expectedPayoff_failurePotential_send_keysUnsampled`);
-* a send that encapsulates turns `decapsFailureProb` into the indicator `derivedKeyFailure`, whose
-  expectation is at most it (`expectedPayoff_failurePotential_send_headerReceived_le`);
-* every other send keeps the potential (`send_correct_and_currentEpochFailure_eq`);
-* a receive clears the correctness flag only when the potential is already `1`
-  (`recv_correct_of_decaps_eq`), keeps it when both epochs stay
-  (`recv_currentEpochFailure_le_of_epochs_eq`), and sets it to `0` when an epoch advances
-  (`recv_currentEpochFailure_eq_zero_of_epoch_ne`).
+Assume the four erasure codes are correct. For every initial key `ik`, state `s` satisfying
+`CorrectnessInv auth ik s`, and query `t`, `expectedPayoff_failurePotential_query_le` gives
+
+```
+E[V(s')] ≤ V(s) + if SCKAScheme.isSendQuery t then ε else 0.
+```
+
+The expectation is over the successor state `s'` of the oracle answering `t` from `s`.
 -/
 
 open OracleSpec OracleComp
@@ -83,8 +80,8 @@ private theorem failurePotential_le_one (s : GameState P AuthState) :
         | (split <;> first | exact zero_le_one | exact hderived _ _ _ _ _))
 
 omit [DecidableEq P.Sym] in
-/-- If `currentEpochFailure` is not `1`, decapsulation at either party's epoch derives the key
-that its encapsulator recorded. -/
+/-- When `currentEpochFailure s ≠ 1`, the recorded samples at either party's epoch decapsulate to
+the recorded derived key. -/
 private theorem decaps_eq_of_currentEpochFailure_ne_one
     {ik : InitKey} {T : ℕ → EpochTranscript P} {s : GameState P AuthState}
     (hT : TranscriptConsistent auth ik T s)
@@ -150,7 +147,8 @@ private theorem decaps_eq_of_currentEpochFailure_ne_one
     exact hdec (by rw [h2]; exact hbound)
 
 omit [DecidableEq P.K] in
-/-- A receive keeps the flag true if decapsulation at its epoch gives the recorded key. -/
+/-- Correct decapsulation of the receiver's recorded samples keeps the correctness flag true on
+supported receive outcomes. -/
 private theorem recv_correct_of_decaps_eq
     (hHdrCorrect : P.ecpHdr.ec.Correct)
     (hEkCorrect : P.ecpEk.ec.Correct)
@@ -204,9 +202,8 @@ private theorem recv_correct_of_decaps_eq
       SCKAScheme.knownPrefix_update_some hknown tI key⟩
 
 omit [DecidableEq P.Sym] in
-/-- If `party` is the generator and its peer the encapsulator, `currentEpochFailure` is `0` when
-their epochs differ and `pairFailure` of the generator, the encapsulator and the encapsulator's keys
-otherwise. -/
+/-- For generator `party`, `currentEpochFailure` is `pairFailure` of the parties at equal epochs and
+`0` otherwise. -/
 private theorem currentEpochFailure_eq_pair
     (s : GameState P AuthState) (party : Bool)
     (hgen : (s.stateAt party).controlPosition.isGenerator = true)
@@ -222,7 +219,8 @@ private theorem currentEpochFailure_eq_pair
       ↓reduceIte] at hgen ⊢
     simp only [currentEpochFailure, hgen, ↓reduceIte]
 
-/-- A send that samples a key pair has expected potential equal to the KEM correctness error. -/
+/-- A send from `keysUnsampled` has expected successor potential equal to the KEM correctness error.
+-/
 private theorem expectedPayoff_failurePotential_send_keysUnsampled
     {ik : InitKey} {T : ℕ → EpochTranscript P} {s : GameState P AuthState}
     (hT : TranscriptConsistent auth ik T s) (party : Bool) {e : ℕ} {a : AuthState}
@@ -251,8 +249,7 @@ private theorem expectedPayoff_failurePotential_send_keysUnsampled
   · simp [State.controlPosition]
   · simp [hpeer, State.controlPosition]
 
-/-- Encapsulating against the recorded key pair has expected potential at most
-`currentEpochFailure`. -/
+/-- A send from `headerReceived` does not raise the expected potential. -/
 private theorem expectedPayoff_failurePotential_send_headerReceived_le
     {ik : InitKey} {T : ℕ → EpochTranscript P} {s : GameState P AuthState}
     (hT : TranscriptConsistent auth ik T s) (party : Bool) {e : ℕ} {a : AuthState}
@@ -308,7 +305,7 @@ private theorem expectedPayoff_failurePotential_send_headerReceived_le
   · simp [hpeer, State.controlPosition]
   · simp [State.controlPosition]
 
-/-- A send that samples nothing keeps the flag true and `currentEpochFailure` unchanged. -/
+/-- A send without sampling keeps the correctness flag true and `currentEpochFailure` unchanged. -/
 private theorem send_correct_and_currentEpochFailure_eq
     {ik : InitKey} {T : ℕ → EpochTranscript P} {s : GameState P AuthState}
     (hT : TranscriptConsistent auth ik T s) (party : Bool)
@@ -339,7 +336,8 @@ private theorem send_correct_and_currentEpochFailure_eq
   rw [show (sendSuccessor s party r).stA.epoch = s.stA.epoch from hEpoch true,
     show (sendSuccessor s party r).stB.epoch = s.stB.epoch from hEpoch false]
 
-/-- A successful receive that keeps both epochs does not raise `currentEpochFailure`. -/
+/-- With a true successor flag and unchanged epochs, a supported receive does not increase
+`currentEpochFailure`. -/
 private theorem recv_currentEpochFailure_le_of_epochs_eq
     (hHdrCorrect : P.ecpHdr.ec.Correct)
     (hEkCorrect : P.ecpEk.ec.Correct)
@@ -358,7 +356,8 @@ private theorem recv_currentEpochFailure_le_of_epochs_eq
   rw [currentEpochFailure_eq_transcript auth hTz, currentEpochFailure_eq_transcript auth hT,
     hepA, hepB]
 
-/-- A successful receive that changes an epoch leaves `currentEpochFailure` equal to `0`. -/
+/-- With a true successor flag, a supported receive changing a party's epoch leaves
+`currentEpochFailure = 0`. -/
 private theorem recv_currentEpochFailure_eq_zero_of_epoch_ne
     (hHdrCorrect : P.ecpHdr.ec.Correct)
     (hEkCorrect : P.ecpEk.ec.Correct)
@@ -412,7 +411,7 @@ private theorem recv_currentEpochFailure_eq_zero_of_epoch_ne
       simp at hgen
   · rfl
 
-/-- A send query raises the expected potential by at most the KEM correctness error. -/
+/-- Either party's send raises expected `failurePotential` by at most the KEM correctness error. -/
 private theorem expectedPayoff_failurePotential_send_le
     (ik : InitKey) (s : GameState P AuthState)
     (hs : CorrectnessInv auth ik s) (party : Bool) :
@@ -442,7 +441,8 @@ private theorem expectedPayoff_failurePotential_send_le
         party (by rw [hst]; trivial) z hz
       simp [failurePotential, hzc, hpot, hT.correct]
 
-/-- A receive query does not raise the expected potential. -/
+/-- With correct erasure codes, either party's receive does not raise expected `failurePotential`.
+-/
 private theorem expectedPayoff_failurePotential_recv_le
     (hHdrCorrect : P.ecpHdr.ec.Correct)
     (hEkCorrect : P.ecpEk.ec.Correct)

@@ -8,6 +8,9 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
 
 /-!
 # SendA Preserves the Reachability Invariant
+
+With `ecEk.ec.nchunk > 0`, A's sends preserve `reachableInv` and record newly sampled key pairs
+in the transcript (`oracleSendA_preserves_reachableInv`).
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
@@ -260,8 +263,7 @@ private lemma reachableInv_after_sendA_new
       exact hInv.msgAEpoch n ρ tsnd hn
   · exact hInv.msgBEpoch
 
-/-- A's send oracle preserves `reachableInv`: it either reuses the current
-supported key pair or samples and records a new supported key pair. -/
+/-- A's send preserves `reachableInv` when `ecEk.ec.nchunk > 0`. -/
 lemma oracleSendA_preserves_reachableInv
     [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)

@@ -8,6 +8,9 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
 
 /-!
 # RecvA Preserves the Reachability Invariant
+
+With correct ciphertext erasure codes and `ecCt1.ec.nchunk > 0`, A's receive preserves
+`reachableInv` under `CurrentKEMCorrect` (`oracleRecvA_preserves_reachableInv`).
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
@@ -308,8 +311,8 @@ private lemma reachableInv_after_recvA_ackOnly
     simpa using hInv.decodedCt0 ct0 (by simpa using hct0)
   · simpa [ChunksAConsistent] using hInv.chunksA
 
-/-- Assuming correctness of the current KEM material, every result of A's
-receive oracle preserves the reachable transcript invariant. -/
+/-- A's receive preserves `reachableInv` under `CurrentKEMCorrect`, with correct ciphertext codes
+and `ecCt1.ec.nchunk > 0`. -/
 lemma oracleRecvA_preserves_reachableInv
     [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)

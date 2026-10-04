@@ -10,78 +10,32 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.PotentialDrift
 /-!
 # ML-KEM Braid correctness
 
-In each epoch of ML-KEM Braid one party samples a key pair of an incremental KEM and the other
-encapsulates against it; both parties then derive the key of the epoch. The public key and the
-ciphertext travel in erasure-coded chunks. `MLKEMBraid.Basic` traces one epoch.
+Each Braid epoch uses an incremental-KEM key pair and encapsulation to derive both parties'
+epoch keys. Public keys and ciphertexts travel in erasure-coded chunks. A generates key pairs
+in odd epochs and B in even epochs.
 
-Let:
+Fix parameters `P : Parameters ProbComp`, a ratcheted authenticator `auth`, an incremental-KEM
+randomness-leakage package `irl`, and an initial-key sampler `sampleInitKey : ProbComp InitKey`.
+Let `Π := scheme P auth irl sampleInitKey` and let
+`ε := P.kem.correctnessError ProbCompRuntime.probComp` be the KEM's correctness error.
 
-* `Π := scheme P auth irl sampleInitKey` be the ML-KEM Braid SCKA scheme;
-* `G(Adv) := SCKAScheme.correctnessExp Π Adv` be its correctness game for an adversary `Adv`;
-* `ε := P.kem.correctnessError ProbCompRuntime.probComp` be the correctness error of the
-  underlying KEM.
+The correctness game lets a scheduling adversary
+`adv : SCKAScheme.SCKACorrectnessAdversary (Message P.Sym)` choose sends and deliveries by recorded
+message index. Its flag checks agreement and uniqueness of epoch keys, matching send/receive
+reports, monotone send reports, and key availability through each party's game counter.
+These counters, `tcurA` and `tcurB`, track reports separately from local protocol epochs.
+Missing messages leave the state unchanged; refused receives clear the flag. Braid sends never
+refuse. The game returns the final flag.
 
-The adversary chooses which party sends and which recorded message each party receives. It names
-a recorded message by its index, so it may omit, delay, reorder, duplicate or replay messages.
-The game keeps a correctness flag. The flag becomes false when a receive refuses a recorded
-message, or when one of the following checks fails:
-
-* the two parties never output different keys for the same epoch;
-* each party outputs at most one key per epoch;
-* the receive of a message reports the epoch that its send reported;
-* no send reports an epoch below the sender's current epoch;
-* every epoch from `1` up to a party's current epoch has a key of that party.
-
-Braid sends never refuse.
-
-## Main results
-
-If the four erasure codes of `P` are correct and `Adv` makes at most `q` send queries
-(`SCKAScheme.SendQueryBound Adv q`), then
-
-* `correctness_error_le`: `1 - Pr[G(Adv) = true] ≤ q · ε`;
-* `mlkemBraidScheme_correctness_error_le`: the same bound for `mlkemBraidScheme`, where `ε` is
-  the correctness error of ML-KEM.
-
-Deterministic decapsulation and deterministic second-stage encapsulation are part of `P`.
-The scheme also takes an incremental-KEM randomness-leakage package `irl`.
-
-## Proof outline
-
-The proof is an instance of the potential method `SCKAScheme.correctness_error_le_of_potential`
-with the potential `V(s) := failurePotential s`,
+Assume the four erasure codes of `P` are correct. Then every adversary with at most `q` send
+queries across both parties (`SCKAScheme.SendQueryBound adv q`) satisfies
 
 ```
-V(s) := if s.correct then currentEpochFailure s else 1.
+1 - Pr[SCKAScheme.correctnessExp Π adv = true] ≤ q · ε.
 ```
 
-A state whose correctness flag is false has potential `1`. While the flag is true,
-`currentEpochFailure` accounts for the sampling stages of the epoch the parties share. On
-states consistent with a sampling transcript (`TranscriptConsistent`), it is:
-
-* `0` if the parties are at different epochs or the current key pair has not been sampled;
-* `decapsFailureProb` for the sampled key pair if the first encapsulation has not yet been
-  sampled, averaging over that encapsulation while keeping the key pair fixed;
-* a `0`/`1` test (`derivedKeyFailure`) after the first encapsulation: `1` if deterministic
-  decapsulation and key derivation do not recover the encapsulator's recorded epoch key,
-  and `0` otherwise. The deterministic second encapsulation stage supplies the remaining
-  ciphertext part.
-
-The middle case concerns KEM keys, whereas the last compares derived epoch keys. Since key
-derivation can identify different KEM keys, the derived-key failure indicator is bounded by
-the KEM failure indicator. The definition of `pairFailure` also returns `0` when there is no
-recorded encapsulator key to compare; the transcript invariant relates these cases to the
-protocol states used in the proof (`currentEpochFailure_eq_transcript`).
-
-A fixed key pair's failure probability need not be at most `ε`. Its average over fresh key
-generation is `ε` (`expectedPayoff_keygen_decapsFailureProb`). Keeping the conditional quantity
-in the potential accounts for a key pair retained across adaptively scheduled queries.
-
-Every query preserves `CorrectnessInv` (`correctnessImpl_preserves_correctnessInv`). Under this
-invariant, the expected increase of `V` is at most `ε` for a send and at most `0` otherwise
-(`expectedPayoff_failurePotential_query_le`). The initial potential is `0`. The potential method
-sums the increments over at most `q` sends and bounds the game's failure probability by the
-expected final potential.
+`correctness_error_le` gives this bound, and `mlkemBraidScheme_correctness_error_le` specializes
+it to ML-KEM. Every query preserves `CorrectnessInv auth ik`.
 
 ## References
 
@@ -99,7 +53,8 @@ universe u
 
 namespace MLKEMBraid
 
-/-- Every oracle of the correctness game preserves `CorrectnessInv`. -/
+/-- With correct erasure codes, every query preserves `CorrectnessInv auth ik` on supported outcomes
+for every initial key `ik`. -/
 theorem correctnessImpl_preserves_correctnessInv
     {P : Parameters ProbComp} [DecidableEq P.EpochKey] [DecidableEq P.Sym]
     {InitKey AuthState : Type}
@@ -123,8 +78,8 @@ theorem correctnessImpl_preserves_correctnessInv
     (oracleRecv_preserves_correctnessInv auth irl sampleInitKey
       hHdrCorrect hEkCorrect hCt1Correct hCt2Correct ik false)
 
-/-- If the four erasure codes of `P` are correct and `adv` makes at most `q` send queries, the
-correctness error of `scheme` is at most `q` times the correctness error of `P.kem`. -/
+/-- With correct erasure codes, every adversary making at most `q` sends across both parties causes
+a false correctness flag with probability at most `q` times the KEM correctness error. -/
 -- ANCHOR: Braid_correctness_error_le
 theorem correctness_error_le
     (P : Parameters ProbComp) [DecidableEq P.K]
@@ -160,8 +115,8 @@ theorem correctness_error_le
   · exact expectedPayoff_failurePotential_query_le auth irl sampleInitKey
       hHdrCorrect hEkCorrect hCt1Correct hCt2Correct
 
-/-- If the four erasure codes are correct and `adv` makes at most `q` send queries, the
-correctness error of `mlkemBraidScheme` is at most `q` times the correctness error of ML-KEM. -/
+/-- The bound of `correctness_error_le` for `mlkemBraidScheme`, using the correctness error of
+`MLKEM.mlkemScheme p ring prims`. -/
 theorem mlkemBraidScheme_correctness_error_le
     (p : MLKEM.ParameterSet) (ring : MLKEM.NTTRingOps)
     (prims : MLKEM.Primitives (MLKEM.ParameterSet.params p)

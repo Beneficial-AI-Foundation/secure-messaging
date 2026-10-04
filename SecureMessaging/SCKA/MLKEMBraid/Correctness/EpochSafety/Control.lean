@@ -9,16 +9,12 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.EpochKnowledge
 /-!
 # Roles and message order in the Braid correctness game
 
-In each epoch one party generates the key pair and the other encapsulates; A generates the key
-pairs of the odd epochs. `ControlInv` states that each party's role (`State.controlPosition`)
-matches the parity of its epoch, that a party whose peer is one epoch ahead has sent `ct₂`, and
-that every recorded message fits its sender (`MessageControl`): it is well formed, its epoch is at
-most the sender's, it was sent from a step the sender has reached if it is from the sender's
-current epoch, and its type belongs to the sender's role in its epoch (`MessageOwner`).
+Roles follow epoch parity: A generates key pairs in odd epochs and B in even epochs.
+`PartyControl` enforces this role, ownership and order of recorded messages, and `ct2Sampled`
+when the peer is one epoch ahead.
 
-Every oracle of the correctness game preserves `ControlInv`. The conditions of one party are
-collected in `PartyControl`; `partyControl_send` and `partyControl_receive` prove their
-preservation for either party at once, from `SendEdge` and `ReceiveEdge`.
+`ControlInv` combines these conditions with `EpochKnowledgeInv`, `RecordedReportInv`, and
+bounds on game counters by local epochs minus one. Every query preserves it.
 -/
 
 open OracleSpec OracleComp
@@ -26,9 +22,7 @@ open SCKAScheme.sckaCorrectnessSpec
 
 namespace MLKEMBraid
 
-/-- The step of its sender's epoch from which a message type is sent: the header from
-`keysSampled`, the vector from `headerSent` (`ek`) or `ct1Received` (`ekCt1Ack`), `ct₁` from
-`ct1Sampled` and `ct₂` from `ct2Sampled`. The empty message and `ct1Ack` have no step. -/
+/-- A lower bound on the sender's control step after sending this message type. -/
 def MessageType.sendStep : MessageType → ℕ
   | .none | .ct1Ack => 0
   | .hdr => 1
@@ -36,9 +30,8 @@ def MessageType.sendStep : MessageType → ℕ
   | .ekCt1Ack => 3
   | .ct2 => 4
 
-/-- Whether `party` is a sender of messages of the type and epoch of `msg`. A (`party = true`)
-generates the key pairs of the odd epochs, so A sends the header and the vector of odd epochs and
-`ct₁` and `ct₂` of even epochs. Both parties send empty messages; nobody sends `ct1Ack`. -/
+/-- Whether `party` owns `msg` according to its type and epoch's generator. Either party owns empty
+messages; neither owns `ct1Ack`. -/
 def MessageOwner {Sym : Type} (party : Bool) (msg : Message Sym) : Prop :=
   match msg.type with
   | .none => True
@@ -46,18 +39,16 @@ def MessageOwner {Sym : Type} (party : Bool) (msg : Message Sym) : Prop :=
   | .ct1 | .ct2 => party ≠ decide (msg.epoch % 2 = 1)
   | .ct1Ack => False
 
-/-- A message recorded by `party`, whose state is `st`, is well formed, is from an epoch at most
-`st.epoch`, was sent from a step that `st` has reached if it is from the epoch of `st`, and
-belongs to `party`. -/
+/-- A well-formed message owned by `party`, no newer than `st`, with a send step reached by `st`
+when their epochs agree. -/
 def MessageControl {P : Parameters ProbComp} {AuthState : Type}
     (party : Bool) (st : State P AuthState) (msg : Message P.Sym) : Prop :=
   msg.wellFormed = true ∧ msg.epoch ≤ st.epoch ∧
     (msg.epoch = st.epoch → msg.type.sendStep ≤ st.controlPosition.step) ∧
     MessageOwner party msg
 
-/-- The control conditions of `party` in the game state `s`: its role matches the parity of its
-epoch, it has sent `ct₂` if its peer is one epoch ahead, and every message it recorded satisfies
-`MessageControl`. -/
+/-- The party's role matches its epoch parity, its recorded messages satisfy `MessageControl`, and
+it is in `ct2Sampled` when its peer is one epoch ahead. -/
 def PartyControl {P : Parameters ProbComp} {AuthState : Type}
     (party : Bool) (s : GameState P AuthState) : Prop :=
   let st := s.stateAt party
@@ -67,8 +58,8 @@ def PartyControl {P : Parameters ProbComp} {AuthState : Type}
     (peer.epoch = st.epoch + 1 → st.controlPosition = ⟨false, 4⟩) ∧
     ∀ n msg tsnd, messages n = some (msg, tsnd) → MessageControl party st msg
 
-/-- The epoch and report invariants, the bound of the game's current epochs by the epoch before
-the party's own, and the control conditions of both parties. -/
+/-- The game-counter bounds and both parties' control conditions, extending the epoch and report
+invariants. -/
 structure ControlInv {P : Parameters ProbComp} {AuthState : Type}
     (s : GameState P AuthState) : Prop where
   /-- The epoch bounds hold. -/
@@ -105,8 +96,7 @@ theorem ControlInv.send_prefix {s : GameState P AuthState} (hs : ControlInv s) (
   exact ⟨hs.tcur_le_sub_one party, fun t h0 hle => (hs.epochKnowledge.keyPrefix.keys party t).2
     ⟨h0, hle.trans (s.stateAt party).epoch_sub_one_le_completedEpoch⟩⟩
 
-/-- The message of a send satisfies `MessageControl` for the sender's successor state, given
-that the sender's role matches the parity of its epoch. -/
+/-- A send's message satisfies `MessageControl` for the successor state. -/
 theorem SendEdge.messageControl (party : Bool) {st : State P AuthState}
     {r : SendResult P AuthState} (hedge : SendEdge auth st r)
     (hrole : st.controlPosition.isGenerator = decide (st.epoch % 2 = if party then 1 else 0)) :
@@ -118,9 +108,8 @@ theorem SendEdge.messageControl (party : Bool) {st : State P AuthState}
       at hrole hparity ⊢ <;>
     rcases hparity with h | h <;> cases party <;> simp_all
 
-/-- A send keeps the control conditions of the sender and records a controlled message. `peer`
-is the peer's state and `messages` the sender's recorded messages, with the new message stored at
-index `k`. -/
+/-- A send preserves the sender's control conditions and records a message satisfying
+`MessageControl`. -/
 theorem partyControl_send (party : Bool) {st peer : State P AuthState}
     {messages : ℕ → Option (Message P.Sym × ℕ)} {r : SendResult P AuthState}
     (hedge : SendEdge auth st r)
@@ -148,9 +137,8 @@ theorem partyControl_send (party : Bool) {st peer : State P AuthState}
       obtain ⟨hwf, hle, hcur, howner⟩ := hmsgs n msg tsnd hn
       exact ⟨hwf, by omega, fun h => (hcur (by omega)).trans hstep, howner⟩
 
-/-- A receive of a message recorded by the peer keeps the control conditions of the receiver and
-the lag condition of the peer, and bounds the receiver's new current epoch. `tcur` is the
-receiver's current epoch before the query. -/
+/-- Receiving a peer's recorded message preserves the receiver's control conditions and the peer's
+lag condition, and bounds the receiver's new game counter. -/
 theorem partyControl_receive [DecidableEq P.Sym] (party : Bool) {st peer : State P AuthState}
     {messages : ℕ → Option (Message P.Sym × ℕ)} {msg : Message P.Sym}
     {r : RecvResult P AuthState} {tcur : ℕ}

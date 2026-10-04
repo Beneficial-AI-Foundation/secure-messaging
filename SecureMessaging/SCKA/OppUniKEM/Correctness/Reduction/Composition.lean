@@ -44,8 +44,7 @@ variable [DecidableEq Sym]
 open SCKAScheme.sckaCorrectnessSpec
 open Reduction.Internal
 
-/-- Syntactic bound on the total number of send queries (`SCKAScheme.SendQueryBound`). Both send
-oracles count: either party may draw the first sample of a fresh epoch. -/
+/-- A bound on total send queries to both parties (`SCKAScheme.SendQueryBound`). -/
 abbrev SendQueryBound (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
     (q : ℕ) : Prop :=
   SCKAScheme.SendQueryBound adv q

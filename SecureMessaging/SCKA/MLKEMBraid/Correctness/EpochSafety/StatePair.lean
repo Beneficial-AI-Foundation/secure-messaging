@@ -9,17 +9,12 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.EpochSafety.Control
 /-!
 # The pairs of states of the two parties
 
-`AllowedStatePair gen encap` lists the pairs of a key generator's state and an encapsulator's
-state that occur at the same epoch. `PairInv st peer` states that a key generator `st` forms an
-allowed pair with its peer at equal epochs, and that a party whose peer is one epoch ahead has
-sent `ct₂` while the peer waits for the next header. `StatePairInv` is `PairInv` in both
-directions, and every oracle of the correctness game preserves `ControlInv` together with it.
+`AllowedStatePair` lists the generator/encapsulator pairs at equal epochs. `PairInv` also requires
+a party one epoch behind to be in `ct2Sampled` while its peer waits for the next header.
+`StatePairInv` imposes these conditions in both directions.
 
-A send keeps the epoch and moves only `keysUnsampled` to `keysSampled` and `headerReceived` to
-`ct1Sampled` (`PairInv.send`). A receive of a message recorded by the peer follows one
-`ReceiveEdge`; the epoch bounds of `EpochKnowledgeInv` place the peer at the receiver's epoch,
-`MessageControl` of the message bounds the peer's step from below, and the allowed pair before the
-step determines the peer's state (`PairInv.receive`).
+Every query preserves `ControlInv` together with `StatePairInv`; `PairInv.send` and
+`PairInv.receive` give the local preservation results.
 -/
 
 open OracleSpec OracleComp
@@ -44,9 +39,8 @@ def AllowedStatePair {P : Parameters ProbComp} {AuthState : Type} :
   | .ekSentCt1Received .., .ct2Sampled .. => True
   | _, _ => False
 
-/-- The pair conditions of a party in state `st` with its peer in state `peer`: at equal epochs a
-key generator `st` forms an `AllowedStatePair` with `peer`, and if the peer is one epoch ahead
-then `st` is in `ct2Sampled` and the peer in `noHeaderReceived`. -/
+/-- At equal epochs, a generator forms an `AllowedStatePair` with its peer; a party one epoch behind
+is in `ct2Sampled` with its peer in `noHeaderReceived`. -/
 def PairInv {P : Parameters ProbComp} {AuthState : Type} (st peer : State P AuthState) : Prop :=
   (st.epoch = peer.epoch → st.controlPosition.isGenerator = true → AllowedStatePair st peer) ∧
     (peer.epoch = st.epoch + 1 →
@@ -72,10 +66,7 @@ theorem PairInv.send {st peer : State P AuthState} {r : SendResult P AuthState}
   cases hedge <;> cases peer <;>
     simp_all [PairInv, AllowedStatePair, State.controlPosition, State.epoch]
 
-/-- A receive by the party in state `st` of a message recorded by its peer preserves the pair
-conditions in both directions. The hypotheses are the epoch bounds of `EpochKnowledgeInv`, the
-opposite roles of the parties at equal epochs, and the epoch and step bounds of `MessageControl`
-for the delivered message. -/
+/-- Receiving a peer's recorded message preserves the pair conditions in both directions. -/
 theorem PairInv.receive [DecidableEq P.Sym] {st peer : State P AuthState} {msg : Message P.Sym}
     {r : RecvResult P AuthState} (hedge : ReceiveEdge auth st msg r)
     (hpos : 0 < st.epoch) (hposP : 0 < peer.epoch)

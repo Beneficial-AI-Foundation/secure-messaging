@@ -9,12 +9,9 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.RecordedPayload
 /-!
 # Receives preserve the correctness invariant
 
-A successful receive of a recorded message keeps the game state consistent with the same
-transcript when any output key agrees with the peer's recorded key for that epoch
-(`receive_preserves_transcriptConsistent`). A refusal or a key disagreement clears the correctness
-flag. If the successor flag stays true, the receive oracle preserves the same transcript
-(`oracleRecv_preserves_transcriptConsistent`), and hence preserves `CorrectnessInv`
-(`oracleRecv_preserves_correctnessInv`).
+With correct erasure codes, either party's receive oracle preserves `CorrectnessInv` on
+supported outcomes. While the correctness flag remains true, it preserves consistency with
+the same transcript (`oracleRecv_preserves_transcriptConsistent`).
 -/
 
 open OracleSpec OracleComp
@@ -27,10 +24,8 @@ variable {P : Parameters ProbComp} [DecidableEq P.Sym] {InitKey AuthState : Type
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
     P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
 
-/-- A successful receive of a message recorded by the peer, whose output key agrees with the
-peer's recorded key, keeps the game state consistent with the same transcript. The successor
-state `s'` carries the receiver's new state, current epoch and key table but the old correctness
-flag; it is required to satisfy the control and pair invariants. -/
+/-- A successful receive of a recorded message preserves transcript consistency when output keys
+agree with the peer's and the successor satisfies the control and pair invariants. -/
 theorem receive_preserves_transcriptConsistent
     (hHdrCorrect : P.ecpHdr.ec.Correct)
     (hEkCorrect : P.ecpEk.ec.Correct)
@@ -157,8 +152,8 @@ theorem receive_preserves_transcriptConsistent
 variable [DecidableEq P.EpochKey]
   (irl : P.kem.IncrementalRandLeak P.inc) (sampleInitKey : ProbComp InitKey)
 
-/-- A supported receive whose successor correctness flag is true keeps the game state
-consistent with the same transcript. -/
+/-- A supported receive preserves the same transcript whenever the successor's correctness flag is
+true. -/
 theorem oracleRecv_preserves_transcriptConsistent
     (hHdrCorrect : P.ecpHdr.ec.Correct)
     (hEkCorrect : P.ecpEk.ec.Correct)
@@ -195,7 +190,7 @@ theorem oracleRecv_preserves_transcriptConsistent
   exact receive_preserves_transcriptConsistent auth hHdrCorrect hEkCorrect hCt1Correct
     hCt2Correct hT party n msg tsnd hentry r hraw hagree hCPz
 
-/-- The receive oracle of `party` preserves `CorrectnessInv`. -/
+/-- With correct erasure codes, either party's receive preserves `CorrectnessInv`. -/
 theorem oracleRecv_preserves_correctnessInv
     (hHdrCorrect : P.ecpHdr.ec.Correct)
     (hEkCorrect : P.ecpEk.ec.Correct)

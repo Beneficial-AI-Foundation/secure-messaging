@@ -9,14 +9,9 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
 /-!
 # Sends preserve the correctness invariant
 
-A send samples a key pair (`SendEdge.keygen`), encapsulates against a received header
-(`SendEdge.encaps1`), sends the next chunk of a recorded stream, or emits an empty message. The
-transcript, extended when a new sample is drawn, is consistent with the successor state. Thus the
-send oracles preserve `CorrectnessInv` (`oracleSend_preserves_correctnessInv`).
-
-The three transcript lemmas describe the successor state without the correctness flag update;
-`oracleSend_preserves_correctnessInv` supplies the flag, which must be true for the invariant to
-say anything.
+Either party's send oracle preserves `CorrectnessInv` on supported outcomes.
+The transcript lemmas record samples from `keysUnsampled` and `headerReceived`, and keep the
+transcript unchanged for other sends.
 -/
 
 open OracleSpec OracleComp
@@ -43,8 +38,8 @@ private theorem messagePayloads_update {ik : InitKey} {T : ℕ → EpochTranscri
   cases h
   exact hNew
 
-/-- The key-pair sample of a send from `keysUnsampled` fills the empty key-pair record of its
-epoch; the extended transcript is consistent with the successor state. -/
+/-- A send from `keysUnsampled` records its sampled key pair and leaves the successor consistent
+with the extended transcript. -/
 private theorem send_keysUnsampled_transcript {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
     (party : Bool) {r : SendResult P AuthState}
@@ -196,9 +191,8 @@ private theorem send_keysUnsampled_transcript {ik : InitKey} {T : ℕ → EpochT
     rw [hcomp', hTe]
     exact hKeys who e'
 
-/-- The encapsulation sample of a send from `headerReceived` fills the empty ciphertext record
-of its epoch; the extended transcript is consistent with the successor state, and the send
-outputs the derived epoch key. -/
+/-- A send from `headerReceived` records its first-stage encapsulation and outputs the derived epoch
+key; the successor is consistent with the extended transcript. -/
 private theorem send_headerReceived_transcript {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
     (party : Bool) {r : SendResult P AuthState}
@@ -407,8 +401,8 @@ def State.SendsNoSample : State P AuthState → Prop
   | .headerReceived .. => False
   | _ => True
 
-/-- A send from a state that samples nothing outputs no key, keeps the epoch, the completed
-epoch and `LocalPayloadInv`, and emits a message satisfying `MessagePayloadInv`. -/
+/-- A send without sampling preserves epochs and `LocalPayloadInv`, outputs no key, and emits a
+message satisfying `MessagePayloadInv`. -/
 private theorem send_steady_step {ik : InitKey} {T : ℕ → EpochTranscript P}
     {st : State P AuthState} {r : SendResult P AuthState} (hedge : SendEdge auth st r)
     (hsteady : st.SendsNoSample) (hLocal : LocalPayloadInv auth ik T st) :
@@ -469,7 +463,8 @@ private theorem send_steady_step {ik : InitKey} {T : ℕ → EpochTranscript P}
     · simp only [EncoderState.nextChunk]
       rw [hecp, hpay]
 
-/-- A send that samples nothing keeps the transcript consistent with the successor state. -/
+/-- A send without sampling preserves the transcript if its successor satisfies the control and pair
+invariants. -/
 theorem send_existing_transcript {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
     (party : Bool) {r : SendResult P AuthState}

@@ -9,16 +9,15 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.EpochSafety.StatePair
 /-!
 # The transcript invariant of the Braid correctness game
 
-An `EpochTranscript` records the key pair and the first-stage encapsulation sampled in an epoch.
-`TranscriptConsistent T s` states that the game state `s` agrees with the transcript `T`: the
-party states and the recorded messages carry the recorded samples (`LocalPayloadInv`,
-`MessagePayloadInv`), decapsulation in a completed epoch gives the recorded key, and the output
-keys are the transcript keys. `CorrectnessInv s` states that the correctness flag is false or
-that `s` is consistent with some transcript.
+An `EpochTranscript P` records an epoch's optional key pair and first-stage encapsulation.
+A transcript `T : ℕ → EpochTranscript P` supplies these records for all epochs.
+`transcriptAuth auth ik T e` reconstructs the authenticator from the initial key `ik` and the
+recorded epoch keys through epoch `e`.
 
-The module also derives from the invariant the state of the peer of a party that is about to
-sample: the peer of a key generator in `keysUnsampled` waits for the header, and the peer of an
-encapsulator in `headerReceived` holds the recorded key pair.
+`TranscriptConsistent auth ik T s` requires a true correctness flag and agreement between `s`
+and `T`, including control and pair conditions, local payloads, recorded messages and keys,
+and decapsulation of completed generator epochs. `CorrectnessInv auth ik s` also permits a
+false flag.
 -/
 
 open OracleSpec OracleComp
@@ -159,9 +158,8 @@ def MessagePayloadInv (ik : InitKey) (T : ℕ → EpochTranscript P) (msg : Mess
           (ct2, auth.macCiphertext (transcriptAuth auth ik T msg.epoch) msg.epoch (ct1, ct2)) i)
   | .ct1Ack => False
 
-/-- A message consistent with `T` is consistent with `T'` if `T'` keeps the recorded samples of the
-message's epoch, the authenticator states of the previous epoch agree, and, when the message's
-epoch has an encapsulation in `T`, the authenticator states of that epoch agree. -/
+/-- Payload consistency transfers between transcripts preserving the message's recorded samples and
+the relevant authenticator states. -/
 theorem MessagePayloadInv.transport {ik : InitKey} {T T' : ℕ → EpochTranscript P}
     {msg : Message P.Sym} (h : MessagePayloadInv auth ik T msg)
     (hkeypair : ∀ kp, (T msg.epoch).keypair = some kp →
@@ -200,7 +198,8 @@ def decapsEpochKey (e : ℕ) (pk : P.PK) (sk : P.SK) (encapsState : P.inc.St) (c
     P.hEnc2.encaps2Det encapsState (P.inc.toHeader pk) (P.inc.toVector pk)))).map
       (fun k => P.kdfOK k e)
 
-/-- The game state `s` is consistent with the transcript `T`. -/
+/-- The game state agrees with the transcript's samples, payloads, messages, keys and
+completed-epoch decapsulation, with a true correctness flag and the control and pair invariants. -/
 structure TranscriptConsistent (ik : InitKey) (T : ℕ → EpochTranscript P)
     (s : GameState P AuthState) : Prop where
   /-- The correctness flag is true. -/
@@ -365,9 +364,8 @@ theorem peer_keysSampled_of_headerReceived {ik : InitKey} {T : ℕ → EpochTran
 
 /-! ### Transcript consistency of states that agree on the relevant fields -/
 
-/-- A state with a true correctness flag, the control and pair invariants, each party's epoch,
-completed epoch and keys as in a transcript-consistent state, states satisfying
-`LocalPayloadInv`, and recorded messages satisfying `MessagePayloadInv` is transcript-consistent. -/
+/-- Transfer transcript consistency to a state with the same local and completed epochs and keys,
+consistent payloads and messages, and the required correctness, control and pair conditions. -/
 theorem TranscriptConsistent.of_party {ik : InitKey} {T : ℕ → EpochTranscript P}
     {s s' : GameState P AuthState} (hT : TranscriptConsistent auth ik T s)
     (hc : s'.correct = true) (hC : ControlInv s') (hP : StatePairInv s')

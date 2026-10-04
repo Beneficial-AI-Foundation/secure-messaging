@@ -10,12 +10,14 @@ import SecureMessaging.SCKA.MLKEMBraid.Correctness.MessageReports
 /-!
 # Epoch bounds in the Braid correctness game
 
-`EpochKnowledgeInv` bounds each party's epoch by its peer's completed epoch plus one, the game's
-current epochs `tcurA` and `tcurB` by the party's completed epoch, and the epoch of every recorded
-message by both completed epochs plus one; a recorded `ct₂` message belongs to an epoch its sender
-has completed. Every oracle of the correctness game preserves it: a send keeps the sender's epoch
-and stamps it on the message (`SendEdge.epoch_eq`), and a receive raises the epoch at most to the
-bound of the delivered message (`ReceiveEdge.epoch_le_of_le`).
+`EpochKnowledgeInv` combines `KeyPrefixInv` with bounds on:
+
+* each local epoch by its peer's completed epoch plus one;
+* each game counter by its party's completed epoch;
+* each recorded message's epoch by both completed epochs plus one.
+
+A recorded `ct₂` message also belongs to an epoch its sender has completed.
+Initialization satisfies this invariant, and every query preserves it.
 -/
 
 open OracleSpec OracleComp
@@ -40,15 +42,13 @@ structure EpochKnowledgeInv {P : Parameters ProbComp} {AuthState : Type}
   tcurA_le : s.tcurA ≤ s.stA.completedEpoch
   /-- `tcurB` is at most B's completed epoch. -/
   tcurB_le : s.tcurB ≤ s.stB.completedEpoch
-  /-- Every message recorded from A is at most one epoch past both completed epochs, and a
-  recorded `ct₂` message comes from an epoch A has completed. -/
+  /-- Epoch bounds on messages recorded by A, with the stronger bound for `ct₂`. -/
   msgA : ∀ (n : ℕ) (msg : Message P.Sym) (tsnd : ℕ),
     s.msgA n = some (msg, tsnd) →
       msg.epoch ≤ s.stA.completedEpoch + 1 ∧
       msg.epoch ≤ s.stB.completedEpoch + 1 ∧
       (msg.type = .ct2 → msg.epoch ≤ s.stA.completedEpoch)
-  /-- Every message recorded from B is at most one epoch past both completed epochs, and a
-  recorded `ct₂` message comes from an epoch B has completed. -/
+  /-- The corresponding message bounds for B. -/
   msgB : ∀ (n : ℕ) (msg : Message P.Sym) (tsnd : ℕ),
     s.msgB n = some (msg, tsnd) →
       msg.epoch ≤ s.stB.completedEpoch + 1 ∧
