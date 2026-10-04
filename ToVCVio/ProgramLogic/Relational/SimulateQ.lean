@@ -11,7 +11,7 @@ import ToVCVio.EvalDist.Monad.Basic
 # Sampled-Parameter Lemmas for Relational simulateQ
 
 Convenience lemmas for sampled-parameter simulations and handler normalization.
-VCVio provides the generic relational `simulateQ` rules and their `evalDist`
+VCVio provides the generic relational `simulateQ` rules and their `evalSPMF`
 projections.
 
 ## Notation
@@ -20,7 +20,7 @@ projections.
 `True`: the two computations `oa` and `ob` are related so that their outputs
 satisfy the postcondition `R`.
 
-For a computation `oa`, `𝒟[oa]` denotes `evalDist oa`.
+For a computation `oa`, `𝒮[oa]` denotes `evalSPMF oa`.
 
 For stateful computations, `.run` returns both the output and final state,
 while `.run'` returns only the output.
@@ -60,15 +60,15 @@ theorem evalDist_sample_param_query_bind_passthrough
     (h_impl_eq : ∀ param, (impl param t).run s = (base t).run s)
     (h_preserves : ∀ p, p ∈ support ((base t).run s) → Inv p.2)
     (h_ih : ∀ (u : spec.Range t) (s' : σ), Inv s' →
-      evalDist (do
+      evalSPMF (do
         let param ← sample
         (simulateQ (impl param) (k u)).run' s') =
-      evalDist ((simulateQ base (k u)).run' s')) :
-    evalDist (do
+      evalSPMF ((simulateQ base (k u)).run' s')) :
+    evalSPMF (do
       let param ← sample
       (simulateQ (impl param) (OracleSpec.query t >>= k)).run' s) =
-    evalDist ((simulateQ base (OracleSpec.query t >>= k)).run' s) := by
-  apply evalDist_ext
+    evalSPMF ((simulateQ base (OracleSpec.query t >>= k)).run' s) := by
+  apply evalSPMF_ext
   intro y
   simp only [simulateQ_bind, simulateQ_query, OracleQuery.cont_query, id_map,
     OracleQuery.input_query, StateT.run'_eq, StateT.run_bind, map_bind]
@@ -90,7 +90,7 @@ theorem evalDist_sample_param_query_bind_passthrough
   intro p hp_support
   have hi := h_ih p.1 p.2 (h_preserves p hp_support)
   simp only [StateT.run'_eq] at hi
-  exact evalDist_ext_iff.mp hi y
+  exact evalSPMF_ext_iff.mp hi y
 
 /-- A parameter that does not affect the handlers' distributions can be fixed instead of sampled.
 
@@ -103,14 +103,14 @@ theorem evalDist_sample_simulateQ_run'_eq_of_param_indep
     {ι : Type} {spec : OracleSpec ι} {σ θ α : Type} [SampleableType θ]
     (impl : θ → QueryImpl spec (StateT σ ProbComp))
     (oa : OracleComp spec α) (s : σ) (x₀ : θ)
-    (h : ∀ param t s', 𝒟[(impl param t).run s'] = 𝒟[(impl x₀ t).run s']) :
-    𝒟[do
+    (h : ∀ param t s', 𝒮[(impl param t).run s'] = 𝒮[(impl x₀ t).run s']) :
+    𝒮[do
       let param ← $ᵗ θ
       (simulateQ (impl param) oa).run' s] =
-    𝒟[(simulateQ (impl x₀) oa).run' s] :=
-  (evalDist_bind_congr' _ fun param => evalDist_eq_of_relTriple_eqRel
-    (relTriple_simulateQ_run'_of_impl_evalDist_eq _ _ oa (h param) s s rfl)).trans
-      (DeferredSampling.evalDist_bind_const_neverFails _ (probFailure_uniformSample _) _)
+    𝒮[(simulateQ (impl x₀) oa).run' s] :=
+  (evalSPMF_bind_congr' _ fun param => evalSPMF_eq_of_relTriple_eqRel
+    (relTriple_simulateQ_run'_of_impl_evalSPMF_eq _ _ oa (h param) s s rfl)).trans
+      (DeferredSampling.evalSPMF_bind_const_neverFails _ (probFailure_uniformSample _) _)
 
 /-- A deterministic handler call can be skipped.
 
@@ -241,7 +241,7 @@ theorem probOutput_handler_sample_pure_eq
     rw [bind_assoc]
     refine bind_congr fun param => ?_
     rw [pure_bind]
-  exact evalDist_ext_iff.mp (congrArg evalDist h_term_eq) y
+  exact evalSPMF_ext_iff.mp (congrArg evalSPMF h_term_eq) y
 
 /-- Two-sample version of `probOutput_handler_sample_pure_eq`. -/
 theorem probOutput_handler_sample₂_pure_eq
@@ -276,6 +276,6 @@ theorem probOutput_handler_sample₂_pure_eq
     rw [bind_assoc]
     refine bind_congr fun param₂ => ?_
     rw [pure_bind]
-  exact evalDist_ext_iff.mp (congrArg evalDist h_term_eq) y
+  exact evalSPMF_ext_iff.mp (congrArg evalSPMF h_term_eq) y
 
 end OracleComp.ProgramLogic.Relational

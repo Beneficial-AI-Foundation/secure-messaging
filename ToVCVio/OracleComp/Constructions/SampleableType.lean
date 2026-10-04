@@ -35,20 +35,17 @@ lemma uniformSample_prod_eq_bind (α β : Type) [SampleableType α] [SampleableT
   change Prod.mk <$> ($ᵗ α : ProbComp α) <*> ($ᵗ β : ProbComp β) = _
   exact (selectElem_prod_as_seq α β).symm
 
-/-- Let `oa : ProbComp β` output every element of `β` (`hsupp`) and give any two elements the
-same probability (`huni : Pr[= x | oa] = Pr[= y | oa]`). Then `oa` has the same distribution
-as the uniform sample: `evalDist oa = evalDist ($ᵗ β)`. -/
+/-- Let `oa : ProbComp β` give any two elements the same probability
+(`huni : Pr[= x | oa] = Pr[= y | oa]`). Then `oa` has the same distribution
+as the uniform sample: `𝒮[oa] = 𝒮[$ᵗ β]`. -/
 theorem evalDist_eq_uniformSample_of_uniform {β : Type} [SampleableType β]
-    (oa : ProbComp β) (hsupp : ∀ x : β, x ∈ support oa)
-    (huni : ∀ x y : β, Pr[= x | oa] = Pr[= y | oa]) :
-    evalDist oa = evalDist ($ᵗ β) := by
+    (oa : ProbComp β) (huni : ∀ x y : β, Pr[= x | oa] = Pr[= y | oa]) :
+    𝒮[oa] = 𝒮[$ᵗ β] := by
   let : Fintype β := Fintype.ofFinite β
-  refine evalDist_ext fun x => ?_
-  have h2 : Pr[= x | ($ᵗ β)] = (Fintype.card β : ℝ≥0∞)⁻¹ :=
-    probOutput_uniformSample β x
-  let h : SampleableType β := ⟨oa, hsupp, huni⟩
-  have h1 : Pr[= x | oa] = (Fintype.card β : ℝ≥0∞)⁻¹ :=
-    probOutput_uniformSample (hα := h) β x
-  exact h1.trans h2.symm
+  refine evalSPMF_ext fun x => ?_
+  rw [probOutput_uniformSample β x]
+  have hsum : ∑ y : β, Pr[= y | oa] = 1 := sum_probOutput_eq_one (by simp)
+  simp only [huni _ x, Finset.sum_const, Finset.card_univ, nsmul_eq_mul] at hsum
+  exact ENNReal.eq_inv_of_mul_eq_one_left (by rw [mul_comm]; exact hsum)
 
 end ToVCVio

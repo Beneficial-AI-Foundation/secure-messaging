@@ -20,8 +20,8 @@ Let `p : OracleComp (unifSpec + (D →ₒ R)) β`, run against the lazy random o
 does not change the output distribution:
 
 ```
-𝒟[(simulateQ prfIdealQueryImpl (query d >>= fun _ => p)).run' qc]
-  = 𝒟[(simulateQ prfIdealQueryImpl p).run' qc].
+𝒮[(simulateQ prfIdealQueryImpl (query d >>= fun _ => p)).run' qc]
+  = 𝒮[(simulateQ prfIdealQueryImpl p).run' qc].
 ```
 
 For a query implementation with state `σ × (D →ₒ R).QueryCache`,
@@ -59,10 +59,8 @@ private theorem randomOracle_run_some
 response is a uniform `ProbComp` sample and the cache `c` passes through. -/
 private theorem prfIdealQueryImpl_run_inl (n : unifSpec.Domain) (c : (D →ₒ R).QueryCache) :
     (prfIdealQueryImpl (D := D) (R := R) (Sum.inl n)).run c =
-      (fun u => (u, c)) <$> (liftM (OracleSpec.query n) : ProbComp _) := by
-  rw [prfIdealQueryImpl, QueryImpl.add_apply_inl, QueryImpl.liftTarget_apply,
-    HasQuery.toQueryImpl]
-  simp [StateT.run_monadLift, bind_pure_comp, HasQuery.query]
+      (fun u => (u, c)) <$> (liftM (OracleSpec.query n) : ProbComp _) :=
+  roSim.run_apply_inl (D →ₒ R).randomOracle n c
 
 /-- **Resampling marginal.** For any `p` and any cache `qc` that *misses* `d`, pre-sampling a fresh
 uniform value at `d` (writing it into the cache) and then running `simulateQ prfIdealQueryImpl p`
@@ -76,15 +74,15 @@ into each other. If `t ≠ d`, the `d`-entry is untouched and the continuation c
 theorem evalDist_uniformSample_bind_simulateQ_prfIdealQueryImpl_run'
     {β : Type} (d : D) :
     ∀ (p : OracleComp (unifSpec + (D →ₒ R)) β) (qc : (D →ₒ R).QueryCache), qc d = none →
-      𝒟[($ᵗ R) >>= fun r => (simulateQ prfIdealQueryImpl p).run' (qc.cacheQuery d r)] =
-        𝒟[(simulateQ prfIdealQueryImpl p).run' qc] := by
+      𝒮[($ᵗ R) >>= fun r => (simulateQ prfIdealQueryImpl p).run' (qc.cacheQuery d r)] =
+        𝒮[(simulateQ prfIdealQueryImpl p).run' qc] := by
   intro p
   induction p using OracleComp.inductionOn with
   | pure x =>
     intro qc _
     simp only [simulateQ_pure, StateT.run'_eq, StateT.run_pure, map_pure]
     -- LHS: `($ᵗ R) >>= fun _ => pure x`; the constant marginal collapses.
-    refine evalDist_ext fun y => ?_
+    refine evalSPMF_ext fun y => ?_
     rw [probOutput_bind_const, probFailure_uniformSample]
     simp
   | query_bind t k ih =>
@@ -104,11 +102,11 @@ theorem evalDist_uniformSample_bind_simulateQ_prfIdealQueryImpl_run'
       simp only [hredU]
       -- Both sides: `query n` then continue. Commute the `d`-presample past the unif sample, apply
       -- the IH on each continuation (cache still misses `d`).
-      rw [evalDist_bind_bind_swap ($ᵗ R)
+      rw [evalSPMF_bind_bind_swap ($ᵗ R)
         (liftM (OracleSpec.query (spec := unifSpec) n) :
           ProbComp ((unifSpec + (D →ₒ R)).Range (Sum.inl n)))
         (fun r u => (simulateQ prfIdealQueryImpl (k u)).run' (qc.cacheQuery d r))]
-      refine evalDist_ext fun x => ?_
+      refine evalSPMF_ext fun x => ?_
       simp only [probOutput_bind_eq_tsum]
       refine tsum_congr fun u => ?_
       rw [← probOutput_bind_eq_tsum]
@@ -185,17 +183,15 @@ theorem evalDist_uniformSample_bind_simulateQ_prfIdealQueryImpl_run'
             rw [randomOracle_run_none t (qc.cacheQuery d r) (hmiss_t r), map_eq_bind_pure_comp]
             simp [bind_assoc]
           rw [hL]
-          rw [evalDist_bind_bind_swap ($ᵗ R) ($ᵗ R)
+          rw [evalSPMF_bind_bind_swap ($ᵗ R) ($ᵗ R)
             (fun r w => (simulateQ prfIdealQueryImpl (k w)).run'
               ((qc.cacheQuery d r).cacheQuery t w))]
-          refine evalDist_ext fun x => ?_
+          refine evalSPMF_ext fun x => ?_
           simp only [probOutput_bind_eq_tsum]
           refine tsum_congr fun w => ?_
           have hcomm : ∀ r : R, (qc.cacheQuery d r).cacheQuery t w =
-              (qc.cacheQuery t w).cacheQuery d r := by
-            intro r
-            simp only [QueryCache.cacheQuery]
-            exact (Function.update_comm htd w r qc).symm
+              (qc.cacheQuery t w).cacheQuery d r :=
+            fun r => QueryCache.cacheQuery_comm qc (fun h => htd h.symm) r w
           have hmiss_d : (qc.cacheQuery t w) d = none := by
             rw [QueryCache.cacheQuery_of_ne qc w (fun h => htd h.symm)]; exact hqc
           simp only [hcomm]
@@ -207,9 +203,9 @@ theorem evalDist_uniformSample_bind_simulateQ_prfIdealQueryImpl_run'
 distribution of a computation interpreted by `PRFScheme.prfIdealQueryImpl`. -/
 theorem evalDist_simulateQ_prfIdealQueryImpl_discard_run' {β : Type}
     (d : D) (p : OracleComp (unifSpec + (D →ₒ R)) β) (qc : (D →ₒ R).QueryCache) :
-    𝒟[(simulateQ (prfIdealQueryImpl (D := D) (R := R))
+    𝒮[(simulateQ (prfIdealQueryImpl (D := D) (R := R))
         ((unifSpec + (D →ₒ R)).query (Sum.inr d) >>= fun _ => p)).run' qc] =
-      𝒟[(simulateQ prfIdealQueryImpl p).run' qc] := by
+      𝒮[(simulateQ prfIdealQueryImpl p).run' qc] := by
   -- Reduce the prepended query to `randomOracle d` then continue.
   have hred :
       (simulateQ (prfIdealQueryImpl (D := D) (R := R))
@@ -231,9 +227,9 @@ theorem evalDist_simulateQ_prfIdealQueryImpl_discard_run' {β : Type}
       | some v => exact absurd h (by simpa using hqc v)
     rw [randomOracle_run_none d qc hqcn]
     have hL :
-        𝒟[((fun r => (r, qc.cacheQuery d r)) <$> ($ᵗ R)) >>= fun z =>
+        𝒮[((fun r => (r, qc.cacheQuery d r)) <$> ($ᵗ R)) >>= fun z =>
             (simulateQ prfIdealQueryImpl p).run' z.2] =
-          𝒟[($ᵗ R) >>= fun r =>
+          𝒮[($ᵗ R) >>= fun r =>
             (simulateQ prfIdealQueryImpl p).run' (qc.cacheQuery d r)] := by
       rw [map_eq_bind_pure_comp]; simp [bind_assoc]
     rw [hL]
@@ -337,8 +333,8 @@ theorem evalDist_simulateQ_run'_discardRO
       ∃ d : D, (impl₂ t).run (s, qc) =
         ((D →ₒ R).randomOracle d).run qc >>= fun p => (impl₁ t).run (s, p.2))
     (adv : OracleComp spec α) (s₀ : σ) (qc₀ : (D →ₒ R).QueryCache) :
-    𝒟[(simulateQ impl₂ adv).run' (s₀, qc₀)] =
-      𝒟[(simulateQ impl₁ adv).run' (s₀, qc₀)] := by
+    𝒮[(simulateQ impl₂ adv).run' (s₀, qc₀)] =
+      𝒮[(simulateQ impl₁ adv).run' (s₀, qc₀)] := by
   obtain ⟨B, hB⟩ := h₁
   -- `simulateQ` induction over `adv`, generalizing the whole product state `(s₀, qc₀)`.
   induction adv using OracleComp.inductionOn generalizing s₀ qc₀ with
@@ -347,10 +343,10 @@ theorem evalDist_simulateQ_run'_discardRO
     rcases hstep t s₀ qc₀ with hmatch | ⟨d, hdisc⟩
     · -- Handlers agree on this query; recurse on the tail from every reachable state.
       simp only [simulateQ_bind, simulateQ_spec_query, StateT.run'_eq, StateT.run_bind]
-      rw [evalDist_map, evalDist_map, hmatch, evalDist_bind, evalDist_bind, map_bind, map_bind]
+      rw [evalSPMF_map, evalSPMF_map, hmatch, evalSPMF_bind, evalSPMF_bind, map_bind, map_bind]
       refine bind_congr fun p => ?_
       have := ih p.1 p.2.1 p.2.2
-      simpa only [StateT.run'_eq, evalDist_map] using this
+      simpa only [StateT.run'_eq, evalSPMF_map] using this
     · -- `impl₂` prepends a discarded RO query; rewrite the tail by IH, then drop the discard.
       classical
       -- Abbreviate the per-step adversary and the compiled RO computation of its `impl₁`-tail.
@@ -364,16 +360,16 @@ theorem evalDist_simulateQ_run'_discardRO
         intro c; rw [hP]; exact run'_simulateQ_eq_compile Prod.mk impl₁ B hB adv' s₀ c
       -- Step 1: the `impl₁` side is `simulateQ prfIdealQueryImpl P`.
       have key1 :
-          𝒟[(simulateQ impl₁ adv').run' (s₀, qc₀)] =
-            𝒟[(simulateQ prfIdealQueryImpl P).run' qc₀] := by
+          𝒮[(simulateQ impl₁ adv').run' (s₀, qc₀)] =
+            𝒮[(simulateQ prfIdealQueryImpl P).run' qc₀] := by
         rw [hbridge]
       -- Step 2: the `impl₂` side is the discarded query prepended to that (`𝒟`-level).
       have key2 :
-          𝒟[(simulateQ impl₂ adv').run' (s₀, qc₀)] =
-            𝒟[(simulateQ prfIdealQueryImpl
+          𝒮[(simulateQ impl₂ adv').run' (s₀, qc₀)] =
+            𝒮[(simulateQ prfIdealQueryImpl
                 ((unifSpec + (D →ₒ R)).query (Sum.inr d) >>= fun _ => P :
                   OracleComp (unifSpec + (D →ₒ R)) α)).run' qc₀] := by
-        -- Reduce the prepended-query side to `𝒟[randomOracle d] >>= fun r => 𝒟[run' P at r.2]`.
+        -- Reduce the prepended-query side to `𝒮[randomOracle d] >>= fun r => 𝒮[run' P at r.2]`.
         have hfoldc :
             (simulateQ prfIdealQueryImpl
                 ((unifSpec + (D →ₒ R)).query (Sum.inr d) >>= fun _ => P :
@@ -384,12 +380,12 @@ theorem evalDist_simulateQ_run'_discardRO
             StateT.run'_eq, StateT.run_bind, map_bind]
           rfl
         have hfold :
-            𝒟[(simulateQ prfIdealQueryImpl
+            𝒮[(simulateQ prfIdealQueryImpl
                 ((unifSpec + (D →ₒ R)).query (Sum.inr d) >>= fun _ => P :
                   OracleComp (unifSpec + (D →ₒ R)) α)).run' qc₀] =
-              𝒟[((D →ₒ R).randomOracle d).run qc₀] >>= fun r =>
-                𝒟[(simulateQ prfIdealQueryImpl P).run' r.2] := by
-          rw [hfoldc, evalDist_bind]
+              𝒮[((D →ₒ R).randomOracle d).run qc₀] >>= fun r =>
+                𝒮[(simulateQ prfIdealQueryImpl P).run' r.2] := by
+          rw [hfoldc, evalSPMF_bind]
         rw [hfold]
         -- LHS: reduce `simulateQ impl₂ adv'` and apply `hdisc` to the head query.
         conv_lhs => rw [hadv']
@@ -397,28 +393,28 @@ theorem evalDist_simulateQ_run'_discardRO
               Prod.fst <$> ((impl₂ t).run (s₀, qc₀) >>= fun z =>
                 (simulateQ impl₂ (k z.1)).run z.2) from by
             simp only [simulateQ_bind, simulateQ_spec_query, StateT.run'_eq, StateT.run_bind]]
-        rw [evalDist_map, hdisc, bind_assoc, evalDist_bind, map_bind]
+        rw [evalSPMF_map, hdisc, bind_assoc, evalSPMF_bind, map_bind]
         refine bind_congr fun r => ?_
-        -- Goal: `Prod.fst <$> 𝒟[impl₁ t then impl₂-tail] = 𝒟[(simulateQ randomOracle P).run' r.2]`.
+        -- Goal: `Prod.fst <$> 𝒮[impl₁ t then impl₂-tail] = 𝒮[(simulateQ randomOracle P).run' r.2]`.
         -- Push `Prod.fst` in, rewrite the impl₂-tail to impl₁ by IH, fold to `simulateQ impl₁`,
         -- then bridge to `P`.
-        rw [← evalDist_map, map_bind]
+        rw [← evalSPMF_map, map_bind]
         have hIH :
-            𝒟[(impl₁ t).run (s₀, r.2) >>= fun z =>
+            𝒮[(impl₁ t).run (s₀, r.2) >>= fun z =>
                 Prod.fst <$> (simulateQ impl₂ (k z.1)).run z.2] =
-              𝒟[(impl₁ t).run (s₀, r.2) >>= fun z =>
+              𝒮[(impl₁ t).run (s₀, r.2) >>= fun z =>
                 Prod.fst <$> (simulateQ impl₁ (k z.1)).run z.2] := by
-          rw [evalDist_bind, evalDist_bind]
+          rw [evalSPMF_bind, evalSPMF_bind]
           refine bind_congr fun z => ?_
           have hih := ih z.1 z.2.1 z.2.2
-          rw [StateT.run'_eq, StateT.run'_eq, evalDist_map, evalDist_map] at hih
-          rw [evalDist_map, evalDist_map]
+          rw [StateT.run'_eq, StateT.run'_eq, evalSPMF_map, evalSPMF_map] at hih
+          rw [evalSPMF_map, evalSPMF_map]
           simpa using hih
         rw [hIH]
         have hfold₁ :
-            𝒟[(impl₁ t).run (s₀, r.2) >>= fun z =>
+            𝒮[(impl₁ t).run (s₀, r.2) >>= fun z =>
                 Prod.fst <$> (simulateQ impl₁ (k z.1)).run z.2] =
-              𝒟[(simulateQ impl₁ adv').run' (s₀, r.2)] := by
+              𝒮[(simulateQ impl₁ adv').run' (s₀, r.2)] := by
           rw [hadv']
           simp only [simulateQ_bind, simulateQ_spec_query, StateT.run'_eq, StateT.run_bind,
             map_bind]

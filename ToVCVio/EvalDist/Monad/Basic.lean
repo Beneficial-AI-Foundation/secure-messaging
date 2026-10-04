@@ -6,6 +6,7 @@ Authors: Beneficial AI Foundation
 import VCVio.EvalDist.Monad.Basic
 import VCVio.EvalDist.Bool
 import VCVio.OracleComp.Constructions.SampleableType
+import ToMathlib.MeasureTheory.Measure.Bool
 
 /-!
 # `EvalDist` point-probability transport
@@ -20,8 +21,10 @@ evaluation distribution.
 * `probOutput_true_uniformBool_bind_not` relabels a uniform challenge-bit sample by negation,
   absorbing a `Bool` negation on the final comparison in the process — the "flip the challenge
   bit" step of hybrid arguments;
-* `tsum_probOutput_mul_le_of_forall_mem_support` bounds the expectation
-  `∑' z, Pr[= z | mx] * F z` by any bound on `F` over the support of `mx`;
+* `toReal_boolDist_evalDist` reads VCVio's `ℝ≥0∞` Boolean distance as the real absolute gap of
+  `true`-output probabilities;
+* `probOutput_uniformBool_branch_toReal_sub_half` writes the centred success probability of a
+  uniform-bit branch game as half the gap between the branches;
 * the four `probOutput_*_sample_*_param_eq` lemmas couple two or three eager
   `uniformSample` draws over `ProbComp`.
 -/
@@ -37,7 +40,7 @@ variable {α : Type u} {m : Type u → Type v} [Monad m]
 /-- `probOutput_bind_of_const` for a never-failing outer computation: the missing-mass factor
 `1 - Pr[⊥ | mx]` is always exactly `1`. -/
 lemma probOutput_bind_of_const' [MonadLiftT m SPMF] [LawfulMonadLiftT m SPMF]
-    [MonadLiftT m SetM] [EvalDistCompatible m]
+    [MonadAttach m] [EvalDistCompatible m]
     {β : Type u} (mx : m α) [NeverFail mx] {my : α → m β}
     {y : β} {r : ℝ≥0∞} (h : ∀ x ∈ support mx, Pr[= y | my x] = r) :
     Pr[= y | mx >>= my] = r := by
@@ -103,20 +106,36 @@ lemma probOutput_true_uniformBool_bind_not (f : Bool → ProbComp Bool) :
     rw [heq, probOutput_not_map]
   rw [h1, h2, h3, h4, add_comm]
 
-omit [Monad m] in
-/-- If `F z ≤ c` for every possible output `z` of `mx`, then the expectation of `F` under
-`mx` is at most `c`. Missing mass only lowers the sum, so `mx` may fail. -/
-lemma tsum_probOutput_mul_le_of_forall_mem_support [MonadLiftT m SPMF] [MonadLiftT m SetM]
-    [EvalDistCompatible m] (mx : m α) {F : α → ℝ≥0∞} {c : ℝ≥0∞}
-    (h : ∀ z ∈ support mx, F z ≤ c) :
-    ∑' z, Pr[= z | mx] * F z ≤ c := by
-  calc ∑' z, Pr[= z | mx] * F z ≤ ∑' z, Pr[= z | mx] * c := by
-        refine ENNReal.tsum_le_tsum fun z => ?_
-        by_cases hz : z ∈ support mx
-        · exact mul_le_mul' le_rfl (h z hz)
-        · rw [probOutput_eq_zero_of_not_mem_support hz, zero_mul, zero_mul]
-    _ = (∑' z, Pr[= z | mx]) * c := ENNReal.tsum_mul_right
-    _ ≤ c := mul_le_of_le_one_left zero_le tsum_probOutput_le_one
+/-- Guessing a uniformly random bit after branching between `real` and `rand` decomposes into
+the difference of the branch success probabilities. -/
+-- Drop once the CKA/RKEM bounds move to `ℝ≥0∞` (v4.35 bump).
+lemma probOutput_uniformBool_branch_toReal_sub_half (real rand : ProbComp Bool) :
+    (Pr[= true | do
+      let b ← ($ᵗ Bool)
+      let z ← if b then real else rand
+      pure (b == z)]).toReal - 1 / 2 =
+    ((Pr[= true | real]).toReal - (Pr[= true | rand]).toReal) / 2 := by
+  have hformula : Pr[= true | do
+      let b ← ($ᵗ Bool)
+      let z ← if b then real else rand
+      pure (b == z)] = (Pr[= true | real] + Pr[= false | rand]) / 2 := by
+    rw [probOutput_bind_uniformBool]
+    simp
+  have hfalseAsSub : Pr[= false | rand] = 1 - Pr[= true | rand] := by
+    rw [← (by simp : Pr[= true | rand] + Pr[= false | rand] = 1),
+      ENNReal.add_sub_cancel_left probOutput_ne_top]
+  rw [hformula, ENNReal.toReal_div,
+    ENNReal.toReal_add probOutput_ne_top probOutput_ne_top,
+    hfalseAsSub, ENNReal.toReal_sub_of_le probOutput_le_one ENNReal.one_ne_top]
+  simp only [ENNReal.toReal_one, ENNReal.toReal_ofNat]
+  ring
+
+/-- The real form of VCVio's Boolean distance between two `ProbComp Bool` games is the absolute
+gap of their `true`-output probabilities. -/
+lemma toReal_boolDist_evalDist (mx my : ProbComp Bool) :
+    ((𝒟[mx]).boolDist 𝒟[my]).toReal =
+      |(Pr[= true | mx]).toReal - (Pr[= true | my]).toReal| := by
+  rw [MeasureTheory.Measure.toReal_boolDist, evalDist_apply_singleton, evalDist_apply_singleton]
 
 /-- Active-parameter coupling for two independent samples.
 

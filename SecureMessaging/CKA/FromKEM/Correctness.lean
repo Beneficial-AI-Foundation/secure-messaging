@@ -46,14 +46,14 @@ lemma decapsDet_eq_some_of_mem_support [DecidableEq K]
     (hks : (pk, sk) ∈ support kem.keygen)
     (hck : (c, key) ∈ support (kem.encaps pk)) :
     hDet.decapsDet sk c = some key := by
-  have hsup : support kem.CorrectExp = {true} :=
-    (probOutput_eq_one_iff (mx := kem.CorrectExp) (x := true)).mp hkem |>.2
-  rw [KEMScheme.CorrectExp] at hsup
-  simp only [hDet.decaps_eq, bind_pure_comp, map_pure, support_bind, support_map] at hsup
-  have hin : decide (hDet.decapsDet sk c = some key) ∈
-      ⋃ x ∈ support kem.keygen,
-        (fun a => decide (hDet.decapsDet x.2 a.1 = some a.2)) '' support (kem.encaps x.1) := by
-    exact Set.mem_iUnion.2 ⟨(pk, sk), Set.mem_iUnion.2 ⟨hks, ⟨(c, key), hck, rfl⟩⟩⟩
+  have hkem' : Pr[= true | kem.correctnessExperiment] = 1 := by
+    simpa [KEMScheme.PerfectlyCorrect, ProbCompRuntime.probComp_evalDist] using hkem
+  have hsup : support kem.correctnessExperiment = {true} :=
+    (probOutput_eq_one_iff (mx := kem.correctnessExperiment) (x := true)).mp hkem' |>.2
+  have hin : decide (hDet.decapsDet sk c = some key) ∈ support kem.correctnessExperiment := by
+    simp only [KEMScheme.correctnessExperiment, hDet.decaps_eq, mem_support_bind_iff,
+      support_pure, Set.mem_singleton_iff]
+    exact ⟨(pk, sk), hks, (c, key), hck, _, rfl, rfl⟩
   exact of_decide_eq_true (by simpa [hsup] using hin)
 
 private def stateShapeInv

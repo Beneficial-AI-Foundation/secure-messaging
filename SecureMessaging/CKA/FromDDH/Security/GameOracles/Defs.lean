@@ -40,23 +40,6 @@ section Step2
 variable [Inhabited F]
 variable [Fintype G]
 
-omit [Field F] [SampleableType F] [SampleableType G] [DecidableEq G] [Inhabited F] in
-/-- The CKA security spec has finitely many oracle indices. Required by
-VCVio's probability-of-output lemmas that quantify over queries. -/
-noncomputable instance ckaSecuritySpecFintype :
-    (ckaSecuritySpec (CKAState F G) G G F).Fintype := by
-  unfold ckaSecuritySpec ckaCorrectnessSpec
-  infer_instance
-
-omit [Field F] [SampleableType F] [SampleableType G] [DecidableEq G] [Inhabited F]
-  [Fintype G] [Fintype F] in
-/-- The CKA security spec has at least one oracle index. Required by
-VCVio's existence lemmas that pick a sample query. -/
-noncomputable instance ckaSecuritySpecInhabited :
-    (ckaSecuritySpec (CKAState F G) G G F).Inhabited := by
-  unfold ckaSecuritySpec ckaCorrectnessSpec
-  infer_instance
-
 open OracleComp.ProgramLogic.Relational in
 /-- Predicate defining which oracle calls may require embedding of scalar `a` -/
 def hitA (gp : GameParams) :
@@ -450,13 +433,13 @@ lemma hindepB_param_honest (gp : GameParams)
 
 /-! ### Lazy `QueryImpl` set ↔ eager `ProbComp` sampling
 
-`evalDist_ckaSecurityImpl_lazy_eq_eager` proves the `evalDist` equality between
+`evalDist_ckaSecurityImpl_lazy_eq_eager` proves the `evalSPMF` equality between
 - running an adversary under the lazy `QueryImpl` set `ckaSecurityImplLazyReal`, and
 - sampling `b, a ←$ F` in `ProbComp` then running it under `honestImplParamReal`.
 -/
 
 omit [Fintype G] in
-/-- Proves the `evalDist` equality between
+/-- Proves the `evalSPMF` equality between
 - running an adversary under the lazy `QueryImpl` set `ckaSecurityImplLazyReal`, and
 - sampling `b, a ←$ F` in `ProbComp` then running it under
   the parameterized `QueryImpl` set `honestImplParamReal gp gen a b`.
@@ -469,8 +452,8 @@ lemma evalDist_ckaSecurityImpl_lazy_eq_eager
     [Finite G]
     (gp : GameParams) (adversary : CKAAdversary (CKAState F G) G G F)
     (s : GameState (CKAState F G) G G) :
-    evalDist ((simulateQ (ckaSecurityImplLazyReal gp gen) adversary).run' ((s, none), none)) =
-    evalDist (do
+    evalSPMF ((simulateQ (ckaSecurityImplLazyReal gp gen) adversary).run' ((s, none), none)) =
+    evalSPMF (do
       let b ← ($ᵗ F : ProbComp F)
       let a ← ($ᵗ F : ProbComp F)
       (simulateQ (honestImplParamReal gp gen a b) adversary).run' s) := by
@@ -484,7 +467,7 @@ lemma evalDist_ckaSecurityImpl_lazy_eq_eager
         (hit := hitB gp)
         (h_indep := fun t s' b₁ b₂ h => hindepB_param_honest gp t s' b₁ b₂ h)
         adversary (s, none)]
-  exact evalDist_bind_congr' _ (ob₁ := fun b =>
+  exact evalSPMF_bind_congr' _ (ob₁ := fun b =>
       (simulateQ (OracleComp.ProgramLogic.Relational.consumeLazy
         (hit := hitA gp)
         (implFam := fun a => honestImplParamReal gp gen a b)) adversary).run' (s, none))

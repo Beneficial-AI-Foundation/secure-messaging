@@ -32,7 +32,7 @@ The `/ 2` is a change of convention, not a loss: VCVio's `IND_CPA_Advantage` is 
 advantage `|Pr[true] - Pr[false]|`, exactly twice [TripleRatchet]'s Def. 5.4 *bias* advantage
 `|Pr[true] - 1/2|` for a game that never fails, so dividing by `2` converts between the two
 conventions without any loss of tightness (`IND_CPA_Advantage_eq_game_bias`,
-`SPMF.boolBiasAdvantage_eq_two_mul_abs_sub_half`).
+`Measure.toReal_boolBias`).
 -/
 
 open ToVCVio KEMScheme RKEMScheme
@@ -180,27 +180,18 @@ theorem fsIndCpaAdvantageA_eq
     (kem : KEMScheme ProbComp K PK SK C) (total : TotalDecaps kem)
     (adversary : RKEMScheme.FSINDCPAAdversary Unit PK SK (PK × C) K) :
     RKEMScheme.fsIndCpaAdvantageA (scheme kem total) adversary =
-      kem.IND_CPA_Advantage ProbCompRuntime.probComp (indCpaReduction kem adversary) / 2 := by
+      (kem.IND_CPA_Advantage ProbCompRuntime.probComp
+        (indCpaReduction kem adversary)).toReal / 2 := by
   unfold RKEMScheme.fsIndCpaAdvantageA
   rw [probOutput_true_securityExpA_eq_probOutput_true_securityExpACore kem total adversary,
     ← probOutput_true_indCpaGame_eq_probOutput_true_securityExpACore kem adversary]
-  have hnf : Pr[⊥ | KEMScheme.IND_CPA_Game ProbCompRuntime.probComp
-      (indCpaReduction kem adversary)] = 0 := by
-    change Pr[⊥ | do
-        let (pk, _sk) ← kem.keygen
-        let st ← (indCpaReduction kem adversary).preChallenge pk
-        let b ← ($ᵗ Bool : ProbComp Bool)
-        let (cStar, kReal) ← kem.encaps pk
-        let kRand ← ($ᵗ K : ProbComp K)
-        let b' ← (indCpaReduction kem adversary).postChallenge st cStar (if b then kReal else kRand)
-        pure (b == b')] = 0
-    exact NeverFail.probFailure_eq_zero
-  have htotal : Pr[= true | KEMScheme.IND_CPA_Game ProbCompRuntime.probComp
-      (indCpaReduction kem adversary)] +
-      Pr[= false | KEMScheme.IND_CPA_Game ProbCompRuntime.probComp
-        (indCpaReduction kem adversary)] = 1 := by
-    rw [probOutput_true_add_false, hnf, tsub_zero]
-  rw [IND_CPA_Advantage_eq_game_bias, SPMF.boolBiasAdvantage_eq_two_mul_abs_sub_half _ htotal]
+  set game := KEMScheme.IND_CPA_Game ProbCompRuntime.probComp (indCpaReduction kem adversary)
+  have htotal : (Pr[= false | game]).toReal = 1 - (Pr[= true | game]).toReal := by
+    rw [probOutput_false_eq_sub, probFailure_eq_zero, tsub_zero,
+      ENNReal.toReal_sub_of_le probOutput_le_one ENNReal.one_ne_top, ENNReal.toReal_one]
+  rw [IND_CPA_Advantage_eq_game_bias, MeasureTheory.Measure.toReal_boolBias,
+    ProbCompRuntime.probComp_evalDist, evalDist_apply_singleton, evalDist_apply_singleton, htotal,
+    show ∀ t : ℝ, t - (1 - t) = 2 * (t - 1 / 2) from fun t => by ring, abs_mul, abs_two]
   ring
 
 /-- As `fsIndCpaAdvantageA_eq`, with the roles of `A` and `B` swapped: since the RKEM-from-KEM
@@ -211,7 +202,8 @@ theorem fsIndCpaAdvantageB_eq
     (kem : KEMScheme ProbComp K PK SK C) (total : TotalDecaps kem)
     (adversary : RKEMScheme.FSINDCPAAdversary Unit PK SK (PK × C) K) :
     RKEMScheme.fsIndCpaAdvantageB (scheme kem total) adversary =
-      kem.IND_CPA_Advantage ProbCompRuntime.probComp (indCpaReduction kem adversary) / 2 := by
+      (kem.IND_CPA_Advantage ProbCompRuntime.probComp
+        (indCpaReduction kem adversary)).toReal / 2 := by
   unfold RKEMScheme.fsIndCpaAdvantageB
   rw [securityExpB_eq_securityExpA]
   exact fsIndCpaAdvantageA_eq kem total adversary
@@ -223,7 +215,7 @@ theorem fsIndCpaAdvantageB_eq
 theorem FSINDCPASecure (kem : KEMScheme ProbComp K PK SK C) (total : TotalDecaps kem)
     (ε : ℝ)
     (hcpa : ∀ adv : kem.IND_CPA_Adversary,
-      kem.IND_CPA_Advantage ProbCompRuntime.probComp adv ≤ ε)
+      (kem.IND_CPA_Advantage ProbCompRuntime.probComp adv).toReal ≤ ε)
     (adversaryA adversaryB : RKEMScheme.FSINDCPAAdversary Unit PK SK (PK × C) K) :
     RKEMScheme.FSINDCPASecure (scheme kem total) adversaryA adversaryB (ε / 2)
 -- ANCHOR_END: FSINDCPASecure

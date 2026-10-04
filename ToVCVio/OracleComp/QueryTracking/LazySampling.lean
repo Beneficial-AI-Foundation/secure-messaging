@@ -28,8 +28,8 @@ updated state `(a', s') : spec.Range t × σ`.
   delayed into the first query via the canonical `greedyLazy`
   construction. Formally, for any family
   `implFam : τ → QueryImpl spec (StateT σ ProbComp)`,
-  `evalDist (do let a ← $ᵗ τ; (simulateQ (implFam a) oa).run' s)`
-    `= evalDist ((simulateQ (greedyLazy implFam) oa).run' (s, none))`.
+  `evalSPMF (do let a ← $ᵗ τ; (simulateQ (implFam a) oa).run' s)`
+    `= evalSPMF ((simulateQ (greedyLazy implFam) oa).run' (s, none))`.
 
 * `probOutput_simulateQ_consumeLazy_run'_eq` — **external-sample consume-site commutation**.
 
@@ -39,8 +39,8 @@ updated state `(a', s') : spec.Range t × σ`.
   via the `consumeLazy` construction, *provided* `implFam` is
   constant in `τ` at non-hit queries (the `h_indep` hypothesis). Under that
   hypothesis,
-  `evalDist (do let a ← $ᵗ τ; (simulateQ (implFam a) oa).run' s)`
-    `= evalDist ((simulateQ (consumeLazy implFam hit) oa).run' (s, none))`.
+  `evalSPMF (do let a ← $ᵗ τ; (simulateQ (implFam a) oa).run' s)`
+    `= evalSPMF ((simulateQ (consumeLazy implFam hit) oa).run' (s, none))`.
 
 * The joint output-and-state forms behind it, which keep the final state and so
   are the ones that induct:
@@ -96,14 +96,14 @@ starting from `s`. -/
 private theorem probOutput_simulateQ_greedyLazy_run'_some_eq
     (implFam : τ → QueryImpl spec (StateT σ ProbComp))
     (oa : OracleComp spec α) (a : τ) (s : σ) :
-    evalDist ((simulateQ (implFam a) oa).run' s) =
-      evalDist ((simulateQ (greedyLazy implFam) oa).run' (s, some a)) := by
+    evalSPMF ((simulateQ (implFam a) oa).run' s) =
+      evalSPMF ((simulateQ (greedyLazy implFam) oa).run' (s, some a)) := by
   revert s
   induction oa using OracleComp.inductionOn with
   | pure x => intro s; simp [simulateQ_pure]
   | query_bind t k ih =>
     intro s
-    apply evalDist_ext
+    apply evalSPMF_ext
     intro y
     simp only [simulateQ_bind, simulateQ_query, OracleQuery.cont_query, id_map,
       OracleQuery.input_query, StateT.run'_eq, StateT.run_bind, map_bind]
@@ -117,7 +117,7 @@ private theorem probOutput_simulateQ_greedyLazy_run'_some_eq
     refine probOutput_bind_congr' _ y fun p => ?_
     have := ih p.1 p.2
     simp only [StateT.run'_eq] at this
-    simpa only [map_eq_bind_pure_comp] using evalDist_ext_iff.mp this y
+    simpa only [map_eq_bind_pure_comp] using evalSPMF_ext_iff.mp this y
 
 /-- **External-sample commutation into `simulateQ` via greedy lazy sampling.**
 
@@ -131,20 +131,20 @@ peel `a` with this lemma, then `b` on the resulting half-lazy impl. -/
 theorem probOutput_simulateQ_greedyLazy_run'_eq
     (implFam : τ → QueryImpl spec (StateT σ ProbComp))
     (oa : OracleComp spec α) (s : σ) :
-    evalDist (do
+    evalSPMF (do
       let a ← ($ᵗ τ : ProbComp τ)
       (simulateQ (implFam a) oa).run' s) =
-    evalDist ((simulateQ (greedyLazy implFam) oa).run' (s, none)) := by
+    evalSPMF ((simulateQ (greedyLazy implFam) oa).run' (s, none)) := by
   revert s
   induction oa using OracleComp.inductionOn with
   | pure x =>
     intro s
-    apply evalDist_ext
+    apply evalSPMF_ext
     intro y
     simp [simulateQ_pure]
   | query_bind t k ih =>
     intro s
-    apply evalDist_ext
+    apply evalSPMF_ext
     intro y
     simp only [simulateQ_bind, simulateQ_query, OracleQuery.cont_query, id_map,
       OracleQuery.input_query, StateT.run'_eq, StateT.run_bind, map_bind]
@@ -168,7 +168,7 @@ theorem probOutput_simulateQ_greedyLazy_run'_eq
     have h_cached := probOutput_simulateQ_greedyLazy_run'_some_eq
       implFam (k p.1) a p.2
     simp only [StateT.run'_eq] at h_cached
-    simpa only [map_eq_bind_pure_comp] using evalDist_ext_iff.mp h_cached y
+    simpa only [map_eq_bind_pure_comp] using evalSPMF_ext_iff.mp h_cached y
 
 /-! ## Consume-site-lazy variant
 
@@ -249,10 +249,10 @@ theorem evalDist_simulateQ_consumeLazy_run_sample_eq
     (h_indep : ∀ (t : spec.Domain) (s : σ) (a₁ a₂ : τ),
       hit t = false → (implFam a₁ t).run s = (implFam a₂ t).run s)
     (oa : OracleComp spec α) (s : σ) :
-    evalDist (do
+    evalSPMF (do
       let a ← ($ᵗ τ : ProbComp τ)
       (fun z => (a, z)) <$> (simulateQ (implFam a) oa).run s) =
-    evalDist (do
+    evalSPMF (do
       let z ← (simulateQ (consumeLazy implFam hit) oa).run (s, none)
       let a ← (match z.2.2 with
                | some a => (pure a : ProbComp τ)
@@ -271,7 +271,7 @@ theorem evalDist_simulateQ_consumeLazy_run_sample_eq
     · -- Hit query at empty cache: sample `a`, cache it, and let
       -- `run_simulateQ_consumeLazy_some_eq` carry `some a` to the end, where the completion
       -- `match` reads it back. Both sides are equal as terms, not merely in distribution.
-      refine congrArg evalDist ?_
+      refine congrArg evalSPMF ?_
       simp only [simulateQ_bind, simulateQ_query, OracleQuery.cont_query, id_map,
         OracleQuery.input_query, StateT.run_bind, map_bind, bind_assoc]
       have hg : (consumeLazy implFam hit t).run (s, none) =
@@ -291,7 +291,7 @@ theorem evalDist_simulateQ_consumeLazy_run_sample_eq
         cases ht : hit t with
         | true => exact absurd ht h
         | false => rfl
-      apply evalDist_ext
+      apply evalSPMF_ext
       intro y
       simp only [simulateQ_bind, simulateQ_query, OracleQuery.cont_query, id_map,
         OracleQuery.input_query, StateT.run_bind, map_bind]
@@ -336,15 +336,15 @@ theorem evalDist_simulateQ_consumeLazy_run_eq
     (h_indep : ∀ (t : spec.Domain) (s : σ) (a₁ a₂ : τ),
       hit t = false → (implFam a₁ t).run s = (implFam a₂ t).run s)
     (oa : OracleComp spec α) (s : σ) :
-    evalDist (do
+    evalSPMF (do
       let a ← ($ᵗ τ : ProbComp τ)
       (simulateQ (implFam a) oa).run s) =
-    evalDist (Prod.map id Prod.fst <$>
+    evalSPMF (Prod.map id Prod.fst <$>
       (simulateQ (consumeLazy implFam hit) oa).run (s, none)) := by
   -- Map the sample-preserving form by `Prod.snd`, dropping the `τ` component.
   have hplus := congrArg (fun d => (Prod.snd : τ × (α × σ) → α × σ) <$> d)
     (evalDist_simulateQ_consumeLazy_run_sample_eq implFam hit h_indep oa s)
-  simp only [← evalDist_map] at hplus
+  simp only [← evalSPMF_map] at hplus
   have hL : (Prod.snd : τ × (α × σ) → α × σ) <$> (do
         let a ← ($ᵗ τ : ProbComp τ)
         (fun z => (a, z)) <$> (simulateQ (implFam a) oa).run s) =
@@ -366,7 +366,7 @@ theorem evalDist_simulateQ_consumeLazy_run_eq
   rw [hL, hR] at hplus
   rw [hplus]
   -- The completion draw is value-irrelevant and never fails, so it drops out.
-  apply evalDist_ext
+  apply evalSPMF_ext
   intro y
   rw [map_eq_bind_pure_comp]
   refine probOutput_bind_congr' _ y fun z => ?_
@@ -385,13 +385,13 @@ theorem probOutput_simulateQ_consumeLazy_run'_eq
     (h_indep : ∀ (t : spec.Domain) (s : σ) (a₁ a₂ : τ),
       hit t = false → (implFam a₁ t).run s = (implFam a₂ t).run s)
     (oa : OracleComp spec α) (s : σ) :
-    evalDist (do
+    evalSPMF (do
       let a ← ($ᵗ τ : ProbComp τ)
       (simulateQ (implFam a) oa).run' s) =
-    evalDist ((simulateQ (consumeLazy implFam hit) oa).run' (s, none)) := by
+    evalSPMF ((simulateQ (consumeLazy implFam hit) oa).run' (s, none)) := by
   have h := congrArg (fun d => (Prod.fst : α × σ → α) <$> d)
     (evalDist_simulateQ_consumeLazy_run_eq implFam hit h_indep oa s)
-  simp only [← evalDist_map, map_bind, Functor.map_map] at h
+  simp only [← evalSPMF_map, map_bind, Functor.map_map] at h
   simpa only [StateT.run'_eq, Function.comp_def, Prod.map_fst, id] using h
 
 end OracleComp.ProgramLogic.Relational

@@ -14,11 +14,11 @@ game that differ only in where the two DDH-programmed scalars are sampled.
 
 The regular CKA game samples them lazily, inside the oracle stack:
 
-  `𝒟[simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) 𝒜]`.
+  `𝒮[simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) 𝒜]`.
 
 The parameterized game samples them eagerly, before the adversary runs:
 
-  `𝒟[do b a ← $ᵗ F; simulateQ (honestImplParamReal gp gen a b) 𝒜]`.
+  `𝒮[do b a ← $ᵗ F; simulateQ (honestImplParamReal gp gen a b) 𝒜]`.
 
 Here `a` is the scalar consumed at the embedding epoch, and `b` is the scalar
 consumed at the challenge epoch. The bridge proves that moving these samples
@@ -49,8 +49,8 @@ Main results in this file:
 * `evalDist_eager_honest_lazy_eq` — the whole-adversary bridge: for every
   adversary `𝒜`,
 
-      `𝒟[do b a ← $ᵗ F; simulateQ (honestImplParamReal gp gen a b) 𝒜] =`
-      `𝒟[simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) 𝒜]`.
+      `𝒮[do b a ← $ᵗ F; simulateQ (honestImplParamReal gp gen a b) 𝒜] =`
+      `𝒮[simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) 𝒜]`.
 
   Proved by induction on `𝒜` using the per-query step lemmas in `Step.lean`.
 
@@ -98,25 +98,25 @@ set_option maxHeartbeats 2000000 in
 omit [Inhabited F] [Fintype G] in
 /-- **Honest eager–lazy bridge.** For every adversary `𝒜` and initial
 state `s`, the eager parameterized presentation matches the regular CKA game
-at the `evalDist` level:
+at the `evalSPMF` level:
 
-  `𝒟[do b a ← $ᵗ F; (simulateQ (honestImplParamReal gp gen a b) 𝒜).run' s] =`
-  `𝒟[(simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) 𝒜).run' s]`. -/
+  `𝒮[do b a ← $ᵗ F; (simulateQ (honestImplParamReal gp gen a b) 𝒜).run' s] =`
+  `𝒮[(simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) 𝒜).run' s]`. -/
 lemma evalDist_eager_honest_lazy_eq
     (gp : GameParams) (s : GameState (CKAState F G) G G)
     (adversary : OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool) :
-    evalDist (do
+    evalSPMF (do
       let b ← ($ᵗ F : ProbComp F)
       let a ← ($ᵗ F : ProbComp F)
       (simulateQ (honestImplParamReal gp gen a b) adversary).run' s) =
-    evalDist ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) adversary).run' s) := by
+    evalSPMF ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) adversary).run' s) := by
   induction adversary using OracleComp.inductionOn generalizing s with
   | pure x =>
     -- Both sides reduce to `pure x` after `simulateQ_pure` + `StateT.run'_pure`;
     -- on LHS the external samples `b, a` become a constant bind which collapses
     -- to `pure x` since `$ᵗ F` has zero failure probability.
     simp only [simulateQ_pure, StateT.run'_pure']
-    simp only [DeferredSampling.evalDist_bind_const_neverFails _ (probFailure_uniformSample _)]
+    simp only [DeferredSampling.evalSPMF_bind_const_neverFails _ (probFailure_uniformSample _)]
   | query_bind t k ih =>
     let pass := evalDist_eager_honest_lazy_eq_step_passthrough (gen := gen) gp s
     -- Decompose: `simulateQ impl (query t >>= k) = (impl t).run >>= fun (u, s') =>
@@ -215,7 +215,7 @@ lemma probOutput_lazy_honest_eq [Finite G] (gp : GameParams)
       (CKAState.sendReady (x₀ • gen) : CKAState F G)
       (CKAState.recvReady x₀ : CKAState F G)) adversary
   simpa only [StateT.run'_eq, map_eq_bind_pure_comp, Function.comp_def] using
-    evalDist_ext_iff.mp (h₁.trans h₂) false
+    evalSPMF_ext_iff.mp (h₁.trans h₂) false
 
 end Step2
 

@@ -64,23 +64,19 @@ abbrev PRPOracleSpec (X : Type) := unifSpec + (X →ₒ X)
 guess bit. -/
 abbrev PRPAdversary (X : Type) := OracleComp (PRPOracleSpec X) Bool
 
-/-- Uniform-randomness oracle for the PRP game. -/
-def oracleUnif : QueryImpl unifSpec ProbComp :=
-  HasQuery.toQueryImpl (spec := unifSpec) (m := ProbComp)
-
 /-- Permutation oracle answering each query `x` with `g x`. -/
 def oraclePerm (g : X → X) : QueryImpl (X →ₒ X) ProbComp :=
   fun x => pure (g x)
 
 /-- Combined oracle implementation for the PRP game using permutation `g`. -/
 def prpQueryImpl (g : X → X) : QueryImpl (PRPOracleSpec X) ProbComp :=
-  oracleUnif + oraclePerm g
+  unifSpec.passthrough + oraclePerm g
 
 /-- Real experiment: sample a key `k` and run the adversary against the permutation `perm k`.
 It is by definition the PRF real experiment of `toPRFScheme`. -/
 def prpRealExp (prp : PRPScheme K X) (adversary : PRPAdversary X) :
     ProbComp Bool :=
-  PRFScheme.prfRealExp prp.toPRFScheme adversary
+  PRFScheme.prfRealExperiment prp.toPRFScheme adversary
 
 theorem prpRealExp_eq (prp : PRPScheme K X) (adversary : PRPAdversary X) :
     prpRealExp prp adversary =
@@ -123,7 +119,8 @@ theorem simulateQ_prpQueryImpl_mapM_inr (g : X → X) (pts : List X) :
         OracleQuery (PRFScheme.PRFOracleSpec X X) X)))
       = pure (pts.map g) := by
   simp only [simulateQ_list_mapM, simulateQ_query, OracleQuery.input_query,
-    OracleQuery.cont_query, prpQueryImpl, QueryImpl.add_apply_inr, oraclePerm, map_pure, id_eq,
+    OracleQuery.cont_query, prpQueryImpl, QueryImpl.passthrough_add, QueryImpl.add_apply_inr,
+    oraclePerm, map_pure, id_eq,
     List.mapM_pure]
 
 /-- A computation that makes no queries to `g` is unchanged by giving it access to `g`. -/

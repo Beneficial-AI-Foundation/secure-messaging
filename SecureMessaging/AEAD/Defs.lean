@@ -10,6 +10,7 @@ import VCVio.OracleComp.QueryTracking.QueryBound
 import VCVio.OracleComp.SimSemantics.Append
 import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
 import ToVCVio.OracleComp.SimSemantics.UnifLift
+import ToVCVio.EvalDist.Monad.Basic
 
 /-!
 # Authenticated Encryption with Associated Data (AEAD)

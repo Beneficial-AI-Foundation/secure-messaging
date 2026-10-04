@@ -191,9 +191,9 @@ private theorem tvDist_gcmInstFlat_le_probEvent_forge (L : ℕ)
 `mask`, independently and uniformly. -/
 private theorem evalDist_gcmInstRun_ks_outer (L : ℕ)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    𝒟[($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _) >>=
+    𝒮[($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _) >>=
         fun a => (simulateQ (gcmInstImpl a false) adv).run (none, false)] =
-      𝒟[($ᵗ (BitVec L) : ProbComp _) >>= fun ks =>
+      𝒮[($ᵗ (BitVec L) : ProbComp _) >>= fun ks =>
           (do let h ← ($ᵗ (BitVec 128) : ProbComp _)
               let mask ← ($ᵗ (BitVec 128) : ProbComp _)
               (simulateQ (gcmInstImpl (h, mask, ks) false) adv).run (none, false))] := by
@@ -201,12 +201,12 @@ private theorem evalDist_gcmInstRun_ks_outer (L : ℕ)
   simp only [bind_assoc, pure_bind]
   rw [uniformSample_prod_eq_bind (BitVec 128) (BitVec L)]
   simp only [bind_assoc, pure_bind]
-  refine (evalDist_bind_congr' _ (fun h =>
-      evalDist_bind_bind_swap ($ᵗ (BitVec 128) : ProbComp _)
+  refine (evalSPMF_bind_congr' _ (fun h =>
+      evalSPMF_bind_bind_swap ($ᵗ (BitVec 128) : ProbComp _)
         ($ᵗ (BitVec L) : ProbComp _)
         (fun mask ks =>
           (simulateQ (gcmInstImpl (h, mask, ks) false) adv).run (none, false)))).trans
-    (evalDist_bind_bind_swap ($ᵗ (BitVec 128) : ProbComp _)
+    (evalSPMF_bind_bind_swap ($ᵗ (BitVec 128) : ProbComp _)
       ($ᵗ (BitVec L) : ProbComp _)
       (fun h ks =>
         (do let mask ← ($ᵗ (BitVec 128) : ProbComp _)
@@ -232,7 +232,7 @@ theorem game2_game3_le_auth {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ
     {ε : ℝ≥0∞} (hε : ε ≠ ⊤) (haxu : GhashIsAXU L ε) :
     |(Pr[= true | game3 prp L hL adv]).toReal -
       (Pr[= true | game2 prp L hL adv]).toReal| ≤ (q_d : ℝ) * ε.toReal := by
-  -- The projections onto the instrumented games, consumed as `evalDist` equalities.
+  -- The projections onto the instrumented games, consumed as `evalSPMF` equalities.
   have h3 : Pr[= true | game3 prp L hL adv] = Pr[= true | game3Flat prp L hL adv] :=
     (probOutput_congr rfl (game3Flat_eq_game3 prp L hL adv)).symm
   have h2 : Pr[= true | game2 prp L hL adv] = Pr[= true | game2Flat prp L hL adv] :=

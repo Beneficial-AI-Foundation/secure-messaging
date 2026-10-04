@@ -17,9 +17,6 @@ For `ProbComp` computations `A`, `B` and `C`:
   Running `A` on both sides gives the same output, and that output is a possible output of `A`.
   This strengthens `relTriple_refl`.
 
-* `relTriple_refl_support_post`: `RelTriple A A R` if `R a a` for every `a ∈ support A`.
-  Running `A` on both sides, `R a a` only has to hold for outputs `a` that `A` can produce.
-
 * `relTriple_map_map_of_pointwise`: `RelTriple (f <$> C) (g <$> C) R`
   if `R (f c) (g c)` for every `c`.
   Both sides share one run of `C`, so `R` only needs to hold for the pairs `(f c, g c)`.
@@ -51,29 +48,8 @@ namespace OracleComp.ProgramLogic.Relational
 /-- Diagonal coupling refined by the support: a computation is related to
 itself by equality of outputs together with membership in its support. -/
 lemma relTriple_refl_support {α : Type} (mx : ProbComp α) :
-    RelTriple mx mx (fun a b => a = b ∧ a ∈ support mx) := by
-  rw [relTriple_iff_relWP, relWP_iff_couplingPost]
-  refine ⟨_root_.SPMF.Coupling.refl (𝒟[mx]), ?_⟩
-  intro z hz
-  rcases (mem_support_bind_iff
-    (𝒟[mx]) (fun a => (pure (a, a) : SPMF (α × α))) z).1 hz with
-    ⟨a, ha, hz'⟩
-  have hzEq : z = (a, a) := by
-    simpa [support_pure, Set.mem_singleton_iff] using hz'
-  subst hzEq
-  have ha' : some a ∈ (𝒟[mx]).run.support := by
-    rw [PMF.mem_support_iff]
-    exact (SPMF.mem_support_iff (𝒟[mx]) a).1 ha
-  exact ⟨rfl, mem_support_of_mem_support_evalDist mx a ha'⟩
-
-/-- A triple between a computation and itself follows from the postcondition
-holding on the diagonal of its support. -/
-lemma relTriple_refl_support_post {α : Type} {mx : ProbComp α}
-    {post : α → α → Prop} (h : ∀ a ∈ support mx, post a a) :
-    RelTriple mx mx post := by
-  refine relTriple_post_mono (relTriple_refl_support mx) ?_
-  rintro p q ⟨rfl, hsup⟩
-  exact h p hsup
+    RelTriple mx mx (fun a b => a = b ∧ a ∈ support mx) :=
+  relTriple_refl_of_mem_support mx fun _ ha => ⟨rfl, ha⟩
 
 /-- Mapping a single computation by two functions that are pointwise related
 gives an `R`-triple of the two mapped computations.  Both sides share the draw
@@ -83,8 +59,7 @@ lemma relTriple_map_map_of_pointwise {α β γ : Type} (mx : ProbComp α)
     (f : α → β) (g : α → γ) {R : β → γ → Prop}
     (h : ∀ a, R (f a) (g a)) :
     RelTriple (f <$> mx) (g <$> mx) R :=
-  relTriple_map (R := R) (relTriple_post_mono (relTriple_refl_support mx)
-    (by rintro a b ⟨rfl, _⟩; exact h a))
+  relTriple_map (R := R) (relTriple_refl_of_mem_support mx fun a _ => h a)
 
 /-- Let `oa` and `ob` be the images of a common computation `mx` under `f` and
 `g`, and let `f a` and `g a` be `R`-related for every `a`. Then `oa` and `ob`

@@ -5,6 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.CKA.FromDDH.Security.ReductionRand.Bridge
+import ToVCVio.CryptoFoundations.DiffieHellman
 
 /-!
 # CKA from DDH — Security Proof
@@ -28,7 +29,7 @@ with `ΔFS = 1` and `ΔPCS = 2`, there is an explicit DDH adversary
   `ckaGuessAdvantage(ddhCKA F G gen, 𝒜, gp) ≤ ddhGuessAdvantage(gen, ℬ)`
 
 *where `ckaGuessAdvantage(cka, 𝒜, gp) = | Pr[securityExp(cka, 𝒜, gp) = 1] − 1/2 |`
-and `ddhGuessAdvantage(gen, ℬ) = | Pr[ddhExp(gen, ℬ) = 1] − 1/2 |`.*
+and `ddhGuessAdvantage(gen, ℬ) = | Pr[ddhGame(gen, ℬ) = 1] − 1/2 |`.*
 
 *Note (cyclic group).* A particular instance of `(F, G)` satisfying the theorem
 is the prime-field case: `(F, +)` and `(G, +)` are cyclic groups of order `p`
@@ -235,7 +236,7 @@ satisfies the real DDH branch identity:
 lemma securityReduction_real (gp : GameParams)
   (hΔFS : gp.ΔFS = 1) (hΔPCS : gp.ΔPCS = 2)
     (adversary : CKAAdversary (CKAState F G) G G F) :
-    Pr[= true | ddhExpReal gen (securityReduction gp adversary)] =
+    Pr[= true | ddhRealExperiment gen (securityReduction gp adversary)] =
     Pr[= false | securityExpFixedBit (ddhCKA F G gen) adversary false gp] := by
   rw [probOutput_ddhExpReal_securityReduction, probOutput_securityExpFixedBit_false]
   exact probOutput_securityReductionRealGame_eq_honestFalse
@@ -249,7 +250,7 @@ lemma securityReduction_rand (gp : GameParams)
   (hΔFS : gp.ΔFS = 1) (hΔPCS : gp.ΔPCS = 2)
     (hg : Function.Bijective (· • gen : F → G))
     (adversary : CKAAdversary (CKAState F G) G G F) :
-    Pr[= true | ddhExpRand gen (securityReduction gp adversary)] =
+    Pr[= true | ddhRandomExperiment gen (securityReduction gp adversary)] =
     Pr[= false | securityExpFixedBit (ddhCKA F G gen) adversary true gp] := by
   rw [probOutput_ddhExpRand_securityReduction, probOutput_securityExpFixedBit_true]
   exact probOutput_securityReductionRandGame_eq_honestTrue
@@ -294,7 +295,7 @@ lemma security_le_ddh_plus_failGap (gp : GameParams)
   have hReal := securityReduction_real (gen := gen) gp hΔFS hΔPCS adversary
   have hRand := securityReduction_rand (gen := gen) gp hΔFS hΔPCS hg adversary
   -- Advantage decomposition identities on each side
-  have hDdh := ddhExp_probOutput_sub_half (F := F) gen
+  have hDdh := ddhGame_probOutput_sub_half (F := F) gen
     (securityReduction (F := F) (G := G) gp adversary)
   have hSec := securityExp_toReal_sub_half (ddhCKA F G gen) adversary gp
   have hRealR := congrArg ENNReal.toReal hReal
@@ -313,7 +314,7 @@ lemma security_le_ddh_plus_failGap (gp : GameParams)
   -- Key algebraic identity: sec = ddh + ΔFail/2
   have hKeyEq :
       (Pr[= true | securityExp (ddhCKA F G gen) adversary gp]).toReal - 1 / 2 =
-      ((Pr[= true | ddhExp gen
+      ((Pr[= true | ddhGame gen
         (securityReduction (F := F) (G := G) gp adversary)]).toReal - 1 / 2) +
       ((Pr[⊥ | securityExpFixedBit (ddhCKA F G gen) adversary false gp]).toReal -
        (Pr[⊥ | securityExpFixedBit (ddhCKA F G gen) adversary true gp]).toReal) / 2 := by
@@ -328,11 +329,11 @@ lemma security_le_ddh_plus_failGap (gp : GameParams)
     rw [abs_div, abs_of_pos (by norm_num : (0 : ℝ) < 2)]
   have habs :
       |(Pr[= true | securityExp (ddhCKA F G gen) adversary gp]).toReal - 1 / 2| ≤
-      |(Pr[= true | ddhExp gen
+      |(Pr[= true | ddhGame gen
         (securityReduction (F := F) (G := G) gp adversary)]).toReal - 1 / 2| +
       securityFailGap (gen := gen) gp adversary / 2 := by
     rw [hKeyEq]
-    calc |((Pr[= true | ddhExp gen
+    calc |((Pr[= true | ddhGame gen
             (securityReduction (F := F) (G := G) gp adversary)]).toReal - 1 / 2) +
             ((Pr[⊥ | securityExpFixedBit (ddhCKA F G gen) adversary false gp]).toReal -
              (Pr[⊥ | securityExpFixedBit (ddhCKA F G gen) adversary true gp]).toReal) / 2|

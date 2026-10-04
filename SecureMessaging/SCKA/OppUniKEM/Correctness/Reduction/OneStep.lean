@@ -489,6 +489,8 @@ lemma tracked_nonSend_score_support_eq [DecidableEq K]
       change y ∈ support
         ((SCKAScheme.oracleUnif (StA onoff Sym) (StB onoff Sym) K
           (Message Sym) n).run s) at hy
+      simp only [SCKAScheme.oracleUnif, QueryImpl.liftTarget_apply, QueryImpl.ofLift_apply,
+        StateT.run_monadLift, monadLift_self, support_bind, support_pure] at hy
       obtain ⟨r, _, hy'⟩ := Set.mem_iUnion₂.mp hy
       have hy_eq : y = (r, s) := hy'
       subst y

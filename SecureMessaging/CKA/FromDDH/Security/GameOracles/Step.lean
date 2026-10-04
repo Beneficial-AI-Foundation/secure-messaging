@@ -62,11 +62,11 @@ eager are pointwise equal. Notation:
 Given the impl-equality
   `∀ a, b. (honest_param a b t).run s = (eager t).run s`
 and the IH
-  `∀ u s'. 𝒟[do b, a ← $ᵗ F; sim(honest_param a b)(k u).run' s']
-        = 𝒟[sim(eager)(k u).run' s']`,
+  `∀ u s'. 𝒮[do b, a ← $ᵗ F; sim(honest_param a b)(k u).run' s']
+        = 𝒮[sim(eager)(k u).run' s']`,
 prove
-  `𝒟[do b, a ← $ᵗ F; sim(honest_param a b)(query t >>= k).run' s]
- = 𝒟[sim(eager)(query t >>= k).run' s]`.
+  `𝒮[do b, a ← $ᵗ F; sim(honest_param a b)(query t >>= k).run' s]
+ = 𝒮[sim(eager)(query t >>= k).run' s]`.
 
 Discharges the 5 non-divergence indices (`OUnif`, `ORecv{A,B}`,
 `OCorrupt{A,B}`) of the bridge induction's `query_bind` case, and also
@@ -82,17 +82,17 @@ lemma evalDist_eager_honest_lazy_eq_step_passthrough
       (ckaSecurityImpl gp false (ddhCKA F G gen) t).run s)
     (h_ih : ∀ (u : (ckaSecuritySpec (CKAState F G) G G F).Range t)
           (s' : GameState (CKAState F G) G G),
-      evalDist (do
+      evalSPMF (do
         let b ← ($ᵗ F : ProbComp F)
         let a ← ($ᵗ F : ProbComp F)
         (simulateQ (honestImplParamReal gp gen a b) (k u)).run' s') =
-      evalDist ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) (k u)).run' s')) :
-    evalDist (do
+      evalSPMF ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) (k u)).run' s')) :
+    evalSPMF (do
       let b ← ($ᵗ F : ProbComp F)
       let a ← ($ᵗ F : ProbComp F)
       (simulateQ (honestImplParamReal gp gen a b)
         (OracleSpec.query t >>= k)).run' s) =
-    evalDist ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen))
+    evalSPMF ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen))
       (OracleSpec.query t >>= k)).run' s) := by
   let sample : ProbComp (F × F) := do
     let b ← ($ᵗ F : ProbComp F)
@@ -134,15 +134,15 @@ lemma probOutput_real_send_coupling
     (post : F → GameState (CKAState F G) G G)
     (k : Option (G × G) → OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool)
     (h_ih : ∀ (u : Option (G × G)) (s' : GameState (CKAState F G) G G),
-      evalDist (do
+      evalSPMF (do
         let b ← ($ᵗ F : ProbComp F)
         let a ← ($ᵗ F : ProbComp F)
         (simulateQ (honestImplParamReal gp gen a b) (k u)).run' s') =
-      evalDist ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) (k u)).run' s'))
+      evalSPMF ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) (k u)).run' s'))
     (h_a_indep : ∀ x b a : F,
-      evalDist ((simulateQ (honestImplParamReal gp gen a b)
+      evalSPMF ((simulateQ (honestImplParamReal gp gen a b)
         (k (some (x • gen, x • peer)))).run (post x)) =
-      evalDist ((simulateQ (honestImplParamReal gp gen x b)
+      evalSPMF ((simulateQ (honestImplParamReal gp gen x b)
         (k (some (x • gen, x • peer)))).run (post x)))
     (y : Bool) :
     Pr[= y | do
@@ -166,9 +166,9 @@ lemma probOutput_real_send_coupling
     (h_ih := fun x => by
     have hi := h_ih (some (x • gen, x • peer)) (post x)
     simp only [StateT.run'_eq] at hi
-    exact evalDist_ext_iff.mp hi.symm y)
+    exact evalSPMF_ext_iff.mp hi.symm y)
     (h_indep := fun x b a =>
-      probOutput_map_eq_of_evalDist_eq (h_a_indep x b a) Prod.fst y)
+      probOutput_map_eq_of_evalSPMF_eq (h_a_indep x b a) Prod.fst y)
 
 omit [Inhabited F] [Fintype G] in
 /-- Final step used by the rand-branch active send proofs.
@@ -184,16 +184,16 @@ lemma probOutput_rand_send_coupling
     (post : F → GameState (CKAState F G) G G)
     (k : Option (G × G) → OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool)
     (h_ih : ∀ (u : Option (G × G)) (s' : GameState (CKAState F G) G G),
-      evalDist (do
+      evalSPMF (do
         let a ← ($ᵗ F : ProbComp F)
         let b ← ($ᵗ F : ProbComp F)
         let gT ← ($ᵗ G : ProbComp G)
         (simulateQ (honestImplParamRand gp gen a b gT) (k u)).run' s') =
-      evalDist ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) (k u)).run' s'))
+      evalSPMF ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) (k u)).run' s'))
     (h_a_indep : ∀ (x b a : F) (gT : G),
-      evalDist ((simulateQ (honestImplParamRand gp gen a b gT)
+      evalSPMF ((simulateQ (honestImplParamRand gp gen a b gT)
         (k (some (x • gen, x • peer)))).run (post x)) =
-      evalDist ((simulateQ (honestImplParamRand gp gen x b gT)
+      evalSPMF ((simulateQ (honestImplParamRand gp gen x b gT)
         (k (some (x • gen, x • peer)))).run (post x)))
     (y : Bool) :
     Pr[= y | do
@@ -219,9 +219,9 @@ lemma probOutput_rand_send_coupling
     (h_ih := fun x => by
     have hi := h_ih (some (x • gen, x • peer)) (post x)
     simp only [StateT.run'_eq] at hi
-    exact evalDist_ext_iff.mp hi.symm y)
+    exact evalSPMF_ext_iff.mp hi.symm y)
     (h_indep := fun x b a gT =>
-      probOutput_map_eq_of_evalDist_eq (h_a_indep x b a gT) Prod.fst y)
+      probOutput_map_eq_of_evalSPMF_eq (h_a_indep x b a gT) Prod.fst y)
 
 omit [Inhabited F] [Fintype G] in
 /-- One step of `evalDist_eager_honest_lazy_eq` for `query OSendA >>= k`
@@ -234,13 +234,13 @@ when the challenged party is `B` (the on-party embedding event). Notation:
 
 Given the IH
 
-  `∀ u s'. 𝒟[do b, a ← $ᵗ F; sim(honest_param a b)(k u).run' s']
-        = 𝒟[sim(eager)(k u).run' s']`,
+  `∀ u s'. 𝒮[do b, a ← $ᵗ F; sim(honest_param a b)(k u).run' s']
+        = 𝒮[sim(eager)(k u).run' s']`,
 
 prove
 
-  `𝒟[do b, a ← $ᵗ F; sim(honest_param a b)(query OSendA >>= k).run' s]
- = 𝒟[sim(eager)(query OSendA >>= k).run' s]`
+  `𝒮[do b, a ← $ᵗ F; sim(honest_param a b)(query OSendA >>= k).run' s]
+ = 𝒮[sim(eager)(query OSendA >>= k).run' s]`
 -/
 lemma evalDist_eager_honest_lazy_eq_step_at_sendA_chal_B
     (gp : GameParams) (h_cp : gp.challengedParty = .B)
@@ -249,18 +249,18 @@ lemma evalDist_eager_honest_lazy_eq_step_at_sendA_chal_B
          OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool)
     (h_ih : ∀ (u : (ckaSecuritySpec (CKAState F G) G G F).Range OSendA)
             (s' : GameState (CKAState F G) G G),
-      evalDist (do
+      evalSPMF (do
         let b ← ($ᵗ F : ProbComp F)
         let a ← ($ᵗ F : ProbComp F)
         (simulateQ (honestImplParamReal gp gen a b) (k u)).run' s') =
-      evalDist ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) (k u)).run' s')) :
-    evalDist (do
+      evalSPMF ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) (k u)).run' s')) :
+    evalSPMF (do
       let b ← ($ᵗ F : ProbComp F)
       let a ← ($ᵗ F : ProbComp F)
       (simulateQ (honestImplParamReal gp gen a b)
         (OracleSpec.query
           (OSendA : (ckaSecuritySpec (CKAState F G) G G F).Domain) >>= k)).run' s) =
-    evalDist ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen))
+    evalSPMF ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen))
       (OracleSpec.query
         (OSendA : (ckaSecuritySpec (CKAState F G) G G F).Domain) >>= k)).run' s) := by
   -- Case-split on whether the embedding fires at this query. The firing
@@ -333,7 +333,7 @@ lemma evalDist_eager_honest_lazy_eq_step_at_sendA_chal_B
         simp [oracleSendA, StateT.run_bind, StateT.run_get, StateT.run_set,
           pure_bind, bind_pure_comp,
           h_v, h_stA, ddhCKA, send, post]
-      apply evalDist_ext; intro y
+      apply evalSPMF_ext; intro y
       simp only [simulateQ_bind, simulateQ_query, OracleQuery.cont_query, id_map,
         OracleQuery.input_query, StateT.run'_eq, StateT.run_bind, map_bind]
       have eq_lhs := probOutput_sample_param₂_handler_pure_eq
@@ -394,18 +394,18 @@ lemma evalDist_eager_honest_lazy_eq_step_at_sendB_chal_A
          OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool)
     (h_ih : ∀ (u : (ckaSecuritySpec (CKAState F G) G G F).Range OSendB)
             (s' : GameState (CKAState F G) G G),
-      evalDist (do
+      evalSPMF (do
         let b ← ($ᵗ F : ProbComp F)
         let a ← ($ᵗ F : ProbComp F)
         (simulateQ (honestImplParamReal gp gen a b) (k u)).run' s') =
-      evalDist ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) (k u)).run' s')) :
-    evalDist (do
+      evalSPMF ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) (k u)).run' s')) :
+    evalSPMF (do
       let b ← ($ᵗ F : ProbComp F)
       let a ← ($ᵗ F : ProbComp F)
       (simulateQ (honestImplParamReal gp gen a b)
         (OracleSpec.query
           (OSendB : (ckaSecuritySpec (CKAState F G) G G F).Domain) >>= k)).run' s) =
-    evalDist ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen))
+    evalSPMF ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen))
       (OracleSpec.query
         (OSendB : (ckaSecuritySpec (CKAState F G) G G F).Domain) >>= k)).run' s) := by
   by_cases h_fire :
@@ -449,7 +449,7 @@ lemma evalDist_eager_honest_lazy_eq_step_at_sendB_chal_A
         simp [oracleSendB, StateT.run_bind, StateT.run_get, StateT.run_set,
           pure_bind, bind_pure_comp,
           h_v, h_stB, ddhCKA, send, post]
-      apply evalDist_ext; intro y
+      apply evalSPMF_ext; intro y
       simp only [simulateQ_bind, simulateQ_query, OracleQuery.cont_query, id_map,
         OracleQuery.input_query, StateT.run'_eq, StateT.run_bind, map_bind]
       have eq_lhs := probOutput_sample_param₂_handler_pure_eq
@@ -509,15 +509,15 @@ lemma probOutput_real_challenge_coupling
     (post : F → GameState (CKAState F G) G G)
     (k : Option (G × G) → OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool)
     (h_ih : ∀ (u : Option (G × G)) (s' : GameState (CKAState F G) G G),
-      evalDist (do
+      evalSPMF (do
         let b ← ($ᵗ F : ProbComp F)
         let a ← ($ᵗ F : ProbComp F)
         (simulateQ (honestImplParamReal gp gen a b) (k u)).run' s') =
-      evalDist ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) (k u)).run' s'))
+      evalSPMF ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) (k u)).run' s'))
     (h_b_indep : ∀ x a b : F,
-      evalDist ((simulateQ (honestImplParamReal gp gen a b)
+      evalSPMF ((simulateQ (honestImplParamReal gp gen a b)
         (k (some (x • gen, x • peer)))).run (post x)) =
-      evalDist ((simulateQ (honestImplParamReal gp gen a x)
+      evalSPMF ((simulateQ (honestImplParamReal gp gen a x)
         (k (some (x • gen, x • peer)))).run (post x)))
     (y : Bool) :
     Pr[= y | do
@@ -541,9 +541,9 @@ lemma probOutput_real_challenge_coupling
     (h_ih := fun x => by
     have hi := h_ih (some (x • gen, x • peer)) (post x)
     simp only [StateT.run'_eq] at hi
-    exact evalDist_ext_iff.mp hi.symm y)
+    exact evalSPMF_ext_iff.mp hi.symm y)
     (h_indep := fun x a b =>
-      probOutput_map_eq_of_evalDist_eq (h_b_indep x a b) Prod.fst y)
+      probOutput_map_eq_of_evalSPMF_eq (h_b_indep x a b) Prod.fst y)
 
 omit [Inhabited F] [Fintype G] in
 /-- Final step used by the rand-branch active challenge proofs.
@@ -573,27 +573,27 @@ lemma probOutput_rand_challenge_coupling
     -- `h_ih`: instantiate the generic eager/lazy-continuation match at any
     -- fixed response `u` and post-state `s'`.
     (h_ih : ∀ (u : Option (G × G)) (s' : GameState (CKAState F G) G G),
-      evalDist (do
+      evalSPMF (do
         let a ← ($ᵗ F : ProbComp F)
         let b ← ($ᵗ F : ProbComp F)
         let gT ← ($ᵗ G : ProbComp G)
         (simulateQ (honestImplParamRand gp gen a b gT) (k u)).run' s') =
-      evalDist ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) (k u)).run' s'))
+      evalSPMF ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) (k u)).run' s'))
     -- `h_b_indep`: generic second-parameter independence. With response
     -- `some (x • gen, outKey)` and state `post x` fixed, change the lazy
     -- challenge scalar from sampled `b` to the scalar `x` used in the response.
     (h_b_indep : ∀ (x : F) (outKey : G) (a b : F) (gT : G),
-      evalDist ((simulateQ (honestImplParamRand gp gen a b gT)
+      evalSPMF ((simulateQ (honestImplParamRand gp gen a b gT)
         (k (some (x • gen, outKey)))).run (post x)) =
-      evalDist ((simulateQ (honestImplParamRand gp gen a x gT)
+      evalSPMF ((simulateQ (honestImplParamRand gp gen a x gT)
         (k (some (x • gen, outKey)))).run (post x)))
     -- `h_gT_indep`: generic third-parameter independence. With the same fixed
     -- response and state, and lazy scalar already `x`, change the lazy random
     -- group sample from sampled `gT` to the key `outKey` used in the response.
     (h_gT_indep : ∀ (x : F) (outKey : G) (a : F) (gT : G),
-      evalDist ((simulateQ (honestImplParamRand gp gen a x gT)
+      evalSPMF ((simulateQ (honestImplParamRand gp gen a x gT)
         (k (some (x • gen, outKey)))).run (post x)) =
-      evalDist ((simulateQ (honestImplParamRand gp gen a x outKey)
+      evalSPMF ((simulateQ (honestImplParamRand gp gen a x outKey)
         (k (some (x • gen, outKey)))).run (post x)))
     -- `y`: output bit whose point probability is compared.
     (y : Bool) :
@@ -631,11 +631,11 @@ lemma probOutput_rand_challenge_coupling
     (h_ih := fun x outKey => by
       have hi := h_ih (some (x • gen, outKey)) (post x)
       simp only [StateT.run'_eq] at hi
-      exact evalDist_ext_iff.mp hi.symm y)
+      exact evalSPMF_ext_iff.mp hi.symm y)
     (h_second_indep := fun x outKey a b gT =>
-      probOutput_map_eq_of_evalDist_eq (h_b_indep x outKey a b gT) Prod.fst y)
+      probOutput_map_eq_of_evalSPMF_eq (h_b_indep x outKey a b gT) Prod.fst y)
     (h_third_indep := fun x outKey a gT =>
-      probOutput_map_eq_of_evalDist_eq (h_gT_indep x outKey a gT) Prod.fst y)
+      probOutput_map_eq_of_evalSPMF_eq (h_gT_indep x outKey a gT) Prod.fst y)
 
 omit [Inhabited F] [Fintype G] in
 /-- Mirror of the send firing helpers for the on-party `challA` event at
@@ -648,18 +648,18 @@ lemma evalDist_eager_honest_lazy_eq_step_at_challA_chal_A
          OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool)
     (h_ih : ∀ (u : (ckaSecuritySpec (CKAState F G) G G F).Range OChallA)
             (s' : GameState (CKAState F G) G G),
-      evalDist (do
+      evalSPMF (do
         let b ← ($ᵗ F : ProbComp F)
         let a ← ($ᵗ F : ProbComp F)
         (simulateQ (honestImplParamReal gp gen a b) (k u)).run' s') =
-      evalDist ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) (k u)).run' s')) :
-    evalDist (do
+      evalSPMF ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) (k u)).run' s')) :
+    evalSPMF (do
       let b ← ($ᵗ F : ProbComp F)
       let a ← ($ᵗ F : ProbComp F)
       (simulateQ (honestImplParamReal gp gen a b)
         (OracleSpec.query
           (OChallA : (ckaSecuritySpec (CKAState F G) G G F).Domain) >>= k)).run' s) =
-    evalDist ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen))
+    evalSPMF ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen))
       (OracleSpec.query
         (OChallA : (ckaSecuritySpec (CKAState F G) G G F).Domain) >>= k)).run' s) := by
   by_cases h_fire :
@@ -708,7 +708,7 @@ lemma evalDist_eager_honest_lazy_eq_step_at_challA_chal_A
         simp [oracleChallA, StateT.run_bind, StateT.run_get, StateT.run_set,
           pure_bind, bind_pure_comp,
           h_v, h_beq, h_e_post, h_stA, ddhCKA, send, post]
-      apply evalDist_ext; intro y
+      apply evalSPMF_ext; intro y
       simp only [simulateQ_bind, simulateQ_query, OracleQuery.cont_query, id_map,
         OracleQuery.input_query, StateT.run'_eq, StateT.run_bind, map_bind]
       have eq_lhs := probOutput_sample_param₂_handler_pure_eq
@@ -763,18 +763,18 @@ lemma evalDist_eager_honest_lazy_eq_step_at_challB_chal_B
          OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool)
     (h_ih : ∀ (u : (ckaSecuritySpec (CKAState F G) G G F).Range OChallB)
             (s' : GameState (CKAState F G) G G),
-      evalDist (do
+      evalSPMF (do
         let b ← ($ᵗ F : ProbComp F)
         let a ← ($ᵗ F : ProbComp F)
         (simulateQ (honestImplParamReal gp gen a b) (k u)).run' s') =
-      evalDist ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) (k u)).run' s')) :
-    evalDist (do
+      evalSPMF ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) (k u)).run' s')) :
+    evalSPMF (do
       let b ← ($ᵗ F : ProbComp F)
       let a ← ($ᵗ F : ProbComp F)
       (simulateQ (honestImplParamReal gp gen a b)
         (OracleSpec.query
           (OChallB : (ckaSecuritySpec (CKAState F G) G G F).Domain) >>= k)).run' s) =
-    evalDist ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen))
+    evalSPMF ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen))
       (OracleSpec.query
         (OChallB : (ckaSecuritySpec (CKAState F G) G G F).Domain) >>= k)).run' s) := by
   by_cases h_fire :
@@ -823,7 +823,7 @@ lemma evalDist_eager_honest_lazy_eq_step_at_challB_chal_B
         simp [oracleChallB, StateT.run_bind, StateT.run_get, StateT.run_set,
           pure_bind, bind_pure_comp,
           h_v, h_beq, h_e_post, h_stB, ddhCKA, send, post]
-      apply evalDist_ext; intro y
+      apply evalSPMF_ext; intro y
       simp only [simulateQ_bind, simulateQ_query, OracleQuery.cont_query, id_map,
         OracleQuery.input_query, StateT.run'_eq, StateT.run_bind, map_bind]
       have eq_lhs := probOutput_sample_param₂_handler_pure_eq

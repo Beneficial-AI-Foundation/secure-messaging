@@ -5,7 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.AEAD.FromGCM.Security.Encoding
-import ToVCVio.CryptoFoundations.UniversalHash
+import VCVio.CryptoFoundations.UniversalHash
 import ToVCVio.OracleComp.Constructions.BitVec
 
 /-!
@@ -23,7 +23,7 @@ key, and these are distinct inputs with identical hashes. The length block appen
 `gcmEncode` separates such pairs.
 -/
 
-open OracleComp OracleSpec ENNReal ToVCVio
+open OracleComp OracleSpec ENNReal ToVCVio UniversalHash
 
 namespace GCM
 

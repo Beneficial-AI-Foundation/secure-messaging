@@ -4,22 +4,15 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.OracleComp.ProbCompLift
 import ToVCVio.EvalDist.Monad.Basic
 
 /-!
-# Point-probability transport for `ProbComp` runtimes and `StateT` projections
+# Point-probability transport for `StateT` projections
 -/
 
 open OracleSpec ENNReal
 
 namespace ToVCVio
-
-/-- The canonical `ProbComp` runtime embeds through `evalDist` without changing
-point probabilities. -/
-lemma probOutput_probCompRuntime_evalDist_eq {α : Type} (mx : ProbComp α) (x : α) :
-    Pr[= x | ProbCompRuntime.probComp.evalDist mx] = Pr[= x | mx] := by
-  rfl
 
 /-- Lift a `.run` point-distribution equality to the `Bool` `.run'` projection. -/
 lemma probOutput_run'_true_eq_of_run_probOutput_eq {σ : Type}

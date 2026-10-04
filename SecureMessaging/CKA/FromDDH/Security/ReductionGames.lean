@@ -311,13 +311,13 @@ noncomputable def securityReductionRealGame (gp : GameParams)
 
   `Pr[ℬ = true | DDH_real]  =  Pr[securityReductionRealGame = false]`
 
-`ddhExpReal gen ℬ` and `securityReductionRealGame gp 𝒜` run the same sampling
+`ddhRealExperiment gen ℬ` and `securityReductionRealGame gp 𝒜` run the same sampling
 and simulation; they differ only in their (negated bit) return. -/
 lemma probOutput_ddhExpReal_securityReduction (gp : GameParams)
     (adversary : CKAAdversary (CKAState F G) G G F) :
-    Pr[= true | ddhExpReal gen (securityReduction gp adversary)] =
+    Pr[= true | ddhRealExperiment gen (securityReduction gp adversary)] =
     Pr[= false | securityReductionRealGame (gen := gen) gp adversary] := by
-  unfold DiffieHellman.ddhExpReal securityReduction
+  unfold DiffieHellman.ddhRealExperiment securityReduction
   simpa [securityReductionRealGame, monad_norm] using
     (probOutput_not_map (m := ProbComp)
       (mx := securityReductionRealGame (gen := gen) gp adversary))
@@ -358,14 +358,14 @@ noncomputable def securityReductionRandGame (gp : GameParams)
 
   `Pr[ℬ = true | DDH_rand]  =  Pr[= false | securityReductionRandGame]`
 
-`ddhExpRand gen ℬ` returns `!b'` where `b'` is the output of
+`ddhRandomExperiment gen ℬ` returns `!b'` where `b'` is the output of
 `securityReductionRandGame`, so the probability of `true` on the left
 equals the probability of `false` on the right by `probOutput_not_map`. -/
 lemma probOutput_ddhExpRand_securityReduction (gp : GameParams)
     (adversary : CKAAdversary (CKAState F G) G G F) :
-    Pr[= true | ddhExpRand gen (securityReduction gp adversary)] =
+    Pr[= true | ddhRandomExperiment gen (securityReduction gp adversary)] =
     Pr[= false | securityReductionRandGame (gen := gen) gp adversary] := by
-  unfold DiffieHellman.ddhExpRand securityReduction
+  unfold DiffieHellman.ddhRandomExperiment securityReduction
   simpa [securityReductionRandGame, monad_norm] using
     (probOutput_not_map (m := ProbComp)
       (mx := securityReductionRandGame (gen := gen) gp adversary))

@@ -86,11 +86,11 @@ theorem game0_eq_prfRealExp
     (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     Pr[= true | game0 se prf adv] =
-      Pr[= true | prf.prfRealExp (prfReduction se adv)] := by
+      Pr[= true | prf.prfRealExperiment (prfReduction se adv)] := by
   -- RHS: unfold the reduction + experiment, fold the inner skeleton run to `run'`,
   -- collapse the nested `simulateQ` via `mapStateTBase`, forward `liftComp se.keygen`
   -- using the `unifSpec`-transparency theorem `simulateQ_prfRealQueryImpl_liftComp`.
-  unfold PRFScheme.prfRealExp prfReduction etmGameSkeleton
+  unfold PRFScheme.prfRealExperiment prfReduction etmGameSkeleton
   simp only [bind_pure_comp, ← StateT.run'_eq, simulateQ_bind,
     QueryImpl.simulateQ_mapStateTBase_run', PRFScheme.simulateQ_prfRealQueryImpl_liftComp]
   -- LHS: unfold game0 + skeleton, fold its run to `run'`.
@@ -143,14 +143,14 @@ theorem game1_eq_prfIdealExp
     (se : DetSEAlg K_e M C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     Pr[= true | game1 se adv] =
-      Pr[= true | PRFScheme.prfIdealExp (prfReduction se adv)] := by
+      Pr[= true | PRFScheme.prfIdealExperiment (prfReduction se adv)] := by
   -- RHS: collapse the nested `simulateQ`, forward keygen using the cache-threading
   -- `unifSpec`-transparency theorem `simulateQ_prfIdealQueryImpl_liftComp`,
   -- then push the outer `.run' ∅` through the `liftM se.keygen` bind so both sides start with
   -- `se.keygen` (the cache threads through unchanged). `StateT.run'_liftM_bind` is used rather
   -- than the general `StateT.run'_bind'`, which unfolds *every* `run'`-of-bind and would
   -- dismantle the per-key `simulateQ … .run'` recovered below.
-  unfold PRFScheme.prfIdealExp prfReduction etmGameSkeleton
+  unfold PRFScheme.prfIdealExperiment prfReduction etmGameSkeleton
   simp only [bind_pure_comp, ← StateT.run'_eq, simulateQ_bind,
     QueryImpl.simulateQ_mapStateTBase_run', PRFScheme.simulateQ_prfIdealQueryImpl_liftComp,
     StateT.run'_liftM_bind]
@@ -251,13 +251,13 @@ theorem game1_eq_prfIdealExp
               StateT ((AD × C_e →ₒ T).QueryCache) ProbComp (unifSpec.Range n)) :=
         PRFScheme.simulateQ_prfIdealQueryImpl_liftComp
           (liftM (OracleSpec.query n) : OracleComp unifSpec (unifSpec.Range n))
-      rw [flattenStateT_mapStateTBase_apply_run]
+      rw [QueryImpl.flattenStateT_mapStateTBase_apply_run]
       simp [gameUnifImpl,
         QueryImpl.add_apply_inl, hq,
         StateT.run_bind, StateT.run_monadLift, Prod.map, Functor.map_map]
     · -- encryption oracle: `se.encrypt ke m` + tag = `randomOracle (ad,c)` on the relocated
       -- cache; the inner TagCache (∅) is dropped by proj
-      rw [flattenStateT_mapStateTBase_apply_run]
+      rw [QueryImpl.flattenStateT_mapStateTBase_apply_run]
       cases ch <;>
         simp [QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
           StateT.run_bind, StateT.run_get, StateT.run_set, StateT.run_monadLift,
@@ -265,7 +265,7 @@ theorem game1_eq_prfIdealExp
     · -- decryption oracle: verify = `randomOracle (ad,c)` compare; same relocation.
       -- After the (shared) RO query, the verify result is a `pure`, so `simulateQ` is the
       -- identity and the nested-state reassoc lines up with game1's direct run.
-      rw [flattenStateT_mapStateTBase_apply_run]
+      rw [QueryImpl.flattenStateT_mapStateTBase_apply_run]
       cases ch with
       | none =>
         simp only [add_apply_inr, StateT.run_pure, liftM_pure, StateT.run_monadLift,
@@ -300,8 +300,9 @@ theorem game0_game1_le_prf
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     |(Pr[= true | game0 se prf adv]).toReal -
      (Pr[= true | game1 se adv]).toReal| ≤
-      PRFScheme.prfAdvantage prf (prfReduction se adv) := by
+      (PRFScheme.prfAdvantage prf (prfReduction se adv)).toReal := by
   unfold PRFScheme.prfAdvantage
-  rw [game0_eq_prfRealExp se prf adv, game1_eq_prfIdealExp se adv]
+  rw [ToVCVio.toReal_boolDist_evalDist, game0_eq_prfRealExp se prf adv,
+    game1_eq_prfIdealExp se adv]
 
 end EtM

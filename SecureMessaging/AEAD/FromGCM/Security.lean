@@ -205,12 +205,12 @@ theorem gcmOneTimeAEAD_security_of_axu (prp : PRPScheme K (BitVec 128)) (iv : Bi
     let reduction := prfReduction iv L adv
     let forgeryBound : ℝ := (q_d : ℝ) * ε.toReal
     AEADScheme.distAdvantage (gcmOneTimeAEAD prp iv L hL) adv ≤
-      PRFScheme.prfAdvantage prp.toPRFScheme reduction + forgeryBound
+      (PRFScheme.prfAdvantage prp.toPRFScheme reduction).toReal + forgeryBound
 -- ANCHOR_END: gcmOneTimeAEAD_security_of_axu
   := by
   dsimp only
   have hg12 : Pr[= true | game1 prp L hL adv] = Pr[= true | game2 prp L hL adv] :=
-    evalDist_ext_iff.mp (game1_eq_game2 prp L hL adv) true
+    evalSPMF_ext_iff.mp (game1_eq_game2 prp L hL adv) true
   unfold AEADScheme.distAdvantage
   rw [← game4_eq_rand prp iv L hL adv, ← game0_eq_real prp iv L hL adv,
     ← probOutput_game3_eq_game4 prp L hL adv]
@@ -225,7 +225,7 @@ theorem gcmOneTimeAEAD_security_of_axu (prp : PRPScheme K (BitVec 128)) (iv : Bi
           set g2 := (Pr[= true | game2 prp L hL adv]).toReal
           set g3 := (Pr[= true | game3 prp L hL adv]).toReal
           linarith [abs_sub_le g3 g2 g0]
-    _ ≤ PRFScheme.prfAdvantage prp.toPRFScheme (prfReduction iv L adv) +
+    _ ≤ (PRFScheme.prfAdvantage prp.toPRFScheme (prfReduction iv L adv)).toReal +
         (q_d : ℝ) * ε.toReal :=
       add_le_add (game0_game1_le_prf prp iv L hL adv)
         (game2_game3_le_auth prp L hL adv q_d hq hε haxu)

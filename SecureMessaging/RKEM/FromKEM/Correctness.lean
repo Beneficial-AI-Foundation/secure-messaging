@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.RKEM.FromKEM.Construction
 import ToVCVio.CryptoFoundations.KeyEncapMech
 import ToVCVio.EvalDist.Monad.Basic
-import ToVCVio.EvalDist.TVDist
+import VCVio.OracleComp.Constructions.SampleableType.MeasureCompatibility
 
 /-!
 # RKEM from KEM — Correctness
@@ -27,7 +27,7 @@ other direction either — it already is the tightest possible bound. The first 
 no such shortcut and genuinely inherits `δ` from the underlying KEM.
 -/
 
-open ToVCVio OracleSpec OracleComp ENNReal KEMScheme RKEMScheme
+open ToVCVio OracleSpec OracleComp ENNReal KEMScheme RKEMScheme MeasureTheory
 
 namespace kemRKEM
 
@@ -37,10 +37,11 @@ variable {K PK SK C : Type}
 underlying KEM's own correctness experiment: the extra independent key pairs sampled along the
 way (`A`'s own fresh pair, and the fresh pair generated inside `rencA`) don't affect the
 comparison. Holds unconditionally, for any KEM (not just a correct one). -/
-theorem probOutput_correctExpA_eq_probOutput_CorrectExp [DecidableEq K]
+theorem probOutput_correctExpA_eq_probOutput_correctnessExperiment [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (total : TotalDecaps kem) :
-    Pr[= true | RKEMScheme.correctExpA (scheme kem total)] = Pr[= true | kem.CorrectExp] := by
-  unfold RKEMScheme.correctExpA KEMScheme.CorrectExp
+    Pr[= true | RKEMScheme.correctExpA (scheme kem total)] =
+      Pr[= true | kem.correctnessExperiment] := by
+  unfold RKEMScheme.correctExpA KEMScheme.correctnessExperiment
   simp only [scheme, rkeygen, renc, rdec, total.decaps_eq,
     map_eq_bind_pure_comp, Function.comp, pure_bind, bind_assoc]
   refine probOutput_bind_of_const' kem.keygen fun _ _ => ?_
@@ -59,12 +60,10 @@ Holds unconditionally, for any KEM (not just a correct one), which is why the co
 update-key-distribution error is always exactly zero. -/
 theorem evalDist_ratchetRoundOutputA_eq_evalDist_keygen
     (kem : KEMScheme ProbComp K PK SK C) (total : TotalDecaps kem) :
-    ProbCompRuntime.probComp.evalDist (RKEMScheme.ratchetRoundOutputA (scheme kem total)) =
-      ProbCompRuntime.probComp.evalDist kem.keygen := by
-  change (𝒟[RKEMScheme.ratchetRoundOutputA (scheme kem total)] : SPMF (PK × SK)) = 𝒟[kem.keygen]
+    𝒮[RKEMScheme.ratchetRoundOutputA (scheme kem total)] = 𝒮[kem.keygen] := by
   unfold RKEMScheme.ratchetRoundOutputA
   simp only [scheme, rkeygen, renc, rdec, pure_bind, bind_assoc]
-  refine evalDist_ext fun y => ?_
+  refine evalSPMF_ext fun y => ?_
   refine probOutput_bind_of_const' kem.keygen fun _ _ => ?_
   refine probOutput_bind_of_const' kem.keygen fun p _ => ?_
   obtain ⟨ekB, dkB⟩ := p
@@ -84,28 +83,33 @@ theorem deltaCorrect [DecidableEq K] (kem : KEMScheme ProbComp K PK SK C)
     RKEMScheme.deltaCorrect (scheme kem total) ProbCompRuntime.probComp δ 0
 -- ANCHOR_END: deltaCorrect
     := by
+  have hA : ProbCompRuntime.probComp.evalDist (RKEMScheme.correctExpA (scheme kem total)) {true} =
+      ProbCompRuntime.probComp.evalDist kem.correctnessExperiment {true} := by
+    simp only [ProbCompRuntime.probComp_evalDist, evalDist_apply_singleton,
+      probOutput_correctExpA_eq_probOutput_correctnessExperiment]
+  have hkeygen : (scheme kem total).rsetup >>= (scheme kem total).rkeygenAUpdated = kem.keygen := by
+    simp [scheme, rkeygen]
   refine ⟨⟨?_, ?_⟩, ?_, ?_⟩
   · unfold RKEMScheme.correctnessErrorA
-    change 1 - Pr[= true | RKEMScheme.correctExpA (scheme kem total)] ≤ δ
-    rw [probOutput_correctExpA_eq_probOutput_CorrectExp]
+    rw [hA]
     exact hkem
   · unfold RKEMScheme.correctnessErrorB
-    change 1 - Pr[= true | RKEMScheme.correctExpB (scheme kem total)] ≤ δ
-    rw [show (scheme kem total).correctExpB = (scheme kem total).correctExpA by rfl,
-        probOutput_correctExpA_eq_probOutput_CorrectExp]
+    rw [show (scheme kem total).correctExpB = (scheme kem total).correctExpA by rfl, hA]
     exact hkem
   · unfold RKEMScheme.updateKeyDistErrorA
-    rw [show (scheme kem total).rsetup >>= (scheme kem total).rkeygenAUpdated = kem.keygen from by
-      simp [scheme, rkeygen],
-      evalDist_ratchetRoundOutputA_eq_evalDist_keygen, SPMF.tvDist_self]
-    simp
+    let : MeasurableSpace (PK × SK) := ⊤
+    rw [hkeygen, ProbCompRuntime.probComp_evalDist, ProbCompRuntime.probComp_evalDist,
+      evalDist_eq_of_evalSPMF_eq _ _ (evalDist_ratchetRoundOutputA_eq_evalDist_keygen kem total),
+      Measure.etvDist_self]
   · unfold RKEMScheme.updateKeyDistErrorB
+    let : MeasurableSpace (PK × SK) := ⊤
     rw [show (scheme kem total).ratchetRoundOutputB = (scheme kem total).ratchetRoundOutputA
         by rfl,
       show (scheme kem total).rsetup >>= (scheme kem total).rkeygenBUpdated = kem.keygen from by
-      simp [scheme, rkeygen],
-      evalDist_ratchetRoundOutputA_eq_evalDist_keygen, SPMF.tvDist_self]
-    simp
+        simp [scheme, rkeygen],
+      ProbCompRuntime.probComp_evalDist, ProbCompRuntime.probComp_evalDist,
+      evalDist_eq_of_evalSPMF_eq _ _ (evalDist_ratchetRoundOutputA_eq_evalDist_keygen kem total),
+      Measure.etvDist_self]
 
 /-- **Perfect correctness** of the RKEM-from-KEM construction, as the `δ = 0` special case of
 `deltaCorrect`: if the underlying KEM is perfectly correct, so is the construction. -/

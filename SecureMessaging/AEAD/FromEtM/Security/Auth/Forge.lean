@@ -5,8 +5,8 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.AEAD.FromEtM.Security.Auth.Defs
-import ToVCVio.OracleComp.QueryTracking.CachingOracle
-import ToVCVio.OracleComp.QueryTracking.QueryBound
+import VCVio.OracleComp.QueryTracking.CachingOracle
+import VCVio.OracleComp.QueryTracking.QueryBound
 import ToVCVio.ProgramLogic.Relational.Basic
 import ToVCVio.ProgramLogic.Relational.IdenticalUntilBad
 
@@ -80,10 +80,8 @@ theorem game2'_eq_game2
           StateT.run_bind, simulateQ_pure, StateT.run_pure]
         rw [show (PRFScheme.prfIdealQueryImpl (D := AD × C_e) (R := T) (Sum.inl n)).run qc =
               (fun u => (u, qc)) <$> (liftM (OracleSpec.query (spec := unifSpec) n) :
-                ProbComp ((unifSpec + ((AD × C_e) →ₒ T)).Range (Sum.inl n))) from by
-            rw [PRFScheme.prfIdealQueryImpl, QueryImpl.add_apply_inl,
-              QueryImpl.liftTarget_apply, HasQuery.toQueryImpl]
-            simp [StateT.run_monadLift, bind_pure_comp, HasQuery.query]]
+                ProbComp ((unifSpec + ((AD × C_e) →ₒ T)).Range (Sum.inl n))) from
+            roSim.run_apply_inl ((AD × C_e) →ₒ T).randomOracle n qc]
         unfold gameUnifImpl
         simp only [QueryImpl.liftTarget_apply, QueryImpl.ofLift_apply,
           bind_pure_comp, Functor.map_map]
@@ -372,7 +370,7 @@ theorem probForge_authInst_le_forgeReduction
             intro q
             simp [OracleComp.forgeImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
           ext ⟨⟨ch, qc⟩, fs⟩ : 2
-          rw [flattenStateT_mapStateTBase_apply_run]
+          rw [QueryImpl.flattenStateT_mapStateTBase_apply_run]
           cases ch <;>
             simp [QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, forgeJointImpl,
               StateT.run_bind, StateT.run_get, StateT.run_set,
@@ -388,7 +386,7 @@ theorem probForge_authInst_le_forgeReduction
             intro p
             simp [OracleComp.forgeImpl, QueryImpl.add_apply_inr]
           ext ⟨⟨ch, qc⟩, fs⟩ : 2
-          rw [flattenStateT_mapStateTBase_apply_run]
+          rw [QueryImpl.flattenStateT_mapStateTBase_apply_run]
           by_cases heq : ch = some (c, tg)
           · simp [heq, QueryImpl.add_apply_inr, forgeJointImpl,
               StateT.run_bind, StateT.run_get,
@@ -542,7 +540,7 @@ theorem probForge_authInst_le_forgeReduction
           -- (existing entries persist) and maps the queried point `(ad, c)` to the response.
           have hcouple : ProgramLogic.Relational.RelTriple ro ro
               (fun a b => a = b ∧ fs₂.1 ≤ a.2 ∧ a.2 (ad, c) = some a.1) :=
-            ProgramLogic.Relational.relTriple_refl_support_post fun p hp =>
+            ProgramLogic.Relational.relTriple_refl_of_mem_support _ fun p hp =>
               ⟨rfl, QueryImpl.withCaching_cache_le _ _ _ p hp,
                 QueryImpl.withCaching_run_caches _ _ _ p hp⟩
           refine ProgramLogic.Relational.relTriple_bind hcouple ?_
@@ -591,7 +589,7 @@ theorem probForge_authInst_le_forgeReduction
             intro hfl
             exact hflagimp hfl
 
-omit [Inhabited C_e] [SampleableType C_e] in
+omit [Inhabited C_e] [SampleableType C_e] [Inhabited T] in
 /-- Query-bound transfer (auth hop adapter): each decrypt query of `adv` becomes exactly one
 verify query in `forgeReduction`, so the reduction makes at most `q_d` verify queries whenever
 `adv` makes at most `q_d` decrypt queries. -/
@@ -601,9 +599,6 @@ theorem forgeReduction_isQueryBoundP
     (q_d : ℕ) (hqd : AEADScheme.decryptQueryBound adv q_d) :
     (forgeReduction se adv ke).IsQueryBoundP
       (OracleComp.isVerifyQuery (D := AD × C_e) (R := T)) q_d := by
-  -- `forgeSpec`'s `IsUniformSpec` witness (needed by the query-bound lemma) wants `Fintype T`;
-  -- the tag type is sampleable, so it is finite.
-  let : Fintype T := SampleableType.Fintype T
   unfold forgeReduction etmGameSkeleton
   simp only [pure_bind, bind_pure_comp, Functor.map_map]
   rw [isQueryBoundP_def, isQueryBound_map_iff, ← isQueryBoundP_def]
@@ -613,7 +608,7 @@ theorem forgeReduction_isQueryBoundP
   -- per-handler `.run`-unwrapping (StateT `MonadLiftT` fusion of the `ofLift` forwarder),
   -- then `isQueryBoundP_query_iff` (encrypt eval / decrypt verify) and
   -- `IsQueryBoundP.liftComp_subSpec` (cross-spec unif lift). Cf. VCVio `CmaToNma` `hfwd`.
-  refine OracleComp.simulateQ_run_add_inr_of_step (fun t => by simp) hqd ?hleft ?hdec
+  refine OracleComp.IsQueryBoundP.simulateQ_run_add_inr_of_step (fun t => by simp) hqd ?hleft ?hdec
     (fun t hnp => absurd (by simp) hnp) (none, ∅)
   case hleft =>
     intro t s

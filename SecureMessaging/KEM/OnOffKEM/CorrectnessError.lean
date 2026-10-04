@@ -43,8 +43,8 @@ The standard KEM correctness error is defined as:
 
 ```text
 kem.correctnessError ProbCompRuntime.probComp
-  = 1 - Pr[kem.CorrectExp = true]
-  = Pr[kem.CorrectExp = false] + Pr[kem.CorrectExp = ⊥].
+  = 1 - Pr[kem.correctnessExperiment = true]
+  = Pr[kem.correctnessExperiment = false] + Pr[kem.correctnessExperiment = ⊥].
 ```
 
 ## 1. Staged correctness experiment
@@ -63,7 +63,7 @@ factorCorrectExp := do
 ```
 
 The theorem `factorCorrectExp_eq_correctExp` proves that this staged experiment
-is equal to the standard KEM correctness experiment `kem.CorrectExp`, by the
+is equal to the standard KEM correctness experiment `kem.correctnessExperiment`, by the
 factorization identity `onoff.factor`.
 
 Specializing to `ProbComp`, `factorCorrectnessError_eq` identifies the total
@@ -116,11 +116,11 @@ def factorCorrectExp [DecidableEq K]
   pure (decide (k' = some key))
 
 /-- `factorCorrectExp` and the ordinary KEM correctness experiment
-`kem.CorrectExp` are equal as programs, by `onoff.factor`. -/
+`kem.correctnessExperiment` are equal as programs, by `onoff.factor`. -/
 theorem factorCorrectExp_eq_correctExp [DecidableEq K] [LawfulMonad m]
     (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure) :
-    factorCorrectExp kem onoff = kem.CorrectExp := by
-  unfold factorCorrectExp KEMScheme.CorrectExp
+    factorCorrectExp kem onoff = kem.correctnessExperiment := by
+  unfold factorCorrectExp KEMScheme.correctnessExperiment
   simp_rw [onoff.factor]
   simp only [bind_assoc, pure_bind]
 
@@ -142,8 +142,7 @@ theorem factorCorrectnessError_eq [DecidableEq K]
     factorCorrectnessError kem onoff =
       kem.correctnessError ProbCompRuntime.probComp := by
   rw [factorCorrectnessError, factorCorrectExp_eq_correctExp]
-  exact (KEMScheme.correctnessError_eq_probOutput_false_add_probFailure
-    kem ProbCompRuntime.probComp).symm
+  exact (KEMScheme.correctnessError_probComp_eq_probOutput_false_add_probFailure kem).symm
 
 /-! ### 2. Stage-specific error decomposition -/
 
@@ -220,16 +219,16 @@ lemma factorCorrectnessError_eq_avg_off [DecidableEq K]
     let (pk, sk) ← kem.keygen
     onlineCorrectExp kem onoff pk sk st ct0
   have hreorder :
-      evalDist (factorCorrectExp kem onoff) = evalDist reordered := by
-    change evalDist (do
+      evalSPMF (factorCorrectExp kem onoff) = evalSPMF reordered := by
+    change evalSPMF (do
         let kp ← kem.keygen
         let off ← onoff.encapsOff
         onlineCorrectExp kem onoff kp.1 kp.2 off.1 off.2) =
-      evalDist (do
+      evalSPMF (do
         let off ← onoff.encapsOff
         let kp ← kem.keygen
         onlineCorrectExp kem onoff kp.1 kp.2 off.1 off.2)
-    exact OracleComp.DeferredSampling.evalDist_bind_comm kem.keygen onoff.encapsOff
+    exact OracleComp.DeferredSampling.evalSPMF_bind_comm kem.keygen onoff.encapsOff
       (fun kp off => onlineCorrectExp kem onoff kp.1 kp.2 off.1 off.2)
   have hfalse : Pr[= false | factorCorrectExp kem onoff] =
       Pr[= false | reordered] := by

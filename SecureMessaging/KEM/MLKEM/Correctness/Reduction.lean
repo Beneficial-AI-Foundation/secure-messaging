@@ -87,7 +87,7 @@ theorem correctnessError_le_underlyingCorrectnessError
       underlyingCorrectnessError ring encoding prims := by
   rw [KEMScheme.correctnessError_probComp_eq_probOutput_false, underlyingCorrectnessError,
     ← probEvent_eq_eq_probOutput, ← probEvent_eq_eq_probOutput]
-  simp only [KEMScheme.CorrectExp, asKEMScheme, keygen, underlyingCorrectExp, monad_norm]
+  simp only [KEMScheme.correctnessExperiment, asKEMScheme, keygen, underlyingCorrectExp, monad_norm]
   refine probEvent_bind_mono fun d _ => probEvent_bind_mono fun z _ =>
     probEvent_bind_mono fun m _ => ?_
   -- Pointwise: if K-PKE recovers the message then decapsulation returns the

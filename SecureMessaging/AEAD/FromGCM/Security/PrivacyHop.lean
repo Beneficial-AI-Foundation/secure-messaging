@@ -31,16 +31,16 @@ open OracleComp.ProgramLogic.Relational
 `BitVec 128`, `BitVec 128` and `BitVec L`, and let `C = m ⊕ ks`. Then the challenge
 `(C, GHASH_H(gcmEncode ad C) ⊕ mask)` is jointly uniform on `BitVec L × BitVec 128`. -/
 theorem evalDist_gcmChallenge_uniform {L : ℕ} (ad : SupportedAAD) (m : BitVec L) :
-    evalDist ((fun a : BitVec 128 × BitVec 128 × BitVec L =>
+    evalSPMF ((fun a : BitVec 128 × BitVec 128 × BitVec L =>
         (m ^^^ a.2.2, ghash a.1 (gcmEncode ad (m ^^^ a.2.2)) ^^^ a.2.1)) <$>
       ($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _))
-      = evalDist ($ᵗ (BitVec L × BitVec 128) : ProbComp _) := by
+      = evalSPMF ($ᵗ (BitVec L × BitVec 128) : ProbComp _) := by
   rw [uniformSample_prod_eq_bind (BitVec 128) (BitVec 128 × BitVec L),
     uniformSample_prod_eq_bind (BitVec 128) (BitVec L)]
   simp only [map_bind, map_pure, bind_assoc, pure_bind]
-  refine (DeferredSampling.evalDist_bind_congr_left ($ᵗ BitVec 128 : ProbComp _) _
+  refine (DeferredSampling.evalSPMF_bind_congr_left ($ᵗ BitVec 128 : ProbComp _) _
       (fun _ => ($ᵗ (BitVec L × BitVec 128) : ProbComp _)) (fun H => ?_)).trans
-    (DeferredSampling.evalDist_bind_const_neverFails
+    (DeferredSampling.evalSPMF_bind_const_neverFails
       ($ᵗ BitVec 128 : ProbComp _) (probFailure_uniformSample _)
       ($ᵗ (BitVec L × BitVec 128) : ProbComp _))
   exact evalDist_pair_xor_uniform m (fun c => ghash H (gcmEncode ad c))
@@ -245,8 +245,8 @@ private lemma gcmPrivacy_step_encrypt_none {L : ℕ} (ad : SupportedAAD) (m : Bi
       ($ᵗ (BitVec L × BitVec 128) : ProbComp _)
       (fun (a : BitVec 128 × BitVec 128 × BitVec L) (e : BitVec L × BitVec 128) =>
         (m ^^^ a.2.2, ghash a.1 (gcmEncode ad (m ^^^ a.2.2)) ^^^ a.2.1) = e) :=
-    relTriple_of_evalDist_eq_right (evalDist_gcmChallenge_uniform ad m)
-      (relTriple_of_evalDist_eq_left (by rw [id_map])
+    relTriple_of_evalSPMF_eq_right (evalDist_gcmChallenge_uniform ad m)
+      (relTriple_of_evalSPMF_eq_left (by rw [id_map])
         (relTriple_map_map_of_pointwise _ id _ fun _ => rfl))
   rw [hrun₁, hrun₂]
   exact relTriple_map (relTriple_post_mono hgraph (fun a e hae => by
@@ -291,7 +291,7 @@ no advantage. -/
 theorem game3_eq_game4 {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ)
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    evalDist (game3 prp L hL adv) = evalDist (game4 prp L hL adv) := by
+    evalSPMF (game3 prp L hL adv) = evalSPMF (game4 prp L hL adv) := by
   rw [game4_eq_plain prp L hL adv]
   unfold game3
   -- Elaborating the coupling separately from its consumer keeps unification away from the
@@ -304,12 +304,12 @@ theorem game3_eq_game4 {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ)
     (fun t s₁ s₂ hs => gcmPrivacy_step t s₁ s₂ hs)
     (none, none) none
     ⟨rfl, rfl⟩
-  exact evalDist_eq_of_relTriple_eqRel h
+  exact evalSPMF_eq_of_relTriple_eqRel h
 
 theorem probOutput_game3_eq_game4 {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ)
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
     Pr[= true | game3 prp L hL adv] = Pr[= true | game4 prp L hL adv] :=
-  evalDist_ext_iff.mp (game3_eq_game4 prp L hL adv) true
+  evalSPMF_ext_iff.mp (game3_eq_game4 prp L hL adv) true
 
 end GCM

@@ -106,7 +106,7 @@ private lemma prpIdealExp_eq_bind_tail (iv : BitVec 96)
 draw per query point. -/
 private lemma prfIdealExp_eq_bind_tail (iv : BitVec 96) (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    PRFScheme.prfIdealExp (prfReduction iv L adv) =
+    PRFScheme.prfIdealExperiment (prfReduction iv L adv) =
       ((((0 : BitVec 128) :: j0 iv ::
             counterChain (inc32 (j0 iv)) ((L + 127) / 128)).mapM
           (fun _ => ($ᵗ (BitVec 128) : ProbComp (BitVec 128)))) >>=
@@ -126,14 +126,15 @@ query points distinct: a longer message wraps the 32-bit counter and repeats a p
 theorem abs_prfAdvantage_sub_prpAdvantage_le {K : Type}
     (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ) (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    |PRFScheme.prfAdvantage prp.toPRFScheme (prfReduction iv L adv) -
+    |(PRFScheme.prfAdvantage prp.toPRFScheme (prfReduction iv L adv)).toReal -
       PRPScheme.prpAdvantage prp (prfReduction iv L adv)| ≤
       ((((L + 127) / 128 : ℕ) : ℝ) + 2) * ((((L + 127) / 128 : ℕ) : ℝ) + 1)
         / 2 ^ (129 : ℕ) := by
   -- (1) The two games share one real term: `PRPScheme.prpRealExp` is *defined* to be
-  -- `PRFScheme.prfRealExp prp.toPRFScheme`, so unfolding it makes the two advantages
+  -- `PRFScheme.prfRealExperiment prp.toPRFScheme`, so unfolding it makes the two advantages
   -- `|R - I_prf|` and `|R - I_prp|` over a literally identical `R`.
   unfold PRFScheme.prfAdvantage PRPScheme.prpAdvantage PRPScheme.prpRealExp
+  rw [ToVCVio.toReal_boolDist_evalDist]
   -- (2) `||a| - |b|| ≤ |a - b|`, the two-sided inequality; its one-sided sibling
   -- `abs_sub_abs_le_abs_sub` would only give the corollary below.
   refine (abs_abs_sub_abs_le_abs_sub _ _).trans ?_
@@ -161,7 +162,7 @@ theorem abs_prfAdvantage_sub_prpAdvantage_le {K : Type}
 theorem prfAdvantage_le_prpAdvantage_switching {K : Type}
     (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ) (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    PRFScheme.prfAdvantage prp.toPRFScheme (prfReduction iv L adv) ≤
+    (PRFScheme.prfAdvantage prp.toPRFScheme (prfReduction iv L adv)).toReal ≤
       PRPScheme.prpAdvantage prp (prfReduction iv L adv) +
       ((((L + 127) / 128 : ℕ) : ℝ) + 2) * ((((L + 127) / 128 : ℕ) : ℝ) + 1)
         / 2 ^ (129 : ℕ) := by

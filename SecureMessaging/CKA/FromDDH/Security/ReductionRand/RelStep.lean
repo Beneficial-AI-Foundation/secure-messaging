@@ -1591,16 +1591,16 @@ lemma evalDist_reduction_honest_param_rand_eq
   (h_general_case : ¬ (gp.challengeEpoch = 1 ∧ gp.challengedParty = .A))
     (x₀ a b : F) (gT : G)
     (adversary : OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool) :
-    evalDist ((simulateQ
+    evalSPMF ((simulateQ
         (reductionOracleImpl gp gen (a • gen) (b • gen) gT) adversary).run'
       (initGameState
         (CKAState.sendReady (x₀ • gen) : CKAState F G)
         (CKAState.recvReady x₀ : CKAState F G))) =
-    evalDist ((simulateQ (honestImplParamRand gp gen a b gT) adversary).run'
+    evalSPMF ((simulateQ (honestImplParamRand gp gen a b gT) adversary).run'
       (initGameState
         (CKAState.sendReady (x₀ • gen) : CKAState F G)
         (CKAState.recvReady x₀ : CKAState F G))) := by
-  refine OracleComp.ProgramLogic.Relational.evalDist_eq_of_relTriple_eqRel
+  refine OracleComp.ProgramLogic.Relational.evalSPMF_eq_of_relTriple_eqRel
     (OracleComp.ProgramLogic.Relational.relTriple_simulateQ_run' _ _
       (reductionHonestRelRand gp gen a b gT) _ ?_ _ _ ?_)
   · intro t sR sH hrel

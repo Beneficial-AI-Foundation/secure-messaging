@@ -89,7 +89,7 @@ theorem etmAEAD_security [Inhabited K_e]
     (hqd : AEADScheme.decryptQueryBound adv q_d)
     [NeverFail prf.keygen] :
     AEADScheme.distAdvantage (etmAEAD se prf) adv ≤
-      PRFScheme.prfAdvantage prf (prfReduction se adv) +
+      (PRFScheme.prfAdvantage prf (prfReduction se adv)).toReal +
       ↑q_d * (Fintype.card T : ℝ)⁻¹ +
       DetSEAlg.distAdvantage se (encReduction se adv)
 ```

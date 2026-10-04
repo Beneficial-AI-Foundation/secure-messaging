@@ -21,7 +21,7 @@ variable {K_e K_m M AD C_e T : Type}
   [Inhabited C_e] [Inhabited T]
   [SampleableType C_e] [SampleableType T]
 
-omit [Inhabited C_e] [SampleableType C_e] in
+omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
 /-- Game 1 → 2: auth bound. Gap bounded by `q_d` times tag-guessing probability.
 
 NRS14 Appendix A.2, A5 Case 1: each decrypt query at a fresh random oracle

@@ -112,7 +112,7 @@ def EpochTranscript.setKeypair
   keypair := some (pk, sk)
   off := tr.off
   on := tr.on
-  keypair_mem := by simp [hmem]
+  keypair_mem := by simpa using hmem
   off_mem := tr.off_mem
   on_mem := by simp [hon]
   on_keypair := by simp [hon]
@@ -129,7 +129,7 @@ def EpochTranscript.setOff
   off := some (st, ct0)
   on := tr.on
   keypair_mem := tr.keypair_mem
-  off_mem := by simp [hmem]
+  off_mem := by simpa using hmem
   on_mem := by simp [hon]
   on_keypair := tr.on_keypair
   on_off := by simp [hon]

@@ -55,8 +55,8 @@ theorem security [SampleableType K] [DecidableEq K]
     (gp : CKAScheme.GameParams)
     (hgp : AdmissibleParams gp) :
     CKAScheme.ckaDistAdvantage (scheme kem hDet leak) adv gp ≤
-      KEMScheme.IND_CPA_Advantage (kem := kem) ProbCompRuntime.probComp
-        (ckaToINDCPAReduction kem hDet leak adv gp)
+      (KEMScheme.IND_CPA_Advantage (kem := kem) ProbCompRuntime.probComp
+        (ckaToINDCPAReduction kem hDet leak adv gp)).toReal
 -- ANCHOR_END: security
     := by
   refine le_of_eq ?_
@@ -85,7 +85,7 @@ theorem security_exists [SampleableType K] [DecidableEq K]
     (hgp : AdmissibleParams gp) :
     ∃ red : KEMScheme.IND_CPA_Adversary kem,
       CKAScheme.ckaDistAdvantage (scheme kem hDet leak) adv gp ≤
-        KEMScheme.IND_CPA_Advantage (kem := kem) ProbCompRuntime.probComp red :=
+        (KEMScheme.IND_CPA_Advantage (kem := kem) ProbCompRuntime.probComp red).toReal :=
   ⟨ckaToINDCPAReduction kem hDet leak adv gp,
     security kem hDet hkem leak adv gp hgp⟩
 

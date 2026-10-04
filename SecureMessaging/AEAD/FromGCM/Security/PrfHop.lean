@@ -106,13 +106,13 @@ distribution. -/
 theorem game1_eq_game2 (prp : PRPScheme K (BitVec 128)) (L : ℕ)
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    evalDist (game1 prp L hL adv) = evalDist (game2 prp L hL adv) := by
+    evalSPMF (game1 prp L hL adv) = evalSPMF (game2 prp L hL adv) := by
   unfold game1 game2
   exact probOutput_simulateQ_greedyLazy_run'_eq gcmTupleImpl adv none
 
 end LazyHop
 
-/-! ## The real-side projection: `game0` = `prfRealExp (prfReduction …)` -/
+/-! ## The real-side projection: `game0` = `prfRealExperiment (prfReduction …)` -/
 
 section RealProjection
 
@@ -153,10 +153,10 @@ theorem game0_eq_prfRealExp (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
     Pr[= true | game0 prp iv L hL adv] =
-      Pr[= true | (prp.toPRFScheme).prfRealExp (prfReduction iv L adv)] := by
+      Pr[= true | (prp.toPRFScheme).prfRealExperiment (prfReduction iv L adv)] := by
   -- Keygen alignment is definitional: `toPRFScheme` keeps `keygen` and sets `eval := perm`.
   have hkg : (prp.toPRFScheme).keygen = prp.keygen := rfl
-  unfold game0 PRFScheme.prfRealExp prfReduction
+  unfold game0 PRFScheme.prfRealExperiment prfReduction
   rw [hkg]
   -- Collapse the eager fetches (`H`, `mask`, the keystream block list) and erase the
   -- `liftComp` on the closed tail. `simp only` is mandatory here: full `simp` would first
@@ -199,13 +199,13 @@ enough to wrap the 32-bit counter a repeated point returns its cached value and 
 statement is false. -/
 lemma prfIdealExp_prfReduction_eq (iv : BitVec 96) (L : ℕ) (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    PRFScheme.prfIdealExp (prfReduction iv L adv) =
+    PRFScheme.prfIdealExperiment (prfReduction iv L adv) =
       (($ᵗ (BitVec 128) : ProbComp _) >>= fun h =>
        ($ᵗ (BitVec 128) : ProbComp _) >>= fun mask =>
        (counterChain (inc32 (j0 iv)) ((L + 127) / 128)).mapM
          (fun _ => ($ᵗ (BitVec 128) : ProbComp _)) >>= fun blocks =>
        (simulateQ (gcmTupleImpl (h, mask, blocksToBitVec blocks L)) adv).run' none) := by
-  unfold PRFScheme.prfIdealExp prfReduction
+  unfold PRFScheme.prfIdealExperiment prfReduction
   -- Collapse the eager fetches to random-oracle calls and erase the `liftComp` on the
   -- closed tail. `simp only` is mandatory: full `simp` would reduce past the forwarding
   -- lemmas via `simulateQ_spec_query`.
@@ -243,7 +243,7 @@ lemma prfIdealExp_prfReduction_eq (iv : BitVec 96) (L : ℕ) (hL : ValidMsgLengt
 
 end IdealPeel
 
-/-! ## The ideal-side projection: `game1` = `prfIdealExp (prfReduction …)`
+/-! ## The ideal-side projection: `game1` = `prfIdealExperiment (prfReduction …)`
 
 After the peel, the ideal experiment draws `⌈L/128⌉` uniform keystream blocks where `game1`
 draws one uniform `BitVec L`; concatenating independent uniform blocks and truncating to `L`
@@ -258,29 +258,29 @@ variable {K : Type}
 continuation, the same as drawing one uniform `BitVec L`. -/
 private lemma evalDist_keystream_bind {β : Type} (icb : BitVec 128) (L : ℕ)
     (f : BitVec L → ProbComp β) :
-    𝒟[(counterChain icb ((L + 127) / 128)).mapM (fun _ => ($ᵗ (BitVec 128) : ProbComp _)) >>=
+    𝒮[(counterChain icb ((L + 127) / 128)).mapM (fun _ => ($ᵗ (BitVec 128) : ProbComp _)) >>=
         fun blocks => f (blocksToBitVec blocks L)] =
-      𝒟[($ᵗ (BitVec L) : ProbComp _) >>= f] := by
+      𝒮[($ᵗ (BitVec L) : ProbComp _) >>= f] := by
   have hlen : (counterChain icb ((L + 127) / 128)).length = (L + 127) / 128 :=
     counterChain_length icb _
-  have h1 : 𝒟[(fun blocks => blocksToBitVec blocks L) <$>
+  have h1 : 𝒮[(fun blocks => blocksToBitVec blocks L) <$>
       (counterChain icb ((L + 127) / 128)).mapM
-        (fun _ => ($ᵗ (BitVec 128) : ProbComp _))] = 𝒟[($ᵗ (BitVec L) : ProbComp _)] := by
-    refine Eq.trans (evalDist_map_eq_of_evalDist_eq
+        (fun _ => ($ᵗ (BitVec 128) : ProbComp _))] = 𝒮[($ᵗ (BitVec L) : ProbComp _)] := by
+    refine Eq.trans (evalSPMF_map_eq_of_evalSPMF_eq
       (evalDist_mapM_const_uniform (R := BitVec 128)
         (counterChain icb ((L + 127) / 128))) _) ?_
     rw [Functor.map_map, hlen]
     exact evalDist_blocksToBitVec_uniform ((L + 127) / 128) L (by omega)
   rw [← bind_map_left]
-  rw [evalDist_bind, evalDist_bind, h1]
+  rw [evalSPMF_bind, evalSPMF_bind, h1]
 
 theorem game1_eq_prfIdealExp (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
     Pr[= true | game1 prp L hL adv] =
-      Pr[= true | PRFScheme.prfIdealExp (prfReduction iv L adv)] := by
+      Pr[= true | PRFScheme.prfIdealExperiment (prfReduction iv L adv)] := by
   rw [prfIdealExp_prfReduction_eq iv L hL adv]
-  refine evalDist_ext_iff.mp ?_ true
+  refine evalSPMF_ext_iff.mp ?_ true
   unfold game1
   -- Split `(H, mask, ks)` into three independent draws. `uniformSample_prod_eq_bind` is a
   -- term equality, so this is plain `rw`, with no distributional step yet.
@@ -289,7 +289,7 @@ theorem game1_eq_prfIdealExp (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (
   rw [uniformSample_prod_eq_bind (BitVec 128) (BitVec L)]
   simp only [bind_assoc, pure_bind]
   -- Both sides now share the `H` and mask draws; only the keystream factor differs.
-  refine evalDist_bind_congr' _ (fun h => evalDist_bind_congr' _ (fun mask => ?_))
+  refine evalSPMF_bind_congr' _ (fun h => evalSPMF_bind_congr' _ (fun mask => ?_))
   exact (evalDist_keystream_bind _ L _).symm
 
 /-- The PRF hop: replacing the block cipher by a random function changes the adversary's
@@ -299,9 +299,10 @@ theorem game0_game1_le_prf (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L 
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
     |(Pr[= true | game1 prp L hL adv]).toReal -
       (Pr[= true | game0 prp iv L hL adv]).toReal| ≤
-      PRFScheme.prfAdvantage prp.toPRFScheme (prfReduction iv L adv) := by
+      (PRFScheme.prfAdvantage prp.toPRFScheme (prfReduction iv L adv)).toReal := by
   unfold PRFScheme.prfAdvantage
-  rw [game0_eq_prfRealExp prp iv L hL adv, game1_eq_prfIdealExp prp iv L hL adv]
+  rw [ToVCVio.toReal_boolDist_evalDist, game0_eq_prfRealExp prp iv L hL adv,
+    game1_eq_prfIdealExp prp iv L hL adv]
   -- `prfAdvantage` is `|real − ideal|`; the hop is stated as `|ideal − real|`.
   exact le_of_eq (abs_sub_comm _ _)
 

@@ -113,9 +113,9 @@ theorem incrementalCorrectExp_failure_le_mlkem768_easycrypt {failprob hsadv prfa
     (hhs : EasyCryptMLKEM768.smoothingAdvantage ≤ hsadv)
     (hkg : EasyCryptMLKEM768.keygenPRFAdvantage ≤ prfadv)
     (henc : EasyCryptMLKEM768.encapsPRFAdvantage ≤ prfadv) :
-    Pr[= false | ProbCompRuntime.probComp.evalDist
+    ProbCompRuntime.probComp.evalDist
         (mlkemIncremental .MLKEM768 Concrete.concreteNTTRingOps
-          Concrete.mlkem768Primitives).CorrectExp]
+          Concrete.mlkem768Primitives).CorrectExp {false}
       ≤ failprob + hsadv + 2 * prfadv
 -- ANCHOR_END: incrementalCorrectExp_failure_le_mlkem768_easycrypt
     :=

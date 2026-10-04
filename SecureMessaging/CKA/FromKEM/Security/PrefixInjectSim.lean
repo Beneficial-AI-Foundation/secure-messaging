@@ -514,6 +514,8 @@ lemma securityImpl_run_counters_mono [SampleableType K] [DecidableEq K]
       uChallA) | uChallB) | uCorrA) | uCorrB) | uRLeakA) | uRLeakB
   · -- O-Unif
     change z ∈ support ((CKAScheme.oracleUnif (State PK SK) K (Message C PK) n).run σ) at hz
+    simp only [CKAScheme.oracleUnif, QueryImpl.liftTarget_apply, QueryImpl.ofLift_apply,
+      StateT.run_monadLift, monadLift_self, support_bind, support_pure] at hz
     obtain ⟨x, -, hz'⟩ := Set.mem_iUnion₂.mp hz
     have hz2 : z = (x, σ) := hz'
     vcvSupport

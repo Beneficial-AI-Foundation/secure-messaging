@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.CryptoFoundations.UniversalHash
+import VCVio.CryptoFoundations.UniversalHash
 import ToVCVio.OracleComp.Constructions.BitVec
 
 /-!
@@ -25,7 +25,7 @@ sees the challenge `(X*, T*)`. The two kinds are bounded using different randomn
   decryption queries, which is what gives `q · ε` rather than `2 · q · ε`.
 -/
 
-open OracleSpec OracleComp ENNReal ToVCVio
+open OracleSpec OracleComp ENNReal ToVCVio UniversalHash
 
 namespace OracleComp.WegmanCarter
 
@@ -66,14 +66,7 @@ private theorem probEvent_post_axu_le_run {K D : Type} [SampleableType K] {ε : 
           rw [hd, BitVec.xor_self] at hev
           simpa [BitVec.xor_assoc] using congrArg (· ^^^ c.2) hev.symm
         · -- Distinct digest points: this is exactly the AXU predicate.
-          have hconv :
-              Pr[fun H : K => hash H (l.get i).1 ^^^ hash H c.1 = (l.get i).2 ^^^ c.2
-                 | ($ᵗ K : ProbComp K)]
-                = Pr[= (l.get i).2 ^^^ c.2
-                    | (fun k => hash k (l.get i).1 ^^^ hash k c.1) <$> ($ᵗ K)] := by
-            rw [← probEvent_eq_eq_probOutput, probEvent_map]
-            rfl
-          rw [hconv]
+          rw [← probOutput_true_eq_probEvent]
           exact haxu (l.get i).1 c.1 hd _
     _ = (l.length : ℝ≥0∞) * ε := by
         simp [Finset.sum_const, Finset.card_univ, nsmul_eq_mul]

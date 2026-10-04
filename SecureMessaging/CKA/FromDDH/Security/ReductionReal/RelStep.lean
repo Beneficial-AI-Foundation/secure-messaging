@@ -1639,17 +1639,17 @@ lemma evalDist_reduction_honest_param_real_eq
   (h_general_case : ¬ (gp.challengeEpoch = 1 ∧ gp.challengedParty = .A))
     (x₀ a b : F)
     (adversary : OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool) :
-    evalDist ((simulateQ
+    evalSPMF ((simulateQ
         (reductionOracleImpl gp gen (a • gen) (b • gen) ((a * b) • gen))
         adversary).run'
       (initGameState
         (CKAState.sendReady (x₀ • gen) : CKAState F G)
         (CKAState.recvReady x₀ : CKAState F G))) =
-    evalDist ((simulateQ (honestImplParamReal gp gen a b) adversary).run'
+    evalSPMF ((simulateQ (honestImplParamReal gp gen a b) adversary).run'
       (initGameState
         (CKAState.sendReady (x₀ • gen) : CKAState F G)
         (CKAState.recvReady x₀ : CKAState F G))) := by
-  refine OracleComp.ProgramLogic.Relational.evalDist_eq_of_relTriple_eqRel
+  refine OracleComp.ProgramLogic.Relational.evalSPMF_eq_of_relTriple_eqRel
     (OracleComp.ProgramLogic.Relational.relTriple_simulateQ_run' _ _
       (reductionHonestRel gp gen a b) _ ?_ _ _ ?_)
   · intro t sR sH hrel
@@ -1687,7 +1687,7 @@ lemma evalDist_eager_reduction_lazy_eq
   (h_general_case : ¬ (gp.challengeEpoch = 1 ∧ gp.challengedParty = .A))
     (x₀ : F)
     (adversary : OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool) :
-    evalDist (do
+    evalSPMF (do
       let a ← ($ᵗ F : ProbComp F)
       let b ← ($ᵗ F : ProbComp F)
       (simulateQ
@@ -1695,7 +1695,7 @@ lemma evalDist_eager_reduction_lazy_eq
         (initGameState
           (CKAState.sendReady (x₀ • gen) : CKAState F G)
           (CKAState.recvReady x₀ : CKAState F G))) =
-    evalDist ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) adversary).run'
+    evalSPMF ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) adversary).run'
       (initGameState
         (CKAState.sendReady (x₀ • gen) : CKAState F G)
         (CKAState.recvReady x₀ : CKAState F G))) := by
@@ -1704,31 +1704,31 @@ lemma evalDist_eager_reduction_lazy_eq
       (CKAState.sendReady (x₀ • gen) : CKAState F G)
       (CKAState.recvReady x₀ : CKAState F G)
   calc
-    evalDist (do
+    evalSPMF (do
         let a ← ($ᵗ F : ProbComp F)
         let b ← ($ᵗ F : ProbComp F)
         (simulateQ
             (reductionOracleImpl gp gen (a • gen) (b • gen) ((a * b) • gen))
             adversary).run' s₀)
         =
-        evalDist (do
+        evalSPMF (do
           let a ← ($ᵗ F : ProbComp F)
           let b ← ($ᵗ F : ProbComp F)
           (simulateQ (honestImplParamReal gp gen a b) adversary).run' s₀) := by
-          apply evalDist_ext
+          apply evalSPMF_ext
           intro y
           refine probOutput_bind_congr' _ y fun a => ?_
           refine probOutput_bind_congr' _ y fun b => ?_
-          exact evalDist_ext_iff.mp
+          exact evalSPMF_ext_iff.mp
             (evalDist_reduction_honest_param_real_eq
               (gen := gen) gp hΔFS hΔPCS h_general_case x₀ a b adversary)
             y
     _ =
-        evalDist (do
+        evalSPMF (do
           let b ← ($ᵗ F : ProbComp F)
           let a ← ($ᵗ F : ProbComp F)
           (simulateQ (honestImplParamReal gp gen a b) adversary).run' s₀) := by
-          apply evalDist_ext
+          apply evalSPMF_ext
           intro y
           exact probOutput_bind_bind_swap
             (mx := ($ᵗ F : ProbComp F))
@@ -1737,7 +1737,7 @@ lemma evalDist_eager_reduction_lazy_eq
               (simulateQ (honestImplParamReal gp gen a b) adversary).run' s₀)
             (z := y)
     _ =
-        evalDist ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) adversary).run'
+        evalSPMF ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) adversary).run'
           s₀) := by
           exact evalDist_eager_honest_lazy_eq (gen := gen) gp s₀ adversary
 

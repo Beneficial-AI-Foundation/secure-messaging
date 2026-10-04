@@ -321,7 +321,7 @@ lemma simulateQ_gcmInstImpl_false_run'_eq_gcmTupleImplReject
 theorem game2Flat_eq_game2 (prp : PRPScheme K (BitVec 128)) (L : ℕ)
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    evalDist (game2Flat prp L hL adv) = evalDist (game2 prp L hL adv) := by
+    evalSPMF (game2Flat prp L hL adv) = evalSPMF (game2 prp L hL adv) := by
   unfold game2Flat game2
   rw [bind_congr fun a =>
     simulateQ_gcmInstImpl_true_run'_eq_gcmTupleImpl a adv none false]
@@ -330,7 +330,7 @@ theorem game2Flat_eq_game2 (prp : PRPScheme K (BitVec 128)) (L : ℕ)
 theorem game3Flat_eq_game3 (prp : PRPScheme K (BitVec 128)) (L : ℕ)
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    evalDist (game3Flat prp L hL adv) = evalDist (game3 prp L hL adv) := by
+    evalSPMF (game3Flat prp L hL adv) = evalSPMF (game3 prp L hL adv) := by
   unfold game3Flat game3
   rw [bind_congr fun a =>
     simulateQ_gcmInstImpl_false_run'_eq_gcmTupleImplReject a adv none false]
@@ -385,12 +385,12 @@ theorem game0_eq_real (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ
 `gcmRandRejectImpl default`, without sampling a tuple: `gcmRandRejectImpl` ignores the tuple. -/
 theorem game4_eq_plain (prp : PRPScheme K (BitVec 128)) (L : ℕ) (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    evalDist (game4 prp L hL adv) =
-      evalDist ((simulateQ (gcmRandRejectImpl (L := L) default) adv).run' none) := by
+    evalSPMF (game4 prp L hL adv) =
+      evalSPMF ((simulateQ (gcmRandRejectImpl (L := L) default) adv).run' none) := by
   unfold game4
   rw [← probOutput_simulateQ_consumeLazy_run'_eq gcmRandRejectImpl
         (fun t => t matches OEncrypt _) (fun _ _ _ _ _ => rfl) adv none]
-  exact DeferredSampling.evalDist_bind_const_neverFails
+  exact DeferredSampling.evalSPMF_bind_const_neverFails
     ($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _)
     (probFailure_uniformSample _)
     ((simulateQ (gcmRandRejectImpl (L := L) default) adv).run' none)
@@ -404,7 +404,7 @@ theorem game4_eq_rand (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ
     Pr[= true | game4 prp L hL adv] =
       Pr[= true | AEADScheme.securityExpFixedBit (gcmOneTimeAEAD prp iv L hL) adv true] := by
   -- (1)-(2) Unconsume and kill the dead tuple sample: both steps are `game4_eq_plain`.
-  rw [evalDist_ext_iff.mp (game4_eq_plain prp L hL adv) true]
+  rw [evalSPMF_ext_iff.mp (game4_eq_plain prp L hL adv) true]
   -- (3) RHS: the endpoint's keygen is dead on the random side; fold the tail to `.run'`.
   have hkg : (gcmOneTimeAEAD prp iv L hL).keygen = prp.keygen := rfl
   unfold AEADScheme.securityExpFixedBit

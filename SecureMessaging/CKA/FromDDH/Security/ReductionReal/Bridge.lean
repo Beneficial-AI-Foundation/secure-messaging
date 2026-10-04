@@ -56,31 +56,31 @@ lemma evalDist_special_honest_fixed_a_eq_eager
     (x₀ : F)
   (adversary : OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool)
   (s : GameState (CKAState F G) G G) :
-    evalDist (do
+    evalSPMF (do
       let b ← ($ᵗ F : ProbComp F)
       (simulateQ (honestImplParamReal gp gen x₀ b) adversary).run' s) =
-    evalDist ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) adversary).run' s) := by
+    evalSPMF ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) adversary).run' s) := by
   have h_bind_fixed : ∀ b,
-      evalDist (do
+      evalSPMF (do
         let a ← ($ᵗ F : ProbComp F)
         (simulateQ (honestImplParamReal gp gen a b) adversary).run' s) =
-      evalDist ((simulateQ (honestImplParamReal gp gen x₀ b) adversary).run' s) :=
+      evalSPMF ((simulateQ (honestImplParamReal gp gen x₀ b) adversary).run' s) :=
     fun b => evalDist_sample_simulateQ_run'_eq_of_param_indep
       (fun a => honestImplParamReal gp gen a b) adversary s x₀ fun a t s' =>
-        congrArg evalDist
+        congrArg evalSPMF
           (honestImpl_param_real_a_indep_special (gen := gen) gp h_special_case b t s' a x₀)
   calc
-    evalDist (do
+    evalSPMF (do
         let b ← ($ᵗ F : ProbComp F)
         (simulateQ (honestImplParamReal gp gen x₀ b) adversary).run' s)
       =
-        evalDist (do
+        evalSPMF (do
           let b ← ($ᵗ F : ProbComp F)
           let a ← ($ᵗ F : ProbComp F)
           (simulateQ (honestImplParamReal gp gen a b) adversary).run' s) := by
-          exact evalDist_bind_congr' _ fun b => (h_bind_fixed b).symm
+          exact evalSPMF_bind_congr' _ fun b => (h_bind_fixed b).symm
     _ =
-        evalDist ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) adversary).run' s) := by
+        evalSPMF ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) adversary).run' s) := by
           exact evalDist_eager_honest_lazy_eq (gen := gen) gp s adversary
 
 omit [Inhabited F] [Fintype G] in
@@ -106,7 +106,7 @@ lemma probOutput_general_per_x₀
         (initGameState
           (CKAState.sendReady (x₀ • gen) : CKAState F G)
           (CKAState.recvReady x₀ : CKAState F G))] := by
-  exact evalDist_ext_iff.mp
+  exact evalSPMF_ext_iff.mp
     (evalDist_eager_reduction_lazy_eq
       (gen := gen) gp hΔFS hΔPCS h_general_case x₀ adversary)
     false
@@ -228,7 +228,7 @@ lemma probOutput_special_per_x₀
               false
     _ = Pr[= false |
           (simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) adversary).run' s₀H] := by
-            exact evalDist_ext_iff.mp
+            exact evalSPMF_ext_iff.mp
               (evalDist_special_honest_fixed_a_eq_eager (gen := gen)
                 gp h_special_case x₀ adversary s₀H)
               false

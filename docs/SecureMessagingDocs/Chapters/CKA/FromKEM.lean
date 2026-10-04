@@ -91,7 +91,7 @@ theorem security [SampleableType K] [DecidableEq K]
     (gp : CKAScheme.GameParams)
     (hgp : AdmissibleParams gp) :
     CKAScheme.ckaDistAdvantage (scheme kem hDet leak) adv gp ≤
-      KEMScheme.IND_CPA_Advantage (kem := kem) ProbCompRuntime.probComp
-        (ckaToINDCPAReduction kem hDet leak adv gp)
+      (KEMScheme.IND_CPA_Advantage (kem := kem) ProbCompRuntime.probComp
+        (ckaToINDCPAReduction kem hDet leak adv gp)).toReal
 ```
 ::::

@@ -225,8 +225,8 @@ The equation is derived from the lazy random-oracle resampling lemma of
    `(simulateQ prfIdealQueryImpl (compile forgeBody ob (evald, fl))).run' c`.
 3. `forge_resample_run`: for every `p : OracleComp spec₀ β` and `c d = none`,
    `evalDist_uniformSample_bind_simulateQ_prfIdealQueryImpl_run'` gives
-   `𝒟[$ᵗ R >>= fun u => (simulateQ prfIdealQueryImpl p).run' (c.cacheQuery d u)]
-     = 𝒟[(simulateQ prfIdealQueryImpl p).run' c]`.
+   `𝒮[$ᵗ R >>= fun u => (simulateQ prfIdealQueryImpl p).run' (c.cacheQuery d u)]
+     = 𝒮[(simulateQ prfIdealQueryImpl p).run' c]`.
    Instantiating `p` with the compiled adversary of step 2 and reading off
    `Pr[= true]` yields the goal. -/
 
@@ -294,12 +294,11 @@ private lemma forgeImpl_run_eq_forgeBody (t : (forgeSpec D R).Domain) (s : Finse
   rcases t with (n | t) | ⟨d, r⟩
   · simp only [forgeBody, simulateQ_bind, simulateQ_spec_query, simulateQ_pure,
       StateT.run_bind, StateT.run_pure]
-    rw [prfIdealQueryImpl, QueryImpl.add_apply_inl, QueryImpl.liftTarget_apply,
-      HasQuery.toQueryImpl]
+    erw [roSim.run_apply_inl (D →ₒ R).randomOracle n qc]
     simp only [forgeImpl, QueryImpl.add_apply_inl, forgeUnifImpl, QueryImpl.liftTarget_apply,
       QueryImpl.ofLift_apply]
     erw [OracleComp.liftM_run_StateT]
-    simp [StateT.run_monadLift, bind_pure_comp, HasQuery.query]
+    simp [bind_pure_comp]
   all_goals
     simp only [forgeBody, simulateQ_bind, simulateQ_spec_query, simulateQ_pure,
       StateT.run_bind, StateT.run_pure, prfIdealQueryImpl_apply_inr, forgeImpl_run_eval,
@@ -328,7 +327,7 @@ private lemma forge_resample_run (ob : ForgeAdversary D R) (cache : (D →ₒ R)
         (simulateQ forgeImpl ob).run (cache, evald, fl)] := by
   simp only [probEvent_forged_eq_probOutput_forgeBit]
   rw [← probOutput_bind_eq_tsum]
-  refine evalDist_ext_iff.mp ?_ true
+  refine evalSPMF_ext_iff.mp ?_ true
   simp only [forgeBit_eq_simulateQ_compile]
   exact evalDist_uniformSample_bind_simulateQ_prfIdealQueryImpl_run' d _ cache hcd
 

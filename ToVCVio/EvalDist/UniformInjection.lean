@@ -93,11 +93,11 @@ theorem tvDist_map_injective_uniformSample {A B : Type} [Fintype A] [Fintype B]
     · rw [if_pos hb, if_pos hb]; ring
     · rw [if_neg hb, if_neg hb, add_zero]
   rw [tvDist, SPMF.tvDist, PMF.tvDist, PMF.etvDist, tsum_option _ ENNReal.summable]
-  have hfailx : (𝒟[ι <$> ($ᵗ A : ProbComp A)]).toPMF none = 0 := probFailure_eq_zero
-  have hfaily : (𝒟[($ᵗ B : ProbComp B)]).toPMF none = 0 := probFailure_eq_zero
+  have hfailx : (𝒮[ι <$> ($ᵗ A : ProbComp A)]).toPMF none = 0 := probFailure_eq_zero
+  have hfaily : (𝒮[($ᵗ B : ProbComp B)]).toPMF none = 0 := probFailure_eq_zero
   have hsome :
-      (∑' x : B, ENNReal.absDiff ((𝒟[ι <$> ($ᵗ A : ProbComp A)]).toPMF (some x))
-          ((𝒟[($ᵗ B : ProbComp B)]).toPMF (some x)))
+      (∑' x : B, ENNReal.absDiff ((𝒮[ι <$> ($ᵗ A : ProbComp A)]).toPMF (some x))
+          ((𝒮[($ᵗ B : ProbComp B)]).toPMF (some x)))
         = ∑' x : B, ENNReal.absDiff (Pr[= x | ι <$> ($ᵗ A : ProbComp A)])
             (Pr[= x | ($ᵗ B : ProbComp B)]) :=
     tsum_congr fun _ => rfl
@@ -161,11 +161,11 @@ theorem two_mul_sub_descFactorial_le (N : ℕ) : ∀ q : ℕ,
 the list `f(0), …, f(q - 1)` for a uniformly random function `f : Fin q → X`. -/
 theorem evalDist_listMapM_uniform_eq_map_ofFn {X : Type} [FinEnum X] [Nonempty X]
     (pts : List X) :
-    evalDist (pts.mapM (fun _ => ($ᵗ X : ProbComp X)))
-      = evalDist ((List.ofFn : (Fin pts.length → X) → List X) <$>
+    evalSPMF (pts.mapM (fun _ => ($ᵗ X : ProbComp X)))
+      = evalSPMF ((List.ofFn : (Fin pts.length → X) → List X) <$>
           ($ᵗ (Fin pts.length → X) : ProbComp (Fin pts.length → X))) := by
   rw [ToVCVio.evalDist_mapM_const_uniform]
-  have h := evalDist_map_eq_of_evalDist_eq (evalDist_map_bijective_uniform_cross
+  have h := evalSPMF_map_eq_of_evalSPMF_eq (evalSPMF_map_bijective_uniform_cross
     (α := Vector X pts.length) (arrayVectorEquivFin X pts.length)
     (arrayVectorEquivFin X pts.length).bijective) List.ofFn
   rw [Functor.map_map] at h

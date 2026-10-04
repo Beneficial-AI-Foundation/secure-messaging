@@ -57,19 +57,19 @@ lemma evalDist_eager_honest_rand_eq_step_passthrough
       (ckaSecurityImpl gp true (ddhCKA F G gen) t).run s)
     (h_ih : ∀ (u : (ckaSecuritySpec (CKAState F G) G G F).Range t)
             (s' : GameState (CKAState F G) G G),
-      evalDist (do
+      evalSPMF (do
         let a ← ($ᵗ F : ProbComp F)
         let b ← ($ᵗ F : ProbComp F)
         let gT ← ($ᵗ G : ProbComp G)
         (simulateQ (honestImplParamRand gp gen a b gT) (k u)).run' s') =
-      evalDist ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) (k u)).run' s')) :
-    evalDist (do
+      evalSPMF ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) (k u)).run' s')) :
+    evalSPMF (do
       let a ← ($ᵗ F : ProbComp F)
       let b ← ($ᵗ F : ProbComp F)
       let gT ← ($ᵗ G : ProbComp G)
       (simulateQ (honestImplParamRand gp gen a b gT)
         (OracleSpec.query t >>= k)).run' s) =
-    evalDist ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen))
+    evalSPMF ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen))
       (OracleSpec.query t >>= k)).run' s) := by
   let sample : ProbComp (F × F × G) := do
     let a ← ($ᵗ F : ProbComp F)
@@ -100,20 +100,20 @@ lemma evalDist_eager_honest_rand_eq_step_at_sendA_chal_B
          OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool)
     (h_ih : ∀ (u : (ckaSecuritySpec (CKAState F G) G G F).Range OSendA)
             (s' : GameState (CKAState F G) G G),
-      evalDist (do
+      evalSPMF (do
         let a ← ($ᵗ F : ProbComp F)
         let b ← ($ᵗ F : ProbComp F)
         let gT ← ($ᵗ G : ProbComp G)
         (simulateQ (honestImplParamRand gp gen a b gT) (k u)).run' s') =
-      evalDist ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) (k u)).run' s')) :
-    evalDist (do
+      evalSPMF ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) (k u)).run' s')) :
+    evalSPMF (do
       let a ← ($ᵗ F : ProbComp F)
       let b ← ($ᵗ F : ProbComp F)
       let gT ← ($ᵗ G : ProbComp G)
       (simulateQ (honestImplParamRand gp gen a b gT)
         (OracleSpec.query
           (OSendA : (ckaSecuritySpec (CKAState F G) G G F).Domain) >>= k)).run' s) =
-    evalDist ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen))
+    evalSPMF ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen))
       (OracleSpec.query
         (OSendA : (ckaSecuritySpec (CKAState F G) G G F).Domain) >>= k)).run' s) := by
   by_cases h_fire :
@@ -154,7 +154,7 @@ lemma evalDist_eager_honest_rand_eq_step_at_sendA_chal_B
         change (oracleSendA (ddhCKA F G gen) ()).run s = _
         simp [oracleSendA, StateT.run_bind, StateT.run_get, StateT.run_set,
           pure_bind, bind_pure_comp, h_v, h_stA, ddhCKA, send, post]
-      apply evalDist_ext
+      apply evalSPMF_ext
       intro y
       simp only [simulateQ_bind, simulateQ_query, OracleQuery.cont_query, id_map,
         OracleQuery.input_query, StateT.run'_eq, StateT.run_bind, map_bind]
@@ -210,20 +210,20 @@ lemma evalDist_eager_honest_rand_eq_step_at_sendB_chal_A
          OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool)
     (h_ih : ∀ (u : (ckaSecuritySpec (CKAState F G) G G F).Range OSendB)
             (s' : GameState (CKAState F G) G G),
-      evalDist (do
+      evalSPMF (do
         let a ← ($ᵗ F : ProbComp F)
         let b ← ($ᵗ F : ProbComp F)
         let gT ← ($ᵗ G : ProbComp G)
         (simulateQ (honestImplParamRand gp gen a b gT) (k u)).run' s') =
-      evalDist ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) (k u)).run' s')) :
-    evalDist (do
+      evalSPMF ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) (k u)).run' s')) :
+    evalSPMF (do
       let a ← ($ᵗ F : ProbComp F)
       let b ← ($ᵗ F : ProbComp F)
       let gT ← ($ᵗ G : ProbComp G)
       (simulateQ (honestImplParamRand gp gen a b gT)
         (OracleSpec.query
           (OSendB : (ckaSecuritySpec (CKAState F G) G G F).Domain) >>= k)).run' s) =
-    evalDist ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen))
+    evalSPMF ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen))
       (OracleSpec.query
         (OSendB : (ckaSecuritySpec (CKAState F G) G G F).Domain) >>= k)).run' s) := by
   by_cases h_fire :
@@ -264,7 +264,7 @@ lemma evalDist_eager_honest_rand_eq_step_at_sendB_chal_A
         change (oracleSendB (ddhCKA F G gen) ()).run s = _
         simp [oracleSendB, StateT.run_bind, StateT.run_get, StateT.run_set,
           pure_bind, bind_pure_comp, h_v, h_stB, ddhCKA, send, post]
-      apply evalDist_ext
+      apply evalSPMF_ext
       intro y
       simp only [simulateQ_bind, simulateQ_query, OracleQuery.cont_query, id_map,
         OracleQuery.input_query, StateT.run'_eq, StateT.run_bind, map_bind]
@@ -320,20 +320,20 @@ lemma evalDist_eager_honest_rand_eq_step_at_challA_chal_A
          OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool)
     (h_ih : ∀ (u : (ckaSecuritySpec (CKAState F G) G G F).Range OChallA)
             (s' : GameState (CKAState F G) G G),
-      evalDist (do
+      evalSPMF (do
         let a ← ($ᵗ F : ProbComp F)
         let b ← ($ᵗ F : ProbComp F)
         let gT ← ($ᵗ G : ProbComp G)
         (simulateQ (honestImplParamRand gp gen a b gT) (k u)).run' s') =
-      evalDist ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) (k u)).run' s')) :
-    evalDist (do
+      evalSPMF ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) (k u)).run' s')) :
+    evalSPMF (do
       let a ← ($ᵗ F : ProbComp F)
       let b ← ($ᵗ F : ProbComp F)
       let gT ← ($ᵗ G : ProbComp G)
       (simulateQ (honestImplParamRand gp gen a b gT)
         (OracleSpec.query
           (OChallA : (ckaSecuritySpec (CKAState F G) G G F).Domain) >>= k)).run' s) =
-    evalDist ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen))
+    evalSPMF ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen))
       (OracleSpec.query
         (OChallA : (ckaSecuritySpec (CKAState F G) G G F).Domain) >>= k)).run' s) := by
   by_cases h_fire :
@@ -381,7 +381,7 @@ lemma evalDist_eager_honest_rand_eq_step_at_challA_chal_A
         simp [oracleChallA, StateT.run_bind, StateT.run_get, StateT.run_set,
           pure_bind, bind_pure_comp,
           h_v, h_beq, h_e_post, h_stA, ddhCKA, send, post]
-      apply evalDist_ext
+      apply evalSPMF_ext
       intro y
       simp only [simulateQ_bind, simulateQ_query, OracleQuery.cont_query, id_map,
         OracleQuery.input_query, StateT.run'_eq, StateT.run_bind, map_bind]
@@ -443,20 +443,20 @@ lemma evalDist_eager_honest_rand_eq_step_at_challB_chal_B
          OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool)
     (h_ih : ∀ (u : (ckaSecuritySpec (CKAState F G) G G F).Range OChallB)
             (s' : GameState (CKAState F G) G G),
-      evalDist (do
+      evalSPMF (do
         let a ← ($ᵗ F : ProbComp F)
         let b ← ($ᵗ F : ProbComp F)
         let gT ← ($ᵗ G : ProbComp G)
         (simulateQ (honestImplParamRand gp gen a b gT) (k u)).run' s') =
-      evalDist ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) (k u)).run' s')) :
-    evalDist (do
+      evalSPMF ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) (k u)).run' s')) :
+    evalSPMF (do
       let a ← ($ᵗ F : ProbComp F)
       let b ← ($ᵗ F : ProbComp F)
       let gT ← ($ᵗ G : ProbComp G)
       (simulateQ (honestImplParamRand gp gen a b gT)
         (OracleSpec.query
           (OChallB : (ckaSecuritySpec (CKAState F G) G G F).Domain) >>= k)).run' s) =
-    evalDist ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen))
+    evalSPMF ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen))
       (OracleSpec.query
         (OChallB : (ckaSecuritySpec (CKAState F G) G G F).Domain) >>= k)).run' s) := by
   by_cases h_fire :
@@ -504,7 +504,7 @@ lemma evalDist_eager_honest_rand_eq_step_at_challB_chal_B
         simp [oracleChallB, StateT.run_bind, StateT.run_get, StateT.run_set,
           pure_bind, bind_pure_comp,
           h_v, h_beq, h_e_post, h_stB, ddhCKA, send, post]
-      apply evalDist_ext
+      apply evalSPMF_ext
       intro y
       simp only [simulateQ_bind, simulateQ_query, OracleQuery.cont_query, id_map,
         OracleQuery.input_query, StateT.run'_eq, StateT.run_bind, map_bind]
@@ -573,16 +573,16 @@ random output key. -/
 lemma evalDist_eager_honest_rand_eq
     (gp : GameParams) (s : GameState (CKAState F G) G G)
     (adversary : OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool) :
-    evalDist (do
+    evalSPMF (do
       let a ← ($ᵗ F : ProbComp F)
       let b ← ($ᵗ F : ProbComp F)
       let gT ← ($ᵗ G : ProbComp G)
       (simulateQ (honestImplParamRand gp gen a b gT) adversary).run' s) =
-    evalDist ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) adversary).run' s) := by
+    evalSPMF ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) adversary).run' s) := by
     induction adversary using OracleComp.inductionOn generalizing s with
   | pure x =>
     simp only [simulateQ_pure, StateT.run'_pure']
-    simp only [DeferredSampling.evalDist_bind_const_neverFails _ (probFailure_uniformSample _)]
+    simp only [DeferredSampling.evalSPMF_bind_const_neverFails _ (probFailure_uniformSample _)]
   | query_bind t k ih =>
     let pass := evalDist_eager_honest_rand_eq_step_passthrough (gen := gen) gp s
     match t with

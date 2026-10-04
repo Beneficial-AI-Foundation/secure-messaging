@@ -149,7 +149,7 @@ open OracleSpec OracleComp ENNReal PRFScheme AEADScheme
 
 variable {K_e K_m M AD C_e T : Type}
   [DecidableEq AD] [DecidableEq C_e] [DecidableEq T]
-  [Inhabited C_e] [Inhabited T]
+  [Inhabited C_e]
   [SampleableType C_e] [SampleableType T]
 
 /-! ## Main security theorem -/
@@ -183,7 +183,7 @@ theorem etmAEAD_security [Inhabited K_e]
     (hqd : AEADScheme.decryptQueryBound adv q_d)
     [NeverFail prf.keygen] :
     AEADScheme.distAdvantage (etmAEAD se prf) adv ≤
-      PRFScheme.prfAdvantage prf (prfReduction se adv) +
+      (PRFScheme.prfAdvantage prf (prfReduction se adv)).toReal +
       ↑q_d * (Fintype.card T : ℝ)⁻¹ +
       DetSEAlg.distAdvantage se (encReduction se adv)
 -- ANCHOR_END: etmAEAD_security
@@ -214,7 +214,7 @@ theorem etmAEAD_security [Inhabited K_e]
           have h4 : |g1 - g2| = |g2 - g1| := abs_sub_comm g1 g2
           have h5 : |g0 - g1| = |g1 - g0| := abs_sub_comm g0 g1
           linarith
-    _ ≤ PRFScheme.prfAdvantage prf (prfReduction se adv) +
+    _ ≤ (PRFScheme.prfAdvantage prf (prfReduction se adv)).toReal +
         ↑q_d * (Fintype.card T : ℝ)⁻¹ +
         DetSEAlg.distAdvantage se (encReduction se adv) :=
       add_le_add (add_le_add (game0_game1_le_prf se prf adv)

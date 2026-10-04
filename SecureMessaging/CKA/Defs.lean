@@ -9,6 +9,7 @@ import VCVio.OracleComp.Constructions.SampleableType
 import VCVio.OracleComp.SimSemantics.Append
 import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
 import ToVCVio.OracleComp.SimSemantics.UnifLift
+import ToVCVio.EvalDist.Monad.Basic
 
 /-!
 # Continuous Key Agreement (CKA)

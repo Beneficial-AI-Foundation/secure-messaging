@@ -52,26 +52,6 @@ macro "vcv_simp_support" " at " h:ident : tactic =>
 macro "vcv_extract_support_binds" " at " h:ident : tactic =>
   `(tactic| repeat (obtain ⟨_, _, $h⟩ := Set.mem_iUnion₂.mp $h))
 
-/-- Normalize a support hypothesis for a stateful VCV-io computation. -/
-macro "vcvSupport" h:ident : tactic =>
-  `(tactic|
-    (vcv_simp_support at $h:ident
-     vcv_extract_support_binds at $h:ident))
-
-/-- Normalize a named support hypothesis and close the common counter-monotonicity goal. -/
-macro "vcvSupport" " at " h:ident : tactic =>
-  `(tactic|
-    (vcvSupport $h:ident
-     try simp only [Set.mem_range, Set.mem_singleton_iff] at $h:ident
-     first
-       | obtain ⟨_, rfl⟩ := $h:ident
-       | subst $h:ident
-     first
-       | exact ⟨le_refl _, le_refl _⟩
-       | exact ⟨Nat.le_succ _, le_refl _⟩
-       | exact ⟨le_refl _, Nat.le_succ _⟩
-       | exact ⟨rfl, rfl⟩))
-
 /-- Normalize local support facts and close common support-generated goals.
 
 After normalization the bind witnesses sit under existentials, so they are
@@ -93,6 +73,28 @@ macro "vcvSupport" : tactic =>
        | omega
        | simp_all
        | grind))
+
+/-- Normalize a support hypothesis for a stateful VCV-io computation. -/
+@[tactic_alt tacticVcvSupport]
+macro "vcvSupport" h:ident : tactic =>
+  `(tactic|
+    (vcv_simp_support at $h:ident
+     vcv_extract_support_binds at $h:ident))
+
+/-- Normalize a named support hypothesis and close the common counter-monotonicity goal. -/
+@[tactic_alt tacticVcvSupport]
+macro "vcvSupport" " at " h:ident : tactic =>
+  `(tactic|
+    (vcvSupport $h:ident
+     try simp only [Set.mem_range, Set.mem_singleton_iff] at $h:ident
+     first
+       | obtain ⟨_, rfl⟩ := $h:ident
+       | subst $h:ident
+     first
+       | exact ⟨le_refl _, le_refl _⟩
+       | exact ⟨Nat.le_succ _, le_refl _⟩
+       | exact ⟨le_refl _, Nat.le_succ _⟩
+       | exact ⟨rfl, rfl⟩))
 
 /-! ## Reference examples
 

@@ -131,7 +131,7 @@ def indCpaReduction (kem : KEMScheme ProbComp K PK SK C)
 theorem FSINDCPASecure (kem : KEMScheme ProbComp K PK SK C) (total : TotalDecaps kem)
     (ε : ℝ)
     (hcpa : ∀ adv : kem.IND_CPA_Adversary,
-      kem.IND_CPA_Advantage ProbCompRuntime.probComp adv ≤ ε)
+      (kem.IND_CPA_Advantage ProbCompRuntime.probComp adv).toReal ≤ ε)
     (adversaryA adversaryB : RKEMScheme.FSINDCPAAdversary Unit PK SK (PK × C) K) :
     RKEMScheme.FSINDCPASecure (scheme kem total) adversaryA adversaryB (ε / 2)
 ```
