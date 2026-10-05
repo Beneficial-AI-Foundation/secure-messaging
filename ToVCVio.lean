@@ -2,6 +2,7 @@ import ToVCVio.Control.SimpAttr
 import ToVCVio.Control.StateT
 import ToVCVio.CryptoFoundations.AdjoinRootReflect
 import ToVCVio.CryptoFoundations.KeyEncapMech
+import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
 import ToVCVio.CryptoFoundations.PRP
 import ToVCVio.CryptoFoundations.PRPSwitching
 import ToVCVio.CryptoFoundations.RabinIrreducibility
@@ -28,12 +29,16 @@ import ToVCVio.OracleComp.EvalDist
 import ToVCVio.OracleComp.ExpectedPayoff
 import ToVCVio.OracleComp.QueryTracking.CachingOracle
 import ToVCVio.OracleComp.QueryTracking.LazySampling
+import ToVCVio.OracleComp.QueryTracking.OneUseSampling
 import ToVCVio.OracleComp.QueryTracking.QueryBound
+import ToVCVio.OracleComp.QueryTracking.StateBudget
 import ToVCVio.OracleComp.QueryTracking.RandomOracle.DiscardQuerySimulate
 import ToVCVio.OracleComp.QueryTracking.RandomOracle.FreshQueries
 import ToVCVio.OracleComp.SimSemantics.SimulateQForward
 import ToVCVio.OracleComp.SimSemantics.StateT.ExpectedPayoffBound
+import ToVCVio.OracleComp.SimSemantics.StateT.IdenticalUntilBadInvariant
 import ToVCVio.OracleComp.SimSemantics.StateT.MapStateTBase
+import ToVCVio.OracleComp.SimSemantics.StateT.Stop
 import ToVCVio.OracleComp.SimSemantics.UnifLift
 import ToVCVio.Probability.IntMeasure
 import ToVCVio.ProgramLogic.Tactics.Support

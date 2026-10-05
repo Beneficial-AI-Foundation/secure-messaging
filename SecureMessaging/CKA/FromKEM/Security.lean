@@ -60,7 +60,7 @@ theorem security [SampleableType K] [DecidableEq K]
 -- ANCHOR_END: security
     := by
   refine le_of_eq ?_
-  rw [kem_ind_cpa_advantage_eq_fixed_branch_dist,
+  rw [IND_CPA_Advantage_eq_fixed_branch_dist,
     ckaToINDCPAReduction_IND_CPA_Exp_probOutput_true_eq_branch kem hDet leak adv gp true,
     ckaToINDCPAReduction_IND_CPA_Exp_probOutput_true_eq_branch kem hDet leak adv gp false,
     ckaReductionINDCPABranch_gap_eq_raw_gap,
