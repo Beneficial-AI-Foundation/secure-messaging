@@ -6,6 +6,7 @@ Authors: Beneficial AI Foundation
 
 import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
 import VCVio.OracleComp.ProbComp
+import VCVio.EvalDist.Monad.Disagreement
 
 /-!
 # Identical until bad on invariant states
@@ -79,23 +80,14 @@ theorem probEvent_simulateQ_run_bounds_of_inv
     · simp only [simulateQ_query_bind, StateT.run_bind, OracleQuery.input_query,
         monadLift_self]
       rw [← hagree t s hs hb]
-      simp only [probEvent_bind_eq_tsum]
-      dsimp only [OracleSpec.query, OracleQuery.cont, OracleQuery.input]
+      -- Both runs now share the query; lift the pointwise induction hypothesis through the
+      -- bind with VCVio's disagreement lemma, taking the disagreement set empty.
+      have step y (hy : y ∈ support ((left t).run s)) := ih y.1 y.2 (hpres t s hs y hy)
       constructor
-      · rw [← ENNReal.tsum_add]
-        apply ENNReal.tsum_le_tsum
-        intro y
-        by_cases hy : y ∈ support ((left t).run s)
-        · have h := (ih y.1 y.2 (hpres t s hs y hy)).1
-          simpa only [mul_add, id] using mul_le_mul' (le_refl (Pr[= y | (left t).run s])) h
-        · simp only [probOutput_eq_zero_of_not_mem_support hy, zero_mul, add_zero, le_refl]
-      · rw [← ENNReal.tsum_add]
-        apply ENNReal.tsum_le_tsum
-        intro y
-        by_cases hy : y ∈ support ((left t).run s)
-        · have h := (ih y.1 y.2 (hpres t s hs y hy)).2
-          simpa only [mul_add, id] using mul_le_mul' (le_refl (Pr[= y | (left t).run s])) h
-        · simp only [probOutput_eq_zero_of_not_mem_support hy, zero_mul, add_zero, le_refl]
+      · simpa using probEvent_bind_le_add_bad_of_disagree' (D := fun _ => False) (ε := 0)
+          (fun _ _ h => h.elim) fun y hy _ => by simpa using (step y hy).1
+      · simpa using probEvent_bind_le_add_bad_of_disagree' (D := fun _ => False) (ε := 0)
+          (fun _ _ h => h.elim) fun y hy _ => by simpa using (step y hy).2
 
 /-- Under the hypotheses of `probEvent_simulateQ_run_bounds_of_inv` and with its notation, the
 real values satisfy `|pL - pR| ≤ pBad`. -/
