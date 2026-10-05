@@ -48,9 +48,9 @@ noncomputable def pairFailure [DecidableEq P.K] [DecidableEq P.EpochKey]
     | some key => derivedKeyFailure gen.epoch sk ct1 ct2 key
   match gen, encap with
   | .keysSampled _ _ sk vec enc, .noHeaderReceived .. =>
-      P.inc.decapsFailureProb P.hDet P.hEnc2 enc.payload.1 vec sk
+      P.inc.decapsFailureProb enc.payload.1 vec sk
   | .keysSampled _ _ sk vec enc, .headerReceived .. =>
-      P.inc.decapsFailureProb P.hDet P.hEnc2 enc.payload.1 vec sk
+      P.inc.decapsFailureProb enc.payload.1 vec sk
   | .keysSampled _ _ sk vec _, .ct1Sampled _ _ hdr st ct1 _ _ =>
       test sk ct1 (P.hEnc2.encaps2Det st hdr vec)
   | .headerSent _ _ sk _ enc, .ct1Sampled _ _ hdr st ct1 _ _ =>
@@ -91,7 +91,7 @@ noncomputable def EpochTranscript.failurePotential [DecidableEq P.K] [DecidableE
   match tr.keypair, tr.encaps1 with
   | none, _ => 0
   | some (pk, sk), none =>
-      P.inc.decapsFailureProb P.hDet P.hEnc2 (P.inc.toHeader pk) (P.inc.toVector pk) sk
+      P.inc.decapsFailureProb (P.inc.toHeader pk) (P.inc.toVector pk) sk
   | some (pk, sk), some (encapsState, ct1, key) =>
       derivedKeyFailure e sk ct1
         (P.hEnc2.encaps2Det encapsState (P.inc.toHeader pk) (P.inc.toVector pk))

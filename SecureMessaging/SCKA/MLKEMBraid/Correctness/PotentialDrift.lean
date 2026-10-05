@@ -52,8 +52,8 @@ omit [DecidableEq P.Sym] in
 /-- The failure potential is at most `1`. -/
 private theorem failurePotential_le_one (s : GameState P AuthState) :
     failurePotential s ≤ 1 := by
-  have hrisk : ∀ hdr vec sk, P.inc.decapsFailureProb P.hDet P.hEnc2 hdr vec sk ≤ 1 :=
-    fun hdr vec sk => expectedPayoff_le_one _ _ fun _ => by split; split_ifs <;> simp
+  have hrisk : ∀ hdr vec sk, P.inc.decapsFailureProb hdr vec sk ≤ 1 :=
+    fun hdr vec sk => probOutput_false_add_probFailure_le_one _
   have hderived : ∀ e sk ct1 ct2 key, derivedKeyFailure (P := P) e sk ct1 ct2 key ≤ 1 := by
     intro e sk ct1 ct2 key
     unfold derivedKeyFailure
@@ -222,7 +222,7 @@ private theorem expectedPayoff_failurePotential_send_keysUnsampled
   obtain ⟨b, dec, hpeer⟩ := peer_noHeaderReceived_of_keysUnsampled auth hT party hst
   obtain ⟨htcur, hkeys⟩ := hT.control.send_prefix party
   rw [hst] at htcur hkeys
-  rw [← P.inc.expectedPayoff_keygen_decapsFailureProb P.hDet P.hEnc2,
+  rw [← P.inc.expectedPayoff_keygen_decapsFailureProb,
     oracleSend_run_eq auth irl sampleInitKey, expectedPayoff_map, hst,
     send_keysUnsampled_eq, expectedPayoff_map]
   congr 1
@@ -256,7 +256,7 @@ private theorem expectedPayoff_failurePotential_send_headerReceived_le
     rw [hst] at hLocal
     exact hLocal.2.1
   have hΦ : currentEpochFailure s =
-      P.inc.decapsFailureProb P.hDet P.hEnc2 (P.inc.toHeader pk) (P.inc.toVector pk) sk := by
+      P.inc.decapsFailureProb (P.inc.toHeader pk) (P.inc.toVector pk) sk := by
     rw [currentEpochFailure_eq_transcript_party auth hT party]
     simp only [hst, hpeer, State.epoch, EpochTranscript.failurePotential, hkpT, hc0, if_true]
   obtain ⟨htcur, hkeys⟩ := hT.control.send_prefix party
@@ -274,7 +274,7 @@ private theorem expectedPayoff_failurePotential_send_headerReceived_le
       simp only [State.completedEpoch, State.epoch] at hbound
       omega
   rw [hΦ]
-  unfold KEMScheme.IncrementalStructure.decapsFailureProb
+  rw [P.inc.decapsFailureProb_eq_expectedPayoff P.hDet P.hEnc2]
   rw [oracleSend_run_eq auth irl sampleInitKey, expectedPayoff_map, hst,
     send_headerReceived_eq, expectedPayoff_map]
   refine expectedPayoff_mono _ _ _ fun c => ?_
