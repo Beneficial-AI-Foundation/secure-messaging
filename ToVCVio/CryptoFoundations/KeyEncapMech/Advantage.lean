@@ -73,17 +73,21 @@ variable {K PK SK C : Type}
 /-- Data shared by the two fixed-bit experiments of `adv` against `kem`: the state `st`
 returned by `adv.preChallenge pk`, the encapsulation ciphertext `cStar` with its shared key
 `kReal`, and the independent uniform key `kRand` of the random-key experiment. -/
-private structure INDCPAPrefixState
+structure INDCPAPrefixState
     (kem : KEMScheme ProbComp K PK SK C)
     (adv : kem.IND_CPA_Adversary) where
+  /-- State returned by `adv.preChallenge pk`. -/
   st : adv.State
+  /-- Encapsulation ciphertext. -/
   cStar : C
+  /-- Shared key produced together with `cStar`. -/
   kReal : K
+  /-- Independent uniform key of the random-key experiment. -/
   kRand : K
 
 /-- The bit-independent prefix of the IND-CPA experiment: key generation, the
 adversary's pre-challenge phase, encapsulation, and the random key draw. -/
-private def indCPAPrefix [SampleableType K]
+def indCPAPrefix [SampleableType K]
     (kem : KEMScheme ProbComp K PK SK C)
     (adv : kem.IND_CPA_Adversary) : ProbComp (INDCPAPrefixState kem adv) := do
   let (pk, _sk) ← kem.keygen
@@ -94,7 +98,7 @@ private def indCPAPrefix [SampleableType K]
 
 /-- A formulation of the fixed-bit experiment `G_b` over `indCPAPrefix`: it returns
 `adv.postChallenge st cStar k*`, where `k* = kReal` if `b = true` and `k* = kRand` otherwise. -/
-private def indCPAExpProb [SampleableType K]
+def indCPAExpProb [SampleableType K]
     (kem : KEMScheme ProbComp K PK SK C)
     (adv : kem.IND_CPA_Adversary) (b : Bool) : ProbComp Bool := do
   let p ← indCPAPrefix kem adv
@@ -182,9 +186,9 @@ private lemma indCPAGameProb_advantage_eq_fixed_dist [SampleableType K]
       (fun p => adv.postChallenge p.st p.cStar p.kReal)
       (fun p => adv.postChallenge p.st p.cStar p.kRand)
 
-/-- The local fixed-bit experiment and the standard IND-CPA experiment
-`IND_CPA_Exp` have the same probability of returning `true`. -/
-private lemma indCPAExpProb_probOutput_true_eq [SampleableType K]
+/-- For every bit `b`, `indCPAExpProb kem adv b` and the standard experiment
+`kem.IND_CPA_Exp ProbCompRuntime.probComp adv b` return `true` with the same probability. -/
+lemma indCPAExpProb_probOutput_true_eq [SampleableType K]
     (kem : KEMScheme ProbComp K PK SK C)
     (adv : kem.IND_CPA_Adversary) (b : Bool) :
     Pr[= true | indCPAExpProb kem adv b] =
