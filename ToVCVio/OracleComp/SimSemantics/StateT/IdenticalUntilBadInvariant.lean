@@ -26,10 +26,9 @@ output of `oa` together with the final state. Write `pL := Pr[fun z => event z.1
 
 - `left` preserves `Inv` and `bad`: for every query `t`, state `u`, and `(a, u')` in the support
   of `(left t).run u`, `Inv u` implies `Inv u'`, and `bad u` implies `bad u'`;
-- `(left t).run u = (right t).run u` for every query `t` and state `u` with `Inv u` and `¬bad u`;
-- `Inv s`.
+- `(left t).run u = (right t).run u` for every query `t` and state `u` with `Inv u` and `¬bad u`.
 
-Then
+Then, if the initial state `s` of `L` and `R` satisfies `Inv s`,
 
 - `probEvent_simulateQ_run_bounds_of_inv`: `pL ≤ pR + pBad` and `pR ≤ pL + pBad`;
 - `abs_probEvent_simulateQ_run_sub_le_bad_of_inv`: `|pL - pR| ≤ pBad` for the real values
