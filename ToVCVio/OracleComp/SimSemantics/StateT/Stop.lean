@@ -61,14 +61,22 @@ stopOnState(base, stop)(t; s) =
 It returns `false` at the first query whose successor state satisfies `stop`, and otherwise the
 output bit of `oa`: `stoppedRun base stop oa s = optionRun (stopOnState base stop) oa s`.
 
-**Results.**
+The same run without stopping is `(simulateQ base oa).run' s : ProbComp Bool`: `simulateQ base oa`
+replaces each query `t` of `oa` by `base t`, and `.run' s` starts from `s` and discards the final
+state.
 
-- `probOutput_optionRun_eq_of_state_map`: lifts query distribution equality
-  through a state map to equality of acceptance probabilities.
-- `probOutput_stoppedRun_eq_of_inv`: stopping preserves acceptance when an
-  invariant ensures that `stop` is false.
-- `signed_gap_stoppedRun_eq`: stopping preserves a signed acceptance gap
-  under the theorem's conditions.
+**Results.** A run *accepts* if it returns `true`.
+
+- `probOutput_optionRun_eq_of_state_map`: for two oracles `left` and `right` of the type of
+  `impl`, whose state spaces are related by a map `f`: if `right` answers each query from `f u` as
+  `left` does from `u`, then `left` from `s` and `right` from `f s` accept with the same
+  probability. The agreement is needed only at states satisfying an invariant of `left`.
+- `probOutput_stoppedRun_eq_of_inv`: stopping has no effect when an invariant of `base` keeps
+  `stop` false; the stopped and ordinary runs accept with the same probability.
+- `signed_gap_stoppedRun_eq`: if two oracles `left` and `right` of the type of `base` answer
+  queries identically until both enter states where `stop` stays false, and accept with equal
+  probability from every state where `stop` holds, then stopping both runs leaves the difference
+  of their acceptance probabilities unchanged.
 -/
 
 open OracleSpec OracleComp ENNReal
@@ -346,9 +354,10 @@ without stopping. Assume:
 
 - `left` preserves `Inv`, and both implementations preserve `committed`;
 - for every state `u`, `committed u` implies `stop u = false`;
-- for every query `t` and state `u` satisfying `Inv u`, either
-  `(left t).run u = (right t).run u`, or every `(a, u')` in the support of
-  `(left t).run u` or of `(right t).run u` satisfies `committed u'`;
+- for every query `t` and state `u` satisfying `Inv u`, one of the following holds:
+  - `(left t).run u = (right t).run u`, or
+  - every `(a, u')` in the support of `(left t).run u` or of `(right t).run u` satisfies
+    `committed u'`;
 - for every state `u` with `Inv u` and `stop u = true`, every Boolean
   computation has equal probabilities of returning `true` under `left`
   and `right` from `u`.
@@ -356,8 +365,9 @@ without stopping. Assume:
 For every Boolean computation `oa` and initial state `s` satisfying `Inv s`,
 let `p_left`, `p_right` be its probabilities of returning `true` in the
 ordinary simulations, and `p_left_stop`, `p_right_stop` those in the stopped
-simulations. Then `p_left - p_right = p_left_stop - p_right_stop`, with
-subtraction in `ℝ`. -/
+simulations.
+
+Then `p_left - p_right = p_left_stop - p_right_stop`, with subtraction in `ℝ`. -/
 theorem signed_gap_stoppedRun_eq
     (left right : QueryImpl spec (StateT σ ProbComp))
     (Inv committed : σ → Prop) (stop : σ → Bool)

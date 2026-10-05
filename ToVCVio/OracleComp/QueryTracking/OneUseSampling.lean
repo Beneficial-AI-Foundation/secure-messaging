@@ -41,9 +41,10 @@ Fix arbitrary state predicates `Inv, used : σ → Prop`
 and a test `hit : spec.Domain → σ → Bool`, with the following roles:
 
 - `Inv` is the state invariant;
-- `used s` marks states after which query distributions must be independent
-  of the sampled parameter `a : τ` in `impl a`;
-- `hit t s = true` marks a query `t` in state `s` that may depend on `a`.
+- `used s` marks states after which every query has the same joint distribution of response and
+  next state under `impl a` for all `a ∈ S`;
+- `hit t s = true` marks a query `t` in state `s` whose joint distribution of response and next
+  state under `impl a` may vary with `a ∈ S`.
 
 Assume that for every query `t`, state `s` satisfying `Inv s`, and parameters
 `a, a' ∈ S`:
@@ -54,6 +55,9 @@ Assume that for every query `t`, state `s` satisfying `Inv s`, and parameters
    the same joint distribution of response and next state.
 4. If `used s`, then `hit t s = false`.
 5. If `hit t s = true`, every such `s'` satisfies `used s'`.
+
+By 2, 4, and 5, a query with `hit t s = true` occurs only in a state without `used` and leads to
+states with `used`, so every execution from an `Inv` state contains at most one such query.
 
 Then, for every adaptive adversary `oa : OracleComp spec Bool` and
 initial state `s` satisfying `Inv s`,

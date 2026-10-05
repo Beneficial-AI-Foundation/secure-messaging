@@ -19,8 +19,8 @@ import VCVio.OracleComp.ProbComp
   and `s : σ` an initial state.
 
 **Notation.** `L := (simulateQ left oa).run s` and `R := (simulateQ right oa).run s` return the
-output of `oa` together with the final state. Write `pE(X) := Pr[fun z => event z.1 | X]` and
-`pBad := Pr[fun z => bad z.2 | L]`.
+output of `oa` together with the final state. Write `pL := Pr[fun z => event z.1 | L]`,
+`pR := Pr[fun z => event z.1 | R]`, and `pBad := Pr[fun z => bad z.2 | L]`.
 
 **Results.** Assume that
 
@@ -31,8 +31,8 @@ output of `oa` together with the final state. Write `pE(X) := Pr[fun z => event 
 
 Then
 
-- `probEvent_simulateQ_run_bounds_of_inv`: `pE(L) ≤ pE(R) + pBad` and `pE(R) ≤ pE(L) + pBad`;
-- `abs_probEvent_simulateQ_run_sub_le_bad_of_inv`: `|pE(L) - pE(R)| ≤ pBad` for the real values
+- `probEvent_simulateQ_run_bounds_of_inv`: `pL ≤ pR + pBad` and `pR ≤ pL + pBad`;
+- `abs_probEvent_simulateQ_run_sub_le_bad_of_inv`: `|pL - pR| ≤ pBad` for the real values
   of these probabilities.
 -/
 
@@ -54,9 +54,10 @@ private theorem bad_run_probability_one
 
 /-- Let `left` preserve `Inv` and `bad`, and let `(left t).run u = (right t).run u` for every
 query `t` and state `u` with `Inv u` and `¬bad u`. Then, for every computation `oa`, event
-`event : α → Prop`, and state `s` with `Inv s`, `pE(L) ≤ pE(R) + pBad` and
-`pE(R) ≤ pE(L) + pBad`, where `L := (simulateQ left oa).run s`, `R := (simulateQ right oa).run s`,
-`pE(X) := Pr[fun z => event z.1 | X]`, and `pBad := Pr[fun z => bad z.2 | L]`. -/
+`event : α → Prop`, and state `s` with `Inv s`, `pL ≤ pR + pBad` and `pR ≤ pL + pBad`, where
+`pL := Pr[fun z => event z.1 | (simulateQ left oa).run s]`,
+`pR := Pr[fun z => event z.1 | (simulateQ right oa).run s]`, and
+`pBad := Pr[fun z => bad z.2 | (simulateQ left oa).run s]`. -/
 theorem probEvent_simulateQ_run_bounds_of_inv
     (left right : QueryImpl spec (StateT σ ProbComp))
     (Inv bad : σ → Prop)
@@ -98,7 +99,7 @@ theorem probEvent_simulateQ_run_bounds_of_inv
         · simp only [probOutput_eq_zero_of_not_mem_support hy, zero_mul, add_zero, le_refl]
 
 /-- Under the hypotheses of `probEvent_simulateQ_run_bounds_of_inv` and with its notation, the
-real values satisfy `|pE(L) - pE(R)| ≤ pBad`. -/
+real values satisfy `|pL - pR| ≤ pBad`. -/
 theorem abs_probEvent_simulateQ_run_sub_le_bad_of_inv
     (left right : QueryImpl spec (StateT σ ProbComp))
     (Inv bad : σ → Prop)

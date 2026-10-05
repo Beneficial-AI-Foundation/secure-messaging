@@ -38,10 +38,12 @@ queries can only preserve or decrease it.
   then for every initial state `s`, each supported final state `s'` satisfies
   `count s' ≤ count s + q`.
 - `simulateQ_run_eq_of_query_eq_stateBudget`: let
-  `left right : QueryImpl spec (StateT σ ProbComp)`, `Inv : σ → Prop`, and `Q : ℕ`. If `left`
-  preserves `Inv`, satisfies the counter condition, and
-  `(left t).run u = (right t).run u` whenever `Inv u` and `count u ≤ Q`, then
-  `(simulateQ left oa).run s = (simulateQ right oa).run s` for every `s` with `Inv s` and
+  `left right : QueryImpl spec (StateT σ ProbComp)`, `Inv : σ → Prop`, and `Q : ℕ`. Assume
+  - `left` preserves `Inv`;
+  - `left` satisfies the counter condition;
+  - `(left t).run u = (right t).run u` whenever `Inv u` and `count u ≤ Q`.
+
+  Then `(simulateQ left oa).run s = (simulateQ right oa).run s` for every `s` with `Inv s` and
   `count s + q ≤ Q`.
 -/
 
@@ -54,9 +56,14 @@ and `p` the predicate selecting queries to count. Assume that for every
 query `t`, state `s`, and `(a, s')` in the support of `(impl t).run s`,
 `count s' ≤ count s + (if p t then 1 else 0)`.
 
-Then for every computation `oa` making at most `q` queries satisfying `p` on each
-oracle-response path, initial state `s`, and
-`z ∈ support ((simulateQ impl oa).run s)`, `count z.2 ≤ count s + q`. -/
+Then the counter grows by at most `q` along every execution: for every computation `oa`
+making at most `q` queries satisfying `p` on each oracle-response path, every initial state `s`,
+and every `z ∈ support ((simulateQ impl oa).run s)`,
+
+```text
+count z.2 ≤ count s + q.
+```
+-/
 theorem stateCounter_simulateQ_run_le
     {ι : Type} {spec : OracleSpec ι} {σ α : Type}
     (impl : QueryImpl spec (StateT σ ProbComp)) (count : σ → ℕ)
@@ -86,7 +93,11 @@ count, and `Q : ℕ` a counter limit. Assume:
 Then, for every computation `oa` making at most `q` queries satisfying `p`
 on each oracle-response path, and every state `s` with `Inv s` and
 `count s + q ≤ Q`, the complete output/state computations are equal:
-`(simulateQ left oa).run s = (simulateQ right oa).run s`. -/
+
+```text
+(simulateQ left oa).run s = (simulateQ right oa).run s.
+```
+-/
 theorem simulateQ_run_eq_of_query_eq_stateBudget
     {ι : Type} {spec : OracleSpec ι} {σ α : Type}
     (left right : QueryImpl spec (StateT σ ProbComp))
