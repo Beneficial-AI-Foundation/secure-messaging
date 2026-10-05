@@ -5,11 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.SCKA.MLKEMBraid.Instances
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.MessageReports
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.KeyPrefixes
 import SecureMessaging.SCKA.MLKEMBraid.Correctness.PotentialDrift
-import ToVCVio.OracleComp.SimSemantics.StateT.ExpectedPayoffBound
-import VCVio.OracleComp.QueryTracking.QueryBound
 
 /-!
 # ML-KEM Braid correctness
@@ -50,42 +46,6 @@ If the four erasure codes of `P` are correct and `Adv` makes at most `q` send qu
 Deterministic decapsulation and deterministic second-stage encapsulation are part of `P`.
 The scheme also takes an incremental-KEM randomness-leakage package `irl`.
 
-## Proof outline
-
-The proof uses the failure potential `V(s) := failurePotential P s`, defined by
-
-```
-V(s) := if s.correct then currentEpochFailure P s else 1.
-```
-
-Thus a state whose correctness flag is false has potential `1`. While the flag is true,
-`currentEpochFailure` accounts for the sampling stages of the epoch the parties share. On
-states consistent with a sampling transcript (`TranscriptConsistent`), it is:
-
-* `0` if the parties are at different epochs or the current key pair has not been sampled;
-* `decapsFailureProb` for the sampled key pair if the first encapsulation has not yet been
-  sampled, averaging over that encapsulation while keeping the key pair fixed;
-* a `0`/`1` test (`derivedKeyFailure`) after the first encapsulation: `1` if deterministic
-  decapsulation and key derivation do not recover the encapsulator's recorded epoch key,
-  and `0` otherwise. The deterministic second encapsulation stage supplies the remaining
-  ciphertext part.
-
-The middle case concerns KEM keys, whereas the last compares derived epoch keys. Since key
-derivation can identify different KEM keys, the derived-key failure indicator is bounded by
-the KEM failure indicator. The definition of `pairFailure` also returns `0` when there is no
-recorded encapsulator key to compare; the transcript invariant relates these cases to the
-protocol states used in the proof (`currentEpochFailure_eq_transcript`).
-
-A fixed key pair's failure probability need not be at most `ε`. Its average over fresh key
-generation is `ε` (`expectedPayoff_keygen_decapsFailureProb`). Keeping the conditional quantity
-in the potential accounts for a key pair retained across adaptively scheduled queries.
-
-Every query preserves `CorrectnessInv` (`correctnessImpl_preserves_correctnessInv`). Under this
-invariant, the expected increase of `V` is at most `ε` for a send and at most `0` otherwise
-(`expectedPayoff_failurePotential_query_le`). The initial potential is `0`. Summing the
-increments over at most `q` sends bounds the expected final potential by `q · ε`. Since the
-indicator of a false final flag is at most `V`, this also bounds the game's failure probability.
-
 ## References
 
 The protocol is Signal's *The ML-KEM Braid Protocol*
@@ -102,9 +62,10 @@ universe u
 
 namespace MLKEMBraid
 
-/-- Every oracle of the correctness game preserves `CorrectnessInv`. -/
+/-- With correct erasure codes, every query preserves `CorrectnessInv auth ik` on supported outcomes
+for every initial key `ik`. -/
 theorem correctnessImpl_preserves_correctnessInv
-    (P : Parameters ProbComp) [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    {P : Parameters ProbComp} [DecidableEq P.EpochKey] [DecidableEq P.Sym]
     {InitKey AuthState : Type}
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
       P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
@@ -117,17 +78,17 @@ theorem correctnessImpl_preserves_correctnessInv
     (ik : InitKey) :
     QueryImpl.PreservesInv
       (SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey))
-      (CorrectnessInv P auth ik) :=
-  SCKAScheme.sckaCorrectnessImpl_preservesInv
-    (oracleSend_preserves_correctnessInv P auth irl sampleInitKey ik true)
-    (oracleSend_preserves_correctnessInv P auth irl sampleInitKey ik false)
-    (oracleRecv_preserves_correctnessInv P auth irl sampleInitKey
+      (CorrectnessInv auth ik) :=
+  SCKAScheme.sckaCorrectnessImpl_preservesInv _
+    (oracleSend_preserves_correctnessInv auth irl sampleInitKey ik true)
+    (oracleSend_preserves_correctnessInv auth irl sampleInitKey ik false)
+    (oracleRecv_preserves_correctnessInv auth irl sampleInitKey
       hHdrCorrect hEkCorrect hCt1Correct hCt2Correct ik true)
-    (oracleRecv_preserves_correctnessInv P auth irl sampleInitKey
+    (oracleRecv_preserves_correctnessInv auth irl sampleInitKey
       hHdrCorrect hEkCorrect hCt1Correct hCt2Correct ik false)
 
-/-- If the four erasure codes of `P` are correct and `adv` makes at most `q` send queries, the
-correctness error of `scheme` is at most `q` times the correctness error of `P.kem`. -/
+/-- With correct erasure codes, every adversary making at most `q` sends across both parties causes
+a false correctness flag with probability at most `q` times the KEM correctness error. -/
 -- ANCHOR: Braid_correctness_error_le
 theorem correctness_error_le
     (P : Parameters ProbComp) [DecidableEq P.K]
@@ -148,63 +109,23 @@ theorem correctness_error_le
       (q : ℝ≥0∞) * P.kem.correctnessError ProbCompRuntime.probComp
 -- ANCHOR_END: Braid_correctness_error_le
     := by
-  have hrun : ∀ ik : InitKey,
-      expectedPayoff
-          ((simulateQ (SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey))
-            adv).run (SCKAScheme.initGameState (initA P auth ik) (initB P auth ik)))
-          (fun z => failurePotential P z.2) ≤
-        (q : ℝ≥0∞) * P.kem.correctnessError ProbCompRuntime.probComp := by
-    intro ik
-    have h := expectedPayoff_simulateQ_run_le
-      (SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey))
-      (CorrectnessInv P auth ik) (failurePotential P)
-      (fun t => SCKAScheme.isSendQuery (Rho := Message P.Sym) t = true)
-      (P.kem.correctnessError ProbCompRuntime.probComp)
-      (correctnessImpl_preserves_correctnessInv P auth irl sampleInitKey
-        hHdrCorrect hEkCorrect hCt1Correct hCt2Correct ik)
-      (expectedPayoff_failurePotential_query_le P auth irl sampleInitKey
-        hHdrCorrect hEkCorrect hCt1Correct hCt2Correct ik)
-      adv q hq _ (Or.inr ⟨_, transcriptConsistent_initGameState P auth ik⟩)
-    have h0 : failurePotential P
-        (SCKAScheme.initGameState (I := P.EpochKey) (Rho := Message P.Sym)
-          (initA P auth ik) (initB P auth ik)) = 0 := by
-      simp [failurePotential, currentEpochFailure, pairFailure, SCKAScheme.initGameState,
-        initA, initB, State.controlPosition, State.epoch]
-    rwa [h0, zero_add] at h
-  have hflag : ∀ ik : InitKey,
-      expectedPayoff
-          ((simulateQ (SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey))
-            adv).run (SCKAScheme.initGameState (initA P auth ik) (initB P auth ik)))
-          (fun z => if z.2.correct then 0 else 1) ≤
-        (q : ℝ≥0∞) * P.kem.correctnessError ProbCompRuntime.probComp := by
-    intro ik
-    refine le_trans (expectedPayoff_mono _ _ _ fun z => ?_) (hrun ik)
-    unfold failurePotential
-    split_ifs <;> simp
-  have hexp : SCKAScheme.correctnessExp (scheme P auth irl sampleInitKey) adv =
-      sampleInitKey >>= fun ik => (fun z => z.2.correct) <$>
-        (simulateQ (SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey))
-          adv).run (SCKAScheme.initGameState (initA P auth ik) (initB P auth ik)) := by
-    simp [SCKAScheme.correctnessExp, scheme, map_eq_bind_pure_comp]
-  have hle : Pr[= false | SCKAScheme.correctnessExp (scheme P auth irl sampleInitKey) adv] ≤
-      expectedPayoff (SCKAScheme.correctnessExp (scheme P auth irl sampleInitKey) adv)
-        (fun b => if b then 0 else 1) := by
-    rw [← probEvent_eq_eq_probOutput]
-    exact probEvent_le_expectedPayoff _ _ _ fun b hb => by simp [hb]
-  have hfalse :
-      Pr[= false | SCKAScheme.correctnessExp (scheme P auth irl sampleInitKey) adv] =
-        1 - Pr[= true | SCKAScheme.correctnessExp (scheme P auth irl sampleInitKey) adv] := by
-    rw [probOutput_false_eq_sub, probFailure_eq_zero, tsub_zero]
-  rw [← hfalse]
-  refine hle.trans ?_
-  rw [hexp, expectedPayoff_bind]
-  refine expectedPayoff_le_const_of_support sampleInitKey _ _ probFailure_eq_zero
-    fun ik _ => ?_
-  rw [expectedPayoff_map]
-  exact hflag ik
+  refine SCKAScheme.correctness_error_le_of_potential (scheme P auth irl sampleInitKey)
+    (CorrectnessInv auth) failurePotential _ ?_ ?_ ?_ ?_ adv q hq
+  · intro s hs
+    simp [failurePotential, hs]
+  · intro ik _ stA hA stB hB
+    simp only [scheme, mem_support_pure_iff] at hA hB
+    subst hA hB
+    refine ⟨Or.inr ⟨_, transcriptConsistent_initGameState auth ik⟩, ?_⟩
+    simp [failurePotential, currentEpochFailure, pairFailure, SCKAScheme.initGameState,
+      initA, initB, State.controlPosition, State.epoch]
+  · exact correctnessImpl_preserves_correctnessInv auth irl sampleInitKey
+      hHdrCorrect hEkCorrect hCt1Correct hCt2Correct
+  · exact expectedPayoff_failurePotential_query_le auth irl sampleInitKey
+      hHdrCorrect hEkCorrect hCt1Correct hCt2Correct
 
-/-- If the four erasure codes are correct and `adv` makes at most `q` send queries, the
-correctness error of `mlkemBraidScheme` is at most `q` times the correctness error of ML-KEM. -/
+/-- The bound of `correctness_error_le` for `mlkemBraidScheme`, using the correctness error of
+`MLKEM.mlkemScheme p ring prims`. -/
 theorem mlkemBraidScheme_correctness_error_le
     (p : MLKEM.ParameterSet) (ring : MLKEM.NTTRingOps)
     (prims : MLKEM.Primitives (MLKEM.ParameterSet.params p)

@@ -8,6 +8,9 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
 
 /-!
 # RecvB Preserves the Reachability Invariant
+
+B's receive preserves `reachableInv` when the public-key erasure code is correct and has a
+positive chunk count (`oracleRecvB_preserves_reachableInv`).
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
@@ -376,7 +379,8 @@ private def recvBNextBase
     lch := ∅
     ack := { ekRec := false, ctRec := false } }
 
-/-- Normal form of `recvB` for a message in B's current epoch. -/
+/-- On a message of B's current epoch, `recvB` outputs no key, reports the epoch before it, and
+applies `recvBEkStep` and then `recvBAckStep` to B's state. -/
 private lemma recvB_current_eq
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (stB : StB onoff Sym)
@@ -400,7 +404,7 @@ private lemma recvB_current_eq
     · simp [recvB, recvBEkStep, recvBAckStep, hek, hack]
     · simp [recvB, recvBEkStep, recvBAckStep, hek, hack]
 
-/-- Normal form of `recvB` for the first message of B's next epoch. -/
+/-- The version of `recvB_current_eq` for the next epoch, starting from `recvBNextBase`. -/
 private lemma recvB_next_eq
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (stB : StB onoff Sym)
@@ -527,8 +531,8 @@ private lemma reachableInv_after_recvB_next
     rw [htB']
     exact (hInv.msgBEpoch n ρ tsnd hn).trans (by omega)
 
-/-- B's receive oracle preserves `reachableInv` for missing, stale, current,
-and next-epoch message deliveries. -/
+/-- With a correct public-key erasure code and positive chunk count, B's receive preserves
+`reachableInv`. -/
 lemma oracleRecvB_preserves_reachableInv
     [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
@@ -545,9 +549,7 @@ lemma oracleRecvB_preserves_reachableInv
   rcases hs with ⟨T, hInv⟩
   cases hentry : s.msgA n with
   | none =>
-      have hz' : z = (none, s) := by
-        simpa [SCKAScheme.oracleRecvB, hentry, StateT.run_bind, StateT.run_get,
-          pure_bind] using hz
+      rw [SCKAScheme.oracleRecvB_run_eq_of_none _ _ hentry, mem_support_pure_iff] at hz
       subst z
       exact ⟨T, hInv⟩
   | some entry =>
@@ -564,34 +566,27 @@ lemma oracleRecvB_preserves_reachableInv
         have hknown := hInv.knownPrefixB
           (tcur := max s.tcurB (t - 1))
           (max_le hInv.tcurB (by omega))
-        have hz' :
-            z = (some (t - 1, none),
-              { s with
-                tcurB := max s.tcurB (t - 1)
-                correct := s.correct && decide (t - 1 = t - 1) }) := by
-          simpa [SCKAScheme.oracleRecvB, StateT.run_bind, StateT.run_get, hentry,
-            scheme, recvB, htsnd, Nat.not_lt_of_ge (Nat.le_of_lt ht), hne,
-            hknown] using hz
+        have hr : recvB kem onoff ecEk s.stB (ch?, ack, t, b?) =
+            some (none, t - 1, s.stB) := by
+          simp [recvB, Nat.not_lt_of_ge (Nat.le_of_lt ht), hne]
+        rw [SCKAScheme.oracleRecvB_run_eq_of_accept _ _ hentry hr,
+          mem_support_pure_iff] at hz
         subst z
-        exact reachableInv_after_recvB_stale kem onoff ecEk ecCt0 ecCt1
-          s T hInv t ht
+        simpa [SCKAScheme.recvBUpdate,
+          beq_eq_decide, htsnd, hknown] using
+          reachableInv_after_recvB_stale kem onoff ecEk ecCt0 ecCt1 s T hInv t ht
       · subst t
         have hknown := hInv.knownPrefixB
           (tcur := max s.tcurB (s.stB.t - 1))
           (max_le hInv.tcurB le_rfl)
-        have hz' :
-            let stB' := recvBAckStep kem onoff
-              (recvBEkStep kem onoff ecEk s.stB ch?) ack s.stB.t
-            z = (some (s.stB.t - 1, none),
-              { s with
-                stB := stB'
-                tcurB := max s.tcurB (s.stB.t - 1)
-                correct := s.correct && decide (s.stB.t - 1 = s.stB.t - 1) }) := by
-          simpa [SCKAScheme.oracleRecvB, StateT.run_bind, StateT.run_get, hentry,
-            scheme, recvB_current_eq, beq_eq_decide, htsnd, hknown] using hz
+        rw [SCKAScheme.oracleRecvB_run_eq_of_accept _ _ hentry
+          (recvB_current_eq kem onoff ecEk s.stB ch? ack s.stB.t b? rfl),
+          mem_support_pure_iff] at hz
         subst z
-        exact reachableInv_after_recvB_current kem onoff ecEk hcorrect hEkPos
-          ecCt0 ecCt1 s T hInv ch? ack b? (by simpa [htsnd] using hhon)
+        simpa [SCKAScheme.recvBUpdate,
+          beq_eq_decide, htsnd, hknown] using
+          reachableInv_after_recvB_current kem onoff ecEk hcorrect hEkPos
+            ecCt0 ecCt1 s T hInv ch? ack b? (by simpa [htsnd] using hhon)
       · have htNext : t = s.stB.t + 1 := by
           have := hInv.epochs.2
           omega
@@ -608,24 +603,16 @@ lemma oracleRecvB_preserves_reachableInv
           (tcur := max s.tcurB (t - 1))
           htcur
         have hknown' :
-            (List.range (max s.tcurB s.stB.t + 1)).all
-              (fun t => t = 0 || (s.keyB t).isSome) = true := by
+            SCKAScheme.knownPrefix s.keyB (max s.tcurB s.stB.t) = true := by
           simpa [htNext] using hknown
-        have hz' :
-            let base := recvBNextBase kem onoff s.stB
-            let stB' := recvBAckStep kem onoff
-              (recvBEkStep kem onoff ecEk base ch?) ack t
-            z = (some (t - 1, none),
-              { s with
-                stB := stB'
-                tcurB := max s.tcurB (t - 1)
-                correct := s.correct && decide (t - 1 = t - 1) }) := by
-          simpa [SCKAScheme.oracleRecvB, StateT.run_bind, StateT.run_get, hentry,
-            scheme, recvB_next_eq, beq_eq_decide,
-            htsnd, ht, htNext, hknown'] using hz
+        rw [SCKAScheme.oracleRecvB_run_eq_of_accept _ _ hentry
+          (recvB_next_eq kem onoff ecEk s.stB ch? ack t b? htNext),
+          mem_support_pure_iff] at hz
         subst z
-        exact reachableInv_after_recvB_next kem onoff ecEk hcorrect hEkPos
-          ecCt0 ecCt1 s T hInv ch? ack t b? htNext htA (by simpa [htsnd] using hhon)
+        simpa [SCKAScheme.recvBUpdate,
+          beq_eq_decide, htsnd, htNext, hknown'] using
+          reachableInv_after_recvB_next kem onoff ecEk hcorrect hEkPos
+            ecCt0 ecCt1 s T hInv ch? ack t b? htNext htA (by simpa [htsnd] using hhon)
 
 end RecvB
 
