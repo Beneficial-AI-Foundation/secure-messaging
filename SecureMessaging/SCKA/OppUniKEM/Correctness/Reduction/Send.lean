@@ -69,8 +69,7 @@ def sendBKeyState [DecidableEq K]
       && decide (s.tcurB ≤ s.stB.t - 1)
       && (s.keyB s.stB.t).isNone
       && ((s.keyA s.stB.t).isNone || s.keyA s.stB.t == some key)
-      && (List.range (s.stB.t - 1 + 1)).all (fun t =>
-        t = 0 || (keyB' t).isSome) }
+      && SCKAScheme.knownPrefix keyB' (s.stB.t - 1) }
 
 /-- Build the SendB state for a newly sampled offline encapsulation. -/
 def sendBOffState

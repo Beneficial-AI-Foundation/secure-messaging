@@ -6,6 +6,7 @@ Authors: Beneficial AI Foundation
 
 import VCVio.CryptoFoundations.SecExp
 import VCVio.OracleComp.Constructions.SampleableType
+import VCVio.OracleComp.QueryTracking.QueryBound
 import VCVio.OracleComp.SimSemantics.Append
 import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
 import Mathlib.Data.Finset.Basic
@@ -703,6 +704,15 @@ def sckaSecurityImpl (isRandom : Bool) (vulnA : StA → Finset ℕ) (vulnB : StB
 abbrev SCKACorrectnessAdversary (Rho : Type) :=
   OracleComp (sckaCorrectnessSpec Rho) Bool
 -- ANCHOR_END: SCKACorrectnessAdversary
+
+/-- Whether a query of the correctness game is `SendA` or `SendB`. -/
+def isSendQuery : (sckaCorrectnessSpec Rho).Domain → Bool
+  | sckaCorrectnessSpec.OSendA | sckaCorrectnessSpec.OSendB => true
+  | _ => false
+
+/-- `adv` makes at most `q` `SendA` and `SendB` queries combined. -/
+def SendQueryBound (adv : SCKACorrectnessAdversary Rho) (q : ℕ) : Prop :=
+  adv.IsQueryBoundP (fun t => isSendQuery (Rho := Rho) t = true) q
 
 /-- SCKA security adversary: access to all oracles of `sckaSecuritySpec`. -/
 -- ANCHOR: SCKAAdversary

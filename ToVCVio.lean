@@ -38,6 +38,7 @@ import ToVCVio.OracleComp.SimSemantics.SimulateQForward
 import ToVCVio.OracleComp.SimSemantics.StateT.ExpectedPayoffBound
 import ToVCVio.OracleComp.SimSemantics.StateT.IdenticalUntilBadInvariant
 import ToVCVio.OracleComp.SimSemantics.StateT.MapStateTBase
+import ToVCVio.OracleComp.SimSemantics.StateT.PreservesInv
 import ToVCVio.OracleComp.SimSemantics.StateT.Stop
 import ToVCVio.OracleComp.SimSemantics.UnifLift
 import ToVCVio.Probability.IntMeasure

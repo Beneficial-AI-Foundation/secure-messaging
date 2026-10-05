@@ -3,6 +3,7 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.SendA
 import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.RecvB
 import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.SendB
 import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.RecvA
+import SecureMessaging.SCKA.Correctness
 import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 
 /-!
@@ -138,8 +139,7 @@ lemma trackedCorrectnessImpl_preserves
   have hreach' : reachableInv kem onoff ecEk ecCt0 ecCt1 y.2 := by
     match t with
     | OUnif n =>
-        exact oracleUnif_preserves_reachableInv kem onoff ecEk ecCt0 ecCt1
-          n p.1 hreach y hy
+        exact SCKAScheme.oracleUnif_preservesInv _ n p.1 hreach y hy
     | OSendA =>
         exact oracleSendA_preserves_reachableInv kem onoff hDet ecEk ecCt0 ecCt1
           leak hEkPos () p.1 hreach y hy

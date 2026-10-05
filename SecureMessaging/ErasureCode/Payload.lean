@@ -51,6 +51,13 @@ noncomputable def payloadChunks {M : Type}
   (ecp.ec.encodeChunks (ecp.serialize payload) I).map ErasureCode.chunkToNat
 
 omit [DecidableEq Sym] in
+/-- The empty set of codeword positions gives no chunks. -/
+@[simp] theorem payloadChunks_empty {M : Type}
+    (ecp : ErasureCodePayload M Sym) (payload : M) :
+    payloadChunks ecp payload ∅ = ∅ := by
+  simp [payloadChunks, ErasureCode.encodeChunks]
+
+omit [DecidableEq Sym] in
 /-- All chunk indices in `payloadChunks` satisfy the bound `< ecp.ec.N`. -/
 theorem payloadChunks_valid {M : Type}
     (ecp : ErasureCodePayload M Sym) (payload : M)

@@ -83,7 +83,9 @@ theorem send_eq_map_sendRleak [LawfulMonad m] (P : Parameters m)
     simp only [send, sendRleak, ← irl.encaps1_fst, map_eq_pure_bind, bind_assoc, pure_bind]
   all_goals simp [send, sendRleak]
 
-/-- The randomness disclosed by `sendRleak`, as a function of the entry state. -/
+/-- The randomness disclosed by `sendRleak` is `SendRand.keygen` of the key-generation leak from
+`keysUnsampled`, `SendRand.encaps1` of the first-stage encapsulation leak from `headerReceived`,
+and `SendRand.none` from every other state. -/
 theorem map_snd_sendRleak [LawfulMonad m] (P : Parameters m)
     (irl : P.kem.IncrementalRandLeak P.inc)
     (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
