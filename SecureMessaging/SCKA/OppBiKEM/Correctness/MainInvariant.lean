@@ -6,7 +6,7 @@ Authors: Ivan Gavran, Beneficial AI Foundation
 
 import SecureMessaging.ErasureCode.Payload
 import SecureMessaging.SCKA.OppBiKEM.Correctness.Transcript
-import SecureMessaging.SCKA.OppBiKEM.Correctness.SendA
+import SecureMessaging.SCKA.OppBiKEM.Correctness.SendFacts
 
 /-!
 # Opp-BiKEM — the main correctness invariant
@@ -34,9 +34,11 @@ The fields are grouped as
 * **horizon** and **messages**: the game horizon is bounded by the sending horizon, and every
   recorded outgoing message is honest with respect to `T`.
 
-Earlier results are reformulated here as fields rather than imported as separate invariants:
-message epochs (n1), receive-key freshness (n6), public-key coherence (n8), acknowledgement
-soundness (n11, n13), role parity (n12), phase causality (n14) and lockstep.
+The invariant is self-contained: message-epoch consistency, receive-key freshness, public-key
+coherence, acknowledgement soundness, role parity, phase causality and lockstep are all fields
+of `MessageInv` and `PartyInv` rather than separately imported invariants. The support-level
+facts about one `send` or one `recv` that the preservation proofs consume live in
+`SendFacts.lean` and `RecvFacts.lean`.
 -/
 
 open OracleComp KEMScheme ErasureCodePayload
@@ -68,11 +70,11 @@ with respect to the transcript `T`. -/
 structure MessageInv (role : Role) {kem : KEMScheme ProbComp K PK SK C}
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (T : Transcript kem) (st : State PK SK C Sym) (ρ : Message Sym) (tsnd : ℕ) : Prop where
-  /-- The recorded sending epoch is the one carried by the message (n1). -/
+  /-- The recorded sending epoch is the one carried by the message. -/
   epoch : tsnd = ρ.sendingEpoch
-  /-- The message carries the sender's responder parity (n12). -/
+  /-- The message carries the sender's responder parity. -/
   res_parity : ρ.tRes % 2 = role.resParity
-  /-- The message carries the sender's requester parity (n12). -/
+  /-- The message carries the sender's requester parity. -/
   req_parity : ρ.tReq % 2 = role.reqParity
   /-- The carried responder epoch is at most the current one. -/
   res_le : ρ.tRes ≤ st.res.resEpoch
@@ -90,11 +92,11 @@ structure MessageInv (role : Role) {kem : KEMScheme ProbComp K PK SK C}
     (T ρ.tRes).enc = some (c, k) ∧ ch = ecCt.encode c i
   /-- No selector, no chunk. -/
   no_chunk : ρ.bit = none → ρ.ch = none
-  /-- A ciphertext flag is backed by the sender's own `ctRec` (n13). -/
+  /-- A ciphertext flag is backed by the sender's own `ctRec`. -/
   ct_flag : ρ.ack.ctRec = true → ρ.tReq ∈ st.ack.ctRec
-  /-- A public-key flag is backed by the sender's own `ekRec` (n11). -/
+  /-- A public-key flag is backed by the sender's own `ekRec`. -/
   ek_flag : ρ.ack.ekRec = true → ρ.tReq - role.offset ∈ st.ack.ekRec
-  /-- A ciphertext message is sent only after the sender's own key was acknowledged (n14). -/
+  /-- A ciphertext message is sent only after the sender's own key was acknowledged. -/
   bit1_acked : ρ.bit = some 1 → ρ.tRes + role.offset ∈ st.ack.ekRec
   /-- Every positive epoch up to the advertised horizon is acknowledged by the sender. -/
   horizon_mem : ∀ s : ℤ, 0 < s → s ≤ ρ.sendingEpoch → s ∈ st.ack.ctRec
@@ -136,7 +138,7 @@ structure PartyInv (role : Role) {kem : KEMScheme ProbComp K PK SK C}
   ek_T : ∀ pk, st.req.ek = some pk →
     ∃ sk, (T (st.res.resEpoch + role.offset)).keypair = some (pk, sk)
   /-- Every retained secret key is the transcript's, for a positive requester-parity epoch not
-  yet decapsulated (n6). -/
+  yet decapsulated. -/
   dk_T : ∀ e sk, (e, sk) ∈ st.req.dk →
     e % 2 = role.reqParity ∧ 0 < e ∧ e ≤ st.res.resEpoch + role.offset ∧
       ownKey e.toNat = none ∧ ∃ pk, (T e).keypair = some (pk, sk)
@@ -164,13 +166,13 @@ structure PartyInv (role : Role) {kem : KEMScheme ProbComp K PK SK C}
   ct_T : ∀ c, st.res.ct = some c → ∃ k, (T st.res.resEpoch).enc = some (c, k)
   /-- An acknowledged ciphertext is no longer retained. -/
   ct_acked : st.res.resEpoch ∈ st.ack.ctRec → st.res.ct = none
-  /-- Encapsulating at `e` required the own key for `e + offset` to be acknowledged (n14). -/
+  /-- Encapsulating at `e` required the own key for `e + offset` to be acknowledged. -/
   enc_ekRec : ∀ e, e % 2 = role.resParity → (T e).enc.isSome = true →
     e + role.offset ∈ st.ack.ekRec
   -- decoded peer keys
   /-- A decoded peer key is the transcript's public key for that epoch. -/
   ekPeer_T : ∀ e pk, st.res.ekPeer e = some pk → ∃ sk, (T e).keypair = some (pk, sk)
-  /-- Peer keys sit at the responder parity (n12). -/
+  /-- Peer keys sit at the responder parity. -/
   ekPeer_parity : ∀ e, (st.res.ekPeer e).isSome = true → e % 2 = role.resParity
   /-- Peer keys are decoded at most for the current exchange. -/
   ekPeer_le : ∀ e, (st.res.ekPeer e).isSome = true → e ≤ st.req.reqEpoch - role.offset
@@ -179,7 +181,7 @@ structure PartyInv (role : Role) {kem : KEMScheme ProbComp K PK SK C}
   key_zero : ownKey 0 = none
   /-- At responder parity the key table is written at encapsulation. -/
   key_res : ∀ e : ℤ, 0 < e → e % 2 = role.resParity → ownKey e.toNat = (T e).key
-  /-- At requester parity the key table is written at decapsulation (n13). -/
+  /-- At requester parity the key table is written at decapsulation. -/
   key_req : ∀ e : ℤ, 0 < e → e % 2 = role.reqParity →
     ownKey e.toNat = if e ∈ st.ack.ctRec then (T e).key else none
   -- acknowledgements: ciphertexts
@@ -187,7 +189,7 @@ structure PartyInv (role : Role) {kem : KEMScheme ProbComp K PK SK C}
   ctRec_req_enc : ∀ t ∈ st.ack.ctRec, 0 < t → t % 2 = role.reqParity → (T t).enc.isSome = true
   /-- Own decapsulations are at or below the requester epoch. -/
   ctRec_req_le : ∀ t ∈ st.ack.ctRec, t % 2 = role.reqParity → t ≤ st.req.reqEpoch
-  /-- A responder-parity entry is the peer's own decapsulation (n13). -/
+  /-- A responder-parity entry is the peer's own decapsulation. -/
   ctRec_res_peer : ∀ t ∈ st.ack.ctRec, t % 2 = role.resParity → t ∈ peer.ack.ctRec
   /-- Responder-parity entries are at or below the responder epoch. -/
   ctRec_res_le : ∀ t ∈ st.ack.ctRec, t % 2 = role.resParity → t ≤ st.res.resEpoch
@@ -198,9 +200,9 @@ structure PartyInv (role : Role) {kem : KEMScheme ProbComp K PK SK C}
   ctRec_res_closed : ∀ t : ℤ, 0 < t → t % 2 = role.resParity → t < st.res.resEpoch →
     t ∈ st.ack.ctRec
   -- acknowledgements: public keys
-  /-- A responder-parity `ekRec` entry is an own decode (n12). -/
+  /-- A responder-parity `ekRec` entry is an own decode. -/
   ekRec_res : ∀ t ∈ st.ack.ekRec, t % 2 = role.resParity → (st.res.ekPeer t).isSome = true
-  /-- A requester-parity `ekRec` entry is the peer's decode of the own key (n12). -/
+  /-- A requester-parity `ekRec` entry is the peer's decode of the own key. -/
   ekRec_req : ∀ t ∈ st.ack.ekRec, t % 2 = role.reqParity → (peer.res.ekPeer t).isSome = true
   -- buffer
   /-- The shared chunk buffer is honest for the payload currently expected. -/

@@ -6,7 +6,7 @@ Authors: Ivan Gavran, Beneficial AI Foundation
 
 import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.RecvStep
 import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.SendDist
-import SecureMessaging.SCKA.OppBiKEM.Correctness.Lockstep
+import SecureMessaging.SCKA.OppBiKEM.Correctness.SendFacts
 
 /-!
 # Opp-BiKEM — the failure score grows by at most `ε` on a send

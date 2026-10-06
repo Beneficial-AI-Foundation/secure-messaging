@@ -6,7 +6,7 @@ Authors: Ivan Gavran, Beneficial AI Foundation
 
 import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant
 import SecureMessaging.SCKA.OppBiKEM.Correctness.RecvSpec
-import SecureMessaging.SCKA.OppBiKEM.Correctness.ReceiveState
+import SecureMessaging.SCKA.OppBiKEM.Correctness.RecvFacts
 
 /-!
 # The main invariant is preserved by a receive

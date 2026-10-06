@@ -4,15 +4,17 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Ivan Gavran, Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Correctness.Receive
-import SecureMessaging.SCKA.OppBiKEM.Correctness.SendB
+import SecureMessaging.SCKA.Correctness.Receive
+import SecureMessaging.SCKA.OppBiKEM.Correctness.SendFacts
 
 /-!
-# Opp-BiKEM successful receive state
+# Opp-BiKEM — facts about a single receive
 
-This file characterizes the local state and game transition at the successful-output boundary of
-Opp-BiKEM receive. It does not establish honest-message origin, message availability, or the
-cryptographic correctness of an emitted key.
+Support-level facts about `recv`, used by the main-invariant proofs: the reported sending
+epoch (`recv_reports_message_sendingEpoch`), the post-state of a successful receive
+(`recv_success_state_facts`), the facts behind an emitted key (`recv_emitted_key_facts`), and
+how a receive changes the own public-key buffer (`recv_local_publicKey_eq_or_none`) and the
+decoded peer keys (`recv_peerKeys_stable`, `recv_peerKeys_origin`).
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -21,15 +23,30 @@ namespace oppBiKemCKA
 
 variable {K PK SK C Sym : Type}
 
-theorem Acknowledgements.sendingHorizon_mono
-    (ack ack' : Acknowledgements)
-    (hct : ack.ctRec ⊆ ack'.ctRec) :
-    ack.sendingHorizon ≤ ack'.sendingHorizon := by
-  unfold sendingHorizon
-  apply Finset.sup_mono
-  intro t ht
-  rw [Finset.mem_filter] at ht ⊢
-  exact ⟨hct ht.1, hct ht.2⟩
+universe u
+
+private theorem option_all_ite {α : Type} (p : Prop) [Decidable p]
+    (a b : Option α) (f : α → Bool) :
+    (if p then a else b).all f = if p then a.all f else b.all f := by
+  split <;> rfl
+
+/-- Every successful receive reports the message's explicit sending epoch. -/
+theorem recv_reports_message_sendingEpoch
+  {m : Type → Type u} [Monad m] (role : Role)
+  (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
+  (hDet : kem.DeterministicDecaps) (ecEk : ErasureCodePayload PK Sym)
+  (ecCt : ErasureCodePayload C Sym) (st : State PK SK C Sym) (ρ : Message Sym)
+  (out : Option (ℕ × K) × ℕ × State PK SK C Sym)
+  (hout : recv role kem hDet ecEk ecCt st ρ = some out) :
+  out.2.1 = ρ.sendingEpoch := by
+  have hepoch : (recv role kem hDet ecEk ecCt st ρ).all
+      (fun x => x.2.1 == ρ.sendingEpoch) = true := by
+    cases hek : (insertChunkAndDecode ecEk st.req.receivedChunks ρ.ch).2 <;>
+      cases hct : (insertChunkAndDecode ecCt st.req.receivedChunks ρ.ch).2
+    all_goals simp only [recv, hek, hct, option_all_ite, Option.pure_def, Option.all_some,
+      beq_self_eq_true, ite_self, Option.bind_eq_bind, Option.all_bind,
+      Function.comp_def, Option.all_true]
+  simpa only [hout, Option.all_some, beq_iff_eq] using hepoch
 
 private theorem recv_nonstale_non_ciphertext_view
     [DecidableEq Sym]
@@ -656,91 +673,206 @@ theorem recv_emitted_key_facts
       simp only [Prod.mk.injEq] at htuple
       cases htuple.1
 
-theorem oracleRecvB_recorded_state_facts
-    [DecidableEq K] [DecidableEq Sym]
-    (kem : KEMScheme ProbComp K PK SK C)
+theorem recv_local_publicKey_eq_or_none
+    [DecidableEq Sym]
+    (role : Role) (kem : KEMScheme ProbComp K PK SK C)
     (hDet : kem.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt : ErasureCodePayload C Sym)
-    (leak : kem.RandLeak)
-    (s s' : SCKAScheme.GameState
-      (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
-    (hs : MessageEpochsConsistent s)
-    (n trcv : ℕ) (tI : Option ℕ)
-    (hout : (some (trcv, tI), s') ∈ support
-      ((SCKAScheme.oracleRecvB (scheme kem hDet ecEk ecCt leak) n).run s)) :
-    ∃ ρ : Message Sym,
-      s.msgA n = some (ρ, trcv) ∧
-      ρ.sendingEpoch = trcv ∧
-      s'.tcurB = max s.tcurB ρ.sendingEpoch ∧
-      s'.tcurA = s.tcurA ∧
-      s'.stA = s.stA ∧
-      s'.stB.res.resEpoch = s.stB.res.resEpoch ∧
-      s'.stB.req.reqEpoch =
-        (if s.stB.req.reqEpoch < ρ.tRes then
-          s.stB.req.reqEpoch + 2 else s.stB.req.reqEpoch) ∧
-      s.stB.ack.ctRec ⊆ s'.stB.ack.ctRec ∧
-      s.stB.ack.ekRec ⊆ s'.stB.ack.ekRec ∧
-      s.stB.ack.sendingHorizon ≤ s'.stB.ack.sendingHorizon ∧
-      (tI = none → s'.stB.req.dk = s.stB.req.dk) ∧
-      (∀ t : ℕ, tI = some t →
-        t = s'.stB.req.reqEpoch.toNat ∧
-        s'.stB.req.reqEpoch ∈ s'.stB.ack.ctRec ∧
-        s'.stB.req.dk.lookup s'.stB.req.reqEpoch = none ∧
-        ∃ key : K, ∃ secretKey : SK, ∃ ciphertext : C,
-          s'.keyB t = some key ∧
-          s.stB.req.dk.lookup s'.stB.req.reqEpoch = some secretKey ∧
-          (insertChunkAndDecode ecCt s.stB.req.receivedChunks ρ.ch).2 =
-            some ciphertext ∧
-          hDet.decapsDet secretKey ciphertext = some key) := by
-  obtain ⟨ρ, hmsg, hepoch, htcurB, htcurA⟩ :=
-    oracleRecvB_recorded_currentEpoch kem hDet ecEk ecCt leak s s' hs n trcv tI hout
-  refine ⟨ρ, hmsg, hepoch, htcurB, htcurA, ?_⟩
-  cases hrecv : recv .B kem hDet ecEk ecCt s.stB ρ with
-  | none =>
-      simp only [SCKAScheme.oracleRecvB, scheme, recvB, bind_pure_comp,
-        StateT.run_bind, StateT.run_get, pure_bind, hmsg, hrecv, StateT.run_map,
-        StateT.run_set, map_pure, support_pure, Set.mem_singleton_iff, Prod.mk.injEq] at hout
-      cases hout.1
-  | some out =>
-      rcases out with ⟨key?, epoch, stB'⟩
-      have hstate := recv_success_state_facts .B kem hDet ecEk ecCt s.stB ρ
-        key? epoch stB' hrecv
-      cases key? with
-      | none =>
-          simp only [SCKAScheme.oracleRecvB, scheme, recvB, bind_pure_comp,
-            StateT.run_bind, StateT.run_get, pure_bind, hmsg, hrecv, StateT.run_map,
-            StateT.run_set, map_pure, support_pure, Set.mem_singleton_iff, Prod.mk.injEq,
-            Option.some.injEq] at hout
-          obtain ⟨⟨rfl, rfl⟩, rfl⟩ := hout
-          rcases hstate with ⟨_, hres, _, hreq, hct, hek, _, _, hdk⟩
-          refine ⟨rfl, hres, hreq, hct, hek,
-            Acknowledgements.sendingHorizon_mono _ _ hct, ?_, ?_⟩
-          · intro _
-            exact hdk rfl
-          intro t ht
-          cases ht
-      | some keyOut =>
-          rcases keyOut with ⟨epochI, key⟩
-          have hkey := recv_emitted_key_facts .B kem hDet ecEk ecCt s.stB ρ
-            epochI key epoch stB' hrecv
-          simp only [SCKAScheme.oracleRecvB, scheme, recvB, bind_pure_comp,
-            StateT.run_bind, StateT.run_get, pure_bind, hmsg, hrecv, StateT.run_map,
-            StateT.run_set, map_pure, support_pure, Set.mem_singleton_iff, Prod.mk.injEq,
-            Option.some.injEq] at hout
-          obtain ⟨⟨rfl, rfl⟩, rfl⟩ := hout
-          rcases hstate with ⟨_, hres, _, hreq, hct, hek, _, _, _⟩
-          rcases hkey with ⟨_, _, htI, _, hin, _, hlookup, _, secretKey, ciphertext,
-            hold, hdecode, hdecaps⟩
-          refine ⟨rfl, hres, hreq, hct, hek,
-            Acknowledgements.sendingHorizon_mono _ _ hct, ?_, ?_⟩
-          · intro htI
-            cases htI
-          · intro t ht
-            simp only [Option.some.injEq] at ht
-            subst t
-            refine ⟨htI, hin, hlookup, key, secretKey, ciphertext, ?_, hold, hdecode,
-              hdecaps⟩
-            exact Function.update_self ..
+    (st : State PK SK C Sym) (ρ : Message Sym)
+    (key? : Option (ℕ × K)) (trcv : ℕ) (st' : State PK SK C Sym)
+    (hout : recv role kem hDet ecEk ecCt st ρ = some (key?, trcv, st')) :
+    st'.req.ek = st.req.ek ∨ st'.req.ek = none := by
+  have hproj := congrArg
+    (Option.map fun out : Option (ℕ × K) × ℕ × State PK SK C Sym =>
+      out.2.2.req.ek) hout
+  simp only [Option.map_some] at hproj
+  rw [recv] at hproj
+  dsimp only at hproj
+  by_cases hctRec : ρ.ack.ctRec = true <;>
+    simp only [hctRec, Bool.false_eq_true, if_true, if_false] at hproj
+  all_goals
+    by_cases hekRec : ρ.ack.ekRec = true <;>
+      simp only [hekRec, Bool.false_eq_true, if_true, if_false] at hproj
+  all_goals
+    by_cases hstale : ρ.tRes < st.req.reqEpoch <;>
+      simp only [hstale, if_true, if_false] at hproj
+  all_goals try
+    (simp only [Option.pure_def, Option.map_some] at hproj
+     exact Or.inl (Option.some.inj hproj).symm)
+  all_goals
+    by_cases hadvance : st.req.reqEpoch < ρ.tRes <;>
+      simp only [hadvance, if_true, if_false] at hproj
+  all_goals
+    by_cases hpk :
+        (st.res.ekPeer
+          ((if st.req.reqEpoch < ρ.tRes then st.req.reqEpoch + 2
+            else st.req.reqEpoch) - role.offset)).isNone = true ∧
+        ρ.bit = some 0
+    · simp only [hadvance, if_true, if_false] at hpk
+      simp only [hpk] at hproj
+      simp only [true_and, if_true] at hproj
+      cases hdecode : (insertChunkAndDecode ecEk st.req.receivedChunks ρ.ch).2 <;>
+        simp only [hdecode] at hproj
+      all_goals
+        repeat' split at hproj
+        try simp only [Option.pure_def, Option.map_some] at hproj
+        all_goals first
+          | exact Or.inl (Option.some.inj hproj).symm
+          | exact Or.inr (Option.some.inj hproj).symm
+    · simp only [hadvance, if_true, if_false] at hpk
+      simp only [hpk, if_false] at hproj
+      repeat' split at hproj
+      all_goals try simp only [Option.bind_eq_bind,
+        Option.bind] at hproj
+      all_goals repeat' split at hproj
+      all_goals try simp only [Option.pure_def, Option.map_some,
+        Option.map_none] at hproj
+      all_goals repeat' split at hproj
+      all_goals try simp only [Option.map_some, Option.map_none] at hproj
+      all_goals try cases hproj
+      all_goals first
+        | exact Or.inl (Option.some.inj hproj).symm
+        | exact Or.inr (Option.some.inj hproj).symm
+
+/-- A successful receive never changes an already installed peer public key. -/
+theorem recv_peerKeys_stable [DecidableEq Sym]
+    (role : Role) (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : kem.DeterministicDecaps)
+    (ecEk : ErasureCodePayload PK Sym)
+    (ecCt : ErasureCodePayload C Sym)
+    (st : State PK SK C Sym) (ρ : Message Sym)
+    (key? : Option (ℕ × K)) (trcv : ℕ) (st' : State PK SK C Sym)
+    (hout : recv role kem hDet ecEk ecCt st ρ = some (key?, trcv, st'))
+    (t : ℤ) (ht : (st.res.ekPeer t).isSome = true) :
+    st'.res.ekPeer t = st.res.ekPeer t := by
+  -- The only `ekPeer` write is guarded by an empty slot, which `t` is not.
+  have hne : ∀ q : ℤ, (st.res.ekPeer q).isNone = true → t ≠ q := by
+    intro q hq htq
+    subst htq
+    rw [Option.isNone_iff_eq_none] at hq
+    rw [hq] at ht
+    cases ht
+  have hproj := congrArg
+    (Option.map fun out : Option (ℕ × K) × ℕ × State PK SK C Sym =>
+      out.2.2.res.ekPeer t) hout
+  simp only [Option.map_some] at hproj
+  rw [recv] at hproj
+  dsimp only at hproj
+  by_cases hctRec : ρ.ack.ctRec = true <;>
+    simp only [hctRec, Bool.false_eq_true, if_true, if_false] at hproj
+  all_goals
+    by_cases hekRec : ρ.ack.ekRec = true <;>
+      simp only [hekRec, Bool.false_eq_true, if_true, if_false] at hproj
+  all_goals
+    by_cases hstale : ρ.tRes < st.req.reqEpoch <;>
+      simp only [hstale, if_true, if_false] at hproj
+  all_goals try
+    (simp only [Option.pure_def, Option.map_some] at hproj
+     exact (Option.some.inj hproj).symm)
+  all_goals
+    by_cases hadvance : st.req.reqEpoch < ρ.tRes <;>
+      simp only [hadvance, if_true, if_false] at hproj
+  all_goals
+    by_cases hpk :
+        (st.res.ekPeer
+          ((if st.req.reqEpoch < ρ.tRes then st.req.reqEpoch + 2
+            else st.req.reqEpoch) - role.offset)).isNone = true ∧
+        ρ.bit = some 0
+    · simp only [hadvance, if_true, if_false] at hpk
+      simp only [hpk] at hproj
+      simp only [true_and, if_true] at hproj
+      cases hdecode : (insertChunkAndDecode ecEk st.req.receivedChunks ρ.ch).2 <;>
+        simp only [hdecode] at hproj
+      all_goals repeat' split at hproj
+      all_goals try simp only [Option.pure_def, Option.map_some] at hproj
+      all_goals first
+        | exact (Option.some.inj hproj).symm
+        | exact (Option.some.inj hproj).symm.trans
+            (Function.update_of_ne (hne _ hpk.1) _ _)
+    · simp only [hadvance, if_true, if_false] at hpk
+      simp only [hpk, if_false] at hproj
+      repeat' split at hproj
+      all_goals try simp only [Option.bind_eq_bind,
+        Option.bind] at hproj
+      all_goals repeat' split at hproj
+      all_goals try simp only [Option.pure_def, Option.map_some,
+        Option.map_none] at hproj
+      all_goals repeat' split at hproj
+      all_goals try simp only [Option.map_some, Option.map_none] at hproj
+      all_goals try cases hproj
+      all_goals exact (Option.some.inj hproj).symm
+
+/-- A successful receive changes the peer public key at index `t` only when `t` is the
+receiver's new requester epoch shifted by its role offset, the only index `recv` writes. -/
+theorem recv_peerKeys_origin [DecidableEq Sym]
+    (role : Role) (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : kem.DeterministicDecaps)
+    (ecEk : ErasureCodePayload PK Sym)
+    (ecCt : ErasureCodePayload C Sym)
+    (st : State PK SK C Sym) (ρ : Message Sym)
+    (key? : Option (ℕ × K)) (trcv : ℕ) (st' : State PK SK C Sym)
+    (hout : recv role kem hDet ecEk ecCt st ρ = some (key?, trcv, st'))
+    (t : ℤ) :
+    st'.res.ekPeer t = st.res.ekPeer t ∨ t = st'.req.reqEpoch - role.offset := by
+  have hproj := congrArg
+    (Option.map fun out : Option (ℕ × K) × ℕ × State PK SK C Sym =>
+      (out.2.2.req.reqEpoch, out.2.2.res.ekPeer t)) hout
+  simp only [Option.map_some] at hproj
+  rw [recv] at hproj
+  dsimp only at hproj
+  by_cases hctRec : ρ.ack.ctRec = true <;>
+    simp only [hctRec, Bool.false_eq_true, if_true, if_false] at hproj
+  all_goals
+    by_cases hekRec : ρ.ack.ekRec = true <;>
+      simp only [hekRec, Bool.false_eq_true, if_true, if_false] at hproj
+  all_goals
+    by_cases hstale : ρ.tRes < st.req.reqEpoch <;>
+      simp only [hstale, if_true, if_false] at hproj
+  -- Stale leaves keep both the requester epoch and `ekPeer`.
+  all_goals try
+    (simp only [Option.pure_def, Option.map_some] at hproj
+     exact Or.inl (Prod.mk.inj (Option.some.inj hproj)).2.symm)
+  all_goals
+    by_cases hadvance : st.req.reqEpoch < ρ.tRes <;>
+      simp only [hadvance, if_true, if_false] at hproj
+  all_goals
+    by_cases hpk :
+        (st.res.ekPeer
+          ((if st.req.reqEpoch < ρ.tRes then st.req.reqEpoch + 2
+            else st.req.reqEpoch) - role.offset)).isNone = true ∧
+        ρ.bit = some 0
+    · simp only [hadvance, if_true, if_false] at hpk
+      simp only [hpk] at hproj
+      simp only [true_and, if_true] at hproj
+      cases hdecode : (insertChunkAndDecode ecEk st.req.receivedChunks ρ.ch).2 <;>
+        simp only [hdecode] at hproj
+      all_goals repeat' split at hproj
+      all_goals try simp only [Option.pure_def, Option.map_some] at hproj
+      -- Public-key leaves: either `ekPeer` is unchanged, or the decoded key is installed
+      -- at the new requester epoch shifted by the role offset.
+      all_goals
+        obtain ⟨hreq, hpe⟩ := Prod.mk.inj (Option.some.inj hproj)
+        first
+          | exact Or.inl hpe.symm
+          | (rw [← hpe, ← hreq, Function.update_apply]
+             split_ifs with htq
+             · exact Or.inr htq
+             · exact Or.inl rfl)
+    · simp only [hadvance, if_true, if_false] at hpk
+      simp only [hpk, if_false] at hproj
+      repeat' split at hproj
+      all_goals try simp only [Option.bind_eq_bind,
+        Option.bind] at hproj
+      all_goals repeat' split at hproj
+      all_goals try simp only [Option.pure_def, Option.map_some,
+        Option.map_none] at hproj
+      all_goals repeat' split at hproj
+      all_goals try simp only [Option.map_some, Option.map_none] at hproj
+      all_goals try cases hproj
+      -- Ciphertext and no-payload leaves never write `ekPeer`.
+      all_goals
+        obtain ⟨-, hpe⟩ := Prod.mk.inj (Option.some.inj hproj)
+        exact Or.inl hpe.symm
 
 end oppBiKemCKA

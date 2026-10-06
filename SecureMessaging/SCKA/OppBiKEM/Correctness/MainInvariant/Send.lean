@@ -5,7 +5,7 @@ Authors: Ivan Gavran, Beneficial AI Foundation
 -/
 
 import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant
-import SecureMessaging.SCKA.OppBiKEM.Correctness.PhaseCausality
+import SecureMessaging.SCKA.OppBiKEM.Correctness.SendFacts
 
 /-!
 # Opp-BiKEM main invariant — the send step
@@ -39,38 +39,6 @@ theorem Role.offset_parity (role : Role) (e : ℤ) :
 theorem Role.reqParity_iff_not_resParity (role : Role) (e : ℤ) :
     e % 2 = role.reqParity ↔ e % 2 ≠ role.resParity := by
   cases role <;> simp only [Role.reqParity, Role.resParity] <;> omega
-
-/-! ### The advance gate of `sendWith` -/
-
-/-- Advancing the responder epoch in a supported send requires both adjacent ciphertext
-acknowledgements (the gate of `sendWith`). Local copy of `send_advance_guard`
-(`Lockstep.lean`), whose module cannot be imported here because its `GameInv` clashes with
-the main invariant's. -/
-private theorem send_advance_gate (role : Role) (kem : KEMScheme ProbComp K PK SK C)
-    (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
-    (st : State PK SK C Sym) (key? : Option (ℕ × K)) (ρ : Message Sym) (tsnd : ℕ)
-    (st' : State PK SK C Sym)
-    (hout : some (key?, ρ, tsnd, st') ∈ support (send role kem ecEk ecCt st))
-    (hadv : st'.res.resEpoch ≠ st.res.resEpoch) :
-    st.res.resEpoch ∈ st.ack.ctRec ∧ st.res.resEpoch + role.offset ∈ st.ack.ctRec := by
-  rw [send, mem_support_bind_iff] at hout
-  obtain ⟨out, hmem, hout⟩ := hout
-  cases out with
-  | none => simp at hout
-  | some out =>
-    rcases out with ⟨key, msg, epoch, state, rand⟩
-    simp only [support_pure, Set.mem_singleton_iff, Option.map_some,
-      Option.some.injEq, Prod.mk.injEq] at hout
-    obtain ⟨rfl, rfl, rfl, rfl⟩ := hout
-    unfold sendWith at hmem
-    dsimp only at hmem
-    repeat' first
-      | split at hmem
-      | (rw [mem_support_bind_iff] at hmem; obtain ⟨x, _, hmem⟩ := hmem)
-    all_goals simp only [support_pure, Set.mem_singleton_iff,
-      Option.some.injEq, Prod.mk.injEq, reduceCtorEq] at hmem
-    all_goals obtain ⟨rfl, rfl, rfl, rfl, rfl⟩ := hmem
-    all_goals simp_all
 
 /-! ### Transcript updates -/
 
@@ -437,7 +405,7 @@ theorem partyInv_sender_of_send (roleS : Role) {kem : KEMScheme ProbComp K PK SK
     rcases hres_or with h | h <;> omega
   have hgate : stS'.res.resEpoch = stS.res.resEpoch + 2 →
       stS.res.resEpoch ∈ stS.ack.ctRec ∧ stS.res.resEpoch + roleS.offset ∈ stS.ack.ctRec :=
-    fun h => send_advance_gate roleS kem ecEk ecCt stS key? ρ tsnd stS' hout (by omega)
+    fun h => send_advance_guard roleS kem ecEk ecCt stS key? ρ tsnd stS' hout (by omega)
   have hkeyT' : ∀ e, e ≠ stS'.res.resEpoch → (T' e).key = (T e).key := by
     intro e he
     unfold EpochTranscript.key
@@ -699,7 +667,7 @@ private theorem send_step_advance (roleS : Role) {kem : KEMScheme ProbComp K PK 
         PartyInv roleS.peer ecEk ecCt T' stR stS' msgsR keyR keyS tcurR := by
   have hp := send_provenance roleS kem ecEk ecCt stS none ρ tsnd stS' hout
   have hct : stS'.res.ct = stS.res.ct := hp.no_key_ciphertext rfl
-  have hgate := send_advance_gate roleS kem ecEk ecCt stS none ρ tsnd stS' hout (by omega)
+  have hgate := send_advance_guard roleS kem ecEk ecCt stS none ρ tsnd stS' hout (by omega)
   have hctnone : stS.res.ct = none := hS.ct_acked hgate.1
   have hres_par : stS'.res.resEpoch % 2 = roleS.resParity := by
     have := hS.res_parity

@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Ivan Gavran, Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Correctness.SendProvenance
+import SecureMessaging.SCKA.OppBiKEM.Correctness.SendFacts
 
 /-!
 # Distribution of Opp-BiKEM `send` in its randomised cases

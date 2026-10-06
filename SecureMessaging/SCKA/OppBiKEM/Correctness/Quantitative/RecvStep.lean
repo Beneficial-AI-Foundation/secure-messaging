@@ -7,8 +7,7 @@ Authors: Ivan Gavran, Beneficial AI Foundation
 import SecureMessaging.SCKA.Correctness.Tracked
 import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.Core
 import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Game
-import SecureMessaging.SCKA.OppBiKEM.Correctness.PublicKeyEpochHistory
-import SecureMessaging.SCKA.OppBiKEM.Correctness.RoleParity
+import SecureMessaging.SCKA.OppBiKEM.Correctness.RecvFacts
 
 /-!
 # Opp-BiKEM — the failure score does not grow on non-send queries
