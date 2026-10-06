@@ -70,6 +70,7 @@ import SecureMessaging.SCKA.OppBiKEM.Correctness.PublicKeyBufferProvenance
 import SecureMessaging.SCKA.OppBiKEM.Correctness.PublicKeyAckSoundness
 import SecureMessaging.SCKA.OppBiKEM.Correctness.RoleParity
 import SecureMessaging.SCKA.OppBiKEM.Correctness.CiphertextAckSoundness
+import SecureMessaging.SCKA.OppBiKEM.Correctness.PhaseCausality
 import SecureMessaging.SCKA.OppUniKEM.Correctness
 import SecureMessaging.SymEnc.Defs
 import ToVCVio.OracleComp.Constructions.SampleableType
