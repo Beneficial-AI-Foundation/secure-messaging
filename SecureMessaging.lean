@@ -73,6 +73,13 @@ import SecureMessaging.SCKA.OppBiKEM.Correctness.RoleParity
 import SecureMessaging.SCKA.OppBiKEM.Correctness.CiphertextAckSoundness
 import SecureMessaging.SCKA.OppBiKEM.Correctness.PhaseCausality
 import SecureMessaging.SCKA.OppBiKEM.Correctness.Lockstep
+import SecureMessaging.SCKA.OppBiKEM.Correctness.Transcript
+import SecureMessaging.SCKA.OppBiKEM.Correctness.RecvSpec
+import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant
+import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Init
+import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Send
+import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Recv
+import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Game
 import SecureMessaging.SCKA.OppUniKEM.Correctness
 import SecureMessaging.SymEnc.Defs
 import ToVCVio.OracleComp.Constructions.SampleableType

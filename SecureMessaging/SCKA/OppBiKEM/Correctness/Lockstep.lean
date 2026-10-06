@@ -22,7 +22,7 @@ peer's own decapsulation, and own decapsulations are recorded at or below the pe
 requester epoch (`Lockstep.ctRec_req_le`). Hence `tRes + 2 ≤ peer.reqEpoch + 2`.
 
 `Lockstep` is proved together with role parity and ciphertext acknowledgement soundness,
-whose pre-state facts its preservation reads, as the conjunction `GameInv`. The game-level
+whose pre-state facts its preservation reads, as the conjunction `LockstepGameInv`. The game-level
 preservation goes through the pure-update dispatch of `SCKA.Correctness.OracleSupport`, so
 it contains no oracle-monad case analysis.
 -/
@@ -220,11 +220,11 @@ theorem lockstep_recv_step [DecidableEq Sym]
 
 /-- The three cross-party invariants, taken together because lockstep's preservation
 reads parity and ciphertext-acknowledgement soundness of the pre-state. -/
-def GameInv
+def LockstepGameInv
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)) : Prop :=
   GameRoleParity s ∧ GameCiphertextAckSoundness s ∧ GameLockstep s
 
-/-- Every correctness-game oracle preserves `GameInv`. -/
+/-- Every correctness-game oracle preserves `LockstepGameInv`. -/
 theorem sckaCorrectnessImpl_preserves_gameInv
     [DecidableEq K] [DecidableEq Sym]
     (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
@@ -232,7 +232,7 @@ theorem sckaCorrectnessImpl_preserves_gameInv
     (leak : kem.RandLeak) :
     QueryImpl.PreservesInv
       (SCKAScheme.sckaCorrectnessImpl (scheme kem hDet ecEk ecCt leak))
-      (GameInv (K := K) (PK := PK) (SK := SK) (C := C) (Sym := Sym)) := by
+      (LockstepGameInv (K := K) (PK := PK) (SK := SK) (C := C) (Sym := Sym)) := by
   apply SCKAScheme.preservesInv_sckaCorrectnessImpl_of
   · -- SendA
     intro s hs key? ρ tsnd stA' hout
@@ -316,8 +316,8 @@ theorem sckaCorrectnessImpl_preserves_gameInv
   · intro s hs n ρ tsnd hmsg hrecv
     exact hs
 
-/-- `GameInv` holds on every reachable correctness-game state from honest initialisation. -/
-theorem simulateQ_gameInv
+/-- `LockstepGameInv` holds on every reachable correctness-game state from honest initialisation. -/
+theorem simulateQ_lockstepGameInv
     [DecidableEq K] [DecidableEq Sym]
     (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
@@ -330,8 +330,8 @@ theorem simulateQ_gameInv
     (hz : z ∈ support ((simulateQ
       (SCKAScheme.sckaCorrectnessImpl (scheme kem hDet ecEk ecCt leak)) adv).run
       (SCKAScheme.initGameState stA stB))) :
-    GameInv z.2 :=
-  simulateQ_run_preservesInv _ GameInv
+    LockstepGameInv z.2 :=
+  simulateQ_run_preservesInv _ LockstepGameInv
     (sckaCorrectnessImpl_preserves_gameInv kem hDet ecEk ecCt leak) adv _
     ⟨initGameState_roleParity stA stB hA hB, initGameState_ciphertextAckSoundness stA stB hA hB,
       initGameState_lockstep stA stB hA hB⟩ z hz
@@ -358,7 +358,8 @@ theorem simulateQ_lockstep_endpoint
     (∀ (n : ℕ) (ρ : Message Sym) (tsnd : ℕ), z.2.msgA n = some (ρ, tsnd) →
       ρ.tRes ≤ z.2.stB.req.reqEpoch + 2 ∧
         (z.2.stB.req.reqEpoch < ρ.tRes → ρ.tRes = z.2.stB.req.reqEpoch + 2)) := by
-  obtain ⟨hpar, -, hlock⟩ := simulateQ_gameInv kem hDet ecEk ecCt leak adv stA stB hA hB z hz
+  obtain ⟨hpar, -, hlock⟩ := simulateQ_lockstepGameInv kem hDet ecEk ecCt leak adv stA stB hA
+    hB z hz
   refine ⟨?_, ?_⟩
   · intro n ρ tsnd hmsg
     have h1 := hlock.2.message_res_le n ρ tsnd hmsg
