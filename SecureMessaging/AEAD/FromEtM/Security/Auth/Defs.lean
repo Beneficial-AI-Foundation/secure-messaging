@@ -47,10 +47,10 @@ noncomputable def authEncImpl (se : DetSEAlg K_e M C_e) (ke : K_e) :
     | some _ => pure none
     | none => do
       let (t, qc') ← (((AD × C_e) →ₒ T).randomOracle (ad, se.encrypt ke m)).run qc
-      set ((some (se.encrypt ke m, t), qc'), forged)
+      set ((some (ad, (se.encrypt ke m, t)), qc'), forged)
       return some (se.encrypt ke m, t)
 
-/-- Decryption oracle on the flag-augmented state. The challenge-ciphertext guard rejects;
+/-- Decryption oracle on the flag-augmented state. The challenge guard rejects the exact pair;
 otherwise the random oracle is queried, the `forged` flag is set on a successful verify, and
 (`b = true`) the real decryption is returned or (`b = false`) the query is rejected. -/
 noncomputable def authDecImpl (se : DetSEAlg K_e M C_e) (b : Bool) (ke : K_e) :
@@ -58,7 +58,7 @@ noncomputable def authDecImpl (se : DetSEAlg K_e M C_e) (b : Bool) (ke : K_e) :
       (StateT (EtmGameState AD C_e T × Bool) ProbComp) :=
   fun (ad, (c, t)) => do
     let ((challenge, qc), forged) ← get
-    if challenge == some (c, t) then pure none
+    if challenge == some (ad, (c, t)) then pure none
     else do
       let (t', qc') ← (((AD × C_e) →ₒ T).randomOracle (ad, c)).run qc
       let ok := t == t'
@@ -89,13 +89,13 @@ noncomputable def authPlainImpl (se : DetSEAlg K_e M C_e) (b : Bool) (ke : K_e) 
         let (c, qc') ←
           (pure (se.encrypt ke m) : StateT (TagCache AD C_e T) ProbComp C_e).run qc
         let (t, qc'') ← (((AD × C_e) →ₒ T).randomOracle (ad, c)).run qc'
-        set (some (c, t), qc'')
+        set (some (ad, (c, t)), qc'')
         return some (c, t)
   let decImpl : QueryImpl (AD × (C_e × T) →ₒ Option M)
       (StateT (EtmGameState AD C_e T) ProbComp) :=
     fun (ad, (c, t)) => do
       let (challenge, qc) ← get
-      if challenge == some (c, t) then pure none
+      if challenge == some (ad, (c, t)) then pure none
       else do
         let verifyTag : StateT (TagCache AD C_e T) ProbComp Bool :=
           if b then do
@@ -164,7 +164,7 @@ noncomputable def forgeJointImpl (se : DetSEAlg K_e M C_e) (ke : K_e) :
       | none => do
         let c := se.encrypt ke m
         let (t, cache') ← (((AD × C_e) →ₒ T).randomOracle (ad, c)).run fs.1
-        set (((some (c, t), eg.2) : EtmGameState AD C_e T),
+        set (((some (ad, (c, t)), eg.2) : EtmGameState AD C_e T),
           ((cache', insert (ad, c) fs.2.1, fs.2.2) : OracleComp.ForgeState (AD × C_e) T))
         return some (c, t) :
       QueryImpl (AD × M →ₒ Option (C_e × T))
@@ -172,7 +172,7 @@ noncomputable def forgeJointImpl (se : DetSEAlg K_e M C_e) (ke : K_e) :
   -- decrypt oracle
   + (fun (ad, (c, t)) => do
       let (eg, fs) ← get
-      if eg.1 == some (c, t) then pure none
+      if eg.1 == some (ad, (c, t)) then pure none
       else do
         let (resp, cache') ← (((AD × C_e) →ₒ T).randomOracle (ad, c)).run fs.1
         let hit : Bool := t == resp

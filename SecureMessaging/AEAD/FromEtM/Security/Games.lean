@@ -45,10 +45,10 @@ variable {K_e K_m M AD C_e T : Type}
 abbrev TagCache (AD C_e T : Type) [DecidableEq (AD × C_e)] [SampleableType T] :=
   ((AD × C_e) →ₒ T).QueryCache
 
-/-- Game state for the EtM security games: the challenge ciphertext (if
+/-- Game state for the EtM security games: the challenge `(ad*, (c*, t*))` (if
 encryption was called) paired with the random oracle cache. -/
 abbrev EtmGameState (AD C_e T : Type) [DecidableEq (AD × C_e)] [SampleableType T] :=
-  Option (C_e × T) × TagCache AD C_e T
+  Option (AD × (C_e × T)) × TagCache AD C_e T
 
 /-! ## Game skeleton -/
 
@@ -90,13 +90,13 @@ noncomputable def etmGameSkeleton
       | none => do
         let (c, qc1) ← (encryptMsg ke m).run qc
         let (t, qc2) ← (computeTag (ad, c)).run qc1
-        set (some (c, t), qc2)
+        set (some (ad, (c, t)), qc2)
         return some (c, t)
   let decImpl : QueryImpl (AD × (C_e × T) →ₒ Option M)
       (StateT (EtmGameState AD C_e T) (OracleComp spec)) :=
     fun (ad, (c, t)) => do
       let (challenge, qc) ← get
-      if challenge == some (c, t) then pure none
+      if challenge == some (ad, (c, t)) then pure none
       else do
         let (ok, qc') ← (verifyTag (ad, c) t).run qc
         set (challenge, qc')

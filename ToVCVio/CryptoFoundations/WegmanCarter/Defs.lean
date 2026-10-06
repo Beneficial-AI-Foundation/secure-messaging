@@ -41,14 +41,16 @@ secrets drawn as above:
     Enc(ad, m):
       if challenge ≠ none then return none
       c := padMsg(m); e := (c, tag(enc(ad, c)))
-      challenge := some(e); return some(e)
+      challenge := some(ad, e); return some(e)
     Dec(ad, e = (c, t)):
-      if challenge = some(e) then return none
+      if challenge = some(ad, e) then return none
       ok := (t = tag(enc(ad, c)))
       forged := forged ∨ ok
       return if b ∧ ok then some(unpad(c)) else none
 
-The challenge check compares ciphertexts only and ignores `ad`; verification does not.
+The challenge check refuses only the exact pair `(ad, e)` the encryption oracle returned, so
+a query that replays the challenge ciphertext under different associated data is verified
+and counts as a forgery if it passes.
 Decryption queries may come before or after the single encryption query, which is optional.
 The adversary never sees `forged`. At `b = false` every decryption returns `none`; this is the
 execution the bound in `Security.lean` is about.
@@ -67,17 +69,16 @@ abbrev wcSpec (A M Cb : Type) :=
 /-! ## The flag-instrumented handler -/
 
 /-- `wcInstImpl hash enc H mask padMsg unpad b` is the flag-instrumented Wegman-Carter handler
-with key `H` and mask `mask`. Its state is the challenge ciphertext slot and a `forged` flag.
-Decryption rejects the challenge ciphertext, raises the flag whenever the tag verifies and never
-lowers it, and returns the plaintext only when `b = true`; `b = false` is the always-reject
-execution. -/
-def wcInstImpl {K A M Cb D : Type} [DecidableEq Cb]
+with key `H` and mask `mask`. Its state is the challenge slot and a `forged` flag.
+Decryption rejects the exact challenge pair `(ad*, e*)`, raises the flag whenever the tag
+verifies and never lowers it, and returns the plaintext only when `b = true`; `b = false` is
+the always-reject execution. -/
+def wcInstImpl {K A M Cb D : Type} [DecidableEq A] [DecidableEq Cb]
     (hash : K → D → BitVec 128) (enc : A × Cb → D)
     (H : K) (mask : BitVec 128)
     (padMsg : M → Cb) (unpad : Cb → M) (b : Bool) :
-    QueryImpl (wcSpec A M Cb)
-      (StateT (Option (Cb × BitVec 128) × Bool) ProbComp) :=
-  (unifLiftStateT (Option (Cb × BitVec 128) × Bool) unifSpec)
+    QueryImpl (wcSpec A M Cb) (StateT (Option (A × (Cb × BitVec 128)) × Bool) ProbComp) :=
+  (unifLiftStateT (Option (A × (Cb × BitVec 128)) × Bool) unifSpec)
   + ((fun (ad, m) => do
       let (challenge, forged) ← get
       match challenge with
@@ -85,17 +86,17 @@ def wcInstImpl {K A M Cb D : Type} [DecidableEq Cb]
       | none => do
         let c := padMsg m
         let e := (c, hash H (enc (ad, c)) ^^^ mask)
-        set ((some e, forged) : Option (Cb × BitVec 128) × Bool)
+        set ((some (ad, e), forged) : Option (A × (Cb × BitVec 128)) × Bool)
         return some e) : QueryImpl (A × M →ₒ Option (Cb × BitVec 128))
-      (StateT (Option (Cb × BitVec 128) × Bool) ProbComp))
+      (StateT (Option (A × (Cb × BitVec 128)) × Bool) ProbComp))
   + ((fun (ad, e) => do
       let (challenge, forged) ← get
-      if challenge == some e then pure none
+      if challenge == some (ad, e) then pure none
       else do
         let ok : Bool := decide (e.2 = hash H (enc (ad, e.1)) ^^^ mask)
-        set ((challenge, forged || ok) : Option (Cb × BitVec 128) × Bool)
+        set ((challenge, forged || ok) : Option (A × (Cb × BitVec 128)) × Bool)
         if ok then (if b then pure (some (unpad e.1)) else pure none) else pure none) :
     QueryImpl (A × (Cb × BitVec 128) →ₒ Option M)
-      (StateT (Option (Cb × BitVec 128) × Bool) ProbComp))
+      (StateT (Option (A × (Cb × BitVec 128)) × Bool) ProbComp))
 
 end OracleComp.WegmanCarter

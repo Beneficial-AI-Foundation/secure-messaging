@@ -65,7 +65,7 @@ proved, not assumed: `nistPoly_irreducible` checks Rabin's test by kernel comput
 ## Game chain
 
 The advantage compares two experiments (ACD19, Fig. 1). In the real one, encryption returns
-`Enc_k(a, m)` and decryption returns `Dec_k(a, e)`, except on the challenge ciphertext. In the
+`Enc_k(a, m)` and decryption returns `Dec_k(a, e)`, except on the challenge pair. In the
 ideal one, encryption returns a uniform `(c, t) ∈ C` and decryption always returns `⊥`. The
 proof walks five games `game0 … game4` (`Security/Games.lean`) from the real experiment to the
 ideal one, so `Adv^{ot-cca-ror}(A) = |Pr[game4 = 1] − Pr[game0 = 1]|`. Rows are games, which
@@ -93,7 +93,7 @@ game3   uniform, at encrypt     (m ^^^ ks, tag)      ⊥
 game4   unused                  (c, t) ←$ C          ⊥
 
 tag = GHASH_H(ad, c) ^^^ mask;  C = BitVec L × BitVec 128;  ε = GHASH's AXU bound
-in every game: one encryption, and decrypting the challenge ciphertext returns ⊥
+in every game: one encryption, and decrypting the challenge pair (ad*, e*) returns ⊥
 (1) game0_game1_le_prf   (2) game1_eq_game2   (3) game2_game3_le_auth   (4) game3_eq_game4
 game0 = real experiment (game0_eq_real), game4 = ideal experiment (game4_eq_rand)
 ```
@@ -134,8 +134,9 @@ bound.
   `8 ∣ L`), which keeps the GCTR counter from wrapping.
 - The tag is the full 128 bits.
 - One encryption per key; key non-reuse across invocations is the caller's responsibility.
-- The decrypt oracle rejects the challenge ciphertext under *any* associated data (ACD19), so
-  AAD-substitution resistance for the challenge ciphertext is not claimed.
+- The decrypt oracle rejects only the exact challenge pair `(ad*, e*)`, so a query that replays
+  the challenge ciphertext under other associated data in `SupportedAAD` is verified, and the
+  authenticity bound covers it.
 - The forgery bound charges every decryption query, before or after the challenge, at the
   maximum AAD length, so it does not improve when shorter AAD is used.
 

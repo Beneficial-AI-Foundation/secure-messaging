@@ -28,7 +28,8 @@ omit [Inhabited C_e] [Inhabited T] in
 /-- Game 0 equals the real AEAD experiment (NRS14 Lemma 3: starting game = real nAE experiment).
 
 The skeleton's `(challenge, TagCache)` state projects via `Prod.fst` onto the AEAD game's
-`Option C` challenge state, since the PRF `computeTag`/`verifyTag` never modify the `TagCache`.
+`Option (AD × C)` challenge state, since the PRF `computeTag`/`verifyTag` never modify the
+`TagCache`.
 (Proof: swap the independent `km`/`ke` samples, then apply `run'_simulateQ_eq_of_query_map_eq`.) -/
 theorem game0_eq_real
     (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
@@ -228,7 +229,7 @@ theorem game1_eq_prfIdealExp
           Set.range_id, Set.image_univ] at hy
         obtain ⟨a, _, rfl⟩ := hy; rfl
       | some val =>
-        by_cases hv : val = c <;>
+        by_cases hv : val = (ad, c) <;>
           simp only [add_apply_inr, StateT.run_pure, liftM_pure, StateT.run_monadLift,
             monadLift_self, bind_pure_comp, liftM_map, bind_map_left, pure_bind, Prod.mk.eta,
             beq_iff_eq, StateT.run_map, Functor.map_map, ← apply_ite, QueryImpl.add_apply_inr, hv,
@@ -276,7 +277,7 @@ theorem game1_eq_prfIdealExp
         refine bind_congr fun a => ?_
         split_ifs <;> simp [StateT.run_pure, simulateQ_pure]
       | some val =>
-        by_cases hv : val = (c.1, c.2)
+        by_cases hv : val = (ad, (c.1, c.2))
         · subst hv
           simp [QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get,
             StateT.run_monadLift, StateT.run_pure,

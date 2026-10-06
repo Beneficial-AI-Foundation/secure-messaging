@@ -55,15 +55,15 @@ structure AEADScheme (m : Type → Type u) [Monad m] (M AD K C : Type) where
 $`\todo`
 
 ::::::gameGrid
-:::::gameCell "\\Oenc(a,m)" (kind := "oracle") (state := "\\gamestate\\; (e^*\\text{ - challenge ciphertext}, b\\text{ - challenge bit})")
+:::::gameCell "\\Oenc(a,m)" (kind := "oracle") (state := "\\gamestate\\; ((a^*, e^*)\\text{ - challenge}, b\\text{ - challenge bit})")
 $`\pif\;e^*\neq\bot\;\pthen\;\Return\bot`
 
-$`\pif\;b\;\pthen\;e^* \sample \mathcal C\;\pelse\;e^* \gets \Enc(K,a,m);\quad \Return e^*`
+$`\pif\;b\;\pthen\;e^* \sample \mathcal C\;\pelse\;e^* \gets \Enc(K,a,m);\quad a^* \gets a;\quad \Return e^*`
 
 ```anchor oracleEncrypt (project := ".") (module := SecureMessaging.AEAD.Defs)
 def oracleEncrypt [SampleableType C] (ae : AEADScheme ProbComp M AD K C)
     (b : Bool) (k : K) :
-    QueryImpl (AD × M →ₒ Option C) (StateT (Option C) ProbComp) :=
+    QueryImpl (AD × M →ₒ Option C) (StateT (Option (AD × C)) ProbComp) :=
   fun (a, m) => do
     match (← get) with
     | some _ => pure none
@@ -71,28 +71,28 @@ def oracleEncrypt [SampleableType C] (ae : AEADScheme ProbComp M AD K C)
       let eStar ← if b
         then liftM ($ᵗ C : ProbComp C)
         else pure (ae.encrypt k a m)
-      set (some eStar)
+      set (some (a, eStar))
       return some eStar
 ```
 :::::
 
-:::::gameCell "\\Odec(a,e)" (kind := "oracle") (state := "\\gamestate\\; (e^*\\text{ - challenge ciphertext}, b\\text{ - challenge bit})")
-$`\pif\;b\,\vee\,e{ = }e^*\;\pthen\;\Return\bot\;\pelse\;\Return \Dec(K,a,e)`
+:::::gameCell "\\Odec(a,e)" (kind := "oracle") (state := "\\gamestate\\; ((a^*, e^*)\\text{ - challenge}, b\\text{ - challenge bit})")
+$`\pif\;b\,\vee\,(a,e){ = }(a^*,e^*)\;\pthen\;\Return\bot\;\pelse\;\Return \Dec(K,a,e)`
 
 ```anchor oracleDecrypt (project := ".") (module := SecureMessaging.AEAD.Defs)
-def oracleDecrypt [DecidableEq C] (ae : AEADScheme ProbComp M AD K C)
+def oracleDecrypt [DecidableEq AD] [DecidableEq C] (ae : AEADScheme ProbComp M AD K C)
     (b : Bool) (k : K) :
-    QueryImpl (AD × C →ₒ Option M) (StateT (Option C) ProbComp) :=
+    QueryImpl (AD × C →ₒ Option M) (StateT (Option (AD × C)) ProbComp) :=
   fun (a, e) => do
-    let eStar ← get
-    if b || eStar == some e then pure none
+    let chal ← get
+    if b || chal == some (a, e) then pure none
     else pure (ae.decrypt k a e)
 ```
 :::::
 ::::::
 
-As in ACD19, the decrypt oracle rejects the challenge ciphertext $`e^*` under every
-associated data, not only under the challenge's own.
+Deviation from ACD19 Figure 1: the guard compares the pair $`(a, e)`, not $`e` alone, so schemes
+that ignore associated data are insecure. The source docstring gives the details.
 :::::::
 
 :::defTitle "aead_correctness" "AEAD correctness"
@@ -127,10 +127,10 @@ abbrev aeadOneTimeCCASpec (AD M C : Type) :=
 :::
 
 ```anchor aeadSecurityImpl (project := ".") (module := SecureMessaging.AEAD.Defs)
-def aeadSecurityImpl [SampleableType C] [DecidableEq C]
+def aeadSecurityImpl [SampleableType C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C) (b : Bool) (k : K) :
-    QueryImpl (aeadOneTimeCCASpec AD M C) (StateT (Option C) ProbComp) :=
-  oracleUnif C + oracleEncrypt ae b k + oracleDecrypt ae b k
+    QueryImpl (aeadOneTimeCCASpec AD M C) (StateT (Option (AD × C)) ProbComp) :=
+  oracleUnif AD C + oracleEncrypt ae b k + oracleDecrypt ae b k
 ```
 
 :::leanPillCaption "type of adversaries with oracle access"
@@ -148,7 +148,7 @@ $`K \sample \mathcal K;\quad b \sample \bit;\quad b' \gets \adv^{\O};\quad \Retu
 ::::::
 
 ```anchor securityExp (project := ".") (module := SecureMessaging.AEAD.Defs)
-def securityExp [SampleableType C] [DecidableEq C]
+def securityExp [SampleableType C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) : ProbComp Bool := do
   let k ← ae.keygen
@@ -186,7 +186,7 @@ $$`\mathsf{Adv}^{\textsf{guess}}_{\textsf{AEAD}}(\adv)
   = \Bigl|\, \Pr[\,b' = b\,] - \tfrac{1}{2} \,\Bigr|`
 
 ```anchor guessAdvantage (project := ".") (module := SecureMessaging.AEAD.Defs)
-noncomputable def guessAdvantage [SampleableType C] [DecidableEq C]
+noncomputable def guessAdvantage [SampleableType C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) : ℝ :=
   |(Pr[= true | securityExp ae adversary]).toReal - 1 / 2|
@@ -210,7 +210,7 @@ fixes $`b = 1`. This is the advantage the Encrypt-then-MAC security theorem boun
 :::
 
 ```anchor securityExpFixedBit (project := ".") (module := SecureMessaging.AEAD.Defs)
-def securityExpFixedBit [SampleableType C] [DecidableEq C]
+def securityExpFixedBit [SampleableType C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C)
     (b : Bool) : ProbComp Bool := do
@@ -223,7 +223,7 @@ def securityExpFixedBit [SampleableType C] [DecidableEq C]
 :::
 
 ```anchor distAdvantage (project := ".") (module := SecureMessaging.AEAD.Defs)
-noncomputable def distAdvantage [SampleableType C] [DecidableEq C]
+noncomputable def distAdvantage [SampleableType C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) : ℝ :=
   |(Pr[= true | securityExpFixedBit ae adversary true]).toReal -
@@ -241,7 +241,8 @@ $$`\mathsf{Adv}^{\textsf{guess}}_{\textsf{AEAD}}(\adv)
   = \tfrac{1}{2}\,\mathsf{Adv}^{\textsf{dist}}_{\textsf{AEAD}}(\adv)`
 
 ```anchor guessAdvantage_eq_distAdvantage_div_two (project := ".") (module := SecureMessaging.AEAD.Defs)
-lemma guessAdvantage_eq_distAdvantage_div_two [SampleableType C] [DecidableEq C]
+lemma guessAdvantage_eq_distAdvantage_div_two
+    [SampleableType C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) :
     guessAdvantage ae adversary = distAdvantage ae adversary / 2

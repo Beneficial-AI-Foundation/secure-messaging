@@ -13,9 +13,9 @@ import ToVCVio.OracleComp.QueryTracking.QueryBound
 /-!
 # Wegman-Carter one-time authenticity: the forgery bound
 
-For the scheme and game of `Defs.lean`: assume `[SampleableType K]`, `[DecidableEq Cb]`, an
-injective `enc`, and `ε : ℝ≥0∞` with `2⁻¹²⁸ ≤ ε` and `IsAlmostXorUniversal hash ε`, i.e. for
-all distinct `x, y : D` and every `Δ : BitVec 128`,
+For the scheme and game of `Defs.lean`: assume `[SampleableType K]`, `[DecidableEq A]`,
+`[DecidableEq Cb]`, an injective `enc`, and `ε : ℝ≥0∞` with `2⁻¹²⁸ ≤ ε` and
+`IsAlmostXorUniversal hash ε`, i.e. for all distinct `x, y : D` and every `Δ : BitVec 128`,
 
     Pr[H ←$ K : hash(H, x) ⊕ hash(H, y) = Δ] ≤ ε.
 
@@ -115,7 +115,7 @@ private lemma pre_half_le [SampleableType K]
 /-! ### After the challenge, the run does not read `(H, mask)` -/
 
 /-- One handler step from a challenge-set state does not read `(H, mask)`. -/
-private lemma step_eq [DecidableEq Cb]
+private lemma step_eq [DecidableEq A] [DecidableEq Cb]
     (hash : K → D → BitVec 128) (enc : A × Cb → D) (padMsg : M → Cb)
     (H H' : K) (m m' : BitVec 128) (c : A × (Cb × BitVec 128))
     (L : List (A × (Cb × BitVec 128))) (t : (wcSpec A M Cb).Domain) :
@@ -125,7 +125,7 @@ private lemma step_eq [DecidableEq Cb]
     simp [wcLogImpl, StateT.run_bind, StateT.run_get]
 
 /-- Once set, the challenge slot never changes. -/
-private lemma step_state [DecidableEq Cb]
+private lemma step_state [DecidableEq A] [DecidableEq Cb]
     (hash : K → D → BitVec 128) (enc : A × Cb → D) (padMsg : M → Cb)
     (H : K) (m : BitVec 128) (c : A × (Cb × BitVec 128))
     (L : List (A × (Cb × BitVec 128))) (t : (wcSpec A M Cb).Domain) :
@@ -142,20 +142,21 @@ private lemma step_state [DecidableEq Cb]
       QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get,
       pure_bind, StateT.run_pure, support_pure] at hp
     exact ⟨L, by rw [Set.eq_of_mem_singleton hp]⟩
-  · by_cases hg : c.2 = e
-    · simp only [add_apply_inr, wcLogImpl, bind_pure_comp, beq_iff_eq,
-        Option.map_some, QueryImpl.add_apply_inr, StateT.run_bind,
-        StateT.run_get, pure_bind, hg, ↓reduceIte, StateT.run_pure, support_pure] at hp
+  · by_cases hg : c = (ad, e)
+    · subst hg
+      simp only [add_apply_inr, wcLogImpl, bind_pure_comp, beq_self_eq_true,
+        QueryImpl.add_apply_inr, StateT.run_bind,
+        StateT.run_get, pure_bind, ↓reduceIte, StateT.run_pure, support_pure] at hp
       exact ⟨L, by rw [Set.eq_of_mem_singleton hp]⟩
     · simp only [add_apply_inr, wcLogImpl, bind_pure_comp, beq_iff_eq,
-        Option.map_some, Option.some.injEq, QueryImpl.add_apply_inr, StateT.run_bind,
+        Option.some.injEq, QueryImpl.add_apply_inr, StateT.run_bind,
         StateT.run_get, pure_bind, hg, ↓reduceIte, StateT.run_map, StateT.run_set, map_pure,
         support_pure] at hp
       exact ⟨L ++ [(ad, e)], by rw [Set.eq_of_mem_singleton hp]⟩
 
 /-- From a challenge-set state the log-refined run is the same `ProbComp` for every
 `(H, mask)`: the one-shot encrypt oracle is spent and the other oracles never read them. -/
-private lemma run_challenge_some_indep [DecidableEq Cb] {α : Type}
+private lemma run_challenge_some_indep [DecidableEq A] [DecidableEq Cb] {α : Type}
     (hash : K → D → BitVec 128) (enc : A × Cb → D) (padMsg : M → Cb)
     (H H' : K) (m m' : BitVec 128) (c : A × (Cb × BitVec 128))
     (oa : OracleComp (wcSpec A M Cb) α) (L : List (A × (Cb × BitVec 128))) :
@@ -184,11 +185,11 @@ private lemma run_challenge_some_indep [DecidableEq Cb] {α : Type}
 /-! ### The post-challenge log extends the fixed prefix -/
 
 /-- Invariant of the post-challenge run: the challenge slot is fixed, the log extends the
-prefix `L`, and every appended entry differs from the challenge ciphertext, since the guard
+prefix `L`, and every appended entry differs from the challenge `(ad*, e*)`, since the guard
 rejects the challenge before it can be logged. -/
 private def ExtInv (c : A × (Cb × BitVec 128)) (L : List (A × (Cb × BitVec 128)))
     (s : WCLogState A Cb) : Prop :=
-  s.1 = some c ∧ ∃ rest, s.2 = L ++ rest ∧ ∀ r ∈ rest, r.2 ≠ c.2
+  s.1 = some c ∧ ∃ rest, s.2 = L ++ rest ∧ ∀ r ∈ rest, r ≠ c
 
 /-- `ExtInv` holds at the state the encrypt query leaves behind, with an empty extension. -/
 private lemma extInv_init (c : A × (Cb × BitVec 128))
@@ -197,7 +198,7 @@ private lemma extInv_init (c : A × (Cb × BitVec 128))
   ⟨rfl, [], by simp, by simp⟩
 
 /-- Every oracle step preserves `ExtInv`. -/
-private lemma extInv_step [DecidableEq Cb]
+private lemma extInv_step [DecidableEq A] [DecidableEq Cb]
     (hash : K → D → BitVec 128) (enc : A × Cb → D) (padMsg : M → Cb)
     (H : K) (m : BitVec 128) (c : A × (Cb × BitVec 128))
     (L : List (A × (Cb × BitVec 128))) :
@@ -220,14 +221,15 @@ private lemma extInv_step [DecidableEq Cb]
       pure_bind, StateT.run_pure, support_pure] at hy
     rw [Set.eq_of_mem_singleton hy]
     exact ⟨rfl, rest, rfl, hnec⟩
-  · by_cases hg : c.2 = e
-    · simp only [add_apply_inr, wcLogImpl, bind_pure_comp, beq_iff_eq,
-        Option.map_some, QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get,
-        pure_bind, hg, ↓reduceIte, StateT.run_pure, support_pure] at hy
+  · by_cases hg : c = (ad, e)
+    · subst hg
+      simp only [add_apply_inr, wcLogImpl, bind_pure_comp, beq_self_eq_true,
+        QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get,
+        pure_bind, ↓reduceIte, StateT.run_pure, support_pure] at hy
       rw [Set.eq_of_mem_singleton hy]
       exact ⟨rfl, rest, rfl, hnec⟩
     · simp only [add_apply_inr, wcLogImpl, bind_pure_comp, beq_iff_eq,
-        Option.map_some, Option.some.injEq, QueryImpl.add_apply_inr, StateT.run_bind,
+        Option.some.injEq, QueryImpl.add_apply_inr, StateT.run_bind,
         StateT.run_get, pure_bind, hg, ↓reduceIte, StateT.run_map,
         StateT.run_set, map_pure, support_pure] at hy
       rw [Set.eq_of_mem_singleton hy]
@@ -239,7 +241,7 @@ private lemma extInv_step [DecidableEq Cb]
         subst hr
         exact fun hcontra => hg hcontra.symm
 
-private lemma wcLogImpl_extends [DecidableEq Cb] {α : Type}
+private lemma wcLogImpl_extends [DecidableEq A] [DecidableEq Cb] {α : Type}
     (hash : K → D → BitVec 128) (enc : A × Cb → D) (padMsg : M → Cb)
     (H : K) (m : BitVec 128) (c : A × (Cb × BitVec 128))
     (L : List (A × (Cb × BitVec 128))) (oa : OracleComp (wcSpec A M Cb) α) :
@@ -254,7 +256,7 @@ Only the decrypt oracle appends, at most one entry per query, so the log length 
 the decrypt-query budget (`support_state_measure_le_of_isQueryBoundP`). -/
 
 /-- Every step appends at most one log entry. -/
-private lemma log_step_le_one [DecidableEq Cb]
+private lemma log_step_le_one [DecidableEq A] [DecidableEq Cb]
     (hash : K → D → BitVec 128) (enc : A × Cb → D) (H : K) (mask : BitVec 128)
     (padMsg : M → Cb) (t : (wcSpec A M Cb).Domain) (s : WCLogState A Cb) :
     ∀ z ∈ support ((wcLogImpl hash enc H mask padMsg t).run s),
@@ -280,22 +282,22 @@ private lemma log_step_le_one [DecidableEq Cb]
         pure_bind, StateT.run_pure, support_pure] at hz
       rw [Set.eq_of_mem_singleton hz]
       simp
-  · by_cases hg : (Option.map Prod.snd ch : Option (Cb × BitVec 128)) = some e
+  · by_cases hg : ch = some (ad, e)
     · simp only [add_apply_inr, wcLogImpl, bind_pure_comp, beq_iff_eq,
-        Option.map_eq_some_iff, Prod.exists, exists_eq_right, QueryImpl.add_apply_inr,
-        StateT.run_bind, StateT.run_get, pure_bind, hg, BEq.rfl, ↓reduceIte,
+        QueryImpl.add_apply_inr,
+        StateT.run_bind, StateT.run_get, pure_bind, hg, ↓reduceIte,
         StateT.run_pure, support_pure] at hz
       rw [Set.eq_of_mem_singleton hz]
       simp
     · simp only [add_apply_inr, wcLogImpl, bind_pure_comp, beq_iff_eq,
-        Option.map_eq_some_iff, Prod.exists, exists_eq_right, QueryImpl.add_apply_inr,
+        QueryImpl.add_apply_inr,
         StateT.run_bind, StateT.run_get, pure_bind, hg, ↓reduceIte, StateT.run_map,
         StateT.run_set, map_pure, support_pure] at hz
       rw [Set.eq_of_mem_singleton hz]
       simp
 
 /-- Only the decrypt oracle ever appends. -/
-private lemma log_step_le_zero [DecidableEq Cb]
+private lemma log_step_le_zero [DecidableEq A] [DecidableEq Cb]
     (hash : K → D → BitVec 128) (enc : A × Cb → D) (H : K) (mask : BitVec 128)
     (padMsg : M → Cb) (t : (wcSpec A M Cb).Domain)
     (ht : ∀ y : A × (Cb × BitVec 128), t ≠ Sum.inr y) (s : WCLogState A Cb) :
@@ -324,7 +326,7 @@ private lemma log_step_le_zero [DecidableEq Cb]
 
 /-- An adversary making at most `q` decrypt queries extends the log by at most `q` entries, from
 any start state. -/
-lemma log_length_le_from [DecidableEq Cb] {α : Type}
+lemma log_length_le_from [DecidableEq A] [DecidableEq Cb] {α : Type}
     (hash : K → D → BitVec 128) (enc : A × Cb → D) (H : K) (mask : BitVec 128)
     (padMsg : M → Cb) (oa : OracleComp (wcSpec A M Cb) α) (q : ℕ)
     (hq : oa.IsQueryBoundP (· matches Sum.inr _) q) (s : WCLogState A Cb) :
@@ -342,7 +344,7 @@ lemma log_length_le_from [DecidableEq Cb] {α : Type}
 `(c0, hash H X* ⊕ m)` is equal in distribution to drawing the challenge tag `T` uniformly and
 running with a dummy key `H0` and mask `0`, the mask being reported as `hash H X* ⊕ T`. This is
 the bijection `m ↦ hash H X* ⊕ m`. -/
-private lemma reparam_bind [DecidableEq Cb] {α : Type}
+private lemma reparam_bind [DecidableEq A] [DecidableEq Cb] {α : Type}
     (hash : K → D → BitVec 128) (enc : A × Cb → D) (padMsg : M → Cb)
     (ob : Option (Cb × BitVec 128) → OracleComp (wcSpec A M Cb) α)
     (ad : A) (c0 : Cb) (L : List (A × (Cb × BitVec 128)))
@@ -406,7 +408,7 @@ private lemma hoist_H [SampleableType K] {α : Type}
 
 /-- The post-challenge run is equal in distribution to one where the challenge tag is drawn
 uniformly, the run is executed with the dummy `(H0, 0)`, and the key is drawn last. -/
-private lemma post_half_reshape [SampleableType K] [DecidableEq Cb] {α : Type}
+private lemma post_half_reshape [SampleableType K] [DecidableEq A] [DecidableEq Cb] {α : Type}
     (hash : K → D → BitVec 128) (enc : A × Cb → D) (padMsg : M → Cb)
     (ob : Option (Cb × BitVec 128) → OracleComp (wcSpec A M Cb) α)
     (ad : A) (c0 : Cb) (L : List (A × (Cb × BitVec 128))) (H0 : K) :
@@ -429,7 +431,7 @@ private lemma post_half_reshape [SampleableType K] [DecidableEq Cb] {α : Type}
 set with pre-challenge log `L`, if the rest of the adversary makes at most `n` decrypt queries,
 then over a uniform key and mask, some entry logged after `L` carries a valid tag with
 probability at most `n · ε`. -/
-private lemma post_half_le [SampleableType K] [DecidableEq Cb] {α : Type}
+private lemma post_half_le [SampleableType K] [DecidableEq A] [DecidableEq Cb] {α : Type}
     {hash : K → D → BitVec 128} {ε : ℝ≥0∞} (haxu : IsAlmostXorUniversal hash ε)
     {enc : A × Cb → D} (henc_inj : Function.Injective enc)
     (padMsg : M → Cb)
@@ -479,7 +481,9 @@ private lemma post_half_le [SampleableType K] [DecidableEq Cb] {α : Type}
     rw [Prod.ext_iff] at hcontra
     obtain ⟨h1, h2⟩ := hcontra
     have h3 : (r.1, r.2.1) = (ad, c0) := henc_inj h1
-    exact hnec r hr (by rw [Prod.ext_iff]; exact ⟨(Prod.ext_iff.1 h3).2, h2⟩)
+    exact hnec r hr (by
+      rw [Prod.ext_iff]
+      exact ⟨(Prod.ext_iff.1 h3).1, by rw [Prod.ext_iff]; exact ⟨(Prod.ext_iff.1 h3).2, h2⟩⟩)
   · simp_rw [mul_assoc]
     refine tsum_probOutput_mul_le_of_forall_mem_support _ fun w hw => ?_
     simp only [mem_support_bind_iff, support_pure, Set.mem_singleton_iff] at hw
@@ -509,7 +513,7 @@ private lemma hoist_step [SampleableType K] {α β : Type}
 has just been set with pre-challenge log `L`, if the rest of the adversary makes at most `n`
 decrypt queries, then over a uniform key and mask the flag is raised with probability at most
 `(|L| + n) · ε`. -/
-private lemma post_phase [SampleableType K] [DecidableEq Cb] {α : Type}
+private lemma post_phase [SampleableType K] [DecidableEq A] [DecidableEq Cb] {α : Type}
     {hash : K → D → BitVec 128} {ε : ℝ≥0∞} (haxu : IsAlmostXorUniversal hash ε)
     (hfloor : ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹ ≤ ε)
     {enc : A × Cb → D} (henc_inj : Function.Injective enc)
@@ -552,7 +556,7 @@ private lemma post_phase [SampleableType K] [DecidableEq Cb] {α : Type}
 
 /-- Once `hoist_step` has moved a prefix `Q` in front of the draws, the induction hypothesis
 applies pointwise on `Q`'s support, provided `Q` leaves the challenge unset (`hstate`). -/
-private lemma pre_phase_bind_le [SampleableType K] [DecidableEq Cb] {α β : Type}
+private lemma pre_phase_bind_le [SampleableType K] [DecidableEq A] [DecidableEq Cb] {α β : Type}
     (hash : K → D → BitVec 128) (enc : A × Cb → D) (padMsg : M → Cb)
     (Q : ProbComp (β × WCLogState A Cb))
     (F : β → OracleComp (wcSpec A M Cb) α) (bnd : ℝ≥0∞)
@@ -575,7 +579,7 @@ private lemma pre_phase_bind_le [SampleableType K] [DecidableEq Cb] {α β : Typ
   exact hIH p hp
 
 /-- A non-encrypt step from a challenge-unset state does not read `(H, mask)`. -/
-private lemma nonEncrypt_step_eq [DecidableEq Cb]
+private lemma nonEncrypt_step_eq [DecidableEq A] [DecidableEq Cb]
     (hash : K → D → BitVec 128) (enc : A × Cb → D) (padMsg : M → Cb)
     (H H' : K) (m m' : BitVec 128) (L : List (A × (Cb × BitVec 128)))
     (t : (wcSpec A M Cb).Domain) (ht : ∀ (ad : A) (mm : M), t ≠ Sum.inl (Sum.inr (ad, mm))) :
@@ -587,7 +591,7 @@ private lemma nonEncrypt_step_eq [DecidableEq Cb]
   · simp [wcLogImpl, StateT.run_bind, StateT.run_get]
 
 /-- Only the encrypt oracle sets the challenge slot. -/
-private lemma nonEncrypt_step_state [DecidableEq Cb]
+private lemma nonEncrypt_step_state [DecidableEq A] [DecidableEq Cb]
     (hash : K → D → BitVec 128) (enc : A × Cb → D) (padMsg : M → Cb)
     (H : K) (m : BitVec 128) (L : List (A × (Cb × BitVec 128)))
     (t : (wcSpec A M Cb).Domain) (ht : ∀ (ad : A) (mm : M), t ≠ Sum.inl (Sum.inr (ad, mm))) :
@@ -602,13 +606,13 @@ private lemma nonEncrypt_step_state [DecidableEq Cb]
     simp [← hu]
   · exact absurd rfl (ht ad mm)
   · simp only [add_apply_inr, wcLogImpl, bind_pure_comp, beq_iff_eq,
-      Option.map_none, QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get,
+      QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get,
       pure_bind, reduceCtorEq, ↓reduceIte, StateT.run_map, StateT.run_set, map_pure,
       support_pure] at hp
     rw [Set.eq_of_mem_singleton hp]
 
 /-- The first encrypt query sets the challenge and the run continues from there. -/
-private lemma encrypt_step_run [DecidableEq Cb] {α : Type}
+private lemma encrypt_step_run [DecidableEq A] [DecidableEq Cb] {α : Type}
     (hash : K → D → BitVec 128) (enc : A × Cb → D) (padMsg : M → Cb)
     (H : K) (m : BitVec 128) (L : List (A × (Cb × BitVec 128)))
     (ad : A) (mm : M)
@@ -627,7 +631,7 @@ private lemma encrypt_step_run [DecidableEq Cb] {α : Type}
 /-- Let `hash` be `ε`-AXU, `enc` injective and `2⁻¹²⁸ ≤ ε`. From a state with no challenge and
 log `L`, over a uniform key and mask, an adversary making at most `n` decrypt queries raises the
 flag with probability at most `(|L| + n) · ε`. -/
-private lemma pre_phase [SampleableType K] [DecidableEq Cb] {α : Type}
+private lemma pre_phase [SampleableType K] [DecidableEq A] [DecidableEq Cb] {α : Type}
     {hash : K → D → BitVec 128} {ε : ℝ≥0∞} (haxu : IsAlmostXorUniversal hash ε)
     (hfloor : ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹ ≤ ε)
     {enc : A × Cb → D} (henc_inj : Function.Injective enc)
@@ -721,7 +725,8 @@ end ProbabilityCore
 /-- The forgery bound at the log-refined handler: `wcFlag` is raised with probability at most
 `q · ε`. The observed value carries `(H, mask)` because `wcFlag` reads them; the adversary's
 output is discarded. -/
-theorem probEvent_bad_wcLog_le {α K A M Cb D : Type} [SampleableType K] [DecidableEq Cb]
+theorem probEvent_bad_wcLog_le {α K A M Cb D : Type}
+    [SampleableType K] [DecidableEq A] [DecidableEq Cb]
     {hash : K → D → BitVec 128} {ε : ℝ≥0∞} (haxu : IsAlmostXorUniversal hash ε)
     (hfloor : ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹ ≤ ε)
     {enc : A × Cb → D} (henc_inj : Function.Injective enc)
@@ -743,19 +748,19 @@ its `forged` flag with probability at most `q · ε`.
 
 Both side hypotheses are needed and are usually free. `henc_inj`: with a non-injective `enc`,
 for the challenge `(ad*, C*)`, a query `(ad', C')` with `enc (ad', C') = enc (ad*, C*)`,
-`C' ≠ C*` and the challenge tag passes the ciphertext-only guard and verifies with probability
+`(ad', C') ≠ (ad*, C*)` and the challenge tag passes the guard and verifies with probability
 `1`; at `enc := id` it is `Function.injective_id`. `hfloor`: on a subsingleton domain AXU is
 vacuous and admits `ε = 0`, while a blind tag guess still succeeds with probability `2⁻¹²⁸`;
 with two distinct domain points it follows from `IsAlmostXorUniversal.card_inv_le`. -/
 theorem probEvent_wcInst_forge_le {α K A M Cb D : Type}
-    [SampleableType K] [DecidableEq Cb]
+    [SampleableType K] [DecidableEq A] [DecidableEq Cb]
     {hash : K → D → BitVec 128} {ε : ℝ≥0∞} (haxu : IsAlmostXorUniversal hash ε)
     (hfloor : ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹ ≤ ε)
     {enc : A × Cb → D} (henc_inj : Function.Injective enc)
     (padMsg : M → Cb) (unpad : Cb → M)
     (oa : OracleComp (wcSpec A M Cb) α) (q : ℕ)
     (hq : oa.IsQueryBoundP (· matches Sum.inr _) q) :
-    Pr[fun z : α × (Option (Cb × BitVec 128) × Bool) => z.2.2 = true |
+    Pr[fun z : α × (Option (A × (Cb × BitVec 128)) × Bool) => z.2.2 = true |
         (do let H ← ($ᵗ K : ProbComp K)
             let mask ← ($ᵗ (BitVec 128) : ProbComp (BitVec 128))
             (simulateQ (wcInstImpl hash enc H mask padMsg unpad false) oa).run

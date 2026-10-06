@@ -30,7 +30,7 @@ set_option pp.rawOnError true
 - {Informal.citet NRS14}[] — the construction (Figure 2, scheme A5) and security
   proof (Theorem 1, Figure 9 bound) this chapter formalizes.
 - {Informal.citet ACD19}[] — the one-time IND-CCA notion being targeted
-  (Definition 1, Figure 1, Definition 2).
+  (Definition 1, Figure 1, Definition 2), with the pair guard of `AEAD/Defs.lean`.
 - {Informal.citet TR25}[] — the AEAD advantage convention (Definition 2.5).
 
 :::group "aead_encrypt_then_mac"

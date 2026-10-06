@@ -13,8 +13,8 @@ import ToVCVio.ProgramLogic.Relational.IdenticalUntilBad
 # GCM: the authenticity hop (`game2` → `game3`)
 
 Replaces the live-verification game `game2` by the always-reject game `game3`. The two agree
-unless some decryption query carries a valid tag for a ciphertext the adversary was never
-given. After the challenge `(x, T)`, a forgery `(x', T')` needs GHASH at the unknown key `H`
+unless some decryption query other than the challenge pair `(ad*, e*)` carries a valid tag.
+After the challenge `(x, T)`, a forgery `(x', T')` needs GHASH at the unknown key `H`
 to hit a chosen XOR difference, `ghash H x ⊕ ghash H x' = T ⊕ T'`; before it, a forgery
 needs a guess of the tag. The almost-XOR-universal (AXU) bound `GhashIsAXU L ε` (`Axu.lean`)
 caps both at `ε` per query, so the hop costs `q_d · ε`, the Wegman–Carter forgery bound.
@@ -69,7 +69,7 @@ against the always-reject oracles raises the `forged` flag with probability at m
 theorem probEvent_forge_gcmInst_le (L : ℕ) {ε : ℝ≥0∞} (haxu : GhashIsAXU L ε)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
     (q_d : ℕ) (hq : AEADScheme.decryptQueryBound adv q_d) (ks : BitVec L) :
-    Pr[fun z : Bool × (Option (BitVec L × BitVec 128) × Bool) => z.2.2 = true |
+    Pr[fun z : Bool × (Option (SupportedAAD × (BitVec L × BitVec 128)) × Bool) => z.2.2 = true |
         (do let h ← ($ᵗ (BitVec 128) : ProbComp _)
             let mask ← ($ᵗ (BitVec 128) : ProbComp _)
             (simulateQ (gcmInstImpl (h, mask, ks) false) adv).run (none, false))]
@@ -86,7 +86,7 @@ theorem probEvent_forge_gcmInst_le (L : ℕ) {ε : ℝ≥0∞} (haxu : GhashIsAX
 private theorem gcmInstImpl_flag_mono (L : ℕ)
     (a : BitVec 128 × BitVec 128 × BitVec L) (b : Bool)
     (t : (aeadOneTimeCCASpec SupportedAAD (BitVec L) (BitVec L × BitVec 128)).Domain)
-    (p : Option (BitVec L × BitVec 128) × Bool) (hp : p.2 = true) :
+    (p : Option (SupportedAAD × (BitVec L × BitVec 128)) × Bool) (hp : p.2 = true) :
     ∀ z ∈ support (((gcmInstImpl a b) t).run p), z.2.2 = true := by
   obtain ⟨ch, fg⟩ := p
   obtain rfl : fg = true := hp
@@ -118,19 +118,19 @@ theorem gcmInstImpl_identicalUntilBad (L : ℕ)
     (a : BitVec 128 × BitVec 128 × BitVec L) :
     (∀ (t : (aeadOneTimeCCASpec SupportedAAD (BitVec L)
                (BitVec L × BitVec 128)).Domain)
-        (s : Option (BitVec L × BitVec 128))
+        (s : Option (SupportedAAD × (BitVec L × BitVec 128)))
         (u : (aeadOneTimeCCASpec SupportedAAD (BitVec L)
                (BitVec L × BitVec 128)).Range t)
-        (s' : Option (BitVec L × BitVec 128)),
+        (s' : Option (SupportedAAD × (BitVec L × BitVec 128))),
       Pr[= (u, (s', false)) | ((gcmInstImpl a false) t).run (s, false)] =
         Pr[= (u, (s', false)) | ((gcmInstImpl a true) t).run (s, false)])
     ∧ (∀ (t : (aeadOneTimeCCASpec SupportedAAD (BitVec L)
                  (BitVec L × BitVec 128)).Domain)
-          (p : Option (BitVec L × BitVec 128) × Bool), p.2 = true →
+          (p : Option (SupportedAAD × (BitVec L × BitVec 128)) × Bool), p.2 = true →
         ∀ z ∈ support (((gcmInstImpl a false) t).run p), z.2.2 = true)
     ∧ (∀ (t : (aeadOneTimeCCASpec SupportedAAD (BitVec L)
                  (BitVec L × BitVec 128)).Domain)
-          (p : Option (BitVec L × BitVec 128) × Bool), p.2 = true →
+          (p : Option (SupportedAAD × (BitVec L × BitVec 128)) × Bool), p.2 = true →
         ∀ z ∈ support (((gcmInstImpl a true) t).run p), z.2.2 = true) := by
   refine ⟨?_, fun t p hp => gcmInstImpl_flag_mono L a false t p hp,
     fun t p hp => gcmInstImpl_flag_mono L a true t p hp⟩
@@ -144,12 +144,14 @@ theorem gcmInstImpl_identicalUntilBad (L : ℕ)
     -- makes both sides write flag `true`, so the observed `false`-flag transition has
     -- probability `0` on each side (this is the transition the two handlers differ on).
     obtain ⟨h, mask, ks⟩ := a
-    by_cases hguard : s = some e
+    by_cases hguard : s = some (ad, e)
     · simp [gcmInstImpl, wcInstImpl, StateT.run_bind, StateT.run_get,
         StateT.run_pure, beq_iff_eq, hguard]
-    · by_cases hok : (e.2 = ghash h (gcmEncode ad e.1) ^^^ mask) <;>
+    · -- `probOutput_pure_eq_indicator` rather than `probOutput_pure`: the latter needs
+      -- `DecidableEq` on the enlarged output type, which instance search does not find here.
+      by_cases hok : (e.2 = ghash h (gcmEncode ad e.1) ^^^ mask) <;>
         simp [gcmInstImpl, wcInstImpl, StateT.run_bind, StateT.run_get, StateT.run_set,
-          beq_iff_eq, hguard, hok]
+          beq_iff_eq, hguard, hok, probOutput_pure_eq_indicator]
 
 /-- For a fixed tuple `a`, the outputs of `adv` against the always-reject and the live oracles
 have total-variation distance at most the probability that the always-reject run raises the
@@ -159,7 +161,8 @@ theorem gcmInst_tvDist_le_probEvent_forge (L : ℕ)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
     tvDist ((simulateQ (gcmInstImpl a false) adv).run' (none, false))
         ((simulateQ (gcmInstImpl a true) adv).run' (none, false))
-      ≤ Pr[fun z : Bool × (Option (BitVec L × BitVec 128) × Bool) => z.2.2 = true |
+      ≤ Pr[fun z : Bool × (Option (SupportedAAD × (BitVec L × BitVec 128)) × Bool) =>
+            z.2.2 = true |
           (simulateQ (gcmInstImpl a false) adv).run (none, false)].toReal := by
   obtain ⟨h_agree_good, h_mono₁, h_mono₂⟩ := gcmInstImpl_identicalUntilBad L a
   exact tvDist_simulateQ_le_probEvent_output_bad_base (gcmInstImpl a false)
@@ -174,7 +177,8 @@ private theorem tvDist_gcmInstFlat_le_probEvent_forge (L : ℕ)
               fun a => (simulateQ (gcmInstImpl a false) adv).run' (none, false))
         (($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _) >>=
               fun a => (simulateQ (gcmInstImpl a true) adv).run' (none, false))
-      ≤ (Pr[fun z : Bool × (Option (BitVec L × BitVec 128) × Bool) => z.2.2 = true |
+      ≤ (Pr[fun z : Bool × (Option (SupportedAAD × (BitVec L × BitVec 128)) × Bool) =>
+            z.2.2 = true |
             (($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _) >>=
               fun a => (simulateQ (gcmInstImpl a false) adv).run (none, false))]).toReal := by
   refine le_trans (tvDist_bind_left_le _ _ _) ?_
@@ -215,7 +219,7 @@ private theorem evalDist_gcmInstRun_ks_outer (L : ℕ)
 private theorem probEvent_forge_gcmInstFlat_le (L : ℕ) {ε : ℝ≥0∞} (haxu : GhashIsAXU L ε)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
     (q_d : ℕ) (hq : AEADScheme.decryptQueryBound adv q_d) :
-    Pr[fun z : Bool × (Option (BitVec L × BitVec 128) × Bool) => z.2.2 = true |
+    Pr[fun z : Bool × (Option (SupportedAAD × (BitVec L × BitVec 128)) × Bool) => z.2.2 = true |
         (($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _) >>=
           fun a => (simulateQ (gcmInstImpl a false) adv).run (none, false))]
       ≤ (q_d : ℝ≥0∞) * ε := by
@@ -242,7 +246,8 @@ theorem game2_game3_le_auth {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ
         (Pr[= true | game2Flat prp L hL adv]).toReal|
       ≤ tvDist (game3Flat prp L hL adv) (game2Flat prp L hL adv) :=
         abs_probOutput_toReal_sub_le_tvDist _ _
-    _ ≤ (Pr[fun z : Bool × (Option (BitVec L × BitVec 128) × Bool) => z.2.2 = true |
+    _ ≤ (Pr[fun z : Bool × (Option (SupportedAAD × (BitVec L × BitVec 128)) × Bool) =>
+            z.2.2 = true |
             (($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _) >>=
               fun a => (simulateQ (gcmInstImpl a false) adv).run (none, false))]).toReal :=
         tvDist_gcmInstFlat_le_probEvent_forge L adv

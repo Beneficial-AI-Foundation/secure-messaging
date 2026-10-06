@@ -101,9 +101,9 @@ lemmas live under `ToVCVio/`.
 
 ## Paper References
 
-The *notion* targeted here is ACD19's (defined in `AEAD/Defs.lean`); the *proof*
-is an EtM argument adapted from **NRS14 scheme A5**. The two line up because
-ACD19's one-time real-or-random notion and NRS14's ivE/nAE rest on the same
+The *notion* targeted here is ACD19's with the pair guard (defined in `AEAD/Defs.lean`); the *proof*
+is an EtM argument adapted from **NRS14 scheme A5**. The two line up because ACD19's one-time
+real-or-random notion and NRS14's ivE/nAE rest on the same
 ind$ (random-*ciphertext*) family; the precise, game-by-game correspondence
 that backs this is the `## NRS14 Correspondence` table below (not the single
 shared-family observation on its own).
@@ -134,12 +134,11 @@ The security proof adapts **Theorem 1** (for A5), with:
 
 ## ACD19 vs NRS14: decryption suppression
 
-One place the two notions differ: ACD19's decrypt oracle (`AEAD/Defs.oracleDecrypt`) rejects
-**every** query sharing the challenge ciphertext `e*` — any `(a', e*)`, ignoring the associated
-data — whereas NRS14 nAE (and Boneh–Shoup §9.10) reject only the exact returned pair `(a*, e*)`.
-ACD19 is thus the stronger notion. The gap is immaterial for EtM: a query `(a', e*)` with
-`a' ≠ a*` still has to produce the challenge-independent tag on `(a', C*)`, which after the
-`game1` PRF hop is a fresh random `ρ`-value — exactly what the `q_d/|T|` authenticity term
+`AEAD/Defs.oracleDecrypt` refuses only the exact pair `(a*, e*)`, as NRS14 nAE does, where ACD19
+Figure 1 prints `e = e*` (deviation D1 of `AEAD/Defs.lean`). EtM meets the pair guard at no extra
+cost: a query `(a', e*)` with `a' ≠ a*` has to produce the tag on `(a', C*)`.
+After the `game1` PRF hop that is the `ρ`-value at a point the encryption never evaluated, so it is
+independent of the challenge, which is exactly what the `q_d/|T|` authenticity term
 (`game1_game2_le_auth`) already bounds.
 -/
 
