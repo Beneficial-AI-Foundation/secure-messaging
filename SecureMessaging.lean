@@ -47,6 +47,7 @@ import SecureMessaging.RKEM.Defs
 import SecureMessaging.RKEM.FromKEM.Construction
 import SecureMessaging.RKEM.FromKEM.Correctness
 import SecureMessaging.SCKA.Defs
+import SecureMessaging.SCKA.Correctness.OracleSupport
 import SecureMessaging.SCKA.MLKEMBraid.Authenticator
 import SecureMessaging.SCKA.MLKEMBraid.Basic
 import SecureMessaging.SCKA.MLKEMBraid.Construction
@@ -71,6 +72,7 @@ import SecureMessaging.SCKA.OppBiKEM.Correctness.PublicKeyAckSoundness
 import SecureMessaging.SCKA.OppBiKEM.Correctness.RoleParity
 import SecureMessaging.SCKA.OppBiKEM.Correctness.CiphertextAckSoundness
 import SecureMessaging.SCKA.OppBiKEM.Correctness.PhaseCausality
+import SecureMessaging.SCKA.OppBiKEM.Correctness.Lockstep
 import SecureMessaging.SCKA.OppUniKEM.Correctness
 import SecureMessaging.SymEnc.Defs
 import ToVCVio.OracleComp.Constructions.SampleableType
