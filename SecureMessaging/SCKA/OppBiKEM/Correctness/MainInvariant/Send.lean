@@ -200,6 +200,13 @@ theorem partyInv_peer_of_send (roleS : Role) {kem : KEMScheme ProbComp K PK SK C
     intro e pk sk hT hp hnot
     rw [k1 e (by simpa using hp)] at hT
     exact hR.T_dk e pk sk hT hp hnot
+  dk_shape := hR.dk_shape
+  ek_acked := by
+    intro h
+    rw [k1 _ (by
+      have := (Role.offset_parity roleS.peer stR.res.resEpoch).2 hR.res_parity
+      simpa using this)]
+    exact hR.ek_acked h
   enc_future := by
     intro e hp hlt
     rw [e1 e (by simpa using hp)]
@@ -398,6 +405,11 @@ theorem partyInv_sender_of_send (roleS : Role) {kem : KEMScheme ProbComp K PK SK
         keyS' e.toNat = none ∧ ∃ pk, (T' e).keypair = some (pk, sk))
     (f_T_dk : ∀ e pk sk, (T' e).keypair = some (pk, sk) → e % 2 = roleS.reqParity →
       e ∉ stS'.ack.ctRec → (e, sk) ∈ stS'.req.dk)
+    (f_dk_shape : stS'.req.dk = [] ∨
+      ∃ sk, stS'.req.dk = [(stS'.res.resEpoch + roleS.offset, sk)])
+    (f_ek_acked : stS'.req.ek = none →
+      (T' (stS'.res.resEpoch + roleS.offset)).keypair = none ∨
+        stS'.res.resEpoch + roleS.offset ∈ stS'.ack.ekRec)
     (f_enc_current : ∀ c k, (T' stS'.res.resEpoch).enc = some (c, k) →
       stS'.res.ct = some c ∨ stS'.res.resEpoch ∈ stS'.ack.ctRec)
     (f_ct_T : ∀ c, stS'.res.ct = some c → ∃ k, (T' stS'.res.resEpoch).enc = some (c, k))
@@ -458,6 +470,8 @@ theorem partyInv_sender_of_send (roleS : Role) {kem : KEMScheme ProbComp K PK SK
     ek_T := f_ek_T
     dk_T := f_dk_T
     T_dk := f_T_dk
+    dk_shape := f_dk_shape
+    ek_acked := f_ek_acked
     enc_future := by
       intro e hpe hlt
       rw [hencNe e (by omega)]
@@ -622,7 +636,7 @@ private theorem send_step_plain (roleS : Role) {kem : KEMScheme ProbComp K PK SK
   have hct : stS'.res.ct = stS.res.ct := hp.no_key_ciphertext rfl
   refine ⟨partyInv_sender_of_send roleS hS hR n hout (fun _ _ hs => Or.inl hs)
     (fun _ _ _ => rfl) (fun _ _ => rfl) (fun _ _ => rfl) (fun _ _ => rfl) (fun _ _ => rfl)
-    (fun _ _ => rfl) ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ hS.key_zero,
+    (fun _ _ => rfl) ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ hS.key_zero,
     partyInv_peer_of_send roleS hS hR hp.requester_epoch hp.peer_keys hp.acknowledgements
       (fun _ _ => rfl) (fun _ _ _ h => h) (fun _ _ => rfl) (fun _ _ _ => rfl) (fun _ _ => rfl)
       (fun _ _ => rfl)⟩
@@ -638,6 +652,12 @@ private theorem send_step_plain (roleS : Role) {kem : KEMScheme ProbComp K PK SK
     rw [hp.acknowledgements] at hnot
     rw [hdk]
     exact hS.T_dk e pk sk hT hpe hnot
+  · rw [hdk, hres]
+    exact hS.dk_shape
+  · intro h
+    rw [hek] at h
+    rw [hres, hp.acknowledgements]
+    exact hS.ek_acked h
   · rw [hres, hct, hp.acknowledgements]
     exact hS.enc_current
   · rw [hct, hres]
@@ -706,7 +726,7 @@ private theorem send_step_advance (roleS : Role) {kem : KEMScheme ProbComp K PK 
     subst h
     exact Role.reqParity_ne_resParity roleS (hparA.symm.trans hpe)
   refine ⟨T', partyInv_sender_of_send roleS hS hR n hout ?_ ?_ ?_ (fun e _ => hT'enc e)
-    (fun e _ => hT'enc e) (fun e _ => hT'enc e) (fun _ _ => rfl) ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_
+    (fun e _ => hT'enc e) (fun e _ => hT'enc e) (fun _ _ => rfl) ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_
     hS.key_zero,
     partyInv_peer_of_send roleS hS hR hp.requester_epoch hp.peer_keys hp.acknowledgements
       (fun e hpe => by rw [hT'kp, if_neg (hneA e hpe)]) ?_ (fun e _ => hT'key e) ?_
@@ -752,6 +772,27 @@ private theorem send_step_advance (roleS : Role) {kem : KEMScheme ProbComp K PK 
     · rw [hT'kp, if_neg h] at hT
       exact List.mem_cons.mpr (Or.inr (List.mem_filter.mpr
         ⟨hS.T_dk e pk sk hT hpe hnot, by simpa using h⟩))
+  · -- Before an advance the secret-key list is empty: a retained key for the previous
+    -- exchange would be undecapsulated, but the gate says that epoch is acknowledged.
+    have hempty : stS.req.dk = [] := by
+      rcases hS.dk_shape with h0 | ⟨sk₁, h1⟩
+      · exact h0
+      · exfalso
+        have hmem₁ : (stS.res.resEpoch + roleS.offset, sk₁) ∈ stS.req.dk := by
+          rw [h1]
+          exact List.mem_singleton.mpr rfl
+        obtain ⟨hpe, hpos, -, hkey, -⟩ := hS.dk_T _ sk₁ hmem₁
+        have hk := hS.key_req _ hpos hpe
+        rw [if_pos hgate.2, hkey] at hk
+        have henc := hS.ctRec_req_enc _ hgate.2 hpos hpe
+        obtain ⟨⟨c, k⟩, hck⟩ := Option.isSome_iff_exists.mp henc
+        rw [EpochTranscript.key, hck] at hk
+        cases hk
+    right
+    exact ⟨sk₀, by rw [hdk, hempty]; rfl⟩
+  · intro h
+    rw [hek] at h
+    cases h
   · intro c k h
     rw [hT'enc, hS.enc_future _ hres_par (by omega)] at h
     cases h
@@ -845,7 +886,7 @@ private theorem send_step_encaps (roleS : Role) {kem : KEMScheme ProbComp K PK S
     cases hs
   refine ⟨T', partyInv_sender_of_send roleS hS hR n hout
     (fun e _ hs => Or.inl (by rw [← hT'kp]; exact hs)) (fun e _ _ => hT'kp e)
-    (fun e _ => hT'kp e) ?_ hencReq hencMono ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_,
+    (fun e _ => hT'kp e) ?_ hencReq hencMono ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_,
     partyInv_peer_of_send roleS hS hR hp.requester_epoch hp.peer_keys hp.acknowledgements
       (fun e _ => hT'kp e) (fun e pk sk hT => by rw [hT'kp]; exact hT)
       (fun e hpe => by unfold EpochTranscript.key; rw [hencReq e hpe]) (fun e _ _ => hT'kp e)
@@ -873,6 +914,12 @@ private theorem send_step_encaps (roleS : Role) {kem : KEMScheme ProbComp K PK S
     rw [hdk]
     rw [hT'kp] at hT
     exact hS.T_dk e pk sk hT hpe hnot
+  · rw [hdk, hres]
+    exact hS.dk_shape
+  · intro h
+    rw [hek] at h
+    rw [hres, hp.acknowledgements, hT'kp]
+    exact hS.ek_acked h
   · intro c k h
     rw [hres, hT'enc, if_pos rfl] at h
     simp only [Option.some.injEq, Prod.mk.injEq] at h

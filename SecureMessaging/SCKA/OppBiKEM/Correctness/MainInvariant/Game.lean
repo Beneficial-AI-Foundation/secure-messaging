@@ -33,23 +33,55 @@ variable {K PK SK C Sym : Type}
 the transcript records support membership for each sample. -/
 theorem transcriptDecaps_of_support {kem : KEMScheme ProbComp K PK SK C}
     (hDet : kem.DeterministicDecaps) (hdec : DecapsCorrectOnSupport kem hDet)
-    (T : Transcript kem) :
-    ∀ e pk sk c k, (T e).keypair = some (pk, sk) → (T e).enc = some (c, k) →
+    (T : Transcript kem) (e : ℤ) :
+    ∀ pk sk c k, (T e).keypair = some (pk, sk) → (T e).enc = some (c, k) →
       hDet.decapsDet sk c = some k :=
-  fun e pk sk c k hkp henc =>
+  fun pk sk c k hkp henc =>
     hdec pk sk c k ((T e).keypair_mem pk sk hkp) ((T e).enc_mem pk sk c k hkp henc)
 
-/-- Every correctness-game oracle preserves the main invariant. -/
-theorem gameInv_preserved [DecidableEq K] [DecidableEq Sym]
+/-- Decapsulation correctness for the epochs a party may decapsulate next, relative to a
+transcript consistent with the state: for every unacknowledged requester-parity epoch, the
+transcript's secret key recovers the transcript's key from the transcript's ciphertext. -/
+def DecapsReady (role : Role) {kem : KEMScheme ProbComp K PK SK C} (hDet : kem.DeterministicDecaps)
+    (T : Transcript kem) (st : State PK SK C Sym) : Prop :=
+  ∀ q, q ∉ st.ack.ctRec → q % 2 = role.reqParity →
+    ∀ pk sk c k, (T q).keypair = some (pk, sk) → (T q).enc = some (c, k) →
+      hDet.decapsDet sk c = some k
+
+/-- One step of any correctness-game oracle preserves the main invariant, provided the
+transcript consistent with the pre-state is decapsulation-ready for both parties. -/
+theorem gameInv_step_of [DecidableEq K] [DecidableEq Sym]
     (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct) (leak : kem.RandLeak)
-    (hdec : DecapsCorrectOnSupport kem hDet) :
-    QueryImpl.PreservesInv (SCKAScheme.sckaCorrectnessImpl (scheme kem hDet ecEk ecCt leak))
-      (GameInv kem ecEk ecCt) := by
-  apply SCKAScheme.preservesInv_sckaCorrectnessImpl_of
-  · -- SendA
-    intro s hs key? ρ tsnd stA' hout
+    (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
+    (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
+    (hs : GameInv kem ecEk ecCt s)
+    (hdec : ∀ T : Transcript kem,
+      PartyInv .A ecEk ecCt T s.stA s.stB s.msgA s.keyA s.keyB s.tcurA →
+      PartyInv .B ecEk ecCt T s.stB s.stA s.msgB s.keyB s.keyA s.tcurB →
+      DecapsReady .A hDet T s.stA ∧ DecapsReady .B hDet T s.stB) :
+    ∀ z ∈ support ((SCKAScheme.sckaCorrectnessImpl (scheme kem hDet ecEk ecCt leak) t).run s),
+      GameInv kem ecEk ecCt z.2 := by
+  -- Package the state and its hypotheses as an invariant preserved for one step.
+  let Inv : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym) → Prop :=
+    fun s' => GameInv kem ecEk ecCt s' ∧ (s' = s ∨ True)
+  suffices h : ∀ z ∈ support
+      ((SCKAScheme.sckaCorrectnessImpl (scheme kem hDet ecEk ecCt leak) t).run s),
+      GameInv kem ecEk ecCt z.2 from h
+  rcases t with (((n | ⟨⟩) | ⟨⟩) | n) | n
+  · intro z hz
+    have hz' : z ∈ support (((QueryImpl.ofLift unifSpec ProbComp) n) >>=
+        fun y => pure (y, s)) := hz
+    obtain ⟨_, _, hz⟩ := mem_support_bind_peel _ _ hz'
+    have hz' := eq_of_mem_support_pure _ hz
+    subst z
+    exact hs
+  · intro z hz
+    change z ∈ support ((SCKAScheme.oracleSendA (scheme kem hDet ecEk ecCt leak) ()).run s) at hz
+    rcases SCKAScheme.oracleSendA_run_cases _ s z hz with
+      ⟨-, rfl⟩ | ⟨key?, ρ, tsnd, stA', hout, rfl⟩
+    · exact hs
     obtain ⟨hcorrect, T, hA, hB⟩ := hs
     have hout' : some (key?, ρ, tsnd, stA') ∈ support (send .A kem ecEk ecCt s.stA) := hout
     obtain ⟨hmono, hprefix, hkeys, T', hA', hB'⟩ :=
@@ -69,8 +101,11 @@ theorem gameInv_preserved [DecidableEq K] [DecidableEq Sym]
           Option.isNone_some, Bool.false_or, Bool.true_and] <;> simpa using hprefix
       · simpa [SCKAScheme.applySendA] using hA'
       · simpa [SCKAScheme.applySendA, Role.peer] using hB'
-  · -- SendB
-    intro s hs key? ρ tsnd stB' hout
+  · intro z hz
+    change z ∈ support ((SCKAScheme.oracleSendB (scheme kem hDet ecEk ecCt leak) ()).run s) at hz
+    rcases SCKAScheme.oracleSendB_run_cases _ s z hz with
+      ⟨-, rfl⟩ | ⟨key?, ρ, tsnd, stB', hout, rfl⟩
+    · exact hs
     obtain ⟨hcorrect, T, hA, hB⟩ := hs
     have hout' : some (key?, ρ, tsnd, stB') ∈ support (send .B kem ecEk ecCt s.stB) := hout
     obtain ⟨hmono, hprefix, hkeys, T', hB', hA'⟩ :=
@@ -81,7 +116,7 @@ theorem gameInv_preserved [DecidableEq K] [DecidableEq Sym]
       · simp only [SCKAScheme.applySendB, hcorrect, hmono, decide_true, Bool.true_and]
         simpa using hprefix
       · simpa [SCKAScheme.applySendB, Role.peer] using hA'
-      · simpa [SCKAScheme.applySendB, Role.peer] using hB'
+      · simpa [SCKAScheme.applySendB] using hB'
     · obtain ⟨hB0, hA0⟩ := hkeys tI k rfl
       refine ⟨?_, T', ?_, ?_⟩
       · simp only [SCKAScheme.applySendB, hcorrect, hmono, decide_true, Bool.true_and, hB0,
@@ -89,66 +124,88 @@ theorem gameInv_preserved [DecidableEq K] [DecidableEq Sym]
         rcases hA0 with h | h <;> simp only [h, Option.isNone_none, Bool.true_or, beq_self_eq_true,
           Option.isNone_some, Bool.false_or, Bool.true_and] <;> simpa using hprefix
       · simpa [SCKAScheme.applySendB, Role.peer] using hA'
-      · simpa [SCKAScheme.applySendB, Role.peer] using hB'
-  · -- RecvA, success
-    intro s hs n ρ tsnd hmsg key? trcv stA' hrecv
+      · simpa [SCKAScheme.applySendB] using hB'
+  · intro z hz
+    change z ∈ support ((SCKAScheme.oracleRecvA (scheme kem hDet ecEk ecCt leak) n).run s) at hz
     obtain ⟨hcorrect, T, hA, hB⟩ := hs
-    have hrecv' : recv .A kem hDet ecEk ecCt s.stA ρ = some (key?, trcv, stA') := hrecv
-    obtain ⟨-, hall⟩ :=
-      partyInv_recv_step hA hB hmsg hEk hCt (transcriptDecaps_of_support hDet hdec T)
-    obtain ⟨htrcv, hprefix, hkeys, hA', hB'⟩ := hall key? trcv stA' hrecv'
-    subst htrcv
-    rcases key? with _ | ⟨tI, k⟩
-    · refine ⟨?_, T, ?_, ?_⟩
-      · simp only [SCKAScheme.applyRecvA, hcorrect, beq_self_eq_true, Bool.true_and]
-        simpa using hprefix
-      · simpa [SCKAScheme.applyRecvA, Role.peer] using hA'
-      · simpa [SCKAScheme.applyRecvA, Role.peer] using hB'
-    · obtain ⟨hA0, hB0⟩ := hkeys tI k rfl
-      refine ⟨?_, T, ?_, ?_⟩
-      · simp only [SCKAScheme.applyRecvA, hcorrect, beq_self_eq_true, Bool.true_and, hA0,
-          Option.isNone_none]
-        rcases hB0 with h | h <;> simp only [h, Option.isNone_none, Bool.true_or, beq_self_eq_true,
-          Option.isNone_some, Bool.false_or, Bool.true_and] <;> simpa using hprefix
-      · simpa [SCKAScheme.applyRecvA, Role.peer] using hA'
-      · simpa [SCKAScheme.applyRecvA, Role.peer] using hB'
-  · -- RecvA cannot fail on a recorded message
-    intro s hs n ρ tsnd hmsg hrecv
-    obtain ⟨-, T, hA, hB⟩ := hs
-    obtain ⟨⟨key?, trcv, stA', h⟩, -⟩ :=
-      partyInv_recv_step hA hB hmsg hEk hCt (transcriptDecaps_of_support hDet hdec T)
-    have hrecv' : recv .A kem hDet ecEk ecCt s.stA ρ = none := hrecv
-    rw [hrecv'] at h
-    cases h
-  · -- RecvB, success
-    intro s hs n ρ tsnd hmsg key? trcv stB' hrecv
+    have hready := (hdec T hA hB).1
+    rcases SCKAScheme.oracleRecvA_run_cases _ n s z hz with ⟨-, rfl⟩ | ⟨ρ, tsnd, hmsg, hrecv, rfl⟩ |
+      ⟨ρ, tsnd, key?, trcv, stA', hmsg, hrecv, rfl⟩
+    · exact ⟨hcorrect, T, hA, hB⟩
+    · exfalso
+      obtain ⟨⟨key?, trcv, stA', h⟩, -⟩ := partyInv_recv_step hA hB hmsg hEk hCt
+        (fun hq => hready _ hq (recv_tRes_parity (roleR := .A) hB hmsg))
+      have hrecv' : recv .A kem hDet ecEk ecCt s.stA ρ = none := hrecv
+      rw [hrecv'] at h
+      cases h
+    · have hrecv' : recv .A kem hDet ecEk ecCt s.stA ρ = some (key?, trcv, stA') := hrecv
+      obtain ⟨-, hall⟩ := partyInv_recv_step hA hB hmsg hEk hCt
+        (fun hq => hready _ hq (recv_tRes_parity (roleR := .A) hB hmsg))
+      obtain ⟨htrcv, hprefix, hkeys, hA', hB'⟩ := hall key? trcv stA' hrecv'
+      subst htrcv
+      rcases key? with _ | ⟨tI, k⟩
+      · refine ⟨?_, T, ?_, ?_⟩
+        · simp only [SCKAScheme.applyRecvA, hcorrect, beq_self_eq_true, Bool.true_and]
+          simpa using hprefix
+        · simpa [SCKAScheme.applyRecvA] using hA'
+        · simpa [SCKAScheme.applyRecvA, Role.peer] using hB'
+      · obtain ⟨hA0, hB0⟩ := hkeys tI k rfl
+        refine ⟨?_, T, ?_, ?_⟩
+        · simp only [SCKAScheme.applyRecvA, hcorrect, beq_self_eq_true, Bool.true_and, hA0,
+            Option.isNone_none]
+          rcases hB0 with h | h <;> simp only [h, Option.isNone_none, Bool.true_or,
+            beq_self_eq_true, Option.isNone_some, Bool.false_or, Bool.true_and] <;>
+            simpa using hprefix
+        · simpa [SCKAScheme.applyRecvA] using hA'
+        · simpa [SCKAScheme.applyRecvA, Role.peer] using hB'
+  · intro z hz
+    change z ∈ support ((SCKAScheme.oracleRecvB (scheme kem hDet ecEk ecCt leak) n).run s) at hz
     obtain ⟨hcorrect, T, hA, hB⟩ := hs
-    have hrecv' : recv .B kem hDet ecEk ecCt s.stB ρ = some (key?, trcv, stB') := hrecv
-    obtain ⟨-, hall⟩ :=
-      partyInv_recv_step hB hA hmsg hEk hCt (transcriptDecaps_of_support hDet hdec T)
-    obtain ⟨htrcv, hprefix, hkeys, hB', hA'⟩ := hall key? trcv stB' hrecv'
-    subst htrcv
-    rcases key? with _ | ⟨tI, k⟩
-    · refine ⟨?_, T, ?_, ?_⟩
-      · simp only [SCKAScheme.applyRecvB, hcorrect, beq_self_eq_true, Bool.true_and]
-        simpa using hprefix
-      · simpa [SCKAScheme.applyRecvB, Role.peer] using hA'
-      · simpa [SCKAScheme.applyRecvB, Role.peer] using hB'
-    · obtain ⟨hB0, hA0⟩ := hkeys tI k rfl
-      refine ⟨?_, T, ?_, ?_⟩
-      · simp only [SCKAScheme.applyRecvB, hcorrect, beq_self_eq_true, Bool.true_and, hB0,
-          Option.isNone_none]
-        rcases hA0 with h | h <;> simp only [h, Option.isNone_none, Bool.true_or, beq_self_eq_true,
-          Option.isNone_some, Bool.false_or, Bool.true_and] <;> simpa using hprefix
-      · simpa [SCKAScheme.applyRecvB, Role.peer] using hA'
-      · simpa [SCKAScheme.applyRecvB, Role.peer] using hB'
-  · intro s hs n ρ tsnd hmsg hrecv
-    obtain ⟨-, T, hA, hB⟩ := hs
-    obtain ⟨⟨key?, trcv, stB', h⟩, -⟩ :=
-      partyInv_recv_step hB hA hmsg hEk hCt (transcriptDecaps_of_support hDet hdec T)
-    have hrecv' : recv .B kem hDet ecEk ecCt s.stB ρ = none := hrecv
-    rw [hrecv'] at h
-    cases h
+    have hready := (hdec T hA hB).2
+    rcases SCKAScheme.oracleRecvB_run_cases _ n s z hz with ⟨-, rfl⟩ | ⟨ρ, tsnd, hmsg, hrecv, rfl⟩ |
+      ⟨ρ, tsnd, key?, trcv, stB', hmsg, hrecv, rfl⟩
+    · exact ⟨hcorrect, T, hA, hB⟩
+    · exfalso
+      obtain ⟨⟨key?, trcv, stB', h⟩, -⟩ := partyInv_recv_step hB hA hmsg hEk hCt
+        (fun hq => hready _ hq (recv_tRes_parity (roleR := .B) hA hmsg))
+      have hrecv' : recv .B kem hDet ecEk ecCt s.stB ρ = none := hrecv
+      rw [hrecv'] at h
+      cases h
+    · have hrecv' : recv .B kem hDet ecEk ecCt s.stB ρ = some (key?, trcv, stB') := hrecv
+      obtain ⟨-, hall⟩ := partyInv_recv_step hB hA hmsg hEk hCt
+        (fun hq => hready _ hq (recv_tRes_parity (roleR := .B) hA hmsg))
+      obtain ⟨htrcv, hprefix, hkeys, hB', hA'⟩ := hall key? trcv stB' hrecv'
+      subst htrcv
+      rcases key? with _ | ⟨tI, k⟩
+      · refine ⟨?_, T, ?_, ?_⟩
+        · simp only [SCKAScheme.applyRecvB, hcorrect, beq_self_eq_true, Bool.true_and]
+          simpa using hprefix
+        · simpa [SCKAScheme.applyRecvB, Role.peer] using hA'
+        · simpa [SCKAScheme.applyRecvB] using hB'
+      · obtain ⟨hB0, hA0⟩ := hkeys tI k rfl
+        refine ⟨?_, T, ?_, ?_⟩
+        · simp only [SCKAScheme.applyRecvB, hcorrect, beq_self_eq_true, Bool.true_and, hB0,
+            Option.isNone_none]
+          rcases hA0 with h | h <;> simp only [h, Option.isNone_none, Bool.true_or,
+            beq_self_eq_true, Option.isNone_some, Bool.false_or, Bool.true_and] <;>
+            simpa using hprefix
+        · simpa [SCKAScheme.applyRecvB, Role.peer] using hA'
+        · simpa [SCKAScheme.applyRecvB] using hB'
+
+/-- Every correctness-game oracle preserves the main invariant when decapsulation is correct
+on every honestly generated tuple. -/
+theorem gameInv_preserved [DecidableEq K] [DecidableEq Sym]
+    (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
+    (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
+    (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct) (leak : kem.RandLeak)
+    (hdec : DecapsCorrectOnSupport kem hDet) :
+    QueryImpl.PreservesInv (SCKAScheme.sckaCorrectnessImpl (scheme kem hDet ecEk ecCt leak))
+      (GameInv kem ecEk ecCt) := by
+  intro t s hs z hz
+  refine gameInv_step_of kem hDet ecEk ecCt hEk hCt leak t s hs ?_ z hz
+  intro T _ _
+  exact ⟨fun q _ _ => transcriptDecaps_of_support hDet hdec T q,
+    fun q _ _ => transcriptDecaps_of_support hDet hdec T q⟩
 
 /-- The main invariant holds on every reachable correctness-game state. -/
 theorem simulateQ_gameInv [DecidableEq K] [DecidableEq Sym]

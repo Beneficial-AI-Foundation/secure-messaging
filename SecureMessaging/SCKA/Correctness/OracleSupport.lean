@@ -321,6 +321,93 @@ theorem oracleRecvB_run_cases (n : ℕ) (s : GameState StA StB I Rho)
         subst hz <;>
         rfl
 
+/-! ### The oracle runs as computations
+
+For expected-value arguments the support characterisations are not enough; the runs are
+rewritten as the local computation followed by a pure update. -/
+
+/-- The game-state outcome of `oracleSendA` for a local send result. -/
+def sendAOutcome (s : GameState StA StB I Rho) :
+    Option (Option (ℕ × I) × Rho × ℕ × StA) →
+      Option (ℕ × Option ℕ × Rho) × GameState StA StB I Rho
+  | none => (none, s)
+  | some (key?, ρ, tsnd, stA') => (some (tsnd, key?.map Prod.fst, ρ), applySendA s key? ρ tsnd stA')
+
+/-- The game-state outcome of `oracleSendB` for a local send result. -/
+def sendBOutcome (s : GameState StA StB I Rho) :
+    Option (Option (ℕ × I) × Rho × ℕ × StB) →
+      Option (ℕ × Option ℕ × Rho) × GameState StA StB I Rho
+  | none => (none, s)
+  | some (key?, ρ, tsnd, stB') => (some (tsnd, key?.map Prod.fst, ρ), applySendB s key? ρ tsnd stB')
+
+/-- The game-state outcome of `oracleRecvA n` (deterministic). -/
+def recvAOutcome (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (n : ℕ) (s : GameState StA StB I Rho) :
+    Option (ℕ × Option ℕ) × GameState StA StB I Rho :=
+  match s.msgB n with
+  | none => (none, s)
+  | some (ρ, tsnd) =>
+      match scka.recvA s.stA ρ with
+      | none => (none, { s with correct := false })
+      | some (key?, trcv, stA') =>
+        (some (trcv, key?.map Prod.fst), applyRecvA s tsnd key? trcv stA')
+
+/-- The game-state outcome of `oracleRecvB n` (deterministic). -/
+def recvBOutcome (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (n : ℕ) (s : GameState StA StB I Rho) :
+    Option (ℕ × Option ℕ) × GameState StA StB I Rho :=
+  match s.msgA n with
+  | none => (none, s)
+  | some (ρ, tsnd) =>
+      match scka.recvB s.stB ρ with
+      | none => (none, { s with correct := false })
+      | some (key?, trcv, stB') =>
+        (some (trcv, key?.map Prod.fst), applyRecvB s tsnd key? trcv stB')
+
+theorem oracleSendA_run_eq (s : GameState StA StB I Rho) :
+    (oracleSendA scka ()).run s = scka.sendA s.stA >>= fun out => pure (sendAOutcome s out) := by
+  simp only [oracleSendA, StateT.run_bind, StateT.run_get, pure_bind, StateT.run_liftM, bind_assoc]
+  refine bind_congr fun out => ?_
+  rcases out with _ | ⟨key?, ρ, tsnd, stA'⟩
+  · simp [sendAOutcome]
+  · rcases key? with _ | ⟨tI, k⟩ <;>
+      simp [sendAOutcome, applySendA, StateT.run_set]
+
+theorem oracleSendB_run_eq (s : GameState StA StB I Rho) :
+    (oracleSendB scka ()).run s = scka.sendB s.stB >>= fun out => pure (sendBOutcome s out) := by
+  simp only [oracleSendB, StateT.run_bind, StateT.run_get, pure_bind, StateT.run_liftM, bind_assoc]
+  refine bind_congr fun out => ?_
+  rcases out with _ | ⟨key?, ρ, tsnd, stB'⟩
+  · simp [sendBOutcome]
+  · rcases key? with _ | ⟨tI, k⟩ <;>
+      simp [sendBOutcome, applySendB, StateT.run_set]
+
+theorem oracleRecvA_run_eq (n : ℕ) (s : GameState StA StB I Rho) :
+    (oracleRecvA scka n).run s = pure (recvAOutcome scka n s) := by
+  unfold recvAOutcome
+  rcases hmsg : s.msgB n with _ | ⟨ρ, tsnd⟩
+  · simp [oracleRecvA, hmsg]
+  · rcases hrecv : scka.recvA s.stA ρ with _ | ⟨key?, trcv, stA'⟩
+    · simp [oracleRecvA, hmsg, hrecv]
+    · rcases key? with _ | ⟨tI, k⟩ <;>
+        simp [oracleRecvA, hmsg, hrecv, applyRecvA, StateT.run_bind, StateT.run_set]
+
+theorem oracleRecvB_run_eq (n : ℕ) (s : GameState StA StB I Rho) :
+    (oracleRecvB scka n).run s = pure (recvBOutcome scka n s) := by
+  unfold recvBOutcome
+  rcases hmsg : s.msgA n with _ | ⟨ρ, tsnd⟩
+  · simp [oracleRecvB, hmsg]
+  · rcases hrecv : scka.recvB s.stB ρ with _ | ⟨key?, trcv, stB'⟩
+    · simp [oracleRecvB, hmsg, hrecv]
+    · rcases key? with _ | ⟨tI, k⟩ <;>
+        simp [oracleRecvB, hmsg, hrecv, applyRecvB, StateT.run_bind, StateT.run_set]
+
+omit [DecidableEq I] in
+/-- The uniform oracle leaves the state unchanged. -/
+theorem oracleUnif_run_eq (n : ℕ) (s : GameState StA StB I Rho) :
+    (oracleUnif StA StB I Rho n).run s =
+      ((QueryImpl.ofLift unifSpec ProbComp) n) >>= fun y => pure (y, s) := rfl
+
 /-- One dispatch theorem for the whole correctness-game oracle set. A preservation
 proof supplies one pure fact per oracle; nothing about `StateT` or `support` of
 the oracle monad is ever unfolded again. -/

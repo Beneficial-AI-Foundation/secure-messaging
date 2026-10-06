@@ -327,6 +327,8 @@ theorem partyInv_recv_noKey (hns : ¬ ρ.tRes < stR.req.reqEpoch)
         ek_T := ?_
         dk_T := hR.dk_T
         T_dk := ?_
+        dk_shape := hR.dk_shape
+        ek_acked := ?_
         enc_future := hR.enc_future
         enc_current := ?_
         ct_T := ?_
@@ -361,6 +363,14 @@ theorem partyInv_recv_noKey (hns : ¬ ρ.tRes < stR.req.reqEpoch)
     · intro e pk sk hkp hp hnot
       rw [hst'ack, hmemreq e hp] at hnot
       exact hR.T_dk e pk sk hkp hp hnot
+    · intro hek
+      rw [hst'ek] at hek
+      change (T (stR.res.resEpoch + roleR.offset)).keypair = none ∨
+        stR.res.resEpoch + roleR.offset ∈ ack'.ekRec
+      by_cases h : stR.res.resEpoch + roleR.offset ∈ ack'.ekRec
+      · exact Or.inr h
+      · rw [if_neg h] at hek
+        exact (hR.ek_acked hek).imp_right (fun h' => heksub h')
     · intro c k henc
       rw [hst'res] at henc
       rw [hst'ct, hst'ack]
@@ -453,6 +463,8 @@ theorem partyInv_recv_noKey (hns : ¬ ρ.tRes < stR.req.reqEpoch)
         ek_T := hS.ek_T
         dk_T := hS.dk_T
         T_dk := hS.T_dk
+        dk_shape := hS.dk_shape
+        ek_acked := hS.ek_acked
         enc_future := hS.enc_future
         enc_current := hS.enc_current
         ct_T := hS.ct_T
@@ -547,6 +559,8 @@ theorem partyInv_decaps_local {st₁ : State PK SK C Sym} {ownKey : ℕ → Opti
         ek_T := h₁.ek_T
         dk_T := ?_
         T_dk := ?_
+        dk_shape := ?_
+        ek_acked := h₁.ek_acked
         enc_future := h₁.enc_future
         enc_current := fun c' k' h => (h₁.enc_current c' k' h).imp_right (fun h' => hsub h')
         ct_T := h₁.ct_T
@@ -581,6 +595,14 @@ theorem partyInv_decaps_local {st₁ : State PK SK C Sym} {ownKey : ℕ → Opti
       simp only [Finset.mem_insert, not_or] at hnot
       simp only [List.mem_filter, bne_iff_ne, ne_eq]
       exact ⟨h₁.T_dk e pk sk hkp hp hnot.2, hnot.1⟩
+    · rcases h₁.dk_shape with h | ⟨sk, h⟩
+      · left
+        simp [h]
+      · by_cases heq : st₁.res.resEpoch + roleR.offset = q
+        · left
+          simp [h, heq]
+        · right
+          exact ⟨sk, by simp [h, heq]⟩
     · intro hin
       simp only [Finset.mem_insert] at hin
       rcases hin with h | h
@@ -639,6 +661,8 @@ theorem partyInv_decaps_local {st₁ : State PK SK C Sym} {ownKey : ℕ → Opti
         ek_T := hS₁.ek_T
         dk_T := hS₁.dk_T
         T_dk := hS₁.T_dk
+        dk_shape := hS₁.dk_shape
+        ek_acked := hS₁.ek_acked
         enc_future := hS₁.enc_future
         enc_current := hS₁.enc_current
         ct_T := hS₁.ct_T
@@ -834,6 +858,8 @@ theorem partyInv_recv_stale (hst : ρ.tRes < stR.req.reqEpoch) :
         ek_T := hR.ek_T
         dk_T := hR.dk_T
         T_dk := fun e pk sk hkp hp hnot => hR.T_dk e pk sk hkp hp (by rwa [hct] at hnot)
+        dk_shape := hR.dk_shape
+        ek_acked := fun hek => (hR.ek_acked hek).imp_right (fun h' => heksub h')
         enc_future := hR.enc_future
         enc_current := fun c k h => by rw [hct]; exact hR.enc_current c k h
         ct_T := hR.ct_T
@@ -888,6 +914,8 @@ theorem partyInv_recv_stale (hst : ρ.tRes < stR.req.reqEpoch) :
         ek_T := hS.ek_T
         dk_T := hS.dk_T
         T_dk := hS.T_dk
+        dk_shape := hS.dk_shape
+        ek_acked := hS.ek_acked
         enc_future := hS.enc_future
         enc_current := hS.enc_current
         ct_T := hS.ct_T
@@ -921,10 +949,12 @@ theorem partyInv_recv_stale (hst : ρ.tRes < stR.req.reqEpoch) :
 
 /-- A receive of a recorded peer message succeeds, satisfies the game's assertions, and
 preserves the main invariant for both parties with the transcript unchanged. The emitted key,
-if any, is the transcript key of the decapsulated epoch (`hdec`). -/
+if any, is the transcript key of the decapsulated epoch; `hdec` is the only place KEM
+correctness enters, and it is needed only for the received epoch, and only when that epoch
+has not been acknowledged yet. -/
 theorem partyInv_recv_step [DecidableEq Sym] (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
-    (hdec : ∀ e pk sk c k, (T e).keypair = some (pk, sk) → (T e).enc = some (c, k) →
-      hDet.decapsDet sk c = some k) :
+    (hdec : ρ.tRes ∉ stR.ack.ctRec → ∀ pk sk c k, (T ρ.tRes).keypair = some (pk, sk) →
+      (T ρ.tRes).enc = some (c, k) → hDet.decapsDet sk c = some k) :
     (∃ key? trcv stR', recv roleR kem hDet ecEk ecCt stR ρ = some (key?, trcv, stR')) ∧
     ∀ key? trcv stR', recv roleR kem hDet ecEk ecCt stR ρ = some (key?, trcv, stR') →
       trcv = tsnd ∧
@@ -1112,7 +1142,7 @@ theorem partyInv_recv_step [DecidableEq Sym] (hEk : ecEk.ec.Correct) (hCt : ecCt
                   simp only [Option.some.injEq, Prod.mk.injEq] at hkp'
                   rw [hkp'.2]
             rw [hlk]
-            simp only [Option.bind_eq_bind, Option.bind, hdec _ pk sk c k hkp henc]
+            simp only [Option.bind_eq_bind, Option.bind, hdec hqnot pk sk c k hkp henc]
             -- the plain post-state, then the decapsulation transition on it
             obtain ⟨hR₁, hS₁⟩ := partyInv_recv_noKey hR hS hmsg hst stR.res.ekPeer
               (recvAck roleR stR.ack ρ) ∅ (fun _ _ => rfl) hR.ekPeer_T

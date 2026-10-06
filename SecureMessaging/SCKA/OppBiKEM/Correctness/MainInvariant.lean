@@ -143,6 +143,13 @@ structure PartyInv (role : Role) {kem : KEMScheme ProbComp K PK SK C}
   /-- Every generated secret key is retained until its epoch is decapsulated. -/
   T_dk : ∀ e pk sk, (T e).keypair = some (pk, sk) → e % 2 = role.reqParity →
     e ∉ st.ack.ctRec → (e, sk) ∈ st.req.dk
+  /-- At most one secret key is retained, and it belongs to the current key epoch: the advance
+  gate requires the previous key epoch to be decapsulated. -/
+  dk_shape : st.req.dk = [] ∨ ∃ sk, st.req.dk = [(st.res.resEpoch + role.offset, sk)]
+  /-- The own public key is dropped only after it was acknowledged, or when none was generated. -/
+  ek_acked : st.req.ek = none →
+    (T (st.res.resEpoch + role.offset)).keypair = none ∨
+      st.res.resEpoch + role.offset ∈ st.ack.ekRec
   -- own encapsulations (responder parity)
   /-- No encapsulation beyond the current responder epoch. -/
   enc_future : ∀ e, e % 2 = role.resParity → st.res.resEpoch < e → (T e).enc = none
