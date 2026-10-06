@@ -5,6 +5,7 @@ Authors: Ivan Gavran, Beneficial AI Foundation
 -/
 
 import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.SendStep
+import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.SendTotal
 
 /-!
 # Opp-BiKEM — correctness with an imperfect KEM
@@ -23,7 +24,9 @@ Endpoints:
 * `correctness_true_ge`: the game succeeds with probability at least `1 - q · ε`;
 * `correctness_of_perfectKEM'`: for a perfectly correct KEM the game succeeds with probability
   one, obtained from the bound with `ε = 0` (the direct proof is
-  `MainInvariant.Game.correctness_of_perfectKEM`).
+  `MainInvariant.Game.correctness_of_perfectKEM`);
+* `sends_never_rejected_of_noFailure`: while the failure flag is down, neither party's send is
+  rejected (the perfect-KEM version is `sends_never_rejected_of_perfectKEM`).
 -/
 
 open OracleComp KEMScheme ENNReal
@@ -135,5 +138,24 @@ theorem correctness_of_perfectKEM' (hkem : kem.PerfectlyCorrect ProbCompRuntime.
   rw [(KEMScheme.correctnessError_eq_zero_iff_perfectlyCorrect kem ProbCompRuntime.probComp).mpr
     hkem, mul_zero, tsub_zero] at h
   exact le_antisymm probOutput_le_one h
+
+include hEk hCt in
+/-- At every reachable state of the tracked game at which the failure flag is down, neither
+party's send is rejected. Together with `tracked_bad_le`, send rejection therefore happens with
+probability at most `q · ε`. -/
+theorem sends_never_rejected_of_noFailure
+    (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
+    (z : Bool × (SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym) × Bool))
+    (hz : z ∈ support ((simulateQ (trackedBiKem kem hDet ecEk ecCt leak) adv).run
+      (initState, false)))
+    (hflag : z.2.2 = false) :
+    none ∉ support (sendA kem ecEk ecCt z.2.1.stA) ∧
+      none ∉ support (sendB kem ecEk ecCt z.2.1.stB) := by
+  have hinv := simulateQ_run_preservesInv _ _
+    (trackedBiKem_preservesInv kem hDet ecEk ecCt hEk hCt leak) adv _
+    (trackedInv_init kem hDet ecEk ecCt) z hz
+  rcases hinv with h | ⟨hs, -⟩
+  · rw [hflag] at h; cases h
+  · exact ⟨sendA_ne_none kem ecEk ecCt _ hs, sendB_ne_none kem ecEk ecCt _ hs⟩
 
 end oppBiKemCKA

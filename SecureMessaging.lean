@@ -82,6 +82,7 @@ import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Init
 import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Send
 import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Recv
 import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Game
+import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.SendTotal
 import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.Core
 import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.SendDist
 import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.RecvStep

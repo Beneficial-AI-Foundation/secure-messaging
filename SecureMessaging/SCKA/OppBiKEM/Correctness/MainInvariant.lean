@@ -150,6 +150,10 @@ structure PartyInv (role : Role) {kem : KEMScheme ProbComp K PK SK C}
   ek_acked : st.req.ek = none →
     (T (st.res.resEpoch + role.offset)).keypair = none ∨
       st.res.resEpoch + role.offset ∈ st.ack.ekRec
+  /-- Once an exchange has started, the key pair for the current key epoch exists: only an
+  advance moves the responder epoch, and it generates that key pair. -/
+  keypair_current : 0 < st.res.resEpoch + role.offset →
+    (T (st.res.resEpoch + role.offset)).keypair.isSome = true
   -- own encapsulations (responder parity)
   /-- No encapsulation beyond the current responder epoch. -/
   enc_future : ∀ e, e % 2 = role.resParity → st.res.resEpoch < e → (T e).enc = none
