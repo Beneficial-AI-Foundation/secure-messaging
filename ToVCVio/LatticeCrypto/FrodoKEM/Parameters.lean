@@ -13,59 +13,25 @@ import Mathlib.Data.Matrix.Basic
 The cryptographic parameters of FrodoKEM, following Tables 1 and 2 of
 `[CiC25]`, which Section 9.1 of `[LBES26]` tabulates as well.
 
-Two documents are cited by this file and the three that build on it, because
-neither covers everything they need:
+References are listed in `Construction.lean`.
 
-* `[CiC25]`, Glabush, Longa, Naehrig, Peikert, Stebila and Virdia, *FrodoKEM: A
-  CCA-Secure Learning With Errors Key Encapsulation Mechanism*, IACR
-  Communications in Cryptology 2:3, <https://cic.iacr.org/p/2/3/25>;
-* `[LBES26]`, Longa, Bos, Ehlen and Stebila, *FrodoKEM: key encapsulation from
-  learning with errors*, draft-longa-cfrg-frodokem-03, 22 June 2026,
-  <https://datatracker.ietf.org/doc/html/draft-longa-cfrg-frodokem-03>.
+The parameter overview and table are in `Construction.lean`. The published values
+are recorded in `ParameterSet.params`, with relations between them stated as theorems.
 
-The version and date are part of the second citation because an
-Internet-Draft expires, this one on 24 December 2026.
-
-The published tables are recorded verbatim in `ParameterSet.params`. The relations
-between the entries are stated as theorems. The quantities are:
-
-* `n`, the lattice dimension, which is also the size of the public matrix `A`;
-* `D`, the exponent of the modulus, and `q = 2 ^ D`, the modulus itself;
-* `B`, the number of bits encoded in each matrix entry by `Frodo.Encode`;
-* `ℓ`, the security parameter, which is the bit length of the message `μ`, the
-  shared secret `ss`, the intermediate secret `k`, the public-key hash `pkh`,
-  and the value `s` from which `ss` is derived when decapsulation fails. The
-  algorithms need `ℓ = B * mbar * nbar`, so that `μ` fills the matrix that
-  `Frodo.Encode` puts it in. `[CiC25]` states it in Section 3 and Table 1;
-  `[LBES26]` states it of the encoder's input in Section 6.3 but never ties it
-  to `lensec`, which is what `Params.WellFormed.ell_eq` does;
-* `lenSeedSE`, the bit length of the seeds used for error sampling, and
-  `lenSalt`, the bit length of the salt, which is zero for the ephemeral
-  variant.
-
-The constants `mbar = nbar = 8`, `lenSeedA = lenZ = 128` and `lenChi = 16` are
-shared by every parameter set; the per-set entries `Params` carries are:
-
-| parameter set   |  D |     q |    n | B |   ℓ | lenSeedSE | lenSalt |
-| --------------- | --:| -----:| ----:| -:| ---:| ---------:| -------:|
-| FrodoKEM-640    | 15 | 32768 |  640 | 2 | 128 |       256 |     256 |
-| FrodoKEM-976    | 16 | 65536 |  976 | 3 | 192 |       384 |     384 |
-| FrodoKEM-1344   | 16 | 65536 | 1344 | 4 | 256 |       512 |     512 |
-| eFrodoKEM-640   | 15 | 32768 |  640 | 2 | 128 |       128 |       0 |
-| eFrodoKEM-976   | 16 | 65536 |  976 | 3 | 192 |       192 |       0 |
-| eFrodoKEM-1344  | 16 | 65536 | 1344 | 4 | 256 |       256 |       0 |
-
-Table 1's `χ` and SHAKE rows are not fields of `Params`, nor is the `-AES` /
-`-SHAKE` choice of generator for `A` that doubles these six sets to twelve.
-
-Lengths are published in bits but the corresponding types are byte vectors, so
-each length comes in both units and the docstrings name which is which.
+Lengths are published in bits; the byte-vector types use these lengths divided
+by eight. This division is exact for the named parameter sets, but rounds down
+for arbitrary `Params`.
 
 A `Params` is plain data, so nothing constrains its fields. `Params.WellFormed`
 collects the conditions `[LBES26]` places on them, and `params_wellFormed`
 discharges them for every published set. Section 3 of `[CiC25]` introduces the
 same parameters but leaves their positivity and the bound `n < q` unstated, so
 `[LBES26]` is the one transcribed here.
+
+`Params.WellFormed.ell_eq` requires `ℓ = B * mbar * nbar`, so that the message
+fills the matrix produced by `Frodo.Encode`. `[CiC25]` states this identity in
+Section 3 and Table 1; `[LBES26]` states the encoder's input length in Section 6.3
+but does not tie it to `lensec`, which is what this condition does.
 -/
 
 namespace FrodoKEM
@@ -118,15 +84,16 @@ def mbar : ℕ := 8
 
 /-- Conditions on the constants that do not vary per parameter set. Section 5
 of `[LBES26]` states them for the matrix dimensions and `lenSeedA`, and
-Section 3.1 of `[CiC25]` calls `lenChi` a positive integer. `lenZ` is positive
-because `z` is a seed the algorithms sample. -/
+Section 3.1 of `[CiC25]` calls `lenChi` a positive integer. Table 1 of `[CiC25]`
+fixes `lenZ = 128`. -/
 theorem constants_wellFormed :
     0 < mbar ∧ mbar % 8 = 0 ∧ 0 < nbar ∧ nbar % 8 = 0 ∧
       0 < lenSeedA ∧ 0 < lenZ ∧ 0 < lenChi := by decide
 
-/-- One field per column of Tables 1 and 2. The fields are independent data;
-the relations between them are theorems about the six named parameter sets
-rather than part of this record. -/
+/-- Parameters from Tables 1 and 2 of `[CiC25]`. The table shown in
+`Construction.lean` is defined in `ParameterSet.params`.
+`ParameterSet.params_wellFormed` proves that each parameter set satisfies
+`Params.WellFormed`. -/
 structure Params where
   /-- Exponent of the modulus; `Params.WellFormed.D_le` bounds it by sixteen. -/
   D : ℕ
@@ -168,11 +135,10 @@ def lenSeedSEBytes (p : Params) : ℕ := p.lenSeedSE / 8
 /-- `lenSalt` expressed in bytes. -/
 def lenSaltBytes (p : Params) : ℕ := p.lenSalt / 8
 
-/-- The conditions of `[LBES26]` that a parameter record must satisfy. All come
-from Section 5 except `ell_eq`, which is found in Section 6.3 as
-`l = B * nHat^2`. Section 5 also states that `lensalt` is positive. It is not
-included here because the ephemeral variant carries no salt, so `lenSalt = 0`
-for three of the six published sets. -/
+/-- Conditions from Section 5 of `[LBES26]`, together with `ell_eq`, which
+ensures that the message contains exactly `B` bits per entry of the encoding
+matrix described in Section 6.3. The positive salt-length requirement is omitted
+because the ephemeral parameter sets use `lenSalt = 0`. -/
 structure WellFormed (p : Params) : Prop where
   /-- The lattice dimension is positive. -/
   n_pos : 0 < p.n
@@ -219,15 +185,13 @@ abbrev SharedSecret (p : Params) := Bytes p.ellBytes
 `ellBytes` bytes. -/
 abbrev PublicKeyHash (p : Params) := Bytes p.ellBytes
 
-/-- Salts, of `lenSalt` bits, represented as `lenSaltBytes` bytes; empty for
-the ephemeral variant. -/
+/-- Salt represented as `lenSaltBytes` bytes; empty for the ephemeral parameter sets. -/
 abbrev Salt (p : Params) := Bytes p.lenSaltBytes
 
 namespace ParameterSet
 
-/-- The published rows of Tables 1 and 2, recorded verbatim for comparison
-against the specification. The relations between entries are the theorems
-below. -/
+/-- Values from Tables 1 and 2 of `[CiC25]` for each supported parameter set.
+Relations between these values are proved below. -/
 def params : ParameterSet → Params
   | .FrodoKEM640 =>
       {D := 15, q := 32768, n := 640, B := 2, ell := 128,
@@ -247,11 +211,10 @@ def params : ParameterSet → Params
   | .eFrodoKEM1344 =>
       {D := 16, q := 65536, n := 1344, B := 4, ell := 256,
        lenSeedSE := 256, lenSalt := 0, variant := .eFrodoKEM}
-/-! ### The relations between the published entries
+/-! ### Relations between parameters
 
-Each theorem below states one relation that the specification asserts between
-the columns of Tables 1 and 2. They hold of the six published rows, not of an
-arbitrary `Params`, whose fields are independent. -/
+The theorems below prove relations between the values in `ParameterSet.params`
+for each of the six supported parameter sets. -/
 
 /-- The modulus `q = 2 ^ D`. -/
 theorem q_eq_two_pow (p : ParameterSet) :
@@ -305,4 +268,3 @@ theorem params_wellFormed (p : ParameterSet) : p.params.WellFormed := by
 end ParameterSet
 
 end FrodoKEM
-

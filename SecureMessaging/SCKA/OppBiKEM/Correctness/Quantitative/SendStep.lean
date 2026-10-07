@@ -450,7 +450,7 @@ theorem trackedBiKem_sendA_run
             kemFailure hDet (SCKAScheme.sendAOutcome s out).2)) := by
   change ((SCKAScheme.oracleSendA (scheme kem hDet ecEk ecCt leak) ()).run s >>=
     fun y => pure (y.1, (y.2, false || kemFailure hDet y.2))) = _
-  rw [SCKAScheme.oracleSendA_run_eq, bind_assoc]
+  rw [SCKAScheme.oracleSendA_run_eq_sendAOutcome, bind_assoc]
   simp only [pure_bind, Bool.false_or]
   rfl
 
@@ -466,7 +466,7 @@ theorem trackedBiKem_sendB_run
             kemFailure hDet (SCKAScheme.sendBOutcome s out).2)) := by
   change ((SCKAScheme.oracleSendB (scheme kem hDet ecEk ecCt leak) ()).run s >>=
     fun y => pure (y.1, (y.2, false || kemFailure hDet y.2))) = _
-  rw [SCKAScheme.oracleSendB_run_eq, bind_assoc]
+  rw [SCKAScheme.oracleSendB_run_eq_sendBOutcome, bind_assoc]
   simp only [pure_bind, Bool.false_or]
   rfl
 

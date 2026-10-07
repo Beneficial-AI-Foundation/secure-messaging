@@ -3,6 +3,7 @@ import VersoManual
 import VersoBlueprint
 import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
+import SecureMessagingDocs.Bibliography
 import SecureMessaging.RKEM.Defs
 
 set_option linter.style.setOption false
@@ -30,7 +31,7 @@ Ratcheting Key Encapsulation Mechanism (RKEM).
 :::defTitle "rkem_scheme" "RKEM scheme"
 :::
 
-:::definition "rkem_scheme" (parent := "rkem") (lean := "RKEMScheme") (tags := "gh-176")
+::::definition "rkem_scheme" (parent := "rkem") (lean := "RKEMScheme, RKEMScheme.RandLeak") (tags := "gh-176")
 $`\todo`
 
 ```anchor RKEMScheme (project := ".") (module := SecureMessaging.RKEM.Defs)
@@ -63,17 +64,351 @@ structure RKEMScheme (m : Type → Type u) [Monad m] (Par EK DK CT K : Type) whe
   rdecB : Par → DK → CT → EK → m (K × EK)
 ```
 
+The algorithms of an RKEM do not expose their coins. Security notions that give the adversary some of these coins, such as ratchet simulatability, are stated relative to a randomness-leak package: fresh key generation and encapsulation algorithms that also return the coins they sampled, and agree with the RKEM's own algorithms on their other outputs.
+
+:::leanPillCaption "RandLeak"
 :::
+
+```anchor RandLeak (project := ".") (module := SecureMessaging.RKEM.Defs)
+structure RandLeak (rkem : RKEMScheme m Par EK DK CT K) where
+  /-- Randomness space of one fresh key generation `RKeyGen-P(par, ⊥)`. -/
+  KeygenRand : Type
+  /-- Randomness space of one encapsulation `REnc-P`. -/
+  EncRand : Type
+  /-- `RKeyGen-A(par, ⊥)`, also returning its coins. -/
+  rkeygenAFreshRleak : Par → m ((EK × DK) × KeygenRand)
+  /-- `RKeyGen-B(par, ⊥)`, also returning its coins. -/
+  rkeygenBFreshRleak : Par → m ((EK × DK) × KeygenRand)
+  /-- `REnc-A(par, ekB, dkA)`, also returning its coins. -/
+  rencARleak : Par → EK → DK → m ((CT × K × DK) × EncRand)
+  /-- `REnc-B(par, ekA, dkB)`, also returning its coins. -/
+  rencBRleak : Par → EK → DK → m ((CT × K × DK) × EncRand)
+  /-- Ordinary fresh key generation for `A` is the first component of `rkeygenAFreshRleak`. -/
+  rkeygenAFresh_fst : ∀ par,
+    (do
+      let out ← rkeygenAFreshRleak par
+      pure out.1) = rkem.rkeygenAFresh par
+  /-- Ordinary fresh key generation for `B` is the first component of `rkeygenBFreshRleak`. -/
+  rkeygenBFresh_fst : ∀ par,
+    (do
+      let out ← rkeygenBFreshRleak par
+      pure out.1) = rkem.rkeygenBFresh par
+  /-- Ordinary encapsulation for `A` is the first component of `rencARleak`. -/
+  rencA_fst : ∀ par ek dk,
+    (do
+      let out ← rencARleak par ek dk
+      pure out.1) = rkem.rencA par ek dk
+  /-- Ordinary encapsulation for `B` is the first component of `rencBRleak`. -/
+  rencB_fst : ∀ par ek dk,
+    (do
+      let out ← rencBRleak par ek dk
+      pure out.1) = rkem.rencB par ek dk
+```
+
+::::
 
 :::defTitle "rkem_ratchet_sim" "RKEM ratchet simulatability"
 :::
 
-::::definition "rkem_ratchet_sim" (parent := "rkem") (tags := "gh-179") (uses := "rkem_scheme")
-$`\todo`
+:::::::definition "rkem_ratchet_sim" (parent := "rkem") (lean := "RKEMScheme.RatchetSimulator, RKEMScheme.keyBaseSimDistA, RKEMScheme.keyBaseSimExpA, RKEMScheme.keyUpdSimDistA, RKEMScheme.keyUpdSimExpA, RKEMScheme.ctxtSimDistB, RKEMScheme.ctxtSimExpA, RKEMScheme.keyBaseSimAdvantageA, RKEMScheme.keyBaseSimAdvantage, RKEMScheme.keyUpdSimAdvantageA, RKEMScheme.keyUpdSimAdvantage, RKEMScheme.ctxtSimAdvantageA, RKEMScheme.ctxtSimAdvantage, RKEMScheme.RatchetSimulatable") (tags := "gh-179") (uses := "rkem_scheme")
+Adapted from {Informal.citet TR25}[], Definition 5.5 and Figures 10–12.
 
-:::leanPill "missing"
+An RKEM is ratchet simulatable if there exist efficient simulators $`(\RSimKey\text{-}\mathsf{P}_1,\RSimKey\text{-}\mathsf{P}_2,\RSimCtxt\text{-}\mathsf{P})_{\mathsf{P}\in\{\A,\B\}}` such that, for both parties $`\mathsf{P}`, the real distribution $`\mathcal{D}_{\mathsf{P},0}` and the simulated distribution $`\mathcal{D}_{\mathsf{P},1}` of each of the three properties below are indistinguishable. Each property is shown for one party only, as in the paper; the other party's distributions swap the roles of $`\A` and $`\B`.
+
+::::::gameGrid
+:::::gameCell "\\textsf{Simulators}" (kind := "scheme-algorithms")
+For each party $`\mathsf{P}\in\{\A,\B\}`, with peer $`\mathsf{\bar P}`:
+
+$`\RSimKey\text{-}\mathsf{P}_1(\ek_\mathsf{P},\dk_\mathsf{P})\to(\ekh{P},\dkh{P},\aux)`: from $`\mathsf{P}`'s fresh key pair, simulate $`\mathsf{P}`'s updated key pair, with auxiliary state $`\aux`.
+
+$`\RSimKey\text{-}\mathsf{P}_2(\ekh{\bar P},\dkh{\bar P},\aux)\to(\ct_{\mathsf{\bar P}},K,K',\rand)`: from the peer's updated key pair and $`\aux`, simulate the rest of $`\mathsf{P}`'s round: the ciphertext sent to the peer, both parties' shared keys, and coins explaining $`\REnc\text{-}\mathsf{P}`.
+
+$`\RSimCtxt\text{-}\mathsf{P}(\ekh{P},\ekh{\bar P},\dkh{\bar P})\to(\ct_{\mathsf{\bar P}},\ek_\mathsf{P},K,K')`: from $`\mathsf{P}`'s updated encapsulation key and the peer's updated key pair, simulate $`\mathsf{P}`'s ciphertext, $`\mathsf{P}`'s fresh encapsulation key and both shared keys, without $`\mathsf{P}`'s decapsulation key.
+:::::
+::::::
+
+:::leanPillCaption "RatchetSimulator"
 :::
-::::
+
+```anchor RatchetSimulator (project := ".") (module := SecureMessaging.RKEM.Defs)
+structure RatchetSimulator (rkem : RKEMScheme ProbComp Par EK DK CT K) (leak : rkem.RandLeak)
+    where
+  /-- Auxiliary state produced by `RSimKey-P₁` and consumed by `RSimKey-P₂`. -/
+  Aux : Type
+  /-- `RSimKey-A₁(par, ekA, dkA) → (ekÂ, dkÂ, aux)`: simulates `A`'s updated key pair from `A`'s
+  fresh key pair. -/
+  rsimKeyA1 : Par → EK → DK → ProbComp (EK × DK × Aux)
+  /-- `RSimKey-A₂(par, ekB̂, dkB̂, aux) → (ctB, K, K', rand₂)`: completes `A`'s round from `B`'s
+  updated key pair, producing the ciphertext to `B`, `A`'s and `B`'s shared keys, and coins
+  explaining `REnc-A`. -/
+  rsimKeyA2 : Par → EK → DK → Aux → ProbComp (CT × K × K × leak.EncRand)
+  /-- `RSimCtxt-A(par, ekÂ, ekB̂, dkB̂) → (ctB, ekA, K, K')`: simulates `A`'s ciphertext and
+  fresh encapsulation key from `A`'s updated encapsulation key and `B`'s updated key pair. -/
+  rsimCtxtA : Par → EK → EK → DK → ProbComp (CT × EK × K × K)
+  /-- `RSimKey-B₁`: as `rsimKeyA1`, with the roles of `A` and `B` swapped. -/
+  rsimKeyB1 : Par → EK → DK → ProbComp (EK × DK × Aux)
+  /-- `RSimKey-B₂`: as `rsimKeyA2`, with the roles of `A` and `B` swapped. -/
+  rsimKeyB2 : Par → EK → DK → Aux → ProbComp (CT × K × K × leak.EncRand)
+  /-- `RSimCtxt-B`: as `rsimCtxtA`, with the roles of `A` and `B` swapped. -/
+  rsimCtxtB : Par → EK → EK → DK → ProbComp (CT × EK × K × K)
+```
+
+The updated-key and ciphertext distributions give the distinguisher the coins of some algorithms: $`\mathcal{D}\{\rand\}` samples from $`\mathcal{D}` with coins $`\rand`, which are uniformly distributed unless a simulator outputs them. These coins come from the RKEM's randomness-leak package (see the RKEM scheme).
+
+*Base-key simulatability* ($`\mathsf{KeyBaseSim}`). A fresh key pair passed through $`\RSimKey\text{-}\mathsf{P}_1` is indistinguishable from an updated key pair. This captures the first keys shared between the parties in the CKA protocol.
+
+::::::gameGrid
+:::::gameCell "\\mathcal{D}^{\\mathsf{KeyBaseSim}}_{\\A,0}" (kind := "compact")
+$`\begin{array}{l}
+(\ekh{\A},\dkh{\A})\sample\DRKGup{\A} \\
+\Return(\ekh{\A},\dkh{\A})
+\end{array}`
+:::::
+
+:::::gameCell "\\mathcal{D}^{\\mathsf{KeyBaseSim}}_{\\A,1}" (kind := "compact")
+$`\begin{array}{l}
+(\ekA,\dkA)\sample\DRKG{\A} \\
+(\ekh{\A},\dkh{\A},\_)\sample\RSimKey\text{-}\A_1(\ekA,\dkA) \\
+\Return(\ekh{\A},\dkh{\A})
+\end{array}`
+:::::
+::::::
+
+:::leanPillCaption "Base-key distributions"
+:::
+
+```anchor keyBaseSimDistA (project := ".") (module := SecureMessaging.RKEM.Defs)
+def keyBaseSimDistA (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandLeak}
+    (sim : rkem.RatchetSimulator leak) (par : Par) (b : Bool) : ProbComp (EK × DK) :=
+  if b = false then
+    rkem.rkeygenAUpdated par
+  else do
+    let (ekA, dkA) ← rkem.rkeygenAFresh par
+    let (ekAHat, dkAHat, _) ← sim.rsimKeyA1 par ekA dkA
+    return (ekAHat, dkAHat)
+```
+
+:::leanPillCaption "Base-key experiment"
+:::
+
+```anchor keyBaseSimExpA (project := ".") (module := SecureMessaging.RKEM.Defs)
+def keyBaseSimExpA (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandLeak}
+    (sim : rkem.RatchetSimulator leak) (adversary : KeyBaseSimAdversary Par EK DK) :
+    ProbComp Bool := do
+  let b ← $ᵗ Bool
+  let par ← rkem.rsetup
+  let x ← rkem.keyBaseSimDistA sim par b
+  let b' ← adversary par x
+  return b == b'
+```
+
+:::leanPillCaption "Base-key advantage"
+:::
+
+```anchor keyBaseSimAdvantageA (project := ".") (module := SecureMessaging.RKEM.Defs)
+noncomputable def keyBaseSimAdvantageA (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    {leak : rkem.RandLeak} (sim : rkem.RatchetSimulator leak)
+    (adversary : KeyBaseSimAdversary Par EK DK) : ℝ :=
+  |(Pr[= true | rkem.keyBaseSimExpA sim adversary]).toReal - 1 / 2|
+```
+
+:::leanPillCaption "Base-key advantage, maximum over both parties"
+:::
+
+```anchor keyBaseSimAdvantage (project := ".") (module := SecureMessaging.RKEM.Defs)
+noncomputable def keyBaseSimAdvantage (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    {leak : rkem.RandLeak} (sim : rkem.RatchetSimulator leak)
+    (adversaryA adversaryB : KeyBaseSimAdversary Par EK DK) : ℝ :=
+  max (rkem.keyBaseSimAdvantageA sim adversaryA) (rkem.keyBaseSimAdvantageB sim adversaryB)
+```
+
+*Updated-key simulatability* ($`\mathsf{KeyUpdSim}`). $`\mathsf{P}`'s updated key pair can be simulated from $`\mathsf{P}`'s fresh key pair alone, without the peer's encapsulation key that $`\REnc\text{-}\mathsf{P}` needs. This breaks the dependence of the updated keys on the peer's keys, which drives the induction in the proof of CKA security from RKEM ({Informal.citet TR25}[], Theorem 5.6).
+
+::::::gameGrid
+:::::gameCell "\\mathcal{D}^{\\mathsf{KeyUpdSim}}_{\\A,0}" (kind := "compact")
+$`\begin{array}{l}
+(\ek_\B,\dk_\B)\sample\DRKG{\B}\{\rand_0\} \\
+(\ekh{\B},\dkh{\B},\aux_0)\sample\RSimKey\text{-}\B_1(\ek_\B,\dk_\B) \\
+(\ekA,\dkA)\sample\DRKG{\A}\{\rand_1\} \\
+(\ct_\B,K,\dkh{\A})\getsval\REnc\text{-}\A(\ekh{\B},\dkA;\rand_2) \\
+(K',\ekh{\A})\sample\RDec\text{-}\B(\dkh{\B},\ct_\B,\ekA) \\
+\Return\big((\ekh{\B},\dkh{\B}),(\ekh{\A},\dkh{\A}),\ct_\B,K,K', \\
+\qquad\aux_0,\rand_0,\rand_1,\rand_2\big)
+\end{array}`
+:::::
+
+:::::gameCell "\\mathcal{D}^{\\mathsf{KeyUpdSim}}_{\\A,1}" (kind := "compact")
+$`\begin{array}{l}
+(\ek_\B,\dk_\B)\sample\DRKG{\B}\{\rand_0\} \\
+(\ekh{\B},\dkh{\B},\aux_0)\sample\RSimKey\text{-}\B_1(\ek_\B,\dk_\B) \\
+(\ekA,\dkA)\sample\DRKG{\A}\{\rand_1\} \\
+(\ekh{\A},\dkh{\A},\aux_1)\sample\RSimKey\text{-}\A_1(\ekA,\dkA) \\
+(\ct_\B,K,K',\rand_2)\sample\RSimKey\text{-}\A_2(\ekh{\B},\dkh{\B},\aux_1) \\
+\Return\big((\ekh{\B},\dkh{\B}),(\ekh{\A},\dkh{\A}),\ct_\B,K,K', \\
+\qquad\aux_0,\rand_0,\rand_1,\rand_2\big)
+\end{array}`
+:::::
+::::::
+
+:::leanPillCaption "Updated-key distributions"
+:::
+
+```anchor keyUpdSimDistA (project := ".") (module := SecureMessaging.RKEM.Defs)
+def keyUpdSimDistA (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandLeak}
+    (sim : rkem.RatchetSimulator leak) (par : Par) (b : Bool) :
+    ProbComp (KeyUpdSimView EK DK CT K sim.Aux leak.KeygenRand leak.EncRand) := do
+  let ((ekB, dkB), rand0) ← leak.rkeygenBFreshRleak par
+  let (ekBHat, dkBHat, aux0) ← sim.rsimKeyB1 par ekB dkB
+  let ((ekA, dkA), rand1) ← leak.rkeygenAFreshRleak par
+  if b = false then
+    let ((ctB, key, dkAHat), rand2) ← leak.rencARleak par ekBHat dkA
+    let (key', ekAHat) ← rkem.rdecB par dkBHat ctB ekA
+    return ((ekBHat, dkBHat), (ekAHat, dkAHat), ctB, key, key', aux0, rand0, rand1, rand2)
+  else
+    let (ekAHat, dkAHat, aux1) ← sim.rsimKeyA1 par ekA dkA
+    let (ctB, key, key', rand2) ← sim.rsimKeyA2 par ekBHat dkBHat aux1
+    return ((ekBHat, dkBHat), (ekAHat, dkAHat), ctB, key, key', aux0, rand0, rand1, rand2)
+```
+
+:::leanPillCaption "Updated-key experiment"
+:::
+
+```anchor keyUpdSimExpA (project := ".") (module := SecureMessaging.RKEM.Defs)
+def keyUpdSimExpA (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandLeak}
+    (sim : rkem.RatchetSimulator leak)
+    (adversary : KeyUpdSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand leak.EncRand) :
+    ProbComp Bool := do
+  let b ← $ᵗ Bool
+  let par ← rkem.rsetup
+  let x ← rkem.keyUpdSimDistA sim par b
+  let b' ← adversary par x
+  return b == b'
+```
+
+:::leanPillCaption "Updated-key advantage"
+:::
+
+```anchor keyUpdSimAdvantageA (project := ".") (module := SecureMessaging.RKEM.Defs)
+noncomputable def keyUpdSimAdvantageA (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    {leak : rkem.RandLeak} (sim : rkem.RatchetSimulator leak)
+    (adversary : KeyUpdSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand leak.EncRand) : ℝ :=
+  |(Pr[= true | rkem.keyUpdSimExpA sim adversary]).toReal - 1 / 2|
+```
+
+:::leanPillCaption "Updated-key advantage, maximum over both parties"
+:::
+
+```anchor keyUpdSimAdvantage (project := ".") (module := SecureMessaging.RKEM.Defs)
+noncomputable def keyUpdSimAdvantage (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    {leak : rkem.RandLeak} (sim : rkem.RatchetSimulator leak)
+    (adversaryA adversaryB :
+      KeyUpdSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand leak.EncRand) : ℝ :=
+  max (rkem.keyUpdSimAdvantageA sim adversaryA) (rkem.keyUpdSimAdvantageB sim adversaryB)
+```
+
+*Ciphertext simulatability* ($`\mathsf{CtxtSim}`). The ciphertext that $`\mathsf{P}` sends to its peer $`\mathsf{\bar P}` can be simulated from $`\mathsf{\bar P}`'s updated decapsulation key instead of $`\mathsf{P}`'s own: together with $`\mathsf{\bar P}`'s decapsulation key, it leaks nothing about $`\mathsf{P}`'s decapsulation key. This is used to argue post-compromise security of the CKA.
+
+::::::gameGrid
+:::::gameCell "\\mathcal{D}^{\\mathsf{CtxtSim}}_{\\B,0}" (kind := "compact")
+$`\begin{array}{l}
+(\ekA,\dkA)\sample\DRKG{\A}\{\rand\} \\
+(\ekh{\A},\dkh{\A},\aux)\sample\RSimKey\text{-}\A_1(\ekA,\dkA) \\
+(\ek_\B,\dk_\B)\sample\DRKG{\B} \\
+(\ct_\A,K,\dkh{\B})\sample\REnc\text{-}\B(\ekh{\A},\dk_\B) \\
+(K',\ekh{\B})\sample\RDec\text{-}\A(\dkh{\A},\ct_\A,\ek_\B) \\
+\Return\big(\aux,\rand,(\ekh{\A},\dkh{\A}),\ct_\A, \\
+\qquad(\ek_\B,\ekh{\B}),(K,K')\big)
+\end{array}`
+:::::
+
+:::::gameCell "\\mathcal{D}^{\\mathsf{CtxtSim}}_{\\B,1}" (kind := "compact")
+$`\begin{array}{l}
+(\ekA,\dkA)\sample\DRKG{\A}\{\rand\} \\
+(\ekh{\A},\dkh{\A},\aux)\sample\RSimKey\text{-}\A_1(\ekA,\dkA) \\
+(\ekh{\B},\dkh{\B})\sample\DRKGup{\B} \\
+(\ct_\A,\ek_\B,K,K')\sample\RSimCtxt\text{-}\B(\ekh{\B},\ekh{\A},\dkh{\A}) \\
+\Return\big(\aux,\rand,(\ekh{\A},\dkh{\A}),\ct_\A, \\
+\qquad(\ek_\B,\ekh{\B}),(K,K')\big)
+\end{array}`
+:::::
+::::::
+
+:::leanPillCaption "Ciphertext distributions"
+:::
+
+```anchor ctxtSimDistB (project := ".") (module := SecureMessaging.RKEM.Defs)
+def ctxtSimDistB (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandLeak}
+    (sim : rkem.RatchetSimulator leak) (par : Par) (b : Bool) :
+    ProbComp (CtxtSimView EK DK CT K sim.Aux leak.KeygenRand) := do
+  let ((ekA, dkA), rand) ← leak.rkeygenAFreshRleak par
+  let (ekAHat, dkAHat, aux) ← sim.rsimKeyA1 par ekA dkA
+  if b = false then
+    let (ekB, dkB) ← rkem.rkeygenBFresh par
+    let (ctA, key, _) ← rkem.rencB par ekAHat dkB
+    let (key', ekBHat) ← rkem.rdecA par dkAHat ctA ekB
+    return (aux, rand, (ekAHat, dkAHat), ctA, (ekB, ekBHat), (key, key'))
+  else
+    let (ekBHat, _) ← rkem.rkeygenBUpdated par
+    let (ctA, ekB, key, key') ← sim.rsimCtxtB par ekBHat ekAHat dkAHat
+    return (aux, rand, (ekAHat, dkAHat), ctA, (ekB, ekBHat), (key, key'))
+```
+
+:::leanPillCaption "Ciphertext experiment"
+:::
+
+```anchor ctxtSimExpA (project := ".") (module := SecureMessaging.RKEM.Defs)
+def ctxtSimExpA (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandLeak}
+    (sim : rkem.RatchetSimulator leak)
+    (adversary : CtxtSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand) :
+    ProbComp Bool := do
+  let b ← $ᵗ Bool
+  let par ← rkem.rsetup
+  let x ← rkem.ctxtSimDistA sim par b
+  let b' ← adversary par x
+  return b == b'
+```
+
+:::leanPillCaption "Ciphertext advantage"
+:::
+
+```anchor ctxtSimAdvantageA (project := ".") (module := SecureMessaging.RKEM.Defs)
+noncomputable def ctxtSimAdvantageA (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    {leak : rkem.RandLeak} (sim : rkem.RatchetSimulator leak)
+    (adversary : CtxtSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand) : ℝ :=
+  |(Pr[= true | rkem.ctxtSimExpA sim adversary]).toReal - 1 / 2|
+```
+
+:::leanPillCaption "Ciphertext advantage, maximum over both parties"
+:::
+
+```anchor ctxtSimAdvantage (project := ".") (module := SecureMessaging.RKEM.Defs)
+noncomputable def ctxtSimAdvantage (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    {leak : rkem.RandLeak} (sim : rkem.RatchetSimulator leak)
+    (adversaryA adversaryB : CtxtSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand) : ℝ :=
+  max (rkem.ctxtSimAdvantageA sim adversaryA) (rkem.ctxtSimAdvantageB sim adversaryB)
+```
+
+For each property $`\mathsf{X}\in\{\mathsf{KeyBaseSim},\mathsf{KeyUpdSim},\mathsf{CtxtSim}\}` and party $`\mathsf{P}`, the advantage of a distinguisher $`\adv` is
+
+$$`\mathsf{Adv}^{\mathsf{X}\text{-}\mathsf{P}}(\adv)=\left|\Pr\left[b\sample\bit,\;x\sample\mathcal{D}^{\mathsf{X}}_{\mathsf{P},b},\;b'\sample\adv(x):b'=b\right]-\frac12\right|,\qquad \mathsf{Adv}^{\mathsf{X}}(\adv_\A,\adv_\B)=\max_{\mathsf{P}\in\{\A,\B\}}\mathsf{Adv}^{\mathsf{X}\text{-}\mathsf{P}}(\adv_\mathsf{P})`
+
+and the RKEM is $`\varepsilon`-ratchet-simulatable when all three advantages are at most $`\varepsilon`.
+
+:::leanPillCaption "RatchetSimulatable"
+:::
+
+```anchor RatchetSimulatable (project := ".") (module := SecureMessaging.RKEM.Defs)
+def RatchetSimulatable (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandLeak}
+    (ε : ℝ) : Prop :=
+    ∃ (sim : rkem.RatchetSimulator leak),
+    ∀ (baseA baseB : KeyBaseSimAdversary Par EK DK)
+      (updA updB : KeyUpdSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand leak.EncRand)
+      (ctxtA ctxtB : CtxtSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand),
+    rkem.keyBaseSimAdvantage sim baseA baseB ≤ ε ∧
+    rkem.keyUpdSimAdvantage sim updA updB ≤ ε ∧
+    rkem.ctxtSimAdvantage sim ctxtA ctxtB ≤ ε
+```
+:::::::
 
 :::defTitle "rkem_security_experiment" "RKEM Security Experiment"
 :::

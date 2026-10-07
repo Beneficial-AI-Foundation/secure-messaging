@@ -118,10 +118,8 @@ lemma oracleRecvB_preserves_failurePotential [DecidableEq K]
   rcases hs with ⟨T, hInv⟩
   cases hentry : s.msgA n with
   | none =>
-      have hz' : z = (none, s) := by
-        simpa [SCKAScheme.oracleRecvB, hentry, StateT.run_bind, StateT.run_get,
-          pure_bind] using hz
-      subst z
+      rw [SCKAScheme.oracleRecvB_run_eq_of_none _ _ hentry, mem_support_pure_iff] at hz
+      subst hz
       rfl
   | some entry =>
       rcases entry with ⟨msg, tsnd⟩
@@ -133,17 +131,11 @@ lemma oracleRecvB_preserves_failurePotential [DecidableEq K]
           symm
           simpa [recvB] using congrArg (fun x => x.map (fun y => y.1)) hlocal
         subst key?
-        have hz' : z =
-            (some (trcv, none),
-              { s with
-                stB := stB'
-                tcurB := max s.tcurB trcv
-                correct := s.correct && decide (trcv = tsnd) &&
-                  (List.range (max s.tcurB trcv + 1)).all
-                    (fun t => t = 0 || (s.keyB t).isSome) }) := by
-          simpa [SCKAScheme.oracleRecvB, hentry, scheme, hlocal, beq_eq_decide,
-            StateT.run_bind, StateT.run_get] using hz
-        subst z
+        have hr : (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak).recvB s.stB msg =
+            some (none, trcv, stB') := hlocal
+        rw [SCKAScheme.oracleRecvB_run_eq_of_accept _ _ hentry hr, mem_support_pure_iff] at hz
+        subst hz
+        simp only [SCKAScheme.recvBUpdate]
         rcases recvB_kem_source_shape kem onoff ecEk s.stB msg none trcv stB' hlocal with
           hsame | hadv
         · exact currentFailurePotential_congr kem onoff _ _ rfl hsame.1
@@ -177,10 +169,8 @@ lemma oracleRecvA_preserves_failurePotential [DecidableEq K]
   rcases hs with ⟨T, hInv⟩
   cases hentry : s.msgB n with
   | none =>
-      have hz' : z = (none, s) := by
-        simpa [SCKAScheme.oracleRecvA, hentry, StateT.run_bind, StateT.run_get,
-          pure_bind] using hz
-      subst z
+      rw [SCKAScheme.oracleRecvA_run_eq_of_none _ _ hentry, mem_support_pure_iff] at hz
+      subst hz
       rfl
   | some entry =>
       rcases entry with ⟨msg, tsnd⟩
@@ -188,14 +178,13 @@ lemma oracleRecvA_preserves_failurePotential [DecidableEq K]
       | none => simp [recvA] at hlocal
       | some out =>
         rcases out with ⟨key?, trcv, stA'⟩
+        have hr : (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak).recvA s.stA msg =
+            some (key?, trcv, stA') := hlocal
+        rw [SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hentry hr, mem_support_pure_iff] at hz
         have hzA : z.2.stA = stA' := by
-          cases key? <;>
-            simp [SCKAScheme.oracleRecvA, hentry, scheme, hlocal,
-              StateT.run_bind, StateT.run_get] at hz <;> simp_all
+          rw [hz]; rcases key? with _ | ⟨tI, key⟩ <;> rfl
         have hzB : z.2.stB = s.stB := by
-          cases key? <;>
-            simp [SCKAScheme.oracleRecvA, hentry, scheme, hlocal,
-              StateT.run_bind, StateT.run_get] at hz <;> simp_all
+          rw [hz]; rcases key? with _ | ⟨tI, key⟩ <;> rfl
         rcases recvA_kem_source_shape kem onoff hDet ecCt0 ecCt1 s.stA msg
             key? trcv stA' hlocal with hsame | hadv
         · exact currentFailurePotential_congr kem onoff _ _
@@ -263,10 +252,8 @@ lemma oracleRecvB_preserves_currentFailure [DecidableEq K]
   rcases hs with ⟨T, hInv⟩
   cases hentry : s.msgA n with
   | none =>
-      have : z = (none, s) := by
-        simpa [SCKAScheme.oracleRecvB, hentry, StateT.run_bind, StateT.run_get,
-          pure_bind] using hz
-      subst z
+      rw [SCKAScheme.oracleRecvB_run_eq_of_none _ _ hentry, mem_support_pure_iff] at hz
+      subst hz
       exact hfail
   | some entry =>
       rcases entry with ⟨msg, tsnd⟩
@@ -278,17 +265,11 @@ lemma oracleRecvB_preserves_currentFailure [DecidableEq K]
           symm
           simpa [recvB] using congrArg (fun x => x.map (fun y => y.1)) hlocal
         subst key?
-        have hz' : z =
-            (some (trcv, none),
-              { s with
-                stB := stB'
-                tcurB := max s.tcurB trcv
-                correct := s.correct && decide (trcv = tsnd) &&
-                  (List.range (max s.tcurB trcv + 1)).all
-                    (fun t => t = 0 || (s.keyB t).isSome) }) := by
-          simpa [SCKAScheme.oracleRecvB, hentry, scheme, hlocal, beq_eq_decide,
-            StateT.run_bind, StateT.run_get] using hz
-        subst z
+        have hr : (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak).recvB s.stB msg =
+            some (none, trcv, stB') := hlocal
+        rw [SCKAScheme.oracleRecvB_run_eq_of_accept _ _ hentry hr, mem_support_pure_iff] at hz
+        subst hz
+        simp only [SCKAScheme.recvBUpdate]
         rcases recvB_kem_source_shape kem onoff ecEk s.stB msg none trcv stB'
             hlocal with hsame | hadv
         · rw [← hfail]
@@ -323,10 +304,8 @@ lemma oracleRecvA_preserves_currentFailure [DecidableEq K]
   rcases hs with ⟨T, hInv⟩
   cases hentry : s.msgB n with
   | none =>
-      have : z = (none, s) := by
-        simpa [SCKAScheme.oracleRecvA, hentry, StateT.run_bind, StateT.run_get,
-          pure_bind] using hz
-      subst z
+      rw [SCKAScheme.oracleRecvA_run_eq_of_none _ _ hentry, mem_support_pure_iff] at hz
+      subst hz
       exact hfail
   | some entry =>
       rcases entry with ⟨msg, tsnd⟩
@@ -334,18 +313,15 @@ lemma oracleRecvA_preserves_currentFailure [DecidableEq K]
       | none => simp [recvA] at hlocal
       | some out =>
         rcases out with ⟨key?, trcv, stA'⟩
+        have hr : (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak).recvA s.stA msg =
+            some (key?, trcv, stA') := hlocal
+        rw [SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hentry hr, mem_support_pure_iff] at hz
         have hzA : z.2.stA = stA' := by
-          cases key? <;>
-            simp [SCKAScheme.oracleRecvA, hentry, scheme, hlocal,
-              StateT.run_bind, StateT.run_get] at hz <;> simp_all
+          rw [hz]; rcases key? with _ | ⟨tI, key⟩ <;> rfl
         have hzB : z.2.stB = s.stB := by
-          cases key? <;>
-            simp [SCKAScheme.oracleRecvA, hentry, scheme, hlocal,
-              StateT.run_bind, StateT.run_get] at hz <;> simp_all
+          rw [hz]; rcases key? with _ | ⟨tI, key⟩ <;> rfl
         have hzKeyB : z.2.keyB = s.keyB := by
-          cases key? <;>
-            simp [SCKAScheme.oracleRecvA, hentry, scheme, hlocal,
-              StateT.run_bind, StateT.run_get] at hz <;> simp_all
+          rw [hz]; rcases key? with _ | ⟨tI, key⟩ <;> rfl
         rcases recvA_kem_source_shape kem onoff hDet ecCt0 ecCt1 s.stA msg
             key? trcv stA' hlocal with hsame | hadv
         · rw [← hfail]
@@ -395,7 +371,7 @@ lemma currentKEMFailure_eq_false_implies_current [DecidableEq K]
       simp
     simp [EpochTranscript.key, hfuture] at hTKey
   obtain ⟨st, hoffA⟩ := hInv.decodedCt0 ct0 hct0A
-  have hoffB : (T s.stA.t).off = optionPair s.stB.stCt s.stB.ct0 := by
+  have hoffB : (T s.stA.t).off = Option.map₂ Prod.mk s.stB.stCt s.stB.ct0 := by
     simpa [htEq] using hInv.offB
   have hct0B : s.stB.ct0 = some ct0 := by
     rw [hoffA] at hoffB

@@ -936,16 +936,7 @@ lemma reduction_honest_param_real_step_rel
               unfold oracleSendB
               rw [StateT.run_get_bind]
               simp [h_lastH, validStep, h_stBH, ddhCKA, send]
-            refine OracleComp.ProgramLogic.Relational.relTriple_trans_eqRel_left
-              (OracleComp.ProgramLogic.Relational.relTriple_eqRel_of_eq h_runR) ?_
-            refine OracleComp.ProgramLogic.Relational.relTriple_trans_eqRel_right ?_
-              (OracleComp.ProgramLogic.Relational.relTriple_eqRel_of_eq h_runH.symm)
-            refine OracleComp.ProgramLogic.Relational.relTriple_map ?_
-            refine OracleComp.ProgramLogic.Relational.relTriple_post_mono
-              (OracleComp.ProgramLogic.Relational.relTriple_refl
-                (spec₁ := unifSpec) (oa := ($ᵗ F : ProbComp F))) ?_
-            intro xR xH hx
-            subst hx
+            refine relTriple_of_eq_map_map h_runR h_runH fun xR => ?_
             refine ⟨rfl, ?_⟩
             refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
             · refine ⟨?_, xR, y, ?_, ?_, ?_, ?_, ?_, ?_⟩
@@ -1271,16 +1262,7 @@ lemma reduction_honest_param_real_step_rel
               unfold oracleSendA
               rw [StateT.run_get_bind]
               simp [h_lastH, validStep, h_stAH, ddhCKA, send]
-            refine OracleComp.ProgramLogic.Relational.relTriple_trans_eqRel_left
-              (OracleComp.ProgramLogic.Relational.relTriple_eqRel_of_eq h_runR) ?_
-            refine OracleComp.ProgramLogic.Relational.relTriple_trans_eqRel_right ?_
-              (OracleComp.ProgramLogic.Relational.relTriple_eqRel_of_eq h_runH.symm)
-            refine OracleComp.ProgramLogic.Relational.relTriple_map ?_
-            refine OracleComp.ProgramLogic.Relational.relTriple_post_mono
-              (OracleComp.ProgramLogic.Relational.relTriple_refl
-                (spec₁ := unifSpec) (oa := ($ᵗ F : ProbComp F))) ?_
-            intro yR yH hy
-            subst hy
+            refine relTriple_of_eq_map_map h_runR h_runH fun yR => ?_
             refine ⟨rfl, ?_⟩
             refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
             · refine ⟨?_, x, yR, ?_, ?_, ?_, ?_, ?_, ?_⟩
@@ -1403,16 +1385,7 @@ lemma reduction_honest_param_real_step_rel
               rw [if_pos (by simp [h_lastH, validStep])]
               rw [if_pos h_allowH]
               simp [h_stAH, ddhCKA, sendRleak]
-            refine OracleComp.ProgramLogic.Relational.relTriple_trans_eqRel_left
-              (OracleComp.ProgramLogic.Relational.relTriple_eqRel_of_eq h_runR) ?_
-            refine OracleComp.ProgramLogic.Relational.relTriple_trans_eqRel_right ?_
-              (OracleComp.ProgramLogic.Relational.relTriple_eqRel_of_eq h_runH.symm)
-            refine OracleComp.ProgramLogic.Relational.relTriple_map ?_
-            refine OracleComp.ProgramLogic.Relational.relTriple_post_mono
-              (OracleComp.ProgramLogic.Relational.relTriple_refl
-                (spec₁ := unifSpec) (oa := ($ᵗ F : ProbComp F))) ?_
-            intro yR yH hy
-            subst hy
+            refine relTriple_of_eq_map_map h_runR h_runH fun yR => ?_
             refine ⟨rfl, ?_⟩
             refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
             · refine ⟨?_, x, yR, ?_, ?_, ?_, ?_, ?_, ?_⟩
@@ -1553,16 +1526,7 @@ lemma reduction_honest_param_real_step_rel
               rw [if_pos (by simp [h_lastH, validStep])]
               rw [if_pos h_allowH]
               simp [h_stBH, ddhCKA, sendRleak]
-            refine OracleComp.ProgramLogic.Relational.relTriple_trans_eqRel_left
-              (OracleComp.ProgramLogic.Relational.relTriple_eqRel_of_eq h_runR) ?_
-            refine OracleComp.ProgramLogic.Relational.relTriple_trans_eqRel_right ?_
-              (OracleComp.ProgramLogic.Relational.relTriple_eqRel_of_eq h_runH.symm)
-            refine OracleComp.ProgramLogic.Relational.relTriple_map ?_
-            refine OracleComp.ProgramLogic.Relational.relTriple_post_mono
-              (OracleComp.ProgramLogic.Relational.relTriple_refl
-                (spec₁ := unifSpec) (oa := ($ᵗ F : ProbComp F))) ?_
-            intro xR xH hx
-            subst hx
+            refine relTriple_of_eq_map_map h_runR h_runH fun xR => ?_
             refine ⟨rfl, ?_⟩
             refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
             · refine ⟨?_, xR, y, ?_, ?_, ?_, ?_, ?_, ?_⟩
@@ -1685,8 +1649,9 @@ lemma evalDist_reduction_honest_param_real_eq
       (initGameState
         (CKAState.sendReady (x₀ • gen) : CKAState F G)
         (CKAState.recvReady x₀ : CKAState F G))) := by
-  apply OracleComp.ProgramLogic.Relational.probOutput_simulateQ_run'_eq_of_state_rel
-    (R := reductionHonestRel gp gen a b)
+  refine OracleComp.ProgramLogic.Relational.evalDist_eq_of_relTriple_eqRel
+    (OracleComp.ProgramLogic.Relational.relTriple_simulateQ_run' _ _
+      (reductionHonestRel gp gen a b) _ ?_ _ _ ?_)
   · intro t sR sH hrel
     exact reduction_honest_param_real_step_rel
       (gen := gen) gp hΔFS hΔPCS a b t sR sH hrel
@@ -1754,7 +1719,7 @@ lemma evalDist_eager_reduction_lazy_eq
           intro y
           refine probOutput_bind_congr' _ y fun a => ?_
           refine probOutput_bind_congr' _ y fun b => ?_
-          exact probOutput_eq_of_evalDist_eq
+          exact evalDist_ext_iff.mp
             (evalDist_reduction_honest_param_real_eq
               (gen := gen) gp hΔFS hΔPCS h_general_case x₀ a b adversary)
             y

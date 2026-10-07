@@ -16,8 +16,9 @@ state. This file names those updates (`applySendA`, `applySendB`, `applyRecvA`,
 
 * `oracleSendA_run_cases` and its three twins characterize the support of each send and
   receive run, for invariant-preservation proofs;
-* `oracleSendA_run_eq` and `oracleSendB_run_eq` rewrite a send run as the local send followed
-  by a pure outcome (`sendAOutcome`, `sendBOutcome`), for expected-value proofs.
+* `oracleSendA_run_eq_sendAOutcome` and `oracleSendB_run_eq_sendBOutcome` rewrite a send run as
+  the local send followed by a pure outcome (`sendAOutcome`, `sendBOutcome`), for expected-value
+  proofs.
 
 The projection lemmas (`applySendA_stA`, …) expose the fields that such proofs read, so the
 `StateT` plumbing of the oracle implementations is not unfolded downstream.
@@ -385,7 +386,7 @@ def sendBOutcome (s : GameState StA StB I Rho) :
   | some (key?, ρ, tsnd, stB') => (some (tsnd, key?.map Prod.fst, ρ), applySendB s key? ρ tsnd stB')
 
 /-- `oracleSendA` is A's local send followed by `sendAOutcome`. -/
-theorem oracleSendA_run_eq (s : GameState StA StB I Rho) :
+theorem oracleSendA_run_eq_sendAOutcome (s : GameState StA StB I Rho) :
     (oracleSendA scka ()).run s = scka.sendA s.stA >>= fun out => pure (sendAOutcome s out) := by
   simp only [oracleSendA, StateT.run_bind, StateT.run_get, pure_bind, StateT.run_liftM, bind_assoc]
   refine bind_congr fun out => ?_
@@ -395,7 +396,7 @@ theorem oracleSendA_run_eq (s : GameState StA StB I Rho) :
       simp [sendAOutcome, applySendA, StateT.run_set]
 
 /-- `oracleSendB` is B's local send followed by `sendBOutcome`. -/
-theorem oracleSendB_run_eq (s : GameState StA StB I Rho) :
+theorem oracleSendB_run_eq_sendBOutcome (s : GameState StA StB I Rho) :
     (oracleSendB scka ()).run s = scka.sendB s.stB >>= fun out => pure (sendBOutcome s out) := by
   simp only [oracleSendB, StateT.run_bind, StateT.run_get, pure_bind, StateT.run_liftM, bind_assoc]
   refine bind_congr fun out => ?_

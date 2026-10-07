@@ -110,7 +110,7 @@ theorem oracleSendA_run_ne_none
     ∀ z ∈ support ((SCKAScheme.oracleSendA (scheme kem hDet ecEk ecCt leak) ()).run s),
       z.1 ≠ none := by
   intro z hz
-  rw [SCKAScheme.oracleSendA_run_eq] at hz
+  rw [SCKAScheme.oracleSendA_run_eq_sendAOutcome] at hz
   obtain ⟨out, hout, hz⟩ := mem_support_bind_peel _ _ hz
   obtain rfl := eq_of_mem_support_pure _ hz
   rcases out with _ | ⟨key?, ρ, tsnd, stA'⟩
@@ -124,7 +124,7 @@ theorem oracleSendB_run_ne_none
     ∀ z ∈ support ((SCKAScheme.oracleSendB (scheme kem hDet ecEk ecCt leak) ()).run s),
       z.1 ≠ none := by
   intro z hz
-  rw [SCKAScheme.oracleSendB_run_eq] at hz
+  rw [SCKAScheme.oracleSendB_run_eq_sendBOutcome] at hz
   obtain ⟨out, hout, hz⟩ := mem_support_bind_peel _ _ hz
   obtain rfl := eq_of_mem_support_pure _ hz
   rcases out with _ | ⟨key?, ρ, tsnd, stB'⟩

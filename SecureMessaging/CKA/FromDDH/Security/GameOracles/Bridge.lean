@@ -116,10 +116,7 @@ lemma evalDist_eager_honest_lazy_eq
     -- on LHS the external samples `b, a` become a constant bind which collapses
     -- to `pure x` since `$ᵗ F` has zero failure probability.
     simp only [simulateQ_pure, StateT.run'_pure']
-    exact evalDist_sample_bind₂_eq_of_forall_eq
-      (f := fun _b _a => (pure x : ProbComp Bool))
-      (p := pure x)
-      (fun _ _ => rfl)
+    simp only [DeferredSampling.evalDist_bind_const_neverFails _ (probFailure_uniformSample _)]
   | query_bind t k ih =>
     let pass := evalDist_eager_honest_lazy_eq_step_passthrough (gen := gen) gp s
     -- Decompose: `simulateQ impl (query t >>= k) = (impl t).run >>= fun (u, s') =>
@@ -218,7 +215,7 @@ lemma probOutput_lazy_honest_eq [Finite G] (gp : GameParams)
       (CKAState.sendReady (x₀ • gen) : CKAState F G)
       (CKAState.recvReady x₀ : CKAState F G)) adversary
   simpa only [StateT.run'_eq, map_eq_bind_pure_comp, Function.comp_def] using
-    probOutput_eq_of_evalDist_eq (h₁.trans h₂) false
+    evalDist_ext_iff.mp (h₁.trans h₂) false
 
 end Step2
 

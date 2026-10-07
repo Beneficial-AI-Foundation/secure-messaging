@@ -51,6 +51,14 @@ def NRS14 : Verso.Genre.Manual.Bibliography.Citable := .inProceedings
   , booktitle := inlines!"EUROCRYPT 2014"
   , url := some "https://eprint.iacr.org/2013/765" }
 
+@[bib "BR06"]
+def BR06 : Verso.Genre.Manual.Bibliography.Citable := .inProceedings
+  { title := inlines!"The Security of Triple Encryption and a Framework for Code-Based Game-Playing Proofs"
+  , authors := #[inlines!"Mihir Bellare", inlines!"Phillip Rogaway"]
+  , year := 2006
+  , booktitle := inlines!"EUROCRYPT 2006"
+  , url := some "https://eprint.iacr.org/2004/331" }
+
 @[bib "NIST-GCM"]
 def NIST_GCM : Verso.Genre.Manual.Bibliography.Citable := .article
   { title := inlines!"Recommendation for Block Cipher Modes of Operation: Galois/Counter Mode (GCM) and GMAC"
@@ -127,6 +135,18 @@ def FrodoKEM : Verso.Genre.Manual.Bibliography.Citable := .article
   , volume := inlines!"2"
   , number := inlines!"3"
   , url := some "https://cic.iacr.org/p/2/3/25" }
+
+@[bib "LBES26"]
+def LBES26 : Verso.Genre.Manual.Bibliography.Citable := .article
+  { title := inlines!"FrodoKEM: key encapsulation from learning with errors"
+  , authors := #[inlines!"Patrick Longa", inlines!"Joppe W. Bos",
+      inlines!"Stephan Ehlen", inlines!"Douglas Stebila"]
+  , journal := inlines!"IETF Internet-Draft"
+  , year := 2026
+  , month := some (inlines!"June")
+  , volume := inlines!""
+  , number := inlines!"draft-longa-cfrg-frodokem-03"
+  , url := some "https://datatracker.ietf.org/doc/html/draft-longa-cfrg-frodokem-03" }
 
 @[bib "FIPS203"]
 def FIPS203 : Verso.Genre.Manual.Bibliography.Citable := .article

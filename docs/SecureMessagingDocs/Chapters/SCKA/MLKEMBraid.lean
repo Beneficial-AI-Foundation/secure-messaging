@@ -7,6 +7,7 @@ import SecureMessagingDocs.Bibliography
 import SecureMessaging.SCKA.MLKEMBraid.Authenticator
 import SecureMessaging.SCKA.MLKEMBraid.Basic
 import SecureMessaging.SCKA.MLKEMBraid.Construction
+import SecureMessaging.SCKA.MLKEMBraid.Correctness
 
 set_option linter.style.setOption false
 set_option linter.hashCommand false
@@ -28,6 +29,7 @@ set_option pp.rawOnError true
 *References:*
 
 - {Informal.citet MLKEM_Braid}[]
+- {Informal.citet SCKA25}[]
 
 :::group "cka_protocols_mlkem_braid"
 ML-KEM Braid ({Informal.citet MLKEM_Braid}[]).
@@ -299,11 +301,31 @@ def scheme (P : Parameters m) [DecidableEq P.Sym]
 :::defTitle "mlkem_braid_correctness" "ML-KEM Braid correctness"
 :::
 
-::::theorem "mlkem_braid_correctness" (parent := "cka_protocols_mlkem_braid") (tags := "gh-243") (uses := "mlkem_braid_spec, scka_correctness, incremental_kem_scheme")
+::::theorem "mlkem_braid_correctness" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.correctness_error_le, MLKEMBraid.mlkemBraidScheme_correctness_error_le") (tags := "gh-243") (uses := "mlkem_braid_spec, scka_correctness, incremental_kem_scheme, incremental_kem_rand_leak, erasure_code_correctness")
 $`\todo`
 
-:::leanPill "missing"
+:::leanPillCaption "Correctness error bound"
 :::
+
+```anchor Braid_correctness_error_le (project := ".") (module := SecureMessaging.SCKA.MLKEMBraid.Correctness)
+theorem correctness_error_le
+    (P : Parameters ProbComp) [DecidableEq P.K]
+    [DecidableEq P.EpochKey] [DecidableEq P.Sym]
+    {InitKey AuthState : Type}
+    (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
+      P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
+    (irl : P.kem.IncrementalRandLeak P.inc)
+    (sampleInitKey : ProbComp InitKey)
+    (hHdrCorrect : P.ecpHdr.ec.Correct)
+    (hEkCorrect : P.ecpEk.ec.Correct)
+    (hCt1Correct : P.ecpCt1.ec.Correct)
+    (hCt2Correct : P.ecpCt2.ec.Correct)
+    (adv : SCKAScheme.SCKACorrectnessAdversary (Message P.Sym))
+    (q : ℕ) (hq : SCKAScheme.SendQueryBound adv q) :
+    1 - Pr[= true |
+      SCKAScheme.correctnessExp (scheme P auth irl sampleInitKey) adv] ≤
+      (q : ℝ≥0∞) * P.kem.correctnessError ProbCompRuntime.probComp
+```
 ::::
 
 :::defTitle "mlkem_braid_security" "ML-KEM Braid security"

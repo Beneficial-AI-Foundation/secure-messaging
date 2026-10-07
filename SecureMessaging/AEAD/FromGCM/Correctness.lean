@@ -7,7 +7,7 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.AEAD.FromGCM.Construction
 
 /-!
-# One-time-key GCM — Correctness
+# One-time-key GCM: correctness
 
 Correctness proof for `gcmOneTimeAEAD`: for supported message lengths, decryption
 recovers the plaintext. The tag check passes because `decrypt` recomputes the same
@@ -22,9 +22,9 @@ open OracleSpec OracleComp
 /-- `gcmOneTimeAEAD` satisfies the ACD19 `AEADScheme.Correct`, given that the message
 length is supported (`hL`). -/
 -- ANCHOR: gcmOneTimeAEAD_correct
-theorem gcmOneTimeAEAD_correct {K : Type} (prp : PRPScheme K (BitVec 128)) {L : ℕ}
-    (hL : ValidMsgLength L) :
-    (gcmOneTimeAEAD prp L hL).Correct
+theorem gcmOneTimeAEAD_correct {K : Type} (prp : PRPScheme K (BitVec 128))
+    (iv : BitVec 96) {L : ℕ} (hL : ValidMsgLength L) :
+    (gcmOneTimeAEAD prp iv L hL).Correct
 -- ANCHOR_END: gcmOneTimeAEAD_correct
     := by
   rintro k ⟨⟨av, ad⟩, hav⟩ m

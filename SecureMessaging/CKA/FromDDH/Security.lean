@@ -319,10 +319,6 @@ lemma security_le_ddh_plus_failGap (gp : GameParams)
        (Pr[⊥ | securityExpFixedBit (ddhCKA F G gen) adversary true gp]).toReal) / 2 := by
     rw [hDdh, hSec, hRealR, hRandR]
     linarith [hSum true, hSum false]
-  -- Local triangle inequality: |x + y| ≤ |x| + |y|
-  have htri : ∀ x y : ℝ, |x + y| ≤ |x| + |y| := fun x y =>
-    abs_le.mpr ⟨by linarith [neg_le_abs x, neg_le_abs y],
-                 by linarith [le_abs_self x, le_abs_self y]⟩
   -- Align the `/2` inside the absolute value with `failGap / 2`
   have habs' :
       |((Pr[⊥ | securityExpFixedBit (ddhCKA F G gen) adversary false gp]).toReal -
@@ -340,7 +336,7 @@ lemma security_le_ddh_plus_failGap (gp : GameParams)
             (securityReduction (F := F) (G := G) gp adversary)]).toReal - 1 / 2) +
             ((Pr[⊥ | securityExpFixedBit (ddhCKA F G gen) adversary false gp]).toReal -
              (Pr[⊥ | securityExpFixedBit (ddhCKA F G gen) adversary true gp]).toReal) / 2|
-        ≤ _ + _ := htri _ _
+        ≤ _ + _ := abs_add_le _ _
       _ = _ := by rw [habs']
   unfold ckaGuessAdvantage ddhGuessAdvantage
   exact habs

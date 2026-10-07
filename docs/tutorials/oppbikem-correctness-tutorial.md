@@ -65,17 +65,17 @@ Each correctness-game oracle in `SCKA/Defs.lean` runs the scheme's local `send` 
 and then updates the game state. `OracleSupport.lean` names those updates and restates each
 oracle run in terms of them:
 
-- [`applySendA`](../../SecureMessaging/SCKA/Correctness/OracleSupport.lean#L37) and
-  [`applyRecvA`](../../SecureMessaging/SCKA/Correctness/OracleSupport.lean#L86) (and the `B`
+- [`applySendA`](../../SecureMessaging/SCKA/Correctness/OracleSupport.lean#L38) and
+  [`applyRecvA`](../../SecureMessaging/SCKA/Correctness/OracleSupport.lean#L87) (and the `B`
   twins). Read them against `oracleSendA` and `oracleRecvA` in `Defs.lean`; the `correct` field
   carries the game's assertions verbatim.
-- [`oracleSendA_run_cases`](../../SecureMessaging/SCKA/Correctness/OracleSupport.lean#L252) and
-  [`oracleRecvA_run_cases`](../../SecureMessaging/SCKA/Correctness/OracleSupport.lean#L306):
+- [`oracleSendA_run_cases`](../../SecureMessaging/SCKA/Correctness/OracleSupport.lean#L253) and
+  [`oracleRecvA_run_cases`](../../SecureMessaging/SCKA/Correctness/OracleSupport.lean#L307):
   anything in the support of an oracle run is the no-op, a failed receive (which clears
   `correct`), or `applyX` of a local outcome. The invariant proofs use these:
   `gameInv_step_of` (section 10) and the receive cases of `Quantitative/RecvStep.lean`.
-- [`oracleSendA_run_eq`](../../SecureMessaging/SCKA/Correctness/OracleSupport.lean#L388) with
-  [`sendAOutcome`](../../SecureMessaging/SCKA/Correctness/OracleSupport.lean#L374): a send run as
+- [`oracleSendA_run_eq_sendAOutcome`](../../SecureMessaging/SCKA/Correctness/OracleSupport.lean#L389) with
+  [`sendAOutcome`](../../SecureMessaging/SCKA/Correctness/OracleSupport.lean#L375): a send run as
   a computation, the local send followed by a pure outcome. The expected-value proofs of
   `Quantitative/SendStep.lean` and the totality proof of `SendTotal.lean` use these.
 

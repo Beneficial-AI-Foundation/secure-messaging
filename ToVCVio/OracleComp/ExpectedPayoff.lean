@@ -39,6 +39,8 @@ Relative to the monad structure of `ProbComp`:
   expected payoff;
 * `expectedPayoff_le_one` — payoffs bounded by `1` have expected payoff at
   most `1`;
+* `probEvent_le_expectedPayoff` — an event on which every payoff is at least
+  `1` has probability at most the expected payoff;
 * `expectedPayoff_le_const_of_support` — without missing mass, a bound on every
   possible output payoff bounds the expectation;
 * `expectedPayoff_add_const_le` — adding `c` to every returned-output payoff
@@ -133,6 +135,13 @@ lemma expectedPayoff_le_one {A : Type} (oa : ProbComp A)
     expectedPayoff oa f ≤ expectedPayoff oa (fun _ => 1) :=
       expectedPayoff_mono oa f (fun _ => 1) hf
     _ = 1 := by simp [expectedPayoff]
+
+/-- An event on which every payoff is at least `1` has probability at most the expected
+payoff. -/
+lemma probEvent_le_expectedPayoff {A : Type} (oa : ProbComp A) (p : A → Prop)
+    (f : A → ℝ≥0∞) (hf : ∀ a, p a → 1 ≤ f a) :
+    Pr[p | oa] ≤ expectedPayoff oa f :=
+  (probEvent_le_tsum_probOutput_mul_cost oa p f hf).trans le_add_self
 
 /-- If `oa` has no missing mass and every possible output has payoff at most
 `c`, then its expected payoff is at most `c`. -/

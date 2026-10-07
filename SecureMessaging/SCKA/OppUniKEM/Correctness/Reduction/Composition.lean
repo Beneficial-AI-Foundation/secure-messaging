@@ -44,11 +44,10 @@ variable [DecidableEq Sym]
 open SCKAScheme.sckaCorrectnessSpec
 open Reduction.Internal
 
-/-- Syntactic bound on the total number of send queries.  Both send oracles
-count: either party may draw the first sample of a fresh epoch. -/
-def SendQueryBound (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
+/-- A bound on total send queries to both parties (`SCKAScheme.SendQueryBound`). -/
+abbrev SendQueryBound (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
     (q : ℕ) : Prop :=
-  adv.IsQueryBoundP (IsSendQuery (Sym := Sym)) q
+  SCKAScheme.SendQueryBound adv q
 
 namespace Reduction.Internal
 
@@ -62,18 +61,8 @@ lemma tracked_bad_probability_le_score [DecidableEq K]
         (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) ×
           Bool))) :
     Pr[fun z => z.2.2 = true | oa] ≤
-      expectedPayoff oa (fun z => trackedFailureScore kem onoff z.2) := by
-  classical
-  unfold expectedPayoff
-  calc
-    Pr[fun z => z.2.2 = true | oa] ≤
-        ∑' z, Pr[= z | oa] * trackedFailureScore kem onoff z.2 := by
-      apply probEvent_le_tsum_probOutput_mul_cost
-      intro z hz
-      simp [trackedFailureScore, hz]
-    _ ≤ Pr[⊥ | oa] +
-        ∑' z, Pr[= z | oa] * trackedFailureScore kem onoff z.2 :=
-      le_add_left le_rfl
+      expectedPayoff oa (fun z => trackedFailureScore kem onoff z.2) :=
+  probEvent_le_expectedPayoff oa _ _ fun z hz => by simp [trackedFailureScore, hz]
 
 end Reduction.Internal
 

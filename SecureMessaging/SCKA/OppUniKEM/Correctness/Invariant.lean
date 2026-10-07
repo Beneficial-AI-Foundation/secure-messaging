@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
+import SecureMessaging.SCKA.Correctness
 import SecureMessaging.SCKA.OppUniKEM.Construction
 import SecureMessaging.ErasureCode.Payload
 import VCVio.OracleComp.SimSemantics.StateT.StateProjection
@@ -30,7 +31,8 @@ The module introduces:
 * `CurrentKEMCorrect s` — A's current KEM material and B's recorded key
   decapsulate consistently.
 
-This file proves the invariant holds initially and is preserved by the uniform oracle.
+This file proves the invariant holds initially; `SCKAScheme.oracleUnif_preservesInv` shows that
+the uniform oracle preserves it.
 The four protocol specific oracles are handled in `Invariant.SendA`, `Invariant.SendB`,
 `Invariant.RecvA`, and `Invariant.RecvB`.
 
@@ -161,13 +163,6 @@ def EpochTranscript.setOn
     intro _
     exact hoffSome
 
-/-- Pair two optional values exactly when both are present.  This operation is
-part of the small state-invariant interface used by the quantitative proof. -/
-@[simp] def optionPair {A B : Type} : Option A → Option B → Option (A × B)
-  | none, _ => none
-  | some _, none => none
-  | some a, some b => some (a, b)
-
 /-- An A-to-B entry `(ρ, tsnd)` has `tsnd = t - 1`, no payload bit, and a
 transcript-consistent public-key chunk when present; acknowledgements are
 unconstrained. -/
@@ -202,8 +197,7 @@ def HonestMessageB
     | some _, none => False
 
 omit [DecidableEq Sym] in
-/-- Internal helper: an honest message's sending epoch is at most the
-current epoch. -/
+/-- An honest message's sending epoch is at most the current epoch. -/
 lemma HonestMessageB.epoch_le {kem : KEMScheme ProbComp K PK SK C}
     {onoff : kem.OnOffStructure}
     {ecCt0 : ErasureCodePayload onoff.C₀ Sym}
@@ -284,9 +278,9 @@ structure TranscriptConsistent
   /-- B's offline components are synchronized. -/
   offBShape : s.stB.stCt.isSome = s.stB.ct0.isSome
   /-- A's key pair matches the transcript. -/
-  keypairA : (T s.stA.t).keypair = optionPair s.stA.ekA s.stA.dkA
+  keypairA : (T s.stA.t).keypair = Option.map₂ Prod.mk s.stA.ekA s.stA.dkA
   /-- B's offline part matches the transcript. -/
-  offB : (T s.stB.t).off = optionPair s.stB.stCt s.stB.ct0
+  offB : (T s.stB.t).off = Option.map₂ Prod.mk s.stB.stCt s.stB.ct0
   /-- B's online ciphertext matches the transcript. -/
   onB : (T s.stB.t).on.map Prod.fst = s.stB.ct1
   /-- B's decoded public key comes from the transcript. -/
@@ -330,15 +324,12 @@ lemma TranscriptConsistent.knownPrefixA
     {s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)}
     (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
     {tcur : ℕ} (htcur : tcur ≤ s.stA.t - 1) :
-    (List.range (tcur + 1)).all (fun t => t = 0 || (s.keyA t).isSome) = true := by
-  rw [List.all_eq_true]
-  intro t ht
-  have htle : t ≤ tcur := by simpa using List.mem_range.mp ht
-  by_cases ht0 : t = 0
-  · simp [ht0]
+    SCKAScheme.knownPrefix s.keyA tcur = true := by
+  apply SCKAScheme.knownPrefix_eq_true
+  intro t hpos htle
   have hlt : t < s.stA.t := by omega
   rw [hInv.keyA t]
-  simp [ht0, hlt, hInv.pastComplete t (Nat.pos_of_ne_zero ht0) hlt]
+  simpa [hpos.ne', hlt, Option.isSome_iff_ne_none] using hInv.pastComplete t hpos hlt
 
 omit [DecidableEq Sym] in
 /-- B has recorded every positive epoch up to any bound below its current
@@ -352,16 +343,13 @@ lemma TranscriptConsistent.knownPrefixB
     {s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)}
     (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
     {tcur : ℕ} (htcur : tcur ≤ s.stB.t - 1) :
-    (List.range (tcur + 1)).all (fun t => t = 0 || (s.keyB t).isSome) = true := by
-  rw [List.all_eq_true]
-  intro t ht
-  have htle : t ≤ tcur := by simpa using List.mem_range.mp ht
-  by_cases ht0 : t = 0
-  · simp [ht0]
+    SCKAScheme.knownPrefix s.keyB tcur = true := by
+  apply SCKAScheme.knownPrefix_eq_true
+  intro t hpos htle
   have hltB : t < s.stB.t := by omega
   have hltA : t < s.stA.t := hltB.trans_le hInv.epochs.1
   rw [hInv.keyB t]
-  simpa [ht0] using hInv.pastComplete t (Nat.pos_of_ne_zero ht0) hltA
+  simpa only [Option.isSome_iff_ne_none] using hInv.pastComplete t hpos hltA
 
 omit [DecidableEq Sym] in
 /-- If A is ahead of B, B has also recorded its current positive epoch. -/
@@ -375,15 +363,12 @@ lemma TranscriptConsistent.knownPrefixBThroughCurrent
     (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
     (hBehind : s.stB.t < s.stA.t)
     {tcur : ℕ} (htcur : tcur ≤ s.stB.t) :
-    (List.range (tcur + 1)).all (fun t => t = 0 || (s.keyB t).isSome) = true := by
-  rw [List.all_eq_true]
-  intro t ht
-  have htle : t ≤ tcur := by simpa using List.mem_range.mp ht
-  by_cases ht0 : t = 0
-  · simp [ht0]
+    SCKAScheme.knownPrefix s.keyB tcur = true := by
+  apply SCKAScheme.knownPrefix_eq_true
+  intro t hpos htle
   have hltA : t < s.stA.t := (htle.trans htcur).trans_lt hBehind
   rw [hInv.keyB t]
-  simpa [ht0] using hInv.pastComplete t (Nat.pos_of_ne_zero ht0) hltA
+  simpa only [Option.isSome_iff_ne_none] using hInv.pastComplete t hpos hltA
 
 /-- The preserved game-state invariant: `s` is consistent with some execution
 transcript `T`. -/
@@ -424,22 +409,6 @@ lemma reachableInv_init
   refine ⟨T, ?_⟩
   (constructor <;> simp [T, EpochTranscript.empty, EpochTranscript.key,
     ChunksAConsistent, ChunksBConsistent, SCKAScheme.initGameState]; omega)
-
-omit [DecidableEq Sym] in
-/-- The uniform oracle preserves the reachable invariant. -/
-lemma oracleUnif_preserves_reachableInv
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) :
-    QueryImpl.PreservesInv
-      (SCKAScheme.oracleUnif (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-      (reachableInv kem onoff ecEk ecCt0 ecCt1) := by
-  intro t σ hσ z hz
-  have hz' : ∃ y : unifSpec.Range t, (y, σ) = z := by
-    simpa [SCKAScheme.oracleUnif] using hz
-  rcases hz' with ⟨_, rfl⟩
-  simpa using hσ
 
 end Invariant
 

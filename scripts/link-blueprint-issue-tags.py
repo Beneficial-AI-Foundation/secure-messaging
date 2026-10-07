@@ -94,6 +94,7 @@ class Block:
 
 
 def load_blocks(site_dir: Path) -> list[Block]:
+    """Load blueprint blocks from the rendered manifest."""
     manifest_path = site_dir / "-verso-data" / "blueprint-manifest.json"
     if not manifest_path.is_file():
         raise UsageError(f"no manifest at {manifest_path}")
@@ -106,6 +107,7 @@ def load_blocks(site_dir: Path) -> list[Block]:
 
 
 def anchor(repository: str, number: int, text: str) -> str:
+    """Render one GitHub issue link."""
     return (
         f'<a class="github-issue-link" href="https://github.com/{repository}/issues/{number}" '
         f'target="_blank" rel="noopener noreferrer">{text}</a>'
@@ -121,6 +123,7 @@ def chip_issue(match: re.Match) -> int | None:
 
 
 def rewrite_item(match: re.Match, repository: str) -> str:
+    """Rewrite one metadata tag item with issue links."""
     chips = list(CHIP.finditer(match.group("chips")))
     issues = [chip_issue(chip) for chip in chips]
     all_issues = all(number is not None for number in issues)
@@ -139,20 +142,24 @@ def rewrite_item(match: re.Match, repository: str) -> str:
 
 
 def rewrite_badge(match: re.Match, repository: str) -> str:
+    """Rewrite one summary issue badge."""
     number = int(match.group("raw") or match.group("linked"))
     return f'<span class="{match.group("classes")}">{anchor(repository, number, f"GitHub #{number}")}</span>'
 
 
 def transform(text: str, repository: str) -> str:
+    """Link issue tags in one rendered HTML document."""
     text = ITEM.sub(lambda m: rewrite_item(m, repository), text)
     return BADGE.sub(lambda m: rewrite_badge(m, repository), text)
 
 
 def is_summary_page(relative: Path) -> bool:
+    """Report whether a path is a Blueprint Summary page."""
     return relative.name == "index.html" and relative.parent.name == "Blueprint-Summary"
 
 
 def validate_panel(block: Block, pages: dict[Path, str], repository: str) -> None:
+    """Check one block's metadata panel matches the manifest."""
     text = pages.get(Path(block.page))
     where = f"block {block.href}"
     if text is None:
@@ -189,6 +196,7 @@ def validate_panel(block: Block, pages: dict[Path, str], repository: str) -> Non
 
 
 def validate(blocks: list[Block], pages: dict[Path, str], repository: str) -> None:
+    """Validate all rewritten issue links against the manifest."""
     tagged = [block for block in blocks if block.tags]
     with_issues = [block for block in tagged if block.issues]
     # How many nodes carry each issue: the Summary must show at least that many item badges for it.
@@ -234,6 +242,7 @@ def validate(blocks: list[Block], pages: dict[Path, str], repository: str) -> No
 
 
 def write_atomic(path: Path, data: bytes) -> None:
+    """Atomically replace one rendered file while preserving its mode."""
     fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=path.name, suffix=".tmp")
     try:
         with os.fdopen(fd, "wb") as handle:
@@ -247,6 +256,7 @@ def write_atomic(path: Path, data: bytes) -> None:
 
 
 def run(site_dir: Path, repository: str) -> str:
+    """Rewrite and validate every HTML page in the rendered site."""
     if not REPOSITORY.fullmatch(repository):
         raise UsageError(f"--repository must be owner/name, got {repository!r}")
     if not site_dir.is_dir():
@@ -274,6 +284,7 @@ def run(site_dir: Path, repository: str) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Run the command-line interface."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--site-dir", required=True, type=Path, help="the rendered html-multi directory")
     parser.add_argument("--repository", required=True, help="GitHub repository as owner/name")

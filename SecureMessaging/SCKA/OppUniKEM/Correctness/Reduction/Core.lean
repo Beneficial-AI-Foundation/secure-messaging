@@ -68,15 +68,15 @@ noncomputable def currentFailurePotential [DecidableEq K]
   if s.stA.t = s.stB.t then
     if s.stB.ct1.isSome then 0
     else
-      match optionPair s.stA.ekA s.stA.dkA,
-          optionPair s.stB.stCt s.stB.ct0 with
+      match Option.map₂ Prod.mk s.stA.ekA s.stA.dkA,
+          Option.map₂ Prod.mk s.stB.stCt s.stB.ct0 with
       | none, none => 0
       | some kp, none => failureAfterKeypair kem onoff kp.1 kp.2
       | none, some off => failureAfterOff kem onoff off.1 off.2
       | some kp, some off =>
           failureAfterBoth kem onoff kp.1 kp.2 off.1 off.2
   else
-    match optionPair s.stA.ekA s.stA.dkA with
+    match Option.map₂ Prod.mk s.stA.ekA s.stA.dkA with
     | none => 0
     | some kp => failureAfterKeypair kem onoff kp.1 kp.2
 
@@ -158,9 +158,9 @@ lemma currentFailurePotential_le_one [DecidableEq K]
     · rw [if_pos hon]
       exact bot_le
     · rw [if_neg hon]
-      cases hkp : optionPair s.stA.ekA s.stA.dkA with
+      cases hkp : Option.map₂ Prod.mk s.stA.ekA s.stA.dkA with
       | none =>
-          cases hoff : optionPair s.stB.stCt s.stB.ct0 with
+          cases hoff : Option.map₂ Prod.mk s.stB.stCt s.stB.ct0 with
           | none =>
               change (0 : ℝ≥0∞) ≤ 1
               exact bot_le
@@ -168,7 +168,7 @@ lemma currentFailurePotential_le_one [DecidableEq K]
               change failureAfterOff kem onoff off.1 off.2 ≤ 1
               exact failureAfterOff_le_one kem onoff off.1 off.2
       | some kp =>
-          cases hoff : optionPair s.stB.stCt s.stB.ct0 with
+          cases hoff : Option.map₂ Prod.mk s.stB.stCt s.stB.ct0 with
           | none =>
               change failureAfterKeypair kem onoff kp.1 kp.2 ≤ 1
               exact failureAfterKeypair_le_one kem onoff kp.1 kp.2
@@ -176,7 +176,7 @@ lemma currentFailurePotential_le_one [DecidableEq K]
               change failureAfterBoth kem onoff kp.1 kp.2 off.1 off.2 ≤ 1
               exact failureAfterBoth_le_one kem onoff kp.1 kp.2 off.1 off.2
   · rw [if_neg ht]
-    cases hkp : optionPair s.stA.ekA s.stA.dkA with
+    cases hkp : Option.map₂ Prod.mk s.stA.ekA s.stA.dkA with
     | none =>
         change (0 : ℝ≥0∞) ≤ 1
         exact bot_le
@@ -220,7 +220,7 @@ lemma currentFailurePotential_recvB_advance [DecidableEq K]
   have heq' : s'.stA.t = s'.stB.t := by omega
   unfold currentFailurePotential
   rw [if_neg hne, if_pos heq', hek, hdk, hst, hct0, hct1]
-  simp only [Option.isSome_none, Bool.false_eq_true, if_false, optionPair]
+  simp only [Option.isSome_none, Bool.false_eq_true, if_false]
   cases s.stA.ekA <;> cases s.stA.dkA <;> rfl
 
 /-- Advancing A after online encapsulation preserves the zero failure potential. -/

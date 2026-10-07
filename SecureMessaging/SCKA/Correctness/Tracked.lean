@@ -26,12 +26,12 @@ never cleared. This file provides that construction for any stateful oracle impl
 * `tracked_bad_probability_le_score`: the probability that the flag ends up set is at most the
   expected value of any score that is at least `1` on flagged states.
 
-For the SCKA correctness game specifically, `SendQueryBound` counts send queries and
-`tracked_bad_le_of_score_step` turns per-query expected-score bounds (an allowance of `ε` per
-send query, none otherwise) into `Pr[flag] ≤ q · ε`, and `correctness_failure_le_of_tracked_bad`
-turns a bound on the flag into a bound on `Pr[correctnessExp = false]`, given that the invariant
-forces the game's `correct` bit. The scheme-specific inputs are the bad predicate, the invariant,
-the score, and the per-query bounds.
+For the SCKA correctness game specifically, with `SendQueryBound` from `SCKA.Defs` counting
+send queries, `tracked_bad_le_of_score_step` turns per-query expected-score bounds (an allowance
+of `ε` per send query, none otherwise) into `Pr[flag] ≤ q · ε`, and
+`correctness_failure_le_of_tracked_bad` turns a bound on the flag into a bound on
+`Pr[correctnessExp = false]`, given that the invariant forces the game's `correct` bit. The
+scheme-specific inputs are the bad predicate, the invariant, the score, and the per-query bounds.
 -/
 
 open OracleSpec ENNReal
@@ -116,23 +116,13 @@ open OracleComp sckaCorrectnessSpec
 
 variable {IK StA StB I Rho Rand : Type}
 
-/-- Whether a correctness-game query is `SendA` or `SendB`. -/
-def isSendQuery (t : (sckaCorrectnessSpec Rho).Domain) : Bool :=
-  match t with
-  | OSendA | OSendB => true
-  | _ => false
-
-/-- The proposition that a correctness-game query is a send query. -/
+/-- The proposition that a correctness-game query is a send query (`isSendQuery`). -/
 def IsSendQuery (t : (sckaCorrectnessSpec Rho).Domain) : Prop :=
   isSendQuery t = true
 
 /-- Decides whether a correctness-game query is a send query. -/
 instance : DecidablePred (IsSendQuery (Rho := Rho)) :=
   fun t => inferInstanceAs (Decidable (isSendQuery t = true))
-
-/-- The adversary makes at most `q` send queries, both parties counted. -/
-def SendQueryBound (adv : SCKACorrectnessAdversary Rho) (q : ℕ) : Prop :=
-  adv.IsQueryBoundP (IsSendQuery (Rho := Rho)) q
 
 /-- Per-query expected-score bounds, with an allowance of `ε` on send queries only, give a bound
 `q · ε` on the probability that the flag is set after an adversary making at most `q` send

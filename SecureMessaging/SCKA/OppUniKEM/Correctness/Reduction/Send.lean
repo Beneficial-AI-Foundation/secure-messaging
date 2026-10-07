@@ -69,8 +69,7 @@ def sendBKeyState [DecidableEq K]
       && decide (s.tcurB ≤ s.stB.t - 1)
       && (s.keyB s.stB.t).isNone
       && ((s.keyA s.stB.t).isNone || s.keyA s.stB.t == some key)
-      && (List.range (s.stB.t - 1 + 1)).all (fun t =>
-        t = 0 || (keyB' t).isSome) }
+      && SCKAScheme.knownPrefix keyB' (s.stB.t - 1) }
 
 /-- Build the SendB state for a newly sampled offline encapsulation. -/
 def sendBOffState
@@ -121,7 +120,7 @@ lemma keygen_failurePotential_le [DecidableEq K]
     simpa [hdk] using hshape
   by_cases ht : s.stA.t = s.stB.t
   · have hkpnone : (T s.stA.t).keypair = none := by
-      simpa [hdk, hek, optionPair] using hInv.keypairA
+      simpa [hdk, hek] using hInv.keypairA
     have honnone : (T s.stA.t).on = none := by
       by_contra hne
       have his := (T s.stA.t).on_keypair (Option.isSome_iff_ne_none.mpr hne)
@@ -136,18 +135,18 @@ lemma keygen_failurePotential_le [DecidableEq K]
           have hshape := hInv.offBShape
           simpa [hct0] using hshape
         simpa [currentFailurePotential, installAKeypair, ht, hct1, hdk, hek,
-          hct0, hst, optionPair] using
+          hct0, hst] using
           (le_of_eq (factorCorrectnessError_eq_avg_keypair kem onoff).symm)
     | some ct0 =>
         have hstSome : s.stB.stCt.isSome := by
           simpa [hct0] using hInv.offBShape
         obtain ⟨st, hst⟩ := Option.isSome_iff_exists.mp hstSome
         simp [currentFailurePotential, installAKeypair, ht, hct1, hdk, hek,
-          hct0, hst, optionPair, failureAfterOff]
+          hct0, hst, failureAfterOff]
   · have hepoch : s.stA.t = s.stB.t + 1 := by
       have hepochBounds := hInv.epochs
       omega
-    simpa [currentFailurePotential, installAKeypair, ht, hdk, hek, optionPair] using
+    simpa [currentFailurePotential, installAKeypair, ht, hdk, hek] using
       (le_of_eq (factorCorrectnessError_eq_avg_keypair kem onoff).symm)
 
 /-- Installing A's first key pair leaves `currentKEMFailure` equal to `false`. -/
@@ -168,7 +167,7 @@ lemma installAKeypair_currentKEMFailure_false [DecidableEq K]
       have hshape := hInv.keypairAShape
       simpa [hdk] using hshape
     have hkpnone : (T s.stA.t).keypair = none := by
-      simpa [hdk, hek, optionPair] using hInv.keypairA
+      simpa [hdk, hek] using hInv.keypairA
     have honnone : (T s.stA.t).on = none := by
       by_contra hne
       have his := (T s.stA.t).on_keypair (Option.isSome_iff_ne_none.mpr hne)
@@ -208,7 +207,7 @@ lemma off_failurePotential_le [DecidableEq K]
     have hshape := hInv.offBShape
     simpa [hct0] using hshape
   have hoffnone : (T s.stB.t).off = none := by
-    simpa [hct0, hst, optionPair] using hInv.offB
+    simpa [hct0, hst] using hInv.offB
   have ht : s.stA.t = s.stB.t := by
     by_contra hne
     have hepochBounds := hInv.epochs
@@ -232,14 +231,14 @@ lemma off_failurePotential_le [DecidableEq K]
         have hshape := hInv.keypairAShape
         simpa [hdk] using hshape
       simpa [currentFailurePotential, installBOff, ht, hct1, hdk, hek,
-        hct0, hst, optionPair] using
+        hct0, hst] using
         (le_of_eq (factorCorrectnessError_eq_avg_off kem onoff).symm)
   | some sk =>
       have hekSome : s.stA.ekA.isSome := by
         simpa [hdk] using hInv.keypairAShape
       obtain ⟨pk, hek⟩ := Option.isSome_iff_exists.mp hekSome
       simp [currentFailurePotential, installBOff, ht, hct1, hdk, hek,
-        hct0, hst, optionPair, failureAfterKeypair]
+        hct0, hst, failureAfterKeypair]
 
 /-- If B stores `pk` and an incomplete offline sample, then both parties are
 in the same epoch and A stores `(pk, sk)` for some `sk`. -/
@@ -270,12 +269,13 @@ lemma online_source_shape
     have hlt : s.stB.t < s.stA.t := by omega
     have hcomplete := hInv.pastComplete s.stB.t hInv.epochPosB hlt
     simp [EpochTranscript.key, honnone] at hcomplete
-  have hkpA : (T s.stA.t).keypair = optionPair s.stA.ekA s.stA.dkA :=
+  have hkpA : (T s.stA.t).keypair = Option.map₂ Prod.mk s.stA.ekA s.stA.dkA :=
     hInv.keypairA
   rw [ht, hkpB] at hkpA
   cases hekA : s.stA.ekA <;> cases hdkA : s.stA.dkA <;>
-    simp_all only [optionPair, Option.some.injEq, Prod.mk.injEq,
-      Option.some_ne_none, exists_and_left, existsAndEq, and_true]
+    simp_all only [Option.map₂_some_some, Option.map₂_none_left, Option.map₂_none_right,
+      Option.some.injEq, Prod.mk.injEq, Option.some_ne_none, exists_and_left, existsAndEq,
+      and_true]
 
 /-- If B stores `pk` before sampling a new offline component, then both parties
 are in the same epoch and A stores `(pk, sk)` for some `sk`. -/
@@ -296,7 +296,7 @@ lemma newOff_source_shape
     have hshape := hInv.offBShape
     simpa [hct0] using hshape
   have hoffnone : (T s.stB.t).off = none := by
-    simpa [hct0, hst, optionPair] using hInv.offB
+    simpa [hct0, hst] using hInv.offB
   have ht : s.stA.t = s.stB.t := by
     by_contra hne
     have hbounds := hInv.epochs
@@ -309,8 +309,9 @@ lemma newOff_source_shape
   have hkpA := hInv.keypairA
   rw [ht, hkpB] at hkpA
   cases hekA : s.stA.ekA <;> cases hdkA : s.stA.dkA <;>
-    simp_all only [optionPair, Option.some.injEq, Prod.mk.injEq,
-      Option.some_ne_none, exists_and_left, existsAndEq, and_true]
+    simp_all only [Option.map₂_some_some, Option.map₂_none_left, Option.map₂_none_right,
+      Option.some.injEq, Prod.mk.injEq, Option.some_ne_none, exists_and_left, existsAndEq,
+      and_true]
 
 /-- Install B's online ciphertext component and sampled shared key. -/
 def installBOn

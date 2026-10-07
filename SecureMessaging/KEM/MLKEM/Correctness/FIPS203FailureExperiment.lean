@@ -69,16 +69,10 @@ theorem correctnessError_eq_fips203DecapsulationFailureProb (p : ParameterSet)
     (prims : Primitives (ParameterSet.params p) encoding) :
     (asKEMScheme ring encoding prims).correctnessError ProbCompRuntime.probComp =
       Pr[= true | fips203DecapsulationFailureExp p ring encoding prims] := by
-  have hbridge : (asKEMScheme ring encoding prims).correctnessError ProbCompRuntime.probComp
-      = Pr[= false | (asKEMScheme ring encoding prims).CorrectExp] := by
-    rw [KEMScheme.correctnessError]
-    change 1 - Pr[= true | (asKEMScheme ring encoding prims).CorrectExp] =
-      Pr[= false | (asKEMScheme ring encoding prims).CorrectExp]
-    rw [probOutput_false_eq_sub, probFailure_eq_zero, tsub_zero]
   have halign : (asKEMScheme ring encoding prims).CorrectExp =
       (! ·) <$> fips203DecapsulationFailureExp p ring encoding prims := by
     simp only [KEMScheme.CorrectExp, asKEMScheme, keygen, fips203DecapsulationFailureExp,
       monad_norm, Option.some.injEq, decide_not, ne_eq, Function.comp_apply, Bool.not_not]
-  rw [hbridge, halign, probOutput_not_map']
+  rw [KEMScheme.correctnessError_probComp_eq_probOutput_false, halign, probOutput_not_map']
 
 end MLKEM

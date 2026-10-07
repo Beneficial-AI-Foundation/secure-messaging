@@ -168,6 +168,13 @@ theorem correctnessError_eq_probOutput_false_of_probFailure_eq_zero
       Pr[= false | runtime.evalDist kem.CorrectExp] := by
   rw [correctnessError_eq_probOutput_false_add_probFailure, hfail, add_zero]
 
+/-- For a `ProbComp` KEM, the correctness error is exactly the probability that the
+correctness experiment returns `false`, since `ProbComp` never fails. -/
+theorem correctnessError_probComp_eq_probOutput_false (kem : KEMScheme ProbComp K PK SK C) :
+    kem.correctnessError ProbCompRuntime.probComp = Pr[= false | kem.CorrectExp] :=
+  correctnessError_eq_probOutput_false_of_probFailure_eq_zero kem _
+    (show Pr[⊥ | kem.CorrectExp] = 0 from probFailure_eq_zero)
+
 /-- Decapsulating an honestly-generated ciphertext fails no more often than `kem`'s own
 correctness experiment returns `false`: whenever decapsulation returns `none`, it certainly
 doesn't recover the encapsulated key. -/
@@ -195,6 +202,16 @@ def deltaCorrect (kem : KEMScheme m K PK SK C)
     (runtime : ProbCompRuntime m) (delta : ℝ≥0∞) : Prop :=
   kem.correctnessError runtime ≤ delta
 -- ANCHOR_END: deltaCorrect
+
+/-- If `kem` is `delta`-correct under `runtime`, its correctness experiment returns `false` with
+probability at most `delta`: missing success mass only grows by adding the (nonnegative)
+failure/nontermination mass on top of `Pr[CorrectExp = false]`. -/
+theorem probOutput_false_CorrectExp_le_of_deltaCorrect
+    (kem : KEMScheme m K PK SK C) (runtime : ProbCompRuntime m) {delta : ℝ≥0∞}
+    (h : kem.deltaCorrect runtime delta) :
+    Pr[= false | runtime.evalDist kem.CorrectExp] ≤ delta :=
+  le_self_add.trans
+    ((correctnessError_eq_probOutput_false_add_probFailure kem runtime).symm.le.trans h)
 
 end Correctness
 

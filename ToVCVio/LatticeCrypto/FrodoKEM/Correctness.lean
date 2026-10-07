@@ -6,28 +6,30 @@ Authors: Beneficial AI Foundation
 import ToVCVio.LatticeCrypto.FrodoKEM.Encoding
 import ToVCVio.LatticeCrypto.FrodoKEM.Packing
 import ToVCVio.LatticeCrypto.FrodoKEM.Sampling
+import ToVCVio.LatticeCrypto.FrodoKEM.Construction
 import LatticeCrypto.Ring.Norms
 
 /-!
 # FrodoKEM encoding, packing and sampling correctness
 
 The proofs about the maps that `Bits.lean`, `Encoding.lean`, `Packing.lean` and
-`Sampling.lean` specify. References are as in `Parameters.lean`. Both documents state the exact
+`Sampling.lean` specify. References are listed in `Construction.lean`. Both documents state the exact
 round trip `dc (ec k) = k`, `[CiC25]` in Appendix B and `[LBES26]` in
 Section 6.3. Only `[CiC25]` bounds the noise `dc` tolerates, as Lemma 1 of
 Section 4.1, so `dc_ec_add` is cited from it alone.
 
-Two of the `Params.WellFormed` conditions are used. `q = 2 ^ D` (`q_eq`) makes
-`q / 2 ^ B` exact, so `ec` and `dc` are bit shifts, and `entryToBits` loses
-nothing. `B ≤ D` (`B_le_D`) gives `2 ^ B ≤ q`, so `ec` does not wrap.
+The conditions `q = 2 ^ D` (`q_eq`) and `B ≤ D` (`B_le_D`) ensure that
+`q / 2 ^ B = 2 ^ (D - B)`. Also, `q = 2 ^ D` ensures that every matrix
+entry fits in `D` bits, so `entryToBits` loses no information.
 
-The encoded values sit at spacing `q / 2 ^ B = 2 ^ (D - B)`. If the noise added
-stays within half of that, `dc` recovers the chunk it was given.
+The encoded values sit at spacing `q / 2 ^ B = 2 ^ (D - B)`.
+The theorem `dc_ec_add` gives the precise error bound under which decoding
+recovers the original chunk.
 
 ## Main definitions
 
-* `Params.noiseRadius`: the half-step `q / 2 ^ (B + 1)`, which is that half
-  spacing, and so the bound on the noise `dc` tolerates.
+* `Params.noiseRadius`: `q / 2 ^ (B + 1)` using natural-number division.
+  For well-formed parameters with `B < D`, this is exactly half the encoding spacing.
 
 ## Main results
 
@@ -36,13 +38,12 @@ stays within half of that, `dc` recovers the chunk it was given.
 * `dc_ec`, `DecodeChunks_EncodeChunks` and `Decode_Encode`: decoding inverts
   encoding;
 * `Unpack_Pack` and `Pack_Unpack`: unpacking inverts packing, and back;
-* `dc_ec_add`, `DecodeChunks_EncodeChunks_add` and `Decode_Encode_add`: the
-  same as the first, with the encoding perturbed by a noise `e` satisfying
-  `-q ≤ 2 ^ (B + 1) * centeredRepr e < q`, which is Lemma 1 of Section 4.1
-  cleared of its denominator;
+* `dc_ec_add`, `DecodeChunks_EncodeChunks_add` and `Decode_Encode_add`:
+  decoding still recovers the input when the added noise is small, i.e.,
+  satisfies the bound in Lemma 1 of Section 4.1 of `[CiC25]`;
 * `bitsToMatrixWith_matrixToBitsWith` and `matrixToBitsWith_bitsToMatrixWith`:
-  if `g` inverts `f` on one entry, then `bitsToMatrixWith g` inverts
-  `matrixToBitsWith f` on the whole matrix. `Unpack_Pack` and `Pack_Unpack` are
+  round trips between matrices and bits preserve the input if the corresponding
+  round trips preserve each entry or bit chunk. `Unpack_Pack` and `Pack_Unpack` are
   this at `D` bits per entry, `bitsToChunkMatrix_chunkMatrixToBits` and
   `chunkMatrixToBits_bitsToChunkMatrix` at `B`;
 * `bitsToChunk_chunkToBits`, `chunkToBits_bitsToChunk`,
@@ -56,9 +57,8 @@ open LatticeCrypto
 
 namespace Params
 
-/-- The half-step `q / 2 ^ (B + 1)`: half the spacing of the representable
-values `ec k`, and the bound on the noise `dc` tolerates. The division is exact
-only when `B < D`; at `B = D` it truncates to zero, and `dc_ec_add` takes that
+/-- Half the encoding spacing for well-formed parameters with `B < D`.
+At `B = D`, natural-number division gives zero; `dc_ec_add` handles this
 case separately. -/
 def noiseRadius (p : Params) : ℕ := p.q / 2 ^ (p.B + 1)
 
@@ -267,9 +267,8 @@ theorem Decode_Encode_add (p : Params) (hw : p.WellFormed)
   rw [Decode, Encode, DecodeChunks_EncodeChunks_add p hw _ E hlo hhi,
     chunkMatrixToBits_bitsToChunkMatrix]
 
-/-- An entry is recovered from its `D` bits. `q = 2 ^ D` is needed here and in
-`entryToBits_bitsToEntry`: `entryToBits` keeps only `D` bits, so no larger
-modulus is recoverable. -/
+/-- Recover a matrix entry from its `D` bits. Since `q = 2 ^ D`,
+every possible entry value fits in `D` bits, so no information is lost. -/
 theorem bitsToEntry_entryToBits (p : Params) (hw : p.WellFormed) (x : ZMod p.q) :
     bitsToEntry p (entryToBits p x) = x := by
   have : NeZero p.q := ⟨by rw [hw.q_eq]; positivity⟩
@@ -326,5 +325,36 @@ theorem SampleMatrix_bounds (table : ErrorTable) (rows cols : ℕ)
       SampleMatrix table rows cols r i j ≤ (table.d : ℤ) := by
   dsimp only [SampleMatrix, bitsToMatrixWith, Matrix.of_apply]
   exact Sample_bounds table _
+
+/-- `splitBits` inverts concatenation. -/
+theorem splitBits_append {a b : ℕ} (x : Bits a) (y : Bits b) :
+    splitBits (x ++ y) = (x, y) := by
+  apply Prod.ext <;> apply Vector.ext <;> intro i hi <;> simp [splitBits]
+
+/-- Reversing the bits within each octet twice recovers the original bit string. -/
+theorem reverseOctets_reverseOctets {n : ℕ}
+    (v : Bits n) (hn : n % 8 = 0) :
+    reverseOctets (reverseOctets v hn) hn = v := by
+  apply Vector.ext
+  intro i hi
+  simp only [reverseOctets, Vector.getElem_ofFn]
+  congr 1
+  omega
+
+/-- `unpackBits` inverts `packBits`. -/
+theorem unpackBits_packBits (ps : ParameterSet) (r c : ℕ)
+    (h : (r * c * ps.params.D) % 8 = 0)
+    (M : FrodoMatrix ps.params r c) :
+    unpackBits ps r c h (packBits ps r c h M) = M := by
+  rw [unpackBits, packBits, reverseOctets_reverseOctets]
+  exact Unpack_Pack ps.params ps.params_wellFormed M
+
+/-- `packBits` inverts `unpackBits`. -/
+theorem packBits_unpackBits (ps : ParameterSet) (r c : ℕ)
+    (h : (r * c * ps.params.D) % 8 = 0)
+    (b : Bits (r * c * ps.params.D)) :
+    packBits ps r c h (unpackBits ps r c h b) = b := by
+  rw [packBits, unpackBits, Pack_Unpack ps.params ps.params_wellFormed,
+    reverseOctets_reverseOctets]
 
 end FrodoKEM

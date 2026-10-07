@@ -7,7 +7,7 @@ import VCVio.CryptoFoundations.SecExp
 import VCVio.CryptoFoundations.PRG
 import VCVio.OracleComp.Constructions.SampleableType
 import VCVio.OracleComp.SimSemantics.Append
-import SecureMessaging.PRP.Defs
+import ToVCVio.CryptoFoundations.PRP
 
 /-!
 # PRF-PRNG schemes (work in progress)

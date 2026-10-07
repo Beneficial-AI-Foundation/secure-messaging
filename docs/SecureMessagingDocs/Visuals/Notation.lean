@@ -34,7 +34,8 @@ r#"
 \newcommand{\pif}{\mathsf{if}}                                           % pseudocode "if"
 \newcommand{\pthen}{\mathsf{then}}                                       % pseudocode "then"
 \newcommand{\pelse}{\mathsf{else}}                                       % pseudocode "else"
-\newcommand{\pcomment}[1]{\qquad{\color{gray}/\!/\;{\small #1}}}          % inline pseudocode comment (shaded, offset from content)
+\newcommand{\pcommentline}[1]{{\color{gray}/\!/\;{\small #1}}}          % standalone comment, aligned with code
+\newcommand{\pcomment}[1]{\qquad\pcommentline{#1}}                     % inline comment, offset from content
 
 % --- CKA party state and operations ---
 \newcommand{\A}{\mathsf{A}}                              % party A
@@ -120,6 +121,18 @@ r#"
 \newcommand{\gamestate}{\textsf{game state:}}
 \newcommand{\gameparams}{\textsf{game params:}}
 \newcommand{\allow}{\mathsf{allow\text{-}corr}}
+
+% --- RKEM and ratchet simulatability ---
+\newcommand{\REnc}{\mathsf{REnc}}                                                    % RKEM encapsulation
+\newcommand{\RDec}{\mathsf{RDec}}                                                    % RKEM decapsulation
+\newcommand{\RSimKey}{\mathsf{RSimKey}}                                              % key simulator
+\newcommand{\RSimCtxt}{\mathsf{RSimCtxt}}                                            % ciphertext simulator
+\newcommand{\DRKG}[1]{\mathcal{D}_{\mathsf{RKeyGen}\text{-}\mathsf{#1}}}             % fresh key distribution of party #1
+\newcommand{\DRKGup}[1]{\widehat{\mathcal{D}}_{\mathsf{RKeyGen}\text{-}\mathsf{#1}}} % updated key distribution of party #1
+\newcommand{\ekh}[1]{\widehat{\mathsf{ek}}_\mathsf{#1}}                              % updated encapsulation key
+\newcommand{\dkh}[1]{\widehat{\mathsf{dk}}_\mathsf{#1}}                              % updated decapsulation key
+\newcommand{\aux}{\mathsf{aux}}                                                      % simulator auxiliary state
+\newcommand{\rand}{\mathsf{rand}}                                                    % algorithm coins
 "#
 
 /-- Register `cryptoTexPrelude` once, globally, with VersoBlueprint's TeX-prelude

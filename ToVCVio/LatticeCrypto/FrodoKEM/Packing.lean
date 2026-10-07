@@ -10,7 +10,7 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Parameters
 # FrodoKEM matrix packing
 
 `Frodo.Pack` and `Frodo.Unpack`, Algorithms 11 and 12 of `[CiC25]`, which are
-the loop of Section 6.4 of `[LBES26]`. References are as in `Parameters.lean`.
+the loop of Section 6.4 of `[LBES26]`. References are listed in `Construction.lean`.
 
 Both documents give the same layout: each entry of an `r`-by-`c` matrix is
 written as its `D` binary digits, most significant first, and the entries are
@@ -74,8 +74,9 @@ the byte array this encodes to, which Algorithm 11 does not. -/
 def Pack (p : Params) {r c : ℕ} (M : FrodoMatrix p r c) : Vector Bool (r * c * p.D) :=
   matrixToBitsWith (entryToBits p) M
 
-/-- `Frodo.Unpack` (Algorithm 12), the inverse of `Pack`: read the `D`-bit
-pieces back as entries, row by row from row `0` and each row left to right.
+/-- `Frodo.Unpack` (Algorithm 12) reads `D`-bit pieces back as matrix entries,
+row by row from row `0`, each row left to right. For well-formed parameters,
+it inverts `Pack`.
 Section 6.4's `Unpack` decodes octets to that bit string first, which
 Algorithm 12 does not. -/
 def Unpack (p : Params) (r c : ℕ) (b : Vector Bool (r * c * p.D)) : FrodoMatrix p r c :=

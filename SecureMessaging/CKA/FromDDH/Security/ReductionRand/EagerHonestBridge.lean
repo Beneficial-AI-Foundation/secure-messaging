@@ -582,10 +582,7 @@ lemma evalDist_eager_honest_rand_eq
     induction adversary using OracleComp.inductionOn generalizing s with
   | pure x =>
     simp only [simulateQ_pure, StateT.run'_pure']
-    exact evalDist_sample_bind₃_eq_of_forall_eq
-      (f := fun _a _b _gT => (pure x : ProbComp Bool))
-      (p := pure x)
-      (fun _ _ _ => rfl)
+    simp only [DeferredSampling.evalDist_bind_const_neverFails _ (probFailure_uniformSample _)]
   | query_bind t k ih =>
     let pass := evalDist_eager_honest_rand_eq_step_passthrough (gen := gen) gp s
     match t with

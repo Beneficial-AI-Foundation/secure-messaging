@@ -13,16 +13,17 @@ import VCVio.OracleComp.Constructions.SampleableType
 Generic point-probability (`Pr[= x | _]`) facts that hold for any monad with an
 evaluation distribution.
 
-* `probOutput_eq_of_evalDist_eq` transports a point probability across an
-  equality of evaluation distributions `𝒟[_]`;
-* `probOutput_true_bind_add_of_pointwise` splits the `true`-output probability
-  of a `bind` whose continuation splits pointwise;
 * `probOutput_bind_of_const'` drops the missing-mass factor from
   `probOutput_bind_of_const` for a never-failing outer computation (`[NeverFail mx]`);
 * `abs_probOutput_true_not_map_gap_eq` absorbs a final Boolean negation into the
   absolute two-branch gap (for never-failing computations);
-* the `evalDist_sample_bind*` and `probOutput_*sample*` lemmas collapse or couple
-  one, two, or three eager `uniformSample` draws over `ProbComp`.
+* `probOutput_true_uniformBool_bind_not` relabels a uniform challenge-bit sample by negation,
+  absorbing a `Bool` negation on the final comparison in the process — the "flip the challenge
+  bit" step of hybrid arguments;
+* `tsum_probOutput_mul_le_of_forall_mem_support` bounds the expectation
+  `∑' z, Pr[= z | mx] * F z` by any bound on `F` over the support of `mx`;
+* the four `probOutput_*_sample_*_param_eq` lemmas couple two or three eager
+  `uniformSample` draws over `ProbComp`.
 -/
 
 open scoped ENNReal
@@ -32,26 +33,6 @@ namespace ToVCVio
 universe u v
 
 variable {α : Type u} {m : Type u → Type v} [Monad m]
-
-omit [Monad m] in
-/-- If `𝒟[mx] = 𝒟[my]` then `Pr[= x | mx] = Pr[= x | my]`: point-probability
-congruence under equality of evaluation distributions. -/
-lemma probOutput_eq_of_evalDist_eq [MonadLiftT m SPMF] {mx my : m α}
-    (h : 𝒟[mx] = 𝒟[my]) (x : α) :
-    Pr[= x | mx] = Pr[= x | my] := by
-  simpa [probOutput] using congrFun (congrArg DFunLike.coe h) x
-
-/-- Splitting a `bind`'s continuation pointwise splits the `true`-output
-probability of the whole computation: if `Pr[= true | f z]` decomposes as
-`Pr[= true | g z] + Pr[= true | h z]` for every `z`, the same decomposition
-holds after binding each continuation against a shared `mx`. -/
-lemma probOutput_true_bind_add_of_pointwise {β : Type} {n : Type → Type*}
-    [Monad n] [MonadLiftT n SPMF] [LawfulMonadLiftT n SPMF] (mx : n β) (f g h : β → n Bool)
-    (hpt : ∀ z, Pr[= true | f z] = Pr[= true | g z] + Pr[= true | h z]) :
-    Pr[= true | mx >>= f] = Pr[= true | mx >>= g] + Pr[= true | mx >>= h] := by
-  rw [probOutput_bind_eq_tsum, probOutput_bind_eq_tsum, probOutput_bind_eq_tsum,
-    ← ENNReal.tsum_add]
-  exact tsum_congr fun z => by rw [hpt z, mul_add]
 
 /-- `probOutput_bind_of_const` for a never-failing outer computation: the missing-mass factor
 `1 - Pr[⊥ | mx]` is always exactly `1`. -/
@@ -78,122 +59,64 @@ lemma abs_probOutput_true_not_map_gap_eq {n : Type → Type*}
       Pr[= true | mx].toReal - Pr[= true | my].toReal by ring]
   exact abs_sub_comm (Pr[= true | my].toReal) (Pr[= true | mx].toReal)
 
-/-- Pointwise distribution equality implies congruence under one eager uniform
-sample:
+/-- Relabeling a uniform coin flip by negation, together with negating which side of the final
+comparison is complemented, doesn't change the success probability:
 
-`If ∀ a, 𝒟[f a] = 𝒟[g a] then
-  𝒟[a ←$ α; f a] = 𝒟[a ←$ α; g a]`. -/
-lemma evalDist_sample_bind_congr_of_forall_evalDist_eq {sampleType outputType : Type 0}
-    [SampleableType sampleType] (f g : sampleType → ProbComp outputType)
-    (h : ∀ a, evalDist (f a) = evalDist (g a)) :
-    evalDist (do
-      let a ← uniformSample sampleType
-      f a) = evalDist (do
-      let a ← uniformSample sampleType
-      g a) := by
-  apply evalDist_ext
-  intro y
-  refine probOutput_bind_congr' _ y fun a => ?_
-  exact probOutput_eq_of_evalDist_eq (h a) y
+Pr[b ← {0; 1}; b' ← f(b) | b == !b'] = Pr[b ← {0; 1}; b' ← f(!b) | b == b']
 
-/-- Collapse one eager uniform sample when the sampled value is pointwise unused.
+Feeding `f` the coin `b` and comparing against `!b'` is the same as feeding `f` the negated coin
+`!b` and comparing directly against `b'`. This is the general fact underlying the "flip the
+challenge bit" step of hybrid arguments.
+-/
+lemma probOutput_true_uniformBool_bind_not (f : Bool → ProbComp Bool) :
+    Pr[= true | do
+        let b ← ($ᵗ Bool : ProbComp Bool)
+        let b' ← f b
+        pure (b == !b')] =
+      Pr[= true | do
+        let b ← ($ᵗ Bool : ProbComp Bool)
+        let b' ← f !b
+        pure (b == b')] := by
+  rw [probOutput_bind_uniformBool, probOutput_bind_uniformBool]
+  have h1 : Pr[= true | f true >>= fun b' => (pure (true == !b') : ProbComp Bool)] =
+      Pr[= false | f true] := by
+    have heq : (f true >>= fun b' => (pure (true == !b') : ProbComp Bool)) = (!·) <$> f true := by
+      rw [map_eq_bind_pure_comp]; congr 1; funext b'; cases b' <;> rfl
+    rw [heq, probOutput_not_map]
+  have h2 : Pr[= true | f false >>= fun b' => (pure (false == !b') : ProbComp Bool)] =
+      Pr[= true | f false] := by
+    have heq : (f false >>= fun b' => (pure (false == !b') : ProbComp Bool)) = f false := by
+      conv_rhs => rw [← bind_pure (f false)]
+      congr 1; funext b'; cases b' <;> rfl
+    rw [heq]
+  have h3 : Pr[= true | f (!true) >>= fun b' => (pure (true == b') : ProbComp Bool)] =
+      Pr[= true | f false] := by
+    have heq : (f (!true) >>= fun b' => (pure (true == b') : ProbComp Bool)) = f false := by
+      conv_rhs => rw [← bind_pure (f false)]
+      congr 1; funext b'; cases b' <;> rfl
+    rw [heq]
+  have h4 : Pr[= true | f (!false) >>= fun b' => (pure (false == b') : ProbComp Bool)] =
+      Pr[= false | f true] := by
+    have heq : (f (!false) >>= fun b' => (pure (false == b') : ProbComp Bool)) =
+        (!·) <$> f true := by
+      rw [map_eq_bind_pure_comp]; congr 1; funext b'; cases b' <;> rfl
+    rw [heq, probOutput_not_map]
+  rw [h1, h2, h3, h4, add_comm]
 
-`If ∀ a, f a = p then 𝒟[a ←$ α; f a] = 𝒟[p]`. -/
-lemma evalDist_sample_bind_eq_of_forall_eq {sampleType outputType : Type 0}
-    [SampleableType sampleType] (f : sampleType → ProbComp outputType)
-    (p : ProbComp outputType) (h : ∀ a, f a = p) :
-    evalDist (do
-      let a ← uniformSample sampleType
-      f a) = evalDist p := by
-  apply evalDist_ext
-  intro y
-  have h_bind : (do
-      let a ← uniformSample sampleType
-      f a) = (do
-      let _a ← uniformSample sampleType
-      p) := by
-    congr 1
-    funext a
-    exact h a
-  rw [h_bind, probOutput_bind_const]
-  simp
-
-/-- Collapse two eager uniform samples when both sampled values are pointwise
-unused.
-
-`If ∀ a b, f a b = p then 𝒟[a ←$ α; b ←$ β; f a b] = 𝒟[p]`. -/
-lemma evalDist_sample_bind₂_eq_of_forall_eq {sampleType₁ sampleType₂ outputType : Type 0}
-    [SampleableType sampleType₁] [SampleableType sampleType₂]
-    (f : sampleType₁ → sampleType₂ → ProbComp outputType) (p : ProbComp outputType)
-    (h : ∀ a b, f a b = p) :
-    evalDist (do
-      let a ← uniformSample sampleType₁
-      let b ← uniformSample sampleType₂
-      f a b) = evalDist p := by
-  apply evalDist_ext
-  intro y
-  have h_bind : (do
-      let a ← uniformSample sampleType₁
-      let b ← uniformSample sampleType₂
-      f a b) = (do
-      let _a ← uniformSample sampleType₁
-      let _b ← uniformSample sampleType₂
-      p) := by
-    congr 1
-    funext a
-    congr 1
-    funext b
-    exact h a b
-  rw [h_bind, probOutput_bind_const, probOutput_bind_const]
-  simp
-
-/-- Collapse three eager uniform samples when all sampled values are pointwise
-unused.
-
-`If ∀ a b c, f a b c = p then
-  𝒟[a ←$ α; b ←$ β; c ←$ γ; f a b c] = 𝒟[p]`. -/
-lemma evalDist_sample_bind₃_eq_of_forall_eq
-    {sampleType₁ sampleType₂ sampleType₃ outputType : Type 0}
-    [SampleableType sampleType₁] [SampleableType sampleType₂] [SampleableType sampleType₃]
-    (f : sampleType₁ → sampleType₂ → sampleType₃ → ProbComp outputType)
-    (p : ProbComp outputType) (h : ∀ a b c, f a b c = p) :
-    evalDist (do
-      let a ← uniformSample sampleType₁
-      let b ← uniformSample sampleType₂
-      let c ← uniformSample sampleType₃
-      f a b c) = evalDist p := by
-  apply evalDist_ext
-  intro y
-  have h_bind : (do
-      let a ← uniformSample sampleType₁
-      let b ← uniformSample sampleType₂
-      let c ← uniformSample sampleType₃
-      f a b c) = (do
-      let _a ← uniformSample sampleType₁
-      let _b ← uniformSample sampleType₂
-      let _c ← uniformSample sampleType₃
-      p) := by
-    congr 1
-    funext a
-    congr 1
-    funext b
-    congr 1
-    funext c
-    exact h a b c
-  rw [h_bind, probOutput_bind_const, probOutput_bind_const, probOutput_bind_const]
-  simp
-
-/-- Collapse one eager uniform sample at the output-probability level. -/
-lemma probOutput_sample_bind_eq_of_forall_eq {sampleType outputType : Type 0}
-    [SampleableType sampleType] (f : sampleType → ProbComp outputType)
-    (p : ProbComp outputType) (y : outputType)
-    (h : ∀ a, Pr[= y | f a] = Pr[= y | p]) :
-    Pr[= y | do
-      let a ← uniformSample sampleType
-      f a] = Pr[= y | p] := by
-  rw [probOutput_bind_of_const (uniformSample sampleType)
-    (my := f) (r := Pr[= y | p]) (h := fun a _ => h a)]
-  simp
+omit [Monad m] in
+/-- If `F z ≤ c` for every possible output `z` of `mx`, then the expectation of `F` under
+`mx` is at most `c`. Missing mass only lowers the sum, so `mx` may fail. -/
+lemma tsum_probOutput_mul_le_of_forall_mem_support [MonadLiftT m SPMF] [MonadLiftT m SetM]
+    [EvalDistCompatible m] (mx : m α) {F : α → ℝ≥0∞} {c : ℝ≥0∞}
+    (h : ∀ z ∈ support mx, F z ≤ c) :
+    ∑' z, Pr[= z | mx] * F z ≤ c := by
+  calc ∑' z, Pr[= z | mx] * F z ≤ ∑' z, Pr[= z | mx] * c := by
+        refine ENNReal.tsum_le_tsum fun z => ?_
+        by_cases hz : z ∈ support mx
+        · exact mul_le_mul' le_rfl (h z hz)
+        · rw [probOutput_eq_zero_of_not_mem_support hz, zero_mul, zero_mul]
+    _ = (∑' z, Pr[= z | mx]) * c := ENNReal.tsum_mul_right
+    _ ≤ c := mul_le_of_le_one_left zero_le tsum_probOutput_le_one
 
 /-- Active-parameter coupling for two independent samples.
 
@@ -255,10 +178,7 @@ lemma probOutput_two_sample_active_param_eq
         lazy x passive x] := by
     refine probOutput_bind_congr' _ y fun x => ?_
     refine probOutput_bind_congr' _ y fun passive => ?_
-    exact probOutput_sample_bind_eq_of_forall_eq
-      (f := fun active => lazy active passive x)
-      (p := lazy x passive x) y
-      (fun active => h_indep x passive active)
+    exact probOutput_bind_of_const' _ fun active _ => h_indep x passive active
   have eq_swap : Pr[= y | do
         let x ← ($ᵗ activeType : ProbComp activeType)
         let passive ← ($ᵗ passiveType : ProbComp passiveType)
@@ -337,10 +257,7 @@ lemma probOutput_two_sample_second_param_eq
       (my := ($ᵗ firstType : ProbComp firstType))
       (f := fun second first => lazy first second x) (z := y)]
     refine probOutput_bind_congr' _ y fun first => ?_
-    exact probOutput_sample_bind_eq_of_forall_eq
-      (f := fun second => lazy first second x)
-      (p := lazy first x x) y
-      (fun second => h_indep x first second)
+    exact probOutput_bind_of_const' _ fun second _ => h_indep x first second
   have eq_swap : Pr[= y | do
         let x ← ($ᵗ secondType : ProbComp secondType)
         let first ← ($ᵗ firstType : ProbComp firstType)
@@ -417,19 +334,10 @@ lemma probOutput_three_sample_active_param_eq
         let param₂ ← ($ᵗ paramType₂ : ProbComp paramType₂)
         lazy x param₁ param₂ x] := by
     refine probOutput_bind_congr' _ y fun x => ?_
-    exact probOutput_sample_bind_eq_of_forall_eq
-      (f := fun active => do
-        let param₁ ← ($ᵗ paramType₁ : ProbComp paramType₁)
-        let param₂ ← ($ᵗ paramType₂ : ProbComp paramType₂)
-        lazy active param₁ param₂ x)
-      (p := do
-        let param₁ ← ($ᵗ paramType₁ : ProbComp paramType₁)
-        let param₂ ← ($ᵗ paramType₂ : ProbComp paramType₂)
-        lazy x param₁ param₂ x) y
-      (fun active => by
-        refine probOutput_bind_congr' _ y fun param₁ => ?_
-        refine probOutput_bind_congr' _ y fun param₂ => ?_
-        exact h_indep x param₁ active param₂)
+    refine probOutput_bind_of_const' _ fun active _ => ?_
+    refine probOutput_bind_congr' _ y fun param₁ => ?_
+    refine probOutput_bind_congr' _ y fun param₂ => ?_
+    exact h_indep x param₁ active param₂
   have eq_swap : Pr[= y | do
         let x ← ($ᵗ activeType : ProbComp activeType)
         let param₁ ← ($ᵗ paramType₁ : ProbComp paramType₁)
@@ -526,16 +434,9 @@ lemma probOutput_three_sample_second_third_param_eq
     refine probOutput_bind_congr' _ y fun x => ?_
     refine probOutput_bind_congr' _ y fun z => ?_
     refine probOutput_bind_congr' _ y fun first => ?_
-    exact probOutput_sample_bind_eq_of_forall_eq
-      (f := fun second => do
-        let third ← ($ᵗ thirdType : ProbComp thirdType)
-        lazy first second third x z)
-      (p := do
-        let third ← ($ᵗ thirdType : ProbComp thirdType)
-        lazy first x third x z) y
-      (fun second => by
-        refine probOutput_bind_congr' _ y fun third => ?_
-        exact h_second_indep x z first second third)
+    refine probOutput_bind_of_const' _ fun second _ => ?_
+    refine probOutput_bind_congr' _ y fun third => ?_
+    exact h_second_indep x z first second third
   have eq_third : Pr[= y | do
         let x ← ($ᵗ secondType : ProbComp secondType)
         let z ← ($ᵗ thirdType : ProbComp thirdType)
@@ -550,10 +451,7 @@ lemma probOutput_three_sample_second_third_param_eq
     refine probOutput_bind_congr' _ y fun x => ?_
     refine probOutput_bind_congr' _ y fun z => ?_
     refine probOutput_bind_congr' _ y fun first => ?_
-    exact probOutput_sample_bind_eq_of_forall_eq
-      (f := fun third => lazy first x third x z)
-      (p := lazy first x z x z) y
-      (fun third => h_third_indep x z first third)
+    exact probOutput_bind_of_const' _ fun third _ => h_third_indep x z first third
   have eq_swap_z_first : Pr[= y | do
         let x ← ($ᵗ secondType : ProbComp secondType)
         let z ← ($ᵗ thirdType : ProbComp thirdType)
@@ -586,21 +484,5 @@ lemma probOutput_three_sample_second_third_param_eq
         let z ← ($ᵗ thirdType : ProbComp thirdType)
         lazy first x z x z) (z := y)
   rw [eq_ih, eq_second, eq_third, eq_swap_z_first, eq_swap_x_first]
-
-/-- Collapse one eager uniform sample when every sampled computation has the
-same evaluation distribution.
-
-If `evalDist (f a) = evalDist p` for every sampled value `a`, then sampling
-`a ← $ᵗ sampleType` and running `f a` has evaluation distribution `evalDist p`. -/
-lemma evalDist_sample_bind_eq_of_forall_evalDist_eq {sampleType outputType : Type 0}
-    [SampleableType sampleType] (f : sampleType → ProbComp outputType)
-    (p : ProbComp outputType) (h : ∀ a, evalDist (f a) = evalDist p) :
-    evalDist (do
-      let a ← uniformSample sampleType
-      f a) = evalDist p := by
-  apply evalDist_ext
-  intro y
-  exact probOutput_sample_bind_eq_of_forall_eq f p y
-    (fun a => probOutput_eq_of_evalDist_eq (h a) y)
 
 end ToVCVio
