@@ -102,6 +102,57 @@ def recvBUpdate [DecidableEq I] (s : GameState StA StB I Rho) (tsnd : ℕ)
         correct := s.correct && (trcv == tsnd) && (s.keyB tI).isNone &&
           ((s.keyA tI).isNone || s.keyA tI == some key) && knownPrefix keyB' tcurB' }
 
+/-! ### Fields of the send updates -/
+
+section Fields
+
+variable [DecidableEq I] (s : GameState StA StB I Rho) (keyOpt : Option (ℕ × I)) (ρ : Rho)
+  (tsnd : ℕ)
+
+/-- `sendAUpdate` installs A's new state. -/
+theorem sendAUpdate_stA (stA' : StA) : (sendAUpdate s keyOpt ρ tsnd stA').stA = stA' := by
+  rcases keyOpt with _ | ⟨_, _⟩ <;> rfl
+
+/-- `sendAUpdate` keeps B's state. -/
+theorem sendAUpdate_stB (stA' : StA) : (sendAUpdate s keyOpt ρ tsnd stA').stB = s.stB := by
+  rcases keyOpt with _ | ⟨_, _⟩ <;> rfl
+
+/-- `sendAUpdate` keeps B's key table. -/
+theorem sendAUpdate_keyB (stA' : StA) : (sendAUpdate s keyOpt ρ tsnd stA').keyB = s.keyB := by
+  rcases keyOpt with _ | ⟨_, _⟩ <;> rfl
+
+/-- Without an emitted key, `sendAUpdate` keeps A's key table. -/
+theorem sendAUpdate_keyA_none (stA' : StA) : (sendAUpdate s none ρ tsnd stA').keyA = s.keyA :=
+  rfl
+
+/-- `sendAUpdate` records an emitted key in A's key table. -/
+theorem sendAUpdate_keyA_some (stA' : StA) (tI : ℕ) (key : I) :
+    (sendAUpdate s (some (tI, key)) ρ tsnd stA').keyA = Function.update s.keyA tI (some key) :=
+  rfl
+
+/-- `sendBUpdate` installs B's new state. -/
+theorem sendBUpdate_stB (stB' : StB) : (sendBUpdate s keyOpt ρ tsnd stB').stB = stB' := by
+  rcases keyOpt with _ | ⟨_, _⟩ <;> rfl
+
+/-- `sendBUpdate` keeps A's state. -/
+theorem sendBUpdate_stA (stB' : StB) : (sendBUpdate s keyOpt ρ tsnd stB').stA = s.stA := by
+  rcases keyOpt with _ | ⟨_, _⟩ <;> rfl
+
+/-- `sendBUpdate` keeps A's key table. -/
+theorem sendBUpdate_keyA (stB' : StB) : (sendBUpdate s keyOpt ρ tsnd stB').keyA = s.keyA := by
+  rcases keyOpt with _ | ⟨_, _⟩ <;> rfl
+
+/-- Without an emitted key, `sendBUpdate` keeps B's key table. -/
+theorem sendBUpdate_keyB_none (stB' : StB) : (sendBUpdate s none ρ tsnd stB').keyB = s.keyB :=
+  rfl
+
+/-- `sendBUpdate` records an emitted key in B's key table. -/
+theorem sendBUpdate_keyB_some (stB' : StB) (tI : ℕ) (key : I) :
+    (sendBUpdate s (some (tI, key)) ρ tsnd stB').keyB = Function.update s.keyB tI (some key) :=
+  rfl
+
+end Fields
+
 variable (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) (s : GameState StA StB I Rho)
 
 /-! ### Outcomes of the oracles -/
@@ -209,6 +260,40 @@ theorem oracleRecvB_run_eq_of_accept {n tsnd trcv : ℕ} {ρ : Rho} {keyOpt : Op
   rcases keyOpt with _ | ⟨tI, key⟩ <;>
     simp [oracleRecvB, recvBUpdate, knownPrefix, StateT.run_bind, StateT.run_get, StateT.run_set,
       h, hr]
+
+/-- A `RecvA n` outcome is one of: no recorded message `n`, with the state unchanged; a delivery
+that `recvA` refuses, with the correctness flag cleared; a delivery that `recvA` accepts with
+`(keyOpt, trcv, stA')`, returning `(trcv, keyOpt.map Prod.fst)` and writing `recvAUpdate`. -/
+theorem mem_support_oracleRecvA_run_iff (n : ℕ)
+    (z : Option (ℕ × Option ℕ) × GameState StA StB I Rho) :
+    z ∈ support ((oracleRecvA scka n).run s) ↔
+      (s.msgB n = none ∧ z = (none, s)) ∨
+      (∃ ρ tsnd, s.msgB n = some (ρ, tsnd) ∧ scka.recvA s.stA ρ = none ∧
+        z = (none, { s with correct := false })) ∨
+      ∃ ρ tsnd keyOpt trcv stA', s.msgB n = some (ρ, tsnd) ∧
+        scka.recvA s.stA ρ = some (keyOpt, trcv, stA') ∧
+        z = (some (trcv, keyOpt.map Prod.fst), recvAUpdate s tsnd keyOpt trcv stA') := by
+  rcases hmsg : s.msgB n with _ | ⟨ρ, tsnd⟩
+  · simp [oracleRecvA_run_eq_of_none scka s hmsg]
+  · rcases hrecv : scka.recvA s.stA ρ with _ | ⟨keyOpt, trcv, stA'⟩
+    · simp [oracleRecvA_run_eq_of_refuse scka s hmsg hrecv, hrecv]
+    · simp [oracleRecvA_run_eq_of_accept scka s hmsg hrecv, hrecv]
+
+/-- The version of `mem_support_oracleRecvA_run_iff` for B. -/
+theorem mem_support_oracleRecvB_run_iff (n : ℕ)
+    (z : Option (ℕ × Option ℕ) × GameState StA StB I Rho) :
+    z ∈ support ((oracleRecvB scka n).run s) ↔
+      (s.msgA n = none ∧ z = (none, s)) ∨
+      (∃ ρ tsnd, s.msgA n = some (ρ, tsnd) ∧ scka.recvB s.stB ρ = none ∧
+        z = (none, { s with correct := false })) ∨
+      ∃ ρ tsnd keyOpt trcv stB', s.msgA n = some (ρ, tsnd) ∧
+        scka.recvB s.stB ρ = some (keyOpt, trcv, stB') ∧
+        z = (some (trcv, keyOpt.map Prod.fst), recvBUpdate s tsnd keyOpt trcv stB') := by
+  rcases hmsg : s.msgA n with _ | ⟨ρ, tsnd⟩
+  · simp [oracleRecvB_run_eq_of_none scka s hmsg]
+  · rcases hrecv : scka.recvB s.stB ρ with _ | ⟨keyOpt, trcv, stB'⟩
+    · simp [oracleRecvB_run_eq_of_refuse scka s hmsg hrecv, hrecv]
+    · simp [oracleRecvB_run_eq_of_accept scka s hmsg hrecv, hrecv]
 
 end Oracles
 

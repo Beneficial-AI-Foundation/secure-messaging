@@ -55,6 +55,16 @@ inductive Role where
   | B
   deriving DecidableEq
 
+/-- The other party's role. -/
+def Role.peer : Role → Role
+  | .A => .B
+  | .B => .A
+
+/-- `peer` is an involution. -/
+@[simp]
+theorem Role.peer_peer (role : Role) : role.peer.peer = role := by
+  cases role <;> rfl
+
 /-- `A`'s offset is `+1`; `B`'s is `-1`. Offset captures the division of epochs:
  - `A` is requester in even epochs
  - `B` is requester in odd epochs
@@ -63,6 +73,11 @@ algorithms for `A` and `B`. -/
 def Role.offset : Role → ℤ
   | .A => 1
   | .B => -1
+
+/-- The peer's offset is the negated offset. -/
+@[simp]
+theorem Role.peer_offset (role : Role) : role.peer.offset = -role.offset := by
+  cases role <;> rfl
 -- ANCHOR_END: role
 
 /-- The paper's per-message acknowledgement bits. -/

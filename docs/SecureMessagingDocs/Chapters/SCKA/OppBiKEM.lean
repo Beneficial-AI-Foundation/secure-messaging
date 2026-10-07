@@ -4,7 +4,7 @@ import VersoBlueprint
 import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessagingDocs.Bibliography
-import SecureMessaging.SCKA.OppBiKEM.Construction
+import SecureMessaging.SCKA.OppBiKEM.Correctness
 
 set_option linter.style.setOption false
 set_option linter.hashCommand false
@@ -439,11 +439,30 @@ def scheme (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
 :::defTitle "opp_bikem_cka_correctness" "Opp-BiKEM-CKA correctness"
 :::
 
-::::theorem "opp_bikem_cka_correctness" (parent := "cka_protocols_opp_bikem_cka") (tags := "gh-110") (uses := "opp_bikem_cka_spec, scka_correctness, erasure_code_correctness")
-$`\todo`
+::::theorem "opp_bikem_cka_correctness" (parent := "cka_protocols_opp_bikem_cka") (lean := "oppBiKemCKA.correctness_true_ge") (tags := "gh-110") (uses := "opp_bikem_cka_spec, scka_correctness, erasure_code_correctness")
+Assume that:
 
-:::leanPill "missing"
-:::
+* $`\adv` is any SCKA correctness adversary making at most $`q` send-oracle
+  queries;
+* the underlying KEM has deterministic decapsulation,
+  and has correctness error at most $`\varepsilon`;
+* and the two erasure codes, for public keys and for ciphertexts, are correct.
+
+Then $`\Pr\bigl[\Exp{\textsf{cor}}{\textsf{Opp-BiKEM-CKA}}(\adv)=1\bigr]
+  \ge 1-q\varepsilon`, i.e., the Opp-BiKEM-CKA protocol is correct with probability at least
+$`1-q\varepsilon`.
+
+
+```anchor correctnessTrueGe (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.Main)
+theorem correctness_true_ge
+    (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
+    (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
+    (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct) (leak : kem.RandLeak)
+    (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
+    (q : ℕ) (hq : SCKAScheme.SendQueryBound adv q) :
+    Pr[= true | SCKAScheme.correctnessExp (scheme kem hDet ecEk ecCt leak) adv] ≥
+      1 - (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp
+```
 ::::
 
 :::defTitle "opp_bikem_cka_security" "Opp-BiKEM-CKA security"
