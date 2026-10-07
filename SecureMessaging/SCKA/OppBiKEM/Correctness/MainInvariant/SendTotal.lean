@@ -27,14 +27,12 @@ namespace oppBiKemCKA
 
 variable {K PK SK C Sym : Type}
 
-/-- If both parties satisfy `PartyInv` for a common transcript, the sender's `send` never
-returns `none`. -/
+/-- If the sender satisfies `PartyInv`, its `send` never returns `none`. -/
 theorem send_ne_none {roleS : Role} {kem : KEMScheme ProbComp K PK SK C}
     {ecEk : ErasureCodePayload PK Sym} {ecCt : ErasureCodePayload C Sym}
     {T : Transcript kem} {stS stR : State PK SK C Sym}
-    {msgsS msgsR : ℕ → Option (Message Sym × ℕ)} {keyS keyR : ℕ → Option K} {tcurS tcurR : ℕ}
-    (hS : PartyInv roleS ecEk ecCt T stS stR msgsS keyS keyR tcurS)
-    (hR : PartyInv roleS.peer ecEk ecCt T stR stS msgsR keyR keyS tcurR) :
+    {msgsS : ℕ → Option (Message Sym × ℕ)} {keyS keyR : ℕ → Option K} {tcurS : ℕ}
+    (hS : PartyInv roleS ecEk ecCt T stS stR msgsS keyS keyR tcurS) :
     none ∉ support (send roleS kem ecEk ecCt stS) := by
   intro hout
   rw [send, mem_support_bind_iff] at hout
@@ -92,16 +90,16 @@ omit [DecidableEq K] [DecidableEq Sym] in
 theorem sendA_ne_none
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : GameInv kem ecEk ecCt s) : none ∉ support (sendA kem ecEk ecCt s.stA) := by
-  obtain ⟨-, T, hA, hB⟩ := hs
-  exact send_ne_none hA hB
+  obtain ⟨-, T, hA, -⟩ := hs
+  exact send_ne_none hA
 
 omit [DecidableEq K] [DecidableEq Sym] in
 /-- From a game state satisfying `GameInv`, B's `send` never returns `none`. -/
 theorem sendB_ne_none
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : GameInv kem ecEk ecCt s) : none ∉ support (sendB kem ecEk ecCt s.stB) := by
-  obtain ⟨-, T, hA, hB⟩ := hs
-  exact send_ne_none hB hA
+  obtain ⟨-, T, -, hB⟩ := hs
+  exact send_ne_none hB
 
 /-- From a game state satisfying `GameInv`, the `SendA` oracle always answers `some`. -/
 theorem oracleSendA_run_ne_none

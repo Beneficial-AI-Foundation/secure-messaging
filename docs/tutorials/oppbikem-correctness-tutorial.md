@@ -250,7 +250,7 @@ The latter uses `probOutput_eq_one_iff` to turn `Pr[CorrectExp = true] = 1` into
 
 ## 8. The send step
 
-[`partyInv_send_step`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Send.lean#L936)
+[`partyInv_send_step`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Send.lean#L931)
 is the statement to read first. Given both invariants and a supported local send by `roleS`, it
 returns the three game assertions of a send (monotonicity, known prefix, unique and consistent
 key) and a new transcript `T'` with both invariants restored. The emitted message is recorded
@@ -261,25 +261,25 @@ The proof is organised around the three kinds of send:
 
 | Kind | Lemma | Transcript update |
 | --- | --- | --- |
-| plain (resend or wait) | [`send_step_plain`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Send.lean#L603) | none |
-| epoch advance with key generation | [`send_step_advance`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Send.lean#L657) | `ofKeypair` at `resEpoch' + offset` |
-| encapsulation | [`send_step_encaps`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Send.lean#L806) | `setEnc` at `resEpoch` |
+| plain (resend or wait) | [`send_step_plain`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Send.lean#L598) | none |
+| epoch advance with key generation | [`send_step_advance`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Send.lean#L652) | `ofKeypair` at `resEpoch' + offset` |
+| encapsulation | [`send_step_encaps`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Send.lean#L801) | `setEnc` at `resEpoch` |
 
 The assembly also proves that an emitted key excludes an advance in the same send (a fresh key
 is never already acknowledged: `ekRec_req`, then the peer's `ekPeer_T`, then `keypair_future`).
 
 Two generic lemmas do most of the work and are worth understanding:
 
-- [`partyInv_sender_of_send`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Send.lean#L357):
+- [`partyInv_sender_of_send`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Send.lean#L352):
   the sender's post-state invariant. The kind-independent fields are proved once; the twelve
   kind-dependent facts (`f_*`) are hypotheses, next to seven hypotheses relating the new
   transcript and key table to the old ones.
-- [`partyInv_peer_of_send`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Send.lean#L127):
+- [`partyInv_peer_of_send`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Send.lean#L122):
   the peer's invariant after the send, parameterised by six "the transcript did not change
   where the peer looks" hypotheses.
 
 Honesty of the new message comes from
-[`MessageInv.of_send`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Send.lean#L288),
+[`MessageInv.of_send`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Send.lean#L283),
 which reads `SendProvenance`, the ciphertext guard and the sender's own `ek_T` / `ct_T`.
 
 Where the facts come from: `send_provenance` gives the per-send bookkeeping (epoch
@@ -290,7 +290,7 @@ the bit-1 guard is `send_ciphertextMessage_keyAck` from `SendFacts.lean`.
 
 ## 9. The receive step
 
-[`partyInv_recv_step`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L973)
+[`partyInv_recv_step`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L967)
 says more than preservation: for a message recorded in the peer's table, the receive
 *succeeds*, the receive epoch matches the recorded one, the known-prefix check passes, an emitted
 key is fresh and agrees with the peer's table, and both invariants hold afterwards with the same
@@ -332,21 +332,21 @@ Rather than proving forty fields five times, the post-states are covered by thre
   the decapsulation transition on an arbitrary invariant state: drop the secret key for `q`,
   acknowledge `q`, write the transcript key into the table. The main theorem applies it to the
   output of `partyInv_recv_noKey`.
-- [`partyInv_recv_stale`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L847):
+- [`partyInv_recv_stale`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L841):
   a stale message changes only acknowledgements, and by `msgs_stale` its ciphertext flag is a
   no-op.
 
 ### 9.3 The buffer in each case
 
-- [`recv_buffer_pk`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L755):
+- [`recv_buffer_pk`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L749):
   on the public-key path the buffer is honest chunks of the peer's key for this epoch and the
   message carries one more such chunk. The subtle part is ruling out "current epoch already
   acknowledged while the peer key is undecoded":
-  [`recv_ekPeer_of_ctRec`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L738)
+  [`recv_ekPeer_of_ctRec`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L732)
   goes acknowledgement, encapsulation, the peer's `enc_ekRec`, my `ekRec_req`.
-- [`recv_buffer_ct`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L788):
+- [`recv_buffer_ct`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L782):
   the ciphertext analogue.
-- [`recv_buffer_unchanged`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L814):
+- [`recv_buffer_unchanged`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L808):
   when nothing is inserted; on an advance the buffer was empty by `recv_advance_prev`.
 
 In each path the decoder is resolved by `decode_payloadChunks` or `decode_payloadChunks_none`

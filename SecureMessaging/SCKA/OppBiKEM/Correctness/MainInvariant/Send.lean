@@ -71,11 +71,6 @@ theorem key_eq_none_of_keypair_eq_none (tr : EpochTranscript kem) (h : tr.keypai
 
 end EpochTranscript
 
-/-- The honest chunk set at no positions is empty. -/
-theorem payloadChunks_empty {M : Type} (ecp : ErasureCodePayload M Sym)
-    (payload : M) : payloadChunks ecp payload ∅ = ∅ := by
-  simp [payloadChunks, ErasureCode.encodeChunks]
-
 /-! ### Transfer of message honesty -/
 
 /-- Honesty of a recorded message transfers to a later state of the same party with the same

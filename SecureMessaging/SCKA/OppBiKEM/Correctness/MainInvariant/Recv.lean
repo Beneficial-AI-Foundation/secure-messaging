@@ -715,12 +715,6 @@ theorem bufferConsistent_recvFinish (role : Role) (st : State PK SK C Sym) (q : 
 
 /-! ### The buffer before a payload chunk is processed -/
 
-omit hR hS hmsg in
-/-- The honest chunk set at no positions is empty. -/
-theorem payloadChunks_empty {M : Type} (ecp : ErasureCodePayload M Sym) (m : M) :
-    payloadChunks ecp m ∅ = ∅ := by
-  simp [payloadChunks, ErasureCode.encodeChunks]
-
 omit hR in
 /-- If the transcript has a key pair at the message's key epoch `ρ.tRes - roleR.offset`, the
 carried responder epoch `ρ.tRes` is positive. -/

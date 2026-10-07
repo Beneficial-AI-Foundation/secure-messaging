@@ -166,7 +166,6 @@ theorem pendingPotential_recv_peer [DecidableEq K] [DecidableEq Sym] {ρ : Messa
         recv_emitted_key_facts roleR kem hDet ecEk ecCt stR ρ tI k trcv stR' hout
       have hqpar := hR'.req_parity
       have hqpos : 0 < stR'.req.reqEpoch := by
-        have := hR'.dk_T  -- unused; positivity comes from the emitted key's epoch below
         obtain ⟨-, -, -, -, hin, -, -, -, sk', c, hlk, -, -⟩ :=
           recv_emitted_key_facts roleR kem hDet ecEk ecCt stR ρ tI k trcv stR' hout
         have hmem' : (stR'.req.reqEpoch, sk') ∈ stR.req.dk := by
