@@ -175,6 +175,17 @@ def stopOnState (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool
     let (answer, next) ← (impl t).run s
     pure (if stop next then none else some answer, next)
 
+/-- For every query `t` and state `s`, every `(a, s')` in the support of `(impl t).run s` with
+`stop s' = false` gives `(some a, s')` in the support of the stopped query. -/
+theorem mem_support_stopOnState_of_mem
+    (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool) (t : spec.Domain) (s : σ)
+    (z : spec.Range t × σ) (hz : z ∈ support ((impl t).run s)) (hstop : stop z.2 = false) :
+    (some z.1, z.2) ∈ support (((stopOnState impl stop t).run).run s) := by
+  change (some z.1, z.2) ∈ support (do
+    let y ← (impl t).run s
+    pure (if stop y.2 then none else some y.1, y.2))
+  exact (mem_support_bind_iff _ _ _).mpr ⟨z, hz, by simp [hstop]⟩
+
 /-- For every query `t` and state `s`, if `stop s' = false` for every `(a, s')` in the support
 of `(impl t).run s`, then the response and next state under `stopOnState impl stop t` are
 equal in distribution to `(impl t).run s` with each response wrapped in `some`. -/

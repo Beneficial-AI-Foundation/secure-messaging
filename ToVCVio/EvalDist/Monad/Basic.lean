@@ -39,6 +39,15 @@ universe v
 
 variable {α : Type} {m : Type → Type v} [Monad m] [LawfulMonad m]
 
+/-- `probOutput_bind_of_const'` for whole distributions: if `my x` is the same computation `mz`
+for every `x` in the support of a never-failing `mx`, then `mx >>= my` has the distribution of
+`mz`. -/
+lemma evalDist_bind_of_const' [MonadLiftT m SPMF] [LawfulMonadLiftT m SPMF]
+    [MonadLiftT m SetM] [EvalDistCompatible m]
+    {β : Type u} (mx : m α) [NeverFail mx] {my : α → m β} {mz : m β}
+    (h : ∀ x ∈ support mx, my x = mz) : evalDist (mx >>= my) = evalDist mz :=
+  evalDist_ext fun y => probOutput_bind_of_const' mx fun x hx => by rw [h x hx]
+
 /-- A final `(! ·)` map turns `true`-output probability into `false`-output
 probability, so the absolute two-branch gap is unchanged by negating both
 branches. For lossless computations this is where a `Bool`-orientation

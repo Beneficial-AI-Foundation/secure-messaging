@@ -109,6 +109,32 @@ theorem sendB_eq_map_sendBrleak
   rw [← sendBrleak_forget kem onoff ecCt0 ecCt1 leak stB, map_eq_bind_pure_comp]
   rfl
 
+/-- `sendA_eq_map_sendArleak` for the sends of the Opp-UniKEM scheme. -/
+theorem scheme_sendA_eq_map_sendArleak [DecidableEq Sym]
+    (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
+    (hDet : kem.DeterministicDecaps)
+    (ecEk : ErasureCodePayload PK Sym)
+    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff)
+    (stA : StA onoff Sym) :
+    (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak).sendA stA =
+      (fun out => out.map fun (key, msg, epoch, state, _) => (key, msg, epoch, state)) <$>
+        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak).sendArleak stA :=
+  sendA_eq_map_sendArleak kem onoff ecEk leak stA
+
+/-- `sendB_eq_map_sendBrleak` for the sends of the Opp-UniKEM scheme. -/
+theorem scheme_sendB_eq_map_sendBrleak [DecidableEq Sym]
+    (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
+    (hDet : kem.DeterministicDecaps)
+    (ecEk : ErasureCodePayload PK Sym)
+    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff)
+    (stB : StB onoff Sym) :
+    (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak).sendB stB =
+      (fun out => out.map fun (key, msg, epoch, state, _) => (key, msg, epoch, state)) <$>
+        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak).sendBrleak stB :=
+  sendB_eq_map_sendBrleak kem onoff ecCt0 ecCt1 leak stB
+
 end Marginals
 
 /-- State-only expression for `vulnRleakA` on successful sends from `s`:

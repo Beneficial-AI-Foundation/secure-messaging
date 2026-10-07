@@ -208,4 +208,68 @@ def honestStopped [DecidableEq K] [DecidableEq Sym] [SampleableType K]
   stopOnState (honestOracle base onoff ecEk ecCt0 ecCt1 leak m e kStar)
     (fun s => decide (e ∈ s.exposed))
 
+/-- Lift averaged local equalities to the state-indexed security oracles. Let `sample` be a
+never-failing computation returning `a : τ`, let `schemeOf a` for each `a` and `target` be
+state-indexed schemes, and let `chall` be a challenge oracle. Fix a state `s`. Assume:
+
+- averaged over `a ← sample`, each of the four sends of `schemeOf a s` from the local state in
+  `s` has the distribution of the same send of `target s`;
+- for every `a ∈ support sample` and message `ρ`, the two receives of `schemeOf a s` and
+  `target s` agree on the local state in `s` and `ρ`.
+
+Then, for every query `t`, the joint response/state distribution of
+`securityImplAt (schemeOf a) chall t` from `s`, averaged over `a ← sample`, is that of
+`securityImplAt target chall t` from `s`. -/
+theorem securityImplAt_sample_eq [DecidableEq K] {τ : Type}
+    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
+    (leak : base.OnOffRandLeak onoff) (sample : ProbComp τ) [NeverFail sample]
+    (schemeOf : τ → SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) →
+      SCKAScheme ProbComp Unit (StA onoff Sym) (StB onoff Sym) K (Message Sym)
+        (SendRand leak.KeygenRand leak.OffRand leak.OnRand))
+    (target : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) →
+      SCKAScheme ProbComp Unit (StA onoff Sym) (StB onoff Sym) K (Message Sym)
+        (SendRand leak.KeygenRand leak.OffRand leak.OnRand))
+    (chall : QueryImpl (ℕ →ₒ Option K)
+      (StateT (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) ProbComp))
+    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (hsendA : 𝒟[(do let a ← sample; (schemeOf a s).sendA s.stA)] = 𝒟[(target s).sendA s.stA])
+    (hsendB : 𝒟[(do let a ← sample; (schemeOf a s).sendB s.stB)] = 𝒟[(target s).sendB s.stB])
+    (hsendArleak : 𝒟[(do let a ← sample; (schemeOf a s).sendArleak s.stA)] =
+      𝒟[(target s).sendArleak s.stA])
+    (hsendBrleak : 𝒟[(do let a ← sample; (schemeOf a s).sendBrleak s.stB)] =
+      𝒟[(target s).sendBrleak s.stB])
+    (hrecvA : ∀ a ∈ support sample, ∀ ρ,
+      (schemeOf a s).recvA s.stA ρ = (target s).recvA s.stA ρ)
+    (hrecvB : ∀ a ∈ support sample, ∀ ρ,
+      (schemeOf a s).recvB s.stB ρ = (target s).recvB s.stB ρ)
+    (t : (securitySpec leak Sym).Domain) :
+    𝒟[(do let a ← sample; (securityImplAt base onoff leak (schemeOf a) chall t).run s)] =
+      𝒟[(securityImplAt base onoff leak target chall t).run s] := by
+  rcases t with (((((t | u) | u) | t) | u) | u)
+  · rcases t with ((((n | u) | u) | n) | n)
+    · exact ToVCVio.evalDist_bind_of_const' sample fun _ _ => rfl
+    · cases u
+      simp only [securityImplAt, StateT.run_bind, StateT.run_get, pure_bind,
+        SCKAScheme.sckaCorrectnessImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
+      exact SCKAScheme.oracleSendA_sample_eq _ _ _ s hsendA
+    · cases u
+      simp only [securityImplAt, StateT.run_bind, StateT.run_get, pure_bind,
+        SCKAScheme.sckaCorrectnessImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
+      exact SCKAScheme.oracleSendB_sample_eq _ _ _ s hsendB
+    · simp only [securityImplAt, StateT.run_bind, StateT.run_get, pure_bind,
+        SCKAScheme.sckaCorrectnessImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
+      exact ToVCVio.evalDist_bind_of_const' sample fun a ha =>
+        SCKAScheme.oracleRecvA_run_congr _ _ s (hrecvA a ha) n
+    · simp only [securityImplAt, StateT.run_bind, StateT.run_get, pure_bind,
+        SCKAScheme.sckaCorrectnessImpl, QueryImpl.add_apply_inr]
+      exact ToVCVio.evalDist_bind_of_const' sample fun a ha =>
+        SCKAScheme.oracleRecvB_run_congr _ _ s (hrecvB a ha) n
+  · cases u
+    simp only [securityImplAt, StateT.run_bind, StateT.run_get, pure_bind]
+    exact SCKAScheme.oracleSendArleak_sample_eq _ _ _ _ s hsendArleak
+  · cases u
+    simp only [securityImplAt, StateT.run_bind, StateT.run_get, pure_bind]
+    exact SCKAScheme.oracleSendBrleak_sample_eq _ _ _ _ s hsendBrleak
+  all_goals exact ToVCVio.evalDist_bind_of_const' sample fun _ _ => rfl
+
 end oppUniKemCKA.Security.Embedding

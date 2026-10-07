@@ -183,4 +183,12 @@ theorem correctnessImpl_preserves_keyBInv_at
       · exact hs
       · exact hrb msg tI key epoch next hr
 
+/-- For every epoch `e`, correctness queries preserve `(s.keyB e).isSome`. -/
+theorem correctnessImpl_preserves_keyB_available
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) (e : ℕ) :
+    QueryImpl.PreservesInv (sckaCorrectnessImpl scka) (fun s => (s.keyB e).isSome) :=
+  fun t s hs z hz => correctnessImpl_preserves_keyBInv_at scka (fun keyB => (keyB e).isSome)
+    s hs (fun _ _ _ _ _ _ => by simp [Function.update_apply, apply_ite, hs])
+    (fun _ _ _ _ _ _ => by simp [Function.update_apply, apply_ite, hs]) t z hz
+
 end SCKAScheme
