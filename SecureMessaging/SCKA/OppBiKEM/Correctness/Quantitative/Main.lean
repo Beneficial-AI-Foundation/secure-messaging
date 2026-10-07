@@ -219,7 +219,6 @@ theorem correctness_failure_le (adv : SCKAScheme.SCKACorrectnessAdversary (Messa
     (trackedInv_init kem hDet ecEk ecCt) (correctnessExp_eq_map kem hDet ecEk ecCt leak adv) _
     (tracked_bad_le kem hDet ecEk ecCt hEk hCt leak adv q hq)
 
-include hEk hCt in
 /-- Assume:
 
 * `kem` has deterministic decapsulation;
@@ -228,10 +227,17 @@ include hEk hCt in
 
 Then the Opp-BiKEM-CKA correctness game succeeds with probability at least
 `1 - q · kem.correctnessError`. -/
-theorem correctness_true_ge (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
+-- ANCHOR: correctnessTrueGe
+theorem correctness_true_ge
+    (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
+    (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
+    (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct) (leak : kem.RandLeak)
+    (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
     (q : ℕ) (hq : SCKAScheme.SendQueryBound adv q) :
     Pr[= true | SCKAScheme.correctnessExp (scheme kem hDet ecEk ecCt leak) adv] ≥
-      1 - (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp := by
+      1 - (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp
+-- ANCHOR_END: correctnessTrueGe
+    := by
   have h := correctness_failure_le kem hDet ecEk ecCt hEk hCt leak adv q hq
   rw [probOutput_false_eq_sub, probFailure_eq_zero, tsub_zero, tsub_le_iff_right] at h
   rw [ge_iff_le, tsub_le_iff_right]
