@@ -9,36 +9,32 @@ import SecureMessaging.SCKA.OppBiKEM.Correctness.Transcript
 import SecureMessaging.SCKA.OppBiKEM.Correctness.SendFacts
 
 /-!
-# Opp-BiKEM — the main correctness invariant
+# Opp-BiKEM-CKA — Main invariant
 
-`PartyInv role T own peer …` relates one party's protocol state, outgoing message table, key
-table and game horizon to an execution transcript `T` and to the peer's state. The game
-invariant `GameInv s` states that `s.correct = true` and that one transcript is consistent
-with both parties' views. All five correctness assertions of the SCKA game are corollaries
-of `GameInv`; KEM correctness is needed only for the key emitted by a decapsulation.
+The module introduces:
 
-The fields are grouped as
+* `BufferConsistent role ecEk ecCt T st` — the party's chunk buffer is an honest
+  below-threshold chunk set of the payload it currently expects;
+* `MessageInv role ecEk ecCt T st ρ tsnd` — the recorded outgoing message `(ρ, tsnd)` of the
+  party in state `st` is honest with respect to the transcript `T`;
+* `PartyInv role ecEk ecCt T st peer ownMsgs ownKey peerKey tcur` — the main per-party
+  invariant: the party's state, outgoing message table, key table and game horizon agree with
+  `T` and with the peer's state;
+* `recordKey keys key?` — the key table after recording an optional emitted key;
+* `GameInv s` — the game invariant: `s.correct = true`, and one transcript `T` satisfies
+  `PartyInv` for both A and B.
 
-* **shape**: parities, lower bounds, and epoch lockstep between the two parties;
-* **own key pairs** (requester parity): `ek`, the retained secret keys `dk`, and which epochs
-  of `T` carry a key pair;
-* **own encapsulations** (responder parity): `ct`, which epochs of `T` carry an
-  encapsulation, and the acknowledgement that licensed it;
-* **decoded peer keys**: `ekPeer` agrees with `T`;
-* **key tables**: the game's key table is the transcript key, written at encapsulation for
-  responder epochs and at decapsulation for requester epochs;
-* **acknowledgements**: what `ctRec` and `ekRec` entries are backed by, their bounds, and the
-  downward closure that yields the known-prefix assertion;
-* **buffer**: the shared chunk buffer is an honest sub-threshold chunk set of the payload
-  currently expected;
-* **horizon** and **messages**: the game horizon is bounded by the sending horizon, and every
-  recorded outgoing message is honest with respect to `T`.
+The fields of `PartyInv` are grouped as shape (parities, lower bounds, lockstep of the two
+parties' epochs), own key pairs, own encapsulations, decoded peer keys, key tables,
+acknowledgements, buffer, horizon, and messages. The *key epoch* of a party is
+`resEpoch + role.offset`, the requester-parity epoch of its current own key pair.
 
-The invariant is self-contained: message-epoch consistency, receive-key freshness, public-key
-coherence, acknowledgement soundness, role parity, phase causality and lockstep are all fields
-of `MessageInv` and `PartyInv` rather than separately imported invariants. The support-level
-facts about one `send` or one `recv` that the preservation proofs consume live in
-`SendFacts.lean` and `RecvFacts.lean`.
+This file derives the game's known-prefix assertion from `PartyInv`
+(`knownPrefix_of_partyInv`). `GameInv` holds initially (`MainInvariant.Init`) and is preserved
+by a send (`MainInvariant.Send`), by a receive (`MainInvariant.Recv`), and hence by every oracle
+(`MainInvariant.Game`); KEM correctness is used only for the key emitted by a decapsulation.
+The support-level facts about one `send` or `recv` that these proofs use are in `SendFacts`
+and `RecvFacts`.
 -/
 
 open OracleComp KEMScheme ErasureCodePayload
@@ -47,11 +43,10 @@ namespace oppBiKemCKA
 
 variable {K PK SK C Sym : Type}
 
-/-- The chunk buffer holds an honest sub-threshold chunk set of the payload the requester
-currently expects: nothing once the current epoch's ciphertext is acknowledged; chunks of the
-peer's public key for epoch `reqEpoch - offset` while that key is undecoded; chunks of the
-current epoch's ciphertext afterwards. Payloads the transcript has not produced yet have an
-empty buffer. -/
+/-- The chunk buffer holds an honest below-threshold chunk set of the payload the requester
+currently expects: nothing once `reqEpoch ∈ ctRec`; chunks of the peer's public key for epoch
+`reqEpoch - role.offset` while that key is undecoded; chunks of the ciphertext for `reqEpoch`
+afterwards. If the transcript has not produced that payload yet, the buffer is empty. -/
 def BufferConsistent (role : Role) {kem : KEMScheme ProbComp K PK SK C}
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (T : Transcript kem) (st : State PK SK C Sym) : Prop :=
@@ -76,32 +71,34 @@ structure MessageInv (role : Role) {kem : KEMScheme ProbComp K PK SK C}
   res_parity : ρ.tRes % 2 = role.resParity
   /-- The message carries the sender's requester parity. -/
   req_parity : ρ.tReq % 2 = role.reqParity
-  /-- The carried responder epoch is at most the current one. -/
+  /-- The carried responder epoch is at most the sender's current responder epoch. -/
   res_le : ρ.tRes ≤ st.res.resEpoch
-  /-- The carried requester epoch is at most the current one. -/
+  /-- The carried requester epoch is at most the sender's current requester epoch. -/
   req_le : ρ.tReq ≤ st.req.reqEpoch
   /-- Carried epochs never go below the bootstrap value `-1`. -/
   res_lower : -1 ≤ ρ.tRes
   /-- Carried epochs never go below the bootstrap value `-1`. -/
   req_lower : -1 ≤ ρ.tReq
-  /-- A public-key chunk encodes the transcript's key for the sender's key epoch. -/
+  /-- A public-key message carries a chunk of the transcript's public key for the key epoch
+  `ρ.tRes + role.offset`. -/
   pk_chunk : ρ.bit = some 0 → ∃ pk sk i,
     (T (ρ.tRes + role.offset)).keypair = some (pk, sk) ∧ ρ.ch = some (ecEk.encode pk i)
-  /-- A ciphertext chunk, when present, encodes the transcript's ciphertext for `ρ.tRes`. -/
+  /-- A chunk on a ciphertext message encodes the transcript's ciphertext for `ρ.tRes`. -/
   ct_chunk : ρ.bit = some 1 → ∀ ch, ρ.ch = some ch → ∃ c k i,
     (T ρ.tRes).enc = some (c, k) ∧ ch = ecCt.encode c i
-  /-- No selector, no chunk. -/
+  /-- A message without payload selector carries no chunk. -/
   no_chunk : ρ.bit = none → ρ.ch = none
-  /-- A ciphertext flag is backed by the sender's own `ctRec`. -/
+  /-- A set ciphertext flag is backed by `ρ.tReq ∈ ctRec` in the sender's state. -/
   ct_flag : ρ.ack.ctRec = true → ρ.tReq ∈ st.ack.ctRec
-  /-- A public-key flag is backed by the sender's own `ekRec`. -/
+  /-- A set public-key flag is backed by `ρ.tReq - role.offset ∈ ekRec` in the sender's state. -/
   ek_flag : ρ.ack.ekRec = true → ρ.tReq - role.offset ∈ st.ack.ekRec
-  /-- A ciphertext message is sent only after the sender's own key was acknowledged. -/
+  /-- A ciphertext message implies that the sender's own public key for `ρ.tRes + role.offset`
+  is acknowledged (`ekRec`). -/
   bit1_acked : ρ.bit = some 1 → ρ.tRes + role.offset ∈ st.ack.ekRec
-  /-- Every positive epoch up to the advertised horizon is acknowledged by the sender. -/
+  /-- Every positive epoch up to the advertised sending epoch is in the sender's `ctRec`. -/
   horizon_mem : ∀ s : ℤ, 0 < s → s ≤ ρ.sendingEpoch → s ∈ st.ack.ctRec
-  /-- Such an epoch at the sender's requester parity is at most the carried requester epoch,
-  and flagged when equal to it. -/
+  /-- A positive requester-parity epoch up to the advertised sending epoch is at most the
+  carried requester epoch, and the ciphertext flag is set when it equals it. -/
   horizon_req : ∀ s : ℤ, 0 < s → s ≤ ρ.sendingEpoch → s % 2 = role.reqParity →
     s ≤ ρ.tReq ∧ (s = ρ.tReq → ρ.ack.ctRec = true)
 
@@ -122,38 +119,39 @@ structure PartyInv (role : Role) {kem : KEMScheme ProbComp K PK SK C}
   res_lower : -1 ≤ st.res.resEpoch
   /-- Epochs never go below the bootstrap value `-1`. -/
   req_lower : -1 ≤ st.req.reqEpoch
-  /-- The bootstrap acknowledgements are never removed. -/
+  /-- The bootstrap epochs `-1` and `0` are in `ctRec`. -/
   init_acks : (-1 : ℤ) ∈ st.ack.ctRec ∧ (0 : ℤ) ∈ st.ack.ctRec
   /-- Lockstep: the responder is at most one exchange ahead of the peer's requester. -/
   res_le_peer_req : st.res.resEpoch ≤ peer.req.reqEpoch + 2
   /-- Lockstep: the peer's requester never overtakes the responder driving it. -/
   peer_req_le_res : peer.req.reqEpoch ≤ st.res.resEpoch
   -- own key pairs (requester parity)
-  /-- Key pairs exist only for positive epochs. -/
+  /-- Key pairs at the requester parity exist only at positive epochs. -/
   keypair_pos : ∀ e, e % 2 = role.reqParity → (T e).keypair.isSome = true → 0 < e
-  /-- No key pair beyond the key epoch of the current exchange. -/
+  /-- No key pair at the requester parity beyond the key epoch. -/
   keypair_future : ∀ e, e % 2 = role.reqParity → st.res.resEpoch + role.offset < e →
     (T e).keypair = none
-  /-- The retained public key is the transcript's key for the current key epoch. -/
+  /-- The retained public key is the transcript's public key for the key epoch. -/
   ek_T : ∀ pk, st.req.ek = some pk →
     ∃ sk, (T (st.res.resEpoch + role.offset)).keypair = some (pk, sk)
-  /-- Every retained secret key is the transcript's, for a positive requester-parity epoch not
-  yet decapsulated. -/
+  /-- Every retained secret key is the transcript's, for a positive requester-parity epoch at
+  most the key epoch and without an entry in the own key table. -/
   dk_T : ∀ e sk, (e, sk) ∈ st.req.dk →
     e % 2 = role.reqParity ∧ 0 < e ∧ e ≤ st.res.resEpoch + role.offset ∧
       ownKey e.toNat = none ∧ ∃ pk, (T e).keypair = some (pk, sk)
-  /-- Every generated secret key is retained until its epoch is decapsulated. -/
+  /-- Every requester-parity secret key of the transcript whose epoch is not in `ctRec` is
+  retained. -/
   T_dk : ∀ e pk sk, (T e).keypair = some (pk, sk) → e % 2 = role.reqParity →
     e ∉ st.ack.ctRec → (e, sk) ∈ st.req.dk
-  /-- At most one secret key is retained, and it belongs to the current key epoch: the advance
-  gate requires the previous key epoch to be decapsulated. -/
+  /-- At most one secret key is retained, and it belongs to the key epoch: the advance gate
+  requires the previous key epoch to be decapsulated. -/
   dk_shape : st.req.dk = [] ∨ ∃ sk, st.req.dk = [(st.res.resEpoch + role.offset, sk)]
-  /-- The own public key is dropped only after it was acknowledged, or when none was generated. -/
+  /-- If no own public key is retained, then none was generated for the key epoch or it is
+  acknowledged (`ekRec`). -/
   ek_acked : st.req.ek = none →
     (T (st.res.resEpoch + role.offset)).keypair = none ∨
       st.res.resEpoch + role.offset ∈ st.ack.ekRec
-  /-- Once an exchange has started, the key pair for the current key epoch exists: only an
-  advance moves the responder epoch, and it generates that key pair. -/
+  /-- If the key epoch is positive, the transcript has a key pair for it. -/
   keypair_current : 0 < st.res.resEpoch + role.offset →
     (T (st.res.resEpoch + role.offset)).keypair.isSome = true
   -- own encapsulations (responder parity)
@@ -166,7 +164,8 @@ structure PartyInv (role : Role) {kem : KEMScheme ProbComp K PK SK C}
   ct_T : ∀ c, st.res.ct = some c → ∃ k, (T st.res.resEpoch).enc = some (c, k)
   /-- An acknowledged ciphertext is no longer retained. -/
   ct_acked : st.res.resEpoch ∈ st.ack.ctRec → st.res.ct = none
-  /-- Encapsulating at `e` required the own key for `e + offset` to be acknowledged. -/
+  /-- An encapsulation at `e` implies that the own public key for `e + role.offset` is
+  acknowledged (`ekRec`). -/
   enc_ekRec : ∀ e, e % 2 = role.resParity → (T e).enc.isSome = true →
     e + role.offset ∈ st.ack.ekRec
   -- decoded peer keys
@@ -174,40 +173,43 @@ structure PartyInv (role : Role) {kem : KEMScheme ProbComp K PK SK C}
   ekPeer_T : ∀ e pk, st.res.ekPeer e = some pk → ∃ sk, (T e).keypair = some (pk, sk)
   /-- Peer keys sit at the responder parity. -/
   ekPeer_parity : ∀ e, (st.res.ekPeer e).isSome = true → e % 2 = role.resParity
-  /-- Peer keys are decoded at most for the current exchange. -/
+  /-- Peer keys are decoded only up to epoch `reqEpoch - role.offset`. -/
   ekPeer_le : ∀ e, (st.res.ekPeer e).isSome = true → e ≤ st.req.reqEpoch - role.offset
   -- key tables
   /-- Epoch `0` never gets a key. -/
   key_zero : ownKey 0 = none
-  /-- At responder parity the key table is written at encapsulation. -/
+  /-- At positive responder-parity epochs the key table is the transcript key (written at
+  encapsulation). -/
   key_res : ∀ e : ℤ, 0 < e → e % 2 = role.resParity → ownKey e.toNat = (T e).key
-  /-- At requester parity the key table is written at decapsulation. -/
+  /-- At positive requester-parity epochs the key table is the transcript key once the epoch is
+  in `ctRec` (written at decapsulation), and empty before. -/
   key_req : ∀ e : ℤ, 0 < e → e % 2 = role.reqParity →
     ownKey e.toNat = if e ∈ st.ack.ctRec then (T e).key else none
   -- acknowledgements: ciphertexts
-  /-- An own decapsulation is of an encapsulated ciphertext. -/
+  /-- A positive requester-parity `ctRec` entry (an own decapsulation) has an encapsulation in
+  the transcript. -/
   ctRec_req_enc : ∀ t ∈ st.ack.ctRec, 0 < t → t % 2 = role.reqParity → (T t).enc.isSome = true
-  /-- Own decapsulations are at or below the requester epoch. -/
+  /-- Requester-parity `ctRec` entries are at or below the requester epoch. -/
   ctRec_req_le : ∀ t ∈ st.ack.ctRec, t % 2 = role.reqParity → t ≤ st.req.reqEpoch
-  /-- A responder-parity entry is the peer's own decapsulation. -/
+  /-- A responder-parity `ctRec` entry is in the peer's `ctRec` (the peer decapsulated it). -/
   ctRec_res_peer : ∀ t ∈ st.ack.ctRec, t % 2 = role.resParity → t ∈ peer.ack.ctRec
-  /-- Responder-parity entries are at or below the responder epoch. -/
+  /-- Responder-parity `ctRec` entries are at or below the responder epoch. -/
   ctRec_res_le : ∀ t ∈ st.ack.ctRec, t % 2 = role.resParity → t ≤ st.res.resEpoch
-  /-- Every earlier requester-parity epoch has been decapsulated. -/
+  /-- Every positive requester-parity epoch below the requester epoch is in `ctRec`. -/
   ctRec_req_closed : ∀ t : ℤ, 0 < t → t % 2 = role.reqParity → t < st.req.reqEpoch →
     t ∈ st.ack.ctRec
-  /-- Every earlier responder-parity epoch has been acknowledged by the peer. -/
+  /-- Every positive responder-parity epoch below the responder epoch is in `ctRec`. -/
   ctRec_res_closed : ∀ t : ℤ, 0 < t → t % 2 = role.resParity → t < st.res.resEpoch →
     t ∈ st.ack.ctRec
   -- acknowledgements: public keys
-  /-- A responder-parity `ekRec` entry is an own decode. -/
+  /-- A responder-parity `ekRec` entry has a decoded peer key. -/
   ekRec_res : ∀ t ∈ st.ack.ekRec, t % 2 = role.resParity → (st.res.ekPeer t).isSome = true
-  /-- A requester-parity `ekRec` entry is the peer's decode of the own key. -/
+  /-- A requester-parity `ekRec` entry has been decoded by the peer. -/
   ekRec_req : ∀ t ∈ st.ack.ekRec, t % 2 = role.reqParity → (peer.res.ekPeer t).isSome = true
   -- buffer
   /-- The shared chunk buffer is honest for the payload currently expected. -/
   buffer : BufferConsistent role ecEk ecCt T st
-  -- game
+  -- horizon
   /-- The game horizon is at most the sending horizon. -/
   horizon : tcur ≤ st.ack.sendingHorizon
   -- messages
@@ -228,12 +230,14 @@ def recordKey (keys : ℕ → Option K) : Option (ℕ × K) → ℕ → Option K
   | none => keys
   | some (tI, k) => Function.update keys tI (some k)
 
+/-- Recording no key leaves the table unchanged. -/
 @[simp] theorem recordKey_none (keys : ℕ → Option K) : recordKey keys none = keys := rfl
+/-- Recording `(tI, k)` updates the table at `tI`. -/
 @[simp] theorem recordKey_some (keys : ℕ → Option K) (tI : ℕ) (k : K) :
     recordKey keys (some (tI, k)) = Function.update keys tI (some k) := rfl
 
-/-- The game invariant: the correctness flag is set and one transcript is consistent with
-both parties' views. -/
+/-- The game invariant: the correctness flag is set, and one transcript `T` satisfies `PartyInv`
+for both A and B. -/
 def GameInv (kem : KEMScheme ProbComp K PK SK C)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)) : Prop :=
@@ -255,15 +259,13 @@ theorem parity_cases (role : Role) (t : ℤ) :
     t % 2 = role.reqParity ∨ t % 2 = role.resParity := by
   cases role <;> simp only [Role.reqParity, Role.resParity] <;> omega
 
-/-- Below an acknowledged epoch whose predecessor is also acknowledged, every positive epoch
-is acknowledged. -/
+/-- If `t` and `t - 1` are in `ctRec`, so is every positive epoch up to `t`. -/
 theorem ctRec_prefix (h : PartyInv role ecEk ecCt T st peer ownMsgs ownKey peerKey tcur)
     (t : ℤ) (ht : t ∈ st.ack.ctRec) (ht' : t - 1 ∈ st.ack.ctRec) :
     ∀ s : ℤ, 0 < s → s ≤ t → s ∈ st.ack.ctRec := by
   intro s hs hst
   rcases parity_cases role t with hpt | hpt
-  · -- `t` at requester parity, `t - 1` at responder parity.
-    have hle := h.ctRec_req_le t ht hpt
+  · have hle := h.ctRec_req_le t ht hpt
     have hle' := h.ctRec_res_le (t - 1) ht' (by
       cases role <;> simp only [Role.reqParity, Role.resParity] at hpt ⊢ <;> omega)
     rcases parity_cases role s with hps | hps
@@ -286,8 +288,7 @@ theorem ctRec_prefix (h : PartyInv role ecEk ecCt T st peer ownMsgs ownKey peerK
       · exact h.ctRec_res_closed s hs hps (by omega)
       · exact ht
 
-/-- A positive sending horizon is attained by an acknowledged epoch with acknowledged
-predecessor. -/
+/-- A positive sending horizon `t` has `t` and `t - 1` in `ctRec`. -/
 theorem sendingHorizon_attained (ack : Acknowledgements) (hpos : 0 < ack.sendingHorizon) :
     (ack.sendingHorizon : ℤ) ∈ ack.ctRec ∧ (ack.sendingHorizon : ℤ) - 1 ∈ ack.ctRec := by
   unfold Acknowledgements.sendingHorizon at *
@@ -302,7 +303,7 @@ theorem sendingHorizon_attained (ack : Acknowledgements) (hpos : 0 < ack.sending
     rw [hcast]
     exact htF
 
-/-- Every positive epoch up to the sending horizon is acknowledged. -/
+/-- Every positive epoch up to the sending horizon is in `ctRec`. -/
 theorem horizon_prefix (h : PartyInv role ecEk ecCt T st peer ownMsgs ownKey peerKey tcur) :
     ∀ s : ℤ, 0 < s → s ≤ st.ack.sendingHorizon → s ∈ st.ack.ctRec := by
   intro s hs hle
@@ -312,7 +313,7 @@ theorem horizon_prefix (h : PartyInv role ecEk ecCt T st peer ownMsgs ownKey pee
 
 end PartyInv
 
-/-- Both parties hold a key for every positive acknowledged epoch of either party. -/
+/-- For every positive epoch in a party's `ctRec`, both game key tables hold a key. -/
 theorem keys_of_ctRec {kem : KEMScheme ProbComp K PK SK C}
     {ecEk : ErasureCodePayload PK Sym} {ecCt : ErasureCodePayload C Sym}
     {T : Transcript kem} {role : Role} {st peer : State PK SK C Sym}
@@ -341,7 +342,8 @@ theorem keys_of_ctRec {kem : KEMScheme ProbComp K PK SK C}
     · rw [h'.key_req t hpos hp', if_pos hpeer, EpochTranscript.key, hck]
       simp
 
-/-- The game's known-prefix assertion holds up to any bound below the sending horizon. -/
+/-- The game's known-prefix assertion: for every bound at most the sending horizon, the party's
+key table holds a key for every positive epoch up to the bound. -/
 theorem knownPrefix_of_partyInv {kem : KEMScheme ProbComp K PK SK C}
     {ecEk : ErasureCodePayload PK Sym} {ecCt : ErasureCodePayload C Sym}
     {T : Transcript kem} {role : Role} {st peer : State PK SK C Sym}

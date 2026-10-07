@@ -10,14 +10,13 @@ import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Game
 import SecureMessaging.SCKA.OppBiKEM.Correctness.RecvFacts
 
 /-!
-# Opp-BiKEM — the failure score does not grow on non-send queries
+# Opp-BiKEM-CKA — One-step score bound for non-send queries
 
-A receive changes neither the failure potential nor the failure flag: it removes a secret key
-only for an epoch the peer has already encapsulated to (whose pending term is `0`), installs a
-peer key only for the epoch whose own copy is still retained (same public key), and clears
-the own public key only once the peer holds a copy (same public key again). The uniform
-oracle changes nothing. Hence every non-send query has expected score at most its initial
-score (`tracked_nonSend_score_le`), and a query from a flagged state keeps the score at `1`
+This module proves the non-send case of the one-step bound of `Quantitative.Main`, whose
+notation it uses. From a state satisfying the main invariant that is not bad, a receive
+changes neither the failure potential `V` nor `bad`, and the uniform oracle changes nothing,
+so every non-send query keeps the expected tracked score `S` at most its initial value
+(`tracked_nonSend_score_le`). From a state with the flag set, the score stays `1`
 (`tracked_step_score_le_of_flag`).
 -/
 
@@ -80,7 +79,9 @@ variable (hR : PartyInv roleR ecEk ecCt T stR stS msgsR keyR keyS tcurR)
 
 include hR hS
 
-/-- The receiver's pending potential is unchanged by a receive. -/
+/-- A receive leaves the receiver's pending potential unchanged: a secret key is dropped only
+when its epoch is decapsulated, after the peer has encapsulated to it (term `0`), and the own
+public key is dropped only once the peer has decoded it. -/
 theorem pendingPotential_recv_receiver [DecidableEq K] [DecidableEq Sym]
     {n : ℕ} {ρ : Message Sym} {tsnd : ℕ} (_hmsg : msgsS n = some (ρ, tsnd))
     (key? : Option (ℕ × K)) (trcv : ℕ) (stR' : State PK SK C Sym)
@@ -90,7 +91,7 @@ theorem pendingPotential_recv_receiver [DecidableEq K] [DecidableEq Sym]
   have hfacts := recv_success_state_facts roleR kem hDet ecEk ecCt stR ρ key? trcv stR' hout
   obtain ⟨-, hres, -, -, -, -, -, -, hdknone⟩ := hfacts
   have hek := recv_local_publicKey_eq_or_none roleR kem hDet ecEk ecCt stR ρ key? trcv stR' hout
-  -- a retained key's term is unchanged: the peer's copy or the own copy supply the same key
+  -- the peer's decoded copy and the own copy are the same public key
   have hterm : ∀ e sk, (e, sk) ∈ stR'.req.dk → (e, sk) ∈ stR.req.dk →
       pendingTerm hDet stR' stS keyS (e, sk) = pendingTerm hDet stR stS keyS (e, sk) := by
     intro e sk hmem' hmem
@@ -136,7 +137,6 @@ theorem pendingPotential_recv_receiver [DecidableEq K] [DecidableEq Sym]
         simp [hq]
       rw [pendingPotential_nil hDet hdk', pendingPotential_singleton hDet hone]
       refine (pendingTerm_of_key_some hDet ?_).symm
-      -- the peer has encapsulated to the decapsulated epoch
       have henc := hR'.ctRec_req_enc _ hin (by
           have := hR.dk_T _ sk (by rw [hone]; exact List.mem_singleton_self _)
           rw [hq] at this; exact this.2.1) hR'.req_parity
@@ -145,7 +145,9 @@ theorem pendingPotential_recv_receiver [DecidableEq K] [DecidableEq Sym]
       rw [hkey, EpochTranscript.key, hq, hck]
       simp
 
-/-- The peer's pending potential is unchanged by the receiver's receive. -/
+/-- A receive leaves the peer's pending potential unchanged: the receiver records keys only at
+its requester parity, never at the peer's key epoch, and a peer key it newly installs there is
+the public key the peer itself retains. -/
 theorem pendingPotential_recv_peer [DecidableEq K] [DecidableEq Sym] {ρ : Message Sym}
     (key? : Option (ℕ × K)) (trcv : ℕ) (stR' : State PK SK C Sym)
     (hout : recv roleR kem hDet ecEk ecCt stR ρ = some (key?, trcv, stR'))
@@ -157,7 +159,6 @@ theorem pendingPotential_recv_peer [DecidableEq K] [DecidableEq Sym] {ρ : Messa
   set e := stS.res.resEpoch + roleR.peer.offset with he
   have hmem : (e, sk) ∈ stS.req.dk := by rw [hone]; exact List.mem_singleton_self _
   obtain ⟨hpar, hpos, -, -, pk, hkp⟩ := hS.dk_T e sk hmem
-  -- the receiver's key table at the peer's key epoch is unchanged
   have hkey : recordKey keyR key? e.toNat = keyR e.toNat := by
     rcases key? with _ | ⟨tI, k⟩
     · rfl
@@ -221,7 +222,8 @@ theorem pendingPotential_recv_peer [DecidableEq K] [DecidableEq Sym] {ρ : Messa
               (by rw [hkey]; exact hk),
             pendingTerm_of_key_some hDet (peerKey := keyR) hk]
 
-/-- The failure flag stays clear through a receive. -/
+/-- If `kemFailureAt` holds for neither party before a receive, it holds for neither party
+after it. -/
 theorem kemFailure_recv [DecidableEq K] [DecidableEq Sym] {ρ : Message Sym}
     (key? : Option (ℕ × K)) (trcv : ℕ) (stR' : State PK SK C Sym)
     (hout : recv roleR kem hDet ecEk ecCt stR ρ = some (key?, trcv, stR'))
@@ -299,13 +301,14 @@ variable [DecidableEq K] [DecidableEq Sym]
   (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
   (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct) (leak : kem.RandLeak)
 
-/-- The tracked correctness game of Opp-BiKEM. -/
+/-- `Ô`: the correctness-game handler of Opp-BiKEM-CKA, tracked with the flag set by
+`kemFailure hDet`. -/
 abbrev trackedBiKem :=
   trackedImpl (SCKAScheme.sckaCorrectnessImpl (scheme kem hDet ecEk ecCt leak)) (kemFailure hDet)
 
 omit [DecidableEq Sym] in
-/-- When the flag is clear, the transcript consistent with the state is decapsulation-ready
-for both parties. -/
+/-- If `s` is not bad, every transcript consistent with `s` is decapsulation-ready for both
+parties. -/
 theorem decapsReady_of_noFailure
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hfail : kemFailure hDet s = false) (T : Transcript kem)
@@ -317,8 +320,8 @@ theorem decapsReady_of_noFailure
     fun q hq hp => decaps_of_noFailure hB hA hfB q hq hp⟩
 
 include hEk hCt in
-/-- One step from an unflagged invariant state keeps the invariant (the step hypothesis of
-`trackedImpl_preserves`). -/
+/-- From a state satisfying the main invariant that is not bad, every oracle step reaches a
+state satisfying the main invariant (the step hypothesis of `trackedImpl_preserves`). -/
 theorem gameInv_step_of_noFailure (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : GameInv kem ecEk ecCt s) (hfail : kemFailure hDet s = false) :
@@ -327,7 +330,8 @@ theorem gameInv_step_of_noFailure (t : (SCKAScheme.sckaCorrectnessSpec (Message 
   gameInv_step_of kem hDet ecEk ecCt hEk hCt leak t s hs
     (fun T hA hB => decapsReady_of_noFailure kem hDet ecEk ecCt s hfail T hA hB)
 
-/-- From a flagged state the score stays `1`. -/
+/-- From a state with the flag set, one query keeps the expected tracked score within
+`S(s, true) + ε` for every allowance `ε`: the flag stays set, so the score stays `1`. -/
 theorem tracked_step_score_le_of_flag (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (ε : ℝ≥0∞) :
@@ -348,7 +352,8 @@ theorem tracked_step_score_le_of_flag (t : (SCKAScheme.sckaCorrectnessSpec (Mess
   simp [trackedScore]
 
 include hEk hCt in
-/-- A receive by `A` from an unflagged invariant state leaves potential and flag unchanged. -/
+/-- From a state satisfying the main invariant that is not bad, every outcome of `RecvA` has the
+same failure potential and is not bad. -/
 theorem recvA_score_eq (n : ℕ)
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : GameInv kem ecEk ecCt s) (hfail : kemFailure hDet s = false)
@@ -381,7 +386,8 @@ theorem recvA_score_eq (n : ℕ)
         simp [h3.1, h3.2]
 
 include hEk hCt in
-/-- A receive by `B` from an unflagged invariant state leaves potential and flag unchanged. -/
+/-- From a state satisfying the main invariant that is not bad, every outcome of `RecvB` has the
+same failure potential and is not bad. -/
 theorem recvB_score_eq (n : ℕ)
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : GameInv kem ecEk ecCt s) (hfail : kemFailure hDet s = false)
@@ -414,8 +420,8 @@ theorem recvB_score_eq (n : ℕ)
         simp [h3.1, h3.2]
 
 include hEk hCt in
-/-- From an unflagged invariant state, every non-send query keeps the expected score at most
-its initial value. -/
+/-- From `(s, false)` with `s` satisfying the main invariant and not bad, every non-send query
+keeps the expected tracked score at most `S(s, false)`. -/
 theorem tracked_nonSend_score_le (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
     (hNonSend : ¬ SCKAScheme.IsSendQuery t)
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))

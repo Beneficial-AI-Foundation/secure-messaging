@@ -10,17 +10,17 @@ import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Send
 import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Recv
 
 /-!
-# Opp-BiKEM correctness from the main invariant
+# Opp-BiKEM-CKA — Perfect correctness from the main invariant
 
-The main invariant is preserved by every correctness-game oracle
-(`gameInv_preserved`), hence holds on every reachable state (`simulateQ_gameInv`). Since it
-contains `s.correct = true`, the correctness experiment returns `true` with probability one
-whenever the KEM is perfectly correct and both erasure codes are correct
+Every correctness-game oracle preserves `GameInv` (`gameInv_preserved`), so `GameInv` holds on
+every reachable state (`simulateQ_gameInv`). Since `GameInv s` contains `s.correct = true`, the
+correctness experiment returns `true` with probability one for a perfectly correct KEM
 (`correctness_of_perfectKEM`).
 
-The oracle case split is the generic one of `SCKA.Correctness.OracleSupport`: each oracle is
-handled by one application of `partyInv_send_step` or `partyInv_recv_step`, with the roles
-`A`/`B` filled in.
+The one-step lemma `gameInv_step_of` uses the oracle case split of
+`SCKA.Correctness.OracleSupport`; each oracle is one application of `partyInv_send_step` or
+`partyInv_recv_step`. Its only KEM hypothesis is `DecapsReady`, which the quantitative proof
+supplies from the absence of a KEM failure.
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -29,8 +29,8 @@ namespace oppBiKemCKA
 
 variable {K PK SK C Sym : Type}
 
-/-- Transcript-level decapsulation correctness follows from the support-level one, because
-the transcript records support membership for each sample. -/
+/-- If `DecapsCorrectOnSupport` holds, then in every epoch of every transcript the recorded
+secret key decapsulates the recorded ciphertext to the recorded key. -/
 theorem transcriptDecaps_of_support {kem : KEMScheme ProbComp K PK SK C}
     (hDet : kem.DeterministicDecaps) (hdec : DecapsCorrectOnSupport kem hDet)
     (T : Transcript kem) (e : ℤ) :
@@ -39,17 +39,17 @@ theorem transcriptDecaps_of_support {kem : KEMScheme ProbComp K PK SK C}
   fun pk sk c k hkp henc =>
     hdec pk sk c k ((T e).keypair_mem pk sk hkp) ((T e).enc_mem pk sk c k hkp henc)
 
-/-- Decapsulation correctness for the epochs a party may decapsulate next, relative to a
-transcript consistent with the state: for every unacknowledged requester-parity epoch, the
-transcript's secret key recovers the transcript's key from the transcript's ciphertext. -/
+/-- For every requester-parity epoch `q` of `role` that is not in `st.ack.ctRec`, the secret
+key recorded in `T` at `q` decapsulates the ciphertext recorded there to the recorded key.
+These are the epochs the party may still decapsulate. -/
 def DecapsReady (role : Role) {kem : KEMScheme ProbComp K PK SK C} (hDet : kem.DeterministicDecaps)
     (T : Transcript kem) (st : State PK SK C Sym) : Prop :=
   ∀ q, q ∉ st.ack.ctRec → q % 2 = role.reqParity →
     ∀ pk sk c k, (T q).keypair = some (pk, sk) → (T q).enc = some (c, k) →
       hDet.decapsDet sk c = some k
 
-/-- One step of any correctness-game oracle preserves the main invariant, provided the
-transcript consistent with the pre-state is decapsulation-ready for both parties. -/
+/-- One step of any correctness-game oracle preserves `GameInv`, provided every transcript
+consistent with the pre-state is `DecapsReady` for both parties. -/
 theorem gameInv_step_of [DecidableEq K] [DecidableEq Sym]
     (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
@@ -63,7 +63,6 @@ theorem gameInv_step_of [DecidableEq K] [DecidableEq Sym]
       DecapsReady .A hDet T s.stA ∧ DecapsReady .B hDet T s.stB) :
     ∀ z ∈ support ((SCKAScheme.sckaCorrectnessImpl (scheme kem hDet ecEk ecCt leak) t).run s),
       GameInv kem ecEk ecCt z.2 := by
-  -- Package the state and its hypotheses as an invariant preserved for one step.
   let Inv : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym) → Prop :=
     fun s' => GameInv kem ecEk ecCt s' ∧ (s' = s ∨ True)
   suffices h : ∀ z ∈ support
@@ -192,8 +191,8 @@ theorem gameInv_step_of [DecidableEq K] [DecidableEq Sym]
         · simpa [SCKAScheme.applyRecvB, Role.peer] using hA'
         · simpa [SCKAScheme.applyRecvB] using hB'
 
-/-- Every correctness-game oracle preserves the main invariant when decapsulation is correct
-on every honestly generated tuple. -/
+/-- If `DecapsCorrectOnSupport` holds and both erasure codes are correct, every
+correctness-game oracle preserves `GameInv`. -/
 theorem gameInv_preserved [DecidableEq K] [DecidableEq Sym]
     (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
@@ -207,7 +206,8 @@ theorem gameInv_preserved [DecidableEq K] [DecidableEq Sym]
   exact ⟨fun q _ _ => transcriptDecaps_of_support hDet hdec T q,
     fun q _ _ => transcriptDecaps_of_support hDet hdec T q⟩
 
-/-- The main invariant holds on every reachable correctness-game state. -/
+/-- Under the hypotheses of `gameInv_preserved`, `GameInv` holds on every state reachable from
+an initial state of the correctness game. -/
 theorem simulateQ_gameInv [DecidableEq K] [DecidableEq Sym]
     (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
@@ -247,9 +247,13 @@ theorem correctnessExp_eq_map [DecidableEq K] [DecidableEq Sym]
   simp [SCKAScheme.correctnessExp, scheme, initKeyGen, initA, initB, init, initialState,
     map_eq_bind_pure_comp]
 
-/-- **Correctness of Opp-BiKEM-CKA** for a perfectly correct KEM with deterministic
-decapsulation and correct erasure codes: the correctness experiment returns `true` with
-probability one, for every adversary. -/
+/-- Assume:
+
+* `kem` has deterministic decapsulation and is perfectly correct;
+* `ecEk` and `ecCt` are correct erasure codes.
+
+Then the Opp-BiKEM-CKA correctness game succeeds with probability one for every adversary,
+without a query bound. -/
 theorem correctness_of_perfectKEM [DecidableEq K] [DecidableEq Sym]
     (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym) (leak : kem.RandLeak)

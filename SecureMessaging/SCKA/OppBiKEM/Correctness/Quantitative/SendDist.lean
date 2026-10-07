@@ -7,14 +7,15 @@ Authors: Ivan Gavran, Beneficial AI Foundation
 import SecureMessaging.SCKA.OppBiKEM.Correctness.SendFacts
 
 /-!
-# Distribution of Opp-BiKEM `send` in its randomised cases
+# Opp-BiKEM-CKA — Distribution of `send` in its randomized cases
 
-`send` samples only in two situations: key generation when the advance gate holds, and
-encapsulation when the own key is acknowledged, no ciphertext is retained and the peer's key
-is known. In both, the rest of the send is deterministic. `send_eq_advance` and
-`send_eq_encaps` state `send` as the sampler followed by a `pure` of an explicit outcome
-(`advanceSend`, `encapsSend`); the quantitative proof computes expected values from them.
-`send_emittedKey_peerAck` records the acknowledgement guards an emitted key implies.
+`send` samples in only two cases: key generation at the advance gate (no own public key
+retained, and both the responder epoch and its key epoch acknowledged in `ctRec`), and
+encapsulation when the current ciphertext is unacknowledged, the own key is acknowledged, no
+ciphertext is retained, and the peer's key is known. In both cases the rest of the send is
+deterministic: `send_eq_advance` and `send_eq_encaps` state `send` as the sampler followed by
+`pure` of an explicit outcome (`advanceSend`, `encapsSend`). The one-step bounds of
+`Quantitative.SendStep` compute expected scores from these forms.
 -/
 
 open OracleComp KEMScheme
@@ -23,7 +24,8 @@ namespace oppBiKemCKA
 
 variable {K PK SK C Sym : Type}
 
-/-- The flags `sendWith` advertises. -/
+/-- The acknowledgement flags `sendWith` attaches to a message: `ekRec` for the epoch
+`reqEpoch - offset` and `ctRec` for the requester epoch `reqEpoch`. -/
 def advertisedAck (role : Role) (st : State PK SK C Sym) : Ack :=
   { ekRec := decide (st.req.reqEpoch - role.offset ∈ st.ack.ekRec)
     ctRec := decide (st.req.reqEpoch ∈ st.ack.ctRec) }
@@ -44,8 +46,8 @@ def advanceSend (role : Role) (ecEk : ErasureCodePayload PK Sym) (st : State PK 
       sendingEpoch := st.ack.sendingHorizon, ack := advertisedAck role st, bit := some 0 }
   (none, ρ, ρ.sendingEpoch, st')
 
-/-- Outcome of a send that encapsulates `ck` at the current responder epoch and emits the
-first ciphertext chunk. -/
+/-- Outcome of a send that encapsulates at the current responder epoch, with sampled ciphertext
+and key `ck`, emits that key, and emits the first chunk of the ciphertext. -/
 def encapsSend (role : Role) (ecCt : ErasureCodePayload C Sym) (st : State PK SK C Sym)
     (ck : C × K) : Option (ℕ × K) × Message Sym × ℕ × State PK SK C Sym :=
   let st' : State PK SK C Sym :=
@@ -55,7 +57,7 @@ def encapsSend (role : Role) (ecCt : ErasureCodePayload C Sym) (st : State PK SK
       sendingEpoch := st.ack.sendingHorizon, ack := advertisedAck role st, bit := some 1 }
   (some (st.res.resEpoch.toNat, ck.2), ρ, ρ.sendingEpoch, st')
 
-/-- When the advance gate holds and the new key epoch is not yet acknowledged, `send` is key
+/-- When the advance gate holds and the new key epoch is not in `ekRec`, `send` is key
 generation followed by the deterministic `advanceSend`. -/
 theorem send_eq_advance (role : Role) (kem : KEMScheme ProbComp K PK SK C)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
@@ -69,9 +71,10 @@ theorem send_eq_advance (role : Role) (kem : KEMScheme ProbComp K PK SK C)
     hfresh, not_false_eq_true, bind_assoc, pure_bind, Option.map_some]
   rfl
 
-/-- When the gate fails because the current ciphertext is unacknowledged, the own key is
-acknowledged, no ciphertext is retained and the peer's key is known, `send` is encapsulation
-followed by the deterministic `encapsSend`. -/
+/-- When the current ciphertext is unacknowledged (so the advance gate fails), the own key is
+acknowledged, no ciphertext is retained, and the peer's key `pk` for the current epoch is
+decoded and recorded in `ekRec`, `send` is encapsulation to `pk` followed by the deterministic
+`encapsSend`. -/
 theorem send_eq_encaps (role : Role) (kem : KEMScheme ProbComp K PK SK C)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (st : State PK SK C Sym) (hnot : st.res.resEpoch ∉ st.ack.ctRec)
@@ -86,8 +89,9 @@ theorem send_eq_encaps (role : Role) (kem : KEMScheme ProbComp K PK SK C)
     decide_true, Bool.and_self, if_true, hpk, bind_assoc, pure_bind, Option.map_some]
   rfl
 
-/-- A send that emits a key encapsulated at the post-send responder epoch, which the state
-had already recorded as received by the peer. -/
+/-- A send that emits a key does so at a post-send responder epoch `e` whose acknowledgements
+were already in place before the send: `e ∈ ekRec` (the sender decoded the peer's key for `e`)
+and `e + offset ∈ ekRec` (the peer decoded the sender's own key). -/
 theorem send_emittedKey_peerAck (role : Role) (kem : KEMScheme ProbComp K PK SK C)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (st : State PK SK C Sym) (tI : ℕ) (k : K) (ρ : Message Sym) (tsnd : ℕ)

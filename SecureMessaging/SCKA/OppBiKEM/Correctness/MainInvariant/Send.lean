@@ -8,14 +8,13 @@ import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant
 import SecureMessaging.SCKA.OppBiKEM.Correctness.SendFacts
 
 /-!
-# Opp-BiKEM main invariant — the send step
+# Opp-BiKEM-CKA — Send step of the main invariant
 
-A supported send by one party preserves `PartyInv` for both parties, for a transcript
-updated in at most one epoch: the fresh key pair when the responder epoch advances, or the
-fresh encapsulation when a key is emitted. The two cannot happen in one send, because a
-freshly generated key is not yet acknowledged. The send step also discharges the game's
-send-side assertions: monotonicity of the sending epoch, the known-prefix check, and
-uniqueness and consistency of an emitted key.
+The main result, `partyInv_send_step`, states that a supported send satisfies the game's
+send-side assertions and preserves `PartyInv` for both parties, for a transcript updated in at
+most one epoch: the fresh key pair when the responder epoch advances, or the fresh
+encapsulation when a key is emitted. The two cannot happen in one send, because a freshly
+generated key is not yet acknowledged.
 -/
 
 open OracleComp KEMScheme ErasureCodePayload
@@ -62,9 +61,11 @@ theorem key_eq_none_of_keypair_eq_none (tr : EpochTranscript kem) (h : tr.keypai
   rw [key, enc_eq_none_of_keypair_eq_none tr h]
   rfl
 
+/-- A freshly generated key pair has no key yet. -/
 @[simp] theorem key_ofKeypair (pk : PK) (sk : SK) (hmem : (pk, sk) ∈ support kem.keygen) :
     (ofKeypair pk sk hmem : EpochTranscript kem).key = none := rfl
 
+/-- Recording an encapsulation sets the epoch key to the encapsulated key. -/
 @[simp] theorem key_setEnc (tr : EpochTranscript kem) (pk sk c k hkp hmem) :
     (tr.setEnc pk sk c k hkp hmem).key = some k := rfl
 
@@ -77,9 +78,10 @@ theorem payloadChunks_empty {M : Type} (ecp : ErasureCodePayload M Sym)
 
 /-! ### Transfer of message honesty -/
 
-/-- Honesty of a recorded message transfers to a later state of the same party, with the
-same acknowledgements and requester epoch, and to a transcript agreeing on the slots the
-message references. -/
+/-- Honesty of a recorded message transfers to a later state of the same party with the same
+acknowledgements and requester epoch and a responder epoch at least as large, and to a
+transcript that agrees on the party's key pairs up to its current key epoch and on every
+recorded encapsulation. -/
 theorem MessageInv.transfer {role : Role} {kem : KEMScheme ProbComp K PK SK C}
     {ecEk : ErasureCodePayload PK Sym} {ecCt : ErasureCodePayload C Sym}
     {T T' : Transcript kem} {st st' : State PK SK C Sym} {ρ : Message Sym} {tsnd : ℕ}
@@ -119,8 +121,8 @@ theorem MessageInv.transfer {role : Role} {kem : KEMScheme ProbComp K PK SK C}
 
 /-! ### The peer after a send -/
 
-/-- The peer's invariant after a send by `roleS`. The sender's requester epoch, peer keys and
-acknowledgements are unchanged and its responder epoch does not decrease; the new transcript
+/-- After a send by `roleS`, the peer still satisfies `PartyInv`, provided the sender's
+requester epoch, decoded peer keys and acknowledgements are unchanged and the new transcript
 agrees with the old one on every slot the peer's invariant reads. -/
 theorem partyInv_peer_of_send (roleS : Role) {kem : KEMScheme ProbComp K PK SK C}
     {ecEk : ErasureCodePayload PK Sym} {ecCt : ErasureCodePayload C Sym}
@@ -280,8 +282,9 @@ theorem partyInv_peer_of_send (roleS : Role) {kem : KEMScheme ProbComp K PK SK C
 
 /-! ### The message emitted by a send -/
 
-/-- Honesty of the message emitted by a supported send, given the sender's post-state
-public-key and ciphertext transcript links. -/
+/-- The message emitted by a supported send is honest with respect to `T'`, provided the
+sender's post-state responder epoch has the responder parity and is at least `-1`, and its
+retained public key and ciphertext are those recorded in `T'`. -/
 theorem MessageInv.of_send (roleS : Role) {kem : KEMScheme ProbComp K PK SK C}
     {ecEk : ErasureCodePayload PK Sym} {ecCt : ErasureCodePayload C Sym}
     {T T' : Transcript kem} {stS stS' stR : State PK SK C Sym}
@@ -348,9 +351,9 @@ theorem MessageInv.of_send (roleS : Role) {kem : KEMScheme ProbComp K PK SK C}
 
 /-! ### The sender after a send -/
 
-/-- The sender's invariant after a supported send, given the transcript-dependent fields that
-differ between the three kinds of send (plain, advance, encapsulation) and the way the new
-transcript and key table relate to the old ones. -/
+/-- After a supported send, the sender satisfies `PartyInv` for the new transcript `T'` and key
+table `keyS'`, given how they relate to `T` and `keyS` and given the fields that differ between
+the three kinds of send (plain, advance, encapsulation). -/
 theorem partyInv_sender_of_send (roleS : Role) {kem : KEMScheme ProbComp K PK SK C}
     {ecEk : ErasureCodePayload PK Sym} {ecCt : ErasureCodePayload C Sym}
     {T T' : Transcript kem} {stS stS' stR : State PK SK C Sym}
@@ -360,7 +363,7 @@ theorem partyInv_sender_of_send (roleS : Role) {kem : KEMScheme ProbComp K PK SK
     (hR : PartyInv roleS.peer ecEk ecCt T stR stS msgsR keyR keyS tcurR)
     (n : ℕ) {key? : Option (ℕ × K)} {ρ : Message Sym} {tsnd : ℕ}
     (hout : some (key?, ρ, tsnd, stS') ∈ support (send roleS kem ecEk ecCt stS))
-    -- how the new transcript relates to the old one
+    -- how the new transcript and key table relate to the old ones
     (hkp2 : ∀ e, e % 2 = roleS.reqParity → (T' e).keypair.isSome = true →
       (T e).keypair.isSome = true ∨
         (e = stS'.res.resEpoch + roleS.offset ∧ stS'.res.resEpoch = stS.res.resEpoch + 2))
@@ -595,7 +598,8 @@ private theorem key_res_current {roleS : Role} {kem : KEMScheme ProbComp K PK SK
     have := hR.keypair_pos _ (by simpa using hS.res_parity) (Option.isSome_iff_ne_none.mpr hne)
     omega
 
-/-- A plain send: neither an epoch advance nor an emitted key; the transcript is unchanged. -/
+/-- A plain send, with no epoch advance, no emitted key, and unchanged own keys, preserves
+`PartyInv` for both parties with the transcript unchanged. -/
 private theorem send_step_plain (roleS : Role) {kem : KEMScheme ProbComp K PK SK C}
     {ecEk : ErasureCodePayload PK Sym} {ecCt : ErasureCodePayload C Sym}
     {T : Transcript kem} {stS stS' stR : State PK SK C Sym}
@@ -647,8 +651,9 @@ private theorem send_step_plain (roleS : Role) {kem : KEMScheme ProbComp K PK SK
   · rw [hres]
     exact key_res_current hS hR
 
-/-- An advancing send: a fresh key pair is generated for the next exchange and no key is
-emitted; the transcript gains the key pair at the new key epoch. -/
+/-- An advancing send, which installs a freshly generated key pair for the new key epoch and
+emits no key, preserves `PartyInv` for both parties with the transcript extended by that key
+pair. -/
 private theorem send_step_advance (roleS : Role) {kem : KEMScheme ProbComp K PK SK C}
     {ecEk : ErasureCodePayload PK Sym} {ecCt : ErasureCodePayload C Sym}
     {T : Transcript kem} {stS stS' stR : State PK SK C Sym}
@@ -795,8 +800,9 @@ private theorem send_step_advance (roleS : Role) {kem : KEMScheme ProbComp K PK 
   · intro e _ hle
     rw [hT'kp, if_neg (by omega)]
 
-/-- An encapsulating send: no epoch advance, the current epoch's ciphertext is produced and
-its key emitted; the transcript gains the encapsulation at the responder epoch. -/
+/-- An encapsulating send, which keeps the epoch and the own keys, encapsulates at the current
+responder epoch and emits the encapsulated key, preserves `PartyInv` for both parties with the
+transcript extended by that encapsulation. -/
 private theorem send_step_encaps (roleS : Role) {kem : KEMScheme ProbComp K PK SK C}
     {ecEk : ErasureCodePayload PK Sym} {ecCt : ErasureCodePayload C Sym}
     {T : Transcript kem} {stS stS' stR : State PK SK C Sym}
@@ -923,9 +929,10 @@ private theorem send_step_encaps (roleS : Role) {kem : KEMScheme ProbComp K PK S
 
 /-! ### The send step -/
 
-/-- A supported send by `roleS` preserves the main invariant for both parties, for a suitably
-updated transcript, and satisfies the game's send-side assertions: monotonicity of the
-sending epoch, the known-prefix check, and uniqueness and consistency of an emitted key. -/
+/-- A supported send by `roleS` satisfies the game's send-side assertions — the new sending
+epoch is at least the sender's game horizon, the known-prefix check passes, and an emitted key
+is fresh for the sender and consistent with the peer's table — and preserves `PartyInv` for
+both parties for some updated transcript `T'`. -/
 theorem partyInv_send_step (roleS : Role) (kem : KEMScheme ProbComp K PK SK C)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (T : Transcript kem) (stS stR : State PK SK C Sym)

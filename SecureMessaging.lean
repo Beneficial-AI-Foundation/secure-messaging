@@ -60,6 +60,7 @@ import SecureMessaging.SCKA.SPQR.Instances
 import SecureMessaging.SCKA.SPQR.Unchunked
 import SecureMessaging.SCKA.OppUniKEM.Construction
 import SecureMessaging.SCKA.OppBiKEM.Construction
+import SecureMessaging.SCKA.OppBiKEM.Correctness
 import SecureMessaging.SCKA.OppBiKEM.Correctness.SendFacts
 import SecureMessaging.SCKA.OppBiKEM.Correctness.RecvFacts
 import SecureMessaging.SCKA.OppBiKEM.Correctness.Transcript

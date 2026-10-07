@@ -13,7 +13,7 @@ import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
 Each correctness-game oracle (`oracleSendA`, `oracleSendB`, `oracleRecvA`, `oracleRecvB`)
 first runs the scheme's local `send` or `recv` and then applies a *pure* update to the game
 state. This file names those updates (`applySendA`, `applySendB`, `applyRecvA`,
-`applyRecvB`), characterises the support of each oracle in terms of them
+`applyRecvB`), characterizes the support of each oracle in terms of them
 (`oracleSendA_run_cases` and friends), and packages the four cases into one dispatch
 theorem, `preservesInv_sckaCorrectnessImpl_of`.
 
@@ -128,89 +128,127 @@ section Proj
 variable (s : GameState StA StB I Rho) (key? : Option (ℕ × I)) (ρ : Rho) (tsnd trcv : ℕ)
   (stA' : StA) (stB' : StB)
 
+/-- `applySendA` installs A's new state. -/
 @[simp] theorem applySendA_stA : (applySendA s key? ρ tsnd stA').stA = stA' := by
   rcases key? with _ | ⟨_, _⟩ <;> rfl
+/-- `applySendA` keeps B's state. -/
 @[simp] theorem applySendA_stB : (applySendA s key? ρ tsnd stA').stB = s.stB := by
   rcases key? with _ | ⟨_, _⟩ <;> rfl
+/-- `applySendA` records the message in A's table. -/
 @[simp] theorem applySendA_msgA :
     (applySendA s key? ρ tsnd stA').msgA = Function.update s.msgA (s.nA + 1) (some (ρ, tsnd)) := by
   rcases key? with _ | ⟨_, _⟩ <;> rfl
+/-- `applySendA` keeps B's message table. -/
 @[simp] theorem applySendA_msgB : (applySendA s key? ρ tsnd stA').msgB = s.msgB := by
   rcases key? with _ | ⟨_, _⟩ <;> rfl
+/-- `applySendA` keeps B's key table. -/
 @[simp] theorem applySendA_keyB : (applySendA s key? ρ tsnd stA').keyB = s.keyB := by
   rcases key? with _ | ⟨_, _⟩ <;> rfl
+/-- Without an emitted key, `applySendA` keeps A's key table. -/
 @[simp] theorem applySendA_keyA_none : (applySendA s none ρ tsnd stA').keyA = s.keyA := rfl
+/-- `applySendA` records an emitted key in A's key table. -/
 @[simp] theorem applySendA_keyA_some (tI : ℕ) (key : I) :
     (applySendA s (some (tI, key)) ρ tsnd stA').keyA = Function.update s.keyA tI (some key) := rfl
+/-- `applySendA` sets A's current epoch to the sending epoch. -/
 @[simp] theorem applySendA_tcurA : (applySendA s key? ρ tsnd stA').tcurA = tsnd := by
   rcases key? with _ | ⟨_, _⟩ <;> rfl
+/-- `applySendA` keeps B's current epoch. -/
 @[simp] theorem applySendA_tcurB : (applySendA s key? ρ tsnd stA').tcurB = s.tcurB := by
   rcases key? with _ | ⟨_, _⟩ <;> rfl
 
+/-- `applySendB` installs B's new state. -/
 @[simp] theorem applySendB_stB : (applySendB s key? ρ tsnd stB').stB = stB' := by
   rcases key? with _ | ⟨_, _⟩ <;> rfl
+/-- `applySendB` keeps A's state. -/
 @[simp] theorem applySendB_stA : (applySendB s key? ρ tsnd stB').stA = s.stA := by
   rcases key? with _ | ⟨_, _⟩ <;> rfl
+/-- `applySendB` records the message in B's table. -/
 @[simp] theorem applySendB_msgB :
     (applySendB s key? ρ tsnd stB').msgB = Function.update s.msgB (s.nB + 1) (some (ρ, tsnd)) := by
   rcases key? with _ | ⟨_, _⟩ <;> rfl
+/-- `applySendB` keeps A's message table. -/
 @[simp] theorem applySendB_msgA : (applySendB s key? ρ tsnd stB').msgA = s.msgA := by
   rcases key? with _ | ⟨_, _⟩ <;> rfl
+/-- `applySendB` keeps A's key table. -/
 @[simp] theorem applySendB_keyA : (applySendB s key? ρ tsnd stB').keyA = s.keyA := by
   rcases key? with _ | ⟨_, _⟩ <;> rfl
+/-- Without an emitted key, `applySendB` keeps B's key table. -/
 @[simp] theorem applySendB_keyB_none : (applySendB s none ρ tsnd stB').keyB = s.keyB := rfl
+/-- `applySendB` records an emitted key in B's key table. -/
 @[simp] theorem applySendB_keyB_some (tI : ℕ) (key : I) :
     (applySendB s (some (tI, key)) ρ tsnd stB').keyB = Function.update s.keyB tI (some key) := rfl
+/-- `applySendB` sets B's current epoch to the sending epoch. -/
 @[simp] theorem applySendB_tcurB : (applySendB s key? ρ tsnd stB').tcurB = tsnd := by
   rcases key? with _ | ⟨_, _⟩ <;> rfl
+/-- `applySendB` keeps A's current epoch. -/
 @[simp] theorem applySendB_tcurA : (applySendB s key? ρ tsnd stB').tcurA = s.tcurA := by
   rcases key? with _ | ⟨_, _⟩ <;> rfl
 
+/-- `applyRecvA` installs A's new state. -/
 @[simp] theorem applyRecvA_stA : (applyRecvA s tsnd key? trcv stA').stA = stA' := by
   rcases key? with _ | ⟨_, _⟩ <;> rfl
+/-- `applyRecvA` keeps B's state. -/
 @[simp] theorem applyRecvA_stB : (applyRecvA s tsnd key? trcv stA').stB = s.stB := by
   rcases key? with _ | ⟨_, _⟩ <;> rfl
+/-- `applyRecvA` keeps A's message table. -/
 @[simp] theorem applyRecvA_msgA : (applyRecvA s tsnd key? trcv stA').msgA = s.msgA := by
   rcases key? with _ | ⟨_, _⟩ <;> rfl
+/-- `applyRecvA` keeps B's message table. -/
 @[simp] theorem applyRecvA_msgB : (applyRecvA s tsnd key? trcv stA').msgB = s.msgB := by
   rcases key? with _ | ⟨_, _⟩ <;> rfl
+/-- `applyRecvA` keeps B's key table. -/
 @[simp] theorem applyRecvA_keyB : (applyRecvA s tsnd key? trcv stA').keyB = s.keyB := by
   rcases key? with _ | ⟨_, _⟩ <;> rfl
+/-- Without an emitted key, `applyRecvA` keeps A's key table. -/
 @[simp] theorem applyRecvA_keyA_none : (applyRecvA s tsnd none trcv stA').keyA = s.keyA := rfl
+/-- `applyRecvA` records an emitted key in A's key table. -/
 @[simp] theorem applyRecvA_keyA_some (tI : ℕ) (key : I) :
     (applyRecvA s tsnd (some (tI, key)) trcv stA').keyA =
       Function.update s.keyA tI (some key) := rfl
+/-- `applyRecvA` sets A's current epoch to the maximum of the old one and the receiving epoch. -/
 @[simp] theorem applyRecvA_tcurA :
     (applyRecvA s tsnd key? trcv stA').tcurA = max s.tcurA trcv := by
   rcases key? with _ | ⟨_, _⟩ <;> rfl
+/-- `applyRecvA` keeps B's current epoch. -/
 @[simp] theorem applyRecvA_tcurB : (applyRecvA s tsnd key? trcv stA').tcurB = s.tcurB := by
   rcases key? with _ | ⟨_, _⟩ <;> rfl
 
+/-- `applyRecvB` installs B's new state. -/
 @[simp] theorem applyRecvB_stB : (applyRecvB s tsnd key? trcv stB').stB = stB' := by
   rcases key? with _ | ⟨_, _⟩ <;> rfl
+/-- `applyRecvB` keeps A's state. -/
 @[simp] theorem applyRecvB_stA : (applyRecvB s tsnd key? trcv stB').stA = s.stA := by
   rcases key? with _ | ⟨_, _⟩ <;> rfl
+/-- `applyRecvB` keeps A's message table. -/
 @[simp] theorem applyRecvB_msgA : (applyRecvB s tsnd key? trcv stB').msgA = s.msgA := by
   rcases key? with _ | ⟨_, _⟩ <;> rfl
+/-- `applyRecvB` keeps B's message table. -/
 @[simp] theorem applyRecvB_msgB : (applyRecvB s tsnd key? trcv stB').msgB = s.msgB := by
   rcases key? with _ | ⟨_, _⟩ <;> rfl
+/-- `applyRecvB` keeps A's key table. -/
 @[simp] theorem applyRecvB_keyA : (applyRecvB s tsnd key? trcv stB').keyA = s.keyA := by
   rcases key? with _ | ⟨_, _⟩ <;> rfl
+/-- Without an emitted key, `applyRecvB` keeps B's key table. -/
 @[simp] theorem applyRecvB_keyB_none : (applyRecvB s tsnd none trcv stB').keyB = s.keyB := rfl
+/-- `applyRecvB` records an emitted key in B's key table. -/
 @[simp] theorem applyRecvB_keyB_some (tI : ℕ) (key : I) :
     (applyRecvB s tsnd (some (tI, key)) trcv stB').keyB =
       Function.update s.keyB tI (some key) := rfl
+/-- `applyRecvB` sets B's current epoch to the maximum of the old one and the receiving epoch. -/
 @[simp] theorem applyRecvB_tcurB :
     (applyRecvB s tsnd key? trcv stB').tcurB = max s.tcurB trcv := by
   rcases key? with _ | ⟨_, _⟩ <;> rfl
+/-- `applyRecvB` keeps A's current epoch. -/
 @[simp] theorem applyRecvB_tcurA : (applyRecvB s tsnd key? trcv stB').tcurA = s.tcurA := by
   rcases key? with _ | ⟨_, _⟩ <;> rfl
 end Proj
 
-/-! ### Support characterisations -/
+/-! ### Support characterizations -/
 
 variable (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
 
+/-- An outcome of `oracleSendA` is a rejected send with the state unchanged, or a successful
+send followed by `applySendA`. -/
 theorem oracleSendA_run_cases (s : GameState StA StB I Rho)
     (z : Option (ℕ × Option ℕ × Rho) × GameState StA StB I Rho)
     (hz : z ∈ support ((oracleSendA scka ()).run s)) :
@@ -236,6 +274,8 @@ theorem oracleSendA_run_cases (s : GameState StA StB I Rho)
       subst hz
       rfl
 
+/-- An outcome of `oracleSendB` is a rejected send with the state unchanged, or a successful
+send followed by `applySendB`. -/
 theorem oracleSendB_run_cases (s : GameState StA StB I Rho)
     (z : Option (ℕ × Option ℕ × Rho) × GameState StA StB I Rho)
     (hz : z ∈ support ((oracleSendB scka ()).run s)) :
@@ -261,6 +301,8 @@ theorem oracleSendB_run_cases (s : GameState StA StB I Rho)
       subst hz
       rfl
 
+/-- An outcome of `oracleRecvA n` is one of: no recorded message, with the state unchanged; a
+failed receive, with `correct` cleared; a successful receive followed by `applyRecvA`. -/
 theorem oracleRecvA_run_cases (n : ℕ) (s : GameState StA StB I Rho)
     (z : Option (ℕ × Option ℕ) × GameState StA StB I Rho)
     (hz : z ∈ support ((oracleRecvA scka n).run s)) :
@@ -291,6 +333,8 @@ theorem oracleRecvA_run_cases (n : ℕ) (s : GameState StA StB I Rho)
         subst hz <;>
         rfl
 
+/-- An outcome of `oracleRecvB n` is one of: no recorded message, with the state unchanged; a
+failed receive, with `correct` cleared; a successful receive followed by `applyRecvB`. -/
 theorem oracleRecvB_run_cases (n : ℕ) (s : GameState StA StB I Rho)
     (z : Option (ℕ × Option ℕ) × GameState StA StB I Rho)
     (hz : z ∈ support ((oracleRecvB scka n).run s)) :
@@ -323,7 +367,7 @@ theorem oracleRecvB_run_cases (n : ℕ) (s : GameState StA StB I Rho)
 
 /-! ### The oracle runs as computations
 
-For expected-value arguments the support characterisations are not enough; the runs are
+For expected-value arguments the support characterizations are not enough; the runs are
 rewritten as the local computation followed by a pure update. -/
 
 /-- The game-state outcome of `oracleSendA` for a local send result. -/
@@ -364,6 +408,7 @@ def recvBOutcome (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
       | some (key?, trcv, stB') =>
         (some (trcv, key?.map Prod.fst), applyRecvB s tsnd key? trcv stB')
 
+/-- `oracleSendA` is A's local send followed by `sendAOutcome`. -/
 theorem oracleSendA_run_eq (s : GameState StA StB I Rho) :
     (oracleSendA scka ()).run s = scka.sendA s.stA >>= fun out => pure (sendAOutcome s out) := by
   simp only [oracleSendA, StateT.run_bind, StateT.run_get, pure_bind, StateT.run_liftM, bind_assoc]
@@ -373,6 +418,7 @@ theorem oracleSendA_run_eq (s : GameState StA StB I Rho) :
   · rcases key? with _ | ⟨tI, k⟩ <;>
       simp [sendAOutcome, applySendA, StateT.run_set]
 
+/-- `oracleSendB` is B's local send followed by `sendBOutcome`. -/
 theorem oracleSendB_run_eq (s : GameState StA StB I Rho) :
     (oracleSendB scka ()).run s = scka.sendB s.stB >>= fun out => pure (sendBOutcome s out) := by
   simp only [oracleSendB, StateT.run_bind, StateT.run_get, pure_bind, StateT.run_liftM, bind_assoc]
@@ -382,6 +428,7 @@ theorem oracleSendB_run_eq (s : GameState StA StB I Rho) :
   · rcases key? with _ | ⟨tI, k⟩ <;>
       simp [sendBOutcome, applySendB, StateT.run_set]
 
+/-- `oracleRecvA n` is the deterministic `recvAOutcome`. -/
 theorem oracleRecvA_run_eq (n : ℕ) (s : GameState StA StB I Rho) :
     (oracleRecvA scka n).run s = pure (recvAOutcome scka n s) := by
   unfold recvAOutcome
@@ -392,6 +439,7 @@ theorem oracleRecvA_run_eq (n : ℕ) (s : GameState StA StB I Rho) :
     · rcases key? with _ | ⟨tI, k⟩ <;>
         simp [oracleRecvA, hmsg, hrecv, applyRecvA, StateT.run_bind, StateT.run_set]
 
+/-- `oracleRecvB n` is the deterministic `recvBOutcome`. -/
 theorem oracleRecvB_run_eq (n : ℕ) (s : GameState StA StB I Rho) :
     (oracleRecvB scka n).run s = pure (recvBOutcome scka n s) := by
   unfold recvBOutcome

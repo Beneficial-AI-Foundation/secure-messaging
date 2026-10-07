@@ -7,10 +7,10 @@ Authors: Ivan Gavran, Beneficial AI Foundation
 import SecureMessaging.SCKA.OppBiKEM.Construction
 
 /-!
-# An explicit description of Opp-BiKEM `recv`
+# Opp-BiKEM-CKA — Decision-tree form of `recv`
 
-`recv` is written with `let mut` and early `return`, which elaborates to a deeply nested
-term. `recvSpec` is the same function written as a plain decision tree over named
+`recv` follows the paper with `let mut` and early `return`, which elaborates to a deeply
+nested term. `recvSpec` is the same function written as a plain decision tree over named
 intermediate values (`recvAck`, `recvReq`, `recvFinish`), and `recv_eq_recvSpec` proves the
 two agree. Every later fact about a receive is read off `recvSpec` with one case split per
 named condition instead of a brute-force split of the elaborated `do` block.
@@ -22,7 +22,8 @@ namespace oppBiKemCKA
 
 variable {K PK SK C Sym : Type}
 
-/-- Acknowledgements after ingesting the incoming message's flags. -/
+/-- Acknowledgements after ingesting the message's flags: a set public-key flag adds
+`ρ.tReq + role.offset` to `ekRec`, a set ciphertext flag adds `ρ.tReq` to `ctRec`. -/
 def recvAck (role : Role) (ack : Acknowledgements) (ρ : Message Sym) : Acknowledgements :=
   { ekRec := if ρ.ack.ekRec = true then insert (ρ.tReq + role.offset) ack.ekRec else ack.ekRec
     ctRec := if ρ.ack.ctRec = true then insert ρ.tReq ack.ctRec else ack.ctRec }
@@ -41,9 +42,6 @@ def recvFinish (role : Role) (st : State PK SK C Sym) (q : ℤ) (ekPeer : ℤ �
     req := ⟨q, dk, if st.res.resEpoch + role.offset ∈ ack.ekRec then none else st.req.ek, chunks⟩
     ack := ack }
 
--- The function `recvSpec` is a rewrite of `recv` (later proved to be equivalent).
--- In Construction.lean, the goal of `recv` was to follow the paper as close as possible.
--- For proofs, a decision-tree style is more convenient.
 /-- `recv` as a decision tree. -/
 def recvSpec (role : Role) (kem : KEMScheme ProbComp K PK SK C) [DecidableEq Sym]
     (hDet : kem.DeterministicDecaps)
@@ -82,9 +80,8 @@ def recvSpec (role : Role) (kem : KEMScheme ProbComp K PK SK C) [DecidableEq Sym
       some (none, ρ.sendingEpoch,
         recvFinish role st q st.res.ekPeer st.req.dk st.req.receivedChunks ack)
 
--- The equivalence is a uniform case split over every branch of the elaborated `do` block,
--- about two hundred leaves closed by `rfl`, which needs more than the default budget.
-set_option maxHeartbeats 1000000 in -- see the comment above
+-- The equivalence is a uniform case split over every branch of the elaborated `do` block.
+set_option maxHeartbeats 1000000 in -- about two hundred leaves closed by `rfl`
 set_option linter.unusedSimpArgs false in
 /-- `recv` agrees with its decision-tree description. -/
 theorem recv_eq_recvSpec (role : Role) (kem : KEMScheme ProbComp K PK SK C) [DecidableEq Sym]

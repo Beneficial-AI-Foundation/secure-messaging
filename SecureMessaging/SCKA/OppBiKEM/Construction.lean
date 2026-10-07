@@ -60,6 +60,7 @@ def Role.peer : Role → Role
   | .A => .B
   | .B => .A
 
+/-- `peer` is an involution. -/
 @[simp]
 theorem Role.peer_peer (role : Role) : role.peer.peer = role := by
   cases role <;> rfl
@@ -73,6 +74,7 @@ def Role.offset : Role → ℤ
   | .A => 1
   | .B => -1
 
+/-- The peer's offset is the negated offset. -/
 @[simp]
 theorem Role.peer_offset (role : Role) : role.peer.offset = -role.offset := by
   cases role <;> rfl

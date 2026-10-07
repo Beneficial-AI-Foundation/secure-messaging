@@ -7,12 +7,11 @@ Authors: Ivan Gavran, Beneficial AI Foundation
 import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant
 
 /-!
-# Opp-BiKEM main invariant: initialisation and the KEM-correctness bridge
+# Opp-BiKEM-CKA — Initialization and the KEM-correctness hypothesis
 
-The honest initial game state satisfies `GameInv` with the empty transcript. The second half
-of the file isolates the only KEM fact the invariant's receive step needs: decapsulation
-recovers the encapsulated key on every honestly generated tuple, which follows from perfect
-correctness of the KEM.
+The initial game state satisfies `GameInv` (`gameInv_init`). `DecapsCorrectOnSupport` is the
+only KEM property the perfect-KEM proof assumes; every perfectly correct KEM has it
+(`decapsCorrectOnSupport_of_perfectlyCorrect`).
 -/
 
 open OracleComp KEMScheme
@@ -25,7 +24,8 @@ variable {K PK SK C Sym : Type}
 def Transcript.empty (kem : KEMScheme ProbComp K PK SK C) : Transcript kem :=
   fun _ => EpochTranscript.empty kem
 
-/-- The honest initial game state satisfies the main invariant with the empty transcript. -/
+/-- Every initial game state, built from outputs of `initA` and `initB`, satisfies `GameInv`,
+witnessed by the empty transcript. -/
 theorem gameInv_init (kem : KEMScheme ProbComp K PK SK C)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (stA : StA PK SK C Sym) (stB : StB PK SK C Sym)
@@ -48,13 +48,14 @@ theorem gameInv_init (kem : KEMScheme ProbComp K PK SK C)
   all_goals try (intro t sk ht; simp at ht)
   all_goals try simp
 
-/-- Decapsulation recovers the encapsulated key on every honestly generated tuple. -/
+/-- For every key pair `(pk, sk)` in the support of key generation and every `(c, k)` in the
+support of encapsulation to `pk`, deterministic decapsulation of `c` with `sk` returns `k`. -/
 def DecapsCorrectOnSupport (kem : KEMScheme ProbComp K PK SK C)
     (hDet : kem.DeterministicDecaps) : Prop :=
   ∀ pk sk c k, (pk, sk) ∈ support kem.keygen → (c, k) ∈ support (kem.encaps pk) →
     hDet.decapsDet sk c = some k
 
-/-- A perfectly correct KEM decapsulates correctly on every honestly generated tuple. -/
+/-- A perfectly correct KEM satisfies `DecapsCorrectOnSupport`. -/
 theorem decapsCorrectOnSupport_of_perfectlyCorrect [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
     (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp) :
