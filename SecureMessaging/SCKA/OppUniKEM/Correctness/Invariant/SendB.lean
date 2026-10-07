@@ -69,6 +69,7 @@ private lemma reachableInv_after_sendB_same
   · exact hInv.futureKeypair
   · exact hInv.futureOff
   · exact hInv.futureOn
+  · exact hInv.zeroOn
   · exact hInv.keyA
   · exact hInv.keyB
   · exact hInv.msgA
@@ -189,6 +190,7 @@ private lemma reachableInv_after_sendB_newOff
     simpa [T', hne] using hInv.futureOff t hlt
   · intro t hlt
     simpa [hTOn t] using hInv.futureOn t hlt
+  · simpa [hTOn 0] using hInv.zeroOn
   · intro t; simpa [hTKey t] using hInv.keyA t
   · intro t; simpa [hTKey t] using hInv.keyB t
   · intro n entry hn
@@ -367,6 +369,8 @@ private lemma reachableInv_after_sendB_newOn
   · intro t hlt
     have hne : t ≠ s.stB.t := Nat.ne_of_gt hlt
     simpa [T', hne] using hInv.futureOn t hlt
+  · have hne : (0 : ℕ) ≠ s.stB.t := hInv.epochPosB.ne
+    simpa [T', hne] using hInv.zeroOn
   · intro t
     by_cases ht0 : t = 0
     · simp [ht0, hInv.keyA]
@@ -556,6 +560,8 @@ private lemma reachableInv_after_sendB_newOffOn
   · intro t hlt
     have hne : t ≠ s.stB.t := Nat.ne_of_gt hlt
     simpa [T', hne] using hInv.futureOn t hlt
+  · have hne : (0 : ℕ) ≠ s.stB.t := hInv.epochPosB.ne
+    simpa [T', hne] using hInv.zeroOn
   · intro t
     by_cases ht0 : t = 0
     · simp [ht0, hInv.keyA]

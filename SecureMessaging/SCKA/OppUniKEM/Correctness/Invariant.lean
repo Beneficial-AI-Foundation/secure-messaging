@@ -299,6 +299,9 @@ structure TranscriptConsistent
   futureOff : ∀ t, s.stB.t < t → (T t).off = none
   /-- Future epochs (for B) have no online part. -/
   futureOn : ∀ t, s.stB.t < t → (T t).on = none
+  /-- Epoch zero has no online part: both parties start in epoch one, so no key is ever
+  recorded at epoch `0` in either table. -/
+  zeroOn : (T 0).on = none
   /-- A's key table matches the transcript. -/
   keyA : ∀ t, s.keyA t = if t = 0 then none else if t < s.stA.t then (T t).key else none
   /-- B's key table matches the transcript. -/
@@ -369,6 +372,18 @@ lemma TranscriptConsistent.knownPrefixBThroughCurrent
   have hltA : t < s.stA.t := (htle.trans htcur).trans_lt hBehind
   rw [hInv.keyB t]
   simpa only [Option.isSome_iff_ne_none] using hInv.pastComplete t hpos hltA
+
+omit [DecidableEq Sym] in
+/-- In a transcript-consistent state, B's key table is empty at epoch zero. -/
+lemma TranscriptConsistent.keyB_zero
+    {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
+    {ecEk : ErasureCodePayload PK Sym}
+    {ecCt0 : ErasureCodePayload onoff.C₀ Sym}
+    {ecCt1 : ErasureCodePayload onoff.C₁ Sym}
+    {T : Transcript kem onoff}
+    {s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)}
+    (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s) : s.keyB 0 = none := by
+  simp [hInv.keyB, EpochTranscript.key, hInv.zeroOn]
 
 /-- The preserved game-state invariant: `s` is consistent with some execution
 transcript `T`. -/
