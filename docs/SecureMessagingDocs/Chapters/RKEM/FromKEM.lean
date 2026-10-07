@@ -178,6 +178,15 @@ Adapted from {Informal.citet TR25}[], Theorem A.2 and Figure 27.
 
 The RKEM from KEM is perfectly ratchet simulatable: with the simulators below, the real and simulated distributions of base-key, updated-key and ciphertext simulatability coincide, so every distinguisher has advantage $`0`. This holds for any KEM whose decapsulation is total, which the construction itself already requires, with no correctness or security assumption.
 
+:::leanPillCaption "Perfect ratchet simulatability"
+:::
+
+```anchor RatchetSimulatable (project := ".") (module := SecureMessaging.RKEM.FromKEM.RatchetSimulatability)
+theorem RatchetSimulatable (kem : KEMScheme ProbComp K PK SK C) (total : TotalDecaps kem)
+    (kemLeak : kem.RandLeak) :
+    (scheme kem total).RatchetSimulatable (leak := randLeak kem total kemLeak) 0
+```
+
 Ratchet simulatability is stated relative to the construction's randomness-leak package, built from one of the underlying KEM (see the RKEM from KEM construction).
 
 The simulators are the same for both parties $`\mathsf{P}\in\{\A,\B\}`, with peer $`\mathsf{\bar P}`. They follow Figure 27 of the paper, with the changes marked in comments, which make the simulation perfect: as printed, $`\RSimCtxt\text{-}\mathsf{P}` reuses $`\ekh{P}` as the fresh key $`\ek_\mathsf{P}`, which the real distribution samples independently, and $`\RSimKey\text{-}\mathsf{P}_2` returns $`K` twice, which would require a perfectly correct KEM. The figure also returns the outputs of $`\RSimKey\text{-}\mathsf{P}_1` in a different order.
@@ -189,6 +198,16 @@ $`\begin{array}{l}
 \aux_1:=(\ekh{P},\rand) \\
 \Return(\ekh{P},\dkh{P},\aux_1)
 \end{array}`
+
+:::leanPillCaption "RSimKey-P₁"
+:::
+
+```anchor rsimKey1 (project := ".") (module := SecureMessaging.RKEM.FromKEM.RatchetSimulatability)
+def rsimKey1 {kem : KEMScheme ProbComp K PK SK C} (kemLeak : kem.RandLeak) (_par : Unit)
+    (_ekSelf : PK) (_dkSelf : SK) : ProbComp (PK × SK × (PK × kemLeak.KeygenRand)) := do
+  let ((ekSelfHat, dkSelfHat), rand) ← kemLeak.keygenRleak
+  return (ekSelfHat, dkSelfHat, (ekSelfHat, rand))
+```
 :::::
 
 :::::gameCell "\\RSimKey\\text{-}\\mathsf{P}_2(\\ekh{\\bar P},\\dkh{\\bar P},\\aux_1)" (kind := "compact")
@@ -200,28 +219,6 @@ K'\gets\Dec(\dkh{\bar P},\ct) \\
 \rand_2:=(\rand',\rand)\pcomment{\text{Fig. 27: }(\aux_1,\rand')} \\
 \Return(\ct_{\mathsf{\bar P}},K,K',\rand_2)\pcomment{\text{Fig. 27: }K\text{ for }K'}
 \end{array}`
-:::::
-
-:::::gameCell "\\RSimCtxt\\text{-}\\mathsf{P}(\\ekh{P},\\ekh{\\bar P},\\dkh{\\bar P})" (kind := "compact")
-$`\begin{array}{l}
-(\ct,K)\sample\Enc(\ekh{\bar P}) \\
-K'\gets\Dec(\dkh{\bar P},\ct) \\
-\ct_{\mathsf{\bar P}}:=(\ekh{P},\ct) \\
-(\ek_\mathsf{P},\_)\sample\KeyGen(1^\lambda)\pcomment{\text{Fig. 27: }\ek_\mathsf{P}:=\ekh{P}} \\
-\Return(\ct_{\mathsf{\bar P}},\ek_\mathsf{P},K,K')
-\end{array}`
-:::::
-::::::
-
-:::leanPillCaption "RSimKey-P₁"
-:::
-
-```anchor rsimKey1 (project := ".") (module := SecureMessaging.RKEM.FromKEM.RatchetSimulatability)
-def rsimKey1 {kem : KEMScheme ProbComp K PK SK C} (kemLeak : kem.RandLeak) (_par : Unit)
-    (_ekSelf : PK) (_dkSelf : SK) : ProbComp (PK × SK × (PK × kemLeak.KeygenRand)) := do
-  let ((ekSelfHat, dkSelfHat), rand) ← kemLeak.keygenRleak
-  return (ekSelfHat, dkSelfHat, (ekSelfHat, rand))
-```
 
 :::leanPillCaption "RSimKey-P₂"
 :::
@@ -235,6 +232,16 @@ def rsimKey2 {kem : KEMScheme ProbComp K PK SK C} (total : TotalDecaps kem)
   let key' ← total.decapsTotal dkPeerHat ct
   return ((ekSelfHat, ct), key, key', (rand', rand))
 ```
+:::::
+
+:::::gameCell "\\RSimCtxt\\text{-}\\mathsf{P}(\\ekh{P},\\ekh{\\bar P},\\dkh{\\bar P})" (kind := "compact")
+$`\begin{array}{l}
+(\ct,K)\sample\Enc(\ekh{\bar P}) \\
+K'\gets\Dec(\dkh{\bar P},\ct) \\
+\ct_{\mathsf{\bar P}}:=(\ekh{P},\ct) \\
+(\ek_\mathsf{P},\_)\sample\KeyGen(1^\lambda)\pcomment{\text{Fig. 27: }\ek_\mathsf{P}:=\ekh{P}} \\
+\Return(\ct_{\mathsf{\bar P}},\ek_\mathsf{P},K,K')
+\end{array}`
 
 :::leanPillCaption "RSimCtxt-P"
 :::
@@ -247,6 +254,8 @@ def rsimCtxt (kem : KEMScheme ProbComp K PK SK C) (total : TotalDecaps kem) (_pa
   let (ekSelf, _) ← kem.keygen
   return ((ekSelfHat, ct), ekSelf, key, key')
 ```
+:::::
+::::::
 
 :::leanPillCaption "Ratchet simulators"
 :::
@@ -262,14 +271,5 @@ def ratchetSimulator (kem : KEMScheme ProbComp K PK SK C) (total : TotalDecaps k
   rsimKeyB1 := rsimKey1 kemLeak
   rsimKeyB2 := rsimKey2 total kemLeak
   rsimCtxtB := rsimCtxt kem total
-```
-
-:::leanPillCaption "Perfect ratchet simulatability"
-:::
-
-```anchor RatchetSimulatable (project := ".") (module := SecureMessaging.RKEM.FromKEM.RatchetSimulatability)
-theorem RatchetSimulatable (kem : KEMScheme ProbComp K PK SK C) (total : TotalDecaps kem)
-    (kemLeak : kem.RandLeak) :
-    (scheme kem total).RatchetSimulatable (leak := randLeak kem total kemLeak) 0
 ```
 :::::::
