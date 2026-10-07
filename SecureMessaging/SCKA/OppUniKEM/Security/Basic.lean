@@ -85,6 +85,30 @@ theorem sendBrleak_forget
                ← leak.encapsOff_fst, ← leak.encapsOn_fst, monad_norm]
          · simp [sendBrleak, sendB, hct0, hek, hct1, hack, ← leak.encapsOff_fst, monad_norm])
 
+/-- The ordinary A-send is the coin-forgetting image of the leaking A-send. Statements about
+`sendA` follow from their `sendArleak` counterparts through this equation. -/
+theorem sendA_eq_map_sendArleak
+    (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
+    (ecEk : ErasureCodePayload PK Sym) (leak : kem.OnOffRandLeak onoff)
+    (stA : StA onoff Sym) :
+    sendA kem onoff ecEk stA =
+      (fun out => out.map fun (key, msg, epoch, state, _) => (key, msg, epoch, state)) <$>
+        sendArleak kem onoff ecEk leak stA := by
+  rw [← sendArleak_forget kem onoff ecEk leak stA, map_eq_bind_pure_comp]
+  rfl
+
+/-- The ordinary B-send is the coin-forgetting image of the leaking B-send. -/
+theorem sendB_eq_map_sendBrleak
+    (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
+    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff)
+    (stB : StB onoff Sym) :
+    sendB kem onoff ecCt0 ecCt1 stB =
+      (fun out => out.map fun (key, msg, epoch, state, _) => (key, msg, epoch, state)) <$>
+        sendBrleak kem onoff ecCt0 ecCt1 leak stB := by
+  rw [← sendBrleak_forget kem onoff ecCt0 ecCt1 leak stB, map_eq_bind_pure_comp]
+  rfl
+
 end Marginals
 
 /-- State-only expression for `vulnRleakA` on successful sends from `s`:
