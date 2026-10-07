@@ -541,7 +541,6 @@ theorem tracked_sendA_score_le
         · rfl
         · exact hafter ck
       · rw [hbefore]
-        trace_state
         exact le_self_add (α := ℝ≥0∞)
     · refine expectedPayoff_le_const_of_support _ _ _
         (by rw [← trackedBiKem_sendA_run kem hDet ecEk ecCt leak s]; exact probFailure_eq_zero) ?_
@@ -615,7 +614,6 @@ theorem tracked_sendB_score_le
         · rfl
         · exact hafter ck
       · rw [hbefore]
-        trace_state
         exact le_self_add (α := ℝ≥0∞)
     · refine expectedPayoff_le_const_of_support _ _ _
         (by rw [← trackedBiKem_sendB_run kem hDet ecEk ecCt leak s]; exact probFailure_eq_zero) ?_

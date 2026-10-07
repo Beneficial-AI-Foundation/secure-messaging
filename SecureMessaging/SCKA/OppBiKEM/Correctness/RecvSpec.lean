@@ -33,7 +33,7 @@ def recvReq (st : State PK SK C Sym) (ρ : Message Sym) : ℤ :=
   if st.req.reqEpoch < ρ.tRes then st.req.reqEpoch + 2 else st.req.reqEpoch
 
 /-- Assemble the post-receive state: the given requester epoch, peer keys, secret keys,
- buffer of chunks, and acknowledgements. The acknowledged outgoing material is cleared. -/
+buffer of chunks, and acknowledgements. The acknowledged outgoing material is cleared. -/
 def recvFinish (role : Role) (st : State PK SK C Sym) (q : ℤ) (ekPeer : ℤ → Option PK)
     (dk : List (ℤ × SK)) (chunks : Finset (ℕ × Sym)) (ack : Acknowledgements) :
     State PK SK C Sym :=
