@@ -644,7 +644,7 @@ theorem tracked_sendB_score_le
       intro z hz
       obtain ⟨out, hout, hz⟩ := mem_support_bind_peel _ _ hz
       obtain rfl := eq_of_mem_support_pure _ hz
-      rcases out with _ | ⟨key?, ρ, tsnd, stA'⟩
+      rcases out with _ | ⟨key?, ρ, tsnd, stB'⟩
       · simp [sendBOutcome, trackedScore, hfail, failurePotential_eq_pairB]
       · obtain ⟨rfl, hres⟩ := send_plain_of_not kem ecEk ecCt hgate henc hout
         obtain ⟨hpot, hfl⟩ := pair_plain kem ecEk ecCt hout hres
