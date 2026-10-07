@@ -34,7 +34,7 @@ RKEM from KEM.
 :::defTitle "rkem_from_kem_spec" "RKEM from KEM construction"
 :::
 
-::::definition "rkem_from_kem_spec" (parent := "rkem_rkem_from_kem") (lean := "kemRKEM.scheme") (tags := "gh-75") (uses := "rkem_scheme")
+::::definition "rkem_from_kem_spec" (parent := "rkem_rkem_from_kem") (lean := "kemRKEM.scheme, kemRKEM.rencRleak, kemRKEM.randLeak") (tags := "gh-75") (uses := "rkem_scheme")
 $`\todo`
 
 :::leanPillCaption "fresh/updated ratcheting key generation"
@@ -89,6 +89,37 @@ def scheme {m : Type → Type u} [Monad m] {K PK SK C : Type}
   rencB := renc kem
   rdecB := rdec kem total
 ```
+
+Security notions that expose algorithm coins are stated relative to a randomness-leak package of the RKEM. For this construction it is built from one of the underlying KEM: fresh key generation leaks the coins of $`\KeyGen`, and $`\REnc\text{-}\mathsf{P}`, which runs $`\Enc` and then $`\KeyGen`, leaks the pair of their coins.
+
+:::leanPillCaption "Leaking encapsulation"
+:::
+
+```anchor rencRleak (project := ".") (module := SecureMessaging.RKEM.FromKEM.Construction)
+def rencRleak {kem : KEMScheme m K PK SK C} (kemLeak : kem.RandLeak) (_par : Unit)
+    (ekPeer : PK) (_dkSelf : SK) : m (((PK × C) × K × SK) × kemLeak.Rand) := do
+  let ((ct, key), encRand) ← kemLeak.encapsRleak ekPeer
+  let ((ekSelfHat, dkSelfHat), keygenRand) ← kemLeak.keygenRleak
+  return (((ekSelfHat, ct), key, dkSelfHat), (encRand, keygenRand))
+```
+
+:::leanPillCaption "Randomness-leak package"
+:::
+
+```anchor randLeak (project := ".") (module := SecureMessaging.RKEM.FromKEM.Construction)
+def randLeak (kem : KEMScheme m K PK SK C) (total : TotalDecaps kem) (kemLeak : kem.RandLeak) :
+    (scheme kem total).RandLeak where
+  KeygenRand := kemLeak.KeygenRand
+  EncRand := kemLeak.Rand
+  rkeygenAFreshRleak := fun _ => kemLeak.keygenRleak
+  rkeygenBFreshRleak := fun _ => kemLeak.keygenRleak
+  rencARleak := rencRleak kemLeak
+  rencBRleak := rencRleak kemLeak
+  rkeygenAFresh_fst := fun _ => kemLeak.keygen_fst
+  rkeygenBFresh_fst := fun _ => kemLeak.keygen_fst
+  rencA_fst := rencRleak_fst kemLeak
+  rencB_fst := rencRleak_fst kemLeak
+```
 ::::
 
 :::defTitle "rkem_from_kem_correctness" "RKEM from KEM correctness"
@@ -142,41 +173,12 @@ theorem FSINDCPASecure (kem : KEMScheme ProbComp K PK SK C) (total : TotalDecaps
 :::defTitle "rkem_from_kem_ratchet_sim" "RKEM from KEM ratchet simulatability"
 :::
 
-:::::::theorem "rkem_from_kem_ratchet_sim" (parent := "rkem_rkem_from_kem") (lean := "kemRKEM.rencRleak, kemRKEM.randLeak, kemRKEM.rsimKey1, kemRKEM.rsimKey2, kemRKEM.rsimCtxt, kemRKEM.ratchetSimulator, kemRKEM.RatchetSimulatable") (tags := "gh-78") (uses := "rkem_from_kem_spec, rkem_scheme, rkem_ratchet_sim")
+:::::::theorem "rkem_from_kem_ratchet_sim" (parent := "rkem_rkem_from_kem") (lean := "kemRKEM.rsimKey1, kemRKEM.rsimKey2, kemRKEM.rsimCtxt, kemRKEM.ratchetSimulator, kemRKEM.RatchetSimulatable") (tags := "gh-78") (uses := "rkem_from_kem_spec, rkem_scheme, rkem_ratchet_sim")
 Adapted from {Informal.citet TR25}[], Theorem A.2 and Figure 27.
 
 The RKEM from KEM is perfectly ratchet simulatable: with the simulators below, the real and simulated distributions of base-key, updated-key and ciphertext simulatability coincide, so every distinguisher has advantage $`0`. This holds for any KEM whose decapsulation is total, which the construction itself already requires, with no correctness or security assumption.
 
-Ratchet simulatability is stated relative to a randomness-leak package of the RKEM. For this construction it is built from one of the underlying KEM: fresh key generation leaks the coins of $`\KeyGen`, and $`\REnc\text{-}\mathsf{P}`, which runs $`\Enc` and then $`\KeyGen`, leaks the pair of their coins.
-
-:::leanPillCaption "Leaking encapsulation"
-:::
-
-```anchor rencRleak (project := ".") (module := SecureMessaging.RKEM.FromKEM.RatchetSimulatability)
-def rencRleak {kem : KEMScheme m K PK SK C} (kemLeak : kem.RandLeak) (_par : Unit)
-    (ekPeer : PK) (_dkSelf : SK) : m (((PK × C) × K × SK) × kemLeak.Rand) := do
-  let ((ct, key), encRand) ← kemLeak.encapsRleak ekPeer
-  let ((ekSelfHat, dkSelfHat), keygenRand) ← kemLeak.keygenRleak
-  return (((ekSelfHat, ct), key, dkSelfHat), (encRand, keygenRand))
-```
-
-:::leanPillCaption "Randomness-leak package"
-:::
-
-```anchor randLeak (project := ".") (module := SecureMessaging.RKEM.FromKEM.RatchetSimulatability)
-def randLeak (kem : KEMScheme m K PK SK C) (total : TotalDecaps kem) (kemLeak : kem.RandLeak) :
-    (scheme kem total).RandLeak where
-  KeygenRand := kemLeak.KeygenRand
-  EncRand := kemLeak.Rand
-  rkeygenAFreshRleak := fun _ => kemLeak.keygenRleak
-  rkeygenBFreshRleak := fun _ => kemLeak.keygenRleak
-  rencARleak := rencRleak kemLeak
-  rencBRleak := rencRleak kemLeak
-  rkeygenAFresh_fst := fun _ => kemLeak.keygen_fst
-  rkeygenBFresh_fst := fun _ => kemLeak.keygen_fst
-  rencA_fst := rencRleak_fst kemLeak
-  rencB_fst := rencRleak_fst kemLeak
-```
+Ratchet simulatability is stated relative to the construction's randomness-leak package, built from one of the underlying KEM (see the RKEM from KEM construction).
 
 The simulators are the same for both parties $`\mathsf{P}\in\{\A,\B\}`, with peer $`\mathsf{\bar P}`. They follow Figure 27 of the paper, with the changes marked in comments, which make the simulation perfect: as printed, $`\RSimCtxt\text{-}\mathsf{P}` reuses $`\ekh{P}` as the fresh key $`\ek_\mathsf{P}`, which the real distribution samples independently, and $`\RSimKey\text{-}\mathsf{P}_2` returns $`K` twice, which would require a perfectly correct KEM. The figure also returns the outputs of $`\RSimKey\text{-}\mathsf{P}_1` in a different order.
 
