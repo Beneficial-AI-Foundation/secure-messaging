@@ -5,7 +5,6 @@ Authors: Ivan Gavran, Beneficial AI Foundation
 -/
 
 import SecureMessaging.SCKA.Defs
-import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
 
 /-!
 # SCKA correctness oracles as pure game-state updates
@@ -13,14 +12,15 @@ import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
 Each correctness-game oracle (`oracleSendA`, `oracleSendB`, `oracleRecvA`, `oracleRecvB`)
 first runs the scheme's local `send` or `recv` and then applies a *pure* update to the game
 state. This file names those updates (`applySendA`, `applySendB`, `applyRecvA`,
-`applyRecvB`), characterizes the support of each oracle in terms of them
-(`oracleSendA_run_cases` and friends), and packages the four cases into one dispatch
-theorem, `preservesInv_sckaCorrectnessImpl_of`.
+`applyRecvB`) and restates the oracle runs in terms of them:
 
-An invariant-preservation proof for a concrete SCKA scheme then consists of one pure fact per
-oracle: given the local outcome, the pure update preserves the invariant. The `StateT`
-plumbing of the oracle implementations is never unfolded again, and the projection lemmas
-(`applySendA_stA`, ...) expose the handful of fields such proofs read.
+* `oracleSendA_run_cases` and its three twins characterize the support of each send and
+  receive run, for invariant-preservation proofs;
+* `oracleSendA_run_eq` and `oracleSendB_run_eq` rewrite a send run as the local send followed
+  by a pure outcome (`sendAOutcome`, `sendBOutcome`), for expected-value proofs.
+
+The projection lemmas (`applySendA_stA`, …) expose the fields that such proofs read, so the
+`StateT` plumbing of the oracle implementations is not unfolded downstream.
 -/
 
 open OracleSpec OracleComp
@@ -365,10 +365,10 @@ theorem oracleRecvB_run_cases (n : ℕ) (s : GameState StA StB I Rho)
         subst hz <;>
         rfl
 
-/-! ### The oracle runs as computations
+/-! ### The send runs as computations
 
-For expected-value arguments the support characterizations are not enough; the runs are
-rewritten as the local computation followed by a pure update. -/
+For expected-value arguments the support characterizations are not enough; the send runs are
+rewritten as the local send followed by a pure outcome. -/
 
 /-- The game-state outcome of `oracleSendA` for a local send result. -/
 def sendAOutcome (s : GameState StA StB I Rho) :
@@ -383,30 +383,6 @@ def sendBOutcome (s : GameState StA StB I Rho) :
       Option (ℕ × Option ℕ × Rho) × GameState StA StB I Rho
   | none => (none, s)
   | some (key?, ρ, tsnd, stB') => (some (tsnd, key?.map Prod.fst, ρ), applySendB s key? ρ tsnd stB')
-
-/-- The game-state outcome of `oracleRecvA n` (deterministic). -/
-def recvAOutcome (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
-    (n : ℕ) (s : GameState StA StB I Rho) :
-    Option (ℕ × Option ℕ) × GameState StA StB I Rho :=
-  match s.msgB n with
-  | none => (none, s)
-  | some (ρ, tsnd) =>
-      match scka.recvA s.stA ρ with
-      | none => (none, { s with correct := false })
-      | some (key?, trcv, stA') =>
-        (some (trcv, key?.map Prod.fst), applyRecvA s tsnd key? trcv stA')
-
-/-- The game-state outcome of `oracleRecvB n` (deterministic). -/
-def recvBOutcome (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
-    (n : ℕ) (s : GameState StA StB I Rho) :
-    Option (ℕ × Option ℕ) × GameState StA StB I Rho :=
-  match s.msgA n with
-  | none => (none, s)
-  | some (ρ, tsnd) =>
-      match scka.recvB s.stB ρ with
-      | none => (none, { s with correct := false })
-      | some (key?, trcv, stB') =>
-        (some (trcv, key?.map Prod.fst), applyRecvB s tsnd key? trcv stB')
 
 /-- `oracleSendA` is A's local send followed by `sendAOutcome`. -/
 theorem oracleSendA_run_eq (s : GameState StA StB I Rho) :
@@ -427,84 +403,6 @@ theorem oracleSendB_run_eq (s : GameState StA StB I Rho) :
   · simp [sendBOutcome]
   · rcases key? with _ | ⟨tI, k⟩ <;>
       simp [sendBOutcome, applySendB, StateT.run_set]
-
-/-- `oracleRecvA n` is the deterministic `recvAOutcome`. -/
-theorem oracleRecvA_run_eq (n : ℕ) (s : GameState StA StB I Rho) :
-    (oracleRecvA scka n).run s = pure (recvAOutcome scka n s) := by
-  unfold recvAOutcome
-  rcases hmsg : s.msgB n with _ | ⟨ρ, tsnd⟩
-  · simp [oracleRecvA, hmsg]
-  · rcases hrecv : scka.recvA s.stA ρ with _ | ⟨key?, trcv, stA'⟩
-    · simp [oracleRecvA, hmsg, hrecv]
-    · rcases key? with _ | ⟨tI, k⟩ <;>
-        simp [oracleRecvA, hmsg, hrecv, applyRecvA, StateT.run_bind, StateT.run_set]
-
-/-- `oracleRecvB n` is the deterministic `recvBOutcome`. -/
-theorem oracleRecvB_run_eq (n : ℕ) (s : GameState StA StB I Rho) :
-    (oracleRecvB scka n).run s = pure (recvBOutcome scka n s) := by
-  unfold recvBOutcome
-  rcases hmsg : s.msgA n with _ | ⟨ρ, tsnd⟩
-  · simp [oracleRecvB, hmsg]
-  · rcases hrecv : scka.recvB s.stB ρ with _ | ⟨key?, trcv, stB'⟩
-    · simp [oracleRecvB, hmsg, hrecv]
-    · rcases key? with _ | ⟨tI, k⟩ <;>
-        simp [oracleRecvB, hmsg, hrecv, applyRecvB, StateT.run_bind, StateT.run_set]
-
-omit [DecidableEq I] in
-/-- The uniform oracle leaves the state unchanged. -/
-theorem oracleUnif_run_eq (n : ℕ) (s : GameState StA StB I Rho) :
-    (oracleUnif StA StB I Rho n).run s =
-      ((QueryImpl.ofLift unifSpec ProbComp) n) >>= fun y => pure (y, s) := rfl
-
-/-- One dispatch theorem for the whole correctness-game oracle set. A preservation
-proof supplies one pure fact per oracle; nothing about `StateT` or `support` of
-the oracle monad is ever unfolded again. -/
-theorem preservesInv_sckaCorrectnessImpl_of (Inv : GameState StA StB I Rho → Prop)
-    (hSendA : ∀ s, Inv s → ∀ key? ρ tsnd stA',
-      some (key?, ρ, tsnd, stA') ∈ support (scka.sendA s.stA) →
-        Inv (applySendA s key? ρ tsnd stA'))
-    (hSendB : ∀ s, Inv s → ∀ key? ρ tsnd stB',
-      some (key?, ρ, tsnd, stB') ∈ support (scka.sendB s.stB) →
-        Inv (applySendB s key? ρ tsnd stB'))
-    (hRecvA : ∀ s, Inv s → ∀ n ρ tsnd, s.msgB n = some (ρ, tsnd) →
-      ∀ key? trcv stA', scka.recvA s.stA ρ = some (key?, trcv, stA') →
-        Inv (applyRecvA s tsnd key? trcv stA'))
-    (hRecvAFail : ∀ s, Inv s → ∀ n ρ tsnd, s.msgB n = some (ρ, tsnd) →
-      scka.recvA s.stA ρ = none → Inv { s with correct := false })
-    (hRecvB : ∀ s, Inv s → ∀ n ρ tsnd, s.msgA n = some (ρ, tsnd) →
-      ∀ key? trcv stB', scka.recvB s.stB ρ = some (key?, trcv, stB') →
-        Inv (applyRecvB s tsnd key? trcv stB'))
-    (hRecvBFail : ∀ s, Inv s → ∀ n ρ tsnd, s.msgA n = some (ρ, tsnd) →
-      scka.recvB s.stB ρ = none → Inv { s with correct := false }) :
-    QueryImpl.PreservesInv (sckaCorrectnessImpl scka) Inv := by
-  intro t s hs z hz
-  rcases t with (((n | ⟨⟩) | ⟨⟩) | n) | n
-  · have hz' : z ∈ support (((QueryImpl.ofLift unifSpec ProbComp) n) >>=
-        fun y => pure (y, s)) := hz
-    obtain ⟨_, _, hz⟩ := mem_support_bind_peel _ _ hz'
-    have hz' := eq_of_mem_support_pure _ hz
-    subst z
-    exact hs
-  · change z ∈ support ((oracleSendA scka ()).run s) at hz
-    rcases oracleSendA_run_cases scka s z hz with ⟨_, rfl⟩ | ⟨key?, ρ, tsnd, stA', hout, rfl⟩
-    · exact hs
-    · exact hSendA s hs key? ρ tsnd stA' hout
-  · change z ∈ support ((oracleSendB scka ()).run s) at hz
-    rcases oracleSendB_run_cases scka s z hz with ⟨_, rfl⟩ | ⟨key?, ρ, tsnd, stB', hout, rfl⟩
-    · exact hs
-    · exact hSendB s hs key? ρ tsnd stB' hout
-  · change z ∈ support ((oracleRecvA scka n).run s) at hz
-    rcases oracleRecvA_run_cases scka n s z hz with ⟨_, rfl⟩ | ⟨ρ, tsnd, hmsg, hrecv, rfl⟩ |
-      ⟨ρ, tsnd, key?, trcv, stA', hmsg, hrecv, rfl⟩
-    · exact hs
-    · exact hRecvAFail s hs n ρ tsnd hmsg hrecv
-    · exact hRecvA s hs n ρ tsnd hmsg key? trcv stA' hrecv
-  · change z ∈ support ((oracleRecvB scka n).run s) at hz
-    rcases oracleRecvB_run_cases scka n s z hz with ⟨_, rfl⟩ | ⟨ρ, tsnd, hmsg, hrecv, rfl⟩ |
-      ⟨ρ, tsnd, key?, trcv, stB', hmsg, hrecv, rfl⟩
-    · exact hs
-    · exact hRecvBFail s hs n ρ tsnd hmsg hrecv
-    · exact hRecvB s hs n ρ tsnd hmsg key? trcv stB' hrecv
 
 end Send
 

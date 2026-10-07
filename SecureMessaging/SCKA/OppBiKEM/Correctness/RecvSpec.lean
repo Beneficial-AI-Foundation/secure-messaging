@@ -10,7 +10,7 @@ import SecureMessaging.SCKA.OppBiKEM.Construction
 # Opp-BiKEM-CKA — Decision-tree form of `recv`
 
 `recv` follows the paper with `let mut` and early `return`, which elaborates to a deeply
-nested term. `recvSpec` is the same function written as a plain decision tree over named
+nested term. `recvSpec` is the same function, re-written as a plain decision tree over named
 intermediate values (`recvAck`, `recvReq`, `recvFinish`), and `recv_eq_recvSpec` proves the
 two agree. Every later fact about a receive is read off `recvSpec` with one case split per
 named condition instead of a brute-force split of the elaborated `do` block.
@@ -33,7 +33,7 @@ def recvReq (st : State PK SK C Sym) (ρ : Message Sym) : ℤ :=
   if st.req.reqEpoch < ρ.tRes then st.req.reqEpoch + 2 else st.req.reqEpoch
 
 /-- Assemble the post-receive state: the given requester epoch, peer keys, secret keys,
-buffer and acknowledgements, with acknowledged outgoing material cleared. -/
+ buffer of chunks, and acknowledgements. The acknowledged outgoing material is cleared. -/
 def recvFinish (role : Role) (st : State PK SK C Sym) (q : ℤ) (ekPeer : ℤ → Option PK)
     (dk : List (ℤ × SK)) (chunks : Finset (ℕ × Sym)) (ack : Acknowledgements) :
     State PK SK C Sym :=

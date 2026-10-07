@@ -5,6 +5,7 @@ Authors: Ivan Gavran, Beneficial AI Foundation
 -/
 
 import SecureMessaging.SCKA.Correctness.OracleSupport
+import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
 import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Init
 import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Send
 import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Recv
@@ -63,11 +64,6 @@ theorem gameInv_step_of [DecidableEq K] [DecidableEq Sym]
       DecapsReady .A hDet T s.stA ∧ DecapsReady .B hDet T s.stB) :
     ∀ z ∈ support ((SCKAScheme.sckaCorrectnessImpl (scheme kem hDet ecEk ecCt leak) t).run s),
       GameInv kem ecEk ecCt z.2 := by
-  let Inv : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym) → Prop :=
-    fun s' => GameInv kem ecEk ecCt s' ∧ (s' = s ∨ True)
-  suffices h : ∀ z ∈ support
-      ((SCKAScheme.sckaCorrectnessImpl (scheme kem hDet ecEk ecCt leak) t).run s),
-      GameInv kem ecEk ecCt z.2 from h
   rcases t with (((n | ⟨⟩) | ⟨⟩) | n) | n
   · intro z hz
     have hz' : z ∈ support (((QueryImpl.ofLift unifSpec ProbComp) n) >>=
