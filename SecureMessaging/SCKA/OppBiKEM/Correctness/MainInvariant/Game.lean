@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.Correctness.OracleSupport
+import SecureMessaging.SCKA.Correctness
 import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
 import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Init
 import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Send
@@ -19,7 +19,7 @@ correctness experiment returns `true` with probability one for a perfectly corre
 (`correctness_of_perfectKEM`).
 
 The one-step lemma `gameInv_step_of` uses the oracle case split of
-`SCKA.Correctness.OracleSupport`; each oracle is one application of `partyInv_send_step` or
+`SCKA.Correctness`; each oracle is one application of `partyInv_send_step` or
 `partyInv_recv_step`. Its only KEM hypothesis is `DecapsReady`, which the quantitative proof
 supplies from the absence of a KEM failure.
 -/
@@ -65,18 +65,13 @@ theorem gameInv_step_of [DecidableEq K] [DecidableEq Sym]
     ∀ z ∈ support ((SCKAScheme.sckaCorrectnessImpl (scheme kem hDet ecEk ecCt leak) t).run s),
       GameInv kem ecEk ecCt z.2 := by
   rcases t with (((n | ⟨⟩) | ⟨⟩) | n) | n
-  · intro z hz
-    have hz' : z ∈ support (((QueryImpl.ofLift unifSpec ProbComp) n) >>=
-        fun y => pure (y, s)) := hz
-    obtain ⟨_, _, hz⟩ := mem_support_bind_peel _ _ hz'
-    have hz' := eq_of_mem_support_pure _ hz
-    subst z
-    exact hs
+  · exact SCKAScheme.oracleUnif_preservesInv (GameInv kem ecEk ecCt) n s hs
   · intro z hz
     change z ∈ support ((SCKAScheme.oracleSendA (scheme kem hDet ecEk ecCt leak) ()).run s) at hz
-    rcases SCKAScheme.oracleSendA_run_cases _ s z hz with
-      ⟨-, rfl⟩ | ⟨key?, ρ, tsnd, stA', hout, rfl⟩
+    obtain ⟨out, hout, rfl⟩ := (SCKAScheme.mem_support_oracleSendA_run_iff _ s z).1 hz
+    rcases out with _ | ⟨key?, ρ, tsnd, stA'⟩
     · exact hs
+    dsimp only
     obtain ⟨hcorrect, T, hA, hB⟩ := hs
     have hout' : some (key?, ρ, tsnd, stA') ∈ support (send .A kem ecEk ecCt s.stA) := hout
     obtain ⟨hmono, hprefix, hkeys, T', hA', hB'⟩ :=
@@ -84,23 +79,25 @@ theorem gameInv_step_of [DecidableEq K] [DecidableEq Sym]
         s.tcurA s.tcurB hA hB (s.nA + 1) key? ρ tsnd stA' hout'
     rcases key? with _ | ⟨tI, k⟩
     · refine ⟨?_, T', ?_, ?_⟩
-      · simp only [SCKAScheme.applySendA, hcorrect, hmono, decide_true, Bool.true_and]
-        simpa using hprefix
-      · simpa [SCKAScheme.applySendA] using hA'
-      · simpa [SCKAScheme.applySendA, Role.peer] using hB'
+      · simp only [SCKAScheme.sendAUpdate, hcorrect, hmono, decide_true, Bool.true_and]
+        simpa [SCKAScheme.knownPrefix] using hprefix
+      · simpa [SCKAScheme.sendAUpdate] using hA'
+      · simpa [SCKAScheme.sendAUpdate, Role.peer] using hB'
     · obtain ⟨hA0, hB0⟩ := hkeys tI k rfl
       refine ⟨?_, T', ?_, ?_⟩
-      · simp only [SCKAScheme.applySendA, hcorrect, hmono, decide_true, Bool.true_and, hA0,
+      · simp only [SCKAScheme.sendAUpdate, hcorrect, hmono, decide_true, Bool.true_and, hA0,
           Option.isNone_none]
         rcases hB0 with h | h <;> simp only [h, Option.isNone_none, Bool.true_or, beq_self_eq_true,
-          Option.isNone_some, Bool.false_or, Bool.true_and] <;> simpa using hprefix
-      · simpa [SCKAScheme.applySendA] using hA'
-      · simpa [SCKAScheme.applySendA, Role.peer] using hB'
+          Option.isNone_some, Bool.false_or, Bool.true_and] <;>
+          simpa [SCKAScheme.knownPrefix] using hprefix
+      · simpa [SCKAScheme.sendAUpdate] using hA'
+      · simpa [SCKAScheme.sendAUpdate, Role.peer] using hB'
   · intro z hz
     change z ∈ support ((SCKAScheme.oracleSendB (scheme kem hDet ecEk ecCt leak) ()).run s) at hz
-    rcases SCKAScheme.oracleSendB_run_cases _ s z hz with
-      ⟨-, rfl⟩ | ⟨key?, ρ, tsnd, stB', hout, rfl⟩
+    obtain ⟨out, hout, rfl⟩ := (SCKAScheme.mem_support_oracleSendB_run_iff _ s z).1 hz
+    rcases out with _ | ⟨key?, ρ, tsnd, stB'⟩
     · exact hs
+    dsimp only
     obtain ⟨hcorrect, T, hA, hB⟩ := hs
     have hout' : some (key?, ρ, tsnd, stB') ∈ support (send .B kem ecEk ecCt s.stB) := hout
     obtain ⟨hmono, hprefix, hkeys, T', hB', hA'⟩ :=
@@ -108,24 +105,25 @@ theorem gameInv_step_of [DecidableEq K] [DecidableEq Sym]
         s.tcurB s.tcurA hB hA (s.nB + 1) key? ρ tsnd stB' hout'
     rcases key? with _ | ⟨tI, k⟩
     · refine ⟨?_, T', ?_, ?_⟩
-      · simp only [SCKAScheme.applySendB, hcorrect, hmono, decide_true, Bool.true_and]
-        simpa using hprefix
-      · simpa [SCKAScheme.applySendB, Role.peer] using hA'
-      · simpa [SCKAScheme.applySendB] using hB'
+      · simp only [SCKAScheme.sendBUpdate, hcorrect, hmono, decide_true, Bool.true_and]
+        simpa [SCKAScheme.knownPrefix] using hprefix
+      · simpa [SCKAScheme.sendBUpdate, Role.peer] using hA'
+      · simpa [SCKAScheme.sendBUpdate] using hB'
     · obtain ⟨hB0, hA0⟩ := hkeys tI k rfl
       refine ⟨?_, T', ?_, ?_⟩
-      · simp only [SCKAScheme.applySendB, hcorrect, hmono, decide_true, Bool.true_and, hB0,
+      · simp only [SCKAScheme.sendBUpdate, hcorrect, hmono, decide_true, Bool.true_and, hB0,
           Option.isNone_none]
         rcases hA0 with h | h <;> simp only [h, Option.isNone_none, Bool.true_or, beq_self_eq_true,
-          Option.isNone_some, Bool.false_or, Bool.true_and] <;> simpa using hprefix
-      · simpa [SCKAScheme.applySendB, Role.peer] using hA'
-      · simpa [SCKAScheme.applySendB] using hB'
+          Option.isNone_some, Bool.false_or, Bool.true_and] <;>
+          simpa [SCKAScheme.knownPrefix] using hprefix
+      · simpa [SCKAScheme.sendBUpdate, Role.peer] using hA'
+      · simpa [SCKAScheme.sendBUpdate] using hB'
   · intro z hz
     change z ∈ support ((SCKAScheme.oracleRecvA (scheme kem hDet ecEk ecCt leak) n).run s) at hz
     obtain ⟨hcorrect, T, hA, hB⟩ := hs
     have hready := (hdec T hA hB).1
-    rcases SCKAScheme.oracleRecvA_run_cases _ n s z hz with ⟨-, rfl⟩ | ⟨ρ, tsnd, hmsg, hrecv, rfl⟩ |
-      ⟨ρ, tsnd, key?, trcv, stA', hmsg, hrecv, rfl⟩
+    rcases (SCKAScheme.mem_support_oracleRecvA_run_iff _ s n z).1 hz with
+      ⟨-, rfl⟩ | ⟨ρ, tsnd, hmsg, hrecv, rfl⟩ | ⟨ρ, tsnd, key?, trcv, stA', hmsg, hrecv, rfl⟩
     · exact ⟨hcorrect, T, hA, hB⟩
     · exfalso
       obtain ⟨⟨key?, trcv, stA', h⟩, -⟩ := partyInv_recv_step hA hB hmsg hEk hCt
@@ -140,25 +138,25 @@ theorem gameInv_step_of [DecidableEq K] [DecidableEq Sym]
       subst htrcv
       rcases key? with _ | ⟨tI, k⟩
       · refine ⟨?_, T, ?_, ?_⟩
-        · simp only [SCKAScheme.applyRecvA, hcorrect, beq_self_eq_true, Bool.true_and]
-          simpa using hprefix
-        · simpa [SCKAScheme.applyRecvA] using hA'
-        · simpa [SCKAScheme.applyRecvA, Role.peer] using hB'
+        · simp only [SCKAScheme.recvAUpdate, hcorrect, beq_self_eq_true, Bool.true_and]
+          simpa [SCKAScheme.knownPrefix] using hprefix
+        · simpa [SCKAScheme.recvAUpdate] using hA'
+        · simpa [SCKAScheme.recvAUpdate, Role.peer] using hB'
       · obtain ⟨hA0, hB0⟩ := hkeys tI k rfl
         refine ⟨?_, T, ?_, ?_⟩
-        · simp only [SCKAScheme.applyRecvA, hcorrect, beq_self_eq_true, Bool.true_and, hA0,
+        · simp only [SCKAScheme.recvAUpdate, hcorrect, beq_self_eq_true, Bool.true_and, hA0,
             Option.isNone_none]
           rcases hB0 with h | h <;> simp only [h, Option.isNone_none, Bool.true_or,
             beq_self_eq_true, Option.isNone_some, Bool.false_or, Bool.true_and] <;>
-            simpa using hprefix
-        · simpa [SCKAScheme.applyRecvA] using hA'
-        · simpa [SCKAScheme.applyRecvA, Role.peer] using hB'
+            simpa [SCKAScheme.knownPrefix] using hprefix
+        · simpa [SCKAScheme.recvAUpdate] using hA'
+        · simpa [SCKAScheme.recvAUpdate, Role.peer] using hB'
   · intro z hz
     change z ∈ support ((SCKAScheme.oracleRecvB (scheme kem hDet ecEk ecCt leak) n).run s) at hz
     obtain ⟨hcorrect, T, hA, hB⟩ := hs
     have hready := (hdec T hA hB).2
-    rcases SCKAScheme.oracleRecvB_run_cases _ n s z hz with ⟨-, rfl⟩ | ⟨ρ, tsnd, hmsg, hrecv, rfl⟩ |
-      ⟨ρ, tsnd, key?, trcv, stB', hmsg, hrecv, rfl⟩
+    rcases (SCKAScheme.mem_support_oracleRecvB_run_iff _ s n z).1 hz with
+      ⟨-, rfl⟩ | ⟨ρ, tsnd, hmsg, hrecv, rfl⟩ | ⟨ρ, tsnd, key?, trcv, stB', hmsg, hrecv, rfl⟩
     · exact ⟨hcorrect, T, hA, hB⟩
     · exfalso
       obtain ⟨⟨key?, trcv, stB', h⟩, -⟩ := partyInv_recv_step hB hA hmsg hEk hCt
@@ -173,19 +171,19 @@ theorem gameInv_step_of [DecidableEq K] [DecidableEq Sym]
       subst htrcv
       rcases key? with _ | ⟨tI, k⟩
       · refine ⟨?_, T, ?_, ?_⟩
-        · simp only [SCKAScheme.applyRecvB, hcorrect, beq_self_eq_true, Bool.true_and]
-          simpa using hprefix
-        · simpa [SCKAScheme.applyRecvB, Role.peer] using hA'
-        · simpa [SCKAScheme.applyRecvB] using hB'
+        · simp only [SCKAScheme.recvBUpdate, hcorrect, beq_self_eq_true, Bool.true_and]
+          simpa [SCKAScheme.knownPrefix] using hprefix
+        · simpa [SCKAScheme.recvBUpdate, Role.peer] using hA'
+        · simpa [SCKAScheme.recvBUpdate] using hB'
       · obtain ⟨hB0, hA0⟩ := hkeys tI k rfl
         refine ⟨?_, T, ?_, ?_⟩
-        · simp only [SCKAScheme.applyRecvB, hcorrect, beq_self_eq_true, Bool.true_and, hB0,
+        · simp only [SCKAScheme.recvBUpdate, hcorrect, beq_self_eq_true, Bool.true_and, hB0,
             Option.isNone_none]
           rcases hA0 with h | h <;> simp only [h, Option.isNone_none, Bool.true_or,
             beq_self_eq_true, Option.isNone_some, Bool.false_or, Bool.true_and] <;>
-            simpa using hprefix
-        · simpa [SCKAScheme.applyRecvB, Role.peer] using hA'
-        · simpa [SCKAScheme.applyRecvB] using hB'
+            simpa [SCKAScheme.knownPrefix] using hprefix
+        · simpa [SCKAScheme.recvBUpdate, Role.peer] using hA'
+        · simpa [SCKAScheme.recvBUpdate] using hB'
 
 /-- If `DecapsCorrectOnSupport` holds and both erasure codes are correct, every
 correctness-game oracle preserves `GameInv`. -/

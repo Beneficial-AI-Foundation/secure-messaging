@@ -5,7 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.SCKA.OppBiKEM.Construction
-import SecureMessaging.SCKA.Correctness.OracleSupport
+import SecureMessaging.SCKA.Defs
 
 /-!
 # Opp-BiKEM-CKA — Facts about a single send

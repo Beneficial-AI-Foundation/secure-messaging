@@ -438,6 +438,30 @@ variable [DecidableEq K] [DecidableEq Sym]
   (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
   (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym) (leak : kem.RandLeak)
 
+omit [DecidableEq Sym] in
+/-- The game-state outcome of `SendA` for a local send result: the function that
+`SCKAScheme.oracleSendA_run_eq` maps over A's local send. -/
+private def sendAOutcome
+    (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)) :
+    Option (Option (ℕ × K) × Message Sym × ℕ × StA PK SK C Sym) →
+      Option (ℕ × Option ℕ × Message Sym) ×
+        SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)
+  | none => (none, s)
+  | some (keyOpt, ρ, tsnd, stA') =>
+      (some (tsnd, keyOpt.map Prod.fst, ρ), SCKAScheme.sendAUpdate s keyOpt ρ tsnd stA')
+
+omit [DecidableEq Sym] in
+/-- The game-state outcome of `SendB` for a local send result: the function that
+`SCKAScheme.oracleSendB_run_eq` maps over B's local send. -/
+private def sendBOutcome
+    (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)) :
+    Option (Option (ℕ × K) × Message Sym × ℕ × StB PK SK C Sym) →
+      Option (ℕ × Option ℕ × Message Sym) ×
+        SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)
+  | none => (none, s)
+  | some (keyOpt, ρ, tsnd, stB') =>
+      (some (tsnd, keyOpt.map Prod.fst, ρ), SCKAScheme.sendBUpdate s keyOpt ρ tsnd stB')
+
 open SCKAScheme.sckaCorrectnessSpec in
 /-- `Ô SendA` run from `(s, false)` is A's local `send` followed by the game's `sendAOutcome`
 and the flag update. -/
@@ -445,14 +469,14 @@ theorem trackedBiKem_sendA_run
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)) :
     (trackedBiKem kem hDet ecEk ecCt leak OSendA).run (s, false) =
       send .A kem ecEk ecCt s.stA >>= fun out =>
-        pure ((SCKAScheme.sendAOutcome s out).1,
-          ((SCKAScheme.sendAOutcome s out).2,
-            kemFailure hDet (SCKAScheme.sendAOutcome s out).2)) := by
+        pure ((sendAOutcome s out).1,
+          ((sendAOutcome s out).2,
+            kemFailure hDet (sendAOutcome s out).2)) := by
   change ((SCKAScheme.oracleSendA (scheme kem hDet ecEk ecCt leak) ()).run s >>=
     fun y => pure (y.1, (y.2, false || kemFailure hDet y.2))) = _
-  rw [SCKAScheme.oracleSendA_run_eq_sendAOutcome, bind_assoc]
-  simp only [pure_bind, Bool.false_or]
-  rfl
+  rw [SCKAScheme.oracleSendA_run_eq, map_eq_bind_pure_comp, bind_assoc]
+  refine bind_congr fun out => ?_
+  rcases out with _ | ⟨keyOpt, ρ, tsnd, st'⟩ <;> simp [sendAOutcome]
 
 open SCKAScheme.sckaCorrectnessSpec in
 /-- `Ô SendB` run from `(s, false)` is B's local `send` followed by the game's `sendBOutcome`
@@ -461,31 +485,31 @@ theorem trackedBiKem_sendB_run
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)) :
     (trackedBiKem kem hDet ecEk ecCt leak OSendB).run (s, false) =
       send .B kem ecEk ecCt s.stB >>= fun out =>
-        pure ((SCKAScheme.sendBOutcome s out).1,
-          ((SCKAScheme.sendBOutcome s out).2,
-            kemFailure hDet (SCKAScheme.sendBOutcome s out).2)) := by
+        pure ((sendBOutcome s out).1,
+          ((sendBOutcome s out).2,
+            kemFailure hDet (sendBOutcome s out).2)) := by
   change ((SCKAScheme.oracleSendB (scheme kem hDet ecEk ecCt leak) ()).run s >>=
     fun y => pure (y.1, (y.2, false || kemFailure hDet y.2))) = _
-  rw [SCKAScheme.oracleSendB_run_eq_sendBOutcome, bind_assoc]
-  simp only [pure_bind, Bool.false_or]
-  rfl
+  rw [SCKAScheme.oracleSendB_run_eq, map_eq_bind_pure_comp, bind_assoc]
+  refine bind_congr fun out => ?_
+  rcases out with _ | ⟨keyOpt, ρ, tsnd, st'⟩ <;> simp [sendBOutcome]
 
 omit [DecidableEq Sym] in
-/-- `sendAOutcome` on a successful send, as the generic `applySendA` update. -/
+/-- `sendAOutcome` on a successful send, as the game update `SCKAScheme.sendAUpdate`. -/
 theorem sendAOutcome_some (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K
     (Message Sym)) (t : Option (ℕ × K) × Message Sym × ℕ × StA PK SK C Sym) :
-    SCKAScheme.sendAOutcome s (some t) =
+    sendAOutcome s (some t) =
       (some (t.2.2.1, t.1.map Prod.fst, t.2.1),
-        SCKAScheme.applySendA s t.1 t.2.1 t.2.2.1 t.2.2.2) :=
+        SCKAScheme.sendAUpdate s t.1 t.2.1 t.2.2.1 t.2.2.2) :=
   rfl
 
 omit [DecidableEq Sym] in
-/-- `sendBOutcome` on a successful send, as the generic `applySendB` update. -/
+/-- `sendBOutcome` on a successful send, as the game update `SCKAScheme.sendBUpdate`. -/
 theorem sendBOutcome_some (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K
     (Message Sym)) (t : Option (ℕ × K) × Message Sym × ℕ × StB PK SK C Sym) :
-    SCKAScheme.sendBOutcome s (some t) =
+    sendBOutcome s (some t) =
       (some (t.2.2.1, t.1.map Prod.fst, t.2.1),
-        SCKAScheme.applySendB s t.1 t.2.1 t.2.2.1 t.2.2.2) :=
+        SCKAScheme.sendBUpdate s t.1 t.2.1 t.2.2.1 t.2.2.2) :=
   rfl
 
 open SCKAScheme.sckaCorrectnessSpec in
@@ -510,12 +534,12 @@ theorem tracked_sendA_score_le
     intro kp
     rw [sendAOutcome_some]
     have h1 : (advanceSend (K := K) .A ecEk s.stA kp).1 = none := rfl
-    simp only [h1, kemFailure_eq_pairA, SCKAScheme.applySendA_stA, SCKAScheme.applySendA_stB,
-      SCKAScheme.applySendA_keyA_none, SCKAScheme.applySendA_keyB]
+    simp only [h1, kemFailure_eq_pairA, SCKAScheme.sendAUpdate_stA, SCKAScheme.sendAUpdate_stB,
+      SCKAScheme.sendAUpdate_keyA_none, SCKAScheme.sendAUpdate_keyB]
     rw [pairFailure_advance hA hB ecEk kp hgate.2]
     simp only [trackedScore, Bool.false_eq_true, if_false, failurePotential_eq_pairA,
-      SCKAScheme.applySendA_stA, SCKAScheme.applySendA_stB, SCKAScheme.applySendA_keyA_none,
-      SCKAScheme.applySendA_keyB]
+      SCKAScheme.sendAUpdate_stA, SCKAScheme.sendAUpdate_stB, SCKAScheme.sendAUpdate_keyA_none,
+      SCKAScheme.sendAUpdate_keyB]
     exact pairPotential_advance hA hB ecEk kp hgate.2
   · by_cases henc : s.stA.res.resEpoch + Role.A.offset ∈ s.stA.ack.ekRec ∧
         s.stA.res.resEpoch ∉ s.stA.ack.ctRec ∧ s.stA.res.ct = none ∧
@@ -531,12 +555,12 @@ theorem tracked_sendA_score_le
         rw [sendAOutcome_some]
         have h1 : (encapsSend (K := K) .A ecCt s.stA ck).1 =
             some (s.stA.res.resEpoch.toNat, ck.2) := rfl
-        simp only [h1, kemFailure_eq_pairA, SCKAScheme.applySendA_stA, SCKAScheme.applySendA_stB,
-          SCKAScheme.applySendA_keyA_some, SCKAScheme.applySendA_keyB]
+        simp only [h1, kemFailure_eq_pairA, SCKAScheme.sendAUpdate_stA, SCKAScheme.sendAUpdate_stB,
+          SCKAScheme.sendAUpdate_keyA_some, SCKAScheme.sendAUpdate_keyB]
         rw [pairFailure_encaps ecCt ck sk hdk hfailA]
         simp only [trackedScore, decide_eq_true_eq, failurePotential_eq_pairA,
-          SCKAScheme.applySendA_stA, SCKAScheme.applySendA_stB, SCKAScheme.applySendA_keyA_some,
-          SCKAScheme.applySendA_keyB]
+          SCKAScheme.sendAUpdate_stA, SCKAScheme.sendAUpdate_stB, SCKAScheme.sendAUpdate_keyA_some,
+          SCKAScheme.sendAUpdate_keyB]
         split_ifs
         · rfl
         · exact hafter ck
@@ -548,16 +572,16 @@ theorem tracked_sendA_score_le
       obtain ⟨out, hout, hz⟩ := mem_support_bind_peel _ _ hz
       obtain rfl := eq_of_mem_support_pure _ hz
       rcases out with _ | ⟨key?, ρ, tsnd, stA'⟩
-      · simp [SCKAScheme.sendAOutcome, trackedScore, hfail, failurePotential_eq_pairA]
+      · simp [sendAOutcome, trackedScore, hfail, failurePotential_eq_pairA]
       · obtain ⟨rfl, hres⟩ := send_plain_of_not kem ecEk ecCt hgate henc hout
         obtain ⟨hpot, hfl⟩ := pair_plain kem ecEk ecCt hout hres
         rw [sendAOutcome_some]
-        simp only [kemFailure_eq_pairA, SCKAScheme.applySendA_stA, SCKAScheme.applySendA_stB,
-          SCKAScheme.applySendA_keyA_none, SCKAScheme.applySendA_keyB]
+        simp only [kemFailure_eq_pairA, SCKAScheme.sendAUpdate_stA, SCKAScheme.sendAUpdate_stB,
+          SCKAScheme.sendAUpdate_keyA_none, SCKAScheme.sendAUpdate_keyB]
         rw [hfl, hfailA]
         simp only [trackedScore, Bool.false_eq_true, if_false, failurePotential_eq_pairA,
-          SCKAScheme.applySendA_stA, SCKAScheme.applySendA_stB, SCKAScheme.applySendA_keyA_none,
-          SCKAScheme.applySendA_keyB]
+          SCKAScheme.sendAUpdate_stA, SCKAScheme.sendAUpdate_stB, SCKAScheme.sendAUpdate_keyA_none,
+          SCKAScheme.sendAUpdate_keyB]
         rw [hpot]
         exact le_self_add
 
@@ -583,12 +607,12 @@ theorem tracked_sendB_score_le
     intro kp
     rw [sendBOutcome_some]
     have h1 : (advanceSend (K := K) .B ecEk s.stB kp).1 = none := rfl
-    simp only [h1, kemFailure_eq_pairB, SCKAScheme.applySendB_stA, SCKAScheme.applySendB_stB,
-      SCKAScheme.applySendB_keyB_none, SCKAScheme.applySendB_keyA]
+    simp only [h1, kemFailure_eq_pairB, SCKAScheme.sendBUpdate_stA, SCKAScheme.sendBUpdate_stB,
+      SCKAScheme.sendBUpdate_keyB_none, SCKAScheme.sendBUpdate_keyA]
     rw [pairFailure_advance hB hA ecEk kp hgate.2]
     simp only [trackedScore, Bool.false_eq_true, if_false, failurePotential_eq_pairB,
-      SCKAScheme.applySendB_stA, SCKAScheme.applySendB_stB, SCKAScheme.applySendB_keyB_none,
-      SCKAScheme.applySendB_keyA]
+      SCKAScheme.sendBUpdate_stA, SCKAScheme.sendBUpdate_stB, SCKAScheme.sendBUpdate_keyB_none,
+      SCKAScheme.sendBUpdate_keyA]
     exact pairPotential_advance hB hA ecEk kp hgate.2
   · by_cases henc : s.stB.res.resEpoch + Role.B.offset ∈ s.stB.ack.ekRec ∧
         s.stB.res.resEpoch ∉ s.stB.ack.ctRec ∧ s.stB.res.ct = none ∧
@@ -604,12 +628,12 @@ theorem tracked_sendB_score_le
         rw [sendBOutcome_some]
         have h1 : (encapsSend (K := K) .B ecCt s.stB ck).1 =
             some (s.stB.res.resEpoch.toNat, ck.2) := rfl
-        simp only [h1, kemFailure_eq_pairB, SCKAScheme.applySendB_stA, SCKAScheme.applySendB_stB,
-          SCKAScheme.applySendB_keyB_some, SCKAScheme.applySendB_keyA]
+        simp only [h1, kemFailure_eq_pairB, SCKAScheme.sendBUpdate_stA, SCKAScheme.sendBUpdate_stB,
+          SCKAScheme.sendBUpdate_keyB_some, SCKAScheme.sendBUpdate_keyA]
         rw [pairFailure_encaps ecCt ck sk hdk hfailB]
         simp only [trackedScore, decide_eq_true_eq, failurePotential_eq_pairB,
-          SCKAScheme.applySendB_stA, SCKAScheme.applySendB_stB, SCKAScheme.applySendB_keyB_some,
-          SCKAScheme.applySendB_keyA]
+          SCKAScheme.sendBUpdate_stA, SCKAScheme.sendBUpdate_stB, SCKAScheme.sendBUpdate_keyB_some,
+          SCKAScheme.sendBUpdate_keyA]
         split_ifs
         · rfl
         · exact hafter ck
@@ -621,16 +645,16 @@ theorem tracked_sendB_score_le
       obtain ⟨out, hout, hz⟩ := mem_support_bind_peel _ _ hz
       obtain rfl := eq_of_mem_support_pure _ hz
       rcases out with _ | ⟨key?, ρ, tsnd, stA'⟩
-      · simp [SCKAScheme.sendBOutcome, trackedScore, hfail, failurePotential_eq_pairB]
+      · simp [sendBOutcome, trackedScore, hfail, failurePotential_eq_pairB]
       · obtain ⟨rfl, hres⟩ := send_plain_of_not kem ecEk ecCt hgate henc hout
         obtain ⟨hpot, hfl⟩ := pair_plain kem ecEk ecCt hout hres
         rw [sendBOutcome_some]
-        simp only [kemFailure_eq_pairB, SCKAScheme.applySendB_stA, SCKAScheme.applySendB_stB,
-          SCKAScheme.applySendB_keyB_none, SCKAScheme.applySendB_keyA]
+        simp only [kemFailure_eq_pairB, SCKAScheme.sendBUpdate_stA, SCKAScheme.sendBUpdate_stB,
+          SCKAScheme.sendBUpdate_keyB_none, SCKAScheme.sendBUpdate_keyA]
         rw [hfl, hfailB]
         simp only [trackedScore, Bool.false_eq_true, if_false, failurePotential_eq_pairB,
-          SCKAScheme.applySendB_stA, SCKAScheme.applySendB_stB, SCKAScheme.applySendB_keyB_none,
-          SCKAScheme.applySendB_keyA]
+          SCKAScheme.sendBUpdate_stA, SCKAScheme.sendBUpdate_stB, SCKAScheme.sendBUpdate_keyB_none,
+          SCKAScheme.sendBUpdate_keyA]
         rw [hpot]
         exact le_self_add
 
@@ -643,19 +667,19 @@ theorem tracked_step_score_le (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
     expectedPayoff ((trackedBiKem kem hDet ecEk ecCt leak t).run p)
         (fun z => trackedScore hDet z.2) ≤
       trackedScore hDet p +
-        if SCKAScheme.IsSendQuery t then kem.correctnessError ProbCompRuntime.probComp else 0 := by
+        if SCKAScheme.isSendQuery t then kem.correctnessError ProbCompRuntime.probComp else 0 := by
   obtain ⟨s, b⟩ := p
   rcases b with _ | _
   · rcases hp with h | ⟨hs, hfail⟩
     · exact absurd h Bool.false_ne_true
-    · by_cases hsend : SCKAScheme.IsSendQuery t
+    · by_cases hsend : SCKAScheme.isSendQuery t = true
       · rw [if_pos hsend]
         rcases t with (((m | ⟨⟩) | ⟨⟩) | m) | m
-        · exact absurd hsend (by simp [SCKAScheme.IsSendQuery, SCKAScheme.isSendQuery])
+        · exact absurd hsend (by simp [SCKAScheme.isSendQuery])
         · exact tracked_sendA_score_le kem hDet ecEk ecCt leak s hs hfail
         · exact tracked_sendB_score_le kem hDet ecEk ecCt leak s hs hfail
-        · exact absurd hsend (by simp [SCKAScheme.IsSendQuery, SCKAScheme.isSendQuery])
-        · exact absurd hsend (by simp [SCKAScheme.IsSendQuery, SCKAScheme.isSendQuery])
+        · exact absurd hsend (by simp [SCKAScheme.isSendQuery])
+        · exact absurd hsend (by simp [SCKAScheme.isSendQuery])
       · rw [if_neg hsend, add_zero]
         exact tracked_nonSend_score_le kem hDet ecEk ecCt hEk hCt leak t hsend s hs hfail
   · exact tracked_step_score_le_of_flag kem hDet ecEk ecCt leak t s _

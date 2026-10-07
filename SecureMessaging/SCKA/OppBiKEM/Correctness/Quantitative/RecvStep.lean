@@ -362,8 +362,8 @@ theorem recvA_score_eq (n : ℕ)
     failurePotential hDet y.2 = failurePotential hDet s ∧ kemFailure hDet y.2 = false := by
   obtain ⟨hcorrect, T, hA, hB⟩ := hs
   obtain ⟨hfA, hfB⟩ := (kemFailure_eq_false_iff hDet s).mp hfail
-  rcases SCKAScheme.oracleRecvA_run_cases _ n s y hy with ⟨-, rfl⟩ | ⟨ρ, tsnd, hmsg, hrecv, rfl⟩ |
-    ⟨ρ, tsnd, key?, trcv, stA', hmsg, hrecv, rfl⟩
+  rcases (SCKAScheme.mem_support_oracleRecvA_run_iff _ s n y).1 hy with
+    ⟨-, rfl⟩ | ⟨ρ, tsnd, hmsg, hrecv, rfl⟩ | ⟨ρ, tsnd, key?, trcv, stA', hmsg, hrecv, rfl⟩
   · exact ⟨rfl, hfail⟩
   · exact ⟨rfl, hfail⟩
   · have hrecv' : recv .A kem hDet ecEk ecCt s.stA ρ = some (key?, trcv, stA') := hrecv
@@ -376,11 +376,11 @@ theorem recvA_score_eq (n : ℕ)
     have h3 := kemFailure_recv hA hB key? trcv stA' hrecv' hA' hfA hfB
     refine ⟨?_, ?_⟩
     · rcases key? with _ | ⟨tI, k⟩ <;>
-        simp only [failurePotential, SCKAScheme.applyRecvA] <;>
+        simp only [failurePotential, SCKAScheme.recvAUpdate] <;>
         simp only [recordKey] at h1 h2 <;>
         rw [h1, h2]
     · rcases key? with _ | ⟨tI, k⟩ <;>
-        simp only [kemFailure, SCKAScheme.applyRecvA] <;>
+        simp only [kemFailure, SCKAScheme.recvAUpdate] <;>
         simp only [recordKey] at h3 <;>
         simp [h3.1, h3.2]
 
@@ -396,8 +396,8 @@ theorem recvB_score_eq (n : ℕ)
     failurePotential hDet y.2 = failurePotential hDet s ∧ kemFailure hDet y.2 = false := by
   obtain ⟨hcorrect, T, hA, hB⟩ := hs
   obtain ⟨hfA, hfB⟩ := (kemFailure_eq_false_iff hDet s).mp hfail
-  rcases SCKAScheme.oracleRecvB_run_cases _ n s y hy with ⟨-, rfl⟩ | ⟨ρ, tsnd, hmsg, hrecv, rfl⟩ |
-    ⟨ρ, tsnd, key?, trcv, stB', hmsg, hrecv, rfl⟩
+  rcases (SCKAScheme.mem_support_oracleRecvB_run_iff _ s n y).1 hy with
+    ⟨-, rfl⟩ | ⟨ρ, tsnd, hmsg, hrecv, rfl⟩ | ⟨ρ, tsnd, key?, trcv, stB', hmsg, hrecv, rfl⟩
   · exact ⟨rfl, hfail⟩
   · exact ⟨rfl, hfail⟩
   · have hrecv' : recv .B kem hDet ecEk ecCt s.stB ρ = some (key?, trcv, stB') := hrecv
@@ -410,11 +410,11 @@ theorem recvB_score_eq (n : ℕ)
     have h3 := kemFailure_recv hB hA key? trcv stB' hrecv' hB' hfB hfA
     refine ⟨?_, ?_⟩
     · rcases key? with _ | ⟨tI, k⟩ <;>
-        simp only [failurePotential, SCKAScheme.applyRecvB] <;>
+        simp only [failurePotential, SCKAScheme.recvBUpdate] <;>
         simp only [recordKey] at h1 h2 <;>
         rw [h1, h2]
     · rcases key? with _ | ⟨tI, k⟩ <;>
-        simp only [kemFailure, SCKAScheme.applyRecvB] <;>
+        simp only [kemFailure, SCKAScheme.recvBUpdate] <;>
         simp only [recordKey] at h3 <;>
         simp [h3.1, h3.2]
 
@@ -422,7 +422,7 @@ include hEk hCt in
 /-- From `(s, false)` with `s` satisfying the main invariant and not bad, every non-send query
 keeps the expected tracked score at most `S(s, false)`. -/
 theorem tracked_nonSend_score_le (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
-    (hNonSend : ¬ SCKAScheme.IsSendQuery t)
+    (hNonSend : ¬ SCKAScheme.isSendQuery t = true)
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : GameInv kem ecEk ecCt s) (hfail : kemFailure hDet s = false) :
     expectedPayoff ((trackedBiKem kem hDet ecEk ecCt leak t).run (s, false))
@@ -446,8 +446,8 @@ theorem tracked_nonSend_score_le (t : (SCKAScheme.sckaCorrectnessSpec (Message S
     obtain ⟨r, hr⟩ := Set.mem_range.mp hy'
     subst hr
     simp [trackedScore, hfail]
-  · exact absurd (by simp [SCKAScheme.IsSendQuery, SCKAScheme.isSendQuery]) hNonSend
-  · exact absurd (by simp [SCKAScheme.IsSendQuery, SCKAScheme.isSendQuery]) hNonSend
+  · exact absurd (by simp [SCKAScheme.isSendQuery]) hNonSend
+  · exact absurd (by simp [SCKAScheme.isSendQuery]) hNonSend
   · obtain ⟨h1, h2⟩ := recvA_score_eq kem hDet ecEk ecCt hEk hCt leak m s hs hfail y hy
     simp [trackedScore, h1, h2]
   · obtain ⟨h1, h2⟩ := recvB_score_eq kem hDet ecEk ecCt hEk hCt leak m s hs hfail y hy

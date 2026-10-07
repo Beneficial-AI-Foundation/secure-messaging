@@ -32,6 +32,11 @@ of `ε` per send query, none otherwise) into `Pr[flag] ≤ q · ε`, and
 `correctness_failure_le_of_tracked_bad` turns a bound on the flag into a bound on
 `Pr[correctnessExp = false]`, given that the invariant forces the game's `correct` bit. The
 scheme-specific inputs are the bad predicate, the invariant, the score, and the per-query bounds.
+
+This complements the potential method of `SCKA.Correctness` (`correctness_error_le_of_potential`),
+which needs an invariant preserved by every query of the ordinary game. With the flag, the
+invariant only has to hold until the first bad state, so nothing has to be proved about the
+states that follow a primitive failure.
 -/
 
 open OracleSpec ENNReal
@@ -116,14 +121,6 @@ open OracleComp sckaCorrectnessSpec
 
 variable {IK StA StB I Rho Rand : Type}
 
-/-- The proposition that a correctness-game query is a send query (`isSendQuery`). -/
-def IsSendQuery (t : (sckaCorrectnessSpec Rho).Domain) : Prop :=
-  isSendQuery t = true
-
-/-- Decides whether a correctness-game query is a send query. -/
-instance : DecidablePred (IsSendQuery (Rho := Rho)) :=
-  fun t => inferInstanceAs (Decidable (isSendQuery t = true))
-
 /-- Per-query expected-score bounds, with an allowance of `ε` on send queries only, give a bound
 `q · ε` on the probability that the flag is set after an adversary making at most `q` send
 queries, starting from a state of score `0`. -/
@@ -137,7 +134,7 @@ theorem tracked_bad_le_of_score_step [DecidableEq I]
     (hstep : ∀ t p, trackedInv Inv bad p →
       expectedPayoff (((trackedImpl (sckaCorrectnessImpl scka) bad) t).run p)
           (fun z => score z.2) ≤
-        score p + if IsSendQuery t then ε else 0)
+        score p + if isSendQuery (Rho := Rho) t then ε else 0)
     (adv : SCKACorrectnessAdversary Rho) (q : ℕ) (hq : SendQueryBound adv q)
     (s₀ : GameState StA StB I Rho) (hinit : trackedInv Inv bad (s₀, false))
     (hscore₀ : score (s₀, false) = 0) :
@@ -153,8 +150,8 @@ theorem tracked_bad_le_of_score_step [DecidableEq I]
       tracked_bad_probability_le_score score hscore1 _
     _ ≤ score (s₀, false) + (q : ℝ≥0∞) * ε :=
       expectedPayoff_simulateQ_run_le (trackedImpl (sckaCorrectnessImpl scka) bad)
-        (trackedInv Inv bad) score (IsSendQuery (Rho := Rho)) ε hpres hstep adv q hq
-        (s₀, false) hinit
+        (trackedInv Inv bad) score (fun t => isSendQuery (Rho := Rho) t = true) ε hpres hstep
+        adv q hq (s₀, false) hinit
     _ = (q : ℝ≥0∞) * ε := by rw [hscore₀, zero_add]
 
 /-- A bound on the probability that the final flag is set bounds the failure probability of the

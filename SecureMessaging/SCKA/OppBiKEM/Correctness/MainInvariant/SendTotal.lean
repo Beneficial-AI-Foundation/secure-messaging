@@ -108,12 +108,10 @@ theorem oracleSendA_run_ne_none
     ∀ z ∈ support ((SCKAScheme.oracleSendA (scheme kem hDet ecEk ecCt leak) ()).run s),
       z.1 ≠ none := by
   intro z hz
-  rw [SCKAScheme.oracleSendA_run_eq_sendAOutcome] at hz
-  obtain ⟨out, hout, hz⟩ := mem_support_bind_peel _ _ hz
-  obtain rfl := eq_of_mem_support_pure _ hz
+  obtain ⟨out, hout, rfl⟩ := (SCKAScheme.mem_support_oracleSendA_run_iff _ s z).1 hz
   rcases out with _ | ⟨key?, ρ, tsnd, stA'⟩
   · exact absurd hout (sendA_ne_none kem ecEk ecCt s hs)
-  · simp [SCKAScheme.sendAOutcome]
+  · simp
 
 /-- From a game state satisfying `GameInv`, the `SendB` oracle always answers `some`. -/
 theorem oracleSendB_run_ne_none
@@ -122,12 +120,10 @@ theorem oracleSendB_run_ne_none
     ∀ z ∈ support ((SCKAScheme.oracleSendB (scheme kem hDet ecEk ecCt leak) ()).run s),
       z.1 ≠ none := by
   intro z hz
-  rw [SCKAScheme.oracleSendB_run_eq_sendBOutcome] at hz
-  obtain ⟨out, hout, hz⟩ := mem_support_bind_peel _ _ hz
-  obtain rfl := eq_of_mem_support_pure _ hz
+  obtain ⟨out, hout, rfl⟩ := (SCKAScheme.mem_support_oracleSendB_run_iff _ s z).1 hz
   rcases out with _ | ⟨key?, ρ, tsnd, stB'⟩
   · exact absurd hout (sendB_ne_none kem ecEk ecCt s hs)
-  · simp [SCKAScheme.sendBOutcome]
+  · simp
 
 /-- Assume:
 

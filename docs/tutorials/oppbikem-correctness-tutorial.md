@@ -7,7 +7,7 @@ the module docstring of
 [`OppBiKEM/Correctness.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness.lean).
 
 The endpoint is
-[`correctness_of_perfectKEM`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Game.lean#L253):
+[`correctness_of_perfectKEM`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Game.lean#L251):
 for a KEM with deterministic decapsulation that is perfectly correct, and for correct
 public-key and ciphertext erasure codes, the SCKA correctness experiment returns `true` with
 probability one, for every adversary. There is no bounded-slack assumption. No `sorry`; only
@@ -29,7 +29,7 @@ is the transcript's key for that epoch.
 | # | File | Role |
 | --- | --- | --- |
 | 0 | [`OppBiKEM/Correctness.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness.lean) | summary: notation, results, where each proof lives |
-| 1 | [`SCKA/Correctness/OracleSupport.lean`](../../SecureMessaging/SCKA/Correctness/OracleSupport.lean) | each game oracle as a pure state update, with support and distribution forms of each oracle run |
+| 1 | [`SCKA/Correctness.lean`](../../SecureMessaging/SCKA/Correctness.lean) | shared with the other SCKA proofs: each game oracle as a pure state update, with support and distribution forms of each oracle run |
 | 2 | [`OppBiKEM/Correctness/Transcript.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/Transcript.lean) | `EpochTranscript`, `Transcript`, parities |
 | 3 | [`OppBiKEM/Correctness/RecvSpec.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/RecvSpec.lean) | `recv` as a decision tree |
 | 4 | [`OppBiKEM/Correctness/SendFacts.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/SendFacts.lean) | support-level facts about one `send` |
@@ -62,25 +62,24 @@ iteration files n1 to n14; the rest of those files is in the Git history before 
 ## 2. Infrastructure: the oracles as pure updates
 
 Each correctness-game oracle in `SCKA/Defs.lean` runs the scheme's local `send` or `recv`
-and then updates the game state. `OracleSupport.lean` names those updates and restates each
-oracle run in terms of them:
+and then updates the game state. `SCKA/Correctness.lean`, shared with the other SCKA
+correctness proofs, names those updates and restates each oracle run in terms of them:
 
-- [`applySendA`](../../SecureMessaging/SCKA/Correctness/OracleSupport.lean#L38) and
-  [`applyRecvA`](../../SecureMessaging/SCKA/Correctness/OracleSupport.lean#L87) (and the `B`
-  twins). Read them against `oracleSendA` and `oracleRecvA` in `Defs.lean`; the `correct` field
-  carries the game's assertions verbatim.
-- [`oracleSendA_run_cases`](../../SecureMessaging/SCKA/Correctness/OracleSupport.lean#L253) and
-  [`oracleRecvA_run_cases`](../../SecureMessaging/SCKA/Correctness/OracleSupport.lean#L307):
-  anything in the support of an oracle run is the no-op, a failed receive (which clears
-  `correct`), or `applyX` of a local outcome. The invariant proofs use these:
-  `gameInv_step_of` (section 10) and the receive cases of `Quantitative/RecvStep.lean`.
-- [`oracleSendA_run_eq_sendAOutcome`](../../SecureMessaging/SCKA/Correctness/OracleSupport.lean#L389) with
-  [`sendAOutcome`](../../SecureMessaging/SCKA/Correctness/OracleSupport.lean#L375): a send run as
-  a computation, the local send followed by a pure outcome. The expected-value proofs of
-  `Quantitative/SendStep.lean` and the totality proof of `SendTotal.lean` use these.
+- [`sendAUpdate`](../../SecureMessaging/SCKA/Correctness.lean#L41) and [`recvAUpdate`](../../SecureMessaging/SCKA/Correctness.lean#L74) (and the `B` twins). Read them against
+  `oracleSendA` and `oracleRecvA` in `Defs.lean`; the `correct` field carries the game's
+  assertions verbatim, with the known-prefix check as `knownPrefix`. The field lemmas
+  `sendAUpdate_stA`, `sendAUpdate_keyA_some`, … are what the quantitative send step reads.
+- [`mem_support_oracleSendA_run_iff`](../../SecureMessaging/SCKA/Correctness.lean#L196) and
+  [`mem_support_oracleRecvA_run_iff`](../../SecureMessaging/SCKA/Correctness.lean#L267): anything in the support of an oracle run is the
+  no-op, a failed receive (which clears `correct`), or the update of a local outcome. The
+  invariant proofs use these: `gameInv_step_of` (section 10) and the receive cases of
+  `Quantitative/RecvStep.lean`.
+- [`oracleSendA_run_eq`](../../SecureMessaging/SCKA/Correctness.lean#L167): a send run as a computation, the local outcome mapped through
+  the update. The expected-value proofs of `Quantitative/SendStep.lean` use it, through a private
+  name `sendAOutcome` for that map.
 
-Downstream proofs speak about `applyX` and never unfold the `StateT` plumbing of the send and
-receive oracles. There is no generic dispatch theorem over the five oracles: the case split
+Downstream proofs speak about the updates and never unfold the `StateT` plumbing of the send
+and receive oracles. There is no generic dispatch theorem over the five oracles: the case split
 lives in `gameInv_step_of`, because the step needs a hypothesis on the pre-state (section 10).
 
 ## 3. The transcript
@@ -368,9 +367,9 @@ is the one-step statement: every result of one oracle query from a state satisfy
 satisfies `GameInv`, provided every transcript consistent with the pre-state is `DecapsReady`
 for both parties (the secret key of each epoch the party may still decapsulate recovers the
 transcript key). It splits on the query: `Unif` leaves the state unchanged; `SendA` and `SendB`
-go through `oracleSendA_run_cases` / `oracleSendB_run_cases` and one application of
-`partyInv_send_step .A` / `.B`; `RecvA` and `RecvB` through `oracleRecvA_run_cases` /
-`oracleRecvB_run_cases` and one application of `partyInv_recv_step` with `roleR := .A` / `.B`.
+go through `mem_support_oracleSendA_run_iff` / `…B…` and one application of
+`partyInv_send_step .A` / `.B`; `RecvA` and `RecvB` through `mem_support_oracleRecvA_run_iff` /
+`…B…` and one application of `partyInv_recv_step` with `roleR := .A` / `.B`.
 The two "local receive failed" outcomes are refuted because the receive step proves success.
 The `correct` field of the pure update is closed from the step lemma's three assertions; the
 `simp only` calls there are matching the game's Boolean expression to those facts.
@@ -379,7 +378,7 @@ The `DecapsReady` hypothesis is why the case split is not delegated to a generic
 theorem with conclusion `QueryImpl.PreservesInv impl GameInv`: such a theorem asks for each
 oracle fact at every state satisfying `GameInv`, and `DecapsReady` is not part of `GameInv`.
 The two proofs discharge it differently.
-[`gameInv_preserved`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Game.lean#L192)
+[`gameInv_preserved`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Game.lean#L190)
 supplies it at every state from `DecapsCorrectOnSupport` (a perfectly correct KEM), giving
 `QueryImpl.PreservesInv`. The quantitative proof supplies it only at states that are not bad
 (`gameInv_step_of_noFailure`, section 12).
@@ -396,11 +395,11 @@ and the lemmas that discharge them.
 | known prefix | `knownPrefix_of_partyInv` | `knownPrefix_of_partyInv` on the post-state, using `recv_tcur_le` |
 | receive never fails | n/a | `T_dk` for the key, `hdec` for decapsulation |
 
-[`simulateQ_gameInv`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Game.lean#L207)
+[`simulateQ_gameInv`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Game.lean#L205)
 lifts to arbitrary adversaries with VCVio's `simulateQ_run_preservesInv`.
-[`correctnessExp_eq_map`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Game.lean#L235)
+[`correctnessExp_eq_map`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Game.lean#L233)
 rewrites the experiment as the final `correct` bit mapped over the run, and
-[`correctness_of_perfectKEM`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Game.lean#L253)
+[`correctness_of_perfectKEM`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Game.lean#L251)
 shows `Pr[= false] = 0` through `probEvent_eq_zero_iff` and the invariant's `correct` field, then
 converts to `Pr[= true] = 1` with `probOutput_false_eq_sub`.
 
@@ -504,7 +503,8 @@ with an extra argument; the plain-KEM version got a different name to coexist wi
     at most the old score;
   - *plain*: unchanged (`pair_plain`).
   `tracked_sendA_score_le`/`tracked_sendB_score_le` are the two orientations;
-  `tracked_step_score_le` is the combined statement with `+ ε` only on `IsSendQuery t`.
+  `tracked_step_score_le` is the combined statement with `+ ε` only when `isSendQuery t`, the
+  same form as the per-query bound of `SCKA.Correctness.correctness_error_le_of_potential`.
 
 ### 12.4 Assembly
 

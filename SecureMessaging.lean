@@ -63,7 +63,6 @@ import SecureMessaging.RKEM.FromKEM.Correctness
 import SecureMessaging.RKEM.FromKEM.Security
 import SecureMessaging.SCKA.Correctness
 import SecureMessaging.SCKA.Defs
-import SecureMessaging.SCKA.Correctness.OracleSupport
 import SecureMessaging.SCKA.Correctness.Tracked
 import SecureMessaging.SCKA.MLKEMBraid.Authenticator
 import SecureMessaging.SCKA.MLKEMBraid.Basic
