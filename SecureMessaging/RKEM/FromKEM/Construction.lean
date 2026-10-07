@@ -36,6 +36,14 @@ RDec-P(d̂kP, ctP, ekP̄):            -- ekP̄ input is unused
   return (K, êkP̄)
 ```
 
+## Randomness leakage
+
+Security notions that expose algorithm coins are stated relative to an `RKEMScheme.RandLeak`
+package. `randLeak` builds one for the construction from a `KEMScheme.RandLeak` package
+`kemLeak` of the underlying KEM: fresh key generation leaks the KEM key-generation coins, and
+`REnc-P`, which runs `Enc` and then `KeyGen`, leaks the pair of their coins
+(`KEMScheme.RandLeak.Rand`).
+
 [REFERENCES]
 
 - [TripleRatchet] Dodis, Jost, Katsumata, Prest, Schmidt.
@@ -118,5 +126,50 @@ def scheme {m : Type → Type u} [Monad m] {K PK SK C : Type}
   rencB := renc kem
   rdecB := rdec kem total
 -- ANCHOR_END: scheme
+
+section RandLeak
+
+variable {m : Type → Type u} [Monad m] [LawfulMonad m] {K PK SK C : Type}
+
+/-- KEM-RKEM encapsulation `REnc-P` (`renc`), also returning its coins: the coins of the KEM
+encapsulation `Enc(êkP̄)` followed by those of the fresh key generation `KeyGen()`.
+
+P̄ above corresponds to Peer below, while P corresponds to Self. -/
+-- ANCHOR: rencRleak
+def rencRleak {kem : KEMScheme m K PK SK C} (kemLeak : kem.RandLeak) (_par : Unit)
+    (ekPeer : PK) (_dkSelf : SK) : m (((PK × C) × K × SK) × kemLeak.Rand) := do
+  let ((ct, key), encRand) ← kemLeak.encapsRleak ekPeer
+  let ((ekSelfHat, dkSelfHat), keygenRand) ← kemLeak.keygenRleak
+  return (((ekSelfHat, ct), key, dkSelfHat), (encRand, keygenRand))
+-- ANCHOR_END: rencRleak
+
+/-- `renc` is the first component of `rencRleak`, by the `_fst` laws of `kemLeak`. -/
+theorem rencRleak_fst {kem : KEMScheme m K PK SK C} (kemLeak : kem.RandLeak) (par : Unit)
+    (ekPeer : PK) (dkSelf : SK) :
+    (do
+      let out ← rencRleak kemLeak par ekPeer dkSelf
+      pure out.1) = renc kem par ekPeer dkSelf := by
+  simp only [rencRleak, renc, ← kemLeak.encaps_fst, ← kemLeak.keygen_fst, bind_assoc, pure_bind]
+
+/-- Randomness-leak package of the RKEM-from-KEM construction, built from a randomness-leak
+package `kemLeak` of the underlying KEM. Fresh key generation `RKeyGen-P(par, ⊥)` is KEM key
+generation and leaks its coins; `REnc-P` leaks the coins of its KEM encapsulation and of its
+fresh key generation (`rencRleak`). As for the construction itself, both parties coincide. -/
+-- ANCHOR: randLeak
+def randLeak (kem : KEMScheme m K PK SK C) (total : TotalDecaps kem) (kemLeak : kem.RandLeak) :
+    (scheme kem total).RandLeak where
+  KeygenRand := kemLeak.KeygenRand
+  EncRand := kemLeak.Rand
+  rkeygenAFreshRleak := fun _ => kemLeak.keygenRleak
+  rkeygenBFreshRleak := fun _ => kemLeak.keygenRleak
+  rencARleak := rencRleak kemLeak
+  rencBRleak := rencRleak kemLeak
+  rkeygenAFresh_fst := fun _ => kemLeak.keygen_fst
+  rkeygenBFresh_fst := fun _ => kemLeak.keygen_fst
+  rencA_fst := rencRleak_fst kemLeak
+  rencB_fst := rencRleak_fst kemLeak
+-- ANCHOR_END: randLeak
+
+end RandLeak
 
 end kemRKEM

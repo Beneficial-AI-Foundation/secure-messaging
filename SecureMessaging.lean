@@ -59,6 +59,7 @@ import SecureMessaging.PRFPRNG.Defs
 import SecureMessaging.RKEM.Defs
 import SecureMessaging.RKEM.FromKEM.Construction
 import SecureMessaging.RKEM.FromKEM.Correctness
+import SecureMessaging.RKEM.FromKEM.RatchetSimulatability
 import SecureMessaging.RKEM.FromKEM.Security
 import SecureMessaging.SCKA.Correctness
 import SecureMessaging.SCKA.Defs
