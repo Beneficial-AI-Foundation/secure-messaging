@@ -20,6 +20,8 @@ open Informal
 
 set_option doc.verso true
 set_option pp.rawOnError true
+set_option maxHeartbeats 800000
+set_option maxRecDepth 16384
 
 #doc (Manual) "Opp-UniKEM-CKA" =>
 
@@ -382,7 +384,7 @@ I_{\B}\gets\bot, t_{I_{\B}}\gets\bot \\
 ```anchor recvA (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
 def recvA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     [DecidableEq Sym]
-  (hDet : kem.DeterministicDecaps)
+  (decapsDet : SK → C → Option K)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
   (stA : StA onoff Sym) (ρ : Message Sym) :
@@ -415,7 +417,7 @@ def recvA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
                 | none => (none, { stA with lch := lch })
                 | some ct1 =>
                 -- decoded `ct_1` successfully; decapsulate (ct_0, ct_1) to get an epoch key
-                  match hDet.decapsDet dkA (onoff.split.symm (ct0, ct1)) with
+                  match decapsDet dkA (onoff.split.symm (ct0, ct1)) with
                   | none => (none, stA)
                   | some key =>
                       (some (stA.t, key),
@@ -540,7 +542,7 @@ def scheme (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
   initB := initB kem onoff
   sendA := sendA kem onoff ecEk
   sendArleak := sendArleak kem onoff ecEk leak
-  recvA := recvA kem onoff hDet ecCt0 ecCt1
+  recvA := recvA kem onoff hDet.decapsDet ecCt0 ecCt1
   sendB := sendB kem onoff ecCt0 ecCt1
   sendBrleak := sendBrleak kem onoff ecCt0 ecCt1 leak
   recvB := recvB kem onoff ecEk
@@ -684,6 +686,66 @@ abbrev exposureB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
   rleak := vulnRleakB
 ```
 :::::::
+
+*Towards the security theorem: the cost of imperfect KEM correctness.*
+The security game is {bpref "scka_oracles"}[] with the vulnerable epochs of
+{bpref "opp_unikem_cka_vulnerable_epochs"}[]. Its challenge oracle answers with the key
+recorded by $`\A` when present, and that key is $`\A`'s decapsulation result.
+A reduction to the KEM cannot decapsulate at the epoch where it embeds its
+challenge, so the proof first passes to an *auxiliary* game in which $`\A`
+records $`\B`'s encapsulated key on completing $`\ctone`. Let $`H_i` be the
+auxiliary game whose challenges at epochs $`1,\dots,i` return uniform keys,
+and let $`p_i=\Pr[H_i(\adv)=1]`. For every adversary with at most $`q`
+ordinary or leaking sends,
+
+$$`\mathsf{Adv}^{\mathsf{guess}}_{\mathsf{SCKA},\Pi}(\adv)
+\le \tfrac12\,|p_0-p_q| + q\varepsilon .`
+
+The term $`q\varepsilon` is the price of the auxiliary game: a persistent
+flag records the first KEM inconsistency, each send raises its probability
+by at most $`\varepsilon`, and the real and auxiliary games coincide until
+the flag is set. The identification of $`H_0` and $`H_q` with the two
+fixed-bit auxiliary experiments uses that recorded epochs never exceed the
+number of sends. Bounding $`|p_0-p_q|` by the KEM's IND-CPA advantage is the
+subject of the security theorem below.
+
+```anchor security_guess_le_hybrid_gap (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Security.Endpoints)
+theorem security_guess_le_hybrid_gap
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (hDet : DeterministicDecaps kem)
+    (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
+    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
+    (leak : kem.OnOffRandLeak onoff)
+    (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
+    SCKAScheme.sckaGuessAdvantage (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)
+      adv (exposureA kem onoff leak) (exposureB kem onoff leak) ≤
+    |(Pr[= true | idealEpochHybridExp kem onoff hDet ecEk ecCt0 ecCt1 leak adv 0]).toReal -
+      (Pr[= true | idealEpochHybridExp kem onoff hDet ecEk ecCt0 ecCt1 leak adv q]).toReal| / 2 +
+      (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal := by
+  rw [SCKAScheme.sckaGuessAdvantage_eq_sckaDistAdvantage_div_two,
+    SCKAScheme.sckaDistAdvantage,
+    idealEpochHybridExp_zero,
+    idealEpochHybridExp_last kem onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1 leak adv q hq]
+  let G := fun b => (Pr[= true | SCKAScheme.securityExpFixedBit
+    (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv b
+    (exposureA kem onoff leak) (exposureB kem onoff leak)]).toReal
+  let I := fun b => (Pr[= true | idealSecurityExp kem onoff hDet ecEk ecCt0 ecCt1
+    leak (fun _ => b) adv]).toReal
+  have h0 : |G false - I false| ≤
+      (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal :=
+    security_correctness_endpoint_le kem onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
+      leak false adv q hq
+  have h1 : |G true - I true| ≤
+      (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal :=
+    security_correctness_endpoint_le kem onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
+      leak true adv q hq
+  have htriangle := abs_sub_le (G true) (I true) (G false)
+  have htriangle' := abs_sub_le (I true) (I false) (G false)
+  rw [abs_sub_comm (I true) (I false), abs_sub_comm (I false) (G false)] at htriangle'
+  change |G true - G false| / 2 ≤ |I false - I true| / 2 + _
+  linarith
+```
 
 :::defTitle "opp_unikem_cka_security" "Opp-UniKEM-CKA security"
 :::

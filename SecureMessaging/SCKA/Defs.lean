@@ -230,7 +230,7 @@ def initGameState (stA : StA) (stB : StB) : GameState StA StB I Rho :=
 
 /-- Oracle spec for the SCKA correctness game: uniform randomness, send and receive oracles. -/
 -- ANCHOR: sckaCorrectnessSpec
-def sckaCorrectnessSpec (Rho : Type) :=
+abbrev sckaCorrectnessSpec (Rho : Type) :=
   unifSpec                                  -- Uniform randomness
   + (Unit →ₒ Option (ℕ × Option ℕ × Rho))       -- O-Send-A
   + (Unit →ₒ Option (ℕ × Option ℕ × Rho))       -- O-Send-B
@@ -264,10 +264,15 @@ Marked `@[match_pattern]` so they unfold transparently in `match` patterns. -/
 
 end sckaCorrectnessSpec
 
+/-- Whether a query of the correctness game is `SendA` or `SendB`. -/
+def isSendQuery : (sckaCorrectnessSpec Rho).Domain → Bool
+  | sckaCorrectnessSpec.OSendA | sckaCorrectnessSpec.OSendB => true
+  | _ => false
+
 /-- Oracle spec for the SCKA security game: the correctness spec extended with the
 randomness-leaking send oracles, the challenge oracle, and the corruption oracles. -/
 -- ANCHOR: sckaSecuritySpec
-def sckaSecuritySpec (StA StB I Rho Rand : Type) :=
+abbrev sckaSecuritySpec (StA StB I Rho Rand : Type) :=
   sckaCorrectnessSpec Rho
   + (Unit →ₒ Option (ℕ × Option ℕ × Rho × Rand))    -- O-Send-A-rleak
   + (Unit →ₒ Option (ℕ × Option ℕ × Rho × Rand))    -- O-Send-B-rleak
@@ -275,6 +280,48 @@ def sckaSecuritySpec (StA StB I Rho Rand : Type) :=
   + (Unit →ₒ Option StA)                             -- O-Corrupt-A
   + (Unit →ₒ Option StB)                             -- O-Corrupt-B
 -- ANCHOR_END: sckaSecuritySpec
+
+namespace sckaSecuritySpec
+
+/-- Embed a correctness oracle into the full security oracle family. -/
+@[match_pattern] abbrev OCorrectness (t : (sckaCorrectnessSpec Unit).Domain) :
+    (sckaSecuritySpec Unit Unit Unit Unit Unit).Domain :=
+  .inl (.inl (.inl (.inl (.inl t))))
+
+/-- Select A's randomness-leaking send. -/
+@[match_pattern] abbrev OSendArleak : (sckaSecuritySpec Unit Unit Unit Unit Unit).Domain :=
+  .inl (.inl (.inl (.inl (.inr ()))))
+
+/-- Select B's randomness-leaking send. -/
+@[match_pattern] abbrev OSendBrleak : (sckaSecuritySpec Unit Unit Unit Unit Unit).Domain :=
+  .inl (.inl (.inl (.inr ())))
+
+/-- Select the challenge for epoch `t`. -/
+@[match_pattern] abbrev OChall (t : ℕ) : (sckaSecuritySpec Unit Unit Unit Unit Unit).Domain :=
+  .inl (.inl (.inr t))
+
+/-- Select corruption of A. -/
+@[match_pattern] abbrev OCorruptA : (sckaSecuritySpec Unit Unit Unit Unit Unit).Domain :=
+  .inl (.inr ())
+
+/-- Select corruption of B. -/
+@[match_pattern] abbrev OCorruptB : (sckaSecuritySpec Unit Unit Unit Unit Unit).Domain :=
+  .inr ()
+
+/-- `true` exactly on the four send queries: the ordinary sends of the correctness interface
+and the two randomness-leaking sends. -/
+def isSendQuery : (sckaSecuritySpec Unit Unit Unit Unit Unit).Domain → Bool
+  | OCorrectness t => SCKAScheme.isSendQuery t
+  | OSendArleak | OSendBrleak => true
+  | _ => false
+
+/-- On an embedded correctness query, the two send predicates agree. -/
+lemma isSendQuery_OCorrectness (t : (sckaCorrectnessSpec Rho).Domain) :
+    isSendQuery (OCorrectness t) = SCKAScheme.isSendQuery t := by
+  rcases t with ((((n | u) | u) | n) | n) <;> rfl
+
+end sckaSecuritySpec
+
 
 /-! ### Send oracles -/
 
@@ -703,18 +750,41 @@ def sckaCorrectnessImpl [DecidableEq I] (scka : SCKAScheme ProbComp IK StA StB I
     + oracleRecvA scka + oracleRecvB scka
 -- ANCHOR_END: sckaCorrectnessImpl
 
+/-- Challenge oracle with per-epoch challenge mode `mode`: challenge `t` is answered by
+`oracleChall (mode t)`, with a uniform key if `mode t = true` and the recorded key otherwise. -/
+-- ANCHOR: challOf
+def challOf [SampleableType I] (mode : ℕ → Bool) :
+    QueryImpl (ℕ →ₒ Option I) (StateT (GameState StA StB I Rho) ProbComp) :=
+  fun t => oracleChall (mode t) StA StB I Rho t
+-- ANCHOR_END: challOf
+
+/-- Security oracle family with correctness component `base` and challenge oracle `chall`: the
+oracles of `base`, the two randomness-leaking sends, `chall`, and the two corruptions. The
+security game, the auxiliary games of a proof, and its hybrids are instances. -/
+-- ANCHOR: securityImplOf
+def securityImplOf [DecidableEq I]
+    (base : QueryImpl (sckaCorrectnessSpec Rho) (StateT (GameState StA StB I Rho) ProbComp))
+    (chall : QueryImpl (ℕ →ₒ Option I) (StateT (GameState StA StB I Rho) ProbComp))
+    (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand)
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) :
+    QueryImpl (sckaSecuritySpec StA StB I Rho Rand)
+      (StateT (GameState StA StB I Rho) ProbComp) :=
+  base
+    + oracleSendArleak vulnA.rleak scka + oracleSendBrleak vulnB.rleak scka
+    + chall
+    + oracleCorruptA vulnA.corrupt StB I Rho + oracleCorruptB vulnB.corrupt StA I Rho
+-- ANCHOR_END: securityImplOf
+
 /-- Oracle set for the SCKA security game (Fig. 1): the correctness oracles
-extended with randomness-leaking sends, challenge, and corruption. -/
+extended with randomness-leaking sends, challenge, and corruption, with the
+constant challenge mode `isRandom`. -/
 -- ANCHOR: sckaSecurityImpl
 def sckaSecurityImpl (isRandom : Bool) (vulnA : VulnerableEpochs StA Rand)
     (vulnB : VulnerableEpochs StB Rand)
     [SampleableType I] [DecidableEq I] (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) :
     QueryImpl (sckaSecuritySpec StA StB I Rho Rand)
       (StateT (GameState StA StB I Rho) ProbComp) :=
-  sckaCorrectnessImpl scka
-    + oracleSendArleak vulnA.rleak scka + oracleSendBrleak vulnB.rleak scka
-    + oracleChall isRandom StA StB I Rho
-    + oracleCorruptA vulnA.corrupt StB I Rho + oracleCorruptB vulnB.corrupt StA I Rho
+  securityImplOf (sckaCorrectnessImpl scka) (challOf (fun _ => isRandom)) vulnA vulnB scka
 -- ANCHOR_END: sckaSecurityImpl
 
 /-- SCKA correctness adversary: access to the restricted send/receive oracles. -/
@@ -722,11 +792,6 @@ def sckaSecurityImpl (isRandom : Bool) (vulnA : VulnerableEpochs StA Rand)
 abbrev SCKACorrectnessAdversary (Rho : Type) :=
   OracleComp (sckaCorrectnessSpec Rho) Bool
 -- ANCHOR_END: SCKACorrectnessAdversary
-
-/-- Whether a query of the correctness game is `SendA` or `SendB`. -/
-def isSendQuery : (sckaCorrectnessSpec Rho).Domain → Bool
-  | sckaCorrectnessSpec.OSendA | sckaCorrectnessSpec.OSendB => true
-  | _ => false
 
 /-- `adv` makes at most `q` `SendA` and `SendB` queries combined. -/
 def SendQueryBound (adv : SCKACorrectnessAdversary Rho) (q : ℕ) : Prop :=
@@ -782,6 +847,101 @@ noncomputable def sckaGuessAdvantage [SampleableType I] [DecidableEq I]
     (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand) : ℝ :=
   |(Pr[= true | securityExp scka adversary vulnA vulnB]).toReal - 1 / 2|
 -- ANCHOR_END: sckaGuessAdvantage
+
+/-! ### Fixed-bit experiments and advantage normalization
+
+For a scheme `scka`, security adversary `adversary`, and exposure policies `vulnA`,
+`vulnB`, let `G_b := securityExpFixedBit scka adversary b vulnA vulnB`.
+The branch `G_false` uses recorded keys; `G_true` uses independent uniform challenge keys.
+Let `w := Pr[securityExp scka adversary vulnA vulnB = true]` be the probability
+that the adversary guesses the uniformly sampled bit.
+-/
+
+/-- The SCKA experiment with fixed bit `b`: initialize `scka`, answer eligible challenges
+with recorded keys if `b = false` and independent uniform keys if `b = true`, and return the
+adversary's guess. -/
+-- ANCHOR: securityExpFixedBit
+def securityExpFixedBit [SampleableType I] [DecidableEq I]
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (adversary : SCKAAdversary StA StB I Rho Rand)
+    (b : Bool) (vulnA : VulnerableEpochs StA Rand)
+      (vulnB : VulnerableEpochs StB Rand) : ProbComp Bool := do
+  let ik ← scka.initKeyGen
+  let stA ← scka.initA ik
+  let stB ← scka.initB ik
+  let (b', _) ← (simulateQ (sckaSecurityImpl b vulnA vulnB scka) adversary).run
+    (initGameState stA stB)
+  return b'
+-- ANCHOR_END: securityExpFixedBit
+
+/-- The distinguishing advantage of `adversary` against `scka` with the given exposure policies:
+`|Pr[G_true = true] - Pr[G_false = true]|`. -/
+-- ANCHOR: sckaDistAdvantage
+noncomputable def sckaDistAdvantage [SampleableType I] [DecidableEq I]
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (adversary : SCKAAdversary StA StB I Rho Rand)
+    (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand) : ℝ :=
+  |(Pr[= true | securityExpFixedBit scka adversary true vulnA vulnB]).toReal -
+   (Pr[= true | securityExpFixedBit scka adversary false vulnA vulnB]).toReal|
+-- ANCHOR_END: sckaDistAdvantage
+
+/-- The success probability `w` equals `Pr[b ←$ Bool; b' ← G_b; return (b = b')]`. -/
+private lemma securityExp_probOutput_eq_branch [SampleableType I] [DecidableEq I]
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (adversary : SCKAAdversary StA StB I Rho Rand)
+    (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand) :
+    Pr[= true | securityExp scka adversary vulnA vulnB] =
+    Pr[= true | do
+      let b ← ($ᵗ Bool : ProbComp Bool)
+      let z ← if b then securityExpFixedBit scka adversary true vulnA vulnB
+               else securityExpFixedBit scka adversary false vulnA vulnB
+      pure (b == z)] := by
+  unfold securityExp
+  simp only [← probEvent_eq_eq_probOutput]
+  rw [probEvent_bind_congr fun ik _ =>
+    probEvent_bind_congr fun stA _ =>
+    probEvent_bind_bind_swap _ _ _ _]
+  rw [probEvent_bind_congr fun ik _ =>
+    probEvent_bind_bind_swap _ _ _ _]
+  rw [probEvent_bind_bind_swap]
+  simp only [probEvent_eq_eq_probOutput]
+  refine probOutput_bind_congr' ($ᵗ Bool) true ?_
+  intro b; cases b <;> simp [securityExpFixedBit]
+
+/-- The success probability `w` satisfies
+`w - 1/2 = (Pr[G_true = true] - Pr[G_false = true]) / 2`. -/
+lemma securityExp_toReal_sub_half [SampleableType I] [DecidableEq I]
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (adversary : SCKAAdversary StA StB I Rho Rand)
+    (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand) :
+    (Pr[= true | securityExp scka adversary vulnA vulnB]).toReal - 1 / 2 =
+    ((Pr[= true | securityExpFixedBit scka adversary true vulnA vulnB]).toReal -
+     (Pr[= true | securityExpFixedBit scka adversary false vulnA vulnB]).toReal) / 2 := by
+  rw [show (Pr[= true | securityExp scka adversary vulnA vulnB]).toReal =
+      (Pr[= true | do
+        let b ← ($ᵗ Bool : ProbComp Bool)
+        let z ← if b then securityExpFixedBit scka adversary true vulnA vulnB
+                 else securityExpFixedBit scka adversary false vulnA vulnB
+        pure (b == z)]).toReal from by
+    congr 1; exact securityExp_probOutput_eq_branch scka adversary vulnA vulnB]
+  exact probOutput_uniformBool_branch_toReal_sub_half
+    (securityExpFixedBit scka adversary true vulnA vulnB)
+    (securityExpFixedBit scka adversary false vulnA vulnB)
+
+/-- For every scheme, adversary, and pair of exposure policies, the SCKA guessing advantage
+is half the distinguishing advantage. -/
+-- ANCHOR: sckaAdvantageNormalization
+lemma sckaGuessAdvantage_eq_sckaDistAdvantage_div_two [SampleableType I] [DecidableEq I]
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (adversary : SCKAAdversary StA StB I Rho Rand)
+    (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand) :
+    sckaGuessAdvantage scka adversary vulnA vulnB =
+      sckaDistAdvantage scka adversary vulnA vulnB / 2 := by
+  simp only [sckaGuessAdvantage, sckaDistAdvantage]
+  rw [securityExp_toReal_sub_half, abs_div]
+  congr 1
+  exact abs_of_pos two_pos
+-- ANCHOR_END: sckaAdvantageNormalization
 
 end Games
 
