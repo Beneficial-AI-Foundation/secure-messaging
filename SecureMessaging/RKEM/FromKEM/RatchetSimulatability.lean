@@ -6,6 +6,7 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.RKEM.FromKEM.Construction
 import ToVCVio.CryptoFoundations.KeyEncapMech
 import ToVCVio.EvalDist.Monad.Basic
+import ToVCVio.OracleComp.Constructions.SampleableType
 
 /-!
 # RKEM from KEM — Ratchet Simulatability
@@ -202,24 +203,6 @@ end Simulators
 section Simulatability
 
 variable {K PK SK C : Type}
-
-/-- Guessing a uniform bit `b` from a sample of `dist par b` succeeds with probability exactly
-`1 / 2` when `dist par true` and `dist par false` have the same distribution for every `par`. -/
-private lemma probOutput_true_bitGuess_eq_half {Par X : Type} (setup : ProbComp Par)
-    (dist : Par → Bool → ProbComp X) (adversary : Par → X → ProbComp Bool)
-    (h : ∀ par, 𝒟[dist par true] = 𝒟[dist par false]) :
-    Pr[= true | do
-      let b ← $ᵗ Bool
-      let par ← setup
-      let x ← dist par b
-      let b' ← adversary par x
-      return b == b'] = 1 / 2 := by
-  have hf : 𝒟[do let par ← setup; let x ← dist par true; adversary par x] =
-      𝒟[do let par ← setup; let x ← dist par false; adversary par x] := by
-    simp only [evalDist_bind, h]
-  have := probOutput_decide_eq_uniformBool_half
-    (fun b => do let par ← setup; let x ← dist par b; adversary par x) hf
-  simpa [bind_assoc, Bool.beq_eq_decide_eq] using this
 
 variable (kem : KEMScheme ProbComp K PK SK C) (total : TotalDecaps kem) (kemLeak : kem.RandLeak)
 
