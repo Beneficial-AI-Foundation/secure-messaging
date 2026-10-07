@@ -11,10 +11,18 @@ import ToVCVio.OracleComp.Constructions.SampleableType
 /-!
 # RKEM from KEM — Ratchet Simulatability
 
-This file states `RKEMScheme.RatchetSimulatable` for the generic RKEM-from-KEM construction of
-`SecureMessaging.RKEM.FromKEM.Construction`, matching [TripleRatchet, Thm. A.2]: the construction
-of [TripleRatchet, Fig. 26] is *perfectly* ratchet simulatable (advantage `0` against every
-distinguisher) using the simulators of [TripleRatchet, Fig. 27].
+This file proves perfect ratchet simulatability of the RKEM-from-KEM construction
+of `SecureMessaging.RKEM.FromKEM.Construction`.
+
+For every KEM `kem` over `ProbComp`, witness `total : kem.TotalDecaps`, and
+randomness-leak package `kemLeak : kem.RandLeak`, the construction is perfectly
+ratchet simulatable with respect to `randLeak kem total kemLeak`: the real and
+simulated distributions coincide in each of the three simulatability games,
+for both parties.
+
+This establishes the perfect-simulatability conclusion of [TripleRatchet, Thm. A.2]
+using corrected variants of the simulators in [TripleRatchet, Fig. 27], as detailed
+below.
 
 ## Randomness leakage
 
@@ -50,16 +58,6 @@ adjustments, each needed for the simulation to be perfect in the Lean model:
   real distribution `D^CtxtSim_{P,0}` (Fig. 12) `ekP` is a fresh key independent of `êkP`, so a
   distinguisher testing `ekP = êkP` would otherwise succeed for any KEM whose public key is not
   deterministic.
-
-Decapsulation `Dec` is `total.decapsTotal`, as in the construction's own `rdec`.
-
-## Results
-
-`evalDist_keyBaseSimDistA`, `evalDist_keyUpdSimDistA` and `evalDist_ctxtSimDistB` (and their
-role-swapped versions) say that the real and simulated distributions of
-[TripleRatchet, Figs. 10–12] coincide; every advantage is then `0`, and `RatchetSimulatable`
-follows. The only assumption on the KEM is that its decapsulation is total (`TotalDecaps`),
-which the construction itself already requires; no correctness or security assumption is needed.
 
 [REFERENCES]
 
