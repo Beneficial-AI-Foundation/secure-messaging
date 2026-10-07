@@ -75,6 +75,25 @@ The algorithms follow Figure 16 with these additions or differences:
 - **Totality.** Figure 16 is partial on unreachable malformed states, for example
   when `Rec-A` reaches `Dec` without both `dk_A` and `ct_0`. Here, those local
   branches return no key and leave the branch-specific state unchanged.
+
+## Correction to randomness-leakage exposure
+
+The original leaking-send rule exposes only `vuln(newState) \ vuln(oldState)`.
+Consider an epoch `t` with an ordinary offline send, followed by the deliveries
+needed to enable online encapsulation, then a leaking online send. B retains
+its offline state throughout the online send, so its vulnerable set is `{t}`
+both before and after that send. The original rule therefore exposes no epoch.
+If the online coins reveal the encapsulated key `k`, the adversary can next
+request `Chall(t)` and compare its response with `k`. The probability of equality
+is `1` for a real response and `1 / |K|` for a uniform response, giving a
+distinguishing gap of `1 - 1 / |K|`. The existing K-PKE construction has such
+online coins: they are the sampled message used as the shared key.
+
+The corrected policies expose the current epoch whenever key-generation, offline,
+or online coins are returned; deterministic retransmissions expose no epoch. Thus
+the leaking online send exposes `t`, and `Chall(t)` is rejected. This weakens the
+original SCKA requirement by excluding compromised challenges; the KEM IND-CPA
+definition is unchanged.
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -566,6 +585,50 @@ def vulnB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     (stB : StB onoff Sym) : Finset ℕ :=
   if stB.stCt.isSome then {stB.t} else ∅
 -- ANCHOR_END: vulnB
+
+/-- Epochs exposed by A's send coins. Fresh key-generation coins expose the
+current epoch; deterministic retransmissions expose the empty set. -/
+-- ANCHOR: sendExposureA
+def sendExposureA {kem : KEMScheme m K PK SK C} {onoff : kem.OnOffStructure}
+    {KeygenRand OffRand OnRand : Type}
+    (stA _stA' : StA onoff Sym) (rand : SendRand KeygenRand OffRand OnRand) : Finset ℕ :=
+  match rand with
+  | .keygen _ => {stA.t}
+  | _ => ∅
+-- ANCHOR_END: sendExposureA
+
+/-- Epochs exposed by B's send coins: the current epoch for offline or online encapsulation
+coins, and the empty set for deterministic retransmissions. -/
+-- ANCHOR: sendExposureB
+def sendExposureB {kem : KEMScheme m K PK SK C} {onoff : kem.OnOffStructure}
+    {KeygenRand OffRand OnRand : Type}
+    (stB _stB' : StB onoff Sym) (rand : SendRand KeygenRand OffRand OnRand) : Finset ℕ :=
+  match rand with
+  | .off _ | .on _ | .offOn _ _ => {stB.t}
+  | _ => ∅
+-- ANCHOR_END: sendExposureB
+
+/-- A's security-game exposure policy: state corruption exposes an existing
+secret key's epoch; send coins expose the epoch of key generation. -/
+-- ANCHOR: exposureA
+abbrev exposureA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
+    (leak : kem.OnOffRandLeak onoff) :
+    SCKAScheme.ExposurePolicy (StA onoff Sym)
+      (SendRand leak.KeygenRand leak.OffRand leak.OnRand) where
+  corrupt := vulnA kem onoff
+  send := sendExposureA
+-- ANCHOR_END: exposureA
+
+/-- B's security-game exposure policy: state corruption exposes the epoch
+of retained offline state; offline and online send coins expose their epoch. -/
+-- ANCHOR: exposureB
+abbrev exposureB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
+    (leak : kem.OnOffRandLeak onoff) :
+    SCKAScheme.ExposurePolicy (StB onoff Sym)
+      (SendRand leak.KeygenRand leak.OffRand leak.OnRand) where
+  corrupt := vulnB kem onoff
+  send := sendExposureB
+-- ANCHOR_END: exposureB
 
 /-- The Opp-UniKEM-CKA protocol as an `SCKAScheme` instance. -/
 -- ANCHOR: scheme

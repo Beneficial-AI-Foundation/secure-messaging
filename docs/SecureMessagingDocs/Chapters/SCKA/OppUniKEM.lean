@@ -30,7 +30,7 @@ Opp-UniKEM-CKA.
 :::defTitle "opp_unikem_cka_spec" "Opp-UniKEM-CKA protocol"
 :::
 
-:::::::definition "opp_unikem_cka_spec" (parent := "cka_protocols_opp_unikem_cka") (lean := "oppUniKemCKA.initKeyGen, oppUniKemCKA.initA, oppUniKemCKA.initB, oppUniKemCKA.vulnA, oppUniKemCKA.vulnB, oppUniKemCKA.sendA, oppUniKemCKA.sendArleak, oppUniKemCKA.recvA, oppUniKemCKA.sendB, oppUniKemCKA.sendBrleak, oppUniKemCKA.recvB, oppUniKemCKA.scheme") (tags := "gh-106") (uses := "scka_scheme, erasure_code_scheme, on_off_kem_scheme, on_off_kem_rand_leak")
+:::::::definition "opp_unikem_cka_spec" (parent := "cka_protocols_opp_unikem_cka") (lean := "oppUniKemCKA.initKeyGen, oppUniKemCKA.initA, oppUniKemCKA.initB, oppUniKemCKA.vulnA, oppUniKemCKA.vulnB, oppUniKemCKA.sendExposureA, oppUniKemCKA.sendExposureB, oppUniKemCKA.exposureA, oppUniKemCKA.exposureB, oppUniKemCKA.sendA, oppUniKemCKA.sendArleak, oppUniKemCKA.recvA, oppUniKemCKA.sendB, oppUniKemCKA.sendBrleak, oppUniKemCKA.recvB, oppUniKemCKA.scheme") (tags := "gh-106") (uses := "scka_scheme, scka_oracles, erasure_code_scheme, on_off_kem_scheme, on_off_kem_rand_leak")
 Figure 16 of {Informal.citet SCKA25}[]. In the receive algorithms,
 - $`t` is the epoch index of the receiver's state,
 - $`t'` is the epoch index of the delivered message.
@@ -38,8 +38,13 @@ Figure 16 of {Informal.citet SCKA25}[]. In the receive algorithms,
 We make two corrections to these algorithms, marked with surrounding boxes:
 
 * $`\mathsf{Rec}\text{-}\A` and $`\mathsf{Rec}\text{-}\B` record
-  received acknowledgements only if $`t=t'`;
+  received acknowledgements only if the receiver remains in epoch $`t'`
+  after processing the message;
 * $`\mathsf{Rec}\text{-}\B` returns $`t'-1` rather than $`t-1`.
+
+When decoding returns $`\bot`, the receive retains the accumulated chunks
+and returns no key. The correspondence with the paper's rollback convention
+is tracked in [issue #336](https://github.com/Beneficial-AI-Foundation/secure-messaging/issues/336).
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Initialisation}" (kind := "compact")
@@ -93,6 +98,56 @@ $`\stB.\mathsf{vuln}: \quad
 def vulnB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     (stB : StB onoff Sym) : Finset ℕ :=
   if stB.stCt.isSome then {stB.t} else ∅
+```
+:::::
+
+:::::gameCell "\\textsf{Send-coin exposure}" (kind := "compact")
+For a send from epoch $`t`, the exposure sets used by {bpref "scka_oracles"}[] are
+
+$`\begin{array}{ll}
+L_\A(\stA,\stA',r)=\{t\} & r=\mathsf{keygen}(r_K),\\
+L_\B(\stB,\stB',r)=\{t\} & r=\mathsf{off}(r_0),\ \mathsf{on}(r_1),\ \mathsf{offOn}(r_0,r_1),\\
+L_X(\mathsf{st},\mathsf{st}',\mathsf{none})=\emptyset & \text{deterministic retransmission}.
+\end{array}`
+
+```anchor sendExposureA (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
+def sendExposureA {kem : KEMScheme m K PK SK C} {onoff : kem.OnOffStructure}
+    {KeygenRand OffRand OnRand : Type}
+    (stA _stA' : StA onoff Sym) (rand : SendRand KeygenRand OffRand OnRand) : Finset ℕ :=
+  match rand with
+  | .keygen _ => {stA.t}
+  | _ => ∅
+```
+
+```anchor sendExposureB (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
+def sendExposureB {kem : KEMScheme m K PK SK C} {onoff : kem.OnOffStructure}
+    {KeygenRand OffRand OnRand : Type}
+    (stB _stB' : StB onoff Sym) (rand : SendRand KeygenRand OffRand OnRand) : Finset ℕ :=
+  match rand with
+  | .off _ | .on _ | .offOn _ _ => {stB.t}
+  | _ => ∅
+```
+
+State corruption uses the vulnerable-epoch rules in the preceding box.
+Thus A's erased decapsulation key and B's erased offline state expose no
+past epoch. The two complete policies are:
+
+```anchor exposureA (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
+abbrev exposureA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
+    (leak : kem.OnOffRandLeak onoff) :
+    SCKAScheme.ExposurePolicy (StA onoff Sym)
+      (SendRand leak.KeygenRand leak.OffRand leak.OnRand) where
+  corrupt := vulnA kem onoff
+  send := sendExposureA
+```
+
+```anchor exposureB (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
+abbrev exposureB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
+    (leak : kem.OnOffRandLeak onoff) :
+    SCKAScheme.ExposurePolicy (StB onoff Sym)
+      (SendRand leak.KeygenRand leak.OffRand leak.OnRand) where
+  corrupt := vulnB kem onoff
+  send := sendExposureB
 ```
 :::::
 
@@ -478,6 +533,28 @@ def scheme (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
   sendBrleak := sendBrleak kem onoff ecCt0 ecCt1 leak
   recvB := recvB kem onoff ecEk
 ```
+
+*Why the leakage rule changes.* Consider correct single-chunk erasure codes
+and an online leakage witness from which the encapsulated key $`k` can be
+recovered. The K-PKE leakage package in {bpref "on_off_kem_rand_leak"}[]
+returns its sampled message, which is precisely this key. The following
+trace reaches the first epoch's challenge:
+
+1. $`\OSendA;\ \ORecB(1)` transmits A's public key.
+2. $`\OSendB;\ \ORecA(1)` transmits B's offline ciphertext.
+3. $`\OSendA;\ \ORecB(2)` acknowledges that ciphertext.
+4. $`\OSendBRLeak` performs online encapsulation and reveals $`k` through its coins.
+5. $`\OChall(1)` requests the epoch key.
+
+Under the original state-difference rule, B's vulnerable set is $`\{1\}`
+both before and after step 4, so that leak records no new exposure.
+Comparing the challenge response with $`k` gives distinguishing gap
+$`1-1/|K|` and guessing advantage $`(1-1/|K|)/2`: real responses always equal
+$`k`, while uniform responses equal it with probability $`1/|K|`.
+Under the corrected rule, step 4 exposes epoch one and step 5 returns
+$`\bot`. This correction weakens the SCKA security requirement by excluding the
+compromised challenge. The KEM IND-CPA definition remains unchanged.
+
 :::::::
 
 :::defTitle "opp_unikem_cka_correctness" "Opp-UniKEM-CKA correctness"
