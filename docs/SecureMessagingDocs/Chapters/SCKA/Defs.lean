@@ -146,6 +146,32 @@ $$`\begin{array}{rcccl}
 Game state and oracles adapted from {Informal.citet SCKA25}[], Figure 1.
 
 ::::::gameGrid
+:::::gameCell "\\textsf{Exposure policy}" (kind := "scheme")
+For each party $`X\in\{\A,\B\}` with local-state space $`\mathsf{St}_X` and
+send-coin space $`R_X`, the game is parametrised by
+
+- $`V_X:\mathsf{St}_X\to\mathcal P_{\mathrm{fin}}(\mathbb N)`: the epochs exposed by
+  revealing the local state (used by $`\OCorrA`, $`\OCorrB`);
+- $`L_X:\mathsf{St}_X\times\mathsf{St}_X\times R_X\to\mathcal P_{\mathrm{fin}}(\mathbb N)`:
+  the epochs exposed by the coins of a leaking send, given the old and new local
+  states (used by $`\OSendARLeak`, $`\OSendBRLeak`).
+
+Figure 1 sets $`L_X(\mathsf{st},\mathsf{st}',r)=V_X(\mathsf{st}')\setminus V_X(\mathsf{st})`,
+which misses coins revealing the key of an epoch in $`V_X(\mathsf{st})`;
+see {bpref "opp_unikem_cka_spec"}[].
+
+:::leanPillCaption "SCKAScheme.ExposurePolicy"
+:::
+
+```anchor ExposurePolicy (project := ".") (module := SecureMessaging.SCKA.Defs)
+structure ExposurePolicy (St Rand : Type) where
+  /-- Epochs compromised by revealing the local state. -/
+  corrupt : St → Finset ℕ
+  /-- Epochs compromised by send coins, given the old and new local states. -/
+  send : St → St → Rand → Finset ℕ
+```
+:::::
+
 :::::gameCell "\\textsf{Game state}" (kind := "scheme")
 The game state consists of:
 
@@ -190,32 +216,6 @@ structure GameState (StA StB I Rho : Type) where
   challenged : Finset ℕ
   /-- Whether all correctness asserts have held so far. -/
   correct : Bool
-```
-:::::
-
-:::::gameCell "\\textsf{Exposure policy}" (kind := "scheme")
-For each party $`X\in\{\A,\B\}` with local-state space $`\mathsf{St}_X` and
-send-coin space $`R_X`, the game is parametrised by
-
-- $`V_X:\mathsf{St}_X\to\mathcal P_{\mathrm{fin}}(\mathbb N)`: the epochs exposed by
-  revealing the local state (used by $`\OCorrA`, $`\OCorrB`);
-- $`L_X:\mathsf{St}_X\times\mathsf{St}_X\times R_X\to\mathcal P_{\mathrm{fin}}(\mathbb N)`:
-  the epochs exposed by the coins of a leaking send, given the old and new local
-  states (used by $`\OSendARLeak`, $`\OSendBRLeak`).
-
-Figure 1 sets $`L_X(\mathsf{st},\mathsf{st}',r)=V_X(\mathsf{st}')\setminus V_X(\mathsf{st})`,
-which misses coins revealing the key of an epoch in $`V_X(\mathsf{st})`;
-see {bpref "opp_unikem_cka_spec"}[].
-
-:::leanPillCaption "SCKAScheme.ExposurePolicy"
-:::
-
-```anchor ExposurePolicy (project := ".") (module := SecureMessaging.SCKA.Defs)
-structure ExposurePolicy (St Rand : Type) where
-  /-- Epochs compromised by revealing the local state. -/
-  corrupt : St → Finset ℕ
-  /-- Epochs compromised by send coins, given the old and new local states. -/
-  send : St → St → Rand → Finset ℕ
 ```
 :::::
 
