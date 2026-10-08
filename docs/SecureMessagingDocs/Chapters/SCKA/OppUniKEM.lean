@@ -534,26 +534,25 @@ def scheme (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
   recvB := recvB kem onoff ecEk
 ```
 
-*Why the leakage rule changes.* Consider correct single-chunk erasure codes
-and an online leakage witness from which the encapsulated key $`k` can be
-recovered. The K-PKE leakage package in {bpref "on_off_kem_rand_leak"}[]
-returns its sampled message, which is precisely this key. The following
-trace reaches the first epoch's challenge:
+::::::gameGrid
+:::::gameCell "\\textsf{Illustration: leakage under the Figure 1 rule}" (kind := "scheme-diagram")
+With correct single-chunk erasure codes and the K-PKE leakage package of
+{bpref "on_off_kem_rand_leak"}[], whose online coins contain the encapsulated key $`k`,
+the Figure 1 rule $`E=V_\B(\stB')\setminus V_\B(\stB)` records no exposure at step 4
+and answers the challenge at step 5; $`L_\B` exposes epoch 1 at step 4 instead.
+Answering "real" iff $`k^\ast=k` gives guessing advantage $`(1-1/|K|)/2`.
 
-1. $`\OSendA;\ \ORecB(1)` transmits A's public key.
-2. $`\OSendB;\ \ORecA(1)` transmits B's offline ciphertext.
-3. $`\OSendA;\ \ORecB(2)` acknowledges that ciphertext.
-4. $`\OSendBRLeak` performs online encapsulation and reveals $`k` through its coins.
-5. $`\OChall(1)` requests the epoch key.
-
-Under the original state-difference rule, B's vulnerable set is $`\{1\}`
-both before and after step 4, so that leak records no new exposure.
-Comparing the challenge response with $`k` gives distinguishing gap
-$`1-1/|K|` and guessing advantage $`(1-1/|K|)/2`: real responses always equal
-$`k`, while uniform responses equal it with probability $`1/|K|`.
-Under the corrected rule, step 4 exposes epoch one and step 5 returns
-$`\bot`. This correction weakens the SCKA security requirement by excluding the
-compromised challenge. The KEM IND-CPA definition remains unchanged.
+$$`\begin{array}{rlcll}
+ & \textsf{Party A} & & \textsf{Party B} & V_\B(\stB) \\
+1. & \boxed{\SendA}\to\ekA & \xrightarrow{\hspace{1.5em}\rho_1\hspace{1.5em}} & \boxed{\RecB} & \emptyset \\
+2. & \boxed{\RecA} & \xleftarrow{\hspace{1.5em}\rho_2\hspace{1.5em}} & \boxed{\SendB}\to\ctzero,\stct & \{1\} \\
+3. & \boxed{\SendA}\to\ack & \xrightarrow{\hspace{1.5em}\rho_3\hspace{1.5em}} & \boxed{\RecB} & \{1\} \\
+4. & & \xleftarrow{\hspace{0.5em}\rho_4,\;r\ni k\hspace{0.5em}} & \boxed{\SendBRLeak}\to(1,k) & \{1\};\ E=\emptyset \\
+5. & & \OChall(1)\to k^\ast & & 1\notin\mathsf{Exposed} \\
+ & & k^\ast\overset{?}{=}k & &
+\end{array}`
+:::::
+::::::
 
 :::::::
 

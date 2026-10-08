@@ -145,42 +145,6 @@ $$`\begin{array}{rcccl}
 :::::::definition "scka_oracles" (parent := "cka_protocols_scka") (lean := "SCKAScheme.ExposurePolicy, SCKAScheme.GameState, SCKAScheme.oracleSendA, SCKAScheme.oracleSendB, SCKAScheme.oracleSendArleak, SCKAScheme.oracleSendBrleak, SCKAScheme.oracleRecvA, SCKAScheme.oracleRecvB, SCKAScheme.oracleChall, SCKAScheme.oracleCorruptA, SCKAScheme.oracleCorruptB, SCKAScheme.sckaCorrectnessSpec, SCKAScheme.sckaCorrectnessImpl, SCKAScheme.SCKACorrectnessAdversary, SCKAScheme.sckaSecuritySpec, SCKAScheme.sckaSecurityImpl, SCKAScheme.SCKAAdversary") (uses := "scka_scheme")
 Game state and oracles adapted from {Informal.citet SCKA25}[], Figure 1.
 
-For each party $`X\in\{\A,\B\}`, let $`\mathsf{St}_X` be its local-state
-space and $`R_X` its send-coin space. An exposure policy consists of:
-
-* $`V_X:\mathsf{St}_X\to\mathcal P_{\mathrm{fin}}(\mathbb N)`, the epochs
-  exposed by revealing a local state;
-* $`L_X:\mathsf{St}_X\times\mathsf{St}_X\times R_X\to
-  \mathcal P_{\mathrm{fin}}(\mathbb N)`, the epochs exposed by returned send coins,
-  given the old and new local states.
-
-The policies are parameters of the game.
-
-A leaking send computes $`E=L_X(\mathsf{st},\mathsf{st}',r)`. It rejects and retains
-the entire input game state if $`E\cap\mathsf{Challenged}\ne\emptyset`.
-Otherwise it records the send and adds $`E` to $`\mathsf{Exposed}`.
-
-This corrects the original rule
-$`E=V_X(\mathsf{st}')\setminus V_X(\mathsf{st})`: newly returned coins can
-compromise a key whose epoch was already vulnerable in the local state.
-For Opp-UniKEM, the corrected policy weakens the original SCKA requirement
-by excluding these compromised challenges. The KEM IND-CPA definition remains unchanged.
-The concrete online-coin trace is given beside the exposure rules in
-{bpref "opp_unikem_cka_spec"}[].
-
-```anchor ExposurePolicy (project := ".") (module := SecureMessaging.SCKA.Defs)
-structure ExposurePolicy (St Rand : Type) where
-  /-- Epochs compromised by revealing the local state. -/
-  corrupt : St → Finset ℕ
-  /-- Epochs compromised by send coins, given the old and new local states. -/
-  send : St → St → Rand → Finset ℕ
-```
-
-In the oracle boxes, $`\req\;P` rejects the query with $`\bot` and restores
-its input game state when $`P` is false. The instruction $`\mathsf{assert}\;P`
-sets $`\mathsf{correct}\gets\mathsf{correct}\land P` and continues the execution.
-A send algorithm returning $`\bot` rejects the query with unchanged state.
-
 ::::::gameGrid
 :::::gameCell "\\textsf{Game state}" (kind := "scheme")
 The game state consists of:
@@ -227,6 +191,38 @@ structure GameState (StA StB I Rho : Type) where
   /-- Whether all correctness asserts have held so far. -/
   correct : Bool
 ```
+:::::
+
+:::::gameCell "\\textsf{Exposure policy}" (kind := "scheme")
+For each party $`X\in\{\A,\B\}` with local-state space $`\mathsf{St}_X` and
+send-coin space $`R_X`, the game is parametrised by
+
+- $`V_X:\mathsf{St}_X\to\mathcal P_{\mathrm{fin}}(\mathbb N)`: the epochs exposed by
+  revealing the local state (used by $`\OCorrA`, $`\OCorrB`);
+- $`L_X:\mathsf{St}_X\times\mathsf{St}_X\times R_X\to\mathcal P_{\mathrm{fin}}(\mathbb N)`:
+  the epochs exposed by the coins of a leaking send, given the old and new local
+  states (used by $`\OSendARLeak`, $`\OSendBRLeak`).
+
+Figure 1 sets $`L_X(\mathsf{st},\mathsf{st}',r)=V_X(\mathsf{st}')\setminus V_X(\mathsf{st})`,
+which misses coins revealing the key of an epoch in $`V_X(\mathsf{st})`;
+see {bpref "opp_unikem_cka_spec"}[].
+
+:::leanPillCaption "SCKAScheme.ExposurePolicy"
+:::
+
+```anchor ExposurePolicy (project := ".") (module := SecureMessaging.SCKA.Defs)
+structure ExposurePolicy (St Rand : Type) where
+  /-- Epochs compromised by revealing the local state. -/
+  corrupt : St → Finset ℕ
+  /-- Epochs compromised by send coins, given the old and new local states. -/
+  send : St → St → Rand → Finset ℕ
+```
+:::::
+
+:::::gameCell "\\textsf{Conventions}" (kind := "scheme")
+- $`\req\;P`: if $`P` is false, the query returns $`\bot` and the game state is restored.
+- $`\mathsf{assert}\;P`: $`\mathsf{correct}\gets\mathsf{correct}\land P`; execution continues.
+- A send algorithm returning $`\bot` rejects the query with unchanged game state.
 :::::
 
 :::::gameCell "\\OSendA" (kind := "compact")
