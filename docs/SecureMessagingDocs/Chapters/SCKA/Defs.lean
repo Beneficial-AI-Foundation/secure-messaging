@@ -219,12 +219,6 @@ structure GameState (StA StB I Rho : Type) where
 ```
 :::::
 
-:::::gameCell "\\textsf{Conventions}" (kind := "scheme")
-- $`\req\;P`: if $`P` is false, the query returns $`\bot` and the game state is restored.
-- $`\mathsf{assert}\;P`: $`\mathsf{correct}\gets\mathsf{correct}\land P`; execution continues.
-- A send algorithm returning $`\bot` rejects the query with unchanged game state.
-:::::
-
 :::::gameCell "\\OSendA" (kind := "compact")
 $`\begin{array}{l}
 \pcommentline{\text{Send from A to B}} \\
