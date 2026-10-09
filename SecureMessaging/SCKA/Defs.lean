@@ -372,14 +372,14 @@ def oracleSendB [DecidableEq I] (scka : SCKAScheme ProbComp IK StA StB I Rho Ran
 
 /-- **O-Send-A-rleak** (`rleak = 1`).
 Run `sendArleak`. For a successful output with state `stA'` and coins `rand`,
-compute `E = leakA stA rand` and require `E ∩ Challenged = ∅`.
+compute `E = vulnRleakA stA rand` and require `E ∩ Challenged = ∅`.
 Acceptance records the send, adds `E` to `Exposed`, and returns the coins.
 Rejection returns `none` and retains the game state.
 
 ```text
 Send-A-rleak:
   ((tIA, IA), ρ, t^snd_A, stA', rand) ←$ scka.sendArleak(stA)
-  E ← leakA(stA, rand)
+  E ← vulnRleakA(stA, rand)
   req  E ∩ Challenged = ∅
   Exposed ← Exposed ∪ E
   assert t^snd_A ≥ t^cur_A                -- monotonicity
@@ -394,7 +394,7 @@ Send-A-rleak:
   return (t^snd_A, tIA, ρ, rand)
 ``` -/
 -- ANCHOR: oracleSendArleak
-def oracleSendArleak [DecidableEq I] (leakA : StA → Rand → Finset ℕ)
+def oracleSendArleak [DecidableEq I] (vulnRleakA : StA → Rand → Finset ℕ)
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) :
     QueryImpl (Unit →ₒ Option (ℕ × Option ℕ × Rho × Rand))
       (StateT (GameState StA StB I Rho) ProbComp) :=
@@ -403,7 +403,7 @@ def oracleSendArleak [DecidableEq I] (leakA : StA → Rand → Finset ℕ)
     match ← liftM (scka.sendArleak state.stA) with
     | none => pure none
     | some (keyOpt, ρ, tsnd, stA', rand) =>
-      let vuln' := leakA state.stA rand
+      let vuln' := vulnRleakA state.stA rand
       -- req vuln' ∩ Challenged = ∅
       if vuln' ∩ state.challenged ≠ ∅ then pure none
       else
@@ -435,14 +435,14 @@ def oracleSendArleak [DecidableEq I] (leakA : StA → Rand → Finset ℕ)
 
 /-- **O-Send-B-rleak** (`rleak = 1`).
 Run `sendBrleak`. For a successful output with state `stB'` and coins `rand`,
-compute `E = leakB stB rand` and require `E ∩ Challenged = ∅`.
+compute `E = vulnRleakB stB rand` and require `E ∩ Challenged = ∅`.
 Acceptance records the send, adds `E` to `Exposed`, and returns the coins.
 Rejection returns `none` and retains the game state.
 
 ```text
 Send-B-rleak:
   ((tIB, IB), ρ, t^snd_B, stB', rand) ←$ scka.sendBrleak(stB)
-  E ← leakB(stB, rand)
+  E ← vulnRleakB(stB, rand)
   req  E ∩ Challenged = ∅
   Exposed ← Exposed ∪ E
   assert t^snd_B ≥ t^cur_B              -- monotonicity
@@ -457,7 +457,7 @@ Send-B-rleak:
   return (t^snd_B, tIB, ρ, rand)
 ``` -/
 -- ANCHOR: oracleSendBrleak
-def oracleSendBrleak [DecidableEq I] (leakB : StB → Rand → Finset ℕ)
+def oracleSendBrleak [DecidableEq I] (vulnRleakB : StB → Rand → Finset ℕ)
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) :
     QueryImpl (Unit →ₒ Option (ℕ × Option ℕ × Rho × Rand))
       (StateT (GameState StA StB I Rho) ProbComp) :=
@@ -466,7 +466,7 @@ def oracleSendBrleak [DecidableEq I] (leakB : StB → Rand → Finset ℕ)
     match ← liftM (scka.sendBrleak state.stB) with
     | none => pure none
     | some (keyOpt, ρ, tsnd, stB', rand) =>
-      let vuln' := leakB state.stB rand
+      let vuln' := vulnRleakB state.stB rand
       if vuln' ∩ state.challenged ≠ ∅ then pure none
       else
         let exposed' := state.exposed ∪ vuln'
@@ -646,20 +646,20 @@ def oracleChall (isRandom : Bool) (StA StB I Rho : Type) [SampleableType I] :
 /-! ### Corruption oracles -/
 
 /-- **O-Corrupt-A.**
-`req stA.vuln ∩ Challenged = ∅`; expose `stA.vuln`; return A's state.
+`req vulnCorrA(stA) ∩ Challenged = ∅`; expose `vulnCorrA(stA)`; return A's state.
 
 ```text
 Corr-A():
- 1  req stA.vuln ∩ Challenged = ∅                    // no challenge of a vulnerable epoch
- 2  Exposed ← Exposed ∪ stA.vuln
+ 1  req vulnCorrA(stA) ∩ Challenged = ∅                    // no challenge of a vulnerable epoch
+ 2  Exposed ← Exposed ∪ vulnCorrA(stA)
  3  return stA
 ``` -/
 -- ANCHOR: oracleCorruptA
-def oracleCorruptA (vulnA : StA → Finset ℕ) (StB I Rho : Type) :
+def oracleCorruptA (vulnCorrA : StA → Finset ℕ) (StB I Rho : Type) :
     QueryImpl (Unit →ₒ Option StA) (StateT (GameState StA StB I Rho) ProbComp) :=
   fun () => do
     let state ← get
-    let vuln := vulnA state.stA
+    let vuln := vulnCorrA state.stA
     if vuln ∩ state.challenged ≠ ∅ then pure none
     else
       set { state with exposed := state.exposed ∪ vuln }
@@ -667,20 +667,20 @@ def oracleCorruptA (vulnA : StA → Finset ℕ) (StB I Rho : Type) :
 -- ANCHOR_END: oracleCorruptA
 
 /-- **O-Corrupt-B.**
-`req stB.vuln ∩ Challenged = ∅`; expose `stB.vuln`; return B's state.
+`req vulnCorrB(stB) ∩ Challenged = ∅`; expose `vulnCorrB(stB)`; return B's state.
 
 ```text
 Corr-B():
- 1  req stB.vuln ∩ Challenged = ∅                    // no challenge of a vulnerable epoch
- 2  Exposed ← Exposed ∪ stB.vuln
+ 1  req vulnCorrB(stB) ∩ Challenged = ∅                    // no challenge of a vulnerable epoch
+ 2  Exposed ← Exposed ∪ vulnCorrB(stB)
  3  return stB
 ``` -/
 -- ANCHOR: oracleCorruptB
-def oracleCorruptB (vulnB : StB → Finset ℕ) (StA I Rho : Type) :
+def oracleCorruptB (vulnCorrB : StB → Finset ℕ) (StA I Rho : Type) :
     QueryImpl (Unit →ₒ Option StB) (StateT (GameState StA StB I Rho) ProbComp) :=
   fun () => do
     let state ← get
-    let vuln := vulnB state.stB
+    let vuln := vulnCorrB state.stB
     if vuln ∩ state.challenged ≠ ∅ then pure none
     else
       set { state with exposed := state.exposed ∪ vuln }

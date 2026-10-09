@@ -89,7 +89,7 @@ is `1` for a real response and `1 / |K|` for a uniform response, giving a
 distinguishing gap of `1 - 1 / |K|`. The existing K-PKE construction has such
 online coins: they are the sampled message used as the shared key.
 
-The vulnerable epochs following randomness leakage (`vulnArleak`, `vulnBrleak`) are the
+The vulnerable epochs following randomness leakage (`vulnRleakA`, `vulnRleakB`) are the
 current epoch whenever key-generation, offline, or online coins are returned, and none
 for deterministic retransmissions. Thus the leaking online send exposes `t`, and
 `Chall(t)` is rejected. This weakens the
@@ -575,62 +575,62 @@ def recvB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
   some (none, t' - 1, stB)
 -- ANCHOR_END: recvB
 
-/-- A's vulnerable epoch set (Fig. 16: `{t}` iff `dk_A ≠ ⊥`). -/
--- ANCHOR: vulnA
-def vulnA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
+/-- A's epochs exposed by corruption: `{stA.t}` iff the decapsulation key is present. -/
+-- ANCHOR: vulnCorrA
+def vulnCorrA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     (stA : StA onoff Sym) : Finset ℕ :=
   if stA.dkA.isSome then {stA.t} else ∅
--- ANCHOR_END: vulnA
+-- ANCHOR_END: vulnCorrA
 
-/-- B's vulnerable epoch set (Fig. 16: `{t}` iff `st_ct ≠ ⊥`). -/
--- ANCHOR: vulnB
-def vulnB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
+/-- B's epochs exposed by corruption: `{stB.t}` iff the offline state is present. -/
+-- ANCHOR: vulnCorrB
+def vulnCorrB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     (stB : StB onoff Sym) : Finset ℕ :=
   if stB.stCt.isSome then {stB.t} else ∅
--- ANCHOR_END: vulnB
+-- ANCHOR_END: vulnCorrB
 
 /-- A's vulnerable epochs following randomness leakage: key-generation coins expose the
 current epoch; deterministic retransmissions expose no epoch. -/
--- ANCHOR: vulnArleak
-def vulnArleak {kem : KEMScheme m K PK SK C} {onoff : kem.OnOffStructure}
+-- ANCHOR: vulnRleakA
+def vulnRleakA {kem : KEMScheme m K PK SK C} {onoff : kem.OnOffStructure}
     {KeygenRand OffRand OnRand : Type}
     (stA : StA onoff Sym) (rand : SendRand KeygenRand OffRand OnRand) : Finset ℕ :=
   match rand with
   | .keygen _ => {stA.t}
   | _ => ∅
--- ANCHOR_END: vulnArleak
+-- ANCHOR_END: vulnRleakA
 
 /-- B's vulnerable epochs following randomness leakage: offline or online encapsulation
 coins expose the current epoch; deterministic retransmissions expose no epoch. -/
--- ANCHOR: vulnBrleak
-def vulnBrleak {kem : KEMScheme m K PK SK C} {onoff : kem.OnOffStructure}
+-- ANCHOR: vulnRleakB
+def vulnRleakB {kem : KEMScheme m K PK SK C} {onoff : kem.OnOffStructure}
     {KeygenRand OffRand OnRand : Type}
     (stB : StB onoff Sym) (rand : SendRand KeygenRand OffRand OnRand) : Finset ℕ :=
   match rand with
   | .off _ | .on _ | .offOn _ _ => {stB.t}
   | _ => ∅
--- ANCHOR_END: vulnBrleak
+-- ANCHOR_END: vulnRleakB
 
-/-- A's vulnerable epochs for the security game: `vulnA` following state exposure and
-`vulnArleak` following randomness leakage. -/
+/-- A's vulnerable epochs for the security game: `vulnCorrA` following state exposure and
+`vulnRleakA` following randomness leakage. -/
 -- ANCHOR: exposureA
 abbrev exposureA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     (leak : kem.OnOffRandLeak onoff) :
     SCKAScheme.VulnerableEpochs (StA onoff Sym)
       (SendRand leak.KeygenRand leak.OffRand leak.OnRand) where
-  corrupt := vulnA kem onoff
-  rleak := vulnArleak
+  corrupt := vulnCorrA kem onoff
+  rleak := vulnRleakA
 -- ANCHOR_END: exposureA
 
-/-- B's vulnerable epochs for the security game: `vulnB` following state exposure and
-`vulnBrleak` following randomness leakage. -/
+/-- B's vulnerable epochs for the security game: `vulnCorrB` following state exposure and
+`vulnRleakB` following randomness leakage. -/
 -- ANCHOR: exposureB
 abbrev exposureB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     (leak : kem.OnOffRandLeak onoff) :
     SCKAScheme.VulnerableEpochs (StB onoff Sym)
       (SendRand leak.KeygenRand leak.OffRand leak.OnRand) where
-  corrupt := vulnB kem onoff
-  rleak := vulnBrleak
+  corrupt := vulnCorrB kem onoff
+  rleak := vulnRleakB
 -- ANCHOR_END: exposureB
 
 /-- The Opp-UniKEM-CKA protocol as an `SCKAScheme` instance. -/
