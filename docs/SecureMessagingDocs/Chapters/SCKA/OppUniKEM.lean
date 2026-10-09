@@ -506,7 +506,7 @@ def recvB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 :::::
 ::::::
 
-:::leanPillCaption "Lean representation of the randomness returned by the leaking sends"
+:::leanPillCaption "Randomness returned by the leaking sends"
 :::
 
 ```anchor SendRand (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
