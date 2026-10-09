@@ -615,17 +615,9 @@ V_\B^{\mathsf{rleak}}(\stB,(r_0,r_1))
   \end{cases}
 \end{aligned}`
 
-The corruption functions are those of Figure 16 of {Informal.citet SCKA25}[].
-
-Let $`\stB,\stB'` be B's states before and after a leaking online send in epoch $`t`,
-following an ordinary offline send. B retains $`\stct`, so
-
-$$`V_\B^{\mathsf{corr}}(\stB')\setminus V_\B^{\mathsf{corr}}(\stB)=\emptyset,
-\qquad V_\B^{\mathsf{rleak}}(\stB,(\bot,r_1))=\{t\}.`
-
-For the K-PKE instance of {bpref "on_off_kem_rand_leak"}[], $`r_1` contains the epoch key.
-Thus {bpref "scka_oracles"}[] excludes $`\OChall(t)` after this leak, whereas the
-set-difference rule of Figure 1 permits it.
+The sets $`V_\A^{\mathsf{corr}}(\stA)` and $`V_\B^{\mathsf{corr}}(\stB)` are denoted
+$`\stA.\mathsf{vuln}` and $`\stB.\mathsf{vuln}`, respectively, in Figure 16 of
+{Informal.citet SCKA25}[].
 
 :::leanPillCaption "Epochs exposed by corruption of A"
 :::
