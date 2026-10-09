@@ -144,6 +144,8 @@ $$`\begin{array}{rcccl}
 
 :::::::definition "scka_oracles" (parent := "cka_protocols_scka") (lean := "SCKAScheme.VulnerableEpochs, SCKAScheme.GameState, SCKAScheme.oracleSendA, SCKAScheme.oracleSendB, SCKAScheme.oracleSendArleak, SCKAScheme.oracleSendBrleak, SCKAScheme.oracleRecvA, SCKAScheme.oracleRecvB, SCKAScheme.oracleChall, SCKAScheme.oracleCorruptA, SCKAScheme.oracleCorruptB, SCKAScheme.sckaCorrectnessSpec, SCKAScheme.sckaCorrectnessImpl, SCKAScheme.SCKACorrectnessAdversary, SCKAScheme.sckaSecuritySpec, SCKAScheme.sckaSecurityImpl, SCKAScheme.SCKAAdversary") (uses := "scka_scheme")
 Game state and oracles adapted from {Informal.citet SCKA25}[], Figure 1.
+We extend the vulnerable-epoch model to randomness leakage and modify the leaking-send
+oracles accordingly. The changes are boxed.
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Vulnerable epochs}" (kind := "scheme")
@@ -152,13 +154,9 @@ randomness space. The game is parametrised by
 
 - $`V_X^{\mathsf{corr}}:\mathsf{St}_X\to\mathcal P_{\mathrm{fin}}(\mathbb N)`, the epochs
   exposed by corruption of a state $`\mathsf{st}\in\mathsf{St}_X`;
-- $`V_X^{\mathsf{rleak}}:\mathsf{St}_X\times R_X\to\mathcal P_{\mathrm{fin}}(\mathbb N)`,
+- $`\boxed{V_X^{\mathsf{rleak}}:\mathsf{St}_X\times R_X\to\mathcal P_{\mathrm{fin}}(\mathbb N)}`,
   the epochs exposed by leaking the randomness $`r\in R_X` of a send operation from
   state $`\mathsf{st}\in\mathsf{St}_X`.
-
-The randomness-leakage function is evaluated on the state before the send. It replaces
-the rule $`V_X^{\mathsf{corr}}(\mathsf{st}')\setminus V_X^{\mathsf{corr}}(\mathsf{st})`
-of Figure 1; see {bpref "opp_unikem_cka_vulnerable_epochs"}[].
 
 :::leanPillCaption "Epochs exposed by corruption and randomness leakage"
 :::
@@ -344,7 +342,7 @@ $`\begin{array}{l}
 ((t_{I_\A},I_\A),\rho,t^\mathsf{snd}_\A,\stA',r)
   \sample \SendARLeak(\stA); \\
 \pcommentline{\text{Vulnerable epochs following randomness leakage}} \\
-E\gets V_\A^{\mathsf{rleak}}(\stA,r); \\
+\boxed{E\gets V_\A^{\mathsf{rleak}}(\stA,r)}; \\
 \pcommentline{\text{Reject exposure of challenged epochs}} \\
 \req\;E\cap\mathsf{Challenged}=\emptyset; \\
 \mathsf{Exposed}\gets\mathsf{Exposed}\cup E; \\
@@ -416,7 +414,7 @@ $`\begin{array}{l}
 ((t_{I_\B},I_\B),\rho,t^\mathsf{snd}_\B,\stB',r)
   \sample \SendBRLeak(\stB); \\
 \pcommentline{\text{Vulnerable epochs following randomness leakage}} \\
-E\gets V_\B^{\mathsf{rleak}}(\stB,r); \\
+\boxed{E\gets V_\B^{\mathsf{rleak}}(\stB,r)}; \\
 \pcommentline{\text{Reject exposure of challenged epochs}} \\
 \req\;E\cap\mathsf{Challenged}=\emptyset; \\
 \mathsf{Exposed}\gets\mathsf{Exposed}\cup E; \\

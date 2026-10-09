@@ -41,12 +41,8 @@ We make two corrections to these algorithms, marked with surrounding boxes:
   received acknowledgements only if $`t=t'`;
 * $`\mathsf{Rec}\text{-}\B` returns $`t'-1` rather than $`t-1`.
 
-The leaking sends use the leaking KEM algorithms $`F^{\mathsf{rleak}}` of
-{bpref "on_off_kem_rand_leak"}[]. Their final output $`r` records the randomness returned
-by these KEM calls, with $`r=\mathsf{none}` when no such call is made.
-
 ::::::gameGrid
-:::::gameCell "\\textsf{Initialisation}" (kind := "compact")
+:::::gameCell "\\textsf{Initialisation}" (kind := "scheme")
 $`\Init\text{-}\KeyGen(): \quad
 I_{\mathsf{CKA}}\gets\bot;\quad \mathsf{return}\;I_{\mathsf{CKA}}`
 :::leanPillCaption "Trivial initial shared key"
@@ -91,7 +87,7 @@ def initB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 ```
 :::::
 
-:::::gameCell "\\SendA(\\stA)" (kind := "compact-send")
+:::::gameCell "\\SendA(\\stA)" (kind := "compact")
 $`\begin{array}{l}
 (\dkA,\ekA,\ctzero,t,\ich,\Lch,\ack)\gets\stA, \chunk\gets\bot \\
 \mathsf{if}\;\dkA=\bot\;\mathsf{then}\pcomment{\text{first message of epoch}} \\
@@ -136,20 +132,95 @@ def sendA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 
 :::::
 
-:::::gameCell "\\SendARLeak(\\stA)" (kind := "compact-send")
+:::::gameCell "\\SendB(\\stB)" (kind := "compact")
+$`\begin{array}{l}
+(\ekA,\ctzero,\ctone,\stct,t,\ich,\Lch,\ack)\gets\stB \\
+I_{\B}\gets\bot, t_{I_{\B}}\gets\bot, \chunk\gets\bot \\
+\mathsf{if}\;\ctzero=\bot\;\mathsf{then}\pcomment{\text{first message of epoch}} \\
+\quad (\stct,\ctzero)\sample\Encaps.\mathsf{Off} \\
+\quad \ich\gets0 \\
+\mathsf{if}\;\neg\ack.\ctrec\;\mathsf{then}
+  \pcomment{\ctzero\ \text{not acknowledged by }\A} \\
+\quad \ich\gets\ich+1 \\
+\quad \chunk\gets\mathsf{Encode}(\ctzero,\ich) \\
+\quad b\gets0 \\
+\mathsf{else}\;\mathsf{if}\;\ekA\ne\bot\;\mathsf{then}
+  \pcomment{\ekA\ \text{received}} \\
+\quad \mathsf{if}\;\ctone=\bot\;\mathsf{then} \\
+\qquad (\ctone,I_{\B})\sample \Encaps.\mathsf{On}(\stct,\ekA) \\
+\qquad t_{I_{\B}}\gets t, \ich\gets0 \\
+\quad \ich\gets\ich+1 \\
+\quad \chunk\gets\mathsf{Encode}(\ctone,\ich) \\
+\quad b\gets1 \\
+\rho\gets(\chunk,\ack,t,b) \\
+\stB\gets(\ekA,\ctzero,\ctone,\stct,t,\ich,\Lch,\ack) \\
+\mathsf{return}\;((t_{I_{\B}},I_{\B}),\rho,t-1,\stB)
+\end{array}`
+
+:::leanPillCaption "B's send transition"
+:::
+
+```anchor sendB (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
+def sendB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
+    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (stB : StB onoff Sym) :
+    m (Option (Option (ℕ × K) × Message Sym × ℕ × StB onoff Sym)) := do
+  let (stB, ct0, ich) ←
+  match stB.ct0 with
+  | none => do -- first message of the epoch: run offline encapsulation
+    let (stCt, ct0) ← onoff.encapsOff
+    pure ({ stB with stCt := some stCt, ct0 := some ct0 }, ct0, 0)
+  | some ct0 =>
+    pure (stB, ct0, stB.ich)
+  if !stB.ack.ctRec then -- `ct_0` not yet acknowledged by A: send chunks of `ct_0`
+  let ich := ich + 1
+  let ch? := some (ecCt0.encode ct0 ich)
+  let msg := (ch?, stB.ack, stB.t, some 0)
+  let stB' := { stB with ich := ich }
+  pure (some (none, msg, stB.t - 1, stB'))
+  else
+  match stB.ekA with
+  | none =>  -- `ek_A` not yet received
+    let msg := (none, stB.ack, stB.t, none)
+    pure (some (none, msg, stB.t - 1, stB))
+  | some ekA => -- `ek_A` received
+    match stB.ct1 with
+    | none =>
+      match stB.stCt with
+      | none =>
+        let msg := (none, stB.ack, stB.t, some 1)
+        pure (some (none, msg, stB.t - 1, stB))
+      | some stCt => do
+        let (ct1, key) ← onoff.encapsOn stCt ekA
+        let ich := 1
+        let ch? := some (ecCt1.encode ct1 ich)
+        let msg := (ch?, stB.ack, stB.t, some 1)
+        let stB' := { stB with ct1 := some ct1, ich := ich }
+        pure (some (some (stB.t, key), msg, stB.t - 1, stB'))
+    | some ct1 =>
+      let ich := stB.ich + 1
+      let ch? := some (ecCt1.encode ct1 ich)
+      let msg := (ch?, stB.ack, stB.t, some 1)
+      let stB' := { stB with ich := ich }
+      pure (some (none, msg, stB.t - 1, stB'))
+```
+
+:::::
+
+:::::gameCell "\\SendARLeak(\\stA)" (kind := "compact")
 $`\begin{array}{l}
 (\dkA,\ekA,\ctzero,t,\ich,\Lch,\ack)\gets\stA \\
-\chunk\gets\bot,\quad r\gets\mathsf{none} \\
+\chunk\gets\bot,\quad r_K\gets\bot \\
 \pif\;\dkA=\bot\;\pthen \\
 \quad ((\ekA,\dkA),r_K)\sample\KeyGen^{\mathsf{rleak}}() \\
-\quad \ich\gets0,\quad r\gets\mathsf{keygen}(r_K) \\
+\quad \ich\gets0 \\
 \pif\;\neg\ack.\ekrec\;\pthen \\
 \quad \ich\gets\ich+1 \\
 \quad \pif\;\ekA\ne\bot\;\pthen\;
   \chunk\gets\mathsf{Encode}(\ekA,\ich) \\
 \rho\gets(\chunk,\ack,t,\bot) \\
 \stA\gets(\dkA,\ekA,\ctzero,t,\ich,\Lch,\ack) \\
-\Return((\bot,\bot),\rho,t-1,\stA,r)
+\Return((\bot,\bot),\rho,t-1,\stA,r_K)
 \end{array}`
 
 :::leanPillCaption "A's send with key-generation coins"
@@ -185,7 +256,97 @@ def sendArleak (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 ```
 :::::
 
-:::::gameCell "\\RecA(\\stA,\\rho)" (kind := "compact-recv")
+:::::gameCell "\\SendBRLeak(\\stB)" (kind := "compact")
+$`\begin{array}{l}
+(\ekA,\ctzero,\ctone,\stct,t,\ich,\Lch,\ack)\gets\stB \\
+I_\B,t_{I_\B},\chunk,b\gets\bot,\quad r_0,r_1\gets\bot \\
+i\gets\ich \\
+\pif\;\ctzero=\bot\;\pthen \\
+\quad ((\stct,\ctzero),r_0)\sample\Encaps.\mathsf{Off}^{\mathsf{rleak}}() \\
+\quad i\gets0 \\
+\pif\;\neg\ack.\ctrec\;\pthen \\
+\quad \ich\gets i+1,\quad b\gets0 \\
+\quad \chunk\gets\mathsf{Encode}(\ctzero,\ich) \\
+\pelse\;\pif\;\ekA\ne\bot\;\pthen \\
+\quad b\gets1 \\
+\quad \pif\;\ctone=\bot\;\pthen \\
+\qquad \pif\;\stct\ne\bot\;\pthen \\
+\qquad\quad ((\ctone,I_\B),r_1)\sample
+  \Encaps.\mathsf{On}^{\mathsf{rleak}}(\stct,\ekA) \\
+\qquad\quad t_{I_\B}\gets t,\quad \ich\gets1 \\
+\qquad\quad \chunk\gets\mathsf{Encode}(\ctone,\ich) \\
+\quad \pelse \\
+\qquad \ich\gets\ich+1 \\
+\qquad \chunk\gets\mathsf{Encode}(\ctone,\ich) \\
+\rho\gets(\chunk,\ack,t,b) \\
+\stB\gets(\ekA,\ctzero,\ctone,\stct,t,\ich,\Lch,\ack) \\
+\Return((t_{I_\B},I_\B),\rho,t-1,\stB,(r_0,r_1))
+\end{array}`
+
+:::leanPillCaption "B's send with offline and online encapsulation coins"
+:::
+```anchor sendBrleak (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
+def sendBrleak (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
+    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
+    (leak : KEMScheme.OnOffRandLeak kem onoff) (stB : StB onoff Sym) :
+    m (Option (Option (ℕ × K) × Message Sym × ℕ × StB onoff Sym ×
+      SendRand leak.KeygenRand leak.OffRand leak.OnRand)) :=
+  do
+    let (stB, ct0, ich, rOff?) ←
+      match stB.ct0 with
+      | none => do
+        -- First `ct_0` send: run leaking offline encapsulation.
+        let ((stCt, ct0), rOff) ← leak.encapsOffRleak
+        pure ({ stB with stCt := some stCt, ct0 := some ct0 }, ct0, 0, some rOff)
+      | some ct0 =>
+        -- Re-sending existing `ct_0` is deterministic.
+        pure (stB, ct0, stB.ich, none)
+    let offRand :=
+      match rOff? with
+      | none => SendRand.none
+      | some rOff => SendRand.off rOff
+    if !stB.ack.ctRec then
+      let ich := ich + 1
+      let ch? := some (ecCt0.encode ct0 ich)
+      let msg := (ch?, stB.ack, stB.t, some 0)
+      let stB' := { stB with ich := ich }
+      pure (some (none, msg, stB.t - 1, stB', offRand))
+    else
+      match stB.ekA with
+      | none =>
+        let msg := (none, stB.ack, stB.t, none)
+        pure (some (none, msg, stB.t - 1, stB, offRand))
+      | some ekA =>
+        match stB.ct1 with
+        | none =>
+          match stB.stCt with
+          | none =>
+            let msg := (none, stB.ack, stB.t, some 1)
+            pure (some (none, msg, stB.t - 1, stB, offRand))
+          | some stCt => do
+            -- First `ct_1` send: run leaking online encapsulation.
+            let ((ct1, key), rOn) ← leak.encapsOnRleak stCt ekA
+            let rand :=
+              match rOff? with
+              | none => SendRand.on rOn
+              | some rOff => SendRand.offOn rOff rOn
+            let ich := 1
+            let ch? := some (ecCt1.encode ct1 ich)
+            let msg := (ch?, stB.ack, stB.t, some 1)
+            let stB' := { stB with ct1 := some ct1, ich := ich }
+            pure (some (some (stB.t, key), msg, stB.t - 1, stB', rand))
+        | some ct1 =>
+          -- Re-sending existing `ct_1` is deterministic.
+          let ich := stB.ich + 1
+          let ch? := some (ecCt1.encode ct1 ich)
+          let msg := (ch?, stB.ack, stB.t, some 1)
+          let stB' := { stB with ich := ich }
+          pure (some (none, msg, stB.t - 1, stB', offRand))
+```
+:::::
+
+:::::gameCell "\\RecA(\\stA,\\rho)" (kind := "compact")
 $`\begin{array}{l}
 (\dkA,\ekA,\ctzero,t,\ich,\Lch,\ack)\gets\stA \\
 (\chunk,\ack',t',b)\gets\rho \\
@@ -282,177 +443,7 @@ def recvA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 ```
 :::::
 
-:::::gameCell "\\SendB(\\stB)" (kind := "compact-send")
-$`\begin{array}{l}
-(\ekA,\ctzero,\ctone,\stct,t,\ich,\Lch,\ack)\gets\stB \\
-I_{\B}\gets\bot, t_{I_{\B}}\gets\bot, \chunk\gets\bot \\
-\mathsf{if}\;\ctzero=\bot\;\mathsf{then}\pcomment{\text{first message of epoch}} \\
-\quad (\stct,\ctzero)\sample\Encaps.\mathsf{Off} \\
-\quad \ich\gets0 \\
-\mathsf{if}\;\neg\ack.\ctrec\;\mathsf{then}
-  \pcomment{\ctzero\ \text{not acknowledged by }\A} \\
-\quad \ich\gets\ich+1 \\
-\quad \chunk\gets\mathsf{Encode}(\ctzero,\ich) \\
-\quad b\gets0 \\
-\mathsf{else}\;\mathsf{if}\;\ekA\ne\bot\;\mathsf{then}
-  \pcomment{\ekA\ \text{received}} \\
-\quad \mathsf{if}\;\ctone=\bot\;\mathsf{then} \\
-\qquad (\ctone,I_{\B})\sample \Encaps.\mathsf{On}(\stct,\ekA) \\
-\qquad t_{I_{\B}}\gets t, \ich\gets0 \\
-\quad \ich\gets\ich+1 \\
-\quad \chunk\gets\mathsf{Encode}(\ctone,\ich) \\
-\quad b\gets1 \\
-\rho\gets(\chunk,\ack,t,b) \\
-\stB\gets(\ekA,\ctzero,\ctone,\stct,t,\ich,\Lch,\ack) \\
-\mathsf{return}\;((t_{I_{\B}},I_{\B}),\rho,t-1,\stB)
-\end{array}`
-
-:::leanPillCaption "B's send transition"
-:::
-
-```anchor sendB (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
-def sendB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (stB : StB onoff Sym) :
-    m (Option (Option (ℕ × K) × Message Sym × ℕ × StB onoff Sym)) := do
-  let (stB, ct0, ich) ←
-  match stB.ct0 with
-  | none => do -- first message of the epoch: run offline encapsulation
-    let (stCt, ct0) ← onoff.encapsOff
-    pure ({ stB with stCt := some stCt, ct0 := some ct0 }, ct0, 0)
-  | some ct0 =>
-    pure (stB, ct0, stB.ich)
-  if !stB.ack.ctRec then -- `ct_0` not yet acknowledged by A: send chunks of `ct_0`
-  let ich := ich + 1
-  let ch? := some (ecCt0.encode ct0 ich)
-  let msg := (ch?, stB.ack, stB.t, some 0)
-  let stB' := { stB with ich := ich }
-  pure (some (none, msg, stB.t - 1, stB'))
-  else
-  match stB.ekA with
-  | none =>  -- `ek_A` not yet received
-    let msg := (none, stB.ack, stB.t, none)
-    pure (some (none, msg, stB.t - 1, stB))
-  | some ekA => -- `ek_A` received
-    match stB.ct1 with
-    | none =>
-      match stB.stCt with
-      | none =>
-        let msg := (none, stB.ack, stB.t, some 1)
-        pure (some (none, msg, stB.t - 1, stB))
-      | some stCt => do
-        let (ct1, key) ← onoff.encapsOn stCt ekA
-        let ich := 1
-        let ch? := some (ecCt1.encode ct1 ich)
-        let msg := (ch?, stB.ack, stB.t, some 1)
-        let stB' := { stB with ct1 := some ct1, ich := ich }
-        pure (some (some (stB.t, key), msg, stB.t - 1, stB'))
-    | some ct1 =>
-      let ich := stB.ich + 1
-      let ch? := some (ecCt1.encode ct1 ich)
-      let msg := (ch?, stB.ack, stB.t, some 1)
-      let stB' := { stB with ich := ich }
-      pure (some (none, msg, stB.t - 1, stB'))
-```
-
-:::::
-
-:::::gameCell "\\SendBRLeak(\\stB)" (kind := "compact-send")
-$`\begin{array}{l}
-(\ekA,\ctzero,\ctone,\stct,t,\ich,\Lch,\ack)\gets\stB \\
-I_\B,t_{I_\B},\chunk,b\gets\bot,\quad r\gets\mathsf{none} \\
-i\gets\ich \\
-\pif\;\ctzero=\bot\;\pthen \\
-\quad ((\stct,\ctzero),r_0)\sample\Encaps.\mathsf{Off}^{\mathsf{rleak}}() \\
-\quad i\gets0,\quad r\gets\mathsf{off}(r_0) \\
-\pif\;\neg\ack.\ctrec\;\pthen \\
-\quad \ich\gets i+1,\quad b\gets0 \\
-\quad \chunk\gets\mathsf{Encode}(\ctzero,\ich) \\
-\pelse\;\pif\;\ekA\ne\bot\;\pthen \\
-\quad b\gets1 \\
-\quad \pif\;\ctone=\bot\;\pthen \\
-\qquad \pif\;\stct\ne\bot\;\pthen \\
-\qquad\quad ((\ctone,I_\B),r_1)\sample
-  \Encaps.\mathsf{On}^{\mathsf{rleak}}(\stct,\ekA) \\
-\qquad\quad r\gets
-  \begin{cases}
-    \mathsf{offOn}(r_0,r_1) & r=\mathsf{off}(r_0) \\
-    \mathsf{on}(r_1) & r=\mathsf{none}
-  \end{cases} \\
-\qquad\quad t_{I_\B}\gets t,\quad \ich\gets1 \\
-\qquad\quad \chunk\gets\mathsf{Encode}(\ctone,\ich) \\
-\quad \pelse \\
-\qquad \ich\gets\ich+1 \\
-\qquad \chunk\gets\mathsf{Encode}(\ctone,\ich) \\
-\rho\gets(\chunk,\ack,t,b) \\
-\stB\gets(\ekA,\ctzero,\ctone,\stct,t,\ich,\Lch,\ack) \\
-\Return((t_{I_\B},I_\B),\rho,t-1,\stB,r)
-\end{array}`
-
-:::leanPillCaption "B's send with offline and online encapsulation coins"
-:::
-```anchor sendBrleak (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
-def sendBrleak (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
-    (leak : KEMScheme.OnOffRandLeak kem onoff) (stB : StB onoff Sym) :
-    m (Option (Option (ℕ × K) × Message Sym × ℕ × StB onoff Sym ×
-      SendRand leak.KeygenRand leak.OffRand leak.OnRand)) :=
-  do
-    let (stB, ct0, ich, rOff?) ←
-      match stB.ct0 with
-      | none => do
-        -- First `ct_0` send: run leaking offline encapsulation.
-        let ((stCt, ct0), rOff) ← leak.encapsOffRleak
-        pure ({ stB with stCt := some stCt, ct0 := some ct0 }, ct0, 0, some rOff)
-      | some ct0 =>
-        -- Re-sending existing `ct_0` is deterministic.
-        pure (stB, ct0, stB.ich, none)
-    let offRand :=
-      match rOff? with
-      | none => SendRand.none
-      | some rOff => SendRand.off rOff
-    if !stB.ack.ctRec then
-      let ich := ich + 1
-      let ch? := some (ecCt0.encode ct0 ich)
-      let msg := (ch?, stB.ack, stB.t, some 0)
-      let stB' := { stB with ich := ich }
-      pure (some (none, msg, stB.t - 1, stB', offRand))
-    else
-      match stB.ekA with
-      | none =>
-        let msg := (none, stB.ack, stB.t, none)
-        pure (some (none, msg, stB.t - 1, stB, offRand))
-      | some ekA =>
-        match stB.ct1 with
-        | none =>
-          match stB.stCt with
-          | none =>
-            let msg := (none, stB.ack, stB.t, some 1)
-            pure (some (none, msg, stB.t - 1, stB, offRand))
-          | some stCt => do
-            -- First `ct_1` send: run leaking online encapsulation.
-            let ((ct1, key), rOn) ← leak.encapsOnRleak stCt ekA
-            let rand :=
-              match rOff? with
-              | none => SendRand.on rOn
-              | some rOff => SendRand.offOn rOff rOn
-            let ich := 1
-            let ch? := some (ecCt1.encode ct1 ich)
-            let msg := (ch?, stB.ack, stB.t, some 1)
-            let stB' := { stB with ct1 := some ct1, ich := ich }
-            pure (some (some (stB.t, key), msg, stB.t - 1, stB', rand))
-        | some ct1 =>
-          -- Re-sending existing `ct_1` is deterministic.
-          let ich := stB.ich + 1
-          let ch? := some (ecCt1.encode ct1 ich)
-          let msg := (ch?, stB.ack, stB.t, some 1)
-          let stB' := { stB with ich := ich }
-          pure (some (none, msg, stB.t - 1, stB', offRand))
-```
-:::::
-
-:::::gameCell "\\RecB(\\stB,\\rho)" (kind := "compact-recv")
+:::::gameCell "\\RecB(\\stB,\\rho)" (kind := "compact")
 $`\begin{array}{l}
 (\ekA,\ctzero,\ctone,\stct,t,\ich,\Lch,\ack)\gets\stB \\
 (\chunk,\ack',t',\_)\gets\rho \\
@@ -515,7 +506,7 @@ def recvB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 :::::
 ::::::
 
-:::leanPillCaption "Randomness returned by the leaking sends"
+:::leanPillCaption "Lean representation of the randomness returned by the leaking sends"
 :::
 
 ```anchor SendRand (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
@@ -598,35 +589,39 @@ theorem correctness_true_ge [DecidableEq K] [DecidableEq Sym]
 :::
 
 :::::::definition "opp_unikem_cka_vulnerable_epochs" (parent := "cka_protocols_opp_unikem_cka") (lean := "oppUniKemCKA.vulnCorrA, oppUniKemCKA.vulnCorrB, oppUniKemCKA.vulnRleakA, oppUniKemCKA.vulnRleakB, oppUniKemCKA.exposureA, oppUniKemCKA.exposureB") (tags := "gh-108") (uses := "opp_unikem_cka_spec, scka_oracles, on_off_kem_rand_leak")
-For Opp-UniKEM-CKA states $`\stA,\stB`, write $`t_\A,\dkA` for A's epoch and decapsulation
-key, and $`t_\B,\stct` for B's epoch and offline state. In $`V_X^{\mathsf{rleak}}(\mathsf{st}_X,r)`,
-$`\mathsf{st}_X` is the state before the send and $`r` is the randomness returned by
-$`\mathsf{Send}\text{-}X\text{-}\mathsf{rleak}(\mathsf{st}_X)` in
-{bpref "opp_unikem_cka_spec"}[]. Define
+Recall the local state structures from {bpref "opp_unikem_cka_spec"}[]:
+
+$$`\begin{aligned}
+\stA &= (\dkA,\ekA,\ctzero,t_\A,\ich,\Lch,\ack), \\
+\stB &= (\ekA,\ctzero,\ctone,\stct,t_\B,\ich,\Lch,\ack).
+\end{aligned}`
+
+The randomness outputs of $`\SendARLeak` and $`\SendBRLeak` are $`r_K` and $`(r_0,r_1)`,
+respectively. The values $`r_K,r_0,r_1` are the coins of $`\KeyGen`, $`\Encaps.\mathsf{Off}`,
+and $`\Encaps.\mathsf{On}`, respectively; each is $`\bot` if that algorithm was not called
+during the send. Define
 
 $$`\begin{aligned}
 V_\A^{\mathsf{corr}}(\stA)
   &= \begin{cases}\{t_\A\} & \dkA\ne\bot,\\ \emptyset & \text{otherwise};\end{cases} \\
 V_\B^{\mathsf{corr}}(\stB)
   &= \begin{cases}\{t_\B\} & \stct\ne\bot,\\ \emptyset & \text{otherwise};\end{cases} \\
-V_\A^{\mathsf{rleak}}(\stA,r)
-  &= \begin{cases}\{t_\A\} & r=\mathsf{keygen}(r_K),\\ \emptyset & \text{otherwise};\end{cases} \\
-V_\B^{\mathsf{rleak}}(\stB,r)
+V_\A^{\mathsf{rleak}}(\stA,r_K)
+  &= \begin{cases}\{t_\A\} & r_K\ne\bot,\\ \emptyset & \text{otherwise};\end{cases} \\
+V_\B^{\mathsf{rleak}}(\stB,(r_0,r_1))
   &= \begin{cases}
-    \{t_\B\} & r=\mathsf{off}(r_0),\ \mathsf{on}(r_1),\ \text{or}\ \mathsf{offOn}(r_0,r_1),\\
+    \{t_\B\} & (r_0,r_1)\ne(\bot,\bot),\\
     \emptyset & \text{otherwise}.
   \end{cases}
 \end{aligned}`
 
 The corruption functions are those of Figure 16 of {Informal.citet SCKA25}[].
-The leakage functions expose the current epoch whenever a send returns KEM coins;
-$`r=\mathsf{none}` exposes no epoch.
 
 Let $`\stB,\stB'` be B's states before and after a leaking online send in epoch $`t`,
 following an ordinary offline send. B retains $`\stct`, so
 
 $$`V_\B^{\mathsf{corr}}(\stB')\setminus V_\B^{\mathsf{corr}}(\stB)=\emptyset,
-\qquad V_\B^{\mathsf{rleak}}(\stB,\mathsf{on}(r_1))=\{t\}.`
+\qquad V_\B^{\mathsf{rleak}}(\stB,(\bot,r_1))=\{t\}.`
 
 For the K-PKE instance of {bpref "on_off_kem_rand_leak"}[], $`r_1` contains the epoch key.
 Thus {bpref "scka_oracles"}[] excludes $`\OChall(t)` after this leak, whereas the
