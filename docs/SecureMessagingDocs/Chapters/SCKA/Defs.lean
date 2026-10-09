@@ -147,13 +147,14 @@ Game state and oracles adapted from {Informal.citet SCKA25}[], Figure 1.
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Vulnerable epochs}" (kind := "scheme")
-For each party $`X\in\{\A,\B\}`, let $`\mathsf{St}_X` and $`R_X` be its state and send-coin
-spaces. The game is parametrised by
+For each party $`X\in\{\A,\B\}`, let $`\mathsf{St}_X` be its state space and $`R_X` its
+randomness space. The game is parametrised by
 
 - $`V_X^{\mathsf{corr}}:\mathsf{St}_X\to\mathcal P_{\mathrm{fin}}(\mathbb N)`, the epochs
-  exposed by corruption of $`\mathsf{st}`;
+  exposed by corruption of a state $`\mathsf{st}\in\mathsf{St}_X`;
 - $`V_X^{\mathsf{rleak}}:\mathsf{St}_X\times R_X\to\mathcal P_{\mathrm{fin}}(\mathbb N)`,
-  the epochs exposed by leaking coins $`r` of a send from $`\mathsf{st}`.
+  the epochs exposed by leaking the randomness $`r\in R_X` of a send operation from
+  state $`\mathsf{st}\in\mathsf{St}_X`.
 
 The randomness-leakage function is evaluated on the state before the send. It replaces
 the rule $`V_X^{\mathsf{corr}}(\mathsf{st}')\setminus V_X^{\mathsf{corr}}(\mathsf{st})`

@@ -38,13 +38,12 @@ Figure 16 of {Informal.citet SCKA25}[]. In the receive algorithms,
 We make two corrections to these algorithms, marked with surrounding boxes:
 
 * $`\mathsf{Rec}\text{-}\A` and $`\mathsf{Rec}\text{-}\B` record
-  received acknowledgements only if the receiver remains in epoch $`t'`
-  after processing the message;
+  received acknowledgements only if $`t=t'`;
 * $`\mathsf{Rec}\text{-}\B` returns $`t'-1` rather than $`t-1`.
 
-When decoding returns $`\bot`, the receive retains the accumulated chunks
-and returns no key. The correspondence with the paper's rollback convention
-is tracked in [issue #336](https://github.com/Beneficial-AI-Foundation/secure-messaging/issues/336).
+The leaking sends use the leaking KEM algorithms $`F^{\mathsf{rleak}}` of
+{bpref "on_off_kem_rand_leak"}[]. Their final output $`r` records the randomness returned
+by these KEM calls, with $`r=\mathsf{none}` when no such call is made.
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Initialisation}" (kind := "compact")
@@ -89,38 +88,6 @@ def initB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     (_ik : Unit) : m (StB onoff Sym) :=
   pure { ekA := none, ct0 := none, ct1 := none, stCt := none, t := 1, ich := 0,
          lch := ∅, ack := { ekRec := false, ctRec := false } }
-```
-:::::
-
-:::::gameCell "\\textsf{Send coins}" (kind := "compact")
-A randomness-leaking send returns, besides the output of the ordinary send, the coins
-$`r` of the randomized KEM algorithms it ran, obtained from the leaking algorithms of
-{bpref "on_off_kem_rand_leak"}[]. Write $`F^{\mathsf{rleak}}` for the leaking variant of each
-KEM algorithm $`F`:
-
-$`\begin{array}{ll}
-r=\mathsf{keygen}(r_K) & \A\ \text{ran}\ \KeyGen\ \text{with coins}\ r_K;\\
-r=\mathsf{off}(r_0) & \B\ \text{ran}\ \Encaps.\mathsf{Off}\ \text{with coins}\ r_0;\\
-r=\mathsf{on}(r_1) & \B\ \text{ran}\ \Encaps.\mathsf{On}\ \text{with coins}\ r_1;\\
-r=\mathsf{offOn}(r_0,r_1) & \B\ \text{ran both in one send};\\
-r=\mathsf{none} & \text{no randomized algorithm ran (deterministic retransmission)}.
-\end{array}`
-
-:::leanPillCaption "Coins returned by each randomized send phase"
-:::
-
-```anchor SendRand (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
-inductive SendRand (KeygenRand OffRand OnRand : Type) where
-  /-- No randomized primitive was run by this send. -/
-  | none
-  /-- Party A generated a fresh encapsulation/decapsulation key pair. -/
-  | keygen (r : KeygenRand)
-  /-- Party B ran the offline encapsulation phase `Enc.Off`. -/
-  | off (r : OffRand)
-  /-- Party B ran the online encapsulation phase `Enc.On`. -/
-  | on (r : OnRand)
-  /-- Party B ran both `Enc.Off` and `Enc.On` in one send. -/
-  | offOn (rOff : OffRand) (rOn : OnRand)
 ```
 :::::
 
@@ -548,6 +515,23 @@ def recvB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 :::::
 ::::::
 
+:::leanPillCaption "Randomness returned by the leaking sends"
+:::
+
+```anchor SendRand (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
+inductive SendRand (KeygenRand OffRand OnRand : Type) where
+  /-- No randomized primitive was run by this send. -/
+  | none
+  /-- Party A generated a fresh encapsulation/decapsulation key pair. -/
+  | keygen (r : KeygenRand)
+  /-- Party B ran the offline encapsulation phase `Enc.Off`. -/
+  | off (r : OffRand)
+  /-- Party B ran the online encapsulation phase `Enc.On`. -/
+  | on (r : OnRand)
+  /-- Party B ran both `Enc.Off` and `Enc.On` in one send. -/
+  | offOn (rOff : OffRand) (rOn : OnRand)
+```
+
 :::leanPillCaption "SCKA scheme instance"
 :::
 ```anchor scheme (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
@@ -615,8 +599,10 @@ theorem correctness_true_ge [DecidableEq K] [DecidableEq Sym]
 
 :::::::definition "opp_unikem_cka_vulnerable_epochs" (parent := "cka_protocols_opp_unikem_cka") (lean := "oppUniKemCKA.vulnCorrA, oppUniKemCKA.vulnCorrB, oppUniKemCKA.vulnRleakA, oppUniKemCKA.vulnRleakB, oppUniKemCKA.exposureA, oppUniKemCKA.exposureB") (tags := "gh-108") (uses := "opp_unikem_cka_spec, scka_oracles, on_off_kem_rand_leak")
 For Opp-UniKEM-CKA states $`\stA,\stB`, write $`t_\A,\dkA` for A's epoch and decapsulation
-key, and $`t_\B,\stct` for B's epoch and offline state. For send coins $`r` as in
-{bpref "opp_unikem_cka_spec"}[], define
+key, and $`t_\B,\stct` for B's epoch and offline state. In $`V_X^{\mathsf{rleak}}(\mathsf{st}_X,r)`,
+$`\mathsf{st}_X` is the state before the send and $`r` is the randomness returned by
+$`\mathsf{Send}\text{-}X\text{-}\mathsf{rleak}(\mathsf{st}_X)` in
+{bpref "opp_unikem_cka_spec"}[]. Define
 
 $$`\begin{aligned}
 V_\A^{\mathsf{corr}}(\stA)
