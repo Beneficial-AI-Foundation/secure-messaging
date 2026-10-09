@@ -30,7 +30,7 @@ Opp-UniKEM-CKA.
 :::defTitle "opp_unikem_cka_spec" "Opp-UniKEM-CKA protocol"
 :::
 
-:::::::definition "opp_unikem_cka_spec" (parent := "cka_protocols_opp_unikem_cka") (lean := "oppUniKemCKA.initKeyGen, oppUniKemCKA.initA, oppUniKemCKA.initB, oppUniKemCKA.vulnA, oppUniKemCKA.vulnB, oppUniKemCKA.sendExposureA, oppUniKemCKA.sendExposureB, oppUniKemCKA.exposureA, oppUniKemCKA.exposureB, oppUniKemCKA.sendA, oppUniKemCKA.sendArleak, oppUniKemCKA.recvA, oppUniKemCKA.sendB, oppUniKemCKA.sendBrleak, oppUniKemCKA.recvB, oppUniKemCKA.scheme") (tags := "gh-106") (uses := "scka_scheme, scka_oracles, erasure_code_scheme, on_off_kem_scheme, on_off_kem_rand_leak")
+:::::::definition "opp_unikem_cka_spec" (parent := "cka_protocols_opp_unikem_cka") (lean := "oppUniKemCKA.initKeyGen, oppUniKemCKA.initA, oppUniKemCKA.initB, oppUniKemCKA.SendRand, oppUniKemCKA.sendA, oppUniKemCKA.sendArleak, oppUniKemCKA.recvA, oppUniKemCKA.sendB, oppUniKemCKA.sendBrleak, oppUniKemCKA.recvB, oppUniKemCKA.scheme") (tags := "gh-106") (uses := "scka_scheme, scka_oracles, erasure_code_scheme, on_off_kem_scheme, on_off_kem_rand_leak")
 Figure 16 of {Informal.citet SCKA25}[]. In the receive algorithms,
 - $`t` is the epoch index of the receiver's state,
 - $`t'` is the epoch index of the delivered message.
@@ -83,71 +83,31 @@ def initB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 ```
 :::::
 
-:::::gameCell "\\textsf{Vulnerable epochs}" (kind := "compact")
-$`\stA.\mathsf{vuln}: \quad
-\mathsf{return}\;\{t\}\;\mathsf{if}\;\dkA\ne\bot\;\mathsf{else}\;\emptyset`
-```anchor vulnA (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
-def vulnA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
-    (stA : StA onoff Sym) : Finset ℕ :=
-  if stA.dkA.isSome then {stA.t} else ∅
-```
-
-$`\stB.\mathsf{vuln}: \quad
-\mathsf{return}\;\{t\}\;\mathsf{if}\;\stct\ne\bot\;\mathsf{else}\;\emptyset`
-```anchor vulnB (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
-def vulnB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
-    (stB : StB onoff Sym) : Finset ℕ :=
-  if stB.stCt.isSome then {stB.t} else ∅
-```
-:::::
-
-:::::gameCell "\\textsf{Send-coin exposure}" (kind := "compact")
-For a send from epoch $`t`, the exposure sets used by {bpref "scka_oracles"}[] are
+:::::gameCell "\\textsf{Send coins}" (kind := "compact")
+A randomness-leaking send returns, besides the output of the ordinary send, the coins
+$`r` of the randomized KEM algorithms it ran, obtained from the leaking algorithms of
+{bpref "on_off_kem_rand_leak"}[]:
 
 $`\begin{array}{ll}
-L_\A(\stA,\stA',r)=\{t\} & r=\mathsf{keygen}(r_K),\\
-L_\B(\stB,\stB',r)=\{t\} & r=\mathsf{off}(r_0),\ \mathsf{on}(r_1),\ \mathsf{offOn}(r_0,r_1),\\
-L_X(\mathsf{st},\mathsf{st}',\mathsf{none})=\emptyset & \text{deterministic retransmission}.
+r=\mathsf{keygen}(r_K) & \A\ \text{ran}\ \KeyGen\ \text{with coins}\ r_K;\\
+r=\mathsf{off}(r_0) & \B\ \text{ran}\ \Encaps.\mathsf{Off}\ \text{with coins}\ r_0;\\
+r=\mathsf{on}(r_1) & \B\ \text{ran}\ \Encaps.\mathsf{On}\ \text{with coins}\ r_1;\\
+r=\mathsf{offOn}(r_0,r_1) & \B\ \text{ran both in one send};\\
+r=\mathsf{none} & \text{no randomized algorithm ran (deterministic retransmission)}.
 \end{array}`
 
-```anchor sendExposureA (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
-def sendExposureA {kem : KEMScheme m K PK SK C} {onoff : kem.OnOffStructure}
-    {KeygenRand OffRand OnRand : Type}
-    (stA _stA' : StA onoff Sym) (rand : SendRand KeygenRand OffRand OnRand) : Finset ℕ :=
-  match rand with
-  | .keygen _ => {stA.t}
-  | _ => ∅
-```
-
-```anchor sendExposureB (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
-def sendExposureB {kem : KEMScheme m K PK SK C} {onoff : kem.OnOffStructure}
-    {KeygenRand OffRand OnRand : Type}
-    (stB _stB' : StB onoff Sym) (rand : SendRand KeygenRand OffRand OnRand) : Finset ℕ :=
-  match rand with
-  | .off _ | .on _ | .offOn _ _ => {stB.t}
-  | _ => ∅
-```
-
-State corruption uses the vulnerable-epoch rules in the preceding box.
-Thus A's erased decapsulation key and B's erased offline state expose no
-past epoch. The two complete policies are:
-
-```anchor exposureA (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
-abbrev exposureA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
-    (leak : kem.OnOffRandLeak onoff) :
-    SCKAScheme.ExposurePolicy (StA onoff Sym)
-      (SendRand leak.KeygenRand leak.OffRand leak.OnRand) where
-  corrupt := vulnA kem onoff
-  send := sendExposureA
-```
-
-```anchor exposureB (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
-abbrev exposureB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
-    (leak : kem.OnOffRandLeak onoff) :
-    SCKAScheme.ExposurePolicy (StB onoff Sym)
-      (SendRand leak.KeygenRand leak.OffRand leak.OnRand) where
-  corrupt := vulnB kem onoff
-  send := sendExposureB
+```anchor SendRand (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
+inductive SendRand (KeygenRand OffRand OnRand : Type) where
+  /-- No randomized primitive was run by this send. -/
+  | none
+  /-- Party A generated a fresh encapsulation/decapsulation key pair. -/
+  | keygen (r : KeygenRand)
+  /-- Party B ran the offline encapsulation phase `Enc.Off`. -/
+  | off (r : OffRand)
+  /-- Party B ran the online encapsulation phase `Enc.On`. -/
+  | on (r : OnRand)
+  /-- Party B ran both `Enc.Off` and `Enc.On` in one send. -/
+  | offOn (rOff : OffRand) (rOn : OnRand)
 ```
 :::::
 
@@ -191,7 +151,13 @@ def sendA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
   pure (some (none, msg, stA.t - 1, stA'))
 ```
 
-:::leanPillCaption "rleak version leaking key generation coins"
+$`\begin{array}{l}
+\SendARLeak(\stA):\ \text{as}\ \SendA(\stA),\ \text{with}\ r\gets\mathsf{keygen}(r_K)\ \text{if}\ \KeyGen\ \text{ran with coins}\ r_K,
+  \ \text{else}\ r\gets\mathsf{none}; \\
+\mathsf{return}\;((\bot,\bot),\rho,t-1,\stA,r)
+\end{array}`
+
+:::leanPillCaption "\\SendARLeak"
 :::
 ```anchor sendArleak (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
 def sendArleak (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
@@ -388,7 +354,13 @@ def sendB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
       pure (some (none, msg, stB.t - 1, stB'))
 ```
 
-:::leanPillCaption "rleak version leaking encapsulation coins"
+$`\begin{array}{l}
+\SendBRLeak(\stB):\ \text{as}\ \SendB(\stB),\ \text{with}\ r\gets\mathsf{off}(r_0),\ \mathsf{on}(r_1),\ \text{or}\ \mathsf{offOn}(r_0,r_1)
+  \ \text{for the encapsulation phases run, with coins}\ r_0,\ r_1,\ \text{else}\ r\gets\mathsf{none}; \\
+\mathsf{return}\;((t_{I_{\B}},I_{\B}),\rho,t-1,\stB,r)
+\end{array}`
+
+:::leanPillCaption "\\SendBRLeak"
 :::
 ```anchor sendBrleak (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
 def sendBrleak (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
@@ -534,26 +506,6 @@ def scheme (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
   recvB := recvB kem onoff ecEk
 ```
 
-::::::gameGrid
-:::::gameCell "\\textsf{Illustration: leakage under the Figure 1 rule}" (kind := "scheme-diagram")
-With correct single-chunk erasure codes and the K-PKE leakage package of
-{bpref "on_off_kem_rand_leak"}[], whose online coins contain the encapsulated key $`k`,
-the Figure 1 rule $`E=V_\B(\stB')\setminus V_\B(\stB)` records no exposure at step 4
-and answers the challenge at step 5; $`L_\B` exposes epoch 1 at step 4 instead.
-Answering "real" iff $`k^\ast=k` gives guessing advantage $`(1-1/|K|)/2`.
-
-$$`\begin{array}{rlcll}
- & \textsf{Party A} & & \textsf{Party B} & V_\B(\stB) \\
-1. & \boxed{\SendA}\to\ekA & \xrightarrow{\hspace{1.5em}\rho_1\hspace{1.5em}} & \boxed{\RecB} & \emptyset \\
-2. & \boxed{\RecA} & \xleftarrow{\hspace{1.5em}\rho_2\hspace{1.5em}} & \boxed{\SendB}\to\ctzero,\stct & \{1\} \\
-3. & \boxed{\SendA}\to\ack & \xrightarrow{\hspace{1.5em}\rho_3\hspace{1.5em}} & \boxed{\RecB} & \{1\} \\
-4. & & \xleftarrow{\hspace{0.5em}\rho_4,\;r\ni k\hspace{0.5em}} & \boxed{\SendBRLeak}\to(1,k) & \{1\};\ E=\emptyset \\
-5. & & \OChall(1)\to k^\ast & & 1\notin\mathsf{Exposed} \\
- & & k^\ast\overset{?}{=}k & &
-\end{array}`
-:::::
-::::::
-
 :::::::
 
 :::defTitle "opp_unikem_cka_correctness" "Opp-UniKEM-CKA correctness"
@@ -590,10 +542,110 @@ theorem correctness_true_ge [DecidableEq K] [DecidableEq Sym]
 ```
 ::::
 
+:::defTitle "opp_unikem_cka_vulnerable_epochs" "Opp-UniKEM-CKA vulnerable epochs"
+:::
+
+:::::::definition "opp_unikem_cka_vulnerable_epochs" (parent := "cka_protocols_opp_unikem_cka") (lean := "oppUniKemCKA.vulnA, oppUniKemCKA.vulnB, oppUniKemCKA.vulnArleak, oppUniKemCKA.vulnBrleak, oppUniKemCKA.exposureA, oppUniKemCKA.exposureB") (tags := "gh-108") (uses := "opp_unikem_cka_spec, scka_oracles, on_off_kem_rand_leak")
+The vulnerable epochs of {bpref "scka_oracles"}[] for Opp-UniKEM-CKA; $`t` is the epoch
+recorded in the state. $`\mathsf{st}.\mathsf{vuln}` follows Figure 16 of
+{Informal.citet SCKA25}[]; $`\mathsf{st}.\mathsf{vuln}(r)` is the set for the coins $`r` of a
+send from $`\mathsf{st}`.
+
+::::::gameGrid
+:::::gameCell "\\textsf{Following state exposure}" (kind := "compact")
+A's state holds the decapsulation key of its epoch while $`\dkA\ne\bot`; B's state holds the
+offline encapsulation state, which determines the epoch key, while $`\stct\ne\bot`.
+
+$`\stA.\mathsf{vuln}: \quad
+\mathsf{return}\;\{t\}\;\mathsf{if}\;\dkA\ne\bot\;\mathsf{else}\;\emptyset`
+```anchor vulnA (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
+def vulnA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
+    (stA : StA onoff Sym) : Finset ℕ :=
+  if stA.dkA.isSome then {stA.t} else ∅
+```
+
+$`\stB.\mathsf{vuln}: \quad
+\mathsf{return}\;\{t\}\;\mathsf{if}\;\stct\ne\bot\;\mathsf{else}\;\emptyset`
+```anchor vulnB (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
+def vulnB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
+    (stB : StB onoff Sym) : Finset ℕ :=
+  if stB.stCt.isSome then {stB.t} else ∅
+```
+:::::
+
+:::::gameCell "\\textsf{Following randomness leakage}" (kind := "compact")
+Key-generation coins determine $`\dkA`; offline coins determine $`\stct`; online coins
+determine $`\ctone` and the epoch key. Each exposes the sending epoch; a deterministic
+retransmission exposes nothing.
+
+$`\stA.\mathsf{vuln}(r): \quad
+\mathsf{return}\;\{t\}\;\mathsf{if}\;r=\mathsf{keygen}(\cdot)\;\mathsf{else}\;\emptyset`
+```anchor vulnArleak (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
+def vulnArleak {kem : KEMScheme m K PK SK C} {onoff : kem.OnOffStructure}
+    {KeygenRand OffRand OnRand : Type}
+    (stA : StA onoff Sym) (rand : SendRand KeygenRand OffRand OnRand) : Finset ℕ :=
+  match rand with
+  | .keygen _ => {stA.t}
+  | _ => ∅
+```
+
+$`\stB.\mathsf{vuln}(r): \quad
+\mathsf{return}\;\{t\}\;\mathsf{if}\;r\in\{\mathsf{off}(\cdot),\mathsf{on}(\cdot),\mathsf{offOn}(\cdot,\cdot)\}
+\;\mathsf{else}\;\emptyset`
+```anchor vulnBrleak (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
+def vulnBrleak {kem : KEMScheme m K PK SK C} {onoff : kem.OnOffStructure}
+    {KeygenRand OffRand OnRand : Type}
+    (stB : StB onoff Sym) (rand : SendRand KeygenRand OffRand OnRand) : Finset ℕ :=
+  match rand with
+  | .off _ | .on _ | .offOn _ _ => {stB.t}
+  | _ => ∅
+```
+:::::
+
+:::::gameCell "\\textsf{Vulnerable epochs of the security game}" (kind := "compact")
+```anchor exposureA (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
+abbrev exposureA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
+    (leak : kem.OnOffRandLeak onoff) :
+    SCKAScheme.VulnerableEpochs (StA onoff Sym)
+      (SendRand leak.KeygenRand leak.OffRand leak.OnRand) where
+  corrupt := vulnA kem onoff
+  rleak := vulnArleak
+```
+
+```anchor exposureB (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Construction)
+abbrev exposureB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
+    (leak : kem.OnOffRandLeak onoff) :
+    SCKAScheme.VulnerableEpochs (StB onoff Sym)
+      (SendRand leak.KeygenRand leak.OffRand leak.OnRand) where
+  corrupt := vulnB kem onoff
+  rleak := vulnBrleak
+```
+:::::
+
+:::::gameCell "\\textsf{Illustration: leakage under the Figure 1 rule}" (kind := "scheme-diagram")
+With correct single-chunk erasure codes and the K-PKE leakage package of
+{bpref "on_off_kem_rand_leak"}[], whose online coins contain the encapsulated key $`k`,
+the Figure 1 rule $`E=\stB'.\mathsf{vuln}\setminus\stB.\mathsf{vuln}` records no exposure at step 4
+and answers the challenge at step 5; $`\stB.\mathsf{vuln}(r)` exposes epoch 1 at step 4 instead.
+Answering "real" iff $`k^\ast=k` gives guessing advantage $`(1-1/|K|)/2`.
+
+$$`\begin{array}{rlcll}
+ & \textsf{Party A} & & \textsf{Party B} & \stB.\mathsf{vuln} \\
+1. & \boxed{\SendA}\to\ekA & \xrightarrow{\hspace{1.5em}\rho_1\hspace{1.5em}} & \boxed{\RecB} & \emptyset \\
+2. & \boxed{\RecA} & \xleftarrow{\hspace{1.5em}\rho_2\hspace{1.5em}} & \boxed{\SendB}\to\ctzero,\stct & \{1\} \\
+3. & \boxed{\SendA}\to\ack & \xrightarrow{\hspace{1.5em}\rho_3\hspace{1.5em}} & \boxed{\RecB} & \{1\} \\
+4. & & \xleftarrow{\hspace{0.5em}\rho_4,\;r\ni k\hspace{0.5em}} & \boxed{\SendBRLeak}\to(1,k) & \{1\};\ E=\emptyset \\
+5. & & \OChall(1)\to k^\ast & & 1\notin\mathsf{Exposed} \\
+ & & k^\ast\overset{?}{=}k & &
+\end{array}`
+:::::
+::::::
+:::::::
+
 :::defTitle "opp_unikem_cka_security" "Opp-UniKEM-CKA security"
 :::
 
-::::theorem "opp_unikem_cka_security" (parent := "cka_protocols_opp_unikem_cka") (tags := "gh-108") (uses := "opp_unikem_cka_spec, scka_security, erasure_code_scheme, on_off_kem_scheme, on_off_kem_rand_leak")
+::::theorem "opp_unikem_cka_security" (parent := "cka_protocols_opp_unikem_cka") (tags := "gh-108") (uses := "opp_unikem_cka_spec, opp_unikem_cka_vulnerable_epochs, scka_security, erasure_code_scheme, on_off_kem_scheme, on_off_kem_rand_leak")
 $`\todo`
 
 :::leanPill "missing"
