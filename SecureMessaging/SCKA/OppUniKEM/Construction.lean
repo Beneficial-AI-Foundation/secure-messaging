@@ -78,23 +78,15 @@ The algorithms follow Figure 16 with these additions or differences:
 
 ## Correction to randomness-leakage exposure
 
-The original leaking-send rule exposes only `vuln(newState) \ vuln(oldState)`.
-Consider an epoch `t` with an ordinary offline send, followed by the deliveries
-needed to enable online encapsulation, then a leaking online send. B retains
-its offline state throughout the online send, so its vulnerable set is `{t}`
-both before and after that send. The original rule therefore exposes no epoch.
-If the online coins reveal the encapsulated key `k`, the adversary can next
-request `Chall(t)` and compare its response with `k`. The probability of equality
-is `1` for a real response and `1 / |K|` for a uniform response, giving a
-distinguishing gap of `1 - 1 / |K|`. The existing K-PKE construction has such
-online coins: they are the sampled message used as the shared key.
+The leaking-send rule in Figure 1 exposes `vuln(newState) \ vuln(oldState)`.
+B retains its offline state during online encapsulation, so this difference is
+empty even when the online coins reveal the epoch key, as in the K-PKE instance.
+The game therefore permits a challenge for a key already revealed by leakage.
 
-The vulnerable epochs following randomness leakage (`vulnRleakA`, `vulnRleakB`) are the
-current epoch whenever key-generation, offline, or online coins are returned, and none
-for deterministic retransmissions. Thus the leaking online send exposes `t`, and
-`Chall(t)` is rejected. This weakens the
-original SCKA requirement by excluding compromised challenges; the KEM IND-CPA
-definition is unchanged.
+`vulnRleakA` and `vulnRleakB` specify leakage exposure separately from corruption:
+they return the current epoch when the corresponding send returns KEM coins,
+and the empty set otherwise. The game records these epochs as exposed and
+rejects challenges for them.
 -/
 
 open OracleSpec OracleComp KEMScheme
