@@ -5,6 +5,11 @@ import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
 import ToVCVio.LatticeCrypto.FrodoKEM.Construction
 
+set_option linter.style.setOption false
+set_option linter.hashCommand false
+set_option linter.style.emptyLine false
+set_option linter.style.longLine false
+
 open Verso.Genre Manual
 open Informal
 open Verso.Code.External
