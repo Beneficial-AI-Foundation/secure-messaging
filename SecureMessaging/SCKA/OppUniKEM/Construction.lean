@@ -320,7 +320,7 @@ return ((t_IB, I_B), t' - 1, st_A)
 -- ANCHOR: recvA
 def recvA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     [DecidableEq Sym]
-  (hDet : kem.DeterministicDecaps)
+  (decapsDet : SK → C → Option K)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
   (stA : StA onoff Sym) (ρ : Message Sym) :
@@ -353,7 +353,7 @@ def recvA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
                 | none => (none, { stA with lch := lch })
                 | some ct1 =>
                 -- decoded `ct_1` successfully; decapsulate (ct_0, ct_1) to get an epoch key
-                  match hDet.decapsDet dkA (onoff.split.symm (ct0, ct1)) with
+                  match decapsDet dkA (onoff.split.symm (ct0, ct1)) with
                   | none => (none, stA)
                   | some key =>
                       (some (stA.t, key),
@@ -641,11 +641,26 @@ def scheme (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
   initB := initB kem onoff
   sendA := sendA kem onoff ecEk
   sendArleak := sendArleak kem onoff ecEk leak
-  recvA := recvA kem onoff hDet ecCt0 ecCt1
+  recvA := recvA kem onoff hDet.decapsDet ecCt0 ecCt1
   sendB := sendB kem onoff ecCt0 ecCt1
   sendBrleak := sendBrleak kem onoff ecCt0 ecCt1 leak
   recvB := recvB kem onoff ecEk
 -- ANCHOR_END: scheme
+
+/-- The Opp-UniKEM scheme with A's receive using `decapsDet : SK → C → Option K`.
+All other algorithms are those of `scheme`. -/
+def schemeWithDecaps (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
+  [DecidableEq Sym]
+    (hDet : kem.DeterministicDecaps)
+    (ecEk : ErasureCodePayload PK Sym)
+    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
+    (leak : KEMScheme.OnOffRandLeak kem onoff)
+    (decapsDet : SK → C → Option K) :
+    SCKAScheme m Unit (StA onoff Sym) (StB onoff Sym) K (Message Sym)
+      (SendRand leak.KeygenRand leak.OffRand leak.OnRand) :=
+  { scheme kem onoff hDet ecEk ecCt0 ecCt1 leak with
+    recvA := recvA kem onoff decapsDet ecCt0 ecCt1 }
 
 end Construction
 

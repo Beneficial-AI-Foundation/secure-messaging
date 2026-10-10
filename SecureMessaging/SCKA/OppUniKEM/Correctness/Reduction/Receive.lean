@@ -34,12 +34,12 @@ advances its epoch, erases those sources, and records the advancing message
 shape. -/
 lemma recvA_kem_source_shape
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
+    (decapsDet : SK → C → Option K)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
     (stA : StA onoff Sym) (msg : Message Sym)
     (key? : Option (ℕ × K)) (trcv : ℕ) (stA' : StA onoff Sym)
-    (hrecv : recvA kem onoff hDet ecCt0 ecCt1 stA msg =
+    (hrecv : recvA kem onoff decapsDet ecCt0 ecCt1 stA msg =
       some (key?, trcv, stA')) :
     (stA'.t = stA.t ∧ stA'.ekA = stA.ekA ∧ stA'.dkA = stA.dkA) ∨
       (stA'.t = stA.t + 1 ∧ stA'.ekA = none ∧ stA'.dkA = none ∧
@@ -174,7 +174,7 @@ lemma oracleRecvA_preserves_failurePotential [DecidableEq K]
       rfl
   | some entry =>
       rcases entry with ⟨msg, tsnd⟩
-      cases hlocal : recvA kem onoff hDet ecCt0 ecCt1 s.stA msg with
+      cases hlocal : recvA kem onoff hDet.decapsDet ecCt0 ecCt1 s.stA msg with
       | none => simp [recvA] at hlocal
       | some out =>
         rcases out with ⟨key?, trcv, stA'⟩
@@ -185,7 +185,7 @@ lemma oracleRecvA_preserves_failurePotential [DecidableEq K]
           rw [hz]; rcases key? with _ | ⟨tI, key⟩ <;> rfl
         have hzB : z.2.stB = s.stB := by
           rw [hz]; rcases key? with _ | ⟨tI, key⟩ <;> rfl
-        rcases recvA_kem_source_shape kem onoff hDet ecCt0 ecCt1 s.stA msg
+        rcases recvA_kem_source_shape kem onoff hDet.decapsDet ecCt0 ecCt1 s.stA msg
             key? trcv stA' hlocal with hsame | hadv
         · exact currentFailurePotential_congr kem onoff _ _
             ((congrArg (fun x => x.t) hzA).trans hsame.1)
@@ -309,7 +309,7 @@ lemma oracleRecvA_preserves_currentFailure [DecidableEq K]
       exact hfail
   | some entry =>
       rcases entry with ⟨msg, tsnd⟩
-      cases hlocal : recvA kem onoff hDet ecCt0 ecCt1 s.stA msg with
+      cases hlocal : recvA kem onoff hDet.decapsDet ecCt0 ecCt1 s.stA msg with
       | none => simp [recvA] at hlocal
       | some out =>
         rcases out with ⟨key?, trcv, stA'⟩
@@ -322,7 +322,7 @@ lemma oracleRecvA_preserves_currentFailure [DecidableEq K]
           rw [hz]; rcases key? with _ | ⟨tI, key⟩ <;> rfl
         have hzKeyB : z.2.keyB = s.keyB := by
           rw [hz]; rcases key? with _ | ⟨tI, key⟩ <;> rfl
-        rcases recvA_kem_source_shape kem onoff hDet ecCt0 ecCt1 s.stA msg
+        rcases recvA_kem_source_shape kem onoff hDet.decapsDet ecCt0 ecCt1 s.stA msg
             key? trcv stA' hlocal with hsame | hadv
         · rw [← hfail]
           exact currentKEMFailure_congr kem onoff hDet _ _
