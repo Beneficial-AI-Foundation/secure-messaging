@@ -601,23 +601,8 @@ respectively. The values $`r_K,r_0,r_1` are the coins of $`\KeyGen`, $`\Encaps.\
 and $`\Encaps.\mathsf{On}`, respectively; each is $`\bot` if that algorithm was not called
 during the send. Define
 
-$$`\begin{aligned}
-V_\A^{\mathsf{corr}}(\stA)
-  &= \begin{cases}\{t_\A\} & \dkA\ne\bot,\\ \emptyset & \text{otherwise};\end{cases} \\
-V_\B^{\mathsf{corr}}(\stB)
-  &= \begin{cases}\{t_\B\} & \stct\ne\bot,\\ \emptyset & \text{otherwise};\end{cases} \\
-V_\A^{\mathsf{rleak}}(\stA,r_K)
-  &= \begin{cases}\{t_\A\} & r_K\ne\bot,\\ \emptyset & \text{otherwise};\end{cases} \\
-V_\B^{\mathsf{rleak}}(\stB,(r_0,r_1))
-  &= \begin{cases}
-    \{t_\B\} & (r_0,r_1)\ne(\bot,\bot),\\
-    \emptyset & \text{otherwise}.
-  \end{cases}
-\end{aligned}`
-
-The sets $`V_\A^{\mathsf{corr}}(\stA)` and $`V_\B^{\mathsf{corr}}(\stB)` are denoted
-$`\stA.\mathsf{vuln}` and $`\stB.\mathsf{vuln}`, respectively, in Figure 16 of
-{Informal.citet SCKA25}[].
+$$`\mathsf{vuln}^{\mathsf{corr}}_\A(\stA)=\begin{cases}
+\{t_\A\} & \dkA\ne\bot,\\ \emptyset & \text{otherwise}.\end{cases}`
 
 :::leanPillCaption "Epochs exposed by corruption of A"
 :::
@@ -628,6 +613,9 @@ def vulnCorrA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
   if stA.dkA.isSome then {stA.t} else ∅
 ```
 
+$$`\mathsf{vuln}^{\mathsf{corr}}_\B(\stB)=\begin{cases}
+\{t_\B\} & \stct\ne\bot,\\ \emptyset & \text{otherwise}.\end{cases}`
+
 :::leanPillCaption "Epochs exposed by corruption of B"
 :::
 
@@ -636,6 +624,9 @@ def vulnCorrB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     (stB : StB onoff Sym) : Finset ℕ :=
   if stB.stCt.isSome then {stB.t} else ∅
 ```
+
+$$`\mathsf{vuln}^{\mathsf{rleak}}_\A(\stA,r_K)=\begin{cases}
+\{t_\A\} & r_K\ne\bot,\\ \emptyset & \text{otherwise}.\end{cases}`
 
 :::leanPillCaption "Epochs exposed by A's send coins"
 :::
@@ -649,6 +640,9 @@ def vulnRleakA {kem : KEMScheme m K PK SK C} {onoff : kem.OnOffStructure}
   | _ => ∅
 ```
 
+$$`\mathsf{vuln}^{\mathsf{rleak}}_\B(\stB,(r_0,r_1))=\begin{cases}
+\{t_\B\} & (r_0,r_1)\ne(\bot,\bot),\\ \emptyset & \text{otherwise}.\end{cases}`
+
 :::leanPillCaption "Epochs exposed by B's send coins"
 :::
 
@@ -660,6 +654,11 @@ def vulnRleakB {kem : KEMScheme m K PK SK C} {onoff : kem.OnOffStructure}
   | .off _ | .on _ | .offOn _ _ => {stB.t}
   | _ => ∅
 ```
+
+The sets $`\mathsf{vuln}^{\mathsf{corr}}_\A(\stA)` and
+$`\mathsf{vuln}^{\mathsf{corr}}_\B(\stB)` are denoted
+$`\stA.\mathsf{vuln}` and $`\stB.\mathsf{vuln}`, respectively, in Figure 16 of
+{Informal.citet SCKA25}[].
 
 :::leanPillCaption "A's corruption and randomness-leakage functions"
 :::

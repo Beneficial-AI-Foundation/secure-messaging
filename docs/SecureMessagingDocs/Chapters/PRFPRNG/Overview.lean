@@ -11,6 +11,7 @@ open Verso.Genre
 open Verso.Genre.Manual
 open Informal
 
+set_option linter.hashCommand false
 set_option doc.verso true
 
 #doc (Manual) "Pseudorandom Function and Generator" =>

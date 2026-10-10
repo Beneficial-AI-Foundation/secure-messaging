@@ -149,12 +149,13 @@ oracles accordingly. The changes are boxed.
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Vulnerable epochs}" (kind := "scheme")
-For each party $`X\in\{\A,\B\}`, let $`\mathsf{St}_X` be its state space and $`R_X` its
-randomness space. The game is parametrised by
+For each party $`X\in\{\A,\B\}`, let $`\mathsf{St}_X` be its state space and $`R_X` the
+space of randomness values returned by its leaking-send algorithm. The game is
+parametrised by
 
-- $`V_X^{\mathsf{corr}}:\mathsf{St}_X\to\mathcal P_{\mathrm{fin}}(\mathbb N)`, the epochs
+- $`\mathsf{vuln}^{\mathsf{corr}}_X:\mathsf{St}_X\to\mathcal P_{\mathrm{fin}}(\mathbb N)`, the epochs
   exposed by corruption of a state $`\mathsf{st}\in\mathsf{St}_X`;
-- $`\boxed{V_X^{\mathsf{rleak}}:\mathsf{St}_X\times R_X\to\mathcal P_{\mathrm{fin}}(\mathbb N)}`,
+- $`\boxed{\mathsf{vuln}^{\mathsf{rleak}}_X:\mathsf{St}_X\times R_X\to\mathcal P_{\mathrm{fin}}(\mathbb N)}`,
   the epochs exposed by leaking the randomness $`r\in R_X` of a send operation from
   state $`\mathsf{st}\in\mathsf{St}_X`.
 
@@ -342,10 +343,10 @@ $`\begin{array}{l}
 ((t_{I_\A},I_\A),\rho,t^\mathsf{snd}_\A,\stA',r)
   \sample \SendARLeak(\stA); \\
 \pcommentline{\text{Vulnerable epochs following randomness leakage}} \\
-\boxed{E\gets V_\A^{\mathsf{rleak}}(\stA,r)}; \\
+\boxed{\mathsf{vuln}\gets\mathsf{vuln}^{\mathsf{rleak}}_\A(\stA,r)}; \\
 \pcommentline{\text{Reject exposure of challenged epochs}} \\
-\req\;E\cap\mathsf{Challenged}=\emptyset; \\
-\mathsf{Exposed}\gets\mathsf{Exposed}\cup E; \\
+\req\;\mathsf{vuln}\cap\mathsf{Challenged}=\emptyset; \\
+\mathsf{Exposed}\gets\mathsf{Exposed}\cup\mathsf{vuln}; \\
 \pcommentline{\text{Correctness: no rollback of current epoch}} \\
 \mathsf{assert}\;t^\mathsf{snd}_\A\ge t^\mathsf{cur}_\A; \\
 t^\mathsf{cur}_\A\gets t^\mathsf{snd}_\A; \\
@@ -414,10 +415,10 @@ $`\begin{array}{l}
 ((t_{I_\B},I_\B),\rho,t^\mathsf{snd}_\B,\stB',r)
   \sample \SendBRLeak(\stB); \\
 \pcommentline{\text{Vulnerable epochs following randomness leakage}} \\
-\boxed{E\gets V_\B^{\mathsf{rleak}}(\stB,r)}; \\
+\boxed{\mathsf{vuln}\gets\mathsf{vuln}^{\mathsf{rleak}}_\B(\stB,r)}; \\
 \pcommentline{\text{Reject exposure of challenged epochs}} \\
-\req\;E\cap\mathsf{Challenged}=\emptyset; \\
-\mathsf{Exposed}\gets\mathsf{Exposed}\cup E; \\
+\req\;\mathsf{vuln}\cap\mathsf{Challenged}=\emptyset; \\
+\mathsf{Exposed}\gets\mathsf{Exposed}\cup\mathsf{vuln}; \\
 \pcommentline{\text{Correctness: no rollback of current epoch}} \\
 \mathsf{assert}\;t^\mathsf{snd}_\B\ge t^\mathsf{cur}_\B; \\
 t^\mathsf{cur}_\B\gets t^\mathsf{snd}_\B; \\
@@ -659,12 +660,12 @@ def oracleChall (isRandom : Bool) (StA StB I Rho : Type) [SampleableType I] :
 
 :::::gameCell "\\OCorrA" (kind := "compact")
 $`\begin{array}{l}
-\pcommentline{\text{Reveal A's local state}} \\
-V\gets V_{\A}^{\mathsf{corr}}(\stA); \\
+\pcommentline{\text{Vulnerable epochs following corruption of A}} \\
+\mathsf{vuln}\gets\mathsf{vuln}^{\mathsf{corr}}_\A(\stA); \\
 \pcommentline{\text{Reject exposure of challenged epochs}} \\
-\req\;V\cap\mathsf{Challenged}=\emptyset; \\
+\req\;\mathsf{vuln}\cap\mathsf{Challenged}=\emptyset; \\
 \pcommentline{\text{Record exposed epochs}} \\
-\mathsf{Exposed}\gets\mathsf{Exposed}\cup V; \\
+\mathsf{Exposed}\gets\mathsf{Exposed}\cup\mathsf{vuln}; \\
 \Return\stA
 \end{array}`
 
@@ -686,12 +687,12 @@ def oracleCorruptA (vulnCorrA : StA → Finset ℕ) (StB I Rho : Type) :
 
 :::::gameCell "\\OCorrB" (kind := "compact")
 $`\begin{array}{l}
-\pcommentline{\text{Reveal B's local state}} \\
-V\gets V_{\B}^{\mathsf{corr}}(\stB); \\
+\pcommentline{\text{Vulnerable epochs following corruption of B}} \\
+\mathsf{vuln}\gets\mathsf{vuln}^{\mathsf{corr}}_\B(\stB); \\
 \pcommentline{\text{Reject exposure of challenged epochs}} \\
-\req\;V\cap\mathsf{Challenged}=\emptyset; \\
+\req\;\mathsf{vuln}\cap\mathsf{Challenged}=\emptyset; \\
 \pcommentline{\text{Record exposed epochs}} \\
-\mathsf{Exposed}\gets\mathsf{Exposed}\cup V; \\
+\mathsf{Exposed}\gets\mathsf{Exposed}\cup\mathsf{vuln}; \\
 \Return\stB
 \end{array}`
 
