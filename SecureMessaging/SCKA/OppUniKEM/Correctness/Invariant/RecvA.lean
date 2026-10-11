@@ -67,6 +67,7 @@ private lemma reachableInv_after_recvA_stale
   · exact hInv.futureKeypair
   · exact hInv.futureOff
   · exact hInv.futureOn
+  · exact hInv.zeroOn
   · exact hInv.keyA
   · exact hInv.keyB
   · exact hInv.msgA
@@ -123,6 +124,7 @@ private lemma reachableInv_after_recvA_same
   · simpa [ht] using hInv.futureKeypair
   · exact hInv.futureOff
   · exact hInv.futureOn
+  · exact hInv.zeroOn
   · intro t; simpa [ht] using hInv.keyA t
   · exact hInv.keyB
   · exact hInv.msgA
@@ -276,6 +278,7 @@ private lemma reachableInv_after_recvA_advance
     exact hInv.futureKeypair t (by omega)
   · exact hInv.futureOff
   · exact hInv.futureOn
+  · exact hInv.zeroOn
   · intro t
     change Function.update s.keyA s.stA.t (some key) t =
       if t = 0 then none
@@ -341,25 +344,31 @@ private lemma reachableInv_after_recvA_ackOnly
   · simp
   · simpa using hInv.ct0Ack.1
 
-/-- A's receive preserves `reachableInv` under `CurrentKEMCorrect`, with correct ciphertext codes
-and `ecCt1.ec.nchunk > 0`. -/
-lemma oracleRecvA_preserves_reachableInv
+/-- A's receive preserves `reachableInv` when `scka.recvA = recvA … decapsDet …` and
+`decapsDet` returns B's recorded key on the current KEM material, provided the ciphertext
+erasure codes are correct and the online code has a positive chunk count. -/
+lemma oracleRecvA_preserves_reachableInv_of_recv
     [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0Correct : ecCt0.ec.Correct)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1Correct : ecCt1.ec.Correct)
     (hCt1Pos : 0 < ecCt1.ec.nchunk)
-    (leak : KEMScheme.OnOffRandLeak kem onoff)
+    {Rand : Type}
+    (scka : SCKAScheme ProbComp Unit (StA onoff Sym) (StB onoff Sym) K (Message Sym) Rand)
+    (decapsDet : SK → C → Option K)
+    (hRecv : scka.recvA = recvA kem onoff decapsDet ecCt0 ecCt1)
     (n : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv kem onoff ecEk ecCt0 ecCt1 s)
-    (hCurrent : CurrentKEMCorrect kem onoff hDet s)
+    (hDecaps : ∀ dk ct0 ct1 key,
+      s.stA.dkA = some dk → s.stA.ct0 = some ct0 →
+      s.stB.ct1 = some ct1 → s.keyB s.stA.t = some key →
+      decapsDet dk (onoff.split.symm (ct0, ct1)) = some key)
     (z : Option (ℕ × Option ℕ) ×
       SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hz : z ∈ support
-      ((SCKAScheme.oracleRecvA (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) n).run s)) :
+      ((SCKAScheme.oracleRecvA scka n).run s)) :
     reachableInv kem onoff ecEk ecCt0 ecCt1 z.2 := by
   rcases hs with ⟨T, hInv⟩
   cases hentry : s.msgB n with
@@ -385,10 +394,10 @@ lemma oracleRecvA_preserves_reachableInv
           (max_le hInv.tcurA le_rfl)
         cases ch? with
         | none =>
-            have hrecv : recvA kem onoff hDet.decapsDet ecCt0 ecCt1 s.stA (none, ack, s.stA.t, b?) =
+            have hrecv : recvA kem onoff decapsDet ecCt0 ecCt1 s.stA (none, ack, s.stA.t, b?) =
                 some (none, s.stA.t - 1, recvAAckStep kem onoff s.stA ack s.stA.t) := by
               simp [recvA, recvAAckStep]
-            rw [SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hentry hrecv,
+            rw [SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hentry (hRecv.symm ▸ hrecv),
               mem_support_pure_iff] at hz
             subst z
             simpa [SCKAScheme.recvAUpdate,
@@ -398,11 +407,11 @@ lemma oracleRecvA_preserves_reachableInv
         | some ch =>
           cases b? with
           | none =>
-              have hrecv : recvA kem onoff hDet.decapsDet ecCt0 ecCt1 s.stA
+              have hrecv : recvA kem onoff decapsDet ecCt0 ecCt1 s.stA
                     (some ch, ack, s.stA.t, none) =
                   some (none, s.stA.t - 1, recvAAckStep kem onoff s.stA ack s.stA.t) := by
                 simp [recvA, recvAAckStep]
-              rw [SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hentry hrecv,
+              rw [SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hentry (hRecv.symm ▸ hrecv),
                 mem_support_pure_iff] at hz
               subst z
               simpa [SCKAScheme.recvAUpdate,
@@ -413,11 +422,11 @@ lemma oracleRecvA_preserves_reachableInv
             fin_cases b
             · cases hct0 : s.stA.ct0 with
               | some ct0 =>
-                  have hrecv : recvA kem onoff hDet.decapsDet ecCt0 ecCt1 s.stA
+                  have hrecv : recvA kem onoff decapsDet ecCt0 ecCt1 s.stA
                         (some ch, ack, s.stA.t, some 0) =
                       some (none, s.stA.t - 1, recvAAckStep kem onoff s.stA ack s.stA.t) := by
                     simp [recvA, recvAAckStep, hct0]
-                  rw [SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hentry hrecv,
+                  rw [SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hentry (hRecv.symm ▸ hrecv),
                     mem_support_pure_iff] at hz
                   subst z
                   simpa [SCKAScheme.recvAUpdate,
@@ -438,11 +447,11 @@ lemma oracleRecvA_preserves_reachableInv
                   · let stA0 : StA onoff Sym :=
                         { s.stA with ct0 := none, lch := insert ch s.stA.lch }
                     let stA' := recvAAckStep kem onoff stA0 ack s.stA.t
-                    have hrecv : recvA kem onoff hDet.decapsDet ecCt0 ecCt1 s.stA
+                    have hrecv : recvA kem onoff decapsDet ecCt0 ecCt1 s.stA
                           (some ch, ack, s.stA.t, some 0) =
                         some (none, s.stA.t - 1, stA') := by
                       simp [recvA, recvAAckStep, hct0, hch, hlch, hdec, stA0, stA']
-                    rw [SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hentry hrecv,
+                    rw [SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hentry (hRecv.symm ▸ hrecv),
                       mem_support_pure_iff] at hz
                     subst z
                     have hsame := reachableInv_after_recvA_same kem onoff ecEk ecCt0 ecCt1
@@ -473,11 +482,11 @@ lemma oracleRecvA_preserves_reachableInv
                           lch := ∅
                           ack := { s.stA.ack with ctRec := true } }
                     let stA' := recvAAckStep kem onoff stA0 ack s.stA.t
-                    have hrecv : recvA kem onoff hDet.decapsDet ecCt0 ecCt1 s.stA
+                    have hrecv : recvA kem onoff decapsDet ecCt0 ecCt1 s.stA
                           (some ch, ack, s.stA.t, some 0) =
                         some (none, s.stA.t - 1, stA') := by
                       simp [recvA, recvAAckStep, hct0, hch, hlch, hdec, stA0, stA']
-                    rw [SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hentry hrecv,
+                    rw [SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hentry (hRecv.symm ▸ hrecv),
                       mem_support_pure_iff] at hz
                     subst z
                     have hsame := reachableInv_after_recvA_same kem onoff ecEk ecCt0 ecCt1
@@ -545,11 +554,11 @@ lemma oracleRecvA_preserves_reachableInv
                   · let stA0 : StA onoff Sym :=
                         { s.stA with lch := insert ch s.stA.lch }
                     let stA' := recvAAckStep kem onoff stA0 ack s.stA.t
-                    have hrecv : recvA kem onoff hDet.decapsDet ecCt0 ecCt1 s.stA
+                    have hrecv : recvA kem onoff decapsDet ecCt0 ecCt1 s.stA
                           (some ch, ack, s.stA.t, some 1) =
                         some (none, s.stA.t - 1, stA') := by
                       simp [recvA, recvAAckStep, hdk, hct0, hch, hlch, hdec, stA0, stA']
-                    rw [SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hentry hrecv,
+                    rw [SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hentry (hRecv.symm ▸ hrecv),
                       mem_support_pure_iff] at hz
                     subst z
                     have hsame := reachableInv_after_recvA_same kem onoff ecEk ecCt0 ecCt1
@@ -586,10 +595,10 @@ lemma oracleRecvA_preserves_reachableInv
                     have hkeyB : s.keyB s.stA.t = some key := by
                       rw [hInv.keyB]
                       simp [EpochTranscript.key, hon]
-                    have hdecaps := hCurrent dk ct0 ct1 key hdk hct0 hct1B hkeyB
+                    have hdecaps := hDecaps dk ct0 ct1 key hdk hct0 hct1B hkeyB
                     have hkey : (T s.stA.t).key = some key := by
                       simp [EpochTranscript.key, hon]
-                    have hrecv : recvA kem onoff hDet.decapsDet ecCt0 ecCt1 s.stA
+                    have hrecv : recvA kem onoff decapsDet ecCt0 ecCt1 s.stA
                           (some ch, ack, s.stA.t, some 1) =
                         some (some (s.stA.t, key), s.stA.t - 1,
                           { s.stA with
@@ -600,7 +609,7 @@ lemma oracleRecvA_preserves_reachableInv
                             lch := ∅
                             ack := { ekRec := false, ctRec := false } }) := by
                       simp [recvA, hdk, hct0, hch, hlch, hdec, hdecaps]
-                    rw [SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hentry hrecv,
+                    rw [SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hentry (hRecv.symm ▸ hrecv),
                       mem_support_pure_iff] at hz
                     subst z
                     simpa [SCKAScheme.recvAUpdate,
@@ -613,16 +622,40 @@ lemma oracleRecvA_preserves_reachableInv
         have hknown := hInv.knownPrefixA
           (tcur := max s.tcurA (t - 1))
           (max_le hInv.tcurA (by omega))
-        have hrecv : recvA kem onoff hDet.decapsDet ecCt0 ecCt1 s.stA (ch?, ack, t, b?) =
+        have hrecv : recvA kem onoff decapsDet ecCt0 ecCt1 s.stA (ch?, ack, t, b?) =
             some (none, t - 1, s.stA) := by
           simp [recvA, hne]
-        rw [SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hentry hrecv,
+        rw [SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hentry (hRecv.symm ▸ hrecv),
           mem_support_pure_iff] at hz
         subst z
         simpa [SCKAScheme.recvAUpdate,
           beq_eq_decide, htsnd, hknown] using
           reachableInv_after_recvA_stale kem onoff ecEk ecCt0 ecCt1
             s T hInv t htlt
+
+/-- A's receive preserves `reachableInv` under `CurrentKEMCorrect`, provided the ciphertext
+erasure codes are correct and the online code has a positive chunk count. -/
+lemma oracleRecvA_preserves_reachableInv
+    [DecidableEq K]
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (hDet : DeterministicDecaps kem)
+    (ecEk : ErasureCodePayload PK Sym)
+    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0Correct : ecCt0.ec.Correct)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1Correct : ecCt1.ec.Correct)
+    (hCt1Pos : 0 < ecCt1.ec.nchunk)
+    (leak : KEMScheme.OnOffRandLeak kem onoff)
+    (n : ℕ)
+    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (hs : reachableInv kem onoff ecEk ecCt0 ecCt1 s)
+    (hCurrent : CurrentKEMCorrect kem onoff hDet s)
+    (z : Option (ℕ × Option ℕ) ×
+      SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (hz : z ∈ support
+      ((SCKAScheme.oracleRecvA (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) n).run s)) :
+    reachableInv kem onoff ecEk ecCt0 ecCt1 z.2 :=
+  oracleRecvA_preserves_reachableInv_of_recv kem onoff ecEk ecCt0 hCt0Correct ecCt1
+    hCt1Correct hCt1Pos (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) hDet.decapsDet
+    rfl n s hs hCurrent z hz
 
 end RecvA
 
