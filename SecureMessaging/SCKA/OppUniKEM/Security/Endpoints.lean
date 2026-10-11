@@ -4,12 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppUniKEM.Security.IdealHybrids
+import SecureMessaging.SCKA.OppUniKEM.Security.Ideal
 import SecureMessaging.SCKA.OppUniKEM.Security.FailureBound
 import ToVCVio.OracleComp.SimSemantics.StateT.IdenticalUntilBadInvariant
 
 /-!
-# Opp-UniKEM correctness-error endpoints
+# Replacing decapsulation in the Opp-UniKEM security game
 
 Let:
 - `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` be the Opp-UniKEM protocol,
@@ -28,17 +28,9 @@ Consider the following games for `Π`. Each runs `adv` and returns its output bi
   for `b = true`.
 - `I_b`: the game `G_b` with A recording B's encapsulated key instead of its decapsulation
   result on ciphertext completion. This is the auxiliary experiment defined in `Ideal`.
-- `H_i`, for `i : ℕ`: the game `I_false` with eligible challenges at epochs `1, …, i`
-  answered by independent uniform keys. These hybrids are defined in `IdealHybrids`.
-
-Let `p_i := Pr[H_i(adv) = true]`.
 
 For every `b`, `security_correctness_endpoint_le` bounds the effect of replacing A's
 decapsulation: `|Pr[G_b = true] - Pr[I_b = true]| ≤ q · ε`.
-
-The guessing advantage is `AdvGuess(Π, adv) := |Pr[b' = b] - 1/2|`, where the game samples
-a uniform bit `b` and `adv` returns `b'`. The main result `security_guess_le_hybrid_gap` is
-`AdvGuess(Π, adv) ≤ |p_0 - p_q| / 2 + q · ε`.
 -/
 
 open OracleSpec OracleComp KEMScheme ENNReal
@@ -61,7 +53,7 @@ def trackedIdealImpl
     QueryImpl (securitySpec leak Sym)
       (StateT
         (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) × Bool) ProbComp) :=
-  QueryImpl.extendState (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak (fun _ => b))
+  QueryImpl.extendState (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b)
     (failureFlagUpdate kem onoff hDet)
 
 /-- Dropping the failure flag from a tracked auxiliary execution gives the auxiliary execution. -/
@@ -75,7 +67,7 @@ theorem trackedIdeal_run_project
     (p : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) × Bool) :
     Prod.map id Prod.fst <$>
         (simulateQ (trackedIdealImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b) adv).run p =
-      (simulateQ (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak (fun _ => b))
+      (simulateQ (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b)
         adv).run p.1 :=
   extendState_run_proj_eq _ _ adv p.1 p.2
 
@@ -110,7 +102,7 @@ theorem security_correctness_endpoint_le
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv b
         (exposureA kem onoff leak) (exposureB kem onoff leak)]).toReal -
       (Pr[= true | idealSecurityExp kem onoff hDet ecEk ecCt0 ecCt1 leak
-        (fun _ => b) adv]).toReal| ≤
+        b adv]).toReal| ≤
       (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal := by
   let left := trackedSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b
   let right := trackedIdealImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b
@@ -140,7 +132,7 @@ theorem security_correctness_endpoint_le
     rw [← trackedSecurity_run_project kem onoff hDet ecEk ecCt0 ecCt1 leak b adv (s₀, false),
       probEvent_map]
     rfl
-  have hr : Pr[= true | idealSecurityExp kem onoff hDet ecEk ecCt0 ecCt1 leak (fun _ => b) adv] =
+  have hr : Pr[= true | idealSecurityExp kem onoff hDet ecEk ecCt0 ecCt1 leak b adv] =
       Pr[fun z => z.1 = true | (simulateQ right adv).run (s₀, false)] := by
     rw [idealSecurityExp, ← probEvent_eq_eq_probOutput, StateT.run'_eq, probEvent_map]
     rw [← trackedIdeal_run_project kem onoff hDet ecEk ecCt0 ecCt1 leak b adv (s₀, false),
@@ -154,46 +146,5 @@ theorem security_correctness_endpoint_le
     ENNReal.mul_ne_top (by simp) (ne_of_lt (lt_of_le_of_lt tsub_le_self ENNReal.one_lt_top))
   have hreal := ENNReal.toReal_mono hfinite hbad
   simpa only [ENNReal.toReal_mul, ENNReal.toReal_natCast] using hreal
-
-/-- Under the module's assumptions, for every adversary `adv` and budget `q` satisfying
-`SecuritySendQueryBound adv q`,
-`AdvGuess(Π, adv) ≤ |Pr[H_0 = true] - Pr[H_q = true]| / 2 + q · ε`. -/
--- ANCHOR: security_guess_le_hybrid_gap
-theorem security_guess_le_hybrid_gap
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-    (leak : kem.OnOffRandLeak onoff)
-    (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
-    SCKAScheme.sckaGuessAdvantage (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)
-      adv (exposureA kem onoff leak) (exposureB kem onoff leak) ≤
-    |(Pr[= true | idealEpochHybridExp kem onoff hDet ecEk ecCt0 ecCt1 leak adv 0]).toReal -
-      (Pr[= true | idealEpochHybridExp kem onoff hDet ecEk ecCt0 ecCt1 leak adv q]).toReal| / 2 +
-      (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal := by
-  rw [SCKAScheme.sckaGuessAdvantage_eq_sckaDistAdvantage_div_two,
-    SCKAScheme.sckaDistAdvantage,
-    idealEpochHybridExp_zero,
-    idealEpochHybridExp_last kem onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1 leak adv q hq]
-  let G := fun b => (Pr[= true | SCKAScheme.securityExpFixedBit
-    (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv b
-    (exposureA kem onoff leak) (exposureB kem onoff leak)]).toReal
-  let I := fun b => (Pr[= true | idealSecurityExp kem onoff hDet ecEk ecCt0 ecCt1
-    leak (fun _ => b) adv]).toReal
-  have h0 : |G false - I false| ≤
-      (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal :=
-    security_correctness_endpoint_le kem onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
-      leak false adv q hq
-  have h1 : |G true - I true| ≤
-      (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal :=
-    security_correctness_endpoint_le kem onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
-      leak true adv q hq
-  have htriangle := abs_sub_le (G true) (I true) (G false)
-  have htriangle' := abs_sub_le (I true) (I false) (G false)
-  rw [abs_sub_comm (I true) (I false), abs_sub_comm (I false) (G false)] at htriangle'
-  change |G true - G false| / 2 ≤ |I false - I true| / 2 + _
-  linarith
--- ANCHOR_END: security_guess_le_hybrid_gap
 
 end oppUniKemCKA.Security

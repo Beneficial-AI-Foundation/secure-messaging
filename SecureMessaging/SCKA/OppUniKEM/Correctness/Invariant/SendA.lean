@@ -75,7 +75,6 @@ private lemma reachableInv_after_sendA_existing
   · exact hInv.futureKeypair
   · exact hInv.futureOff
   · exact hInv.futureOn
-  · exact hInv.zeroOn
   · exact hInv.keyA
   · exact hInv.keyB
   · intro n entry hn
@@ -210,7 +209,6 @@ private lemma reachableInv_after_sendA_new
     simpa [hTOff t] using hInv.futureOff t hlt
   · intro t hlt
     simpa [hTOn t] using hInv.futureOn t hlt
-  · simpa [hTOn 0] using hInv.zeroOn
   · intro t
     simpa [hTKey t] using hInv.keyA t
   · intro t

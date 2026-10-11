@@ -862,7 +862,7 @@ def correctnessExp [DecidableEq I]
 :::defTitle "scka_security" "SCKA protocol security"
 :::
 
-:::::::definition "scka_security" (parent := "cka_protocols_scka") (lean := "SCKAScheme.securityExp, SCKAScheme.securityExpFixedBit, SCKAScheme.sckaGuessAdvantage, SCKAScheme.sckaDistAdvantage, SCKAScheme.sckaGuessAdvantage_eq_sckaDistAdvantage_div_two") (tags := "gh-185") (uses := "scka_scheme, scka_oracles")
+:::::::definition "scka_security" (parent := "cka_protocols_scka") (lean := "SCKAScheme.securityExp, SCKAScheme.sckaGuessAdvantage") (tags := "gh-185") (uses := "scka_scheme, scka_oracles")
 
 ::::::gameGrid
 :::::gameCell "\\Exp{\\textsf{sec}}{\\textsf{SCKA}}(\\adv)" (kind := "game")
@@ -918,60 +918,4 @@ noncomputable def sckaGuessAdvantage [SampleableType I] [DecidableEq I]
 ```
 :::::
 ::::::
-
-
-Let $`G_0(\adv)` and $`G_1(\adv)` be the security experiments with recorded and
-independent uniform challenge keys, respectively. Both return the adversary's bit and
-use the same exposure policies and challenge guards. Define
-
-$$`\operatorname{Adv}^{\mathsf{dist}}_{\mathsf{SCKA}}(\adv)
-=|\Pr[G_1(\adv)=1]-\Pr[G_0(\adv)=1]|,\qquad
-\operatorname{Adv}^{\mathsf{guess}}_{\mathsf{SCKA}}(\adv)
-=\tfrac12\operatorname{Adv}^{\mathsf{dist}}_{\mathsf{SCKA}}(\adv).`
-
-:::leanPillCaption "Security experiment with a fixed challenge bit"
-:::
-
-```anchor securityExpFixedBit (project := ".") (module := SecureMessaging.SCKA.Defs)
-def securityExpFixedBit [SampleableType I] [DecidableEq I]
-    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
-    (adversary : SCKAAdversary StA StB I Rho Rand)
-    (b : Bool) (vulnA : VulnerableEpochs StA Rand)
-      (vulnB : VulnerableEpochs StB Rand) : ProbComp Bool := do
-  let ik ← scka.initKeyGen
-  let stA ← scka.initA ik
-  let stB ← scka.initB ik
-  let (b', _) ← (simulateQ (sckaSecurityImpl b vulnA vulnB scka) adversary).run
-    (initGameState stA stB)
-  return b'
-```
-
-:::leanPillCaption "Distinguishing advantage"
-:::
-
-```anchor sckaDistAdvantage (project := ".") (module := SecureMessaging.SCKA.Defs)
-noncomputable def sckaDistAdvantage [SampleableType I] [DecidableEq I]
-    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
-    (adversary : SCKAAdversary StA StB I Rho Rand)
-    (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand) : ℝ :=
-  |(Pr[= true | securityExpFixedBit scka adversary true vulnA vulnB]).toReal -
-   (Pr[= true | securityExpFixedBit scka adversary false vulnA vulnB]).toReal|
-```
-
-:::leanPillCaption "Guessing advantage is half the distinguishing advantage"
-:::
-
-```anchor sckaAdvantageNormalization (project := ".") (module := SecureMessaging.SCKA.Defs)
-lemma sckaGuessAdvantage_eq_sckaDistAdvantage_div_two [SampleableType I] [DecidableEq I]
-    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
-    (adversary : SCKAAdversary StA StB I Rho Rand)
-    (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand) :
-    sckaGuessAdvantage scka adversary vulnA vulnB =
-      sckaDistAdvantage scka adversary vulnA vulnB / 2 := by
-  simp only [sckaGuessAdvantage, sckaDistAdvantage]
-  rw [securityExp_toReal_sub_half, abs_div]
-  congr 1
-  exact abs_of_pos two_pos
-```
-
 :::::::

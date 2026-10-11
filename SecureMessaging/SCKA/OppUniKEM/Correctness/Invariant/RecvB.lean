@@ -311,7 +311,6 @@ private lemma reachableInv_after_recvB_current
   · exact hInv.futureKeypair
   · simpa [htB'] using hInv.futureOff
   · simpa [htB'] using hInv.futureOn
-  · exact hInv.zeroOn
   · exact hInv.keyA
   · exact hInv.keyB
   · exact hInv.msgA
@@ -359,7 +358,6 @@ private lemma reachableInv_after_recvB_stale
   · exact hInv.futureKeypair
   · exact hInv.futureOff
   · exact hInv.futureOn
-  · exact hInv.zeroOn
   · exact hInv.keyA
   · exact hInv.keyB
   · exact hInv.msgA
@@ -523,7 +521,6 @@ private lemma reachableInv_after_recvB_next
     apply hInv.futureOn x
     rw [htB'] at hx
     exact (hInv.epochs.1.trans_eq htA).trans_lt hx
-  · exact hInv.zeroOn
   · exact hInv.keyA
   · exact hInv.keyB
   · exact hInv.msgA

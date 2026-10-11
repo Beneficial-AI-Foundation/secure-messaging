@@ -5,7 +5,6 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.SCKA.Security.Oracles
-import SecureMessaging.SCKA.Security.CorrectnessOracles
 import SecureMessaging.SCKA.Security.Transport
 
 /-!
@@ -105,73 +104,6 @@ theorem securityImplOf_preserves_at_of_book (Inv : GameState StA StB I Rho → P
     (fun t z hz => hchall.preservesInv Inv hch t s hs z hz)
     (fun z hz => oracleCorruptA_preservesInv vulnA.corrupt Inv hexp () s hs z hz)
     (fun z hz => oracleCorruptB_preservesInv vulnB.corrupt Inv hexp () s hs z hz) t z hz
-
-/-- The invariant-preservation version of `securityImplOf_preserves_at_of_book`: under its
-coin and challenge assumptions, the assembled security oracles preserve every invariant
-preserved by `base`, ordinary sends, and arbitrary changes to `exposed` and `challenged`. -/
-theorem securityImplOf_preservesInv_of_book (Inv : GameState StA StB I Rho → Prop)
-    (hbook : ∀ s exposed challenged, Inv s →
-      Inv { s with exposed := exposed, challenged := challenged })
-    (hmA : ∀ st, (do
-      let out ← scka.sendArleak st
-      pure (out.map fun (key, msg, epoch, state, _) => (key, msg, epoch, state))) =
-        scka.sendA st)
-    (hmB : ∀ st, (do
-      let out ← scka.sendBrleak st
-      pure (out.map fun (key, msg, epoch, state, _) => (key, msg, epoch, state))) =
-        scka.sendB st)
-    (hchall : RecordsChallenges chall)
-    (hbase : QueryImpl.PreservesInv base Inv)
-    (hsendA : QueryImpl.PreservesInv (oracleSendA scka) Inv)
-    (hsendB : QueryImpl.PreservesInv (oracleSendB scka) Inv) :
-    QueryImpl.PreservesInv (securityImplOf base chall vulnA vulnB scka) Inv :=
-  fun t s hs z hz => securityImplOf_preserves_at_of_book base chall vulnA vulnB scka Inv
-    hbook hmA hmB hchall s hs (fun t => hbase t s hs) (hsendA () s hs) (hsendB () s hs) t z hz
-
-/-- If `base` retains `exposed` and `chall` satisfies `RecordsChallenges`, every assembled
-security query from `s` with successor `s'` satisfies `s.exposed ⊆ s'.exposed`. -/
-theorem securityImplOf_exposed_subset
-    (hbase : ∀ t s z, z ∈ support ((base t).run s) → z.2.exposed = s.exposed)
-    (hchall : RecordsChallenges chall)
-    (t : (sckaSecuritySpec StA StB I Rho Rand).Domain) (s : GameState StA StB I Rho)
-    (z : (sckaSecuritySpec StA StB I Rho Rand).Range t × GameState StA StB I Rho)
-    (hz : z ∈ support ((securityImplOf base chall vulnA vulnB scka t).run s)) :
-    s.exposed ⊆ z.2.exposed := by
-  rcases t with (((((t | u) | u) | t) | u) | u)
-  · rw [hbase t s z hz]
-  · exact oracleSendArleak_exposed_subset vulnA.rleak scka u s z hz
-  · exact oracleSendBrleak_exposed_subset vulnB.rleak scka u s z hz
-  · rw [(hchall.exposed_nA_eq t s z hz).1]
-  · exact oracleCorruptA_exposed_subset vulnA.corrupt u s z hz
-  · exact oracleCorruptB_exposed_subset vulnB.corrupt u s z hz
-
-/-- Suppose `base` increases `nA` by at most one on send queries and never increases it
-otherwise, and `chall` satisfies `RecordsChallenges`. Every assembled security query from
-`s` with successor `s'` then satisfies `s'.nA ≤ s.nA + 1` on the four ordinary or leaking sends
-and `s'.nA ≤ s.nA` otherwise. -/
-theorem securityImplOf_nA_step
-    (hbase : ∀ t s z, z ∈ support ((base t).run s) →
-      z.2.nA ≤ s.nA + if isSendQuery t then 1 else 0)
-    (hchall : RecordsChallenges chall)
-    (t : (sckaSecuritySpec StA StB I Rho Rand).Domain) (s : GameState StA StB I Rho)
-    (z : (sckaSecuritySpec StA StB I Rho Rand).Range t × GameState StA StB I Rho)
-    (hz : z ∈ support ((securityImplOf base chall vulnA vulnB scka t).run s)) :
-    z.2.nA ≤ s.nA + if sckaSecuritySpec.isSendQuery t then 1 else 0 := by
-  rcases t with (((((t | u) | u) | t) | u) | u)
-  · rw [sckaSecuritySpec.isSendQuery_OCorrectness]
-    exact hbase t s z hz
-  · cases u
-    simpa [sckaSecuritySpec.isSendQuery] using oracleSendArleak_nA_le vulnA.rleak scka () s z hz
-  · cases u
-    simpa [sckaSecuritySpec.isSendQuery] using
-      (oracleSendBrleak_nA_eq vulnB.rleak scka () s z hz).le.trans (Nat.le_succ _)
-  · simpa [sckaSecuritySpec.isSendQuery] using (hchall.exposed_nA_eq t s z hz).2.le
-  · cases u
-    simpa [sckaSecuritySpec.isSendQuery] using
-      (oracleCorruptA_challenged_nA_eq vulnA.corrupt () s z hz).2.le
-  · cases u
-    simpa [sckaSecuritySpec.isSendQuery] using
-      (oracleCorruptB_challenged_nA_eq vulnB.corrupt () s z hz).2.le
 
 /-- If `base` and `base'` have equal query computations from `s`, and so do `chall` and
 `chall'`, the two assembled security implementations have equal query computations from `s`. -/

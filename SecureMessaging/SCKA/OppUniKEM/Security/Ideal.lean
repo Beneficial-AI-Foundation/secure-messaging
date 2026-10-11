@@ -9,27 +9,22 @@ import SecureMessaging.SCKA.OppUniKEM.Security.Invariant
 /-!
 # Auxiliary security game
 
-Let `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` be Opp-UniKEM. For `b : Bool`,
-let `G_b` be its security game, whose eligible challenges return recorded keys when
-`b = false` and independent uniform keys when `b = true`.
+Let `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` be Opp-UniKEM.
+For a fixed challenge bit `b`, consider:
 
-The auxiliary game `I_b` runs `G_b` with A's receive using `Key[B, t_A]` in place of
-`Decaps(dk_A, ct)`, where `t_A` is A's epoch before the receive. The ordinary receive processes
-chunks and, if this lookup returns a key, outputs it and erases the current secret material.
+- `G_b`: the SCKA game for `Π`. Eligible challenges return real keys when `b = false`
+  and independent uniform keys when `b = true`.
+- `I_b`: the game `G_b` with A using B's recorded key in place of decapsulation.
+  On ciphertext completion, A outputs `Key[B, t_A]`, where `t_A` is its current epoch,
+  and erases its current secret material.
 
+`idealSecurityExp … b adv` runs `I_b` against `adv` and returns its output bit.
 This replacement lets the later KEM IND-CPA reduction simulate A's receive without
-decapsulation. The games `I_false` and `I_true` are the endpoints of the epoch hybrids in
-`IdealHybrids`. The cost of replacing `G_b` by `I_b` is bounded in `Endpoints`.
+performing decapsulation.
 
-More generally, `idealSecurityImpl mode` uses this receive oracle and answers an eligible
-challenge at epoch `t` with a uniform key exactly when `mode t = true`.
-`idealSecurityExp mode adv` runs `adv` from the initial state and returns its Boolean output;
-`I_b` is the instance `mode := fun _ => b`.
-
-With correct erasure codes, auxiliary correctness queries preserve `reachableInv`.
-If the online ciphertext erasure code is correct, real and auxiliary queries with the
-same constant challenge mode have equal response/state computations whenever `reachableInv`
-and `CurrentKEMCorrect` hold.
+With a correct online ciphertext erasure code, the real and auxiliary oracle computations
+agree whenever `reachableInv` and `CurrentKEMCorrect` hold. The module `Endpoints` uses
+this agreement to bound the difference between the output probabilities of `G_b` and `I_b`.
 -/
 
 open OracleSpec OracleComp KEMScheme ErasureCodePayload
@@ -54,36 +49,6 @@ def oracleRecvAIdeal [DecidableEq K] [DecidableEq Sym]
       (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)))
     (SCKAScheme.oracleRecvA (schemeWithDecaps kem onoff hDet ecEk ecCt0 ecCt1 leak
       (fun _ _ => s.keyB s.stA.t)) n)
-
-/-- With correct ciphertext erasure codes, A's auxiliary receive preserves `reachableInv`. -/
-theorem oracleRecvAIdeal_preserves_reachableInv [DecidableEq K] [DecidableEq Sym]
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-    (leak : kem.OnOffRandLeak onoff) :
-    QueryImpl.PreservesInv (oracleRecvAIdeal kem onoff hDet ecEk ecCt0 ecCt1 leak)
-      (reachableInv kem onoff ecEk ecCt0 ecCt1) := by
-  intro n s hs z hz
-  exact oracleRecvA_preserves_reachableInv_of_recv kem onoff ecEk ecCt0 hCt0
-    ecCt1 hCt1 ecCt1.ec.nchunk_pos
-    (schemeWithDecaps kem onoff hDet ecEk ecCt0 ecCt1 leak (fun _ _ => s.keyB s.stA.t))
-    (fun _ _ => s.keyB s.stA.t) rfl n s hs (fun _ _ _ _ _ _ _ hk => hk) z hz
-
-/-- A's auxiliary receive preserves `sendEpochInv`. -/
-theorem oracleRecvAIdeal_preserves_sendEpochInv [DecidableEq K] [DecidableEq Sym]
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff) :
-    QueryImpl.PreservesInv (oracleRecvAIdeal kem onoff hDet ecEk ecCt0 ecCt1 leak)
-      sendEpochInv := by
-  intro n s hs z hz
-  exact oracleRecvA_preserves_sendEpochInv_of_recv kem onoff ecCt0 ecCt1
-    (schemeWithDecaps kem onoff hDet ecEk ecCt0 ecCt1 leak (fun _ _ => s.keyB s.stA.t))
-    (fun _ _ => s.keyB s.stA.t) rfl n s hs z hz
 
 /-- Two decapsulation functions give equal A-receive computations on a fixed state and
 message if they agree on every decapsulation reached by that receive. -/
@@ -222,123 +187,37 @@ def idealCorrectnessImpl
     + oracleRecvAIdeal kem onoff hDet ecEk ecCt0 ecCt1 leak + SCKAScheme.oracleRecvB scka
 
 /-- Opp-UniKEM's security oracles with A's receive using B's recorded key in place of
-decapsulation. An eligible challenge at epoch `t` returns a uniform key when `mode t = true`
-and the recorded key otherwise. -/
+decapsulation. Eligible challenges return real keys when `b = false` and independent
+uniform keys when `b = true`. -/
 def idealSecurityImpl
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff)
-    (mode : ℕ → Bool) :
+    (b : Bool) :
     QueryImpl (securitySpec leak Sym)
       (StateT (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) ProbComp) :=
   SCKAScheme.securityImplOf (idealCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak)
-    (SCKAScheme.challOf mode)
+    (SCKAScheme.oracleChall b _ _ _ _)
     (exposureA kem onoff leak) (exposureB kem onoff leak)
     (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)
 
-/-- Run `adv` against `idealSecurityImpl mode` from the initial state and return its Boolean
-output. Constant mode `fun _ => b` gives the auxiliary experiment `I_b`. -/
+/-- Run the auxiliary game `I_b` against `adv` from the initial state and return its
+Boolean output. -/
 def idealSecurityExp
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff)
-    (mode : ℕ → Bool) (adv : SecurityAdversary leak Sym) : ProbComp Bool :=
-  (simulateQ (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak mode) adv).run'
+    (b : Bool) (adv : SecurityAdversary leak Sym) : ProbComp Bool :=
+  (simulateQ (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b) adv).run'
     (Reduction.Internal.initialGame kem onoff)
-
-omit [SampleableType K] in
-/-- Every auxiliary correctness query keeps the exposed and challenged sets. -/
-theorem idealCorrectnessImpl_securitySets_eq
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff)
-    (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (z : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Range t ×
-      SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (hz : z ∈ support ((idealCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak t).run s)) :
-    z.2.exposed = s.exposed ∧ z.2.challenged = s.challenged := by
-  rcases t with ((((n | u) | u) | n) | n)
-  all_goals simp only [idealCorrectnessImpl,
-    QueryImpl.add_apply_inl, QueryImpl.add_apply_inr] at hz
-  · exact SCKAScheme.correctnessImpl_securitySets_eq
-      (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) (SCKAScheme.sckaCorrectnessSpec.OUnif n) s z hz
-  · cases u
-    exact SCKAScheme.correctnessImpl_securitySets_eq
-      (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) SCKAScheme.sckaCorrectnessSpec.OSendA s z hz
-  · cases u
-    exact SCKAScheme.correctnessImpl_securitySets_eq
-      (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) SCKAScheme.sckaCorrectnessSpec.OSendB s z hz
-  · exact SCKAScheme.correctnessImpl_securitySets_eq
-      (schemeWithDecaps kem onoff hDet ecEk ecCt0 ecCt1 leak (fun _ _ => s.keyB s.stA.t))
-      (SCKAScheme.sckaCorrectnessSpec.ORecvA n) s z hz
-  · exact SCKAScheme.correctnessImpl_securitySets_eq
-      (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) (SCKAScheme.sckaCorrectnessSpec.ORecvB n) s z hz
-
-omit [SampleableType K] in
-/-- Every auxiliary correctness query advances A's send counter by at most one on send
-queries and not otherwise. -/
-theorem idealCorrectnessImpl_nA_step
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff)
-    (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (z : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Range t ×
-      SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (hz : z ∈ support ((idealCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak t).run s)) :
-    z.2.nA ≤ s.nA + if SCKAScheme.isSendQuery t then 1 else 0 := by
-  rcases t with ((((n | u) | u) | n) | n)
-  all_goals simp only [idealCorrectnessImpl,
-    QueryImpl.add_apply_inl, QueryImpl.add_apply_inr] at hz
-  · exact SCKAScheme.correctnessImpl_nA_step
-      (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) (SCKAScheme.sckaCorrectnessSpec.OUnif n) s z hz
-  · cases u
-    exact SCKAScheme.correctnessImpl_nA_step (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)
-      SCKAScheme.sckaCorrectnessSpec.OSendA s z hz
-  · cases u
-    exact SCKAScheme.correctnessImpl_nA_step (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)
-      SCKAScheme.sckaCorrectnessSpec.OSendB s z hz
-  · exact SCKAScheme.correctnessImpl_nA_step
-      (schemeWithDecaps kem onoff hDet ecEk ecCt0 ecCt1 leak (fun _ _ => s.keyB s.stA.t))
-      (SCKAScheme.sckaCorrectnessSpec.ORecvA n) s z hz
-  · exact SCKAScheme.correctnessImpl_nA_step
-      (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) (SCKAScheme.sckaCorrectnessSpec.ORecvB n) s z hz
-
-omit [SampleableType K] in
-/-- With correct erasure codes, every auxiliary correctness query preserves `reachableInv`. -/
-theorem idealCorrectnessImpl_preserves_reachableInv
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-    (leak : kem.OnOffRandLeak onoff) :
-    QueryImpl.PreservesInv (idealCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak)
-      (reachableInv kem onoff ecEk ecCt0 ecCt1) := by
-  intro t s hs z hz
-  rcases t with ((((n | u) | u) | n) | n)
-  · exact SCKAScheme.oracleUnif_preservesInv _ n s hs z hz
-  · exact oracleSendA_preserves_reachableInv kem onoff hDet ecEk ecCt0 ecCt1 leak
-      ecEk.ec.nchunk_pos u s hs z hz
-  · exact oracleSendB_preserves_reachableInv kem onoff hDet ecEk ecCt0 ecCt0.ec.nchunk_pos
-      ecCt1 ecCt1.ec.nchunk_pos leak u s hs z hz
-  · exact oracleRecvAIdeal_preserves_reachableInv kem onoff hDet ecEk ecCt0 hCt0 ecCt1 hCt1
-      leak n s hs z hz
-  · exact oracleRecvB_preserves_reachableInv kem onoff hDet ecEk hEk ecEk.ec.nchunk_pos
-      ecCt0 ecCt1 leak n s hs z hz
 
 /-- With a correct online ciphertext erasure code, every real security query from a state
 satisfying `reachableInv` and `CurrentKEMCorrect` equals the corresponding auxiliary query
-with the same constant challenge mode as a response/state computation. -/
+with the same challenge bit, including its response and resulting state. -/
 theorem securityImpl_eq_ideal_of_current
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -353,7 +232,7 @@ theorem securityImpl_eq_ideal_of_current
     (SCKAScheme.sckaSecurityImpl b (exposureA (Sym := Sym) kem onoff leak)
       (exposureB (Sym := Sym) kem onoff leak)
       (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) t).run s =
-      (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak (fun _ => b) t).run s := by
+      (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b t).run s := by
   refine SCKAScheme.securityImplOf_run_eq _ _ _ _ _ _ _ s ?_ (fun _ => rfl) t
   intro t
   rcases t with ((((n | u) | u) | n) | n)

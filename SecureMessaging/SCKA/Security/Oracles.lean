@@ -16,8 +16,8 @@ updates of challenge, corruption, and leaking-send queries from `s`. Rejected qu
 leaking sends add their vulnerable epochs to `exposed`.
 
 `RecordsChallenges chall` requires every possible challenge-query successor to equal `s`
-or to differ only by inserting an unexposed epoch into `challenged`. This holds for every
-`challOf mode`, which chooses real or random challenge keys separately for each epoch.
+or to differ only by inserting an unexposed epoch into `challenged`. This holds for
+`oracleChall b` with either challenge bit `b`.
 
 If discarding returned coins recovers an ordinary-send computation, invariants of that send
 also hold for its leaking-send oracle, provided arbitrary changes to `exposed` preserve them.
@@ -35,12 +35,6 @@ section Challenge
 
 variable [SampleableType I]
 
-/-- Answer challenge `t` with a uniform key if `mode t = true`, and the recorded key otherwise.
-The eligibility guards and state update are those of `oracleChall`. -/
-def challOf (mode : ℕ → Bool) :
-    QueryImpl (ℕ →ₒ Option I) (StateT (GameState StA StB I Rho) ProbComp) :=
-  fun t => oracleChall (mode t) StA StB I Rho t
-
 /-- Challenging an exposed or previously challenged epoch returns `none`
 and preserves the state, in both fixed-bit experiments. -/
 theorem oracleChall_rejected (b : Bool) (s : GameState StA StB I Rho) (t : ℕ)
@@ -56,15 +50,6 @@ theorem oracleChall_unavailable (b : Bool) (s : GameState StA StB I Rho) (t : �
   by_cases h : t ∈ s.exposed ∨ t ∈ s.challenged
   · exact oracleChall_rejected b s t h
   · simp [oracleChall, h, hA, hB]
-
-/-- If epoch `t` is exposed, challenged, or has no recorded key in `s`, the challenge oracles for
-any two bits agree on `t` from `s`. -/
-theorem oracleChall_run_eq_of_rejected (b b' : Bool) (s : GameState StA StB I Rho) (t : ℕ)
-    (h : (t ∈ s.exposed ∨ t ∈ s.challenged) ∨ (s.keyA t = none ∧ s.keyB t = none)) :
-    (oracleChall b StA StB I Rho t).run s = (oracleChall b' StA StB I Rho t).run s := by
-  rcases h with h | ⟨hA, hB⟩
-  · rw [oracleChall_rejected b s t h, oracleChall_rejected b' s t h]
-  · rw [oracleChall_unavailable b s t hA hB, oracleChall_unavailable b' s t hA hB]
 
 /-- Every possible result of a challenge at epoch `t` is `(none, s)` if `t` is exposed,
 previously challenged, or has no recorded key. Otherwise, `t` is eligible and the successor
@@ -120,20 +105,13 @@ theorem preservesInv (h : RecordsChallenges chall) (Inv : GameState StA StB I Rh
   · rw [h]; exact hs
   · rw [h]; exact hbook s _ hs
 
-/-- A query of a challenge oracle that records challenges changes neither the exposed set nor
-A's send counter. -/
-theorem exposed_nA_eq (h : RecordsChallenges chall) (t : ℕ) (s : GameState StA StB I Rho)
-    (z : Option I × GameState StA StB I Rho) (hz : z ∈ support ((chall t).run s)) :
-    z.2.exposed = s.exposed ∧ z.2.nA = s.nA := by
-  rcases h t s z hz with h | ⟨_, h⟩ <;> rw [h] <;> exact ⟨rfl, rfl⟩
-
 end RecordsChallenges
 
-/-- For every challenge mode, `challOf mode` records challenges. -/
-theorem challOf_recordsChallenges [SampleableType I] (mode : ℕ → Bool) :
-    RecordsChallenges (challOf (StA := StA) (StB := StB) (I := I) (Rho := Rho) mode) := by
+/-- For either challenge bit, the challenge oracle records challenges. -/
+theorem oracleChall_recordsChallenges [SampleableType I] (b : Bool) :
+    RecordsChallenges (oracleChall b StA StB I Rho) := by
   intro t s z hz
-  rcases oracleChall_support (mode t) s t z hz with ⟨h, _⟩ | ⟨helig, _, h⟩
+  rcases oracleChall_support b s t z hz with ⟨h, _⟩ | ⟨helig, _, h⟩
   · exact Or.inl (by rw [h])
   · exact Or.inr ⟨fun ht => helig (Or.inl ht), h⟩
 
@@ -172,24 +150,6 @@ theorem oracleCorruptA_preservesInv (vuln : StA → Finset ℕ)
   · rw [h]; exact hs
   · rw [h]; exact hbook _ _ hs
 
-/-- The corruption of A never removes an exposed epoch. -/
-theorem oracleCorruptA_exposed_subset (vuln : StA → Finset ℕ) (u : Unit)
-    (s : GameState StA StB I Rho) (z : Option StA × GameState StA StB I Rho)
-    (hz : z ∈ support ((oracleCorruptA vuln StB I Rho u).run s)) :
-    s.exposed ⊆ z.2.exposed := by
-  cases u
-  rcases oracleCorruptA_support vuln s z hz with h | ⟨_, h⟩
-  · rw [h]
-  · rw [h]; exact Finset.subset_union_left
-
-/-- The corruption of A changes neither the challenged set nor A's send counter. -/
-theorem oracleCorruptA_challenged_nA_eq (vuln : StA → Finset ℕ) (u : Unit)
-    (s : GameState StA StB I Rho) (z : Option StA × GameState StA StB I Rho)
-    (hz : z ∈ support ((oracleCorruptA vuln StB I Rho u).run s)) :
-    z.2.challenged = s.challenged ∧ z.2.nA = s.nA := by
-  cases u
-  rcases oracleCorruptA_support vuln s z hz with h | ⟨_, h⟩ <;> rw [h] <;> exact ⟨rfl, rfl⟩
-
 /-- The corruption of B is a deterministic update: rejection returns `(none, s)`;
 acceptance returns B's state and adds its vulnerable set to `exposed`. -/
 theorem oracleCorruptB_run (vuln : StB → Finset ℕ) (s : GameState StA StB I Rho) :
@@ -223,135 +183,11 @@ theorem oracleCorruptB_preservesInv (vuln : StB → Finset ℕ)
   · rw [h]; exact hs
   · rw [h]; exact hbook _ _ hs
 
-/-- The corruption of B never removes an exposed epoch. -/
-theorem oracleCorruptB_exposed_subset (vuln : StB → Finset ℕ) (u : Unit)
-    (s : GameState StA StB I Rho) (z : Option StB × GameState StA StB I Rho)
-    (hz : z ∈ support ((oracleCorruptB vuln StA I Rho u).run s)) :
-    s.exposed ⊆ z.2.exposed := by
-  cases u
-  rcases oracleCorruptB_support vuln s z hz with h | ⟨_, h⟩
-  · rw [h]
-  · rw [h]; exact Finset.subset_union_left
-
-/-- The corruption of B changes neither the challenged set nor A's send counter. -/
-theorem oracleCorruptB_challenged_nA_eq (vuln : StB → Finset ℕ) (u : Unit)
-    (s : GameState StA StB I Rho) (z : Option StB × GameState StA StB I Rho)
-    (hz : z ∈ support ((oracleCorruptB vuln StA I Rho u).run s)) :
-    z.2.challenged = s.challenged ∧ z.2.nA = s.nA := by
-  cases u
-  rcases oracleCorruptB_support vuln s z hz with h | ⟨_, h⟩ <;> rw [h] <;> exact ⟨rfl, rfl⟩
-
 /-! ### Leaking sends -/
 
 section LeakingSend
 
 variable [DecidableEq I]
-
-/-- Every possible result of A's leaking-send query from `s` is `(none, s)` or has a successor
-with `exposed = s.exposed ∪ E` for a set `E` disjoint from `s.challenged`, unchanged
-`challenged`, and `nA = s.nA + 1`. -/
-theorem oracleSendArleak_support
-    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
-    (leak : StA → Rand → Finset ℕ) (s : GameState StA StB I Rho)
-    (z : Option (ℕ × Option ℕ × Rho × Rand) × GameState StA StB I Rho)
-    (hz : z ∈ support ((oracleSendArleak leak scka ()).run s)) :
-    z = (none, s) ∨
-      ∃ E : Finset ℕ, E ∩ s.challenged = ∅ ∧ z.2.exposed = s.exposed ∪ E ∧
-        z.2.challenged = s.challenged ∧ z.2.nA = s.nA + 1 := by
-  simp only [oracleSendArleak, StateT.run_bind, StateT.run_get, StateT.run_monadLift,
-    monadLift_self, bind_assoc, pure_bind, mem_support_bind_iff] at hz
-  obtain ⟨out, _, hz⟩ := hz
-  cases out with
-  | none => exact Or.inl (by simpa using (mem_support_pure_iff _ _).mp hz)
-  | some out =>
-    rcases out with ⟨key, msg, epoch, state, coins⟩
-    dsimp only at hz
-    split at hz
-    · exact Or.inl (by simpa using (mem_support_pure_iff _ _).mp hz)
-    · rename_i hguard
-      refine Or.inr ⟨leak s.stA coins, not_not.mp hguard, ?_⟩
-      cases key <;>
-        simp only [StateT.run_bind, StateT.run_set, pure_bind, StateT.run_pure,
-          mem_support_pure_iff] at hz
-      all_goals obtain rfl := hz; exact ⟨rfl, rfl, rfl⟩
-
-/-- A's leaking send never removes an exposed epoch. -/
-theorem oracleSendArleak_exposed_subset
-    (leak : StA → Rand → Finset ℕ)
-    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
-    (u : Unit) (s : GameState StA StB I Rho)
-    (z : Option (ℕ × Option ℕ × Rho × Rand) × GameState StA StB I Rho)
-    (hz : z ∈ support ((oracleSendArleak leak scka u).run s)) :
-    s.exposed ⊆ z.2.exposed := by
-  cases u
-  rcases oracleSendArleak_support scka leak s z hz with h | ⟨E, _, hex, _, _⟩
-  · rw [h]
-  · rw [hex]; exact Finset.subset_union_left
-
-/-- A's leaking send increases `nA` by at most one. -/
-theorem oracleSendArleak_nA_le
-    (leak : StA → Rand → Finset ℕ)
-    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
-    (u : Unit) (s : GameState StA StB I Rho)
-    (z : Option (ℕ × Option ℕ × Rho × Rand) × GameState StA StB I Rho)
-    (hz : z ∈ support ((oracleSendArleak leak scka u).run s)) :
-    z.2.nA ≤ s.nA + 1 := by
-  cases u
-  rcases oracleSendArleak_support scka leak s z hz with h | ⟨_, _, _, _, hn⟩
-  · rw [h]; exact Nat.le_succ _
-  · exact hn.le
-
-/-- The version of `oracleSendArleak_support` for B: `nA` is unchanged. -/
-theorem oracleSendBrleak_support
-    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
-    (leak : StB → Rand → Finset ℕ) (s : GameState StA StB I Rho)
-    (z : Option (ℕ × Option ℕ × Rho × Rand) × GameState StA StB I Rho)
-    (hz : z ∈ support ((oracleSendBrleak leak scka ()).run s)) :
-    z = (none, s) ∨
-      ∃ E : Finset ℕ, E ∩ s.challenged = ∅ ∧ z.2.exposed = s.exposed ∪ E ∧
-        z.2.challenged = s.challenged ∧ z.2.nA = s.nA := by
-  simp only [oracleSendBrleak, StateT.run_bind, StateT.run_get, StateT.run_monadLift,
-    monadLift_self, bind_assoc, pure_bind, mem_support_bind_iff] at hz
-  obtain ⟨out, _, hz⟩ := hz
-  cases out with
-  | none => exact Or.inl (by simpa using (mem_support_pure_iff _ _).mp hz)
-  | some out =>
-    rcases out with ⟨key, msg, epoch, state, coins⟩
-    dsimp only at hz
-    split at hz
-    · exact Or.inl (by simpa using (mem_support_pure_iff _ _).mp hz)
-    · rename_i hguard
-      refine Or.inr ⟨leak s.stB coins, not_not.mp hguard, ?_⟩
-      cases key <;>
-        simp only [StateT.run_bind, StateT.run_set, pure_bind, StateT.run_pure,
-          mem_support_pure_iff] at hz
-      all_goals obtain rfl := hz; exact ⟨rfl, rfl, rfl⟩
-
-/-- B's leaking send never removes an exposed epoch. -/
-theorem oracleSendBrleak_exposed_subset
-    (leak : StB → Rand → Finset ℕ)
-    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
-    (u : Unit) (s : GameState StA StB I Rho)
-    (z : Option (ℕ × Option ℕ × Rho × Rand) × GameState StA StB I Rho)
-    (hz : z ∈ support ((oracleSendBrleak leak scka u).run s)) :
-    s.exposed ⊆ z.2.exposed := by
-  cases u
-  rcases oracleSendBrleak_support scka leak s z hz with h | ⟨E, _, hex, _, _⟩
-  · rw [h]
-  · rw [hex]; exact Finset.subset_union_left
-
-/-- B's leaking send preserves A's send counter. -/
-theorem oracleSendBrleak_nA_eq
-    (leak : StB → Rand → Finset ℕ)
-    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
-    (u : Unit) (s : GameState StA StB I Rho)
-    (z : Option (ℕ × Option ℕ × Rho × Rand) × GameState StA StB I Rho)
-    (hz : z ∈ support ((oracleSendBrleak leak scka u).run s)) :
-    z.2.nA = s.nA := by
-  cases u
-  rcases oracleSendBrleak_support scka leak s z hz with h | ⟨_, _, _, _, hn⟩
-  · rw [h]
-  · exact hn
 
 /-- Suppose discarding A's returned coins recovers its ordinary send for every local state.
 Let `Inv` hold at `s` and be preserved by arbitrary changes to `exposed`. If every ordinary-send
