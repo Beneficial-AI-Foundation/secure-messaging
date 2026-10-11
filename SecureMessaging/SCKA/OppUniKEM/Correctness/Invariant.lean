@@ -299,8 +299,7 @@ structure TranscriptConsistent
   futureOff : ∀ t, s.stB.t < t → (T t).off = none
   /-- Future epochs (for B) have no online part. -/
   futureOn : ∀ t, s.stB.t < t → (T t).on = none
-  /-- Epoch zero has no online part: both parties start in epoch one, so no key is ever
-  recorded at epoch `0` in either table. -/
+  /-- No online encapsulation is recorded at epoch zero. -/
   zeroOn : (T 0).on = none
   /-- A's key table matches the transcript. -/
   keyA : ∀ t, s.keyA t = if t = 0 then none else if t < s.stA.t then (T t).key else none

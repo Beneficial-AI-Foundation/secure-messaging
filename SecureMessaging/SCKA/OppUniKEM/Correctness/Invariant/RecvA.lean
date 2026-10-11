@@ -314,10 +314,9 @@ private lemma reachableInv_after_recvA_ackOnly
     simpa using hInv.decodedCt0 ct0 (by simpa using hct0)
   · simpa [ChunksAConsistent] using hInv.chunksA
 
-/-- Assuming the receive implementation `scka.recvA` uses a decapsulation
-function that agrees with the recorded key on the current KEM material,
-every result of A's receive oracle preserves the reachable transcript
-invariant. -/
+/-- A's receive preserves `reachableInv` when `scka.recvA = recvA … decapsDet …` and
+`decapsDet` returns B's recorded key on the current KEM material, provided the ciphertext
+erasure codes are correct and the online code has a positive chunk count. -/
 lemma oracleRecvA_preserves_reachableInv_of_recv
     [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
@@ -607,8 +606,8 @@ lemma oracleRecvA_preserves_reachableInv_of_recv
           reachableInv_after_recvA_stale kem onoff ecEk ecCt0 ecCt1
             s T hInv t htlt
 
-/-- Assuming correctness of the current KEM material, every result of A's
-receive oracle preserves the reachable transcript invariant. -/
+/-- A's receive preserves `reachableInv` under `CurrentKEMCorrect`, provided the ciphertext
+erasure codes are correct and the online code has a positive chunk count. -/
 lemma oracleRecvA_preserves_reachableInv
     [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)

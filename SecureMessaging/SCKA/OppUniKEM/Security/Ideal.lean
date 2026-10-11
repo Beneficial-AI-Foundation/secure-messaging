@@ -9,13 +9,22 @@ import SecureMessaging.SCKA.OppUniKEM.Security.Invariant
 /-!
 # Auxiliary security game
 
-Let `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` be Opp-UniKEM, and let
-`mode : ℕ → Bool` select the epochs whose eligible challenges return uniform keys.
+Let `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` be Opp-UniKEM. For `b : Bool`,
+let `G_b` be its security game, whose eligible challenges return recorded keys when
+`b = false` and independent uniform keys when `b = true`.
 
-The auxiliary game replaces A's decapsulation result by B's recorded key for A's current
-epoch. It retains the protocol's chunk processing, erasure, and exposure rules.
-`idealSecurityExp mode adv` returns the adversary's output from this game, starting in the
-initial state.
+The auxiliary game `I_b` runs `G_b` with A's receive using `Key[B, t_A]` in place of
+`Decaps(dk_A, ct)`, where `t_A` is A's epoch before the receive. The ordinary receive processes
+chunks and, if this lookup returns a key, outputs it and erases the current secret material.
+
+This replacement lets the later KEM IND-CPA reduction simulate A's receive without
+decapsulation. The games `I_false` and `I_true` are the endpoints of the epoch hybrids in
+`IdealHybrids`. The cost of replacing `G_b` by `I_b` is bounded in `Endpoints`.
+
+More generally, `idealSecurityImpl mode` uses this receive oracle and answers an eligible
+challenge at epoch `t` with a uniform key exactly when `mode t = true`.
+`idealSecurityExp mode adv` runs `adv` from the initial state and returns its Boolean output;
+`I_b` is the instance `mode := fun _ => b`.
 
 With correct erasure codes, auxiliary correctness queries preserve `reachableInv`.
 If the online ciphertext erasure code is correct, real and auxiliary queries with the
@@ -29,8 +38,8 @@ namespace oppUniKemCKA.Security
 
 variable {K PK SK C Sym : Type}
 
-/-- A's auxiliary receive oracle: upon ciphertext completion, record B's encapsulated key
-for A's current epoch, using the existing chunk-processing and erasure operations. -/
+/-- A's receive oracle with `Decaps(dk_A, ct)` replaced by `Key[B, t_A]`, where `t_A`
+is A's epoch before the receive. The ordinary receive handles the resulting key lookup. -/
 def oracleRecvAIdeal [DecidableEq K] [DecidableEq Sym]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -197,7 +206,8 @@ theorem oracleRecvA_eq_ideal [DecidableEq K] [DecidableEq Sym]
 
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- The correctness oracles of Opp-UniKEM with A's receive replaced by `oracleRecvAIdeal`. -/
+/-- Uniform sampling, ordinary sends, and receives, with A's receive using B's recorded key
+in place of decapsulation (`oracleRecvAIdeal`). -/
 def idealCorrectnessImpl
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -211,8 +221,9 @@ def idealCorrectnessImpl
     + SCKAScheme.oracleSendA scka + SCKAScheme.oracleSendB scka
     + oracleRecvAIdeal kem onoff hDet ecEk ecCt0 ecCt1 leak + SCKAScheme.oracleRecvB scka
 
-/-- The auxiliary game with challenge mode `mode`: the security oracle family over
-`idealCorrectnessImpl`, with Opp-UniKEM's exposure policies. -/
+/-- Opp-UniKEM's security oracles with A's receive using B's recorded key in place of
+decapsulation. An eligible challenge at epoch `t` returns a uniform key when `mode t = true`
+and the recorded key otherwise. -/
 def idealSecurityImpl
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -227,8 +238,8 @@ def idealSecurityImpl
     (exposureA kem onoff leak) (exposureB kem onoff leak)
     (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)
 
-/-- The adversary's Boolean output in the auxiliary game with challenge mode `mode`,
-starting from the initial state. -/
+/-- Run `adv` against `idealSecurityImpl mode` from the initial state and return its Boolean
+output. Constant mode `fun _ => b` gives the auxiliary experiment `I_b`. -/
 def idealSecurityExp
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)

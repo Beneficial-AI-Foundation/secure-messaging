@@ -283,6 +283,9 @@ abbrev sckaSecuritySpec (StA StB I Rho Rand : Type) :=
 
 namespace sckaSecuritySpec
 
+/-! Named indices for the queries used in the send bound. The state, key, message, and
+coin types affect only responses, so `Unit` gives the same query indices for every scheme. -/
+
 /-- Embed a correctness oracle into the full security oracle family. -/
 @[match_pattern] abbrev OCorrectness (t : (sckaCorrectnessSpec Unit).Domain) :
     (sckaSecuritySpec Unit Unit Unit Unit Unit).Domain :=
@@ -295,18 +298,6 @@ namespace sckaSecuritySpec
 /-- Select B's randomness-leaking send. -/
 @[match_pattern] abbrev OSendBrleak : (sckaSecuritySpec Unit Unit Unit Unit Unit).Domain :=
   .inl (.inl (.inl (.inr ())))
-
-/-- Select the challenge for epoch `t`. -/
-@[match_pattern] abbrev OChall (t : ℕ) : (sckaSecuritySpec Unit Unit Unit Unit Unit).Domain :=
-  .inl (.inl (.inr t))
-
-/-- Select corruption of A. -/
-@[match_pattern] abbrev OCorruptA : (sckaSecuritySpec Unit Unit Unit Unit Unit).Domain :=
-  .inl (.inr ())
-
-/-- Select corruption of B. -/
-@[match_pattern] abbrev OCorruptB : (sckaSecuritySpec Unit Unit Unit Unit Unit).Domain :=
-  .inr ()
 
 /-- `true` exactly on the four send queries: the ordinary sends of the correctness interface
 and the two randomness-leaking sends. -/
@@ -750,41 +741,19 @@ def sckaCorrectnessImpl [DecidableEq I] (scka : SCKAScheme ProbComp IK StA StB I
     + oracleRecvA scka + oracleRecvB scka
 -- ANCHOR_END: sckaCorrectnessImpl
 
-/-- Challenge oracle with per-epoch challenge mode `mode`: challenge `t` is answered by
-`oracleChall (mode t)`, with a uniform key if `mode t = true` and the recorded key otherwise. -/
--- ANCHOR: challOf
-def challOf [SampleableType I] (mode : ℕ → Bool) :
-    QueryImpl (ℕ →ₒ Option I) (StateT (GameState StA StB I Rho) ProbComp) :=
-  fun t => oracleChall (mode t) StA StB I Rho t
--- ANCHOR_END: challOf
-
-/-- Security oracle family with correctness component `base` and challenge oracle `chall`: the
-oracles of `base`, the two randomness-leaking sends, `chall`, and the two corruptions. The
-security game, the auxiliary games of a proof, and its hybrids are instances. -/
--- ANCHOR: securityImplOf
-def securityImplOf [DecidableEq I]
-    (base : QueryImpl (sckaCorrectnessSpec Rho) (StateT (GameState StA StB I Rho) ProbComp))
-    (chall : QueryImpl (ℕ →ₒ Option I) (StateT (GameState StA StB I Rho) ProbComp))
-    (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand)
-    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) :
-    QueryImpl (sckaSecuritySpec StA StB I Rho Rand)
-      (StateT (GameState StA StB I Rho) ProbComp) :=
-  base
-    + oracleSendArleak vulnA.rleak scka + oracleSendBrleak vulnB.rleak scka
-    + chall
-    + oracleCorruptA vulnA.corrupt StB I Rho + oracleCorruptB vulnB.corrupt StA I Rho
--- ANCHOR_END: securityImplOf
-
-/-- Oracle set for the SCKA security game (Fig. 1): the correctness oracles
-extended with randomness-leaking sends, challenge, and corruption, with the
-constant challenge mode `isRandom`. -/
+/-- SCKA security oracles (Figure 1): ordinary sends and receives, randomness-leaking sends,
+challenges, and corruptions. Eligible challenges return recorded keys if `isRandom = false`
+and independent uniform keys if `isRandom = true`. -/
 -- ANCHOR: sckaSecurityImpl
 def sckaSecurityImpl (isRandom : Bool) (vulnA : VulnerableEpochs StA Rand)
     (vulnB : VulnerableEpochs StB Rand)
     [SampleableType I] [DecidableEq I] (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) :
     QueryImpl (sckaSecuritySpec StA StB I Rho Rand)
       (StateT (GameState StA StB I Rho) ProbComp) :=
-  securityImplOf (sckaCorrectnessImpl scka) (challOf (fun _ => isRandom)) vulnA vulnB scka
+  sckaCorrectnessImpl scka
+    + oracleSendArleak vulnA.rleak scka + oracleSendBrleak vulnB.rleak scka
+    + oracleChall isRandom StA StB I Rho
+    + oracleCorruptA vulnA.corrupt StB I Rho + oracleCorruptB vulnB.corrupt StA I Rho
 -- ANCHOR_END: sckaSecurityImpl
 
 /-- SCKA correctness adversary: access to the restricted send/receive oracles. -/

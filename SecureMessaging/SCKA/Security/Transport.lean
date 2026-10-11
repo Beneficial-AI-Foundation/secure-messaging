@@ -12,16 +12,13 @@ import ToVCVio.OracleComp.ExpectedPayoff
 # Expected scores of guarded leaking sends
 
 Let `scka : SCKAScheme ProbComp IK StA StB I Rho Rand` be a scheme and
-`s : GameState StA StB I Rho` be a game state. For either party `X`, a leaking send is
-*forgetful* if dropping its returned coins recovers the ordinary-send computation:
-`(do let out ← scka.sendXrleak st; pure (out.map forgetCoins)) = scka.sendX st`
-for every local state `st`.
+`s : GameState StA StB I Rho` be a game state. Suppose discarding the returned coins recovers
+the ordinary-send computation for each party and every local state.
 
-For a forgetful leaking send whose supported successful outputs from `s` all expose the same
-set `E`, every score `score : GameState StA StB I Rho → ℝ≥0∞` independent of `exposed`
-satisfies: if `score s ≤ c` and the ordinary query's expected score is at most `c`, then the
-guarded leaking query's expected score is at most `c`. The guard either rejects, retaining
-`s`, or accepts and updates only `exposed`, which the score ignores.
+For either party, assume all supported successful leaking-send outputs from `s` expose the
+same set `E`. Let `score : GameState StA StB I Rho → ℝ≥0∞` be unchanged by updates to `exposed`,
+and let `c : ℝ≥0∞`. If `score s ≤ c` and the ordinary-send oracle's expected score is at most `c`,
+then the leaking-send oracle's expected score is also at most `c`.
 -/
 
 open OracleSpec OracleComp ENNReal
@@ -30,13 +27,10 @@ namespace SCKAScheme
 
 variable {IK StA StB I Rho Rand τ : Type} [DecidableEq I]
 
-/-- Let `score : GameState StA StB I Rho → ℝ≥0∞` be independent of `exposed`. Assume:
-
-- forgetting A's send coins recovers its ordinary send;
-- every supported successful leaking send from `s` exposes the same set `E`;
-- `score s ≤ c` and the ordinary game send's expected score is at most `c`.
-
-Then the guarded leaking game send's expected score is at most `c`. -/
+/-- Suppose discarding A's send coins recovers its ordinary send, and every supported
+successful leaking-send output from `s` exposes the same set `E`. Every score unchanged by
+updates to `exposed` then has expected value at most `c` after the leaking-send query, provided
+`score s ≤ c` and its expected value after the ordinary-send query is at most `c`. -/
 theorem oracleSendArleak_expectedPayoff_le
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (leak : StA → Rand → Finset ℕ)
@@ -95,13 +89,7 @@ theorem oracleSendArleak_expectedPayoff_le
         exact probOutput_eq_zero_of_not_mem_support hout
       simp only [hz, zero_mul]
 
-/-- Let `score : GameState StA StB I Rho → ℝ≥0∞` be independent of `exposed`. Assume:
-
-- forgetting B's send coins recovers its ordinary send;
-- every supported successful leaking send from `s` exposes the same set `E`;
-- `score s ≤ c` and the ordinary game send's expected score is at most `c`.
-
-Then the guarded leaking game send's expected score is at most `c`. -/
+/-- The expected-score bound of `oracleSendArleak_expectedPayoff_le` for B. -/
 theorem oracleSendBrleak_expectedPayoff_le
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (leak : StB → Rand → Finset ℕ)

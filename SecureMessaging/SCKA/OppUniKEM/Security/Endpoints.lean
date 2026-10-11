@@ -11,24 +11,34 @@ import ToVCVio.OracleComp.SimSemantics.StateT.IdenticalUntilBadInvariant
 /-!
 # Opp-UniKEM correctness-error endpoints
 
-Let `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` be Opp-UniKEM with deterministic
-decapsulation and correct erasure codes, let `adv : SecurityAdversary leak Sym` make at most
-`q` ordinary or leaking sends on every response path (`SecuritySendQueryBound adv q`), and let
-`ε` be the KEM correctness error.
+Let:
+- `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` be the Opp-UniKEM protocol,
+- `adv : SecurityAdversary leak Sym` make at most `q` ordinary or leaking sends on every response
+  path (`SecuritySendQueryBound adv q`), and
+- `ε` be the KEM correctness error.
 
-For `b : Bool`, let `G_b` be the fixed-bit SCKA experiment, in which eligible challenges return
-recorded keys (`b = false`) or independent uniform keys (`b = true`), and let `I_b` be the
-auxiliary experiment of `Ideal`, in which A records B's encapsulated key at ciphertext
-completion. Let `H_i` be the auxiliary hybrid of `IdealHybrids` randomizing the challenges at
-epochs `1, …, i`, and `p_i := Pr[H_i(adv) = true]`.
+Assume:
+- the underlying KEM has deterministic decapsulation;
+- the erasure codes for encapsulation keys, offline ciphertexts, and online ciphertexts are correct.
 
-- `security_correctness_endpoint_le`: for every `b`,
-  `|Pr[G_b = true] - Pr[I_b = true]| ≤ q · ε`. Both games are extended by the failure flag of
-  `FailureBound`; they agree query by query while the flag is unset, and the flag's final
-  probability is at most `q · ε`.
-- `security_guess_le_hybrid_gap`: `AdvGuess(Π, adv) ≤ |p_0 - p_q| / 2 + q · ε`. The guessing
-  advantage is half the fixed-bit acceptance gap; `H_0 = I_false`, `H_q` has the acceptance
-  probability of `I_true`, and the two endpoint bounds close the triangle inequality.
+Consider the following games for `Π`. Each runs `adv` and returns its output bit.
+
+- `G_b`: the SCKA game with challenge bit fixed to `b` (`SCKAScheme.securityExpFixedBit`).
+  It answers eligible challenges with real keys for `b = false` and independent uniform keys
+  for `b = true`.
+- `I_b`: the game `G_b` with A recording B's encapsulated key instead of its decapsulation
+  result on ciphertext completion. This is the auxiliary experiment defined in `Ideal`.
+- `H_i`, for `i : ℕ`: the game `I_false` with eligible challenges at epochs `1, …, i`
+  answered by independent uniform keys. These hybrids are defined in `IdealHybrids`.
+
+Let `p_i := Pr[H_i(adv) = true]`.
+
+For every `b`, `security_correctness_endpoint_le` bounds the effect of replacing A's
+decapsulation: `|Pr[G_b = true] - Pr[I_b = true]| ≤ q · ε`.
+
+The guessing advantage is `AdvGuess(Π, adv) := |Pr[b' = b] - 1/2|`, where the game samples
+a uniform bit `b` and `adv` returns `b'`. The main result `security_guess_le_hybrid_gap` is
+`AdvGuess(Π, adv) ≤ |p_0 - p_q| / 2 + q · ε`.
 -/
 
 open OracleSpec OracleComp KEMScheme ENNReal
@@ -40,7 +50,8 @@ open Reduction.Internal
 variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- The auxiliary game with constant mode `b`, extended by the persistent failure flag. -/
+/-- Run the auxiliary security oracles of `I_b` and, after each query, update
+`bad := bad || currentKEMFailure s'`, where `s'` is the returned game state. -/
 def trackedIdealImpl
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -146,7 +157,7 @@ theorem security_correctness_endpoint_le
 
 /-- Under the module's assumptions, for every adversary `adv` and budget `q` satisfying
 `SecuritySendQueryBound adv q`,
-`AdvGuess ≤ |Pr[H_0 = true] - Pr[H_q = true]| / 2 + q · ε`. -/
+`AdvGuess(Π, adv) ≤ |Pr[H_0 = true] - Pr[H_q = true]| / 2 + q · ε`. -/
 -- ANCHOR: security_guess_le_hybrid_gap
 theorem security_guess_le_hybrid_gap
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)

@@ -10,8 +10,9 @@ import SecureMessaging.SCKA.Defs
 # State preservation by correctness queries
 
 Let `scka : SCKAScheme ProbComp IK StA StB I Rho Rand` be a scheme, and let
-`s : GameState StA StB I Rho` be a game state. For every correctness query `t` and every
-`(a, s')` in the support of `(sckaCorrectnessImpl scka t).run s`:
+`s : GameState StA StB I Rho` be a game state. The correctness oracles provide uniform
+randomness, ordinary sends, and receives. For every query `t` and every possible result
+`(a, s')` of `(sckaCorrectnessImpl scka t).run s`:
 
 - `s'.exposed = s.exposed` and `s'.challenged = s.challenged`;
 - `s'.nA ≤ s.nA + (if isSendQuery t then 1 else 0)`.
@@ -64,8 +65,8 @@ theorem correctnessImpl_securitySets_eq
     obtain rfl := hz
     exact ⟨rfl, rfl⟩
 
-/-- A correctness query increases A's send counter by at most one on send queries and
-does not increase it otherwise. -/
+/-- A correctness query satisfies `s'.nA ≤ s.nA + 1` if it is a send query and
+`s'.nA ≤ s.nA` otherwise. -/
 theorem correctnessImpl_nA_step
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (t : (sckaCorrectnessSpec Rho).Domain) (s : GameState StA StB I Rho)

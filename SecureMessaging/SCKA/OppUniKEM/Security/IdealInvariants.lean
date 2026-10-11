@@ -9,13 +9,14 @@ import SecureMessaging.SCKA.OppUniKEM.Security.Ideal
 /-!
 # Epoch and send-count invariants of the auxiliary game
 
-Let `Π` be Opp-UniKEM, let `mode : ℕ → Bool` be a challenge mode, and let
-`idealSecurityImpl mode` be the auxiliary oracle implementation.
-For a game state `s`, let `n := s.nA` count successful sends by A.
+In the auxiliary Opp-UniKEM game, A uses B's recorded key in place of decapsulation,
+and `mode : ℕ → Bool` determines which epochs have uniform challenge keys.
+Let `n := s.nA` count successful sends by A in a game state `s`.
 
-Every auxiliary query preserves `sendEpochInv` and, with correct erasure codes,
-`reachableInv`. Both predicates hold initially. Each query increases `n` by at most one
-if it is one of the four sends, and by zero otherwise.
+Every query preserves `sendEpochInv`, which bounds A's epoch by `n + 1`, and, with correct
+erasure codes, the transcript consistency predicate `reachableInv`. Both hold initially.
+Each query increases `n` by at most one if it is an ordinary or leaking send, and by zero
+otherwise.
 -/
 
 open OracleSpec OracleComp KEMScheme

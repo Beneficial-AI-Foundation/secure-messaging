@@ -143,7 +143,7 @@ $$`\begin{array}{rcccl}
 :::defTitle "scka_oracles" "SCKA game state and oracles"
 :::
 
-:::::::definition "scka_oracles" (parent := "cka_protocols_scka") (lean := "SCKAScheme.VulnerableEpochs, SCKAScheme.GameState, SCKAScheme.oracleSendA, SCKAScheme.oracleSendB, SCKAScheme.oracleSendArleak, SCKAScheme.oracleSendBrleak, SCKAScheme.oracleRecvA, SCKAScheme.oracleRecvB, SCKAScheme.oracleChall, SCKAScheme.oracleCorruptA, SCKAScheme.oracleCorruptB, SCKAScheme.sckaCorrectnessSpec, SCKAScheme.sckaCorrectnessImpl, SCKAScheme.SCKACorrectnessAdversary, SCKAScheme.sckaSecuritySpec, SCKAScheme.challOf, SCKAScheme.securityImplOf, SCKAScheme.sckaSecurityImpl, SCKAScheme.SCKAAdversary") (uses := "scka_scheme")
+:::::::definition "scka_oracles" (parent := "cka_protocols_scka") (lean := "SCKAScheme.VulnerableEpochs, SCKAScheme.GameState, SCKAScheme.oracleSendA, SCKAScheme.oracleSendB, SCKAScheme.oracleSendArleak, SCKAScheme.oracleSendBrleak, SCKAScheme.oracleRecvA, SCKAScheme.oracleRecvB, SCKAScheme.oracleChall, SCKAScheme.oracleCorruptA, SCKAScheme.oracleCorruptB, SCKAScheme.sckaCorrectnessSpec, SCKAScheme.sckaCorrectnessImpl, SCKAScheme.SCKACorrectnessAdversary, SCKAScheme.sckaSecuritySpec, SCKAScheme.sckaSecurityImpl, SCKAScheme.SCKAAdversary") (uses := "scka_scheme")
 Game state and oracles adapted from {Informal.citet SCKA25}[], Figure 1.
 We extend the vulnerable-epoch model to randomness leakage and modify the leaking-send
 oracles accordingly. The changes are boxed.
@@ -787,36 +787,6 @@ abbrev sckaSecuritySpec (StA StB I Rho Rand : Type) :=
   + (Unit →ₒ Option StB)                             -- O-Corrupt-B
 ```
 
-:::leanPillCaption "Security oracle family"
-:::
-
-The security oracles are built from a correctness component `base` and a challenge oracle
-`chall`. For a challenge mode `mode : ℕ → Bool`, the challenge oracle `challOf mode` answers a
-challenge at epoch $`t` with a uniform key if `mode t = true` and with the recorded key
-otherwise. The security game instantiates `base` with the correctness oracles and `chall` with a
-constant mode; security proofs instantiate `base` with auxiliary oracles and `chall` with the
-modes of their hybrids or with an oracle that answers one epoch with a reduction's challenge key.
-
-```anchor challOf (project := ".") (module := SecureMessaging.SCKA.Defs)
-def challOf [SampleableType I] (mode : ℕ → Bool) :
-    QueryImpl (ℕ →ₒ Option I) (StateT (GameState StA StB I Rho) ProbComp) :=
-  fun t => oracleChall (mode t) StA StB I Rho t
-```
-
-```anchor securityImplOf (project := ".") (module := SecureMessaging.SCKA.Defs)
-def securityImplOf [DecidableEq I]
-    (base : QueryImpl (sckaCorrectnessSpec Rho) (StateT (GameState StA StB I Rho) ProbComp))
-    (chall : QueryImpl (ℕ →ₒ Option I) (StateT (GameState StA StB I Rho) ProbComp))
-    (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand)
-    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) :
-    QueryImpl (sckaSecuritySpec StA StB I Rho Rand)
-      (StateT (GameState StA StB I Rho) ProbComp) :=
-  base
-    + oracleSendArleak vulnA.rleak scka + oracleSendBrleak vulnB.rleak scka
-    + chall
-    + oracleCorruptA vulnA.corrupt StB I Rho + oracleCorruptB vulnB.corrupt StA I Rho
-```
-
 :::leanPillCaption "Security oracle implementation"
 :::
 
@@ -826,7 +796,10 @@ def sckaSecurityImpl (isRandom : Bool) (vulnA : VulnerableEpochs StA Rand)
     [SampleableType I] [DecidableEq I] (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) :
     QueryImpl (sckaSecuritySpec StA StB I Rho Rand)
       (StateT (GameState StA StB I Rho) ProbComp) :=
-  securityImplOf (sckaCorrectnessImpl scka) (challOf (fun _ => isRandom)) vulnA vulnB scka
+  sckaCorrectnessImpl scka
+    + oracleSendArleak vulnA.rleak scka + oracleSendBrleak vulnB.rleak scka
+    + oracleChall isRandom StA StB I Rho
+    + oracleCorruptA vulnA.corrupt StB I Rho + oracleCorruptB vulnB.corrupt StA I Rho
 ```
 
 :::leanPillCaption "Security adversary"
@@ -947,16 +920,17 @@ noncomputable def sckaGuessAdvantage [SampleableType I] [DecidableEq I]
 ::::::
 
 
-For each $`b\in\{0,1\}`, let $`G_b(\adv)` be the experiment returning the adversary's
-guess with fixed challenge bit $`b`. The bit is shared across all adaptive
-challenges: $`b=0` returns recorded keys and $`b=1` samples independent uniform
-keys. Exposed, repeated, and unavailable-key challenges return $`\bot`.
-The exposure policies are fixed public parameters in both experiments.
+Let $`G_0(\adv)` and $`G_1(\adv)` be the security experiments with recorded and
+independent uniform challenge keys, respectively. Both return the adversary's bit and
+use the same exposure policies and challenge guards. Define
 
 $$`\operatorname{Adv}^{\mathsf{dist}}_{\mathsf{SCKA}}(\adv)
 =|\Pr[G_1(\adv)=1]-\Pr[G_0(\adv)=1]|,\qquad
 \operatorname{Adv}^{\mathsf{guess}}_{\mathsf{SCKA}}(\adv)
 =\tfrac12\operatorname{Adv}^{\mathsf{dist}}_{\mathsf{SCKA}}(\adv).`
+
+:::leanPillCaption "Security experiment with a fixed challenge bit"
+:::
 
 ```anchor securityExpFixedBit (project := ".") (module := SecureMessaging.SCKA.Defs)
 def securityExpFixedBit [SampleableType I] [DecidableEq I]
@@ -972,6 +946,9 @@ def securityExpFixedBit [SampleableType I] [DecidableEq I]
   return b'
 ```
 
+:::leanPillCaption "Distinguishing advantage"
+:::
+
 ```anchor sckaDistAdvantage (project := ".") (module := SecureMessaging.SCKA.Defs)
 noncomputable def sckaDistAdvantage [SampleableType I] [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
@@ -980,6 +957,9 @@ noncomputable def sckaDistAdvantage [SampleableType I] [DecidableEq I]
   |(Pr[= true | securityExpFixedBit scka adversary true vulnA vulnB]).toReal -
    (Pr[= true | securityExpFixedBit scka adversary false vulnA vulnB]).toReal|
 ```
+
+:::leanPillCaption "Guessing advantage is half the distinguishing advantage"
+:::
 
 ```anchor sckaAdvantageNormalization (project := ".") (module := SecureMessaging.SCKA.Defs)
 lemma sckaGuessAdvantage_eq_sckaDistAdvantage_div_two [SampleableType I] [DecidableEq I]

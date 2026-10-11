@@ -9,26 +9,18 @@ import SecureMessaging.SCKA.Security.CorrectnessOracles
 import SecureMessaging.SCKA.Security.Transport
 
 /-!
-# Preservation by the security oracle family
+# Properties of assembled security oracles
 
-Let:
+Let `scka : SCKAScheme ProbComp IK StA StB I Rho Rand` be a scheme with exposure policies
+`vulnA` and `vulnB`. Let `base` implement uniform-randomness, ordinary-send, and receive
+queries, and let `chall` implement challenge queries, all on `GameState StA StB I Rho`.
+`securityImplOf base chall vulnA vulnB scka` combines these oracles with the scheme's
+leaking-send and corruption oracles.
 
-- `scka : SCKAScheme ProbComp IK StA StB I Rho Rand` be a scheme;
-- `vulnA`, `vulnB` be its game exposure policies;
-- `base` implement `sckaCorrectnessSpec Rho` on `GameState StA StB I Rho`;
-- `chall` implement `ℕ →ₒ Option I` on the same state space.
-
-Let `F := securityImplOf base chall vulnA vulnB scka`. The security game uses
-`base := sckaCorrectnessImpl scka` and `chall := challOf (fun _ => b)` for a fixed bit `b`.
-
-An invariant insensitive to `exposed` and `challenged` is preserved by `F` as soon as `base`
-and the two ordinary sends preserve it, provided the leaking sends are forgetful and `chall`
-satisfies `RecordsChallenges`. Under the same hypotheses, no query of `F` removes an exposed
-epoch, and A's send-counter bound for `base` extends to `F`, counting all four security send
-queries.
-
-Equality of the `base` and challenge queries at a state also gives equality of the full
-security-family queries at that state.
+Suppose discarding the returned send coins recovers each ordinary-send computation, and
+`chall` satisfies `RecordsChallenges`: it retains the state or inserts an unexposed epoch
+into `challenged`. Then every invariant preserved by `base`, ordinary sends, and arbitrary
+changes to `exposed` and `challenged` is preserved by the assembled security oracles.
 -/
 
 open OracleSpec OracleComp
@@ -36,13 +28,29 @@ open OracleSpec OracleComp
 namespace SCKAScheme
 
 variable {IK StA StB I Rho Rand : Type} [DecidableEq I]
+
+/-- Assemble the security oracles for a proof game. `base` supplies uniform sampling,
+ordinary sends, and receives; `chall` supplies challenges. Leaking sends and corruptions
+use the given scheme and exposure functions. -/
+def securityImplOf
+    (base : QueryImpl (sckaCorrectnessSpec Rho) (StateT (GameState StA StB I Rho) ProbComp))
+    (chall : QueryImpl (ℕ →ₒ Option I) (StateT (GameState StA StB I Rho) ProbComp))
+    (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand)
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) :
+    QueryImpl (sckaSecuritySpec StA StB I Rho Rand)
+      (StateT (GameState StA StB I Rho) ProbComp) :=
+  base
+    + oracleSendArleak vulnA.rleak scka + oracleSendBrleak vulnB.rleak scka
+    + chall
+    + oracleCorruptA vulnA.corrupt StB I Rho + oracleCorruptB vulnB.corrupt StA I Rho
+
 variable (base : QueryImpl (sckaCorrectnessSpec Rho) (StateT (GameState StA StB I Rho) ProbComp))
 variable (chall : QueryImpl (ℕ →ₒ Option I) (StateT (GameState StA StB I Rho) ProbComp))
 variable (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand)
 variable (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
 
-/-- If every component query from `s` has only successors satisfying `Inv`, so does every
-query of `F` from `s`. -/
+/-- If each component query from `s` produces only states satisfying `Inv`, then every
+assembled security query from `s` does too. -/
 theorem securityImplOf_preserves_at (Inv : GameState StA StB I Rho → Prop)
     (s : GameState StA StB I Rho)
     (hbase : ∀ t z, z ∈ support ((base t).run s) → Inv z.2)
@@ -63,9 +71,10 @@ theorem securityImplOf_preserves_at (Inv : GameState StA StB I Rho → Prop)
   · cases u; exact hcA z hz
   · cases u; exact hcB z hz
 
-/-- Let `Inv` hold at `s` and be preserved by arbitrary updates to `exposed` and `challenged`.
-If forgetting send coins recovers ordinary sends and `chall` records challenges, preservation
-of `Inv` by `base` and ordinary sends from `s` implies preservation by `F` from `s`. -/
+/-- Suppose discarding send coins recovers ordinary sends and `chall` satisfies
+`RecordsChallenges`. Let `Inv` hold at `s` and be preserved by arbitrary changes to `exposed`
+and `challenged`. If `base` and both ordinary-send oracles produce only states satisfying
+`Inv` from `s`, then every assembled security query from `s` does too. -/
 theorem securityImplOf_preserves_at_of_book (Inv : GameState StA StB I Rho → Prop)
     (hbook : ∀ s exposed challenged, Inv s →
       Inv { s with exposed := exposed, challenged := challenged })
@@ -97,9 +106,9 @@ theorem securityImplOf_preserves_at_of_book (Inv : GameState StA StB I Rho → P
     (fun z hz => oracleCorruptA_preservesInv vulnA.corrupt Inv hexp () s hs z hz)
     (fun z hz => oracleCorruptB_preservesInv vulnB.corrupt Inv hexp () s hs z hz) t z hz
 
-/-- If forgetting send coins recovers ordinary sends and `chall` records challenges, `F`
-preserves every invariant preserved by `base`, ordinary sends, and arbitrary updates to
-`exposed` and `challenged`. -/
+/-- The invariant-preservation version of `securityImplOf_preserves_at_of_book`: under its
+coin and challenge assumptions, the assembled security oracles preserve every invariant
+preserved by `base`, ordinary sends, and arbitrary changes to `exposed` and `challenged`. -/
 theorem securityImplOf_preservesInv_of_book (Inv : GameState StA StB I Rho → Prop)
     (hbook : ∀ s exposed challenged, Inv s →
       Inv { s with exposed := exposed, challenged := challenged })
@@ -119,8 +128,8 @@ theorem securityImplOf_preservesInv_of_book (Inv : GameState StA StB I Rho → P
   fun t s hs z hz => securityImplOf_preserves_at_of_book base chall vulnA vulnB scka Inv
     hbook hmA hmB hchall s hs (fun t => hbase t s hs) (hsendA () s hs) (hsendB () s hs) t z hz
 
-/-- If `base` keeps the exposed set and `chall` records challenges, no query of `F` removes an
-exposed epoch. -/
+/-- If `base` retains `exposed` and `chall` satisfies `RecordsChallenges`, every assembled
+security query from `s` with successor `s'` satisfies `s.exposed ⊆ s'.exposed`. -/
 theorem securityImplOf_exposed_subset
     (hbase : ∀ t s z, z ∈ support ((base t).run s) → z.2.exposed = s.exposed)
     (hchall : RecordsChallenges chall)
@@ -136,9 +145,10 @@ theorem securityImplOf_exposed_subset
   · exact oracleCorruptA_exposed_subset vulnA.corrupt u s z hz
   · exact oracleCorruptB_exposed_subset vulnB.corrupt u s z hz
 
-/-- Assume `chall` records challenges and `base` increases A's send counter by at most one
-on send queries and does not increase it otherwise. Then `F` satisfies the same bound,
-counting all four security send queries. -/
+/-- Suppose `base` increases `nA` by at most one on send queries and never increases it
+otherwise, and `chall` satisfies `RecordsChallenges`. Every assembled security query from
+`s` with successor `s'` then satisfies `s'.nA ≤ s.nA + 1` on the four ordinary or leaking sends
+and `s'.nA ≤ s.nA` otherwise. -/
 theorem securityImplOf_nA_step
     (hbase : ∀ t s z, z ∈ support ((base t).run s) →
       z.2.nA ≤ s.nA + if isSendQuery t then 1 else 0)
@@ -163,8 +173,8 @@ theorem securityImplOf_nA_step
     simpa [sckaSecuritySpec.isSendQuery] using
       (oracleCorruptB_challenged_nA_eq vulnB.corrupt () s z hz).2.le
 
-/-- Two instances of the family with equal `base` queries and equal challenge queries from `s`
-have equal queries from `s`. -/
+/-- If `base` and `base'` have equal query computations from `s`, and so do `chall` and
+`chall'`, the two assembled security implementations have equal query computations from `s`. -/
 theorem securityImplOf_run_eq
     (base' : QueryImpl (sckaCorrectnessSpec Rho) (StateT (GameState StA StB I Rho) ProbComp))
     (chall' : QueryImpl (ℕ →ₒ Option I) (StateT (GameState StA StB I Rho) ProbComp))

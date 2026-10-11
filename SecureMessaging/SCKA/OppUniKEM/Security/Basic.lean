@@ -14,13 +14,13 @@ import VCVio.OracleComp.QueryTracking.QueryBound
 Let `kem : KEMScheme ProbComp K PK SK C` be a KEM with on/off structure `onoff`,
 leakage witness `leak : kem.OnOffRandLeak onoff`, and erasure-code symbol type `Sym`.
 
-`SecurityAdversary leak Sym` is an adversary against Opp-UniKEM's full SCKA interface.
-`SecuritySendQueryBound adv q` bounds the combined number of ordinary and leaking sends
-by `q` on every oracle-response path.
+`SecurityAdversary leak Sym` has access to the SCKA send, receive, challenge, corruption,
+and randomness-leakage oracles. `SecuritySendQueryBound adv q` means that `adv` makes
+at most `q` ordinary or leaking sends combined on every oracle-response path.
 
 For each party and local state, dropping the returned coins from a leaking send gives
-its ordinary send as a computation. Every supported successful leaking send exposes
-the current epoch when it samples KEM material, and the empty set otherwise.
+its ordinary send as a computation. A successful leaking send exposes the current epoch
+when it returns key-generation or encapsulation coins, and the empty set otherwise.
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -106,12 +106,11 @@ theorem sendArleak_exposure
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (leak : kem.OnOffRandLeak onoff)
     (s : StA onoff Sym)
-    (out : Option (Option (ℕ × K) × Message Sym × ℕ × StA onoff Sym ×
-      SendRand leak.KeygenRand leak.OffRand leak.OnRand))
-    (hout : out ∈ support (sendArleak kem onoff ecEk leak s)) :
-    ∀ key msg epoch s' rand, out = some (key, msg, epoch, s', rand) →
-      vulnRleakA s rand =
-        leakEpochsA s := by
+    (key : Option (ℕ × K)) (msg : Message Sym) (epoch : ℕ) (s' : StA onoff Sym)
+    (rand : SendRand leak.KeygenRand leak.OffRand leak.OnRand)
+    (hout : some (key, msg, epoch, s', rand) ∈ support (sendArleak kem onoff ecEk leak s)) :
+    vulnRleakA s rand = leakEpochsA s := by
+  generalize houtEq : some (key, msg, epoch, s', rand) = out at hout
   cases hdk : s.dkA <;> cases hek : s.ekA <;> cases hack : s.ack.ekRec <;>
     simp only [sendArleak, hdk, hek, hack, Bool.false_eq_true, ↓reduceIte,
       pure_bind, mem_support_bind_iff, mem_support_pure_iff, Prod.exists,
@@ -121,9 +120,8 @@ theorem sendArleak_exposure
     | obtain rfl := hout
     | obtain ⟨pk, sk, coins, hkp, rfl⟩ := hout
   all_goals
-    intro key msg epoch s' rand h
-    simp only [Option.some.injEq, Prod.mk.injEq] at h
-    rcases h with ⟨rfl, rfl, rfl, rfl, rfl⟩
+    simp only [Option.some.injEq, Prod.mk.injEq] at houtEq
+    rcases houtEq with ⟨rfl, rfl, rfl, rfl, rfl⟩
     simp [vulnRleakA, leakEpochsA, hdk]
 
 /-- Every supported successful leaking send from `s` has exposure set `leakEpochsB s`. -/
@@ -132,12 +130,12 @@ theorem sendBrleak_exposure
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff)
     (s : StB onoff Sym)
-    (out : Option (Option (ℕ × K) × Message Sym × ℕ × StB onoff Sym ×
-      SendRand leak.KeygenRand leak.OffRand leak.OnRand))
-    (hout : out ∈ support (sendBrleak kem onoff ecCt0 ecCt1 leak s)) :
-    ∀ key msg epoch s' rand, out = some (key, msg, epoch, s', rand) →
-      vulnRleakB s rand =
-        leakEpochsB s := by
+    (key : Option (ℕ × K)) (msg : Message Sym) (epoch : ℕ) (s' : StB onoff Sym)
+    (rand : SendRand leak.KeygenRand leak.OffRand leak.OnRand)
+    (hout : some (key, msg, epoch, s', rand) ∈
+      support (sendBrleak kem onoff ecCt0 ecCt1 leak s)) :
+    vulnRleakB s rand = leakEpochsB s := by
+  generalize houtEq : some (key, msg, epoch, s', rand) = out at hout
   cases hct0 : s.ct0 <;> cases hek : s.ekA <;>
     cases hct1 : s.ct1 <;> cases hst : s.stCt <;> cases hack : s.ack.ctRec <;>
     simp only [sendBrleak, hct0, hek, hct1, hst, hack, Bool.not_false, Bool.not_true,
@@ -149,9 +147,8 @@ theorem sendBrleak_exposure
     | obtain ⟨a, b, r, hs, rfl⟩ := hout
     | obtain ⟨st, ct, roff, hoff, c1, key, ron, hon, rfl⟩ := hout
   all_goals
-    intro key msg epoch s' rand h
-    simp only [Option.some.injEq, Prod.mk.injEq] at h
-    rcases h with ⟨rfl, rfl, rfl, rfl, rfl⟩
+    simp only [Option.some.injEq, Prod.mk.injEq] at houtEq
+    rcases houtEq with ⟨rfl, rfl, rfl, rfl, rfl⟩
     simp [vulnRleakB, leakEpochsB, hct0, hek, hct1, hst, hack]
 
 end oppUniKemCKA

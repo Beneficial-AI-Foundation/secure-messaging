@@ -10,19 +10,17 @@ import SecureMessaging.SCKA.Defs
 # Supports and invariants of the security oracles
 
 Let `scka : SCKAScheme ProbComp IK StA StB I Rho Rand` be a scheme and
-`s : GameState StA StB I Rho` be a game state. The support lemmas characterize the response
-and successor state of each challenge, corruption, and leaking-send query from `s`.
-Rejected queries retain `s`; accepted challenges insert their epoch into `challenged`, and
-accepted corruptions and leaking sends add their exposure set to `exposed`.
+`s : GameState StA StB I Rho` be a game state. These lemmas describe the responses and state
+updates of challenge, corruption, and leaking-send queries from `s`. Rejected queries retain
+`s`; accepted challenges insert their epoch into `challenged`, and accepted corruptions and
+leaking sends add their vulnerable epochs to `exposed`.
 
-`RecordsChallenges chall` requires each challenge query to retain the state or insert its
-unexposed epoch into `challenged`, preserving all other fields. This holds for every
-`challOf mode`.
+`RecordsChallenges chall` requires every possible challenge-query successor to equal `s`
+or to differ only by inserting an unexposed epoch into `challenged`. This holds for every
+`challOf mode`, which chooses real or random challenge keys separately for each epoch.
 
-The oracles preserve every invariant insensitive to the bookkeeping sets, never remove an
-exposed epoch, and change A's send counter only on A's leaking send. An invariant of ordinary
-sends also transfers to leaking sends when forgetting coins recovers the ordinary send and
-updates to `exposed` preserve the invariant.
+If discarding returned coins recovers an ordinary-send computation, invariants of that send
+also hold for its leaking-send oracle, provided arbitrary changes to `exposed` preserve them.
 -/
 
 open OracleSpec OracleComp
@@ -36,6 +34,12 @@ variable {IK StA StB I Rho Rand : Type}
 section Challenge
 
 variable [SampleableType I]
+
+/-- Answer challenge `t` with a uniform key if `mode t = true`, and the recorded key otherwise.
+The eligibility guards and state update are those of `oracleChall`. -/
+def challOf (mode : ℕ → Bool) :
+    QueryImpl (ℕ →ₒ Option I) (StateT (GameState StA StB I Rho) ProbComp) :=
+  fun t => oracleChall (mode t) StA StB I Rho t
 
 /-- Challenging an exposed or previously challenged epoch returns `none`
 and preserves the state, in both fixed-bit experiments. -/
@@ -62,9 +66,9 @@ theorem oracleChall_run_eq_of_rejected (b b' : Bool) (s : GameState StA StB I Rh
   · rw [oracleChall_rejected b s t h, oracleChall_rejected b' s t h]
   · rw [oracleChall_unavailable b s t hA hB, oracleChall_unavailable b' s t hA hB]
 
-/-- Support of a challenge at epoch `t` from `s`: rejection with `z = (none, s)`, because `t`
-is exposed or challenged or has no recorded key, or an answer with
-`z.2 = { s with challenged := insert t s.challenged }`. -/
+/-- Every possible result of a challenge at epoch `t` is `(none, s)` if `t` is exposed,
+previously challenged, or has no recorded key. Otherwise, `t` is eligible and the successor
+state differs from `s` only by inserting `t` into `challenged`. -/
 theorem oracleChall_support (b : Bool) (s : GameState StA StB I Rho) (t : ℕ)
     (z : Option I × GameState StA StB I Rho)
     (hz : z ∈ support ((oracleChall b StA StB I Rho t).run s)) :
@@ -95,8 +99,8 @@ theorem oracleChall_support (b : Bool) (s : GameState StA StB I Rho) (t : ℕ)
 
 end Challenge
 
-/-- A challenge oracle `chall` *records challenges* if every query `t` from a state `s` either
-keeps `s`, or, if `t ∉ s.exposed`, inserts `t` into `challenged` and keeps every other field. -/
+/-- A challenge oracle `chall` records challenges if every supported successor of a query `t`
+from `s` equals `s` or, when `t ∉ s.exposed`, differs only by inserting `t` into `challenged`. -/
 def RecordsChallenges
     (chall : QueryImpl (ℕ →ₒ Option I) (StateT (GameState StA StB I Rho) ProbComp)) : Prop :=
   ∀ (t : ℕ) s z, z ∈ support ((chall t).run s) →
@@ -106,8 +110,8 @@ namespace RecordsChallenges
 
 variable {chall : QueryImpl (ℕ →ₒ Option I) (StateT (GameState StA StB I Rho) ProbComp)}
 
-/-- A challenge oracle that records challenges preserves every invariant insensitive to the
-`challenged` set. -/
+/-- A challenge oracle satisfying `RecordsChallenges` preserves every invariant preserved
+by arbitrary changes to `challenged`. -/
 theorem preservesInv (h : RecordsChallenges chall) (Inv : GameState StA StB I Rho → Prop)
     (hbook : ∀ s challenged, Inv s → Inv { s with challenged := challenged }) :
     QueryImpl.PreservesInv chall Inv := by
@@ -158,7 +162,7 @@ theorem oracleCorruptA_support (vuln : StA → Finset ℕ) (s : GameState StA St
   · exact Or.inl ((mem_support_pure_iff _ _).mp hz)
   · exact Or.inr ⟨not_not.mp h, (mem_support_pure_iff _ _).mp hz⟩
 
-/-- The corruption of A preserves every invariant insensitive to the `exposed` set. -/
+/-- Corruption of A preserves every invariant preserved by arbitrary changes to `exposed`. -/
 theorem oracleCorruptA_preservesInv (vuln : StA → Finset ℕ)
     (Inv : GameState StA StB I Rho → Prop)
     (hbook : ∀ s exposed, Inv s → Inv { s with exposed := exposed }) :
@@ -209,7 +213,7 @@ theorem oracleCorruptB_support (vuln : StB → Finset ℕ) (s : GameState StA St
   · exact Or.inl ((mem_support_pure_iff _ _).mp hz)
   · exact Or.inr ⟨not_not.mp h, (mem_support_pure_iff _ _).mp hz⟩
 
-/-- The corruption of B preserves every invariant insensitive to the `exposed` set. -/
+/-- Corruption of B preserves every invariant preserved by arbitrary changes to `exposed`. -/
 theorem oracleCorruptB_preservesInv (vuln : StB → Finset ℕ)
     (Inv : GameState StA StB I Rho → Prop)
     (hbook : ∀ s exposed, Inv s → Inv { s with exposed := exposed }) :
@@ -243,9 +247,9 @@ section LeakingSend
 
 variable [DecidableEq I]
 
-/-- Support of A's leaking send from `s`: either the query is rejected or fails and
-returns `(none, s)`, or it exposes a set `E` with `E ∩ s.challenged = ∅` and the successor has
-`exposed = s.exposed ∪ E`, the same `challenged`, and `nA` increased by one. -/
+/-- Every possible result of A's leaking-send query from `s` is `(none, s)` or has a successor
+with `exposed = s.exposed ∪ E` for a set `E` disjoint from `s.challenged`, unchanged
+`challenged`, and `nA = s.nA + 1`. -/
 theorem oracleSendArleak_support
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (leak : StA → Rand → Finset ℕ) (s : GameState StA StB I Rho)
@@ -284,7 +288,7 @@ theorem oracleSendArleak_exposed_subset
   · rw [h]
   · rw [hex]; exact Finset.subset_union_left
 
-/-- A's leaking send changes A's send counter by at most one. -/
+/-- A's leaking send increases `nA` by at most one. -/
 theorem oracleSendArleak_nA_le
     (leak : StA → Rand → Finset ℕ)
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
@@ -297,9 +301,7 @@ theorem oracleSendArleak_nA_le
   · rw [h]; exact Nat.le_succ _
   · exact hn.le
 
-/-- Support of B's leaking send from `s`: either the query is rejected or fails and
-returns `(none, s)`, or it exposes a set `E` with `E ∩ s.challenged = ∅` and the successor has
-`exposed = s.exposed ∪ E`, the same `challenged`, and the same `nA`. -/
+/-- The version of `oracleSendArleak_support` for B: `nA` is unchanged. -/
 theorem oracleSendBrleak_support
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (leak : StB → Rand → Finset ℕ) (s : GameState StA StB I Rho)
@@ -351,9 +353,9 @@ theorem oracleSendBrleak_nA_eq
   · rw [h]
   · exact hn
 
-/-- Let `Inv` hold at `s` and be preserved by updates to `exposed`. If forgetting A's send
-coins recovers its ordinary send, and every supported ordinary-send successor from `s`
-satisfies `Inv`, then every supported guarded leaking-send successor from `s` satisfies `Inv`. -/
+/-- Suppose discarding A's returned coins recovers its ordinary send for every local state.
+Let `Inv` hold at `s` and be preserved by arbitrary changes to `exposed`. If every ordinary-send
+successor from `s` satisfies `Inv`, then every leaking-send successor from `s` does too. -/
 theorem oracleSendArleak_preservesInv_at
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (leak : StA → Rand → Finset ℕ)
@@ -397,9 +399,7 @@ theorem oracleSendArleak_preservesInv_at
           apply (mem_support_bind_iff _ _ _).mpr
           exact ⟨_, hout', by simp⟩
 
-/-- Let `Inv` hold at `s` and be preserved by updates to `exposed`. If forgetting B's send
-coins recovers its ordinary send, and every supported ordinary-send successor from `s`
-satisfies `Inv`, then every supported guarded leaking-send successor from `s` satisfies `Inv`. -/
+/-- The version of `oracleSendArleak_preservesInv_at` for B. -/
 theorem oracleSendBrleak_preservesInv_at
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (leak : StB → Rand → Finset ℕ)

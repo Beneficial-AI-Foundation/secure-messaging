@@ -15,18 +15,16 @@ import ToVCVio.OracleComp.SimSemantics.StateT.ExpectedPayoffBound
 Let `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` be Opp-UniKEM with deterministic
 decapsulation and correct erasure codes. Let `ε := kem.correctnessError ProbCompRuntime.probComp`
 be the probability that an honest KEM encapsulation fails to decapsulate to its shared key.
+Let `G_b` be the fixed-bit SCKA experiment for `Π`.
 
-For each challenge bit `b`, `trackedSecurityImpl b` extends the security game with a flag
-`bad`, initially false. A query sets the flag when its successor contains completed KEM
-material whose decapsulation disagrees with B's recorded key. Once set, the flag persists
-through subsequent queries and erasures. Dropping the flag gives the original security
-execution.
+For each challenge bit `b`, `trackedSecurityImpl b` runs the original security game `G_b`
+with a flag `bad`, initially false. After a query returns state `s'`, it sets
+`bad := bad || currentKEMFailure s'`. The test detects completed KEM material whose
+decapsulation disagrees with B's recorded key. Dropping the flag gives `G_b`.
 
-Let `V := currentFailurePotential` be the failure potential of unfinished KEM material
-from the correctness proof, and let `Φ(s, bad) := if bad then 1 else V(s)` be the tracked
-score. The potential is zero when the current epoch has no sampled material or is complete.
-From a state satisfying `trackedInv`, each query increases the expected score by at most
-`ε` for a send, and by zero otherwise.
+Let `V(s) := currentFailurePotential s` be the conditional probability that the KEM epoch
+in progress completes incorrectly, given its samples so far. Define the tracked score
+`Φ(s, bad) := if bad then 1 else V(s)` (`trackedFailureScore`).
 
 For every adversary `adv` with `SecuritySendQueryBound adv q`,
 `kem_failure_probability_le` proves `Pr[bad_final = true] ≤ q · ε`.
@@ -51,7 +49,8 @@ def failureFlagUpdate (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStr
     Bool :=
   bad || currentKEMFailure kem onoff hDet s'
 
-/-- The security game with constant mode `b`, extended by the persistent failure flag. -/
+/-- Run the original security oracles of `G_b` and, after each query, update
+`bad := bad || currentKEMFailure s'`, where `s'` is the returned game state. -/
 def trackedSecurityImpl
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -130,10 +129,9 @@ theorem trackedSecurityImpl_preserves
   · exact Or.inr ⟨hreach', hbad⟩
   · exact Or.inl (by simp)
 
-/-- For every fixed bit and state `s` satisfying `reachableInv` and
-`currentKEMFailure(s) = false`, A's leaking send from `(s, false)` has
-expected tracked failure score at most its initial score plus
-`factorCorrectnessError kem onoff`. -/
+/-- For every fixed bit and state `s` satisfying `reachableInv` with no current KEM failure,
+A's leaking send from `(s, false)` satisfies `E[Φ(s', bad')] ≤ Φ(s, false) + ε`, where
+`ε = factorCorrectnessError kem onoff` is the KEM correctness error. -/
 theorem tracked_sendArleak_score_le
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -162,7 +160,7 @@ theorem tracked_sendArleak_score_le
       (c := trackedFailureScore kem onoff (s, false) + factorCorrectnessError kem onoff)
   · intro key msg epoch state coins hout
     exact sendArleak_exposure kem onoff ecEk leak s.stA
-      _ hout key msg epoch state coins rfl
+      key msg epoch state coins hout
   · intro state exposed
     rfl
   · simp [hf]
@@ -173,10 +171,9 @@ theorem tracked_sendArleak_score_le
       pure (y.1, (y.2, false || currentKEMFailure kem onoff hDet y.2))) _ ≤ _ at h
     simpa only [bind_pure_comp, expectedPayoff_map] using h
 
-/-- For every fixed bit and state `s` satisfying `reachableInv` and
-`currentKEMFailure(s) = false`, B's leaking send from `(s, false)` has
-expected tracked failure score at most its initial score plus
-`factorCorrectnessError kem onoff`. -/
+/-- For every fixed bit and state `s` satisfying `reachableInv` with no current KEM failure,
+B's leaking send from `(s, false)` satisfies `E[Φ(s', bad')] ≤ Φ(s, false) + ε`, where
+`ε = factorCorrectnessError kem onoff` is the KEM correctness error. -/
 theorem tracked_sendBrleak_score_le
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -205,7 +202,7 @@ theorem tracked_sendBrleak_score_le
       (c := trackedFailureScore kem onoff (s, false) + factorCorrectnessError kem onoff)
   · intro key msg epoch state coins hout
     exact sendBrleak_exposure kem onoff ecCt0 ecCt1 leak s.stB
-      _ hout key msg epoch state coins rfl
+      key msg epoch state coins hout
   · intro state exposed
     rfl
   · simp [hf]
@@ -216,9 +213,9 @@ theorem tracked_sendBrleak_score_le
       pure (y.1, (y.2, false || currentKEMFailure kem onoff hDet y.2))) _ ≤ _ at h
     simpa only [bind_pure_comp, expectedPayoff_map] using h
 
-/-- For every bit `b`, query `t`, and tracked state `p` satisfying `trackedInv`,
-the expected successor score is at most its initial value plus `factorCorrectnessError kem onoff`
-for a send, and plus zero otherwise. -/
+/-- For every bit `b`, query `t`, and state `p` satisfying `trackedInv`,
+`E[Φ(p')] ≤ Φ(p) + ε` for an ordinary or leaking send, and `E[Φ(p')] ≤ Φ(p)` otherwise,
+where `ε = factorCorrectnessError kem onoff` is the KEM correctness error. -/
 theorem trackedSecurity_score_step_le
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)

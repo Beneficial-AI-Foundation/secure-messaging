@@ -16,14 +16,12 @@ import SecureMessaging.SCKA.Security.Family
 /-!
 # Transcript and epoch invariants
 
-Let `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` be Opp-UniKEM.
-For a game state `s`, let:
+Let `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` be Opp-UniKEM, and let `s` be a
+game state. The predicate `reachableInv s` asserts consistency with a transcript of sampled
+KEM material; `CurrentKEMCorrect s` asserts that decapsulation of the current completed
+KEM material returns B's recorded key.
 
-- `reachableInv s` assert consistency with a transcript of sampled KEM material;
-- `CurrentKEMCorrect s` assert agreement of current decapsulation with B's recorded key;
-- `n := s.nA` be the number of successful sends by A.
-
-The predicate `sendEpochInv s` asserts
+Let `n := s.nA` count successful sends by A. The predicate `sendEpochInv s` asserts
 `s.stA.t ≤ n + 1` and `s.stA.dkA.isSome → s.stA.t ≤ n`.
 
 With correct erasure codes, each security query from a state satisfying `reachableInv`

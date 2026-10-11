@@ -13,16 +13,16 @@ import VCVio.ProgramLogic.Relational.SimulateQ
 
 Let `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` be Opp-UniKEM with deterministic
 decapsulation and correct erasure codes, and let `adv : SecurityAdversary leak Sym` be an
-adversary. For `i : ℕ`, let
-`H_i := idealEpochHybridExp … adv i` be the auxiliary experiment whose eligible challenges
-at epochs `1, …, i` return uniform keys; other eligible challenges return recorded keys.
-For `b : Bool`, let `I_b := idealSecurityExp (fun _ => b) adv`.
+adversary. The auxiliary game uses B's recorded key in place of A's decapsulation.
+For `b : Bool`, write `I_b := idealSecurityExp (fun _ => b) adv`.
 
-- `idealEpochHybridExp_zero`: `H_0 = I_false` as computations.
-- `idealEpochHybrid_run_eq_of_exposed`: from any state where epoch `i + 1` is exposed,
-  auxiliary hybrids `i` and `i + 1` have equal output/state computations for every continuation.
-- `idealEpochHybridExp_last`: if `SecuritySendQueryBound adv q`, then
-  `Pr[H_q = true] = Pr[I_true = true]`.
+For `i : ℕ`, `H_i := idealEpochHybridExp … adv i` answers eligible challenges at epochs
+`1, …, i` with uniform keys and other eligible challenges with recorded keys.
+`H_0 = I_false` as computations. If `SecuritySendQueryBound adv q`, then
+`Pr[H_q = true] = Pr[I_true = true]`.
+
+From any state where epoch `i + 1` is exposed, the oracles of `H_i` and `H_{i+1}` give equal
+output/state computations for every continuation (`idealEpochHybrid_run_eq_of_exposed`).
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -46,8 +46,8 @@ namespace oppUniKemCKA.Security
 variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- The auxiliary oracle implementation whose eligible challenges at epochs `1, …, i`
-return uniform keys, and whose other eligible challenges return recorded keys. -/
+/-- The oracles of `H_i`: A receives B's recorded key, and eligible challenges at epochs
+`1, …, i` return uniform keys. Other eligible challenges return recorded keys. -/
 abbrev idealEpochHybridImpl
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -112,8 +112,8 @@ theorem idealSecurityImpl_preserves_exposed
   fun t s hs z hz => idealSecurityImpl_exposed_subset kem onoff hDet ecEk ecCt0 ecCt1 leak mode
     t s z hz hs
 
-/-- From a state in which epoch `i + 1` is exposed, every query of `H_{i+1}` equals the
-corresponding query of `H_i` as a computation. -/
+/-- From a state in which epoch `i + 1` is exposed, the oracles of `H_{i+1}` and `H_i`
+give equal response/state computations for every query. -/
 theorem idealEpochHybrid_query_eq_of_exposed
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -133,8 +133,8 @@ theorem idealEpochHybrid_query_eq_of_exposed
   · simp only [SCKAScheme.challOf]
     rw [SCKAScheme.epochHybrid_challenge_eq_of_ne i t ht]
 
-/-- Once epoch `i + 1` is exposed, auxiliary hybrids `i` and `i + 1` have equal
-output/state computations for every continuation `adv`. -/
+/-- Once epoch `i + 1` is exposed, the oracles of auxiliary hybrids `i` and `i + 1` give
+equal output/state computations for every continuation `adv`. -/
 theorem idealEpochHybrid_run_eq_of_exposed
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -158,8 +158,7 @@ theorem idealEpochHybrid_run_eq_of_exposed
   simpa using h
 
 /-- For every state `s` satisfying `reachableInv s`, `sendEpochInv s`, and `s.nA ≤ q`,
-each query of auxiliary hybrid `q` equals the corresponding query with constant mode `true`
-as a response/state computation. -/
+the response/state computations of `H_q` and `I_true` agree on every query. -/
 theorem idealEpochHybrid_query_eq_random
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
