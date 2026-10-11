@@ -24,6 +24,8 @@ open Informal
 
 set_option doc.verso true
 set_option pp.rawOnError true
+set_option maxHeartbeats 800000
+set_option maxRecDepth 16384
 
 #doc (Manual) "Opp-UniKEM-CKA" =>
 
