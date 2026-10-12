@@ -41,7 +41,7 @@ is the transcript's key for that epoch.
 | 10 | [`MainInvariant/Game.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Game.lean) | one-step preservation with the oracle case split, lift to adversaries, final theorem |
 | 11 | [`MainInvariant/SendTotal.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/SendTotal.lean) | honest sends are never rejected |
 | 12 | [`KEM/CorrectnessError.lean`](../../SecureMessaging/KEM/CorrectnessError.lean) | `keypairFailure`: the KEM error conditioned on a key pair |
-| 13 | [`SCKA/Correctness/Tracked.lean`](../../SecureMessaging/SCKA/Correctness/Tracked.lean) | scheme-generic tracked game: flag, invariant, `q · ε` bound |
+| 13 | [`ToVCVio/…/StateT/BadFlag.lean`](../../ToVCVio/OracleComp/SimSemantics/StateT/BadFlag.lean), [`SCKA/Correctness/Tracked.lean`](../../SecureMessaging/SCKA/Correctness/Tracked.lean) | generic tracked game (flag, invariant, `q · ε` bound) and its SCKA specialisation |
 | 14 | [`Quantitative/Core.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/Quantitative/Core.lean) | the flag `kemFailure` and the potential `failurePotential` |
 | 15 | [`Quantitative/SendDist.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/Quantitative/SendDist.lean) | `send` as `keygen >>= …` or `encaps >>= …` |
 | 16 | [`Quantitative/RecvStep.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/Quantitative/RecvStep.lean) | non-send queries keep the score; invariant kept while the flag is down |
@@ -445,13 +445,18 @@ by a generic layer:
    potential argument: a score on tracked states that is `1` once the flag is up, never decreases
    in expectation except on send queries, and increases by at most `ε` there.
 
-The combination is scheme-generic and lives in
-[`SCKA/Correctness/Tracked.lean`](../../SecureMessaging/SCKA/Correctness/Tracked.lean):
-`trackedImpl impl bad` wraps any oracle implementation, `trackedInv Inv bad` is the invariant
-"flag up, or `Inv` and flag down", `tracked_bad_le_of_score_step` turns a per-step score bound into
-`Pr[flag] ≤ q · ε`, and `correctness_failure_le_of_tracked_bad` turns that into a bound on
-`Pr[= false]`. Nothing in this file knows about BiKEM; it is the factored-out core of UniKEM's
-`Reduction/{Projection,Composition}`.
+The combination is generic and lives in
+[`ToVCVio/OracleComp/SimSemantics/StateT/BadFlag.lean`](../../ToVCVio/OracleComp/SimSemantics/StateT/BadFlag.lean):
+`trackedImpl impl bad` wraps any stateful oracle implementation, `trackedInv Inv bad` is the
+invariant "flag up, or `Inv` and flag down", `OracleComp.tracked_bad_le_of_score_step` turns a
+per-step score bound into `Pr[flag] ≤ score₀ + q · ε` for any class of counted queries, and
+`probEvent_not_good_le_tracked_bad` bounds the probability that the ordinary run ends in a state
+the invariant rules out by `Pr[flag]`.
+[`SCKA/Correctness/Tracked.lean`](../../SecureMessaging/SCKA/Correctness/Tracked.lean) specialises
+the last two to the SCKA correctness game: `SCKAScheme.tracked_bad_le_of_score_step` counts send
+queries (`Pr[flag] ≤ q · ε`), and `SCKAScheme.correctness_failure_le_of_tracked_bad` turns a bound
+on the flag into a bound on `Pr[correctnessExp = false]`. Neither file knows about BiKEM; together
+they are the factored-out core of UniKEM's `Reduction/{Projection,Composition}`.
 
 ### 12.2 The flag and the potential, read off the state
 
@@ -515,7 +520,7 @@ one.
 
 `Main.lean`: the initial state has no secret keys, so `kemFailure_init` and `trackedScore_init`
 are immediate; `trackedBiKem_preservesInv` is `trackedImpl_preserves` applied to
-`gameInv_step_of_noFailure`; `tracked_bad_le` feeds `tracked_step_score_le` into the generic
-`tracked_bad_le_of_score_step`; `correctness_failure_le` feeds that into
-`correctness_failure_le_of_tracked_bad` with `correctnessExp_eq_map`. All endpoints depend only on
+`gameInv_step_of_noFailure`; `tracked_bad_le` feeds `tracked_step_score_le` into
+`SCKAScheme.tracked_bad_le_of_score_step`; `correctness_failure_le` feeds that into
+`SCKAScheme.correctness_failure_le_of_tracked_bad` with `correctnessExp_eq_map`. All endpoints depend only on
 `propext`, `Classical.choice`, `Quot.sound`.

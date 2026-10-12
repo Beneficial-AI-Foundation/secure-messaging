@@ -38,11 +38,11 @@ flag is clear, neither party's send is rejected.
 
 The proof has four parts.
 
-## Tracked game and tracked invariant (`SCKA.Correctness.Tracked`, `Quantitative.Core`)
+## Tracked game and tracked invariant (`StateT.BadFlag`, `Quantitative.Core`)
 
-The tracked execution augments each ordinary game state with a failure flag. Its states are
-pairs `(s, b)`, where `s` is a correctness-game state and `b` records whether a KEM instance
-has completed inconsistently so far.
+The tracked execution (`ToVCVio.OracleComp.SimSemantics.StateT.BadFlag`) augments each ordinary
+game state with a failure flag. Its states are pairs `(s, b)`, where `s` is a correctness-game
+state and `b` records whether a KEM instance has completed inconsistently so far.
 
 The tracked execution uses:
 

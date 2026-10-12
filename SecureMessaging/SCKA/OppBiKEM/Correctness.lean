@@ -48,6 +48,7 @@ combined; `Unif`, `RecvA`, and `RecvB` queries are not counted.
 
 The perfect-KEM theorem is proved in `Correctness.MainInvariant.Game` from the main invariant
 of `Correctness.MainInvariant`. The quantitative bounds are proved in
-`Correctness.Quantitative.Main`, using the generic tracked game of `SCKA.Correctness.Tracked`
-and the conditional KEM error of `KEM.CorrectnessError`.
+`Correctness.Quantitative.Main`, using the tracked game of
+`ToVCVio.OracleComp.SimSemantics.StateT.BadFlag` (specialised to SCKA in
+`SCKA.Correctness.Tracked`) and the conditional KEM error of `KEM.CorrectnessError`.
 -/
