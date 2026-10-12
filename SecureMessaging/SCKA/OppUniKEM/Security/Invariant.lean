@@ -18,11 +18,11 @@ import SecureMessaging.SCKA.Security.Family
 
 Let `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` be Opp-UniKEM, and let `s` be a
 game state. The predicate `reachableInv s` asserts consistency with a transcript of sampled
-KEM material; `CurrentKEMCorrect s` asserts that decapsulation of the current completed
-KEM material returns B's recorded key.
+KEM material. The predicate `CurrentKEMCorrect s` requires decapsulation to return B's
+recorded key whenever the current decapsulation key, ciphertext components, and key are present.
 
-With correct erasure codes, each security query from a state satisfying `reachableInv`
-and `CurrentKEMCorrect` preserves `reachableInv`.
+Assume the erasure codes are correct. Every supported successor of a security query from a state
+satisfying `reachableInv` and `CurrentKEMCorrect` also satisfies `reachableInv`.
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -72,8 +72,9 @@ theorem reachableInv_initialGame
     Reduction.Internal.initialB] using
       reachableInv_init kem onoff ecEk ecCt0 ecCt1 ecEk.ec.nchunk_pos ecCt0.ec.nchunk_pos
 
-/-- With correct erasure codes, every correctness query of `Π` from a state satisfying
-`reachableInv` and `CurrentKEMCorrect` has only successors satisfying `reachableInv`. -/
+/-- Assume the three erasure codes are correct. For every correctness query of `Π` from a
+state satisfying `reachableInv` and `CurrentKEMCorrect`, all supported successor states
+satisfy `reachableInv`. -/
 theorem correctnessImpl_preserves_reachableInv_at [DecidableEq K] [DecidableEq Sym]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -101,8 +102,9 @@ theorem correctnessImpl_preserves_reachableInv_at [DecidableEq K] [DecidableEq S
   · exact oracleRecvB_preserves_reachableInv kem onoff hDet ecEk hEk ecEk.ec.nchunk_pos
       ecCt0 ecCt1 leak n s hs z hz
 
-/-- With correct erasure codes, every security query of `Π` from a state satisfying
-`reachableInv` and `CurrentKEMCorrect` has only successors satisfying `reachableInv`. -/
+/-- Assume the three erasure codes are correct. For every security query of `Π` from a
+state satisfying `reachableInv` and `CurrentKEMCorrect`, all supported successor states
+satisfy `reachableInv`. -/
 theorem securityImpl_preserves_reachableInv
     [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)

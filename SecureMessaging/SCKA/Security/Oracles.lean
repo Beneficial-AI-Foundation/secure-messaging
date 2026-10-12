@@ -15,9 +15,9 @@ updates of challenge, corruption, and leaking-send queries from `s`. Rejected qu
 `s`; accepted challenges insert their epoch into `challenged`, and accepted corruptions and
 leaking sends add their vulnerable epochs to `exposed`.
 
-`RecordsChallenges chall` requires every possible challenge-query successor to equal `s`
-or to differ only by inserting an unexposed epoch into `challenged`. This holds for
-`oracleChall b` with either challenge bit `b`.
+A challenge oracle `chall` satisfies `RecordsChallenges` when each supported successor of a
+query `t` from a state `s` is `s`, or differs only by inserting `t` into `s.challenged` with
+`t ∉ s.exposed`. The oracle `oracleChall b` satisfies this for either challenge bit `b`.
 
 If discarding returned coins recovers an ordinary-send computation, invariants of that send
 also hold for its leaking-send oracle, provided arbitrary changes to `exposed` preserve them.
@@ -43,7 +43,7 @@ theorem oracleChall_rejected (b : Bool) (s : GameState StA StB I Rho) (t : ℕ)
   simp [oracleChall, h]
 
 /-- A challenge whose two key-table entries are `none` returns `none` and retains the
-state, regardless of the exposure sets and hidden bit. -/
+state, regardless of `exposed`, `challenged`, and the challenge bit `b`. -/
 theorem oracleChall_unavailable (b : Bool) (s : GameState StA StB I Rho) (t : ℕ)
     (hA : s.keyA t = none) (hB : s.keyB t = none) :
     (oracleChall b StA StB I Rho t).run s = pure (none, s) := by
@@ -107,7 +107,7 @@ theorem preservesInv (h : RecordsChallenges chall) (Inv : GameState StA StB I Rh
 
 end RecordsChallenges
 
-/-- For either challenge bit, the challenge oracle records challenges. -/
+/-- For either bit `b`, the challenge oracle `oracleChall b` satisfies `RecordsChallenges`. -/
 theorem oracleChall_recordsChallenges [SampleableType I] (b : Bool) :
     RecordsChallenges (oracleChall b StA StB I Rho) := by
   intro t s z hz

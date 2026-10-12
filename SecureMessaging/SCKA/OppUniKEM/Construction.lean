@@ -288,7 +288,8 @@ def sendArleak (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     pure (some (none, msg, stA.t - 1, stA', rand))
 -- ANCHOR_END: sendArleak
 
-/-- `CKA-Rec-A`.
+/-- `CKA-Rec-A`. The pseudocode's `Dec` denotes the supplied function
+`decapsDet : SK → C → Option K`.
 
 ```text
 parse (dk_A, ek_A, ct_0, t, i_ch, L_ch, ack) <- st_A

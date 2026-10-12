@@ -10,14 +10,14 @@ import SecureMessaging.SCKA.Security.Transport
 /-!
 # Properties of assembled security oracles
 
-Let `scka : SCKAScheme ProbComp IK StA StB I Rho Rand` be a scheme with exposure policies
+Let `scka : SCKAScheme ProbComp IK StA StB I Rho Rand` be a scheme with exposure functions
 `vulnA` and `vulnB`. Let `base` implement uniform-randomness, ordinary-send, and receive
 queries, and let `chall` implement challenge queries, all on `GameState StA StB I Rho`.
 `securityImplOf base chall vulnA vulnB scka` combines these oracles with the scheme's
 leaking-send and corruption oracles.
 
 Suppose discarding the returned send coins recovers each ordinary-send computation, and
-`chall` satisfies `RecordsChallenges`: it retains the state or inserts an unexposed epoch
+`chall` satisfies `RecordsChallenges`: it retains the state or inserts the queried, unexposed epoch
 into `challenged`. Then every invariant preserved by `base`, ordinary sends, and arbitrary
 changes to `exposed` and `challenged` is preserved by the assembled security oracles.
 -/

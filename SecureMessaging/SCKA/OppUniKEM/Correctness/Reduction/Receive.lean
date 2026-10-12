@@ -29,9 +29,9 @@ open SCKAScheme.sckaCorrectnessSpec
 
 namespace Reduction.Internal
 
-/-- A successful receive by A either preserves its current KEM sources or
-advances its epoch, erases those sources, and records the advancing message
-shape. -/
+/-- A successful receive by A either preserves its epoch and key pair or advances to the next
+epoch and erases that key pair. In the latter case, the message contains an online ciphertext
+chunk for A's original epoch. -/
 lemma recvA_kem_source_shape
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (decapsDet : SK → C → Option K)

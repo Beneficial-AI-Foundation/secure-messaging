@@ -11,11 +11,12 @@ import VCVio.OracleComp.QueryTracking.QueryBound
 /-!
 # Opp-UniKEM security interface
 
-Let `kem : KEMScheme ProbComp K PK SK C` be a KEM with on/off structure `onoff`,
-leakage witness `leak : kem.OnOffRandLeak onoff`, and erasure-code symbol type `Sym`.
+Let `kem : KEMScheme ProbComp K PK SK C` be a KEM with on/off structure `onoff` and
+randomness-leaking algorithms `leak : kem.OnOffRandLeak onoff`.
+Let `Sym` be the erasure-code symbol type.
 
-`SecurityAdversary leak Sym` has access to the SCKA send, receive, challenge, corruption,
-and randomness-leakage oracles. `SecuritySendQueryBound adv q` means that `adv` makes
+An SCKA adversary `adv : SecurityAdversary leak Sym` has access to the send, receive, challenge,
+corruption, and randomness-leakage oracles. `SecuritySendQueryBound adv q` means that `adv` makes
 at most `q` ordinary or leaking sends combined on every oracle-response path.
 
 For each party and local state, dropping the returned coins from a leaking send gives
@@ -101,7 +102,8 @@ def leakEpochsB {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure
   if s.ct0.isNone || (s.ack.ctRec && s.ekA.isSome && s.ct1.isNone && s.stCt.isSome)
   then {s.t} else ∅
 
-/-- Every supported successful leaking send from `s` has exposure set `leakEpochsA s`. -/
+/-- For every supported successful output of A's leaking send from `s`, its returned coins
+`rand` satisfy `vulnRleakA s rand = leakEpochsA s`. -/
 theorem sendArleak_exposure
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (leak : kem.OnOffRandLeak onoff)
@@ -124,7 +126,8 @@ theorem sendArleak_exposure
     rcases houtEq with ⟨rfl, rfl, rfl, rfl, rfl⟩
     simp [vulnRleakA, leakEpochsA, hdk]
 
-/-- Every supported successful leaking send from `s` has exposure set `leakEpochsB s`. -/
+/-- For every supported successful output of B's leaking send from `s`, its returned coins
+`rand` satisfy `vulnRleakB s rand = leakEpochsB s`. -/
 theorem sendBrleak_exposure
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)

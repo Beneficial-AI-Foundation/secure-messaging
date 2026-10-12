@@ -286,7 +286,7 @@ namespace sckaSecuritySpec
 /-! Named indices for the queries used in the send bound. The state, key, message, and
 coin types affect only responses, so `Unit` gives the same query indices for every scheme. -/
 
-/-- Embed a correctness oracle into the full security oracle family. -/
+/-- Embed a correctness-query index into the security oracle interface. -/
 @[match_pattern] abbrev OCorrectness (t : (sckaCorrectnessSpec Unit).Domain) :
     (sckaSecuritySpec Unit Unit Unit Unit Unit).Domain :=
   .inl (.inl (.inl (.inl (.inl t))))
