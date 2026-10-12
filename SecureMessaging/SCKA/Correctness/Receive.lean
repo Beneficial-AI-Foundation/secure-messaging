@@ -9,10 +9,9 @@ import SecureMessaging.SCKA.Defs
 /-!
 # Successful SCKA receives and current epochs
 
-A supported outer `some` result advances the receiver's current epoch by taking
-the maximum with the reported receiving epoch and leaves the other current epoch
-unchanged. This success condition neither asserts `correct = true` nor guarantees
-that a recorded message will be received successfully.
+This file establishes basic facts about the epoch progression after a `receive`.
+A successful `receive` for each receiver advances their current epoch, while leaving the sender's
+epoch unchanged.
 -/
 
 open OracleSpec OracleComp
