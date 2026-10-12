@@ -319,8 +319,14 @@ theorem decapsReady_of_noFailure
     fun q hq hp => decaps_of_noFailure hB hA hfB q hq hp⟩
 
 include hEk hCt in
-/-- From a state satisfying the main invariant that is not bad, every oracle step reaches a
-state satisfying the main invariant (the step hypothesis of `trackedImpl_preserves`). -/
+/-- Let `t` be a query and `s` a game state. Assume:
+
+* `ecEk` and `ecCt` are correct erasure codes;
+* `GameInv s`;
+* `kemFailure hDet s = false`.
+
+Then every outcome of `t` from `s` satisfies `GameInv`. This is the step hypothesis of
+`trackedImpl_preserves`. -/
 theorem gameInv_step_of_noFailure (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : GameInv kem ecEk ecCt s) (hfail : kemFailure hDet s = false) :

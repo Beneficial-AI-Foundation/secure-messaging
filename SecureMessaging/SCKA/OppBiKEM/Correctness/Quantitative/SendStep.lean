@@ -12,7 +12,7 @@ import SecureMessaging.SCKA.OppBiKEM.Correctness.SendFacts
 # Opp-BiKEM-CKA — One-step score bound for send queries
 
 This module proves the send case of the one-step bound of `Quantitative.Main`, whose notation
-it uses (`ε`, `φ`, `V`, `S`). From a state satisfying the main invariant that is not bad, with
+it uses (`ε`, `φ`, `V`, `S`, `J`). From a state satisfying the main invariant that is not bad, with
 the flag clear, `SendA` and `SendB` raise the expected tracked score `S` by at most `ε`
 (`tracked_sendA_score_le`, `tracked_sendB_score_le`); `tracked_step_score_le` combines this
 with the non-send case of `Quantitative.RecvStep`. Plain sends, advances, and encapsulations
@@ -654,8 +654,13 @@ theorem tracked_sendB_score_le
         rw [hpot]
         exact le_self_add
 
-/-- From every tracked state satisfying `J`, one query raises the expected tracked score by at
-most `ε` if it is a send query, and does not raise it otherwise. -/
+/-- Let `t` be a query and `p` a tracked state. Assume:
+
+* `ecEk` and `ecCt` are correct erasure codes;
+* `J p` holds.
+
+Then `t` raises the expected tracked score `S` from `p` by at most `ε` if `t` is `SendA` or
+`SendB`, and does not raise it otherwise. -/
 theorem tracked_step_score_le (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
     (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
     (p : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym) × Bool)

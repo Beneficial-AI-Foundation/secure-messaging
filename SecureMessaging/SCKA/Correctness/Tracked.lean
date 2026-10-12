@@ -39,9 +39,17 @@ open OracleComp sckaCorrectnessSpec
 
 variable {IK StA StB I Rho Rand : Type}
 
-/-- Per-query expected-score bounds, with an allowance of `ε` on send queries only, give a bound
-`q · ε` on the probability that the flag is set after an adversary making at most `q` send
-queries, starting from a state of score `0`. -/
+/-- Let `adv` be a correctness adversary making at most `q` queries to
+`SendA` and `SendB` combined. Assume:
+
+* `trackedInv Inv bad` holds at `(s₀, false)` and is preserved by every query;
+* `score (s₀, false) = 0`;
+* `score (s, true) ≥ 1` for every game state `s`;
+* from every invariant tracked state, sends increase the expected score
+  by at most `ε`, and other queries do not increase it.
+
+Then the probability that `bad` holds after at least one query during
+`adv`'s execution is at most `q · ε`. -/
 theorem tracked_bad_le_of_score_step [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (bad : GameState StA StB I Rho → Bool) (Inv : GameState StA StB I Rho → Prop)
@@ -63,9 +71,15 @@ theorem tracked_bad_le_of_score_step [DecidableEq I]
     (fun t => isSendQuery (Rho := Rho) t = true) ε hscore1 hpres hstep adv q hq s₀
     hinit).trans_eq (by rw [hscore₀, zero_add])
 
-/-- A bound on the probability that the final flag is set bounds the failure probability of the
-correctness experiment, given that the experiment is the final `correct` bit of the ordinary
-run from `s₀` and that the invariant forces `correct = true`. -/
+/-- Let `adv` be a correctness adversary and `s₀` a game state. Assume:
+
+* `trackedInv Inv bad` holds at `(s₀, false)` and is preserved by every query;
+* `Inv s` implies `s.correct = true` for every game state `s`;
+* `correctnessExp scka adv` is the final `correct` bit of `adv`'s execution from `s₀`;
+* the probability that `bad` holds after at least one query during `adv`'s execution from
+  `s₀` is at most `δ`.
+
+Then `Pr[correctnessExp scka adv = false] ≤ δ`. -/
 theorem correctness_failure_le_of_tracked_bad [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (bad : GameState StA StB I Rho → Bool) (Inv : GameState StA StB I Rho → Prop)

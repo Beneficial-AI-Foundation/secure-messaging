@@ -49,8 +49,14 @@ def DecapsReady (role : Role) {kem : KEMScheme ProbComp K PK SK C} (hDet : kem.D
     ∀ pk sk c k, (T q).keypair = some (pk, sk) → (T q).enc = some (c, k) →
       hDet.decapsDet sk c = some k
 
-/-- One step of any correctness-game oracle preserves `GameInv`, provided every transcript
-consistent with the pre-state is `DecapsReady` for both parties. -/
+/-- Let `t` be a query and `s` a game state. Assume:
+
+* `ecEk` and `ecCt` are correct erasure codes;
+* `GameInv s`;
+* every transcript `T` for which both parties satisfy `PartyInv` at `s` is `DecapsReady` for
+  both parties.
+
+Then every outcome of `t` from `s` satisfies `GameInv`. -/
 theorem gameInv_step_of [DecidableEq K] [DecidableEq Sym]
     (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
@@ -200,8 +206,15 @@ theorem gameInv_preserved [DecidableEq K] [DecidableEq Sym]
   exact ⟨fun q _ _ => transcriptDecaps_of_support hDet hdec T q,
     fun q _ _ => transcriptDecaps_of_support hDet hdec T q⟩
 
-/-- Under the hypotheses of `gameInv_preserved`, `GameInv` holds on every state reachable from
-an initial state of the correctness game. -/
+/-- Let `adv` be a correctness adversary. Assume:
+
+* `kem` has deterministic decapsulation, correct on every honestly generated key pair and
+  encapsulation (`DecapsCorrectOnSupport`);
+* `ecEk` and `ecCt` are correct erasure codes;
+* `stA` and `stB` are possible initial states of A and B.
+
+Then every final state of `adv`'s execution from `initGameState stA stB` satisfies
+`GameInv`. -/
 theorem simulateQ_gameInv [DecidableEq K] [DecidableEq Sym]
     (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)

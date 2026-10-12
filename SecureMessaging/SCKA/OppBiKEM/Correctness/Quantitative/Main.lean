@@ -185,8 +185,14 @@ theorem trackedInv_init :
     (by simp [initB, init, initialState]), kemFailure_init kem hDet⟩
 
 include hEk hCt in
-/-- Against an adversary making at most `q` send queries, the tracked game run from
-`(initState, false)` ends with the flag set with probability at most `q · ε`. -/
+/-- Let `adv` be a correctness adversary making at most `q` queries to `SendA` and `SendB`
+combined. Assume:
+
+* `kem` has deterministic decapsulation;
+* `ecEk` and `ecCt` are correct erasure codes.
+
+Then the probability that `bad` holds after at least one query during `adv`'s execution from
+`initState` is at most `q · ε`. -/
 theorem tracked_bad_le (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
     (q : ℕ) (hq : SCKAScheme.SendQueryBound adv q) :
     Pr[ fun z => z.2.2 = true |
