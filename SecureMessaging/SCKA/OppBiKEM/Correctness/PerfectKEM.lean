@@ -11,9 +11,9 @@ import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.SendTotal
 # Opp-BiKEM-CKA — Correctness for a perfectly correct KEM
 
 A perfectly correct KEM has `ε = 0`, so `correctness_true_ge` already gives success with
-probability one (`correctness_of_perfectKEM'` in `Quantitative.Main`), but only for an adversary
-with a bound on its send queries. This file proves the same conclusion for every adversary
-(`correctness_of_perfectKEM`).
+probability one (`correctness_of_perfectKEM'`), but only for an adversary with a bound on its
+send queries. This file proves the facts from which `correctness_of_perfectKEM` in
+`Correctness` derives the same conclusion for every adversary.
 
 With a perfectly correct KEM no KEM instance can fail: decapsulation recovers the encapsulated
 key for every key pair and encapsulation the KEM can output (`DecapsCorrectOnSupport`, obtained
@@ -21,9 +21,9 @@ from `decapsCorrectOnSupport_of_perfectlyCorrect`). The `DecapsReady` hypothesis
 `gameInv_step_of` therefore holds at every state (`transcriptDecaps_of_support`), every oracle
 preserves `GameInv` (`gameInv_preserved`), and `GameInv` holds at every reachable state
 (`simulateQ_gameInv`). The argument needs no failure flag and no potential, hence no query
-bound. Since `GameInv s` contains `s.correct = true`, the game succeeds with probability one;
-since `GameInv` also gives `send_ne_none`, neither party's `send` is ever rejected
-(`sends_never_rejected_of_perfectKEM`).
+bound. Since `GameInv s` contains `s.correct = true`, the game succeeds with probability one
+(`correctness_of_perfectKEM` in `Correctness`); since `GameInv` also gives `send_ne_none`,
+neither party's `send` is ever rejected (`sends_never_rejected_of_perfectKEM`).
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -114,36 +114,6 @@ theorem simulateQ_gameInv [DecidableEq K] [DecidableEq Sym]
     GameInv kem ecEk ecCt z.2 :=
   simulateQ_run_preservesInv _ _ (gameInv_preserved kem hDet ecEk ecCt hEk hCt leak hdec) adv _
     (gameInv_init kem ecEk ecCt stA stB hA hB) z hz
-
-/-- Assume:
-
-* `kem` has deterministic decapsulation and is perfectly correct;
-* `ecEk` and `ecCt` are correct erasure codes.
-
-Then the Opp-BiKEM-CKA correctness game succeeds with probability one for every adversary,
-without a query bound. -/
-theorem correctness_of_perfectKEM [DecidableEq K] [DecidableEq Sym]
-    (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
-    (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym) (leak : kem.RandLeak)
-    (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
-    (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
-    (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym)) :
-    Pr[= true | SCKAScheme.correctnessExp (scheme kem hDet ecEk ecCt leak) adv] = 1 := by
-  have hdec := decapsCorrectOnSupport_of_perfectlyCorrect kem hDet hkem
-  have hfalse :
-      Pr[= false | SCKAScheme.correctnessExp (scheme kem hDet ecEk ecCt leak) adv] = 0 := by
-    rw [correctnessExp_eq_map, ← probEvent_eq_eq_probOutput, probEvent_map]
-    rw [probEvent_eq_zero_iff]
-    intro z hz hcontra
-    have hinv := simulateQ_gameInv kem hDet ecEk ecCt hEk hCt leak hdec adv
-      (initialState .A) (initialState .B) (by simp [initA, init, initialState])
-      (by simp [initB, init, initialState]) z hz
-    have := hinv.1
-    simp only [Function.comp] at hcontra
-    rw [this] at hcontra
-    cases hcontra
-  rw [probOutput_false_eq_sub, probFailure_eq_zero, tsub_zero] at hfalse
-  exact le_antisymm probOutput_le_one ((tsub_eq_zero_iff_le).mp hfalse)
 
 /-- Assume:
 

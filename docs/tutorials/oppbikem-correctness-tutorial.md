@@ -7,12 +7,12 @@ the module docstring of
 [`OppBiKEM/Correctness.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness.lean).
 
 The endpoint is
-[`correctness_failure_le`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/Quantitative/Main.lean#L218):
+[`correctness_failure_le`](../../SecureMessaging/SCKA/OppBiKEM/Correctness.lean#L84):
 for a KEM with deterministic decapsulation, correct public-key and ciphertext erasure codes, and
 an adversary making at most `q` send queries, the SCKA correctness experiment returns `false`
 with probability at most `q · ε`, where `ε` is the KEM's correctness error. A perfectly correct
 KEM has `ε = 0`, so the experiment then returns `true` with probability one;
-[`correctness_of_perfectKEM`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/PerfectKEM.lean#L125)
+[`correctness_of_perfectKEM`](../../SecureMessaging/SCKA/OppBiKEM/Correctness.lean#L151)
 proves this for every adversary, without the query bound. Neither theorem has a bounded-slack
 assumption. No `sorry`; only `propext`, `Classical.choice`, `Quot.sound`.
 
@@ -34,7 +34,7 @@ kept only until the first KEM failure, and section 12 bounds the probability of 
 
 | # | File | Role |
 | --- | --- | --- |
-| 0 | [`OppBiKEM/Correctness.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness.lean) | summary: notation, results, where each proof lives |
+| 0 | [`OppBiKEM/Correctness.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness.lean) | summary: notation, results, where each proof lives; the four headline theorems |
 | 1 | [`SCKA/Correctness.lean`](../../SecureMessaging/SCKA/Correctness.lean) | shared with the other SCKA proofs: each game oracle as a pure state update, with support and distribution forms of each oracle run |
 | 2 | [`OppBiKEM/Correctness/Transcript.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/Transcript.lean) | `EpochTranscript`, `Transcript`, parities |
 | 3 | [`OppBiKEM/Correctness/RecvSpec.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/RecvSpec.lean) | `recv` as a decision tree |
@@ -52,8 +52,8 @@ kept only until the first KEM failure, and section 12 bounds the probability of 
 | 15 | [`Quantitative/SendDist.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/Quantitative/SendDist.lean) | `send` as `keygen >>= …` or `encaps >>= …` |
 | 16 | [`Quantitative/RecvStep.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/Quantitative/RecvStep.lean) | non-send queries keep the score; invariant kept while the flag is down |
 | 17 | [`Quantitative/SendStep.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/Quantitative/SendStep.lean) | a send raises the expected score by at most `ε` |
-| 18 | [`Quantitative/Main.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/Quantitative/Main.lean) | proof outline of the quantitative bound; `correctness_failure_le`, `correctness_true_ge`, `ε = 0` corollary |
-| 19 | [`OppBiKEM/Correctness/PerfectKEM.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/PerfectKEM.lean) | perfectly correct KEM: the invariant at every reachable state, probability one without a query bound |
+| 18 | [`Quantitative/Main.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/Quantitative/Main.lean) | proof outline of the quantitative bound; `trackedBiKem_preservesInv`, `tracked_bad_le` |
+| 19 | [`OppBiKEM/Correctness/PerfectKEM.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/PerfectKEM.lean) | perfectly correct KEM: the invariant at every reachable state |
 
 Read 0 for the statements and 6 for the invariant, then 10 to see how the invariant is used, then
 8 and 9 for the proofs. Files 1 to 5 are infrastructure you can skim. Files 12 to 18 are the
@@ -415,8 +415,8 @@ it.
 
 ## 12. The imperfect KEM: `Pr[fail] ≤ q · ε`
 
-Files 12 to 18. The statement is `correctness_failure_le` in
-[`Quantitative/Main.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/Quantitative/Main.lean):
+Files 12 to 18, with the endpoint in file 0. The statement is `correctness_failure_le` in
+[`Correctness.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness.lean#L84):
 for a KEM with deterministic decapsulation, correct erasure codes, and an adversary making at most
 `q` send queries (`SCKAScheme.SendQueryBound adv q`), the game returns `false` with probability at
 most `q · kem.correctnessError`. `correctness_true_ge` is the complementary form, and
@@ -514,14 +514,16 @@ one.
 `Main.lean`: the initial state has no secret keys, so `kemFailure_init` and `trackedScore_init`
 are immediate; `trackedBiKem_preservesInv` is `trackedImpl_preserves` applied to
 `gameInv_step_of_noFailure`; `tracked_bad_le` feeds `tracked_step_score_le` into
-`SCKAScheme.tracked_bad_le_of_score_step`; `correctness_failure_le` feeds that into
-`SCKAScheme.correctness_failure_le_of_tracked_bad` with `correctnessExp_eq_map`. All endpoints depend only on
-`propext`, `Classical.choice`, `Quot.sound`.
+`SCKAScheme.tracked_bad_le_of_score_step`. `correctness_failure_le` in `Correctness.lean` feeds
+`tracked_bad_le` into `SCKAScheme.correctness_failure_le_of_tracked_bad` with
+`correctnessExp_eq_map`. All endpoints depend only on `propext`, `Classical.choice`,
+`Quot.sound`.
 
 ## 13. The perfect KEM: probability one without a query bound
 
 File 19,
-[`PerfectKEM.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/PerfectKEM.lean).
+[`PerfectKEM.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/PerfectKEM.lean),
+with the endpoint in file 0.
 `correctness_of_perfectKEM'` (section 12) needs the adversary to make at most `q` send queries,
 because the potential argument does. For a perfectly correct KEM, the step hypothesis of
 `gameInv_step_of` holds at every state, so neither the flag nor the potential is needed.
@@ -541,8 +543,8 @@ uses it to discharge `DecapsReady` in `gameInv_step_of` at every state, giving
 
 [`simulateQ_gameInv`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/PerfectKEM.lean#L101)
 lifts this to arbitrary adversaries with VCVio's `simulateQ_run_preservesInv`, and
-[`correctness_of_perfectKEM`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/PerfectKEM.lean#L125)
-shows `Pr[= false] = 0` through `correctnessExp_eq_map`, `probEvent_eq_zero_iff` and the
+[`correctness_of_perfectKEM`](../../SecureMessaging/SCKA/OppBiKEM/Correctness.lean#L151)
+(in `Correctness.lean`) shows `Pr[= false] = 0` through `correctnessExp_eq_map`, `probEvent_eq_zero_iff` and the
 invariant's `correct` field, then converts to `Pr[= true] = 1` with `probOutput_false_eq_sub`.
-[`sends_never_rejected_of_perfectKEM`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/PerfectKEM.lean#L155)
+[`sends_never_rejected_of_perfectKEM`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/PerfectKEM.lean#L125)
 combines `simulateQ_gameInv` with `sendA_ne_none` and `sendB_ne_none` from `SendTotal.lean`.

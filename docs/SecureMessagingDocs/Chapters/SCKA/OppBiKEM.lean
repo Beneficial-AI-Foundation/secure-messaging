@@ -453,7 +453,7 @@ Then $`\Pr\bigl[\Exp{\textsf{cor}}{\textsf{Opp-BiKEM-CKA}}(\adv)=1\bigr]
 $`1-q\varepsilon`.
 
 
-```anchor correctnessTrueGe (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.Main)
+```anchor correctnessTrueGe (project := ".") (module := SecureMessaging.SCKA.OppBiKEM.Correctness)
 theorem correctness_true_ge
     (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)

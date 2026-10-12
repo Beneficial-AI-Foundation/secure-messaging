@@ -26,17 +26,18 @@ Let:
 
 ## Main results
 
-Assume that `kem` has deterministic decapsulation and that `ecEk` and `ecCt` are correct. If
-the adversary `Adv` makes at most `q` send queries (`SendQueryBound Adv q`), then
+Assume that `kem` has deterministic decapsulation and that `ecEk` and `ecCt` are correct.
 
-* `correctness_failure_le`: `Pr[G(Adv) = false] ≤ q · ε`;
-* `correctness_true_ge`: `Pr[G(Adv) = true] ≥ 1 - q · ε`;
-* `correctness_of_perfectKEM'`: `Pr[G(Adv) = true] = 1` if `kem` is perfectly correct.
+* `trackedBiKem_preservesInv`: every query of the tracked game preserves the tracked invariant
+  `J` defined below;
+* `tracked_bad_le`: if the adversary `Adv` makes at most `q` send queries
+  (`SendQueryBound Adv q`), the tracked run sets its failure flag with probability at most
+  `q · ε`;
+* `sends_never_rejected_of_noFailure`: on every reachable tracked state whose failure flag is
+  clear, neither party's send is rejected.
 
-Moreover, `sends_never_rejected_of_noFailure`: on every reachable tracked state whose failure
-flag is clear, neither party's send is rejected.
-
-The proof has four parts.
+`correctness_failure_le` in `Correctness` combines the first two into
+`Pr[G(Adv) = false] ≤ q · ε`. The proof has four parts.
 
 ## Tracked game and tracked invariant (`StateT.BadFlag`, `Quantitative.Core`)
 
@@ -135,7 +136,7 @@ Pr[b_f = true] ≤ E[S (s_f, b_f)] ≤ S (initState, false) + q · ε = q · ε.
 Since `J` holds on every reachable tracked state and `GameInv s` contains `s.correct = true`,
 a final state with `correct = false` has `b_f = true`. Forgetting the flag recovers the
 ordinary run (`SCKAScheme.correctness_failure_le_of_tracked_bad`), so
-`Pr[G(Adv) = false] ≤ q · ε`.
+`Pr[G(Adv) = false] ≤ q · ε` (`correctness_failure_le` in `Correctness`).
 -/
 
 open OracleComp KEMScheme ENNReal
@@ -205,68 +206,6 @@ theorem tracked_bad_le (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
     (trackedBiKem_preservesInv kem hDet ecEk ecCt hEk hCt leak)
     (tracked_step_score_le kem hDet ecEk ecCt leak hEk hCt)
     adv q hq _ (trackedInv_init kem hDet ecEk ecCt) (trackedScore_init kem hDet)
-
-include hEk hCt in
-/-- Assume:
-
-* `kem` has deterministic decapsulation;
-* `ecEk` and `ecCt` are correct erasure codes;
-* `adv` makes at most `q` `SendA` and `SendB` queries combined.
-
-Then the Opp-BiKEM-CKA correctness game fails with probability at most
-`q · kem.correctnessError`. -/
-theorem correctness_failure_le (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
-    (q : ℕ) (hq : SCKAScheme.SendQueryBound adv q) :
-    Pr[= false | SCKAScheme.correctnessExp (scheme kem hDet ecEk ecCt leak) adv] ≤
-      (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp :=
-  SCKAScheme.correctness_failure_le_of_tracked_bad (scheme kem hDet ecEk ecCt leak)
-    (kemFailure hDet) (GameInv kem ecEk ecCt) (fun _ hs => hs.1)
-    (trackedBiKem_preservesInv kem hDet ecEk ecCt hEk hCt leak) adv _
-    (trackedInv_init kem hDet ecEk ecCt) (correctnessExp_eq_map kem hDet ecEk ecCt leak adv) _
-    (tracked_bad_le kem hDet ecEk ecCt hEk hCt leak adv q hq)
-
-/-- Assume:
-
-* `kem` has deterministic decapsulation;
-* `ecEk` and `ecCt` are correct erasure codes;
-* `adv` makes at most `q` `SendA` and `SendB` queries combined.
-
-Then the Opp-BiKEM-CKA correctness game succeeds with probability at least
-`1 - q · kem.correctnessError`. -/
--- ANCHOR: correctnessTrueGe
-theorem correctness_true_ge
-    (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
-    (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
-    (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct) (leak : kem.RandLeak)
-    (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
-    (q : ℕ) (hq : SCKAScheme.SendQueryBound adv q) :
-    Pr[= true | SCKAScheme.correctnessExp (scheme kem hDet ecEk ecCt leak) adv] ≥
-      1 - (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp
--- ANCHOR_END: correctnessTrueGe
-    := by
-  have h := correctness_failure_le kem hDet ecEk ecCt hEk hCt leak adv q hq
-  rw [probOutput_false_eq_sub, probFailure_eq_zero, tsub_zero, tsub_le_iff_right] at h
-  rw [ge_iff_le, tsub_le_iff_right]
-  rwa [add_comm]
-
-include hEk hCt in
-/-- Assume:
-
-* `kem` has deterministic decapsulation and is perfectly correct;
-* `ecEk` and `ecCt` are correct erasure codes;
-* `adv` makes at most `q` `SendA` and `SendB` queries combined.
-
-Then the Opp-BiKEM-CKA correctness game succeeds with probability one. This is the `ε = 0`
-instance of `correctness_true_ge`; `correctness_of_perfectKEM` (in `PerfectKEM`) proves the same
-without a query bound. -/
-theorem correctness_of_perfectKEM' (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
-    (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
-    (q : ℕ) (hq : SCKAScheme.SendQueryBound adv q) :
-    Pr[= true | SCKAScheme.correctnessExp (scheme kem hDet ecEk ecCt leak) adv] = 1 := by
-  have h := correctness_true_ge kem hDet ecEk ecCt hEk hCt leak adv q hq
-  rw [(KEMScheme.correctnessError_eq_zero_iff_perfectlyCorrect kem ProbCompRuntime.probComp).mpr
-    hkem, mul_zero, tsub_zero] at h
-  exact le_antisymm probOutput_le_one h
 
 include hEk hCt in
 /-- Assume:
