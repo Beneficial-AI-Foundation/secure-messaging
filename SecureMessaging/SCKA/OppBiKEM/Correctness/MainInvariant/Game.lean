@@ -18,10 +18,6 @@ every reachable state (`simulateQ_gameInv`). Since `GameInv s` contains `s.corre
 correctness experiment returns `true` with probability one for a perfectly correct KEM
 (`correctness_of_perfectKEM`).
 
-The one-step lemma `gameInv_step_of` uses the oracle case split of
-`SCKA.Correctness`; each oracle is one application of `partyInv_send_step` or
-`partyInv_recv_step`. Its only KEM hypothesis is `DecapsReady`, which the quantitative proof
-supplies from the absence of a KEM failure.
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -30,8 +26,9 @@ namespace oppBiKemCKA
 
 variable {K PK SK C Sym : Type}
 
-/-- If `DecapsCorrectOnSupport` holds, then in every epoch of every transcript the recorded
-secret key decapsulates the recorded ciphertext to the recorded key. -/
+/-- If decapsulation never fails on honest outputs (i.e., `DecapsCorrectOnSupport` holds), then
+in every epoch of every transcript the recorded secret key decapsulates the recorded ciphertext
+to the recorded key. -/
 theorem transcriptDecaps_of_support {kem : KEMScheme ProbComp K PK SK C}
     (hDet : kem.DeterministicDecaps) (hdec : DecapsCorrectOnSupport kem hDet)
     (T : Transcript kem) (e : ℤ) :
@@ -40,9 +37,11 @@ theorem transcriptDecaps_of_support {kem : KEMScheme ProbComp K PK SK C}
   fun pk sk c k hkp henc =>
     hdec pk sk c k ((T e).keypair_mem pk sk hkp) ((T e).enc_mem pk sk c k hkp henc)
 
-/-- For every requester-parity epoch `q` of `role` that is not in `st.ack.ctRec`, the secret
-key recorded in `T` at `q` decapsulates the ciphertext recorded there to the recorded key.
-These are the epochs the party may still decapsulate. -/
+/-- The party playing `role`, in state `st`, can decapsulate every ciphertext it has yet to
+receive, according to `T`: for every epoch `q` in which the party is the
+requester (that is, `q % 2 = role.reqParity`) and ciphertext receipt
+is not yet recorded (`q ∉ st.ack.ctRec`), if `T` records a
+key pair `(pk, sk)` and an encapsulation `(c, k)` at `q`, then `hDet.decapsDet sk c = some k`. -/
 def DecapsReady (role : Role) {kem : KEMScheme ProbComp K PK SK C} (hDet : kem.DeterministicDecaps)
     (T : Transcript kem) (st : State PK SK C Sym) : Prop :=
   ∀ q, q ∉ st.ack.ctRec → q % 2 = role.reqParity →
