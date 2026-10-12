@@ -15,12 +15,13 @@ encapsulation to `pk`, that deterministic decapsulation with `sk` does not recov
 encapsulated key. The KEM's `correctnessError` is the average of `φ` over generated key pairs
 (`correctnessError_eq_avg_keypair`).
 
-A protocol proof charges `φ(pk, sk)` when a key pair is drawn and realises it when the
-encapsulation to that key pair is drawn (`keypairFailure_eq_probEvent`).
-
-This is the plain-KEM analogue of `SecureMessaging.KEM.OnOffKEM.CorrectnessError`. That file
-also carries the failure probabilities `Pr[⊥ | ·]` of key generation and encapsulation; they are
-dropped here because a `ProbComp` computation never fails.
+A protocol proof uses the two results at different times. When a key pair is drawn, it adds
+`φ(pk, sk)` to a failure potential; averaged over key generation this costs at most
+`correctnessError` (`correctnessError_eq_avg_keypair`). When it later encapsulates to `pk`,
+the proof removes `φ(pk, sk)` from the potential and records a failure if decapsulation with
+`sk` disagrees, which happens with probability exactly `φ(pk, sk)`
+(`keypairFailure_eq_probEvent`). The removed term covers that probability, so encapsulation adds
+nothing to the error bound.
 -/
 
 open OracleComp ENNReal
