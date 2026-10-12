@@ -74,22 +74,20 @@ theorem expectedPayoff_keygen_le {A : Type} (f : PK × SK → A) (score : A → 
     expectedPayoff (kem.keygen >>= fun kp => pure (f kp)) score ≤
       V + kem.correctnessError ProbCompRuntime.probComp := by
   rw [expectedPayoff_bind]
-  simp only [expectedPayoff_pure, hscore, correctnessError_eq_avg_keypair kem hDet]
-  calc Pr[⊥ | kem.keygen] + ∑' kp : PK × SK, Pr[= kp | kem.keygen] *
-          (V + keypairFailure kem hDet kp.1 kp.2)
-        = Pr[⊥ | kem.keygen] + ((∑' kp : PK × SK, Pr[= kp | kem.keygen]) * V +
-            ∑' kp : PK × SK, Pr[= kp | kem.keygen] * keypairFailure kem hDet kp.1 kp.2) := by
-          congr 1
+  simp only [expectedPayoff_pure, hscore, correctnessError_eq_avg_keypair kem hDet,
+    probFailure_eq_zero, zero_add]
+  calc ∑' kp : PK × SK, Pr[= kp | kem.keygen] * (V + keypairFailure kem hDet kp.1 kp.2)
+        = (∑' kp : PK × SK, Pr[= kp | kem.keygen]) * V +
+            ∑' kp : PK × SK, Pr[= kp | kem.keygen] * keypairFailure kem hDet kp.1 kp.2 := by
           rw [← ENNReal.tsum_mul_right, ← ENNReal.tsum_add]
           refine tsum_congr fun kp => ?_
           rw [mul_add]
-      _ ≤ Pr[⊥ | kem.keygen] + (1 * V +
-            ∑' kp : PK × SK, Pr[= kp | kem.keygen] * keypairFailure kem hDet kp.1 kp.2) := by
+      _ ≤ 1 * V +
+            ∑' kp : PK × SK, Pr[= kp | kem.keygen] * keypairFailure kem hDet kp.1 kp.2 := by
           gcongr
           exact tsum_probOutput_le_one
-      _ = V + (Pr[⊥ | kem.keygen] +
-            ∑' kp : PK × SK, Pr[= kp | kem.keygen] * keypairFailure kem hDet kp.1 kp.2) := by
-          rw [one_mul]; ring
+      _ = V + ∑' kp : PK × SK, Pr[= kp | kem.keygen] * keypairFailure kem hDet kp.1 kp.2 := by
+          rw [one_mul]
 
 /-- If the score after encapsulating to `pk` is `1` when decapsulation with `sk` disagrees with
 the encapsulated key and `V` otherwise, its expected value is at most `V + φ(pk, sk)`. -/
@@ -101,27 +99,25 @@ theorem expectedPayoff_encaps_le {A : Type} (pk : PK) (sk : SK) (g : C × K → 
       V + keypairFailure kem hDet pk sk := by
   classical
   rw [expectedPayoff_bind]
-  simp only [expectedPayoff_pure, hscore]
+  simp only [expectedPayoff_pure, hscore, probFailure_eq_zero, zero_add]
   rw [keypairFailure_eq_probEvent, probEvent_eq_tsum_ite]
-  calc Pr[⊥ | kem.encaps pk] + ∑' ck : C × K, Pr[= ck | kem.encaps pk] *
+  calc ∑' ck : C × K, Pr[= ck | kem.encaps pk] *
           (if hDet.decapsDet sk ck.1 ≠ some ck.2 then 1 else V)
-        ≤ Pr[⊥ | kem.encaps pk] + ∑' ck : C × K,
+        ≤ ∑' ck : C × K,
             ((if hDet.decapsDet sk ck.1 ≠ some ck.2 then Pr[= ck | kem.encaps pk] else 0) +
               Pr[= ck | kem.encaps pk] * V) := by
           gcongr with ck
           split_ifs <;> simp
-      _ = Pr[⊥ | kem.encaps pk] +
-          ((∑' ck : C × K, if hDet.decapsDet sk ck.1 ≠ some ck.2 then Pr[= ck | kem.encaps pk]
-              else 0) + (∑' ck : C × K, Pr[= ck | kem.encaps pk]) * V) := by
+      _ = (∑' ck : C × K, if hDet.decapsDet sk ck.1 ≠ some ck.2 then Pr[= ck | kem.encaps pk]
+              else 0) + (∑' ck : C × K, Pr[= ck | kem.encaps pk]) * V := by
           rw [ENNReal.tsum_add, ENNReal.tsum_mul_right]
-      _ ≤ Pr[⊥ | kem.encaps pk] +
-          ((∑' ck : C × K, if hDet.decapsDet sk ck.1 ≠ some ck.2 then Pr[= ck | kem.encaps pk]
-              else 0) + 1 * V) := by
+      _ ≤ (∑' ck : C × K, if hDet.decapsDet sk ck.1 ≠ some ck.2 then Pr[= ck | kem.encaps pk]
+              else 0) + 1 * V := by
           gcongr
           exact tsum_probOutput_le_one
-      _ = V + ((∑' ck : C × K, if hDet.decapsDet sk ck.1 ≠ some ck.2 then Pr[= ck | kem.encaps pk]
-              else 0) + Pr[⊥ | kem.encaps pk]) := by
-          rw [one_mul]; ring
+      _ = V + ∑' ck : C × K, if hDet.decapsDet sk ck.1 ≠ some ck.2 then Pr[= ck | kem.encaps pk]
+              else 0 := by
+          rw [one_mul, add_comm]
 
 end Average
 

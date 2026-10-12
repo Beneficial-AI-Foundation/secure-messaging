@@ -476,8 +476,9 @@ epoch, "flag down" implies the transcript decapsulation equation that `partyInv_
 `keypairFailure` itself is in
 [`KEM/CorrectnessError.lean`](../../SecureMessaging/KEM/CorrectnessError.lean) with
 `correctnessError_eq_avg_keypair`: the KEM's correctness error is the keygen-average of
-`keypairFailure`, plus the keygen failure mass. (The on/off KEM has its own `failureAfterKeypair`
-with an extra argument; the plain-KEM version got a different name to coexist with it.)
+`keypairFailure` (with no failure-mass term, since `ProbComp` never fails). (The on/off KEM has
+its own `failureAfterKeypair` with an extra argument; the plain-KEM version got a different name
+to coexist with it.)
 
 ### 12.3 Per-step bounds
 
