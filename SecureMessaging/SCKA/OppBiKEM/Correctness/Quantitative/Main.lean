@@ -257,8 +257,8 @@ include hEk hCt in
 * `adv` makes at most `q` `SendA` and `SendB` queries combined.
 
 Then the Opp-BiKEM-CKA correctness game succeeds with probability one. This is the `ε = 0`
-instance of `correctness_true_ge`; `correctness_of_perfectKEM` proves the same without a query
-bound. -/
+instance of `correctness_true_ge`; `correctness_of_perfectKEM` (in `PerfectKEM`) proves the same
+without a query bound. -/
 theorem correctness_of_perfectKEM' (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
     (q : ℕ) (hq : SCKAScheme.SendQueryBound adv q) :

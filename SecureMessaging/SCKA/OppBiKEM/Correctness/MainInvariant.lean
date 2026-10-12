@@ -32,7 +32,8 @@ acknowledgements, buffer, horizon, and messages. The *key epoch* of a party is
 This file derives the game's known-prefix assertion from `PartyInv`
 (`knownPrefix_of_partyInv`). `GameInv` holds initially (`MainInvariant.Init`) and is preserved
 by a send (`MainInvariant.Send`), by a receive (`MainInvariant.Recv`), and hence by every oracle
-(`MainInvariant.Game`); KEM correctness is used only for the key emitted by a decapsulation.
+(`MainInvariant.Game`), as long as both parties can decapsulate the ciphertexts they have yet to
+receive. KEM correctness is used only there, for the key emitted by a decapsulation.
 The support-level facts about one `send` or `recv` that these proofs use are in `SendFacts`
 and `RecvFacts`.
 -/

@@ -91,6 +91,7 @@ import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.SendDist
 import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.RecvStep
 import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.SendStep
 import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.Main
+import SecureMessaging.SCKA.OppBiKEM.Correctness.PerfectKEM
 import SecureMessaging.SCKA.OppUniKEM.Correctness
 import SecureMessaging.SymEnc.Defs
 import ToVCVio.OracleComp.Constructions.SampleableType

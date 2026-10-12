@@ -5,6 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.Main
+import SecureMessaging.SCKA.OppBiKEM.Correctness.PerfectKEM
 
 /-!
 # Opp-BiKEM-CKA — Correctness
@@ -35,20 +36,29 @@ For every SCKA correctness adversary `Adv`, we have:
 * `correctness_failure_le` — if `Adv` makes at most `q` send queries, then
   `Pr[G(Adv) = false] ≤ q · ε`;
 * `correctness_true_ge` — under the same hypotheses, `Pr[G(Adv) = true] ≥ 1 - q · ε`;
-* `correctness_of_perfectKEM` — a perfectly correct KEM gives `Pr[G(Adv) = true] = 1`
-  without a query bound; `correctness_of_perfectKEM'` is the `ε = 0` instance of
-  `correctness_true_ge`;
-* `sends_never_rejected_of_perfectKEM`, `sends_never_rejected_of_noFailure` — `send` never
+* `correctness_of_perfectKEM'`, `correctness_of_perfectKEM` — a perfectly correct KEM gives
+  `Pr[G(Adv) = true] = 1`: the first is the `ε = 0` instance of `correctness_true_ge`, the
+  second drops the query bound;
+* `sends_never_rejected_of_noFailure`, `sends_never_rejected_of_perfectKEM` — `send` never
   takes its error exits (a missing own public key, a missing decoded peer key) on a reachable
-  state: always for a perfectly correct KEM, and otherwise as long as no KEM instance has
-  completed inconsistently. The correctness game does not observe these exits.
+  state: as long as no KEM instance has completed inconsistently, and always for a perfectly
+  correct KEM. The correctness game does not observe these exits.
 
 `SendQueryBound Adv q` states that `Adv` makes at most `q` queries to `SendA` and `SendB`
 combined; `Unif`, `RecvA`, and `RecvB` queries are not counted.
 
-The perfect-KEM theorem is proved in `Correctness.MainInvariant.Game` from the main invariant
-of `Correctness.MainInvariant`. The quantitative bounds are proved in
-`Correctness.Quantitative.Main`, using the tracked game of
-`ToVCVio.OracleComp.SimSemantics.StateT.BadFlag` (specialised to SCKA in
-`SCKA.Correctness.Tracked`) and the conditional KEM error of `KEM.CorrectnessError`.
+There are two proofs. The quantitative proof, in `Correctness.Quantitative.Main`, gives
+`correctness_failure_le`, `correctness_true_ge`, `correctness_of_perfectKEM'`, and
+`sends_never_rejected_of_noFailure`. The perfect-KEM proof, in `Correctness.PerfectKEM`, gives
+`correctness_of_perfectKEM` and `sends_never_rejected_of_perfectKEM`. Both rest on the main
+invariant of `Correctness.MainInvariant`, which every oracle preserves as long as both parties
+can decapsulate the ciphertexts they have yet to receive (`MainInvariant.Game`). They differ in
+how they ensure this:
+
+* the quantitative proof keeps the invariant only until the first KEM failure and bounds the
+  probability of a KEM failure by `q · ε`, using the tracked game of
+  `ToVCVio.OracleComp.SimSemantics.StateT.BadFlag` (specialised to SCKA in
+  `SCKA.Correctness.Tracked`) and the conditional KEM error of `KEM.CorrectnessError`;
+* the perfect-KEM proof uses that no instance of a perfectly correct KEM can fail, so the
+  invariant holds at every reachable state and no query bound is needed.
 -/

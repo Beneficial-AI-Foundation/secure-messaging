@@ -15,10 +15,11 @@ the peer's public key when none was decoded. The correctness game does not obser
 (a rejected send leaves the game state unchanged), so the correctness bounds say nothing about
 them.
 
-The main result, `send_ne_none`, shows that a party satisfying `PartyInv` takes neither exit.
-`sends_never_rejected_of_perfectKEM` lifts this to every reachable state of the correctness
-game for a perfectly correct KEM; the version for an imperfect KEM, valid while no KEM failure
-has occurred, is `sends_never_rejected_of_noFailure` in `Quantitative.Main`.
+The main result, `send_ne_none`, shows that a party satisfying `PartyInv` takes neither exit;
+`sendA_ne_none` and `sendB_ne_none` restate it for a game state satisfying `GameInv`. It is lifted
+to the reachable states of the correctness game by `sends_never_rejected_of_noFailure` in
+`Quantitative.Main` (as long as no KEM failure has occurred) and by
+`sends_never_rejected_of_perfectKEM` in `PerfectKEM` (always, for a perfectly correct KEM).
 -/
 
 open OracleComp KEMScheme
@@ -124,29 +125,6 @@ theorem oracleSendB_run_ne_none
   rcases out with _ | ⟨key?, ρ, tsnd, stB'⟩
   · exact absurd hout (sendB_ne_none kem ecEk ecCt s hs)
   · simp
-
-/-- Assume:
-
-* `kem` has deterministic decapsulation and is perfectly correct;
-* `ecEk` and `ecCt` are correct erasure codes.
-
-Then, for every adversary, neither party's `send` returns `none` at any reachable state of the
-Opp-BiKEM-CKA correctness game. -/
-theorem sends_never_rejected_of_perfectKEM
-    (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
-    (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
-    (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
-    (z : Bool × SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
-    (hz : z ∈ support ((simulateQ
-      (SCKAScheme.sckaCorrectnessImpl (scheme kem hDet ecEk ecCt leak)) adv).run
-      (SCKAScheme.initGameState (initialState .A) (initialState .B)))) :
-    none ∉ support (sendA kem ecEk ecCt z.2.stA) ∧
-      none ∉ support (sendB kem ecEk ecCt z.2.stB) := by
-  have hinv := simulateQ_gameInv kem hDet ecEk ecCt hEk hCt leak
-    (decapsCorrectOnSupport_of_perfectlyCorrect kem hDet hkem) adv
-    (initialState .A) (initialState .B) (by simp [initA, init, initialState])
-    (by simp [initB, init, initialState]) z hz
-  exact ⟨sendA_ne_none kem ecEk ecCt _ hinv, sendB_ne_none kem ecEk ecCt _ hinv⟩
 
 end Game
 

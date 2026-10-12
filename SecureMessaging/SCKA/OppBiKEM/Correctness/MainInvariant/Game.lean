@@ -5,19 +5,21 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.SCKA.Correctness
-import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
 import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Init
 import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Send
 import SecureMessaging.SCKA.OppBiKEM.Correctness.MainInvariant.Recv
 
 /-!
-# Opp-BiKEM-CKA — Perfect correctness from the main invariant
+# Opp-BiKEM-CKA — One oracle query preserves the main invariant
 
-Every correctness-game oracle preserves `GameInv` (`gameInv_preserved`), so `GameInv` holds on
-every reachable state (`simulateQ_gameInv`). Since `GameInv s` contains `s.correct = true`, the
-correctness experiment returns `true` with probability one for a perfectly correct KEM
-(`correctness_of_perfectKEM`).
+Every correctness-game oracle preserves `GameInv`, provided both parties can decapsulate every
+ciphertext they have yet to receive (`DecapsReady`, `gameInv_step_of`). This proviso is where
+KEM correctness enters, and the two correctness proofs discharge it differently:
+`Quantitative.RecvStep` from `kemFailure s = false`, which leads to the `q · ε` bound, and
+`PerfectKEM` at every state, for a perfectly correct KEM.
 
+The file also restates the correctness experiment as the final `correct` bit of the simulated
+run from the initial game state (`correctnessExp_eq_map`).
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -25,17 +27,6 @@ open OracleSpec OracleComp KEMScheme
 namespace oppBiKemCKA
 
 variable {K PK SK C Sym : Type}
-
-/-- If decapsulation never fails on honest outputs (i.e., `DecapsCorrectOnSupport` holds), then
-in every epoch of every transcript the recorded secret key decapsulates the recorded ciphertext
-to the recorded key. -/
-theorem transcriptDecaps_of_support {kem : KEMScheme ProbComp K PK SK C}
-    (hDet : kem.DeterministicDecaps) (hdec : DecapsCorrectOnSupport kem hDet)
-    (T : Transcript kem) (e : ℤ) :
-    ∀ pk sk c k, (T e).keypair = some (pk, sk) → (T e).enc = some (c, k) →
-      hDet.decapsDet sk c = some k :=
-  fun pk sk c k hkp henc =>
-    hdec pk sk c k ((T e).keypair_mem pk sk hkp) ((T e).enc_mem pk sk c k hkp henc)
 
 /-- The party playing `role`, in state `st`, can decapsulate every ciphertext it has yet to
 receive, according to `T`: for every epoch `q` in which the party is the
@@ -190,47 +181,6 @@ theorem gameInv_step_of [DecidableEq K] [DecidableEq Sym]
         · simpa [SCKAScheme.recvBUpdate, Role.peer] using hA'
         · simpa [SCKAScheme.recvBUpdate] using hB'
 
-/-- If `DecapsCorrectOnSupport` holds and both erasure codes are correct, every
-correctness-game oracle preserves `GameInv`. -/
-theorem gameInv_preserved [DecidableEq K] [DecidableEq Sym]
-    (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
-    (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
-    (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct) (leak : kem.RandLeak)
-    (hdec : DecapsCorrectOnSupport kem hDet) :
-    QueryImpl.PreservesInv (SCKAScheme.sckaCorrectnessImpl (scheme kem hDet ecEk ecCt leak))
-      (GameInv kem ecEk ecCt) := by
-  intro t s hs z hz
-  refine gameInv_step_of kem hDet ecEk ecCt hEk hCt leak t s hs ?_ z hz
-  intro T _ _
-  exact ⟨fun q _ _ => transcriptDecaps_of_support hDet hdec T q,
-    fun q _ _ => transcriptDecaps_of_support hDet hdec T q⟩
-
-/-- Let `adv` be a correctness adversary. Assume:
-
-* `kem` has deterministic decapsulation, correct on every honestly generated key pair and
-  encapsulation (`DecapsCorrectOnSupport`);
-* `ecEk` and `ecCt` are correct erasure codes;
-* `stA` and `stB` are possible initial states of A and B.
-
-Then every final state of `adv`'s execution from `initGameState stA stB` satisfies
-`GameInv`. -/
-theorem simulateQ_gameInv [DecidableEq K] [DecidableEq Sym]
-    (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
-    (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
-    (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct) (leak : kem.RandLeak)
-    (hdec : DecapsCorrectOnSupport kem hDet)
-    (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
-    (stA : StA PK SK C Sym) (stB : StB PK SK C Sym)
-    (hA : stA ∈ support (initA () : ProbComp (StA PK SK C Sym)))
-    (hB : stB ∈ support (initB () : ProbComp (StB PK SK C Sym)))
-    (z : Bool × SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
-    (hz : z ∈ support ((simulateQ
-      (SCKAScheme.sckaCorrectnessImpl (scheme kem hDet ecEk ecCt leak)) adv).run
-      (SCKAScheme.initGameState stA stB))) :
-    GameInv kem ecEk ecCt z.2 :=
-  simulateQ_run_preservesInv _ _ (gameInv_preserved kem hDet ecEk ecCt hEk hCt leak hdec) adv _
-    (gameInv_init kem ecEk ecCt stA stB hA hB) z hz
-
 /-- The initial local state of a party, as `init` returns it. -/
 def initialState (role : Role) : State PK SK C Sym :=
   { req := { reqEpoch := if role = .A then 0 else -1
@@ -252,35 +202,5 @@ theorem correctnessExp_eq_map [DecidableEq K] [DecidableEq Sym]
           (SCKAScheme.initGameState (initialState .A) (initialState .B)) := by
   simp [SCKAScheme.correctnessExp, scheme, initKeyGen, initA, initB, init, initialState,
     map_eq_bind_pure_comp]
-
-/-- Assume:
-
-* `kem` has deterministic decapsulation and is perfectly correct;
-* `ecEk` and `ecCt` are correct erasure codes.
-
-Then the Opp-BiKEM-CKA correctness game succeeds with probability one for every adversary,
-without a query bound. -/
-theorem correctness_of_perfectKEM [DecidableEq K] [DecidableEq Sym]
-    (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
-    (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym) (leak : kem.RandLeak)
-    (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
-    (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
-    (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym)) :
-    Pr[= true | SCKAScheme.correctnessExp (scheme kem hDet ecEk ecCt leak) adv] = 1 := by
-  have hdec := decapsCorrectOnSupport_of_perfectlyCorrect kem hDet hkem
-  have hfalse :
-      Pr[= false | SCKAScheme.correctnessExp (scheme kem hDet ecEk ecCt leak) adv] = 0 := by
-    rw [correctnessExp_eq_map, ← probEvent_eq_eq_probOutput, probEvent_map]
-    rw [probEvent_eq_zero_iff]
-    intro z hz hcontra
-    have hinv := simulateQ_gameInv kem hDet ecEk ecCt hEk hCt leak hdec adv
-      (initialState .A) (initialState .B) (by simp [initA, init, initialState])
-      (by simp [initB, init, initialState]) z hz
-    have := hinv.1
-    simp only [Function.comp] at hcontra
-    rw [this] at hcontra
-    cases hcontra
-  rw [probOutput_false_eq_sub, probFailure_eq_zero, tsub_zero] at hfalse
-  exact le_antisymm probOutput_le_one ((tsub_eq_zero_iff_le).mp hfalse)
 
 end oppBiKemCKA

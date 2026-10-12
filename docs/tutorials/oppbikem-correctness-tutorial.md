@@ -7,11 +7,14 @@ the module docstring of
 [`OppBiKEM/Correctness.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness.lean).
 
 The endpoint is
-[`correctness_of_perfectKEM`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Game.lean#L251):
-for a KEM with deterministic decapsulation that is perfectly correct, and for correct
-public-key and ciphertext erasure codes, the SCKA correctness experiment returns `true` with
-probability one, for every adversary. There is no bounded-slack assumption. No `sorry`; only
-`propext`, `Classical.choice`, `Quot.sound`.
+[`correctness_failure_le`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/Quantitative/Main.lean#L218):
+for a KEM with deterministic decapsulation, correct public-key and ciphertext erasure codes, and
+an adversary making at most `q` send queries, the SCKA correctness experiment returns `false`
+with probability at most `q · ε`, where `ε` is the KEM's correctness error. A perfectly correct
+KEM has `ε = 0`, so the experiment then returns `true` with probability one;
+[`correctness_of_perfectKEM`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/PerfectKEM.lean#L125)
+proves this for every adversary, without the query bound. Neither theorem has a bounded-slack
+assumption. No `sorry`; only `propext`, `Classical.choice`, `Quot.sound`.
 
 ## 0. The shape of the argument in one paragraph
 
@@ -22,7 +25,10 @@ everything either party holds: its retained material, every message it has recor
 chunk buffer, its acknowledgement sets, and its game key table. The invariant holds initially,
 is preserved by every oracle query, and contains `s.correct = true`. The five game assertions
 are corollaries of it. KEM correctness is used in exactly one place: the key a receiver emits
-is the transcript's key for that epoch.
+is the transcript's key for that epoch. With an imperfect KEM this can fail, so the invariant is
+kept only until the first KEM failure, and section 12 bounds the probability of a failure by
+`q · ε`. With a perfectly correct KEM it never fails, and the invariant holds throughout
+(section 13).
 
 ## 1. File map and reading order
 
@@ -35,10 +41,10 @@ is the transcript's key for that epoch.
 | 4 | [`OppBiKEM/Correctness/SendFacts.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/SendFacts.lean) | support-level facts about one `send` |
 | 5 | [`OppBiKEM/Correctness/RecvFacts.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/RecvFacts.lean) | support-level facts about one `recv` |
 | 6 | [`OppBiKEM/Correctness/MainInvariant.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant.lean) | `MessageInv`, `PartyInv`, `GameInv`, prefix lemmas |
-| 7 | [`MainInvariant/Init.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Init.lean) | initial state; `PerfectlyCorrect` to support-level correctness |
+| 7 | [`MainInvariant/Init.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Init.lean) | initial state |
 | 8 | [`MainInvariant/Send.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Send.lean) | the send step |
 | 9 | [`MainInvariant/Recv.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean) | the receive step |
-| 10 | [`MainInvariant/Game.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Game.lean) | one-step preservation with the oracle case split, lift to adversaries, final theorem |
+| 10 | [`MainInvariant/Game.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Game.lean) | one-step preservation with the oracle case split; the experiment as a map over the run |
 | 11 | [`MainInvariant/SendTotal.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/SendTotal.lean) | honest sends are never rejected |
 | 12 | [`KEM/CorrectnessError.lean`](../../SecureMessaging/KEM/CorrectnessError.lean) | `keypairFailure`: the KEM error conditioned on a key pair |
 | 13 | [`ToVCVio/…/StateT/BadFlag.lean`](../../ToVCVio/OracleComp/SimSemantics/StateT/BadFlag.lean), [`SCKA/Correctness/Tracked.lean`](../../SecureMessaging/SCKA/Correctness/Tracked.lean) | generic tracked game (flag, invariant, `q · ε` bound) and its SCKA specialisation |
@@ -47,11 +53,12 @@ is the transcript's key for that epoch.
 | 16 | [`Quantitative/RecvStep.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/Quantitative/RecvStep.lean) | non-send queries keep the score; invariant kept while the flag is down |
 | 17 | [`Quantitative/SendStep.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/Quantitative/SendStep.lean) | a send raises the expected score by at most `ε` |
 | 18 | [`Quantitative/Main.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/Quantitative/Main.lean) | proof outline of the quantitative bound; `correctness_failure_le`, `correctness_true_ge`, `ε = 0` corollary |
+| 19 | [`OppBiKEM/Correctness/PerfectKEM.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/PerfectKEM.lean) | perfectly correct KEM: the invariant at every reachable state, probability one without a query bound |
 
 Read 0 for the statements and 6 for the invariant, then 10 to see how the invariant is used, then
 8 and 9 for the proofs. Files 1 to 5 are infrastructure you can skim. Files 12 to 18 are the
 quantitative layer (section 12); read the module docstring of 18 first (it is the proof
-outline), then 14 and 17.
+outline), then 14 and 17. File 19 is the perfect-KEM special case (section 13).
 
 `SendFacts.lean` (`Acknowledgements.sendingHorizon`, `send_support_facts`, `SendProvenance` /
 `send_provenance`, `send_ciphertextMessage_keyAck`, `send_advance_guard`) and `RecvFacts.lean`
@@ -234,18 +241,10 @@ The game's known-prefix assertion is the hardest to see, so it gets dedicated le
 
 ## 7. Initialisation
 
-[`gameInv_init`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Init.lean#L29)
+[`gameInv_init`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Init.lean#L27)
 uses the empty transcript. The only field worth checking by hand is `buffer`: A starts with
 requester epoch `0` and B with `-1`, both in the bootstrap set `{-1, 0}`, so the first branch of
 `BufferConsistent` applies and the buffer must be empty, which it is.
-
-The same file holds the bridge from the KEM's probabilistic definition to the pointwise fact the
-proof consumes:
-[`DecapsCorrectOnSupport`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Init.lean#L53)
-and
-[`decapsCorrectOnSupport_of_perfectlyCorrect`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Init.lean#L59).
-The latter uses `probOutput_eq_one_iff` to turn `Pr[CorrectExp = true] = 1` into
-`support CorrectExp = {true}` and places `false` in the support by contradiction.
 
 ## 8. The send step
 
@@ -360,9 +359,9 @@ KEM correctness. Since the quantitative work, `hdec` is only demanded for cipher
 is *not yet acknowledged* (`ρ.tRes ∉ stR.ack.ctRec`); acknowledged epochs are replayed, and their
 keys were already recorded. Section 12 explains how `hdec` is discharged from a flag on the state.
 
-## 10. The game level and the final theorem
+## 10. The game level
 
-[`gameInv_step_of`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Game.lean#L54)
+[`gameInv_step_of`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Game.lean#L50)
 is the one-step statement: every result of one oracle query from a state satisfying `GameInv`
 satisfies `GameInv`, provided every transcript consistent with the pre-state is `DecapsReady`
 for both parties (the secret key of each epoch the party may still decapsulate recovers the
@@ -377,11 +376,9 @@ The `correct` field of the pure update is closed from the step lemma's three ass
 The `DecapsReady` hypothesis is why the case split is not delegated to a generic dispatch
 theorem with conclusion `QueryImpl.PreservesInv impl GameInv`: such a theorem asks for each
 oracle fact at every state satisfying `GameInv`, and `DecapsReady` is not part of `GameInv`.
-The two proofs discharge it differently.
-[`gameInv_preserved`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Game.lean#L190)
-supplies it at every state from `DecapsCorrectOnSupport` (a perfectly correct KEM), giving
-`QueryImpl.PreservesInv`. The quantitative proof supplies it only at states that are not bad
-(`gameInv_step_of_noFailure`, section 12).
+The two proofs discharge it differently. The quantitative proof supplies it only at states that
+are not bad (`gameInv_step_of_noFailure`, section 12). For a perfectly correct KEM,
+`gameInv_preserved` supplies it at every state (section 13).
 
 The table below is the whole correspondence between the game's assertions in `SCKA/Defs.lean`
 and the lemmas that discharge them.
@@ -395,13 +392,9 @@ and the lemmas that discharge them.
 | known prefix | `knownPrefix_of_partyInv` | `knownPrefix_of_partyInv` on the post-state, using `recv_tcur_le` |
 | receive never fails | n/a | `T_dk` for the key, `hdec` for decapsulation |
 
-[`simulateQ_gameInv`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Game.lean#L205)
-lifts to arbitrary adversaries with VCVio's `simulateQ_run_preservesInv`.
-[`correctnessExp_eq_map`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Game.lean#L233)
-rewrites the experiment as the final `correct` bit mapped over the run, and
-[`correctness_of_perfectKEM`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Game.lean#L251)
-shows `Pr[= false] = 0` through `probEvent_eq_zero_iff` and the invariant's `correct` field, then
-converts to `Pr[= true] = 1` with `probOutput_false_eq_sub`.
+[`correctnessExp_eq_map`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Game.lean#L195)
+rewrites the experiment as the final `correct` bit mapped over the run. Both endpoints start from
+it.
 
 ## 11. Idioms you will meet
 
@@ -428,7 +421,7 @@ for a KEM with deterministic decapsulation, correct erasure codes, and an advers
 `q` send queries (`SCKAScheme.SendQueryBound adv q`), the game returns `false` with probability at
 most `q · kem.correctnessError`. `correctness_true_ge` is the complementary form, and
 `correctness_of_perfectKEM'` recovers probability one for a perfectly correct KEM as the `ε = 0`
-instance (the direct proof `correctness_of_perfectKEM` from section 10 is kept).
+instance; section 13 removes the query bound.
 
 ### 12.1 The shape of the argument
 
@@ -524,3 +517,32 @@ are immediate; `trackedBiKem_preservesInv` is `trackedImpl_preserves` applied to
 `SCKAScheme.tracked_bad_le_of_score_step`; `correctness_failure_le` feeds that into
 `SCKAScheme.correctness_failure_le_of_tracked_bad` with `correctnessExp_eq_map`. All endpoints depend only on
 `propext`, `Classical.choice`, `Quot.sound`.
+
+## 13. The perfect KEM: probability one without a query bound
+
+File 19,
+[`PerfectKEM.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/PerfectKEM.lean).
+`correctness_of_perfectKEM'` (section 12) needs the adversary to make at most `q` send queries,
+because the potential argument does. For a perfectly correct KEM, the step hypothesis of
+`gameInv_step_of` holds at every state, so neither the flag nor the potential is needed.
+
+The bridge from the KEM's probabilistic definition to the pointwise fact the proof consumes is
+[`DecapsCorrectOnSupport`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/PerfectKEM.lean#L37)
+and
+[`decapsCorrectOnSupport_of_perfectlyCorrect`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/PerfectKEM.lean#L43).
+The latter uses `probOutput_eq_one_iff` to turn `Pr[CorrectExp = true] = 1` into
+`support CorrectExp = {true}` and places `false` in the support by contradiction.
+[`transcriptDecaps_of_support`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/PerfectKEM.lean#L69)
+applies it to the key pair and encapsulation recorded in a transcript, which come from the
+supports of `keygen` and `encaps` (`keypair_mem`, `enc_mem`), and
+[`gameInv_preserved`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/PerfectKEM.lean#L79)
+uses it to discharge `DecapsReady` in `gameInv_step_of` at every state, giving
+`QueryImpl.PreservesInv`.
+
+[`simulateQ_gameInv`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/PerfectKEM.lean#L101)
+lifts this to arbitrary adversaries with VCVio's `simulateQ_run_preservesInv`, and
+[`correctness_of_perfectKEM`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/PerfectKEM.lean#L125)
+shows `Pr[= false] = 0` through `correctnessExp_eq_map`, `probEvent_eq_zero_iff` and the
+invariant's `correct` field, then converts to `Pr[= true] = 1` with `probOutput_false_eq_sub`.
+[`sends_never_rejected_of_perfectKEM`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/PerfectKEM.lean#L155)
+combines `simulateQ_gameInv` with `sendA_ne_none` and `sendB_ne_none` from `SendTotal.lean`.
