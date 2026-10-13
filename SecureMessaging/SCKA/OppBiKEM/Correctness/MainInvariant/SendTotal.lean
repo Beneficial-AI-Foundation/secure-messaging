@@ -29,7 +29,7 @@ namespace oppBiKemCKA
 variable {K PK SK C Sym : Type}
 
 /-- If the sender satisfies `PartyInv`, its `send` never returns `none`. -/
-theorem send_ne_none {roleS : Role} {kem : KEMScheme ProbComp K PK SK C}
+lemma send_ne_none {roleS : Role} {kem : KEMScheme ProbComp K PK SK C}
     {ecEk : ErasureCodePayload PK Sym} {ecCt : ErasureCodePayload C Sym}
     {T : Transcript kem} {stS stR : State PK SK C Sym}
     {msgsS : ℕ → Option (Message Sym × ℕ)} {keyS keyR : ℕ → Option K} {tcurS : ℕ}
@@ -88,7 +88,7 @@ variable [DecidableEq K] [DecidableEq Sym]
 
 omit [DecidableEq K] [DecidableEq Sym] in
 /-- From a game state satisfying `GameInv`, A's `send` never returns `none`. -/
-theorem sendA_ne_none
+lemma sendA_ne_none
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : GameInv kem ecEk ecCt s) : none ∉ support (sendA kem ecEk ecCt s.stA) := by
   obtain ⟨-, T, hA, -⟩ := hs
@@ -96,14 +96,14 @@ theorem sendA_ne_none
 
 omit [DecidableEq K] [DecidableEq Sym] in
 /-- From a game state satisfying `GameInv`, B's `send` never returns `none`. -/
-theorem sendB_ne_none
+lemma sendB_ne_none
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : GameInv kem ecEk ecCt s) : none ∉ support (sendB kem ecEk ecCt s.stB) := by
   obtain ⟨-, T, -, hB⟩ := hs
   exact send_ne_none hB
 
 /-- From a game state satisfying `GameInv`, the `SendA` oracle always answers `some`. -/
-theorem oracleSendA_run_ne_none
+lemma oracleSendA_run_ne_none
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : GameInv kem ecEk ecCt s) :
     ∀ z ∈ support ((SCKAScheme.oracleSendA (scheme kem hDet ecEk ecCt leak) ()).run s),
@@ -115,7 +115,7 @@ theorem oracleSendA_run_ne_none
   · simp
 
 /-- From a game state satisfying `GameInv`, the `SendB` oracle always answers `some`. -/
-theorem oracleSendB_run_ne_none
+lemma oracleSendB_run_ne_none
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : GameInv kem ecEk ecCt s) :
     ∀ z ∈ support ((SCKAScheme.oracleSendB (scheme kem hDet ecEk ecCt leak) ()).run s),

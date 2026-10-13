@@ -84,7 +84,7 @@ def recvSpec (role : Role) (kem : KEMScheme ProbComp K PK SK C) [DecidableEq Sym
 set_option maxHeartbeats 1000000 in -- about two hundred leaves closed by `rfl`
 set_option linter.unusedSimpArgs false in
 /-- `recv` agrees with its decision-tree description. -/
-theorem recv_eq_recvSpec (role : Role) (kem : KEMScheme ProbComp K PK SK C) [DecidableEq Sym]
+lemma recv_eq_recvSpec (role : Role) (kem : KEMScheme ProbComp K PK SK C) [DecidableEq Sym]
     (hDet : kem.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (st : State PK SK C Sym) (ρ : Message Sym) :

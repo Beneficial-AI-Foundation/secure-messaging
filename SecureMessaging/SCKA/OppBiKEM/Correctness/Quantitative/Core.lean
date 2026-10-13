@@ -55,7 +55,7 @@ def kemFailure [DecidableEq K]
   kemFailureAt hDet s.stA s.stB s.keyB || kemFailureAt hDet s.stB s.stA s.keyA
 
 /-- `bad s` is false iff `kemFailureAt` is false for both parties. -/
-theorem kemFailure_eq_false_iff [DecidableEq K]
+lemma kemFailure_eq_false_iff [DecidableEq K]
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)) :
     kemFailure hDet s = false ↔
       kemFailureAt hDet s.stA s.stB s.keyB = false ∧
@@ -63,7 +63,7 @@ theorem kemFailure_eq_false_iff [DecidableEq K]
   simp [kemFailure]
 
 /-- `kemFailureAt` is false unless all three components are present. -/
-theorem kemFailureAt_eq_false_of [DecidableEq K] {st peer : State PK SK C Sym}
+lemma kemFailureAt_eq_false_of [DecidableEq K] {st peer : State PK SK C Sym}
     {peerKey : ℕ → Option K}
     (h : st.req.dk.lookup peer.res.resEpoch = none ∨ peer.res.ct = none ∨
       peerKey peer.res.resEpoch.toNat = none) :
@@ -72,7 +72,7 @@ theorem kemFailureAt_eq_false_of [DecidableEq K] {st peer : State PK SK C Sym}
   rcases h with h | h | h <;> rw [h] <;> (try split) <;> simp_all
 
 /-- When all three components are present, `kemFailureAt` decides disagreement. -/
-theorem kemFailureAt_eq_decide [DecidableEq K] {st peer : State PK SK C Sym}
+lemma kemFailureAt_eq_decide [DecidableEq K] {st peer : State PK SK C Sym}
     {peerKey : ℕ → Option K} {sk : SK} {c : C} {k : K}
     (hsk : st.req.dk.lookup peer.res.resEpoch = some sk) (hc : peer.res.ct = some c)
     (hk : peerKey peer.res.resEpoch.toNat = some k) :
@@ -81,7 +81,7 @@ theorem kemFailureAt_eq_decide [DecidableEq K] {st peer : State PK SK C Sym}
   rw [hsk, hc, hk]
 
 /-- `kemFailureAt` depends only on the three components it reads. -/
-theorem kemFailureAt_congr [DecidableEq K] {st st' peer peer' : State PK SK C Sym}
+lemma kemFailureAt_congr [DecidableEq K] {st st' peer peer' : State PK SK C Sym}
     {peerKey peerKey' : ℕ → Option K}
     (hres : peer'.res.resEpoch = peer.res.resEpoch)
     (hdk : st'.req.dk.lookup peer.res.resEpoch = st.req.dk.lookup peer.res.resEpoch)
@@ -122,32 +122,32 @@ noncomputable def trackedScore [DecidableEq K]
   if p.2 then 1 else failurePotential hDet p.1
 
 /-- `S(s, true) = 1`. -/
-theorem trackedScore_true [DecidableEq K]
+lemma trackedScore_true [DecidableEq K]
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)) :
     trackedScore hDet (s, true) = 1 := by
   simp [trackedScore]
 
 /-- `S(s, false) = V(s)`. -/
-theorem trackedScore_false [DecidableEq K]
+lemma trackedScore_false [DecidableEq K]
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)) :
     trackedScore hDet (s, false) = failurePotential hDet s := by
   simp [trackedScore]
 
 /-- The tracked score is at least `1` on states with the flag set. -/
-theorem one_le_trackedScore_of_flag [DecidableEq K]
+lemma one_le_trackedScore_of_flag [DecidableEq K]
     (p : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym) × Bool)
     (h : p.2 = true) : 1 ≤ trackedScore hDet p := by
   simp [trackedScore, h]
 
 /-- The pending term of `(e, sk)` is `0` once the peer's key table has an entry at `e`. -/
-theorem pendingTerm_of_key_some [DecidableEq K] {st peer : State PK SK C Sym}
+lemma pendingTerm_of_key_some [DecidableEq K] {st peer : State PK SK C Sym}
     {peerKey : ℕ → Option K} {p : ℤ × SK} (h : peerKey p.1.toNat ≠ none) :
     pendingTerm hDet st peer peerKey p = 0 := by
   simp [pendingTerm, h]
 
 /-- While the peer's key table has no entry at `e`, the pending term of `(e, sk)` is
 `φ(pk, sk)` for the peer's decoded key `pk` for `e`. -/
-theorem pendingTerm_of_ekPeer [DecidableEq K] {st peer : State PK SK C Sym}
+lemma pendingTerm_of_ekPeer [DecidableEq K] {st peer : State PK SK C Sym}
     {peerKey : ℕ → Option K} {p : ℤ × SK} (hnone : peerKey p.1.toNat = none) {pk : PK}
     (hpk : peer.res.ekPeer p.1 = some pk) :
     pendingTerm hDet st peer peerKey p = keypairFailure kem hDet pk p.2 := by
@@ -155,7 +155,7 @@ theorem pendingTerm_of_ekPeer [DecidableEq K] {st peer : State PK SK C Sym}
 
 /-- While the peer's key table has no entry at `e` and the peer has decoded no key for `e`,
 the pending term of `(e, sk)` is `φ(pk, sk)` for the own retained public key `pk`. -/
-theorem pendingTerm_of_ek [DecidableEq K] {st peer : State PK SK C Sym}
+lemma pendingTerm_of_ek [DecidableEq K] {st peer : State PK SK C Sym}
     {peerKey : ℕ → Option K} {p : ℤ × SK} (hnone : peerKey p.1.toNat = none)
     (hpeer : peer.res.ekPeer p.1 = none) {pk : PK} (hpk : st.req.ek = some pk) :
     pendingTerm hDet st peer peerKey p = keypairFailure kem hDet pk p.2 := by
@@ -163,7 +163,7 @@ theorem pendingTerm_of_ek [DecidableEq K] {st peer : State PK SK C Sym}
 
 /-- `pendingTerm` depends only on the peer's key table at the entry's epoch, the peer's decoded
 key there, and the own retained public key. -/
-theorem pendingTerm_congr [DecidableEq K] {st st' peer peer' : State PK SK C Sym}
+lemma pendingTerm_congr [DecidableEq K] {st st' peer peer' : State PK SK C Sym}
     {peerKey peerKey' : ℕ → Option K} (p : ℤ × SK)
     (hkey : peerKey' p.1.toNat = peerKey p.1.toNat)
     (hpeer : peer'.res.ekPeer p.1 = peer.res.ekPeer p.1) (hek : st'.req.ek = st.req.ek) :
@@ -172,7 +172,7 @@ theorem pendingTerm_congr [DecidableEq K] {st st' peer peer' : State PK SK C Sym
   rw [hkey, hpeer, hek]
 
 /-- When the peer holds a decoded key for the entry's epoch, the own retained key is irrelevant. -/
-theorem pendingTerm_congr_of_ekPeer [DecidableEq K] {st st' peer peer' : State PK SK C Sym}
+lemma pendingTerm_congr_of_ekPeer [DecidableEq K] {st st' peer peer' : State PK SK C Sym}
     {peerKey peerKey' : ℕ → Option K} (p : ℤ × SK)
     (hkey : peerKey' p.1.toNat = peerKey p.1.toNat) {pk : PK}
     (hpeer : peer.res.ekPeer p.1 = some pk) (hpeer' : peer'.res.ekPeer p.1 = some pk) :
@@ -181,21 +181,21 @@ theorem pendingTerm_congr_of_ekPeer [DecidableEq K] {st st' peer peer' : State P
   rw [hkey, hpeer, hpeer']
 
 /-- A party retaining no secret key has pending potential `0`. -/
-theorem pendingPotential_nil [DecidableEq K] {st peer : State PK SK C Sym}
+lemma pendingPotential_nil [DecidableEq K] {st peer : State PK SK C Sym}
     {peerKey : ℕ → Option K} (h : st.req.dk = []) :
     pendingPotential hDet st peer peerKey = 0 := by
   simp [pendingPotential, h]
 
 /-- The pending potential of a party retaining exactly one secret key is that key's pending
 term. -/
-theorem pendingPotential_singleton [DecidableEq K] {st peer : State PK SK C Sym}
+lemma pendingPotential_singleton [DecidableEq K] {st peer : State PK SK C Sym}
     {peerKey : ℕ → Option K} {p : ℤ × SK} (h : st.req.dk = [p]) :
     pendingPotential hDet st peer peerKey = pendingTerm hDet st peer peerKey p := by
   simp [pendingPotential, h]
 
 /-- A party retaining no secret key, or a single one at its responder epoch plus or minus one,
 has pending potential at most one. -/
-theorem pendingPotential_le_one [DecidableEq K] {st peer : State PK SK C Sym}
+lemma pendingPotential_le_one [DecidableEq K] {st peer : State PK SK C Sym}
     {peerKey : ℕ → Option K}
     (hshape : st.req.dk = [] ∨ ∃ sk, st.req.dk = [(st.res.resEpoch + 1, sk)] ∨
       st.req.dk = [(st.res.resEpoch - 1, sk)]) :
@@ -227,7 +227,7 @@ include h h'
 
 /-- The peer's key table at a retained key's epoch is the transcript key: populated exactly
 once the peer has encapsulated. -/
-theorem peerKey_eq_key_of_dk (e : ℤ) (sk : SK) (hmem : (e, sk) ∈ st.req.dk) :
+lemma peerKey_eq_key_of_dk (e : ℤ) (sk : SK) (hmem : (e, sk) ∈ st.req.dk) :
     peerKey e.toNat = (T e).key := by
   obtain ⟨hp, hpos, -, -, -⟩ := h.dk_T e sk hmem
   have hp' : e % 2 = role.peer.resParity := by simpa using hp
@@ -236,7 +236,7 @@ theorem peerKey_eq_key_of_dk (e : ℤ) (sk : SK) (hmem : (e, sk) ∈ st.req.dk) 
 /-- Every retained secret key `(e, sk)` belongs to the transcript's key pair `(pk, sk)` of `e`,
 and `pk` is available: as the peer's decoded key for `e`, or else as the own retained public
 key. -/
-theorem pendingKey_available (e : ℤ) (sk : SK) (hmem : (e, sk) ∈ st.req.dk) :
+lemma pendingKey_available (e : ℤ) (sk : SK) (hmem : (e, sk) ∈ st.req.dk) :
     ∃ pk, (T e).keypair = some (pk, sk) ∧
       (peer.res.ekPeer e = some pk ∨ (peer.res.ekPeer e = none ∧ st.req.ek = some pk)) := by
   obtain ⟨hp, hpos, -, -, pk, hkp⟩ := h.dk_T e sk hmem
@@ -274,7 +274,7 @@ theorem pendingKey_available (e : ℤ) (sk : SK) (hmem : (e, sk) ∈ st.req.dk) 
 
 /-- The pending term of a retained key `(e, sk)` is `φ(pk, sk)` for the transcript's key pair
 `(pk, sk)` of `e` while the transcript has no encapsulation at `e`, and `0` afterwards. -/
-theorem pendingTerm_eq [DecidableEq K] (e : ℤ) (sk : SK) (hmem : (e, sk) ∈ st.req.dk) :
+lemma pendingTerm_eq [DecidableEq K] (e : ℤ) (sk : SK) (hmem : (e, sk) ∈ st.req.dk) :
     ∃ pk, (T e).keypair = some (pk, sk) ∧
       pendingTerm hDet st peer peerKey (e, sk) =
         if (T e).enc = none then keypairFailure kem hDet pk sk else 0 := by
@@ -297,7 +297,7 @@ theorem pendingTerm_eq [DecidableEq K] (e : ℤ) (sk : SK) (hmem : (e, sk) ∈ s
 `st.ack.ctRec`, the transcript's secret key for `q` decapsulates the transcript's ciphertext to
 the transcript's key: on invariant states these are exactly the three components
 `kemFailureAt` reads. -/
-theorem decaps_of_noFailure [DecidableEq K]
+lemma decaps_of_noFailure [DecidableEq K]
     (hfail : kemFailureAt hDet st peer peerKey = false) (q : ℤ)
     (hq : q ∉ st.ack.ctRec) (hqpar : q % 2 = role.reqParity) :
     ∀ pk sk c k, (T q).keypair = some (pk, sk) → (T q).enc = some (c, k) →
@@ -345,7 +345,7 @@ theorem decaps_of_noFailure [DecidableEq K]
   simpa using hfail
 
 /-- On invariant states, a party's pending potential is at most one. -/
-theorem pendingPotential_le_one_of_inv [DecidableEq K] :
+lemma pendingPotential_le_one_of_inv [DecidableEq K] :
     pendingPotential hDet st peer peerKey ≤ 1 := by
   apply pendingPotential_le_one
   rcases h.dk_shape with hnil | ⟨sk, hone⟩

@@ -26,13 +26,13 @@ variable {K PK SK C Sym : Type}
 universe u
 
 /-- `Option.all` commutes with `if`. -/
-private theorem option_all_ite {α : Type} (p : Prop) [Decidable p]
+private lemma option_all_ite {α : Type} (p : Prop) [Decidable p]
     (a b : Option α) (f : α → Bool) :
     (if p then a else b).all f = if p then a.all f else b.all f := by
   split <;> rfl
 
 /-- Every successful receive reports the message's explicit sending epoch. -/
-theorem recv_reports_message_sendingEpoch
+lemma recv_reports_message_sendingEpoch
   {m : Type → Type u} [Monad m] (role : Role)
   (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
   (hDet : kem.DeterministicDecaps) (ecEk : ErasureCodePayload PK Sym)
@@ -53,7 +53,7 @@ theorem recv_reports_message_sendingEpoch
 fields the later facts read: no key is emitted; the responder epoch, chunk index and secret keys
 are unchanged; the requester epoch becomes `q`; and the buffer and `ekRec` follow the
 public-key path, which on decoding empties the buffer and adds `q - role.offset` to `ekRec`. -/
-private theorem recv_nonstale_non_ciphertext_view
+private lemma recv_nonstale_non_ciphertext_view
     [DecidableEq Sym]
     (role : Role) (kem : KEMScheme ProbComp K PK SK C)
     (hDet : kem.DeterministicDecaps)
@@ -160,7 +160,7 @@ without a decoded ciphertext only the buffer and acknowledgements change; once a
 decoded (only while `q ∉ ctRec`), the retained secret key for `q` decapsulates it, the key
 `(q, k)` is emitted, that secret key is dropped, the buffer is emptied and `q` is added to
 `ctRec`, and the receive fails if either the lookup or the decapsulation returns `none`. -/
-private theorem recv_nonstale_ciphertext_view
+private lemma recv_nonstale_ciphertext_view
     [DecidableEq Sym]
     (role : Role) (kem : KEMScheme ProbComp K PK SK C)
     (hDet : kem.DeterministicDecaps)
@@ -301,7 +301,7 @@ private theorem recv_nonstale_ciphertext_view
 chunk index, advances the requester epoch by two exactly when the message's responder epoch is
 ahead of it, only adds acknowledgements, records the message's set flags, and keeps the secret
 keys unless it emits a key. -/
-theorem recv_success_state_facts
+lemma recv_success_state_facts
     [DecidableEq Sym]
     (role : Role) (kem : KEMScheme ProbComp K PK SK C)
     (hDet : kem.DeterministicDecaps)
@@ -539,7 +539,7 @@ theorem recv_success_state_facts
 is the post-receive requester epoch `q`. The epoch `q` was not in `ctRec` and is afterwards; its
 secret key, retained before, is dropped; the buffer is emptied; and `key` is the decapsulation,
 under that secret key, of the ciphertext decoded from the buffer and the message's chunk. -/
-theorem recv_emitted_key_facts
+lemma recv_emitted_key_facts
     [DecidableEq Sym]
     (role : Role) (kem : KEMScheme ProbComp K PK SK C)
     (hDet : kem.DeterministicDecaps)
@@ -692,7 +692,7 @@ theorem recv_emitted_key_facts
       cases htuple.1
 
 /-- A successful receive keeps the own retained public key or clears it. -/
-theorem recv_local_publicKey_eq_or_none
+lemma recv_local_publicKey_eq_or_none
     [DecidableEq Sym]
     (role : Role) (kem : KEMScheme ProbComp K PK SK C)
     (hDet : kem.DeterministicDecaps)
@@ -755,7 +755,7 @@ theorem recv_local_publicKey_eq_or_none
         | exact Or.inr (Option.some.inj hproj).symm
 
 /-- A successful receive never changes an already installed peer public key. -/
-theorem recv_peerKeys_stable [DecidableEq Sym]
+lemma recv_peerKeys_stable [DecidableEq Sym]
     (role : Role) (kem : KEMScheme ProbComp K PK SK C)
     (hDet : kem.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym)
@@ -824,7 +824,7 @@ theorem recv_peerKeys_stable [DecidableEq Sym]
 
 /-- A successful receive changes the peer public key at index `t` only when `t` is the
 receiver's new requester epoch shifted by its role offset, the only index `recv` writes. -/
-theorem recv_peerKeys_origin [DecidableEq Sym]
+lemma recv_peerKeys_origin [DecidableEq Sym]
     (role : Role) (kem : KEMScheme ProbComp K PK SK C)
     (hDet : kem.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym)

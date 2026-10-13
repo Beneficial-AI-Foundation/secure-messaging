@@ -35,7 +35,7 @@ variable {kem : KEMScheme ProbComp K PK SK C} {hDet : kem.DeterministicDecaps}
   {tcurR tcurS : ℕ}
 
 /-- A successful receive leaves the retained ciphertext in place or clears it. -/
-theorem recv_ct_eq_or_none [DecidableEq Sym] (ρ : Message Sym)
+lemma recv_ct_eq_or_none [DecidableEq Sym] (ρ : Message Sym)
     (key? : Option (ℕ × K)) (trcv : ℕ) (stR' : State PK SK C Sym)
     (hout : recv roleR kem hDet ecEk ecCt stR ρ = some (key?, trcv, stR')) :
     stR'.res.ct = stR.res.ct ∨ stR'.res.ct = none := by
@@ -82,7 +82,7 @@ include hR hS
 /-- A receive leaves the receiver's pending potential unchanged: a secret key is dropped only
 when its epoch is decapsulated, after the peer has encapsulated to it (term `0`), and the own
 public key is dropped only once the peer has decoded it. -/
-theorem pendingPotential_recv_receiver [DecidableEq K] [DecidableEq Sym]
+lemma pendingPotential_recv_receiver [DecidableEq K] [DecidableEq Sym]
     {n : ℕ} {ρ : Message Sym} {tsnd : ℕ} (_hmsg : msgsS n = some (ρ, tsnd))
     (key? : Option (ℕ × K)) (trcv : ℕ) (stR' : State PK SK C Sym)
     (hout : recv roleR kem hDet ecEk ecCt stR ρ = some (key?, trcv, stR'))
@@ -148,7 +148,7 @@ theorem pendingPotential_recv_receiver [DecidableEq K] [DecidableEq Sym]
 /-- A receive leaves the peer's pending potential unchanged: the receiver records keys only at
 its requester parity, never at the peer's key epoch, and a peer key it newly installs there is
 the public key the peer itself retains. -/
-theorem pendingPotential_recv_peer [DecidableEq K] [DecidableEq Sym] {ρ : Message Sym}
+lemma pendingPotential_recv_peer [DecidableEq K] [DecidableEq Sym] {ρ : Message Sym}
     (key? : Option (ℕ × K)) (trcv : ℕ) (stR' : State PK SK C Sym)
     (hout : recv roleR kem hDet ecEk ecCt stR ρ = some (key?, trcv, stR'))
     {tcur' : ℕ} (hR' : PartyInv roleR ecEk ecCt T stR' stS msgsR (recordKey keyR key?) keyS tcur') :
@@ -223,7 +223,7 @@ theorem pendingPotential_recv_peer [DecidableEq K] [DecidableEq Sym] {ρ : Messa
 
 /-- If `kemFailureAt` holds for neither party before a receive, it holds for neither party
 after it. -/
-theorem kemFailure_recv [DecidableEq K] [DecidableEq Sym] {ρ : Message Sym}
+lemma kemFailure_recv [DecidableEq K] [DecidableEq Sym] {ρ : Message Sym}
     (key? : Option (ℕ × K)) (trcv : ℕ) (stR' : State PK SK C Sym)
     (hout : recv roleR kem hDet ecEk ecCt stR ρ = some (key?, trcv, stR'))
     {tcur' : ℕ} (hR' : PartyInv roleR ecEk ecCt T stR' stS msgsR (recordKey keyR key?) keyS tcur')
@@ -308,7 +308,7 @@ abbrev trackedBiKem :=
 omit [DecidableEq Sym] in
 /-- If `s` is not bad, every transcript consistent with `s` is decapsulation-ready for both
 parties. -/
-theorem decapsReady_of_noFailure
+lemma decapsReady_of_noFailure
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hfail : kemFailure hDet s = false) (T : Transcript kem)
     (hA : PartyInv .A ecEk ecCt T s.stA s.stB s.msgA s.keyA s.keyB s.tcurA)
@@ -327,7 +327,7 @@ include hEk hCt in
 
 Then every outcome of `t` from `s` satisfies `GameInv`. This is the step hypothesis of
 `trackedImpl_preserves`. -/
-theorem gameInv_step_of_noFailure (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
+lemma gameInv_step_of_noFailure (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : GameInv kem ecEk ecCt s) (hfail : kemFailure hDet s = false) :
     ∀ z ∈ support ((SCKAScheme.sckaCorrectnessImpl (scheme kem hDet ecEk ecCt leak) t).run s),
@@ -337,7 +337,7 @@ theorem gameInv_step_of_noFailure (t : (SCKAScheme.sckaCorrectnessSpec (Message 
 
 /-- From a state with the flag set, one query keeps the expected tracked score within
 `S(s, true) + ε` for every allowance `ε`: the flag stays set, so the score stays `1`. -/
-theorem tracked_step_score_le_of_flag (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
+lemma tracked_step_score_le_of_flag (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (ε : ℝ≥0∞) :
     expectedPayoff ((trackedBiKem kem hDet ecEk ecCt leak t).run (s, true))
@@ -359,7 +359,7 @@ theorem tracked_step_score_le_of_flag (t : (SCKAScheme.sckaCorrectnessSpec (Mess
 include hEk hCt in
 /-- From a state satisfying the main invariant that is not bad, every outcome of `RecvA` has the
 same failure potential and is not bad. -/
-theorem recvA_score_eq (n : ℕ)
+lemma recvA_score_eq (n : ℕ)
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : GameInv kem ecEk ecCt s) (hfail : kemFailure hDet s = false)
     (y : Option (ℕ × Option ℕ) × SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K
@@ -393,7 +393,7 @@ theorem recvA_score_eq (n : ℕ)
 include hEk hCt in
 /-- From a state satisfying the main invariant that is not bad, every outcome of `RecvB` has the
 same failure potential and is not bad. -/
-theorem recvB_score_eq (n : ℕ)
+lemma recvB_score_eq (n : ℕ)
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : GameInv kem ecEk ecCt s) (hfail : kemFailure hDet s = false)
     (y : Option (ℕ × Option ℕ) × SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K
@@ -427,7 +427,7 @@ theorem recvB_score_eq (n : ℕ)
 include hEk hCt in
 /-- From `(s, false)` with `s` satisfying the main invariant and not bad, every non-send query
 keeps the expected tracked score at most `S(s, false)`. -/
-theorem tracked_nonSend_score_le (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
+lemma tracked_nonSend_score_le (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
     (hNonSend : ¬ SCKAScheme.isSendQuery t = true)
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : GameInv kem ecEk ecCt s) (hfail : kemFailure hDet s = false) :

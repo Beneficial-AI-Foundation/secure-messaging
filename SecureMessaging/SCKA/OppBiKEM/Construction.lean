@@ -62,7 +62,7 @@ def Role.peer : Role → Role
 
 /-- `peer` is an involution. -/
 @[simp]
-theorem Role.peer_peer (role : Role) : role.peer.peer = role := by
+lemma Role.peer_peer (role : Role) : role.peer.peer = role := by
   cases role <;> rfl
 
 /-- `A`'s offset is `+1`; `B`'s is `-1`. Offset captures the division of epochs:
@@ -76,7 +76,7 @@ def Role.offset : Role → ℤ
 
 /-- The peer's offset is the negated offset. -/
 @[simp]
-theorem Role.peer_offset (role : Role) : role.peer.offset = -role.offset := by
+lemma Role.peer_offset (role : Role) : role.peer.offset = -role.offset := by
   cases role <;> rfl
 -- ANCHOR_END: role
 

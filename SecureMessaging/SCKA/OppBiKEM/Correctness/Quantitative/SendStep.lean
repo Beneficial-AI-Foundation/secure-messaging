@@ -39,23 +39,23 @@ def pairFailure (stS stR : State PK SK C Sym) (keyS keyR : ℕ → Option K) : B
   kemFailureAt hDet stS stR keyR || kemFailureAt hDet stR stS keyS
 
 /-- `V(s)` is the pair potential with A listed first. -/
-theorem failurePotential_eq_pairA
+lemma failurePotential_eq_pairA
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)) :
     failurePotential hDet s = pairPotential hDet s.stA s.stB s.keyA s.keyB := rfl
 
 /-- `V(s)` is the pair potential with B listed first. -/
-theorem failurePotential_eq_pairB
+lemma failurePotential_eq_pairB
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)) :
     failurePotential hDet s = pairPotential hDet s.stB s.stA s.keyB s.keyA := by
   simp only [failurePotential, pairPotential, add_comm]
 
 /-- `bad s` is the pair failure with A listed first. -/
-theorem kemFailure_eq_pairA
+lemma kemFailure_eq_pairA
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)) :
     kemFailure hDet s = pairFailure hDet s.stA s.stB s.keyA s.keyB := rfl
 
 /-- `bad s` is the pair failure with B listed first. -/
-theorem kemFailure_eq_pairB
+lemma kemFailure_eq_pairB
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)) :
     kemFailure hDet s = pairFailure hDet s.stB s.stA s.keyB s.keyA := by
   simp only [kemFailure, pairFailure, Bool.or_comm]
@@ -69,7 +69,7 @@ section Average
 variable {kem : KEMScheme ProbComp K PK SK C} (hDet : kem.DeterministicDecaps) [DecidableEq K]
 
 /-- Averaging `V + φ(pk, sk)` over key generation gives at most `V + ε`. -/
-theorem expectedPayoff_keygen_le {A : Type} (f : PK × SK → A) (score : A → ℝ≥0∞) (V : ℝ≥0∞)
+lemma expectedPayoff_keygen_le {A : Type} (f : PK × SK → A) (score : A → ℝ≥0∞) (V : ℝ≥0∞)
     (hscore : ∀ kp, score (f kp) = V + keypairFailure kem hDet kp.1 kp.2) :
     expectedPayoff (kem.keygen >>= fun kp => pure (f kp)) score ≤
       V + kem.correctnessError ProbCompRuntime.probComp := by
@@ -91,7 +91,7 @@ theorem expectedPayoff_keygen_le {A : Type} (f : PK × SK → A) (score : A → 
 
 /-- If the score after encapsulating to `pk` is `1` when decapsulation with `sk` disagrees with
 the encapsulated key and `V` otherwise, its expected value is at most `V + φ(pk, sk)`. -/
-theorem expectedPayoff_encaps_le {A : Type} (pk : PK) (sk : SK) (g : C × K → A)
+lemma expectedPayoff_encaps_le {A : Type} (pk : PK) (sk : SK) (g : C × K → A)
     (score : A → ℝ≥0∞) (V : ℝ≥0∞)
     (hscore : ∀ ck : C × K, score (g ck) =
       if hDet.decapsDet sk ck.1 ≠ some ck.2 then 1 else V) :
@@ -125,7 +125,7 @@ end Average
 
 /-- A supported send that changes the responder epoch starts from a state without a retained
 own public key (the advance gate of `sendWith`). -/
-theorem send_advance_ek (role : Role) (kem : KEMScheme ProbComp K PK SK C)
+lemma send_advance_ek (role : Role) (kem : KEMScheme ProbComp K PK SK C)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (st : State PK SK C Sym) (key? : Option (ℕ × K)) (ρ : Message Sym) (tsnd : ℕ)
     (st' : State PK SK C Sym)
@@ -166,7 +166,7 @@ include hS hR
 omit [DecidableEq K] in
 /-- If both ciphertext acknowledgements of the advance gate are present, the new key epoch is
 not in `ekRec` and the sender retains no secret key. -/
-theorem advance_prereqs
+lemma advance_prereqs
     (hgate : stS.res.resEpoch ∈ stS.ack.ctRec ∧ stS.res.resEpoch + roleS.offset ∈ stS.ack.ctRec) :
     stS.res.resEpoch + 2 + roleS.offset ∉ stS.ack.ekRec ∧ stS.req.dk = [] := by
   have hpar : (stS.res.resEpoch + 2 + roleS.offset) % 2 = roleS.reqParity := by
@@ -195,7 +195,7 @@ theorem advance_prereqs
 
 /-- An advance with key pair `kp = (pk, sk)` adds `φ(pk, sk)` to the pair potential: the sender
 retained no secret key before, and the peer's pending potential is unchanged. -/
-theorem pairPotential_advance (ecEk' : ErasureCodePayload PK Sym) (kp : PK × SK)
+lemma pairPotential_advance (ecEk' : ErasureCodePayload PK Sym) (kp : PK × SK)
     (hgate : stS.res.resEpoch ∈ stS.ack.ctRec ∧ stS.res.resEpoch + roleS.offset ∈ stS.ack.ctRec) :
     pairPotential hDet (advanceSend (K := K) roleS ecEk' stS kp).2.2.2 stR keyS keyR =
       pairPotential hDet stS stR keyS keyR + keypairFailure kem hDet kp.1 kp.2 := by
@@ -236,7 +236,7 @@ theorem pairPotential_advance (ecEk' : ErasureCodePayload PK Sym) (kp : PK × SK
   rw [h1, h2, add_comm]
 
 /-- After an advance, `kemFailureAt` holds for neither party. -/
-theorem pairFailure_advance (ecEk' : ErasureCodePayload PK Sym) (kp : PK × SK)
+lemma pairFailure_advance (ecEk' : ErasureCodePayload PK Sym) (kp : PK × SK)
     (hgate : stS.res.resEpoch ∈ stS.ack.ctRec ∧ stS.res.resEpoch + roleS.offset ∈ stS.ack.ctRec) :
     pairFailure hDet (advanceSend (K := K) roleS ecEk' stS kp).2.2.2 stR keyS keyR = false := by
   obtain ⟨-, hnil⟩ := advance_prereqs hS hR hgate
@@ -278,7 +278,7 @@ theorem pairFailure_advance (ecEk' : ErasureCodePayload PK Sym) (kp : PK × SK)
 and it has decoded the peer's key `pk` for `e`, then: the transcript's key pair of `e` is
 `(pk, sk)`, the peer retains exactly `sk`, the transcript has no encapsulation at `e`, the
 sender's key table has no entry at `e`, and the peer's pending term is `φ(pk, sk)`. -/
-theorem encaps_prereqs (hnot : stS.res.resEpoch ∉ stS.ack.ctRec) (hct : stS.res.ct = none)
+lemma encaps_prereqs (hnot : stS.res.resEpoch ∉ stS.ack.ctRec) (hct : stS.res.ct = none)
     {pk : PK} (hpk : stS.res.ekPeer stS.res.resEpoch = some pk) :
     ∃ sk, (T stS.res.resEpoch).keypair = some (pk, sk) ∧
       stR.req.dk = [(stS.res.resEpoch, sk)] ∧
@@ -316,7 +316,7 @@ theorem encaps_prereqs (hnot : stS.res.resEpoch ∉ stS.ack.ctRec) (hct : stS.re
 /-- An encapsulation removes the peer's pending term and leaves everything else: before, the
 pair potential is the sender's own potential plus `φ(pk, sk)`; after, whatever was sampled, it
 is the sender's own potential. -/
-theorem pairPotential_encaps (ecCt' : ErasureCodePayload C Sym)
+lemma pairPotential_encaps (ecCt' : ErasureCodePayload C Sym)
     (hnot : stS.res.resEpoch ∉ stS.ack.ctRec) (hct : stS.res.ct = none)
     {pk : PK} (hpk : stS.res.ekPeer stS.res.resEpoch = some pk) :
     ∃ sk, (T stS.res.resEpoch).keypair = some (pk, sk) ∧
@@ -340,7 +340,7 @@ omit hS hR in
 /-- If `kemFailureAt` held for neither party before, then after encapsulating `ck = (c, k)` the
 pair failure is exactly whether decapsulating `c` with the peer's retained `sk` disagrees with
 `k`. -/
-theorem pairFailure_encaps (ecCt' : ErasureCodePayload C Sym) (ck : C × K) (sk : SK)
+lemma pairFailure_encaps (ecCt' : ErasureCodePayload C Sym) (ck : C × K) (sk : SK)
     (hdk : stR.req.dk = [(stS.res.resEpoch, sk)])
     (hfail : pairFailure hDet stS stR keyS keyR = false) :
     pairFailure hDet (encapsSend (K := K) roleS ecCt' stS ck).2.2.2 stR
@@ -360,7 +360,7 @@ theorem pairFailure_encaps (ecCt' : ErasureCodePayload C Sym) (ck : C × K) (sk 
 omit hS hR in
 /-- A supported send that emits no key and keeps the responder epoch leaves the pair potential
 and the pair failure unchanged. -/
-theorem pair_plain (kem' : KEMScheme ProbComp K PK SK C) (ecEk' : ErasureCodePayload PK Sym)
+lemma pair_plain (kem' : KEMScheme ProbComp K PK SK C) (ecEk' : ErasureCodePayload PK Sym)
     (ecCt' : ErasureCodePayload C Sym) {ρ : Message Sym} {tsnd : ℕ} {stS' : State PK SK C Sym}
     (hout : some (none, ρ, tsnd, stS') ∈ support (send roleS kem' ecEk' ecCt' stS))
     (hres : stS'.res.resEpoch = stS.res.resEpoch) :
@@ -394,7 +394,7 @@ theorem pair_plain (kem' : KEMScheme ProbComp K PK SK C) (ecEk' : ErasureCodePay
 omit [DecidableEq K] hS hR in
 /-- Outside the gate and the encapsulation conditions, a supported send emits no key and keeps
 the responder epoch. -/
-theorem send_plain_of_not (kem' : KEMScheme ProbComp K PK SK C)
+lemma send_plain_of_not (kem' : KEMScheme ProbComp K PK SK C)
     (ecEk' : ErasureCodePayload PK Sym) (ecCt' : ErasureCodePayload C Sym)
     (hgate : ¬ (stS.req.ek = none ∧ stS.res.resEpoch ∈ stS.ack.ctRec ∧
       stS.res.resEpoch + roleS.offset ∈ stS.ack.ctRec))
@@ -461,7 +461,7 @@ private def sendBOutcome
 open SCKAScheme.sckaCorrectnessSpec in
 /-- `Ô SendA` run from `(s, false)` is A's local `send` followed by the game's `sendAOutcome`
 and the flag update. -/
-theorem trackedBiKem_sendA_run
+lemma trackedBiKem_sendA_run
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)) :
     (trackedBiKem kem hDet ecEk ecCt leak OSendA).run (s, false) =
       send .A kem ecEk ecCt s.stA >>= fun out =>
@@ -477,7 +477,7 @@ theorem trackedBiKem_sendA_run
 open SCKAScheme.sckaCorrectnessSpec in
 /-- `Ô SendB` run from `(s, false)` is B's local `send` followed by the game's `sendBOutcome`
 and the flag update. -/
-theorem trackedBiKem_sendB_run
+lemma trackedBiKem_sendB_run
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)) :
     (trackedBiKem kem hDet ecEk ecCt leak OSendB).run (s, false) =
       send .B kem ecEk ecCt s.stB >>= fun out =>
@@ -492,7 +492,7 @@ theorem trackedBiKem_sendB_run
 
 omit [DecidableEq Sym] in
 /-- `sendAOutcome` on a successful send, as the game update `SCKAScheme.sendAUpdate`. -/
-theorem sendAOutcome_some (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K
+lemma sendAOutcome_some (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K
     (Message Sym)) (t : Option (ℕ × K) × Message Sym × ℕ × StA PK SK C Sym) :
     sendAOutcome s (some t) =
       (some (t.2.2.1, t.1.map Prod.fst, t.2.1),
@@ -501,7 +501,7 @@ theorem sendAOutcome_some (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK
 
 omit [DecidableEq Sym] in
 /-- `sendBOutcome` on a successful send, as the game update `SCKAScheme.sendBUpdate`. -/
-theorem sendBOutcome_some (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K
+lemma sendBOutcome_some (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K
     (Message Sym)) (t : Option (ℕ × K) × Message Sym × ℕ × StB PK SK C Sym) :
     sendBOutcome s (some t) =
       (some (t.2.2.1, t.1.map Prod.fst, t.2.1),
@@ -511,7 +511,7 @@ theorem sendBOutcome_some (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK
 open SCKAScheme.sckaCorrectnessSpec in
 /-- From `(s, false)` with `s` satisfying the main invariant and not bad, `SendA` raises the
 expected tracked score by at most `ε`. -/
-theorem tracked_sendA_score_le
+lemma tracked_sendA_score_le
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : GameInv kem ecEk ecCt s) (hfail : kemFailure hDet s = false) :
     expectedPayoff ((trackedBiKem kem hDet ecEk ecCt leak OSendA).run (s, false))
@@ -584,7 +584,7 @@ theorem tracked_sendA_score_le
 open SCKAScheme.sckaCorrectnessSpec in
 /-- From `(s, false)` with `s` satisfying the main invariant and not bad, `SendB` raises the
 expected tracked score by at most `ε`. -/
-theorem tracked_sendB_score_le
+lemma tracked_sendB_score_le
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : GameInv kem ecEk ecCt s) (hfail : kemFailure hDet s = false) :
     expectedPayoff ((trackedBiKem kem hDet ecEk ecCt leak OSendB).run (s, false))
@@ -661,7 +661,7 @@ theorem tracked_sendB_score_le
 
 Then `t` raises the expected tracked score `S` from `p` by at most `ε` if `t` is `SendA` or
 `SendB`, and does not raise it otherwise. -/
-theorem tracked_step_score_le (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
+lemma tracked_step_score_le (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
     (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
     (p : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym) × Bool)
     (hp : trackedInv (GameInv kem ecEk ecCt) (kemFailure hDet) p) :

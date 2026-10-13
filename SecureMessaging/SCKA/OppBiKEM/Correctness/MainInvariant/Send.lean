@@ -26,16 +26,16 @@ variable {K PK SK C Sym : Type}
 /-! ### Parity helpers -/
 
 /-- The two parities of a role differ. -/
-theorem Role.reqParity_ne_resParity (role : Role) : role.reqParity ≠ role.resParity := by
+lemma Role.reqParity_ne_resParity (role : Role) : role.reqParity ≠ role.resParity := by
   cases role <;> decide
 
 /-- Shifting by the role's offset exchanges the two parities. -/
-theorem Role.offset_parity (role : Role) (e : ℤ) :
+lemma Role.offset_parity (role : Role) (e : ℤ) :
     (e + role.offset) % 2 = role.reqParity ↔ e % 2 = role.resParity := by
   cases role <;> simp only [Role.offset, Role.reqParity, Role.resParity] <;> omega
 
 /-- An epoch has the requester parity iff it does not have the responder parity. -/
-theorem Role.reqParity_iff_not_resParity (role : Role) (e : ℤ) :
+lemma Role.reqParity_iff_not_resParity (role : Role) (e : ℤ) :
     e % 2 = role.reqParity ↔ e % 2 ≠ role.resParity := by
   cases role <;> simp only [Role.reqParity, Role.resParity] <;> omega
 
@@ -46,7 +46,7 @@ namespace EpochTranscript
 variable {kem : KEMScheme ProbComp K PK SK C}
 
 /-- An epoch without a key pair has no encapsulation. -/
-theorem enc_eq_none_of_keypair_eq_none (tr : EpochTranscript kem) (h : tr.keypair = none) :
+lemma enc_eq_none_of_keypair_eq_none (tr : EpochTranscript kem) (h : tr.keypair = none) :
     tr.enc = none := by
   cases henc : tr.enc with
   | none => rfl
@@ -56,17 +56,17 @@ theorem enc_eq_none_of_keypair_eq_none (tr : EpochTranscript kem) (h : tr.keypai
     cases this
 
 /-- An epoch without a key pair has no key. -/
-theorem key_eq_none_of_keypair_eq_none (tr : EpochTranscript kem) (h : tr.keypair = none) :
+lemma key_eq_none_of_keypair_eq_none (tr : EpochTranscript kem) (h : tr.keypair = none) :
     tr.key = none := by
   rw [key, enc_eq_none_of_keypair_eq_none tr h]
   rfl
 
 /-- A freshly generated key pair has no key yet. -/
-@[simp] theorem key_ofKeypair (pk : PK) (sk : SK) (hmem : (pk, sk) ∈ support kem.keygen) :
+@[simp] lemma key_ofKeypair (pk : PK) (sk : SK) (hmem : (pk, sk) ∈ support kem.keygen) :
     (ofKeypair pk sk hmem : EpochTranscript kem).key = none := rfl
 
 /-- Recording an encapsulation sets the epoch key to the encapsulated key. -/
-@[simp] theorem key_setEnc (tr : EpochTranscript kem) (pk sk c k hkp hmem) :
+@[simp] lemma key_setEnc (tr : EpochTranscript kem) (pk sk c k hkp hmem) :
     (tr.setEnc pk sk c k hkp hmem).key = some k := rfl
 
 end EpochTranscript
@@ -77,7 +77,7 @@ end EpochTranscript
 acknowledgements and requester epoch and a responder epoch at least as large, and to a
 transcript that agrees on the party's key pairs up to its current key epoch and on every
 recorded encapsulation. -/
-theorem MessageInv.transfer {role : Role} {kem : KEMScheme ProbComp K PK SK C}
+lemma MessageInv.transfer {role : Role} {kem : KEMScheme ProbComp K PK SK C}
     {ecEk : ErasureCodePayload PK Sym} {ecCt : ErasureCodePayload C Sym}
     {T T' : Transcript kem} {st st' : State PK SK C Sym} {ρ : Message Sym} {tsnd : ℕ}
     (h : MessageInv role ecEk ecCt T st ρ tsnd)
@@ -119,7 +119,7 @@ theorem MessageInv.transfer {role : Role} {kem : KEMScheme ProbComp K PK SK C}
 /-- After a send by `roleS`, the peer still satisfies `PartyInv`, provided the sender's
 requester epoch, decoded peer keys and acknowledgements are unchanged and the new transcript
 agrees with the old one on every slot the peer's invariant reads. -/
-theorem partyInv_peer_of_send (roleS : Role) {kem : KEMScheme ProbComp K PK SK C}
+lemma partyInv_peer_of_send (roleS : Role) {kem : KEMScheme ProbComp K PK SK C}
     {ecEk : ErasureCodePayload PK Sym} {ecCt : ErasureCodePayload C Sym}
     {T T' : Transcript kem} {stS stS' stR : State PK SK C Sym}
     {msgsS msgsR : ℕ → Option (Message Sym × ℕ)} {keyR keyS keyS' : ℕ → Option K}
@@ -280,7 +280,7 @@ theorem partyInv_peer_of_send (roleS : Role) {kem : KEMScheme ProbComp K PK SK C
 /-- The message emitted by a supported send is honest with respect to `T'`, provided the
 sender's post-state responder epoch has the responder parity and is at least `-1`, and its
 retained public key and ciphertext are those recorded in `T'`. -/
-theorem MessageInv.of_send (roleS : Role) {kem : KEMScheme ProbComp K PK SK C}
+lemma MessageInv.of_send (roleS : Role) {kem : KEMScheme ProbComp K PK SK C}
     {ecEk : ErasureCodePayload PK Sym} {ecCt : ErasureCodePayload C Sym}
     {T T' : Transcript kem} {stS stS' stR : State PK SK C Sym}
     {msgsS : ℕ → Option (Message Sym × ℕ)} {keyS keyR : ℕ → Option K} {tcurS : ℕ}
@@ -349,7 +349,7 @@ theorem MessageInv.of_send (roleS : Role) {kem : KEMScheme ProbComp K PK SK C}
 /-- After a supported send, the sender satisfies `PartyInv` for the new transcript `T'` and key
 table `keyS'`, given how they relate to `T` and `keyS` and given the fields that differ between
 the three kinds of send (plain, advance, encapsulation). -/
-theorem partyInv_sender_of_send (roleS : Role) {kem : KEMScheme ProbComp K PK SK C}
+lemma partyInv_sender_of_send (roleS : Role) {kem : KEMScheme ProbComp K PK SK C}
     {ecEk : ErasureCodePayload PK Sym} {ecCt : ErasureCodePayload C Sym}
     {T T' : Transcript kem} {stS stS' stR : State PK SK C Sym}
     {msgsS msgsR : ℕ → Option (Message Sym × ℕ)} {keyS keyS' keyR : ℕ → Option K}
@@ -576,7 +576,7 @@ theorem partyInv_sender_of_send (roleS : Role) {kem : KEMScheme ProbComp K PK SK
 /-! ### The three kinds of send -/
 
 /-- The sender's key table at its current responder epoch is the transcript key. -/
-private theorem key_res_current {roleS : Role} {kem : KEMScheme ProbComp K PK SK C}
+private lemma key_res_current {roleS : Role} {kem : KEMScheme ProbComp K PK SK C}
     {ecEk : ErasureCodePayload PK Sym} {ecCt : ErasureCodePayload C Sym}
     {T : Transcript kem} {stS stR : State PK SK C Sym}
     {msgsS msgsR : ℕ → Option (Message Sym × ℕ)} {keyS keyR : ℕ → Option K} {tcurS tcurR : ℕ}
@@ -595,7 +595,7 @@ private theorem key_res_current {roleS : Role} {kem : KEMScheme ProbComp K PK SK
 
 /-- A plain send, with no epoch advance, no emitted key, and unchanged own keys, preserves
 `PartyInv` for both parties with the transcript unchanged. -/
-private theorem send_step_plain (roleS : Role) {kem : KEMScheme ProbComp K PK SK C}
+private lemma send_step_plain (roleS : Role) {kem : KEMScheme ProbComp K PK SK C}
     {ecEk : ErasureCodePayload PK Sym} {ecCt : ErasureCodePayload C Sym}
     {T : Transcript kem} {stS stS' stR : State PK SK C Sym}
     {msgsS msgsR : ℕ → Option (Message Sym × ℕ)} {keyS keyR : ℕ → Option K} {tcurS tcurR : ℕ}
@@ -649,7 +649,7 @@ private theorem send_step_plain (roleS : Role) {kem : KEMScheme ProbComp K PK SK
 /-- An advancing send, which installs a freshly generated key pair for the new key epoch and
 emits no key, preserves `PartyInv` for both parties with the transcript extended by that key
 pair. -/
-private theorem send_step_advance (roleS : Role) {kem : KEMScheme ProbComp K PK SK C}
+private lemma send_step_advance (roleS : Role) {kem : KEMScheme ProbComp K PK SK C}
     {ecEk : ErasureCodePayload PK Sym} {ecCt : ErasureCodePayload C Sym}
     {T : Transcript kem} {stS stS' stR : State PK SK C Sym}
     {msgsS msgsR : ℕ → Option (Message Sym × ℕ)} {keyS keyR : ℕ → Option K} {tcurS tcurR : ℕ}
@@ -798,7 +798,7 @@ private theorem send_step_advance (roleS : Role) {kem : KEMScheme ProbComp K PK 
 /-- An encapsulating send, which keeps the epoch and the own keys, encapsulates at the current
 responder epoch and emits the encapsulated key, preserves `PartyInv` for both parties with the
 transcript extended by that encapsulation. -/
-private theorem send_step_encaps (roleS : Role) {kem : KEMScheme ProbComp K PK SK C}
+private lemma send_step_encaps (roleS : Role) {kem : KEMScheme ProbComp K PK SK C}
     {ecEk : ErasureCodePayload PK Sym} {ecCt : ErasureCodePayload C Sym}
     {T : Transcript kem} {stS stS' stR : State PK SK C Sym}
     {msgsS msgsR : ℕ → Option (Message Sym × ℕ)} {keyS keyR : ℕ → Option K} {tcurS tcurR : ℕ}
@@ -928,7 +928,7 @@ private theorem send_step_encaps (roleS : Role) {kem : KEMScheme ProbComp K PK S
 epoch is at least the sender's game epoch, the known-prefix check passes, and an emitted key
 is fresh for the sender and consistent with the peer's table — and preserves `PartyInv` for
 both parties for some updated transcript `T'`. -/
-theorem partyInv_send_step (roleS : Role) (kem : KEMScheme ProbComp K PK SK C)
+lemma partyInv_send_step (roleS : Role) (kem : KEMScheme ProbComp K PK SK C)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (T : Transcript kem) (stS stR : State PK SK C Sym)
     (msgsS msgsR : ℕ → Option (Message Sym × ℕ)) (keyS keyR : ℕ → Option K)

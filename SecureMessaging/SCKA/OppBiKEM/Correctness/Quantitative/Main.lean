@@ -155,7 +155,7 @@ abbrev initState : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (M
 
 omit [DecidableEq Sym] in
 /-- The initial state is not bad: no party retains a secret key. -/
-theorem kemFailure_init : kemFailure hDet (initState (PK := PK) (SK := SK) (C := C) (Sym := Sym)
+lemma kemFailure_init : kemFailure hDet (initState (PK := PK) (SK := SK) (C := C) (Sym := Sym)
     (K := K)) = false := by
   rw [kemFailure, Bool.or_eq_false_iff]
   constructor <;> exact kemFailureAt_eq_false_of hDet (Or.inl rfl)
@@ -163,7 +163,7 @@ theorem kemFailure_init : kemFailure hDet (initState (PK := PK) (SK := SK) (C :=
 omit [DecidableEq Sym] in
 /-- The initial tracked state `(initState, false)` has score `0`: no party retains a secret
 key. -/
-theorem trackedScore_init :
+lemma trackedScore_init :
     trackedScore hDet (initState (PK := PK) (SK := SK) (C := C) (Sym := Sym) (K := K), false)
       = 0 := by
   rw [trackedScore_false, failurePotential, pendingPotential_nil hDet rfl,
@@ -172,14 +172,14 @@ theorem trackedScore_init :
 include hEk hCt in
 /-- The tracked handler `Ô` preserves the tracked invariant `J`: either the flag is set, or the
 main invariant holds and the state is not bad. -/
-theorem trackedBiKem_preservesInv :
+lemma trackedBiKem_preservesInv :
     QueryImpl.PreservesInv (trackedBiKem kem hDet ecEk ecCt leak)
       (trackedInv (GameInv kem ecEk ecCt) (kemFailure hDet)) :=
   trackedImpl_preserves _ _ _ (gameInv_step_of_noFailure kem hDet ecEk ecCt hEk hCt leak)
 
 omit [DecidableEq Sym] in
 /-- The initial tracked state `(initState, false)` satisfies the tracked invariant `J`. -/
-theorem trackedInv_init :
+lemma trackedInv_init :
     trackedInv (GameInv kem ecEk ecCt) (kemFailure hDet)
       (initState (PK := PK) (SK := SK) (C := C) (Sym := Sym) (K := K), false) :=
   Or.inr ⟨gameInv_init kem ecEk ecCt _ _ (by simp [initA, init, initialState])
@@ -194,7 +194,7 @@ combined. Assume:
 
 Then the probability that `bad` holds after at least one query during `adv`'s execution from
 `initState` is at most `q · ε`. -/
-theorem tracked_bad_le (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
+lemma tracked_bad_le (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
     (q : ℕ) (hq : SCKAScheme.SendQueryBound adv q) :
     Pr[ fun z => z.2.2 = true |
         (simulateQ (trackedBiKem kem hDet ecEk ecCt leak) adv).run (initState, false)] ≤

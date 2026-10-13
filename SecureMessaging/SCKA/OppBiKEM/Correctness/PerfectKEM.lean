@@ -40,7 +40,7 @@ def DecapsCorrectOnSupport (kem : KEMScheme ProbComp K PK SK C)
     hDet.decapsDet sk c = some k
 
 /-- A perfectly correct KEM satisfies `DecapsCorrectOnSupport`. -/
-theorem decapsCorrectOnSupport_of_perfectlyCorrect [DecidableEq K]
+lemma decapsCorrectOnSupport_of_perfectlyCorrect [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
     (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp) :
     DecapsCorrectOnSupport kem hDet := by
@@ -66,7 +66,7 @@ theorem decapsCorrectOnSupport_of_perfectlyCorrect [DecidableEq K]
 /-- If decapsulation never fails on honest outputs (i.e., `DecapsCorrectOnSupport` holds), then
 in every epoch of every transcript the recorded secret key decapsulates the recorded ciphertext
 to the recorded key. -/
-theorem transcriptDecaps_of_support {kem : KEMScheme ProbComp K PK SK C}
+lemma transcriptDecaps_of_support {kem : KEMScheme ProbComp K PK SK C}
     (hDet : kem.DeterministicDecaps) (hdec : DecapsCorrectOnSupport kem hDet)
     (T : Transcript kem) (e : ℤ) :
     ∀ pk sk c k, (T e).keypair = some (pk, sk) → (T e).enc = some (c, k) →
@@ -76,7 +76,7 @@ theorem transcriptDecaps_of_support {kem : KEMScheme ProbComp K PK SK C}
 
 /-- If `DecapsCorrectOnSupport` holds and both erasure codes are correct, every
 correctness-game oracle preserves `GameInv`. -/
-theorem gameInv_preserved [DecidableEq K] [DecidableEq Sym]
+lemma gameInv_preserved [DecidableEq K] [DecidableEq Sym]
     (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct) (leak : kem.RandLeak)
@@ -98,7 +98,7 @@ theorem gameInv_preserved [DecidableEq K] [DecidableEq Sym]
 
 Then every final state of `adv`'s execution from `initGameState stA stB` satisfies
 `GameInv`. -/
-theorem simulateQ_gameInv [DecidableEq K] [DecidableEq Sym]
+lemma simulateQ_gameInv [DecidableEq K] [DecidableEq Sym]
     (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct) (leak : kem.RandLeak)

@@ -24,7 +24,7 @@ def Transcript.empty (kem : KEMScheme ProbComp K PK SK C) : Transcript kem :=
 
 /-- Every initial game state, built from outputs of `initA` and `initB`, satisfies `GameInv`,
 witnessed by the empty transcript. -/
-theorem gameInv_init (kem : KEMScheme ProbComp K PK SK C)
+lemma gameInv_init (kem : KEMScheme ProbComp K PK SK C)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (stA : StA PK SK C Sym) (stB : StB PK SK C Sym)
     (hA : stA ∈ support (initA () : ProbComp (StA PK SK C Sym)))

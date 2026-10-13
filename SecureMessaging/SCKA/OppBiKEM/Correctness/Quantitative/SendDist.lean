@@ -59,7 +59,7 @@ def encapsSend (role : Role) (ecCt : ErasureCodePayload C Sym) (st : State PK SK
 
 /-- When the advance gate holds and the new key epoch is not in `ekRec`, `send` is key
 generation followed by the deterministic `advanceSend`. -/
-theorem send_eq_advance (role : Role) (kem : KEMScheme ProbComp K PK SK C)
+lemma send_eq_advance (role : Role) (kem : KEMScheme ProbComp K PK SK C)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (st : State PK SK C Sym) (hek : st.req.ek = none)
     (hgate : st.res.resEpoch ∈ st.ack.ctRec ∧ st.res.resEpoch + role.offset ∈ st.ack.ctRec)
@@ -75,7 +75,7 @@ theorem send_eq_advance (role : Role) (kem : KEMScheme ProbComp K PK SK C)
 acknowledged, no ciphertext is retained, and the peer's key `pk` for the current epoch is
 decoded and recorded in `ekRec`, `send` is encapsulation to `pk` followed by the deterministic
 `encapsSend`. -/
-theorem send_eq_encaps (role : Role) (kem : KEMScheme ProbComp K PK SK C)
+lemma send_eq_encaps (role : Role) (kem : KEMScheme ProbComp K PK SK C)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (st : State PK SK C Sym) (hnot : st.res.resEpoch ∉ st.ack.ctRec)
     (hacked : st.res.resEpoch + role.offset ∈ st.ack.ekRec)
@@ -92,7 +92,7 @@ theorem send_eq_encaps (role : Role) (kem : KEMScheme ProbComp K PK SK C)
 /-- A send that emits a key does so at a post-send responder epoch `e` whose acknowledgements
 were already in place before the send: `e ∈ ekRec` (the sender decoded the peer's key for `e`)
 and `e + offset ∈ ekRec` (the peer decoded the sender's own key). -/
-theorem send_emittedKey_peerAck (role : Role) (kem : KEMScheme ProbComp K PK SK C)
+lemma send_emittedKey_peerAck (role : Role) (kem : KEMScheme ProbComp K PK SK C)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (st : State PK SK C Sym) (tI : ℕ) (k : K) (ρ : Message Sym) (tsnd : ℕ)
     (st' : State PK SK C Sym)

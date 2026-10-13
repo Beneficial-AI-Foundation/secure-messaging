@@ -30,7 +30,7 @@ def Acknowledgements.sendingHorizon (ack : Acknowledgements) : ℕ :=
   (ack.ctRec.filter fun t => t - 1 ∈ ack.ctRec).sup Int.toNat
 
 /-- The sending horizon is monotone in the ciphertext acknowledgements. -/
-theorem Acknowledgements.sendingHorizon_mono
+lemma Acknowledgements.sendingHorizon_mono
     (ack ack' : Acknowledgements)
     (hct : ack.ctRec ⊆ ack'.ctRec) :
     ack.sendingHorizon ≤ ack'.sendingHorizon := by
@@ -41,7 +41,7 @@ theorem Acknowledgements.sendingHorizon_mono
   exact ⟨hct ht.1, hct ht.2⟩
 
 /-- The `A` case of `send_support_facts`, for `sendWith` with arbitrary samplers. -/
-private theorem sendWith_support_facts
+private lemma sendWith_support_facts
     {RKey REnc : Type} (keygen : ProbComp ((PK × SK) × RKey))
     (encaps : PK → ProbComp ((C × K) × REnc))
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
@@ -65,7 +65,7 @@ private theorem sendWith_support_facts
   all_goals simp_all [Acknowledgements.sendingHorizon, Role.offset]
 
 /-- `send_support_facts` for `sendA`. -/
-theorem sendA_support_facts (kem : KEMScheme ProbComp K PK SK C)
+lemma sendA_support_facts (kem : KEMScheme ProbComp K PK SK C)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (st : StA PK SK C Sym) (key? : Option (ℕ × K)) (ρ : Message Sym) (tsnd : ℕ)
     (st' : StA PK SK C Sym)
@@ -87,7 +87,7 @@ theorem sendA_support_facts (kem : KEMScheme ProbComp K PK SK C)
     exact sendWith_support_facts _ _ ecEk ecCt st _ _ _ _ rand hout
 
 /-- The `B` case of `send_support_facts`, for `sendWith` with arbitrary samplers. -/
-private theorem sendWithB_support_facts
+private lemma sendWithB_support_facts
     {RKey REnc : Type}
     (keygen : ProbComp ((PK × SK) × RKey))
     (encaps : PK → ProbComp ((C × K) × REnc))
@@ -116,7 +116,7 @@ private theorem sendWithB_support_facts
 sending epoch, advances the responder epoch by `0` or `2`, keeps the retained ciphertext unless
 it emits a key, and emits a key only for the post-send responder epoch, which was unacknowledged,
 had no retained ciphertext before the send, and has one after it. -/
-theorem send_support_facts
+lemma send_support_facts
     (role : Role) (kem : KEMScheme ProbComp K PK SK C)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (st : State PK SK C Sym) (key? : Option (ℕ × K))
@@ -223,7 +223,7 @@ structure SendProvenance
         (if ρ.bit = none then 0 else 1)
 
 /-- Every successful supported send satisfies `SendProvenance`. -/
-theorem send_provenance
+lemma send_provenance
     (role : Role) (kem : KEMScheme ProbComp K PK SK C)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt : ErasureCodePayload C Sym)
@@ -256,7 +256,7 @@ theorem send_provenance
 /-- A supported send that emits a ciphertext message (`ρ.bit = some 1`) took the `else` branch
 of the `sendWith` guard `tRes + role.offset ∉ ack.ekRec`, so the sender's own-key epoch
 `ρ.tRes + role.offset` is in the acknowledgements the send read. -/
-theorem send_ciphertextMessage_keyAck
+lemma send_ciphertextMessage_keyAck
     (role : Role) (kem : KEMScheme ProbComp K PK SK C)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt : ErasureCodePayload C Sym)
@@ -292,7 +292,7 @@ theorem send_ciphertextMessage_keyAck
 
 /-- If a supported send changes the responder epoch, the advance gate of `sendWith` held:
 `resEpoch` and `resEpoch + role.offset` are both in `ctRec`. -/
-theorem send_advance_guard (role : Role) (kem : KEMScheme ProbComp K PK SK C)
+lemma send_advance_guard (role : Role) (kem : KEMScheme ProbComp K PK SK C)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (st : State PK SK C Sym) (key? : Option (ℕ × K)) (ρ : Message Sym) (tsnd : ℕ)
     (st' : State PK SK C Sym)

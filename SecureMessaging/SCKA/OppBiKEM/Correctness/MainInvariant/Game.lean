@@ -47,7 +47,7 @@ def DecapsReady (role : Role) {kem : KEMScheme ProbComp K PK SK C} (hDet : kem.D
   both parties.
 
 Then every outcome of `t` from `s` satisfies `GameInv`. -/
-theorem gameInv_step_of [DecidableEq K] [DecidableEq Sym]
+lemma gameInv_step_of [DecidableEq K] [DecidableEq Sym]
     (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct) (leak : kem.RandLeak)
@@ -192,7 +192,7 @@ def initialState (role : Role) : State PK SK C Sym :=
 
 /-- The correctness experiment is the final correctness bit of the simulated run from the
 initial game state. -/
-theorem correctnessExp_eq_map [DecidableEq K] [DecidableEq Sym]
+lemma correctnessExp_eq_map [DecidableEq K] [DecidableEq Sym]
     (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym) (leak : kem.RandLeak)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym)) :

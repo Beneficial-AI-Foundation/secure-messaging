@@ -46,25 +46,25 @@ def Role.resParity : Role → ℤ
   | .B => 0
 
 /-- `A` requests at even epochs. -/
-@[simp] theorem Role.reqParity_A : Role.A.reqParity = 0 := rfl
+@[simp] lemma Role.reqParity_A : Role.A.reqParity = 0 := rfl
 /-- `B` requests at odd epochs. -/
-@[simp] theorem Role.reqParity_B : Role.B.reqParity = 1 := rfl
+@[simp] lemma Role.reqParity_B : Role.B.reqParity = 1 := rfl
 /-- `A` responds at odd epochs. -/
-@[simp] theorem Role.resParity_A : Role.A.resParity = 1 := rfl
+@[simp] lemma Role.resParity_A : Role.A.resParity = 1 := rfl
 /-- `B` responds at even epochs. -/
-@[simp] theorem Role.resParity_B : Role.B.resParity = 0 := rfl
+@[simp] lemma Role.resParity_B : Role.B.resParity = 0 := rfl
 /-- The peer requests at the role's responder parity. -/
-@[simp] theorem Role.peer_reqParity (role : Role) : role.peer.reqParity = role.resParity := by
+@[simp] lemma Role.peer_reqParity (role : Role) : role.peer.reqParity = role.resParity := by
   cases role <;> rfl
 /-- The peer responds at the role's requester parity. -/
-@[simp] theorem Role.peer_resParity (role : Role) : role.peer.resParity = role.reqParity := by
+@[simp] lemma Role.peer_resParity (role : Role) : role.peer.resParity = role.reqParity := by
   cases role <;> rfl
 /-- The requester parity as a case split on the role. -/
-theorem Role.reqParity_eq_ite (role : Role) :
+lemma Role.reqParity_eq_ite (role : Role) :
     role.reqParity = if role = .A then 0 else 1 := by
   cases role <;> rfl
 /-- The responder parity as a case split on the role. -/
-theorem Role.resParity_eq_ite (role : Role) :
+lemma Role.resParity_eq_ite (role : Role) :
     role.resParity = if role = .A then 1 else 0 := by
   cases role <;> rfl
 
@@ -132,20 +132,20 @@ def setEnc (tr : EpochTranscript kem) (pk : PK) (sk : SK) (c : C) (k : K)
     rfl
 
 /-- The empty epoch transcript has no key pair. -/
-@[simp] theorem empty_keypair : (empty kem).keypair = none := rfl
+@[simp] lemma empty_keypair : (empty kem).keypair = none := rfl
 /-- The empty epoch transcript has no encapsulation. -/
-@[simp] theorem empty_enc : (empty kem).enc = none := rfl
+@[simp] lemma empty_enc : (empty kem).enc = none := rfl
 /-- `ofKeypair pk sk` records the key pair `(pk, sk)`. -/
-@[simp] theorem ofKeypair_keypair (pk : PK) (sk : SK) (hmem : (pk, sk) ∈ support kem.keygen) :
+@[simp] lemma ofKeypair_keypair (pk : PK) (sk : SK) (hmem : (pk, sk) ∈ support kem.keygen) :
     (ofKeypair pk sk hmem : EpochTranscript kem).keypair = some (pk, sk) := rfl
 /-- `ofKeypair` records no encapsulation. -/
-@[simp] theorem ofKeypair_enc (pk : PK) (sk : SK) (hmem : (pk, sk) ∈ support kem.keygen) :
+@[simp] lemma ofKeypair_enc (pk : PK) (sk : SK) (hmem : (pk, sk) ∈ support kem.keygen) :
     (ofKeypair pk sk hmem : EpochTranscript kem).enc = none := rfl
 /-- `setEnc` keeps the key pair. -/
-@[simp] theorem setEnc_keypair (tr : EpochTranscript kem) (pk sk c k hkp hmem) :
+@[simp] lemma setEnc_keypair (tr : EpochTranscript kem) (pk sk c k hkp hmem) :
     (tr.setEnc pk sk c k hkp hmem).keypair = tr.keypair := rfl
 /-- `setEnc` records the encapsulation `(c, k)`. -/
-@[simp] theorem setEnc_enc (tr : EpochTranscript kem) (pk sk c k hkp hmem) :
+@[simp] lemma setEnc_enc (tr : EpochTranscript kem) (pk sk c k hkp hmem) :
     (tr.setEnc pk sk c k hkp hmem).enc = some (c, k) := rfl
 
 /-- The epoch key, once encapsulated. -/

@@ -248,9 +248,9 @@ def recordKey (keys : ℕ → Option K) : Option (ℕ × K) → ℕ → Option K
   | some (tI, k) => Function.update keys tI (some k)
 
 /-- Recording no key leaves the table unchanged. -/
-@[simp] theorem recordKey_none (keys : ℕ → Option K) : recordKey keys none = keys := rfl
+@[simp] lemma recordKey_none (keys : ℕ → Option K) : recordKey keys none = keys := rfl
 /-- Recording `(tI, k)` updates the table at `tI`. -/
-@[simp] theorem recordKey_some (keys : ℕ → Option K) (tI : ℕ) (k : K) :
+@[simp] lemma recordKey_some (keys : ℕ → Option K) (tI : ℕ) (k : K) :
     recordKey keys (some (tI, k)) = Function.update keys tI (some k) := rfl
 
 /-- The game invariant: the correctness flag is set, and one transcript `T` satisfies `PartyInv`
@@ -272,12 +272,12 @@ variable {role : Role} {kem : KEMScheme ProbComp K PK SK C}
   {ownMsgs : ℕ → Option (Message Sym × ℕ)} {ownKey peerKey : ℕ → Option K} {tcur : ℕ}
 
 /-- The two parities of a role are the two residues mod 2. -/
-theorem parity_cases (role : Role) (t : ℤ) :
+lemma parity_cases (role : Role) (t : ℤ) :
     t % 2 = role.reqParity ∨ t % 2 = role.resParity := by
   cases role <;> simp only [Role.reqParity, Role.resParity] <;> omega
 
 /-- If `t` and `t - 1` are in `ctRec`, so is every positive epoch up to `t`. -/
-theorem ctRec_prefix (h : PartyInv role ecEk ecCt T st peer ownMsgs ownKey peerKey tcur)
+lemma ctRec_prefix (h : PartyInv role ecEk ecCt T st peer ownMsgs ownKey peerKey tcur)
     (t : ℤ) (ht : t ∈ st.ack.ctRec) (ht' : t - 1 ∈ st.ack.ctRec) :
     ∀ s : ℤ, 0 < s → s ≤ t → s ∈ st.ack.ctRec := by
   intro s hs hst
@@ -306,7 +306,7 @@ theorem ctRec_prefix (h : PartyInv role ecEk ecCt T st peer ownMsgs ownKey peerK
       · exact ht
 
 /-- A positive sending horizon `t` has `t` and `t - 1` in `ctRec`. -/
-theorem sendingHorizon_attained (ack : Acknowledgements) (hpos : 0 < ack.sendingHorizon) :
+lemma sendingHorizon_attained (ack : Acknowledgements) (hpos : 0 < ack.sendingHorizon) :
     (ack.sendingHorizon : ℤ) ∈ ack.ctRec ∧ (ack.sendingHorizon : ℤ) - 1 ∈ ack.ctRec := by
   unfold Acknowledgements.sendingHorizon at *
   set F := ack.ctRec.filter fun t => t - 1 ∈ ack.ctRec with hF
@@ -321,7 +321,7 @@ theorem sendingHorizon_attained (ack : Acknowledgements) (hpos : 0 < ack.sending
     exact htF
 
 /-- Every positive epoch up to the sending horizon is in `ctRec`. -/
-theorem sendingHorizon_prefix
+lemma sendingHorizon_prefix
     (h : PartyInv role ecEk ecCt T st peer ownMsgs ownKey peerKey tcur) :
     ∀ s : ℤ, 0 < s → s ≤ st.ack.sendingHorizon → s ∈ st.ack.ctRec := by
   intro s hs hle
@@ -332,7 +332,7 @@ theorem sendingHorizon_prefix
 end PartyInv
 
 /-- For every positive epoch in a party's `ctRec`, both game key tables hold a key. -/
-theorem keys_of_ctRec {kem : KEMScheme ProbComp K PK SK C}
+lemma keys_of_ctRec {kem : KEMScheme ProbComp K PK SK C}
     {ecEk : ErasureCodePayload PK Sym} {ecCt : ErasureCodePayload C Sym}
     {T : Transcript kem} {role : Role} {st peer : State PK SK C Sym}
     {ownMsgs peerMsgs : ℕ → Option (Message Sym × ℕ)} {ownKey peerKey : ℕ → Option K}
@@ -362,7 +362,7 @@ theorem keys_of_ctRec {kem : KEMScheme ProbComp K PK SK C}
 
 /-- The game's known-prefix assertion: for every bound at most the sending horizon, the party's
 key table holds a key for every positive epoch up to the bound. -/
-theorem knownPrefix_of_partyInv {kem : KEMScheme ProbComp K PK SK C}
+lemma knownPrefix_of_partyInv {kem : KEMScheme ProbComp K PK SK C}
     {ecEk : ErasureCodePayload PK Sym} {ecCt : ErasureCodePayload C Sym}
     {T : Transcript kem} {role : Role} {st peer : State PK SK C Sym}
     {ownMsgs peerMsgs : ℕ → Option (Message Sym × ℕ)} {ownKey peerKey : ℕ → Option K}

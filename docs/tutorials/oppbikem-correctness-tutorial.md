@@ -340,8 +340,8 @@ Rather than proving forty fields five times, the post-states are covered by thre
   decoded and installed" outcomes, with the buffer fact supplied as a hypothesis.
 - [`partyInv_decaps_local`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L530):
   the decapsulation transition on an arbitrary invariant state: drop the secret key for `q`,
-  acknowledge `q`, write the transcript key into the table. The main theorem applies it to the
-  output of `partyInv_recv_noKey`.
+  acknowledge `q`, write the transcript key into the table. `partyInv_recv_step` applies it to
+  the output of `partyInv_recv_noKey`.
 - [`partyInv_recv_stale`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L853):
   a stale message changes only acknowledgements, and by `msgs_stale` its ciphertext flag is a
   no-op.
@@ -422,7 +422,7 @@ it.
   carries `0 < e`, and `Int.toNat_of_nonneg` recovers `e` from `e.toNat`.
 - **Section variables.** `Recv.lean` keeps both invariants and the message hypothesis as section
   variables with `include`; lemmas that do not use the receiver's invariant say `omit hR in`.
-- **`recordKey`.** Both step theorems state the updated key table as `recordKey keys key?`, which
+- **`recordKey`.** Both step lemmas state the updated key table as `recordKey keys key?`, which
   reduces by `simp` once `key?` is known; `Game.lean` cases on `key?` first.
 
 ## 12. The imperfect KEM: `Pr[fail] ≤ q · ε`

@@ -29,34 +29,34 @@ namespace oppBiKemCKA
 variable {K PK SK C Sym : Type}
 
 /-- Membership in the ciphertext acknowledgements after ingesting a message's flags. -/
-theorem mem_recvAck_ctRec (role : Role) (ack : Acknowledgements) (ρ : Message Sym) (t : ℤ) :
+lemma mem_recvAck_ctRec (role : Role) (ack : Acknowledgements) (ρ : Message Sym) (t : ℤ) :
     t ∈ (recvAck role ack ρ).ctRec ↔ t ∈ ack.ctRec ∨ (ρ.ack.ctRec = true ∧ t = ρ.tReq) := by
   unfold recvAck
   by_cases h : ρ.ack.ctRec = true <;> simp [h, or_comm]
 
 /-- Membership in the public-key acknowledgements after ingesting a message's flags. -/
-theorem mem_recvAck_ekRec (role : Role) (ack : Acknowledgements) (ρ : Message Sym) (t : ℤ) :
+lemma mem_recvAck_ekRec (role : Role) (ack : Acknowledgements) (ρ : Message Sym) (t : ℤ) :
     t ∈ (recvAck role ack ρ).ekRec ↔
       t ∈ ack.ekRec ∨ (ρ.ack.ekRec = true ∧ t = ρ.tReq + role.offset) := by
   unfold recvAck
   by_cases h : ρ.ack.ekRec = true <;> simp [h, or_comm]
 
 /-- Ingesting a message's flags only adds ciphertext acknowledgements. -/
-theorem recvAck_ctRec_subset (role : Role) (ack : Acknowledgements) (ρ : Message Sym) :
+lemma recvAck_ctRec_subset (role : Role) (ack : Acknowledgements) (ρ : Message Sym) :
     ack.ctRec ⊆ (recvAck role ack ρ).ctRec := by
   intro t ht
   rw [mem_recvAck_ctRec]
   exact Or.inl ht
 
 /-- Ingesting a message's flags only adds public-key acknowledgements. -/
-theorem recvAck_ekRec_subset (role : Role) (ack : Acknowledgements) (ρ : Message Sym) :
+lemma recvAck_ekRec_subset (role : Role) (ack : Acknowledgements) (ρ : Message Sym) :
     ack.ekRec ⊆ (recvAck role ack ρ).ekRec := by
   intro t ht
   rw [mem_recvAck_ekRec]
   exact Or.inl ht
 
 /-- An empty chunk buffer is consistent with every transcript, whatever the rest of the state. -/
-theorem bufferConsistent_of_empty (role : Role) {kem : KEMScheme ProbComp K PK SK C}
+lemma bufferConsistent_of_empty (role : Role) {kem : KEMScheme ProbComp K PK SK C}
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (T : Transcript kem) (st : State PK SK C Sym) (h : st.req.receivedChunks = ∅) :
     BufferConsistent role ecEk ecCt T st := by
@@ -84,32 +84,32 @@ include hR hS hmsg
 
 omit hR in
 /-- The received message is honest with respect to the peer's state. -/
-theorem recv_msgInv : MessageInv roleR.peer ecEk ecCt T stS ρ tsnd := hS.msgs n ρ tsnd hmsg
+lemma recv_msgInv : MessageInv roleR.peer ecEk ecCt T stS ρ tsnd := hS.msgs n ρ tsnd hmsg
 
 omit hR in
 /-- The carried responder epoch has the receiver's requester parity. -/
-theorem recv_tRes_parity : ρ.tRes % 2 = roleR.reqParity := by
+lemma recv_tRes_parity : ρ.tRes % 2 = roleR.reqParity := by
   have h := (recv_msgInv hS hmsg).res_parity
   simpa using h
 
 omit hR in
 /-- The carried requester epoch has the receiver's responder parity. -/
-theorem recv_tReq_parity : ρ.tReq % 2 = roleR.resParity := by
+lemma recv_tReq_parity : ρ.tReq % 2 = roleR.resParity := by
   have h := (recv_msgInv hS hmsg).req_parity
   simpa using h
 
 omit hR in
 /-- The carried responder epoch is at most two ahead of the receiver's requester epoch. -/
-theorem recv_tRes_le : ρ.tRes ≤ stR.req.reqEpoch + 2 :=
+lemma recv_tRes_le : ρ.tRes ≤ stR.req.reqEpoch + 2 :=
   (recv_msgInv hS hmsg).res_le.trans hS.res_le_peer_req
 
 /-- The carried requester epoch is at most the receiver's responder epoch. -/
-theorem recv_tReq_le : ρ.tReq ≤ stR.res.resEpoch :=
+lemma recv_tReq_le : ρ.tReq ≤ stR.res.resEpoch :=
   (recv_msgInv hS hmsg).req_le.trans hR.peer_req_le_res
 
 /-- For a non-stale message, the receiver's new requester epoch is the message's responder
 epoch `ρ.tRes`. -/
-theorem recvReq_eq_tRes (hns : ¬ ρ.tRes < stR.req.reqEpoch) : recvReq stR ρ = ρ.tRes := by
+lemma recvReq_eq_tRes (hns : ¬ ρ.tRes < stR.req.reqEpoch) : recvReq stR ρ = ρ.tRes := by
   have h1 := recv_tRes_le hS hmsg
   have h2 := recv_tRes_parity hS hmsg
   have h3 := hR.req_parity
@@ -118,7 +118,7 @@ theorem recvReq_eq_tRes (hns : ¬ ρ.tRes < stR.req.reqEpoch) : recvReq stR ρ =
 
 /-- If the message advances the receiver's requester epoch, the receiver has already
 acknowledged its current requester epoch. -/
-theorem recv_advance_prev (hadv : stR.req.reqEpoch < ρ.tRes) :
+lemma recv_advance_prev (hadv : stR.req.reqEpoch < ρ.tRes) :
     stR.req.reqEpoch ∈ stR.ack.ctRec := by
   have h1 := recv_tRes_le hS hmsg
   have hle := (recv_msgInv hS hmsg).res_le
@@ -134,18 +134,18 @@ theorem recv_advance_prev (hadv : stR.req.reqEpoch < ρ.tRes) :
 
 omit hR in
 /-- A ciphertext flag is backed by the peer's own decapsulation. -/
-theorem recv_flag_ct_peer (hfl : ρ.ack.ctRec = true) : ρ.tReq ∈ stS.ack.ctRec :=
+lemma recv_flag_ct_peer (hfl : ρ.ack.ctRec = true) : ρ.tReq ∈ stS.ack.ctRec :=
   (recv_msgInv hS hmsg).ct_flag hfl
 
 omit hR in
 /-- A ciphertext flag at a positive epoch is backed by an encapsulation. -/
-theorem recv_flag_ct_enc (hfl : ρ.ack.ctRec = true) (hpos : 0 < ρ.tReq) :
+lemma recv_flag_ct_enc (hfl : ρ.ack.ctRec = true) (hpos : 0 < ρ.tReq) :
     (T ρ.tReq).enc.isSome = true :=
   hS.ctRec_req_enc ρ.tReq (recv_flag_ct_peer hS hmsg hfl) hpos
     (by simpa using recv_tReq_parity hS hmsg)
 
 /-- A public-key flag is backed by the peer's decoded copy of the receiver's key. -/
-theorem recv_flag_ek_peerKey (hfl : ρ.ack.ekRec = true) :
+lemma recv_flag_ek_peerKey (hfl : ρ.ack.ekRec = true) :
     (stS.res.ekPeer (ρ.tReq + roleR.offset)).isSome = true := by
   have h := (recv_msgInv hS hmsg).ek_flag hfl
   have hidx : ρ.tReq - roleR.peer.offset = ρ.tReq + roleR.offset := by
@@ -158,7 +158,7 @@ theorem recv_flag_ek_peerKey (hfl : ρ.ack.ekRec = true) :
 
 /-- If the message is a ciphertext message (`ρ.bit = some 1`), the receiver has decoded the
 peer's public key for epoch `ρ.tRes - roleR.offset`. -/
-theorem recv_bit1_ekPeer (hbit : ρ.bit = some 1) :
+lemma recv_bit1_ekPeer (hbit : ρ.bit = some 1) :
     (stR.res.ekPeer (ρ.tRes - roleR.offset)).isSome = true := by
   have h := (recv_msgInv hS hmsg).bit1_acked hbit
   have hidx : ρ.tRes + roleR.peer.offset = ρ.tRes - roleR.offset := by
@@ -172,13 +172,13 @@ theorem recv_bit1_ekPeer (hbit : ρ.bit = some 1) :
 
 omit hR in
 /-- A stale message's ciphertext flag is already recorded by the receiver. -/
-theorem recv_stale_flag (hst : ρ.tRes < stR.req.reqEpoch) (hfl : ρ.ack.ctRec = true) :
+lemma recv_stale_flag (hst : ρ.tRes < stR.req.reqEpoch) (hfl : ρ.ack.ctRec = true) :
     ρ.tReq ∈ stR.ack.ctRec :=
   hS.msgs_stale n ρ tsnd hmsg hst hfl
 
 /-- Every positive epoch up to the message's sending epoch is acknowledged after ingesting its
 flags. -/
-theorem recv_sendingEpoch_mem (s : ℤ) (hs : 0 < s) (hle : s ≤ ρ.sendingEpoch) :
+lemma recv_sendingEpoch_mem (s : ℤ) (hs : 0 < s) (hle : s ≤ ρ.sendingEpoch) :
     s ∈ (recvAck roleR stR.ack ρ).ctRec := by
   have m := recv_msgInv hS hmsg
   have hmemS := m.sendingEpoch_mem s hs hle
@@ -197,7 +197,7 @@ theorem recv_sendingEpoch_mem (s : ℤ) (hs : 0 < s) (hle : s ≤ ρ.sendingEpoc
 
 /-- The message's sending epoch is at most the sending horizon of any acknowledgement set
 extending the ingested one. -/
-theorem recv_sendingEpoch_le (ack' : Acknowledgements)
+lemma recv_sendingEpoch_le (ack' : Acknowledgements)
     (hsub : (recvAck roleR stR.ack ρ).ctRec ⊆ ack'.ctRec) :
     ρ.sendingEpoch ≤ ack'.sendingHorizon := by
   by_cases h0 : ρ.sendingEpoch = 0
@@ -218,7 +218,7 @@ theorem recv_sendingEpoch_le (ack' : Acknowledgements)
 
 /-- The receiver's game epoch and the message's sending epoch are both at most the sending
 horizon of any acknowledgement set extending the ingested one. -/
-theorem recv_tcur_le (ack' : Acknowledgements)
+lemma recv_tcur_le (ack' : Acknowledgements)
     (hsub : (recvAck roleR stR.ack ρ).ctRec ⊆ ack'.ctRec) :
     max tcurR ρ.sendingEpoch ≤ ack'.sendingHorizon := by
   refine max_le ?_ (recv_sendingEpoch_le hR hS hmsg ack' hsub)
@@ -230,7 +230,7 @@ theorem recv_tcur_le (ack' : Acknowledgements)
 omit hR hS hmsg in
 /-- Honesty of a recorded message survives a change of the sender's state that keeps its
 responder epoch, does not decrease its requester epoch, and only adds acknowledgements. -/
-theorem MessageInv.mono {role : Role} {st st' : State PK SK C Sym} {ρ' : Message Sym} {tsnd' : ℕ}
+lemma MessageInv.mono {role : Role} {st st' : State PK SK C Sym} {ρ' : Message Sym} {tsnd' : ℕ}
     (h : MessageInv role ecEk ecCt T st ρ' tsnd')
     (hres : st'.res.resEpoch = st.res.resEpoch) (hreq : st.req.reqEpoch ≤ st'.req.reqEpoch)
     (hct : st.ack.ctRec ⊆ st'.ack.ctRec) (hek : st.ack.ekRec ⊆ st'.ack.ekRec) :
@@ -256,7 +256,7 @@ theorem MessageInv.mono {role : Role} {st st' : State PK SK C Sym} {ρ' : Messag
 /-- The carried requester epoch `ρ.tReq` has the receiver's responder parity and
 `ρ.tReq + offset` its requester parity; the carried responder epoch `ρ.tRes` has the
 receiver's requester parity and `ρ.tRes - offset` its responder parity. -/
-theorem recv_parity_facts :
+lemma recv_parity_facts :
     ρ.tReq % 2 = roleR.resParity ∧ ρ.tRes % 2 = roleR.reqParity ∧
       (ρ.tReq + roleR.offset) % 2 = roleR.reqParity ∧
       (ρ.tRes - roleR.offset) % 2 = roleR.resParity := by
@@ -269,7 +269,7 @@ theorem recv_parity_facts :
 transcript unchanged, provided the new peer-key map `ekPeer'` only adds transcript keys, the
 ciphertext acknowledgements are exactly the ingested ones, every new `ekRec` entry has a newly
 decoded key, and the post-state buffer is consistent. -/
-theorem partyInv_recv_noKey (hns : ¬ ρ.tRes < stR.req.reqEpoch)
+lemma partyInv_recv_noKey (hns : ¬ ρ.tRes < stR.req.reqEpoch)
     (ekPeer' : ℤ → Option PK) (ack' : Acknowledgements) (chunks' : Finset (ℕ × Sym))
     (hstable : ∀ e, (stR.res.ekPeer e).isSome = true → ekPeer' e = stR.res.ekPeer e)
     (hekT : ∀ e pk, ekPeer' e = some pk → ∃ sk, (T e).keypair = some (pk, sk))
@@ -527,7 +527,7 @@ omit hR hmsg in
 and recording the transcript key `k` in the game key table) preserves `PartyInv` for both
 parties, provided the buffer is empty and `q` is positive, unacknowledged, and encapsulated in
 `T`. -/
-theorem partyInv_decaps_local {st₁ : State PK SK C Sym} {ownKey : ℕ → Option K} {tcur : ℕ}
+lemma partyInv_decaps_local {st₁ : State PK SK C Sym} {ownKey : ℕ → Option K} {tcur : ℕ}
     (h₁ : PartyInv roleR ecEk ecCt T st₁ stS msgsR ownKey keyS tcur)
     (hS₁ : PartyInv roleR.peer ecEk ecCt T stS st₁ msgsS keyS ownKey tcurS)
     (q : ℤ) (hq : st₁.req.reqEpoch = q) (hqpos : 0 < q) (hqpar : q % 2 = roleR.reqParity)
@@ -707,7 +707,7 @@ acknowledgements, the decoded peer keys, and the chunk buffer. On
 `chunks'`. The hypothesis `h` is the body of `BufferConsistent` with these four values
 substituted. The other arguments (`st`, `dk'`, `ack'.ekRec`) play no role, and the proof is
 definitional unfolding. -/
-theorem bufferConsistent_recvFinish (role : Role) (st : State PK SK C Sym) (q : ℤ)
+lemma bufferConsistent_recvFinish (role : Role) (st : State PK SK C Sym) (q : ℤ)
     (ekPeer' : ℤ → Option PK) (dk' : List (ℤ × SK)) (chunks' : Finset (ℕ × Sym))
     (ack' : Acknowledgements)
     (h : if q ∈ ack'.ctRec then chunks' = ∅
@@ -726,7 +726,7 @@ theorem bufferConsistent_recvFinish (role : Role) (st : State PK SK C Sym) (q : 
 omit hR in
 /-- If the transcript has a key pair at the message's key epoch `ρ.tRes - roleR.offset`, the
 carried responder epoch `ρ.tRes` is positive. -/
-theorem recv_tRes_pos_of_keypair (hkp : ((T (ρ.tRes - roleR.offset)).keypair).isSome = true) :
+lemma recv_tRes_pos_of_keypair (hkp : ((T (ρ.tRes - roleR.offset)).keypair).isSome = true) :
     0 < ρ.tRes := by
   have hpar : (ρ.tRes - roleR.offset) % 2 = roleR.peer.reqParity := by
     have := recv_tRes_parity hS hmsg
@@ -737,7 +737,7 @@ theorem recv_tRes_pos_of_keypair (hkp : ((T (ρ.tRes - roleR.offset)).keypair).i
 
 /-- If the receiver has acknowledged the positive epoch `ρ.tRes`, it has decoded the peer's
 public key for `ρ.tRes - roleR.offset`. -/
-theorem recv_ekPeer_of_ctRec (hpos : 0 < ρ.tRes) (hin : ρ.tRes ∈ stR.ack.ctRec) :
+lemma recv_ekPeer_of_ctRec (hpos : 0 < ρ.tRes) (hin : ρ.tRes ∈ stR.ack.ctRec) :
     (stR.res.ekPeer (ρ.tRes - roleR.offset)).isSome = true := by
   have hpar := recv_tRes_parity hS hmsg
   have henc := hR.ctRec_req_enc _ hin hpos hpar
@@ -754,7 +754,7 @@ theorem recv_ekPeer_of_ctRec (hpos : 0 < ρ.tRes) (hin : ρ.tRes ∈ stR.ack.ctR
 decoded, the epoch `ρ.tRes` is unacknowledged, the message carries a chunk of the transcript's
 public key `pk` for `ρ.tRes - roleR.offset`, and the buffer is an honest sub-threshold chunk
 set of `pk`. -/
-theorem recv_buffer_pk (hns : ¬ ρ.tRes < stR.req.reqEpoch) (hbit : ρ.bit = some 0)
+lemma recv_buffer_pk (hns : ¬ ρ.tRes < stR.req.reqEpoch) (hbit : ρ.bit = some 0)
     (hnone : (stR.res.ekPeer (ρ.tRes - roleR.offset)).isNone = true) :
     ρ.tRes ∉ stR.ack.ctRec ∧
     ∃ pk sk i I, (T (ρ.tRes - roleR.offset)).keypair = some (pk, sk) ∧
@@ -787,7 +787,7 @@ theorem recv_buffer_pk (hns : ¬ ρ.tRes < stR.req.reqEpoch) (hbit : ρ.bit = so
 /-- For a non-stale ciphertext message (`ρ.bit = some 1`) at an unacknowledged epoch that
 carries a chunk `ch`, the chunk encodes the transcript's ciphertext `c` for `ρ.tRes`, and the
 buffer is an honest sub-threshold chunk set of `c`. -/
-theorem recv_buffer_ct (hns : ¬ ρ.tRes < stR.req.reqEpoch) (hbit : ρ.bit = some 1)
+lemma recv_buffer_ct (hns : ¬ ρ.tRes < stR.req.reqEpoch) (hbit : ρ.bit = some 1)
     (hqnot : ρ.tRes ∉ stR.ack.ctRec) (ch : ℕ × Sym) (hch : ρ.ch = some ch) :
     ∃ c k i I, (T ρ.tRes).enc = some (c, k) ∧ ch = ecCt.encode c i ∧
       stR.req.receivedChunks = payloadChunks ecCt c I ∧ I.card < ecCt.ec.nchunk := by
@@ -813,7 +813,7 @@ theorem recv_buffer_ct (hns : ¬ ρ.tRes < stR.req.reqEpoch) (hbit : ρ.bit = so
 
 /-- A non-stale receive that keeps the buffer, the peer keys and the secret keys, and only
 ingests the message's flags, leaves the buffer consistent. -/
-theorem recv_buffer_unchanged (hns : ¬ ρ.tRes < stR.req.reqEpoch) :
+lemma recv_buffer_unchanged (hns : ¬ ρ.tRes < stR.req.reqEpoch) :
     BufferConsistent roleR ecEk ecCt T
       (recvFinish roleR stR ρ.tRes stR.res.ekPeer stR.req.dk stR.req.receivedChunks
         (recvAck roleR stR.ack ρ)) := by
@@ -846,7 +846,7 @@ theorem recv_buffer_unchanged (hns : ¬ ρ.tRes < stR.req.reqEpoch) :
 
 /-- Receiving a stale message, which only ingests the message's flags, preserves `PartyInv`
 for both parties. -/
-theorem partyInv_recv_stale (hst : ρ.tRes < stR.req.reqEpoch) :
+lemma partyInv_recv_stale (hst : ρ.tRes < stR.req.reqEpoch) :
     PartyInv roleR ecEk ecCt T { stR with ack := recvAck roleR stR.ack ρ } stS msgsR keyR keyS
         (max tcurR ρ.sendingEpoch) ∧
       PartyInv roleR.peer ecEk ecCt T stS { stR with ack := recvAck roleR stR.ack ρ } msgsS keyS
@@ -972,7 +972,7 @@ known-prefix check passes, and an emitted key is fresh for the receiver and cons
 peer's table — and preserves `PartyInv` for both parties with the transcript unchanged. The only
 KEM hypothesis, `hdec`, is decapsulation correctness at the received epoch when that epoch is
 not yet acknowledged. -/
-theorem partyInv_recv_step [DecidableEq Sym] (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
+lemma partyInv_recv_step [DecidableEq Sym] (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
     (hdec : ρ.tRes ∉ stR.ack.ctRec → ∀ pk sk c k, (T ρ.tRes).keypair = some (pk, sk) →
       (T ρ.tRes).enc = some (c, k) → hDet.decapsDet sk c = some k) :
     (∃ key? trcv stR', recv roleR kem hDet ecEk ecCt stR ρ = some (key?, trcv, stR')) ∧
