@@ -647,21 +647,6 @@ def scheme (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
   recvB := recvB kem onoff ecEk
 -- ANCHOR_END: scheme
 
-/-- The Opp-UniKEM scheme with A's receive using `decapsDet : SK → C → Option K`.
-All other algorithms are those of `scheme`. -/
-def schemeWithDecaps (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
-  [DecidableEq Sym]
-    (hDet : kem.DeterministicDecaps)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
-    (leak : KEMScheme.OnOffRandLeak kem onoff)
-    (decapsDet : SK → C → Option K) :
-    SCKAScheme m Unit (StA onoff Sym) (StB onoff Sym) K (Message Sym)
-      (SendRand leak.KeygenRand leak.OffRand leak.OnRand) :=
-  { scheme kem onoff hDet ecEk ecCt0 ecCt1 leak with
-    recvA := recvA kem onoff decapsDet ecCt0 ecCt1 }
-
 end Construction
 
 end oppUniKemCKA
