@@ -300,7 +300,7 @@ the bit-1 guard is `send_ciphertextMessage_keyAck` from `SendFacts.lean`.
 
 ## 9. The receive step
 
-[`partyInv_recv_step`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L967)
+[`partyInv_recv_step`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L979)
 says more than preservation: for a message recorded in the peer's table, the receive
 *succeeds*, the receive epoch matches the recorded one, the known-prefix check passes, an emitted
 key is fresh and agrees with the peer's table, and both invariants hold afterwards with the same
@@ -342,21 +342,21 @@ Rather than proving forty fields five times, the post-states are covered by thre
   the decapsulation transition on an arbitrary invariant state: drop the secret key for `q`,
   acknowledge `q`, write the transcript key into the table. The main theorem applies it to the
   output of `partyInv_recv_noKey`.
-- [`partyInv_recv_stale`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L841):
+- [`partyInv_recv_stale`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L853):
   a stale message changes only acknowledgements, and by `msgs_stale` its ciphertext flag is a
   no-op.
 
 ### 9.3 The buffer in each case
 
-- [`recv_buffer_pk`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L749):
+- [`recv_buffer_pk`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L761):
   on the public-key path the buffer is honest chunks of the peer's key for this epoch and the
   message carries one more such chunk. The subtle part is ruling out "current epoch already
   acknowledged while the peer key is undecoded":
-  [`recv_ekPeer_of_ctRec`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L732)
+  [`recv_ekPeer_of_ctRec`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L744)
   goes acknowledgement, encapsulation, the peer's `enc_ekRec`, my `ekRec_req`.
-- [`recv_buffer_ct`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L782):
+- [`recv_buffer_ct`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L794):
   the ciphertext analogue.
-- [`recv_buffer_unchanged`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L808):
+- [`recv_buffer_unchanged`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L820):
   when nothing is inserted; on an advance the buffer was empty by `recv_advance_prev`.
 
 In each path the decoder is resolved by `decode_payloadChunks` or `decode_payloadChunks_none`

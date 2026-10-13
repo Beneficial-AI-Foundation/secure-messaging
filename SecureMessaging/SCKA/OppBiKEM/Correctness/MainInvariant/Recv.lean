@@ -698,7 +698,15 @@ theorem partyInv_decaps_local {st₁ : State PK SK C Sym} {ownKey : ℕ → Opti
         msgs_stale := fun j ρ' t' hj hlt hfl => hsub (hS₁.msgs_stale j ρ' t' hj hlt hfl) }
 
 omit hR hS hmsg in
-/-- `BufferConsistent` of a `recvFinish` state, unfolded on the fields `recvFinish` sets. -/
+/-- `BufferConsistent` of a state built by `recvFinish`, stated directly in terms of the
+arguments of `recvFinish`.
+
+`BufferConsistent` reads four fields of a state: the requester epoch, the ciphertext
+acknowledgements, the decoded peer keys, and the chunk buffer. On
+`recvFinish role st q ekPeer' dk' chunks' ack'` these are `q`, `ack'.ctRec`, `ekPeer'`, and
+`chunks'`. The hypothesis `h` is the body of `BufferConsistent` with these four values
+substituted. The other arguments (`st`, `dk'`, `ack'.ekRec`) play no role, and the proof is
+definitional unfolding. -/
 theorem bufferConsistent_recvFinish (role : Role) (st : State PK SK C Sym) (q : ℤ)
     (ekPeer' : ℤ → Option PK) (dk' : List (ℤ × SK)) (chunks' : Finset (ℕ × Sym))
     (ack' : Acknowledgements)
