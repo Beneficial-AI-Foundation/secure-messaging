@@ -151,8 +151,8 @@ oracles accordingly. The changes are boxed.
 ::::::gameGrid
 :::::gameCell "\\textsf{Vulnerable epochs}" (kind := "scheme")
 For each party $`X\in\{\A,\B\}`, let $`\mathsf{St}_X` be its state space and $`R_X` the
-space of randomness values returned by its leaking-send algorithm. The game is
-parametrised by
+space of randomness values returned by its leaking-send algorithm; in Lean, both parties share
+the randomness type `Rand`. The game is parametrised by
 
 - $`\mathsf{vuln}^{\mathsf{corr}}_X:\mathsf{St}_X\to\mathcal P_{\mathrm{fin}}(\mathbb N)`, the epochs
   exposed by corruption of a state $`\mathsf{st}\in\mathsf{St}_X`;

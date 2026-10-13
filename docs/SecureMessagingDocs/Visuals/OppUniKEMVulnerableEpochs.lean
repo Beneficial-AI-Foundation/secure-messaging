@@ -9,26 +9,8 @@ import VersoManual.Diagrams
 open Verso Genre Manual Doc Elab
 open Lean
 
-/-- A's corruption vulnerability: `O-Corr-A` returns `st_A`, whose decapsulation key `dk_A`
-gives the key of epoch `t_A` together with public values, so `vuln^corr_A(st_A) = {t_A}`. -/
-private def oppUniKemVulnCorrASvg : String := r##"
-<svg xmlns="http://www.w3.org/2000/svg" class="ve-text" viewBox="0 0 520 506" width="520" height="506" style="display:block;width:100%;height:auto" role="img" aria-label="Corruption of A: O-Corr-A returns A's state st_A, which contains the decapsulation key dk_A. The key of A's current epoch t_A is computable from dk_A and public values, so vuln-corr_A(st_A) is the set containing t_A, and t_A is added to Exposed.">
-  <!--
-    Corruption of A: the figure for vuln^corr_A.
-    Units are viewBox pixels. Each block is a group placed by its transform, so its contents use
-    local coordinates. Classes: ve-math italic math; ve-sub and ve-sup sub- and superscripts;
-    ve-secret secret key material (amber); ve-oracle and ve-leak oracles and values returned to the
-    adversary (red); ve-vuln and ve-exposed vulnerable and exposed epochs.
-    Layout: adversary top right; oracle with the state on the left; vulnerable epochs bottom right; legend at the bottom.
-  -->
-  <defs>
-    <marker id="vca-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#252525" stroke-width="1.2"/></marker>
-    <marker id="vca-red-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#b42318" stroke-width="1.2"/></marker>
-    <pattern id="vca-hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-      <rect width="7" height="7" fill="#fff6e0"/>
-      <line x1="0" y1="0" x2="0" y2="7" stroke="#d29a2a" stroke-width="2.2"/>
-    </pattern>
-    <style>
+/-- Style sheet shared by the four vulnerable-epoch figures; each figure embeds a copy. -/
+private def vulnerableEpochsStyle : String := r##"    <style>
       .ve-text   { font-family: Arial, Helvetica, sans-serif; font-size: 18px; fill: #171717; }
       .ve-small  { font-size: 14px; }
       .ve-math   { font-family: "Times New Roman", Times, serif; font-style: italic; font-size: 21px; }
@@ -54,7 +36,28 @@ private def oppUniKemVulnCorrASvg : String := r##"
       .ve-legend { font-size: 14px; }
       .ve-legend .ve-math { font-size: 17px; }
       .ve-legend .ve-sub { font-size: 11px; }
-    </style>
+    </style>"##
+
+/-- A's corruption vulnerability: `O-Corr-A` returns `st_A`, whose decapsulation key `dk_A`
+gives the key of epoch `t_A` together with public values, so `vuln^corr_A(st_A) = {t_A}`. -/
+private def oppUniKemVulnCorrASvg : String := r##"
+<svg xmlns="http://www.w3.org/2000/svg" class="ve-text" viewBox="0 0 520 506" width="520" height="506" style="display:block;width:100%;height:auto" role="img" aria-label="Corruption of A: O-Corr-A returns A's state st_A, which contains the decapsulation key dk_A. The key of A's current epoch t_A is computable from dk_A and public values, so vuln-corr_A(st_A) is the set containing t_A, and t_A is added to Exposed.">
+  <!--
+    Corruption of A: the figure for vuln^corr_A.
+    Units are viewBox pixels. Each block is a group placed by its transform, so its contents use
+    local coordinates. Classes: ve-math italic math; ve-sub and ve-sup sub- and superscripts;
+    ve-secret secret key material (amber); ve-oracle and ve-leak oracles and values returned to the
+    adversary (red); ve-vuln and ve-exposed vulnerable and exposed epochs.
+    Layout: adversary top right; oracle with the state on the left; vulnerable epochs bottom right; legend at the bottom.
+  -->
+  <defs>
+    <marker id="vca-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#252525" stroke-width="1.2"/></marker>
+    <marker id="vca-red-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#b42318" stroke-width="1.2"/></marker>
+    <pattern id="vca-hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="7" height="7" fill="#fff6e0"/>
+      <line x1="0" y1="0" x2="0" y2="7" stroke="#d29a2a" stroke-width="2.2"/>
+    </pattern>
+"## ++ vulnerableEpochsStyle ++ r##"
   </defs>
 
   <!-- Adversary: receives the revealed value. -->
@@ -142,33 +145,7 @@ private def oppUniKemVulnCorrBSvg : String := r##"
       <rect width="7" height="7" fill="#fff6e0"/>
       <line x1="0" y1="0" x2="0" y2="7" stroke="#d29a2a" stroke-width="2.2"/>
     </pattern>
-    <style>
-      .ve-text   { font-family: Arial, Helvetica, sans-serif; font-size: 18px; fill: #171717; }
-      .ve-small  { font-size: 14px; }
-      .ve-math   { font-family: "Times New Roman", Times, serif; font-style: italic; font-size: 21px; }
-      .ve-sub    { baseline-shift: -5px; font-size: 14px; }
-      .ve-sup    { baseline-shift: 8px; font-size: 12px; }
-      .ve-sub .ve-math { font-size: inherit; }
-      .ve-red    { fill: #b42318; }
-      .ve-muted  { fill: #5f5f5f; }
-      .ve-box    { fill: white; stroke: #252525; stroke-width: 1.2; }
-      .ve-rule   { stroke: #252525; stroke-width: 1; }
-      .ve-oracle { fill: none; stroke: #b42318; stroke-width: 1.4; }
-      .ve-secret { fill: #fff6e0; stroke: #b7791f; stroke-width: 1.8; }
-      .ve-flow   { fill: none; stroke: #252525; stroke-width: 1.3; }
-      .ve-leak   { fill: none; stroke: #b42318; stroke-width: 1.8; }
-      .ve-cell   { fill: white; stroke: #8a8a8a; stroke-width: 1; }
-      .ve-vuln   { stroke: #b7791f; stroke-width: 1.4; }
-      .ve-exposed { fill: #b42318; stroke: #b42318; stroke-width: 1.4; }
-      .ve-on-red { fill: white; }
-      .ve-halo   { paint-order: stroke; stroke: white; stroke-width: 4px; stroke-linejoin: round; }
-      .ve-cellt { font-size: 15px; }
-      .ve-cellt .ve-math { font-size: 17px; }
-      .ve-cellt .ve-sub { font-size: 11px; }
-      .ve-legend { font-size: 14px; }
-      .ve-legend .ve-math { font-size: 17px; }
-      .ve-legend .ve-sub { font-size: 11px; }
-    </style>
+"## ++ vulnerableEpochsStyle ++ r##"
   </defs>
 
   <!-- Adversary: receives the revealed value. -->
@@ -256,33 +233,7 @@ private def oppUniKemVulnRleakASvg : String := r##"
       <rect width="7" height="7" fill="#fff6e0"/>
       <line x1="0" y1="0" x2="0" y2="7" stroke="#d29a2a" stroke-width="2.2"/>
     </pattern>
-    <style>
-      .ve-text   { font-family: Arial, Helvetica, sans-serif; font-size: 18px; fill: #171717; }
-      .ve-small  { font-size: 14px; }
-      .ve-math   { font-family: "Times New Roman", Times, serif; font-style: italic; font-size: 21px; }
-      .ve-sub    { baseline-shift: -5px; font-size: 14px; }
-      .ve-sup    { baseline-shift: 8px; font-size: 12px; }
-      .ve-sub .ve-math { font-size: inherit; }
-      .ve-red    { fill: #b42318; }
-      .ve-muted  { fill: #5f5f5f; }
-      .ve-box    { fill: white; stroke: #252525; stroke-width: 1.2; }
-      .ve-rule   { stroke: #252525; stroke-width: 1; }
-      .ve-oracle { fill: none; stroke: #b42318; stroke-width: 1.4; }
-      .ve-secret { fill: #fff6e0; stroke: #b7791f; stroke-width: 1.8; }
-      .ve-flow   { fill: none; stroke: #252525; stroke-width: 1.3; }
-      .ve-leak   { fill: none; stroke: #b42318; stroke-width: 1.8; }
-      .ve-cell   { fill: white; stroke: #8a8a8a; stroke-width: 1; }
-      .ve-vuln   { stroke: #b7791f; stroke-width: 1.4; }
-      .ve-exposed { fill: #b42318; stroke: #b42318; stroke-width: 1.4; }
-      .ve-on-red { fill: white; }
-      .ve-halo   { paint-order: stroke; stroke: white; stroke-width: 4px; stroke-linejoin: round; }
-      .ve-cellt { font-size: 15px; }
-      .ve-cellt .ve-math { font-size: 17px; }
-      .ve-cellt .ve-sub { font-size: 11px; }
-      .ve-legend { font-size: 14px; }
-      .ve-legend .ve-math { font-size: 17px; }
-      .ve-legend .ve-sub { font-size: 11px; }
-    </style>
+"## ++ vulnerableEpochsStyle ++ r##"
   </defs>
 
   <!-- Adversary: receives the revealed value. -->
@@ -378,33 +329,7 @@ private def oppUniKemVulnRleakBSvg : String := r##"
       <rect width="7" height="7" fill="#fff6e0"/>
       <line x1="0" y1="0" x2="0" y2="7" stroke="#d29a2a" stroke-width="2.2"/>
     </pattern>
-    <style>
-      .ve-text   { font-family: Arial, Helvetica, sans-serif; font-size: 18px; fill: #171717; }
-      .ve-small  { font-size: 14px; }
-      .ve-math   { font-family: "Times New Roman", Times, serif; font-style: italic; font-size: 21px; }
-      .ve-sub    { baseline-shift: -5px; font-size: 14px; }
-      .ve-sup    { baseline-shift: 8px; font-size: 12px; }
-      .ve-sub .ve-math { font-size: inherit; }
-      .ve-red    { fill: #b42318; }
-      .ve-muted  { fill: #5f5f5f; }
-      .ve-box    { fill: white; stroke: #252525; stroke-width: 1.2; }
-      .ve-rule   { stroke: #252525; stroke-width: 1; }
-      .ve-oracle { fill: none; stroke: #b42318; stroke-width: 1.4; }
-      .ve-secret { fill: #fff6e0; stroke: #b7791f; stroke-width: 1.8; }
-      .ve-flow   { fill: none; stroke: #252525; stroke-width: 1.3; }
-      .ve-leak   { fill: none; stroke: #b42318; stroke-width: 1.8; }
-      .ve-cell   { fill: white; stroke: #8a8a8a; stroke-width: 1; }
-      .ve-vuln   { stroke: #b7791f; stroke-width: 1.4; }
-      .ve-exposed { fill: #b42318; stroke: #b42318; stroke-width: 1.4; }
-      .ve-on-red { fill: white; }
-      .ve-halo   { paint-order: stroke; stroke: white; stroke-width: 4px; stroke-linejoin: round; }
-      .ve-cellt { font-size: 15px; }
-      .ve-cellt .ve-math { font-size: 17px; }
-      .ve-cellt .ve-sub { font-size: 11px; }
-      .ve-legend { font-size: 14px; }
-      .ve-legend .ve-math { font-size: 17px; }
-      .ve-legend .ve-sub { font-size: 11px; }
-    </style>
+"## ++ vulnerableEpochsStyle ++ r##"
   </defs>
 
   <!-- Adversary: receives the revealed value. -->

@@ -104,8 +104,10 @@ structure SCKAScheme (m : Type → Type u) [Monad m] (IK StA StB I Rho Rand : Ty
 
 namespace SCKAScheme
 
-/-- Vulnerable epochs of one party: the epochs whose keys become computable from material
-revealed to the adversary, for the two kinds of material the security game reveals. -/
+/-- Vulnerable epochs of one party: the sets of epochs that the security game excludes from
+challenges once material of the party is revealed, by state exposure or by randomness leakage.
+They should contain every epoch whose key becomes computable from the revealed material and may
+over-approximate it (cf. Remark 3.2 of [SCKA]). -/
 -- ANCHOR: VulnerableEpochs
 structure VulnerableEpochs (St Rand : Type) where
   /-- Vulnerable epochs following state exposure. -/
@@ -155,12 +157,13 @@ variable {m : Type → Type u} [Monad m] {IK StA StB I Rho Rand : Type}
     recovers exactly the sending epoch its partner used to produce the message.
 
 - **Vulnerable epochs.** For each party `P`, the security game is parametrised by
-  `⟨corrupt, rleak⟩ : VulnerableEpochs St Rand`, the epochs whose keys become computable from
-  material of `P` revealed to the adversary:
-  * `corrupt : St → Finset ℕ`: following state exposure, from the local state;
-  * `rleak : St → Rand → Finset ℕ`: following randomness leakage, from the coins of a send
-    from the given state.
+  `⟨corrupt, rleak⟩ : VulnerableEpochs St Rand`, the sets of epochs that the game excludes from
+  challenges once material of `P` is revealed to the adversary:
+  * `corrupt : St → Finset ℕ`: on exposure of the local state;
+  * `rleak : St → Rand → Finset ℕ`: on leakage of the coins of a send from the given state.
 
+  These sets should contain every epoch whose key becomes computable from the revealed
+  material, and may over-approximate it (cf. Remark 3.2 of [SCKA]).
   The oracle `O-Corrupt-P` exposes `corrupt state`.
   The oracle `O-Send-P-rleak` exposes `rleak state coins` for the
   state before the send. A query that would expose a `Challenged` epoch is refused; a
@@ -169,9 +172,8 @@ variable {m : Type → Type u} [Monad m] {IK StA StB I Rho Rand : Type}
 
   Figure 1 of [SCKA] has only `corrupt` (`st.vuln`) and lets a leaking send expose
   `vuln(new) ∖ vuln(old)`. This misses coins that reveal a key while the state's
-  vulnerability is unchanged: in Opp-UniKEM, B's state is vulnerable at `t` before and after
-  the online send, whose coins contain the epoch key, so `Chall(t)` stays admissible. `rleak`
-  records this exposure; see `OppUniKEM.Construction`.
+  vulnerability is unchanged; `rleak` records such exposure (see `OppUniKEM.Construction` for
+  an example).
 -/
 
 section Games
