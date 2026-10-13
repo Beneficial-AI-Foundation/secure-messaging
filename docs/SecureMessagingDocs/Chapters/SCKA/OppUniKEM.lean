@@ -3,6 +3,7 @@ import VersoManual
 import VersoBlueprint
 import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
+import SecureMessagingDocs.Visuals.OppUniKEMVulnerableEpochs
 import SecureMessagingDocs.Bibliography
 import SecureMessaging.SCKA.OppUniKEM.Correctness
 
@@ -599,8 +600,16 @@ $$`\begin{aligned}
 The randomness outputs of $`\SendARLeak` and $`\SendBRLeak` are $`r_K` and $`(r_0,r_1)`,
 respectively. The values $`r_K,r_0,r_1` are the coins of $`\KeyGen`, $`\Encaps.\mathsf{Off}`,
 and $`\Encaps.\mathsf{On}`, respectively; each is $`\bot` if that algorithm was not called
-during the send. Define
+during the send.
 
+For $`X\in\{\A,\B\}`, let $`\mathsf{St}_X` be the state space of $`X` and $`R_X`
+the space of randomness outputs of its leaking send. We define the functions
+$`\mathsf{vuln}^{\mathsf{corr}}_X:\mathsf{St}_X\to\mathcal P_{\mathrm{fin}}(\mathbb N)` and
+$`\mathsf{vuln}^{\mathsf{rleak}}_X:\mathsf{St}_X\times R_X\to\mathcal P_{\mathrm{fin}}(\mathbb N)`,
+which parametrise the security game of {bpref "scka_oracles"}[], as follows.
+
+::::::gameGrid
+:::::gameCell "\\mathsf{vuln}^{\\mathsf{corr}}_\\A" (kind := "compact")
 $$`\mathsf{vuln}^{\mathsf{corr}}_\A(\stA)=\begin{cases}
 \{t_\A\} & \dkA\ne\bot,\\ \emptyset & \text{otherwise}.\end{cases}`
 
@@ -612,7 +621,14 @@ def vulnCorrA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     (stA : StA onoff Sym) : Finset ℕ :=
   if stA.dkA.isSome then {stA.t} else ∅
 ```
+:::::
 
+:::::gameCell "\\textsf{Illustration: corruption of A}" (kind := "compact")
+:::oppUniKemVulnCorrA
+:::
+:::::
+
+:::::gameCell "\\mathsf{vuln}^{\\mathsf{corr}}_\\B" (kind := "compact")
 $$`\mathsf{vuln}^{\mathsf{corr}}_\B(\stB)=\begin{cases}
 \{t_\B\} & \stct\ne\bot,\\ \emptyset & \text{otherwise}.\end{cases}`
 
@@ -624,7 +640,14 @@ def vulnCorrB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     (stB : StB onoff Sym) : Finset ℕ :=
   if stB.stCt.isSome then {stB.t} else ∅
 ```
+:::::
 
+:::::gameCell "\\textsf{Illustration: corruption of B}" (kind := "compact")
+:::oppUniKemVulnCorrB
+:::
+:::::
+
+:::::gameCell "\\mathsf{vuln}^{\\mathsf{rleak}}_\\A" (kind := "compact")
 $$`\mathsf{vuln}^{\mathsf{rleak}}_\A(\stA,r_K)=\begin{cases}
 \{t_\A\} & r_K\ne\bot,\\ \emptyset & \text{otherwise}.\end{cases}`
 
@@ -639,7 +662,14 @@ def vulnRleakA {kem : KEMScheme m K PK SK C} {onoff : kem.OnOffStructure}
   | .keygen _ => {stA.t}
   | _ => ∅
 ```
+:::::
 
+:::::gameCell "\\textsf{Illustration: randomness leakage by A}" (kind := "compact")
+:::oppUniKemVulnRleakA
+:::
+:::::
+
+:::::gameCell "\\mathsf{vuln}^{\\mathsf{rleak}}_\\B" (kind := "compact")
 $$`\mathsf{vuln}^{\mathsf{rleak}}_\B(\stB,(r_0,r_1))=\begin{cases}
 \{t_\B\} & (r_0,r_1)\ne(\bot,\bot),\\ \emptyset & \text{otherwise}.\end{cases}`
 
@@ -654,6 +684,13 @@ def vulnRleakB {kem : KEMScheme m K PK SK C} {onoff : kem.OnOffStructure}
   | .off _ | .on _ | .offOn _ _ => {stB.t}
   | _ => ∅
 ```
+:::::
+
+:::::gameCell "\\textsf{Illustration: randomness leakage by B}" (kind := "compact")
+:::oppUniKemVulnRleakB
+:::
+:::::
+::::::
 
 The sets $`\mathsf{vuln}^{\mathsf{corr}}_\A(\stA)` and
 $`\mathsf{vuln}^{\mathsf{corr}}_\B(\stB)` are denoted

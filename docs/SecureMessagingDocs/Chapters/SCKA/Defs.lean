@@ -4,6 +4,7 @@ import SecureMessagingDocs.Visuals.Notation
 import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessagingDocs.Visuals.SCKAAdversary
+import SecureMessagingDocs.Visuals.SCKAKeyMaterial
 import SecureMessagingDocs.Bibliography
 import SecureMessaging.SCKA.Defs
 
@@ -170,6 +171,11 @@ structure VulnerableEpochs (St Rand : Type) where
   given state. -/
   rleak : St → Rand → Finset ℕ
 ```
+:::::
+
+:::::gameCell "\\textsf{Illustration: key material and vulnerable epochs}" (kind := "scheme")
+:::sckaKeyMaterialIllustration
+:::
 :::::
 
 :::::gameCell "\\textsf{Game state}" (kind := "scheme")
@@ -806,7 +812,7 @@ abbrev SCKAAdversary (StA StB I Rho Rand : Type) :=
 
 :::::
 
-:::::gameCell "\\textsf{Illustration: adversarial scheduling}" (kind := "scheme")
+:::::gameCell "\\textsf{Illustration: adversarial scheduling and vulnerable epochs}" (kind := "scheme")
 :::sckaAdversaryIllustration
 :::
 :::::
