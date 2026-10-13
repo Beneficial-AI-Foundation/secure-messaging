@@ -84,14 +84,8 @@ empty even when the online coins reveal the epoch key. In the K-PKE instance
 `KPKEOnOff.onOffRandLeak`, the online coins are the sampled message, which is the shared key,
 so the game permits a challenge for a key already revealed by leakage.
 
-`vulnRleakA` and `vulnRleakB` specify leakage exposure separately from corruption:
-they return the current epoch when the corresponding send returns KEM coins,
-and the empty set otherwise. The game records these epochs as exposed and
-rejects challenges for them. For a general on/off KEM, the returned coins need not determine
-the key, and this rule is conservative. Each send that enlarges `vulnCorrA` or `vulnCorrB` runs
-`KeyGen` or `Enc.Off` and returns their coins, so the epochs that Figure 1 exposes on a leaking
-send are among those that `vulnRleakA` and `vulnRleakB` expose. This inclusion is not yet
-proved in Lean.
+`vulnRleakA` and `vulnRleakB` expose the current epoch whenever the send returns KEM coins, and
+no epoch otherwise; for a general on/off KEM, this is conservative.
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -587,8 +581,7 @@ def vulnCorrB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 -- ANCHOR_END: vulnCorrB
 
 /-- A's vulnerable epochs following randomness leakage: the current epoch if the send returns
-key-generation coins, and no epoch otherwise. In `KPKEOnOff.onOffRandLeak` these coins
-determine `dk_A`; for a general KEM the rule is conservative. -/
+key-generation coins, and no epoch otherwise. -/
 -- ANCHOR: vulnRleakA
 def vulnRleakA {kem : KEMScheme m K PK SK C} {onoff : kem.OnOffStructure}
     {KeygenRand OffRand OnRand : Type}
@@ -599,8 +592,7 @@ def vulnRleakA {kem : KEMScheme m K PK SK C} {onoff : kem.OnOffStructure}
 -- ANCHOR_END: vulnRleakA
 
 /-- B's vulnerable epochs following randomness leakage: the current epoch if the send returns
-offline or online encapsulation coins, and no epoch otherwise. In `KPKEOnOff.onOffRandLeak`
-the online coins are the epoch key; for a general on/off KEM the rule is conservative. -/
+offline or online encapsulation coins, and no epoch otherwise. -/
 -- ANCHOR: vulnRleakB
 def vulnRleakB {kem : KEMScheme m K PK SK C} {onoff : kem.OnOffStructure}
     {KeygenRand OffRand OnRand : Type}

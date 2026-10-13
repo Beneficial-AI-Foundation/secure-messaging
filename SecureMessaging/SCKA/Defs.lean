@@ -162,8 +162,6 @@ variable {m : Type → Type u} [Monad m] {IK StA StB I Rho Rand : Type}
   * `corrupt : St → Finset ℕ`: on exposure of the local state;
   * `rleak : St → Rand → Finset ℕ`: on leakage of the coins of a send from the given state.
 
-  These sets should contain every epoch whose key becomes computable from the revealed
-  material, and may over-approximate it (cf. Remark 3.2 of [SCKA]).
   The oracle `O-Corrupt-P` exposes `corrupt state`.
   The oracle `O-Send-P-rleak` exposes `rleak state coins` for the
   state before the send. A query that would expose a `Challenged` epoch is refused; a

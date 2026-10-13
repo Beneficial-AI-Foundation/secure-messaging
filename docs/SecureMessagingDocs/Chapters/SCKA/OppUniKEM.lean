@@ -600,9 +600,7 @@ $$`\begin{aligned}
 The randomness outputs of $`\SendARLeak` and $`\SendBRLeak` are $`r_K` and $`(r_0,r_1)`,
 respectively. The values $`r_K,r_0,r_1` are the coins of $`\KeyGen`, $`\Encaps.\mathsf{Off}`,
 and $`\Encaps.\mathsf{On}`, respectively; each is $`\bot` if that algorithm was not called
-during the send. Lean encodes both outputs in the type `SendRand`: A returns `.none` for
-$`r_K=\bot` and `.keygen` otherwise; B returns `.none`, `.off`, `.on` and `.offOn` for
-$`(\bot,\bot)`, $`(r_0,\bot)`, $`(\bot,r_1)` and $`(r_0,r_1)`, respectively.
+during the send.
 
 For $`X\in\{\A,\B\}`, let $`\mathsf{St}_X` be the state space of $`X` and $`R_X`
 the space of randomness outputs of its leaking send. We define the functions
