@@ -16,13 +16,9 @@ import SecureMessaging.SCKA.Security.Family
 /-!
 # Transcript consistency in the security game
 
-Let `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` be Opp-UniKEM, and let `s` be a
-game state. The predicate `reachableInv s` asserts consistency with a transcript of sampled
-KEM material. The predicate `CurrentKEMCorrect s` requires decapsulation to return B's
-recorded key whenever the current decapsulation key, ciphertext components, and key are present.
-
-Assume the erasure codes are correct. Every supported successor of a security query from a state
-satisfying `reachableInv` and `CurrentKEMCorrect` also satisfies `reachableInv`.
+We extend the existing transcript-consistency results (`reachableInv`) to the security
+oracle family. The proofs reuse the send/receive preservation lemmas and show that replacing
+the exposed and challenged sets with any finite sets of epochs preserves the invariant.
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -31,7 +27,8 @@ namespace oppUniKemCKA
 
 variable {K PK SK C Sym : Type}
 
-/-- Replacing the exposed and challenged sets preserves consistency with the same transcript. -/
+/-- Replacing the exposed and challenged sets with any finite sets of epochs preserves
+consistency with the same transcript. -/
 theorem TranscriptConsistent.with_security_bookkeeping
     {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
     {ecEk : ErasureCodePayload PK Sym}
@@ -46,7 +43,8 @@ theorem TranscriptConsistent.with_security_bookkeeping
   cases h
   constructor <;> assumption
 
-/-- Replacing the exposed and challenged sets preserves `reachableInv`. -/
+/-- Replacing the exposed and challenged sets with any finite sets of epochs preserves
+`reachableInv`. -/
 theorem reachableInv_with_security_bookkeeping
     {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
     {ecEk : ErasureCodePayload PK Sym}
@@ -72,7 +70,7 @@ theorem reachableInv_initialGame
     Reduction.Internal.initialB] using
       reachableInv_init kem onoff ecEk ecCt0 ecCt1 ecEk.ec.nchunk_pos ecCt0.ec.nchunk_pos
 
-/-- Assume the three erasure codes are correct. For every correctness query of `Π` from a
+/-- Assume the three erasure codes are correct. For every correctness query of Opp-UniKEM from a
 state satisfying `reachableInv` and `CurrentKEMCorrect`, all supported successor states
 satisfy `reachableInv`. -/
 theorem correctnessImpl_preserves_reachableInv_at [DecidableEq K] [DecidableEq Sym]
@@ -102,7 +100,7 @@ theorem correctnessImpl_preserves_reachableInv_at [DecidableEq K] [DecidableEq S
   · exact oracleRecvB_preserves_reachableInv kem onoff hDet ecEk hEk ecEk.ec.nchunk_pos
       ecCt0 ecCt1 leak n s hs z hz
 
-/-- Assume the three erasure codes are correct. For every security query of `Π` from a
+/-- Assume the three erasure codes are correct. For every security query of Opp-UniKEM from a
 state satisfying `reachableInv` and `CurrentKEMCorrect`, all supported successor states
 satisfy `reachableInv`. -/
 theorem securityImpl_preserves_reachableInv

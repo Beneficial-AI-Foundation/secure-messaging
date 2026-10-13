@@ -11,17 +11,10 @@ import VCVio.OracleComp.QueryTracking.QueryBound
 /-!
 # Opp-UniKEM security interface
 
-Let `kem : KEMScheme ProbComp K PK SK C` be a KEM with on/off structure `onoff` and
-randomness-leaking algorithms `leak : kem.OnOffRandLeak onoff`.
-Let `Sym` be the erasure-code symbol type.
+We prove two properties of the leaking send operations:
 
-An SCKA adversary `adv : SecurityAdversary leak Sym` has access to the send, receive, challenge,
-corruption, and randomness-leakage oracles. `SecuritySendQueryBound adv q` means that `adv` makes
-at most `q` ordinary or leaking sends combined on every oracle-response path.
-
-For each party and local state, dropping the returned coins from a leaking send gives
-its ordinary send as a computation. A successful leaking send exposes the current epoch
-when it returns key-generation or encapsulation coins, and the empty set otherwise.
+- Discarding the returned coins is equivalent to the ordinary send computation.
+- For a fixed state before the send, all successful executions produce the same exposure set.
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -89,14 +82,14 @@ theorem sendBrleak_forget
 
 end Marginals
 
-/-- The exposure set of A's leaking send: its current epoch when generating a key pair,
-and the empty set otherwise. -/
+/-- State-only expression for `vulnRleakA` on successful sends from `s`:
+`{s.t}` when A generates a key pair, and `∅` otherwise. -/
 def leakEpochsA {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
     (s : StA onoff Sym) : Finset ℕ :=
   if s.dkA.isNone then {s.t} else ∅
 
-/-- The exposure set of B's leaking send: its current epoch when sampling offline or
-online encapsulation material, and the empty set otherwise. -/
+/-- State-only expression for `vulnRleakB` on successful sends from `s`:
+`{s.t}` when B runs offline or online encapsulation, and `∅` otherwise. -/
 def leakEpochsB {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
     (s : StB onoff Sym) : Finset ℕ :=
   if s.ct0.isNone || (s.ack.ctRec && s.ekA.isSome && s.ct1.isNone && s.stCt.isSome)
