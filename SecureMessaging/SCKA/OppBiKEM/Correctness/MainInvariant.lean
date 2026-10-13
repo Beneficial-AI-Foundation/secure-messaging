@@ -24,6 +24,7 @@ The module introduces:
 * `GameInv s` — the game invariant: `s.correct = true`, and one transcript `T` satisfies
   `PartyInv` for both A and B.
 
+
 The fields of `PartyInv` are grouped as shape (parities, lower bounds, lockstep of the two
 parties' epochs), own key pairs, own encapsulations, decoded peer keys, key tables,
 acknowledgements, buffer, game epoch, and messages. The *key epoch* of a party is
@@ -78,7 +79,25 @@ def BufferConsistent (role : Role) {kem : KEMScheme ProbComp K PK SK C}
     | some (c, _) => ∃ I, st.req.receivedChunks = payloadChunks ecCt c I ∧ I.card < ecCt.ec.nchunk
 
 /-- Honesty of one recorded outgoing message `(ρ, tsnd)` of the party `role` in state `st`,
-with respect to the transcript `T`. -/
+with respect to the transcript `T`.
+
+A recorded message is *honest* if what it carries agrees with `T` and with the sender's current
+state `st`:
+
+* its epochs have the sender's parities, are at least `-1`, and are at most the sender's
+  current epochs, and `tsnd` is its sending epoch;
+* a public-key message carries a chunk of `T`'s public key for epoch `ρ.tRes + role.offset`, a
+  chunk on a ciphertext message encodes `T`'s ciphertext for `ρ.tRes`, and a message without
+  payload selector carries no chunk;
+* its acknowledgement flags, and a ciphertext selector, are backed by the sender's
+  acknowledgement sets;
+* the sender acknowledges every positive epoch up to the sending epoch; requester-parity epochs
+  in that range are at most `ρ.tReq`, and the ciphertext flag is set if `ρ.tReq` is among them.
+
+The state is the sender's current one, not the one at sending time: a recorded message can be
+delivered at any later point, so honesty is maintained as the sender advances
+(`MessageInv.of_send` for a new message, `MessageInv.transfer` after a send and
+`MessageInv.mono` after a receive for the earlier ones). -/
 structure MessageInv (role : Role) {kem : KEMScheme ProbComp K PK SK C}
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (T : Transcript kem) (st : State PK SK C Sym) (ρ : Message Sym) (tsnd : ℕ) : Prop where
