@@ -13,8 +13,8 @@ import LatticeCrypto.Ring.Norms
 # FrodoKEM encoding, packing and sampling correctness
 
 The proofs about the maps that `Bits.lean`, `Encoding.lean`, `Packing.lean` and
-`Sampling.lean` specify. References are listed in `Construction.lean`. Both documents state the exact
-round trip `dc (ec k) = k`, `[CiC25]` in Appendix B and `[LBES26]` in
+`Sampling.lean` specify. References are listed in `Construction.lean`. Both documents state
+the exact round trip `dc (ec k) = k`, `[CiC25]` in Appendix B and `[LBES26]` in
 Section 6.3. Only `[CiC25]` bounds the noise `dc` tolerates, as Lemma 1 of
 Section 4.1, so `dc_ec_add` is cited from it alone.
 
