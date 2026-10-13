@@ -111,8 +111,8 @@ theorem MessageInv.transfer {role : Role} {kem : KEMScheme ProbComp K PK SK C}
   ct_flag := by rw [hack]; exact h.ct_flag
   ek_flag := by rw [hack]; exact h.ek_flag
   bit1_acked := by rw [hack]; exact h.bit1_acked
-  horizon_mem := by rw [hack]; exact h.horizon_mem
-  horizon_req := h.horizon_req
+  sendingEpoch_mem := by rw [hack]; exact h.sendingEpoch_mem
+  sendingEpoch_req := h.sendingEpoch_req
 
 /-! ### The peer after a send -/
 
@@ -262,7 +262,7 @@ theorem partyInv_peer_of_send (roleS : Role) {kem : KEMScheme ProbComp K PK SK C
         | some ck =>
           rw [e2 _ (by rw [henc]; rfl), henc]
           simpa only [henc] using hb
-  horizon := hR.horizon
+  tcur_le := hR.tcur_le
   msgs := by
     intro n ρ tsnd hmsg
     refine (hR.msgs n ρ tsnd hmsg).transfer le_rfl rfl rfl ?_ e2
@@ -331,13 +331,13 @@ theorem MessageInv.of_send (roleS : Role) {kem : KEMScheme ProbComp K PK SK C}
       intro hbit
       rw [hp.acknowledgements]
       exact send_ciphertextMessage_keyAck roleS kem ecEk ecCt stS key? ρ tsnd stS' hout hbit
-    horizon_mem := by
+    sendingEpoch_mem := by
       intro s hs hle
       rw [hp.acknowledgements]
-      exact hS.horizon_prefix s hs (by rw [← hhor]; exact hle)
-    horizon_req := by
+      exact hS.sendingHorizon_prefix s hs (by rw [← hhor]; exact hle)
+    sendingEpoch_req := by
       intro s hs hle hpar
-      have hmem := hS.horizon_prefix s hs (by rw [← hhor]; exact hle)
+      have hmem := hS.sendingHorizon_prefix s hs (by rw [← hhor]; exact hle)
       have hsle := hS.ctRec_req_le s hmem hpar
       rw [hp.message_reqEpoch]
       refine ⟨hsle, fun heq => ?_⟩
@@ -521,7 +521,7 @@ theorem partyInv_sender_of_send (roleS : Role) {kem : KEMScheme ProbComp K PK SK
       rw [hp.requester_epoch, hack, hp.peer_keys, hp.received_chunks,
         hkpRes _ hpar, hencReq _ hS.req_parity]
       exact hb
-    horizon := by rw [hack]; exact le_of_eq htsnd
+    tcur_le := by rw [hack]; exact le_of_eq htsnd
     msgs := by
       intro n' ρ' tsnd' h
       by_cases hn : n' = n
@@ -925,7 +925,7 @@ private theorem send_step_encaps (roleS : Role) {kem : KEMScheme ProbComp K PK S
 /-! ### The send step -/
 
 /-- A supported send by `roleS` satisfies the game's send-side assertions — the new sending
-epoch is at least the sender's game horizon, the known-prefix check passes, and an emitted key
+epoch is at least the sender's game epoch, the known-prefix check passes, and an emitted key
 is fresh for the sender and consistent with the peer's table — and preserves `PartyInv` for
 both parties for some updated transcript `T'`. -/
 theorem partyInv_send_step (roleS : Role) (kem : KEMScheme ProbComp K PK SK C)
@@ -965,7 +965,7 @@ theorem partyInv_send_step (roleS : Role) (kem : KEMScheme ProbComp K PK SK C)
       obtain ⟨sk, hT⟩ := hR.ekPeer_T _ pk hpk
       rw [hS.keypair_future _ hpar (by omega)] at hT
       cases hT
-  refine ⟨htsnd ▸ hS.horizon, ?_, ?_, ?_⟩
+  refine ⟨htsnd ▸ hS.tcur_le, ?_, ?_, ?_⟩
   · have hkp := knownPrefix_of_partyInv hS hR tsnd (le_of_eq htsnd)
     rcases key? with _ | ⟨tI, k⟩
     · exact hkp

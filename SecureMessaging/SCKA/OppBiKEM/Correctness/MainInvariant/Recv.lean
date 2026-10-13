@@ -176,17 +176,17 @@ theorem recv_stale_flag (hst : ρ.tRes < stR.req.reqEpoch) (hfl : ρ.ack.ctRec =
     ρ.tReq ∈ stR.ack.ctRec :=
   hS.msgs_stale n ρ tsnd hmsg hst hfl
 
-/-- Every positive epoch up to the message's horizon is acknowledged after ingesting its
+/-- Every positive epoch up to the message's sending epoch is acknowledged after ingesting its
 flags. -/
-theorem recv_horizon_mem (s : ℤ) (hs : 0 < s) (hle : s ≤ ρ.sendingEpoch) :
+theorem recv_sendingEpoch_mem (s : ℤ) (hs : 0 < s) (hle : s ≤ ρ.sendingEpoch) :
     s ∈ (recvAck roleR stR.ack ρ).ctRec := by
   have m := recv_msgInv hS hmsg
-  have hmemS := m.horizon_mem s hs hle
+  have hmemS := m.sendingEpoch_mem s hs hle
   rw [mem_recvAck_ctRec]
   rcases PartyInv.parity_cases roleR s with hp | hp
   · left
     exact hS.ctRec_res_peer s hmemS (by simpa using hp)
-  · obtain ⟨hle', heq⟩ := m.horizon_req s hs hle (by simpa using hp)
+  · obtain ⟨hle', heq⟩ := m.sendingEpoch_req s hs hle (by simpa using hp)
     by_cases hs' : s = ρ.tReq
     · right
       exact ⟨heq hs', hs'⟩
@@ -195,34 +195,34 @@ theorem recv_horizon_mem (s : ℤ) (hs : 0 < s) (hle : s ≤ ρ.sendingEpoch) :
       have hpar := recv_tReq_parity hS hmsg
       exact hR.ctRec_res_closed s hs hp (by omega)
 
-/-- The message's horizon is at most the sending horizon of any acknowledgement set extending
-the ingested one. -/
-theorem recv_horizon_le (ack' : Acknowledgements)
+/-- The message's sending epoch is at most the sending horizon of any acknowledgement set
+extending the ingested one. -/
+theorem recv_sendingEpoch_le (ack' : Acknowledgements)
     (hsub : (recvAck roleR stR.ack ρ).ctRec ⊆ ack'.ctRec) :
     ρ.sendingEpoch ≤ ack'.sendingHorizon := by
   by_cases h0 : ρ.sendingEpoch = 0
   · rw [h0]; exact Nat.zero_le _
   have hpos : (0 : ℤ) < ρ.sendingEpoch := by omega
   have hmem : (ρ.sendingEpoch : ℤ) ∈ ack'.ctRec :=
-    hsub (recv_horizon_mem hR hS hmsg _ hpos le_rfl)
+    hsub (recv_sendingEpoch_mem hR hS hmsg _ hpos le_rfl)
   have hmem' : (ρ.sendingEpoch : ℤ) - 1 ∈ ack'.ctRec := by
     by_cases h1 : ρ.sendingEpoch = 1
     · rw [h1]
       simpa using hsub (recvAck_ctRec_subset _ _ _ hR.init_acks.2)
-    · exact hsub (recv_horizon_mem hR hS hmsg _ (by omega) (by omega))
+    · exact hsub (recv_sendingEpoch_mem hR hS hmsg _ (by omega) (by omega))
   unfold Acknowledgements.sendingHorizon
   have hfilt : (ρ.sendingEpoch : ℤ) ∈ ack'.ctRec.filter (fun t => t - 1 ∈ ack'.ctRec) :=
     Finset.mem_filter.mpr ⟨hmem, hmem'⟩
   have := Finset.le_sup (f := Int.toNat) hfilt
   simpa using this
 
-/-- The receiver's game horizon and the message's sending epoch are both at most the sending
+/-- The receiver's game epoch and the message's sending epoch are both at most the sending
 horizon of any acknowledgement set extending the ingested one. -/
 theorem recv_tcur_le (ack' : Acknowledgements)
     (hsub : (recvAck roleR stR.ack ρ).ctRec ⊆ ack'.ctRec) :
     max tcurR ρ.sendingEpoch ≤ ack'.sendingHorizon := by
-  refine max_le ?_ (recv_horizon_le hR hS hmsg ack' hsub)
-  exact hR.horizon.trans (Acknowledgements.sendingHorizon_mono _ _
+  refine max_le ?_ (recv_sendingEpoch_le hR hS hmsg ack' hsub)
+  exact hR.tcur_le.trans (Acknowledgements.sendingHorizon_mono _ _
     ((recvAck_ctRec_subset _ _ _).trans hsub))
 
 /-! ### Transfer of message honesty to a later state of the same party -/
@@ -248,8 +248,8 @@ theorem MessageInv.mono {role : Role} {st st' : State PK SK C Sym} {ρ' : Messag
   ct_flag := fun hf => hct (h.ct_flag hf)
   ek_flag := fun hf => hek (h.ek_flag hf)
   bit1_acked := fun hb => hek (h.bit1_acked hb)
-  horizon_mem := fun s hs hle => hct (h.horizon_mem s hs hle)
-  horizon_req := h.horizon_req
+  sendingEpoch_mem := fun s hs hle => hct (h.sendingEpoch_mem s hs hle)
+  sendingEpoch_req := h.sendingEpoch_req
 
 /-! ### The post-state of a receive that emits no key -/
 
@@ -353,7 +353,7 @@ theorem partyInv_recv_noKey (hns : ¬ ρ.tRes < stR.req.reqEpoch)
         ekRec_res := ?_
         ekRec_req := ?_
         buffer := hbuf
-        horizon := ?_
+        tcur_le := ?_
         msgs := ?_
         msgs_flag_mono := hR.msgs_flag_mono
         msgs_stale := hR.msgs_stale }
@@ -494,7 +494,7 @@ theorem partyInv_recv_noKey (hns : ¬ ρ.tRes < stR.req.reqEpoch)
           rw [hstable t this]
           exact this
         buffer := hS.buffer
-        horizon := hS.horizon
+        tcur_le := hS.tcur_le
         msgs := hS.msgs
         msgs_flag_mono := hS.msgs_flag_mono
         msgs_stale := ?_ }
@@ -589,7 +589,7 @@ theorem partyInv_decaps_local {st₁ : State PK SK C Sym} {ownKey : ℕ → Opti
         ekRec_res := h₁.ekRec_res
         ekRec_req := h₁.ekRec_req
         buffer := bufferConsistent_of_empty _ _ _ _ _ hbuf
-        horizon := h₁.horizon.trans (Acknowledgements.sendingHorizon_mono _ _ hsub)
+        tcur_le := h₁.tcur_le.trans (Acknowledgements.sendingHorizon_mono _ _ hsub)
         msgs := fun j ρ' t' hj => (h₁.msgs j ρ' t' hj).mono rfl le_rfl hsub (fun _ h => h)
         msgs_flag_mono := h₁.msgs_flag_mono
         msgs_stale := h₁.msgs_stale }
@@ -692,7 +692,7 @@ theorem partyInv_decaps_local {st₁ : State PK SK C Sym} {ownKey : ℕ → Opti
         ekRec_res := hS₁.ekRec_res
         ekRec_req := hS₁.ekRec_req
         buffer := hS₁.buffer
-        horizon := hS₁.horizon
+        tcur_le := hS₁.tcur_le
         msgs := hS₁.msgs
         msgs_flag_mono := hS₁.msgs_flag_mono
         msgs_stale := fun j ρ' t' hj hlt hfl => hsub (hS₁.msgs_stale j ρ' t' hj hlt hfl) }
@@ -890,7 +890,7 @@ theorem partyInv_recv_stale (hst : ρ.tRes < stR.req.reqEpoch) :
         ekRec_res := ?_
         ekRec_req := ?_
         buffer := ?_
-        horizon := ?_
+        tcur_le := ?_
         msgs := fun j ρ' t' hj => (hR.msgs j ρ' t' hj).mono rfl le_rfl (by rw [hct]) heksub
         msgs_flag_mono := hR.msgs_flag_mono
         msgs_stale := hR.msgs_stale }
@@ -949,7 +949,7 @@ theorem partyInv_recv_stale (hst : ρ.tRes < stR.req.reqEpoch) :
         ekRec_res := hS.ekRec_res
         ekRec_req := hS.ekRec_req
         buffer := hS.buffer
-        horizon := hS.horizon
+        tcur_le := hS.tcur_le
         msgs := hS.msgs
         msgs_flag_mono := hS.msgs_flag_mono
         msgs_stale := fun j ρ' t' hj hlt hfl => by
@@ -991,7 +991,7 @@ theorem partyInv_recv_step [DecidableEq Sym] (hEk : ecEk.ec.Correct) (hCt : ecCt
     simp only [Option.some.injEq, Prod.mk.injEq] at h
     obtain ⟨rfl, rfl, rfl⟩ := h
     refine ⟨hepoch.symm, ?_, by simp, hR', hS'⟩
-    simpa using knownPrefix_of_partyInv hR' hS' _ hR'.horizon
+    simpa using knownPrefix_of_partyInv hR' hS' _ hR'.tcur_le
   rw [recv_eq_recvSpec]
   unfold recvSpec
   by_cases hst : ρ.tRes < stR.req.reqEpoch
@@ -1181,7 +1181,7 @@ theorem partyInv_recv_step [DecidableEq Sym] (hEk : ecEk.ec.Correct) (hCt : ecCt
             simp only [Option.some.injEq, Prod.mk.injEq] at h
             obtain ⟨rfl, rfl, rfl⟩ := h
             refine ⟨hepoch.symm, ?_, ?_, hR₂, hS₂⟩
-            · simpa using knownPrefix_of_partyInv hR₂ hS₂ _ hR₂.horizon
+            · simpa using knownPrefix_of_partyInv hR₂ hS₂ _ hR₂.tcur_le
             · intro tI k' h
               simp only [Option.some.injEq, Prod.mk.injEq] at h
               obtain ⟨rfl, rfl⟩ := h

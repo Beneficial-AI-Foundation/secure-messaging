@@ -18,7 +18,7 @@ The module introduces:
 * `MessageInv role ecEk ecCt T st ρ tsnd` — the recorded outgoing message `(ρ, tsnd)` of the
   party in state `st` is honest with respect to the transcript `T`;
 * `PartyInv role ecEk ecCt T st peer ownMsgs ownKey peerKey tcur` — the main per-party
-  invariant: the party's state, outgoing message table, key table and game horizon agree with
+  invariant: the party's state, outgoing message table, key table and game epoch agree with
   `T` and with the peer's state;
 * `recordKey keys key?` — the key table after recording an optional emitted key;
 * `GameInv s` — the game invariant: `s.correct = true`, and one transcript `T` satisfies
@@ -26,8 +26,24 @@ The module introduces:
 
 The fields of `PartyInv` are grouped as shape (parities, lower bounds, lockstep of the two
 parties' epochs), own key pairs, own encapsulations, decoded peer keys, key tables,
-acknowledgements, buffer, horizon, and messages. The *key epoch* of a party is
+acknowledgements, buffer, game epoch, and messages. The *key epoch* of a party is
 `resEpoch + role.offset`, the requester-parity epoch of its current own key pair.
+
+`PartyInv` relates three further epochs:
+
+* the *sending horizon* of a party, `st.ack.sendingHorizon`: the largest epoch `t ≥ 0` with
+  `t` and `t - 1` in `st.ack.ctRec`. On invariant states every positive epoch up to it is in
+  `ctRec` (`sendingHorizon_prefix`), so both key tables hold its keys (`keys_of_ctRec`);
+* the *sending epoch* of a message `ρ`, `ρ.sendingEpoch`: the sender's sending horizon when it
+  created `ρ`. The send reports it to the game as `tsnd`, a receive of `ρ` as `trcv`;
+* the *game epoch* of a party, `tcur`: the game's current epoch `t^cur` (`s.tcurA`,
+  `s.tcurB`), set to `tsnd` by a send and raised to `max tcur trcv` by a receive.
+
+`PartyInv.tcur_le` bounds the game epoch by the sending horizon. This discharges the game's
+monotonicity assertion `tcur ≤ tsnd` and its known-prefix assertion
+(`knownPrefix_of_partyInv`). `MessageInv.sendingEpoch_mem` and `sendingEpoch_req` ensure that
+a receive keeps the bound: after ingesting `ρ`'s flags, the receiver acknowledges every
+positive epoch up to `ρ`'s sending epoch (`recv_sendingEpoch_mem`, `recv_tcur_le`).
 
 This file derives the game's known-prefix assertion from `PartyInv`
 (`knownPrefix_of_partyInv`). `GameInv` holds initially (`MainInvariant.Init`) and is preserved
@@ -96,16 +112,16 @@ structure MessageInv (role : Role) {kem : KEMScheme ProbComp K PK SK C}
   /-- A ciphertext message implies that the sender's own public key for `ρ.tRes + role.offset`
   is acknowledged (`ekRec`). -/
   bit1_acked : ρ.bit = some 1 → ρ.tRes + role.offset ∈ st.ack.ekRec
-  /-- Every positive epoch up to the advertised sending epoch is in the sender's `ctRec`. -/
-  horizon_mem : ∀ s : ℤ, 0 < s → s ≤ ρ.sendingEpoch → s ∈ st.ack.ctRec
-  /-- A positive requester-parity epoch up to the advertised sending epoch is at most the
+  /-- Every positive epoch up to the message's sending epoch is in the sender's `ctRec`. -/
+  sendingEpoch_mem : ∀ s : ℤ, 0 < s → s ≤ ρ.sendingEpoch → s ∈ st.ack.ctRec
+  /-- A positive requester-parity epoch up to the message's sending epoch is at most the
   carried requester epoch, and the ciphertext flag is set when it equals it. -/
-  horizon_req : ∀ s : ℤ, 0 < s → s ≤ ρ.sendingEpoch → s % 2 = role.reqParity →
+  sendingEpoch_req : ∀ s : ℤ, 0 < s → s ≤ ρ.sendingEpoch → s % 2 = role.reqParity →
     s ≤ ρ.tReq ∧ (s = ρ.tReq → ρ.ack.ctRec = true)
 
 /-- The main per-party invariant. `st` is the party's state, `peer` the peer's, `ownMsgs` the
 party's outgoing table, `ownKey`/`peerKey` the two game key tables, and `tcur` the party's
-game horizon. -/
+game epoch (the game's current epoch `t^cur`). -/
 structure PartyInv (role : Role) {kem : KEMScheme ProbComp K PK SK C}
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
     (T : Transcript kem) (st peer : State PK SK C Sym)
@@ -210,9 +226,9 @@ structure PartyInv (role : Role) {kem : KEMScheme ProbComp K PK SK C}
   -- buffer
   /-- The shared chunk buffer is honest for the payload currently expected. -/
   buffer : BufferConsistent role ecEk ecCt T st
-  -- horizon
-  /-- The game horizon is at most the sending horizon. -/
-  horizon : tcur ≤ st.ack.sendingHorizon
+  -- game epoch
+  /-- The game epoch is at most the sending horizon. -/
+  tcur_le : tcur ≤ st.ack.sendingHorizon
   -- messages
   /-- Every recorded outgoing message is honest. -/
   msgs : ∀ n ρ tsnd, ownMsgs n = some (ρ, tsnd) → MessageInv role ecEk ecCt T st ρ tsnd
@@ -305,7 +321,8 @@ theorem sendingHorizon_attained (ack : Acknowledgements) (hpos : 0 < ack.sending
     exact htF
 
 /-- Every positive epoch up to the sending horizon is in `ctRec`. -/
-theorem horizon_prefix (h : PartyInv role ecEk ecCt T st peer ownMsgs ownKey peerKey tcur) :
+theorem sendingHorizon_prefix
+    (h : PartyInv role ecEk ecCt T st peer ownMsgs ownKey peerKey tcur) :
     ∀ s : ℤ, 0 < s → s ≤ st.ack.sendingHorizon → s ∈ st.ack.ctRec := by
   intro s hs hle
   have hpos : 0 < st.ack.sendingHorizon := by omega
@@ -360,7 +377,7 @@ theorem knownPrefix_of_partyInv {kem : KEMScheme ProbComp K PK SK C}
   by_cases ht0 : t = 0
   · simp [ht0]
   have hpos : (0 : ℤ) < t := by omega
-  have hmem := h.horizon_prefix t hpos (by omega)
+  have hmem := h.sendingHorizon_prefix t hpos (by omega)
   have hk := (keys_of_ctRec h h' t hmem hpos).1
   simp only [Int.toNat_natCast] at hk
   simp [ht0, Option.isSome_iff_ne_none, hk]

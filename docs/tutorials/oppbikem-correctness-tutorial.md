@@ -137,9 +137,21 @@ later fact about a receive is read off `recvSpec` with one case split per named 
 
 ## 5. The main invariant
 
+The invariant relates three epochs, defined in the module docstring of `MainInvariant.lean`:
+
+- the *sending horizon* of a party, `st.ack.sendingHorizon`: the largest `t ≥ 0` with `t` and
+  `t - 1` in `st.ack.ctRec`;
+- the *sending epoch* of a message, `ρ.sendingEpoch`: the sender's sending horizon when it
+  created `ρ`, reported to the game as `tsnd` by the send and as `trcv` by a receive;
+- the *game epoch* of a party, `tcur`: the game's `t^cur`, set to `tsnd` by a send and raised
+  to `max tcur trcv` by a receive.
+
+The invariant keeps the game epoch at most the sending horizon (`tcur_le`); sections 6 and 9.1
+show how.
+
 ### 5.1 Message honesty
 
-[`MessageInv`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant.lean#L65) is what a
+[`MessageInv`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant.lean#L82) is what a
 party guarantees about each message it has recorded in its outgoing table, relative to its
 *current* state and the transcript. Read the fields in three groups.
 
@@ -148,15 +160,15 @@ party guarantees about each message it has recorded in its outgoing table, relat
 - Payload honesty: `pk_chunk` (a bit-0 chunk encodes the transcript's public key for the
   sender's key epoch `ρ.tRes + offset`), `ct_chunk` (a bit-1 chunk encodes the transcript's
   ciphertext for `ρ.tRes`), `no_chunk`.
-- Flags and horizon: `ct_flag`, `ek_flag` (flags are backed by the sender's own sets),
-  `bit1_acked`, and `horizon_mem` / `horizon_req`, which pin down what the advertised
-  sending epoch means.
+- Flags and sending epoch: `ct_flag`, `ek_flag` (flags are backed by the sender's own sets),
+  `bit1_acked`, and `sendingEpoch_mem` / `sendingEpoch_req`, which pin down what the
+  message's sending epoch means.
 
 ### 5.2 The per-party invariant
 
-[`PartyInv`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant.lean#L108) takes the
+[`PartyInv`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant.lean#L125) takes the
 party's role, the transcript, its own state `st`, the peer's state `peer`, its own outgoing table,
-both key tables and its game horizon. Fields, by group:
+both key tables and its game epoch `tcur`. Fields, by group:
 
 | Group | Fields | Meaning |
 | --- | --- | --- |
@@ -168,7 +180,7 @@ both key tables and its game horizon. Fields, by group:
 | ciphertext acks | `ctRec_req_enc`, `ctRec_req_le`, `ctRec_res_peer`, `ctRec_res_le`, `ctRec_req_closed`, `ctRec_res_closed` | what each entry is backed by, plus downward closure per parity |
 | public-key acks | `ekRec_res`, `ekRec_req` | parity-separated reading of public-key acknowledgements |
 | buffer | `buffer` | see 5.3 |
-| horizon | `horizon` | the game horizon is at most the sending horizon |
+| game epoch | `tcur_le` | the game epoch is at most the sending horizon |
 | messages | `msgs`, `msgs_flag_mono`, `msgs_stale` | every recorded message is honest; see 5.4 |
 
 Note that `PartyInv` never reads the `peerKey` argument. Key consistency is obtained through
@@ -176,7 +188,7 @@ the transcript, not by relating the two tables directly.
 
 ### 5.3 The shared buffer
 
-[`BufferConsistent`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant.lean#L50) is
+[`BufferConsistent`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant.lean#L67) is
 the BiKEM analogue of UniKEM's `ChunksAConsistent`. One buffer holds both payloads, so the
 predicate is phase-indexed by the receiver's own state:
 
@@ -198,9 +210,9 @@ such a message could acknowledge the receiver's *current* responder epoch for th
 `ct` would survive the next epoch advance and be transmitted as the new epoch's ciphertext.
 The invariant therefore has to say that this never happens:
 
-- [`msgs_stale`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant.lean#L225): a
+- [`msgs_stale`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant.lean#L242): a
   message the peer already considers stale carries no new ciphertext acknowledgement.
-- [`msgs_flag_mono`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant.lean#L220):
+- [`msgs_flag_mono`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant.lean#L237):
   among my recorded messages, a ciphertext flag at a lower responder epoch is at most the
   requester epoch of any message at a higher responder epoch, and the flag transfers on
   equality.
@@ -211,7 +223,7 @@ The second is what makes the first preservable when a receiver advances: see the
 
 ### 5.5 The game invariant
 
-[`GameInv`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant.lean#L241):
+[`GameInv`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant.lean#L258):
 
 ```
 s.correct = true ∧ ∃ T, PartyInv .A T s.stA s.stB s.msgA s.keyA s.keyB s.tcurA
@@ -226,17 +238,17 @@ receive step, each applied twice.
 The game's known-prefix assertion is the hardest to see, so it gets dedicated lemmas in
 `MainInvariant.lean`:
 
-- [`ctRec_prefix`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant.lean#L263):
+- [`ctRec_prefix`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant.lean#L280):
   if `t` and `t - 1` are acknowledged, every positive `s ≤ t` is, by the two closure fields.
-- [`sendingHorizon_attained`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant.lean#L292)
-  and [`horizon_prefix`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant.lean#L307):
+- [`sendingHorizon_attained`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant.lean#L309)
+  and [`sendingHorizon_prefix`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant.lean#L324):
   a positive sending horizon is such a `t`, so every epoch up to it is acknowledged.
-- [`keys_of_ctRec`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant.lean#L317):
+- [`keys_of_ctRec`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant.lean#L335):
   an acknowledged positive epoch has a key in *both* tables. This is the only lemma that needs
   both parties' invariants: at my requester parity I decapsulated (`key_req`) and the peer
   encapsulated (`key_res` of the peer); at my responder parity the roles swap through
   `ctRec_res_peer`.
-- [`knownPrefix_of_partyInv`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant.lean#L347):
+- [`knownPrefix_of_partyInv`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant.lean#L365):
   the game's `List.all` check, for any bound up to the sending horizon.
 
 ## 7. Initialisation
@@ -253,7 +265,7 @@ is the statement to read first. Given both invariants and a supported local send
 returns the three game assertions of a send (monotonicity, known prefix, unique and consistent
 key) and a new transcript `T'` with both invariants restored. The emitted message is recorded
 at index `n`, and an emitted key through
-[`recordKey`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant.lean#L229).
+[`recordKey`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant.lean#L246).
 
 The proof is organised around the three kinds of send:
 
@@ -312,11 +324,11 @@ peer's table. The ones to know:
 - [`recv_bit1_ekPeer`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L161):
   phase causality. A ciphertext chunk for `ρ.tRes` implies I hold the peer's key for it, so a
   bit-1 chunk never enters a buffer that is collecting public-key chunks.
-- [`recv_horizon_mem`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L181)
+- [`recv_sendingEpoch_mem`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L181)
   and [`recv_tcur_le`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L221):
-  after ingesting the flags, every epoch up to the message's advertised horizon is acknowledged,
-  so the new game horizon is still below my sending horizon. This is where `horizon_mem` and
-  `horizon_req` of `MessageInv` earn their keep.
+  after ingesting the flags, every epoch up to the message's sending epoch is acknowledged,
+  so the new game epoch is still below my sending horizon. This is where `sendingEpoch_mem`
+  and `sendingEpoch_req` of `MessageInv` earn their keep.
 
 ### 9.2 The post-state lemmas
 
@@ -385,7 +397,7 @@ and the lemmas that discharge them.
 
 | Game assertion | Send | Receive |
 | --- | --- | --- |
-| monotonicity `tcur ≤ tsnd` | `horizon` field | n/a (game takes `max`) |
+| monotonicity `tcur ≤ tsnd` | `tcur_le` field | n/a (game takes `max`) |
 | matching epoch `trcv = tsnd` | n/a | `MessageInv.epoch` via `recv_msgInv` |
 | unique epoch | `key_res` with `enc = none` | `key_req` with `q ∉ ctRec` |
 | consistent keys | peer's `key_req` and `ctRec_req_enc` | peer's `key_res` and `hdec` |
