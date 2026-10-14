@@ -58,6 +58,7 @@ import SecureMessaging.KEM.OnOffKEM.FromKPKE
 import SecureMessaging.KEM.CorrectnessError
 import SecureMessaging.PRFPRNG.Defs
 import SecureMessaging.RKEM.Defs
+import SecureMessaging.RKEM.FromDDHNonFS.Construction
 import SecureMessaging.RKEM.FromKEM.Construction
 import SecureMessaging.RKEM.FromKEM.Correctness
 import SecureMessaging.RKEM.FromKEM.RatchetSimulatability
