@@ -24,7 +24,7 @@ PRF-PRNG from PRP and PRG.
 :::defTitle "prf_prng_from_prp_prg_spec" "PRF-PRNG from PRP and PRG construction"
 :::
 
-::::definition "prf_prng_from_prp_prg_spec" (parent := "prf_prng_prf_prng_from_prp_prg") (tags := "gh-36") (uses := "prf_prng_scheme, prp")
+::::definition "prf_prng_from_prp_prg_spec" (parent := "prf_prng_prf_prng_from_prp_prg") (tags := "gh-36") (uses := "prf_prng_scheme, prp, prg")
 $`\todo`
 
 :::leanPill "missing"
@@ -34,7 +34,7 @@ $`\todo`
 :::defTitle "prf_prng_from_prp_prg_security" "PRF-PRNG from PRP and PRG security"
 :::
 
-::::theorem "prf_prng_from_prp_prg_security" (parent := "prf_prng_prf_prng_from_prp_prg") (tags := "gh-37") (uses := "prf_prng_from_prp_prg_spec, prf_prng_scheme, prf_prng_security, prp")
+::::theorem "prf_prng_from_prp_prg_security" (parent := "prf_prng_prf_prng_from_prp_prg") (tags := "gh-37") (uses := "prf_prng_from_prp_prg_spec, prf_prng_scheme, prf_prng_security, prp, prg")
 $`\todo`
 
 :::leanPill "missing"
