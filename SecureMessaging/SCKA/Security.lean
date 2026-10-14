@@ -154,6 +154,14 @@ theorem preservesInv (h : RecordsChallenges chall) (Inv : GameState StA StB I Rh
   · rw [h]; exact hs
   · rw [h]; exact hbook s _ hs
 
+/-- A query of a challenge oracle that records challenges removes no challenged epoch. -/
+theorem challenged_subset (h : RecordsChallenges chall) (t : ℕ) (s : GameState StA StB I Rho)
+    (z : Option I × GameState StA StB I Rho) (hz : z ∈ support ((chall t).run s)) :
+    s.challenged ⊆ z.2.challenged := by
+  rcases h t s z hz with h | ⟨_, h⟩
+  · rw [h]
+  · rw [h]; exact Finset.subset_insert _ _
+
 /-- A query of a challenge oracle that records challenges changes neither the exposed set nor
 A's send counter. -/
 theorem exposed_nA_eq (h : RecordsChallenges chall) (t : ℕ) (s : GameState StA StB I Rho)
@@ -313,6 +321,19 @@ theorem oracleSendArleak_support
           mem_support_pure_iff] at hz
       all_goals obtain rfl := hz; exact ⟨rfl, rfl, rfl⟩
 
+/-- A's leaking send never changes the challenged set. -/
+theorem oracleSendArleak_challenged_eq
+    (leak : StA → Rand → Finset ℕ)
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (u : Unit) (s : GameState StA StB I Rho)
+    (z : Option (ℕ × Option ℕ × Rho × Rand) × GameState StA StB I Rho)
+    (hz : z ∈ support ((oracleSendArleak leak scka u).run s)) :
+    z.2.challenged = s.challenged := by
+  cases u
+  rcases oracleSendArleak_support scka leak s z hz with h | ⟨_, _, _, hch, _⟩
+  · rw [h]
+  · exact hch
+
 /-- A's leaking send never removes an exposed epoch. -/
 theorem oracleSendArleak_exposed_subset
     (leak : StA → Rand → Finset ℕ)
@@ -364,6 +385,19 @@ theorem oracleSendBrleak_support
         simp only [StateT.run_bind, StateT.run_set, pure_bind, StateT.run_pure,
           mem_support_pure_iff] at hz
       all_goals obtain rfl := hz; exact ⟨rfl, rfl, rfl⟩
+
+/-- B's leaking send never changes the challenged set. -/
+theorem oracleSendBrleak_challenged_eq
+    (leak : StB → Rand → Finset ℕ)
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (u : Unit) (s : GameState StA StB I Rho)
+    (z : Option (ℕ × Option ℕ × Rho × Rand) × GameState StA StB I Rho)
+    (hz : z ∈ support ((oracleSendBrleak leak scka u).run s)) :
+    z.2.challenged = s.challenged := by
+  cases u
+  rcases oracleSendBrleak_support scka leak s z hz with h | ⟨_, _, _, hch, _⟩
+  · rw [h]
+  · exact hch
 
 /-- B's leaking send never removes an exposed epoch. -/
 theorem oracleSendBrleak_exposed_subset
@@ -754,6 +788,23 @@ theorem securityImplOf_exposed_subset
   · rw [(hchall.exposed_nA_eq t s z hz).1]
   · exact oracleCorruptA_exposed_subset vulnA.corrupt u s z hz
   · exact oracleCorruptB_exposed_subset vulnB.corrupt u s z hz
+
+/-- If `base` keeps the challenged set and `chall` records challenges, no assembled query
+removes a challenged epoch. -/
+theorem securityImplOf_challenged_subset
+    (hbase : ∀ t s z, z ∈ support ((base t).run s) → z.2.challenged = s.challenged)
+    (hchall : RecordsChallenges chall)
+    (t : (sckaSecuritySpec StA StB I Rho Rand).Domain) (s : GameState StA StB I Rho)
+    (z : (sckaSecuritySpec StA StB I Rho Rand).Range t × GameState StA StB I Rho)
+    (hz : z ∈ support ((securityImplOf base chall vulnA vulnB scka t).run s)) :
+    s.challenged ⊆ z.2.challenged := by
+  rcases t with (((((t | u) | u) | t) | u) | u)
+  · rw [hbase t s z hz]
+  · rw [oracleSendArleak_challenged_eq vulnA.rleak scka u s z hz]
+  · rw [oracleSendBrleak_challenged_eq vulnB.rleak scka u s z hz]
+  · exact hchall.challenged_subset t s z hz
+  · rw [(oracleCorruptA_challenged_nA_eq vulnA.corrupt u s z hz).1]
+  · rw [(oracleCorruptB_challenged_nA_eq vulnB.corrupt u s z hz).1]
 
 /-- Suppose `base` increases `nA` by at most one on send queries and never increases it
 otherwise, and `chall` satisfies `RecordsChallenges`. Every assembled security query from

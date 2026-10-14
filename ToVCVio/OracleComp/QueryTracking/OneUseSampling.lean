@@ -62,6 +62,14 @@ states with `used`, so every execution from an `Inv` state contains at most one 
 Then, for every adaptive adversary `oa : OracleComp spec Bool` and
 initial state `s` satisfying `Inv s`,
 `Pr[G_once(oa, s) = true] = Pr[G_each(oa, s) = true]`.
+
+**Deferred sampling** (`stoppedRun_sample_once_eq`). Let `impl a` and `target` be stateful
+oracle implementations with plain `StateT` answers, run through `stoppedRun` with a stop test
+`stop : σ → Bool`. If conditions 1–5 hold for the successors `s'` of `impl a` with
+`stop s' = false`, and averaging over `a ← sample` gives `target` at every state `s` with
+`Inv s`, that is `𝒟[a ← sample; (impl a t).run s] = 𝒟[(target t).run s]`, then drawing
+`a ← sample` once and running `stoppedRun (impl a) stop oa s` returns `true` with the
+probability of `stoppedRun target stop oa s`.
 -/
 
 open OracleSpec ENNReal
@@ -242,5 +250,95 @@ theorem optionRun_sample_once_eq_sampleEachQuery
           hpres hused (fun t s hi hu => hindep t s hi (hnohit t s hi hu))
           (cont answer) a ha z.2 (hpres a ha t s hs z hz hc)
           (hfirst a ha t s hs hh z hz hc)
+
+/-- Every continuing successor of a stopped query is a successor of the underlying query
+whose state does not satisfy `stop`. -/
+private theorem exists_of_mem_support_stopOnState
+    (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool) (t : spec.Domain) (s : σ)
+    (z : Option (spec.Range t) × σ) (hz : z ∈ support (((stopOnState impl stop t).run).run s))
+    (hsome : z.1.isSome) :
+    ∃ y ∈ support ((impl t).run s), stop y.2 = false ∧ z.2 = y.2 := by
+  change z ∈ support (do
+    let y ← (impl t).run s
+    pure (if stop y.2 then none else some y.1, y.2)) at hz
+  obtain ⟨y, hy, hz⟩ := (mem_support_bind_iff _ _ _).mp hz
+  obtain rfl := (mem_support_pure_iff _ _).mp hz
+  cases hstop : stop y.2
+  · exact ⟨y, hy, hstop, rfl⟩
+  · simp [hstop] at hsome
+
+/-- A stopped query is the underlying query followed by the stop test on its successor. -/
+private theorem stopOnState_run_eq_map
+    (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool) (t : spec.Domain) (s : σ) :
+    ((stopOnState impl stop t).run).run s =
+      (fun y => (if stop y.2 then none else some y.1, y.2)) <$> (impl t).run s := by
+  rw [map_eq_bind_pure_comp]
+  rfl
+
+/-- Let `impl a` (for `a : τ`) and `target` be stateful oracle implementations for `spec` with
+state space `σ`, and let `stop : σ → Bool`. Write `S := support sample`. For every Boolean
+computation `oa` and state `s` with `Inv s`,
+`Pr[= true | a ← sample; stoppedRun (impl a) stop oa s] =
+  Pr[= true | stoppedRun target stop oa s]`,
+provided that for all `a, a' ∈ S`, queries `t`, and states `u` with `Inv u`, writing
+"continuing successor" for every `(r, u')` in the support of `(impl a t).run u` with
+`stop u' = false`:
+
+- every continuing successor satisfies `Inv u'`, and also `used u'` if `used u`;
+- if `hit t u = false`, then `𝒟[(impl a t).run u] = 𝒟[(impl a' t).run u]`;
+- if `used u`, then `hit t u = false`;
+- if `hit t u = true`, then every continuing successor satisfies `used u'`;
+- `𝒟[a ← sample; (impl a t).run u] = 𝒟[(target t).run u]`. -/
+theorem stoppedRun_sample_once_eq
+    (sample : ProbComp τ) (impl : τ → QueryImpl spec (StateT σ ProbComp))
+    (target : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool)
+    (Inv used : σ → Prop) (hit : spec.Domain → σ → Bool)
+    (hpres : ∀ a ∈ support sample, ∀ t s, Inv s →
+      ∀ z ∈ support ((impl a t).run s), stop z.2 = false → Inv z.2)
+    (hused : ∀ a ∈ support sample, ∀ t s, Inv s → used s →
+      ∀ z ∈ support ((impl a t).run s), stop z.2 = false → used z.2)
+    (hindep : ∀ t s, Inv s → hit t s = false →
+      ∀ a ∈ support sample, ∀ a' ∈ support sample,
+      𝒟[(impl a t).run s] = 𝒟[(impl a' t).run s])
+    (hnohit : ∀ t s, Inv s → used s → hit t s = false)
+    (hfirst : ∀ a ∈ support sample, ∀ t s, Inv s → hit t s = true →
+      ∀ z ∈ support ((impl a t).run s), stop z.2 = false → used z.2)
+    (havg : ∀ t s, Inv s →
+      𝒟[do let a ← sample; (impl a t).run s] = 𝒟[(target t).run s])
+    (oa : OracleComp spec Bool) (s : σ) (hs : Inv s) :
+    Pr[= true | do let a ← sample; stoppedRun (impl a) stop oa s] =
+      Pr[= true | stoppedRun target stop oa s] := by
+  have hpres' : ∀ a ∈ support sample, ∀ t s, Inv s →
+      ∀ z ∈ support (((stopOnState (impl a) stop t).run).run s), z.1.isSome → Inv z.2 := by
+    intro a ha t s hs z hz hsome
+    obtain ⟨y, hy, hstop, hzy⟩ := exists_of_mem_support_stopOnState _ stop t s z hz hsome
+    exact hzy ▸ hpres a ha t s hs y hy hstop
+  unfold stoppedRun
+  rw [optionRun_sample_once_eq_sampleEachQuery sample (fun a => stopOnState (impl a) stop)
+    Inv used hit hpres'
+    (fun a ha t s hs hu z hz hsome => by
+      obtain ⟨y, hy, hstop, hzy⟩ := exists_of_mem_support_stopOnState _ stop t s z hz hsome
+      exact hzy ▸ hused a ha t s hs hu y hy hstop)
+    (fun t s hs hh a ha a' ha' => by
+      rw [stopOnState_run_eq_map, stopOnState_run_eq_map, evalDist_map, evalDist_map,
+        hindep t s hs hh a ha a' ha'])
+    hnohit
+    (fun a ha t s hs hh z hz hsome => by
+      obtain ⟨y, hy, hstop, hzy⟩ := exists_of_mem_support_stopOnState _ stop t s z hz hsome
+      exact hzy ▸ hfirst a ha t s hs hh y hy hstop) oa s hs]
+  refine (probOutput_optionRun_eq_of_state_map _ (stopOnState target stop) id Inv ?_ ?_
+    oa s hs).symm
+  · intro t s hs z hz hsome
+    rw [sampleEachQuery_run] at hz
+    obtain ⟨a, ha, hz⟩ := (mem_support_bind_iff _ _ _).mp hz
+    exact hpres' a ha t s hs z hz hsome
+  · intro t s hs
+    rw [Prod.map_id, id_map, sampleEachQuery_run]
+    have h : (do let a ← sample; ((stopOnState (impl a) stop t).run).run s) =
+        (fun y => (if stop y.2 then none else some y.1, y.2)) <$>
+          (do let a ← sample; (impl a t).run s) := by
+      simp only [stopOnState_run_eq_map, map_bind]
+    rw [h, stopOnState_run_eq_map, evalDist_map, evalDist_map, havg t s hs]
+    rfl
 
 end OracleComp
