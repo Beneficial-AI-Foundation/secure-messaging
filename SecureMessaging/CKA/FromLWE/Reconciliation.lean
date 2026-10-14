@@ -9,25 +9,28 @@ import SecureMessaging.CKA.FromLWE.Basic
 /-!
 # Frodo reconciliation for continuous key agreement from LWE
 
-These definitions follow Section 3.2 of Bos et al., *Frodo: Take off the ring!*. Extraction
-rounds half upward and then reduces modulo `2 ^ keyBits`. Hints split the canonical residue
-representatives into alternating half-block classes.
+Extraction, hints, and recovery follow Section 3.2 of Bos et al., *Frodo: Take off the ring!*,
+with parameters satisfying `Params.WellFormed`. Each residue modulo `q` has a canonical
+representative in `0, …, q - 1`, written `v.val` in Lean.
 
-Recovery searches all residues in the received hint class using circular distance modulo `q`,
-including across zero. Equal-distance candidates use the smaller canonical representative; this
-extra rule is a deterministic convention of this specification rather than a rule attributed to
-the paper. The initial candidate `b.val * halfWidth` is in the requested class for well-formed
-parameters. The low-level functions remain total for raw parameters, but behavior outside that
-supported domain is not claimed to conform to the source construction.
+Extraction rounds to the nearest multiple of `blockWidth`, rounding midpoint ties upward,
+and returns its index modulo `2 ^ keyBits`. Hints alternate between 0 and 1 on successive
+intervals of `halfWidth` representatives, starting with 0.
+
+Recovery finds the closest residue with the received hint, measuring distance around the circle
+modulo `q`, then extracts its shared-key bits. The search breaks equal-distance ties by choosing
+the smaller representative. This is a specification choice not stated in the paper: under its
+parameter constraints (`Params.WellFormed`), the closest residue with the received hint is unique.
 -/
 
 namespace lweCKA
 
-/-- Round a residue half upward to an extracted key scalar. -/
+/-- Extract shared-key bits from a residue by rounding, with midpoint ties rounded upward. -/
 def extractScalar (p : Params) (v : Scalar p) : KeyScalar p :=
   ((v.val + p.halfWidth) / p.blockWidth : ℕ)
 
-/-- Return the alternating half-block class of a residue. -/
+/-- Return a hint bit that alternates between 0 and 1 on successive intervals of
+`halfWidth` canonical representatives, starting with 0. -/
 def hintScalar (p : Params) (v : Scalar p) : HintScalar :=
   (v.val / p.halfWidth : ℕ)
 
@@ -35,7 +38,8 @@ def hintScalar (p : Params) (v : Scalar p) : HintScalar :=
 def modularDistance (p : Params) (u v : Scalar p) : ℕ :=
   min (u - v).val (v - u).val
 
-/-- Choose the closest residue with the requested hint, breaking ties by canonical value. -/
+/-- Search for the closest residue with the requested hint using circular distance modulo `q`.
+Resolve equal distances by choosing the smaller representative in the interval`[0, q - 1]`. -/
 def nearestWithHint
     (p : Params) (w : Scalar p) (b : HintScalar) : Scalar p :=
   (List.range p.q).foldl
@@ -50,20 +54,20 @@ def nearestWithHint
         best)
     ((b.val * p.halfWidth : ℕ) : Scalar p)
 
-/-- Recover an extracted key scalar using the received hint. -/
+/-- Recover shared-key bits from one residue using the received hint. -/
 def reconcileScalar
     (p : Params) (w : Scalar p) (b : HintScalar) : KeyScalar p :=
   extractScalar p (nearestWithHint p w b)
 
-/-- Apply scalar extraction entrywise to a shared matrix. -/
+/-- Extract shared-key bits from each entry of a shared matrix. -/
 def extract (p : Params) (v : Shared p) : Key p :=
   fun i j => extractScalar p (v i j)
 
-/-- Apply scalar hint generation entrywise to a shared matrix. -/
+/-- Generate a hint bit for each entry of a shared matrix. -/
 def makeHint (p : Params) (v : Shared p) : Hint p :=
   fun i j => hintScalar p (v i j)
 
-/-- Apply scalar reconciliation entrywise to a shared matrix and hint. -/
+/-- Recover shared-key bits entrywise using the shared matrix and received hints. -/
 def reconcile (p : Params) (w : Shared p) (b : Hint p) : Key p :=
   fun i j => reconcileScalar p (w i j) (b i j)
 
