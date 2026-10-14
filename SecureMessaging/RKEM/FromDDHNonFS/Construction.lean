@@ -58,6 +58,12 @@ Consequently the scheme is *not* FS-IND-CPA secure in the sense of
 which it recomputes `K₀ = Y^x`. [TripleRatchet, Thm. A.4] only claims plain IND-CPA security
 under DDH for this variant.
 
+## Randomness leakage
+
+Security notions that expose algorithm coins are stated relative to an `RKEMScheme.RandLeak`
+package. `randLeak` builds one for the construction: fresh key generation leaks the sampled
+scalar `x`, and the deterministic `REnc-P` leaks empty coins.
+
 [REFERENCES]
 
 - [TripleRatchet] Dodis, Jost, Katsumata, Prest, Schmidt.
@@ -140,5 +146,57 @@ def scheme (gen : G) : RKEMScheme ProbComp Unit G F Unit G where
   rencB := renc
   rdecB := rdec
 -- ANCHOR_END: scheme
+
+section RandLeak
+
+/-- DH-RKEM fresh key generation `RKeyGen-P(par, ⊥)` (`rkeygen`), also returning its coins: the
+sampled scalar `x` itself, from which the key pair `(x • gen, x)` is computed. -/
+-- ANCHOR: rkeygenRleak
+def rkeygenRleak (gen : G) (_par : Unit) : ProbComp ((G × F) × F) := do
+  let x ← $ᵗ F
+  return ((x • gen, x), x)
+-- ANCHOR_END: rkeygenRleak
+
+/-- `rkeygen` is the first component of `rkeygenRleak`. -/
+theorem rkeygenRleak_fst (gen : G) (par : Unit) :
+    (do
+      let out ← rkeygenRleak (F := F) gen par
+      pure out.1) = rkeygen gen par := by
+  simp [rkeygenRleak, rkeygen]
+
+/-- DH-RKEM encapsulation `REnc-P` (`renc`), also returning its coins. `REnc-P` is deterministic,
+so its coins are empty. -/
+-- ANCHOR: rencRleak
+def rencRleak (par : Unit) (ekPeerHat : G) (dkSelf : F) : ProbComp ((Unit × G × F) × Unit) := do
+  let out ← renc par ekPeerHat dkSelf
+  return (out, ())
+-- ANCHOR_END: rencRleak
+
+omit [SampleableType F] in
+/-- `renc` is the first component of `rencRleak`. -/
+theorem rencRleak_fst (par : Unit) (ekPeerHat : G) (dkSelf : F) :
+    (do
+      let out ← rencRleak par ekPeerHat dkSelf
+      pure out.1) = renc par ekPeerHat dkSelf := by
+  simp [rencRleak]
+
+/-- Randomness-leak package of the DH RKEM. Fresh key generation `RKeyGen-P(par, ⊥)` leaks its
+sampled scalar (`rkeygenRleak`), and the deterministic `REnc-P` leaks empty coins (`rencRleak`). As
+for the construction itself, both parties coincide. -/
+-- ANCHOR: randLeak
+def randLeak (gen : G) : (scheme (F := F) gen).RandLeak where
+  KeygenRand := F
+  EncRand := Unit
+  rkeygenAFreshRleak := rkeygenRleak gen
+  rkeygenBFreshRleak := rkeygenRleak gen
+  rencARleak := rencRleak
+  rencBRleak := rencRleak
+  rkeygenAFresh_fst := rkeygenRleak_fst gen
+  rkeygenBFresh_fst := rkeygenRleak_fst gen
+  rencA_fst := rencRleak_fst
+  rencB_fst := rencRleak_fst
+-- ANCHOR_END: randLeak
+
+end RandLeak
 
 end ddhRKEM

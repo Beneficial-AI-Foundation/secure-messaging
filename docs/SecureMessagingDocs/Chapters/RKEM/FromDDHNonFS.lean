@@ -6,6 +6,7 @@ import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessagingDocs.Bibliography
 import SecureMessaging.RKEM.FromDDHNonFS.Construction
 import SecureMessaging.RKEM.FromDDHNonFS.Correctness
+import SecureMessaging.RKEM.FromDDHNonFS.RatchetSimulatability
 
 set_option linter.style.setOption false
 set_option linter.hashCommand false
@@ -32,7 +33,7 @@ RKEM from DDH (non-FS).
 :::defTitle "rkem_from_ddh_nonfs_spec" "RKEM from DDH non-FS construction"
 :::
 
-:::::::definition "rkem_from_ddh_nonfs_spec" (parent := "rkem_rkem_from_ddh_non_fs") (lean := "ddhRKEM.rkeygen, ddhRKEM.renc, ddhRKEM.rdec, ddhRKEM.scheme") (tags := "gh-66") (uses := "rkem_scheme")
+:::::::definition "rkem_from_ddh_nonfs_spec" (parent := "rkem_rkem_from_ddh_non_fs") (lean := "ddhRKEM.rkeygen, ddhRKEM.renc, ddhRKEM.rdec, ddhRKEM.scheme, ddhRKEM.rkeygenRleak, ddhRKEM.rencRleak, ddhRKEM.randLeak") (tags := "gh-66") (uses := "rkem_scheme")
 Adapted from {Informal.citet TR25}[], Appendix A.3 and Figure 28, without the figure's forward-secure modifications.
 
 Let $`G=\langle g\rangle` be a cyclic group of prime order $`q`. A party's key pair is a scalar $`x\in\mathbb{Z}_q` together with its public value $`g^x`. Public parameters are vacuous, and fresh and updated key generation coincide. Ciphertexts are empty: the peer already holds the sender's public value $`g^x`, which is the sender's encapsulation key, and both parties derive the shared key $`g^{xy}`. Used in the generic CKA construction, this RKEM yields the Double Ratchet CKA of {Informal.citet ACD19}[] (see CKA from DDH).
@@ -113,6 +114,43 @@ def scheme (gen : G) : RKEMScheme ProbComp Unit G F Unit G where
   rencB := renc
   rdecB := rdec
 ```
+
+Security notions that expose algorithm coins are stated relative to a randomness-leak package of the RKEM. For this construction, fresh key generation leaks the sampled scalar $`x`, from which the key pair $`(g^x,x)` is computed, and $`\REnc\text{-}\mathsf{P}`, which is deterministic, leaks empty coins.
+
+:::leanPillCaption "Leaking key generation"
+:::
+
+```anchor rkeygenRleak (project := ".") (module := SecureMessaging.RKEM.FromDDHNonFS.Construction)
+def rkeygenRleak (gen : G) (_par : Unit) : ProbComp ((G × F) × F) := do
+  let x ← $ᵗ F
+  return ((x • gen, x), x)
+```
+
+:::leanPillCaption "Leaking encapsulation"
+:::
+
+```anchor rencRleak (project := ".") (module := SecureMessaging.RKEM.FromDDHNonFS.Construction)
+def rencRleak (par : Unit) (ekPeerHat : G) (dkSelf : F) : ProbComp ((Unit × G × F) × Unit) := do
+  let out ← renc par ekPeerHat dkSelf
+  return (out, ())
+```
+
+:::leanPillCaption "Randomness-leak package"
+:::
+
+```anchor randLeak (project := ".") (module := SecureMessaging.RKEM.FromDDHNonFS.Construction)
+def randLeak (gen : G) : (scheme (F := F) gen).RandLeak where
+  KeygenRand := F
+  EncRand := Unit
+  rkeygenAFreshRleak := rkeygenRleak gen
+  rkeygenBFreshRleak := rkeygenRleak gen
+  rencARleak := rencRleak
+  rencBRleak := rencRleak
+  rkeygenAFresh_fst := rkeygenRleak_fst gen
+  rkeygenBFresh_fst := rkeygenRleak_fst gen
+  rencA_fst := rencRleak_fst
+  rencB_fst := rencRleak_fst
+```
 :::::::
 
 :::defTitle "rkem_from_ddh_nonfs_correctness" "RKEM from DDH non-FS correctness"
@@ -132,9 +170,92 @@ theorem deltaCorrect [DecidableEq G] (gen : G) :
 :::defTitle "rkem_from_ddh_nonfs_ratchet_sim" "RKEM from DDH non-FS ratchet simulatability"
 :::
 
-::::theorem "rkem_from_ddh_nonfs_ratchet_sim" (parent := "rkem_rkem_from_ddh_non_fs") (tags := "gh-68") (uses := "rkem_from_ddh_nonfs_spec, rkem_scheme, rkem_ratchet_sim")
-$`\todo`
+:::::::theorem "rkem_from_ddh_nonfs_ratchet_sim" (parent := "rkem_rkem_from_ddh_non_fs") (lean := "ddhRKEM.rsimKey1, ddhRKEM.rsimKey2, ddhRKEM.rsimCtxt, ddhRKEM.ratchetSimulator, ddhRKEM.RatchetSimulatable") (tags := "gh-68") (uses := "rkem_from_ddh_nonfs_spec, rkem_scheme, rkem_ratchet_sim")
+Adapted from {Informal.citet TR25}[], Theorem A.5 and Figure 30.
 
-:::leanPill "missing"
+The non-forward-secure RKEM from DDH is perfectly ratchet simulatable: with the simulators below, the real and simulated distributions of base-key, updated-key and ciphertext simulatability coincide, so every distinguisher has advantage $`0`. This holds unconditionally.
+
+:::leanPillCaption "Perfect ratchet simulatability"
 :::
-::::
+
+```anchor RatchetSimulatable (project := ".") (module := SecureMessaging.RKEM.FromDDHNonFS.RatchetSimulatability)
+theorem RatchetSimulatable (gen : G) :
+    (scheme (F := F) gen).RatchetSimulatable (leak := randLeak gen) 0
+```
+
+Ratchet simulatability is stated relative to the construction's randomness-leak package (see the RKEM from DDH non-FS construction).
+
+The simulators are the same for both parties $`\mathsf{P}\in\{\A,\B\}`, with peer $`\mathsf{\bar P}`. They follow Figure 30 of the paper, which returns the outputs of $`\RSimKey\text{-}\mathsf{P}_1` in a different order. The simulation is perfect as printed. $`\RSimKey\text{-}\mathsf{P}_1` returns $`\mathsf{P}`'s fresh key pair as its updated one, exactly as the non-forward-secure scheme does. $`\RSimKey\text{-}\mathsf{P}_2` returns $`K=Y^x` twice, where the peer would compute $`K'=X^y`; both equal $`g^{xy}` since the keys are honestly generated. $`\RSimCtxt\text{-}\mathsf{P}` returns $`\ekh{P}` as $`\ek_\mathsf{P}`, which is what $`\RDec\text{-}\mathsf{\bar P}` does in the real distribution.
+
+::::::gameGrid
+:::::gameCell "\\RSimKey\\text{-}\\mathsf{P}_1(\\ek_\\mathsf{P}:=X,\\dk_\\mathsf{P}:=x)" (kind := "compact")
+$`\begin{array}{l}
+\aux_1:=x \\
+\Return(X,x,\aux_1)\pcomment{\text{Fig. 30: }(x,X,\aux_1)}
+\end{array}`
+
+:::leanPillCaption "RSimKey-P₁"
+:::
+
+```anchor rsimKey1 (project := ".") (module := SecureMessaging.RKEM.FromDDHNonFS.RatchetSimulatability)
+def rsimKey1 (_par : Unit) (ekSelf : G) (dkSelf : F) : ProbComp (G × F × F) := do
+  let aux := dkSelf
+  return (ekSelf, dkSelf, aux)
+```
+:::::
+
+:::::gameCell "\\RSimKey\\text{-}\\mathsf{P}_2(\\ekh{\\bar P}:=Y,\\dkh{\\bar P}:=y,\\aux_1:=x)" (kind := "compact")
+$`\begin{array}{l}
+K:=Y^x \\
+\ct_{\mathsf{\bar P}}:=();\;\rand_2:=() \\
+\Return(\ct_{\mathsf{\bar P}},K,K,\rand_2)
+\end{array}`
+
+:::leanPillCaption "RSimKey-P₂"
+:::
+
+```anchor rsimKey2 (project := ".") (module := SecureMessaging.RKEM.FromDDHNonFS.RatchetSimulatability)
+def rsimKey2 (_par : Unit) (ekPeerHat : G) (_dkPeerHat : F) (aux : F) :
+    ProbComp (Unit × G × G × Unit) := do
+  let dkSelf := aux
+  let key := dkSelf • ekPeerHat
+  let ctPeer := ()
+  let rand₂ := ()
+  return (ctPeer, key, key, rand₂)
+```
+:::::
+
+:::::gameCell "\\RSimCtxt\\text{-}\\mathsf{P}(\\ekh{P}:=X,\\ekh{\\bar P}:=Y,\\dkh{\\bar P}:=y)" (kind := "compact")
+$`\begin{array}{l}
+K:=X^y \\
+\ct_{\mathsf{\bar P}}:=() \\
+\Return(\ct_{\mathsf{\bar P}},X,K,K)
+\end{array}`
+
+:::leanPillCaption "RSimCtxt-P"
+:::
+
+```anchor rsimCtxt (project := ".") (module := SecureMessaging.RKEM.FromDDHNonFS.RatchetSimulatability)
+def rsimCtxt (_par : Unit) (ekSelfHat _ekPeerHat : G) (dkPeerHat : F) :
+    ProbComp (Unit × G × G × G) := do
+  let key := dkPeerHat • ekSelfHat
+  let ctPeer := ()
+  return (ctPeer, ekSelfHat, key, key)
+```
+:::::
+::::::
+
+:::leanPillCaption "Ratchet simulators"
+:::
+
+```anchor ratchetSimulator (project := ".") (module := SecureMessaging.RKEM.FromDDHNonFS.RatchetSimulatability)
+def ratchetSimulator (gen : G) : (scheme (F := F) gen).RatchetSimulator (randLeak gen) where
+  Aux := F
+  rsimKeyA1 := rsimKey1
+  rsimKeyA2 := rsimKey2
+  rsimCtxtA := rsimCtxt
+  rsimKeyB1 := rsimKey1
+  rsimKeyB2 := rsimKey2
+  rsimCtxtB := rsimCtxt
+```
+:::::::
