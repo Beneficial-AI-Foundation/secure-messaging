@@ -65,6 +65,9 @@ how they ensure this:
   `SCKA.Correctness.Tracked`) and the conditional KEM error of `KEM.CorrectnessError`;
 * the perfect-KEM proof uses that no instance of a perfectly correct KEM can fail, so the
   invariant holds at every reachable state and no query bound is needed.
+
+For more details on the proof and gentler exposition, check
+[the tutorial](https://github.com/Beneficial-AI-Foundation/secure-messaging/blob/main/docs/tutorials/oppbikem-correctness-tutorial.md).
 -/
 
 open OracleComp KEMScheme ENNReal

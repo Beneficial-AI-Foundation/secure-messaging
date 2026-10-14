@@ -10,11 +10,12 @@ import SecureMessaging.SCKA.OppBiKEM.Correctness.SendFacts
 /-!
 # Opp-BiKEM-CKA — Facts about a single receive
 
-Support-level facts about `recv`, used by the main-invariant proofs: the reported sending
-epoch (`recv_reports_message_sendingEpoch`), the post-state of a successful receive
-(`recv_success_state_facts`), the facts behind an emitted key (`recv_emitted_key_facts`), and
-how a receive changes the own public-key buffer (`recv_local_publicKey_eq_or_none`) and the
-decoded peer keys (`recv_peerKeys_stable`, `recv_peerKeys_origin`).
+Support-level facts about `recv`, used by the quantitative receive step
+(`Quantitative.RecvStep`): the reported sending epoch (`recv_reports_message_sendingEpoch`), the
+post-state of a successful receive (`recv_success_state_facts`), the facts behind an emitted key
+(`recv_emitted_key_facts`), and how a receive changes the own public-key buffer
+(`recv_local_publicKey_eq_or_none`) and the decoded peer keys (`recv_peerKeys_stable`,
+`recv_peerKeys_origin`).
 -/
 
 open OracleSpec OracleComp KEMScheme
