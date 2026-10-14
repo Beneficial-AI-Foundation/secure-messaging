@@ -10,25 +10,26 @@ import Mathlib.Data.ZMod.Basic
 /-!
 # Basic types for continuous key agreement from LWE
 
-The four matrix shapes follow the direct LWE construction in Alwen, Coretti, and Dodis,
+The four matrix shapes follow the LWE construction in Alwen, Coretti, and Dodis,
 *The Double Ratchet: Security Notions, Proofs, and Modularization for the Signal Protocol*,
-Section 4.1.2. All party names in this namespace are the paper's names: B sends first.
+Section 4.1.2. Party names follow the repository interface: A sends first
+(the party labels are swapped relative to the paper).
 -/
 
 namespace lweCKA
 
-/-- Numerical parameters for the direct LWE construction. -/
+/-- Numerical parameters for the LWE construction. -/
 structure Params where
-  /-- The large square matrix dimension. -/
+  /-- Dimension of the square public base matrix (`n × n`). -/
   n : ℕ
-  /-- The smaller shared-secret matrix dimension. -/
+  /-- Dimension of the square shared matrices (`nbar × nbar`). -/
   nbar : ℕ
   /-- The exponent `D` in the modulus `q = 2 ^ D`. -/
   logQ : ℕ
   /-- The number `B` of extracted key bits per shared-matrix entry. -/
   keyBits : ℕ
 
-/-- Admissibility conditions for the source interpretation of the construction. -/
+/-- Parameter constraints for the LWE construction. -/
 structure Params.WellFormed (p : Params) : Prop where
   n_pos : 0 < p.n
   nbar_pos : 0 < p.nbar
@@ -43,11 +44,12 @@ def Params.q (p : Params) : ℕ :=
 def Params.discardBits (p : Params) : ℕ :=
   p.logQ - p.keyBits
 
-/-- The width of one extraction block. -/
+/-- Interval between successive rounding points in shared-key extraction called block. -/
 def Params.blockWidth (p : Params) : ℕ :=
   2 ^ p.discardBits
 
-/-- Half an extraction block, used for rounding and hints. -/
+/-- Half the extraction-block width for well-formed parameters, used as the rounding offset
+and as the interval width for alternating hint bits. -/
 def Params.halfWidth (p : Params) : ℕ :=
   2 ^ (p.discardBits - 1)
 
@@ -84,7 +86,7 @@ abbrev Key (p : Params) :=
 abbrev Hint (p : Params) :=
   Matrix (Fin p.nbar) (Fin p.nbar) HintScalar
 
-/-- Initial material shared between paper parties A and B. -/
+/-- Initial material shared between parties A and B. -/
 structure InitKey (p : Params) where
   /-- Uniform public base matrix. -/
   base : Base p
@@ -93,8 +95,8 @@ structure InitKey (p : Params) where
   /-- Initial error matrix sampled from `χ`. -/
   error : Right p
 
-/-- Fresh matrices sampled for one send by paper party B. -/
-structure SendBCoins (p : Params) where
+/-- Fresh matrices sampled for a single send by party A. -/
+structure SendACoins (p : Params) where
   /-- Fresh left-oriented secret matrix. -/
   secret : Left p
   /-- Fresh error for the public matrix. -/
@@ -102,8 +104,8 @@ structure SendBCoins (p : Params) where
   /-- Fresh extra error for the shared matrix. -/
   extra : Shared p
 
-/-- Fresh matrices sampled for one send by paper party A. -/
-structure SendACoins (p : Params) where
+/-- Fresh matrices sampled for a single send by party B. -/
+structure SendBCoins (p : Params) where
   /-- Fresh right-oriented secret matrix. -/
   secret : Right p
   /-- Fresh error for the public matrix. -/
@@ -113,24 +115,24 @@ structure SendACoins (p : Params) where
 
 /-- The actual matrix values sampled by a randomness-leaking send. -/
 inductive Rand (p : Params) where
-  | fromB : SendBCoins p → Rand p
   | fromA : SendACoins p → Rand p
+  | fromB : SendBCoins p → Rand p
 
-/-- Phase-tagged local state for the two paper parties. -/
+/-- Phase-tagged local state for the two parties. -/
 inductive State (p : Params) where
-  /-- B retains the base and current right-oriented public matrix, ready to send. -/
-  | bSend : Base p → Right p → State p
-  /-- B retains the base and its left-oriented secret, ready to receive from A. -/
-  | bRecv : Base p → Left p → State p
-  /-- A retains the base and current left-oriented public matrix, ready to send. -/
-  | aSend : Base p → Left p → State p
-  /-- A retains the base and its right-oriented secret, ready to receive from B. -/
-  | aRecv : Base p → Right p → State p
+  /-- A retains the public base and an `n × nbar` public matrix, ready to send. -/
+  | aSend : Base p → Right p → State p
+  /-- A retains the public base and its `nbar × n` secret matrix, ready to receive from B. -/
+  | aRecv : Base p → Left p → State p
+  /-- B retains the public base and an `nbar × n` public matrix, ready to send. -/
+  | bSend : Base p → Left p → State p
+  /-- B retains the public base and its `n × nbar` secret matrix, ready to receive from A. -/
+  | bRecv : Base p → Right p → State p
 
-/-- A directional public matrix together with its reconciliation hint. -/
+/-- A public matrix together with its reconciliation hint. -/
 inductive Message (p : Params) where
-  | fromB : Left p → Hint p → Message p
-  | fromA : Right p → Hint p → Message p
+  | fromA : Left p → Hint p → Message p
+  | fromB : Right p → Hint p → Message p
 
 /-- A power of two is nonzero, so every construction modulus is a valid `ZMod` modulus. -/
 instance instNeZeroModulus (p : Params) : NeZero p.q :=
