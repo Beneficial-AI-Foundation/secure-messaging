@@ -14,7 +14,7 @@ import VCVio.OracleComp.Constructions.SampleableType
 The supplied scalar computation `χ` represents the paper's noise distribution. Nested
 `ProbComp.sampleIID` calls draw matrix entries independently, in row order and then column order.
 Every invocation draws fresh values. Initialization samples the uniform base, secret, and error in
-that order; each directional send samples its secret, error, and extra error in that order.
+that order; each send samples its secret, error, and extra error in that order.
 
 The leaking interface returns the actual sampled matrices used by the deterministic transition; it
 does not model a byte-level sampler transcript. `ProbComp` supplies the existing total uniform-query
@@ -37,17 +37,17 @@ def initKeyGen (p : Params) (χ : ProbComp (Scalar p)) :
   let error ← sampleMatrix χ p.n p.nbar
   return { base := base, secret := secret, error := error }
 
-/-- Sample fresh secret, error, and extra error matrices for paper party B. -/
-def sampleSendBCoins (p : Params) (χ : ProbComp (Scalar p)) :
-    ProbComp (SendBCoins p) := do
+/-- Sample fresh secret, error, and extra error matrices for party A. -/
+def sampleSendACoins (p : Params) (χ : ProbComp (Scalar p)) :
+    ProbComp (SendACoins p) := do
   let secret ← sampleMatrix χ p.nbar p.n
   let error ← sampleMatrix χ p.nbar p.n
   let extra ← sampleMatrix χ p.nbar p.nbar
   return { secret := secret, error := error, extra := extra }
 
-/-- Sample fresh secret, error, and extra error matrices for paper party A. -/
-def sampleSendACoins (p : Params) (χ : ProbComp (Scalar p)) :
-    ProbComp (SendACoins p) := do
+/-- Sample fresh secret, error, and extra error matrices for party B. -/
+def sampleSendBCoins (p : Params) (χ : ProbComp (Scalar p)) :
+    ProbComp (SendBCoins p) := do
   let secret ← sampleMatrix χ p.n p.nbar
   let error ← sampleMatrix χ p.n p.nbar
   let extra ← sampleMatrix χ p.nbar p.nbar

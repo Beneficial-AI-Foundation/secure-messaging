@@ -13,122 +13,119 @@ import SecureMessaging.CKA.FromLWE.Sampling
 
 This file defines the direct LWE-based CKA construction from Section 4.1.2 of Alwen, Coretti, and
 Dodis, *The Double Ratchet: Security Notions, Proofs, and Modularization for the Signal Protocol*.
-Party names in this namespace follow the paper, where B sends first.
+The names of the two parties follow the repository interface: A sends first which is the inverse
+convention on the roles of A,B in the paper where B sends first.
 
-For parameters `n` and `nbar`, `Base` is `n × n`, `Right` is `n × nbar`, `Left` is
-`nbar × n`, and `Shared` is `nbar × nbar`. Initialization samples a uniform base and independent
-`χ`-distributed matrices `S₀` and `E₀`. Paper A retains `(base, S₀)`, while paper B retains
-`(base, P₀)` for `P₀ = base * S₀ + E₀`.
+For parameters `n` and `nbar`, the matrices in the sketch below have these dimensions.
 
-Paper B first samples `S₁`, `E₁`, and extra error `Ẽ₁`, sends
-`P₁ = S₁ * base + E₁` with a hint for `V₁ = S₁ * P₀ + Ẽ₁`, and retains `S₁` while waiting to
-receive. Paper A recovers from `P₁ * S₀`, retains `P₁`, and becomes ready to send. It then samples
-`S₂`, `E₂`, and `Ẽ₂`, sends `P₂ = base * S₂ + E₂` with a hint for
-`V₂ = P₁ * S₂ + Ẽ₂`, and retains `S₂`. Paper B recovers from `S₁ * P₂`, retains `P₂`, and
-returns to its sending phase.
+| Matrices | Dimensions |
+| --- | --- |
+| `base` | `n × n` |
+| `S₀`, `E₀`, `P₀`; `S₂`, `E₂`, `P₂` | `n × nbar` |
+| `S₁`, `E₁`, `P₁` | `nbar × n` |
+| `Ẽ₁`, `V₁`; `Ẽ₂`, `V₂` | `nbar × nbar` |
+
+The hints `h₁` and `h₂` also have dimensions `nbar × nbar`, with one hint bit per entry.
+
+Initialization samples a uniform `base` and independent `χ`-distributed matrices `S₀` and `E₀`,
+and sets `P₀ = base * S₀ + E₀`. The first two sends are shown below; `base` is retained throughout.
+All freshly sampled secret and error matrices have independent `χ`-distributed entries.
+
+```text
+A (first sender)                               B (first receiver)
+State: (base, P₀)                              State: (base, S₀)
+
+Sample S₁, E₁, Ẽ₁
+P₁ = S₁ * base + E₁
+V₁ = S₁ * P₀ + Ẽ₁
+h₁ = makeHint p V₁
+Output: extract p V₁
+                      ───── (P₁, h₁) ─────▶   Output: reconcile p (P₁ * S₀) h₁
+State: (base, S₁), ready to receive            State: (base, P₁), ready to send
+
+                                              Sample S₂, E₂, Ẽ₂
+                                              P₂ = base * S₂ + E₂
+                                              V₂ = P₁ * S₂ + Ẽ₂
+                                              h₂ = makeHint p V₂
+                                              Output: extract p V₂
+                      ◀───── (P₂, h₂) ─────
+Output: reconcile p (S₁ * P₂) h₂
+State: (base, P₂), ready to send               State: (base, S₂), ready to receive
+```
 
 State replacement records the information retained by the abstract transition. It does not prove
-physical memory erasure. Only `scheme` adapts the paper's B-first roles to the repository interface:
-repository A is paper B, and repository B is paper A.
+physical memory erasure.
 -/
 
 namespace lweCKA
 
-/-- Initialize paper party B in its first sending phase. -/
-def initB {p : Params} (ik : InitKey p) : State p :=
-  .bSend ik.base (ik.base * ik.secret + ik.error)
-
-/-- Initialize paper party A in its first receiving phase. -/
+/-- Initialize party A in its first sending phase. -/
 def initA {p : Params} (ik : InitKey p) : State p :=
-  .aRecv ik.base ik.secret
+  .aSend ik.base (ik.base * ik.secret + ik.error)
 
-/-- Deterministic paper-B send using explicit sampled matrices. -/
-def sendBCore {p : Params} (st : State p) (r : SendBCoins p) :
-    Option (Key p × Message p × State p) :=
-  match st with
-  | .bSend base pub =>
-      let nextPub := r.secret * base + r.error
-      let value := r.secret * pub + r.extra
-      some (extract p value, .fromB nextPub (makeHint p value),
-        .bRecv base r.secret)
-  | _ => none
+/-- Initialize party B in its first receiving phase. -/
+def initB {p : Params} (ik : InitKey p) : State p :=
+  .bRecv ik.base ik.secret
 
-/-- Deterministic paper-A send using explicit sampled matrices. -/
-def sendACore {p : Params} (st : State p) (r : SendACoins p) :
-    Option (Key p × Message p × State p) :=
-  match st with
-  | .aSend base pub =>
-      let nextPub := base * r.secret + r.error
-      let value := pub * r.secret + r.extra
-      some (extract p value, .fromA nextPub (makeHint p value),
-        .aRecv base r.secret)
-  | _ => none
-
-/-- Paper party B receives A's directional message. -/
-def recvB {p : Params} (st : State p) (msg : Message p) :
-    Option (Key p × State p) :=
-  match st, msg with
-  | .bRecv base secret, .fromA pub hint =>
-      some (reconcile p (secret * pub) hint, .bSend base pub)
-  | _, _ => none
-
-/-- Paper party A receives B's directional message. -/
+/-- Party A receives B's message. -/
 def recvA {p : Params} (st : State p) (msg : Message p) :
     Option (Key p × State p) :=
   match st, msg with
   | .aRecv base secret, .fromB pub hint =>
-      some (reconcile p (pub * secret) hint, .aSend base pub)
+      some (reconcile p (secret * pub) hint, .aSend base pub)
   | _, _ => none
 
-/-- Paper-B send that also returns the actual sampled matrices. -/
-def sendBrleak {p : Params} (χ : ProbComp (Scalar p)) (st : State p) :
-    ProbComp (Option (Key p × Message p × State p × Rand p)) :=
-  match st with
-  | .bSend _ _ => do
-      let r ← sampleSendBCoins p χ
-      return (sendBCore st r).map fun (key, msg, next) =>
-        (key, msg, next, .fromB r)
-  | _ => pure none
+/-- Party B receives A's message. -/
+def recvB {p : Params} (st : State p) (msg : Message p) :
+    Option (Key p × State p) :=
+  match st, msg with
+  | .bRecv base secret, .fromA pub hint =>
+      some (reconcile p (pub * secret) hint, .bSend base pub)
+  | _, _ => none
 
-/-- Paper-A send that also returns the actual sampled matrices. -/
+/-- A send that also returns, i.e. leaks, the actual sampled matrices. -/
 def sendArleak {p : Params} (χ : ProbComp (Scalar p)) (st : State p) :
     ProbComp (Option (Key p × Message p × State p × Rand p)) :=
   match st with
-  | .aSend _ _ => do
+  | .aSend base pub => do
       let r ← sampleSendACoins p χ
-      return (sendACore st r).map fun (key, msg, next) =>
-        (key, msg, next, .fromA r)
+      let nextPub := r.secret * base + r.error
+      let value := r.secret * pub + r.extra
+      return some (extract p value, .fromA nextPub (makeHint p value),
+        .aRecv base r.secret, .fromA r)
   | _ => pure none
 
-/-- Remove leaked send coins from a transition result. -/
+/-- B send that also returns, i.e. leaks, the actual sampled matrices. -/
+def sendBrleak {p : Params} (χ : ProbComp (Scalar p)) (st : State p) :
+    ProbComp (Option (Key p × Message p × State p × Rand p)) :=
+  match st with
+  | .bSend base pub => do
+      let r ← sampleSendBCoins p χ
+      let nextPub := base * r.secret + r.error
+      let value := pub * r.secret + r.extra
+      return some (extract p value, .fromB nextPub (makeHint p value),
+        .bRecv base r.secret, .fromB r)
+  | _ => pure none
+
+/-- Remove sampled randomness from the output of the send operation with leaked randomness. -/
 def eraseCoins {p : Params}
     (out : Option (Key p × Message p × State p × Rand p)) :
     Option (Key p × Message p × State p) :=
   out.map fun (key, msg, next, _) => (key, msg, next)
 
-/-- Paper-B send obtained by projecting the leaking send. -/
-def sendB {p : Params} (χ : ProbComp (Scalar p)) (st : State p) :
-    ProbComp (Option (Key p × Message p × State p)) :=
-  eraseCoins <$> sendBrleak χ st
-
-/-- Paper-A send obtained by projecting the leaking send. -/
-def sendA {p : Params} (χ : ProbComp (Scalar p)) (st : State p) :
-    ProbComp (Option (Key p × Message p × State p)) :=
-  eraseCoins <$> sendArleak χ st
-
-/-- The direct LWE construction adapted from paper B-first roles to repository A-first roles. -/
+/-- The direct LWE construction with A acting as the first sender throughout. -/
 -- ANCHOR: scheme
 def scheme (p : Params) (_h : p.WellFormed) (χ : ProbComp (Scalar p)) :
     CKAScheme ProbComp (InitKey p) (State p) (Key p) (Message p) (Rand p) where
   initKeyGen := initKeyGen p χ
-  initA := fun ik => pure (lweCKA.initB ik)
-  initB := fun ik => pure (lweCKA.initA ik)
-  sendA := lweCKA.sendB χ
-  sendArleak := lweCKA.sendBrleak χ
-  recvA := lweCKA.recvB
-  sendB := lweCKA.sendA χ
-  sendBrleak := lweCKA.sendArleak χ
-  recvB := lweCKA.recvA
+  initA := fun ik => pure (initA ik)
+  initB := fun ik => pure (initB ik)
+  sendA := fun st => eraseCoins <$> sendArleak χ st
+  sendArleak := sendArleak χ
+  recvA := recvA
+  sendB := fun st => eraseCoins <$> sendBrleak χ st
+  sendBrleak := sendBrleak χ
+  recvB := recvB
 -- ANCHOR_END: scheme
 
 end lweCKA
