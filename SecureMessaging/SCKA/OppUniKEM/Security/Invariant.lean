@@ -123,10 +123,11 @@ theorem securityImpl_preserves_reachableInv
   SCKAScheme.securityImplOf_preserves_at_of_book _ _ _ _ _
     (reachableInv kem onoff ecEk ecCt0 ecCt1)
     (fun _ E C h => reachableInv_with_security_bookkeeping h E C)
-    (sendArleak_forget kem onoff ecEk leak) (sendBrleak_forget kem onoff ecCt0 ecCt1 leak)
-    (SCKAScheme.oracleChall_recordsChallenges b) s hs
+    (sendArleak_forget kem onoff ecEk leak) (sendBrleak_forget kem onoff ecCt0 ecCt1 leak) s hs
     (correctnessImpl_preserves_reachableInv_at kem onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
       leak s hs hc)
+    (fun t => SCKAScheme.oracleChall_preservesInv b _
+      (fun s C h => by simpa using reachableInv_with_security_bookkeeping h s.exposed C) t s hs)
     (oracleSendA_preserves_reachableInv kem onoff hDet ecEk ecCt0 ecCt1 leak
       ecEk.ec.nchunk_pos () s hs)
     (oracleSendB_preserves_reachableInv kem onoff hDet ecEk ecCt0 ecCt0.ec.nchunk_pos

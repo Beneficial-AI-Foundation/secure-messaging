@@ -559,7 +559,7 @@ theorem trackedSecurity_score_step_le
     have hj : J p.1 := ⟨hgood.2, rfl⟩
     suffices hout : J y.2 by
       exact le_of_eq (by simp [trackedFailureScore, hout.1, hout.2])
-  · apply (SCKAScheme.oracleChall_recordsChallenges b).preservesInv J ?_ t p.1 hj y hy
+  · apply SCKAScheme.oracleChall_preservesInv b J ?_ t p.1 hj y hy
     intro state challenged hstate
     exact hstate
   · apply SCKAScheme.oracleCorruptA_preservesInv (vulnCorrA kem onoff) J ?_ u p.1 hj y hy

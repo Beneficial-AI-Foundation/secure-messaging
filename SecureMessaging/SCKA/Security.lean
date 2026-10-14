@@ -11,37 +11,24 @@ import ToVCVio.OracleComp.ExpectedPayoff
 /-!
 # SCKA security oracles
 
-The results apply to an arbitrary SCKA scheme over `ProbComp` and state exposure functions
-satisfying the hypotheses below. An SCKA game state has the following structure:
+Generic results for SCKA schemes over `ProbComp`. Recall the game state:
 
 ```text
 s = (stA, stB, keyA, keyB, msgA, msgB, nA, nB, tcurA, tcurB,
      exposed, challenged, correct).
 ```
 
-The finite sets `exposed, challenged ⊆ ℕ` record epochs exposed by corruption or randomness leakage,
-and epochs whose challenges were successfully answered, respectively.
-For a predicate `Inv` on game states, preservation means `Inv(s) → Inv(s')` for every
-possible oracle transition `s → s'`.
+Here `exposed` records epochs exposed by corruption or randomness leakage, and `challenged`
+records epochs whose challenges were successfully answered.
 
-For leaking send operations, we always assume that discarding
-the returned coins recovers the ordinary-send computation.
+We prove:
 
-- **State updates.** Challenge and corruption queries can change only `challenged` and
-  `exposed` part of the game state, respectively; rejected queries leave the game state unchanged.
-- **Invariant preservation.** If `Inv` remains true when `challenged` is replaced by any
-  finite set, then challenge queries preserve `Inv`.
-  The same holds for corruption queries and `exposed`. For leaking sends, assume `Inv` holds
-  before the query and in every possible ordinary-send successor, and remains true under
-  arbitrary changes to `exposed`. Then it holds in every possible leaking-send successor.
-- **Expected-score bounds.** Suppose every successful leaking send from a state `s` exposes
-  the same set of epochs. For a score independent of `exposed`, a bound `c` on both the initial
-  score and its expectation after an ordinary send also bounds its expectation after a leaking
-  send.
-- **Full oracle family.** `securityImplOf` combines correctness and challenge oracles with
-  leaking-send and corruption oracles. Invariant preservation by each component implies
-  preservation by the full family. Replacing the correctness and challenge components by equal
-  query computations preserves the full family's query computations.
+- **State updates:** characterizations of challenge and corruption query outcomes.
+- **Invariants:** conditions for security queries to preserve a predicate on game states.
+- **Expected scores:** conditions for ordinary-send bounds to hold also for leaking sends.
+- **Full oracle family:** `securityImplOf` combines correctness, challenge, leaking-send,
+  and corruption oracles. We derive invariant preservation and equality of query computations
+  from the corresponding component properties.
 -/
 
 open OracleSpec OracleComp ENNReal
@@ -59,14 +46,15 @@ section Challenge
 variable [SampleableType I]
 
 /-- Challenging an exposed or previously challenged epoch returns `none`
-and preserves the state, in both fixed-bit experiments. -/
+and preserves the state. -/
 theorem oracleChall_rejected (b : Bool) (s : GameState StA StB I Rho) (t : ℕ)
     (h : t ∈ s.exposed ∨ t ∈ s.challenged) :
     (oracleChall b StA StB I Rho t).run s = pure (none, s) := by
   simp [oracleChall, h]
 
-/-- A challenge whose two key-table entries are `none` returns `none` and retains the
-state, regardless of `exposed`, `challenged`, and the challenge bit `b`. -/
+/-- If the game's epoch-key tables for A and B, `s.keyA` and `s.keyB`, both contain `none`
+at epoch `t`, challenging `t` returns `none` and leaves `s` unchanged, regardless of
+`exposed` and `challenged`. -/
 theorem oracleChall_unavailable (b : Bool) (s : GameState StA StB I Rho) (t : ℕ)
     (hA : s.keyA t = none) (hB : s.keyB t = none) :
     (oracleChall b StA StB I Rho t).run s = pure (none, s) := by
@@ -74,16 +62,22 @@ theorem oracleChall_unavailable (b : Bool) (s : GameState StA StB I Rho) (t : �
   · exact oracleChall_rejected b s t h
   · simp [oracleChall, h, hA, hB]
 
-/-- Every possible result of a challenge at epoch `t` is `(none, s)` if `t` is exposed,
-previously challenged, or has no recorded key. Otherwise, `t` is eligible and the successor
-state differs from `s` only by inserting `t` into `challenged`. -/
+/-- Every possible result `z = (answer, s')` of a challenge at epoch `t` from state `s` satisfies
+one of two cases:
+
+- **Rejected or unavailable:** `t` is exposed or already challenged, or neither of the game's
+  tables `s.keyA`, `s.keyB` records a key at `t`. Then `answer = none` and `s' = s`.
+- **Eligible:** `t` is neither exposed nor already challenged, and at least one table records
+  a key at `t`. Then `s' = { s with challenged := insert t s.challenged }`. -/
 theorem oracleChall_support (b : Bool) (s : GameState StA StB I Rho) (t : ℕ)
     (z : Option I × GameState StA StB I Rho)
     (hz : z ∈ support ((oracleChall b StA StB I Rho t).run s)) :
     (z = (none, s) ∧
-        ((t ∈ s.exposed ∨ t ∈ s.challenged) ∨ (s.keyA t = none ∧ s.keyB t = none))) ∨
-      (¬(t ∈ s.exposed ∨ t ∈ s.challenged) ∧ ((s.keyA t).isSome ∨ (s.keyB t).isSome) ∧
-        z.2 = { s with challenged := insert t s.challenged }) := by
+      ((t ∈ s.exposed ∨ t ∈ s.challenged) ∨
+        (s.keyA t = none ∧ s.keyB t = none))) ∨
+    (¬(t ∈ s.exposed ∨ t ∈ s.challenged) ∧
+      ((s.keyA t).isSome ∨ (s.keyB t).isSome) ∧
+      z.2 = { s with challenged := insert t s.challenged }) := by
   by_cases h : t ∈ s.exposed ∨ t ∈ s.challenged
   · rw [oracleChall_rejected b s t h] at hz
     exact Or.inl ⟨(mem_support_pure_iff _ _).mp hz, Or.inl h⟩
@@ -107,36 +101,16 @@ theorem oracleChall_support (b : Bool) (s : GameState StA StB I Rho) (t : ℕ)
 
 end Challenge
 
-/-- A challenge oracle `chall` records challenges if every supported successor of a query `t`
-from `s` equals `s` or, when `t ∉ s.exposed`, differs only by inserting `t` into `challenged`. -/
-def RecordsChallenges
-    (chall : QueryImpl (ℕ →ₒ Option I) (StateT (GameState StA StB I Rho) ProbComp)) : Prop :=
-  ∀ (t : ℕ) s z, z ∈ support ((chall t).run s) →
-    z.2 = s ∨ (t ∉ s.exposed ∧ z.2 = { s with challenged := insert t s.challenged })
-
-namespace RecordsChallenges
-
-variable {chall : QueryImpl (ℕ →ₒ Option I) (StateT (GameState StA StB I Rho) ProbComp)}
-
-/-- A challenge oracle satisfying `RecordsChallenges` preserves every invariant preserved
-by arbitrary changes to `challenged`. -/
-theorem preservesInv (h : RecordsChallenges chall) (Inv : GameState StA StB I Rho → Prop)
+/-- The challenge oracle `oracleChall` preserves every predicate `Inv` on game states that is
+insensitive to `challenged`: `Inv s → Inv { s with challenged := C }` for every `C`. -/
+theorem oracleChall_preservesInv [SampleableType I] (b : Bool)
+    (Inv : GameState StA StB I Rho → Prop)
     (hbook : ∀ s challenged, Inv s → Inv { s with challenged := challenged }) :
-    QueryImpl.PreservesInv chall Inv := by
+    QueryImpl.PreservesInv (oracleChall b StA StB I Rho) Inv := by
   intro t s hs z hz
-  rcases h t s z hz with h | ⟨_, h⟩
+  rcases oracleChall_support b s t z hz with ⟨h, _⟩ | ⟨_, _, h⟩
   · rw [h]; exact hs
   · rw [h]; exact hbook s _ hs
-
-end RecordsChallenges
-
-/-- For either bit `b`, the challenge oracle `oracleChall b` satisfies `RecordsChallenges`. -/
-theorem oracleChall_recordsChallenges [SampleableType I] (b : Bool) :
-    RecordsChallenges (oracleChall b StA StB I Rho) := by
-  intro t s z hz
-  rcases oracleChall_support b s t z hz with ⟨h, _⟩ | ⟨helig, _, h⟩
-  · exact Or.inl (by rw [h])
-  · exact Or.inr ⟨fun ht => helig (Or.inl ht), h⟩
 
 /-! ### Corruption -/
 
@@ -150,8 +124,10 @@ theorem oracleCorruptA_run (vuln : StA → Finset ℕ) (s : GameState StA StB I 
   · simp [oracleCorruptA, h]
   · simp [oracleCorruptA, not_not.mp h]
 
-/-- Support of the corruption of A: rejection with the state unchanged, or acceptance when the
-vulnerable set is disjoint from `challenged`. -/
+/-- Corrupting A either:
+
+- returns `none` and leaves the game state unchanged; or
+- returns `s.stA` and adds `vuln s.stA` to `exposed`, with none of these epochs challenged. -/
 theorem oracleCorruptA_support (vuln : StA → Finset ℕ) (s : GameState StA StB I Rho)
     (z : Option StA × GameState StA StB I Rho)
     (hz : z ∈ support ((oracleCorruptA vuln StB I Rho ()).run s)) :
@@ -183,8 +159,10 @@ theorem oracleCorruptB_run (vuln : StB → Finset ℕ) (s : GameState StA StB I 
   · simp [oracleCorruptB, h]
   · simp [oracleCorruptB, not_not.mp h]
 
-/-- Support of the corruption of B: rejection with the state unchanged, or acceptance when the
-vulnerable set is disjoint from `challenged`. -/
+/-- Corrupting B either:
+
+- returns `none` and leaves the game state unchanged; or
+- returns `s.stB` and adds `vuln s.stB` to `exposed`, with none of these epochs challenged. -/
 theorem oracleCorruptB_support (vuln : StB → Finset ℕ) (s : GameState StA StB I Rho)
     (z : Option StB × GameState StA StB I Rho)
     (hz : z ∈ support ((oracleCorruptB vuln StA I Rho ()).run s)) :
@@ -310,10 +288,16 @@ section ExpectedScores
 
 variable [DecidableEq I]
 
-/-- Suppose discarding A's send coins recovers its ordinary send, and every supported
-successful leaking-send output from `s` exposes the same set `E`. Every score unchanged by
-updates to `exposed` then has expected value at most `c` after the leaking-send query, provided
-`score s ≤ c` and its expected value after the ordinary-send query is at most `c`. -/
+/-- Let `s` be a game state, `score` a function from game states to `ℝ≥0∞`, and `c : ℝ≥0∞`.
+Assume:
+
+- for every local state, discarding A's returned send coins recovers its ordinary send;
+- every successful execution of A's leaking send from `s.stA` gives the same exposure set `E`;
+- changing `exposed` does not change `score`;
+- `score s ≤ c`;
+- the expected score after A's ordinary-send query from `s` is at most `c`.
+
+Then the expected score after A's leaking-send query from `s` is also at most `c`. -/
 theorem oracleSendArleak_expectedPayoff_le
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (leak : StA → Rand → Finset ℕ)
@@ -471,6 +455,7 @@ theorem securityImplOf_preserves_at (Inv : GameState StA StB I Rho → Prop)
     (hcB : ∀ z ∈ support ((oracleCorruptB vulnB.corrupt StA I Rho ()).run s), Inv z.2)
     (t : (sckaSecuritySpec StA StB I Rho Rand).Domain)
     (z : (sckaSecuritySpec StA StB I Rho Rand).Range t × GameState StA StB I Rho)
+    -- `hz` says that `z = (answer, nextState)` can result from query `t` in state `s`.
     (hz : z ∈ support ((securityImplOf base chall vulnA vulnB scka t).run s)) :
     Inv z.2 := by
   rcases t with (((((t | u) | u) | t) | u) | u)
@@ -481,10 +466,16 @@ theorem securityImplOf_preserves_at (Inv : GameState StA StB I Rho → Prop)
   · cases u; exact hcA z hz
   · cases u; exact hcB z hz
 
-/-- Suppose discarding send coins recovers ordinary sends and `chall` satisfies
-`RecordsChallenges`. Let `Inv` hold at `s` and be preserved by arbitrary changes to `exposed`
-and `challenged`. If `base` and both ordinary-send oracles produce only states satisfying
-`Inv` from `s`, then every assembled security query from `s` does too. -/
+/-- Let `Inv` be a predicate on game states and `s` a game state. Assume:
+
+- `Inv s`;
+- replacing `exposed` and `challenged` by any finite sets preserves `Inv`;
+- for each party and local state, discarding the returned send coins recovers the ordinary send;
+- every query of `base` or `chall`, and both ordinary-send queries, produces only states
+  satisfying `Inv` when run from `s`.
+
+Then every query of the full oracle family `securityImplOf` from `s` produces only states
+satisfying `Inv`. -/
 theorem securityImplOf_preserves_at_of_book (Inv : GameState StA StB I Rho → Prop)
     (hbook : ∀ s exposed challenged, Inv s →
       Inv { s with exposed := exposed, challenged := challenged })
@@ -496,9 +487,9 @@ theorem securityImplOf_preserves_at_of_book (Inv : GameState StA StB I Rho → P
       let out ← scka.sendBrleak st
       pure (out.map fun (key, msg, epoch, state, _) => (key, msg, epoch, state))) =
         scka.sendB st)
-    (hchall : RecordsChallenges chall)
     (s : GameState StA StB I Rho) (hs : Inv s)
     (hbase : ∀ t z, z ∈ support ((base t).run s) → Inv z.2)
+    (hchall : ∀ (t : ℕ) z, z ∈ support ((chall t).run s) → Inv z.2)
     (hsendA : ∀ z ∈ support ((oracleSendA scka ()).run s), Inv z.2)
     (hsendB : ∀ z ∈ support ((oracleSendB scka ()).run s), Inv z.2)
     (t : (sckaSecuritySpec StA StB I Rho Rand).Domain)
@@ -507,12 +498,10 @@ theorem securityImplOf_preserves_at_of_book (Inv : GameState StA StB I Rho → P
     Inv z.2 := by
   have hexp : ∀ s exposed, Inv s → Inv { s with exposed := exposed } :=
     fun s exposed h => by simpa using hbook s exposed s.challenged h
-  have hch : ∀ s challenged, Inv s → Inv { s with challenged := challenged } :=
-    fun s challenged h => by simpa using hbook s s.exposed challenged h
   refine securityImplOf_preserves_at base chall vulnA vulnB scka Inv s hbase
     (fun z hz => oracleSendArleak_preservesInv_at scka vulnA.rleak hmA Inv hexp s hs hsendA z hz)
     (fun z hz => oracleSendBrleak_preservesInv_at scka vulnB.rleak hmB Inv hexp s hs hsendB z hz)
-    (fun t z hz => hchall.preservesInv Inv hch t s hs z hz)
+    hchall
     (fun z hz => oracleCorruptA_preservesInv vulnA.corrupt Inv hexp () s hs z hz)
     (fun z hz => oracleCorruptB_preservesInv vulnB.corrupt Inv hexp () s hs z hz) t z hz
 
