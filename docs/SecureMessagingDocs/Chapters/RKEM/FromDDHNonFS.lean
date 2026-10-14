@@ -5,6 +5,7 @@ import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessagingDocs.Bibliography
 import SecureMessaging.RKEM.FromDDHNonFS.Construction
+import SecureMessaging.RKEM.FromDDHNonFS.Correctness
 
 set_option linter.style.setOption false
 set_option linter.hashCommand false
@@ -117,12 +118,16 @@ def scheme (gen : G) : RKEMScheme ProbComp Unit G F Unit G where
 :::defTitle "rkem_from_ddh_nonfs_correctness" "RKEM from DDH non-FS correctness"
 :::
 
-::::theorem "rkem_from_ddh_nonfs_correctness" (parent := "rkem_rkem_from_ddh_non_fs") (tags := "gh-67") (uses := "rkem_from_ddh_nonfs_spec, rkem_scheme, rkem_correctness")
-$`\todo`
+:::theorem "rkem_from_ddh_nonfs_correctness" (parent := "rkem_rkem_from_ddh_non_fs") (lean := "ddhRKEM.probOutput_correctExpA_eq_one, ddhRKEM.evalDist_ratchetRoundOutputA_eq_evalDist_rkeygen, ddhRKEM.deltaCorrect") (tags := "gh-67") (uses := "rkem_from_ddh_nonfs_spec, rkem_scheme, rkem_correctness")
+Adapted from {Informal.citet TR25}[], Theorem A.3.
 
-:::leanPill "missing"
+The non-forward-secure RKEM from DDH is perfectly correct: it is $`(0,0)`-correct, unconditionally. With $`(\ekA,\dkA)=(g^x,x)` and $`(\ekh{B},\dkh{B})=(g^y,y)`, $`\REnc\text{-}\A` outputs $`K=(g^y)^x` and $`\RDec\text{-}\B` outputs $`K'=(g^x)^y`, both equal to $`g^{xy}`. Since the scheme is not forward secure, the updated key pair produced by a round is $`\A`'s fresh key pair itself, and fresh and updated key generation coincide, so the update-key distribution is exact as well. The algorithms are the same for both parties, so the $`\B` side is identical.
+
+```anchor deltaCorrect (project := ".") (module := SecureMessaging.RKEM.FromDDHNonFS.Correctness)
+theorem deltaCorrect [DecidableEq G] (gen : G) :
+    RKEMScheme.deltaCorrect (scheme (F := F) gen) ProbCompRuntime.probComp 0 0
+```
 :::
-::::
 
 :::defTitle "rkem_from_ddh_nonfs_ratchet_sim" "RKEM from DDH non-FS ratchet simulatability"
 :::
