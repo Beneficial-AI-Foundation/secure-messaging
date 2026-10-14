@@ -11,7 +11,7 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.SendB
 import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.RecvA
 import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant.RecvB
 import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Core
-import SecureMessaging.SCKA.Security.Family
+import SecureMessaging.SCKA.Security
 
 /-!
 # Transcript consistency in the security game
