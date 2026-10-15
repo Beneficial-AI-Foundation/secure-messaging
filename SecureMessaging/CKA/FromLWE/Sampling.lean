@@ -12,13 +12,13 @@ import VCVio.OracleComp.Constructions.SampleableType
 # Sampling for continuous key agreement from LWE
 
 The supplied scalar computation `χ` represents the paper's noise distribution. Nested
-`ProbComp.sampleIID` calls draw matrix entries independently, in row order and then column order.
+`ProbComp.sampleIID` calls draw matrix entries independently, visiting rows in increasing order
+and, within each row, columns in increasing order.
 Every invocation draws fresh values. Initialization samples the uniform base, secret, and error in
 that order; each send samples its secret, error, and extra error in that order.
 
-The leaking interface returns the actual sampled matrices used by the deterministic transition; it
-does not model a byte-level sampler transcript. `ProbComp` supplies the existing total uniform-query
-language, so no separate probability abstraction or losslessness assumption is introduced here.
+`sendArleak` and `sendBrleak` return the sampled secret, error, and extra-error matrices as
+leaked randomness.
 -/
 
 namespace lweCKA
