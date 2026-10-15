@@ -288,7 +288,7 @@ def sendArleak (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     pure (some (none, msg, stA.t - 1, stA', rand))
 -- ANCHOR_END: sendArleak
 
-/-- `CKA-Rec-A`.
+/-- `CKA-Rec-A`; `Dec` is the parameter `decapsDet`.
 
 ```text
 parse (dk_A, ek_A, ct_0, t, i_ch, L_ch, ack) <- st_A
@@ -301,16 +301,18 @@ I_B <- ⊥, t_IB <- ⊥
     if ct_0 ≠ ⊥ then
       ack.ct_0-rec <- true
       L_ch <- ∅
-  elseif b = 1 then
-    L_ch <- L_ch ∪ {ch}
-    ct_1 <- Decode(L_ch)
-    if ct_1 ≠ ⊥ then
+  elseif b = 1 ∧ dk_A ≠ ⊥ ∧ ct_0 ≠ ⊥ then
+    ct_1 <- Decode(L_ch ∪ {ch})
+    if ct_1 = ⊥ then
+      L_ch <- L_ch ∪ {ch}
+    else
       I_B <- Dec(dk_A, (ct_0, ct_1))
-      t_IB <- t
-      t <- t + 1
-      L_ch <- ∅
-      (dk_A, ek_A, ct_0) <- (⊥, ⊥, ⊥)
-      (ack.ek-rec, ack.ct_0-rec) <- (false, false)
+      if I_B ≠ ⊥ then
+        t_IB <- t
+        t <- t + 1
+        L_ch <- ∅
+        (dk_A, ek_A, ct_0) <- (⊥, ⊥, ⊥)
+        (ack.ek-rec, ack.ct_0-rec) <- (false, false)
   if ack'.ek-rec and t = t' then
     ack.ek-rec <- true
 st_A <- (dk_A, ek_A, ct_0, t, i_ch, L_ch, ack)

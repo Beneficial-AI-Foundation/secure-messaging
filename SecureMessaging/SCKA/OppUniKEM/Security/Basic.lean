@@ -74,11 +74,16 @@ theorem sendBrleak_forget
       let out ← sendBrleak kem onoff ecCt0 ecCt1 leak stB
       pure (out.map fun (key, msg, epoch, state, _) => (key, msg, epoch, state))) =
       sendB kem onoff ecCt0 ecCt1 stB := by
-  cases hct0 : stB.ct0 <;> cases hek : stB.ekA <;>
-    cases hct1 : stB.ct1 <;> cases hst : stB.stCt <;>
-    cases hack : stB.ack.ctRec <;>
-    simp [sendBrleak, sendB, hct0, hek, hct1, hst, hack,
-      ← leak.encapsOff_fst, ← leak.encapsOn_fst, monad_norm]
+  cases hct0 : stB.ct0 <;> cases hack : stB.ack.ctRec
+  all_goals first
+    | simp [sendBrleak, sendB, hct0, hack, ← leak.encapsOff_fst, monad_norm]; done
+    | (cases hek : stB.ekA
+       · simp [sendBrleak, sendB, hct0, hek, hack, ← leak.encapsOff_fst, monad_norm]
+       · cases hct1 : stB.ct1
+         · cases hst : stB.stCt <;>
+             simp [sendBrleak, sendB, hct0, hek, hct1, hst, hack,
+               ← leak.encapsOff_fst, ← leak.encapsOn_fst, monad_norm]
+         · simp [sendBrleak, sendB, hct0, hek, hct1, hack, ← leak.encapsOff_fst, monad_norm])
 
 end Marginals
 

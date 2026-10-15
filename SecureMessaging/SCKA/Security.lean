@@ -438,6 +438,15 @@ def securityImplOf
     + chall
     + oracleCorruptA vulnA.corrupt StB I Rho + oracleCorruptB vulnB.corrupt StA I Rho
 
+/-- `sckaSecurityImpl b` is `securityImplOf` over the correctness oracles and the fixed-bit
+challenge oracle. -/
+theorem sckaSecurityImpl_eq_securityImplOf [SampleableType I] (b : Bool)
+    (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand)
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) :
+    sckaSecurityImpl b vulnA vulnB scka =
+      securityImplOf (sckaCorrectnessImpl scka) (oracleChall b StA StB I Rho) vulnA vulnB scka :=
+  rfl
+
 variable (base : QueryImpl (sckaCorrectnessSpec Rho) (StateT (GameState StA StB I Rho) ProbComp))
 variable (chall : QueryImpl (ℕ →ₒ Option I) (StateT (GameState StA StB I Rho) ProbComp))
 variable (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand)

@@ -58,18 +58,6 @@ theorem reachableInv_with_security_bookkeeping
   obtain ⟨T, hT⟩ := h
   exact ⟨T, hT.with_security_bookkeeping exposed challenged⟩
 
-/-- The initial game state satisfies `reachableInv`. -/
-theorem reachableInv_initialGame
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) :
-    reachableInv kem onoff ecEk ecCt0 ecCt1
-      (Reduction.Internal.initialGame (Sym := Sym) kem onoff) := by
-  simpa [Reduction.Internal.initialGame, Reduction.Internal.initialA,
-    Reduction.Internal.initialB] using
-      reachableInv_init kem onoff ecEk ecCt0 ecCt1 ecEk.ec.nchunk_pos ecCt0.ec.nchunk_pos
-
 /-- Assume the three erasure codes are correct. For every correctness query of Opp-UniKEM from a
 state satisfying `reachableInv` and `CurrentKEMCorrect`, all supported successor states
 satisfy `reachableInv`. -/

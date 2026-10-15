@@ -18,7 +18,8 @@ Let:
 - `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` be the Opp-UniKEM protocol,
 - `adv : SecurityAdversary leak Sym` be an SCKA adversary that makes
   at most `q` send oracle calls (`SecuritySendQueryBound adv q`), and
-- `ε` be the KEM correctness error.
+- `ε := kem.correctnessError ProbCompRuntime.probComp` be the KEM correctness error
+  (Def. A.1 of [SCKA]).
 
 Assume:
 
@@ -39,6 +40,7 @@ Main result:
 
 For every `b`, `security_correctness_endpoint_le` bounds the difference between the probability of
 `G_b` and `I_b` returning `true`: `|Pr[G_b = true] - Pr[I_b = true]| ≤ q · ε`.
+`I_false` and `I_true` are the endpoints of the epoch hybrids of the next step.
 -/
 
 open OracleSpec OracleComp KEMScheme ErasureCodePayload ENNReal
@@ -82,7 +84,8 @@ section IdealGame
 
 Let `Key[B, t]` be the key recorded by the game for B at epoch `t` (`none` if absent),
 and let `t_A` be A's epoch before the receive. On input B's message index `n`, execute
-the ordinary `O-Recv-A(n)`, replacing decapsulation by the lookup `Key[B, t_A]`. -/
+the ordinary `O-Recv-A(n)`, replacing decapsulation by the lookup `Key[B, t_A]`. A still
+holds `dkA`; only the decapsulation result changes. -/
 def oracleRecvAIdeal [DecidableEq K] [DecidableEq Sym]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -299,6 +302,7 @@ theorem securityImpl_eq_ideal_of_current
       (exposureB (Sym := Sym) kem onoff leak)
       (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) t).run s =
       (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b t).run s := by
+  rw [SCKAScheme.sckaSecurityImpl_eq_securityImplOf]
   refine SCKAScheme.securityImplOf_run_eq _ _ _ _ _ _ _ s ?_ (fun _ => rfl) t
   intro t
   rcases t with ((((n | u) | u) | n) | n)
@@ -659,7 +663,8 @@ theorem securityExpFixedBit_eq_run'
 
 /-- Under the module's assumptions, for every bit `b` and SCKA adversary `adv` satisfying
 `SecuritySendQueryBound adv q`, the original game `G_b` and ideal game `I_b` satisfy
-`|Pr[G_b = true] - Pr[I_b = true]| ≤ q · ε`. -/
+`|Pr[G_b = true] - Pr[I_b = true]| ≤ q · ε`; `q` counts all ordinary and leaking send
+queries, not epochs. -/
 theorem security_correctness_endpoint_le
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)

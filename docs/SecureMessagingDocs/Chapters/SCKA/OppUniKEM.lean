@@ -377,6 +377,9 @@ I_{\B}\gets\bot, t_{I_{\B}}\gets\bot \\
 \mathsf{return}\;((t_{I_{\B}},I_{\B}),t'-1,\stA)
 \end{array}`
 
+`Decaps` is the parameter `decapsDet` of `recvA`; if it returns ⊥, A outputs no key and keeps
+its state.
+
 :::leanPillCaption "A's receive transition and key output"
 :::
 
