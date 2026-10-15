@@ -353,23 +353,24 @@ $`\begin{array}{l}
 (\chunk,\ack',t',b)\gets\rho \\
 I_{\B}\gets\bot, t_{I_{\B}}\gets\bot \\
 \mathsf{if}\;t=t'\;\mathsf{then} \\
-\quad \mathsf{if}\;\ctzero=\bot\wedge b=0\;\mathsf{then}
+\quad \mathsf{if}\;\ctzero=\bot\wedge b=0\wedge\chunk\ne\bot\;\mathsf{then}
   \pcomment{\ctzero\ \text{not received yet}} \\
 \qquad \Lch\gets\Lch\cup\{\chunk\} \\
 \qquad \ctzero\gets\mathsf{Decode}(\Lch) \\
 \qquad \mathsf{if}\;\ctzero\ne\bot\;\mathsf{then} \\
 \qquad\quad \ack.\ctrec\gets\mathsf{true}, \Lch\gets\emptyset \\
-\quad \mathsf{else}\;\mathsf{if}\;b=1\wedge\dkA\ne\bot\wedge\ctzero\ne\bot\;\mathsf{then}
+\quad \mathsf{else}\;\mathsf{if}\;b=1\wedge\chunk\ne\bot\;\mathsf{then}
   \pcomment{\ctone\ \text{not received yet}} \\
+\qquad \mathsf{if}\;\dkA=\bot\vee\ctzero=\bot\;\mathsf{then}\;\mathsf{return}\;\bot \\
 \qquad \ctone\gets\mathsf{Decode}(\Lch\cup\{\chunk\}) \\
 \qquad \mathsf{if}\;\ctone=\bot\;\mathsf{then}\;\Lch\gets\Lch\cup\{\chunk\} \\
 \qquad \mathsf{else}
   \pcomment{\ctone\ \text{recovered from chunk}} \\
 \qquad\quad I_{\B}\gets\Decaps(\dkA,(\ctzero,\ctone)) \\
-\qquad\quad \mathsf{if}\;I_{\B}\ne\bot\;\mathsf{then} \\
-\qquad\qquad t_{I_{\B}}\gets t, t\gets t+1, \Lch\gets\emptyset \\
-\qquad\qquad (\dkA,\ekA,\ctzero)\gets(\bot,\bot,\bot) \\
-\qquad\qquad (\ack.\ekrec,\ack.\ctrec)
+\qquad\quad \mathsf{if}\;I_{\B}=\bot\;\mathsf{then}\;\mathsf{return}\;\bot \\
+\qquad\quad t_{I_{\B}}\gets t, t\gets t+1, \Lch\gets\emptyset \\
+\qquad\quad (\dkA,\ekA,\ctzero)\gets(\bot,\bot,\bot) \\
+\qquad\quad (\ack.\ekrec,\ack.\ctrec)
   \gets(\mathsf{false},\mathsf{false}) \\
 \mathsf{if}\;\ack'.\ekrec\;\boxed{\wedge\;t=t'}\;\mathsf{then}
   \pcomment{\text{incorporate }\B\text{'s acknowledgment}} \\
