@@ -40,7 +40,6 @@ Main result:
 
 For every `b`, `security_correctness_endpoint_le` bounds the difference between the probability of
 `G_b` and `I_b` returning `true`: `|Pr[G_b = true] - Pr[I_b = true]| ≤ q · ε`.
-`I_false` and `I_true` are the endpoints of the hybrid argument over epochs that connects them.
 -/
 
 open OracleSpec OracleComp KEMScheme ErasureCodePayload ENNReal
@@ -84,8 +83,7 @@ section IdealGame
 
 Let `Key[B, t]` be the key recorded by the game for B at epoch `t` (`none` if absent),
 and let `t_A` be A's epoch before the receive. On input B's message index `n`, execute
-the ordinary `O-Recv-A(n)`, replacing decapsulation by the lookup `Key[B, t_A]`. A still
-holds `dkA`; only the decapsulation result changes. -/
+the ordinary `O-Recv-A(n)`, replacing decapsulation by the lookup `Key[B, t_A]`. -/
 def oracleRecvAIdeal [DecidableEq K] [DecidableEq Sym]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -663,8 +661,7 @@ theorem securityExpFixedBit_eq_run'
 
 /-- Under the module's assumptions, for every bit `b` and SCKA adversary `adv` satisfying
 `SecuritySendQueryBound adv q`, the original game `G_b` and ideal game `I_b` satisfy
-`|Pr[G_b = true] - Pr[I_b = true]| ≤ q · ε`; `q` counts all ordinary and leaking send
-queries, not epochs. -/
+`|Pr[G_b = true] - Pr[I_b = true]| ≤ q · ε`. -/
 theorem security_correctness_endpoint_le
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
