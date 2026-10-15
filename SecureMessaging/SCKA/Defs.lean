@@ -230,7 +230,7 @@ def initGameState (stA : StA) (stB : StB) : GameState StA StB I Rho :=
 
 /-- Oracle spec for the SCKA correctness game: uniform randomness, send and receive oracles. -/
 -- ANCHOR: sckaCorrectnessSpec
-def sckaCorrectnessSpec (Rho : Type) :=
+abbrev sckaCorrectnessSpec (Rho : Type) :=
   unifSpec                                  -- Uniform randomness
   + (Unit →ₒ Option (ℕ × Option ℕ × Rho))       -- O-Send-A
   + (Unit →ₒ Option (ℕ × Option ℕ × Rho))       -- O-Send-B
@@ -264,10 +264,15 @@ Marked `@[match_pattern]` so they unfold transparently in `match` patterns. -/
 
 end sckaCorrectnessSpec
 
+/-- Whether a query of the correctness game is `SendA` or `SendB`. -/
+def isSendQuery : (sckaCorrectnessSpec Rho).Domain → Bool
+  | sckaCorrectnessSpec.OSendA | sckaCorrectnessSpec.OSendB => true
+  | _ => false
+
 /-- Oracle spec for the SCKA security game: the correctness spec extended with the
 randomness-leaking send oracles, the challenge oracle, and the corruption oracles. -/
 -- ANCHOR: sckaSecuritySpec
-def sckaSecuritySpec (StA StB I Rho Rand : Type) :=
+abbrev sckaSecuritySpec (StA StB I Rho Rand : Type) :=
   sckaCorrectnessSpec Rho
   + (Unit →ₒ Option (ℕ × Option ℕ × Rho × Rand))    -- O-Send-A-rleak
   + (Unit →ₒ Option (ℕ × Option ℕ × Rho × Rand))    -- O-Send-B-rleak
@@ -275,6 +280,39 @@ def sckaSecuritySpec (StA StB I Rho Rand : Type) :=
   + (Unit →ₒ Option StA)                             -- O-Corrupt-A
   + (Unit →ₒ Option StB)                             -- O-Corrupt-B
 -- ANCHOR_END: sckaSecuritySpec
+
+namespace sckaSecuritySpec
+
+/-! Named indices for the queries used in the send bound. The state, key, message, and
+coin types affect only responses, so `Unit` gives the same query indices for every scheme. -/
+
+/-- Embed a correctness-query index into the security oracle interface. -/
+@[match_pattern] abbrev OCorrectness (t : (sckaCorrectnessSpec Unit).Domain) :
+    (sckaSecuritySpec Unit Unit Unit Unit Unit).Domain :=
+  .inl (.inl (.inl (.inl (.inl t))))
+
+/-- Select A's randomness-leaking send. -/
+@[match_pattern] abbrev OSendArleak : (sckaSecuritySpec Unit Unit Unit Unit Unit).Domain :=
+  .inl (.inl (.inl (.inl (.inr ()))))
+
+/-- Select B's randomness-leaking send. -/
+@[match_pattern] abbrev OSendBrleak : (sckaSecuritySpec Unit Unit Unit Unit Unit).Domain :=
+  .inl (.inl (.inl (.inr ())))
+
+/-- `true` exactly on the four send queries: the ordinary sends of the correctness interface
+and the two randomness-leaking sends. -/
+def isSendQuery : (sckaSecuritySpec Unit Unit Unit Unit Unit).Domain → Bool
+  | OCorrectness t => SCKAScheme.isSendQuery t
+  | OSendArleak | OSendBrleak => true
+  | _ => false
+
+/-- On an embedded correctness query, the two send predicates agree. -/
+lemma isSendQuery_OCorrectness (t : (sckaCorrectnessSpec Rho).Domain) :
+    isSendQuery (OCorrectness t) = SCKAScheme.isSendQuery t := by
+  rcases t with ((((n | u) | u) | n) | n) <;> rfl
+
+end sckaSecuritySpec
+
 
 /-! ### Send oracles -/
 
@@ -703,8 +741,9 @@ def sckaCorrectnessImpl [DecidableEq I] (scka : SCKAScheme ProbComp IK StA StB I
     + oracleRecvA scka + oracleRecvB scka
 -- ANCHOR_END: sckaCorrectnessImpl
 
-/-- Oracle set for the SCKA security game (Fig. 1): the correctness oracles
-extended with randomness-leaking sends, challenge, and corruption. -/
+/-- SCKA security oracles (Figure 1): ordinary sends and receives, randomness-leaking sends,
+challenges, and corruptions. Eligible challenges return recorded keys if `isRandom = false`
+and independent uniform keys if `isRandom = true`. -/
 -- ANCHOR: sckaSecurityImpl
 def sckaSecurityImpl (isRandom : Bool) (vulnA : VulnerableEpochs StA Rand)
     (vulnB : VulnerableEpochs StB Rand)
@@ -722,11 +761,6 @@ def sckaSecurityImpl (isRandom : Bool) (vulnA : VulnerableEpochs StA Rand)
 abbrev SCKACorrectnessAdversary (Rho : Type) :=
   OracleComp (sckaCorrectnessSpec Rho) Bool
 -- ANCHOR_END: SCKACorrectnessAdversary
-
-/-- Whether a query of the correctness game is `SendA` or `SendB`. -/
-def isSendQuery : (sckaCorrectnessSpec Rho).Domain → Bool
-  | sckaCorrectnessSpec.OSendA | sckaCorrectnessSpec.OSendB => true
-  | _ => false
 
 /-- `adv` makes at most `q` `SendA` and `SendB` queries combined. -/
 def SendQueryBound (adv : SCKACorrectnessAdversary Rho) (q : ℕ) : Prop :=
@@ -782,6 +816,23 @@ noncomputable def sckaGuessAdvantage [SampleableType I] [DecidableEq I]
     (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand) : ℝ :=
   |(Pr[= true | securityExp scka adversary vulnA vulnB]).toReal - 1 / 2|
 -- ANCHOR_END: sckaGuessAdvantage
+
+/-- The SCKA experiment with fixed bit `b`: initialize `scka`, answer eligible challenges
+with recorded keys if `b = false` and independent uniform keys if `b = true`, and return the
+adversary's guess. -/
+-- ANCHOR: securityExpFixedBit
+def securityExpFixedBit [SampleableType I] [DecidableEq I]
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (adversary : SCKAAdversary StA StB I Rho Rand)
+    (b : Bool) (vulnA : VulnerableEpochs StA Rand)
+      (vulnB : VulnerableEpochs StB Rand) : ProbComp Bool := do
+  let ik ← scka.initKeyGen
+  let stA ← scka.initA ik
+  let stB ← scka.initB ik
+  let (b', _) ← (simulateQ (sckaSecurityImpl b vulnA vulnB scka) adversary).run
+    (initGameState stA stB)
+  return b'
+-- ANCHOR_END: securityExpFixedBit
 
 end Games
 

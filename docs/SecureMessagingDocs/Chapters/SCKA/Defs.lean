@@ -733,7 +733,7 @@ $`\begin{array}{ll}
 :::
 
 ```anchor sckaCorrectnessSpec (project := ".") (module := SecureMessaging.SCKA.Defs)
-def sckaCorrectnessSpec (Rho : Type) :=
+abbrev sckaCorrectnessSpec (Rho : Type) :=
   unifSpec                                  -- Uniform randomness
   + (Unit →ₒ Option (ℕ × Option ℕ × Rho))       -- O-Send-A
   + (Unit →ₒ Option (ℕ × Option ℕ × Rho))       -- O-Send-B
@@ -778,7 +778,7 @@ $`\begin{array}{ll}
 :::
 
 ```anchor sckaSecuritySpec (project := ".") (module := SecureMessaging.SCKA.Defs)
-def sckaSecuritySpec (StA StB I Rho Rand : Type) :=
+abbrev sckaSecuritySpec (StA StB I Rho Rand : Type) :=
   sckaCorrectnessSpec Rho
   + (Unit →ₒ Option (ℕ × Option ℕ × Rho × Rand))    -- O-Send-A-rleak
   + (Unit →ₒ Option (ℕ × Option ℕ × Rho × Rand))    -- O-Send-B-rleak
