@@ -297,6 +297,66 @@ theorem mem_support_oracleRecvB_run_iff (n : ℕ)
 
 end Oracles
 
+/-- Every receive outcome preserves exposure, challenges and both send counters. -/
+theorem oracleRecvA_flags
+    {IK StA StB I Rho Rand : Type} [DecidableEq I]
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    {n : ℕ} {g : GameState StA StB I Rho}
+    {w : Option (ℕ × Option ℕ) × GameState StA StB I Rho}
+    (hw : w ∈ support ((oracleRecvA scka n).run g)) :
+    w.2.exposed = g.exposed ∧ w.2.challenged = g.challenged ∧
+      w.2.nA = g.nA ∧ w.2.nB = g.nB := by
+  rcases hm : g.msgB n with _ | ⟨ρ, tsnd⟩
+  · rw [oracleRecvA_run_eq_of_none _ _ hm, mem_support_pure_iff] at hw
+    subst hw
+    exact ⟨rfl, rfl, rfl, rfl⟩
+  rcases hr : scka.recvA g.stA ρ with _ | ⟨keyOpt, trcv, st'⟩
+  · rw [oracleRecvA_run_eq_of_refuse _ _ hm hr, mem_support_pure_iff] at hw
+    subst hw
+    exact ⟨rfl, rfl, rfl, rfl⟩
+  · rw [oracleRecvA_run_eq_of_accept _ _ hm hr, mem_support_pure_iff] at hw
+    subst hw
+    rcases keyOpt with _ | ⟨tI, key⟩ <;> exact ⟨rfl, rfl, rfl, rfl⟩
+
+/-- The version of `oracleRecvA_flags` for B, including refused and missing deliveries. -/
+theorem oracleRecvB_flags
+    {IK StA StB I Rho Rand : Type} [DecidableEq I]
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    {n : ℕ} {g : GameState StA StB I Rho}
+    {w : Option (ℕ × Option ℕ) × GameState StA StB I Rho}
+    (hw : w ∈ support ((oracleRecvB scka n).run g)) :
+    w.2.exposed = g.exposed ∧ w.2.challenged = g.challenged ∧
+      w.2.nA = g.nA ∧ w.2.nB = g.nB := by
+  rcases hm : g.msgA n with _ | ⟨ρ, tsnd⟩
+  · rw [oracleRecvB_run_eq_of_none _ _ hm, mem_support_pure_iff] at hw
+    subst hw
+    exact ⟨rfl, rfl, rfl, rfl⟩
+  rcases hr : scka.recvB g.stB ρ with _ | ⟨keyOpt, trcv, st'⟩
+  · rw [oracleRecvB_run_eq_of_refuse _ _ hm hr, mem_support_pure_iff] at hw
+    subst hw
+    exact ⟨rfl, rfl, rfl, rfl⟩
+  · rw [oracleRecvB_run_eq_of_accept _ _ hm hr, mem_support_pure_iff] at hw
+    subst hw
+    rcases keyOpt with _ | ⟨tI, key⟩ <;> exact ⟨rfl, rfl, rfl, rfl⟩
+
+/-- Corruption either refuses without a state change or reveals A and records its exposure. -/
+theorem oracleCorruptA_run {StA StB I Rho : Type}
+    (V : StA → Finset ℕ) (g : GameState StA StB I Rho) :
+    (oracleCorruptA V StB I Rho ()).run g =
+      if V g.stA ∩ g.challenged ≠ ∅ then pure (none, g)
+      else pure (some g.stA, { g with exposed := g.exposed ∪ V g.stA }) := by
+  simp only [oracleCorruptA, StateT.run_bind, StateT.run_get, pure_bind]
+  split_ifs <;> simp [StateT.run_set, StateT.run_pure]
+
+/-- The version of `oracleCorruptA_run` for B. -/
+theorem oracleCorruptB_run {StA StB I Rho : Type}
+    (V : StB → Finset ℕ) (g : GameState StA StB I Rho) :
+    (oracleCorruptB V StA I Rho ()).run g =
+      if V g.stB ∩ g.challenged ≠ ∅ then pure (none, g)
+      else pure (some g.stB, { g with exposed := g.exposed ∪ V g.stB }) := by
+  simp only [oracleCorruptB, StateT.run_bind, StateT.run_get, pure_bind]
+  split_ifs <;> simp [StateT.run_set, StateT.run_pure]
+
 /-! ### Invariants -/
 
 /-- The uniform-randomness oracle preserves every predicate on the game state. -/

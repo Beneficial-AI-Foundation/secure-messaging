@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
+import SecureMessaging.SCKA.MLKEMBraid.Correctness.SendPayload
 
 /-!
 # Sends preserve the correctness invariant
@@ -23,21 +23,6 @@ namespace MLKEMBraid
 variable {P : Parameters ProbComp} {InitKey AuthState : Type}
   (auth : RatchetedAuthenticator InitKey P.EpochKey AuthState
     P.inc.PKheader (P.inc.C₁ × P.inc.C₂) P.Mac)
-
-/-- If every message of a table and `msg` satisfy `MessagePayloadInv`, then so does every message of
-the table after recording `msg` at index `k`. -/
-private theorem messagePayloads_update {ik : InitKey} {T : ℕ → EpochTranscript P}
-    {messages : ℕ → Option (Message P.Sym × ℕ)} {msg : Message P.Sym} {tsnd k : ℕ}
-    (hOld : ∀ n m t, messages n = some (m, t) → MessagePayloadInv auth ik T m)
-    (hNew : MessagePayloadInv auth ik T msg) :
-    ∀ n m t, Function.update messages k (some (msg, tsnd)) n = some (m, t) →
-      MessagePayloadInv auth ik T m := by
-  apply (Function.forall_update_iff messages
-    (fun _ record => ∀ m t, record = some (m, t) → MessagePayloadInv auth ik T m)).2
-  refine ⟨?_, fun n _ => hOld n⟩
-  intro m t h
-  cases h
-  exact hNew
 
 /-- A send from `keysUnsampled` records its sampled key pair and leaves the successor consistent
 with the extended transcript. -/
@@ -177,10 +162,16 @@ private theorem send_keysUnsampled_transcript {ik : InitKey} {T : ℕ → EpochT
     rw [messagesAt_sendSuccessor]
     split_ifs with hwho
     · subst who
-      exact messagePayloads_update auth
-        (fun n msg tsnd hmsg => hMsgOld msg (hMessages party n msg tsnd hmsg))
-        ⟨pk, sk, 0, hTke, congrArg (fun x => some (P.ecpHdr.encode
-          (P.inc.toHeader pk, auth.macHeader x e (P.inc.toHeader pk)) 0)) haT⟩
+      apply (Function.forall_update_iff _
+        (fun _ record => ∀ msg tsnd, record = some (msg, tsnd) →
+          MessagePayloadInv auth ik
+            (Function.update T e { (T e) with keypair := some (pk, sk) }) msg)).2
+      refine ⟨?_, fun n _ msg tsnd hmsg =>
+        hMsgOld msg (hMessages party n msg tsnd hmsg)⟩
+      intro msg tsnd hmsg
+      cases hmsg
+      exact ⟨pk, sk, 0, hTke, congrArg (fun x => some (P.ecpHdr.encode
+        (P.inc.toHeader pk, auth.macHeader x e (P.inc.toHeader pk)) 0)) haT⟩
     · intro n msg tsnd hmsg
       exact hMsgOld msg (hMessages who n msg tsnd hmsg)
   · intro who e'
@@ -364,9 +355,15 @@ private theorem send_headerReceived_transcript {ik : InitKey} {T : ℕ → Epoch
     rw [messagesAt_sendSuccessor]
     split_ifs with hwho
     · subst who
-      exact messagePayloads_update auth
-        (fun n msg tsnd hmsg => hMsgOld msg (hBnd party n msg tsnd hmsg)
-          (hMessages party n msg tsnd hmsg)) ⟨es, ct1, k, 0, hTce, rfl⟩
+      apply (Function.forall_update_iff _
+        (fun _ record => ∀ msg tsnd, record = some (msg, tsnd) →
+          MessagePayloadInv auth ik
+            (Function.update T e { (T e) with encaps1 := some (es, ct1, k) }) msg)).2
+      refine ⟨?_, fun n _ msg tsnd hmsg =>
+        hMsgOld msg (hBnd party n msg tsnd hmsg) (hMessages party n msg tsnd hmsg)⟩
+      intro msg tsnd hmsg
+      cases hmsg
+      exact ⟨es, ct1, k, 0, hTce, rfl⟩
     · intro n msg tsnd hmsg
       exact hMsgOld msg (hBnd who n msg tsnd hmsg) (hMessages who n msg tsnd hmsg)
   · intro who e'
@@ -396,74 +393,6 @@ private theorem send_headerReceived_transcript {ik : InitKey} {T : ℕ → Epoch
         simp [show ¬ (0 < e ∧ e ≤ e - 1) by omega]
       · rw [hTc e' he]
 
-/-- The states whose send samples nothing: all but `keysUnsampled` and `headerReceived`. -/
-def State.SendsNoSample : State P AuthState → Prop
-  | .keysUnsampled .. => False
-  | .headerReceived .. => False
-  | _ => True
-
-/-- A send without sampling preserves epochs and `LocalPayloadInv`, outputs no key, and emits a
-message satisfying `MessagePayloadInv`. -/
-private theorem send_steady_step {ik : InitKey} {T : ℕ → EpochTranscript P}
-    {st : State P AuthState} {r : SendResult P AuthState} (hedge : SendEdge auth st r)
-    (hsteady : st.SendsNoSample) (hLocal : LocalPayloadInv auth ik T st) :
-    r.outputKey = none ∧ r.state.epoch = st.epoch ∧ r.state.completedEpoch = st.completedEpoch ∧
-      LocalPayloadInv auth ik T r.state ∧ MessagePayloadInv auth ik T r.msg := by
-  cases hedge
-  case keygen => exact False.elim hsteady
-  case encaps1 => exact False.elim hsteady
-  case hdrChunk _ _ sk _ enc =>
-    have hL := hLocal
-    simp only [LocalPayloadInv] at hL
-    obtain ⟨-, pk, hkp, -, hecp, hpay⟩ := hL
-    refine ⟨rfl, rfl, rfl, ?_, pk, sk, enc.nextIndex, hkp, ?_⟩
-    · simpa only [LocalPayloadInv, EncoderState.nextChunk] using hLocal
-    · simp only [EncoderState.nextChunk]
-      rw [hecp, hpay]
-  case ekChunk _ _ sk _ enc =>
-    have hL := hLocal
-    simp only [LocalPayloadInv] at hL
-    obtain ⟨-, pk, _, _, _, hkp, -, -, hecp, hpay⟩ := hL
-    refine ⟨rfl, rfl, rfl, ?_, pk, sk, enc.nextIndex, hkp, ?_⟩
-    · simpa only [LocalPayloadInv, EncoderState.nextChunk] using hLocal
-    · simp only [EncoderState.nextChunk]
-      rw [hecp, hpay]
-  case ackChunk _ _ sk _ enc =>
-    have hL := hLocal
-    simp only [LocalPayloadInv] at hL
-    obtain ⟨-, pk, _, _, hkp, -, hecp, hpay⟩ := hL
-    refine ⟨rfl, rfl, rfl, ?_, pk, sk, enc.nextIndex, hkp, ?_⟩
-    · simpa only [LocalPayloadInv, EncoderState.nextChunk] using hLocal
-    · simp only [EncoderState.nextChunk]
-      rw [hecp, hpay]
-  case idleEkSent => exact ⟨rfl, rfl, rfl, hLocal, rfl⟩
-  case idleNoHeader => exact ⟨rfl, rfl, rfl, hLocal, rfl⟩
-  case ct1Chunk _ _ _ es ct1 enc _ =>
-    have hL := hLocal
-    simp only [LocalPayloadInv] at hL
-    obtain ⟨-, _, _, key, -, hc, -, ⟨hecp, hpay⟩, -⟩ := hL
-    refine ⟨rfl, rfl, rfl, ?_, es, ct1, key, enc.nextIndex, hc, ?_⟩
-    · simpa only [LocalPayloadInv, EncoderState.nextChunk] using hLocal
-    · simp only [EncoderState.nextChunk]
-      rw [hecp, hpay]
-  case ct1ChunkVec _ _ es ct1 _ _ enc =>
-    have hL := hLocal
-    simp only [LocalPayloadInv] at hL
-    obtain ⟨-, _, _, key, -, hc, -, -, hecp, hpay⟩ := hL
-    refine ⟨rfl, rfl, rfl, ?_, es, ct1, key, enc.nextIndex, hc, ?_⟩
-    · simpa only [LocalPayloadInv, EncoderState.nextChunk] using hLocal
-    · simp only [EncoderState.nextChunk]
-      rw [hecp, hpay]
-  case idleAcknowledged => exact ⟨rfl, rfl, rfl, hLocal, rfl⟩
-  case ct2Chunk _ _ enc =>
-    have hL := hLocal
-    simp only [LocalPayloadInv] at hL
-    obtain ⟨-, pk, sk, es, ct1, key, hkp, hc, hecp, hpay⟩ := hL
-    refine ⟨rfl, rfl, rfl, ?_, pk, sk, es, ct1, key, enc.nextIndex, hkp, hc, ?_⟩
-    · simpa only [LocalPayloadInv, EncoderState.nextChunk] using hLocal
-    · simp only [EncoderState.nextChunk]
-      rw [hecp, hpay]
-
 /-- A send that samples nothing keeps the game state consistent with the same transcript, provided
 its successor satisfies the control and pair invariants. -/
 theorem send_existing_transcript {ik : InitKey} {T : ℕ → EpochTranscript P}
@@ -490,7 +419,13 @@ theorem send_existing_transcript {ik : InitKey} {T : ℕ → EpochTranscript P}
     rw [messagesAt_sendSuccessor]
     split_ifs with hwho
     · subst who
-      exact messagePayloads_update auth (hT.messages party) hMsgNew
+      apply (Function.forall_update_iff _
+        (fun _ record => ∀ msg tsnd, record = some (msg, tsnd) →
+          MessagePayloadInv auth ik T msg)).2
+      refine ⟨?_, fun n _ => hT.messages party n⟩
+      intro msg tsnd hmsg
+      cases hmsg
+      exact hMsgNew
     · exact hT.messages who
   · intro who
     simp [keysAt_sendSuccessor, hnone]

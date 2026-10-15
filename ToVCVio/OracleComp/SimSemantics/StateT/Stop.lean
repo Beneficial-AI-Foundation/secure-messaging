@@ -176,6 +176,48 @@ def stopOnState (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool
     let (answer, next) ← (impl t).run s
     pure (if stop next then none else some answer, next)
 
+/-- A stopped step keeps its successor state and drops its answer exactly when `stop` holds. -/
+theorem stopOnState_run {ι σ : Type} {spec : OracleSpec ι}
+    (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool)
+    (t : spec.Domain) (s : σ) :
+    ((stopOnState impl stop t).run).run s =
+      (fun w => (if stop w.2 then none else some w.1, w.2)) <$> (impl t).run s := by
+  change ((impl t).run s >>= fun w => pure (if stop w.2 then none else some w.1, w.2)) = _
+  rw [map_eq_bind_pure_comp]
+  rfl
+
+/-- Every supported stopped outcome comes from a supported ordinary response/state pair. -/
+theorem mem_support_stopOnState {ι σ : Type} {spec : OracleSpec ι}
+    {impl : QueryImpl spec (StateT σ ProbComp)} {stop : σ → Bool}
+    {t : spec.Domain} {s : σ} {z : Option (spec.Range t) × σ}
+    (hz : z ∈ support (((stopOnState impl stop t).run).run s)) :
+    ∃ w ∈ support ((impl t).run s),
+      z = (if stop w.2 then none else some w.1, w.2) := by
+  rw [stopOnState_run, support_map] at hz
+  obtain ⟨w, hw, rfl⟩ := hz
+  exact ⟨w, hw, rfl⟩
+
+/-- Stopping preserves equality of the joint response/state distribution. -/
+theorem stopped_congr {ι σ : Type} {spec : OracleSpec ι}
+    {I L : QueryImpl spec (StateT σ ProbComp)}
+    (stop : σ → Bool) (q : spec.Domain) (s : σ)
+    (h : 𝒟[(I q).run s] = 𝒟[(L q).run s]) :
+    𝒟[((stopOnState I stop q).run).run s] =
+      𝒟[((stopOnState L stop q).run).run s] := by
+  rw [stopOnState_run, stopOnState_run, evalDist_map, evalDist_map, h]
+
+/-- Stopping commutes with sampling a parameter before a single oracle step. -/
+theorem stopped_bind {ι σ α : Type} {spec : OracleSpec ι}
+    (sample : ProbComp α)
+    {I : α → QueryImpl spec (StateT σ ProbComp)}
+    {L : QueryImpl spec (StateT σ ProbComp)}
+    (stop : σ → Bool) (q : spec.Domain) (s : σ)
+    (h : 𝒟[(L q).run s] = 𝒟[sample >>= fun a => (I a q).run s]) :
+    𝒟[((stopOnState L stop q).run).run s] =
+      𝒟[sample >>= fun a => ((stopOnState (I a) stop q).run).run s] := by
+  simp only [stopOnState_run]
+  rw [evalDist_map, h, ← evalDist_map, map_bind]
+
 /-- For every query `t` and state `s`, if `stop s' = false` for every `(a, s')` in the support
 of `(impl t).run s`, then the joint distribution of response and next state under
 `stopOnState impl stop t` is that of `(impl t).run s` with each response wrapped in `some`. -/
