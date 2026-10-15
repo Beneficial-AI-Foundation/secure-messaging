@@ -359,16 +359,17 @@ I_{\B}\gets\bot, t_{I_{\B}}\gets\bot \\
 \qquad \ctzero\gets\mathsf{Decode}(\Lch) \\
 \qquad \mathsf{if}\;\ctzero\ne\bot\;\mathsf{then} \\
 \qquad\quad \ack.\ctrec\gets\mathsf{true}, \Lch\gets\emptyset \\
-\quad \mathsf{else}\;\mathsf{if}\;b=1\;\mathsf{then}
+\quad \mathsf{else}\;\mathsf{if}\;b=1\wedge\dkA\ne\bot\wedge\ctzero\ne\bot\;\mathsf{then}
   \pcomment{\ctone\ \text{not received yet}} \\
-\qquad \Lch\gets\Lch\cup\{\chunk\} \\
-\qquad \ctone\gets\mathsf{Decode}(\Lch) \\
-\qquad \mathsf{if}\;\ctone\ne\bot\;\mathsf{then}
+\qquad \ctone\gets\mathsf{Decode}(\Lch\cup\{\chunk\}) \\
+\qquad \mathsf{if}\;\ctone=\bot\;\mathsf{then}\;\Lch\gets\Lch\cup\{\chunk\} \\
+\qquad \mathsf{else}
   \pcomment{\ctone\ \text{recovered from chunk}} \\
 \qquad\quad I_{\B}\gets\Decaps(\dkA,(\ctzero,\ctone)) \\
-\qquad\quad t_{I_{\B}}\gets t, t\gets t+1, \Lch\gets\emptyset \\
-\qquad\quad (\dkA,\ekA,\ctzero)\gets(\bot,\bot,\bot) \\
-\qquad\quad (\ack.\ekrec,\ack.\ctrec)
+\qquad\quad \mathsf{if}\;I_{\B}\ne\bot\;\mathsf{then} \\
+\qquad\qquad t_{I_{\B}}\gets t, t\gets t+1, \Lch\gets\emptyset \\
+\qquad\qquad (\dkA,\ekA,\ctzero)\gets(\bot,\bot,\bot) \\
+\qquad\qquad (\ack.\ekrec,\ack.\ctrec)
   \gets(\mathsf{false},\mathsf{false}) \\
 \mathsf{if}\;\ack'.\ekrec\;\boxed{\wedge\;t=t'}\;\mathsf{then}
   \pcomment{\text{incorporate }\B\text{'s acknowledgment}} \\
@@ -376,9 +377,6 @@ I_{\B}\gets\bot, t_{I_{\B}}\gets\bot \\
 \stA\gets(\dkA,\ekA,\ctzero,t,\ich,\Lch,\ack) \\
 \mathsf{return}\;((t_{I_{\B}},I_{\B}),t'-1,\stA)
 \end{array}`
-
-`Decaps` is the parameter `decapsDet` of `recvA`; if it returns ⊥, A outputs no key and keeps
-its state.
 
 :::leanPillCaption "A's receive transition and key output"
 :::

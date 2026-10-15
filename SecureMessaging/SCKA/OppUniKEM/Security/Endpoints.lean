@@ -40,7 +40,7 @@ Main result:
 
 For every `b`, `security_correctness_endpoint_le` bounds the difference between the probability of
 `G_b` and `I_b` returning `true`: `|Pr[G_b = true] - Pr[I_b = true]| ≤ q · ε`.
-`I_false` and `I_true` are the endpoints of the epoch hybrids of the next step.
+`I_false` and `I_true` are the endpoints of the hybrid argument over epochs that connects them.
 -/
 
 open OracleSpec OracleComp KEMScheme ErasureCodePayload ENNReal
