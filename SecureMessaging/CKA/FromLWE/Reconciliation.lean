@@ -9,9 +9,13 @@ import SecureMessaging.CKA.FromLWE.Basic
 /-!
 # Frodo reconciliation for continuous key agreement from LWE
 
-Extraction, hints, and recovery follow Section 3.2 of Bos et al., *Frodo: Take off the ring!*,
-with parameters satisfying `Params.WellFormed`. Each residue modulo `q` has a canonical
-representative in `0, …, q - 1`, written `v.val` in Lean.
+Extraction, hints, and recovery follow the original Frodo key-exchange paper
+[BCDMNNRS16, Section 3.2, pp. 8–9 of the full version dated February 23, 2017].
+References are listed in `Construction.lean`. The later FrodoKEM encoding and decoding
+operations are formalized separately in `ToVCVio.LatticeCrypto.FrodoKEM.Encoding`.
+
+Parameters satisfy `Params.WellFormed`. Each residue modulo `q` has a canonical
+representative in the interval `[0, q - 1]`, written `v.val` in Lean.
 
 Extraction rounds to the nearest multiple of `blockWidth`, rounding midpoint ties upward,
 and returns its index modulo `2 ^ keyBits`. Hints alternate between 0 and 1 on successive
@@ -39,7 +43,7 @@ def modularDistance (p : Params) (u v : Scalar p) : ℕ :=
   min (u - v).val (v - u).val
 
 /-- Search for the closest residue with the requested hint using circular distance modulo `q`.
-Resolve equal distances by choosing the smaller representative in the interval`[0, q - 1]`. -/
+Resolve equal distances by choosing the smaller representative in the interval `[0, q - 1]`. -/
 def nearestWithHint
     (p : Params) (w : Scalar p) (b : HintScalar) : Scalar p :=
   (List.range p.q).foldl
