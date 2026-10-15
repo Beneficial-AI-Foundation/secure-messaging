@@ -91,8 +91,8 @@ def oracleDecrypt [DecidableEq AD] [DecidableEq C] (ae : AEADScheme ProbComp M A
 :::::
 ::::::
 
-Deviation from ACD19 Figure 1: the guard compares the pair $`(a, e)`, not $`e` alone, so schemes
-that ignore associated data are insecure. The source docstring gives the details.
+Adapted from {Informal.citet ACD19}[], Figure 1: the decrypt guard compares the pair $`(a, e)`,
+not $`e` alone, so schemes that ignore associated data are insecure.
 :::::::
 
 :::defTitle "aead_correctness" "AEAD correctness"

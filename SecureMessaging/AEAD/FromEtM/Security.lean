@@ -101,9 +101,13 @@ lemmas live under `ToVCVio/`.
 
 ## Paper References
 
-The *notion* targeted here is ACD19's with the pair guard (defined in `AEAD/Defs.lean`); the *proof*
-is an EtM argument adapted from **NRS14 scheme A5**. The two line up because ACD19's one-time
-real-or-random notion and NRS14's ivE/nAE rest on the same
+The *notion* targeted here is one-time IND-CCA (`AEAD/Defs.securityExp`, adapted from ACD19
+Definition 2). The adversary makes at most one encryption query `(a*, m)` and receives
+`e* = Enc(K, a*, m)` if `b = 0` or a uniform `e*` if `b = 1`. A decryption query `(a, e)` returns
+`⊥` if `b = 1` or `(a, e) = (a*, e*)`, and `Dec(K, a, e)` otherwise.
+
+The *proof* is an EtM argument adapted from **NRS14 scheme A5**. The two line up because the
+one-time real-or-random notion and NRS14's ivE/nAE rest on the same
 ind$ (random-*ciphertext*) family; the precise, game-by-game correspondence
 that backs this is the `## NRS14 Correspondence` table below (not the single
 shared-family observation on its own).
@@ -132,14 +136,12 @@ The security proof adapts **Theorem 1** (for A5), with:
 | `prfReduction` | Lemma 3: adversary B(A) |
 | `encReduction` | Lemma 3: privacy reduction D₁(A) |
 
-## ACD19 vs NRS14: decryption suppression
+## Decryption guard
 
-`AEAD/Defs.oracleDecrypt` refuses only the exact pair `(a*, e*)`, as NRS14 nAE does, where ACD19
-Figure 1 prints `e = e*` (deviation D1 of `AEAD/Defs.lean`). EtM meets the pair guard at no extra
-cost: a query `(a', e*)` with `a' ≠ a*` has to produce the tag on `(a', C*)`.
-After the `game1` PRF hop that is the `ρ`-value at a point the encryption never evaluated, so it is
-independent of the challenge, which is exactly what the `q_d/|T|` authenticity term
-(`game1_game2_le_auth`) already bounds.
+EtM meets the guard `(a, e) = (a*, e*)` at no extra cost: a query `(a', e*)` with `a' ≠ a*` has
+to produce the tag on `(a', C*)`. After the `game1` PRF hop that is the `ρ`-value at a point the
+encryption never evaluated, so it is independent of the challenge, which is exactly what the
+`q_d/|T|` authenticity term (`game1_game2_le_auth`) already bounds.
 -/
 
 namespace EtM

@@ -81,16 +81,37 @@ The adversary wins if its guess `b'` satisfies `b' = b`.
 [DEVIATIONS FROM ACD19]
 The deviation is marked `Deviation (D1)` where it takes effect.
 
-- (D1) Figure 1 writes the guard as `if e = e* or b = 1 return ⊥`, refusing every query that
-  repeats the challenge ciphertext whatever its associated data. That guard never asks whether
-  `e*` also authenticates under a different `a`, so it admits schemes that ignore associated
-  data: from any secure `AE`, the scheme `AE'(K, a, m) = AE(K, ā, m)` for a fixed `ā` is secure
-  in the printed game, yet an FS-AEAD built over it (Figure 6 of [ACD19]) accepts `(a', c)` in
-  place of an honest, not yet delivered `(a, c)` (Figure 5 of [ACD19], `inject-B`). The proof of
-  Theorem 5 of [ACD19] uses the AEAD to reject such injections, so the printed guard is weaker
-  than the notion the theorem needs. Here the guard refuses only the exact pair `(a*, e*)`, the
-  usual one-time nAE guard ([NRS14] and Definition 9.10 of [BS]), which rules `AE'` out. The game
-  state is therefore `Option (AD × C)` and `AD` needs decidable equality.
+- (D1) The challenge is the pair `(a*, e*)`, not the ciphertext `e*` alone. Two oracle lines
+  change:
+
+  ```
+             ACD19 Figure 1                    here
+  encrypt    e* ← …                            a* ← a;  e* ← …
+  decrypt    if e = e* or b = 1 return ⊥       if (a, e) = (a*, e*) or b = 1 return ⊥
+  ```
+
+  The game state is therefore `Option (AD × C)`, and `AD` needs decidable equality.
+
+  Reason. The ACD19 guard `e = e*` refuses every decryption query `(a, e*)`, for every associated
+  data `a`. The ACD19 game therefore never tests whether `e*` decrypts under associated data
+  other than `a*`, so the ACD19 notion accepts schemes that ignore associated data. For example,
+  let `AE = (Enc, Dec)` be secure in the ACD19 game, fix some associated data `ā`, and define
+  `AE' = (Enc', Dec')` by `Enc'(K, a, m) = Enc(K, ā, m)` and `Dec'(K, a, e) = Dec(K, ā, e)`.
+
+  1. `AE'` is secure in the ACD19 game. An adversary against `AE'` becomes an adversary against
+     `AE` with the same advantage: it replaces the associated data of every query by `ā`.
+  2. The FS-AEAD scheme of [ACD19] Figure 6, built on `AE'`, is insecure in the game of [ACD19]
+     Figure 5. The adversary calls `transmit-A(a, m)` and receives `c = (1, e)`, where
+     `e = Enc'(K, (1, a), m)`. Before `c` is delivered, it calls `inject-B(a', c)` with
+     `a' ≠ a`. The pair `(a', c)` is not in `trans`, and `FS-Rcv` computes
+     `Dec'(K, (1, a'), e) = Dec(K, ā, e) = m ≠ ⊥`. Epoch 1 is not in `comp`, so the adversary
+     wins.
+
+  Items 1 and 2 contradict Theorem 5 of [ACD19] as printed. With the guard
+  `(a, e) = (a*, e*)`, `AE'` is insecure: the adversary encrypts `(a, m)`, receives `e*`, and
+  queries `decrypt(a', e*)` with `a' ≠ a`. The query returns `m` if `b = 0` and `⊥` if `b = 1`.
+  [NRS14] and Definition 9.10 of [BS] restrict decryption queries in the same way: only the
+  exact pair returned by encryption is refused.
 
 [WHY A PRF TAG, NOT JUST A MAC]
 The game above is *real-or-random*: when `b = 1` the oracle returns a uniform random

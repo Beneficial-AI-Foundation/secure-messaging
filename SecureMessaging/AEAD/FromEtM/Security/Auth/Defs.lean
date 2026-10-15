@@ -50,8 +50,9 @@ noncomputable def authEncImpl (se : DetSEAlg K_e M C_e) (ke : K_e) :
       set ((some (ad, (se.encrypt ke m, t)), qc'), forged)
       return some (se.encrypt ke m, t)
 
-/-- Decryption oracle on the flag-augmented state. The challenge guard rejects the exact pair;
-otherwise the random oracle is queried, the `forged` flag is set on a successful verify, and
+/-- Decryption oracle on the flag-augmented state. The challenge guard rejects a query
+`(ad, (c, t))` equal to the recorded challenge `(ad*, (c*, t*))`; otherwise the random oracle
+is queried, the `forged` flag is set on a successful verify, and
 (`b = true`) the real decryption is returned or (`b = false`) the query is rejected. -/
 noncomputable def authDecImpl (se : DetSEAlg K_e M C_e) (b : Bool) (ke : K_e) :
     QueryImpl (AD × (C_e × T) →ₒ Option M)
