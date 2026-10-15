@@ -130,6 +130,13 @@ private def recvBEkStep
     (recvBEkStep kem onoff ecEk stB ch?).stCt = stB.stCt := by
   by_cases h : stB.ekA = none <;> simp [recvBEkStep, h]
 
+/-- `recvBEkStep` preserves B's ciphertext acknowledgement. -/
+@[simp] private lemma recvBEkStep_ctRec
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (ecEk : ErasureCodePayload PK Sym) (stB : StB onoff Sym) (ch?) :
+    (recvBEkStep kem onoff ecEk stB ch?).ack.ctRec = stB.ack.ctRec := by
+  by_cases h : stB.ekA = none <;> simp [recvBEkStep, h]
+
 /-- Inserting an honest optional public-key chunk preserves B's honest-buffer
 predicate, decoding exactly when the reconstruction threshold is reached. -/
 private lemma chunksB_recvBEkStep
@@ -253,8 +260,8 @@ private lemma ChunksBConsistent.decodedEk
       subst pk'
       exact ⟨sk, rfl⟩
 
-/-- Processing an honest message for B's current epoch preserves
-`reachableInv`. -/
+/-- An honest message for B's current epoch preserves `reachableInv` if an acknowledgement
+for A's current epoch implies that A holds `ct₀`. -/
 private lemma reachableInv_after_recvB_current
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (hcorrect : ecEk.ec.Correct)
@@ -266,7 +273,8 @@ private lemma reachableInv_after_recvB_current
     (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
     (ch? : Option (ℕ × Sym)) (ack : Ack) (b? : Option Bit)
     (hmsg : HonestMessageA kem onoff ecEk T
-      ((ch?, ack, s.stB.t, b?), s.stB.t - 1)) :
+      ((ch?, ack, s.stB.t, b?), s.stB.t - 1))
+    (hAck : ack.ctRec = true → s.stB.t = s.stA.t → s.stA.ct0.isSome) :
     let stB' := recvBAckStep kem onoff
       (recvBEkStep kem onoff ecEk s.stB ch?) ack s.stB.t
     reachableInv kem onoff ecEk ecCt0 ecCt1
@@ -317,6 +325,13 @@ private lemma reachableInv_after_recvB_current
   · exact hInv.msgB
   · exact hInv.msgAEpoch
   · simpa [htB'] using hInv.msgBEpoch
+  · refine ⟨hInv.ct0Ack.1, hInv.ct0Ack.2.1, ?_, hInv.ct0Ack.2.2.2⟩
+    intro hack hepoch
+    have ht : s.stB.t = s.stA.t := htB'.symm.trans hepoch
+    by_cases hrecv : ack.ctRec = true
+    · exact hAck hrecv ht
+    · apply hInv.ct0Ack.2.2.1 _ ht
+      simpa [stB', recvBAckStep, hrecv, stB0] using hack
 
 omit [DecidableEq Sym] in
 /-- Delivering a stale A-to-B message changes only B's receive index and
@@ -364,6 +379,7 @@ private lemma reachableInv_after_recvB_stale
   · exact hInv.msgB
   · exact hInv.msgAEpoch
   · exact hInv.msgBEpoch
+  · exact hInv.ct0Ack
 
 /-- Reset B's epoch-local state before processing a message for the next
 epoch. -/
@@ -427,8 +443,8 @@ private lemma recvB_next_eq
       Option.some.injEq, Prod.mk.injEq, StateB.mk.injEq, Ack.mk.injEq, and_true, true_and]
     exact ⟨rfl, rfl, rfl⟩
 
-/-- Advancing B by one epoch and processing the first honest message of that
-epoch preserves `reachableInv`. -/
+/-- Advancing B to an honest message's epoch preserves `reachableInv` if its acknowledgement
+for A's current epoch implies that A holds `ct₀`. -/
 private lemma reachableInv_after_recvB_next
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (hcorrect : ecEk.ec.Correct)
@@ -440,7 +456,8 @@ private lemma reachableInv_after_recvB_next
     (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
     (ch? : Option (ℕ × Sym)) (ack : Ack) (t : ℕ) (b? : Option Bit)
     (ht : t = s.stB.t + 1) (htA : s.stA.t = t)
-    (hmsg : HonestMessageA kem onoff ecEk T ((ch?, ack, t, b?), t - 1)) :
+    (hmsg : HonestMessageA kem onoff ecEk T ((ch?, ack, t, b?), t - 1))
+    (hAck : ack.ctRec = true → t = s.stA.t → s.stA.ct0.isSome) :
     let base := recvBNextBase kem onoff s.stB
     let stB' := recvBAckStep kem onoff
       (recvBEkStep kem onoff ecEk base ch?) ack t
@@ -530,6 +547,14 @@ private lemma reachableInv_after_recvB_next
     change Message.epoch ρ ≤ stB'.t
     rw [htB']
     exact (hInv.msgBEpoch n ρ tsnd hn).trans (by omega)
+  · refine ⟨hInv.ct0Ack.1, hInv.ct0Ack.2.1, ?_, hInv.ct0Ack.2.2.2⟩
+    intro hack _
+    by_cases hrecv : ack.ctRec = true
+    · exact hAck hrecv htA.symm
+    · have hfalse : stB'.ack.ctRec = false := by
+        simp [stB', recvBAckStep, hrecv, stB0, base, recvBNextBase]
+      change stB'.ack.ctRec = true at hack
+      simp only [hfalse, Bool.false_eq_true] at hack
 
 /-- With a correct public-key erasure code and positive chunk count, B's receive preserves
 `reachableInv`. -/
@@ -587,6 +612,7 @@ lemma oracleRecvB_preserves_reachableInv
           beq_eq_decide, htsnd, hknown] using
           reachableInv_after_recvB_current kem onoff ecEk hcorrect hEkPos
             ecCt0 ecCt1 s T hInv ch? ack b? (by simpa [htsnd] using hhon)
+            (hInv.ct0Ack.2.1 n (ch?, ack, s.stB.t, b?) tsnd hentry)
       · have htNext : t = s.stB.t + 1 := by
           have := hInv.epochs.2
           omega
@@ -613,6 +639,7 @@ lemma oracleRecvB_preserves_reachableInv
           beq_eq_decide, htsnd, htNext, hknown'] using
           reachableInv_after_recvB_next kem onoff ecEk hcorrect hEkPos
             ecCt0 ecCt1 s T hInv ch? ack t b? htNext htA (by simpa [htsnd] using hhon)
+            (hInv.ct0Ack.2.1 n (ch?, ack, t, b?) tsnd hentry)
 
 end RecvB
 
