@@ -37,48 +37,10 @@ CKA from LWE.
 :::
 
 ::::definition "cka_from_lwe_spec" (parent := "cka_cka_from_lwe") (lean := "lweCKA.scheme") (tags := "gh-12") (uses := "cka")
-The LWE construction instantiates continuous key agreement using the two-round mechanism of
-{Informal.citet ACD19}[], §4.1.2 (pp. 23–24) and Appendix C.2 (p. 55). Its extraction, hint, and
-recovery functions follow the original Frodo key-exchange paper, {Informal.citet BCDMNNRS16}[],
-§3.2 (pp. 8–9 of the
-[full version dated February 23, 2017](https://www.douglas.stebila.ca/files/research/papers/CCS-BCDMNNRS16-full.pdf)).
-The later FrodoKEM mechanism described in {Informal.citet FrodoKEM}[] and
-{Informal.citet LBES26}[] is formalized separately in `ToVCVio.LatticeCrypto.FrodoKEM`.
-
-The supported parameters satisfy $`q = 2^D`, positive dimensions $`n` and $`\bar n`, a positive
-number $`B` of key bits, and $`B + 1 < D`. A supplied scalar computation $`\chi` represents the
-paper's noise distribution. Nested independent sampling draws every matrix entry afresh; setup
-samples the uniform base first, and then the initial secret and error.
-
-| Lean shape | Dimensions | Role |
-|---|---:|---|
-| `Base` | $`n \times n` | public base matrix |
-| `Right` | $`n \times \bar n` | right-oriented secret, error, or public matrix |
-| `Left` | $`\bar n \times n` | left-oriented secret, error, or public matrix |
-| `Shared` | $`\bar n \times \bar n` | noisy shared matrix |
-
-Names inside `lweCKA` follow the repository interface: A sends first. We swap the paper's
-party labels throughout (our A is its B, and our B is its A). The Lean name `base` is the paper's matrix
-$`A`, while $`P_0` is its matrix $`B`. Setup gives B the state $`(\mathsf{base}, S_0)` and
-A the state $`(\mathsf{base}, P_0)`, where $`P_0 = \mathsf{base} S_0 + E_0`.
-
-In the A-to-B round, A samples fresh $`S_1`, $`E_1`, and $`\widetilde E_1`, computes
-$`P_1 = S_1\mathsf{base} + E_1` and $`V_1 = S_1P_0 + \widetilde E_1`, outputs
-$`\operatorname{Extract}(V_1)`, sends $`P_1` with the entrywise hint for $`V_1`, and retains
-$`S_1`. B recovers from $`P_1S_0` and retains $`P_1`. In the B-to-A round, B samples fresh $`S_2`,
-$`E_2`, and $`\widetilde E_2`, computes
-$`P_2 = \mathsf{base}S_2 + E_2` and $`V_2 = P_1S_2 + \widetilde E_2`, and sends $`P_2` with its
-hint after outputting $`\operatorname{Extract}(V_2)` and retaining $`S_2`. A recovers from
-$`S_1P_2` and retains $`P_2` for its next sending phase. State replacement records retained values
-and phase; it does not establish physical memory erasure.
-
-For a canonical residue $`v`, extraction computes
-$`\lfloor (v + 2^{D-B-1}) / 2^{D-B} \rfloor \bmod 2^B`, so midpoint ties round upward. The hint
-is $`\lfloor v / 2^{D-B-1} \rfloor \bmod 2`. Recovery enumerates the residues with the received
-hint and minimizes circular distance modulo $`q`; equal distances use the smaller canonical
-representative as this specification's deterministic convention.
-
-The `scheme` definition uses the same A-first party labels as the underlying transitions.
+For well-formed parameters and a noise distribution, `lweCKA.scheme` defines the CKA construction
+of {Informal.citet ACD19}[], §4.1.2, using reconciliation from the original Frodo key-exchange
+paper {Informal.citet BCDMNNRS16}[], §3.2. Party labels are swapped relative to
+{Informal.citet ACD19}[] so that A sends first, following the repository convention.
 
 ```anchor scheme (project := ".") (module := SecureMessaging.CKA.FromLWE.Construction)
 def scheme (p : Params) (_h : p.WellFormed) (χ : ProbComp (Scalar p)) :
