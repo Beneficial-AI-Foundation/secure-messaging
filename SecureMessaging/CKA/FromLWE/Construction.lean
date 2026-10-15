@@ -11,8 +11,10 @@ import SecureMessaging.CKA.FromLWE.Sampling
 /-!
 # Continuous Key Agreement from Learning With Errors (LWE)
 
-This file defines the direct LWE-based CKA construction from Section 4.1.2 of Alwen, Coretti, and
-Dodis, *The Double Ratchet: Security Notions, Proofs, and Modularization for the Signal Protocol*.
+This file defines the LWE-based CKA construction from [ACD19, Section 4.1.2]. Its reconciliation
+operations use the original Frodo key-exchange mechanism [BCDMNNRS16, Section 3.2].
+The separate `ToVCVio.LatticeCrypto.FrodoKEM` modules formalize the later FrodoKEM mechanism;
+the reconciliation definitions used here come from the 2016 key-exchange paper.
 The names of the two parties follow the repository interface: A sends first which is the inverse
 convention on the roles of A,B in the paper where B sends first.
 
@@ -55,6 +57,16 @@ State: (base, P₂), ready to send               State: (base, S₂), ready to r
 
 State replacement records the information retained by the abstract transition. It does not prove
 physical memory erasure.
+
+## References
+
+* [ACD19], Alwen, Coretti and Dodis, *The Double Ratchet: Security Notions, Proofs, and
+  Modularization for the Signal Protocol*, EUROCRYPT 2019,
+  <https://eprint.iacr.org/2018/1037>.
+* [BCDMNNRS16], Bos, Costello, Ducas, Mironov, Naehrig, Nikolaenko, Raghunathan and Stebila,
+  *Frodo: Take off the ring! Practical, Quantum-Secure Key Exchange from LWE*, CCS 2016,
+  <https://eprint.iacr.org/2016/659>. Section and page references use the full version dated
+  February 23, 2017: <https://www.douglas.stebila.ca/files/research/papers/CCS-BCDMNNRS16-full.pdf>.
 -/
 
 namespace lweCKA
@@ -113,7 +125,7 @@ def eraseCoins {p : Params}
     Option (Key p × Message p × State p) :=
   out.map fun (key, msg, next, _) => (key, msg, next)
 
-/-- The direct LWE construction with A acting as the first sender throughout. -/
+/-- The LWE construction with A acting as the first sender throughout. -/
 -- ANCHOR: scheme
 def scheme (p : Params) (_h : p.WellFormed) (χ : ProbComp (Scalar p)) :
     CKAScheme ProbComp (InitKey p) (State p) (Key p) (Message p) (Rand p) where

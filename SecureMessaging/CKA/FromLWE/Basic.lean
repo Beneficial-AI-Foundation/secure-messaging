@@ -10,9 +10,9 @@ import Mathlib.Data.ZMod.Basic
 /-!
 # Basic types for continuous key agreement from LWE
 
-The four matrix shapes follow the LWE construction in Alwen, Coretti, and Dodis,
-*The Double Ratchet: Security Notions, Proofs, and Modularization for the Signal Protocol*,
-Section 4.1.2. Party names follow the repository interface: A sends first
+The four matrix shapes follow the LWE construction in [ACD19, Section 4.1.2].
+References are listed in `Construction.lean`.
+Party names follow the repository interface: A sends first
 (the party labels are swapped relative to the paper).
 -/
 
@@ -26,7 +26,7 @@ structure Params where
   nbar : ℕ
   /-- The exponent `D` in the modulus `q = 2 ^ D`. -/
   logQ : ℕ
-  /-- The number `B` of extracted key bits per shared-matrix entry. -/
+  /-- Number of shared-key bits extracted per shared-matrix entry (the paper's `B`). -/
   keyBits : ℕ
 
 /-- Parameter constraints for the LWE construction. -/
@@ -97,7 +97,7 @@ structure InitKey (p : Params) where
 
 /-- Fresh matrices sampled for a single send by party A. -/
 structure SendACoins (p : Params) where
-  /-- Fresh left-oriented secret matrix. -/
+  /-- Fresh `nbar × n` secret matrix. -/
   secret : Left p
   /-- Fresh error for the public matrix. -/
   error : Left p
@@ -106,7 +106,7 @@ structure SendACoins (p : Params) where
 
 /-- Fresh matrices sampled for a single send by party B. -/
 structure SendBCoins (p : Params) where
-  /-- Fresh right-oriented secret matrix. -/
+  /-- Fresh `n × nbar` secret matrix. -/
   secret : Right p
   /-- Fresh error for the public matrix. -/
   error : Right p
@@ -134,7 +134,8 @@ inductive Message (p : Params) where
   | fromA : Left p → Hint p → Message p
   | fromB : Right p → Hint p → Message p
 
-/-- A power of two is nonzero, so every construction modulus is a valid `ZMod` modulus. -/
+/-- The modulus `q = 2 ^ logQ` is nonzero for every parameter choice.
+Register this fact for automatic use by operations requiring a nonzero modulus. -/
 instance instNeZeroModulus (p : Params) : NeZero p.q :=
   ⟨by simp [Params.q]⟩
 

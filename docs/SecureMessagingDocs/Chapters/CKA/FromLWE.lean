@@ -27,6 +27,7 @@ set_option pp.rawOnError true
 *References:*
 
 - {Informal.citet ACD19}[]
+- {Informal.citet BCDMNNRS16}[]
 
 :::group "cka_cka_from_lwe"
 CKA from LWE.
@@ -36,11 +37,13 @@ CKA from LWE.
 :::
 
 ::::definition "cka_from_lwe_spec" (parent := "cka_cka_from_lwe") (lean := "lweCKA.scheme") (tags := "gh-12") (uses := "cka")
-The direct LWE construction instantiates continuous key agreement using the two-round mechanism of
-Alwen, Coretti, and Dodis, *The Double Ratchet: Security Notions, Proofs, and Modularization for the
-Signal Protocol*, §4.1.2 (pp. 23–24) and Appendix C.2 (p. 55). Its extraction, hint, and recovery
-functions follow Bos et al., *Frodo: Take off the ring!*, §3.2 (pp. 8–9),
-[ePrint 2016/659](https://eprint.iacr.org/2016/659.pdf).
+The LWE construction instantiates continuous key agreement using the two-round mechanism of
+{Informal.citet ACD19}[], §4.1.2 (pp. 23–24) and Appendix C.2 (p. 55). Its extraction, hint, and
+recovery functions follow the original Frodo key-exchange paper, {Informal.citet BCDMNNRS16}[],
+§3.2 (pp. 8–9 of the
+[full version dated February 23, 2017](https://www.douglas.stebila.ca/files/research/papers/CCS-BCDMNNRS16-full.pdf)).
+The later FrodoKEM mechanism described in {Informal.citet FrodoKEM}[] and
+{Informal.citet LBES26}[] is formalized separately in `ToVCVio.LatticeCrypto.FrodoKEM`.
 
 The supported parameters satisfy $`q = 2^D`, positive dimensions $`n` and $`\bar n`, a positive
 number $`B` of key bits, and $`B + 1 < D`. A supplied scalar computation $`\chi` represents the
