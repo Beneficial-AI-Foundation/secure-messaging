@@ -103,13 +103,19 @@ private theorem gcmInstImpl_flag_mono (L : ℕ)
   · -- OEncrypt: one-shot; the flag is written back unchanged in both branches.
     obtain ⟨h, mask, ks⟩ := a
     cases ch <;>
-      simp [gcmInstImpl, wcInstImpl, StateT.run_bind, StateT.run_get, StateT.run_set,
-        StateT.run_pure, StateT.run_map] at hz <;>
-      simp [hz]
+      simp only [add_apply_inl, add_apply_inr, gcmInstImpl, wcInstImpl, id_eq, bind_pure_comp,
+        Prod.mk.eta, beq_iff_eq, decide_eq_true_eq, QueryImpl.add_apply_inl,
+        QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get, pure_bind, StateT.run_pure,
+        StateT.run_map, StateT.run_set, map_pure, support_pure, Set.mem_singleton_iff] at hz <;>
+      simp only [add_apply_inl, add_apply_inr, hz]
   · -- ODecrypt: guard split, then `ok` split; `true || ok = true` in every branch.
     obtain ⟨h, mask, ks⟩ := a
-    simp [gcmInstImpl, wcInstImpl, StateT.run_bind, StateT.run_get] at hz
-    split_ifs at hz <;> simp_all
+    simp only [add_apply_inr, gcmInstImpl, wcInstImpl, id_eq, bind_pure_comp, Prod.mk.eta,
+      beq_iff_eq, decide_eq_true_eq, QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get,
+      pure_bind, Bool.true_or] at hz
+    split_ifs at hz <;>
+      simp_all only [Bool.not_eq_true, bind_pure_comp, StateT.run_pure, StateT.run_map,
+        StateT.run_set, map_pure, support_pure, Set.mem_singleton_iff, add_apply_inr]
 
 /-- The identical-until-bad conditions for a fixed `a = (H, mask, ks)`: the always-reject and
 live handlers give every oracle call from an unset flag to an unset flag the same probability,
@@ -145,13 +151,19 @@ theorem gcmInstImpl_identicalUntilBad (L : ℕ)
     -- probability `0` on each side (this is the transition the two handlers differ on).
     obtain ⟨h, mask, ks⟩ := a
     by_cases hguard : s = some (ad, e)
-    · simp [gcmInstImpl, wcInstImpl, StateT.run_bind, StateT.run_get,
-        StateT.run_pure, beq_iff_eq, hguard]
+    · simp only [add_apply_inr, gcmInstImpl, wcInstImpl, id_eq, bind_pure_comp, Prod.mk.eta,
+        beq_iff_eq, decide_eq_true_eq, Bool.false_eq_true, ↓reduceIte, ite_self,
+        QueryImpl.add_apply_inr, hguard, StateT.run_bind, StateT.run_get, pure_bind,
+        StateT.run_pure]
     · -- `probOutput_pure_eq_indicator` rather than `probOutput_pure`: the latter needs
       -- `DecidableEq` on the enlarged output type, which instance search does not find here.
       by_cases hok : (e.2 = ghash h (gcmEncode ad e.1) ^^^ mask) <;>
-        simp [gcmInstImpl, wcInstImpl, StateT.run_bind, StateT.run_get, StateT.run_set,
-          beq_iff_eq, hguard, hok, probOutput_pure_eq_indicator]
+        simp only [add_apply_inr, gcmInstImpl, wcInstImpl, id_eq, bind_pure_comp, Prod.mk.eta,
+          beq_iff_eq, decide_eq_true_eq, Bool.false_eq_true, ↓reduceIte, ite_self,
+          QueryImpl.add_apply_inr, hok, decide_true, decide_false, Bool.or_true, Bool.or_false,
+          StateT.run_bind, StateT.run_get, pure_bind, hguard, StateT.run_map, StateT.run_set,
+          map_pure, probOutput_pure_eq_indicator, Function.const_one, Set.mem_singleton_iff,
+          Prod.mk.injEq, and_false, not_false_eq_true, Set.indicator_of_notMem]
 
 /-- For a fixed tuple `a`, the outputs of `adv` against the always-reject and the live oracles
 have total-variation distance at most the probability that the always-reject run raises the
