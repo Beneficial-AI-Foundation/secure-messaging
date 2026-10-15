@@ -13,7 +13,9 @@ import VCVio.EvalDist.Prod
 `uniformSample_prod_eq_bind` unfolds upstream's `SampleableType (α × β)` instance
 into two independent component samples, and `evalDist_eq_uniformSample_of_uniform`
 shows that a computation with full support and pointwise-constant output
-probability is the uniform sample.
+probability is the uniform sample. `probOutput_true_bitGuess_eq_half` says that guessing a
+uniform bit succeeds with probability exactly `1 / 2` when the bit does not affect the
+distribution of the guesser's input.
 -/
 
 namespace ToVCVio
@@ -50,5 +52,25 @@ theorem evalDist_eq_uniformSample_of_uniform {β : Type} [SampleableType β]
   have h1 : Pr[= x | oa] = (Fintype.card β : ℝ≥0∞)⁻¹ :=
     probOutput_uniformSample (hα := h) β x
   exact h1.trans h2.symm
+
+/-- Guessing a uniform bit `b` from a sample of `dist par b` succeeds with probability exactly
+`1 / 2` when `dist par true` and `dist par false` have the same distribution for every `par`.
+This is the shape of an indistinguishability experiment with a setup phase (sampling `par`)
+whose real and ideal distributions coincide, so its guessing advantage is `0`. -/
+lemma probOutput_true_bitGuess_eq_half {Par X : Type} (setup : ProbComp Par)
+    (dist : Par → Bool → ProbComp X) (adversary : Par → X → ProbComp Bool)
+    (h : ∀ par, 𝒟[dist par true] = 𝒟[dist par false]) :
+    Pr[= true | do
+      let b ← $ᵗ Bool
+      let par ← setup
+      let x ← dist par b
+      let b' ← adversary par x
+      return b == b'] = 1 / 2 := by
+  have hf : 𝒟[do let par ← setup; let x ← dist par true; adversary par x] =
+      𝒟[do let par ← setup; let x ← dist par false; adversary par x] := by
+    simp only [evalDist_bind, h]
+  have := probOutput_decide_eq_uniformBool_half
+    (fun b => do let par ← setup; let x ← dist par b; adversary par x) hf
+  simpa [bind_assoc, Bool.beq_eq_decide_eq] using this
 
 end ToVCVio

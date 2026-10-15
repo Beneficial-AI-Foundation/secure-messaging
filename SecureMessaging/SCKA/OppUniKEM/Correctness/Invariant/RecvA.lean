@@ -355,7 +355,7 @@ lemma oracleRecvA_preserves_reachableInv
           (max_le hInv.tcurA le_rfl)
         cases ch? with
         | none =>
-            have hrecv : recvA kem onoff hDet ecCt0 ecCt1 s.stA (none, ack, s.stA.t, b?) =
+            have hrecv : recvA kem onoff hDet.decapsDet ecCt0 ecCt1 s.stA (none, ack, s.stA.t, b?) =
                 some (none, s.stA.t - 1, recvAAckStep kem onoff s.stA ack s.stA.t) := by
               simp [recvA, recvAAckStep]
             rw [SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hentry hrecv,
@@ -368,7 +368,7 @@ lemma oracleRecvA_preserves_reachableInv
         | some ch =>
           cases b? with
           | none =>
-              have hrecv : recvA kem onoff hDet ecCt0 ecCt1 s.stA
+              have hrecv : recvA kem onoff hDet.decapsDet ecCt0 ecCt1 s.stA
                     (some ch, ack, s.stA.t, none) =
                   some (none, s.stA.t - 1, recvAAckStep kem onoff s.stA ack s.stA.t) := by
                 simp [recvA, recvAAckStep]
@@ -383,7 +383,7 @@ lemma oracleRecvA_preserves_reachableInv
             fin_cases b
             · cases hct0 : s.stA.ct0 with
               | some ct0 =>
-                  have hrecv : recvA kem onoff hDet ecCt0 ecCt1 s.stA
+                  have hrecv : recvA kem onoff hDet.decapsDet ecCt0 ecCt1 s.stA
                         (some ch, ack, s.stA.t, some 0) =
                       some (none, s.stA.t - 1, recvAAckStep kem onoff s.stA ack s.stA.t) := by
                     simp [recvA, recvAAckStep, hct0]
@@ -408,7 +408,7 @@ lemma oracleRecvA_preserves_reachableInv
                   · let stA0 : StA onoff Sym :=
                         { s.stA with ct0 := none, lch := insert ch s.stA.lch }
                     let stA' := recvAAckStep kem onoff stA0 ack s.stA.t
-                    have hrecv : recvA kem onoff hDet ecCt0 ecCt1 s.stA
+                    have hrecv : recvA kem onoff hDet.decapsDet ecCt0 ecCt1 s.stA
                           (some ch, ack, s.stA.t, some 0) =
                         some (none, s.stA.t - 1, stA') := by
                       simp [recvA, recvAAckStep, hct0, hch, hlch, hdec, stA0, stA']
@@ -441,7 +441,7 @@ lemma oracleRecvA_preserves_reachableInv
                           lch := ∅
                           ack := { s.stA.ack with ctRec := true } }
                     let stA' := recvAAckStep kem onoff stA0 ack s.stA.t
-                    have hrecv : recvA kem onoff hDet ecCt0 ecCt1 s.stA
+                    have hrecv : recvA kem onoff hDet.decapsDet ecCt0 ecCt1 s.stA
                           (some ch, ack, s.stA.t, some 0) =
                         some (none, s.stA.t - 1, stA') := by
                       simp [recvA, recvAAckStep, hct0, hch, hlch, hdec, stA0, stA']
@@ -479,7 +479,7 @@ lemma oracleRecvA_preserves_reachableInv
                           simp [payloadChunks, ErasureCode.encodeChunks]
             · cases hdk : s.stA.dkA with
               | none =>
-                  have hrecv : recvA kem onoff hDet ecCt0 ecCt1 s.stA
+                  have hrecv : recvA kem onoff hDet.decapsDet ecCt0 ecCt1 s.stA
                         (some ch, ack, s.stA.t, some 1) =
                       some (none, s.stA.t - 1, recvAAckStep kem onoff s.stA ack s.stA.t) := by
                     simp [recvA, recvAAckStep, hdk]
@@ -493,7 +493,7 @@ lemma oracleRecvA_preserves_reachableInv
               | some dk =>
                 cases hct0 : s.stA.ct0 with
                 | none =>
-                    have hrecv : recvA kem onoff hDet ecCt0 ecCt1 s.stA
+                    have hrecv : recvA kem onoff hDet.decapsDet ecCt0 ecCt1 s.stA
                           (some ch, ack, s.stA.t, some 1) =
                         some (none, s.stA.t - 1, recvAAckStep kem onoff s.stA ack s.stA.t) := by
                       simp [recvA, recvAAckStep, hdk, hct0]
@@ -520,7 +520,7 @@ lemma oracleRecvA_preserves_reachableInv
                   · let stA0 : StA onoff Sym :=
                         { s.stA with lch := insert ch s.stA.lch }
                     let stA' := recvAAckStep kem onoff stA0 ack s.stA.t
-                    have hrecv : recvA kem onoff hDet ecCt0 ecCt1 s.stA
+                    have hrecv : recvA kem onoff hDet.decapsDet ecCt0 ecCt1 s.stA
                           (some ch, ack, s.stA.t, some 1) =
                         some (none, s.stA.t - 1, stA') := by
                       simp [recvA, recvAAckStep, hdk, hct0, hch, hlch, hdec, stA0, stA']
@@ -562,7 +562,7 @@ lemma oracleRecvA_preserves_reachableInv
                     have hdecaps := hCurrent dk ct0 ct1 key hdk hct0 hct1B hkeyB
                     have hkey : (T s.stA.t).key = some key := by
                       simp [EpochTranscript.key, hon]
-                    have hrecv : recvA kem onoff hDet ecCt0 ecCt1 s.stA
+                    have hrecv : recvA kem onoff hDet.decapsDet ecCt0 ecCt1 s.stA
                           (some ch, ack, s.stA.t, some 1) =
                         some (some (s.stA.t, key), s.stA.t - 1,
                           { s.stA with
@@ -586,7 +586,7 @@ lemma oracleRecvA_preserves_reachableInv
         have hknown := hInv.knownPrefixA
           (tcur := max s.tcurA (t - 1))
           (max_le hInv.tcurA (by omega))
-        have hrecv : recvA kem onoff hDet ecCt0 ecCt1 s.stA (ch?, ack, t, b?) =
+        have hrecv : recvA kem onoff hDet.decapsDet ecCt0 ecCt1 s.stA (ch?, ack, t, b?) =
             some (none, t - 1, s.stA) := by
           simp [recvA, hne]
         rw [SCKAScheme.oracleRecvA_run_eq_of_accept _ _ hentry hrecv,

@@ -11,9 +11,19 @@ open Lean
 
 /-- An example adversarial schedule, with per-sender message indices. The SVG
 keeps send and receive events separate so delayed and omitted deliveries are
-visible. State disclosures and key challenges extend the same trace. -/
+visible. The corruption and leaking-send queries add their vulnerable epochs to
+`Exposed`, and the final challenge requires `t ∉ Exposed ∪ Challenged`. -/
 private def sckaAdversarySvg : String := r##"
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-65 0 1030 1035" width="1030" height="1035" style="display:block;width:100%;height:auto" role="img" aria-label="SCKA oracle illustration: the adversary delays A's first message and delivers A's second message first, then corrupts A. A sends a fresh third message. The adversary drops B's first message while retaining its leaked randomness. B's second send derives key I for epoch t; A derives the same key when receiving B's third message. After both outputs, O-Chall(t) returns K, either I or a random key I′, to the adversary in the middle.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-65 0 1030 1035" width="1030" height="1035" style="display:block;width:100%;height:auto" role="img" aria-label="SCKA oracle illustration: the adversary delays A's first message and delivers A's second message first, then corrupts A. A sends a fresh third message. The adversary drops B's first message while retaining its leaked randomness. B's second send derives key I for epoch t; A derives the same key when receiving B's third message. Corrupting A adds A's vulnerable epochs to Exposed, and the leaking send adds the epochs exposed by B's randomness. After both outputs, O-Chall(t), which requires t outside Exposed and Challenged, returns K, either I or a random key I′, to the adversary in the middle.">
+  <!--
+    Adversarial scheduling and vulnerable epochs.
+    Units are viewBox pixels; the viewBox starts at x = -65 to leave room for A's key output.
+    Party A's oracle calls form the left column (x = 30 to 260), party B's the right column
+    (x = 640 to 870), and the red box in the middle (x = 285 to 615) is the adversarial network.
+    Each call is a red oracle box (sa-oracle) around a black algorithm box (sa-algorithm).
+    Classes: sa-flow messages and local state (black arrows); sa-control adversarial actions
+    (red arrows); sa-math italic math; sa-small annotations; sa-red oracle text.
+  -->
   <defs>
     <marker id="scka-adv-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#252525" stroke-width="1.2"/></marker>
     <marker id="scka-adv-red-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#b42318" stroke-width="1.2"/></marker>
@@ -57,7 +67,7 @@ private def sckaAdversarySvg : String := r##"
     <rect class="sa-algorithm" x="112" y="447" width="66" height="26"/>
     <text x="145" y="466">st<tspan baseline-shift="sub" font-size="13">A</tspan></text>
     <text class="sa-red" x="335" y="448">st<tspan baseline-shift="sub" font-size="13">A</tspan></text>
-    <text class="sa-red sa-small" x="450" y="486">A's vulnerable epochs become exposed.</text>
+    <text class="sa-red sa-small" x="450" y="486">Exposed ← Exposed ∪ vuln<tspan dy="4" font-size="11">A</tspan><tspan dx="-7" dy="-10" font-size="10">corr</tspan><tspan dy="6">(st</tspan><tspan dy="4" font-size="11">A</tspan><tspan dy="-4">)</tspan></text>
   </g>
 
   <!-- Local state flows between oracle calls, independently at each party. -->
@@ -105,6 +115,7 @@ private def sckaAdversarySvg : String := r##"
   <g class="sa-text" text-anchor="middle">
     <text class="sa-math" x="515" y="627">ρ<tspan baseline-shift="sub" font-size="14">B,1</tspan><tspan class="sa-red">, r</tspan></text>
     <text class="sa-red sa-small" x="450" y="664">drop message; retain randomness</text>
+    <text class="sa-red sa-small" x="450" y="686">Exposed ← Exposed ∪ vuln<tspan dy="4" font-size="11">B</tspan><tspan dx="-7" dy="-10" font-size="10">rleak</tspan><tspan dy="6">(st</tspan><tspan dy="4" font-size="11">B</tspan><tspan dy="-4">,</tspan><tspan class="sa-math" dx="4" style="font-size:17px">r</tspan>)</text>
   </g>
 
   <!-- B's next two messages are delivered; receive indices are per sender. -->
@@ -189,6 +200,7 @@ private def sckaAdversarySvg : String := r##"
     <rect class="sa-oracle" x="335" y="950" width="230" height="66"/>
     <text class="sa-red" x="450" y="976">O-Chall(t)</text>
     <text class="sa-red" x="450" y="1002"><tspan class="sa-math">K = I</tspan> or random <tspan class="sa-math">I′</tspan></text>
+    <text class="sa-red sa-small" x="580" y="989" text-anchor="start">requires <tspan class="sa-math" style="font-size:18px">t</tspan> ∉ Exposed ∪ Challenged</text>
   </g>
 </svg>
 "##
