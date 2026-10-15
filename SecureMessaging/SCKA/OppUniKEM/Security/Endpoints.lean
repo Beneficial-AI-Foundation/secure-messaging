@@ -660,7 +660,8 @@ theorem securityExpFixedBit_eq_run'
     initialGame, initialA, initialB, StateT.run'_eq, map_eq_bind_pure_comp]
 
 /-- Under the module's assumptions, for every bit `b` and SCKA adversary `adv` satisfying
-`SecuritySendQueryBound adv q`, the original game `G_b` and ideal game `I_b` satisfy
+`SecuritySendQueryBound adv q`, that is, making at most `q` ordinary and leaking send queries,
+the original game `G_b` and ideal game `I_b` satisfy
 `|Pr[G_b = true] - Pr[I_b = true]| ≤ q · ε`. -/
 theorem security_correctness_endpoint_le
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
