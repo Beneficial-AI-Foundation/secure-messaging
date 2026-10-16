@@ -39,6 +39,9 @@ Send-B advertises `reqEpoch + 1` (line 21 in each figure).
 Rec-A records the bit at the sender's `reqEpoch + 1`, and Rec-B at the sender's
 `reqEpoch - 1` (line 8 in each figure). These are the entries set by peer-key
 decoding; the printed indices prevent acknowledgement of the first public keys.
+4. Send-P reaches `Encode(ct, i_ch)` (line 19 in each figure) with `ct = ⊥` while the
+peer's public key is not yet decoded. Instead of failing (the paper's convention),
+we send no chunk (`ch = none`) with bit `1`, still incrementing `ich`.
 -/
 
 open KEMScheme
