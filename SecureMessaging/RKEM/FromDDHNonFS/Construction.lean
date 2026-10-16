@@ -23,8 +23,9 @@ generator `gen : G`. The paper's `g^x` is `x • gen` and `Y^x` is `x • Y`.
 
 Public parameters are vacuous: the generator `gen` is a parameter of the construction, as for
 `DDH.ddhCKA`. Encapsulation keys are group elements, decapsulation keys are scalars, ciphertexts
-are empty (the peer already knows the sender's public value `g^x`, which is its encapsulation
-key), and shared keys are group elements.
+are empty, and shared keys are group elements. Ciphertexts are empty because the sender's public
+value `g^x` doubles as the KEM ciphertext and as its encapsulation key: the generic CKA transmits
+that key alongside the ciphertext ([TripleRatchet, Fig. 14]), and `RDec-P` receives it as `ekP̄`.
 
 ```
 RKeyGen-P(par, mode):
