@@ -369,7 +369,7 @@ I_{\B}\gets\bot, t_{I_{\B}}\gets\bot \\
 \qquad \mathsf{if}\;\ctone=\bot\;\mathsf{then}\;\Lch\gets\Lch\cup\{\chunk\} \\
 \qquad \mathsf{else}
   \pcomment{\ctone\ \text{recovered from chunk}} \\
-\qquad\quad I_{\B}\gets\mathsf{Dec}(\dkA,(\ctzero,\ctone)) \\
+\qquad\quad I_{\B}\gets\Decaps(\dkA,(\ctzero,\ctone)) \\
 \qquad\quad \boxed{\mathsf{if}\;I_{\B}=\bot\;\mathsf{then}\;\mathsf{return}\;\bot} \\
 \qquad\quad t_{I_{\B}}\gets t, t\gets t+1, \Lch\gets\emptyset \\
 \qquad\quad (\dkA,\ekA,\ctzero)\gets(\bot,\bot,\bot) \\

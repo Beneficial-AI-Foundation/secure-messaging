@@ -39,7 +39,7 @@ The key exchange of epoch `t` consists of the following phases:
 3. Once B has decoded `ek_A` and A has acknowledged `ct_0`, B runs
    `(ct_1, I_B) ← Enc.On(st_ct, ek_A)`, obtaining the epoch key `I_B = I_t`,
    and transmits chunks of `ct_1`.
-4. Once A has decoded `ct_1`, it computes `I_A ← Dec(dk_A, (ct_0, ct_1))`.
+4. Once A has decoded `ct_1`, it computes `I_A ← Decaps(dk_A, (ct_0, ct_1))`.
    If decapsulation succeeds, A erases the epoch's secrets and advances to
    epoch `t + 1`. Otherwise, it refuses the receive.
 
@@ -288,7 +288,7 @@ def sendArleak (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     pure (some (none, msg, stA.t - 1, stA', rand))
 -- ANCHOR_END: sendArleak
 
-/-- `CKA-Rec-A`; `Dec` is the parameter `decapsDet`.
+/-- `CKA-Rec-A`; `Decaps` is the parameter `decapsDet`.
 
 ```text
 parse (dk_A, ek_A, ct_0, t, i_ch, L_ch, ack) <- st_A
@@ -307,7 +307,7 @@ if t = t' then
     if ct_1 = ⊥ then
       L_ch <- L_ch ∪ {ch}
     else
-      I_B <- Dec(dk_A, (ct_0, ct_1))
+      I_B <- Decaps(dk_A, (ct_0, ct_1))
       if I_B = ⊥ then return ⊥
       t_IB <- t
       t <- t + 1
