@@ -4,7 +4,6 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 import SecureMessaging.RKEM.FromDDHNonFS.Construction
-import ToVCVio.EvalDist.Monad.Basic
 import ToVCVio.OracleComp.Constructions.SampleableType
 
 /-!

@@ -43,7 +43,7 @@ The scheme is the non-forward-secure special case of an RKEM: $`\REnc\text{-}\ma
 The algorithms are the same for both parties $`\mathsf{P}\in\{\A,\B\}`, with peer $`\mathsf{\bar P}`. In Lean, the group is modelled additively as a module over the scalar field $`F` (playing $`\mathbb{Z}_q`) with a fixed generator $`\mathsf{gen}`, given as a parameter of the construction: $`g^x` is `x • gen` and $`Y^x` is `x • Y`.
 
 ::::::gameGrid
-:::::gameCell "\\mathsf{RKeyGen}\\text{-}\\mathsf{P}(\\mathsf{par},\\mathsf{mode})" (kind := "compact")
+:::::gameCell "\\mathsf{RKeyGen}\\text{-}\\mathsf{P}(\\mathsf{par},\\mathsf{mode})" (kind := "scheme")
 $`\begin{array}{l}
 x\sample\mathbb{Z}_q \\
 (\ek_\mathsf{P},\dk_\mathsf{P})\gets(g^x,x) \\

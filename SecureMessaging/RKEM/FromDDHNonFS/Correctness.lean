@@ -4,8 +4,6 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 import SecureMessaging.RKEM.FromDDHNonFS.Construction
-import ToVCVio.EvalDist.Monad.Basic
-import ToVCVio.EvalDist.TVDist
 
 /-!
 # RKEM from DDH (non-forward-secure) — Correctness
@@ -33,7 +31,7 @@ The algorithms are the same for `A` and `B`, so the `B`-side experiments are def
   EUROCRYPT 2025, https://eprint.iacr.org/2025/078.pdf
 -/
 
-open ToVCVio OracleSpec OracleComp ENNReal RKEMScheme
+open OracleSpec OracleComp ENNReal RKEMScheme
 
 namespace ddhRKEM
 
@@ -58,7 +56,7 @@ theorem evalDist_ratchetRoundOutputA_eq_evalDist_rkeygen (gen : G) :
   simp only [scheme, renc, rdec, pure_bind]
   refine evalDist_ext fun y => ?_
   rw [probOutput_bind_bind_swap]
-  exact probOutput_bind_of_const' _ fun _ _ => by simp
+  simp
 
 /-- **Perfect correctness** (Def. 5.3, [TripleRatchet, Thm. A.3]) of the non-forward-secure DH
 RKEM: both the shared-key error and the update-key-distribution error are exactly zero. -/
