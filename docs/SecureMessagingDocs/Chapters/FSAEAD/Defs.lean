@@ -29,6 +29,9 @@ set_option pp.rawOnError true
 - {Informal.citet ACD19}[] — FS-AEAD syntax (Definition 14), security game (Figure 5)
   and security (Definition 15).
 
+The memory-management functions $`\mathsf{FS\text{-}Stop}` and $`\mathsf{FS\text{-}Max}`
+of ACD19 §4.2.1 are left out, as ACD19 gives them no formal requirement.
+
 :::group "fs_aead"
 Forward-Secure AEAD (FS-AEAD).
 :::
@@ -37,18 +40,23 @@ Forward-Secure AEAD (FS-AEAD).
 :::
 
 ::::definition "fs_aead_scheme" (parent := "fs_aead") (lean := "FSAEADScheme") (tags := "gh-186")
-Adapted from {Informal.citet ACD19}[], Definition 14.
+{Informal.citet ACD19}[], Definition 14. An FS-AEAD scheme is a tuple of algorithms
+$`(\mathsf{FS\text{-}Init\text{-}S}, \mathsf{FS\text{-}Init\text{-}R}, \mathsf{FS\text{-}Send}, \mathsf{FS\text{-}Rcv})`,
+where
 
-An FS-AEAD scheme is a deterministic, stateful channel from a sender A to a receiver B
-that share a key $`k`. $`\mathsf{FS\text{-}Init\text{-}S}(k)` and
-$`\mathsf{FS\text{-}Init\text{-}R}(k)` give the initial states of A and B.
-$`\mathsf{FS\text{-}Send}(v, a, m)` returns a new sender state and a ciphertext $`e`.
-$`\mathsf{FS\text{-}Rcv}(v, a, e)` returns a new receiver state, the index $`i` of the
-message in the sender's sequence, and the message $`m`, or rejects.
+- $`\mathsf{FS\text{-}Init\text{-}S}` (and similarly $`\mathsf{FS\text{-}Init\text{-}R}`)
+  takes a key $`k` and outputs a state $`v_A \gets \mathsf{FS\text{-}Init\text{-}S}(k)`,
+- $`\mathsf{FS\text{-}Send}` takes a state $`v`, associated data $`a` and a message $`m`,
+  and produces a new state and a ciphertext $`(v', e) \gets \mathsf{FS\text{-}Send}(v, a, m)`,
+- $`\mathsf{FS\text{-}Rcv}` takes a state $`v`, associated data $`a` and a ciphertext
+  $`e`, and produces a new state, an index and a message
+  $`(v', i, m) \gets \mathsf{FS\text{-}Rcv}(v, a, e)`.
 
-A rejecting $`\mathsf{FS\text{-}Rcv}` produces no new state, so the receiver keeps its
-old one. The memory-management functions $`\mathsf{FS\text{-}Stop}` and
-$`\mathsf{FS\text{-}Max}` are left out, as ACD19 gives them no formal requirement.
+All algorithms are deterministic.
+
+Deviation (D1): Definition 14 does not say what $`\mathsf{FS\text{-}Rcv}` returns on
+rejection. Here a rejecting $`\mathsf{FS\text{-}Rcv}` returns no state and no index, so
+the receiver keeps its old state.
 
 ```anchor FSAEADScheme (project := ".") (module := SecureMessaging.FSAEAD.Defs)
 structure FSAEADScheme (K SS SR AD M C : Type) where
