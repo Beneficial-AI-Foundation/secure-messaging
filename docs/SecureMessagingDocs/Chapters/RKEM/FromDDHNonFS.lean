@@ -36,7 +36,19 @@ RKEM from DDH (non-FS).
 :::::::definition "rkem_from_ddh_nonfs_spec" (parent := "rkem_rkem_from_ddh_non_fs") (lean := "ddhRKEM.rkeygen, ddhRKEM.renc, ddhRKEM.rdec, ddhRKEM.scheme, ddhRKEM.rkeygenRleak, ddhRKEM.rencRleak, ddhRKEM.randLeak") (tags := "gh-66") (uses := "rkem_scheme")
 Adapted from {Informal.citet TR25}[], Appendix A.3 and Figure 28, without the figure's forward-secure modifications.
 
-Let $`G=\langle g\rangle` be a cyclic group of prime order $`q`. A party's key pair is a scalar $`x\in\mathbb{Z}_q` together with its public value $`g^x`. Public parameters are vacuous, and fresh and updated key generation coincide. Ciphertexts are empty: the sender's public value $`g^x` doubles as the KEM ciphertext and as its encapsulation key, which the generic CKA construction transmits alongside the ciphertext and $`\RDec\text{-}\mathsf{P}` receives as $`\ek_{\mathsf{\bar P}}`. Both parties derive the shared key $`g^{xy}`. Used in the generic CKA construction, this RKEM yields the Double Ratchet CKA of {Informal.citet ACD19}[] (see CKA from DDH).
+::::::gameGrid
+:::::gameCell "\\textsf{Notation and public parameters}" (kind := "scheme")
+$`\begin{array}{ll}
+G=\langle g\rangle & \text{cyclic group of prime order } q \\
+\mathsf{par}=() & \text{vacuous public parameters} \\
+(\ek_\mathsf{P},\dk_\mathsf{P})=(g^x,x)\in G\times\mathbb{Z}_q & \text{key pair; fresh and updated key generation coincide} \\
+\ct=() & \text{empty ciphertext} \\
+K=g^{xy}\in G & \text{shared key, for key pairs }(g^x,x)\text{ and }(g^y,y)
+\end{array}`
+:::::
+::::::
+
+Ciphertexts are empty: the sender's public value $`g^x` doubles as the KEM ciphertext and as its encapsulation key, which the generic CKA construction transmits alongside the ciphertext and $`\RDec\text{-}\mathsf{P}` receives as $`\ek_{\mathsf{\bar P}}`. Used in the generic CKA construction, this RKEM yields the Double Ratchet CKA of {Informal.citet ACD19}[] (see CKA from DDH).
 
 The scheme is the non-forward-secure special case of an RKEM: $`\REnc\text{-}\mathsf{P}` returns its input $`\dk_\mathsf{P}` unchanged as the updated decapsulation key, and $`\RDec\text{-}\mathsf{P}` returns its input $`\ek_{\mathsf{\bar P}}` unchanged as the peer's updated encapsulation key. In particular, it is not FS-IND-CPA secure, since the forward-security game hands the adversary $`\dkh{A}=x` together with $`\ekh{B}=Y`, from which it recomputes $`K=Y^x`; the paper only claims plain IND-CPA security under DDH (Theorem A.4).
 
@@ -156,16 +168,29 @@ def randLeak (gen : G) : (scheme (F := F) gen).RandLeak where
 :::defTitle "rkem_from_ddh_nonfs_correctness" "RKEM from DDH non-FS correctness"
 :::
 
-:::theorem "rkem_from_ddh_nonfs_correctness" (parent := "rkem_rkem_from_ddh_non_fs") (lean := "ddhRKEM.probOutput_correctExpA_eq_one, ddhRKEM.evalDist_ratchetRoundOutputA_eq_evalDist_rkeygen, ddhRKEM.deltaCorrect") (tags := "gh-67") (uses := "rkem_from_ddh_nonfs_spec, rkem_scheme, rkem_correctness")
+::::theorem "rkem_from_ddh_nonfs_correctness" (parent := "rkem_rkem_from_ddh_non_fs") (lean := "ddhRKEM.probOutput_correctExpA_eq_one, ddhRKEM.evalDist_ratchetRoundOutputA_eq_evalDist_rkeygen, ddhRKEM.deltaCorrect") (tags := "gh-67") (uses := "rkem_from_ddh_nonfs_spec, rkem_scheme, rkem_correctness")
 Adapted from {Informal.citet TR25}[], Theorem A.3.
 
-The non-forward-secure RKEM from DDH is perfectly correct: it is $`(0,0)`-correct, unconditionally. With $`(\ekA,\dkA)=(g^x,x)` and $`(\ekh{B},\dkh{B})=(g^y,y)`, $`\REnc\text{-}\A` outputs $`K=(g^y)^x` and $`\RDec\text{-}\B` outputs $`K'=(g^x)^y`, both equal to $`g^{xy}`. Since the scheme leaves the keys unchanged, the updated key pair produced by a round is $`\A`'s fresh key pair itself, and fresh and updated key generation coincide, so the update-key distribution is exact as well. The algorithms are the same for both parties, so the $`\B` side is identical.
+The non-forward-secure RKEM from DDH is perfectly correct, that is, $`(0,0)`-correct in the sense of the RKEM correctness definition. Explicitly, for each party $`\mathsf{P}\in\{\A,\B\}` with peer $`\mathsf{\bar P}`, consider one round of the protocol from $`\mathsf{P}` towards $`\mathsf{\bar P}`:
+
+$$`\begin{array}{l}
+(\ek_\mathsf{P},\dk_\mathsf{P})\sample\DRKG{P},\quad (\ekh{\bar P},\dkh{\bar P})\sample\DRKGup{\bar P}, \\
+(\ct_{\mathsf{\bar P}},K,\dkh{P})\gets\REnc\text{-}\mathsf{P}(\ekh{\bar P},\dk_\mathsf{P}),\quad (K',\ekh{P})\gets\RDec\text{-}\mathsf{\bar P}(\dkh{\bar P},\ct_{\mathsf{\bar P}},\ek_\mathsf{P}).
+\end{array}`
+
+Then:
+
+1. *Correctness with updated keys:* $`\Pr[K=K']=1`.
+2. *Correctness of the update-key distribution:* the pair $`(\ekh{P},\dkh{P})` is distributed exactly as $`\DRKGup{P}`.
+
+:::leanPillCaption "Perfect correctness"
+:::
 
 ```anchor deltaCorrect (project := ".") (module := SecureMessaging.RKEM.FromDDHNonFS.Correctness)
 theorem deltaCorrect [DecidableEq G] (gen : G) :
     RKEMScheme.deltaCorrect (scheme (F := F) gen) ProbCompRuntime.probComp 0 0
 ```
-:::
+::::
 
 :::defTitle "rkem_from_ddh_nonfs_ratchet_sim" "RKEM from DDH non-FS ratchet simulatability"
 :::
@@ -173,7 +198,11 @@ theorem deltaCorrect [DecidableEq G] (gen : G) :
 :::::::theorem "rkem_from_ddh_nonfs_ratchet_sim" (parent := "rkem_rkem_from_ddh_non_fs") (lean := "ddhRKEM.rsimKey1, ddhRKEM.rsimKey2, ddhRKEM.rsimCtxt, ddhRKEM.ratchetSimulator, ddhRKEM.RatchetSimulatable") (tags := "gh-68") (uses := "rkem_from_ddh_nonfs_spec, rkem_scheme, rkem_ratchet_sim")
 Adapted from {Informal.citet TR25}[], Theorem A.5 and Figure 30.
 
-The non-forward-secure RKEM from DDH is perfectly ratchet simulatable: with the simulators below, the real and simulated distributions of base-key, updated-key and ciphertext simulatability coincide, so every distinguisher has advantage $`0`. This holds unconditionally.
+Let $`(\RSimKey\text{-}\mathsf{P}_1,\RSimKey\text{-}\mathsf{P}_2,\RSimCtxt\text{-}\mathsf{P})_{\mathsf{P}\in\{\A,\B\}}` be the simulators of Figure 30, given below. The non-forward-secure RKEM from DDH is perfectly ratchet simulatable with respect to these simulators, that is, $`0`-ratchet simulatable in the sense of the RKEM ratchet simulatability definition. Explicitly, for each property $`\mathsf{X}\in\{\mathsf{KeyBaseSim},\mathsf{KeyUpdSim},\mathsf{CtxtSim}\}` and each party $`\mathsf{P}\in\{\A,\B\}`, the real and simulated distributions are identical,
+
+$$`\mathcal{D}^{\mathsf{X}}_{\mathsf{P},0}=\mathcal{D}^{\mathsf{X}}_{\mathsf{P},1},`
+
+and consequently every distinguisher $`\adv` has advantage $`\mathsf{Adv}^{\mathsf{X}\text{-}\mathsf{P}}(\adv)=0`.
 
 :::leanPillCaption "Perfect ratchet simulatability"
 :::
