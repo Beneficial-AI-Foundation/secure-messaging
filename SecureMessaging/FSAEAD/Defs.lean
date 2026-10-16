@@ -196,8 +196,10 @@ def delete (st : GameState SS SR AD M C) (i : ℕ) : GameState SS SR AD M C :=
 corrupted and it is still in transit, or A is corrupted, has not sent `i` yet, and no
 injection consumed `i`.
 Deviation (D4): Figure 5 has only `i ∈ comp`. -/
+-- ANCHOR: gameStateIsCompromised
 def isCompromised (st : GameState SS SR AD M C) (i : ℕ) : Bool :=
   i ∈ st.comp || (st.corrA && st.iA < i && i ∉ st.preempted)
+-- ANCHOR_END: gameStateIsCompromised
 
 /-- The first in-transit record with associated data `a` and ciphertext `e`. Figure 5's
 `deliver-B` takes such a record "for some `i, m`" and does not say which one if there
