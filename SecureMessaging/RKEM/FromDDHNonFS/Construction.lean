@@ -48,10 +48,13 @@ The algorithms are the same for `A` and `B`. Encapsulation and decapsulation are
 
 ## Non-forward-secure shape
 
-This is the non-forward-secure special case of [TripleRatchet, Remark 5.2]: fresh and updated key
-generation coincide, `REnc-P` returns its input `dkP` unchanged as `d̂kP`, and `RDec-P` returns
-its input `ekP̄` unchanged as `êkP̄`. Fig. 28's forward-secure variant instead sets
-`d̂kP := x · H(K)` and `êkP̄ := Y^{H(K)}`.
+This is a non-forward-secure RKEM in the sense of [TripleRatchet, Remark 5.2]: `REnc-P` returns
+its input `dkP` unchanged as `d̂kP`, and `RDec-P` returns its input `ekP̄` unchanged as `êkP̄`.
+Fig. 28's forward-secure variant instead sets `d̂kP := x · H(K)` and `êkP̄ := Y^{H(K)}`.
+
+Remark 5.2 does not constrain key generation. Fresh and updated key generation coincide here
+because Fig. 28 has a single `RKeyGen-P(par, mode)` that ignores `mode`, shared by both variants
+(its caption notes this for the forward-secure one).
 
 Consequently the scheme is *not* FS-IND-CPA secure in the sense of
 `RKEMScheme.FSINDCPASecure`: that game hands the adversary `d̂kA = x` along with `êkB = Y`, from
@@ -130,8 +133,8 @@ def rdec (_par : Unit) (dkSelfHat : F) (_ctSelf : Unit) (ekPeer : G) : ProbComp 
 /-- Non-forward-secure Diffie-Hellman RKEM ([TripleRatchet, Appendix A.3, Fig. 28]) over a module
 `Module F G` with generator `gen : G`. Public parameters are vacuous; encapsulation keys are group
 elements, decapsulation keys are scalars, ciphertexts are empty and shared keys are group
-elements. Fresh and updated key generation coincide, and `REnc-P`/`RDec-P` leave the keys
-unchanged ([TripleRatchet, Remark 5.2]).
+elements. Fresh and updated key generation coincide, since Fig. 28's `RKeyGen-P` ignores its mode,
+and `REnc-P`/`RDec-P` leave the keys unchanged ([TripleRatchet, Remark 5.2]).
 
 The encapsulation and decapsulation algorithms are the same for `A` and `B`. -/
 -- ANCHOR: scheme
