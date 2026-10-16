@@ -78,12 +78,12 @@ structure FSAEADScheme (K SS SR AD M C : Type) where
 :::::::definition "fs_aead_security" (parent := "fs_aead") (lean := "FSAEADScheme.GameState, FSAEADScheme.GameState.isCompromised, FSAEADScheme.securityExp, FSAEADScheme.fsaeadSecurityImpl, FSAEADScheme.advantage") (tags := "gh-187") (uses := "fs_aead_scheme")
 Adapted from {Informal.citet ACD19}[], Figure 5 and Definition 15.
 
-ACD19 Figure 5 is changed in five places. D2 and D4 fix errors. Each change is marked
-in the boxes below and in the source:
+ACD19 Figure 5 is changed in five places. D2 and D4 fix errors. The boxes below print
+Figure 5 and frame each change, labelled with its number:
 
-- (D1) A rejecting $`\mathsf{FS\text{-}Rcv}` returns no state and no index.
-- (D2) A rejected $`\mathsf{inject\text{-}B}` deletes no record.
-- (D3) A rejected $`\mathsf{deliver\text{-}B}` is a win but leaves the records alone.
+- (D1) A rejecting $`\mathsf{FS\text{-}Rcv}` returns $`\bot`: no state and no index.
+- (D2) A rejected $`\OInjectB` deletes no record.
+- (D3) A rejected $`\ODeliverB` is a win but leaves the records alone.
 - (D4) Once A is corrupted, indices A has not sent yet also count as compromised. If an
   injection consumes such an index, A's later ciphertext for it is not recorded.
   Otherwise B would have to accept both, and no correct scheme meets the game.
@@ -171,7 +171,7 @@ abbrev fsaeadSpec (SS SR AD M C : Type) :=
 ```
 
 ::::::gameGrid
-:::::gameCell "\\mathsf{transmit\\text{-}A}(a, m)" (kind := "compact")
+:::::gameCell "\\OTransmitA(a, m)" (kind := "compact")
 $`\begin{array}{l}
 i_\A{+}{+}; \\
 (v_\A, e) \gets \mathsf{FS\text{-}Send}(v_\A, a, m); \\
@@ -191,11 +191,11 @@ def oracleTransmitA (fs : FSAEADScheme K SS SR AD M C) :
 ```
 :::::
 
-:::::gameCell "\\mathsf{deliver\\text{-}B}(a, e)" (kind := "compact")
+:::::gameCell "\\ODeliverB(a, e)" (kind := "compact")
 $`\begin{array}{l}
-\req (i, a, m, e) \in \mathsf{trans}\ \text{for some}\ i, m\ \text{(the first such record)}; \\
-\pcommentline{\text{(D3) Figure 5 also runs }\mathsf{delete}(i)} \\
-\pif\;\mathsf{FS\text{-}Rcv}(v_\B, a, e)\ \text{rejects}\;\pthen\;\mathsf{win}; \Return \bot; \\
+\req (i, a, m, e) \in \mathsf{trans}\ \text{for some}\ i, m; \\
+\pcommentline{\text{the first such record}} \\
+\boxed{\pif\;\mathsf{FS\text{-}Rcv}(v_\B, a, e) = \bot\;\pthen\;\mathsf{win}; \Return \bot;}\pcomment{\text{D3}} \\
 (v_\B, i', m') \gets \mathsf{FS\text{-}Rcv}(v_\B, a, e); \\
 \pif\;(i', m') \neq (i, m)\;\pthen\;\mathsf{win}; \\
 \pif\;i \in \mathsf{chall}\;\pthen\;m' \gets \bot; \\
@@ -222,7 +222,7 @@ def oracleDeliverB [DecidableEq AD] [DecidableEq M] [DecidableEq C]
 ```
 :::::
 
-:::::gameCell "\\mathsf{chall\\text{-}A}(a, m_0, m_1)" (kind := "compact")
+:::::gameCell "\\OChallA(a, m_0, m_1)" (kind := "compact")
 $`\begin{array}{l}
 \req \neg\mathsf{corrA} \wedge |m_0| = |m_1|; \\
 i_\A{+}{+}; \\
@@ -244,14 +244,13 @@ def oracleChallA (fs : FSAEADScheme K SS SR AD M C) (len : M → ℕ) (b : Bool)
 ```
 :::::
 
-:::::gameCell "\\mathsf{inject\\text{-}B}(a, e)" (kind := "compact")
+:::::gameCell "\\OInjectB(a, e)" (kind := "compact")
 $`\begin{array}{l}
 \req (a, e) \notin \mathsf{trans}; \\
-\pcommentline{\text{(D2) Figure 5 runs }\mathsf{delete}(i')} \\
-\pif\;\mathsf{FS\text{-}Rcv}(v_\B, a, e)\ \text{rejects}\;\pthen\;\Return \bot; \\
+\boxed{\pif\;\mathsf{FS\text{-}Rcv}(v_\B, a, e) = \bot\;\pthen\;\Return \bot;}\pcomment{\text{D2}} \\
 (v_\B, i', m') \gets \mathsf{FS\text{-}Rcv}(v_\B, a, e); \\
-\pcommentline{\text{(D4) Figure 5 has }i' \notin \mathsf{comp}} \\
-\pif\;\neg\mathsf{compromised}(i')\;\pthen\;\mathsf{win}; \\
+\pif\;m' \neq \bot \wedge i' \notin \mathsf{comp} \\
+\quad \wedge\, \boxed{\neg(\mathsf{corrA} \wedge i' > i_\A \wedge i' \notin \mathsf{preempted})}\;\pthen\;\mathsf{win};\;\pcommentline{\text{D4}} \\
 \mathsf{delete}(i'); \\
 \Return (i', m')
 \end{array}`
@@ -269,7 +268,7 @@ def oracleInjectB [DecidableEq AD] [DecidableEq C] (fs : FSAEADScheme K SS SR AD
 ```
 :::::
 
-:::::gameCell "\\mathsf{corr\\text{-}A}" (kind := "compact")
+:::::gameCell "\\OCorrA" (kind := "compact")
 $`\begin{array}{l}
 \mathsf{corrA} \gets \mathsf{true}; \\
 \Return v_\A
@@ -286,7 +285,7 @@ def oracleCorrA (SS SR AD M C : Type) :
 ```
 :::::
 
-:::::gameCell "\\mathsf{corr\\text{-}B}" (kind := "compact")
+:::::gameCell "\\OCorrB" (kind := "compact")
 $`\begin{array}{l}
 \req \mathsf{chall} = \emptyset; \\
 \mathsf{end}; \\
@@ -306,8 +305,7 @@ def oracleCorrB (SS SR AD M C : Type) :
 
 :::::gameCell "\\mathsf{record}(\\mathit{flag}, a, m, e)" (kind := "compact")
 $`\begin{array}{l}
-\pcommentline{\text{(D4) not in Figure 5}} \\
-\pif\;i_\A \in \mathsf{preempted}\;\pthen\;\Return; \\
+\boxed{\pif\;i_\A \in \mathsf{preempted}\;\pthen\;\Return;}\pcomment{\text{D4}} \\
 \mathsf{trans} \gets \mathsf{trans} \cup \{(i_\A, a, m, e)\}; \\
 \pif\;\mathsf{corrA}\;\pthen\;\mathsf{comp} \gets \mathsf{comp} \cup \{i_\A\}; \\
 \pif\;\mathit{flag} = \mathsf{chall}\;\pthen\;\mathsf{chall} \gets \mathsf{chall} \cup \{i_\A\}
@@ -328,8 +326,7 @@ def record (st : GameState SS SR AD M C) (isChall : Bool) (a : AD) (m : M) (e : 
 $`\begin{array}{l}
 \mathsf{trans} \gets \mathsf{trans} \setminus \{(i, \cdot, \cdot, \cdot)\}; \\
 \mathsf{chall}, \mathsf{comp} \gets \mathsf{chall} \setminus \{i\}, \mathsf{comp} \setminus \{i\}; \\
-\pcommentline{\text{(D4) not in Figure 5}} \\
-\pif\;i > i_\A\;\pthen\;\mathsf{preempted} \gets \mathsf{preempted} \cup \{i\}
+\boxed{\pif\;i > i_\A\;\pthen\;\mathsf{preempted} \gets \mathsf{preempted} \cup \{i\}}\pcomment{\text{D4}}
 \end{array}`
 
 ```anchor gameStateDelete (project := ".") (module := SecureMessaging.FSAEAD.Defs)
@@ -344,11 +341,15 @@ def delete (st : GameState SS SR AD M C) (i : ℕ) : GameState SS SR AD M C :=
 ::::::
 
 ::::::gameGrid
-:::::gameCell "\\textsf{Example run: when a forgery counts as a win}" (kind := "scheme")
-Whether the adversary wins depends on what is still in transit and on when A was
-corrupted. In this run, a rejected forgery leaves the honest message 1 in transit (D2).
-After $`\mathsf{corr\text{-}A}` at $`i_\A = 2`, A cannot send a challenge, and a forgery
-for index 3, which A has not sent yet, is accepted without a win (D4).
+:::::gameCell "\\textsf{Example run of this game}" (kind := "scheme")
+This run uses the game above, with D2 and D4. Whether the adversary wins depends on
+what is still in transit and on when A was corrupted. A rejected forgery leaves the
+honest message 1 in transit (D2). After $`\OCorrA` at $`i_\A = 2`, A cannot send a
+challenge, and a forgery for index 3, which A has not sent yet, is accepted without a
+win (D4).
+
+In Figure 5 as printed, the forgery for index 3 is a win. The rejected forgery can also
+delete record 1, and then the game refuses the late delivery of $`e_1`.
 
 Black arrows are honest ciphertexts. Red arrows are under the adversary's control. An X
 marks a call that the game refuses.
@@ -367,8 +368,7 @@ k \sample \mathcal K;\quad v_\A \gets \mathsf{FS\text{-}Init\text{-}S}(k);\quad 
 i_\A \gets 0; \\
 \mathsf{corrA} \gets \mathsf{false}; \\
 \mathsf{trans}, \mathsf{chall}, \mathsf{comp} \gets \emptyset; \\
-\pcommentline{\text{(D4) not in Figure 5}} \\
-\mathsf{preempted} \gets \emptyset; \\
+\boxed{\mathsf{preempted} \gets \emptyset;}\pcomment{\text{D4}} \\
 \pcommentline{\text{Not in Figure 5: they encode }\mathsf{win}\text{ and }\mathsf{end}} \\
 \mathsf{won}, \mathsf{ended} \gets \mathsf{false}; \\
 \pcommentline{\text{Sample the challenge bit and run the adversary}} \\

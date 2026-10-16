@@ -13,7 +13,7 @@ open Lean
 first message, has a forgery rejected while the first message is still in transit, and
 corrupts A. After that, a forgery for index 3, which A has not sent yet, is not a win. -/
 private def fsaeadAdversarySvg : String := r##"
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-65 0 1030 1015" width="1030" height="1015" style="display:block;width:100%;height:auto" role="img" aria-label="FS-AEAD oracle illustration: A sends e1 with transmit-A and the challenge e2 with chall-A. corr-B is refused while the challenge is in transit. The adversary delivers e2 first, and deliver-B returns index 2 without the plaintext. A forgery is rejected and record 1 is kept. e1 is delivered late and decrypts to index 1. corr-A reveals A's state and sets corrA, so every index A has not sent yet is compromised. chall-A is then refused. A forgery for index 3 is accepted and is not a win.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-65 0 1030 1015" width="1030" height="1015" style="display:block;width:100%;height:auto" role="img" aria-label="FS-AEAD oracle illustration: A sends e1 with O-Transmit-A and the challenge e2 with O-Chall-A. O-Corr-B is refused while the challenge is in transit. The adversary delivers e2 first, and O-Deliver-B returns index 2 without the plaintext. A forgery is rejected and record 1 is kept. e1 is delivered late and decrypts to index 1. O-Corr-A reveals A's state and sets corrA, so every index A has not sent yet is compromised. O-Chall-A is then refused. A forgery for index 3 is accepted and is not a win.">
   <defs>
     <marker id="fsaead-adv-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#252525" stroke-width="1.2"/></marker>
     <marker id="fsaead-adv-red-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#b42318" stroke-width="1.2"/></marker>
@@ -49,7 +49,7 @@ private def fsaeadAdversarySvg : String := r##"
     <text x="450" y="125">Adversary 𝒜</text>
   </g>
 
-  <!-- Local state flows between oracle calls. B's line skips the refused corr-B. -->
+  <!-- Local state flows between oracle calls. B's line skips the refused O-Corr-B. -->
   <g class="fa-flow">
     <path d="M145 76 V146"/><path d="M145 212 V236"/>
     <path d="M145 302 V686"/><path d="M145 752 V776"/>
@@ -84,7 +84,7 @@ private def fsaeadAdversarySvg : String := r##"
     <text x="338" y="628">deliver second</text>
   </g>
 
-  <!-- corr-B is refused while the challenge is in transit. -->
+  <!-- O-Corr-B is refused while the challenge is in transit. -->
   <path class="fa-control" d="M470 370 H612"/>
   <path class="fa-cross" d="M618 362 L630 378 M630 362 L618 378"/>
 
@@ -123,44 +123,44 @@ private def fsaeadAdversarySvg : String := r##"
   <!-- Red oracle wrappers enclose the black scheme algorithms. -->
   <g class="fa-text" text-anchor="middle">
     <rect class="fa-oracle" x="30" y="146" width="230" height="66"/>
-    <text class="fa-red" x="145" y="166">transmit-A(a₁, <tspan class="fa-math">m</tspan>)</text>
+    <text class="fa-red" x="145" y="166">O-Transmit-A(a₁, <tspan class="fa-math">m</tspan>)</text>
     <rect class="fa-algorithm" x="97" y="177" width="96" height="26"/>
     <text x="145" y="196">FS-Send</text>
 
     <rect class="fa-oracle" x="30" y="236" width="230" height="66"/>
-    <text class="fa-red" x="145" y="256">chall-A(a₂, <tspan class="fa-math">m₀, m₁</tspan>)</text>
+    <text class="fa-red" x="145" y="256">O-Chall-A(a₂, <tspan class="fa-math">m₀, m₁</tspan>)</text>
     <rect class="fa-algorithm" x="97" y="267" width="96" height="26"/>
     <text x="145" y="286">FS-Send</text>
 
     <rect class="fa-oracle" x="640" y="326" width="230" height="66"/>
-    <text class="fa-red" x="755" y="346">corr-B</text>
+    <text class="fa-red" x="755" y="346">O-Corr-B</text>
     <text class="fa-small" x="755" y="378">refused: chall ≠ ∅</text>
 
     <rect class="fa-oracle" x="640" y="416" width="230" height="66"/>
-    <text class="fa-red" x="755" y="436">deliver-B(a₂, e₂)</text>
+    <text class="fa-red" x="755" y="436">O-Deliver-B(a₂, e₂)</text>
     <rect class="fa-algorithm" x="707" y="447" width="96" height="26"/>
     <text x="755" y="466">FS-Rcv</text>
 
     <rect class="fa-oracle" x="640" y="506" width="230" height="66"/>
-    <text class="fa-red" x="755" y="526">inject-B(a*, e*)</text>
+    <text class="fa-red" x="755" y="526">O-Inject-B(a*, e*)</text>
     <rect class="fa-algorithm" x="707" y="537" width="96" height="26"/>
     <text x="755" y="556">FS-Rcv</text>
 
     <rect class="fa-oracle" x="640" y="596" width="230" height="66"/>
-    <text class="fa-red" x="755" y="616">deliver-B(a₁, e₁)</text>
+    <text class="fa-red" x="755" y="616">O-Deliver-B(a₁, e₁)</text>
     <rect class="fa-algorithm" x="707" y="627" width="96" height="26"/>
     <text x="755" y="646">FS-Rcv</text>
 
     <rect class="fa-oracle" x="30" y="686" width="230" height="66"/>
-    <text class="fa-red" x="145" y="706">corr-A</text>
+    <text class="fa-red" x="145" y="706">O-Corr-A</text>
     <rect class="fa-algorithm" x="112" y="717" width="66" height="26"/>
     <text x="145" y="736">v<tspan baseline-shift="sub" font-size="13">A</tspan></text>
 
     <rect class="fa-oracle" x="30" y="776" width="230" height="66"/>
-    <text class="fa-red" x="145" y="815">chall-A</text>
+    <text class="fa-red" x="145" y="815">O-Chall-A</text>
 
     <rect class="fa-oracle" x="640" y="866" width="230" height="66"/>
-    <text class="fa-red" x="755" y="886">inject-B(a₃, e₃)</text>
+    <text class="fa-red" x="755" y="886">O-Inject-B(a₃, e₃)</text>
     <rect class="fa-algorithm" x="707" y="897" width="96" height="26"/>
     <text x="755" y="916">FS-Rcv</text>
   </g>
