@@ -45,12 +45,12 @@ The Lean simulators (`rsimKey1`, `rsimKey2`, `rsimCtxt`) follow the figure, exce
 The simulation is perfect as printed:
 
 - `RSimKey-P₁` returns `P`'s fresh key pair as its updated one, exactly as `REnc-P` and `RDec-P̄`
-  do in the non-forward-secure scheme.
+  do, since the scheme leaves the keys unchanged.
 - `RSimKey-P₂` returns `K = Y^x` twice. In the real distribution the peer computes
   `K' = X^y` with `X = g^x` and `Y = g^y`, so `K = K' = g^{xy}`: no correctness assumption is
   needed beyond the keys being honestly generated.
-- `RSimCtxt-P` returns `ekP := êkP`. In the non-forward-secure scheme `RDec-P̄` returns `ekP`
-  unchanged as `êkP`, so the two coincide in the real distribution as well, and `K = X^y` is the
+- `RSimCtxt-P` returns `ekP := êkP`. Since the scheme leaves the keys unchanged, `RDec-P̄` returns
+  `ekP` as `êkP`, so the two coincide in the real distribution as well, and `K = X^y` is the
   common key `g^{xy}` there.
 
 [REFERENCES]

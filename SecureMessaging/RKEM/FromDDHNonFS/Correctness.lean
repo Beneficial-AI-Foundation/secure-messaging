@@ -17,9 +17,10 @@ Both halves of Def. 5.3 hold with error exactly zero, unconditionally:
 - **Shared keys agree.** With `(ekA, dkA) = (x • gen, x)` and `(êkB, d̂kB) = (y • gen, y)`,
   `REnc-A` outputs `K = x • (y • gen)` and `RDec-B` outputs `K' = y • (x • gen)`; both equal
   `(x * y) • gen`, the paper's `g^{xy}` (`probOutput_correctExpA_eq_one`).
-- **Updated keys are distributed as fresh ones.** The scheme is not forward secure: the updated
-  pair `(êkA, d̂kA)` produced by a round is `A`'s fresh pair itself, and fresh and updated key
-  generation coincide (`evalDist_ratchetRoundOutputA_eq_evalDist_rkeygen`).
+- **Updated keys are distributed as fresh ones.** The scheme leaves the keys unchanged
+  ([TripleRatchet, Remark 5.2]): the updated pair `(êkA, d̂kA)` produced by a round is `A`'s fresh
+  pair itself, and fresh and updated key generation coincide
+  (`evalDist_ratchetRoundOutputA_eq_evalDist_rkeygen`).
 
 The algorithms are the same for `A` and `B`, so the `B`-side experiments are definitionally the
 `A`-side ones.

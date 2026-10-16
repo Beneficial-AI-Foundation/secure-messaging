@@ -159,7 +159,7 @@ def randLeak (gen : G) : (scheme (F := F) gen).RandLeak where
 :::theorem "rkem_from_ddh_nonfs_correctness" (parent := "rkem_rkem_from_ddh_non_fs") (lean := "ddhRKEM.probOutput_correctExpA_eq_one, ddhRKEM.evalDist_ratchetRoundOutputA_eq_evalDist_rkeygen, ddhRKEM.deltaCorrect") (tags := "gh-67") (uses := "rkem_from_ddh_nonfs_spec, rkem_scheme, rkem_correctness")
 Adapted from {Informal.citet TR25}[], Theorem A.3.
 
-The non-forward-secure RKEM from DDH is perfectly correct: it is $`(0,0)`-correct, unconditionally. With $`(\ekA,\dkA)=(g^x,x)` and $`(\ekh{B},\dkh{B})=(g^y,y)`, $`\REnc\text{-}\A` outputs $`K=(g^y)^x` and $`\RDec\text{-}\B` outputs $`K'=(g^x)^y`, both equal to $`g^{xy}`. Since the scheme is not forward secure, the updated key pair produced by a round is $`\A`'s fresh key pair itself, and fresh and updated key generation coincide, so the update-key distribution is exact as well. The algorithms are the same for both parties, so the $`\B` side is identical.
+The non-forward-secure RKEM from DDH is perfectly correct: it is $`(0,0)`-correct, unconditionally. With $`(\ekA,\dkA)=(g^x,x)` and $`(\ekh{B},\dkh{B})=(g^y,y)`, $`\REnc\text{-}\A` outputs $`K=(g^y)^x` and $`\RDec\text{-}\B` outputs $`K'=(g^x)^y`, both equal to $`g^{xy}`. Since the scheme leaves the keys unchanged, the updated key pair produced by a round is $`\A`'s fresh key pair itself, and fresh and updated key generation coincide, so the update-key distribution is exact as well. The algorithms are the same for both parties, so the $`\B` side is identical.
 
 ```anchor deltaCorrect (project := ".") (module := SecureMessaging.RKEM.FromDDHNonFS.Correctness)
 theorem deltaCorrect [DecidableEq G] (gen : G) :
@@ -185,7 +185,7 @@ theorem RatchetSimulatable (gen : G) :
 
 Ratchet simulatability is stated relative to the construction's randomness-leak package (see the RKEM from DDH non-FS construction).
 
-The simulators are the same for both parties $`\mathsf{P}\in\{\A,\B\}`, with peer $`\mathsf{\bar P}`. They follow Figure 30 of the paper, which returns the outputs of $`\RSimKey\text{-}\mathsf{P}_1` in a different order. The simulation is perfect as printed. $`\RSimKey\text{-}\mathsf{P}_1` returns $`\mathsf{P}`'s fresh key pair as its updated one, exactly as the non-forward-secure scheme does. $`\RSimKey\text{-}\mathsf{P}_2` returns $`K=Y^x` twice, where the peer would compute $`K'=X^y`; both equal $`g^{xy}` since the keys are honestly generated. $`\RSimCtxt\text{-}\mathsf{P}` returns $`\ekh{P}` as $`\ek_\mathsf{P}`, which is what $`\RDec\text{-}\mathsf{\bar P}` does in the real distribution.
+The simulators are the same for both parties $`\mathsf{P}\in\{\A,\B\}`, with peer $`\mathsf{\bar P}`. They follow Figure 30 of the paper, which returns the outputs of $`\RSimKey\text{-}\mathsf{P}_1` in a different order. The simulation is perfect as printed. $`\RSimKey\text{-}\mathsf{P}_1` returns $`\mathsf{P}`'s fresh key pair as its updated one, exactly as the scheme does, since it leaves the keys unchanged. $`\RSimKey\text{-}\mathsf{P}_2` returns $`K=Y^x` twice, where the peer would compute $`K'=X^y`; both equal $`g^{xy}` since the keys are honestly generated. $`\RSimCtxt\text{-}\mathsf{P}` returns $`\ekh{P}` as $`\ek_\mathsf{P}`, which is what $`\RDec\text{-}\mathsf{\bar P}` does in the real distribution.
 
 ::::::gameGrid
 :::::gameCell "\\RSimKey\\text{-}\\mathsf{P}_1(\\ek_\\mathsf{P}:=X,\\dk_\\mathsf{P}:=x)" (kind := "compact")
