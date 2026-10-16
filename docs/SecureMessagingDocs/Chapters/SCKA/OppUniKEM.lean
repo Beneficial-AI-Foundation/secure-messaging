@@ -36,11 +36,13 @@ Figure 16 of {Informal.citet SCKA25}[]. In the receive algorithms,
 - $`t` is the epoch index of the receiver's state,
 - $`t'` is the epoch index of the delivered message.
 
-We make two corrections to these algorithms, marked with surrounding boxes:
+Boxes mark corrections and explicit checks added to Figure 16:
 
 * $`\mathsf{Rec}\text{-}\A` and $`\mathsf{Rec}\text{-}\B` record
   received acknowledgements only if $`t=t'`;
-* $`\mathsf{Rec}\text{-}\B` returns $`t'-1` rather than $`t-1`.
+* $`\mathsf{Rec}\text{-}\B` returns $`t'-1` rather than $`t-1`;
+* $`\mathsf{Rec}\text{-}\A` checks chunk presence and aborts a current-epoch
+  $`\ctone` receive if $`\dkA` or $`\ctzero` is missing or decapsulation fails.
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Initialisation}" (kind := "scheme")
@@ -353,21 +355,21 @@ $`\begin{array}{l}
 (\chunk,\ack',t',b)\gets\rho \\
 I_{\B}\gets\bot, t_{I_{\B}}\gets\bot \\
 \mathsf{if}\;t=t'\;\mathsf{then} \\
-\quad \mathsf{if}\;\ctzero=\bot\wedge b=0\wedge\chunk\ne\bot\;\mathsf{then}
+\quad \mathsf{if}\;\ctzero=\bot\wedge b=0\;\boxed{\wedge\;\chunk\ne\bot}\;\mathsf{then}
   \pcomment{\ctzero\ \text{not received yet}} \\
 \qquad \Lch\gets\Lch\cup\{\chunk\} \\
 \qquad \ctzero\gets\mathsf{Decode}(\Lch) \\
 \qquad \mathsf{if}\;\ctzero\ne\bot\;\mathsf{then} \\
 \qquad\quad \ack.\ctrec\gets\mathsf{true}, \Lch\gets\emptyset \\
-\quad \mathsf{else}\;\mathsf{if}\;b=1\wedge\chunk\ne\bot\;\mathsf{then}
+\quad \mathsf{else}\;\mathsf{if}\;b=1\;\boxed{\wedge\;\chunk\ne\bot}\;\mathsf{then}
   \pcomment{\ctone\ \text{not received yet}} \\
-\qquad \mathsf{if}\;\dkA=\bot\vee\ctzero=\bot\;\mathsf{then}\;\mathsf{return}\;\bot \\
+\qquad \boxed{\mathsf{if}\;\dkA=\bot\vee\ctzero=\bot\;\mathsf{then}\;\mathsf{return}\;\bot} \\
 \qquad \ctone\gets\mathsf{Decode}(\Lch\cup\{\chunk\}) \\
 \qquad \mathsf{if}\;\ctone=\bot\;\mathsf{then}\;\Lch\gets\Lch\cup\{\chunk\} \\
 \qquad \mathsf{else}
   \pcomment{\ctone\ \text{recovered from chunk}} \\
 \qquad\quad I_{\B}\gets\Decaps(\dkA,(\ctzero,\ctone)) \\
-\qquad\quad \mathsf{if}\;I_{\B}=\bot\;\mathsf{then}\;\mathsf{return}\;\bot \\
+\qquad\quad \boxed{\mathsf{if}\;I_{\B}=\bot\;\mathsf{then}\;\mathsf{return}\;\bot} \\
 \qquad\quad t_{I_{\B}}\gets t, t\gets t+1, \Lch\gets\emptyset \\
 \qquad\quad (\dkA,\ekA,\ctzero)\gets(\bot,\bot,\bot) \\
 \qquad\quad (\ack.\ekrec,\ack.\ctrec)
