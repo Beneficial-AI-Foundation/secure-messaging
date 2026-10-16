@@ -75,30 +75,8 @@ structure FSAEADScheme (K SS SR AD M C : Type) where
 :::defTitle "fs_aead_security" "FS-AEAD security"
 :::
 
-:::::::definition "fs_aead_security" (parent := "fs_aead") (lean := "FSAEADScheme.securityExp, FSAEADScheme.fsaeadSecurityImpl, FSAEADScheme.advantage") (tags := "gh-187") (uses := "fs_aead_scheme")
+:::::::definition "fs_aead_security" (parent := "fs_aead") (lean := "FSAEADScheme.GameState, FSAEADScheme.GameState.isCompromised, FSAEADScheme.securityExp, FSAEADScheme.fsaeadSecurityImpl, FSAEADScheme.advantage") (tags := "gh-187") (uses := "fs_aead_scheme")
 Adapted from {Informal.citet ACD19}[], Figure 5 and Definition 15.
-
-The game samples $`k \sample \mathcal K` and a challenge bit $`b \sample \bit`, and keeps
-the records $`\mathsf{trans}` (ciphertexts in transit), $`\mathsf{chall}` (challenges in
-transit), $`\mathsf{comp}` (ciphertexts in transit that A sent while corrupted) and
-$`\mathsf{preempted}` (indices that an injection consumed before A sent them). The
-adversary has the six oracles below. An index is compromised if it is in
-$`\mathsf{comp}`, or if A is corrupted, has not sent it yet, and it is not in
-$`\mathsf{preempted}`.
-
-So one game captures correctness (a $`\mathsf{deliver\text{-}B}` win), authenticity (an
-$`\mathsf{inject\text{-}B}` win) and privacy (guessing $`b`). Following the conventions of
-ACD19 §2.1, the adversary wins if a win instruction is reached or if $`b' = b`:
-
-$$`\mathsf{Adv}^{\textsf{fs-aead}}_{\textsf{FS-AEAD}}(\adv)
-  = \Bigl|\, \Pr\bigl[\Exp{\textsf{fs-aead}}{\textsf{FS-AEAD}}(\adv) = 1\bigr] - \tfrac{1}{2} \,\Bigr|`
-
-```anchor advantage (project := ".") (module := SecureMessaging.FSAEAD.Defs)
-noncomputable def advantage [SampleableType K] [DecidableEq AD] [DecidableEq M]
-    [DecidableEq C] (fs : FSAEADScheme K SS SR AD M C) (len : M → ℕ)
-    (adversary : FSAEADAdversary SS SR AD M C) : ℝ :=
-  |(Pr[= true | securityExp fs len adversary]).toReal - 1 / 2|
-```
 
 ACD19 Figure 5 is changed in five places. D2 and D4 fix errors. Each change is marked
 in the boxes below and in the source:
@@ -110,6 +88,67 @@ in the boxes below and in the source:
   injection consumes such an index, A's later ciphertext for it is not recorded.
   Otherwise B would have to accept both, and no correct scheme meets the game.
 - (D5) The advantage is half that of ACD19 §2.1.
+
+::::::gameGrid
+:::::gameCell "\\textsf{Game state}" (kind := "scheme")
+The game state consists of:
+
+- $`v_\A`, $`v_\B`: the states of A and B.
+- $`i_\A`: the number of messages A has sent.
+- $`\mathsf{corrA}`: whether A has been corrupted.
+- $`\mathsf{trans}`: the records $`(i, a, m, e)` of ciphertexts in transit.
+- $`\mathsf{chall} \subseteq \mathbb N`: the indices of challenge ciphertexts in transit.
+- $`\mathsf{comp} \subseteq \mathbb N`: the indices of ciphertexts in transit that A sent
+  while corrupted.
+- $`\mathsf{preempted} \subseteq \mathbb N`: (D4) the indices that an injection consumed
+  before A sent them.
+- $`\mathsf{won}`: whether a $`\mathsf{win}` instruction was reached.
+- $`\mathsf{ended}`: whether $`\mathsf{end}` was reached.
+
+An index $`i` is compromised if
+
+$$`\mathsf{compromised}(i) :\Leftrightarrow i \in \mathsf{comp} \;\vee\; \boxed{\mathsf{corrA} \wedge i > i_\A \wedge i \notin \mathsf{preempted}}`
+
+where the boxed part is (D4).
+
+:::leanPillCaption "Game state"
+:::
+
+```anchor GameState (project := ".") (module := SecureMessaging.FSAEAD.Defs)
+structure GameState (SS SR AD M C : Type) where
+  /-- Sender state `v_A`. -/
+  vA : SS
+  /-- Receiver state `v_B`. -/
+  vB : SR
+  /-- Number of messages sent so far, `i_A`. -/
+  iA : ℕ
+  /-- Whether A has been corrupted. -/
+  corrA : Bool
+  /-- Set by `corr-B`, after which every oracle except the uniform-randomness oracle
+  returns `none`. -/
+  ended : Bool
+  /-- Set when a `win` instruction is reached. -/
+  won : Bool
+  /-- Ciphertexts in transit, as records `(i, a, m, e)`. -/
+  trans : List (ℕ × AD × M × C)
+  /-- Indices of challenge ciphertexts in transit. -/
+  chall : Finset ℕ
+  /-- Indices of ciphertexts in transit that A sent while corrupted. -/
+  comp : Finset ℕ
+  /-- Indices that an injection consumed before A sent them.
+  Deviation (D4): not in Figure 5. -/
+  preempted : Finset ℕ
+```
+
+:::leanPillCaption "Compromised indices"
+:::
+
+```anchor gameStateIsCompromised (project := ".") (module := SecureMessaging.FSAEAD.Defs)
+def isCompromised (st : GameState SS SR AD M C) (i : ℕ) : Bool :=
+  i ∈ st.comp || (st.corrA && st.iA < i && i ∉ st.preempted)
+```
+:::::
+::::::
 
 :::leanPillCaption "specification for oracle types"
 :::
@@ -206,7 +245,7 @@ $`\begin{array}{l}
 \pif\;\mathsf{FS\text{-}Rcv}(v_\B, a, e)\ \text{rejects}\;\pthen\;\Return \bot; \\
 (v_\B, i', m') \gets \mathsf{FS\text{-}Rcv}(v_\B, a, e); \\
 \pcommentline{\text{(D4) Figure 5 has }i' \notin \mathsf{comp}} \\
-\pif\;i'\ \text{not compromised}\;\pthen\;\mathsf{win}; \\
+\pif\;\neg\mathsf{compromised}(i')\;\pthen\;\mathsf{win}; \\
 \mathsf{delete}(i'); \\
 \Return (i', m')
 \end{array}`
@@ -363,4 +402,16 @@ def securityExp [SampleableType K] [DecidableEq AD] [DecidableEq M] [DecidableEq
 ```
 :::::
 ::::::
+
+The advantage of $`\adv` is
+
+$$`\mathsf{Adv}^{\textsf{fs-aead}}_{\textsf{FS-AEAD}}(\adv)
+  = \Bigl|\, \Pr\bigl[\Exp{\textsf{fs-aead}}{\textsf{FS-AEAD}}(\adv) = 1\bigr] - \tfrac{1}{2} \,\Bigr|`
+
+```anchor advantage (project := ".") (module := SecureMessaging.FSAEAD.Defs)
+noncomputable def advantage [SampleableType K] [DecidableEq AD] [DecidableEq M]
+    [DecidableEq C] (fs : FSAEADScheme K SS SR AD M C) (len : M → ℕ)
+    (adversary : FSAEADAdversary SS SR AD M C) : ℝ :=
+  |(Pr[= true | securityExp fs len adversary]).toReal - 1 / 2|
+```
 :::::::
