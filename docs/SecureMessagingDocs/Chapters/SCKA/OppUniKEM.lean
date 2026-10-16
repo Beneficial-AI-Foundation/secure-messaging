@@ -41,8 +41,9 @@ Boxes mark corrections and explicit checks added to Figure 16:
 * $`\mathsf{Rec}\text{-}\A` and $`\mathsf{Rec}\text{-}\B` record
   received acknowledgements only if $`t=t'`;
 * $`\mathsf{Rec}\text{-}\B` returns $`t'-1` rather than $`t-1`;
-* $`\mathsf{Rec}\text{-}\A` checks chunk presence and aborts a current-epoch
-  $`\ctone` receive if $`\dkA` or $`\ctzero` is missing or decapsulation fails.
+* $`\mathsf{Rec}\text{-}\A` attempts decoding only if $`\chunk\ne\bot`.
+  For a current-epoch $`\ctone` chunk, it aborts if $`\dkA` or $`\ctzero` is missing
+  or decapsulation fails.
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Initialisation}" (kind := "scheme")
