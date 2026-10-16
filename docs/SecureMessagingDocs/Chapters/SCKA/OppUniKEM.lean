@@ -369,15 +369,15 @@ I_{\B}\gets\bot, t_{I_{\B}}\gets\bot \\
 \qquad \mathsf{if}\;\ctone=\bot\;\mathsf{then}\;\Lch\gets\Lch\cup\{\chunk\} \\
 \qquad \mathsf{else}
   \pcomment{\ctone\ \text{recovered from chunk}} \\
-\qquad\quad I_{\B}\gets\Decaps(\dkA,(\ctzero,\ctone)) \\
+\qquad\quad I_{\B}\gets\mathsf{Dec}(\dkA,(\ctzero,\ctone)) \\
 \qquad\quad \boxed{\mathsf{if}\;I_{\B}=\bot\;\mathsf{then}\;\mathsf{return}\;\bot} \\
 \qquad\quad t_{I_{\B}}\gets t, t\gets t+1, \Lch\gets\emptyset \\
 \qquad\quad (\dkA,\ekA,\ctzero)\gets(\bot,\bot,\bot) \\
 \qquad\quad (\ack.\ekrec,\ack.\ctrec)
   \gets(\mathsf{false},\mathsf{false}) \\
-\mathsf{if}\;\ack'.\ekrec\;\boxed{\wedge\;t=t'}\;\mathsf{then}
+\quad \mathsf{if}\;\ack'.\ekrec\;\boxed{\wedge\;t=t'}\;\mathsf{then}
   \pcomment{\text{incorporate }\B\text{'s acknowledgment}} \\
-\quad \ack.\ekrec\gets\mathsf{true} \\
+\qquad \ack.\ekrec\gets\mathsf{true} \\
 \stA\gets(\dkA,\ekA,\ctzero,t,\ich,\Lch,\ack) \\
 \mathsf{return}\;((t_{I_{\B}},I_{\B}),t'-1,\stA)
 \end{array}`
