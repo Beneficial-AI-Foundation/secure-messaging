@@ -214,13 +214,14 @@ theorem RatchetSimulatable (gen : G) :
 
 Ratchet simulatability is stated relative to the construction's randomness-leak package (see the {bpref "rkem_from_ddh_nonfs_spec"}[RKEM from DDH non-FS construction]).
 
-The simulators are the same for both parties $`\mathsf{P}\in\{\A,\B\}`, with peer $`\mathsf{\bar P}`. They follow Figure 30 of the paper, which returns the outputs of $`\RSimKey\text{-}\mathsf{P}_1` in a different order. The simulation is perfect as printed. $`\RSimKey\text{-}\mathsf{P}_1` returns $`\mathsf{P}`'s fresh key pair as its updated one, exactly as the scheme does, since it leaves the keys unchanged. $`\RSimKey\text{-}\mathsf{P}_2` returns $`K=Y^x` twice, where the peer would compute $`K'=X^y`; both equal $`g^{xy}` since the keys are honestly generated. $`\RSimCtxt\text{-}\mathsf{P}` returns $`\ekh{P}` as $`\ek_\mathsf{P}`, which is what $`\RDec\text{-}\mathsf{\bar P}` does in the real distribution.
+The simulators are the same for both parties $`\mathsf{P}\in\{\A,\B\}`, with peer $`\mathsf{\bar P}`. They follow Figure 30 of the paper, and the simulation is perfect as printed.
 
 ::::::gameGrid
-:::::gameCell "\\RSimKey\\text{-}\\mathsf{P}_1(\\ek_\\mathsf{P}:=X,\\dk_\\mathsf{P}:=x)" (kind := "compact")
+:::::gameCell "\\RSimKey\\text{-}\\mathsf{P}_1(\\ek_\\mathsf{P}:=X,\\dk_\\mathsf{P}:=x)\\quad\\mathsf{P}\\in\\{\\A,\\B\\}" (kind := "compact")
 $`\begin{array}{l}
 \aux_1:=x \\
-\Return(X,x,\aux_1)\pcomment{\text{Fig. 30: }(x,X,\aux_1)}
+\Return(X,x,\aux_1)\pcomment{\text{keys left unchanged, as by }\REnc\text{-}\mathsf{P}} \\
+\pcommentline{\text{Fig. 30: }(x,X,\aux_1)}
 \end{array}`
 
 :::leanPillCaption "RSimKey-P₁"
@@ -233,10 +234,10 @@ def rsimKey1 (_par : Unit) (ekSelf : G) (dkSelf : F) : ProbComp (G × F × F) :=
 ```
 :::::
 
-:::::gameCell "\\RSimKey\\text{-}\\mathsf{P}_2(\\ekh{\\bar P}:=Y,\\dkh{\\bar P}:=y,\\aux_1:=x)" (kind := "compact")
+:::::gameCell "\\RSimKey\\text{-}\\mathsf{P}_2(\\ekh{\\bar P}:=Y,\\dkh{\\bar P}:=y,\\aux_1:=x)\\quad\\mathsf{P}\\in\\{\\A,\\B\\}" (kind := "compact")
 $`\begin{array}{l}
-K:=Y^x \\
-\ct_{\mathsf{\bar P}}:=();\;\rand_2:=() \\
+K:=Y^x\pcomment{=X^y=g^{xy}\text{, the peer's }K'} \\
+\ct_{\mathsf{\bar P}}:=();\;\rand_2:=()\pcomment{\REnc\text{-}\mathsf{P}\text{ is deterministic}} \\
 \Return(\ct_{\mathsf{\bar P}},K,K,\rand_2)
 \end{array}`
 
@@ -254,11 +255,11 @@ def rsimKey2 (_par : Unit) (ekPeerHat : G) (_dkPeerHat : F) (aux : F) :
 ```
 :::::
 
-:::::gameCell "\\RSimCtxt\\text{-}\\mathsf{P}(\\ekh{P}:=X,\\ekh{\\bar P}:=Y,\\dkh{\\bar P}:=y)" (kind := "compact")
+:::::gameCell "\\RSimCtxt\\text{-}\\mathsf{P}(\\ekh{P}:=X,\\ekh{\\bar P}:=Y,\\dkh{\\bar P}:=y)\\quad\\mathsf{P}\\in\\{\\A,\\B\\}" (kind := "compact")
 $`\begin{array}{l}
-K:=X^y \\
+K:=X^y\pcomment{=g^{xy}} \\
 \ct_{\mathsf{\bar P}}:=() \\
-\Return(\ct_{\mathsf{\bar P}},X,K,K)
+\Return(\ct_{\mathsf{\bar P}},X,K,K)\pcomment{\ek_\mathsf{P}:=\ekh{P}\text{, as }\RDec\text{-}\mathsf{\bar P}\text{ returns it}}
 \end{array}`
 
 :::leanPillCaption "RSimCtxt-P"
