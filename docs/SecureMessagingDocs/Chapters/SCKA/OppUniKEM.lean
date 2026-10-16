@@ -36,11 +36,14 @@ Figure 16 of {Informal.citet SCKA25}[]. In the receive algorithms,
 - $`t` is the epoch index of the receiver's state,
 - $`t'` is the epoch index of the delivered message.
 
-We make two corrections to these algorithms, marked with surrounding boxes:
+Boxes mark corrections and explicit checks added to Figure 16:
 
 * $`\mathsf{Rec}\text{-}\A` and $`\mathsf{Rec}\text{-}\B` record
   received acknowledgements only if $`t=t'`;
-* $`\mathsf{Rec}\text{-}\B` returns $`t'-1` rather than $`t-1`.
+* $`\mathsf{Rec}\text{-}\B` returns $`t'-1` rather than $`t-1`;
+* $`\mathsf{Rec}\text{-}\A` attempts decoding only if $`\chunk\ne\bot`.
+  For a current-epoch $`\ctone` chunk, it aborts if $`\dkA` or $`\ctzero` is missing
+  or decapsulation fails.
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Initialisation}" (kind := "scheme")
@@ -353,27 +356,28 @@ $`\begin{array}{l}
 (\chunk,\ack',t',b)\gets\rho \\
 I_{\B}\gets\bot, t_{I_{\B}}\gets\bot \\
 \mathsf{if}\;t=t'\;\mathsf{then} \\
-\quad \mathsf{if}\;\ctzero=\bot\wedge b=0\;\mathsf{then}
+\quad \mathsf{if}\;\ctzero=\bot\wedge b=0\;\boxed{\wedge\;\chunk\ne\bot}\;\mathsf{then}
   \pcomment{\ctzero\ \text{not received yet}} \\
 \qquad \Lch\gets\Lch\cup\{\chunk\} \\
 \qquad \ctzero\gets\mathsf{Decode}(\Lch) \\
 \qquad \mathsf{if}\;\ctzero\ne\bot\;\mathsf{then} \\
 \qquad\quad \ack.\ctrec\gets\mathsf{true}, \Lch\gets\emptyset \\
-\quad \mathsf{else}\;\mathsf{if}\;b=1\wedge\dkA\ne\bot\wedge\ctzero\ne\bot\;\mathsf{then}
+\quad \mathsf{else}\;\mathsf{if}\;b=1\;\boxed{\wedge\;\chunk\ne\bot}\;\mathsf{then}
   \pcomment{\ctone\ \text{not received yet}} \\
+\qquad \boxed{\mathsf{if}\;\dkA=\bot\vee\ctzero=\bot\;\mathsf{then}\;\mathsf{return}\;\bot} \\
 \qquad \ctone\gets\mathsf{Decode}(\Lch\cup\{\chunk\}) \\
 \qquad \mathsf{if}\;\ctone=\bot\;\mathsf{then}\;\Lch\gets\Lch\cup\{\chunk\} \\
 \qquad \mathsf{else}
   \pcomment{\ctone\ \text{recovered from chunk}} \\
 \qquad\quad I_{\B}\gets\Decaps(\dkA,(\ctzero,\ctone)) \\
-\qquad\quad \mathsf{if}\;I_{\B}\ne\bot\;\mathsf{then} \\
-\qquad\qquad t_{I_{\B}}\gets t, t\gets t+1, \Lch\gets\emptyset \\
-\qquad\qquad (\dkA,\ekA,\ctzero)\gets(\bot,\bot,\bot) \\
-\qquad\qquad (\ack.\ekrec,\ack.\ctrec)
+\qquad\quad \boxed{\mathsf{if}\;I_{\B}=\bot\;\mathsf{then}\;\mathsf{return}\;\bot} \\
+\qquad\quad t_{I_{\B}}\gets t, t\gets t+1, \Lch\gets\emptyset \\
+\qquad\quad (\dkA,\ekA,\ctzero)\gets(\bot,\bot,\bot) \\
+\qquad\quad (\ack.\ekrec,\ack.\ctrec)
   \gets(\mathsf{false},\mathsf{false}) \\
-\mathsf{if}\;\ack'.\ekrec\;\boxed{\wedge\;t=t'}\;\mathsf{then}
+\quad \mathsf{if}\;\ack'.\ekrec\;\boxed{\wedge\;t=t'}\;\mathsf{then}
   \pcomment{\text{incorporate }\B\text{'s acknowledgment}} \\
-\quad \ack.\ekrec\gets\mathsf{true} \\
+\qquad \ack.\ekrec\gets\mathsf{true} \\
 \stA\gets(\dkA,\ekA,\ctzero,t,\ich,\Lch,\ack) \\
 \mathsf{return}\;((t_{I_{\B}},I_{\B}),t'-1,\stA)
 \end{array}`
@@ -388,39 +392,38 @@ def recvA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
   (stA : StA onoff Sym) (ρ : Message Sym) :
-    Option (Option (ℕ × K) × ℕ × StA onoff Sym) :=
+    Option (Option (ℕ × K) × ℕ × StA onoff Sym) := do
   let (ch?, ack', t', b?) := ρ
-  let (key?, stA') :=
-    if stA.t = t' then
-      let (key?, stA') :=
+  let (key?, stA') ←
+    if stA.t = t' then do
+      let (key?, stA') ←
         match stA.ct0, b?, ch? with
         | none, some 0, some ch =>
             -- `ct_0` not received yet
             let lch := insert ch stA.lch
             match ecCt0.decode lch with
             -- still not received enough chunks to decode `ct_0`
-            | none => (none, { stA with ct0 := none, lch := lch })
+            | none => some ((none : Option (ℕ × K)), { stA with ct0 := none, lch := lch })
             -- decoded `ct_0` successfully
             | some ct0 =>
-                (none,
+                some (none,
                   { stA with
                     ct0 := some ct0
                     lch := ∅
                     ack := { stA.ack with ctRec := true } })
         | _, some 1, some ch =>
-        -- processing `ct_1` chunks; without `dk_A` or `ct_0`, output no key
-        -- and leave state unchanged
+        -- Processing `ct_1` chunks requires both `dk_A` and `ct_0`.
             match stA.dkA, stA.ct0 with
             | some dkA, some ct0 =>
                 let lch := insert ch stA.lch
                 match ecCt1.decode lch with
-                | none => (none, { stA with lch := lch })
+                | none => some (none, { stA with lch := lch })
                 | some ct1 =>
                 -- decoded `ct_1` successfully; decapsulate (ct_0, ct_1) to get an epoch key
                   match decapsDet dkA (onoff.split.symm (ct0, ct1)) with
-                  | none => (none, stA)
+                  | none => none
                   | some key =>
-                      (some (stA.t, key),
+                      some (some (stA.t, key),
                         { stA with
                           dkA := none
                           ekA := none
@@ -428,8 +431,8 @@ def recvA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
                           t := stA.t + 1
                           lch := ∅
                           ack := { ekRec := false, ctRec := false } })
-            | _, _ => (none, stA)
-        | _, _, _ => (none, stA)
+            | _, _ => none
+        | _, _, _ => some (none, stA)
       -- Incorporate B's acknowledgement only if this receive did not advance A
       -- to the next epoch; otherwise a final `ct_1` message would carry the old
       -- epoch's ack into the fresh epoch.
@@ -438,10 +441,10 @@ def recvA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
           { stA' with ack := { stA'.ack with ekRec := true } }
         else
           stA'
-      (key?, stA')
+      pure (key?, stA')
     else
-      (none, stA)
-  some (key?, t' - 1, stA')
+      pure (none, stA)
+  pure (key?, t' - 1, stA')
 ```
 :::::
 
