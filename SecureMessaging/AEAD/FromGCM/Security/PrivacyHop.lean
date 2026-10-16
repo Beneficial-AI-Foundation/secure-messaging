@@ -66,8 +66,9 @@ lazy-sampling cache is populated exactly when the challenge is. The second conju
 unreachable state where the cache holds a tuple but no challenge was issued; there the encryption
 step would not couple, `game3` reusing the cached tuple while `game4` draws fresh. -/
 def gcmPrivacyRel {L : ℕ} :
-    (Option (BitVec L × BitVec 128) × Option (BitVec 128 × BitVec 128 × BitVec L)) →
-      Option (BitVec L × BitVec 128) → Prop :=
+    (Option (SupportedAAD × (BitVec L × BitVec 128)) ×
+      Option (BitVec 128 × BitVec 128 × BitVec L)) →
+      Option (SupportedAAD × (BitVec L × BitVec 128)) → Prop :=
   fun p ch₂ => p.1 = ch₂ ∧ p.2.isSome = p.1.isSome
 
 /-! ## The three deterministic per-query cases -/
@@ -78,8 +79,9 @@ private lemma stateT_liftM_apply {σ α : Type} (x : ProbComp α) (s : σ) :
 
 /-- `OUnif`: both sides forward the same uniform query and touch no state. -/
 private lemma gcmPrivacy_step_unif {L : ℕ} (n : ℕ)
-    (s₁ : Option (BitVec L × BitVec 128) × Option (BitVec 128 × BitVec 128 × BitVec L))
-    (s₂ : Option (BitVec L × BitVec 128))
+    (s₁ : Option (SupportedAAD × (BitVec L × BitVec 128)) ×
+      Option (BitVec 128 × BitVec 128 × BitVec L))
+    (s₂ : Option (SupportedAAD × (BitVec L × BitVec 128)))
     (hs : gcmPrivacyRel s₁ s₂) :
     RelTriple
       ((consumeLazy gcmTupleImplReject (fun t => t matches OEncrypt _)
@@ -108,7 +110,7 @@ private lemma gcmPrivacy_step_unif {L : ℕ} (n : ℕ)
 /-- `OEncrypt` at a populated challenge slot: the one-shot encryption oracle has already fired,
 so both sides return `none` without drawing or writing state. -/
 private lemma gcmPrivacy_step_encrypt_some {L : ℕ} (ad : SupportedAAD) (m : BitVec L)
-    (e₀ : BitVec L × BitVec 128) (a : BitVec 128 × BitVec 128 × BitVec L) :
+    (e₀ : SupportedAAD × (BitVec L × BitVec 128)) (a : BitVec 128 × BitVec 128 × BitVec L) :
     RelTriple
       ((consumeLazy gcmTupleImplReject (fun t => t matches OEncrypt _)
         (OEncrypt (ad, m) : (aeadOneTimeCCASpec SupportedAAD (BitVec L)
@@ -149,8 +151,9 @@ private lemma gcmPrivacy_step_encrypt_some {L : ℕ} (ad : SupportedAAD) (m : Bi
 equal and the state relation is preserved. -/
 private lemma gcmPrivacy_step_decrypt {L : ℕ} (ad : SupportedAAD)
     (e : BitVec L × BitVec 128)
-    (s₁ : Option (BitVec L × BitVec 128) × Option (BitVec 128 × BitVec 128 × BitVec L))
-    (s₂ : Option (BitVec L × BitVec 128))
+    (s₁ : Option (SupportedAAD × (BitVec L × BitVec 128)) ×
+      Option (BitVec 128 × BitVec 128 × BitVec L))
+    (s₂ : Option (SupportedAAD × (BitVec L × BitVec 128)))
     (hs : gcmPrivacyRel s₁ s₂) :
     RelTriple
       ((consumeLazy gcmTupleImplReject (fun t => t matches OEncrypt _)
@@ -173,7 +176,7 @@ private lemma gcmPrivacy_step_decrypt {L : ℕ} (ad : SupportedAAD)
   have hskel : (gcmTupleImplReject (default : BitVec 128 × BitVec 128 × BitVec L)
       (ODecrypt (ad, e) : (aeadOneTimeCCASpec SupportedAAD (BitVec L)
         (BitVec L × BitVec 128)).Domain)).run ch = (pure (none, ch) : ProbComp _) := by
-    by_cases hguard : ch = some e
+    by_cases hguard : ch = some (ad, e)
     all_goals
       simp [gcmTupleImplReject, gcmGameSkeleton, beq_iff_eq, hguard]
   have hrun₁ : (consumeLazy gcmTupleImplReject (fun t => t matches OEncrypt _)
@@ -188,7 +191,7 @@ private lemma gcmPrivacy_step_decrypt {L : ℕ} (ad : SupportedAAD)
       (ODecrypt (ad, e) : (aeadOneTimeCCASpec SupportedAAD (BitVec L)
         (BitVec L × BitVec 128)).Domain)).run s₂ =
       (pure (none, s₂) : ProbComp _) := by
-    by_cases hguard : s₂ = some e
+    by_cases hguard : s₂ = some (ad, e)
     all_goals
       simp [gcmRandRejectImpl, gcmGameSkeleton, beq_iff_eq, hguard]
   rw [hrun₁, hrun₂]
@@ -221,7 +224,8 @@ private lemma gcmPrivacy_step_encrypt_none {L : ℕ} (ad : SupportedAAD) (m : Bi
       (gcmTupleImplReject a (OEncrypt (ad, m) : (aeadOneTimeCCASpec SupportedAAD (BitVec L)
         (BitVec L × BitVec 128)).Domain)).run none =
       (pure (some (m ^^^ a.2.2, ghash a.1 (gcmEncode ad (m ^^^ a.2.2)) ^^^ a.2.1),
-        some (m ^^^ a.2.2, ghash a.1 (gcmEncode ad (m ^^^ a.2.2)) ^^^ a.2.1)) : ProbComp _) :=
+        some (ad, (m ^^^ a.2.2, ghash a.1 (gcmEncode ad (m ^^^ a.2.2)) ^^^ a.2.1))) :
+          ProbComp _) :=
     fun a => by
       simp [gcmTupleImplReject, gcmGameSkeleton, StateT.run_bind, StateT.run_get,
         StateT.run_set]
@@ -230,7 +234,7 @@ private lemma gcmPrivacy_step_encrypt_none {L : ℕ} (ad : SupportedAAD) (m : Bi
         (BitVec L × BitVec 128)).Domain)).run (none, none) =
       (fun a : BitVec 128 × BitVec 128 × BitVec L =>
         (some (m ^^^ a.2.2, ghash a.1 (gcmEncode ad (m ^^^ a.2.2)) ^^^ a.2.1),
-          some (m ^^^ a.2.2, ghash a.1 (gcmEncode ad (m ^^^ a.2.2)) ^^^ a.2.1),
+          some (ad, (m ^^^ a.2.2, ghash a.1 (gcmEncode ad (m ^^^ a.2.2)) ^^^ a.2.1)),
           some a)) <$> ($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _) := by
     rw [hpeel]
     simp only [hskel]
@@ -238,7 +242,7 @@ private lemma gcmPrivacy_step_encrypt_none {L : ℕ} (ad : SupportedAAD) (m : Bi
   have hrun₂ : (gcmRandRejectImpl (L := L) default
       (OEncrypt (ad, m) : (aeadOneTimeCCASpec SupportedAAD (BitVec L)
         (BitVec L × BitVec 128)).Domain)).run none =
-      (fun e : BitVec L × BitVec 128 => (some e, some e)) <$>
+      (fun e : BitVec L × BitVec 128 => (some e, some (ad, e))) <$>
         ($ᵗ (BitVec L × BitVec 128) : ProbComp _) := by
     simp [gcmRandRejectImpl, gcmGameSkeleton]
   have hgraph : RelTriple ($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _)
@@ -259,8 +263,9 @@ and one of `game4`'s return the same response and re-establish the relation. Onl
 query at an empty challenge slot is probabilistic; the other cases are bookkeeping. -/
 theorem gcmPrivacy_step {L : ℕ}
     (t : (aeadOneTimeCCASpec SupportedAAD (BitVec L) (BitVec L × BitVec 128)).Domain)
-    (s₁ : Option (BitVec L × BitVec 128) × Option (BitVec 128 × BitVec 128 × BitVec L))
-    (s₂ : Option (BitVec L × BitVec 128))
+    (s₁ : Option (SupportedAAD × (BitVec L × BitVec 128)) ×
+      Option (BitVec 128 × BitVec 128 × BitVec L))
+    (s₂ : Option (SupportedAAD × (BitVec L × BitVec 128)))
     (hs : gcmPrivacyRel s₁ s₂) :
     RelTriple
       ((consumeLazy gcmTupleImplReject (fun t => t matches OEncrypt _) t).run s₁)

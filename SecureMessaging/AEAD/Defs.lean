@@ -31,6 +31,14 @@ Indistinguishability under Chosen-Ciphertext Attack (IND-CCA) security following
   EUROCRYPT 2025, https://eprint.iacr.org/2025/078.pdf
   — Definition 2.5 (AEAD advantage convention used here).
 
+- [NRS14] Namprempre, Rogaway, Shrimpton.
+  *Reconsidering Generic Composition.*
+  EUROCRYPT 2014, https://eprint.iacr.org/2013/765
+
+- [BS] Boneh, Shoup.
+  *A Graduate Course in Applied Cryptography*, version 0.6, 2023.
+  — Definition 9.10 (CCA security with associated data).
+
 An AEAD scheme is a pair of deterministic algorithms `(Enc, Dec)` providing both
 confidentiality and integrity for messages, with additional unencrypted associated data
 authenticated alongside the ciphertext.
@@ -57,18 +65,53 @@ An AEAD scheme is correct if for all keys `K`, associated data `a`, and messages
   `Dec(K, a, Enc(K, a, m)) = m`
 
 [SECURITY — One-Time IND-CCA]
-The game samples `K ←$ K`, `e* ← ⊥`, `b ←$ {0, 1}`, then the adversary
+The game samples `K ←$ K`, `(a*, e*) ← ⊥`, `b ←$ {0, 1}`, then the adversary
 `A^{encrypt, decrypt}` interacts with:
 
 - A **one-time encryption oracle** `encrypt(a, m)`:
-  if `b = 0`, sets `e* ← Enc(K, a, m)`; else sets `e* ←$ C`; returns `e*`.
+  sets `a* ← a`; if `b = 0`, sets `e* ← Enc(K, a, m)`; else sets `e* ←$ C`; returns `e*`.
   This oracle may be called at most once (stated in Figure 1 caption).
 
 - A **decryption oracle** `decrypt(a, e)`:
-  `if e = e* or b = 1 return ⊥; return Dec(K, a, e)`.
-  When `e* = ⊥` (pre-challenge), the check `e = e*` is trivially false.
+  `if (a, e) = (a*, e*) or b = 1 return ⊥; return Dec(K, a, e)`.
+  When no challenge has been issued, the check is trivially false.
 
 The adversary wins if its guess `b'` satisfies `b' = b`.
+
+[DEVIATIONS FROM ACD19]
+The deviation is marked `Deviation (D1)` where it takes effect.
+
+- (D1) The challenge is the pair `(a*, e*)`, not the ciphertext `e*` alone. Two oracle lines
+  change:
+
+  ```
+             ACD19 Figure 1                    here
+  encrypt    e* ← …                            a* ← a;  e* ← …
+  decrypt    if e = e* or b = 1 return ⊥       if (a, e) = (a*, e*) or b = 1 return ⊥
+  ```
+
+  The game state is therefore `Option (AD × C)`, and `AD` needs decidable equality.
+
+  Reason. The ACD19 guard `e = e*` refuses every decryption query `(a, e*)`, for every associated
+  data `a`. The ACD19 game therefore never tests whether `e*` decrypts under associated data
+  other than `a*`, so the ACD19 notion accepts schemes that ignore associated data. For example,
+  let `AE = (Enc, Dec)` be secure in the ACD19 game, fix some associated data `ā`, and define
+  `AE' = (Enc', Dec')` by `Enc'(K, a, m) = Enc(K, ā, m)` and `Dec'(K, a, e) = Dec(K, ā, e)`.
+
+  1. `AE'` is secure in the ACD19 game. An adversary against `AE'` becomes an adversary against
+     `AE` with the same advantage: it replaces the associated data of every query by `ā`.
+  2. The FS-AEAD scheme of [ACD19] Figure 6, built on `AE'`, is insecure in the game of [ACD19]
+     Figure 5. The adversary calls `transmit-A(a, m)` and receives `c = (1, e)`, where
+     `e = Enc'(K, (1, a), m)`. Before `c` is delivered, it calls `inject-B(a', c)` with
+     `a' ≠ a`. The pair `(a', c)` is not in `trans`, and `FS-Rcv` computes
+     `Dec'(K, (1, a'), e) = Dec(K, ā, e) = m ≠ ⊥`. Epoch 1 is not in `comp`, so the adversary
+     wins.
+
+  Items 1 and 2 contradict Theorem 5 of [ACD19] as printed. With the guard
+  `(a, e) = (a*, e*)`, `AE'` is insecure: the adversary encrypts `(a, m)`, receives `e*`, and
+  queries `decrypt(a', e*)` with `a' ≠ a`. The query returns `m` if `b = 0` and `⊥` if `b = 1`.
+  [NRS14] and Definition 9.10 of [BS] restrict decryption queries in the same way: only the
+  exact pair returned by encryption is refused.
 
 [WHY A PRF TAG, NOT JUST A MAC]
 The game above is *real-or-random*: when `b = 1` the oracle returns a uniform random
@@ -120,8 +163,9 @@ The adversary `A` interacts with two stateful oracles:
 - `encrypt(a, m)`: one-time encryption oracle.
 - `decrypt(a, e)`: decryption oracle.
 
-The game state is a single `Option C` value tracking the challenge ciphertext
-(`none` = `encrypt` not yet called; `some e` = challenge ciphertext is `e`).
+The game state is a single `Option (AD × C)` value tracking the challenge
+(`none` = `encrypt` not yet called; `some (a, e)` = the challenge was `e` under
+associated data `a`).
 -/
 
 variable {M AD K C : Type}
@@ -176,19 +220,19 @@ def decryptQueryBound (adv : OneTimeCCAAdversary AD M C)
 /-! ### Oracle implementations -/
 
 /-- Uniform-randomness oracle lifted to the game-state monad. -/
-def oracleUnif (C : Type) :
-    QueryImpl unifSpec (StateT (Option C) ProbComp) :=
-  unifLiftStateT (Option C) unifSpec
+def oracleUnif (AD C : Type) :
+    QueryImpl unifSpec (StateT (Option (AD × C)) ProbComp) :=
+  unifLiftStateT (Option (AD × C)) unifSpec
 
 /-- One-time encryption oracle `encrypt(a, m)` (Figure 1 of [ACD19], middle column).
 First call: if `b = false`, sets `e* ← Enc(K, a, m)`;
             if `b = true`,  sets `e* ←$ C`.
-            Returns `some e*`.
+            Records `(a, e*)` and returns `some e*`.
 Subsequent calls: returns `none` (one-time oracle). -/
 -- ANCHOR: oracleEncrypt
 def oracleEncrypt [SampleableType C] (ae : AEADScheme ProbComp M AD K C)
     (b : Bool) (k : K) :
-    QueryImpl (AD × M →ₒ Option C) (StateT (Option C) ProbComp) :=
+    QueryImpl (AD × M →ₒ Option C) (StateT (Option (AD × C)) ProbComp) :=
   fun (a, m) => do
     match (← get) with
     | some _ => pure none
@@ -196,32 +240,30 @@ def oracleEncrypt [SampleableType C] (ae : AEADScheme ProbComp M AD K C)
       let eStar ← if b
         then liftM ($ᵗ C : ProbComp C)
         else pure (ae.encrypt k a m)
-      set (some eStar)
+      set (some (a, eStar))
       return some eStar
 -- ANCHOR_END: oracleEncrypt
 
-/-- Decryption oracle `decrypt(a, e)` (Figure 1 of [ACD19], right column).
-`if e = e* or b = 1 return ⊥; return Dec(K, a, e)`.
-When `eStar = none` (pre-challenge), the `e = e*` check is trivially false.
-
-Note: the challenge guard compares the **ciphertext `e` only**, ignoring the
-associated data `a` — faithful to ACD19 Def 2 / Fig 1 (the target notion here). -/
+/-- Decryption oracle `decrypt(a, e)` (Figure 1 of [ACD19], right column, with the guard
+on the pair): `if (a, e) = (a*, e*) or b = 1 return ⊥; return Dec(K, a, e)`.
+Before the challenge the state is `none` and the guard is trivially false.
+Deviation (D1): Figure 1 compares `e` only. -/
 -- ANCHOR: oracleDecrypt
-def oracleDecrypt [DecidableEq C] (ae : AEADScheme ProbComp M AD K C)
+def oracleDecrypt [DecidableEq AD] [DecidableEq C] (ae : AEADScheme ProbComp M AD K C)
     (b : Bool) (k : K) :
-    QueryImpl (AD × C →ₒ Option M) (StateT (Option C) ProbComp) :=
+    QueryImpl (AD × C →ₒ Option M) (StateT (Option (AD × C)) ProbComp) :=
   fun (a, e) => do
-    let eStar ← get
-    if b || eStar == some e then pure none
+    let chal ← get
+    if b || chal == some (a, e) then pure none
     else pure (ae.decrypt k a e)
 -- ANCHOR_END: oracleDecrypt
 
 /-- Complete oracle set for the one-time IND-CCA game (Figure 1 of [ACD19]). -/
 -- ANCHOR: aeadSecurityImpl
-def aeadSecurityImpl [SampleableType C] [DecidableEq C]
+def aeadSecurityImpl [SampleableType C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C) (b : Bool) (k : K) :
-    QueryImpl (aeadOneTimeCCASpec AD M C) (StateT (Option C) ProbComp) :=
-  oracleUnif C + oracleEncrypt ae b k + oracleDecrypt ae b k
+    QueryImpl (aeadOneTimeCCASpec AD M C) (StateT (Option (AD × C)) ProbComp) :=
+  oracleUnif AD C + oracleEncrypt ae b k + oracleDecrypt ae b k
 -- ANCHOR_END: aeadSecurityImpl
 
 /-! ### Security experiment -/
@@ -232,7 +274,7 @@ def aeadSecurityImpl [SampleableType C] [DecidableEq C]
 `run`:    `b' ← A^{encrypt, decrypt}`
 `output`: `b' = b` -/
 -- ANCHOR: securityExp
-def securityExp [SampleableType C] [DecidableEq C]
+def securityExp [SampleableType C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) : ProbComp Bool := do
   let k ← ae.keygen
@@ -243,7 +285,7 @@ def securityExp [SampleableType C] [DecidableEq C]
 
 /-- One-time IND-CCA guess advantage: `|Pr[b' = b] - 1/2|`. -/
 -- ANCHOR: guessAdvantage
-noncomputable def guessAdvantage [SampleableType C] [DecidableEq C]
+noncomputable def guessAdvantage [SampleableType C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) : ℝ :=
   |(Pr[= true | securityExp ae adversary]).toReal - 1 / 2|
@@ -255,7 +297,7 @@ noncomputable def guessAdvantage [SampleableType C] [DecidableEq C]
 The branch `b = false` is `AEAD_real`; the branch `b = true` is `AEAD_rand`.
 Returns the adversary's raw guess `b'` (not `b == b'`). -/
 -- ANCHOR: securityExpFixedBit
-def securityExpFixedBit [SampleableType C] [DecidableEq C]
+def securityExpFixedBit [SampleableType C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C)
     (b : Bool) : ProbComp Bool := do
@@ -270,7 +312,7 @@ def securityExpFixedBit [SampleableType C] [DecidableEq C]
 Here `AEAD_real` is `securityExpFixedBit ae adversary false` and `AEAD_rand`
 is `securityExpFixedBit ae adversary true`. -/
 -- ANCHOR: distAdvantage
-noncomputable def distAdvantage [SampleableType C] [DecidableEq C]
+noncomputable def distAdvantage [SampleableType C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) : ℝ :=
   |(Pr[= true | securityExpFixedBit ae adversary true]).toReal -
@@ -287,7 +329,8 @@ Here `AEAD_real` abbreviates `securityExpFixedBit ae adversary false`, and
 `AEAD_rand` abbreviates `securityExpFixedBit ae adversary true`; each branch
 returns the adversary's raw guess `b'`. Proved by swapping `b ← $ᵗ Bool` past
 the key-generation step using `probEvent_bind_bind_swap`. -/
-private lemma securityExp_probOutput_eq_branch [SampleableType C] [DecidableEq C]
+private lemma securityExp_probOutput_eq_branch
+    [SampleableType C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) :
     Pr[= true | securityExp ae adversary] =
@@ -310,7 +353,8 @@ as the difference of the random and real fixed-bit branches:
 Here `AEAD_rand` is `securityExpFixedBit ae adversary true`, and `AEAD_real`
 is `securityExpFixedBit ae adversary false`; both return the adversary's
 raw guess. -/
-private lemma securityExp_toReal_sub_half [SampleableType C] [DecidableEq C]
+private lemma securityExp_toReal_sub_half
+    [SampleableType C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) :
     (Pr[= true | securityExp ae adversary]).toReal - 1 / 2 =
@@ -330,7 +374,8 @@ private lemma securityExp_toReal_sub_half [SampleableType C] [DecidableEq C]
 /-- The guess advantage equals half the distinguishing advantage:
 `guessAdvantage = distAdvantage / 2`. -/
 -- ANCHOR: guessAdvantage_eq_distAdvantage_div_two
-lemma guessAdvantage_eq_distAdvantage_div_two [SampleableType C] [DecidableEq C]
+lemma guessAdvantage_eq_distAdvantage_div_two
+    [SampleableType C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) :
     guessAdvantage ae adversary = distAdvantage ae adversary / 2

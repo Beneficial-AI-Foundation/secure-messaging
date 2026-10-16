@@ -33,9 +33,8 @@ namespace OracleComp.WegmanCarter
 For a uniform key `H`, the probability that some entry of `l` satisfies
 `hash H X' ⊕ hash H X* = T' ⊕ T*` is at most `|l| · ε`.
 
-An entry with `X' = X*` contributes `0`: it would need `T' = T*`, i.e. `(X', T') = c`. Such
-entries can occur, because the decryption guard compares ciphertexts rather than digest points,
-which is why the hypothesis is `(X', T') ≠ c` and not `X' ≠ X*`.
+The hypothesis is `(X', T') ≠ c` and not `X' ≠ X*`, so entries with `X' = X*` and `T' ≠ T*` are
+allowed. They contribute `0`, because a hit needs `T' = T*`.
 
 An entry with `X' ≠ X*` and `T' = T*` reuses the challenge tag on a different input. AXU is
 applied at offset `T' ⊕ T* = 0` there, so the bound relies on `IsAlmostXorUniversal` covering

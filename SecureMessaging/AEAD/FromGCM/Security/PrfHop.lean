@@ -126,7 +126,7 @@ lemma run'_game0Impl_eq_tupleImpl (prp : PRPScheme K (BitVec 128)) (iv : BitVec 
     (simulateQ (gcmGameSkeleton (spec := unifSpec)
         (fun ad m => pure ((gcmOneTimeAEAD prp iv L hL).encrypt k ad m))
         (fun ad e => pure ((gcmOneTimeAEAD prp iv L hL).decrypt k ad e))
-        (oracleUnif (BitVec L × BitVec 128))) adv).run' none =
+        (oracleUnif SupportedAAD (BitVec L × BitVec 128))) adv).run' none =
       (simulateQ (gcmTupleImpl (prp.toBlockCipher.perm k 0,
         prp.toBlockCipher.perm k (j0 iv),
         blocksToBitVec ((counterChain (inc32 (j0 iv)) ((L + 127) / 128)).map
