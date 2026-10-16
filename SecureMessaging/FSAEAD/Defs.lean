@@ -46,7 +46,8 @@ As printed, Figure 5 has two errors. Without D4, every scheme either accepts a f
 fails correctness. Without D2, the adversary wins against schemes that keep their state on a
 rejection and report the index named in the rejected ciphertext. D2 and D4 correct the
 errors. D1 fills a gap in Definition 14, D3 does not change who wins, and D5 halves the
-advantage. Each deviation is marked `(Dn)` where it takes effect.
+advantage. Each deviation is marked `(Dn)` where it takes effect. In the oracle pseudocode,
+`[…]  -- Dn` frames a change to the text of Figure 5, like the boxes in the blueprint.
 
 - (D1) Definition 14 has `FS-Rcv` always return `(v', i, m)` and does not say what happens
   on rejection; Figure 5 tests `m' ≠ ⊥`. Here `rcv` returns `none` on rejection, with no
@@ -210,8 +211,8 @@ def findTrans [DecidableEq AD] [DecidableEq C] (st : GameState SS SR AD M C)
 
 end GameState
 
-/-- Oracle spec for the FS-AEAD security game: uniform randomness, then `transmit-A`,
-`chall-A`, `corr-A`, `corr-B`, `deliver-B` and `inject-B`. Each of the last six answers
+/-- Oracle spec for the FS-AEAD security game: uniform randomness, then `O-Transmit-A`,
+`O-Chall-A`, `O-Corr-A`, `O-Corr-B`, `O-Deliver-B` and `O-Inject-B`. Each of the last six answers
 `none` when its `req` fails or after the game has ended. -/
 -- ANCHOR: fsaeadSpec
 abbrev fsaeadSpec (SS SR AD M C : Type) :=
@@ -231,22 +232,22 @@ variable {SS SR AD M C : Type}
 /-- Domain index selecting the uniform-randomness oracle. -/
 @[match_pattern] abbrev OUnif (n : ℕ) : (fsaeadSpec SS SR AD M C).Domain :=
   .inl (.inl (.inl (.inl (.inl (.inl n)))))
-/-- Domain index selecting `transmit-A`. -/
+/-- Domain index selecting `O-Transmit-A`. -/
 @[match_pattern] abbrev OTransmitA (am : AD × M) : (fsaeadSpec SS SR AD M C).Domain :=
   .inl (.inl (.inl (.inl (.inl (.inr am)))))
-/-- Domain index selecting `chall-A`. -/
+/-- Domain index selecting `O-Chall-A`. -/
 @[match_pattern] abbrev OChallA (amm : AD × M × M) : (fsaeadSpec SS SR AD M C).Domain :=
   .inl (.inl (.inl (.inl (.inr amm))))
-/-- Domain index selecting `corr-A`. -/
+/-- Domain index selecting `O-Corr-A`. -/
 @[match_pattern] abbrev OCorrA : (fsaeadSpec SS SR AD M C).Domain :=
   .inl (.inl (.inl (.inr ())))
-/-- Domain index selecting `corr-B`. -/
+/-- Domain index selecting `O-Corr-B`. -/
 @[match_pattern] abbrev OCorrB : (fsaeadSpec SS SR AD M C).Domain :=
   .inl (.inl (.inr ()))
-/-- Domain index selecting `deliver-B`. -/
+/-- Domain index selecting `O-Deliver-B`. -/
 @[match_pattern] abbrev ODeliverB (ae : AD × C) : (fsaeadSpec SS SR AD M C).Domain :=
   .inl (.inr ae)
-/-- Domain index selecting `inject-B`. -/
+/-- Domain index selecting `O-Inject-B`. -/
 @[match_pattern] abbrev OInjectB (ae : AD × C) : (fsaeadSpec SS SR AD M C).Domain :=
   .inr ae
 
@@ -268,9 +269,9 @@ abbrev GameM (SS SR AD M C : Type) := StateT (GameState SS SR AD M C) ProbComp
 def oracleUnif (SS SR AD M C : Type) : QueryImpl unifSpec (GameM SS SR AD M C) :=
   unifLiftStateT (GameState SS SR AD M C) unifSpec
 
-/-- **transmit-A(a, m)**. A sends `m`, and the ciphertext is recorded as a normal one.
+/-- **O-Transmit-A(a, m)**. A sends `m`, and the ciphertext is recorded as a normal one.
 ```text
-transmit-A(a, m):
+O-Transmit-A(a, m):
   i_A++
   (v_A, e) ← FS-Send(v_A, a, m)
   record(good, a, m, e)
@@ -287,9 +288,9 @@ def oracleTransmitA (fs : FSAEADScheme K SS SR AD M C) :
     return some e
 -- ANCHOR_END: oracleTransmitA
 
-/-- **chall-A(a, m₀, m₁)**. A sends `m_b`, and the ciphertext is recorded as a challenge.
+/-- **O-Chall-A(a, m₀, m₁)**. A sends `m_b`, and the ciphertext is recorded as a challenge.
 ```text
-chall-A(a, m₀, m₁):
+O-Chall-A(a, m₀, m₁):
   req ¬corrA and |m₀| = |m₁|
   i_A++
   (v_A, e) ← FS-Send(v_A, a, m_b)
@@ -308,10 +309,10 @@ def oracleChallA (fs : FSAEADScheme K SS SR AD M C) (len : M → ℕ) (b : Bool)
     return some e
 -- ANCHOR_END: oracleChallA
 
-/-- **corr-A**. Reveals A's state. Every index that A has not sent yet and that no
+/-- **O-Corr-A**. Reveals A's state. Every index that A has not sent yet and that no
 injection consumed becomes compromised.
 ```text
-corr-A:
+O-Corr-A:
   corrA ← true
   return v_A
 ``` -/
@@ -325,9 +326,9 @@ def oracleCorrA (SS SR AD M C : Type) :
     return some st.vA
 -- ANCHOR_END: oracleCorrA
 
-/-- **corr-B**. Reveals both states and ends the game.
+/-- **O-Corr-B**. Reveals both states and ends the game.
 ```text
-corr-B:
+O-Corr-B:
   req chall = ∅
   end
   return (v_A, v_B)
@@ -342,13 +343,12 @@ def oracleCorrB (SS SR AD M C : Type) :
     return some (st.vA, st.vB)
 -- ANCHOR_END: oracleCorrB
 
-/-- **deliver-B(a, e)**. Delivers an honest ciphertext. If B does not recover the recorded
-index and message, the adversary wins. Challenge plaintexts are not returned.
+/-- **O-Deliver-B(a, e)**. Delivers an honest ciphertext. If B does not recover the
+recorded index and message, the adversary wins. Challenge plaintexts are not returned.
 ```text
-deliver-B(a, e):
+O-Deliver-B(a, e):
   req (i, a, m, e) ∈ trans for some i, m   -- the first such record
-  if FS-Rcv(v_B, a, e) rejects:
-    win; return ⊥                          -- (D3) Figure 5 also runs delete(i)
+  [if FS-Rcv(v_B, a, e) = ⊥: win; return ⊥]                     -- D3
   (v_B, i', m') ← FS-Rcv(v_B, a, e)
   if (i', m') ≠ (i, m): win
   if i ∈ chall: m' ← ⊥
@@ -373,15 +373,16 @@ def oracleDeliverB [DecidableEq AD] [DecidableEq M] [DecidableEq C]
       return some (i', if i ∈ st.chall then none else some m')
 -- ANCHOR_END: oracleDeliverB
 
-/-- **inject-B(a, e)**. Delivers any other ciphertext. If B accepts it for an index that is
-not compromised, the adversary wins.
+/-- **O-Inject-B(a, e)**. Delivers any other ciphertext. If B accepts it for an index that
+is not compromised, the adversary wins.
 ```text
-inject-B(a, e):
+O-Inject-B(a, e):
   req (a, e) ∉ trans
-  if FS-Rcv(v_B, a, e) rejects: return ⊥   -- (D2) Figure 5 runs delete(i')
+  [if FS-Rcv(v_B, a, e) = ⊥: return ⊥]                          -- D2
   (v_B, i', m') ← FS-Rcv(v_B, a, e)
-  if i' not compromised: win               -- (D4) Figure 5 has i' ∉ comp
-  delete(i')                               -- (D4) remembered if i' not sent yet
+  if m' ≠ ⊥ and i' ∉ comp
+      and [¬(corrA ∧ i' > i_A ∧ i' ∉ preempted)]: win           -- D4
+  delete(i')
   return (i', m')
 ``` -/
 -- ANCHOR: oracleInjectB
@@ -415,7 +416,7 @@ def fsaeadSecurityImpl [DecidableEq AD] [DecidableEq M] [DecidableEq C]
 /-- **FS-AEAD security experiment** (Figure 5 of [ACD19]).
 
 `init`:   `k ←$ K; v_A ← FS-Init-S(k); v_B ← FS-Init-R(k); b ←$ {0, 1}`
-`run`:    `b' ← A^{transmit-A, chall-A, corr-A, corr-B, deliver-B, inject-B}`
+`run`:    `b' ← A^{O-Transmit-A, O-Chall-A, O-Corr-A, O-Corr-B, O-Deliver-B, O-Inject-B}`
 `output`: `true` if a `win` instruction was reached, otherwise `b' = b` -/
 -- ANCHOR: securityExp
 def securityExp [SampleableType K] [DecidableEq AD] [DecidableEq M] [DecidableEq C]
