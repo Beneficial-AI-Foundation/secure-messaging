@@ -90,20 +90,26 @@ in the boxes below and in the source:
 - (D5) The advantage is half that of ACD19 §2.1.
 
 ::::::gameGrid
-:::::gameCell "\\textsf{Game state}" (kind := "scheme")
+:::::gameCell "\\textsf{Game state}" (kind := "scheme-notation")
 The game state consists of:
 
-- $`v_\A`, $`v_\B`: the states of A and B.
-- $`i_\A`: the number of messages A has sent.
-- $`\mathsf{corrA}`: whether A has been corrupted.
-- $`\mathsf{trans}`: the records $`(i, a, m, e)` of ciphertexts in transit.
-- $`\mathsf{chall} \subseteq \mathbb N`: the indices of challenge ciphertexts in transit.
-- $`\mathsf{comp} \subseteq \mathbb N`: the indices of ciphertexts in transit that A sent
-  while corrupted.
-- $`\mathsf{preempted} \subseteq \mathbb N`: (D4) the indices that an injection consumed
-  before A sent them.
-- $`\mathsf{won}`: whether a $`\mathsf{win}` instruction was reached.
-- $`\mathsf{ended}`: whether $`\mathsf{end}` was reached.
+::::table -header
+*
+  *
+    * $`v_\A`, $`v_\B`: the states of A and B.
+    * $`i_\A`: the number of messages A has sent.
+    * $`\mathsf{corrA}`: whether A has been corrupted.
+    * $`\mathsf{won}`: whether a $`\mathsf{win}` instruction was reached.
+    * $`\mathsf{ended}`: whether $`\mathsf{end}` was reached.
+  *
+    * $`\mathsf{trans}`: the records $`(i, a, m, e)` of ciphertexts in transit.
+    * $`\mathsf{chall} \subseteq \mathbb N`: the indices of challenge ciphertexts in
+      transit.
+    * $`\mathsf{comp} \subseteq \mathbb N`: the indices of ciphertexts in transit that A
+      sent while corrupted.
+    * $`\mathsf{preempted} \subseteq \mathbb N`: (D4) the indices that an injection
+      consumed before A sent them.
+::::
 
 An index $`i` is compromised if
 
