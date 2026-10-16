@@ -52,15 +52,71 @@ Ciphertexts are empty: the sender's public value $`g^x` doubles as the KEM ciphe
 
 The scheme is the non-forward-secure special case of an {bpref "rkem_scheme"}[RKEM]: $`\REnc\text{-}\mathsf{P}` returns its input $`\dk_\mathsf{P}` unchanged as the updated decapsulation key, and $`\RDec\text{-}\mathsf{P}` returns its input $`\ek_{\mathsf{\bar P}}` unchanged as the peer's updated encapsulation key. In particular, it is not FS-IND-CPA secure, since the {bpref "rkem_forward_security"}[forward-security game] hands the adversary $`\dkh{A}=x` together with $`\ekh{B}=Y`, from which it recomputes $`K=Y^x`; the paper only claims plain IND-CPA security under DDH (Theorem A.4).
 
-The algorithms are the same for both parties $`\mathsf{P}\in\{\A,\B\}`, with peer $`\mathsf{\bar P}`. In Lean, the group is modelled additively as a module over the scalar field $`F` (playing $`\mathbb{Z}_q`) with a fixed generator $`\mathsf{gen}`, given as a parameter of the construction: $`g^x` is `x • gen` and $`Y^x` is `x • Y`.
+Both parties run the same algorithms, shown below for one round in each direction, with $`\A`'s key pair $`(g^x,x)` on the left and $`\B`'s key pair $`(g^y,y)` on the right. In Lean, the group is modelled additively as a module over the scalar field $`F` (playing $`\mathbb{Z}_q`) with a fixed generator $`\mathsf{gen}`, given as a parameter of the construction: $`g^x` is `x • gen` and $`Y^x` is `x • Y`.
+
+*Key generation.*
 
 ::::::gameGrid
-:::::gameCell "\\mathsf{RKeyGen}\\text{-}\\mathsf{P}(\\mathsf{par},\\mathsf{mode})" (kind := "scheme")
+:::::gameCell "\\mathsf{RKeyGen}\\text{-}\\A(\\mathsf{par},\\mathsf{mode})" (kind := "compact")
 $`\begin{array}{l}
 x\sample\mathbb{Z}_q \\
-(\ek_\mathsf{P},\dk_\mathsf{P})\gets(g^x,x) \\
-\Return(\ek_\mathsf{P},\dk_\mathsf{P})
+(\ekA,\dkA)\gets(g^x,x) \\
+\Return(\ekA,\dkA)
 \end{array}`
+:::::
+
+:::::gameCell "\\mathsf{RKeyGen}\\text{-}\\B(\\mathsf{par},\\mathsf{mode})" (kind := "compact")
+$`\begin{array}{l}
+y\sample\mathbb{Z}_q \\
+(\ek_\B,\dk_\B)\gets(g^y,y) \\
+\Return(\ek_\B,\dk_\B)
+\end{array}`
+:::::
+::::::
+
+*Round* $`\A\to\B`.
+
+::::::gameGrid
+:::::gameCell "\\REnc\\text{-}\\A(\\ekh{B}:=Y,\\dkA:=x)" (kind := "compact")
+$`\begin{array}{l}
+\ct_\B:=()\pcomment{\text{empty ciphertext}} \\
+K:=Y^x\pcomment{=g^{xy}} \\
+\dkh{A}:=x \\
+\Return(\ct_\B,K,\dkh{A})
+\end{array}`
+:::::
+
+:::::gameCell "\\RDec\\text{-}\\B(\\dkh{B}:=y,\\ct_\\B,\\ekA:=X)" (kind := "compact")
+$`\begin{array}{l}
+K:=X^y\pcomment{=g^{xy}} \\
+\ekh{A}:=X \\
+\Return(K,\ekh{A})
+\end{array}`
+:::::
+::::::
+
+*Round* $`\B\to\A`.
+
+::::::gameGrid
+:::::gameCell "\\RDec\\text{-}\\A(\\dkh{A}:=x,\\ct_\\A,\\ek_\\B:=Y)" (kind := "compact")
+$`\begin{array}{l}
+K:=Y^x\pcomment{=g^{xy}} \\
+\ekh{B}:=Y \\
+\Return(K,\ekh{B})
+\end{array}`
+:::::
+
+:::::gameCell "\\REnc\\text{-}\\B(\\ekh{A}:=X,\\dk_\\B:=y)" (kind := "compact")
+$`\begin{array}{l}
+\ct_\A:=()\pcomment{\text{empty ciphertext}} \\
+K:=X^y\pcomment{=g^{xy}} \\
+\dkh{B}:=y \\
+\Return(\ct_\A,K,\dkh{B})
+\end{array}`
+:::::
+::::::
+
+In Lean, both parties run the same `rkeygen`, `renc` and `rdec`.
 
 :::leanPillCaption "RKeyGen-P"
 :::
@@ -70,15 +126,6 @@ def rkeygen (gen : G) (_par : Unit) : ProbComp (G × F) := do
   let x ← $ᵗ F
   return (x • gen, x)
 ```
-:::::
-
-:::::gameCell "\\REnc\\text{-}\\mathsf{P}(\\ekh{\\bar P}:=Y,\\dk_\\mathsf{P}:=x)" (kind := "compact")
-$`\begin{array}{l}
-\ct_{\mathsf{\bar P}}:=()\pcomment{\text{empty ciphertext}} \\
-K:=Y^x \\
-\dkh{P}:=x \\
-\Return(\ct_{\mathsf{\bar P}},K,\dkh{P})
-\end{array}`
 
 :::leanPillCaption "REnc-P"
 :::
@@ -90,14 +137,6 @@ def renc (_par : Unit) (ekPeerHat : G) (dkSelf : F) : ProbComp (Unit × G × F) 
   let dkSelfHat := dkSelf
   return (ctPeer, key, dkSelfHat)
 ```
-:::::
-
-:::::gameCell "\\RDec\\text{-}\\mathsf{P}(\\dkh{P}:=x,\\ct_\\mathsf{P},\\ek_{\\mathsf{\\bar P}}:=Y)" (kind := "compact")
-$`\begin{array}{l}
-K:=Y^x \\
-\ekh{\bar P}:=Y \\
-\Return(K,\ekh{\bar P})
-\end{array}`
 
 :::leanPillCaption "RDec-P"
 :::
@@ -108,8 +147,6 @@ def rdec (_par : Unit) (dkSelfHat : F) (_ctSelf : Unit) (ekPeer : G) : ProbComp 
   let ekPeerHat := ekPeer
   return (key, ekPeerHat)
 ```
-:::::
-::::::
 
 :::leanPillCaption "DH RKEM scheme"
 :::
