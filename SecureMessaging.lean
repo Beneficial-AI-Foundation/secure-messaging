@@ -65,6 +65,7 @@ import SecureMessaging.RKEM.FromKEM.Construction
 import SecureMessaging.RKEM.FromKEM.Correctness
 import SecureMessaging.RKEM.FromKEM.RatchetSimulatability
 import SecureMessaging.RKEM.FromKEM.Security
+import SecureMessaging.RKEM.RatchetSimulatabilityHelper
 import SecureMessaging.SCKA.Correctness
 import SecureMessaging.SCKA.Defs
 import SecureMessaging.SCKA.Correctness.Tracked

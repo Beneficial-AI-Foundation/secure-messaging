@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 import SecureMessaging.RKEM.FromDDHNonFS.Construction
-import ToVCVio.OracleComp.Constructions.SampleableType
+import SecureMessaging.RKEM.RatchetSimulatabilityHelper
 
 /-!
 # RKEM from DDH (non-forward-secure) — Ratchet Simulatability
@@ -179,41 +179,6 @@ theorem evalDist_ctxtSimDistA (par : Unit) :
       𝒟[(scheme (F := F) gen).ctxtSimDistA (ratchetSimulator gen) par false] :=
   evalDist_ctxtSimDistB gen par
 
-/-- `Adv^{KeyBaseSim}` of the simulators of [TripleRatchet, Fig. 30] is `0`, against every pair
-of distinguishers. -/
-theorem keyBaseSimAdvantage_eq_zero (adversaryA adversaryB : KeyBaseSimAdversary Unit G F) :
-    (scheme (F := F) gen).keyBaseSimAdvantage (ratchetSimulator gen) adversaryA adversaryB = 0 := by
-  unfold RKEMScheme.keyBaseSimAdvantage RKEMScheme.keyBaseSimAdvantageA
-    RKEMScheme.keyBaseSimAdvantageB RKEMScheme.keyBaseSimExpA RKEMScheme.keyBaseSimExpB
-  rw [probOutput_true_bitGuess_eq_half _ _ _ (evalDist_keyBaseSimDistA gen),
-    probOutput_true_bitGuess_eq_half _ _ _ (evalDist_keyBaseSimDistB gen)]
-  simp
-
-/-- `Adv^{KeyUpdSim}` of the simulators of [TripleRatchet, Fig. 30] is `0`, against every pair
-of distinguishers. -/
-theorem keyUpdSimAdvantage_eq_zero
-    (adversaryA adversaryB : KeyUpdSimAdversary Unit G F Unit G
-      (ratchetSimulator (F := F) gen).Aux (randLeak (F := F) gen).KeygenRand
-      (randLeak (F := F) gen).EncRand) :
-    (scheme (F := F) gen).keyUpdSimAdvantage (ratchetSimulator gen) adversaryA adversaryB = 0 := by
-  unfold RKEMScheme.keyUpdSimAdvantage RKEMScheme.keyUpdSimAdvantageA
-    RKEMScheme.keyUpdSimAdvantageB RKEMScheme.keyUpdSimExpA RKEMScheme.keyUpdSimExpB
-  rw [probOutput_true_bitGuess_eq_half _ _ _ (evalDist_keyUpdSimDistA gen),
-    probOutput_true_bitGuess_eq_half _ _ _ (evalDist_keyUpdSimDistB gen)]
-  simp
-
-/-- `Adv^{CtxtSim}` of the simulators of [TripleRatchet, Fig. 30] is `0`, against every pair of
-distinguishers. -/
-theorem ctxtSimAdvantage_eq_zero
-    (adversaryA adversaryB : CtxtSimAdversary Unit G F Unit G
-      (ratchetSimulator (F := F) gen).Aux (randLeak (F := F) gen).KeygenRand) :
-    (scheme (F := F) gen).ctxtSimAdvantage (ratchetSimulator gen) adversaryA adversaryB = 0 := by
-  unfold RKEMScheme.ctxtSimAdvantage RKEMScheme.ctxtSimAdvantageA
-    RKEMScheme.ctxtSimAdvantageB RKEMScheme.ctxtSimExpA RKEMScheme.ctxtSimExpB
-  rw [probOutput_true_bitGuess_eq_half _ _ _ (evalDist_ctxtSimDistA gen),
-    probOutput_true_bitGuess_eq_half _ _ _ (evalDist_ctxtSimDistB gen)]
-  simp
-
 end Simulatability
 
 /-- **Theorem A.5** ([TripleRatchet]), non-forward-secure part: the non-forward-secure DH RKEM is
@@ -224,9 +189,9 @@ theorem RatchetSimulatable (gen : G) :
     (scheme (F := F) gen).RatchetSimulatable (leak := randLeak gen) 0
 -- ANCHOR_END: RatchetSimulatable
     :=
-  ⟨ratchetSimulator gen, fun baseA baseB updA updB ctxtA ctxtB =>
-    ⟨(keyBaseSimAdvantage_eq_zero gen baseA baseB).le,
-      (keyUpdSimAdvantage_eq_zero gen updA updB).le,
-      (ctxtSimAdvantage_eq_zero gen ctxtA ctxtB).le⟩⟩
+  RKEMScheme.ratchetSimulatable_zero_of_evalDist_eq _ (ratchetSimulator gen)
+    (evalDist_keyBaseSimDistA gen) (evalDist_keyBaseSimDistB gen)
+    (evalDist_keyUpdSimDistA gen) (evalDist_keyUpdSimDistB gen)
+    (evalDist_ctxtSimDistA gen) (evalDist_ctxtSimDistB gen)
 
 end ddhRKEM
