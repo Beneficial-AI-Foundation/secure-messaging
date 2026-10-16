@@ -48,9 +48,9 @@ K=g^{xy}\in G & \text{shared key, for key pairs }(g^x,x)\text{ and }(g^y,y)
 :::::
 ::::::
 
-Ciphertexts are empty: the sender's public value $`g^x` doubles as the KEM ciphertext and as its encapsulation key, which the generic CKA construction transmits alongside the ciphertext and $`\RDec\text{-}\mathsf{P}` receives as $`\ek_{\mathsf{\bar P}}`. Used in the generic CKA construction, this RKEM yields the Double Ratchet CKA of {Informal.citet ACD19}[] (see CKA from DDH).
+Ciphertexts are empty: the sender's public value $`g^x` doubles as the KEM ciphertext and as its encapsulation key, which the generic CKA construction transmits alongside the ciphertext and $`\RDec\text{-}\mathsf{P}` receives as $`\ek_{\mathsf{\bar P}}`. Used in the generic CKA construction, this RKEM yields the Double Ratchet CKA of {Informal.citet ACD19}[] (see {bpref "cka_from_ddh"}[CKA from DDH]).
 
-The scheme is the non-forward-secure special case of an RKEM: $`\REnc\text{-}\mathsf{P}` returns its input $`\dk_\mathsf{P}` unchanged as the updated decapsulation key, and $`\RDec\text{-}\mathsf{P}` returns its input $`\ek_{\mathsf{\bar P}}` unchanged as the peer's updated encapsulation key. In particular, it is not FS-IND-CPA secure, since the forward-security game hands the adversary $`\dkh{A}=x` together with $`\ekh{B}=Y`, from which it recomputes $`K=Y^x`; the paper only claims plain IND-CPA security under DDH (Theorem A.4).
+The scheme is the non-forward-secure special case of an {bpref "rkem_scheme"}[RKEM]: $`\REnc\text{-}\mathsf{P}` returns its input $`\dk_\mathsf{P}` unchanged as the updated decapsulation key, and $`\RDec\text{-}\mathsf{P}` returns its input $`\ek_{\mathsf{\bar P}}` unchanged as the peer's updated encapsulation key. In particular, it is not FS-IND-CPA secure, since the {bpref "rkem_forward_security"}[forward-security game] hands the adversary $`\dkh{A}=x` together with $`\ekh{B}=Y`, from which it recomputes $`K=Y^x`; the paper only claims plain IND-CPA security under DDH (Theorem A.4).
 
 The algorithms are the same for both parties $`\mathsf{P}\in\{\A,\B\}`, with peer $`\mathsf{\bar P}`. In Lean, the group is modelled additively as a module over the scalar field $`F` (playing $`\mathbb{Z}_q`) with a fixed generator $`\mathsf{gen}`, given as a parameter of the construction: $`g^x` is `x • gen` and $`Y^x` is `x • Y`.
 
@@ -171,7 +171,7 @@ def randLeak (gen : G) : (scheme (F := F) gen).RandLeak where
 ::::theorem "rkem_from_ddh_nonfs_correctness" (parent := "rkem_rkem_from_ddh_non_fs") (lean := "ddhRKEM.probOutput_correctExpA_eq_one, ddhRKEM.evalDist_ratchetRoundOutputA_eq_evalDist_rkeygen, ddhRKEM.deltaCorrect") (tags := "gh-67") (uses := "rkem_from_ddh_nonfs_spec, rkem_scheme, rkem_correctness")
 Adapted from {Informal.citet TR25}[], Theorem A.3.
 
-The non-forward-secure RKEM from DDH is perfectly correct, that is, $`(0,0)`-correct in the sense of the RKEM correctness definition. Explicitly, for each party $`\mathsf{P}\in\{\A,\B\}` with peer $`\mathsf{\bar P}`, consider one round of the protocol from $`\mathsf{P}` towards $`\mathsf{\bar P}`:
+The non-forward-secure RKEM from DDH is perfectly correct, that is, $`(0,0)`-correct in the sense of the {bpref "rkem_correctness"}[RKEM correctness definition]. Explicitly, for each party $`\mathsf{P}\in\{\A,\B\}` with peer $`\mathsf{\bar P}`, consider one round of the protocol from $`\mathsf{P}` towards $`\mathsf{\bar P}`:
 
 $$`\begin{array}{l}
 (\ek_\mathsf{P},\dk_\mathsf{P})\sample\DRKG{P},\quad (\ekh{\bar P},\dkh{\bar P})\sample\DRKGup{\bar P}, \\
@@ -198,7 +198,7 @@ theorem deltaCorrect [DecidableEq G] (gen : G) :
 :::::::theorem "rkem_from_ddh_nonfs_ratchet_sim" (parent := "rkem_rkem_from_ddh_non_fs") (lean := "ddhRKEM.rsimKey1, ddhRKEM.rsimKey2, ddhRKEM.rsimCtxt, ddhRKEM.ratchetSimulator, ddhRKEM.RatchetSimulatable") (tags := "gh-68") (uses := "rkem_from_ddh_nonfs_spec, rkem_scheme, rkem_ratchet_sim")
 Adapted from {Informal.citet TR25}[], Theorem A.5 and Figure 30.
 
-Let $`(\RSimKey\text{-}\mathsf{P}_1,\RSimKey\text{-}\mathsf{P}_2,\RSimCtxt\text{-}\mathsf{P})_{\mathsf{P}\in\{\A,\B\}}` be the simulators of Figure 30, given below. The non-forward-secure RKEM from DDH is perfectly ratchet simulatable with respect to these simulators, that is, $`0`-ratchet simulatable in the sense of the RKEM ratchet simulatability definition. Explicitly, for each property $`\mathsf{X}\in\{\mathsf{KeyBaseSim},\mathsf{KeyUpdSim},\mathsf{CtxtSim}\}` and each party $`\mathsf{P}\in\{\A,\B\}`, the real and simulated distributions are identical,
+Let $`(\RSimKey\text{-}\mathsf{P}_1,\RSimKey\text{-}\mathsf{P}_2,\RSimCtxt\text{-}\mathsf{P})_{\mathsf{P}\in\{\A,\B\}}` be the simulators of Figure 30, given below. The non-forward-secure RKEM from DDH is perfectly ratchet simulatable with respect to these simulators, that is, $`0`-ratchet simulatable in the sense of the {bpref "rkem_ratchet_sim"}[RKEM ratchet simulatability definition]. Explicitly, for each property $`\mathsf{X}\in\{\mathsf{KeyBaseSim},\mathsf{KeyUpdSim},\mathsf{CtxtSim}\}` and each party $`\mathsf{P}\in\{\A,\B\}`, the real and simulated distributions are identical,
 
 $$`\mathcal{D}^{\mathsf{X}}_{\mathsf{P},0}=\mathcal{D}^{\mathsf{X}}_{\mathsf{P},1},`
 
@@ -212,7 +212,7 @@ theorem RatchetSimulatable (gen : G) :
     (scheme (F := F) gen).RatchetSimulatable (leak := randLeak gen) 0
 ```
 
-Ratchet simulatability is stated relative to the construction's randomness-leak package (see the RKEM from DDH non-FS construction).
+Ratchet simulatability is stated relative to the construction's randomness-leak package (see the {bpref "rkem_from_ddh_nonfs_spec"}[RKEM from DDH non-FS construction]).
 
 The simulators are the same for both parties $`\mathsf{P}\in\{\A,\B\}`, with peer $`\mathsf{\bar P}`. They follow Figure 30 of the paper, which returns the outputs of $`\RSimKey\text{-}\mathsf{P}_1` in a different order. The simulation is perfect as printed. $`\RSimKey\text{-}\mathsf{P}_1` returns $`\mathsf{P}`'s fresh key pair as its updated one, exactly as the scheme does, since it leaves the keys unchanged. $`\RSimKey\text{-}\mathsf{P}_2` returns $`K=Y^x` twice, where the peer would compute $`K'=X^y`; both equal $`g^{xy}` since the keys are honestly generated. $`\RSimCtxt\text{-}\mathsf{P}` returns $`\ekh{P}` as $`\ek_\mathsf{P}`, which is what $`\RDec\text{-}\mathsf{\bar P}` does in the real distribution.
 
