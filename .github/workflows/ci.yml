@@ -59,36 +59,39 @@ jobs:
               - 'lake-manifest.json'
               - 'scripts/**'
 
-      - name: Cache Lake build products
-        id: lake-build-cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            .lake/build
-          key: lake-build-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'lake-manifest.json', '**/*.lean') }}
-          restore-keys: |
-            lake-build-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'lake-manifest.json') }}-
-            lake-build-${{ runner.os }}-
-
-      - name: Restore Lake dependency builds
-        id: lake-deps-cache
+      # The only cache for .lake: the build, the dependency checkouts and their
+      # builds. A run saves it at the end of the job if its Lean build passed
+      # and the sorry audit did not fail. Lake never deletes outputs, so an
+      # entry can also hold files from older commits. The path and key format
+      # are those of lean-action, so the first runs start from its entries. A
+      # toolchain or manifest change starts a new cache.
+      - name: Restore Lake cache
+        id: lake-cache
         uses: actions/cache/restore@v4
         with:
-          path: |
-            .lake/packages/*/.lake/build
-            !.lake/packages/mathlib/.lake/build
-          key: lake-deps-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}
+          path: ./.lake
+          key: lake-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('./lean-toolchain') }}-${{ hashFiles('./lake-manifest.json') }}-${{ github.sha }}
           restore-keys: |
-            lake-deps-${{ runner.os }}-
+            lake-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('./lean-toolchain') }}-${{ hashFiles('./lake-manifest.json') }}
 
       - uses: leanprover/lean-action@v1
+        id: lean
         with:
           auto-config: "false"
+          use-github-cache: "false"
           build: "true"
           lint: "true"
           use-mathlib-cache: "true"
 
+      # probe-lean imports every built module that has a source. Rebuild every
+      # module that CI builds before the audit, or a stale one restored from
+      # another commit can import a deleted module, and probe-lean aborts.
+      - name: Build documentation modules
+        if: ${{ !cancelled() && steps.lean.outputs.build-status == 'SUCCESS' }}
+        run: lake build SecureMessagingDocs SecureMessagingDocs.Contents SecureMessagingDocs.Render
+
       - name: Sorry audit
+        id: audit
         uses: Beneficial-AI-Foundation/veritooling/actions/sorry-audit@v1
         with:
           backend: probe
@@ -100,10 +103,6 @@ jobs:
         run: |
           python3 -m unittest discover -s scripts/tests -p 'test_*.py'
           scripts/lint-blueprint-issue-tags.py
-
-      - name: Build documentation modules
-        if: steps.changes.outputs.docs == 'true' || github.event_name == 'workflow_dispatch'
-        run: lake build SecureMessagingDocs.Contents
 
       - name: Generate documentation site
         if: steps.changes.outputs.docs == 'true' || github.event_name == 'workflow_dispatch'
@@ -134,20 +133,18 @@ jobs:
             test -f "_out/site/html-multi/$chapter/Blueprint-Summary/index.html"
           done
 
-      - name: Save Lake dependency builds
-        if: always() && steps.lake-deps-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            .lake/packages/*/.lake/build
-            !.lake/packages/mathlib/.lake/build
-          key: lake-deps-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}
-
       - name: Upload Pages artifact
         if: steps.changes.outputs.docs == 'true' || github.event_name == 'workflow_dispatch'
         uses: actions/upload-pages-artifact@v4
         with:
           path: _out/site/html-multi
+
+      - name: Save Lake cache
+        if: ${{ !cancelled() && steps.lake-cache.outputs.cache-hit != 'true' && steps.lean.outputs.build-status == 'SUCCESS' && steps.audit.outcome != 'failure' }}
+        uses: actions/cache/save@v4
+        with:
+          path: ./.lake
+          key: ${{ steps.lake-cache.outputs.cache-primary-key }}
 
   deploy:
     name: Deploy Pages
