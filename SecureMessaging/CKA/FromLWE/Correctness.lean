@@ -64,17 +64,17 @@ namespace lweCKA
 Use the initialization and send samplers from the construction.
 The result is `true` if any entry differs after key extraction and recovery. -/
 def firstExchangeFailureExp (p : Params) (χ : ProbComp (Scalar p)) : ProbComp Bool := do
-  -- ik.base is the shared public n × n matrix, sampled uniformly over ZMod p.q.
+  -- ik.baseMatrix is the shared public n × n matrix, sampled uniformly over ZMod p.q.
   -- It is the matrix conventionally written A in the mathematical construction.
   let ik ← initKeyGen p χ
   -- Sample the first sender's fresh secret, error, and extra-error matrices.
   let r ← sampleSendACoins p χ
-  -- The receiver's initial public matrix P₀ = base · S₀ + E₀ (n × nbar).
+  -- The receiver's initial public matrix P₀ = baseMatrix · S₀ + E₀ (n × nbar).
   -- The sender initially holds P₀; the receiver retains S₀ = ik.secret.
-  let receiverPublicMatrix := ik.base * ik.secret + ik.error
-  -- The sender's outgoing public matrix P₁ = S₁ · base + E₁ (nbar × n).
+  let receiverPublicMatrix := ik.baseMatrix * ik.secret + ik.error
+  -- The sender's outgoing public matrix P₁ = S₁ · baseMatrix + E₁ (nbar × n).
   -- It accompanies the hint; S₁ = r.secret is the sender's fresh secret.
-  let senderPublicMatrix := r.secret * ik.base + r.error
+  let senderPublicMatrix := r.secret * ik.baseMatrix + r.error
   -- The sender extracts its key and hint from V = S₁ · P₀ + extra (nbar × nbar).
   let senderValue := r.secret * receiverPublicMatrix + r.extra
   -- The receiver computes W = P₁ · S₀ (nbar × nbar), then uses the sender's hint.
@@ -154,7 +154,7 @@ theorem evalDist_sampleMatrix_transpose
 
 /-- Transposing both keys preserves whether the recovered and extracted keys disagree. -/
 theorem keyMismatch_transpose
-    (p : Params) (receiverValue senderValue : Shared p) :
+    (p : Params) (receiverValue senderValue : SharedMatrix p) :
     decide (reconcile p receiverValue.transpose (makeHint p senderValue.transpose) ≠
       extract p senderValue.transpose) =
       decide (reconcile p receiverValue (makeHint p senderValue) ≠
@@ -177,8 +177,8 @@ def secondExchangeFailureExp
   let ik ← initKeyGen p χ
   let a ← sampleSendACoins p χ
   let b ← sampleSendBCoins p χ
-  let firstPublicMatrix := a.secret * ik.base + a.error
-  let secondPublicMatrix := ik.base * b.secret + b.error
+  let firstPublicMatrix := a.secret * ik.baseMatrix + a.error
+  let secondPublicMatrix := ik.baseMatrix * b.secret + b.error
   let senderValue := firstPublicMatrix * b.secret + b.extra
   let receiverValue := a.secret * secondPublicMatrix
   return decide (reconcile p receiverValue (makeHint p senderValue) ≠ extract p senderValue)
@@ -228,7 +228,7 @@ theorem evalDist_secondExchangeCoins_transpose
       let a ← sampleSendACoins p χ
       let b ← sampleSendBCoins p χ
       return (
-         ({ base := ik.base.transpose
+         ({ baseMatrix := ik.baseMatrix.transpose
             secret := a.secret.transpose
             error := a.error.transpose } : InitKey p),
          ({ secret := b.secret.transpose
@@ -249,24 +249,25 @@ theorem evalDist_secondExchangeCoins_transpose
       𝒟[mx >>= f] = 𝒟[my >>= f] := by
     rw [evalDist_bind, evalDist_bind, h]
   have hBase :
-      𝒟[(fun m : Base p => m.transpose) <$> ($ᵗ (Base p) : ProbComp (Base p))] =
-        𝒟[($ᵗ (Base p) : ProbComp (Base p))] := by
+      𝒟[(fun m : BaseMatrix p => m.transpose) <$> ($ᵗ (BaseMatrix p) : ProbComp (BaseMatrix p))] =
+        𝒟[($ᵗ (BaseMatrix p) : ProbComp (BaseMatrix p))] := by
     apply evalDist_map_bijective_uniform_cross
     exact ⟨Matrix.transpose_injective,
       fun y => ⟨y.transpose, Matrix.transpose_transpose y⟩⟩
   simp only [initKeyGen, sampleSendACoins, sampleSendBCoins, bind_assoc, pure_bind]
   let mid : ProbComp (InitKey p × SendACoins p) := do
-    let base ← (fun m : Base p => m.transpose) <$> ($ᵗ (Base p) : ProbComp (Base p))
+    let baseMatrix ←
+      (fun m : BaseMatrix p => m.transpose) <$> ($ᵗ (BaseMatrix p) : ProbComp (BaseMatrix p))
     let initSecret ← (fun m => m.transpose) <$> sampleMatrix χ p.nbar p.n
     let initError ← (fun m => m.transpose) <$> sampleMatrix χ p.nbar p.n
     let sendSecret ← (fun m => m.transpose) <$> sampleMatrix χ p.n p.nbar
     let sendError ← (fun m => m.transpose) <$> sampleMatrix χ p.n p.nbar
     let sendExtra ← (fun m => m.transpose) <$> sampleMatrix χ p.nbar p.nbar
-    pure (InitKey.mk base initSecret initError,
+    pure (InitKey.mk baseMatrix initSecret initError,
       SendACoins.mk sendSecret sendError sendExtra)
   refine Eq.trans (b := 𝒟[mid]) ?_ ?_
   · simp only [mid, map_eq_bind_pure_comp, Function.comp_apply, bind_assoc, pure_bind]
-    refine evalDist_bind_congr' (($ᵗ (Base p) : ProbComp (Base p))) fun _ => ?_
+    refine evalDist_bind_congr' (($ᵗ (BaseMatrix p) : ProbComp (BaseMatrix p))) fun _ => ?_
     refine (hDrop (sampleMatrix χ p.n p.nbar) _).trans ?_
     refine (hDrop (sampleMatrix χ p.n p.nbar) _).trans ?_
     refine evalDist_bind_congr' (sampleMatrix χ p.nbar p.n) fun _ => ?_
@@ -274,7 +275,7 @@ theorem evalDist_secondExchangeCoins_transpose
     exact hDrop (sampleMatrix χ p.nbar p.nbar) _
   · simp only [mid]
     refine (hHead _ _ hBase _).trans ?_
-    refine evalDist_bind_congr' (($ᵗ (Base p) : ProbComp (Base p))) fun _ => ?_
+    refine evalDist_bind_congr' (($ᵗ (BaseMatrix p) : ProbComp (BaseMatrix p))) fun _ => ?_
     refine (hHead _ _ (evalDist_sampleMatrix_transpose χ p.nbar p.n) _).trans ?_
     refine evalDist_bind_congr' (sampleMatrix χ p.n p.nbar) fun _ => ?_
     refine (hHead _ _ (evalDist_sampleMatrix_transpose χ p.nbar p.n) _).trans ?_
@@ -294,8 +295,8 @@ theorem evalDist_secondExchangeFailureExp_eq_first
   let firstMismatch : InitKey p × SendACoins p → Bool := fun coins =>
     let ik := coins.1
     let a := coins.2
-    let receiverPublicMatrix := ik.base * ik.secret + ik.error
-    let senderPublicMatrix := a.secret * ik.base + a.error
+    let receiverPublicMatrix := ik.baseMatrix * ik.secret + ik.error
+    let senderPublicMatrix := a.secret * ik.baseMatrix + a.error
     let senderValue := a.secret * receiverPublicMatrix + a.extra
     let receiverValue := senderPublicMatrix * ik.secret
     decide (reconcile p receiverValue (makeHint p senderValue) ≠ extract p senderValue)
@@ -304,7 +305,7 @@ theorem evalDist_secondExchangeFailureExp_eq_first
       let a ← sampleSendACoins p χ
       let b ← sampleSendBCoins p χ
       return (
-        ({ base := ik.base.transpose
+        ({ baseMatrix := ik.baseMatrix.transpose
            secret := a.secret.transpose
            error := a.error.transpose } : InitKey p),
         ({ secret := b.secret.transpose
@@ -322,8 +323,8 @@ theorem evalDist_secondExchangeFailureExp_eq_first
     simpa only [firstMismatch, Matrix.transpose_add, Matrix.transpose_mul,
       Matrix.transpose_transpose] using
       (keyMismatch_transpose p
-        (a.secret * (ik.base * b.secret + b.error))
-        ((a.secret * ik.base + a.error) * b.secret + b.extra)).symm
+        (a.secret * (ik.baseMatrix * b.secret + b.error))
+        ((a.secret * ik.baseMatrix + a.error) * b.secret + b.extra)).symm
   have hFirst : firstExchangeFailureExp p χ = firstMismatch <$> (do
       let ik ← initKeyGen p χ
       let a ← sampleSendACoins p χ
@@ -369,20 +370,20 @@ def tapeRoundMismatch
       match tape[(0 : ℕ)]? with
       | none => false
       | some (a, _) =>
-          let senderValue := a.secret * (ik.base * ik.secret + ik.error) + a.extra
-          let receiverValue := (a.secret * ik.base + a.error) * ik.secret
+          let senderValue := a.secret * (ik.baseMatrix * ik.secret + ik.error) + a.extra
+          let receiverValue := (a.secret * ik.baseMatrix + a.error) * ik.secret
           decide (reconcile p receiverValue (makeHint p senderValue) ≠
             extract p senderValue)
   | j + 1 =>
       match tape[j]?, tape[j + 1]? with
       | some (previousA, previousB), some (a, b) =>
-          let values : Shared p × Shared p :=
+          let values : SharedMatrix p × SharedMatrix p :=
             if (j + 1) % 2 = 0 then
-              ((a.secret * ik.base + a.error) * previousB.secret,
-                a.secret * (ik.base * previousB.secret + previousB.error) + a.extra)
+              ((a.secret * ik.baseMatrix + a.error) * previousB.secret,
+                a.secret * (ik.baseMatrix * previousB.secret + previousB.error) + a.extra)
             else
-              (previousA.secret * (ik.base * b.secret + b.error),
-                (previousA.secret * ik.base + previousA.error) * b.secret + b.extra)
+              (previousA.secret * (ik.baseMatrix * b.secret + b.error),
+                (previousA.secret * ik.baseMatrix + previousA.error) * b.secret + b.extra)
           decide (reconcile p values.1 (makeHint p values.2) ≠ extract p values.2)
       | _, _ => false
 
@@ -495,14 +496,14 @@ private theorem evalDist_bind_replace {A B : Type} {mx my : ProbComp A}
 
 private theorem evalDist_initBase
     (p : Params) (χ : ProbComp (Scalar p)) :
-    evalDist ((fun ik => ik.base) <$> initKeyGen p χ) =
-      evalDist (($ᵗ (Base p) : ProbComp (Base p))) := by
+    evalDist ((fun ik => ik.baseMatrix) <$> initKeyGen p χ) =
+      evalDist (($ᵗ (BaseMatrix p) : ProbComp (BaseMatrix p))) := by
   simp only [initKeyGen, map_eq_bind_pure_comp, bind_assoc, pure_bind,
     Function.comp_apply]
-  refine (evalDist_bind_congr' (($ᵗ (Base p) : ProbComp (Base p)))
-    (ob₂ := fun base => pure base) fun base => ?_).trans ?_
+  refine (evalDist_bind_congr' (($ᵗ (BaseMatrix p) : ProbComp (BaseMatrix p)))
+    (ob₂ := fun baseMatrix => pure baseMatrix) fun baseMatrix => ?_).trans ?_
   · exact evalDist_drop2 (sampleMatrix χ p.n p.nbar) (sampleMatrix χ p.n p.nbar)
-      (pure base)
+      (pure baseMatrix)
   · simp
 
 private theorem evalDist_roundA
@@ -555,49 +556,50 @@ private theorem evalDist_sendBNoise
 
 private theorem evalDist_evenRelevant
     (p : Params) (χ : ProbComp (Scalar p)) {X : Type}
-    (f : Base p → Right p → Right p → SendACoins p → X) :
+    (f : BaseMatrix p → RightMatrix p → RightMatrix p → SendACoins p → X) :
     evalDist (do
       let ik ← initKeyGen p χ
       let _ ← sampleSendACoins p χ
       let previous ← sampleSendBCoins p χ
       let current ← sampleSendACoins p χ
-      return f ik.base previous.secret previous.error current) =
+      return f ik.baseMatrix previous.secret previous.error current) =
       evalDist (do
         let ik ← initKeyGen p χ
         let current ← sampleSendACoins p χ
-        return f ik.base ik.secret ik.error current) := by
+        return f ik.baseMatrix ik.secret ik.error current) := by
   let projected : ProbComp X := do
-    let base ← (fun ik => ik.base) <$> initKeyGen p χ
+    let baseMatrix ← (fun ik => ik.baseMatrix) <$> initKeyGen p χ
     let previous ← (fun coins : SendBCoins p => (coins.secret, coins.error)) <$>
       sampleSendBCoins p χ
     let current ← sampleSendACoins p χ
-    return f base previous.1 previous.2 current
+    return f baseMatrix previous.1 previous.2 current
   calc
     evalDist (do
         let ik ← initKeyGen p χ
         let _ ← sampleSendACoins p χ
         let previous ← sampleSendBCoins p χ
         let current ← sampleSendACoins p χ
-        return f ik.base previous.secret previous.error current) = evalDist projected := by
+        return f ik.baseMatrix previous.secret previous.error current) = evalDist projected := by
           simp only [projected, map_eq_bind_pure_comp, bind_assoc, pure_bind,
             Function.comp_apply]
           refine evalDist_bind_congr' (initKeyGen p χ) fun ik => ?_
           exact evalDist_drop (sampleSendACoins p χ) _
     _ = evalDist (do
-        let base ← ($ᵗ (Base p) : ProbComp (Base p))
+        let baseMatrix ← ($ᵗ (BaseMatrix p) : ProbComp (BaseMatrix p))
         let previousSecret ← sampleMatrix χ p.n p.nbar
         let previousError ← sampleMatrix χ p.n p.nbar
         let current ← sampleSendACoins p χ
-        return f base previousSecret previousError current) := by
+        return f baseMatrix previousSecret previousError current) := by
           simp only [projected]
           refine (evalDist_bind_replace (evalDist_initBase p χ) _).trans ?_
-          refine evalDist_bind_congr' (($ᵗ (Base p) : ProbComp (Base p))) fun base => ?_
+          refine evalDist_bind_congr'
+              (($ᵗ (BaseMatrix p) : ProbComp (BaseMatrix p))) fun baseMatrix => ?_
           refine (evalDist_bind_replace (evalDist_sendBNoise p χ) _).trans ?_
           simp only [bind_assoc, pure_bind]
     _ = evalDist (do
         let ik ← initKeyGen p χ
         let current ← sampleSendACoins p χ
-        return f ik.base ik.secret ik.error current) := by
+        return f ik.baseMatrix ik.secret ik.error current) := by
           simp [initKeyGen]
 
 private theorem evalDist_evenRoundCoins_eq_first
@@ -607,19 +609,19 @@ private theorem evalDist_evenRoundCoins_eq_first
       let previous ← honestRoundCoins p χ
       let current ← honestRoundCoins p χ
       let receiverValue :=
-        (current.1.secret * ik.base + current.1.error) * previous.2.secret
+        (current.1.secret * ik.baseMatrix + current.1.error) * previous.2.secret
       let senderValue := current.1.secret *
-        (ik.base * previous.2.secret + previous.2.error) + current.1.extra
+        (ik.baseMatrix * previous.2.secret + previous.2.error) + current.1.extra
       return decide (reconcile p receiverValue (makeHint p senderValue) ≠
         extract p senderValue)) =
       evalDist (firstExchangeFailureExp p χ) := by
   let projected : ProbComp Bool := do
-    let base ← (fun ik => ik.base) <$> initKeyGen p χ
+    let baseMatrix ← (fun ik => ik.baseMatrix) <$> initKeyGen p χ
     let previous ←
       (fun coins => (coins.2.secret, coins.2.error)) <$> honestRoundCoins p χ
     let current ← (fun coins => coins.1) <$> honestRoundCoins p χ
-    let receiverValue := (current.secret * base + current.error) * previous.1
-    let senderValue := current.secret * (base * previous.1 + previous.2) + current.extra
+    let receiverValue := (current.secret * baseMatrix + current.error) * previous.1
+    let senderValue := current.secret * (baseMatrix * previous.1 + previous.2) + current.extra
     return decide (reconcile p receiverValue (makeHint p senderValue) ≠
       extract p senderValue)
   calc
@@ -628,26 +630,27 @@ private theorem evalDist_evenRoundCoins_eq_first
         let previous ← honestRoundCoins p χ
         let current ← honestRoundCoins p χ
         let receiverValue :=
-          (current.1.secret * ik.base + current.1.error) * previous.2.secret
+          (current.1.secret * ik.baseMatrix + current.1.error) * previous.2.secret
         let senderValue := current.1.secret *
-          (ik.base * previous.2.secret + previous.2.error) + current.1.extra
+          (ik.baseMatrix * previous.2.secret + previous.2.error) + current.1.extra
         return decide (reconcile p receiverValue (makeHint p senderValue) ≠
           extract p senderValue)) = evalDist projected := by
             simp only [projected, map_eq_bind_pure_comp, bind_assoc, pure_bind,
               Function.comp_apply]
     _ = evalDist (do
-        let base ← ($ᵗ (Base p) : ProbComp (Base p))
+        let baseMatrix ← ($ᵗ (BaseMatrix p) : ProbComp (BaseMatrix p))
         let previousSecret ← sampleMatrix χ p.n p.nbar
         let previousError ← sampleMatrix χ p.n p.nbar
         let current ← sampleSendACoins p χ
-        let receiverValue := (current.secret * base + current.error) * previousSecret
+        let receiverValue := (current.secret * baseMatrix + current.error) * previousSecret
         let senderValue := current.secret *
-          (base * previousSecret + previousError) + current.extra
+          (baseMatrix * previousSecret + previousError) + current.extra
         return decide (reconcile p receiverValue (makeHint p senderValue) ≠
           extract p senderValue)) := by
             simp only [projected]
             refine (evalDist_bind_replace (evalDist_initBase p χ) _).trans ?_
-            refine evalDist_bind_congr' (($ᵗ (Base p) : ProbComp (Base p))) fun base => ?_
+            refine evalDist_bind_congr'
+              (($ᵗ (BaseMatrix p) : ProbComp (BaseMatrix p))) fun baseMatrix => ?_
             refine (evalDist_bind_replace (evalDist_roundBNoise p χ) _).trans ?_
             refine (evalDist_bind_congr' (do
               let secret ← sampleMatrix χ p.n p.nbar
@@ -655,9 +658,9 @@ private theorem evalDist_evenRoundCoins_eq_first
               return (secret, error)) (ob₂ := fun previous => do
                 let current ← sampleSendACoins p χ
                 let receiverValue :=
-                  (current.secret * base + current.error) * previous.1
+                  (current.secret * baseMatrix + current.error) * previous.1
                 let senderValue := current.secret *
-                  (base * previous.1 + previous.2) + current.extra
+                  (baseMatrix * previous.1 + previous.2) + current.extra
                 return decide (reconcile p receiverValue (makeHint p senderValue) ≠
                   extract p senderValue)) fun previous => ?_).trans ?_
             · exact evalDist_bind_replace (evalDist_roundA p χ) _
@@ -672,9 +675,9 @@ private theorem evalDist_oddRoundCoins_eq_second
       let previous ← honestRoundCoins p χ
       let current ← honestRoundCoins p χ
       let receiverValue := previous.1.secret *
-        (ik.base * current.2.secret + current.2.error)
+        (ik.baseMatrix * current.2.secret + current.2.error)
       let senderValue :=
-        (previous.1.secret * ik.base + previous.1.error) * current.2.secret +
+        (previous.1.secret * ik.baseMatrix + previous.1.error) * current.2.secret +
           current.2.extra
       return decide (reconcile p receiverValue (makeHint p senderValue) ≠
         extract p senderValue)) =
@@ -683,9 +686,9 @@ private theorem evalDist_oddRoundCoins_eq_second
     let ik ← initKeyGen p χ
     let previous ← (fun coins => coins.1) <$> honestRoundCoins p χ
     let current ← (fun coins => coins.2) <$> honestRoundCoins p χ
-    let receiverValue := previous.secret * (ik.base * current.secret + current.error)
+    let receiverValue := previous.secret * (ik.baseMatrix * current.secret + current.error)
     let senderValue :=
-      (previous.secret * ik.base + previous.error) * current.secret + current.extra
+      (previous.secret * ik.baseMatrix + previous.error) * current.secret + current.extra
     return decide (reconcile p receiverValue (makeHint p senderValue) ≠
       extract p senderValue)
   calc
@@ -694,9 +697,9 @@ private theorem evalDist_oddRoundCoins_eq_second
         let previous ← honestRoundCoins p χ
         let current ← honestRoundCoins p χ
         let receiverValue := previous.1.secret *
-          (ik.base * current.2.secret + current.2.error)
+          (ik.baseMatrix * current.2.secret + current.2.error)
         let senderValue :=
-          (previous.1.secret * ik.base + previous.1.error) * current.2.secret +
+          (previous.1.secret * ik.baseMatrix + previous.1.error) * current.2.secret +
             current.2.extra
         return decide (reconcile p receiverValue (makeHint p senderValue) ≠
           extract p senderValue)) = evalDist projected := by
@@ -717,8 +720,8 @@ theorem evalDist_tapeRoundMismatch_eq_first
   cases j with
   | zero =>
       let mismatch (ik : InitKey p) (a : SendACoins p) : Bool :=
-        let senderValue := a.secret * (ik.base * ik.secret + ik.error) + a.extra
-        let receiverValue := (a.secret * ik.base + a.error) * ik.secret
+        let senderValue := a.secret * (ik.baseMatrix * ik.secret + ik.error) + a.extra
+        let receiverValue := (a.secret * ik.baseMatrix + a.error) * ik.secret
         decide (reconcile p receiverValue (makeHint p senderValue) ≠
           extract p senderValue)
       simp only [sampleHonestTape, map_eq_bind_pure_comp, bind_assoc, pure_bind,
@@ -759,15 +762,15 @@ theorem evalDist_tapeRoundMismatch_eq_first
       have hj' : j + 1 < N := by omega
       let roundMismatch (ik : InitKey p)
           (previous current : SendACoins p × SendBCoins p) : Bool :=
-        let values : Shared p × Shared p :=
+        let values : SharedMatrix p × SharedMatrix p :=
           if (j + 1) % 2 = 0 then
-            ((current.1.secret * ik.base + current.1.error) * previous.2.secret,
+            ((current.1.secret * ik.baseMatrix + current.1.error) * previous.2.secret,
               current.1.secret *
-                (ik.base * previous.2.secret + previous.2.error) + current.1.extra)
+                (ik.baseMatrix * previous.2.secret + previous.2.error) + current.1.extra)
           else
             (previous.1.secret *
-                (ik.base * current.2.secret + current.2.error),
-              (previous.1.secret * ik.base + previous.1.error) * current.2.secret +
+                (ik.baseMatrix * current.2.secret + current.2.error),
+              (previous.1.secret * ik.baseMatrix + previous.1.error) * current.2.secret +
                 current.2.extra)
         decide (reconcile p values.1 (makeHint p values.2) ≠ extract p values.2)
       have hfront :
@@ -903,9 +906,10 @@ private def oddRoundCanonical
     ProbComp (Option (State p × State p × Bool)) := do
   let ik ← initKeyGen p χ
   let a ← sampleSendACoins p χ
-  let senderValue := a.secret * (ik.base * ik.secret + ik.error) + a.extra
-  let receiverValue := (a.secret * ik.base + a.error) * ik.secret
-  return some (.aRecv ik.base a.secret, .bSend ik.base (a.secret * ik.base + a.error),
+  let senderValue := a.secret * (ik.baseMatrix * ik.secret + ik.error) + a.extra
+  let receiverValue := (a.secret * ik.baseMatrix + a.error) * ik.secret
+  return some (.aRecv ik.baseMatrix a.secret,
+    .bSend ik.baseMatrix (a.secret * ik.baseMatrix + a.error),
     decide (reconcile p receiverValue (makeHint p senderValue) ≠ extract p senderValue))
 
 private def evenRoundCanonical
@@ -914,9 +918,10 @@ private def evenRoundCanonical
   let ik ← initKeyGen p χ
   let a ← sampleSendACoins p χ
   let b ← sampleSendBCoins p χ
-  let senderValue := (a.secret * ik.base + a.error) * b.secret + b.extra
-  let receiverValue := a.secret * (ik.base * b.secret + b.error)
-  return some (.aSend ik.base (ik.base * b.secret + b.error), .bRecv ik.base b.secret,
+  let senderValue := (a.secret * ik.baseMatrix + a.error) * b.secret + b.extra
+  let receiverValue := a.secret * (ik.baseMatrix * b.secret + b.error)
+  return some (.aSend ik.baseMatrix (ik.baseMatrix * b.secret + b.error),
+    .bRecv ik.baseMatrix b.secret,
     decide (reconcile p receiverValue (makeHint p senderValue) ≠ extract p senderValue))
 
 private def honestRoundStep
@@ -959,12 +964,13 @@ private theorem evalDist_even_step_odd
     (hn : n % 2 = 0) :
     evalDist (evenRoundCanonical p χ >>= honestRoundStep p hp χ n) =
       evalDist (oddRoundCanonical p χ) := by
-  let f : Base p → Right p → Right p → SendACoins p →
-      Option (State p × State p × Bool) := fun base previousSecret previousError current =>
-    let senderValue := current.secret * (base * previousSecret + previousError) +
+  let f : BaseMatrix p → RightMatrix p → RightMatrix p → SendACoins p →
+      Option (State p × State p × Bool) := fun baseMatrix previousSecret previousError current =>
+    let senderValue := current.secret * (baseMatrix * previousSecret + previousError) +
       current.extra
-    let receiverValue := (current.secret * base + current.error) * previousSecret
-    some (.aRecv base current.secret, .bSend base (current.secret * base + current.error),
+    let receiverValue := (current.secret * baseMatrix + current.error) * previousSecret
+    some (.aRecv baseMatrix current.secret,
+      .bSend baseMatrix (current.secret * baseMatrix + current.error),
       decide (reconcile p receiverValue (makeHint p senderValue) ≠ extract p senderValue))
   simpa [f, oddRoundCanonical, evenRoundCanonical, honestRoundStep, hn, scheme,
     sendArleak, eraseCoins, recvB, map_eq_bind_pure_comp, bind_assoc] using
@@ -1127,20 +1133,20 @@ def tapeCorrectnessImpl
             (InitKey p) (State p) (Key p) (Message p) (Rand p) :=
           { scheme p hp χ with
             sendA := fun st => pure <| match st with
-              | .aSend base pub =>
+              | .aSend baseMatrix pub =>
                   let a := coins.1
-                  let nextPub := a.secret * base + a.error
+                  let nextPub := a.secret * baseMatrix + a.error
                   let value := a.secret * pub + a.extra
                   some (extract p value, .fromA nextPub (makeHint p value),
-                    .aRecv base a.secret)
+                    .aRecv baseMatrix a.secret)
               | _ => none
             sendB := fun st => pure <| match st with
-              | .bSend base pub =>
+              | .bSend baseMatrix pub =>
                   let b := coins.2
-                  let nextPub := base * b.secret + b.error
+                  let nextPub := baseMatrix * b.secret + b.error
                   let value := pub * b.secret + b.extra
                   some (extract p value, .fromB nextPub (makeHint p value),
-                    .bRecv base b.secret)
+                    .bRecv baseMatrix b.secret)
               | _ => none }
         let (out, s') ← liftM ((CKAScheme.ckaCorrectnessImpl fixed q).run s)
         set (s', if max s.tA s.tB < max s'.tA s'.tB then rest else coins :: rest)
@@ -1877,24 +1883,24 @@ private theorem evalDist_sample_tape_query_bind_passthrough
     {ι : Type} {spec : OracleSpec ι} {σ θ α : Type}
     (sample : ProbComp θ)
     (impl : QueryImpl spec (StateT (σ × θ) ProbComp))
-    (base : QueryImpl spec (StateT σ ProbComp))
+    (baseMatrix : QueryImpl spec (StateT σ ProbComp))
     (Inv : σ → Prop) (s : σ) (t : spec.Domain)
     (k : spec.Range t → OracleComp spec α)
     (himpl : ∀ param ∈ support sample, (impl t).run (s, param) =
-      (fun z => (z.1, (z.2, param))) <$> (base t).run s)
-    (hpres : ∀ z, z ∈ support ((base t).run s) → Inv z.2)
+      (fun z => (z.1, (z.2, param))) <$> (baseMatrix t).run s)
+    (hpres : ∀ z, z ∈ support ((baseMatrix t).run s) → Inv z.2)
     (hih : ∀ (u : spec.Range t) (s' : σ), Inv s' →
       𝒟[do
         let param ← sample
         let (out, s'', _) ← (simulateQ impl (k u)).run (s', param)
         return (out, s'')] =
-      𝒟[(simulateQ base (k u)).run s']) :
+      𝒟[(simulateQ baseMatrix (k u)).run s']) :
     𝒟[do
       let param ← sample
       let (out, s', _) ←
         (simulateQ impl (OracleSpec.query t >>= k)).run (s, param)
       return (out, s')] =
-      𝒟[(simulateQ base (OracleSpec.query t >>= k)).run s] := by
+      𝒟[(simulateQ baseMatrix (OracleSpec.query t >>= k)).run s] := by
   apply evalDist_ext
   intro y
   simp only [simulateQ_bind, simulateQ_query, OracleQuery.cont_query, id_map,
@@ -1906,14 +1912,14 @@ private theorem evalDist_sample_tape_query_bind_passthrough
         pure (out.1, out.2.1)] =
       Pr[= y | do
         let param ← sample
-        let step ← (base t).run s
+        let step ← (baseMatrix t).run s
         let out ← (simulateQ impl (k step.1)).run (step.2, param)
         pure (out.1, out.2.1)] := by
     refine probOutput_bind_congr ?_
     intro param hparam
     rw [himpl param hparam, bind_map_left]
   rw [halign]
-  rw [probOutput_bind_bind_swap (mx := sample) (my := (base t).run s)
+  rw [probOutput_bind_bind_swap (mx := sample) (my := (baseMatrix t).run s)
     (f := fun param step => do
       let out ← (simulateQ impl (k step.1)).run (step.2, param)
       pure (out.1, out.2.1)) (z := y)]
@@ -1930,27 +1936,27 @@ private theorem evalDist_head_tail_query_bind_consume
     {ι : Type} {spec : OracleSpec ι} {σ η θ α : Type}
     (head : ProbComp η) (tail : ProbComp θ) (combine : η → θ → θ)
     (impl : QueryImpl spec (StateT (σ × θ) ProbComp))
-    (base : QueryImpl spec (StateT σ ProbComp))
+    (baseMatrix : QueryImpl spec (StateT σ ProbComp))
     (Inv : σ → Prop) (s : σ) (t : spec.Domain)
     (k : spec.Range t → OracleComp spec α)
     (hstep : ∀ rest, 𝒟[do
         let h ← head
         (impl t).run (s, combine h rest)] =
-      𝒟[(fun z => (z.1, (z.2, rest))) <$> (base t).run s])
-    (hpres : ∀ z, z ∈ support ((base t).run s) → Inv z.2)
+      𝒟[(fun z => (z.1, (z.2, rest))) <$> (baseMatrix t).run s])
+    (hpres : ∀ z, z ∈ support ((baseMatrix t).run s) → Inv z.2)
     (hih : ∀ (u : spec.Range t) (s' : σ), Inv s' →
       𝒟[do
         let rest ← tail
         let (out, s'', _) ← (simulateQ impl (k u)).run (s', rest)
         return (out, s'')] =
-      𝒟[(simulateQ base (k u)).run s']) :
+      𝒟[(simulateQ baseMatrix (k u)).run s']) :
     𝒟[do
       let h ← head
       let rest ← tail
       let (out, s', _) ←
         (simulateQ impl (OracleSpec.query t >>= k)).run (s, combine h rest)
       return (out, s')] =
-      𝒟[(simulateQ base (OracleSpec.query t >>= k)).run s] := by
+      𝒟[(simulateQ baseMatrix (OracleSpec.query t >>= k)).run s] := by
   apply evalDist_ext
   intro y
   simp only [simulateQ_bind, simulateQ_query, OracleQuery.cont_query, id_map,
@@ -1968,7 +1974,7 @@ private theorem evalDist_head_tail_query_bind_consume
         pure (out.1, out.2.1)] =
       Pr[= y | do
         let rest ← tail
-        let step ← (fun z : spec.Range t × σ => (z.1, (z.2, rest))) <$> (base t).run s
+        let step ← (fun z : spec.Range t × σ => (z.1, (z.2, rest))) <$> (baseMatrix t).run s
         let out ← (simulateQ impl (k step.1)).run step.2
         pure (out.1, out.2.1)] := by
     refine probOutput_bind_congr' tail y fun rest => ?_
@@ -1979,7 +1985,7 @@ private theorem evalDist_head_tail_query_bind_consume
         pure (out.1, out.2.1))) y
   rw [halign]
   simp only [bind_map_left]
-  rw [probOutput_bind_bind_swap (mx := tail) (my := (base t).run s)
+  rw [probOutput_bind_bind_swap (mx := tail) (my := (baseMatrix t).run s)
     (f := fun rest step => do
       let out ← (simulateQ impl (k step.1)).run (step.2, rest)
       pure (out.1, out.2.1)) (z := y)]
@@ -2185,7 +2191,7 @@ theorem evalDist_tapeCorrectnessRun
                     let b ← sampleSendBCoins p χ
                     return (a, b)) N)
                   (combine := List.cons) (impl := tapeCorrectnessImpl p hp χ)
-                  (base := CKAScheme.ckaCorrectnessImpl (scheme p hp χ))
+                  (baseMatrix := CKAScheme.ckaCorrectnessImpl (scheme p hp χ))
                   (Inv := honestPhase p) (s := s)
                   (t := CKAScheme.ckaCorrectnessSpec.OSendA) (k := k)
                   (hstep := fun rest => by
@@ -2242,7 +2248,7 @@ theorem evalDist_tapeCorrectnessRun
                     let b ← sampleSendBCoins p χ
                     return (a, b)) N)
                   (combine := List.cons) (impl := tapeCorrectnessImpl p hp χ)
-                  (base := CKAScheme.ckaCorrectnessImpl (scheme p hp χ))
+                  (baseMatrix := CKAScheme.ckaCorrectnessImpl (scheme p hp χ))
                   (Inv := honestPhase p) (s := s)
                   (t := CKAScheme.ckaCorrectnessSpec.OSendB) (k := k)
                   (hstep := fun rest => by
@@ -2278,10 +2284,10 @@ private def complete (p : Params) (ik : InitKey p)
   else
     let previous := coin p tape (n - 1)
     { stA := if n % 2 = 0 then
-        .aSend ik.base (ik.base * previous.2.secret + previous.2.error)
-      else .aRecv ik.base previous.1.secret
-      stB := if n % 2 = 0 then .bRecv ik.base previous.2.secret
-        else .bSend ik.base (previous.1.secret * ik.base + previous.1.error)
+        .aSend ik.baseMatrix (ik.baseMatrix * previous.2.secret + previous.2.error)
+      else .aRecv ik.baseMatrix previous.1.secret
+      stB := if n % 2 = 0 then .bRecv ik.baseMatrix previous.2.secret
+        else .bSend ik.baseMatrix (previous.1.secret * ik.baseMatrix + previous.1.error)
       rhoA := none, rhoB := none, keyA := none, keyB := none
       correct := prefixOK p ik tape n
       lastAction := if n % 2 = 0 then some .recvA else some .recvB
@@ -2295,20 +2301,20 @@ private def pending (p : Params) (ik : InitKey p)
   if n % 2 = 0 then
     let secret := if n = 0 then ik.secret else previous.2.secret
     let error := if n = 0 then ik.error else previous.2.error
-    let value := current.1.secret * (ik.base * secret + error) + current.1.extra
-    { stA := .aRecv ik.base current.1.secret
-      stB := .bRecv ik.base secret
-      rhoA := some (.fromA (current.1.secret * ik.base + current.1.error) (makeHint p value))
+    let value := current.1.secret * (ik.baseMatrix * secret + error) + current.1.extra
+    { stA := .aRecv ik.baseMatrix current.1.secret
+      stB := .bRecv ik.baseMatrix secret
+      rhoA := some (.fromA (current.1.secret * ik.baseMatrix + current.1.error) (makeHint p value))
       rhoB := none, keyA := some (extract p value), keyB := none
       correct := prefixOK p ik tape n, lastAction := some .sendA
       tA := n + 1, tB := n }
   else
-    let value := (previous.1.secret * ik.base + previous.1.error) *
+    let value := (previous.1.secret * ik.baseMatrix + previous.1.error) *
       current.2.secret + current.2.extra
-    { stA := .aRecv ik.base previous.1.secret
-      stB := .bRecv ik.base current.2.secret
+    { stA := .aRecv ik.baseMatrix previous.1.secret
+      stB := .bRecv ik.baseMatrix current.2.secret
       rhoA := none
-      rhoB := some (.fromB (ik.base * current.2.secret + current.2.error) (makeHint p value))
+      rhoB := some (.fromB (ik.baseMatrix * current.2.secret + current.2.error) (makeHint p value))
       keyA := none, keyB := some (extract p value)
       correct := prefixOK p ik tape n, lastAction := some .sendB
       tA := n, tB := n + 1 }
@@ -2363,25 +2369,25 @@ private theorem coin_get (p : Params) (tape : List (SendACoins p × SendBCoins p
   simp [coin, List.getElem?_eq_getElem hn]
 
 private def senderValue (p : Params) (ik : InitKey p)
-    (tape : List (SendACoins p × SendBCoins p)) (n : ℕ) : Shared p :=
+    (tape : List (SendACoins p × SendBCoins p)) (n : ℕ) : SharedMatrix p :=
   let current := coin p tape n
   let previous := coin p tape (n - 1)
   if n % 2 = 0 then
     let secret := if n = 0 then ik.secret else previous.2.secret
     let error := if n = 0 then ik.error else previous.2.error
-    current.1.secret * (ik.base * secret + error) + current.1.extra
+    current.1.secret * (ik.baseMatrix * secret + error) + current.1.extra
   else
-    (previous.1.secret * ik.base + previous.1.error) * current.2.secret + current.2.extra
+    (previous.1.secret * ik.baseMatrix + previous.1.error) * current.2.secret + current.2.extra
 
 private def receiverValue (p : Params) (ik : InitKey p)
-    (tape : List (SendACoins p × SendBCoins p)) (n : ℕ) : Shared p :=
+    (tape : List (SendACoins p × SendBCoins p)) (n : ℕ) : SharedMatrix p :=
   let current := coin p tape n
   let previous := coin p tape (n - 1)
   if n % 2 = 0 then
     let secret := if n = 0 then ik.secret else previous.2.secret
-    (current.1.secret * ik.base + current.1.error) * secret
+    (current.1.secret * ik.baseMatrix + current.1.error) * secret
   else
-    previous.1.secret * (ik.base * current.2.secret + current.2.error)
+    previous.1.secret * (ik.baseMatrix * current.2.secret + current.2.error)
 
 private theorem mismatch_values (p : Params) (ik : InitKey p)
     (tape : List (SendACoins p × SendBCoins p)) (n : ℕ) (hn : n < tape.length) :

@@ -287,7 +287,7 @@ theorem reconcileScalar_eq_extractScalar_of_modularDistance_lt
 
 /-- Entrywise strict-radius closeness makes matrix reconciliation agree with extraction. -/
 theorem reconcile_eq_extract_of_modularDistance_lt
-    (p : Params) (hp : p.WellFormed) (w v : Shared p)
+    (p : Params) (hp : p.WellFormed) (w v : SharedMatrix p)
     (hclose : ∀ i j : Fin p.nbar,
       modularDistance p (w i j) (v i j) < 2 ^ (p.discardBits - 2)) :
     reconcile p w (makeHint p v) = extract p v := by

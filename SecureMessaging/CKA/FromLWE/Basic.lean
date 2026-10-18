@@ -12,12 +12,8 @@ import Mathlib.Data.ZMod.Basic
 
 The four matrix shapes follow the LWE construction in [ACD19, Section 4.1.2].
 References are listed in `Construction.lean`.
-Party names follow the repository interface. A sends first.
-The paper swaps these labels.
-A scalar is one number modulo the given modulus.
-Extraction converts a scalar to shared-key bits.
-A reconciliation hint helps the receiver recover those bits.
-The sampler `χ` supplies the secret and error values.
+Party names follow the repository interface: A sends first
+(the party labels are swapped relative to the paper).
 -/
 
 namespace lweCKA
@@ -35,9 +31,13 @@ structure Params where
 
 /-- Parameter constraints for the LWE construction. -/
 structure Params.WellFormed (p : Params) : Prop where
+  /-- The public base matrix is nonempty. -/
   n_pos : 0 < p.n
+  /-- The shared-key matrices are nonempty. -/
   nbar_pos : 0 < p.nbar
+  /-- Each matrix entry contributes at least one key bit. -/
   keyBits_pos : 0 < p.keyBits
+  /-- Bound on key bits per entry from [BCDMNNRS16, Section 3.2]: `B < log₂(q) - 1`. -/
   keyBits_lt : p.keyBits + 1 < p.logQ
 
 /-- The power-of-two LWE modulus. -/
@@ -48,12 +48,12 @@ def Params.q (p : Params) : ℕ :=
 def Params.discardBits (p : Params) : ℕ :=
   p.logQ - p.keyBits
 
-/-- The distance between successive rounding points when extracting key bits. -/
+/-- Spacing between consecutive rounding levels in key extraction. -/
 def Params.blockWidth (p : Params) : ℕ :=
   2 ^ p.discardBits
 
-/-- For well-formed parameters, this value is half of `blockWidth`.
-It gives the rounding offset and the width of each interval with a constant hint bit. -/
+/-- Half the extraction-block width for well-formed parameters, used as the rounding offset
+and as the interval width for alternating hint bits. -/
 def Params.halfWidth (p : Params) : ℕ :=
   2 ^ (p.discardBits - 1)
 
@@ -67,19 +67,19 @@ abbrev KeyScalar (p : Params) := ZMod (2 ^ p.keyBits)
 abbrev HintScalar := ZMod 2
 
 /-- The paper's square public base matrix. -/
-abbrev Base (p : Params) :=
+abbrev BaseMatrix (p : Params) :=
   Matrix (Fin p.n) (Fin p.n) (Scalar p)
 
 /-- An `n × nbar` matrix. -/
-abbrev Right (p : Params) :=
+abbrev RightMatrix (p : Params) :=
   Matrix (Fin p.n) (Fin p.nbar) (Scalar p)
 
 /-- An `nbar × n` matrix. -/
-abbrev Left (p : Params) :=
+abbrev LeftMatrix (p : Params) :=
   Matrix (Fin p.nbar) (Fin p.n) (Scalar p)
 
 /-- An `nbar × nbar` matrix over the scalar ring. -/
-abbrev Shared (p : Params) :=
+abbrev SharedMatrix (p : Params) :=
   Matrix (Fin p.nbar) (Fin p.nbar) (Scalar p)
 
 /-- An `nbar × nbar` matrix of extracted key scalars. -/
@@ -87,59 +87,59 @@ abbrev Key (p : Params) :=
   Matrix (Fin p.nbar) (Fin p.nbar) (KeyScalar p)
 
 /-- An `nbar × nbar` matrix of reconciliation hints. -/
-abbrev Hint (p : Params) :=
+abbrev HintMatrix (p : Params) :=
   Matrix (Fin p.nbar) (Fin p.nbar) HintScalar
 
 /-- Initial material shared between parties A and B. -/
 structure InitKey (p : Params) where
   /-- Uniform public base matrix. -/
-  base : Base p
+  baseMatrix : BaseMatrix p
   /-- Initial secret matrix sampled from `χ`. -/
-  secret : Right p
+  secret : RightMatrix p
   /-- Initial error matrix sampled from `χ`. -/
-  error : Right p
+  error : RightMatrix p
 
 /-- Fresh matrices sampled for a single send by party A. -/
 structure SendACoins (p : Params) where
   /-- Fresh `nbar × n` secret matrix. -/
-  secret : Left p
+  secret : LeftMatrix p
   /-- Fresh error for the public matrix. -/
-  error : Left p
+  error : LeftMatrix p
   /-- Fresh extra error for the shared matrix. -/
-  extra : Shared p
+  extra : SharedMatrix p
 
 /-- Fresh matrices sampled for a single send by party B. -/
 structure SendBCoins (p : Params) where
   /-- Fresh `n × nbar` secret matrix. -/
-  secret : Right p
+  secret : RightMatrix p
   /-- Fresh error for the public matrix. -/
-  error : Right p
+  error : RightMatrix p
   /-- Fresh extra error for the shared matrix. -/
-  extra : Shared p
+  extra : SharedMatrix p
 
-/-- The sampled matrices that a send returns as leaked randomness. -/
+/-- The actual matrix values sampled by a randomness-leaking send. -/
 inductive Rand (p : Params) where
   | fromA : SendACoins p → Rand p
   | fromB : SendBCoins p → Rand p
 
-/-- The local state of each party, with a tag that identifies whether it can send or receive. -/
+/-- Phase-tagged local state for the two parties. -/
 inductive State (p : Params) where
   /-- A retains the public base and an `n × nbar` public matrix, ready to send. -/
-  | aSend : Base p → Right p → State p
+  | aSend : BaseMatrix p → RightMatrix p → State p
   /-- A retains the public base and its `nbar × n` secret matrix, ready to receive from B. -/
-  | aRecv : Base p → Left p → State p
+  | aRecv : BaseMatrix p → LeftMatrix p → State p
   /-- B retains the public base and an `nbar × n` public matrix, ready to send. -/
-  | bSend : Base p → Left p → State p
+  | bSend : BaseMatrix p → LeftMatrix p → State p
   /-- B retains the public base and its `n × nbar` secret matrix, ready to receive from A. -/
-  | bRecv : Base p → Right p → State p
+  | bRecv : BaseMatrix p → RightMatrix p → State p
 
 /-- A public matrix together with its reconciliation hint. -/
 inductive Message (p : Params) where
-  | fromA : Left p → Hint p → Message p
-  | fromB : Right p → Hint p → Message p
+  | fromA : LeftMatrix p → HintMatrix p → Message p
+  | fromB : RightMatrix p → HintMatrix p → Message p
 
 /-- The modulus `q = 2 ^ logQ` is nonzero for every parameter choice.
-Lean uses this fact automatically when an operation requires a nonzero modulus. -/
+Register this fact for automatic use by operations requiring a nonzero modulus. -/
 instance instNeZeroModulus (p : Params) : NeZero p.q :=
   ⟨by simp [Params.q]⟩
 

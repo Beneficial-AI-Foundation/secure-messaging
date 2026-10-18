@@ -98,17 +98,17 @@ private theorem probEvent_firstExchangeEntryNoiseIntExp_natAbs_ge_radius_le :
 /-- Every actual first-exchange noise entry exceeds the radius with probability at most delta/64. -/
 theorem probEvent_firstExchangeNoise_entry_ge_radius_le
     (i j : Fin recommendedParams.nbar) :
-    Pr[fun delta : Shared recommendedParams =>
+    Pr[fun delta : SharedMatrix recommendedParams =>
       512 ≤ modularDistance recommendedParams (delta i j) 0 |
       firstExchangeNoiseExp recommendedParams d3Sampler] ≤
         recommendedFailureBound / 64 := by
   let q := fun x : Scalar recommendedParams =>
     512 ≤ modularDistance recommendedParams x 0
   calc
-    Pr[fun delta : Shared recommendedParams =>
+    Pr[fun delta : SharedMatrix recommendedParams =>
         512 ≤ modularDistance recommendedParams (delta i j) 0 |
         firstExchangeNoiseExp recommendedParams d3Sampler] =
-        Pr[q | (fun delta : Shared recommendedParams => delta i j) <$>
+        Pr[q | (fun delta : SharedMatrix recommendedParams => delta i j) <$>
           firstExchangeNoiseExp recommendedParams d3Sampler] := by
           rw [probEvent_map]
           rfl
@@ -134,14 +134,14 @@ theorem firstExchangeFailureProb_recommended_le :
       recommendedFailureBound := by
   calc
     firstExchangeFailureProb recommendedParams d3Sampler ≤
-        Pr[fun delta : Shared recommendedParams =>
+        Pr[fun delta : SharedMatrix recommendedParams =>
           ∃ i j : Fin recommendedParams.nbar,
             512 ≤ modularDistance recommendedParams (delta i j) 0 |
           firstExchangeNoiseExp recommendedParams d3Sampler] := by
           simpa only [recommendedParams_radius] using
             firstExchangeFailureProb_le_noiseTail recommendedParams
               recommendedParams_wellFormed d3Sampler
-    _ ≤ Pr[fun delta : Shared recommendedParams =>
+    _ ≤ Pr[fun delta : SharedMatrix recommendedParams =>
           ∃ ij ∈ (Finset.univ : Finset
             (Fin recommendedParams.nbar × Fin recommendedParams.nbar)),
             512 ≤ modularDistance recommendedParams (delta ij.1 ij.2) 0 |
@@ -151,7 +151,7 @@ theorem firstExchangeFailureProb_recommended_le :
             exact ⟨(i, j), Finset.mem_univ _, hij⟩
     _ ≤ ∑ ij ∈ (Finset.univ : Finset
           (Fin recommendedParams.nbar × Fin recommendedParams.nbar)),
-          Pr[fun delta : Shared recommendedParams =>
+          Pr[fun delta : SharedMatrix recommendedParams =>
             512 ≤ modularDistance recommendedParams (delta ij.1 ij.2) 0 |
             firstExchangeNoiseExp recommendedParams d3Sampler] :=
           probEvent_exists_finset_le_sum _ _ _

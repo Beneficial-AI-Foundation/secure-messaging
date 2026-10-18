@@ -139,7 +139,7 @@ theorem evalDist_firstExchangeNoise_entry_eq_cast
         ((fun z : ℤ => (z : Scalar recommendedParams)) <$>
           firstExchangeEntryNoiseIntExp) =
       evalDist
-        ((fun delta : Shared recommendedParams => delta i j) <$>
+        ((fun delta : SharedMatrix recommendedParams => delta i j) <$>
           firstExchangeNoiseExp recommendedParams d3Sampler) := by
   let matrixProjectedExp : ProbComp (Scalar recommendedParams) := do
     let s0 ←
@@ -159,7 +159,7 @@ theorem evalDist_firstExchangeNoise_entry_eq_cast
           (Scalar recommendedParams) => m i) <$>
         sampleMatrix d3Sampler recommendedParams.nbar recommendedParams.n
     let extra ←
-      (fun m : Shared recommendedParams => m i j) <$>
+      (fun m : SharedMatrix recommendedParams => m i j) <$>
         sampleMatrix d3Sampler recommendedParams.nbar recommendedParams.nbar
     return (∑ k, s1 k * e0 k) - (∑ k, e1 k * s0 k) + extra
   let scalarExp : ProbComp (Scalar recommendedParams) := do
@@ -186,16 +186,16 @@ theorem evalDist_firstExchangeNoise_entry_eq_cast
     return (∑ k, s1 k * e0 k) - (∑ k, e1 k * s0 k) + extra
   have hActual :
       evalDist
-          ((fun delta : Shared recommendedParams => delta i j) <$>
+          ((fun delta : SharedMatrix recommendedParams => delta i j) <$>
             firstExchangeNoiseExp recommendedParams d3Sampler) =
         evalDist matrixProjectedExp := by
     simp only [matrixProjectedExp, firstExchangeNoiseExp, initKeyGen, sampleSendACoins,
       map_eq_bind_pure_comp, bind_assoc, pure_bind, Function.comp_apply, Matrix.add_apply,
       Matrix.sub_apply, Matrix.mul_apply]
     exact OracleComp.DeferredSampling.evalDist_bind_const_neverFails
-      (($ᵗ (Base recommendedParams) : ProbComp (Base recommendedParams)))
+      (($ᵗ (BaseMatrix recommendedParams) : ProbComp (BaseMatrix recommendedParams)))
       (probFailure_eq_zero
-        (mx := ($ᵗ (Base recommendedParams) : ProbComp (Base recommendedParams))))
+        (mx := ($ᵗ (BaseMatrix recommendedParams) : ProbComp (BaseMatrix recommendedParams))))
       _
   have hHead {A B : Type} {mx my : ProbComp A}
       (h : evalDist mx = evalDist my) (k : A → ProbComp B) :
@@ -244,7 +244,7 @@ theorem evalDist_firstExchangeNoise_entry_eq_cast
           ((fun z : ℤ => (z : Scalar recommendedParams)) <$>
             firstExchangeEntryNoiseIntExp) = evalDist scalarExp := hCast.trans hMapped
     _ = evalDist
-          ((fun delta : Shared recommendedParams => delta i j) <$>
+          ((fun delta : SharedMatrix recommendedParams => delta i j) <$>
             firstExchangeNoiseExp recommendedParams d3Sampler) :=
       hMatrix.symm.trans hActual.symm
 

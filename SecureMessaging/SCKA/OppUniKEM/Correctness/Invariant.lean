@@ -311,6 +311,14 @@ structure TranscriptConsistent
   msgAEpoch : ∀ n ρ tsnd, s.msgA n = some (ρ, tsnd) → Message.epoch ρ ≤ s.stA.t
   /-- B-to-A message sending epochs are at most B's current epoch. -/
   msgBEpoch : ∀ n ρ tsnd, s.msgB n = some (ρ, tsnd) → Message.epoch ρ ≤ s.stB.t
+  /-- An acknowledgment of A's current offline ciphertext in A's state, a recorded
+  A-to-B message, or B's state, or a sampled online stage, implies that A holds it. -/
+  ct0Ack :
+    (s.stA.ack.ctRec = true → s.stA.ct0.isSome) ∧
+    (∀ n ρ tsnd, s.msgA n = some (ρ, tsnd) → ρ.2.1.ctRec = true →
+      Message.epoch ρ = s.stA.t → s.stA.ct0.isSome) ∧
+    (s.stB.ack.ctRec = true → s.stB.t = s.stA.t → s.stA.ct0.isSome) ∧
+    ((T s.stA.t).on.isSome → s.stA.ct0.isSome)
 
 omit [DecidableEq Sym] in
 /-- A has recorded every positive epoch up to any bound below its current

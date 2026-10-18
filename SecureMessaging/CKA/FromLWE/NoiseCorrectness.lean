@@ -21,7 +21,7 @@ namespace lweCKA
 
 /-- Sample the first exchange and return its sender-minus-receiver noise matrix. -/
 def firstExchangeNoiseExp
-    (p : Params) (χ : ProbComp (Scalar p)) : ProbComp (Shared p) := do
+    (p : Params) (χ : ProbComp (Scalar p)) : ProbComp (SharedMatrix p) := do
   let ik ← initKeyGen p χ
   let r ← sampleSendACoins p χ
   return r.secret * ik.error - r.error * ik.secret + r.extra
@@ -29,8 +29,8 @@ def firstExchangeNoiseExp
 /-- The sender-minus-receiver value is the first-exchange noise matrix. -/
 theorem firstExchangeValue_sub_eq_noise
     (p : Params) (ik : InitKey p) (r : SendACoins p) :
-    (r.secret * (ik.base * ik.secret + ik.error) + r.extra) -
-        ((r.secret * ik.base + r.error) * ik.secret) =
+    (r.secret * (ik.baseMatrix * ik.secret + ik.error) + r.extra) -
+        ((r.secret * ik.baseMatrix + r.error) * ik.secret) =
       r.secret * ik.error - r.error * ik.secret + r.extra := by
   simp only [Matrix.mul_add, Matrix.add_mul, ← Matrix.mul_assoc]
   abel
@@ -40,9 +40,9 @@ theorem firstExchange_mismatch_imp_largeNoise
     (p : Params) (hp : p.WellFormed)
     (ik : InitKey p) (r : SendACoins p)
     (hmismatch :
-      reconcile p ((r.secret * ik.base + r.error) * ik.secret)
-          (makeHint p (r.secret * (ik.base * ik.secret + ik.error) + r.extra)) ≠
-        extract p (r.secret * (ik.base * ik.secret + ik.error) + r.extra)) :
+      reconcile p ((r.secret * ik.baseMatrix + r.error) * ik.secret)
+          (makeHint p (r.secret * (ik.baseMatrix * ik.secret + ik.error) + r.extra)) ≠
+        extract p (r.secret * (ik.baseMatrix * ik.secret + ik.error) + r.extra)) :
     ∃ i j : Fin p.nbar,
       2 ^ (p.discardBits - 2) ≤
         modularDistance p
@@ -55,8 +55,8 @@ theorem firstExchange_mismatch_imp_largeNoise
   have hvalue := congrArg (fun m => m i j) (firstExchangeValue_sub_eq_noise p ik r)
   have hdistance :
       modularDistance p
-          (((r.secret * ik.base + r.error) * ik.secret) i j)
-          ((r.secret * (ik.base * ik.secret + ik.error) + r.extra) i j) =
+          (((r.secret * ik.baseMatrix + r.error) * ik.secret) i j)
+          ((r.secret * (ik.baseMatrix * ik.secret + ik.error) + r.extra) i j) =
         modularDistance p
           ((r.secret * ik.error - r.error * ik.secret + r.extra) i j) 0 := by
     simp only [Matrix.sub_apply] at hvalue
@@ -71,7 +71,7 @@ theorem firstExchange_mismatch_imp_largeNoise
 theorem firstExchangeFailureProb_le_noiseTail
     (p : Params) (hp : p.WellFormed) (χ : ProbComp (Scalar p)) :
     firstExchangeFailureProb p χ ≤
-      Pr[fun delta : Shared p =>
+      Pr[fun delta : SharedMatrix p =>
         ∃ i j : Fin p.nbar,
           2 ^ (p.discardBits - 2) ≤ modularDistance p (delta i j) 0 |
         firstExchangeNoiseExp p χ] := by
