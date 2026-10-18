@@ -6,57 +6,60 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.CKA.Defs
 import SecureMessaging.CKA.FromLWE.Reconciliation
-import SecureMessaging.CKA.FromLWE.Sampling
+import VCVio.OracleComp.ProbComp
+import VCVio.OracleComp.Constructions.SampleableType
 
 /-!
 # Continuous Key Agreement from Learning With Errors (LWE)
 
-This file defines the LWE-based CKA construction from [ACD19, Section 4.1.2]. Its reconciliation
-operations use the original Frodo key-exchange mechanism [BCDMNNRS16, Section 3.2].
-The separate `ToVCVio.LatticeCrypto.FrodoKEM` modules formalize the later FrodoKEM mechanism;
-the reconciliation definitions used here come from the 2016 key-exchange paper.
-The names of the two parties follow the repository interface: A sends first which is the inverse
-convention on the roles of A,B in the paper where B sends first.
+This file defines the LWE-based CKA construction from [ACD19, Section 4.1.2].
+Its reconciliation operations follow [BCDMNNRS16, Section 3.2].
+The party labels follow the repository interface: A sends first.
+In [ACD19, Section 4.1.2], B sends first, so this implementation swaps the labels.
 
 For parameters `n` and `nbar`, the matrices in the sketch below have these dimensions.
 
-| Matrices | Dimensions |
-| --- | --- |
-| `base` | `n × n` |
-| `S₀`, `E₀`, `P₀`; `S₂`, `E₂`, `P₂` | `n × nbar` |
-| `S₁`, `E₁`, `P₁` | `nbar × n` |
-| `Ẽ₁`, `V₁`; `Ẽ₂`, `V₂` | `nbar × nbar` |
+| Matrices                           | Dimensions    | Entries    |
+| ---------------------------------- | ------------- | ---------- |
+| `baseMatrix`                       | `n × n`       | Modulo `q` |
+| `S₀`, `E₀`, `P₀`; `S₂`, `E₂`, `P₂` | `n × nbar`    | Modulo `q` |
+| `S₁`, `E₁`, `P₁`                   | `nbar × n`    | Modulo `q` |
+| `Ẽ₁`, `V₁`; `Ẽ₂`, `V₂`             | `nbar × nbar` | Modulo `q` |
+| `h₁`, `h₂`                         | `nbar × nbar` | One bit    |
 
-The hints `h₁` and `h₂` also have dimensions `nbar × nbar`, with one hint bit per entry.
+The initial shared material `ik = (baseMatrix, S₀, E₀)` contains a uniformly sampled matrix
+`baseMatrix ∈ ℤ_q^(n × n)` and independently sampled matrices `S₀, E₀` from `χ^(n × nbar)`.
+Here, `χ^(r × c)` samples each entry of an `r × c` matrix independently from `χ`.
+Party A initially stores `(baseMatrix, P₀ := baseMatrix * S₀ + E₀) = initA ik`.
+Party B initially stores `(baseMatrix, S₀) = initB ik`.
+These party labels are swapped relative to [ACD19, Section 4.1.2].
 
-Initialization samples a uniform `base` and independent `χ`-distributed matrices `S₀` and `E₀`,
-and sets `P₀ = base * S₀ + E₀`. The first two sends are shown below; `base` is retained throughout.
+The first two sends are shown below. Both parties retain `baseMatrix` throughout.
 All freshly sampled secret and error matrices have independent `χ`-distributed entries.
 
 ```text
-A (first sender)                               B (first receiver)
-State: (base, P₀)                              State: (base, S₀)
+A (first sender)                              B (first receiver)
+State: (baseMatrix, P₀)                       State: (baseMatrix, S₀)
 
 Sample S₁, E₁, Ẽ₁
-P₁ = S₁ * base + E₁
+P₁ = S₁ * baseMatrix + E₁
 V₁ = S₁ * P₀ + Ẽ₁
+// compute reconciliation information
 h₁ = makeHint p V₁
-Output: extract p V₁
+Output: extract p V₁  // compute the shared key
                       ───── (P₁, h₁) ─────▶   Output: reconcile p (P₁ * S₀) h₁
-State: (base, S₁), ready to receive            State: (base, P₁), ready to send
+State: (baseMatrix, S₁), ready to receive     State: (baseMatrix, P₁), ready to send
 
                                               Sample S₂, E₂, Ẽ₂
-                                              P₂ = base * S₂ + E₂
+                                              P₂ = baseMatrix * S₂ + E₂
                                               V₂ = P₁ * S₂ + Ẽ₂
+                                              // compute reconciliation information
                                               h₂ = makeHint p V₂
-                                              Output: extract p V₂
+                                              Output: extract p V₂  // compute the shared key
                       ◀───── (P₂, h₂) ─────
 Output: reconcile p (S₁ * P₂) h₂
-State: (base, P₂), ready to send               State: (base, S₂), ready to receive
+State: (baseMatrix, P₂), ready to send        State: (baseMatrix, S₂), ready to receive
 ```
-
-State replacement records the information retained by the abstract transition. It does not prove
-physical memory erasure.
 
 ## References
 
@@ -71,59 +74,105 @@ physical memory erasure.
 
 namespace lweCKA
 
+-- ANCHOR: sampleMatrix
+/-- Independently sample every entry of a matrix from `χ`. -/
+def sampleMatrix {p : Params}
+    (χ : ProbComp (Scalar p)) (rows cols : ℕ) :
+    ProbComp (Matrix (Fin rows) (Fin cols) (Scalar p)) :=
+  ProbComp.sampleIID rows (ProbComp.sampleIID cols χ)
+-- ANCHOR_END: sampleMatrix
+
+-- ANCHOR: initKeyGen
+/-- Sample the public base uniformly, followed by the initial secret and error from `χ`. -/
+def initKeyGen (p : Params) (χ : ProbComp (Scalar p)) :
+    ProbComp (InitKey p) := do
+  let baseMatrix ← ($ᵗ (BaseMatrix p) : ProbComp (BaseMatrix p))
+  let secret ← sampleMatrix χ p.n p.nbar
+  let error ← sampleMatrix χ p.n p.nbar
+  return { baseMatrix := baseMatrix, secret := secret, error := error }
+-- ANCHOR_END: initKeyGen
+
+-- ANCHOR: initialStates
 /-- Initialize party A in its first sending phase. -/
 def initA {p : Params} (ik : InitKey p) : State p :=
-  .aSend ik.base (ik.base * ik.secret + ik.error)
+  .aSend ik.baseMatrix (ik.baseMatrix * ik.secret + ik.error)
 
 /-- Initialize party B in its first receiving phase. -/
 def initB {p : Params} (ik : InitKey p) : State p :=
-  .bRecv ik.base ik.secret
+  .bRecv ik.baseMatrix ik.secret
+-- ANCHOR_END: initialStates
 
-/-- Party A receives B's message. -/
-def recvA {p : Params} (st : State p) (msg : Message p) :
-    Option (Key p × State p) :=
-  match st, msg with
-  | .aRecv base secret, .fromB pub hint =>
-      some (reconcile p (secret * pub) hint, .aSend base pub)
-  | _, _ => none
+-- ANCHOR: sendArleak
+/-- Party A sends a message and leaks the sampled secret and error matrices. -/
+def sendArleak {p : Params} (χ : ProbComp (Scalar p)) (st : State p) :
+    ProbComp (Option (Key p × Message p × State p × Rand p)) :=
+  match st with
+  | .aSend baseMatrix pub => do
+      let secret ← sampleMatrix χ p.nbar p.n
+      let error ← sampleMatrix χ p.nbar p.n
+      let extra ← sampleMatrix χ p.nbar p.nbar
+      let nextPub := secret * baseMatrix + error
+      let value := secret * pub + extra
+      let hint := makeHint p value
+      let key := extract p value
+      let msg : Message p := .fromA nextPub hint
+      let nextState : State p := .aRecv baseMatrix secret
+      let coins : SendACoins p := { secret := secret, error := error, extra := extra }
+      return some (key, msg, nextState, .fromA coins)
+  | _ => pure none
+-- ANCHOR_END: sendArleak
 
+-- ANCHOR: recvB
 /-- Party B receives A's message. -/
 def recvB {p : Params} (st : State p) (msg : Message p) :
     Option (Key p × State p) :=
   match st, msg with
-  | .bRecv base secret, .fromA pub hint =>
-      some (reconcile p (pub * secret) hint, .bSend base pub)
+  | .bRecv baseMatrix secret, .fromA pub hint =>
+      let key := reconcile p (pub * secret) hint
+      let nextState : State p := .bSend baseMatrix pub
+      some (key, nextState)
   | _, _ => none
+-- ANCHOR_END: recvB
 
-/-- A send that also returns, i.e. leaks, the actual sampled matrices. -/
-def sendArleak {p : Params} (χ : ProbComp (Scalar p)) (st : State p) :
-    ProbComp (Option (Key p × Message p × State p × Rand p)) :=
-  match st with
-  | .aSend base pub => do
-      let r ← sampleSendACoins p χ
-      let nextPub := r.secret * base + r.error
-      let value := r.secret * pub + r.extra
-      return some (extract p value, .fromA nextPub (makeHint p value),
-        .aRecv base r.secret, .fromA r)
-  | _ => pure none
-
-/-- B send that also returns, i.e. leaks, the actual sampled matrices. -/
+-- ANCHOR: sendBrleak
+/-- Party B sends a message and leaks the sampled secret and error matrices. -/
 def sendBrleak {p : Params} (χ : ProbComp (Scalar p)) (st : State p) :
     ProbComp (Option (Key p × Message p × State p × Rand p)) :=
   match st with
-  | .bSend base pub => do
-      let r ← sampleSendBCoins p χ
-      let nextPub := base * r.secret + r.error
-      let value := pub * r.secret + r.extra
-      return some (extract p value, .fromB nextPub (makeHint p value),
-        .bRecv base r.secret, .fromB r)
+  | .bSend baseMatrix pub => do
+      let secret ← sampleMatrix χ p.n p.nbar
+      let error ← sampleMatrix χ p.n p.nbar
+      let extra ← sampleMatrix χ p.nbar p.nbar
+      let nextPub := baseMatrix * secret + error
+      let value := pub * secret + extra
+      let hint := makeHint p value
+      let key := extract p value
+      let msg : Message p := .fromB nextPub hint
+      let nextState : State p := .bRecv baseMatrix secret
+      let coins : SendBCoins p := { secret := secret, error := error, extra := extra }
+      return some (key, msg, nextState, .fromB coins)
   | _ => pure none
+-- ANCHOR_END: sendBrleak
 
+-- ANCHOR: recvA
+/-- Party A receives B's message. -/
+def recvA {p : Params} (st : State p) (msg : Message p) :
+    Option (Key p × State p) :=
+  match st, msg with
+  | .aRecv baseMatrix secret, .fromB pub hint =>
+      let key := reconcile p (secret * pub) hint
+      let nextState : State p := .aSend baseMatrix pub
+      some (key, nextState)
+  | _, _ => none
+-- ANCHOR_END: recvA
+
+-- ANCHOR: eraseCoins
 /-- Remove sampled randomness from the output of the send operation with leaked randomness. -/
 def eraseCoins {p : Params}
     (out : Option (Key p × Message p × State p × Rand p)) :
     Option (Key p × Message p × State p) :=
   out.map fun (key, msg, next, _) => (key, msg, next)
+-- ANCHOR_END: eraseCoins
 
 /-- The LWE construction with A acting as the first sender throughout. -/
 -- ANCHOR: scheme
@@ -134,10 +183,10 @@ def scheme (p : Params) (_h : p.WellFormed) (χ : ProbComp (Scalar p)) :
   initB := fun ik => pure (initB ik)
   sendA := fun st => eraseCoins <$> sendArleak χ st
   sendArleak := sendArleak χ
-  recvA := recvA
+  recvB := recvB
   sendB := fun st => eraseCoins <$> sendBrleak χ st
   sendBrleak := sendBrleak χ
-  recvB := recvB
+  recvA := recvA
 -- ANCHOR_END: scheme
 
 end lweCKA

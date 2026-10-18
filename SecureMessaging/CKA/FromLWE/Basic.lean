@@ -31,9 +31,13 @@ structure Params where
 
 /-- Parameter constraints for the LWE construction. -/
 structure Params.WellFormed (p : Params) : Prop where
+  /-- The public base matrix is nonempty. -/
   n_pos : 0 < p.n
+  /-- The shared-key matrices are nonempty. -/
   nbar_pos : 0 < p.nbar
+  /-- Each matrix entry contributes at least one key bit. -/
   keyBits_pos : 0 < p.keyBits
+  /-- Bound on key bits per entry from [BCDMNNRS16, Section 3.2]: `B < log₂(q) - 1`. -/
   keyBits_lt : p.keyBits + 1 < p.logQ
 
 /-- The power-of-two LWE modulus. -/
@@ -44,7 +48,7 @@ def Params.q (p : Params) : ℕ :=
 def Params.discardBits (p : Params) : ℕ :=
   p.logQ - p.keyBits
 
-/-- Interval between successive rounding points in shared-key extraction called block. -/
+/-- Spacing between consecutive rounding levels in key extraction. -/
 def Params.blockWidth (p : Params) : ℕ :=
   2 ^ p.discardBits
 
@@ -63,19 +67,19 @@ abbrev KeyScalar (p : Params) := ZMod (2 ^ p.keyBits)
 abbrev HintScalar := ZMod 2
 
 /-- The paper's square public base matrix. -/
-abbrev Base (p : Params) :=
+abbrev BaseMatrix (p : Params) :=
   Matrix (Fin p.n) (Fin p.n) (Scalar p)
 
 /-- An `n × nbar` matrix. -/
-abbrev Right (p : Params) :=
+abbrev RightMatrix (p : Params) :=
   Matrix (Fin p.n) (Fin p.nbar) (Scalar p)
 
 /-- An `nbar × n` matrix. -/
-abbrev Left (p : Params) :=
+abbrev LeftMatrix (p : Params) :=
   Matrix (Fin p.nbar) (Fin p.n) (Scalar p)
 
 /-- An `nbar × nbar` matrix over the scalar ring. -/
-abbrev Shared (p : Params) :=
+abbrev SharedMatrix (p : Params) :=
   Matrix (Fin p.nbar) (Fin p.nbar) (Scalar p)
 
 /-- An `nbar × nbar` matrix of extracted key scalars. -/
@@ -83,35 +87,35 @@ abbrev Key (p : Params) :=
   Matrix (Fin p.nbar) (Fin p.nbar) (KeyScalar p)
 
 /-- An `nbar × nbar` matrix of reconciliation hints. -/
-abbrev Hint (p : Params) :=
+abbrev HintMatrix (p : Params) :=
   Matrix (Fin p.nbar) (Fin p.nbar) HintScalar
 
 /-- Initial material shared between parties A and B. -/
 structure InitKey (p : Params) where
   /-- Uniform public base matrix. -/
-  base : Base p
+  baseMatrix : BaseMatrix p
   /-- Initial secret matrix sampled from `χ`. -/
-  secret : Right p
+  secret : RightMatrix p
   /-- Initial error matrix sampled from `χ`. -/
-  error : Right p
+  error : RightMatrix p
 
 /-- Fresh matrices sampled for a single send by party A. -/
 structure SendACoins (p : Params) where
   /-- Fresh `nbar × n` secret matrix. -/
-  secret : Left p
+  secret : LeftMatrix p
   /-- Fresh error for the public matrix. -/
-  error : Left p
+  error : LeftMatrix p
   /-- Fresh extra error for the shared matrix. -/
-  extra : Shared p
+  extra : SharedMatrix p
 
 /-- Fresh matrices sampled for a single send by party B. -/
 structure SendBCoins (p : Params) where
   /-- Fresh `n × nbar` secret matrix. -/
-  secret : Right p
+  secret : RightMatrix p
   /-- Fresh error for the public matrix. -/
-  error : Right p
+  error : RightMatrix p
   /-- Fresh extra error for the shared matrix. -/
-  extra : Shared p
+  extra : SharedMatrix p
 
 /-- The actual matrix values sampled by a randomness-leaking send. -/
 inductive Rand (p : Params) where
@@ -121,18 +125,18 @@ inductive Rand (p : Params) where
 /-- Phase-tagged local state for the two parties. -/
 inductive State (p : Params) where
   /-- A retains the public base and an `n × nbar` public matrix, ready to send. -/
-  | aSend : Base p → Right p → State p
+  | aSend : BaseMatrix p → RightMatrix p → State p
   /-- A retains the public base and its `nbar × n` secret matrix, ready to receive from B. -/
-  | aRecv : Base p → Left p → State p
+  | aRecv : BaseMatrix p → LeftMatrix p → State p
   /-- B retains the public base and an `nbar × n` public matrix, ready to send. -/
-  | bSend : Base p → Left p → State p
+  | bSend : BaseMatrix p → LeftMatrix p → State p
   /-- B retains the public base and its `n × nbar` secret matrix, ready to receive from A. -/
-  | bRecv : Base p → Right p → State p
+  | bRecv : BaseMatrix p → RightMatrix p → State p
 
 /-- A public matrix together with its reconciliation hint. -/
 inductive Message (p : Params) where
-  | fromA : Left p → Hint p → Message p
-  | fromB : Right p → Hint p → Message p
+  | fromA : LeftMatrix p → HintMatrix p → Message p
+  | fromB : RightMatrix p → HintMatrix p → Message p
 
 /-- The modulus `q = 2 ^ logQ` is nonzero for every parameter choice.
 Register this fact for automatic use by operations requiring a nonzero modulus. -/
