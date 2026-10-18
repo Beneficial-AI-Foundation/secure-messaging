@@ -16,7 +16,6 @@ sorry-manifest-base.txt
 # Local-only review/planning notes and verilib mappings (kept out of the repo)
 /design/
 /.verilib/
-/.formalising/
 
 # Reference papers (kept out of the repo)
 *.pdf
