@@ -41,8 +41,10 @@ import SecureMessaging.CKA.FromKEM.Correctness
 import SecureMessaging.CKA.FromKEM.Security
 import SecureMessaging.CKA.FromLWE.Basic
 import SecureMessaging.CKA.FromLWE.Reconciliation
+import SecureMessaging.CKA.FromLWE.ReconciliationCorrectness
 import SecureMessaging.CKA.FromLWE.Sampling
 import SecureMessaging.CKA.FromLWE.Construction
+import SecureMessaging.CKA.FromLWE.Correctness
 import SecureMessaging.ErasureCode.Defs
 import SecureMessaging.ErasureCode.Payload
 import SecureMessaging.ErasureCode.ReedSolomon.Construction

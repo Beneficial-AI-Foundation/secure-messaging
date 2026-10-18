@@ -11,11 +11,12 @@ import VCVio.OracleComp.Constructions.SampleableType
 /-!
 # Sampling for continuous key agreement from LWE
 
-The supplied scalar computation `χ` represents the paper's noise distribution. Nested
-`ProbComp.sampleIID` calls draw matrix entries independently, visiting rows in increasing order
-and, within each row, columns in increasing order.
-Every invocation draws fresh values. Initialization samples the uniform base, secret, and error in
-that order; each send samples its secret, error, and extra error in that order.
+The supplied computation `χ` samples one scalar from the noise distribution in the paper.
+Nested `ProbComp.sampleIID` calls sample matrix entries independently from this distribution.
+They visit rows in increasing order, then columns in increasing order within each row.
+Each call samples fresh values. Initialization samples the uniform base, secret, and error in that
+order.
+Each send samples its secret, error, and extra error in that order.
 
 `sendArleak` and `sendBrleak` return the sampled secret, error, and extra-error matrices as
 leaked randomness.

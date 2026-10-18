@@ -14,17 +14,19 @@ Extraction, hints, and recovery follow the original Frodo key-exchange paper
 References are listed in `Construction.lean`. The later FrodoKEM encoding and decoding
 operations are formalized separately in `ToVCVio.LatticeCrypto.FrodoKEM.Encoding`.
 
-Parameters satisfy `Params.WellFormed`. Each residue modulo `q` has a canonical
-representative in the interval `[0, q - 1]`, written `v.val` in Lean.
+Parameters satisfy `Params.WellFormed`. A residue is a value modulo `q`.
+Its canonical representative is the integer in `[0, q - 1]`, written `v.val` in Lean.
 
-Extraction rounds to the nearest multiple of `blockWidth`, rounding midpoint ties upward,
-and returns its index modulo `2 ^ keyBits`. Hints alternate between 0 and 1 on successive
+Extraction rounds to the nearest multiple of `blockWidth`. It rounds midpoint ties upward.
+It returns the index of that multiple modulo `2 ^ keyBits`. Hints alternate between 0 and 1 on
+successive
 intervals of `halfWidth` representatives, starting with 0.
 
 Recovery finds the closest residue with the received hint, measuring distance around the circle
 modulo `q`, then extracts its shared-key bits. The search breaks equal-distance ties by choosing
-the smaller representative. This is a specification choice not stated in the paper: under its
-parameter constraints (`Params.WellFormed`), the closest residue with the received hint is unique.
+the smaller representative. The paper does not state this rule for ties.
+Under its parameter constraints (`Params.WellFormed`), the closest residue with the received hint
+is unique.
 -/
 
 namespace lweCKA
@@ -38,7 +40,7 @@ def extractScalar (p : Params) (v : Scalar p) : KeyScalar p :=
 def hintScalar (p : Params) (v : Scalar p) : HintScalar :=
   (v.val / p.halfWidth : ℕ)
 
-/-- Circular distance between two residues modulo `q`. -/
+/-- The shortest distance around the circle of residues modulo `q`. -/
 def modularDistance (p : Params) (u v : Scalar p) : ℕ :=
   min (u - v).val (v - u).val
 
@@ -71,7 +73,7 @@ def extract (p : Params) (v : Shared p) : Key p :=
 def makeHint (p : Params) (v : Shared p) : Hint p :=
   fun i j => hintScalar p (v i j)
 
-/-- Recover shared-key bits entrywise using the shared matrix and received hints. -/
+/-- Recover shared-key bits from each matrix entry using its received hint. -/
 def reconcile (p : Params) (w : Shared p) (b : Hint p) : Key p :=
   fun i j => reconcileScalar p (w i j) (b i j)
 

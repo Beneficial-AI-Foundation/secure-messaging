@@ -13,10 +13,10 @@ import SecureMessaging.CKA.FromLWE.Sampling
 
 This file defines the LWE-based CKA construction from [ACD19, Section 4.1.2]. Its reconciliation
 operations use the original Frodo key-exchange mechanism [BCDMNNRS16, Section 3.2].
-The separate `ToVCVio.LatticeCrypto.FrodoKEM` modules formalize the later FrodoKEM mechanism;
-the reconciliation definitions used here come from the 2016 key-exchange paper.
-The names of the two parties follow the repository interface: A sends first which is the inverse
-convention on the roles of A,B in the paper where B sends first.
+The separate `ToVCVio.LatticeCrypto.FrodoKEM` modules formalize the later FrodoKEM mechanism.
+The reconciliation definitions used here come from the 2016 key-exchange paper.
+The party names follow the repository interface, where A sends first.
+The paper uses the opposite labels, with B sending first.
 
 For parameters `n` and `nbar`, the matrices in the sketch below have these dimensions.
 
@@ -30,7 +30,8 @@ For parameters `n` and `nbar`, the matrices in the sketch below have these dimen
 The hints `h₁` and `h₂` also have dimensions `nbar × nbar`, with one hint bit per entry.
 
 Initialization samples a uniform `base` and independent `χ`-distributed matrices `S₀` and `E₀`,
-and sets `P₀ = base * S₀ + E₀`. The first two sends are shown below; `base` is retained throughout.
+and sets `P₀ = base * S₀ + E₀`. The first two sends appear below.
+Both parties keep the same `base` throughout.
 All freshly sampled secret and error matrices have independent `χ`-distributed entries.
 
 ```text
@@ -95,7 +96,7 @@ def recvB {p : Params} (st : State p) (msg : Message p) :
       some (reconcile p (pub * secret) hint, .bSend base pub)
   | _, _ => none
 
-/-- A send that also returns, i.e. leaks, the actual sampled matrices. -/
+/-- Send from party A and also return the sampled matrices as leaked randomness. -/
 def sendArleak {p : Params} (χ : ProbComp (Scalar p)) (st : State p) :
     ProbComp (Option (Key p × Message p × State p × Rand p)) :=
   match st with
@@ -107,7 +108,7 @@ def sendArleak {p : Params} (χ : ProbComp (Scalar p)) (st : State p) :
         .aRecv base r.secret, .fromA r)
   | _ => pure none
 
-/-- B send that also returns, i.e. leaks, the actual sampled matrices. -/
+/-- Send from party B and also return the sampled matrices as leaked randomness. -/
 def sendBrleak {p : Params} (χ : ProbComp (Scalar p)) (st : State p) :
     ProbComp (Option (Key p × Message p × State p × Rand p)) :=
   match st with
@@ -125,7 +126,7 @@ def eraseCoins {p : Params}
     Option (Key p × Message p × State p) :=
   out.map fun (key, msg, next, _) => (key, msg, next)
 
-/-- The LWE construction with A acting as the first sender throughout. -/
+/-- The LWE construction in which A sends first and the parties then take turns. -/
 -- ANCHOR: scheme
 def scheme (p : Params) (_h : p.WellFormed) (χ : ProbComp (Scalar p)) :
     CKAScheme ProbComp (InitKey p) (State p) (Key p) (Message p) (Rand p) where

@@ -12,8 +12,12 @@ import Mathlib.Data.ZMod.Basic
 
 The four matrix shapes follow the LWE construction in [ACD19, Section 4.1.2].
 References are listed in `Construction.lean`.
-Party names follow the repository interface: A sends first
-(the party labels are swapped relative to the paper).
+Party names follow the repository interface. A sends first.
+The paper swaps these labels.
+A scalar is one number modulo the given modulus.
+Extraction converts a scalar to shared-key bits.
+A reconciliation hint helps the receiver recover those bits.
+The sampler `χ` supplies the secret and error values.
 -/
 
 namespace lweCKA
@@ -44,12 +48,12 @@ def Params.q (p : Params) : ℕ :=
 def Params.discardBits (p : Params) : ℕ :=
   p.logQ - p.keyBits
 
-/-- Interval between successive rounding points in shared-key extraction called block. -/
+/-- The distance between successive rounding points when extracting key bits. -/
 def Params.blockWidth (p : Params) : ℕ :=
   2 ^ p.discardBits
 
-/-- Half the extraction-block width for well-formed parameters, used as the rounding offset
-and as the interval width for alternating hint bits. -/
+/-- For well-formed parameters, this value is half of `blockWidth`.
+It gives the rounding offset and the width of each interval with a constant hint bit. -/
 def Params.halfWidth (p : Params) : ℕ :=
   2 ^ (p.discardBits - 1)
 
@@ -113,12 +117,12 @@ structure SendBCoins (p : Params) where
   /-- Fresh extra error for the shared matrix. -/
   extra : Shared p
 
-/-- The actual matrix values sampled by a randomness-leaking send. -/
+/-- The sampled matrices that a send returns as leaked randomness. -/
 inductive Rand (p : Params) where
   | fromA : SendACoins p → Rand p
   | fromB : SendBCoins p → Rand p
 
-/-- Phase-tagged local state for the two parties. -/
+/-- The local state of each party, with a tag that identifies whether it can send or receive. -/
 inductive State (p : Params) where
   /-- A retains the public base and an `n × nbar` public matrix, ready to send. -/
   | aSend : Base p → Right p → State p
@@ -135,7 +139,7 @@ inductive Message (p : Params) where
   | fromB : Right p → Hint p → Message p
 
 /-- The modulus `q = 2 ^ logQ` is nonzero for every parameter choice.
-Register this fact for automatic use by operations requiring a nonzero modulus. -/
+Lean uses this fact automatically when an operation requires a nonzero modulus. -/
 instance instNeZeroModulus (p : Params) : NeZero p.q :=
   ⟨by simp [Params.q]⟩
 
