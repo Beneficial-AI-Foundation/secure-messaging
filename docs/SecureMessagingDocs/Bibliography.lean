@@ -125,6 +125,16 @@ def SPQR : Verso.Genre.Manual.Bibliography.Citable := .article
   , number := inlines!""
   , url := some "https://github.com/signalapp/SparsePostQuantumRatchet" }
 
+@[bib "BCDMNNRS16"]
+def BCDMNNRS16 : Verso.Genre.Manual.Bibliography.Citable := .inProceedings
+  { title := inlines!"Frodo: Take off the ring! Practical, Quantum-Secure Key Exchange from LWE"
+  , authors := #[inlines!"Joppe Bos", inlines!"Craig Costello", inlines!"Léo Ducas",
+      inlines!"Ilya Mironov", inlines!"Michael Naehrig", inlines!"Valeria Nikolaenko",
+      inlines!"Ananth Raghunathan", inlines!"Douglas Stebila"]
+  , year := 2016
+  , booktitle := inlines!"ACM CCS 2016"
+  , url := some "https://eprint.iacr.org/2016/659" }
+
 @[bib "FrodoKEM"]
 def FrodoKEM : Verso.Genre.Manual.Bibliography.Citable := .article
   { title := inlines!"FrodoKEM: A CCA-Secure Learning With Errors Key Encapsulation Mechanism"
