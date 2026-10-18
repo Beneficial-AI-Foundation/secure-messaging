@@ -128,14 +128,14 @@ theorem measurePack_coefficientNoiseMeasure_mlkem512 :
           ((Finset.range (4 ^ 3)).filter fun y => cbdValue 3 y = -3 + (i : ℤ)).card *
             (2 ^ 17280 : ℕ) ^ (cbdValue 3 x * (-3 + (i : ℤ)) + 9).toNat) ^ 512 := by
     have hp := measurePack_pow (R := 2 ^ 17280) hkey 512
-    norm_num at hp
+    simp only [Nat.cast_ofNat, Int.reduceMul, Int.reduceNeg] at hp
     rw [hp, hKeyBase]
   have hCtxt : measurePack (2 ^ 17280) (-6144) (ciphertextNoiseProductMeasure .MLKEM512 ^ 512) =
       (∑ x ∈ Finset.range (4 ^ 3), ∑ i ∈ Finset.range 9,
           convTableTen i *
             (2 ^ 17280 : ℕ) ^ (cbdValue 3 x * (-4 + (i : ℤ)) + 12).toNat) ^ 512 := by
     have hp := measurePack_pow (R := 2 ^ 17280) hctxt 512
-    norm_num at hp
+    simp only [Nat.cast_ofNat, Int.reduceMul, Int.reduceNeg] at hp
     rw [hp, hCtxtBase]
   have hsplit : (-10858 : ℤ) = (-4608 + -6144) + -106 := by norm_num
   rw [hunfold, hsplit, measurePack_mul (measureWindow_mul hkeypow hctxtpow) hadd,
@@ -221,14 +221,14 @@ theorem measurePack_coefficientNoiseMeasure_mlkem768 :
           ((Finset.range (4 ^ 2)).filter fun y => cbdValue 2 y = -2 + (i : ℤ)).card *
             (2 ^ 21312 : ℕ) ^ (cbdValue 2 x * (-2 + (i : ℤ)) + 4).toNat) ^ 768 := by
     have hp := measurePack_pow (R := 2 ^ 21312) hkey 768
-    norm_num at hp
+    simp only [Nat.cast_ofNat, Int.reduceMul, Int.reduceNeg] at hp
     rw [hp, hKeyBase]
   have hCtxt : measurePack (2 ^ 21312) (-6144) (ciphertextNoiseProductMeasure .MLKEM768 ^ 768) =
       (∑ x ∈ Finset.range (4 ^ 2), ∑ i ∈ Finset.range 9,
           convTableTen i *
             (2 ^ 21312 : ℕ) ^ (cbdValue 2 x * (-4 + (i : ℤ)) + 8).toNat) ^ 768 := by
     have hp := measurePack_pow (R := 2 ^ 21312) hctxt 768
-    norm_num at hp
+    simp only [Nat.cast_ofNat, Int.reduceMul, Int.reduceNeg] at hp
     rw [hp, hCtxtBase]
   have hsplit : (-9322 : ℤ) = (-3072 + -6144) + -106 := by norm_num
   rw [hunfold, hsplit, measurePack_mul (measureWindow_mul hkeypow hctxtpow) hadd,
@@ -313,14 +313,14 @@ theorem measurePack_coefficientNoiseMeasure_mlkem1024 :
           ((Finset.range (4 ^ 2)).filter fun y => cbdValue 2 y = -2 + (i : ℤ)).card *
             (2 ^ 28416 : ℕ) ^ (cbdValue 2 x * (-2 + (i : ℤ)) + 4).toNat) ^ 1024 := by
     have hp := measurePack_pow (R := 2 ^ 28416) hkey 1024
-    norm_num at hp
+    simp only [Nat.cast_ofNat, Int.reduceMul, Int.reduceNeg] at hp
     rw [hp, hKeyBase]
   have hCtxt : measurePack (2 ^ 28416) (-6144) (ciphertextNoiseProductMeasure .MLKEM1024 ^ 1024) =
       (∑ x ∈ Finset.range (4 ^ 2), ∑ i ∈ Finset.range 7,
           convTableEleven i *
             (2 ^ 28416 : ℕ) ^ (cbdValue 2 x * (-3 + (i : ℤ)) + 6).toNat) ^ 1024 := by
     have hp := measurePack_pow (R := 2 ^ 28416) hctxt 1024
-    norm_num at hp
+    simp only [Nat.cast_ofNat, Int.reduceMul, Int.reduceNeg] at hp
     rw [hp, hCtxtBase]
   have hsplit : (-10294 : ℤ) = (-4096 + -6144) + -54 := by norm_num
   rw [hunfold, hsplit, measurePack_mul (measureWindow_mul hkeypow hctxtpow) hadd,

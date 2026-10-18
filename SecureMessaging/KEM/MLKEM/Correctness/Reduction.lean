@@ -75,7 +75,7 @@ def underlyingCorrectExp : ProbComp Bool := do
 
 /-- Probability that the K-PKE recovery experiment fails. -/
 noncomputable def underlyingCorrectnessError : ℝ≥0∞ :=
-  Pr[= false | underlyingCorrectExp ring encoding prims]
+  Pr{let x ← underlyingCorrectExp ring encoding prims}[x = false]
 
 /-- The correctness error of VCV-io's ML-KEM `KEMScheme` is at most the
 underlying K-PKE decryption-failure probability in the corresponding honest
@@ -85,14 +85,14 @@ theorem correctnessError_le_underlyingCorrectnessError
     [DecidableEq encoding.EncodedV] :
     (asKEMScheme ring encoding prims).correctnessError ProbCompRuntime.probComp ≤
       underlyingCorrectnessError ring encoding prims := by
-  rw [KEMScheme.correctnessError_probComp_eq_probOutput_false, underlyingCorrectnessError,
-    ← probEvent_eq_eq_probOutput, ← probEvent_eq_eq_probOutput]
-  simp only [KEMScheme.CorrectExp, asKEMScheme, keygen, underlyingCorrectExp, monad_norm]
-  refine probEvent_bind_mono fun d _ => probEvent_bind_mono fun z _ =>
-    probEvent_bind_mono fun m _ => ?_
+  rw [KEMScheme.correctnessError_probComp_eq_prEvent_false, underlyingCorrectnessError]
+  simp only [KEMScheme.correctnessExperiment, asKEMScheme, keygen, underlyingCorrectExp,
+    monad_norm]
+  refine prEvent_bind_mono_of_support _ _ _ fun d _ => prEvent_bind_mono_of_support _ _ _
+    fun z _ => prEvent_bind_mono_of_support _ _ _ fun m _ => ?_
   -- Pointwise: if K-PKE recovers the message then decapsulation returns the
   -- encapsulated key, so a ML-KEM failure can occur only on a K-PKE failure.
-  simp only [probEvent_pure]
+  simp only [Function.comp_apply, prEvent_pure_prop]
   split_ifs with hS hU hU
   · exact le_rfl
   · rw [Bool.not_eq_false, decide_eq_true_eq] at hU

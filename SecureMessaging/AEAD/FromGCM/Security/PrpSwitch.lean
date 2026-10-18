@@ -22,7 +22,7 @@ the GHASH key, the tag mask and `n` keystream blocks. The bound is `(n + 2)(n + 
 Because the list is fixed, the random permutation is seen only through its values on the list.
 For a supported message length (`hL : ValidMsgLength L`) the points of the list are distinct by
 `cipherInputs_pairwise_ne`, so those values are a sample without replacement, and the generic
-bound `tvDist_map_uniformPerm_mapM_const_uniform_le` of
+bound `measureTVDist_map_uniformPerm_mapM_const_uniform_le` of
 `ToVCVio/CryptoFoundations/PRPSwitching.lean` applies.
 
 Main results:
@@ -104,14 +104,14 @@ private lemma prpIdealExp_eq_bind_tail (iv : BitVec 96)
 
 /-- The PRF-ideal experiment as `D >>= cipherInputsTail adv`, `D` one independent uniform
 draw per query point. -/
-private lemma prfIdealExp_eq_bind_tail (iv : BitVec 96) (hL : ValidMsgLength L)
+private lemma prfIdealExperiment_eq_bind_tail (iv : BitVec 96) (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    PRFScheme.prfIdealExp (prfReduction iv L adv) =
+    PRFScheme.prfIdealExperiment (prfReduction iv L adv) =
       ((((0 : BitVec 128) :: j0 iv ::
             counterChain (inc32 (j0 iv)) ((L + 127) / 128)).mapM
           (fun _ => ($ᵗ (BitVec 128) : ProbComp (BitVec 128)))) >>=
         cipherInputsTail adv) := by
-  rw [prfIdealExp_prfReduction_eq iv L hL adv]
+  rw [prfIdealExperiment_prfReduction_eq iv L hL adv]
   simp only [List.mapM_cons, bind_assoc, pure_bind]
   rfl
 
@@ -126,28 +126,30 @@ query points distinct: a longer message wraps the 32-bit counter and repeats a p
 theorem abs_prfAdvantage_sub_prpAdvantage_le {K : Type}
     (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ) (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    |PRFScheme.prfAdvantage prp.toPRFScheme (prfReduction iv L adv) -
-      PRPScheme.prpAdvantage prp (prfReduction iv L adv)| ≤
+    |(PRFScheme.prfAdvantage prp.toPRFScheme (prfReduction iv L adv)).toReal -
+      (PRPScheme.prpAdvantage prp (prfReduction iv L adv)).toReal| ≤
       ((((L + 127) / 128 : ℕ) : ℝ) + 2) * ((((L + 127) / 128 : ℕ) : ℝ) + 1)
         / 2 ^ (129 : ℕ) := by
   -- (1) The two games share one real term: `PRPScheme.prpRealExp` is *defined* to be
-  -- `PRFScheme.prfRealExp prp.toPRFScheme`, so unfolding it makes the two advantages
+  -- `PRFScheme.prfRealExperiment prp.toPRFScheme`, so unfolding it makes the two advantages
   -- `|R - I_prf|` and `|R - I_prp|` over a literally identical `R`.
-  unfold PRFScheme.prfAdvantage PRPScheme.prpAdvantage PRPScheme.prpRealExp
+  rw [PRFScheme.toReal_prfAdvantage, PRPScheme.toReal_prpAdvantage]
+  unfold PRPScheme.prpRealExp
   -- (2) `||a| - |b|| ≤ |a - b|`, the two-sided inequality; its one-sided sibling
   -- `abs_sub_abs_le_abs_sub` would only give the corollary below.
   refine (abs_abs_sub_abs_le_abs_sub _ _).trans ?_
   rw [show ∀ r i j : ℝ, r - i - (r - j) = j - i from fun _ _ _ => by ring]
-  -- (3) The Bool-level bridge from a difference of `Pr[= true]` values to TV distance.
-  refine (abs_probOutput_toReal_sub_le_tvDist _ _).trans ?_
+  -- (3) The Bool-level bridge from a difference of `Pr[true]` values to TV distance.
+  refine (abs_prEvent_toReal_sub_le_measureTVDist _ _ (· = true) Measurable.of_discrete).trans ?_
   -- (4) Both ideal experiments become `D >>= cipherInputsTail adv` over the same query list.
-  rw [prpIdealExp_eq_bind_tail iv adv, prfIdealExp_eq_bind_tail iv hL adv]
+  rw [prpIdealExp_eq_bind_tail iv adv, prfIdealExperiment_eq_bind_tail iv hL adv]
   -- (5) The data-processing inequality pushes the bound through that shared closed tail.
-  refine (tvDist_bind_right_le _ _ _).trans ?_
+  let _ : MeasurableSpace (List (BitVec 128)) := ⊤
+  refine (OracleComp.measureTVDist_bind_right_le _ _ _).trans ?_
   -- (6) The generic fixed-list switching bound, at
   -- `pts := 0 :: J₀ :: counterChain (inc₃₂ J₀) ⌈L/128⌉`, whose `Nodup` is
   -- `cipherInputs_pairwise_ne iv hL` (`List.Nodup` *is* `Pairwise (· ≠ ·)`).
-  refine (OracleComp.tvDist_map_uniformPerm_mapM_const_uniform_le _
+  refine (OracleComp.measureTVDist_map_uniformPerm_mapM_const_uniform_le _
     (cipherInputs_pairwise_ne iv hL)).trans ?_
   -- The arithmetic: the list has length `⌈L/128⌉ + 2` by `counterChain_length` and two
   -- `List.length_cons` steps, and `Fintype.card (BitVec 128) = 2¹²⁸`, so
@@ -161,8 +163,8 @@ theorem abs_prfAdvantage_sub_prpAdvantage_le {K : Type}
 theorem prfAdvantage_le_prpAdvantage_switching {K : Type}
     (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ) (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    PRFScheme.prfAdvantage prp.toPRFScheme (prfReduction iv L adv) ≤
-      PRPScheme.prpAdvantage prp (prfReduction iv L adv) +
+    (PRFScheme.prfAdvantage prp.toPRFScheme (prfReduction iv L adv)).toReal ≤
+      (PRPScheme.prpAdvantage prp (prfReduction iv L adv)).toReal +
       ((((L + 127) / 128 : ℕ) : ℝ) + 2) * ((((L + 127) / 128 : ℕ) : ℝ) + 1)
         / 2 ^ (129 : ℕ) := by
   have h := (abs_le.mp (abs_prfAdvantage_sub_prpAdvantage_le prp iv L hL adv)).2

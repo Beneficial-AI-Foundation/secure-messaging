@@ -7,6 +7,8 @@ import SecureMessagingDocs.Chapters.AEAD.Defs
 import SecureMessagingDocs.Chapters.AEAD.GCM
 import SecureMessagingDocs.Chapters.AEAD.EncryptThenMAC
 
+/-! # Blueprint chapter: Authenticated Encryption with Associated Data -/
+
 set_option linter.style.setOption false
 set_option linter.hashCommand false
 set_option linter.style.emptyLine false

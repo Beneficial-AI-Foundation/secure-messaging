@@ -98,6 +98,15 @@ private lemma reachableInv_after_sendA_existing
     · simp only [Function.update, hnew, ↓reduceDIte] at hn
       exact hInv.msgAEpoch n ρ tsnd hn
   · exact hInv.msgBEpoch
+  · refine ⟨hInv.ct0Ack.1, ?_, hInv.ct0Ack.2.2.1, hInv.ct0Ack.2.2.2⟩
+    intro n ρ tsnd hn hack ht
+    by_cases hnew : n = s.nA + 1
+    · subst n
+      simp only [Function.update_self, Option.some.injEq, Prod.mk.injEq] at hn
+      obtain ⟨rfl, rfl⟩ := hn
+      exact hInv.ct0Ack.1 hack
+    · simp only [Function.update_of_ne hnew] at hn
+      exact hInv.ct0Ack.2.1 n ρ tsnd hn hack ht
 
 omit [DecidableEq Sym] in
 /-- If A has no current key pair, sampling and recording a supported key pair,
@@ -262,6 +271,16 @@ private lemma reachableInv_after_sendA_new
     · simp only [Function.update, hnew, ↓reduceDIte] at hn
       exact hInv.msgAEpoch n ρ tsnd hn
   · exact hInv.msgBEpoch
+  · refine ⟨hInv.ct0Ack.1, ?_, hInv.ct0Ack.2.2.1, ?_⟩
+    · intro n ρ tsnd hn hack ht
+      by_cases hnew : n = s.nA + 1
+      · subst n
+        simp only [Function.update_self, Option.some.injEq, Prod.mk.injEq] at hn
+        obtain ⟨rfl, rfl⟩ := hn
+        exact hInv.ct0Ack.1 hack
+      · simp only [Function.update_of_ne hnew] at hn
+        exact hInv.ct0Ack.2.1 n ρ tsnd hn hack ht
+    · simpa only [hTOn s.stA.t] using hInv.ct0Ack.2.2.2
 
 /-- A's send preserves `reachableInv` when `ecEk.ec.nchunk > 0`. -/
 lemma oracleSendA_preserves_reachableInv

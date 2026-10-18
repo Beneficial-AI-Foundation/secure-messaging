@@ -104,8 +104,7 @@ theorem correctness_error_le
     (hCt2Correct : P.ecpCt2.ec.Correct)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message P.Sym))
     (q : ℕ) (hq : SCKAScheme.SendQueryBound adv q) :
-    1 - Pr[= true |
-      SCKAScheme.correctnessExp (scheme P auth irl sampleInitKey) adv] ≤
+    1 - Pr{let x ← SCKAScheme.correctnessExp (scheme P auth irl sampleInitKey) adv}[x = true] ≤
       (q : ℝ≥0∞) * P.kem.correctnessError ProbCompRuntime.probComp
 -- ANCHOR_END: Braid_correctness_error_le
     := by
@@ -121,7 +120,7 @@ theorem correctness_error_le
       initA, initB, State.controlPosition, State.epoch]
   · exact correctnessImpl_preserves_correctnessInv auth irl sampleInitKey
       hHdrCorrect hEkCorrect hCt1Correct hCt2Correct
-  · exact expectedPayoff_failurePotential_query_le auth irl sampleInitKey
+  · exact wp_failurePotential_query_le auth irl sampleInitKey
       hHdrCorrect hEkCorrect hCt1Correct hCt2Correct
 
 /-- The bound of `correctness_error_le` for `mlkemBraidScheme`, using the correctness error of
@@ -150,10 +149,9 @@ theorem mlkemBraidScheme_correctness_error_le
     (hCt2Correct : ecpCt2.ec.Correct)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
     (q : ℕ) (hq : SCKAScheme.SendQueryBound adv q) :
-    1 - Pr[= true |
-      SCKAScheme.correctnessExp
+    1 - Pr{let x ← (SCKAScheme.correctnessExp
         (mlkemBraidScheme p ring prims kdfOK
-          ecpHdr ecpEk ecpCt1 ecpCt2 auth sampleInitKey) adv] ≤
+          ecpHdr ecpEk ecpCt1 ecpCt2 auth sampleInitKey) adv)}[x = true] ≤
       (q : ℝ≥0∞) *
         (MLKEM.mlkemScheme p ring prims).correctnessError
           ProbCompRuntime.probComp :=

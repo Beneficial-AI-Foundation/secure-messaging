@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.OracleComp.SimSemantics.StateT.ExpectedPayoffBound
+import ToVCVio.OracleComp.SimSemantics.StateT.WPBound
 import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 
 /-!
@@ -30,7 +30,7 @@ flag is set, or `Inv s` holds and `s` is not bad.
 - `tracked_bad_le_of_score_step`: if a query raises the expected score by at most `ε` when it
   satisfies `p` and not at all otherwise, then after a computation making at most `q` queries
   satisfying `p` the flag is set with probability at most `score (s₀, false) + q · ε`;
-- `probEvent_not_good_le_tracked_bad`: if `Inv` forces `good s = true`, then the run of `impl`
+- `prEvent_not_good_le_tracked_bad`: if `Inv` forces `good s = true`, then the run of `impl`
   ends in a state with `good s = false` with probability at most that of the flag being set.
 
 With the flag, `Inv` only has to be preserved from states that are not bad, so nothing has to be
@@ -38,6 +38,7 @@ proved about the states that follow the first bad one.
 -/
 
 open OracleSpec ENNReal
+open OracleComp.ProgramLogic
 
 namespace OracleComp
 
@@ -98,11 +99,11 @@ theorem trackedImpl_preserves (impl : QueryImpl spec (StateT σ ProbComp)) (bad 
     exact ⟨hstep t p.1 hinv hgood y hy, by simpa using hbad⟩
 
 /-- The probability that the flag is set is at most the expected score, for any score that is
-at least `1` on flagged states. Computation failure is charged `1` by `expectedPayoff`. -/
+at least `1` on flagged states. -/
 theorem tracked_bad_probability_le_score {α : Type} (score : σ × Bool → ℝ≥0∞)
     (hscore : ∀ p : σ × Bool, p.2 = true → 1 ≤ score p) (oa : ProbComp (α × (σ × Bool))) :
-    Pr[ fun z => z.2.2 = true | oa] ≤ expectedPayoff oa (fun z => score z.2) :=
-  probEvent_le_expectedPayoff oa _ _ fun z hz => hscore z.2 hz
+    Pr{let z ← oa}[z.2.2 = true] ≤ wp oa (fun z => score z.2) :=
+  prEvent_le_wp oa _ _ fun z hz => hscore z.2 hz
 
 /-- Per-query expected-score bounds, with an allowance of `ε` on queries satisfying `p` only,
 give a bound `score (s₀, false) + q · ε` on the probability that the flag is set after a
@@ -113,31 +114,31 @@ theorem tracked_bad_le_of_score_step (impl : QueryImpl spec (StateT σ ProbComp)
     (hscore1 : ∀ x : σ × Bool, x.2 = true → 1 ≤ score x)
     (hpres : QueryImpl.PreservesInv (trackedImpl impl bad) (trackedInv Inv bad))
     (hstep : ∀ t x, trackedInv Inv bad x →
-      expectedPayoff (((trackedImpl impl bad) t).run x) (fun z => score z.2) ≤
+      wp (((trackedImpl impl bad) t).run x) (fun z => score z.2) ≤
         score x + if p t then ε else 0)
     {α : Type} (oa : OracleComp spec α) (q : ℕ) (hq : oa.IsQueryBoundP p q)
     (s₀ : σ) (hinit : trackedInv Inv bad (s₀, false)) :
-    Pr[ fun z => z.2.2 = true | (simulateQ (trackedImpl impl bad) oa).run (s₀, false)] ≤
+    Pr{let z ← (simulateQ (trackedImpl impl bad) oa).run (s₀, false)}[z.2.2 = true] ≤
       score (s₀, false) + (q : ℝ≥0∞) * ε :=
   (tracked_bad_probability_le_score score hscore1 _).trans
-    (expectedPayoff_simulateQ_run_le (trackedImpl impl bad) (trackedInv Inv bad) score p ε
+    (wp_simulateQ_run_le (trackedImpl impl bad) (trackedInv Inv bad) score p ε
       hpres hstep oa q hq (s₀, false) hinit)
 
 /-- If `Inv` forces `good s = true`, the run of `impl` from `s₀` ends in a state with
 `good s = false` with probability at most that of the flag being set at the end of the tracked
 run from `(s₀, false)`. -/
-theorem probEvent_not_good_le_tracked_bad (impl : QueryImpl spec (StateT σ ProbComp))
+theorem prEvent_not_good_le_tracked_bad (impl : QueryImpl spec (StateT σ ProbComp))
     (bad : σ → Bool) (Inv : σ → Prop) (good : σ → Bool) (hgood : ∀ s, Inv s → good s = true)
     (hpres : QueryImpl.PreservesInv (trackedImpl impl bad) (trackedInv Inv bad))
     {α : Type} (oa : OracleComp spec α) (s₀ : σ) (hinit : trackedInv Inv bad (s₀, false)) :
-    Pr[ fun z => good z.2 = false | (simulateQ impl oa).run s₀] ≤
-      Pr[ fun z => z.2.2 = true | (simulateQ (trackedImpl impl bad) oa).run (s₀, false)] := by
-  rw [← tracked_run_project impl bad oa (s₀, false), probEvent_map]
-  refine probEvent_mono ?_
+    Pr{let z ← (simulateQ impl oa).run s₀}[good z.2 = false] ≤
+      Pr{let z ← (simulateQ (trackedImpl impl bad) oa).run (s₀, false)}[z.2.2 = true] := by
+  rw [← tracked_run_project impl bad oa (s₀, false), prEvent_map]
+  refine prEvent_mono_of_support _ _ _ ?_
   intro z hz hnotgood
   rcases simulateQ_run_preservesInv (trackedImpl impl bad) (trackedInv Inv bad) hpres oa
       (s₀, false) hinit z hz with hflag | ⟨hinv, -⟩
   · exact hflag
-  · simp [Function.comp, hgood _ hinv] at hnotgood
+  · simp [hgood _ hinv] at hnotgood
 
 end OracleComp

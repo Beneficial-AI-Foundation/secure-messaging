@@ -15,6 +15,7 @@ Per-query bounds for `failurePotential`, used by `MLKEMBraid.correctness_error_l
 -/
 
 open OracleSpec OracleComp
+open OracleComp.ProgramLogic
 open ErasureCodePayload.Streaming
 open SCKAScheme.sckaCorrectnessSpec
 open ENNReal
@@ -45,7 +46,7 @@ private theorem derivedKeyFailure_le
       (P.inc.splitC.symm (ct1,
         P.hEnc2.encaps2Det encapsState (P.inc.toHeader pk) (P.inc.toVector pk))) = some key
   · simp [hb]
-  · rw [if_neg hb]
+  · rw [ite_eq_right hb]
     split_ifs <;> simp
 
 omit [DecidableEq P.Sym] in
@@ -53,7 +54,7 @@ omit [DecidableEq P.Sym] in
 private theorem failurePotential_le_one (s : GameState P AuthState) :
     failurePotential s ≤ 1 := by
   have hrisk : ∀ hdr vec sk, P.inc.decapsFailureProb hdr vec sk ≤ 1 :=
-    fun hdr vec sk => probOutput_false_add_probFailure_le_one _
+    fun hdr vec sk => prEvent_le_one _
   have hderived : ∀ e sk ct1 ct2 key, derivedKeyFailure (P := P) e sk ct1 ct2 key ≤ 1 := by
     intro e sk ct1 ct2 key
     unfold derivedKeyFailure
@@ -93,7 +94,7 @@ private theorem decaps_eq_of_currentEpochFailure_ne_one
       · exact hep.symm
       · rfl
     rw [he] at hkp hc ⊢
-    rw [if_pos hep] at hformula
+    rw [ite_eq_left hep] at hformula
     simp only [EpochTranscript.failurePotential, hkp, hc] at hformula
     rw [hformula] at hpot
     unfold derivedKeyFailure at hpot
@@ -211,20 +212,20 @@ private theorem currentEpochFailure_eq_pair
 
 /-- A send from `keysUnsampled` has expected successor potential equal to the KEM correctness error.
 -/
-private theorem expectedPayoff_failurePotential_send_keysUnsampled
+private theorem wp_failurePotential_send_keysUnsampled
     {ik : InitKey} {T : ℕ → EpochTranscript P} {s : GameState P AuthState}
     (hT : TranscriptConsistent auth ik T s) (party : Bool) {e : ℕ} {a : AuthState}
     (hst : (s.stateAt party) = .keysUnsampled e a) :
-    expectedPayoff
+    wp
         ((oracleSend auth irl sampleInitKey party ()).run s)
         (fun z => failurePotential z.2) =
       P.kem.correctnessError ProbCompRuntime.probComp := by
   obtain ⟨b, dec, hpeer⟩ := peer_noHeaderReceived_of_keysUnsampled auth hT party hst
   obtain ⟨htcur, hkeys⟩ := hT.control.send_prefix party
   rw [hst] at htcur hkeys
-  rw [← P.inc.expectedPayoff_keygen_decapsFailureProb,
-    oracleSend_run_eq auth irl sampleInitKey, expectedPayoff_map, hst,
-    send_keysUnsampled_eq, expectedPayoff_map]
+  rw [← P.inc.wp_keygen_decapsFailureProb,
+    oracleSend_run_eq auth irl sampleInitKey, wp_map, hst,
+    send_keysUnsampled_eq, wp_map, Function.comp_def]
   congr 1
   funext kp
   obtain ⟨pk, sk⟩ := kp
@@ -233,19 +234,19 @@ private theorem expectedPayoff_failurePotential_send_keysUnsampled
       SCKAScheme.knownPrefix (s.keysAt party) (e - 1)) = true := by
     simp only [Bool.and_eq_true, decide_eq_true_eq]
     exact ⟨⟨hT.correct, htcur⟩, SCKAScheme.knownPrefix_eq_true hkeys⟩
-  simp only [failurePotential, sendUpdate_correct, hflag, if_true]
+  simp only [failurePotential, sendUpdate_correct, hflag, ite_true]
   rw [currentEpochFailure_eq_pair _ party]
   · simp [hpeer, pairFailure, State.epoch, EncoderState.nextChunk, EncoderState.init]
   · simp [State.controlPosition]
   · simp [hpeer, State.controlPosition]
 
 /-- A send from `headerReceived` does not raise the expected potential. -/
-private theorem expectedPayoff_failurePotential_send_headerReceived_le
+private theorem wp_failurePotential_send_headerReceived_le
     {ik : InitKey} {T : ℕ → EpochTranscript P} {s : GameState P AuthState}
     (hT : TranscriptConsistent auth ik T s) (party : Bool) {e : ℕ} {a : AuthState}
     {hdr : P.inc.PKheader} {dec : DecoderState P.inc.PKvector P.Sym}
     (hst : (s.stateAt party) = .headerReceived e a hdr dec) :
-    expectedPayoff
+    wp
         ((oracleSend auth irl sampleInitKey party ()).run s)
         (fun z => failurePotential z.2) ≤
       currentEpochFailure s := by
@@ -258,7 +259,7 @@ private theorem expectedPayoff_failurePotential_send_headerReceived_le
   have hΦ : currentEpochFailure s =
       P.inc.decapsFailureProb (P.inc.toHeader pk) (P.inc.toVector pk) sk := by
     rw [currentEpochFailure_eq_transcript_party auth hT party]
-    simp only [hst, hpeer, State.epoch, EpochTranscript.failurePotential, hkpT, hc0, if_true]
+    simp only [hst, hpeer, State.epoch, EpochTranscript.failurePotential, hkpT, hc0, ite_true]
   obtain ⟨htcur, hkeys⟩ := hT.control.send_prefix party
   rw [hst] at htcur hkeys
   have hnone : ∀ who, s.keysAt who e = none := by
@@ -274,10 +275,10 @@ private theorem expectedPayoff_failurePotential_send_headerReceived_le
       simp only [State.completedEpoch, State.epoch] at hbound
       omega
   rw [hΦ]
-  rw [P.inc.decapsFailureProb_eq_expectedPayoff P.hDet P.hEnc2]
-  rw [oracleSend_run_eq auth irl sampleInitKey, expectedPayoff_map, hst,
-    send_headerReceived_eq, expectedPayoff_map]
-  refine expectedPayoff_mono _ _ _ fun c => ?_
+  rw [P.inc.decapsFailureProb_eq_wp P.hDet P.hEnc2]
+  rw [oracleSend_run_eq auth irl sampleInitKey, wp_map, hst,
+    send_headerReceived_eq, wp_map, Function.comp_def]
+  refine wp_mono _ fun c => ?_
   obtain ⟨es, ct1, k⟩ := c
   dsimp only [Function.comp_def]
   have hflag : (s.correct && decide (s.tcurAt party ≤ e - 1) &&
@@ -289,7 +290,7 @@ private theorem expectedPayoff_failurePotential_send_headerReceived_le
     exact ⟨⟨⟨⟨hT.correct, htcur⟩, by simp [hnone]⟩, by simp [hnone]⟩,
       SCKAScheme.knownPrefix_update_some (SCKAScheme.knownPrefix_eq_true hkeys) e (P.kdfOK k e)⟩
   refine le_trans (le_of_eq ?_) (derivedKeyFailure_le e pk sk es ct1 k)
-  simp only [failurePotential, sendUpdate_correct, hflag, if_true]
+  simp only [failurePotential, sendUpdate_correct, hflag, ite_true]
   rw [currentEpochFailure_eq_pair _ (!party)]
   · simp [hpeer, pairFailure, State.epoch]
   · simp [hpeer, State.controlPosition]
@@ -402,10 +403,10 @@ private theorem recv_currentEpochFailure_eq_zero_of_epoch_ne
   · rfl
 
 /-- Either party's send raises expected `failurePotential` by at most the KEM correctness error. -/
-private theorem expectedPayoff_failurePotential_send_le
+private theorem wp_failurePotential_send_le
     (ik : InitKey) (s : GameState P AuthState)
     (hs : CorrectnessInv auth ik s) (party : Bool) :
-    expectedPayoff
+    wp
         ((oracleSend auth irl sampleInitKey party ()).run s)
         (fun z => failurePotential z.2) ≤
       failurePotential s + P.kem.correctnessError ProbCompRuntime.probComp := by
@@ -413,44 +414,44 @@ private theorem expectedPayoff_failurePotential_send_le
   · have h1 : failurePotential s = 1 := by simp [failurePotential, hsf]
     rw [h1]
     refine le_trans ?_ le_self_add
-    exact expectedPayoff_le_one _ _ fun z => failurePotential_le_one z.2
+    exact wp_le_const_of_support _ fun z _ => failurePotential_le_one z.2
   have hF : failurePotential s = currentEpochFailure s := by
     simp [failurePotential, hT.correct]
   cases hst : (s.stateAt party) with
   | keysUnsampled e a =>
-      rw [expectedPayoff_failurePotential_send_keysUnsampled auth irl sampleInitKey hT party hst]
+      rw [wp_failurePotential_send_keysUnsampled auth irl sampleInitKey hT party hst]
       exact le_add_self
   | headerReceived e a hdr dec =>
       rw [hF]
-      exact (expectedPayoff_failurePotential_send_headerReceived_le auth irl sampleInitKey hT party
+      exact (wp_failurePotential_send_headerReceived_le auth irl sampleInitKey hT party
         hst).trans le_self_add
   | _ =>
       refine le_trans ?_ le_self_add
-      refine expectedPayoff_le_const_of_support _ _ _ probFailure_eq_zero fun z hz => ?_
+      refine wp_le_const_of_support _ fun z hz => ?_
       obtain ⟨hzc, hpot⟩ := send_correct_and_currentEpochFailure_eq auth irl sampleInitKey hT
         party (by rw [hst]; trivial) z hz
       simp [failurePotential, hzc, hpot, hT.correct]
 
 /-- With correct erasure codes, either party's receive does not raise expected `failurePotential`.
 -/
-private theorem expectedPayoff_failurePotential_recv_le
+private theorem wp_failurePotential_recv_le
     (hHdrCorrect : P.ecpHdr.ec.Correct)
     (hEkCorrect : P.ecpEk.ec.Correct)
     (hCt1Correct : P.ecpCt1.ec.Correct)
     (hCt2Correct : P.ecpCt2.ec.Correct)
     (ik : InitKey) (s : GameState P AuthState)
     (hs : CorrectnessInv auth ik s) (party : Bool) (n : ℕ) :
-    expectedPayoff
+    wp
         ((oracleRecv auth irl sampleInitKey party n).run s)
         (fun z => failurePotential z.2) ≤
       failurePotential s := by
   rcases hs with hsf | ⟨T, hT⟩
   · have h1 : failurePotential s = 1 := by simp [failurePotential, hsf]
     rw [h1]
-    exact expectedPayoff_le_one _ _ fun z => failurePotential_le_one z.2
+    exact wp_le_const_of_support _ fun z _ => failurePotential_le_one z.2
   have hF : failurePotential s = currentEpochFailure s := by
     simp [failurePotential, hT.correct]
-  refine expectedPayoff_le_const_of_support _ _ _ probFailure_eq_zero fun z hz => ?_
+  refine wp_le_const_of_support _ fun z hz => ?_
   rw [hF]
   cases hzc : z.2.correct
   · -- A receive clears the flag only if decapsulation at the receiver's epoch does not return
@@ -461,7 +462,7 @@ private theorem expectedPayoff_failurePotential_recv_le
         hCt1Correct hCt2Correct hT party n
         (decaps_eq_of_currentEpochFailure_ne_one auth hT hne party) z hz
     simp [failurePotential, hzc, h]
-  · simp only [failurePotential, hzc, if_true]
+  · simp only [failurePotential, hzc, ite_true]
     by_cases h : z.2.stA.epoch = s.stA.epoch ∧ z.2.stB.epoch = s.stB.epoch
     · exact recv_currentEpochFailure_le_of_epochs_eq auth irl sampleInitKey hHdrCorrect
         hEkCorrect hCt1Correct hCt2Correct hT party n z hz hzc h.1 h.2
@@ -472,7 +473,7 @@ private theorem expectedPayoff_failurePotential_recv_le
 /-- One query of the correctness game raises the expected failure potential by at most the
 KEM correctness error for a send query, and not at all for other queries. The state must
 satisfy the correctness invariant, and the four erasure codes must be correct. -/
-theorem expectedPayoff_failurePotential_query_le
+theorem wp_failurePotential_query_le
     (hHdrCorrect : P.ecpHdr.ec.Correct)
     (hEkCorrect : P.ecpEk.ec.Correct)
     (hCt1Correct : P.ecpCt1.ec.Correct)
@@ -481,7 +482,7 @@ theorem expectedPayoff_failurePotential_query_le
     (t : (SCKAScheme.sckaCorrectnessSpec (Message P.Sym)).Domain)
     (s : GameState P AuthState)
     (hs : CorrectnessInv auth ik s) :
-    expectedPayoff
+    wp
         ((SCKAScheme.sckaCorrectnessImpl (scheme P auth irl sampleInitKey) t).run s)
         (fun z => failurePotential z.2) ≤
       failurePotential s +
@@ -489,23 +490,23 @@ theorem expectedPayoff_failurePotential_query_le
         then P.kem.correctnessError ProbCompRuntime.probComp else 0 := by
   match t with
   | SCKAScheme.sckaCorrectnessSpec.OUnif n =>
-      rw [if_neg (by simp [SCKAScheme.isSendQuery]), add_zero]
-      refine expectedPayoff_le_const_of_support _ _ _ probFailure_eq_zero fun z hz => ?_
+      rw [ite_eq_right (by simp [SCKAScheme.isSendQuery]), add_zero]
+      refine wp_le_const_of_support _ fun z hz => ?_
       exact le_of_eq (congrArg failurePotential
         (SCKAScheme.oracleUnif_preservesInv (· = s) n s rfl z hz))
   | SCKAScheme.sckaCorrectnessSpec.OSendA =>
-      rw [if_pos (by simp [SCKAScheme.isSendQuery])]
-      exact expectedPayoff_failurePotential_send_le auth irl sampleInitKey ik s hs true
+      rw [ite_eq_left (by simp [SCKAScheme.isSendQuery])]
+      exact wp_failurePotential_send_le auth irl sampleInitKey ik s hs true
   | SCKAScheme.sckaCorrectnessSpec.OSendB =>
-      rw [if_pos (by simp [SCKAScheme.isSendQuery])]
-      exact expectedPayoff_failurePotential_send_le auth irl sampleInitKey ik s hs false
+      rw [ite_eq_left (by simp [SCKAScheme.isSendQuery])]
+      exact wp_failurePotential_send_le auth irl sampleInitKey ik s hs false
   | SCKAScheme.sckaCorrectnessSpec.ORecvA n =>
-      rw [if_neg (by simp [SCKAScheme.isSendQuery]), add_zero]
-      exact expectedPayoff_failurePotential_recv_le auth irl sampleInitKey hHdrCorrect hEkCorrect
+      rw [ite_eq_right (by simp [SCKAScheme.isSendQuery]), add_zero]
+      exact wp_failurePotential_recv_le auth irl sampleInitKey hHdrCorrect hEkCorrect
         hCt1Correct hCt2Correct ik s hs true n
   | SCKAScheme.sckaCorrectnessSpec.ORecvB n =>
-      rw [if_neg (by simp [SCKAScheme.isSendQuery]), add_zero]
-      exact expectedPayoff_failurePotential_recv_le auth irl sampleInitKey hHdrCorrect hEkCorrect
+      rw [ite_eq_right (by simp [SCKAScheme.isSendQuery]), add_zero]
+      exact wp_failurePotential_recv_le auth irl sampleInitKey hHdrCorrect hEkCorrect
         hCt1Correct hCt2Correct ik s hs false n
 
 end MLKEMBraid

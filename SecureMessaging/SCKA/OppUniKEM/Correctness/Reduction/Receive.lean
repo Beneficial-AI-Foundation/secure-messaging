@@ -47,16 +47,13 @@ lemma recvA_kem_source_shape
   classical
   rcases msg with ⟨ch?, ack, t, b?⟩
   by_cases ht : stA.t = t
-  · simp only [recvA, ht, if_true] at hrecv
+  · simp only [recvA, ht, ite_true, Option.bind_eq_bind, Option.pure_def] at hrecv
     repeat' split at hrecv
-    all_goals try simp_all only [Fin.isValue, Option.some.injEq, zero_ne_one,
-      Option.isSome_some, and_true, and_false, or_false, and_self]
-    all_goals (subst_vars; try simp_all only [Fin.isValue, imp_false,
-      Prod.forall, BEq.rfl, Bool.and_true, Bool.not_eq_true, Prod.mk.injEq,
-      and_self, Nat.left_eq_add, one_ne_zero, true_and, false_and, or_false,
-      Bool.and_eq_true, beq_iff_eq, Nat.add_eq_left, and_false,
-      not_false_eq_true])
-    all_goals (rcases hrecv with ⟨_, _, hstate⟩; subst stA'; simp_all)
+    all_goals simp_all only [Bool.and_eq_true, beq_iff_eq, Option.bind_some,
+      Option.bind_none, reduceCtorEq, and_true, Option.some.injEq, Prod.mk.injEq,
+      Message.epoch, Fin.isValue, zero_ne_one, Option.isSome_some, and_false, or_false,
+      and_self, Nat.add_eq_left, one_ne_zero, ↓reduceIte, imp_false, Prod.forall, true_and]
+    all_goals (rcases hrecv with ⟨_, _, rfl⟩; (try split) <;> simp_all)
   · simp [recvA, ht] at hrecv
     simp_all
 
@@ -76,20 +73,16 @@ lemma recvB_kem_source_shape
   rcases msg with ⟨ch?, ack, t, b?⟩
   by_cases ht : stB.t < t
   · right
-    simp only [recvB, ht, if_true] at hrecv
+    simp only [recvB, ht, ite_true] at hrecv
     repeat' split at hrecv
     all_goals try simp_all only [Option.isNone_none, and_true, BEq.rfl,
       Bool.and_true, Bool.not_eq_true, insert_empty_eq, Option.some.injEq,
       Prod.mk.injEq, Bool.and_eq_true, beq_iff_eq, and_false,
       not_false_eq_true]
-    all_goals (subst_vars; try simp_all only [Fin.isValue, imp_false,
-      Prod.forall, BEq.rfl, Bool.and_true, Bool.not_eq_true, Prod.mk.injEq,
-      and_self, Nat.left_eq_add, one_ne_zero, true_and, false_and, or_false,
-      Bool.and_eq_true, beq_iff_eq, Nat.add_eq_left, and_false,
-      not_false_eq_true])
+    all_goals subst_vars
     all_goals (rcases hrecv with ⟨_, _, hstate⟩; subst stB'; simp_all)
   · left
-    simp only [recvB, ht, if_false] at hrecv
+    simp only [recvB, ht, ite_false] at hrecv
     repeat' split at hrecv
     all_goals try simp_all only [lt_self_iff_false, not_false_eq_true,
       Option.isNone_iff_eq_none, BEq.rfl, Bool.and_true, Bool.not_eq_true,
@@ -175,7 +168,11 @@ lemma oracleRecvA_preserves_failurePotential [DecidableEq K]
   | some entry =>
       rcases entry with ⟨msg, tsnd⟩
       cases hlocal : recvA kem onoff hDet.decapsDet ecCt0 ecCt1 s.stA msg with
-      | none => simp [recvA] at hlocal
+      | none =>
+          rw [SCKAScheme.oracleRecvA_run_eq_of_refuse _ _ hentry hlocal,
+            mem_support_pure_iff] at hz
+          subst hz
+          exact currentFailurePotential_congr kem onoff _ _ rfl rfl rfl rfl rfl rfl rfl
       | some out =>
         rcases out with ⟨key?, trcv, stA'⟩
         have hr : (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak).recvA s.stA msg =
@@ -310,7 +307,11 @@ lemma oracleRecvA_preserves_currentFailure [DecidableEq K]
   | some entry =>
       rcases entry with ⟨msg, tsnd⟩
       cases hlocal : recvA kem onoff hDet.decapsDet ecCt0 ecCt1 s.stA msg with
-      | none => simp [recvA] at hlocal
+      | none =>
+          rw [SCKAScheme.oracleRecvA_run_eq_of_refuse _ _ hentry hlocal,
+            mem_support_pure_iff] at hz
+          subst hz
+          exact (currentKEMFailure_congr kem onoff hDet _ _ rfl rfl rfl rfl rfl rfl).trans hfail
       | some out =>
         rcases out with ⟨key?, trcv, stA'⟩
         have hr : (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak).recvA s.stA msg =

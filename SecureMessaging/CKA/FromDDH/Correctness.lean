@@ -11,7 +11,7 @@ import SecureMessaging.CKA.FromDDH.Common
 
 Correctness proof for the Continuous Key Agreement (CKA) construction from
 the Decisional Diffie-Hellman (DDH) assumption:
-`Pr[= true | correctnessExp] = 1`.
+`Pr{let x ← correctnessExp}[x = true] = 1`.
 The proof establishes a four-phase game invariant and shows it is preserved by
 every oracle call, using `smul_comm` to deduce that the derived keys by A and B are the same.
 -/
@@ -196,13 +196,7 @@ private lemma correctnessImpl_preserves [DecidableEq G] :
 /-! ### Correctness theorem -/
 
 /-- For any adversary `𝒜` with access to send/receive oracles,
-`Pr[⊥ | Expᶜᵒʳʳ(ddhCKA, 𝒜)] = 0`. -/
-private lemma nofail [DecidableEq G] (adv : CKACorrectnessAdversary G G) :
-    Pr[⊥ | correctnessExp (ddhCKA F G gen) adv] = 0 := by
-  exact probFailure_eq_zero
-
-/-- For any adversary `𝒜` with access to send/receive oracles,
-`Pr[= false | Expᶜᵒʳʳ(ddhCKA, 𝒜)] = 0`. -/
+`Pr{let x ← Expᶜᵒʳʳ(ddhCKA, 𝒜)}[x = false] = 0`. -/
 private lemma always_correct [DecidableEq G] (adv : CKACorrectnessAdversary G G)
     (b : Bool) (hb : b ∈ support (correctnessExp (ddhCKA F G gen) adv)) :
     b = true := by
@@ -246,20 +240,17 @@ private lemma always_correct [DecidableEq G] (adv : CKACorrectnessAdversary G G)
   exact hb'.trans hInv.2.1
 
 /-- **DDH-CKA correctness**: for any adversary `𝒜` with access to send/receive
-oracles, `Pr[= true | Expᶜᵒʳʳ(ddhCKA, 𝒜)] = 1`.
+oracles, `Pr{let x ← Expᶜᵒʳʳ(ddhCKA, 𝒜)}[x = true] = 1`.
 
 The experiment `exp := correctnessExp (ddhCKA F G gen) adv : ProbComp Bool`
-has three mutually exclusive outcomes summing to `1`:
-`Pr[= true | exp] + Pr[= false | exp] + Pr[⊥ | exp] = 1`.
-So `Pr[= true | exp] = 1` reduces to:
-* `nofail`         — `Pr[⊥ | exp] = 0` (never fails);
-* `always_correct` — `Pr[= false | exp] = 0` (never returns `false`). -/
+never fails, so `Pr{let x ← exp}[x = true] = 1` reduces to every possible output being `true`
+(`always_correct`). -/
 -- ANCHOR: correctness
 theorem correctness [DecidableEq G] (adv : CKACorrectnessAdversary G G) :
-  Pr[= true | correctnessExp (ddhCKA F G gen) adv] = 1
+  Pr{let x ← correctnessExp (ddhCKA F G gen) adv}[x = true] = 1
 -- ANCHOR_END: correctness
   := by
-  rw [← probEvent_eq_eq_probOutput, probEvent_eq_one_iff]
-  exact ⟨nofail adv, always_correct adv⟩
+  rw [OracleComp.prEvent_eq_one_iff]
+  exact always_correct adv
 
 end ddhCKA

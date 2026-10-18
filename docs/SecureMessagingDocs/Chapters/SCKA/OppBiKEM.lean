@@ -6,6 +6,8 @@ import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessagingDocs.Bibliography
 import SecureMessaging.SCKA.OppBiKEM.Correctness
 
+/-! # Blueprint chapter: Opp-BiKEM-CKA -/
+
 set_option linter.style.setOption false
 set_option linter.hashCommand false
 set_option linter.style.emptyLine false
@@ -40,22 +42,8 @@ These functions specialize for `A` or `B` by using the `Role.offset` variable,
 that distinguishes between roles at different indices that `A` and `B` play.
 
 
-We make the following corrections with respect to the pseudocode (marked with surrounding boxes in the pseudocode):
-
-* In Figure 18, $`\mathsf{CKA}\text{-}\SendB`, lines 8, 9, and 13, replace
-  $`\boxed{t_{\mathrm{res}\text{-}A}\mapsto t_{\mathrm{res}\text{-}B}}`.
-  B's local state contains B's responder counter.
-* In Figure 17, $`\mathsf{CKA}\text{-}\mathsf{Rec}\text{-}\A`, line 22, replace
-  $`\boxed{\mathit{ct}_A\mapsto\mathit{ct}_B}`. Lines 23 and 27 already use B's ciphertext.
-* Public-key acknowledgement indices are corrected at both ends of each message:
-  in Figure 17, Send-A line 21 uses
-  $`\boxed{t_{\mathrm{req}\text{-}A}-1}` and Rec-A line 8 uses
-  $`\boxed{t_{\mathrm{req}\text{-}B}+1}`;
-  in Figure 18, Send-B line 21 uses
-  $`\boxed{t_{\mathrm{req}\text{-}B}+1}` and Rec-B line 8 uses
-  $`\boxed{t_{\mathrm{req}\text{-}A}-1}`.
-  These are the public-key entries set by decoding. The printed formulas
-  advertise different entries, leaving the first public keys unacknowledged.
+The pseudocode below marks with surrounding boxes the corrections we made with respect to the paper.
+See errata 1–3 in the {ref "scka-errata"}[errata] for detailed explanations and justifications for the corrections.
 
 ::::::gameGrid
 
@@ -208,10 +196,11 @@ def recvB (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
 
 
 
-:::::gameCell "\\textsf{Shared send implementation}" (kind := "compact")
+:::::gameCell "\\textsf{Shared send implementation}" (kind := "compact") (tag := "opp-bikem-shared-send")
 
 For party $`P`, the shared send follows Figures 17–18 with offset $`\delta_P`,
 where $`\delta_A=1` and $`\delta_B=-1`. We write $`\bar P` for the peer of party $`P`.
+The boxes mark the ciphertext guard, the acknowledgement-index correction and, for $`P=B`, the Send-B counter corrections.
 
 $`\begin{array}{l}
 (t_{\mathrm{res}\text{-}P},\mathsf{EK}_{\bar P},\mathit{ct}_P,i_{\mathrm{ch}})\gets\mathsf{st}_{\mathrm{res}} \\
@@ -221,19 +210,20 @@ I_P\gets\bot,\ t_{I_P}\gets\bot,\ \mathit{ch}\gets\bot,\ b\gets\bot \\
 \qquad\wedge\mathsf{ACK}[t_{\mathrm{res}\text{-}P}+\delta_P].\mathsf{ctRec}\;\mathsf{then} \\
 \quad t_{\mathrm{res}\text{-}P}\gets t_{\mathrm{res}\text{-}P}+2,\quad i_{\mathrm{ch}}\gets0 \\
 \quad (\mathit{ek}_P,\mathit{dk}_P)\sample\KeyGen \\
-\quad \mathsf{DK}_P[t_{\mathrm{res}\text{-}P}+\delta_P]\gets\mathit{dk}_P \\
-\mathsf{if}\;\neg\mathsf{ACK}[t_{\mathrm{res}\text{-}P}+\delta_P].\mathsf{ekRec}\;\mathsf{then} \\
+\quad \mathsf{DK}_P[\boxed{t_{\mathrm{res}\text{-}P}}+\delta_P]\gets\mathit{dk}_P \\
+\mathsf{if}\;\neg\mathsf{ACK}[\boxed{t_{\mathrm{res}\text{-}P}}+\delta_P].\mathsf{ekRec}\;\mathsf{then} \\
 \quad i_{\mathrm{ch}}\gets i_{\mathrm{ch}}+1,\quad b\gets0 \\
 \quad \mathit{ch}\gets\mathsf{Encode}(\mathit{ek}_P,i_{\mathrm{ch}}) \\
-\mathsf{else\ if}\;\neg\mathsf{ACK}[t_{\mathrm{res}\text{-}P}].\mathsf{ctRec}\;\mathsf{then} \\
+\mathsf{else\ if}\;\neg\mathsf{ACK}[\boxed{t_{\mathrm{res}\text{-}P}}].\mathsf{ctRec}\;\mathsf{then} \\
 \quad\mathsf{if}\;\mathit{ct}_P=\bot\wedge\mathsf{ACK}[t_{\mathrm{res}\text{-}P}].\mathsf{ekRec}\;\mathsf{then} \\
 \qquad t_{I_P}\gets t_{\mathrm{res}\text{-}P},\quad i_{\mathrm{ch}}\gets0 \\
 \qquad(\mathit{ct}_P,I_P)\sample\Encaps(\mathsf{EK}_{\bar P}[t_{\mathrm{res}\text{-}P}]) \\
-\quad i_{\mathrm{ch}}\gets i_{\mathrm{ch}}+1,\quad b\gets1 \\
-\quad \mathit{ch}\gets\mathsf{Encode}(\mathit{ct}_P,i_{\mathrm{ch}}) \\
+\quad\boxed{\mathsf{if}\;\mathit{ct}_P\ne\bot\;\mathsf{then}} \\
+\qquad i_{\mathrm{ch}}\gets i_{\mathrm{ch}}+1,\quad b\gets1 \\
+\qquad \mathit{ch}\gets\mathsf{Encode}(\mathit{ct}_P,i_{\mathrm{ch}}) \\
 t^{\mathrm{snd}}_P\gets\max\{t:\mathsf{ACK}[t].\mathsf{ctRec} \\
 \qquad\wedge\mathsf{ACK}[t-1].\mathsf{ctRec}\} \\
-\mathit{ack}\gets(\mathsf{ACK}[t_{\mathrm{req}\text{-}P}-\delta_P].\mathsf{ekRec},\mathsf{ACK}[t_{\mathrm{req}\text{-}P}].\mathsf{ctRec}) \\
+\mathit{ack}\gets(\mathsf{ACK}[\boxed{t_{\mathrm{req}\text{-}P}-\delta_P}].\mathsf{ekRec},\mathsf{ACK}[t_{\mathrm{req}\text{-}P}].\mathsf{ctRec}) \\
 \rho\gets(\mathit{ch},t_{\mathrm{res}\text{-}P},t_{\mathrm{req}\text{-}P},t^{\mathrm{snd}}_P,\mathit{ack},b) \\
 \mathsf{st}_{\mathrm{res}}\gets(t_{\mathrm{res}\text{-}P},\mathsf{EK}_{\bar P},\mathit{ct}_P,i_{\mathrm{ch}}) \\
 \mathsf{st}_{\mathrm{req}}\gets(t_{\mathrm{req}\text{-}P},\mathsf{DK}_P,\mathit{ek}_P,L_{\mathrm{ch}}) \\
@@ -287,10 +277,12 @@ def sendWith {RKey REnc : Type} (role : Role)
       key? := some (tRes.toNat, key)
       ich := 0
       rEnc? := some rEnc
-    ich := ich + 1
-    -- Waiting for the peer's public key can legitimately leave ct absent.
-    ch? := ct.map (fun ciphertext => ecCt.encode ciphertext ich)
-    bit? := some 1
+    -- Corrected line 17: a ciphertext chunk is sent only once a ciphertext exists.
+    -- While waiting for the peer's key, the message carries no payload.
+    if let some ciphertext := ct then
+      ich := ich + 1
+      ch? := some (ecCt.encode ciphertext ich)
+      bit? := some 1
   let st : State PK SK C Sym :=
     { res := ⟨tRes, ekPeer, ct, ich⟩
       req := ⟨tReq, dk, ek, receivedChunks⟩
@@ -310,9 +302,10 @@ def sendWith {RKey REnc : Type} (role : Role)
 
 :::::
 
-:::::gameCell "\\textsf{Shared receive implementation}" (kind := "compact")
+:::::gameCell "\\textsf{Shared receive implementation}" (kind := "compact") (tag := "opp-bikem-shared-recv")
 For party $`P`, the shared receive follows Figures 17–18 with offset $`\delta_P`,
 where $`\delta_A=1` and $`\delta_B=-1`. We write $`\bar P` for the peer of party $`P`.
+The boxes mark the acknowledgement-index correction and, for $`P=A`, the corrected received-ciphertext variable.
 
 $`\begin{array}{l}
 (t_{\mathrm{res}\text{-}P},\mathsf{EK}_{\bar P},\mathit{ct}_P,i_{\mathrm{ch}})\gets\mathsf{st}_{\mathrm{res}} \\
@@ -322,7 +315,7 @@ I_{\bar P}\gets\bot,\quad t_{I_{\bar P}}\gets\bot \\
 \mathsf{if}\;\mathit{ack}.\mathsf{ctRec}\;\mathsf{then} \\
 \quad\mathsf{ACK}[t_{\mathrm{req}\text{-}\bar P}].\mathsf{ctRec}\gets\mathsf{true} \\
 \mathsf{if}\;\mathit{ack}.\mathsf{ekRec}\;\mathsf{then} \\
-\quad\mathsf{ACK}[t_{\mathrm{req}\text{-}\bar P}+\delta_P].\mathsf{ekRec}\gets\mathsf{true} \\
+\quad\mathsf{ACK}[\boxed{t_{\mathrm{req}\text{-}\bar P}+\delta_P}].\mathsf{ekRec}\gets\mathsf{true} \\
 \mathsf{if}\;t_{\mathrm{res}\text{-}\bar P}<t_{\mathrm{req}\text{-}P}\;\mathsf{then}\;\mathsf{break} \\
 \mathsf{else\ if}\;t_{\mathrm{res}\text{-}\bar P}>t_{\mathrm{req}\text{-}P}\;\mathsf{then}\;t_{\mathrm{req}\text{-}P}\gets t_{\mathrm{req}\text{-}P}+2 \\
 \mathsf{if}\;\mathsf{EK}_{\bar P}[t_{\mathrm{req}\text{-}P}-\delta_P]=\bot\wedge b=0\;\mathsf{then} \\
@@ -334,7 +327,7 @@ I_{\bar P}\gets\bot,\quad t_{I_{\bar P}}\gets\bot \\
 \qquad\mathsf{ACK}[t_{\mathrm{req}\text{-}P}-\delta_P].\mathsf{ekRec}\gets\mathsf{true} \\
 \mathsf{else\ if}\;\neg\mathsf{ACK}[t_{\mathrm{req}\text{-}P}].\mathsf{ctRec}\wedge b=1\;\mathsf{then} \\
 \quad L_{\mathrm{ch}}\gets L_{\mathrm{ch}}\cup\{\mathit{ch}\} \\
-\quad \mathit{ct}_{\bar P}\gets\mathsf{Decode}(L_{\mathrm{ch}}) \\
+\quad \boxed{\mathit{ct}_{\bar P}}\gets\mathsf{Decode}(L_{\mathrm{ch}}) \\
 \quad\mathsf{if}\;\mathit{ct}_{\bar P}\ne\bot\;\mathsf{then} \\
 \qquad L_{\mathrm{ch}}\gets\emptyset \\
 \qquad\mathsf{ACK}[t_{\mathrm{req}\text{-}P}].\mathsf{ctRec}\gets\mathsf{true} \\
@@ -460,7 +453,7 @@ theorem correctness_true_ge
     (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct) (leak : kem.RandLeak)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
     (q : ℕ) (hq : SCKAScheme.SendQueryBound adv q) :
-    Pr[= true | SCKAScheme.correctnessExp (scheme kem hDet ecEk ecCt leak) adv] ≥
+    Pr{let x ← SCKAScheme.correctnessExp (scheme kem hDet ecEk ecCt leak) adv}[x = true] ≥
       1 - (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp
 ```
 ::::

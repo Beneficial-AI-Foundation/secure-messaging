@@ -9,7 +9,7 @@ import SecureMessaging.AEAD.FromEtM.Security.Games
 /-!
 # Encrypt-then-MAC — random-experiment hop (`game3` = random)
 
-`game3_eq_rand`: `game3` equals the random AEAD experiment (given lossless PRF keygen).
+`game3_eq_rand`: `game3` equals the random AEAD experiment.
 -/
 
 namespace EtM
@@ -28,14 +28,12 @@ random-ciphertext AEAD experiment (`securityExpFixedBit … true`).
 `game3` and the real experiment differ only in that the real experiment generates the scheme's
 whole key pair — including the tag key, which sits idle on the random side — while the simplified
 `game3` never generates it. That extra key generation leaves the output distribution unchanged
-precisely when it cannot fail, which is the `NeverFail prf.keygen` hypothesis. (Every standard
-PRF keygen qualifies; why this is benign: see `etmAEAD_security`.) -/
+because it cannot fail: every `OracleComp` is lossless. -/
 theorem game3_eq_rand
     (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
-    (adv : OneTimeCCAAdversary AD M (C_e × T))
-    [NeverFail prf.keygen] :
-    Pr[= true | game3 se adv] =
-      Pr[= true | AEADScheme.securityExpFixedBit (etmAEAD se prf) adv true] := by
+    (adv : OneTimeCCAAdversary AD M (C_e × T)) :
+    Pr{let x ← game3 se adv}[x = true] =
+      Pr{let x ← AEADScheme.securityExpFixedBit (etmAEAD se prf) adv true}[x = true] := by
   -- NRS14 Figure 4, right column: ideal nAE experiment.
   have hkg : (etmAEAD se prf).keygen
       = (se.keygen >>= fun ke => prf.keygen >>= fun km =>
@@ -45,18 +43,14 @@ theorem game3_eq_rand
   simp only [bind_assoc, pure_bind]
   simp only [bind_pure_comp, ← StateT.run'_eq]
   -- Both sides start with `se.keygen`; descend it.
-  refine probOutput_bind_congr' se.keygen true (fun ke => ?_)
-  -- RHS samples a dead `km`; its body is constant in `km` (= the LHS value by projection).
-  rw [probOutput_bind_of_const prf.keygen
-        (my := fun km => (simulateQ (AEADScheme.aeadSecurityImpl (etmAEAD se prf)
-          true (ke, km)) adv).run' none)
-        (fun km _ => congrArg (fun o => Pr[= true | o])
-          (run'_simulateQ_eq_of_query_map_eq _
-            (AEADScheme.aeadSecurityImpl (etmAEAD se prf) true (ke, km))
-            Prod.fst ?_ adv ((none, ∅) : EtmGameState AD C_e T)).symm)]
-  · -- `prf.keygen` is lossless, so the `(1 - Pr[⊥]) ·` factor is `1`; `rfl` pins `impl₁`.
-    rw [NeverFail.probFailure_eq_zero, tsub_zero, one_mul]
-  · -- per-query projection (`impl₁` is game3's oracle implementation)
+  refine prEvent_bind_congr se.keygen _ _ _ _ (fun ke => ?_)
+  -- RHS samples a dead `km` (lossless, as every `OracleComp`); its body is the LHS value by
+  -- projection (`impl₁` is game3's oracle implementation).
+  rw [← OracleComp.prEvent_bind_const prf.keygen, map_bind]
+  refine congrArg prEvent (bind_congr fun km => ?_)
+  rw [run'_simulateQ_eq_of_query_map_eq _
+    (AEADScheme.aeadSecurityImpl (etmAEAD se prf) true (ke, km)) Prod.fst ?_ adv]
+  · -- per-query projection
     intro t s
     obtain ⟨ch, qc⟩ := s
     rcases t with (n | am) | ac
@@ -69,7 +63,7 @@ theorem game3_eq_rand
         simp [AEADScheme.aeadSecurityImpl, AEADScheme.oracleEncrypt, etmAEAD,
           QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
           StateT.run_bind, StateT.run_get, StateT.run_set, StateT.run_pure,
-          uniformSample_prod_eq_bind, bind_assoc, map_pure, Prod.map]
+          SampleableType.uniformSample_prod_eq_bind, bind_assoc, map_pure, Prod.map]
     · -- decryption oracle: both always reject
       obtain ⟨ad, c, t⟩ := ac
       cases ch <;>

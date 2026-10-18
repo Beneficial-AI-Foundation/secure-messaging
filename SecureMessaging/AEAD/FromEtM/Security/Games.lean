@@ -8,10 +8,10 @@ import SecureMessaging.AEAD.FromEtM.Construction
 import ToVCVio.OracleComp.Constructions.SampleableType
 import VCVio.CryptoFoundations.PRF
 import VCVio.OracleComp.QueryTracking.RandomOracle.Basic
-import VCVio.OracleComp.Coercions.Add
+import VCVio.OracleComp.Coercions.Add.Basic
 import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 import VCVio.OracleComp.QueryTracking.SubSpec
-import VCVio.EvalDist.TVDist
+import VCVio.EvalDist.MeasureTVDist.Basic
 import VCVio.ProgramLogic.Relational.SimulateQ
 import ToVCVio.CryptoFoundations.RandomOracleForgery
 import ToVCVio.OracleComp.QueryTracking.RandomOracle.DiscardQuerySimulate
@@ -265,18 +265,15 @@ real/random encryption oracle — samples tags uniformly, and always rejects
 decrypt (since `verifyTag = pure false` in both game2 and game3). No access
 to `ke` or `se.decrypt` is needed.
 
-Because the skeleton's key slot is never observed (`encryptMsg` ignores `_ke`
-and `verifyTag = pure false` makes `decrypt_c` unreachable), it is instantiated
-with the trivial `pure default` rather than `se.keygen`. This keeps exactly one
-`se.keygen` sample per side in the `game2_game3_le_enc` equalities (the IND$-CPA
-experiment's own key), so the dead bind cancels structurally without needing
-`se.keygen` to be lossless. `decrypt_c` is `fun _ _ => none` for the same reason
-(the branch is unreachable), which also avoids decrypting under a key distinct
-from the oracle's. Requires `[Inhabited K_e]` (every key space is inhabited). -/
+The skeleton's key slot is never observed: `encryptMsg` ignores `_ke`, and
+`verifyTag = pure false` makes `decrypt_c` unreachable. So the slot has type `Unit`
+and is filled by `pure ()`, not by `se.keygen`. The only `se.keygen` sample is then
+the IND$-CPA experiment's own key. `decrypt_c` is `fun _ _ => none`, because the
+branch is unreachable. -/
 -- `_se` is unused in the body but kept to pin the key type `K_e` and to align
 -- the reduction's signature with `prfReduction` and the security theorems.
 @[nolint unusedArguments]
-noncomputable def encReduction [Inhabited K_e]
+noncomputable def encReduction
     (_se : DetSEAlg K_e M C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T))
     : DetSEAlg.IndCPAAdversary M C_e :=
@@ -285,7 +282,7 @@ noncomputable def encReduction [Inhabited K_e]
       (StateT (EtmGameState AD C_e T) (OracleComp spec)) :=
     unifLiftStateT (EtmGameState AD C_e T) spec
   etmGameSkeleton (spec := spec)
-    (pure default : OracleComp spec K_e)
+    (pure () : OracleComp spec Unit)
     (fun _ _ => none) ∅
     (fun _ke m => do
       let oc ← liftM (liftM (spec.query (Sum.inr m)) :

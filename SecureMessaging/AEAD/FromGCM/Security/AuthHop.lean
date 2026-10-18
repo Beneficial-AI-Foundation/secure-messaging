@@ -50,7 +50,7 @@ example (A M Cb : Type) :
 
 /-- `gcmInstImpl` unfolds to the generic Wegman–Carter handler by definition. Nothing rewrites
 with this: it pins the coupling at compile time, so a change to either handler that breaks
-`probEvent_forge_gcmInst_le` is reported here first. -/
+`prEvent_forge_gcmInst_le` is reported here first. -/
 theorem gcmInstImpl_eq_wcInstImpl (L : ℕ) (h mask : BitVec 128) (ks : BitVec L)
     (b : Bool) :
     gcmInstImpl (L := L) (h, mask, ks) b =
@@ -66,17 +66,17 @@ theorem gcmInstImpl_eq_wcInstImpl (L : ℕ) (h mask : BitVec 128) (ks : BitVec L
 /-- Let GHASH be `ε`-AXU, let `adv` make at most `q_d` decryption queries, let `ks` be a fixed
 keystream and let `H` and `mask` be independent uniform 128-bit values. Then running `adv`
 against the always-reject oracles raises the `forged` flag with probability at most `q_d · ε`. -/
-theorem probEvent_forge_gcmInst_le (L : ℕ) {ε : ℝ≥0∞} (haxu : GhashIsAXU L ε)
+theorem prEvent_forge_gcmInst_le (L : ℕ) {ε : ℝ≥0∞} (haxu : GhashIsAXU L ε)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
     (q_d : ℕ) (hq : AEADScheme.decryptQueryBound adv q_d) (ks : BitVec L) :
-    Pr[fun z : Bool × (Option (SupportedAAD × (BitVec L × BitVec 128)) × Bool) => z.2.2 = true |
-        (do let h ← ($ᵗ (BitVec 128) : ProbComp _)
-            let mask ← ($ᵗ (BitVec 128) : ProbComp _)
-            (simulateQ (gcmInstImpl (h, mask, ks) false) adv).run (none, false))]
+    Pr{let z ← (do
+          let h ← ($ᵗ (BitVec 128) : ProbComp _)
+          let mask ← ($ᵗ (BitVec 128) : ProbComp _)
+          (simulateQ (gcmInstImpl (h, mask, ks) false) adv).run (none, false))}[z.2.2 = true]
       ≤ (q_d : ℝ≥0∞) * ε :=
   -- `decryptQueryBound` and the generic bound spell the decrypt-index predicate with different
   -- matcher auxiliaries, hence the `isQueryBoundP_congr_pred` transport of `hq`.
-  probEvent_wcInst_forge_le haxu (ghashAXU_eps_lower haxu) Function.injective_id
+  prEvent_wcInst_forge_le haxu (ghashAXU_eps_lower haxu) Function.injective_id
     (fun m => m ^^^ ks) (fun c => c ^^^ ks) adv q_d
     ((isQueryBoundP_congr_pred (fun queryIndex => by cases queryIndex <;> rfl)).mp hq)
 
@@ -128,8 +128,8 @@ theorem gcmInstImpl_identicalUntilBad (L : ℕ)
         (u : (aeadOneTimeCCASpec SupportedAAD (BitVec L)
                (BitVec L × BitVec 128)).Range t)
         (s' : Option (SupportedAAD × (BitVec L × BitVec 128))),
-      Pr[= (u, (s', false)) | ((gcmInstImpl a false) t).run (s, false)] =
-        Pr[= (u, (s', false)) | ((gcmInstImpl a true) t).run (s, false)])
+      Pr{let x ← ((gcmInstImpl a false) t).run (s, false)}[x = (u, (s', false))] =
+        Pr{let x ← ((gcmInstImpl a true) t).run (s, false)}[x = (u, (s', false))])
     ∧ (∀ (t : (aeadOneTimeCCASpec SupportedAAD (BitVec L)
                  (BitVec L × BitVec 128)).Domain)
           (p : Option (SupportedAAD × (BitVec L × BitVec 128)) × Bool), p.2 = true →
@@ -155,89 +155,82 @@ theorem gcmInstImpl_identicalUntilBad (L : ℕ)
         beq_iff_eq, decide_eq_true_eq, Bool.false_eq_true, ↓reduceIte, ite_self,
         QueryImpl.add_apply_inr, hguard, StateT.run_bind, StateT.run_get, pure_bind,
         StateT.run_pure]
-    · -- `probOutput_pure_eq_indicator` rather than `probOutput_pure`: the latter needs
-      -- `DecidableEq` on the enlarged output type, which instance search does not find here.
-      by_cases hok : (e.2 = ghash h (gcmEncode ad e.1) ^^^ mask) <;>
+    · by_cases hok : (e.2 = ghash h (gcmEncode ad e.1) ^^^ mask) <;>
         simp only [add_apply_inr, gcmInstImpl, wcInstImpl, id_eq, bind_pure_comp, Prod.mk.eta,
           beq_iff_eq, decide_eq_true_eq, Bool.false_eq_true, ↓reduceIte, ite_self,
           QueryImpl.add_apply_inr, hok, decide_true, decide_false, Bool.or_true, Bool.or_false,
           StateT.run_bind, StateT.run_get, pure_bind, hguard, StateT.run_map, StateT.run_set,
-          map_pure, probOutput_pure_eq_indicator, Function.const_one, Set.mem_singleton_iff,
-          Prod.mk.injEq, and_false, not_false_eq_true, Set.indicator_of_notMem]
+          map_pure, Bool.true_eq_false, Prod.mk.injEq, and_false]
 
 /-- For a fixed tuple `a`, the outputs of `adv` against the always-reject and the live oracles
 have total-variation distance at most the probability that the always-reject run raises the
 `forged` flag. -/
-theorem gcmInst_tvDist_le_probEvent_forge (L : ℕ)
+theorem gcmInst_measureTVDist_le_prEvent_forge (L : ℕ)
     (a : BitVec 128 × BitVec 128 × BitVec L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    tvDist ((simulateQ (gcmInstImpl a false) adv).run' (none, false))
+    measureTVDist ((simulateQ (gcmInstImpl a false) adv).run' (none, false))
         ((simulateQ (gcmInstImpl a true) adv).run' (none, false))
-      ≤ Pr[fun z : Bool × (Option (SupportedAAD × (BitVec L × BitVec 128)) × Bool) =>
-            z.2.2 = true |
-          (simulateQ (gcmInstImpl a false) adv).run (none, false)].toReal := by
+      ≤ Pr{let z ←
+          (simulateQ (gcmInstImpl a false) adv).run (none, false)}[z.2.2 = true].toReal := by
   obtain ⟨h_agree_good, h_mono₁, h_mono₂⟩ := gcmInstImpl_identicalUntilBad L a
-  exact tvDist_simulateQ_le_probEvent_output_bad_base (gcmInstImpl a false)
+  exact measureTVDist_simulateQ_le_prEvent_output_bad_base (gcmInstImpl a false)
     (gcmInstImpl a true) adv none h_agree_good h_mono₁ h_mono₂
 
 /-! ### Lifting the per-tuple bound across the tuple sample -/
 
-/-- `gcmInst_tvDist_le_probEvent_forge` averaged over the uniform tuple draw. -/
-private theorem tvDist_gcmInstFlat_le_probEvent_forge (L : ℕ)
+/-- `gcmInst_measureTVDist_le_prEvent_forge` averaged over the uniform tuple draw. -/
+private theorem measureTVDist_gcmInstFlat_le_prEvent_forge (L : ℕ)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    tvDist (($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _) >>=
+    measureTVDist (($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _) >>=
               fun a => (simulateQ (gcmInstImpl a false) adv).run' (none, false))
         (($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _) >>=
               fun a => (simulateQ (gcmInstImpl a true) adv).run' (none, false))
-      ≤ (Pr[fun z : Bool × (Option (SupportedAAD × (BitVec L × BitVec 128)) × Bool) =>
-            z.2.2 = true |
-            (($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _) >>=
-              fun a => (simulateQ (gcmInstImpl a false) adv).run (none, false))]).toReal := by
-  refine le_trans (tvDist_bind_left_le _ _ _) ?_
-  rw [probEvent_bind_eq_tsum]
+      ≤ (Pr{let z ← (($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _) >>= fun a =>
+              (simulateQ (gcmInstImpl a false) adv).run (none, false))}[z.2.2 = true]).toReal := by
+  refine le_trans (measureTVDist_bind_left_le_tsum _ _ _) ?_
+  rw [OracleComp.prEvent_bind_eq_tsum]
   rw [ENNReal.tsum_toReal_eq (fun a => ENNReal.mul_ne_top
-    (ne_top_of_le_ne_top one_ne_top probOutput_le_one)
-    (ne_top_of_le_ne_top one_ne_top probEvent_le_one))]
+    (ne_top_of_le_ne_top one_ne_top (prEvent_le_one _))
+    (ne_top_of_le_ne_top one_ne_top (prEvent_le_one _)))]
   refine Summable.tsum_le_tsum (fun a => ?_) Summable.of_finite Summable.of_finite
   rw [ENNReal.toReal_mul]
-  exact mul_le_mul_of_nonneg_left (gcmInst_tvDist_le_probEvent_forge L a adv)
+  exact mul_le_mul_of_nonneg_left (gcmInst_measureTVDist_le_prEvent_forge L a adv)
     ENNReal.toReal_nonneg
 
 /-- Drawing the tuple `(H, mask, ks)` uniformly is the same as drawing `ks`, then `H`, then
 `mask`, independently and uniformly. -/
-private theorem evalDist_gcmInstRun_ks_outer (L : ℕ)
+private theorem evalDistEq_gcmInstRun_ks_outer (L : ℕ)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    𝒟[($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _) >>=
-        fun a => (simulateQ (gcmInstImpl a false) adv).run (none, false)] =
-      𝒟[($ᵗ (BitVec L) : ProbComp _) >>= fun ks =>
+    (($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _) >>=
+        fun a => (simulateQ (gcmInstImpl a false) adv).run (none, false)) =ᵈ
+      (($ᵗ (BitVec L) : ProbComp _) >>= fun ks =>
           (do let h ← ($ᵗ (BitVec 128) : ProbComp _)
               let mask ← ($ᵗ (BitVec 128) : ProbComp _)
-              (simulateQ (gcmInstImpl (h, mask, ks) false) adv).run (none, false))] := by
-  rw [uniformSample_prod_eq_bind (BitVec 128) (BitVec 128 × BitVec L)]
+              (simulateQ (gcmInstImpl (h, mask, ks) false) adv).run (none, false))) := by
+  rw [SampleableType.uniformSample_prod_eq_bind (BitVec 128) (BitVec 128 × BitVec L)]
   simp only [bind_assoc, pure_bind]
-  rw [uniformSample_prod_eq_bind (BitVec 128) (BitVec L)]
+  rw [SampleableType.uniformSample_prod_eq_bind (BitVec 128) (BitVec L)]
   simp only [bind_assoc, pure_bind]
-  refine (evalDist_bind_congr' _ (fun h =>
-      evalDist_bind_bind_swap ($ᵗ (BitVec 128) : ProbComp _)
+  refine (EvalDistEq.bind_right _ (fun h =>
+      EvalDistEq.bind_bind_swap ($ᵗ (BitVec 128) : ProbComp _)
         ($ᵗ (BitVec L) : ProbComp _)
         (fun mask ks =>
           (simulateQ (gcmInstImpl (h, mask, ks) false) adv).run (none, false)))).trans
-    (evalDist_bind_bind_swap ($ᵗ (BitVec 128) : ProbComp _)
+    (EvalDistEq.bind_bind_swap ($ᵗ (BitVec 128) : ProbComp _)
       ($ᵗ (BitVec L) : ProbComp _)
       (fun h ks =>
         (do let mask ← ($ᵗ (BitVec 128) : ProbComp _)
             (simulateQ (gcmInstImpl (h, mask, ks) false) adv).run (none, false))))
 
-private theorem probEvent_forge_gcmInstFlat_le (L : ℕ) {ε : ℝ≥0∞} (haxu : GhashIsAXU L ε)
+private theorem prEvent_forge_gcmInstFlat_le (L : ℕ) {ε : ℝ≥0∞} (haxu : GhashIsAXU L ε)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
     (q_d : ℕ) (hq : AEADScheme.decryptQueryBound adv q_d) :
-    Pr[fun z : Bool × (Option (SupportedAAD × (BitVec L × BitVec 128)) × Bool) => z.2.2 = true |
-        (($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _) >>=
-          fun a => (simulateQ (gcmInstImpl a false) adv).run (none, false))]
+    Pr{let z ← (($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _) >>=
+          fun a => (simulateQ (gcmInstImpl a false) adv).run (none, false))}[z.2.2 = true]
       ≤ (q_d : ℝ≥0∞) * ε := by
-  rw [probEvent_congr' (fun _ _ => Iff.rfl) (evalDist_gcmInstRun_ks_outer L adv)]
-  exact probEvent_bind_le_of_forall_le fun ks _ =>
-    probEvent_forge_gcmInst_le L haxu adv q_d hq ks
+  rw [(evalDistEq_gcmInstRun_ks_outer L adv).prEvent_eq]
+  exact prEvent_bind_le_of_forall_le _ _ _ fun ks =>
+    prEvent_forge_gcmInst_le L haxu adv q_d hq ks
 
 /-- The authenticity hop. Let GHASH be `ε`-AXU with `ε` finite (`ε ≠ ⊤`), and let `adv` make
 at most `q_d` decryption queries. Then `|Pr[game3 = 1] − Pr[game2 = 1]| ≤ q_d · ε`. -/
@@ -246,26 +239,27 @@ theorem game2_game3_le_auth {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
     (q_d : ℕ) (hq : AEADScheme.decryptQueryBound adv q_d)
     {ε : ℝ≥0∞} (hε : ε ≠ ⊤) (haxu : GhashIsAXU L ε) :
-    |(Pr[= true | game3 prp L hL adv]).toReal -
-      (Pr[= true | game2 prp L hL adv]).toReal| ≤ (q_d : ℝ) * ε.toReal := by
-  -- The projections onto the instrumented games, consumed as `evalDist` equalities.
-  have h3 : Pr[= true | game3 prp L hL adv] = Pr[= true | game3Flat prp L hL adv] :=
-    (probOutput_congr rfl (game3Flat_eq_game3 prp L hL adv)).symm
-  have h2 : Pr[= true | game2 prp L hL adv] = Pr[= true | game2Flat prp L hL adv] :=
-    (probOutput_congr rfl (game2Flat_eq_game2 prp L hL adv)).symm
+    |(Pr{let x ← game3 prp L hL adv}[x = true]).toReal -
+      (Pr{let x ← game2 prp L hL adv}[x = true]).toReal| ≤ (q_d : ℝ) * ε.toReal := by
+  -- The projections onto the instrumented games, used through `.prEvent_eq`.
+  have h3 :
+      Pr{let x ← game3 prp L hL adv}[x = true] = Pr{let x ← game3Flat prp L hL adv}[x = true] :=
+    ((game3Flat_eq_game3 prp L hL adv).prEvent_eq _).symm
+  have h2 :
+      Pr{let x ← game2 prp L hL adv}[x = true] = Pr{let x ← game2Flat prp L hL adv}[x = true] :=
+    ((game2Flat_eq_game2 prp L hL adv).prEvent_eq _).symm
   rw [h3, h2]
-  calc |(Pr[= true | game3Flat prp L hL adv]).toReal -
-        (Pr[= true | game2Flat prp L hL adv]).toReal|
-      ≤ tvDist (game3Flat prp L hL adv) (game2Flat prp L hL adv) :=
-        abs_probOutput_toReal_sub_le_tvDist _ _
-    _ ≤ (Pr[fun z : Bool × (Option (SupportedAAD × (BitVec L × BitVec 128)) × Bool) =>
-            z.2.2 = true |
-            (($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _) >>=
-              fun a => (simulateQ (gcmInstImpl a false) adv).run (none, false))]).toReal :=
-        tvDist_gcmInstFlat_le_probEvent_forge L adv
+  calc |(Pr{let x ← game3Flat prp L hL adv}[x = true]).toReal -
+        (Pr{let x ← game2Flat prp L hL adv}[x = true]).toReal|
+      ≤ measureTVDist (game3Flat prp L hL adv) (game2Flat prp L hL adv) :=
+        abs_prEvent_toReal_sub_le_measureTVDist _ _ (· = true) Measurable.of_discrete
+    _ ≤ (Pr{let z ← (($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _) >>=
+              fun a =>
+                (simulateQ (gcmInstImpl a false) adv).run (none, false))}[z.2.2 = true]).toReal :=
+        measureTVDist_gcmInstFlat_le_prEvent_forge L adv
     _ ≤ ((q_d : ℝ≥0∞) * ε).toReal :=
         ENNReal.toReal_mono (ENNReal.mul_ne_top (ENNReal.natCast_ne_top q_d) hε)
-          (probEvent_forge_gcmInstFlat_le L haxu adv q_d hq)
+          (prEvent_forge_gcmInstFlat_le L haxu adv q_d hq)
     _ = (q_d : ℝ) * ε.toReal := by
         rw [ENNReal.toReal_mul, ENNReal.toReal_natCast]
 

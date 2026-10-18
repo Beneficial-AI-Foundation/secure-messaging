@@ -8,6 +8,7 @@ import ToVCVio.OracleComp.QueryTracking.RandomOracle.DiscardQuerySimulate
 import VCVio.OracleComp.QueryTracking.RandomOracle.Basic
 import VCVio.OracleComp.QueryTracking.QueryBound
 import VCVio.OracleComp.Constructions.SampleableType
+import VCVio.OracleComp.EvalDist.Sum
 import VCVio.OracleComp.SimSemantics.SimulateQ
 
 /-!
@@ -48,11 +49,6 @@ variable {D R : Type} [DecidableEq D] [DecidableEq R] [SampleableType R]
 /-- Oracle interface for a one-time-unforgeability adversary: uniform randomness, an **eval**
 oracle returning `ρ(d)`, and a **verify** oracle reporting whether `r = ρ(d)`. -/
 abbrev forgeSpec (D R : Type) := unifSpec + (D →ₒ R) + (D × R →ₒ Bool)
-
-/-- Uniform-spec witness for `forgeSpec`: every oracle (uniform randomness, the eval random
-oracle on `R`, the verify oracle on `Bool`) samples uniformly over a finite, inhabited range. -/
-noncomputable instance [Fintype R] [Inhabited R] : IsUniformSpec (forgeSpec D R) :=
-  IsUniformSpec.ofFintypeInhabited _
 
 /-- A one-time-unforgeability adversary: outputs nothing observable; we only care whether it
 made a successful verify query at a point absent from the set of evaluated points. -/
@@ -141,26 +137,22 @@ private lemma verifyAgainstRO_run (d : D) (r : R)
 omit [DecidableEq R] in
 /-- Decompose the forge probability of a fresh verify step over the uniform draw: the verify run
 maps the uniform draw `u` to the response `(r == u)` and post-state, then feeds the continuation.
-The forge probability is the `u`-average of the continuation's forge probability. Proven on a bare
-goal (no `probEvent` wrapper to block `bind_assoc`). -/
-private lemma probEvent_freshVerify_tsum {β : Type}
+The forge probability is the `u`-average of the continuation's forge probability. -/
+private lemma prEvent_freshVerify_tsum {β : Type}
     (g : R → β) (cont : β → ProbComp (Unit × ForgeState D R)) :
-    Pr[fun z : Unit × ForgeState D R => z.2.2.2 = true | (g <$> ($ᵗ R : ProbComp R)) >>= cont] =
-      ∑' u : R, Pr[= u | ($ᵗ R : ProbComp R)] *
-        Pr[fun z : Unit × ForgeState D R => z.2.2.2 = true | cont (g u)] := by
-  rw [map_eq_bind_pure_comp, bind_assoc]
-  simp only [Function.comp, pure_bind]
-  rw [probEvent_bind_eq_tsum]
+    Pr{let z ← (g <$> ($ᵗ R : ProbComp R)) >>= cont}[z.2.2.2 = true] =
+      ∑' u : R, Pr{let x ← ($ᵗ R : ProbComp R)}[x = u] *
+        Pr{let z ← cont (g u)}[z.2.2.2 = true] := by
+  rw [bind_map_left, OracleComp.prEvent_bind_eq_tsum]
 
 /-- When the response type `R` is empty, the forged flag can never be set: setting it would
 require a verify (or eval) response `resp : R`, which does not exist. Hence the forge event has
 probability `0`. This discharges the `|R| = 0` edge case of `probForge_le_queryBound_div_card`. -/
 private theorem probForge_run_eq_zero_of_isEmpty [IsEmpty R]
     (oa : ForgeAdversary D R) (cache : (D →ₒ R).QueryCache) (evald : Finset D) :
-    Pr[fun z : Unit × ForgeState D R => z.2.2.2 = true |
-        (simulateQ forgeImpl oa).run (cache, evald, false)] = 0 := by
+    Pr{let z ← (simulateQ forgeImpl oa).run (cache, evald, false)}[z.2.2.2 = true] = 0 := by
   -- `forged` is `false` on every state in the support, since no query can produce an `R`.
-  refine probEvent_eq_zero ?_
+  refine prEvent_eq_zero_of_forall_mem_support _ _ ?_
   intro z hz hforge
   -- The forged flag (third state component) stays `false` on every support element, because
   -- any eval/verify step must sample `$ᵗ R`, whose support is empty when `R` is empty.
@@ -194,10 +186,10 @@ private theorem probForge_run_eq_zero_of_isEmpty [IsEmpty R]
 
 Fix an adversary `ob : ForgeAdversary D R`, a cache `c : (D →ₒ R).QueryCache`
 and a point `d : D` with `c d = none`. Write `Forged(s)` for
-`Pr[forged | (simulateQ forgeImpl ob).run s]`. The goal (`forge_resample_run`) is
+`Pr{let z ← (simulateQ forgeImpl ob).run s}[z.2.2.2 = true]`. The goal (`forge_resample_run`) is
 
 ```
-∑' u : R, Pr[= u | $ᵗ R] · Forged(c.cacheQuery d u, evald, fl) = Forged(c, evald, fl).
+∑' u : R, Pr{let x ← $ᵗ R}[x = u] · Forged(c.cacheQuery d u, evald, fl) = Forged(c, evald, fl).
 ```
 
 Only the forge-flag marginal agrees; the full state distributions differ at `d`.
@@ -224,25 +216,24 @@ The equation is derived from the lazy random-oracle resampling lemma of
    `forgeBit ob (c, evald, fl)` is the forge-flag projection of
    `(simulateQ prfIdealQueryImpl (compile forgeBody ob (evald, fl))).run' c`.
 3. `forge_resample_run`: for every `p : OracleComp spec₀ β` and `c d = none`,
-   `evalDist_uniformSample_bind_simulateQ_prfIdealQueryImpl_run'` gives
-   `𝒟[$ᵗ R >>= fun u => (simulateQ prfIdealQueryImpl p).run' (c.cacheQuery d u)]
-     = 𝒟[(simulateQ prfIdealQueryImpl p).run' c]`.
+   `evalDistEq_uniformSample_bind_simulateQ_prfIdealQueryImpl_run'` gives
+   `($ᵗ R >>= fun u => (simulateQ prfIdealQueryImpl p).run' (c.cacheQuery d u))
+     =ᵈ (simulateQ prfIdealQueryImpl p).run' c`.
    Instantiating `p` with the compiled adversary of step 2 and reading off
-   `Pr[= true]` yields the goal. -/
+   the event `x = true` yields the goal. -/
 
 /-- The forge-flag marginal of running `oa` from state `s`: the `ProbComp Bool` that returns the
-final forge flag. The forge probability `Pr[forged | run]` is `Pr[= true | forgeBit oa s]`. -/
+final forge flag. The forge probability is `Pr{let x ← forgeBit oa s}[x = true]`. -/
 noncomputable def forgeBit (oa : OracleComp (forgeSpec D R) Unit) (s : ForgeState D R) :
     ProbComp Bool :=
   (fun z : Unit × ForgeState D R => z.2.2.2) <$> (simulateQ forgeImpl oa).run s
 
-/-- `Pr[forged | run] = Pr[= true | forgeBit]`. -/
-private lemma probEvent_forged_eq_probOutput_forgeBit (oa : ForgeAdversary D R)
+/-- The forge probability of a run is `Pr{let x ← forgeBit oa s}[x = true]`. -/
+private lemma prEvent_forged_eq_prEvent_forgeBit (oa : ForgeAdversary D R)
     (s : ForgeState D R) :
-    Pr[fun z : Unit × ForgeState D R => z.2.2.2 = true | (simulateQ forgeImpl oa).run s] =
-      Pr[= true | forgeBit oa s] := by
-  rw [forgeBit, ← probEvent_eq_eq_probOutput, probEvent_map]
-  rfl
+    Pr{let z ← (simulateQ forgeImpl oa).run s}[z.2.2.2 = true] =
+      Pr{let x ← forgeBit oa s}[x = true] := by
+  rw [forgeBit, prEvent_map]
 
 /-- Run form for an `eval` step under `forgeImpl`. -/
 private lemma forgeImpl_run_eval (t : D) (s : ForgeState D R) :
@@ -294,12 +285,13 @@ private lemma forgeImpl_run_eq_forgeBody (t : (forgeSpec D R).Domain) (s : Finse
   rcases t with (n | t) | ⟨d, r⟩
   · simp only [forgeBody, simulateQ_bind, simulateQ_spec_query, simulateQ_pure,
       StateT.run_bind, StateT.run_pure]
-    rw [prfIdealQueryImpl, QueryImpl.add_apply_inl, QueryImpl.liftTarget_apply,
-      HasQuery.toQueryImpl]
+    rw [prfIdealQueryImpl, OracleSpec.romImpl, QueryImpl.add_apply_inl, unifFwdImpl,
+      QueryImpl.liftTarget_apply]
     simp only [forgeImpl, QueryImpl.add_apply_inl, forgeUnifImpl, QueryImpl.liftTarget_apply,
       QueryImpl.ofLift_apply]
     erw [OracleComp.liftM_run_StateT]
-    simp [StateT.run_monadLift, bind_pure_comp, HasQuery.query]
+    simp only [bind_pure_comp, StateT.run_monadLift, monadLift_self, Functor.map_map]
+    rfl
   all_goals
     simp only [forgeBody, simulateQ_bind, simulateQ_spec_query, simulateQ_pure,
       StateT.run_bind, StateT.run_pure, prfIdealQueryImpl_apply_inr, forgeImpl_run_eval,
@@ -321,16 +313,14 @@ private lemma forgeBit_eq_simulateQ_compile (ob : ForgeAdversary D R)
 /-- **Forge-resampling at an uncached point.** -/
 private lemma forge_resample_run (ob : ForgeAdversary D R) (cache : (D →ₒ R).QueryCache)
     (evald : Finset D) (fl : Bool) (d : D) (hcd : cache d = none) :
-    (∑' u : R, Pr[= u | ($ᵗ R : ProbComp R)] *
-      Pr[fun z : Unit × ForgeState D R => z.2.2.2 = true |
-        (simulateQ forgeImpl ob).run (cache.cacheQuery d u, evald, fl)]) =
-      Pr[fun z : Unit × ForgeState D R => z.2.2.2 = true |
-        (simulateQ forgeImpl ob).run (cache, evald, fl)] := by
-  simp only [probEvent_forged_eq_probOutput_forgeBit]
-  rw [← probOutput_bind_eq_tsum]
-  refine evalDist_ext_iff.mp ?_ true
+    (∑' u : R, Pr{let x ← ($ᵗ R : ProbComp R)}[x = u] *
+      Pr{let z ← (simulateQ forgeImpl ob).run (cache.cacheQuery d u, evald, fl)}[z.2.2.2 = true]) =
+      Pr{let z ← (simulateQ forgeImpl ob).run (cache, evald, fl)}[z.2.2.2 = true] := by
+  simp only [prEvent_forged_eq_prEvent_forgeBit]
+  rw [← OracleComp.prEvent_bind_eq_tsum]
   simp only [forgeBit_eq_simulateQ_compile]
-  exact evalDist_uniformSample_bind_simulateQ_prfIdealQueryImpl_run' d _ cache hcd
+  exact (evalDistEq_uniformSample_bind_simulateQ_prfIdealQueryImpl_run' d _ cache hcd).prEvent_eq
+    (· = true)
 
 open scoped Classical in
 /-- If `oa` makes at most `n` verify queries and every point outside `evald`
@@ -341,15 +331,15 @@ private theorem probForge_run_le [Fintype R]
     (cache : (D →ₒ R).QueryCache) (evald : Finset D)
     (hq : oa.IsQueryBoundP isVerifyQuery n)
     (hnc : ∀ d, d ∉ evald → cache d = none) :
-    Pr[fun z : Unit × ForgeState D R => z.2.2.2 = true |
-        (simulateQ forgeImpl oa).run (cache, evald, false)] ≤
+    Pr{let z ← (simulateQ forgeImpl oa).run (cache, evald, false)}[z.2.2.2 = true] ≤
       (n : ℝ≥0∞) * (Fintype.card R : ℝ≥0∞)⁻¹ := by
   induction oa using OracleComp.inductionOn generalizing n cache evald with
   | pure a =>
       -- Forge stays unset: the event is impossible, probability `0`.
-      have h0 : Pr[fun z : Unit × ForgeState D R => z.2.2.2 = true |
-          (simulateQ forgeImpl (pure a)).run (cache, evald, false)] = 0 := by
-        refine probEvent_eq_zero ?_
+      have h0 :
+          Pr{let z ← (simulateQ forgeImpl (pure a)).run (cache, evald, false)}[z.2.2.2 = true] =
+            0 := by
+        refine prEvent_eq_zero_of_forall_mem_support _ _ ?_
         intro z hz hforge
         simp only [simulateQ_pure, StateT.run] at hz
         rw [hz] at hforge
@@ -366,7 +356,7 @@ private theorem probForge_run_le [Fintype R]
         rw [isQueryBoundP_query_bind_iff] at hq
         obtain ⟨_, hmx⟩ := hq
         have hmx' : ∀ u, IsQueryBoundP (mx u) isVerifyQuery n := by
-          intro u; have := hmx u; rwa [if_neg hnp] at this
+          intro u; simpa only [hnp, ↓reduceIte] using hmx u
         -- The unif step forwards through `ProbComp`, threading the forge state unchanged.
         simp only [OracleQuery.input_query, forgeImpl,
           QueryImpl.add_apply_inl, forgeUnifImpl, QueryImpl.liftTarget_apply,
@@ -374,7 +364,7 @@ private theorem probForge_run_le [Fintype R]
         erw [OracleComp.liftM_run_StateT]
         -- The forwarded uniform sample leaves the state at `(cache, evald, false)`; the IH
         -- gives `≤ n/|R|` uniformly over the sampled value.
-        refine probEvent_bind_le_of_forall_le ?_
+        refine prEvent_bind_le_of_forall_le_of_support _ _ _ ?_
         rintro ⟨a, s⟩ hxsupp
         have hstate : s = (cache, evald, false) := by
           simp only [support_bind, support_pure, Set.mem_iUnion,
@@ -389,7 +379,7 @@ private theorem probForge_run_le [Fintype R]
         rw [isQueryBoundP_query_bind_iff] at hq
         obtain ⟨_, hmx⟩ := hq
         have hmx' : ∀ u, IsQueryBoundP (mx u) isVerifyQuery n := by
-          intro u; have := hmx u; rwa [if_neg hnp] at this
+          intro u; simpa only [hnp, ↓reduceIte] using hmx u
         simp only [OracleQuery.input_query, StateT.run_bind, monadLift_self]
         -- The eval step is a random-oracle sample at `t` followed by recording `t`.
         have hstep : (forgeImpl (D := D) (R := R) (Sum.inl (Sum.inr t))).run
@@ -400,7 +390,7 @@ private theorem probForge_run_le [Fintype R]
         rw [hstep]
         -- Bound over the eval step's post-state: forge remains `false`, and `t` is recorded
         -- in the set of evaluated points.
-        refine probEvent_bind_le_of_forall_le ?_
+        refine prEvent_bind_le_of_forall_le_of_support _ _ _ ?_
         rintro ⟨resp, s'⟩ hxsupp
         -- Read off the post-state from the `pure` in `hstep`'s normal form.
         obtain ⟨⟨resp0, cache0⟩, hmem0, hpure⟩ := (mem_support_bind_iff _ _ _).1 hxsupp
@@ -435,9 +425,9 @@ private theorem probForge_run_le [Fintype R]
               (Sum.inr (d, r) : (forgeSpec D R).Domain)) h
           · exact h
         have hmx' : ∀ u, IsQueryBoundP (mx u) isVerifyQuery (n - 1) := by
-          intro u; have := hq.2 u
-          rwa [if_pos (by simp [isVerifyQuery] :
-            isVerifyQuery (Sum.inr (d, r) : (forgeSpec D R).Domain))] at this
+          have hv : isVerifyQuery (Sum.inr (d, r) : (forgeSpec D R).Domain) := by
+            simp [isVerifyQuery]
+          intro u; simpa only [hv, ↓reduceIte] using hq.2 u
         simp only [OracleQuery.input_query, StateT.run_bind, monadLift_self]
         have hstep : (forgeImpl (D := D) (R := R) (Sum.inr (d, r))).run (cache, evald, false) =
             (((D →ₒ R).randomOracle d).run cache) >>=
@@ -449,7 +439,7 @@ private theorem probForge_run_le [Fintype R]
           -- step only reads/caches. The continuation is bounded by the IH at `n - 1 ≤ n`.
           rw [hstep]
           simp only [hde, not_true, decide_false, Bool.and_false]
-          refine le_trans (probEvent_bind_le_of_forall_le
+          refine le_trans (prEvent_bind_le_of_forall_le_of_support _ _ _
             (ε := ((n - 1 : ℕ) : ℝ≥0∞) * (Fintype.card R : ℝ≥0∞)⁻¹) ?_) ?_
           · rintro ⟨resp, s'⟩ hxsupp
             obtain ⟨⟨resp0, cache0⟩, hmem0, hpure⟩ := (mem_support_bind_iff _ _ _).1 hxsupp
@@ -496,7 +486,7 @@ private theorem probForge_run_le [Fintype R]
             rw [map_eq_bind_pure_comp, bind_assoc]
             simp only [Function.comp, map_pure, bind_pure_comp]
           rw [hmap]
-          erw [probEvent_freshVerify_tsum
+          erw [prEvent_freshVerify_tsum
             (g := fun u => ((r == u),
               (cache.cacheQuery d u, evald, (r == u) && decide (d ∉ evald))))
             (cont := fun p => (simulateQ forgeImpl
@@ -504,28 +494,27 @@ private theorem probForge_run_le [Fintype R]
           simp only []
           -- The summand at `u`: forge run of the continuation `mx (r == u)` from the cache extended
           -- by `d ↦ u`.  Split each summand into a hit slice (forge bound by `1`, weight `1/|R|`)
-          -- and the bare miss contribution `Pr[=u] · Pr[forged | run (mx false) from cacheQuery]`.
+          -- and the bare miss contribution: `Pr{x = u}` times the forge probability of `mx false`
+          -- run from `cacheQuery`.
           have hkey : ∀ u : R,
-              Pr[= u | ($ᵗ R : ProbComp R)] *
-                Pr[fun z : Unit × ForgeState D R => z.2.2.2 = true |
-                  (simulateQ forgeImpl (mx (r == u))).run
+              Pr{let x ← ($ᵗ R : ProbComp R)}[x = u] *
+                Pr{let z ← ((simulateQ forgeImpl (mx (r == u))).run
                     (cache.cacheQuery d u, evald,
-                      (r == u) && decide (d ∉ evald))] ≤
+                      (r == u) && decide (d ∉ evald)))}[z.2.2.2 = true] ≤
               (if u = r then (Fintype.card R : ℝ≥0∞)⁻¹ else 0) +
-                Pr[= u | ($ᵗ R : ProbComp R)] *
-                  Pr[fun z : Unit × ForgeState D R => z.2.2.2 = true |
-                    (simulateQ forgeImpl (mx false)).run
-                      (cache.cacheQuery d u, evald, false)] := by
+                Pr{let x ← ($ᵗ R : ProbComp R)}[x = u] *
+                  Pr{let z ← ((simulateQ forgeImpl (mx false)).run
+                      (cache.cacheQuery d u, evald, false))}[z.2.2.2 = true] := by
             intro u
             by_cases hu : u = r
-            · -- Hit: `Pr[=u] * (≤1) ≤ 1/|R|`.
+            · -- Hit: `Pr{x = u} * (≤1) ≤ 1/|R|`.
               subst hu
               simp only []
-              refine le_trans (mul_le_mul' le_rfl probEvent_le_one) ?_
-              rw [mul_one, probOutput_uniformSample]
+              refine le_trans (mul_le_mul' le_rfl (prEvent_le_one _)) ?_
+              rw [mul_one, SampleableType.prEvent_uniformSample_eq_singleton]
               exact le_add_right le_rfl
             · -- Miss: forge stays `false`; the post-state is `(cacheQuery d u, evald, false)`.
-              simp only [if_neg hu, zero_add]
+              simp only [hu, ↓reduceIte, zero_add]
               have hru : (r == u) = false := by
                 simp only [beq_eq_false_iff_ne]; exact fun h => hu h.symm
               rw [hru, Bool.false_and]
@@ -535,7 +524,8 @@ private theorem probForge_run_le [Fintype R]
           rw [ENNReal.tsum_add]
           have hhit : (∑' u : R, if u = r then (Fintype.card R : ℝ≥0∞)⁻¹ else 0)
               = (Fintype.card R : ℝ≥0∞)⁻¹ := by
-            rw [tsum_eq_single r (fun u hu => by simp [hu]), if_pos rfl]
+            rw [tsum_eq_single r (fun u hu => by simp [hu])]
+            simp only [↓reduceIte]
           rw [hhit]
           -- **Forgetting/resampling.**  Average over the fresh draw `u` of the continuation's forge
           -- probability equals the forge probability run from the bare uncached cache.
@@ -569,13 +559,11 @@ See the module docstring for the per-distinct-point accounting argument. -/
 theorem probForge_le_queryBound_div_card [Fintype R]
     (adv : ForgeAdversary D R) (q : ℕ)
     (hq : adv.IsQueryBoundP isVerifyQuery q) :
-    (Pr[fun z : Unit × ForgeState D R => z.2.2.2 = true |
-        (simulateQ forgeImpl adv).run (∅, ∅, false)]).toReal ≤
+    (Pr{let z ← (simulateQ forgeImpl adv).run (∅, ∅, false)}[z.2.2.2 = true]).toReal ≤
       q * (Fintype.card R : ℝ)⁻¹ := by
   -- Reduce to the generalized induction kernel at the initial state.
   have hbound :
-      Pr[fun z : Unit × ForgeState D R => z.2.2.2 = true |
-          (simulateQ forgeImpl adv).run (∅, ∅, false)] ≤
+      Pr{let z ← (simulateQ forgeImpl adv).run (∅, ∅, false)}[z.2.2.2 = true] ≤
         (q : ℝ≥0∞) * (Fintype.card R : ℝ≥0∞)⁻¹ :=
     probForge_run_le adv q ∅ ∅ hq (by intro d _; rfl)
   -- Transfer the `ℝ≥0∞` bound to `ℝ` via `ENNReal.toReal`.
@@ -583,15 +571,13 @@ theorem probForge_le_queryBound_div_card [Fintype R]
   · -- Empty range: `q / |R| = q / 0 = 0` in `ℝ`. The forge event has probability `0`
     -- because a verify response `resp : R` is impossible, so the flag is never set.
     have hR : IsEmpty R := Fintype.card_eq_zero_iff.mp hcard
-    have h0 : Pr[fun z : Unit × ForgeState D R => z.2.2.2 = true |
-        (simulateQ forgeImpl adv).run (∅, ∅, false)] = 0 :=
+    have h0 : Pr{let z ← (simulateQ forgeImpl adv).run (∅, ∅, false)}[z.2.2.2 = true] = 0 :=
       probForge_run_eq_zero_of_isEmpty adv ∅ ∅
     rw [hcard, h0]; simp
   have hfin : (q : ℝ≥0∞) * (Fintype.card R : ℝ≥0∞)⁻¹ ≠ ⊤ := by
     refine ENNReal.mul_ne_top (by simp) ?_
     exact ENNReal.inv_ne_top.mpr (by exact_mod_cast hcard.ne')
-  calc (Pr[fun z : Unit × ForgeState D R => z.2.2.2 = true |
-            (simulateQ forgeImpl adv).run (∅, ∅, false)]).toReal
+  calc (Pr{let z ← (simulateQ forgeImpl adv).run (∅, ∅, false)}[z.2.2.2 = true]).toReal
       ≤ ((q : ℝ≥0∞) * (Fintype.card R : ℝ≥0∞)⁻¹).toReal :=
         ENNReal.toReal_mono hfin hbound
     _ = q * (Fintype.card R : ℝ)⁻¹ := by

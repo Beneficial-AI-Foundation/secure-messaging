@@ -9,6 +9,8 @@ import SecureMessaging.CKA.FromKEM.Construction
 import SecureMessaging.CKA.FromKEM.Correctness
 import SecureMessaging.CKA.FromKEM.Security
 
+/-! # Blueprint chapter: CKA from KEM -/
+
 set_option linter.style.setOption false
 set_option linter.hashCommand false
 set_option linter.style.emptyLine false
@@ -71,7 +73,7 @@ theorem correctness [DecidableEq K]
     (leak : RandLeak kem)
     (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
     (adv : CKAScheme.CKACorrectnessAdversary (Message C PK) K) :
-    Pr[= true | CKAScheme.correctnessExp (scheme kem hDet leak) adv] = 1
+    Pr{let x ← CKAScheme.correctnessExp (scheme kem hDet leak) adv}[x = true] = 1
 ```
 ::::
 
@@ -91,7 +93,7 @@ theorem security [SampleableType K] [DecidableEq K]
     (gp : CKAScheme.GameParams)
     (hgp : AdmissibleParams gp) :
     CKAScheme.ckaDistAdvantage (scheme kem hDet leak) adv gp ≤
-      KEMScheme.IND_CPA_Advantage (kem := kem) ProbCompRuntime.probComp
-        (ckaToINDCPAReduction kem hDet leak adv gp)
+      (KEMScheme.IND_CPA_Advantage (kem := kem) ProbCompRuntime.probComp
+        (ckaToINDCPAReduction kem hDet leak adv gp)).toReal
 ```
 ::::

@@ -59,36 +59,36 @@ jobs:
               - 'lake-manifest.json'
               - 'scripts/**'
 
-      - name: Cache Lake build products
-        id: lake-build-cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            .lake/build
-          key: lake-build-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'lake-manifest.json', '**/*.lean') }}
-          restore-keys: |
-            lake-build-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'lake-manifest.json') }}-
-            lake-build-${{ runner.os }}-
-
-      - name: Restore Lake dependency builds
-        id: lake-deps-cache
+      # The only cache for .lake (build, dependency checkouts and their builds).
+      # Do not add another one: overlapping .lake caches restored stale builds
+      # (#359).
+      - name: Restore Lake cache
+        id: lake-cache
         uses: actions/cache/restore@v4
         with:
-          path: |
-            .lake/packages/*/.lake/build
-            !.lake/packages/mathlib/.lake/build
-          key: lake-deps-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}
+          path: ./.lake
+          key: lake-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('./lean-toolchain') }}-${{ hashFiles('./lake-manifest.json') }}-${{ github.sha }}
           restore-keys: |
-            lake-deps-${{ runner.os }}-
+            lake-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('./lean-toolchain') }}-${{ hashFiles('./lake-manifest.json') }}
 
       - uses: leanprover/lean-action@v1
+        id: lean
         with:
           auto-config: "false"
+          use-github-cache: "false"
           build: "true"
           lint: "true"
           use-mathlib-cache: "true"
 
+      # The sorry audit loads every built module. A docs module restored from
+      # the cache can be stale and import a deleted module, which makes the
+      # audit fail. Rebuild the docs modules before the audit.
+      - name: Build documentation modules
+        if: ${{ !cancelled() && steps.lean.outputs.build-status == 'SUCCESS' }}
+        run: lake build SecureMessagingDocs SecureMessagingDocs.Contents SecureMessagingDocs.Render
+
       - name: Sorry audit
+        id: audit
         uses: Beneficial-AI-Foundation/veritooling/actions/sorry-audit@v1
         with:
           backend: probe
@@ -100,10 +100,6 @@ jobs:
         run: |
           python3 -m unittest discover -s scripts/tests -p 'test_*.py'
           scripts/lint-blueprint-issue-tags.py
-
-      - name: Build documentation modules
-        if: steps.changes.outputs.docs == 'true' || github.event_name == 'workflow_dispatch'
-        run: lake build SecureMessagingDocs.Contents
 
       - name: Generate documentation site
         if: steps.changes.outputs.docs == 'true' || github.event_name == 'workflow_dispatch'
@@ -134,20 +130,32 @@ jobs:
             test -f "_out/site/html-multi/$chapter/Blueprint-Summary/index.html"
           done
 
-      - name: Save Lake dependency builds
-        if: always() && steps.lake-deps-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            .lake/packages/*/.lake/build
-            !.lake/packages/mathlib/.lake/build
-          key: lake-deps-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}
-
       - name: Upload Pages artifact
         if: steps.changes.outputs.docs == 'true' || github.event_name == 'workflow_dispatch'
         uses: actions/upload-pages-artifact@v4
         with:
           path: _out/site/html-multi
+
+      # Save .lake to the cache when:
+      #   - the run is not cancelled, and
+      #   - the build succeeds, and
+      #   - the audit does not fail, and
+      #   - this commit has no entry yet, and
+      #   - either the run is on main, or no entry exists for this toolchain and manifest.
+      - name: Save Lake cache
+        if: >-
+          ${{
+            !cancelled()
+            && steps.lean.outputs.build-status == 'SUCCESS'
+            && steps.audit.outcome != 'failure'
+            && steps.lake-cache.outputs.cache-hit != 'true'
+            && (github.ref == 'refs/heads/main'
+                || steps.lake-cache.outputs.cache-matched-key == '')
+          }}
+        uses: actions/cache/save@v4
+        with:
+          path: ./.lake
+          key: ${{ steps.lake-cache.outputs.cache-primary-key }}
 
   deploy:
     name: Deploy Pages

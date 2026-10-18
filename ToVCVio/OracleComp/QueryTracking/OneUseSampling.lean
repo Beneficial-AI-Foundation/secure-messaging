@@ -91,6 +91,12 @@ theorem sampleEachQuery_run (sample : ProbComp τ)
       ((impl a t).run).run s) := by
   rfl
 
+/-- Computations equal in distribution give the same event probability after a common
+continuation. -/
+private theorem prEvent_bind_congr_of_evalDistEq {α : Type} {mx my : ProbComp α}
+    (h : mx =ᵈ my) (f : α → ProbComp Prop) : prEvent (mx >>= f) = prEvent (my >>= f) := by
+  simpa only [id_map'] using (h.bind (f := f) (g := f) fun _ ↦ .rfl).prEvent_eq fun x ↦ x
+
 /-- For `a ∈ support sample` and `s` with `Inv s` and `used s`,
 `optionRun (impl a) oa s` and `optionRun (sampleEachQuery sample impl) oa s`
 return `true` with equal probability, given that queries preserve `Inv` and
@@ -104,22 +110,23 @@ private theorem optionRun_sampleEachQuery_eq_of_used
     (hused : ∀ a ∈ support sample, ∀ t s, Inv s → used s →
       ∀ z ∈ support (((impl a t).run).run s), z.1.isSome → used z.2)
     (hindep : ∀ t s, Inv s → used s → ∀ a ∈ support sample, ∀ a' ∈ support sample,
-      𝒟[((impl a t).run).run s] = 𝒟[((impl a' t).run).run s])
+      ((impl a t).run).run s =ᵈ ((impl a' t).run).run s)
     (oa : OracleComp spec Bool) (a : τ) (ha : a ∈ support sample)
     (s : σ) (hs : Inv s) (hu : used s) :
-    Pr[= true | optionRun (impl a) oa s] =
-      Pr[= true | optionRun (sampleEachQuery sample impl) oa s] := by
+    Pr{let x ← optionRun (impl a) oa s}[x = true] =
+      Pr{let x ← optionRun (sampleEachQuery sample impl) oa s}[x = true] := by
   induction oa using OracleComp.inductionOn generalizing s with
   | pure b => simp [optionRun_pure]
   | query_bind t cont ih =>
     rw [optionRun_query_bind, optionRun_query_bind]
     simp only [sampleEachQuery_run, bind_assoc]
-    trans Pr[= true | do
+    trans Pr{let x ← (do
       let z ← ((impl a t).run).run s
       match z.1 with
       | none => pure false
-      | some answer => optionRun (sampleEachQuery sample impl) (cont answer) z.2]
-    · apply probOutput_bind_congr
+      | some answer => optionRun (sampleEachQuery sample impl) (cont answer) z.2)}[x = true]
+    · simp only [map_bind]
+      refine prEvent_bind_congr_of_support _ _ _ ?_
       intro z hz
       cases hr : z.1 with
       | none => rfl
@@ -128,20 +135,20 @@ private theorem optionRun_sampleEachQuery_eq_of_used
         simpa only [hr] using ih answer z.2 (hpres a ha t s hs z hz hc)
           (hused a ha t s hs hu z hz hc)
     · symm
-      trans Pr[= true | do
+      trans Pr{let x ← (do
         let _ ← sample
         let z ← ((impl a t).run).run s
         match z.1 with
         | none => pure false
-        | some answer => optionRun (sampleEachQuery sample impl) (cont answer) z.2]
-      · apply probOutput_bind_congr
+        | some answer => optionRun (sampleEachQuery sample impl) (cont answer) z.2)}[x = true]
+      · simp only [map_bind]
+        refine prEvent_bind_congr_of_support _ _ _ ?_
         intro a' ha'
-        apply probOutput_congr rfl
-        simp only [evalDist_bind, hindep t s hs hu a' ha' a ha]
-        apply bind_congr
-        intro z
-        cases z.1 <;> rfl
-      · simp only [probOutput_bind_const, probFailure_eq_zero, tsub_zero, one_mul]
+        refine (prEvent_bind_congr_of_evalDistEq (hindep t s hs hu a' ha' a ha) _).trans
+          (prEvent_bind_congr_of_support _ _ _ fun z _ ↦ ?_)
+        rcases z with ⟨_ | _, _⟩ <;> rfl
+      · rw [map_bind]
+        exact prEvent_bind_const _ _
 
 /-- For every Boolean adversary `oa` and state `s` with `Inv s`, drawing
 `a ← sample` once and running `optionRun (impl a) oa s` returns `true` with
@@ -151,7 +158,7 @@ with `Inv u`:
 
 - every `(some r, u')` in the support of `((impl a t).run).run u` satisfies
   `Inv u'`, and also `used u'` if `used u`;
-- if `hit t u = false`, then `𝒟[((impl a t).run).run u] = 𝒟[((impl a' t).run).run u]`;
+- if `hit t u = false`, then `((impl a t).run).run u =ᵈ ((impl a' t).run).run u`;
 - if `used u`, then `hit t u = false`;
 - if `hit t u = true`, then every `(some r, u')` in the support of
   `((impl a t).run).run u` satisfies `used u'`. -/
@@ -164,68 +171,68 @@ theorem optionRun_sample_once_eq_sampleEachQuery
       ∀ z ∈ support (((impl a t).run).run s), z.1.isSome → used z.2)
     (hindep : ∀ t s, Inv s → hit t s = false →
       ∀ a ∈ support sample, ∀ a' ∈ support sample,
-      𝒟[((impl a t).run).run s] = 𝒟[((impl a' t).run).run s])
+      ((impl a t).run).run s =ᵈ ((impl a' t).run).run s)
     (hnohit : ∀ t s, Inv s → used s → hit t s = false)
     (hfirst : ∀ a ∈ support sample, ∀ t s, Inv s → hit t s = true →
       ∀ z ∈ support (((impl a t).run).run s), z.1.isSome → used z.2)
     (oa : OracleComp spec Bool) (s : σ) (hs : Inv s) :
-    Pr[= true | do let a ← sample; optionRun (impl a) oa s] =
-      Pr[= true | optionRun (sampleEachQuery sample impl) oa s] := by
-  have hne : (support sample).Nonempty := by
-    simp [Set.nonempty_iff_ne_empty, ← probFailure_eq_one_iff]
-  obtain ⟨a₀, ha₀⟩ := hne
+    Pr{let x ← do let a ← sample; optionRun (impl a) oa s}[x = true] =
+      Pr{let x ← optionRun (sampleEachQuery sample impl) oa s}[x = true] := by
+  obtain ⟨a₀, ha₀⟩ := OracleComp.support_nonempty sample
   induction oa using OracleComp.inductionOn generalizing s with
-  | pure b => simp [optionRun_pure]
+  | pure b => cases b <;> simp [optionRun_pure, prEvent_const_of_not, prEvent_true_eq_one]
   | query_bind t cont ih =>
     simp_rw [optionRun_query_bind]
     simp only [sampleEachQuery_run, bind_assoc]
     cases hh : hit t s with
     | false =>
-      trans Pr[= true | do
+      trans Pr{let x ← (do
         let a ← sample
         let z ← ((impl a₀ t).run).run s
         match z.1 with
         | none => pure false
-        | some answer => optionRun (impl a) (cont answer) z.2]
-      · apply probOutput_bind_congr
+        | some answer => optionRun (impl a) (cont answer) z.2)}[x = true]
+      · simp only [map_bind]
+        refine prEvent_bind_congr_of_support _ _ _ ?_
         intro a ha
-        apply probOutput_congr rfl
-        simp only [evalDist_bind, hindep t s hs hh a ha a₀ ha₀]
-        apply bind_congr
-        intro z
-        cases z.1 <;> rfl
-      · rw [probOutput_bind_bind_swap]
-        trans Pr[= true | do
+        refine (prEvent_bind_congr_of_evalDistEq (hindep t s hs hh a ha a₀ ha₀) _).trans
+          (prEvent_bind_congr_of_support _ _ _ fun z _ ↦ ?_)
+        rcases z with ⟨_ | _, _⟩ <;> rfl
+      · simp only [map_bind]
+        rw [prEvent_bind_bind_swap]
+        trans Pr{let x ← (do
           let z ← ((impl a₀ t).run).run s
           match z.1 with
           | none => pure false
-          | some answer => optionRun (sampleEachQuery sample impl) (cont answer) z.2]
-        · apply probOutput_bind_congr
+          | some answer => optionRun (sampleEachQuery sample impl) (cont answer) z.2)}[x = true]
+        · simp only [map_bind]
+          refine prEvent_bind_congr_of_support _ _ _ ?_
           intro z hz
           cases hr : z.1 with
           | none => simp
           | some answer =>
             have hc : z.1.isSome := by simp [hr]
-            simpa only [hr] using ih answer z.2 (hpres a₀ ha₀ t s hs z hz hc)
+            simpa only [hr, map_bind] using ih answer z.2 (hpres a₀ ha₀ t s hs z hz hc)
         · symm
-          trans Pr[= true | do
+          trans Pr{let x ← (do
             let _ ← sample
             let z ← ((impl a₀ t).run).run s
             match z.1 with
             | none => pure false
-            | some answer => optionRun (sampleEachQuery sample impl) (cont answer) z.2]
-          · apply probOutput_bind_congr
+            | some answer => optionRun (sampleEachQuery sample impl) (cont answer) z.2)}[x = true]
+          · simp only [map_bind]
+            refine prEvent_bind_congr_of_support _ _ _ ?_
             intro a ha
-            apply probOutput_congr rfl
-            simp only [evalDist_bind, hindep t s hs hh a ha a₀ ha₀]
-            apply bind_congr
-            intro z
-            cases z.1 <;> rfl
-          · simp only [probOutput_bind_const, probFailure_eq_zero, tsub_zero, one_mul]
+            refine (prEvent_bind_congr_of_evalDistEq (hindep t s hs hh a ha a₀ ha₀) _).trans
+              (prEvent_bind_congr_of_support _ _ _ fun z _ ↦ ?_)
+            rcases z with ⟨_ | _, _⟩ <;> rfl
+          · rw [map_bind]
+            exact prEvent_bind_const _ _
     | true =>
-      apply probOutput_bind_congr
+      simp only [map_bind]
+      refine prEvent_bind_congr_of_support _ _ _ ?_
       intro a ha
-      apply probOutput_bind_congr
+      refine prEvent_bind_congr_of_support _ _ _ ?_
       intro z hz
       cases hr : z.1 with
       | none => rfl

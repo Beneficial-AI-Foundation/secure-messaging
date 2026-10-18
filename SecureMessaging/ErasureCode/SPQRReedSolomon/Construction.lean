@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import Mathlib.SetTheory.Cardinal.NatCard
-import Mathlib.FieldTheory.Finite.GaloisField
-import SecureMessaging.ErasureCode.ReedSolomon.Construction
+module
+
+public import Mathlib.SetTheory.Cardinal.NatCard
+public import Mathlib.FieldTheory.Finite.GaloisField
+public import SecureMessaging.ErasureCode.ReedSolomon.Construction
 
 /-!
 # Parallel Reed–Solomon Erasure-Code Construction
@@ -86,6 +88,8 @@ whose lengths are divisible by 32 bytes. It does not model Signal's more general
 extension to arbitrary even-length byte strings, where the source field elements are
 distributed unevenly among the 16 coordinate polynomials.
 -/
+
+@[expose] public section
 
 namespace ErasureCode.SPQRReedSolomon
 

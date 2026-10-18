@@ -70,26 +70,24 @@ def coordinateFailureEvent (i : Fin ringDegree) : Seed32 × Seed32 × Message �
       (centeredRepr
         ((kpkeDecryptDifference ring encoding prims d z m).get i)).natAbs
 
-/-- The bad-noise probability rewritten as a `probEvent` over the honest sample. -/
-theorem probOutput_true_kpkeBadNoiseExp :
-    Pr[= true | kpkeBadNoiseExp ring encoding prims] =
-      Pr[ (fun (d, z, m) => kpkeBadNoise ring encoding prims d z m)
-          | honestNoiseSample ] := by
+/-- The bad-noise probability rewritten as an event over the honest sample. -/
+theorem prEvent_true_kpkeBadNoiseExp :
+    Pr{let x ← kpkeBadNoiseExp ring encoding prims}[x = true] =
+      Pr{let (d, z, m) ← honestNoiseSample}[kpkeBadNoise ring encoding prims d z m] := by
   have hmap : kpkeBadNoiseExp ring encoding prims =
       (fun (d, z, m) => decide (kpkeBadNoise ring encoding prims d z m)) <$>
         honestNoiseSample := by
     rw [map_honestNoiseSample]; simp only [kpkeBadNoiseExp]
-  rw [hmap, ← probEvent_true_eq_probOutput, probEvent_map]
-  simp only [Function.comp_def, decide_eq_true_eq]
+  rw [hmap, prEvent_map]
+  simp only [decide_eq_true_eq]
 
-/-- The recovery-failure probability rewritten as a `probEvent` over the honest sample. -/
-theorem underlyingCorrectnessError_eq_probEvent :
+/-- The recovery-failure probability rewritten as an event over the honest sample. -/
+theorem underlyingCorrectnessError_eq_prEvent :
     underlyingCorrectnessError ring encoding prims =
-      Pr[ (fun (d, z, m) => KPKE.decrypt ring encoding prims
-              (keygenInternal ring encoding prims d z).2.dkPKE
-              (encapsInternal ring encoding prims
-                (keygenInternal ring encoding prims d z).1 m).2 ≠ m)
-          | honestNoiseSample ] := by
+      Pr{let (d, z, m) ← honestNoiseSample}[KPKE.decrypt ring encoding prims
+          (keygenInternal ring encoding prims d z).2.dkPKE
+          (encapsInternal ring encoding prims
+            (keygenInternal ring encoding prims d z).1 m).2 ≠ m] := by
   have hmap : underlyingCorrectExp ring encoding prims =
       (fun (d, z, m) => decide (KPKE.decrypt ring encoding prims
           (keygenInternal ring encoding prims d z).2.dkPKE
@@ -97,16 +95,16 @@ theorem underlyingCorrectnessError_eq_probEvent :
             (keygenInternal ring encoding prims d z).1 m).2 = m)) <$>
         honestNoiseSample := by
     rw [map_honestNoiseSample]; simp only [underlyingCorrectExp]
-  rw [underlyingCorrectnessError, hmap, ← probEvent_not_eq_probOutput, probEvent_map]
-  simp only [Function.comp_def, decide_eq_false_iff_not]
+  rw [underlyingCorrectnessError, hmap, prEvent_map]
+  simp only [decide_eq_false_iff_not]
 
 /-- Recovery fails only on bad noise, so the recovery-failure probability is at
 most the bad-noise probability. -/
 theorem underlyingCorrectnessError_le_badNoise (hEnc : FIPS203EncodingLaws encoding) :
     underlyingCorrectnessError ring encoding prims ≤
-      Pr[= true | kpkeBadNoiseExp ring encoding prims] := by
-  rw [underlyingCorrectnessError_eq_probEvent, probOutput_true_kpkeBadNoiseExp]
-  refine probEvent_mono'' ?_
+      Pr{let x ← kpkeBadNoiseExp ring encoding prims}[x = true] := by
+  rw [underlyingCorrectnessError_eq_prEvent, prEvent_true_kpkeBadNoiseExp]
+  refine prEvent_mono _ _ _ ?_
   rintro ⟨d, z, m⟩ hfail
   change kpkeBadNoise ring encoding prims d z m
   rw [kpkeBadNoise_iff_not_within]
@@ -132,9 +130,9 @@ def coordinateDecodeFailureEvent (i : Fin ringDegree) :
 the `256` coordinate decoding events holds. -/
 theorem underlyingCorrectnessError_eq_coordinateDecodeFailureEvent (hEnc : encoding.Laws) :
     underlyingCorrectnessError ring encoding prims =
-      Pr[ (fun dzm => ∃ i : Fin ringDegree,
-        coordinateDecodeFailureEvent ring encoding prims i dzm) | honestNoiseSample ] := by
-  rw [underlyingCorrectnessError_eq_probEvent]
+      Pr{let dzm ← honestNoiseSample}[∃ i : Fin ringDegree,
+        coordinateDecodeFailureEvent ring encoding prims i dzm] := by
+  rw [underlyingCorrectnessError_eq_prEvent]
   have hpred : (fun (d, z, m) => KPKE.decrypt ring encoding prims
           (keygenInternal ring encoding prims d z).2.dkPKE
           (encapsInternal ring encoding prims (keygenInternal ring encoding prims d z).1 m).2 ≠ m) =
@@ -151,7 +149,7 @@ theorem underlyingCorrectnessError_eq_coordinateDecodeFailureEvent (hEnc : encod
 theorem underlyingCorrectnessError_le_sum_coordinateDecodeFailure (hEnc : encoding.Laws) :
     underlyingCorrectnessError ring encoding prims ≤
       ∑ i : Fin ringDegree,
-        Pr[ coordinateDecodeFailureEvent ring encoding prims i | honestNoiseSample ] := by
+        Pr{let x ← honestNoiseSample}[coordinateDecodeFailureEvent ring encoding prims i x] := by
   rw [underlyingCorrectnessError_eq_coordinateDecodeFailureEvent ring encoding prims hEnc]
   have hpred : (fun dzm => ∃ i : Fin ringDegree,
         coordinateDecodeFailureEvent ring encoding prims i dzm) =
@@ -159,7 +157,7 @@ theorem underlyingCorrectnessError_le_sum_coordinateDecodeFailure (hEnc : encodi
         coordinateDecodeFailureEvent ring encoding prims i dzm) := by
     funext dzm; simp
   rw [hpred]
-  exact probEvent_exists_finset_le_sum Finset.univ honestNoiseSample
+  exact prEvent_exists_finset_le Finset.univ honestNoiseSample
     (coordinateDecodeFailureEvent ring encoding prims)
 
 end Generic

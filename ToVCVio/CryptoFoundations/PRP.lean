@@ -3,9 +3,11 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import VCVio.CryptoFoundations.SecExp
-import VCVio.CryptoFoundations.PRF
-import VCVio.OracleComp.Constructions.SampleableType
+module
+
+public import VCVio.CryptoFoundations.SecExp
+public import ToVCVio.CryptoFoundations.PRF
+public import VCVio.OracleComp.Constructions.SampleableType
 
 /-!
 # Pseudorandom permutations (PRPs)
@@ -15,10 +17,10 @@ invertible map on a block space `X` that no efficient adversary can distinguish
 from a uniformly random permutation of `X`.
 
 The PRP game is set up exactly like VCVio's PRF game: same oracle spec, same adversary type,
-real/ideal experiments and an absolute-difference advantage. The real experiment `prpRealExp`
-is *defined* as the PRF real experiment of `toPRFScheme`, so the two games share their real
-side and differ only in the ideal one, which is what the PRP/PRF switching lemma [BR]
-compares. Candidate for upstream VCVio.
+real/ideal experiments, and an `ℝ≥0∞`-valued Boolean-distance advantage. The real experiment
+`prpRealExp` is *defined* as the PRF real experiment of `toPRFScheme`, so the two games share
+their real side and differ only in the ideal one, which is what the PRP/PRF switching lemma
+[BR] compares. Candidate for upstream VCVio.
 
 ## References
 
@@ -26,7 +28,9 @@ compares. Candidate for upstream VCVio.
   Game-Playing Proofs.* EUROCRYPT 2006, https://eprint.iacr.org/2004/331.pdf
 -/
 
-open OracleSpec OracleComp
+@[expose] public section
+
+open OracleSpec OracleComp ENNReal
 
 /-- A block cipher (NIST SP 800-38D §5.1): a keyed permutation on `X`, given as
 forward/inverse functions that are mutually inverse for every key (`correct`). -/
@@ -80,7 +84,7 @@ def prpQueryImpl (g : X → X) : QueryImpl (PRPOracleSpec X) ProbComp :=
 It is by definition the PRF real experiment of `toPRFScheme`. -/
 def prpRealExp (prp : PRPScheme K X) (adversary : PRPAdversary X) :
     ProbComp Bool :=
-  PRFScheme.prfRealExp prp.toPRFScheme adversary
+  PRFScheme.prfRealExperiment prp.toPRFScheme adversary
 
 theorem prpRealExp_eq (prp : PRPScheme K X) (adversary : PRPAdversary X) :
     prpRealExp prp adversary =
@@ -93,14 +97,23 @@ def prpIdealExp [SampleableType (Equiv.Perm X)] (adversary : PRPAdversary X) :
   let π ← $ᵗ (Equiv.Perm X)
   simulateQ (prpQueryImpl fun x => π x) adversary
 
-/-- The PRP advantage of an adversary: the absolute difference between the probabilities that
-it outputs `true` in the real and in the ideal experiment. -/
+/-- The PRP advantage of an adversary: the Boolean distance of its output distributions in the
+real and in the ideal experiment, as for VCVio's `prfAdvantage`. `toReal_prpAdvantage` gives
+its real value. -/
 -- ANCHOR: prpAdvantage
 noncomputable def prpAdvantage [SampleableType (Equiv.Perm X)]
-    (prp : PRPScheme K X) (adversary : PRPAdversary X) : ℝ :=
-  |(Pr[= true | prpRealExp prp adversary]).toReal -
-    (Pr[= true | prpIdealExp adversary]).toReal|
+    (prp : PRPScheme K X) (adversary : PRPAdversary X) : ℝ≥0∞ :=
+  𝒟[prpRealExp prp adversary].boolDist 𝒟[prpIdealExp adversary]
 -- ANCHOR_END: prpAdvantage
+
+/-- Let `adversary` attack the PRP `prp`. Then the real value of its advantage is
+`|Pr[prpRealExp = true] - Pr[prpIdealExp = true]|`. -/
+theorem toReal_prpAdvantage [SampleableType (Equiv.Perm X)]
+    (prp : PRPScheme K X) (adversary : PRPAdversary X) :
+    (prpAdvantage prp adversary).toReal =
+      |(Pr{let x ← prpRealExp prp adversary}[x = true]).toReal -
+        (Pr{let x ← prpIdealExp adversary}[x = true]).toReal| :=
+  ToVCVio.toReal_boolDist_evalDist _ _
 
 /-- `asPRF g` is the fixed function `g` viewed as a PRF scheme with a trivial key, so that the
 PRF simulation lemmas apply to `prpQueryImpl g`. -/

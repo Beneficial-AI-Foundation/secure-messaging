@@ -200,7 +200,7 @@ theorem encaps_eq_stagedEncaps (pk : PK) : kem.encaps pk = inc.stagedEncaps pk :
   inc.factor pk
 
 /-- The correctness experiment run the staged way: generate a key pair, encapsulate through
-the two stages, decapsulate the result. Compare `KEMScheme.CorrectExp`. -/
+the two stages, decapsulate the result. Compare `KEMScheme.correctnessExperiment`. -/
 def CorrectExp [DecidableEq K] : m Bool := do
   let (pk, sk) ← kem.keygen
   let (c, k) ← inc.stagedEncaps pk
@@ -209,17 +209,15 @@ def CorrectExp [DecidableEq K] : m Bool := do
 
 /-- The staged experiment is the ordinary correctness experiment: the two programs are
 equal. -/
-theorem correctExp_eq [DecidableEq K] : inc.CorrectExp = kem.CorrectExp := by
-  simp only [CorrectExp, KEMScheme.CorrectExp, inc.encaps_eq_stagedEncaps]
+theorem correctExp_eq [DecidableEq K] : inc.CorrectExp = kem.correctnessExperiment := by
+  simp only [CorrectExp, KEMScheme.correctnessExperiment, inc.encaps_eq_stagedEncaps]
 
 /-- A correctness bound for the KEM bounds the staged run in the same way. -/
-theorem probFailure_correctExp_le [DecidableEq K] (runtime : ProbCompRuntime m)
+theorem evalDist_false_correctExp_le_of_deltaCorrect [DecidableEq K] (runtime : ProbCompRuntime m)
     {delta : ℝ≥0∞} (h : kem.deltaCorrect runtime delta) :
-    Pr[= false | runtime.evalDist inc.CorrectExp] ≤ delta := by
+    runtime.evalDist inc.CorrectExp {false} ≤ delta := by
   rw [inc.correctExp_eq]
-  refine le_trans ?_ h
-  rw [kem.correctnessError_eq_probOutput_false_add_probFailure]
-  exact le_self_add
+  exact kem.evalDist_false_correctnessExperiment_le_of_deltaCorrect runtime h
 
 end IncrementalStructure
 

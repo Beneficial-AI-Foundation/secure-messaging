@@ -4,11 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.CryptoFoundations.UniversalHash
+import VCVio.CryptoFoundations.UniversalHash
 import ToVCVio.CryptoFoundations.WegmanCarter.AbstractBounds
 import ToVCVio.CryptoFoundations.WegmanCarter.LogRefinement
 import ToVCVio.EvalDist.Monad.Basic
-import ToVCVio.OracleComp.QueryTracking.QueryBound
+import VCVio.OracleComp.QueryTracking.QueryBound
 
 /-!
 # Wegman-Carter one-time authenticity: the forgery bound
@@ -19,7 +19,7 @@ For the scheme and game of `Defs.lean`: assume `[SampleableType K]`, `[Decidable
 
     Pr[H ←$ K : hash(H, x) ⊕ hash(H, y) = Δ] ≤ ε.
 
-Then for every adversary making at most `q` decryption queries, `probEvent_wcInst_forge_le`
+Then for every adversary making at most `q` decryption queries, `prEvent_wcInst_forge_le`
 proves, in the `b = false` execution,
 
     Pr[forged = true] ≤ q · ε,
@@ -37,7 +37,7 @@ Two points a consumer must get right:
   `b = false` executions.
 -/
 
-open OracleSpec OracleComp ENNReal ToVCVio
+open OracleSpec OracleComp ENNReal ToVCVio UniversalHash
 
 namespace OracleComp.WegmanCarter
 
@@ -70,19 +70,11 @@ private lemma tag_eq_iff_mask_eq (a h m : BitVec 128) :
   · rintro rfl
     rw [BitVec.xor_comm a h, ← BitVec.xor_assoc, BitVec.xor_self, BitVec.zero_xor]
 
-/-- The post-challenge acceptance test in the AXU shape of `probEvent_post_axu_le`. -/
+/-- The post-challenge acceptance test in the AXU shape of `prEvent_post_axu_le`. -/
 private lemma post_event_iff (u v a T : BitVec 128) :
     a = u ^^^ (v ^^^ T) ↔ u ^^^ v = a ^^^ T := by
   rw [← BitVec.xor_assoc, BitVec.xor_comm (u ^^^ v) T]
   exact tag_eq_iff_mask_eq a T (u ^^^ v)
-
-/-- Bind congruence for continuations of different types carrying different events. -/
-private lemma probEvent_bind_congr₂ {α β γ : Type} (mx : ProbComp α)
-    {ob₁ : α → ProbComp β} {ob₂ : α → ProbComp γ} {p : β → Prop} {q : γ → Prop}
-    (h : ∀ x, Pr[ p | ob₁ x] = Pr[ q | ob₂ x]) :
-    Pr[ p | mx >>= ob₁] = Pr[ q | mx >>= ob₂] := by
-  rw [probEvent_bind_eq_tsum, probEvent_bind_eq_tsum]
-  exact tsum_congr fun x => by rw [h x]
 
 /-! ### The pre-challenge half -/
 
@@ -94,11 +86,11 @@ private lemma pre_half_le [SampleableType K]
     (L : List (A × (Cb × BitVec 128)))
     {β : Type} (k : K → BitVec 128 → ProbComp β) (obs : β → K × BitVec 128)
     (hk : ∀ H m, ∀ y ∈ support (k H m), obs y = (H, m)) :
-    Pr[fun y => L.any (wcAccepts hash enc (obs y).1 (obs y).2) = true
-       | ($ᵗ K : ProbComp K) >>= fun H =>
-           ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun m => k H m]
+    Pr{let y ← (($ᵗ K : ProbComp K) >>= fun H =>
+           ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun m => k H m)}[
+        L.any (wcAccepts hash enc (obs y).1 (obs y).2) = true]
       ≤ (L.length : ℝ≥0∞) * ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹ := by
-  refine le_trans (probEvent_pre_fresh_le ($ᵗ K)
+  refine le_trans (prEvent_pre_fresh_le ($ᵗ K)
       (fun H => L.map (fun r => r.2.2 ^^^ hash H (enc (r.1, r.2.1)))) k _ ?_) ?_
   · intro H m y hy
     rw [hk H m y hy]
@@ -110,7 +102,7 @@ private lemma pre_half_le [SampleableType K]
       exact ⟨r, hr, (tag_eq_iff_mask_eq _ _ _).2 he.symm⟩
   · simp only [List.length_map, mul_assoc]
     rw [ENNReal.tsum_mul_right]
-    exact mul_le_of_le_one_left zero_le tsum_probOutput_le_one
+    exact mul_le_of_le_one_left zero_le (OracleComp.tsum_prEvent_le_one _)
 
 /-! ### After the challenge, the run does not read `(H, mask)` -/
 
@@ -253,7 +245,7 @@ private lemma wcLogImpl_extends [DecidableEq A] [DecidableEq Cb] {α : Type}
 /-! ### Counting the log
 
 Only the decrypt oracle appends, at most one entry per query, so the log length is bounded by
-the decrypt-query budget (`support_state_measure_le_of_isQueryBoundP`). -/
+the decrypt-query budget (`IsQueryBoundP.cost_le_of_mem_support_run_simulateQ`). -/
 
 /-- Every step appends at most one log entry. -/
 private lemma log_step_le_one [DecidableEq A] [DecidableEq Cb]
@@ -332,11 +324,10 @@ lemma log_length_le_from [DecidableEq A] [DecidableEq Cb] {α : Type}
     (hq : oa.IsQueryBoundP (· matches Sum.inr _) q) (s : WCLogState A Cb) :
     ∀ z ∈ support ((simulateQ (wcLogImpl hash enc H mask padMsg) oa).run s),
       z.2.2.length ≤ s.2.length + q :=
-  support_state_measure_le_of_isQueryBoundP (wcLogImpl hash enc H mask padMsg)
-    (fun s : WCLogState A Cb => s.2.length) (· matches Sum.inr _)
+  hq.cost_le_of_mem_support_run_simulateQ (impl := wcLogImpl hash enc H mask padMsg)
+    (fun s : WCLogState A Cb => s.2.length)
     (fun t _ => log_step_le_one hash enc H mask padMsg t)
-    (fun t ht => log_step_le_zero hash enc H mask padMsg t (fun y hy => ht (by rw [hy])))
-    oa q hq s
+    (fun t ht => log_step_le_zero hash enc H mask padMsg t (fun y hy => ht (by rw [hy]))) s
 
 /-! ### The local bijection and the hoisted key -/
 
@@ -349,15 +340,15 @@ private lemma reparam_bind [DecidableEq A] [DecidableEq Cb] {α : Type}
     (ob : Option (Cb × BitVec 128) → OracleComp (wcSpec A M Cb) α)
     (ad : A) (c0 : Cb) (L : List (A × (Cb × BitVec 128)))
     (H H0 : K) :
-    𝒟[($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun m =>
+    (($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun m =>
         (fun z : α × WCLogState A Cb => ((H, m), z.2)) <$>
           (simulateQ (wcLogImpl hash enc H m padMsg)
               (ob (some (c0, hash H (enc (ad, c0)) ^^^ m)))).run
-            (some (ad, (c0, hash H (enc (ad, c0)) ^^^ m)), L)]
-      = 𝒟[($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun T =>
+            (some (ad, (c0, hash H (enc (ad, c0)) ^^^ m)), L))
+      =ᵈ (($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun T =>
             (fun z : α × WCLogState A Cb => ((H, hash H (enc (ad, c0)) ^^^ T), z.2)) <$>
               (simulateQ (wcLogImpl hash enc H0 0 padMsg) (ob (some (c0, T)))).run
-                (some (ad, (c0, T)), L)] := by
+                (some (ad, (c0, T)), L)) := by
   have key : ∀ T : BitVec 128,
       ((fun z : α × WCLogState A Cb => ((H, hash H (enc (ad, c0)) ^^^ T), z.2)) <$>
         (simulateQ (wcLogImpl hash enc H0 0 padMsg) (ob (some (c0, T)))).run
@@ -372,37 +363,39 @@ private lemma reparam_bind [DecidableEq A] [DecidableEq Cb] {α : Type}
     rw [run_challenge_some_indep hash enc padMsg H0 H 0
       (hash H (enc (ad, c0)) ^^^ T) (ad, (c0, T)) (ob (some (c0, T))) L]
   simp only [key]
-  refine evalDist_ext fun z => ?_
-  exact (probOutput_bind_bijective_uniform_cross (BitVec 128)
-    (fun x : BitVec 128 => hash H (enc (ad, c0)) ^^^ x)
-    (Equiv.xor (hash H (enc (ad, c0)))).bijective
+  have h := (SampleableType.map_uniformSample_evalDistEq_of_bijective
+    (f := fun x : BitVec 128 => hash H (enc (ad, c0)) ^^^ x)
+    (Equiv.xor (hash H (enc (ad, c0)))).bijective).bind_left
     (fun m => (fun z : α × WCLogState A Cb => ((H, m), z.2)) <$>
       (simulateQ (wcLogImpl hash enc H m padMsg)
           (ob (some (c0, hash H (enc (ad, c0)) ^^^ m)))).run
-        (some (ad, (c0, hash H (enc (ad, c0)) ^^^ m)), L)) z).symm
+        (some (ad, (c0, hash H (enc (ad, c0)) ^^^ m)), L))
+  rw [bind_map_left] at h
+  exact h.symm
 
 /-- When the run `R` does not depend on the key `H`, the key can be drawn after it. -/
 private lemma hoist_H [SampleableType K] {α : Type}
     (hash : K → D → BitVec 128) (X : D)
     (R : BitVec 128 → ProbComp (α × WCLogState A Cb)) :
-    𝒟[($ᵗ K : ProbComp K) >>= fun H =>
+    (($ᵗ K : ProbComp K) >>= fun H =>
         ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun T =>
-          (fun z : α × WCLogState A Cb => ((H, hash H X ^^^ T), z.2)) <$> R T]
-      = 𝒟[(fun p : (BitVec 128 × (α × WCLogState A Cb)) × K =>
+          (fun z : α × WCLogState A Cb => ((H, hash H X ^^^ T), z.2)) <$> R T)
+      =ᵈ ((fun p : (BitVec 128 × (α × WCLogState A Cb)) × K =>
              ((p.2, hash p.2 X ^^^ p.1.1), p.1.2.2)) <$>
           ((($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun T => R T >>= fun z => pure (T, z))
-             >>= fun w => ($ᵗ K : ProbComp K) >>= fun H => pure (w, H))] := by
+             >>= fun w => ($ᵗ K : ProbComp K) >>= fun H => pure (w, H))) := by
   have h0 : ∀ (H : K) (T : BitVec 128),
       ((fun z : α × WCLogState A Cb => ((H, hash H X ^^^ T), z.2)) <$> R T)
         = R T >>= fun z => pure ((H, hash H X ^^^ T), z.2) := fun H T => by
     rw [map_eq_bind_pure_comp]
     rfl
   simp only [h0]
-  rw [evalDist_bind_bind_swap ($ᵗ K) ($ᵗ (BitVec 128))
-    (fun H T => R T >>= fun z => pure ((H, hash H X ^^^ T), z.2))]
-  refine Eq.trans (evalDist_bind_congr' _ fun T =>
-    evalDist_bind_bind_swap ($ᵗ K) (R T)
-      (fun H z => pure ((H, hash H X ^^^ T), z.2))) ?_
+  refine (EvalDistEq.bind_bind_swap ($ᵗ K) ($ᵗ (BitVec 128))
+    (fun H T => R T >>= fun z => pure ((H, hash H X ^^^ T), z.2))).trans ?_
+  refine (EvalDistEq.bind_right _ fun T =>
+    EvalDistEq.bind_bind_swap ($ᵗ K) (R T)
+      (fun H z => pure ((H, hash H X ^^^ T), z.2))).trans ?_
+  refine EvalDistEq.of_forall_prEvent_eq fun p => ?_
   congr 1
   simp [bind_assoc, map_eq_bind_pure_comp]
 
@@ -412,19 +405,19 @@ private lemma post_half_reshape [SampleableType K] [DecidableEq A] [DecidableEq 
     (hash : K → D → BitVec 128) (enc : A × Cb → D) (padMsg : M → Cb)
     (ob : Option (Cb × BitVec 128) → OracleComp (wcSpec A M Cb) α)
     (ad : A) (c0 : Cb) (L : List (A × (Cb × BitVec 128))) (H0 : K) :
-    𝒟[($ᵗ K : ProbComp K) >>= fun H =>
+    (($ᵗ K : ProbComp K) >>= fun H =>
         ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun m =>
           (fun z : α × WCLogState A Cb => ((H, m), z.2)) <$>
             (simulateQ (wcLogImpl hash enc H m padMsg)
                 (ob (some (c0, hash H (enc (ad, c0)) ^^^ m)))).run
-              (some (ad, (c0, hash H (enc (ad, c0)) ^^^ m)), L)]
-      = 𝒟[(fun p : (BitVec 128 × (α × WCLogState A Cb)) × K =>
+              (some (ad, (c0, hash H (enc (ad, c0)) ^^^ m)), L))
+      =ᵈ ((fun p : (BitVec 128 × (α × WCLogState A Cb)) × K =>
              ((p.2, hash p.2 (enc (ad, c0)) ^^^ p.1.1), p.1.2.2)) <$>
           ((($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun T =>
               (simulateQ (wcLogImpl hash enc H0 0 padMsg) (ob (some (c0, T)))).run
                   (some (ad, (c0, T)), L) >>= fun z => pure (T, z))
-             >>= fun w => ($ᵗ K : ProbComp K) >>= fun H => pure (w, H))] :=
-  Eq.trans (evalDist_bind_congr' _ fun H => reparam_bind hash enc padMsg ob ad c0 L H H0)
+             >>= fun w => ($ᵗ K : ProbComp K) >>= fun H => pure (w, H))) :=
+  (EvalDistEq.bind_right _ fun H => reparam_bind hash enc padMsg ob ad c0 L H H0).trans
     (hoist_H hash (enc (ad, c0)) _)
 
 /-- Let `hash` be `ε`-AXU and `enc` injective. From the state where the challenge has just been
@@ -438,19 +431,17 @@ private lemma post_half_le [SampleableType K] [DecidableEq A] [DecidableEq Cb] {
     (ob : Option (Cb × BitVec 128) → OracleComp (wcSpec A M Cb) α) (n : ℕ)
     (hn : ∀ y, (ob y).IsQueryBoundP (· matches Sum.inr _) n)
     (ad : A) (c0 : Cb) (L : List (A × (Cb × BitVec 128))) :
-    Pr[fun z : (K × BitVec 128) × WCLogState A Cb =>
-         (z.2.2.drop L.length).any (wcAccepts hash enc z.1.1 z.1.2) = true
-       | ($ᵗ K : ProbComp K) >>= fun H =>
+    Pr{let z ← (($ᵗ K : ProbComp K) >>= fun H =>
            ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun m =>
              (fun z : α × WCLogState A Cb => ((H, m), z.2)) <$>
                (simulateQ (wcLogImpl hash enc H m padMsg)
                    (ob (some (c0, hash H (enc (ad, c0)) ^^^ m)))).run
-                 (some (ad, (c0, hash H (enc (ad, c0)) ^^^ m)), L)]
+                 (some (ad, (c0, hash H (enc (ad, c0)) ^^^ m)), L))}[
+        (z.2.2.drop L.length).any (wcAccepts hash enc z.1.1 z.1.2) = true]
       ≤ (n : ℝ≥0∞) * ε := by
   obtain ⟨H0⟩ := (inferInstance : Nonempty K)
-  rw [probEvent_congr' (fun _ _ => Iff.rfl)
-    (post_half_reshape hash enc padMsg ob ad c0 L H0), probEvent_map]
-  simp only [Function.comp_def]
+  rw [(post_half_reshape hash enc padMsg ob ad c0 L H0).prEvent_eq, prEvent_map]
+  simp only
   have hiff : ∀ p : (BitVec 128 × (α × WCLogState A Cb)) × K,
       ((p.1.2.2.2.drop L.length).any
           (wcAccepts hash enc p.2 (hash p.2 (enc (ad, c0)) ^^^ p.1.1)) = true)
@@ -465,8 +456,8 @@ private lemma post_half_le [SampleableType K] [DecidableEq A] [DecidableEq Cb] {
       exact ⟨_, ⟨r, hr, rfl⟩, (post_event_iff _ _ _ _).1 he⟩
     · rintro ⟨x, ⟨r, hr, rfl⟩, he⟩
       exact ⟨r, hr, (post_event_iff _ _ _ _).2 he⟩
-  rw [probEvent_ext (fun p _ => hiff p)]
-  refine le_trans (probEvent_post_axu_le haxu _
+  rw [prEvent_congr _ _ _ hiff]
+  refine le_trans (prEvent_post_axu_le haxu _
     (fun w : BitVec 128 × (α × WCLogState A Cb) => (enc (ad, c0), w.1))
     (fun w : BitVec 128 × (α × WCLogState A Cb) => (w.2.2.2.drop L.length).map
       (fun r : A × (Cb × BitVec 128) => (enc (r.1, r.2.1), r.2.2))) ?_) ?_
@@ -485,7 +476,7 @@ private lemma post_half_le [SampleableType K] [DecidableEq A] [DecidableEq Cb] {
       rw [Prod.ext_iff]
       exact ⟨(Prod.ext_iff.1 h3).1, by rw [Prod.ext_iff]; exact ⟨(Prod.ext_iff.1 h3).2, h2⟩⟩)
   · simp_rw [mul_assoc]
-    refine tsum_probOutput_mul_le_of_forall_mem_support _ fun w hw => ?_
+    refine tsum_prEvent_mul_le_of_forall_mem_support _ fun w hw => ?_
     simp only [mem_support_bind_iff, support_pure, Set.mem_singleton_iff] at hw
     obtain ⟨T, -, z, hz, rfl⟩ := hw
     have hlen := log_length_le_from hash enc H0 0 padMsg (ob (some (c0, T))) n (hn _)
@@ -500,13 +491,13 @@ private lemma post_half_le [SampleableType K] [DecidableEq A] [DecidableEq Cb] {
 /-- Two independent draws in front of a `(H, mask)`-free step commute past it. -/
 private lemma hoist_step [SampleableType K] {α β : Type}
     (Q : ProbComp β) (F : K → BitVec 128 → β → ProbComp α) :
-    𝒟[($ᵗ K : ProbComp K) >>= fun H =>
-        ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun m => Q >>= fun p => F H m p]
-      = 𝒟[Q >>= fun p => ($ᵗ K : ProbComp K) >>= fun H =>
-            ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun m => F H m p] :=
-  Eq.trans (evalDist_bind_congr' _ fun H =>
-      evalDist_bind_bind_swap ($ᵗ (BitVec 128)) Q (fun m p => F H m p))
-    (evalDist_bind_bind_swap ($ᵗ K) Q (fun H p =>
+    (($ᵗ K : ProbComp K) >>= fun H =>
+        ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun m => Q >>= fun p => F H m p)
+      =ᵈ (Q >>= fun p => ($ᵗ K : ProbComp K) >>= fun H =>
+            ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun m => F H m p) :=
+  (EvalDistEq.bind_right _ fun H =>
+      EvalDistEq.bind_bind_swap ($ᵗ (BitVec 128)) Q (fun m p => F H m p)).trans
+    (EvalDistEq.bind_bind_swap ($ᵗ K) Q (fun H p =>
       ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun m => F H m p))
 
 /-- Let `hash` be `ε`-AXU, `enc` injective and `2⁻¹²⁸ ≤ ε`. From the state where the challenge
@@ -521,15 +512,15 @@ private lemma post_phase [SampleableType K] [DecidableEq A] [DecidableEq Cb] {α
     (ob : Option (Cb × BitVec 128) → OracleComp (wcSpec A M Cb) α) (n : ℕ)
     (hn : ∀ y, (ob y).IsQueryBoundP (· matches Sum.inr _) n)
     (ad : A) (c0 : Cb) (L : List (A × (Cb × BitVec 128))) :
-    Pr[fun z : (K × BitVec 128) × WCLogState A Cb => wcFlag hash enc z.1.1 z.1.2 z.2 = true
-       | ($ᵗ K : ProbComp K) >>= fun H =>
+    Pr{let z ← (($ᵗ K : ProbComp K) >>= fun H =>
            ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun m =>
              (fun z : α × WCLogState A Cb => ((H, m), z.2)) <$>
                (simulateQ (wcLogImpl hash enc H m padMsg)
                    (ob (some (c0, hash H (enc (ad, c0)) ^^^ m)))).run
-                 (some (ad, (c0, hash H (enc (ad, c0)) ^^^ m)), L)]
+                 (some (ad, (c0, hash H (enc (ad, c0)) ^^^ m)), L))}[
+        wcFlag hash enc z.1.1 z.1.2 z.2 = true]
       ≤ ((L.length + n : ℕ) : ℝ≥0∞) * ε := by
-  refine le_trans (probEvent_mono (q := fun z : (K × BitVec 128) × WCLogState A Cb =>
+  refine le_trans (prEvent_mono_of_support _ _ (fun z : (K × BitVec 128) × WCLogState A Cb =>
     L.any (wcAccepts hash enc z.1.1 z.1.2) = true
       ∨ (z.2.2.drop L.length).any (wcAccepts hash enc z.1.1 z.1.2) = true) ?_) ?_
   · rintro z hz hflag
@@ -543,7 +534,7 @@ private lemma post_phase [SampleableType K] [DecidableEq A] [DecidableEq Cb] {α
     rw [List.drop_left]
     rw [List.any_append, Bool.or_eq_true] at hflag
     exact hflag
-  · refine le_trans (probEvent_or_le _ _ _) ?_
+  · refine le_trans (prEvent_or_le _ _ _) ?_
     refine combine_pre_post_le (L.length + n) L.length n ε _ _ ?_
       (post_half_le haxu henc_inj padMsg ob n hn ad c0 L) le_rfl hfloor
     refine pre_half_le hash enc L _ Prod.fst ?_
@@ -562,18 +553,18 @@ private lemma pre_phase_bind_le [SampleableType K] [DecidableEq A] [DecidableEq 
     (F : β → OracleComp (wcSpec A M Cb) α) (bnd : ℝ≥0∞)
     (hstate : ∀ p ∈ support Q, p.2.1 = none)
     (hIH : ∀ p ∈ support Q,
-      Pr[ fun z : (K × BitVec 128) × WCLogState A Cb => wcFlag hash enc z.1.1 z.1.2 z.2 = true
-         | ($ᵗ K : ProbComp K) >>= fun H =>
+      Pr{let z ← (($ᵗ K : ProbComp K) >>= fun H =>
              ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun m =>
                (fun z : α × WCLogState A Cb => ((H, m), z.2)) <$>
                  (simulateQ (wcLogImpl hash enc H m padMsg) (F p.1)).run
-                   ((none, p.2.2) : WCLogState A Cb)] ≤ bnd) :
-    Pr[fun z : (K × BitVec 128) × WCLogState A Cb => wcFlag hash enc z.1.1 z.1.2 z.2 = true
-       | Q >>= fun p => ($ᵗ K : ProbComp K) >>= fun H =>
+                   ((none, p.2.2) : WCLogState A Cb))}[
+          wcFlag hash enc z.1.1 z.1.2 z.2 = true] ≤ bnd) :
+    Pr{let z ← (Q >>= fun p => ($ᵗ K : ProbComp K) >>= fun H =>
            ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun m =>
              (fun z : α × WCLogState A Cb => ((H, m), z.2)) <$>
-               (simulateQ (wcLogImpl hash enc H m padMsg) (F p.1)).run p.2] ≤ bnd := by
-  refine probEvent_bind_le_of_forall_le fun p hp => ?_
+               (simulateQ (wcLogImpl hash enc H m padMsg) (F p.1)).run p.2)}[
+        wcFlag hash enc z.1.1 z.1.2 z.2 = true] ≤ bnd := by
+  refine prEvent_bind_le_of_forall_le_of_support _ _ _ fun p hp => ?_
   have hp2 : p.2 = ((none, p.2.2) : WCLogState A Cb) := by rw [← hstate p hp]
   rw [hp2]
   exact hIH p hp
@@ -638,20 +629,18 @@ private lemma pre_phase [SampleableType K] [DecidableEq A] [DecidableEq Cb] {α 
     (padMsg : M → Cb) (oa : OracleComp (wcSpec A M Cb) α) :
     ∀ (n : ℕ), oa.IsQueryBoundP (· matches Sum.inr _) n →
       ∀ L : List (A × (Cb × BitVec 128)),
-        Pr[fun z : (K × BitVec 128) × WCLogState A Cb =>
-             wcFlag hash enc z.1.1 z.1.2 z.2 = true
-           | ($ᵗ K : ProbComp K) >>= fun H =>
+        Pr{let z ← (($ᵗ K : ProbComp K) >>= fun H =>
                ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun m =>
                  (fun z : α × WCLogState A Cb => ((H, m), z.2)) <$>
                    (simulateQ (wcLogImpl hash enc H m padMsg) oa).run
-                     ((none, L) : WCLogState A Cb)]
+                     ((none, L) : WCLogState A Cb))}[wcFlag hash enc z.1.1 z.1.2 z.2 = true]
           ≤ ((L.length + n : ℕ) : ℝ≥0∞) * ε := by
   induction oa using OracleComp.inductionOn with
   | pure x =>
       intro n _ L
       simp only [simulateQ_pure, StateT.run_pure, map_pure]
-      refine le_trans (le_of_eq (probEvent_ext
-        (q := fun y : (K × BitVec 128) × WCLogState A Cb =>
+      refine le_trans (le_of_eq (prEvent_congr_of_support _ _
+        (fun y : (K × BitVec 128) × WCLogState A Cb =>
           L.any (wcAccepts hash enc (Prod.fst y).1 (Prod.fst y).2) = true)
         (fun z hz => ?_))) ?_
       · simp only [mem_support_bind_iff, support_pure, Set.mem_singleton_iff] at hz
@@ -680,11 +669,10 @@ private lemma pre_phase [SampleableType K] [DecidableEq A] [DecidableEq Cb] {α 
           rw [run_simulateQ_query_bind (wcLogImpl hash enc H m padMsg) t ob (none, L),
             nonEncrypt_step_eq hash enc padMsg H H0 m 0 L t ht, map_bind]
         simp only [hrun]
-        rw [probEvent_congr' (p := fun z : (K × BitVec 128) × WCLogState A Cb =>
-          wcFlag hash enc z.1.1 z.1.2 z.2 = true) (fun _ _ => Iff.rfl)
-          (hoist_step ((wcLogImpl hash enc H0 0 padMsg t).run ((none, L) : WCLogState A Cb))
+        rw [(hoist_step ((wcLogImpl hash enc H0 0 padMsg t).run ((none, L) : WCLogState A Cb))
             (fun H m p => (fun z : α × WCLogState A Cb => ((H, m), z.2)) <$>
-              (simulateQ (wcLogImpl hash enc H m padMsg) (ob p.1)).run p.2))]
+              (simulateQ (wcLogImpl hash enc H m padMsg) (ob p.1)).run p.2)).prEvent_eq
+          (fun z : (K × BitVec 128) × WCLogState A Cb => wcFlag hash enc z.1.1 z.1.2 z.2 = true)]
         refine pre_phase_bind_le hash enc padMsg _ ob _
           (nonEncrypt_step_state hash enc padMsg H0 0 L t ht) (fun p hp => ?_)
         refine le_trans (ih p.1 _ (hq2 p.1) p.2.2) ?_
@@ -725,19 +713,19 @@ end ProbabilityCore
 /-- The forgery bound at the log-refined handler: `wcFlag` is raised with probability at most
 `q · ε`. The observed value carries `(H, mask)` because `wcFlag` reads them; the adversary's
 output is discarded. -/
-theorem probEvent_bad_wcLog_le {α K A M Cb D : Type}
+theorem prEvent_bad_wcLog_le {α K A M Cb D : Type}
     [SampleableType K] [DecidableEq A] [DecidableEq Cb]
     {hash : K → D → BitVec 128} {ε : ℝ≥0∞} (haxu : IsAlmostXorUniversal hash ε)
     (hfloor : ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹ ≤ ε)
     {enc : A × Cb → D} (henc_inj : Function.Injective enc)
     (padMsg : M → Cb) (oa : OracleComp (wcSpec A M Cb) α) (q : ℕ)
     (hq : oa.IsQueryBoundP (· matches Sum.inr _) q) :
-    Pr[fun z : (K × BitVec 128) × WCLogState A Cb =>
-         wcFlag hash enc z.1.1 z.1.2 z.2 = true |
-       (do let H ← ($ᵗ K : ProbComp K)
+    Pr{let z ← (do
+           let H ← ($ᵗ K : ProbComp K)
            let mask ← ($ᵗ (BitVec 128) : ProbComp (BitVec 128))
            (fun z : α × WCLogState A Cb => ((H, mask), z.2)) <$>
-             (simulateQ (wcLogImpl hash enc H mask padMsg) oa).run (none, []))]
+             (simulateQ (wcLogImpl hash enc H mask padMsg) oa).run (none, []))}[
+        wcFlag hash enc z.1.1 z.1.2 z.2 = true]
       ≤ (q : ℝ≥0∞) * ε := by
   simpa using pre_phase haxu hfloor henc_inj padMsg oa q hq []
 
@@ -752,7 +740,7 @@ for the challenge `(ad*, C*)`, a query `(ad', C')` with `enc (ad', C') = enc (ad
 `1`; at `enc := id` it is `Function.injective_id`. `hfloor`: on a subsingleton domain AXU is
 vacuous and admits `ε = 0`, while a blind tag guess still succeeds with probability `2⁻¹²⁸`;
 with two distinct domain points it follows from `IsAlmostXorUniversal.card_inv_le`. -/
-theorem probEvent_wcInst_forge_le {α K A M Cb D : Type}
+theorem prEvent_wcInst_forge_le {α K A M Cb D : Type}
     [SampleableType K] [DecidableEq A] [DecidableEq Cb]
     {hash : K → D → BitVec 128} {ε : ℝ≥0∞} (haxu : IsAlmostXorUniversal hash ε)
     (hfloor : ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹ ≤ ε)
@@ -760,17 +748,16 @@ theorem probEvent_wcInst_forge_le {α K A M Cb D : Type}
     (padMsg : M → Cb) (unpad : Cb → M)
     (oa : OracleComp (wcSpec A M Cb) α) (q : ℕ)
     (hq : oa.IsQueryBoundP (· matches Sum.inr _) q) :
-    Pr[fun z : α × (Option (A × (Cb × BitVec 128)) × Bool) => z.2.2 = true |
-        (do let H ← ($ᵗ K : ProbComp K)
+    Pr{let z ← (do
+            let H ← ($ᵗ K : ProbComp K)
             let mask ← ($ᵗ (BitVec 128) : ProbComp (BitVec 128))
             (simulateQ (wcInstImpl hash enc H mask padMsg unpad false) oa).run
-              (none, false))]
+              (none, false))}[z.2.2 = true]
       ≤ (q : ℝ≥0∞) * ε := by
   refine le_trans (le_of_eq ?_)
-    (probEvent_bad_wcLog_le haxu hfloor henc_inj padMsg oa q hq)
-  refine probEvent_bind_congr₂ ($ᵗ K : ProbComp K) fun H =>
-    probEvent_bind_congr₂ ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) fun mask => ?_
-  rw [probEvent_bad_wcInst_eq_wcLog hash enc H mask padMsg unpad oa, probEvent_map]
-  rfl
+    (prEvent_bad_wcLog_le haxu hfloor henc_inj padMsg oa q hq)
+  refine prEvent_bind_congr ($ᵗ K : ProbComp K) _ _ _ _ fun H =>
+    prEvent_bind_congr ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) _ _ _ _ fun mask => ?_
+  rw [prEvent_bad_wcInst_eq_wcLog hash enc H mask padMsg unpad oa, prEvent_map]
 
 end OracleComp.WegmanCarter

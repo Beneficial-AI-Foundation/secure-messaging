@@ -30,7 +30,7 @@ theorem gcmOneTimeAEAD_correct {K : Type} (prp : PRPScheme K (BitVec 128))
   rintro k ⟨⟨av, ad⟩, hav⟩ m
   have hv : ValidMsgLength L ∧ ValidAADLength av := ⟨hL, hav⟩
   simp only [gcmOneTimeAEAD, gcmEncrypt, gcmDecrypt]
-  rw [if_pos hv]
-  simp only [if_true, gctr_involution]
+  rw [ite_eq_left hv]
+  simp only [ite_true, gctr_involution]
 
 end GCM

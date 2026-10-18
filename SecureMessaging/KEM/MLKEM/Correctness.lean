@@ -50,7 +50,7 @@ is
 
 Thus `Π` is perfectly correct when `ε_Π=0`, and is `δ`-correct when
 `ε_Π≤δ`.  The equality in (1) is
-`KEMScheme.correctnessError_eq_probOutput_false_add_probFailure`.  ML-KEM is
+`KEMScheme.correctnessError_eq_evalDist_false_add_prFail`.  ML-KEM is
 interpreted by the total semantics `ProbComp`; hence `p_⊥=0` and its
 correctness error is simply the probability that honest decapsulation does
 not return the key produced by encapsulation.
@@ -152,8 +152,11 @@ as `kpkeDecryptDifference_eq_noise`.
 The generic proof takes `hRing : NTTRingLaws ring`, an algebraic certificate
 that the forward and inverse transforms are mutually inverse and transport the
 addition and multiplication of `R_q`.  For the concrete ML-KEM transform,
-`Concrete.concreteNTTRingLaws` is the corresponding proof bundle; its inverse
-matrix identity is discharged by a finite `native_decide` certificate.  This
+`Concrete.concreteNTTRingLaws` is the corresponding proof bundle, and the
+`deltaCorrect_mlkem*` theorems use it directly.  VCVio proves
+its inverse laws in the kernel from the butterfly layers, so it uses only the
+standard axioms.  At run time `@[implemented_by]` swaps in the loop kernels,
+which are not proved equal to the proof-facing definitions.  This
 is algebraic infrastructure for (6), distinct from the probabilistic
 comparison introduced below.
 
@@ -422,45 +425,37 @@ theorem fips203DecapsulationFailureProb_le_bound (p : ParameterSet) (ring : NTTR
     (prims : Primitives (ParameterSet.params p)
       (Concrete.concreteEncoding (ParameterSet.params p)))
     (hRing : NTTRingLaws ring) (hModel : CoefficientFailureBound p ring prims) :
-    Pr[= true | fips203DecapsulationFailureExp p ring
-        (Concrete.concreteEncoding (ParameterSet.params p)) prims] ≤
+    Pr{let x ← (fips203DecapsulationFailureExp p ring
+        (Concrete.concreteEncoding (ParameterSet.params p)) prims)}[x = true] ≤
       fips203DecapsulationFailureBound p := by
   rw [← correctnessError_eq_fips203DecapsulationFailureProb]
   exact correctnessError_le_fips203 p ring prims hRing hModel
 
-/-- Given the concrete NTT algebra certificate and the coefficient-distribution
-coefficient comparison, honest ML-KEM-512 decapsulation has error at most
-`2^(-138.8)`.  The canonical value for `hRing` is
-`Concrete.concreteNTTRingLaws`; it is kept explicit because its finite inverse
-matrix certificate is discharged by `native_decide`. -/
+/-- Given the coefficient-distribution comparison `hModel`, honest ML-KEM-512
+decapsulation has error at most `2^(-138.8)`. -/
 theorem deltaCorrect_mlkem512
-    (hRing : NTTRingLaws Concrete.concreteNTTRingOps)
     (hModel : CoefficientFailureBound .MLKEM512 Concrete.concreteNTTRingOps
       Concrete.mlkem512Primitives) :
     mlkem512Scheme.deltaCorrect ProbCompRuntime.probComp
       (fips203DecapsulationFailureBound .MLKEM512) :=
-  deltaCorrect_fips203 _ _ _ hRing hModel
+  deltaCorrect_fips203 _ _ _ Concrete.concreteNTTRingLaws hModel
 
-/-- Given the concrete NTT algebra certificate and the coefficient-distribution
-coefficient comparison, honest ML-KEM-768 decapsulation has error at most
-`2^(-164.8)`. -/
+/-- Given the coefficient-distribution comparison `hModel`, honest ML-KEM-768
+decapsulation has error at most `2^(-164.8)`. -/
 theorem deltaCorrect_mlkem768
-    (hRing : NTTRingLaws Concrete.concreteNTTRingOps)
     (hModel : CoefficientFailureBound .MLKEM768 Concrete.concreteNTTRingOps
       Concrete.mlkem768Primitives) :
     mlkem768Scheme.deltaCorrect ProbCompRuntime.probComp
       (fips203DecapsulationFailureBound .MLKEM768) :=
-  deltaCorrect_fips203 _ _ _ hRing hModel
+  deltaCorrect_fips203 _ _ _ Concrete.concreteNTTRingLaws hModel
 
-/-- Given the concrete NTT algebra certificate and the coefficient-distribution
-coefficient comparison, honest ML-KEM-1024 decapsulation has error at most
-`2^(-174.8)`. -/
+/-- Given the coefficient-distribution comparison `hModel`, honest ML-KEM-1024
+decapsulation has error at most `2^(-174.8)`. -/
 theorem deltaCorrect_mlkem1024
-    (hRing : NTTRingLaws Concrete.concreteNTTRingOps)
     (hModel : CoefficientFailureBound .MLKEM1024 Concrete.concreteNTTRingOps
       Concrete.mlkem1024Primitives) :
     mlkem1024Scheme.deltaCorrect ProbCompRuntime.probComp
       (fips203DecapsulationFailureBound .MLKEM1024) :=
-  deltaCorrect_fips203 _ _ _ hRing hModel
+  deltaCorrect_fips203 _ _ _ Concrete.concreteNTTRingLaws hModel
 
 end MLKEM

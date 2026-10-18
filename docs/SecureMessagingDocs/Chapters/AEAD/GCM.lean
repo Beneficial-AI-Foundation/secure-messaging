@@ -8,6 +8,8 @@ import SecureMessaging.AEAD.FromGCM.Construction
 import SecureMessaging.AEAD.FromGCM.Correctness
 import SecureMessaging.AEAD.FromGCM.Security
 
+/-! # Blueprint chapter: GCM -/
+
 set_option linter.style.setOption false
 set_option linter.hashCommand false
 set_option linter.style.emptyLine false
@@ -109,6 +111,6 @@ theorem gcmOneTimeAEAD_security (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96
     let switchingBound : ℝ := ((blocks : ℝ) + 2) * ((blocks : ℝ) + 1) / 2 ^ 129
     let forgeryBound : ℝ := (q_d : ℝ) * ((2 ^ 57 + (blocks : ℝ) + 1) / 2 ^ 128)
     AEADScheme.distAdvantage (gcmOneTimeAEAD prp iv L hL) adv ≤
-      PRPScheme.prpAdvantage prp reduction + switchingBound + forgeryBound
+      (PRPScheme.prpAdvantage prp reduction).toReal + switchingBound + forgeryBound
 ```
 ::::

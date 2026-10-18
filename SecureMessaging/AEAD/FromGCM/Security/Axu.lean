@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.FromGCM.Security.Encoding
-import ToVCVio.CryptoFoundations.UniversalHash
-import ToVCVio.OracleComp.Constructions.BitVec
+module
+
+public import SecureMessaging.AEAD.FromGCM.Security.Encoding
+public import VCVio.CryptoFoundations.UniversalHash
+public import ToVCVio.OracleComp.Constructions.BitVec
 
 /-!
 # GHASH: almost-XOR-universality statement
@@ -23,6 +25,8 @@ key, and these are distinct inputs with identical hashes. The length block appen
 `gcmEncode` separates such pairs.
 -/
 
+@[expose] public section
+
 open OracleComp OracleSpec ENNReal ToVCVio
 
 namespace GCM
@@ -30,7 +34,7 @@ namespace GCM
 /-- `ghash` composed with the GHASH encoding is `ε`-almost-XOR-universal on the AEAD domain
 `SupportedAAD × BitVec L`. -/
 def GhashIsAXU (L : ℕ) (ε : ℝ≥0∞) : Prop :=
-  IsAlmostXorUniversal
+  UniversalHash.IsAlmostXorUniversal
     (fun (H : BitVec 128) (p : SupportedAAD × BitVec L) => ghash H (gcmEncode p.1 p.2)) ε
 
 /-! ## Witnessed pair
@@ -57,7 +61,7 @@ theorem witness_pair_ne (L : ℕ) :
 
 theorem ghashAXU_card_inv_le {L : ℕ} {ε : ℝ≥0∞} (h : GhashIsAXU L ε) :
     (Fintype.card (BitVec 128) : ℝ≥0∞)⁻¹ ≤ ε :=
-  IsAlmostXorUniversal.card_inv_le h (witness_pair_ne L)
+  UniversalHash.IsAlmostXorUniversal.card_inv_le h (witness_pair_ne L)
 
 /-- Every AXU bound `ε` of GHASH satisfies `2⁻¹²⁸ ≤ ε`. -/
 theorem ghashAXU_eps_lower {L : ℕ} {ε : ℝ≥0∞} (h : GhashIsAXU L ε) :

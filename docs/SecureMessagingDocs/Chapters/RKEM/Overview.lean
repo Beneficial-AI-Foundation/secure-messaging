@@ -10,6 +10,8 @@ import SecureMessagingDocs.Chapters.RKEM.FromKEM
 import SecureMessagingDocs.Chapters.RKEM.KatanaPlain
 import SecureMessagingDocs.Chapters.RKEM.KatanaOptimised
 
+/-! # Blueprint chapter: Ratcheting Key Encapsulation Mechanism -/
+
 open Verso.Genre
 open Verso.Genre.Manual
 open Informal

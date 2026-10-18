@@ -4,11 +4,13 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import Mathlib.RingTheory.AdjoinRoot
-import Mathlib.Algebra.Polynomial.Monic
-import Mathlib.Data.ZMod.Basic
-import SecureMessaging.AEAD.GCM
-import ToVCVio.CryptoFoundations.AdjoinRootReflect
+module
+
+public import Mathlib.RingTheory.AdjoinRoot
+public import Mathlib.Algebra.Polynomial.Monic
+public import Mathlib.Data.ZMod.Basic
+public import SecureMessaging.AEAD.GCM
+public import ToVCVio.CryptoFoundations.AdjoinRootReflect
 
 /-!
 # GHASH as polynomial evaluation
@@ -27,6 +29,8 @@ Nothing here needs `nistPoly` to be irreducible; `AdjoinRoot`'s `CommRing` struc
 
 - [NIST_GCM] Dworkin. *NIST SP 800-38D*, 2007. https://csrc.nist.gov/pubs/sp/800/38/d/final
 -/
+
+@[expose] public section
 
 namespace GCM
 
@@ -166,11 +170,11 @@ theorem reflect_gfmulStep (v : BitVec 128) :
   unfold vStep
   by_cases h : v.getMsbD 127 = true
   · have hif : v.getLsbD 0 = true := by rw [hcond]; exact h
-    rw [if_pos hif, reflectN_xor, key, reflect_gcmReductionConst, ← nistPoly_root_pow, h,
+    rw [ite_eq_left hif, reflectN_xor, key, reflect_gcmReductionConst, ← nistPoly_root_pow, h,
       boolToZMod2_true, one_smul]
   · have hif : ¬ (v.getLsbD 0 = true) := by rw [hcond]; exact h
     have h127 : v.getMsbD 127 = false := by simpa using h
-    rw [if_neg hif, key, h127, boolToZMod2_false, zero_smul, add_zero]
+    rw [ite_eq_right hif, key, h127, boolToZMod2_false, zero_smul, add_zero]
 
 /-! ## The `gfmul` fold invariant -/
 
@@ -222,9 +226,9 @@ theorem reflect_gfmul_aux (x y : BitVec 128) (k : ℕ) :
               boolToZMod2 (x.getMsbD i) • AdjoinRoot.root nistPoly ^ i) * reflectN y
       rw [Finset.sum_range_succ, add_mul]
       by_cases h : x.getMsbD k = true
-      · rw [if_pos h, reflectN_xor, ihz, ihv, h, boolToZMod2_true, one_smul]
+      · rw [ite_eq_left h, reflectN_xor, ihz, ihv, h, boolToZMod2_true, one_smul]
         ring
-      · rw [if_neg h]
+      · rw [ite_eq_right h]
         rw [Bool.not_eq_true] at h
         rw [ihz, h, boolToZMod2_false, zero_smul, zero_mul, add_zero]
 

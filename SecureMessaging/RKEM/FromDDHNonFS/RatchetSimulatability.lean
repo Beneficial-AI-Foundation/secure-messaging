@@ -140,44 +140,44 @@ variable (gen : G)
 
 /-- **Base-key simulatability** ([TripleRatchet, Fig. 10]) is perfect for the simulators of
 Fig. 30: the simulated distribution `D^KeyBaseSim_{A,1}` equals the real `D^KeyBaseSim_{A,0}`. -/
-theorem evalDist_keyBaseSimDistA (par : Unit) :
-    𝒟[(scheme (F := F) gen).keyBaseSimDistA (ratchetSimulator gen) par true] =
-      𝒟[(scheme (F := F) gen).keyBaseSimDistA (ratchetSimulator gen) par false] := by
+theorem evalDistEq_keyBaseSimDistA (par : Unit) :
+    (scheme (F := F) gen).keyBaseSimDistA (ratchetSimulator gen) par true =ᵈ
+      (scheme (F := F) gen).keyBaseSimDistA (ratchetSimulator gen) par false := by
   simp [RKEMScheme.keyBaseSimDistA, ratchetSimulator, rsimKey1, scheme]
 
-/-- As `evalDist_keyBaseSimDistA`, with the roles of `A` and `B` swapped. -/
-theorem evalDist_keyBaseSimDistB (par : Unit) :
-    𝒟[(scheme (F := F) gen).keyBaseSimDistB (ratchetSimulator gen) par true] =
-      𝒟[(scheme (F := F) gen).keyBaseSimDistB (ratchetSimulator gen) par false] :=
-  evalDist_keyBaseSimDistA gen par
+/-- As `evalDistEq_keyBaseSimDistA`, with the roles of `A` and `B` swapped. -/
+theorem evalDistEq_keyBaseSimDistB (par : Unit) :
+    (scheme (F := F) gen).keyBaseSimDistB (ratchetSimulator gen) par true =ᵈ
+      (scheme (F := F) gen).keyBaseSimDistB (ratchetSimulator gen) par false :=
+  evalDistEq_keyBaseSimDistA gen par
 
 /-- **Updated-key simulatability** ([TripleRatchet, Fig. 11]) is perfect for the simulators of
 Fig. 30: the simulated distribution `D^KeyUpdSim_{A,1}` equals the real `D^KeyUpdSim_{A,0}`. -/
-theorem evalDist_keyUpdSimDistA (par : Unit) :
-    𝒟[(scheme (F := F) gen).keyUpdSimDistA (ratchetSimulator gen) par true] =
-      𝒟[(scheme (F := F) gen).keyUpdSimDistA (ratchetSimulator gen) par false] := by
+theorem evalDistEq_keyUpdSimDistA (par : Unit) :
+    (scheme (F := F) gen).keyUpdSimDistA (ratchetSimulator gen) par true =ᵈ
+      (scheme (F := F) gen).keyUpdSimDistA (ratchetSimulator gen) par false := by
   simp [RKEMScheme.keyUpdSimDistA, ratchetSimulator, rsimKey1, rsimKey2, randLeak, rencRleak,
     rkeygenRleak, scheme, renc, rdec, smul_smul, mul_comm]
 
-/-- As `evalDist_keyUpdSimDistA`, with the roles of `A` and `B` swapped. -/
-theorem evalDist_keyUpdSimDistB (par : Unit) :
-    𝒟[(scheme (F := F) gen).keyUpdSimDistB (ratchetSimulator gen) par true] =
-      𝒟[(scheme (F := F) gen).keyUpdSimDistB (ratchetSimulator gen) par false] :=
-  evalDist_keyUpdSimDistA gen par
+/-- As `evalDistEq_keyUpdSimDistA`, with the roles of `A` and `B` swapped. -/
+theorem evalDistEq_keyUpdSimDistB (par : Unit) :
+    (scheme (F := F) gen).keyUpdSimDistB (ratchetSimulator gen) par true =ᵈ
+      (scheme (F := F) gen).keyUpdSimDistB (ratchetSimulator gen) par false :=
+  evalDistEq_keyUpdSimDistA gen par
 
 /-- **Ciphertext simulatability** ([TripleRatchet, Fig. 12]) is perfect for the simulators of
 Fig. 30: the simulated distribution `D^CtxtSim_{B,1}` equals the real `D^CtxtSim_{B,0}`. -/
-theorem evalDist_ctxtSimDistB (par : Unit) :
-    𝒟[(scheme (F := F) gen).ctxtSimDistB (ratchetSimulator gen) par true] =
-      𝒟[(scheme (F := F) gen).ctxtSimDistB (ratchetSimulator gen) par false] := by
+theorem evalDistEq_ctxtSimDistB (par : Unit) :
+    (scheme (F := F) gen).ctxtSimDistB (ratchetSimulator gen) par true =ᵈ
+      (scheme (F := F) gen).ctxtSimDistB (ratchetSimulator gen) par false := by
   simp [RKEMScheme.ctxtSimDistB, ratchetSimulator, rsimKey1, rsimCtxt, randLeak, rkeygenRleak,
     scheme, rkeygen, renc, rdec, smul_smul, mul_comm]
 
-/-- As `evalDist_ctxtSimDistB`, with the roles of `A` and `B` swapped. -/
-theorem evalDist_ctxtSimDistA (par : Unit) :
-    𝒟[(scheme (F := F) gen).ctxtSimDistA (ratchetSimulator gen) par true] =
-      𝒟[(scheme (F := F) gen).ctxtSimDistA (ratchetSimulator gen) par false] :=
-  evalDist_ctxtSimDistB gen par
+/-- As `evalDistEq_ctxtSimDistB`, with the roles of `A` and `B` swapped. -/
+theorem evalDistEq_ctxtSimDistA (par : Unit) :
+    (scheme (F := F) gen).ctxtSimDistA (ratchetSimulator gen) par true =ᵈ
+      (scheme (F := F) gen).ctxtSimDistA (ratchetSimulator gen) par false :=
+  evalDistEq_ctxtSimDistB gen par
 
 end Simulatability
 
@@ -189,9 +189,9 @@ theorem RatchetSimulatable (gen : G) :
     (scheme (F := F) gen).RatchetSimulatable (leak := randLeak gen) 0
 -- ANCHOR_END: RatchetSimulatable
     :=
-  RKEMScheme.ratchetSimulatable_zero_of_evalDist_eq _ (ratchetSimulator gen)
-    (evalDist_keyBaseSimDistA gen) (evalDist_keyBaseSimDistB gen)
-    (evalDist_keyUpdSimDistA gen) (evalDist_keyUpdSimDistB gen)
-    (evalDist_ctxtSimDistA gen) (evalDist_ctxtSimDistB gen)
+  RKEMScheme.ratchetSimulatable_zero_of_evalDistEq _ (ratchetSimulator gen)
+    (evalDistEq_keyBaseSimDistA gen) (evalDistEq_keyBaseSimDistB gen)
+    (evalDistEq_keyUpdSimDistA gen) (evalDistEq_keyUpdSimDistB gen)
+    (evalDistEq_ctxtSimDistA gen) (evalDistEq_ctxtSimDistB gen)
 
 end ddhRKEM

@@ -160,61 +160,58 @@ variable (kem : KEMScheme ProbComp K PK SK C) (total : TotalDecaps kem) (kemLeak
 
 /-- **Base-key simulatability** ([TripleRatchet, Fig. 10]) is perfect for the simulators of
 Fig. 27: the simulated distribution `D^KeyBaseSim_{A,1}` equals the real `D^KeyBaseSim_{A,0}`. -/
-theorem evalDist_keyBaseSimDistA (par : Unit) :
-    𝒟[(scheme kem total).keyBaseSimDistA (ratchetSimulator kem total kemLeak) par true] =
-      𝒟[(scheme kem total).keyBaseSimDistA (ratchetSimulator kem total kemLeak) par false] := by
+theorem evalDistEq_keyBaseSimDistA (par : Unit) :
+    (scheme kem total).keyBaseSimDistA (ratchetSimulator kem total kemLeak) par true =ᵈ
+      (scheme kem total).keyBaseSimDistA (ratchetSimulator kem total kemLeak) par false := by
   simp only [RKEMScheme.keyBaseSimDistA, ratchetSimulator, rsimKey1, scheme, rkeygen,
     ← kemLeak.keygen_fst, bind_assoc, pure_bind, Bool.true_eq_false, ↓reduceIte]
-  refine evalDist_ext fun y => ?_
-  refine probOutput_bind_of_const' _ fun _ _ => ?_
-  rfl
+  exact OracleComp.EvalDistEq.bind_const _ _
 
-/-- As `evalDist_keyBaseSimDistA`, with the roles of `A` and `B` swapped. -/
-theorem evalDist_keyBaseSimDistB (par : Unit) :
-    𝒟[(scheme kem total).keyBaseSimDistB (ratchetSimulator kem total kemLeak) par true] =
-      𝒟[(scheme kem total).keyBaseSimDistB (ratchetSimulator kem total kemLeak) par false] :=
-  evalDist_keyBaseSimDistA kem total kemLeak par
+/-- As `evalDistEq_keyBaseSimDistA`, with the roles of `A` and `B` swapped. -/
+theorem evalDistEq_keyBaseSimDistB (par : Unit) :
+    (scheme kem total).keyBaseSimDistB (ratchetSimulator kem total kemLeak) par true =ᵈ
+      (scheme kem total).keyBaseSimDistB (ratchetSimulator kem total kemLeak) par false :=
+  evalDistEq_keyBaseSimDistA kem total kemLeak par
 
 /-- **Updated-key simulatability** ([TripleRatchet, Fig. 11]) is perfect for the simulators of
 Fig. 27: the simulated distribution `D^KeyUpdSim_{A,1}` equals the real `D^KeyUpdSim_{A,0}`. -/
-theorem evalDist_keyUpdSimDistA (par : Unit) :
-    𝒟[(scheme kem total).keyUpdSimDistA (ratchetSimulator kem total kemLeak) par true] =
-      𝒟[(scheme kem total).keyUpdSimDistA (ratchetSimulator kem total kemLeak) par false] := by
+theorem evalDistEq_keyUpdSimDistA (par : Unit) :
+    (scheme kem total).keyUpdSimDistA (ratchetSimulator kem total kemLeak) par true =ᵈ
+      (scheme kem total).keyUpdSimDistA (ratchetSimulator kem total kemLeak) par false := by
   simp only [RKEMScheme.keyUpdSimDistA, ratchetSimulator, rsimKey1, rsimKey2, randLeak,
     rencRleak, scheme, rdec, bind_assoc, pure_bind, Bool.true_eq_false, ↓reduceIte]
-  refine evalDist_ext fun y => ?_
-  refine probOutput_bind_congr fun p _ => ?_
-  refine probOutput_bind_congr fun q _ => ?_
-  refine probOutput_bind_congr fun r _ => ?_
-  rw [probOutput_bind_bind_swap]
+  refine EvalDistEq.bind_right _ fun _ => EvalDistEq.bind_right _ fun _ =>
+    EvalDistEq.bind_right _ fun _ => ?_
+  exact OracleComp.EvalDistEq.bind_bind_swap _ _ _
 
-/-- As `evalDist_keyUpdSimDistA`, with the roles of `A` and `B` swapped. -/
-theorem evalDist_keyUpdSimDistB (par : Unit) :
-    𝒟[(scheme kem total).keyUpdSimDistB (ratchetSimulator kem total kemLeak) par true] =
-      𝒟[(scheme kem total).keyUpdSimDistB (ratchetSimulator kem total kemLeak) par false] :=
-  evalDist_keyUpdSimDistA kem total kemLeak par
+/-- As `evalDistEq_keyUpdSimDistA`, with the roles of `A` and `B` swapped. -/
+theorem evalDistEq_keyUpdSimDistB (par : Unit) :
+    (scheme kem total).keyUpdSimDistB (ratchetSimulator kem total kemLeak) par true =ᵈ
+      (scheme kem total).keyUpdSimDistB (ratchetSimulator kem total kemLeak) par false :=
+  evalDistEq_keyUpdSimDistA kem total kemLeak par
 
 /-- **Ciphertext simulatability** ([TripleRatchet, Fig. 12]) is perfect for the simulators of
 Fig. 27: the simulated distribution `D^CtxtSim_{B,1}` equals the real `D^CtxtSim_{B,0}`. -/
-theorem evalDist_ctxtSimDistB (par : Unit) :
-    𝒟[(scheme kem total).ctxtSimDistB (ratchetSimulator kem total kemLeak) par true] =
-      𝒟[(scheme kem total).ctxtSimDistB (ratchetSimulator kem total kemLeak) par false] := by
+theorem evalDistEq_ctxtSimDistB (par : Unit) :
+    (scheme kem total).ctxtSimDistB (ratchetSimulator kem total kemLeak) par true =ᵈ
+      (scheme kem total).ctxtSimDistB (ratchetSimulator kem total kemLeak) par false := by
   simp only [RKEMScheme.ctxtSimDistB, ratchetSimulator, rsimKey1, rsimCtxt, randLeak,
     renc, scheme, rdec, rkeygen, bind_assoc, pure_bind, Bool.true_eq_false, ↓reduceIte]
-  refine evalDist_ext fun y => ?_
-  refine probOutput_bind_congr fun p _ => ?_
-  refine probOutput_bind_congr fun q _ => ?_
-  refine (probOutput_bind_congr fun k1 _ => (probOutput_bind_congr fun e _ =>
-    probOutput_bind_bind_swap _ _ _ _).trans (probOutput_bind_bind_swap _ _ _ _)).trans ?_
-  refine (probOutput_bind_bind_swap _ _ _ _).trans ?_
-  refine (probOutput_bind_congr fun k1 _ => probOutput_bind_bind_swap _ _ _ _).symm.trans ?_
-  rfl
+  refine EvalDistEq.bind_right _ fun _ => EvalDistEq.bind_right _ fun k => ?_
+  -- Reorder the four draws `g, e, d, h` of the real side into `h, e, g, d`, the simulated order.
+  refine (EvalDistEq.bind_right _ fun _ => EvalDistEq.bind_right _ fun (e : C × K) =>
+    OracleComp.EvalDistEq.bind_bind_swap (total.decapsTotal k.1.2 e.1) kem.keygen _).trans ?_
+  refine (EvalDistEq.bind_right _ fun _ =>
+    OracleComp.EvalDistEq.bind_bind_swap (kem.encaps k.1.1) kem.keygen _).trans ?_
+  refine (OracleComp.EvalDistEq.bind_bind_swap kem.keygen kem.keygen _).trans ?_
+  exact EvalDistEq.bind_right _ fun _ =>
+    OracleComp.EvalDistEq.bind_bind_swap kem.keygen (kem.encaps k.1.1) _
 
-/-- As `evalDist_ctxtSimDistB`, with the roles of `A` and `B` swapped. -/
-theorem evalDist_ctxtSimDistA (par : Unit) :
-    𝒟[(scheme kem total).ctxtSimDistA (ratchetSimulator kem total kemLeak) par true] =
-      𝒟[(scheme kem total).ctxtSimDistA (ratchetSimulator kem total kemLeak) par false] :=
-  evalDist_ctxtSimDistB kem total kemLeak par
+/-- As `evalDistEq_ctxtSimDistB`, with the roles of `A` and `B` swapped. -/
+theorem evalDistEq_ctxtSimDistA (par : Unit) :
+    (scheme kem total).ctxtSimDistA (ratchetSimulator kem total kemLeak) par true =ᵈ
+      (scheme kem total).ctxtSimDistA (ratchetSimulator kem total kemLeak) par false :=
+  evalDistEq_ctxtSimDistB kem total kemLeak par
 
 /-- **Theorem A.2** ([TripleRatchet]) of the RKEM-from-KEM construction: it is perfectly
 (`ε = 0`) ratchet simulatable (Def. 5.5) with respect to `randLeak`, witnessed by the simulators
@@ -226,10 +223,10 @@ theorem RatchetSimulatable (kem : KEMScheme ProbComp K PK SK C) (total : TotalDe
     (scheme kem total).RatchetSimulatable (leak := randLeak kem total kemLeak) 0
 -- ANCHOR_END: RatchetSimulatable
     :=
-  RKEMScheme.ratchetSimulatable_zero_of_evalDist_eq _ (ratchetSimulator kem total kemLeak)
-    (evalDist_keyBaseSimDistA kem total kemLeak) (evalDist_keyBaseSimDistB kem total kemLeak)
-    (evalDist_keyUpdSimDistA kem total kemLeak) (evalDist_keyUpdSimDistB kem total kemLeak)
-    (evalDist_ctxtSimDistA kem total kemLeak) (evalDist_ctxtSimDistB kem total kemLeak)
+  RKEMScheme.ratchetSimulatable_zero_of_evalDistEq _ (ratchetSimulator kem total kemLeak)
+    (evalDistEq_keyBaseSimDistA kem total kemLeak) (evalDistEq_keyBaseSimDistB kem total kemLeak)
+    (evalDistEq_keyUpdSimDistA kem total kemLeak) (evalDistEq_keyUpdSimDistB kem total kemLeak)
+    (evalDistEq_ctxtSimDistA kem total kemLeak) (evalDistEq_ctxtSimDistB kem total kemLeak)
 
 end Simulatability
 

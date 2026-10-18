@@ -138,8 +138,6 @@ open LatticeCrypto
 
 namespace MLKEM
 
-instance : NeZero modulus := by unfold modulus; exact ⟨by decide⟩
-
 variable {params : Params}
 variable (ring : NTTRingOps) (encoding : Encoding params)
   (prims : Primitives params encoding)

@@ -344,9 +344,9 @@ theorem honestPrefixDecoder_reachable [DecidableEq Sym]
   | 0 => Reachable.empty
   | t + 1 => by
       by_cases h : t ∈ delivered
-      · rw [honestPrefixDecoder, if_pos h]
+      · rw [honestPrefixDecoder, ite_eq_left h]
         exact Reachable.addChunk (honestPrefixDecoder_reachable ecp payload delivered t)
-      · rw [honestPrefixDecoder, if_neg h]
+      · rw [honestPrefixDecoder, ite_eq_right h]
         exact honestPrefixDecoder_reachable ecp payload delivered t
 
 /-- Lossy honest prefix runs retain at most one stored symbol per index. -/

@@ -93,12 +93,12 @@ lemma recv_eq_recvSpec (role : Role) (kem : KEMScheme ProbComp K PK SK C) [Decid
   rw [recv]
   dsimp only
   by_cases hct : ρ.ack.ctRec = true <;> by_cases hek : ρ.ack.ekRec = true <;>
-    simp only [hct, hek, Bool.false_eq_true, if_true, if_false]
+    simp only [hct, hek, Bool.false_eq_true, ite_true, ite_false]
   all_goals by_cases hstale : ρ.tRes < st.req.reqEpoch <;>
-    simp only [hstale, if_true, if_false]
+    simp only [hstale, ite_true, ite_false]
   all_goals try rfl
   all_goals by_cases hadv : st.req.reqEpoch < ρ.tRes <;>
-    simp only [hadv, if_true, if_false]
+    simp only [hadv, ite_true, ite_false]
   all_goals
     cases hpk : (insertChunkAndDecode ecEk st.req.receivedChunks ρ.ch).2 <;>
     cases hctd : (insertChunkAndDecode ecCt st.req.receivedChunks ρ.ch).2 <;>
