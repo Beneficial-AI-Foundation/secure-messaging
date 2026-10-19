@@ -8,7 +8,6 @@ import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Game
 import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Relation
 import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Receive
 import SecureMessaging.SCKA.Security
-import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Send
 
 /-!
 # The stored source material
@@ -310,25 +309,13 @@ theorem sendB_pinned_support
   by_cases he : s.stB.t = e
   · cases hc0 : s.stB.ct0 with
     | none =>
-      have honpk : ∀ pk, s.stB.ekA = some pk →
-          m.on.1 ∈ support (onoff.encapsOn m.off.1.1 pk) := by
-        intro pk hp
-        obtain ⟨sk, ht, hpA, hdA⟩ := oppUniKemCKA.Reduction.Internal.newOff_source_shape
-          base onoff ecEk ecCt0 ecCt1 s hs pk hp hc0
-        have h := (hsrc.1 (ht.trans he) (by simp [hdA])).1
-        have heq : pk = m.keygen.1.1 := Option.some.inj (hpA.symm.trans h)
-        simpa only [heq] using hon
-      simp only [sendB, hc0, Pinned.onOff, Pinned.encapsOff, he, decide_true,
-        ↓reduceIte, pure_bind] at hout
-      simp only [sendB, hc0, pure_bind, mem_support_bind_iff]
-      refine ⟨m.off.1, hoff, ?_⟩
-      cases hp : s.stB.ekA <;> cases hc1 : s.stB.ct1 <;> cases ha : s.stB.ack.ctRec
-      all_goals
-        simp only [hp, hc1, ha, Bool.not_false, Bool.not_true, Bool.false_eq_true,
-          ↓reduceIte, pure_bind, Pinned.encapsOn, he] at hout ⊢
-        first
-        | exact hout
-        | exact (mem_support_bind_iff _ _ _).mpr ⟨m.on.1, honpk _ hp, hout⟩
+      obtain ⟨T, hT⟩ := hs
+      have hack := hT.ctRecB_eq_false_of_ct0_eq_none hc0
+      simp only [sendB, hc0, hack, Bool.not_false, Pinned.onOff, Pinned.encapsOff,
+        he, decide_true, ↓reduceIte, pure_bind] at hout
+      simp only [sendB, hc0, hack, he, Bool.not_false, ↓reduceIte, pure_bind,
+        mem_support_bind_iff]
+      exact ⟨m.off.1, hoff, hout⟩
     | some ct0 =>
       simp only [sendB, hc0, pure_bind] at hout ⊢
       cases hp : s.stB.ekA <;> cases hc1 : s.stB.ct1 <;>
@@ -343,12 +330,27 @@ theorem sendB_pinned_support
           apply (mem_support_bind_iff _ _ _).mpr
           refine ⟨m.on.1, ?_, hout⟩
           simpa only [hinputs.1, hinputs.2] using hon
-  · cases hc0 : s.stB.ct0 <;> cases hp : s.stB.ekA <;>
-      cases hc1 : s.stB.ct1 <;> cases hst : s.stB.stCt <;> cases ha : s.stB.ack.ctRec
-    all_goals
-      simpa only [sendB, hc0, hp, hc1, hst, ha, pure_bind,
-        Pinned.onOff, Pinned.encapsOff, Pinned.encapsOn, he, decide_false,
-        Bool.not_false, Bool.not_true, Bool.false_eq_true, ↓reduceIte] using hout
+  · cases hc0 : s.stB.ct0 with
+    | none =>
+      obtain ⟨T, hT⟩ := hs
+      have hack := hT.ctRecB_eq_false_of_ct0_eq_none hc0
+      simpa only [sendB, hc0, hack, Bool.not_false, pure_bind,
+        Pinned.onOff, Pinned.encapsOff, he, decide_false, Bool.false_eq_true,
+        ↓reduceIte] using hout
+    | some ct0 =>
+      cases ha : s.stB.ack.ctRec
+      all_goals
+        simp only [sendB, hc0, ha, Bool.not_false, Bool.not_true, Bool.false_eq_true,
+          ↓reduceIte, pure_bind, Pinned.onOff, Pinned.encapsOn, he, decide_false] at hout ⊢
+        first
+        | exact hout
+        | cases hp : s.stB.ekA <;> simp only [hp] at hout ⊢
+          all_goals first
+          | exact hout
+          | cases hc1 : s.stB.ct1 <;> simp only [hc1] at hout ⊢
+            all_goals first
+            | exact hout
+            | cases hst : s.stB.stCt <;> simpa only [hst] using hout
 
 /-- Fix supported material and an honest state. Every response/state pair
 of the pinned A-send oracle is supported by the original A-send oracle,
@@ -367,14 +369,9 @@ theorem oracleSendA_pinned_support [DecidableEq K] [DecidableEq Sym]
       ((SCKAScheme.oracleSendA (honestScheme ecEk ecCt0 ecCt1 m e s) ()).run s)) :
     z ∈ support
       ((SCKAScheme.oracleSendA (scheme base onoff hDet ecEk ecCt0 ecCt1 leak) ()).run s) := by
-  simp only [SCKAScheme.oracleSendA, StateT.run_bind, StateT.run_get,
-    StateT.run_monadLift, monadLift_self, bind_assoc, pure_bind,
-    mem_support_bind_iff] at hz ⊢
+  rw [SCKAScheme.mem_support_oracleSendA_run_iff] at hz ⊢
   obtain ⟨out, hout, hz⟩ := hz
-  refine ⟨out, sendA_pinned_support base onoff ecEk leak m hm e s out hout, ?_⟩
-  cases out with
-  | none => exact hz
-  | some out => rcases out with ⟨key, msg, t, next⟩; cases key <;> exact hz
+  exact ⟨out, sendA_pinned_support base onoff ecEk leak m hm e s out hout, hz⟩
 
 /-- Fix supported material and a transcript-consistent state satisfying
 `pinnedSources m e`. Every response/state pair of the pinned B-send oracle
@@ -394,14 +391,9 @@ theorem oracleSendB_pinned_support [DecidableEq K] [DecidableEq Sym]
       ((SCKAScheme.oracleSendB (honestScheme ecEk ecCt0 ecCt1 m e s) ()).run s)) :
     z ∈ support
       ((SCKAScheme.oracleSendB (scheme base onoff hDet ecEk ecCt0 ecCt1 leak) ()).run s) := by
-  simp only [SCKAScheme.oracleSendB, StateT.run_bind, StateT.run_get,
-    StateT.run_monadLift, monadLift_self, bind_assoc, pure_bind,
-    mem_support_bind_iff] at hz ⊢
+  rw [SCKAScheme.mem_support_oracleSendB_run_iff] at hz ⊢
   obtain ⟨out, hout, hz⟩ := hz
-  refine ⟨out, sendB_pinned_support base onoff ecEk ecCt0 ecCt1 leak
-    m hm e s hs hsrc out hout, ?_⟩
-  cases out with
-  | none => exact hz
-  | some out => rcases out with ⟨key, msg, t, next⟩; cases key <;> exact hz
+  exact ⟨out, sendB_pinned_support base onoff ecEk ecCt0 ecCt1 leak
+    m hm e s hs hsrc out hout, hz⟩
 
 end oppUniKemCKA.Security.Embedding

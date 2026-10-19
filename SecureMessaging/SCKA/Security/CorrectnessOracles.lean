@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.Defs
+import SecureMessaging.SCKA.Correctness
 
 /-!
 # State preservation by correctness queries
@@ -48,28 +48,24 @@ theorem correctnessImpl_securitySets_eq
     (hz : z ∈ support ((sckaCorrectnessImpl scka t).run s)) :
     z.2.exposed = s.exposed ∧ z.2.challenged = s.challenged := by
   rcases t with ((((n | u) | u) | n) | n)
-  · have hz' : ∃ r, (r, s) = z := by
-      simpa [sckaCorrectnessImpl, oracleUnif] using hz
-    obtain ⟨_, rfl⟩ := hz'
+  · rw [mem_support_oracleUnif_run n s z hz]
     exact ⟨rfl, rfl⟩
-  all_goals
-    simp only [sckaCorrectnessImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      oracleSendA, oracleSendB, oracleRecvA, oracleRecvB,
-      StateT.run_bind, StateT.run_get, StateT.run_monadLift, monadLift_self,
-      bind_assoc, pure_bind] at hz
-  all_goals
-    first
-    | rw [mem_support_bind_iff] at hz
-      obtain ⟨out, _, hz⟩ := hz
-    | skip
-  all_goals
-    try dsimp only at hz
-    repeat' split at hz
-  all_goals
-    simp only [StateT.run_bind, StateT.run_set, pure_bind, StateT.run_pure,
-      mem_support_pure_iff] at hz
-    obtain rfl := hz
-    exact ⟨rfl, rfl⟩
+  · cases u
+    obtain ⟨out, _, rfl⟩ := (mem_support_oracleSendA_run_iff scka s z).mp hz
+    rcases out with _ | ⟨_ | ⟨_, _⟩, _, _, _⟩ <;> exact ⟨rfl, rfl⟩
+  · cases u
+    obtain ⟨out, _, rfl⟩ := (mem_support_oracleSendB_run_iff scka s z).mp hz
+    rcases out with _ | ⟨_ | ⟨_, _⟩, _, _, _⟩ <;> exact ⟨rfl, rfl⟩
+  · rcases (mem_support_oracleRecvA_run_iff scka s n z).mp hz with
+      ⟨_, rfl⟩ | ⟨_, _, _, _, rfl⟩ | ⟨_, _, key, _, _, _, _, rfl⟩
+    · exact ⟨rfl, rfl⟩
+    · exact ⟨rfl, rfl⟩
+    · rcases key with _ | ⟨_, _⟩ <;> exact ⟨rfl, rfl⟩
+  · rcases (mem_support_oracleRecvB_run_iff scka s n z).mp hz with
+      ⟨_, rfl⟩ | ⟨_, _, _, _, rfl⟩ | ⟨_, _, key, _, _, _, _, rfl⟩
+    · exact ⟨rfl, rfl⟩
+    · exact ⟨rfl, rfl⟩
+    · rcases key with _ | ⟨_, _⟩ <;> exact ⟨rfl, rfl⟩
 
 /-- A correctness query satisfies `s'.nA ≤ s.nA + 1` if it is a send query and
 `s'.nA ≤ s.nA` otherwise. -/
@@ -80,29 +76,26 @@ theorem correctnessImpl_nA_step
     (hz : z ∈ support ((sckaCorrectnessImpl scka t).run s)) :
     z.2.nA ≤ s.nA + if isSendQuery t then 1 else 0 := by
   rcases t with ((((n | u) | u) | n) | n)
-  · have hz' : ∃ r, (r, s) = z := by
-      simpa [sckaCorrectnessImpl, oracleUnif] using hz
-    obtain ⟨_, rfl⟩ := hz'
-    simp [isSendQuery]
-  all_goals
-    simp only [sckaCorrectnessImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      oracleSendA, oracleSendB, oracleRecvA, oracleRecvB,
-      StateT.run_bind, StateT.run_get, StateT.run_monadLift, monadLift_self,
-      bind_assoc, pure_bind] at hz
-  all_goals
-    first
-    | rw [mem_support_bind_iff] at hz
-      obtain ⟨out, _, hz⟩ := hz
-    | skip
-  all_goals
-    try dsimp only at hz
-    repeat' split at hz
-  all_goals
-    simp only [StateT.run_bind, StateT.run_set, pure_bind, StateT.run_pure,
-      mem_support_pure_iff] at hz
-    obtain rfl := hz
-    try cases u
-    simp [isSendQuery]
+  · rw [mem_support_oracleUnif_run n s z hz]
+    exact Nat.le_refl _
+  · cases u
+    obtain ⟨out, _, rfl⟩ := (mem_support_oracleSendA_run_iff scka s z).mp hz
+    rcases out with _ | ⟨key, _, _, _⟩
+    · exact Nat.le_succ _
+    · rcases key with _ | ⟨_, _⟩ <;> exact Nat.le_refl _
+  · cases u
+    obtain ⟨out, _, rfl⟩ := (mem_support_oracleSendB_run_iff scka s z).mp hz
+    rcases out with _ | ⟨_ | ⟨_, _⟩, _, _, _⟩ <;> exact Nat.le_succ _
+  · rcases (mem_support_oracleRecvA_run_iff scka s n z).mp hz with
+      ⟨_, rfl⟩ | ⟨_, _, _, _, rfl⟩ | ⟨_, _, key, _, _, _, _, rfl⟩
+    · exact Nat.le_refl _
+    · exact Nat.le_refl _
+    · rcases key with _ | ⟨_, _⟩ <;> exact Nat.le_refl _
+  · rcases (mem_support_oracleRecvB_run_iff scka s n z).mp hz with
+      ⟨_, rfl⟩ | ⟨_, _, _, _, rfl⟩ | ⟨_, _, key, _, _, _, _, rfl⟩
+    · exact Nat.le_refl _
+    · exact Nat.le_refl _
+    · rcases key with _ | ⟨_, _⟩ <;> exact Nat.le_refl _
 
 /-- Let `P : StA → StB → Prop` hold at `s`. If every supported successful local send and
 successful local receive from `s` preserves `P`, every correctness-query successor from `s`
@@ -123,84 +116,28 @@ theorem correctnessImpl_preserves_localInv_at
     (hz : z ∈ support ((sckaCorrectnessImpl scka t).run s)) :
     P z.2.stA z.2.stB := by
   rcases t with ((((n | u) | u) | n) | n)
-  · have hz' : ∃ r, (r, s) = z := by
-      simpa [sckaCorrectnessImpl, oracleUnif] using hz
-    obtain ⟨_, rfl⟩ := hz'
+  · rw [mem_support_oracleUnif_run n s z hz]
     exact hs
   · cases u
-    simp only [sckaCorrectnessImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      oracleSendA, StateT.run_bind, StateT.run_get, StateT.run_monadLift, monadLift_self,
-      bind_assoc, pure_bind, mem_support_bind_iff] at hz
-    obtain ⟨out, hout, hz⟩ := hz
-    cases out with
-    | none => simpa using (mem_support_pure_iff _ _).mp hz ▸ hs
-    | some out =>
-      rcases out with ⟨key, msg, epoch, next⟩
-      have hnext := hsa key msg epoch next hout
-      cases key <;>
-        simp only [StateT.run_bind, StateT.run_set, pure_bind,
-          StateT.run_pure, mem_support_pure_iff] at hz
-      all_goals obtain rfl := hz; exact hnext
+    obtain ⟨out, hout, rfl⟩ := (mem_support_oracleSendA_run_iff scka s z).mp hz
+    rcases out with _ | ⟨key, msg, epoch, next⟩
+    · exact hs
+    · rcases key with _ | ⟨_, _⟩ <;> exact hsa _ msg epoch next hout
   · cases u
-    simp only [sckaCorrectnessImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      oracleSendB, StateT.run_bind, StateT.run_get, StateT.run_monadLift, monadLift_self,
-      bind_assoc, pure_bind, mem_support_bind_iff] at hz
-    obtain ⟨out, hout, hz⟩ := hz
-    cases out with
-    | none => simpa using (mem_support_pure_iff _ _).mp hz ▸ hs
-    | some out =>
-      rcases out with ⟨key, msg, epoch, next⟩
-      have hnext := hsb key msg epoch next hout
-      cases key <;>
-        simp only [StateT.run_bind, StateT.run_set, pure_bind,
-          StateT.run_pure, mem_support_pure_iff] at hz
-      all_goals obtain rfl := hz; exact hnext
-  · simp only [sckaCorrectnessImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      oracleRecvA, StateT.run_bind, StateT.run_get, pure_bind] at hz
-    cases hm : s.msgB n with
-    | none =>
-      simp only [hm, StateT.run_pure, mem_support_pure_iff] at hz
-      obtain rfl := hz
-      exact hs
-    | some entry =>
-      rcases entry with ⟨msg, epoch⟩
-      simp only [hm] at hz
-      cases hr : scka.recvA s.stA msg with
-      | none =>
-        simp only [hr, StateT.run_bind, StateT.run_set, pure_bind,
-          StateT.run_pure, mem_support_pure_iff] at hz
-        obtain rfl := hz
-        exact hs
-      | some out =>
-        rcases out with ⟨key, t, next⟩
-        have hnext := hra msg key t next hr
-        cases key <;>
-          simp only [hr, StateT.run_bind, StateT.run_set, pure_bind,
-            StateT.run_pure, mem_support_pure_iff] at hz
-        all_goals obtain rfl := hz; exact hnext
-  · simp only [sckaCorrectnessImpl, QueryImpl.add_apply_inr,
-      oracleRecvB, StateT.run_bind, StateT.run_get, pure_bind] at hz
-    cases hm : s.msgA n with
-    | none =>
-      simp only [hm, StateT.run_pure, mem_support_pure_iff] at hz
-      obtain rfl := hz
-      exact hs
-    | some entry =>
-      rcases entry with ⟨msg, epoch⟩
-      simp only [hm] at hz
-      cases hr : scka.recvB s.stB msg with
-      | none =>
-        simp only [hr, StateT.run_bind, StateT.run_set, pure_bind,
-          StateT.run_pure, mem_support_pure_iff] at hz
-        obtain rfl := hz
-        exact hs
-      | some out =>
-        rcases out with ⟨key, t, next⟩
-        have hnext := hrb msg key t next hr
-        cases key <;>
-          simp only [hr, StateT.run_bind, StateT.run_set, pure_bind,
-            StateT.run_pure, mem_support_pure_iff] at hz
-        all_goals obtain rfl := hz; exact hnext
+    obtain ⟨out, hout, rfl⟩ := (mem_support_oracleSendB_run_iff scka s z).mp hz
+    rcases out with _ | ⟨key, msg, epoch, next⟩
+    · exact hs
+    · rcases key with _ | ⟨_, _⟩ <;> exact hsb _ msg epoch next hout
+  · rcases (mem_support_oracleRecvA_run_iff scka s n z).mp hz with
+      ⟨_, rfl⟩ | ⟨_, _, _, _, rfl⟩ | ⟨msg, _, key, epoch, next, _, hr, rfl⟩
+    · exact hs
+    · exact hs
+    · rcases key with _ | ⟨_, _⟩ <;> exact hra msg _ epoch next hr
+  · rcases (mem_support_oracleRecvB_run_iff scka s n z).mp hz with
+      ⟨_, rfl⟩ | ⟨_, _, _, _, rfl⟩ | ⟨msg, _, key, epoch, next, _, hr, rfl⟩
+    · exact hs
+    · exact hs
+    · rcases key with _ | ⟨_, _⟩ <;> exact hrb msg _ epoch next hr
 
 /-- Let `P` be a predicate on key tables `ℕ → Option I` with `P s.keyB`. Assume that
 `P (Function.update s.keyB tI (some key))` holds for every epoch key `(tI, key)` that a possible
@@ -221,81 +158,29 @@ theorem correctnessImpl_preserves_keyBInv_at
     (hz : z ∈ support ((sckaCorrectnessImpl scka t).run s)) :
     P z.2.keyB := by
   rcases t with ((((n | u) | u) | n) | n)
-  · have hz' : ∃ r, (r, s) = z := by
-      simpa [sckaCorrectnessImpl, oracleUnif] using hz
-    obtain ⟨_, rfl⟩ := hz'
+  · rw [mem_support_oracleUnif_run n s z hz]
     exact hs
   · cases u
-    simp only [sckaCorrectnessImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      oracleSendA, StateT.run_bind, StateT.run_get, StateT.run_monadLift, monadLift_self,
-      bind_assoc, pure_bind, mem_support_bind_iff] at hz
-    obtain ⟨out, _, hz⟩ := hz
-    cases out with
-    | none => simpa using (mem_support_pure_iff _ _).mp hz ▸ hs
-    | some out =>
-      rcases out with ⟨key, msg, epoch, next⟩
-      cases key <;>
-        simp only [StateT.run_bind, StateT.run_set, pure_bind,
-          StateT.run_pure, mem_support_pure_iff] at hz
-      all_goals obtain rfl := hz; exact hs
+    obtain ⟨out, _, rfl⟩ := (mem_support_oracleSendA_run_iff scka s z).mp hz
+    rcases out with _ | ⟨_ | ⟨_, _⟩, _, _, _⟩ <;> exact hs
   · cases u
-    simp only [sckaCorrectnessImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      oracleSendB, StateT.run_bind, StateT.run_get, StateT.run_monadLift, monadLift_self,
-      bind_assoc, pure_bind, mem_support_bind_iff] at hz
-    obtain ⟨out, hout, hz⟩ := hz
-    cases out with
-    | none => simpa using (mem_support_pure_iff _ _).mp hz ▸ hs
-    | some out =>
-      rcases out with ⟨key, msg, epoch, next⟩
-      cases key with
-      | none =>
-        simp only [StateT.run_bind, StateT.run_set, pure_bind,
-          StateT.run_pure, mem_support_pure_iff] at hz
-        obtain rfl := hz
-        exact hs
-      | some key =>
-        rcases key with ⟨tI, key⟩
-        simp only [StateT.run_bind, StateT.run_set, pure_bind,
-          StateT.run_pure, mem_support_pure_iff] at hz
-        obtain rfl := hz
-        exact hsb tI key msg epoch next hout
-  · simp only [sckaCorrectnessImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      oracleRecvA, StateT.run_bind, StateT.run_get, pure_bind] at hz
-    repeat' split at hz
-    all_goals
-      simp only [StateT.run_bind, StateT.run_set, pure_bind,
-        StateT.run_pure, mem_support_pure_iff] at hz
-      obtain rfl := hz
-      exact hs
-  · simp only [sckaCorrectnessImpl, QueryImpl.add_apply_inr,
-      oracleRecvB, StateT.run_bind, StateT.run_get, pure_bind] at hz
-    cases hm : s.msgA n with
-    | none =>
-      simp only [hm, StateT.run_pure, mem_support_pure_iff] at hz
-      obtain rfl := hz
-      exact hs
-    | some entry =>
-      rcases entry with ⟨msg, epoch⟩
-      simp only [hm] at hz
-      cases hr : scka.recvB s.stB msg with
-      | none =>
-        simp only [hr, StateT.run_bind, StateT.run_set, pure_bind,
-          StateT.run_pure, mem_support_pure_iff] at hz
-        obtain rfl := hz
-        exact hs
-      | some out =>
-        rcases out with ⟨key, trcv, next⟩
-        cases key with
-        | none =>
-          simp only [hr, StateT.run_bind, StateT.run_set, pure_bind,
-            StateT.run_pure, mem_support_pure_iff] at hz
-          obtain rfl := hz
-          exact hs
-        | some key =>
-          rcases key with ⟨tI, key⟩
-          simp only [hr, StateT.run_bind, StateT.run_set, pure_bind,
-            StateT.run_pure, mem_support_pure_iff] at hz
-          obtain rfl := hz
-          exact hrb msg tI key trcv next hr
+    obtain ⟨out, hout, rfl⟩ := (mem_support_oracleSendB_run_iff scka s z).mp hz
+    rcases out with _ | ⟨key, msg, epoch, next⟩
+    · exact hs
+    · rcases key with _ | ⟨tI, key⟩
+      · exact hs
+      · exact hsb tI key msg epoch next hout
+  · rcases (mem_support_oracleRecvA_run_iff scka s n z).mp hz with
+      ⟨_, rfl⟩ | ⟨_, _, _, _, rfl⟩ | ⟨_, _, key, _, _, _, _, rfl⟩
+    · exact hs
+    · exact hs
+    · rcases key with _ | ⟨_, _⟩ <;> exact hs
+  · rcases (mem_support_oracleRecvB_run_iff scka s n z).mp hz with
+      ⟨_, rfl⟩ | ⟨_, _, _, _, rfl⟩ | ⟨msg, _, key, epoch, next, _, hr, rfl⟩
+    · exact hs
+    · exact hs
+    · rcases key with _ | ⟨tI, key⟩
+      · exact hs
+      · exact hrb msg tI key epoch next hr
 
 end SCKAScheme

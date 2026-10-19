@@ -241,13 +241,8 @@ theorem honestCorrectness_preserves_reachableInv
         (SCKAScheme.oracleRecvA (schemeWithDecaps base onoff hDet ecEk ecCt0 ecCt1 leak
           (fun _ _ => s.keyB s.stA.t)) n).run s
       simp only [SCKAScheme.oracleRecvA, StateT.run_bind, StateT.run_get, pure_bind]
-      cases hm : s.msgB n with
-      | none => simp only
-      | some entry =>
-        rcases entry with ⟨msg, t⟩
-        simp only
-        rw [honest_recvA_eq_ideal base onoff ecEk ecCt0 ecCt1 leak m e s msg]
-        rfl
+      simp_rw [honest_recvA_eq_ideal base onoff ecEk ecCt0 ecCt1 leak m e s]
+      rfl
     exact heq ▸ hz
   · exact oracleRecvB_preserves_reachableInv base onoff hDet ecEk hEk ecEk.ec.nchunk_pos
       ecCt0 ecCt1 leak n s hs z hz

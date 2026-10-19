@@ -392,6 +392,40 @@ lemma TranscriptConsistent.keyB_zero
     (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s) : s.keyB 0 = none := by
   simp [hInv.keyB, EpochTranscript.key, hInv.zeroOn]
 
+omit [DecidableEq Sym] in
+/-- In a transcript-consistent state, if B has no offline ciphertext, its
+offline-ciphertext acknowledgment is false. -/
+lemma TranscriptConsistent.ctRecB_eq_false_of_ct0_eq_none
+    {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
+    {ecEk : ErasureCodePayload PK Sym}
+    {ecCt0 : ErasureCodePayload onoff.C₀ Sym}
+    {ecCt1 : ErasureCodePayload onoff.C₁ Sym}
+    {T : Transcript kem onoff}
+    {s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)}
+    (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
+    (hct0 : s.stB.ct0 = none) : s.stB.ack.ctRec = false := by
+  cases hack : s.stB.ack.ctRec with
+  | false => rfl
+  | true =>
+    have hstnone : s.stB.stCt = none := by
+      simpa [hct0] using hInv.offBShape
+    have hoffnone : (T s.stB.t).off = none := by
+      simpa [hct0, hstnone] using hInv.offB
+    have honnone : (T s.stB.t).on = none := by
+      by_contra hn
+      simpa [hoffnone] using (T s.stB.t).on_off
+        (Option.isSome_iff_ne_none.mpr hn)
+    have htEq : s.stA.t = s.stB.t := by
+      have hnlt : ¬ s.stB.t < s.stA.t := by
+        intro hlt
+        have hcomplete := hInv.pastComplete s.stB.t hInv.epochPosB hlt
+        simp [EpochTranscript.key, honnone] at hcomplete
+      exact Nat.le_antisymm (Nat.le_of_not_gt hnlt) hInv.epochs.1
+    obtain ⟨ct0A, hct0A⟩ := Option.isSome_iff_exists.mp
+      (hInv.ct0Ack.2.2.1 hack htEq.symm)
+    obtain ⟨stA, hoffA⟩ := hInv.decodedCt0 ct0A hct0A
+    simp [htEq, hoffnone] at hoffA
+
 /-- The preserved game-state invariant: `s` is consistent with some execution
 transcript `T`. -/
 def reachableInv
