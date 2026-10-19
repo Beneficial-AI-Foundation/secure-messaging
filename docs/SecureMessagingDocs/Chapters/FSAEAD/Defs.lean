@@ -29,9 +29,6 @@ set_option pp.rawOnError true
 - {Informal.citet ACD19}[] — FS-AEAD syntax (Definition 14), security game (Figure 5)
   and security (Definition 15).
 
-The memory-management functions $`\mathsf{FS\text{-}Stop}` and $`\mathsf{FS\text{-}Max}`
-of ACD19 §4.2.1 are left out, as ACD19 gives them no formal requirement.
-
 :::group "fs_aead"
 Forward-Secure AEAD (FS-AEAD).
 :::
@@ -52,11 +49,27 @@ where
   $`e`, and produces a new state, an index and a message
   $`(v', i, m) \gets \mathsf{FS\text{-}Rcv}(v, a, e)`.
 
-All algorithms are deterministic.
+All algorithms are deterministic. The scheme also has the memory-management functions of
+ACD19 §4.2.1:
 
-Deviation (D1): Definition 14 does not say what $`\mathsf{FS\text{-}Rcv}` returns on
-rejection. Here a rejecting $`\mathsf{FS\text{-}Rcv}` returns no state and no index, so
-the receiver keeps its old state.
+- $`\mathsf{FS\text{-}Stop}` takes a sender state $`v` and outputs the number of
+  messages sent with it, $`\ell \gets \mathsf{FS\text{-}Stop}(v)`,
+- $`\mathsf{FS\text{-}Max}` takes a receiver state $`v` and the number $`\ell` of
+  messages that the sender sent in this session, and stores $`\ell` in the state,
+  $`v' \gets \mathsf{FS\text{-}Max}(v, \ell)`.
+
+ACD19 gives these two functions no formal requirement, and the game has no oracle for
+them. In ACD19 both also erase the session from memory. Here the caller drops the state.
+§4.2.1 says that $`\mathsf{FS\text{-}Stop}` outputs how many messages have been received.
+But Figure 8 calls it on the sender state of the previous sending epoch, and §5 calls its
+output the number of messages sent. This definition follows Figure 8.
+
+Rejection convention: a rejecting $`\mathsf{FS\text{-}Rcv}` returns $`\bot`, with no
+state and no index, so the receiver keeps its old state. Definition 14 does not say what
+$`\mathsf{FS\text{-}Rcv}` returns on rejection. The convention follows §4.2.2, which
+describes the construction of Figure 6: "If decryption fails, FS-Rcv throws an exception
+(error), which causes the state to be rolled back to where it was before the call to
+FS-Rcv". The oracle that called $`\mathsf{FS\text{-}Rcv}` then continues.
 
 ```anchor FSAEADScheme (project := ".") (module := SecureMessaging.FSAEAD.Defs)
 structure FSAEADScheme (K SS SR AD M C : Type) where
@@ -66,9 +79,16 @@ structure FSAEADScheme (K SS SR AD M C : Type) where
   initR : K → SR
   /-- `FS-Send(v, a, m) = (v', e)`. -/
   send : SS → AD → M → SS × C
-  /-- `FS-Rcv(v, a, e) = (v', i, m)`, or `none` if `e` is rejected.
-  Deviation (D1): a rejection produces no new state and no index. -/
+  /-- `FS-Rcv(v, a, e) = (v', i, m)`, or `none` if `e` is rejected. A rejection produces
+  no new state and no index. -/
   rcv : SR → AD → C → Option (SR × ℕ × M)
+  /-- `ℓ ← FS-Stop(v)`: the number of messages sent with the sender state `v`. In ACD19,
+  `FS-Stop` also erases the session. Here the caller drops `v`. -/
+  stop : SS → ℕ
+  /-- `FS-Max(v, ℓ)`: store in the receiver state `v` the number `ℓ` of messages that the
+  sender sent in this session. In ACD19, the session is erased once `ℓ` messages are
+  received. This file does not state that requirement. -/
+  setMax : SR → ℕ → SR
 ```
 ::::
 
@@ -78,16 +98,29 @@ structure FSAEADScheme (K SS SR AD M C : Type) where
 :::::::definition "fs_aead_security" (parent := "fs_aead") (lean := "FSAEADScheme.GameState, FSAEADScheme.GameState.isCompromised, FSAEADScheme.securityExp, FSAEADScheme.fsaeadSecurityImpl, FSAEADScheme.advantage") (tags := "gh-187") (uses := "fs_aead_scheme")
 Adapted from {Informal.citet ACD19}[], Figure 5 and Definition 15.
 
-ACD19 Figure 5 is changed in five places. D2 and D4 fix errors. The boxes below print
+ACD19 Figure 5 is changed in two places, and both fix errors. The boxes below print
 Figure 5 and frame each change, labelled with its number:
 
-- (D1) A rejecting $`\mathsf{FS\text{-}Rcv}` returns $`\bot`: no state and no index.
-- (D2) A rejected $`\OInjectB` deletes no record.
-- (D3) A rejected $`\ODeliverB` is a win but leaves the records alone.
-- (D4) Once A is corrupted, indices A has not sent yet also count as compromised. If an
+- (D1) A rejected $`\OInjectB` deletes no record. Under Definition 14, a rejection can
+  still report an index, and Figure 5 then deletes the record of an honest ciphertext.
+- (D2) Once A is corrupted, indices A has not sent yet also count as compromised. If an
   injection consumes such an index, A's later ciphertext for it is not recorded.
   Otherwise B would have to accept both, and no correct scheme meets the game.
-- (D5) The advantage is half that of ACD19 §2.1.
+
+These conventions are not boxed:
+
+- A rejected $`\ODeliverB` gives no $`(i', m')`. It counts as a win and leaves the
+  records alone. $`\mathsf{won}` never returns to false. The game continues to run
+  after a win, but the result stays a win.
+- $`\mathsf{req}` is an explicit $`\pif \ldots \Return \bot` at the start of the
+  oracle. Every oracle also returns $`\bot` once the game has ended.
+- $`\mathsf{chall}` holds indices, so Figure 5's $`(i, m) \in \mathsf{chall}` is
+  written $`i \in \mathsf{chall}`. Indices are unique per record.
+- $`\mathsf{findFirstRecord}(a, e)` is the record $`(i, a, m, e)` in
+  $`\mathsf{trans}` with the smallest $`i`, or $`\bot`. Figure 5 takes such a record
+  "for some $`i, m`".
+- The advantage is half that of ACD19 §2.1, as in the other guess advantages of this
+  project.
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Game state}" (kind := "scheme-notation")
@@ -99,15 +132,15 @@ The game state consists of:
     * $`v_\A`, $`v_\B`: the states of A and B.
     * $`i_\A`: the number of messages A has sent.
     * $`\mathsf{corrA}`: whether A has been corrupted.
-    * $`\mathsf{won}`: whether a $`\mathsf{win}` instruction was reached.
-    * $`\mathsf{ended}`: whether $`\mathsf{end}` was reached.
+    * $`\mathsf{won}`: whether the adversary reached a winning condition.
+    * $`\mathsf{ended}`: whether $`\OCorrB` ended the game.
   *
     * $`\mathsf{trans}`: the records $`(i, a, m, e)` of ciphertexts in transit.
     * $`\mathsf{chall} \subseteq \mathbb N`: the indices of challenge ciphertexts in
       transit.
     * $`\mathsf{comp} \subseteq \mathbb N`: the indices of ciphertexts in transit that A
       sent while corrupted.
-    * $`\mathsf{preempted} \subseteq \mathbb N`: (D4) the indices that an injection
+    * $`\mathsf{preempted} \subseteq \mathbb N`: (D2) the indices that an injection
       consumed before A sent them.
 ::::
 
@@ -115,7 +148,7 @@ An index $`i` is compromised if
 
 $$`\mathsf{compromised}(i) :\Leftrightarrow i \in \mathsf{comp} \;\vee\; \boxed{\mathsf{corrA} \wedge i > i_\A \wedge i \notin \mathsf{preempted}}`
 
-where the boxed part is (D4).
+where the boxed part is (D2).
 
 :::leanPillCaption "Game state"
 :::
@@ -133,7 +166,7 @@ structure GameState (SS SR AD M C : Type) where
   /-- Set by `corr-B`, after which every oracle except the uniform-randomness oracle
   returns `none`. -/
   ended : Bool
-  /-- Set when a `win` instruction is reached. -/
+  /-- Whether the adversary reached a winning condition. -/
   won : Bool
   /-- Ciphertexts in transit, as records `(i, a, m, e)`. -/
   trans : List (ℕ × AD × M × C)
@@ -142,7 +175,7 @@ structure GameState (SS SR AD M C : Type) where
   /-- Indices of ciphertexts in transit that A sent while corrupted. -/
   comp : Finset ℕ
   /-- Indices that an injection consumed before A sent them.
-  Deviation (D4): not in Figure 5. -/
+  Deviation (D2): not in Figure 5. -/
   preempted : Finset ℕ
 ```
 
@@ -173,6 +206,7 @@ abbrev fsaeadSpec (SS SR AD M C : Type) :=
 ::::::gameGrid
 :::::gameCell "\\OTransmitA(a, m)" (kind := "compact")
 $`\begin{array}{l}
+\pif\;\mathsf{ended}\;\pthen\;\Return \bot; \\
 i_\A{+}{+}; \\
 (v_\A, e) \gets \mathsf{FS\text{-}Send}(v_\A, a, m); \\
 \mathsf{record}(\mathsf{good}, a, m, e); \\
@@ -193,11 +227,16 @@ def oracleTransmitA (fs : FSAEADScheme K SS SR AD M C) :
 
 :::::gameCell "\\ODeliverB(a, e)" (kind := "compact")
 $`\begin{array}{l}
-\req (i, a, m, e) \in \mathsf{trans}\ \text{for some}\ i, m; \\
-\pcommentline{\text{the first such record}} \\
-\boxed{\pif\;\mathsf{FS\text{-}Rcv}(v_\B, a, e) = \bot\;\pthen\;\mathsf{win}; \Return \bot;}\pcomment{\text{D3}} \\
-(v_\B, i', m') \gets \mathsf{FS\text{-}Rcv}(v_\B, a, e); \\
-\pif\;(i', m') \neq (i, m)\;\pthen\;\mathsf{win}; \\
+\pif\;\mathsf{ended}\;\pthen\;\Return \bot; \\
+t \gets \mathsf{findFirstRecord}(a, e); \\
+\pif\;t = \bot\;\pthen\;\Return \bot; \\
+(i, \_, m, \_) \gets t; \\
+r \gets \mathsf{FS\text{-}Rcv}(v_\B, a, e); \\
+\pcommentline{\text{correctness failure: B rejects a ciphertext in transit}} \\
+\pif\;r = \bot\;\pthen\;\mathsf{won} \gets \mathsf{true}; \Return \bot; \\
+(v_\B, i', m') \gets r; \\
+\pcommentline{\text{correctness failure: B returns another index or message}} \\
+\pif\;(i', m') \neq (i, m)\;\pthen\;\mathsf{won} \gets \mathsf{true}; \\
 \pif\;i \in \mathsf{chall}\;\pthen\;m' \gets \bot; \\
 \mathsf{delete}(i); \\
 \Return (i', m')
@@ -224,7 +263,7 @@ def oracleDeliverB [DecidableEq AD] [DecidableEq M] [DecidableEq C]
 
 :::::gameCell "\\OChallA(a, m_0, m_1)" (kind := "compact")
 $`\begin{array}{l}
-\req \neg\mathsf{corrA} \wedge |m_0| = |m_1|; \\
+\pif\;\mathsf{ended} \vee \mathsf{corrA} \vee |m_0| \neq |m_1|\;\pthen\;\Return \bot; \\
 i_\A{+}{+}; \\
 (v_\A, e) \gets \mathsf{FS\text{-}Send}(v_\A, a, m_b); \\
 \mathsf{record}(\mathsf{chall}, a, m_b, e); \\
@@ -246,11 +285,13 @@ def oracleChallA (fs : FSAEADScheme K SS SR AD M C) (len : M → ℕ) (b : Bool)
 
 :::::gameCell "\\OInjectB(a, e)" (kind := "compact")
 $`\begin{array}{l}
-\req (a, e) \notin \mathsf{trans}; \\
-\boxed{\pif\;\mathsf{FS\text{-}Rcv}(v_\B, a, e) = \bot\;\pthen\;\Return \bot;}\pcomment{\text{D2}} \\
-(v_\B, i', m') \gets \mathsf{FS\text{-}Rcv}(v_\B, a, e); \\
-\pif\;m' \neq \bot \wedge i' \notin \mathsf{comp} \\
-\quad \wedge\, \boxed{\neg(\mathsf{corrA} \wedge i' > i_\A \wedge i' \notin \mathsf{preempted})}\;\pthen\;\mathsf{win};\;\pcommentline{\text{D4}} \\
+\pif\;\mathsf{ended} \vee (\exists i, m: (i, a, m, e) \in \mathsf{trans})\;\pthen\;\Return \bot; \\
+r \gets \mathsf{FS\text{-}Rcv}(v_\B, a, e); \\
+\boxed{\pif\;r = \bot\;\pthen\;\Return \bot;}\pcomment{\text{D1}} \\
+(v_\B, i', m') \gets r; \\
+\pcommentline{\text{authenticity failure: forgery at an unexposed index}} \\
+\pif\;\neg\mathsf{compromised}(i')\;\pthen\;\mathsf{won} \gets \mathsf{true}; \\
+\boxed{\pif\;i' > i_\A\;\pthen\;\mathsf{preempted} \gets \mathsf{preempted} \cup \{i'\};}\pcomment{\text{D2}} \\
 \mathsf{delete}(i'); \\
 \Return (i', m')
 \end{array}`
@@ -263,13 +304,15 @@ def oracleInjectB [DecidableEq AD] [DecidableEq C] (fs : FSAEADScheme K SS SR AD
     if st.ended || (st.findTrans a e).isSome then return none
     let some (vB, i', m') := fs.rcv st.vB a e | return none
     let won := st.won || !st.isCompromised i'
-    set ({ st with vB, won }.delete i')
+    let preempted := if st.iA < i' then insert i' st.preempted else st.preempted
+    set ({ st with vB, won, preempted }.delete i')
     return some (i', m')
 ```
 :::::
 
 :::::gameCell "\\OCorrA" (kind := "compact")
 $`\begin{array}{l}
+\pif\;\mathsf{ended}\;\pthen\;\Return \bot; \\
 \mathsf{corrA} \gets \mathsf{true}; \\
 \Return v_\A
 \end{array}`
@@ -287,8 +330,8 @@ def oracleCorrA (SS SR AD M C : Type) :
 
 :::::gameCell "\\OCorrB" (kind := "compact")
 $`\begin{array}{l}
-\req \mathsf{chall} = \emptyset; \\
-\mathsf{end}; \\
+\pif\;\mathsf{ended} \vee \mathsf{chall} \neq \emptyset\;\pthen\;\Return \bot; \\
+\mathsf{ended} \gets \mathsf{true}; \\
 \Return (v_\A, v_\B)
 \end{array}`
 
@@ -305,7 +348,7 @@ def oracleCorrB (SS SR AD M C : Type) :
 
 :::::gameCell "\\mathsf{record}(\\mathit{flag}, a, m, e)" (kind := "compact")
 $`\begin{array}{l}
-\boxed{\pif\;i_\A \in \mathsf{preempted}\;\pthen\;\Return;}\pcomment{\text{D4}} \\
+\boxed{\pif\;i_\A \in \mathsf{preempted}\;\pthen\;\Return;}\pcomment{\text{D2}} \\
 \mathsf{trans} \gets \mathsf{trans} \cup \{(i_\A, a, m, e)\}; \\
 \pif\;\mathsf{corrA}\;\pthen\;\mathsf{comp} \gets \mathsf{comp} \cup \{i_\A\}; \\
 \pif\;\mathit{flag} = \mathsf{chall}\;\pthen\;\mathsf{chall} \gets \mathsf{chall} \cup \{i_\A\}
@@ -325,8 +368,7 @@ def record (st : GameState SS SR AD M C) (isChall : Bool) (a : AD) (m : M) (e : 
 :::::gameCell "\\mathsf{delete}(i)" (kind := "compact")
 $`\begin{array}{l}
 \mathsf{trans} \gets \mathsf{trans} \setminus \{(i, \cdot, \cdot, \cdot)\}; \\
-\mathsf{chall}, \mathsf{comp} \gets \mathsf{chall} \setminus \{i\}, \mathsf{comp} \setminus \{i\}; \\
-\boxed{\pif\;i > i_\A\;\pthen\;\mathsf{preempted} \gets \mathsf{preempted} \cup \{i\}}\pcomment{\text{D4}}
+\mathsf{chall}, \mathsf{comp} \gets \mathsf{chall} \setminus \{i\}, \mathsf{comp} \setminus \{i\}
 \end{array}`
 
 ```anchor gameStateDelete (project := ".") (module := SecureMessaging.FSAEAD.Defs)
@@ -334,22 +376,22 @@ def delete (st : GameState SS SR AD M C) (i : ℕ) : GameState SS SR AD M C :=
   { st with
     trans := st.trans.filter (·.1 ≠ i)
     chall := st.chall.erase i
-    comp := st.comp.erase i
-    preempted := if st.iA < i then insert i st.preempted else st.preempted }
+    comp := st.comp.erase i }
 ```
 :::::
 ::::::
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Example run of this game}" (kind := "scheme")
-This run uses the game above, with D2 and D4. Whether the adversary wins depends on
+This run uses the game above, with D1 and D2. Whether the adversary wins depends on
 what is still in transit and on when A was corrupted. A rejected forgery leaves the
-honest message 1 in transit (D2). After $`\OCorrA` at $`i_\A = 2`, A cannot send a
+honest message 1 in transit (D1). After $`\OCorrA` at $`i_\A = 2`, A cannot send a
 challenge, and a forgery for index 3, which A has not sent yet, is accepted without a
-win (D4).
+win (D2).
 
-In Figure 5 as printed, the forgery for index 3 is a win. The rejected forgery can also
-delete record 1, and then the game refuses the late delivery of $`e_1`.
+In Figure 5 as printed, the forgery for index 3 is a win. Under Definition 14, a
+rejection can still report an index. The rejected forgery can then delete record 1, and
+the game refuses the late delivery of $`e_1`.
 
 Black arrows are honest ciphertexts. Red arrows are under the adversary's control. An X
 marks a call that the game refuses.
@@ -368,12 +410,12 @@ k \sample \mathcal K;\quad v_\A \gets \mathsf{FS\text{-}Init\text{-}S}(k);\quad 
 i_\A \gets 0; \\
 \mathsf{corrA} \gets \mathsf{false}; \\
 \mathsf{trans}, \mathsf{chall}, \mathsf{comp} \gets \emptyset; \\
-\boxed{\mathsf{preempted} \gets \emptyset;}\pcomment{\text{D4}} \\
-\pcommentline{\text{Not in Figure 5: they encode }\mathsf{win}\text{ and }\mathsf{end}} \\
+\boxed{\mathsf{preempted} \gets \emptyset;}\pcomment{\text{D2}} \\
+\pcommentline{\mathsf{won}\text{ and }\mathsf{ended}\text{ stand for the §2.1 keywords }\mathsf{win}\text{ and }\mathsf{end}} \\
 \mathsf{won}, \mathsf{ended} \gets \mathsf{false}; \\
 \pcommentline{\text{Sample the challenge bit and run the adversary}} \\
 b \sample \bit;\quad b' \gets \adv^{\O}; \\
-\pcommentline{\text{Win by a win instruction or by guessing } b} \\
+\pcommentline{\text{Win by a winning condition or by guessing } b} \\
 \Return(\mathsf{won} \vee b'=b)
 \end{array}`
 
@@ -413,6 +455,9 @@ The advantage of $`\adv` is
 
 $$`\mathsf{Adv}^{\textsf{fs-aead}}_{\textsf{FS-AEAD}}(\adv)
   = \Bigl|\, \Pr\bigl[\Exp{\textsf{fs-aead}}{\textsf{FS-AEAD}}(\adv) = 1\bigr] - \tfrac{1}{2} \,\Bigr|`
+
+ACD19 §2.1 multiplies this advantage by 2. The guess advantages of this project leave the
+factor out.
 
 ```anchor advantage (project := ".") (module := SecureMessaging.FSAEAD.Defs)
 noncomputable def advantage [SampleableType K] [DecidableEq AD] [DecidableEq M]

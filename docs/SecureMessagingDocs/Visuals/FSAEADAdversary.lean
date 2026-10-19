@@ -94,18 +94,18 @@ private def fsaeadAdversarySvg : String := r##"
     <text x="520" y="666">returns (1, <tspan class="fa-math">m</tspan>)</text>
   </g>
 
-  <!-- A rejected forgery deletes no record (D2), so message 1 still counts as honest. -->
+  <!-- A rejected forgery deletes no record (D1), so message 1 still counts as honest. -->
   <path class="fa-control" d="M470 550 H707"/>
   <g class="fa-text" text-anchor="middle">
     <text class="fa-red fa-math" x="560" y="539">e*</text>
-    <text class="fa-red fa-small" x="505" y="576">rejected: record 1 kept (D2)</text>
+    <text class="fa-red fa-small" x="505" y="576">rejected: record 1 kept (D1)</text>
   </g>
 
-  <!-- Corrupting A compromises every index A has not sent yet (D4). -->
+  <!-- Corrupting A compromises every index A has not sent yet (D2). -->
   <path class="fa-control" d="M178 730 H450"/>
   <g class="fa-text" text-anchor="middle">
     <text class="fa-red" x="335" y="718">v<tspan baseline-shift="sub" font-size="13">A</tspan></text>
-    <text class="fa-red fa-small" x="450" y="756">corrA = true: unsent indices compromised (D4)</text>
+    <text class="fa-red fa-small" x="450" y="756">corrA = true: unsent indices compromised (D2)</text>
   </g>
 
   <!-- As in Figure 5, A cannot send a challenge while corrupted. -->
@@ -113,11 +113,11 @@ private def fsaeadAdversarySvg : String := r##"
   <path class="fa-cross" d="M266 805 L278 821 M278 805 L266 821"/>
   <text class="fa-text fa-red fa-small" x="435" y="818">refused: A corrupted</text>
 
-  <!-- A forgery for a compromised index is accepted and is not a win (D4). -->
+  <!-- A forgery for a compromised index is accepted and is not a win (D2). -->
   <path class="fa-control" d="M470 910 H707"/>
   <g class="fa-text" text-anchor="middle">
     <text class="fa-red fa-small" x="560" y="898"><tspan class="fa-math">e₃</tspan> from <tspan class="fa-math">v</tspan><tspan baseline-shift="sub" font-size="12">A</tspan></text>
-    <text class="fa-red fa-small" x="450" y="938">accepts (3, <tspan class="fa-math">m₃</tspan>): 3 not sent yet, no win (D4)</text>
+    <text class="fa-red fa-small" x="450" y="938">accepts (3, <tspan class="fa-math">m₃</tspan>): 3 not sent yet, no win (D2)</text>
   </g>
 
   <!-- Red oracle wrappers enclose the black scheme algorithms. -->
