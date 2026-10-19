@@ -1,0 +1,16 @@
+{"version": "1.2.0",
+ "packagesDir": ".lake/packages",
+ "packages":
+ [{"url": "https://github.com/BobDyLean/dylean",
+   "type": "git",
+   "subDir": null,
+   "scope": "",
+   "rev": "d58f33b8d2d8dee121072afa9094bdb5bdf44ef6",
+   "name": "dylean",
+   "manifestFile": "lake-manifest.json",
+   "inputRev": "d58f33b8d2d8dee121072afa9094bdb5bdf44ef6",
+   "inherited": false,
+   "configFile": "lakefile.toml"}],
+ "name": "dyleanExamples",
+ "lakeDir": ".lake",
+ "fixedToolchain": false}

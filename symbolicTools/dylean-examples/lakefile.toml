@@ -1,0 +1,13 @@
+# DYLean examples: a separate Lake project with its own toolchain,
+# independent of the SecureMessaging project at the repository root.
+name = "dyleanExamples"
+defaultTargets = ["DYLeanExamples"]
+
+# The DYLean library, pinned to the commit the examples were developed and checked against.
+[[require]]
+name = "dylean"
+git = "https://github.com/BobDyLean/dylean"
+rev = "d58f33b8d2d8dee121072afa9094bdb5bdf44ef6"
+
+[[lean_lib]]
+name = "DYLeanExamples"

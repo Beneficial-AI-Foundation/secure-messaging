@@ -1,0 +1,14 @@
+# LeanDY examples: a separate Lake project with its own toolchain,
+# independent of the SecureMessaging project at the repository root.
+name = "leandyExamples"
+defaultTargets = ["LeanDYExamples"]
+
+# The LeanDY library, pinned to the commit the examples were developed and checked against.
+# Its own dependencies (Mathlib, ...) are pinned by LeanDY's manifest.
+[[require]]
+name = "leandy"
+git = "https://github.com/SecPriv/leandy"
+rev = "e0705986c5dea547848bf80c10b5c4f88ae6868c"
+
+[[lean_lib]]
+name = "LeanDYExamples"

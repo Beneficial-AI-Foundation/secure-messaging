@@ -1,0 +1,1263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DYLean SimpleAuth workshop</title>
+<style>
+
+:root { --bg:#f5f6f9; --ink:#17213a; --muted:#5c6680; --accent:#24539a; --line:#d8deea; --soft:#e6ebf4; --code:#16213a; --codeink:#e8eefb; --head:#18294a; }
+* { box-sizing:border-box; } html { scroll-behavior:smooth; }
+body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.7 system-ui,sans-serif; }
+header { padding:62px max(24px,calc((100vw - 1200px)/2)); background:var(--head); color:white; }
+header p { max-width:780px; color:#d7e0f2; } .kicker { font-size:12px; letter-spacing:.15em; text-transform:uppercase; }
+h1 { font:700 clamp(36px,5vw,62px)/1.1 Georgia,serif; margin:12px 0; max-width:930px; }
+.layout { max-width:1250px; margin:auto; padding:35px 24px 80px; display:grid; grid-template-columns:235px minmax(0,1fr); gap:38px; }
+nav { position:sticky; top:20px; align-self:start; max-height:94vh; overflow:auto; font-size:13px; }
+nav a { display:block; padding:6px 8px; text-decoration:none; border-left:2px solid var(--line); }
+a { color:var(--accent); text-underline-offset:3px; } section { margin-bottom:62px; scroll-margin-top:25px; min-width:0; }
+h2 { font:700 30px/1.25 Georgia,serif; border-top:3px solid var(--accent); padding-top:20px; }
+h3 { font:700 19px/1.3 Georgia,serif; margin:28px 0 6px; }
+p { margin:14px 0; } .lead { font-size:20px; } code { font: .88em/1.6 ui-monospace,Consolas,monospace; overflow-wrap:anywhere; }
+p code,li code,td code,summary code { background:var(--soft); padding:2px 4px; border-radius:3px; }
+figure { margin:22px 0; } figcaption { font-size:12px; background:#e1e7f1; padding:9px 13px; border-radius:8px 8px 0 0; }
+pre { margin:0 0 20px; padding:18px; background:var(--code); color:var(--codeink); overflow:auto; border-radius:0 0 8px 8px; line-height:1.6; }
+pre code { white-space:pre; overflow-wrap:normal; } table { border-collapse:collapse; width:100%; background:white; margin:20px 0; font-size:14px; }
+th,td { text-align:left; padding:12px; border:1px solid var(--line); vertical-align:top; } th { background:var(--soft); }
+.tablewrap { overflow-x:auto; }
+aside { padding:16px 20px; margin:22px 0; border-left:4px solid var(--accent); background:#e9eef7; }
+aside p { margin:7px 0 0; } .note { border-color:#b37c24; background:#faf0d9; }
+.verified { border-color:#2f7d4f; background:#e5f3ea; }
+.pair { display:grid; grid-template-columns:1fr 1fr; gap:16px; } .pair figure { margin:12px 0; min-width:0; }
+details { margin:15px 0; padding:14px 18px; background:white; border:1px solid var(--line); border-radius:8px; }
+summary { cursor:pointer; font-weight:700; } .check { display:block; padding:10px 12px; background:white; border-bottom:1px solid var(--line); }
+.check input { margin-right:10px; accent-color:var(--accent); } li { margin-bottom:7px; }
+@media(max-width:850px) { .layout { display:block; padding:24px 16px; } nav { position:static; max-height:none; margin-bottom:35px; } header { padding:36px 22px; } .pair { grid-template-columns:1fr; } }
+@media print { nav { display:none; } .layout { display:block; } header { background:white; color:black; padding:20px; } header p { color:black; } pre { white-space:pre-wrap; } pre code { white-space:pre-wrap; } details { display:block; } }
+
+</style>
+</head>
+<body>
+<header>
+<div class="kicker">DYLean · a source-guided workshop</div>
+<h1>Build your protocol and its proofs</h1>
+<p>Learn the framework through SimpleAuth, ported from LeanDY: choose your primitives, write the protocol as programs, design labels and invariants, prove each step, and connect the proofs to every trace the attacker can produce.</p>
+<p>Companion to the LeanDY SimpleAuth workshop · DYLean d58f33b and LeanDY e0705986 · 16 October 2026</p>
+</header>
+<div class="layout">
+<nav aria-label="Tutorial chapters">
+<a href="#start">0. Begin with a precise goal</a>
+<a href="#setup">1. Set up the project and the reading map</a>
+<a href="#bytes">2. Choose your primitives, and add the missing one</a>
+<a href="#data">3. Define messages, states, events and their formats</a>
+<a href="#code">4. Write each protocol step as a program</a>
+<a href="#reach">5. Decide what the attacker can do</a>
+<a href="#sanity">6. Check honest execution before interpreting security</a>
+<a href="#labels">7. Assign labels and usages</a>
+<a href="#crypto">8. Define what valid ciphertexts mean</a>
+<a href="#state">9. Define state invariants, including compromise</a>
+<a href="#events">10. Turn your security goal into event invariants</a>
+<a href="#contract">11. Understand the proof contract before using tactics</a>
+<a href="#proof-start">12. Prove key setup and the first message</a>
+<a href="#proof-respond">13. Prove the responder: establishing the encryption invariant</a>
+<a href="#proof-finish">14. Prove the final step: decryption and monotonization</a>
+<a href="#theorem">15. Close the world and extract the theorem</a>
+<a href="#probe">16. Probe the property with an attack trace</a>
+<a href="#map">17. LeanDY ↔ DYLean, concept by concept</a>
+<a href="#beyond">18. Extend beyond what SimpleAuth demonstrates</a>
+<a href="#checklist">19. Your protocol-author checklist</a>
+<a href="#references">Source map and verification notes</a>
+</nav>
+<main>
+<section id="start">
+<h2>0. Begin with a precise goal</h2>
+<p class="lead">Your job is the same as in LeanDY: define what executions mean, choose an invariant strong enough to express your goal, and prove that every protocol step preserves it. What changes is <em>where</em> each of these lives. In DYLean, executions are the programs you write, run by an attacker who chooses their arguments.</p>
+<p>The message flow is the one from the LeanDY SimpleAuth example, plus an explicit key-setup step. DYLean has no global names, so the pre-shared key has to come from somewhere:</p>
+<div class="tablewrap"><table><tr><th>Step</th><th>DYLean function</th><th>Action</th><th>Output</th></tr>
+<tr><td>Setup</td><td><code>SharedKey.generate A B</code></td><td>Generate a fresh key SK(A,B); store one copy for A and one for B</td><td>two key states</td></tr>
+<tr><td>Initiator A</td><td><code>Initiator.start A B</code></td><td>Generate Na; log <code>Start A B Na</code>; remember the run</td><td>A → B: (A, B, Na)</td></tr>
+<tr><td>Responder B</td><td><code>Responder.respond A B</code></td><td>Check identities; encrypt a response</td><td>B → A: Enc((Na, A), SK(A,B))</td></tr>
+<tr><td>Initiator A</td><td><code>Initiator.finish A</code></td><td>Decrypt; check against the saved run</td><td>logs <code>Done A B Na</code></td></tr></table></div>
+<p>As in LeanDY, everything is symbolic: Na is a symbolic random value, and encryption builds an idealized term. The example states its security property twice, and proves each version on its own. The first version is LeanDY's statement word for word:</p>
+<div class="pair"><figure><figcaption>LeanDY example excerpt · <a href="leandy-examples/LeanDYExamples/SimpleAuth.lean">LeanDYExamples/SimpleAuth.lean:84–91</a></figcaption><pre><code>abbrev authentication (tr : 𝑇 Unit Nonce) : Prop :=
+  ∀ rk a b, (.Event $ .done a b rk) ∈ tr → (.Event $ .start a b rk) ∈ tr
+
+open BytesEq in
+theorem protocol_authentication (h: Crypto.valid_trace Γ tr) : authentication tr := by
+  intros rk a₁ b₁ hin
+  obtain ⟨a₂, b₂, rk₁, hfail, heq, hev⟩ := Crypto.valid_trace_mem _ _ _ h hin
+  grind</code></pre></figure>
+<figure><figcaption>Repository excerpt · <a href="dylean-examples/DYLeanExamples/SimpleAuth/SecurityTheorems.lean">DYLeanExamples/SimpleAuth/SecurityTheorems.lean:46–65</a></figcaption><pre><code>public
+theorem initiator_auth_literal
+  (a b: Participant)
+  (na: Bytes)
+  : ∀ tr: ExecTrace,
+    tr.Reachable reachability →
+    tr.EventLogged (SimpleAuthEvent.Done a b na) →
+    tr.EventLogged (SimpleAuthEvent.Start a b na)
+:= by
+  -- Reduce the statement on reachable (execution) traces
+  -- to a statement on proof traces satisfying the invariant.
+  apply Trace.apply_Reachable_implies_Invariant
+  intro tr h_trinv h_ev
+  -- The invariant of the `Done` event holds on the trace as it was when `Done` was logged
+  -- (this plays the role of LeanDY&#x27;s `valid_trace_mem`)...
+  obtain ⟨ i, h_inv ⟩ := Trace.EventLogged_imp_EventInv _ _ h_trinv h_ev
+  -- ... it says that `Start` was logged in that earlier trace...
+  simp [ProtocolEvent.EventInv.invariant] at h_inv
+  -- ... hence `Start` is also logged in the full trace (logged events stay logged).
+  grind</code></pre></figure>
+</div>
+<p>Read it literally. For every trace the attacker can produce (<code>tr.Reachable reachability</code>), if <code>Done a b na</code> is in the trace, then so is <code>Start a b na</code>. The two proofs have the same shape:</p>
+<ul><li>LeanDY's <code>valid_trace_mem</code> and DYLean's <code>EventLogged_imp_EventInv</code> both retrieve the invariant that the <code>done</code> event had to satisfy when it was logged.</li>
+<li>That invariant contains the matching start event, and <code>grind</code> finishes.</li>
+<li>The DYLean proof has one extra first step, <code>apply_Reachable_implies_Invariant</code>. It is there because of the one difference that remains: <strong>which traces</strong> the theorem talks about. LeanDY assumes <code>Crypto.valid_trace Γ tr</code>, a trace that already satisfies the invariant. DYLean quantifies over <em>reachable</em> traces: those produced by the protocol functions and the network, with arguments chosen by the attacker. The step from “reachable” to “satisfies the invariant” is a library theorem (section 15). In LeanDY it was left to the user.</li></ul>
+<p>The second version adds the order: <code>Start</code> was logged in the part of the trace <em>before</em> <code>Done</code>.</p>
+<figure><figcaption>Repository excerpt · <a href="dylean-examples/DYLeanExamples/SimpleAuth/SecurityTheorems.lean">DYLeanExamples/SimpleAuth/SecurityTheorems.lean:73–103</a></figcaption><pre><code>/--
+  For every reachable trace, if the initiator `a` logged `Done a b na` at time `time`,
+  then `Start a b na` was logged before `time`.
+  As in LeanDY, this holds unconditionally (no compromise clause),
+  because it only relies on the initiator&#x27;s own session state.
+-/
+public
+theorem initiator_auth
+  (a b: Participant)
+  (na: Bytes)
+  (time: Nat)
+  : ∀ tr: ExecTrace,
+    tr.Reachable reachability →
+    tr.EventLoggedAt (SimpleAuthEvent.Done a b na) time →
+    (tr.prefix time).EventLogged (SimpleAuthEvent.Start a b na)
+:= by
+  -- Reduce the statement on reachable (execution) traces
+  -- to a statement on proof traces satisfying the invariant.
+  apply Trace.apply_Reachable_implies_Invariant
+  intro tr h_trinv h_ev
+  -- The invariant of the `Done` event holds on the trace prefix before it was logged...
+  have := Trace.EventLoggedAt_imp_EventInv _ _ _ h_trinv h_ev
+  -- ... and this invariant is exactly the conclusion.
+  simp [ProtocolEvent.EventInv.invariant] at this
+  grind
+
+/--
+info: &#x27;DY.Example.SimpleAuth.initiator_auth&#x27; depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms initiator_auth</code></pre></figure>
+<h3>Why two versions</h3>
+<p>Each framework hands you the event's invariant on a different trace, and each theorem states what naturally comes out:</p>
+<figure><figcaption>LeanDY library excerpt · <a href="https://github.com/SecPriv/leandy/blob/e0705986c5dea547848bf80c10b5c4f88ae6868c/Leandy/Lib/Crypto.lean#L487">LeanDY · Leandy/Lib/Crypto.lean:487–487</a></figcaption><pre><code>lemma valid_trace_mem (h: valid_trace Γ tr) (h_mem: ev ∈ tr): valid_trace_event Γ ev tr := by</code></pre></figure>
+<figure><figcaption>DYLean library excerpt · <a href="https://github.com/BobDyLean/dylean/blob/d58f33b8d2d8dee121072afa9094bdb5bdf44ef6/DY/Actions/ProtocolEvent.lean#L161-L172">DYLean · DY/Actions/ProtocolEvent.lean:161–172</a></figcaption><pre><code>public
+theorem _root_.DY.Trace.EventLoggedAt_imp_EventInv
+  {EventT: Type}
+  [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
+  [EventInv EventT]
+  [ExecTraceTypes.Has (ExecEntryT EventT)] [ProofTraceTypes.Has (ProofEntryT EventT)] [TraceInvariant.Has (ProofEntryT EventT)]
+  (ev: EventT)
+  (i: Nat)
+  (tr: ProofTrace)
+  : tr.Invariant →
+    tr.erase.EventLoggedAt ev i →
+    EventInv.invariant (tr.prefix i) ev</code></pre></figure>
+<ul><li><strong>LeanDY.</strong> <code>valid_trace_mem</code> returns the event's validity on the <em>whole</em> trace <code>tr</code>. Its proof lifts the validity there by monotonicity, starting from the moment the event was logged. At that step the position is forgotten, so “start is somewhere in <code>tr</code>” is what you get.</li>
+<li><strong>DYLean.</strong> <code>EventLoggedAt_imp_EventInv</code> returns the invariant on <code>tr.prefix i</code>, the trace just before the event was logged. The order is still there, so “Start is in the prefix” is what you get. DYLean's own examples state their properties this way, e.g. SignedDH's <code>client_auth</code>.</li></ul>
+<p>Both frameworks check every event against the history before it, so LeanDY's invariant contains the order information too: LeanDY's theorem simply doesn't state it. The ordered version is strictly stronger. It rules out a <code>Start</code> that appears only after <code>Done</code>, which the membership version allows on paper. The membership version would follow from it in a few lines, but here it is proved directly, as in LeanDY.</p>
+<p><strong>Both are the same modest correspondence property.</strong> Neither says that B ran, that B produced the ciphertext, that a completion is unique, or that the protocol ever completes. As in LeanDY, there is no responder event from which such a statement could be built.</p>
+<aside class="note">Two facts in this port were <em>checked by compilation</em>, not just by reading the source. (1) The session-state invariant alone supplies the matching <code>Start</code>: a diagnostic variant of <code>Initiator.finish</code> that never receives or decrypts anything still passes its proof (section 14). (2) If B's key copy is compromised, the attacker can make A log <code>Done</code> although <code>Responder.respond</code> is never called, and that trace is proven reachable (section 16). Both theorems still hold in both cases.</aside>
+<aside class="task"><strong>For your own protocol</strong><p>Write your target property first. Decide whether you want local start-before-finish, peer participation, agreement on data, injective authentication or secrecy, and under which compromise conditions. In DYLean the compromise exceptions appear explicitly in the theorem statement (see SignedDH's <code>client_auth</code>), so decide which compromises your theorem tolerates.</p></aside>
+</section>
+<section id="setup">
+<h2>1. Set up the project and the reading map</h2>
+<p>This folder holds two independent Lake projects, one per framework, each with its own toolchain and its framework as a pinned git dependency:</p>
+<div class="tablewrap"><table><tr><th>Project</th><th>Toolchain</th><th>Depends on</th><th>Modules</th></tr>
+<tr><td><code>dylean-examples/</code></td><td><code>leanprover/lean4:v4.33.0</code></td><td>DYLean <code>d58f33b</code> (no further dependencies; the Comparse parsing library is part of DYLean)</td><td><code>DYLeanExamples.SimpleAuth.*</code></td></tr>
+<tr><td><code>leandy-examples/</code></td><td><code>leanprover/lean4:v4.24.0-rc1</code></td><td>LeanDY <code>e0705986</code>, and through it Mathlib</td><td><code>LeanDYExamples.SimpleAuth</code>, <code>LeanDYExamples.SimpleAuthDemo</code></td></tr></table></div>
+<p>Both are separate from the SecureMessaging project at the repository root, which uses Lean v4.33.1 and VCVio. The root <code>lakefile.toml</code> does not mention them, so the root build and CI do not compile them. Module names carry a prefix because both frameworks ship example libraries of their own. LeanDY's even contains an older <code>Protocols.SimpleAuth</code>.</p>
+<pre><code>cd symbolicTools/dylean-examples
+lake build                     # the DYLean library and the SimpleAuth port
+
+cd symbolicTools/leandy-examples
+lake exe cache get             # download prebuilt Mathlib (once)
+lake build
+lake env lean --run LeanDYExamples/SimpleAuthDemo.lean   # LeanDY's executable debug run</code></pre>
+<p>Every DYLean example has the same six-part layout, so learning it once pays off for <a href="https://github.com/BobDyLean/dylean/tree/d58f33b8d2d8dee121072afa9094bdb5bdf44ef6/Examples/SignedDH">SignedDH</a>, <a href="https://github.com/BobDyLean/dylean/tree/d58f33b8d2d8dee121072afa9094bdb5bdf44ef6/Examples/Ratchet">Ratchet</a> and the others in the DYLean repository:</p>
+<div class="tablewrap"><table><tr><th>File</th><th>What you write there</th><th>LeanDY counterpart</th></tr>
+<tr><td><a href="dylean-examples/DYLeanExamples/SimpleAuth/SymEnc.lean">SymEnc.lean</a></td><td>A new primitive: symmetric encryption (only needed because DYLean lacks it)</td><td>Built into <code>BytesEq</code> (<code>symenc</code>, <code>symdec</code>, normalizer γ)</td></tr>
+<tr><td><a href="dylean-examples/DYLeanExamples/SimpleAuth/Specification.lean">Specification.lean</a></td><td>Primitive selection, messages, states, events, wire formats, protocol code, reachability</td><td><code>Nonce</code>, <code>State</code>, <code>Event</code>, <code>derive_parsable</code>, the three exchanges</td></tr>
+<tr><td><a href="dylean-examples/DYLeanExamples/SimpleAuth/SanityChecks.lean">SanityChecks.lean</a></td><td>Executable runs and reachability proofs of honest and attack traces</td><td><a href="leandy-examples/LeanDYExamples/SimpleAuthDemo.lean">SimpleAuthDemo.lean</a></td></tr>
+<tr><td><a href="dylean-examples/DYLeanExamples/SimpleAuth/Proof.lean">Proof.lean</a></td><td>Labels, usages, crypto predicate, state and event invariants, one Hoare triple per step</td><td><code>Γ</code>, <code>CryptoPreds</code>, <code>HasValid</code>, <code>event_preds</code>, <code>valid_exchange</code> proofs</td></tr>
+<tr><td><a href="dylean-examples/DYLeanExamples/SimpleAuth/Instance.lean">Instance.lean</a></td><td>The concrete bytes, trace and invariant, assembled with <code>#combine</code></td><td>None: fixed by the library</td></tr>
+<tr><td><a href="dylean-examples/DYLeanExamples/SimpleAuth/SecurityTheorems.lean">SecurityTheorems.lean</a></td><td>The security theorems: LeanDY's statement word for word, and an ordered version</td><td><code>authentication</code>, <code>protocol_authentication</code></td></tr></table></div>
+<div class="tablewrap"><table><tr><th>You write</th><th>The library provides</th></tr>
+<tr><td>Which equational theories you use (and new ones if needed)</td><td>“À la carte” symbolic bytes; each theory brings its constructors, attacker rules and invariants</td></tr>
+<tr><td>Messages, states, events and their Comparse formats</td><td>Parsing and serialization with <code>parse (serialize x) = some x</code></td></tr>
+<tr><td>Protocol steps as <code>Traceful</code> programs, and the list of functions the attacker may call</td><td>The trace monad, actions (random, network, events, states, compromise), the reachability relation</td></tr>
+<tr><td>Labels, usages, crypto predicates, state and event invariants</td><td>The trace invariant built from them, and the proof that the attacker only learns publishable bytes</td></tr>
+<tr><td>One Hoare triple per protocol step (mostly with the <code>step</code> tactic)</td><td>Hoare triples for every action, the <code>step</code> tactic, induction over reachable traces</td></tr></table></div>
+<aside class="verified"><strong>Verified for this tutorial</strong><p>On 16 October 2026 both projects in this folder were built from a clean state: the DYLean project with Lean 4.33.0, library included, and the LeanDY project with Lean 4.24.0-rc1, the LeanDY library included, on prebuilt Mathlib. Neither produced errors, warnings or <code>sorry</code>. Every code block captioned as an excerpt was extracted by line range, by <code>tools/generate_dylean_tutorial.py</code>, when this page was generated: from this folder, or from the pinned library checkouts. Other blocks are labelled for what they are.</p></aside>
+<aside class="task"><strong>For your own protocol</strong><p>Start a new protocol by copying the six-file skeleton of the closest example. Most of <code>HasExecBytes</code>, <code>HasExecTrace</code>, <code>HasProofTrace</code>, <code>HasBytesInvariants</code>, <code>HasTraceInvariant</code> and <code>Instance.lean</code> is boilerplate (the upstream code says so), but each list must match exactly the components you use.</p></aside>
+</section>
+<section id="bytes">
+<h2>2. Choose your primitives, and add the missing one</h2>
+<p>LeanDY gives every protocol the same symbolic algebra <code>𝐵 α η</code>: a quotient of raw terms by a normalizer, with a distinguished <code>fail</code> value. DYLean builds <code>Bytes</code> à la carte. Each equational theory contributes one or more constructors, a length function, attacker rules and invariants. A protocol states which theories it needs:</p>
+<figure><figcaption>Repository excerpt · <a href="dylean-examples/DYLeanExamples/SimpleAuth/Specification.lean">DYLeanExamples/SimpleAuth/Specification.lean:61–76</a></figcaption><pre><code>class HasExecBytes where
+  [bytesFunc: BytesFunctor]
+  [bytesFunc0: BytesFunctor.Has Random.SubF]
+  [bytesFunc1: BytesFunctor.Has Literal.SubF]
+  [bytesFunc2: BytesFunctor.Has Concat.SubF]
+  [bytesFunc3: BytesFunctor.Has SymEnc.SubF]
+  [bytesLen: BytesLength]
+  [bytesLen0: BytesLength.Has Random.SubF.length]
+  [bytesLen1: BytesLength.Has Literal.SubF.length]
+  [bytesLen2: BytesLength.Has Concat.SubF.length]
+  [bytesLen3: BytesLength.Has SymEnc.SubF.length]
+  [att: AttackerKnowledge]
+  [att0: AttackerKnowledge.Has Random.attackerKnowledge]
+  [att1: AttackerKnowledge.Has Literal.attackerKnowledge]
+  [att2: AttackerKnowledge.Has Concat.attackerKnowledge]
+  [att3: AttackerKnowledge.Has SymEnc.attackerKnowledge]</code></pre></figure>
+<p>Each <code>BytesFunctor.Has X.SubF</code> means “bytes can be built with the constructors of theory X”. Each <code>AttackerKnowledge.Has</code> means “the attacker can use X's operations”. SimpleAuth needs random values (nonces and keys), literals and concatenation (Comparse serializes messages with them), and symmetric encryption.</p>
+<h3>The missing primitive</h3>
+<p>DYLean's standard library (<code>DY/EquationalTheory/</code>) has concatenation, literals, hashing, signatures, Diffie-Hellman and two KDFs, but no symmetric encryption. The port therefore adds it in the example folder, the same way <code>Examples/SignedDHKEM/KEM.lean</code> adds a KEM. The library itself is untouched.</p>
+<figure><figcaption>Repository excerpt · <a href="dylean-examples/DYLeanExamples/SimpleAuth/SymEnc.lean">DYLeanExamples/SimpleAuth/SymEnc.lean:35–37</a></figcaption><pre><code>class CanSymEnc (Bytes: Type u) where
+  symEnc: (key: Bytes) → (msg: Bytes) → Bytes
+  symDec: (key: Bytes) → (cipher: Bytes) → Err Bytes</code></pre></figure>
+<figure><figcaption>Repository excerpt · <a href="dylean-examples/DYLeanExamples/SimpleAuth/SymEnc.lean">DYLeanExamples/SimpleAuth/SymEnc.lean:106–144</a></figcaption><pre><code>/--
+  Encryption builds the symbolic term `Enc { key, msg }`.
+  Decryption is the destructor: it succeeds only on a ciphertext built with the same key.
+  This is the symbolic equation `symDec k (symEnc k m) = m`
+  (in LeanDY, the same equation is implemented by the normalizer `γ`).
+-/
+public
+instance: CanSymEnc Bytes where
+  symEnc key msg :=
+    ({key, msg}: Enc.SubF Bytes).pack
+
+  symDec key cipher :=
+    match cipher.view? Enc.SubF with
+    | some { key := key&#x27;, msg } =&gt;
+      if key = key&#x27; then
+        some msg
+      else
+        none
+    | none =&gt; none
+
+-- Functional correctness: decryption inverts encryption.
+public
+theorem symDec_symEnc
+  (key msg: Bytes)
+  : symDec key (symEnc key msg) = some msg
+:= by
+  simp only [symDec, symEnc]
+  grind
+
+-- Conversely, a successful decryption reveals how the ciphertext was built.
+public
+theorem symEnc_symDec
+  (key cipher msg: Bytes)
+  : symDec key cipher = some msg →
+    cipher = symEnc key msg
+:= by
+  simp only [symDec, symEnc]
+  have := Bytes.pack_view? Enc.SubF cipher
+  grind</code></pre></figure>
+<p><code>symEnc</code> builds the term <code>Enc { key, msg }</code>. <code>symDec</code> is the destructor: it looks inside a ciphertext (<code>view?</code>) and returns the plaintext only if the key matches. The equation <code>symDec k (symEnc k m) = some m</code> and its converse are proved directly, by <code>grind</code>.</p>
+<p>There is no <code>fail</code> byte: decryption returns <code>Err Bytes</code> (an <code>Option</code>), and failure is handled by the program, not stored in a term. This is why the LeanDY obligations of the form <code>na ≠ fail</code> have no counterpart here.</p>
+<h3>Attacker capabilities come with the primitive</h3>
+<figure><figcaption>Repository excerpt · <a href="dylean-examples/DYLeanExamples/SimpleAuth/SymEnc.lean">DYLeanExamples/SimpleAuth/SymEnc.lean:158–175</a></figcaption><pre><code>def symEnc.attackerKnowledge [BytesFunctor] [BytesFunctor.Has SubF]: SubAttackerKnowledge SubF where
+  pred p out :=
+    ∃ key msg,
+      out = symEnc key msg ∧
+      p key ∧
+      p msg
+
+public
+def symDec.attackerKnowledge [BytesFunctor] [BytesFunctor.Has SubF]: SubAttackerKnowledge SubF where
+  pred p out :=
+    ∃ key cipher,
+      symDec key cipher = some out ∧
+      p key ∧
+      p cipher
+
+#combine [BytesFunctor.Has SubF] into attackerKnowledge&#x27; from
+  symEnc,
+  symDec</code></pre></figure>
+<p>In LeanDY the attacker's deduction rules are one fixed relation. In DYLean each theory contributes rules: here, “encrypt anything you know with any key you know” and “decrypt anything you know with any key you know”. Base knowledge (what the attacker reads from the trace) comes from the trace entries: network messages are known, random values are not.</p>
+<details><summary>What else a new primitive must provide</summary><p><code>SymEnc.lean</code> mirrors <code>DY/EquationalTheory/Sign.lean</code> section by section: (1) constructors and destructor, (2) attacker rules, (3) the bytes invariant of ciphertexts (section 8), (4) Hoare triples so that the <code>step</code> tactic can execute <code>symEnc</code> and <code>symDec</code> (section 11), and (5) <code>SubAttackerKnowledgeTheorem</code> instances proving that each attacker rule turns publishable inputs into publishable outputs. Obligation (5) is what makes a primitive's invariant sound against the attacker: an invariant that is too generous to the attacker fails here.</p><p>Encryption is deterministic (no encryption randomness), like LeanDY's <code>symenc</code>. The ciphertext length is the plaintext length plus 16 bytes, but nothing in SimpleAuth depends on it.</p></details>
+<aside class="task"><strong>For your own protocol</strong><p>Look in <code>DY/EquationalTheory/</code> and in the examples before writing a primitive. If you must write one, copy the closest theory: <code>Hash.lean</code> for a single constructor without a destructor, <code>Sign.lean</code> or this <code>SymEnc.lean</code> for a keyed primitive with a destructor. Expect most of your effort to go into the invariant and the attacker-knowledge theorem, not the constructors.</p></aside>
+</section>
+<section id="data">
+<h2>3. Define messages, states, events and their formats</h2>
+<figure><figcaption>Repository excerpt · <a href="dylean-examples/DYLeanExamples/SimpleAuth/Specification.lean">DYLeanExamples/SimpleAuth/Specification.lean:100–144</a></figcaption><pre><code>/-- First message, A → B : A ⋅ B ⋅ Na. -/
+structure InitMessage where
+  a: Participant
+  b: Participant
+  na: Bytes
+
+/--
+  Plaintext of the second message, B → A : ⟨ Na ⋅ A ⟩_(SK A B).
+  The field order (nonce first, identity second) is the one used by both
+  the responder (encryption) and the initiator (decryption):
+  since both sides use the same Comparse format, they cannot disagree on it.
+-/
+structure ResponsePayload where
+  na: Bytes
+  a: Participant
+
+/--
+  The pre-shared symmetric key SK(A,B) between an initiator and a responder,
+  stored by both of them.
+  As in LeanDY, the key is indexed by the *ordered* pair (initiator, responder).
+-/
+structure SharedKeyState where
+  initiator: Participant
+  responder: Participant
+  key: Bytes
+
+/--
+  The initiator&#x27;s session state, LeanDY&#x27;s `State.Init a b na`.
+  The owner `a` is not stored: every DYLean local state is tagged with its owner.
+  There is no counterpart of LeanDY&#x27;s `State.Null`:
+  DYLean has no &quot;current state&quot; that a step must always overwrite.
+-/
+structure InitiatorState where
+  b: Participant
+  na: Bytes
+
+/--
+  Protocol events, LeanDY&#x27;s `Event.start` and `Event.done`.
+  LeanDY events are a string tag plus untyped content;
+  DYLean events are an ordinary (typed) inductive type.
+-/
+inductive SimpleAuthEvent where
+  | Start (a b: Participant) (na: Bytes)
+  | Done (a b: Participant) (na: Bytes)
+deriving DecidableEq</code></pre></figure>
+<p>Each message, plaintext and state is an ordinary Lean structure; each event is a constructor of one inductive type.</p>
+<div class="tablewrap"><table><tr><th>DYLean</th><th>LeanDY</th><th>Difference</th></tr>
+<tr><td><code>InitMessage {a, b, na}</code></td><td><code>[!(); a, b, na]</code></td><td>Named fields instead of nested tuples and projection paths</td></tr>
+<tr><td><code>ResponsePayload {na, a}</code></td><td><code>[!(); na, a']</code> / parsed as a pair</td><td>One structure is shared by the encrypting and the decrypting side</td></tr>
+<tr><td><code>SharedKeyState {initiator, responder, key}</code></td><td>none: <code>sk a b</code> is computed from the names</td><td>Keys are values that must be stored and loaded</td></tr>
+<tr><td><code>InitiatorState {b, na}</code></td><td><code>State.Init a b na</code></td><td>The owner <code>a</code> is implicit: every local state is tagged with its participant. There is no <code>Null</code> state.</td></tr>
+<tr><td><code>SimpleAuthEvent.Start / Done</code></td><td><code>Event.start / done</code>: a string tag plus symbolic content</td><td>Typed constructors instead of string tags</td></tr></table></div>
+<h3>Wire formats</h3>
+<figure><figcaption>Repository excerpt · <a href="dylean-examples/DYLeanExamples/SimpleAuth/Specification.lean">DYLeanExamples/SimpleAuth/Specification.lean:162–176</a></figcaption><pre><code>instance: ParseableSerializeable InitMessage := .make &lt;|
+  .triviallyIsomorphic
+    (.prod .slowString (.prod .slowString .bytes))
+    (fun ⟨ a, b, na ⟩ =&gt; { a, b, na })
+    (fun { a, b, na } =&gt; ⟨ a, b, na ⟩)
+
+public
+theorem InitMessage.IsWellFormed_eq
+  (pre: Bytes → τ → Prop) [BytesCompatibleTracePred pre] (x: InitMessage) (tr: τ):
+  IsWellFormed pre x tr = pre x.na tr
+:= by
+  simp [Comparse.IsWellFormed, Comparse.ParseableSerializeable.mf]
+
+grind_pattern InitMessage.IsWellFormed_eq =&gt; IsWellFormed pre x tr
+grind_pattern [grind_later] InitMessage.IsWellFormed_eq =&gt; IsWellFormed pre x tr</code></pre></figure>
+<p>Comparse formats are built from combinators. <code>.slowString</code> and <code>.slowBytes</code> are length-prefixed, so another field can follow them. <code>.string</code> and <code>.bytes</code> consume the rest of the input and can only come last. The library proves <code>parse (serialize x) = some x</code> and that serialization is injective for every such format.</p>
+<p>The <code>IsWellFormed_eq</code> lemma is the one thing you prove per format. A predicate (invariant, publishability, attacker knowledge, …) holds on the serialized message exactly when it holds on its <code>Bytes</code> fields. Participant names are serialized as literals, which are always public, so they drop out. The <code>grind_pattern</code> lines let automation use the lemma.</p>
+<aside class="note">The LeanDY workshop found, by inspection, a field-order mismatch between what LeanDY's responder encrypted (nonce, identity) and what <code>initiator_check</code> expected (identity, nonce). The LeanDY example in this folder contains the fix (commit <code>dd9753c</code>, LeanDY pull request #2: it now compares <code>(sna, expectedPrincipal)</code>). In this port both sides serialize and parse the <em>same</em> structure <code>ResponsePayload</code>, so they agree on field order by construction. They could still disagree if you accidentally used two different structures. The executable sanity check in section 6 would then fail.</aside>
+<aside class="task"><strong>For your own protocol</strong><p>Give each message, plaintext and state its own structure, even when it has a single field. Put length-prefixed formats first and at most one extensible format last. Copy the <code>IsWellFormed_eq</code> lemma and its two <code>grind_pattern</code> lines for each format. The proofs depend on them.</p></aside>
+</section>
+<section id="code">
+<h2>4. Write each protocol step as a program</h2>
+<figure><figcaption>Repository excerpt · <a href="dylean-examples/DYLeanExamples/SimpleAuth/Specification.lean">DYLeanExamples/SimpleAuth/Specification.lean:262–286</a></figcaption><pre><code>/--
+  Setup: generate a fresh symmetric key SK(initiator, responder)
+  and give a copy to each of the two participants.
+  This replaces LeanDY&#x27;s named key `sk a b := key (nonce (Nonce.Sk a b))`.
+  Returns the state handles of the initiator&#x27;s and responder&#x27;s copies.
+-/
+def SharedKey.generate (initiator responder: Participant): Traceful (Nat × Nat) := do
+  let key ← Random.genRand 32
+  let initiatorHandle ← PersistentLocalState.storeLocalState initiator ({ initiator, responder, key }: SharedKeyState)
+  let responderHandle ← PersistentLocalState.storeLocalState responder ({ initiator, responder, key }: SharedKeyState)
+  return (initiatorHandle, responderHandle)
+
+/--
+  A → B : A ⋅ B ⋅ Na  (LeanDY&#x27;s `initiator a b na`).
+  The nonce is freshly generated instead of being passed as an argument:
+  DYLean random values are trace entries, hence fresh by construction.
+  The event is logged *before* the state is stored, because the state invariant mentions it.
+  Returns the handles of the stored state and of the sent message.
+-/
+def Initiator.start (a b: Participant): Traceful (Nat × Nat) := do
+  let na ← Random.genRand 32
+  ProtocolEvent.logEvent (SimpleAuthEvent.Start a b na)
+  let stHandle ← PersistentLocalState.storeLocalState a ({ b, na }: InitiatorState)
+  let msgHandle ← Network.sendMessage (serialize ({ a, b, na }: InitMessage))
+  return (stHandle, msgHandle)</code></pre></figure>
+<figure><figcaption>Repository excerpt · <a href="dylean-examples/DYLeanExamples/SimpleAuth/Specification.lean">DYLeanExamples/SimpleAuth/Specification.lean:288–318</a></figcaption><pre><code>/--
+  B → A : ⟨ Na ⋅ A ⟩_(SK A B)  (LeanDY&#x27;s `responder a b`).
+  The responder `b` reads the first message, checks the identities it contains,
+  loads its copy of the shared key with `a`, and replies with an encryption of (Na, A).
+  As in LeanDY, the responder keeps no session state and logs no event.
+  `guard c` aborts the step when `c` is false: nothing more is appended to the trace.
+-/
+def Responder.respond (a b: Participant) (keyHandle msgHandle: Nat): Traceful Nat := do
+  let msgBytes ← Network.receiveMessage msgHandle
+  let msg: InitMessage ← parse msgBytes
+  guard (msg.a = a ∧ msg.b = b)
+  let keySt: SharedKeyState ← PersistentLocalState.getLocalState b keyHandle
+  guard (keySt.initiator = a ∧ keySt.responder = b)
+  let cipher := SymEnc.symEnc keySt.key (serialize ({ na := msg.na, a := msg.a }: ResponsePayload))
+  Network.sendMessage cipher
+
+/--
+  A: decrypt the response and check it against the stored session state
+  (LeanDY&#x27;s `initiator_check`).
+  The key is the initiator&#x27;s copy of SK(a, b), where `b` comes from the session state.
+  On success, `Done a b na` is logged.
+-/
+def Initiator.finish (a: Participant) (keyHandle stHandle msgHandle: Nat): Traceful Unit := do
+  let ({ b, na }: InitiatorState) ← PersistentLocalState.getLocalState a stHandle
+  let keySt: SharedKeyState ← PersistentLocalState.getLocalState a keyHandle
+  guard (keySt.initiator = a ∧ keySt.responder = b)
+  let cipher ← Network.receiveMessage msgHandle
+  let plaintext ← SymEnc.symDec keySt.key cipher
+  let payload: ResponsePayload ← parse plaintext
+  guard (payload.na = na ∧ payload.a = a)
+  ProtocolEvent.logEvent (SimpleAuthEvent.Done a b na)</code></pre></figure>
+<p>A DYLean protocol step is a program in the <code>Traceful</code> monad. Its definition is a function from the current trace to an optional result and a longer trace (<code>Traceful a := ExecTrace → Option a × {trOut // trIn ≤ trOut}</code>). The trace only ever grows: it is append-only. The actions used here are:</p>
+<ul><li><code>Random.genRand n</code> appends a random-generation entry and returns a fresh symbolic value. Freshness is by construction: the value is identified by its position in the trace. LeanDY's initiator instead received its nonce <code>n</code> as an argument and did not guarantee freshness.</li>
+<li><code>ProtocolEvent.logEvent ev</code> appends an event.</li>
+<li><code>PersistentLocalState.storeLocalState p st</code> appends a state owned by <code>p</code> and returns its <em>handle</em> (its position). <code>getLocalState p h</code> reads the state at handle <code>h</code> and fails unless it belongs to <code>p</code>.</li>
+<li><code>Network.sendMessage m</code> appends a message and returns its handle. <code>receiveMessage h</code> reads the message at handle <code>h</code>.</li>
+<li><code>parse</code> (from <code>Err</code>, lifted into <code>Traceful</code>) and <code>guard c</code> fail the step when parsing fails or <code>c</code> is false.</li></ul>
+<p>Compare with LeanDY, where an exchange is a pure function <code>(time, input, state) ↦ Atom {message, state, events, post_events}</code> and the generic <code>transition</code> performs receive, load, log, store and send in a fixed order. In DYLean you write that order yourself. The constraint is the same as LeanDY's “events before state”: <code>Initiator.start</code> logs <code>Start</code> <em>before</em> storing the state, because the state's invariant mentions that event (section 9).</p>
+<p>The handles play the role of LeanDY's <code>ChoiceFn</code>. Whoever calls <code>Responder.respond a b keyHandle msgHandle</code> chooses which message and which key state it reads. The caller is the attacker (section 5), so it can deliver any message to any session.</p>
+<details><summary>Failure is an abort, not a default value</summary><p>In LeanDY a failed check returns the default <code>Atom</code>: the transition still sends <code>fail</code> and stores the <code>Null</code> state. In DYLean a failed <code>guard</code>, <code>parse</code> or <code>symDec</code> stops the program. Entries appended before the failure stay in the trace and nothing after it happens. There is no <code>Null</code> state and no <code>fail</code> message.</p></details>
+<aside class="task"><strong>For your own protocol</strong><p>Write each role as straight-line code: load states and keys, receive and parse, check with <code>guard</code>, compute, log the events that later states or messages will need, store, send. Return the handles that the next step will need. Keep secrets in states and do not pass them as function arguments: arguments are chosen by the attacker.</p></aside>
+</section>
+<section id="reach">
+<h2>5. Decide what the attacker can do</h2>
+<figure><figcaption>Repository excerpt · <a href="dylean-examples/DYLeanExamples/SimpleAuth/Specification.lean">DYLeanExamples/SimpleAuth/Specification.lean:365–397</a></figcaption><pre><code>/-
+  Reachability: the set of traces we prove things about.
+  A trace is reachable if it is obtained from the empty trace by any sequence of calls
+  to the functions combined below, with arguments chosen by the attacker.
+  `Network` lets the attacker send any message it can derive.
+  This is DYLean&#x27;s counterpart of LeanDY&#x27;s `valid_trace` / `transition`:
+  LeanDY reasons about all traces satisfying the invariant,
+  DYLean reasons about all traces that the attacker can actually produce.
+-/
+public section Reachability
+
+variable [HasExecTrace]
+
+-- Future work (upstream comment): the following section is boilerplate that could be meta-programmed
+@[expose] public section
+def SharedKey.generate.reachability: ReachabilityConfig := .make (fun (initiator, responder) =&gt; SharedKey.generate initiator responder)
+def Initiator.start.reachability: ReachabilityConfig := .make (fun (a, b) =&gt; Initiator.start a b)
+def Responder.respond.reachability: ReachabilityConfig := .make (fun (a, b, keyHandle, msgHandle) =&gt; Responder.respond a b keyHandle msgHandle)
+def Initiator.finish.reachability: ReachabilityConfig := .make (fun (a, keyHandle, stHandle, msgHandle) =&gt; Initiator.finish a keyHandle stHandle msgHandle)
+def SharedKeyState.compromise.reachability: ReachabilityConfig := .make (fun stHandle =&gt; SharedKeyState.compromise stHandle)
+def InitiatorState.compromise.reachability: ReachabilityConfig := .make (fun stHandle =&gt; InitiatorState.compromise stHandle)
+end
+
+#combine into ReachabilityConfig from
+  Network,
+  SharedKey.generate,
+  Initiator.start,
+  Responder.respond,
+  Initiator.finish,
+  SharedKeyState.compromise,
+  InitiatorState.compromise,
+
+end Reachability</code></pre></figure>
+<figure><figcaption>DYLean library excerpt · <a href="https://github.com/BobDyLean/dylean/blob/d58f33b8d2d8dee121072afa9094bdb5bdf44ef6/DY/Trace/Reachability.lean#L77-L85">DYLean · DY/Trace/Reachability.lean:77–85</a></figcaption><pre><code>inductive Trace.Reachable (config: ReachabilityConfig): ExecTrace → Prop where
+  | Base:
+    Trace.Reachable config Trace.nil
+  | Step:
+    {tr: ExecTrace} →
+    (input: config.Input) →
+    config.PreCond input tr →
+    Trace.Reachable config tr →
+    Trace.Reachable config (((config.step input).snd).run tr).snd</code></pre></figure>
+<p>A trace is <em>reachable</em> if it is obtained from the empty trace by repeatedly calling one of the combined functions, with any input. <code>#combine into ReachabilityConfig</code> builds <code>reachability</code> from the list. <code>Network</code> contributes one capability with a precondition: send any bytes the attacker can derive. So the attacker</p>
+<ul><li>schedules every protocol function with arguments of its choice (participant names, handles), any number of times, in any order;</li>
+<li>injects any message it can derive from what it has seen;</li>
+<li>compromises any stored state: <code>PersistentLocalState.compromise</code> logs a compromise event and then publishes the serialized state on the network.</li></ul>
+<p>Anything not in the list never happens. The attacker cannot log protocol events, cannot write into a participant's state, and cannot generate random values (it uses literals instead). It can call <code>SharedKey.generate A B</code> several times, so a pair may have several keys. In LeanDY, <code>Sk a b</code> is a single name.</p>
+<p>This is the part that the LeanDY workshop listed as missing from LeanDY's SimpleAuth (“the SimpleAuth file itself does not supply a complete runnable network scheduler or an end-to-end reachable-trace theorem”). In DYLean it is part of every protocol specification.</p>
+<aside class="task"><strong>For your own protocol</strong><p>List every function the attacker may trigger, including state compromise and any key-compromise functions. Leaving a function out weakens the attacker, so your theorem looks stronger than it really is. Give secrets to participants through states created by a setup function that is itself in the list.</p></aside>
+</section>
+<section id="sanity">
+<h2>6. Check honest execution before interpreting security</h2>
+<p>A theorem of the form “if <code>Done</code> then <code>Start</code>” is vacuously true if <code>Done</code> can never be logged. DYLean specifications are executable, so you can test them before proving anything. This is what each example's <code>SanityChecks.lean</code> does.</p>
+<figure><figcaption>Repository excerpt · <a href="dylean-examples/DYLeanExamples/SimpleAuth/SanityChecks.lean">DYLeanExamples/SimpleAuth/SanityChecks.lean:38–54</a></figcaption><pre><code>/-
+  1. Honest run.
+  Trace entries (timestamps on the right):
+  key generation (0), Alice&#x27;s key copy (1), Bob&#x27;s key copy (2),
+  nonce generation (3), `Start` (4), Alice&#x27;s session state (5), first message (6),
+  response (7), `Done` (8).
+-/
+
+public
+def honestRun: Traceful Unit := do
+  let (aliceKeyHandle, bobKeyHandle) ← SharedKey.generate &quot;Alice&quot; &quot;Bob&quot; -- 3 entries
+  let (stHandle, msgHandle) ← Initiator.start &quot;Alice&quot; &quot;Bob&quot; -- 4 entries
+  let respHandle ← Responder.respond &quot;Alice&quot; &quot;Bob&quot; bobKeyHandle msgHandle -- 1 entry
+  Initiator.finish &quot;Alice&quot; aliceKeyHandle stHandle respHandle -- 1 entry
+
+-- The run succeeds: every `guard`, `parse` and decryption succeeds.
+#guard (honestRun.run Trace.nil).fst = some ()</code></pre></figure>
+<p><code>#guard</code> runs the program at compile time on the empty trace. Symbolic bytes are concrete data with decidable equality, so every <code>guard</code>, <code>parse</code> and decryption is actually evaluated. The honest run returns <code>some ()</code>: all checks pass and the field orders agree. The next theorem proves that this trace is reachable and contains <code>Start</code> at position 4 and <code>Done</code> at position 8 with the same nonce:</p>
+<figure><figcaption>Repository excerpt · <a href="dylean-examples/DYLeanExamples/SimpleAuth/SanityChecks.lean">DYLeanExamples/SimpleAuth/SanityChecks.lean:88–121</a></figcaption><pre><code>/--
+  The honest trace is reachable, and contains `Start` followed by `Done` for the same nonce.
+  `native_decide` evaluates the trace.
+-/
+public
+theorem honestRun_properties:
+  let tr := (honestRun.run (Trace.nil)).snd.val
+  tr.Reachable reachability ∧
+  ∃ t1 t2 na,
+    t1 &lt; t2 ∧
+    tr.EventLoggedAt (SimpleAuthEvent.Start &quot;Alice&quot; &quot;Bob&quot; na) t1 ∧
+    tr.EventLoggedAt (SimpleAuthEvent.Done &quot;Alice&quot; &quot;Bob&quot; na) t2
+:= by
+  intro tr
+  refine ⟨ ?_, ?_ ⟩
+  · apply Traceful.PreservesReachability_to_Reachable honestRun_PreservesReachability
+    grind
+  simp only [DY.Trace.EventLoggedAt_eq_getEventAt]
+  -- The nonce is found by inspecting the event at timestamp 4.
+  let witness :=
+    match (Trace.getEventAt SimpleAuthEvent 4 tr) with
+    | some (SimpleAuthEvent.Start _ _ na) =&gt; na
+    | _ =&gt; Comparse.BytesLike.empty
+  refine ⟨ 4, 8, witness, ?_ ⟩
+  native_decide
+
+/--
+info: &#x27;DY.Example.SimpleAuth.honestRun_properties&#x27; depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound,
+ honestRun_properties._native.native_decide.ax_1_6]
+-/
+#guard_msgs in
+#print axioms honestRun_properties</code></pre></figure>
+<p>Reachability is proved call by call with <code>PreservesReachabilityFrom_bind</code>; see <code>honestRun_PreservesReachability</code> in the same file. The event facts are checked by evaluation (<code>native_decide</code>). That adds a compiler-trust axiom, and <code>#print axioms</code> lists it.</p>
+<h3>A rejected forgery</h3>
+<figure><figcaption>Repository excerpt · <a href="dylean-examples/DYLeanExamples/SimpleAuth/SanityChecks.lean">DYLeanExamples/SimpleAuth/SanityChecks.lean:123–144</a></figcaption><pre><code>/-
+  2. A forged response is rejected.
+  The attacker answers Alice&#x27;s first message itself,
+  encrypting the expected plaintext under a key it made up.
+  Alice&#x27;s decryption fails, so `Initiator.finish` aborts and `Done` is never logged.
+-/
+
+public
+def forgedResponseAttacker: Traceful Unit := do
+  let (aliceKeyHandle, _) ← SharedKey.generate &quot;Alice&quot; &quot;Bob&quot;
+  let (stHandle, msgHandle) ← Initiator.start &quot;Alice&quot; &quot;Bob&quot;
+
+  let msgBytes ← Network.receiveMessage msgHandle
+  let msg: InitMessage ← Comparse.parse msgBytes
+  let fakeKey := Literal.literalToBytes &quot;00000000000000000000000000000000&quot;.toByteArray
+  let forged := SymEnc.symEnc fakeKey (Comparse.serialize ({ na := msg.na, a := msg.a }: ResponsePayload))
+  let forgedHandle ← Network.sendMessage forged
+
+  Initiator.finish &quot;Alice&quot; aliceKeyHandle stHandle forgedHandle
+
+-- The run fails (at Alice&#x27;s decryption).
+#guard (forgedResponseAttacker.run Trace.nil).fst = none</code></pre></figure>
+<p>Without the shared key, an attacker who encrypts the expected plaintext under a key it made up is rejected: A's decryption fails and the run returns <code>none</code>. This is one test, not a proof of responder authentication. Section 16 shows what happens once the key leaks.</p>
+<aside class="note">The LeanDY workshop could not run Lean, so its honest-run concern was an inspection finding. LeanDY now has <code>SimpleAuthDemo.lean</code>, an executable debug run. In DYLean, such checks sit next to the proofs in every example, and the attack scenarios come with reachability proofs, so they are proven to be traces the theorem talks about.</aside>
+<aside class="task"><strong>For your own protocol</strong><p>Before writing invariants, add an honest run that reaches your final event, prove it reachable, and add a few runs that must fail (wrong key, wrong nonce, wrong identity). If an honest run fails, fix the specification first: proofs about a broken specification are proofs about the wrong protocol.</p></aside>
+</section>
+<section id="labels">
+<h2>7. Assign labels and usages</h2>
+<figure><figcaption>Repository excerpt · <a href="dylean-examples/DYLeanExamples/SimpleAuth/Proof.lean">DYLeanExamples/SimpleAuth/Proof.lean:55–79</a></figcaption><pre><code>/--
+  The label of SK(initiator, responder): it becomes public as soon as
+  the initiator&#x27;s or the responder&#x27;s copy of the key is compromised.
+  This replaces LeanDY&#x27;s `Γ` (`Nonce.Sk _ _ ↦ 𝓢ec`):
+  DYLean labels are not looked up in a global environment,
+  they are attached to a random value when it is generated (see `SharedKey.generate.spec`).
+  LeanDY&#x27;s `𝓢ec` corresponds to `Label.secret`, which would forbid compromising the key.
+-/
+def sharedKeyLabel
+  (initiator responder: Participant) (key: Bytes)
+  : Label
+where
+  isCorrupt tr := SharedKeyCompromised initiator responder key tr
+
+/--
+  The usage of shared keys: they are symmetric-encryption keys for SimpleAuth.
+  Usages say what a secret may be used for;
+  the encryption invariant dispatches on the key usage to find which predicate applies.
+-/
+@[grind]
+def sharedKeyUsage: Usage := {
+  type := &quot;SymKey&quot;,
+  tag := &quot;SimpleAuth SharedKey&quot;,
+  data := none
+}</code></pre></figure>
+<figure><figcaption>DYLean library excerpt · <a href="https://github.com/BobDyLean/dylean/blob/d58f33b8d2d8dee121072afa9094bdb5bdf44ef6/DY/Label/Basic.lean#L38-L43">DYLean · DY/Label/Basic.lean:38–43</a></figcaption><pre><code>@[expose]
+public
+def Label.canFlow (l1: Label) (l2: Label) (tr: ExecTrace): Prop :=
+  ∀ trLater,
+    tr ≤ trLater →
+    l2.isCorrupt trLater → l1.isCorrupt trLater</code></pre></figure>
+<figure><figcaption>DYLean library excerpt · <a href="https://github.com/BobDyLean/dylean/blob/d58f33b8d2d8dee121072afa9094bdb5bdf44ef6/DY/Bytes/Invariants.lean#L508-L524">DYLean · DY/Bytes/Invariants.lean:508–524</a></figcaption><pre><code>@[expose, grind]
+public
+def Bytes.Publishable [BytesInvariants] (b: Bytes) (tr: ProofTrace) :=
+  b.Invariant tr ∧
+  (b.label tr).canFlow Label.pub tr.erase
+
+@[expose, grind]
+public
+def Bytes.KnowableBy [BytesInvariants] (l: Label) (b: Bytes) (tr: ProofTrace) :=
+  b.Invariant tr ∧
+  (b.label tr).canFlow l tr.erase
+
+@[expose]
+public
+def Bytes.HasUsage [GetUsage] [GetLabel] (b: Bytes) (usg: Usage) (tr: ProofTrace) :=
+  b.usage tr = usg ∨
+  (b.label tr).canFlow Label.pub tr.erase</code></pre></figure>
+<p>A DYLean <code>Label</code> is a monotone predicate <code>isCorrupt</code> on traces: once corrupt, always corrupt. <code>Label.pub</code> is always corrupt and <code>Label.secret</code> never is. <code>l1.canFlow l2</code> means “whenever <code>l2</code> becomes corrupt, so does <code>l1</code>”, i.e. data labelled <code>l1</code> may be given to whoever can read <code>l2</code>. Bytes are <code>Publishable</code> when they satisfy their invariant and their label can flow to <code>pub</code>, that is, when their label is already corrupt.</p>
+<p>Labels are not looked up in a global environment. Each random value receives its label and usage when it is generated, as a <em>ghost</em> argument of <code>genRand</code>'s specification. These ghost values exist only in the proof trace, never at runtime:</p>
+<figure><figcaption>DYLean library excerpt · <a href="https://github.com/BobDyLean/dylean/blob/d58f33b8d2d8dee121072afa9094bdb5bdf44ef6/DY/Actions/Random.lean#L217-L237">DYLean · DY/Actions/Random.lean:217–237</a></figcaption><pre><code>public
+theorem genRand.spec
+  [BytesFunctor]
+  [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
+  [BytesInvariants] [BytesInvariantsProofs]
+  [BytesFunctor.Has SubF]
+  [ExecTraceTypes.Has ExecEntryT] [ProofTraceTypes.Has ProofEntryT] [TraceInvariant.Has ProofEntryT]
+  [BytesInvariants.Has invariants]
+  (size: Nat)
+  (label: Bytes → Label) (usage: Usage)
+  : HoareTripleGhost
+    (genRand size)
+    (label, usage)
+    (fun _ =&gt; True)
+    (fun res tr =&gt;
+      -- length?
+      -- last event in the trace? (for injectivity properties)
+      res.Invariant tr ∧
+      res.label tr = label res ∧
+      res.HasUsage usage tr
+    )</code></pre></figure>
+<ul><li>The nonce Na is generated with label <code>Label.pub</code>, matching LeanDY's <code>𝓟ub</code> for <code>Nonce.Nat</code>.</li>
+<li>SK(A,B) is generated with <code>sharedKeyLabel A B key</code>: it becomes corrupt as soon as A's or B's copy of that key is compromised. Like <code>Sk a b</code>, it is indexed by an ordered pair.</li>
+<li>Its usage <code>sharedKeyUsage</code> (type <code>"SymKey"</code>) says what the key is for. The encryption invariant checks the usage (section 8). <code>HasUsage</code> is deliberately weak once the key is corrupt: at that point the attacker can use it for anything.</li></ul>
+<div class="pair"><figure><figcaption>LeanDY example excerpt · <a href="leandy-examples/LeanDYExamples/SimpleAuth.lean">LeanDYExamples/SimpleAuth.lean:9–13</a></figcaption><pre><code>def Γ : LabelingEnv Unit Nonce := LabelingEnv.from_singles fun
+  -- shared keys always secret
+  | .Sk _ _ =&gt; 𝓢ec
+  -- regular nonces always public
+  | _ =&gt; 𝓟ub</code></pre></figure>
+<figure><figcaption>Repository excerpt · <a href="dylean-examples/DYLeanExamples/SimpleAuth/Proof.lean">DYLeanExamples/SimpleAuth/Proof.lean:63–67</a></figcaption><pre><code>def sharedKeyLabel
+  (initiator responder: Participant) (key: Bytes)
+  : Label
+where
+  isCorrupt tr := SharedKeyCompromised initiator responder key tr</code></pre></figure>
+</div>
+<aside class="note">LeanDY's SimpleAuth labels <code>Sk</code> as <code>𝓢ec</code> forever and has no compromise. The literal translation is <code>Label.secret</code>, but a compromisable state may only hold data that its compromise label can know (section 9), and a secret-forever key cannot satisfy that. To mirror LeanDY exactly you would use <code>Label.secret</code> together with non-compromisable states (<code>PersistentLocalState.State</code> instead of <code>CompromisableState</code>). The port follows DYLean's convention instead: everything stored can be compromised. The authentication theorem is unaffected either way, since it never uses the key.</aside>
+<aside class="task"><strong>For your own protocol</strong><p>For every secret, decide at generation time who may learn it and under which corruption, and encode that as its label. Choose distinct usages for distinct purposes, so that a key generated for one purpose cannot satisfy another purpose's predicate.</p></aside>
+</section>
+<section id="crypto">
+<h2>8. Define what valid ciphertexts mean</h2>
+<figure><figcaption>Repository excerpt · <a href="dylean-examples/DYLeanExamples/SimpleAuth/SymEnc.lean">DYLeanExamples/SimpleAuth/SymEnc.lean:260–303</a></figcaption><pre><code>/--
+  What every ciphertext `Enc { key, msg }` occurring in a valid trace satisfies.
+  This is where secrecy and authentication of encryption are encoded
+  (in the style of DY*&#x27;s `aead_enc` invariant).
+
+  - The ciphertext itself is public (its label is `Label.pub`).
+  - Its invariant states that it was produced either
+    * honestly: the key has a &quot;SymKey&quot; usage, the protocol predicate holds,
+      and the plaintext is no more secret than the key (`msg.label` can flow to `key.label`),
+      so that publishing the ciphertext does not leak the plaintext; or
+    * by the attacker: in which case both the key and the plaintext are public.
+-/
+public
+def Enc.invariants [BytesFunctor.Has SymEnc.SubF] [SymEncPred]: Bytes.PartialInvariants Enc.SubF where
+  well_formed := fun {key, msg} rec tr =&gt;
+      (rec key) tr ∧
+      (rec msg) tr
+
+  usage := fun {key, msg} rec tr =&gt;
+    Usage.nothing
+
+  label := fun {key, msg} rec tr =&gt;
+    Label.pub
+
+  invariant := fun {key, msg} rec tr =&gt;
+      (rec key) tr ∧
+      (rec msg) tr ∧
+      (
+        (
+          ∃ keyUsg,
+          -- Honest case:
+          -- - the key has a symmetric-encryption usage,
+          key.HasUsage keyUsg tr ∧
+          keyUsg.type = &quot;SymKey&quot; ∧
+          -- - the custom (protocol-specific) predicate holds,
+          SymEncPred.pred keyUsg key msg tr ∧
+          -- - the plaintext is at most as secret as the key.
+          (msg.label tr).canFlow (key.label tr) tr.erase
+        ) ∨ (
+          -- Attacker case: the attacker knows both the key and the plaintext.
+          (key.label tr).canFlow Label.pub tr.erase ∧
+          (msg.label tr).canFlow Label.pub tr.erase
+        )
+      )</code></pre></figure>
+<p>This is the invariant every ciphertext in a valid trace satisfies, in the style of DY*'s AEAD invariant. The ciphertext's label is <code>pub</code>: publishing it is fine, provided its invariant holds. The invariant says the ciphertext was produced either</p>
+<ul><li><strong>honestly</strong>: the key has a usage of type <code>"SymKey"</code>, the protocol's predicate holds for that usage, and the plaintext is no more secret than the key, so publishing the ciphertext cannot leak the plaintext; or</li>
+<li><strong>by the attacker</strong>: both the key and the plaintext are public.</li></ul>
+<p>The protocol-specific part is the predicate:</p>
+<figure><figcaption>Repository excerpt · <a href="dylean-examples/DYLeanExamples/SimpleAuth/Proof.lean">DYLeanExamples/SimpleAuth/Proof.lean:81–106</a></figcaption><pre><code>/--
+  What honest participants may encrypt with a SimpleAuth key:
+  a well-formed `ResponsePayload` (a nonce and a participant name).
+  This is the counterpart of LeanDY&#x27;s `u_sym_enc_pred Γ _ m k tr := ∃ a b, m = [!(); a, b]`
+  (&quot;the plaintext is a pair&quot;).
+  As in LeanDY, it says nothing about *who* encrypted or *when*,
+  which is why the final theorem cannot conclude anything about the responder.
+-/
+instance SimpleAuthSymEncPred
+  : SymEnc.SymEncPred
+where
+  pred keyUsg _key msg _tr :=
+    keyUsg = sharedKeyUsage ∧ (
+      match (parse msg: Err ResponsePayload) with
+      | none =&gt; False
+      | some _ =&gt; True
+    )
+
+-- The predicate does not depend on the trace, hence it is trivially stable.
+instance
+  [BytesInvariants]
+  : SymEnc.SymEncPredProof
+where
+  pred_later := by
+    intro _ _ _ _ _ _ _ _ _ _ _ h
+    exact h</code></pre></figure>
+<div class="pair"><figure><figcaption>LeanDY example excerpt · <a href="leandy-examples/LeanDYExamples/SimpleAuth.lean">LeanDYExamples/SimpleAuth.lean:47–48</a></figcaption><pre><code>instance instCryptoPreds: Crypto.CryptoPreds Unit Nonce where
+  u_sym_enc_pred Γ _ m k tr := ∃ a b, m = [!(); a , b]</code></pre></figure>
+<figure><figcaption>Repository excerpt · <a href="dylean-examples/DYLeanExamples/SimpleAuth/Proof.lean">DYLeanExamples/SimpleAuth/Proof.lean:89–97</a></figcaption><pre><code>instance SimpleAuthSymEncPred
+  : SymEnc.SymEncPred
+where
+  pred keyUsg _key msg _tr :=
+    keyUsg = sharedKeyUsage ∧ (
+      match (parse msg: Err ResponsePayload) with
+      | none =&gt; False
+      | some _ =&gt; True
+    )</code></pre></figure>
+</div>
+<p>LeanDY requires the plaintext of an honest ciphertext to be a pair. The port requires it to parse as a <code>ResponsePayload</code>, and the key usage to be SimpleAuth's. As in LeanDY, the predicate says nothing about who encrypted or when. This is why decrypting it cannot tell A anything about B.</p>
+<div class="tablewrap"><table><tr><th>Question</th><th>LeanDY</th><th>DYLean</th></tr>
+<tr><td>Does decryption compute?</td><td>Constructors, normalizer γ, key matching</td><td><code>symDec</code>: <code>view?</code> plus key equality</td></tr>
+<tr><td>May the ciphertext be public?</td><td>Label typing, <code>is_public</code></td><td>The label is <code>pub</code>, so it is publishable exactly when its invariant holds</td></tr>
+<tr><td>Does it satisfy the protocol's crypto invariant?</td><td><code>valid_bytes</code> with <code>CryptoPreds</code></td><td><code>Enc.invariants</code> with <code>SymEncPred</code></td></tr></table></div>
+<p>The proof-side counterpart is the elimination rule. Successful decryption with a key of known usage yields an invariant plaintext, no more secret than the key, and either the predicate or a corrupt key:</p>
+<figure><figcaption>Repository excerpt · <a href="dylean-examples/DYLeanExamples/SimpleAuth/SymEnc.lean">DYLeanExamples/SimpleAuth/SymEnc.lean:367–391</a></figcaption><pre><code>/--
+  Elimination rule: what we learn from a successful decryption.
+  The plaintext satisfies the invariant, it is at most as secret as the key,
+  and either the protocol predicate holds (honest encryption)
+  or the key is known to the attacker.
+-/
+public
+theorem symDec.Invariant
+  (key cipher msg: Bytes) (keyUsg: Usage) (tr: ProofTrace)
+  : cipher.Invariant tr →
+    key.HasUsage keyUsg tr →
+    symDec key cipher = some msg →
+    msg.Invariant tr ∧
+    (msg.label tr).canFlow (key.label tr) tr.erase ∧
+    (
+      SymEncPred.pred keyUsg key msg tr ∨
+      (key.label tr).canFlow Label.pub tr.erase
+    )
+:= by
+  intro h_cipher h_usg h_dec
+  have h_eq := symEnc_symDec key cipher msg h_dec
+  subst h_eq
+  have := Bytes.HasUsage_inj key keyUsg
+  simp [symEnc, Bytes.Invariant.eq, Enc.invariants] at h_cipher
+  grind [canFlowTrans]</code></pre></figure>
+<p>An authentication proof would use the left disjunct. Neither SimpleAuth theorem needs it.</p>
+<aside class="task"><strong>For your own protocol</strong><p>Put into the predicate the provenance your theorem needs, for example “an event <code>Respond a b na</code> has been logged”, and keep the attacker alternative (key public) intact. Prove that the predicate is monotone (<code>SymEncPredProof</code>). Here this is trivial because the predicate does not mention the trace.</p></aside>
+</section>
+<section id="state">
+<h2>9. Define state invariants, including compromise</h2>
+<figure><figcaption>Repository excerpt · <a href="dylean-examples/DYLeanExamples/SimpleAuth/Proof.lean">DYLeanExamples/SimpleAuth/Proof.lean:134–172</a></figcaption><pre><code>/--
+  Invariant of a participant&#x27;s copy of SK(initiator, responder):
+  the owner is one of the two participants, and the key has the expected label and usage.
+  Because the state is compromisable, we must also prove that its content
+  may be known by whoever compromises it (`invariant_implies_KnowableBy`):
+  this holds because compromising either copy makes the key&#x27;s label corrupt.
+-/
+instance SharedKeyStateInv : PersistentLocalState.CompromisableLocalStateInv SharedKeyState
+where
+  invariant me st tr :=
+    let { initiator, responder, key } := st
+    (me = initiator ∨ me = responder) ∧
+    key.Invariant tr ∧
+    key.label tr = sharedKeyLabel initiator responder key ∧
+    key.HasUsage sharedKeyUsage tr
+  invariant_later := by grind
+  invariant_implies_KnowableBy participant state tr := by
+    intro h
+    have: (sharedKeyLabel state.initiator state.responder state.key).canFlow (PersistentLocalState.label participant state) tr.erase := by
+      cases state
+      simp [Label.canFlow, sharedKeyLabel, SharedKeyCompromised] at *
+      grind
+    grind [canFlowTrans]
+
+/--
+  Invariant of the initiator&#x27;s session state, LeanDY&#x27;s `HasValid` instance:
+  `valid Γ (.Init a b na) tr := valid_bytes Γ na tr ∧ (.Event $ .start a b na) ∈ tr`.
+  Here: the nonce is publishable, and `Start me b na` has been logged.
+  The nonce is public, so the state may be leaked without breaking anything.
+-/
+instance InitiatorStateInv : PersistentLocalState.CompromisableLocalStateInv InitiatorState
+where
+  invariant me st tr :=
+    let { b, na } := st
+    na.Publishable tr ∧
+    tr.erase.EventLogged (SimpleAuthEvent.Start me b na)
+  invariant_later := by grind
+  invariant_implies_KnowableBy participant state tr := by
+    grind [canFlowTrans]</code></pre></figure>
+<p>A state invariant <code>invariant me st tr</code> says what holds of state <code>st</code> owned by <code>me</code>. Storing a state requires it, loading a state provides it. <code>invariant_later</code> is monotonicity: the invariant survives trace extension. It is LeanDY's <code>valid_monotone</code>. Both are about one fixed state value as the trace grows.</p>
+<p><strong>The initiator's state</strong> carries exactly LeanDY's <code>HasValid</code> content: the nonce is valid and public, and <code>Start me b na</code> has been logged. This is the fact the final step will need.</p>
+<p><strong>The key state</strong> carries the key's label and usage, so that whoever loads it can encrypt or decrypt with known guarantees. It also records that the owner is the initiator or the responder. That conjunct is needed for the extra obligation that compromisable states bring:</p>
+<ul><li><code>invariant_implies_KnowableBy</code>: everything in the state must be knowable by the state's compromise label, which becomes corrupt when that particular state is compromised. For a key copy owned by <code>me</code>, compromising it makes <code>sharedKeyLabel initiator responder key</code> corrupt, which requires <code>me</code> to be one of the two parties.</li>
+<li>For <code>InitiatorState</code> it holds trivially: the nonce is public.</li></ul>
+<details><summary>What InitiatorState does not say</summary><p>As in LeanDY, it does not mention the key, does not record that the nonce was fresh (although it is), and does not assert any responder participation. Nothing prevents <code>Initiator.finish</code> from being called twice with the same state handle, so <code>Done</code> can be logged twice for one <code>Start</code>. The theorem does not claim injectivity.</p></details>
+<aside class="task"><strong>For your own protocol</strong><p>For every state, record the evidence a later step needs: labels and usages of stored keys, past events, relations between fields. For compromisable states, check that everything stored is knowable by the state's compromise label. If a value must stay secret even when the state leaks, it does not belong in a compromisable state.</p></aside>
+</section>
+<section id="events">
+<h2>10. Turn your security goal into event invariants</h2>
+<figure><figcaption>Repository excerpt · <a href="dylean-examples/DYLeanExamples/SimpleAuth/Proof.lean">DYLeanExamples/SimpleAuth/Proof.lean:174–187</a></figcaption><pre><code>/--
+  Event invariants, LeanDY&#x27;s `event_preds`.
+  An event invariant must hold on the trace *before* the event is logged.
+  - `Start` may be logged at any time
+    (LeanDY additionally requires `na ≠ fail`; DYLean has no `fail` value:
+    failures are handled by the `Traceful` monad and never reach the trace).
+  - `Done a b na` may only be logged if `Start a b na` was logged before.
+-/
+instance SimpleAuthEventInv : ProtocolEvent.EventInv SimpleAuthEvent
+where
+  invariant tr ev :=
+    match ev with
+    | SimpleAuthEvent.Start _ _ _ =&gt; True
+    | SimpleAuthEvent.Done a b na =&gt; tr.erase.EventLogged (SimpleAuthEvent.Start a b na)</code></pre></figure>
+<figure><figcaption>DYLean library excerpt · <a href="https://github.com/BobDyLean/dylean/blob/d58f33b8d2d8dee121072afa9094bdb5bdf44ef6/DY/Actions/ProtocolEvent.lean#L210-L219">DYLean · DY/Actions/ProtocolEvent.lean:210–219</a></figcaption><pre><code>theorem logEvent.spec
+  {EventT: Type}
+  [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
+  [EventInv EventT]
+  [ExecTraceTypes.Has (ExecEntryT EventT)] [ProofTraceTypes.Has (ProofEntryT EventT)] [TraceInvariant.Has (ProofEntryT EventT)]
+  (ev: EventT)
+  : HoareTriple
+    (logEvent ev)
+    (fun tr =&gt; EventInv.invariant tr ev)
+    (fun _ tr =&gt; tr.erase.EventLogged ev)</code></pre></figure>
+<p>An event invariant is evaluated on the trace <em>just before</em> the event is logged. That is the precondition of <code>logEvent</code>, and afterwards the event is known to be in the trace. <code>Start</code> can be logged at any time. <code>Done a b na</code> requires an earlier <code>Start a b na</code>, which is exactly LeanDY's <code>event_preds</code> for <code>"done"</code>.</p>
+<p>Two small differences are worth noticing. LeanDY's <code>event_preds</code> matches on a string tag and ends with a wildcard <code>| _ => true</code>, so a newly added tag is unconstrained by default. DYLean's match is exhaustive over a typed event, so adding a constructor forces you to write its invariant. And because there is no <code>fail</code>, there is no <code>na ≠ fail</code> conjunct.</p>
+<aside class="note">For responder authentication, add a responder event and connect the protected response to it through the encryption predicate. Renaming events or strengthening the theorem statement cannot supply evidence that is absent from the invariant. Section 18 sketches the change.</aside>
+</section>
+<section id="contract">
+<h2>11. Understand the proof contract before using tactics</h2>
+<figure><figcaption>DYLean library excerpt · <a href="https://github.com/BobDyLean/dylean/blob/d58f33b8d2d8dee121072afa9094bdb5bdf44ef6/DY/Trace/Manipulation.lean#L33-L52">DYLean · DY/Trace/Manipulation.lean:33–52</a></figcaption><pre><code>instance [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]: WP Traceful where
+  wp f post tr_proof :=
+    let (opt_x, tr_exec&#x27;) := f.run tr_proof.erase
+    ∃ tr_proof&#x27;,
+      (
+        match opt_x with
+        | .none =&gt; True
+        | .some x =&gt; post x tr_proof&#x27;
+      ) ∧
+      Trace.Invariant tr_proof&#x27; ∧
+      tr_exec&#x27; = tr_proof&#x27;.erase ∧
+      tr_proof ≤ tr_proof&#x27;
+
+@[expose]
+public
+def hoareTriple [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant] [WP m] (f: m a) (pre: ProofTrace → Prop) (post: a → ProofTrace → Prop): Prop :=
+  ∀ tr,
+    pre tr →
+    Trace.Invariant tr →
+    WP.wp f post tr</code></pre></figure>
+<p>Proofs work on a <em>proof trace</em>: the execution trace plus ghost information, such as the label and usage of each random value. <code>erase</code> turns it back into an execution trace. The trace invariant is the conjunction of per-entry invariants:</p>
+<ul><li>every network message is <code>Publishable</code> (see the excerpt below);</li>
+<li>every stored state satisfies its state invariant;</li>
+<li>every event satisfies its event invariant on the prefix before it;</li>
+<li>random entries record their ghost label and usage. Bytes invariants such as the ciphertext invariant are checked wherever bytes appear: in messages, states and events.</li></ul>
+<figure><figcaption>DYLean library excerpt · <a href="https://github.com/BobDyLean/dylean/blob/d58f33b8d2d8dee121072afa9094bdb5bdf44ef6/DY/Actions/Network.lean#L100-L105">DYLean · DY/Actions/Network.lean:100–105</a></figcaption><pre><code>instance
+  [ExecTraceTypes] [ProofTraceTypes] [BytesInvariants]
+  : SubTraceInvariant ProofEntryT
+where
+  invariant tr entry :=
+    entry.msg.Publishable tr</code></pre></figure>
+<p><code>hoareTriple f pre post</code> says: from any proof trace that satisfies the invariant and <code>pre</code>, running <code>f</code> on its erasure gives an execution trace that is the erasure of a longer proof trace that satisfies the invariant and <code>post</code>. Every SimpleAuth step is proved with <code>pre</code> and <code>post</code> both <code>True</code>: the content is “the invariant is preserved”. That is LeanDY's <code>valid_exchange</code>.</p>
+<p>In LeanDY the obligations are grouped by output field (<code>valid_public_bytes</code>, <code>valid_state</code>, <code>valid_events</code>, <code>valid_post_events</code>, <code>valid_restrictions</code>). In DYLean they arise one per instruction, in program order, as the preconditions of the library's Hoare triples:</p>
+<div class="tablewrap"><table><tr><th>Instruction</th><th>You prove (precondition)</th><th>You get (postcondition)</th></tr>
+<tr><td><code>genRand n</code> with ghost ⟨label, usage⟩</td><td>nothing</td><td>result is invariant, has that label and that usage</td></tr>
+<tr><td><code>logEvent ev</code></td><td>the event invariant of <code>ev</code></td><td><code>ev</code> is logged</td></tr>
+<tr><td><code>storeLocalState p st</code></td><td>the state invariant of <code>(p, st)</code></td><td>nothing</td></tr>
+<tr><td><code>getLocalState p h</code></td><td>nothing</td><td>the state invariant of the loaded state</td></tr>
+<tr><td><code>sendMessage m</code></td><td><code>m.Publishable</code></td><td>nothing</td></tr>
+<tr><td><code>receiveMessage h</code></td><td>nothing</td><td>the message is <code>Publishable</code> (it may come from the attacker)</td></tr>
+<tr><td><code>parse b</code></td><td>nothing</td><td><code>FormatRel b x</code>, i.e. <code>b = serialize x</code></td></tr>
+<tr><td><code>guard c</code></td><td>nothing</td><td><code>c</code></td></tr>
+<tr><td><code>symEnc k m</code> with ghost usage</td><td>key/plaintext invariants, key usage, honest case or attacker case (section 8)</td><td>the ciphertext is <code>Publishable</code></td></tr>
+<tr><td><code>symDec k c</code> with ghost usage</td><td><code>c</code> is invariant and <code>k</code> has the usage</td><td>plaintext is invariant, no more secret than <code>k</code>, predicate or corrupt key</td></tr></table></div>
+<h3>The <code>step</code> tactic</h3>
+<p><code>step</code> symbolically executes the next instruction. It finds the instruction's Hoare triple by typeclass search, tries to discharge the precondition with <code>grind</code>, introduces the postcondition, and moves on. <code>step by tac</code> uses your tactic for the precondition. <code>step with ⟨ g ⟩</code> supplies a ghost argument (a label and usage for <code>genRand</code>, a key usage for <code>symEnc</code>/<code>symDec</code>).</p>
+<p>After each instruction the trace is longer. <code>step</code> <em>monotonizes</em> the context: it transports every hypothesis about the old trace to the new one, using lemmas tagged <code>grind_later</code>. When it cannot, it stops with “cannot monotonize”. Section 14 shows a case where that happens.</p>
+<aside class="task"><strong>For your own protocol</strong><p>Before running the tactic, write down for each instruction of your step what its precondition needs, and where that fact comes from (an earlier postcondition, a loaded state invariant, a parsed message). If a stored state needs an event, log the event first. If a message needs a property, establish it before <code>sendMessage</code>.</p></aside>
+</section>
+<section id="proof-start">
+<h2>12. Prove key setup and the first message</h2>
+<figure><figcaption>Repository excerpt · <a href="dylean-examples/DYLeanExamples/SimpleAuth/Proof.lean">DYLeanExamples/SimpleAuth/Proof.lean:242–283</a></figcaption><pre><code>@[instance]
+theorem SharedKey.generate.spec (initiator responder: Participant):
+  HoareTriple
+    (SharedKey.generate initiator responder)
+    (fun _ =&gt; True)
+    (fun _ _ =&gt; True)
+:= by
+  apply HoareTriple.mk
+  unfold SharedKey.generate
+  -- The key is generated with label `sharedKeyLabel initiator responder key` and usage `sharedKeyUsage`.
+  step with ⟨ fun key =&gt; sharedKeyLabel initiator responder key, sharedKeyUsage ⟩
+  -- Storing each copy requires the `SharedKeyStateInv` invariant.
+  step by
+    simp only [PersistentLocalState.LocalStateInv.invariant]
+    grind
+  step by
+    simp only [PersistentLocalState.LocalStateInv.invariant]
+    grind
+  step
+  grind
+
+@[instance]
+theorem Initiator.start.spec (a b: Participant):
+  HoareTriple
+    (Initiator.start a b)
+    (fun _ =&gt; True)
+    (fun _ _ =&gt; True)
+:= by
+  apply HoareTriple.mk
+  unfold Initiator.start
+  -- The nonce is public, like LeanDY&#x27;s `Nonce.Nat n` (labelled `𝓟ub` by `Γ`).
+  step with ⟨ fun _ =&gt; Label.pub, Usage.nothing ⟩
+  -- Logging `Start`: its invariant is `True`.
+  step
+  -- Storing the state: the nonce is publishable and `Start a b na` was just logged.
+  step by
+    simp only [PersistentLocalState.LocalStateInv.invariant]
+    grind
+  -- Sending the message: it only contains public data.
+  step
+  step
+  grind</code></pre></figure>
+<p><strong>Key setup.</strong> The ghost argument of <code>genRand</code> fixes the key's label and usage. Storing each copy requires <code>SharedKeyStateInv</code>. After unfolding, <code>grind</code> sees that the owner is one of the two parties and that label and usage are the ones just generated.</p>
+<p><strong>First message.</strong> The nonce gets <code>Label.pub</code>. Logging <code>Start</code> needs nothing: its invariant is <code>True</code>. Storing the state needs a publishable nonce, which comes from the <code>genRand</code> postcondition, and <code>Start a b na</code> logged, which comes from the <code>logEvent</code> postcondition, transported by monotonization. Sending needs the serialized message to be publishable. By <code>InitMessage.IsWellFormed_eq</code> that is the nonce's publishability, which <code>grind</code> finds without help.</p>
+<p>Compare with LeanDY's <code>valid_initiator</code>, which chooses witnesses for <code>event_preds</code> and calls <code>prove_is_public</code>. The same facts appear here in program order instead of grouped by output field.</p>
+<p>The <code>@[instance]</code> attribute makes each proven triple available to <code>step</code>, which is how the attacker scenarios and other protocols can reuse it.</p>
+<aside class="task"><strong>For your own protocol</strong><p>Proof scripts in DYLean usually have one <code>step</code> per instruction, plus a <code>by</code> block where a precondition needs unfolding (typically <code>simp only [PersistentLocalState.LocalStateInv.invariant]</code> then <code>grind</code>). If a <code>step</code> fails, read the precondition it printed. It tells you which instruction's contract you have not met.</p></aside>
+</section>
+<section id="proof-respond">
+<h2>13. Prove the responder: establishing the encryption invariant</h2>
+<figure><figcaption>Repository excerpt · <a href="dylean-examples/DYLeanExamples/SimpleAuth/Proof.lean">DYLeanExamples/SimpleAuth/Proof.lean:285–314</a></figcaption><pre><code>@[instance]
+theorem Responder.respond.spec (a b: Participant) (keyHandle msgHandle: Nat):
+  HoareTriple
+    (Responder.respond a b keyHandle msgHandle)
+    (fun _ =&gt; True)
+    (fun _ _ =&gt; True)
+:= by
+  apply HoareTriple.mk
+  unfold Responder.respond
+  -- Receiving: the message is publishable (it may come from the attacker).
+  step
+  -- Parsing: the parsed fields relate to the received bytes.
+  step
+  -- Checking the identities.
+  step
+  -- Loading the key: we learn `SharedKeyStateInv` (label and usage of the key).
+  step
+  -- Checking the key&#x27;s owners.
+  step
+  -- Encrypting: we must establish the encryption invariant in its honest case, i.e.
+  -- - the key has usage `sharedKeyUsage`, of type &quot;SymKey&quot;,
+  -- - the plaintext satisfies `SimpleAuthSymEncPred` (it parses as a `ResponsePayload`),
+  -- - the plaintext (public) is no more secret than the key.
+  step with ⟨ sharedKeyUsage ⟩ by
+    have: (serialize ({ na := msg.na, a := msg.a }: ResponsePayload)).Publishable tr := by grind
+    simp_all only [PersistentLocalState.LocalStateInv.invariant]
+    grind [canFlowTrans]
+  -- Sending: the ciphertext is publishable.
+  step
+  grind</code></pre></figure>
+<p>The interesting step is the encryption. Receiving gives a publishable message, parsing relates it to <code>msg</code>, and loading the key gives <code>SharedKeyStateInv</code>. The precondition of <code>symEnc</code> is then discharged in its honest case:</p>
+<ul><li>the key has usage <code>sharedKeyUsage</code>, whose type is <code>"SymKey"</code> (from the key state);</li>
+<li>the plaintext parses as a <code>ResponsePayload</code> (<code>parse (serialize x) = some x</code>), so <code>SimpleAuthSymEncPred</code> holds;</li>
+<li>the plaintext is no more secret than the key, because it is public and <code>pub</code> flows to every label (<code>canFlowTrans</code>).</li></ul>
+<p>The one manual line, <code>have: (serialize …).Publishable tr</code>, gives <code>grind</code> the publishability of the serialized plaintext. SignedDH's responder has the same line with the comment “TODO how to infer this automatically?”. Afterwards, sending is automatic: <code>symEnc</code>'s postcondition already says the ciphertext is publishable.</p>
+<p>LeanDY's <code>valid_responder</code> is one <code>aesop_type_system</code> call, backed by the helper lemma <code>enc_pub</code> registered in the protocol rule set. Neither framework makes this obligation disappear. It is the place where the response is shown to be a legitimate ciphertext.</p>
+<aside class="task"><strong>For your own protocol</strong><p>When <code>grind</code> fails on a precondition, add the missing intermediate fact as a <code>have</code>. Common ones are the publishability of a serialized value, the unfolded invariant of a loaded state, and a label-flow step through <code>canFlowTrans</code>.</p></aside>
+</section>
+<section id="proof-finish">
+<h2>14. Prove the final step: decryption and monotonization</h2>
+<figure><figcaption>Repository excerpt · <a href="dylean-examples/DYLeanExamples/SimpleAuth/Proof.lean">DYLeanExamples/SimpleAuth/Proof.lean:316–345</a></figcaption><pre><code>@[instance]
+theorem Initiator.finish.spec (a: Participant) (keyHandle stHandle msgHandle: Nat):
+  HoareTriple
+    (Initiator.finish a keyHandle stHandle msgHandle)
+    (fun _ =&gt; True)
+    (fun _ _ =&gt; True)
+:= by
+  apply HoareTriple.mk
+  unfold Initiator.finish
+  -- Loading the session state: we learn `InitiatorStateInv`, in particular that `Start a b na` was logged.
+  step
+  -- `let ({ b, na }: InitiatorState) ← ...` is a pattern match: open it.
+  split
+  -- Loading the key and checking its owners.
+  step
+  step
+  -- Expose the facts stored in the state invariants (e.g. `key.Invariant tr`) as separate hypotheses,
+  -- so that `step` can transport facts mentioning `key.label tr` to later traces.
+  simp only [PersistentLocalState.LocalStateInv.invariant] at *
+  -- Receiving the ciphertext.
+  step
+  -- Decrypting (ghost argument: the key usage).
+  step with ⟨ sharedKeyUsage ⟩
+  -- Parsing and checking the plaintext.
+  step
+  step
+  -- Logging `Done a b na`: its invariant (`Start a b na` was logged) comes from the session state,
+  -- *not* from the decrypted message. This is exactly LeanDY&#x27;s `valid_initiator_check` proof.
+  step
+  grind</code></pre></figure>
+<p>The final step loads the session state (the <code>split</code> opens the pattern match <code>let ({ b, na }: InitiatorState) ← …</code>), loads the key, receives, decrypts, parses, checks and logs <code>Done</code>.</p>
+<h3>A monotonization pitfall, and its fix</h3>
+<p>Without the <code>simp only [PersistentLocalState.LocalStateInv.invariant] at *</code> line, the proof fails at the decryption step with:</p>
+<pre><code>cannot monotonize (plaintext✝.label tr).canFlow (keySt✝.key.label tr) tr.erase.</code></pre>
+<p><code>symDec</code>'s postcondition mentions <code>keySt.key.label tr</code>. To transport that fact to a longer trace, <code>step</code> needs <code>keySt.key.Invariant tr</code>, because labels are stable only for invariant bytes. That fact exists, but it is buried inside the folded hypothesis <code>LocalStateInv.invariant a keySt tr</code>. Unfolding the state invariants exposes it as its own hypothesis, and from then on monotonization works.</p>
+<h3>Where <code>Done</code>'s obligation comes from</h3>
+<p>The last <code>step</code> has to prove <code>Done</code>'s invariant, <code>Start a b na</code> logged. That fact comes from the <em>session state</em>, not from the decrypted message. This is exactly LeanDY's <code>valid_initiator_check</code>. To make the point concrete, this variant was compiled against the example:</p>
+<figure><figcaption>Diagnostic experiment · compiled separately against DYLeanExamples.SimpleAuth.Proof (exit code 0); not part of the example</figcaption><pre><code>-- Diagnostic: an initiator that logs Done without receiving or decrypting anything.
+def Initiator.finishNoCheck [HasExecTrace] (a: Participant) (stHandle: Nat): Traceful Unit := do
+  let ({ b, na }: InitiatorState) ← PersistentLocalState.getLocalState a stHandle
+  ProtocolEvent.logEvent (SimpleAuthEvent.Done a b na)
+
+theorem Initiator.finishNoCheck.spec (a: Participant) (stHandle: Nat):
+  HoareTriple (Initiator.finishNoCheck a stHandle) (fun _ =&gt; True) (fun _ _ =&gt; True)
+:= by
+  apply HoareTriple.mk
+  unfold Initiator.finishNoCheck
+  step
+  split
+  simp only [PersistentLocalState.LocalStateInv.invariant] at *
+  step
+  grind</code></pre></figure>
+<p>It passes. Adding this function to <code>reachability</code> would therefore break neither security theorem, which confirms that they do not depend on the ciphertext. The LeanDY workshop proposed the same experiment as a thought experiment.</p>
+<aside class="task"><strong>For your own protocol</strong><p>Audit your theorem by asking: would it still hold if I removed the check that I believe authenticates the peer? In DYLean you can answer by compiling a variant like the one above. If it still holds, either the check is redundant for this goal or the goal is weaker than intended.</p></aside>
+</section>
+<section id="theorem">
+<h2>15. Close the world and extract the theorem</h2>
+<figure><figcaption>Repository excerpt · <a href="dylean-examples/DYLeanExamples/SimpleAuth/Proof.lean">DYLeanExamples/SimpleAuth/Proof.lean:357–383</a></figcaption><pre><code>/-
+  Package the step proofs: every function the attacker may call preserves the invariant.
+  By induction on reachability (`Trace.Reachable_implies_Invariant`),
+  every reachable trace has a proof trace satisfying the invariant.
+  This is the part that LeanDY leaves to the user (&quot;induct over permitted executions&quot;).
+-/
+section ReachabilityImpliesInvariant
+
+variable [HasTraceInvariant]
+
+public instance: ReachableImpliesInvariant SharedKey.generate.reachability := .mk (fun (initiator, responder) =&gt; SharedKey.generate.spec initiator responder)
+public instance: ReachableImpliesInvariant Initiator.start.reachability := .mk (fun (a, b) =&gt; Initiator.start.spec a b)
+public instance: ReachableImpliesInvariant Responder.respond.reachability := .mk (fun (a, b, keyHandle, msgHandle) =&gt; Responder.respond.spec a b keyHandle msgHandle)
+public instance: ReachableImpliesInvariant Initiator.finish.reachability := .mk (fun (a, keyHandle, stHandle, msgHandle) =&gt; Initiator.finish.spec a keyHandle stHandle msgHandle)
+public instance: ReachableImpliesInvariant SharedKeyState.compromise.reachability := .mk (fun stHandle =&gt; SharedKeyState.compromise.spec stHandle)
+public instance: ReachableImpliesInvariant InitiatorState.compromise.reachability := .mk (fun stHandle =&gt; InitiatorState.compromise.spec stHandle)
+
+#combine into ReachabilityTheorem from
+  Network,
+  SharedKey.generate,
+  Initiator.start,
+  Responder.respond,
+  Initiator.finish,
+  SharedKeyState.compromise,
+  InitiatorState.compromise,
+
+end ReachabilityImpliesInvariant</code></pre></figure>
+<p>Each <code>ReachableImpliesInvariant</code> instance packages one step's Hoare triple for the reachability configuration. <code>#combine into ReachabilityTheorem</code> assembles them, together with the library's instance for <code>Network</code> (the attacker sending what it knows). The library then proves, by induction on <code>Trace.Reachable</code>, that every reachable execution trace is the erasure of a proof trace satisfying the invariant.</p>
+<p>The <code>Network</code> case is where the attacker-knowledge theorem is used: every byte string the attacker can derive is publishable. That theorem is assembled in <code>Instance.lean</code> from each theory's <code>SubAttackerKnowledgeTheorem</code>, including the two proved in <code>SymEnc.lean</code>. <code>Instance.lean</code> builds the concrete bytes, trace entries and invariants from exactly the components listed in the <code>Has…</code> classes:</p>
+<figure><figcaption>Repository excerpt · <a href="dylean-examples/DYLeanExamples/SimpleAuth/Instance.lean">DYLeanExamples/SimpleAuth/Instance.lean:57–82</a></figcaption><pre><code>#combine +toplevel into BytesInvariants, BytesInvariantsProofs from
+  Random,
+  Literal,
+  Concat,
+  SymEnc,
+
+instance: HasBytesInvariants where
+
+-- The trace invariant, and the proof that the attacker only learns publishable bytes.
+#combine +toplevel into
+  SubTraceInvariant,
+  SubBaseAttackerKnowledgeTheorem,
+from
+  Network,
+  Random,
+  ProtocolEvent SimpleAuth.SimpleAuthEvent,
+  PersistentLocalState.CompromisableState SimpleAuth.SharedKeyState,
+  PersistentLocalState.CompromisableState SimpleAuth.InitiatorState,
+
+#combine +toplevel into SubAttackerKnowledgeTheorem from
+  Random,
+  Literal,
+  Concat,
+  SymEnc,
+
+instance: HasTraceInvariant where</code></pre></figure>
+<figure><figcaption>DYLean library excerpt · <a href="https://github.com/BobDyLean/dylean/blob/d58f33b8d2d8dee121072afa9094bdb5bdf44ef6/DY/Trace/ReachabilityTheorem.lean#L54-L70">DYLean · DY/Trace/ReachabilityTheorem.lean:54–70</a></figcaption><pre><code>public
+theorem Trace.apply_Reachable_implies_Invariant
+  {config: ReachabilityConfig}
+  [inst: ReachableImpliesInvariant config]
+  {p: ExecTrace → Prop}
+  : (
+      ∀ trProof: ProofTrace,
+        trProof.Invariant →
+        p trProof.erase
+    ) → (
+      ∀ trExec: ExecTrace,
+        trExec.Reachable config →
+        p trExec
+    )
+:= by
+  intro h trExec h_reach
+  grind [Trace.Reachable_implies_Invariant config trExec h_reach]</code></pre></figure>
+<figure><figcaption>DYLean library excerpt · <a href="https://github.com/BobDyLean/dylean/blob/d58f33b8d2d8dee121072afa9094bdb5bdf44ef6/DY/Actions/ProtocolEvent.lean#L182-L192">DYLean · DY/Actions/ProtocolEvent.lean:182–192</a></figcaption><pre><code>public
+theorem _root_.DY.Trace.EventLogged_imp_EventInv
+  {EventT: Type}
+  [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
+  [EventInv EventT]
+  [ExecTraceTypes.Has (ExecEntryT EventT)] [ProofTraceTypes.Has (ProofEntryT EventT)] [TraceInvariant.Has (ProofEntryT EventT)]
+  (ev: EventT)
+  (tr: ProofTrace)
+  : tr.Invariant →
+    tr.erase.EventLogged ev →
+    ∃ i, EventInv.invariant (tr.prefix i) ev</code></pre></figure>
+<p>With these library lemmas, each security proof (section 0) is five tactic lines. <code>apply_Reachable_implies_Invariant</code> turns the statement about reachable traces into one about proof traces satisfying the invariant. <code>EventLogged_imp_EventInv</code> (for <code>initiator_auth_literal</code>) retrieves the invariant of the <code>Done</code> event on <em>some</em> earlier prefix of the trace. <code>EventLoggedAt_imp_EventInv</code> (section 0, for <code>initiator_auth</code>) retrieves it on the prefix before a given position. <code>simp</code> unfolds that invariant, and <code>grind</code> moves the <code>Start</code> event from the prefix to where the statement needs it. <code>#print axioms</code> shows only <code>propext</code>, <code>Classical.choice</code> and <code>Quot.sound</code> for both theorems.</p>
+<p>The short final proof has the same reason as in LeanDY: the local proofs already arranged for the needed evidence to be in the invariant. What DYLean adds is the end-to-end statement. The LeanDY workshop's checklist for connecting local proofs to executions (initial configurations, every honest step, attacker injection and corruption, induction) is done here by the reachability configuration and the library.</p>
+</section>
+<section id="probe">
+<h2>16. Probe the property with an attack trace</h2>
+<figure><figcaption>Repository excerpt · <a href="dylean-examples/DYLeanExamples/SimpleAuth/SanityChecks.lean">DYLeanExamples/SimpleAuth/SanityChecks.lean:146–177</a></figcaption><pre><code>/-
+  3. With a compromised key, Alice completes without Bob.
+  The attacker compromises Bob&#x27;s copy of the shared key,
+  then answers Alice&#x27;s first message itself.
+  Alice logs `Done`, although `Responder.respond` was never called.
+  `initiator_auth` still holds (`Start` was logged before `Done`):
+  the theorem constrains only the initiator&#x27;s own history.
+  Trace entries:
+  key generation (0), Alice&#x27;s key copy (1), Bob&#x27;s key copy (2),
+  compromise of Bob&#x27;s copy (3), leaked state on the network (4),
+  nonce generation (5), `Start` (6), Alice&#x27;s session state (7), first message (8),
+  forged response (9), `Done` (10).
+-/
+
+public
+def compromisedKeyAttacker: Traceful Unit := do
+  let (aliceKeyHandle, bobKeyHandle) ← SharedKey.generate &quot;Alice&quot; &quot;Bob&quot;
+  let leakHandle ← SharedKeyState.compromise bobKeyHandle
+  let leakedBytes ← Network.receiveMessage leakHandle
+  let leaked: PersistentLocalState.LocalState SharedKeyState ← Comparse.parse leakedBytes
+  let key := leaked.state.key
+
+  let (stHandle, msgHandle) ← Initiator.start &quot;Alice&quot; &quot;Bob&quot;
+
+  let msgBytes ← Network.receiveMessage msgHandle
+  let msg: InitMessage ← Comparse.parse msgBytes
+  let forged := SymEnc.symEnc key (Comparse.serialize ({ na := msg.na, a := msg.a }: ResponsePayload))
+  let forgedHandle ← Network.sendMessage forged
+
+  Initiator.finish &quot;Alice&quot; aliceKeyHandle stHandle forgedHandle
+
+#guard (compromisedKeyAttacker.run Trace.nil).fst = some ()</code></pre></figure>
+<figure><figcaption>Repository excerpt · <a href="dylean-examples/DYLeanExamples/SimpleAuth/SanityChecks.lean">DYLeanExamples/SimpleAuth/SanityChecks.lean:247–265</a></figcaption><pre><code>/-- The compromise trace is reachable, and Alice logged `Done` (without any responder step). -/
+public
+theorem compromisedKeyAttacker_properties:
+  let tr := (compromisedKeyAttacker.run (Trace.nil)).snd.val
+  tr.Reachable reachability ∧
+  ∃ t na,
+    tr.EventLoggedAt (SimpleAuthEvent.Done &quot;Alice&quot; &quot;Bob&quot; na) t
+:= by
+  intro tr
+  refine ⟨ ?_, ?_ ⟩
+  · apply Traceful.PreservesReachability_to_Reachable compromisedKeyAttacker_PreservesReachability
+    grind
+  simp only [DY.Trace.EventLoggedAt_eq_getEventAt]
+  let witness :=
+    match (Trace.getEventAt SimpleAuthEvent 10 tr) with
+    | some (SimpleAuthEvent.Done _ _ na) =&gt; na
+    | _ =&gt; Comparse.BytesLike.empty
+  refine ⟨ 10, witness, ?_ ⟩
+  native_decide</code></pre></figure>
+<p>The attacker compromises B's copy of the key, reads it from the network, waits for A's first message and answers it itself. A decrypts, the checks pass, and A logs <code>Done</code>. <code>Responder.respond</code> is never called. The trace is proven reachable, so both theorems apply to it, and both hold: <code>Start</code> was logged at position 6, before <code>Done</code> at position 10.</p>
+<p>Two lessons follow. First, the theorem constrains only A's own history. Second, a responder-authentication theorem in DYLean would have to say “B responded <em>or</em> SK(A,B) was compromised”. The attack shows the second disjunct cannot be dropped. With an uncompromised key, section 6's forged response is rejected, but only a theorem can say that <em>every</em> such attempt fails.</p>
+<aside class="task"><strong>For your own protocol</strong><p>Write at least one attack scenario per compromise disjunct of your theorem and prove it reachable. If you cannot build a scenario for a disjunct, it may be unnecessary. If a scenario violates the conclusion without using any disjunct, you have found an attack, or a bug in your specification.</p></aside>
+</section>
+<section id="map">
+<h2>17. LeanDY ↔ DYLean, concept by concept</h2>
+<p>A side-by-side summary of the two SimpleAuth developments.</p>
+<div class="tablewrap"><table><tr><th>Concept</th><th>LeanDY SimpleAuth</th><th>DYLean SimpleAuth</th></tr>
+<tr><td>Symbolic bytes</td><td>Fixed <code>BytesEq α η</code>: quotient by the normalizer γ, with a <code>fail</code> value</td><td>À-la-carte <code>Bytes</code> from chosen theories; no <code>fail</code>; destructors return <code>Option</code></td></tr>
+<tr><td>Atomic names</td><td><code>Nonce</code>: <code>Nat n</code>, <code>Sk a b</code></td><td>Random values from <code>genRand</code> (fresh trace entries); literals for constants</td></tr>
+<tr><td>Algorithm parameter</td><td><code>α = Unit</code></td><td>None in this example</td></tr>
+<tr><td>Participants</td><td><code>ℙ</code>, embedded as <code>.princ</code> bytes</td><td><code>Participant = String</code>, serialized as literals</td></tr>
+<tr><td>Symmetric encryption</td><td>Built in (<code>symenc</code>, <code>symdec</code>)</td><td>Added in <code>Examples/SimpleAuth/SymEnc.lean</code></td></tr>
+<tr><td>Shared key</td><td><code>sk a b</code>, computed from names</td><td><code>SharedKey.generate</code>, stored in two states, loaded by handle</td></tr>
+<tr><td>Labels</td><td><code>Γ</code> via <code>from_singles</code>: <code>𝓢ec</code> / <code>𝓟ub</code></td><td>Monotone <code>isCorrupt</code> predicates attached at generation: <code>sharedKeyLabel</code>, <code>Label.pub</code></td></tr>
+<tr><td>Key usage</td><td>Key kind in the term (<code>key () .SymEnc</code>)</td><td><code>Usage</code> attached at generation, checked with <code>HasUsage</code></td></tr>
+<tr><td>Crypto predicate</td><td><code>CryptoPreds.u_sym_enc_pred</code> (plaintext is a pair)</td><td><code>SymEncPred</code> instance (plaintext parses as <code>ResponsePayload</code>)</td></tr>
+<tr><td>Events</td><td>String tag plus content; <code>event_preds</code> with a wildcard</td><td>Typed inductive; exhaustive <code>EventInv</code></td></tr>
+<tr><td>States</td><td><code>State.Init / Null</code>, <code>derive_parsable</code>, <code>HasValid</code></td><td>One structure per state, Comparse format, <code>LocalStateInv</code> (+ <code>KnowableBy</code> when compromisable)</td></tr>
+<tr><td>Protocol step</td><td>Pure <code>exchange</code> returning an <code>Atom</code></td><td><code>Traceful</code> program</td></tr>
+<tr><td>Scheduling</td><td><code>transition</code> + <code>ChoiceFn</code></td><td>Reachability configuration; handles chosen by the attacker</td></tr>
+<tr><td>Failure</td><td>Default <code>Atom</code> (sends <code>fail</code>, stores <code>Null</code>)</td><td>The step aborts</td></tr>
+<tr><td>Compromise</td><td>Not modelled</td><td>State compromise in the reachability configuration</td></tr>
+<tr><td>Step proofs</td><td><code>valid_exchange</code> via <code>intro_valid_exchange'</code>, aesop</td><td><code>HoareTriple</code> via <code>step</code>, grind</td></tr>
+<tr><td>Executions to invariant</td><td><code>transition_valid</code>; the induction is left to the user</td><td><code>Trace.Reachable_implies_Invariant</code> (library)</td></tr>
+<tr><td>Attacker</td><td>Fixed <code>AttackerKnows</code> rules</td><td>Per-theory rules plus base knowledge from trace entries; soundness theorem per theory</td></tr>
+<tr><td>Final theorem</td><td><code>valid_trace → done ∈ tr → start ∈ tr</code></td><td><code>Reachable → Done logged → Start logged</code> (<code>initiator_auth_literal</code>), and the ordered <code>Reachable → Done at t → Start before t</code> (<code>initiator_auth</code>)</td></tr>
+<tr><td>Executable checks</td><td><code>SimpleAuthDemo.lean</code> (DebugM)</td><td><code>SanityChecks.lean</code>: <code>#guard</code> runs and reachability proofs</td></tr></table></div>
+</section>
+<section id="beyond">
+<h2>18. Extend beyond what SimpleAuth demonstrates</h2>
+<div class="tablewrap"><table><tr><th>Goal</th><th>In this port</th><th>What to add</th></tr>
+<tr><td>Responder participation</td><td>Absent; section 16 shows why it needs a compromise clause</td><td>A responder event, a provenance predicate, a stronger <code>Done</code> invariant and theorem (sketch below)</td></tr>
+<tr><td>Key secrecy</td><td>Encoded in <code>sharedKeyLabel</code>, but not stated as a theorem</td><td>“If the attacker knows a key stored as SK(A,B), a copy was compromised”, proved like SignedDH's <code>client_secrecy</code></td></tr>
+<tr><td>Injectivity / replay</td><td><code>Done</code> can be logged twice for one <code>Start</code></td><td>Consume the session state, or state and prove uniqueness explicitly</td></tr>
+<tr><td>Long-term asymmetric keys</td><td>Not used</td><td><code>DY/Actions/LongTermKeys.lean</code>, as in SignedDH</td></tr>
+<tr><td>XOR reasoning</td><td>Not available: no XOR theory in <code>DY/EquationalTheory/</code></td><td>A new equational theory. LeanDY has XOR built in.</td></tr>
+<tr><td>Time / liveness</td><td>Only “before” in the theorem; no progress claim</td><td>Separate assumptions and proofs</td></tr></table></div>
+<p>More DYLean examples, in the DYLean repository: <a href="https://github.com/BobDyLean/dylean/tree/d58f33b8d2d8dee121072afa9094bdb5bdf44ef6/Examples/SignedDH">SignedDH</a> (signatures, PKI, compromise clauses), <a href="https://github.com/BobDyLean/dylean/tree/d58f33b8d2d8dee121072afa9094bdb5bdf44ef6/Examples/SignedDHKEM">SignedDHKEM</a> (locally defined primitives), <a href="https://github.com/BobDyLean/dylean/tree/d58f33b8d2d8dee121072afa9094bdb5bdf44ef6/Examples/Ratchet">Ratchet</a>, <a href="https://github.com/BobDyLean/dylean/tree/d58f33b8d2d8dee121072afa9094bdb5bdf44ef6/Examples/MerkleTree">MerkleTree</a>, <a href="https://github.com/BobDyLean/dylean/tree/d58f33b8d2d8dee121072afa9094bdb5bdf44ef6/Examples/ACME">ACME</a> (including an attack). The LeanDY counterpart of this page is the separate LeanDY SimpleAuth workshop.</p>
+<details><summary>Exercise: strengthen the example to show responder participation</summary>
+<ol><li>Add an event <code>Respond (a b: Participant) (na: Bytes)</code>, log it in <code>Responder.respond</code> before encrypting, with invariant <code>True</code>.</li>
+<li>Let the key usage carry the pair, e.g. <code>sharedKeyUsage a b</code> with <code>data := some (serialize …)</code>, and generate each key with the usage for its pair.</li>
+<li>Strengthen <code>SimpleAuthSymEncPred</code>: the usage is <code>sharedKeyUsage i r</code>, the plaintext parses as a payload <code>p</code> with <code>p.a = i</code>, and <code>Respond i r p.na</code> has been logged. The responder establishes this right after logging <code>Respond</code>.</li>
+<li>In <code>Initiator.finish</code>, <code>symDec</code>'s postcondition now gives “<code>Respond a b na</code> logged, or the key is corrupt”. Make that part of <code>Done</code>'s invariant (the corrupt case becomes “some copy of SK(a,b) was compromised”).</li>
+<li>State the theorem: <code>Done a b na</code> at <code>t</code> implies <code>Respond a b na</code> or a compromise of SK(a,b) before <code>t</code>. Check it against section 16's attack: that trace must fall in the second disjunct.</li></ol>
+<p>This is a design sketch. It has not been implemented or compiled as part of this example.</p></details>
+<details><summary>Exercise: distinguish three claims about the same nonce</summary><p><code>na.Invariant tr</code> is a symbolic well-formedness fact (here: Na is a genuine random value of the trace). <code>na.Publishable tr</code> concerns confidentiality. “Na was generated at position i” is a trace fact that neither of them records. None of them implies that a session completes at most once.</p></details>
+</section>
+<section id="checklist">
+<h2>19. Your protocol-author checklist</h2>
+<p>Use these as concrete development milestones. Tick boxes are a reading aid and are not saved.</p>
+<label class="check"><input type="checkbox"> Write the exact final security proposition, including its compromise disjuncts.</label><label class="check"><input type="checkbox"> Select the equational theories; write any missing primitive with its invariant and attacker-knowledge theorem.</label><label class="check"><input type="checkbox"> Define one structure per message, plaintext and state, with Comparse formats and <code>IsWellFormed_eq</code> lemmas.</label><label class="check"><input type="checkbox"> Define the events as a typed inductive.</label><label class="check"><input type="checkbox"> Write each step as a <code>Traceful</code> program; log events before storing states that mention them.</label><label class="check"><input type="checkbox"> List every attacker-callable function (including setup and compromise) in the reachability configuration.</label><label class="check"><input type="checkbox"> Run an honest execution with <code>#guard</code>, prove it reachable, and add runs that must fail.</label><label class="check"><input type="checkbox"> Choose labels and usages for every random value; pass them as ghost arguments.</label><label class="check"><input type="checkbox"> Write the crypto predicates; prove they are monotone.</label><label class="check"><input type="checkbox"> Write state invariants; for compromisable states prove <code>invariant_implies_KnowableBy</code>.</label><label class="check"><input type="checkbox"> Write event invariants strong enough to carry your property.</label><label class="check"><input type="checkbox"> Prove one Hoare triple per step with <code>step</code>; package them with <code>ReachableImpliesInvariant</code>.</label><label class="check"><input type="checkbox"> Assemble <code>Instance.lean</code> from exactly the components listed in the <code>Has…</code> classes.</label><label class="check"><input type="checkbox"> Prove the theorem with <code>apply_Reachable_implies_Invariant</code> and check <code>#print axioms</code>.</label><label class="check"><input type="checkbox"> Build attack scenarios for each compromise disjunct, and audit the theorem by removing the checks you rely on.</label>
+</section>
+<section id="references">
+<h2>Source map and verification notes</h2>
+<ul><li><a href="dylean-examples/DYLeanExamples/SimpleAuth/">dylean-examples/DYLeanExamples/SimpleAuth/</a>: the port (<code>SymEnc</code>, <code>Specification</code>, <code>Proof</code>, <code>Instance</code>, <code>SecurityTheorems</code>, <code>SanityChecks</code>), imported by <a href="dylean-examples/DYLeanExamples.lean">DYLeanExamples.lean</a>.</li>
+<li>DYLean library at commit <code>d58f33b8d2d8</code> (4 September 2026), with toolchain <code>leanprover/lean4:v4.33.0</code>. Most relevant: <a href="https://github.com/BobDyLean/dylean/blob/d58f33b8d2d8dee121072afa9094bdb5bdf44ef6/DY/EquationalTheory/Sign.lean">Sign.lean</a> (template for SymEnc), <a href="https://github.com/BobDyLean/dylean/blob/d58f33b8d2d8dee121072afa9094bdb5bdf44ef6/DY/Bytes/Invariants.lean">Bytes/Invariants.lean</a>, <a href="https://github.com/BobDyLean/dylean/blob/d58f33b8d2d8dee121072afa9094bdb5bdf44ef6/DY/Label/Labels.lean">Label/Labels.lean</a>, <a href="https://github.com/BobDyLean/dylean/tree/d58f33b8d2d8dee121072afa9094bdb5bdf44ef6/DY/Actions">Actions/</a>, <a href="https://github.com/BobDyLean/dylean/blob/d58f33b8d2d8dee121072afa9094bdb5bdf44ef6/DY/Trace/Manipulation.lean">Trace/Manipulation.lean</a>, <a href="https://github.com/BobDyLean/dylean/blob/d58f33b8d2d8dee121072afa9094bdb5bdf44ef6/DY/Trace/ReachabilityTheorem.lean">Trace/ReachabilityTheorem.lean</a>, and <a href="https://github.com/BobDyLean/dylean/tree/d58f33b8d2d8dee121072afa9094bdb5bdf44ef6/Examples/SignedDH">Examples/SignedDH/</a> (the structural template).</li>
+<li>LeanDY: <a href="leandy-examples/LeanDYExamples/SimpleAuth.lean">leandy-examples/LeanDYExamples/SimpleAuth.lean</a> (LeanDY's SimpleAuth with the tuple-order fix of commit <code>dd9753c</code> and added annotations) and <a href="leandy-examples/LeanDYExamples/SimpleAuthDemo.lean">SimpleAuthDemo.lean</a>, on the LeanDY library at commit <code>e0705986</code>.</li>
+<li>Papers: <em>Bob DyLean: A Framework for the Symbolic Analysis of Cryptographic Protocols in Lean</em> (<a href="https://eprint.iacr.org/2026/1493">eprint 2026/1493</a>), and Jeanteur, Veronese, Solitro and Maffei, <em>LeanDY: Type-Based and Trace-Based Symbolic Protocol Verification in Lean</em>. This page cites the papers only by title: section references were not checked.</li></ul>
+<p><strong>What was verified.</strong> Both projects compile from a clean state without errors, warnings or <code>sorry</code>. <code>initiator_auth_literal</code> and <code>initiator_auth</code> are proved independently of each other, and each depends only on <code>propext</code>, <code>Classical.choice</code> and <code>Quot.sound</code>. <code>honestRun_properties</code> and <code>compromisedKeyAttacker_properties</code> additionally depend on one <code>native_decide</code> axiom each. The three <code>#guard</code> runs pass, and the diagnostic variant in section 14 compiles. The design sketch in section 18 has not been implemented.</p>
+<p>The HTML is self-contained, has no external scripts or stylesheets, and can be edited as ordinary HTML, or regenerated with <code>tools/generate_dylean_tutorial.py</code>. Links to files of this folder are relative. Links into the DYLean and LeanDY libraries point to GitHub at the pinned commits.</p>
+</section>
+</main>
+</div>
+</body>
+</html>
