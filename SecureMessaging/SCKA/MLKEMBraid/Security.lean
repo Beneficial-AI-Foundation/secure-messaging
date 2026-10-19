@@ -7,6 +7,7 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction
 import SecureMessaging.SCKA.MLKEMBraid.Security.Bounds
 import SecureMessaging.SCKA.MLKEMBraid.Security.Concrete
+import SecureMessaging.SCKA.MLKEMBraid.Security.Bounded
 
 /-!
 # No-authentication security of ML-KEM Braid

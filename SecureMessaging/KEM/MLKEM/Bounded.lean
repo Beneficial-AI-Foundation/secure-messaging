@@ -6,6 +6,7 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.KEM.MLKEM.Encoding
 import SecureMessaging.KEM.MLKEM.Construction
+import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
 
 /-!
 # Fixed-length byte representations of ML-KEM
@@ -208,5 +209,127 @@ theorem readC_eq_some_iff (params : Params)
     refine ⟨boundedU, readBytes_eq_some_iff.mpr hu, ?_⟩
     apply Option.bind_eq_some_iff.mpr
     exact ⟨boundedV, readBytes_eq_some_iff.mpr hv, rfl⟩
+
+private theorem encrypt_refines (params : Params) (ring : NTTRingOps)
+    (prims : Primitives params (Concrete.concreteEncoding params))
+    (pk : EncapsulationKey params (encoding params)) (m : Message) (r : Coins) :
+    toRawC params (KPKE.encrypt ring (encoding params) (primitives params prims) pk m r) =
+      KPKE.encrypt ring (Concrete.concreteEncoding params) prims (toRawPK params pk) m r := by
+  dsimp only [KPKE.encrypt, toRawC, toRawPK, encoding, primitives,
+    Primitives.publicMatrix, Primitives.sampleVecEta1, Primitives.sampleVecEta2,
+    Concrete.vectorToByteArray]
+  apply congrArg₂ KPKE.Ciphertext.mk <;> exact ByteArray.ext_iff.2 rfl
+
+variable (p : ParameterSet) (ring : NTTRingOps)
+    (prims : Primitives (ParameterSet.params p)
+      (Concrete.concreteEncoding (ParameterSet.params p)))
+
+/-- Key generation preserves the complete public/secret pair and its original samplers. -/
+theorem keygen_refines :
+    Prod.map (toRawPK (ParameterSet.params p)) (toRawSK (ParameterSet.params p)) <$>
+      (scheme p ring prims).keygen = (mlkemScheme p ring prims).keygen := by
+  simp only [scheme, mlkemScheme, asKEMScheme, keygen, map_bind, map_pure]
+  congr 1
+
+/-- Encapsulation preserves ciphertext bytes, shared secret and the message sampler. -/
+theorem encaps_refines
+    (pk : EncapsulationKey (ParameterSet.params p) (encoding (ParameterSet.params p))) :
+    Prod.map (toRawC (ParameterSet.params p)) id <$> (scheme p ring prims).encaps pk =
+      (mlkemScheme p ring prims).encaps (toRawPK (ParameterSet.params p) pk) := by
+  simp only [scheme, mlkemScheme, asKEMScheme, map_bind, map_pure]
+  congr 1
+
+/-- Decapsulation preserves ciphertext comparison and both implicit-rejection branches. -/
+theorem decaps_refines
+    (sk : DecapsulationKey (ParameterSet.params p) (encoding (ParameterSet.params p)))
+    (c : Ciphertext (ParameterSet.params p) (encoding (ParameterSet.params p))) :
+    (scheme p ring prims).decaps sk c =
+      (mlkemScheme p ring prims).decaps (toRawSK (ParameterSet.params p) sk)
+        (toRawC (ParameterSet.params p) c) := by
+  let q := ParameterSet.params p
+  have hparse (a : Ciphertext q (encoding q)) : readC q (toRawC q a) = some a :=
+    (readC_eq_some_iff q _ a).mpr rfl
+  have hinj : Function.Injective (toRawC q) := by
+    intro a b h
+    apply Option.some.inj
+    rw [← hparse a, ← hparse b, h]
+  let m := KPKE.decrypt ring (encoding q) (primitives q prims) sk.dkPKE c
+  let kr := prims.gEncaps m sk.ekHash
+  let c' := KPKE.encrypt ring (encoding q) (primitives q prims) sk.ekPKE m kr.2
+  change pure (some (if c = c' then kr.1 else
+    prims.jReject sk.z (Concrete.vectorToByteArray c.uEncoded)
+      (Concrete.vectorToByteArray c.vEncoded))) =
+    pure (some (if toRawC q c =
+      KPKE.encrypt ring (Concrete.concreteEncoding q) prims (toRawPK q sk.ekPKE) m kr.2
+      then kr.1 else prims.jReject sk.z (Concrete.vectorToByteArray c.uEncoded)
+        (Concrete.vectorToByteArray c.vEncoded)))
+  rw [← encrypt_refines]
+  simp only [hinj.eq_iff]
+  rfl
+
+/-- The honest correctness experiments agree as terms, without a correctness premise. -/
+theorem correctExp_eq :
+    (scheme p ring prims).CorrectExp = (mlkemScheme p ring prims).CorrectExp := by
+  unfold KEMScheme.CorrectExp
+  rw [← keygen_refines p ring prims]
+  simp only [bind_map_left, Prod.map]
+  apply congrArg (fun f => (scheme p ring prims).keygen >>= f)
+  funext pair
+  rw [← encaps_refines p ring prims pair.1]
+  simp only [bind_map_left, Prod.map, id_eq]
+  apply congrArg (fun f => (scheme p ring prims).encaps pair.1 >>= f)
+  funext out
+  rw [decaps_refines]
+
+/-- Missing success mass is unchanged by the byte representation. -/
+theorem correctnessError_eq :
+    (scheme p ring prims).correctnessError ProbCompRuntime.probComp =
+      (mlkemScheme p ring prims).correctnessError ProbCompRuntime.probComp := by
+  unfold KEMScheme.correctnessError
+  rw [correctExp_eq]
+
+/-- Run a bounded adversary on raw inputs, rejecting only inadmissible raw lengths. -/
+def liftAdversary (A : (scheme p ring prims).IND_CPA_Adversary) :
+    (mlkemScheme p ring prims).IND_CPA_Adversary where
+  State := Option A.State
+  preChallenge rawPK :=
+    match readPK (ParameterSet.params p) rawPK with
+    | none => pure none
+    | some pk => some <$> A.preChallenge pk
+  postChallenge st rawC key :=
+    match st, readC (ParameterSet.params p) rawC with
+    | some s, some c => A.postChallenge s c key
+    | _, _ => pure false
+
+/-- Generated raw keys and ciphertexts always parse; both fixed-bit experiments agree. -/
+theorem indCPAExp_lift (A : (scheme p ring prims).IND_CPA_Adversary) (b : Bool) :
+    (mlkemScheme p ring prims).IND_CPA_Exp ProbCompRuntime.probComp
+      (liftAdversary p ring prims A) b =
+        (scheme p ring prims).IND_CPA_Exp ProbCompRuntime.probComp A b := by
+  have hpk (pk : EncapsulationKey (ParameterSet.params p) (encoding (ParameterSet.params p))) :
+      readPK (ParameterSet.params p) (toRawPK (ParameterSet.params p) pk) = some pk :=
+    (readPK_eq_some_iff _ _ pk).mpr rfl
+  have hc (c : Ciphertext (ParameterSet.params p) (encoding (ParameterSet.params p))) :
+      readC (ParameterSet.params p) (toRawC (ParameterSet.params p) c) = some c :=
+    (readC_eq_some_iff _ _ c).mpr rfl
+  unfold KEMScheme.IND_CPA_Exp
+  apply congrArg (fun oa : ProbComp Bool => ProbCompRuntime.probComp.evalDist oa)
+  rw [← keygen_refines p ring prims]
+  simp only [bind_map_left, Prod.map]
+  apply congrArg (fun f => (scheme p ring prims).keygen >>= f)
+  funext pair
+  simp only [liftAdversary, hpk, bind_map_left]
+  apply congrArg (fun f => A.preChallenge pair.1 >>= f)
+  funext st
+  rw [← encaps_refines p ring prims pair.1]
+  simp only [bind_map_left, Prod.map, id_eq, hc]
+
+/-- The raw reduction has exactly the bounded adversary's canonical IND-CPA advantage. -/
+theorem indCPAAdvantage_lift (A : (scheme p ring prims).IND_CPA_Adversary) :
+    (mlkemScheme p ring prims).IND_CPA_Advantage ProbCompRuntime.probComp
+      (liftAdversary p ring prims A) =
+        (scheme p ring prims).IND_CPA_Advantage ProbCompRuntime.probComp A := by
+  rw [IND_CPA_Advantage_eq_fixed_branch_dist, IND_CPA_Advantage_eq_fixed_branch_dist,
+    indCPAExp_lift, indCPAExp_lift]
 
 end MLKEM.Bounded

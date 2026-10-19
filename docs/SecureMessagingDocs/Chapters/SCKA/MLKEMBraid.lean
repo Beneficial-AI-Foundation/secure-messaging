@@ -8,6 +8,7 @@ import SecureMessaging.SCKA.MLKEMBraid.Authenticator
 import SecureMessaging.SCKA.MLKEMBraid.Basic
 import SecureMessaging.SCKA.MLKEMBraid.Construction
 import SecureMessaging.SCKA.MLKEMBraid.Correctness
+import SecureMessaging.SCKA.MLKEMBraid.Security.Bounded
 
 set_option linter.style.setOption false
 set_option linter.hashCommand false
@@ -326,6 +327,95 @@ theorem correctness_error_le
       SCKAScheme.correctnessExp (scheme P auth irl sampleInitKey) adv] ≤
       (q : ℝ≥0∞) * P.kem.correctnessError ProbCompRuntime.probComp
 ```
+::::
+
+:::defTitle "mlkem_braid_noauth_experiment" "Braid without authentication"
+:::
+
+::::definition "mlkem_braid_noauth_experiment" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.Bounded.parameters, MLKEMBraid.NoAuth.auth, MLKEMBraid.NoAuth.exposure, SCKAScheme.ExposurePolicy.securityExp") (uses := "mlkem_braid_spec, scka_oracles, erasure_code_correctness")
+Fix an ML-KEM parameter set and ring and primitive operations. Write
+$`\mathsf K=(\mathsf{Gen},\mathsf{Enc},\mathsf{Dec})` for the resulting KEM, with
+shared-secret space $`\mathcal K`. Let $`\mathcal I` be an epoch-key space with
+sampling distribution $`\mu`, and fix
+$`F:\mathcal K\times\mathbb N\to\mathcal I`.
+
+Let $`\Pi` be the {uses "mlkem_braid_spec"}[Braid construction] with these algorithms,
+prescribed-length byte encodings, and Reed–Solomon codes for its header, public-key-vector
+and two ciphertext streams. The initial shared value and authentication tag are fixed;
+the authenticator retains no state and accepts every tag.
+
+A classical adversary $`A` adaptively requests sends, deliveries of recorded messages,
+local-state corruptions, sends with their randomness, and epoch-key challenges. Deliveries identify
+previously sent messages; they cannot supply replacement contents.
+
+The experiment samples $`b\sample\{0,1\}` and maintains exposed and challenged epoch sets
+$`E,C`, initially empty. A challenge of $`e` requires $`e\notin E\cup C` and a stored key.
+It returns Alice's key (Bob's if Alice has none) when $`b=0`, or an independent sample from
+$`\mu` when $`b=1`, and adds $`e` to $`C`.
+
+:::table
+* * Revelation
+  * Epochs exposed
+* * A party's local state
+  * None before key generation, while awaiting a header, or after receiving a header but
+    before first-stage encapsulation; otherwise its current epoch.
+* * A send's randomness
+  * Its epoch if the send generates a key pair or performs first-stage encapsulation;
+    none otherwise.
+:::
+
+A revelation intersecting $`C` is refused; otherwise its epochs are added to $`E`.
+A refused randomness-revealing send commits no proposed state. If $`A` outputs $`b'`, define
+
+$$`\operatorname{Adv}^{\mathrm{guess}}_{\Pi}(A)
+=\left|\Pr[b'=b]-\frac12\right|.`
+
+A send budget $`q` bounds, on every query path, the total number of ordinary and
+randomness-revealing send requests to both parties, including refused requests.
+::::
+
+:::defTitle "mlkem_braid_noauth_reductions" "Epoch reductions"
+:::
+
+::::definition "mlkem_braid_noauth_reductions" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.NoAuth.repairedRecv, MLKEMBraid.NoAuth.kemReduction, MLKEMBraid.NoAuth.kdfReduction, MLKEMBraid.NoAuth.kdfExp") (uses := "mlkem_braid_noauth_experiment, incremental_kem_scheme")
+The repaired experiment records the shared secret $`k_e` of each epoch's encapsulation.
+In the phase awaiting the second ciphertext component, a well-formed current-epoch message
+that completes its decoder yields $`F(k_e,e)` when that encapsulation is recorded, and the
+receiver enters the next epoch. All other receive cases are unchanged.
+
+For each $`e\geq1`, construct reductions $`B_e` and $`D_e` from $`A`:
+
+- $`B_e(pk,c,x)` runs the repaired experiment with the challenge public key and ciphertext
+  installed at epoch $`e`, using $`x` as its shared secret. Earlier epoch challenges receive
+  independent samples from $`\mu`; later challenges receive their real keys.
+- $`D_e(x)` samples the KEM material itself and runs the repaired experiment, answering the
+  challenge at $`e` with $`x`, earlier challenges with independent samples from $`\mu`, and
+  later challenges with their real keys.
+
+Both return $`A`'s bit, or $`0` if epoch $`e` becomes exposed. Let
+$`(pk,sk)\sample\mathsf{Gen}()` and $`(c,k)\sample\mathsf{Enc}(pk)`. Define
+
+$$`\begin{aligned}
+\alpha_e&=\left|\Pr[B_e(pk,c,k)=1]-\Pr[B_e(pk,c,U_{\mathcal K})=1]\right|,\\
+\beta_e&=\left|\Pr[D_e(F(U_{\mathcal K},e))=1]-\Pr[D_e(U_{\mathcal I})=1]\right|,\\
+\varepsilon&=1-\Pr[\mathsf{Dec}(sk,c)\text{ returns }k].
+\end{aligned}`
+
+$`U_{\mathcal K}` is an independent uniform shared secret and $`U_{\mathcal I}` an independent
+sample from $`\mu`. Probabilities include all algorithm and simulation randomness; a failed
+decapsulation contributes no success probability.
+::::
+
+:::defTitle "mlkem_braid_noauth_security" "Security without authentication"
+:::
+
+::::theorem "mlkem_braid_noauth_security" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.mlkemBraidBounded_noAuth_security_le") (tags := "gh-244") (uses := "mlkem_braid_noauth_experiment, mlkem_braid_noauth_reductions")
+For every adversary $`A` with send budget $`q`, the {uses "mlkem_braid_noauth_experiment"}[protocol $`\Pi`] satisfies
+
+$$`\operatorname{Adv}^{\mathrm{guess}}_{\Pi}(A)
+\leq\frac12\sum_{e=1}^{q}(\alpha_e+\beta_e)+q\varepsilon,`
+
+where $`\alpha_e,\beta_e,\varepsilon` are defined by the {uses "mlkem_braid_noauth_reductions"}[epoch reductions].
 ::::
 
 :::defTitle "mlkem_braid_security" "ML-KEM Braid security"

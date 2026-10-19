@@ -33,6 +33,20 @@ def smDocsCss : String := r#"
    full source via `anchor` blocks or external-code pills (see `smDocsJs`). */
 .bp_code_panel_wrapper { display: none !important; }
 
+/* Show this linked signature below its statement, without duplicating an anchor. */
+.bp_wrapper[title="mlkem_braid_noauth_security"] + .bp_code_panel_wrapper {
+  display: block !important;
+}
+.bp_wrapper[title^="mlkem_braid_noauth"] .bp_heading_title_row_statement {
+  grid-template-columns: auto max-content minmax(0, 1fr);
+}
+.bp_wrapper[title^="mlkem_braid_noauth"] .bp-heading-display-title { white-space: normal; }
+.bp_wrapper[title^="mlkem_braid_noauth"] .bp_math.display {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
 
 /* Clearer Lean syntax highlighting palette (GitHub-light style) */
 .hl.lean .keyword { color: #cf222e; }

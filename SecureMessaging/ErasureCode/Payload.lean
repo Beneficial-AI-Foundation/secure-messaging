@@ -42,6 +42,14 @@ end ErasureCode
 
 namespace ErasureCodePayload
 
+/-- Transport payloads reversibly to the source blocks of an existing erasure code. -/
+def ofEquiv {M Sym : Type} (ec : ErasureCode Sym) (e : M ≃ (Fin ec.nchunk → Sym)) :
+    ErasureCodePayload M Sym where
+  ec := ec
+  serialize := e
+  parse block := some (e.symm block)
+  parse_serialize payload := congrArg some (e.symm_apply_apply payload)
+
 variable {Sym : Type} [DecidableEq Sym]
 
 /-- The natural-index representation of an honest subset of a payload's codeword. -/
