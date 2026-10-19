@@ -59,12 +59,9 @@ jobs:
               - 'lake-manifest.json'
               - 'scripts/**'
 
-      # The only cache for .lake: the build, the dependency checkouts and their
-      # builds. A run saves it at the end of the job if its Lean build passed
-      # and the sorry audit did not fail. Lake never deletes outputs, so an
-      # entry can also hold files from older commits. The path and key format
-      # are those of lean-action, so the first runs start from its entries. A
-      # toolchain or manifest change starts a new cache.
+      # The only cache for .lake (build, dependency checkouts and their builds).
+      # Do not add another one: overlapping .lake caches restored stale builds
+      # (#359).
       - name: Restore Lake cache
         id: lake-cache
         uses: actions/cache/restore@v4
@@ -83,9 +80,9 @@ jobs:
           lint: "true"
           use-mathlib-cache: "true"
 
-      # probe-lean imports every built module that has a source. Rebuild every
-      # module that CI builds before the audit, or a stale one restored from
-      # another commit can import a deleted module, and probe-lean aborts.
+      # The sorry audit loads every built module. A docs module restored from
+      # the cache can be stale and import a deleted module, which makes the
+      # audit fail. Rebuild the docs modules before the audit.
       - name: Build documentation modules
         if: ${{ !cancelled() && steps.lean.outputs.build-status == 'SUCCESS' }}
         run: lake build SecureMessagingDocs SecureMessagingDocs.Contents SecureMessagingDocs.Render
