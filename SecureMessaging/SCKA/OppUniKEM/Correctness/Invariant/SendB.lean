@@ -89,6 +89,7 @@ private lemma reachableInv_after_sendB_same
       exact HonestMessageB.epoch_le hInv.epochPosB hhon
     · simp only [Function.update_of_ne hnew] at hn
       exact hInv.msgBEpoch n ρ tsnd hn
+  · exact hInv.ct0Ack
 
 omit [DecidableEq Sym] in
 /-- Adding a fresh offline encapsulation and recording B's honest message
@@ -236,6 +237,8 @@ private lemma reachableInv_after_sendB_newOff
       exact HonestMessageB.epoch_le hInv.epochPosB hhon
     · simp only [Function.update_of_ne hnew] at hn
       exact hInv.msgBEpoch n ρ tsnd hn
+  · refine ⟨hInv.ct0Ack.1, hInv.ct0Ack.2.1, hInv.ct0Ack.2.2.1, ?_⟩
+    simpa only [hTOn s.stA.t] using hInv.ct0Ack.2.2.2
 
 omit [DecidableEq Sym] in
 /-- Adding a fresh online encapsulation and derived key while recording B's
@@ -256,6 +259,7 @@ private lemma reachableInv_after_sendB_newOn
     (hon : (T s.stB.t).on = none)
     (_hek : s.stB.ekA = some pk) (_hst : s.stB.stCt = some st)
     (_hct0 : s.stB.ct0 = some ct0)
+    (hack : s.stB.ack.ctRec = true)
     (hmem : (ct1, key) ∈ support (onoff.encapsOn st pk)) :
     let msg : Message Sym :=
       (some (ecCt1.encode ct1 1), s.stB.ack, s.stB.t, some 1)
@@ -279,6 +283,7 @@ private lemma reachableInv_after_sendB_newOn
       have hcomplete := hInv.pastComplete s.stB.t hInv.epochPosB hlt
       simp [EpochTranscript.key, hon] at hcomplete
     exact Nat.le_antisymm (Nat.le_of_not_gt hnlt) hInv.epochs.1
+  have hctASome : s.stA.ct0.isSome := hInv.ct0Ack.2.2.1 hack htEq.symm
   -- `Nat.le_antisymm` above already closes the epoch equality; the following
   -- support fact determines the transcript installed at the current epoch.
   let tr' := (T s.stB.t).setOn ct1 key (by simp [hkp]) (by simp [hoff]) (by
@@ -334,7 +339,7 @@ private lemma reachableInv_after_sendB_newOn
     obtain ⟨st', htr⟩ := hInv.decodedCt0 ct0' hct0'
     exact ⟨st', by simpa [hTOff s.stA.t] using htr⟩
   · cases hctA : s.stA.ct0 with
-    | none => simpa [ChunksAConsistent, hctA, htEq, hTOff s.stB.t] using hInv.chunksA
+    | none => simp [hctA] at hctASome
     | some ct0A =>
         have hlch : s.stA.lch = ∅ := by
           have hc : (∃ stA, (T s.stB.t).off = some (stA, ct0A)) ∧
@@ -428,194 +433,7 @@ private lemma reachableInv_after_sendB_newOn
       exact le_rfl
     · simp only [Function.update_of_ne hnew] at hn
       exact hInv.msgBEpoch n ρ tsnd hn
-
-omit [DecidableEq Sym] in
-/-- Adding fresh offline and online encapsulations together with the derived key
-preserves `reachableInv`. -/
-private lemma reachableInv_after_sendB_newOffOn
-    [DecidableEq K]
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0Pos : 0 < ecCt0.ec.nchunk)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (T : Transcript kem onoff)
-    (hInv : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
-    (pk : PK) (sk : SK) (st : onoff.St) (ct0 : onoff.C₀)
-    (ct1 : onoff.C₁) (key : K)
-    (hkp : (T s.stB.t).keypair = some (pk, sk))
-    (hct0none : s.stB.ct0 = none)
-    (hoffmem : (st, ct0) ∈ support onoff.encapsOff)
-    (honmem : (ct1, key) ∈ support (onoff.encapsOn st pk)) :
-    let msg : Message Sym :=
-      (some (ecCt1.encode ct1 1), s.stB.ack, s.stB.t, some 1)
-    reachableInv kem onoff ecEk ecCt0 ecCt1
-      { s with
-        stB := { s.stB with
-          stCt := some st
-          ct0 := some ct0
-          ct1 := some ct1
-          ich := 1 }
-        tcurB := s.stB.t - 1
-        keyB := Function.update s.keyB s.stB.t (some key)
-        msgB := Function.update s.msgB (s.nB + 1) (some (msg, s.stB.t - 1))
-        nB := s.nB + 1
-        correct := s.correct
-          && decide (s.tcurB ≤ s.stB.t - 1)
-          && (s.keyB s.stB.t).isNone
-          && ((s.keyA s.stB.t).isNone || s.keyA s.stB.t == some key)
-          && SCKAScheme.knownPrefix (Function.update s.keyB s.stB.t (some key))
-            (s.stB.t - 1) } := by
-  dsimp only
-  have hstnone : s.stB.stCt = none := by
-    simpa [hct0none] using hInv.offBShape
-  have hoffnone : (T s.stB.t).off = none := by
-    simpa [hct0none, hstnone] using hInv.offB
-  have honnone : (T s.stB.t).on = none := by
-    by_contra hon
-    simpa [hoffnone] using (T s.stB.t).on_off (Option.isSome_iff_ne_none.mpr hon)
-  have htEq : s.stA.t = s.stB.t := by
-    have hnlt : ¬ s.stB.t < s.stA.t := by
-      intro hlt
-      have hc := hInv.pastComplete s.stB.t hInv.epochPosB hlt
-      simp [EpochTranscript.key, honnone] at hc
-    exact Nat.le_antisymm (Nat.le_of_not_gt hnlt) hInv.epochs.1
-  let offTr := (T s.stB.t).setOff st ct0 hoffmem honnone
-  let tr' := offTr.setOn ct1 key (by simp [offTr, EpochTranscript.setOff, hkp])
-    (by simp [offTr, EpochTranscript.setOff]) (by
-      intro pk' sk' st' ct0' hkp' hoff'
-      have hpairs : some (pk, sk) = some (pk', sk') := by
-        simpa [offTr, EpochTranscript.setOff] using hkp.symm.trans hkp'
-      have hoffs : some (st, ct0) = some (st', ct0') := by
-        simpa [offTr, EpochTranscript.setOff] using hoff'
-      have hp : pk' = pk := (congrArg Prod.fst (Option.some.inj hpairs)).symm
-      have hs : st' = st := (congrArg Prod.fst (Option.some.inj hoffs)).symm
-      subst pk'; subst st'
-      exact honmem)
-  let T' := Function.update T s.stB.t tr'
-  have hTKp : ∀ t, (T' t).keypair = (T t).keypair := by
-    intro t
-    by_cases ht : t = s.stB.t
-    · subst t; simp [T', tr', offTr, EpochTranscript.setOn, EpochTranscript.setOff]
-    · simp [T', ht]
-  have hTKeyOther : ∀ t, t ≠ s.stB.t → (T' t).key = (T t).key := by
-    intro t ht; simp [T', ht]
-  have hkeyCurrent : (T' s.stB.t).key = some key := by
-    simp [T', tr', EpochTranscript.setOn, EpochTranscript.key]
-  have hkeyBOld : s.keyB s.stB.t = none := by
-    simp [hInv.keyB, EpochTranscript.key, honnone]
-  have hkeyAOld : s.keyA s.stB.t = none := by simp [hInv.keyA, htEq]
-  have hknown :
-      SCKAScheme.knownPrefix (Function.update s.keyB s.stB.t (some key)) (s.stB.t - 1) = true := by
-    exact SCKAScheme.knownPrefix_update_some
-      (hInv.knownPrefixB (tcur := s.stB.t - 1) le_rfl) s.stB.t key
-  refine ⟨T', ?_⟩
-  constructor
-  · simp [hInv.correct, hInv.tcurB, hkeyBOld, hkeyAOld, hknown]
-  · exact hInv.epochs
-  · exact hInv.epochPosA
-  · exact hInv.epochPosB
-  · exact hInv.tcurA
-  · exact le_rfl
-  · exact hInv.keypairAShape
-  · simp
-  · simpa [hTKp s.stA.t] using hInv.keypairA
-  · simp [T', tr', offTr, EpochTranscript.setOn, EpochTranscript.setOff]
-  · simp [T', tr', EpochTranscript.setOn]
-  · intro pk' hpk'
-    obtain ⟨sk', htr⟩ := hInv.decodedEk pk' hpk'
-    exact ⟨sk', by simpa [hTKp s.stB.t] using htr⟩
-  · intro ct0A hct0A
-    obtain ⟨stA, hbad⟩ := hInv.decodedCt0 ct0A hct0A
-    rw [htEq, hoffnone] at hbad
-    contradiction
-  · cases hctA : s.stA.ct0 with
-    | some ct0A =>
-        obtain ⟨stA, hbad⟩ := hInv.decodedCt0 ct0A hctA
-        rw [htEq] at hbad
-        rw [hoffnone] at hbad
-        contradiction
-    | none =>
-        have hlch : s.stA.lch = ∅ := by
-          simpa [ChunksAConsistent, hctA, htEq, hoffnone] using hInv.chunksA
-        simp only [ChunksAConsistent, hctA]
-        have hcurrentOff : (T' s.stA.t).off = some (st, ct0) := by
-          simp [htEq, T', tr', offTr, EpochTranscript.setOn,
-            EpochTranscript.setOff]
-        rw [hcurrentOff]
-        exact ⟨∅,
-          by simp [payloadChunks, ErasureCode.encodeChunks, hlch], hCt0Pos⟩
-  · simpa [ChunksBConsistent, hTKp s.stB.t] using hInv.chunksB
-  · intro t ht0 hlt
-    have hne : t ≠ s.stB.t := Nat.ne_of_lt (by simpa [htEq] using hlt)
-    simpa [hTKeyOther t hne] using hInv.pastComplete t ht0 hlt
-  · intro t hlt; simpa [hTKp t] using hInv.futureKeypair t hlt
-  · intro t hlt
-    have hne : t ≠ s.stB.t := Nat.ne_of_gt hlt
-    simpa [T', hne] using hInv.futureOff t hlt
-  · intro t hlt
-    have hne : t ≠ s.stB.t := Nat.ne_of_gt hlt
-    simpa [T', hne] using hInv.futureOn t hlt
-  · intro t
-    by_cases ht0 : t = 0
-    · simp [ht0, hInv.keyA]
-    by_cases hlt : t < s.stA.t
-    · have hne : t ≠ s.stB.t := by omega
-      simpa [ht0, hlt, hTKeyOther t hne] using hInv.keyA t
-    · simpa [ht0, hlt] using hInv.keyA t
-  · intro t
-    by_cases ht : t = s.stB.t
-    · subst t; simp [Function.update, hkeyCurrent]
-    · simp [Function.update, ht, hTKeyOther t ht, hInv.keyB]
-  · intro n entry hn
-    have hold := hInv.msgA n entry hn
-    rcases entry with ⟨⟨ch?, ack, t, b?⟩, tsnd⟩
-    simp only [HonestMessageA] at hold ⊢
-    rcases hold with ⟨htsnd, hb, hold⟩
-    refine ⟨htsnd, hb, ?_⟩
-    cases ch? with
-    | none => trivial
-    | some ch =>
-        obtain ⟨pk', sk', i, htr, hch⟩ := hold
-        exact ⟨pk', sk', i, by simpa [hTKp t] using htr, hch⟩
-  · intro n entry hn
-    by_cases hnew : n = s.nB + 1
-    · subst n
-      simp only [Function.update_self, Option.some.injEq] at hn
-      subst entry
-      change s.stB.t - 1 = s.stB.t - 1 ∧ ∃ ct1' key' i,
-        (T' s.stB.t).on = some (ct1', key') ∧
-          ecCt1.encode ct1 1 = ecCt1.encode ct1' i
-      exact ⟨rfl, ct1, key, 1, by simp [T', tr', EpochTranscript.setOn], rfl⟩
-    · simp only [Function.update_of_ne hnew] at hn
-      have hold := hInv.msgB n entry hn
-      rcases entry with ⟨⟨ch?, ack, t, b?⟩, tsnd⟩
-      simp only [HonestMessageB] at hold ⊢
-      rcases hold with ⟨htsnd, hold⟩
-      refine ⟨htsnd, ?_⟩
-      rcases ch? with _ | ch
-      · trivial
-      rcases b? with _ | b
-      · exact hold
-      fin_cases b
-      · obtain ⟨st', ct0', i, htr, hch⟩ := hold
-        by_cases ht : t = s.stB.t
-        · subst t; rw [hoffnone] at htr; contradiction
-        · exact ⟨st', ct0', i, by simpa [T', ht] using htr, hch⟩
-      · obtain ⟨ct1', key', i, htr, hch⟩ := hold
-        by_cases ht : t = s.stB.t
-        · subst t; rw [honnone] at htr; contradiction
-        · exact ⟨ct1', key', i, by simpa [T', ht] using htr, hch⟩
-  · exact hInv.msgAEpoch
-  · intro n ρ tsnd hn
-    by_cases hnew : n = s.nB + 1
-    · subst n
-      simp only [Function.update_self, Option.some.injEq, Prod.mk.injEq] at hn
-      obtain ⟨rfl, rfl⟩ := hn
-      change s.stB.t ≤ s.stB.t
-      exact le_rfl
-    · simp only [Function.update_of_ne hnew] at hn
-      exact hInv.msgBEpoch n ρ tsnd hn
+  · exact ⟨hInv.ct0Ack.1, hInv.ct0Ack.2.1, hInv.ct0Ack.2.2.1, fun _ => hctASome⟩
 
 /-- With positive chunk counts for both ciphertext erasure codes, B's send preserves `reachableInv`.
 -/
@@ -717,7 +535,7 @@ lemma oracleSendB_preserves_reachableInv
                 obtain ⟨ct1, key, hmem, rfl⟩ := hout'
                 simp only [SCKAScheme.sendBUpdate]
                 exact reachableInv_after_sendB_newOn kem onoff ecEk ecCt0 ecCt1 hCt1Pos
-                  s T hInv pk sk st ct0 ct1 key hkp hoff hon hek hst hct0 hmem
+                  s T hInv pk sk st ct0 ct1 key hkp hoff hon hek hst hct0 hackTrue hmem
   | none =>
       have hstnone : s.stB.stCt = none := by
         simpa [hct0] using hInv.offBShape
@@ -754,39 +572,16 @@ lemma oracleSendB_preserves_reachableInv
       case false =>
         have hackTrue : s.stB.ack.ctRec = true := by
           cases h : s.stB.ack.ctRec <;> simp [h] at hack ⊢
-        cases hek : s.stB.ekA with
-        | none =>
-            have hout' : ∃ st ct0,
-                (st, ct0) ∈ support onoff.encapsOff ∧
-                let msg : Message Sym := (none, s.stB.ack, s.stB.t, none)
-                some (none, msg, s.stB.t - 1,
-                  { s.stB with stCt := some st, ct0 := some ct0, ich := s.stB.ich }) = out := by
-              simpa [scheme, sendB, hct0, hackTrue, hek] using hout
-            obtain ⟨st, ct0, hmem, rfl⟩ := hout'
-            simp only [SCKAScheme.sendBUpdate, hknown, Bool.and_true]
-            apply reachableInv_after_sendB_newOff kem onoff ecEk ecCt0 hCt0Pos ecCt1
-              s T hInv st ct0 hmem hct0 honnone s.stB.ich
-                (none, s.stB.ack, s.stB.t, none)
-            simp [HonestMessageB]
-        | some pk =>
-            obtain ⟨sk, hkp⟩ := hInv.decodedEk pk hek
-            have hct1none : s.stB.ct1 = none := by
-              cases hct1 : s.stB.ct1 with
-              | none => rfl
-              | some ct1 => simpa [honnone, hct1] using hInv.onB
-            have hout' : ∃ st ct0 ct1 key,
-                (st, ct0) ∈ support onoff.encapsOff ∧
-                (ct1, key) ∈ support (onoff.encapsOn st pk) ∧
-                let msg : Message Sym :=
-                  (some (ecCt1.encode ct1 1), s.stB.ack, s.stB.t, some 1)
-                some (some (s.stB.t, key), msg, s.stB.t - 1,
-                  { s.stB with stCt := some st, ct0 := some ct0, ct1 := some ct1, ich := 1 }) =
-                    out := by
-              simpa [scheme, sendB, hct0, hackTrue, hek, hct1none] using hout
-            obtain ⟨st, ct0, ct1, key, hoffmem, honmem, rfl⟩ := hout'
-            simp only [SCKAScheme.sendBUpdate]
-            exact reachableInv_after_sendB_newOffOn kem onoff ecEk ecCt0 hCt0Pos
-              ecCt1 s T hInv pk sk st ct0 ct1 key hkp hct0 hoffmem honmem
+        have htEq : s.stA.t = s.stB.t := by
+          have hnlt : ¬ s.stB.t < s.stA.t := by
+            intro hlt
+            have hcomplete := hInv.pastComplete s.stB.t hInv.epochPosB hlt
+            simp [EpochTranscript.key, honnone] at hcomplete
+          exact Nat.le_antisymm (Nat.le_of_not_gt hnlt) hInv.epochs.1
+        have hctASome := hInv.ct0Ack.2.2.1 hackTrue htEq.symm
+        obtain ⟨ct0A, hct0A⟩ := Option.isSome_iff_exists.mp hctASome
+        obtain ⟨stA, hoffA⟩ := hInv.decodedCt0 ct0A hct0A
+        simp [htEq, hoffnone] at hoffA
 
 end SendB
 
