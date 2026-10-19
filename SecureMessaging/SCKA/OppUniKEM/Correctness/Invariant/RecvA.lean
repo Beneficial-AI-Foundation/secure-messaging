@@ -76,9 +76,9 @@ private lemma reachableInv_after_recvA_stale
   · exact hInv.ct0Ack
 
 omit [DecidableEq Sym] in
-/-- Replacing A's current-epoch local state while preserving its key material,
-decoded ciphertext witness, honest chunk buffer, and ciphertext acknowledgements
-preserves reachability. -/
+/-- Replacing A's current-epoch local state preserves reachability when its key
+material is unchanged, its decoded ciphertext and chunk buffer remain transcript-consistent,
+any held `ct₀` remains present, and `ctRec = true` implies that `ct₀` is present. -/
 private lemma reachableInv_after_recvA_same
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)

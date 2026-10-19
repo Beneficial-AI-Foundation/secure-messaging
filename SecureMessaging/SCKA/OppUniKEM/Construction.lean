@@ -72,9 +72,14 @@ The algorithms follow Figure 16 with these additions or differences:
 - **Receiving epoch.** Figure 16 returns `t - 1` from `Rec-B`. We instead return
   `t' - 1`, the epoch of the received message, as required by the SCKA matching-
   epoch condition under delayed or replayed delivery.
-- **Receive refusal.** `Rec-A` refuses a current-epoch `ct_1` chunk if `dk_A` or
-  `ct_0` is absent, or if decapsulation fails. A refused receive makes no local
-  state changes. Incomplete decoding retains the received chunk.
+- **Receive failure.** After decoding a current-epoch `ct_1`, `Rec-A` aborts if
+  `dk_A` or `ct_0` is absent, or if decapsulation fails. An aborted receive makes
+  no local state changes. Incomplete decoding retains the received chunk and
+  processes acknowledgements.
+- **Send totality.** If A holds `dk_A` without `ek_A`, it sends no chunk. If B
+  reaches online encapsulation without `st_ct`, it sends neither a chunk nor a
+  key. The leaking variants behave the same. Transcript consistency excludes
+  these states.
 
 ## Correction to randomness-leakage exposure
 
@@ -302,11 +307,11 @@ if t = t' then
       ack.ct_0-rec <- true
       L_ch <- ∅
   elseif b = 1 ∧ ch ≠ ⊥ then
-    if dk_A = ⊥ ∨ ct_0 = ⊥ then return ⊥
     ct_1 <- Decode(L_ch ∪ {ch})
     if ct_1 = ⊥ then
       L_ch <- L_ch ∪ {ch}
     else
+      if dk_A = ⊥ ∨ ct_0 = ⊥ then return ⊥
       I_B <- Decaps(dk_A, (ct_0, ct_1))
       if I_B = ⊥ then return ⊥
       t_IB <- t
@@ -346,14 +351,13 @@ def recvA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
                     lch := ∅
                     ack := { stA.ack with ctRec := true } })
         | _, some 1, some ch =>
-        -- Processing `ct_1` chunks requires both `dk_A` and `ct_0`.
-            match stA.dkA, stA.ct0 with
-            | some dkA, some ct0 =>
-                let lch := insert ch stA.lch
-                match ecCt1.decode lch with
-                | none => some (none, { stA with lch := lch })
-                | some ct1 =>
-                -- decoded `ct_1` successfully; decapsulate (ct_0, ct_1) to get an epoch key
+            let lch := insert ch stA.lch
+            match ecCt1.decode lch with
+            | none => some (none, { stA with lch := lch })
+            | some ct1 =>
+              -- Decapsulation requires both `dk_A` and `ct_0`.
+              match stA.dkA, stA.ct0 with
+              | some dkA, some ct0 =>
                   match decapsDet dkA (onoff.split.symm (ct0, ct1)) with
                   | none => none
                   | some key =>
@@ -365,7 +369,7 @@ def recvA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
                           t := stA.t + 1
                           lch := ∅
                           ack := { ekRec := false, ctRec := false } })
-            | _, _ => none
+              | _, _ => none
         | _, _, _ => some (none, stA)
       -- Incorporate B's acknowledgement only if this receive did not advance A
       -- to the next epoch; otherwise a final `ct_1` message would carry the old
