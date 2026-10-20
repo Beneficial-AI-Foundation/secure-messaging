@@ -23,9 +23,10 @@ values.
 - `mark`, `markA`, `markB`, `markState e s`: mark the private values of an honest state, making
   those of epoch `e` and the keys recorded at `e` unavailable and all others known; public fields,
   message tables, counters, and bookkeeping sets are kept. `markCoins` marks send coins.
-- `pinnedChallenge e kStar`: the challenge oracle on honest states answering an eligible
-  challenge at `t` with a uniform key if `0 < t < e`, with `kStar` if `t = e`, and with the
-  recorded key otherwise.
+- `pinnedChallenge e kStar := challengeWith id e kStar`: the challenge oracle on honest states,
+  answering an eligible challenge at `t` with a uniform key if `0 < t < e`, with `kStar` if
+  `t = e`, and with the recorded key otherwise. The simulator's `challenge` is `challengeWith`
+  reading marked keys.
 
 **Results.** Each local send and receive of the simulator, run from a marked state over the
 marked KEM with the public key and ciphertext of `m`, equals the same operation over
@@ -331,28 +332,13 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
 
-/-- Challenge oracle on honest game states for selected epoch `e` and candidate key `kStar`. A
-query `t` is rejected (`none`) if `t` is exposed or challenged or no key is recorded for `t`.
-Otherwise it inserts `t` into `challenged` and returns a uniform key if `0 < t < e`, `kStar` if
-`t = e`, and the recorded key otherwise. -/
+/-- Challenge oracle on honest game states for selected epoch `e` and candidate key `kStar`:
+`challengeWith` reading each recorded key directly. -/
 def pinnedChallenge [SampleableType K]
     {base : KEMScheme ProbComp K PK SK C} (onoff : base.OnOffStructure)
     (e : ℕ) (kStar : K) : QueryImpl (ℕ →ₒ Option K)
       (StateT (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) ProbComp) :=
-  fun t => do
-    let s ← get
-    if t ∈ s.exposed ∨ t ∈ s.challenged then pure none
-    else
-      let key := match s.keyA t with
-        | some k => some k
-        | none => s.keyB t
-      match key with
-      | none => pure none
-      | some honest =>
-        let k ← if 0 < t ∧ t < e then liftM ($ᵗ K : ProbComp K)
-          else pure (if t = e then kStar else honest)
-        set { s with challenged := insert t s.challenged }
-        pure (some k)
+  challengeWith id e kStar
 
 /-- For every query `t` and honest game state `s`, `challenge e kStar t` from `markState e s`
 equals `pinnedChallenge e kStar t` from `s` followed by marking the successor state. -/
@@ -362,7 +348,7 @@ theorem challenge_mark [SampleableType K]
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
     (challenge onoff e kStar t).run (markState e s) =
       Prod.map id (markState e) <$> (pinnedChallenge onoff e kStar t).run s := by
-  simp only [challenge, pinnedChallenge, StateT.run_bind, StateT.run_get, pure_bind]
+  simp only [challenge, pinnedChallenge, challengeWith, StateT.run_bind, StateT.run_get, pure_bind]
   by_cases hg : t ∈ s.exposed ∨ t ∈ s.challenged
   · simp [markState, hg, StateT.run_pure, Prod.map]
   · cases hA : s.keyA t <;> cases hB : s.keyB t
@@ -383,10 +369,10 @@ theorem pinnedChallenge_recordsChallenges [SampleableType K]
   intro t s z hz
   by_cases helig : t ∈ s.exposed ∨ t ∈ s.challenged
   · left
-    simp only [pinnedChallenge, StateT.run_bind, StateT.run_get, pure_bind, helig,
+    simp only [pinnedChallenge, challengeWith, StateT.run_bind, StateT.run_get, pure_bind, helig,
       ↓reduceIte, StateT.run_pure, mem_support_pure_iff] at hz
     rw [hz]
-  · simp only [pinnedChallenge, StateT.run_bind, StateT.run_get, pure_bind, helig,
+  · simp only [pinnedChallenge, challengeWith, StateT.run_bind, StateT.run_get, pure_bind, helig,
       ↓reduceIte] at hz
     repeat' split at hz
     all_goals
@@ -412,7 +398,7 @@ theorem pinnedChallenge_selected [SampleableType K]
       pure (some kStar, { s with challenged := insert e s.challenged }) := by
   cases hA : s.keyA e <;> cases hB : s.keyB e
   all_goals try simp [hA, hB] at hkey
-  all_goals simp [pinnedChallenge, helig, hA, hB, StateT.run_bind,
+  all_goals simp [pinnedChallenge, challengeWith, helig, hA, hB, StateT.run_bind,
     StateT.run_get, StateT.run_set]
 
 /-- Unless `t = e` and `e` is unexposed, unchallenged, and has a recorded key, the computations
@@ -427,11 +413,41 @@ theorem pinnedChallenge_eq_of_unused [SampleableType K]
   by_cases ht : t = e
   · subst t
     by_cases hg : e ∈ s.exposed ∨ e ∈ s.challenged
-    · simp [pinnedChallenge, hg, StateT.run_bind, StateT.run_get]
+    · simp [pinnedChallenge, challengeWith, hg, StateT.run_bind, StateT.run_get]
     · have hk : s.keyA e = none ∧ s.keyB e = none := by
         cases hA : s.keyA e <;> cases hB : s.keyB e <;> simp_all
-      simp [pinnedChallenge, hg, hk, StateT.run_bind, StateT.run_get]
-  · simp only [pinnedChallenge, ht, ↓reduceIte]
+      simp [pinnedChallenge, challengeWith, hg, hk, StateT.run_bind, StateT.run_get]
+  · simp only [pinnedChallenge, challengeWith, ht, ↓reduceIte]
+
+/-- If every key recorded by A or B at epoch `e` in `s` equals `kStar`, then for every
+challenged epoch `t`, `pinnedChallenge e kStar t` and
+`oracleChall (decide (0 < t ∧ t < e)) t` are equal computations from `s`. -/
+theorem pinnedChallenge_eq_recorded [SampleableType K]
+    {base : KEMScheme ProbComp K PK SK C} (onoff : base.OnOffStructure)
+    (e : ℕ) (kStar : K) (t : ℕ)
+    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (hkey : ∀ k, s.keyA e = some k ∨ s.keyB e = some k → k = kStar) :
+    (pinnedChallenge onoff e kStar t).run s =
+      (SCKAScheme.oracleChall (decide (0 < t ∧ t < e))
+        (StA onoff Sym) (StB onoff Sym) K (Message Sym) t).run s := by
+  by_cases hg : t ∈ s.exposed ∨ t ∈ s.challenged
+  · simp [pinnedChallenge, challengeWith, SCKAScheme.oracleChall, hg]
+  · by_cases ht : t = e
+    · subst t
+      cases hA : s.keyA e with
+      | none =>
+        cases hB : s.keyB e with
+        | none => simp [pinnedChallenge, challengeWith, SCKAScheme.oracleChall, hg, hA, hB]
+        | some k =>
+          have hk := hkey k (.inr hB)
+          subst k
+          simp [pinnedChallenge, challengeWith, SCKAScheme.oracleChall, hg, hA, hB]
+      | some k =>
+        have hk := hkey k (.inl hA)
+        subst k
+        simp [pinnedChallenge, challengeWith, SCKAScheme.oracleChall, hg, hA]
+    · cases hA : s.keyA t <;> cases hB : s.keyB t <;> by_cases hr : 0 < t ∧ t < e <;>
+        simp [pinnedChallenge, challengeWith, SCKAScheme.oracleChall, hg, hA, hB, ht, hr]
 
 end oppUniKemCKA.Security.Embedding
 

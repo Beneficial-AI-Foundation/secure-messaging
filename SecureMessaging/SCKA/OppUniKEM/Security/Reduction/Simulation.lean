@@ -157,36 +157,6 @@ theorem pinnedKey_both
   apply hm k
   exact hk.elim (recordedA_eq_recordedB base onoff ecEk ecCt0 ecCt1 s hs e k) id
 
-/-- If every key recorded by A or B at epoch `e` in `s` equals `kStar`, then for every
-challenged epoch `t`, `pinnedChallenge e kStar t` and
-`oracleChall (decide (0 < t ∧ t < e)) t` are equal computations from `s`. -/
-theorem pinnedChallenge_eq_recorded [SampleableType K]
-    {base : KEMScheme ProbComp K PK SK C} (onoff : base.OnOffStructure)
-    (e : ℕ) (kStar : K) (t : ℕ)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (hkey : ∀ k, s.keyA e = some k ∨ s.keyB e = some k → k = kStar) :
-    (pinnedChallenge onoff e kStar t).run s =
-      (SCKAScheme.oracleChall (decide (0 < t ∧ t < e))
-        (StA onoff Sym) (StB onoff Sym) K (Message Sym) t).run s := by
-  by_cases hg : t ∈ s.exposed ∨ t ∈ s.challenged
-  · simp [pinnedChallenge, SCKAScheme.oracleChall, hg]
-  · by_cases ht : t = e
-    · subst t
-      cases hA : s.keyA e with
-      | none =>
-        cases hB : s.keyB e with
-        | none => simp [pinnedChallenge, SCKAScheme.oracleChall, hg, hA, hB]
-        | some k =>
-          have hk := hkey k (.inr hB)
-          subst k
-          simp [pinnedChallenge, SCKAScheme.oracleChall, hg, hA, hB]
-      | some k =>
-        have hk := hkey k (.inl hA)
-        subst k
-        simp [pinnedChallenge, SCKAScheme.oracleChall, hg, hA]
-    · cases hA : s.keyA t <;> cases hB : s.keyB t <;> by_cases hr : 0 < t ∧ t < e <;>
-        simp [pinnedChallenge, SCKAScheme.oracleChall, hg, hA, hB, ht, hr]
-
 end oppUniKemCKA.Security.Embedding
 
 open OracleSpec OracleComp KEMScheme

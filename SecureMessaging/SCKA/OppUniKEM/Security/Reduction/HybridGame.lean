@@ -225,13 +225,13 @@ theorem pinnedChallenge_sample_uniform
   apply evalDist_ext
   intro out
   by_cases hg : t ∈ s.exposed ∨ t ∈ s.challenged
-  · simp [pinnedChallenge, SCKAScheme.oracleChall, hg]
+  · simp [pinnedChallenge, challengeWith, SCKAScheme.oracleChall, hg]
   · by_cases ht : t = e
     · subst t
       cases hA : s.keyA e <;> cases hB : s.keyB e <;>
-        simp [pinnedChallenge, SCKAScheme.oracleChall, adjacentMode, hg, hA, hB, he]
+        simp [pinnedChallenge, challengeWith, SCKAScheme.oracleChall, adjacentMode, hg, hA, hB, he]
     · cases hA : s.keyA t <;> cases hB : s.keyB t <;> by_cases hr : 0 < t ∧ t < e <;>
-        simp [probOutput_bind_const, pinnedChallenge, SCKAScheme.oracleChall,
+        simp [probOutput_bind_const, pinnedChallenge, challengeWith, SCKAScheme.oracleChall,
           adjacentMode, hg, hA, hB, ht, hr]
 
 /-- For `e > 0`, every query `t`, and every state `s`, drawing `k ←$ K` and answering `t` with

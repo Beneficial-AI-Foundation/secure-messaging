@@ -213,16 +213,15 @@ theorem revealAfter_run {σ α β : Type} (reveal : α → Option β)
       (do let (a, s') ← op.run s; pure (reveal a, s')) := by
   rfl
 
-/-- Simulator challenge oracle for selected epoch `e` and candidate key `kStar`. A query `t` is
-rejected (`none`) if `t` is exposed or challenged or no key is recorded for `t`, with A's table
-consulted before B's. Otherwise it inserts `t` into `challenged` and returns a uniform key if
-`0 < t < e`, `kStar` if `t = e`, and else the recorded key if known and `kStar` if unavailable.
-The key tables are unchanged. -/
+/-- Challenge oracle for selected epoch `e` and candidate key `kStar`, on game states whose key
+tables have entries of type `κ`; `toKey` reads an entry as a key. A query `t` is rejected
+(`none`) if `t` is exposed or challenged or no key is recorded for `t`, with A's table consulted
+before B's. Otherwise it inserts `t` into `challenged` and returns a uniform key if `0 < t < e`,
+`kStar` if `t = e`, and `toKey` of the recorded entry otherwise. The key tables are
+unchanged. -/
 -- ANCHOR: embedding_challenge
-def challenge [SampleableType K]
-    {base : KEMScheme ProbComp K PK SK C} (onoff : base.OnOffStructure)
-    (e : ℕ) (kStar : K) : QueryImpl (ℕ →ₒ Option K)
-      (StateT (SimState onoff Sym) ProbComp) :=
+def challengeWith [SampleableType K] {σA σB κ ρ : Type} (toKey : κ → K) (e : ℕ) (kStar : K) :
+    QueryImpl (ℕ →ₒ Option K) (StateT (SCKAScheme.GameState σA σB κ ρ) ProbComp) :=
   fun t => do
     let s ← get
     if t ∈ s.exposed ∨ t ∈ s.challenged then pure none
@@ -234,9 +233,16 @@ def challenge [SampleableType K]
       | none => pure none
       | some honest =>
         let k ← if 0 < t ∧ t < e then liftM ($ᵗ K : ProbComp K)
-          else pure (if t = e then kStar else honest.getD kStar)
+          else pure (if t = e then kStar else toKey honest)
         set { s with challenged := insert t s.challenged }
         pure (some k)
+
+/-- Simulator challenge oracle on marked states: a recorded key is read as its known value, or
+as `kStar` if unavailable. -/
+def challenge [SampleableType K]
+    {base : KEMScheme ProbComp K PK SK C} (onoff : base.OnOffStructure)
+    (e : ℕ) (kStar : K) : QueryImpl (ℕ →ₒ Option K) (StateT (SimState onoff Sym) ProbComp) :=
+  challengeWith (fun key : Option K => key.getD kStar) e kStar
 -- ANCHOR_END: embedding_challenge
 
 /-- Simulator oracles for selected epoch `e` and IND-CPA challenge `(pkStar, ctStar, kStar)`, on
