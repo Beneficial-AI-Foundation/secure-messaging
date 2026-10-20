@@ -344,12 +344,10 @@ private lemma reachableInv_after_recvA_ackOnly
   · simp
   · simpa using hInv.ct0Ack.1
 
-/-- Let `scka` be an SCKA scheme whose A-receive is `recvA` with decapsulation `decapsDet`.
-Assume the ciphertext erasure codes are correct, the online code has a positive chunk count,
-and `decapsDet dk (onoff.split.symm (ct0, ct1)) = some key` whenever A holds `dk` and `ct0`
-in `s`, B holds `ct1`, and B's key table records `key` for A's current epoch. Then, if `s`
-satisfies `reachableInv`, every possible successor of A's receive query from `s` satisfies
-`reachableInv`. -/
+/-- Let `scka.recvA` be `recvA` with decapsulation `decapsDet`, and let the ciphertext codes be
+correct with a positive online chunk count. If `decapsDet dk (onoff.split.symm (ct0, ct1)) =
+some key` whenever A holds `dk` and `ct0`, B holds `ct1`, and B records `key` for A's epoch in `s`,
+then A's receive query preserves `reachableInv` from `s`. -/
 lemma oracleRecvA_preserves_reachableInv_of_recv
     [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
@@ -636,10 +634,8 @@ lemma oracleRecvA_preserves_reachableInv_of_recv
           reachableInv_after_recvA_stale kem onoff ecEk ecCt0 ecCt1
             s T hInv t htlt
 
-/-- For Opp-UniKEM with deterministic decapsulation, if `s` satisfies `reachableInv` and
-`CurrentKEMCorrect`, every possible successor of A's receive query from `s` satisfies
-`reachableInv`, provided the ciphertext erasure codes are correct and the online code has a
-positive chunk count. -/
+/-- Opp-UniKEM version of `oracleRecvA_preserves_reachableInv_of_recv`: with deterministic
+decapsulation, `CurrentKEMCorrect s` supplies its decapsulation hypothesis. -/
 lemma oracleRecvA_preserves_reachableInv
     [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)

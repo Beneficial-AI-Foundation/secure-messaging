@@ -63,15 +63,12 @@ Then, for every adaptive adversary `oa : OracleComp spec Bool` and
 initial state `s` satisfying `Inv s`,
 `Pr[G_once(oa, s) = true] = Pr[G_each(oa, s) = true]`.
 
-**Stopped executions** (`stoppedRun_sample_once_eq`). Now let
-`impl : τ → QueryImpl spec (StateT σ ProbComp)` and `target : QueryImpl spec (StateT σ ProbComp)`
-be oracle implementations whose answers are never `none`, and `stop : σ → Bool` a test on states.
-Assume conditions 1–5 for the queries `(impl a t).run s`, with conditions 1, 2, and 5 required
-only for successors `s'` with `stop s' = false`. Assume also that `target` answers each query
-from each state `s` with `Inv s` with the averaged distribution:
-`𝒟[a ← sample; (impl a t).run s] = 𝒟[(target t).run s]`. Then, for every `oa` and `s` with
-`Inv s`, `Pr[a ← sample; stoppedRun (impl a) stop oa s = true] =
-Pr[stoppedRun target stop oa s = true]`.
+**Stopped executions** (`stoppedRun_sample_once_eq`). Let `impl a` and `target` be oracle
+implementations with plain `StateT σ ProbComp` answers and `stop : σ → Bool`. If conditions 1–5
+hold for `(impl a t).run s`, with 1, 2, and 5 only for successors `s'` with `stop s' = false`,
+and `𝒟[a ← sample; (impl a t).run s] = 𝒟[(target t).run s]` whenever `Inv s`, then for every
+`oa` and `s` with `Inv s`,
+`Pr[a ← sample; stoppedRun (impl a) stop oa s = true] = Pr[stoppedRun target stop oa s = true]`.
 -/
 
 open OracleSpec ENNReal
@@ -253,19 +250,15 @@ theorem optionRun_sample_once_eq_sampleEachQuery
           (cont answer) a ha z.2 (hpres a ha t s hs z hz hc)
           (hfirst a ha t s hs hh z hz hc)
 
-/-- Let `impl a` (for `a : τ`) and `target` be stateful oracle implementations for `spec` with
-state space `σ`, and let `stop : σ → Bool`. Write `S := support sample`. For every Boolean
-computation `oa` and state `s` with `Inv s`,
-`Pr[= true | a ← sample; stoppedRun (impl a) stop oa s] =
-  Pr[= true | stoppedRun target stop oa s]`,
-provided that for all `a, a' ∈ S`, queries `t`, and states `u` with `Inv u`, writing
-"continuing successor" for every `(r, u')` in the support of `(impl a t).run u` with
-`stop u' = false`:
+/-- For `oa` and `s` with `Inv s`,
+`Pr[a ← sample; stoppedRun (impl a) stop oa s = true] = Pr[stoppedRun target stop oa s = true]`,
+provided that for all `a, a' ∈ support sample`, queries `t`, states `u` with `Inv u`, and
+continuing successors `(r, u') ∈ support ((impl a t).run u)` (those with `stop u' = false`):
 
-- every continuing successor satisfies `Inv u'`, and also `used u'` if `used u`;
+- `Inv u'`, and `used u'` if `used u`;
 - if `hit t u = false`, then `𝒟[(impl a t).run u] = 𝒟[(impl a' t).run u]`;
 - if `used u`, then `hit t u = false`;
-- if `hit t u = true`, then every continuing successor satisfies `used u'`;
+- if `hit t u = true`, then `used u'`;
 - `𝒟[a ← sample; (impl a t).run u] = 𝒟[(target t).run u]`. -/
 theorem stoppedRun_sample_once_eq
     (sample : ProbComp τ) (impl : τ → QueryImpl spec (StateT σ ProbComp))

@@ -393,8 +393,7 @@ lemma TranscriptConsistent.keyB_zero
   simp [hInv.keyB, EpochTranscript.key, hInv.zeroOn]
 
 omit [DecidableEq Sym] in
-/-- In a transcript-consistent state, if B holds no offline ciphertext, then
-`s.stB.ack.ctRec = false`: B has not recorded that A received its offline ciphertext. -/
+/-- If B holds no offline ciphertext, then `s.stB.ack.ctRec = false`. -/
 lemma TranscriptConsistent.ctRecB_eq_false_of_ct0_eq_none
     {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
     {ecEk : ErasureCodePayload PK Sym}

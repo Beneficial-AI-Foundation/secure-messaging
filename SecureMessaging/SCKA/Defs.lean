@@ -823,11 +823,10 @@ noncomputable def sckaGuessAdvantage [SampleableType I] [DecidableEq I]
 
 /-! ### Fixed-bit experiments and advantage normalization
 
-For a scheme `scka`, security adversary `adversary`, and exposure policies `vulnA`, `vulnB`,
-let `G_b := securityExpFixedBit scka adversary b vulnA vulnB`: `G_false` answers eligible
-challenges with recorded keys and `G_true` with independent uniform keys. Let
-`w := Pr[securityExp scka adversary vulnA vulnB = true]` be the probability that the adversary
-guesses the uniformly sampled bit.
+Write `G_b := securityExpFixedBit scka adversary b vulnA vulnB` (recorded challenge keys for
+`b = false`, independent uniform keys for `b = true`) and
+`w := Pr[securityExp scka adversary vulnA vulnB = true]`, the probability of guessing the
+uniform bit.
 -/
 
 /-- The SCKA experiment with fixed bit `b`: initialize `scka`, answer eligible challenges
@@ -847,8 +846,7 @@ def securityExpFixedBit [SampleableType I] [DecidableEq I]
   return b'
 -- ANCHOR_END: securityExpFixedBit
 
-/-- The distinguishing advantage of `adversary` against `scka` with the given exposure policies:
-`|Pr[G_true = true] - Pr[G_false = true]|`. -/
+/-- Distinguishing advantage `|Pr[G_true = true] - Pr[G_false = true]|`. -/
 -- ANCHOR: sckaDistAdvantage
 noncomputable def sckaDistAdvantage [SampleableType I] [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
@@ -858,7 +856,7 @@ noncomputable def sckaDistAdvantage [SampleableType I] [DecidableEq I]
    (Pr[= true | securityExpFixedBit scka adversary false vulnA vulnB]).toReal|
 -- ANCHOR_END: sckaDistAdvantage
 
-/-- The success probability `w` equals `Pr[b ←$ Bool; b' ← G_b; return (b = b')]`. -/
+/-- `w = Pr[b ←$ Bool; b' ← G_b; return (b = b')]`. -/
 private lemma securityExp_probOutput_eq_branch [SampleableType I] [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (adversary : SCKAAdversary StA StB I Rho Rand)
@@ -881,8 +879,7 @@ private lemma securityExp_probOutput_eq_branch [SampleableType I] [DecidableEq I
   refine probOutput_bind_congr' ($ᵗ Bool) true ?_
   intro b; cases b <;> simp [securityExpFixedBit]
 
-/-- The success probability `w` satisfies
-`w - 1/2 = (Pr[G_true = true] - Pr[G_false = true]) / 2`. -/
+/-- `w - 1/2 = (Pr[G_true = true] - Pr[G_false = true]) / 2`. -/
 lemma securityExp_toReal_sub_half [SampleableType I] [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (adversary : SCKAAdversary StA StB I Rho Rand)
@@ -895,8 +892,7 @@ lemma securityExp_toReal_sub_half [SampleableType I] [DecidableEq I]
     (securityExpFixedBit scka adversary true vulnA vulnB)
     (securityExpFixedBit scka adversary false vulnA vulnB)
 
-/-- For every scheme, adversary, and pair of exposure policies, the SCKA guessing advantage
-is half the distinguishing advantage. -/
+/-- `sckaGuessAdvantage = sckaDistAdvantage / 2`. -/
 -- ANCHOR: sckaAdvantageNormalization
 lemma sckaGuessAdvantage_eq_sckaDistAdvantage_div_two [SampleableType I] [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)

@@ -921,13 +921,12 @@ noncomputable def sckaGuessAdvantage [SampleableType I] [DecidableEq I]
 :::::
 ::::::
 
-For $`b\in\{0,1\}`, let $`G_b(\adv)` be the experiment above with its bit fixed to $`b`;
-it returns the adversary's output $`b'`. The distinguishing advantage is
-$`\operatorname{Adv}^{\mathsf{dist}}_{\mathsf{SCKA}}(\adv)=|\Pr[G_1(\adv)=1]-\Pr[G_0(\adv)=1]|`,
-and since $`b` is uniform,
+Let $`G_b(\adv)` be the experiment above with its bit fixed to $`b`, returning the adversary's
+output. Since $`b` is uniform,
 
 $$`\operatorname{Adv}^{\mathsf{guess}}_{\mathsf{SCKA}}(\adv)
-=\tfrac12\operatorname{Adv}^{\mathsf{dist}}_{\mathsf{SCKA}}(\adv).`
+=\tfrac12\operatorname{Adv}^{\mathsf{dist}}_{\mathsf{SCKA}}(\adv),\qquad
+\operatorname{Adv}^{\mathsf{dist}}_{\mathsf{SCKA}}(\adv)=|\Pr[G_1(\adv)=1]-\Pr[G_0(\adv)=1]|.`
 
 :::leanPillCaption "Security experiment with a fixed challenge bit"
 :::

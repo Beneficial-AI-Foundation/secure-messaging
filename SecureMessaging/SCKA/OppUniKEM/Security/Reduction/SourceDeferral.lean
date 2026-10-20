@@ -11,27 +11,22 @@ import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.OnlineDeferral
 /-!
 # Deferring the source samples
 
-**Setting.** Let `m` be complete material, `e` a selected epoch, and `b` a mode bit, and let
-`oracle stage m e b` and `stopped stage m e b` be the stage oracles of `HybridGame` and their
-executions stopped at the exposure of `e`.
+**Setting.**
 
-A *source phase* is A's key generation or B's offline encapsulation, whose samplers take no
-protocol-state input. Its deferral applies `stoppedRun_sample_once_eq` with
-`used := sourceUsed phase e` and `hit := usesSource phase e`; these one-use conditions hold in
-every game state (`SourceUse`). The material `{ m with off := off }` replaces the offline output
-of `m` by `off ← leak.encapsOffRleak`, and `{ m with keygen := kg }` replaces the key-generation
-output by `kg ← leak.keygenRleak`.
+- `m`: complete material (`Simulator`); `{ m with off := off }` resamples its offline output,
+  `off ← leak.encapsOffRleak`, and `{ m with keygen := kg }` its key-generation output,
+  `kg ← leak.keygenRleak`.
+- `hit := usesSource phase e` and `used := sourceUsed phase e` (`SourceUse`), in every state.
 
-**Results.**
+**Results.** For the stages of `HybridGame`:
 
-- `oracle_sample_offline_eq_fresh`: for every query, averaging
-  `oracle .onlineFresh { m with off := off } e b` over `off` gives the joint distribution of
-  response and successor state of `oracle .encapsFresh m e b`.
+- `oracle_sample_offline_eq_fresh`: averaging `oracle .onlineFresh { m with off := off } e b t`
+  over `off` gives the response/successor distribution of `oracle .encapsFresh m e b t`.
 - `stopped_offline_deferred`: drawing `off` once before
   `stopped .onlineFresh { m with off := off } e b` gives the acceptance probability of
   `stopped .encapsFresh m e b`.
-- `oracle_sample_keygen_eq_fresh`, `stopped_keygen_deferred`: the same identities for
-  `{ m with keygen := kg }`, from stage `encapsFresh` to stage `fresh`.
+- `oracle_sample_keygen_eq_fresh`, `stopped_keygen_deferred`: the same identities for `kg`, from
+  stage `encapsFresh` to stage `fresh`.
 -/
 
 /-! ## Offline encapsulation -/
@@ -43,9 +38,8 @@ namespace oppUniKemCKA.Security.Embedding.Sampling
 variable {K PK SK C Sym : Type}
 variable [DecidableEq Sym]
 
-/-- Unless B is at `e` with no offline ciphertext, B's leaking send in
-`schemeAt .onlineFresh { m with off := off } e s` is the same computation for every offline
-output `off`. -/
+/-- Unless B is at `e` without `ct0`, B's leaking send in
+`schemeAt .onlineFresh { m with off := off } e s` is the same computation for every `off`. -/
 theorem sendBrleak_offline_independent
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -69,7 +63,7 @@ theorem sendBrleak_offline_independent
       he, decide_true, decide_false, Bool.true_and,
       Bool.not_false, Bool.not_true, Bool.false_eq_true, ↓reduceIte]
 
-/-- The ordinary-send version of `sendBrleak_offline_independent`. -/
+/-- Ordinary-send version of `sendBrleak_offline_independent`. -/
 theorem sendB_offline_independent
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -86,9 +80,8 @@ theorem sendB_offline_independent
 
 variable [DecidableEq K]
 
-/-- In every stage, if B is at `e` with no offline ciphertext and `e ∈ s.challenged`, B's
-leaking-send oracle rejects from `s`: its distribution is that of `pure (none, s)`. The send
-samples before its guard rejects, so only the distributions agree. -/
+/-- In every stage, if B is at `e` without `ct0` and `e ∈ s.challenged`, B's leaking-send
+oracle from `s` has the distribution of `pure (none, s)`; it samples before rejecting. -/
 theorem leaking_offline_rejected
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -110,9 +103,8 @@ theorem leaking_offline_rejected
 
 variable [SampleableType K]
 
-/-- If `usesSource .offline e t s = false`, the joint distribution of response and successor
-state of query `t` of `oracle .onlineFresh { m with off := off } e b` from `s` is the same for
-every offline output `off`. -/
+/-- If `usesSource .offline e t s = false`, the response/successor distribution of query `t` of
+`oracle .onlineFresh { m with off := off } e b` from `s` does not depend on `off`. -/
 theorem oracle_offline_independent
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -166,9 +158,8 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
 
-/-- For every state `s`, averaging B's leaking send in
-`schemeAt .onlineFresh { m with off := off } e s` over `off ← leak.encapsOffRleak` gives the
-output distribution of B's leaking send in `schemeAt .encapsFresh m e s`. -/
+/-- Averaging B's leaking send in `schemeAt .onlineFresh { m with off := off } e s` over `off`
+gives the output distribution of B's leaking send in `schemeAt .encapsFresh m e s`. -/
 theorem sendBrleak_sample_offline_eq_fresh [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -198,7 +189,7 @@ theorem sendBrleak_sample_offline_eq_fresh [DecidableEq Sym]
     intro offline _
     rfl
 
-/-- The ordinary-send version of `sendBrleak_sample_offline_eq_fresh`. -/
+/-- Ordinary-send version of `sendBrleak_sample_offline_eq_fresh`. -/
 theorem sendB_sample_offline_eq_fresh [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -227,9 +218,8 @@ variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
 /-- For every query `t` and state `s`, averaging query `t` of
-`oracle .onlineFresh { m with off := off } e b` from `s` over `off ← leak.encapsOffRleak` gives
-the joint distribution of response and successor state of query `t` of
-`oracle .encapsFresh m e b` from `s`. -/
+`oracle .onlineFresh { m with off := off } e b` over `off` gives the response/successor
+distribution of query `t` of `oracle .encapsFresh m e b`. -/
 theorem oracle_sample_offline_eq_fresh
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -265,9 +255,9 @@ namespace oppUniKemCKA.Security.Embedding.Sampling
 variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- For every adversary `adv` and state `s`, drawing `off ← leak.encapsOffRleak` once and
-running `optionRun (stopped .onlineFresh { m with off := off } e b) adv s` returns `true` with
-the probability of `optionRun (stopped .encapsFresh m e b) adv s`. -/
+/-- From every state, drawing `off ← leak.encapsOffRleak` once before
+`stopped .onlineFresh { m with off := off } e b` gives the acceptance probability of
+`stopped .encapsFresh m e b`. -/
 theorem stopped_offline_deferred
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -308,9 +298,8 @@ namespace oppUniKemCKA.Security.Embedding.Sampling
 
 variable {K PK SK C Sym : Type}
 
-/-- For every state `s`, averaging A's leaking send in
-`schemeAt .encapsFresh { m with keygen := kg } e s` over `kg ← leak.keygenRleak` gives the
-output distribution of A's leaking send in `schemeAt .fresh m e s`. -/
+/-- Averaging A's leaking send in `schemeAt .encapsFresh { m with keygen := kg } e s` over `kg`
+gives the output distribution of A's leaking send in `schemeAt .fresh m e s`. -/
 theorem sendArleak_sample_keygen_eq_fresh [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -337,7 +326,7 @@ theorem sendArleak_sample_keygen_eq_fresh [DecidableEq Sym]
     intro pair _
     rfl
 
-/-- The ordinary-send version of `sendArleak_sample_keygen_eq_fresh`. -/
+/-- Ordinary-send version of `sendArleak_sample_keygen_eq_fresh`. -/
 theorem sendA_sample_keygen_eq_fresh [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -355,8 +344,8 @@ theorem sendA_sample_keygen_eq_fresh [DecidableEq Sym]
   rw [map_bind] at h
   simpa only [scheme_sendA_eq_map_sendArleak] using h
 
-/-- For every key-generation output `kg`, B's leaking send in
-`schemeAt .encapsFresh { m with keygen := kg } e s` is that of `schemeAt .fresh m e s`. -/
+/-- For every `kg`, B's leaking send in `schemeAt .encapsFresh { m with keygen := kg } e s` is
+that of `schemeAt .fresh m e s`. -/
 theorem sendBrleak_encapsFresh_eq_fresh [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -373,7 +362,7 @@ theorem sendBrleak_encapsFresh_eq_fresh [DecidableEq Sym]
     simp only [schemeAt, scheme, sendBrleak, hc0, hp, hc1, hst, ha, pure_bind,
       Bool.not_false, Bool.not_true, Bool.false_eq_true, ↓reduceIte] <;> rfl
 
-/-- The ordinary-send version of `sendBrleak_encapsFresh_eq_fresh`. -/
+/-- Ordinary-send version of `sendBrleak_encapsFresh_eq_fresh`. -/
 theorem sendB_encapsFresh_eq_fresh [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -389,10 +378,8 @@ theorem sendB_encapsFresh_eq_fresh [DecidableEq Sym]
 
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- For every query `t` and state `s`, averaging query `t` of
-`oracle .encapsFresh { m with keygen := kg } e b` from `s` over `kg ← leak.keygenRleak` gives
-the joint distribution of response and successor state of query `t` of `oracle .fresh m e b`
-from `s`. -/
+/-- Key-generation version of `oracle_sample_offline_eq_fresh`, from stage `encapsFresh` to
+stage `fresh`. -/
 theorem oracle_sample_keygen_eq_fresh
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -429,9 +416,8 @@ namespace oppUniKemCKA.Security.Embedding.Sampling
 variable {K PK SK C Sym : Type}
 variable [DecidableEq Sym]
 
-/-- Unless A is at `e` with no decapsulation key, A's ordinary send in
-`schemeAt .encapsFresh { m with keygen := kg } e s` is the same computation for every
-key-generation output `kg`. -/
+/-- Unless A is at `e` without `dkA`, A's ordinary send in
+`schemeAt .encapsFresh { m with keygen := kg } e s` is the same computation for every `kg`. -/
 theorem sendA_keygen_independent
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -453,7 +439,7 @@ theorem sendA_keygen_independent
       Pinned.keygen, hd, hp, ha, he, decide_false,
       Bool.and_false, Bool.false_eq_true, ↓reduceIte, pure_bind]
 
-/-- The leaking-send version of `sendA_keygen_independent`. -/
+/-- Leaking-send version of `sendA_keygen_independent`. -/
 theorem sendArleak_keygen_independent
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -477,8 +463,7 @@ theorem sendArleak_keygen_independent
 
 variable [DecidableEq K]
 
-/-- The version of `leaking_offline_rejected` for A's leaking send with no decapsulation
-key. -/
+/-- A version of `leaking_offline_rejected`, for A without `dkA`. -/
 theorem leaking_keygen_rejected
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -500,9 +485,8 @@ theorem leaking_keygen_rejected
 
 variable [SampleableType K]
 
-/-- If `usesSource .keygen e t s = false`, the joint distribution of response and successor
-state of query `t` of `oracle .encapsFresh { m with keygen := kg } e b` from `s` is the same
-for every key-generation output `kg`. -/
+/-- Key-generation version of `oracle_offline_independent`, for
+`oracle .encapsFresh { m with keygen := kg } e b`. -/
 theorem oracle_keygen_independent
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -561,9 +545,9 @@ namespace oppUniKemCKA.Security.Embedding.Sampling
 variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- For every adversary `adv` and state `s`, drawing `kg ← leak.keygenRleak` once and running
-`optionRun (stopped .encapsFresh { m with keygen := kg } e b) adv s` returns `true` with the
-probability of `optionRun (stopped .fresh m e b) adv s`. -/
+/-- Key-generation version of `stopped_offline_deferred`: drawing `kg ← leak.keygenRleak` once
+before `stopped .encapsFresh { m with keygen := kg } e b` gives the acceptance probability of
+`stopped .fresh m e b`. -/
 theorem stopped_keygen_deferred
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)

@@ -175,8 +175,8 @@ def stopOnState (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool
     let (answer, next) ← (impl t).run s
     pure (if stop next then none else some answer, next)
 
-/-- If `(a, s')` is a possible result of query `t` under `impl` from `s` and `stop s' = false`,
-then `(some a, s')` is a possible result of query `t` under `stopOnState impl stop` from `s`. -/
+/-- A possible result `(a, s')` of `impl t` from `s` with `stop s' = false` gives the possible
+result `(some a, s')` of `stopOnState impl stop t` from `s`. -/
 theorem mem_support_stopOnState_of_mem
     (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool) (t : spec.Domain) (s : σ)
     (z : spec.Range t × σ) (hz : z ∈ support ((impl t).run s)) (hstop : stop z.2 = false) :
@@ -186,9 +186,9 @@ theorem mem_support_stopOnState_of_mem
     pure (if stop y.2 then none else some y.1, y.2))
   exact (mem_support_bind_iff _ _ _).mpr ⟨z, hz, by simp [hstop]⟩
 
-/-- If `z` is a possible result of query `t` under `stopOnState impl stop` from `s` and its
-response is not `none`, then `z.2 = y.2` for a possible result `y` of `(impl t).run s` with
-`stop y.2 = false`. -/
+/-- Converse of `mem_support_stopOnState_of_mem`: a possible result `z` of
+`stopOnState impl stop t` with `z.1 ≠ none` has `z.2 = y.2` for some
+`y ∈ support ((impl t).run s)` with `stop y.2 = false`. -/
 theorem exists_of_mem_support_stopOnState
     (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool) (t : spec.Domain) (s : σ)
     (z : Option (spec.Range t) × σ) (hz : z ∈ support (((stopOnState impl stop t).run).run s))
@@ -203,8 +203,7 @@ theorem exists_of_mem_support_stopOnState
   · exact ⟨y, hy, hstop, rfl⟩
   · simp [hstop] at hsome
 
-/-- For every query `t` and state `s`, `stopOnState impl stop` runs `(impl t).run s` and
-replaces the response by `none` when `stop` holds on the successor state. -/
+/-- `stopOnState impl stop t` runs `impl t` and answers `none` if `stop` holds on the successor. -/
 theorem stopOnState_run_eq_map
     (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool) (t : spec.Domain) (s : σ) :
     ((stopOnState impl stop t).run).run s =

@@ -13,36 +13,28 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Receive
 /-!
 # The honest intermediate game
 
-**Setting.** Fix complete material `m`, whose pinned sampling phases return their stored
-outputs (`Pinned.kem m`, `Simulator`), a selected epoch `e`, and a candidate key `kStar`.
+**Setting.** `m` is complete material with pinned KEM `Pinned.kem m`, `e` a selected epoch, and
+`kStar` a candidate key (`Simulator`).
 
 **Definitions.**
 
-- `securityImplAt schemeOf chall`: the Opp-UniKEM security oracles in which a query from game
-  state `s` uses the protocol instance `schemeOf s`, with challenge oracle `chall`.
-- `honestScheme m e s`: Opp-UniKEM over `honestKem m e s := Pinned.kem m …`, pinning A's key
-  generation if `s.stA.t = e` and B's offline and online encapsulation if `s.stB.t = e`. Its
-  decapsulation returns B's recorded key for A's current epoch, so A's receive outputs that key
-  instead of decapsulating. `honestOnOff`, `honestDet`, and `honestLeak` are the corresponding
-  witnesses, and `markedScheme m e s` is the simulator's instance over marked values for `s`.
-- The *honest intermediate game* `honestOracle m e kStar` is
-  `securityImplAt (honestScheme m e) (pinnedChallenge e kStar)` on unmarked game states, where
-  `pinnedChallenge e kStar` answers an eligible challenge at `t` with a uniform key if
-  `0 < t < e`, `kStar` if `t = e`, and the recorded key otherwise. `honestStopped m e kStar`
-  answers `⊥` at the first query whose successor state has `e ∈ exposed`.
-- `pinnedSources m e s`: A's key pair, when present while A is in epoch `e`, is `m.keygen.1`, and
-  B's offline state and offline ciphertext, when B holds an offline state while in epoch `e`, are
-  `m.off.1`.
+- `securityImplAt schemeOf chall`: the security oracles answering a query from `s` with the
+  instance `schemeOf s` and challenge oracle `chall`.
+- `honestScheme m e s`: Opp-UniKEM over `honestKem m e s`, which pins A's key generation if
+  `s.stA.t = e` and B's encapsulation if `s.stB.t = e`; A's receive outputs B's recorded key.
+  `markedScheme m e s` is the simulator's instance.
+- *Honest intermediate game*:
+  `honestOracle m e kStar := securityImplAt (honestScheme m e) (pinnedChallenge e kStar)`;
+  `honestStopped m e kStar` answers `⊥` at the first query whose successor state exposes `e`.
+- `pinnedSources m e s`: at epoch `e`, A's key pair and B's offline output, when present, are
+  `m.keygen.1` and `m.off.1`.
 
 **Results.**
 
-- `honestCorrectness_preserves_pinnedSources`: the correctness oracles of `honestScheme m e`
-  preserve `pinnedSources m e`.
-- `oracleSendA_pinned_support`, `oracleSendB_pinned_support`: let
-  `m ∈ support (sampleMaterial leak)`. For every state `s` satisfying the transcript invariant
-  `reachableInv` (and `pinnedSources m e` in B's case), every possible response/state pair of a
-  send oracle of `honestScheme m e s` from `s` is a possible response/state pair of the same send
-  oracle of Opp-UniKEM over `base` from `s`.
+- `honestCorrectness_preserves_pinnedSources`: correctness queries preserve `pinnedSources m e`.
+- `oracleSendA_pinned_support`, `oracleSendB_pinned_support`: for
+  `m ∈ support (sampleMaterial leak)` and `reachableInv s` (and `pinnedSources m e s` for B),
+  every possible result of a send oracle of `honestScheme m e s` is one of the oracle over `base`.
 -/
 
 /-! ## The honest intermediate game -/
@@ -53,9 +45,8 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
 
-/-- KEM for a query from game state `s`: `Pinned.kem m` pinning A's key generation if
-`s.stA.t = e` and B's offline and online encapsulation if `s.stB.t = e`, with decapsulation
-result `s.keyB s.stA.t`. -/
+/-- KEM of `honestScheme m e s`: `Pinned.kem m` pinning A's key generation if `s.stA.t = e` and
+B's encapsulation if `s.stB.t = e`; decapsulation returns `s.keyB s.stA.t`. -/
 abbrev honestKem {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff} (m : Material leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
@@ -87,9 +78,7 @@ abbrev honestLeak {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStruc
   Pinned.leakage leak m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
     (s.keyB s.stA.t)
 
-/-- Opp-UniKEM instance answering a query from game state `s`: `Pinned.kem m` pins A's key
-generation if `s.stA.t = e` and B's offline and online encapsulation if `s.stB.t = e`;
-decapsulation returns `s.keyB s.stA.t`. -/
+/-- Opp-UniKEM over `honestKem m e s`, for a query from game state `s`. -/
 abbrev honestScheme [DecidableEq Sym]
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff}
@@ -103,9 +92,8 @@ abbrev honestScheme [DecidableEq Sym]
   scheme (Pinned.kem m sa sb sb key) (Pinned.onOff m sa sb sb key)
     (Pinned.deterministic m sa sb sb key) ecEk ecCt0 ecCt1 (Pinned.leakage leak m sa sb sb key)
 
-/-- The simulator's instance for honest game state `s`: Opp-UniKEM over the marked KEM `kem` with
-the public key and ciphertext of `m` as challenge, with A selected if `s.stA.t = e` and B if
-`s.stB.t = e`; decapsulation returns the marked key `s.keyB s.stA.t`. -/
+/-- The simulator's instance for `s`: Opp-UniKEM over the marked `kem` with challenge
+`(pk_m, ct_m)`, A selected iff `s.stA.t = e`, and B iff `s.stB.t = e`. -/
 abbrev markedScheme [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -121,9 +109,8 @@ abbrev markedScheme [DecidableEq Sym]
     (deterministic base onoff sa sb m.keygen.1.1 m.ciphertext key) ecEk ecCt0 ecCt1
     (leakage base onoff leak sa sb m.keygen.1.1 m.ciphertext key)
 
-/-- The security oracles of the protocol instance selected by the current state: a query from
-state `s` is answered by `scka := schemeOf s` as in the security game, with challenge oracle
-`chall` and Opp-UniKEM's exposure policies. -/
+/-- Security oracles answering a query from `s` with the instance `schemeOf s`, challenge
+oracle `chall`, and Opp-UniKEM's exposure policies. -/
 def securityImplAt [DecidableEq K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (leak : base.OnOffRandLeak onoff)
@@ -149,9 +136,8 @@ def securityImplAt [DecidableEq K]
     | .inr u =>
       SCKAScheme.oracleCorruptB (vulnCorrB base onoff) (StA onoff Sym) K (Message Sym) u
 
-/-- From state `s`, each query of `securityImplAt schemeOf chall` is the same query of
-`securityImplOf` over `schemeOf s`, with challenge oracle `chall` and exposure policies
-`exposureA`, `exposureB`. -/
+/-- From `s`, each query of `securityImplAt schemeOf chall` is that of `securityImplOf` over
+`schemeOf s`. -/
 theorem securityImplAt_run [DecidableEq K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (leak : base.OnOffRandLeak onoff)
@@ -167,10 +153,9 @@ theorem securityImplAt_run [DecidableEq K]
         (exposureA base onoff leak) (exposureB base onoff leak) (schemeOf s) t).run s := by
   rcases t with (((((t | u) | u) | t) | u) | u) <;> rfl
 
-/-- Let `Inv` be preserved by arbitrary changes of `exposed` and `challenged`, let the ordinary
-sends of every instance `schemeOf s` be the coin-forgetting images of its leaking sends, and let
-`chall` record challenges. If `Inv s` holds and every correctness query of `schemeOf s` from `s`
-preserves `Inv`, then every query of `securityImplAt schemeOf chall` from `s` preserves `Inv`. -/
+/-- Let `Inv` ignore `exposed` and `challenged`, the ordinary sends of each `schemeOf s` forget
+the coins of its leaking sends, and `chall` record challenges. If `Inv s` and the correctness
+queries of `schemeOf s` preserve `Inv` from `s`, so does every query of `securityImplAt`. -/
 theorem securityImplAt_preserves_at [DecidableEq K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (leak : base.OnOffRandLeak onoff)
@@ -205,8 +190,8 @@ theorem securityImplAt_preserves_at [DecidableEq K]
     (hbase SCKAScheme.sckaCorrectnessSpec.OSendA)
     (hbase SCKAScheme.sckaCorrectnessSpec.OSendB) t z hz
 
-/-- Under the hypotheses of `securityImplAt_preserves_at` at every state, the oracles
-`securityImplAt schemeOf chall` preserve `Inv`. -/
+/-- `securityImplAt_preserves_at` at every state: `securityImplAt schemeOf chall` preserves
+`Inv`. -/
 theorem securityImplAt_preservesInv [DecidableEq K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (leak : base.OnOffRandLeak onoff)
@@ -233,8 +218,7 @@ theorem securityImplAt_preservesInv [DecidableEq K]
   fun t s hs z hz => securityImplAt_preserves_at base onoff leak schemeOf chall Inv hbook hmA hmB
     hchall s hs (hbase s hs) t z hz
 
-/-- Oracles of the honest intermediate game: `securityImplAt` over `honestScheme m e`, with
-challenge oracle `pinnedChallenge e kStar`. -/
+/-- The honest intermediate game: `securityImplAt (honestScheme m e) (pinnedChallenge e kStar)`. -/
 def honestOracle [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -246,9 +230,8 @@ def honestOracle [DecidableEq K] [DecidableEq Sym] [SampleableType K]
   securityImplAt base onoff leak (honestScheme ecEk ecCt0 ecCt1 m e)
     (pinnedChallenge onoff e kStar)
 
-/-- `honestOracle m e kStar` stopped on exposure of `e`: a query whose successor state has
-`e ∈ exposed` answers `none` in the outer `OptionT` layer, which ends the run; a rejection by
-the game remains an inner `none`. -/
+/-- `honestOracle m e kStar` stopped at the exposure of `e` (an outer `none`); a rejection by
+the game stays an inner `none`. -/
 def honestStopped [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -258,18 +241,10 @@ def honestStopped [DecidableEq K] [DecidableEq Sym] [SampleableType K]
   stopOnState (honestOracle base onoff ecEk ecCt0 ecCt1 leak m e kStar)
     (fun s => decide (e ∈ s.exposed))
 
-/-- Let `sample` be a never-failing computation returning `a : τ`, let `schemeOf a` for each `a`
-and `target` be state-indexed schemes, and let `chall` be a challenge oracle. Fix a state `s`.
-Assume:
-
-- averaged over `a ← sample`, each of the four sends of `schemeOf a s` from the local state in
-  `s` has the distribution of the same send of `target s`;
-- for every `a ∈ support sample` and message `ρ`, the two receives of `schemeOf a s` and
-  `target s` agree on the local state in `s` and `ρ`.
-
-Then, for every query `t`, the joint response/state distribution of
-`securityImplAt (schemeOf a) chall t` from `s`, averaged over `a ← sample`, is that of
-`securityImplAt target chall t` from `s`. -/
+/-- Let `sample` never fail and fix `s`. If, averaged over `a ← sample`, the four sends of
+`schemeOf a s` have the distributions of those of `target s`, and the receives agree for every
+`a ∈ support sample`, then averaging `securityImplAt (schemeOf a) chall t` from `s` over `a`
+gives the joint response/state distribution of `securityImplAt target chall t` from `s`. -/
 theorem securityImplAt_sample_eq [DecidableEq K] {τ : Type}
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (leak : base.OnOffRandLeak onoff) (sample : ProbComp τ) [NeverFail sample]
@@ -332,9 +307,8 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
 
-/-- Predicate on game states: if A is in epoch `e` and holds a decapsulation key, then A's
-key pair `(ekA, dkA)` is `m.keygen.1`; if B is in epoch `e` and holds an offline state, then
-B's offline state and offline ciphertext `(stCt, ct0)` are `m.off.1`. -/
+/-- At epoch `e`: A's key pair, if A holds a decapsulation key, is `m.keygen.1`; B's offline
+state and ciphertext, if B holds an offline state, are `m.off.1`. -/
 def pinnedSources {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff} (m : Material leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) : Prop :=
@@ -343,8 +317,7 @@ def pinnedSources {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStruc
   (s.stB.t = e → s.stB.stCt.isSome →
     s.stB.stCt = some m.off.1.1 ∧ s.stB.ct0 = some m.off.1.2)
 
-/-- In every state satisfying `reachableInv`, if B holds no online ciphertext, then A and B
-are in the same epoch. -/
+/-- Under `reachableInv`, if B holds no online ciphertext, A and B are in the same epoch. -/
 theorem epochs_eq_before_online
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -365,9 +338,8 @@ theorem epochs_eq_before_online
   have := hT.epochs
   omega
 
-/-- In every state satisfying `reachableInv` and `pinnedSources m e`, if B is in epoch `e`,
-holds the public key `pk` and the offline state `st`, and holds no online ciphertext, then
-`pk = m.keygen.1.1` and `st = m.off.1.1`. -/
+/-- Under `reachableInv` and `pinnedSources m e`, if B is at `e` with public key `pk`, offline
+state `st`, and no online ciphertext, then `pk = m.keygen.1.1` and `st = m.off.1.1`. -/
 private theorem pinned_online_inputs
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -400,9 +372,7 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
 
-/-- Let `s` satisfy `pinnedSources m e`. For every possible successful output of A's send in
-`honestScheme m e s` from `s.stA`, with successor local state `next`, the state
-`{ s with stA := next }` satisfies `pinnedSources m e`. -/
+/-- A's successful send in `honestScheme m e s` preserves `pinnedSources m e`. -/
 private theorem sendA_preserves_pinnedSources
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff}
@@ -424,7 +394,7 @@ private theorem sendA_preserves_pinnedSources
       Option.some.injEq, Prod.mk.injEq] at hout
     simp_all [pinnedSources] <;> aesop
 
-/-- The version of `sendA_preserves_pinnedSources` for B. -/
+/-- B version of `sendA_preserves_pinnedSources`. -/
 private theorem sendB_preserves_pinnedSources
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff}
@@ -448,8 +418,7 @@ private theorem sendB_preserves_pinnedSources
       Prod.exists, Option.some.injEq, Prod.mk.injEq] at hout
     simp_all [pinnedSources] <;> aesop
 
-/-- Let `s` satisfy `pinnedSources m e`. If B's receive of `msg` from `s.stB` succeeds with
-successor local state `next`, then `{ s with stB := next }` satisfies `pinnedSources m e`. -/
+/-- B's successful receive preserves `pinnedSources m e`. -/
 private theorem recvB_preserves_pinnedSources [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (leak : base.OnOffRandLeak onoff)
@@ -464,7 +433,7 @@ private theorem recvB_preserves_pinnedSources [DecidableEq Sym]
   · exact ⟨hs.1, by simpa only [h.1, h.2.1, h.2.2.1] using hs.2⟩
   · exact ⟨hs.1, by simp [h.2.1]⟩
 
-/-- The version of `recvB_preserves_pinnedSources` for A's receive in `honestScheme m e s`. -/
+/-- A version of `recvB_preserves_pinnedSources`, in `honestScheme m e s`. -/
 private theorem recvA_preserves_pinnedSources [DecidableEq Sym]
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff}
@@ -483,9 +452,7 @@ private theorem recvA_preserves_pinnedSources [DecidableEq Sym]
   · exact ⟨by simpa only [h.1, h.2.1, h.2.2] using hs.1, hs.2⟩
   · exact ⟨by simp [h.2.2.1], hs.2⟩
 
-/-- For every state `s` satisfying `pinnedSources m e` and every correctness query, each
-possible successor state of the correctness oracles of `honestScheme m e s` satisfies
-`pinnedSources m e`. -/
+/-- The correctness oracles of `honestScheme m e s` preserve `pinnedSources m e`. -/
 theorem honestCorrectness_preserves_pinnedSources [DecidableEq K] [DecidableEq Sym]
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff}
@@ -511,8 +478,7 @@ theorem honestCorrectness_preserves_pinnedSources [DecidableEq K] [DecidableEq S
   · exact fun msg key t next hout =>
       recvB_preserves_pinnedSources base onoff ecEk leak m e s hs msg key t next hout
 
-/-- The initial game state, in which neither party holds private keys or offline state,
-satisfies `pinnedSources m e`. -/
+/-- The initial game state satisfies `pinnedSources m e`. -/
 theorem pinnedSources_initial
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (leak : base.OnOffRandLeak onoff) (m : Material leak) (e : ℕ) :
@@ -530,8 +496,8 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
 
-/-- For `m ∈ support (sampleMaterial leak)` and every flag `selected`, every possible output of
-`Pinned.keygen m selected` is a possible output of `base.keygen`. -/
+/-- For `m ∈ support (sampleMaterial leak)`, every possible output of `Pinned.keygen m selected`
+is one of `base.keygen`. -/
 private theorem pinned_keygen_support
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     (leak : base.OnOffRandLeak onoff) (m : Material leak)
@@ -543,9 +509,8 @@ private theorem pinned_keygen_support
   · obtain rfl := (mem_support_pure_iff _ _).mp h
     exact (sampleMaterial_ordinary_support leak m hm).1
 
-/-- For `m ∈ support (sampleMaterial leak)` and every state `s`, every possible output of A's
-send in `honestScheme m e s` from `s.stA` is a possible output of `sendA base onoff ecEk`
-from `s.stA`. -/
+/-- For `m ∈ support (sampleMaterial leak)`, every possible output of A's send in
+`honestScheme m e s` is one of `sendA` over `base`. -/
 private theorem sendA_pinned_support
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (leak : base.OnOffRandLeak onoff)
@@ -563,8 +528,7 @@ private theorem sendA_pinned_support
     exact ⟨pair, pinned_keygen_support leak m hm _ pair hpair, hout⟩
   | some sk => simpa only [sendA, hd] using hout
 
-/-- The version of `sendA_pinned_support` for B, for states `s` satisfying `reachableInv`
-and `pinnedSources m e`. -/
+/-- B version of `sendA_pinned_support`, under `reachableInv` and `pinnedSources m e`. -/
 private theorem sendB_pinned_support
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -626,9 +590,8 @@ private theorem sendB_pinned_support
             | exact hout
             | cases hst : s.stB.stCt <;> simpa only [hst] using hout
 
-/-- For `m ∈ support (sampleMaterial leak)` and every state `s`, every possible response/state
-pair of A's send oracle of `honestScheme m e s` from `s` is a possible response/state pair of
-A's send oracle of `scheme base …` from `s`. -/
+/-- For `m ∈ support (sampleMaterial leak)`, every possible result of A's send oracle of
+`honestScheme m e s` from `s` is one of A's send oracle over `base`. -/
 theorem oracleSendA_pinned_support [DecidableEq K] [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (hDet : base.DeterministicDecaps)
@@ -647,8 +610,7 @@ theorem oracleSendA_pinned_support [DecidableEq K] [DecidableEq Sym]
   obtain ⟨out, hout, hz⟩ := hz
   exact ⟨out, sendA_pinned_support base onoff ecEk leak m hm e s out hout, hz⟩
 
-/-- The version of `oracleSendA_pinned_support` for B, for states `s` satisfying
-`reachableInv` and `pinnedSources m e`. -/
+/-- B version of `oracleSendA_pinned_support`, under `reachableInv` and `pinnedSources m e`. -/
 theorem oracleSendB_pinned_support [DecidableEq K] [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (hDet : base.DeterministicDecaps)

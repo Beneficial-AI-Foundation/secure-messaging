@@ -9,10 +9,11 @@ import SecureMessaging.SCKA.Correctness
 /-!
 # State preservation by correctness queries
 
-Let `scka` be an SCKA scheme over `ProbComp`. Every query of `sckaCorrectnessImpl scka` keeps
-`exposed` and `challenged` unchanged and increases A's send counter `nA` by at most one, only on
-sends. A predicate on the local states, or on B's key table, that the local send and receive
-algorithms preserve is preserved by these queries.
+For an SCKA scheme `scka` over `ProbComp`, every query of `sckaCorrectnessImpl scka`:
+
+- keeps `exposed` and `challenged`, and increases `nA` by at most one, only on sends;
+- preserves each predicate on the local states, or on B's key table, that the local send and
+  receive algorithms preserve.
 -/
 
 open OracleSpec OracleComp
@@ -52,8 +53,8 @@ theorem correctnessImpl_securitySets_eq
   · rcases (mem_support_oracleRecvB_run_iff scka s n z).mp hz with
       ⟨_, rfl⟩ | ⟨_, _, _, _, rfl⟩ | ⟨_, _, _ | ⟨_, _⟩, _, _, _, _, rfl⟩ <;> exact ⟨rfl, rfl⟩
 
-/-- Every possible successor `s'` of a correctness query `t` from `s` satisfies
-`s'.nA ≤ s.nA + 1` if `t` is a send and `s'.nA ≤ s.nA` otherwise. -/
+/-- Every possible successor `s'` of a correctness query `t` from `s` has
+`s'.nA ≤ s.nA + (if t is a send then 1 else 0)`. -/
 theorem correctnessImpl_nA_step
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (t : (sckaCorrectnessSpec Rho).Domain) (s : GameState StA StB I Rho)
@@ -76,9 +77,8 @@ theorem correctnessImpl_nA_step
   · rcases (mem_support_oracleRecvB_run_iff scka s n z).mp hz with
       ⟨_, rfl⟩ | ⟨_, _, _, _, rfl⟩ | ⟨_, _, _ | ⟨_, _⟩, _, _, _, _, rfl⟩ <;> exact Nat.le_refl _
 
-/-- Let `P : StA → StB → Prop` hold at the local states of `s`. If every possible successful
-local send and every successful local receive of a message from these states preserve `P`, then
-every possible successor of a correctness query from `s` satisfies `P`. -/
+/-- If `P s.stA s.stB` holds and every possible successful local send and successful local
+receive from these states preserves `P`, every possible successor of a correctness query does. -/
 theorem correctnessImpl_preserves_localInv_at
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) (P : StA → StB → Prop)
     (s : GameState StA StB I Rho) (hs : P s.stA s.stB)
@@ -118,11 +118,9 @@ theorem correctnessImpl_preserves_localInv_at
     · exact hs
     · rcases key with _ | ⟨_, _⟩ <;> exact hrb msg _ epoch next hr
 
-/-- Let `P` be a predicate on key tables `ℕ → Option I` with `P s.keyB`. Assume that
-`P (Function.update s.keyB tI (some key))` holds for every epoch key `(tI, key)` that a possible
-successful local send by B from `s.stB` returns, and for every one that a successful local
-receive by B from `s.stB` returns. Then every possible successor `s'` of a correctness query
-from `s` satisfies `P s'.keyB`. -/
+/-- If `P s.keyB` holds and `P (Function.update s.keyB tI (some key))` holds for every epoch
+key `(tI, key)` returned by a possible successful local send or a successful local receive of B
+from `s.stB`, every possible successor `s'` of a correctness query satisfies `P s'.keyB`. -/
 theorem correctnessImpl_preserves_keyBInv_at
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) (P : (ℕ → Option I) → Prop)
     (s : GameState StA StB I Rho) (hs : P s.keyB)

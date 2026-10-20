@@ -734,44 +734,30 @@ abbrev exposureB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 :::
 
 ::::::::theorem "opp_unikem_cka_security" (parent := "cka_protocols_opp_unikem_cka") (lean := "oppUniKemCKA.security") (tags := "gh-108") (uses := "opp_unikem_cka_spec, opp_unikem_cka_vulnerable_epochs, scka_security, scka_oracles, erasure_code_correctness, on_off_kem_scheme, on_off_kem_rand_leak")
-*Parameters and assumptions.* Let $`\Pi` be the Opp-UniKEM protocol of
-{bpref "opp_unikem_cka_spec"}[] with the exposure functions of
-{bpref "opp_unikem_cka_vulnerable_epochs"}[]. Fix:
+*Setting.* $`\Pi` is the Opp-UniKEM protocol of {bpref "opp_unikem_cka_spec"}[] with the
+exposure functions of {bpref "opp_unikem_cka_vulnerable_epochs"}[]. Assume:
 
-* a KEM with finite nonempty shared-key space $`K`, public-key space $`PK`,
-  secret-key space $`SK`, and ciphertext space $`C`;
-* deterministic decapsulation and an {bpref "on_off_kem_scheme"}[] witness:
-  $`C\simeq C_0\times C_1`, and for every $`pk`, encapsulation equals
-  $`(st,c_0)\sample\mathsf{Enc.Off}();\ (c_1,k)\sample\mathsf{Enc.On}(st,pk)`
-  followed by ciphertext reassembly;
-* an {bpref "on_off_kem_rand_leak"}[] witness for key generation, offline
-  encapsulation, and online encapsulation: discarding the returned coins gives
-  the ordinary algorithm;
-* three erasure codes for $`PK`, $`C_0`, and $`C_1` over symbol type $`Sym`,
-  satisfying {bpref "erasure_code_correctness"}[]: every set of honest indexed
-  chunks at or above its threshold decodes the payload, and every smaller
-  honest set returns $`\bot`;
-* an adaptive adversary $`\mathcal A` using the full SCKA interface and a
-  natural number $`q` bounding the total number of ordinary and
-  randomness-leaking send queries on every oracle-response path, including
-  leaking sends rejected by an exposure guard. Receive, corruption, challenge,
-  and uniform-sampling queries are unbounded; receives deliver recorded
-  messages by index, so messages may be delayed, reordered, or replayed.
+* the KEM has deterministic decapsulation and an {bpref "on_off_kem_scheme"}[] witness:
+  $`C\simeq C_0\times C_1` and encapsulation is
+  $`(st,c_0)\sample\mathsf{Enc.Off}();\ (c_1,k)\sample\mathsf{Enc.On}(st,pk)`;
+* an {bpref "on_off_kem_rand_leak"}[] witness: forgetting the coins of a leaking sampler
+  gives the ordinary one;
+* the erasure codes for $`PK`, $`C_0`, $`C_1` satisfy {bpref "erasure_code_correctness"}[];
+* $`\mathcal A` makes at most $`q` ordinary or leaking sends on every oracle-response path,
+  rejected sends included; other queries are unbounded, and receives may deliver any recorded
+  message (delay, reordering, replay).
 
-Let $`\varepsilon` be the KEM correctness error: the probability that
-$`\mathsf{Decaps}(sk,ct)\ne k`, including $`\mathsf{Decaps}(sk,ct)=\bot`, for
-$`(pk,sk)\sample\mathsf{KeyGen}()` and $`(ct,k)\sample\mathsf{Encaps}(pk)`.
-Let $`\mathcal B=\mathsf{securityReduction}(\mathcal A,q)` be the IND-CPA
-adversary defined below.
+$`\varepsilon=\Pr[\mathsf{Decaps}(sk,ct)\ne k]` for $`(pk,sk)\sample\mathsf{KeyGen}()` and
+$`(ct,k)\sample\mathsf{Encaps}(pk)`, with failure $`\bot` counted as an error.
 
-*Security bound.*
+*Security bound.* For the IND-CPA adversary $`\mathcal B=\mathsf{securityReduction}(\mathcal A,q)`:
 
 $$`\boxed{\operatorname{Adv}^{\mathsf{guess}}_{\mathsf{SCKA},\Pi}(\mathcal A)
 \le \frac q2\operatorname{Adv}^{\mathsf{IND\text{-}CPA}}_{\mathsf{KEM}}(\mathcal B)
 +q\varepsilon.}`
 
-$`\mathcal A` may challenge any number of distinct epochs, adaptively, subject to the
-guards of {bpref "scka_oracles"}[]: each challenged epoch is unexposed and has a recorded key.
+Challenges are adaptive; by the guards of {bpref "scka_oracles"}[], each unexposed epoch with a
+recorded key can be challenged once.
 
 :::leanPillCaption "Security bound"
 :::
@@ -802,33 +788,28 @@ def SecuritySendQueryBound {kem : KEMScheme ProbComp K PK SK C}
   adv.IsQueryBoundP (fun t => SCKAScheme.sckaSecuritySpec.isSendQuery t = true) q
 ```
 
-*Advantage conventions.* For $`b\in\{0,1\}`, let $`G_b(\mathcal A)` be the SCKA
-security experiment of {bpref "scka_security"}[] with its bit fixed to $`b`: eligible
-challenges return recorded keys if $`b=0` and independent uniform keys if $`b=1`, and
-$`G_b(\mathcal A)` returns the output of $`\mathcal A`. With a uniform bit $`b` and output
-$`b'`,
+*Advantages.*
 
-$$`\operatorname{Adv}^{\mathsf{guess}}_{\mathsf{SCKA},\Pi}(\mathcal A)
-=|\Pr[b'=b]-\tfrac12|
-=\tfrac12\,|\Pr[G_1(\mathcal A)=1]-\Pr[G_0(\mathcal A)=1]|.`
+* SCKA: $`G_b(\mathcal A)` is the experiment of {bpref "scka_security"}[] with its bit fixed
+  to $`b`; eligible challenges get recorded keys if $`b=0` and uniform keys if $`b=1`.
+* IND-CPA: $`(pk^*,sk^*)\sample\mathsf{KeyGen}()`, $`(ct^*,k)\sample\mathsf{Encaps}(pk^*)`,
+  $`u\sample K`; $`\mathcal B` receives $`pk^*`, then $`(ct^*,k)` in the real branch (Lean
+  bit `true`) or $`(ct^*,u)` in the random branch (Lean bit `false`).
 
-In the KEM IND-CPA experiment, $`(pk^*,sk^*)\sample\mathsf{KeyGen}()`,
-$`(ct^*,k)\sample\mathsf{Encaps}(pk^*)`, and $`u\sample K` independently. A two-stage
-adversary receives $`pk^*`, then $`(ct^*,k)` in the real branch $`\mathcal B_{\mathsf{real}}`
-(Lean bit `true`) or $`(ct^*,u)` in the random branch $`\mathcal B_{\mathsf{random}}`
-(Lean bit `false`). The advantage `KEMScheme.IND_CPA_Advantage` is $`|2\Pr[b'=b]-1|` for
-a uniform bit $`b`; by `KEMScheme.IND_CPA_Advantage_eq_fixed_branch_dist`, it is the full
-distinguishing gap
+For a uniform bit $`b` and guess $`b'` (the second line is
+`KEMScheme.IND_CPA_Advantage_eq_fixed_branch_dist`):
 
-$$`\operatorname{Adv}^{\mathsf{IND\text{-}CPA}}_{\mathsf{KEM}}(\mathcal B)
-=|\Pr[\mathcal B_{\mathsf{real}}=1]-\Pr[\mathcal B_{\mathsf{random}}=1]|.`
+$$`\begin{aligned}
+\operatorname{Adv}^{\mathsf{guess}}_{\mathsf{SCKA},\Pi}(\mathcal A)
+ &=|\Pr[b'=b]-\tfrac12|=\tfrac12\,|\Pr[G_1(\mathcal A)=1]-\Pr[G_0(\mathcal A)=1]|,\\
+\operatorname{Adv}^{\mathsf{IND\text{-}CPA}}_{\mathsf{KEM}}(\mathcal B)
+ &=|2\Pr[b'=b]-1|=|\Pr[\mathcal B_{\mathsf{real}}=1]-\Pr[\mathcal B_{\mathsf{random}}=1]|.
+\end{aligned}`
 
-*The reduction.* On input $`pk^*` and challenge $`(ct^*,k^*)`, where $`k^*` is $`k` or
-$`u`, $`\mathcal B` selects an epoch $`e`, embeds $`pk^*` and $`ct^*` in the key generation
-and encapsulation of epoch $`e`, and runs $`\mathcal A` once against the simulated oracles
-$`\mathsf{Sim}` below, answering each query with one simulated oracle operation; this cost
-statement is not formalized. Each private field of the simulated states is absent,
-$`\mathsf{hidden}` (present but unknown to $`\mathcal B`), or known.
+*The reduction.* On $`pk^*` and $`(ct^*,k^*)`, $`\mathcal B` selects an epoch $`e`, embeds
+$`pk^*` and $`ct^*` in its key generation and encapsulation, and runs $`\mathcal A` once
+against $`\mathsf{Sim}` (running time not formalized). A private field of a simulated state is
+absent, $`\mathsf{hidden}` (unknown to $`\mathcal B`), or known.
 
 ::::::gameGrid
 :::::gameCell "\\mathcal B.\\mathsf{preChallenge}(pk^*)" (kind := "game")
@@ -915,16 +896,15 @@ def keygen (kem : KEMScheme ProbComp K PK SK C) (selected : Bool) (pkStar : PK) 
     ProbComp (PK × Option SK) :=
   if selected then pure (pkStar, none) else Prod.map id some <$> kem.keygen
 
-/-- Simulator offline encapsulation: if `selected`, return the offline component of `ctStar`
-with an unavailable offline state; otherwise run `onoff.encapsOff` and mark the state as known. -/
+/-- Simulator offline encapsulation: the offline part of `ctStar` with an unavailable state if
+`selected`, else `onoff.encapsOff` with a known state. -/
 def encapsOff {kem : KEMScheme ProbComp K PK SK C} (onoff : kem.OnOffStructure)
     (selected : Bool) (ctStar : C) : ProbComp (Option onoff.St × onoff.C₀) :=
   if selected then pure (none, (onoff.split ctStar).1)
   else Prod.map some id <$> onoff.encapsOff
 
-/-- Simulator online encapsulation: for an unavailable offline state, return the online
-component of `ctStar` with an unavailable shared key; for a known state `st`, run
-`onoff.encapsOn st pk` and mark the key as known. -/
+/-- Simulator online encapsulation: the online part of `ctStar` with an unavailable key for an
+unavailable state, else `onoff.encapsOn st pk` with a known key. -/
 def encapsOn {kem : KEMScheme ProbComp K PK SK C} (onoff : kem.OnOffStructure)
     (ctStar : C) (st : Option onoff.St) (pk : PK) : ProbComp (onoff.C₁ × Option K) :=
   match st with
@@ -967,8 +947,7 @@ def challengeWith [SampleableType K] {σA σB κ ρ : Type} (toKey : κ → K) (
         set { s with challenged := insert t s.challenged }
         pure (some k)
 
-/-- Simulator challenge oracle on marked states: a recorded key is read as its known value, or
-as `kStar` if unavailable. -/
+/-- Simulator challenge oracle: an unavailable recorded key is read as `kStar`. -/
 def challenge [SampleableType K]
     {base : KEMScheme ProbComp K PK SK C} (onoff : base.OnOffStructure)
     (e : ℕ) (kStar : K) : QueryImpl (ℕ →ₒ Option K) (StateT (SimState onoff Sym) ProbComp) :=
@@ -1063,13 +1042,9 @@ def oracle [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 :::::
 ::::::
 
-*Proof outline.* Let $`I_b` be the ideal game obtained from $`G_b` by letting A, on
-completing the online ciphertext of an epoch, output B's recorded key for that epoch instead
-of decapsulating. For $`i\ge0`, let $`H_i` be the ideal hybrid that answers eligible
-challenges at epochs $`1,\ldots,i` with independent uniform keys and other eligible
-challenges with recorded keys, and let $`p_i=\Pr[H_i(\mathcal A)=1]`. For
-$`e\in\{1,\ldots,q\}`, let $`\mathcal B^{(e)}` be $`\mathcal B` with its selected epoch
-fixed to $`e`. The comparisons are:
+*Proof outline.* $`I_b` is $`G_b` with A outputting B's recorded key instead of
+decapsulating; $`H_i` is $`I_0` with uniform keys at the eligible challenges of epochs
+$`1,\ldots,i`, and $`p_i=\Pr[H_i(\mathcal A)=1]`; $`\mathcal B^{(e)}` fixes the epoch to $`e`.
 
 $$`\begin{array}{ccccc}
 G_0 & \xleftrightarrow{\ \le q\varepsilon\ } &
@@ -1079,36 +1054,21 @@ H_{q-1}\xleftrightarrow{\ \mathcal B^{(q)}\ }H_q &
 \text{real SCKA} && \text{ideal hybrids} && \text{random SCKA}
 \end{array}`
 
-1. *Correctness errors.* $`G_b` and $`I_b` agree until a completed epoch's ciphertext
-   decapsulates under A's secret key to a value other than B's recorded key. This event has
-   probability at most $`q\varepsilon`, so
-   $`|\Pr[G_b(\mathcal A)=1]-\Pr[I_b(\mathcal A)=1]|\le q\varepsilon`
-   (`security_correctness_endpoint_le`). Moreover $`H_0=I_0`, and
-   $`p_q=\Pr[I_1(\mathcal A)=1]` because every epoch with a recorded key lies in
-   $`\{1,\ldots,q\}`. Hence the guessing advantage is at most
-   $`\tfrac12|p_0-p_q|+q\varepsilon` (`security_guess_le_hybrid_gap`).
-2. *Simulation.* For each KEM bit, $`\mathcal B^{(e)}` accepts with the probability of the
-   following game: sample the outputs and coins of key generation and offline and online
-   encapsulation for epoch $`e` in advance; run the ideal game with these values at epoch
-   $`e` and the challenge answers of $`\mathsf{Sim}`, where $`k^*` is the encapsulated key
-   (real) or an independent uniform key (random); and return $`0` at the first query that
-   exposes $`e` (`fixedBranch_eq_honestStopped`).
-3. *Deferred sampling.* Each pre-sampled value is used at most once, at the protocol call
-   that would sample it. Moving each sample to that call shows that
-   $`\mathcal B^{(e)}_{\mathsf{real}}` and $`\mathcal B^{(e)}_{\mathsf{random}}` accept with
-   the probabilities of $`H_{e-1}` and $`H_e`, respectively, both stopped at the first
-   exposure of $`e` (`fixedBranch_eq_ideal`).
-4. *Exposure cancellation.* $`H_{e-1}` and $`H_e` differ only in a challenge of $`e`. The
-   exposure guards prevent exposing a challenged epoch, and once $`e` is exposed, both games
-   reject its challenge. From the first exposure of $`e` on, the two games therefore proceed
-   identically, so stopping there leaves $`p_{e-1}-p_e` unchanged, and
-   $`\Pr[\mathcal B^{(e)}_{\mathsf{real}}=1]-\Pr[\mathcal B^{(e)}_{\mathsf{random}}=1]=p_{e-1}-p_e`
+1. *Correctness errors:* $`|\Pr[G_b=1]-\Pr[I_b=1]|\le q\varepsilon`, $`H_0=I_0`, and
+   $`p_q=\Pr[I_1=1]`, so $`\operatorname{Adv}^{\mathsf{guess}}\le\tfrac12|p_0-p_q|+q\varepsilon`
+   (`security_correctness_endpoint_le`, `security_guess_le_hybrid_gap`).
+2. *Simulation:* each branch of $`\mathcal B^{(e)}` is the ideal game with the samples of epoch
+   $`e` drawn in advance and the challenges of $`\mathsf{Sim}`, stopped at the exposure of $`e`
+   (`fixedBranch_eq_honestStopped`).
+3. *Deferred sampling:* each pre-drawn sample is used at most once, at its protocol call, so
+   the real and random branches equal $`H_{e-1}` and $`H_e` stopped at $`e`
+   (`fixedBranch_eq_ideal`).
+4. *Exposure cancellation:* both hybrids reject the challenge of $`e` once $`e` is exposed, so
+   stopping preserves $`p_{e-1}-p_e`, the signed gap of $`\mathcal B^{(e)}`
    (`fixedBranch_signed_gap_eq`).
-5. *Averaging.* For $`q>0`, $`\mathcal B` selects $`e` uniformly, so its signed gap is
-   $`q^{-1}\sum_{e=1}^{q}(p_{e-1}-p_e)=q^{-1}(p_0-p_q)`, and
-   $`|p_0-p_q|=q\operatorname{Adv}^{\mathsf{IND\text{-}CPA}}_{\mathsf{KEM}}(\mathcal B)`.
-   For $`q=0`, both sides vanish (`hybrid_gap_eq_query_factor`). Substituting into step 1
-   gives the bound.
+5. *Averaging* over $`e`:
+   $`|p_0-p_q|=q\operatorname{Adv}^{\mathsf{IND\text{-}CPA}}_{\mathsf{KEM}}(\mathcal B)`, also for
+   $`q=0` (`hybrid_gap_eq_query_factor`).
 
 :::leanPillCaption "Step 1: bound by the ideal hybrids and the correctness error"
 :::
@@ -1164,10 +1124,8 @@ theorem hybrid_gap_eq_query_factor
       (securityReduction base onoff ecEk ecCt0 ecCt1 leak adv q)
 ```
 
-*Special cases.* If $`q=0`, the right-hand side vanishes, so the guessing advantage is
-zero: without sends no key is recorded and every challenge is rejected. The choice $`e=1`
-for $`q=0` only makes $`\mathcal B` total. If the KEM is perfectly correct, then
-$`\varepsilon=0` and the bound reduces to the IND-CPA term.
+*Special cases.* For $`q=0` the advantage is $`0`: no key is recorded, so every challenge is
+rejected ($`e=1` only makes $`\mathcal B` total). For a perfectly correct KEM, $`\varepsilon=0`.
 
 :::leanPillCaption "Bound for a perfectly correct KEM"
 :::

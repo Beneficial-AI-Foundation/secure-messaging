@@ -12,22 +12,15 @@ import SecureMessaging.SCKA.Security
 /-!
 # The per-query simulation relation
 
-**Setting.** Let `m` be complete material, `e` a selected epoch, and `kStar : K` a challenge key.
-Write `Sim := oracle e m.keygen.1.1 m.ciphertext kStar` for the simulator oracles with the public
-key and ciphertext of `m` (`Simulator`), and `Hon := honestStopped m e kStar` for the honest
-intermediate game stopped at the exposure of `e` (`Game`). `markState e s` (`Relation`) marks the
-private values of `s`, making those of epoch `e` unavailable. For an oracle `O`, a query `t`, and
-a state `u`, `O(t; u)` is `((O t).run).run u`.
-
-**Result.** `oracle_mark`: for every security query `t` and every state `s` satisfying
-`reachableInv` with `e ∉ s.exposed`,
+For complete material `m`, an epoch `e`, and `kStar : K`, let
+`Sim := oracle e m.keygen.1.1 m.ciphertext kStar` (`Simulator`),
+`Hon := honestStopped m e kStar` (`Game`), and `O(t; u) := ((O t).run).run u`. With `markState`
+from `Relation`, `oracle_mark` states that for every security query `t` and state `s` with
+`reachableInv s` and `e ∉ s.exposed`,
 
 ```text
 𝒟[Sim(t; markState e s)] = 𝒟[(r, s') ← Hon(t; s); return (r, markState e s')]
 ```
-
-The other results state this relation for the individual oracles, using the protocol
-instances `markedScheme m e s` of the simulator and `honestScheme m e s` of the honest game.
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -37,9 +30,8 @@ namespace oppUniKemCKA.Security.Embedding
 variable {K PK SK C Sym : Type}
 
 set_option backward.dsimp.instances true in
-/-- For every state `s` with `e ∉ s.exposed`, A's corruption oracle on marked states, run
-from `markState e s` and followed by `revealA`, is the computation of A's corruption oracle
-stopped on exposure of `e`, run from `s`, followed by marking the successor state. -/
+/-- If `e ∉ s.exposed`: marked A-corruption then `revealA` equals stopped A-corruption then
+marking. -/
 private theorem corruptA_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (e : ℕ) (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
@@ -69,7 +61,7 @@ private theorem corruptA_mark
   all_goals by_cases he : e ∈ vulnCorrA base onoff s.stA <;> simp [he]
 
 set_option backward.dsimp.instances true in
-/-- The version of `corruptA_mark` for B, with `revealB`. -/
+/-- B version of `corruptA_mark`, with `revealB`. -/
 private theorem corruptB_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (e : ℕ) (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
@@ -107,9 +99,8 @@ namespace oppUniKemCKA.Security.Embedding
 variable {K PK SK C Sym : Type} [DecidableEq K] [DecidableEq Sym]
 
 omit [DecidableEq K] in
-/-- For every state `s` and message, A's receive in `honestScheme m e s` equals `recvA` with
-decapsulation replaced by the constant `s.keyB s.stA.t`, B's recorded key for A's current
-epoch, as in the ideal game. -/
+/-- A's receive in `honestScheme m e s` is `recvA` with decapsulation
+`fun _ _ => s.keyB s.stA.t`. -/
 theorem honest_recvA_eq_ideal
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -132,9 +123,7 @@ theorem honest_recvA_eq_ideal
       Bool.and_eq_true, beq_iff_eq, Option.bind_some, Option.bind_none])
 
 set_option backward.dsimp.instances true in
-/-- For every state `s` and message index `n`, B's receive oracle of `markedScheme m e s`,
-run from `markState e s`, is the computation of B's receive oracle of `honestScheme m e s`,
-run from `s`, followed by marking the successor state. -/
+/-- B's receive oracle: the marked instance on `markState e s` is the honest one, then marking. -/
 private theorem oracleRecvB_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -166,7 +155,7 @@ private theorem oracleRecvB_mark
       simp [StateT.run_set, markState, markA, markB, Prod.map]
 
 set_option backward.dsimp.instances true in
-/-- The version of `oracleRecvB_mark` for A. -/
+/-- A version of `oracleRecvB_mark`. -/
 private theorem oracleRecvA_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -210,9 +199,7 @@ namespace oppUniKemCKA.Security.Embedding
 variable {K PK SK C Sym : Type} [DecidableEq K] [DecidableEq Sym]
 
 set_option backward.dsimp.instances true in
-/-- For every state `s`, A's send oracle of `markedScheme m e s`, run from `markState e s`,
-has the joint response/state distribution of A's send oracle of `honestScheme m e s`, run
-from `s`, followed by marking the successor state. -/
+/-- A's send oracle, as distributions: the marked instance is the honest one, then marking. -/
 private theorem oracleSendA_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -243,7 +230,7 @@ private theorem oracleSendA_mark
     simp [StateT.run_set, markState, markA, markB, Prod.map]
 
 set_option backward.dsimp.instances true in
-/-- The version of `oracleSendA_mark` for B, for states `s` satisfying `reachableInv`. -/
+/-- B version of `oracleSendA_mark`, under `reachableInv`. -/
 private theorem oracleSendB_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -288,10 +275,8 @@ namespace oppUniKemCKA.Security.Embedding
 variable {K PK SK C Sym : Type} [DecidableEq K] [DecidableEq Sym]
 
 set_option backward.dsimp.instances true in
-/-- For every state `s` with `e ∉ s.exposed`, A's leaking-send oracle of
-`markedScheme m e s`, run from `markState e s` and followed by `revealCoins`, has the joint
-response/state distribution of A's leaking-send oracle of `honestScheme m e s` stopped on
-exposure of `e`, run from `s`, followed by marking the successor state. -/
+/-- If `e ∉ s.exposed`, as distributions: A's marked leaking send then `revealCoins` is the
+honest one stopped at `e`, then marking. -/
 private theorem oracleSendArleak_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -342,7 +327,7 @@ private theorem oracleSendArleak_mark
           markState, markA, markB, Prod.map, hs, heq, he, hc]
 
 set_option backward.dsimp.instances true in
-/-- The version of `oracleSendArleak_mark` for B, for states `s` satisfying `reachableInv`. -/
+/-- B version of `oracleSendArleak_mark`, under `reachableInv`. -/
 private theorem oracleSendBrleak_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -418,10 +403,8 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type} [DecidableEq K] [DecidableEq Sym]
 
-/-- For every correctness query `t` and state `s` satisfying `reachableInv`, the correctness
-oracles of `markedScheme m e s`, run from `markState e s`, have the joint response/state
-distribution of those of `honestScheme m e s`, run from `s`, followed by marking the
-successor state. -/
+/-- Correctness oracles under `reachableInv`, as distributions: the marked instance is the
+honest one, then marking. -/
 private theorem correctnessOracle_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -445,11 +428,8 @@ private theorem correctnessOracle_mark
   · exact congrArg evalDist (oracleRecvA_mark base onoff ecEk ecCt0 ecCt1 leak m e n s)
   · exact congrArg evalDist (oracleRecvB_mark base onoff ecEk ecCt0 ecCt1 leak m e n s)
 
-/-- For every material `m`, epoch `e`, key `kStar`, security query `t`, and state `s`
-satisfying `reachableInv` with `e ∉ s.exposed`, the simulator
-`oracle e m.keygen.1.1 m.ciphertext kStar` answering `t` from `markState e s` has the joint
-distribution of optional response and successor state of `honestStopped m e kStar` answering
-`t` from `s`, followed by marking the successor state. -/
+/-- The relation of the module introduction: if `reachableInv s` and `e ∉ s.exposed`, then
+`𝒟[Sim(t; markState e s)] = 𝒟[(r, s') ← Hon(t; s); return (r, markState e s')]`. -/
 theorem oracle_mark [SampleableType K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)

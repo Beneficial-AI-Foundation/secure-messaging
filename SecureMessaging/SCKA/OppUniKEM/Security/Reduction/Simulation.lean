@@ -12,22 +12,17 @@ import ToVCVio.OracleComp.SimSemantics.StateT.Stop
 /-!
 # The simulation theorem
 
-**Setting.** Assume deterministic decapsulation and correct erasure codes. Let `adv` be a
-security adversary, `e` a selected epoch, `kStar : K` a challenge key, and `s₀` the initial
-game state. For complete material `m`, write `pk_m := m.keygen.1.1`, `ct_m := m.ciphertext`,
-and `k_m := m.on.1.2`. The simulator run `run`, the fixed IND-CPA branches `fixedBranch`, and
-`sampleMaterial` are those of `Simulator`; `honestStopped m e kStar` is the honest intermediate
-game stopped at the exposure of `e` (`Game`).
+Assume deterministic decapsulation and correct erasure codes. Fix an adversary `adv`, an epoch
+`e`, `kStar : K`, and the initial game state `s₀`; for material `m`, let `pk_m := m.keygen.1.1`,
+`ct_m := m.ciphertext`, `k_m := m.on.1.2`. `run`, `fixedBranch`, and `sampleMaterial` are
+defined in `Simulator`, `honestStopped` in `Game`; `pinnedKey m e s` states that B's keys at
+epoch `e` equal `k_m`.
 
-**Definitions.** `pinnedKey m e s`: every key recorded by B at epoch `e` in `s` equals `k_m`.
-
-**Results.**
-
-- `run_eq_honestStopped`: for every `m ∈ support (sampleMaterial leak)`,
+- `run_eq_honestStopped`: for `m ∈ support (sampleMaterial leak)`,
   `Pr[run adv e pk_m ct_m kStar = true] = Pr[optionRun (honestStopped m e kStar) adv s₀ = true]`.
-- `fixedBranch_eq_honestStopped`: for every bit `b`, `fixedBranch adv e b` returns `true` with
-  the probability that `m ← sampleMaterial leak; k ←$ K` followed by
-  `optionRun (honestStopped m e (if b then k_m else k)) adv s₀` does.
+- `fixedBranch_eq_honestStopped`: `Pr[fixedBranch adv e b = true]` equals
+  `Pr[m ← sampleMaterial leak; k ←$ K; optionRun (honestStopped m e k_b) adv s₀ = true]`,
+  where `k_b := if b then k_m else k`.
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -36,15 +31,13 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
 
-/-- Predicate on game states: every key recorded by B at epoch `e` equals the online
-encapsulation key `m.on.1.2` of the material `m`. -/
+/-- Every key recorded by B at epoch `e` is `m.on.1.2`. -/
 def pinnedKey {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff} (m : Material leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) : Prop :=
   ∀ k, s.keyB e = some k → k = m.on.1.2
 
-/-- For every material `m` and state `s`, if a possible output of B's send in
-`honestScheme m e s` derives the key `(e, k)`, then `k = m.on.1.2`. -/
+/-- A possible key `(e, k)` of B's send in `honestScheme m e s` has `k = m.on.1.2`. -/
 private theorem sendB_selected_key
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff}
@@ -67,8 +60,7 @@ private theorem sendB_selected_key
       Option.some.injEq, Prod.mk.injEq] at hout
     simp_all
 
-/-- For every state `s` satisfying `pinnedKey m e` and every correctness query, each possible
-successor state of the correctness oracles of `honestScheme m e s` satisfies `pinnedKey m e`. -/
+/-- The correctness oracles of `honestScheme m e` preserve `pinnedKey m e`. -/
 private theorem honestCorrectness_preserves_pinnedKey [DecidableEq K] [DecidableEq Sym]
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff}
@@ -94,8 +86,8 @@ private theorem honestCorrectness_preserves_pinnedKey [DecidableEq K] [Decidable
   · intro msg tI k t next hr
     exact absurd (recvB_key_none base onoff ecEk s.stB msg _ t next hr) (Option.some_ne_none _)
 
-/-- For every challenge oracle `chall` with `RecordsChallenges chall`, the security oracles
-`securityImplAt (honestScheme m e) chall` preserve `pinnedKey m e`. -/
+/-- If `RecordsChallenges chall`, `securityImplAt (honestScheme m e) chall` preserves
+`pinnedKey m e`. -/
 theorem honestScheme_preserves_pinnedKey
     [DecidableEq K] [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
@@ -114,7 +106,7 @@ theorem honestScheme_preserves_pinnedKey
     (fun _ => sendBrleak_forget (onoff := Pinned.onOff m _ _ _ _) _ _ _ _) hchall
     (fun s hs t => honestCorrectness_preserves_pinnedKey ecEk ecCt0 ecCt1 m e t s hs)
 
-/-- The initial game state, whose key tables are empty, satisfies `pinnedKey m e`. -/
+/-- The initial game state satisfies `pinnedKey m e`. -/
 theorem pinnedKey_initial
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (leak : base.OnOffRandLeak onoff) (m : Material leak) (e : ℕ) :
@@ -124,8 +116,7 @@ theorem pinnedKey_initial
     oppUniKemCKA.Reduction.Internal.initialA, oppUniKemCKA.Reduction.Internal.initialB,
     SCKAScheme.initGameState]
 
-/-- In every state satisfying `reachableInv`, a key recorded by A at epoch `e` is also
-recorded by B at `e`. -/
+/-- Under `reachableInv`, a key A records at epoch `e` is also recorded by B. -/
 private theorem recordedA_eq_recordedB
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -139,8 +130,7 @@ private theorem recordedA_eq_recordedB
   split_ifs at hk with hzero hpast
   simpa only [hT.keyB] using hk
 
-/-- In every state satisfying `reachableInv` and `pinnedKey m e`, each key recorded by A or B
-at epoch `e` equals `m.on.1.2`. -/
+/-- Under `reachableInv` and `pinnedKey m e`, every key recorded at `e` is `m.on.1.2`. -/
 theorem pinnedKey_both
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -161,10 +151,8 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type} [DecidableEq K] [DecidableEq Sym]
 
-/-- Assume deterministic decapsulation and correct erasure codes, and let
-`m ∈ support (sampleMaterial leak)`. For every state `s` satisfying `reachableInv` and
-`pinnedSources m e` and every correctness query, each possible successor state of the
-correctness oracles of `honestScheme m e s` satisfies `reachableInv`. -/
+/-- For possible `m`, the correctness oracles of `honestScheme m e`
+preserve `reachableInv` on states with `pinnedSources m e`. -/
 private theorem honestCorrectness_preserves_reachableInv
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (hDet : base.DeterministicDecaps)
@@ -207,10 +195,8 @@ private theorem honestCorrectness_preserves_reachableInv
   · exact oracleRecvB_preserves_reachableInv base onoff hDet ecEk hEk ecEk.ec.nchunk_pos
       ecCt0 ecCt1 leak n s hs z hz
 
-/-- Assume deterministic decapsulation and correct erasure codes, and let
-`m ∈ support (sampleMaterial leak)`. For every challenge oracle `chall` with
-`RecordsChallenges chall`, the security oracles `securityImplAt (honestScheme m e) chall`
-preserve `reachableInv ∧ pinnedSources m e`. -/
+/-- For possible `m` and `RecordsChallenges chall`,
+`securityImplAt (honestScheme m e) chall` preserves `reachableInv ∧ pinnedSources m e`. -/
 theorem honestScheme_preserves_simulationInv
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (hDet : base.DeterministicDecaps)
@@ -242,10 +228,9 @@ namespace oppUniKemCKA.Security.Embedding
 variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- Let `m ∈ support (sampleMaterial leak)`. For every state `s` satisfying `reachableInv`,
-`pinnedSources m e`, and `e ∉ s.exposed`, running `adv` with the simulator
-`oracle e m.keygen.1.1 m.ciphertext kStar` from `markState e s` and with
-`honestStopped m e kStar` from `s` return `true` with equal probability. -/
+/-- For possible `m` and `s` with `reachableInv`, `pinnedSources m e`, and `e ∉ s.exposed`,
+`adv` accepts equally often against `oracle e pk_m ct_m kStar` from `markState e s` and against
+`honestStopped m e kStar` from `s`. -/
 private theorem optionRun_mark_eq
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (hDet : base.DeterministicDecaps)
@@ -292,12 +277,8 @@ private theorem markState_initial
     oppUniKemCKA.Reduction.Internal.initialA, oppUniKemCKA.Reduction.Internal.initialB,
     SCKAScheme.initGameState]
 
-/-- Assume deterministic decapsulation and correct erasure codes. For every
-`m ∈ support (sampleMaterial leak)`, epoch `e`, key `kStar`, and adversary `adv`, the
-simulator given the public key and ciphertext of `m` returns `true` with the probability of
-the honest intermediate game stopped on exposure of `e`, run from the initial game state `s₀`:
-`Pr[run adv e m.keygen.1.1 m.ciphertext kStar = true] =
-Pr[optionRun (honestStopped m e kStar) adv s₀ = true]`. -/
+/-- For `m ∈ support (sampleMaterial leak)`,
+`Pr[run adv e pk_m ct_m kStar = true] = Pr[optionRun (honestStopped m e kStar) adv s₀ = true]`. -/
 theorem run_eq_honestStopped
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (hDet : base.DeterministicDecaps)
@@ -321,11 +302,9 @@ theorem run_eq_honestStopped
     (pinnedSources_initial base onoff leak m e)
     (by simp [oppUniKemCKA.Reduction.Internal.initialGame, SCKAScheme.initGameState])
 
-/-- Assume deterministic decapsulation and correct erasure codes. For every adversary `adv`,
-epoch `e`, and IND-CPA bit `b`, `fixedBranch adv e b` returns `true` with the probability that
-the following computation does: sample `m ← sampleMaterial leak` and `k ←$ K`, then run
-`optionRun (honestStopped m e kb) adv s₀` from the initial game state `s₀`, with
-`kb := m.on.1.2` if `b = true` and `kb := k` otherwise. -/
+/-- `Pr[fixedBranch adv e b = true] =
+Pr[m ← sampleMaterial leak; k ←$ K; optionRun (honestStopped m e k_b) adv s₀ = true]` with
+`k_b := if b then m.on.1.2 else k`. -/
 theorem fixedBranch_eq_honestStopped
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (hDet : base.DeterministicDecaps)

@@ -14,37 +14,20 @@ import ToVCVio.OracleComp.SimSemantics.StateT.IdenticalUntilBadInvariant
 /-!
 # Opp-UniKEM correctness-error endpoints
 
-Let:
+**Setting.** `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` with deterministic decapsulation
+and correct erasure codes; `adv` with `SecuritySendQueryBound adv q`; `ε` the KEM correctness
+error `kem.correctnessError` (Def. A.1 of [SCKA]). A challenge at `t` is *eligible* if `t` is
+unexposed, unchallenged, and has a recorded key.
 
-- `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` be the Opp-UniKEM protocol,
-- `adv : SecurityAdversary leak Sym` be an SCKA adversary that makes
-  at most `q` send oracle calls (`SecuritySendQueryBound adv q`), and
-- `ε := kem.correctnessError ProbCompRuntime.probComp` be the KEM correctness error
-  (Def. A.1 of [SCKA]).
+**Definitions.**
 
-Assume:
+- `G_b` (`SCKAScheme.securityExpFixedBit`): eligible challenges get recorded keys if `b = false`
+  and independent uniform keys if `b = true`.
+- `idealSecurityImpl mode`, `idealSecurityExp mode adv`: the *ideal game*. When A completes an
+  online ciphertext, it outputs B's recorded key instead of decapsulating; an eligible challenge
+  at `t` gets a uniform key iff `mode t = true`. `I_b := idealSecurityExp (fun _ => b) adv`.
 
-- the KEM scheme has deterministic decapsulation;
-- the erasure codes are correct.
-
-For a fixed challenge bit `b`, define the following games for `Π`.
-Each runs `adv` and returns its output bit.
-
-- `G_b`: the original SCKA game (`SCKAScheme.securityExpFixedBit`).
-  It answers eligible challenges (at an unexposed, unchallenged epoch with a recorded key) with
-  recorded keys for `b = false` and independent uniform keys for `b = true`.
-- `I_b`: the ideal game (`idealSecurityExp` with constant mode `fun _ => b`). It differs from
-  `G_b` only in A's receive:
-  when A completes an online ciphertext, it uses B's recorded key directly instead of decapsulating
-  the received ciphertext.
-
-Main result:
-
-For every `b`, `security_correctness_endpoint_le` bounds the difference between the probability of
-`G_b` and `I_b` returning `true`: `|Pr[G_b = true] - Pr[I_b = true]| ≤ q · ε`.
-
-More generally, `idealSecurityImpl mode` answers an eligible challenge at epoch `t` with a uniform
-key exactly when `mode t = true`; the epoch hybrids in `IdealHybrids` use non-constant modes.
+**Result.** `security_correctness_endpoint_le`: `|Pr[G_b = true] - Pr[I_b = true]| ≤ q · ε`.
 -/
 
 open OracleSpec OracleComp KEMScheme ErasureCodePayload ENNReal
@@ -153,8 +136,7 @@ def idealCorrectnessImpl
     + SCKAScheme.oracleSendA scka + SCKAScheme.oracleSendB scka
     + oracleRecvAIdeal kem onoff hDet ecEk ecCt0 ecCt1 leak + SCKAScheme.oracleRecvB scka
 
-/-- The SCKA security oracles of the ideal game. An eligible challenge at epoch `t` returns a
-uniform key when `mode t = true` and the recorded key otherwise; `I_b` uses `fun _ => b`. -/
+/-- Security oracles of the ideal game with challenge mode `mode`. -/
 def idealSecurityImpl
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -169,8 +151,7 @@ def idealSecurityImpl
     (exposureA kem onoff leak) (exposureB kem onoff leak)
     (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)
 
-/-- Run `adv` against `idealSecurityImpl … mode` from the initial state and return its output
-bit. The ideal game `I_b` uses the constant mode `fun _ => b`. -/
+/-- The ideal game: `adv` against `idealSecurityImpl … mode` from the initial state. -/
 def idealSecurityExp
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -182,8 +163,8 @@ def idealSecurityExp
     (Reduction.Internal.initialGame kem onoff)
 
 omit [SampleableType K] in
-/-- From every state `s`, the ideal correctness oracles answer as the correctness oracles of
-`schemeWithDecaps` with decapsulation returning B's recorded key `s.keyB s.stA.t`. -/
+/-- From `s`, the ideal correctness oracles are those of `schemeWithDecaps` decapsulating to
+`s.keyB s.stA.t`. -/
 private theorem idealCorrectnessImpl_run_eq
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -215,8 +196,8 @@ theorem idealCorrectnessImpl_securitySets_eq
   exact SCKAScheme.correctnessImpl_securitySets_eq _ t s z hz
 
 omit [SampleableType K] in
-/-- For every correctness query `t` of the ideal game and possible successor `z.2` of `t` from
-`s`, `z.2.nA ≤ s.nA + 1` if `t` is a send query and `z.2.nA ≤ s.nA` otherwise. -/
+/-- Every possible successor `z.2` of an ideal correctness query `t` from `s` has
+`z.2.nA ≤ s.nA + 1` if `t` is a send and `z.2.nA ≤ s.nA` otherwise. -/
 theorem idealCorrectnessImpl_nA_step
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -424,19 +405,13 @@ end IdealGame
 
 /-! ## KEM failure probability
 
-The tracked games extend the original game `G_b` and the ideal game `I_b` with a Boolean
-flag `bad`, initially `false`. Their oracle implementations are `trackedSecurityImpl` and
-`trackedIdealImpl`, respectively.
-The flag records whether `currentKEMFailure` has detected completed KEM material whose
+The tracked games `trackedSecurityImpl`, `trackedIdealImpl` extend `G_b`, `I_b` with a flag
+`bad`, initially `false`, set when `currentKEMFailure` detects completed KEM material whose
 decapsulation disagrees with B's recorded key.
 
-Let `V(s) := currentFailurePotential s` be the conditional KEM failure probability for the
-current partially sampled epoch, or zero if sampling has not started or online encapsulation
-is complete.
-
-Let `Φ(s, bad) := if bad then 1 else V(s)` (`trackedFailureScore`).
-It equals `1` once a KEM failure has been recorded, and the current failure
-potential `V(s)` otherwise.
+- `V(s) := currentFailurePotential s`: the conditional KEM failure probability of the current
+  partially sampled epoch; zero before sampling and after online encapsulation.
+- `Φ(s, bad) := if bad then 1 else V(s)` (`trackedFailureScore`).
 -/
 
 section FailureProbability
@@ -529,9 +504,8 @@ theorem trackedSecurityImpl_preserves
   · exact Or.inr ⟨hreach', hbad⟩
   · exact Or.inl (by simp)
 
-/-- Fix a bit `b` and a state `s` satisfying `reachableInv` and `currentKEMFailure s = false`.
-If `(s', bad')` is the state after A's tracked leaking-send query from `(s, false)`, then
-the expected failure score satisfies `E[Φ(s', bad')] ≤ Φ(s, false) + ε`. -/
+/-- From `(s, false)` with `reachableInv s` and `currentKEMFailure s = false`, A's tracked
+leaking send has successor `(s', bad')` with `E[Φ(s', bad')] ≤ Φ(s, false) + ε`. -/
 theorem tracked_sendArleak_score_le
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -611,11 +585,9 @@ theorem tracked_sendBrleak_score_le
       pure (y.1, (y.2, false || currentKEMFailure kem onoff hDet y.2))) _ ≤ _ at h
     simpa only [bind_pure_comp, wp_map, Function.comp_def] using h
 
-/-- Fix a bit `b`, a query `t`, and a state `p` satisfying `trackedInv`.
-Let `p'` be the state after `trackedSecurityImpl b` answers `t` from `p`.
-Then the tracked failure score satisfies:
-- `E[Φ(p')] ≤ Φ(p) + ε` for an ordinary or leaking send, and
-- `E[Φ(p')] ≤ Φ(p)` otherwise. -/
+/-- For `p` with `trackedInv`, the successor `p'` of a query `t` of `trackedSecurityImpl b`
+has `E[Φ(p')] ≤ Φ(p) + ε` if `t` is an ordinary or leaking send, and `E[Φ(p')] ≤ Φ(p)`
+otherwise. -/
 theorem trackedSecurity_score_step_le
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
