@@ -221,9 +221,9 @@ def isCompromised (st : GameState SS SR AD M C) (i : ℕ) : Bool :=
   i ∈ st.comp || (st.corrA && st.iA < i && i ∉ st.preempted)
 -- ANCHOR_END: gameStateIsCompromised
 
-/-- `findFirstRecord(a, e)`: the in-transit record `(i, a, m, e)` with the smallest index
-`i`. `trans` is ordered by index, so this is its first match. Figure 5's `deliver-B` takes
-such a record "for some `i, m`" and does not say which one if there are several. -/
+/-- The in-transit record `(i, a, m, e)` with the smallest index `i`. `trans` is ordered by
+index, so this is its first match. Figure 5's `deliver-B` takes such a record "for some
+`i, m`" and does not say which one if there are several. -/
 def findTrans [DecidableEq AD] [DecidableEq C] (st : GameState SS SR AD M C)
     (a : AD) (e : C) : Option (ℕ × AD × M × C) :=
   st.trans.find? fun r => r.2.1 = a ∧ r.2.2.2 = e
@@ -369,13 +369,13 @@ recorded index and message, the adversary wins. Challenge plaintexts are not ret
 ```text
 O-Deliver-B(a, e):
   if ended: return ⊥
-  t ← findFirstRecord(a, e)
-  if t = ⊥: return ⊥
-  (i, _, m, _) ← t
+  req (i, a, m, e) ∈ trans, with the smallest such i
   r ← FS-Rcv(v_B, a, e)
-  if r = ⊥: won ← true; return ⊥    -- correctness failure: B rejects a ciphertext in transit
+  -- correctness failure: B rejects the honest ciphertext e
+  if r = ⊥: won ← true; return ⊥
   (v_B, i', m') ← r
-  if (i', m') ≠ (i, m): won ← true  -- correctness failure: B returns another index or message
+  -- correctness failure: B outputs a wrong index or message
+  if (i', m') ≠ (i, m): won ← true
   if i ∈ chall: m' ← ⊥
   delete(i)
   return (i', m')
@@ -408,7 +408,8 @@ O-Inject-B(a, e):
   r ← FS-Rcv(v_B, a, e)
   [if r = ⊥: return ⊥]                                     -- D1
   (v_B, i', m') ← r
-  if not compromised(i'): won ← true   -- authenticity failure: forgery at an unexposed index
+  -- authenticity failure: B accepts a forgery at an index that is not compromised
+  if not compromised(i'): won ← true
   [if i' > i_A: preempted ← preempted ∪ {i'}]              -- D2
   delete(i')
   return (i', m')

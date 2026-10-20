@@ -107,21 +107,6 @@ Figure 5 and frame each change, labelled with its number:
   injection consumes such an index, A's later ciphertext for it is not recorded.
   Otherwise B would have to accept both, and no correct scheme meets the game.
 
-These conventions are not boxed:
-
-- A rejected $`\ODeliverB` gives no $`(i', m')`. It counts as a win and leaves the
-  records alone. $`\mathsf{won}` never returns to false. The game continues to run
-  after a win, but the result stays a win.
-- $`\mathsf{req}` is an explicit $`\pif \ldots \Return \bot` at the start of the
-  oracle. Every oracle also returns $`\bot` once the game has ended.
-- $`\mathsf{chall}` holds indices, so Figure 5's $`(i, m) \in \mathsf{chall}` is
-  written $`i \in \mathsf{chall}`. Indices are unique per record.
-- $`\mathsf{findFirstRecord}(a, e)` is the record $`(i, a, m, e)` in
-  $`\mathsf{trans}` with the smallest $`i`, or $`\bot`. Figure 5 takes such a record
-  "for some $`i, m`".
-- The advantage is half that of ACD19 §2.1, as in the other guess advantages of this
-  project.
-
 ::::::gameGrid
 :::::gameCell "\\textsf{Game state}" (kind := "scheme-notation")
 The game state consists of:
@@ -133,7 +118,6 @@ The game state consists of:
     * $`i_\A`: the number of messages A has sent.
     * $`\mathsf{corrA}`: whether A has been corrupted.
     * $`\mathsf{won}`: whether the adversary reached a winning condition.
-    * $`\mathsf{ended}`: whether $`\OCorrB` ended the game.
   *
     * $`\mathsf{trans}`: the records $`(i, a, m, e)` of ciphertexts in transit.
     * $`\mathsf{chall} \subseteq \mathbb N`: the indices of challenge ciphertexts in
@@ -206,7 +190,6 @@ abbrev fsaeadSpec (SS SR AD M C : Type) :=
 ::::::gameGrid
 :::::gameCell "\\OTransmitA(a, m)" (kind := "compact")
 $`\begin{array}{l}
-\pif\;\mathsf{ended}\;\pthen\;\Return \bot; \\
 i_\A{+}{+}; \\
 (v_\A, e) \gets \mathsf{FS\text{-}Send}(v_\A, a, m); \\
 \mathsf{record}(\mathsf{good}, a, m, e); \\
@@ -227,15 +210,12 @@ def oracleTransmitA (fs : FSAEADScheme K SS SR AD M C) :
 
 :::::gameCell "\\ODeliverB(a, e)" (kind := "compact")
 $`\begin{array}{l}
-\pif\;\mathsf{ended}\;\pthen\;\Return \bot; \\
-t \gets \mathsf{findFirstRecord}(a, e); \\
-\pif\;t = \bot\;\pthen\;\Return \bot; \\
-(i, \_, m, \_) \gets t; \\
+\req\;(i, a, m, e) \in \mathsf{trans}\text{, with the smallest such } i; \\
 r \gets \mathsf{FS\text{-}Rcv}(v_\B, a, e); \\
-\pcommentline{\text{correctness failure: B rejects a ciphertext in transit}} \\
+\pcommentline{\text{correctness failure: B rejects the honest ciphertext } e} \\
 \pif\;r = \bot\;\pthen\;\mathsf{won} \gets \mathsf{true}; \Return \bot; \\
 (v_\B, i', m') \gets r; \\
-\pcommentline{\text{correctness failure: B returns another index or message}} \\
+\pcommentline{\text{correctness failure: B outputs a wrong index or message}} \\
 \pif\;(i', m') \neq (i, m)\;\pthen\;\mathsf{won} \gets \mathsf{true}; \\
 \pif\;i \in \mathsf{chall}\;\pthen\;m' \gets \bot; \\
 \mathsf{delete}(i); \\
@@ -263,7 +243,7 @@ def oracleDeliverB [DecidableEq AD] [DecidableEq M] [DecidableEq C]
 
 :::::gameCell "\\OChallA(a, m_0, m_1)" (kind := "compact")
 $`\begin{array}{l}
-\pif\;\mathsf{ended} \vee \mathsf{corrA} \vee |m_0| \neq |m_1|\;\pthen\;\Return \bot; \\
+\req\;\neg\mathsf{corrA} \wedge |m_0| = |m_1|; \\
 i_\A{+}{+}; \\
 (v_\A, e) \gets \mathsf{FS\text{-}Send}(v_\A, a, m_b); \\
 \mathsf{record}(\mathsf{chall}, a, m_b, e); \\
@@ -285,11 +265,11 @@ def oracleChallA (fs : FSAEADScheme K SS SR AD M C) (len : M → ℕ) (b : Bool)
 
 :::::gameCell "\\OInjectB(a, e)" (kind := "compact")
 $`\begin{array}{l}
-\pif\;\mathsf{ended} \vee (\exists i, m: (i, a, m, e) \in \mathsf{trans})\;\pthen\;\Return \bot; \\
+\req\;\neg(\exists i, m: (i, a, m, e) \in \mathsf{trans}); \\
 r \gets \mathsf{FS\text{-}Rcv}(v_\B, a, e); \\
-\boxed{\pif\;r = \bot\;\pthen\;\Return \bot;}\pcomment{\text{D1}} \\
+\boxed{\req\;r \neq \bot;}\pcomment{\text{D1}} \\
 (v_\B, i', m') \gets r; \\
-\pcommentline{\text{authenticity failure: forgery at an unexposed index}} \\
+\pcommentline{\text{authenticity failure: B accepts a forgery at an index that is not compromised}} \\
 \pif\;\neg\mathsf{compromised}(i')\;\pthen\;\mathsf{won} \gets \mathsf{true}; \\
 \boxed{\pif\;i' > i_\A\;\pthen\;\mathsf{preempted} \gets \mathsf{preempted} \cup \{i'\};}\pcomment{\text{D2}} \\
 \mathsf{delete}(i'); \\
@@ -312,7 +292,6 @@ def oracleInjectB [DecidableEq AD] [DecidableEq C] (fs : FSAEADScheme K SS SR AD
 
 :::::gameCell "\\OCorrA" (kind := "compact")
 $`\begin{array}{l}
-\pif\;\mathsf{ended}\;\pthen\;\Return \bot; \\
 \mathsf{corrA} \gets \mathsf{true}; \\
 \Return v_\A
 \end{array}`
@@ -330,8 +309,8 @@ def oracleCorrA (SS SR AD M C : Type) :
 
 :::::gameCell "\\OCorrB" (kind := "compact")
 $`\begin{array}{l}
-\pif\;\mathsf{ended} \vee \mathsf{chall} \neq \emptyset\;\pthen\;\Return \bot; \\
-\mathsf{ended} \gets \mathsf{true}; \\
+\req\;\mathsf{chall} = \emptyset; \\
+\text{end the game}; \\
 \Return (v_\A, v_\B)
 \end{array}`
 
@@ -411,8 +390,8 @@ i_\A \gets 0; \\
 \mathsf{corrA} \gets \mathsf{false}; \\
 \mathsf{trans}, \mathsf{chall}, \mathsf{comp} \gets \emptyset; \\
 \boxed{\mathsf{preempted} \gets \emptyset;}\pcomment{\text{D2}} \\
-\pcommentline{\mathsf{won}\text{ and }\mathsf{ended}\text{ stand for the §2.1 keywords }\mathsf{win}\text{ and }\mathsf{end}} \\
-\mathsf{won}, \mathsf{ended} \gets \mathsf{false}; \\
+\pcommentline{\mathsf{won}\text{ stands for the §2.1 keyword }\mathsf{win}} \\
+\mathsf{won} \gets \mathsf{false}; \\
 \pcommentline{\text{Sample the challenge bit and run the adversary}} \\
 b \sample \bit;\quad b' \gets \adv^{\O}; \\
 \pcommentline{\text{Win by a winning condition or by guessing } b} \\
