@@ -174,15 +174,15 @@ theorem recvA_eq_of_decaps_agrees [DecidableEq Sym]
         fin_cases bit
         · cases hct : s.ct0 <;> cases hdecode : ecCt0.decode (insert chunk s.lch) <;>
             simp [recvA, hct, hdecode]
-        · cases hd : s.dkA with
-          | none => cases hct : s.ct0 <;> simp [recvA, hd, hct]
-          | some dk =>
-            cases hct : s.ct0 with
-            | none => simp [recvA, hd, hct]
-            | some ct0 =>
-              cases hct1 : ecCt1.decode (insert chunk s.lch) with
+        · cases hct1 : ecCt1.decode (insert chunk s.lch) with
+          | none => cases hct : s.ct0 <;> simp [recvA, hct, hct1]
+          | some ct1 =>
+            cases hd : s.dkA with
+            | none => cases hct : s.ct0 <;> simp [recvA, hd, hct, hct1]
+            | some dk =>
+              cases hct : s.ct0 with
               | none => simp [recvA, hd, hct, hct1]
-              | some ct1 =>
+              | some ct0 =>
                 have heq := hdec dk ct0 chunk ct1 ack hd hct
                   (by simp [hc, hb]) hct1
                 simp [recvA, hd, hct, hct1, heq]

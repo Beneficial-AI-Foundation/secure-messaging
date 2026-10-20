@@ -70,7 +70,7 @@ theorem game2'_eq_game2
           | none => do
             let t' ← liftM ((unifSpec + ((AD × C_e) →ₒ T)).query
               (Sum.inr (ad, se.encrypt ke m)))
-            pure (some (se.encrypt ke m, t'), some (se.encrypt ke m, t')))
+            pure (some (se.encrypt ke m, t'), some (ad, (se.encrypt ke m, t'))))
       · -- decrypt: reject unconditionally (`verifyTag = pure false`), state unchanged.
         exact pure (none, s)
     · -- The body matches the first query implementation's handler run, reshaped.
@@ -96,7 +96,7 @@ theorem game2'_eq_game2
             StateT.run_bind, StateT.run_get,
             StateT.run_set, StateT.run_pure, map_bind, Functor.map_map]
       · -- decrypt: reject unconditionally; case on the challenge guard, both reject identically.
-        by_cases hg : s = some (c, tg) <;>
+        by_cases hg : s = some (ad, (c, tg)) <;>
           simp [PRFScheme.prfIdealQueryImpl, QueryImpl.add_apply_inr,
             StateT.run_bind, StateT.run_get, StateT.run_set, StateT.run_pure, map_pure,
             beq_iff_eq, hg]
@@ -114,7 +114,7 @@ theorem game2'_eq_game2
     · -- decryption oracle: `verifyTag` differs. On the challenge guard both reject without a
       -- query (left disjunct); otherwise `game2'` prepends a discarded RO query at `(ad, c)`
       -- (right disjunct).
-      by_cases hg : s = some (c, tg)
+      by_cases hg : s = some (ad, (c, tg))
       · left
         simp [QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get, StateT.run_pure,
           beq_iff_eq, hg]
@@ -150,7 +150,7 @@ lemma simulateQ_authInstImpl_run'_eq_authPlainImpl
           StateT.run_bind, StateT.run_get, StateT.run_set,
           Prod.map, Functor.map_map, ← apply_ite]
     | some val =>
-      by_cases hguard : val = (c, tg)
+      by_cases hguard : val = (ad, (c, tg))
       all_goals
         cases b <;>
           simp [authInstImpl, authDecImpl, authPlainImpl, QueryImpl.add_apply_inr,
@@ -210,7 +210,7 @@ theorem tvDist_authInst_le_probForge
           map_pure, Functor.map_map, support_map] at hz
         obtain ⟨a, _, rfl⟩ := hz; rfl
       | some val =>
-        by_cases hguard : val = (c, tg)
+        by_cases hguard : val = (ad, (c, tg))
         · simp only [add_apply_inr, beq_iff_eq, QueryImpl.withCaching_apply, StateT.run_bind,
             StateT.run_get, pure_bind, hguard, ↓reduceIte, StateT.run_pure, support_pure] at hz
           obtain rfl := hz; rfl
@@ -238,7 +238,7 @@ theorem tvDist_authInst_le_probForge
     · -- decryption oracle
       obtain ⟨ch, qc⟩ := s
       simp only [authInstImpl, QueryImpl.add_apply_inr, authDecImpl]
-      by_cases hg : ch = some (c, tg)
+      by_cases hg : ch = some (ad, (c, tg))
       · -- challenge-guard rejects: `pure none`, `b` unused
         simp [hg, StateT.run_bind, StateT.run_get, StateT.run_pure]
       · -- verify: equal probability per random-oracle sample
@@ -287,9 +287,8 @@ theorem probForge_authInst_le_forgeReduction
     forgeJointImpl se ke with himpl₂
   -- Joint-state invariant coupling the instrumented-game state `(EtmGameState × Bool)` with
   -- the combined RHS state `(EtmGameState × ForgeState)`: the challenge slot and the lazy-RO
-  -- cache agree, the set of eval'd points is contained in the challenge ciphertext, the RO
-  -- maps the challenge point to the challenge tag, and the game's bad flag implies the
-  -- forge `forged` flag.
+  -- cache agree, the only eval'd point is the challenge point `(ad*, c*)`, the RO maps it
+  -- to the challenge tag, and the game's bad flag implies the forge `forged` flag.
   set R_state :
       (EtmGameState AD C_e T × Bool) →
         (EtmGameState AD C_e T × OracleComp.ForgeState (AD × C_e) T) → Prop :=
@@ -298,9 +297,9 @@ theorem probForge_authInst_le_forgeReduction
       s₁.1.1 = s₂.1.1 ∧
       -- RO cache agrees (game's TagCache = forge's RO cache)
       s₁.1.2 = s₂.2.1 ∧
-      -- eval'd points ⊆ challenge ciphertext (with matching RO value)
-      (∀ p ∈ s₂.2.2.1, ∃ c t, s₂.1.1 = some (c, t) ∧ p = (Prod.fst p, c) ∧
-          s₂.2.1 (Prod.fst p, c) = some t) ∧
+      -- eval'd points ⊆ {challenge point} (with matching RO value)
+      (∀ p ∈ s₂.2.2.1, ∃ ad c t, s₂.1.1 = some (ad, (c, t)) ∧ p = (ad, c) ∧
+          s₂.2.1 (ad, c) = some t) ∧
       -- game bad flag ⟹ forge forged flag
       (s₁.2 = true → s₂.2.2.2 = true)
     with hR_state
@@ -389,7 +388,7 @@ theorem probForge_authInst_le_forgeReduction
             simp [OracleComp.forgeImpl, QueryImpl.add_apply_inr]
           ext ⟨⟨ch, qc⟩, fs⟩ : 2
           rw [flattenStateT_mapStateTBase_apply_run]
-          by_cases heq : ch = some (c, tg)
+          by_cases heq : ch = some (ad, (c, tg))
           · simp [heq, QueryImpl.add_apply_inr, forgeJointImpl,
               StateT.run_bind, StateT.run_get,
               StateT.run_monadLift, StateT.run_pure,
@@ -467,8 +466,8 @@ theorem probForge_authInst_le_forgeReduction
               MAlgRelOrdered.relWP_pure, Option.some.injEq]
             simp only at hev hflagimp
             refine ⟨fun a b hab => ?_, hflagimp⟩
-            obtain ⟨c, t, hsome, hpeq, hcache⟩ := hev (a, b) hab
-            obtain rfl : b = c := by simpa using congrArg Prod.snd hpeq
+            obtain ⟨ad', c, t, hsome, hpeq, hcache⟩ := hev (a, b) hab
+            obtain ⟨rfl, rfl⟩ := Prod.mk.injEq .. ▸ hpeq
             exact ⟨t, by simpa using hsome, hcache⟩
         | none =>
             -- old challenge `none` ⇒ the eval'd set is empty (`hev` is vacuous), and both
@@ -479,7 +478,7 @@ theorem probForge_authInst_le_forgeReduction
             have hevald : fs₂.2.1 = (∅ : Finset (AD × C_e)) := by
               by_contra hne
               obtain ⟨p, hp⟩ := Finset.nonempty_of_ne_empty hne
-              obtain ⟨c, t, hcontra, -, -⟩ := hev p hp
+              obtain ⟨ad', c, t, hcontra, -, -⟩ := hev p hp
               exact absurd hcontra (by simp)
             simp only [add_apply_inl, add_apply_inr, QueryImpl.withCaching_apply, StateT.run_bind,
               StateT.run_get, pure_bind, bind_pure_comp, StateT.run_monadLift, monadLift_self,
@@ -529,7 +528,7 @@ theorem probForge_authInst_le_forgeReduction
         simp only [authInstImpl, authDecImpl, forgeJointImpl, QueryImpl.add_apply_inr]
         erw [StateT.run_bind, StateT.run_bind, StateT.run_get, StateT.run_get]
         simp only [pure_bind]
-        by_cases hg : ch₁ = some (c, tg)
+        by_cases hg : ch₁ = some (ad, (c, tg))
         · simp only [hg, beq_self_eq_true, if_true]
           exact ProgramLogic.Relational.relTriple_pure_pure
             ⟨rfl, rfl, rfl, hg ▸ hev, hflagimp⟩
@@ -553,23 +552,23 @@ theorem probForge_authInst_le_forgeReduction
           simp only [pure_bind]
           -- The successor evald-clause: existing eval'd points persist in the grown cache
           -- `qc'` (cache monotonicity), with the challenge slot unchanged at `ch₁`.
-          have hevald : ∀ p ∈ fs₂.2.1, ∃ c_1 t, ch₁ = some (c_1, t) ∧
-              p = (p.1, c_1) ∧ qc' (p.1, c_1) = some t := by
+          have hevald : ∀ p ∈ fs₂.2.1, ∃ ad_1 c_1 t, ch₁ = some (ad_1, (c_1, t)) ∧
+              p = (ad_1, c_1) ∧ qc' (ad_1, c_1) = some t := by
             intro p hp
-            obtain ⟨c_1, t, hchal, hpeq, hlk⟩ := hev p hp
-            exact ⟨c_1, t, hchal, hpeq, hmono hlk⟩
+            obtain ⟨ad_1, c_1, t, hchal, hpeq, hlk⟩ := hev p hp
+            exact ⟨ad_1, c_1, t, hchal, hpeq, hmono hlk⟩
           by_cases hok : tg = t'
           · -- `ok = true`: the queried point `(ad, c)` is NOT eval'd (NRS14 App. A.2), so the
             -- forge `forged` flag fires; outputs both equal `se.decrypt ke c`.
             have hnotin : (ad, c) ∉ fs₂.2.1 := by
               intro hin
-              obtain ⟨c_1, t, hchal, hpeq, hlk⟩ := hev (ad, c) hin
-              -- `hpeq : (ad, c) = (ad, c_1)` forces `c_1 = c`
-              simp only [Prod.mk.injEq, true_and] at hpeq
-              subst hpeq
+              obtain ⟨ad_1, c_1, t, hchal, hpeq, hlk⟩ := hev (ad, c) hin
+              -- `hpeq : (ad, c) = (ad_1, c_1)` forces `ad_1 = ad` and `c_1 = c`
+              obtain ⟨rfl, rfl⟩ := Prod.mk.injEq .. ▸ hpeq
               -- the queried point is cached with value `t` in `fs₂.1`, hence in `qc'`
               have hqt : qc' (ad, c) = some t := hmono hlk
-              -- so `t = t'`; with `tg = t'` we get `ch₁ = some (c, tg)`, contradicting `hg`
+              -- so `t = t'`; with `tg = t'` we get `ch₁ = some (ad, (c, tg))`, contradicting
+              -- `hg`
               have htt : t = t' := by
                 have := hqt.symm.trans hqcc
                 rwa [Option.some.injEq] at this
@@ -650,9 +649,9 @@ theorem forgeReduction_isQueryBoundP
     -- decrypt forwarder: one verify query `Sum.inr _`
     intro t hp s; obtain ⟨ad, c, tg⟩ := t; obtain ⟨ch, qc⟩ := s
     simp only [StateT.run_bind, StateT.run_get, pure_bind]
-    by_cases hg : ch = some (c, tg)
+    by_cases hg : ch = some (ad, (c, tg))
     · simp only [hg, beq_self_eq_true, ↓reduceIte, StateT.run_pure]
-      exact isQueryBoundP_pure OracleComp.isVerifyQuery (none, some (c, tg), qc) 1
+      exact isQueryBoundP_pure OracleComp.isVerifyQuery (none, some (ad, (c, tg)), qc) 1
     · simp only [beq_iff_eq, hg, ↓reduceIte, StateT.run_bind, StateT.run_set, pure_bind]
       erw [OracleComp.liftM_run_StateT, OracleComp.liftM_run_StateT]
       simp only [bind_assoc, pure_bind]

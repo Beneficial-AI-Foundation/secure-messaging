@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.RKEM.FromKEM.Construction
 import ToVCVio.CryptoFoundations.KeyEncapMech
 import ToVCVio.EvalDist.Monad.Basic
-import ToVCVio.OracleComp.Constructions.SampleableType
+import SecureMessaging.RKEM.RatchetSimulatabilityHelper
 
 /-!
 # RKEM from KEM — Ratchet Simulatability
@@ -216,44 +216,6 @@ theorem evalDist_ctxtSimDistA (par : Unit) :
       𝒟[(scheme kem total).ctxtSimDistA (ratchetSimulator kem total kemLeak) par false] :=
   evalDist_ctxtSimDistB kem total kemLeak par
 
-/-- `Adv^{KeyBaseSim}` of the simulators of [TripleRatchet, Fig. 27] is `0`, against every pair
-of distinguishers. -/
-theorem keyBaseSimAdvantage_eq_zero (adversaryA adversaryB : KeyBaseSimAdversary Unit PK SK) :
-    (scheme kem total).keyBaseSimAdvantage (ratchetSimulator kem total kemLeak)
-      adversaryA adversaryB = 0 := by
-  unfold RKEMScheme.keyBaseSimAdvantage RKEMScheme.keyBaseSimAdvantageA
-    RKEMScheme.keyBaseSimAdvantageB RKEMScheme.keyBaseSimExpA RKEMScheme.keyBaseSimExpB
-  rw [probOutput_true_bitGuess_eq_half _ _ _ (evalDist_keyBaseSimDistA kem total kemLeak),
-    probOutput_true_bitGuess_eq_half _ _ _ (evalDist_keyBaseSimDistB kem total kemLeak)]
-  simp
-
-/-- `Adv^{KeyUpdSim}` of the simulators of [TripleRatchet, Fig. 27] is `0`, against every pair
-of distinguishers. -/
-theorem keyUpdSimAdvantage_eq_zero
-    (adversaryA adversaryB : KeyUpdSimAdversary Unit PK SK (PK × C) K
-      (ratchetSimulator kem total kemLeak).Aux (randLeak kem total kemLeak).KeygenRand
-      (randLeak kem total kemLeak).EncRand) :
-    (scheme kem total).keyUpdSimAdvantage (ratchetSimulator kem total kemLeak)
-      adversaryA adversaryB = 0 := by
-  unfold RKEMScheme.keyUpdSimAdvantage RKEMScheme.keyUpdSimAdvantageA
-    RKEMScheme.keyUpdSimAdvantageB RKEMScheme.keyUpdSimExpA RKEMScheme.keyUpdSimExpB
-  rw [probOutput_true_bitGuess_eq_half _ _ _ (evalDist_keyUpdSimDistA kem total kemLeak),
-    probOutput_true_bitGuess_eq_half _ _ _ (evalDist_keyUpdSimDistB kem total kemLeak)]
-  simp
-
-/-- `Adv^{CtxtSim}` of the simulators of [TripleRatchet, Fig. 27] is `0`, against every pair of
-distinguishers. -/
-theorem ctxtSimAdvantage_eq_zero
-    (adversaryA adversaryB : CtxtSimAdversary Unit PK SK (PK × C) K
-      (ratchetSimulator kem total kemLeak).Aux (randLeak kem total kemLeak).KeygenRand) :
-    (scheme kem total).ctxtSimAdvantage (ratchetSimulator kem total kemLeak)
-      adversaryA adversaryB = 0 := by
-  unfold RKEMScheme.ctxtSimAdvantage RKEMScheme.ctxtSimAdvantageA
-    RKEMScheme.ctxtSimAdvantageB RKEMScheme.ctxtSimExpA RKEMScheme.ctxtSimExpB
-  rw [probOutput_true_bitGuess_eq_half _ _ _ (evalDist_ctxtSimDistA kem total kemLeak),
-    probOutput_true_bitGuess_eq_half _ _ _ (evalDist_ctxtSimDistB kem total kemLeak)]
-  simp
-
 /-- **Theorem A.2** ([TripleRatchet]) of the RKEM-from-KEM construction: it is perfectly
 (`ε = 0`) ratchet simulatable (Def. 5.5) with respect to `randLeak`, witnessed by the simulators
 `ratchetSimulator` of [TripleRatchet, Fig. 27]. Holds for any KEM with total decapsulation
@@ -264,10 +226,10 @@ theorem RatchetSimulatable (kem : KEMScheme ProbComp K PK SK C) (total : TotalDe
     (scheme kem total).RatchetSimulatable (leak := randLeak kem total kemLeak) 0
 -- ANCHOR_END: RatchetSimulatable
     :=
-  ⟨ratchetSimulator kem total kemLeak, fun baseA baseB updA updB ctxtA ctxtB =>
-    ⟨(keyBaseSimAdvantage_eq_zero kem total kemLeak baseA baseB).le,
-      (keyUpdSimAdvantage_eq_zero kem total kemLeak updA updB).le,
-      (ctxtSimAdvantage_eq_zero kem total kemLeak ctxtA ctxtB).le⟩⟩
+  RKEMScheme.ratchetSimulatable_zero_of_evalDist_eq _ (ratchetSimulator kem total kemLeak)
+    (evalDist_keyBaseSimDistA kem total kemLeak) (evalDist_keyBaseSimDistB kem total kemLeak)
+    (evalDist_keyUpdSimDistA kem total kemLeak) (evalDist_keyUpdSimDistB kem total kemLeak)
+    (evalDist_ctxtSimDistA kem total kemLeak) (evalDist_ctxtSimDistB kem total kemLeak)
 
 end Simulatability
 

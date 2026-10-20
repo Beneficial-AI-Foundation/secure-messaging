@@ -61,9 +61,10 @@ round alongside the shared key.
   *Triple Ratchet: A Bandwidth Efficient Hybrid-Secure Signal Protocol.*
   EUROCRYPT 2025, https://eprint.iacr.org/2025/078.pdf
 
-For the non-forward-secure special case (Remark 5.2 of [TripleRatchet]), take
-`rkeygenAUpdated`/`rkeygenBUpdated` to coincide with `rkeygenA`/`rkeygenB`, and
-have `rencP`/`rdecP` return their input `dkP`/`ekP` unchanged as the "updated" key.
+For the non-forward-secure special case (Remark 5.2 of [TripleRatchet]), have `rencP`/`rdecP`
+return their input `dkP`/`ekP` unchanged as the "updated" key. The remark does not constrain key
+generation, but correctness of the update-key distribution (Def. 5.3) then forces
+`rkeygenAUpdated`/`rkeygenBUpdated` to be close to `rkeygenAFresh`/`rkeygenBFresh`.
 -/
 
 open ENNReal

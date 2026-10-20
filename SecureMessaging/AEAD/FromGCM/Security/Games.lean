@@ -45,8 +45,8 @@ open OracleComp.WegmanCarter
 
 /-! ## Structural instances
 
-Pinned as `example`s so CI fails if one regresses. `DecidableEq SupportedAAD` is not needed:
-the challenge guard compares the ciphertext only (ACD19 Def 2, as `oracleDecrypt` in
+Pinned as `example`s so CI fails if one regresses. `DecidableEq SupportedAAD` is needed by the
+challenge guard, which refuses the exact pair `(ad*, e*)` (as `oracleDecrypt` in
 `AEAD/Defs.lean`). -/
 
 section InstancePins
@@ -55,6 +55,7 @@ variable {L : ℕ}
 
 example : SampleableType (BitVec L × BitVec 128) := inferInstance
 example : DecidableEq (BitVec L × BitVec 128) := inferInstance
+example : DecidableEq SupportedAAD := inferInstance
 example : Fintype (BitVec 128) := inferInstance
 example : DecidableEq (BitVec 128) := inferInstance
 -- The game1 tuple `(H, mask, ks)`.
@@ -70,33 +71,34 @@ variable {L : ℕ}
 
 /-- The oracles of the one-time IND-CCA game, parameterised by how the challenge ciphertext
 is produced (`encStar`) and how a non-challenge decryption query is answered (`decryptResp`).
-The state records the challenge ciphertext once issued: a second encryption query returns
-`none`, and a decryption query repeating the challenge ciphertext is rejected whatever its
-associated data (ACD19's guard, as in `AEAD/Defs.lean`).
+The state records the challenge `(ad*, e*)` once issued: a second encryption query returns
+`none`, and a decryption query repeating exactly that pair is rejected (the guard of
+`AEAD/Defs.lean`).
 
 Returned as a `QueryImpl` rather than run, so that the lazy-sampling lemmas, which act on
 families `τ → QueryImpl spec (StateT σ ProbComp)`, apply to it directly. -/
 def gcmGameSkeleton {ι : Type} {spec : OracleSpec ι}
     (encStar : SupportedAAD → BitVec L → OracleComp spec (BitVec L × BitVec 128))
-    (decryptResp : SupportedAAD → (BitVec L × BitVec 128) → OracleComp spec (Option (BitVec L)))
+    (decryptResp : SupportedAAD → (BitVec L × BitVec 128) →
+      OracleComp spec (Option (BitVec L)))
     (unifImpl : QueryImpl unifSpec
-        (StateT (Option (BitVec L × BitVec 128)) (OracleComp spec))) :
+        (StateT (Option (SupportedAAD × (BitVec L × BitVec 128))) (OracleComp spec))) :
     QueryImpl (aeadOneTimeCCASpec SupportedAAD (BitVec L) (BitVec L × BitVec 128))
-      (StateT (Option (BitVec L × BitVec 128)) (OracleComp spec)) :=
+      (StateT (Option (SupportedAAD × (BitVec L × BitVec 128))) (OracleComp spec)) :=
   let encImpl : QueryImpl (SupportedAAD × BitVec L →ₒ Option (BitVec L × BitVec 128))
-      (StateT (Option (BitVec L × BitVec 128)) (OracleComp spec)) :=
+      (StateT (Option (SupportedAAD × (BitVec L × BitVec 128))) (OracleComp spec)) :=
     fun (ad, m) => do
       match (← get) with
       | some _ => pure none
       | none =>
         let e ← liftM (encStar ad m)
-        set (some e)
+        set (some (ad, e))
         return some e
   let decImpl : QueryImpl (SupportedAAD × (BitVec L × BitVec 128) →ₒ Option (BitVec L))
-      (StateT (Option (BitVec L × BitVec 128)) (OracleComp spec)) :=
+      (StateT (Option (SupportedAAD × (BitVec L × BitVec 128))) (OracleComp spec)) :=
     fun (ad, e) => do
-      let eStar ← get
-      if eStar == some e then pure none
+      let chal ← get
+      if chal == some (ad, e) then pure none
       else liftM (decryptResp ad e)
   unifImpl + encImpl + decImpl
 
@@ -117,7 +119,7 @@ variable {L : ℕ}
 with the keystream and tags it with GHASH, decryption checks the tag and unmasks. -/
 def gcmTupleImpl (a : BitVec 128 × BitVec 128 × BitVec L) :
     QueryImpl (aeadOneTimeCCASpec SupportedAAD (BitVec L) (BitVec L × BitVec 128))
-      (StateT (Option (BitVec L × BitVec 128)) ProbComp) :=
+      (StateT (Option (SupportedAAD × (BitVec L × BitVec 128))) ProbComp) :=
   gcmGameSkeleton (spec := unifSpec)
     (fun ad m => pure (let (h, mask, ks) := a
       let c := m ^^^ ks
@@ -125,18 +127,18 @@ def gcmTupleImpl (a : BitVec 128 × BitVec 128 × BitVec L) :
     (fun ad e => pure (let (h, mask, ks) := a
       if e.2 = ghash h (gcmEncode ad e.1) ^^^ mask
       then some (e.1 ^^^ ks) else none))
-    (oracleUnif (BitVec L × BitVec 128))
+    (oracleUnif SupportedAAD (BitVec L × BitVec 128))
 
 /-- `gcmTupleImpl` with a decryption oracle that always rejects (`game3`). -/
 def gcmTupleImplReject (a : BitVec 128 × BitVec 128 × BitVec L) :
     QueryImpl (aeadOneTimeCCASpec SupportedAAD (BitVec L) (BitVec L × BitVec 128))
-      (StateT (Option (BitVec L × BitVec 128)) ProbComp) :=
+      (StateT (Option (SupportedAAD × (BitVec L × BitVec 128))) ProbComp) :=
   gcmGameSkeleton (spec := unifSpec)
     (fun ad m => pure (let (h, mask, ks) := a
       let c := m ^^^ ks
       (c, ghash h (gcmEncode ad c) ^^^ mask)))
     (fun _ _ => pure none)
-    (oracleUnif (BitVec L × BitVec 128))
+    (oracleUnif SupportedAAD (BitVec L × BitVec 128))
 
 end TupleFamilies
 
@@ -156,7 +158,7 @@ def game0 (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ) (hL : Vali
   (simulateQ (gcmGameSkeleton (spec := unifSpec)
       (fun ad m => pure ((gcmOneTimeAEAD prp iv L hL).encrypt k ad m))
       (fun ad e => pure ((gcmOneTimeAEAD prp iv L hL).decrypt k ad e))
-      (oracleUnif (BitVec L × BitVec 128))) adv).run' none
+      (oracleUnif SupportedAAD (BitVec L × BitVec 128))) adv).run' none
 
 /-- Game 1: the block cipher's outputs replaced by one uniform tuple, sampled up front. -/
 -- `_prp`/`_hL` are unused in the body but kept to pin `K`/`L` and align the signature
@@ -178,7 +180,8 @@ noncomputable def game2 (_prp : PRPScheme K (BitVec 128)) (L : ℕ) (_hL : Valid
 state gives the same result (response and next state) for every tuple `a`. -/
 theorem gcmTupleImplReject_indep :
     ∀ (t : (aeadOneTimeCCASpec SupportedAAD (BitVec L) (BitVec L × BitVec 128)).Domain)
-      (s : Option (BitVec L × BitVec 128)) (a₁ a₂ : BitVec 128 × BitVec 128 × BitVec L),
+      (s : Option (SupportedAAD × (BitVec L × BitVec 128)))
+      (a₁ a₂ : BitVec 128 × BitVec 128 × BitVec L),
       (fun t => t matches OEncrypt _) t = false →
       (gcmTupleImplReject a₁ t).run s = (gcmTupleImplReject a₂ t).run s := by
   intro t s a₁ a₂ h
@@ -202,11 +205,11 @@ noncomputable def game3 (_prp : PRPScheme K (BitVec 128)) (L : ℕ) (_hL : Valid
 through `consumeLazy` like `game3`. -/
 def gcmRandRejectImpl (_a : BitVec 128 × BitVec 128 × BitVec L) :
     QueryImpl (aeadOneTimeCCASpec SupportedAAD (BitVec L) (BitVec L × BitVec 128))
-      (StateT (Option (BitVec L × BitVec 128)) ProbComp) :=
+      (StateT (Option (SupportedAAD × (BitVec L × BitVec 128))) ProbComp) :=
   gcmGameSkeleton (spec := unifSpec)
     (fun _ _ => liftM ($ᵗ (BitVec L × BitVec 128) : ProbComp (BitVec L × BitVec 128)))
     (fun _ _ => pure none)
-    (oracleUnif (BitVec L × BitVec 128))
+    (oracleUnif SupportedAAD (BitVec L × BitVec 128))
 
 /-- Game 4: `game3` with the challenge ciphertext drawn uniformly instead of computed from
 the tuple. -/
@@ -244,7 +247,7 @@ AXU (`Axu.lean`). The response depends on `b` only in the branch that sets the f
 variants agree on every query that leaves the flag clear. -/
 def gcmInstImpl (a : BitVec 128 × BitVec 128 × BitVec L) (b : Bool) :
     QueryImpl (aeadOneTimeCCASpec SupportedAAD (BitVec L) (BitVec L × BitVec 128))
-      (StateT (Option (BitVec L × BitVec 128) × Bool) ProbComp) :=
+      (StateT (Option (SupportedAAD × (BitVec L × BitVec 128)) × Bool) ProbComp) :=
   wcInstImpl (fun (H : BitVec 128) (p : SupportedAAD × BitVec L) => ghash H (gcmEncode p.1 p.2))
     id a.1 a.2.1 (· ^^^ a.2.2) (· ^^^ a.2.2) b
 
@@ -269,7 +272,7 @@ def game2Flat (_prp : PRPScheme K (BitVec 128)) (L : ℕ)
 lemma simulateQ_gcmInstImpl_true_run'_eq_gcmTupleImpl
     (a : BitVec 128 × BitVec 128 × BitVec L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
-    (s : Option (BitVec L × BitVec 128)) (forged : Bool) :
+    (s : Option (SupportedAAD × (BitVec L × BitVec 128))) (forged : Bool) :
     (simulateQ (gcmInstImpl a true) adv).run' (s, forged) =
       (simulateQ (gcmTupleImpl a) adv).run' s := by
   refine run'_simulateQ_eq_of_query_map_eq _ _ Prod.fst ?_ adv (s, forged)
@@ -286,7 +289,7 @@ lemma simulateQ_gcmInstImpl_true_run'_eq_gcmTupleImpl
         StateT.run_get, StateT.run_set, StateT.run_pure, Prod.map]
   · -- ODecrypt: guard split, then `ok` split; live return matches `gcmTupleImpl`'s
     -- verification body and the flag write is erased by the projection.
-    by_cases hguard : challenge = some e
+    by_cases hguard : challenge = some (ad, e)
     all_goals
       simp [gcmInstImpl, wcInstImpl, gcmTupleImpl, gcmGameSkeleton, StateT.run_bind,
         StateT.run_get, StateT.run_set, StateT.run_pure,
@@ -295,7 +298,7 @@ lemma simulateQ_gcmInstImpl_true_run'_eq_gcmTupleImpl
 lemma simulateQ_gcmInstImpl_false_run'_eq_gcmTupleImplReject
     (a : BitVec 128 × BitVec 128 × BitVec L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
-    (s : Option (BitVec L × BitVec 128)) (forged : Bool) :
+    (s : Option (SupportedAAD × (BitVec L × BitVec 128))) (forged : Bool) :
     (simulateQ (gcmInstImpl a false) adv).run' (s, forged) =
       (simulateQ (gcmTupleImplReject a) adv).run' s := by
   refine run'_simulateQ_eq_of_query_map_eq _ _ Prod.fst ?_ adv (s, forged)
@@ -312,7 +315,7 @@ lemma simulateQ_gcmInstImpl_false_run'_eq_gcmTupleImplReject
         StateT.run_get, StateT.run_set, StateT.run_pure, Prod.map]
   · -- ODecrypt: both `ok` branches return `none`; the flag write is erased by the
     -- projection, matching the unconditional `pure none`.
-    by_cases hguard : challenge = some e
+    by_cases hguard : challenge = some (ad, e)
     all_goals
       simp [gcmInstImpl, wcInstImpl, gcmTupleImplReject, gcmGameSkeleton, StateT.run_bind,
         StateT.run_get, StateT.run_set, StateT.run_pure,
@@ -360,7 +363,7 @@ theorem game0_eq_real (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ
   -- Both sides start with `prp.keygen`; descend under the single key bind.
   refine probOutput_bind_congr' prp.keygen true (fun k => ?_)
   -- Inner per-key equality: game0's skeleton impl projects onto
-  -- `aeadSecurityImpl … false k` with `proj = id` (state `Option C` on both sides).
+  -- `aeadSecurityImpl … false k` with `proj = id` (state `Option (AD × C)` on both sides).
   refine congrArg (fun o => Pr[= true | o]) ?_
   refine run'_simulateQ_eq_of_query_map_eq _
     (AEADScheme.aeadSecurityImpl (gcmOneTimeAEAD prp iv L hL) false k) id ?hproj adv none
