@@ -186,6 +186,32 @@ theorem mem_support_stopOnState_of_mem
     pure (if stop y.2 then none else some y.1, y.2))
   exact (mem_support_bind_iff _ _ _).mpr ⟨z, hz, by simp [hstop]⟩
 
+/-- If `z` is a possible result of query `t` under `stopOnState impl stop` from `s` and its
+response is not `none`, then `z.2 = y.2` for a possible result `y` of `(impl t).run s` with
+`stop y.2 = false`. -/
+theorem exists_of_mem_support_stopOnState
+    (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool) (t : spec.Domain) (s : σ)
+    (z : Option (spec.Range t) × σ) (hz : z ∈ support (((stopOnState impl stop t).run).run s))
+    (hsome : z.1.isSome) :
+    ∃ y ∈ support ((impl t).run s), stop y.2 = false ∧ z.2 = y.2 := by
+  change z ∈ support (do
+    let y ← (impl t).run s
+    pure (if stop y.2 then none else some y.1, y.2)) at hz
+  obtain ⟨y, hy, hz⟩ := (mem_support_bind_iff _ _ _).mp hz
+  obtain rfl := (mem_support_pure_iff _ _).mp hz
+  cases hstop : stop y.2
+  · exact ⟨y, hy, hstop, rfl⟩
+  · simp [hstop] at hsome
+
+/-- For every query `t` and state `s`, `stopOnState impl stop` runs `(impl t).run s` and
+replaces the response by `none` when `stop` holds on the successor state. -/
+theorem stopOnState_run_eq_map
+    (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool) (t : spec.Domain) (s : σ) :
+    ((stopOnState impl stop t).run).run s =
+      (fun y => (if stop y.2 then none else some y.1, y.2)) <$> (impl t).run s := by
+  rw [map_eq_bind_pure_comp]
+  rfl
+
 /-- For every query `t` and state `s`, if `stop s' = false` for every `(a, s')` in the support
 of `(impl t).run s`, then the response and next state under `stopOnState impl stop t` are
 equal in distribution to `(impl t).run s` with each response wrapped in `some`. -/

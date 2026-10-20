@@ -253,30 +253,6 @@ theorem optionRun_sample_once_eq_sampleEachQuery
           (cont answer) a ha z.2 (hpres a ha t s hs z hz hc)
           (hfirst a ha t s hs hh z hz hc)
 
-/-- Every continuing successor of a stopped query is a successor of the underlying query
-whose state does not satisfy `stop`. -/
-private theorem exists_of_mem_support_stopOnState
-    (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool) (t : spec.Domain) (s : σ)
-    (z : Option (spec.Range t) × σ) (hz : z ∈ support (((stopOnState impl stop t).run).run s))
-    (hsome : z.1.isSome) :
-    ∃ y ∈ support ((impl t).run s), stop y.2 = false ∧ z.2 = y.2 := by
-  change z ∈ support (do
-    let y ← (impl t).run s
-    pure (if stop y.2 then none else some y.1, y.2)) at hz
-  obtain ⟨y, hy, hz⟩ := (mem_support_bind_iff _ _ _).mp hz
-  obtain rfl := (mem_support_pure_iff _ _).mp hz
-  cases hstop : stop y.2
-  · exact ⟨y, hy, hstop, rfl⟩
-  · simp [hstop] at hsome
-
-/-- A stopped query is the underlying query followed by the stop test on its successor. -/
-private theorem stopOnState_run_eq_map
-    (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool) (t : spec.Domain) (s : σ) :
-    ((stopOnState impl stop t).run).run s =
-      (fun y => (if stop y.2 then none else some y.1, y.2)) <$> (impl t).run s := by
-  rw [map_eq_bind_pure_comp]
-  rfl
-
 /-- Let `impl a` (for `a : τ`) and `target` be stateful oracle implementations for `spec` with
 state space `σ`, and let `stop : σ → Bool`. Write `S := support sample`. For every Boolean
 computation `oa` and state `s` with `Inv s`,
