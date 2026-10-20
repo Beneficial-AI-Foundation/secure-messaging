@@ -93,10 +93,7 @@ theorem leaking_offline_rejected
   apply SCKAScheme.oracleSendBrleak_rejected_evalDist _ _ s {e} ?_ ?_
   · intro key msg epoch next coins hout
     have hex := sendBrleak_exposure
-      (Pinned.kem m (stage.pinsKeygen && decide (s.stA.t = e))
-        (stage.pinsOffline && decide (s.stB.t = e))
-        false (s.keyB s.stA.t))
-      (Pinned.onOff m _ _ _ _) ecCt0 ecCt1 (Pinned.leakage leak m _ _ _ _) s.stB
+      (stageKem stage m e s) (stageOnOff stage m e s) ecCt0 ecCt1 (stageLeak stage m e s) s.stB
       key msg epoch next coins hout
     simpa only [leakEpochsB, hfield, Option.isNone_none,
       Bool.true_or, ↓reduceIte, he] using hex

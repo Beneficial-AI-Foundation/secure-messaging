@@ -18,10 +18,11 @@ import ToVCVio.OracleComp.SimSemantics.StateT.Stop
 
 - `securityImplAt schemeOf chall`: the Opp-UniKEM security oracles in which a query from game
   state `s` uses the protocol instance `schemeOf s`, with challenge oracle `chall`.
-- `honestScheme m e s`: Opp-UniKEM over `Pinned.kem m`, pinning A's key generation if
-  `s.stA.t = e` and B's offline and online encapsulation if `s.stB.t = e`; decapsulation returns
-  B's recorded key for A's current epoch, as in the ideal game. `markedScheme m e s` is the
-  simulator's marked instance for `s`.
+- `honestScheme m e s`: Opp-UniKEM over `honestKem m e s := Pinned.kem m …`, pinning A's key
+  generation if `s.stA.t = e` and B's offline and online encapsulation if `s.stB.t = e`;
+  decapsulation returns B's recorded key for A's current epoch, as in the ideal game.
+  `honestOnOff`, `honestDet`, and `honestLeak` are the corresponding witnesses, and
+  `markedScheme m e s` is the simulator's marked instance for `s`.
 - The *honest intermediate game* `honestOracle m e kStar` is
   `securityImplAt (honestScheme m e) (pinnedChallenge e kStar)` on unmarked game states.
   `honestStopped m e kStar` stops it at the first query whose successor state has
@@ -33,6 +34,40 @@ open OracleSpec OracleComp KEMScheme
 namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
+
+/-- KEM for a query from game state `s`: `Pinned.kem m` pinning A's key generation if
+`s.stA.t = e` and B's offline and online encapsulation if `s.stB.t = e`, with decapsulation
+result `s.keyB s.stA.t`. -/
+abbrev honestKem {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
+    {leak : base.OnOffRandLeak onoff} (m : Material leak) (e : ℕ)
+    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
+    KEMScheme ProbComp K PK SK C :=
+  Pinned.kem m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
+    (s.keyB s.stA.t)
+
+/-- On/off structure of `honestKem m e s`. -/
+abbrev honestOnOff {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
+    {leak : base.OnOffRandLeak onoff} (m : Material leak) (e : ℕ)
+    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
+    (honestKem m e s).OnOffStructure :=
+  Pinned.onOff m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
+    (s.keyB s.stA.t)
+
+/-- Deterministic-decapsulation witness of `honestKem m e s`. -/
+abbrev honestDet {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
+    {leak : base.OnOffRandLeak onoff} (m : Material leak) (e : ℕ)
+    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
+    (honestKem m e s).DeterministicDecaps :=
+  Pinned.deterministic m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
+    (s.keyB s.stA.t)
+
+/-- Leakage witnesses of `honestKem m e s`. -/
+abbrev honestLeak {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
+    {leak : base.OnOffRandLeak onoff} (m : Material leak) (e : ℕ)
+    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
+    (honestKem m e s).OnOffRandLeak (honestOnOff m e s) :=
+  Pinned.leakage leak m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
+    (s.keyB s.stA.t)
 
 /-- Opp-UniKEM instance answering a query from game state `s`: `Pinned.kem m` pins A's key
 generation if `s.stA.t = e` and B's offline and online encapsulation if `s.stB.t = e`;

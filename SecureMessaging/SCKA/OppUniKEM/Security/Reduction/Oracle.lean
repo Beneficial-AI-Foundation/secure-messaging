@@ -236,10 +236,7 @@ theorem oracleSendA_mark
   | some out =>
     rcases out with ⟨key, msg, t, next⟩
     have hk := sendA_key_none
-      (Pinned.kem m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
-       (s.keyB s.stA.t))
-      (Pinned.onOff m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
-       (s.keyB s.stA.t))
+      (honestKem m e s) (honestOnOff m e s)
       ecEk s.stA key msg t next hout
     subst key
     simp [StateT.run_set, markState, markA, markB, Prod.map]
@@ -275,10 +272,7 @@ theorem oracleSendB_mark
     | some key =>
       rcases key with ⟨epoch, k⟩
       obtain ⟨rfl, hc⟩ := sendB_key_fresh
-        (Pinned.kem m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
-         (s.keyB s.stA.t))
-        (Pinned.onOff m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
-         (s.keyB s.stA.t))
+        (honestKem m e s) (honestOnOff m e s)
         ecCt0 ecCt1 s.stB epoch k msg t next hout
       have hk := (keys_none_before_online base onoff ecEk ecCt0 ecCt1 s hs hc).1
       simp [StateT.run_set, markState, markA, markB,
@@ -334,12 +328,8 @@ theorem oracleSendArleak_mark
   | some out =>
     rcases out with ⟨key, msg, t, next, coins⟩
     obtain ⟨rfl, hcoins⟩ := sendArleak_shape
-      (Pinned.kem m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
-       (s.keyB s.stA.t))
-        (Pinned.onOff m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
-         (s.keyB s.stA.t)) ecEk
-        (Pinned.leakage leak m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
-         (s.keyB s.stA.t))
+      (honestKem m e s) (honestOnOff m e s) ecEk
+        (honestLeak m e s)
       s.stA key msg t next coins hout
     rcases hcoins with rfl | ⟨r, rfl⟩
     all_goals
@@ -389,12 +379,8 @@ theorem oracleSendBrleak_mark
   | some out =>
     rcases out with ⟨key, msg, t, next, coins⟩
     have hcoins := sendBrleak_coins
-      (Pinned.kem m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
-       (s.keyB s.stA.t))
-        (Pinned.onOff m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
-         (s.keyB s.stA.t)) ecCt0 ecCt1
-        (Pinned.leakage leak m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
-         (s.keyB s.stA.t))
+      (honestKem m e s) (honestOnOff m e s) ecCt0 ecCt1
+        (honestLeak m e s)
       s.stB key msg t next coins hout
     cases key with
     | none =>
@@ -409,12 +395,8 @@ theorem oracleSendBrleak_mark
     | some key =>
       rcases key with ⟨epoch, k⟩
       obtain ⟨rfl, hct⟩ := sendBrleak_key_fresh
-        (Pinned.kem m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
-         (s.keyB s.stA.t))
-        (Pinned.onOff m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
-         (s.keyB s.stA.t)) ecCt0 ecCt1
-        (Pinned.leakage leak m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
-         (s.keyB s.stA.t))
+        (honestKem m e s) (honestOnOff m e s) ecCt0 ecCt1
+        (honestLeak m e s)
         s.stB epoch k msg t next coins hout
       have hk := (keys_none_before_online base onoff ecEk ecCt0 ecCt1 s hinv hct).1
       simp only [Option.map_some, ← mark_update]

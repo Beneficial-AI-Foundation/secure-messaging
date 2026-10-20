@@ -112,10 +112,7 @@ theorem sendA_preserves_pinnedSources
     (hs : pinnedSources m e s) (key : Option (ℕ × K)) (msg : Message Sym)
     (t : ℕ) (next : StA onoff Sym)
     (hout : some (key, msg, t, next) ∈ support
-      (sendA (Pinned.kem m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
-              (s.keyB s.stA.t))
-        (Pinned.onOff m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
-         (s.keyB s.stA.t))
+      (sendA (honestKem m e s) (honestOnOff m e s)
         ecEk s.stA)) :
     pinnedSources m e { s with stA := next } := by
   by_cases he : s.stA.t = e <;> cases hd : s.stA.dkA <;>
@@ -138,10 +135,7 @@ theorem sendB_preserves_pinnedSources
     (hs : pinnedSources m e s) (key : Option (ℕ × K)) (msg : Message Sym)
     (t : ℕ) (next : StB onoff Sym)
     (hout : some (key, msg, t, next) ∈ support
-      (sendB (Pinned.kem m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
-              (s.keyB s.stA.t))
-        (Pinned.onOff m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
-         (s.keyB s.stA.t))
+      (sendB (honestKem m e s) (honestOnOff m e s)
         ecCt0 ecCt1 s.stB)) :
     pinnedSources m e { s with stB := next } := by
   by_cases he : s.stB.t = e <;> cases hc0 : s.stB.ct0 <;> cases hp : s.stB.ekA <;>
@@ -184,12 +178,8 @@ theorem recvA_preserves_pinnedSources [DecidableEq Sym]
     (hout : (honestScheme ecEk ecCt0 ecCt1 m e s).recvA s.stA msg = some (key, t, next)) :
     pinnedSources m e { s with stA := next } := by
   rcases oppUniKemCKA.Reduction.Internal.recvA_kem_source_shape
-    (Pinned.kem m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
-      (s.keyB s.stA.t))
-    (Pinned.onOff m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
-      (s.keyB s.stA.t))
-    (Pinned.deterministic m (decide (s.stA.t = e)) (decide (s.stB.t = e))
-      (decide (s.stB.t = e)) (s.keyB s.stA.t)).decapsDet
+    (honestKem m e s) (honestOnOff m e s)
+    (honestDet m e s).decapsDet
     ecCt0 ecCt1 s.stA msg key t next hout with h | h
   · exact ⟨by simpa only [h.1, h.2.1, h.2.2] using hs.1, hs.2⟩
   · exact ⟨by simp [h.2.2.1], hs.2⟩
@@ -264,10 +254,7 @@ theorem sendA_pinned_support
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (out : Option (Option (ℕ × K) × Message Sym × ℕ × StA onoff Sym))
     (hout : out ∈ support
-      (sendA (Pinned.kem m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
-              (s.keyB s.stA.t))
-        (Pinned.onOff m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
-         (s.keyB s.stA.t))
+      (sendA (honestKem m e s) (honestOnOff m e s)
         ecEk s.stA)) :
     out ∈ support (sendA base onoff ecEk s.stA) := by
   cases hd : s.stA.dkA with
@@ -289,10 +276,7 @@ theorem sendB_pinned_support
     (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hsrc : pinnedSources m e s)
     (out : Option (Option (ℕ × K) × Message Sym × ℕ × StB onoff Sym))
     (hout : out ∈ support
-      (sendB (Pinned.kem m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
-              (s.keyB s.stA.t))
-        (Pinned.onOff m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
-         (s.keyB s.stA.t))
+      (sendB (honestKem m e s) (honestOnOff m e s)
         ecCt0 ecCt1 s.stB)) :
     out ∈ support (sendB base onoff ecCt0 ecCt1 s.stB) := by
   have hoff := (sampleMaterial_ordinary_support leak m hm).2.1
@@ -302,7 +286,7 @@ theorem sendB_pinned_support
     | none =>
       obtain ⟨T, hT⟩ := hs
       have hack := hT.ctRecB_eq_false_of_ct0_eq_none hc0
-      simp only [sendB, hc0, hack, Bool.not_false, Pinned.onOff, Pinned.encapsOff,
+      simp only [sendB, hc0, hack, Bool.not_false, Pinned.encapsOff,
         he, decide_true, ↓reduceIte, pure_bind] at hout
       simp only [sendB, hc0, hack, he, Bool.not_false, ↓reduceIte, pure_bind,
         mem_support_bind_iff]
@@ -313,7 +297,7 @@ theorem sendB_pinned_support
         cases hst : s.stB.stCt <;> cases ha : s.stB.ack.ctRec
       all_goals
         simp only [hp, hc1, hst, ha, Bool.not_false, Bool.not_true, Bool.false_eq_true,
-          ↓reduceIte, pure_bind, Pinned.onOff, Pinned.encapsOn, he, decide_true] at hout ⊢
+          ↓reduceIte, pure_bind, Pinned.encapsOn, he, decide_true] at hout ⊢
         first
         | exact hout
         | have hinputs := pinned_online_inputs base onoff ecEk ecCt0 ecCt1
@@ -332,7 +316,7 @@ theorem sendB_pinned_support
       cases ha : s.stB.ack.ctRec
       all_goals
         simp only [sendB, hc0, ha, Bool.not_false, Bool.not_true, Bool.false_eq_true,
-          ↓reduceIte, pure_bind, Pinned.onOff, Pinned.encapsOn, he, decide_false] at hout ⊢
+          ↓reduceIte, pure_bind, Pinned.encapsOn, he, decide_false] at hout ⊢
         first
         | exact hout
         | cases hp : s.stB.ekA <;> simp only [hp] at hout ⊢

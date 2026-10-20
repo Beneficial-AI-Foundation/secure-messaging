@@ -218,10 +218,7 @@ theorem leaking_keygen_rejected
   apply SCKAScheme.oracleSendArleak_rejected_evalDist _ _ s {e} ?_ ?_
   · intro key msg epoch next coins hout
     have hex := sendArleak_exposure
-      (Pinned.kem m (stage.pinsKeygen && decide (s.stA.t = e))
-        (stage.pinsOffline && decide (s.stB.t = e))
-        false (s.keyB s.stA.t))
-      (Pinned.onOff m _ _ _ _) ecEk (Pinned.leakage leak m _ _ _ _) s.stA
+      (stageKem stage m e s) (stageOnOff stage m e s) ecEk (stageLeak stage m e s) s.stA
       key msg epoch next coins hout
     simpa only [leakEpochsA, hfield, Option.isNone_none, ↓reduceIte, he] using hex
   · simp [hc]

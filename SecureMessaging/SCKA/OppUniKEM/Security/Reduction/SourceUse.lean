@@ -111,10 +111,7 @@ theorem correctness_preserves_sourceUsed
     ?_ ?_ ?_ ?_ t z hz
   · intro key msg epoch next hout
     have hshape := sendA_source_shape
-      (Pinned.kem m (stage.pinsKeygen && decide (s.stA.t = e))
-        (stage.pinsOffline && decide (s.stB.t = e))
-        false (s.keyB s.stA.t))
-      (Pinned.onOff m _ _ _ _) ecEk s.stA key msg epoch next hout
+      (stageKem stage m e s) (stageOnOff stage m e s) ecEk s.stA key msg epoch next hout
     cases phase with
     | keygen =>
       rcases hs with h | ⟨h, _⟩
@@ -123,10 +120,7 @@ theorem correctness_preserves_sourceUsed
     | offline => exact hs
   · intro key msg epoch next hout
     have hshape := sendB_source_shape
-      (Pinned.kem m (stage.pinsKeygen && decide (s.stA.t = e))
-        (stage.pinsOffline && decide (s.stB.t = e))
-        false (s.keyB s.stA.t))
-      (Pinned.onOff m _ _ _ _) ecCt0 ecCt1 s.stB key msg epoch next hout
+      (stageKem stage m e s) (stageOnOff stage m e s) ecCt0 ecCt1 s.stB key msg epoch next hout
     cases phase with
     | keygen => exact hs
     | offline =>
@@ -305,10 +299,7 @@ theorem oracleSendA_installs_source
   | some out =>
     rcases out with ⟨key, msg, epoch, next⟩
     have hshape := sendA_source_shape
-      (Pinned.kem m (stage.pinsKeygen && decide (s.stA.t = e))
-        (stage.pinsOffline && decide (s.stB.t = e))
-        false (s.keyB s.stA.t))
-      (Pinned.onOff m _ _ _ _) ecEk s.stA key msg epoch next hout
+      (stageKem stage m e s) (stageOnOff stage m e s) ecEk s.stA key msg epoch next hout
     cases key <;>
       simp only [StateT.run_bind, StateT.run_set, pure_bind,
         StateT.run_pure, mem_support_pure_iff] at hz
@@ -336,10 +327,7 @@ theorem leaking_keygen_stops
   · exact sendArleak_none_not_mem_support _ _ ecEk _ _
   · intro key msg epoch next coins hout
     have hex := sendArleak_exposure
-      (Pinned.kem m (stage.pinsKeygen && decide (s.stA.t = e))
-        (stage.pinsOffline && decide (s.stB.t = e))
-        false (s.keyB s.stA.t))
-      (Pinned.onOff m _ _ _ _) ecEk (Pinned.leakage leak m _ _ _ _) s.stA
+      (stageKem stage m e s) (stageOnOff stage m e s) ecEk (stageLeak stage m e s) s.stA
       key msg epoch next coins hout
     simpa only [leakEpochsA, hfield, Option.isNone_none,
       Bool.true_or, ↓reduceIte, he] using hex
@@ -366,17 +354,11 @@ theorem oracleSendB_installs_source
   cases out with
   | none =>
     exact False.elim (sendB_none_not_mem_support
-      (Pinned.kem m (stage.pinsKeygen && decide (s.stA.t = e))
-        (stage.pinsOffline && decide (s.stB.t = e))
-        false (s.keyB s.stA.t))
-      (Pinned.onOff m _ _ _ _) ecCt0 ecCt1 _ hout)
+      (stageKem stage m e s) (stageOnOff stage m e s) ecCt0 ecCt1 _ hout)
   | some out =>
     rcases out with ⟨key, msg, epoch, next⟩
     have hshape := sendB_source_shape
-      (Pinned.kem m (stage.pinsKeygen && decide (s.stA.t = e))
-        (stage.pinsOffline && decide (s.stB.t = e))
-        false (s.keyB s.stA.t))
-      (Pinned.onOff m _ _ _ _) ecCt0 ecCt1 s.stB key msg epoch next hout
+      (stageKem stage m e s) (stageOnOff stage m e s) ecCt0 ecCt1 s.stB key msg epoch next hout
     cases key <;>
       simp only [StateT.run_bind, StateT.run_set, pure_bind,
         StateT.run_pure, mem_support_pure_iff] at hz
@@ -401,16 +383,10 @@ theorem leaking_offline_stops
   apply SCKAScheme.oracleSendBrleak_stop_of_exposure _ _ s {e} e ?_ ?_ ?_
     (Finset.mem_singleton_self e) z hz
   · exact sendBrleak_none_not_mem_support
-      (Pinned.kem m (stage.pinsKeygen && decide (s.stA.t = e))
-        (stage.pinsOffline && decide (s.stB.t = e))
-        false (s.keyB s.stA.t))
-      (Pinned.onOff m _ _ _ _) ecCt0 ecCt1 (Pinned.leakage leak m _ _ _ _) _
+      (stageKem stage m e s) (stageOnOff stage m e s) ecCt0 ecCt1 (stageLeak stage m e s) _
   · intro key msg epoch next coins hout
     have hex := sendBrleak_exposure
-      (Pinned.kem m (stage.pinsKeygen && decide (s.stA.t = e))
-        (stage.pinsOffline && decide (s.stB.t = e))
-        false (s.keyB s.stA.t))
-      (Pinned.onOff m _ _ _ _) ecCt0 ecCt1 (Pinned.leakage leak m _ _ _ _) s.stB
+      (stageKem stage m e s) (stageOnOff stage m e s) ecCt0 ecCt1 (stageLeak stage m e s) s.stB
       key msg epoch next coins hout
     simpa only [leakEpochsB, hfield, Option.isNone_none,
       Bool.true_or, ↓reduceIte, he] using hex

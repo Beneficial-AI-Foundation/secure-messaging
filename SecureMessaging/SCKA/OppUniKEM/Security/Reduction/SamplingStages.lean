@@ -59,6 +59,32 @@ def Stage.pinsKeygen (stage : Stage) : Bool := decide (stage ≠ .fresh)
 /-- Whether stage `stage` pins offline encapsulation at the selected epoch. -/
 def Stage.pinsOffline (stage : Stage) : Bool := decide (stage = .onlineFresh)
 
+/-- KEM of `schemeAt stage m e s`: `Pinned.kem m` pinning key generation and offline
+encapsulation as `stage` does for parties at epoch `e`, never pinning online encapsulation,
+with decapsulation result `s.keyB s.stA.t`. -/
+abbrev stageKem {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
+    {leak : base.OnOffRandLeak onoff} (stage : Stage) (m : Material leak) (e : ℕ)
+    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
+    KEMScheme ProbComp K PK SK C :=
+  Pinned.kem m (stage.pinsKeygen && decide (s.stA.t = e))
+    (stage.pinsOffline && decide (s.stB.t = e)) false (s.keyB s.stA.t)
+
+/-- On/off structure of `stageKem stage m e s`. -/
+abbrev stageOnOff {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
+    {leak : base.OnOffRandLeak onoff} (stage : Stage) (m : Material leak) (e : ℕ)
+    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
+    (stageKem stage m e s).OnOffStructure :=
+  Pinned.onOff m (stage.pinsKeygen && decide (s.stA.t = e))
+    (stage.pinsOffline && decide (s.stB.t = e)) false (s.keyB s.stA.t)
+
+/-- Leakage witnesses of `stageKem stage m e s`. -/
+abbrev stageLeak {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
+    {leak : base.OnOffRandLeak onoff} (stage : Stage) (m : Material leak) (e : ℕ)
+    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
+    (stageKem stage m e s).OnOffRandLeak (stageOnOff stage m e s) :=
+  Pinned.leakage leak m (stage.pinsKeygen && decide (s.stA.t = e))
+    (stage.pinsOffline && decide (s.stB.t = e)) false (s.keyB s.stA.t)
+
 /-- Opp-UniKEM for a query from game state `s` in stage `stage`: a phase returns its stored
 output in `m` exactly when `stage` pins it and its party is at epoch `e`. Decapsulation returns
 B's recorded key for A's current epoch. -/

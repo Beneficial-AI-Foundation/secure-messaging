@@ -51,22 +51,16 @@ theorem sendB_selected_key
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (k : K) (msg : Message Sym) (t : ℕ) (next : StB onoff Sym)
     (hout : some (some (e, k), msg, t, next) ∈ support
-      (sendB (Pinned.kem m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
-              (s.keyB s.stA.t))
-        (Pinned.onOff m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
-         (s.keyB s.stA.t))
+      (sendB (honestKem m e s) (honestOnOff m e s)
         ecCt0 ecCt1 s.stB)) : k = m.on.1.2 := by
   have he : s.stB.t = e := (sendB_key_fresh
-    (Pinned.kem m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
-     (s.keyB s.stA.t))
-    (Pinned.onOff m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
-     (s.keyB s.stA.t))
+    (honestKem m e s) (honestOnOff m e s)
     ecCt0 ecCt1 s.stB e k msg t next hout).1.symm
   cases hc0 : s.stB.ct0 <;> cases hp : s.stB.ekA <;>
     cases hc1 : s.stB.ct1 <;> cases hst : s.stB.stCt <;> cases ha : s.stB.ack.ctRec
   all_goals
     simp only [sendB, hc0, hp, hc1, hst, ha, Bool.not_false, Bool.not_true,
-      Bool.false_eq_true, ↓reduceIte, pure_bind, Pinned.onOff, Pinned.encapsOff,
+      Bool.false_eq_true, ↓reduceIte, pure_bind, Pinned.encapsOff,
       Pinned.encapsOn, he, decide_true, mem_support_pure_iff,
       Option.some.injEq, Prod.mk.injEq] at hout
     simp_all
