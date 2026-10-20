@@ -43,8 +43,7 @@ abbrev SecurityAdversary {kem : KEMScheme ProbComp K PK SK C}
   SCKAScheme.SCKAAdversary (StA onoff Sym) (StB onoff Sym) K (Message Sym)
     (SendRand leak.KeygenRand leak.OffRand leak.OnRand)
 
-/-- Every response path of `adv` makes at most `q` ordinary or leaking sends (`isSendQuery`);
-other queries are unbounded. -/
+/-- Every response path of `adv` makes at most `q` ordinary or leaking sends (`isSendQuery`). -/
 -- ANCHOR: securitySendQueryBound
 def SecuritySendQueryBound {kem : KEMScheme ProbComp K PK SK C}
     {onoff : kem.OnOffStructure} {leak : kem.OnOffRandLeak onoff}

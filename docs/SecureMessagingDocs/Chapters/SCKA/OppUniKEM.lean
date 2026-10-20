@@ -743,9 +743,7 @@ exposure functions of {bpref "opp_unikem_cka_vulnerable_epochs"}[]. Assume:
 * an {bpref "on_off_kem_rand_leak"}[] witness: forgetting the coins of a leaking sampler
   gives the ordinary one;
 * the erasure codes for $`PK`, $`C_0`, $`C_1` satisfy {bpref "erasure_code_correctness"}[];
-* $`\mathcal A` makes at most $`q` ordinary or leaking sends on every oracle-response path,
-  rejected sends included; other queries are unbounded, and receives may deliver any recorded
-  message (delay, reordering, replay).
+* $`\mathcal A` makes at most $`q` ordinary or leaking sends on every oracle-response path.
 
 $`\varepsilon=\Pr[\mathsf{Decaps}(sk,ct)\ne k]` for $`(pk,sk)\sample\mathsf{KeyGen}()` and
 $`(ct,k)\sample\mathsf{Encaps}(pk)`, with failure $`\bot` counted as an error.

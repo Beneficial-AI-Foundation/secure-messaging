@@ -20,8 +20,7 @@ import SecureMessaging.SCKA.Security
   deterministic decapsulation `hDet`, on/off factorization `onoff`, leakage witness `leak`, and
   correct erasure codes `ecEk`, `ecCt0`, `ecCt1`.
 - `adv : SecurityAdversary leak Sym` with `SecuritySendQueryBound adv q`: at most `q` ordinary
-  and leaking sends on every oracle-response path, rejected ones included. Other queries are
-  unbounded; receives deliver recorded messages in any order, repeatedly.
+  and leaking sends on every oracle-response path.
 - The SCKA security game uses the exposure policies `exposureA`, `exposureB`. A challenge at `t`
   is *eligible* if `t` is unexposed, unchallenged, and has a recorded key.
 
