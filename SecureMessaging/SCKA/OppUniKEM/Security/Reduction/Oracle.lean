@@ -39,7 +39,7 @@ set_option backward.dsimp.instances true in
 /-- For every state `s` with `e ∉ s.exposed`, A's corruption oracle on marked states, run
 from `markState e s` and followed by `revealA`, is the computation of A's corruption oracle
 stopped on exposure of `e`, run from `s`, followed by marking the successor state. -/
-theorem corruptA_mark
+private theorem corruptA_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (e : ℕ) (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : e ∉ s.exposed) :
@@ -69,7 +69,7 @@ theorem corruptA_mark
 
 set_option backward.dsimp.instances true in
 /-- The version of `corruptA_mark` for B, with `revealB`. -/
-theorem corruptB_mark
+private theorem corruptB_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (e : ℕ) (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : e ∉ s.exposed) :
@@ -134,7 +134,7 @@ set_option backward.dsimp.instances true in
 /-- For every state `s` and message index `n`, B's receive oracle of `markedScheme m e s`,
 run from `markState e s`, is the computation of B's receive oracle of `honestScheme m e s`,
 run from `s`, followed by marking the successor state. -/
-theorem oracleRecvB_mark
+private theorem oracleRecvB_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
@@ -166,7 +166,7 @@ theorem oracleRecvB_mark
 
 set_option backward.dsimp.instances true in
 /-- The version of `oracleRecvB_mark` for A. -/
-theorem oracleRecvA_mark
+private theorem oracleRecvA_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
@@ -212,7 +212,7 @@ set_option backward.dsimp.instances true in
 /-- For every state `s`, A's send oracle of `markedScheme m e s`, run from `markState e s`,
 has the joint response/state distribution of A's send oracle of `honestScheme m e s`, run
 from `s`, followed by marking the successor state. -/
-theorem oracleSendA_mark
+private theorem oracleSendA_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
@@ -243,7 +243,7 @@ theorem oracleSendA_mark
 
 set_option backward.dsimp.instances true in
 /-- The version of `oracleSendA_mark` for B, for states `s` satisfying `reachableInv`. -/
-theorem oracleSendB_mark
+private theorem oracleSendB_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
@@ -291,7 +291,7 @@ set_option backward.dsimp.instances true in
 `markedScheme m e s`, run from `markState e s` and followed by `revealCoins`, has the joint
 response/state distribution of A's leaking-send oracle of `honestScheme m e s` stopped on
 exposure of `e`, run from `s`, followed by marking the successor state. -/
-theorem oracleSendArleak_mark
+private theorem oracleSendArleak_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
@@ -342,7 +342,7 @@ theorem oracleSendArleak_mark
 
 set_option backward.dsimp.instances true in
 /-- The version of `oracleSendArleak_mark` for B, for states `s` satisfying `reachableInv`. -/
-theorem oracleSendBrleak_mark
+private theorem oracleSendBrleak_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
@@ -421,7 +421,7 @@ variable {K PK SK C Sym : Type} [DecidableEq K] [DecidableEq Sym]
 oracles of `markedScheme m e s`, run from `markState e s`, have the joint response/state
 distribution of those of `honestScheme m e s`, run from `s`, followed by marking the
 successor state. -/
-theorem correctnessOracle_mark
+private theorem correctnessOracle_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)

@@ -43,7 +43,7 @@ def pinnedKey {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure
 
 /-- For every material `m` and state `s`, if a possible output of B's send in
 `honestScheme m e s` derives the key `(e, k)`, then `k = m.on.1.2`. -/
-theorem sendB_selected_key
+private theorem sendB_selected_key
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff}
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
@@ -67,7 +67,7 @@ theorem sendB_selected_key
 
 /-- For every state `s` satisfying `pinnedKey m e` and every correctness query, each possible
 successor state of the correctness oracles of `honestScheme m e s` satisfies `pinnedKey m e`. -/
-theorem honestCorrectness_preserves_pinnedKey [DecidableEq K] [DecidableEq Sym]
+private theorem honestCorrectness_preserves_pinnedKey [DecidableEq K] [DecidableEq Sym]
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff}
     (ecEk : ErasureCodePayload PK Sym)
@@ -124,7 +124,7 @@ theorem pinnedKey_initial
 
 /-- In every state satisfying `reachableInv`, a key recorded by A at epoch `e` is also
 recorded by B at `e`. -/
-theorem recordedA_eq_recordedB
+private theorem recordedA_eq_recordedB
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
@@ -163,7 +163,7 @@ variable {K PK SK C Sym : Type} [DecidableEq K] [DecidableEq Sym]
 `m ∈ support (sampleMaterial leak)`. For every state `s` satisfying `reachableInv` and
 `pinnedSources m e` and every correctness query, each possible successor state of the
 correctness oracles of `honestScheme m e s` satisfies `reachableInv`. -/
-theorem honestCorrectness_preserves_reachableInv
+private theorem honestCorrectness_preserves_reachableInv
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (hDet : base.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
@@ -244,7 +244,7 @@ variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 `pinnedSources m e`, and `e ∉ s.exposed`, running `adv` with the simulator
 `oracle e m.keygen.1.1 m.ciphertext kStar` from `markState e s` and with
 `honestStopped m e kStar` from `s` return `true` with equal probability. -/
-theorem optionRun_mark_eq
+private theorem optionRun_mark_eq
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (hDet : base.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
@@ -282,7 +282,7 @@ theorem optionRun_mark_eq
 
 omit [DecidableEq K] [DecidableEq Sym] [SampleableType K] in
 /-- `markState e` maps the initial game state to the simulator's initial state. -/
-theorem markState_initial
+private theorem markState_initial
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure) (e : ℕ) :
     markState e (oppUniKemCKA.Reduction.Internal.initialGame (Sym := Sym) base onoff) =
       initial onoff := by

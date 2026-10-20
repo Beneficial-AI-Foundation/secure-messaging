@@ -69,7 +69,7 @@ theorem epochs_eq_before_online
 /-- In every state satisfying `reachableInv` and `pinnedSources m e`, if B is in epoch `e`,
 holds the public key `pk` and the offline state `st`, and holds no online ciphertext, then
 `pk = m.keygen.1.1` and `st = m.off.1.1`. -/
-theorem pinned_online_inputs
+private theorem pinned_online_inputs
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
@@ -104,7 +104,7 @@ variable {K PK SK C Sym : Type}
 /-- Let `s` satisfy `pinnedSources m e`. For every possible successful output of A's send in
 `honestScheme m e s` from `s.stA`, with successor local state `next`, the state
 `{ s with stA := next }` satisfies `pinnedSources m e`. -/
-theorem sendA_preserves_pinnedSources
+private theorem sendA_preserves_pinnedSources
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff}
     (ecEk : ErasureCodePayload PK Sym) (m : Material leak) (e : ℕ)
@@ -126,7 +126,7 @@ theorem sendA_preserves_pinnedSources
     simp_all [pinnedSources] <;> aesop
 
 /-- The version of `sendA_preserves_pinnedSources` for B. -/
-theorem sendB_preserves_pinnedSources
+private theorem sendB_preserves_pinnedSources
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff}
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
@@ -151,7 +151,7 @@ theorem sendB_preserves_pinnedSources
 
 /-- Let `s` satisfy `pinnedSources m e`. If B's receive of `msg` from `s.stB` succeeds with
 successor local state `next`, then `{ s with stB := next }` satisfies `pinnedSources m e`. -/
-theorem recvB_preserves_pinnedSources [DecidableEq Sym]
+private theorem recvB_preserves_pinnedSources [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (leak : base.OnOffRandLeak onoff)
     (m : Material leak) (e : ℕ)
@@ -166,7 +166,7 @@ theorem recvB_preserves_pinnedSources [DecidableEq Sym]
   · exact ⟨hs.1, by simp [h.2.1]⟩
 
 /-- The version of `recvB_preserves_pinnedSources` for A's receive in `honestScheme m e s`. -/
-theorem recvA_preserves_pinnedSources [DecidableEq Sym]
+private theorem recvA_preserves_pinnedSources [DecidableEq Sym]
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff}
     (ecEk : ErasureCodePayload PK Sym)
@@ -233,7 +233,7 @@ variable {K PK SK C Sym : Type}
 
 /-- For `m ∈ support (sampleMaterial leak)` and every flag `selected`, every possible output of
 `Pinned.keygen m selected` is a possible output of `base.keygen`. -/
-theorem pinned_keygen_support
+private theorem pinned_keygen_support
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     (leak : base.OnOffRandLeak onoff) (m : Material leak)
     (hm : m ∈ support (sampleMaterial leak)) (selected : Bool)
@@ -247,7 +247,7 @@ theorem pinned_keygen_support
 /-- For `m ∈ support (sampleMaterial leak)` and every state `s`, every possible output of A's
 send in `honestScheme m e s` from `s.stA` is a possible output of `sendA base onoff ecEk`
 from `s.stA`. -/
-theorem sendA_pinned_support
+private theorem sendA_pinned_support
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (leak : base.OnOffRandLeak onoff)
     (m : Material leak) (hm : m ∈ support (sampleMaterial leak)) (e : ℕ)
@@ -266,7 +266,7 @@ theorem sendA_pinned_support
 
 /-- The version of `sendA_pinned_support` for B, for states `s` satisfying `reachableInv`
 and `pinnedSources m e`. -/
-theorem sendB_pinned_support
+private theorem sendB_pinned_support
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)

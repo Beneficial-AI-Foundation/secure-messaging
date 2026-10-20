@@ -64,7 +64,7 @@ variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak 
 
 /-- No query of the honest intermediate game `honestOracle m e kStar` removes an epoch `u`
 from `challenged`. -/
-theorem honestOracle_preserves_challenged (m : Material leak) (e : ℕ) (kStar : K) (u : ℕ) :
+private theorem honestOracle_preserves_challenged (m : Material leak) (e : ℕ) (kStar : K) (u : ℕ) :
     QueryImpl.PreservesInv (honestOracle base onoff ecEk ecCt0 ecCt1 leak m e kStar)
       (fun s => u ∈ s.challenged) := by
   intro t s hs z hz
@@ -75,7 +75,7 @@ theorem honestOracle_preserves_challenged (m : Material leak) (e : ℕ) (kStar :
 
 /-- If `usesChallengeKey e t s = false`, then for all keys `k`, `k'`, answering `t` from `s`
 gives the same computation in `honestOracle m e k` and `honestOracle m e k'`. -/
-theorem honestOracle_eq_of_unused (m : Material leak) (e : ℕ) (k k' : K)
+private theorem honestOracle_eq_of_unused (m : Material leak) (e : ℕ) (k k' : K)
     (t : (securitySpec leak Sym).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (h : usesChallengeKey e t s = false) :
@@ -88,7 +88,7 @@ theorem honestOracle_eq_of_unused (m : Material leak) (e : ℕ) (k k' : K)
 
 /-- If `usesChallengeKey e t s = true`, then every possible successor state of
 `honestOracle m e k` answering `t` from `s` has `e ∈ challenged`. -/
-theorem honestOracle_use_records_challenge (m : Material leak) (e : ℕ) (k : K)
+private theorem honestOracle_use_records_challenge (m : Material leak) (e : ℕ) (k : K)
     (t : (securitySpec leak Sym).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (h : usesChallengeKey e t s = true)
@@ -149,7 +149,7 @@ def hybridStopped
 /-- For every query `t` and state `s` satisfying `reachableInv` and `pinnedKey m e`, answering
 `t` from `s` gives the same computation in `honestOracle m e m.on.1.2` and
 `hybridOracle m e false`. -/
-theorem honestOracle_eq_hybrid_real
+private theorem honestOracle_eq_hybrid_real
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
@@ -213,7 +213,7 @@ omit [DecidableEq K] [DecidableEq Sym] in
 /-- For `e > 0`, every challenged epoch `t`, and every state `s`, drawing `k ←$ K` and running
 `pinnedChallenge e k t` from `s` gives the joint response/state distribution of
 `oracleChall (adjacentMode e true t) t` from `s`. -/
-theorem pinnedChallenge_sample_uniform
+private theorem pinnedChallenge_sample_uniform
     {base : KEMScheme ProbComp K PK SK C} (onoff : base.OnOffStructure)
     (e : ℕ) (he : 0 < e) (t : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
@@ -237,7 +237,7 @@ theorem pinnedChallenge_sample_uniform
 /-- For `e > 0`, every query `t`, and every state `s`, drawing `k ←$ K` and answering `t` with
 `honestOracle m e k` from `s` gives the joint response/state distribution of
 `hybridOracle m e true` answering `t` from `s`. -/
-theorem honestOracle_sample_uniform
+private theorem honestOracle_sample_uniform
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
