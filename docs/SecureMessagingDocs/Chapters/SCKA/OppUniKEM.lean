@@ -776,7 +776,7 @@ guards of {bpref "scka_oracles"}[]: each challenged epoch is unexposed and has a
 :::leanPillCaption "Security bound"
 :::
 
-```anchor security (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Security.Theorem)
+```anchor security (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Security)
 theorem security
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : kem.DeterministicDecaps)
@@ -1172,7 +1172,7 @@ $`\varepsilon=0` and the bound reduces to the IND-CPA term.
 :::leanPillCaption "Bound for a perfectly correct KEM"
 :::
 
-```anchor security_perfectKEM (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Security.Theorem)
+```anchor security_perfectKEM (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Security)
 theorem security_perfectKEM
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : kem.DeterministicDecaps)

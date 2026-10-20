@@ -5,12 +5,10 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.SCKA.OppUniKEM.Security.Endpoints
+import SecureMessaging.SCKA.OppUniKEM.Security.IdealHybrids
 import SecureMessaging.SCKA.OppUniKEM.Security.IdealInvariants
 import SecureMessaging.SCKA.OppUniKEM.Security.IdealStopping
-import SecureMessaging.SCKA.OppUniKEM.Security.Theorem
-import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Relation
-import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Oracle
-import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.HybridGame
+import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Adjacent
 import SecureMessaging.SCKA.Security
 
 /-!
@@ -56,7 +54,7 @@ its running time is not formalized.
 Paths are relative to `OppUniKEM/Security/`, in the order of the proof. The Verso Opp-UniKEM
 chapter presents the reduction algorithms and a proof outline.
 
-1. `Theorem`: `security` combines `security_guess_le_hybrid_gap` and
+1. This module: `security` combines `security_guess_le_hybrid_gap` and
    `hybrid_gap_eq_query_factor`.
 2. `Endpoints`, `IdealHybrids`: the ideal game `I_b` replaces A's decapsulation by B's recorded
    key, and `security_correctness_endpoint_le` gives
@@ -95,3 +93,59 @@ Supporting modules: `Basic` (interface, send budget, leakage marginals); `Invari
 `SCKA/Security/` (shared guard and bookkeeping results); ToVCVio (generic sampling, stopping, and
 probability results).
 -/
+
+open OracleSpec OracleComp KEMScheme
+
+namespace oppUniKemCKA
+
+variable {K PK SK C Sym : Type}
+variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
+
+/-- In the setting above, every adversary `adv` with `SecuritySendQueryBound adv q` satisfies
+`AdvGuess_SCKA(Π, adv) ≤ (q / 2) · AdvINDCPA_KEM(kem, B) + q · ε` for
+`B := Security.Embedding.securityReduction … adv q`. -/
+-- ANCHOR: security
+theorem security
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (hDet : kem.DeterministicDecaps)
+    (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
+    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
+    (leak : kem.OnOffRandLeak onoff)
+    (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
+    SCKAScheme.sckaGuessAdvantage (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)
+      adv (exposureA kem onoff leak) (exposureB kem onoff leak) ≤
+    ((q : ℝ) / 2) * kem.IND_CPA_Advantage ProbCompRuntime.probComp
+      (Security.Embedding.securityReduction kem onoff ecEk ecCt0 ecCt1 leak adv q) +
+      (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal
+-- ANCHOR_END: security
+    := by
+  have h := Security.security_guess_le_hybrid_gap kem onoff hDet ecEk hEk
+    ecCt0 hCt0 ecCt1 hCt1 leak adv q hq
+  have hgap := Security.Embedding.hybrid_gap_eq_query_factor kem onoff hDet ecEk hEk
+    ecCt0 hCt0 ecCt1 hCt1 leak adv q
+  linarith
+
+/-- Under the assumptions of `security`, if the KEM is perfectly correct, then
+`AdvGuess_SCKA(Π, adv) ≤ (q / 2) · AdvINDCPA_KEM(kem, B)`. -/
+-- ANCHOR: security_perfectKEM
+theorem security_perfectKEM
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (hDet : kem.DeterministicDecaps)
+    (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
+    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
+    (leak : kem.OnOffRandLeak onoff) (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
+    (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
+    SCKAScheme.sckaGuessAdvantage (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)
+      adv (exposureA kem onoff leak) (exposureB kem onoff leak) ≤
+    ((q : ℝ) / 2) * kem.IND_CPA_Advantage ProbCompRuntime.probComp
+      (Security.Embedding.securityReduction kem onoff ecEk ecCt0 ecCt1 leak adv q)
+-- ANCHOR_END: security_perfectKEM
+    := by
+  have herror := (KEMScheme.correctnessError_eq_zero_iff_perfectlyCorrect
+    kem ProbCompRuntime.probComp).2 hkem
+  simpa only [herror, ENNReal.toReal_zero, mul_zero, add_zero] using
+    security kem onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1 leak adv q hq
+
+end oppUniKemCKA
