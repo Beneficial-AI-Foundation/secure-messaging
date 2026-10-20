@@ -27,3 +27,6 @@ The numbering preserves the original errata list.
    {ref "opp-unikem-errata"}[errata box] for the failure trace and epoch guard.
 5. Opp-UniKEM Rec-B returns the receiver's epoch instead of the message's sending
    epoch. See the {ref "opp-unikem-errata"}[Opp-UniKEM errata box] for the delayed-delivery example and correction.
+6. Opp-UniKEM Rec-A needs explicit chunk guards and abort handling for missing
+   decapsulation inputs or failed decapsulation. See the {ref "opp-unikem-errata"}[Opp-UniKEM errata box]
+   for the distinction between incomplete decoding and an aborted receive.

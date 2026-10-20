@@ -36,15 +36,13 @@ Figure 16 of {Informal.citet SCKA25}[]. In the receive algorithms,
 - $`t` is the epoch index of the receiver's state,
 - $`t'` is the epoch index of the delivered message.
 
-We make two corrections to these algorithms, marked with surrounding boxes:
+Boxes mark three corrections and explicit checks added to Figure 16:
 
 * $`\mathsf{Rec}\text{-}\A` and $`\mathsf{Rec}\text{-}\B` record
   received acknowledgements only if $`t=t'`;
 * $`\mathsf{Rec}\text{-}\B` returns $`t'-1` rather than $`t-1`;
-* $`\mathsf{Rec}\text{-}\A` attempts decoding only if $`\chunk\ne\bot`.
-  After decoding a current-epoch $`\ctone`, it aborts if $`\dkA` or $`\ctzero` is
-  missing or decapsulation fails. Incomplete decoding retains the chunk and
-  processes acknowledgements.
+* $`\mathsf{Rec}\text{-}\A` decodes only present chunks and aborts on missing
+  decapsulation inputs or failed decapsulation.
 See the {ref "opp-unikem-errata"}[errata box] for details.
 
 ::::::gameGrid
@@ -790,5 +788,21 @@ The correctness assertion fails.
 
 The correction is to return $`t'-1`.
 `OppUniKEM/Construction.lean` implements this correction under "Receiving epoch" in its module docstring.
+
+*Erratum 6: Make Rec-A's chunk guards and abort behavior explicit.*
+
+The corrections to Figure 16's `CKA-Rec-A` distinguish absent chunks,
+incomplete decoding, and failure after decoding the online ciphertext `ct_1`.
+Both ciphertext-decoding branches require `ch ≠ ⊥`.
+If the message contains no chunk, A neither inserts `⊥` into `L_ch` nor attempts decoding.
+
+If decoding is incomplete, A retains the received chunk in `L_ch` and remains in the same epoch.
+Acknowledgement processing continues only if `t = t'` after processing, with `t` denoting A's epoch and `t'` the message's epoch.
+Incomplete decoding does not abort the receive.
+
+After decoding a current-epoch `ct_1`, A requires both `dk_A` and `ct_0` to decapsulate.
+If either input is absent, or decapsulation returns `⊥`, the entire receive aborts under the paper's §2 failure convention.
+The abort discards local state changes and skips acknowledgement processing.
+Only successful decapsulation produces the epoch key, erases the epoch's secrets, and advances A to epoch `t + 1`.
 
 ::::
