@@ -37,17 +37,6 @@ is decrypted as soon as it arrives.
 - `send : SS → AD → M → SS × C`: `(v', e) ← FS-Send(v, a, m)`.
 - `rcv : SR → AD → C → Option (SR × ℕ × M)`: `(v', i, m) ← FS-Rcv(v, a, e)`, where `i`
   is the position of `m` in the sender's sequence, or `none` on rejection.
-- `stop : SS → ℕ`: `ℓ ← FS-Stop(v)`, the number of messages sent with the sender state `v`.
-- `setMax : SR → ℕ → SR`: `FS-Max(v, ℓ)`, which stores in the receiver state `v` the
-  number `ℓ` of messages that the sender sent in this session.
-
-`FS-Stop` and `FS-Max` are the memory-management functions of §4.2.1. ACD19 gives them no
-formal requirement, and the game has no oracle for them. This file states no requirement
-either. In ACD19 both functions also erase the session from memory. Here
-they are pure functions, and the caller drops the state. §4.2.1 says that `FS-Stop`
-outputs how many messages have been received. But Figure 8 calls it on the sender state
-of the previous sending epoch, and §5 calls its output the number of messages sent.
-`stop` follows Figure 8.
 
 [DEVIATIONS FROM ACD19]
 As printed, Figure 5 has two errors, and D1 and D2 correct them. Without D1, the adversary
@@ -130,13 +119,6 @@ structure FSAEADScheme (K SS SR AD M C : Type) where
   /-- `FS-Rcv(v, a, e) = (v', i, m)`, or `none` if `e` is rejected. A rejection produces
   no new state and no index. -/
   rcv : SR → AD → C → Option (SR × ℕ × M)
-  /-- `ℓ ← FS-Stop(v)`: the number of messages sent with the sender state `v`. In ACD19,
-  `FS-Stop` also erases the session. Here the caller drops `v`. -/
-  stop : SS → ℕ
-  /-- `FS-Max(v, ℓ)`: store in the receiver state `v` the number `ℓ` of messages that the
-  sender sent in this session. In ACD19, the session is erased once `ℓ` messages are
-  received. This file does not state that requirement. -/
-  setMax : SR → ℕ → SR
 -- ANCHOR_END: FSAEADScheme
 
 namespace FSAEADScheme

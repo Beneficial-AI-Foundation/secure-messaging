@@ -49,20 +49,7 @@ where
   $`e`, and produces a new state, an index and a message
   $`(v', i, m) \gets \mathsf{FS\text{-}Rcv}(v, a, e)`.
 
-All algorithms are deterministic. The scheme also has the memory-management functions of
-ACD19 §4.2.1:
-
-- $`\mathsf{FS\text{-}Stop}` takes a sender state $`v` and outputs the number of
-  messages sent with it, $`\ell \gets \mathsf{FS\text{-}Stop}(v)`,
-- $`\mathsf{FS\text{-}Max}` takes a receiver state $`v` and the number $`\ell` of
-  messages that the sender sent in this session, and stores $`\ell` in the state,
-  $`v' \gets \mathsf{FS\text{-}Max}(v, \ell)`.
-
-ACD19 gives these two functions no formal requirement, and the game has no oracle for
-them. In ACD19 both also erase the session from memory. Here the caller drops the state.
-§4.2.1 says that $`\mathsf{FS\text{-}Stop}` outputs how many messages have been received.
-But Figure 8 calls it on the sender state of the previous sending epoch, and §5 calls its
-output the number of messages sent. This definition follows Figure 8.
+All algorithms are deterministic.
 
 Rejection convention: a rejecting $`\mathsf{FS\text{-}Rcv}` returns $`\bot`, with no
 state and no index, so the receiver keeps its old state. Definition 14 does not say what
@@ -82,13 +69,6 @@ structure FSAEADScheme (K SS SR AD M C : Type) where
   /-- `FS-Rcv(v, a, e) = (v', i, m)`, or `none` if `e` is rejected. A rejection produces
   no new state and no index. -/
   rcv : SR → AD → C → Option (SR × ℕ × M)
-  /-- `ℓ ← FS-Stop(v)`: the number of messages sent with the sender state `v`. In ACD19,
-  `FS-Stop` also erases the session. Here the caller drops `v`. -/
-  stop : SS → ℕ
-  /-- `FS-Max(v, ℓ)`: store in the receiver state `v` the number `ℓ` of messages that the
-  sender sent in this session. In ACD19, the session is erased once `ℓ` messages are
-  received. This file does not state that requirement. -/
-  setMax : SR → ℕ → SR
 ```
 ::::
 
