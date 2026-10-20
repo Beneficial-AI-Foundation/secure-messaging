@@ -11,18 +11,20 @@ import ToVCVio.OracleComp.QueryTracking.OneUseSampling
 /-!
 # Deferring the key-generation sample
 
-**Setting.** Fix complete material `m`, a selected epoch `e`, and a mode bit `b`.
+**Setting.** Let `m` be complete material, `e` a selected epoch, and `b` a mode bit. The
+material `{ m with keygen := kg }` replaces the key-generation output of `m` by `kg`, resampled
+as `kg ← leak.keygenRleak`. The one-use conditions of `stoppedRun_sample_once_eq` take
+`used := sourceUsed .keygen e` and `hit := usesSource .keygen e` (`SourceUse`) and hold in
+every game state.
 
 **Results.**
 
-- `oracle_keygen_independent`: in the stage `encapsFresh`, a query with
-  `usesSource .keygen e t s = false` has the same response/state distribution for every stored
-  key-generation output; a leaking first send by A at a challenged epoch rejects
-  (`leaking_keygen_rejected`).
-- `oracle_sample_keygen_eq_fresh`: averaging a query of `encapsFresh` over the key-generation
-  output gives the query of `fresh`.
-- `stopped_keygen_deferred`: sampling the key-generation output once before the stopped stage
-  `encapsFresh` gives the acceptance probability of the stopped stage `fresh`.
+- `oracle_sample_keygen_eq_fresh`: for every query, averaging
+  `oracle .encapsFresh { m with keygen := kg } e b` over `kg` gives the joint distribution of
+  response and successor state of `oracle .fresh m e b`.
+- `stopped_keygen_deferred`: drawing `kg` once before
+  `stopped .encapsFresh { m with keygen := kg } e b` gives the acceptance probability of
+  `stopped .fresh m e b`.
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -31,9 +33,9 @@ namespace oppUniKemCKA.Security.Embedding.Sampling
 
 variable {K PK SK C Sym : Type}
 
-/-- For every material value, selected epoch, and state, averaging selected
-key-generation material gives the fully fresh leaking A-send distribution,
-including the returned key-generation coins. -/
+/-- For every state `s`, averaging A's leaking send in
+`schemeAt .encapsFresh { m with keygen := kg } e s` over `kg ← leak.keygenRleak` gives the
+output distribution of A's leaking send in `schemeAt .fresh m e s`. -/
 theorem sendArleak_sample_keygen_eq_fresh [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -60,9 +62,7 @@ theorem sendArleak_sample_keygen_eq_fresh [DecidableEq Sym]
     intro pair _
     rfl
 
-/-- For every material value, selected epoch, and state, averaging selected
-key-generation material gives the fully fresh ordinary A-send distribution.
-Derived from `sendArleak_sample_keygen_eq_fresh` by forgetting the coins. -/
+/-- The ordinary-send version of `sendArleak_sample_keygen_eq_fresh`. -/
 theorem sendA_sample_keygen_eq_fresh [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -80,9 +80,8 @@ theorem sendA_sample_keygen_eq_fresh [DecidableEq Sym]
   rw [map_bind] at h
   simpa only [scheme_sendA_eq_map_sendArleak] using h
 
-/-- With both encapsulation phases fresh, B's local `sendBrleak` computation
-is independent of the pinned key-generation component. For every input
-state it equals the same computation in the fully fresh stage. -/
+/-- For every key-generation output `kg`, B's leaking send in
+`schemeAt .encapsFresh { m with keygen := kg } e s` is that of `schemeAt .fresh m e s`. -/
 theorem sendBrleak_encapsFresh_eq_fresh [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -99,10 +98,7 @@ theorem sendBrleak_encapsFresh_eq_fresh [DecidableEq Sym]
     simp only [schemeAt, scheme, sendBrleak, hc0, hp, hc1, hst, ha, pure_bind,
       Bool.not_false, Bool.not_true, Bool.false_eq_true, ↓reduceIte] <;> rfl
 
-/-- With both encapsulation phases fresh, B's local `sendB` computation
-is independent of the pinned key-generation component. For every input
-state it equals the same computation in the fully fresh stage. Derived from
-`sendBrleak_encapsFresh_eq_fresh` by forgetting the coins. -/
+/-- The ordinary-send version of `sendBrleak_encapsFresh_eq_fresh`. -/
 theorem sendB_encapsFresh_eq_fresh [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -118,9 +114,10 @@ theorem sendB_encapsFresh_eq_fresh [DecidableEq Sym]
 
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- For every query, material value, selected epoch, mode, and input state,
-averaging key-generation material in `encapsFresh` gives the fully fresh
-query's joint response/state distribution. -/
+/-- For every query `t` and state `s`, averaging query `t` of
+`oracle .encapsFresh { m with keygen := kg } e b` from `s` over `kg ← leak.keygenRleak` gives
+the joint distribution of response and successor state of query `t` of `oracle .fresh m e b`
+from `s`. -/
 theorem oracle_sample_keygen_eq_fresh
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -143,9 +140,9 @@ theorem oracle_sample_keygen_eq_fresh
     (sendArleak_sample_keygen_eq_fresh base onoff ecEk ecCt0 ecCt1 leak m e s)
     (ToVCVio.evalDist_bind_of_const' _ fun pair _ =>
       sendBrleak_encapsFresh_eq_fresh base onoff ecEk ecCt0 ecCt1 leak m e s pair)
-    (fun pair _ ρ => (recvA_eq_auxiliary base onoff ecEk ecCt0 ecCt1 leak .encapsFresh
+    (fun pair _ ρ => (recvA_eq_ideal base onoff ecEk ecCt0 ecCt1 leak .encapsFresh
       { m with keygen := pair } e s ρ).trans
-      (recvA_eq_auxiliary base onoff ecEk ecCt0 ecCt1 leak .fresh m e s ρ).symm)
+      (recvA_eq_ideal base onoff ecEk ecCt0 ecCt1 leak .fresh m e s ρ).symm)
     (fun _ _ _ => rfl) t
 
 end oppUniKemCKA.Security.Embedding.Sampling
@@ -157,8 +154,9 @@ namespace oppUniKemCKA.Security.Embedding.Sampling
 variable {K PK SK C Sym : Type}
 variable [DecidableEq Sym]
 
-/-- Outside the selected first A-send, replacing stored key-generation
-material leaves the local sendA computation in `encapsFresh` unchanged. -/
+/-- Unless A is at `e` with no decapsulation key, A's ordinary send in
+`schemeAt .encapsFresh { m with keygen := kg } e s` is the same computation for every
+key-generation output `kg`. -/
 theorem sendA_keygen_independent
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -180,8 +178,7 @@ theorem sendA_keygen_independent
       Pinned.keygen, hd, hp, ha, he, decide_false,
       Bool.and_false, Bool.false_eq_true, ↓reduceIte, pure_bind]
 
-/-- Outside the selected first A-send, replacing stored key-generation
-material leaves the local sendArleak computation in `encapsFresh` unchanged. -/
+/-- The leaking-send version of `sendA_keygen_independent`. -/
 theorem sendArleak_keygen_independent
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -205,8 +202,8 @@ theorem sendArleak_keygen_independent
 
 variable [DecidableEq K]
 
-/-- In every stage, a leaking first A-send at an already challenged epoch
-has the rejection distribution concentrated at the original state. -/
+/-- The version of `leaking_offline_rejected` for A's leaking send with no decapsulation
+key. -/
 theorem leaking_keygen_rejected
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -223,7 +220,7 @@ theorem leaking_keygen_rejected
     have hex := sendArleak_exposure
       (Pinned.kem m (stage.pinsKeygen && decide (s.stA.t = e))
         (stage.pinsOffline && decide (s.stB.t = e))
-        (stage.pinsOnline && decide (s.stB.t = e)) (s.keyB s.stA.t))
+        false (s.keyB s.stA.t))
       (Pinned.onOff m _ _ _ _) ecEk (Pinned.leakage leak m _ _ _ _) s.stA
       key msg epoch next coins hout
     simpa only [leakEpochsA, hfield, Option.isNone_none, ↓reduceIte, he] using hex
@@ -231,9 +228,9 @@ theorem leaking_keygen_rejected
 
 variable [SampleableType K]
 
-/-- For every query with `usesSource .keygen = false`, changing the stored
-key-generation component in `encapsFresh` preserves the joint response/state
-distribution, including the rejection of a challenged-epoch leaking send. -/
+/-- If `usesSource .keygen e t s = false`, the joint distribution of response and successor
+state of query `t` of `oracle .encapsFresh { m with keygen := kg } e b` from `s` is the same
+for every key-generation output `kg`. -/
 theorem oracle_keygen_independent
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -259,9 +256,9 @@ theorem oracle_keygen_independent
       ((sendB_encapsFresh_eq_fresh base onoff ecEk ecCt0 ecCt1 leak m e s pair).trans
         (sendB_encapsFresh_eq_fresh base onoff ecEk ecCt0 ecCt1 leak m e s pair').symm))
   · exact congrArg evalDist (SCKAScheme.oracleRecvA_run_congr _ _ s (fun ρ =>
-      (recvA_eq_auxiliary base onoff ecEk ecCt0 ecCt1 leak .encapsFresh
+      (recvA_eq_ideal base onoff ecEk ecCt0 ecCt1 leak .encapsFresh
         { m with keygen := pair } e s ρ).trans
-      (recvA_eq_auxiliary base onoff ecEk ecCt0 ecCt1 leak .encapsFresh
+      (recvA_eq_ideal base onoff ecEk ecCt0 ecCt1 leak .encapsFresh
         { m with keygen := pair' } e s ρ).symm) n)
   · rfl
   · by_cases hready : s.stA.t = e ∧ s.stA.dkA.isNone
@@ -292,9 +289,9 @@ namespace oppUniKemCKA.Security.Embedding.Sampling
 variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- For every material value `m`, selected epoch `e`, mode `b`, adversary `adv`, and state `s`,
-sampling the selected key-generation output once before the stopped `encapsFresh` execution
-gives the acceptance probability of the stopped `fresh` stage. -/
+/-- For every adversary `adv` and state `s`, drawing `kg ← leak.keygenRleak` once and running
+`optionRun (stopped .encapsFresh { m with keygen := kg } e b) adv s` returns `true` with the
+probability of `optionRun (stopped .fresh m e b) adv s`. -/
 theorem stopped_keygen_deferred
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)

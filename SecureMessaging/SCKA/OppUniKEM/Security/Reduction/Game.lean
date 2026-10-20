@@ -12,23 +12,20 @@ import ToVCVio.OracleComp.SimSemantics.StateT.Stop
 /-!
 # The honest intermediate game
 
-**Setting.** Fix complete material `m`, a selected epoch `e`, and a challenge key `kStar`.
+**Setting.** Fix complete material `m`, a selected epoch `e`, and a candidate key `kStar`.
 
 **Definitions.**
 
-- `honestScheme m e s`: Opp-UniKEM with the KEM `Pinned.kem m` flagging the phases of the
-  parties at epoch `e` in the game state `s`, and decapsulation returning B's recorded key for
-  A's current epoch; `symbolicScheme m e s` is the simulator's instance for `s`.
-- `securityImplAt schemeOf chall`: the security oracles of the protocol instance `schemeOf s`
-  selected by the current state `s`, with challenge oracle `chall` and Opp-UniKEM's exposure
-  policies.
-- `honestOracle m e kStar := securityImplAt (honestScheme m e) (pinnedChallenge e kStar)`: the
-  honest intermediate game; `honestStopped` stops it after the first query exposing `e`.
-
-**Results.** `securityImplAt_run` identifies each query with the security oracle family over
-`schemeOf s`. `securityImplAt_preserves_at` and `securityImplAt_preservesInv`: for every
-challenge oracle that records challenges, an invariant insensitive to the bookkeeping sets is
-preserved if the correctness oracles of the selected instances preserve it.
+- `securityImplAt schemeOf chall`: the Opp-UniKEM security oracles in which a query from game
+  state `s` uses the protocol instance `schemeOf s`, with challenge oracle `chall`.
+- `honestScheme m e s`: Opp-UniKEM over `Pinned.kem m`, pinning A's key generation if
+  `s.stA.t = e` and B's offline and online encapsulation if `s.stB.t = e`; decapsulation returns
+  B's recorded key for A's current epoch, as in the ideal game. `markedScheme m e s` is the
+  simulator's marked instance for `s`.
+- The *honest intermediate game* `honestOracle m e kStar` is
+  `securityImplAt (honestScheme m e) (pinnedChallenge e kStar)` on unmarked game states.
+  `honestStopped m e kStar` stops it at the first query whose successor state has
+  `e ∈ exposed`.
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -37,9 +34,9 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
 
-/-- Instantiate the honest protocol for one query from state `s`. Samplers
-use `m` when the corresponding party is at epoch `e`; decapsulation returns
-B's recorded key for A's current epoch. -/
+/-- Opp-UniKEM instance answering a query from game state `s`: `Pinned.kem m` pins A's key
+generation if `s.stA.t = e` and B's offline and online encapsulation if `s.stB.t = e`;
+decapsulation returns `s.keyB s.stA.t`. -/
 abbrev honestScheme [DecidableEq Sym]
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff}
@@ -53,10 +50,10 @@ abbrev honestScheme [DecidableEq Sym]
   scheme (Pinned.kem m sa sb sb key) (Pinned.onOff m sa sb sb key)
     (Pinned.deterministic m sa sb sb key) ecEk ecCt0 ecCt1 (Pinned.leakage leak m sa sb sb key)
 
-/-- Instantiate the symbolic protocol for one query corresponding to honest
-state `s`. Selected private values are unavailable; auxiliary decapsulation
-returns the marked form of B's recorded key. -/
-abbrev symbolicScheme [DecidableEq Sym]
+/-- The simulator's instance for honest game state `s`: Opp-UniKEM over the marked KEM `kem` with
+the public key and ciphertext of `m` as challenge, with A selected if `s.stA.t = e` and B if
+`s.stB.t = e`; decapsulation returns the marked key `s.keyB s.stA.t`. -/
+abbrev markedScheme [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
@@ -73,8 +70,7 @@ abbrev symbolicScheme [DecidableEq Sym]
 
 /-- The security oracles of the protocol instance selected by the current state: a query from
 state `s` is answered by `scka := schemeOf s` as in the security game, with challenge oracle
-`chall` and Opp-UniKEM's exposure policies. `securityImplAt_run` identifies each query with
-`securityImplOf (sckaCorrectnessImpl scka) chall exposureA exposureB scka`. -/
+`chall` and Opp-UniKEM's exposure policies. -/
 def securityImplAt [DecidableEq K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (leak : base.OnOffRandLeak onoff)
@@ -100,8 +96,9 @@ def securityImplAt [DecidableEq K]
     | .inr u =>
       SCKAScheme.oracleCorruptB (vulnCorrB base onoff) (StA onoff Sym) K (Message Sym) u
 
-/-- A query of `securityImplAt schemeOf chall` from `s` is the query of the security oracle
-family over `schemeOf s` with challenge oracle `chall`. -/
+/-- From state `s`, each query of `securityImplAt schemeOf chall` is the same query of
+`securityImplOf` over `schemeOf s`, with challenge oracle `chall` and exposure policies
+`exposureA`, `exposureB`. -/
 theorem securityImplAt_run [DecidableEq K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (leak : base.OnOffRandLeak onoff)
@@ -117,10 +114,10 @@ theorem securityImplAt_run [DecidableEq K]
         (exposureA base onoff leak) (exposureB base onoff leak) (schemeOf s) t).run s := by
   rcases t with (((((t | u) | u) | t) | u) | u) <;> rfl
 
-/-- Let `Inv` be insensitive to the bookkeeping sets, let the leaking sends of every selected
-instance forget their coins to the ordinary sends, and let `chall` record challenges. If `Inv s`
-holds and every correctness query of `schemeOf s` from `s` preserves `Inv`, then every query of
-`securityImplAt schemeOf chall` from `s` preserves `Inv`. -/
+/-- Let `Inv` be preserved by arbitrary changes of `exposed` and `challenged`, let the ordinary
+sends of every instance `schemeOf s` be the coin-forgetting images of its leaking sends, and let
+`chall` record challenges. If `Inv s` holds and every correctness query of `schemeOf s` from `s`
+preserves `Inv`, then every query of `securityImplAt schemeOf chall` from `s` preserves `Inv`. -/
 theorem securityImplAt_preserves_at [DecidableEq K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (leak : base.OnOffRandLeak onoff)
@@ -155,8 +152,8 @@ theorem securityImplAt_preserves_at [DecidableEq K]
     (hbase SCKAScheme.sckaCorrectnessSpec.OSendA)
     (hbase SCKAScheme.sckaCorrectnessSpec.OSendB) t z hz
 
-/-- Under the hypotheses of `securityImplAt_preserves_at` for every state, `securityImplAt
-schemeOf chall` preserves `Inv`. -/
+/-- Under the hypotheses of `securityImplAt_preserves_at` at every state, the oracles
+`securityImplAt schemeOf chall` preserve `Inv`. -/
 theorem securityImplAt_preservesInv [DecidableEq K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (leak : base.OnOffRandLeak onoff)
@@ -183,8 +180,8 @@ theorem securityImplAt_preservesInv [DecidableEq K]
   fun t s hs z hz => securityImplAt_preserves_at base onoff leak schemeOf chall Inv hbook hmA hmB
     hchall s hs (hbase s hs) t z hz
 
-/-- Honest intermediate game: the protocol instance `honestScheme m e s` with challenge oracle
-`pinnedChallenge e kStar`. -/
+/-- Oracles of the honest intermediate game: `securityImplAt` over `honestScheme m e`, with
+challenge oracle `pinnedChallenge e kStar`. -/
 def honestOracle [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -196,9 +193,9 @@ def honestOracle [DecidableEq K] [DecidableEq Sym] [SampleableType K]
   securityImplAt base onoff leak (honestScheme ecEk ecCt0 ecCt1 m e)
     (pinnedChallenge onoff e kStar)
 
-/-- Honest intermediate oracle with termination after any query whose
-successor exposes the selected epoch `e`. The stopped response is represented
-by the outer `OptionT`; ordinary oracle rejection remains an inner `none`. -/
+/-- `honestOracle m e kStar` stopped on exposure of `e`: a query whose successor state has
+`e ∈ exposed` answers `none` in the outer `OptionT` layer, which ends the run; a rejection by
+the game remains an inner `none`. -/
 def honestStopped [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -208,9 +205,9 @@ def honestStopped [DecidableEq K] [DecidableEq Sym] [SampleableType K]
   stopOnState (honestOracle base onoff ecEk ecCt0 ecCt1 leak m e kStar)
     (fun s => decide (e ∈ s.exposed))
 
-/-- Lift averaged local equalities to the state-indexed security oracles. Let `sample` be a
-never-failing computation returning `a : τ`, let `schemeOf a` for each `a` and `target` be
-state-indexed schemes, and let `chall` be a challenge oracle. Fix a state `s`. Assume:
+/-- Let `sample` be a never-failing computation returning `a : τ`, let `schemeOf a` for each `a`
+and `target` be state-indexed schemes, and let `chall` be a challenge oracle. Fix a state `s`.
+Assume:
 
 - averaged over `a ← sample`, each of the four sends of `schemeOf a s` from the local state in
   `s` has the distribution of the same send of `target s`;

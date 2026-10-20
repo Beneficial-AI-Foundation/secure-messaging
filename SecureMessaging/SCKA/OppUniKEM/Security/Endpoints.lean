@@ -169,8 +169,8 @@ def idealSecurityImpl
     (exposureA kem onoff leak) (exposureB kem onoff leak)
     (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)
 
-/-- Run `adv` against `idealSecurityImpl … mode` and return its output bit. The experiment `I_b`
-is the constant mode `fun _ => b`. -/
+/-- Run `adv` against `idealSecurityImpl … mode` from the initial state and return its output
+bit. The ideal game `I_b` uses the constant mode `fun _ => b`. -/
 def idealSecurityExp
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -180,6 +180,22 @@ def idealSecurityExp
     (mode : ℕ → Bool) (adv : SecurityAdversary leak Sym) : ProbComp Bool :=
   (simulateQ (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak mode) adv).run'
     (Reduction.Internal.initialGame kem onoff)
+
+omit [SampleableType K] in
+/-- From every state `s`, the ideal correctness oracles answer as the correctness oracles of
+`schemeWithDecaps` with decapsulation returning B's recorded key `s.keyB s.stA.t`. -/
+private theorem idealCorrectnessImpl_run_eq
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+    (hDet : DeterministicDecaps kem)
+    (ecEk : ErasureCodePayload PK Sym)
+    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff)
+    (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
+    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
+    (idealCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak t).run s =
+      (SCKAScheme.sckaCorrectnessImpl (schemeWithDecaps kem onoff hDet ecEk ecCt0 ecCt1 leak
+        (fun _ _ => s.keyB s.stA.t)) t).run s := by
+  rcases t with ((((n | u) | u) | n) | n) <;> rfl
 
 omit [SampleableType K] in
 /-- Every ideal correctness query keeps the exposed and challenged sets. -/
@@ -195,26 +211,12 @@ theorem idealCorrectnessImpl_securitySets_eq
       SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hz : z ∈ support ((idealCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak t).run s)) :
     z.2.exposed = s.exposed ∧ z.2.challenged = s.challenged := by
-  rcases t with ((((n | u) | u) | n) | n)
-  all_goals simp only [idealCorrectnessImpl,
-    QueryImpl.add_apply_inl, QueryImpl.add_apply_inr] at hz
-  · exact SCKAScheme.correctnessImpl_securitySets_eq
-      (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) (SCKAScheme.sckaCorrectnessSpec.OUnif n) s z hz
-  · cases u
-    exact SCKAScheme.correctnessImpl_securitySets_eq
-      (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) SCKAScheme.sckaCorrectnessSpec.OSendA s z hz
-  · cases u
-    exact SCKAScheme.correctnessImpl_securitySets_eq
-      (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) SCKAScheme.sckaCorrectnessSpec.OSendB s z hz
-  · exact SCKAScheme.correctnessImpl_securitySets_eq
-      (schemeWithDecaps kem onoff hDet ecEk ecCt0 ecCt1 leak (fun _ _ => s.keyB s.stA.t))
-      (SCKAScheme.sckaCorrectnessSpec.ORecvA n) s z hz
-  · exact SCKAScheme.correctnessImpl_securitySets_eq
-      (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) (SCKAScheme.sckaCorrectnessSpec.ORecvB n) s z hz
+  rw [idealCorrectnessImpl_run_eq] at hz
+  exact SCKAScheme.correctnessImpl_securitySets_eq _ t s z hz
 
 omit [SampleableType K] in
-/-- Every ideal correctness query advances A's send counter by at most one on send
-queries and not otherwise. -/
+/-- For every correctness query `t` of the ideal game and possible successor `z.2` of `t` from
+`s`, `z.2.nA ≤ s.nA + 1` if `t` is a send query and `z.2.nA ≤ s.nA` otherwise. -/
 theorem idealCorrectnessImpl_nA_step
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -227,22 +229,8 @@ theorem idealCorrectnessImpl_nA_step
       SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hz : z ∈ support ((idealCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak t).run s)) :
     z.2.nA ≤ s.nA + if SCKAScheme.isSendQuery t then 1 else 0 := by
-  rcases t with ((((n | u) | u) | n) | n)
-  all_goals simp only [idealCorrectnessImpl,
-    QueryImpl.add_apply_inl, QueryImpl.add_apply_inr] at hz
-  · exact SCKAScheme.correctnessImpl_nA_step
-      (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) (SCKAScheme.sckaCorrectnessSpec.OUnif n) s z hz
-  · cases u
-    exact SCKAScheme.correctnessImpl_nA_step (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)
-      SCKAScheme.sckaCorrectnessSpec.OSendA s z hz
-  · cases u
-    exact SCKAScheme.correctnessImpl_nA_step (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)
-      SCKAScheme.sckaCorrectnessSpec.OSendB s z hz
-  · exact SCKAScheme.correctnessImpl_nA_step
-      (schemeWithDecaps kem onoff hDet ecEk ecCt0 ecCt1 leak (fun _ _ => s.keyB s.stA.t))
-      (SCKAScheme.sckaCorrectnessSpec.ORecvA n) s z hz
-  · exact SCKAScheme.correctnessImpl_nA_step
-      (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) (SCKAScheme.sckaCorrectnessSpec.ORecvB n) s z hz
+  rw [idealCorrectnessImpl_run_eq] at hz
+  exact SCKAScheme.correctnessImpl_nA_step _ t s z hz
 
 omit [SampleableType K] in
 /-- With correct erasure codes, every ideal correctness query preserves `reachableInv`. -/
@@ -436,9 +424,9 @@ end IdealGame
 
 /-! ## KEM failure probability
 
-We extend the original game `G_b` and ideal game `I_b` with a Boolean flag `bad`, initially
-`false`. Their oracle implementations are `trackedSecurityImpl` and `trackedIdealImpl`,
-respectively.
+The tracked games extend the original game `G_b` and the ideal game `I_b` with a Boolean
+flag `bad`, initially `false`. Their oracle implementations are `trackedSecurityImpl` and
+`trackedIdealImpl`, respectively.
 The flag records whether `currentKEMFailure` has detected completed KEM material whose
 decapsulation disagrees with B's recorded key.
 
@@ -543,8 +531,7 @@ theorem trackedSecurityImpl_preserves
 
 /-- Fix a bit `b` and a state `s` satisfying `reachableInv` and `currentKEMFailure s = false`.
 If `(s', bad')` is the state after A's tracked leaking-send query from `(s, false)`, then
-we have the following bound on the expected failure score `Φ`:
-`E[Φ(s', bad')] ≤ Φ(s, false) + ε`. -/
+the expected failure score satisfies `E[Φ(s', bad')] ≤ Φ(s, false) + ε`. -/
 theorem tracked_sendArleak_score_le
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -626,7 +613,7 @@ theorem tracked_sendBrleak_score_le
 
 /-- Fix a bit `b`, a query `t`, and a state `p` satisfying `trackedInv`.
 Let `p'` be the state after `trackedSecurityImpl b` answers `t` from `p`.
-Then we have the following bounds on the tracked failure score:
+Then the tracked failure score satisfies:
 - `E[Φ(p')] ≤ Φ(p) + ε` for an ordinary or leaking send, and
 - `E[Φ(p')] ≤ Φ(p)` otherwise. -/
 theorem trackedSecurity_score_step_le

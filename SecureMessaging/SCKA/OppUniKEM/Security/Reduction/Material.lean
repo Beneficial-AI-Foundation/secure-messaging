@@ -10,27 +10,30 @@ import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
 /-!
 # Fixed branches and stored epoch material
 
-**Setting.** Let `adv` be a security adversary, `e` a selected epoch, and `b : Bool` the IND-CPA
-challenge bit, with `b = true` for the encapsulated key.
+**Setting.** Let `adv` be a security adversary, `q` a send budget, `e` a selected epoch, and
+`b : Bool` an IND-CPA challenge bit, with `b = true` for the encapsulated key. For Boolean
+computations `G_b`, the *real-minus-random acceptance gap* is
+`Pr[G_true = true] - Pr[G_false = true]`.
 
 **Definitions.**
 
-- `fixedBranch adv e b`: KEM key generation and encapsulation followed by
-  `run adv e pk ct (if b then key else k')` with an independent uniform key `k'`.
-- `Material leak`: the outputs and coins of key generation, offline encapsulation, and online
-  encapsulation of one epoch; `sampleMaterial leak` samples them with the leakage samplers and
-  feeds the sampled public key and offline state to online encapsulation.
-- `Pinned.kem m pinKeygen pinOffline pinOnline key`: the KEM returning the stored outputs of `m`
-  in the flagged phases and running the original samplers otherwise, with constant
-  decapsulation result `key`; `Pinned.onOff`, `Pinned.deterministic`, and `Pinned.leakage` are
-  its on/off structure, deterministic decapsulation, and leakage witness.
+- `fixedBranch adv e b`: KEM key generation and encapsulation of `(ct, k)` under `pk`, followed
+  by `run adv e pk ct (if b then k else k')` with an independent uniform key `k'`.
+- *Complete material* `m : Material leak`: the outputs and coins of key generation, offline
+  encapsulation, and online encapsulation of one epoch. `sampleMaterial leak` samples them with
+  the leakage samplers, running online encapsulation at the sampled offline state and public key.
+- `Pinned.kem m pinKeygen pinOffline pinOnline key`: the KEM whose flagged phases are *pinned* to
+  `m`, returning its stored outputs, while the other phases run the original samplers;
+  decapsulation returns `key`.
 
 **Results.**
 
 - `securityReduction_signed_gap_average`: for `q > 0`, the real-minus-random acceptance gap of
-  `securityReduction adv q` is the average over `e ∈ 1, …, q` of the gaps of `fixedBranch adv e`.
-- `sampleMaterial_bind_challenge`, `fixedBranch_eq_material`: sampling complete material and
-  keeping its public key, ciphertext, and key is KEM key generation followed by encapsulation.
+  `securityReduction adv q` in the IND-CPA experiment is the average over `e ∈ {1, …, q}` of the
+  real-minus-random acceptance gaps of `fixedBranch adv e`.
+- `fixedBranch_eq_material`: `fixedBranch adv e b` equals the computation that samples complete
+  material `m` and runs the same simulation with the public key, ciphertext, and shared key of
+  `m`.
 -/
 
 open ToVCVio OracleSpec OracleComp KEMScheme ENNReal
@@ -44,18 +47,18 @@ variable (ecEk : ErasureCodePayload PK Sym)
 variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
 variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
 
-/-- For selected epoch `e`, sample an IND-CPA tuple and execute the simulator.
-Bit `true` supplies the encapsulated key; bit `false` supplies an independent
-uniform key. The output is the simulator's Boolean guess. -/
+/-- Fixed-bit branch of the reduction at selected epoch `e`: sample `(pk, sk) ← keygen` and
+`(ct, k) ← encaps pk`, and return `run adv e pk ct k'` with `k' = k` if `b = true` and an
+independent uniform key `k'` if `b = false`. -/
 def fixedBranch (adv : SecurityAdversary leak Sym) (e : ℕ) (b : Bool) : ProbComp Bool := do
   let (pk, _) ← base.keygen
   let (ct, key) ← base.encaps pk
   let randomKey ← ($ᵗ K : ProbComp K)
   run base onoff ecEk ecCt0 ecCt1 leak adv e pk ct (if b then key else randomKey)
 
-/-- For every send budget `q`, challenge bit, and Boolean output, the
-single reduction's IND-CPA output probability is the mixture obtained by
-sampling `e ← epochChoice q` and running the corresponding fixed branch. -/
+/-- For every send budget `q`, bit `b`, and output `output`, the IND-CPA experiment with bit `b`
+for `securityReduction adv q` returns `output` with the probability of
+`e ← epochChoice q; fixedBranch adv e b`. -/
 theorem securityReduction_probOutput
     (adv : SecurityAdversary leak Sym) (q : ℕ) (b output : Bool) :
     Pr[= output | base.IND_CPA_Exp ProbCompRuntime.probComp
@@ -69,9 +72,9 @@ theorem securityReduction_probOutput
     ProbCompRuntime.liftProbComp, ProbCompLift.id, bind_assoc, pure_bind]
   exact probOutput_bind_bind_swap base.keygen (epochChoice q) _ output
 
-/-- With a positive send budget `q`, the single reduction's fixed-bit
-acceptance probability is the arithmetic mean of the `q` selected-epoch
-branch acceptance probabilities. -/
+/-- For `q ≠ 0` and every bit `b`, the IND-CPA experiment with bit `b` for
+`securityReduction adv q` returns `true` with probability
+`q⁻¹ · ∑_{e = 1}^{q} Pr[fixedBranch adv e b = true]`. -/
 theorem securityReduction_acceptance_average
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : q ≠ 0) (b : Bool) :
     (Pr[= true | base.IND_CPA_Exp ProbCompRuntime.probComp
@@ -85,9 +88,8 @@ theorem securityReduction_acceptance_average
   rw [ENNReal.toReal_mul, ENNReal.toReal_inv, ENNReal.toReal_natCast,
     ENNReal.toReal_sum (fun _ _ => probOutput_ne_top)]
 
-/-- With `q > 0`, the single reduction's real-minus-random acceptance gap
-is `1/q` times the sum of its selected-epoch real-minus-random gaps.
-The signed sum retains cancellation between different epochs. -/
+/-- For `q ≠ 0`, the real-minus-random acceptance gap of `securityReduction adv q` in the IND-CPA
+experiment is `q⁻¹` times the sum over `e ∈ {1, …, q}` of those of `fixedBranch adv e`. -/
 theorem securityReduction_signed_gap_average
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : q ≠ 0) :
     (Pr[= true | base.IND_CPA_Exp ProbCompRuntime.probComp
@@ -111,8 +113,7 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
 
-/-- Outputs and coins for the three selected-epoch phases. `sampleMaterial`
-samples the online output at the recorded public key and offline state. -/
+/-- Complete material: the outputs and coins of the three sampling phases of one epoch. -/
 structure Material {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     (leak : base.OnOffRandLeak onoff) where
   /-- Public/secret key pair and the key-generation coins. -/
@@ -122,8 +123,8 @@ structure Material {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStru
   /-- Online ciphertext/shared key and its coins. -/
   on : (onoff.C₁ × K) × leak.OnRand
 
-/-- Sample one epoch's complete material using the leakage witnesses;
-the online phase receives the sampled offline state and public key. -/
+/-- Sample complete material with the leakage samplers; online encapsulation runs at the sampled
+offline state and public key. -/
 def sampleMaterial {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     (leak : base.OnOffRandLeak onoff) : ProbComp (Material leak) := do
   let kg ← leak.keygenRleak
@@ -136,9 +137,9 @@ def Material.ciphertext {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOf
     {leak : base.OnOffRandLeak onoff} (m : Material leak) : C :=
   onoff.split.symm (m.off.1.2, m.on.1.1)
 
-/-- For every result type and continuation `f(pk, ct, k)`, sampling complete
-material and discarding its secrets and coins gives the ordinary KEM
-key-generation/encapsulation computation followed by `f`. -/
+/-- For every continuation `f`, the computation `m ← sampleMaterial leak; f pk ct k`, with the
+public key, reassembled ciphertext, and shared key of `m`, equals
+`(pk, _) ← keygen; (ct, k) ← encaps pk; f pk ct k`. -/
 theorem sampleMaterial_bind_challenge
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (leak : base.OnOffRandLeak onoff) {α : Type} (f : PK → C → K → ProbComp α) :
@@ -160,9 +161,9 @@ theorem sampleMaterial_bind_challenge
   rw [← leak.encapsOn_fst]
   simp only [bind_assoc, pure_bind]
 
-/-- Every supported material value consists of supported key-generation
-and offline outputs and a supported online output at their public key and
-state. These conditions retain the dependence between sampling phases. -/
+/-- For every possible result `m` of `sampleMaterial leak`, `m.keygen` and `m.off` are possible
+results of the leaking key generation and offline encapsulation, and `m.on` is a possible result
+of leaking online encapsulation at the offline state and public key of `m`. -/
 theorem sampleMaterial_support
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     (leak : base.OnOffRandLeak onoff) (m : Material leak)
@@ -174,9 +175,8 @@ theorem sampleMaterial_support
   obtain ⟨kg, hkg, off, hoff, on, hon, rfl⟩ := hm
   exact ⟨hkg, hoff, hon⟩
 
-/-- For every supported complete material value, its key pair, offline
-output, and online output belong to the corresponding ordinary sampler
-supports. The online input is its stored offline state and public key. -/
+/-- The version of `sampleMaterial_support` for the samplers without coins: `base.keygen`,
+`onoff.encapsOff`, and `onoff.encapsOn` at the stored offline state and public key. -/
 theorem sampleMaterial_ordinary_support
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     (leak : base.OnOffRandLeak onoff) (m : Material leak)
@@ -193,10 +193,10 @@ theorem sampleMaterial_ordinary_support
   · rw [← leak.encapsOn_fst]
     exact (mem_support_bind_iff _ _ _).mpr ⟨_, hon, by simp⟩
 
-/-- For every selected epoch and KEM branch bit, the reduction's fixed
-branch equals a simulation with a complete material sample and a fresh
-uniform candidate key. Only the public key, ciphertext, and selected
-challenge response are supplied to the simulator. -/
+/-- For every selected epoch `e` and bit `b`, `fixedBranch adv e b` equals the computation that
+samples `m ← sampleMaterial leak` and a uniform key `k'`, and returns
+`run adv e pk ct (if b then k else k')` for the public key `pk`, ciphertext `ct`, and shared key
+`k` of `m`. -/
 theorem fixedBranch_eq_material
     [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
@@ -208,8 +208,8 @@ theorem fixedBranch_eq_material
       let material ← sampleMaterial leak
       let randomKey ← ($ᵗ K : ProbComp K)
       run base onoff ecEk ecCt0 ecCt1 leak adv e material.keygen.1.1 material.ciphertext
-        (if b then material.on.1.2 else randomKey)) := by
-  exact (sampleMaterial_bind_challenge base onoff leak (fun pk ct key => do
+        (if b then material.on.1.2 else randomKey)) :=
+  (sampleMaterial_bind_challenge base onoff leak (fun pk ct key => do
     let randomKey ← ($ᵗ K : ProbComp K)
     run base onoff ecEk ecCt0 ecCt1 leak adv e pk ct (if b then key else randomKey))).symm
 
@@ -221,21 +221,21 @@ namespace oppUniKemCKA.Security.Embedding.Pinned
 
 variable {K PK SK C : Type}
 
-/-- Key generation uses the stored pair in a selected phase and the
-original key-generation sampler in every other phase. -/
+/-- Key generation pinned to `m`: return the stored key pair if `selected`, and run
+`base.keygen` otherwise. -/
 def keygen {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff} (m : Material leak) (selected : Bool) : ProbComp (PK × SK) :=
   if selected then pure m.keygen.1 else base.keygen
 
-/-- Offline encapsulation uses the stored output in a selected phase and
-the original offline sampler otherwise. -/
+/-- Offline encapsulation pinned to `m`: return the stored output if `selected`, and run
+`onoff.encapsOff` otherwise. -/
 def encapsOff {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff} (m : Material leak) (selected : Bool) :
     ProbComp (onoff.St × onoff.C₀) :=
   if selected then pure m.off.1 else onoff.encapsOff
 
-/-- Online encapsulation uses the stored ciphertext/key in a selected phase
-and the original online sampler on the supplied state and public key otherwise. -/
+/-- Online encapsulation pinned to `m`: return the stored output if `selected`, and run
+`onoff.encapsOn st pk` otherwise. -/
 def encapsOn {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff} (m : Material leak) (selected : Bool)
     (st : onoff.St) (pk : PK) : ProbComp (onoff.C₁ × K) :=
@@ -255,7 +255,7 @@ abbrev kem {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     pure (onoff.split.symm (ct0, ct1), k)
   decaps _ _ := pure key
 
-/-- Constant decapsulation is deterministic for every choice of flags. -/
+/-- Deterministic-decapsulation witness for `Pinned.kem`: decapsulation returns `key`. -/
 abbrev deterministic {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff} (m : Material leak)
     (pinKeygen pinOffline pinOnline : Bool) (key : Option K) :
@@ -263,8 +263,8 @@ abbrev deterministic {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffSt
   decapsDet _ _ := key
   decaps_eq _ _ := rfl
 
-/-- The original ciphertext split with the flagged offline and online samplers; the
-encapsulation factorization holds by definition. -/
+/-- On/off structure of `Pinned.kem`: the original ciphertext split with the pinned offline and
+online samplers; the factorization holds by definition. -/
 abbrev onOff {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff} (m : Material leak)
     (pinKeygen pinOffline pinOnline : Bool) (key : Option K) :
@@ -277,8 +277,8 @@ abbrev onOff {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
   encapsOn := encapsOn m pinOnline
   factor _ := rfl
 
-/-- Leaking samplers return the stored outputs and coins of `m` for flagged phases and use the
-original leakage witness otherwise; forgetting the coins gives the samplers of `kem`. -/
+/-- Leakage witness for `Pinned.kem`: flagged phases return the stored outputs and coins of `m`,
+other phases run the samplers of `leak`; discarding coins gives the samplers of `Pinned.kem`. -/
 abbrev leakage {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     (leak : base.OnOffRandLeak onoff) (m : Material leak)
     (pinKeygen pinOffline pinOnline : Bool) (key : Option K) :

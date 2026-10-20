@@ -9,19 +9,10 @@ import SecureMessaging.SCKA.Correctness
 /-!
 # State preservation by correctness queries
 
-Let `scka : SCKAScheme ProbComp IK StA StB I Rho Rand` be a scheme, and let
-`s : GameState StA StB I Rho` be a game state. The correctness oracles provide uniform
-randomness, ordinary sends, and receives. For every query `t` and every possible result
-`(a, s')` of `(sckaCorrectnessImpl scka t).run s`:
-
-- `s'.exposed = s.exposed` and `s'.challenged = s.challenged`;
-- `s'.nA ≤ s.nA + (if isSendQuery t then 1 else 0)`;
-- a predicate on the two local states holds at `s'` if it holds at `s` and every possible
-  successful local send and every successful local receive from `s` preserves it
-  (`correctnessImpl_preserves_localInv_at`);
-- a predicate on B's key table holds at `s'` if it holds at `s` and after inserting every key
-  that a possible successful send or receive by B from `s` derives
-  (`correctnessImpl_preserves_keyBInv_at`).
+Let `scka` be an SCKA scheme over `ProbComp`. Every query of `sckaCorrectnessImpl scka` keeps
+`exposed` and `challenged` unchanged and increases A's send counter `nA` by at most one, only on
+sends. A predicate on the local states, or on B's key table, that the local send and receive
+algorithms preserve is preserved by these queries.
 -/
 
 open OracleSpec OracleComp
@@ -57,18 +48,12 @@ theorem correctnessImpl_securitySets_eq
     obtain ⟨out, _, rfl⟩ := (mem_support_oracleSendB_run_iff scka s z).mp hz
     rcases out with _ | ⟨_ | ⟨_, _⟩, _, _, _⟩ <;> exact ⟨rfl, rfl⟩
   · rcases (mem_support_oracleRecvA_run_iff scka s n z).mp hz with
-      ⟨_, rfl⟩ | ⟨_, _, _, _, rfl⟩ | ⟨_, _, key, _, _, _, _, rfl⟩
-    · exact ⟨rfl, rfl⟩
-    · exact ⟨rfl, rfl⟩
-    · rcases key with _ | ⟨_, _⟩ <;> exact ⟨rfl, rfl⟩
+      ⟨_, rfl⟩ | ⟨_, _, _, _, rfl⟩ | ⟨_, _, _ | ⟨_, _⟩, _, _, _, _, rfl⟩ <;> exact ⟨rfl, rfl⟩
   · rcases (mem_support_oracleRecvB_run_iff scka s n z).mp hz with
-      ⟨_, rfl⟩ | ⟨_, _, _, _, rfl⟩ | ⟨_, _, key, _, _, _, _, rfl⟩
-    · exact ⟨rfl, rfl⟩
-    · exact ⟨rfl, rfl⟩
-    · rcases key with _ | ⟨_, _⟩ <;> exact ⟨rfl, rfl⟩
+      ⟨_, rfl⟩ | ⟨_, _, _, _, rfl⟩ | ⟨_, _, _ | ⟨_, _⟩, _, _, _, _, rfl⟩ <;> exact ⟨rfl, rfl⟩
 
-/-- A correctness query satisfies `s'.nA ≤ s.nA + 1` if it is a send query and
-`s'.nA ≤ s.nA` otherwise. -/
+/-- Every possible successor `s'` of a correctness query `t` from `s` satisfies
+`s'.nA ≤ s.nA + 1` if `t` is a send and `s'.nA ≤ s.nA` otherwise. -/
 theorem correctnessImpl_nA_step
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (t : (sckaCorrectnessSpec Rho).Domain) (s : GameState StA StB I Rho)
@@ -87,19 +72,13 @@ theorem correctnessImpl_nA_step
     obtain ⟨out, _, rfl⟩ := (mem_support_oracleSendB_run_iff scka s z).mp hz
     rcases out with _ | ⟨_ | ⟨_, _⟩, _, _, _⟩ <;> exact Nat.le_succ _
   · rcases (mem_support_oracleRecvA_run_iff scka s n z).mp hz with
-      ⟨_, rfl⟩ | ⟨_, _, _, _, rfl⟩ | ⟨_, _, key, _, _, _, _, rfl⟩
-    · exact Nat.le_refl _
-    · exact Nat.le_refl _
-    · rcases key with _ | ⟨_, _⟩ <;> exact Nat.le_refl _
+      ⟨_, rfl⟩ | ⟨_, _, _, _, rfl⟩ | ⟨_, _, _ | ⟨_, _⟩, _, _, _, _, rfl⟩ <;> exact Nat.le_refl _
   · rcases (mem_support_oracleRecvB_run_iff scka s n z).mp hz with
-      ⟨_, rfl⟩ | ⟨_, _, _, _, rfl⟩ | ⟨_, _, key, _, _, _, _, rfl⟩
-    · exact Nat.le_refl _
-    · exact Nat.le_refl _
-    · rcases key with _ | ⟨_, _⟩ <;> exact Nat.le_refl _
+      ⟨_, rfl⟩ | ⟨_, _, _, _, rfl⟩ | ⟨_, _, _ | ⟨_, _⟩, _, _, _, _, rfl⟩ <;> exact Nat.le_refl _
 
-/-- Let `P : StA → StB → Prop` hold at `s`. If every supported successful local send and
-successful local receive from `s` preserves `P`, every correctness-query successor from `s`
-satisfies `P`. -/
+/-- Let `P : StA → StB → Prop` hold at the local states of `s`. If every possible successful
+local send and every successful local receive of a message from these states preserve `P`, then
+every possible successor of a correctness query from `s` satisfies `P`. -/
 theorem correctnessImpl_preserves_localInv_at
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) (P : StA → StB → Prop)
     (s : GameState StA StB I Rho) (hs : P s.stA s.stB)
@@ -142,8 +121,8 @@ theorem correctnessImpl_preserves_localInv_at
 /-- Let `P` be a predicate on key tables `ℕ → Option I` with `P s.keyB`. Assume that
 `P (Function.update s.keyB tI (some key))` holds for every epoch key `(tI, key)` that a possible
 successful local send by B from `s.stB` returns, and for every one that a successful local
-receive by B from `s.stB` returns. Then every correctness-query successor `s'` from `s`
-satisfies `P s'.keyB`. Queries by A and keyless queries by B leave the table unchanged. -/
+receive by B from `s.stB` returns. Then every possible successor `s'` of a correctness query
+from `s` satisfies `P s'.keyB`. -/
 theorem correctnessImpl_preserves_keyBInv_at
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) (P : (ℕ → Option I) → Prop)
     (s : GameState StA StB I Rho) (hs : P s.keyB)
@@ -171,10 +150,7 @@ theorem correctnessImpl_preserves_keyBInv_at
       · exact hs
       · exact hsb tI key msg epoch next hout
   · rcases (mem_support_oracleRecvA_run_iff scka s n z).mp hz with
-      ⟨_, rfl⟩ | ⟨_, _, _, _, rfl⟩ | ⟨_, _, key, _, _, _, _, rfl⟩
-    · exact hs
-    · exact hs
-    · rcases key with _ | ⟨_, _⟩ <;> exact hs
+      ⟨_, rfl⟩ | ⟨_, _, _, _, rfl⟩ | ⟨_, _, _ | ⟨_, _⟩, _, _, _, _, rfl⟩ <;> exact hs
   · rcases (mem_support_oracleRecvB_run_iff scka s n z).mp hz with
       ⟨_, rfl⟩ | ⟨_, _, _, _, rfl⟩ | ⟨msg, _, key, epoch, next, _, hr, rfl⟩
     · exact hs

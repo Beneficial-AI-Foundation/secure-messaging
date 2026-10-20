@@ -11,26 +11,18 @@ import SecureMessaging.SCKA.OppUniKEM.Security.IdealHybrids
 /-!
 # Opp-UniKEM security bound
 
-**Setting.** Let `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` be Opp-UniKEM with
-deterministic decapsulation, correct erasure codes for the public key and both ciphertext
-components, and the on/off and leakage witnesses `onoff`, `leak`. Let `adv` be a security
-adversary with `SecuritySendQueryBound adv q`, let `ε := (kem.correctnessError).toReal`, and let
+Let `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` be Opp-UniKEM with deterministic
+decapsulation and correct erasure codes, and with exposure policies `exposureA`, `exposureB`.
+Let `adv` be a security adversary with `SecuritySendQueryBound adv q`, let
+`ε := (kem.correctnessError ProbCompRuntime.probComp).toReal`, and let
 `B := Security.Embedding.securityReduction … adv q` be the explicit IND-CPA adversary of
-`Reduction/Simulator`. Write `p_i := Pr[idealEpochHybridExp adv i = true]`.
+`Reduction/Simulator`. Then `security` proves, for every `q : ℕ`,
 
-**Results.** `IdealHybrids` proved `security_guess_le_hybrid_gap`: the guessing advantage of
-`adv` is at most `|p_0 - p_q| / 2 + q · ε`. Here:
+`AdvGuess_SCKA(Π, adv) ≤ (q / 2) · Adv_IND-CPA(kem, B) + q · ε`,
 
-- `ideal_security_guess_le`: half the auxiliary `H_0`/`H_q` acceptance gap is at most
-  `(q / 2) · Adv_IND-CPA(kem, B)`. This ideal-world bound needs no correctness hypothesis.
-- `security`: the guessing advantage of `adv` against `Π` with exposure policies `exposureA`,
-  `exposureB` is at most `(q / 2) · Adv_IND-CPA(kem, B) + q · ε`, for every `q` including `0`.
-- `security_perfectKEM`: for a perfectly correct KEM the bound is `(q / 2) · Adv_IND-CPA(kem, B)`.
-
-At `q = 0` both sides of `security` vanish, so no sends give guessing advantage `0`.
-
-The SCKA guessing advantage is `|Pr[win] - 1/2|`, half the distinguishing gap of the two
-fixed-bit games; `IND_CPA_Advantage` is the full gap of the two IND-CPA branches
+and `security_perfectKEM` omits `q · ε` for a perfectly correct KEM. Here `AdvGuess_SCKA` is
+`|Pr[win] - 1/2|`, half the acceptance gap of the two fixed-bit games, and `Adv_IND-CPA`
+(`IND_CPA_Advantage`) is the full acceptance gap of the two IND-CPA branches
 (`IND_CPA_Advantage_eq_fixed_branch_dist`).
 -/
 
@@ -41,10 +33,10 @@ namespace oppUniKemCKA.Security
 variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- Ideal-world bound: half the auxiliary `H_0`/`H_q` acceptance gap is at most
-`(q / 2)` times the explicit reduction's KEM IND-CPA advantage. This uses only
-deterministic decapsulation, correct erasure codes, and the on/off and leakage
-witnesses; in particular it needs no KEM correctness hypothesis. -/
+/-- Assume deterministic decapsulation and correct erasure codes. For every adversary `adv` and
+every `q : ℕ`, without a send bound, the ideal hybrids satisfy
+`|Pr[H_0 = true] - Pr[H_q = true]| / 2 ≤ (q / 2) · Adv_IND-CPA(kem, B)` for
+`B := Embedding.securityReduction … adv q`. -/
 theorem ideal_security_guess_le
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -68,13 +60,13 @@ namespace oppUniKemCKA
 variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- Assume deterministic KEM decapsulation, correct erasure codes, and
-on/off factorization and leakage witnesses. For every full-interface SCKA
-adversary `adv` making at most `q` ordinary or leaking sends, its guessing
-advantage against the corrected Opp-UniKEM game is at most `(q/2)` times
-the explicit reduction's KEM IND-CPA advantage plus `q` times the KEM
-correctness error. This includes `q = 0`, adaptive challenges and corruptions,
-and arbitrary delivery of previously sent messages. -/
+/-- Let `kem` have deterministic decapsulation `hDet`, an on/off factorization `onoff`, and a
+leakage witness `leak`, and let the three erasure codes be correct. For every SCKA adversary `adv`
+against `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` with exposure policies `exposureA`,
+`exposureB`, if `adv` makes at most `q` ordinary and leaking sends on every oracle-response path,
+then `AdvGuess_SCKA(Π, adv) ≤ (q / 2) · Adv_IND-CPA(kem, B) + q · ε`, where
+`B := Security.Embedding.securityReduction … adv q` and `ε` is the KEM correctness error.
+Challenges, corruptions, and receives of recorded messages are adaptive and unbounded. -/
 -- ANCHOR: security
 theorem security
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
@@ -88,17 +80,17 @@ theorem security
       adv (exposureA kem onoff leak) (exposureB kem onoff leak) ≤
     ((q : ℝ) / 2) * kem.IND_CPA_Advantage ProbCompRuntime.probComp
       (Security.Embedding.securityReduction kem onoff ecEk ecCt0 ecCt1 leak adv q) +
-      (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal := by
+      (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal
+-- ANCHOR_END: security
+    := by
   have h := Security.security_guess_le_hybrid_gap kem onoff hDet ecEk hEk
     ecCt0 hCt0 ecCt1 hCt1 leak adv q hq
   have hideal := Security.ideal_security_guess_le kem onoff hDet ecEk hEk
     ecCt0 hCt0 ecCt1 hCt1 leak adv q
   linarith
--- ANCHOR_END: security
 
-/-- Under the assumptions of `security`, if the KEM is perfectly correct,
-then every adversary with send budget `q` has SCKA guessing advantage at most
-`(q/2)` times the explicit reduction's IND-CPA advantage. -/
+/-- Under the assumptions of `security`, if the KEM is perfectly correct, then
+`AdvGuess_SCKA(Π, adv) ≤ (q / 2) · Adv_IND-CPA(kem, B)`. -/
 -- ANCHOR: security_perfectKEM
 theorem security_perfectKEM
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
@@ -111,11 +103,12 @@ theorem security_perfectKEM
     SCKAScheme.sckaGuessAdvantage (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)
       adv (exposureA kem onoff leak) (exposureB kem onoff leak) ≤
     ((q : ℝ) / 2) * kem.IND_CPA_Advantage ProbCompRuntime.probComp
-      (Security.Embedding.securityReduction kem onoff ecEk ecCt0 ecCt1 leak adv q) := by
+      (Security.Embedding.securityReduction kem onoff ecEk ecCt0 ecCt1 leak adv q)
+-- ANCHOR_END: security_perfectKEM
+    := by
   have herror := (KEMScheme.correctnessError_eq_zero_iff_perfectlyCorrect
     kem ProbCompRuntime.probComp).2 hkem
   simpa only [herror, ENNReal.toReal_zero, mul_zero, add_zero] using
     security kem onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1 leak adv q hq
--- ANCHOR_END: security_perfectKEM
 
 end oppUniKemCKA

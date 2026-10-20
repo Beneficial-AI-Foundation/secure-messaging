@@ -12,20 +12,19 @@ import SecureMessaging.SCKA.Security
 /-!
 # The stored source material
 
-**Setting.** Fix complete material `m` and a selected epoch `e`.
-
-**Definitions.** `pinnedSources m e s`: if A holds a secret key at epoch `e`, its key pair is
-`m.keygen.1`, and if B holds an offline state at epoch `e`, its offline output is `m.off.1`.
+**Definition.** For material `m` and an epoch `e`, `pinnedSources m e s` states that A's key
+pair, when present while A is in epoch `e`, is `m.keygen.1`, and that B's offline state and
+offline ciphertext, when B holds an offline state while in epoch `e`, are `m.off.1`.
 
 **Results.**
 
-- `pinned_online_inputs`: in a transcript-consistent state satisfying `pinnedSources m e`, online
-  encapsulation by B at epoch `e` receives the public key and offline state of `m`.
-- `honestCorrectness_preserves_pinnedSources`, `pinnedSources_initial`: the correctness oracles
-  of `honestScheme m e` preserve `pinnedSources m e`, which holds in the initial state.
-- `oracleSendA_pinned_support`, `oracleSendB_pinned_support`: if `m` is supported, every
-  successor of a send with `Pinned.kem m` is a successor of the ordinary send; for B, this
-  assumes transcript consistency and `pinnedSources m e`.
+- `honestCorrectness_preserves_pinnedSources`: the correctness oracles of `honestScheme m e`
+  preserve `pinnedSources m e`.
+- `oracleSendA_pinned_support`, `oracleSendB_pinned_support`: let
+  `m ∈ support (sampleMaterial leak)`. For every state `s`, satisfying `reachableInv` and
+  `pinnedSources m e` in B's case, every possible response/state pair of a send oracle of
+  `honestScheme m e s` from `s` is a possible response/state pair of the same send oracle of
+  Opp-UniKEM over `base` from `s`.
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -34,10 +33,9 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
 
-/-- For material `m`, selected epoch `e`, and state `s`, each present
-selected-epoch key pair or offline state equals its stored material value.
-An erased or not-yet-sampled field satisfies the corresponding implication
-vacuously. -/
+/-- Predicate on game states: if A is in epoch `e` and holds a decapsulation key, then A's
+key pair `(ekA, dkA)` is `m.keygen.1`; if B is in epoch `e` and holds an offline state, then
+B's offline state and offline ciphertext `(stCt, ct0)` are `m.off.1`. -/
 def pinnedSources {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff} (m : Material leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) : Prop :=
@@ -46,8 +44,8 @@ def pinnedSources {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStruc
   (s.stB.t = e → s.stB.stCt.isSome →
     s.stB.stCt = some m.off.1.1 ∧ s.stB.ct0 = some m.off.1.2)
 
-/-- For every transcript-consistent state, absence of B's online ciphertext
-forces the parties' current epochs to agree. -/
+/-- In every state satisfying `reachableInv`, if B holds no online ciphertext, then A and B
+are in the same epoch. -/
 theorem epochs_eq_before_online
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -68,9 +66,9 @@ theorem epochs_eq_before_online
   have := hT.epochs
   omega
 
-/-- For every transcript-consistent state satisfying `pinnedSources m e`,
-if B is in epoch `e`, has decoded `pk`, retains offline state `st`, and has
-no online ciphertext, then `pk = m.keygen.1.1` and `st = m.off.1.1`. -/
+/-- In every state satisfying `reachableInv` and `pinnedSources m e`, if B is in epoch `e`,
+holds the public key `pk` and the offline state `st`, and holds no online ciphertext, then
+`pk = m.keygen.1.1` and `st = m.off.1.1`. -/
 theorem pinned_online_inputs
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -103,9 +101,9 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
 
-/-- For every material value, selected epoch, and state satisfying the
-source invariant, every supported pinned A-send preserves that invariant
-when its successor replaces A's local state. -/
+/-- Let `s` satisfy `pinnedSources m e`. For every possible successful output of A's send in
+`honestScheme m e s` from `s.stA`, with successor local state `next`, the state
+`{ s with stA := next }` satisfies `pinnedSources m e`. -/
 theorem sendA_preserves_pinnedSources
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff}
@@ -130,11 +128,7 @@ theorem sendA_preserves_pinnedSources
       Option.some.injEq, Prod.mk.injEq] at hout
     simp_all [pinnedSources] <;> aesop
 
-set_option maxHeartbeats 800000 in
--- The phase split tracks the offline fields through both online-sampling branches.
-/-- For every material value, selected epoch, and state satisfying the
-source invariant, every supported pinned B-send preserves that invariant
-when its successor replaces B's local state. -/
+/-- The version of `sendA_preserves_pinnedSources` for B. -/
 theorem sendB_preserves_pinnedSources
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff}
@@ -161,9 +155,8 @@ theorem sendB_preserves_pinnedSources
       Prod.exists, Option.some.injEq, Prod.mk.injEq] at hout
     simp_all [pinnedSources] <;> aesop
 
-/-- For every receive by B, replacing its local state by a successful
-successor preserves selected offline material: it is retained in the same
-epoch or erased on advancement. -/
+/-- Let `s` satisfy `pinnedSources m e`. If B's receive of `msg` from `s.stB` succeeds with
+successor local state `next`, then `{ s with stB := next }` satisfies `pinnedSources m e`. -/
 theorem recvB_preserves_pinnedSources [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (leak : base.OnOffRandLeak onoff)
@@ -178,8 +171,7 @@ theorem recvB_preserves_pinnedSources [DecidableEq Sym]
   · exact ⟨hs.1, by simpa only [h.1, h.2.1, h.2.2.1] using hs.2⟩
   · exact ⟨hs.1, by simp [h.2.1]⟩
 
-/-- A's receive in the honest pinned scheme preserves `pinnedSources m e`: a successful
-receive keeps or erases A's current key pair. -/
+/-- The version of `recvB_preserves_pinnedSources` for A's receive in `honestScheme m e s`. -/
 theorem recvA_preserves_pinnedSources [DecidableEq Sym]
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff}
@@ -202,10 +194,9 @@ theorem recvA_preserves_pinnedSources [DecidableEq Sym]
   · exact ⟨by simpa only [h.1, h.2.1, h.2.2] using hs.1, hs.2⟩
   · exact ⟨by simp [h.2.2.1], hs.2⟩
 
-/-- For every state satisfying `pinnedSources m e` and every query in the
-correctness interface, every supported honest pinned successor also
-satisfies that invariant. Message delivery is indexed by the existing
-tables and may repeat any available index. -/
+/-- For every state `s` satisfying `pinnedSources m e` and every correctness query, each
+possible successor state of the correctness oracles of `honestScheme m e s` satisfies
+`pinnedSources m e`. -/
 theorem honestCorrectness_preserves_pinnedSources [DecidableEq K] [DecidableEq Sym]
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff}
@@ -231,8 +222,8 @@ theorem honestCorrectness_preserves_pinnedSources [DecidableEq K] [DecidableEq S
   · exact fun msg key t next hout =>
       recvB_preserves_pinnedSources base onoff ecEk leak m e s hs msg key t next hout
 
-/-- For every material value and selected epoch, the honest initial game
-state satisfies `pinnedSources`, since both private source fields are absent. -/
+/-- The initial game state, in which neither party holds private keys or offline state,
+satisfies `pinnedSources m e`. -/
 theorem pinnedSources_initial
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (leak : base.OnOffRandLeak onoff) (m : Material leak) (e : ℕ) :
@@ -250,8 +241,8 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
 
-/-- For every supported complete material value and selection bit, every
-supported pinned key pair belongs to the original key-generation support. -/
+/-- For `m ∈ support (sampleMaterial leak)` and every flag `selected`, every possible output of
+`Pinned.keygen m selected` is a possible output of `base.keygen`. -/
 theorem pinned_keygen_support
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     (leak : base.OnOffRandLeak onoff) (m : Material leak)
@@ -263,8 +254,9 @@ theorem pinned_keygen_support
   · obtain rfl := (mem_support_pure_iff _ _).mp h
     exact (sampleMaterial_ordinary_support leak m hm).1
 
-/-- For every supported material value and state, a supported pinned
-A-send output is also supported by the original A-send computation. -/
+/-- For `m ∈ support (sampleMaterial leak)` and every state `s`, every possible output of A's
+send in `honestScheme m e s` from `s.stA` is a possible output of `sendA base onoff ecEk`
+from `s.stA`. -/
 theorem sendA_pinned_support
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (leak : base.OnOffRandLeak onoff)
@@ -285,9 +277,8 @@ theorem sendA_pinned_support
     exact ⟨pair, pinned_keygen_support leak m hm _ pair hpair, hout⟩
   | some sk => simpa only [sendA, hd] using hout
 
-/-- For every supported material value, a transcript-consistent state
-satisfying the source invariant, and a supported pinned B-send output,
-that output also belongs to the original B-send support. -/
+/-- The version of `sendA_pinned_support` for B, for states `s` satisfying `reachableInv`
+and `pinnedSources m e`. -/
 theorem sendB_pinned_support
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -352,9 +343,9 @@ theorem sendB_pinned_support
             | exact hout
             | cases hst : s.stB.stCt <;> simpa only [hst] using hout
 
-/-- Fix supported material and an honest state. Every response/state pair
-of the pinned A-send oracle is supported by the original A-send oracle,
-including message-table, key-table, and correctness bookkeeping. -/
+/-- For `m ∈ support (sampleMaterial leak)` and every state `s`, every possible response/state
+pair of A's send oracle of `honestScheme m e s` from `s` is a possible response/state pair of
+A's send oracle of `scheme base …` from `s`. -/
 theorem oracleSendA_pinned_support [DecidableEq K] [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (hDet : base.DeterministicDecaps)
@@ -373,9 +364,8 @@ theorem oracleSendA_pinned_support [DecidableEq K] [DecidableEq Sym]
   obtain ⟨out, hout, hz⟩ := hz
   exact ⟨out, sendA_pinned_support base onoff ecEk leak m hm e s out hout, hz⟩
 
-/-- Fix supported material and a transcript-consistent state satisfying
-`pinnedSources m e`. Every response/state pair of the pinned B-send oracle
-is supported by the original B-send oracle. -/
+/-- The version of `oracleSendA_pinned_support` for B, for states `s` satisfying
+`reachableInv` and `pinnedSources m e`. -/
 theorem oracleSendB_pinned_support [DecidableEq K] [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (hDet : base.DeterministicDecaps)

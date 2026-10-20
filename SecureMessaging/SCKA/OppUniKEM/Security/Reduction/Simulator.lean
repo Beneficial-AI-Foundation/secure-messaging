@@ -9,28 +9,23 @@ import SecureMessaging.SCKA.OppUniKEM.Security.Basic
 /-!
 # The IND-CPA adversary
 
-**Setting.** Let `adv` be a security adversary against Opp-UniKEM, `e : ℕ` a selected epoch, and
-`(pkStar, ctStar, kStar)` an IND-CPA challenge: a public key, a ciphertext, and a key. The
-simulation *marks* private values: `some x` is a known value `x` and `none` an unavailable value.
-An outer `Option` records presence in the protocol state, so a field is `none` when erased,
-`some none` when present but unavailable, and `some (some x)` when present and known.
+**Setting.** Let `adv` be a security adversary against Opp-UniKEM, `q` a send budget, `e : ℕ` a
+selected epoch, and `(pkStar, ctStar, kStar)` an IND-CPA challenge: a public key, a ciphertext,
+and a candidate key. The simulator *marks* private values: `some x` is a known value `x` and
+`none` an unavailable value. An outer `Option` records presence in the protocol state, so a field
+is `none` when absent, `some none` when present but unavailable, and `some (some x)` when present
+and known.
 
-**Definitions.**
+**Definitions.** The IND-CPA adversary `securityReduction adv q` samples `e ← epochChoice q` and
+returns `run adv e pkStar ctStar kStar`: the output of `adv` against the simulator oracles
+`oracle e pkStar ctStar kStar`, or `false` if the simulation terminates.
 
-- `keygen`, `encapsOff`, `encapsOn`, and the KEM `kem` with `onOff`, `deterministic`, `leakage`:
-  in the selected epoch, key generation and encapsulation return `pkStar` and the components of
-  `ctStar` with unavailable secrets, key, and coins; in other epochs they run the original
-  samplers and mark their results as known. Decapsulation returns B's marked recorded key.
-- `oracle e pkStar ctStar kStar`: the security oracles of Opp-UniKEM with these primitives on
-  marked states (`SimState`). An eligible challenge at epoch `t` returns a uniform key if
-  `0 < t < e`, `kStar` if `t = e`, and the recorded key otherwise (`challenge`). A permitted
-  corruption or leaking send whose answer contains an unavailable value stops the simulation
-  (`revealA`, `revealB`, `revealCoins`).
-- `run adv e pkStar ctStar kStar`: runs `adv` against `oracle` from the initial state `initial`
-  and returns its output, or `false` if the simulation stopped.
-- `epochChoice q`: the uniform distribution on `1, …, q`, and epoch `1` if `q = 0`.
-- `securityReduction adv q`: the IND-CPA adversary that keeps `pkStar`, samples
-  `e ← epochChoice q`, and returns `run adv e pkStar ctStar kStar` on the challenge.
+- In epoch `e`, A's key generation returns `pkStar` and B's encapsulation returns `ctStar`, with
+  unavailable secret key, offline state, shared key, and coins; other epochs sample honestly.
+- An eligible challenge at epoch `t` returns a uniform key if `0 < t < e`, `kStar` if `t = e`,
+  and the recorded key otherwise.
+- A permitted corruption or leaking send whose answer contains an unavailable value terminates
+  the simulation.
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -39,25 +34,23 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C : Type}
 
-/-- Key generation for a simulator query. When `selected = true`, return
-`pkStar` with an unavailable secret; otherwise sample an honest key pair
-and mark its secret as known. -/
+/-- Simulator key generation: if `selected`, return `pkStar` with an unavailable secret key;
+otherwise run `kem.keygen` and mark the secret key as known. -/
 -- ANCHOR: embedding_primitives
 def keygen (kem : KEMScheme ProbComp K PK SK C) (selected : Bool) (pkStar : PK) :
     ProbComp (PK × Option SK) :=
   if selected then pure (pkStar, none) else Prod.map id some <$> kem.keygen
 
-/-- Offline encapsulation for a simulator query. In the selected epoch,
-return the offline component of `ctStar` with unavailable offline state;
-otherwise sample the original offline algorithm. -/
+/-- Simulator offline encapsulation: if `selected`, return the offline component of `ctStar`
+with an unavailable offline state; otherwise run `onoff.encapsOff` and mark the state as known. -/
 def encapsOff {kem : KEMScheme ProbComp K PK SK C} (onoff : kem.OnOffStructure)
     (selected : Bool) (ctStar : C) : ProbComp (Option onoff.St × onoff.C₀) :=
   if selected then pure (none, (onoff.split ctStar).1)
   else Prod.map some id <$> onoff.encapsOff
 
-/-- Online encapsulation uses the original algorithm for known offline
-state. Unavailable state denotes the selected epoch: return `ctStar`'s
-online component and mark its honest encapsulated key as unavailable. -/
+/-- Simulator online encapsulation: for an unavailable offline state, return the online
+component of `ctStar` with an unavailable shared key; for a known state `st`, run
+`onoff.encapsOn st pk` and mark the key as known. -/
 def encapsOn {kem : KEMScheme ProbComp K PK SK C} (onoff : kem.OnOffStructure)
     (ctStar : C) (st : Option onoff.St) (pk : PK) : ProbComp (onoff.C₁ × Option K) :=
   match st with
@@ -65,9 +58,10 @@ def encapsOn {kem : KEMScheme ProbComp K PK SK C} (onoff : kem.OnOffStructure)
   | some st => Prod.map id some <$> onoff.encapsOn st pk
 -- ANCHOR_END: embedding_primitives
 
-/-- KEM used for one simulator query. `selectedA` and `selectedB` identify
-whether each role is in the selected epoch. `key` is B's recorded symbolic
-key for A's current epoch and is used for auxiliary decapsulation. -/
+/-- Marked KEM answering one simulator query. Key generation uses `pkStar` if `selectedA` (A is
+in the selected epoch); offline encapsulation uses `ctStar` if `selectedB`, and online
+encapsulation does so for an unavailable offline state. Decapsulation ignores its inputs and
+returns `key`, B's recorded marked key for A's current epoch, as in the ideal game. -/
 abbrev kem (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (selectedA selectedB : Bool) (pkStar : PK) (ctStar : C) (key : Option (Option K)) :
     KEMScheme ProbComp (Option K) PK (Option SK) C where
@@ -78,17 +72,15 @@ abbrev kem (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     pure (onoff.split.symm (ct0, ct1), key)
   decaps _ _ := pure key
 
-/-- The simulator's constant decapsulation is deterministic and returns
-its supplied auxiliary key `key`, including an unavailable selected key. -/
+/-- Deterministic-decapsulation witness for `kem`: decapsulation returns the constant `key`. -/
 abbrev deterministic (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (selectedA selectedB : Bool) (pkStar : PK) (ctStar : C) (key : Option (Option K)) :
     (kem base onoff selectedA selectedB pkStar ctStar key).DeterministicDecaps where
   decapsDet _ _ := key
   decaps_eq _ _ := rfl
 
-/-- The simulator retains the original ciphertext split and marks its
-offline state as known or unavailable. Its encapsulation factors into the
-simulator's offline and online algorithms by construction. -/
+/-- On/off structure of `kem`: the original ciphertext split, marked offline states, and the
+algorithms `encapsOff` and `encapsOn`; the factorization holds by definition. -/
 abbrev onOff (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (selectedA selectedB : Bool) (pkStar : PK) (ctStar : C) (key : Option (Option K)) :
     (kem base onoff selectedA selectedB pkStar ctStar key).OnOffStructure where
@@ -100,24 +92,26 @@ abbrev onOff (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
   encapsOn := encapsOn onoff ctStar
   factor _ := rfl
 
-/-- Leaking key generation returns unavailable coins in the selected epoch
-and the original leakage sample, with known secret and coins, otherwise. -/
+/-- Leaking version of `keygen`: if `selected`, return `pkStar` with unavailable secret key and
+coins; otherwise run `leak.keygenRleak` and mark the secret key and coins as known. -/
 def keygenLeak {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     (leak : base.OnOffRandLeak onoff) (selected : Bool) (pkStar : PK) :
     ProbComp ((PK × Option SK) × Option leak.KeygenRand) :=
   if selected then pure ((pkStar, none), none)
   else (fun z => ((z.1.1, some z.1.2), some z.2)) <$> leak.keygenRleak
 
-/-- Leaking offline encapsulation returns unavailable state and coins in
-the selected epoch; all other epochs use the original leakage algorithm. -/
+/-- Leaking version of `encapsOff`: if `selected`, return the offline component of `ctStar` with
+unavailable state and coins; otherwise run `leak.encapsOffRleak` and mark the state and coins as
+known. -/
 def offLeak {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     (leak : base.OnOffRandLeak onoff) (selected : Bool) (ctStar : C) :
     ProbComp ((Option onoff.St × onoff.C₀) × Option leak.OffRand) :=
   if selected then pure ((none, (onoff.split ctStar).1), none)
   else (fun z => ((some z.1.1, z.1.2), some z.2)) <$> leak.encapsOffRleak
 
-/-- Leaking online encapsulation returns unavailable key and coins for the
-selected offline state; known states use the original leakage algorithm. -/
+/-- Leaking version of `encapsOn`: for an unavailable offline state, return the online component
+of `ctStar` with unavailable key and coins; for a known state, run `leak.encapsOnRleak` and mark
+the key and coins as known. -/
 def onLeak {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     (leak : base.OnOffRandLeak onoff) (ctStar : C) (st : Option onoff.St) (pk : PK) :
     ProbComp ((onoff.C₁ × Option K) × Option leak.OnRand) :=
@@ -125,8 +119,8 @@ def onLeak {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
   | none => pure (((onoff.split ctStar).2, none), none)
   | some st => (fun z => ((z.1.1, some z.1.2), some z.2)) <$> leak.encapsOnRleak st pk
 
-/-- Simulator leakage witnesses. Forgetting the marked coins recovers
-each ordinary simulator algorithm, by the original leakage marginal laws. -/
+/-- Leakage witness for `kem` with samplers `keygenLeak`, `offLeak`, and `onLeak`: discarding
+their coins gives `keygen`, `encapsOff`, and `encapsOn`, by the marginal laws of `leak`. -/
 abbrev leakage (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (leak : base.OnOffRandLeak onoff)
     (selectedA selectedB : Bool) (pkStar : PK) (ctStar : C) (key : Option (Option K)) :
@@ -139,28 +133,13 @@ abbrev leakage (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructur
   encapsOffRleak := offLeak leak selectedB ctStar
   encapsOnRleak := onLeak leak ctStar
   keygen_fst := by
-    cases selectedA
-    · change (do let z ← keygenLeak leak false pkStar; pure z.1) = keygen base false pkStar
-      simp only [keygenLeak, keygen, Bool.false_eq_true, ↓reduceIte, bind_map_left]
-      rw [← leak.keygen_fst]
-      simp [map_eq_bind_pure_comp, bind_assoc, Prod.map, id]
-    · simp [keygenLeak, keygen]
+    cases selectedA <;>
+      simp [keygenLeak, keygen, ← leak.keygen_fst, map_eq_bind_pure_comp, Prod.map]
   encapsOff_fst := by
-    cases selectedB
-    · change (do let z ← offLeak leak false ctStar; pure z.1) = encapsOff onoff false ctStar
-      simp only [offLeak, encapsOff, Bool.false_eq_true, ↓reduceIte, bind_map_left]
-      rw [← leak.encapsOff_fst]
-      simp [map_eq_bind_pure_comp, bind_assoc, Prod.map, id]
-    · simp [offLeak, encapsOff]
+    cases selectedB <;>
+      simp [offLeak, encapsOff, ← leak.encapsOff_fst, map_eq_bind_pure_comp, Prod.map]
   encapsOn_fst st pk := by
-    cases st with
-    | none => simp [onLeak, encapsOn]
-    | some st =>
-      change (do let z ← onLeak leak ctStar (some st) pk; pure z.1) =
-        encapsOn onoff ctStar (some st) pk
-      simp only [onLeak, encapsOn, bind_map_left]
-      rw [← leak.encapsOn_fst st pk]
-      simp [map_eq_bind_pure_comp, bind_assoc, Prod.map, id]
+    cases st <;> simp [onLeak, encapsOn, ← leak.encapsOn_fst, map_eq_bind_pure_comp, Prod.map]
 
 end oppUniKemCKA.Security.Embedding
 
@@ -170,15 +149,15 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
 
-/-- Simulator state: private keys, offline states, and honest epoch keys
-are individually marked as known (`some`) or unavailable (`none`). -/
+/-- Simulator game state: the security-game state with A's secret key, B's offline state, and
+the recorded keys marked. -/
 abbrev SimState {base : KEMScheme ProbComp K PK SK C} (onoff : base.OnOffStructure)
     (Sym : Type) :=
   SCKAScheme.GameState (StateA (Option SK) PK onoff.C₀ Sym)
     (StateB PK onoff.C₀ onoff.C₁ (Option onoff.St) Sym) (Option K) (Message Sym)
 
-/-- Recover an optional secret field. An erased field returns `some none`;
-a present unavailable secret returns `none`, signaling termination. -/
+/-- Unmark an optional field: an absent field gives `some none`, a known value `x` gives
+`some (some x)`, and a present unavailable value gives `none`, signaling termination. -/
 -- ANCHOR: embedding_revealField
 def revealField {α : Type} : Option (Option α) → Option (Option α)
   | none => some none
@@ -186,25 +165,24 @@ def revealField {α : Type} : Option (Option α) → Option (Option α)
   | some (some a) => some (some a)
 -- ANCHOR_END: embedding_revealField
 
-/-- Recover A's original state for a permitted corruption, failing exactly
-when its current decapsulation key is present but unavailable. -/
+/-- Unmark A's state for a permitted corruption; the result is `none` exactly when A's secret key
+is present but unavailable. -/
 def revealA {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     (s : StateA (Option SK) PK onoff.C₀ Sym) : Option (StA onoff Sym) := do
   let dk ← revealField s.dkA
   pure { dkA := dk, ekA := s.ekA, ct0 := s.ct0, t := s.t,
          ich := s.ich, lch := s.lch, ack := s.ack }
 
-/-- Recover B's original state for a permitted corruption, failing exactly
-when its offline encapsulation state is present but unavailable. -/
+/-- Unmark B's state for a permitted corruption; the result is `none` exactly when B's offline
+state is present but unavailable. -/
 def revealB {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     (s : StateB PK onoff.C₀ onoff.C₁ (Option onoff.St) Sym) : Option (StB onoff Sym) := do
   let st ← revealField s.stCt
   pure { ekA := s.ekA, ct0 := s.ct0, ct1 := s.ct1, stCt := st, t := s.t,
          ich := s.ich, lch := s.lch, ack := s.ack }
 
-/-- Recover the coins returned by a leaking send. Deterministic sends
-return `some SendRand.none`; a sampling phase with unavailable coins
-returns `none`, signaling termination. -/
+/-- Unmark the coins returned by a leaking send: the result is `none` exactly when a returned coin
+is unavailable, and `SendRand.none` gives `some SendRand.none`. -/
 -- ANCHOR: embedding_revealCoins
 def revealCoins {KG OFF ON : Type} :
     SendRand (Option KG) (Option OFF) (Option ON) → Option (SendRand KG OFF ON)
@@ -215,31 +193,31 @@ def revealCoins {KG OFF ON : Type} :
   | .offOn r₀ r₁ => do pure (.offOn (← r₀) (← r₁))
 -- ANCHOR_END: embedding_revealCoins
 
-/-- Convert an optional oracle response using `reveal`. Rejection (`none`)
-is returned normally; an unavailable successful response terminates. -/
+/-- Apply `reveal` to an optional oracle answer: a rejection `none` gives `some none`, and an
+answer `a` gives `some <$> reveal a`, which is `none` (termination) when `reveal a = none`. -/
 def revealResponse {α β : Type} (reveal : α → Option β) : Option α → Option (Option β)
   | none => some none
   | some a => some <$> reveal a
 
-/-- Apply a response conversion after a stateful oracle operation. A
-failed conversion terminates the enclosing `OptionT` simulation. -/
+/-- Run `op` and apply `reveal` to its answer in `OptionT`: the answer is `none`, which
+terminates the simulation, when `reveal` fails; the successor state of `op` is kept. -/
 def revealAfter {σ α β : Type} (reveal : α → Option β) (op : StateT σ ProbComp α) :
     OptionT (StateT σ ProbComp) β :=
   OptionT.mk (do pure (reveal (← op)))
 
-/-- For every operation `op` and initial state `s`, response conversion
-returns `reveal a` and retains the successor state sampled by `op`. -/
+/-- From state `s`, `revealAfter reveal op` runs `op` from `s` and returns `reveal a` with the
+successor state of `op`. -/
 theorem revealAfter_run {σ α β : Type} (reveal : α → Option β)
     (op : StateT σ ProbComp α) (s : σ) :
     ((revealAfter reveal op).run).run s =
       (do let (a, s') ← op.run s; pure (reveal a, s')) := by
   rfl
 
-/-- Challenge oracle for selected epoch `e` and supplied KEM key `kStar`.
-Eligible epochs below `e` return independent uniform keys; the selected
-epoch returns `kStar`; later epochs return their recorded known keys.
-Exposed, repeated, and unavailable-table challenges return `none`.
-Every challenge preserves both honest key tables. -/
+/-- Simulator challenge oracle for selected epoch `e` and candidate key `kStar`. A query `t` is
+rejected (`none`) if `t` is exposed or challenged or no key is recorded for `t`, with A's table
+consulted before B's. Otherwise it inserts `t` into `challenged` and returns a uniform key if
+`0 < t < e`, `kStar` if `t = e`, and else the recorded key if known and `kStar` if unavailable.
+The key tables are unchanged. -/
 -- ANCHOR: embedding_challenge
 def challenge [SampleableType K]
     {base : KEMScheme ProbComp K PK SK C} (onoff : base.OnOffStructure)
@@ -261,11 +239,12 @@ def challenge [SampleableType K]
         pure (some k)
 -- ANCHOR_END: embedding_challenge
 
-/-- Full selected-epoch oracle simulator. For each query, instantiate the
-original protocol with marked KEM primitives at the roles' current epochs.
-Corruption and leaking-send guards run before response conversion, so a
-rejected exposure query returns its rejection response. Successful exposure requiring
-an unavailable secret or coin terminates through `OptionT`. -/
+/-- Simulator oracles for selected epoch `e` and IND-CPA challenge `(pkStar, ctStar, kStar)`, on
+marked states. A query from state `s` is answered by the Opp-UniKEM security oracles over
+`kem` with `selectedA := (s.stA.t = e)`, `selectedB := (s.stB.t = e)`, and decapsulation result
+`s.keyB s.stA.t`; challenges use `challenge e kStar`. A corruption or leaking send applies its
+exposure guard before unmarking its answer: a rejected query answers `none` and the simulation
+continues, while a permitted answer containing an unavailable value terminates the simulation. -/
 -- ANCHOR: embedding_oracle
 def oracle [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
@@ -310,9 +289,8 @@ def oracle [DecidableEq K] [DecidableEq Sym] [SampleableType K]
           (StateA (Option SK) PK onoff.C₀ Sym) (Option K) (Message Sym) u)
 -- ANCHOR_END: embedding_oracle
 
-/-- Initial simulator state: both parties start in epoch one, local
-secret fields are absent, and message and key tables and exposure and
-challenge sets are empty. -/
+/-- Initial simulator state: both parties at epoch `1` with all optional local fields absent and
+counters zero; empty message and key tables and empty exposure and challenge sets. -/
 def initial {base : KEMScheme ProbComp K PK SK C} (onoff : base.OnOffStructure) :
     SimState onoff Sym :=
   SCKAScheme.initGameState
@@ -321,10 +299,8 @@ def initial {base : KEMScheme ProbComp K PK SK C} (onoff : base.OnOffStructure) 
     { ekA := none, ct0 := none, ct1 := none, stCt := none, t := 1, ich := 0, lch := ∅,
       ack := { ekRec := false, ctRec := false } }
 
-/-- For inputs `adv`, selected epoch `e`, and challenge tuple
-`(pkStar, ctStar, kStar)`, execute the simulator from `initial onoff`.
-Return the adversary's output on completion and `false` on exposure
-termination. Selected private material is represented by unavailable markers. -/
+/-- Run `adv` against `oracle e pkStar ctStar kStar` from `initial onoff`; return the output of
+`adv`, or `false` if the simulation terminates. -/
 -- ANCHOR: embedding_run
 def run [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
@@ -338,8 +314,7 @@ def run [DecidableEq K] [DecidableEq Sym] [SampleableType K]
   pure (result.getD false)
 -- ANCHOR_END: embedding_run
 
-/-- Select an epoch uniformly from `{1, …, q}` when `q > 0`. For `q = 0`,
-return epoch one; the zero-send security theorem treats that case separately. -/
+/-- The uniform distribution on `{1, …, q}` if `q > 0`, and the epoch `1` if `q = 0`. -/
 -- ANCHOR: embedding_epochChoice
 def epochChoice (q : ℕ) : ProbComp ℕ :=
   if hq : q = 0 then pure 1
@@ -348,10 +323,9 @@ def epochChoice (q : ℕ) : ProbComp ℕ :=
     (fun i : Fin q => i.val + 1) <$> ($ᵗ (Fin q) : ProbComp (Fin q))
 -- ANCHOR_END: embedding_epochChoice
 
-/-- Single IND-CPA reduction for a send budget `q`. The first stage chooses
-an epoch uniformly from `1, …, q` and saves the challenge public key. The
-second stage executes the selected-epoch simulator and returns its Boolean
-output, including `false` on unavailable-secret exposure. -/
+/-- IND-CPA adversary against `base` constructed from `adv` and send budget `q`. Given `pk`, its
+first stage samples `e ← epochChoice q`; given the challenge `(ct, k)`, its second stage returns
+`run adv e pk ct k`. -/
 -- ANCHOR: securityReduction
 def securityReduction [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)

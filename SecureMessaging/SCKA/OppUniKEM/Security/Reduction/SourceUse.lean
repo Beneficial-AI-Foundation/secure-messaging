@@ -11,24 +11,27 @@ import SecureMessaging.SCKA.OppUniKEM.Security.Basic
 /-!
 # Single use of the source samples
 
-**Setting.** A *source phase* is key generation (`.keygen`, sent by A) or offline encapsulation
-(`.offline`, sent by B). Fix a stage, material `m`, a selected epoch `e`, and a mode bit.
+One-use conditions of `stoppedRun_sample_once_eq` for the stored key-generation and offline
+outputs of the selected epoch.
+
+**Setting.** A *source phase* is A's key generation (`.keygen`) or B's offline encapsulation
+(`.offline`); neither sampler takes protocol-state input. Let `stage` be a sampling stage, `m`
+complete material, `e` a selected epoch, and `b` a mode bit.
 
 **Definitions.**
 
-- `sourceUsed phase e a b`: the party of `phase` has advanced past epoch `e`, or is at `e` with the
-  phase's output present (A's secret key, B's offline ciphertext).
-- `usesSource phase e t s`: query `t` is that party's ordinary send at `e` with the output absent,
-  or its leaking send there with `e` unchallenged.
+- `sourceUsed phase e s.stA s.stB`: the party running `phase` has passed epoch `e`, or is at `e`
+  with the phase output present (A's decapsulation key, B's offline ciphertext).
+- `usesSource phase e t s`: query `t` is that party's ordinary send, or its leaking send with
+  `e ∉ s.challenged`, while the party is at `e` with the phase output absent.
 
-**Results.** These are the one-use conditions of `stoppedRun_sample_once_eq` for the stored
-source samples:
+**Results.** For the oracles `oracle stage m e b`:
 
-- `oracle_preserves_sourceUsed`: every staged query preserves `sourceUsed phase e`;
-- `usesSource_false_of_used`: no query uses a source phase that has been used;
-- `oracle_first_source_use`: every successor of a query using the phase in which `e` is unexposed
-  satisfies `sourceUsed phase e`; an ordinary send installs the output, and an accepted leaking
-  send exposes `e` (`leaking_keygen_stops`, `leaking_offline_stops`).
+- `oracle_preserves_sourceUsed`: every query preserves `sourceUsed phase e`;
+- `usesSource_false_of_used`: if `sourceUsed phase e` holds, `usesSource phase e t s = false`;
+- `oracle_first_source_use`: if `usesSource phase e t s = true`, every possible successor state
+  in which `e` is unexposed satisfies `sourceUsed phase e`. An ordinary send installs the output;
+  an accepted leaking send exposes `e`.
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -37,7 +40,7 @@ namespace oppUniKemCKA.Security.Embedding.Sampling
 
 variable {K PK SK C Sym : Type}
 
-/-- The two source phases whose samplers have no protocol-state input. -/
+/-- The selected-epoch sampling phases whose samplers take no protocol-state input. -/
 inductive SourcePhase where
   /-- A's generation of the epoch key pair. -/
   | keygen
@@ -45,16 +48,16 @@ inductive SourcePhase where
   | offline
   deriving DecidableEq
 
-/-- Phase `phase` at epoch `e` has been used if its party has advanced past
-`e`, or is at `e` with the phase output installed in its local state. -/
+/-- Phase `phase` of epoch `e` has been used: its party has passed `e`, or is at `e` with the
+phase output present in its local state. -/
 def sourceUsed {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     (phase : SourcePhase) (e : ℕ) (a : StA onoff Sym) (b : StB onoff Sym) : Prop :=
   match phase with
   | .keygen => e < a.t ∨ (a.t = e ∧ a.dkA.isSome)
   | .offline => e < b.t ∨ (b.t = e ∧ b.ct0.isSome)
 
-/-- Every supported successful A-send retains A's epoch and leaves a
-present decapsulation key, for any KEM and input local state. -/
+/-- For every KEM and local state `a`, every possible successful result of `sendA a` keeps
+A's epoch and has A's decapsulation key present. -/
 theorem sendA_source_shape
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (a : StA onoff Sym)
@@ -68,10 +71,8 @@ theorem sendA_source_shape
       Option.some.injEq, Prod.mk.injEq] at h
     aesop
 
-set_option maxHeartbeats 800000 in
--- The branch split includes combined offline/online encapsulation.
-/-- Every supported successful B-send retains B's epoch and leaves a
-present offline ciphertext, for any KEM and input local state. -/
+/-- For every KEM and local state `b`, every possible successful result of `sendB b` keeps
+B's epoch and has B's offline ciphertext present. -/
 theorem sendB_source_shape
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
@@ -90,8 +91,8 @@ theorem sendB_source_shape
 
 variable [DecidableEq K] [DecidableEq Sym]
 
-/-- For every sampling stage, source phase, epoch, and input state where
-that phase has been used, every correctness query preserves its used status. -/
+/-- If `sourceUsed phase e` holds in `s`, it holds in every possible successor state of a
+correctness query of `schemeAt stage m e s` from `s`. -/
 theorem correctness_preserves_sourceUsed
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -112,7 +113,7 @@ theorem correctness_preserves_sourceUsed
     have hshape := sendA_source_shape
       (Pinned.kem m (stage.pinsKeygen && decide (s.stA.t = e))
         (stage.pinsOffline && decide (s.stB.t = e))
-        (stage.pinsOnline && decide (s.stB.t = e)) (s.keyB s.stA.t))
+        false (s.keyB s.stA.t))
       (Pinned.onOff m _ _ _ _) ecEk s.stA key msg epoch next hout
     cases phase with
     | keygen =>
@@ -124,7 +125,7 @@ theorem correctness_preserves_sourceUsed
     have hshape := sendB_source_shape
       (Pinned.kem m (stage.pinsKeygen && decide (s.stA.t = e))
         (stage.pinsOffline && decide (s.stB.t = e))
-        (stage.pinsOnline && decide (s.stB.t = e)) (s.keyB s.stA.t))
+        false (s.keyB s.stA.t))
       (Pinned.onOff m _ _ _ _) ecCt0 ecCt1 s.stB key msg epoch next hout
     cases phase with
     | keygen => exact hs
@@ -133,7 +134,7 @@ theorem correctness_preserves_sourceUsed
       · exact Or.inl (by simpa only [hshape.1] using h)
       · exact Or.inr ⟨hshape.1.trans h, hshape.2⟩
   · intro msg key epoch next hout
-    rw [recvA_eq_auxiliary] at hout
+    rw [recvA_eq_ideal] at hout
     have hshape := oppUniKemCKA.Reduction.Internal.recvA_kem_source_shape
       base onoff (fun _ _ => s.keyB s.stA.t)
       ecCt0 ecCt1 s.stA msg key epoch next hout
@@ -155,8 +156,7 @@ theorem correctness_preserves_sourceUsed
       · apply Or.inl
         rcases hs with hs | ⟨hs, _⟩ <;> omega
 
-/-- For every stage, material value, epoch, mode, and phase, every sampling-stage query
-preserves `sourceUsed phase e`. -/
+/-- `oracle stage m e b` preserves `sourceUsed phase e`. -/
 theorem oracle_preserves_sourceUsed [SampleableType K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -180,8 +180,7 @@ namespace oppUniKemCKA.Security.Embedding.Sampling
 
 variable {K PK SK C Sym : Type}
 
-/-- For every KEM and local A-state, `none` has zero support
-in the ordinary send computation: each branch returns a protocol output. -/
+/-- Every possible result of A's local ordinary send is successful. -/
 theorem sendA_none_not_mem_support
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -190,9 +189,7 @@ theorem sendA_none_not_mem_support
   cases hd : s.dkA <;> cases hp : s.ekA <;> cases ha : s.ack.ekRec <;>
     simp [sendA, hd, hp, ha]
 
-/-- For every KEM and leakage witness and local A-state, `none` has zero support
-in the leaking send computation. Derived from `sendA_none_not_mem_support` through the
-coin-forgetting image. -/
+/-- Every possible result of A's local leaking send is successful. -/
 theorem sendArleak_none_not_mem_support
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -204,8 +201,7 @@ theorem sendArleak_none_not_mem_support
   rw [sendA_eq_map_sendArleak base onoff ecEk leak s, support_map]
   exact ⟨none, h, rfl⟩
 
-/-- For every KEM and local B-state, `none` has zero support
-in the ordinary send computation: each branch returns a protocol output. -/
+/-- Every possible result of B's local ordinary send is successful. -/
 theorem sendB_none_not_mem_support
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
@@ -216,9 +212,7 @@ theorem sendB_none_not_mem_support
     cases hst : s.stCt <;> cases ha : s.ack.ctRec <;>
     simp [sendB, hc0, hp, hc1, hst, ha]
 
-/-- For every KEM and leakage witness and local B-state, `none` has zero support
-in the leaking send computation. Derived from `sendB_none_not_mem_support` through the
-coin-forgetting image. -/
+/-- Every possible result of B's local leaking send is successful. -/
 theorem sendBrleak_none_not_mem_support
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
@@ -239,8 +233,9 @@ namespace oppUniKemCKA.Security.Embedding.Sampling
 
 variable {K PK SK C Sym : Type}
 
-/-- Whether query `t` invokes source phase `phase` in selected epoch `e`.
-For leaking sends the test includes the selected-epoch exposure guard. -/
+/-- Whether query `t` from `s` runs source phase `phase` of epoch `e`: the party's ordinary
+send, or its leaking send with `e ∉ s.challenged`, while the party is at `e` with the phase
+output absent. -/
 def usesSource {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff} (phase : SourcePhase) (e : ℕ)
     (t : (securitySpec leak Sym).Domain)
@@ -256,9 +251,8 @@ def usesSource {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructur
     decide ((s.stB.t = e ∧ s.stB.ct0.isNone) ∧ e ∉ s.challenged)
   | _, _ => false
 
-/-- For every phase, epoch, query, and state where the phase is used,
-`usesSource` is false. Its field remains present in that epoch, or the
-party has already advanced beyond the selected epoch. -/
+/-- If `sourceUsed phase e s.stA s.stB`, then `usesSource phase e t s = false` for every
+query `t`. -/
 theorem usesSource_false_of_used
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff} (phase : SourcePhase) (e : ℕ)
@@ -287,8 +281,8 @@ theorem usesSource_false_of_used
 
 variable [DecidableEq K] [DecidableEq Sym]
 
-/-- For every stage and state with party A at the selected epoch,
-every supported ordinary A-send successor satisfies `sourceUsed .keygen`. -/
+/-- If A is at epoch `e` in `s`, every possible successor state of A's ordinary send from `s`
+satisfies `sourceUsed .keygen e`. -/
 theorem oracleSendA_installs_source
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -313,16 +307,16 @@ theorem oracleSendA_installs_source
     have hshape := sendA_source_shape
       (Pinned.kem m (stage.pinsKeygen && decide (s.stA.t = e))
         (stage.pinsOffline && decide (s.stB.t = e))
-        (stage.pinsOnline && decide (s.stB.t = e)) (s.keyB s.stA.t))
+        false (s.keyB s.stA.t))
       (Pinned.onOff m _ _ _ _) ecEk s.stA key msg epoch next hout
     cases key <;>
       simp only [StateT.run_bind, StateT.run_set, pure_bind,
         StateT.run_pure, mem_support_pure_iff] at hz
     all_goals obtain rfl := hz; exact Or.inr ⟨hshape.1.trans he, hshape.2⟩
 
-/-- If party A is at `e` with its source field absent and `e` has not
-been challenged, its leaking source send terminates the stopped game in
-every sampling stage, because the accepted coins expose `e`. -/
+/-- If A is at epoch `e` with no decapsulation key and `e ∉ s.challenged`, A's leaking send
+from `s`, stopped on exposure of `e`, answers `none` on every possible path: the send is
+accepted and its coins expose `e`. -/
 theorem leaking_keygen_stops
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -344,15 +338,14 @@ theorem leaking_keygen_stops
     have hex := sendArleak_exposure
       (Pinned.kem m (stage.pinsKeygen && decide (s.stA.t = e))
         (stage.pinsOffline && decide (s.stB.t = e))
-        (stage.pinsOnline && decide (s.stB.t = e)) (s.keyB s.stA.t))
+        false (s.keyB s.stA.t))
       (Pinned.onOff m _ _ _ _) ecEk (Pinned.leakage leak m _ _ _ _) s.stA
       key msg epoch next coins hout
     simpa only [leakEpochsA, hfield, Option.isNone_none,
       Bool.true_or, ↓reduceIte, he] using hex
   · simp [hc]
 
-/-- For every stage and state with party B at the selected epoch,
-every supported ordinary B-send successor satisfies `sourceUsed .offline`. -/
+/-- The version of `oracleSendA_installs_source` for B and `sourceUsed .offline e`. -/
 theorem oracleSendB_installs_source
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -375,23 +368,22 @@ theorem oracleSendB_installs_source
     exact False.elim (sendB_none_not_mem_support
       (Pinned.kem m (stage.pinsKeygen && decide (s.stA.t = e))
         (stage.pinsOffline && decide (s.stB.t = e))
-        (stage.pinsOnline && decide (s.stB.t = e)) (s.keyB s.stA.t))
+        false (s.keyB s.stA.t))
       (Pinned.onOff m _ _ _ _) ecCt0 ecCt1 _ hout)
   | some out =>
     rcases out with ⟨key, msg, epoch, next⟩
     have hshape := sendB_source_shape
       (Pinned.kem m (stage.pinsKeygen && decide (s.stA.t = e))
         (stage.pinsOffline && decide (s.stB.t = e))
-        (stage.pinsOnline && decide (s.stB.t = e)) (s.keyB s.stA.t))
+        false (s.keyB s.stA.t))
       (Pinned.onOff m _ _ _ _) ecCt0 ecCt1 s.stB key msg epoch next hout
     cases key <;>
       simp only [StateT.run_bind, StateT.run_set, pure_bind,
         StateT.run_pure, mem_support_pure_iff] at hz
     all_goals obtain rfl := hz; exact Or.inr ⟨hshape.1.trans he, hshape.2⟩
 
-/-- If party B is at `e` with its source field absent and `e` has not
-been challenged, its leaking source send terminates the stopped game in
-every sampling stage, because the accepted coins expose `e`. -/
+/-- The version of `leaking_keygen_stops` for B's leaking send with no offline
+ciphertext. -/
 theorem leaking_offline_stops
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -411,13 +403,13 @@ theorem leaking_offline_stops
   · exact sendBrleak_none_not_mem_support
       (Pinned.kem m (stage.pinsKeygen && decide (s.stA.t = e))
         (stage.pinsOffline && decide (s.stB.t = e))
-        (stage.pinsOnline && decide (s.stB.t = e)) (s.keyB s.stA.t))
+        false (s.keyB s.stA.t))
       (Pinned.onOff m _ _ _ _) ecCt0 ecCt1 (Pinned.leakage leak m _ _ _ _) _
   · intro key msg epoch next coins hout
     have hex := sendBrleak_exposure
       (Pinned.kem m (stage.pinsKeygen && decide (s.stA.t = e))
         (stage.pinsOffline && decide (s.stB.t = e))
-        (stage.pinsOnline && decide (s.stB.t = e)) (s.keyB s.stA.t))
+        false (s.keyB s.stA.t))
       (Pinned.onOff m _ _ _ _) ecCt0 ecCt1 (Pinned.leakage leak m _ _ _ _) s.stB
       key msg epoch next coins hout
     simpa only [leakEpochsB, hfield, Option.isNone_none,
@@ -426,9 +418,8 @@ theorem leaking_offline_stops
 
 variable [SampleableType K]
 
-/-- For every stage, material value, phase, epoch, mode, and query `t` with
-`usesSource phase e t s = true`, every successor of the staged query with `e` unexposed
-satisfies `sourceUsed phase e`. -/
+/-- If `usesSource phase e t s = true`, every possible successor state of query `t` of
+`oracle stage m e b` from `s` in which `e` is unexposed satisfies `sourceUsed phase e`. -/
 theorem oracle_first_source_use
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)

@@ -12,21 +12,21 @@ import SecureMessaging.SCKA.Security
 /-!
 # The per-query simulation relation
 
-**Setting.** Fix material `m`, a selected epoch `e`, and a challenge key `kStar`. For an honest
-game state `s`, the simulator runs from `markState e s` and the honest intermediate game, stopped
-after the first query exposing `e` (`honestStopped`), runs from `s`.
+**Setting.** Let `m` be material, `e` a selected epoch, and `kStar : K` a challenge key. Write
+`Sim := oracle e m.keygen.1.1 m.ciphertext kStar` for the simulator and
+`Hon := honestStopped m e kStar` for the honest intermediate game, which answers `⊥` at the
+first query whose successor state has `e` exposed. For an oracle `O`, a query `t`, and a state
+`u`, `O(t; u)` is `((O t).run).run u`.
 
-**Results.**
+**Result.** `oracle_mark`: for every security query `t` and every state `s` satisfying
+`reachableInv` with `e ∉ s.exposed`,
 
-- `oracle_mark`: for every transcript-consistent state `s` with `e ∉ s.exposed` and every
-  security query, the simulator's query from `markState e s` has the joint response/state
-  distribution of the stopped honest query from `s` followed by marking the successor.
-- The cases of `oracle_mark`: `correctnessOracle_mark` for sends and receives
-  (`oracleSendA_mark`, `oracleSendB_mark`, `oracleRecvA_mark`, `oracleRecvB_mark`),
-  `oracleSendArleak_mark` and `oracleSendBrleak_mark` for leaking sends, whose coins at `e` stop
-  the honest game, and `corruptA_mark` and `corruptB_mark` for corruptions, which stop it when
-  they expose `e`.
-- `honest_recvA_eq_ideal`: A's receive in the honest game is the auxiliary receive.
+```text
+𝒟[Sim(t; markState e s)] = 𝒟[(r, s') ← Hon(t; s); return (r, markState e s')]
+```
+
+The other results state this relation for the individual oracles, using the protocol
+instances `markedScheme m e s` of the simulator and `honestScheme m e s` of the honest game.
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -36,9 +36,9 @@ namespace oppUniKemCKA.Security.Embedding
 variable {K PK SK C Sym : Type}
 
 set_option backward.dsimp.instances true in
-/-- For every selected epoch `e` and state `s` with `e ∉ s.exposed`,
-A's marked corruption followed by revelation equals honest corruption
-stopped on exposure of `e`, with the successor state marked. -/
+/-- For every state `s` with `e ∉ s.exposed`, A's corruption oracle on marked states, run
+from `markState e s` and followed by `revealA`, is the computation of A's corruption oracle
+stopped on exposure of `e`, run from `s`, followed by marking the successor state. -/
 theorem corruptA_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (e : ℕ) (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
@@ -67,11 +67,8 @@ theorem corruptA_mark
       revealResponse, revealA_markA_eq, markState, Prod.map]
   all_goals by_cases he : e ∈ vulnCorrA base onoff s.stA <;> simp [he]
 
-
 set_option backward.dsimp.instances true in
-/-- For every selected epoch `e` and state `s` with `e ∉ s.exposed`,
-B's marked corruption followed by revelation equals honest corruption
-stopped on exposure of `e`, with the successor state marked. -/
+/-- The version of `corruptA_mark` for B, with `revealB`. -/
 theorem corruptB_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (e : ℕ) (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
@@ -100,7 +97,6 @@ theorem corruptB_mark
       revealResponse, revealB_markB_eq, markState, Prod.map]
   all_goals by_cases he : e ∈ vulnCorrB base onoff s.stB <;> simp [he]
 
-
 end oppUniKemCKA.Security.Embedding
 
 open OracleSpec OracleComp KEMScheme
@@ -110,9 +106,9 @@ namespace oppUniKemCKA.Security.Embedding
 variable {K PK SK C Sym : Type} [DecidableEq K] [DecidableEq Sym]
 
 omit [DecidableEq K] in
-/-- For every material value, selected epoch, game state, and message,
-A's pinned receive equals the auxiliary receive using B's recorded key
-as its constant decapsulation result. -/
+/-- For every state `s` and message, A's receive in `honestScheme m e s` equals `recvA` with
+decapsulation replaced by the constant `s.keyB s.stA.t`, B's recorded key for A's current
+epoch, as in the ideal game. -/
 theorem honest_recvA_eq_ideal
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -135,9 +131,9 @@ theorem honest_recvA_eq_ideal
       Bool.and_eq_true, beq_iff_eq, Option.bind_some, Option.bind_none])
 
 set_option backward.dsimp.instances true in
-/-- For every honest state and message index, B's symbolic receive oracle
-equals its honest pinned receive oracle followed by marking. Both message
-availability and correctness bookkeeping are preserved. -/
+/-- For every state `s` and message index `n`, B's receive oracle of `markedScheme m e s`,
+run from `markState e s`, is the computation of B's receive oracle of `honestScheme m e s`,
+run from `s`, followed by marking the successor state. -/
 theorem oracleRecvB_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -146,7 +142,7 @@ theorem oracleRecvB_mark
     (m : Material leak) (e n : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
     (SCKAScheme.oracleRecvB
-      (symbolicScheme base onoff ecEk ecCt0 ecCt1 leak m e s) n).run (markState e s) =
+      (markedScheme base onoff ecEk ecCt0 ecCt1 leak m e s) n).run (markState e s) =
     Prod.map id (markState e) <$>
       (SCKAScheme.oracleRecvB (honestScheme ecEk ecCt0 ecCt1 m e s) n).run s := by
   simp only [SCKAScheme.oracleRecvB, StateT.run_bind, StateT.run_get, pure_bind]
@@ -155,7 +151,7 @@ theorem oracleRecvB_mark
   | some entry =>
     rcases entry with ⟨msg, tsnd⟩
     simp only [markState, hm]
-    dsimp only [symbolicScheme, scheme]
+    dsimp only [markedScheme, scheme]
     rw [recvB_mark]
     have heq : (honestScheme ecEk ecCt0 ecCt1 m e s).recvB s.stB msg =
         recvB base onoff ecEk s.stB msg := rfl
@@ -169,9 +165,7 @@ theorem oracleRecvB_mark
       simp [StateT.run_set, markState, markA, markB, Prod.map]
 
 set_option backward.dsimp.instances true in
-/-- For every honest state and message index, A's symbolic receive oracle
-equals its honest pinned receive oracle followed by marking. A's auxiliary
-decapsulation uses B's recorded key, keeping each consistency check equal. -/
+/-- The version of `oracleRecvB_mark` for A. -/
 theorem oracleRecvA_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -180,7 +174,7 @@ theorem oracleRecvA_mark
     (m : Material leak) (e n : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
     (SCKAScheme.oracleRecvA
-      (symbolicScheme base onoff ecEk ecCt0 ecCt1 leak m e s) n).run (markState e s) =
+      (markedScheme base onoff ecEk ecCt0 ecCt1 leak m e s) n).run (markState e s) =
     Prod.map id (markState e) <$>
       (SCKAScheme.oracleRecvA (honestScheme ecEk ecCt0 ecCt1 m e s) n).run s := by
   simp only [SCKAScheme.oracleRecvA, StateT.run_bind, StateT.run_get, pure_bind]
@@ -189,7 +183,7 @@ theorem oracleRecvA_mark
   | some entry =>
     rcases entry with ⟨msg, tsnd⟩
     simp only [markState, hm]
-    dsimp only [symbolicScheme, scheme]
+    dsimp only [markedScheme, scheme]
     rw [recvA_mark]
     have heq := honest_recvA_eq_ideal base onoff ecEk ecCt0 ecCt1 leak m e s msg
     rw [heq]
@@ -215,9 +209,9 @@ namespace oppUniKemCKA.Security.Embedding
 variable {K PK SK C Sym : Type} [DecidableEq K] [DecidableEq Sym]
 
 set_option backward.dsimp.instances true in
-/-- For every selected epoch, material value, and honest state, A's
-symbolic send oracle has the same response/state distribution as the
-honest pinned send oracle followed by marking its successor. -/
+/-- For every state `s`, A's send oracle of `markedScheme m e s`, run from `markState e s`,
+has the joint response/state distribution of A's send oracle of `honestScheme m e s`, run
+from `s`, followed by marking the successor state. -/
 theorem oracleSendA_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -226,12 +220,12 @@ theorem oracleSendA_mark
     (m : Material leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
     𝒟[(SCKAScheme.oracleSendA
-      (symbolicScheme base onoff ecEk ecCt0 ecCt1 leak m e s) ()).run (markState e s)] =
+      (markedScheme base onoff ecEk ecCt0 ecCt1 leak m e s) ()).run (markState e s)] =
     𝒟[Prod.map id (markState e) <$>
       (SCKAScheme.oracleSendA (honestScheme ecEk ecCt0 ecCt1 m e s) ()).run s] := by
   simp only [SCKAScheme.oracleSendA, StateT.run_bind, StateT.run_get, pure_bind,
     StateT.run_monadLift, monadLift_self, map_bind]
-  dsimp only [symbolicScheme, honestScheme, scheme, markState]
+  dsimp only [markedScheme, honestScheme, scheme, markState]
   rw [sendA_mark base onoff ecEk leak m e (decide (s.stB.t = e))
     ((s.keyB s.stA.t).map (mark e s.stA.t)) (s.keyB s.stA.t) s.stA]
   simp only [bind_map_left, bind_assoc, pure_bind]
@@ -251,10 +245,7 @@ theorem oracleSendA_mark
     simp [StateT.run_set, markState, markA, markB, Prod.map]
 
 set_option backward.dsimp.instances true in
-/-- For every transcript-consistent state `s`, B's symbolic send oracle
-has the same response/state distribution as its honest pinned send oracle
-followed by marking. The transcript supplies the empty counterpart entry
-for every newly recorded key. -/
+/-- The version of `oracleSendA_mark` for B, for states `s` satisfying `reachableInv`. -/
 theorem oracleSendB_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -264,12 +255,12 @@ theorem oracleSendB_mark
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) :
     𝒟[(SCKAScheme.oracleSendB
-      (symbolicScheme base onoff ecEk ecCt0 ecCt1 leak m e s) ()).run (markState e s)] =
+      (markedScheme base onoff ecEk ecCt0 ecCt1 leak m e s) ()).run (markState e s)] =
     𝒟[Prod.map id (markState e) <$>
       (SCKAScheme.oracleSendB (honestScheme ecEk ecCt0 ecCt1 m e s) ()).run s] := by
   simp only [SCKAScheme.oracleSendB, StateT.run_bind, StateT.run_get, pure_bind,
     StateT.run_monadLift, monadLift_self, map_bind]
-  dsimp only [symbolicScheme, honestScheme, scheme, markState]
+  dsimp only [markedScheme, honestScheme, scheme, markState]
   rw [sendB_mark base onoff ecCt0 ecCt1 leak m e (decide (s.stA.t = e))
     ((s.keyB s.stA.t).map (mark e s.stA.t)) (s.keyB s.stA.t) s.stB]
   simp only [bind_map_left, bind_assoc, pure_bind]
@@ -301,12 +292,11 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type} [DecidableEq K] [DecidableEq Sym]
 
-set_option maxHeartbeats 600000 in
--- The guard and revelation cases compare complete states with different coin types.
 set_option backward.dsimp.instances true in
-/-- For every unexposed selected epoch, material value, and honest state,
-A's guarded symbolic leaking send followed by revelation equals the
-distribution of the stopped honest leaking send with its successor marked. -/
+/-- For every state `s` with `e ∉ s.exposed`, A's leaking-send oracle of
+`markedScheme m e s`, run from `markState e s` and followed by `revealCoins`, has the joint
+response/state distribution of A's leaking-send oracle of `honestScheme m e s` stopped on
+exposure of `e`, run from `s`, followed by marking the successor state. -/
 theorem oracleSendArleak_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -319,7 +309,7 @@ theorem oracleSendArleak_mark
         let (n, epoch, msg, coins) := out
         pure (n, epoch, msg, ← revealCoins coins)))
       (SCKAScheme.oracleSendArleak vulnRleakA
-        (symbolicScheme base onoff ecEk ecCt0 ecCt1 leak m e s) ())).run).run (markState e s)] =
+        (markedScheme base onoff ecEk ecCt0 ecCt1 leak m e s) ())).run).run (markState e s)] =
     𝒟[Prod.map id (markState e) <$>
       ((stopOnState (SCKAScheme.oracleSendArleak vulnRleakA
         (honestScheme ecEk ecCt0 ecCt1 m e s))
@@ -332,7 +322,7 @@ theorem oracleSendArleak_mark
     pure (if decide (e ∈ z.2.exposed) then none else some z.1, z.2))]
   simp only [SCKAScheme.oracleSendArleak, StateT.run_bind, StateT.run_get, pure_bind,
     StateT.run_monadLift, monadLift_self, map_bind, bind_assoc]
-  dsimp only [symbolicScheme, honestScheme, scheme, markState]
+  dsimp only [markedScheme, honestScheme, scheme, markState]
   rw [sendArleak_mark base onoff ecEk leak m e (decide (s.stB.t = e))
     ((s.keyB s.stA.t).map (mark e s.stA.t)) (s.keyB s.stA.t) s.stA]
   simp only [bind_map_left]
@@ -360,13 +350,8 @@ theorem oracleSendArleak_mark
           StateT.run_set, StateT.run_pure,
           markState, markA, markB, Prod.map, hs, heq, he, hc]
 
-set_option maxHeartbeats 1600000 in
--- Four coin phases are compared both with and without a newly recorded key.
 set_option backward.dsimp.instances true in
-/-- For every transcript-consistent state with unexposed selected epoch,
-B's guarded symbolic leaking send followed by revelation equals the
-distribution of its stopped honest leaking send with successor marking.
-This includes offline, online, combined sampling, and retransmission. -/
+/-- The version of `oracleSendArleak_mark` for B, for states `s` satisfying `reachableInv`. -/
 theorem oracleSendBrleak_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -379,7 +364,7 @@ theorem oracleSendBrleak_mark
         let (n, epoch, msg, coins) := out
         pure (n, epoch, msg, ← revealCoins coins)))
       (SCKAScheme.oracleSendBrleak vulnRleakB
-        (symbolicScheme base onoff ecEk ecCt0 ecCt1 leak m e s) ())).run).run (markState e s)] =
+        (markedScheme base onoff ecEk ecCt0 ecCt1 leak m e s) ())).run).run (markState e s)] =
     𝒟[Prod.map id (markState e) <$>
       ((stopOnState (SCKAScheme.oracleSendBrleak vulnRleakB
         (honestScheme ecEk ecCt0 ecCt1 m e s))
@@ -392,7 +377,7 @@ theorem oracleSendBrleak_mark
     pure (if decide (e ∈ z.2.exposed) then none else some z.1, z.2))]
   simp only [SCKAScheme.oracleSendBrleak, StateT.run_bind, StateT.run_get, pure_bind,
     StateT.run_monadLift, monadLift_self, map_bind, bind_assoc]
-  dsimp only [symbolicScheme, honestScheme, scheme, markState]
+  dsimp only [markedScheme, honestScheme, scheme, markState]
   rw [sendBrleak_mark base onoff ecCt0 ecCt1 leak m e (decide (s.stA.t = e))
     ((s.keyB s.stA.t).map (mark e s.stA.t)) (s.keyB s.stA.t) s.stB]
   simp only [bind_map_left]
@@ -450,9 +435,10 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type} [DecidableEq K] [DecidableEq Sym]
 
-/-- For every transcript-consistent state and correctness-interface query,
-the symbolic query's joint distribution is the honest pinned query's joint
-distribution followed by successor marking. -/
+/-- For every correctness query `t` and state `s` satisfying `reachableInv`, the correctness
+oracles of `markedScheme m e s`, run from `markState e s`, have the joint response/state
+distribution of those of `honestScheme m e s`, run from `s`, followed by marking the
+successor state. -/
 theorem correctnessOracle_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -463,7 +449,7 @@ theorem correctnessOracle_mark
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) :
     𝒟[(SCKAScheme.sckaCorrectnessImpl
-      (symbolicScheme base onoff ecEk ecCt0 ecCt1 leak m e s) t).run (markState e s)] =
+      (markedScheme base onoff ecEk ecCt0 ecCt1 leak m e s) t).run (markState e s)] =
     𝒟[Prod.map id (markState e) <$>
       (SCKAScheme.sckaCorrectnessImpl (honestScheme ecEk ecCt0 ecCt1 m e s) t).run s] := by
   rcases t with ((((n | u) | u) | n) | n)
@@ -476,10 +462,11 @@ theorem correctnessOracle_mark
   · exact congrArg evalDist (oracleRecvA_mark base onoff ecEk ecCt0 ecCt1 leak m e n s)
   · exact congrArg evalDist (oracleRecvB_mark base onoff ecEk ecCt0 ecCt1 leak m e n s)
 
-/-- For every selected material value, epoch, supplied challenge key,
-transcript-consistent unexposed state, and security query, the reduction's
-joint optional-response/state distribution equals the stopped honest
-intermediate query followed by marking the successor. -/
+/-- For every material `m`, epoch `e`, key `kStar`, security query `t`, and state `s`
+satisfying `reachableInv` with `e ∉ s.exposed`, the simulator
+`oracle e m.keygen.1.1 m.ciphertext kStar` answering `t` from `markState e s` has the joint
+distribution of optional response and successor state of `honestStopped m e kStar` answering
+`t` from `s`, followed by marking the successor state. -/
 theorem oracle_mark [SampleableType K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -495,7 +482,7 @@ theorem oracle_mark [SampleableType K]
   rcases t with (((((t | u) | u) | t) | u) | u)
   · apply evalDist_lift_eq_stopOnState_map
       (SCKAScheme.sckaCorrectnessImpl (honestScheme ecEk ecCt0 ecCt1 m e s))
-      (SCKAScheme.sckaCorrectnessImpl (symbolicScheme base onoff ecEk ecCt0 ecCt1 leak m e s))
+      (SCKAScheme.sckaCorrectnessImpl (markedScheme base onoff ecEk ecCt0 ecCt1 leak m e s))
       (markState e) (fun u => decide (e ∈ u.exposed)) t s
       (correctnessOracle_mark base onoff ecEk ecCt0 ecCt1 leak m e t s hs)
     intro z hz

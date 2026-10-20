@@ -921,14 +921,12 @@ noncomputable def sckaGuessAdvantage [SampleableType I] [DecidableEq I]
 :::::
 ::::::
 
+For $`b\in\{0,1\}`, let $`G_b(\adv)` be the experiment above with its bit fixed to $`b`;
+it returns the adversary's output $`b'`. The distinguishing advantage is
+$`\operatorname{Adv}^{\mathsf{dist}}_{\mathsf{SCKA}}(\adv)=|\Pr[G_1(\adv)=1]-\Pr[G_0(\adv)=1]|`,
+and since $`b` is uniform,
 
-Let $`G_0(\adv)` and $`G_1(\adv)` be the security experiments with recorded and
-independent uniform challenge keys, respectively. Both return the adversary's bit and
-use the same exposure policies and challenge guards. Define
-
-$$`\operatorname{Adv}^{\mathsf{dist}}_{\mathsf{SCKA}}(\adv)
-=|\Pr[G_1(\adv)=1]-\Pr[G_0(\adv)=1]|,\qquad
-\operatorname{Adv}^{\mathsf{guess}}_{\mathsf{SCKA}}(\adv)
+$$`\operatorname{Adv}^{\mathsf{guess}}_{\mathsf{SCKA}}(\adv)
 =\tfrac12\operatorname{Adv}^{\mathsf{dist}}_{\mathsf{SCKA}}(\adv).`
 
 :::leanPillCaption "Security experiment with a fixed challenge bit"
@@ -969,11 +967,7 @@ lemma sckaGuessAdvantage_eq_sckaDistAdvantage_div_two [SampleableType I] [Decida
     (adversary : SCKAAdversary StA StB I Rho Rand)
     (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand) :
     sckaGuessAdvantage scka adversary vulnA vulnB =
-      sckaDistAdvantage scka adversary vulnA vulnB / 2 := by
-  simp only [sckaGuessAdvantage, sckaDistAdvantage]
-  rw [securityExp_toReal_sub_half, abs_div]
-  congr 1
-  exact abs_of_pos two_pos
+      sckaDistAdvantage scka adversary vulnA vulnB / 2
 ```
 
 :::::::

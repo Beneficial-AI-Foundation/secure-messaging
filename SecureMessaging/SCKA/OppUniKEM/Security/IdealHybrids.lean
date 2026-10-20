@@ -9,25 +9,27 @@ import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 import VCVio.ProgramLogic.Relational.SimulateQ
 
 /-!
-# Auxiliary epoch hybrids
+# Ideal epoch hybrids
 
-Let `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` be Opp-UniKEM with deterministic
-decapsulation and correct erasure codes, and let `adv : SecurityAdversary leak Sym` be an
-adversary. The auxiliary game uses B's recorded key in place of A's decapsulation.
-For `b : Bool`, write `I_b := idealSecurityExp (fun _ => b) adv`.
+**Setting.** Let `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` be Opp-UniKEM with
+deterministic decapsulation and correct erasure codes, and let `adv : SecurityAdversary leak Sym`
+be an adversary. Let `I_b := idealSecurityExp (fun _ => b) adv` be the ideal game of `Endpoints`,
+in which A uses B's recorded key in place of decapsulation.
 
-For `i : ℕ`, `H_i := idealEpochHybridExp … adv i` answers eligible challenges at epochs
-`1, …, i` with uniform keys and other eligible challenges with recorded keys.
-`H_0 = I_false` as computations. If `SecuritySendQueryBound adv q`, then
-`Pr[H_q = true] = Pr[I_true = true]`.
+**Definitions.** For `i : ℕ`, the ideal hybrid `H_i := idealEpochHybridExp … adv i` answers
+eligible challenges at epochs `1, …, i` with independent uniform keys and other eligible
+challenges with recorded keys.
 
-From any state where epoch `i + 1` is exposed, the oracles of `H_i` and `H_{i+1}` give equal
-output/state computations for every continuation (`idealEpochHybrid_run_eq_of_exposed`).
+**Results.** Let `ε` be the KEM correctness error and `AdvGuess(Π, adv) := |Pr[b' = b] - 1/2|`
+the guessing advantage, where the game samples a uniform bit `b` and `adv` returns `b'`.
 
-Let `p_i := Pr[H_i = true]`, let `ε` be the KEM correctness error, and let
-`AdvGuess(Π, adv) := |Pr[b' = b] - 1/2|` be the guessing advantage, where the game samples a
-uniform bit `b` and `adv` returns `b'`. With `SecuritySendQueryBound adv q`,
-`security_guess_le_hybrid_gap` gives `AdvGuess(Π, adv) ≤ |p_0 - p_q| / 2 + q · ε`.
+- `idealEpochHybridExp_zero`: `H_0 = I_false` as computations.
+- `idealEpochHybridExp_last`: if `SecuritySendQueryBound adv q`, then
+  `Pr[H_q = true] = Pr[I_true = true]`.
+- `idealEpochHybrid_run_eq_of_exposed`: from every state in which epoch `i + 1` is exposed, the
+  oracles of `H_i` and `H_{i+1}` give equal output/state computations for every continuation.
+- `security_guess_le_hybrid_gap`: if `SecuritySendQueryBound adv q`, then
+  `AdvGuess(Π, adv) ≤ |Pr[H_0 = true] - Pr[H_q = true]| / 2 + q · ε`.
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -51,8 +53,7 @@ namespace oppUniKemCKA.Security
 variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- The oracles of `H_i`: A receives B's recorded key, and eligible challenges at epochs
-`1, …, i` return uniform keys. Other eligible challenges return recorded keys. -/
+/-- The oracles of `H_i`: the ideal game's oracles with challenge mode `t ↦ 0 < t ∧ t ≤ i`. -/
 abbrev idealEpochHybridImpl
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -61,7 +62,8 @@ abbrev idealEpochHybridImpl
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff) (i : ℕ) :=
   idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak (fun t => decide (0 < t ∧ t ≤ i))
 
-/-- The adversary's Boolean output in auxiliary hybrid `i`, starting from the initial state. -/
+/-- The ideal hybrid `H_i`: run `adv` against `idealEpochHybridImpl … i` from the initial state
+and return its output bit. -/
 def idealEpochHybridExp
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -71,7 +73,7 @@ def idealEpochHybridExp
     (adv : SecurityAdversary leak Sym) (i : ℕ) : ProbComp Bool :=
   idealSecurityExp kem onoff hDet ecEk ecCt0 ecCt1 leak (fun t => decide (0 < t ∧ t ≤ i)) adv
 
-/-- Hybrid zero equals the auxiliary real-key experiment as a computation. -/
+/-- `H_0 = I_false` as computations. -/
 theorem idealEpochHybridExp_zero
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -87,7 +89,7 @@ theorem idealEpochHybridExp_zero
     omega
   simp only [idealEpochHybridExp, hmode]
 
-/-- No auxiliary query removes an exposed epoch, for every challenge mode. -/
+/-- For every challenge mode, no query of the ideal game removes an exposed epoch. -/
 theorem idealSecurityImpl_exposed_subset
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -104,7 +106,7 @@ theorem idealSecurityImpl_exposed_subset
     (fun t s z hz => (idealCorrectnessImpl_securitySets_eq kem onoff hDet ecEk ecCt0 ecCt1 leak
       t s z hz).1) (SCKAScheme.challOf_recordsChallenges _) t s z hz
 
-/-- Every auxiliary query preserves exposure of epoch `e`, for every challenge mode. -/
+/-- For every challenge mode, every query of the ideal game preserves `e ∈ exposed`. -/
 theorem idealSecurityImpl_preserves_exposed
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -138,7 +140,7 @@ theorem idealEpochHybrid_query_eq_of_exposed
   · simp only [SCKAScheme.challOf]
     rw [SCKAScheme.epochHybrid_challenge_eq_of_ne i t ht]
 
-/-- Once epoch `i + 1` is exposed, the oracles of auxiliary hybrids `i` and `i + 1` give
+/-- From a state in which epoch `i + 1` is exposed, the oracles of `H_{i+1}` and `H_i` give
 equal output/state computations for every continuation `adv`. -/
 theorem idealEpochHybrid_run_eq_of_exposed
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
@@ -162,8 +164,8 @@ theorem idealEpochHybrid_run_eq_of_exposed
     adv s hs
   simpa using h
 
-/-- For every state `s` satisfying `reachableInv s`, `sendEpochInv s`, and `s.nA ≤ q`,
-the response/state computations of `H_q` and `I_true` agree on every query. -/
+/-- For every state `s` satisfying `reachableInv s`, `sendEpochInv s`, and `s.nA ≤ q`, the
+oracles of `H_q` and `I_true` give equal response/state computations from `s` for every query. -/
 theorem idealEpochHybrid_query_eq_random
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -182,19 +184,14 @@ theorem idealEpochHybrid_query_eq_random
   · have htq := (recorded_epoch_le_sends hr he t hk).trans hc
     obtain ⟨T, hT⟩ := hr
     have hzeroA : s.keyA 0 = none := by simp [hT.keyA]
-    have htpos : 0 < t := by
-      by_contra hn
-      have ht : t = 0 := by omega
+    have htpos : 0 < t := Nat.pos_of_ne_zero fun ht => by
       simp [ht, hzeroA, hT.keyB_zero] at hk
     simp only [SCKAScheme.challOf, htpos, htq, and_self, decide_true]
-  · have hA : s.keyA t = none := by
-      cases h : s.keyA t <;> simp_all
-    have hB : s.keyB t = none := by
-      cases h : s.keyB t <;> simp_all
-    exact SCKAScheme.oracleChall_run_eq_of_rejected _ _ s t (Or.inr ⟨hA, hB⟩)
+  · simp only [not_or, Option.not_isSome_iff_eq_none] at hk
+    exact SCKAScheme.oracleChall_run_eq_of_rejected _ _ s t (Or.inr hk)
 
-/-- With correct erasure codes, for every adversary `adv` satisfying
-`SecuritySendQueryBound adv q`, `Pr[H_q = true] = Pr[I_true = true]`. -/
+/-- With correct erasure codes, if `SecuritySendQueryBound adv q`, then
+`Pr[H_q = true] = Pr[I_true = true]`. -/
 theorem idealEpochHybridExp_last
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -237,8 +234,7 @@ theorem idealEpochHybridExp_last
   simp only [idealEpochHybridExp, idealSecurityExp, StateT.run'_eq]
   exact probOutput_map_eq_of_evalDist_eq (evalDist_ext fun z => (h z).symm) Prod.fst true
 
-/-- Under the module's assumptions, for every adversary `adv` and budget `q` satisfying
-`SecuritySendQueryBound adv q`,
+/-- With correct erasure codes, if `SecuritySendQueryBound adv q`, then
 `AdvGuess(Π, adv) ≤ |Pr[H_0 = true] - Pr[H_q = true]| / 2 + q · ε`. -/
 -- ANCHOR: security_guess_le_hybrid_gap
 theorem security_guess_le_hybrid_gap
@@ -253,7 +249,9 @@ theorem security_guess_le_hybrid_gap
       adv (exposureA kem onoff leak) (exposureB kem onoff leak) ≤
     |(Pr[= true | idealEpochHybridExp kem onoff hDet ecEk ecCt0 ecCt1 leak adv 0]).toReal -
       (Pr[= true | idealEpochHybridExp kem onoff hDet ecEk ecCt0 ecCt1 leak adv q]).toReal| / 2 +
-      (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal := by
+      (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal
+-- ANCHOR_END: security_guess_le_hybrid_gap
+    := by
   rw [SCKAScheme.sckaGuessAdvantage_eq_sckaDistAdvantage_div_two,
     SCKAScheme.sckaDistAdvantage,
     idealEpochHybridExp_zero,
@@ -276,6 +274,5 @@ theorem security_guess_le_hybrid_gap
   rw [abs_sub_comm (I true) (I false), abs_sub_comm (I false) (G false)] at htriangle'
   change |G true - G false| / 2 ≤ |I false - I true| / 2 + _
   linarith
--- ANCHOR_END: security_guess_le_hybrid_gap
 
 end oppUniKemCKA.Security

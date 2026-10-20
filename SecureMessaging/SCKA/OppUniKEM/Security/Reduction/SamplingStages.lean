@@ -10,20 +10,30 @@ import SecureMessaging.SCKA.OppUniKEM.Security.Endpoints
 /-!
 # Sampling stages
 
-**Setting.** Fix complete material `m`, a selected epoch `e`, and a mode bit `b`.
+**Setting.** Let `m` be complete material, `e` a selected epoch, and `b` a mode bit. Each
+sampling phase of epoch `e` is either *pinned*, returning its stored output in `m`, or *fresh*,
+sampling at its protocol call. A `Stage` fixes this choice for each phase:
+
+| `Stage` | key generation | offline encapsulation | online encapsulation |
+| --- | --- | --- | --- |
+| `onlineFresh` | pinned | pinned | fresh |
+| `encapsFresh` | pinned | fresh | fresh |
+| `fresh` | fresh | fresh | fresh |
+
+The pinned hybrid `hybridOracle m e b` pins all three phases. The modules
+`OnlineDeferral`, `OfflineDeferral`, and `KeygenDeferral` relate it to `onlineFresh`, then
+`encapsFresh`, then `fresh`, each making one more phase fresh.
 
 **Definitions.**
 
-- `Stage`: `fixed` uses the stored key-generation, offline, and online outputs of `m` at epoch
-  `e`; `onlineFresh` samples online encapsulation at its protocol call; `encapsFresh` also
-  samples offline encapsulation there; `fresh` samples all three phases there.
-- `schemeAt stage m e s`: Opp-UniKEM with the KEM `Pinned.kem m` flagging the phases that `stage`
-  keeps stored and whose party is at epoch `e`; decapsulation returns B's recorded key.
-- `oracle stage m e b := securityImplAt (schemeAt stage m e) (challOf (adjacentMode e b))`, and
-  `stopped` stops it after the first query exposing `e`. The stage `fixed` is the pinned hybrid.
+- `schemeAt stage m e s`: Opp-UniKEM for a query from game state `s`, with the KEM
+  `Pinned.kem m` pinning each phase that `stage` pins and whose party is at epoch `e`;
+  decapsulation returns B's recorded key for A's current epoch.
+- `oracle stage m e b := securityImplAt (schemeAt stage m e) (challOf (adjacentMode e b))`;
+  `stopped stage m e b` stops it at the first query whose successor state exposes `e`.
 
-**Results.** `oracle_fresh_eq_ideal`: the stage `fresh` is the auxiliary game with mode
-`adjacentMode e b`.
+**Results.** `oracle_fresh_eq_ideal`: `oracle .fresh m e b` is the ideal game's oracle
+`idealSecurityImpl (adjacentMode e b)`.
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -32,16 +42,14 @@ namespace oppUniKemCKA.Security.Embedding.Sampling
 
 variable {K PK SK C Sym : Type}
 
-/-- Four successive games, distinguished by which selected-epoch sampling
-phases use stored material and which sample at the protocol call. -/
+/-- The selected-epoch sampling phases that return stored outputs (*pinned*); the other
+phases sample at their protocol calls (*fresh*). -/
 inductive Stage where
-  /-- Key generation, offline encapsulation, and online encapsulation use stored outputs. -/
-  | fixed
-  /-- Online encapsulation samples at its actual inputs; the two source phases remain fixed. -/
+  /-- Online encapsulation is fresh; key generation and offline encapsulation are pinned. -/
   | onlineFresh
-  /-- Both encapsulation phases sample at their protocol calls; key generation remains fixed. -/
+  /-- Both encapsulation phases are fresh; key generation is pinned. -/
   | encapsFresh
-  /-- All three phases sample at their protocol calls. -/
+  /-- All three phases are fresh. -/
   | fresh
   deriving DecidableEq
 
@@ -49,15 +57,11 @@ inductive Stage where
 def Stage.pinsKeygen (stage : Stage) : Bool := decide (stage ≠ .fresh)
 
 /-- Whether stage `stage` pins offline encapsulation at the selected epoch. -/
-def Stage.pinsOffline (stage : Stage) : Bool :=
-  decide (stage = .fixed ∨ stage = .onlineFresh)
+def Stage.pinsOffline (stage : Stage) : Bool := decide (stage = .onlineFresh)
 
-/-- Whether stage `stage` pins online encapsulation at the selected epoch. -/
-def Stage.pinsOnline (stage : Stage) : Bool := decide (stage = .fixed)
-
-/-- Protocol scheme for a single query from state `s` in sampling stage
-`stage`. A phase is pinned exactly when the stage pins it and its party is
-at the selected epoch. Auxiliary decapsulation uses B's recorded key. -/
+/-- Opp-UniKEM for a query from game state `s` in stage `stage`: a phase returns its stored
+output in `m` exactly when `stage` pins it and its party is at epoch `e`. Decapsulation returns
+B's recorded key for A's current epoch. -/
 abbrev schemeAt [DecidableEq Sym]
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff}
@@ -67,14 +71,13 @@ abbrev schemeAt [DecidableEq Sym]
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :=
   let sa := stage.pinsKeygen && decide (s.stA.t = e)
   let soff := stage.pinsOffline && decide (s.stB.t = e)
-  let son := stage.pinsOnline && decide (s.stB.t = e)
   let key := s.keyB s.stA.t
-  scheme (Pinned.kem m sa soff son key) (Pinned.onOff m sa soff son key)
-    (Pinned.deterministic m sa soff son key) ecEk ecCt0 ecCt1
-    (Pinned.leakage leak m sa soff son key)
+  scheme (Pinned.kem m sa soff false key) (Pinned.onOff m sa soff false key)
+    (Pinned.deterministic m sa soff false key) ecEk ecCt0 ecCt1
+    (Pinned.leakage leak m sa soff false key)
 
-/-- Sampling-stage game: the protocol instance `schemeAt stage m e s` with the hybrid challenge
-oracle `challOf (adjacentMode e b)`. -/
+/-- Security oracles of stage `stage`: a query from `s` is answered by `schemeAt stage m e s`,
+with challenge oracle `challOf (adjacentMode e b)`. -/
 def oracle [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -86,8 +89,8 @@ def oracle [DecidableEq K] [DecidableEq Sym] [SampleableType K]
   securityImplAt base onoff leak (schemeAt ecEk ecCt0 ecCt1 stage m e)
     (SCKAScheme.challOf (adjacentMode e b))
 
-/-- Stop a staged auxiliary execution after any query exposing epoch `e`.
-The optional response denotes continuation or termination. -/
+/-- `oracle stage m e b` stopped at the first query whose successor state exposes `e`: that
+query answers `none`. -/
 def stopped [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -100,10 +103,9 @@ def stopped [DecidableEq K] [DecidableEq Sym] [SampleableType K]
   stopOnState (oracle base onoff ecEk ecCt0 ecCt1 leak stage m e b)
     (fun s => decide (e ∈ s.exposed))
 
-/-- For every sampling stage, material value, epoch, state, and input
-message, A's receive equals auxiliary receive with B's recorded key as
-constant decapsulation result. Sampling-stage choices affect send algorithms. -/
-theorem recvA_eq_auxiliary [DecidableEq Sym]
+/-- In every stage, A's receive in `schemeAt stage m e s` is `recvA` with decapsulation
+replaced by the constant `s.keyB s.stA.t`, as in the ideal game. -/
+theorem recvA_eq_ideal [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
@@ -124,18 +126,17 @@ theorem recvA_eq_auxiliary [DecidableEq Sym]
     repeat' (split <;> simp_all only [Fin.zero_eta, Fin.mk_one, Fin.isValue,
       Bool.and_eq_true, beq_iff_eq, Option.bind_some, Option.bind_none])
 
-/-- Fresh-stage pin flags combined with any epoch test are all `false`. -/
+/-- The stage `fresh` pins no key generation. -/
 theorem Stage.pinsKeygen_fresh_and (t e : ℕ) :
     (Stage.pinsKeygen .fresh && decide (t = e)) = false := by
   simp [Stage.pinsKeygen]
+
+/-- The stage `fresh` pins no offline encapsulation. -/
 theorem Stage.pinsOffline_fresh_and (t e : ℕ) :
     (Stage.pinsOffline .fresh && decide (t = e)) = false := by
   simp [Stage.pinsOffline]
-theorem Stage.pinsOnline_fresh_and (t e : ℕ) :
-    (Stage.pinsOnline .fresh && decide (t = e)) = false := by
-  simp [Stage.pinsOnline]
 
-/-- B's leaking send in the fully fresh stage equals the original leaking send. -/
+/-- B's leaking send in `schemeAt .fresh m e s` is that of Opp-UniKEM over `base`. -/
 theorem sendBrleak_fresh_eq [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -148,7 +149,7 @@ theorem sendBrleak_fresh_eq [DecidableEq Sym]
     (schemeAt ecEk ecCt0 ecCt1 .fresh m e s).sendBrleak stB =
     (scheme base onoff hDet ecEk ecCt0 ecCt1 leak).sendBrleak stB := by
   dsimp only [schemeAt]
-  rw [Stage.pinsKeygen_fresh_and, Stage.pinsOffline_fresh_and, Stage.pinsOnline_fresh_and]
+  rw [Stage.pinsKeygen_fresh_and, Stage.pinsOffline_fresh_and]
   simp only [scheme]
   cases hct0 : stB.ct0 <;> cases hek : stB.ekA <;> cases hct1 : stB.ct1 <;>
     cases hst : stB.stCt <;> cases hack : stB.ack.ctRec
@@ -157,8 +158,7 @@ theorem sendBrleak_fresh_eq [DecidableEq Sym]
     try dsimp only [Pinned.leakage]
     simp [hct0, hek, hct1, hst, hack, monad_norm]
 
-/-- B's ordinary send in the fully fresh stage equals the original ordinary send. Derived from
-`sendBrleak_fresh_eq` by forgetting the coins. -/
+/-- The ordinary-send version of `sendBrleak_fresh_eq`. -/
 theorem sendB_fresh_eq [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -173,9 +173,8 @@ theorem sendB_fresh_eq [DecidableEq Sym]
   rw [scheme_sendB_eq_map_sendBrleak, scheme_sendB_eq_map_sendBrleak,
     sendBrleak_fresh_eq base onoff ecEk ecCt0 ecCt1 leak hDet m e s stB]
 
-/-- For every material value, epoch, and mode, the fully fresh sampling
-oracle equals the auxiliary oracle with challenge mode `adjacentMode e b`.
-All sampling uses the original KEM algorithms. -/
+/-- For every `m`, `e`, and `b`, `oracle .fresh m e b` equals the ideal game's oracle
+`idealSecurityImpl (adjacentMode e b)`. -/
 theorem oracle_fresh_eq_ideal [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (hDet : base.DeterministicDecaps)
@@ -214,7 +213,7 @@ theorem oracle_fresh_eq_ideal [DecidableEq K] [DecidableEq Sym] [SampleableType 
       | some entry =>
         rcases entry with ⟨msg, tsnd⟩
         simp only []
-        rw [recvA_eq_auxiliary]
+        rw [recvA_eq_ideal]
         simp only [oracleRecvAIdeal, schemeWithDecaps, SCKAScheme.oracleRecvA,
           StateT.run_bind, StateT.run_get, pure_bind, hm]
     · simp only [idealSecurityImpl, SCKAScheme.securityImplOf, idealCorrectnessImpl,

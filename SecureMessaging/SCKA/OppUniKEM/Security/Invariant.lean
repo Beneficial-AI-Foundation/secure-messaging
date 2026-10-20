@@ -16,14 +16,16 @@ import SecureMessaging.SCKA.Security
 /-!
 # Transcript and epoch invariants
 
-We extend the existing transcript-consistency results (`reachableInv`) to the security
-oracle family. The proofs reuse the send/receive preservation lemmas and show that replacing
-the exposed and challenged sets with any finite sets of epochs preserves the invariant.
+**Transcript consistency.** `reachableInv` does not depend on the exposed and challenged sets
+(`reachableInv_with_security_bookkeeping`). With correct erasure codes, every security query from
+a state satisfying `reachableInv` and `CurrentKEMCorrect` preserves `reachableInv`
+(`securityImpl_preserves_reachableInv`).
 
-Let `n := s.nA` count successful sends by A. The predicate `sendEpochInv s` asserts
-`s.stA.t ≤ n + 1` and `s.stA.dkA.isSome → s.stA.t ≤ n`. Each correctness query preserves
-`sendEpochInv`. If `reachableInv s` and `sendEpochInv s` hold and either key table records
-epoch `t`, then `recorded_epoch_le_sends` gives `t ≤ n`.
+**Send and epoch accounting.** Let `n := s.nA` count A's recorded sends in a game state `s`. The
+predicate `sendEpochInv s` asserts `s.stA.t ≤ n + 1` and `s.stA.dkA.isSome → s.stA.t ≤ n`; it
+holds initially, and each correctness query preserves it. If `reachableInv s` and
+`sendEpochInv s` hold and either key table records epoch `t`, then `t ≤ n`
+(`recorded_epoch_le_sends`).
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -76,7 +78,7 @@ theorem reachableInv_initialGame
       reachableInv_init kem onoff ecEk ecCt0 ecCt1 ecEk.ec.nchunk_pos ecCt0.ec.nchunk_pos
 
 /-- Assume the three erasure codes are correct. For every correctness query of Opp-UniKEM from a
-state satisfying `reachableInv` and `CurrentKEMCorrect`, all supported successor states
+state satisfying `reachableInv` and `CurrentKEMCorrect`, all possible successor states
 satisfy `reachableInv`. -/
 theorem correctnessImpl_preserves_reachableInv_at [DecidableEq K] [DecidableEq Sym]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
@@ -106,7 +108,7 @@ theorem correctnessImpl_preserves_reachableInv_at [DecidableEq K] [DecidableEq S
       ecCt0 ecCt1 leak n s hs z hz
 
 /-- Assume the three erasure codes are correct. For every security query of Opp-UniKEM from a
-state satisfying `reachableInv` and `CurrentKEMCorrect`, all supported successor states
+state satisfying `reachableInv` and `CurrentKEMCorrect`, all possible successor states
 satisfy `reachableInv`. -/
 theorem securityImpl_preserves_reachableInv
     [DecidableEq K] [DecidableEq Sym] [SampleableType K]
@@ -144,13 +146,13 @@ namespace oppUniKemCKA.Security
 
 variable {K PK SK C Sym : Type}
 
-/-- A game state `s` satisfies `sendEpochInv` if `s.stA.t ≤ s.nA + 1` and
-`s.stA.t ≤ s.nA` whenever A holds a decapsulation key. Here `s.nA` counts successful A-sends. -/
+/-- A game state `s` satisfies `sendEpochInv` if `s.stA.t ≤ s.nA + 1`, and `s.stA.t ≤ s.nA`
+whenever A holds a decapsulation key. Here `s.nA` counts A's recorded sends. -/
 def sendEpochInv {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) : Prop :=
   s.stA.t ≤ s.nA + 1 ∧ (s.stA.dkA.isSome → s.stA.t ≤ s.nA)
 
-/-- The empty epoch-one state satisfies the send/epoch accounting invariant. -/
+/-- The initial game state satisfies `sendEpochInv`. -/
 theorem sendEpochInv_init
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure) :
     sendEpochInv (Reduction.Internal.initialGame (Sym := Sym) kem onoff) := by
@@ -193,8 +195,8 @@ theorem recorded_epoch_le_sends
         cases hd : s.stA.dkA <;> cases he : s.stA.ekA <;> simp_all [Option.map₂]
       exact ht ▸ hs.2 hdk
 
-/-- For every local state, message, and decapsulation function, A's receive either
-retains its epoch and decapsulation key, or advances one epoch and erases an existing key. -/
+/-- For every decapsulation function, a successful receive of A either retains A's epoch and
+decapsulation key, or advances the epoch by one and erases a present decapsulation key. -/
 theorem recvA_epoch_shape [DecidableEq Sym]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (decapsDet : SK → C → Option K)
@@ -228,17 +230,11 @@ theorem oracleSendA_preserves_sendEpochInv [DecidableEq K] [DecidableEq Sym]
       bind_assoc, pure_bind, StateT.run_set, StateT.run_pure,
       mem_support_bind_iff, mem_support_pure_iff, Prod.exists] at hz
   · obtain ⟨pk, sk, _, rfl⟩ := hz
-    constructor <;> dsimp
-    · exact hs.1.trans (Nat.le_succ _)
-    · intro _
-      exact hs.1
+    exact ⟨hs.1.trans (Nat.le_succ _), fun _ => hs.1⟩
   · obtain rfl := hz
-    constructor <;> dsimp
-    · exact hs.1.trans (Nat.le_succ _)
-    · intro _
-      exact hs.1
+    exact ⟨hs.1.trans (Nat.le_succ _), fun _ => hs.1⟩
 
-/-- If `scka.recvA` is Opp-UniKEM's receive with any decapsulation function,
+/-- If `scka.recvA` is Opp-UniKEM's receive with some decapsulation function,
 then `oracleRecvA scka` preserves `sendEpochInv`. -/
 theorem oracleRecvA_preserves_sendEpochInv_of_recv [DecidableEq K] [DecidableEq Sym]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)

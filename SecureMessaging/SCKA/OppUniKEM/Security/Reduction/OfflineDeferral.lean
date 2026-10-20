@@ -11,19 +11,20 @@ import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.OnlineDeferral
 /-!
 # Deferring the offline sample
 
-**Setting.** Fix complete material `m`, a selected epoch `e`, and a mode bit `b`.
+**Setting.** Let `m` be complete material, `e` a selected epoch, and `b` a mode bit. The
+material `{ m with off := off }` replaces the offline output of `m` by `off`, resampled as
+`off ← leak.encapsOffRleak`. The one-use conditions of `stoppedRun_sample_once_eq` take
+`used := sourceUsed .offline e` and `hit := usesSource .offline e` (`SourceUse`) and hold in
+every game state.
 
 **Results.**
 
-- `oracle_offline_independent`: in the stage `onlineFresh`, a query with
-  `usesSource .offline e t s = false` has the same response/state distribution for every stored
-  offline output; a leaking first send by B at a challenged epoch rejects
-  (`leaking_offline_rejected`).
-- `oracle_sample_offline_eq_fresh`: averaging a query of `onlineFresh` over the offline output
-  gives the query of `encapsFresh` (`sendB_sample_offline_eq_fresh`,
-  `sendBrleak_sample_offline_eq_fresh`).
-- `stopped_offline_deferred`: sampling the offline output once before the stopped stage
-  `onlineFresh` gives the acceptance probability of the stopped stage `encapsFresh`.
+- `oracle_sample_offline_eq_fresh`: for every query, averaging
+  `oracle .onlineFresh { m with off := off } e b` over `off` gives the joint distribution of
+  response and successor state of `oracle .encapsFresh m e b`.
+- `stopped_offline_deferred`: drawing `off` once before
+  `stopped .onlineFresh { m with off := off } e b` gives the acceptance probability of
+  `stopped .encapsFresh m e b`.
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -33,9 +34,9 @@ namespace oppUniKemCKA.Security.Embedding.Sampling
 variable {K PK SK C Sym : Type}
 variable [DecidableEq Sym]
 
-/-- For every state outside the selected first B-send, replacing the
-stored offline output leaves the local sendBrleak computation in `onlineFresh`
-unchanged. The subsequent online phase samples at its actual inputs. -/
+/-- Unless B is at `e` with no offline ciphertext, B's leaking send in
+`schemeAt .onlineFresh { m with off := off } e s` is the same computation for every offline
+output `off`. -/
 theorem sendBrleak_offline_independent
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -47,22 +48,19 @@ theorem sendBrleak_offline_independent
     (offline offline' : (onoff.St × onoff.C₀) × leak.OffRand) :
     (schemeAt ecEk ecCt0 ecCt1 .onlineFresh { m with off := offline } e s).sendBrleak s.stB =
     (schemeAt ecEk ecCt0 ecCt1 .onlineFresh { m with off := offline' } e s).sendBrleak s.stB := by
-  have hf : Stage.onlineFresh ≠ .fixed := by decide
   by_cases he : s.stB.t = e <;> cases hc0 : s.stB.ct0 <;> cases hp : s.stB.ekA <;>
     cases hc1 : s.stB.ct1 <;> cases hst : s.stB.stCt <;> cases ha : s.stB.ack.ctRec
   all_goals
     simp only [he, hc0, Option.isNone_none, Option.isNone_some, Bool.false_eq_true,
       and_true, and_false, not_true_eq_false] at hh
   all_goals
-    simp only [schemeAt, Stage.pinsKeygen, Stage.pinsOffline, Stage.pinsOnline,
+    simp only [schemeAt, Stage.pinsKeygen, Stage.pinsOffline,
       scheme, sendBrleak, hc0, hp, hc1, hst, ha, pure_bind,
       Pinned.onOff, Pinned.leakage, Pinned.encapsOff,
-      he, hf, or_true, decide_true, decide_false, Bool.and_true, Bool.true_and, Bool.false_and,
+      he, decide_true, decide_false, Bool.true_and,
       Bool.not_false, Bool.not_true, Bool.false_eq_true, ↓reduceIte]
 
-/-- For every state outside the selected first B-send, replacing the
-stored offline output leaves the local sendB computation in `onlineFresh`
-unchanged. Derived from `sendBrleak_offline_independent` by forgetting the coins. -/
+/-- The ordinary-send version of `sendBrleak_offline_independent`. -/
 theorem sendB_offline_independent
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -79,9 +77,9 @@ theorem sendB_offline_independent
 
 variable [DecidableEq K]
 
-/-- For every sampling stage, a leaking first B-send in already challenged
-epoch `e` has the rejection distribution concentrated at `(none,s)`.
-The conclusion includes combined offline/online sampling before the guard. -/
+/-- In every stage, if B is at `e` with no offline ciphertext and `e ∈ s.challenged`, B's
+leaking-send oracle rejects from `s`: its distribution is that of `pure (none, s)`. The send
+samples before its guard rejects, so only the distributions agree. -/
 theorem leaking_offline_rejected
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -97,7 +95,7 @@ theorem leaking_offline_rejected
     have hex := sendBrleak_exposure
       (Pinned.kem m (stage.pinsKeygen && decide (s.stA.t = e))
         (stage.pinsOffline && decide (s.stB.t = e))
-        (stage.pinsOnline && decide (s.stB.t = e)) (s.keyB s.stA.t))
+        false (s.keyB s.stA.t))
       (Pinned.onOff m _ _ _ _) ecCt0 ecCt1 (Pinned.leakage leak m _ _ _ _) s.stB
       key msg epoch next coins hout
     simpa only [leakEpochsB, hfield, Option.isNone_none,
@@ -106,9 +104,9 @@ theorem leaking_offline_rejected
 
 variable [SampleableType K]
 
-/-- For every query with `usesSource .offline = false`, replacing the
-stored offline component in `onlineFresh` preserves the entire joint
-response/state distribution, including rejected leaking sends. -/
+/-- If `usesSource .offline e t s = false`, the joint distribution of response and successor
+state of query `t` of `oracle .onlineFresh { m with off := off } e b` from `s` is the same for
+every offline output `off`. -/
 theorem oracle_offline_independent
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -132,9 +130,9 @@ theorem oracle_offline_independent
       (sendB_offline_independent base onoff ecEk ecCt0 ecCt1 leak m e s
         (of_decide_eq_false hh) offline offline'))
   · exact congrArg evalDist (SCKAScheme.oracleRecvA_run_congr _ _ s (fun ρ =>
-      (recvA_eq_auxiliary base onoff ecEk ecCt0 ecCt1 leak .onlineFresh
+      (recvA_eq_ideal base onoff ecEk ecCt0 ecCt1 leak .onlineFresh
         { m with off := offline } e s ρ).trans
-      (recvA_eq_auxiliary base onoff ecEk ecCt0 ecCt1 leak .onlineFresh
+      (recvA_eq_ideal base onoff ecEk ecCt0 ecCt1 leak .onlineFresh
         { m with off := offline' } e s ρ).symm) n)
   · rfl
   · exact congrArg evalDist (SCKAScheme.oracleSendArleak_run_congr _ _ _ s rfl)
@@ -162,11 +160,9 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
 
-set_option maxHeartbeats 800000 in
--- Separate the local send phases before applying the shared game continuation.
-/-- For every material value, selected epoch, and input state, averaging
-selected offline material in the `onlineFresh` stage gives exactly the
-leaking B-send distribution in the `encapsFresh` stage. -/
+/-- For every state `s`, averaging B's leaking send in
+`schemeAt .onlineFresh { m with off := off } e s` over `off ← leak.encapsOffRleak` gives the
+output distribution of B's leaking send in `schemeAt .encapsFresh m e s`. -/
 theorem sendBrleak_sample_offline_eq_fresh [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -179,8 +175,6 @@ theorem sendBrleak_sample_offline_eq_fresh [DecidableEq Sym]
       (Sampling.schemeAt ecEk ecCt0 ecCt1 .onlineFresh { m with off := offline } e s).sendBrleak
         s.stB)] =
     𝒟[(Sampling.schemeAt ecEk ecCt0 ecCt1 .encapsFresh m e s).sendBrleak s.stB] := by
-  have hf : Sampling.Stage.onlineFresh ≠ .fixed := by decide
-  have he₀ : Sampling.Stage.encapsFresh ≠ .fixed := by decide
   have he₁ : Sampling.Stage.encapsFresh ≠ .onlineFresh := by decide
   apply evalDist_ext
   intro out
@@ -188,20 +182,17 @@ theorem sendBrleak_sample_offline_eq_fresh [DecidableEq Sym]
     cases hc1 : s.stB.ct1 <;> cases hst : s.stB.stCt <;> cases ha : s.stB.ack.ctRec
   all_goals
     simp only [Sampling.schemeAt, Sampling.Stage.pinsKeygen,
-      Sampling.Stage.pinsOffline, Sampling.Stage.pinsOnline, scheme, sendBrleak,
+      Sampling.Stage.pinsOffline, scheme, sendBrleak,
       hc0, hp, hc1, hst, ha, pure_bind, Pinned.onOff, Pinned.leakage,
       Pinned.encapsOff, he, decide_true, decide_false,
-      Bool.not_true, Bool.not_false, Bool.false_eq_true, hf, he₀, he₁,
-      or_true, or_false, Bool.and_true, Bool.false_and, ↓reduceIte]
+      Bool.not_true, Bool.not_false, Bool.false_eq_true, he₁,
+      Bool.and_true, Bool.false_and, ↓reduceIte]
   all_goals
     apply ToVCVio.probOutput_bind_of_const'
     intro offline _
     rfl
 
-/-- For every material value, selected epoch, and input state, averaging
-selected offline material in the `onlineFresh` stage gives exactly the
-ordinary B-send distribution in the `encapsFresh` stage. Derived from
-`sendBrleak_sample_offline_eq_fresh` by forgetting the coins. -/
+/-- The ordinary-send version of `sendBrleak_sample_offline_eq_fresh`. -/
 theorem sendB_sample_offline_eq_fresh [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -229,9 +220,10 @@ namespace oppUniKemCKA.Security.Embedding
 variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- For every query, material value, selected epoch, mode, and input state,
-averaging offline material in the `onlineFresh` stage gives the joint
-response/state distribution of the `encapsFresh` stage. -/
+/-- For every query `t` and state `s`, averaging query `t` of
+`oracle .onlineFresh { m with off := off } e b` from `s` over `off ← leak.encapsOffRleak` gives
+the joint distribution of response and successor state of query `t` of
+`oracle .encapsFresh m e b` from `s`. -/
 theorem oracle_sample_offline_eq_fresh
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -253,9 +245,9 @@ theorem oracle_sample_offline_eq_fresh
     (sendB_sample_offline_eq_fresh base onoff ecEk ecCt0 ecCt1 leak m e s)
     (ToVCVio.evalDist_bind_of_const' _ fun _ _ => rfl)
     (sendBrleak_sample_offline_eq_fresh base onoff ecEk ecCt0 ecCt1 leak m e s)
-    (fun offline _ ρ => (Sampling.recvA_eq_auxiliary base onoff ecEk ecCt0 ecCt1 leak
+    (fun offline _ ρ => (Sampling.recvA_eq_ideal base onoff ecEk ecCt0 ecCt1 leak
       .onlineFresh { m with off := offline } e s ρ).trans
-      (Sampling.recvA_eq_auxiliary base onoff ecEk ecCt0 ecCt1 leak .encapsFresh m e s ρ).symm)
+      (Sampling.recvA_eq_ideal base onoff ecEk ecCt0 ecCt1 leak .encapsFresh m e s ρ).symm)
     (fun _ _ _ => rfl) t
 
 end oppUniKemCKA.Security.Embedding
@@ -267,9 +259,9 @@ namespace oppUniKemCKA.Security.Embedding.Sampling
 variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- For every material value `m`, selected epoch `e`, mode `b`, adversary `adv`, and state `s`,
-sampling the selected offline output once before the stopped `onlineFresh` execution gives
-the acceptance probability of the stopped `encapsFresh` stage. -/
+/-- For every adversary `adv` and state `s`, drawing `off ← leak.encapsOffRleak` once and
+running `optionRun (stopped .onlineFresh { m with off := off } e b) adv s` returns `true` with
+the probability of `optionRun (stopped .encapsFresh m e b) adv s`. -/
 theorem stopped_offline_deferred
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)

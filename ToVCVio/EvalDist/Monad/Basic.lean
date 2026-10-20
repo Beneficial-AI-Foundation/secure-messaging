@@ -39,9 +39,8 @@ universe v
 
 variable {α : Type} {m : Type → Type v} [Monad m] [LawfulMonad m]
 
-/-- `probOutput_bind_of_const'` for whole distributions: if `my x` is the same computation `mz`
-for every `x` in the support of a never-failing `mx`, then `mx >>= my` has the distribution of
-`mz`. -/
+/-- If `my x = mz` for every `x` in the support of a never-failing `mx`, then `mx >>= my`
+has the distribution of `mz`. -/
 lemma evalDist_bind_of_const' [MonadLiftT m SPMF] [LawfulMonadLiftT m SPMF]
     [MonadLiftT m SetM] [EvalDistCompatible m]
     {β : Type u} (mx : m α) [NeverFail mx] {my : α → m β} {mz : m β}

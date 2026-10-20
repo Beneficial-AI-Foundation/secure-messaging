@@ -175,8 +175,8 @@ def stopOnState (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool
     let (answer, next) ← (impl t).run s
     pure (if stop next then none else some answer, next)
 
-/-- For every query `t` and state `s`, every `(a, s')` in the support of `(impl t).run s` with
-`stop s' = false` gives `(some a, s')` in the support of the stopped query. -/
+/-- If `(a, s')` is a possible result of query `t` under `impl` from `s` and `stop s' = false`,
+then `(some a, s')` is a possible result of query `t` under `stopOnState impl stop` from `s`. -/
 theorem mem_support_stopOnState_of_mem
     (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool) (t : spec.Domain) (s : σ)
     (z : spec.Range t × σ) (hz : z ∈ support ((impl t).run s)) (hstop : stop z.2 = false) :

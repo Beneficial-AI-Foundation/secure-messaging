@@ -11,25 +11,23 @@ import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.SamplingStages
 import SecureMessaging.SCKA.OppUniKEM.Security.IdealStopping
 
 /-!
-# Adjacent hybrids from the KEM branches
+# Adjacent ideal hybrids from the KEM branches
 
-**Setting.** Assume deterministic decapsulation and correct erasure codes. Let `adv` be a
-security adversary and `H_i := idealEpochHybridExp adv i` the auxiliary hybrids.
+**Setting.** Let `base` be a KEM with deterministic decapsulation, and assume correct erasure
+codes. Let `adv` be a security adversary and `H_i := idealEpochHybridExp adv i` the ideal
+hybrids. For a selected epoch `e` and a challenge mode `μ`, let `I_e[μ]` be the ideal game with
+mode `μ`, run from the initial state and stopped at the first query whose successor state exposes
+`e`. As in `Material`, the *real-minus-random acceptance gap* of Boolean computations `G_b` is
+`Pr[G_true = true] - Pr[G_false = true]`.
 
 **Results.**
 
-- `pinnedHybrid_eq_auxiliary`: averaging the stopped pinned hybrid over complete material gives
-  the stopped auxiliary game with mode `adjacentMode e b`, by deferring the online, offline, and
-  key-generation samples in this order.
-- `fixedBranch_eq_auxiliary`: for `e > 0`, `fixedBranch adv e b` returns `true` with the
-  probability of the stopped auxiliary game with mode `adjacentMode e (!b)`.
+- `fixedBranch_eq_ideal`: for `e > 0` and every IND-CPA branch `b`,
+  `Pr[fixedBranch adv e b = true] = Pr[I_e[adjacentMode e (!b)] = true]`.
 - `fixedBranch_signed_gap_eq`: `Pr[fixedBranch adv (i+1) true = true] -
-  Pr[fixedBranch adv (i+1) false = true] = Pr[H_i = true] - Pr[H_{i+1} = true]`; the stopped
-  paths cancel by `idealEpochHybrid_signed_gap_stop_eq`.
-- `securityReduction_signed_gap_eq`: for `q > 0`, the reduction's signed real-minus-random gap
-  is `(Pr[H_0 = true] - Pr[H_q = true]) / q`;
+  Pr[fixedBranch adv (i+1) false = true] = Pr[H_i = true] - Pr[H_{i+1} = true]`.
 - `hybrid_gap_eq_query_factor`: for every `q`,
-  `|Pr[H_0 = true] - Pr[H_q = true]| = q · Adv_IND-CPA(kem, securityReduction adv q)`.
+  `|Pr[H_0 = true] - Pr[H_q = true]| = q · Adv_IND-CPA(base, securityReduction adv q)`.
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -39,10 +37,9 @@ namespace oppUniKemCKA.Security.Embedding
 variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- Assume deterministic decapsulation and correct erasure codes. For every
-selected epoch, mode, adversary, and arbitrary reference material `m₀`,
-averaging the stopped pinned hybrid over complete material gives exactly
-the stopped fully fresh stage from the protocol's initial state. -/
+/-- For all reference material `m₀`, drawing `m ← sampleMaterial leak` and running the stopped
+pinned hybrid `hybridStopped m e b` from the initial state returns `true` with the probability
+of `stopped .fresh m₀ e b` from the initial state. The stage `fresh` reads no stored output. -/
 theorem pinnedHybrid_eq_fresh
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (hDet : base.DeterministicDecaps)
@@ -90,10 +87,10 @@ theorem pinnedHybrid_eq_fresh
       { m₀ with keygen := kg } e b adv _
   · exact Sampling.stopped_keygen_deferred base onoff ecEk ecCt0 ecCt1 leak m₀ e b adv _
 
-/-- Assume deterministic decapsulation and correct erasure codes. For every
-selected epoch, mode, and adversary, the material-averaged stopped pinned
-hybrid equals the stopped auxiliary oracle with mode `adjacentMode e b`. -/
-theorem pinnedHybrid_eq_auxiliary
+/-- Drawing `m ← sampleMaterial leak` and running the stopped pinned hybrid
+`hybridStopped m e b` from the initial state returns `true` with the probability of
+`I_e[adjacentMode e b]`. -/
+theorem pinnedHybrid_eq_ideal
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (hDet : base.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
@@ -114,12 +111,11 @@ theorem pinnedHybrid_eq_auxiliary
   unfold Sampling.stopped
   rw [Sampling.oracle_fresh_eq_ideal base onoff hDet ecEk ecCt0 ecCt1 leak m₀ e b]
 
-/-- Assume deterministic decapsulation and correct erasure codes. For every
-positive selected epoch `e`, adversary, and KEM branch bit `b`, the explicit
-reduction's branch has the acceptance probability of the stopped auxiliary
-hybrid with mode `adjacentMode e (!b)`. The negation converts the KEM bit
-convention (true means real) to the SCKA convention (true means random). -/
-theorem fixedBranch_eq_auxiliary
+/-- For every `e > 0` and IND-CPA branch `b`,
+`Pr[fixedBranch adv e b = true] = Pr[I_e[adjacentMode e (!b)] = true]`. The negation converts
+the KEM convention (`true` for the real key) to the mode convention (`true` for a uniform
+key). -/
+theorem fixedBranch_eq_ideal
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (hDet : base.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
@@ -134,7 +130,7 @@ theorem fixedBranch_eq_auxiliary
       (oppUniKemCKA.Reduction.Internal.initialGame base onoff)] := by
   rw [fixedBranch_eq_pinnedHybrid base onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
     leak adv e he b]
-  exact pinnedHybrid_eq_auxiliary base onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
+  exact pinnedHybrid_eq_ideal base onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
     leak e (!b) adv
 
 end oppUniKemCKA.Security.Embedding
@@ -147,8 +143,7 @@ variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
 omit [DecidableEq K] [DecidableEq Sym] [SampleableType K] in
-/-- For every index `i`, the adjacent mode with selected epoch `i+1` and
-real selected response randomizes exactly the positive epochs at most `i`. -/
+/-- `adjacentMode (i + 1) false` randomizes exactly the epochs `1, …, i`. -/
 theorem adjacentMode_succ_false (i : ℕ) :
     adjacentMode (i + 1) false = fun t => decide (0 < t ∧ t ≤ i) := by
   funext t
@@ -158,8 +153,7 @@ theorem adjacentMode_succ_false (i : ℕ) :
   omega
 
 omit [DecidableEq K] [DecidableEq Sym] [SampleableType K] in
-/-- For every index `i`, the adjacent mode with selected epoch `i+1` and
-random selected response randomizes exactly the positive epochs at most `i+1`. -/
+/-- `adjacentMode (i + 1) true` randomizes exactly the epochs `1, …, i + 1`. -/
 theorem adjacentMode_succ_true (i : ℕ) :
     adjacentMode (i + 1) true = fun t => decide (0 < t ∧ t ≤ i + 1) := by
   funext t
@@ -168,10 +162,8 @@ theorem adjacentMode_succ_true (i : ℕ) :
   apply propext
   omega
 
-/-- Assume deterministic decapsulation and correct erasure codes. For every
-adversary and index `i`, the real-minus-random gap of the fixed KEM branches
-selecting epoch `i+1` equals the signed acceptance gap from auxiliary hybrid
-`i` to hybrid `i+1`. All exposure-terminated paths cancel in this difference. -/
+/-- For every adversary and index `i`, the real-minus-random acceptance gap of
+`fixedBranch adv (i + 1)` is `Pr[H_i = true] - Pr[H_{i+1} = true]`. -/
 -- ANCHOR: fixedBranch_signed_gap_eq
 theorem fixedBranch_signed_gap_eq
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
@@ -184,10 +176,12 @@ theorem fixedBranch_signed_gap_eq
       (Pr[= true | fixedBranch base onoff ecEk ecCt0 ecCt1 leak adv (i + 1) false]).toReal =
     (Pr[= true | idealEpochHybridExp base onoff hDet ecEk ecCt0 ecCt1 leak adv i]).toReal -
       (Pr[= true | idealEpochHybridExp
-        base onoff hDet ecEk ecCt0 ecCt1 leak adv (i + 1)]).toReal := by
-  rw [fixedBranch_eq_auxiliary base onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
+        base onoff hDet ecEk ecCt0 ecCt1 leak adv (i + 1)]).toReal
+-- ANCHOR_END: fixedBranch_signed_gap_eq
+    := by
+  rw [fixedBranch_eq_ideal base onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
       leak (i + 1) (Nat.succ_pos i) true adv,
-    fixedBranch_eq_auxiliary base onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
+    fixedBranch_eq_ideal base onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
       leak (i + 1) (Nat.succ_pos i) false adv]
   simp only [Bool.not_true, Bool.not_false, adjacentMode_succ_false, adjacentMode_succ_true]
   have hstop := idealEpochHybrid_signed_gap_stop_eq base onoff hDet ecEk ecCt0 ecCt1
@@ -205,12 +199,10 @@ theorem fixedBranch_signed_gap_eq
       (fun s => decide (i + 1 ∈ s.exposed)) adv
       (oppUniKemCKA.Reduction.Internal.initialGame base onoff)]).toReal = _
   linarith only [hstop]
--- ANCHOR_END: fixedBranch_signed_gap_eq
 
-/-- Assume deterministic decapsulation and correct erasure codes. For every
-adversary and positive integer `q`, the uniform reduction's real-minus-random
-acceptance gap is `(Pr[H₀=true] − Pr[H_q=true])/q`. This follows by telescoping
-the `q` signed adjacent differences before taking an absolute value. -/
+/-- For every adversary and `q > 0`, the real-minus-random acceptance gap of
+`securityReduction adv q` in the IND-CPA experiment is
+`(Pr[H_0 = true] - Pr[H_q = true]) / q`. -/
 theorem securityReduction_signed_gap_eq
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (hDet : base.DeterministicDecaps)
@@ -233,10 +225,10 @@ theorem securityReduction_signed_gap_eq
     (Pr[= true | idealEpochHybridExp base onoff hDet ecEk ecCt0 ecCt1 leak adv (i + 1)]).toReal) q,
     Finset.sum_range_sub']
 
-/-- Assume deterministic decapsulation and correct erasure codes. For every
-adversary and every `q`, the auxiliary `H₀`/`H_q` distinguishing gap equals
-`q` times the IND-CPA advantage of the explicit uniform-epoch reduction. For
-`q = 0` both sides vanish. -/
+/-- For every adversary and every `q`,
+`|Pr[H_0 = true] - Pr[H_q = true]| = q · Adv_IND-CPA(base, securityReduction adv q)`, where the
+IND-CPA advantage is the full gap between the real and random branches. For `q = 0` both sides
+vanish. -/
 -- ANCHOR: hybrid_gap_eq_query_factor
 theorem hybrid_gap_eq_query_factor
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
@@ -248,7 +240,9 @@ theorem hybrid_gap_eq_query_factor
     |(Pr[= true | idealEpochHybridExp base onoff hDet ecEk ecCt0 ecCt1 leak adv 0]).toReal -
       (Pr[= true | idealEpochHybridExp base onoff hDet ecEk ecCt0 ecCt1 leak adv q]).toReal| =
     (q : ℝ) * base.IND_CPA_Advantage ProbCompRuntime.probComp
-      (securityReduction base onoff ecEk ecCt0 ecCt1 leak adv q) := by
+      (securityReduction base onoff ecEk ecCt0 ecCt1 leak adv q)
+-- ANCHOR_END: hybrid_gap_eq_query_factor
+    := by
   rcases Nat.eq_zero_or_pos q with rfl | hpos
   · simp
   have hq : q ≠ 0 := hpos.ne'
@@ -257,6 +251,5 @@ theorem hybrid_gap_eq_query_factor
       leak adv q hq, abs_mul, abs_inv,
     abs_of_nonneg (show (0 : ℝ) ≤ (q : ℝ) from Nat.cast_nonneg q),
     ← mul_assoc, mul_inv_cancel₀ (by exact_mod_cast hq), one_mul]
--- ANCHOR_END: hybrid_gap_eq_query_factor
 
 end oppUniKemCKA.Security.Embedding

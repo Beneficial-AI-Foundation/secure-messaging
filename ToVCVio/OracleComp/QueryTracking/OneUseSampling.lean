@@ -63,13 +63,15 @@ Then, for every adaptive adversary `oa : OracleComp spec Bool` and
 initial state `s` satisfying `Inv s`,
 `Pr[G_once(oa, s) = true] = Pr[G_each(oa, s) = true]`.
 
-**Deferred sampling** (`stoppedRun_sample_once_eq`). Let `impl a` and `target` be stateful
-oracle implementations with plain `StateT` answers, run through `stoppedRun` with a stop test
-`stop : σ → Bool`. If conditions 1–5 hold for the successors `s'` of `impl a` with
-`stop s' = false`, and averaging over `a ← sample` gives `target` at every state `s` with
-`Inv s`, that is `𝒟[a ← sample; (impl a t).run s] = 𝒟[(target t).run s]`, then drawing
-`a ← sample` once and running `stoppedRun (impl a) stop oa s` returns `true` with the
-probability of `stoppedRun target stop oa s`.
+**Stopped executions** (`stoppedRun_sample_once_eq`). Now let
+`impl : τ → QueryImpl spec (StateT σ ProbComp)` and `target : QueryImpl spec (StateT σ ProbComp)`
+be oracle implementations whose answers are never `none`, and `stop : σ → Bool` a test on states.
+Assume conditions 1–5 for the queries `(impl a t).run s`, with conditions 1, 2, and 5 required
+only for successors `s'` with `stop s' = false`. Assume also that `target` answers each query
+from each state `s` with `Inv s` with the averaged distribution:
+`𝒟[a ← sample; (impl a t).run s] = 𝒟[(target t).run s]`. Then, for every `oa` and `s` with
+`Inv s`, `Pr[a ← sample; stoppedRun (impl a) stop oa s = true] =
+Pr[stoppedRun target stop oa s = true]`.
 -/
 
 open OracleSpec ENNReal

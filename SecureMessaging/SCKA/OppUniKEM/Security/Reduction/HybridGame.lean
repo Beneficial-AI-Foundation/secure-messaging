@@ -12,27 +12,30 @@ import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Simulation
 /-!
 # From the honest game to the pinned hybrids
 
-**Setting.** Fix complete material `m` and a positive selected epoch `e`.
+**Setting.** Let `m` be material, `e > 0` a selected epoch, `adv` a security adversary, and
+`s₀` the initial game state. `honestStopped_real_eq_hybrid` and `fixedBranch_eq_pinnedHybrid`
+assume deterministic decapsulation and correct erasure codes.
 
 **Definitions.**
 
 - `adjacentMode e b t := decide (0 < t ∧ (t < e ∨ (b ∧ t = e)))`: the challenge mode randomizing
   the positive epochs below `e`, and `e` itself if `b = true`.
 - `hybridOracle m e b := securityImplAt (honestScheme m e) (challOf (adjacentMode e b))`: the
-  pinned hybrid; `hybridStopped` stops it after the first query exposing `e`.
-- `usesChallengeKey e t s`: query `t` challenges `e` in a state `s` where `e` is neither exposed
-  nor challenged and some party has a key recorded at `e`.
+  pinned hybrid; `hybridStopped m e b` answers `⊥` at the first query whose successor state has
+  `e` exposed.
+- `usesChallengeKey e t s`: query `t` challenges `e` from a state `s` in which `e` is neither
+  exposed nor challenged and A or B has a key recorded at `e`.
 
 **Results.**
 
-- `honestStopped_real_eq_hybrid`: with challenge key `m.on.1.2`, the stopped honest game and the
-  stopped pinned hybrid with `b = false` return `true` with equal probability.
-- `honestStopped_random_eq_hybrid`: with a uniform challenge key sampled before execution, the
-  stopped honest game and the stopped pinned hybrid with `b = true` return `true` with equal
-  probability. The key is read only by a query with `usesChallengeKey e t s`, after which `e` is
-  challenged (`stoppedRun_sample_once_eq`).
-- `fixedBranch_eq_pinnedHybrid`: `fixedBranch adv e b` is the stopped pinned hybrid with mode bit
-  `!b`, averaged over complete material.
+- `honestStopped_real_eq_hybrid`: for `m ∈ support (sampleMaterial leak)`,
+  `optionRun (honestStopped m e m.on.1.2) adv s₀` and `optionRun (hybridStopped m e false) adv s₀`
+  return `true` with equal probability.
+- `honestStopped_random_eq_hybrid`: for every state `s`, drawing `k ←$ K` once and running
+  `optionRun (honestStopped m e k) adv s` returns `true` with the probability of
+  `optionRun (hybridStopped m e true) adv s`.
+- `fixedBranch_eq_pinnedHybrid`: `fixedBranch adv e b` returns `true` with the probability that
+  `m ← sampleMaterial leak` followed by `optionRun (hybridStopped m e (!b)) adv s₀` does.
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -42,9 +45,9 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
 
-/-- Test whether a query uses the selected challenge key: it must challenge
-epoch `e`, pass both exposure and repetition guards, and have an available
-recorded key at either party. -/
+/-- Whether `query` from state `s` reads the challenge key of `pinnedChallenge e`: it
+challenges `e`, `e` is neither exposed nor challenged in `s`, and A or B has a key recorded
+at `e`. -/
 def usesChallengeKey {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     (e : ℕ) (query : (SCKAScheme.sckaSecuritySpec Unit Unit Unit Unit Unit).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) : Bool :=
@@ -59,8 +62,8 @@ variable (ecEk : ErasureCodePayload PK Sym)
 variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
 variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
 
-/-- For every material value, selected epoch, supplied key, and epoch `u`,
-each honest intermediate query preserves membership of `u` in `challenged`. -/
+/-- No query of the honest intermediate game `honestOracle m e kStar` removes an epoch `u`
+from `challenged`. -/
 theorem honestOracle_preserves_challenged (m : Material leak) (e : ℕ) (kStar : K) (u : ℕ) :
     QueryImpl.PreservesInv (honestOracle base onoff ecEk ecCt0 ecCt1 leak m e kStar)
       (fun s => u ∈ s.challenged) := by
@@ -70,8 +73,8 @@ theorem honestOracle_preserves_challenged (m : Material leak) (e : ℕ) (kStar :
     (fun t s z hz => (SCKAScheme.correctnessImpl_securitySets_eq _ t s z hz).2)
     (pinnedChallenge_recordsChallenges onoff e kStar) t s z hz hs
 
-/-- For every query and state whose selected-challenge use test is false,
-the honest intermediate query computation is equal for all supplied keys. -/
+/-- If `usesChallengeKey e t s = false`, then for all keys `k`, `k'`, answering `t` from `s`
+gives the same computation in `honestOracle m e k` and `honestOracle m e k'`. -/
 theorem honestOracle_eq_of_unused (m : Material leak) (e : ℕ) (k k' : K)
     (t : (securitySpec leak Sym).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
@@ -83,8 +86,8 @@ theorem honestOracle_eq_of_unused (m : Material leak) (e : ℕ) (k k' : K)
   simp only [securityImplAt, honestOracle, StateT.run_bind, StateT.run_get, pure_bind]
   exact pinnedChallenge_eq_of_unused onoff e t k k' s (of_decide_eq_false h)
 
-/-- For every query and state whose selected-challenge use test is true,
-every supported honest successor records the selected epoch in `challenged`. -/
+/-- If `usesChallengeKey e t s = true`, then every possible successor state of
+`honestOracle m e k` answering `t` from `s` has `e ∈ challenged`. -/
 theorem honestOracle_use_records_challenge (m : Material leak) (e : ℕ) (k : K)
     (t : (securitySpec leak Sym).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
@@ -95,9 +98,7 @@ theorem honestOracle_use_records_challenge (m : Material leak) (e : ℕ) (k : K)
     e ∈ z.2.challenged := by
   rcases t with (((((t | a) | a) | t) | a) | a)
   all_goals try simp only [usesChallengeKey, Bool.false_eq_true, decide_eq_true_eq] at h
-  have h' : t = e ∧ e ∉ s.exposed ∧ e ∉ s.challenged ∧
-      ((s.keyA e).isSome ∨ (s.keyB e).isSome) := h
-  obtain ⟨ht, he, hc, hk⟩ := h'
+  obtain ⟨ht, he, hc, hk⟩ := h
   subst t
   simp only [securityImplAt, honestOracle, StateT.run_bind, StateT.run_get, pure_bind] at hz
   rw [pinnedChallenge_selected onoff e k s (by simp [he, hc]) hk] at hz
@@ -113,13 +114,13 @@ namespace oppUniKemCKA.Security.Embedding
 variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- Challenge mode for the two games adjacent to epoch `e`: randomize
-positive epochs below `e`, together with `e` when `b = true`. -/
+/-- Challenge mode of the pinned hybrids at epoch `e`: the challenge at `t` is randomized
+exactly when `0 < t < e`, or when `t = e` and `b = true`. -/
 def adjacentMode (e : ℕ) (b : Bool) (t : ℕ) : Bool :=
   decide (0 < t ∧ (t < e ∨ (b = true ∧ t = e)))
 
-/-- Pinned hybrid game: the protocol instance `honestScheme m e s` with the hybrid challenge
-oracle `challOf (adjacentMode e b)`. -/
+/-- Pinned hybrid: the security oracles over the protocol instance `honestScheme m e s` with
+challenge oracle `challOf (adjacentMode e b)`. -/
 def hybridOracle
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -131,8 +132,8 @@ def hybridOracle
   securityImplAt base onoff leak (honestScheme ecEk ecCt0 ecCt1 m e)
     (SCKAScheme.challOf (adjacentMode e b))
 
-/-- Pinned hybrid oracle stopped after any query exposing the selected
-epoch. Termination is represented by the outer `OptionT` layer. -/
+/-- The pinned hybrid `hybridOracle m e b`, answering `⊥` (the outer `OptionT` failure) at
+every query whose successor state has `e` exposed. -/
 def hybridStopped
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -145,9 +146,9 @@ def hybridStopped
   stopOnState (hybridOracle base onoff ecEk ecCt0 ecCt1 leak m e b)
     (fun s => decide (e ∈ s.exposed))
 
-/-- For every transcript-consistent state satisfying `pinnedKey m e` and
-every query, the honest oracle supplied with `m.on.1.2` equals the pinned
-hybrid oracle with a real challenge at epoch `e`. -/
+/-- For every query `t` and state `s` satisfying `reachableInv` and `pinnedKey m e`, answering
+`t` from `s` gives the same computation in `honestOracle m e m.on.1.2` and
+`hybridOracle m e false`. -/
 theorem honestOracle_eq_hybrid_real
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -165,9 +166,10 @@ theorem honestOracle_eq_hybrid_real
   exact pinnedChallenge_eq_recorded onoff e m.on.1.2 t s
     (pinnedKey_both base onoff ecEk ecCt0 ecCt1 leak m e s hs hm)
 
-/-- For every supported material value and adversary, supplying the honest
-selected key in the stopped game has the same acceptance probability as
-using ordinary hybrid challenges with a real response at epoch `e`. -/
+/-- Assume deterministic decapsulation and correct erasure codes. For every
+`m ∈ support (sampleMaterial leak)` and adversary `adv`, the runs
+`optionRun (honestStopped m e m.on.1.2) adv s₀` and `optionRun (hybridStopped m e false) adv s₀`
+from the initial game state `s₀` return `true` with equal probability. -/
 theorem honestStopped_real_eq_hybrid
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (hDet : base.DeterministicDecaps)
@@ -208,9 +210,9 @@ theorem honestStopped_real_eq_hybrid
       pinnedKey_initial base onoff leak m e⟩
 
 omit [DecidableEq K] [DecidableEq Sym] in
-/-- For every positive selected epoch, queried epoch, and game state,
-supplying an independent uniform key to the pinned challenge gives the
-ordinary challenge distribution randomizing epochs `1, …, e`. -/
+/-- For `e > 0`, every challenged epoch `t`, and every state `s`, drawing `k ←$ K` and running
+`pinnedChallenge e k t` from `s` gives the joint response/state distribution of
+`oracleChall (adjacentMode e true t) t` from `s`. -/
 theorem pinnedChallenge_sample_uniform
     {base : KEMScheme ProbComp K PK SK C} (onoff : base.OnOffStructure)
     (e : ℕ) (he : 0 < e) (t : ℕ)
@@ -232,9 +234,9 @@ theorem pinnedChallenge_sample_uniform
         simp [probOutput_bind_const, pinnedChallenge, SCKAScheme.oracleChall,
           adjacentMode, hg, hA, hB, ht, hr]
 
-/-- For every material value, positive selected epoch, query, and state,
-averaging the supplied challenge key uniformly gives the pinned hybrid
-query distribution with a random response at the selected epoch. -/
+/-- For `e > 0`, every query `t`, and every state `s`, drawing `k ←$ K` and answering `t` with
+`honestOracle m e k` from `s` gives the joint response/state distribution of
+`hybridOracle m e true` answering `t` from `s`. -/
 theorem honestOracle_sample_uniform
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -256,9 +258,10 @@ theorem honestOracle_sample_uniform
       simp only [securityImplAt, honestOracle, hybridOracle, StateT.run_bind, StateT.run_get,
         pure_bind, probOutput_bind_const, probFailure_eq_zero, tsub_zero, one_mul]
 
-/-- For every material value `m`, positive selected epoch `e`, adversary `adv`, and state `s`,
-the stopped honest game with a uniform challenge key sampled once before execution has the
-acceptance probability of the stopped pinned hybrid with a random response at `e`. -/
+/-- For every material `m`, epoch `e > 0`, adversary `adv`, and state `s`, drawing `k ←$ K`
+once before the execution and running `optionRun (honestStopped m e k) adv s` returns `true`
+with the probability of `optionRun (hybridStopped m e true) adv s`, which samples its key when
+`e` is challenged. -/
 theorem honestStopped_random_eq_hybrid
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -286,11 +289,12 @@ theorem honestStopped_random_eq_hybrid
     (fun t s _ => honestOracle_sample_uniform base onoff ecEk ecCt0 ecCt1 leak m e he t s)
     adv s trivial
 
-/-- Assume deterministic decapsulation and correct erasure codes. For every
-adversary, positive selected epoch, and KEM branch bit `b`, the fixed
-reduction branch equals, in acceptance probability, the stopped pinned
-hybrid with mode `!b` averaged over complete material samples. KEM bit
-`true` denotes a real key; hybrid bit `true` denotes a random response. -/
+/-- Assume deterministic decapsulation and correct erasure codes. For every adversary `adv`,
+epoch `e > 0`, and IND-CPA bit `b`, `fixedBranch adv e b` returns `true` with the probability
+that sampling `m ← sampleMaterial leak` and running
+`optionRun (hybridStopped m e (!b)) adv s₀` from the initial game state `s₀` does. The
+IND-CPA bit `true` selects the encapsulated key; the hybrid bit `true` randomizes the
+challenge at `e`. -/
 theorem fixedBranch_eq_pinnedHybrid
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (hDet : base.DeterministicDecaps)

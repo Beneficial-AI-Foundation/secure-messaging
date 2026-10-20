@@ -7,16 +7,13 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.SCKA.OppUniKEM.Security.Endpoints
 
 /-!
-# Epoch and send-count invariants of the auxiliary game
+# Send and epoch accounting in the ideal game
 
-In the auxiliary Opp-UniKEM game, A uses B's recorded key in place of decapsulation,
-and `mode : ℕ → Bool` determines which epochs have uniform challenge keys.
-Let `n := s.nA` count successful sends by A in a game state `s`.
-
-Every query preserves `sendEpochInv`, which bounds A's epoch by `n + 1`, and, with correct
-erasure codes, the transcript consistency predicate `reachableInv`. Both hold initially.
-Each query increases `n` by at most one if it is an ordinary or leaking send, and by zero
-otherwise.
+Let `idealSecurityImpl … mode` be the oracles of the ideal game, in which A uses B's recorded key
+in place of decapsulation and `mode : ℕ → Bool` selects the epochs with uniform challenge keys.
+For every `mode`, every query preserves `sendEpochInv` and, with correct erasure codes,
+`reachableInv`. Every possible successor `s'` of a query from `s` satisfies
+`s'.nA ≤ s.nA + 1` for the four send queries and `s'.nA ≤ s.nA` for all other queries.
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -27,7 +24,7 @@ variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
 omit [SampleableType K] in
-/-- Every auxiliary correctness query preserves `sendEpochInv`. -/
+/-- Every correctness query of the ideal game preserves `sendEpochInv`. -/
 theorem idealCorrectnessImpl_preserves_sendEpochInv
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -45,7 +42,7 @@ theorem idealCorrectnessImpl_preserves_sendEpochInv
       leak n s hs z hz
   · exact oracleRecvB_preserves_sendEpochInv kem onoff hDet ecEk ecCt0 ecCt1 leak n s hs z hz
 
-/-- Every auxiliary query preserves `sendEpochInv`, for every challenge mode. -/
+/-- For every challenge mode, every query of the ideal game preserves `sendEpochInv`. -/
 theorem idealSecurityImpl_preserves_sendEpochInv
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -62,8 +59,8 @@ theorem idealSecurityImpl_preserves_sendEpochInv
     (oracleSendA_preserves_sendEpochInv kem onoff hDet ecEk ecCt0 ecCt1 leak)
     (oracleSendB_preserves_sendEpochInv kem onoff hDet ecEk ecCt0 ecCt1 leak)
 
-/-- An auxiliary query increases A's send counter by at most one if it is one of the four send
-queries and not otherwise. -/
+/-- For every challenge mode, query `t`, and possible successor `z.2` of `t` from `s`,
+`z.2.nA ≤ s.nA + 1` if `t` is one of the four send queries and `z.2.nA ≤ s.nA` otherwise. -/
 theorem idealSecurityImpl_sendCounter_step
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -80,8 +77,8 @@ theorem idealSecurityImpl_sendCounter_step
     (idealCorrectnessImpl_nA_step kem onoff hDet ecEk ecCt0 ecCt1 leak)
     (SCKAScheme.challOf_recordsChallenges _) t s z hz
 
-/-- With correct erasure codes, every auxiliary query preserves `reachableInv`, for every
-challenge mode. -/
+/-- With correct erasure codes, for every challenge mode, every query of the ideal game
+preserves `reachableInv`. -/
 theorem idealSecurityImpl_preserves_reachableInv
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)

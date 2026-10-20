@@ -14,8 +14,9 @@ import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Material
 /-!
 # Marking honest states
 
-**Setting.** Fix a selected epoch `e` and complete material `m`. Honest local and game states
-contain private values; the simulator's states contain marked values (`Simulator`).
+**Setting.** Fix a selected epoch `e`, complete material `m`, and a candidate key `kStar`.
+Honest local and game states contain private values; the simulator's states contain marked
+values.
 
 **Definitions.**
 
@@ -26,19 +27,11 @@ contain private values; the simulator's states contain marked values (`Simulator
   challenge at `t` with a uniform key if `0 < t < e`, with `kStar` if `t = e`, and with the
   recorded key otherwise.
 
-**Results.**
-
-- `sendArleak_mark`, `sendBrleak_mark`, `recvA_mark`, `recvB_mark`: each local operation of the
-  simulator on a marked state is the operation with `Pinned.kem m` on the honest state followed
-  by marking; `sendA_mark` and `sendB_mark` follow for the ordinary sends by forgetting coins.
-- `challenge_mark`: the simulator's challenge from `markState e s` is `pinnedChallenge e kStar`
-  from `s` followed by marking; `pinnedChallenge_recordsChallenges`: `pinnedChallenge` records
-  challenges.
-- `revealA_markA_eq`, `revealB_markB_eq`: revealing a marked local state fails exactly when its
-  corruption exposes `e`.
-- `sendB_key_fresh`, `keys_none_before_online`: a send derives a key only for B's current epoch
-  before its online ciphertext exists, and in a transcript-consistent state both key tables are
-  empty at that epoch until then.
+**Results.** Each local send and receive of the simulator, run from a marked state over the
+marked KEM with the public key and ciphertext of `m`, equals the same operation over
+`Pinned.kem m` from the honest state followed by marking its outputs. The simulator's challenge
+from `markState e s` is `pinnedChallenge e kStar` from `s` followed by marking. For a local state
+`s`, unmarking its marked state fails exactly when a corruption of `s` exposes `e`.
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -47,8 +40,8 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
 
-/-- For every A-state `s`, each supported send output has an absent derived
-key. A records epoch keys only through its receive algorithm. -/
+/-- A's send outputs no key: every possible successful result of `sendA s` has key component
+`none`. -/
 theorem sendA_key_none
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (s : StA onoff Sym)
@@ -61,8 +54,8 @@ theorem sendA_key_none
       Option.some.injEq, Prod.mk.injEq] at hout
   all_goals aesop
 
-/-- For every B-state `s`, a supported output deriving `(t, k)` has
-`t = s.t` and `s.ct1 = none`: the key is produced by fresh online encapsulation. -/
+/-- If a possible result of `sendB s` outputs the key `(t, k)`, then `t = s.t` and
+`s.ct1 = none`: the key comes from online encapsulation in this send. -/
 theorem sendB_key_fresh
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
@@ -79,8 +72,8 @@ theorem sendB_key_fresh
       Option.some_ne_none] at hout
   all_goals aesop
 
-/-- For every supported successful leaking send by A, its derived key is
-absent and its coins are either absent or key-generation coins. -/
+/-- Every possible successful result of `sendArleak s` outputs no key and returns either no coins
+or key-generation coins. -/
 theorem sendArleak_shape
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (leak : base.OnOffRandLeak onoff)
@@ -95,8 +88,8 @@ theorem sendArleak_shape
       Option.some.injEq, Prod.mk.injEq] at hout
   all_goals aesop
 
-/-- For every supported successful leaking send by B, its coins are either
-absent, offline coins, online coins, or a pair of offline and online coins. -/
+/-- Every possible successful result of `sendBrleak s` returns no coins, offline coins, online
+coins, or a pair of offline and online coins. -/
 theorem sendBrleak_coins
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
@@ -115,9 +108,7 @@ theorem sendBrleak_coins
       mem_support_pure_iff, Prod.exists, Option.some.injEq, Prod.mk.injEq] at hout
   all_goals aesop
 
-/-- If B's supported leaking-send output derives `(t, k)`, then `t` is its
-current epoch and its online ciphertext was absent. The ordinary-send
-statement transfers through the coin-forgetting marginal law. -/
+/-- The version of `sendB_key_fresh` for `sendBrleak`. -/
 theorem sendBrleak_key_fresh
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
@@ -132,9 +123,8 @@ theorem sendBrleak_key_fresh
   rw [← sendBrleak_forget base onoff ecCt0 ecCt1 leak s]
   exact (mem_support_bind_iff _ _ _).mpr ⟨_, hout, by simp⟩
 
-/-- For every transcript-consistent state `s`, absence of B's online
-ciphertext implies that both parties' recorded keys for B's current epoch
-are absent. -/
+/-- If `s` satisfies `reachableInv` and `s.stB.ct1 = none`, then no key is recorded for B's current
+epoch: `s.keyA s.stB.t = none` and `s.keyB s.stB.t = none`. -/
 theorem keys_none_before_online
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -159,14 +149,13 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
 
-/-- Mark a value from epoch `t` as unavailable exactly when `t = e`.
-Known values are embedded with `some`; this marking is independent of the
-key supplied in the IND-CPA challenge. -/
+/-- Mark a value `value` of epoch `t`: unavailable (`none`) if `t = e`, and known
+(`some value`) otherwise. -/
 def mark {α : Type} (e t : ℕ) (value : α) : Option α :=
   if t = e then none else some value
 
-/-- Mark A's current secret key according to its epoch, retaining its
-absence after erasure and preserving all public fields. -/
+/-- A's marked state: a present secret key is marked with A's epoch `s.t`; all other fields are
+unchanged. -/
 def markA {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
     (e : ℕ) (s : StA onoff Sym) : StateA (Option SK) PK onoff.C₀ Sym where
   dkA := s.dkA.map (mark e s.t)
@@ -177,8 +166,8 @@ def markA {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
   lch := s.lch
   ack := s.ack
 
-/-- Mark B's offline state according to its epoch, preserving ciphertexts,
-public key, acknowledgements, chunk buffers, and counters. -/
+/-- B's marked state: a present offline state is marked with B's epoch `s.t`; all other fields are
+unchanged. -/
 def markB {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
     (e : ℕ) (s : StB onoff Sym) : StateB PK onoff.C₀ onoff.C₁ (Option onoff.St) Sym where
   ekA := s.ekA
@@ -190,9 +179,9 @@ def markB {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
   lch := s.lch
   ack := s.ack
 
-/-- Embed an honest game state into the symbolic state space. Private
-material and recorded keys of epoch `e` become unavailable; all other
-values, including the message tables and exposure/challenge sets, are retained. -/
+/-- Marked game state of an honest game state `s`: both local states are marked, each recorded key
+of epoch `t` is marked with `t`, and the message tables, counters, and exposure and challenge sets
+are unchanged. -/
 def markState {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
     (e : ℕ) (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
     SimState onoff Sym where
@@ -210,16 +199,15 @@ def markState {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
   challenged := s.challenged
   correct := s.correct
 
-/-- Marking every entry of a key table commutes with recording a key at
-epoch `t`: the new entry is the marked key for that same epoch. -/
+/-- Marking a key table commutes with recording a key `k` at epoch `t`; the new entry is
+`mark e t k`. -/
 theorem mark_update (e t : ℕ) (table : ℕ → Option K) (k : K) :
     (fun u => (Function.update table t (some k) u).map (mark e u)) =
       Function.update (fun u => (table u).map (mark e u)) t (some (mark e t k)) := by
   funext u
   by_cases h : u = t <;> simp [h, Function.update_of_ne]
 
-/-- For every epoch `e` and A-state `s`, revealing its marked state
-terminates exactly when corruption exposes `e`; otherwise it returns `s`. -/
+/-- `revealA (markA e s)` is `none` if `e ∈ vulnCorrA s`, and `some s` otherwise. -/
 theorem revealA_markA_eq {kem : KEMScheme ProbComp K PK SK C}
     {onoff : kem.OnOffStructure} (e : ℕ) (s : StA onoff Sym) :
     revealA (markA e s) = if e ∈ vulnCorrA kem onoff s then none else some s := by
@@ -227,8 +215,7 @@ theorem revealA_markA_eq {kem : KEMScheme ProbComp K PK SK C}
   cases dk <;> by_cases ht : t = e <;>
     simp_all [revealA, revealField, markA, mark, vulnCorrA, eq_comm]
 
-/-- For every epoch `e` and B-state `s`, revealing its marked state
-terminates exactly when corruption exposes `e`; otherwise it returns `s`. -/
+/-- The version of `revealA_markA_eq` for B. -/
 theorem revealB_markB_eq {kem : KEMScheme ProbComp K PK SK C}
     {onoff : kem.OnOffStructure} (e : ℕ) (s : StB onoff Sym) :
     revealB (markB e s) = if e ∈ vulnCorrB kem onoff s then none else some s := by
@@ -236,15 +223,14 @@ theorem revealB_markB_eq {kem : KEMScheme ProbComp K PK SK C}
   cases st <;> by_cases ht : t = e <;>
     simp_all [revealB, revealField, markB, mark, vulnCorrB, eq_comm]
 
-/-- Marking preserves A's vulnerable-epoch set, since the outer secret-key
-option retains whether the key is present. -/
+/-- Marking preserves A's corruption-vulnerable epochs: the set `{(markA e s).t}` if `markA e s`
+has a secret key, and `∅` otherwise, equals `vulnCorrA s`. -/
 theorem markA_vulnerable {base : KEMScheme ProbComp K PK SK C}
     {onoff : base.OnOffStructure} (e : ℕ) (s : StA onoff Sym) :
     (if (markA e s).dkA.isSome then {(markA e s).t} else ∅) = vulnCorrA base onoff s := by
   cases h : s.dkA <;> simp [markA, vulnCorrA, h]
 
-/-- Marking preserves B's vulnerable-epoch set, since the outer offline-state
-option retains whether the state is present. -/
+/-- The version of `markA_vulnerable` for B. -/
 theorem markB_vulnerable {base : KEMScheme ProbComp K PK SK C}
     {onoff : base.OnOffStructure} (e : ℕ) (s : StB onoff Sym) :
     (if (markB e s).stCt.isSome then {(markB e s).t} else ∅) = vulnCorrB base onoff s := by
@@ -258,8 +244,7 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type} [DecidableEq Sym]
 
-/-- For every B-state and message, a successful B-receive returns an absent
-derived key. B records keys only through online encapsulation in its send. -/
+/-- B's receive outputs no key: if `recvB s msg = some (key, t, next)`, then `key = none`. -/
 theorem recvB_key_none
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (s : StB onoff Sym) (msg : Message Sym)
@@ -269,9 +254,8 @@ theorem recvB_key_none
   repeat' split at h
   all_goals simp_all
 
-/-- For every A-state and message, if constant-decapsulation receive
-returns `(t, k)`, then `t` is A's initial epoch and the supplied constant
-decapsulation result is `some k`. -/
+/-- If A's receive with constant decapsulation result `key` outputs the key `(t, k)`, then `t = s.t`
+(A's epoch before the receive) and `key = some k`. -/
 theorem recvA_key_source
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
@@ -289,9 +273,8 @@ theorem recvA_key_source
     all_goals simp_all
 
 set_option backward.dsimp.instances true in
-/-- For every local B-state and input message, symbolic receive equals
-honest receive followed by marking B's successor. Both return an absent key
-and the delivered message's sending epoch. -/
+/-- For every B-state `s` and message `msg`, B's receive over the marked KEM from `markB e s`
+equals `recvB s msg` followed by marking the successor state; the output key is `none`. -/
 theorem recvB_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (e : ℕ)
@@ -309,9 +292,10 @@ theorem recvB_mark
 set_option maxHeartbeats 800000 in
 -- Splitting the receive branches also expands the state-marking equations.
 set_option backward.dsimp.instances true in
-/-- For every local A-state, input message, and auxiliary key `key`, symbolic
-receive with decapsulation result `key.map (mark e s.t)` equals honest
-auxiliary receive followed by marking its returned epoch key and successor. -/
+/-- For every A-state `s`, message `msg`, and `key : Option K`, A's receive over the marked KEM
+with decapsulation result `key.map (mark e s.t)` from `markA e s` equals A's receive with
+constant decapsulation result `key` from `s`, followed by marking the output key and the
+successor state. -/
 theorem recvA_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
@@ -347,10 +331,10 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
 
-/-- Challenge operation on honest states for selected epoch `e` and supplied
-key `kStar`. Eligible epochs `0 < t < e` use uniform responses, epoch `e`
-uses `kStar`, and other eligible epochs use their recorded key. Exposed,
-repeated, and unavailable challenges return `none`. -/
+/-- Challenge oracle on honest game states for selected epoch `e` and candidate key `kStar`. A
+query `t` is rejected (`none`) if `t` is exposed or challenged or no key is recorded for `t`.
+Otherwise it inserts `t` into `challenged` and returns a uniform key if `0 < t < e`, `kStar` if
+`t = e`, and the recorded key otherwise. -/
 def pinnedChallenge [SampleableType K]
     {base : KEMScheme ProbComp K PK SK C} (onoff : base.OnOffStructure)
     (e : ℕ) (kStar : K) : QueryImpl (ℕ →ₒ Option K)
@@ -370,9 +354,8 @@ def pinnedChallenge [SampleableType K]
         set { s with challenged := insert t s.challenged }
         pure (some k)
 
-/-- For every selected epoch `e`, supplied key `kStar`, queried epoch `t`,
-and honest state `s`, the symbolic challenge from `markState e s` equals
-the honest pinned challenge followed by marking its successor state. -/
+/-- For every query `t` and honest game state `s`, `challenge e kStar t` from `markState e s`
+equals `pinnedChallenge e kStar t` from `s` followed by marking the successor state. -/
 theorem challenge_mark [SampleableType K]
     {base : KEMScheme ProbComp K PK SK C} (onoff : base.OnOffStructure)
     (e : ℕ) (kStar : K) (t : ℕ)
@@ -416,9 +399,9 @@ theorem pinnedChallenge_recordsChallenges [SampleableType K]
       | (obtain rfl := hz; exact Or.inl rfl)
       | (obtain ⟨_, rfl⟩ := hz; exact Or.inr ⟨fun h => helig (Or.inl h), rfl⟩)
 
-/-- For every eligible challenge at the selected epoch with an available
-recorded key, the pinned challenge returns the supplied key and records
-the selected epoch in `challenged`. -/
+/-- If `e` is neither exposed nor challenged in `s` and a key is recorded for `e`, then
+`pinnedChallenge e kStar e` from `s` is `pure (some kStar, s')`, where `s'` inserts `e` into
+`challenged`. -/
 theorem pinnedChallenge_selected [SampleableType K]
     {base : KEMScheme ProbComp K PK SK C} (onoff : base.OnOffStructure)
     (e : ℕ) (kStar : K)
@@ -432,9 +415,8 @@ theorem pinnedChallenge_selected [SampleableType K]
   all_goals simp [pinnedChallenge, helig, hA, hB, StateT.run_bind,
     StateT.run_get, StateT.run_set]
 
-/-- For every state and queried epoch, two supplied keys give the same
-pinned challenge computation whenever the queried epoch differs from `e`,
-or the selected challenge is exposed, repeated, or unavailable. -/
+/-- Unless `t = e` and `e` is unexposed, unchallenged, and has a recorded key, the computations
+`pinnedChallenge e k t` and `pinnedChallenge e k' t` from `s` are equal. -/
 theorem pinnedChallenge_eq_of_unused [SampleableType K]
     {base : KEMScheme ProbComp K PK SK C} (onoff : base.OnOffStructure)
     (e t : ℕ) (k k' : K)
@@ -459,9 +441,8 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
 
-/-- Mark each coin returned by a send in epoch `t`: selected-epoch coins
-become unavailable, other coins remain known, and deterministic sends retain
-`SendRand.none`. -/
+/-- Mark each coin returned by a send in epoch `t` with `mark e t`; `SendRand.none` is
+unchanged. -/
 def markCoins {KG OFF ON : Type} (e t : ℕ) :
     SendRand KG OFF ON → SendRand (Option KG) (Option OFF) (Option ON)
   | .none => .none
@@ -472,9 +453,10 @@ def markCoins {KG OFF ON : Type} (e t : ℕ) :
 
 set_option maxHeartbeats 1000000 in
 -- Both leakage witnesses expand through different secret and coin types.
-/-- For every A-state and selected material, A's symbolic leaking send equals
-its pinned honest leaking send followed by marking the successor and coins.
-The optional derived key is `none` in both computations. -/
+/-- For every A-state `s`, flag `selectedB`, and decapsulation results `keyS`, `keyH`, A's leaking
+send over the marked KEM from `markA e s`, with A selected if `s.t = e`, equals A's leaking send
+over `Pinned.kem m` from `s`, followed by marking the successor state and coins; the output key
+is `none`. -/
 theorem sendArleak_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (leak : base.OnOffRandLeak onoff)
@@ -497,9 +479,9 @@ theorem sendArleak_mark
 
 set_option maxHeartbeats 2000000 in
 -- Each leakage phase expands its output, coin conversion, and state update.
-/-- For every B-state and selected material, B's symbolic leaking send equals
-its pinned honest leaking send followed by marking the returned epoch key,
-successor, and coins. The statement includes combined sampling and retransmission. -/
+/-- For every B-state `s`, flag `selectedA`, and decapsulation results `keyS`, `keyH`, B's leaking
+send over the marked KEM from `markB e s`, with B selected if `s.t = e`, equals B's leaking send
+over `Pinned.kem m` from `s`, followed by marking the output key, successor state, and coins. -/
 theorem sendBrleak_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
@@ -524,11 +506,7 @@ theorem sendBrleak_mark
     simp [offLeak, onLeak, Material.ciphertext, markCoins, mark,
       he, hct0, hek, hct1, hst, hack, monad_norm]
 
-/-- For every A-state `s`, selected epoch `e`, and material value `m`, A's
-symbolic send equals its pinned honest send followed by marking the successor.
-The optional derived key is `none` in both sends. The auxiliary decapsulation
-parameters are arbitrary because sending A uses key generation and encoding.
-Derived from `sendArleak_mark` by forgetting the coins. -/
+/-- The version of `sendArleak_mark` for `sendA`, without coins. -/
 theorem sendA_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (leak : base.OnOffRandLeak onoff)
@@ -550,10 +528,7 @@ theorem sendA_mark
   funext out
   rcases out with _ | ⟨key, msg, epoch, next, coins⟩ <;> rfl
 
-/-- For every B-state `s`, selected epoch `e`, and material value `m`, B's
-symbolic send equals its pinned honest send followed by marking the returned
-epoch key and successor. This covers offline, online, combined, and
-retransmission phases. Derived from `sendBrleak_mark` by forgetting the coins. -/
+/-- The version of `sendBrleak_mark` for `sendB`, without coins. -/
 theorem sendB_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)

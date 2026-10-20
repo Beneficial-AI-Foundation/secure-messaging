@@ -8,20 +8,15 @@ import SecureMessaging.SCKA.OppUniKEM.Security.IdealHybrids
 import ToVCVio.OracleComp.SimSemantics.StateT.Stop
 
 /-!
-# Stopping the auxiliary hybrids at exposure
+# Stopping the ideal hybrids at exposure
 
-**Setting.** Let `H_i` be the auxiliary hybrids of `IdealHybrids`. For `i : ℕ`, the *stopped*
-version of a hybrid tests `i + 1 ∈ exposed` after every query and returns `false` as soon as
-the test holds (`stoppedRun`).
+Let `H_i` be the ideal hybrids of `IdealHybrids`. For `i : ℕ`, the hybrids `H_i` and `H_{i+1}`
+*stopped at `i + 1`* run their oracles through `stoppedRun` with stop test `i + 1 ∈ exposed`:
+they return `false` at the first query whose successor state exposes epoch `i + 1`.
 
-**Result.** `idealEpochHybrid_signed_gap_stop_eq`: for every adversary and every initial state
-with `Disjoint exposed challenged`,
-`Pr[H_{i+1} = true] - Pr[H_i = true]` equals the same difference for the stopped hybrids.
-
-The proof instantiates `signed_gap_stoppedRun_eq` with `committed s := Disjoint s.exposed
-s.challenged ∧ i + 1 ∈ s.challenged`: a query of the two hybrids is either identical or an
-answered challenge at `i + 1`, after which `i + 1` stays challenged and hence unexposed, and
-from a state in which `i + 1` is exposed both hybrids have equal executions.
+`idealEpochHybrid_signed_gap_stop_eq`: for every adversary and every initial state with
+`Disjoint exposed challenged`, the signed difference `Pr[H_{i+1} = true] - Pr[H_i = true]` of the
+executions from that state equals the corresponding difference of the stopped executions.
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -37,7 +32,8 @@ variable (ecEk : ErasureCodePayload PK Sym)
 variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
 variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff)
 
-/-- Every auxiliary query preserves `Disjoint exposed challenged`, for every challenge mode. -/
+/-- For every challenge mode, every query of the ideal game preserves
+`Disjoint exposed challenged`. -/
 theorem idealSecurityImpl_preserves_disjoint (mode : ℕ → Bool) :
     QueryImpl.PreservesInv (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak mode)
       (fun s => Disjoint s.exposed s.challenged) :=
@@ -45,7 +41,7 @@ theorem idealSecurityImpl_preserves_disjoint (mode : ℕ → Bool) :
     (idealCorrectnessImpl_securitySets_eq kem onoff hDet ecEk ecCt0 ecCt1 leak)
     (SCKAScheme.challOf_recordsChallenges _)
 
-/-- Every auxiliary query preserves membership of `e` in `challenged`, for every mode. -/
+/-- For every challenge mode, every query of the ideal game preserves `e ∈ challenged`. -/
 theorem idealSecurityImpl_preserves_challenged (mode : ℕ → Bool) (e : ℕ) :
     QueryImpl.PreservesInv (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak mode)
       (fun s => e ∈ s.challenged) :=
@@ -53,9 +49,8 @@ theorem idealSecurityImpl_preserves_challenged (mode : ℕ → Bool) (e : ℕ) :
     (fun t s z hz => (idealCorrectnessImpl_securitySets_eq kem onoff hDet ecEk ecCt0 ecCt1 leak
       t s z hz).2) (SCKAScheme.challOf_recordsChallenges _) t s z hz hs
 
-/-- For every auxiliary challenge mode and epoch `e`, each query preserves
-`Disjoint exposed challenged ∧ e ∈ challenged`. Thus an answered challenge
-remains protected by every subsequent exposure guard. -/
+/-- For every challenge mode and epoch `e`, every query of the ideal game preserves
+`Disjoint exposed challenged ∧ e ∈ challenged`; in particular, `e` remains unexposed. -/
 theorem idealSecurityImpl_preserves_committed (mode : ℕ → Bool) (e : ℕ) :
     QueryImpl.PreservesInv (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak mode)
       (fun s => Disjoint s.exposed s.challenged ∧ e ∈ s.challenged) := by
@@ -65,9 +60,10 @@ theorem idealSecurityImpl_preserves_committed (mode : ℕ → Bool) (e : ℕ) :
     idealSecurityImpl_preserves_challenged kem onoff hDet ecEk ecCt0 ecCt1
       leak mode e t s hs.2 z hz⟩
 
-/-- For every index `i`, query, and state with disjoint exposure and
-challenge sets, the adjacent auxiliary queries either have equal computations
-or both place epoch `i + 1` in the challenged set while preserving disjointness. -/
+/-- For every index `i`, query `t`, and state `s` with `Disjoint s.exposed s.challenged`, either
+the oracles of `H_{i+1}` and `H_i` give equal response/state computations for `t` from `s`, or
+every possible successor state of either satisfies
+`Disjoint exposed challenged ∧ i + 1 ∈ challenged`. -/
 theorem idealEpochHybrid_query_eq_or_committed
     (i : ℕ) (t : (securitySpec leak Sym).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
@@ -95,22 +91,19 @@ theorem idealEpochHybrid_query_eq_or_committed
           exact ⟨(SCKAScheme.challOf_recordsChallenges
               (fun t => decide (0 < t ∧ t ≤ _))).preserves_disjoint (i + 1) s hs z hz,
             SCKAScheme.oracleChall_adds_challenged _ s _ helig hk z hz⟩
-      · have hA : s.keyA (i + 1) = none := by
-          cases h : s.keyA (i + 1) <;> simp_all
-        have hB : s.keyB (i + 1) = none := by
-          cases h : s.keyB (i + 1) <;> simp_all
+      · simp only [not_or, Option.not_isSome_iff_eq_none] at hk
         left
-        exact (SCKAScheme.oracleChall_unavailable _ s _ hA hB).trans
-          (SCKAScheme.oracleChall_unavailable _ s _ hA hB).symm
+        exact (SCKAScheme.oracleChall_unavailable _ s _ hk.1 hk.2).trans
+          (SCKAScheme.oracleChall_unavailable _ s _ hk.1 hk.2).symm
   · left
     change (SCKAScheme.oracleChall (decide (0 < t ∧ t ≤ i + 1)) _ _ _ _ t).run s =
       (SCKAScheme.oracleChall (decide (0 < t ∧ t ≤ i)) _ _ _ _ t).run s
     rw [SCKAScheme.epochHybrid_challenge_eq_of_ne i t ht]
 
-/-- For every index `i`, Boolean adversary `adv`, and initial state with
-`Disjoint exposed challenged`, stopping after each query that exposes epoch
-`i + 1` preserves the signed acceptance difference of auxiliary hybrids
-`i + 1` and `i`. A stopped execution returns `false`. -/
+/-- For every index `i`, adversary `adv`, and initial state `s` with
+`Disjoint s.exposed s.challenged`, stopping at the first query whose successor state exposes
+`i + 1` preserves the signed difference of the acceptance probabilities of `H_{i+1}` and `H_i`
+from `s`. -/
 theorem idealEpochHybrid_signed_gap_stop_eq
     (i : ℕ) (adv : SecurityAdversary leak Sym)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
@@ -125,6 +118,8 @@ theorem idealEpochHybrid_signed_gap_stop_eq
     (Pr[= true | stoppedRun
       (idealEpochHybridImpl kem onoff hDet ecEk ecCt0 ecCt1 leak i)
       (fun u => decide (i + 1 ∈ u.exposed)) adv s]).toReal := by
+  -- A query of the two hybrids is identical or an answered challenge at `i + 1`; afterwards
+  -- `i + 1` stays challenged, hence unexposed.
   apply signed_gap_stoppedRun_eq _ _
     (fun s => Disjoint s.exposed s.challenged)
     (fun s => Disjoint s.exposed s.challenged ∧ i + 1 ∈ s.challenged)

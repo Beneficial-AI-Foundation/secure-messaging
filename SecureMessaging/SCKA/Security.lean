@@ -11,32 +11,30 @@ import ToVCVio.ProgramLogic.Unary.WP
 /-!
 # SCKA security oracles
 
-Generic results for SCKA schemes over `ProbComp`. Recall the game state:
+Generic results on the security oracles of an SCKA scheme over `ProbComp`, with game state
 
 ```text
 s = (stA, stB, keyA, keyB, msgA, msgB, nA, nB, tcurA, tcurB,
      exposed, challenged, correct).
 ```
 
-Here `exposed` records epochs exposed by corruption or randomness leakage, and `challenged`
-records epochs whose challenges were successfully answered.
+Here `exposed` records the epochs exposed by corruption or randomness leakage, and `challenged`
+the epochs whose challenges were answered.
 
-We prove:
+**Results.**
 
-- **State updates:** characterizations of challenge and corruption query outcomes.
+- **State updates:** the possible results of challenge, corruption, and leaking-send queries.
 - **Invariants:** conditions for security queries to preserve a predicate on game states.
 - **Expected scores:** conditions for ordinary-send bounds to hold also for leaking sends.
-- **Send distributions:** a guarded leaking send with a challenged exposure set rejects with
-  probability one; one with an unchallenged exposure set stops on exposure of each of its
-  epochs; equality of averaged local-send distributions lifts to the game queries.
-- **Bookkeeping:** corruption and leaking-send queries never remove an exposed epoch, and change
-  A's send counter only on sends. `RecordsChallenges chall` requires every challenge-query
-  successor to equal `s` or to differ only by inserting an unexposed epoch into `challenged`.
-  It holds for `challOf mode`, which answers an eligible challenge at epoch `t` with a uniform
-  key exactly when `mode t = true`.
-- **Full oracle family:** `securityImplOf` combines correctness, challenge, leaking-send,
-  and corruption oracles. We derive invariant preservation, bookkeeping bounds, and equality of
-  query computations from the corresponding component properties.
+- **Send distributions:** rejection and stopping of leaking sends with a fixed exposure set,
+  and lifting of equalities between local-send distributions to the game queries.
+- **Bookkeeping:** no query removes an exposed or challenged epoch, and only sends increase
+  A's send counter, by at most one. `RecordsChallenges chall` states the corresponding
+  conditions for a challenge oracle `chall`.
+- **Full oracle family:** `securityImplOf base chall vulnA vulnB scka` combines correctness
+  oracles `base`, a challenge oracle `chall`, and the leaking-send and corruption oracles.
+  Invariant preservation, bookkeeping bounds, and equality of query computations follow from
+  the corresponding properties of the components.
 -/
 
 open OracleSpec OracleComp ENNReal
@@ -54,8 +52,9 @@ section Challenge
 
 variable [SampleableType I]
 
-/-- Answer challenge `t` with a uniform key if `mode t = true`, and the recorded key otherwise.
-The eligibility guards and state update are those of `oracleChall`. -/
+/-- Challenge oracle with per-epoch mode `mode : ℕ → Bool`: it answers challenge `t` as
+`oracleChall (mode t)`, so an eligible challenge receives an independent uniform key if
+`mode t = true` and the recorded key otherwise. -/
 def challOf (mode : ℕ → Bool) :
     QueryImpl (ℕ →ₒ Option I) (StateT (GameState StA StB I Rho) ProbComp) :=
   fun t => oracleChall (mode t) StA StB I Rho t
@@ -77,8 +76,9 @@ theorem oracleChall_unavailable (b : Bool) (s : GameState StA StB I Rho) (t : �
   · exact oracleChall_rejected b s t h
   · simp [oracleChall, h, hA, hB]
 
-/-- If epoch `t` is exposed, challenged, or has no recorded key in `s`, the challenge oracles for
-any two bits agree on `t` from `s`. -/
+/-- If epoch `t` is exposed, challenged, or has no recorded key in `s`, then for all bits `b`,
+`b'`, the challenge oracles `oracleChall b` and `oracleChall b'` give the same computation on
+query `t` from `s`. -/
 theorem oracleChall_run_eq_of_rejected (b b' : Bool) (s : GameState StA StB I Rho) (t : ℕ)
     (h : (t ∈ s.exposed ∨ t ∈ s.challenged) ∨ (s.keyA t = none ∧ s.keyB t = none)) :
     (oracleChall b StA StB I Rho t).run s = (oracleChall b' StA StB I Rho t).run s := by
@@ -123,7 +123,8 @@ theorem oracleChall_support (b : Bool) (s : GameState StA StB I Rho) (t : ℕ)
     rw [oracleChall_unavailable b s t hA hB] at hz
     exact Or.inl ⟨(mem_support_pure_iff _ _).mp hz, Or.inr ⟨hA, hB⟩⟩
 
-/-- An eligible challenge at an epoch with a recorded key inserts that epoch into `challenged`. -/
+/-- If epoch `t` is neither exposed nor challenged in `s` and has a recorded key, every possible
+successor of challenge `t` from `s` has `t ∈ challenged`. -/
 theorem oracleChall_adds_challenged (b : Bool) (s : GameState StA StB I Rho) (t : ℕ)
     (helig : ¬(t ∈ s.exposed ∨ t ∈ s.challenged))
     (hkey : (s.keyA t).isSome ∨ (s.keyB t).isSome)
@@ -148,8 +149,9 @@ theorem oracleChall_preservesInv [SampleableType I] (b : Bool)
   · rw [h]; exact hs
   · rw [h]; exact hbook s _ hs
 
-/-- A challenge oracle `chall` records challenges if every supported successor of a query `t`
-from `s` equals `s` or, when `t ∉ s.exposed`, differs only by inserting `t` into `challenged`. -/
+/-- A challenge oracle `chall` records challenges if every possible successor of a query `t`
+from a state `s` equals `s` or, when `t ∉ s.exposed`, differs from `s` only by inserting `t`
+into `challenged`. -/
 def RecordsChallenges
     (chall : QueryImpl (ℕ →ₒ Option I) (StateT (GameState StA StB I Rho) ProbComp)) : Prop :=
   ∀ (t : ℕ) s z, z ∈ support ((chall t).run s) →
@@ -159,8 +161,8 @@ namespace RecordsChallenges
 
 variable {chall : QueryImpl (ℕ →ₒ Option I) (StateT (GameState StA StB I Rho) ProbComp)}
 
-/-- A challenge oracle satisfying `RecordsChallenges` preserves every invariant preserved
-by arbitrary changes to `challenged`. -/
+/-- A challenge oracle that records challenges preserves every predicate `Inv` on game states
+that is preserved by arbitrary changes to `challenged`. -/
 theorem preservesInv (h : RecordsChallenges chall) (Inv : GameState StA StB I Rho → Prop)
     (hbook : ∀ s challenged, Inv s → Inv { s with challenged := challenged }) :
     QueryImpl.PreservesInv chall Inv := by
@@ -365,7 +367,8 @@ theorem oracleSendArleak_support
           mem_support_pure_iff] at hz
       all_goals obtain rfl := hz; exact ⟨rfl, rfl, rfl⟩
 
-/-- A's leaking send preserves `Disjoint exposed challenged`, for every send-exposure rule. -/
+/-- For every exposure function `leak`, A's leaking send preserves
+`Disjoint exposed challenged`. -/
 theorem oracleSendArleak_preserves_disjoint
     (leak : StA → Rand → Finset ℕ)
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) :
@@ -444,7 +447,7 @@ theorem oracleSendBrleak_support
           mem_support_pure_iff] at hz
       all_goals obtain rfl := hz; exact ⟨rfl, rfl, rfl⟩
 
-/-- B's leaking send preserves `Disjoint exposed challenged`, for every send-exposure rule. -/
+/-- The version of `oracleSendArleak_preserves_disjoint` for B. -/
 theorem oracleSendBrleak_preserves_disjoint
     (leak : StB → Rand → Finset ℕ)
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) :
@@ -728,8 +731,9 @@ section SendDistributions
 
 variable [DecidableEq I] {τ : Type}
 
-/-- If every supported successful local A-send from `s` exposes the same set `E` and
-`E ∩ s.challenged ≠ ∅`, the guarded leaking query has the distribution of `pure (none, s)`. -/
+/-- Let `E` be a set of epochs with `E ∩ s.challenged ≠ ∅`. If the coins `r` of every possible
+successful local leaking A-send from `s.stA` satisfy `leak s.stA r = E`, then A's leaking-send
+query from `s` returns `(none, s)` with probability one. -/
 theorem oracleSendArleak_rejected_evalDist
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (leak : StA → Rand → Finset ℕ)
@@ -753,9 +757,10 @@ theorem oracleSendArleak_rejected_evalDist
     rw [hE key msg epoch next coins hout, if_pos hguard]
     rfl
 
-/-- Assume every supported local leaking A-send from `s` succeeds and exposes the same
-set `E`, with `E ∩ s.challenged = ∅`. For every `e ∈ E`, each supported response of the guarded
-query stopped on `e ∈ exposed` is `none`. -/
+/-- Let `E` be a set of epochs with `E ∩ s.challenged = ∅`. Assume every local leaking A-send
+from `s.stA` succeeds and the coins `r` of each possible output satisfy `leak s.stA r = E`. Then
+for every `e ∈ E`, A's leaking-send query from `s`, stopped when `e ∈ exposed`, answers `none`
+on every possible result. -/
 theorem oracleSendArleak_stop_of_exposure
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (leak : StA → Rand → Finset ℕ)
@@ -787,8 +792,7 @@ theorem oracleSendArleak_stop_of_exposure
         decide_true, ↓reduceIte] at hz
     all_goals obtain rfl := hz; rfl
 
-/-- If every supported successful local B-send from `s` exposes the same set `E` and
-`E ∩ s.challenged ≠ ∅`, the guarded leaking query has the distribution of `pure (none, s)`. -/
+/-- The version of `oracleSendArleak_rejected_evalDist` for B. -/
 theorem oracleSendBrleak_rejected_evalDist
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (leak : StB → Rand → Finset ℕ)
@@ -812,9 +816,7 @@ theorem oracleSendBrleak_rejected_evalDist
     rw [hE key msg epoch next coins hout, if_pos hguard]
     rfl
 
-/-- Assume every supported local leaking B-send from `s` succeeds and exposes the same
-set `E`, with `E ∩ s.challenged = ∅`. For every `e ∈ E`, each supported response of the guarded
-query stopped on `e ∈ exposed` is `none`. -/
+/-- The version of `oracleSendArleak_stop_of_exposure` for B. -/
 theorem oracleSendBrleak_stop_of_exposure
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (leak : StB → Rand → Finset ℕ)
@@ -846,9 +848,10 @@ theorem oracleSendBrleak_stop_of_exposure
         decide_true, ↓reduceIte] at hz
     all_goals obtain rfl := hz; rfl
 
-/-- Equality of an averaged local A-send distribution and a target local A-send
-distribution implies equality of the game queries' joint response/state distributions. Each
-query starts from the same state `s`. -/
+/-- Let `family a` (for `a : τ`) and `target` be SCKA schemes. If drawing `a ← sample` and
+running `(family a).sendA s.stA` has the distribution of `target.sendA s.stA`, then drawing
+`a ← sample` and running the A-send query of `family a` from `s` has the joint response/state
+distribution of the A-send query of `target` from `s`. -/
 theorem oracleSendA_sample_eq
     (sample : ProbComp τ) (family : τ → SCKAScheme ProbComp IK StA StB I Rho Rand)
     (target : SCKAScheme ProbComp IK StA StB I Rho Rand) (s : GameState StA StB I Rho)
@@ -859,9 +862,7 @@ theorem oracleSendA_sample_eq
     StateT.run_monadLift, monadLift_self, bind_assoc]
   rw [← bind_assoc, evalDist_bind, h, ← evalDist_bind]
 
-/-- Equality of an averaged local B-send distribution and a target local B-send
-distribution implies equality of the game queries' joint response/state distributions. Each
-query starts from the same state `s`. -/
+/-- The version of `oracleSendA_sample_eq` for B. -/
 theorem oracleSendB_sample_eq
     (sample : ProbComp τ) (family : τ → SCKAScheme ProbComp IK StA StB I Rho Rand)
     (target : SCKAScheme ProbComp IK StA StB I Rho Rand) (s : GameState StA StB I Rho)
@@ -872,9 +873,8 @@ theorem oracleSendB_sample_eq
     StateT.run_monadLift, monadLift_self, bind_assoc]
   rw [← bind_assoc, evalDist_bind, h, ← evalDist_bind]
 
-/-- For a common A-send exposure rule and initial state `s`, equality of averaged local
-leaking-send distributions implies equality of the guarded game queries' joint response/state
-distributions. -/
+/-- The version of `oracleSendA_sample_eq` for leaking A-sends with a common exposure
+function `leak`. -/
 theorem oracleSendArleak_sample_eq
     (sample : ProbComp τ) (family : τ → SCKAScheme ProbComp IK StA StB I Rho Rand)
     (target : SCKAScheme ProbComp IK StA StB I Rho Rand)
@@ -887,9 +887,7 @@ theorem oracleSendArleak_sample_eq
     StateT.run_monadLift, monadLift_self, bind_assoc]
   rw [← bind_assoc, evalDist_bind, h, ← evalDist_bind]
 
-/-- For a common B-send exposure rule and initial state `s`, equality of averaged local
-leaking-send distributions implies equality of the guarded game queries' joint response/state
-distributions. -/
+/-- The version of `oracleSendArleak_sample_eq` for B. -/
 theorem oracleSendBrleak_sample_eq
     (sample : ProbComp τ) (family : τ → SCKAScheme ProbComp IK StA StB I Rho Rand)
     (target : SCKAScheme ProbComp IK StA StB I Rho Rand)
@@ -920,8 +918,8 @@ theorem oracleSendB_run_congr
     monadLift_self, bind_assoc]
   rw [h]
 
-/-- For a common A-send exposure rule, equal local leaking A-sends from `s.stA` give equal
-guarded leaking A-send queries from `s`. -/
+/-- For a common exposure function `leak`, equal local leaking A-sends from `s.stA` give equal
+leaking-send queries from `s`. -/
 theorem oracleSendArleak_run_congr
     (leak : StA → Rand → Finset ℕ)
     (scka scka' : SCKAScheme ProbComp IK StA StB I Rho Rand) (s : GameState StA StB I Rho)
@@ -931,8 +929,7 @@ theorem oracleSendArleak_run_congr
     StateT.run_monadLift, monadLift_self, bind_assoc]
   rw [h]
 
-/-- For a common B-send exposure rule, equal local leaking B-sends from `s.stB` give equal
-guarded leaking B-send queries from `s`. -/
+/-- The version of `oracleSendArleak_run_congr` for B. -/
 theorem oracleSendBrleak_run_congr
     (leak : StB → Rand → Finset ℕ)
     (scka scka' : SCKAScheme ProbComp IK StA StB I Rho Rand) (s : GameState StA StB I Rho)
@@ -1030,7 +1027,8 @@ theorem securityImplOf_preserves_at (Inv : GameState StA StB I Rho → Prop)
   · cases u; exact hcA z hz
   · cases u; exact hcB z hz
 
-/-- The assembled oracles preserve `Inv` if each component does. -/
+/-- If every component oracle preserves `Inv`, so does
+`securityImplOf base chall vulnA vulnB scka`. -/
 theorem securityImplOf_preservesInv (Inv : GameState StA StB I Rho → Prop)
     (hbase : QueryImpl.PreservesInv base Inv)
     (hA : QueryImpl.PreservesInv (oracleSendArleak vulnA.rleak scka) Inv)
@@ -1082,10 +1080,10 @@ theorem securityImplOf_preserves_at_of_book (Inv : GameState StA StB I Rho → P
     (fun z hz => oracleCorruptA_preservesInv vulnA.corrupt Inv hexp () s hs z hz)
     (fun z hz => oracleCorruptB_preservesInv vulnB.corrupt Inv hexp () s hs z hz) t z hz
 
-/-- The invariant-preservation version of `securityImplOf_preserves_at_of_book`: under its
-coin assumptions, if `chall` records challenges, the assembled security oracles preserve every
-invariant preserved by `base`, ordinary sends, and arbitrary changes to `exposed` and
-`challenged`. -/
+/-- Assume that discarding the returned coins of each party's leaking send gives its ordinary
+send, and that `chall` records challenges. Then `securityImplOf base chall vulnA vulnB scka`
+preserves every predicate `Inv` preserved by `base`, by both ordinary-send queries, and by
+arbitrary changes to `exposed` and `challenged`. -/
 theorem securityImplOf_preservesInv_of_book (Inv : GameState StA StB I Rho → Prop)
     (hbook : ∀ s exposed challenged, Inv s →
       Inv { s with exposed := exposed, challenged := challenged })
@@ -1107,8 +1105,9 @@ theorem securityImplOf_preservesInv_of_book (Inv : GameState StA StB I Rho → P
     (fun t => hchall.preservesInv Inv (fun s C h => by simpa using hbook s s.exposed C h) t s hs)
     (hsendA () s hs) (hsendB () s hs) t z hz
 
-/-- If `base` retains `exposed` and `chall` satisfies `RecordsChallenges`, every assembled
-security query from `s` with successor `s'` satisfies `s.exposed ⊆ s'.exposed`. -/
+/-- If every `base` query keeps `exposed` unchanged and `chall` records challenges, every
+possible successor `s'` of an assembled security query from `s` satisfies
+`s.exposed ⊆ s'.exposed`. -/
 theorem securityImplOf_exposed_subset
     (hbase : ∀ t s z, z ∈ support ((base t).run s) → z.2.exposed = s.exposed)
     (hchall : RecordsChallenges chall)
@@ -1124,8 +1123,7 @@ theorem securityImplOf_exposed_subset
   · exact oracleCorruptA_exposed_subset vulnA.corrupt u s z hz
   · exact oracleCorruptB_exposed_subset vulnB.corrupt u s z hz
 
-/-- If `base` keeps the challenged set and `chall` records challenges, no assembled query
-removes a challenged epoch. -/
+/-- The version of `securityImplOf_exposed_subset` for `challenged`. -/
 theorem securityImplOf_challenged_subset
     (hbase : ∀ t s z, z ∈ support ((base t).run s) → z.2.challenged = s.challenged)
     (hchall : RecordsChallenges chall)
@@ -1160,10 +1158,10 @@ theorem securityImplOf_preserves_disjoint
   show Disjoint z.2.exposed z.2.challenged
   rw [he, hc]; exact hs
 
-/-- Suppose `base` increases `nA` by at most one on send queries and never increases it
-otherwise, and `chall` satisfies `RecordsChallenges`. Every assembled security query from
-`s` with successor `s'` then satisfies `s'.nA ≤ s.nA + 1` on the four ordinary or leaking sends
-and `s'.nA ≤ s.nA` otherwise. -/
+/-- Assume every `base` query increases `nA` by at most one on sends and not at all otherwise,
+and `chall` records challenges. Then every possible successor `s'` of an assembled security
+query `t` from `s` satisfies `s'.nA ≤ s.nA + 1` if `t` is one of the four ordinary or leaking
+sends, and `s'.nA ≤ s.nA` otherwise. -/
 theorem securityImplOf_nA_step
     (hbase : ∀ t s z, z ∈ support ((base t).run s) →
       z.2.nA ≤ s.nA + if isSendQuery t then 1 else 0)

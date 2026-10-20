@@ -823,11 +823,11 @@ noncomputable def sckaGuessAdvantage [SampleableType I] [DecidableEq I]
 
 /-! ### Fixed-bit experiments and advantage normalization
 
-For a scheme `scka`, security adversary `adversary`, and exposure policies `vulnA`,
-`vulnB`, let `G_b := securityExpFixedBit scka adversary b vulnA vulnB`.
-The branch `G_false` uses recorded keys; `G_true` uses independent uniform challenge keys.
-Let `w := Pr[securityExp scka adversary vulnA vulnB = true]` be the probability
-that the adversary guesses the uniformly sampled bit.
+For a scheme `scka`, security adversary `adversary`, and exposure policies `vulnA`, `vulnB`,
+let `G_b := securityExpFixedBit scka adversary b vulnA vulnB`: `G_false` answers eligible
+challenges with recorded keys and `G_true` with independent uniform keys. Let
+`w := Pr[securityExp scka adversary vulnA vulnB = true]` be the probability that the adversary
+guesses the uniformly sampled bit.
 -/
 
 /-- The SCKA experiment with fixed bit `b`: initialize `scka`, answer eligible challenges
@@ -890,13 +890,7 @@ lemma securityExp_toReal_sub_half [SampleableType I] [DecidableEq I]
     (Pr[= true | securityExp scka adversary vulnA vulnB]).toReal - 1 / 2 =
     ((Pr[= true | securityExpFixedBit scka adversary true vulnA vulnB]).toReal -
      (Pr[= true | securityExpFixedBit scka adversary false vulnA vulnB]).toReal) / 2 := by
-  rw [show (Pr[= true | securityExp scka adversary vulnA vulnB]).toReal =
-      (Pr[= true | do
-        let b ← ($ᵗ Bool : ProbComp Bool)
-        let z ← if b then securityExpFixedBit scka adversary true vulnA vulnB
-                 else securityExpFixedBit scka adversary false vulnA vulnB
-        pure (b == z)]).toReal from by
-    congr 1; exact securityExp_probOutput_eq_branch scka adversary vulnA vulnB]
+  rw [securityExp_probOutput_eq_branch scka adversary vulnA vulnB]
   exact probOutput_uniformBool_branch_toReal_sub_half
     (securityExpFixedBit scka adversary true vulnA vulnB)
     (securityExpFixedBit scka adversary false vulnA vulnB)
@@ -909,12 +903,13 @@ lemma sckaGuessAdvantage_eq_sckaDistAdvantage_div_two [SampleableType I] [Decida
     (adversary : SCKAAdversary StA StB I Rho Rand)
     (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand) :
     sckaGuessAdvantage scka adversary vulnA vulnB =
-      sckaDistAdvantage scka adversary vulnA vulnB / 2 := by
+      sckaDistAdvantage scka adversary vulnA vulnB / 2
+-- ANCHOR_END: sckaAdvantageNormalization
+    := by
   simp only [sckaGuessAdvantage, sckaDistAdvantage]
   rw [securityExp_toReal_sub_half, abs_div]
   congr 1
   exact abs_of_pos two_pos
--- ANCHOR_END: sckaAdvantageNormalization
 
 end Games
 
