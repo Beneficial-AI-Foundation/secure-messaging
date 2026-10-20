@@ -36,50 +36,16 @@ Figure 16 of {Informal.citet SCKA25}[]. In the receive algorithms,
 - $`t` is the epoch index of the receiver's state,
 - $`t'` is the epoch index of the delivered message.
 
-The following two errata explain the corrections marked with surrounding boxes in the pseudocode below.
+Boxes mark corrections and explicit checks added to Figure 16:
 
-*Erratum 4: Acknowledgements are recorded in the wrong epoch.*
-
-Let `t` be the receiver's epoch and `(ch, ack', t', b)` the received message.
-`CKA-Rec-A` and `CKA-Rec-B` end by copying the sender's acknowledgement,
-regardless of `t` after processing:
-
-* `CKA-Rec-A` executes `if ack'.ek-rec then ack.ek-rec ← true`.
-* `CKA-Rec-B` (lines 12–13) executes `if ack'.ct0-rec then ack.ct0-rec ← true`.
-
-The acknowledgement belongs to epoch `t'`.
-When `t ≠ t'`, it marks the receiver's current payload as delivered although the peer did not receive it.
-
-This happens in honest runs with in-order delivery.
-Every `ct_1` chunk B sends carries `ack.ek-rec = true`, because B sends `ct_1` only once it has `ek_A`.
-When A decodes `ct_1`, it moves to epoch `t + 1` and resets `ack`.
-The final step then sets `ack.ek-rec` for epoch `t + 1`.
-A generates a fresh `ek_A` on its next send.
-Since `ack.ek-rec` is already true, A never sends a chunk of this key.
-B never obtains `ek_A` and never runs `Enc.On`, so no key is established after the first epoch.
-
-With delayed delivery, a stale message (`t' < t`) can likewise mark the current
-`ek_A` in Rec-A or `ct_0` in Rec-B as received.
-The correction is to record the acknowledgement only if $`t=t'` after processing:
-`if ack'.ek-rec ∧ t = t'` in Rec-A and `if ack'.ct0-rec ∧ t = t'` in Rec-B.
-`OppUniKEM/Construction.lean` implements this correction under "Acknowledgements" in its module docstring.
-
-*Erratum 5: Rec-B returns the receiver's epoch.*
-
-`CKA-Rec-B` (Figure 16, line 15) returns `((⊥, ⊥), t − 1, st)`, where `t` is B's epoch.
-The matching-epoch condition (Figure 1, `Receive-P` line 4: `assert t_rcv_P = t_snd_P̄`) requires the sender's value.
-`CKA-Send-A` computes that value as the message epoch minus one, `t' − 1`.
-`CKA-Rec-A` already returns `t' − 1`.
-
-The two values differ when B is ahead of the message.
-A sends `ρ_1` in epoch `t`, which the adversary withholds while epoch `t` completes.
-A then sends `ρ_2` in epoch `t + 1`.
-Delivering `ρ_2` moves B to epoch `t + 1`.
-Delivering `ρ_1` afterwards makes B return `t`, while `ρ_1` was sent with `t_snd_A = t − 1`.
-The correctness assertion fails.
-
-The correction is to return $`t'-1`.
-`OppUniKEM/Construction.lean` implements this correction under "Receiving epoch" in its module docstring.
+* $`\mathsf{Rec}\text{-}\A` and $`\mathsf{Rec}\text{-}\B` record
+  received acknowledgements only if $`t=t'`;
+* $`\mathsf{Rec}\text{-}\B` returns $`t'-1` rather than $`t-1`;
+* $`\mathsf{Rec}\text{-}\A` attempts decoding only if $`\chunk\ne\bot`.
+  After decoding a current-epoch $`\ctone`, it aborts if $`\dkA` or $`\ctzero` is
+  missing or decapsulation fails. Incomplete decoding retains the chunk and
+  processes acknowledgements.
+See the {ref "opp-unikem-errata"}[errata box] for details.
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Initialisation}" (kind := "scheme")
@@ -770,4 +736,60 @@ $`\todo`
 
 :::leanPill "missing"
 :::
+::::
+
+# Errata
+%%%
+tag := "opp-unikem-errata"
+number := false
+htmlSplit := .never
+%%%
+
+::::gameCell "\\textsf{Opp-UniKEM-CKA errata}" (kind := "errata")
+
+The following errata explain the corrections to the {bpref "opp_unikem_cka_spec"}[protocol definition].
+
+*Erratum 4: Acknowledgements are recorded in the wrong epoch.*
+
+Let `t` be the receiver's epoch and `(ch, ack', t', b)` the received message.
+`CKA-Rec-A` and `CKA-Rec-B` end by copying the sender's acknowledgement,
+regardless of `t` after processing:
+
+* `CKA-Rec-A` executes `if ack'.ek-rec then ack.ek-rec ← true`.
+* `CKA-Rec-B` (lines 12–13) executes `if ack'.ct0-rec then ack.ct0-rec ← true`.
+
+The acknowledgement belongs to epoch `t'`.
+When `t ≠ t'`, it marks the receiver's current payload as delivered although the peer did not receive it.
+
+This happens in honest runs with in-order delivery.
+Every `ct_1` chunk B sends carries `ack.ek-rec = true`, because B sends `ct_1` only once it has `ek_A`.
+When A decodes `ct_1`, it moves to epoch `t + 1` and resets `ack`.
+The final step then sets `ack.ek-rec` for epoch `t + 1`.
+A generates a fresh `ek_A` on its next send.
+Since `ack.ek-rec` is already true, A never sends a chunk of this key.
+B never obtains `ek_A` and never runs `Enc.On`, so no key is established after the first epoch.
+
+With delayed delivery, a stale message (`t' < t`) can likewise mark the current
+`ek_A` in Rec-A or `ct_0` in Rec-B as received.
+The correction is to record the acknowledgement only if $`t=t'` after processing:
+`if ack'.ek-rec ∧ t = t'` in Rec-A and `if ack'.ct0-rec ∧ t = t'` in Rec-B.
+`OppUniKEM/Construction.lean` implements this correction under "Acknowledgements" in its module docstring.
+
+*Erratum 5: Rec-B returns the receiver's epoch.*
+
+`CKA-Rec-B` (Figure 16, line 15) returns `((⊥, ⊥), t − 1, st)`, where `t` is B's epoch.
+The matching-epoch condition (Figure 1, `Receive-P` line 4: `assert t_rcv_P = t_snd_P̄`) requires the sender's value.
+`CKA-Send-A` computes that value as the message epoch minus one, `t' − 1`.
+`CKA-Rec-A` already returns `t' − 1`.
+
+The two values differ when B is ahead of the message.
+A sends `ρ_1` in epoch `t`, which the adversary withholds while epoch `t` completes.
+A then sends `ρ_2` in epoch `t + 1`.
+Delivering `ρ_2` moves B to epoch `t + 1`.
+Delivering `ρ_1` afterwards makes B return `t`, while `ρ_1` was sent with `t_snd_A = t − 1`.
+The correctness assertion fails.
+
+The correction is to return $`t'-1`.
+`OppUniKEM/Construction.lean` implements this correction under "Receiving epoch" in its module docstring.
+
 ::::

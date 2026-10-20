@@ -23,6 +23,7 @@ The numbering preserves the original errata list.
 3. Opp-BiKEM uses A's responder counter in Send-B and overwrites A's own ciphertext
    in Rec-A. See the {ref "opp-bikem-errata"}[Opp-BiKEM errata box] for the corrected variables.
 4. Opp-UniKEM records acknowledgements in the wrong epoch, which can prevent later
-   key exchanges. See {bpref "opp_unikem_cka_spec"}[] for the failure trace and epoch guard.
+   key exchanges. See {bpref "opp_unikem_cka_spec"}[] and its
+   {ref "opp-unikem-errata"}[errata box] for the failure trace and epoch guard.
 5. Opp-UniKEM Rec-B returns the receiver's epoch instead of the message's sending
-   epoch. See {bpref "opp_unikem_cka_spec"}[] for the delayed-delivery example and correction.
+   epoch. See the {ref "opp-unikem-errata"}[Opp-UniKEM errata box] for the delayed-delivery example and correction.
