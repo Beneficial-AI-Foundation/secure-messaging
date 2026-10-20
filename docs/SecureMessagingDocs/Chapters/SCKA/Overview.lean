@@ -9,6 +9,7 @@ import SecureMessagingDocs.Chapters.SCKA.OppBiKEM
 import SecureMessagingDocs.Chapters.SCKA.OppRKEM
 import SecureMessagingDocs.Chapters.SCKA.MLKEMBraid
 import SecureMessagingDocs.Chapters.SCKA.SPQR
+import SecureMessagingDocs.Chapters.SCKA.Errata
 
 open Verso.Genre
 open Verso.Genre.Manual
@@ -36,6 +37,8 @@ set_option linter.hashCommand false
 {include 1 SecureMessagingDocs.Chapters.SCKA.MLKEMBraid}
 
 {include 1 SecureMessagingDocs.Chapters.SCKA.SPQR}
+
+{include 1 SecureMessagingDocs.Chapters.SCKA.Errata}
 
 {blueprint_graph}
 

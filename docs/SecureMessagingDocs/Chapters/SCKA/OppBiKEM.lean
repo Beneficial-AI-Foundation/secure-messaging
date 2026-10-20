@@ -40,22 +40,8 @@ These functions specialize for `A` or `B` by using the `Role.offset` variable,
 that distinguishes between roles at different indices that `A` and `B` play.
 
 
-We make the following corrections with respect to the pseudocode (marked with surrounding boxes in the pseudocode):
-
-* In Figure 18, $`\mathsf{CKA}\text{-}\SendB`, lines 8, 9, and 13, replace
-  $`\boxed{t_{\mathrm{res}\text{-}A}\mapsto t_{\mathrm{res}\text{-}B}}`.
-  B's local state contains B's responder counter.
-* In Figure 17, $`\mathsf{CKA}\text{-}\mathsf{Rec}\text{-}\A`, line 22, replace
-  $`\boxed{\mathit{ct}_A\mapsto\mathit{ct}_B}`. Lines 23 and 27 already use B's ciphertext.
-* Public-key acknowledgement indices are corrected at both ends of each message:
-  in Figure 17, Send-A line 21 uses
-  $`\boxed{t_{\mathrm{req}\text{-}A}-1}` and Rec-A line 8 uses
-  $`\boxed{t_{\mathrm{req}\text{-}B}+1}`;
-  in Figure 18, Send-B line 21 uses
-  $`\boxed{t_{\mathrm{req}\text{-}B}+1}` and Rec-B line 8 uses
-  $`\boxed{t_{\mathrm{req}\text{-}A}-1}`.
-  These are the public-key entries set by decoding. The printed formulas
-  advertise different entries, leaving the first public keys unacknowledged.
+The pseudocode below marks with surrounding boxes the corrections we made with respect to the paper.
+See the {ref "opp-bikem-errata"}[errata box] for detailed explanations and justifications for the corrections.
 
 ::::::gameGrid
 
@@ -212,6 +198,7 @@ def recvB (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
 
 For party $`P`, the shared send follows Figures 17–18 with offset $`\delta_P`,
 where $`\delta_A=1` and $`\delta_B=-1`. We write $`\bar P` for the peer of party $`P`.
+The boxes mark the acknowledgement-index correction and, for $`P=B`, the Send-B counter corrections.
 
 $`\begin{array}{l}
 (t_{\mathrm{res}\text{-}P},\mathsf{EK}_{\bar P},\mathit{ct}_P,i_{\mathrm{ch}})\gets\mathsf{st}_{\mathrm{res}} \\
@@ -221,11 +208,11 @@ I_P\gets\bot,\ t_{I_P}\gets\bot,\ \mathit{ch}\gets\bot,\ b\gets\bot \\
 \qquad\wedge\mathsf{ACK}[t_{\mathrm{res}\text{-}P}+\delta_P].\mathsf{ctRec}\;\mathsf{then} \\
 \quad t_{\mathrm{res}\text{-}P}\gets t_{\mathrm{res}\text{-}P}+2,\quad i_{\mathrm{ch}}\gets0 \\
 \quad (\mathit{ek}_P,\mathit{dk}_P)\sample\KeyGen \\
-\quad \mathsf{DK}_P[t_{\mathrm{res}\text{-}P}+\delta_P]\gets\mathit{dk}_P \\
-\mathsf{if}\;\neg\mathsf{ACK}[t_{\mathrm{res}\text{-}P}+\delta_P].\mathsf{ekRec}\;\mathsf{then} \\
+\quad \mathsf{DK}_P[\boxed{t_{\mathrm{res}\text{-}P}}+\delta_P]\gets\mathit{dk}_P \\
+\mathsf{if}\;\neg\mathsf{ACK}[\boxed{t_{\mathrm{res}\text{-}P}}+\delta_P].\mathsf{ekRec}\;\mathsf{then} \\
 \quad i_{\mathrm{ch}}\gets i_{\mathrm{ch}}+1,\quad b\gets0 \\
 \quad \mathit{ch}\gets\mathsf{Encode}(\mathit{ek}_P,i_{\mathrm{ch}}) \\
-\mathsf{else\ if}\;\neg\mathsf{ACK}[t_{\mathrm{res}\text{-}P}].\mathsf{ctRec}\;\mathsf{then} \\
+\mathsf{else\ if}\;\neg\mathsf{ACK}[\boxed{t_{\mathrm{res}\text{-}P}}].\mathsf{ctRec}\;\mathsf{then} \\
 \quad\mathsf{if}\;\mathit{ct}_P=\bot\wedge\mathsf{ACK}[t_{\mathrm{res}\text{-}P}].\mathsf{ekRec}\;\mathsf{then} \\
 \qquad t_{I_P}\gets t_{\mathrm{res}\text{-}P},\quad i_{\mathrm{ch}}\gets0 \\
 \qquad(\mathit{ct}_P,I_P)\sample\Encaps(\mathsf{EK}_{\bar P}[t_{\mathrm{res}\text{-}P}]) \\
@@ -233,7 +220,7 @@ I_P\gets\bot,\ t_{I_P}\gets\bot,\ \mathit{ch}\gets\bot,\ b\gets\bot \\
 \quad \mathit{ch}\gets\mathsf{Encode}(\mathit{ct}_P,i_{\mathrm{ch}}) \\
 t^{\mathrm{snd}}_P\gets\max\{t:\mathsf{ACK}[t].\mathsf{ctRec} \\
 \qquad\wedge\mathsf{ACK}[t-1].\mathsf{ctRec}\} \\
-\mathit{ack}\gets(\mathsf{ACK}[t_{\mathrm{req}\text{-}P}-\delta_P].\mathsf{ekRec},\mathsf{ACK}[t_{\mathrm{req}\text{-}P}].\mathsf{ctRec}) \\
+\mathit{ack}\gets(\mathsf{ACK}[\boxed{t_{\mathrm{req}\text{-}P}-\delta_P}].\mathsf{ekRec},\mathsf{ACK}[t_{\mathrm{req}\text{-}P}].\mathsf{ctRec}) \\
 \rho\gets(\mathit{ch},t_{\mathrm{res}\text{-}P},t_{\mathrm{req}\text{-}P},t^{\mathrm{snd}}_P,\mathit{ack},b) \\
 \mathsf{st}_{\mathrm{res}}\gets(t_{\mathrm{res}\text{-}P},\mathsf{EK}_{\bar P},\mathit{ct}_P,i_{\mathrm{ch}}) \\
 \mathsf{st}_{\mathrm{req}}\gets(t_{\mathrm{req}\text{-}P},\mathsf{DK}_P,\mathit{ek}_P,L_{\mathrm{ch}}) \\
@@ -313,6 +300,7 @@ def sendWith {RKey REnc : Type} (role : Role)
 :::::gameCell "\\textsf{Shared receive implementation}" (kind := "compact")
 For party $`P`, the shared receive follows Figures 17–18 with offset $`\delta_P`,
 where $`\delta_A=1` and $`\delta_B=-1`. We write $`\bar P` for the peer of party $`P`.
+The boxes mark the acknowledgement-index correction and, for $`P=A`, the corrected received-ciphertext variable.
 
 $`\begin{array}{l}
 (t_{\mathrm{res}\text{-}P},\mathsf{EK}_{\bar P},\mathit{ct}_P,i_{\mathrm{ch}})\gets\mathsf{st}_{\mathrm{res}} \\
@@ -322,7 +310,7 @@ I_{\bar P}\gets\bot,\quad t_{I_{\bar P}}\gets\bot \\
 \mathsf{if}\;\mathit{ack}.\mathsf{ctRec}\;\mathsf{then} \\
 \quad\mathsf{ACK}[t_{\mathrm{req}\text{-}\bar P}].\mathsf{ctRec}\gets\mathsf{true} \\
 \mathsf{if}\;\mathit{ack}.\mathsf{ekRec}\;\mathsf{then} \\
-\quad\mathsf{ACK}[t_{\mathrm{req}\text{-}\bar P}+\delta_P].\mathsf{ekRec}\gets\mathsf{true} \\
+\quad\mathsf{ACK}[\boxed{t_{\mathrm{req}\text{-}\bar P}+\delta_P}].\mathsf{ekRec}\gets\mathsf{true} \\
 \mathsf{if}\;t_{\mathrm{res}\text{-}\bar P}<t_{\mathrm{req}\text{-}P}\;\mathsf{then}\;\mathsf{break} \\
 \mathsf{else\ if}\;t_{\mathrm{res}\text{-}\bar P}>t_{\mathrm{req}\text{-}P}\;\mathsf{then}\;t_{\mathrm{req}\text{-}P}\gets t_{\mathrm{req}\text{-}P}+2 \\
 \mathsf{if}\;\mathsf{EK}_{\bar P}[t_{\mathrm{req}\text{-}P}-\delta_P]=\bot\wedge b=0\;\mathsf{then} \\
@@ -334,7 +322,7 @@ I_{\bar P}\gets\bot,\quad t_{I_{\bar P}}\gets\bot \\
 \qquad\mathsf{ACK}[t_{\mathrm{req}\text{-}P}-\delta_P].\mathsf{ekRec}\gets\mathsf{true} \\
 \mathsf{else\ if}\;\neg\mathsf{ACK}[t_{\mathrm{req}\text{-}P}].\mathsf{ctRec}\wedge b=1\;\mathsf{then} \\
 \quad L_{\mathrm{ch}}\gets L_{\mathrm{ch}}\cup\{\mathit{ch}\} \\
-\quad \mathit{ct}_{\bar P}\gets\mathsf{Decode}(L_{\mathrm{ch}}) \\
+\quad \boxed{\mathit{ct}_{\bar P}}\gets\mathsf{Decode}(L_{\mathrm{ch}}) \\
 \quad\mathsf{if}\;\mathit{ct}_{\bar P}\ne\bot\;\mathsf{then} \\
 \qquad L_{\mathrm{ch}}\gets\emptyset \\
 \qquad\mathsf{ACK}[t_{\mathrm{req}\text{-}P}].\mathsf{ctRec}\gets\mathsf{true} \\
@@ -473,4 +461,192 @@ $`\todo`
 
 :::leanPill "missing"
 :::
+::::
+
+# Errata
+%%%
+tag := "opp-bikem-errata"
+number := false
+htmlSplit := .never
+%%%
+
+::::gameCell "\\textsf{Opp-BiKEM-CKA errata}" (kind := "errata")
+
+The following errata explain the differences from the paper.
+The {bpref "opp_bikem_cka_spec"}[protocol definition] uses the corrections from errata 2 and 3.
+Erratum 1 distinguishes the current implementation from a proposed paper correction.
+
+*Erratum 1: Sending is blocked under the strict failure convention.*
+
+In Figures 17–18, `CKA-Send-P` can reach line 19, `ch ← Encode(ct_P, i_ch)`,
+with `ct_P = ⊥`, where `P` stands for either `A` or `B`.
+This state occurs in normal honest runs.
+
+The paper's §2 notational convention says that a failing statement aborts the
+algorithm and discards its state changes. Under this convention, `Encode(⊥, ·)` fails.
+The send aborts, as does the `SM-Send-P` call that invokes it.
+A party cannot send any message while it waits for its peer's encapsulation key.
+
+In Figure 17, `CKA-Send-A`, lines 13–19 read as follows.
+Figure 18, `CKA-Send-B`, is symmetric.
+
+```
+13: elseif ¬ACK[t_res-A].ct-rec            / ct_A not yet received by B
+14:   if ct_A = ⊥ ∧ ACK[t_res-A].ek-rec
+15:     t_IA ← t_res-A; i_ch ← 0
+16:     (ct_A, I_A) ← Enc(EK_B[t_res-A])
+17:   i_ch += 1
+18:   b ← 1
+19:   ch ← Encode(ct_A, i_ch)               / ct_A may still be ⊥ here
+```
+
+When execution reaches line 13 but line 14 does not hold, `ct_A` is still `⊥` at line 19.
+B acknowledges A's key, but A does not yet decode B's key.
+Figure 19, `CKA-Send-A`, lines 13–21, has the same pattern, with an extra conjunct in line 14.
+See {bpref "opp_rkem_cka_spec"}[Opp-RKEM-CKA] for its proposed correction.
+Figure 16, Opp-UniKEM-CKA, avoids this problem by guarding its online-ciphertext branch with `elseif ek_A ≠ ⊥`.
+
+The parties send their encapsulation keys concurrently.
+A's key can therefore arrive and receive an acknowledgement before A decodes B's key.
+The following trace starts from initialization and delivers every message once, in order.
+Let `n ≥ 2` be the number of chunks needed to decode an encapsulation key.
+
+Initially, A has `t_res-A = −1` and `t_req-A = 0`.
+B has `t_res-B = 0` and `t_req-B = −1`.
+Both have `ACK[−1].ct-rec = ACK[0].ct-rec = true`.
+
+1. A sends `n` messages. Send-A line 4 holds, so A sets `t_res-A = 1` and generates
+   `ek_A` for epoch 2. `ACK[2].ek-rec` is false, so every message carries a chunk
+   of `ek_A` through the branch at line 9.
+2. B receives them. The first message moves `t_req-B` to 1 (Rec-B lines 11–12).
+   After the `n`-th message, B decodes `ek_A`, stores it as `EK_A[2]`, and sets
+   `ACK[2].ek-rec` (Rec-B lines 18–19).
+3. B sends one message. Send-B line 4 holds, so B sets `t_res-B = 2` and generates
+   `ek_B` for epoch 1. `ACK[1].ek-rec` is false, so line 9 sends the first chunk of `ek_B`.
+   Line 21 also sends the acknowledgement `ACK[t_req-B + 1].ek-rec = ACK[2].ek-rec = true`.
+4. A receives it. A records the acknowledgement as `ACK[2].ek-rec` (Rec-A line 8)
+   and moves `t_req-A` to 2 (lines 11–12). It stores the chunk of `ek_B` (lines 13–15).
+   One chunk is insufficient to decode, so `ACK[1].ek-rec` stays false.
+5. A sends. Line 4 is false because `ACK[1].ct-rec` is false, so A generates no new key pair.
+   Line 9 is false because `ACK[2].ek-rec` holds: B has `ek_A`.
+   Line 13 is true because `ACK[1].ct-rec` is false: B does not yet receive `ct_A`.
+   Line 14 is false because `ACK[1].ek-rec` is false: A does not yet decode `ek_B`.
+   Lines 17–19 therefore run with `ct_A = ⊥`.
+
+The same trace with the roles swapped, with B sending first, puts B in this state in Figure 18.
+The trace uses the acknowledgement indices from erratum 2 and the Send-B variable fixes from erratum 3.
+With the printed indices, step 3 sends `ACK[t_req-B − 1].ek-rec = ACK[0].ek-rec`.
+That entry is never set, so A never learns that B has `ek_A`.
+
+Under the strict §2 convention, step 5 fails in `CKA-Send-A`.
+The calling `SM-Send-A` also fails (Figure 2, line 1).
+A cannot send any secure-messaging message until it decodes `ek_B`.
+
+Under the lenient interpretation `Encode(⊥, ·) = ⊥`, the message carries `(ch = ⊥, b = 1)`.
+The receiver then executes `L_ch ∪← {⊥}` (Rec line 21), which requires the additional convention `L ∪ {⊥} = L`.
+Line 17 increments `i_ch` without sending a chunk.
+This increment is harmless only because line 15 resets the counter later.
+The figures need an explicit rule for sending no ciphertext chunk while waiting.
+
+The current implementation in `SecureMessaging/SCKA/OppBiKEM/Construction.lean` uses the lenient interpretation:
+
+* `sendWith` sets `ch? := ct.map (…)` with `bit? := some 1` and still increments `ich`.
+  Its code comment states: "Waiting for the peer's public key can legitimately leave ct absent."
+* `insertChunkAndDecode` treats an absent chunk as a no-op on the receiver side.
+* Elsewhere, the implementation follows the strict convention.
+  It returns `none` for a missing `ek` before `Encode` (line 12) or a missing peer key before `Enc` (line 16).
+
+The module docstring records the lenient interpretation as correction 4.
+The proposed paper correction is to guard lines 17–19 of Figures 17–18 with `if ct_P ≠ ⊥`.
+The corresponding guard in Figure 19 covers lines 19–21.
+This follows the style of Figure 16's `elseif ek_A ≠ ⊥` guard.
+While waiting, the message then carries only epochs and acknowledgements, with `ch = ⊥` and `b = ⊥`.
+The receiver never sees `(⊥, b = 1)`.
+The repository retains its current encoding, with `bit = some 1` and `ich` incremented, pending feedback from the paper's authors.
+
+*Erratum 2: Public-key acknowledgements use the wrong indices.*
+
+In Figures 17–18, Send line 21 sends the `ek-rec` acknowledgement at the wrong epoch.
+Rec line 8 also records it at the wrong epoch.
+The following table gives the printed and corrected indices.
+
+:::table +header (align := left)
+*
+  * Line
+  * Printed
+  * Corrected
+*
+  * Figure 17, `CKA-Send-A` line 21
+  * `ACK[t_req-A + 1].ek-rec`
+  * `ACK[t_req-A − 1].ek-rec`
+*
+  * Figure 17, `CKA-Rec-A` line 8
+  * `ACK[t_req-B − 1].ek-rec ← true`
+  * `ACK[t_req-B + 1].ek-rec ← true`
+*
+  * Figure 18, `CKA-Send-B` line 21
+  * `ACK[t_req-B − 1].ek-rec`
+  * `ACK[t_req-B + 1].ek-rec`
+*
+  * Figure 18, `CKA-Rec-B` line 8
+  * `ACK[t_req-A + 1].ek-rec ← true`
+  * `ACK[t_req-A − 1].ek-rec ← true`
+:::
+
+The corrected indices identify the entries set when a party decodes its peer's key:
+`ACK[t_req-A − 1].ek-rec` in Rec-A line 19 and `ACK[t_req-B + 1].ek-rec` in Rec-B line 19.
+The printed indices differ by two epochs.
+
+With the printed indices, neither party learns that its first public key arrived.
+The following trace starts from initialization and delivers every message once, in order.
+Let `n ≥ 1` be the number of chunks needed to decode an encapsulation key.
+The trace applies the Send-B variable fix from erratum 3.
+
+Initially, A has `t_res-A = −1` and `t_req-A = 0`.
+B has `t_res-B = 0` and `t_req-B = −1`.
+Both have `ACK[−1].ct-rec = ACK[0].ct-rec = true`, and every `ek-rec` entry is false.
+
+1. A sends `n` messages. Send-A line 4 holds, so A sets `t_res-A = 1` and generates
+   `ek_A` for epoch 2. `ACK[2].ek-rec` is false, so each message carries a chunk of `ek_A` (line 9).
+2. B receives them. The first message moves `t_req-B` to 1 (Rec-B lines 11–12).
+   After the `n`-th message, B decodes `ek_A` and sets `ACK[2].ek-rec` (Rec-B line 19).
+3. B sends `n` messages. Send-B line 4 holds, so B sets `t_res-B = 2` and generates
+   `ek_B` for epoch 1. Each message carries a chunk of `ek_B`.
+   Line 21 acknowledges `ACK[t_req-B − 1].ek-rec = ACK[0].ek-rec`, which is false.
+   The entry B just set is `ACK[2]`.
+4. A receives them. Rec-A line 8 records nothing. The first message moves `t_req-A` to 2.
+   After the `n`-th message, A decodes `ek_B` and sets `ACK[1].ek-rec` (line 19).
+   `ACK[2].ek-rec` is still false, so A keeps `ek_A` (lines 31–32).
+5. A sends. Line 4 is false (`ek_A ≠ ⊥`) and line 9 is true (`ACK[2].ek-rec` is false),
+   so A resends a chunk of `ek_A`.
+   Line 21 acknowledges `ACK[t_req-A + 1].ek-rec = ACK[3].ek-rec`, which is false.
+   The entry A just set is `ACK[1]`.
+6. B receives it and sends. Rec-B line 8 records nothing, so B's `ACK[1].ek-rec` stays false.
+   B keeps `ek_B` (lines 31–32) and resends a chunk of `ek_B`, again acknowledging `ACK[0].ek-rec`.
+
+Steps 5–6 repeat forever. A leaves line 9 only once `ACK[2].ek-rec` holds.
+Rec-A line 19 sets only odd entries because `t_req-A` is even.
+Line 8 sets `ACK[t_req-B − 1]`, which equals `ACK[2]` only once `t_req-B = 3`.
+That requires A to advance to `t_res-A = 3` (Send-A line 4), which requires `ek_A = ⊥`.
+Clearing `ek_A` requires `ACK[2].ek-rec` (Rec-A lines 31–32), so A cannot advance.
+
+B leaves line 9 only once `ACK[1].ek-rec` holds.
+Rec-B line 19 sets only even entries because `t_req-B` is odd.
+Line 8 sets `ACK[t_req-A + 1]`, which equals `ACK[1]` only for messages A sends with `t_req-A = 0`.
+A sends those messages before decoding `ek_B`, so their acknowledgement bit is false.
+
+Neither party reaches the ciphertext branch at line 13, so no key is ever established.
+With the corrected indices, step 3 acknowledges `ACK[2]` and step 5 acknowledges `ACK[1]`, and the run proceeds.
+`OppBiKEM/Construction.lean` uses the corrected indices, recorded as correction 3 in its module docstring.
+
+*Erratum 3: Variable typos in Send-B and Rec-A.*
+
+In Figure 18, `CKA-Send-B`, lines 8, 9, and 13 use `t_res-A`, which is absent from B's state.
+The corrected variable is $`\boxed{t_{\mathrm{res}\text{-}B}}`, as in lines 14–16.
+The corrected expressions are `DK_B[t_res-B − 1] ← dk_B`, `¬ACK[t_res-B − 1].ek-rec`, and `¬ACK[t_res-B].ct-rec`.
+
+In Figure 17, `CKA-Rec-A`, line 22 reads `ct_A ← Decode(L_ch)`, which overwrites A's own ciphertext.
+The corrected assignment is `ct_B ← Decode(L_ch)`, with $`\boxed{\mathit{ct}_B}`, as used in lines 23 and 27.
+`OppBiKEM/Construction.lean` uses the corrected variables, recorded as correction 1 in its module docstring.
+
 ::::
