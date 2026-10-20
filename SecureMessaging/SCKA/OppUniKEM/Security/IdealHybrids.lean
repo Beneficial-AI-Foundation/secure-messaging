@@ -18,8 +18,7 @@ a security adversary, `idealSecurityImpl … mode` the ideal game (`Endpoints`),
 
 **Definitions.**
 
-- `H_i := idealEpochHybridExp … adv i`: the ideal game with mode `t ↦ (0 < t ∧ t ≤ i)`, so
-  eligible challenges at epochs `1, …, i` get uniform keys and the others recorded keys.
+- `H_i := idealEpochHybridExp … adv i`: the ideal game with mode `t ↦ (0 < t ∧ t ≤ i)`.
 - `H_i` *stopped at `i + 1`*: run through `stoppedRun` with stop test `i + 1 ∈ exposed`.
 
 **Results.** `AdvGuess(Π, adv) := |Pr[b' = b] - 1/2|`; `ε` is the KEM correctness error.

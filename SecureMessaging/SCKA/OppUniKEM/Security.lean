@@ -21,13 +21,10 @@ import SecureMessaging.SCKA.Security
   correct erasure codes `ecEk`, `ecCt0`, `ecCt1`.
 - `adv : SecurityAdversary leak Sym` with `SecuritySendQueryBound adv q`: at most `q` ordinary
   and leaking sends on every oracle-response path.
-- The SCKA security game uses the exposure policies `exposureA`, `exposureB`. A challenge at `t`
-  is *eligible* if `t` is unexposed, unchallenged, and has a recorded key.
 
 **Advantages.**
 
-- `G_b`: eligible challenges get recorded keys if `b = false` and independent uniform keys if
-  `b = true`.
+- `G_b`: the SCKA security game of `Π` with its challenge bit fixed to `b` (`securityExpFixedBit`).
 - `AdvGuess_SCKA(Π, adv) := |Pr[b' = b] - 1/2| = |Pr[G_true = true] - Pr[G_false = true]| / 2`.
 - `AdvINDCPA_KEM(kem, B) = |Pr[B_real = true] - Pr[B_random = true]|`, where `B` receives the
   encapsulated key or an independent uniform key (`IND_CPA_Advantage_eq_fixed_branch_dist`).

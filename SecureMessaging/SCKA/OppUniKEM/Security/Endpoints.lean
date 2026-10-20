@@ -16,16 +16,15 @@ import ToVCVio.OracleComp.SimSemantics.StateT.IdenticalUntilBadInvariant
 
 **Setting.** `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` with deterministic decapsulation
 and correct erasure codes; `adv` with `SecuritySendQueryBound adv q`; `ε` the KEM correctness
-error `kem.correctnessError` (Def. A.1 of [SCKA]). A challenge at `t` is *eligible* if `t` is
-unexposed, unchallenged, and has a recorded key.
+error `kem.correctnessError` (Def. A.1 of [SCKA]).
 
 **Definitions.**
 
-- `G_b` (`SCKAScheme.securityExpFixedBit`): eligible challenges get recorded keys if `b = false`
-  and independent uniform keys if `b = true`.
+- `G_b` (`SCKAScheme.securityExpFixedBit`): the SCKA security game with challenge bit fixed to `b`.
 - `idealSecurityImpl mode`, `idealSecurityExp mode adv`: the *ideal game*. When A completes an
-  online ciphertext, it outputs B's recorded key instead of decapsulating; an eligible challenge
-  at `t` gets a uniform key iff `mode t = true`. `I_b := idealSecurityExp (fun _ => b) adv`.
+  online ciphertext, it outputs B's recorded key instead of decapsulating; a challenge at `t`
+  gets a uniform key iff `mode t = true`. `I_b := idealSecurityExp (fun _ => b) adv` is `G_b`
+  with this receive.
 
 **Result.** `security_correctness_endpoint_le`: `|Pr[G_b = true] - Pr[I_b = true]| ≤ q · ε`.
 -/
