@@ -8,7 +8,7 @@ import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.OnlineDeferral
 import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.OfflineDeferral
 import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.KeygenDeferral
 import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.SamplingStages
-import SecureMessaging.SCKA.OppUniKEM.Security.IdealStopping
+import SecureMessaging.SCKA.OppUniKEM.Security.IdealHybrids
 
 /-!
 # Adjacent ideal hybrids from the KEM branches

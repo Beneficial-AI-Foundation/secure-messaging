@@ -6,8 +6,6 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.SCKA.OppUniKEM.Security.Endpoints
 import SecureMessaging.SCKA.OppUniKEM.Security.IdealHybrids
-import SecureMessaging.SCKA.OppUniKEM.Security.IdealInvariants
-import SecureMessaging.SCKA.OppUniKEM.Security.IdealStopping
 import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Adjacent
 import SecureMessaging.SCKA.Security
 
@@ -80,7 +78,7 @@ chapter presents the reduction algorithms and a proof outline.
    mode bit `!b`, averaged over material; the stored samples are then deferred to their protocol
    calls. `Reduction/SourceUse` shows that each stored sample is used at most once, and
    `Reduction/{Online,Offline,Keygen}Deferral` prove the three deferrals.
-6. `IdealStopping`, `Reduction/Adjacent`: `fixedBranch_eq_ideal` equates the acceptance
+6. `IdealHybrids`, `Reduction/Adjacent`: `fixedBranch_eq_ideal` equates the acceptance
    probability of `fixedBranch adv e b` with that of the ideal game with mode
    `adjacentMode e (!b)`, stopped at the exposure of `e`. Stopping preserves the signed difference
    of adjacent hybrids (`idealEpochHybrid_signed_gap_stop_eq`), so `fixedBranch_signed_gap_eq`
@@ -88,10 +86,10 @@ chapter presents the reduction algorithms and a proof outline.
    Pr[H_i = true] - Pr[H_{i+1} = true]`. Averaging over `e` and telescoping gives
    `hybrid_gap_eq_query_factor`: `|Pr[H_0 = true] - Pr[H_q = true]| = q · AdvINDCPA_KEM(kem, B)`.
 
-Supporting modules: `Basic` (interface, send budget, leakage marginals); `Invariant` and
-`IdealInvariants` (transcript consistency, send and epoch accounting); `SCKA.Security` and
-`SCKA/Security/` (shared guard and bookkeeping results); ToVCVio (generic sampling, stopping, and
-probability results).
+Supporting modules: `Basic` (interface, send budget, leakage marginals); `Invariant`
+(transcript consistency, send and epoch accounting); `SCKA.Security` and `SCKA/Security/`
+(shared guard and bookkeeping results); ToVCVio (generic sampling, stopping, and probability
+results).
 -/
 
 open OracleSpec OracleComp KEMScheme
