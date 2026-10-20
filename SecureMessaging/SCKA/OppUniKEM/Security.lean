@@ -73,10 +73,10 @@ chapter presents the reduction algorithms and a proof outline.
    honest intermediate game stopped at the first query exposing `e`. `Reduction/Relation`, `Game`,
    `Oracle`, and `Sources` give the marking relation, the intermediate games, the per-query
    comparison, and the stored-material invariant.
-5. `Reduction/HybridGame`, `Reduction/SamplingStages`: `fixedBranch_eq_pinnedHybrid` equates the
-   acceptance probability of `fixedBranch adv e b` with that of the stopped pinned hybrid with
-   mode bit `!b`, averaged over material; the stored samples are then deferred to their protocol
-   calls. `Reduction/SourceUse` shows that each stored sample is used at most once, and
+5. `Reduction/HybridGame`: `fixedBranch_eq_pinnedHybrid` equates the acceptance probability of
+   `fixedBranch adv e b` with that of the stopped pinned hybrid with mode bit `!b`, averaged over
+   material; its sampling stages defer the stored samples to their protocol calls.
+   `Reduction/SourceUse` shows that each stored sample is used at most once, and
    `Reduction/{Online,Offline,Keygen}Deferral` prove the three deferrals.
 6. `IdealHybrids`, `Reduction/Adjacent`: `fixedBranch_eq_ideal` equates the acceptance
    probability of `fixedBranch adv e b` with that of the ideal game with mode

@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.SamplingStages
+import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.HybridGame
 import SecureMessaging.SCKA.Security
 import SecureMessaging.SCKA.OppUniKEM.Security.Basic
 

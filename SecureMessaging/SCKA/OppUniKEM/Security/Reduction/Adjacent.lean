@@ -7,7 +7,7 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.OnlineDeferral
 import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.OfflineDeferral
 import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.KeygenDeferral
-import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.SamplingStages
+import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.HybridGame
 import SecureMessaging.SCKA.OppUniKEM.Security.IdealHybrids
 
 /-!
