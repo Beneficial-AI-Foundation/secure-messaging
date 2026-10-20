@@ -67,8 +67,7 @@ the text of Figure 5, like the boxes in the blueprint.
   happens on rejection. Figure 5 tests `m' ≠ ⊥`. Here `rcv` returns `none` on rejection,
   with no new state and no index. This follows §4.2.2, which describes the construction
   of Figure 6: "If decryption fails, FS-Rcv throws an exception (error), which causes the
-  state to be rolled back to where it was before the call to FS-Rcv". The oracle then
-  continues: `deliver-B` counts the rejection as a win, and `inject-B` returns `none`.
+  state to be rolled back to where it was before the call to FS-Rcv".
 - Winning. A rejection in `deliver-B` gives no `(i', m')` to compare with `(i, m)`. This
   file counts the rejection as Figure 5's `(i', m') ≠ (i, m)`. `won` never returns to false.
   The game continues to run after a win, but the result stays a win. The proof in ACD19

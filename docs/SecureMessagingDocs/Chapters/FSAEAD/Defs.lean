@@ -51,13 +51,6 @@ where
 
 All algorithms are deterministic.
 
-Rejection convention: a rejecting $`\mathsf{FS\text{-}Rcv}` returns $`\bot`, with no
-state and no index, so the receiver keeps its old state. Definition 14 does not say what
-$`\mathsf{FS\text{-}Rcv}` returns on rejection. The convention follows §4.2.2, which
-describes the construction of Figure 6: "If decryption fails, FS-Rcv throws an exception
-(error), which causes the state to be rolled back to where it was before the call to
-FS-Rcv". The oracle that called $`\mathsf{FS\text{-}Rcv}` then continues.
-
 ```anchor FSAEADScheme (project := ".") (module := SecureMessaging.FSAEAD.Defs)
 structure FSAEADScheme (K SS SR AD M C : Type) where
   /-- `FS-Init-S`: the sender's initial state. -/
