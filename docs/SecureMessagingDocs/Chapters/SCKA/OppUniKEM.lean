@@ -1132,7 +1132,7 @@ theorem security_guess_le_hybrid_gap
 :::leanPillCaption "Steps 2–4: branches of $`\\mathcal B^{(i+1)}` versus $`H_i` and $`H_{i+1}`"
 :::
 
-```anchor fixedBranch_signed_gap_eq (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Adjacent)
+```anchor fixedBranch_signed_gap_eq (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Security)
 theorem fixedBranch_signed_gap_eq
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (hDet : base.DeterministicDecaps)
@@ -1150,7 +1150,7 @@ theorem fixedBranch_signed_gap_eq
 :::leanPillCaption "Step 5: averaging over the selected epoch"
 :::
 
-```anchor hybrid_gap_eq_query_factor (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Adjacent)
+```anchor hybrid_gap_eq_query_factor (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Security)
 theorem hybrid_gap_eq_query_factor
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (hDet : base.DeterministicDecaps)

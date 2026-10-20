@@ -16,6 +16,10 @@ import SecureMessaging.SCKA.Security
 /-!
 # Transcript and epoch invariants
 
+**Setting.** `reachableInv s` is the invariant of the correctness proof: the game state `s` is
+consistent with some honest execution transcript. `CurrentKEMCorrect s` states that the KEM
+material currently held by A and the key currently recorded for B decapsulate consistently.
+
 **Transcript consistency.** `reachableInv` does not depend on the exposed and challenged sets
 (`reachableInv_with_security_bookkeeping`). With correct erasure codes, every security query from
 a state satisfying `reachableInv` and `CurrentKEMCorrect` preserves `reachableInv`

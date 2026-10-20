@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Sources
+import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Game
 import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Relation
 import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Oracle
 import ToVCVio.OracleComp.SimSemantics.StateT.Stop
@@ -14,8 +14,10 @@ import ToVCVio.OracleComp.SimSemantics.StateT.Stop
 
 **Setting.** Assume deterministic decapsulation and correct erasure codes. Let `adv` be a
 security adversary, `e` a selected epoch, `kStar : K` a challenge key, and `s₀` the initial
-game state. For material `m`, write `pk_m := m.keygen.1.1`, `ct_m := m.ciphertext`, and
-`k_m := m.on.1.2`.
+game state. For complete material `m`, write `pk_m := m.keygen.1.1`, `ct_m := m.ciphertext`,
+and `k_m := m.on.1.2`. The simulator run `run`, the fixed IND-CPA branches `fixedBranch`, and
+`sampleMaterial` are those of `Simulator`; `honestStopped m e kStar` is the honest intermediate
+game stopped at the exposure of `e` (`Game`).
 
 **Definitions.** `pinnedKey m e s`: every key recorded by B at epoch `e` in `s` equals `k_m`.
 

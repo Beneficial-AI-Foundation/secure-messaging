@@ -11,12 +11,16 @@ import SecureMessaging.SCKA.OppUniKEM.Security.Basic
 /-!
 # Single use of the source samples
 
-One-use conditions of `stoppedRun_sample_once_eq` for the stored key-generation and offline
-outputs of the selected epoch.
-
 **Setting.** A *source phase* is A's key generation (`.keygen`) or B's offline encapsulation
 (`.offline`); neither sampler takes protocol-state input. Let `stage` be a sampling stage, `m`
-complete material, `e` a selected epoch, and `b` a mode bit.
+complete material (the outputs and coins of the three sampling phases of one epoch), `e` a
+selected epoch, `b` a mode bit, and `oracle stage m e b` the stage oracles of `HybridGame`.
+
+`stoppedRun_sample_once_eq` draws a sample once for a stopped execution in place of drawing it at
+each query `t` from a state `s` with `hit t s`. Its one-use conditions require a predicate `used`
+on states that every query preserves, that excludes `hit`, and that holds after every continuing
+query with `hit`. This module supplies `used` and `hit` for the stored output of a source phase
+of epoch `e`.
 
 **Definitions.**
 

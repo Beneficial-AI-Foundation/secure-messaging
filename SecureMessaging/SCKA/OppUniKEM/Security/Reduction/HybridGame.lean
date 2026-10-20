@@ -13,9 +13,14 @@ import ToVCVio.OracleComp.QueryTracking.OneUseSampling
 /-!
 # The pinned hybrids and their sampling stages
 
-**Setting.** Let `m` be material, `e > 0` a selected epoch, `b` a mode bit, `adv` a security
-adversary, and `s₀` the initial game state. `honestStopped_real_eq_hybrid` and
-`fixedBranch_eq_pinnedHybrid` assume deterministic decapsulation and correct erasure codes.
+**Setting.** Let `m` be complete material (the outputs and coins of the three sampling phases of
+one epoch), `e > 0` a selected epoch, `b` a mode bit, `adv` a security adversary, and `s₀` the
+initial game state. `honestStopped_real_eq_hybrid` and `fixedBranch_eq_pinnedHybrid` assume
+deterministic decapsulation and correct erasure codes.
+
+`securityImplAt`, `honestScheme`, and the honest intermediate game `honestStopped` are those of
+`Game`. For a challenge mode `μ : ℕ → Bool`, `challOf μ` (`SCKA.Security`) answers an eligible
+challenge at `t` with an independent uniform key if `μ t` and with the recorded key otherwise.
 
 **Definitions.**
 
@@ -42,8 +47,8 @@ The pinned hybrid returns the stored output in `m` at every sampling phase of ep
 - `oracle stage m e b := securityImplAt (schemeAt stage m e) (challOf (adjacentMode e b))`;
   `stopped stage m e b` stops it at the first query whose successor state exposes `e`.
 
-The modules `OnlineDeferral`, `OfflineDeferral`, and `KeygenDeferral` relate the pinned hybrid
-to `onlineFresh`, then `encapsFresh`, then `fresh`, each making one more phase fresh.
+`OnlineDeferral` and `SourceDeferral` relate the pinned hybrid to `onlineFresh`, then
+`encapsFresh`, then `fresh`, each making one more phase fresh.
 
 **Results.**
 

@@ -31,8 +31,8 @@ For a fixed challenge bit `b`, define the following games for `Π`.
 Each runs `adv` and returns its output bit.
 
 - `G_b`: the original SCKA game (`SCKAScheme.securityExpFixedBit`).
-  It answers eligible challenges with recorded keys for `b = false` and independent uniform keys
-  for `b = true`.
+  It answers eligible challenges (at an unexposed, unchallenged epoch with a recorded key) with
+  recorded keys for `b = false` and independent uniform keys for `b = true`.
 - `I_b`: the ideal game (`idealSecurityExp` with constant mode `fun _ => b`). It differs from
   `G_b` only in A's receive:
   when A completes an online ciphertext, it uses B's recorded key directly instead of decapsulating

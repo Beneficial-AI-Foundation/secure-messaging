@@ -12,11 +12,12 @@ import SecureMessaging.SCKA.Security
 /-!
 # The per-query simulation relation
 
-**Setting.** Let `m` be material, `e` a selected epoch, and `kStar : K` a challenge key. Write
-`Sim := oracle e m.keygen.1.1 m.ciphertext kStar` for the simulator and
-`Hon := honestStopped m e kStar` for the honest intermediate game, which answers `⊥` at the
-first query whose successor state has `e` exposed. For an oracle `O`, a query `t`, and a state
-`u`, `O(t; u)` is `((O t).run).run u`.
+**Setting.** Let `m` be complete material, `e` a selected epoch, and `kStar : K` a challenge key.
+Write `Sim := oracle e m.keygen.1.1 m.ciphertext kStar` for the simulator oracles with the public
+key and ciphertext of `m` (`Simulator`), and `Hon := honestStopped m e kStar` for the honest
+intermediate game stopped at the exposure of `e` (`Game`). `markState e s` (`Relation`) marks the
+private values of `s`, making those of epoch `e` unavailable. For an oracle `O`, a query `t`, and
+a state `u`, `O(t; u)` is `((O t).run).run u`.
 
 **Result.** `oracle_mark`: for every security query `t` and every state `s` satisfying
 `reachableInv` with `e ∉ s.exposed`,

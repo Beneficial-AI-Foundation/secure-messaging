@@ -19,15 +19,17 @@ import VCVio.OracleComp.QueryTracking.QueryBound
 - `SecuritySendQueryBound adv q`: on every oracle-response path, `adv` makes at most `q` ordinary
   and leaking sends in total.
 - `leakEpochsA s`, `leakEpochsB s`: the epochs exposed by a successful leaking send from the
-  local state `s`, as a function of `s` alone.
+  local state `s`, as a function of `s` alone: `{s.t}` if the send samples (key generation for A,
+  offline or online encapsulation for B), and `∅` otherwise.
 
 **Results.**
 
 - `sendArleak_forget`, `sendBrleak_forget`: discarding the coins returned by a leaking send gives
   the ordinary send, as computations.
 - `sendArleak_exposure`, `sendBrleak_exposure`: for every possible successful output of a leaking
-  send from `s` with coins `rand`, the exposure policy gives `vulnRleakA s rand = leakEpochsA s`
-  (respectively `vulnRleakB s rand = leakEpochsB s`).
+  send from `s` with coins `rand`, the epochs that the construction's exposure policy assigns to
+  the leaked coins equal `leakEpochsA s`: `vulnRleakA s rand = leakEpochsA s` (respectively
+  `vulnRleakB s rand = leakEpochsB s`).
 -/
 
 open OracleSpec OracleComp KEMScheme

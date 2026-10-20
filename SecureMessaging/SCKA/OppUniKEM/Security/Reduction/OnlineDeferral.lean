@@ -10,10 +10,14 @@ import SecureMessaging.SCKA.Security
 /-!
 # Deferring the online sample
 
-**Setting.** Let `m ∈ support (sampleMaterial leak)` be possible complete material, `e` a
-selected epoch, and `b` a mode bit. The material `{ m with on := o }` replaces the online
-output of `m` by `o`, resampled as `o ← leak.encapsOnRleak m.off.1.1 m.keygen.1.1` at the stored
-offline state and public key. Game states satisfy `reachableInv` and `pinnedSources m e`.
+**Setting.** Let `m ∈ support (sampleMaterial leak)` be possible complete material (the outputs
+and coins of the three sampling phases of one epoch), `e` a selected epoch, and `b` a mode bit.
+The pinned hybrid `hybridOracle m e b` and the stage oracles `oracle .onlineFresh m e b`, which
+sample the online encapsulation of epoch `e` at its protocol call, are those of `HybridGame`.
+The material `{ m with on := o }`
+replaces the online output of `m` by `o`, resampled as
+`o ← leak.encapsOnRleak m.off.1.1 m.keygen.1.1` at the stored offline state and public key.
+Game states satisfy the transcript invariant `reachableInv` and `pinnedSources m e` (`Game`).
 
 **Definitions.**
 

@@ -14,9 +14,10 @@ import VCVio.ProgramLogic.Relational.SimulateQ
 
 **Setting.** Let `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` be Opp-UniKEM with
 deterministic decapsulation and correct erasure codes, and let `adv : SecurityAdversary leak Sym`
-be an adversary. Let `idealSecurityImpl … mode` be the oracles of the ideal game of `Endpoints`,
-in which A uses B's recorded key in place of decapsulation and `mode : ℕ → Bool` selects the
-epochs with uniform challenge keys, and let `I_b := idealSecurityExp (fun _ => b) adv`.
+be an adversary. Let `idealSecurityImpl … mode` be the oracles of the ideal game (`Endpoints`):
+A's receive outputs B's recorded key instead of decapsulating, and an eligible challenge at `t`
+receives an independent uniform key exactly when `mode t = true`. Let
+`I_b := idealSecurityExp (fun _ => b) adv`.
 
 **Definitions.** For `i : ℕ`, the ideal hybrid `H_i := idealEpochHybridExp … adv i` answers
 eligible challenges at epochs `1, …, i` with independent uniform keys and other eligible

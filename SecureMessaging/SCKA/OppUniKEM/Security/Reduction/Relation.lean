@@ -9,14 +9,14 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
 import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Simulator
 import SecureMessaging.SCKA.OppUniKEM.Security.Endpoints
 import SecureMessaging.SCKA.Security
-import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Material
 
 /-!
 # Marking honest states
 
-**Setting.** Fix a selected epoch `e`, complete material `m`, and a candidate key `kStar`.
-Honest local and game states contain private values; the simulator's states contain marked
-values.
+**Setting.** Fix a selected epoch `e`, complete material `m` with its pinned KEM `Pinned.kem m`,
+and a candidate key `kStar` (all in `Simulator`). Honest local and game states contain private
+values; the simulator's states contain marked values, `some x` for a known `x` and `none` for an
+unavailable value.
 
 **Definitions.**
 
