@@ -754,9 +754,6 @@ $$`\boxed{\operatorname{Adv}^{\mathsf{guess}}_{\mathsf{SCKA},\Pi}(\mathcal A)
 \le \frac q2\operatorname{Adv}^{\mathsf{IND\text{-}CPA}}_{\mathsf{KEM}}(\mathcal B)
 +q\varepsilon.}`
 
-Challenges are adaptive; by the guards of {bpref "scka_oracles"}[], each unexposed epoch with a
-recorded key can be challenged once.
-
 :::leanPillCaption "Security bound"
 :::
 
@@ -789,10 +786,10 @@ def SecuritySendQueryBound {kem : KEMScheme ProbComp K PK SK C}
 *Advantages.*
 
 * SCKA: $`G_b(\mathcal A)` is the experiment of {bpref "scka_security"}[] with its bit fixed
-  to $`b`; eligible challenges get recorded keys if $`b=0` and uniform keys if $`b=1`.
+  to $`b`.
 * IND-CPA: $`(pk^*,sk^*)\sample\mathsf{KeyGen}()`, $`(ct^*,k)\sample\mathsf{Encaps}(pk^*)`,
-  $`u\sample K`; $`\mathcal B` receives $`pk^*`, then $`(ct^*,k)` in the real branch (Lean
-  bit `true`) or $`(ct^*,u)` in the random branch (Lean bit `false`).
+  $`u\sample K`; $`\mathcal B` receives $`pk^*`, then $`(ct^*,k)` in the real branch or
+  $`(ct^*,u)` in the random branch.
 
 For a uniform bit $`b` and guess $`b'` (the second line is
 `KEMScheme.IND_CPA_Advantage_eq_fixed_branch_dist`):
