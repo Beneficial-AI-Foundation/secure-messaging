@@ -4,7 +4,6 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.OracleComp.ProbCompLift
 import ToVCVio.EvalDist.Monad.Basic
 import VCVio.OracleComp.EvalDist.Sum
 

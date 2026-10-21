@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 
 module
 
-public import ToMathlib.MeasureTheory.Measure.Coupling.Maximal
+import ToMathlib.MeasureTheory.Measure.Coupling.Maximal
 public import VCVio.EvalDist.MeasureTVDist.Basic
 public import VCVio.OracleComp.Constructions.SampleableType
 public import ToVCVio.OracleComp.Constructions.BitVec

@@ -6,7 +6,6 @@ Authors: Beneficial AI Foundation
 
 import VCVio.CryptoFoundations.KeyEncapMech
 import VCVio.CryptoFoundations.SecExp.Measure
-import ToVCVio.OracleComp.EvalDist
 
 /-!
 # Two definitions of KEM IND-CPA advantage
@@ -66,7 +65,7 @@ with `kem.IND_CPA_Advantage ProbCompRuntime.probComp adv` denoting `Adv_guess`.
 
 -/
 
-open ToVCVio OracleSpec OracleComp ENNReal
+open OracleSpec OracleComp ENNReal
 
 namespace KEMScheme
 
