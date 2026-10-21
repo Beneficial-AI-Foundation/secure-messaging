@@ -76,17 +76,21 @@ lemma expectedPayoff_keygen_le {A : Type} (f : PK × SK → A) (score : A → �
   rw [expectedPayoff_bind]
   simp only [expectedPayoff_pure, hscore, correctnessError_eq_avg_keypair kem hDet,
     OracleComp.prFail_eq_zero, zero_add]
-  calc ∑' kp : PK × SK, Pr{let x ← kem.keygen}[x = kp] * (V + keypairFailure kem hDet kp.1 kp.2)
+  calc ∑' kp : PK × SK,
+          Pr{let x ← kem.keygen}[x = kp] * (V + keypairFailure kem hDet kp.1 kp.2)
         = (∑' kp : PK × SK, Pr{let x ← kem.keygen}[x = kp]) * V +
-            ∑' kp : PK × SK, Pr{let x ← kem.keygen}[x = kp] * keypairFailure kem hDet kp.1 kp.2 := by
+            ∑' kp : PK × SK,
+              Pr{let x ← kem.keygen}[x = kp] * keypairFailure kem hDet kp.1 kp.2 := by
           rw [← ENNReal.tsum_mul_right, ← ENNReal.tsum_add]
           refine tsum_congr fun kp => ?_
           rw [mul_add]
       _ ≤ 1 * V +
-            ∑' kp : PK × SK, Pr{let x ← kem.keygen}[x = kp] * keypairFailure kem hDet kp.1 kp.2 := by
+            ∑' kp : PK × SK,
+              Pr{let x ← kem.keygen}[x = kp] * keypairFailure kem hDet kp.1 kp.2 := by
           gcongr
           exact (OracleComp.tsum_prEvent_le_one _)
-      _ = V + ∑' kp : PK × SK, Pr{let x ← kem.keygen}[x = kp] * keypairFailure kem hDet kp.1 kp.2 := by
+      _ = V + ∑' kp : PK × SK,
+              Pr{let x ← kem.keygen}[x = kp] * keypairFailure kem hDet kp.1 kp.2 := by
           rw [one_mul]
 
 /-- If the score after encapsulating to `pk` is `1` when decapsulation with `sk` disagrees with
@@ -104,19 +108,21 @@ lemma expectedPayoff_encaps_le {A : Type} (pk : PK) (sk : SK) (g : C × K → A)
   calc ∑' ck : C × K, Pr{let x ← kem.encaps pk}[x = ck] *
           (if hDet.decapsDet sk ck.1 ≠ some ck.2 then 1 else V)
         ≤ ∑' ck : C × K,
-            ((if hDet.decapsDet sk ck.1 ≠ some ck.2 then Pr{let x ← kem.encaps pk}[x = ck] else 0) +
+            ((if hDet.decapsDet sk ck.1 ≠ some ck.2 then Pr{let x ← kem.encaps pk}[x = ck]
+                else 0) +
               Pr{let x ← kem.encaps pk}[x = ck] * V) := by
           gcongr with ck
           split_ifs <;> simp
-      _ = (∑' ck : C × K, if hDet.decapsDet sk ck.1 ≠ some ck.2 then Pr{let x ← kem.encaps pk}[x = ck]
-              else 0) + (∑' ck : C × K, Pr{let x ← kem.encaps pk}[x = ck]) * V := by
+      _ = (∑' ck : C × K, if hDet.decapsDet sk ck.1 ≠ some ck.2 then
+              Pr{let x ← kem.encaps pk}[x = ck] else 0) +
+            (∑' ck : C × K, Pr{let x ← kem.encaps pk}[x = ck]) * V := by
           rw [ENNReal.tsum_add, ENNReal.tsum_mul_right]
-      _ ≤ (∑' ck : C × K, if hDet.decapsDet sk ck.1 ≠ some ck.2 then Pr{let x ← kem.encaps pk}[x = ck]
-              else 0) + 1 * V := by
+      _ ≤ (∑' ck : C × K, if hDet.decapsDet sk ck.1 ≠ some ck.2 then
+              Pr{let x ← kem.encaps pk}[x = ck] else 0) + 1 * V := by
           gcongr
           exact (OracleComp.tsum_prEvent_le_one _)
-      _ = V + ∑' ck : C × K, if hDet.decapsDet sk ck.1 ≠ some ck.2 then Pr{let x ← kem.encaps pk}[x = ck]
-              else 0 := by
+      _ = V + ∑' ck : C × K, if hDet.decapsDet sk ck.1 ≠ some ck.2 then
+              Pr{let x ← kem.encaps pk}[x = ck] else 0 := by
           rw [one_mul, add_comm]
 
 end Average
@@ -563,7 +569,7 @@ lemma tracked_sendA_score_le
       · rw [hbefore]
         exact le_self_add (α := ℝ≥0∞)
     · refine expectedPayoff_le_const_of_support _ _ _
-        (by rw [← trackedBiKem_sendA_run kem hDet ecEk ecCt leak s]; exact OracleComp.prFail_eq_zero) ?_
+        (OracleComp.prFail_eq_zero _) ?_
       intro z hz
       obtain ⟨out, hout, hz⟩ := mem_support_bind_peel _ _ hz
       obtain rfl := eq_of_mem_support_pure _ hz
@@ -636,7 +642,7 @@ lemma tracked_sendB_score_le
       · rw [hbefore]
         exact le_self_add (α := ℝ≥0∞)
     · refine expectedPayoff_le_const_of_support _ _ _
-        (by rw [← trackedBiKem_sendB_run kem hDet ecEk ecCt leak s]; exact OracleComp.prFail_eq_zero) ?_
+        (OracleComp.prFail_eq_zero _) ?_
       intro z hz
       obtain ⟨out, hout, hz⟩ := mem_support_bind_peel _ _ hz
       obtain rfl := eq_of_mem_support_pure _ hz
