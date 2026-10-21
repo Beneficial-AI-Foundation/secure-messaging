@@ -126,7 +126,7 @@ omit [Inhabited F] [Fintype G] in
 Proves equality of the output point probabilities for the lazy send step and
 the eager send step. In the lazy step, the answer and post-state use the outer
 parameter `a`; in the eager step, the handler samples the same scalar internally.
-This is the real-branch instance of `probOutput_two_sample_active_param_eq`:
+This is the real-branch instance of `prEvent_two_sample_active_param_eq`:
 `h_ih` compares continuations at a fixed send scalar `x`, and `h_a_indep`
 replaces the lazy active-send parameter by `x` after `post x`. -/
 lemma prEvent_real_send_coupling
@@ -158,7 +158,7 @@ lemma prEvent_real_send_coupling
         (simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen))
           (k (some (x • gen, x • peer)))).run (post x)
       pure out)}[z = y] := by
-  simpa only [map_eq_bind_pure_comp, Function.comp_def] using probOutput_two_sample_active_param_eq
+  simpa only [map_eq_bind_pure_comp, Function.comp_def] using prEvent_two_sample_active_param_eq
     (lazy := fun a b x => Prod.fst <$> (simulateQ (honestImplParamReal gp gen a b)
       (k (some (x • gen, x • peer)))).run (post x))
     (base := fun x => Prod.fst <$> (simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen))
@@ -176,7 +176,7 @@ omit [Inhabited F] [Fintype G] in
 Proves equality of the output point probabilities for the lazy send step and
 the eager send step. In the lazy step, the answer and post-state use the outer
 parameter `a`; in the eager step, the handler samples the same scalar internally.
-This is the rand-branch instance of `probOutput_three_sample_active_param_eq`:
+This is the rand-branch instance of `prEvent_three_sample_active_param_eq`:
 `h_ih` compares continuations at a fixed send scalar `x`, and `h_a_indep`
 replaces the lazy active-send parameter by `x` after `post x`. -/
 lemma prEvent_rand_send_coupling
@@ -211,7 +211,7 @@ lemma prEvent_rand_send_coupling
           (k (some (x • gen, x • peer)))).run (post x)
       pure out)}[z = y] := by
   simpa only [map_eq_bind_pure_comp, Function.comp_def] using
-    probOutput_three_sample_active_param_eq
+    prEvent_three_sample_active_param_eq
     (lazy := fun a b gT x => Prod.fst <$> (simulateQ (honestImplParamRand gp gen a b gT)
       (k (some (x • gen, x • peer)))).run (post x))
     (base := fun x => Prod.fst <$> (simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen))
@@ -501,7 +501,7 @@ Proves equality of the output point probabilities for the lazy challenge step
 and the eager challenge step. In the lazy step, the answer and post-state use
 the outer parameter `b`; in the eager step, the handler samples the same scalar
 internally. This is the real-branch instance of
-`probOutput_two_sample_second_param_eq`: `h_ih` compares continuations at a
+`prEvent_two_sample_second_param_eq`: `h_ih` compares continuations at a
 fixed challenge scalar `x`, and `h_b_indep` replaces the lazy challenge
 parameter by `x` after `post x`. -/
 lemma prEvent_real_challenge_coupling
@@ -533,7 +533,7 @@ lemma prEvent_real_challenge_coupling
         (simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen))
           (k (some (x • gen, x • peer)))).run (post x)
       pure out)}[z = y] := by
-  simpa only [map_eq_bind_pure_comp, Function.comp_def] using probOutput_two_sample_second_param_eq
+  simpa only [map_eq_bind_pure_comp, Function.comp_def] using prEvent_two_sample_second_param_eq
     (lazy := fun a b x => Prod.fst <$> (simulateQ (honestImplParamReal gp gen a b)
       (k (some (x • gen, x • peer)))).run (post x))
     (base := fun x => Prod.fst <$> (simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen))
@@ -548,7 +548,7 @@ lemma prEvent_real_challenge_coupling
 omit [Inhabited F] [Fintype G] in
 /-- Final step used by the rand-branch active challenge proofs.
 
-This is the CKA instance of `probOutput_three_sample_second_third_param_eq`,
+This is the CKA instance of `prEvent_three_sample_second_third_param_eq`,
 the coupling for three independent samples when the second and third samples
 are also used to build the response passed to the continuation.
 
@@ -617,7 +617,7 @@ lemma prEvent_rand_challenge_coupling
           (k (some (x • gen, outKey)))).run (post x)
       pure out)}[z = y] := by
   simpa only [map_eq_bind_pure_comp, Function.comp_def] using
-    probOutput_three_sample_second_third_param_eq
+    prEvent_three_sample_second_third_param_eq
     -- `lazy a b gT x outKey`: run the lazy continuation with sampled
     -- parameters `a`, `b`, `gT` and fixed response parameters `x`, `outKey`.
     (lazy := fun a b gT x outKey =>

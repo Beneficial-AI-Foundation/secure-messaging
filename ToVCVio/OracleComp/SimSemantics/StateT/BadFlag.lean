@@ -30,7 +30,7 @@ flag is set, or `Inv s` holds and `s` is not bad.
 - `tracked_bad_le_of_score_step`: if a query raises the expected score by at most `ε` when it
   satisfies `p` and not at all otherwise, then after a computation making at most `q` queries
   satisfying `p` the flag is set with probability at most `score (s₀, false) + q · ε`;
-- `probEvent_not_good_le_tracked_bad`: if `Inv` forces `good s = true`, then the run of `impl`
+- `prEvent_not_good_le_tracked_bad`: if `Inv` forces `good s = true`, then the run of `impl`
   ends in a state with `good s = false` with probability at most that of the flag being set.
 
 With the flag, `Inv` only has to be preserved from states that are not bad, so nothing has to be
@@ -127,7 +127,7 @@ theorem tracked_bad_le_of_score_step (impl : QueryImpl spec (StateT σ ProbComp)
 /-- If `Inv` forces `good s = true`, the run of `impl` from `s₀` ends in a state with
 `good s = false` with probability at most that of the flag being set at the end of the tracked
 run from `(s₀, false)`. -/
-theorem probEvent_not_good_le_tracked_bad (impl : QueryImpl spec (StateT σ ProbComp))
+theorem prEvent_not_good_le_tracked_bad (impl : QueryImpl spec (StateT σ ProbComp))
     (bad : σ → Bool) (Inv : σ → Prop) (good : σ → Bool) (hgood : ∀ s, Inv s → good s = true)
     (hpres : QueryImpl.PreservesInv (trackedImpl impl bad) (trackedInv Inv bad))
     {α : Type} (oa : OracleComp spec α) (s₀ : σ) (hinit : trackedInv Inv bad (s₀, false)) :

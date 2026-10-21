@@ -16,7 +16,7 @@ Both halves of Def. 5.3 hold with error exactly zero, unconditionally:
 
 - **Shared keys agree.** With `(ekA, dkA) = (x • gen, x)` and `(êkB, d̂kB) = (y • gen, y)`,
   `REnc-A` outputs `K = x • (y • gen)` and `RDec-B` outputs `K' = y • (x • gen)`; both equal
-  `(x * y) • gen`, the paper's `g^{xy}` (`probOutput_correctExpA_eq_one`).
+  `(x * y) • gen`, the paper's `g^{xy}` (`prEvent_correctExpA_eq_one`).
 - **Updated keys are distributed as fresh ones.** The scheme leaves the keys unchanged
   ([TripleRatchet, Remark 5.2]): the updated pair `(êkA, d̂kA)` produced by a round is `A`'s fresh
   pair itself, and fresh and updated key generation coincide
@@ -41,7 +41,7 @@ variable {G : Type} [AddCommGroup G] [Module F G]
 
 /-- In one round of the DH RKEM from `A` towards `B`, the two parties always agree on the shared
 key: `x • (y • gen) = y • (x • gen)`, the paper's `g^{xy} = g^{yx}`. -/
-theorem probOutput_correctExpA_eq_one [DecidableEq G] (gen : G) :
+theorem prEvent_correctExpA_eq_one [DecidableEq G] (gen : G) :
     Pr{let x ← RKEMScheme.correctExpA (scheme (F := F) gen)}[x = true] = 1 := by
   unfold RKEMScheme.correctExpA
   simp [scheme, rkeygen, renc, rdec, smul_smul, mul_comm]
@@ -65,11 +65,11 @@ theorem deltaCorrect [DecidableEq G] (gen : G) :
   refine ⟨⟨?_, ?_⟩, ?_, ?_⟩
   · unfold RKEMScheme.correctnessErrorA
     rw [ProbCompRuntime.probComp_evalDist, ← prEvent_eq_evalDist_singleton,
-      probOutput_correctExpA_eq_one, tsub_self]
+      prEvent_correctExpA_eq_one, tsub_self]
   · unfold RKEMScheme.correctnessErrorB
     rw [show (scheme (F := F) gen).correctExpB = (scheme gen).correctExpA by rfl,
       ProbCompRuntime.probComp_evalDist, ← prEvent_eq_evalDist_singleton,
-      probOutput_correctExpA_eq_one, tsub_self]
+      prEvent_correctExpA_eq_one, tsub_self]
   · unfold RKEMScheme.updateKeyDistErrorA
     let : MeasurableSpace (G × F) := ⊤
     rw [show (scheme (F := F) gen).rsetup >>= (scheme gen).rkeygenAUpdated = rkeygen gen () by

@@ -14,18 +14,18 @@ import VCVio.OracleComp.Constructions.SampleableType.Measure
 Generic point-probability (`Pr{let y ← _}[y = x]`) facts that hold for any monad with an
 evaluation distribution.
 
-* `abs_probOutput_true_not_map_gap_eq` absorbs a final Boolean negation into the
+* `abs_prEvent_true_not_map_gap_eq` absorbs a final Boolean negation into the
   absolute two-branch gap (for lossless computations);
-* `probOutput_true_uniformBool_bind_not` relabels a uniform challenge-bit sample by negation,
+* `prEvent_true_uniformBool_bind_not` relabels a uniform challenge-bit sample by negation,
   absorbing a `Bool` negation on the final comparison in the process — the "flip the challenge
   bit" step of hybrid arguments;
 * `prEvent_uniformBool_branch_toReal_sub_half` writes hidden-bit guessing over a uniform bit,
   centered at `1/2`, as half the signed gap between its two branches;
 * `tsum_ite_prEvent_eq_le_prEvent` and `tsum_prEvent_eq_le_one` bound sums of point masses
   in any monad;
-* `tsum_probOutput_mul_le_of_forall_mem_support` bounds the expectation
+* `tsum_prEvent_mul_le_of_forall_mem_support` bounds the expectation
   `∑' z, Pr{let x ← mx}[x = z] * F z` by any bound on `F` over the support of `mx`;
-* the four `probOutput_*_sample_*_param_eq` lemmas couple two or three eager
+* the four `prEvent_*_sample_*_param_eq` lemmas couple two or three eager
   `uniformSample` draws over `ProbComp`.
 -/
 
@@ -41,7 +41,7 @@ variable {α : Type} {m : Type → Type v} [Monad m] [LawfulMonad m]
 probability, so the absolute two-branch gap is unchanged by negating both
 branches. For lossless computations this is where a `Bool`-orientation
 reversal disappears. -/
-lemma abs_probOutput_true_not_map_gap_eq {n : Type → Type*}
+lemma abs_prEvent_true_not_map_gap_eq {n : Type → Type*}
     [Monad n] [LawfulMonad n] [EvalDistSemantics n] [LawfulEvalDistSemantics n] (mx my : n Bool)
     (hmx : Pr{let _ ← mx}[True] = 1 := by simp) (hmy : Pr{let _ ← my}[True] = 1 := by simp) :
     |(Pr{let x ← (! ·) <$> mx}[x = true]).toReal -
@@ -66,7 +66,7 @@ Feeding `f` the coin `b` and comparing against `!b'` is the same as feeding `f` 
 `!b` and comparing directly against `b'`. This is the general fact underlying the "flip the
 challenge bit" step of hybrid arguments.
 -/
-lemma probOutput_true_uniformBool_bind_not (f : Bool → ProbComp Bool) :
+lemma prEvent_true_uniformBool_bind_not (f : Bool → ProbComp Bool) :
     Pr{let x ← (do
         let b ← ($ᵗ Bool : ProbComp Bool)
         let b' ← f b
@@ -140,7 +140,7 @@ lemma tsum_prEvent_eq_le_one [EvalDistSemantics m] [LawfulEvalDistSemantics m] (
 
 /-- If `F z ≤ c` for every possible output `z` of `mx`, then the expectation of `F` under
 `mx` is at most `c`. Missing mass only lowers the sum, so `mx` may fail. -/
-lemma tsum_probOutput_mul_le_of_forall_mem_support [MonadAttach m] [WeaklyLawfulMonadAttach m]
+lemma tsum_prEvent_mul_le_of_forall_mem_support [MonadAttach m] [WeaklyLawfulMonadAttach m]
     [EvalDistSemantics m] [LawfulEvalDistSemantics m] (mx : m α) {F : α → ℝ≥0∞} {c : ℝ≥0∞}
     (h : ∀ z ∈ support mx, F z ≤ c) :
     ∑' z, Pr{let x ← mx}[x = z] * F z ≤ c := by
@@ -172,7 +172,7 @@ Then
 
 `Pr{let x ← do b ← $ᵗ B; let a ← $ᵗ A; lazy a b a}[x = y]
  = Pr{let z ← do x ← $ᵗ A; base x}[z = y]`. -/
-lemma probOutput_two_sample_active_param_eq
+lemma prEvent_two_sample_active_param_eq
     {activeType passiveType outputType : Type 0}
     [SampleableType activeType] [SampleableType passiveType]
     (lazy : activeType → passiveType → activeType → ProbComp outputType)
@@ -247,7 +247,7 @@ Then
 
 `Pr{let x ← do second ← $ᵗ B; let first ← $ᵗ A; lazy first second second}[x = y]
  = Pr{let z ← do x ← $ᵗ B; base x}[z = y]`. -/
-lemma probOutput_two_sample_second_param_eq
+lemma prEvent_two_sample_second_param_eq
     {firstType secondType outputType : Type 0}
     [SampleableType firstType] [SampleableType secondType]
     (lazy : firstType → secondType → secondType → ProbComp outputType)
@@ -323,7 +323,7 @@ Then
 
 `Pr{let x ← do a ← $ᵗ A; let b ← $ᵗ B; let c ← $ᵗ C; lazy a b c a}[x = y]
  = Pr{let z ← do x ← $ᵗ A; base x}[z = y]`. -/
-lemma probOutput_three_sample_active_param_eq
+lemma prEvent_three_sample_active_param_eq
     {activeType paramType₁ paramType₂ outputType : Type 0}
     [SampleableType activeType] [SampleableType paramType₁] [SampleableType paramType₂]
     (lazy : activeType → paramType₁ → paramType₂ → activeType → ProbComp outputType)
@@ -413,7 +413,7 @@ Then
 `Pr{let x ← (do first ← $ᵗ A; second ← $ᵗ B; third ← $ᵗ C;
    lazy first second third second third)}[x = y]
  = Pr{let w ← do x ← $ᵗ B; let z ← $ᵗ C; base x z}[w = y]`. -/
-lemma probOutput_three_sample_second_third_param_eq
+lemma prEvent_three_sample_second_third_param_eq
     {firstType secondType thirdType outputType : Type 0}
     [SampleableType firstType] [SampleableType secondType] [SampleableType thirdType]
     (lazy : firstType → secondType → thirdType → secondType → thirdType →

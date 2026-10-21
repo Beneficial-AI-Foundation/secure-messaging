@@ -535,7 +535,7 @@ implementation.
 
 Both runs split through `injectPrefix`; the shared prefix commutes past the
 up-front draw, and at the installing send the draw couples with the send. -/
-private lemma probOutput_simulateQ_keygen_commute [SampleableType K] [DecidableEq K]
+private lemma prEvent_simulateQ_keygen_commute [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
     (leak : RandLeak kem)
@@ -590,7 +590,7 @@ initial state, so `injectionPassed` holds at the start and the post-injection
 equivalence closes it directly.  Otherwise the installing send happens later, the
 challenge key draw is unused up front, and the keygen-commute identity moves it
 into place. -/
-private lemma ckaSecurityFixedBranchWithChallengeKey_injected_probOutput_true_eq
+private lemma ckaSecurityFixedBranchWithChallengeKey_injected_prEvent_true_eq
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -627,7 +627,7 @@ private lemma ckaSecurityFixedBranchWithChallengeKey_injected_probOutput_true_eq
     simp only [hinitFalse, Bool.false_eq_true, ↓reduceIte]
     refine prEvent_bind_congr kem.keygen _ _ _ _ fun pk0sk0 => ?_
     rw [(OracleComp.EvalDistEq.bind_const kem.keygen _).prEvent_eq]
-    exact (probOutput_simulateQ_keygen_commute
+    exact (prEvent_simulateQ_keygen_commute
       kem hDet leak gp isRandom adv
       (CKAScheme.initGameState
         (State.sendReady pk0sk0.1)
@@ -650,7 +650,7 @@ lemma ckaSecurityFixedBranchWithChallengeKey_injected_gap_eq
           kem hDet leak adv gp true)}[x = true]).toReal -
       (Pr{let x ← (ckaSecurityFixedBranchWithInjectedChallengeKey
           kem hDet leak adv gp false)}[x = true]).toReal| := by
-  rw [ckaSecurityFixedBranchWithChallengeKey_injected_probOutput_true_eq]
-  rw [ckaSecurityFixedBranchWithChallengeKey_injected_probOutput_true_eq]
+  rw [ckaSecurityFixedBranchWithChallengeKey_injected_prEvent_true_eq]
+  rw [ckaSecurityFixedBranchWithChallengeKey_injected_prEvent_true_eq]
 
 end kemCKA

@@ -19,7 +19,7 @@ For the scheme and game of `Defs.lean`: assume `[SampleableType K]`, `[Decidable
 
     Pr[H ←$ K : hash(H, x) ⊕ hash(H, y) = Δ] ≤ ε.
 
-Then for every adversary making at most `q` decryption queries, `probEvent_wcInst_forge_le`
+Then for every adversary making at most `q` decryption queries, `prEvent_wcInst_forge_le`
 proves, in the `b = false` execution,
 
     Pr[forged = true] ≤ q · ε,
@@ -70,7 +70,7 @@ private lemma tag_eq_iff_mask_eq (a h m : BitVec 128) :
   · rintro rfl
     rw [BitVec.xor_comm a h, ← BitVec.xor_assoc, BitVec.xor_self, BitVec.zero_xor]
 
-/-- The post-challenge acceptance test in the AXU shape of `probEvent_post_axu_le`. -/
+/-- The post-challenge acceptance test in the AXU shape of `prEvent_post_axu_le`. -/
 private lemma post_event_iff (u v a T : BitVec 128) :
     a = u ^^^ (v ^^^ T) ↔ u ^^^ v = a ^^^ T := by
   rw [← BitVec.xor_assoc, BitVec.xor_comm (u ^^^ v) T]
@@ -90,7 +90,7 @@ private lemma pre_half_le [SampleableType K]
            ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun m => k H m)}[
         L.any (wcAccepts hash enc (obs y).1 (obs y).2) = true]
       ≤ (L.length : ℝ≥0∞) * ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹ := by
-  refine le_trans (probEvent_pre_fresh_le ($ᵗ K)
+  refine le_trans (prEvent_pre_fresh_le ($ᵗ K)
       (fun H => L.map (fun r => r.2.2 ^^^ hash H (enc (r.1, r.2.1)))) k _ ?_) ?_
   · intro H m y hy
     rw [hk H m y hy]
@@ -457,7 +457,7 @@ private lemma post_half_le [SampleableType K] [DecidableEq A] [DecidableEq Cb] {
     · rintro ⟨x, ⟨r, hr, rfl⟩, he⟩
       exact ⟨r, hr, (post_event_iff _ _ _ _).2 he⟩
   rw [prEvent_congr _ _ _ hiff]
-  refine le_trans (probEvent_post_axu_le haxu _
+  refine le_trans (prEvent_post_axu_le haxu _
     (fun w : BitVec 128 × (α × WCLogState A Cb) => (enc (ad, c0), w.1))
     (fun w : BitVec 128 × (α × WCLogState A Cb) => (w.2.2.2.drop L.length).map
       (fun r : A × (Cb × BitVec 128) => (enc (r.1, r.2.1), r.2.2))) ?_) ?_
@@ -476,7 +476,7 @@ private lemma post_half_le [SampleableType K] [DecidableEq A] [DecidableEq Cb] {
       rw [Prod.ext_iff]
       exact ⟨(Prod.ext_iff.1 h3).1, by rw [Prod.ext_iff]; exact ⟨(Prod.ext_iff.1 h3).2, h2⟩⟩)
   · simp_rw [mul_assoc]
-    refine tsum_probOutput_mul_le_of_forall_mem_support _ fun w hw => ?_
+    refine tsum_prEvent_mul_le_of_forall_mem_support _ fun w hw => ?_
     simp only [mem_support_bind_iff, support_pure, Set.mem_singleton_iff] at hw
     obtain ⟨T, -, z, hz, rfl⟩ := hw
     have hlen := log_length_le_from hash enc H0 0 padMsg (ob (some (c0, T))) n (hn _)
@@ -713,7 +713,7 @@ end ProbabilityCore
 /-- The forgery bound at the log-refined handler: `wcFlag` is raised with probability at most
 `q · ε`. The observed value carries `(H, mask)` because `wcFlag` reads them; the adversary's
 output is discarded. -/
-theorem probEvent_bad_wcLog_le {α K A M Cb D : Type}
+theorem prEvent_bad_wcLog_le {α K A M Cb D : Type}
     [SampleableType K] [DecidableEq A] [DecidableEq Cb]
     {hash : K → D → BitVec 128} {ε : ℝ≥0∞} (haxu : IsAlmostXorUniversal hash ε)
     (hfloor : ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹ ≤ ε)
@@ -740,7 +740,7 @@ for the challenge `(ad*, C*)`, a query `(ad', C')` with `enc (ad', C') = enc (ad
 `1`; at `enc := id` it is `Function.injective_id`. `hfloor`: on a subsingleton domain AXU is
 vacuous and admits `ε = 0`, while a blind tag guess still succeeds with probability `2⁻¹²⁸`;
 with two distinct domain points it follows from `IsAlmostXorUniversal.card_inv_le`. -/
-theorem probEvent_wcInst_forge_le {α K A M Cb D : Type}
+theorem prEvent_wcInst_forge_le {α K A M Cb D : Type}
     [SampleableType K] [DecidableEq A] [DecidableEq Cb]
     {hash : K → D → BitVec 128} {ε : ℝ≥0∞} (haxu : IsAlmostXorUniversal hash ε)
     (hfloor : ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹ ≤ ε)
@@ -755,9 +755,9 @@ theorem probEvent_wcInst_forge_le {α K A M Cb D : Type}
               (none, false))}[z.2.2 = true]
       ≤ (q : ℝ≥0∞) * ε := by
   refine le_trans (le_of_eq ?_)
-    (probEvent_bad_wcLog_le haxu hfloor henc_inj padMsg oa q hq)
+    (prEvent_bad_wcLog_le haxu hfloor henc_inj padMsg oa q hq)
   refine prEvent_bind_congr ($ᵗ K : ProbComp K) _ _ _ _ fun H =>
     prEvent_bind_congr ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) _ _ _ _ fun mask => ?_
-  rw [probEvent_bad_wcInst_eq_wcLog hash enc H mask padMsg unpad oa, prEvent_map]
+  rw [prEvent_bad_wcInst_eq_wcLog hash enc H mask padMsg unpad oa, prEvent_map]
 
 end OracleComp.WegmanCarter

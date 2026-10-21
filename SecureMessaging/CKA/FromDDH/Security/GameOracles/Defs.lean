@@ -338,7 +338,7 @@ noncomputable def reductionImplLazyReal (gp : GameParams) (gen : G) :
 open OracleComp.ProgramLogic.Relational in
 /-- Cache-aware honest oracle set wrapping `honestImplParamReal` with the
 same `consumeLazy ∘ consumeLazy` shape as `reductionImplLazyReal`. Bridge
-to the regular `ckaSecurityImpl`: `probOutput_lazy_honest_eq`. -/
+to the regular `ckaSecurityImpl`: `prEvent_lazy_honest_eq`. -/
 noncomputable def ckaSecurityImplLazyReal (gp : GameParams) (gen : G) :
     QueryImpl (ckaSecuritySpec (CKAState F G) G G F)
       (StateT ((GameState (CKAState F G) G G × Option F) × Option F) ProbComp) :=

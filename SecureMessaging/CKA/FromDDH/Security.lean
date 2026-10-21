@@ -236,8 +236,8 @@ lemma securityReduction_real (gp : GameParams)
     (adversary : CKAAdversary (CKAState F G) G G F) :
     Pr{let x ← ddhRealExperiment gen (securityReduction gp adversary)}[x = true] =
     Pr{let x ← securityExpFixedBit (ddhCKA F G gen) adversary false gp}[x = false] := by
-  rw [prEvent_ddhRealExperiment_securityReduction, probOutput_securityExpFixedBit_false]
-  exact probOutput_securityReductionRealGame_eq_honestFalse
+  rw [prEvent_ddhRealExperiment_securityReduction, prEvent_securityExpFixedBit_false]
+  exact prEvent_securityReductionRealGame_eq_honestFalse
     (gen := gen) gp hΔFS hΔPCS adversary
 
 omit [Inhabited F] [Fintype G] in
@@ -250,8 +250,8 @@ lemma securityReduction_rand (gp : GameParams)
     (adversary : CKAAdversary (CKAState F G) G G F) :
     Pr{let x ← ddhRandomExperiment gen (securityReduction gp adversary)}[x = true] =
     Pr{let x ← securityExpFixedBit (ddhCKA F G gen) adversary true gp}[x = false] := by
-  rw [prEvent_ddhRandomExperiment_securityReduction, probOutput_securityExpFixedBit_true]
-  exact probOutput_securityReductionRandGame_eq_honestTrue
+  rw [prEvent_ddhRandomExperiment_securityReduction, prEvent_securityExpFixedBit_true]
+  exact prEvent_securityReductionRandGame_eq_honestTrue
     (gen := gen) gp hΔFS hΔPCS hg adversary
 
 /-! ### Main security theorem

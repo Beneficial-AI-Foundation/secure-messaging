@@ -95,7 +95,7 @@ theorem correctness_failure_le_of_tracked_bad [DecidableEq I]
       (s₀, false))}[z.2.2 = true] ≤ δ) :
     Pr{let x ← correctnessExp scka adv}[x = false] ≤ δ := by
   rw [hexp, prEvent_map]
-  exact (probEvent_not_good_le_tracked_bad (sckaCorrectnessImpl scka) bad Inv
+  exact (prEvent_not_good_le_tracked_bad (sckaCorrectnessImpl scka) bad Inv
     (fun s => s.correct) hcorrect hpres adv s₀ hinit).trans hbad
 
 end SCKAScheme

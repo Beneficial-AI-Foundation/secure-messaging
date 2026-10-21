@@ -10,16 +10,16 @@ import ToVCVio.OracleComp.Constructions.BitVec
 /-!
 # Wegman-Carter one-time authenticity: the abstract bounds
 
-The abstract probability statements behind `probEvent_wcInst_forge_le` (`Security.lean`).
+The abstract probability statements behind `prEvent_wcInst_forge_le` (`Security.lean`).
 They are stated over an arbitrary run distribution, so that they depend on nothing but the
 almost-XOR-universal (AXU) predicate of `UniversalHash.lean`.
 
 A forgery attempt is a decryption query `(X', T')` made either before or after the adversary
 sees the challenge `(X*, T*)`. The two kinds are bounded using different randomness:
 
-* `probEvent_post_axu_le`: a post-challenge query accepts only if
+* `prEvent_post_axu_le`: a post-challenge query accepts only if
   `hash H X' ⊕ hash H X* = T' ⊕ T*`, which AXU over the hash key `H` bounds by `ε`;
-* `probEvent_pre_fresh_le`: a pre-challenge query is a blind guess at the not-yet-drawn
+* `prEvent_pre_fresh_le`: a pre-challenge query is a blind guess at the not-yet-drawn
   128-bit tag mask, which succeeds with probability `2⁻¹²⁸`;
 * `combine_pre_post_le`: the two are added under a single budget `q` on the number of
   decryption queries, which is what gives `q · ε` rather than `2 · q · ε`.
@@ -39,7 +39,7 @@ allowed. They contribute `0`, because a hit needs `T' = T*`.
 An entry with `X' ≠ X*` and `T' = T*` reuses the challenge tag on a different input. AXU is
 applied at offset `T' ⊕ T* = 0` there, so the bound relies on `IsAlmostXorUniversal` covering
 `Δ = 0`. -/
-private theorem probEvent_post_axu_le_run {K D : Type} [SampleableType K] {ε : ℝ≥0∞}
+private theorem prEvent_post_axu_le_run {K D : Type} [SampleableType K] {ε : ℝ≥0∞}
     {hash : K → D → BitVec 128} (haxu : IsAlmostXorUniversal hash ε)
     (c : D × BitVec 128) (l : List (D × BitVec 128)) (hne : ∀ x ∈ l, x ≠ c) :
     Pr{let H ← ($ᵗ K : ProbComp K)}[∃ x ∈ l, hash H x.1 ^^^ hash H c.1 = x.2 ^^^ c.2]
@@ -72,7 +72,7 @@ private theorem probEvent_post_axu_le_run {K D : Type} [SampleableType K] {ε : 
 Write `chal z = (X*, T*)` and suppose no entry of `post z` equals `chal z` for `z` in the support
 of `μ`. Then the probability that some `(X', T') ∈ post z` satisfies
 `hash H X' ⊕ hash H X* = T' ⊕ T*` is at most `𝔼[|post z|] · ε`. -/
-theorem probEvent_post_axu_le {Z K D : Type} [SampleableType K] {ε : ℝ≥0∞}
+theorem prEvent_post_axu_le {Z K D : Type} [SampleableType K] {ε : ℝ≥0∞}
     {hash : K → D → BitVec 128} (haxu : IsAlmostXorUniversal hash ε)
     (μ : ProbComp Z) (chal : Z → D × BitVec 128) (post : Z → List (D × BitVec 128))
     (hne : ∀ z ∈ support μ, ∀ x ∈ post z, x ≠ chal z) :
@@ -89,7 +89,7 @@ theorem probEvent_post_axu_le {Z K D : Type} [SampleableType K] {ε : ℝ≥0∞
       rw [map_eq_bind_pure_comp]
       rfl
     rw [hmap, prEvent_map]
-    exact probEvent_post_axu_le_run haxu (chal z) (post z) (hne z hz)
+    exact prEvent_post_axu_le_run haxu (chal z) (post z) (hne z hz)
   · rw [(prEvent_eq_zero_of_not_mem_support _) hz, zero_mul, zero_mul, zero_mul]
 
 /-- Pre-challenge half. Let `w` be drawn from `ν` and then `m` uniformly from `{0,1}¹²⁸`, and
@@ -97,7 +97,7 @@ let the continuation `k w m` end in the event `E` exactly when `m ∈ pre w`. Th
 probability at most `𝔼[|pre w|] · 2⁻¹²⁸`. Same mathematics as VCVio's
 `prEvent_hiddenReadMany_le` (`RandomOracle/ProbeEps.lean`), stated for an arbitrary
 continuation instead of the `readMany` game shape. -/
-theorem probEvent_pre_fresh_le {W β : Type} (ν : ProbComp W)
+theorem prEvent_pre_fresh_le {W β : Type} (ν : ProbComp W)
     (pre : W → List (BitVec 128)) (k : W → BitVec 128 → ProbComp β)
     (E : β → Prop)
     (hk : ∀ w m, ∀ y ∈ support (k w m), (E y ↔ m ∈ pre w)) :

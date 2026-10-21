@@ -22,7 +22,7 @@ from `(.sendReady (x₀ • gen), .recvReady x₀)`. In the initial-challenge ca
 `(.sendReady (a • gen), .recvReady 0)` and the ordinary CKA game starts from
 `(.sendReady (x₀ • gen), .recvReady x₀)`.
 
-The final lemma is `probOutput_securityReductionRealGame_eq_honestFalse`.
+The final lemma is `prEvent_securityReductionRealGame_eq_honestFalse`.
 -/
 
 open ToVCVio OracleSpec OracleComp ENNReal
@@ -77,7 +77,7 @@ omit [Inhabited F] [Fintype G] in
 Assuming `¬ (gp.challengeEpoch = 1 ∧ gp.challengedParty = .A)`, the reduction
 game with real DDH key `(a * b) • gen` has the same `false` output probability
 as the regular false-branch CKA game from the same initial state. -/
-lemma probOutput_general_per_x₀
+lemma prEvent_general_per_x₀
   (gp : GameParams) (hΔFS : gp.ΔFS = 1) (hΔPCS : gp.ΔPCS = 2)
   (h_general_case : ¬ (gp.challengeEpoch = 1 ∧ gp.challengedParty = .A))
     (adversary : CKAAdversary (CKAState F G) G G F) (x₀ : F) :
@@ -101,7 +101,7 @@ omit [Inhabited F] [Fintype G] in
 
 Stated with `x₀ ← $ᵗ F` sampled *inside* on both sides (matching the shape
 Step (2)'s dispatch produces in the non-initial-challenge case). -/
-lemma probOutput_general_pointwise
+lemma prEvent_general_pointwise
   (gp : GameParams) (hΔFS : gp.ΔFS = 1) (hΔPCS : gp.ΔPCS = 2)
   (h_general_case : ¬ (gp.challengeEpoch = 1 ∧ gp.challengedParty = .A))
     (adversary : CKAAdversary (CKAState F G) G G F) :
@@ -155,14 +155,14 @@ lemma probOutput_general_pointwise
           (EvalDistEq.bind_bind_swap _ _ _).prEvent_eq _
       _ = _ := by
         refine prEvent_bind_congr _ _ _ _ _ fun x₀ => ?_
-        exact probOutput_general_per_x₀ gp hΔFS hΔPCS h_general_case adversary x₀
+        exact prEvent_general_per_x₀ gp hΔFS hΔPCS h_general_case adversary x₀
 
 omit [Inhabited F] [Fintype G] in
 /-- Special-case per-fixed-`x₀` claim: with the rename `a ↔ x₀`, reduction's
 init `(.sendReady (x₀•gen), .recvReady 0)` (stB dead) and honest's
 `(.sendReady (x₀•gen), .recvReady x₀)`
 produce the same output distribution after the remaining `b ← $ᵗ F` peel. -/
-lemma probOutput_special_per_x₀
+lemma prEvent_special_per_x₀
   (gp : GameParams) (hΔFS : gp.ΔFS = 1) (hΔPCS : gp.ΔPCS = 2)
     (h_special_case : gp.challengeEpoch = 1 ∧ gp.challengedParty = .A)
     (adversary : CKAAdversary (CKAState F G) G G F) (x₀ : F) :
@@ -218,7 +218,7 @@ omit [Inhabited F] [Fintype G] in
 /-- Special-case (`gp = ⟨1, _, _, .A⟩`) bridge: reduction init `(.sendReady (a•gen), .recvReady 0)`
 with outer `a ←$ F` equals honest init `(.sendReady (x₀•gen), .recvReady x₀)` with
 outer `x₀ ←$ F` (renaming `a ↔ x₀`), averaged over the remaining `b ←$ F`. -/
-lemma probOutput_special_pointwise
+lemma prEvent_special_pointwise
   (gp : GameParams) (hΔFS : gp.ΔFS = 1) (hΔPCS : gp.ΔPCS = 2)
     (h_special_case : gp.challengeEpoch = 1 ∧ gp.challengedParty = .A)
     (adversary : CKAAdversary (CKAState F G) G G F) :
@@ -237,7 +237,7 @@ lemma probOutput_special_pointwise
           (CKAState.sendReady (x₀ • gen) : CKAState F G)
           (CKAState.recvReady x₀ : CKAState F G)))}[x = false] := by
   refine prEvent_bind_congr _ _ _ _ _ fun x₀ => ?_
-  exact probOutput_special_per_x₀ gp hΔFS hΔPCS h_special_case adversary x₀
+  exact prEvent_special_per_x₀ gp hΔFS hΔPCS h_special_case adversary x₀
 
 omit [Inhabited F] [Fintype G] in
 /-- **Step (2) of the real branch.** Game-level bridge:
@@ -245,7 +245,7 @@ omit [Inhabited F] [Fintype G] in
 
 Unfolds both games, case-splits on `reductionInitState`'s `if`, and reduces
 each branch to one of the named inner bridges above. -/
-lemma probOutput_securityReductionRealGame_eq_honestFalse
+lemma prEvent_securityReductionRealGame_eq_honestFalse
   (gp : GameParams) (hΔFS : gp.ΔFS = 1) (hΔPCS : gp.ΔPCS = 2)
     (adversary : CKAAdversary (CKAState F G) G G F) :
     Pr{let x ← securityReductionRealGame (gen := gen) gp adversary}[x = false] =
@@ -254,10 +254,10 @@ lemma probOutput_securityReductionRealGame_eq_honestFalse
   by_cases h_special_case : gp.challengeEpoch = 1 ∧ gp.challengedParty = .A
   · -- Special: `reductionInitState` = `pure (init .sendReady gA .recvReady 0)` (no x₀ sample).
     simp only [reductionInitState, ite_eq_left h_special_case, pure_bind]
-    exact probOutput_special_pointwise (gen := gen) gp hΔFS hΔPCS h_special_case adversary
+    exact prEvent_special_pointwise (gen := gen) gp hΔFS hΔPCS h_special_case adversary
   · -- General: `reductionInitState` = `do x₀ ← $F; pure (init .sendReady (x₀•gen) .recvReady x₀)`.
     simp only [reductionInitState, ite_eq_right h_special_case, bind_assoc, pure_bind]
-    exact probOutput_general_pointwise (gen := gen) gp hΔFS hΔPCS h_special_case adversary
+    exact prEvent_general_pointwise (gen := gen) gp hΔFS hΔPCS h_special_case adversary
 
 
 

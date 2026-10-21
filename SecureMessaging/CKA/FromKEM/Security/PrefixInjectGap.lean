@@ -55,7 +55,7 @@ private lemma securityImpl_preservesInv_challengePassed [SampleableType K] [Deci
 
 /-- Past the injection epoch, `securityImplWithChallengeKeyPair` and the honest
 `securityImpl` give the same simulated output distribution after `.run'`. -/
-lemma probOutput_simulateQ_wck_run'_eq_of_injectionPassed
+lemma prEvent_simulateQ_wck_run'_eq_of_injectionPassed
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -76,7 +76,7 @@ lemma probOutput_simulateQ_wck_run'_eq_of_injectionPassed
 
 /-- Past the challenge epoch, the fixed-bit honest implementations give the same
 simulated output distribution after `.run'`. -/
-lemma probOutput_simulateQ_true_false_run'_eq_of_challengePassed
+lemma prEvent_simulateQ_true_false_run'_eq_of_challengePassed
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)

@@ -54,7 +54,7 @@ Main results in this file:
 
   Proved by induction on `𝒜` using the per-query step lemmas in `Step.lean`.
 
-* `probOutput_lazy_honest_eq` — the probability-level corollary of the
+* `prEvent_lazy_honest_eq` — the probability-level corollary of the
   bridge above, for an adversary `𝒜` simulated from the initial state
   `initGameState (.sendReady (x₀•gen)) (.recvReady x₀)`:
 
@@ -189,7 +189,7 @@ same probability of outputting `false` under two presentations of the honest
 real-branch CKA game: the `consumeLazy`-wrapped oracle stack
 `ckaSecurityImplLazyReal gp gen`, and the regular false-branch oracle stack
 `ckaSecurityImpl gp false (ddhCKA F G gen)`. -/
-lemma probOutput_lazy_honest_eq [Finite G] (gp : GameParams)
+lemma prEvent_lazy_honest_eq [Finite G] (gp : GameParams)
     (adversary : CKAAdversary (CKAState F G) G G F) (x₀ : F) :
     Pr{let x ← (do
       let (b', _) ← (simulateQ (ckaSecurityImplLazyReal gp gen) adversary).run

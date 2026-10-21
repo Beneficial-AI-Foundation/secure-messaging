@@ -16,7 +16,7 @@ adversary's queries. `wcLogImpl` instead appends each decryption query that pass
 challenge check to a log and never reads `(H, mask)`; the flag is recovered afterwards as the
 fold `wcFlag` over the log.
 
-`probEvent_bad_wcInst_eq_wcLog` shows that the two handlers raise the flag with the same
+`prEvent_bad_wcInst_eq_wcLog` shows that the two handlers raise the flag with the same
 probability.
 -/
 
@@ -163,7 +163,7 @@ theorem map_run_simulateQ_wcLogImpl_eq {α : Type} [DecidableEq A] [DecidableEq 
 
 /-- The instrumented always-reject run raises `forged` with exactly the probability that the
 log-refined run raises `wcFlag`. -/
-theorem probEvent_bad_wcInst_eq_wcLog {α : Type} [DecidableEq A] [DecidableEq Cb]
+theorem prEvent_bad_wcInst_eq_wcLog {α : Type} [DecidableEq A] [DecidableEq Cb]
     (hash : K → D → BitVec 128) (enc : A × Cb → D) (H : K) (mask : BitVec 128)
     (padMsg : M → Cb) (unpad : Cb → M) (oa : OracleComp (wcSpec A M Cb) α) :
     Pr{let z ← (simulateQ (wcInstImpl hash enc H mask padMsg unpad false) oa).run (none, false)}[

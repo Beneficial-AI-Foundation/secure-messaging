@@ -104,7 +104,7 @@ lemma wp_encaps_le {A : Type} (pk : PK) (sk : SK) (g : C × K → A)
   classical
   rw [wp_bind_eq_tsum]
   simp only [wp_pure, hscore]
-  rw [keypairFailure_eq_probEvent, OracleComp.prEvent_eq_tsum_ite]
+  rw [keypairFailure_eq_prEvent, OracleComp.prEvent_eq_tsum_ite]
   calc ∑' ck : C × K, Pr{let x ← kem.encaps pk}[x = ck] *
           (if hDet.decapsDet sk ck.1 ≠ some ck.2 then 1 else V)
         ≤ ∑' ck : C × K,

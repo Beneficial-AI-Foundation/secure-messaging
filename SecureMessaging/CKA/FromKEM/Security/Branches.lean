@@ -166,7 +166,7 @@ lemma ckaReductionINDCPABranch_gap_eq_raw_gap [SampleableType K] [DecidableEq K]
       (Pr{let x ← ckaReductionINDCPABranchRaw kem hDet leak adv gp false}[x = true]).toReal| := by
   rw [ckaReductionINDCPABranch_eq_not_map_raw]
   rw [ckaReductionINDCPABranch_eq_not_map_raw]
-  exact abs_probOutput_true_not_map_gap_eq
+  exact abs_prEvent_true_not_map_gap_eq
     (ckaReductionINDCPABranchRaw kem hDet leak adv gp true)
     (ckaReductionINDCPABranchRaw kem hDet leak adv gp false)
 

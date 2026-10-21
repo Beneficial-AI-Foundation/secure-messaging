@@ -134,7 +134,7 @@ def ckaSecurityFixedBranchWithChallengeKey
 
 /-- Pointwise (per-bit) equality behind
 `ckaSecurityFixedBranch_challenge_key_gap_eq`. -/
-private lemma ckaSecurityFixedBranch_challenge_key_probOutput_true_eq
+private lemma ckaSecurityFixedBranch_challenge_key_prEvent_true_eq
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -177,8 +177,8 @@ lemma ckaSecurityFixedBranch_challenge_key_gap_eq
       (Pr{let x ←
             ckaSecurityFixedBranchWithChallengeKey kem hDet leak adv gp false}[x = true]).toReal| :=
   by
-  rw [ckaSecurityFixedBranch_challenge_key_probOutput_true_eq]
-  rw [ckaSecurityFixedBranch_challenge_key_probOutput_true_eq]
+  rw [ckaSecurityFixedBranch_challenge_key_prEvent_true_eq]
+  rw [ckaSecurityFixedBranch_challenge_key_prEvent_true_eq]
 
 /-- Raw reduction branch with the two initial KEM key-generation draws swapped.
 
@@ -210,7 +210,7 @@ def ckaReductionINDCPABranchRawKeygenSwapped
 
 /-- Pointwise (per-bit) equality behind
 `ckaReductionINDCPABranchRaw_keygen_swapped_gap_eq`. -/
-private lemma ckaReductionINDCPABranchRaw_keygen_swapped_probOutput_true
+private lemma ckaReductionINDCPABranchRaw_keygen_swapped_prEvent_true
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -255,8 +255,8 @@ lemma ckaReductionINDCPABranchRaw_keygen_swapped_gap_eq
       (Pr{let x ←
           ckaReductionINDCPABranchRawKeygenSwapped kem hDet leak adv gp false}[x = true]).toReal| :=
   by
-  rw [ckaReductionINDCPABranchRaw_keygen_swapped_probOutput_true]
-  rw [ckaReductionINDCPABranchRaw_keygen_swapped_probOutput_true]
+  rw [ckaReductionINDCPABranchRaw_keygen_swapped_prEvent_true]
+  rw [ckaReductionINDCPABranchRaw_keygen_swapped_prEvent_true]
 
 /-- Honest A-send oracle that injects the sampled challenge key pair.
 

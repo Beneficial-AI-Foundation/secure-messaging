@@ -71,7 +71,7 @@ def coordinateFailureEvent (i : Fin ringDegree) : Seed32 × Seed32 × Message �
         ((kpkeDecryptDifference ring encoding prims d z m).get i)).natAbs
 
 /-- The bad-noise probability rewritten as an event over the honest sample. -/
-theorem probOutput_true_kpkeBadNoiseExp :
+theorem prEvent_true_kpkeBadNoiseExp :
     Pr{let x ← kpkeBadNoiseExp ring encoding prims}[x = true] =
       Pr{let (d, z, m) ← honestNoiseSample}[kpkeBadNoise ring encoding prims d z m] := by
   have hmap : kpkeBadNoiseExp ring encoding prims =
@@ -82,7 +82,7 @@ theorem probOutput_true_kpkeBadNoiseExp :
   simp only [decide_eq_true_eq]
 
 /-- The recovery-failure probability rewritten as an event over the honest sample. -/
-theorem underlyingCorrectnessError_eq_probEvent :
+theorem underlyingCorrectnessError_eq_prEvent :
     underlyingCorrectnessError ring encoding prims =
       Pr{let (d, z, m) ← honestNoiseSample}[KPKE.decrypt ring encoding prims
           (keygenInternal ring encoding prims d z).2.dkPKE
@@ -103,7 +103,7 @@ most the bad-noise probability. -/
 theorem underlyingCorrectnessError_le_badNoise (hEnc : FIPS203EncodingLaws encoding) :
     underlyingCorrectnessError ring encoding prims ≤
       Pr{let x ← kpkeBadNoiseExp ring encoding prims}[x = true] := by
-  rw [underlyingCorrectnessError_eq_probEvent, probOutput_true_kpkeBadNoiseExp]
+  rw [underlyingCorrectnessError_eq_prEvent, prEvent_true_kpkeBadNoiseExp]
   refine prEvent_mono _ _ _ ?_
   rintro ⟨d, z, m⟩ hfail
   change kpkeBadNoise ring encoding prims d z m
@@ -132,7 +132,7 @@ theorem underlyingCorrectnessError_eq_coordinateDecodeFailureEvent (hEnc : encod
     underlyingCorrectnessError ring encoding prims =
       Pr{let dzm ← honestNoiseSample}[∃ i : Fin ringDegree,
         coordinateDecodeFailureEvent ring encoding prims i dzm] := by
-  rw [underlyingCorrectnessError_eq_probEvent]
+  rw [underlyingCorrectnessError_eq_prEvent]
   have hpred : (fun (d, z, m) => KPKE.decrypt ring encoding prims
           (keygenInternal ring encoding prims d z).2.dkPKE
           (encapsInternal ring encoding prims (keygenInternal ring encoding prims d z).1 m).2 ≠ m) =

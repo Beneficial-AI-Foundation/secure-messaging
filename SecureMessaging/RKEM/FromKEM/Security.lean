@@ -134,7 +134,7 @@ private lemma prEvent_true_indCpaGame_eq_prEvent_true_securityExpACore
       pure (b == b'))}[x = true] = Pr{let x ← securityExpACore kem adversary}[x = true]
   simp only [indCpaReduction, securityExpACore, bind_assoc, pure_bind]
   conv_lhs => rw [(OracleComp.EvalDistEq.bind_bind_swap _ _ _).prEvent_eq]
-  have hcoin := probOutput_true_uniformBool_bind_not
+  have hcoin := prEvent_true_uniformBool_bind_not
     (fun b => do
       let a ← kem.keygen
       let __x ← kem.encaps a.1

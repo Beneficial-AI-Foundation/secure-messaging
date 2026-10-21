@@ -334,7 +334,7 @@ noncomputable def securityExpRealGame (gp : GameParams)
   `Pr[𝒜 = false ∣ securityExpFixedBit … false gp] = Pr[𝒜 = false | CKA^{isRandom = false}]`
 
 Pure definitional unfolding of `securityExpFixedBit` at `ddhCKA F G gen` -/
-lemma probOutput_securityExpFixedBit_false (gp : GameParams)
+lemma prEvent_securityExpFixedBit_false (gp : GameParams)
     (adversary : CKAAdversary (CKAState F G) G G F) :
     Pr{let x ← securityExpFixedBit (ddhCKA F G gen) adversary false gp}[x = false] =
     Pr{let x ← securityExpRealGame (gen := gen) gp adversary}[x = false] := by
@@ -386,7 +386,7 @@ back into the generic fixed-bit notation at `isRandom = true`:
 
 Holds by unfolding both sides; the two games coincide definitionally
 once `ddhCKA`'s `initKeyGen`/`initA`/`initB` are inlined. -/
-lemma probOutput_securityExpFixedBit_true (gp : GameParams)
+lemma prEvent_securityExpFixedBit_true (gp : GameParams)
     (adversary : CKAAdversary (CKAState F G) G G F) :
     Pr{let x ← securityExpFixedBit (ddhCKA F G gen) adversary true gp}[x = false] =
     Pr{let x ← securityExpRandGame (gen := gen) gp adversary}[x = false] := by

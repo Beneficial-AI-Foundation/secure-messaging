@@ -21,7 +21,7 @@ A protocol proof uses the two results at different times. When a key pair is dra
 `correctnessError` (`correctnessError_eq_avg_keypair`). When it later encapsulates to `pk`,
 the proof removes `φ(pk, sk)` from the potential and records a failure if decapsulation with
 `sk` disagrees, which happens with probability exactly `φ(pk, sk)`
-(`keypairFailure_eq_probEvent`). The removed term covers that probability, so encapsulation adds
+(`keypairFailure_eq_prEvent`). The removed term covers that probability, so encapsulation adds
 nothing to the error bound.
 -/
 
@@ -66,7 +66,7 @@ theorem correctnessError_eq_avg_keypair :
 
 /-- `φ(pk, sk)`, i.e. `keypairFailure kem hDet pk sk`, is the probability that encapsulating to
 `pk` yields a pair `(c, k)` with `decapsDet sk c ≠ some k`. -/
-theorem keypairFailure_eq_probEvent (pk : PK) (sk : SK) :
+theorem keypairFailure_eq_prEvent (pk : PK) (sk : SK) :
     keypairFailure kem hDet pk sk =
       Pr{let ck ← kem.encaps pk}[hDet.decapsDet sk ck.1 ≠ some ck.2] := by
   have hmap : keypairCorrectExp kem hDet pk sk =

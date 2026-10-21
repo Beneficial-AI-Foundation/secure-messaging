@@ -23,7 +23,7 @@ from `(.sendReady (x₀ • gen), .recvReady x₀)`. In the initial-challenge ca
 `(.sendReady (a • gen), .recvReady 0)` and the ordinary CKA game starts from
 `(.sendReady (x₀ • gen), .recvReady x₀)`.
 
-The final lemma is `probOutput_securityReductionRandGame_eq_honestTrue`.
+The final lemma is `prEvent_securityReductionRandGame_eq_honestTrue`.
 -/
 
 open ToVCVio OracleSpec OracleComp ENNReal
@@ -61,7 +61,7 @@ omit [Inhabited F] [Fintype G] in
 /-- General-case rand-branch per-fixed-`x₀` claim. With `a, b, c ← $ᵗ F`,
 the reduction output from `(.sendReady (x₀•gen), .recvReady x₀)` matches the `true`-branch
 honest output from the same initial state. Couples `c•gen ↔ outKey ← $ᵗ G` via `hg`. -/
-lemma probOutput_general_per_x₀_rand
+lemma prEvent_general_per_x₀_rand
   (gp : GameParams) (hΔFS : gp.ΔFS = 1) (hΔPCS : gp.ΔPCS = 2)
     (hg : Function.Bijective (· • gen : F → G))
   (h_general_case : ¬ (gp.challengeEpoch = 1 ∧ gp.challengedParty = .A))
@@ -125,9 +125,9 @@ lemma probOutput_general_per_x₀_rand
 
 omit [Inhabited F] [Fintype G] in
 /-- General-case (`¬ (challengeEpoch = 1 ∧ challengedParty = A)`) rand-branch game-level bridge.
-Analogue of `probOutput_general_pointwise` with the extra `c ← $ᵗ F`
+Analogue of `prEvent_general_pointwise` with the extra `c ← $ᵗ F`
 sampled internally; challenge couples `c•gen ↔ outKey ← $ᵗ G` via `hg`. -/
-lemma probOutput_general_pointwise_rand
+lemma prEvent_general_pointwise_rand
   (gp : GameParams) (hΔFS : gp.ΔFS = 1) (hΔPCS : gp.ΔPCS = 2)
     (hg : Function.Bijective (· • gen : F → G))
     (h_general_case : ¬ (gp.challengeEpoch = 1 ∧ gp.challengedParty = .A))
@@ -197,7 +197,7 @@ lemma probOutput_general_pointwise_rand
           (EvalDistEq.bind_bind_swap _ _ _).prEvent_eq _
       _ = _ := by
         refine prEvent_bind_congr _ _ _ _ _ fun x₀ => ?_
-        exact probOutput_general_per_x₀_rand gp hΔFS hΔPCS hg h_general_case adversary x₀
+        exact prEvent_general_per_x₀_rand gp hΔFS hΔPCS hg h_general_case adversary x₀
 
 omit [Inhabited F] [Fintype G] in
 /-- Special-case fixed-parameter rand bridge.
@@ -268,7 +268,7 @@ omit [Inhabited F] [Fintype G] in
 reduction's init `(.sendReady (x₀•gen), .recvReady 0)` with remaining `b, c ← $ᵗ F`
 matches the `true`-branch honest init `(.sendReady (x₀•gen), .recvReady x₀)`. Couples
 `c•gen ↔ outKey ← $ᵗ G` via `hg`. -/
-lemma probOutput_special_per_x₀_rand
+lemma prEvent_special_per_x₀_rand
   (gp : GameParams) (hΔFS : gp.ΔFS = 1) (hΔPCS : gp.ΔPCS = 2)
     (hg : Function.Bijective (· • gen : F → G))
     (h_special_case : gp.challengeEpoch = 1 ∧ gp.challengedParty = .A)
@@ -335,10 +335,10 @@ lemma probOutput_special_per_x₀_rand
 
 omit [Inhabited F] [Fintype G] in
 /-- Special-case (`gp = ⟨1, _, _, .A⟩`) rand-branch bridge. Analogue of
-`probOutput_special_pointwise`; reduction's init is `(.sendReady (a•gen), .recvReady 0)`
+`prEvent_special_pointwise`; reduction's init is `(.sendReady (a•gen), .recvReady 0)`
 with `c` replacing `a*b` in `gT`; rename `a ↔ x₀`, couple
 `c•gen ↔ outKey ← $ᵗ G` via `hg` at the challenge. -/
-lemma probOutput_special_pointwise_rand
+lemma prEvent_special_pointwise_rand
   (gp : GameParams) (hΔFS : gp.ΔFS = 1) (hΔPCS : gp.ΔPCS = 2)
     (hg : Function.Bijective (· • gen : F → G))
     (h_special_case : gp.challengeEpoch = 1 ∧ gp.challengedParty = .A)
@@ -359,13 +359,13 @@ lemma probOutput_special_pointwise_rand
           (CKAState.sendReady (x₀ • gen) : CKAState F G)
           (CKAState.recvReady x₀ : CKAState F G)))}[x = false] := by
   refine prEvent_bind_congr _ _ _ _ _ fun x₀ => ?_
-  exact probOutput_special_per_x₀_rand gp hΔFS hΔPCS hg h_special_case adversary x₀
+  exact prEvent_special_per_x₀_rand gp hΔFS hΔPCS hg h_special_case adversary x₀
 
 omit [Inhabited F] [Fintype G] in
 /-- **Step (2) of the random branch.** Game-level bridge:
 `Pr{let x ← securityReductionRandGame}[x = false] = Pr{let x ← CKA^{isRandom = true}}[x = false]`.
-Parallel to `probOutput_securityReductionRealGame_eq_honestFalse`. -/
-lemma probOutput_securityReductionRandGame_eq_honestTrue
+Parallel to `prEvent_securityReductionRealGame_eq_honestFalse`. -/
+lemma prEvent_securityReductionRandGame_eq_honestTrue
   (gp : GameParams) (hΔFS : gp.ΔFS = 1) (hΔPCS : gp.ΔPCS = 2)
     (hg : Function.Bijective (· • gen : F → G))
     (adversary : CKAAdversary (CKAState F G) G G F) :
@@ -374,9 +374,9 @@ lemma probOutput_securityReductionRandGame_eq_honestTrue
   unfold securityReductionRandGame securityExpRandGame
   by_cases h_special_case : gp.challengeEpoch = 1 ∧ gp.challengedParty = .A
   · simp only [reductionInitState, ite_eq_left h_special_case, pure_bind]
-    exact probOutput_special_pointwise_rand (gen := gen) gp hΔFS hΔPCS hg h_special_case adversary
+    exact prEvent_special_pointwise_rand (gen := gen) gp hΔFS hΔPCS hg h_special_case adversary
   · simp only [reductionInitState, ite_eq_right h_special_case, bind_assoc, pure_bind]
-    exact probOutput_general_pointwise_rand (gen := gen) gp hΔFS hΔPCS hg h_special_case adversary
+    exact prEvent_general_pointwise_rand (gen := gen) gp hΔFS hΔPCS hg h_special_case adversary
 
 
 

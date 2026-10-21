@@ -76,7 +76,7 @@ theorem prEvent_forge_gcmInst_le (L : ℕ) {ε : ℝ≥0∞} (haxu : GhashIsAXU 
       ≤ (q_d : ℝ≥0∞) * ε :=
   -- `decryptQueryBound` and the generic bound spell the decrypt-index predicate with different
   -- matcher auxiliaries, hence the `isQueryBoundP_congr_pred` transport of `hq`.
-  probEvent_wcInst_forge_le haxu (ghashAXU_eps_lower haxu) Function.injective_id
+  prEvent_wcInst_forge_le haxu (ghashAXU_eps_lower haxu) Function.injective_id
     (fun m => m ^^^ ks) (fun c => c ^^^ ks) adv q_d
     ((isQueryBoundP_congr_pred (fun queryIndex => by cases queryIndex <;> rfl)).mp hq)
 
