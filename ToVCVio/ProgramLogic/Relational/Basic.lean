@@ -17,9 +17,6 @@ For `ProbComp` computations `A`, `B` and `C`:
   Running `A` on both sides gives the same output, and that output is a possible output of `A`.
   This strengthens `relTriple_refl`.
 
-* `relTriple_refl_support_post`: `RelTriple A A R` if `R a a` for every `a ∈ support A`.
-  Running `A` on both sides, `R a a` only has to hold for outputs `a` that `A` can produce.
-
 * `relTriple_map_map_of_pointwise`: `RelTriple (f <$> C) (g <$> C) R`
   if `R (f c) (g c)` for every `c`.
   Both sides share one run of `C`, so `R` only needs to hold for the pairs `(f c, g c)`.
@@ -53,15 +50,6 @@ itself by equality of outputs together with membership in its support. -/
 lemma relTriple_refl_support {α : Type} (mx : ProbComp α) :
     RelTriple mx mx (fun a b => a = b ∧ a ∈ support mx) :=
   relTriple_refl_of_mem_support mx fun _ ha => ⟨rfl, ha⟩
-
-/-- A triple between a computation and itself follows from the postcondition
-holding on the diagonal of its support. -/
-lemma relTriple_refl_support_post {α : Type} {mx : ProbComp α}
-    {post : α → α → Prop} (h : ∀ a ∈ support mx, post a a) :
-    RelTriple mx mx post := by
-  refine relTriple_post_mono (relTriple_refl_support mx) ?_
-  rintro p q ⟨rfl, hsup⟩
-  exact h p hsup
 
 /-- Mapping a single computation by two functions that are pointwise related
 gives an `R`-triple of the two mapped computations.  Both sides share the draw

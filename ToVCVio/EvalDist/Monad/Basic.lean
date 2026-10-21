@@ -14,9 +14,6 @@ import VCVio.OracleComp.Constructions.SampleableType.Measure
 Generic point-probability (`Pr{let y ← _}[y = x]`) facts that hold for any monad with an
 evaluation distribution.
 
-* `probOutput_bind_of_const'` evaluates a bind whose continuation has the same point
-  probability after every possible output of a lossless prefix
-  (`Pr{let _ ← mx}[True] = 1`, discharged by `simp` on `OracleComp`);
 * `abs_probOutput_true_not_map_gap_eq` absorbs a final Boolean negation into the
   absolute two-branch gap (for lossless computations);
 * `probOutput_true_uniformBool_bind_not` relabels a uniform challenge-bit sample by negation,
@@ -37,18 +34,6 @@ namespace ToVCVio
 universe v
 
 variable {α : Type} {m : Type → Type v} [Monad m] [LawfulMonad m]
-
-/-- If `mx` is lossless and the event `z = y` has the same probability `r` after every possible
-output of `mx`, then it has probability `r` after `mx >>= my`. -/
-lemma probOutput_bind_of_const' [MonadAttach m] [WeaklyLawfulMonadAttach m]
-    [EvalDistSemantics m] [LawfulEvalDistSemantics m]
-    {β : Type} (mx : m α) {my : α → m β}
-    {y : β} {r : ℝ≥0∞} (h : ∀ x ∈ support mx, Pr{let z ← my x}[z = y] = r)
-    (hmx : Pr{let _ ← mx}[True] = 1 := by simp) :
-    Pr{let x ← mx >>= my}[x = y] = r :=
-  le_antisymm
-    (prEvent_bind_le_of_forall_le_of_support mx my _ fun x hx => (h x hx).le)
-    (le_prEvent_bind_of_forall_le_of_support mx hmx my _ fun x hx => (h x hx).ge)
 
 /-- A final `(! ·)` map turns `true`-output probability into `false`-output
 probability, so the absolute two-branch gap is unchanged by negating both
@@ -203,7 +188,7 @@ lemma probOutput_two_sample_active_param_eq
         lazy x passive x)}[z = y] := by
     refine prEvent_bind_congr _ _ _ _ _ fun x => ?_
     refine prEvent_bind_congr _ _ _ _ _ fun passive => ?_
-    exact probOutput_bind_of_const' _ fun active _ => h_indep x passive active
+    exact prEvent_bind_eq_of_forall_eq _ (by simp) _ _ fun active => h_indep x passive active
   have eq_swap : Pr{let z ← (do
         let x ← ($ᵗ activeType : ProbComp activeType)
         let passive ← ($ᵗ passiveType : ProbComp passiveType)
@@ -282,7 +267,7 @@ lemma probOutput_two_sample_second_param_eq
       (my := ($ᵗ firstType : ProbComp firstType))
       (f := fun second first => lazy first second x)).prEvent_eq (· = y)]
     refine prEvent_bind_congr _ _ _ _ _ fun first => ?_
-    exact probOutput_bind_of_const' _ fun second _ => h_indep x first second
+    exact prEvent_bind_eq_of_forall_eq _ (by simp) _ _ fun second => h_indep x first second
   have eq_swap : Pr{let z ← (do
         let x ← ($ᵗ secondType : ProbComp secondType)
         let first ← ($ᵗ firstType : ProbComp firstType)
@@ -359,7 +344,7 @@ lemma probOutput_three_sample_active_param_eq
         let param₂ ← ($ᵗ paramType₂ : ProbComp paramType₂)
         lazy x param₁ param₂ x)}[z = y] := by
     refine prEvent_bind_congr _ _ _ _ _ fun x => ?_
-    refine probOutput_bind_of_const' _ fun active _ => ?_
+    refine prEvent_bind_eq_of_forall_eq _ (by simp) _ _ fun active => ?_
     refine prEvent_bind_congr _ _ _ _ _ fun param₁ => ?_
     refine prEvent_bind_congr _ _ _ _ _ fun param₂ => ?_
     exact h_indep x param₁ active param₂
@@ -459,7 +444,7 @@ lemma probOutput_three_sample_second_third_param_eq
     refine prEvent_bind_congr _ _ _ _ _ fun x => ?_
     refine prEvent_bind_congr _ _ _ _ _ fun z => ?_
     refine prEvent_bind_congr _ _ _ _ _ fun first => ?_
-    refine probOutput_bind_of_const' _ fun second _ => ?_
+    refine prEvent_bind_eq_of_forall_eq _ (by simp) _ _ fun second => ?_
     refine prEvent_bind_congr _ _ _ _ _ fun third => ?_
     exact h_second_indep x z first second third
   have eq_third : Pr{let w ← (do
@@ -476,7 +461,7 @@ lemma probOutput_three_sample_second_third_param_eq
     refine prEvent_bind_congr _ _ _ _ _ fun x => ?_
     refine prEvent_bind_congr _ _ _ _ _ fun z => ?_
     refine prEvent_bind_congr _ _ _ _ _ fun first => ?_
-    exact probOutput_bind_of_const' _ fun third _ => h_third_indep x z first third
+    exact prEvent_bind_eq_of_forall_eq _ (by simp) _ _ fun third => h_third_indep x z first third
   have eq_swap_z_first : Pr{let w ← (do
         let x ← ($ᵗ secondType : ProbComp secondType)
         let z ← ($ᵗ thirdType : ProbComp thirdType)

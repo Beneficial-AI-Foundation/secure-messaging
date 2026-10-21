@@ -250,13 +250,13 @@ theorem game1_eq_prfIdealExp
               StateT ((AD × C_e →ₒ T).QueryCache) ProbComp (unifSpec.Range n)) :=
         PRFScheme.simulateQ_prfIdealQueryImpl_liftComp
           (liftM (OracleSpec.query n) : OracleComp unifSpec (unifSpec.Range n))
-      rw [flattenStateT_mapStateTBase_apply_run]
+      rw [QueryImpl.flattenStateT_mapStateTBase_apply_run]
       simp [gameUnifImpl,
         QueryImpl.add_apply_inl, hq,
         StateT.run_bind, StateT.run_monadLift, Prod.map, Functor.map_map]
     · -- encryption oracle: `se.encrypt ke m` + tag = `randomOracle (ad,c)` on the relocated
       -- cache; the inner TagCache (∅) is dropped by proj
-      rw [flattenStateT_mapStateTBase_apply_run]
+      rw [QueryImpl.flattenStateT_mapStateTBase_apply_run]
       cases ch <;>
         simp [QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
           StateT.run_bind, StateT.run_get, StateT.run_set, StateT.run_monadLift,
@@ -264,7 +264,7 @@ theorem game1_eq_prfIdealExp
     · -- decryption oracle: verify = `randomOracle (ad,c)` compare; same relocation.
       -- After the (shared) RO query, the verify result is a `pure`, so `simulateQ` is the
       -- identity and the nested-state reassoc lines up with game1's direct run.
-      rw [flattenStateT_mapStateTBase_apply_run]
+      rw [QueryImpl.flattenStateT_mapStateTBase_apply_run]
       cases ch with
       | none =>
         simp only [add_apply_inr, StateT.run_pure, liftM_pure, StateT.run_monadLift,

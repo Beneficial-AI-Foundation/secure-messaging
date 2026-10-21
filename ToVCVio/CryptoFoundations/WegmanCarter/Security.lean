@@ -8,7 +8,7 @@ import VCVio.CryptoFoundations.UniversalHash
 import ToVCVio.CryptoFoundations.WegmanCarter.AbstractBounds
 import ToVCVio.CryptoFoundations.WegmanCarter.LogRefinement
 import ToVCVio.EvalDist.Monad.Basic
-import ToVCVio.OracleComp.QueryTracking.QueryBound
+import VCVio.OracleComp.QueryTracking.QueryBound
 
 /-!
 # Wegman-Carter one-time authenticity: the forgery bound
@@ -253,7 +253,7 @@ private lemma wcLogImpl_extends [DecidableEq A] [DecidableEq Cb] {α : Type}
 /-! ### Counting the log
 
 Only the decrypt oracle appends, at most one entry per query, so the log length is bounded by
-the decrypt-query budget (`support_state_measure_le_of_isQueryBoundP`). -/
+the decrypt-query budget (`IsQueryBoundP.cost_le_of_mem_support_run_simulateQ`). -/
 
 /-- Every step appends at most one log entry. -/
 private lemma log_step_le_one [DecidableEq A] [DecidableEq Cb]
@@ -332,11 +332,10 @@ lemma log_length_le_from [DecidableEq A] [DecidableEq Cb] {α : Type}
     (hq : oa.IsQueryBoundP (· matches Sum.inr _) q) (s : WCLogState A Cb) :
     ∀ z ∈ support ((simulateQ (wcLogImpl hash enc H mask padMsg) oa).run s),
       z.2.2.length ≤ s.2.length + q :=
-  support_state_measure_le_of_isQueryBoundP (wcLogImpl hash enc H mask padMsg)
-    (fun s : WCLogState A Cb => s.2.length) (· matches Sum.inr _)
+  hq.cost_le_of_mem_support_run_simulateQ (impl := wcLogImpl hash enc H mask padMsg)
+    (fun s : WCLogState A Cb => s.2.length)
     (fun t _ => log_step_le_one hash enc H mask padMsg t)
-    (fun t ht => log_step_le_zero hash enc H mask padMsg t (fun y hy => ht (by rw [hy])))
-    oa q hq s
+    (fun t ht => log_step_le_zero hash enc H mask padMsg t (fun y hy => ht (by rw [hy]))) s
 
 /-! ### The local bijection and the hoisted key -/
 
