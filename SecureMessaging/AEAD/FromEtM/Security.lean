@@ -171,7 +171,7 @@ number of decryption queries (tied to `adv` via `decryptQueryBound`, i.e.
 NRS14 Figure 9 bound: `Adv^nAE ≤ Adv^prf_F(B) + Adv^ivE_E(D₁) + q_d/2^τ`.
 Our one-time adaptation: `Adv^ivE → Adv^{ind$-cpa}`, `2^τ → |T|`. -/
 -- ANCHOR: etmAEAD_security
-theorem etmAEAD_security [Inhabited K_e]
+theorem etmAEAD_security
     (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
     (adv : OneTimeCCAAdversary AD M (C_e × T))
     (q_d : ℕ) [Fintype T]

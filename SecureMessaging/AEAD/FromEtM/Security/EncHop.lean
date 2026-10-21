@@ -35,7 +35,7 @@ private noncomputable def encFixedGame
     adv
 
 omit [Inhabited T] in
-private theorem encFixedGame_eq_reductionBranch [Inhabited K_e]
+private theorem encFixedGame_eq_reductionBranch
     (se : DetSEAlg K_e M C_e) (bit : Bool) (key : K_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     encFixedGame se bit key adv =
@@ -191,7 +191,7 @@ IND$-CPA reduction only needs to simulate encryption (forward to its oracle)
 and decryption (always reject). The `computeTag` change from random oracle
 to `$ᵗ T` is distributional equality: the cache is written but never read
 (verify disabled), and a one-time fresh RO query is uniformly distributed. -/
-theorem game2_game3_le_enc [Inhabited K_e]
+theorem game2_game3_le_enc
     (se : DetSEAlg K_e M C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     |(Pr{let x ← game2 se adv}[x = true]).toReal -

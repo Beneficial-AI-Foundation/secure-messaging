@@ -82,7 +82,7 @@ theorem etmAEAD_correct (se : DetSEAlg K_e M C_e)
 $`\todo`
 
 ```anchor etmAEAD_security (project := ".") (module := SecureMessaging.AEAD.FromEtM.Security)
-theorem etmAEAD_security [Inhabited K_e]
+theorem etmAEAD_security
     (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
     (adv : OneTimeCCAAdversary AD M (C_e × T))
     (q_d : ℕ) [Fintype T]
