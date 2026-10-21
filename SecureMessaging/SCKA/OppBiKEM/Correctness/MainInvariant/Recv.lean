@@ -67,7 +67,7 @@ lemma bufferConsistent_of_empty (role : Role) {kem : KEMScheme ProbComp K PK SK 
     intro M ecp m
     refine ⟨∅, ?_, by simpa using ecp.ec.nchunk_pos⟩
     simp [payloadChunks, ErasureCode.encodeChunks]
-  split_ifs <;> (try split) <;> simp only [h] <;> first | rfl | exact hpk _ _ _
+  split_ifs <;> (try split) <;> simp only [h] <;> exact hpk _ _ _
 
 section Receive
 
@@ -629,7 +629,8 @@ lemma partyInv_decaps_local {st₁ : State PK SK C Sym} {ownKey : ℕ → Option
     · intro e he hp
       by_cases heq : e = q
       · subst heq
-        rw [Function.update_self, ite_eq_left (Finset.mem_insert_self _ _), EpochTranscript.key, henc]
+        rw [Function.update_self, ite_eq_left (Finset.mem_insert_self _ _), EpochTranscript.key,
+          henc]
         rfl
       · have hne : e.toNat ≠ q.toNat := fun h => heq (hqnat e he h)
         rw [Function.update_of_ne hne, h₁.key_req e he hp]

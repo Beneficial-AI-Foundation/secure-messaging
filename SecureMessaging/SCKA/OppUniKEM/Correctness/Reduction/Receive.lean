@@ -79,11 +79,7 @@ lemma recvB_kem_source_shape
       Bool.and_true, Bool.not_eq_true, insert_empty_eq, Option.some.injEq,
       Prod.mk.injEq, Bool.and_eq_true, beq_iff_eq, and_false,
       not_false_eq_true]
-    all_goals (subst_vars; try simp_all only [Fin.isValue, imp_false,
-      Prod.forall, BEq.rfl, Bool.and_true, Bool.not_eq_true, Prod.mk.injEq,
-      and_self, Nat.left_eq_add, one_ne_zero, true_and, false_and, or_false,
-      Bool.and_eq_true, beq_iff_eq, Nat.add_eq_left, and_false,
-      not_false_eq_true])
+    all_goals subst_vars
     all_goals (rcases hrecv with ⟨_, _, hstate⟩; subst stB'; simp_all)
   · left
     simp only [recvB, ht, ite_false] at hrecv

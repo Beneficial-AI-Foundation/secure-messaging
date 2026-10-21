@@ -95,7 +95,8 @@ private lemma pre_half_le [SampleableType K]
     {β : Type} (k : K → BitVec 128 → ProbComp β) (obs : β → K × BitVec 128)
     (hk : ∀ H m, ∀ y ∈ support (k H m), obs y = (H, m)) :
     Pr{let y ← (($ᵗ K : ProbComp K) >>= fun H =>
-           ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun m => k H m)}[L.any (wcAccepts hash enc (obs y).1 (obs y).2) = true]
+           ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun m => k H m)}[
+        L.any (wcAccepts hash enc (obs y).1 (obs y).2) = true]
       ≤ (L.length : ℝ≥0∞) * ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹ := by
   refine le_trans (probEvent_pre_fresh_le ($ᵗ K)
       (fun H => L.map (fun r => r.2.2 ^^^ hash H (enc (r.1, r.2.1)))) k _ ?_) ?_
@@ -444,11 +445,12 @@ private lemma post_half_le [SampleableType K] [DecidableEq A] [DecidableEq Cb] {
              (fun z : α × WCLogState A Cb => ((H, m), z.2)) <$>
                (simulateQ (wcLogImpl hash enc H m padMsg)
                    (ob (some (c0, hash H (enc (ad, c0)) ^^^ m)))).run
-                 (some (ad, (c0, hash H (enc (ad, c0)) ^^^ m)), L))}[(z.2.2.drop L.length).any (wcAccepts hash enc z.1.1 z.1.2) = true]
+                 (some (ad, (c0, hash H (enc (ad, c0)) ^^^ m)), L))}[
+        (z.2.2.drop L.length).any (wcAccepts hash enc z.1.1 z.1.2) = true]
       ≤ (n : ℝ≥0∞) * ε := by
   obtain ⟨H0⟩ := (inferInstance : Nonempty K)
   rw [(post_half_reshape hash enc padMsg ob ad c0 L H0).prEvent_eq, prEvent_map]
-  simp only [Function.comp_def]
+  simp only
   have hiff : ∀ p : (BitVec 128 × (α × WCLogState A Cb)) × K,
       ((p.1.2.2.2.drop L.length).any
           (wcAccepts hash enc p.2 (hash p.2 (enc (ad, c0)) ^^^ p.1.1)) = true)
@@ -524,7 +526,8 @@ private lemma post_phase [SampleableType K] [DecidableEq A] [DecidableEq Cb] {α
              (fun z : α × WCLogState A Cb => ((H, m), z.2)) <$>
                (simulateQ (wcLogImpl hash enc H m padMsg)
                    (ob (some (c0, hash H (enc (ad, c0)) ^^^ m)))).run
-                 (some (ad, (c0, hash H (enc (ad, c0)) ^^^ m)), L))}[wcFlag hash enc z.1.1 z.1.2 z.2 = true]
+                 (some (ad, (c0, hash H (enc (ad, c0)) ^^^ m)), L))}[
+        wcFlag hash enc z.1.1 z.1.2 z.2 = true]
       ≤ ((L.length + n : ℕ) : ℝ≥0∞) * ε := by
   refine le_trans (prEvent_mono_of_support _ _ (fun z : (K × BitVec 128) × WCLogState A Cb =>
     L.any (wcAccepts hash enc z.1.1 z.1.2) = true
@@ -563,11 +566,13 @@ private lemma pre_phase_bind_le [SampleableType K] [DecidableEq A] [DecidableEq 
              ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun m =>
                (fun z : α × WCLogState A Cb => ((H, m), z.2)) <$>
                  (simulateQ (wcLogImpl hash enc H m padMsg) (F p.1)).run
-                   ((none, p.2.2) : WCLogState A Cb))}[wcFlag hash enc z.1.1 z.1.2 z.2 = true] ≤ bnd) :
+                   ((none, p.2.2) : WCLogState A Cb))}[
+          wcFlag hash enc z.1.1 z.1.2 z.2 = true] ≤ bnd) :
     Pr{let z ← (Q >>= fun p => ($ᵗ K : ProbComp K) >>= fun H =>
            ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) >>= fun m =>
              (fun z : α × WCLogState A Cb => ((H, m), z.2)) <$>
-               (simulateQ (wcLogImpl hash enc H m padMsg) (F p.1)).run p.2)}[wcFlag hash enc z.1.1 z.1.2 z.2 = true] ≤ bnd := by
+               (simulateQ (wcLogImpl hash enc H m padMsg) (F p.1)).run p.2)}[
+        wcFlag hash enc z.1.1 z.1.2 z.2 = true] ≤ bnd := by
   refine prEvent_bind_le_of_forall_le_of_support _ _ _ fun p hp => ?_
   have hp2 : p.2 = ((none, p.2.2) : WCLogState A Cb) := by rw [← hstate p hp]
   rw [hp2]
@@ -728,7 +733,8 @@ theorem probEvent_bad_wcLog_le {α K A M Cb D : Type}
            let H ← ($ᵗ K : ProbComp K)
            let mask ← ($ᵗ (BitVec 128) : ProbComp (BitVec 128))
            (fun z : α × WCLogState A Cb => ((H, mask), z.2)) <$>
-             (simulateQ (wcLogImpl hash enc H mask padMsg) oa).run (none, []))}[wcFlag hash enc z.1.1 z.1.2 z.2 = true]
+             (simulateQ (wcLogImpl hash enc H mask padMsg) oa).run (none, []))}[
+        wcFlag hash enc z.1.1 z.1.2 z.2 = true]
       ≤ (q : ℝ≥0∞) * ε := by
   simpa using pre_phase haxu hfloor henc_inj padMsg oa q hq []
 
