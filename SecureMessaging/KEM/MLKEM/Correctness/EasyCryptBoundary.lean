@@ -120,7 +120,7 @@ theorem incrementalCorrectExp_failure_le_mlkem768_easycrypt {failprob hsadv prfa
 -- ANCHOR_END: incrementalCorrectExp_failure_le_mlkem768_easycrypt
     :=
   (mlkemIncremental .MLKEM768 Concrete.concreteNTTRingOps
-    Concrete.mlkem768Primitives).probFailure_correctExp_le _
+    Concrete.mlkem768Primitives).evalDist_false_correctExp_le_of_deltaCorrect _
     (deltaCorrect_mlkem768_easycrypt_of_le hcb hhs hkg henc)
 
 end MLKEM

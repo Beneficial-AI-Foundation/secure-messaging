@@ -1586,21 +1586,21 @@ In the general case, the reduction stack with fixed DDH inputs
 honest random stack `honestImplParamRand gp gen a b gT` from the same initial
 state. The state relation `reductionHonestRelRand` carries the per-query
 simulation. -/
-lemma evalDist_reduction_honest_param_rand_eq
+lemma evalDistEq_reduction_honest_param_rand
   (gp : GameParams) (hΔFS : gp.ΔFS = 1) (hΔPCS : gp.ΔPCS = 2)
   (h_general_case : ¬ (gp.challengeEpoch = 1 ∧ gp.challengedParty = .A))
     (x₀ a b : F) (gT : G)
     (adversary : OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool) :
-    evalDist ((simulateQ
+    ((simulateQ
         (reductionOracleImpl gp gen (a • gen) (b • gen) gT) adversary).run'
       (initGameState
         (CKAState.sendReady (x₀ • gen) : CKAState F G)
-        (CKAState.recvReady x₀ : CKAState F G))) =
-    evalDist ((simulateQ (honestImplParamRand gp gen a b gT) adversary).run'
+        (CKAState.recvReady x₀ : CKAState F G))) =ᵈ
+    ((simulateQ (honestImplParamRand gp gen a b gT) adversary).run'
       (initGameState
         (CKAState.sendReady (x₀ • gen) : CKAState F G)
         (CKAState.recvReady x₀ : CKAState F G))) := by
-  refine OracleComp.ProgramLogic.Relational.evalDist_eq_of_relTriple_eqRel
+  refine OracleComp.ProgramLogic.Relational.evalDistEq_of_relTriple_eqRel
     (OracleComp.ProgramLogic.Relational.relTriple_simulateQ_run' _ _
       (reductionHonestRelRand gp gen a b gT) _ ?_ _ _ ?_)
   · intro t sR sH hrel

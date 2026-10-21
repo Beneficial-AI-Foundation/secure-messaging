@@ -44,7 +44,7 @@ theorem game1_game2_le_auth
   --     ≤ measureTVDist(game1, game2')      (abs_prEvent_toReal_sub_le_measureTVDist)
   --     ≤ q_d/|T|                           (htv: identical-until-bad + forge brick)
   -- Step C: `game2' = game2`. game2' rejects unconditionally, so its verify RO query reveals
-  -- nothing — removing it preserves the distribution (`evalDist_simulateQ_run'_discardRO`, the
+  -- nothing — removing it preserves the distribution (`evalDistEq_simulateQ_run'_discardRO`, the
   -- RO-mediated discarded-query brick), lifted through the skeleton.
   have hC : Pr{let x ← game2' se adv}[x = true] = Pr{let x ← game2 se adv}[x = true] :=
     game2'_eq_game2 se adv

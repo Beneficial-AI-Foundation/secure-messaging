@@ -110,7 +110,7 @@ we sample values at first use:
 A series of lemmas prove that each lazy implementation is distributionally equal to the
 regular CKA implementation or the DDH-real branch of the reduction `ℬ`:
 
-* `evalDist_ckaSecurityImpl_lazy_eq_eager` (this file): the lazy CKA implementation
+* `evalDistEq_ckaSecurityImpl_lazy_eager` (this file): the lazy CKA implementation
   equals the eager one — sample `b, a ←$ F` in `ProbComp`, then run
   `honestImplParamReal gp gen a b`.
 
@@ -433,13 +433,13 @@ lemma hindepB_param_honest (gp : GameParams)
 
 /-! ### Lazy `QueryImpl` set ↔ eager `ProbComp` sampling
 
-`evalDist_ckaSecurityImpl_lazy_eq_eager` proves the `evalDist` equality between
+`evalDistEq_ckaSecurityImpl_lazy_eager` proves equality in distribution between
 - running an adversary under the lazy `QueryImpl` set `ckaSecurityImplLazyReal`, and
 - sampling `b, a ←$ F` in `ProbComp` then running it under `honestImplParamReal`.
 -/
 
 omit [Fintype G] in
-/-- Proves the `evalDist` equality between
+/-- Proves equality in distribution between
 - running an adversary under the lazy `QueryImpl` set `ckaSecurityImplLazyReal`, and
 - sampling `b, a ←$ F` in `ProbComp` then running it under
   the parameterized `QueryImpl` set `honestImplParamReal gp gen a b`.
@@ -448,25 +448,25 @@ This is the lazy/eager endpoint for the two cache samples used by
 -- `Finite G` is unused in the proof but kept for uniformity with the
 -- surrounding lazy/eager bridge lemmas.
 @[nolint unusedArguments]
-lemma evalDist_ckaSecurityImpl_lazy_eq_eager
+lemma evalDistEq_ckaSecurityImpl_lazy_eager
     [Finite G]
     (gp : GameParams) (adversary : CKAAdversary (CKAState F G) G G F)
     (s : GameState (CKAState F G) G G) :
-    evalDist ((simulateQ (ckaSecurityImplLazyReal gp gen) adversary).run' ((s, none), none)) =
-    evalDist (do
+    ((simulateQ (ckaSecurityImplLazyReal gp gen) adversary).run' ((s, none), none)) =ᵈ
+    (do
       let b ← ($ᵗ F : ProbComp F)
       let a ← ($ᵗ F : ProbComp F)
       (simulateQ (honestImplParamReal gp gen a b) adversary).run' s) := by
   let : Fintype G := Fintype.ofFinite G
   unfold ckaSecurityImplLazyReal
-  refine ((OracleComp.ProgramLogic.Relational.evalDistEq_simulateQ_consumeLazy_run'_eq
+  refine (OracleComp.ProgramLogic.Relational.evalDistEq_simulateQ_consumeLazy_run'_eq
         (spec := ckaSecuritySpec (CKAState F G) G G F) (τ := F)
         (implFam := fun b => OracleComp.ProgramLogic.Relational.consumeLazy
           (hit := hitA gp)
           (implFam := fun a => honestImplParamReal gp gen a b))
         (hit := hitB gp)
         (h_indep := fun t s' b₁ b₂ h => hindepB_param_honest gp t s' b₁ b₂ h)
-        adversary (s, none)).symm.trans ?_).evalDist_eq
+        adversary (s, none)).symm.trans ?_
   exact EvalDistEq.bind_right _ fun b =>
     (OracleComp.ProgramLogic.Relational.evalDistEq_simulateQ_consumeLazy_run'_eq
       (spec := ckaSecuritySpec (CKAState F G) G G F) (τ := F)

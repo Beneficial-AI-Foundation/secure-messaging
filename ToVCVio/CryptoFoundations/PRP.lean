@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 module
 
 public import VCVio.CryptoFoundations.SecExp
-public import VCVio.CryptoFoundations.PRF
+public import ToVCVio.CryptoFoundations.PRF
 public import VCVio.OracleComp.Constructions.SampleableType
 
 /-!
@@ -104,6 +104,15 @@ noncomputable def prpAdvantage [SampleableType (Equiv.Perm X)]
     (prp : PRPScheme K X) (adversary : PRPAdversary X) : ℝ≥0∞ :=
   𝒟[prpRealExp prp adversary].boolDist 𝒟[prpIdealExp adversary]
 -- ANCHOR_END: prpAdvantage
+
+/-- The PRP advantage in real form: `|Pr[real ⇒ true] - Pr[ideal ⇒ true]|`. -/
+theorem toReal_prpAdvantage [SampleableType (Equiv.Perm X)]
+    (prp : PRPScheme K X) (adversary : PRPAdversary X) :
+    (prpAdvantage prp adversary).toReal =
+      |(Pr{let x ← prpRealExp prp adversary}[x = true]).toReal -
+        (Pr{let x ← prpIdealExp adversary}[x = true]).toReal| := by
+  rw [prpAdvantage, MeasureTheory.Measure.toReal_boolDist, prEvent_eq_evalDist_singleton,
+    prEvent_eq_evalDist_singleton]
 
 /-- `asPRF g` is the fixed function `g` viewed as a PRF scheme with a trivial key, so that the
 PRF simulation lemmas apply to `prpQueryImpl g`. -/

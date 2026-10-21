@@ -23,7 +23,7 @@ before running the adversary, so its query list is fixed and independent of the 
 Main results:
 - `game0_eq_prfRealExp`, `game1_eq_prfIdealExp`: with a real cipher the distinguisher runs
   `game0`, with a random function it runs `game1`.
-- `game0_game1_le_prf`: hence `|Pr{game1} − Pr{game0}|` is at most its PRF advantage.
+- `game0_game1_le_prf`: hence `|Pr[game1 = 1] − Pr[game0 = 1]|` is at most its PRF advantage.
 - `game1_eq_game2`: moving the tuple sample inside the oracles changes nothing.
 -/
 
@@ -106,9 +106,9 @@ distribution. -/
 theorem game1_eq_game2 (prp : PRPScheme K (BitVec 128)) (L : ℕ)
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    evalDist (game1 prp L hL adv) = evalDist (game2 prp L hL adv) := by
+    game1 prp L hL adv =ᵈ game2 prp L hL adv := by
   unfold game1 game2
-  exact (evalDistEq_simulateQ_greedyLazy_run'_eq gcmTupleImpl adv none).evalDist_eq
+  exact evalDistEq_simulateQ_greedyLazy_run'_eq gcmTupleImpl adv none
 
 end LazyHop
 
@@ -300,9 +300,8 @@ theorem game0_game1_le_prf (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L 
     |(Pr{let x ← game1 prp L hL adv}[x = true]).toReal -
       (Pr{let x ← game0 prp iv L hL adv}[x = true]).toReal| ≤
       (PRFScheme.prfAdvantage prp.toPRFScheme (prfReduction iv L adv)).toReal := by
-  rw [PRFScheme.prfAdvantage, MeasureTheory.Measure.toReal_boolDist,
-    ← prEvent_eq_evalDist_singleton, ← prEvent_eq_evalDist_singleton,
-    ← game0_eq_prfRealExp prp iv L hL adv, ← game1_eq_prfIdealExp prp iv L hL adv]
+  rw [PRFScheme.toReal_prfAdvantage, ← game0_eq_prfRealExp prp iv L hL adv,
+    ← game1_eq_prfIdealExp prp iv L hL adv]
   -- `prfAdvantage` is `|real − ideal|`; the hop is stated as `|ideal − real|`.
   exact le_of_eq (abs_sub_comm _ _)
 

@@ -213,7 +213,7 @@ theorem correctExp_eq [DecidableEq K] : inc.CorrectExp = kem.correctnessExperime
   simp only [CorrectExp, KEMScheme.correctnessExperiment, inc.encaps_eq_stagedEncaps]
 
 /-- A correctness bound for the KEM bounds the staged run in the same way. -/
-theorem probFailure_correctExp_le [DecidableEq K] (runtime : ProbCompRuntime m)
+theorem evalDist_false_correctExp_le_of_deltaCorrect [DecidableEq K] (runtime : ProbCompRuntime m)
     {delta : ℝ≥0∞} (h : kem.deltaCorrect runtime delta) :
     runtime.evalDist inc.CorrectExp {false} ≤ delta := by
   rw [inc.correctExp_eq]

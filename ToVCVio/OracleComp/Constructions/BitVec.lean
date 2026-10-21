@@ -10,6 +10,7 @@ public import VCVio.OracleComp.Constructions.SampleableType
 public import VCVio.EvalDist.Monad.Map
 public import VCVio.EvalDist.Prod
 public import VCVio.EvalDist.List
+public import VCVio.OracleComp.Constructions.Replicate
 public import ToVCVio.OracleComp.Constructions.SampleableType
 public import Mathlib.Data.LawfulXor.Equiv
 
@@ -217,16 +218,6 @@ private lemma mapM_const_eq_replicate {D R : Type} (c : ProbComp R) (pts : List 
   | nil => rfl
   | cons _ ps ih => rw [List.mapM_cons, ih, List.length_cons, OracleComp.replicate_succ_bind]
 
-/-- Every possible output of `replicate n c` has length `n`. -/
-private lemma length_of_mem_support_replicate {R : Type} (c : ProbComp R) :
-    ∀ (n : ℕ) {v : List R}, v ∈ support (OracleComp.replicate n c) → v.length = n
-  | 0, v, hv => by simpa using hv
-  | n + 1, v, hv => by
-    rw [OracleComp.replicate_succ_bind] at hv
-    simp only [mem_support_bind_iff, support_pure, Set.mem_singleton_iff] at hv
-    obtain ⟨_, _, xs, hxs, rfl⟩ := hv
-    rw [List.length_cons, length_of_mem_support_replicate c n hxs]
-
 /-- One independent uniform draw per element of `pts` is distributed as one uniform
 `Vector R pts.length`, read as a list. -/
 theorem evalDistEq_mapM_const_uniform {D R : Type} [SampleableType R]
@@ -241,6 +232,7 @@ theorem evalDistEq_mapM_const_uniform {D R : Type} [SampleableType R]
     exact SampleableType.prEvent_replicate_uniformSample h
   · simp only [h, ↓reduceIte]
     refine prEvent_eq_zero_of_forall_mem_support _ _ fun v hv hvx => h ?_
-    exact hvx ▸ length_of_mem_support_replicate _ _ hv
+    rw [OracleComp.support_replicate] at hv
+    exact hvx ▸ hv.1
 
 end ToVCVio

@@ -109,9 +109,8 @@ lemma probOutput_general_per_x₀_rand
               refine prEvent_bind_congr _ _ _ _ _ fun a => ?_
               refine prEvent_bind_congr _ _ _ _ _ fun b => ?_
               refine prEvent_bind_congr _ _ _ _ _ fun gT => ?_
-              exact (EvalDistEq.of_evalDist_eq
-                (evalDist_reduction_honest_param_rand_eq
-                  (gen := gen) gp hΔFS hΔPCS h_general_case x₀ a b gT adversary)).prEvent_eq _
+              exact (evalDistEq_reduction_honest_param_rand
+                (gen := gen) gp hΔFS hΔPCS h_general_case x₀ a b gT adversary).prEvent_eq _
     _ = Pr{let x ← ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) adversary).run'
           s₀H)}[x = false] := by
           -- Rand game-oracle bridge: honest_param_rand outer samples to eager random CKA.
@@ -201,21 +200,21 @@ B's scalar cell dead (`.recvReady 0`) while the honest stack starts with the
 cached scalar `x₀`. For fixed `x₀`, `b`, and external key `gT`, the relation
 `reductionHonestRelRand` shows that the two stacks have the same output
 distribution. -/
-lemma evalDist_reduction_honest_param_rand_special_eq
+lemma evalDistEq_reduction_honest_param_rand_special
   (gp : GameParams) (hΔFS : gp.ΔFS = 1) (hΔPCS : gp.ΔPCS = 2)
     (h_special_case : gp.challengeEpoch = 1 ∧ gp.challengedParty = .A)
     (x₀ b : F) (gT : G)
     (adversary : OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool) :
-    evalDist ((simulateQ
+    ((simulateQ
         (reductionOracleImpl gp gen (x₀ • gen) (b • gen) gT) adversary).run'
       (initGameState
         (CKAState.sendReady (x₀ • gen) : CKAState F G)
-        ((CKAState.recvReady 0) : CKAState F G))) =
-    evalDist ((simulateQ (honestImplParamRand gp gen x₀ b gT) adversary).run'
+        ((CKAState.recvReady 0) : CKAState F G))) =ᵈ
+    ((simulateQ (honestImplParamRand gp gen x₀ b gT) adversary).run'
       (initGameState
         (CKAState.sendReady (x₀ • gen) : CKAState F G)
         (CKAState.recvReady x₀ : CKAState F G))) := by
-  refine OracleComp.ProgramLogic.Relational.evalDist_eq_of_relTriple_eqRel
+  refine OracleComp.ProgramLogic.Relational.evalDistEq_of_relTriple_eqRel
     (OracleComp.ProgramLogic.Relational.relTriple_simulateQ_run' _ _
       (reductionHonestRelRand gp gen x₀ b gT) _ ?_ _ _ ?_)
   · intro t sR sH hrel
@@ -324,9 +323,8 @@ lemma probOutput_special_per_x₀_rand
                       s₀H)}[x = false] := by
                     refine prEvent_bind_congr _ _ _ _ _ fun b => ?_
                     refine prEvent_bind_congr _ _ _ _ _ fun gT => ?_
-                    exact (EvalDistEq.of_evalDist_eq
-                      (evalDist_reduction_honest_param_rand_special_eq
-                        (gen := gen) gp hΔFS hΔPCS h_special_case x₀ b gT adversary)).prEvent_eq _
+                    exact (evalDistEq_reduction_honest_param_rand_special
+                      (gen := gen) gp hΔFS hΔPCS h_special_case x₀ b gT adversary).prEvent_eq _
               _ = Pr{let x ← ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) adversary).run'
                       s₀H)}[x = false] := by
                     exact (evalDistEq_special_honest_fixed_a_rand_eager

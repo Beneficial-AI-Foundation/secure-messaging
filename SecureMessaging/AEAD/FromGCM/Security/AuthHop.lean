@@ -244,10 +244,10 @@ theorem game2_game3_le_auth {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ
   -- The projections onto the instrumented games, consumed as `evalDist` equalities.
   have h3 :
       Pr{let x ← game3 prp L hL adv}[x = true] = Pr{let x ← game3Flat prp L hL adv}[x = true] :=
-    ((EvalDistEq.of_evalDist_eq (game3Flat_eq_game3 prp L hL adv)).prEvent_eq _).symm
+    ((game3Flat_eq_game3 prp L hL adv).prEvent_eq _).symm
   have h2 :
       Pr{let x ← game2 prp L hL adv}[x = true] = Pr{let x ← game2Flat prp L hL adv}[x = true] :=
-    ((EvalDistEq.of_evalDist_eq (game2Flat_eq_game2 prp L hL adv)).prEvent_eq _).symm
+    ((game2Flat_eq_game2 prp L hL adv).prEvent_eq _).symm
   rw [h3, h2]
   calc |(Pr{let x ← game3Flat prp L hL adv}[x = true]).toReal -
         (Pr{let x ← game2Flat prp L hL adv}[x = true]).toReal|

@@ -133,10 +133,7 @@ theorem abs_prfAdvantage_sub_prpAdvantage_le {K : Type}
   -- (1) The two games share one real term: `PRPScheme.prpRealExp` is *defined* to be
   -- `PRFScheme.prfRealExperiment prp.toPRFScheme`, so unfolding it makes the two advantages
   -- `|R - I_prf|` and `|R - I_prp|` over a literally identical `R`.
-  rw [PRFScheme.prfAdvantage, MeasureTheory.Measure.toReal_boolDist,
-    ← prEvent_eq_evalDist_singleton, ← prEvent_eq_evalDist_singleton,
-    PRPScheme.prpAdvantage, MeasureTheory.Measure.toReal_boolDist,
-    ← prEvent_eq_evalDist_singleton, ← prEvent_eq_evalDist_singleton]
+  rw [PRFScheme.toReal_prfAdvantage, PRPScheme.toReal_prpAdvantage]
   unfold PRPScheme.prpRealExp
   -- (2) `||a| - |b|| ≤ |a - b|`, the two-sided inequality; its one-sided sibling
   -- `abs_sub_abs_le_abs_sub` would only give the corollary below.

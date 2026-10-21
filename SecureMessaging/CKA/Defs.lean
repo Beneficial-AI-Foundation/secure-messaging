@@ -8,6 +8,7 @@ import VCVio.CryptoFoundations.SecExp
 import VCVio.OracleComp.Constructions.SampleableType
 import VCVio.OracleComp.SimSemantics.Append
 import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
+import ToVCVio.EvalDist.Monad.Basic
 import ToVCVio.OracleComp.SimSemantics.UnifLift
 
 /-!
@@ -876,27 +877,6 @@ noncomputable def ckaDistAdvantage [SampleableType I] [DecidableEq I]
   |(Pr{let x ← securityExpFixedBit cka adversary true gp}[x = true]).toReal -
    (Pr{let x ← securityExpFixedBit cka adversary false gp}[x = true]).toReal|
 
-/-- Hidden-bit guessing over a uniform bit, centered at `1/2`, is half the signed difference of
-its two branches: `Pr[b ←$ {0,1}; z ← (if b then real else rand); output (b = z)] - 1/2 =
-  (Pr[real = 1] - Pr[rand = 1]) / 2`. -/
-private lemma prEvent_uniformBool_branch_toReal_sub_half (real rand : ProbComp Bool) :
-    (Pr{let x ← (do
-      let b ← ($ᵗ Bool : ProbComp Bool)
-      let z ← if b then real else rand
-      pure (b == z))}[x = true]).toReal - 1 / 2 =
-    ((Pr{let x ← real}[x = true]).toReal - (Pr{let x ← rand}[x = true]).toReal) / 2 := by
-  rw [prEvent_bind_eq_lintegral_of_discrete, MeasureTheory.lintegral_fintype, Fintype.sum_bool]
-  simp only [SampleableType.evalDist_uniformSample_singleton, ite_true, Bool.false_eq_true,
-    ite_false, Fintype.card_bool, bind_pure_comp, prEvent_map, Bool.true_beq, bind_pure]
-  have hf : Pr{let z ← rand}[(false == z) = true] = 1 - Pr{let z ← rand}[z = true] := by
-    simpa only [Bool.false_beq, Bool.not_eq_eq_eq_not, Bool.not_true, Bool.not_eq_true] using
-      prEvent_not_eq_one_sub rand (fun z => z = true)
-  have hle : Pr{let z ← rand}[z = true] ≤ 1 := prEvent_le_one _
-  rw [hf, ENNReal.toReal_add (by finiteness) (by finiteness), ENNReal.toReal_mul,
-    ENNReal.toReal_mul, ENNReal.toReal_sub_of_le hle ENNReal.one_ne_top]
-  simp only [Nat.cast_ofNat, ENNReal.toReal_inv, ENNReal.toReal_ofNat, ENNReal.toReal_one,
-    one_div]
-  ring
 
 /-- The single-game CKA experiment is equal in distribution to a uniform-bit branch over
 the two fixed-bit experiments:
@@ -937,7 +917,7 @@ lemma securityExp_toReal_sub_half [SampleableType I] [DecidableEq I]
     ((Pr{let x ← securityExpFixedBit cka adversary true gp}[x = true]).toReal -
      (Pr{let x ← securityExpFixedBit cka adversary false gp}[x = true]).toReal) / 2 := by
   rw [(securityExp_evalDistEq_branch cka adversary gp).prEvent_eq]
-  exact prEvent_uniformBool_branch_toReal_sub_half
+  exact ToVCVio.prEvent_uniformBool_branch_toReal_sub_half
     (securityExpFixedBit cka adversary true gp)
     (securityExpFixedBit cka adversary false gp)
 

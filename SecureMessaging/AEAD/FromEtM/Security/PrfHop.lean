@@ -5,6 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.AEAD.FromEtM.Security.Games
+import ToVCVio.CryptoFoundations.PRF
 
 /-!
 # Encrypt-then-MAC — PRF hop (`game0` → `game1`)
@@ -300,8 +301,6 @@ theorem game0_game1_le_prf
     |(Pr{let x ← game0 se prf adv}[x = true]).toReal -
      (Pr{let x ← game1 se adv}[x = true]).toReal| ≤
       (PRFScheme.prfAdvantage prf (prfReduction se adv)).toReal := by
-  rw [PRFScheme.prfAdvantage, MeasureTheory.Measure.toReal_boolDist,
-    ← prEvent_eq_evalDist_singleton, ← prEvent_eq_evalDist_singleton,
-    game0_eq_prfRealExp se prf adv, game1_eq_prfIdealExp se adv]
+  rw [PRFScheme.toReal_prfAdvantage, game0_eq_prfRealExp se prf adv, game1_eq_prfIdealExp se adv]
 
 end EtM

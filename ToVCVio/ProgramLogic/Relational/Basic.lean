@@ -25,7 +25,7 @@ For `ProbComp` computations `A`, `B` and `C`:
   if `A = f <$> C`, `B = g <$> C` and `R (f c) (g c)` for every `c`.
   Same as the previous rule, with `A` and `B` given by equations.
 
-For `A : OracleComp spec₁ α` and `B : OracleComp spec₂ β`, where both specs have uniform,
+For `A : OracleComp spec₁ α` and `B : OracleComp spec₂ β`, where both specs have lossless,
 finite answers:
 
 * `relTriple_of_eq_pure_pure`: `RelTriple A B R` if `A = pure a`, `B = pure b` and `R a b`.
@@ -74,7 +74,7 @@ lemma relTriple_of_eq_map_map {α β γ : Type} {oa : ProbComp β} {ob : ProbCom
 section AnySpec
 
 variable {ι₁ : Type u} {ι₂ : Type v} {spec₁ : OracleSpec ι₁} {spec₂ : OracleSpec ι₂}
-  [OracleSpec.UniformAnswerMeasure spec₁] [OracleSpec.UniformAnswerMeasure spec₂]
+  [OracleSpec.AnswerMeasure spec₁] [OracleSpec.AnswerMeasure spec₂]
   [∀ t, Finite (spec₁.Range t)] [∀ t, Finite (spec₂.Range t)]
 
 /-- Let `oa` and `ob` be the pure computations returning `a` and `b`, and let `a`
@@ -86,7 +86,7 @@ lemma relTriple_of_eq_pure_pure {α β : Type}
     RelTriple oa ob R :=
   hoa ▸ hob ▸ relTriple_pure_pure hR
 
-/-- Let `mx` and `my` be Boolean computations over uniform specs that output
+/-- Let `mx` and `my` be Boolean computations over lossless specs that output
 `true` with equal probability. Then `mx` and `my` are related by output
 equality. Neither can fail, so they also output `false` with equal probability.
 Converse of upstream `prEvent_eq_of_relTriple_eqRel`. -/

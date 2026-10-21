@@ -64,7 +64,7 @@ Main results in this file:
   The LHS uses the `consumeLazy`-wrapped lazy stack `ckaSecurityImplLazyReal`
   (from `GameOracles/Defs.lean`); the RHS uses the regular CKA game
   `ckaSecurityImpl gp false (ddhCKA F G gen)`. The proof composes two steps:
-  - `evalDist_ckaSecurityImpl_lazy_eq_eager` (from `GameOracles/Defs.lean`)
+  - `evalDistEq_ckaSecurityImpl_lazy_eager` (from `GameOracles/Defs.lean`)
     rewrites the lazy `consumeLazy` presentation as the eager
     `do b a ← $ᵗ F; …` form;
   - `evalDistEq_eager_honest_lazy` (the bridge above) connects that eager
@@ -126,7 +126,7 @@ lemma evalDistEq_eager_honest_lazy
     --     recvB, corruptA, corruptB. Bind-swap + IH.
     --   * 4 conditional-divergence (party-split): sendA, sendB, challA, challB.
     --     Off-party: same as non-divergence. On-party with embedding/challenge:
-    --     bijection `a ↔ x'` or `b ↔ x` via `probOutput_bind_bijective_uniform_cross`.
+    --     bijection `a ↔ x'` or `b ↔ x` via `map_uniformSample_evalDistEq_of_bijective`.
     match t with
     | OUnif _ =>
       exact pass _ k (fun _ _ => rfl) ih
@@ -206,7 +206,7 @@ lemma probOutput_lazy_honest_eq [Finite G] (gp : GameParams)
   let : Fintype G := Fintype.ofFinite G
   -- Compose Step 1 (consumeLazy commutation × 2) and Step 2 (adversary
   -- induction via bijection at hits + bind-swap at non-hits).
-  have h₁ := evalDist_ckaSecurityImpl_lazy_eq_eager (gen := gen) gp adversary
+  have h₁ := evalDistEq_ckaSecurityImpl_lazy_eager (gen := gen) gp adversary
     (initGameState
       (CKAState.sendReady (x₀ • gen) : CKAState F G)
       (CKAState.recvReady x₀ : CKAState F G))
@@ -215,7 +215,7 @@ lemma probOutput_lazy_honest_eq [Finite G] (gp : GameParams)
       (CKAState.sendReady (x₀ • gen) : CKAState F G)
       (CKAState.recvReady x₀ : CKAState F G)) adversary
   simpa only [StateT.run'_eq, map_eq_bind_pure_comp, Function.comp_def] using
-    ((EvalDistEq.of_evalDist_eq h₁).trans h₂).prEvent_eq (· = false)
+    (h₁.trans h₂).prEvent_eq (· = false)
 
 end Step2
 
