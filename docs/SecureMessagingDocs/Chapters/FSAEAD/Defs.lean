@@ -74,8 +74,11 @@ Adapted from {Informal.citet ACD19}[], Figure 5 and Definition 15.
 ACD19 Figure 5 is changed in two places, and both fix errors. The boxes below print
 Figure 5 and frame each change, labelled with its number:
 
-- (D1) A rejected $`\OInjectB` deletes no record. Under Definition 14, a rejection can
-  still report an index, and Figure 5 then deletes the record of an honest ciphertext.
+- (D1) A rejected $`\OInjectB` deletes no record. In Figure 5, a rejection reaches the
+  rest of $`\OInjectB` as $`m' = \bot`, and $`\mathsf{delete}(i')` still runs, as in
+  the SM game, where §3.2.2 deletes after a rejected injection to block replays. A
+  rejected forgery that names the index of an honest ciphertext in transit then deletes
+  the honest record.
 - (D2) Once A is corrupted, indices A has not sent yet also count as compromised. If an
   injection consumes such an index, A's later ciphertext for it is not recorded.
   Otherwise B would have to accept both, and no correct scheme meets the game.
@@ -355,9 +358,9 @@ honest message 1 in transit (D1). After $`\OCorrA` at $`i_\A = 2`, A cannot send
 challenge, and a forgery for index 3, which A has not sent yet, is accepted without a
 win (D2).
 
-In Figure 5 as printed, the forgery for index 3 is a win. Under Definition 14, a
-rejection can still report an index. The rejected forgery can then delete record 1, and
-the game refuses the late delivery of $`e_1`.
+In Figure 5 as printed, the forgery for index 3 is a win. A rejection still runs
+$`\mathsf{delete}`, so the rejected forgery for index 1 deletes record 1, and the game
+refuses the late delivery of $`e_1`.
 
 Black arrows are honest ciphertexts. Red arrows are under the adversary's control. An X
 marks a call that the game refuses.

@@ -19,6 +19,10 @@ Formalization of FS-AEAD syntax and security following:
   Signal Protocol.*
   EUROCRYPT 2019, https://eprint.iacr.org/2018/1037.pdf
   — Definition 14 (syntax), Figure 5 (security game), Definition 15 (security).
+- [Kli21] Tijana Klimović.
+  *Modular Design of the Messaging Layer Security (MLS) Protocol.*
+  Master's thesis, ETH Zürich, 2021
+  — Appendix A.1 (attack on Figure 5 through a rejected injection).
 
 An FS-AEAD scheme is a deterministic, stateful, unidirectional channel from a sender A
 to a receiver B, keyed by a pre-shared key. It must provide forward secrecy and
@@ -45,11 +49,14 @@ every scheme either accepts a forgery or fails correctness. Each deviation is ma
 `(Dn)` where it takes effect. In the oracle pseudocode, `[…]  -- Dn` frames a change to
 the text of Figure 5, like the boxes in the blueprint.
 
-- (D1) Figure 5's `inject-B` runs `delete(i')` even when `m' = ⊥`. Under Definition 14,
-  `FS-Rcv` always returns `(v', i, m)`, so a rejection can report an index. Rejected
-  garbage for an honest index then removes its record, and the honest ciphertext then
-  counts as a forgery. Here a rejection reports no index (see the rejection convention
-  below), and a rejected injection returns `none` and changes nothing.
+- (D1) Figure 5's `inject-B` runs `delete(i')` even when `m' = ⊥`. Definition 14 has
+  `FS-Rcv` output a triple `(v', i, m)` with no separate failure output, so a rejection
+  reaches `inject-B` as `(i', ⊥)`. The SM game does the same on purpose: by §3.2.2, a
+  rejected injection runs the final instructions of `deliver-A`, and deleting there
+  blocks replays. Rejected garbage for an honest index then removes its record, and the
+  honest ciphertext then counts as a forgery [Kli21, Appendix A.1]. Here a rejection
+  reports no index (see the rejection convention below), and a rejected injection
+  returns `none` and changes nothing.
 - (D2) Figure 5's `inject-B` counts a forgery for index `i'` as a win unless `i' ∈ comp`,
   and `comp` only holds indices that were already sent. So after `corr-A`, the adversary
   wins by computing A's next ciphertext from the revealed state and injecting it. Here,
@@ -65,9 +72,10 @@ the text of Figure 5, like the boxes in the blueprint.
 [CONVENTIONS]
 - Rejection. Definition 14 has `FS-Rcv` always return `(v', i, m)` and does not say what
   happens on rejection. Figure 5 tests `m' ≠ ⊥`. Here `rcv` returns `none` on rejection,
-  with no new state and no index. This follows §4.2.2, which describes the construction
-  of Figure 6: "If decryption fails, FS-Rcv throws an exception (error), which causes the
-  state to be rolled back to where it was before the call to FS-Rcv".
+  with no new state and no index. No new state matches the construction of Figure 6,
+  where by §4.2.2 "FS-Rcv throws an exception (error), which causes the state to be
+  rolled back to where it was before the call to FS-Rcv". That exception undoes the
+  scheme's own state change and does not stop the game oracle. No index is (D1).
 - Winning. A rejection in `deliver-B` gives no `(i', m')` to compare with `(i, m)`. This
   file counts the rejection as Figure 5's `(i', m') ≠ (i, m)`. `won` never returns to false.
   The game continues to run after a win, but the result stays a win. The proof in ACD19
