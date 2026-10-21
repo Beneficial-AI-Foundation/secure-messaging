@@ -149,14 +149,14 @@ private lemma ckaSecurityFixedBranch_challenge_key_prEvent_true_eq
   by_cases hinit :
       (gp.challengeEpoch == 1 && gp.challengedParty == .A) = true
   · simp only [hinit, ↓reduceIte]
-    exact (prEvent_bind_eq_of_forall_eq kem.keygen (by simp) _ _ fun _ => rfl).symm
+    exact ((OracleComp.EvalDistEq.bind_const kem.keygen _).prEvent_eq _).symm
   · have hinitFalse :
         (gp.challengeEpoch == 1 && gp.challengedParty == .A) = false :=
       Bool.eq_false_of_not_eq_true hinit
     simp only [hinitFalse, Bool.false_eq_true, ↓reduceIte]
     refine prEvent_bind_congr kem.keygen _ _ _ _ ?_
     intro pk0_sk0
-    exact (prEvent_bind_eq_of_forall_eq kem.keygen (by simp) _ _ fun _ => rfl).symm
+    exact ((OracleComp.EvalDistEq.bind_const kem.keygen _).prEvent_eq _).symm
 
 /-- Game hop: the honest fixed branch and
 `ckaSecurityFixedBranchWithChallengeKey` have the same true-output gap. Per

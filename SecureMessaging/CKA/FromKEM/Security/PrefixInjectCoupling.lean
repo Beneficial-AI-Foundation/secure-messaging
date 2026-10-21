@@ -131,8 +131,8 @@ private lemma rawResume_prEvent_decomp [SampleableType K] [DecidableEq K]
   cases res with
   | done g =>
       simp only [rawResume, finishChallengeStepRaw, rawResumeKilled, injDone]
-      rw [prEvent_bind_eq_of_forall_eq (kem.encaps pkStar) (by simp) _ _ fun _ => rfl,
-        prEvent_bind_eq_of_forall_eq ($ᵗ K : ProbComp K) (by simp) _ _ fun _ => rfl]
+      rw [(OracleComp.EvalDistEq.bind_const (kem.encaps pkStar) _).prEvent_eq,
+        (OracleComp.EvalDistEq.bind_const ($ᵗ K : ProbComp K) _).prEvent_eq]
       simp only [prEvent_pure, Bool.false_eq_true, ↓reduceIte, zero_add]
   | pausedA cont => simp [rawResumeKilled, injDone]
   | pausedB cont => simp [rawResumeKilled, injDone]

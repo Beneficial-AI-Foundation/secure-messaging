@@ -113,7 +113,7 @@ private lemma prEvent_true_securityExpA_eq_prEvent_true_securityExpACore
   obtain ⟨ct, k0⟩ := r
   refine prEvent_bind_congr _ _ _ _ _ fun s => ?_
   obtain ⟨ekSelfHat, dkSelfHat⟩ := s
-  exact prEvent_bind_eq_of_forall_eq (total.decapsTotal dkBHat ct) (by simp) _ _ fun _ => rfl
+  exact (OracleComp.EvalDistEq.bind_const (total.decapsTotal dkBHat ct) _).prEvent_eq _
 
 /-- The reduction's `IND_CPA_Game` and `securityExpACore` output `true` equally often. Both
 sample the same randomness in different orders and read the challenge bit oppositely: the KEM

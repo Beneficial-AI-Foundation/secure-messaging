@@ -137,9 +137,8 @@ theorem evalDistEq_simulateQ_greedyLazy_run'_eq
   induction oa using OracleComp.inductionOn with
   | pure x =>
     intro s
-    refine OracleComp.evalDistEq_of_forall_prEvent_eq_output fun y => ?_
-    simp only [simulateQ_pure, StateT.run'_eq, StateT.run_pure, map_pure, bind_pure_comp]
-    by_cases h : x = y <;> simp [h]
+    simp only [simulateQ_pure, StateT.run'_eq, StateT.run_pure, map_pure]
+    exact OracleComp.EvalDistEq.bind_const _ _
   | query_bind t k ih =>
     intro s
     simp only [simulateQ_bind, simulateQ_query, OracleQuery.cont_query, id_map,
@@ -346,11 +345,7 @@ theorem evalDistEq_simulateQ_consumeLazy_run_eq
   refine hplus.trans ?_
   -- The completion draw is value-irrelevant and never fails, so it drops out.
   rw [map_eq_bind_pure_comp]
-  refine EvalDistEq.bind_right _ fun z => ?_
-  refine OracleComp.evalDistEq_of_forall_prEvent_eq_output fun y => ?_
-  rcases z.2.2 with _ | a
-  · by_cases h : (z.1, z.2.1) = y <;> simp [h, Prod.map]
-  · simp [Prod.map]
+  exact EvalDistEq.bind_right _ fun z => OracleComp.EvalDistEq.bind_const _ _
 
 /-- Let `oa : OracleComp spec α`, let `s : σ` be the starting state, and let `h_indep` say that
 `implFam a` does not depend on `a` at queries `t` with `hit t = false`. The eager run of `oa`
