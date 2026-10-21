@@ -355,7 +355,7 @@ noncomputable def securityReductionRandGame (gp : GameParams)
 
 /-- **Step (1) of the random branch.** Peel `ℬ`'s final `¬`:
 
-  `Pr[ℬ = true | DDH_rand]  =  Pr{let x ← securityReductionRandGame}[x = false]`
+  `Pr[ℬ = true | DDH_rand]  =  Pr[securityReductionRandGame = false]`
 
 `ddhRandomExperiment gen ℬ` returns `!b'` where `b'` is the output of
 `securityReductionRandGame`, so the probability of `true` on the left

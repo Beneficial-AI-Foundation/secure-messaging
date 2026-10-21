@@ -12,7 +12,7 @@ import ToVCVio.OracleComp.Constructions.BitVec
 
 The abstract probability statements behind `prEvent_wcInst_forge_le` (`Security.lean`).
 They are stated over an arbitrary run distribution, so that they depend on nothing but the
-almost-XOR-universal (AXU) predicate of `UniversalHash.lean`.
+almost-XOR-universal (AXU) predicate `UniversalHash.IsAlmostXorUniversal` of VCVio.
 
 A forgery attempt is a decryption query `(X', T')` made either before or after the adversary
 sees the challenge `(X*, T*)`. The two kinds are bounded using different randomness:

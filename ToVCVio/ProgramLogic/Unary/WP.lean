@@ -13,11 +13,13 @@ For `oa : ProbComp A` and `f : A → ℝ≥0∞`, the upstream quantitative weak
 `wp oa f` is the expected value of `f` over the outputs of `oa`. A `ProbComp` never fails,
 so `wp oa f = ∑' a, Pr[oa = a] · f a` (`wp_eq_tsum`).
 
-This file adds two facts that VCVio does not state:
+This file adds two `ProbComp` forms of VCVio facts:
 
 * `wp_bind_eq_tsum` writes `wp_bind` as a sum over the outputs of the first computation;
 * `prEvent_le_wp` bounds the probability of an event by the expectation of any payoff that
-  is at least `1` on the event.
+  is at least `1` on the event. It is the case `a = 1` of VCVio's `markov_bound`, which lives
+  in `VCVio.ProgramLogic.NotationCore` and would pull the relational program logic into this
+  file.
 -/
 
 open OracleSpec ENNReal OracleComp.ProgramLogic

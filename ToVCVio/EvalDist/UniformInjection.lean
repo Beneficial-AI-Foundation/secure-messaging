@@ -59,9 +59,9 @@ theorem measureTVDist_map_injective_uniformSample {A B : Type} [Fintype A] [Fint
     intro b
     by_cases hb : b ∈ S
     · obtain ⟨a, -, rfl⟩ := Finset.mem_image.mp hb
-      rw [ite_eq_left_of_eq_true _ _ (eq_true hb), prEvent_map_injective _ hι a,
+      rw [ite_eq_left hb, prEvent_map_injective _ hι a,
         SampleableType.prEvent_uniformSample_eq_singleton]
-    · rw [ite_eq_right_of_eq_false _ _ (eq_false hb)]
+    · rw [ite_eq_right hb]
       refine (prEvent_eq_zero_of_not_mem_support _) ?_
       rw [support_map]
       rintro ⟨a, -, rfl⟩

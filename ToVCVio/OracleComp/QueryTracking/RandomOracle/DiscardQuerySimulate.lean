@@ -59,12 +59,8 @@ private theorem randomOracle_run_some
 response is a uniform `ProbComp` sample and the cache `c` passes through. -/
 private theorem prfIdealQueryImpl_run_inl (n : unifSpec.Domain) (c : (D →ₒ R).QueryCache) :
     (prfIdealQueryImpl (D := D) (R := R) (Sum.inl n)).run c =
-      (fun u => (u, c)) <$> (liftM (OracleSpec.query n) : ProbComp _) := by
-  rw [prfIdealQueryImpl, OracleSpec.romImpl_eq_passthrough_add]
-  erw [QueryImpl.add_apply_inl]
-  simp only [PFunctor.Handler.liftTarget_apply, ofPFunctor_toPFunctor, QueryImpl.id'_apply,
-    StateT.run_monadLift, monadLift_self, bind_pure_comp]
-  rfl
+      (fun u => (u, c)) <$> (liftM (OracleSpec.query n) : ProbComp _) :=
+  roSim.run_apply_inl _ n c
 
 /-- **Resampling marginal.** For any `p` and any cache `qc` that *misses* `d`, pre-sampling a fresh
 uniform value at `d` (writing it into the cache) and then running `simulateQ prfIdealQueryImpl p`
