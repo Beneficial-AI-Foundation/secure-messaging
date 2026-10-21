@@ -9,6 +9,7 @@ import SecureMessaging.SCKA.MLKEMBraid.Basic
 import SecureMessaging.SCKA.MLKEMBraid.Construction
 import SecureMessaging.SCKA.MLKEMBraid.Correctness
 import SecureMessaging.SCKA.MLKEMBraid.Security.Bounded
+import SecureMessaging.SCKA.MLKEMBraid.Security.Native
 
 set_option linter.style.setOption false
 set_option linter.hashCommand false
@@ -332,7 +333,7 @@ theorem correctness_error_le
 :::defTitle "mlkem_braid_noauth_experiment" "Braid without authentication"
 :::
 
-::::definition "mlkem_braid_noauth_experiment" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.Bounded.parameters, MLKEMBraid.NoAuth.auth, MLKEMBraid.NoAuth.exposure, SCKAScheme.ExposurePolicy.securityExp") (uses := "mlkem_braid_spec, scka_oracles, erasure_code_correctness")
+::::definition "mlkem_braid_noauth_experiment" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.Bounded.parameters, MLKEMBraid.NoAuth.auth, MLKEMBraid.NoAuth.nativeExposure, SCKAScheme.securityExp") (uses := "mlkem_braid_spec, scka_oracles, erasure_code_correctness")
 Fix an ML-KEM parameter set and ring and primitive operations. Write
 $`\mathsf K=(\mathsf{Gen},\mathsf{Enc},\mathsf{Dec})` for the resulting KEM, with
 shared-secret space $`\mathcal K`. Let $`\mathcal I` be an epoch-key space with
@@ -409,7 +410,7 @@ decapsulation contributes no success probability.
 :::defTitle "mlkem_braid_noauth_security" "Security without authentication"
 :::
 
-::::theorem "mlkem_braid_noauth_security" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.mlkemBraidBounded_noAuth_security_le") (tags := "gh-244") (uses := "mlkem_braid_noauth_experiment, mlkem_braid_noauth_reductions")
+::::theorem "mlkem_braid_noauth_security" (parent := "cka_protocols_mlkem_braid") (lean := "MLKEMBraid.NoAuth.security_le_native, MLKEMBraid.mlkemBraidScheme_noAuth_security_le_native, MLKEMBraid.mlkemBraidBounded_noAuth_security_le_native") (tags := "gh-244") (uses := "mlkem_braid_noauth_experiment, mlkem_braid_noauth_reductions")
 For every adversary $`A` with send budget $`q`, the {uses "mlkem_braid_noauth_experiment"}[protocol $`\Pi`] satisfies
 
 $$`\operatorname{Adv}^{\mathrm{guess}}_{\Pi}(A)

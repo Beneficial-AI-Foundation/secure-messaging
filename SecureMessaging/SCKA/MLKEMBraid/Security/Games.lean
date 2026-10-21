@@ -75,13 +75,16 @@ private theorem oracleSendArleak_eq_delta
     (P : Parameters ProbComp) [DecidableEq P.EpochKey] [DecidableEq P.Sym]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc) :
     SCKAScheme.ExposurePolicy.oracleSendArleak (exposure P irl).send (scheme P hMac irl) =
-      SCKAScheme.oracleSendArleak vuln (scheme P hMac irl) := by
+      SCKAScheme.ExposurePolicy.oracleSendArleak
+        (deltaExposure P irl).send (scheme P hMac irl) := by
   funext u s
   cases u
   change (SCKAScheme.ExposurePolicy.oracleSendArleak (exposure P irl).send
     (scheme P hMac irl) ()).run s =
-      (SCKAScheme.oracleSendArleak vuln (scheme P hMac irl) ()).run s
-  simp only [SCKAScheme.ExposurePolicy.oracleSendArleak, SCKAScheme.oracleSendArleak,
+      (SCKAScheme.ExposurePolicy.oracleSendArleak
+        (deltaExposure P irl).send (scheme P hMac irl) ()).run s
+  simp only [SCKAScheme.ExposurePolicy.oracleSendArleak, deltaExposure,
+    SCKAScheme.ExposurePolicy.ofDelta,
     StateT.run_bind, StateT.run_get, pure_bind, StateT.run_monadLift, monadLift_self,
     scheme, MLKEMBraid.scheme, bind_assoc]
   refine bind_congr_of_forall_mem_support _ fun out hout => ?_
@@ -93,13 +96,16 @@ private theorem oracleSendBrleak_eq_delta
     (P : Parameters ProbComp) [DecidableEq P.EpochKey] [DecidableEq P.Sym]
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc) :
     SCKAScheme.ExposurePolicy.oracleSendBrleak (exposure P irl).send (scheme P hMac irl) =
-      SCKAScheme.oracleSendBrleak vuln (scheme P hMac irl) := by
+      SCKAScheme.ExposurePolicy.oracleSendBrleak
+        (deltaExposure P irl).send (scheme P hMac irl) := by
   funext u s
   cases u
   change (SCKAScheme.ExposurePolicy.oracleSendBrleak (exposure P irl).send
     (scheme P hMac irl) ()).run s =
-      (SCKAScheme.oracleSendBrleak vuln (scheme P hMac irl) ()).run s
-  simp only [SCKAScheme.ExposurePolicy.oracleSendBrleak, SCKAScheme.oracleSendBrleak,
+      (SCKAScheme.ExposurePolicy.oracleSendBrleak
+        (deltaExposure P irl).send (scheme P hMac irl) ()).run s
+  simp only [SCKAScheme.ExposurePolicy.oracleSendBrleak, deltaExposure,
+    SCKAScheme.ExposurePolicy.ofDelta,
     StateT.run_bind, StateT.run_get, pure_bind, StateT.run_monadLift, monadLift_self,
     scheme, MLKEMBraid.scheme, bind_assoc]
   refine bind_congr_of_forall_mem_support _ fun out hout => ?_
@@ -113,8 +119,9 @@ private theorem securityImpl_eq_delta
     (hMac : P.Mac = Unit) (irl : P.kem.IncrementalRandLeak P.inc) (b : Bool) :
     SCKAScheme.ExposurePolicy.sckaSecurityImpl b (exposure P irl) (exposure P irl)
         (scheme P hMac irl) =
-      SCKAScheme.sckaSecurityImpl b vuln vuln (scheme P hMac irl) := by
-  simp only [SCKAScheme.ExposurePolicy.sckaSecurityImpl, SCKAScheme.sckaSecurityImpl]
+      SCKAScheme.ExposurePolicy.sckaSecurityImpl b
+        (deltaExposure P irl) (deltaExposure P irl) (scheme P hMac irl) := by
+  simp only [SCKAScheme.ExposurePolicy.sckaSecurityImpl]
   rw [oracleSendArleak_eq_delta P hMac irl, oracleSendBrleak_eq_delta P hMac irl]
   rfl
 
@@ -126,8 +133,8 @@ theorem security_run_eq_delta
     (b : Bool) (A : Adversary P irl) (s : MLKEMBraid.GameState P Unit) :
     𝒟[(simulateQ (SCKAScheme.ExposurePolicy.sckaSecurityImpl b
       (exposure P irl) (exposure P irl) (scheme P hMac irl)) A).run s] =
-      𝒟[(simulateQ (SCKAScheme.sckaSecurityImpl b vuln vuln
-        (scheme P hMac irl)) A).run s] := by
+      𝒟[(simulateQ (SCKAScheme.ExposurePolicy.sckaSecurityImpl b
+        (deltaExposure P irl) (deltaExposure P irl) (scheme P hMac irl)) A).run s] := by
   rw [securityImpl_eq_delta P hMac irl b]
 
 /-- Sampled-bit experiment and guessing advantage fidelity to the frozen baseline game. -/
@@ -138,19 +145,20 @@ theorem securityGame_equiv_delta
     (A : Adversary P irl) :
     𝒟[SCKAScheme.ExposurePolicy.securityExp (scheme P hMac irl) A
         (exposure P irl) (exposure P irl)] =
-      𝒟[SCKAScheme.securityExp (scheme P hMac irl) A vuln vuln] ∧
+      𝒟[SCKAScheme.ExposurePolicy.securityExp (scheme P hMac irl) A
+        (deltaExposure P irl) (deltaExposure P irl)] ∧
     SCKAScheme.ExposurePolicy.sckaGuessAdvantage (scheme P hMac irl) A
         (exposure P irl) (exposure P irl) =
-      SCKAScheme.sckaGuessAdvantage (scheme P hMac irl) A vuln vuln := by
+      SCKAScheme.ExposurePolicy.sckaGuessAdvantage (scheme P hMac irl) A
+        (deltaExposure P irl) (deltaExposure P irl) := by
   have hexp : SCKAScheme.ExposurePolicy.securityExp (scheme P hMac irl) A
       (exposure P irl) (exposure P irl) =
-      SCKAScheme.securityExp (scheme P hMac irl) A vuln vuln := by
-    simp only [SCKAScheme.ExposurePolicy.securityExp, SCKAScheme.securityExp,
-      securityImpl_eq_delta P hMac irl]
+      SCKAScheme.ExposurePolicy.securityExp (scheme P hMac irl) A
+        (deltaExposure P irl) (deltaExposure P irl) := by
+    simp only [SCKAScheme.ExposurePolicy.securityExp, securityImpl_eq_delta P hMac irl]
   constructor
   · rw [hexp]
-  · simp only [SCKAScheme.ExposurePolicy.sckaGuessAdvantage,
-      SCKAScheme.sckaGuessAdvantage, hexp]
+  · simp only [SCKAScheme.ExposurePolicy.sckaGuessAdvantage, hexp]
 
 open ErasureCodePayload.Streaming
 

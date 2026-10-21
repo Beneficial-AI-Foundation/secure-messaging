@@ -8,14 +8,20 @@ import SecureMessaging.SCKA.MLKEMBraid.Security.Reduction
 import SecureMessaging.SCKA.MLKEMBraid.Security.Bounds
 import SecureMessaging.SCKA.MLKEMBraid.Security.Concrete
 import SecureMessaging.SCKA.MLKEMBraid.Security.Bounded
+import SecureMessaging.SCKA.MLKEMBraid.Security.Native
 
 /-!
 # No-authentication security of ML-KEM Braid
 
-The generic reduction bound and its unrestricted-payload ML-KEM specialization retain their
-public interfaces through this import. The latter keeps abstract payload codecs as caller
-parameters: finite-symbol fixed-block codecs cannot universally roundtrip unrestricted
-ByteArray payloads. A bounded payload domain is a distinct additive specialization.
+The canonical native endpoints are `NoAuth.security_le_native`,
+`mlkemBraidScheme_noAuth_security_le_native` and `mlkemBraidBounded_noAuth_security_le_native`.
+They transport the accepted explicit-policy bounds with unchanged premises and loss. The
+explicit-policy endpoints and the historical delta experiment through `deltaExposure` remain
+available; the old root APIs now take native policies, with no relocated old-name wrappers.
+
+The unrestricted-payload specialization keeps abstract payload codecs as caller parameters:
+finite-symbol fixed-block codecs cannot universally roundtrip unrestricted ByteArray payloads.
+A bounded payload domain is a distinct additive specialization.
 
 The adapter preserves the supplied concrete primitive's vector-before-seed hash convention;
 the Braid PDF writes seed-before-vector. No hash-order equality or game hop is asserted.

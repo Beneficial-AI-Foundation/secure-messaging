@@ -168,7 +168,6 @@ variable [DecidableEq P.Sym]
 theorem traceImplAt_none (e : ℕ) (mode : ℕ → Mode) :
     traceImplAt P hMac irl e none none none mode = traceImpl P hMac irl true mode := by
   simp only [traceImplAt, traceImpl, tracePlainAt_none, traceLeakAt_none, traceChallengeAt_none]
-  rfl
 
 /-- With an installed challenge value, the mode at `e` is irrelevant. -/
 theorem traceImplAt_congr (e : ℕ) (kp : Option (P.PK × P.SK))

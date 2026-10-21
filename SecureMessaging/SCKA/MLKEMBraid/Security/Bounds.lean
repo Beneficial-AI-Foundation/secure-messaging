@@ -129,7 +129,7 @@ theorem security_le (P : Parameters ProbComp)
   rw [abs_sub_comm (Pr[= true | hybrid P hMac irl A 0]).toReal] at hb
   linarith
 
-/-- **`security_le_delta`**: the bound of `security_le` for the baseline delta security game. -/
+/-- The bound of `security_le` for the historical delta game, encoded by `deltaExposure`. -/
 theorem security_le_delta (P : Parameters ProbComp)
     [SampleableType P.K] [SampleableType P.EpochKey]
     [DecidableEq P.K] [DecidableEq P.EpochKey] [DecidableEq P.Sym]
@@ -139,7 +139,8 @@ theorem security_le_delta (P : Parameters ProbComp)
     (hCt1Correct : P.ecpCt1.ec.Correct)
     (hCt2Correct : P.ecpCt2.ec.Correct)
     (A : Adversary P irl) (qS : ℕ) (hqS : SendQueryBound A qS) :
-    SCKAScheme.sckaGuessAdvantage (scheme P hMac irl) A vuln vuln ≤
+    SCKAScheme.ExposurePolicy.sckaGuessAdvantage (scheme P hMac irl) A
+      (deltaExposure P irl) (deltaExposure P irl) ≤
       (∑ i ∈ Finset.range qS,
         (P.kem.IND_CPA_Advantage ProbCompRuntime.probComp
             (kemReduction P hMac irl A (i + 1)) +

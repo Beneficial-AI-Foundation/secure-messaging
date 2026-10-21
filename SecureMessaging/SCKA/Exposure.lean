@@ -9,10 +9,14 @@ import SecureMessaging.SCKA.Defs
 /-!
 # Explicit SCKA exposure policies
 
-This additive interface preserves the policy-aware algorithms of PR360 at head
-`2e76ef3d545656ed9e5dd52e57f936bb4fb4afec`. The baseline delta-rule game remains
-unchanged. A leaking send computes exposure from its joint state-and-coins output;
-a refused proposal commits neither its local state nor its bookkeeping.
+This supported interface allows send exposure to depend on both the old and proposed new state,
+as well as the joint send coins. A refused proposal commits neither its local state nor its
+bookkeeping. The canonical root interface instead uses presend-state-and-coins callbacks.
+
+`ExposurePolicy.ofDelta` retains the paper's historical rule `vuln new \ vuln old`. General
+poststate-dependent policies need not admit native callbacks. For no-authentication Braid, the
+actual coin policy ignores poststate on all inputs; its separate agreement with the delta rule
+holds on supported joint send outputs.
 -/
 
 open OracleSpec OracleComp
