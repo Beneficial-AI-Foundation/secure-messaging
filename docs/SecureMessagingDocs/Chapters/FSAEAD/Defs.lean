@@ -72,15 +72,11 @@ structure FSAEADScheme (K SS SR AD M C : Type) where
 :::::::definition "fs_aead_security" (parent := "fs_aead") (lean := "FSAEADScheme.GameState, FSAEADScheme.GameState.isCompromised, FSAEADScheme.securityExp, FSAEADScheme.fsaeadSecurityImpl, FSAEADScheme.advantage") (tags := "gh-187") (uses := "fs_aead_scheme")
 Adapted from {Informal.citet ACD19}[], Figure 5 and Definition 15.
 
-ACD19 Figure 5 is changed in two places. D1 makes the rejection behavior explicit, and
-D2 fixes an error. The boxes below print Figure 5 and frame each change, labelled with
-its number:
+The boxes below print ACD19 Figure 5 and frame two changes:
 
-- (D1) A rejected $`\OInjectB` ends the call and changes nothing. Figure 5 does not say
-  whether a rejection reaches the rest of $`\OInjectB`. If it does, as in the SM game,
-  where §3.2.2 deletes after a rejected injection to block replays, then
-  $`\mathsf{delete}(i')` still runs. A rejected forgery that names the index of an
-  honest ciphertext in transit then deletes the honest record.
+- (D1) A rejected $`\OInjectB` ends the call and changes nothing. Figure 5 leaves this
+  implicit. Otherwise its $`\mathsf{delete}(i')` can remove the record of an honest
+  ciphertext.
 - (D2) Once A is corrupted, indices A has not sent yet also count as compromised. If an
   injection consumes such an index, A's later ciphertext for it is not recorded.
   Otherwise B would have to accept both, and no correct scheme meets the game.

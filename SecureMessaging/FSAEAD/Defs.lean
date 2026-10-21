@@ -43,22 +43,17 @@ is decrypted as soon as it arrives.
   is the position of `m` in the sender's sequence, or `none` on rejection.
 
 [DEVIATIONS FROM ACD19]
-As printed, Figure 5 leaves the rejection behavior of `inject-B` open and has one error.
-D1 makes the rejection behavior explicit, and D2 corrects the error. Without D2, every
-scheme either accepts a forgery or fails correctness. Each deviation is marked
+Figure 5 is changed in two places. D1 makes the rejection behavior of `inject-B` explicit.
+D2 fixes an error: without it, every scheme either accepts a forgery or fails
+correctness. Each deviation is marked
 `(Dn)` where it takes effect. In the oracle pseudocode, `[…]  -- Dn` frames a change to
 the text of Figure 5, like the boxes in the blueprint.
 
-- (D1) Figure 5 does not say whether a rejection reaches the rest of `inject-B`.
-  Definition 14 has `FS-Rcv` output a triple `(v', i, m)` with no separate failure
-  output, and Figure 5 tests `m' ≠ ⊥`, so one reading is that a rejection arrives as
-  `(i', ⊥)`. The SM game takes this reading on purpose: by §3.2.2, a rejected injection
-  runs the final instructions of `deliver-A`, and deleting there blocks replays. Under
-  this reading, `delete(i')` runs on a rejection, rejected garbage for an honest index
+- (D1) A rejected `inject-B` returns `none` and changes nothing. Figure 5 leaves this
+  implicit: it tests `m' ≠ ⊥` and then runs `delete(i')`. If a rejection reaches that
+  line with the index named in the ciphertext, rejected garbage for an honest index
   removes its record, and the honest ciphertext then counts as a forgery
-  [Kli21, Appendix A.1]. Here a rejection ends the call: it reports no index (see the
-  rejection convention below), and a rejected injection returns `none` and changes
-  nothing.
+  [Kli21, Appendix A.1].
 - (D2) Figure 5's `inject-B` counts a forgery for index `i'` as a win unless `i' ∈ comp`,
   and `comp` only holds indices that were already sent. So after `corr-A`, the adversary
   wins by computing A's next ciphertext from the revealed state and injecting it. Here,
@@ -72,12 +67,10 @@ the text of Figure 5, like the boxes in the blueprint.
   checks that accepted injections do not break the delivery of A's later messages.
 
 [CONVENTIONS]
-- Rejection. Definition 14 has `FS-Rcv` always return `(v', i, m)` and does not say what
-  happens on rejection. Figure 5 tests `m' ≠ ⊥`. Here `rcv` returns `none` on rejection,
-  with no new state and no index. No new state matches the construction of Figure 6,
-  where by §4.2.2 "FS-Rcv throws an exception (error), which causes the state to be
-  rolled back to where it was before the call to FS-Rcv". That exception undoes the
-  scheme's own state change and does not stop the game oracle. No index is (D1).
+- Rejection. `rcv` returns `none` on rejection, with no new state and no index. No new
+  state matches the rollback in §4.2.2: "FS-Rcv throws an exception (error), which
+  causes the state to be rolled back to where it was before the call to FS-Rcv". No
+  index is (D1).
 - Winning. A rejection in `deliver-B` gives no `(i', m')` to compare with `(i, m)`. This
   file counts the rejection as Figure 5's `(i', m') ≠ (i, m)`. `won` never returns to false.
   The game continues to run after a win, but the result stays a win. The proof in ACD19
