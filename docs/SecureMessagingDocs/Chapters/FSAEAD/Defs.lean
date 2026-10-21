@@ -37,7 +37,9 @@ Forward-Secure AEAD (FS-AEAD).
 :::
 
 ::::definition "fs_aead_scheme" (parent := "fs_aead") (lean := "FSAEADScheme") (tags := "gh-186")
-{Informal.citet ACD19}[], Definition 14. An FS-AEAD scheme is a tuple of algorithms
+Adapted from {Informal.citet ACD19}[], Definition 14.
+
+An FS-AEAD scheme is a tuple of algorithms
 $`(\mathsf{FS\text{-}Init\text{-}S}, \mathsf{FS\text{-}Init\text{-}R}, \mathsf{FS\text{-}Send}, \mathsf{FS\text{-}Rcv})`,
 where
 
@@ -49,9 +51,15 @@ where
   and produces a new state and a ciphertext $`(v', e) \gets \mathsf{FS\text{-}Send}(v, a, m)`,
 - $`\mathsf{FS\text{-}Rcv}` takes a state $`v`, associated data $`a` and a ciphertext
   $`e`, and produces a new state, an index and a message
-  $`(v', i, m) \gets \mathsf{FS\text{-}Rcv}(v, a, e)`.
+  $`(v', i, m) \gets \mathsf{FS\text{-}Rcv}(v, a, e)`,
+  $`\boxed{\text{or } \bot \text{ if it rejects } e}` (D1).
 
 All algorithms are deterministic.
+
+(D1) The boxed case is not in Definition 14, which does not say what a rejection outputs.
+A rejection here has no new state and no index. If it could report the index named in
+the ciphertext, Figure 5's $`\OInjectB` would delete the record of an honest ciphertext
+with that index.
 
 ```anchor FSAEADScheme (project := ".") (module := SecureMessaging.FSAEAD.Defs)
 structure FSAEADScheme (K StS StR AD M C : Type) where
@@ -72,11 +80,8 @@ structure FSAEADScheme (K StS StR AD M C : Type) where
 :::::::definition "fs_aead_security" (parent := "fs_aead") (lean := "FSAEADScheme.GameState, FSAEADScheme.GameState.isCompromised, FSAEADScheme.securityExp, FSAEADScheme.fsaeadSecurityImpl, FSAEADScheme.advantage") (tags := "gh-187") (uses := "fs_aead_scheme")
 Adapted from {Informal.citet ACD19}[], Figure 5 and Definition 15.
 
-The boxes below print ACD19 Figure 5 and frame two changes:
+The boxes below print ACD19 Figure 5 and frame one change:
 
-- (D1) A rejected $`\OInjectB` ends the call and changes nothing. Figure 5 leaves this
-  implicit. Otherwise its $`\mathsf{delete}(i')` can remove the record of an honest
-  ciphertext.
 - (D2) Once A is corrupted, indices A has not sent yet also count as compromised. If an
   injection consumes such an index, A's later ciphertext for it is not recorded.
   Otherwise B would have to accept both, and no correct scheme meets the game.
@@ -245,7 +250,7 @@ def oracleChallA (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : Boo
 $`\begin{array}{l}
 \req\;\neg(\exists i, m: (i, a, m, e) \in \mathsf{trans}); \\
 r \gets \mathsf{FS\text{-}Rcv}(v_\B, a, e); \\
-\boxed{\req\;r \neq \bot;}\pcomment{\text{D1}} \\
+\req\;r \neq \bot; \\
 (v_\B, i', m') \gets r; \\
 \pcommentline{\text{authenticity failure: B accepts a forgery at an index that is not compromised}} \\
 \pif\;\neg\mathsf{compromised}(i')\;\pthen \\
@@ -356,8 +361,8 @@ honest message 1 in transit (D1). After $`\OCorrA` at $`i_\A = 2`, A cannot send
 challenge, and a forgery for index 3, which A has not sent yet, is accepted without a
 win (D2).
 
-In Figure 5 as printed, the forgery for index 3 is a win. A rejection still runs
-$`\mathsf{delete}`, so the rejected forgery for index 1 deletes record 1, and the game
+In Figure 5 as printed, the forgery for index 3 is a win. If the rejection of the forgery
+for index 1 reports index 1, Figure 5 still runs $`\mathsf{delete}(1)`, and the game
 refuses the late delivery of $`e_1`.
 
 Black arrows are honest ciphertexts. Red arrows are under the adversary's control. An X

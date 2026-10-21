@@ -43,17 +43,19 @@ is decrypted as soon as it arrives.
   is the position of `m` in the sender's sequence, or `none` on rejection.
 
 [DEVIATIONS FROM ACD19]
-Figure 5 is changed in two places. D1 makes the rejection behavior of `inject-B` explicit.
-D2 fixes an error: without it, every scheme either accepts a forgery or fails
-correctness. Each deviation is marked
+The definitions differ from ACD19 in two places. D1 fixes what `FS-Rcv` outputs on a
+rejection, which Definition 14 leaves open. D2 fixes an error in Figure 5: without it,
+every scheme either accepts a forgery or fails correctness. Each deviation is marked
 `(Dn)` where it takes effect. In the oracle pseudocode, `[…]  -- Dn` frames a change to
 the text of Figure 5, like the boxes in the blueprint.
 
-- (D1) A rejected `inject-B` returns `none` and changes nothing. Figure 5 leaves this
-  implicit: it tests `m' ≠ ⊥` and then runs `delete(i')`. If a rejection reaches that
-  line with the index named in the ciphertext, rejected garbage for an honest index
-  removes its record, and the honest ciphertext then counts as a forgery
-  [Kli21, Appendix A.1].
+- (D1) `rcv` returns `none` on rejection, with no new state and no index. Definition 14
+  does not say what a rejection outputs. Figure 6 raises an error and rolls the state
+  back (§4.2.2). If a rejection could report the index named in the ciphertext, Figure
+  5's `inject-B` would skip the win (`m' = ⊥`) and still run `delete(i')`. Rejected
+  garbage for an honest index then removes its record, and the honest ciphertext then
+  counts as a forgery [Kli21, Appendix A.1]. Here `O-Inject-B` stops on `none`, and
+  `O-Deliver-B` counts `none` as a correctness failure (see "Winning" below).
 - (D2) Figure 5's `inject-B` counts a forgery for index `i'` as a win unless `i' ∈ comp`,
   and `comp` only holds indices that were already sent. So after `corr-A`, the adversary
   wins by computing A's next ciphertext from the revealed state and injecting it. Here,
@@ -67,10 +69,6 @@ the text of Figure 5, like the boxes in the blueprint.
   checks that accepted injections do not break the delivery of A's later messages.
 
 [CONVENTIONS]
-- Rejection. `rcv` returns `none` on rejection, with no new state and no index. No new
-  state matches the rollback in §4.2.2: "FS-Rcv throws an exception (error), which
-  causes the state to be rolled back to where it was before the call to FS-Rcv". No
-  index is (D1).
 - Winning. A rejection in `deliver-B` gives no `(i', m')` to compare with `(i, m)`. This
   file counts the rejection as Figure 5's `(i', m') ≠ (i, m)`. `won` never returns to false.
   The game continues to run after a win, but the result stays a win. The proof in ACD19
@@ -109,7 +107,7 @@ open ToVCVio OracleSpec OracleComp ENNReal
 `StR`, associated-data space `AD`, message space `M` and ciphertext space `C`.
 All algorithms are deterministic.
 
-Definition 14 of [ACD19]. -/
+Definition 14 of [ACD19]. Deviation (D1): `rcv` returns `none` on rejection. -/
 -- ANCHOR: FSAEADScheme
 structure FSAEADScheme (K StS StR AD M C : Type) where
   /-- `FS-Init-S`: the sender's initial state. -/
@@ -389,7 +387,7 @@ deletes the index of a record in `trans`, which is at most `i_A`.
 O-Inject-B(a, e):
   if ended or (i, a, m, e) ∈ trans for some i, m: return ⊥
   r ← FS-Rcv(v_B, a, e)
-  [if r = ⊥: return ⊥]                                     -- D1
+  if r = ⊥: return ⊥
   (v_B, i', m') ← r
   -- authenticity failure: B accepts a forgery at an index that is not compromised
   if not compromised(i'): won ← true
