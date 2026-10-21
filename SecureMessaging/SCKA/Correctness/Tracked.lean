@@ -64,8 +64,8 @@ theorem tracked_bad_le_of_score_step [DecidableEq I]
     (adv : SCKACorrectnessAdversary Rho) (q : ℕ) (hq : SendQueryBound adv q)
     (s₀ : GameState StA StB I Rho) (hinit : trackedInv Inv bad (s₀, false))
     (hscore₀ : score (s₀, false) = 0) :
-    Pr{let z ← (simulateQ (trackedImpl (sckaCorrectnessImpl scka) bad) adv).run (s₀, false)}[z.2.2 = true] ≤
-      (q : ℝ≥0∞) * ε :=
+    Pr{let z ← ((simulateQ (trackedImpl (sckaCorrectnessImpl scka) bad) adv).run
+      (s₀, false))}[z.2.2 = true] ≤ (q : ℝ≥0∞) * ε :=
   (OracleComp.tracked_bad_le_of_score_step (sckaCorrectnessImpl scka) bad Inv score
     (fun t => isSendQuery (Rho := Rho) t = true) ε hscore1 hpres hstep adv q hq s₀
     hinit).trans_eq (by rw [hscore₀, zero_add])
@@ -90,9 +90,10 @@ theorem correctness_failure_le_of_tracked_bad [DecidableEq I]
     (hexp : correctnessExp scka adv =
       (fun z => z.2.correct) <$> (simulateQ (sckaCorrectnessImpl scka) adv).run s₀)
     (δ : ℝ≥0∞)
-    (hbad : Pr{let z ← (simulateQ (trackedImpl (sckaCorrectnessImpl scka) bad) adv).run (s₀, false)}[z.2.2 = true] ≤ δ) :
+    (hbad : Pr{let z ← ((simulateQ (trackedImpl (sckaCorrectnessImpl scka) bad) adv).run
+      (s₀, false))}[z.2.2 = true] ≤ δ) :
     Pr{let x ← correctnessExp scka adv}[x = false] ≤ δ := by
-  rw [hexp, ← probEvent_eq_eq_probOutput, prEvent_map]
+  rw [hexp, prEvent_map]
   exact (probEvent_not_good_le_tracked_bad (sckaCorrectnessImpl scka) bad Inv
     (fun s => s.correct) hcorrect hpres adv s₀ hinit).trans hbad
 

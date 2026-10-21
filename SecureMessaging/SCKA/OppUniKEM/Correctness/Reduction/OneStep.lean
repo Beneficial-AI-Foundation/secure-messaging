@@ -474,9 +474,8 @@ lemma tracked_nonSend_score_support_eq [DecidableEq K]
       change y ∈ support
         ((SCKAScheme.oracleUnif (StA onoff Sym) (StB onoff Sym) K
           (Message Sym) n).run s) at hy
-      obtain ⟨r, _, hy'⟩ := Set.mem_iUnion₂.mp hy
-      have hy_eq : y = (r, s) := hy'
-      subst y
+      obtain ⟨r, s'⟩ := y
+      obtain rfl : s' = s := SCKAScheme.oracleUnif_preservesInv (· = s) n s rfl _ hy
       simp [trackedFailureScore, hfail]
   | OSendA =>
       exact False.elim (hNonSend (by simp [IsSendQuery, SCKAScheme.isSendQuery]))
@@ -515,7 +514,7 @@ lemma tracked_nonSend_score_le [DecidableEq K]
         (fun z => trackedFailureScore kem onoff z.2) ≤
       trackedFailureScore kem onoff (s, false) := by
   have hnf : prFail (((trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak) t).run
-        (s, false)) = 0 := OracleComp.prFail_eq_zero
+        (s, false)) = 0 := OracleComp.prFail_eq_zero _
   apply expectedPayoff_le_const_of_support _ _ _ hnf
   intro z hz
   exact le_of_eq (tracked_nonSend_score_support_eq kem onoff hDet ecEk ecCt0 ecCt1

@@ -345,7 +345,7 @@ lemma tracked_step_score_le_of_flag (t : (SCKAScheme.sckaCorrectnessSpec (Messag
       trackedScore hDet (s, true) + ε := by
   rw [trackedScore_true]
   refine le_add_right ?_
-  refine expectedPayoff_le_const_of_support _ _ _ OracleComp.prFail_eq_zero ?_
+  refine expectedPayoff_le_const_of_support _ _ _ (OracleComp.prFail_eq_zero _) ?_
   intro z hz
   change z ∈ support
     ((SCKAScheme.sckaCorrectnessImpl (scheme kem hDet ecEk ecCt leak) t).run s >>=
@@ -434,7 +434,7 @@ lemma tracked_nonSend_score_le (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym
     expectedPayoff ((trackedBiKem kem hDet ecEk ecCt leak t).run (s, false))
         (fun z => trackedScore hDet z.2) ≤
       trackedScore hDet (s, false) := by
-  refine expectedPayoff_le_const_of_support _ _ _ OracleComp.prFail_eq_zero ?_
+  refine expectedPayoff_le_const_of_support _ _ _ (OracleComp.prFail_eq_zero _) ?_
   intro z hz
   change z ∈ support
     ((SCKAScheme.sckaCorrectnessImpl (scheme kem hDet ecEk ecCt leak) t).run s >>=

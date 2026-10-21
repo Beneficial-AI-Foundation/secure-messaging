@@ -206,15 +206,16 @@ theorem gcmOneTimeAEAD_security_of_axu (prp : PRPScheme K (BitVec 128)) (iv : Bi
     let reduction := prfReduction iv L adv
     let forgeryBound : ℝ := (q_d : ℝ) * ε.toReal
     AEADScheme.distAdvantage (gcmOneTimeAEAD prp iv L hL) adv ≤
-      PRFScheme.prfAdvantage prp.toPRFScheme reduction + forgeryBound
+      (PRFScheme.prfAdvantage prp.toPRFScheme reduction).toReal + forgeryBound
 -- ANCHOR_END: gcmOneTimeAEAD_security_of_axu
   := by
   dsimp only
-  have hg12 : Pr{let x ← game1 prp L hL adv}[x = true] = Pr{let x ← game2 prp L hL adv}[x = true] :=
-    evalDist_ext_iff.mp (game1_eq_game2 prp L hL adv) true
+  have hg12 :
+      Pr{let x ← game1 prp L hL adv}[x = true] = Pr{let x ← game2 prp L hL adv}[x = true] :=
+    (EvalDistEq.of_evalDist_eq (game1_eq_game2 prp L hL adv)).prEvent_eq _
   unfold AEADScheme.distAdvantage
   rw [← game4_eq_rand prp iv L hL adv, ← game0_eq_real prp iv L hL adv,
-    ← probOutput_game3_eq_game4 prp L hL adv]
+    ← prEvent_game3_eq_game4 prp L hL adv]
   calc |(Pr{let x ← game3 prp L hL adv}[x = true]).toReal -
         (Pr{let x ← game0 prp iv L hL adv}[x = true]).toReal|
     _ ≤ |(Pr{let x ← game1 prp L hL adv}[x = true]).toReal -
@@ -226,7 +227,7 @@ theorem gcmOneTimeAEAD_security_of_axu (prp : PRPScheme K (BitVec 128)) (iv : Bi
           set g2 := (Pr{let x ← game2 prp L hL adv}[x = true]).toReal
           set g3 := (Pr{let x ← game3 prp L hL adv}[x = true]).toReal
           linarith [abs_sub_le g3 g2 g0]
-    _ ≤ PRFScheme.prfAdvantage prp.toPRFScheme (prfReduction iv L adv) +
+    _ ≤ (PRFScheme.prfAdvantage prp.toPRFScheme (prfReduction iv L adv)).toReal +
         (q_d : ℝ) * ε.toReal :=
       add_le_add (game0_game1_le_prf prp iv L hL adv)
         (game2_game3_le_auth prp L hL adv q_d hq hε haxu)
@@ -260,7 +261,7 @@ theorem gcmOneTimeAEAD_security (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96
     let switchingBound : ℝ := ((blocks : ℝ) + 2) * ((blocks : ℝ) + 1) / 2 ^ 129
     let forgeryBound : ℝ := (q_d : ℝ) * ((2 ^ 57 + (blocks : ℝ) + 1) / 2 ^ 128)
     AEADScheme.distAdvantage (gcmOneTimeAEAD prp iv L hL) adv ≤
-      PRPScheme.prpAdvantage prp reduction + switchingBound + forgeryBound
+      (PRPScheme.prpAdvantage prp reduction).toReal + switchingBound + forgeryBound
 -- ANCHOR_END: gcmOneTimeAEAD_security
   := by
   dsimp only

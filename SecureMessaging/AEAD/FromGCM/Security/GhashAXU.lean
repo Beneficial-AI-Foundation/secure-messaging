@@ -140,7 +140,7 @@ block lists GHASH is not AXU, see `Axu.lean`. -/
 theorem ghash_isAXU (L : ℕ) (hirr : Irreducible nistPoly) :
     GhashIsAXU L ((maxBlocks L : ℝ≥0∞) / 2 ^ (128 : ℕ)) := by
   have hb : GhashIsAXU L ((maxBlocks L : ℝ≥0∞) / Fintype.card (BitVec 128)) := by
-    refine ToVCVio.isAlmostXorUniversal_of_card_le (d := maxBlocks L) ?_
+    refine UniversalHash.isAlmostXorUniversal_of_card_le (d := maxBlocks L) ?_
     intro p q hpq Δ
     obtain ⟨i, hi⟩ := gcmEncode_tail_distinct hpq
     exact card_filter_le hirr _ _ Δ (gcmEncode_length_le p.1 p.2)

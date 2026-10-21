@@ -217,7 +217,8 @@ theorem correctness_of_perfectKEM [DecidableEq K]
       Pr{let x ← (SCKAScheme.correctnessExp
           (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv)}[x = false] = 0 :=
     le_antisymm hfalse_le bot_le
-  rw [probOutput_false_eq_sub, OracleComp.prFail_eq_zero, tsub_zero] at hfalse
+  simp only [← Bool.not_eq_true] at hfalse
+  rw [OracleComp.prEvent_not_eq_one_sub] at hfalse
   exact le_antisymm (prEvent_le_one _) ((tsub_eq_zero_iff_le).mp hfalse)
 
 /-- Assume:
@@ -309,7 +310,8 @@ theorem correctness_true_ge_reduction [DecidableEq K]
     := by
   have h := correctness_failure_le_reduction kem onoff hDet
     ecEk hEkCorrect ecCt0 hCt0Correct ecCt1 hCt1Correct leak adv q hq
-  rw [probOutput_false_eq_sub, OracleComp.prFail_eq_zero, tsub_zero] at h
+  simp only [← Bool.not_eq_true] at h
+  rw [OracleComp.prEvent_not_eq_one_sub] at h
   rw [tsub_le_iff_right] at h
   rw [ge_iff_le, tsub_le_iff_right]
   rwa [add_comm]

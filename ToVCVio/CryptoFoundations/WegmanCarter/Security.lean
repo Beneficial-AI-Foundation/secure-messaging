@@ -643,8 +643,8 @@ private lemma pre_phase [SampleableType K] [DecidableEq A] [DecidableEq Cb] {α 
   | pure x =>
       intro n _ L
       simp only [simulateQ_pure, StateT.run_pure, map_pure]
-      refine le_trans (le_of_eq (probEvent_ext
-        (q := fun y : (K × BitVec 128) × WCLogState A Cb =>
+      refine le_trans (le_of_eq (prEvent_congr_of_support _ _
+        (fun y : (K × BitVec 128) × WCLogState A Cb =>
           L.any (wcAccepts hash enc (Prod.fst y).1 (Prod.fst y).2) = true)
         (fun z hz => ?_))) ?_
       · simp only [mem_support_bind_iff, support_pure, Set.mem_singleton_iff] at hz
@@ -762,6 +762,5 @@ theorem probEvent_wcInst_forge_le {α K A M Cb D : Type}
   refine probEvent_bind_congr₂ ($ᵗ K : ProbComp K) fun H =>
     probEvent_bind_congr₂ ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) fun mask => ?_
   rw [probEvent_bad_wcInst_eq_wcLog hash enc H mask padMsg unpad oa, prEvent_map]
-  rfl
 
 end OracleComp.WegmanCarter
