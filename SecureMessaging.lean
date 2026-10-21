@@ -64,6 +64,7 @@ import SecureMessaging.RKEM.Defs
 import SecureMessaging.RKEM.FromDDHNonFS.Construction
 import SecureMessaging.RKEM.FromDDHNonFS.Correctness
 import SecureMessaging.RKEM.FromDDHNonFS.RatchetSimulatability
+import SecureMessaging.RKEM.FromDDHNonFS.Security
 import SecureMessaging.RKEM.FromKEM.Construction
 import SecureMessaging.RKEM.FromKEM.Correctness
 import SecureMessaging.RKEM.FromKEM.RatchetSimulatability
