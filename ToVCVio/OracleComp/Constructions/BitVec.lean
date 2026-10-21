@@ -19,11 +19,11 @@ Uniformity facts about bit vectors built from uniform draws, candidates for
 
 * `natCast_card_bitVec`: `|BitVec w| = 2 ^ w` in any semiring, for whichever `Fintype` instance
   the goal carries.
-* `evalDist_blocksToBitVec_uniform`: the first `L ≤ w * n` bits of `n` independent uniform
+* `evalDistEq_blocksToBitVec_uniform`: the first `L ≤ w * n` bits of `n` independent uniform
   `w`-bit blocks are uniform on `BitVec L`.
-* `evalDist_pair_xor_uniform`: a value masked by a uniform `BitVec n`, paired with any
+* `evalDistEq_pair_xor_uniform`: a value masked by a uniform `BitVec n`, paired with any
   function of it masked by an independent uniform `BitVec m`, is uniform on the product.
-* `evalDist_mapM_const_uniform`: a list of independent uniform draws is one uniform vector.
+* `evalDistEq_mapM_const_uniform`: a list of independent uniform draws is one uniform vector.
 -/
 
 open OracleSpec OracleComp ENNReal
@@ -108,117 +108,135 @@ lemma blocksSplit_bijective (n L : ℕ) (hL : L ≤ w * n) :
     Function.Bijective (blocksSplit (w := w) n L) := by
   refine (Fintype.bijective_iff_injective_and_card _).mpr
     ⟨blocksSplit_injective n L hL, ?_⟩
-  rw [Fintype.card_vector, card_bitVec, ← pow_mul, Fintype.card_prod,
-    card_bitVec, card_bitVec, ← pow_add]
+  rw [Fintype.card_vector, Fintype.card_bitVec, ← pow_mul, Fintype.card_prod,
+    Fintype.card_bitVec, Fintype.card_bitVec, ← pow_add]
   exact congrArg (2 ^ ·) (Nat.add_sub_cancel' hL).symm
 
 /-- The first `L ≤ w * n` bits of `n` independent uniform `w`-bit blocks are uniform. -/
-theorem evalDist_blocksToBitVec_uniform (n L : ℕ) (hL : L ≤ w * n) :
-    𝒟[(fun v : Vector (BitVec w) n => blocksToBitVec v.toList L) <$>
-        ($ᵗ Vector (BitVec w) n)] = 𝒟[$ᵗ BitVec L] :=
-  calc 𝒟[(fun v : Vector (BitVec w) n => blocksToBitVec v.toList L) <$>
-        ($ᵗ Vector (BitVec w) n)]
-      = 𝒟[Prod.fst <$> (blocksSplit n L <$> ($ᵗ Vector (BitVec w) n))] := by
-        rw [Functor.map_map]; rfl
-    _ = 𝒟[Prod.fst <$> ($ᵗ (BitVec L × BitVec (w * n - L)))] :=
-        EvalDistEq.map
-          (evalDist_map_bijective_uniform_cross (α := Vector (BitVec w) n)
-            (blocksSplit n L) (blocksSplit_bijective n L hL)) Prod.fst
-    _ = 𝒟[$ᵗ BitVec L] := evalDist_map_fst_uniformSample_prod
+theorem evalDistEq_blocksToBitVec_uniform (n L : ℕ) (hL : L ≤ w * n) :
+    (fun v : Vector (BitVec w) n => blocksToBitVec v.toList L) <$>
+        ($ᵗ Vector (BitVec w) n) =ᵈ ($ᵗ BitVec L : ProbComp (BitVec L)) := by
+  have hsplit : (fun v : Vector (BitVec w) n => blocksToBitVec v.toList L) <$>
+      ($ᵗ Vector (BitVec w) n : ProbComp _) =
+        Prod.fst <$> (blocksSplit n L <$> ($ᵗ Vector (BitVec w) n)) := by
+    rw [Functor.map_map]; rfl
+  rw [hsplit]
+  refine ((SampleableType.map_uniformSample_evalDistEq_of_bijective
+    (blocksSplit_bijective n L hL)).map Prod.fst).trans ?_
+  exact OracleComp.evalDistEq_of_forall_prEvent_eq_output fun y => by
+    rw [prEvent_map]
+    exact SampleableType.prEvent_uniformSample_fst (fun x => x = y)
 
-/-- Pointwise form of `evalDist_blocksToBitVec_uniform`. -/
-theorem probOutput_blocksToBitVec_uniform (n L : ℕ) (hL : L ≤ w * n) (y : BitVec L) :
+/-- Pointwise form of `evalDistEq_blocksToBitVec_uniform`. -/
+theorem prEvent_blocksToBitVec_uniform (n L : ℕ) (hL : L ≤ w * n) (y : BitVec L) :
     Pr{let x ← ((fun v : Vector (BitVec w) n => blocksToBitVec v.toList L) <$>
-        ($ᵗ Vector (BitVec w) n))}[x = y] = (Fintype.card (BitVec L) : ℝ≥0∞)⁻¹ := by
-  rw [evalDist_ext_iff.mp (evalDist_blocksToBitVec_uniform n L hL) y,
-    probOutput_uniformSample]
+        ($ᵗ Vector (BitVec w) n))}[x = y] = (Fintype.card (BitVec L) : ℝ≥0∞)⁻¹ :=
+  ((evalDistEq_blocksToBitVec_uniform n L hL).prEvent_eq _).trans
+    (SampleableType.prEvent_uniformSample_eq_singleton y)
 
 /-- Sanity check at `L = 0`: `BitVec 0` is a singleton, hit with probability `1`. -/
 example (n : ℕ) (y : BitVec 0) :
     Pr{let x ← ((fun v : Vector (BitVec w) n => blocksToBitVec v.toList 0) <$>
         ($ᵗ Vector (BitVec w) n))}[x = y] = 1 := by
-  simpa using probOutput_blocksToBitVec_uniform n 0 (Nat.zero_le _) y
+  simpa using prEvent_blocksToBitVec_uniform n 0 (Nat.zero_le _) y
 
 /-! ## A masked value and a masked function of it are jointly uniform -/
 
 /-- One-time pad: for fixed `x` and uniform `y`, `x ⊕ y` is uniform, also when passed to an
 arbitrary continuation. -/
-private lemma evalDist_bind_xor_left_uniform {k : ℕ} {γ : Type} (x : BitVec k)
+private lemma evalDistEq_bind_xor_left_uniform {k : ℕ} {γ : Type} (x : BitVec k)
     (cont : BitVec k → ProbComp γ) :
-    𝒟[($ᵗ BitVec k : ProbComp (BitVec k)) >>= fun y => cont (x ^^^ y)] =
-      𝒟[($ᵗ BitVec k : ProbComp (BitVec k)) >>= cont] :=
-  evalDist_ext fun z =>
-    probOutput_bind_bijective_uniform_cross (BitVec k) (x ^^^ ·)
-      (Equiv.xor x).bijective cont z
+    (($ᵗ BitVec k : ProbComp (BitVec k)) >>= fun y => cont (x ^^^ y)) =ᵈ
+      (($ᵗ BitVec k : ProbComp (BitVec k)) >>= cont) := by
+  have h := (SampleableType.map_uniformSample_evalDistEq_of_bijective (α := BitVec k)
+    (f := (x ^^^ ·)) (Equiv.xor x).bijective).bind_left cont
+  simpa only [map_eq_bind_pure_comp, bind_assoc, pure_bind, Function.comp_apply] using h
 
 /-- Let `msg : BitVec n` and `g : BitVec n → BitVec m` be fixed, and let `ks` and `mask` be
 independent uniform samples from `BitVec n` and `BitVec m`. Then the pair
 `(msg ⊕ ks, g(msg ⊕ ks) ⊕ mask)` is uniform on `BitVec n × BitVec m`. -/
-theorem evalDist_pair_xor_uniform {n m : ℕ} (msg : BitVec n) (g : BitVec n → BitVec m) :
-    evalDist (do
+theorem evalDistEq_pair_xor_uniform {n m : ℕ} (msg : BitVec n) (g : BitVec n → BitVec m) :
+    (do
       let mask ← ($ᵗ BitVec m : ProbComp (BitVec m))
       let ks ← ($ᵗ BitVec n : ProbComp (BitVec n))
       return (msg ^^^ ks, g (msg ^^^ ks) ^^^ mask))
-      = evalDist ($ᵗ (BitVec n × BitVec m) : ProbComp (BitVec n × BitVec m)) := by
-  rw [evalDist_bind_bind_swap,
-    ToVCVio.uniformSample_prod_eq_bind (BitVec n) (BitVec m)]
-  refine (evalDist_bind_xor_left_uniform msg (fun c => ($ᵗ BitVec m : ProbComp (BitVec m)) >>=
+      =ᵈ ($ᵗ (BitVec n × BitVec m) : ProbComp (BitVec n × BitVec m)) := by
+  rw [SampleableType.uniformSample_prod_eq_bind (BitVec n) (BitVec m)]
+  refine (OracleComp.EvalDistEq.bind_bind_swap _ _ _).trans ?_
+  refine (evalDistEq_bind_xor_left_uniform msg (fun c => ($ᵗ BitVec m : ProbComp (BitVec m)) >>=
     fun mask => (pure (c, g c ^^^ mask) : ProbComp (BitVec n × BitVec m)))).trans ?_
-  refine evalDist_bind_congr' _ fun c => ?_
-  exact evalDist_bind_xor_left_uniform (g c) fun t => (pure (c, t) : ProbComp _)
+  exact EvalDistEq.bind_right _ fun c =>
+    evalDistEq_bind_xor_left_uniform (g c) fun t => (pure (c, t) : ProbComp _)
 
 /-- Sanity check at width `n = 0`. -/
 example {m : ℕ} (msg : BitVec 0) (g : BitVec 0 → BitVec m) :
-    evalDist (do
+    (do
       let mask ← ($ᵗ BitVec m : ProbComp (BitVec m))
       let ks ← ($ᵗ BitVec 0 : ProbComp (BitVec 0))
       return (msg ^^^ ks, g (msg ^^^ ks) ^^^ mask))
-      = evalDist ($ᵗ (BitVec 0 × BitVec m) : ProbComp (BitVec 0 × BitVec m)) :=
-  evalDist_pair_xor_uniform msg g
+      =ᵈ ($ᵗ (BitVec 0 × BitVec m) : ProbComp (BitVec 0 × BitVec m)) :=
+  evalDistEq_pair_xor_uniform msg g
 
 /-- Sanity check at width `m = 0`. -/
 example {n : ℕ} (msg : BitVec n) (g : BitVec n → BitVec 0) :
-    evalDist (do
+    (do
       let mask ← ($ᵗ BitVec 0 : ProbComp (BitVec 0))
       let ks ← ($ᵗ BitVec n : ProbComp (BitVec n))
       return (msg ^^^ ks, g (msg ^^^ ks) ^^^ mask))
-      = evalDist ($ᵗ (BitVec n × BitVec 0) : ProbComp (BitVec n × BitVec 0)) :=
-  evalDist_pair_xor_uniform msg g
+      =ᵈ ($ᵗ (BitVec n × BitVec 0) : ProbComp (BitVec n × BitVec 0)) :=
+  evalDistEq_pair_xor_uniform msg g
 
 /-! ## From a list of independent draws to one uniform vector -/
 
-/-- A uniform `v : Vector R n` has `v.toList = xs` with probability `|R|⁻¹ ^ n` if `xs` has
+/-- A uniform `v : Vector R n` has `v.toList = xs` with probability `(|R| ^ n)⁻¹` if `xs` has
 length `n`, and `0` otherwise. -/
-private lemma probOutput_toList_uniformSample_vector {R : Type} [SampleableType R] [Fintype R]
+private lemma prEvent_toList_uniformSample_vector {R : Type} [SampleableType R] [Fintype R]
     (n : ℕ) (xs : List R) :
     Pr{let x ← (Vector.toList <$> ($ᵗ Vector R n : ProbComp (Vector R n)))}[x = xs] =
-      if xs.length = n then ((Fintype.card R : ℝ≥0∞)⁻¹) ^ n else 0 := by
+      if xs.length = n then ((Fintype.card R ^ n : ℕ) : ℝ≥0∞)⁻¹ else 0 := by
   by_cases hlen : xs.length = n
-  · rw [if_pos hlen]
+  · simp only [hlen, ↓reduceIte]
     have hv : (⟨xs.toArray, by simpa using hlen⟩ : Vector R n).toList = xs := by
       simp [Vector.toList]
     rw [← hv, prEvent_map_injective _ (fun a b hab => Vector.toList_inj.mp hab),
-      probOutput_uniformSample, Fintype.card_vector, Nat.cast_pow, ENNReal.inv_pow]
-  · rw [if_neg hlen, prEvent_map]
-    refine probEvent_eq_zero fun v _ hv => hlen ?_
+      SampleableType.prEvent_uniformSample_eq_singleton, Fintype.card_vector]
+  · simp only [hlen, ↓reduceIte]
+    rw [prEvent_map]
+    refine prEvent_eq_zero_of_forall_mem_support _ _ fun v _ hv => hlen ?_
     rw [← hv]
     simp [Vector.toList]
 
+/-- Mapping a constant computation over a list is `replicate` of its length. -/
+private lemma mapM_const_eq_replicate {D R : Type} (c : ProbComp R) (pts : List D) :
+    pts.mapM (fun _ => c) = OracleComp.replicate pts.length c := by
+  induction pts with
+  | nil => rfl
+  | cons _ ps ih => rw [List.mapM_cons, ih, List.length_cons, OracleComp.replicate_succ_bind]
+
+/-- Every possible output of `replicate n c` has length `n`. -/
+private lemma length_of_mem_support_replicate {R : Type} (c : ProbComp R) :
+    ∀ (n : ℕ) {v : List R}, v ∈ support (OracleComp.replicate n c) → v.length = n
+  | 0, v, hv => by simpa using hv
+  | n + 1, v, hv => by
+    rw [OracleComp.replicate_succ_bind] at hv
+    simp only [mem_support_bind_iff, support_pure, Set.mem_singleton_iff] at hv
+    obtain ⟨_, _, xs, hxs, rfl⟩ := hv
+    rw [List.length_cons, length_of_mem_support_replicate c n hxs]
+
 /-- One independent uniform draw per element of `pts` is distributed as one uniform
 `Vector R pts.length`, read as a list. -/
-theorem evalDist_mapM_const_uniform {D R : Type} [SampleableType R]
+theorem evalDistEq_mapM_const_uniform {D R : Type} [SampleableType R]
     (pts : List D) :
-    evalDist (pts.mapM (fun _ => ($ᵗ R : ProbComp R))) =
-      evalDist (Vector.toList <$> ($ᵗ Vector R pts.length : ProbComp _)) := by
+    pts.mapM (fun _ => ($ᵗ R : ProbComp R)) =ᵈ
+      (Vector.toList <$> ($ᵗ Vector R pts.length : ProbComp _)) := by
   let : Fintype R := Fintype.ofFinite R
-  refine evalDist_ext fun xs => ?_
-  rw [probOutput_list_mapM, probOutput_toList_uniformSample_vector]
+  refine OracleComp.evalDistEq_of_forall_prEvent_eq_output fun xs => ?_
+  rw [mapM_const_eq_replicate, prEvent_toList_uniformSample_vector]
   by_cases h : xs.length = pts.length
-  · rw [if_pos h, if_pos h, List.prod_eq_pow_card _ ((Fintype.card R : ℝ≥0∞)⁻¹),
-      List.length_zipWith, h, Nat.min_self]
-    intro x hx
-    obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.mp hx
-    simp [probOutput_uniformSample]
-  · rw [if_neg h, if_neg h]
+  · simp only [h, ↓reduceIte]
+    exact SampleableType.prEvent_replicate_uniformSample h
+  · simp only [h, ↓reduceIte]
+    refine prEvent_eq_zero_of_forall_mem_support _ _ fun v hv hvx => h ?_
+    exact hvx ▸ length_of_mem_support_replicate _ _ hv
 
 end ToVCVio

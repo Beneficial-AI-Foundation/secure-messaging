@@ -11,8 +11,8 @@ import ToVCVio.EvalDist.Monad.Basic
 # Sampled-Parameter Lemmas for Relational simulateQ
 
 Convenience lemmas for sampled-parameter simulations and handler normalization.
-VCVio provides the generic relational `simulateQ` rules and their `evalDist`
-projections.
+VCVio provides the generic relational `simulateQ` rules and their
+distributional projections.
 
 ## Notation
 
@@ -20,7 +20,8 @@ projections.
 `True`: the two computations `oa` and `ob` are related so that their outputs
 satisfy the postcondition `R`.
 
-For a computation `oa`, `𝒟[oa]` denotes `evalDist oa`.
+`oa =ᵈ ob` states that `oa` and `ob` are equal in distribution: every event has the same
+probability under both.
 
 For stateful computations, `.run` returns both the output and final state,
 while `.run'` returns only the output.
@@ -50,7 +51,7 @@ continuation `k`. Assume that
 
 Then drawing `param ← sample` and simulating `query t >>= k` under `impl param` from `s` gives
 the same output distribution as simulating it under `base` from `s`. -/
-theorem evalDist_sample_param_query_bind_passthrough
+theorem evalDistEq_sample_param_query_bind_passthrough
     {ι : Type} {spec : OracleSpec ι} {σ θ α : Type}
     (sample : ProbComp θ)
     (impl : θ → QueryImpl spec (StateT σ ProbComp))
@@ -60,57 +61,39 @@ theorem evalDist_sample_param_query_bind_passthrough
     (h_impl_eq : ∀ param, (impl param t).run s = (base t).run s)
     (h_preserves : ∀ p, p ∈ support ((base t).run s) → Inv p.2)
     (h_ih : ∀ (u : spec.Range t) (s' : σ), Inv s' →
-      evalDist (do
+      (do
         let param ← sample
-        (simulateQ (impl param) (k u)).run' s') =
-      evalDist ((simulateQ base (k u)).run' s')) :
-    evalDist (do
+        (simulateQ (impl param) (k u)).run' s') =ᵈ
+      (simulateQ base (k u)).run' s') :
+    (do
       let param ← sample
-      (simulateQ (impl param) (OracleSpec.query t >>= k)).run' s) =
-    evalDist ((simulateQ base (OracleSpec.query t >>= k)).run' s) := by
-  apply evalDist_ext
-  intro y
+      (simulateQ (impl param) (OracleSpec.query t >>= k)).run' s) =ᵈ
+    (simulateQ base (OracleSpec.query t >>= k)).run' s := by
   simp only [simulateQ_bind, simulateQ_query, OracleQuery.cont_query, id_map,
-    OracleQuery.input_query, StateT.run'_eq, StateT.run_bind, map_bind]
-  have h_align : Pr{let x ← (do
-        let param ← sample
-        let p ← (impl param t).run s
-        Prod.fst <$> (simulateQ (impl param) (k p.1)).run p.2)}[x = y] =
-      Pr{let x ← (do
-        let param ← sample
-        let p ← (base t).run s
-        Prod.fst <$> (simulateQ (impl param) (k p.1)).run p.2)}[x = y] := by
-    refine probOutput_bind_congr' _ y fun param => ?_
-    rw [h_impl_eq param]
-  rw [h_align]
-  rw [OracleComp.prEvent_bind_bind_swap (mx := sample) (my := (base t).run s)
-    (f := fun param p =>
-      Prod.fst <$> (simulateQ (impl param) (k p.1)).run p.2) (z := y)]
-  refine probOutput_bind_congr ?_
-  intro p hp_support
-  have hi := h_ih p.1 p.2 (h_preserves p hp_support)
-  simp only [StateT.run'_eq] at hi
-  exact evalDist_ext_iff.mp hi y
+    OracleQuery.input_query, StateT.run'_eq, StateT.run_bind, map_bind, h_impl_eq]
+  refine (EvalDistEq.bind_bind_swap sample ((base t).run s) _).trans ?_
+  refine EvalDistEq.bind_congr_of_support _ fun p hp => ?_
+  simpa only [StateT.run'_eq] using h_ih p.1 p.2 (h_preserves p hp)
 
 /-- A parameter that does not affect the handlers' distributions can be fixed instead of sampled.
 
 Let `impl` be a family of stateful query handlers indexed by `param : θ`, and let `x₀ : θ`.
 Assume (`h`) that for every `param`, query `t` and state `s'`, one call of `impl param t` from
-`s'` has the same joint distribution of answer and next state as `impl x₀ t`. Then, from any
-initial state `s`, drawing `param ← $ᵗ θ` and simulating `oa` under `impl param` gives the
-same output distribution as simulating `oa` under `impl x₀`. -/
-theorem evalDist_sample_simulateQ_run'_eq_of_param_indep
+`s'` is equal in distribution, as a pair of answer and next state, to `impl x₀ t`. Then, from any
+initial state `s`, drawing `param ← $ᵗ θ` and simulating `oa` under `impl param` is equal in
+distribution to simulating `oa` under `impl x₀`. -/
+theorem evalDistEq_sample_simulateQ_run'_of_param_indep
     {ι : Type} {spec : OracleSpec ι} {σ θ α : Type} [SampleableType θ]
     (impl : θ → QueryImpl spec (StateT σ ProbComp))
     (oa : OracleComp spec α) (s : σ) (x₀ : θ)
-    (h : ∀ param t s', 𝒟[(impl param t).run s'] = 𝒟[(impl x₀ t).run s']) :
-    𝒟[do
+    (h : ∀ param t s', (impl param t).run s' =ᵈ (impl x₀ t).run s') :
+    (do
       let param ← $ᵗ θ
-      (simulateQ (impl param) oa).run' s] =
-    𝒟[(simulateQ (impl x₀) oa).run' s] :=
-  (evalDist_bind_congr' _ fun param => evalDist_eq_of_relTriple_eqRel
+      (simulateQ (impl param) oa).run' s) =ᵈ
+    (simulateQ (impl x₀) oa).run' s :=
+  (EvalDistEq.bind_right _ fun param => evalDistEq_of_relTriple_eqRel
     (relTriple_simulateQ_run'_of_impl_evalDistEq _ _ oa (h param) s s rfl)).trans
-      (DeferredSampling.evalDist_bind_const_neverFails _ (probFailure_uniformSample _) _)
+      (EvalDistEq.bind_const _ _)
 
 /-- A deterministic handler call can be skipped.
 
@@ -118,8 +101,8 @@ If (`h_run`) for every `param`
 
     (impl param t).run s = pure (out param, post param),
 
-then `Pr{let x ← P}[x = y] = Pr{let x ← Q}[x = y]`. `P` makes the call to the oracle; `Q` uses its result
-directly:
+then `Pr{let x ← P}[x = y] = Pr{let x ← Q}[x = y]`. `P` makes the call to the oracle; `Q` uses
+its result directly:
 
     P = do
       let param ← sample
@@ -130,7 +113,7 @@ directly:
       let param ← sample
       Prod.fst <$> (simulateQ (impl param) (k (out param))).run (post param)
 -/
-theorem probOutput_sample_param_handler_pure_eq
+theorem prEvent_sample_param_handler_pure_eq
     {ι : Type} {spec : OracleSpec ι} {σ θ α : Type}
     (sample : ProbComp θ)
     (impl : θ → QueryImpl spec (StateT σ ProbComp))
@@ -146,12 +129,10 @@ theorem probOutput_sample_param_handler_pure_eq
     Pr{let x ← (do
       let param ← sample
       Prod.fst <$> (simulateQ (impl param) (k (out param))).run (post param))}[x = y] := by
-  refine probOutput_bind_congr' _ y fun param => ?_
-  rw [h_run param]
-  rfl
+  simp only [h_run, pure_bind]
 
-/-- Two-parameter version of `probOutput_sample_param_handler_pure_eq`. -/
-theorem probOutput_sample_param₂_handler_pure_eq
+/-- Two-parameter version of `prEvent_sample_param_handler_pure_eq`. -/
+theorem prEvent_sample_param₂_handler_pure_eq
     {ι : Type} {spec : OracleSpec ι} {σ θ₁ θ₂ α : Type}
     (sample₁ : ProbComp θ₁) (sample₂ : ProbComp θ₂)
     (impl : θ₁ → θ₂ → QueryImpl spec (StateT σ ProbComp))
@@ -171,13 +152,10 @@ theorem probOutput_sample_param₂_handler_pure_eq
       let param₂ ← sample₂
       Prod.fst <$> (simulateQ (impl param₁ param₂)
         (k (out param₁ param₂))).run (post param₁ param₂))}[x = y] := by
-  refine probOutput_bind_congr' _ y fun param₁ => ?_
-  refine probOutput_bind_congr' _ y fun param₂ => ?_
-  rw [h_run param₁ param₂]
-  rfl
+  simp only [h_run, pure_bind]
 
-/-- Three-parameter version of `probOutput_sample_param_handler_pure_eq`. -/
-theorem probOutput_sample_param₃_handler_pure_eq
+/-- Three-parameter version of `prEvent_sample_param_handler_pure_eq`. -/
+theorem prEvent_sample_param₃_handler_pure_eq
     {ι : Type} {spec : OracleSpec ι} {σ θ₁ θ₂ θ₃ α : Type}
     (sample₁ : ProbComp θ₁) (sample₂ : ProbComp θ₂) (sample₃ : ProbComp θ₃)
     (impl : θ₁ → θ₂ → θ₃ → QueryImpl spec (StateT σ ProbComp))
@@ -199,11 +177,7 @@ theorem probOutput_sample_param₃_handler_pure_eq
       let param₃ ← sample₃
       Prod.fst <$> (simulateQ (impl param₁ param₂ param₃)
         (k (out param₁ param₂ param₃))).run (post param₁ param₂ param₃))}[x = y] := by
-  refine probOutput_bind_congr' _ y fun param₁ => ?_
-  refine probOutput_bind_congr' _ y fun param₂ => ?_
-  refine probOutput_bind_congr' _ y fun param₃ => ?_
-  rw [h_run param₁ param₂ param₃]
-  rfl
+  simp only [h_run, pure_bind]
 
 /-- **Normalize a handler that samples before returning a pure post-state.**
 
@@ -216,7 +190,7 @@ exposing the same sample and substituting `p.1 = out param` and
 
 This is only a normalization lemma: it exposes the handler's internal sample;
 it does not couple that sample to anything else. -/
-theorem probOutput_handler_sample_pure_eq
+theorem prEvent_handler_sample_pure_eq
     {ι : Type} {spec : OracleSpec ι} {σ θ α : Type}
     (sample : ProbComp θ)
     (impl : QueryImpl spec (StateT σ ProbComp))
@@ -241,10 +215,10 @@ theorem probOutput_handler_sample_pure_eq
     rw [bind_assoc]
     refine bind_congr fun param => ?_
     rw [pure_bind]
-  exact evalDist_ext_iff.mp (congrArg evalDist h_term_eq) y
+  rw [h_term_eq]
 
-/-- Two-sample version of `probOutput_handler_sample_pure_eq`. -/
-theorem probOutput_handler_sample₂_pure_eq
+/-- Two-sample version of `prEvent_handler_sample_pure_eq`. -/
+theorem prEvent_handler_sample₂_pure_eq
     {ι : Type} {spec : OracleSpec ι} {σ θ₁ θ₂ α : Type}
     (sample₁ : ProbComp θ₁) (sample₂ : ProbComp θ₂)
     (impl : QueryImpl spec (StateT σ ProbComp))
@@ -276,6 +250,6 @@ theorem probOutput_handler_sample₂_pure_eq
     rw [bind_assoc]
     refine bind_congr fun param₂ => ?_
     rw [pure_bind]
-  exact evalDist_ext_iff.mp (congrArg evalDist h_term_eq) y
+  rw [h_term_eq]
 
 end OracleComp.ProgramLogic.Relational

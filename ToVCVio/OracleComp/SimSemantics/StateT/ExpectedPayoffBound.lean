@@ -83,7 +83,7 @@ lemma expectedPayoff_simulateQ_run_le
             exact add_le_add le_rfl (ENNReal.tsum_le_tsum fun z => by
               by_cases hz : z ∈ support ((impl t).run s)
               · exact mul_le_mul' le_rfl (htail z hz)
-              · simp [(probOutput_eq_zero_iff _ _).2 hz])
+              · simp only [prEvent_eq_zero_of_not_mem_support _ hz, zero_mul, le_refl])
           _ ≤ expectedPayoff ((impl t).run s) (fun z => score z.2) +
                 (((q - 1 : ℕ) : ℝ≥0∞) * epsilon) :=
             expectedPayoff_add_const_le _ _ _
@@ -114,7 +114,7 @@ lemma expectedPayoff_simulateQ_run_le
             exact add_le_add le_rfl (ENNReal.tsum_le_tsum fun z => by
               by_cases hz : z ∈ support ((impl t).run s)
               · exact mul_le_mul' le_rfl (htail z hz)
-              · simp [(probOutput_eq_zero_iff _ _).2 hz])
+              · simp only [prEvent_eq_zero_of_not_mem_support _ hz, zero_mul, le_refl])
           _ ≤ expectedPayoff ((impl t).run s) (fun z => score z.2) +
                 ((q : ℝ≥0∞) * epsilon) :=
             expectedPayoff_add_const_le _ _ _

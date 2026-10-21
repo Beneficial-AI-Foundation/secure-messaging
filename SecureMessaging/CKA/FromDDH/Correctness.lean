@@ -196,12 +196,6 @@ private lemma correctnessImpl_preserves [DecidableEq G] :
 /-! ### Correctness theorem -/
 
 /-- For any adversary `𝒜` with access to send/receive oracles,
-`prFail (Expᶜᵒʳʳ(ddhCKA, 𝒜)) = 0`. -/
-private lemma nofail [DecidableEq G] (adv : CKACorrectnessAdversary G G) :
-    prFail (correctnessExp (ddhCKA F G gen) adv) = 0 := by
-  exact OracleComp.prFail_eq_zero
-
-/-- For any adversary `𝒜` with access to send/receive oracles,
 `Pr{let x ← Expᶜᵒʳʳ(ddhCKA, 𝒜)}[x = false] = 0`. -/
 private lemma always_correct [DecidableEq G] (adv : CKACorrectnessAdversary G G)
     (b : Bool) (hb : b ∈ support (correctnessExp (ddhCKA F G gen) adv)) :
@@ -249,17 +243,14 @@ private lemma always_correct [DecidableEq G] (adv : CKACorrectnessAdversary G G)
 oracles, `Pr{let x ← Expᶜᵒʳʳ(ddhCKA, 𝒜)}[x = true] = 1`.
 
 The experiment `exp := correctnessExp (ddhCKA F G gen) adv : ProbComp Bool`
-has three mutually exclusive outcomes summing to `1`:
-`Pr{let x ← exp}[x = true] + Pr{let x ← exp}[x = false] + prFail exp = 1`.
-So `Pr{let x ← exp}[x = true] = 1` reduces to:
-* `nofail`         — `prFail exp = 0` (never fails);
-* `always_correct` — `Pr{let x ← exp}[x = false] = 0` (never returns `false`). -/
+never fails, so `Pr{let x ← exp}[x = true] = 1` reduces to every possible output being `true`
+(`always_correct`). -/
 -- ANCHOR: correctness
 theorem correctness [DecidableEq G] (adv : CKACorrectnessAdversary G G) :
   Pr{let x ← correctnessExp (ddhCKA F G gen) adv}[x = true] = 1
 -- ANCHOR_END: correctness
   := by
-  rw [← probEvent_eq_eq_probOutput, probEvent_eq_one_iff]
-  exact ⟨nofail adv, always_correct adv⟩
+  rw [OracleComp.prEvent_eq_one_iff]
+  exact always_correct adv
 
 end ddhCKA
