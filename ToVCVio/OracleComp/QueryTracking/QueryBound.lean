@@ -36,12 +36,12 @@ universe u
 goes to the right summand.
 
 The proof delegates to `simulateQ_run_of_step`, so it requires
-`[IsUniformSpec spec']` only for the base oracle. It does not require finite or
+`[OracleSpec.UniformAnswerMeasure spec']` only for the base oracle. It does not require finite or
 inhabited ranges for the adversary spec `spec₁ + spec₂`, so the adversary
 interface may contain unbounded query-domain or response types. -/
 theorem simulateQ_run_add_inr_of_step
     {ι₁ ι₂ ι' : Type u} {spec₁ : OracleSpec ι₁} {spec₂ : OracleSpec ι₂}
-    {spec' : OracleSpec ι'} [IsUniformSpec spec'] {σ α : Type u}
+    {spec' : OracleSpec ι'} [OracleSpec.UniformAnswerMeasure spec'] {σ α : Type u}
     {p : ι₁ ⊕ ι₂ → Prop} [DecidablePred p]
     {q : ι' → Prop} [DecidablePred q]
     {impl₁ : QueryImpl spec₁ (StateT σ (OracleComp spec'))}

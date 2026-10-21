@@ -193,13 +193,11 @@ lemma correctness_failure_le_of_tracked_bad [DecidableEq K]
     (leak : KEMScheme.OnOffRandLeak kem onoff)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym)) (δ : ℝ≥0∞)
     (hbad :
-      Pr[ fun z => z.2.2 = true |
-        (simulateQ
+      Pr{let z ← ((simulateQ
           (trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak) adv).run
-          (initialGame (Sym := Sym) kem onoff, false)] ≤ δ) :
-    Pr[= false |
-      SCKAScheme.correctnessExp
-        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] ≤ δ := by
+          (initialGame (Sym := Sym) kem onoff, false))}[z.2.2 = true] ≤ δ) :
+    Pr{let x ← (SCKAScheme.correctnessExp
+        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv)}[x = false] ≤ δ := by
   let tracked := trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak
   let Inv := trackedInv kem onoff hDet ecEk ecCt0 ecCt1
   let s₀ := initialGame (Sym := Sym) kem onoff
@@ -210,11 +208,9 @@ lemma correctness_failure_le_of_tracked_bad [DecidableEq K]
     simpa [Inv, s₀] using
       tracked_initial_inv kem onoff hDet ecEk ecCt0 ecCt1 hEkPos hCt0Pos
   have hmono :
-      Pr[fun z => z.2.1.correct = false |
-          (simulateQ tracked adv).run (s₀, false)] ≤
-        Pr[fun z => z.2.2 = true |
-          (simulateQ tracked adv).run (s₀, false)] := by
-    refine probEvent_mono ?_
+      Pr{let z ← (simulateQ tracked adv).run (s₀, false)}[z.2.1.correct = false] ≤
+        Pr{let z ← (simulateQ tracked adv).run (s₀, false)}[z.2.2 = true] := by
+    refine prEvent_mono ?_
     intro z hz hincorrect
     have hzInv : Inv z.2 :=
       OracleComp.simulateQ_run_preservesInv tracked Inv hpres adv
@@ -224,19 +220,16 @@ lemma correctness_failure_le_of_tracked_bad [DecidableEq K]
     · rcases hreach with ⟨_T, hConsistent⟩
       simp [hConsistent.correct] at hincorrect
   calc
-    Pr[= false |
-        SCKAScheme.correctnessExp
-          (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] =
-        Pr[fun z => z.2.1.correct = false |
-          (simulateQ tracked adv).run (s₀, false)] := by
+    Pr{let x ← (SCKAScheme.correctnessExp
+          (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv)}[x = false] =
+        Pr{let z ← (simulateQ tracked adv).run (s₀, false)}[z.2.1.correct = false] := by
       rw [correctnessExp_eq_final_map]
-      rw [← probEvent_eq_eq_probOutput, probEvent_map]
+      rw [← probEvent_eq_eq_probOutput, prEvent_map]
       have hproject := tracked_run_project kem onoff hDet ecEk ecCt0 ecCt1
         leak adv (s₀, false)
-      rw [← hproject, probEvent_map]
+      rw [← hproject, prEvent_map]
       congr 1
-    _ ≤ Pr[fun z => z.2.2 = true |
-          (simulateQ tracked adv).run (s₀, false)] := hmono
+    _ ≤ Pr{let z ← (simulateQ tracked adv).run (s₀, false)}[z.2.2 = true] := hmono
     _ ≤ δ := by simpa [tracked, s₀] using hbad
 
 end Reduction.Internal

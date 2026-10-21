@@ -71,7 +71,7 @@ theorem correctness [DecidableEq K]
     (leak : RandLeak kem)
     (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
     (adv : CKAScheme.CKACorrectnessAdversary (Message C PK) K) :
-    Pr[= true | CKAScheme.correctnessExp (scheme kem hDet leak) adv] = 1
+    Pr{let x ← CKAScheme.correctnessExp (scheme kem hDet leak) adv}[x = true] = 1
 ```
 ::::
 

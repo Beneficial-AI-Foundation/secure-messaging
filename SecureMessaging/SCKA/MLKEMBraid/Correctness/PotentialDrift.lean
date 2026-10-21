@@ -426,7 +426,7 @@ private theorem expectedPayoff_failurePotential_send_le
         hst).trans le_self_add
   | _ =>
       refine le_trans ?_ le_self_add
-      refine expectedPayoff_le_const_of_support _ _ _ probFailure_eq_zero fun z hz => ?_
+      refine expectedPayoff_le_const_of_support _ _ _ OracleComp.prFail_eq_zero fun z hz => ?_
       obtain ⟨hzc, hpot⟩ := send_correct_and_currentEpochFailure_eq auth irl sampleInitKey hT
         party (by rw [hst]; trivial) z hz
       simp [failurePotential, hzc, hpot, hT.correct]
@@ -450,7 +450,7 @@ private theorem expectedPayoff_failurePotential_recv_le
     exact expectedPayoff_le_one _ _ fun z => failurePotential_le_one z.2
   have hF : failurePotential s = currentEpochFailure s := by
     simp [failurePotential, hT.correct]
-  refine expectedPayoff_le_const_of_support _ _ _ probFailure_eq_zero fun z hz => ?_
+  refine expectedPayoff_le_const_of_support _ _ _ OracleComp.prFail_eq_zero fun z hz => ?_
   rw [hF]
   cases hzc : z.2.correct
   · -- A receive clears the flag only if decapsulation at the receiver's epoch does not return
@@ -490,7 +490,7 @@ theorem expectedPayoff_failurePotential_query_le
   match t with
   | SCKAScheme.sckaCorrectnessSpec.OUnif n =>
       rw [if_neg (by simp [SCKAScheme.isSendQuery]), add_zero]
-      refine expectedPayoff_le_const_of_support _ _ _ probFailure_eq_zero fun z hz => ?_
+      refine expectedPayoff_le_const_of_support _ _ _ OracleComp.prFail_eq_zero fun z hz => ?_
       exact le_of_eq (congrArg failurePotential
         (SCKAScheme.oracleUnif_preservesInv (· = s) n s rfl z hz))
   | SCKAScheme.sckaCorrectnessSpec.OSendA =>

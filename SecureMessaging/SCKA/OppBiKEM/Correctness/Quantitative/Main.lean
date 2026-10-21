@@ -196,8 +196,7 @@ Then the probability that `bad` holds after at least one query during `adv`'s ex
 `initState` is at most `q · ε`. -/
 lemma tracked_bad_le (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
     (q : ℕ) (hq : SCKAScheme.SendQueryBound adv q) :
-    Pr[ fun z => z.2.2 = true |
-        (simulateQ (trackedBiKem kem hDet ecEk ecCt leak) adv).run (initState, false)] ≤
+    Pr{let z ← (simulateQ (trackedBiKem kem hDet ecEk ecCt leak) adv).run (initState, false)}[z.2.2 = true] ≤
       (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp :=
   SCKAScheme.tracked_bad_le_of_score_step (scheme kem hDet ecEk ecCt leak) (kemFailure hDet)
     (GameInv kem ecEk ecCt) (fun z => trackedScore hDet z)

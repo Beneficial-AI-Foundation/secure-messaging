@@ -98,8 +98,8 @@ it outputs `true` in the real and in the ideal experiment. -/
 -- ANCHOR: prpAdvantage
 noncomputable def prpAdvantage [SampleableType (Equiv.Perm X)]
     (prp : PRPScheme K X) (adversary : PRPAdversary X) : ℝ :=
-  |(Pr[= true | prpRealExp prp adversary]).toReal -
-    (Pr[= true | prpIdealExp adversary]).toReal|
+  |(Pr{let x ← prpRealExp prp adversary}[x = true]).toReal -
+    (Pr{let x ← prpIdealExp adversary}[x = true]).toReal|
 -- ANCHOR_END: prpAdvantage
 
 /-- `asPRF g` is the fixed function `g` viewed as a PRF scheme with a trivial key, so that the

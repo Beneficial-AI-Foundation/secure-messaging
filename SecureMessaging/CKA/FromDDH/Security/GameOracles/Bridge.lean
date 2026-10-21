@@ -58,8 +58,8 @@ Main results in this file:
   bridge above, for an adversary `𝒜` simulated from the initial state
   `initGameState (.sendReady (x₀•gen)) (.recvReady x₀)`:
 
-      `Pr[= false | simulateQ (ckaSecurityImplLazyReal gp gen) 𝒜 …] =`
-      `Pr[= false | simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) 𝒜 …]`.
+      `Pr{let x ← simulateQ (ckaSecurityImplLazyReal gp gen) 𝒜 …}[x = false] =`
+      `Pr{let x ← simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) 𝒜 …}[x = false]`.
 
   The LHS uses the `consumeLazy`-wrapped lazy stack `ckaSecurityImplLazyReal`
   (from `GameOracles/Defs.lean`); the RHS uses the regular CKA game
@@ -191,18 +191,18 @@ real-branch CKA game: the `consumeLazy`-wrapped oracle stack
 `ckaSecurityImpl gp false (ddhCKA F G gen)`. -/
 lemma probOutput_lazy_honest_eq [Finite G] (gp : GameParams)
     (adversary : CKAAdversary (CKAState F G) G G F) (x₀ : F) :
-    Pr[= false | do
+    Pr{let x ← (do
       let (b', _) ← (simulateQ (ckaSecurityImplLazyReal gp gen) adversary).run
         ((initGameState
             (CKAState.sendReady (x₀ • gen) : CKAState F G)
             (CKAState.recvReady x₀ : CKAState F G), none), none)
-      return b'] =
-    Pr[= false | do
+      return b')}[x = false] =
+    Pr{let x ← (do
       let (b', _) ← (simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) adversary).run
         (initGameState
           (CKAState.sendReady (x₀ • gen) : CKAState F G)
           (CKAState.recvReady x₀ : CKAState F G))
-      return b'] := by
+      return b')}[x = false] := by
   let : Fintype G := Fintype.ofFinite G
   -- Compose Step 1 (consumeLazy commutation × 2) and Step 2 (adversary
   -- induction via bijection at hits + bind-swap at non-hits).

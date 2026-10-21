@@ -87,8 +87,8 @@ $`\pi \sample \mathsf{Perm}(\mathcal X);\quad b' \gets \adv^{\pi};\quad \Return 
 ```anchor prpAdvantage (project := ".") (module := ToVCVio.CryptoFoundations.PRP)
 noncomputable def prpAdvantage [SampleableType (Equiv.Perm X)]
     (prp : PRPScheme K X) (adversary : PRPAdversary X) : ℝ :=
-  |(Pr[= true | prpRealExp prp adversary]).toReal -
-    (Pr[= true | prpIdealExp adversary]).toReal|
+  |(Pr{let x ← prpRealExp prp adversary}[x = true]).toReal -
+    (Pr{let x ← prpIdealExp adversary}[x = true]).toReal|
 ```
 
 :::::::

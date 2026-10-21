@@ -288,7 +288,7 @@ def securityExp [SampleableType C] [DecidableEq AD] [DecidableEq C]
 noncomputable def guessAdvantage [SampleableType C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) : ℝ :=
-  |(Pr[= true | securityExp ae adversary]).toReal - 1 / 2|
+  |(Pr{let x ← securityExp ae adversary}[x = true]).toReal - 1 / 2|
 -- ANCHOR_END: guessAdvantage
 
 /-! ### Useful security game decomposition -/
@@ -315,8 +315,8 @@ is `securityExpFixedBit ae adversary true`. -/
 noncomputable def distAdvantage [SampleableType C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) : ℝ :=
-  |(Pr[= true | securityExpFixedBit ae adversary true]).toReal -
-   (Pr[= true | securityExpFixedBit ae adversary false]).toReal|
+  |(Pr{let x ← securityExpFixedBit ae adversary true}[x = true]).toReal -
+   (Pr{let x ← securityExpFixedBit ae adversary false}[x = true]).toReal|
 -- ANCHOR_END: distAdvantage
 
 /-- The single-game AEAD experiment can be decomposed as a uniform-bit branch over
@@ -328,20 +328,20 @@ the two fixed-bit experiments:
 Here `AEAD_real` abbreviates `securityExpFixedBit ae adversary false`, and
 `AEAD_rand` abbreviates `securityExpFixedBit ae adversary true`; each branch
 returns the adversary's raw guess `b'`. Proved by swapping `b ← $ᵗ Bool` past
-the key-generation step using `probEvent_bind_bind_swap`. -/
+the key-generation step using `OracleComp.prEvent_bind_bind_swap`. -/
 private lemma securityExp_probOutput_eq_branch
     [SampleableType C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) :
-    Pr[= true | securityExp ae adversary] =
-    Pr[= true | do
+    Pr{let x ← securityExp ae adversary}[x = true] =
+    Pr{let x ← (do
       let b ← ($ᵗ Bool : ProbComp Bool)
       let z ← if b then securityExpFixedBit ae adversary true
                else securityExpFixedBit ae adversary false
-      pure (b == z)] := by
+      pure (b == z))}[x = true] := by
   unfold securityExp
   simp only [← probEvent_eq_eq_probOutput]
-  rw [probEvent_bind_bind_swap]
+  rw [OracleComp.prEvent_bind_bind_swap]
   simp only [probEvent_eq_eq_probOutput]
   refine probOutput_bind_congr' ($ᵗ Bool) true ?_
   intro b; cases b <;> simp [securityExpFixedBit]
@@ -357,15 +357,15 @@ private lemma securityExp_toReal_sub_half
     [SampleableType C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) :
-    (Pr[= true | securityExp ae adversary]).toReal - 1 / 2 =
-    ((Pr[= true | securityExpFixedBit ae adversary true]).toReal -
-     (Pr[= true | securityExpFixedBit ae adversary false]).toReal) / 2 := by
-  rw [show (Pr[= true | securityExp ae adversary]).toReal =
-      (Pr[= true | do
+    (Pr{let x ← securityExp ae adversary}[x = true]).toReal - 1 / 2 =
+    ((Pr{let x ← securityExpFixedBit ae adversary true}[x = true]).toReal -
+     (Pr{let x ← securityExpFixedBit ae adversary false}[x = true]).toReal) / 2 := by
+  rw [show (Pr{let x ← securityExp ae adversary}[x = true]).toReal =
+      (Pr{let x ← (do
         let b ← ($ᵗ Bool : ProbComp Bool)
         let z ← if b then securityExpFixedBit ae adversary true
                  else securityExpFixedBit ae adversary false
-        pure (b == z)]).toReal from by
+        pure (b == z))}[x = true]).toReal from by
     congr 1; exact securityExp_probOutput_eq_branch ae adversary]
   exact probOutput_uniformBool_branch_toReal_sub_half
     (securityExpFixedBit ae adversary true)

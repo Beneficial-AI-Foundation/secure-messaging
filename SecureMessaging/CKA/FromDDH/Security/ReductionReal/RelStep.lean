@@ -1730,7 +1730,7 @@ lemma evalDist_eager_reduction_lazy_eq
           (simulateQ (honestImplParamReal gp gen a b) adversary).run' s₀) := by
           apply evalDist_ext
           intro y
-          exact probOutput_bind_bind_swap
+          exact OracleComp.prEvent_bind_bind_swap
             (mx := ($ᵗ F : ProbComp F))
             (my := ($ᵗ F : ProbComp F))
             (f := fun a b =>

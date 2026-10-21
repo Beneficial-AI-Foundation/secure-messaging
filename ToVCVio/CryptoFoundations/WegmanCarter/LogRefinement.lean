@@ -166,14 +166,12 @@ log-refined run raises `wcFlag`. -/
 theorem probEvent_bad_wcInst_eq_wcLog {α : Type} [DecidableEq A] [DecidableEq Cb]
     (hash : K → D → BitVec 128) (enc : A × Cb → D) (H : K) (mask : BitVec 128)
     (padMsg : M → Cb) (unpad : Cb → M) (oa : OracleComp (wcSpec A M Cb) α) :
-    Pr[fun z : α × (Option (A × (Cb × BitVec 128)) × Bool) => z.2.2 = true |
-        (simulateQ (wcInstImpl hash enc H mask padMsg unpad false) oa).run (none, false)] =
-      Pr[fun z : α × WCLogState A Cb => wcFlag hash enc H mask z.2 = true |
-        (simulateQ (wcLogImpl hash enc H mask padMsg) oa).run (none, [])] := by
+    Pr{let z ← (simulateQ (wcInstImpl hash enc H mask padMsg unpad false) oa).run (none, false)}[z.2.2 = true] =
+      Pr{let z ← (simulateQ (wcLogImpl hash enc H mask padMsg) oa).run (none, [])}[wcFlag hash enc H mask z.2 = true] := by
   have hs : wcProj hash enc H mask ((none, []) : WCLogState A Cb) = (none, false) := rfl
   have h1 := map_run_simulateQ_wcLogImpl_eq hash enc H mask padMsg unpad oa (none, [])
   rw [hs] at h1
-  rw [← h1, probEvent_map]
+  rw [← h1, prEvent_map]
   rfl
 
 end LogRefinement

@@ -39,7 +39,7 @@ way (`A`'s own fresh pair, and the fresh pair generated inside `rencA`) don't af
 comparison. Holds unconditionally, for any KEM (not just a correct one). -/
 theorem probOutput_correctExpA_eq_probOutput_CorrectExp [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (total : TotalDecaps kem) :
-    Pr[= true | RKEMScheme.correctExpA (scheme kem total)] = Pr[= true | kem.CorrectExp] := by
+    Pr{let x ← RKEMScheme.correctExpA (scheme kem total)}[x = true] = Pr{let x ← kem.CorrectExp}[x = true] := by
   unfold RKEMScheme.correctExpA KEMScheme.CorrectExp
   simp only [scheme, rkeygen, renc, rdec, total.decaps_eq,
     map_eq_bind_pure_comp, Function.comp, pure_bind, bind_assoc]
@@ -70,7 +70,7 @@ theorem evalDist_ratchetRoundOutputA_eq_evalDist_keygen
   obtain ⟨ekB, dkB⟩ := p
   refine probOutput_bind_of_const' (kem.encaps ekB) fun q _ => ?_
   obtain ⟨ct, key⟩ := q
-  rw [probOutput_bind_bind_swap]
+  rw [OracleComp.prEvent_bind_bind_swap]
   refine probOutput_bind_of_const' (total.decapsTotal dkB ct) fun _ _ => ?_
   simp
 
@@ -86,11 +86,11 @@ theorem deltaCorrect [DecidableEq K] (kem : KEMScheme ProbComp K PK SK C)
     := by
   refine ⟨⟨?_, ?_⟩, ?_, ?_⟩
   · unfold RKEMScheme.correctnessErrorA
-    change 1 - Pr[= true | RKEMScheme.correctExpA (scheme kem total)] ≤ δ
+    change 1 - Pr{let x ← RKEMScheme.correctExpA (scheme kem total)}[x = true] ≤ δ
     rw [probOutput_correctExpA_eq_probOutput_CorrectExp]
     exact hkem
   · unfold RKEMScheme.correctnessErrorB
-    change 1 - Pr[= true | RKEMScheme.correctExpB (scheme kem total)] ≤ δ
+    change 1 - Pr{let x ← RKEMScheme.correctExpB (scheme kem total)}[x = true] ≤ δ
     rw [show (scheme kem total).correctExpB = (scheme kem total).correctExpA by rfl,
         probOutput_correctExpA_eq_probOutput_CorrectExp]
     exact hkem

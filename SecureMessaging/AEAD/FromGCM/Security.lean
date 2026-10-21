@@ -210,21 +210,21 @@ theorem gcmOneTimeAEAD_security_of_axu (prp : PRPScheme K (BitVec 128)) (iv : Bi
 -- ANCHOR_END: gcmOneTimeAEAD_security_of_axu
   := by
   dsimp only
-  have hg12 : Pr[= true | game1 prp L hL adv] = Pr[= true | game2 prp L hL adv] :=
+  have hg12 : Pr{let x ← game1 prp L hL adv}[x = true] = Pr{let x ← game2 prp L hL adv}[x = true] :=
     evalDist_ext_iff.mp (game1_eq_game2 prp L hL adv) true
   unfold AEADScheme.distAdvantage
   rw [← game4_eq_rand prp iv L hL adv, ← game0_eq_real prp iv L hL adv,
     ← probOutput_game3_eq_game4 prp L hL adv]
-  calc |(Pr[= true | game3 prp L hL adv]).toReal -
-        (Pr[= true | game0 prp iv L hL adv]).toReal|
-    _ ≤ |(Pr[= true | game1 prp L hL adv]).toReal -
-         (Pr[= true | game0 prp iv L hL adv]).toReal| +
-        |(Pr[= true | game3 prp L hL adv]).toReal -
-         (Pr[= true | game2 prp L hL adv]).toReal| := by
+  calc |(Pr{let x ← game3 prp L hL adv}[x = true]).toReal -
+        (Pr{let x ← game0 prp iv L hL adv}[x = true]).toReal|
+    _ ≤ |(Pr{let x ← game1 prp L hL adv}[x = true]).toReal -
+         (Pr{let x ← game0 prp iv L hL adv}[x = true]).toReal| +
+        |(Pr{let x ← game3 prp L hL adv}[x = true]).toReal -
+         (Pr{let x ← game2 prp L hL adv}[x = true]).toReal| := by
           rw [hg12]
-          set g0 := (Pr[= true | game0 prp iv L hL adv]).toReal
-          set g2 := (Pr[= true | game2 prp L hL adv]).toReal
-          set g3 := (Pr[= true | game3 prp L hL adv]).toReal
+          set g0 := (Pr{let x ← game0 prp iv L hL adv}[x = true]).toReal
+          set g2 := (Pr{let x ← game2 prp L hL adv}[x = true]).toReal
+          set g3 := (Pr{let x ← game3 prp L hL adv}[x = true]).toReal
           linarith [abs_sub_le g3 g2 g0]
     _ ≤ PRFScheme.prfAdvantage prp.toPRFScheme (prfReduction iv L adv) +
         (q_d : ℝ) * ε.toReal :=

@@ -109,7 +109,7 @@ def indCPAExpProb [SampleableType K]
 Its evaluated distribution `𝒟[indCPAGameProb kem adv]` is definitionally equal
 to `kem.IND_CPA_Game ProbCompRuntime.probComp adv`, which has type `SPMF Bool`.
 This private helper names the computation so the proof can reorder its
-independent samples using `probOutput_bind_bind_swap`. -/
+independent samples using `OracleComp.prEvent_bind_bind_swap`. -/
 private def indCPAGameProb [SampleableType K]
     (kem : KEMScheme ProbComp K PK SK C)
     (adv : kem.IND_CPA_Adversary) : ProbComp Bool := do
@@ -148,14 +148,14 @@ private lemma indCPAGameProb_evalDist_eq_branch [SampleableType K]
   intro pk_sk
   refine probOutput_bind_congr' (adv.preChallenge pk_sk.1) x ?_
   intro st
-  rw [probOutput_bind_bind_swap ($ᵗ Bool) (kem.encaps pk_sk.1)
+  rw [OracleComp.prEvent_bind_bind_swap ($ᵗ Bool) (kem.encaps pk_sk.1)
     (fun b ck => do
       let kRand ← ($ᵗ K)
       let b' ← adv.postChallenge st ck.1 (if b then ck.2 else kRand)
       pure (b == b')) x]
   refine probOutput_bind_congr' (kem.encaps pk_sk.1) x ?_
   intro ck
-  rw [probOutput_bind_bind_swap ($ᵗ Bool) ($ᵗ K)
+  rw [OracleComp.prEvent_bind_bind_swap ($ᵗ Bool) ($ᵗ K)
     (fun b kRand => do
       let b' ← adv.postChallenge st ck.1 (if b then ck.2 else kRand)
       pure (b == b')) x]
@@ -191,8 +191,8 @@ private lemma indCPAGameProb_advantage_eq_fixed_dist [SampleableType K]
 lemma indCPAExpProb_probOutput_true_eq [SampleableType K]
     (kem : KEMScheme ProbComp K PK SK C)
     (adv : kem.IND_CPA_Adversary) (b : Bool) :
-    Pr[= true | indCPAExpProb kem adv b] =
-      Pr[= true | kem.IND_CPA_Exp ProbCompRuntime.probComp adv b] := by
+    Pr{let x ← indCPAExpProb kem adv b}[x = true] =
+      Pr{let x ← kem.IND_CPA_Exp ProbCompRuntime.probComp adv b}[x = true] := by
   unfold KEMScheme.IND_CPA_Exp
   rw [probOutput_probCompRuntime_evalDist_eq]
   cases b <;>
@@ -209,8 +209,8 @@ theorem IND_CPA_Advantage_eq_fixed_branch_dist [SampleableType K]
     (kem : KEMScheme ProbComp K PK SK C)
     (adv : kem.IND_CPA_Adversary) :
     kem.IND_CPA_Advantage ProbCompRuntime.probComp adv =
-      |(Pr[= true | kem.IND_CPA_Exp ProbCompRuntime.probComp adv true]).toReal -
-        (Pr[= true | kem.IND_CPA_Exp ProbCompRuntime.probComp adv false]).toReal| := by
+      |(Pr{let x ← kem.IND_CPA_Exp ProbCompRuntime.probComp adv true}[x = true]).toReal -
+        (Pr{let x ← kem.IND_CPA_Exp ProbCompRuntime.probComp adv false}[x = true]).toReal| := by
   rw [show kem.IND_CPA_Advantage ProbCompRuntime.probComp adv =
       (indCPAGameProb kem adv).boolBiasAdvantage by rfl]
   rw [indCPAGameProb_advantage_eq_fixed_dist]

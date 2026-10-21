@@ -98,8 +98,8 @@ plays no further role once its key pair has already been produced by `rencA`. -/
 private lemma probOutput_true_securityExpA_eq_probOutput_true_securityExpACore
     (kem : KEMScheme ProbComp K PK SK C) (total : TotalDecaps kem)
     (adversary : RKEMScheme.FSINDCPAAdversary Unit PK SK (PK × C) K) :
-    Pr[= true | RKEMScheme.securityExpA (scheme kem total) adversary] =
-      Pr[= true | securityExpACore kem adversary] := by
+    Pr{let x ← RKEMScheme.securityExpA (scheme kem total) adversary}[x = true] =
+      Pr{let x ← securityExpACore kem adversary}[x = true] := by
   unfold RKEMScheme.securityExpA securityExpACore
   simp only [scheme, rkeygen, renc, rdec, pure_bind, bind_assoc]
   refine probOutput_bind_congr fun b _ => ?_
@@ -120,18 +120,18 @@ game hands out the real key on `true`, `securityExpA` the random one. -/
 private lemma probOutput_true_indCpaGame_eq_probOutput_true_securityExpACore
     (kem : KEMScheme ProbComp K PK SK C)
     (adversary : RKEMScheme.FSINDCPAAdversary Unit PK SK (PK × C) K) :
-    Pr[= true | KEMScheme.IND_CPA_Game ProbCompRuntime.probComp (indCpaReduction kem adversary)] =
-      Pr[= true | securityExpACore kem adversary] := by
-  change Pr[= true | do
+    Pr{let x ← KEMScheme.IND_CPA_Game ProbCompRuntime.probComp (indCpaReduction kem adversary)}[x = true] =
+      Pr{let x ← securityExpACore kem adversary}[x = true] := by
+  change Pr{let x ← (do
       let (pk, _sk) ← kem.keygen
       let st ← (indCpaReduction kem adversary).preChallenge pk
       let b ← ($ᵗ Bool : ProbComp Bool)
       let (cStar, kReal) ← kem.encaps pk
       let kRand ← ($ᵗ K : ProbComp K)
       let b' ← (indCpaReduction kem adversary).postChallenge st cStar (if b then kReal else kRand)
-      pure (b == b')] = Pr[= true | securityExpACore kem adversary]
+      pure (b == b'))}[x = true] = Pr{let x ← securityExpACore kem adversary}[x = true]
   simp only [indCpaReduction, securityExpACore, bind_assoc, pure_bind]
-  conv_lhs => rw [probOutput_bind_bind_swap]
+  conv_lhs => rw [OracleComp.prEvent_bind_bind_swap]
   have hcoin := probOutput_true_uniformBool_bind_not
     (fun b => do
       let a ← kem.keygen
@@ -145,7 +145,7 @@ private lemma probOutput_true_indCpaGame_eq_probOutput_true_securityExpACore
   refine probOutput_bind_congr fun b _ => ?_
   -- First, rewrite the `if (!b) ...` condition (an artifact of the coin-relabeling step) into
   -- the `if b ...` form `securityExpACore` uses.
-  have hflip : Pr[= true | do
+  have hflip : Pr{let x ← (do
       let a ← kem.keygen
       let e ← kem.encaps a.1
       let kRand ← ($ᵗ K : ProbComp K)
@@ -153,25 +153,25 @@ private lemma probOutput_true_indCpaGame_eq_probOutput_true_securityExpACore
       let ekAHat ← kem.keygen
       let b' ← adversary () ekA.1 ekAHat.1 a.1 (ekAHat.1, e.1) ekAHat.2
         (if (!b) then e.2 else kRand)
-      pure (b == b')] =
-    Pr[= true | do
+      pure (b == b'))}[x = true] =
+    Pr{let x ← (do
       let a ← kem.keygen
       let e ← kem.encaps a.1
       let kRand ← ($ᵗ K : ProbComp K)
       let ekA ← kem.keygen
       let ekAHat ← kem.keygen
       let b' ← adversary () ekA.1 ekAHat.1 a.1 (ekAHat.1, e.1) ekAHat.2 (if b then kRand else e.2)
-      pure (b == b')] := by
+      pure (b == b'))}[x = true] := by
     cases b <;> rfl
   rw [hflip]
   -- Now reorder the shared randomness (`B`'s key + encapsulation, `A`'s next-round key, and the
   -- random key) to match `securityExpACore`'s sampling order, keeping `B`'s key and its
   -- encapsulation adjacent throughout (the encapsulation depends on the key).
-  refine (probOutput_bind_congr fun a _ => probOutput_bind_bind_swap _ _ _ _).trans ?_
-  refine (probOutput_bind_bind_swap _ _ _ _).trans ?_
+  refine (probOutput_bind_congr fun a _ => OracleComp.prEvent_bind_bind_swap _ _ _ _).trans ?_
+  refine (OracleComp.prEvent_bind_bind_swap _ _ _ _).trans ?_
   refine (probOutput_bind_congr fun kRand _ => probOutput_bind_congr fun a _ =>
-    probOutput_bind_bind_swap _ _ _ _).trans ?_
-  exact probOutput_bind_congr fun kRand _ => probOutput_bind_bind_swap _ _ _ _
+    OracleComp.prEvent_bind_bind_swap _ _ _ _).trans ?_
+  exact probOutput_bind_congr fun kRand _ => OracleComp.prEvent_bind_bind_swap _ _ _ _
 
 /-- Reduction bound: the RKEM-from-KEM construction's `A`-side FS-IND-CPA advantage equals the
 underlying KEM's IND-CPA advantage against the reduction adversary, converted from the
@@ -184,21 +184,21 @@ theorem fsIndCpaAdvantageA_eq
   unfold RKEMScheme.fsIndCpaAdvantageA
   rw [probOutput_true_securityExpA_eq_probOutput_true_securityExpACore kem total adversary,
     ← probOutput_true_indCpaGame_eq_probOutput_true_securityExpACore kem adversary]
-  have hnf : Pr[⊥ | KEMScheme.IND_CPA_Game ProbCompRuntime.probComp
-      (indCpaReduction kem adversary)] = 0 := by
-    change Pr[⊥ | do
+  have hnf : prFail (KEMScheme.IND_CPA_Game ProbCompRuntime.probComp
+      (indCpaReduction kem adversary)) = 0 := by
+    change prFail (do
         let (pk, _sk) ← kem.keygen
         let st ← (indCpaReduction kem adversary).preChallenge pk
         let b ← ($ᵗ Bool : ProbComp Bool)
         let (cStar, kReal) ← kem.encaps pk
         let kRand ← ($ᵗ K : ProbComp K)
         let b' ← (indCpaReduction kem adversary).postChallenge st cStar (if b then kReal else kRand)
-        pure (b == b')] = 0
-    exact NeverFail.probFailure_eq_zero
-  have htotal : Pr[= true | KEMScheme.IND_CPA_Game ProbCompRuntime.probComp
-      (indCpaReduction kem adversary)] +
-      Pr[= false | KEMScheme.IND_CPA_Game ProbCompRuntime.probComp
-        (indCpaReduction kem adversary)] = 1 := by
+        pure (b == b')) = 0
+    exact NeverFail.OracleComp.prFail_eq_zero
+  have htotal : Pr{let x ← (KEMScheme.IND_CPA_Game ProbCompRuntime.probComp
+      (indCpaReduction kem adversary))}[x = true] +
+      Pr{let x ← (KEMScheme.IND_CPA_Game ProbCompRuntime.probComp
+        (indCpaReduction kem adversary))}[x = false] = 1 := by
     rw [probOutput_true_add_false, hnf, tsub_zero]
   rw [IND_CPA_Advantage_eq_game_bias, SPMF.boolBiasAdvantage_eq_two_mul_abs_sub_half _ htotal]
   ring

@@ -34,8 +34,8 @@ theorem game3_eq_rand
     (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
     (adv : OneTimeCCAAdversary AD M (C_e × T))
     [NeverFail prf.keygen] :
-    Pr[= true | game3 se adv] =
-      Pr[= true | AEADScheme.securityExpFixedBit (etmAEAD se prf) adv true] := by
+    Pr{let x ← game3 se adv}[x = true] =
+      Pr{let x ← AEADScheme.securityExpFixedBit (etmAEAD se prf) adv true}[x = true] := by
   -- NRS14 Figure 4, right column: ideal nAE experiment.
   have hkg : (etmAEAD se prf).keygen
       = (se.keygen >>= fun ke => prf.keygen >>= fun km =>
@@ -50,12 +50,12 @@ theorem game3_eq_rand
   rw [probOutput_bind_of_const prf.keygen
         (my := fun km => (simulateQ (AEADScheme.aeadSecurityImpl (etmAEAD se prf)
           true (ke, km)) adv).run' none)
-        (fun km _ => congrArg (fun o => Pr[= true | o])
+        (fun km _ => congrArg (fun o => Pr{let x ← o}[x = true])
           (run'_simulateQ_eq_of_query_map_eq _
             (AEADScheme.aeadSecurityImpl (etmAEAD se prf) true (ke, km))
             Prod.fst ?_ adv ((none, ∅) : EtmGameState AD C_e T)).symm)]
   · -- `prf.keygen` is lossless, so the `(1 - Pr[⊥]) ·` factor is `1`; `rfl` pins `impl₁`.
-    rw [NeverFail.probFailure_eq_zero, tsub_zero, one_mul]
+    rw [NeverFail.OracleComp.prFail_eq_zero, tsub_zero, one_mul]
   · -- per-query projection (`impl₁` is game3's oracle implementation)
     intro t s
     obtain ⟨ch, qc⟩ := s

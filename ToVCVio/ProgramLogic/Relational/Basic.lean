@@ -35,7 +35,7 @@ For `A : OracleComp spec₁ α` and `B : OracleComp spec₂ β`, where both spec
   Computations that just return a value are related when their values are.
 
 * `relTriple_eqRel_of_probOutput_true_eq`: `RelTriple A B (EqRel Bool)`
-  if both return `Bool` and `Pr[= true | A] = Pr[= true | B]`.
+  if both return `Bool` and `Pr{let x ← A}[x = true] = Pr{let x ← B}[x = true]`.
   Games with the same success probability can be coupled to output the same bit.
 
 Candidate for upstream VCVio, next to `relTriple_refl`, `relTriple_map`, `relTriple_pure_pure`
@@ -98,7 +98,7 @@ lemma relTriple_of_eq_map_map {α β γ : Type} {oa : ProbComp β} {ob : ProbCom
 section AnySpec
 
 variable {ι₁ : Type u} {ι₂ : Type v} {spec₁ : OracleSpec ι₁} {spec₂ : OracleSpec ι₂}
-  [IsUniformSpec spec₁] [IsUniformSpec spec₂]
+  [OracleSpec.UniformAnswerMeasure spec₁] [OracleSpec.UniformAnswerMeasure spec₂]
 
 /-- Let `oa` and `ob` be the pure computations returning `a` and `b`, and let `a`
 and `b` be `R`-related. Then `oa` and `ob` are `R`-related. -/
@@ -115,11 +115,11 @@ equality. Neither can fail, so they also output `false` with equal probability.
 Converse of upstream `probOutput_true_eq_of_relTriple_eqRel`. -/
 lemma relTriple_eqRel_of_probOutput_true_eq
     {mx : OracleComp spec₁ Bool} {my : OracleComp spec₂ Bool}
-    (h : Pr[= true | mx] = Pr[= true | my]) :
+    (h : Pr{let x ← mx}[x = true] = Pr{let x ← my}[x = true]) :
     RelTriple mx my (EqRel Bool) := by
-  refine relTriple_eqRel_of_probOutput_eq fun x => ?_
+  refine relTriple_eqRel_of_evalDistEq fun x => ?_
   cases x
-  · simp only [probOutput_false_eq_sub, probFailure_eq_zero, h]
+  · simp only [probOutput_false_eq_sub, OracleComp.prFail_eq_zero, h]
   · exact h
 
 end AnySpec

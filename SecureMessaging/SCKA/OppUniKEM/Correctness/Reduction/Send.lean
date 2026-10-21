@@ -108,7 +108,7 @@ lemma keygen_failurePotential_le [DecidableEq K]
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv kem onoff ecEk ecCt0 ecCt1 s) (hdk : s.stA.dkA = none) :
-    (Pr[⊥ | kem.keygen] + ∑' kp : PK × SK, Pr[= kp | kem.keygen] *
+    (prFail kem.keygen + ∑' kp : PK × SK, Pr{let x ← kem.keygen}[x = kp] *
       currentFailurePotential kem onoff
         (installAKeypair onoff s kp.1 kp.2)) ≤
       currentFailurePotential kem onoff s +
@@ -195,8 +195,8 @@ lemma off_failurePotential_le [DecidableEq K]
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv kem onoff ecEk ecCt0 ecCt1 s) (hct0 : s.stB.ct0 = none) :
-    (Pr[⊥ | onoff.encapsOff] +
-      ∑' off : onoff.St × onoff.C₀, Pr[= off | onoff.encapsOff] *
+    (prFail onoff.encapsOff +
+      ∑' off : onoff.St × onoff.C₀, Pr{let x ← onoff.encapsOff}[x = off] *
       currentFailurePotential kem onoff
         (installBOff onoff s off.1 off.2)) ≤
       currentFailurePotential kem onoff s +

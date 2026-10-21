@@ -79,7 +79,7 @@ $$`\Pr[\,\textsf{correctnessExp} = \mathsf{true}\,] = 1`
 
 ```anchor correctness (project := ".") (module := SecureMessaging.CKA.FromDDH.Correctness)
 theorem correctness [DecidableEq G] (adv : CKACorrectnessAdversary G G) :
-  Pr[= true | correctnessExp (ddhCKA F G gen) adv] = 1
+  Pr{let x ← correctnessExp (ddhCKA F G gen) adv}[x = true] = 1
 ```
 :::
 

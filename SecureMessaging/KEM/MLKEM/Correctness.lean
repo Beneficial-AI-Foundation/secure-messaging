@@ -422,8 +422,8 @@ theorem fips203DecapsulationFailureProb_le_bound (p : ParameterSet) (ring : NTTR
     (prims : Primitives (ParameterSet.params p)
       (Concrete.concreteEncoding (ParameterSet.params p)))
     (hRing : NTTRingLaws ring) (hModel : CoefficientFailureBound p ring prims) :
-    Pr[= true | fips203DecapsulationFailureExp p ring
-        (Concrete.concreteEncoding (ParameterSet.params p)) prims] ≤
+    Pr{let x ← (fips203DecapsulationFailureExp p ring
+        (Concrete.concreteEncoding (ParameterSet.params p)) prims)}[x = true] ≤
       fips203DecapsulationFailureBound p := by
   rw [← correctnessError_eq_fips203DecapsulationFailureProb]
   exact correctnessError_le_fips203 p ring prims hRing hModel

@@ -68,7 +68,7 @@ theorem correctnessError_eq_fips203DecapsulationFailureProb (p : ParameterSet)
     [DecidableEq encoding.EncodedV]
     (prims : Primitives (ParameterSet.params p) encoding) :
     (asKEMScheme ring encoding prims).correctnessError ProbCompRuntime.probComp =
-      Pr[= true | fips203DecapsulationFailureExp p ring encoding prims] := by
+      Pr{let x ← fips203DecapsulationFailureExp p ring encoding prims}[x = true] := by
   have halign : (asKEMScheme ring encoding prims).CorrectExp =
       (! ·) <$> fips203DecapsulationFailureExp p ring encoding prims := by
     simp only [KEMScheme.CorrectExp, asKEMScheme, keygen, fips203DecapsulationFailureExp,

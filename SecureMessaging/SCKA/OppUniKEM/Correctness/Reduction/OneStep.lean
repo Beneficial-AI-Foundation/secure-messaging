@@ -292,7 +292,7 @@ lemma tracked_sendB_score_le [DecidableEq K]
                 unfold expectedPayoff
                 rw [failureAfterBoth_eq_indicator kem onoff hDet]
                 refine congrArg
-                  (fun x : ℝ≥0∞ => Pr[⊥ | onoff.encapsOn off.1 pk] + x) ?_
+                  (fun x : ℝ≥0∞ => prFail (onoff.encapsOn off.1 pk) + x) ?_
                 refine tsum_congr fun out => ?_
                 congr 1
                 exact sendBOffOnState_score kem onoff hDet s sk off out.1 out.2
@@ -302,8 +302,8 @@ lemma tracked_sendB_score_le [DecidableEq K]
                   failureAfterKeypair kem onoff pk sk := by
                 simp [currentFailurePotential, ht, hct1, hekA, hdk, hst, hct0]
               calc
-                (Pr[⊥ | onoff.encapsOff] +
-                  ∑' off : onoff.St × onoff.C₀, Pr[= off | onoff.encapsOff] *
+                (prFail onoff.encapsOff +
+                  ∑' off : onoff.St × onoff.C₀, Pr{let x ← onoff.encapsOff}[x = off] *
                     expectedPayoff
                       ((fun out =>
                         (some (s.stB.t - 1, some s.stB.t, msg out),
@@ -316,7 +316,7 @@ lemma tracked_sendB_score_le [DecidableEq K]
                     failureAfterKeypair kem onoff pk sk := by
                       unfold failureAfterKeypair
                       refine congrArg
-                        (fun x : ℝ≥0∞ => Pr[⊥ | onoff.encapsOff] + x) ?_
+                        (fun x : ℝ≥0∞ => prFail onoff.encapsOff + x) ?_
                       refine tsum_congr fun off => ?_
                       rw [hinner]
                 _ ≤ trackedFailureScore kem onoff (s, false) +
@@ -404,7 +404,7 @@ lemma tracked_sendB_score_le [DecidableEq K]
                     unfold expectedPayoff
                     rw [failureAfterBoth_eq_indicator kem onoff hDet]
                     refine congrArg
-                      (fun x : ℝ≥0∞ => Pr[⊥ | onoff.encapsOn st pk] + x) ?_
+                      (fun x : ℝ≥0∞ => prFail (onoff.encapsOn st pk) + x) ?_
                     refine tsum_congr fun out => ?_
                     congr 1
                     exact sendBOnState_score kem onoff hDet s sk ct0 out.1 out.2
@@ -514,9 +514,8 @@ lemma tracked_nonSend_score_le [DecidableEq K]
           (s, false))
         (fun z => trackedFailureScore kem onoff z.2) ≤
       trackedFailureScore kem onoff (s, false) := by
-  have hnf : Pr[⊥ |
-      ((trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak) t).run
-        (s, false)] = 0 := probFailure_eq_zero
+  have hnf : prFail (((trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak) t).run
+        (s, false)) = 0 := OracleComp.prFail_eq_zero
   apply expectedPayoff_le_const_of_support _ _ _ hnf
   intro z hz
   exact le_of_eq (tracked_nonSend_score_support_eq kem onoff hDet ecEk ecCt0 ecCt1

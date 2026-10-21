@@ -101,7 +101,7 @@ theorem trackedImpl_preserves (impl : QueryImpl spec (StateT σ ProbComp)) (bad 
 at least `1` on flagged states. Computation failure is charged `1` by `expectedPayoff`. -/
 theorem tracked_bad_probability_le_score {α : Type} (score : σ × Bool → ℝ≥0∞)
     (hscore : ∀ p : σ × Bool, p.2 = true → 1 ≤ score p) (oa : ProbComp (α × (σ × Bool))) :
-    Pr[ fun z => z.2.2 = true | oa] ≤ expectedPayoff oa (fun z => score z.2) :=
+    Pr{let z ← oa}[z.2.2 = true] ≤ expectedPayoff oa (fun z => score z.2) :=
   probEvent_le_expectedPayoff oa _ _ fun z hz => hscore z.2 hz
 
 /-- Per-query expected-score bounds, with an allowance of `ε` on queries satisfying `p` only,
@@ -117,7 +117,7 @@ theorem tracked_bad_le_of_score_step (impl : QueryImpl spec (StateT σ ProbComp)
         score x + if p t then ε else 0)
     {α : Type} (oa : OracleComp spec α) (q : ℕ) (hq : oa.IsQueryBoundP p q)
     (s₀ : σ) (hinit : trackedInv Inv bad (s₀, false)) :
-    Pr[ fun z => z.2.2 = true | (simulateQ (trackedImpl impl bad) oa).run (s₀, false)] ≤
+    Pr{let z ← (simulateQ (trackedImpl impl bad) oa).run (s₀, false)}[z.2.2 = true] ≤
       score (s₀, false) + (q : ℝ≥0∞) * ε :=
   (tracked_bad_probability_le_score score hscore1 _).trans
     (expectedPayoff_simulateQ_run_le (trackedImpl impl bad) (trackedInv Inv bad) score p ε
@@ -130,10 +130,10 @@ theorem probEvent_not_good_le_tracked_bad (impl : QueryImpl spec (StateT σ Prob
     (bad : σ → Bool) (Inv : σ → Prop) (good : σ → Bool) (hgood : ∀ s, Inv s → good s = true)
     (hpres : QueryImpl.PreservesInv (trackedImpl impl bad) (trackedInv Inv bad))
     {α : Type} (oa : OracleComp spec α) (s₀ : σ) (hinit : trackedInv Inv bad (s₀, false)) :
-    Pr[ fun z => good z.2 = false | (simulateQ impl oa).run s₀] ≤
-      Pr[ fun z => z.2.2 = true | (simulateQ (trackedImpl impl bad) oa).run (s₀, false)] := by
-  rw [← tracked_run_project impl bad oa (s₀, false), probEvent_map]
-  refine probEvent_mono ?_
+    Pr{let z ← (simulateQ impl oa).run s₀}[good z.2 = false] ≤
+      Pr{let z ← (simulateQ (trackedImpl impl bad) oa).run (s₀, false)}[z.2.2 = true] := by
+  rw [← tracked_run_project impl bad oa (s₀, false), prEvent_map]
+  refine prEvent_mono ?_
   intro z hz hnotgood
   rcases simulateQ_run_preservesInv (trackedImpl impl bad) (trackedInv Inv bad) hpres oa
       (s₀, false) hinit z hz with hflag | ⟨hinv, -⟩

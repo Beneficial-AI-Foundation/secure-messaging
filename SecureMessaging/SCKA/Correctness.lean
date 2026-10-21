@@ -384,7 +384,7 @@ theorem correctness_error_le_of_potential [DecidableEq I]
       expectedPayoff ((sckaCorrectnessImpl scka t).run s) (fun z => V z.2) ≤
         V s + if isSendQuery (Rho := Rho) t then ε else 0)
     (adv : SCKACorrectnessAdversary Rho) (q : ℕ) (hq : SendQueryBound adv q) :
-    1 - Pr[= true | correctnessExp scka adv] ≤ q * ε := by
+    1 - Pr{let x ← correctnessExp scka adv}[x = true] ≤ q * ε := by
   -- The expected potential of a complete run from any initial state is at most `q · ε`.
   have hrun : ∀ ik ∈ support scka.initKeyGen, ∀ stA ∈ support (scka.initA ik),
       ∀ stB ∈ support (scka.initB ik),
@@ -405,21 +405,21 @@ theorem correctness_error_le_of_potential [DecidableEq I]
         (fun z => z.2.correct) <$>
           (simulateQ (sckaCorrectnessImpl scka) adv).run (initGameState stA stB) := by
     simp [correctnessExp, map_eq_bind_pure_comp]
-  have hle : Pr[= false | correctnessExp scka adv] ≤
+  have hle : Pr{let x ← correctnessExp scka adv}[x = false] ≤
       expectedPayoff (correctnessExp scka adv) (fun b => if b then 0 else 1) := by
     rw [← probEvent_eq_eq_probOutput]
     exact probEvent_le_expectedPayoff _ _ _ fun b hb => by simp [hb]
-  have hfalse : Pr[= false | correctnessExp scka adv] =
-      1 - Pr[= true | correctnessExp scka adv] := by
-    rw [probOutput_false_eq_sub, probFailure_eq_zero, tsub_zero]
+  have hfalse : Pr{let x ← correctnessExp scka adv}[x = false] =
+      1 - Pr{let x ← correctnessExp scka adv}[x = true] := by
+    rw [probOutput_false_eq_sub, OracleComp.prFail_eq_zero, tsub_zero]
   rw [← hfalse]
   refine hle.trans ?_
   rw [hexp, expectedPayoff_bind]
-  refine expectedPayoff_le_const_of_support _ _ _ probFailure_eq_zero fun ik hik => ?_
+  refine expectedPayoff_le_const_of_support _ _ _ OracleComp.prFail_eq_zero fun ik hik => ?_
   rw [expectedPayoff_bind]
-  refine expectedPayoff_le_const_of_support _ _ _ probFailure_eq_zero fun stA hA => ?_
+  refine expectedPayoff_le_const_of_support _ _ _ OracleComp.prFail_eq_zero fun stA hA => ?_
   rw [expectedPayoff_bind]
-  refine expectedPayoff_le_const_of_support _ _ _ probFailure_eq_zero fun stB hB => ?_
+  refine expectedPayoff_le_const_of_support _ _ _ OracleComp.prFail_eq_zero fun stB hB => ?_
   rw [expectedPayoff_map]
   exact hrun ik hik stA hA stB hB
 

@@ -583,9 +583,8 @@ theorem correctness_true_ge [DecidableEq K] [DecidableEq Sym]
     (leak : KEMScheme.OnOffRandLeak kem onoff)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
     (q : ℕ) (hq : SendQueryBound adv q) :
-    Pr[= true |
-      SCKAScheme.correctnessExp
-        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] ≥
+    Pr{let x ← (SCKAScheme.correctnessExp
+        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv)}[x = true] ≥
       1 - (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp
 ```
 ::::

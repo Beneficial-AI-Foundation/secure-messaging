@@ -39,13 +39,11 @@ lemma challA_sampled_reduction_cont_probOutput_true_eq
     (hWill : willChallengeA gp σ = true)
     (hks : (pkStar, skStar) ∈ support kem.keygen)
     (cont : Option (Message C PK × K) → OracleComp (securitySpec leak) Bool) :
-    Pr[= true |
-      (((securityImpl kem hDet leak gp false
+    Pr{let x ← (((securityImpl kem hDet leak gp false
         (CKAScheme.ckaSecuritySpec.OChallA : (securitySpec leak).Domain)).run
         (preAToBHonestState σ pkStar skStar)) >>= fun p =>
-          (simulateQ (securityImpl kem hDet leak gp false) (cont p.1)).run' p.2)] =
-    Pr[= true |
-      (do
+          (simulateQ (securityImpl kem hDet leak gp false) (cont p.1)).run' p.2)}[x = true] =
+    Pr{let x ← (do
         let (cStar, realKey) ← kem.encaps pkStar
         let q ←
           (reductionBranchImpl kem hDet leak gp pkStar cStar realKey
@@ -53,7 +51,7 @@ lemma challA_sampled_reduction_cont_probOutput_true_eq
             (ReductionBranchState.pre (preAToBReductionState σ pkStar))
         (simulateQ
           (reductionBranchImpl kem hDet leak gp pkStar cStar realKey)
-          (cont q.1)).run' q.2)] := by
+          (cont q.1)).run' q.2)}[x = true] := by
   exact probOutput_true_eq_of_relTriple_eqRel
     (challA_sampled_reduction_cont_run'_relTriple
       kem hDet hkem leak gp hgp σ hInv hWill hks cont)
@@ -75,13 +73,11 @@ lemma challA_sampled_reduction_random_cont_probOutput_true_eq
     (hWill : willChallengeA gp σ = true)
     (hks : (pkStar, skStar) ∈ support kem.keygen)
     (cont : Option (Message C PK × K) → OracleComp (securitySpec leak) Bool) :
-    Pr[= true |
-      (((securityImpl kem hDet leak gp true
+    Pr{let x ← (((securityImpl kem hDet leak gp true
         (CKAScheme.ckaSecuritySpec.OChallA : (securitySpec leak).Domain)).run
         (preAToBHonestState σ pkStar skStar)) >>= fun p =>
-          (simulateQ (securityImpl kem hDet leak gp false) (cont p.1)).run' p.2)] =
-    Pr[= true |
-      (do
+          (simulateQ (securityImpl kem hDet leak gp false) (cont p.1)).run' p.2)}[x = true] =
+    Pr{let x ← (do
         let (cStar, _realKey) ← kem.encaps pkStar
         let kRand ← ($ᵗ K : ProbComp K)
         let q ←
@@ -90,7 +86,7 @@ lemma challA_sampled_reduction_random_cont_probOutput_true_eq
             (ReductionBranchState.pre (preAToBReductionState σ pkStar))
         (simulateQ
           (reductionBranchImpl kem hDet leak gp pkStar cStar kRand)
-          (cont q.1)).run' q.2)] := by
+          (cont q.1)).run' q.2)}[x = true] := by
   exact probOutput_true_eq_of_relTriple_eqRel
     (challA_sampled_reduction_random_cont_run'_relTriple
       kem hDet hkem leak gp hgp σ hInv hWill hks cont)
@@ -111,13 +107,11 @@ lemma challB_sampled_reduction_cont_probOutput_true_eq
     (hWill : willChallengeB gp σ = true)
     (hks : (pkStar, skStar) ∈ support kem.keygen)
     (cont : Option (Message C PK × K) → OracleComp (securitySpec leak) Bool) :
-    Pr[= true |
-      (((securityImpl kem hDet leak gp false
+    Pr{let x ← (((securityImpl kem hDet leak gp false
         (CKAScheme.ckaSecuritySpec.OChallB : (securitySpec leak).Domain)).run
         (preBToAHonestState σ pkStar skStar)) >>= fun p =>
-          (simulateQ (securityImpl kem hDet leak gp false) (cont p.1)).run' p.2)] =
-    Pr[= true |
-      (do
+          (simulateQ (securityImpl kem hDet leak gp false) (cont p.1)).run' p.2)}[x = true] =
+    Pr{let x ← (do
         let (cStar, realKey) ← kem.encaps pkStar
         let q ←
           (reductionBranchImpl kem hDet leak gp pkStar cStar realKey
@@ -125,7 +119,7 @@ lemma challB_sampled_reduction_cont_probOutput_true_eq
             (ReductionBranchState.pre (preBToAReductionState σ pkStar))
         (simulateQ
           (reductionBranchImpl kem hDet leak gp pkStar cStar realKey)
-          (cont q.1)).run' q.2)] := by
+          (cont q.1)).run' q.2)}[x = true] := by
   exact probOutput_true_eq_of_relTriple_eqRel
     (challB_sampled_reduction_cont_run'_relTriple
       kem hDet hkem leak gp hgp σ hInv hWill hks cont)
@@ -147,13 +141,11 @@ lemma challB_sampled_reduction_random_cont_probOutput_true_eq
     (hWill : willChallengeB gp σ = true)
     (hks : (pkStar, skStar) ∈ support kem.keygen)
     (cont : Option (Message C PK × K) → OracleComp (securitySpec leak) Bool) :
-    Pr[= true |
-      (((securityImpl kem hDet leak gp true
+    Pr{let x ← (((securityImpl kem hDet leak gp true
         (CKAScheme.ckaSecuritySpec.OChallB : (securitySpec leak).Domain)).run
         (preBToAHonestState σ pkStar skStar)) >>= fun p =>
-          (simulateQ (securityImpl kem hDet leak gp false) (cont p.1)).run' p.2)] =
-    Pr[= true |
-      (do
+          (simulateQ (securityImpl kem hDet leak gp false) (cont p.1)).run' p.2)}[x = true] =
+    Pr{let x ← (do
         let (cStar, _realKey) ← kem.encaps pkStar
         let kRand ← ($ᵗ K : ProbComp K)
         let q ←
@@ -162,7 +154,7 @@ lemma challB_sampled_reduction_random_cont_probOutput_true_eq
             (ReductionBranchState.pre (preBToAReductionState σ pkStar))
         (simulateQ
           (reductionBranchImpl kem hDet leak gp pkStar cStar kRand)
-          (cont q.1)).run' q.2)] := by
+          (cont q.1)).run' q.2)}[x = true] := by
   exact probOutput_true_eq_of_relTriple_eqRel
     (challB_sampled_reduction_random_cont_run'_relTriple
       kem hDet hkem leak gp hgp σ hInv hWill hks cont)

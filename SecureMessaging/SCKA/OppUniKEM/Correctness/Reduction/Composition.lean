@@ -60,7 +60,7 @@ lemma tracked_bad_probability_le_score [DecidableEq K]
       (Bool ×
         (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) ×
           Bool))) :
-    Pr[fun z => z.2.2 = true | oa] ≤
+    Pr{let z ← oa}[z.2.2 = true] ≤
       expectedPayoff oa (fun z => trackedFailureScore kem onoff z.2) :=
   probEvent_le_expectedPayoff oa _ _ fun z hz => by simp [trackedFailureScore, hz]
 

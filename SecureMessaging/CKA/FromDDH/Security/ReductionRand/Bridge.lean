@@ -55,7 +55,7 @@ lemma probOutput_general_per_x₀_rand
     (hg : Function.Bijective (· • gen : F → G))
   (h_general_case : ¬ (gp.challengeEpoch = 1 ∧ gp.challengedParty = .A))
     (adversary : CKAAdversary (CKAState F G) G G F) (x₀ : F) :
-    Pr[= false | do
+    Pr{let x ← (do
       let a ← ($ᵗ F : ProbComp F)
       let b ← ($ᵗ F : ProbComp F)
       let c ← ($ᵗ F : ProbComp F)
@@ -63,12 +63,11 @@ lemma probOutput_general_per_x₀_rand
           (reductionOracleImpl gp gen (a • gen) (b • gen) (c • gen)) adversary).run'
         (initGameState
           (CKAState.sendReady (x₀ • gen) : CKAState F G)
-          (CKAState.recvReady x₀ : CKAState F G))] =
-    Pr[= false |
-      (simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) adversary).run'
+          (CKAState.recvReady x₀ : CKAState F G)))}[x = false] =
+    Pr{let x ← ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) adversary).run'
         (initGameState
           (CKAState.sendReady (x₀ • gen) : CKAState F G)
-          (CKAState.recvReady x₀ : CKAState F G))] := by
+          (CKAState.recvReady x₀ : CKAState F G)))}[x = false] := by
   let s₀R : GameState (CKAState F G) G G :=
     initGameState
       (CKAState.sendReady (x₀ • gen) : CKAState F G)
@@ -78,20 +77,20 @@ lemma probOutput_general_per_x₀_rand
       (CKAState.sendReady (x₀ • gen) : CKAState F G)
       (CKAState.recvReady x₀ : CKAState F G)
   calc
-    Pr[= false | do
+    Pr{let x ← (do
         let a ← ($ᵗ F : ProbComp F)
         let b ← ($ᵗ F : ProbComp F)
         let c ← ($ᵗ F : ProbComp F)
         (simulateQ
             (reductionOracleImpl gp gen (a • gen) (b • gen) (c • gen)) adversary).run'
-          s₀R]
-      = Pr[= false | do
+          s₀R)}[x = false]
+      = Pr{let x ← (do
           let a ← ($ᵗ F : ProbComp F)
           let b ← ($ᵗ F : ProbComp F)
           let gT ← ($ᵗ G : ProbComp G)
           (simulateQ
               (reductionOracleImpl gp gen (a • gen) (b • gen) gT) adversary).run'
-            s₀R] := by
+            s₀R)}[x = false] := by
               refine probOutput_bind_congr' _ false fun a => ?_
               refine probOutput_bind_congr' _ false fun b => ?_
               exact probOutput_bind_bijective_uniform_cross F (fun c => c • gen) hg
@@ -100,11 +99,11 @@ lemma probOutput_general_per_x₀_rand
                       (reductionOracleImpl gp gen (a • gen) (b • gen) gT) adversary).run'
                     s₀R)
                 false
-    _ = Pr[= false | do
+    _ = Pr{let x ← (do
           let a ← ($ᵗ F : ProbComp F)
           let b ← ($ᵗ F : ProbComp F)
           let gT ← ($ᵗ G : ProbComp G)
-          (simulateQ (honestImplParamRand gp gen a b gT) adversary).run' s₀H] := by
+          (simulateQ (honestImplParamRand gp gen a b gT) adversary).run' s₀H)}[x = false] := by
               -- Per-fixed-(a, b, gT) state-relation bridge: reduction → honest_param_rand.
               refine probOutput_bind_congr' _ false fun a => ?_
               refine probOutput_bind_congr' _ false fun b => ?_
@@ -113,8 +112,7 @@ lemma probOutput_general_per_x₀_rand
                 (evalDist_reduction_honest_param_rand_eq
                   (gen := gen) gp hΔFS hΔPCS h_general_case x₀ a b gT adversary)
                 false
-    _ = Pr[= false |
-          (simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) adversary).run' s₀H] := by
+    _ = Pr{let x ← (simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) adversary).run' s₀H}[x = false] := by
           -- Rand game-oracle bridge: honest_param_rand outer samples to eager random CKA.
               exact evalDist_ext_iff.mp
                 (evalDist_eager_honest_rand_eq (gen := gen) gp s₀H adversary)
@@ -129,7 +127,7 @@ lemma probOutput_general_pointwise_rand
     (hg : Function.Bijective (· • gen : F → G))
     (h_general_case : ¬ (gp.challengeEpoch = 1 ∧ gp.challengedParty = .A))
     (adversary : CKAAdversary (CKAState F G) G G F) :
-    Pr[= false | do
+    Pr{let x ← (do
       let a ← ($ᵗ F : ProbComp F)
       let b ← ($ᵗ F : ProbComp F)
       let c ← ($ᵗ F : ProbComp F)
@@ -138,15 +136,15 @@ lemma probOutput_general_pointwise_rand
           (reductionOracleImpl gp gen (a • gen) (b • gen) (c • gen)) adversary).run'
         (initGameState
           (CKAState.sendReady (x₀ • gen) : CKAState F G)
-          (CKAState.recvReady x₀ : CKAState F G))] =
-    Pr[= false | do
+          (CKAState.recvReady x₀ : CKAState F G)))}[x = false] =
+    Pr{let x ← (do
       let x₀ ← ($ᵗ F : ProbComp F)
       (simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) adversary).run'
         (initGameState
           (CKAState.sendReady (x₀ • gen) : CKAState F G)
-          (CKAState.recvReady x₀ : CKAState F G))] := by
+          (CKAState.recvReady x₀ : CKAState F G)))}[x = false] := by
   -- 4-way swap: move x₀ past c, then past b, then past a.
-  calc Pr[= false | do
+  calc Pr{let x ← (do
         let a ← ($ᵗ F : ProbComp F)
         let b ← ($ᵗ F : ProbComp F)
         let c ← ($ᵗ F : ProbComp F)
@@ -155,8 +153,8 @@ lemma probOutput_general_pointwise_rand
             (reductionOracleImpl gp gen (a • gen) (b • gen) (c • gen)) adversary).run'
           (initGameState
             (CKAState.sendReady (x₀ • gen) : CKAState F G)
-            (CKAState.recvReady x₀ : CKAState F G))]
-      _ = Pr[= false | do
+            (CKAState.recvReady x₀ : CKAState F G)))}[x = false]
+      _ = Pr{let x ← (do
           let a ← ($ᵗ F : ProbComp F)
           let b ← ($ᵗ F : ProbComp F)
           let x₀ ← ($ᵗ F : ProbComp F)
@@ -165,11 +163,11 @@ lemma probOutput_general_pointwise_rand
               (reductionOracleImpl gp gen (a • gen) (b • gen) (c • gen)) adversary).run'
             (initGameState
               (CKAState.sendReady (x₀ • gen) : CKAState F G)
-              (CKAState.recvReady x₀ : CKAState F G))] := by
+              (CKAState.recvReady x₀ : CKAState F G)))}[x = false] := by
         refine probOutput_bind_congr' _ false fun a => ?_2
         refine probOutput_bind_congr' _ false fun b => ?_
-        exact probOutput_bind_bind_swap _ _ _ _
-      _ = Pr[= false | do
+        exact OracleComp.prEvent_bind_bind_swap _ _ _ _
+      _ = Pr{let x ← (do
           let a ← ($ᵗ F : ProbComp F)
           let x₀ ← ($ᵗ F : ProbComp F)
           let b ← ($ᵗ F : ProbComp F)
@@ -178,10 +176,10 @@ lemma probOutput_general_pointwise_rand
               (reductionOracleImpl gp gen (a • gen) (b • gen) (c • gen)) adversary).run'
             (initGameState
               (CKAState.sendReady (x₀ • gen) : CKAState F G)
-              (CKAState.recvReady x₀ : CKAState F G))] := by
+              (CKAState.recvReady x₀ : CKAState F G)))}[x = false] := by
         refine probOutput_bind_congr' _ false fun a => ?_
-        exact probOutput_bind_bind_swap _ _ _ _
-      _ = Pr[= false | do
+        exact OracleComp.prEvent_bind_bind_swap _ _ _ _
+      _ = Pr{let x ← (do
           let x₀ ← ($ᵗ F : ProbComp F)
           let a ← ($ᵗ F : ProbComp F)
           let b ← ($ᵗ F : ProbComp F)
@@ -190,8 +188,8 @@ lemma probOutput_general_pointwise_rand
               (reductionOracleImpl gp gen (a • gen) (b • gen) (c • gen)) adversary).run'
             (initGameState
               (CKAState.sendReady (x₀ • gen) : CKAState F G)
-              (CKAState.recvReady x₀ : CKAState F G))] :=
-          probOutput_bind_bind_swap _ _ _ _
+              (CKAState.recvReady x₀ : CKAState F G)))}[x = false] :=
+          OracleComp.prEvent_bind_bind_swap _ _ _ _
       _ = _ := by
         refine probOutput_bind_congr' _ false fun x₀ => ?_
         exact probOutput_general_per_x₀_rand gp hΔFS hΔPCS hg h_general_case adversary x₀
@@ -258,32 +256,32 @@ lemma evalDist_special_honest_fixed_a_rand_eq_eager
   apply evalDist_ext
   intro y
   calc
-    Pr[= y | do
+    Pr{let x ← (do
         let b ← ($ᵗ F : ProbComp F)
         let gT ← ($ᵗ G : ProbComp G)
-        (simulateQ (honestImplParamRand gp gen x₀ b gT) adversary).run' s]
-      = Pr[= y | do
+        (simulateQ (honestImplParamRand gp gen x₀ b gT) adversary).run' s)}[x = y]
+      = Pr{let x ← (do
           let b ← ($ᵗ F : ProbComp F)
           let gT ← ($ᵗ G : ProbComp G)
           let a ← ($ᵗ F : ProbComp F)
-          (simulateQ (honestImplParamRand gp gen a b gT) adversary).run' s] := by
+          (simulateQ (honestImplParamRand gp gen a b gT) adversary).run' s)}[x = y] := by
           refine probOutput_bind_congr' _ y fun b => ?_
           refine probOutput_bind_congr' _ y fun gT => ?_
           exact evalDist_ext_iff.mp (h_bind_fixed b gT).symm y
-    _ = Pr[= y | do
+    _ = Pr{let x ← (do
           let b ← ($ᵗ F : ProbComp F)
           let a ← ($ᵗ F : ProbComp F)
           let gT ← ($ᵗ G : ProbComp G)
-          (simulateQ (honestImplParamRand gp gen a b gT) adversary).run' s] := by
+          (simulateQ (honestImplParamRand gp gen a b gT) adversary).run' s)}[x = y] := by
           refine probOutput_bind_congr' _ y fun b => ?_
-          exact probOutput_bind_bind_swap _ _ _ _
-    _ = Pr[= y | do
+          exact OracleComp.prEvent_bind_bind_swap _ _ _ _
+    _ = Pr{let x ← (do
           let a ← ($ᵗ F : ProbComp F)
           let b ← ($ᵗ F : ProbComp F)
           let gT ← ($ᵗ G : ProbComp G)
-          (simulateQ (honestImplParamRand gp gen a b gT) adversary).run' s] := by
-          exact probOutput_bind_bind_swap _ _ _ _
-    _ = Pr[= y | (simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) adversary).run' s] := by
+          (simulateQ (honestImplParamRand gp gen a b gT) adversary).run' s)}[x = y] := by
+          exact OracleComp.prEvent_bind_bind_swap _ _ _ _
+    _ = Pr{let x ← (simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) adversary).run' s}[x = y] := by
           exact evalDist_ext_iff.mp
             (evalDist_eager_honest_rand_eq (gen := gen) gp s adversary)
             y
@@ -298,19 +296,18 @@ lemma probOutput_special_per_x₀_rand
     (hg : Function.Bijective (· • gen : F → G))
     (h_special_case : gp.challengeEpoch = 1 ∧ gp.challengedParty = .A)
     (adversary : CKAAdversary (CKAState F G) G G F) (x₀ : F) :
-    Pr[= false | do
+    Pr{let x ← (do
       let b ← ($ᵗ F : ProbComp F)
       let c ← ($ᵗ F : ProbComp F)
       (simulateQ
           (reductionOracleImpl gp gen (x₀ • gen) (b • gen) (c • gen)) adversary).run'
         (initGameState
           (CKAState.sendReady (x₀ • gen) : CKAState F G)
-          ((CKAState.recvReady 0) : CKAState F G))] =
-    Pr[= false |
-      (simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) adversary).run'
+          ((CKAState.recvReady 0) : CKAState F G)))}[x = false] =
+    Pr{let x ← ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) adversary).run'
         (initGameState
           (CKAState.sendReady (x₀ • gen) : CKAState F G)
-          (CKAState.recvReady x₀ : CKAState F G))] := by
+          (CKAState.recvReady x₀ : CKAState F G)))}[x = false] := by
   let s₀R : GameState (CKAState F G) G G :=
     initGameState
       (CKAState.sendReady (x₀ • gen) : CKAState F G)
@@ -320,18 +317,18 @@ lemma probOutput_special_per_x₀_rand
       (CKAState.sendReady (x₀ • gen) : CKAState F G)
       (CKAState.recvReady x₀ : CKAState F G)
   calc
-    Pr[= false | do
+    Pr{let x ← (do
         let b ← ($ᵗ F : ProbComp F)
         let c ← ($ᵗ F : ProbComp F)
         (simulateQ
             (reductionOracleImpl gp gen (x₀ • gen) (b • gen) (c • gen)) adversary).run'
-          s₀R]
-      = Pr[= false | do
+          s₀R)}[x = false]
+      = Pr{let x ← (do
           let b ← ($ᵗ F : ProbComp F)
           let gT ← ($ᵗ G : ProbComp G)
           (simulateQ
               (reductionOracleImpl gp gen (x₀ • gen) (b • gen) gT) adversary).run'
-            s₀R] := by
+            s₀R)}[x = false] := by
               refine probOutput_bind_congr' _ false fun b => ?_
               exact probOutput_bind_bijective_uniform_cross F (fun c => c • gen) hg
                 (fun gT =>
@@ -339,29 +336,27 @@ lemma probOutput_special_per_x₀_rand
                       (reductionOracleImpl gp gen (x₀ • gen) (b • gen) gT) adversary).run'
                     s₀R)
                 false
-    _ = Pr[= false |
-          (simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) adversary).run' s₀H] := by
+    _ = Pr{let x ← (simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) adversary).run' s₀H}[x = false] := by
             calc
-              Pr[= false | do
+              Pr{let x ← (do
                   let b ← ($ᵗ F : ProbComp F)
                   let gT ← ($ᵗ G : ProbComp G)
                   (simulateQ
                       (reductionOracleImpl gp gen (x₀ • gen) (b • gen) gT) adversary).run'
-                    s₀R]
-                = Pr[= false | do
+                    s₀R)}[x = false]
+                = Pr{let x ← (do
                     let b ← ($ᵗ F : ProbComp F)
                     let gT ← ($ᵗ G : ProbComp G)
                     (simulateQ (honestImplParamRand gp gen x₀ b gT) adversary).run'
-                      s₀H] := by
+                      s₀H)}[x = false] := by
                     refine probOutput_bind_congr' _ false fun b => ?_
                     refine probOutput_bind_congr' _ false fun gT => ?_
                     exact evalDist_ext_iff.mp
                       (evalDist_reduction_honest_param_rand_special_eq
                         (gen := gen) gp hΔFS hΔPCS h_special_case x₀ b gT adversary)
                       false
-              _ = Pr[= false |
-                    (simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) adversary).run'
-                      s₀H] := by
+              _ = Pr{let x ← ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) adversary).run'
+                      s₀H)}[x = false] := by
                     exact evalDist_ext_iff.mp
                       (evalDist_special_honest_fixed_a_rand_eq_eager
                         (gen := gen) gp h_special_case x₀ adversary s₀H)
@@ -377,7 +372,7 @@ lemma probOutput_special_pointwise_rand
     (hg : Function.Bijective (· • gen : F → G))
     (h_special_case : gp.challengeEpoch = 1 ∧ gp.challengedParty = .A)
     (adversary : CKAAdversary (CKAState F G) G G F) :
-    Pr[= false | do
+    Pr{let x ← (do
       let a ← ($ᵗ F : ProbComp F)
       let b ← ($ᵗ F : ProbComp F)
       let c ← ($ᵗ F : ProbComp F)
@@ -385,26 +380,26 @@ lemma probOutput_special_pointwise_rand
           (reductionOracleImpl gp gen (a • gen) (b • gen) (c • gen)) adversary).run'
         (initGameState
           (CKAState.sendReady (a • gen) : CKAState F G)
-          ((CKAState.recvReady 0) : CKAState F G))] =
-    Pr[= false | do
+          ((CKAState.recvReady 0) : CKAState F G)))}[x = false] =
+    Pr{let x ← (do
       let x₀ ← ($ᵗ F : ProbComp F)
       (simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) adversary).run'
         (initGameState
           (CKAState.sendReady (x₀ • gen) : CKAState F G)
-          (CKAState.recvReady x₀ : CKAState F G))] := by
+          (CKAState.recvReady x₀ : CKAState F G)))}[x = false] := by
   refine probOutput_bind_congr' _ false fun x₀ => ?_
   exact probOutput_special_per_x₀_rand gp hΔFS hΔPCS hg h_special_case adversary x₀
 
 omit [Inhabited F] [Fintype G] in
 /-- **Step (2) of the random branch.** Game-level bridge:
-`Pr[= false | securityReductionRandGame] = Pr[= false | CKA^{isRandom = true}]`.
+`Pr{let x ← securityReductionRandGame}[x = false] = Pr{let x ← CKA^{isRandom = true}}[x = false]`.
 Parallel to `probOutput_securityReductionRealGame_eq_honestFalse`. -/
 lemma probOutput_securityReductionRandGame_eq_honestTrue
   (gp : GameParams) (hΔFS : gp.ΔFS = 1) (hΔPCS : gp.ΔPCS = 2)
     (hg : Function.Bijective (· • gen : F → G))
     (adversary : CKAAdversary (CKAState F G) G G F) :
-    Pr[= false | securityReductionRandGame (gen := gen) gp adversary] =
-    Pr[= false | securityExpRandGame (gen := gen) gp adversary] := by
+    Pr{let x ← securityReductionRandGame (gen := gen) gp adversary}[x = false] =
+    Pr{let x ← securityExpRandGame (gen := gen) gp adversary}[x = false] := by
   unfold securityReductionRandGame securityExpRandGame
   by_cases h_special_case : gp.challengeEpoch = 1 ∧ gp.challengedParty = .A
   · simp only [reductionInitState, if_pos h_special_case, pure_bind]

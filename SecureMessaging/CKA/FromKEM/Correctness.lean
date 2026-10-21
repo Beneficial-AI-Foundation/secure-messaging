@@ -344,16 +344,15 @@ theorem send_recv_agree [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
     (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp) :
-    Pr[= true |
-      do
+    Pr{let x ← (do
         let (pk, sk) ← kem.keygen
         let (c, keyS) ← kem.encaps pk
         let (pkNext, _skNext) ← kem.keygen
         match recv hDet (.recvReady sk) (c, pkNext) with
         | none => return false
-        | some (keyR, _) => return decide (keyR = keyS)] = 1 := by
+        | some (keyR, _) => return decide (keyR = keyS))}[x = true] = 1 := by
   rw [← probEvent_eq_eq_probOutput, probEvent_eq_one_iff]
-  refine ⟨probFailure_eq_zero, ?_⟩
+  refine ⟨OracleComp.prFail_eq_zero, ?_⟩
   intro b hb
   rw [mem_support_bind_iff] at hb
   obtain ⟨⟨pk, sk⟩, hks, hb⟩ := hb
@@ -380,11 +379,11 @@ theorem correctness [DecidableEq K]
     (leak : RandLeak kem)
     (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
     (adv : CKAScheme.CKACorrectnessAdversary (Message C PK) K) :
-    Pr[= true | CKAScheme.correctnessExp (scheme kem hDet leak) adv] = 1
+    Pr{let x ← CKAScheme.correctnessExp (scheme kem hDet leak) adv}[x = true] = 1
 -- ANCHOR_END: correctness
     := by
   rw [← probEvent_eq_eq_probOutput, probEvent_eq_one_iff]
-  refine ⟨probFailure_eq_zero, ?_⟩
+  refine ⟨OracleComp.prFail_eq_zero, ?_⟩
   intro b hb
   unfold CKAScheme.correctnessExp at hb
   rw [mem_support_bind_iff] at hb

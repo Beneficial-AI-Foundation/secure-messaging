@@ -570,6 +570,6 @@ $$`\Adv{\textsf{guess}}(\adv, gp)
 noncomputable def ckaGuessAdvantage [SampleableType I] [DecidableEq I]
     (cka : CKAScheme ProbComp IK St I Rho Rand) (adversary : CKAAdversary St Rho I Rand)
     (gp : GameParams) : ℝ :=
-  |(Pr[= true | securityExp cka adversary gp]).toReal - 1 / 2|
+  |(Pr{let x ← securityExp cka adversary gp}[x = true]).toReal - 1 / 2|
 ```
 :::

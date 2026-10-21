@@ -36,7 +36,7 @@ through the skeleton. -/
 theorem game2'_eq_game2
     (se : DetSEAlg K_e M C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
-    Pr[= true | game2' se adv] = Pr[= true | game2 se adv] := by
+    Pr{let x ← game2' se adv}[x = true] = Pr{let x ← game2 se adv}[x = true] := by
   -- Fold the skeleton tail `let (b', _) ← run; return b'` to `run'`.
   -- Both games: `se.keygen` then the per-key skeleton run; descend through keygen.
   unfold game2' game2 etmGameSkeleton
@@ -46,7 +46,7 @@ theorem game2'_eq_game2
   -- makes a discarded random-oracle query at `(ad, c)` before rejecting, while `game2`
   -- rejects directly. Reduce the `Pr` equality to a `𝒟` equality and apply discarded-query
   -- removal.
-  rw [probOutput_def, probOutput_def]
+  rw [prEvent_eq_evalDist_singleton, prEvent_eq_evalDist_singleton]
   refine congrFun (congrArg DFunLike.coe ?_) true
   refine OracleComp.evalDist_simulateQ_run'_discardRO
     (D := AD × C_e) (R := T) _ _ ?h₁ ?hstep adv none ∅
@@ -168,8 +168,7 @@ theorem tvDist_authInst_le_probForge
     (adv : OneTimeCCAAdversary AD M (C_e × T)) (ke : K_e) :
     tvDist ((simulateQ (authInstImpl se true ke) adv).run' ((none, ∅), false))
         ((simulateQ (authInstImpl se false ke) adv).run' ((none, ∅), false)) ≤
-      (Pr[fun z : Bool × (EtmGameState AD C_e T × Bool) => z.2.2 = true |
-          (simulateQ (authInstImpl se true ke) adv).run ((none, ∅), false)]).toReal := by
+      (Pr{let z ← (simulateQ (authInstImpl se true ke) adv).run ((none, ∅), false)}[z.2.2 = true]).toReal := by
   -- Bad-flag monotonicity: the flag is only ever replaced by `forged` or `forged || ok`,
   -- so once `true` it stays `true`, for both `b = true` and `b = false`.
   have hmono : ∀ (b : Bool) (t : (aeadOneTimeCCASpec AD M (C_e × T)).Domain)
@@ -227,8 +226,8 @@ theorem tvDist_authInst_le_probForge
   have hagree : ∀ (t : (aeadOneTimeCCASpec AD M (C_e × T)).Domain)
       (s : EtmGameState AD C_e T) (u : (aeadOneTimeCCASpec AD M (C_e × T)).Range t)
       (s' : EtmGameState AD C_e T),
-      Pr[= (u, (s', false)) | (authInstImpl se true ke t).run (s, false)] =
-        Pr[= (u, (s', false)) | (authInstImpl se false ke t).run (s, false)] := by
+      Pr{let x ← (authInstImpl se true ke t).run (s, false)}[x = (u, (s', false))] =
+        Pr{let x ← (authInstImpl se false ke t).run (s, false)}[x = (u, (s', false))] := by
     intro t s u s'
     rcases t with (n | ⟨ad, m⟩) | ⟨ad, c, tg⟩
     · -- uniform-sampling oracle: `b` unused, impls identical at this index
@@ -264,20 +263,18 @@ forge probability (the `b = true` simulation's `forged` flag) is at most the `fo
 probability of the eval+verify lazy-RO forge experiment run on `forgeReduction`. The proof
 collapses the nested forge `simulateQ` to the single combined handler `forgeJointImpl` over the
 same adversary `adv`, then applies the generic coupling lemma
-`OracleComp.ProgramLogic.Relational.probEvent_le_of_relTriple_simulateQ_run` with a joint-state
+`OracleComp.ProgramLogic.Relational.prEvent_le_of_relTriple_simulateQ_run` with a joint-state
 invariant (NRS14 App. A.2). -/
 theorem probForge_authInst_le_forgeReduction
     (se : DetSEAlg K_e M C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) (ke : K_e) :
-    (Pr[fun z : Bool × (EtmGameState AD C_e T × Bool) => z.2.2 = true |
-        (simulateQ (authInstImpl se true ke) adv).run ((none, ∅), false)]).toReal ≤
-      (Pr[fun z : Unit × OracleComp.ForgeState (AD × C_e) T => z.2.2.2 = true |
-          (simulateQ OracleComp.forgeImpl (forgeReduction se adv ke)).run
-            (∅, ∅, false)]).toReal := by
+    (Pr{let z ← (simulateQ (authInstImpl se true ke) adv).run ((none, ∅), false)}[z.2.2 = true]).toReal ≤
+      (Pr{let z ← ((simulateQ OracleComp.forgeImpl (forgeReduction se adv ke)).run
+            (∅, ∅, false))}[z.2.2.2 = true]).toReal := by
   -- The proof relates the two experiments at the ENNReal level (`.toReal` is monotone on
   -- the relevant non-⊤ probabilities), then collapses the nested forge `simulateQ` to a
   -- single combined handler over the SAME adversary `adv`, and finally applies the generic
-  -- coupling lemma `probEvent_le_of_relTriple_simulateQ_run` with a joint-state invariant.
+  -- coupling lemma `prEvent_le_of_relTriple_simulateQ_run` with a joint-state invariant.
   --
   -- Combined RHS handler: the AEAD oracles forwarded into the joint state
   -- `EtmGameState × ForgeState` (the `simulateQ`-collapse target for the forge run).
@@ -306,15 +303,12 @@ theorem probForge_authInst_le_forgeReduction
   -- ENNReal-level event inequality, then transport to `.toReal`.
   refine ENNReal.toReal_mono ?hne ?hle
   case hne =>
-    exact ne_top_of_le_ne_top one_ne_top probEvent_le_one
+    exact ne_top_of_le_ne_top one_ne_top (prEvent_le_one _)
   case hle =>
     -- (i) Reduction collapse: rewrite the forge run as a `simulateQ impl₂ adv` run.
     have hRHScollapse :
-        Pr[fun z : Unit × OracleComp.ForgeState (AD × C_e) T => z.2.2.2 = true |
-            (simulateQ OracleComp.forgeImpl (forgeReduction se adv ke)).run (∅, ∅, false)] =
-          Pr[fun z : Bool × (EtmGameState AD C_e T × OracleComp.ForgeState (AD × C_e) T) =>
-                z.2.2.2.2 = true |
-            (simulateQ impl₂ adv).run ((none, ∅), (∅, ∅, false))] := by
+        Pr{let z ← (simulateQ OracleComp.forgeImpl (forgeReduction se adv ke)).run (∅, ∅, false)}[z.2.2.2 = true] =
+          Pr{let z ← (simulateQ impl₂ adv).run ((none, ∅), (∅, ∅, false))}[z.2.2.2.2 = true] := by
       -- Mechanical nested-`simulateQ` collapse: `forgeReduction = const () <$> skeleton`,
       -- the skeleton ends `let (b',_) ← (simulateQ inner adv).run (none,∅); return b'`, and
       -- `simulateQ forgeImpl ((simulateQ inner adv).run s)` flattens to
@@ -326,7 +320,7 @@ theorem probForge_authInst_le_forgeReduction
       -- (unif/encrypt/decrypt forward to the corresponding `forgeImpl` summand); the event
       -- composition then reindexes definitionally to the joint `forged` flag.
       unfold forgeReduction etmGameSkeleton
-      simp only [pure_bind, simulateQ_map, StateT.run_map, probEvent_map,
+      simp only [pure_bind, simulateQ_map, StateT.run_map, prEvent_map,
         Function.const, StateT.run_pure,
         bind_pure_comp]
       rw [OracleComp.simulateQ_mapStateTBase_run_eq_map_flattenStateT]
@@ -334,7 +328,7 @@ theorem probForge_authInst_le_forgeReduction
       -- `forgeJointImpl`.
       rw [show (OracleComp.forgeImpl.mapStateTBase _).flattenStateT
             = forgeJointImpl se ke from ?hflat,
-        ← himpl₂, probEvent_map]
+        ← himpl₂, prEvent_map]
       case hflat =>
         funext t
         rcases t with (n | ⟨ad, m⟩) | ⟨ad, c, tg⟩
@@ -409,7 +403,7 @@ theorem probForge_authInst_le_forgeReduction
     rw [hRHScollapse]
     -- (ii) Coupling lemma: the game's flag (`z.2.2 = true`) implies the forge flag
     -- (`z.2.2.2.2 = true`) under `R_state`, which is preserved per-query.
-    refine OracleComp.ProgramLogic.Relational.probEvent_le_of_relTriple_simulateQ_run
+    refine OracleComp.ProgramLogic.Relational.prEvent_le_of_relTriple_simulateQ_run
       (authInstImpl se true ke) impl₂ R_state adv ?himpl
       ((none, ∅), false) ((none, ∅), (∅, ∅, false)) ?hs
       (p := fun z => z.2.2 = true)

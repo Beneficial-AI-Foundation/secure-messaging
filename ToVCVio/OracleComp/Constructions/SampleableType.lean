@@ -38,18 +38,18 @@ lemma uniformSample_prod_eq_bind (α β : Type) [SampleableType α] [SampleableT
   exact (selectElem_prod_as_seq α β).symm
 
 /-- Let `oa : ProbComp β` output every element of `β` (`hsupp`) and give any two elements the
-same probability (`huni : Pr[= x | oa] = Pr[= y | oa]`). Then `oa` has the same distribution
+same probability (`huni : Pr{let y ← oa}[y = x] = Pr{let x ← oa}[x = y]`). Then `oa` has the same distribution
 as the uniform sample: `evalDist oa = evalDist ($ᵗ β)`. -/
 theorem evalDist_eq_uniformSample_of_uniform {β : Type} [SampleableType β]
     (oa : ProbComp β) (hsupp : ∀ x : β, x ∈ support oa)
-    (huni : ∀ x y : β, Pr[= x | oa] = Pr[= y | oa]) :
+    (huni : ∀ x y : β, Pr{let y ← oa}[y = x] = Pr{let x ← oa}[x = y]) :
     evalDist oa = evalDist ($ᵗ β) := by
   let : Fintype β := Fintype.ofFinite β
   refine evalDist_ext fun x => ?_
-  have h2 : Pr[= x | ($ᵗ β)] = (Fintype.card β : ℝ≥0∞)⁻¹ :=
+  have h2 : Pr{let y ← ($ᵗ β)}[y = x] = (Fintype.card β : ℝ≥0∞)⁻¹ :=
     probOutput_uniformSample β x
   let h : SampleableType β := ⟨oa, hsupp, huni⟩
-  have h1 : Pr[= x | oa] = (Fintype.card β : ℝ≥0∞)⁻¹ :=
+  have h1 : Pr{let y ← oa}[y = x] = (Fintype.card β : ℝ≥0∞)⁻¹ :=
     probOutput_uniformSample (hα := h) β x
   exact h1.trans h2.symm
 
@@ -60,16 +60,16 @@ whose real and ideal distributions coincide, so its guessing advantage is `0`. -
 lemma probOutput_true_bitGuess_eq_half {Par X : Type} (setup : ProbComp Par)
     (dist : Par → Bool → ProbComp X) (adversary : Par → X → ProbComp Bool)
     (h : ∀ par, 𝒟[dist par true] = 𝒟[dist par false]) :
-    Pr[= true | do
+    Pr{let y ← (do
       let b ← $ᵗ Bool
       let par ← setup
       let x ← dist par b
       let b' ← adversary par x
-      return b == b'] = 1 / 2 := by
+      return b == b')}[y = true] = 1 / 2 := by
   have hf : 𝒟[do let par ← setup; let x ← dist par true; adversary par x] =
       𝒟[do let par ← setup; let x ← dist par false; adversary par x] := by
     simp only [evalDist_bind, h]
-  have := probOutput_decide_eq_uniformBool_half
+  have := evalDist_decide_eq_uniformBool_half
     (fun b => do let par ← setup; let x ← dist par b; adversary par x) hf
   simpa [bind_assoc, Bool.beq_eq_decide_eq] using this
 

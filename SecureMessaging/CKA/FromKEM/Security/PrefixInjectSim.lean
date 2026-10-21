@@ -142,9 +142,8 @@ private lemma ckaSecurityFixedBranch_challenge_key_probOutput_true_eq
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams)
     (isRandom : Bool) :
-    Pr[= true | ckaSecurityFixedBranch kem hDet leak adv gp isRandom] =
-      Pr[= true |
-        ckaSecurityFixedBranchWithChallengeKey kem hDet leak adv gp isRandom] := by
+    Pr{let x ← ckaSecurityFixedBranch kem hDet leak adv gp isRandom}[x = true] =
+      Pr{let x ← ckaSecurityFixedBranchWithChallengeKey kem hDet leak adv gp isRandom}[x = true] := by
   unfold ckaSecurityFixedBranch ckaSecurityFixedBranchWithChallengeKey
   by_cases hinit :
       (gp.challengeEpoch == 1 && gp.challengedParty == .A) = true
@@ -170,12 +169,10 @@ lemma ckaSecurityFixedBranch_challenge_key_gap_eq
     (leak : RandLeak kem)
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams) :
-    |(Pr[= true | ckaSecurityFixedBranch kem hDet leak adv gp true]).toReal -
-      (Pr[= true | ckaSecurityFixedBranch kem hDet leak adv gp false]).toReal| =
-    |(Pr[= true |
-        ckaSecurityFixedBranchWithChallengeKey kem hDet leak adv gp true]).toReal -
-      (Pr[= true |
-        ckaSecurityFixedBranchWithChallengeKey kem hDet leak adv gp false]).toReal| := by
+    |(Pr{let x ← ckaSecurityFixedBranch kem hDet leak adv gp true}[x = true]).toReal -
+      (Pr{let x ← ckaSecurityFixedBranch kem hDet leak adv gp false}[x = true]).toReal| =
+    |(Pr{let x ← ckaSecurityFixedBranchWithChallengeKey kem hDet leak adv gp true}[x = true]).toReal -
+      (Pr{let x ← ckaSecurityFixedBranchWithChallengeKey kem hDet leak adv gp false}[x = true]).toReal| := by
   rw [ckaSecurityFixedBranch_challenge_key_probOutput_true_eq]
   rw [ckaSecurityFixedBranch_challenge_key_probOutput_true_eq]
 
@@ -217,12 +214,11 @@ private lemma ckaReductionINDCPABranchRaw_keygen_swapped_probOutput_true
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams)
     (b : Bool) :
-    Pr[= true | ckaReductionINDCPABranchRaw kem hDet leak adv gp b] =
-      Pr[= true |
-        ckaReductionINDCPABranchRawKeygenSwapped kem hDet leak adv gp b] := by
+    Pr{let x ← ckaReductionINDCPABranchRaw kem hDet leak adv gp b}[x = true] =
+      Pr{let x ← ckaReductionINDCPABranchRawKeygenSwapped kem hDet leak adv gp b}[x = true] := by
   unfold ckaReductionINDCPABranchRaw
   unfold ckaReductionINDCPABranchRawKeygenSwapped
-  rw [probOutput_bind_bind_swap (mx := kem.keygen) (my := kem.keygen)
+  rw [OracleComp.prEvent_bind_bind_swap (mx := kem.keygen) (my := kem.keygen)
     (f := fun pkStar_skStar pk0_sk0 => do
       let σ0 :=
         CKAScheme.initGameState
@@ -249,12 +245,10 @@ lemma ckaReductionINDCPABranchRaw_keygen_swapped_gap_eq
     (leak : RandLeak kem)
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams) :
-    |(Pr[= true | ckaReductionINDCPABranchRaw kem hDet leak adv gp true]).toReal -
-      (Pr[= true | ckaReductionINDCPABranchRaw kem hDet leak adv gp false]).toReal| =
-    |(Pr[= true |
-        ckaReductionINDCPABranchRawKeygenSwapped kem hDet leak adv gp true]).toReal -
-      (Pr[= true |
-        ckaReductionINDCPABranchRawKeygenSwapped kem hDet leak adv gp false]).toReal| := by
+    |(Pr{let x ← ckaReductionINDCPABranchRaw kem hDet leak adv gp true}[x = true]).toReal -
+      (Pr{let x ← ckaReductionINDCPABranchRaw kem hDet leak adv gp false}[x = true]).toReal| =
+    |(Pr{let x ← ckaReductionINDCPABranchRawKeygenSwapped kem hDet leak adv gp true}[x = true]).toReal -
+      (Pr{let x ← ckaReductionINDCPABranchRawKeygenSwapped kem hDet leak adv gp false}[x = true]).toReal| := by
   rw [ckaReductionINDCPABranchRaw_keygen_swapped_probOutput_true]
   rw [ckaReductionINDCPABranchRaw_keygen_swapped_probOutput_true]
 
@@ -823,9 +817,9 @@ lemma probOutput_simulateQ_securityImplWithChallengeKeyPair_run_eq_of_injectionP
     (s : SecurityState K PK SK C)
     (hs : injectionPassed gp s)
     (z : Bool × SecurityState K PK SK C) :
-    Pr[= z | (simulateQ
-        (securityImplWithChallengeKeyPair kem hDet leak gp isRandom pkStar skStar) adv).run s] =
-      Pr[= z | (simulateQ (securityImpl kem hDet leak gp isRandom) adv).run s] :=
+    Pr{let x ← ((simulateQ
+        (securityImplWithChallengeKeyPair kem hDet leak gp isRandom pkStar skStar) adv).run s)}[x = z] =
+      Pr{let x ← (simulateQ (securityImpl kem hDet leak gp isRandom) adv).run s}[x = z] :=
   probOutput_simulateQ_run_eq_of_impl_eq_preservesInv
     (securityImplWithChallengeKeyPair kem hDet leak gp isRandom pkStar skStar)
     (securityImpl kem hDet leak gp isRandom)
