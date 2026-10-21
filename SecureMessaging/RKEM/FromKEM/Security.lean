@@ -19,7 +19,7 @@ The proof builds a reduction, `indCpaReduction`, from an FS-IND-CPA adversary ag
 construction to an IND-CPA adversary against the underlying KEM: it independently samples the
 extra key pairs the construction generates each round and hands everything to the RKEM-level
 adversary, negating its guess to align the two games' conventions
-(`probOutput_true_indCpaGame_eq_probOutput_true_securityExpACore`).
+(`prEvent_true_indCpaGame_eq_prEvent_true_securityExpACore`).
 
 Combining the two equalities gives the per-party reduction bounds
 `fsIndCpaAdvantageA_eq`/`fsIndCpaAdvantageB_eq`, each equal to the underlying KEM's IND-CPA
@@ -29,10 +29,11 @@ assumes a uniform IND-CPA bound `ε` over every adversary of the underlying KEM 
 specific reduction adversaries), giving the clean bound `ε / 2`.
 
 The `/ 2` is a change of convention, not a loss: VCVio's `IND_CPA_Advantage` is the *distinguishing*
-advantage `|Pr[true] - Pr[false]|`, exactly twice [TripleRatchet]'s Def. 5.4 *bias* advantage
-`|Pr[true] - 1/2|` for a game that never fails, so dividing by `2` converts between the two
-conventions without any loss of tightness (`IND_CPA_Advantage_eq_game_bias`,
-`SPMF.boolBiasAdvantage_eq_two_mul_abs_sub_half`).
+advantage `|Pr[true] - Pr[false]|` (the game's `Measure.boolBias`, in `ℝ≥0∞`), exactly twice
+[TripleRatchet]'s Def. 5.4 *bias* advantage `|Pr[true] - 1/2|` for a game that never fails, so
+dividing its real value by `2` converts between the two conventions without any loss of tightness
+(`IND_CPA_Advantage_eq_game_bias`,
+`Measure.boolBias_eq_two_mul_absDiff_half_of_isProbabilityMeasure`).
 -/
 
 open ToVCVio KEMScheme RKEMScheme
@@ -78,8 +79,8 @@ def indCpaReduction (kem : KEMScheme ProbComp K PK SK C)
 
 /-- A restatement of `securityExpA` that skips the decapsulation call entirely, rather than
 performing it and throwing the result away. Serves as a convenient intermediate target for both
-`probOutput_true_securityExpA_eq_probOutput_true_securityExpACore` and
-`probOutput_true_indCpaGame_eq_probOutput_true_securityExpACore`. -/
+`prEvent_true_securityExpA_eq_prEvent_true_securityExpACore` and
+`prEvent_true_indCpaGame_eq_prEvent_true_securityExpACore`. -/
 private def securityExpACore (kem : KEMScheme ProbComp K PK SK C)
     (adversary : RKEMScheme.FSINDCPAAdversary Unit PK SK (PK × C) K) : ProbComp Bool := do
   let b ← $ᵗ Bool
@@ -95,32 +96,33 @@ private def securityExpACore (kem : KEMScheme ProbComp K PK SK C)
 unfolding `scheme`'s fields, the only difference is an extra decapsulation call
 (`total.decapsTotal`) whose result is discarded, since decapsulation never fails and its output
 plays no further role once its key pair has already been produced by `rencA`. -/
-private lemma probOutput_true_securityExpA_eq_probOutput_true_securityExpACore
+private lemma prEvent_true_securityExpA_eq_prEvent_true_securityExpACore
     (kem : KEMScheme ProbComp K PK SK C) (total : TotalDecaps kem)
     (adversary : RKEMScheme.FSINDCPAAdversary Unit PK SK (PK × C) K) :
     Pr{let x ← RKEMScheme.securityExpA (scheme kem total) adversary}[x = true] =
       Pr{let x ← securityExpACore kem adversary}[x = true] := by
   unfold RKEMScheme.securityExpA securityExpACore
   simp only [scheme, rkeygen, renc, rdec, pure_bind, bind_assoc]
-  refine probOutput_bind_congr fun b _ => ?_
-  refine probOutput_bind_congr fun k1 _ => ?_
-  refine probOutput_bind_congr fun p _ => ?_
+  refine prEvent_bind_congr _ _ _ _ _ fun b => ?_
+  refine prEvent_bind_congr _ _ _ _ _ fun k1 => ?_
+  refine prEvent_bind_congr _ _ _ _ _ fun p => ?_
   obtain ⟨ekA, dkA⟩ := p
-  refine probOutput_bind_congr fun q _ => ?_
+  refine prEvent_bind_congr _ _ _ _ _ fun q => ?_
   obtain ⟨ekBHat, dkBHat⟩ := q
-  refine probOutput_bind_congr fun r _ => ?_
+  refine prEvent_bind_congr _ _ _ _ _ fun r => ?_
   obtain ⟨ct, k0⟩ := r
-  refine probOutput_bind_congr fun s _ => ?_
+  refine prEvent_bind_congr _ _ _ _ _ fun s => ?_
   obtain ⟨ekSelfHat, dkSelfHat⟩ := s
   exact probOutput_bind_of_const' (total.decapsTotal dkBHat ct) fun _ _ => rfl
 
 /-- The reduction's `IND_CPA_Game` and `securityExpACore` output `true` equally often. Both
 sample the same randomness in different orders and read the challenge bit oppositely: the KEM
 game hands out the real key on `true`, `securityExpA` the random one. -/
-private lemma probOutput_true_indCpaGame_eq_probOutput_true_securityExpACore
+private lemma prEvent_true_indCpaGame_eq_prEvent_true_securityExpACore
     (kem : KEMScheme ProbComp K PK SK C)
     (adversary : RKEMScheme.FSINDCPAAdversary Unit PK SK (PK × C) K) :
-    Pr{let x ← KEMScheme.IND_CPA_Game ProbCompRuntime.probComp (indCpaReduction kem adversary)}[x = true] =
+    Pr{let x ← KEMScheme.IND_CPA_Game ProbCompRuntime.probComp
+        (indCpaReduction kem adversary)}[x = true] =
       Pr{let x ← securityExpACore kem adversary}[x = true] := by
   change Pr{let x ← (do
       let (pk, _sk) ← kem.keygen
@@ -131,7 +133,7 @@ private lemma probOutput_true_indCpaGame_eq_probOutput_true_securityExpACore
       let b' ← (indCpaReduction kem adversary).postChallenge st cStar (if b then kReal else kRand)
       pure (b == b'))}[x = true] = Pr{let x ← securityExpACore kem adversary}[x = true]
   simp only [indCpaReduction, securityExpACore, bind_assoc, pure_bind]
-  conv_lhs => rw [OracleComp.prEvent_bind_bind_swap]
+  conv_lhs => rw [(OracleComp.EvalDistEq.bind_bind_swap _ _ _).prEvent_eq]
   have hcoin := probOutput_true_uniformBool_bind_not
     (fun b => do
       let a ← kem.keygen
@@ -142,7 +144,7 @@ private lemma probOutput_true_indCpaGame_eq_probOutput_true_securityExpACore
       adversary () x.1 x_1.1 a.1 (x_1.1, __x.1) x_1.2 (if b then __x.2 else kRand))
   simp only [bind_assoc] at hcoin
   rw [hcoin]
-  refine probOutput_bind_congr fun b _ => ?_
+  refine prEvent_bind_congr _ _ _ _ _ fun b => ?_
   -- First, rewrite the `if (!b) ...` condition (an artifact of the coin-relabeling step) into
   -- the `if b ...` form `securityExpACore` uses.
   have hflip : Pr{let x ← (do
@@ -167,11 +169,13 @@ private lemma probOutput_true_indCpaGame_eq_probOutput_true_securityExpACore
   -- Now reorder the shared randomness (`B`'s key + encapsulation, `A`'s next-round key, and the
   -- random key) to match `securityExpACore`'s sampling order, keeping `B`'s key and its
   -- encapsulation adjacent throughout (the encapsulation depends on the key).
-  refine (probOutput_bind_congr fun a _ => OracleComp.prEvent_bind_bind_swap _ _ _ _).trans ?_
-  refine (OracleComp.prEvent_bind_bind_swap _ _ _ _).trans ?_
-  refine (probOutput_bind_congr fun kRand _ => probOutput_bind_congr fun a _ =>
-    OracleComp.prEvent_bind_bind_swap _ _ _ _).trans ?_
-  exact probOutput_bind_congr fun kRand _ => OracleComp.prEvent_bind_bind_swap _ _ _ _
+  refine (prEvent_bind_congr _ _ _ _ _ fun a =>
+    (OracleComp.EvalDistEq.bind_bind_swap _ _ _).prEvent_eq _).trans ?_
+  refine ((OracleComp.EvalDistEq.bind_bind_swap _ _ _).prEvent_eq _).trans ?_
+  refine (prEvent_bind_congr _ _ _ _ _ fun kRand => prEvent_bind_congr _ _ _ _ _ fun a =>
+    (OracleComp.EvalDistEq.bind_bind_swap _ _ _).prEvent_eq _).trans ?_
+  exact prEvent_bind_congr _ _ _ _ _ fun kRand =>
+    (OracleComp.EvalDistEq.bind_bind_swap _ _ _).prEvent_eq _
 
 /-- Reduction bound: the RKEM-from-KEM construction's `A`-side FS-IND-CPA advantage equals the
 underlying KEM's IND-CPA advantage against the reduction adversary, converted from the
@@ -180,27 +184,16 @@ theorem fsIndCpaAdvantageA_eq
     (kem : KEMScheme ProbComp K PK SK C) (total : TotalDecaps kem)
     (adversary : RKEMScheme.FSINDCPAAdversary Unit PK SK (PK × C) K) :
     RKEMScheme.fsIndCpaAdvantageA (scheme kem total) adversary =
-      kem.IND_CPA_Advantage ProbCompRuntime.probComp (indCpaReduction kem adversary) / 2 := by
+      (kem.IND_CPA_Advantage ProbCompRuntime.probComp (indCpaReduction kem adversary)).toReal /
+        2 := by
   unfold RKEMScheme.fsIndCpaAdvantageA
-  rw [probOutput_true_securityExpA_eq_probOutput_true_securityExpACore kem total adversary,
-    ← probOutput_true_indCpaGame_eq_probOutput_true_securityExpACore kem adversary]
-  have hnf : prFail (KEMScheme.IND_CPA_Game ProbCompRuntime.probComp
-      (indCpaReduction kem adversary)) = 0 := by
-    change prFail (do
-        let (pk, _sk) ← kem.keygen
-        let st ← (indCpaReduction kem adversary).preChallenge pk
-        let b ← ($ᵗ Bool : ProbComp Bool)
-        let (cStar, kReal) ← kem.encaps pk
-        let kRand ← ($ᵗ K : ProbComp K)
-        let b' ← (indCpaReduction kem adversary).postChallenge st cStar (if b then kReal else kRand)
-        pure (b == b')) = 0
-    exact NeverFail.OracleComp.prFail_eq_zero
-  have htotal : Pr{let x ← (KEMScheme.IND_CPA_Game ProbCompRuntime.probComp
-      (indCpaReduction kem adversary))}[x = true] +
-      Pr{let x ← (KEMScheme.IND_CPA_Game ProbCompRuntime.probComp
-        (indCpaReduction kem adversary))}[x = false] = 1 := by
-    rw [probOutput_true_add_false, hnf, tsub_zero]
-  rw [IND_CPA_Advantage_eq_game_bias, SPMF.boolBiasAdvantage_eq_two_mul_abs_sub_half _ htotal]
+  rw [prEvent_true_securityExpA_eq_prEvent_true_securityExpACore kem total adversary,
+    ← prEvent_true_indCpaGame_eq_prEvent_true_securityExpACore kem adversary,
+    IND_CPA_Advantage_eq_game_bias, ProbCompRuntime.probComp_evalDist,
+    MeasureTheory.Measure.boolBias_eq_two_mul_absDiff_half_of_isProbabilityMeasure,
+    ENNReal.toReal_mul, ENNReal.absDiff_toReal (MeasureTheory.measure_ne_top _ _) (by simp),
+    prEvent_eq_evalDist_singleton]
+  simp only [ENNReal.toReal_ofNat, ENNReal.toReal_div, ENNReal.toReal_one]
   ring
 
 /-- As `fsIndCpaAdvantageA_eq`, with the roles of `A` and `B` swapped: since the RKEM-from-KEM
@@ -211,7 +204,8 @@ theorem fsIndCpaAdvantageB_eq
     (kem : KEMScheme ProbComp K PK SK C) (total : TotalDecaps kem)
     (adversary : RKEMScheme.FSINDCPAAdversary Unit PK SK (PK × C) K) :
     RKEMScheme.fsIndCpaAdvantageB (scheme kem total) adversary =
-      kem.IND_CPA_Advantage ProbCompRuntime.probComp (indCpaReduction kem adversary) / 2 := by
+      (kem.IND_CPA_Advantage ProbCompRuntime.probComp (indCpaReduction kem adversary)).toReal /
+        2 := by
   unfold RKEMScheme.fsIndCpaAdvantageB
   rw [securityExpB_eq_securityExpA]
   exact fsIndCpaAdvantageA_eq kem total adversary
@@ -223,7 +217,7 @@ theorem fsIndCpaAdvantageB_eq
 theorem FSINDCPASecure (kem : KEMScheme ProbComp K PK SK C) (total : TotalDecaps kem)
     (ε : ℝ)
     (hcpa : ∀ adv : kem.IND_CPA_Adversary,
-      kem.IND_CPA_Advantage ProbCompRuntime.probComp adv ≤ ε)
+      (kem.IND_CPA_Advantage ProbCompRuntime.probComp adv).toReal ≤ ε)
     (adversaryA adversaryB : RKEMScheme.FSINDCPAAdversary Unit PK SK (PK × C) K) :
     RKEMScheme.FSINDCPASecure (scheme kem total) adversaryA adversaryB (ε / 2)
 -- ANCHOR_END: FSINDCPASecure

@@ -21,7 +21,7 @@ The `(δ, 0)` split reflects a genuine asymmetry between the two halves of Def. 
 half — closeness of the ratcheted key distribution to sampling directly — holds with error
 *exactly* zero, for any KEM, whether or not it is correct: `ratchetRoundOutputA` returns the very
 key pair `rencA` samples internally, and decapsulation's (always-defined) output is otherwise
-fully discarded (`evalDist_ratchetRoundOutputA_eq_evalDist_keygen`). So the underlying KEM's own
+fully discarded (`evalDistEq_ratchetRoundOutputA_keygen`). So the underlying KEM's own
 correctness is never needed for this half, and the `0` cannot be improved to depend on `δ` in the
 other direction either — it already is the tightest possible bound. The first half (`K = K'`) has
 no such shortcut and genuinely inherits `δ` from the underlying KEM.
@@ -37,46 +37,46 @@ variable {K PK SK C : Type}
 underlying KEM's own correctness experiment: the extra independent key pairs sampled along the
 way (`A`'s own fresh pair, and the fresh pair generated inside `rencA`) don't affect the
 comparison. Holds unconditionally, for any KEM (not just a correct one). -/
-theorem probOutput_correctExpA_eq_probOutput_CorrectExp [DecidableEq K]
+theorem prEvent_correctExpA_eq_prEvent_correctnessExperiment [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (total : TotalDecaps kem) :
-    Pr{let x ← RKEMScheme.correctExpA (scheme kem total)}[x = true] = Pr{let x ← kem.CorrectExp}[x = true] := by
-  unfold RKEMScheme.correctExpA KEMScheme.CorrectExp
+    Pr{let x ← RKEMScheme.correctExpA (scheme kem total)}[x = true] =
+      Pr{let x ← kem.correctnessExperiment}[x = true] := by
+  unfold RKEMScheme.correctExpA KEMScheme.correctnessExperiment
   simp only [scheme, rkeygen, renc, rdec, total.decaps_eq,
     map_eq_bind_pure_comp, Function.comp, pure_bind, bind_assoc]
-  refine probOutput_bind_of_const' kem.keygen fun _ _ => ?_
-  refine probOutput_bind_congr fun p _ => ?_
-  obtain ⟨ekB, dkB⟩ := p
-  refine probOutput_bind_congr fun q _ => ?_
-  obtain ⟨ct, key⟩ := q
-  refine probOutput_bind_of_const' kem.keygen fun _ _ => ?_
-  refine probOutput_bind_congr fun key' _ => ?_
-  simp [eq_comm]
+  have key {mz mz' : ProbComp Prop} (h : mz =ᵈ mz') : prEvent mz = prEvent mz' := by
+    simpa using h.prEvent_eq id
+  apply key
+  refine (EvalDistEq.bind_const kem.keygen _).trans ?_
+  refine EvalDistEq.bind_right kem.keygen fun p : PK × SK =>
+    EvalDistEq.bind_right (kem.encaps p.1) fun q : C × K => ?_
+  simp only [Option.some.injEq, eq_comm (a := q.2)]
+  exact EvalDistEq.bind_const _ _
 
 /-- `ratchetRoundOutputA` at the RKEM-from-KEM scheme has exactly the same distribution as `A`'s
 own fresh key generation: the pair it returns is literally the fresh key pair sampled inside
 `rencA`, and decapsulation's output — always defined, thanks to `total` — is otherwise discarded.
 Holds unconditionally, for any KEM (not just a correct one), which is why the construction's
 update-key-distribution error is always exactly zero. -/
-theorem evalDist_ratchetRoundOutputA_eq_evalDist_keygen
+theorem evalDistEq_ratchetRoundOutputA_keygen
     (kem : KEMScheme ProbComp K PK SK C) (total : TotalDecaps kem) :
-    ProbCompRuntime.probComp.evalDist (RKEMScheme.ratchetRoundOutputA (scheme kem total)) =
-      ProbCompRuntime.probComp.evalDist kem.keygen := by
-  change (𝒟[RKEMScheme.ratchetRoundOutputA (scheme kem total)] : SPMF (PK × SK)) = 𝒟[kem.keygen]
+    RKEMScheme.ratchetRoundOutputA (scheme kem total) =ᵈ kem.keygen := by
   unfold RKEMScheme.ratchetRoundOutputA
-  simp only [scheme, rkeygen, renc, rdec, pure_bind, bind_assoc]
-  refine evalDist_ext fun y => ?_
-  refine probOutput_bind_of_const' kem.keygen fun _ _ => ?_
-  refine probOutput_bind_of_const' kem.keygen fun p _ => ?_
-  obtain ⟨ekB, dkB⟩ := p
-  refine probOutput_bind_of_const' (kem.encaps ekB) fun q _ => ?_
-  obtain ⟨ct, key⟩ := q
-  rw [OracleComp.prEvent_bind_bind_swap]
-  refine probOutput_bind_of_const' (total.decapsTotal dkB ct) fun _ _ => ?_
-  simp
+  simp only [scheme, rkeygen, renc, rdec, pure_bind, bind_assoc, Prod.mk.eta]
+  have hdrop (dk : SK) (ct : C) :
+      (kem.keygen >>= fun b => total.decapsTotal dk ct >>= fun _ => pure b) =ᵈ kem.keygen := by
+    conv_rhs => rw [← bind_pure kem.keygen]
+    exact EvalDistEq.bind_right _ fun b => EvalDistEq.bind_const _ (pure b)
+  refine (EvalDistEq.bind_const kem.keygen _).trans ?_
+  refine (EvalDistEq.bind_right kem.keygen fun p : PK × SK =>
+    EvalDistEq.bind_right (kem.encaps p.1) fun q : C × K => hdrop p.2 q.1).trans ?_
+  refine (EvalDistEq.bind_right kem.keygen fun p : PK × SK =>
+    EvalDistEq.bind_const (kem.encaps p.1) kem.keygen).trans ?_
+  exact EvalDistEq.bind_const kem.keygen kem.keygen
 
 /-- **Quantitative correctness** (Def. 5.3) of the RKEM-from-KEM construction: if the underlying
 KEM is `δ`-correct, the construction is `(δ, 0)`-correct — the update-key-distribution error is
-exactly zero regardless of `δ`, by `evalDist_ratchetRoundOutputA_eq_evalDist_keygen`; only the
+exactly zero regardless of `δ`, by `evalDistEq_ratchetRoundOutputA_keygen`; only the
 `K = K'` error inherits `δ` from the underlying KEM. -/
 -- ANCHOR: deltaCorrect
 theorem deltaCorrect [DecidableEq K] (kem : KEMScheme ProbComp K PK SK C)
@@ -86,26 +86,32 @@ theorem deltaCorrect [DecidableEq K] (kem : KEMScheme ProbComp K PK SK C)
     := by
   refine ⟨⟨?_, ?_⟩, ?_, ?_⟩
   · unfold RKEMScheme.correctnessErrorA
-    change 1 - Pr{let x ← RKEMScheme.correctExpA (scheme kem total)}[x = true] ≤ δ
-    rw [probOutput_correctExpA_eq_probOutput_CorrectExp]
+    rw [ProbCompRuntime.probComp_evalDist, ← prEvent_eq_evalDist_singleton,
+      prEvent_correctExpA_eq_prEvent_correctnessExperiment, prEvent_eq_evalDist_singleton,
+      ← ProbCompRuntime.probComp_evalDist]
     exact hkem
   · unfold RKEMScheme.correctnessErrorB
-    change 1 - Pr{let x ← RKEMScheme.correctExpB (scheme kem total)}[x = true] ≤ δ
     rw [show (scheme kem total).correctExpB = (scheme kem total).correctExpA by rfl,
-        probOutput_correctExpA_eq_probOutput_CorrectExp]
+      ProbCompRuntime.probComp_evalDist, ← prEvent_eq_evalDist_singleton,
+      prEvent_correctExpA_eq_prEvent_correctnessExperiment, prEvent_eq_evalDist_singleton,
+      ← ProbCompRuntime.probComp_evalDist]
     exact hkem
   · unfold RKEMScheme.updateKeyDistErrorA
+    let : MeasurableSpace (PK × SK) := ⊤
     rw [show (scheme kem total).rsetup >>= (scheme kem total).rkeygenAUpdated = kem.keygen from by
-      simp [scheme, rkeygen],
-      evalDist_ratchetRoundOutputA_eq_evalDist_keygen, SPMF.tvDist_self]
-    simp
+      simp [scheme, rkeygen], ProbCompRuntime.probComp_evalDist,
+      ProbCompRuntime.probComp_evalDist,
+      (evalDistEq_ratchetRoundOutputA_keygen kem total).evalDist_eq,
+      MeasureTheory.Measure.etvDist_self]
   · unfold RKEMScheme.updateKeyDistErrorB
+    let : MeasurableSpace (PK × SK) := ⊤
     rw [show (scheme kem total).ratchetRoundOutputB = (scheme kem total).ratchetRoundOutputA
         by rfl,
       show (scheme kem total).rsetup >>= (scheme kem total).rkeygenBUpdated = kem.keygen from by
-      simp [scheme, rkeygen],
-      evalDist_ratchetRoundOutputA_eq_evalDist_keygen, SPMF.tvDist_self]
-    simp
+      simp [scheme, rkeygen], ProbCompRuntime.probComp_evalDist,
+      ProbCompRuntime.probComp_evalDist,
+      (evalDistEq_ratchetRoundOutputA_keygen kem total).evalDist_eq,
+      MeasureTheory.Measure.etvDist_self]
 
 /-- **Perfect correctness** of the RKEM-from-KEM construction, as the `δ = 0` special case of
 `deltaCorrect`: if the underlying KEM is perfectly correct, so is the construction. -/

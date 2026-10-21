@@ -5,6 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import ToVCVio.CryptoFoundations.KeyEncapMech
+import VCVio.OracleComp.EvalDist.Sum
 
 /-!
 # KEM — Correctness Error After Fixing the Key Pair
@@ -49,17 +50,17 @@ theorem keypairFailure_le_one (pk : PK) (sk : SK) :
 /-- The KEM's correctness experiment, with decapsulation replaced by its deterministic
 function, is key generation followed by `keypairCorrectExp`. -/
 theorem correctExp_eq_bind_keypairCorrectExp :
-    kem.CorrectExp = (do
+    kem.correctnessExperiment = (do
       let (pk, sk) ← kem.keygen
       keypairCorrectExp kem hDet pk sk) := by
-  unfold KEMScheme.CorrectExp keypairCorrectExp
+  unfold KEMScheme.correctnessExperiment keypairCorrectExp
   simp only [hDet.decaps_eq, pure_bind]
 
 /-- The KEM's correctness error is the average of `keypairFailure` over generated key pairs. -/
 theorem correctnessError_eq_avg_keypair :
     kem.correctnessError ProbCompRuntime.probComp =
       ∑' kp : PK × SK, Pr{let x ← kem.keygen}[x = kp] * keypairFailure kem hDet kp.1 kp.2 := by
-  rw [correctnessError_probComp_eq_probOutput_false,
+  rw [correctnessError_probComp_eq_prEvent_false,
     correctExp_eq_bind_keypairCorrectExp kem hDet, OracleComp.prEvent_bind_eq_tsum]
   rfl
 
@@ -74,10 +75,7 @@ theorem keypairFailure_eq_probEvent (pk : PK) (sk : SK) :
     rw [map_eq_bind_pure_comp]
     rfl
   unfold keypairFailure
-  rw [hmap, ← probEvent_eq_eq_probOutput, prEvent_map]
-  apply probEvent_congr'
-  · intro ck _
-    simp [Function.comp]
-  · rfl
+  rw [hmap, prEvent_map]
+  exact prEvent_congr _ _ _ fun ck => by simp only [decide_eq_false_iff_not, ne_eq]
 
 end KEMScheme
