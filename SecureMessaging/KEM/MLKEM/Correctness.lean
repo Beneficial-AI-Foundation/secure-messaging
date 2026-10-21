@@ -152,7 +152,8 @@ as `kpkeDecryptDifference_eq_noise`.
 The generic proof takes `hRing : NTTRingLaws ring`, an algebraic certificate
 that the forward and inverse transforms are mutually inverse and transport the
 addition and multiplication of `R_q`.  For the concrete ML-KEM transform,
-`Concrete.concreteNTTRingLaws` is the corresponding proof bundle.  VCVio proves
+`Concrete.concreteNTTRingLaws` is the corresponding proof bundle, and the
+`deltaCorrect_mlkem*` theorems use it directly.  VCVio proves
 its inverse laws in the kernel from the butterfly layers, so it uses only the
 standard axioms.  At run time `@[implemented_by]` swaps in the loop kernels,
 which are not proved equal to the proof-facing definitions.  This
@@ -430,38 +431,31 @@ theorem fips203DecapsulationFailureProb_le_bound (p : ParameterSet) (ring : NTTR
   rw [← correctnessError_eq_fips203DecapsulationFailureProb]
   exact correctnessError_le_fips203 p ring prims hRing hModel
 
-/-- Given the concrete NTT algebra certificate and the coefficient-distribution
-coefficient comparison, honest ML-KEM-512 decapsulation has error at most
-`2^(-138.8)`.  The canonical value for `hRing` is
-`Concrete.concreteNTTRingLaws`. -/
+/-- Given the coefficient-distribution comparison `hModel`, honest ML-KEM-512
+decapsulation has error at most `2^(-138.8)`. -/
 theorem deltaCorrect_mlkem512
-    (hRing : NTTRingLaws Concrete.concreteNTTRingOps)
     (hModel : CoefficientFailureBound .MLKEM512 Concrete.concreteNTTRingOps
       Concrete.mlkem512Primitives) :
     mlkem512Scheme.deltaCorrect ProbCompRuntime.probComp
       (fips203DecapsulationFailureBound .MLKEM512) :=
-  deltaCorrect_fips203 _ _ _ hRing hModel
+  deltaCorrect_fips203 _ _ _ Concrete.concreteNTTRingLaws hModel
 
-/-- Given the concrete NTT algebra certificate and the coefficient-distribution
-coefficient comparison, honest ML-KEM-768 decapsulation has error at most
-`2^(-164.8)`. -/
+/-- Given the coefficient-distribution comparison `hModel`, honest ML-KEM-768
+decapsulation has error at most `2^(-164.8)`. -/
 theorem deltaCorrect_mlkem768
-    (hRing : NTTRingLaws Concrete.concreteNTTRingOps)
     (hModel : CoefficientFailureBound .MLKEM768 Concrete.concreteNTTRingOps
       Concrete.mlkem768Primitives) :
     mlkem768Scheme.deltaCorrect ProbCompRuntime.probComp
       (fips203DecapsulationFailureBound .MLKEM768) :=
-  deltaCorrect_fips203 _ _ _ hRing hModel
+  deltaCorrect_fips203 _ _ _ Concrete.concreteNTTRingLaws hModel
 
-/-- Given the concrete NTT algebra certificate and the coefficient-distribution
-coefficient comparison, honest ML-KEM-1024 decapsulation has error at most
-`2^(-174.8)`. -/
+/-- Given the coefficient-distribution comparison `hModel`, honest ML-KEM-1024
+decapsulation has error at most `2^(-174.8)`. -/
 theorem deltaCorrect_mlkem1024
-    (hRing : NTTRingLaws Concrete.concreteNTTRingOps)
     (hModel : CoefficientFailureBound .MLKEM1024 Concrete.concreteNTTRingOps
       Concrete.mlkem1024Primitives) :
     mlkem1024Scheme.deltaCorrect ProbCompRuntime.probComp
       (fips203DecapsulationFailureBound .MLKEM1024) :=
-  deltaCorrect_fips203 _ _ _ hRing hModel
+  deltaCorrect_fips203 _ _ _ Concrete.concreteNTTRingLaws hModel
 
 end MLKEM
