@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.GCM
+module
+
+public import SecureMessaging.AEAD.GCM
 
 /-!
 # GCM: GHASH encoding domain and injectivity
@@ -14,6 +16,8 @@ hash GHASH (`gcmEncode`), the bound `maxBlocks` on its length, and its injectivi
 `SupportedAAD × BitVec L`. The positional form `gcmEncode_tail_distinct` is what the GHASH
 almost-XOR-universality bound (`GhashAXU.lean`) consumes.
 -/
+
+@[expose] public section
 
 namespace GCM
 

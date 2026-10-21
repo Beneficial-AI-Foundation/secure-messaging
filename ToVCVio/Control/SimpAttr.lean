@@ -3,7 +3,9 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import Mathlib.Tactic.Attr.Register
+module
+
+public import Mathlib.Tactic.Attr.Register
 
 /-!
 # `stateTrun` simp attribute
@@ -21,6 +23,8 @@ list it explicitly.
 The attribute is registered in its own file because `register_simp_attr`
 does not take effect within the Lean file that declares it.
 -/
+
+@[expose] public section
 
 /-- Simp set that evaluates `StateT.run` over the program structure: the
 run-projection equations for `bind`/`get`/`set`/`pure`/`monadLift` plus

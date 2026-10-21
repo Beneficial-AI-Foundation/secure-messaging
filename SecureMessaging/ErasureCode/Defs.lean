@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import Mathlib.Data.Finset.Card
-import Mathlib.Data.Finset.Sort
+module
+
+public import Mathlib.Data.Finset.Card
+public import Mathlib.Data.Finset.Sort
 
 /-!
 # Erasure Codes
@@ -34,6 +36,8 @@ Writing `L_I = {(i, Encode(M, i)) | i ∈ I}` for the chunks of `M` at indices
 - `Decode(L_I) = M, if nchunk ≤ |I|`;
 - `Decode(L_I) = ⊥, if |I| < nchunk`.
 -/
+
+@[expose] public section
 
 /-- An erasure code over an alphabet `Sym` (Definition A.6 of [SCKA]).
 

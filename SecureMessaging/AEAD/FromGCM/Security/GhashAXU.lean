@@ -4,13 +4,15 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.FromGCM.Security.Axu
-import SecureMessaging.AEAD.FromGCM.Security.GhashPolynomial
-import VCVio.CryptoFoundations.UniversalHash
-import ToVCVio.OracleComp.Constructions.BitVec
-import Mathlib.Algebra.Polynomial.Roots
-import Mathlib.Algebra.Field.ZMod
-import Mathlib.Data.List.GetD
+module
+
+public import SecureMessaging.AEAD.FromGCM.Security.Axu
+public import SecureMessaging.AEAD.FromGCM.Security.GhashPolynomial
+public import VCVio.CryptoFoundations.UniversalHash
+public import ToVCVio.OracleComp.Constructions.BitVec
+public import Mathlib.Algebra.Polynomial.Roots
+public import Mathlib.Algebra.Field.ZMod
+public import Mathlib.Data.List.GetD
 
 /-!
 # GHASH is almost-XOR-universal
@@ -31,6 +33,8 @@ degree at most `maxBlocks L`, which has at most that many roots in a field. Irre
 `nistPoly` makes `AdjoinRoot nistPoly` a field and is used only in `card_filter_le`. It is an
 explicit hypothesis here and is discharged in `NistIrreducible.lean`.
 -/
+
+@[expose] public section
 
 open OracleComp OracleSpec ENNReal ToVCVio Polynomial
 

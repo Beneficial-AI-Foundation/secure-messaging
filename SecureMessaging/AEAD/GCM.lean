@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import Mathlib.Data.BitVec
-import ToVCVio.CryptoFoundations.PRP
+module
+
+public import Mathlib.Data.BitVec
+public import ToVCVio.CryptoFoundations.PRP
 
 /-!
 # GCM authenticated encryption (NIST SP 800-38D §6–§7)
@@ -38,6 +40,8 @@ NIST indexes a block `S = S₀ … S₁₂₇` most-significant-first, so `Sᵢ 
 
 - [NIST_GCM] Dworkin. *NIST SP 800-38D*, 2007. https://csrc.nist.gov/pubs/sp/800/38/d/final
 -/
+
+@[expose] public section
 
 namespace GCM
 

@@ -4,10 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToMathlib.MeasureTheory.Measure.Coupling.Maximal
-import VCVio.EvalDist.MeasureTVDist.Basic
-import VCVio.OracleComp.Constructions.SampleableType
-import ToVCVio.OracleComp.Constructions.BitVec
+module
+
+public import ToMathlib.MeasureTheory.Measure.Coupling.Maximal
+public import VCVio.EvalDist.MeasureTVDist.Basic
+public import VCVio.OracleComp.Constructions.SampleableType
+public import ToVCVio.OracleComp.Constructions.BitVec
 
 /-!
 # Uniform samples through an injection
@@ -24,6 +26,8 @@ The distributional ingredients of the fixed-list PRP/PRF switching bound, which
 
 Candidate for upstream VCVio.
 -/
+
+@[expose] public section
 
 open ENNReal
 

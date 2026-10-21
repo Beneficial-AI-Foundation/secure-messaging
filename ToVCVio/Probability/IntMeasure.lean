@@ -4,8 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import Mathlib.Algebra.MonoidAlgebra.Defs
-import Mathlib.Algebra.MonoidAlgebra.Support
+module
+
+public import Mathlib.Algebra.MonoidAlgebra.Defs
+public import Mathlib.Algebra.MonoidAlgebra.Support
+public import Mathlib.Algebra.Order.Ring.Abs
+public import Mathlib.Tactic.Ring
 
 /-!
 # Finite integer counting measures
@@ -36,6 +40,8 @@ These measures support exact failure-probability certificates for
 lattice-based schemes, which compose per-coefficient noise measures and
 evaluate their tail masses.
 -/
+
+@[expose] public section
 
 namespace ToVCVio
 
