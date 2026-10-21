@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.SCKA.Defs
 import ToVCVio.OracleComp.SimSemantics.StateT.Stop
-import ToVCVio.OracleComp.ExpectedPayoff
+import ToVCVio.ProgramLogic.Unary.WP
 
 /-!
 # SCKA security oracles
@@ -32,6 +32,7 @@ We prove:
 -/
 
 open OracleSpec OracleComp ENNReal
+open OracleComp.ProgramLogic
 
 namespace SCKAScheme
 
@@ -298,7 +299,7 @@ Assume:
 - the expected score after A's ordinary-send query from `s` is at most `c`.
 
 Then the expected score after A's leaking-send query from `s` is also at most `c`. -/
-theorem oracleSendArleak_expectedPayoff_le
+theorem oracleSendArleak_wp_le
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (leak : StA → Rand → Finset ℕ)
     (hm : ∀ st, (do
@@ -312,10 +313,10 @@ theorem oracleSendArleak_expectedPayoff_le
     (score : GameState StA StB I Rho → ℝ≥0∞)
     (hbook : ∀ state exposed, score { state with exposed := exposed } = score state)
     (c : ℝ≥0∞) (hs : score s ≤ c)
-    (hplain : expectedPayoff ((oracleSendA scka ()).run s) (fun z => score z.2) ≤ c) :
-    expectedPayoff ((oracleSendArleak leak scka ()).run s) (fun z => score z.2) ≤ c := by
+    (hplain : wp ((oracleSendA scka ()).run s) (fun z => score z.2) ≤ c) :
+    wp ((oracleSendArleak leak scka ()).run s) (fun z => score z.2) ≤ c := by
   by_cases hguard : E ∩ s.challenged ≠ ∅
-  · apply expectedPayoff_le_const_of_support _ _ _ (OracleComp.prFail_eq_zero _)
+  · apply wp_le_const_of_support _
     intro z hz
     simp only [oracleSendArleak, StateT.run_bind, StateT.run_get, pure_bind,
       StateT.run_monadLift, monadLift_self, bind_assoc] at hz
@@ -330,25 +331,24 @@ theorem oracleSendArleak_expectedPayoff_le
       split at hz
       · simpa using (mem_support_pure_iff _ _).mp hz ▸ hs
       · contradiction
-  · suffices heq : expectedPayoff ((oracleSendArleak leak scka ()).run s)
+  · suffices heq : wp ((oracleSendArleak leak scka ()).run s)
         (fun z => score z.2) =
-        expectedPayoff ((oracleSendA scka ()).run s) (fun z => score z.2) by
+        wp ((oracleSendA scka ()).run s) (fun z => score z.2) by
       exact heq ▸ hplain
     simp only [oracleSendArleak, oracleSendA, StateT.run_bind, StateT.run_get,
       pure_bind, StateT.run_monadLift, monadLift_self, bind_assoc]
     rw [← hm s.stA]
-    simp only [bind_assoc, pure_bind, expectedPayoff_bind]
-    congr 1
+    simp only [bind_assoc, pure_bind, wp_bind_eq_tsum]
     apply tsum_congr
     intro out
     by_cases hout : out ∈ support (scka.sendArleak s.stA)
     · cases out with
-      | none => simp [expectedPayoff_pure]
+      | none => simp only [StateT.run_pure, ExactWPMonad.wp_pure, Option.map_none]
       | some out =>
         rcases out with ⟨key, msg, epoch, state, coins⟩
         simp only [hE key msg epoch state coins hout, hguard, ↓reduceIte]
         cases key <;> simp only [Option.map_some, StateT.run_bind, StateT.run_set,
-          pure_bind, StateT.run_pure, expectedPayoff_pure]
+          pure_bind, StateT.run_pure, wp_pure]
         all_goals
           congr 1
           conv_rhs => rw [← hbook _ (s.exposed ∪ E)]
@@ -356,8 +356,8 @@ theorem oracleSendArleak_expectedPayoff_le
         exact (prEvent_eq_zero_of_not_mem_support _) hout
       simp only [hz, zero_mul]
 
-/-- The expected-score bound of `oracleSendArleak_expectedPayoff_le` for B. -/
-theorem oracleSendBrleak_expectedPayoff_le
+/-- The expected-score bound of `oracleSendArleak_wp_le` for B. -/
+theorem oracleSendBrleak_wp_le
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (leak : StB → Rand → Finset ℕ)
     (hm : ∀ st, (do
@@ -371,10 +371,10 @@ theorem oracleSendBrleak_expectedPayoff_le
     (score : GameState StA StB I Rho → ℝ≥0∞)
     (hbook : ∀ state exposed, score { state with exposed := exposed } = score state)
     (c : ℝ≥0∞) (hs : score s ≤ c)
-    (hplain : expectedPayoff ((oracleSendB scka ()).run s) (fun z => score z.2) ≤ c) :
-    expectedPayoff ((oracleSendBrleak leak scka ()).run s) (fun z => score z.2) ≤ c := by
+    (hplain : wp ((oracleSendB scka ()).run s) (fun z => score z.2) ≤ c) :
+    wp ((oracleSendBrleak leak scka ()).run s) (fun z => score z.2) ≤ c := by
   by_cases hguard : E ∩ s.challenged ≠ ∅
-  · apply expectedPayoff_le_const_of_support _ _ _ (OracleComp.prFail_eq_zero _)
+  · apply wp_le_const_of_support _
     intro z hz
     simp only [oracleSendBrleak, StateT.run_bind, StateT.run_get, pure_bind,
       StateT.run_monadLift, monadLift_self, bind_assoc] at hz
@@ -389,25 +389,24 @@ theorem oracleSendBrleak_expectedPayoff_le
       split at hz
       · simpa using (mem_support_pure_iff _ _).mp hz ▸ hs
       · contradiction
-  · suffices heq : expectedPayoff ((oracleSendBrleak leak scka ()).run s)
+  · suffices heq : wp ((oracleSendBrleak leak scka ()).run s)
         (fun z => score z.2) =
-        expectedPayoff ((oracleSendB scka ()).run s) (fun z => score z.2) by
+        wp ((oracleSendB scka ()).run s) (fun z => score z.2) by
       exact heq ▸ hplain
     simp only [oracleSendBrleak, oracleSendB, StateT.run_bind, StateT.run_get,
       pure_bind, StateT.run_monadLift, monadLift_self, bind_assoc]
     rw [← hm s.stB]
-    simp only [bind_assoc, pure_bind, expectedPayoff_bind]
-    congr 1
+    simp only [bind_assoc, pure_bind, wp_bind_eq_tsum]
     apply tsum_congr
     intro out
     by_cases hout : out ∈ support (scka.sendBrleak s.stB)
     · cases out with
-      | none => simp [expectedPayoff_pure]
+      | none => simp only [StateT.run_pure, ExactWPMonad.wp_pure, Option.map_none]
       | some out =>
         rcases out with ⟨key, msg, epoch, state, coins⟩
         simp only [hE key msg epoch state coins hout, hguard, ↓reduceIte]
         cases key <;> simp only [Option.map_some, StateT.run_bind, StateT.run_set,
-          pure_bind, StateT.run_pure, expectedPayoff_pure]
+          pure_bind, StateT.run_pure, wp_pure]
         all_goals
           congr 1
           conv_rhs => rw [← hbook _ (s.exposed ∪ E)]

@@ -26,14 +26,14 @@ import ToVCVio.LatticeCrypto.TransformOps
 import ToVCVio.OracleComp.Constructions.BitVec
 import ToVCVio.OracleComp.Constructions.SampleableType
 import ToVCVio.OracleComp.EvalDist
-import ToVCVio.OracleComp.ExpectedPayoff
+import ToVCVio.ProgramLogic.Unary.WP
 import ToVCVio.OracleComp.QueryTracking.LazySampling
 import ToVCVio.OracleComp.QueryTracking.OneUseSampling
 import ToVCVio.OracleComp.QueryTracking.RandomOracle.DiscardQuerySimulate
 import ToVCVio.OracleComp.QueryTracking.RandomOracle.FreshQueries
 import ToVCVio.OracleComp.SimSemantics.SimulateQForward
 import ToVCVio.OracleComp.SimSemantics.StateT.BadFlag
-import ToVCVio.OracleComp.SimSemantics.StateT.ExpectedPayoffBound
+import ToVCVio.OracleComp.SimSemantics.StateT.WPBound
 import ToVCVio.OracleComp.SimSemantics.StateT.IdenticalUntilBadInvariant
 import ToVCVio.OracleComp.SimSemantics.StateT.MapStateTBase
 import ToVCVio.OracleComp.SimSemantics.StateT.Stop

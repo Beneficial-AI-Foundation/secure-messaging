@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.OracleComp.SimSemantics.StateT.ExpectedPayoffBound
+import ToVCVio.OracleComp.SimSemantics.StateT.WPBound
 import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 
 /-!
@@ -38,6 +38,7 @@ proved about the states that follow the first bad one.
 -/
 
 open OracleSpec ENNReal
+open OracleComp.ProgramLogic
 
 namespace OracleComp
 
@@ -101,8 +102,8 @@ theorem trackedImpl_preserves (impl : QueryImpl spec (StateT σ ProbComp)) (bad 
 at least `1` on flagged states. -/
 theorem tracked_bad_probability_le_score {α : Type} (score : σ × Bool → ℝ≥0∞)
     (hscore : ∀ p : σ × Bool, p.2 = true → 1 ≤ score p) (oa : ProbComp (α × (σ × Bool))) :
-    Pr{let z ← oa}[z.2.2 = true] ≤ expectedPayoff oa (fun z => score z.2) :=
-  probEvent_le_expectedPayoff oa _ _ fun z hz => hscore z.2 hz
+    Pr{let z ← oa}[z.2.2 = true] ≤ wp oa (fun z => score z.2) :=
+  prEvent_le_wp oa _ _ fun z hz => hscore z.2 hz
 
 /-- Per-query expected-score bounds, with an allowance of `ε` on queries satisfying `p` only,
 give a bound `score (s₀, false) + q · ε` on the probability that the flag is set after a
@@ -113,14 +114,14 @@ theorem tracked_bad_le_of_score_step (impl : QueryImpl spec (StateT σ ProbComp)
     (hscore1 : ∀ x : σ × Bool, x.2 = true → 1 ≤ score x)
     (hpres : QueryImpl.PreservesInv (trackedImpl impl bad) (trackedInv Inv bad))
     (hstep : ∀ t x, trackedInv Inv bad x →
-      expectedPayoff (((trackedImpl impl bad) t).run x) (fun z => score z.2) ≤
+      wp (((trackedImpl impl bad) t).run x) (fun z => score z.2) ≤
         score x + if p t then ε else 0)
     {α : Type} (oa : OracleComp spec α) (q : ℕ) (hq : oa.IsQueryBoundP p q)
     (s₀ : σ) (hinit : trackedInv Inv bad (s₀, false)) :
     Pr{let z ← (simulateQ (trackedImpl impl bad) oa).run (s₀, false)}[z.2.2 = true] ≤
       score (s₀, false) + (q : ℝ≥0∞) * ε :=
   (tracked_bad_probability_le_score score hscore1 _).trans
-    (expectedPayoff_simulateQ_run_le (trackedImpl impl bad) (trackedInv Inv bad) score p ε
+    (wp_simulateQ_run_le (trackedImpl impl bad) (trackedInv Inv bad) score p ε
       hpres hstep oa q hq (s₀, false) hinit)
 
 /-- If `Inv` forces `good s = true`, the run of `impl` from `s₀` ends in a state with

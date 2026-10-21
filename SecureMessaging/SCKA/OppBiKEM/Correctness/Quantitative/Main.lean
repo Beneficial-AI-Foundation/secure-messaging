@@ -18,11 +18,11 @@ Let:
 * `ε := kem.correctnessError` be the KEM's correctness error;
 * `φ(pk, sk) := keypairFailure kem hDet pk sk` (`KEM.CorrectnessError`) be the correctness
   error after fixing the key pair `(pk, sk)`, over the remaining encapsulation to `pk`;
-* `E_X[f] := Pr[X = ⊥] + Σ x, Pr[X = x] · f x` be the expected payoff of `f` under a
-  computation `X` (`expectedPayoff`).
+* `E_X[f] := Σ x, Pr[X = x] · f x` be the expected payoff of `f` under a
+  computation `X` (`wp X f`).
 
   In our context, the payoff `f x` is a failure probability, so `E_X[f]` is the probability
-  that `X` fails directly (charged `1`) or returns an `x` that fails later (probability `f x`).
+  that `X` returns an `x` that fails later.
 
 ## Main results
 
@@ -140,6 +140,7 @@ ordinary run (`SCKAScheme.correctness_failure_le_of_tracked_bad`), so
 -/
 
 open OracleComp KEMScheme ENNReal
+open OracleComp.ProgramLogic
 
 namespace oppBiKemCKA
 

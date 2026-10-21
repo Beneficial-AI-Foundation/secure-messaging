@@ -6,8 +6,8 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.SCKA.Defs
 import ToVCVio.OracleComp.EvalDist
-import ToVCVio.OracleComp.ExpectedPayoff
-import ToVCVio.OracleComp.SimSemantics.StateT.ExpectedPayoffBound
+import ToVCVio.ProgramLogic.Unary.WP
+import ToVCVio.OracleComp.SimSemantics.StateT.WPBound
 
 /-!
 # Invariants of the SCKA correctness game
@@ -25,6 +25,7 @@ false correctness flag with probability at most `q · ε` (`correctness_error_le
 -/
 
 open OracleSpec OracleComp ENNReal
+open OracleComp.ProgramLogic
 
 namespace SCKAScheme
 
@@ -381,21 +382,21 @@ theorem correctness_error_le_of_potential [DecidableEq I]
         Inv ik (initGameState stA stB) ∧ V (initGameState stA stB) = 0)
     (hpres : ∀ ik, QueryImpl.PreservesInv (sckaCorrectnessImpl scka) (Inv ik))
     (hstep : ∀ ik (t : (sckaCorrectnessSpec Rho).Domain) s, Inv ik s →
-      expectedPayoff ((sckaCorrectnessImpl scka t).run s) (fun z => V z.2) ≤
+      wp ((sckaCorrectnessImpl scka t).run s) (fun z => V z.2) ≤
         V s + if isSendQuery (Rho := Rho) t then ε else 0)
     (adv : SCKACorrectnessAdversary Rho) (q : ℕ) (hq : SendQueryBound adv q) :
     1 - Pr{let x ← correctnessExp scka adv}[x = true] ≤ q * ε := by
   -- The expected potential of a complete run from any initial state is at most `q · ε`.
   have hrun : ∀ ik ∈ support scka.initKeyGen, ∀ stA ∈ support (scka.initA ik),
       ∀ stB ∈ support (scka.initB ik),
-        expectedPayoff ((simulateQ (sckaCorrectnessImpl scka) adv).run (initGameState stA stB))
+        wp ((simulateQ (sckaCorrectnessImpl scka) adv).run (initGameState stA stB))
           (fun z => if z.2.correct then 0 else 1) ≤ q * ε := by
     intro ik hik stA hA stB hB
     obtain ⟨hinv, h0⟩ := hinit ik hik stA hA stB hB
-    have h := expectedPayoff_simulateQ_run_le (sckaCorrectnessImpl scka) (Inv ik) V
+    have h := wp_simulateQ_run_le (sckaCorrectnessImpl scka) (Inv ik) V
       (fun t => isSendQuery (Rho := Rho) t = true) ε (hpres ik) (hstep ik) adv q hq _ hinv
     rw [h0, zero_add] at h
-    refine le_trans (expectedPayoff_mono _ _ _ fun z => ?_) h
+    refine le_trans (wp_mono _ fun z => ?_) h
     split_ifs with hz
     · exact zero_le
     · exact hV _ (Bool.eq_false_iff.mpr hz)
@@ -406,20 +407,20 @@ theorem correctness_error_le_of_potential [DecidableEq I]
           (simulateQ (sckaCorrectnessImpl scka) adv).run (initGameState stA stB) := by
     simp [correctnessExp, map_eq_bind_pure_comp]
   have hle : Pr{let x ← correctnessExp scka adv}[x = false] ≤
-      expectedPayoff (correctnessExp scka adv) (fun b => if b then 0 else 1) := by
-    exact probEvent_le_expectedPayoff _ _ _ fun b hb => by simp [hb]
+      wp (correctnessExp scka adv) (fun b => if b then 0 else 1) := by
+    exact prEvent_le_wp _ _ _ fun b hb => by simp [hb]
   have hfalse : Pr{let x ← correctnessExp scka adv}[x = false] =
       1 - Pr{let x ← correctnessExp scka adv}[x = true] :=
     OracleComp.prEvent_eq_false_eq_one_sub _
   rw [← hfalse]
   refine hle.trans ?_
-  rw [hexp, expectedPayoff_bind]
-  refine expectedPayoff_le_const_of_support _ _ _ (OracleComp.prFail_eq_zero _) fun ik hik => ?_
-  rw [expectedPayoff_bind]
-  refine expectedPayoff_le_const_of_support _ _ _ (OracleComp.prFail_eq_zero _) fun stA hA => ?_
-  rw [expectedPayoff_bind]
-  refine expectedPayoff_le_const_of_support _ _ _ (OracleComp.prFail_eq_zero _) fun stB hB => ?_
-  rw [expectedPayoff_map]
+  rw [hexp, wp_bind]
+  refine wp_le_const_of_support _ fun ik hik => ?_
+  rw [wp_bind]
+  refine wp_le_const_of_support _ fun stA hA => ?_
+  rw [wp_bind]
+  refine wp_le_const_of_support _ fun stB hB => ?_
+  rw [wp_map, Function.comp_def]
   exact hrun ik hik stA hA stB hB
 
 end SCKAScheme

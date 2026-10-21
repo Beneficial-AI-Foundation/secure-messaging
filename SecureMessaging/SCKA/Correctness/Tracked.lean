@@ -32,6 +32,7 @@ states that follow a primitive failure.
 -/
 
 open OracleSpec ENNReal
+open OracleComp.ProgramLogic
 
 namespace SCKAScheme
 
@@ -58,7 +59,7 @@ theorem tracked_bad_le_of_score_step [DecidableEq I]
     (hpres : QueryImpl.PreservesInv (trackedImpl (sckaCorrectnessImpl scka) bad)
       (trackedInv Inv bad))
     (hstep : ∀ t p, trackedInv Inv bad p →
-      expectedPayoff (((trackedImpl (sckaCorrectnessImpl scka) bad) t).run p)
+      wp (((trackedImpl (sckaCorrectnessImpl scka) bad) t).run p)
           (fun z => score z.2) ≤
         score p + if isSendQuery (Rho := Rho) t then ε else 0)
     (adv : SCKACorrectnessAdversary Rho) (q : ℕ) (hq : SendQueryBound adv q)

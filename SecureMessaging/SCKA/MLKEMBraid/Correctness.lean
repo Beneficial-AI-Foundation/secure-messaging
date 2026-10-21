@@ -120,7 +120,7 @@ theorem correctness_error_le
       initA, initB, State.controlPosition, State.epoch]
   · exact correctnessImpl_preserves_correctnessInv auth irl sampleInitKey
       hHdrCorrect hEkCorrect hCt1Correct hCt2Correct
-  · exact expectedPayoff_failurePotential_query_le auth irl sampleInitKey
+  · exact wp_failurePotential_query_le auth irl sampleInitKey
       hHdrCorrect hEkCorrect hCt1Correct hCt2Correct
 
 /-- The bound of `correctness_error_le` for `mlkemBraidScheme`, using the correctness error of

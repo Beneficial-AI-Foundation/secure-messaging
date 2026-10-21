@@ -21,6 +21,7 @@ first.
 -/
 
 open OracleComp KEMScheme ENNReal
+open OracleComp.ProgramLogic
 
 namespace oppBiKemCKA
 
@@ -69,13 +70,12 @@ section Average
 variable {kem : KEMScheme ProbComp K PK SK C} (hDet : kem.DeterministicDecaps) [DecidableEq K]
 
 /-- Averaging `V + φ(pk, sk)` over key generation gives at most `V + ε`. -/
-lemma expectedPayoff_keygen_le {A : Type} (f : PK × SK → A) (score : A → ℝ≥0∞) (V : ℝ≥0∞)
+lemma wp_keygen_le {A : Type} (f : PK × SK → A) (score : A → ℝ≥0∞) (V : ℝ≥0∞)
     (hscore : ∀ kp, score (f kp) = V + keypairFailure kem hDet kp.1 kp.2) :
-    expectedPayoff (kem.keygen >>= fun kp => pure (f kp)) score ≤
+    wp (kem.keygen >>= fun kp => pure (f kp)) score ≤
       V + kem.correctnessError ProbCompRuntime.probComp := by
-  rw [expectedPayoff_bind]
-  simp only [expectedPayoff_pure, hscore, correctnessError_eq_avg_keypair kem hDet,
-    OracleComp.prFail_eq_zero, zero_add]
+  rw [wp_bind_eq_tsum]
+  simp only [wp_pure, hscore, correctnessError_eq_avg_keypair kem hDet]
   calc ∑' kp : PK × SK,
           Pr{let x ← kem.keygen}[x = kp] * (V + keypairFailure kem hDet kp.1 kp.2)
         = (∑' kp : PK × SK, Pr{let x ← kem.keygen}[x = kp]) * V +
@@ -95,15 +95,15 @@ lemma expectedPayoff_keygen_le {A : Type} (f : PK × SK → A) (score : A → �
 
 /-- If the score after encapsulating to `pk` is `1` when decapsulation with `sk` disagrees with
 the encapsulated key and `V` otherwise, its expected value is at most `V + φ(pk, sk)`. -/
-lemma expectedPayoff_encaps_le {A : Type} (pk : PK) (sk : SK) (g : C × K → A)
+lemma wp_encaps_le {A : Type} (pk : PK) (sk : SK) (g : C × K → A)
     (score : A → ℝ≥0∞) (V : ℝ≥0∞)
     (hscore : ∀ ck : C × K, score (g ck) =
       if hDet.decapsDet sk ck.1 ≠ some ck.2 then 1 else V) :
-    expectedPayoff (kem.encaps pk >>= fun ck => pure (g ck)) score ≤
+    wp (kem.encaps pk >>= fun ck => pure (g ck)) score ≤
       V + keypairFailure kem hDet pk sk := by
   classical
-  rw [expectedPayoff_bind]
-  simp only [expectedPayoff_pure, hscore, OracleComp.prFail_eq_zero, zero_add]
+  rw [wp_bind_eq_tsum]
+  simp only [wp_pure, hscore]
   rw [keypairFailure_eq_probEvent, OracleComp.prEvent_eq_tsum_ite]
   calc ∑' ck : C × K, Pr{let x ← kem.encaps pk}[x = ck] *
           (if hDet.decapsDet sk ck.1 ≠ some ck.2 then 1 else V)
@@ -520,7 +520,7 @@ expected tracked score by at most `ε`. -/
 lemma tracked_sendA_score_le
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : GameInv kem ecEk ecCt s) (hfail : kemFailure hDet s = false) :
-    expectedPayoff ((trackedBiKem kem hDet ecEk ecCt leak OSendA).run (s, false))
+    wp ((trackedBiKem kem hDet ecEk ecCt leak OSendA).run (s, false))
         (fun z => trackedScore hDet z.2) ≤
       trackedScore hDet (s, false) + kem.correctnessError ProbCompRuntime.probComp := by
   obtain ⟨-, T, hA, hB⟩ := hs
@@ -532,7 +532,7 @@ lemma tracked_sendA_score_le
   · obtain ⟨hfresh, -⟩ := advance_prereqs hA hB hgate.2
     rw [send_eq_advance .A kem ecEk ecCt s.stA hgate.1 hgate.2 hfresh, bind_assoc]
     simp only [pure_bind]
-    apply expectedPayoff_keygen_le hDet _ _ (pairPotential hDet s.stA s.stB s.keyA s.keyB)
+    apply wp_keygen_le hDet _ _ (pairPotential hDet s.stA s.stB s.keyA s.keyB)
     intro kp
     rw [sendAOutcome_some]
     have h1 : (advanceSend (K := K) .A ecEk s.stA kp).1 = none := rfl
@@ -551,7 +551,7 @@ lemma tracked_sendA_score_le
       obtain ⟨sk, -, hdk, hbefore, hafter⟩ := pairPotential_encaps hA hB ecCt hnot hct hpk
       rw [send_eq_encaps .A kem ecEk ecCt s.stA hnot hacked hct hpeerAck hpk, bind_assoc]
       simp only [pure_bind]
-      refine (expectedPayoff_encaps_le hDet pk sk _ _
+      refine (wp_encaps_le hDet pk sk _ _
         (pendingPotential hDet s.stA s.stB s.keyB) ?_).trans ?_
       · intro ck
         rw [sendAOutcome_some]
@@ -568,8 +568,7 @@ lemma tracked_sendA_score_le
         · exact hafter ck
       · rw [hbefore]
         exact le_self_add (α := ℝ≥0∞)
-    · refine expectedPayoff_le_const_of_support _ _ _
-        (OracleComp.prFail_eq_zero _) ?_
+    · refine wp_le_const_of_support _ ?_
       intro z hz
       obtain ⟨out, hout, hz⟩ := mem_support_bind_peel _ _ hz
       obtain rfl := eq_of_mem_support_pure _ hz
@@ -593,7 +592,7 @@ expected tracked score by at most `ε`. -/
 lemma tracked_sendB_score_le
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : GameInv kem ecEk ecCt s) (hfail : kemFailure hDet s = false) :
-    expectedPayoff ((trackedBiKem kem hDet ecEk ecCt leak OSendB).run (s, false))
+    wp ((trackedBiKem kem hDet ecEk ecCt leak OSendB).run (s, false))
         (fun z => trackedScore hDet z.2) ≤
       trackedScore hDet (s, false) + kem.correctnessError ProbCompRuntime.probComp := by
   obtain ⟨-, T, hA, hB⟩ := hs
@@ -605,7 +604,7 @@ lemma tracked_sendB_score_le
   · obtain ⟨hfresh, -⟩ := advance_prereqs hB hA hgate.2
     rw [send_eq_advance .B kem ecEk ecCt s.stB hgate.1 hgate.2 hfresh, bind_assoc]
     simp only [pure_bind]
-    apply expectedPayoff_keygen_le hDet _ _ (pairPotential hDet s.stB s.stA s.keyB s.keyA)
+    apply wp_keygen_le hDet _ _ (pairPotential hDet s.stB s.stA s.keyB s.keyA)
     intro kp
     rw [sendBOutcome_some]
     have h1 : (advanceSend (K := K) .B ecEk s.stB kp).1 = none := rfl
@@ -624,7 +623,7 @@ lemma tracked_sendB_score_le
       obtain ⟨sk, -, hdk, hbefore, hafter⟩ := pairPotential_encaps hB hA ecCt hnot hct hpk
       rw [send_eq_encaps .B kem ecEk ecCt s.stB hnot hacked hct hpeerAck hpk, bind_assoc]
       simp only [pure_bind]
-      refine (expectedPayoff_encaps_le hDet pk sk _ _
+      refine (wp_encaps_le hDet pk sk _ _
         (pendingPotential hDet s.stB s.stA s.keyA) ?_).trans ?_
       · intro ck
         rw [sendBOutcome_some]
@@ -641,8 +640,7 @@ lemma tracked_sendB_score_le
         · exact hafter ck
       · rw [hbefore]
         exact le_self_add (α := ℝ≥0∞)
-    · refine expectedPayoff_le_const_of_support _ _ _
-        (OracleComp.prFail_eq_zero _) ?_
+    · refine wp_le_const_of_support _ ?_
       intro z hz
       obtain ⟨out, hout, hz⟩ := mem_support_bind_peel _ _ hz
       obtain rfl := eq_of_mem_support_pure _ hz
@@ -671,7 +669,7 @@ lemma tracked_step_score_le (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
     (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
     (p : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym) × Bool)
     (hp : trackedInv (GameInv kem ecEk ecCt) (kemFailure hDet) p) :
-    expectedPayoff ((trackedBiKem kem hDet ecEk ecCt leak t).run p)
+    wp ((trackedBiKem kem hDet ecEk ecCt leak t).run p)
         (fun z => trackedScore hDet z.2) ≤
       trackedScore hDet p +
         if SCKAScheme.isSendQuery t then kem.correctnessError ProbCompRuntime.probComp else 0 := by

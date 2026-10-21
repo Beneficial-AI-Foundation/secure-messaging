@@ -5,22 +5,23 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.KEM.IncrementalKEM.Defs
-import ToVCVio.OracleComp.ExpectedPayoff
+import ToVCVio.ProgramLogic.Unary.WP
+import VCVio.OracleComp.EvalDist.Sum
 
 /-!
 # Correctness error of an incremental KEM per key pair
 
 For a fixed header, vector, and secret key, `stagedCorrectExp` encapsulates in two stages and
-checks whether decapsulation recovers the encapsulated key. `decapsFailureProb` adds the
-probability of a false result and the probability that the experiment produces no result.
-Its average over key generation is the correctness error of the KEM.
+checks whether decapsulation recovers the encapsulated key. `decapsFailureProb` is the
+probability of a false result. Its average over key generation is the correctness error of
+the KEM (`wp_keygen_decapsFailureProb`).
 
-With deterministic decapsulation and second-stage encapsulation, the same quantity is an
-expected payoff over the first-stage samples, as shown by `decapsFailureProb_eq_expectedPayoff`.
-Here `expectedPayoff` assigns payoff `1` when the first stage produces no result.
+With deterministic decapsulation and second-stage encapsulation, the same quantity is the
+expected failure indicator over the first-stage samples (`decapsFailureProb_eq_wp`).
 -/
 
 open OracleComp ENNReal
+open OracleComp.ProgramLogic
 
 namespace KEMScheme.IncrementalStructure
 
@@ -36,41 +37,37 @@ def stagedCorrectExp [DecidableEq K]
   let key' ← kem.decaps sk (inc.splitC.symm (ct1, ct2))
   return decide (key' = some key)
 
-/-- The probability of failed key recovery or of no result in `stagedCorrectExp`. -/
+/-- The probability of failed key recovery in `stagedCorrectExp`. -/
 noncomputable def decapsFailureProb [DecidableEq K]
     (hdr : inc.PKheader) (vec : inc.PKvector) (sk : SK) : ℝ≥0∞ :=
-  Pr{let x ← inc.stagedCorrectExp hdr vec sk}[x = false] + prFail (inc.stagedCorrectExp hdr vec sk)
+  Pr{let x ← inc.stagedCorrectExp hdr vec sk}[x = false]
 
 /-- With deterministic decapsulation and second-stage encapsulation, the failure probability
 is the expected first-stage indicator of failed key recovery. -/
-theorem decapsFailureProb_eq_expectedPayoff [DecidableEq K]
+theorem decapsFailureProb_eq_wp [DecidableEq K]
     (hDet : kem.DeterministicDecaps) (hEnc2 : inc.DeterministicEncaps2)
     (hdr : inc.PKheader) (vec : inc.PKvector) (sk : SK) :
     inc.decapsFailureProb hdr vec sk =
-      expectedPayoff (inc.encaps1 hdr) fun (encapsState, ct1, key) =>
+      wp (inc.encaps1 hdr) fun (encapsState, ct1, key) =>
         if hDet.decapsDet sk
             (inc.splitC.symm (ct1, hEnc2.encaps2Det encapsState hdr vec)) = some key
         then 0 else 1 := by
   unfold decapsFailureProb stagedCorrectExp
   simp only [hEnc2.encaps2_eq, hDet.decaps_eq, pure_bind]
-  rw [probOutput_false_add_probFailure_bind]
-  congr 1
+  rw [prEvent_bind_eq_tsum, wp_eq_tsum]
   refine tsum_congr fun c : inc.St × inc.C₁ × K => ?_
   congr 1
-  dsimp only
   split_ifs <;> simp_all
 
 /-- The average of `decapsFailureProb` over key generation is the correctness error of `kem`. -/
-theorem expectedPayoff_keygen_decapsFailureProb [DecidableEq K] :
-    expectedPayoff kem.keygen
+theorem wp_keygen_decapsFailureProb [DecidableEq K] :
+    wp kem.keygen
         (fun (pk, sk) => inc.decapsFailureProb (inc.toHeader pk) (inc.toVector pk) sk) =
       kem.correctnessError ProbCompRuntime.probComp := by
-  rw [kem.correctnessError_probComp_eq_prEvent_false, ← inc.correctExp_eq,
-    ← add_zero (Pr{let x ← inc.CorrectExp}[x = false]), ← prFail_eq_zero inc.CorrectExp]
+  rw [kem.correctnessError_probComp_eq_prEvent_false, ← inc.correctExp_eq]
   unfold CorrectExp
-  rw [probOutput_false_add_probFailure_bind]
-  congr 1
-  funext ⟨pk, sk⟩
+  rw [prEvent_bind_eq_tsum, wp_eq_tsum]
+  refine tsum_congr fun ⟨pk, sk⟩ => ?_
   simp only [decapsFailureProb, stagedCorrectExp, stagedEncaps, bind_assoc, pure_bind]
 
 end KEMScheme.IncrementalStructure
