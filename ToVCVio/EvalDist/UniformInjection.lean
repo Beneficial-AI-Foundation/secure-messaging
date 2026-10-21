@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.EvalDist.TVDist
+import VCVio.EvalDist.MeasureTVDist.Basic
 import VCVio.OracleComp.Constructions.SampleableType
 import ToVCVio.OracleComp.Constructions.BitVec
 
@@ -49,14 +49,14 @@ theorem tvDist_map_injective_uniformSample {A B : Type} [Fintype A] [Fintype B]
   have hcardS : S.card = Fintype.card A := by
     rw [hS, Finset.card_image_of_injective _ hι, Finset.card_univ]
   -- The mass of the pushed-forward sample: `(card A)⁻¹` on the image, `0` off it.
-  have hp : ∀ b : B, Pr[= b | ι <$> ($ᵗ A : ProbComp A)]
+  have hp : ∀ b : B, Pr{let x ← ι <$> ($ᵗ A : ProbComp A)}[x = b]
       = if b ∈ S then (Fintype.card A : ℝ≥0∞)⁻¹ else 0 := by
     intro b
     by_cases hb : b ∈ S
     · obtain ⟨a, -, rfl⟩ := Finset.mem_image.mp hb
-      rw [if_pos hb, probOutput_map_injective _ hι a, probOutput_uniformSample]
+      rw [if_pos hb, prEvent_map_injective _ hι a, probOutput_uniformSample]
     · rw [if_neg hb]
-      refine probOutput_eq_zero_of_not_mem_support ?_
+      refine (prEvent_eq_zero_of_not_mem_support _) ?_
       rw [support_map]
       rintro ⟨a, -, rfl⟩
       exact hb (by rw [hS]; exact Finset.mem_image.mpr ⟨a, Finset.mem_univ a, rfl⟩)
@@ -64,23 +64,23 @@ theorem tvDist_map_injective_uniformSample {A B : Type} [Fintype A] [Fintype B]
     inv_anti₀ (by positivity) (Nat.cast_le.mpr hcard)
   -- Each summand, measured in `ℝ` rather than in `ℝ≥0∞`.
   have key : ∀ b : B,
-      (ENNReal.absDiff (Pr[= b | ι <$> ($ᵗ A : ProbComp A)])
-        (Pr[= b | ($ᵗ B : ProbComp B)])).toReal
+      (ENNReal.absDiff (Pr{let x ← ι <$> ($ᵗ A : ProbComp A)}[x = b])
+        (Pr{let x ← ($ᵗ B : ProbComp B)}[x = b])).toReal
         = if b ∈ S then (Fintype.card A : ℝ)⁻¹ - (Fintype.card B : ℝ)⁻¹
           else (Fintype.card B : ℝ)⁻¹ := by
     intro b
-    rw [ENNReal.absDiff_toReal probOutput_ne_top probOutput_ne_top, hp b,
+    rw [ENNReal.absDiff_toReal (prEvent_ne_top _) (prEvent_ne_top _), hp b,
       probOutput_uniformSample]
     by_cases hb : b ∈ S
     · rw [if_pos hb, if_pos hb, ENNReal.toReal_inv, ENNReal.toReal_inv,
         ENNReal.toReal_natCast, ENNReal.toReal_natCast, abs_of_nonneg (by linarith)]
     · rw [if_neg hb, if_neg hb, ENNReal.toReal_inv, ENNReal.toReal_natCast,
         ENNReal.toReal_zero, zero_sub, abs_neg, abs_of_nonneg (by positivity)]
-  have habs : ∀ b : B, ENNReal.absDiff (Pr[= b | ι <$> ($ᵗ A : ProbComp A)])
-      (Pr[= b | ($ᵗ B : ProbComp B)]) ≠ ⊤ := by
+  have habs : ∀ b : B, ENNReal.absDiff (Pr{let x ← ι <$> ($ᵗ A : ProbComp A)}[x = b])
+      (Pr{let x ← ($ᵗ B : ProbComp B)}[x = b]) ≠ ⊤ := by
     intro b
     simp only [ENNReal.absDiff, ne_eq, ENNReal.add_eq_top, not_or]
-    exact ⟨ENNReal.sub_ne_top probOutput_ne_top, ENNReal.sub_ne_top probOutput_ne_top⟩
+    exact ⟨ENNReal.sub_ne_top (prEvent_ne_top _), ENNReal.sub_ne_top (prEvent_ne_top _)⟩
   -- Re-shaped so the sum splits as a constant plus a sum over the image alone; this is what
   -- keeps `Fintype.card B - Fintype.card A` out of the statement as a `ℕ` subtraction.
   have hsplit : ∀ b : B,
@@ -93,13 +93,13 @@ theorem tvDist_map_injective_uniformSample {A B : Type} [Fintype A] [Fintype B]
     · rw [if_pos hb, if_pos hb]; ring
     · rw [if_neg hb, if_neg hb, add_zero]
   rw [tvDist, SPMF.tvDist, PMF.tvDist, PMF.etvDist, tsum_option _ ENNReal.summable]
-  have hfailx : (𝒟[ι <$> ($ᵗ A : ProbComp A)]).toPMF none = 0 := probFailure_eq_zero
-  have hfaily : (𝒟[($ᵗ B : ProbComp B)]).toPMF none = 0 := probFailure_eq_zero
+  have hfailx : (𝒟[ι <$> ($ᵗ A : ProbComp A)]).toPMF none = 0 := OracleComp.prFail_eq_zero
+  have hfaily : (𝒟[($ᵗ B : ProbComp B)]).toPMF none = 0 := OracleComp.prFail_eq_zero
   have hsome :
       (∑' x : B, ENNReal.absDiff ((𝒟[ι <$> ($ᵗ A : ProbComp A)]).toPMF (some x))
           ((𝒟[($ᵗ B : ProbComp B)]).toPMF (some x)))
-        = ∑' x : B, ENNReal.absDiff (Pr[= x | ι <$> ($ᵗ A : ProbComp A)])
-            (Pr[= x | ($ᵗ B : ProbComp B)]) :=
+        = ∑' x : B, ENNReal.absDiff (Pr{let y ← ι <$> ($ᵗ A : ProbComp A)}[y = x])
+            (Pr{let y ← ($ᵗ B : ProbComp B)}[y = x]) :=
     tsum_congr fun _ => rfl
   rw [hfailx, hfaily, ENNReal.absDiff_self, zero_add, hsome, tsum_fintype,
     ENNReal.toReal_div, ENNReal.toReal_ofNat,
@@ -165,7 +165,7 @@ theorem evalDist_listMapM_uniform_eq_map_ofFn {X : Type} [FinEnum X] [Nonempty X
       = evalDist ((List.ofFn : (Fin pts.length → X) → List X) <$>
           ($ᵗ (Fin pts.length → X) : ProbComp (Fin pts.length → X))) := by
   rw [ToVCVio.evalDist_mapM_const_uniform]
-  have h := evalDist_map_eq_of_evalDist_eq (evalDist_map_bijective_uniform_cross
+  have h := EvalDistEq.map (evalDist_map_bijective_uniform_cross
     (α := Vector X pts.length) (arrayVectorEquivFin X pts.length)
     (arrayVectorEquivFin X pts.length).bijective) List.ofFn
   rw [Functor.map_map] at h

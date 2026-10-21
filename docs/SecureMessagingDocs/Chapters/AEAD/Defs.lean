@@ -189,7 +189,7 @@ $$`\mathsf{Adv}^{\textsf{guess}}_{\textsf{AEAD}}(\adv)
 noncomputable def guessAdvantage [SampleableType C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) : ℝ :=
-  |(Pr[= true | securityExp ae adversary]).toReal - 1 / 2|
+  |(Pr{let x ← securityExp ae adversary}[x = true]).toReal - 1 / 2|
 ```
 :::
 
@@ -226,8 +226,8 @@ def securityExpFixedBit [SampleableType C] [DecidableEq AD] [DecidableEq C]
 noncomputable def distAdvantage [SampleableType C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) : ℝ :=
-  |(Pr[= true | securityExpFixedBit ae adversary true]).toReal -
-   (Pr[= true | securityExpFixedBit ae adversary false]).toReal|
+  |(Pr{let x ← securityExpFixedBit ae adversary true}[x = true]).toReal -
+   (Pr{let x ← securityExpFixedBit ae adversary false}[x = true]).toReal|
 ```
 :::::
 

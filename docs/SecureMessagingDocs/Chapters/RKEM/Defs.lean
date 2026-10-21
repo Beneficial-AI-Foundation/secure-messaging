@@ -209,7 +209,7 @@ def keyBaseSimExpA (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.Rand
 noncomputable def keyBaseSimAdvantageA (rkem : RKEMScheme ProbComp Par EK DK CT K)
     {leak : rkem.RandLeak} (sim : rkem.RatchetSimulator leak)
     (adversary : KeyBaseSimAdversary Par EK DK) : ℝ :=
-  |(Pr[= true | rkem.keyBaseSimExpA sim adversary]).toReal - 1 / 2|
+  |(Pr{let x ← rkem.keyBaseSimExpA sim adversary}[x = true]).toReal - 1 / 2|
 ```
 
 :::leanPillCaption "Base-key advantage, maximum over both parties"
@@ -292,7 +292,7 @@ def keyUpdSimExpA (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandL
 noncomputable def keyUpdSimAdvantageA (rkem : RKEMScheme ProbComp Par EK DK CT K)
     {leak : rkem.RandLeak} (sim : rkem.RatchetSimulator leak)
     (adversary : KeyUpdSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand leak.EncRand) : ℝ :=
-  |(Pr[= true | rkem.keyUpdSimExpA sim adversary]).toReal - 1 / 2|
+  |(Pr{let x ← rkem.keyUpdSimExpA sim adversary}[x = true]).toReal - 1 / 2|
 ```
 
 :::leanPillCaption "Updated-key advantage, maximum over both parties"
@@ -375,7 +375,7 @@ def ctxtSimExpA (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandLea
 noncomputable def ctxtSimAdvantageA (rkem : RKEMScheme ProbComp Par EK DK CT K)
     {leak : rkem.RandLeak} (sim : rkem.RatchetSimulator leak)
     (adversary : CtxtSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand) : ℝ :=
-  |(Pr[= true | rkem.ctxtSimExpA sim adversary]).toReal - 1 / 2|
+  |(Pr{let x ← rkem.ctxtSimExpA sim adversary}[x = true]).toReal - 1 / 2|
 ```
 
 :::leanPillCaption "Ciphertext advantage, maximum over both parties"
@@ -440,7 +440,7 @@ $`\todo`
 ```anchor fsIndCpaAdvantageA (project := ".") (module := SecureMessaging.RKEM.Defs)
 noncomputable def fsIndCpaAdvantageA (rkem : RKEMScheme ProbComp Par EK DK CT K)
     (adversary : FSINDCPAAdversary Par EK DK CT K) [SampleableType K] : ℝ :=
-  |(Pr[= true | rkem.securityExpA adversary]).toReal - 1 / 2|
+  |(Pr{let x ← rkem.securityExpA adversary}[x = true]).toReal - 1 / 2|
 ```
 :::
 

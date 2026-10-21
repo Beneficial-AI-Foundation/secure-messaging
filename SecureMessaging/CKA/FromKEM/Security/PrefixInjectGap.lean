@@ -66,12 +66,10 @@ lemma probOutput_simulateQ_wck_run'_eq_of_injectionPassed
     (adv : OracleComp (securitySpec leak) Bool)
     (s : SecurityState K PK SK C)
     (hs : injectionPassed gp s) :
-    Pr[= true |
-        (simulateQ
+    Pr{let x ← ((simulateQ
           (securityImplWithChallengeKeyPair kem hDet leak gp isRandom pkStar skStar)
-          adv).run' s] =
-      Pr[= true |
-        (simulateQ (securityImpl kem hDet leak gp isRandom) adv).run' s] :=
+          adv).run' s)}[x = true] =
+      Pr{let x ← (simulateQ (securityImpl kem hDet leak gp isRandom) adv).run' s}[x = true] :=
   probOutput_run'_true_eq_of_run_probOutput_eq s fun z =>
     probOutput_simulateQ_securityImplWithChallengeKeyPair_run_eq_of_injectionPassed
       kem hDet leak gp isRandom pkStar skStar adv s hs z
@@ -87,10 +85,8 @@ lemma probOutput_simulateQ_true_false_run'_eq_of_challengePassed
     (adv : OracleComp (securitySpec leak) Bool)
     (s : SecurityState K PK SK C)
     (hs : challengePassed gp s) :
-    Pr[= true |
-        (simulateQ (securityImpl kem hDet leak gp true) adv).run' s] =
-      Pr[= true |
-        (simulateQ (securityImpl kem hDet leak gp false) adv).run' s] :=
+    Pr{let x ← (simulateQ (securityImpl kem hDet leak gp true) adv).run' s}[x = true] =
+      Pr{let x ← (simulateQ (securityImpl kem hDet leak gp false) adv).run' s}[x = true] :=
   probOutput_run'_true_eq_of_run_probOutput_eq s fun z =>
     probOutput_simulateQ_run_eq_of_impl_eq_preservesInv
       (securityImpl kem hDet leak gp true)

@@ -73,12 +73,12 @@ lemma expectedPayoff_simulateQ_run_le
           exact ih z.1 (q - 1) (by simpa [ht] using hcont z.1) z.2
             (hpres t s hs z hz)
         calc
-          (Pr[⊥ | (impl t).run s] +
-            ∑' z, Pr[= z | (impl t).run s] *
+          (prFail ((impl t).run s) +
+            ∑' z, Pr{let x ← (impl t).run s}[x = z] *
               expectedPayoff ((simulateQ impl (cont z.1)).run z.2)
                 (fun w => score w.2)) ≤
-              Pr[⊥ | (impl t).run s] +
-                ∑' z, Pr[= z | (impl t).run s] *
+              prFail ((impl t).run s) +
+                ∑' z, Pr{let x ← (impl t).run s}[x = z] *
                 (score z.2 + (((q - 1 : ℕ) : ℝ≥0∞) * epsilon)) := by
             exact add_le_add le_rfl (ENNReal.tsum_le_tsum fun z => by
               by_cases hz : z ∈ support ((impl t).run s)
@@ -104,12 +104,12 @@ lemma expectedPayoff_simulateQ_run_le
           exact ih z.1 q (by simpa [ht] using hcont z.1) z.2
             (hpres t s hs z hz)
         calc
-          (Pr[⊥ | (impl t).run s] +
-            ∑' z, Pr[= z | (impl t).run s] *
+          (prFail ((impl t).run s) +
+            ∑' z, Pr{let x ← (impl t).run s}[x = z] *
               expectedPayoff ((simulateQ impl (cont z.1)).run z.2)
                 (fun w => score w.2)) ≤
-              Pr[⊥ | (impl t).run s] +
-                ∑' z, Pr[= z | (impl t).run s] *
+              prFail ((impl t).run s) +
+                ∑' z, Pr{let x ← (impl t).run s}[x = z] *
                 (score z.2 + ((q : ℝ≥0∞) * epsilon)) := by
             exact add_le_add le_rfl (ENNReal.tsum_le_tsum fun z => by
               by_cases hz : z ∈ support ((impl t).run s)

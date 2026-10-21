@@ -39,7 +39,7 @@ def stagedCorrectExp [DecidableEq K]
 /-- The probability of failed key recovery or of no result in `stagedCorrectExp`. -/
 noncomputable def decapsFailureProb [DecidableEq K]
     (hdr : inc.PKheader) (vec : inc.PKvector) (sk : SK) : ℝ≥0∞ :=
-  Pr[= false | inc.stagedCorrectExp hdr vec sk] + Pr[⊥ | inc.stagedCorrectExp hdr vec sk]
+  Pr{let x ← inc.stagedCorrectExp hdr vec sk}[x = false] + prFail (inc.stagedCorrectExp hdr vec sk)
 
 /-- With deterministic decapsulation and second-stage encapsulation, the failure probability
 is the expected first-stage indicator of failed key recovery. -/
@@ -66,7 +66,7 @@ theorem expectedPayoff_keygen_decapsFailureProb [DecidableEq K] :
         (fun (pk, sk) => inc.decapsFailureProb (inc.toHeader pk) (inc.toVector pk) sk) =
       kem.correctnessError ProbCompRuntime.probComp := by
   rw [kem.correctnessError_eq_probOutput_false_add_probFailure, ← inc.correctExp_eq]
-  change _ = Pr[= false | inc.CorrectExp] + Pr[⊥ | inc.CorrectExp]
+  change _ = Pr{let x ← inc.CorrectExp}[x = false] + prFail inc.CorrectExp
   unfold CorrectExp
   rw [probOutput_false_add_probFailure_bind]
   congr 1

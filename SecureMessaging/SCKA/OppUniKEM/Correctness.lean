@@ -74,9 +74,8 @@ theorem correctness_failure_le [DecidableEq K] [DecidableEq Sym]
     (leak : KEMScheme.OnOffRandLeak kem onoff)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
     (q : ℕ) (hq : SendQueryBound adv q) :
-    Pr[= false |
-      SCKAScheme.correctnessExp
-        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] ≤
+    Pr{let x ← (SCKAScheme.correctnessExp
+        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv)}[x = false] ≤
       (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp
     := by
   exact correctness_failure_le_reduction kem onoff hDet
@@ -101,9 +100,8 @@ theorem correctness_true_ge [DecidableEq K] [DecidableEq Sym]
     (leak : KEMScheme.OnOffRandLeak kem onoff)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
     (q : ℕ) (hq : SendQueryBound adv q) :
-    Pr[= true |
-      SCKAScheme.correctnessExp
-        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] ≥
+    Pr{let x ← (SCKAScheme.correctnessExp
+        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv)}[x = true] ≥
       1 - (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp
 -- ANCHOR_END: correctnessTrueGe
     := by
@@ -129,9 +127,8 @@ theorem correctness [DecidableEq K] [DecidableEq Sym]
     (hEkCorrect : ecEk.ec.Correct) (hCt0Correct : ecCt0.ec.Correct)
     (hCt1Correct : ecCt1.ec.Correct)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym)) :
-    Pr[= true |
-      SCKAScheme.correctnessExp
-        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] = 1
+    Pr{let x ← (SCKAScheme.correctnessExp
+        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv)}[x = true] = 1
     := by
   exact correctness_of_perfectKEM kem onoff hDet ecEk ecCt0 ecCt1 leak hkem
     hEkCorrect hCt0Correct hCt1Correct adv

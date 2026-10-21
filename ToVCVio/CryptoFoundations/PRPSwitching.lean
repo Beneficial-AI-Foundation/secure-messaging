@@ -86,7 +86,7 @@ theorem evalDist_map_trans_uniformPerm {X : Type} [FinEnum X] {q : ℕ}
       exact congrArg (· <$> ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X)))
         (funext fun π => Function.Embedding.ext fun i => rfl)
     rw [hcomp]
-    exact evalDist_map_eq_of_evalDist_eq
+    exact EvalDistEq.map
       (evalDist_ext (probOutput_map_bijective_uniformSample (Equiv.Perm X)
         (Group.mulLeft_bijective σ))) Φ
   refine ToVCVio.evalDist_eq_uniformSample_of_uniform _ ?_ ?_
@@ -103,13 +103,13 @@ theorem evalDist_map_trans_uniformPerm {X : Type} [FinEnum X] {q : ℕ}
       intro f g hfg
       refine Function.Embedding.ext fun i => σ.injective ?_
       exact congrFun (congrArg (fun h : Fin q ↪ X => (h : Fin q → X)) hfg) i
-    calc Pr[= e | Φ <$> ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X))]
-        = Pr[= e.trans σ.toEmbedding | (fun f : Fin q ↪ X => f.trans σ.toEmbedding) <$>
-            (Φ <$> ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X)))] :=
-          (probOutput_map_injective _ hTinj e).symm
-      _ = Pr[= e.trans σ.toEmbedding | Φ <$> ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X))] :=
+    calc Pr{let x ← Φ <$> ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X))}[x = e]
+        = Pr{let x ← ((fun f : Fin q ↪ X => f.trans σ.toEmbedding) <$>
+            (Φ <$> ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X))))}[x = e.trans σ.toEmbedding] :=
+          (prEvent_map_injective _ hTinj e).symm
+      _ = Pr{let x ← Φ <$> ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X))}[x = e.trans σ.toEmbedding] :=
           evalDist_ext_iff.mp (hinv σ) _
-      _ = Pr[= e' | Φ <$> ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X))] := by rw [he']
+      _ = Pr{let x ← Φ <$> ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X))}[x = e'] := by rw [he']
 
 /-- Let `pts = x₁, …, x_q` be fixed, pairwise-distinct elements of a finite set `X`. If `π` is a
 uniformly random permutation of `X`, then `(π(x₁), …, π(x_q))` is uniformly distributed over all
@@ -136,7 +136,7 @@ theorem evalDist_map_uniformPerm_eq_uniformDistinct {X : Type} [FinEnum X]
     rw [Functor.map_map]
     exact congrArg (· <$> ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X))) (funext hfun)
   rw [hmapeq, hRHS]
-  exact evalDist_map_eq_of_evalDist_eq
+  exact EvalDistEq.map
     (evalDist_map_trans_uniformPerm (nodupEmbedding pts hpts)) _
 
 /-! ## The assembled fixed-list switching bound -/

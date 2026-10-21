@@ -144,8 +144,8 @@ def securityExpFixedBit [SampleableType C] (se : DetSEAlg K M C)
 NRS14 Section 2: `Adv^{ivE}_E(A)`, restricted to one query and no IV. -/
 noncomputable def distAdvantage [SampleableType C] (se : DetSEAlg K M C)
     (adversary : IndCPAAdversary M C) : ℝ :=
-  |(Pr[= true | securityExpFixedBit se adversary true]).toReal -
-   (Pr[= true | securityExpFixedBit se adversary false]).toReal|
+  |(Pr{let x ← securityExpFixedBit se adversary true}[x = true]).toReal -
+   (Pr{let x ← securityExpFixedBit se adversary false}[x = true]).toReal|
 
 end IndCPA
 

@@ -215,7 +215,7 @@ theorem correctExp_eq [DecidableEq K] : inc.CorrectExp = kem.CorrectExp := by
 /-- A correctness bound for the KEM bounds the staged run in the same way. -/
 theorem probFailure_correctExp_le [DecidableEq K] (runtime : ProbCompRuntime m)
     {delta : ℝ≥0∞} (h : kem.deltaCorrect runtime delta) :
-    Pr[= false | runtime.evalDist inc.CorrectExp] ≤ delta := by
+    Pr{let x ← runtime.evalDist inc.CorrectExp}[x = false] ≤ delta := by
   rw [inc.correctExp_eq]
   refine le_trans ?_ h
   rw [kem.correctnessError_eq_probOutput_false_add_probFailure]

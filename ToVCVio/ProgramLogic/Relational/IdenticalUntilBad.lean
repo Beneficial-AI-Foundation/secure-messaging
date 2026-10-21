@@ -9,7 +9,7 @@ import VCVio.ProgramLogic.Relational.SimulateQ
 /-!
 # Output-Projected Identical-Until-Bad
 
-VCVio's `tvDist_simulateQ_run_le_probEvent_output_bad` bounds the total variation
+VCVio's `measureETVDist_simulateQ_run_le_prEvent_bad` bounds the total variation
 distance between the joint output-and-state distributions of two simulations whose
 implementations agree until a monotone bad flag fires. The theorem below projects
 both runs with `StateT.run'` and applies data processing for total variation distance.
@@ -20,7 +20,7 @@ open OracleComp OracleSpec ENNReal
 namespace OracleComp.ProgramLogic.Relational
 
 variable {σ : Type} {ι ι₂ : Type} {spec : OracleSpec ι} {spec₂ : OracleSpec ι₂}
-  [IsUniformSpec spec₂] {α : Type}
+  [OracleSpec.UniformAnswerMeasure spec₂] {α : Type}
 
 /-- **Identical until bad, output-bad flag, decoupled base monad.**
 
@@ -31,21 +31,20 @@ fires. The observable output distance is then bounded by the bad-event probabili
 in the first simulation.
 
 This is the output projection of VCVio's heterogeneous joint-distribution theorem
-`tvDist_simulateQ_run_le_probEvent_output_bad`. -/
+`measureETVDist_simulateQ_run_le_prEvent_bad`. -/
 theorem tvDist_simulateQ_le_probEvent_output_bad_base
     (impl₁ impl₂ : QueryImpl spec (StateT (σ × Bool) (OracleComp spec₂)))
     (oa : OracleComp spec α) (s₀ : σ)
     (h_agree_good : ∀ (t : spec.Domain) (s : σ) (u : spec.Range t) (s' : σ),
-      Pr[= (u, (s', false)) | (impl₁ t).run (s, false)] =
-        Pr[= (u, (s', false)) | (impl₂ t).run (s, false)])
+      Pr{let x ← (impl₁ t).run (s, false)}[x = (u, (s', false))] =
+        Pr{let x ← (impl₂ t).run (s, false)}[x = (u, (s', false))])
     (h_mono₁ : ∀ (t : spec.Domain) (p : σ × Bool), p.2 = true →
       ∀ z ∈ support ((impl₁ t).run p), z.2.2 = true)
     (h_mono₂ : ∀ (t : spec.Domain) (p : σ × Bool), p.2 = true →
       ∀ z ∈ support ((impl₂ t).run p), z.2.2 = true) :
     tvDist ((simulateQ impl₁ oa).run' (s₀, false))
         ((simulateQ impl₂ oa).run' (s₀, false))
-      ≤ Pr[fun z : α × σ × Bool => z.2.2 = true |
-          (simulateQ impl₁ oa).run (s₀, false)].toReal := by
+      ≤ Pr{let z ← (simulateQ impl₁ oa).run (s₀, false)}[z.2.2 = true].toReal := by
   calc
     tvDist ((simulateQ impl₁ oa).run' (s₀, false))
         ((simulateQ impl₂ oa).run' (s₀, false))
@@ -54,8 +53,7 @@ theorem tvDist_simulateQ_le_probEvent_output_bad_base
         rw [StateT.run'_eq, StateT.run'_eq]
         exact tvDist_map_le (m := OracleComp spec₂) (α := α × σ × Bool) (β := α)
           Prod.fst _ _
-    _ ≤ Pr[fun z : α × σ × Bool => z.2.2 = true |
-          (simulateQ impl₁ oa).run (s₀, false)].toReal :=
-      tvDist_simulateQ_run_le_probEvent_output_bad impl₁ impl₂ oa s₀ h_agree_good h_mono₁ h_mono₂
+    _ ≤ Pr{let z ← (simulateQ impl₁ oa).run (s₀, false)}[z.2.2 = true].toReal :=
+      measureETVDist_simulateQ_run_le_prEvent_bad impl₁ impl₂ oa s₀ h_agree_good h_mono₁ h_mono₂
 
 end OracleComp.ProgramLogic.Relational

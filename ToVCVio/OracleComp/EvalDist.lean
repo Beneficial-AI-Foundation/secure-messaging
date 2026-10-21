@@ -18,17 +18,17 @@ namespace ToVCVio
 /-- The canonical `ProbComp` runtime embeds through `evalDist` without changing
 point probabilities. -/
 lemma probOutput_probCompRuntime_evalDist_eq {α : Type} (mx : ProbComp α) (x : α) :
-    Pr[= x | ProbCompRuntime.probComp.evalDist mx] = Pr[= x | mx] := by
+    Pr{let y ← ProbCompRuntime.probComp.evalDist mx}[y = x] = Pr{let y ← mx}[y = x] := by
   rfl
 
 /-- Lift a `.run` point-distribution equality to the `Bool` `.run'` projection. -/
 lemma probOutput_run'_true_eq_of_run_probOutput_eq {σ : Type}
     {m₁ m₂ : StateT σ ProbComp Bool} (s : σ)
-    (h : ∀ z, Pr[= z | m₁.run s] = Pr[= z | m₂.run s]) :
-    Pr[= true | m₁.run' s] = Pr[= true | m₂.run' s] := by
-  change Pr[= true | Prod.fst <$> m₁.run s] = Pr[= true | Prod.fst <$> m₂.run s]
+    (h : ∀ z, Pr{let x ← m₁.run s}[x = z] = Pr{let x ← m₂.run s}[x = z]) :
+    Pr{let x ← m₁.run' s}[x = true] = Pr{let x ← m₂.run' s}[x = true] := by
+  change Pr{let x ← Prod.fst <$> m₁.run s}[x = true] = Pr{let x ← Prod.fst <$> m₂.run s}[x = true]
   simp only [map_eq_bind_pure_comp]
-  rw [probOutput_bind_eq_tsum, probOutput_bind_eq_tsum]
+  rw [OracleComp.prEvent_bind_eq_tsum, OracleComp.prEvent_bind_eq_tsum]
   exact tsum_congr fun z => by rw [h z]
 
 end ToVCVio

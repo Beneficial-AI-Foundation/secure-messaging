@@ -162,9 +162,8 @@ theorem correctness_of_perfectKEM [DecidableEq K]
     (hEkCorrect : ecEk.ec.Correct) (hCt0Correct : ecCt0.ec.Correct)
     (hCt1Correct : ecCt1.ec.Correct)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym)) :
-    Pr[= true |
-      SCKAScheme.correctnessExp
-        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] = 1
+    Pr{let x ← (SCKAScheme.correctnessExp
+        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv)}[x = true] = 1
     := by
   have hEkPos := ecEk.ec.nchunk_pos
   have hCt0Pos := ecCt0.ec.nchunk_pos
@@ -199,31 +198,27 @@ theorem correctness_of_perfectKEM [DecidableEq K]
     rw [hscore₀] at h
     exact h
   have hbad :
-      Pr[ fun z => z.2.2 = true |
-          (simulateQ
+      Pr{let z ← ((simulateQ
             (trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak) adv).run
-              (initialGame (Sym := Sym) kem onoff, false)] ≤ 0 := by
+              (initialGame (Sym := Sym) kem onoff, false))}[z.2.2 = true] ≤ 0 := by
     calc
-      Pr[ fun z => z.2.2 = true |
-          (simulateQ tracked adv).run (s₀, false)] ≤
+      Pr{let z ← (simulateQ tracked adv).run (s₀, false)}[z.2.2 = true] ≤
           expectedPayoff ((simulateQ tracked adv).run (s₀, false))
             (fun z => score z.2) :=
         tracked_bad_probability_le_score kem onoff _
       _ ≤ 0 := hscore
   have hfalse_le :
-      Pr[= false |
-        SCKAScheme.correctnessExp
-          (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] ≤ 0 :=
+      Pr{let x ← (SCKAScheme.correctnessExp
+          (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv)}[x = false] ≤ 0 :=
     correctness_failure_le_of_tracked_bad kem onoff hDet
       ecEk hEkCorrect hEkPos ecCt0 hCt0Correct hCt0Pos
       ecCt1 hCt1Correct hCt1Pos leak adv 0 hbad
   have hfalse :
-      Pr[= false |
-        SCKAScheme.correctnessExp
-          (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] = 0 :=
+      Pr{let x ← (SCKAScheme.correctnessExp
+          (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv)}[x = false] = 0 :=
     le_antisymm hfalse_le bot_le
-  rw [probOutput_false_eq_sub, probFailure_eq_zero, tsub_zero] at hfalse
-  exact le_antisymm probOutput_le_one ((tsub_eq_zero_iff_le).mp hfalse)
+  rw [probOutput_false_eq_sub, OracleComp.prFail_eq_zero, tsub_zero] at hfalse
+  exact le_antisymm (prEvent_le_one _) ((tsub_eq_zero_iff_le).mp hfalse)
 
 /-- Assume:
 
@@ -243,9 +238,8 @@ theorem correctness_failure_le_reduction [DecidableEq K]
     (leak : KEMScheme.OnOffRandLeak kem onoff)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
     (q : ℕ) (hq : SendQueryBound adv q) :
-    Pr[= false |
-      SCKAScheme.correctnessExp
-        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] ≤
+    Pr{let x ← (SCKAScheme.correctnessExp
+        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv)}[x = false] ≤
       (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp
     := by
   have hEkPos := ecEk.ec.nchunk_pos
@@ -281,14 +275,12 @@ theorem correctness_failure_le_reduction [DecidableEq K]
     rw [hscore₀', zero_add] at h
     simpa [tracked, score] using h
   have hbad :
-      Pr[ fun z => z.2.2 = true |
-          (simulateQ
+      Pr{let z ← ((simulateQ
             (trackedCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak) adv).run
-              (initialGame (Sym := Sym) kem onoff, false)] ≤
+              (initialGame (Sym := Sym) kem onoff, false))}[z.2.2 = true] ≤
         (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp := by
     calc
-      Pr[ fun z => z.2.2 = true |
-          (simulateQ tracked adv).run (s₀, false)] ≤
+      Pr{let z ← (simulateQ tracked adv).run (s₀, false)}[z.2.2 = true] ≤
           expectedPayoff ((simulateQ tracked adv).run (s₀, false))
             (fun z => score z.2) :=
         tracked_bad_probability_le_score kem onoff _
@@ -311,14 +303,13 @@ theorem correctness_true_ge_reduction [DecidableEq K]
     (leak : KEMScheme.OnOffRandLeak kem onoff)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message Sym))
     (q : ℕ) (hq : SendQueryBound adv q) :
-    Pr[= true |
-      SCKAScheme.correctnessExp
-        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv] ≥
+    Pr{let x ← (SCKAScheme.correctnessExp
+        (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv)}[x = true] ≥
       1 - (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp
     := by
   have h := correctness_failure_le_reduction kem onoff hDet
     ecEk hEkCorrect ecCt0 hCt0Correct ecCt1 hCt1Correct leak adv q hq
-  rw [probOutput_false_eq_sub, probFailure_eq_zero, tsub_zero] at h
+  rw [probOutput_false_eq_sub, OracleComp.prFail_eq_zero, tsub_zero] at h
   rw [tsub_le_iff_right] at h
   rw [ge_iff_le, tsub_le_iff_right]
   rwa [add_comm]

@@ -5,7 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import VCVio.OracleComp.Constructions.SampleableType
-import VCVio.EvalDist.BitVec
+import VCVio.EvalDist.Monad.Map
 import VCVio.EvalDist.Prod
 import VCVio.EvalDist.List
 import ToVCVio.OracleComp.Constructions.SampleableType
@@ -121,22 +121,22 @@ theorem evalDist_blocksToBitVec_uniform (n L : ℕ) (hL : L ≤ w * n) :
       = 𝒟[Prod.fst <$> (blocksSplit n L <$> ($ᵗ Vector (BitVec w) n))] := by
         rw [Functor.map_map]; rfl
     _ = 𝒟[Prod.fst <$> ($ᵗ (BitVec L × BitVec (w * n - L)))] :=
-        evalDist_map_eq_of_evalDist_eq
+        EvalDistEq.map
           (evalDist_map_bijective_uniform_cross (α := Vector (BitVec w) n)
             (blocksSplit n L) (blocksSplit_bijective n L hL)) Prod.fst
     _ = 𝒟[$ᵗ BitVec L] := evalDist_map_fst_uniformSample_prod
 
 /-- Pointwise form of `evalDist_blocksToBitVec_uniform`. -/
 theorem probOutput_blocksToBitVec_uniform (n L : ℕ) (hL : L ≤ w * n) (y : BitVec L) :
-    Pr[= y | (fun v : Vector (BitVec w) n => blocksToBitVec v.toList L) <$>
-        ($ᵗ Vector (BitVec w) n)] = (Fintype.card (BitVec L) : ℝ≥0∞)⁻¹ := by
+    Pr{let x ← ((fun v : Vector (BitVec w) n => blocksToBitVec v.toList L) <$>
+        ($ᵗ Vector (BitVec w) n))}[x = y] = (Fintype.card (BitVec L) : ℝ≥0∞)⁻¹ := by
   rw [evalDist_ext_iff.mp (evalDist_blocksToBitVec_uniform n L hL) y,
     probOutput_uniformSample]
 
 /-- Sanity check at `L = 0`: `BitVec 0` is a singleton, hit with probability `1`. -/
 example (n : ℕ) (y : BitVec 0) :
-    Pr[= y | (fun v : Vector (BitVec w) n => blocksToBitVec v.toList 0) <$>
-        ($ᵗ Vector (BitVec w) n)] = 1 := by
+    Pr{let x ← ((fun v : Vector (BitVec w) n => blocksToBitVec v.toList 0) <$>
+        ($ᵗ Vector (BitVec w) n))}[x = y] = 1 := by
   simpa using probOutput_blocksToBitVec_uniform n 0 (Nat.zero_le _) y
 
 /-! ## A masked value and a masked function of it are jointly uniform -/
@@ -191,15 +191,15 @@ example {n : ℕ} (msg : BitVec n) (g : BitVec n → BitVec 0) :
 length `n`, and `0` otherwise. -/
 private lemma probOutput_toList_uniformSample_vector {R : Type} [SampleableType R] [Fintype R]
     (n : ℕ) (xs : List R) :
-    Pr[= xs | (Vector.toList <$> ($ᵗ Vector R n : ProbComp (Vector R n)))] =
+    Pr{let x ← (Vector.toList <$> ($ᵗ Vector R n : ProbComp (Vector R n)))}[x = xs] =
       if xs.length = n then ((Fintype.card R : ℝ≥0∞)⁻¹) ^ n else 0 := by
   by_cases hlen : xs.length = n
   · rw [if_pos hlen]
     have hv : (⟨xs.toArray, by simpa using hlen⟩ : Vector R n).toList = xs := by
       simp [Vector.toList]
-    rw [← hv, probOutput_map_injective _ (fun a b hab => Vector.toList_inj.mp hab),
+    rw [← hv, prEvent_map_injective _ (fun a b hab => Vector.toList_inj.mp hab),
       probOutput_uniformSample, Fintype.card_vector, Nat.cast_pow, ENNReal.inv_pow]
-  · rw [if_neg hlen, probOutput_map]
+  · rw [if_neg hlen, prEvent_map]
     refine probEvent_eq_zero fun v _ hv => hlen ?_
     rw [← hv]
     simp [Vector.toList]

@@ -322,8 +322,7 @@ theorem correctness_error_le
     (hCt2Correct : P.ecpCt2.ec.Correct)
     (adv : SCKAScheme.SCKACorrectnessAdversary (Message P.Sym))
     (q : ℕ) (hq : SCKAScheme.SendQueryBound adv q) :
-    1 - Pr[= true |
-      SCKAScheme.correctnessExp (scheme P auth irl sampleInitKey) adv] ≤
+    1 - Pr{let x ← SCKAScheme.correctnessExp (scheme P auth irl sampleInitKey) adv}[x = true] ≤
       (q : ℝ≥0∞) * P.kem.correctnessError ProbCompRuntime.probComp
 ```
 ::::

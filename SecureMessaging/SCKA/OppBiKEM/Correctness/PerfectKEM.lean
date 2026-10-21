@@ -45,7 +45,7 @@ lemma decapsCorrectOnSupport_of_perfectlyCorrect [DecidableEq K]
     (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp) :
     DecapsCorrectOnSupport kem hDet := by
   intro pk sk c k hkp henc
-  have hone : Pr[= true | kem.CorrectExp] = 1 := hkem
+  have hone : Pr{let x ← kem.CorrectExp}[x = true] = 1 := hkem
   rw [probOutput_eq_one_iff] at hone
   obtain ⟨-, hsupp⟩ := hone
   by_contra hne

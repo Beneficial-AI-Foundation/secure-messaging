@@ -152,8 +152,8 @@ lemma run'_game0Impl_eq_tupleImpl (prp : PRPScheme K (BitVec 128)) (iv : BitVec 
 theorem game0_eq_prfRealExp (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    Pr[= true | game0 prp iv L hL adv] =
-      Pr[= true | (prp.toPRFScheme).prfRealExp (prfReduction iv L adv)] := by
+    Pr{let x ← game0 prp iv L hL adv}[x = true] =
+      Pr{let x ← (prp.toPRFScheme).prfRealExp (prfReduction iv L adv)}[x = true] := by
   -- Keygen alignment is definitional: `toPRFScheme` keeps `keygen` and sets `eval := perm`.
   have hkg : (prp.toPRFScheme).keygen = prp.keygen := rfl
   unfold game0 PRFScheme.prfRealExp prfReduction
@@ -166,7 +166,7 @@ theorem game0_eq_prfRealExp (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L
     List.mapM_pure, PRFScheme.simulateQ_prfRealQueryImpl_liftComp, pure_bind]
   -- Both sides are now the same `prp.keygen` bind; descend and project per key.
   refine probOutput_bind_congr' prp.keygen true (fun k => ?_)
-  exact congrArg (fun o => Pr[= true | o]) (run'_game0Impl_eq_tupleImpl prp iv L hL k adv)
+  exact congrArg (fun o => Pr{let x ← o}[x = true]) (run'_game0Impl_eq_tupleImpl prp iv L hL k adv)
 
 end RealProjection
 
@@ -266,7 +266,7 @@ private lemma evalDist_keystream_bind {β : Type} (icb : BitVec 128) (L : ℕ)
   have h1 : 𝒟[(fun blocks => blocksToBitVec blocks L) <$>
       (counterChain icb ((L + 127) / 128)).mapM
         (fun _ => ($ᵗ (BitVec 128) : ProbComp _))] = 𝒟[($ᵗ (BitVec L) : ProbComp _)] := by
-    refine Eq.trans (evalDist_map_eq_of_evalDist_eq
+    refine Eq.trans (EvalDistEq.map
       (evalDist_mapM_const_uniform (R := BitVec 128)
         (counterChain icb ((L + 127) / 128))) _) ?_
     rw [Functor.map_map, hlen]
@@ -277,8 +277,8 @@ private lemma evalDist_keystream_bind {β : Type} (icb : BitVec 128) (L : ℕ)
 theorem game1_eq_prfIdealExp (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    Pr[= true | game1 prp L hL adv] =
-      Pr[= true | PRFScheme.prfIdealExp (prfReduction iv L adv)] := by
+    Pr{let x ← game1 prp L hL adv}[x = true] =
+      Pr{let x ← PRFScheme.prfIdealExp (prfReduction iv L adv)}[x = true] := by
   rw [prfIdealExp_prfReduction_eq iv L hL adv]
   refine evalDist_ext_iff.mp ?_ true
   unfold game1
@@ -297,8 +297,8 @@ success probability by at most the PRF advantage of `prfReduction`. -/
 theorem game0_game1_le_prf (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    |(Pr[= true | game1 prp L hL adv]).toReal -
-      (Pr[= true | game0 prp iv L hL adv]).toReal| ≤
+    |(Pr{let x ← game1 prp L hL adv}[x = true]).toReal -
+      (Pr{let x ← game0 prp iv L hL adv}[x = true]).toReal| ≤
       PRFScheme.prfAdvantage prp.toPRFScheme (prfReduction iv L adv) := by
   unfold PRFScheme.prfAdvantage
   rw [game0_eq_prfRealExp prp iv L hL adv, game1_eq_prfIdealExp prp iv L hL adv]

@@ -34,8 +34,8 @@ theorem game1_game2_le_auth
     (adv : OneTimeCCAAdversary AD M (C_e × T))
     (q_d : ℕ) [Fintype T]
     (hqd : AEADScheme.decryptQueryBound adv q_d) :
-    |(Pr[= true | game1 se adv]).toReal -
-     (Pr[= true | game2 se adv]).toReal| ≤
+    |(Pr{let x ← game1 se adv}[x = true]).toReal -
+     (Pr{let x ← game2 se adv}[x = true]).toReal| ≤
       ↑q_d * (Fintype.card T : ℝ)⁻¹ := by
   -- NRS14 Appendix A.2, A5 Case 1. Couple `game1` and `game2` through the intermediate
   -- `game2'` (verify queries the RO then rejects unconditionally):
@@ -46,7 +46,7 @@ theorem game1_game2_le_auth
   -- Step C: `game2' = game2`. game2' rejects unconditionally, so its verify RO query reveals
   -- nothing — removing it preserves the distribution (`evalDist_simulateQ_run'_discardRO`, the
   -- RO-mediated discarded-query brick), lifted through the skeleton.
-  have hC : Pr[= true | game2' se adv] = Pr[= true | game2 se adv] :=
+  have hC : Pr{let x ← game2' se adv}[x = true] = Pr{let x ← game2 se adv}[x = true] :=
     game2'_eq_game2 se adv
   -- Steps A+B: identical-until-bad (game1 vs game2' agree off the forge step) bounds the TV
   -- distance by the forge probability; the eval+verify forge brick bounds that by q_d/|T|.
@@ -59,8 +59,7 @@ theorem game1_game2_le_auth
       fun ke => (simulateQ (authInstImpl se false ke) adv).run' ((none, ∅), false) with hY₂
     -- Abbreviation: the forge probability of the `b = true` instrumented simulation per key.
     set forgeProb : K_e → ℝ := fun ke =>
-      (Pr[fun z : Bool × (EtmGameState AD C_e T × Bool) => z.2.2 = true |
-          (simulateQ (authInstImpl se true ke) adv).run ((none, ∅), false)]).toReal
+      (Pr{let z ← (simulateQ (authInstImpl se true ke) adv).run ((none, ∅), false)}[z.2.2 = true]).toReal
       with hforgeProb
     -- Fold the skeleton's `let (b', _) ← run; return b'` to `run'`.
     -- (1) Flag projection: each game = keygen >>= per-key flag-instrumented sim. The `forged`
@@ -108,8 +107,8 @@ theorem game1_game2_le_auth
     -- (`tvDist_bind_left_le_const'`, the unrestricted real-valued companion of VCVio's
     -- `ofReal_tvDist_bind_left_le_const'`).
     exact tvDist_bind_left_le_const' se.keygen Y₁ Y₂ _ htv_ke
-  calc |(Pr[= true | game1 se adv]).toReal - (Pr[= true | game2 se adv]).toReal|
-      = |(Pr[= true | game1 se adv]).toReal - (Pr[= true | game2' se adv]).toReal| := by
+  calc |(Pr{let x ← game1 se adv}[x = true]).toReal - (Pr{let x ← game2 se adv}[x = true]).toReal|
+      = |(Pr{let x ← game1 se adv}[x = true]).toReal - (Pr{let x ← game2' se adv}[x = true]).toReal| := by
         rw [hC]
     _ ≤ tvDist (game1 se adv) (game2' se adv) :=
         abs_probOutput_toReal_sub_le_tvDist _ _

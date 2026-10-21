@@ -42,7 +42,7 @@ variable {G : Type} [AddCommGroup G] [Module F G]
 /-- In one round of the DH RKEM from `A` towards `B`, the two parties always agree on the shared
 key: `x • (y • gen) = y • (x • gen)`, the paper's `g^{xy} = g^{yx}`. -/
 theorem probOutput_correctExpA_eq_one [DecidableEq G] (gen : G) :
-    Pr[= true | RKEMScheme.correctExpA (scheme (F := F) gen)] = 1 := by
+    Pr{let x ← RKEMScheme.correctExpA (scheme (F := F) gen)}[x = true] = 1 := by
   unfold RKEMScheme.correctExpA
   simp [scheme, rkeygen, renc, rdec, smul_smul, mul_comm]
 
@@ -56,7 +56,7 @@ theorem evalDist_ratchetRoundOutputA_eq_evalDist_rkeygen (gen : G) :
   unfold RKEMScheme.ratchetRoundOutputA
   simp only [scheme, renc, rdec, pure_bind]
   refine evalDist_ext fun y => ?_
-  rw [probOutput_bind_bind_swap]
+  rw [OracleComp.prEvent_bind_bind_swap]
   simp
 
 /-- **Perfect correctness** (Def. 5.3, [TripleRatchet, Thm. A.3]) of the non-forward-secure DH
@@ -68,10 +68,10 @@ theorem deltaCorrect [DecidableEq G] (gen : G) :
     := by
   refine ⟨⟨?_, ?_⟩, ?_, ?_⟩
   · unfold RKEMScheme.correctnessErrorA
-    change 1 - Pr[= true | RKEMScheme.correctExpA (scheme (F := F) gen)] ≤ 0
+    change 1 - Pr{let x ← RKEMScheme.correctExpA (scheme (F := F) gen)}[x = true] ≤ 0
     simp [probOutput_correctExpA_eq_one]
   · unfold RKEMScheme.correctnessErrorB
-    change 1 - Pr[= true | RKEMScheme.correctExpB (scheme (F := F) gen)] ≤ 0
+    change 1 - Pr{let x ← RKEMScheme.correctExpB (scheme (F := F) gen)}[x = true] ≤ 0
     rw [show (scheme (F := F) gen).correctExpB = (scheme gen).correctExpA by rfl]
     simp [probOutput_correctExpA_eq_one]
   · unfold RKEMScheme.updateKeyDistErrorA

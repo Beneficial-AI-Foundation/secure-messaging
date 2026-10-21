@@ -212,12 +212,12 @@ def correctExpB (rkem : RKEMScheme m Par EK DK CT K) [DecidableEq K] : m Bool :=
 `1 - Pr[correctExpA = true]`. -/
 noncomputable def correctnessErrorA (rkem : RKEMScheme m Par EK DK CT K)
     (runtime : ProbCompRuntime m) [DecidableEq K] : ℝ≥0∞ :=
-  1 - Pr[= true | runtime.evalDist rkem.correctExpA]
+  1 - Pr{let x ← runtime.evalDist rkem.correctExpA}[x = true]
 
 /-- As `correctnessErrorA`, with the roles of `A` and `B` swapped. -/
 noncomputable def correctnessErrorB (rkem : RKEMScheme m Par EK DK CT K)
     (runtime : ProbCompRuntime m) [DecidableEq K] : ℝ≥0∞ :=
-  1 - Pr[= true | runtime.evalDist rkem.correctExpB]
+  1 - Pr{let x ← runtime.evalDist rkem.correctExpB}[x = true]
 
 /-- Def. 5.3, property 1: correctness with updated keys holds within error `delta`, for
 both parties. -/
@@ -339,13 +339,13 @@ def securityExpB (rkem : RKEMScheme ProbComp Par EK DK CT K)
 -- ANCHOR: fsIndCpaAdvantageA
 noncomputable def fsIndCpaAdvantageA (rkem : RKEMScheme ProbComp Par EK DK CT K)
     (adversary : FSINDCPAAdversary Par EK DK CT K) [SampleableType K] : ℝ :=
-  |(Pr[= true | rkem.securityExpA adversary]).toReal - 1 / 2|
+  |(Pr{let x ← rkem.securityExpA adversary}[x = true]).toReal - 1 / 2|
 -- ANCHOR_END: fsIndCpaAdvantageA
 
 /-- `Adv^{FS-IND-CPA-B}`: as `fsIndCpaAdvantageA`, with the roles of `A` and `B` swapped. -/
 noncomputable def fsIndCpaAdvantageB (rkem : RKEMScheme ProbComp Par EK DK CT K)
     (adversary : FSINDCPAAdversary Par EK DK CT K) [SampleableType K] : ℝ :=
-  |(Pr[= true | rkem.securityExpB adversary]).toReal - 1 / 2|
+  |(Pr{let x ← rkem.securityExpB adversary}[x = true]).toReal - 1 / 2|
 
 /-- `Adv^{FS-IND-CPA} := max_{P ∈ {A,B}} Adv^{FS-IND-CPA-P}`. -/
 -- ANCHOR: fsIndCpaAdvantage
@@ -527,14 +527,14 @@ def keyBaseSimExpB (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.Rand
 noncomputable def keyBaseSimAdvantageA (rkem : RKEMScheme ProbComp Par EK DK CT K)
     {leak : rkem.RandLeak} (sim : rkem.RatchetSimulator leak)
     (adversary : KeyBaseSimAdversary Par EK DK) : ℝ :=
-  |(Pr[= true | rkem.keyBaseSimExpA sim adversary]).toReal - 1 / 2|
+  |(Pr{let x ← rkem.keyBaseSimExpA sim adversary}[x = true]).toReal - 1 / 2|
 -- ANCHOR_END: keyBaseSimAdvantageA
 
 /-- `Adv^{KeyBaseSim-B}`: as `keyBaseSimAdvantageA`, with the roles of `A` and `B` swapped. -/
 noncomputable def keyBaseSimAdvantageB (rkem : RKEMScheme ProbComp Par EK DK CT K)
     {leak : rkem.RandLeak} (sim : rkem.RatchetSimulator leak)
     (adversary : KeyBaseSimAdversary Par EK DK) : ℝ :=
-  |(Pr[= true | rkem.keyBaseSimExpB sim adversary]).toReal - 1 / 2|
+  |(Pr{let x ← rkem.keyBaseSimExpB sim adversary}[x = true]).toReal - 1 / 2|
 
 /-- `Adv^{KeyBaseSim} := max_{P ∈ {A,B}} Adv^{KeyBaseSim-P}`. -/
 -- ANCHOR: keyBaseSimAdvantage
@@ -631,14 +631,14 @@ def keyUpdSimExpB (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandL
 noncomputable def keyUpdSimAdvantageA (rkem : RKEMScheme ProbComp Par EK DK CT K)
     {leak : rkem.RandLeak} (sim : rkem.RatchetSimulator leak)
     (adversary : KeyUpdSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand leak.EncRand) : ℝ :=
-  |(Pr[= true | rkem.keyUpdSimExpA sim adversary]).toReal - 1 / 2|
+  |(Pr{let x ← rkem.keyUpdSimExpA sim adversary}[x = true]).toReal - 1 / 2|
 -- ANCHOR_END: keyUpdSimAdvantageA
 
 /-- `Adv^{KeyUpdSim-B}`: as `keyUpdSimAdvantageA`, with the roles of `A` and `B` swapped. -/
 noncomputable def keyUpdSimAdvantageB (rkem : RKEMScheme ProbComp Par EK DK CT K)
     {leak : rkem.RandLeak} (sim : rkem.RatchetSimulator leak)
     (adversary : KeyUpdSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand leak.EncRand) : ℝ :=
-  |(Pr[= true | rkem.keyUpdSimExpB sim adversary]).toReal - 1 / 2|
+  |(Pr{let x ← rkem.keyUpdSimExpB sim adversary}[x = true]).toReal - 1 / 2|
 
 /-- `Adv^{KeyUpdSim} := max_{P ∈ {A,B}} Adv^{KeyUpdSim-P}`. -/
 -- ANCHOR: keyUpdSimAdvantage
@@ -744,14 +744,14 @@ def ctxtSimExpB (rkem : RKEMScheme ProbComp Par EK DK CT K) {leak : rkem.RandLea
 noncomputable def ctxtSimAdvantageA (rkem : RKEMScheme ProbComp Par EK DK CT K)
     {leak : rkem.RandLeak} (sim : rkem.RatchetSimulator leak)
     (adversary : CtxtSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand) : ℝ :=
-  |(Pr[= true | rkem.ctxtSimExpA sim adversary]).toReal - 1 / 2|
+  |(Pr{let x ← rkem.ctxtSimExpA sim adversary}[x = true]).toReal - 1 / 2|
 -- ANCHOR_END: ctxtSimAdvantageA
 
 /-- `Adv^{CtxtSim-B}`: as `ctxtSimAdvantageA`, with the roles of `A` and `B` swapped. -/
 noncomputable def ctxtSimAdvantageB (rkem : RKEMScheme ProbComp Par EK DK CT K)
     {leak : rkem.RandLeak} (sim : rkem.RatchetSimulator leak)
     (adversary : CtxtSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand) : ℝ :=
-  |(Pr[= true | rkem.ctxtSimExpB sim adversary]).toReal - 1 / 2|
+  |(Pr{let x ← rkem.ctxtSimExpB sim adversary}[x = true]).toReal - 1 / 2|
 
 /-- `Adv^{CtxtSim} := max_{P ∈ {A,B}} Adv^{CtxtSim-P}`. -/
 -- ANCHOR: ctxtSimAdvantage

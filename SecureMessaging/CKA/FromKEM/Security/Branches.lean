@@ -159,10 +159,10 @@ lemma ckaReductionINDCPABranch_gap_eq_raw_gap [SampleableType K] [DecidableEq K]
     (leak : RandLeak kem)
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams) :
-    |(Pr[= true | ckaReductionINDCPABranch kem hDet leak adv gp true]).toReal -
-      (Pr[= true | ckaReductionINDCPABranch kem hDet leak adv gp false]).toReal| =
-    |(Pr[= true | ckaReductionINDCPABranchRaw kem hDet leak adv gp true]).toReal -
-      (Pr[= true | ckaReductionINDCPABranchRaw kem hDet leak adv gp false]).toReal| := by
+    |(Pr{let x ← ckaReductionINDCPABranch kem hDet leak adv gp true}[x = true]).toReal -
+      (Pr{let x ← ckaReductionINDCPABranch kem hDet leak adv gp false}[x = true]).toReal| =
+    |(Pr{let x ← ckaReductionINDCPABranchRaw kem hDet leak adv gp true}[x = true]).toReal -
+      (Pr{let x ← ckaReductionINDCPABranchRaw kem hDet leak adv gp false}[x = true]).toReal| := by
   rw [ckaReductionINDCPABranch_eq_not_map_raw]
   rw [ckaReductionINDCPABranch_eq_not_map_raw]
   exact abs_probOutput_true_not_map_gap_eq
@@ -207,9 +207,9 @@ lemma ckaToINDCPAReduction_IND_CPA_Exp_probOutput_true_eq_branch
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams)
     (b : Bool) :
-    Pr[= true | kem.IND_CPA_Exp ProbCompRuntime.probComp
-        (ckaToINDCPAReduction kem hDet leak adv gp) b] =
-      Pr[= true | ckaReductionINDCPABranch kem hDet leak adv gp b] := by
+    Pr{let x ← (kem.IND_CPA_Exp ProbCompRuntime.probComp
+        (ckaToINDCPAReduction kem hDet leak adv gp) b)}[x = true] =
+      Pr{let x ← ckaReductionINDCPABranch kem hDet leak adv gp b}[x = true] := by
   rw [← KEMScheme.indCPAExpProb_probOutput_true_eq]
   rw [indCPAExpProb_ckaToINDCPAReduction_eq_branch]
 

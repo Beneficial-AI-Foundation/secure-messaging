@@ -85,7 +85,7 @@ theorem evalDist_uniformSample_bind_simulateQ_prfIdealQueryImpl_run'
     simp only [simulateQ_pure, StateT.run'_eq, StateT.run_pure, map_pure]
     -- LHS: `($ᵗ R) >>= fun _ => pure x`; the constant marginal collapses.
     refine evalDist_ext fun y => ?_
-    rw [probOutput_bind_const, probFailure_uniformSample]
+    rw [prEvent_bind_const, probFailure_uniformSample]
     simp
   | query_bind t k ih =>
     intro qc hqc
@@ -109,12 +109,12 @@ theorem evalDist_uniformSample_bind_simulateQ_prfIdealQueryImpl_run'
           ProbComp ((unifSpec + (D →ₒ R)).Range (Sum.inl n)))
         (fun r u => (simulateQ prfIdealQueryImpl (k u)).run' (qc.cacheQuery d r))]
       refine evalDist_ext fun x => ?_
-      simp only [probOutput_bind_eq_tsum]
+      simp only [OracleComp.prEvent_bind_eq_tsum]
       refine tsum_congr fun u => ?_
-      rw [← probOutput_bind_eq_tsum]
+      rw [← OracleComp.prEvent_bind_eq_tsum]
       exact congrArg
-        (Pr[= u | (liftM (OracleSpec.query (spec := unifSpec) n) :
-            ProbComp ((unifSpec + (D →ₒ R)).Range (Sum.inl n)))] * ·)
+        (Pr{let x ← (liftM (OracleSpec.query (spec := unifSpec) n) :
+            ProbComp ((unifSpec + (D →ₒ R)).Range (Sum.inl n)))}[x = u] * ·)
         (congrFun (congrArg DFunLike.coe (ih u qc hqc)) x)
     · -- `D →ₒ R` query at `t`. Reduce both runs to `randomOracle t` then continue.
       have hred : ∀ c : (D →ₒ R).QueryCache,
@@ -189,7 +189,7 @@ theorem evalDist_uniformSample_bind_simulateQ_prfIdealQueryImpl_run'
             (fun r w => (simulateQ prfIdealQueryImpl (k w)).run'
               ((qc.cacheQuery d r).cacheQuery t w))]
           refine evalDist_ext fun x => ?_
-          simp only [probOutput_bind_eq_tsum]
+          simp only [OracleComp.prEvent_bind_eq_tsum]
           refine tsum_congr fun w => ?_
           have hcomm : ∀ r : R, (qc.cacheQuery d r).cacheQuery t w =
               (qc.cacheQuery t w).cacheQuery d r := by
@@ -199,8 +199,8 @@ theorem evalDist_uniformSample_bind_simulateQ_prfIdealQueryImpl_run'
           have hmiss_d : (qc.cacheQuery t w) d = none := by
             rw [QueryCache.cacheQuery_of_ne qc w (fun h => htd h.symm)]; exact hqc
           simp only [hcomm]
-          rw [← probOutput_bind_eq_tsum]
-          exact congrArg (Pr[= w | $ᵗ R] * ·)
+          rw [← OracleComp.prEvent_bind_eq_tsum]
+          exact congrArg (Pr{let x ← $ᵗ R}[x = w] * ·)
             (congrFun (congrArg DFunLike.coe (ih w (qc.cacheQuery t w) hmiss_d)) x)
 
 /-- Prepending a query at `d` and discarding its result preserves the output

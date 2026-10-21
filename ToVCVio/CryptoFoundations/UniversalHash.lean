@@ -28,7 +28,7 @@ hashes. The value `Δ` is fixed independently of `k`. -/
 def IsAlmostXorUniversal {K D T : Type} [SampleableType K] [XorOp T]
     (hash : K → D → T) (ε : ℝ≥0∞) : Prop :=
   ∀ x y : D, x ≠ y → ∀ Δ : T,
-    Pr[= Δ | (fun k => hash k x ^^^ hash k y) <$> ($ᵗ K)] ≤ ε
+    Pr{let z ← (fun k => hash k x ^^^ hash k y) <$> ($ᵗ K)}[z = Δ] ≤ ε
 
 /-- Lower bound on an AXU parameter. If `hash` is `ε`-AXU, its domain `D` contains two distinct
 inputs `x ≠ y`, and its output type `T` is finite, then `1/|T| ≤ ε`.
@@ -44,12 +44,12 @@ theorem IsAlmostXorUniversal.card_inv_le {K D T : Type} [SampleableType K]
     (h : IsAlmostXorUniversal hash ε) {x y : D} (hxy : x ≠ y) :
     (Fintype.card T : ℝ≥0∞)⁻¹ ≤ ε := by
   -- The offset probabilities at the fixed pair `(x, y)` sum to `1`.
-  have hsum : ∑ Δ : T, Pr[= Δ | (fun k => hash k x ^^^ hash k y) <$> ($ᵗ K)] = 1 :=
+  have hsum : ∑ Δ : T, Pr{let z ← (fun k => hash k x ^^^ hash k y) <$> ($ᵗ K)}[z = Δ] = 1 :=
     sum_probOutput_eq_one (by simp)
   -- Each summand is at most `ε`, hence `1 ≤ card T * ε`.
   have hone_le : (1 : ℝ≥0∞) ≤ (Fintype.card T : ℝ≥0∞) * ε :=
     calc (1 : ℝ≥0∞)
-        = ∑ Δ : T, Pr[= Δ | (fun k => hash k x ^^^ hash k y) <$> ($ᵗ K)] := hsum.symm
+        = ∑ Δ : T, Pr{let z ← (fun k => hash k x ^^^ hash k y) <$> ($ᵗ K)}[z = Δ] := hsum.symm
       _ ≤ ∑ _Δ : T, ε := Finset.sum_le_sum fun Δ _ => h x y hxy Δ
       _ = (Fintype.card T : ℝ≥0∞) * ε := by
           simp [Finset.sum_const, Finset.card_univ, nsmul_eq_mul]
@@ -74,7 +74,7 @@ theorem isAlmostXorUniversal_of_card_le {K D T : Type} [SampleableType K] [Finty
       (Finset.univ.filter (fun k : K => hash k x ^^^ hash k y = Δ)).card ≤ d) :
     IsAlmostXorUniversal hash ((d : ℝ≥0∞) / Fintype.card K) := by
   intro x y hxy Δ
-  rw [← probEvent_eq_eq_probOutput, probEvent_map, Function.comp_def, probEvent_uniformSample]
+  rw [← probEvent_eq_eq_probOutput, prEvent_map, Function.comp_def, SampleableType.prEvent_uniformSample]
   exact ENNReal.div_le_div_right (by exact_mod_cast h x y hxy Δ) _
 
 end ToVCVio

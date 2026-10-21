@@ -134,7 +134,7 @@ encapsulation returns the encapsulated key.  This definition counts both a
 the experiment is total, it equals `Pr[CorrectExp = false]`. -/
 noncomputable def correctnessError (kem : KEMScheme m K PK SK C)
     (runtime : ProbCompRuntime m) : ℝ≥0∞ :=
-  1 - Pr[= true | runtime.evalDist kem.CorrectExp]
+  1 - Pr{let x ← runtime.evalDist kem.CorrectExp}[x = true]
 
 /-- Zero correctness error is equivalent to VCV-io's perfect-correctness
 statement, without a totality assumption on the runtime. -/
@@ -142,18 +142,18 @@ theorem correctnessError_eq_zero_iff_perfectlyCorrect
     (kem : KEMScheme m K PK SK C) (runtime : ProbCompRuntime m) :
     kem.correctnessError runtime = 0 ↔ kem.PerfectlyCorrect runtime := by
   rw [correctnessError, PerfectlyCorrect, tsub_eq_zero_iff_le]
-  exact ⟨fun h => le_antisymm probOutput_le_one h, fun h => h.ge⟩
+  exact ⟨fun h => le_antisymm (prEvent_le_one _) h, fun h => h.ge⟩
 
 /-- Missing success mass decomposes exactly as the probability of returning
 `false` plus the failure/nontermination mass of the evaluated experiment. -/
 theorem correctnessError_eq_probOutput_false_add_probFailure
     (kem : KEMScheme m K PK SK C) (runtime : ProbCompRuntime m) :
     kem.correctnessError runtime =
-      Pr[= false | runtime.evalDist kem.CorrectExp] +
-        Pr[⊥ | runtime.evalDist kem.CorrectExp] := by
+      Pr{let x ← runtime.evalDist kem.CorrectExp}[x = false] +
+        prFail (runtime.evalDist kem.CorrectExp) := by
   rw [correctnessError]
   symm
-  refine ENNReal.eq_sub_of_add_eq probOutput_ne_top ?_
+  refine ENNReal.eq_sub_of_add_eq (prEvent_ne_top _) ?_
   have htotal := tsum_probOutput_add_probFailure
     (runtime.evalDist kem.CorrectExp)
   simpa only [tsum_fintype, Fintype.sum_bool, add_assoc, add_left_comm,
@@ -163,17 +163,17 @@ theorem correctnessError_eq_probOutput_false_add_probFailure
 mass, missing success mass is exactly the probability of returning `false`. -/
 theorem correctnessError_eq_probOutput_false_of_probFailure_eq_zero
     (kem : KEMScheme m K PK SK C) (runtime : ProbCompRuntime m)
-    (hfail : Pr[⊥ | runtime.evalDist kem.CorrectExp] = 0) :
+    (hfail : prFail (runtime.evalDist kem.CorrectExp) = 0) :
     kem.correctnessError runtime =
-      Pr[= false | runtime.evalDist kem.CorrectExp] := by
+      Pr{let x ← runtime.evalDist kem.CorrectExp}[x = false] := by
   rw [correctnessError_eq_probOutput_false_add_probFailure, hfail, add_zero]
 
 /-- For a `ProbComp` KEM, the correctness error is exactly the probability that the
 correctness experiment returns `false`, since `ProbComp` never fails. -/
 theorem correctnessError_probComp_eq_probOutput_false (kem : KEMScheme ProbComp K PK SK C) :
-    kem.correctnessError ProbCompRuntime.probComp = Pr[= false | kem.CorrectExp] :=
+    kem.correctnessError ProbCompRuntime.probComp = Pr{let x ← kem.CorrectExp}[x = false] :=
   correctnessError_eq_probOutput_false_of_probFailure_eq_zero kem _
-    (show Pr[⊥ | kem.CorrectExp] = 0 from probFailure_eq_zero)
+    (show prFail kem.CorrectExp = 0 from OracleComp.prFail_eq_zero)
 
 /-- Decapsulating an honestly-generated ciphertext fails no more often than `kem`'s own
 correctness experiment returns `false`: whenever decapsulation returns `none`, it certainly
@@ -181,9 +181,8 @@ doesn't recover the encapsulated key. -/
 theorem probOutput_none_decaps_le_probOutput_false_CorrectExp [LawfulMonad m]
     [MonadLiftT m SPMF] [LawfulMonadLiftT m SPMF]
     [MonadLiftT m SetM] [EvalDistCompatible m] (kem : KEMScheme m K PK SK C) :
-    Pr[= (none : Option K) |
-        do let (pk, sk) ← kem.keygen; let (c, _k) ← kem.encaps pk; kem.decaps sk c] ≤
-      Pr[= false | kem.CorrectExp] := by
+    Pr{let x ← do let (pk, sk) ← kem.keygen; let (c, _k) ← kem.encaps pk; kem.decaps sk c}[x = (none : Option K)] ≤
+      Pr{let x ← kem.CorrectExp}[x = false] := by
   unfold KEMScheme.CorrectExp
   refine probOutput_bind_mono (mx := kem.keygen) fun p _ => ?_
   obtain ⟨pk, sk⟩ := p
@@ -209,7 +208,7 @@ failure/nontermination mass on top of `Pr[CorrectExp = false]`. -/
 theorem probOutput_false_CorrectExp_le_of_deltaCorrect
     (kem : KEMScheme m K PK SK C) (runtime : ProbCompRuntime m) {delta : ℝ≥0∞}
     (h : kem.deltaCorrect runtime delta) :
-    Pr[= false | runtime.evalDist kem.CorrectExp] ≤ delta :=
+    Pr{let x ← runtime.evalDist kem.CorrectExp}[x = false] ≤ delta :=
   le_self_add.trans
     ((correctnessError_eq_probOutput_false_add_probFailure kem runtime).symm.le.trans h)
 

@@ -186,7 +186,7 @@ theorem evalDist_keyUpdSimDistA (par : Unit) :
   refine probOutput_bind_congr fun p _ => ?_
   refine probOutput_bind_congr fun q _ => ?_
   refine probOutput_bind_congr fun r _ => ?_
-  rw [probOutput_bind_bind_swap]
+  rw [OracleComp.prEvent_bind_bind_swap]
 
 /-- As `evalDist_keyUpdSimDistA`, with the roles of `A` and `B` swapped. -/
 theorem evalDist_keyUpdSimDistB (par : Unit) :
@@ -205,9 +205,9 @@ theorem evalDist_ctxtSimDistB (par : Unit) :
   refine probOutput_bind_congr fun p _ => ?_
   refine probOutput_bind_congr fun q _ => ?_
   refine (probOutput_bind_congr fun k1 _ => (probOutput_bind_congr fun e _ =>
-    probOutput_bind_bind_swap _ _ _ _).trans (probOutput_bind_bind_swap _ _ _ _)).trans ?_
-  refine (probOutput_bind_bind_swap _ _ _ _).trans ?_
-  refine (probOutput_bind_congr fun k1 _ => probOutput_bind_bind_swap _ _ _ _).symm.trans ?_
+    OracleComp.prEvent_bind_bind_swap _ _ _ _).trans (OracleComp.prEvent_bind_bind_swap _ _ _ _)).trans ?_
+  refine (OracleComp.prEvent_bind_bind_swap _ _ _ _).trans ?_
+  refine (probOutput_bind_congr fun k1 _ => OracleComp.prEvent_bind_bind_swap _ _ _ _).symm.trans ?_
   rfl
 
 /-- As `evalDist_ctxtSimDistB`, with the roles of `A` and `B` swapped. -/

@@ -249,8 +249,8 @@ private lemma gcmPrivacy_step_encrypt_none {L : ℕ} (ad : SupportedAAD) (m : Bi
       ($ᵗ (BitVec L × BitVec 128) : ProbComp _)
       (fun (a : BitVec 128 × BitVec 128 × BitVec L) (e : BitVec L × BitVec 128) =>
         (m ^^^ a.2.2, ghash a.1 (gcmEncode ad (m ^^^ a.2.2)) ^^^ a.2.1) = e) :=
-    relTriple_of_evalDist_eq_right (evalDist_gcmChallenge_uniform ad m)
-      (relTriple_of_evalDist_eq_left (by rw [id_map])
+    relTriple_of_evalDistEq_right (evalDist_gcmChallenge_uniform ad m)
+      (relTriple_of_evalDistEq_left (by rw [id_map])
         (relTriple_map_map_of_pointwise _ id _ fun _ => rfl))
   rw [hrun₁, hrun₂]
   exact relTriple_map (relTriple_post_mono hgraph (fun a e hae => by
@@ -314,7 +314,7 @@ theorem game3_eq_game4 {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ)
 theorem probOutput_game3_eq_game4 {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ)
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    Pr[= true | game3 prp L hL adv] = Pr[= true | game4 prp L hL adv] :=
+    Pr{let x ← game3 prp L hL adv}[x = true] = Pr{let x ← game4 prp L hL adv}[x = true] :=
   evalDist_ext_iff.mp (game3_eq_game4 prp L hL adv) true
 
 end GCM

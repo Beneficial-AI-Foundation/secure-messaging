@@ -205,11 +205,9 @@ structure CoefficientFailureBound (p : ParameterSet) (ring : NTTRingOps)
   `foldedNoiseMeasure p r / (2 * noiseDenominator p)`. -/
   prob_le_of_decodeFailure : ∀ (i : Fin ringDegree) (b : Fin 2) (r : Coeff),
     coefficientDecodeFailure b r →
-    Pr[ fun dzm : Seed32 × Seed32 × Message =>
-        ((Concrete.concreteEncoding (ParameterSet.params p)).byteDecode1 dzm.2.2).get i =
+    Pr{let dzm ← honestNoiseSample}[((Concrete.concreteEncoding (ParameterSet.params p)).byteDecode1 dzm.2.2).get i =
             ((b : ℕ) : Coeff) ∧
-          (kpkeHonestNoise ring prims dzm.1 dzm.2.2).get i = r
-      | honestNoiseSample ]
+          (kpkeHonestNoise ring prims dzm.1 dzm.2.2).get i = r]
       ≤ (foldedNoiseMeasure p r : ℝ≥0∞) / (2 * noiseDenominator p)
 
 /-- Summing the folded masses over the failing `(bit, residue)` pairs gives the
@@ -278,9 +276,8 @@ theorem coordinateTail_le (p : ParameterSet) (ring : NTTRingOps)
       (Concrete.concreteEncoding (ParameterSet.params p)))
     (hRing : NTTRingLaws ring) (hModel : CoefficientFailureBound p ring prims)
     (i : Fin ringDegree) :
-    Pr[ coordinateDecodeFailureEvent ring
-          (Concrete.concreteEncoding (ParameterSet.params p)) prims i
-      | honestNoiseSample ] ≤
+    Pr{let x ← honestNoiseSample}[(coordinateDecodeFailureEvent ring
+          (Concrete.concreteEncoding (ParameterSet.params p)) prims i) x] ≤
       (decodeFailureMass p : ℝ≥0∞) / (2 * noiseDenominator p) := by
   refine le_trans (probEvent_mono''
       (coordinateDecodeFailure_exists_failing_pair p ring prims hRing i))

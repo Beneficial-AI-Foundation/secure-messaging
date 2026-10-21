@@ -8,10 +8,10 @@ import SecureMessaging.AEAD.FromEtM.Construction
 import ToVCVio.OracleComp.Constructions.SampleableType
 import VCVio.CryptoFoundations.PRF
 import VCVio.OracleComp.QueryTracking.RandomOracle.Basic
-import VCVio.OracleComp.Coercions.Add
+import VCVio.OracleComp.Coercions.Add.Basic
 import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 import VCVio.OracleComp.QueryTracking.SubSpec
-import VCVio.EvalDist.TVDist
+import VCVio.EvalDist.MeasureTVDist.Basic
 import VCVio.ProgramLogic.Relational.SimulateQ
 import ToVCVio.CryptoFoundations.RandomOracleForgery
 import ToVCVio.OracleComp.QueryTracking.RandomOracle.DiscardQuerySimulate

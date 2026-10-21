@@ -372,18 +372,18 @@ private lemma keygen_commute_after_install_tail [SampleableType K] [DecidableEq 
     (mkState : PK → SK → C → K → SecurityState K PK SK C)
     (hpass : ∀ (p : PK × SK) (ck : C × K),
       injectionPassed gp (mkState p.1 p.2 ck.1 ck.2)) :
-    Pr[= true | kem.keygen >>= fun p =>
+    Pr{let y ← (kem.keygen >>= fun p =>
         kem.encaps pk >>= fun ck =>
           kem.keygen >>= fun _unused =>
             (simulateQ (securityImplWithChallengeKeyPair kem hDet leak gp isRandom p.1 p.2)
                 (cont (some ((ck.1, p.1), ck.2)))).run (mkState p.1 p.2 ck.1 ck.2) >>=
-              fun x => pure x.1]
-      = Pr[= true | kem.encaps pk >>= fun ck =>
+              fun x => pure x.1)}[y = true]
+      = Pr{let y ← (kem.encaps pk >>= fun ck =>
           kem.keygen >>= fun p =>
             (simulateQ (securityImpl kem hDet leak gp isRandom)
                 (cont (some ((ck.1, p.1), ck.2)))).run (mkState p.1 p.2 ck.1 ck.2) >>=
-              fun x => pure x.1] := by
-  rw [probOutput_bind_bind_swap (mx := kem.keygen) (my := kem.encaps pk)]
+              fun x => pure x.1)}[y = true] := by
+  rw [OracleComp.prEvent_bind_bind_swap (mx := kem.keygen) (my := kem.encaps pk)]
   refine probOutput_bind_congr fun ck _ => ?_
   refine probOutput_bind_congr fun p _ => ?_
   rw [probOutput_bind_of_const' kem.keygen fun _ _ => rfl]
@@ -409,11 +409,11 @@ private lemma injectResume_pausedA_combine [SampleableType K] [DecidableEq K]
     (cont : Option (Message C PK × K) → OracleComp (securitySpec leak) Bool)
     (σ_p : SecurityState K PK SK C)
     (heff : sendAEffectivelyInjects gp σ_p = true) :
-    Pr[= true | kem.keygen >>= fun p =>
+    Pr{let y ← (kem.keygen >>= fun p =>
         injectResume kem leak (securityImplWithChallengeKeyPair kem hDet leak gp isRandom p.1 p.2)
-          (.pausedA cont) σ_p >>= fun x => pure x.1]
-      = Pr[= true | injectResume kem leak (securityImpl kem hDet leak gp isRandom)
-          (.pausedA cont) σ_p >>= fun x => pure x.1] := by
+          (.pausedA cont) σ_p >>= fun x => pure x.1)}[y = true]
+      = Pr{let y ← (injectResume kem leak (securityImpl kem hDet leak gp isRandom)
+          (.pausedA cont) σ_p >>= fun x => pure x.1)}[y = true] := by
   simp only [sendAEffectivelyInjects, Bool.and_eq_true] at heff
   obtain ⟨⟨hvalid, hsr⟩, hinj⟩ := heff
   cases hst : σ_p.stA with
@@ -474,11 +474,11 @@ private lemma injectResume_pausedB_combine [SampleableType K] [DecidableEq K]
     (cont : Option (Message C PK × K) → OracleComp (securitySpec leak) Bool)
     (σ_p : SecurityState K PK SK C)
     (heff : sendBEffectivelyInjects gp σ_p = true) :
-    Pr[= true | kem.keygen >>= fun p =>
+    Pr{let y ← (kem.keygen >>= fun p =>
         injectResume kem leak (securityImplWithChallengeKeyPair kem hDet leak gp isRandom p.1 p.2)
-          (.pausedB cont) σ_p >>= fun x => pure x.1]
-      = Pr[= true | injectResume kem leak (securityImpl kem hDet leak gp isRandom)
-          (.pausedB cont) σ_p >>= fun x => pure x.1] := by
+          (.pausedB cont) σ_p >>= fun x => pure x.1)}[y = true]
+      = Pr{let y ← (injectResume kem leak (securityImpl kem hDet leak gp isRandom)
+          (.pausedB cont) σ_p >>= fun x => pure x.1)}[y = true] := by
   simp only [sendBEffectivelyInjects, Bool.and_eq_true] at heff
   obtain ⟨⟨hvalid, hsr⟩, hinj⟩ := heff
   cases hst : σ_p.stB with
@@ -544,12 +544,12 @@ private lemma probOutput_simulateQ_keygen_commute [SampleableType K] [DecidableE
     (isRandom : Bool)
     (adv : Adversary (kem := kem) leak)
     (σ0 : SecurityState K PK SK C) :
-    Pr[= true | kem.keygen >>= fun p =>
+    Pr{let y ← (kem.keygen >>= fun p =>
         (simulateQ
         (securityImplWithChallengeKeyPair kem hDet leak gp isRandom p.1 p.2) adv).run σ0 >>=
-          fun x => pure x.1]
-      = Pr[= true | (simulateQ (securityImpl kem hDet leak gp isRandom) adv).run σ0 >>=
-          fun x => pure x.1] := by
+          fun x => pure x.1)}[y = true]
+      = Pr{let y ← ((simulateQ (securityImpl kem hDet leak gp isRandom) adv).run σ0 >>=
+          fun x => pure x.1)}[y = true] := by
   have hsplitWCK : ∀ p : PK × SK,
       (simulateQ (securityImplWithChallengeKeyPair kem hDet leak gp isRandom p.1 p.2) adv).run σ0 =
         (injectPrefix kem hDet leak gp isRandom adv).run σ0 >>= fun x =>
@@ -565,7 +565,7 @@ private lemma probOutput_simulateQ_keygen_commute [SampleableType K] [DecidableE
           injectResume kem leak (securityImpl kem hDet leak gp isRandom) x.1 x.2 :=
     simulateQ_run_eq_injectPrefix_bind kem hDet leak gp isRandom _ (fun _ _ _ _ => rfl) adv σ0
   simp only [hsplitWCK, hsplitH, bind_assoc]
-  rw [probOutput_bind_bind_swap (mx := kem.keygen)
+  rw [OracleComp.prEvent_bind_bind_swap (mx := kem.keygen)
     (my := (injectPrefix kem hDet leak gp isRandom adv).run σ0)]
   refine probOutput_bind_congr fun rs hrs => ?_
   obtain ⟨res, σ_p⟩ := rs
@@ -598,11 +598,9 @@ private lemma ckaSecurityFixedBranchWithChallengeKey_injected_probOutput_true_eq
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams)
     (isRandom : Bool) :
-    Pr[= true |
-        ckaSecurityFixedBranchWithChallengeKey kem hDet leak adv gp isRandom] =
-      Pr[= true |
-        ckaSecurityFixedBranchWithInjectedChallengeKey
-          kem hDet leak adv gp isRandom] := by
+    Pr{let x ← ckaSecurityFixedBranchWithChallengeKey kem hDet leak adv gp isRandom}[x = true] =
+      Pr{let x ← (ckaSecurityFixedBranchWithInjectedChallengeKey
+          kem hDet leak adv gp isRandom)}[x = true] := by
   unfold ckaSecurityFixedBranchWithChallengeKey
     ckaSecurityFixedBranchWithInjectedChallengeKey ckaSecurityFixedFromState
   by_cases hinit :
@@ -644,16 +642,12 @@ lemma ckaSecurityFixedBranchWithChallengeKey_injected_gap_eq
     (leak : RandLeak kem)
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams) :
-    |(Pr[= true |
-        ckaSecurityFixedBranchWithChallengeKey kem hDet leak adv gp true]).toReal -
-      (Pr[= true |
-        ckaSecurityFixedBranchWithChallengeKey kem hDet leak adv gp false]).toReal| =
-    |(Pr[= true |
-        ckaSecurityFixedBranchWithInjectedChallengeKey
-          kem hDet leak adv gp true]).toReal -
-      (Pr[= true |
-        ckaSecurityFixedBranchWithInjectedChallengeKey
-          kem hDet leak adv gp false]).toReal| := by
+    |(Pr{let x ← ckaSecurityFixedBranchWithChallengeKey kem hDet leak adv gp true}[x = true]).toReal -
+      (Pr{let x ← ckaSecurityFixedBranchWithChallengeKey kem hDet leak adv gp false}[x = true]).toReal| =
+    |(Pr{let x ← (ckaSecurityFixedBranchWithInjectedChallengeKey
+          kem hDet leak adv gp true)}[x = true]).toReal -
+      (Pr{let x ← (ckaSecurityFixedBranchWithInjectedChallengeKey
+          kem hDet leak adv gp false)}[x = true]).toReal| := by
   rw [ckaSecurityFixedBranchWithChallengeKey_injected_probOutput_true_eq]
   rw [ckaSecurityFixedBranchWithChallengeKey_injected_probOutput_true_eq]
 

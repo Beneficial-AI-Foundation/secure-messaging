@@ -72,18 +72,18 @@ theorem evalDist_sample_param_query_bind_passthrough
   intro y
   simp only [simulateQ_bind, simulateQ_query, OracleQuery.cont_query, id_map,
     OracleQuery.input_query, StateT.run'_eq, StateT.run_bind, map_bind]
-  have h_align : Pr[= y | do
+  have h_align : Pr{let x ← (do
         let param ← sample
         let p ← (impl param t).run s
-        Prod.fst <$> (simulateQ (impl param) (k p.1)).run p.2] =
-      Pr[= y | do
+        Prod.fst <$> (simulateQ (impl param) (k p.1)).run p.2)}[x = y] =
+      Pr{let x ← (do
         let param ← sample
         let p ← (base t).run s
-        Prod.fst <$> (simulateQ (impl param) (k p.1)).run p.2] := by
+        Prod.fst <$> (simulateQ (impl param) (k p.1)).run p.2)}[x = y] := by
     refine probOutput_bind_congr' _ y fun param => ?_
     rw [h_impl_eq param]
   rw [h_align]
-  rw [probOutput_bind_bind_swap (mx := sample) (my := (base t).run s)
+  rw [OracleComp.prEvent_bind_bind_swap (mx := sample) (my := (base t).run s)
     (f := fun param p =>
       Prod.fst <$> (simulateQ (impl param) (k p.1)).run p.2) (z := y)]
   refine probOutput_bind_congr ?_
@@ -109,7 +109,7 @@ theorem evalDist_sample_simulateQ_run'_eq_of_param_indep
       (simulateQ (impl param) oa).run' s] =
     𝒟[(simulateQ (impl x₀) oa).run' s] :=
   (evalDist_bind_congr' _ fun param => evalDist_eq_of_relTriple_eqRel
-    (relTriple_simulateQ_run'_of_impl_evalDist_eq _ _ oa (h param) s s rfl)).trans
+    (relTriple_simulateQ_run'_of_impl_evalDistEq _ _ oa (h param) s s rfl)).trans
       (DeferredSampling.evalDist_bind_const_neverFails _ (probFailure_uniformSample _) _)
 
 /-- A deterministic handler call can be skipped.
@@ -118,7 +118,7 @@ If (`h_run`) for every `param`
 
     (impl param t).run s = pure (out param, post param),
 
-then `Pr[= y | P] = Pr[= y | Q]`. `P` makes the call to the oracle; `Q` uses its result
+then `Pr{let x ← P}[x = y] = Pr{let x ← Q}[x = y]`. `P` makes the call to the oracle; `Q` uses its result
 directly:
 
     P = do
@@ -139,13 +139,13 @@ theorem probOutput_sample_param_handler_pure_eq
     (out : θ → spec.Range t) (post : θ → σ)
     (h_run : ∀ param, (impl param t).run s = pure (out param, post param))
     (y : α) :
-    Pr[= y | do
+    Pr{let x ← (do
       let param ← sample
       let p ← (impl param t).run s
-      Prod.fst <$> (simulateQ (impl param) (k p.1)).run p.2] =
-    Pr[= y | do
+      Prod.fst <$> (simulateQ (impl param) (k p.1)).run p.2)}[x = y] =
+    Pr{let x ← (do
       let param ← sample
-      Prod.fst <$> (simulateQ (impl param) (k (out param))).run (post param)] := by
+      Prod.fst <$> (simulateQ (impl param) (k (out param))).run (post param))}[x = y] := by
   refine probOutput_bind_congr' _ y fun param => ?_
   rw [h_run param]
   rfl
@@ -161,16 +161,16 @@ theorem probOutput_sample_param₂_handler_pure_eq
     (h_run : ∀ param₁ param₂, (impl param₁ param₂ t).run s =
       pure (out param₁ param₂, post param₁ param₂))
     (y : α) :
-    Pr[= y | do
+    Pr{let x ← (do
       let param₁ ← sample₁
       let param₂ ← sample₂
       let p ← (impl param₁ param₂ t).run s
-      Prod.fst <$> (simulateQ (impl param₁ param₂) (k p.1)).run p.2] =
-    Pr[= y | do
+      Prod.fst <$> (simulateQ (impl param₁ param₂) (k p.1)).run p.2)}[x = y] =
+    Pr{let x ← (do
       let param₁ ← sample₁
       let param₂ ← sample₂
       Prod.fst <$> (simulateQ (impl param₁ param₂)
-        (k (out param₁ param₂))).run (post param₁ param₂)] := by
+        (k (out param₁ param₂))).run (post param₁ param₂))}[x = y] := by
   refine probOutput_bind_congr' _ y fun param₁ => ?_
   refine probOutput_bind_congr' _ y fun param₂ => ?_
   rw [h_run param₁ param₂]
@@ -187,18 +187,18 @@ theorem probOutput_sample_param₃_handler_pure_eq
     (h_run : ∀ param₁ param₂ param₃, (impl param₁ param₂ param₃ t).run s =
       pure (out param₁ param₂ param₃, post param₁ param₂ param₃))
     (y : α) :
-    Pr[= y | do
+    Pr{let x ← (do
       let param₁ ← sample₁
       let param₂ ← sample₂
       let param₃ ← sample₃
       let p ← (impl param₁ param₂ param₃ t).run s
-      Prod.fst <$> (simulateQ (impl param₁ param₂ param₃) (k p.1)).run p.2] =
-    Pr[= y | do
+      Prod.fst <$> (simulateQ (impl param₁ param₂ param₃) (k p.1)).run p.2)}[x = y] =
+    Pr{let x ← (do
       let param₁ ← sample₁
       let param₂ ← sample₂
       let param₃ ← sample₃
       Prod.fst <$> (simulateQ (impl param₁ param₂ param₃)
-        (k (out param₁ param₂ param₃))).run (post param₁ param₂ param₃)] := by
+        (k (out param₁ param₂ param₃))).run (post param₁ param₂ param₃))}[x = y] := by
   refine probOutput_bind_congr' _ y fun param₁ => ?_
   refine probOutput_bind_congr' _ y fun param₂ => ?_
   refine probOutput_bind_congr' _ y fun param₃ => ?_
@@ -227,12 +227,12 @@ theorem probOutput_handler_sample_pure_eq
       let param ← sample
       pure (out param, post param))
     (y : α) :
-    Pr[= y | do
+    Pr{let x ← (do
       let p ← (impl t).run s
-      Prod.fst <$> (simulateQ impl (k p.1)).run p.2] =
-    Pr[= y | do
+      Prod.fst <$> (simulateQ impl (k p.1)).run p.2)}[x = y] =
+    Pr{let x ← (do
       let param ← sample
-      Prod.fst <$> (simulateQ impl (k (out param))).run (post param)] := by
+      Prod.fst <$> (simulateQ impl (k (out param))).run (post param))}[x = y] := by
   have h_term_eq :
       (impl t).run s >>= (fun p => Prod.fst <$> (simulateQ impl (k p.1)).run p.2) =
       sample >>= fun param =>
@@ -256,14 +256,14 @@ theorem probOutput_handler_sample₂_pure_eq
       let param₂ ← sample₂
       pure (out param₁ param₂, post param₁ param₂))
     (y : α) :
-    Pr[= y | do
+    Pr{let x ← (do
       let p ← (impl t).run s
-      Prod.fst <$> (simulateQ impl (k p.1)).run p.2] =
-    Pr[= y | do
+      Prod.fst <$> (simulateQ impl (k p.1)).run p.2)}[x = y] =
+    Pr{let x ← (do
       let param₁ ← sample₁
       let param₂ ← sample₂
       Prod.fst <$> (simulateQ impl (k (out param₁ param₂))).run
-        (post param₁ param₂)] := by
+        (post param₁ param₂))}[x = y] := by
   have h_term_eq :
       (impl t).run s >>= (fun p => Prod.fst <$> (simulateQ impl (k p.1)).run p.2) =
       sample₁ >>= fun param₁ =>

@@ -145,16 +145,16 @@ theorem probOutput_optionRun_eq_of_state_map {τ : Type}
       𝒟[((right t).run).run (f s)] =
         𝒟[Prod.map id f <$> ((left t).run).run s])
     (oa : OracleComp spec Bool) (s : σ) (hs : Inv s) :
-    Pr[= true | optionRun right oa (f s)] = Pr[= true | optionRun left oa s] := by
+    Pr{let x ← optionRun right oa (f s)}[x = true] = Pr{let x ← optionRun left oa s}[x = true] := by
   induction oa using OracleComp.inductionOn generalizing s with
   | pure b => simp [optionRun_pure]
   | query_bind t cont ih =>
     rw [optionRun_query_bind, optionRun_query_bind]
-    trans Pr[= true | do
+    trans Pr{let x ← (do
       let z ← Prod.map id f <$> ((left t).run).run s
       match z.1 with
       | none => pure false
-      | some a => optionRun right (cont a) z.2]
+      | some a => optionRun right (cont a) z.2)}[x = true]
     · apply probOutput_congr rfl
       simp only [evalDist_bind, hstep t s hs]
     · simp only [bind_map_left]
@@ -266,8 +266,8 @@ theorem probOutput_stoppedRun_eq_of_inv
     (impl : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool) (Inv : σ → Prop)
     (hpres : QueryImpl.PreservesInv impl Inv) (hstop : ∀ s, Inv s → stop s = false)
     (oa : OracleComp spec Bool) (s : σ) (hs : Inv s) :
-    Pr[= true | stoppedRun impl stop oa s] =
-      Pr[= true | (simulateQ impl oa).run' s] := by
+    Pr{let x ← stoppedRun impl stop oa s}[x = true] =
+      Pr{let x ← (simulateQ impl oa).run' s}[x = true] := by
   induction oa using OracleComp.inductionOn generalizing s with
   | pure a => simp [stoppedRun_pure]
   | query_bind t cont ih =>
@@ -290,8 +290,8 @@ private theorem probOutput_stoppedRun_query_eq
     (hpres : QueryImpl.PreservesInv impl Inv) (hstop : ∀ s, Inv s → stop s = false)
     (t : spec.Domain) (cont : spec.Range t → OracleComp spec Bool) (s : σ)
     (hnext : ∀ z ∈ support ((impl t).run s), Inv z.2) :
-    Pr[= true | stoppedRun impl stop (liftM (OracleSpec.query t) >>= cont) s] =
-      Pr[= true | (simulateQ impl (liftM (OracleSpec.query t) >>= cont)).run' s] := by
+    Pr{let x ← stoppedRun impl stop (liftM (OracleSpec.query t) >>= cont) s}[x = true] =
+      Pr{let x ← (simulateQ impl (liftM (OracleSpec.query t) >>= cont)).run' s}[x = true] := by
   rw [stoppedRun_query_bind]
   simp only [simulateQ_query_bind, OracleQuery.input_query,
     StateT.run'_eq, StateT.run_bind, map_bind, monadLift_self]
@@ -318,10 +318,10 @@ private theorem probOutput_stop_cross_add
       ((∀ z ∈ support ((left t).run s), committed z.2) ∧
        (∀ z ∈ support ((right t).run s), committed z.2)))
     (hdead : ∀ s, Inv s → stop s = true → ∀ oa : OracleComp spec Bool,
-      Pr[= true | (simulateQ left oa).run' s] = Pr[= true | (simulateQ right oa).run' s])
+      Pr{let x ← (simulateQ left oa).run' s}[x = true] = Pr{let x ← (simulateQ right oa).run' s}[x = true])
     (oa : OracleComp spec Bool) (s : σ) (hs : Inv s) :
-    Pr[= true | (simulateQ left oa).run' s] + Pr[= true | stoppedRun right stop oa s] =
-      Pr[= true | (simulateQ right oa).run' s] + Pr[= true | stoppedRun left stop oa s] := by
+    Pr{let x ← (simulateQ left oa).run' s}[x = true] + Pr{let x ← stoppedRun right stop oa s}[x = true] =
+      Pr{let x ← (simulateQ right oa).run' s}[x = true] + Pr{let x ← stoppedRun left stop oa s}[x = true] := by
   induction oa using OracleComp.inductionOn generalizing s with
   | pure a => simp [stoppedRun_pure]
   | query_bind t cont ih =>
@@ -331,7 +331,7 @@ private theorem probOutput_stop_cross_add
         StateT.run'_eq, StateT.run_bind, map_bind, monadLift_self]
       dsimp only [OracleSpec.query, OracleQuery.cont, OracleQuery.input]
       simp only [← heq]
-      simp only [probOutput_bind_eq_tsum]
+      simp only [OracleComp.prEvent_bind_eq_tsum]
       rw [← ENNReal.tsum_add, ← ENNReal.tsum_add]
       apply tsum_congr
       intro z
@@ -342,7 +342,7 @@ private theorem probOutput_stop_cross_add
         cases hb : stop z.2
         · simpa [hb, StateT.run'_eq] using ih z.1 z.2 hi
         · simpa [hb, StateT.run'_eq] using hdead z.2 hi hb (cont z.1)
-      · simp [probOutput_eq_zero_of_not_mem_support hz]
+      · simp [(prEvent_eq_zero_of_not_mem_support _) hz]
     · rw [probOutput_stoppedRun_query_eq left stop committed hcommitL hstop t cont s hnextL,
         probOutput_stoppedRun_query_eq right stop committed hcommitR hstop t cont s hnextR]
       exact add_comm _ _
@@ -380,12 +380,12 @@ theorem signed_gap_stoppedRun_eq
       ((∀ z ∈ support ((left t).run s), committed z.2) ∧
        (∀ z ∈ support ((right t).run s), committed z.2)))
     (hdead : ∀ s, Inv s → stop s = true → ∀ oa : OracleComp spec Bool,
-      Pr[= true | (simulateQ left oa).run' s] = Pr[= true | (simulateQ right oa).run' s])
+      Pr{let x ← (simulateQ left oa).run' s}[x = true] = Pr{let x ← (simulateQ right oa).run' s}[x = true])
     (oa : OracleComp spec Bool) (s : σ) (hs : Inv s) :
-    (Pr[= true | (simulateQ left oa).run' s]).toReal -
-        (Pr[= true | (simulateQ right oa).run' s]).toReal =
-      (Pr[= true | stoppedRun left stop oa s]).toReal -
-        (Pr[= true | stoppedRun right stop oa s]).toReal := by
+    (Pr{let x ← (simulateQ left oa).run' s}[x = true]).toReal -
+        (Pr{let x ← (simulateQ right oa).run' s}[x = true]).toReal =
+      (Pr{let x ← stoppedRun left stop oa s}[x = true]).toReal -
+        (Pr{let x ← stoppedRun right stop oa s}[x = true]).toReal := by
   have h := congrArg ENNReal.toReal
     (probOutput_stop_cross_add left right Inv committed stop hleft hcommitL hcommitR
       hstop hquery hdead oa s hs)

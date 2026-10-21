@@ -145,19 +145,19 @@ lemma probOutput_real_send_coupling
       evalDist ((simulateQ (honestImplParamReal gp gen x b)
         (k (some (x • gen, x • peer)))).run (post x)))
     (y : Bool) :
-    Pr[= y | do
+    Pr{let x ← (do
       let b ← ($ᵗ F : ProbComp F)
       let a ← ($ᵗ F : ProbComp F)
       let (out, _state) ←
         (simulateQ (honestImplParamReal gp gen a b)
           (k (some (a • gen, a • peer)))).run (post a)
-      pure out] =
-    Pr[= y | do
+      pure out)}[x = y] =
+    Pr{let z ← (do
       let x ← ($ᵗ F : ProbComp F)
       let (out, _state) ←
         (simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen))
           (k (some (x • gen, x • peer)))).run (post x)
-      pure out] := by
+      pure out)}[z = y] := by
   simpa only [map_eq_bind_pure_comp, Function.comp_def] using probOutput_two_sample_active_param_eq
     (lazy := fun a b x => Prod.fst <$> (simulateQ (honestImplParamReal gp gen a b)
       (k (some (x • gen, x • peer)))).run (post x))
@@ -196,20 +196,20 @@ lemma probOutput_rand_send_coupling
       evalDist ((simulateQ (honestImplParamRand gp gen x b gT)
         (k (some (x • gen, x • peer)))).run (post x)))
     (y : Bool) :
-    Pr[= y | do
+    Pr{let x ← (do
       let a ← ($ᵗ F : ProbComp F)
       let b ← ($ᵗ F : ProbComp F)
       let gT ← ($ᵗ G : ProbComp G)
       let (out, _state) ←
         (simulateQ (honestImplParamRand gp gen a b gT)
           (k (some (a • gen, a • peer)))).run (post a)
-      pure out] =
-    Pr[= y | do
+      pure out)}[x = y] =
+    Pr{let z ← (do
       let x ← ($ᵗ F : ProbComp F)
       let (out, _state) ←
         (simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen))
           (k (some (x • gen, x • peer)))).run (post x)
-      pure out] := by
+      pure out)}[z = y] := by
   simpa only [map_eq_bind_pure_comp, Function.comp_def] using
     probOutput_three_sample_active_param_eq
     (lazy := fun a b gT x => Prod.fst <$> (simulateQ (honestImplParamRand gp gen a b gT)
@@ -520,19 +520,19 @@ lemma probOutput_real_challenge_coupling
       evalDist ((simulateQ (honestImplParamReal gp gen a x)
         (k (some (x • gen, x • peer)))).run (post x)))
     (y : Bool) :
-    Pr[= y | do
+    Pr{let x ← (do
       let b ← ($ᵗ F : ProbComp F)
       let a ← ($ᵗ F : ProbComp F)
       let (out, _state) ←
         (simulateQ (honestImplParamReal gp gen a b)
           (k (some (b • gen, b • peer)))).run (post b)
-      pure out] =
-    Pr[= y | do
+      pure out)}[x = y] =
+    Pr{let z ← (do
       let x ← ($ᵗ F : ProbComp F)
       let (out, _state) ←
         (simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen))
           (k (some (x • gen, x • peer)))).run (post x)
-      pure out] := by
+      pure out)}[z = y] := by
   simpa only [map_eq_bind_pure_comp, Function.comp_def] using probOutput_two_sample_second_param_eq
     (lazy := fun a b x => Prod.fst <$> (simulateQ (honestImplParamReal gp gen a b)
       (k (some (x • gen, x • peer)))).run (post x))
@@ -599,23 +599,23 @@ lemma probOutput_rand_challenge_coupling
     (y : Bool) :
     -- Lazy conclusion: generic `first, second, third` are `a, b, gT`; the
     -- response passed to `k` is built from the outside samples `b, gT`.
-    Pr[= y | do
+    Pr{let x ← (do
       let a ← ($ᵗ F : ProbComp F)
       let b ← ($ᵗ F : ProbComp F)
       let gT ← ($ᵗ G : ProbComp G)
       let (out, _state) ←
         (simulateQ (honestImplParamRand gp gen a b gT)
           (k (some (b • gen, gT)))).run (post b)
-      pure out] =
+      pure out)}[x = y] =
     -- Eager conclusion: after reducing the CKA oracle call, its internal
     -- samples `x` and `outKey` build the response passed to `k`.
-    Pr[= y | do
+    Pr{let z ← (do
       let x ← ($ᵗ F : ProbComp F)
       let outKey ← ($ᵗ G : ProbComp G)
       let (out, _state) ←
         (simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen))
           (k (some (x • gen, outKey)))).run (post x)
-      pure out] := by
+      pure out)}[z = y] := by
   simpa only [map_eq_bind_pure_comp, Function.comp_def] using
     probOutput_three_sample_second_third_param_eq
     -- `lazy a b gT x outKey`: run the lazy continuation with sampled

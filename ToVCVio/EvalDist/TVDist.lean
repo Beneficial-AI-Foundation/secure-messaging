@@ -3,8 +3,8 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import VCVio.EvalDist.TVDist
-import VCVio.EvalDist.Bool
+import VCVio.EvalDist.MeasureTVDist.Basic
+import VCVio.EvalDist.Monad.Map
 
 /-!
 # Total Variation Distance — Extra Lemmas
@@ -41,7 +41,7 @@ omit [Monad m] in
 /-- A weighted identical-until-bad bound, in the style of the fundamental lemma of game playing:
 if `𝒟[f a] = 𝒟[g a]` for all `a` such that `¬ bad a`, and `tvDist (f a) (g a) ≤ c` even when `bad a`
 holds, then averaging over any `mx : m α`,
-`∑ₐ Pr[= a | mx] · tvDist (f a) (g a) ≤ c · Pr[bad | mx]`.
+`∑ₐ Pr{let x ← mx}[x = a] · tvDist (f a) (g a) ≤ c · Pr[bad | mx]`.
 Sharpens VCVio's `tsum_probOutput_toReal_mul_tvDist_le_probEvent`, which only gets the trivial
 worst-case slack `c = 1`. -/
 lemma tsum_probOutput_toReal_mul_tvDist_le_const_mul_probEvent [MonadLiftT m PMF]
@@ -49,12 +49,12 @@ lemma tsum_probOutput_toReal_mul_tvDist_le_const_mul_probEvent [MonadLiftT m PMF
     (c : ℝ) (hc : 0 ≤ c)
     (h_eq : ∀ a, ¬ bad a → 𝒟[f a] = 𝒟[g a])
     (h_le : ∀ a, bad a → tvDist (f a) (g a) ≤ c) :
-    (∑' a, Pr[= a | mx].toReal * tvDist (f a) (g a)) ≤ c * Pr[bad | mx].toReal := by
+    (∑' a, Pr{let x ← mx}[x = a].toReal * tvDist (f a) (g a)) ≤ c * Pr{let x ← mx}[bad x].toReal := by
   classical
-  have h_p_summable : Summable (fun a : α => Pr[= a | mx].toReal) :=
-    ENNReal.summable_toReal (ne_top_of_le_ne_top ENNReal.one_ne_top tsum_probOutput_le_one)
-  calc (∑' a, Pr[= a | mx].toReal * tvDist (f a) (g a))
-      ≤ ∑' a, if bad a then c * Pr[= a | mx].toReal else 0 := by
+  have h_p_summable : Summable (fun a : α => Pr{let x ← mx}[x = a].toReal) :=
+    ENNReal.summable_toReal (ne_top_of_le_ne_top ENNReal.one_ne_top (OracleComp.tsum_prEvent_le_one _))
+  calc (∑' a, Pr{let x ← mx}[x = a].toReal * tvDist (f a) (g a))
+      ≤ ∑' a, if bad a then c * Pr{let x ← mx}[x = a].toReal else 0 := by
         refine Summable.tsum_le_tsum (fun a => ?_)
           (h_p_summable.of_nonneg_of_le
             (fun a => mul_nonneg ENNReal.toReal_nonneg (tvDist_nonneg _ _))
@@ -66,16 +66,16 @@ lemma tsum_probOutput_toReal_mul_tvDist_le_const_mul_probEvent [MonadLiftT m PMF
         · simpa [ha, mul_comm] using
             mul_le_mul_of_nonneg_left (h_le a ha) ENNReal.toReal_nonneg
         · simp [ha, (tvDist_eq_zero_iff (f a) (g a)).2 (h_eq a ha)]
-    _ = c * Pr[bad | mx].toReal := by
-        rw [show (∑' a, if bad a then c * Pr[= a | mx].toReal else 0) =
-            c * ∑' a, if bad a then Pr[= a | mx].toReal else 0 from by
+    _ = c * Pr{let x ← mx}[bad x].toReal := by
+        rw [show (∑' a, if bad a then c * Pr{let x ← mx}[x = a].toReal else 0) =
+            c * ∑' a, if bad a then Pr{let x ← mx}[x = a].toReal else 0 from by
           rw [← tsum_mul_left]
           exact tsum_congr fun a => by by_cases ha : bad a <;> simp [ha]]
         congr 1
-        rw [probEvent_eq_tsum_ite, ENNReal.tsum_toReal_eq fun a => by
+        rw [OracleComp.prEvent_eq_tsum_ite, ENNReal.tsum_toReal_eq fun a => by
           by_cases ha : bad a
           · simp [ha,
-              ne_top_of_le_ne_top ENNReal.one_ne_top (probOutput_le_one (mx := mx) (x := a))]
+              ne_top_of_le_ne_top ENNReal.one_ne_top ((prEvent_le_one _) (mx := mx) (x := a))]
           · simp [ha]]
         exact tsum_congr fun a => by by_cases ha : bad a <;> simp [ha]
 
@@ -89,7 +89,7 @@ lemma tvDist_bind_left_event_le_const [LawfulMonad m] [MonadLiftT m PMF] [Lawful
     {β : Type u} (mx : m α) (f g : α → m β) (bad : α → Prop) (c : ℝ) (hc : 0 ≤ c)
     (h_eq : ∀ a, ¬ bad a → 𝒟[f a] = 𝒟[g a])
     (h_le : ∀ a, bad a → tvDist (f a) (g a) ≤ c) :
-    tvDist (mx >>= f) (mx >>= g) ≤ c * Pr[bad | mx].toReal :=
+    tvDist (mx >>= f) (mx >>= g) ≤ c * Pr{let x ← mx}[bad x].toReal :=
   le_trans (tvDist_bind_left_le mx f g)
     (tsum_probOutput_toReal_mul_tvDist_le_const_mul_probEvent mx f g bad c hc h_eq h_le)
 
@@ -101,25 +101,25 @@ Sharpens VCVio's `abs_probOutput_toReal_sub_le_tvDist` which only lower-bounds `
 lemma tvDist_eq_abs_probOutput_true_sub {m : Type → Type v} [Monad m]
     [MonadLiftT m SPMF]
     (p q : m Bool) [NeverFail p] [NeverFail q] :
-    tvDist p q = |(Pr[= true | p]).toReal - (Pr[= true | q]).toReal| := by
-  have hp_none : (𝒟[p]).toPMF none = 0 := NeverFail.probFailure_eq_zero
-  have hq_none : (𝒟[q]).toPMF none = 0 := NeverFail.probFailure_eq_zero
-  have hp_true : (𝒟[p]).toPMF (some true) = Pr[= true | p] := rfl
-  have hq_true : (𝒟[q]).toPMF (some true) = Pr[= true | q] := rfl
-  have hp_false : (𝒟[p]).toPMF (some false) = 1 - Pr[= true | p] := by
-    rw [show (𝒟[p]).toPMF (some false) = Pr[= false | p] from rfl, probOutput_false_eq_sub,
-      NeverFail.probFailure_eq_zero, tsub_zero]
-  have hq_false : (𝒟[q]).toPMF (some false) = 1 - Pr[= true | q] := by
-    rw [show (𝒟[q]).toPMF (some false) = Pr[= false | q] from rfl, probOutput_false_eq_sub,
-      NeverFail.probFailure_eq_zero, tsub_zero]
+    tvDist p q = |(Pr{let x ← p}[x = true]).toReal - (Pr{let x ← q}[x = true]).toReal| := by
+  have hp_none : (𝒟[p]).toPMF none = 0 := NeverFail.OracleComp.prFail_eq_zero
+  have hq_none : (𝒟[q]).toPMF none = 0 := NeverFail.OracleComp.prFail_eq_zero
+  have hp_true : (𝒟[p]).toPMF (some true) = Pr{let x ← p}[x = true] := rfl
+  have hq_true : (𝒟[q]).toPMF (some true) = Pr{let x ← q}[x = true] := rfl
+  have hp_false : (𝒟[p]).toPMF (some false) = 1 - Pr{let x ← p}[x = true] := by
+    rw [show (𝒟[p]).toPMF (some false) = Pr{let x ← p}[x = false] from rfl, probOutput_false_eq_sub,
+      NeverFail.OracleComp.prFail_eq_zero, tsub_zero]
+  have hq_false : (𝒟[q]).toPMF (some false) = 1 - Pr{let x ← q}[x = true] := by
+    rw [show (𝒟[q]).toPMF (some false) = Pr{let x ← q}[x = false] from rfl, probOutput_false_eq_sub,
+      NeverFail.OracleComp.prFail_eq_zero, tsub_zero]
   unfold tvDist SPMF.tvDist PMF.tvDist PMF.etvDist
   rw [tsum_fintype, Fintype.sum_option, Fintype.sum_bool, hp_none, hq_none,
     ENNReal.absDiff_self, zero_add, hp_true, hq_true, hp_false, hq_false,
-    ENNReal.absDiff_tsub_tsub probOutput_le_one probOutput_le_one ENNReal.one_ne_top,
-    show ENNReal.absDiff (Pr[= true | p]) (Pr[= true | q]) +
-        ENNReal.absDiff (Pr[= true | p]) (Pr[= true | q]) =
-        2 * ENNReal.absDiff (Pr[= true | p]) (Pr[= true | q]) from by ring,
+    ENNReal.absDiff_tsub_tsub (prEvent_le_one _) (prEvent_le_one _) ENNReal.one_ne_top,
+    show ENNReal.absDiff (Pr{let x ← p}[x = true]) (Pr{let x ← q}[x = true]) +
+        ENNReal.absDiff (Pr{let x ← p}[x = true]) (Pr{let x ← q}[x = true]) =
+        2 * ENNReal.absDiff (Pr{let x ← p}[x = true]) (Pr{let x ← q}[x = true]) from by ring,
     mul_div_assoc, ENNReal.mul_div_cancel two_ne_zero ENNReal.ofNat_ne_top]
-  exact ENNReal.absDiff_toReal probOutput_ne_top probOutput_ne_top
+  exact ENNReal.absDiff_toReal (prEvent_ne_top _) (prEvent_ne_top _)
 
 end ToVCVio

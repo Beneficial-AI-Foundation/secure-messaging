@@ -34,8 +34,8 @@ The skeleton's `(challenge, TagCache)` state projects via `Prod.fst` onto the AE
 theorem game0_eq_real
     (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
-    Pr[= true | game0 se prf adv] =
-      Pr[= true | AEADScheme.securityExpFixedBit (etmAEAD se prf) adv false] := by
+    Pr{let x ← game0 se prf adv}[x = true] =
+      Pr{let x ← AEADScheme.securityExpFixedBit (etmAEAD se prf) adv false}[x = true] := by
   -- Tail helper: `(simulateQ impl adv).run s >>= take-fst = (simulateQ impl adv).run' s`.
   -- Unfold only `etmAEAD.keygen` (keep `aeadSecurityImpl` folded to match the RHS
   -- `securityExpFixedBit` impl).
@@ -48,7 +48,7 @@ theorem game0_eq_real
   simp only [bind_pure_comp, ← StateT.run'_eq]
   -- Swap the two independent key samplers so both sides start with `se.keygen`.
   simp only [← probEvent_eq_eq_probOutput]
-  rw [probEvent_bind_bind_swap prf.keygen se.keygen]
+  rw [OracleComp.prEvent_bind_bind_swap prf.keygen se.keygen]
   simp only [probEvent_eq_eq_probOutput]
   -- Descend under the two key binds; reduce to the per-key inner equality.
   refine probOutput_bind_congr' se.keygen true (fun ke => ?_)
@@ -86,8 +86,8 @@ omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
 theorem game0_eq_prfRealExp
     (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
-    Pr[= true | game0 se prf adv] =
-      Pr[= true | prf.prfRealExp (prfReduction se adv)] := by
+    Pr{let x ← game0 se prf adv}[x = true] =
+      Pr{let x ← prf.prfRealExp (prfReduction se adv)}[x = true] := by
   -- RHS: unfold the reduction + experiment, fold the inner skeleton run to `run'`,
   -- collapse the nested `simulateQ` via `mapStateTBase`, forward `liftComp se.keygen`
   -- using the `unifSpec`-transparency theorem `simulateQ_prfRealQueryImpl_liftComp`.
@@ -103,7 +103,7 @@ theorem game0_eq_prfRealExp
   -- Per-key inner equality: game0's oracle impl equals the mapped reduction impl
   -- (`computeTag`/`verifyTag` forward to the real PRF oracle = `pure (prf.eval k ·)`).
   -- Clean projection (proj = id): caches stay `∅` on both sides, no invariant needed.
-  refine congrArg (fun o => Pr[= true | o]) ?_
+  refine congrArg (fun o => Pr{let x ← o}[x = true]) ?_
   refine run'_simulateQ_eq_of_query_map_eq _ _ id ?hproj adv (none, ∅)
   case hproj =>
     intro t s
@@ -143,8 +143,8 @@ halves, since it must relocate the outer lazy-RO cache into the (always-`∅`) i
 theorem game1_eq_prfIdealExp
     (se : DetSEAlg K_e M C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
-    Pr[= true | game1 se adv] =
-      Pr[= true | PRFScheme.prfIdealExp (prfReduction se adv)] := by
+    Pr{let x ← game1 se adv}[x = true] =
+      Pr{let x ← PRFScheme.prfIdealExp (prfReduction se adv)}[x = true] := by
   -- RHS: collapse the nested `simulateQ`, forward keygen using the cache-threading
   -- `unifSpec`-transparency theorem `simulateQ_prfIdealQueryImpl_liftComp`,
   -- then push the outer `.run' ∅` through the `liftM se.keygen` bind so both sides start with
@@ -170,7 +170,7 @@ theorem game1_eq_prfIdealExp
             StateT ((AD × C_e →ₒ T).QueryCache) ProbComp T) :=
     fun q => PRFScheme.simulateQ_prfIdealQueryImpl_inr q
   refine probOutput_bind_congr' se.keygen true (fun ke => ?_)
-  refine congrArg (fun o => Pr[= true | o]) ?_
+  refine congrArg (fun o => Pr{let x ← o}[x = true]) ?_
   -- Flatten the nested `StateT EtmGameState (StateT QueryCache ProbComp)` into a single
   -- `StateT (EtmGameState × QueryCache) ProbComp`, then project the joint state back to
   -- game1's `EtmGameState`, RELOCATING the outer RO `QueryCache` into the (always-`∅`)
@@ -299,8 +299,8 @@ share the same `prfAdvantage` shape. -/
 theorem game0_game1_le_prf
     (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
-    |(Pr[= true | game0 se prf adv]).toReal -
-     (Pr[= true | game1 se adv]).toReal| ≤
+    |(Pr{let x ← game0 se prf adv}[x = true]).toReal -
+     (Pr{let x ← game1 se adv}[x = true]).toReal| ≤
       PRFScheme.prfAdvantage prf (prfReduction se adv) := by
   unfold PRFScheme.prfAdvantage
   rw [game0_eq_prfRealExp se prf adv, game1_eq_prfIdealExp se adv]

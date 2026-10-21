@@ -305,19 +305,19 @@ theorem evalDist_simulateQ_consumeLazy_run_sample_eq
       have h_impl : ∀ a : τ, (implFam a t).run s = (implFam default t).run s :=
         fun a => h_indep t s a default h_false
       -- Step 1: replace `implFam a t s` by `implFam default t s` in LHS (under `a ← $ᵗ τ`).
-      have eq1 : Pr[= y | do
+      have eq1 : Pr{let x ← (do
             let a ← ($ᵗ τ : ProbComp τ)
             let p ← (implFam a t).run s
-            (fun z => (a, z)) <$> (simulateQ (implFam a) (k p.1)).run p.2] =
-          Pr[= y | do
+            (fun z => (a, z)) <$> (simulateQ (implFam a) (k p.1)).run p.2)}[x = y] =
+          Pr{let x ← (do
             let a ← ($ᵗ τ : ProbComp τ)
             let p ← (implFam default t).run s
-            (fun z => (a, z)) <$> (simulateQ (implFam a) (k p.1)).run p.2] := by
+            (fun z => (a, z)) <$> (simulateQ (implFam a) (k p.1)).run p.2)}[x = y] := by
         refine probOutput_bind_congr' _ y fun a => ?_
         rw [h_impl a]
       rw [eq1]
       -- Step 2: swap `a ← $ᵗ τ` past `p ← implFam default t s`.
-      rw [probOutput_bind_bind_swap (mx := ($ᵗ τ : ProbComp τ))
+      rw [OracleComp.prEvent_bind_bind_swap (mx := ($ᵗ τ : ProbComp τ))
           (my := (implFam default t).run s)
           (f := fun a p =>
             (fun z => (a, z)) <$> (simulateQ (implFam a) (k p.1)).run p.2) (z := y)]

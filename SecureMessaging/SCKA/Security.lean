@@ -315,7 +315,7 @@ theorem oracleSendArleak_expectedPayoff_le
     (hplain : expectedPayoff ((oracleSendA scka ()).run s) (fun z => score z.2) ≤ c) :
     expectedPayoff ((oracleSendArleak leak scka ()).run s) (fun z => score z.2) ≤ c := by
   by_cases hguard : E ∩ s.challenged ≠ ∅
-  · apply expectedPayoff_le_const_of_support _ _ _ probFailure_eq_zero
+  · apply expectedPayoff_le_const_of_support _ _ _ OracleComp.prFail_eq_zero
     intro z hz
     simp only [oracleSendArleak, StateT.run_bind, StateT.run_get, pure_bind,
       StateT.run_monadLift, monadLift_self, bind_assoc] at hz
@@ -352,8 +352,8 @@ theorem oracleSendArleak_expectedPayoff_le
         all_goals
           congr 1
           conv_rhs => rw [← hbook _ (s.exposed ∪ E)]
-    · have hz : Pr[= out | scka.sendArleak s.stA] = 0 := by
-        exact probOutput_eq_zero_of_not_mem_support hout
+    · have hz : Pr{let x ← scka.sendArleak s.stA}[x = out] = 0 := by
+        exact (prEvent_eq_zero_of_not_mem_support _) hout
       simp only [hz, zero_mul]
 
 /-- The expected-score bound of `oracleSendArleak_expectedPayoff_le` for B. -/
@@ -374,7 +374,7 @@ theorem oracleSendBrleak_expectedPayoff_le
     (hplain : expectedPayoff ((oracleSendB scka ()).run s) (fun z => score z.2) ≤ c) :
     expectedPayoff ((oracleSendBrleak leak scka ()).run s) (fun z => score z.2) ≤ c := by
   by_cases hguard : E ∩ s.challenged ≠ ∅
-  · apply expectedPayoff_le_const_of_support _ _ _ probFailure_eq_zero
+  · apply expectedPayoff_le_const_of_support _ _ _ OracleComp.prFail_eq_zero
     intro z hz
     simp only [oracleSendBrleak, StateT.run_bind, StateT.run_get, pure_bind,
       StateT.run_monadLift, monadLift_self, bind_assoc] at hz
@@ -411,8 +411,8 @@ theorem oracleSendBrleak_expectedPayoff_le
         all_goals
           congr 1
           conv_rhs => rw [← hbook _ (s.exposed ∪ E)]
-    · have hz : Pr[= out | scka.sendBrleak s.stB] = 0 := by
-        exact probOutput_eq_zero_of_not_mem_support hout
+    · have hz : Pr{let x ← scka.sendBrleak s.stB}[x = out] = 0 := by
+        exact (prEvent_eq_zero_of_not_mem_support _) hout
       simp only [hz, zero_mul]
 
 end ExpectedScores
