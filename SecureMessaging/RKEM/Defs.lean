@@ -65,6 +65,8 @@ For the non-forward-secure special case (Remark 5.2 of [TripleRatchet]), have `r
 return their input `dkP`/`ekP` unchanged as the "updated" key. The remark does not constrain key
 generation, but correctness of the update-key distribution (Def. 5.3) then forces
 `rkeygenAUpdated`/`rkeygenBUpdated` to be close to `rkeygenAFresh`/`rkeygenBFresh`.
+The security notion for this special case is plain IND-CPA (`RKEMScheme.INDCPASecure`), the
+FS-IND-CPA game without `dk̂P`.
 -/
 
 open ENNReal
@@ -367,6 +369,59 @@ def FSINDCPASecure (rkem : RKEMScheme ProbComp Par EK DK CT K)
     Prop :=
   rkem.fsIndCpaAdvantage adversaryA adversaryB ≤ epsilon
 -- ANCHOR_END: FSINDCPASecure
+
+/-! ### Non-forward-secure IND-CPA security
+
+Right after Def. 5.4, [TripleRatchet] calls a non-forward-secure RKEM (Remark 5.2) *IND-CPA
+secure* if it is secure in the FS-IND-CPA game with `dk̂P` withheld from the adversary. Below, the
+IND-CPA game is therefore the FS-IND-CPA experiment (`securityExpA`/`securityExpB`) run against an
+adversary that ignores its `dk̂P` input. Only `dk̂P` is removed: the adversary still receives
+`ek̂P`.
+-/
+
+/-- A one-shot (non-forward-secure) IND-CPA adversary: as `FSINDCPAAdversary`, without the
+challenger's own updated decapsulation key. Receives the public parameter, the challenged party's
+own encapsulation key, its own updated encapsulation key, the peer's updated encapsulation key, the
+ciphertext sent to the peer, and the challenge key; outputs a guess bit. Matches the adversary
+input `A(ekP, ek̂P, ek̂P', ctP, Kb)` of the IND-CPA special case of Def. 5.4. -/
+-- ANCHOR: INDCPAAdversary
+abbrev INDCPAAdversary (Par EK CT K : Type) : Type :=
+  Par → EK → EK → EK → CT → K → ProbComp Bool
+-- ANCHOR_END: INDCPAAdversary
+
+/-- `Adv^{IND-CPA-A}`: the FS-IND-CPA advantage `fsIndCpaAdvantageA` of `adversary`, run as an
+FS-IND-CPA adversary that ignores `dk̂A`; that is, `|Pr[securityExpA = true] - 1/2|` with `dk̂A`
+withheld. -/
+-- ANCHOR: indCpaAdvantageA
+noncomputable def indCpaAdvantageA (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    (adversary : INDCPAAdversary Par EK CT K) [SampleableType K] : ℝ :=
+  rkem.fsIndCpaAdvantageA fun par ekA ekAHat ekBHat ctB _dkAHat kb =>
+    adversary par ekA ekAHat ekBHat ctB kb
+-- ANCHOR_END: indCpaAdvantageA
+
+/-- `Adv^{IND-CPA-B}`: as `indCpaAdvantageA`, with the roles of `A` and `B` swapped. -/
+noncomputable def indCpaAdvantageB (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    (adversary : INDCPAAdversary Par EK CT K) [SampleableType K] : ℝ :=
+  rkem.fsIndCpaAdvantageB fun par ekB ekBHat ekAHat ctA _dkBHat kb =>
+    adversary par ekB ekBHat ekAHat ctA kb
+
+/-- `Adv^{IND-CPA} := max_{P ∈ {A,B}} Adv^{IND-CPA-P}`. -/
+-- ANCHOR: indCpaAdvantage
+noncomputable def indCpaAdvantage (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    (adversaryA adversaryB : INDCPAAdversary Par EK CT K) [SampleableType K] : ℝ :=
+  max (rkem.indCpaAdvantageA adversaryA) (rkem.indCpaAdvantageB adversaryB)
+-- ANCHOR_END: indCpaAdvantage
+
+/-- **IND-CPA security** of a non-forward-secure RKEM ([TripleRatchet], remark after Def. 5.4).
+`rkem` is `epsilon`-IND-CPA-secure against `adversaryA`, `adversaryB` if both per-party advantages
+are at most `epsilon`. As for `FSINDCPASecure`, asymptotic IND-CPA security additionally quantifies
+this over every PPT adversary and requires `epsilon` to be negligible. -/
+-- ANCHOR: INDCPASecure
+def INDCPASecure (rkem : RKEMScheme ProbComp Par EK DK CT K)
+    (adversaryA adversaryB : INDCPAAdversary Par EK CT K) (epsilon : ℝ) [SampleableType K] :
+    Prop :=
+  rkem.indCpaAdvantage adversaryA adversaryB ≤ epsilon
+-- ANCHOR_END: INDCPASecure
 
 end Security
 
