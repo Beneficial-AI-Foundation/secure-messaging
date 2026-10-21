@@ -3,9 +3,11 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import Mathlib.Data.Nat.Notation
-import Mathlib.Data.ZMod.Basic
-import Mathlib.Data.Matrix.Basic
+module
+
+public import Mathlib.Data.Nat.Notation
+public import Mathlib.Data.ZMod.Basic
+public import Mathlib.Data.Matrix.Basic
 
 /-!
 # FrodoKEM Parameters
@@ -33,6 +35,8 @@ fills the matrix produced by `Frodo.Encode`. `[CiC25]` states this identity in
 Section 3 and Table 1; `[LBES26]` states the encoder's input length in Section 6.3
 but does not tie it to `lensec`, which is what this condition does.
 -/
+
+@[expose] public section
 
 namespace FrodoKEM
 

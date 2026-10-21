@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.AEAD.FromGCM.Security.Encoding
-import VCVio.CryptoFoundations.UniversalHash
-import ToVCVio.OracleComp.Constructions.BitVec
+module
+
+public import SecureMessaging.AEAD.FromGCM.Security.Encoding
+public import VCVio.CryptoFoundations.UniversalHash
+public import ToVCVio.OracleComp.Constructions.BitVec
 
 /-!
 # GHASH: almost-XOR-universality statement
@@ -22,6 +24,8 @@ leading zero block is a zero leading coefficient, so `ghash h [0, X] = ghash h [
 key, and these are distinct inputs with identical hashes. The length block appended by
 `gcmEncode` separates such pairs.
 -/
+
+@[expose] public section
 
 open OracleComp OracleSpec ENNReal ToVCVio
 

@@ -4,12 +4,14 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.OracleComp.Constructions.SampleableType
-import VCVio.EvalDist.Monad.Map
-import VCVio.EvalDist.Prod
-import VCVio.EvalDist.List
-import ToVCVio.OracleComp.Constructions.SampleableType
-import Mathlib.Data.LawfulXor.Equiv
+module
+
+public import VCVio.OracleComp.Constructions.SampleableType
+public import VCVio.EvalDist.Monad.Map
+public import VCVio.EvalDist.Prod
+public import VCVio.EvalDist.List
+public import ToVCVio.OracleComp.Constructions.SampleableType
+public import Mathlib.Data.LawfulXor.Equiv
 
 /-!
 # Uniform `BitVec` block concatenation
@@ -25,6 +27,8 @@ Uniformity facts about bit vectors built from uniform draws, candidates for
   function of it masked by an independent uniform `BitVec m`, is uniform on the product.
 * `evalDistEq_mapM_const_uniform`: a list of independent uniform draws is one uniform vector.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal
 

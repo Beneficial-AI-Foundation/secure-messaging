@@ -4,10 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import Mathlib.RingTheory.AdjoinRoot
-import Mathlib.LinearAlgebra.Basis.Defs
-import Mathlib.Data.BitVec
-import Mathlib.Data.ZMod.Basic
+module
+
+public import Mathlib.RingTheory.AdjoinRoot
+public import Mathlib.LinearAlgebra.Basis.Defs
+public import Mathlib.Data.BitVec
+public import Mathlib.Data.ZMod.Basic
 
 /-!
 # Bit vectors as elements of `AdjoinRoot p`
@@ -28,6 +30,8 @@ The leftmost bit is the constant coefficient. This is the bit order NIST fixes f
 `reflect` is a plain `Equiv` with a separate additivity lemma rather than a `≃ₗ[ZMod 2]`, because
 Mathlib's `AddCommGroup (BitVec n)` is arithmetic `+`, not XOR.
 -/
+
+@[expose] public section
 
 open Polynomial
 

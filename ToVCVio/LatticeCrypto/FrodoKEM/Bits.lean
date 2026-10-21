@@ -3,8 +3,10 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import Mathlib.Data.Nat.Notation
-import Mathlib.Data.Matrix.Basic
+module
+
+public import Mathlib.Data.Nat.Notation
+public import Mathlib.Data.Matrix.Basic
 
 /-!
 # Matrices as bit strings
@@ -35,6 +37,8 @@ here:
 * `getElem_matrixToBitsWith`: where the bits of an entry sit.
 * `reverseOctetIndex_lt`: reversing an index within a complete octet stays in range.
 -/
+
+@[expose] public section
 
 namespace FrodoKEM
 

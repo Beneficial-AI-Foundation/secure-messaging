@@ -3,9 +3,11 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import VCVio.CryptoFoundations.SecExp
-import VCVio.CryptoFoundations.PRF
-import VCVio.OracleComp.Constructions.SampleableType
+module
+
+public import VCVio.CryptoFoundations.SecExp
+public import VCVio.CryptoFoundations.PRF
+public import VCVio.OracleComp.Constructions.SampleableType
 
 /-!
 # Pseudorandom permutations (PRPs)
@@ -25,6 +27,8 @@ compares. Candidate for upstream VCVio.
 - [BR] Bellare, Rogaway. *The Security of Triple Encryption and a Framework for Code-Based
   Game-Playing Proofs.* EUROCRYPT 2006, https://eprint.iacr.org/2004/331.pdf
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal
 

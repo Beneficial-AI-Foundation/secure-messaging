@@ -4,10 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.OracleComp.Constructions.SampleableType
-import VCVio.OracleComp.Constructions.SampleableType.Measure
-import VCVio.EvalDist.Prod
-import VCVio.OracleComp.EvalDist.Sum
+module
+
+public import VCVio.OracleComp.Constructions.SampleableType
+public import VCVio.OracleComp.Constructions.SampleableType.Measure
+public import VCVio.EvalDist.Prod
+public import VCVio.OracleComp.EvalDist.Sum
 
 /-!
 # Uniqueness of the uniform law
@@ -17,6 +19,8 @@ probability is equal in distribution to the uniform sample. `prEvent_true_bitGue
 says that guessing a uniform bit succeeds with probability exactly `1 / 2` when the bit does
 not affect the distribution of the guesser's input.
 -/
+
+@[expose] public section
 
 namespace ToVCVio
 

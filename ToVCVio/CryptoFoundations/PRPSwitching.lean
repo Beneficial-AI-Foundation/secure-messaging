@@ -4,12 +4,14 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.OracleComp.Constructions.SampleableType
-import ToVCVio.OracleComp.Constructions.SampleableType
-import ToVCVio.EvalDist.UniformInjection
-import VCVio.EvalDist.MeasureTVDist.Event
-import Mathlib.Logic.Equiv.Fintype
-import Mathlib.Data.Fintype.CardEmbedding
+module
+
+public import VCVio.OracleComp.Constructions.SampleableType
+public import ToVCVio.OracleComp.Constructions.SampleableType
+public import ToVCVio.EvalDist.UniformInjection
+public import VCVio.EvalDist.MeasureTVDist.Event
+public import Mathlib.Logic.Equiv.Fintype
+public import Mathlib.Data.Fintype.CardEmbedding
 
 /-!
 # Fixed-list PRP/PRF switching
@@ -48,6 +50,8 @@ message-block count.
 Bellare and Rogaway, *The Security of Triple Encryption and a Framework for Code-Based
 Game-Playing Proofs*, EUROCRYPT 2006, <https://eprint.iacr.org/2004/331.pdf>.
 -/
+
+@[expose] public section
 
 open ENNReal OracleComp
 
@@ -105,7 +109,7 @@ theorem evalDistEq_map_trans_uniformPerm {X : Type} [FinEnum X] {q : ℕ}
           (prEvent_map_injective _ hTinj e).symm
       _ = Pr{let x ←
             Φ <$> ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X))}[x = e.trans σ.toEmbedding] :=
-          hinv σ (· = e.trans σ.toEmbedding)
+          (hinv σ).prEvent_eq (· = e.trans σ.toEmbedding)
       _ = Pr{let x ← Φ <$> ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X))}[x = e'] := by rw [he']
 
 /-- Let `pts = x₁, …, x_q` be fixed, pairwise-distinct elements of a finite set `X`. If `π` is a

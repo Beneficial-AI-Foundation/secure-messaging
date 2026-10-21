@@ -4,12 +4,14 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.CryptoFoundations.SecExp
-import VCVio.OracleComp.Constructions.SampleableType
-import VCVio.OracleComp.QueryTracking.QueryBound
-import VCVio.OracleComp.SimSemantics.Append
-import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
-import Mathlib.Data.Finset.Basic
+module
+
+public import VCVio.CryptoFoundations.SecExp
+public import VCVio.OracleComp.Constructions.SampleableType
+public import VCVio.OracleComp.QueryTracking.QueryBound
+public import VCVio.OracleComp.SimSemantics.Append
+public import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
+public import Mathlib.Data.Finset.Basic
 
 /-!
 # Sparse Continuous Key Agreement (SCKA)
@@ -62,6 +64,8 @@ may send and receive at any time. A send/receive may produce no key; when it doe
 outputs a key with its epoch number, as a pair `(t, k) : ℕ × I`, where key `k` is to be
 used for epoch `t`.
 -/
+
+@[expose] public section
 
 open OracleSpec OracleComp ENNReal
 

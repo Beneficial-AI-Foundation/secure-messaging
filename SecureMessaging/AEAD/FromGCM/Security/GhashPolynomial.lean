@@ -4,11 +4,13 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import Mathlib.RingTheory.AdjoinRoot
-import Mathlib.Algebra.Polynomial.Monic
-import Mathlib.Data.ZMod.Basic
-import SecureMessaging.AEAD.GCM
-import ToVCVio.CryptoFoundations.AdjoinRootReflect
+module
+
+public import Mathlib.RingTheory.AdjoinRoot
+public import Mathlib.Algebra.Polynomial.Monic
+public import Mathlib.Data.ZMod.Basic
+public import SecureMessaging.AEAD.GCM
+public import ToVCVio.CryptoFoundations.AdjoinRootReflect
 
 /-!
 # GHASH as polynomial evaluation
@@ -27,6 +29,8 @@ Nothing here needs `nistPoly` to be irreducible; `AdjoinRoot`'s `CommRing` struc
 
 - [NIST_GCM] Dworkin. *NIST SP 800-38D*, 2007. https://csrc.nist.gov/pubs/sp/800/38/d/final
 -/
+
+@[expose] public section
 
 namespace GCM
 
