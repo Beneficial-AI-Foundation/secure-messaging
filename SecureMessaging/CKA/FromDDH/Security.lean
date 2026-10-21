@@ -25,10 +25,10 @@ every choice of game parameters
 with `ΔFS = 1` and `ΔPCS = 2`, there is an explicit DDH adversary
 `ℬ := securityReduction gp 𝒜` such that:*
 
-  `ckaGuessAdvantage(ddhCKA F G gen, 𝒜, gp) ≤ ddhGuessAdvantage(gen, ℬ)`
+  `ckaGuessAdvantage(ddhCKA F G gen, 𝒜, gp) ≤ ddhAdvantage(gen, ℬ) / 2`
 
 *where `ckaGuessAdvantage(cka, 𝒜, gp) = | Pr[securityExp(cka, 𝒜, gp) = 1] − 1/2 |`
-and `ddhGuessAdvantage(gen, ℬ) = | Pr[ddhExp(gen, ℬ) = 1] − 1/2 |`.*
+and `ddhAdvantage(gen, ℬ) = | Pr[DDH_real(gen, ℬ) = 1] − Pr[DDH_rand(gen, ℬ) = 1] |`.*
 
 *Note (cyclic group).* A particular instance of `(F, G)` satisfying the theorem
 is the prime-field case: `(F, +)` and `(G, +)` are cyclic groups of order `p`
@@ -153,9 +153,9 @@ advantage bound:
   (real)  Pr[ℬ=⊤ | DDH_real] = Pr[𝒜=⊥ | CKA_real]      -- securityReduction_real
   (rand)  Pr[ℬ=⊤ | DDH_rand] = Pr[𝒜=⊥ | CKA_rand]      -- securityReduction_rand
                      │
-                     ▼   average over the `isRandom` bit + Pr[⊥] ≡ 0
+                     ▼   average over the `isRandom` bit
                      │
-  ckaGuessAdvantage(ddhCKA, 𝒜, gp)  ≤  ddhGuessAdvantage(gen, ℬ)
+  ckaGuessAdvantage(ddhCKA, 𝒜, gp)  ≤  ddhAdvantage(gen, ℬ) / 2
 ```
 where
 `CKA_real := securityExpFixedBit (ddhCKA F G gen) 𝒜 false gp` and
@@ -188,8 +188,7 @@ Pr[ℬ = true | DDH_rand]                        ReductionRand/EagerHonestBridge
   = Pr[𝒜 = false | CKA_rand]                   ReductionRand/Bridge
                                                securityReduction_rand
 
-Combine real/rand branch identities            security_le_ddh_plus_failGap
-and discharge the fixed-bit failure gap        security
+Combine real/rand branch identities            security
 ```
 
 For each branch, we have:
@@ -235,9 +234,9 @@ satisfies the real DDH branch identity:
 lemma securityReduction_real (gp : GameParams)
   (hΔFS : gp.ΔFS = 1) (hΔPCS : gp.ΔPCS = 2)
     (adversary : CKAAdversary (CKAState F G) G G F) :
-    Pr{let x ← ddhExpReal gen (securityReduction gp adversary)}[x = true] =
+    Pr{let x ← ddhRealExperiment gen (securityReduction gp adversary)}[x = true] =
     Pr{let x ← securityExpFixedBit (ddhCKA F G gen) adversary false gp}[x = false] := by
-  rw [probOutput_ddhExpReal_securityReduction, probOutput_securityExpFixedBit_false]
+  rw [prEvent_ddhRealExperiment_securityReduction, probOutput_securityExpFixedBit_false]
   exact probOutput_securityReductionRealGame_eq_honestFalse
     (gen := gen) gp hΔFS hΔPCS adversary
 
@@ -249,113 +248,29 @@ lemma securityReduction_rand (gp : GameParams)
   (hΔFS : gp.ΔFS = 1) (hΔPCS : gp.ΔPCS = 2)
     (hg : Function.Bijective (· • gen : F → G))
     (adversary : CKAAdversary (CKAState F G) G G F) :
-    Pr{let x ← ddhExpRand gen (securityReduction gp adversary)}[x = true] =
+    Pr{let x ← ddhRandomExperiment gen (securityReduction gp adversary)}[x = true] =
     Pr{let x ← securityExpFixedBit (ddhCKA F G gen) adversary true gp}[x = false] := by
-  rw [probOutput_ddhExpRand_securityReduction, probOutput_securityExpFixedBit_true]
+  rw [prEvent_ddhRandomExperiment_securityReduction, probOutput_securityExpFixedBit_true]
   exact probOutput_securityReductionRandGame_eq_honestTrue
     (gen := gen) gp hΔFS hΔPCS hg adversary
 
-/-! ### Main security theorems
+/-! ### Main security theorem
 
-Averaging the branch lemmas over `isRandom` yields
+The CKA guess-advantage is half the gap between the two fixed-bit games
+(`securityExp_toReal_sub_half`). A fixed-bit game returns `true` exactly when it
+does not return `false`, so the branch lemmas turn this gap into the gap between
+the two DDH experiments for `ℬ`, which is `ddhAdvantage`:
 
-  `Adv_secCKA(𝒜) ≤ Adv_DDH(ℬ) + ΔFail/2`        (`security_le_ddh_plus_failGap`),
-
-where `ΔFail := |prFail CKA_real − prFail CKA_rand|`. The two fixed-bit games
-never fail, so `ΔFail = 0` (`probFailure_securityExpFixedBit_eq`), tightening
-this to
-
-  `Adv_secCKA(𝒜) ≤ Adv_DDH(ℬ)`        (`security`, `ddhCKA_security`).
+  `Adv_secCKA(𝒜) ≤ Adv_DDH(ℬ) / 2`        (`security`).
 -/
-
-/-- `ΔFail := |prFail CKA_real − prFail CKA_rand|`. -/
-private noncomputable def securityFailGap
-    (gp : GameParams) (adversary : CKAAdversary (CKAState F G) G G F) : ℝ :=
-  |(prFail (securityExpFixedBit (ddhCKA F G gen) adversary false gp)).toReal -
-    (prFail (securityExpFixedBit (ddhCKA F G gen) adversary true gp)).toReal|
-
-omit [Inhabited F] [Fintype G] in
-/-- **Unconditional DDH-CKA security bound.**
-
-For every CKA adversary, the CKA guess-advantage is bounded by the DDH guess-advantage
-of the reduction plus half the failure-probability gap between the two fixed-bit games:
-
-  `ckaGuessAdvantage(ddhCKA, 𝒜, gp) ≤ ddhGuessAdvantage(gen, securityReduction gp 𝒜) + ΔFail / 2`
-
-where `ΔFail := |prFail CKA_real - prFail CKA_rand|`. -/
-lemma security_le_ddh_plus_failGap (gp : GameParams)
-  (hΔFS : gp.ΔFS = 1) (hΔPCS : gp.ΔPCS = 2)
-    (hg : Function.Bijective (· • gen : F → G))
-    (adversary : CKAAdversary (CKAState F G) G G F) :
-    ckaGuessAdvantage (ddhCKA F G gen) adversary gp ≤
-      ddhGuessAdvantage gen (securityReduction gp adversary) +
-      securityFailGap (gen := gen) gp adversary / 2 := by
-  -- Branch lemmas (ℬ's guess distribution on each DDH branch ↔ 𝒜's `=false` output)
-  have hReal := securityReduction_real (gen := gen) gp hΔFS hΔPCS adversary
-  have hRand := securityReduction_rand (gen := gen) gp hΔFS hΔPCS hg adversary
-  -- Advantage decomposition identities on each side
-  have hDdh := ddhExp_probOutput_sub_half (F := F) gen
-    (securityReduction (F := F) (G := G) gp adversary)
-  have hSec := securityExp_toReal_sub_half (ddhCKA F G gen) adversary gp
-  have hRealR := congrArg ENNReal.toReal hReal
-  have hRandR := congrArg ENNReal.toReal hRand
-  -- `Pr[=true] + Pr[=false] + Pr[⊥] = 1` for each fixed-bit game
-  have hSum (b : Bool) :
-      (Pr{let x ← securityExpFixedBit (ddhCKA F G gen) adversary b gp}[x = true]).toReal +
-      (Pr{let x ← securityExpFixedBit (ddhCKA F G gen) adversary b gp}[x = false]).toReal +
-      (prFail (securityExpFixedBit (ddhCKA F G gen) adversary b gp)).toReal = 1 := by
-    have h := probOutput_false_add_true
-      (mx := securityExpFixedBit (ddhCKA F G gen) adversary b gp)
-    have hT := congrArg ENNReal.toReal h
-    rw [ENNReal.toReal_add (by simp) (by simp),
-        ENNReal.toReal_sub_of_le (by simp) (by simp), ENNReal.toReal_one] at hT
-    linarith
-  -- Key algebraic identity: sec = ddh + ΔFail/2
-  have hKeyEq :
-      (Pr{let x ← securityExp (ddhCKA F G gen) adversary gp}[x = true]).toReal - 1 / 2 =
-      ((Pr{let x ← (ddhExp gen
-        (securityReduction (F := F) (G := G) gp adversary))}[x = true]).toReal - 1 / 2) +
-      ((prFail (securityExpFixedBit (ddhCKA F G gen) adversary false gp)).toReal -
-       (prFail (securityExpFixedBit (ddhCKA F G gen) adversary true gp)).toReal) / 2 := by
-    rw [hDdh, hSec, hRealR, hRandR]
-    linarith [hSum true, hSum false]
-  -- Align the `/2` inside the absolute value with `failGap / 2`
-  have habs' :
-      |((prFail (securityExpFixedBit (ddhCKA F G gen) adversary false gp)).toReal -
-        (prFail (securityExpFixedBit (ddhCKA F G gen) adversary true gp)).toReal) / 2| =
-      securityFailGap (gen := gen) gp adversary / 2 := by
-    unfold securityFailGap
-    rw [abs_div, abs_of_pos (by norm_num : (0 : ℝ) < 2)]
-  have habs :
-      |(Pr{let x ← securityExp (ddhCKA F G gen) adversary gp}[x = true]).toReal - 1 / 2| ≤
-      |(Pr{let x ← (ddhExp gen
-        (securityReduction (F := F) (G := G) gp adversary))}[x = true]).toReal - 1 / 2| +
-      securityFailGap (gen := gen) gp adversary / 2 := by
-    rw [hKeyEq]
-    calc |((Pr{let x ← (ddhExp gen
-            (securityReduction (F := F) (G := G) gp adversary))}[x = true]).toReal - 1 / 2) +
-            ((prFail (securityExpFixedBit (ddhCKA F G gen) adversary false gp)).toReal -
-             (prFail (securityExpFixedBit (ddhCKA F G gen) adversary true gp)).toReal) / 2|
-        ≤ _ + _ := abs_add_le _ _
-      _ = _ := by rw [habs']
-  unfold ckaGuessAdvantage ddhGuessAdvantage
-  exact habs
-
-omit [Inhabited F] [Fintype G] in
-/-- The failure probability of `securityExpFixedBit` does not depend on the challenge bit. -/
-private lemma probFailure_securityExpFixedBit_eq
-    (gp : GameParams) (adversary : CKAAdversary (CKAState F G) G G F) :
-    prFail (securityExpFixedBit (ddhCKA F G gen) adversary true gp) =
-    prFail (securityExpFixedBit (ddhCKA F G gen) adversary false gp) := by
-  simp
 
 omit [Inhabited F] [Fintype G] in
 /-- **Main theorem: security of CKA-from-DDH reduced to the DDH security assumption**
 
-For any CKA adversary `𝒜`, the CKA advantage of `𝒜` is bounded by the DDH
+For any CKA adversary `𝒜`, the CKA guess-advantage of `𝒜` is bounded by half the DDH
 advantage of the reduction `ℬ = securityReduction gp 𝒜`:
 
-  `ckaGuessAdvantage(ddhCKA, 𝒜, gp) ≤ ddhGuessAdvantage(gen, ℬ)`
+  `ckaGuessAdvantage(ddhCKA, 𝒜, gp) ≤ ddhAdvantage(gen, ℬ) / 2`
 -/
 -- ANCHOR: security
 theorem security (gp : GameParams)
@@ -363,18 +278,26 @@ theorem security (gp : GameParams)
     (hg : Function.Bijective (· • gen : F → G))
     (adversary : CKAAdversary (CKAState F G) G G F) :
     ckaGuessAdvantage (ddhCKA F G gen) adversary gp ≤
-      ddhGuessAdvantage gen (securityReduction gp adversary)
+      (ddhAdvantage gen (securityReduction gp adversary)).toReal / 2
 -- ANCHOR_END: security
     := by
-  have hBound := security_le_ddh_plus_failGap (gen := gen) gp hΔFS hΔPCS hg adversary
-  have hFail := probFailure_securityExpFixedBit_eq (F := F) (G := G) (gen := gen) gp adversary
-  have hGap : securityFailGap (gen := gen) gp adversary = 0 := by
-    unfold securityFailGap
-    have : (prFail (securityExpFixedBit (ddhCKA F G gen) adversary false gp)).toReal =
-        (prFail (securityExpFixedBit (ddhCKA F G gen) adversary true gp)).toReal :=
-      (congrArg ENNReal.toReal hFail).symm
-    rw [this]; simp
-  linarith [hBound, hGap]
+  have hReal := securityReduction_real (gen := gen) gp hΔFS hΔPCS adversary
+  have hRand := securityReduction_rand (gen := gen) gp hΔFS hΔPCS hg adversary
+  -- A fixed-bit game returns `true` exactly when it does not return `false`.
+  have hNot (b : Bool) :
+      (Pr{let x ← securityExpFixedBit (ddhCKA F G gen) adversary b gp}[x = true]).toReal =
+      1 - (Pr{let x ← securityExpFixedBit (ddhCKA F G gen) adversary b gp}[x = false]).toReal := by
+    have h := prEvent_not_eq_one_sub
+      (securityExpFixedBit (ddhCKA F G gen) adversary b gp) (fun x => x = false)
+    simp only [Bool.not_eq_false] at h
+    rw [h, ENNReal.toReal_sub_of_le (prEvent_le_one _) ENNReal.one_ne_top, ENNReal.toReal_one]
+  unfold ckaGuessAdvantage ddhAdvantage
+  rw [securityExp_toReal_sub_half, hNot true, hNot false, ← hReal, ← hRand,
+    MeasureTheory.Measure.toReal_boolDist, ← prEvent_eq_evalDist_singleton,
+    ← prEvent_eq_evalDist_singleton, abs_div, abs_two]
+  refine le_of_eq ?_
+  congr 2
+  ring
 
 end BranchLemmas
 

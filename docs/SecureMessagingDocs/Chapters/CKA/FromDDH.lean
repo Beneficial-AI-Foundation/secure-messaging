@@ -95,6 +95,6 @@ theorem security (gp : GameParams)
     (hg : Function.Bijective (· • gen : F → G))
     (adversary : CKAAdversary (CKAState F G) G G F) :
     ckaGuessAdvantage (ddhCKA F G gen) adversary gp ≤
-      ddhGuessAdvantage gen (securityReduction gp adversary)
+      (ddhAdvantage gen (securityReduction gp adversary)).toReal / 2
 ```
 ::::
