@@ -114,10 +114,10 @@ regular CKA implementation or the DDH-real branch of the reduction `ℬ`:
   equals the eager one — sample `b, a ←$ F` in `ProbComp`, then run
   `honestImplParamReal gp gen a b`.
 
-* `evalDist_eager_honest_lazy_eq` (`Bridge.lean`, per-query steps in `Step.lean`):
+* `evalDistEq_eager_honest_lazy` (`Bridge.lean`, per-query steps in `Step.lean`):
   the eager CKA implementation equals the regular honest CKA game.
 
-* `evalDist_eager_reduction_lazy_eq` (`ReductionReal/Step.lean`): the same
+* `evalDistEq_eager_reduction_lazy` (`ReductionReal/RelStep.lean`): the same
   lazy/eager pattern for `reductionOracleImpl`, bridging to the DDH-real
   branch of `ℬ`. -/
 
@@ -285,7 +285,7 @@ the value that `ℬ` would expose when its DDH challenger gives it
 `gA = a•gen`, `gB = b•gen`, `gT = (a·b)•gen`, each parameterized handler
 matches the corresponding one in
 `reductionOracleImpl gp gen (a•gen) (b•gen) ((a·b)•gen)` (per-step lemmas
-of `evalDist_eager_reduction_lazy_eq`). -/
+of `evalDistEq_eager_reduction_lazy`). -/
 noncomputable def honestImplParamReal (gp : GameParams) (gen : G) (a b : F) :
     QueryImpl (ckaSecuritySpec (CKAState F G) G G F)
       (StateT (GameState (CKAState F G) G G) ProbComp) :=

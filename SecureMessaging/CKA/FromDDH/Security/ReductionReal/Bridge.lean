@@ -49,39 +49,27 @@ omit [Inhabited F] [Fintype G] in
 /-- Special-case honest bridge with the embedding scalar fixed.
 
 When `challengeEpoch = 1` and `challengedParty = A`, the parameterized honest
-real game with `a = x₀` fixed and `b ← $ᵗ F` sampled has the same output
-distribution as the ordinary real CKA game from the same state. -/
-lemma evalDist_special_honest_fixed_a_eq_eager
+real game with `a = x₀` fixed and `b ← $ᵗ F` sampled is equal in distribution
+to the ordinary real CKA game from the same state. -/
+lemma evalDistEq_special_honest_fixed_a_eager
     (gp : GameParams) (h_special_case : gp.challengeEpoch = 1 ∧ gp.challengedParty = .A)
     (x₀ : F)
   (adversary : OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool)
   (s : GameState (CKAState F G) G G) :
-    evalDist (do
+    (do
       let b ← ($ᵗ F : ProbComp F)
-      (simulateQ (honestImplParamReal gp gen x₀ b) adversary).run' s) =
-    evalDist ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) adversary).run' s) := by
+      (simulateQ (honestImplParamReal gp gen x₀ b) adversary).run' s) =ᵈ
+    ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) adversary).run' s) := by
   have h_bind_fixed : ∀ b,
-      evalDist (do
+      (do
         let a ← ($ᵗ F : ProbComp F)
-        (simulateQ (honestImplParamReal gp gen a b) adversary).run' s) =
-      evalDist ((simulateQ (honestImplParamReal gp gen x₀ b) adversary).run' s) :=
-    fun b => evalDist_sample_simulateQ_run'_eq_of_param_indep
-      (fun a => honestImplParamReal gp gen a b) adversary s x₀ fun a t s' =>
-        congrArg evalDist
-          (honestImpl_param_real_a_indep_special (gen := gen) gp h_special_case b t s' a x₀)
-  calc
-    evalDist (do
-        let b ← ($ᵗ F : ProbComp F)
-        (simulateQ (honestImplParamReal gp gen x₀ b) adversary).run' s)
-      =
-        evalDist (do
-          let b ← ($ᵗ F : ProbComp F)
-          let a ← ($ᵗ F : ProbComp F)
-          (simulateQ (honestImplParamReal gp gen a b) adversary).run' s) := by
-          exact evalDist_bind_congr' _ fun b => (h_bind_fixed b).symm
-    _ =
-        evalDist ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) adversary).run' s) := by
-          exact evalDist_eager_honest_lazy_eq (gen := gen) gp s adversary
+        (simulateQ (honestImplParamReal gp gen a b) adversary).run' s) =ᵈ
+      ((simulateQ (honestImplParamReal gp gen x₀ b) adversary).run' s) :=
+    fun b => evalDistEq_sample_simulateQ_run'_of_param_indep
+      (fun a => honestImplParamReal gp gen a b) adversary s x₀ fun a t s' => by
+        rw [honestImpl_param_real_a_indep_special (gen := gen) gp h_special_case b t s' a x₀]
+  exact (EvalDistEq.bind_right _ fun b => (h_bind_fixed b).symm).trans
+    (evalDistEq_eager_honest_lazy (gen := gen) gp s adversary)
 
 omit [Inhabited F] [Fintype G] in
 /-- General-case real-branch endpoint for a fixed initial secret `x₀`.
@@ -105,10 +93,8 @@ lemma probOutput_general_per_x₀
         (initGameState
           (CKAState.sendReady (x₀ • gen) : CKAState F G)
           (CKAState.recvReady x₀ : CKAState F G)))}[x = false] := by
-  exact evalDist_ext_iff.mp
-    (evalDist_eager_reduction_lazy_eq
-      (gen := gen) gp hΔFS hΔPCS h_general_case x₀ adversary)
-    false
+  exact (evalDistEq_eager_reduction_lazy
+    (gen := gen) gp hΔFS hΔPCS h_general_case x₀ adversary).prEvent_eq (· = false)
 
 omit [Inhabited F] [Fintype G] in
 /-- General-case (`¬ (challengeEpoch = 1 ∧ challengedParty = A)`) game-level bridge.
@@ -155,8 +141,8 @@ lemma probOutput_general_pointwise
             (initGameState
               (CKAState.sendReady (x₀ • gen) : CKAState F G)
               (CKAState.recvReady x₀ : CKAState F G)))}[x = false] := by
-        refine probOutput_bind_congr' _ false fun a => ?_
-        exact OracleComp.prEvent_bind_bind_swap _ _ _ _
+        refine prEvent_bind_congr _ _ _ _ _ fun a => ?_
+        exact (EvalDistEq.bind_bind_swap _ _ _).prEvent_eq _
       _ = Pr{let x ← (do
           let x₀ ← ($ᵗ F : ProbComp F)
           let a ← ($ᵗ F : ProbComp F)
@@ -166,9 +152,9 @@ lemma probOutput_general_pointwise
             (initGameState
               (CKAState.sendReady (x₀ • gen) : CKAState F G)
               (CKAState.recvReady x₀ : CKAState F G)))}[x = false] :=
-          OracleComp.prEvent_bind_bind_swap _ _ _ _
+          (EvalDistEq.bind_bind_swap _ _ _).prEvent_eq _
       _ = _ := by
-        refine probOutput_bind_congr' _ false fun x₀ => ?_
+        refine prEvent_bind_congr _ _ _ _ _ fun x₀ => ?_
         exact probOutput_general_per_x₀ gp hΔFS hΔPCS h_general_case adversary x₀
 
 omit [Inhabited F] [Fintype G] in
@@ -206,8 +192,8 @@ lemma probOutput_special_per_x₀
       = Pr{let x ← (do
           let b ← ($ᵗ F : ProbComp F)
           (simulateQ (honestImplParamReal gp gen x₀ b) adversary).run' s₀H)}[x = false] := by
-            refine probOutput_bind_congr' _ false fun b => ?_
-            exact OracleComp.ProgramLogic.Relational.probOutput_eq_of_relTriple_eqRel
+            refine prEvent_bind_congr _ _ _ _ _ fun b => ?_
+            exact (OracleComp.ProgramLogic.Relational.evalDistEq_of_relTriple_eqRel
               (OracleComp.ProgramLogic.Relational.relTriple_simulateQ_run'
                 (impl₁ := reductionOracleImpl gp gen (x₀ • gen) (b • gen) ((x₀ * b) • gen))
                 (impl₂ := honestImplParamReal gp gen x₀ b)
@@ -222,13 +208,11 @@ lemma probOutput_special_per_x₀
                   rcases h_special_case with ⟨h_challengeEpoch, h_cp⟩
                   simp [reductionHonestRel, s₀R, s₀H, initGameState, reachableShape,
                     epochCounterInv, stateShapeInv, allowCorrPCS, allowCorrFS,
-                    h_challengeEpoch, h_cp, hΔFS, hΔPCS]))
-              false
-    _ = Pr{let x ← (simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) adversary).run' s₀H}[x = false] := by
-            exact evalDist_ext_iff.mp
-              (evalDist_special_honest_fixed_a_eq_eager (gen := gen)
-                gp h_special_case x₀ adversary s₀H)
-              false
+                    h_challengeEpoch, h_cp, hΔFS, hΔPCS]))).prEvent_eq _
+    _ = Pr{let x ← ((simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) adversary).run'
+          s₀H)}[x = false] := by
+            exact (evalDistEq_special_honest_fixed_a_eager (gen := gen)
+              gp h_special_case x₀ adversary s₀H).prEvent_eq (· = false)
 
 omit [Inhabited F] [Fintype G] in
 /-- Special-case (`gp = ⟨1, _, _, .A⟩`) bridge: reduction init `(.sendReady (a•gen), .recvReady 0)`
@@ -252,7 +236,7 @@ lemma probOutput_special_pointwise
         (initGameState
           (CKAState.sendReady (x₀ • gen) : CKAState F G)
           (CKAState.recvReady x₀ : CKAState F G)))}[x = false] := by
-  refine probOutput_bind_congr' _ false fun x₀ => ?_
+  refine prEvent_bind_congr _ _ _ _ _ fun x₀ => ?_
   exact probOutput_special_per_x₀ gp hΔFS hΔPCS h_special_case adversary x₀
 
 omit [Inhabited F] [Fintype G] in
