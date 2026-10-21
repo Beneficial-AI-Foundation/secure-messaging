@@ -76,14 +76,6 @@ private lemma post_event_iff (u v a T : BitVec 128) :
   rw [← BitVec.xor_assoc, BitVec.xor_comm (u ^^^ v) T]
   exact tag_eq_iff_mask_eq a T (u ^^^ v)
 
-/-- Bind congruence for continuations of different types carrying different events. -/
-private lemma probEvent_bind_congr₂ {α β γ : Type} (mx : ProbComp α)
-    {ob₁ : α → ProbComp β} {ob₂ : α → ProbComp γ} {p : β → Prop} {q : γ → Prop}
-    (h : ∀ x, Pr{let y ← ob₁ x}[p y] = Pr{let y ← ob₂ x}[q y]) :
-    Pr{let x ← mx >>= ob₁}[p x] = Pr{let x ← mx >>= ob₂}[q x] := by
-  rw [OracleComp.prEvent_bind_eq_tsum, OracleComp.prEvent_bind_eq_tsum]
-  exact tsum_congr fun x => by rw [h x]
-
 /-! ### The pre-challenge half -/
 
 /-- Over a uniform key and a fresh uniform mask, some entry of the fixed pre-challenge log `L`
@@ -764,8 +756,8 @@ theorem probEvent_wcInst_forge_le {α K A M Cb D : Type}
       ≤ (q : ℝ≥0∞) * ε := by
   refine le_trans (le_of_eq ?_)
     (probEvent_bad_wcLog_le haxu hfloor henc_inj padMsg oa q hq)
-  refine probEvent_bind_congr₂ ($ᵗ K : ProbComp K) fun H =>
-    probEvent_bind_congr₂ ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) fun mask => ?_
+  refine prEvent_bind_congr ($ᵗ K : ProbComp K) _ _ _ _ fun H =>
+    prEvent_bind_congr ($ᵗ (BitVec 128) : ProbComp (BitVec 128)) _ _ _ _ fun mask => ?_
   rw [probEvent_bad_wcInst_eq_wcLog hash enc H mask padMsg unpad oa, prEvent_map]
 
 end OracleComp.WegmanCarter

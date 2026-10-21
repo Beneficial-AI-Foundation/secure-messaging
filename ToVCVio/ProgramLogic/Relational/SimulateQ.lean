@@ -95,43 +95,14 @@ theorem evalDistEq_sample_simulateQ_run'_of_param_indep
     (relTriple_simulateQ_run'_of_impl_evalDistEq _ _ oa (h param) s s rfl)).trans
       (EvalDistEq.bind_const _ _)
 
-/-- A deterministic handler call can be skipped.
+/-- A deterministic handler call can be skipped after two parameter draws.
 
-If (`h_run`) for every `param`
+If (`h_run`) for every `param₁ param₂`
 
-    (impl param t).run s = pure (out param, post param),
+    (impl param₁ param₂ t).run s = pure (out param₁ param₂, post param₁ param₂),
 
-then `Pr{let x ← P}[x = y] = Pr{let x ← Q}[x = y]`. `P` makes the call to the oracle; `Q` uses
-its result directly:
-
-    P = do
-      let param ← sample
-      let p ← (impl param t).run s
-      Prod.fst <$> (simulateQ (impl param) (k p.1)).run p.2
-
-    Q = do
-      let param ← sample
-      Prod.fst <$> (simulateQ (impl param) (k (out param))).run (post param)
--/
-theorem prEvent_sample_param_handler_pure_eq
-    {ι : Type} {spec : OracleSpec ι} {σ θ α : Type}
-    (sample : ProbComp θ)
-    (impl : θ → QueryImpl spec (StateT σ ProbComp))
-    (s : σ) (t : spec.Domain)
-    (k : spec.Range t → OracleComp spec α)
-    (out : θ → spec.Range t) (post : θ → σ)
-    (h_run : ∀ param, (impl param t).run s = pure (out param, post param))
-    (y : α) :
-    Pr{let x ← (do
-      let param ← sample
-      let p ← (impl param t).run s
-      Prod.fst <$> (simulateQ (impl param) (k p.1)).run p.2)}[x = y] =
-    Pr{let x ← (do
-      let param ← sample
-      Prod.fst <$> (simulateQ (impl param) (k (out param))).run (post param))}[x = y] := by
-  simp only [h_run, pure_bind]
-
-/-- Two-parameter version of `prEvent_sample_param_handler_pure_eq`. -/
+then `Pr{let x ← P}[x = y] = Pr{let x ← Q}[x = y]`, where `P` makes the call to the oracle and
+`Q` uses its result directly. -/
 theorem prEvent_sample_param₂_handler_pure_eq
     {ι : Type} {spec : OracleSpec ι} {σ θ₁ θ₂ α : Type}
     (sample₁ : ProbComp θ₁) (sample₂ : ProbComp θ₂)
@@ -154,7 +125,7 @@ theorem prEvent_sample_param₂_handler_pure_eq
         (k (out param₁ param₂))).run (post param₁ param₂))}[x = y] := by
   simp only [h_run, pure_bind]
 
-/-- Three-parameter version of `prEvent_sample_param_handler_pure_eq`. -/
+/-- Three-parameter version of `prEvent_sample_param₂_handler_pure_eq`. -/
 theorem prEvent_sample_param₃_handler_pure_eq
     {ι : Type} {spec : OracleSpec ι} {σ θ₁ θ₂ θ₃ α : Type}
     (sample₁ : ProbComp θ₁) (sample₂ : ProbComp θ₂) (sample₃ : ProbComp θ₃)
