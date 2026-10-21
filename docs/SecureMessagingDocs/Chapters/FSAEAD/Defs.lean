@@ -186,11 +186,15 @@ $`\begin{array}{l}
 \req\;(i, a, m, e) \in \mathsf{trans}\text{, with the smallest such } i; \\
 r \gets \mathsf{FS\text{-}Rcv}(v_\B, a, e); \\
 \pcommentline{\text{correctness failure: B rejects the honest ciphertext } e} \\
-\pif\;r = \bot\;\pthen\;\mathsf{won} \gets \mathsf{true}; \Return \bot; \\
+\pif\;r = \bot\;\pthen \\
+\quad\mathsf{won} \gets \mathsf{true}; \\
+\quad\Return \bot; \\
 (v_\B, i', m') \gets r; \\
 \pcommentline{\text{correctness failure: B outputs a wrong index or message}} \\
-\pif\;(i', m') \neq (i, m)\;\pthen\;\mathsf{won} \gets \mathsf{true}; \\
-\pif\;i \in \mathsf{chall}\;\pthen\;m' \gets \bot; \\
+\pif\;(i', m') \neq (i, m)\;\pthen \\
+\quad\mathsf{won} \gets \mathsf{true}; \\
+\pif\;i \in \mathsf{chall}\;\pthen \\
+\quad m' \gets \bot; \\
 \mathsf{delete}(i); \\
 \Return (i', m')
 \end{array}`
@@ -243,8 +247,12 @@ r \gets \mathsf{FS\text{-}Rcv}(v_\B, a, e); \\
 \boxed{\req\;r \neq \bot;}\pcomment{\text{D1}} \\
 (v_\B, i', m') \gets r; \\
 \pcommentline{\text{authenticity failure: B accepts a forgery at an index that is not compromised}} \\
-\pif\;\neg\mathsf{compromised}(i')\;\pthen\;\mathsf{won} \gets \mathsf{true}; \\
-\boxed{\pif\;i' > i_\A\;\pthen\;\mathsf{preempted} \gets \mathsf{preempted} \cup \{i'\};}\pcomment{\text{D2}} \\
+\pif\;\neg\mathsf{compromised}(i')\;\pthen \\
+\quad\mathsf{won} \gets \mathsf{true}; \\
+\boxed{\kern-5pt\begin{array}{l}
+\pif\;i' > i_\A\;\pthen \\
+\quad\mathsf{preempted} \gets \mathsf{preempted} \cup \{i'\};
+\end{array}\kern-5pt}\pcomment{\text{D2}} \\
 \mathsf{delete}(i'); \\
 \Return (i', m')
 \end{array}`
@@ -300,10 +308,15 @@ def oracleCorrB (SS SR AD M C : Type) :
 
 :::::gameCell "\\mathsf{record}(\\mathit{flag}, a, m, e)" (kind := "compact")
 $`\begin{array}{l}
-\boxed{\pif\;i_\A \in \mathsf{preempted}\;\pthen\;\Return;}\pcomment{\text{D2}} \\
+\boxed{\kern-5pt\begin{array}{l}
+\pif\;i_\A \in \mathsf{preempted}\;\pthen \\
+\quad\Return;
+\end{array}\kern-5pt}\pcomment{\text{D2}} \\
 \mathsf{trans} \gets \mathsf{trans} \cup \{(i_\A, a, m, e)\}; \\
-\pif\;\mathsf{corrA}\;\pthen\;\mathsf{comp} \gets \mathsf{comp} \cup \{i_\A\}; \\
-\pif\;\mathit{flag} = \mathsf{chall}\;\pthen\;\mathsf{chall} \gets \mathsf{chall} \cup \{i_\A\}
+\pif\;\mathsf{corrA}\;\pthen \\
+\quad\mathsf{comp} \gets \mathsf{comp} \cup \{i_\A\}; \\
+\pif\;\mathit{flag} = \mathsf{chall}\;\pthen \\
+\quad\mathsf{chall} \gets \mathsf{chall} \cup \{i_\A\}
 \end{array}`
 
 ```anchor gameStateRecord (project := ".") (module := SecureMessaging.FSAEAD.Defs)
@@ -320,7 +333,8 @@ def record (st : GameState SS SR AD M C) (isChall : Bool) (a : AD) (m : M) (e : 
 :::::gameCell "\\mathsf{delete}(i)" (kind := "compact")
 $`\begin{array}{l}
 \mathsf{trans} \gets \mathsf{trans} \setminus \{(i, \cdot, \cdot, \cdot)\}; \\
-\mathsf{chall}, \mathsf{comp} \gets \mathsf{chall} \setminus \{i\}, \mathsf{comp} \setminus \{i\}
+\mathsf{chall} \gets \mathsf{chall} \setminus \{i\}; \\
+\mathsf{comp} \gets \mathsf{comp} \setminus \{i\}
 \end{array}`
 
 ```anchor gameStateDelete (project := ".") (module := SecureMessaging.FSAEAD.Defs)
