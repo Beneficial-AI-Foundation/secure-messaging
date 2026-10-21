@@ -497,72 +497,18 @@ Figure 18, `CKA-Send-B`, is symmetric.
 16:     (ct_A, I_A) ← Enc(EK_B[t_res-A])
 17:   i_ch += 1
 18:   b ← 1
-19:   ch ← Encode(ct_A, i_ch)               / ct_A may still be ⊥ here
+19:   ch ← Encode(ct_A, i_ch)               / fails, because ct_A may still be ⊥ here
 ```
 
 When execution reaches line 13 but line 14 does not hold, `ct_A` is still `⊥` at line 19.
 B acknowledges A's key, but A does not yet decode B's key.
-Figure 19, `CKA-Send-A`, lines 13–21, has the same pattern, with an extra conjunct in line 14.
-See {bpref "opp_rkem_cka_spec"}[Opp-RKEM-CKA] for its proposed correction.
-Figure 16, Opp-UniKEM-CKA, avoids this problem by guarding its online-ciphertext branch with `elseif ek_A ≠ ⊥`.
 
 The parties send their encapsulation keys concurrently.
 A's key can therefore arrive and receive an acknowledgement before A decodes B's key.
-The following trace starts from initialization and delivers every message once, in order.
-Let `n ≥ 2` be the number of chunks needed to decode an encapsulation key.
+Under the strict §2 convention, line 16 fails in `CKA-Send-A`,
+and A cannot send any secure-messaging message until it decodes `ek_B`.
+`OppBiKEM/Construction.lean` instead sends no chunk, recorded as correction 4 in its module docstring.
 
-Initially, A has `t_res-A = −1` and `t_req-A = 0`.
-B has `t_res-B = 0` and `t_req-B = −1`.
-Both have `ACK[−1].ct-rec = ACK[0].ct-rec = true`.
-
-1. A sends `n` messages. Send-A line 4 holds, so A sets `t_res-A = 1` and generates
-   `ek_A` for epoch 2. `ACK[2].ek-rec` is false, so every message carries a chunk
-   of `ek_A` through the branch at line 9.
-2. B receives them. The first message moves `t_req-B` to 1 (Rec-B lines 11–12).
-   After the `n`-th message, B decodes `ek_A`, stores it as `EK_A[2]`, and sets
-   `ACK[2].ek-rec` (Rec-B lines 18–19).
-3. B sends one message. Send-B line 4 holds, so B sets `t_res-B = 2` and generates
-   `ek_B` for epoch 1. `ACK[1].ek-rec` is false, so line 9 sends the first chunk of `ek_B`.
-   Line 21 also sends the acknowledgement `ACK[t_req-B + 1].ek-rec = ACK[2].ek-rec = true`.
-4. A receives it. A records the acknowledgement as `ACK[2].ek-rec` (Rec-A line 8)
-   and moves `t_req-A` to 2 (lines 11–12). It stores the chunk of `ek_B` (lines 13–15).
-   One chunk is insufficient to decode, so `ACK[1].ek-rec` stays false.
-5. A sends. Line 4 is false because `ACK[1].ct-rec` is false, so A generates no new key pair.
-   Line 9 is false because `ACK[2].ek-rec` holds: B has `ek_A`.
-   Line 13 is true because `ACK[1].ct-rec` is false: B does not yet receive `ct_A`.
-   Line 14 is false because `ACK[1].ek-rec` is false: A does not yet decode `ek_B`.
-   Lines 17–19 therefore run with `ct_A = ⊥`.
-
-The same trace with the roles swapped, with B sending first, puts B in this state in Figure 18.
-The trace uses the acknowledgement indices from erratum 2 and the Send-B variable fixes from erratum 3.
-With the printed indices, step 3 sends `ACK[t_req-B − 1].ek-rec = ACK[0].ek-rec`.
-That entry is never set, so A never learns that B has `ek_A`.
-
-Under the strict §2 convention, step 5 fails in `CKA-Send-A`.
-The calling `SM-Send-A` also fails (Figure 2, line 1).
-A cannot send any secure-messaging message until it decodes `ek_B`.
-
-Under the lenient interpretation `Encode(⊥, ·) = ⊥`, the message carries `(ch = ⊥, b = 1)`.
-The receiver then executes `L_ch ∪← {⊥}` (Rec line 21), which requires the additional convention `L ∪ {⊥} = L`.
-Line 17 increments `i_ch` without sending a chunk.
-This increment is harmless only because line 15 resets the counter later.
-The figures need an explicit rule for sending no ciphertext chunk while waiting.
-
-The current implementation in `SecureMessaging/SCKA/OppBiKEM/Construction.lean` uses the lenient interpretation:
-
-* `sendWith` sets `ch? := ct.map (…)` with `bit? := some 1` and still increments `ich`.
-  Its code comment states: "Waiting for the peer's public key can legitimately leave ct absent."
-* `insertChunkAndDecode` treats an absent chunk as a no-op on the receiver side.
-* Elsewhere, the implementation follows the strict convention.
-  It returns `none` for a missing `ek` before `Encode` (line 12) or a missing peer key before `Enc` (line 16).
-
-The module docstring records the lenient interpretation as correction 4.
-The proposed paper correction is to guard lines 17–19 of Figures 17–18 with `if ct_P ≠ ⊥`.
-The corresponding guard in Figure 19 covers lines 19–21.
-This follows the style of Figure 16's `elseif ek_A ≠ ⊥` guard.
-While waiting, the message then carries only epochs and acknowledgements, with `ch = ⊥` and `b = ⊥`.
-The receiver never sees `(⊥, b = 1)`.
-The repository retains its current encoding, with `bit = some 1` and `ich` incremented, pending feedback from the paper's authors.
 
 *Erratum 2: Public-key acknowledgements use the wrong indices.*
 
@@ -595,49 +541,10 @@ The following table gives the printed and corrected indices.
 
 The corrected indices identify the entries set when a party decodes its peer's key:
 `ACK[t_req-A − 1].ek-rec` in Rec-A line 19 and `ACK[t_req-B + 1].ek-rec` in Rec-B line 19.
-The printed indices differ by two epochs.
+The printed indices differ by two epochs, and with them, neither party learns that its first public key arrived.
 
-With the printed indices, neither party learns that its first public key arrived.
-The following trace starts from initialization and delivers every message once, in order.
-Let `n ≥ 1` be the number of chunks needed to decode an encapsulation key.
-The trace applies the Send-B variable fix from erratum 3.
-
-Initially, A has `t_res-A = −1` and `t_req-A = 0`.
-B has `t_res-B = 0` and `t_req-B = −1`.
-Both have `ACK[−1].ct-rec = ACK[0].ct-rec = true`, and every `ek-rec` entry is false.
-
-1. A sends `n` messages. Send-A line 4 holds, so A sets `t_res-A = 1` and generates
-   `ek_A` for epoch 2. `ACK[2].ek-rec` is false, so each message carries a chunk of `ek_A` (line 9).
-2. B receives them. The first message moves `t_req-B` to 1 (Rec-B lines 11–12).
-   After the `n`-th message, B decodes `ek_A` and sets `ACK[2].ek-rec` (Rec-B line 19).
-3. B sends `n` messages. Send-B line 4 holds, so B sets `t_res-B = 2` and generates
-   `ek_B` for epoch 1. Each message carries a chunk of `ek_B`.
-   Line 21 acknowledges `ACK[t_req-B − 1].ek-rec = ACK[0].ek-rec`, which is false.
-   The entry B just set is `ACK[2]`.
-4. A receives them. Rec-A line 8 records nothing. The first message moves `t_req-A` to 2.
-   After the `n`-th message, A decodes `ek_B` and sets `ACK[1].ek-rec` (line 19).
-   `ACK[2].ek-rec` is still false, so A keeps `ek_A` (lines 31–32).
-5. A sends. Line 4 is false (`ek_A ≠ ⊥`) and line 9 is true (`ACK[2].ek-rec` is false),
-   so A resends a chunk of `ek_A`.
-   Line 21 acknowledges `ACK[t_req-A + 1].ek-rec = ACK[3].ek-rec`, which is false.
-   The entry A just set is `ACK[1]`.
-6. B receives it and sends. Rec-B line 8 records nothing, so B's `ACK[1].ek-rec` stays false.
-   B keeps `ek_B` (lines 31–32) and resends a chunk of `ek_B`, again acknowledging `ACK[0].ek-rec`.
-
-Steps 5–6 repeat forever. A leaves line 9 only once `ACK[2].ek-rec` holds.
-Rec-A line 19 sets only odd entries because `t_req-A` is even.
-Line 8 sets `ACK[t_req-B − 1]`, which equals `ACK[2]` only once `t_req-B = 3`.
-That requires A to advance to `t_res-A = 3` (Send-A line 4), which requires `ek_A = ⊥`.
-Clearing `ek_A` requires `ACK[2].ek-rec` (Rec-A lines 31–32), so A cannot advance.
-
-B leaves line 9 only once `ACK[1].ek-rec` holds.
-Rec-B line 19 sets only even entries because `t_req-B` is odd.
-Line 8 sets `ACK[t_req-A + 1]`, which equals `ACK[1]` only for messages A sends with `t_req-A = 0`.
-A sends those messages before decoding `ek_B`, so their acknowledgement bit is false.
-
-Neither party reaches the ciphertext branch at line 13, so no key is ever established.
-With the corrected indices, step 3 acknowledges `ACK[2]` and step 5 acknowledges `ACK[1]`, and the run proceeds.
 `OppBiKEM/Construction.lean` uses the corrected indices, recorded as correction 3 in its module docstring.
+
 
 *Erratum 3: Variable typos in Send-B and Rec-A.*
 
