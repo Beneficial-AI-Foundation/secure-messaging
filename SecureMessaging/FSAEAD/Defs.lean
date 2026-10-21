@@ -43,20 +43,22 @@ is decrypted as soon as it arrives.
   is the position of `m` in the sender's sequence, or `none` on rejection.
 
 [DEVIATIONS FROM ACD19]
-As printed, Figure 5 has two errors, and D1 and D2 correct them. Without D1, the adversary
-wins against schemes that report the index named in a rejected ciphertext. Without D2,
-every scheme either accepts a forgery or fails correctness. Each deviation is marked
+As printed, Figure 5 leaves the rejection behavior of `inject-B` open and has one error.
+D1 makes the rejection behavior explicit, and D2 corrects the error. Without D2, every
+scheme either accepts a forgery or fails correctness. Each deviation is marked
 `(Dn)` where it takes effect. In the oracle pseudocode, `[…]  -- Dn` frames a change to
 the text of Figure 5, like the boxes in the blueprint.
 
-- (D1) Figure 5's `inject-B` runs `delete(i')` even when `m' = ⊥`. Definition 14 has
-  `FS-Rcv` output a triple `(v', i, m)` with no separate failure output, so a rejection
-  reaches `inject-B` as `(i', ⊥)`. The SM game does the same on purpose: by §3.2.2, a
-  rejected injection runs the final instructions of `deliver-A`, and deleting there
-  blocks replays. Rejected garbage for an honest index then removes its record, and the
-  honest ciphertext then counts as a forgery [Kli21, Appendix A.1]. Here a rejection
-  reports no index (see the rejection convention below), and a rejected injection
-  returns `none` and changes nothing.
+- (D1) Figure 5 does not say whether a rejection reaches the rest of `inject-B`.
+  Definition 14 has `FS-Rcv` output a triple `(v', i, m)` with no separate failure
+  output, and Figure 5 tests `m' ≠ ⊥`, so one reading is that a rejection arrives as
+  `(i', ⊥)`. The SM game takes this reading on purpose: by §3.2.2, a rejected injection
+  runs the final instructions of `deliver-A`, and deleting there blocks replays. Under
+  this reading, `delete(i')` runs on a rejection, rejected garbage for an honest index
+  removes its record, and the honest ciphertext then counts as a forgery
+  [Kli21, Appendix A.1]. Here a rejection ends the call: it reports no index (see the
+  rejection convention below), and a rejected injection returns `none` and changes
+  nothing.
 - (D2) Figure 5's `inject-B` counts a forgery for index `i'` as a win unless `i' ∈ comp`,
   and `comp` only holds indices that were already sent. So after `corr-A`, the adversary
   wins by computing A's next ciphertext from the revealed state and injecting it. Here,
