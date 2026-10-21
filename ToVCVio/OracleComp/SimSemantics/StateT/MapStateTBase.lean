@@ -25,18 +25,6 @@ universe u
 variable {ι₀ ι₁ ι' : Type} {spec₀ : OracleSpec ι₀} {spec₁ : OracleSpec ι₁}
   {spec' : OracleSpec ι'} {σ τ : Type}
 
-/-- Running `(outer.mapStateTBase inner).flattenStateT t` from `(s, q)` simulates
-`(inner t).run s` with `outer` from state `q`, then maps
-`((u, s'), q')` to `(u, (s', q'))`. -/
-theorem flattenStateT_mapStateTBase_apply_run
-    (outer : QueryImpl spec₁ (StateT τ (OracleComp spec')))
-    (inner : QueryImpl spec₀ (StateT σ (OracleComp spec₁)))
-    (t : spec₀.Domain) (s : σ) (q : τ) :
-    ((outer.mapStateTBase inner).flattenStateT t).run (s, q) =
-      ((simulateQ outer ((inner t).run s)).run q >>=
-        fun y : (spec₀.Range t × σ) × τ => pure (y.1.1, (y.1.2, y.2))) := by
-  simp [QueryImpl.flattenStateT, QueryImpl.mapStateTBase, map_eq_bind_pure_comp]
-
 /-- The outer reinterpretation `outer.mapStateTBase inner` preserves any per-query `σ`-invariant of
 `inner`. The outer query implementation acts on the base computation `(inner t).run s : OracleComp
 spec₁ (Range × σ)`, so the `σ`-component of every reachable value is one reachable by `inner`
@@ -72,10 +60,8 @@ theorem flattenStateT_mapStateTBase_run_preserves_inv
   intro y hy
   -- Unfold the flattened run to a bind over the composed-base run; the `σ`-component `.2.1`
   -- comes from the inner value `.1.2`.
-  rw [flattenStateT_mapStateTBase_apply_run, mem_support_bind_iff] at hy
-  obtain ⟨z, hz, hyz⟩ := hy
-  simp only [support_pure, Set.mem_singleton_iff] at hyz
-  subst hyz
+  rw [QueryImpl.flattenStateT_mapStateTBase_apply_run, support_map] at hy
+  obtain ⟨z, hz, rfl⟩ := hy
   exact mapStateTBase_run_preserves_inv outer inner inv hinv t s hs q z hz
 
 end OracleComp

@@ -416,10 +416,10 @@ theorem game4_eq_rand (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ
   simp only [bind_pure_comp, ← StateT.run'_eq]
   -- (4) Kill it with losslessness; the per-key body is constant (= the LHS value by
   -- the `id`-projection).
-  rw [ToVCVio.probOutput_bind_of_const' prp.keygen
-      (my := fun k => (simulateQ (AEADScheme.aeadSecurityImpl (gcmOneTimeAEAD prp iv L hL)
-        true k) adv).run' none)
-      (fun k _ => congrArg (fun o => Pr{let x ← o}[x = true])
+  rw [prEvent_bind_eq_of_forall_eq prp.keygen (by simp)
+      (fun k => (simulateQ (AEADScheme.aeadSecurityImpl (gcmOneTimeAEAD prp iv L hL)
+        true k) adv).run' none) _
+      (fun k => congrArg (fun o => Pr{let x ← o}[x = true])
         (run'_simulateQ_eq_of_query_map_eq _
           (AEADScheme.aeadSecurityImpl (gcmOneTimeAEAD prp iv L hL) true k)
           id ?_ adv none).symm)]

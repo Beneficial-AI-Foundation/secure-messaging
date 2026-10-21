@@ -131,8 +131,8 @@ private lemma rawResume_probOutput_decomp [SampleableType K] [DecidableEq K]
   cases res with
   | done g =>
       simp only [rawResume, finishChallengeStepRaw, rawResumeKilled, injDone]
-      rw [probOutput_bind_of_const' (kem.encaps pkStar) fun _ _ => rfl,
-        probOutput_bind_of_const' ($ᵗ K : ProbComp K) fun _ _ => rfl]
+      rw [prEvent_bind_eq_of_forall_eq (kem.encaps pkStar) (by simp) _ _ fun _ => rfl,
+        prEvent_bind_eq_of_forall_eq ($ᵗ K : ProbComp K) (by simp) _ _ fun _ => rfl]
       simp only [prEvent_pure, Bool.false_eq_true, ↓reduceIte, zero_add]
   | pausedA cont => simp [rawResumeKilled, injDone]
   | pausedB cont => simp [rawResumeKilled, injDone]
@@ -579,7 +579,7 @@ private lemma pausedA_killed_probOutput_true_eq
       rw [challA_sampled_reduction_cont_probOutput_true_eq kem hDet hkem leak gp
         hgp base hInv hWill hks cont]
       simp only [Bool.not_false, rawResumeKilled, rawResume, ↓reduceIte]
-      refine ToVCVio.prEvent_bind_congr_of_mem_support _ fun ck _ => ?_
+      refine prEvent_bind_congr _ _ _ _ _ fun ck => ?_
       obtain ⟨cStar, kReal⟩ := ck
       rw [reductionBranch_challA_cont_eq_finishChallengeStepRaw kem hDet leak gp
         pkStar cStar kReal (preAToBReductionState base pkStar) hWillR cont]
@@ -589,9 +589,9 @@ private lemma pausedA_killed_probOutput_true_eq
         leak gp hgp base hInv hWill hks cont]
       simp only [Bool.not_true, rawResumeKilled, rawResume, Bool.false_eq_true,
         ↓reduceIte]
-      refine ToVCVio.prEvent_bind_congr_of_mem_support _ fun ck _ => ?_
+      refine prEvent_bind_congr _ _ _ _ _ fun ck => ?_
       obtain ⟨cStar, _kReal⟩ := ck
-      refine ToVCVio.prEvent_bind_congr_of_mem_support _ fun kRand _ => ?_
+      refine prEvent_bind_congr _ _ _ _ _ fun kRand => ?_
       rw [reductionBranch_challA_cont_eq_finishChallengeStepRaw kem hDet leak gp
         pkStar cStar kRand (preAToBReductionState base pkStar) hWillR cont]
 
@@ -623,7 +623,7 @@ private lemma pausedB_killed_probOutput_true_eq
       rw [challB_sampled_reduction_cont_probOutput_true_eq kem hDet hkem leak gp
         hgp base hInv hWill hks cont]
       simp only [Bool.not_false, rawResumeKilled, rawResume, ↓reduceIte]
-      refine ToVCVio.prEvent_bind_congr_of_mem_support _ fun ck _ => ?_
+      refine prEvent_bind_congr _ _ _ _ _ fun ck => ?_
       obtain ⟨cStar, kReal⟩ := ck
       rw [reductionBranch_challB_cont_eq_finishChallengeStepRaw kem hDet leak gp
         pkStar cStar kReal (preBToAReductionState base pkStar) hWillR cont]
@@ -633,9 +633,9 @@ private lemma pausedB_killed_probOutput_true_eq
         leak gp hgp base hInv hWill hks cont]
       simp only [Bool.not_true, rawResumeKilled, rawResume, Bool.false_eq_true,
         ↓reduceIte]
-      refine ToVCVio.prEvent_bind_congr_of_mem_support _ fun ck _ => ?_
+      refine prEvent_bind_congr _ _ _ _ _ fun ck => ?_
       obtain ⟨cStar, _kReal⟩ := ck
-      refine ToVCVio.prEvent_bind_congr_of_mem_support _ fun kRand _ => ?_
+      refine prEvent_bind_congr _ _ _ _ _ fun kRand => ?_
       rw [reductionBranch_challB_cont_eq_finishChallengeStepRaw kem hDet leak gp
         pkStar cStar kRand (preBToAReductionState base pkStar) hWillR cont]
 

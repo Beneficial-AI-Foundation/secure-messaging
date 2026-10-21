@@ -135,7 +135,8 @@ theorem abs_prfAdvantage_sub_prpAdvantage_le {K : Type}
   -- `|R - I_prf|` and `|R - I_prp|` over a literally identical `R`.
   rw [PRFScheme.prfAdvantage, MeasureTheory.Measure.toReal_boolDist,
     ← prEvent_eq_evalDist_singleton, ← prEvent_eq_evalDist_singleton,
-    PRPScheme.toReal_prpAdvantage]
+    PRPScheme.prpAdvantage, MeasureTheory.Measure.toReal_boolDist,
+    ← prEvent_eq_evalDist_singleton, ← prEvent_eq_evalDist_singleton]
   unfold PRPScheme.prpRealExp
   -- (2) `||a| - |b|| ≤ |a - b|`, the two-sided inequality; its one-sided sibling
   -- `abs_sub_abs_le_abs_sub` would only give the corollary below.

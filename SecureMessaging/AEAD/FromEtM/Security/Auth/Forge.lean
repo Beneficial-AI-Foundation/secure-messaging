@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.AEAD.FromEtM.Security.Auth.Defs
 import VCVio.OracleComp.QueryTracking.CachingOracle
-import ToVCVio.OracleComp.QueryTracking.QueryBound
+import VCVio.OracleComp.QueryTracking.QueryBound
 import ToVCVio.ProgramLogic.Relational.Basic
 import ToVCVio.ProgramLogic.Relational.IdenticalUntilBad
 
@@ -368,7 +368,7 @@ theorem probForge_authInst_le_forgeReduction
             intro q
             simp [OracleComp.forgeImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
           ext ⟨⟨ch, qc⟩, fs⟩ : 2
-          rw [flattenStateT_mapStateTBase_apply_run]
+          rw [QueryImpl.flattenStateT_mapStateTBase_apply_run]
           cases ch <;>
             simp [QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, forgeJointImpl,
               StateT.run_bind, StateT.run_get, StateT.run_set,
@@ -384,7 +384,7 @@ theorem probForge_authInst_le_forgeReduction
             intro p
             simp [OracleComp.forgeImpl, QueryImpl.add_apply_inr]
           ext ⟨⟨ch, qc⟩, fs⟩ : 2
-          rw [flattenStateT_mapStateTBase_apply_run]
+          rw [QueryImpl.flattenStateT_mapStateTBase_apply_run]
           by_cases heq : ch = some (ad, (c, tg))
           · simp [heq, QueryImpl.add_apply_inr, forgeJointImpl,
               StateT.run_bind, StateT.run_get,
@@ -536,7 +536,7 @@ theorem probForge_authInst_le_forgeReduction
           -- (existing entries persist) and maps the queried point `(ad, c)` to the response.
           have hcouple : ProgramLogic.Relational.RelTriple ro ro
               (fun a b => a = b ∧ fs₂.1 ≤ a.2 ∧ a.2 (ad, c) = some a.1) :=
-            ProgramLogic.Relational.relTriple_refl_support_post fun p hp =>
+            ProgramLogic.Relational.relTriple_refl_of_mem_support _ fun p hp =>
               ⟨rfl, QueryImpl.withCaching_cache_le _ _ _ p hp,
                 QueryImpl.withCaching_run_caches _ _ _ p hp⟩
           refine ProgramLogic.Relational.relTriple_bind hcouple ?_
