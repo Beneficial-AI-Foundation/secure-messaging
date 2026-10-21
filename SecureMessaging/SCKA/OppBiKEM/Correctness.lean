@@ -118,7 +118,8 @@ theorem correctness_true_ge
 -- ANCHOR_END: correctnessTrueGe
     := by
   have h := correctness_failure_le kem hDet ecEk ecCt hEk hCt leak adv q hq
-  rw [probOutput_false_eq_sub, OracleComp.prFail_eq_zero, tsub_zero, tsub_le_iff_right] at h
+  simp only [← Bool.not_eq_true] at h
+  rw [OracleComp.prEvent_not_eq_one_sub, tsub_le_iff_right] at h
   rw [ge_iff_le, tsub_le_iff_right]
   rwa [add_comm]
 
@@ -160,18 +161,18 @@ theorem correctness_of_perfectKEM
     Pr{let x ← SCKAScheme.correctnessExp (scheme kem hDet ecEk ecCt leak) adv}[x = true] = 1 := by
   have hdec := decapsCorrectOnSupport_of_perfectlyCorrect kem hDet hkem
   have hfalse :
-      Pr{let x ← SCKAScheme.correctnessExp (scheme kem hDet ecEk ecCt leak) adv}[x = false] = 0 := by
-    rw [correctnessExp_eq_map, ← probEvent_eq_eq_probOutput, prEvent_map]
-    rw [probEvent_eq_zero_iff]
+      Pr{let x ← SCKAScheme.correctnessExp (scheme kem hDet ecEk ecCt leak) adv}[x = false] =
+        0 := by
+    rw [correctnessExp_eq_map, prEvent_map, OracleComp.prEvent_eq_zero_iff]
     intro z hz hcontra
     have hinv := simulateQ_gameInv kem hDet ecEk ecCt hEk hCt leak hdec adv
       (initialState .A) (initialState .B) (by simp [initA, init, initialState])
       (by simp [initB, init, initialState]) z hz
     have := hinv.1
-    simp only [Function.comp] at hcontra
     rw [this] at hcontra
     cases hcontra
-  rw [probOutput_false_eq_sub, OracleComp.prFail_eq_zero, tsub_zero] at hfalse
+  simp only [← Bool.not_eq_true] at hfalse
+  rw [OracleComp.prEvent_not_eq_one_sub] at hfalse
   exact le_antisymm (prEvent_le_one _) ((tsub_eq_zero_iff_le).mp hfalse)
 
 end oppBiKemCKA
