@@ -10,6 +10,8 @@ import VCVio.OracleComp.EvalDist.Sum
 
 /-!
 # Point-probability transport for `StateT` projections and support-wise bind sums
+
+Also the Boolean complement `Pr[false] = 1 - Pr[true]` for oracle computations.
 -/
 
 open OracleSpec ENNReal
@@ -40,3 +42,14 @@ lemma prEvent_bind_congr_eq_add {α β γ₁ γ₂ : Type} (mx : ProbComp α)
   · simp only [prEvent_eq_zero_of_not_mem_support mx hx, zero_mul, add_zero]
 
 end ToVCVio
+
+namespace OracleComp
+
+/-- An oracle computation returns `false` with the probability it does not return `true`. -/
+lemma prEvent_eq_false_eq_one_sub {ι : Type} {spec : OracleSpec ι}
+    [OracleSpec.AnswerMeasure spec] (mx : OracleComp spec Bool) :
+    Pr{let x ← mx}[x = false] = 1 - Pr{let x ← mx}[x = true] := by
+  rw [← prEvent_not_eq_one_sub mx (· = true)]
+  simp only [Bool.not_eq_true]
+
+end OracleComp

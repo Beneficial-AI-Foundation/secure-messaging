@@ -118,8 +118,7 @@ theorem correctness_true_ge
 -- ANCHOR_END: correctnessTrueGe
     := by
   have h := correctness_failure_le kem hDet ecEk ecCt hEk hCt leak adv q hq
-  simp only [← Bool.not_eq_true] at h
-  rw [OracleComp.prEvent_not_eq_one_sub, tsub_le_iff_right] at h
+  rw [OracleComp.prEvent_eq_false_eq_one_sub, tsub_le_iff_right] at h
   rw [ge_iff_le, tsub_le_iff_right]
   rwa [add_comm]
 
@@ -171,8 +170,7 @@ theorem correctness_of_perfectKEM
     have := hinv.1
     rw [this] at hcontra
     cases hcontra
-  simp only [← Bool.not_eq_true] at hfalse
-  rw [OracleComp.prEvent_not_eq_one_sub] at hfalse
+  rw [OracleComp.prEvent_eq_false_eq_one_sub] at hfalse
   exact le_antisymm (prEvent_le_one _) ((tsub_eq_zero_iff_le).mp hfalse)
 
 end oppBiKemCKA

@@ -5,6 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.SCKA.Defs
+import ToVCVio.OracleComp.EvalDist
 import ToVCVio.OracleComp.ExpectedPayoff
 import ToVCVio.OracleComp.SimSemantics.StateT.ExpectedPayoffBound
 
@@ -408,9 +409,8 @@ theorem correctness_error_le_of_potential [DecidableEq I]
       expectedPayoff (correctnessExp scka adv) (fun b => if b then 0 else 1) := by
     exact probEvent_le_expectedPayoff _ _ _ fun b hb => by simp [hb]
   have hfalse : Pr{let x ← correctnessExp scka adv}[x = false] =
-      1 - Pr{let x ← correctnessExp scka adv}[x = true] := by
-    rw [← OracleComp.prEvent_not_eq_one_sub]
-    simp only [Bool.not_eq_true]
+      1 - Pr{let x ← correctnessExp scka adv}[x = true] :=
+    OracleComp.prEvent_eq_false_eq_one_sub _
   rw [← hfalse]
   refine hle.trans ?_
   rw [hexp, expectedPayoff_bind]

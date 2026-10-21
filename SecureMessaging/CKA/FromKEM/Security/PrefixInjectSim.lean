@@ -514,13 +514,8 @@ lemma securityImpl_run_counters_mono [SampleableType K] [DecidableEq K]
       uChallA) | uChallB) | uCorrA) | uCorrB) | uRLeakA) | uRLeakB
   · -- O-Unif
     change z ∈ support ((CKAScheme.oracleUnif (State PK SK) K (Message C PK) n).run σ) at hz
-    have hz' : z ∈ Set.range fun a : unifSpec.Range n => (a, σ) := by
-      simpa only [CKAScheme.oracleUnif, PFunctor.Handler.liftTarget_apply,
-        ofPFunctor_toPFunctor, QueryImpl.ofLift_apply, StateT.run_monadLift, monadLift_self,
-        bind_pure_comp, MonadAttach.support_map, support_liftM, OracleQuery.input_query,
-        OracleQuery.cont_query, Set.range_id, Set.image_univ] using hz
-    obtain ⟨x, hz2⟩ := Set.mem_range.mp hz'
-    subst hz2
+    rw [CKAScheme.support_oracleUnif_run] at hz
+    obtain ⟨x, rfl⟩ := hz
     vcvSupport
   · -- O-Send-A
     cases uSendA

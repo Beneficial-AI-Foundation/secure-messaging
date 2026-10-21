@@ -751,6 +751,15 @@ def oracleUnif (St I Rho : Type) :
     QueryImpl unifSpec (StateT (GameState St I Rho) ProbComp) :=
   unifLiftStateT (GameState St I Rho) unifSpec
 
+/-- `oracleUnif` returns a uniform answer and leaves the game state unchanged. -/
+lemma support_oracleUnif_run (St I Rho : Type) (n : unifSpec.Domain)
+    (σ : GameState St I Rho) :
+    support ((oracleUnif St I Rho n).run σ) = Set.range fun a : unifSpec.Range n => (a, σ) := by
+  simp only [oracleUnif, PFunctor.Handler.liftTarget_apply, ofPFunctor_toPFunctor,
+    QueryImpl.ofLift_apply, StateT.run_monadLift, monadLift_self, bind_pure_comp,
+    MonadAttach.support_map, support_liftM, OracleQuery.input_query, OracleQuery.cont_query,
+    Set.range_id, Set.image_univ]
+
 /-- Oracle set for the correctness game. -/
 -- ANCHOR: ckaCorrectnessImpl
 def ckaCorrectnessImpl [DecidableEq I] (cka : CKAScheme ProbComp IK St I Rho Rand) :

@@ -42,6 +42,17 @@ open CKAScheme DiffieHellman ckaSecuritySpec
 
 variable [DecidableEq G]
 
+/-- Drawing `c` uniformly and continuing with `g c` has the same event probabilities as
+drawing a uniform group element, when `g` is a bijection. -/
+private lemma prEvent_bind_uniform_bijective {A B α : Type} [SampleableType A]
+    [SampleableType B] {g : A → B} (hg : Function.Bijective g)
+    (k : B → ProbComp α) (p : α → Prop) :
+    Pr{let x ← (do let c ← ($ᵗ A : ProbComp A); k (g c))}[p x] =
+      Pr{let x ← (do let gT ← ($ᵗ B : ProbComp B); k gT)}[p x] := by
+  have h := (SampleableType.map_uniformSample_evalDistEq_of_bijective hg).bind_left k
+  simp only [map_eq_bind_pure_comp, bind_assoc, pure_bind, Function.comp_apply] at h
+  exact h.prEvent_eq _
+
 section Step2
 variable [Inhabited F]
 variable [Fintype G]
@@ -93,13 +104,9 @@ lemma probOutput_general_per_x₀_rand
             s₀R)}[x = false] := by
               refine prEvent_bind_congr _ _ _ _ _ fun a => ?_
               refine prEvent_bind_congr _ _ _ _ _ fun b => ?_
-              have h := (SampleableType.map_uniformSample_evalDistEq_of_bijective hg).bind_left
-                fun gT =>
-                  (simulateQ
-                      (reductionOracleImpl gp gen (a • gen) (b • gen) gT) adversary).run'
-                    s₀R
-              simp only [map_eq_bind_pure_comp, bind_assoc, pure_bind, Function.comp_apply] at h
-              exact h.prEvent_eq _
+              exact prEvent_bind_uniform_bijective hg (fun gT =>
+                (simulateQ (reductionOracleImpl gp gen (a • gen) (b • gen) gT) adversary).run'
+                  s₀R) _
     _ = Pr{let x ← (do
           let a ← ($ᵗ F : ProbComp F)
           let b ← ($ᵗ F : ProbComp F)
@@ -300,13 +307,9 @@ lemma probOutput_special_per_x₀_rand
               (reductionOracleImpl gp gen (x₀ • gen) (b • gen) gT) adversary).run'
             s₀R)}[x = false] := by
               refine prEvent_bind_congr _ _ _ _ _ fun b => ?_
-              have h := (SampleableType.map_uniformSample_evalDistEq_of_bijective hg).bind_left
-                fun gT =>
-                  (simulateQ
-                      (reductionOracleImpl gp gen (x₀ • gen) (b • gen) gT) adversary).run'
-                    s₀R
-              simp only [map_eq_bind_pure_comp, bind_assoc, pure_bind, Function.comp_apply] at h
-              exact h.prEvent_eq _
+              exact prEvent_bind_uniform_bijective hg (fun gT =>
+                (simulateQ (reductionOracleImpl gp gen (x₀ • gen) (b • gen) gT) adversary).run'
+                  s₀R) _
     _ = Pr{let x ← ((simulateQ (ckaSecurityImpl gp true (ddhCKA F G gen)) adversary).run'
           s₀H)}[x = false] := by
             calc
