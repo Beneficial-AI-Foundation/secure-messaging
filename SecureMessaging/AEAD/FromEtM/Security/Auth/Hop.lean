@@ -41,7 +41,7 @@ theorem game1_game2_le_auth
   -- `game2'` (verify queries the RO then rejects unconditionally):
   --   |Pr[game1] - Pr[game2]|
   --     = |Pr[game1] - Pr[game2']|          (hC: game2' = game2, discarded-query brick)
-  --     ≤ tvDist(game1, game2')             (abs_probOutput_toReal_sub_le_tvDist)
+  --     ≤ measureTVDist(game1, game2')      (abs_prEvent_toReal_sub_le_measureTVDist)
   --     ≤ q_d/|T|                           (htv: identical-until-bad + forge brick)
   -- Step C: `game2' = game2`. game2' rejects unconditionally, so its verify RO query reveals
   -- nothing — removing it preserves the distribution (`evalDist_simulateQ_run'_discardRO`, the
@@ -50,7 +50,7 @@ theorem game1_game2_le_auth
     game2'_eq_game2 se adv
   -- Steps A+B: identical-until-bad (game1 vs game2' agree off the forge step) bounds the TV
   -- distance by the forge probability; the eval+verify forge brick bounds that by q_d/|T|.
-  have htv : tvDist (game1 se adv) (game2' se adv) ≤ ↑q_d * (Fintype.card T : ℝ)⁻¹ := by
+  have htv : measureTVDist (game1 se adv) (game2' se adv) ≤ ↑q_d * (Fintype.card T : ℝ)⁻¹ := by
     -- Per-key flag-instrumented simulations: `Y₁ ke` ≈ game1 (real return on verify),
     -- `Y₂ ke` ≈ game2' (always reject), both threading the `forged` flag.
     set Y₁ : K_e → ProbComp Bool :=
@@ -59,7 +59,8 @@ theorem game1_game2_le_auth
       fun ke => (simulateQ (authInstImpl se false ke) adv).run' ((none, ∅), false) with hY₂
     -- Abbreviation: the forge probability of the `b = true` instrumented simulation per key.
     set forgeProb : K_e → ℝ := fun ke =>
-      (Pr{let z ← (simulateQ (authInstImpl se true ke) adv).run ((none, ∅), false)}[z.2.2 = true]).toReal
+      (Pr{let z ← ((simulateQ (authInstImpl se true ke) adv).run
+        ((none, ∅), false))}[z.2.2 = true]).toReal
       with hforgeProb
     -- Fold the skeleton's `let (b', _) ← run; return b'` to `run'`.
     -- (1) Flag projection: each game = keygen >>= per-key flag-instrumented sim. The `forged`
@@ -88,10 +89,10 @@ theorem game1_game2_le_auth
     -- (3) Per-key identical-until-bad (brick 3): the `b = true`/`b = false` impls agree on every
     -- non-forged transition (they differ only in the verify return when `ok = true`, which also
     -- sets the flag) and the flag is monotone, so the per-key TV distance is ≤ forge probability.
-    have hbad : ∀ ke, tvDist (Y₁ ke) (Y₂ ke) ≤ forgeProb ke := by
+    have hbad : ∀ ke, measureTVDist (Y₁ ke) (Y₂ ke) ≤ forgeProb ke := by
       intro ke
       rw [hY₁, hY₂, hforgeProb]
-      exact tvDist_authInst_le_probForge se adv ke
+      exact measureTVDist_authInst_le_probForge se adv ke
     -- (4) Per-key forge bound (forge reduction + brick 1): the forge event reduces to the
     -- eval+verify lazy-RO forgery experiment, bounded by `q_d/|T|` via `hqd`.
     have hforge : ∀ ke, forgeProb ke ≤ ↑q_d * (Fintype.card T : ℝ)⁻¹ := by
@@ -101,17 +102,18 @@ theorem game1_game2_le_auth
         (OracleComp.probForge_le_queryBound_div_card (forgeReduction se adv ke) q_d
           (forgeReduction_isQueryBoundP se adv ke q_d hqd))
     -- Combine (3)+(4): per-key TV ≤ q_d/|T|.
-    have htv_ke : ∀ ke, tvDist (Y₁ ke) (Y₂ ke) ≤ ↑q_d * (Fintype.card T : ℝ)⁻¹ :=
+    have htv_ke : ∀ ke, measureTVDist (Y₁ ke) (Y₂ ke) ≤ ↑q_d * (Fintype.card T : ℝ)⁻¹ :=
       fun ke => le_trans (hbad ke) (hforge ke)
     -- Convexity over the key: a per-key TV bound lifts through the `se.keygen` bind
-    -- (`tvDist_bind_left_le_const'`, the unrestricted real-valued companion of VCVio's
-    -- `ofReal_tvDist_bind_left_le_const'`).
-    exact tvDist_bind_left_le_const' se.keygen Y₁ Y₂ _ htv_ke
+    -- (`measureTVDist_bind_left_le_of_forall_le`).
+    exact measureTVDist_bind_left_le_of_forall_le se.keygen Y₁ Y₂ (by positivity) htv_ke
   calc |(Pr{let x ← game1 se adv}[x = true]).toReal - (Pr{let x ← game2 se adv}[x = true]).toReal|
-      = |(Pr{let x ← game1 se adv}[x = true]).toReal - (Pr{let x ← game2' se adv}[x = true]).toReal| := by
+      = |(Pr{let x ← game1 se adv}[x = true]).toReal -
+          (Pr{let x ← game2' se adv}[x = true]).toReal| := by
         rw [hC]
-    _ ≤ tvDist (game1 se adv) (game2' se adv) :=
-        abs_probOutput_toReal_sub_le_tvDist _ _
+    _ ≤ measureTVDist (game1 se adv) (game2' se adv) :=
+        abs_prEvent_toReal_sub_le_measureTVDist _ _ (· = true)
+          Measurable.of_discrete
     _ ≤ ↑q_d * (Fintype.card T : ℝ)⁻¹ := htv
 
 end EtM

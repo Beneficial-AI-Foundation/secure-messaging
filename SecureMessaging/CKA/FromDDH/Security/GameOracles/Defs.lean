@@ -40,23 +40,6 @@ section Step2
 variable [Inhabited F]
 variable [Fintype G]
 
-omit [Field F] [SampleableType F] [SampleableType G] [DecidableEq G] [Inhabited F] in
-/-- The CKA security spec has finitely many oracle indices. Required by
-VCVio's probability-of-output lemmas that quantify over queries. -/
-noncomputable instance ckaSecuritySpecFintype :
-    (ckaSecuritySpec (CKAState F G) G G F).Fintype := by
-  unfold ckaSecuritySpec ckaCorrectnessSpec
-  infer_instance
-
-omit [Field F] [SampleableType F] [SampleableType G] [DecidableEq G] [Inhabited F]
-  [Fintype G] [Fintype F] in
-/-- The CKA security spec has at least one oracle index. Required by
-VCVio's existence lemmas that pick a sample query. -/
-noncomputable instance ckaSecuritySpecInhabited :
-    (ckaSecuritySpec (CKAState F G) G G F).Inhabited := by
-  unfold ckaSecuritySpec ckaCorrectnessSpec
-  infer_instance
-
 open OracleComp.ProgramLogic.Relational in
 /-- Predicate defining which oracle calls may require embedding of scalar `a` -/
 def hitA (gp : GameParams) :
@@ -476,28 +459,21 @@ lemma evalDist_ckaSecurityImpl_lazy_eq_eager
       (simulateQ (honestImplParamReal gp gen a b) adversary).run' s) := by
   let : Fintype G := Fintype.ofFinite G
   unfold ckaSecurityImplLazyReal
-  rw [← OracleComp.ProgramLogic.Relational.probOutput_simulateQ_consumeLazy_run'_eq
+  refine ((OracleComp.ProgramLogic.Relational.evalDistEq_simulateQ_consumeLazy_run'_eq
         (spec := ckaSecuritySpec (CKAState F G) G G F) (τ := F)
         (implFam := fun b => OracleComp.ProgramLogic.Relational.consumeLazy
           (hit := hitA gp)
           (implFam := fun a => honestImplParamReal gp gen a b))
         (hit := hitB gp)
         (h_indep := fun t s' b₁ b₂ h => hindepB_param_honest gp t s' b₁ b₂ h)
-        adversary (s, none)]
-  exact evalDist_bind_congr' _ (ob₁ := fun b =>
-      (simulateQ (OracleComp.ProgramLogic.Relational.consumeLazy
-        (hit := hitA gp)
-        (implFam := fun a => honestImplParamReal gp gen a b)) adversary).run' (s, none))
-    (ob₂ := fun b => do
-      let a ← ($ᵗ F : ProbComp F)
-      (simulateQ (honestImplParamReal gp gen a b) adversary).run' s)
-    (fun b => by
-      exact (OracleComp.ProgramLogic.Relational.probOutput_simulateQ_consumeLazy_run'_eq
-        (spec := ckaSecuritySpec (CKAState F G) G G F) (τ := F)
-        (implFam := fun a => honestImplParamReal gp gen a b)
-        (hit := hitA gp)
-        (h_indep := fun t s'' a₁ a₂ h => hindepA_param_honest gp b t s'' a₁ a₂ h)
-        adversary s).symm)
+        adversary (s, none)).symm.trans ?_).evalDist_eq
+  exact EvalDistEq.bind_right _ fun b =>
+    (OracleComp.ProgramLogic.Relational.evalDistEq_simulateQ_consumeLazy_run'_eq
+      (spec := ckaSecuritySpec (CKAState F G) G G F) (τ := F)
+      (implFam := fun a => honestImplParamReal gp gen a b)
+      (hit := hitA gp)
+      (h_indep := fun t s'' a₁ a₂ h => hindepA_param_honest gp b t s'' a₁ a₂ h)
+      adversary s).symm
 
 end Step2
 

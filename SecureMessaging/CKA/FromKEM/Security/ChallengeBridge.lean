@@ -52,9 +52,9 @@ lemma challA_sampled_reduction_cont_probOutput_true_eq
         (simulateQ
           (reductionBranchImpl kem hDet leak gp pkStar cStar realKey)
           (cont q.1)).run' q.2)}[x = true] := by
-  exact probOutput_true_eq_of_relTriple_eqRel
+  exact (evalDistEq_of_relTriple_eqRel
     (challA_sampled_reduction_cont_run'_relTriple
-      kem hDet hkem leak gp hgp σ hInv hWill hks cont)
+      kem hDet hkem leak gp hgp σ hInv hWill hks cont)).prEvent_eq _
 
 /-- Probability form of
 `challA_sampled_reduction_random_cont_run'_relTriple`, the random-key
@@ -87,9 +87,9 @@ lemma challA_sampled_reduction_random_cont_probOutput_true_eq
         (simulateQ
           (reductionBranchImpl kem hDet leak gp pkStar cStar kRand)
           (cont q.1)).run' q.2)}[x = true] := by
-  exact probOutput_true_eq_of_relTriple_eqRel
+  exact (evalDistEq_of_relTriple_eqRel
     (challA_sampled_reduction_random_cont_run'_relTriple
-      kem hDet hkem leak gp hgp σ hInv hWill hks cont)
+      kem hDet hkem leak gp hgp σ hInv hWill hks cont)).prEvent_eq _
 
 /-- Probability form of `challB_sampled_reduction_cont_run'_relTriple`, the
 B-side real-key case. -/
@@ -120,9 +120,9 @@ lemma challB_sampled_reduction_cont_probOutput_true_eq
         (simulateQ
           (reductionBranchImpl kem hDet leak gp pkStar cStar realKey)
           (cont q.1)).run' q.2)}[x = true] := by
-  exact probOutput_true_eq_of_relTriple_eqRel
+  exact (evalDistEq_of_relTriple_eqRel
     (challB_sampled_reduction_cont_run'_relTriple
-      kem hDet hkem leak gp hgp σ hInv hWill hks cont)
+      kem hDet hkem leak gp hgp σ hInv hWill hks cont)).prEvent_eq _
 
 /-- Probability form of
 `challB_sampled_reduction_random_cont_run'_relTriple`, the B-side random-key
@@ -155,8 +155,8 @@ lemma challB_sampled_reduction_random_cont_probOutput_true_eq
         (simulateQ
           (reductionBranchImpl kem hDet leak gp pkStar cStar kRand)
           (cont q.1)).run' q.2)}[x = true] := by
-  exact probOutput_true_eq_of_relTriple_eqRel
+  exact (evalDistEq_of_relTriple_eqRel
     (challB_sampled_reduction_random_cont_run'_relTriple
-      kem hDet hkem leak gp hgp σ hInv hWill hks cont)
+      kem hDet hkem leak gp hgp σ hInv hWill hks cont)).prEvent_eq _
 
 end kemCKA

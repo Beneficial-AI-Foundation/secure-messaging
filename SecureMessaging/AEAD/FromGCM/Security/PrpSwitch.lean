@@ -22,7 +22,7 @@ the GHASH key, the tag mask and `n` keystream blocks. The bound is `(n + 2)(n + 
 Because the list is fixed, the random permutation is seen only through its values on the list.
 For a supported message length (`hL : ValidMsgLength L`) the points of the list are distinct by
 `cipherInputs_pairwise_ne`, so those values are a sample without replacement, and the generic
-bound `tvDist_map_uniformPerm_mapM_const_uniform_le` of
+bound `measureTVDist_map_uniformPerm_mapM_const_uniform_le` of
 `ToVCVio/CryptoFoundations/PRPSwitching.lean` applies.
 
 Main results:
@@ -147,7 +147,7 @@ theorem abs_prfAdvantage_sub_prpAdvantage_le {K : Type}
   -- (6) The generic fixed-list switching bound, at
   -- `pts := 0 :: J₀ :: counterChain (inc₃₂ J₀) ⌈L/128⌉`, whose `Nodup` is
   -- `cipherInputs_pairwise_ne iv hL` (`List.Nodup` *is* `Pairwise (· ≠ ·)`).
-  refine (OracleComp.tvDist_map_uniformPerm_mapM_const_uniform_le _
+  refine (OracleComp.measureTVDist_map_uniformPerm_mapM_const_uniform_le _
     (cipherInputs_pairwise_ne iv hL)).trans ?_
   -- The arithmetic: the list has length `⌈L/128⌉ + 2` by `counterChain_length` and two
   -- `List.length_cons` steps, and `Fintype.card (BitVec 128) = 2¹²⁸`, so

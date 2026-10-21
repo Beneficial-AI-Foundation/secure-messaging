@@ -19,10 +19,11 @@ IND-CPA game, following [ACD19, Section 4.1.2].
 * `ckaReductionINDCPABranch` is the KEM challenge branch of the concrete
   reduction, and `ckaReductionINDCPABranchRaw` drops its final `not` so the
   absolute gap absorbs the CKA/KEM bit-orientation reversal;
-* `ckaToINDCPAReduction_IND_CPA_Exp_probOutput_true_eq_branch` identifies the fixed-bit
-  `IND_CPA_Exp` of the concrete reduction with its branch. With
+* `ckaToINDCPAReduction_IND_CPA_Experiment_prEvent_true_eq_branch` identifies the fixed-bit
+  `IND_CPA_Experiment` of the concrete reduction with its branch. With
   `KEMScheme.IND_CPA_Advantage_eq_fixed_branch_dist` from ToVCVio, which rewrites VCVio's
-  single-game `IND_CPA_Advantage` as the fixed-branch gap, this connects the two games.
+  single-game `IND_CPA_Advantage` as the `ℝ≥0∞` gap `absDiff p_true p_false` of the
+  fixed-bit experiments, this connects the two games.
 
 This layer defines the branch experiments and their advantage bridges only. It
 does not prove the hidden-state simulation or the key-injection equivalences.
@@ -199,7 +200,7 @@ private lemma indCPAExpProb_ckaToINDCPAReduction_eq_branch
 `b` returns `true` with the same probability as the reduction branch. This is
 the step that lets `Security.lean` replace the library game by the branch
 program. -/
-lemma ckaToINDCPAReduction_IND_CPA_Exp_probOutput_true_eq_branch
+lemma ckaToINDCPAReduction_IND_CPA_Experiment_prEvent_true_eq_branch
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -207,10 +208,10 @@ lemma ckaToINDCPAReduction_IND_CPA_Exp_probOutput_true_eq_branch
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams)
     (b : Bool) :
-    Pr{let x ← (kem.IND_CPA_Exp ProbCompRuntime.probComp
+    Pr{let x ← (kem.IND_CPA_Experiment ProbCompRuntime.probComp
         (ckaToINDCPAReduction kem hDet leak adv gp) b)}[x = true] =
       Pr{let x ← ckaReductionINDCPABranch kem hDet leak adv gp b}[x = true] := by
-  rw [← KEMScheme.indCPAExpProb_probOutput_true_eq]
+  rw [← KEMScheme.indCPAExpProb_prEvent_true_eq]
   rw [indCPAExpProb_ckaToINDCPAReduction_eq_branch]
 
 end kemCKA

@@ -86,10 +86,9 @@ theorem etmAEAD_security [Inhabited K_e]
     (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
     (adv : OneTimeCCAAdversary AD M (C_e × T))
     (q_d : ℕ) [Fintype T]
-    (hqd : AEADScheme.decryptQueryBound adv q_d)
-    [NeverFail prf.keygen] :
+    (hqd : AEADScheme.decryptQueryBound adv q_d) :
     AEADScheme.distAdvantage (etmAEAD se prf) adv ≤
-      PRFScheme.prfAdvantage prf (prfReduction se adv) +
+      (PRFScheme.prfAdvantage prf (prfReduction se adv)).toReal +
       ↑q_d * (Fintype.card T : ℝ)⁻¹ +
       DetSEAlg.distAdvantage se (encReduction se adv)
 ```
