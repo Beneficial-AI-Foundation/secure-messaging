@@ -15,7 +15,7 @@ Replaces the real challenge ciphertext by a uniform one. The hop is free: the ch
 `(C, T) = (m ⊕ ks, GHASH_H(gcmEncode ad C) ⊕ mask)` is built from one fresh uniform tuple
 `(H, mask, ks)` that nothing else in `game3` reads, so `C` is a one-time pad of `m`, `T` is
 masked by a fresh `mask`, and the pair is jointly uniform on `BitVec L × BitVec 128`; this is
-`evalDist_gcmChallenge_uniform`. The two games are therefore equidistributed, `game3_eq_game4`,
+`evalDistEq_gcmChallenge_uniform`. The two games are therefore equidistributed, `game3_eq_game4`,
 proved by the per-query coupling `gcmPrivacy_step` under the state relation `gcmPrivacyRel`.
 -/
 
@@ -30,20 +30,19 @@ open OracleComp.ProgramLogic.Relational
 /-- Let `m : BitVec L` and `ad` be fixed, let `H`, `mask` and `ks` be independent and uniform on
 `BitVec 128`, `BitVec 128` and `BitVec L`, and let `C = m ⊕ ks`. Then the challenge
 `(C, GHASH_H(gcmEncode ad C) ⊕ mask)` is jointly uniform on `BitVec L × BitVec 128`. -/
-theorem evalDist_gcmChallenge_uniform {L : ℕ} (ad : SupportedAAD) (m : BitVec L) :
-    evalDist ((fun a : BitVec 128 × BitVec 128 × BitVec L =>
+theorem evalDistEq_gcmChallenge_uniform {L : ℕ} (ad : SupportedAAD) (m : BitVec L) :
+    ((fun a : BitVec 128 × BitVec 128 × BitVec L =>
         (m ^^^ a.2.2, ghash a.1 (gcmEncode ad (m ^^^ a.2.2)) ^^^ a.2.1)) <$>
       ($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _))
-      = evalDist ($ᵗ (BitVec L × BitVec 128) : ProbComp _) := by
-  rw [uniformSample_prod_eq_bind (BitVec 128) (BitVec 128 × BitVec L),
-    uniformSample_prod_eq_bind (BitVec 128) (BitVec L)]
+      =ᵈ ($ᵗ (BitVec L × BitVec 128) : ProbComp _) := by
+  rw [SampleableType.uniformSample_prod_eq_bind (BitVec 128) (BitVec 128 × BitVec L),
+    SampleableType.uniformSample_prod_eq_bind (BitVec 128) (BitVec L)]
   simp only [map_bind, map_pure, bind_assoc, pure_bind]
-  refine (DeferredSampling.evalDist_bind_congr_left ($ᵗ BitVec 128 : ProbComp _) _
-      (fun _ => ($ᵗ (BitVec L × BitVec 128) : ProbComp _)) (fun H => ?_)).trans
-    (DeferredSampling.evalDist_bind_const_neverFails
-      ($ᵗ BitVec 128 : ProbComp _) (probFailure_uniformSample _)
-      ($ᵗ (BitVec L × BitVec 128) : ProbComp _))
-  exact evalDist_pair_xor_uniform m (fun c => ghash H (gcmEncode ad c))
+  refine (EvalDistEq.bind_right ($ᵗ BitVec 128 : ProbComp _)
+      (g := fun _ => ($ᵗ (BitVec L × BitVec 128) : ProbComp _)) (fun H => ?_)).trans
+    (OracleComp.EvalDistEq.bind_const
+      ($ᵗ BitVec 128 : ProbComp _) ($ᵗ (BitVec L × BitVec 128) : ProbComp _))
+  exact evalDistEq_pair_xor_uniform m (fun c => ghash H (gcmEncode ad c))
 
 /-- Shape pin: the challenge map above is `gcmTupleImplReject`'s encryption body. -/
 example {L : ℕ} (ad : SupportedAAD) (m : BitVec L)
@@ -249,7 +248,7 @@ private lemma gcmPrivacy_step_encrypt_none {L : ℕ} (ad : SupportedAAD) (m : Bi
       ($ᵗ (BitVec L × BitVec 128) : ProbComp _)
       (fun (a : BitVec 128 × BitVec 128 × BitVec L) (e : BitVec L × BitVec 128) =>
         (m ^^^ a.2.2, ghash a.1 (gcmEncode ad (m ^^^ a.2.2)) ^^^ a.2.1) = e) :=
-    relTriple_of_evalDistEq_right (evalDist_gcmChallenge_uniform ad m)
+    relTriple_of_evalDistEq_right (evalDistEq_gcmChallenge_uniform ad m)
       (relTriple_of_evalDistEq_left (by rw [id_map])
         (relTriple_map_map_of_pointwise _ id _ fun _ => rfl))
   rw [hrun₁, hrun₂]
@@ -311,10 +310,12 @@ theorem game3_eq_game4 {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ)
     ⟨rfl, rfl⟩
   exact evalDist_eq_of_relTriple_eqRel h
 
-theorem probOutput_game3_eq_game4 {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ)
+/-- The privacy hop at the winning event: `game3` and `game4` output `true` with the same
+probability. -/
+theorem prEvent_game3_eq_game4 {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ)
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
     Pr{let x ← game3 prp L hL adv}[x = true] = Pr{let x ← game4 prp L hL adv}[x = true] :=
-  evalDist_ext_iff.mp (game3_eq_game4 prp L hL adv) true
+  (EvalDistEq.of_evalDist_eq (game3_eq_game4 prp L hL adv)).prEvent_eq _
 
 end GCM

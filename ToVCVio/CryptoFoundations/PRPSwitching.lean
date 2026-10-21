@@ -7,6 +7,7 @@ Authors: Beneficial AI Foundation
 import VCVio.OracleComp.Constructions.SampleableType
 import ToVCVio.OracleComp.Constructions.SampleableType
 import ToVCVio.EvalDist.UniformInjection
+import VCVio.EvalDist.MeasureTVDist.Event
 import Mathlib.Logic.Equiv.Fintype
 import Mathlib.Data.Fintype.CardEmbedding
 
@@ -38,8 +39,9 @@ message-block count.
 
 ## Main results
 
-* `evalDist_map_uniformPerm_eq_uniformDistinct`: `P` is sampling without replacement.
-* `tvDist_map_uniformPerm_mapM_const_uniform_le`: the bound on the distance between `P` and `F`.
+* `evalDistEq_map_uniformPerm_uniformDistinct`: `P` is sampling without replacement.
+* `measureTVDist_map_uniformPerm_mapM_const_uniform_le`: the bound on the distance between `P`
+  and `F`.
 
 ## Reference
 
@@ -66,17 +68,17 @@ def sampleDistinctFrom (X : Type) [FinEnum X] (q : ℕ)
 /-- Let `e₀ : Fin q ↪ X` be a fixed injective function and let `π` be a uniformly random
 permutation of `X`. Then `π ∘ e₀` is uniformly distributed over all injective functions
 `Fin q ↪ X`. -/
-theorem evalDist_map_trans_uniformPerm {X : Type} [FinEnum X] {q : ℕ}
+theorem evalDistEq_map_trans_uniformPerm {X : Type} [FinEnum X] {q : ℕ}
     [Nonempty (Fin q ↪ X)] (e₀ : Fin q ↪ X) :
-    evalDist ((fun π : Equiv.Perm X => e₀.trans π.toEmbedding) <$>
-        ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X)))
-      = evalDist ($ᵗ (Fin q ↪ X) : ProbComp (Fin q ↪ X)) := by
+    (fun π : Equiv.Perm X => e₀.trans π.toEmbedding) <$>
+        ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X))
+      =ᵈ ($ᵗ (Fin q ↪ X) : ProbComp (Fin q ↪ X)) := by
   set Φ : Equiv.Perm X → (Fin q ↪ X) := fun π => e₀.trans π.toEmbedding
   -- Invariance of `Φ <$> $ᵗ (Equiv.Perm X)` under post-composition by any fixed `σ`.
   have hinv : ∀ σ : Equiv.Perm X,
-      evalDist ((fun f : Fin q ↪ X => f.trans σ.toEmbedding) <$>
-          (Φ <$> ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X))))
-        = evalDist (Φ <$> ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X))) := by
+      (fun f : Fin q ↪ X => f.trans σ.toEmbedding) <$>
+          (Φ <$> ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X)))
+        =ᵈ Φ <$> ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X)) := by
     intro σ
     have hcomp : ((fun f : Fin q ↪ X => f.trans σ.toEmbedding) <$>
           (Φ <$> ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X))))
@@ -87,16 +89,10 @@ theorem evalDist_map_trans_uniformPerm {X : Type} [FinEnum X] {q : ℕ}
         (funext fun π => Function.Embedding.ext fun i => rfl)
     rw [hcomp]
     exact EvalDistEq.map
-      (evalDist_ext (probOutput_map_bijective_uniformSample (Equiv.Perm X)
-        (Group.mulLeft_bijective σ))) Φ
-  refine ToVCVio.evalDist_eq_uniformSample_of_uniform _ ?_ ?_
-  · -- Full support: transitivity of the action hits every embedding.
-    intro e'
-    obtain ⟨σ, hσ⟩ := Equiv.Perm.exists_extending_pair e₀ e' e₀.injective e'.injective
-    rw [support_map, support_uniformSample]
-    exact ⟨σ, Set.mem_univ σ, Function.Embedding.ext fun i => hσ i⟩
-  · -- Pointwise uniformity: transport the mass along the transitive action.
-    intro e e'
+      (SampleableType.map_uniformSample_evalDistEq_of_bijective (Group.mulLeft_bijective σ)) Φ
+  refine ToVCVio.evalDistEq_uniformSample_of_uniform _ ?_
+  -- Pointwise uniformity: transport the mass along the transitive action.
+  · intro e e'
     obtain ⟨σ, hσ⟩ := Equiv.Perm.exists_extending_pair e e' e.injective e'.injective
     have he' : e' = e.trans σ.toEmbedding := Function.Embedding.ext fun i => (hσ i).symm
     have hTinj : Function.Injective (fun f : Fin q ↪ X => f.trans σ.toEmbedding) := by
@@ -107,18 +103,19 @@ theorem evalDist_map_trans_uniformPerm {X : Type} [FinEnum X] {q : ℕ}
         = Pr{let x ← ((fun f : Fin q ↪ X => f.trans σ.toEmbedding) <$>
             (Φ <$> ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X))))}[x = e.trans σ.toEmbedding] :=
           (prEvent_map_injective _ hTinj e).symm
-      _ = Pr{let x ← Φ <$> ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X))}[x = e.trans σ.toEmbedding] :=
-          evalDist_ext_iff.mp (hinv σ) _
+      _ = Pr{let x ←
+            Φ <$> ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X))}[x = e.trans σ.toEmbedding] :=
+          hinv σ (· = e.trans σ.toEmbedding)
       _ = Pr{let x ← Φ <$> ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X))}[x = e'] := by rw [he']
 
 /-- Let `pts = x₁, …, x_q` be fixed, pairwise-distinct elements of a finite set `X`. If `π` is a
 uniformly random permutation of `X`, then `(π(x₁), …, π(x_q))` is uniformly distributed over all
 ordered `q`-tuples of distinct elements of `X`. -/
-theorem evalDist_map_uniformPerm_eq_uniformDistinct {X : Type} [FinEnum X]
+theorem evalDistEq_map_uniformPerm_uniformDistinct {X : Type} [FinEnum X]
     (pts : List X) (hpts : pts.Nodup) :
-    evalDist ((fun π : Equiv.Perm X => pts.map π) <$>
-        ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X)))
-      = evalDist (sampleDistinctFrom X pts.length ⟨nodupEmbedding pts hpts⟩) := by
+    (fun π : Equiv.Perm X => pts.map π) <$>
+        ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X))
+      =ᵈ sampleDistinctFrom X pts.length ⟨nodupEmbedding pts hpts⟩ := by
   have hq : Nonempty (Fin pts.length ↪ X) := ⟨nodupEmbedding pts hpts⟩
   have hfun : ∀ π : Equiv.Perm X,
       pts.map π = List.ofFn ((nodupEmbedding pts hpts).trans π.toEmbedding) := by
@@ -137,16 +134,16 @@ theorem evalDist_map_uniformPerm_eq_uniformDistinct {X : Type} [FinEnum X]
     exact congrArg (· <$> ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X))) (funext hfun)
   rw [hmapeq, hRHS]
   exact EvalDistEq.map
-    (evalDist_map_trans_uniformPerm (nodupEmbedding pts hpts)) _
+    (evalDistEq_map_trans_uniformPerm (nodupEmbedding pts hpts)) _
 
 /-! ## The assembled fixed-list switching bound -/
 
 /-- Replacing each of two probabilistic computations by one with the same output distribution
 leaves their total-variation distance unchanged. -/
-private theorem tvDist_congr {α : Type} {m₁ m₂ m₃ m₄ : ProbComp α}
-    (h₁ : evalDist m₁ = evalDist m₂) (h₂ : evalDist m₃ = evalDist m₄) :
-    tvDist m₁ m₃ = tvDist m₂ m₄ := by
-  rw [tvDist, tvDist, h₁, h₂]
+private theorem measureTVDist_congr {α : Type} [MeasurableSpace α] {m₁ m₂ m₃ m₄ : ProbComp α}
+    (h₁ : m₁ =ᵈ m₂) (h₂ : m₃ =ᵈ m₄) :
+    measureTVDist m₁ m₃ = measureTVDist m₂ m₄ := by
+  rw [measureTVDist, measureTVDist, h₁.evalDist_eq, h₂.evalDist_eq]
 
 /-- Fixed-list PRP/PRF switching bound. Let `X` be a finite nonempty set of size
 `N = Fintype.card X`, and let `pts = x₁, …, x_q` be fixed, pairwise-distinct points of `X`.
@@ -154,12 +151,15 @@ private theorem tvDist_congr {α : Type} {m₁ m₂ m₃ m₄ : ProbComp α}
 The distributions of `(π(x₁), …, π(x_q))`, for a uniformly random permutation `π` of `X`, and
 `(y₁, …, y_q)`, for independent uniform samples `yᵢ` from `X`, have total-variation distance at
 most `q(q - 1)/(2N)`. -/
-theorem tvDist_map_uniformPerm_mapM_const_uniform_le {X : Type} [FinEnum X] [Nonempty X]
+theorem measureTVDist_map_uniformPerm_mapM_const_uniform_le {X : Type} [FinEnum X] [Nonempty X]
     (pts : List X) (hpts : pts.Nodup) :
-    tvDist ((fun π : Equiv.Perm X => pts.map π) <$>
+    letI : MeasurableSpace (List X) := ⊤
+    measureTVDist ((fun π : Equiv.Perm X => pts.map π) <$>
         ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X)))
         (pts.mapM (fun _ => ($ᵗ X : ProbComp X)))
       ≤ (pts.length * (pts.length - 1) : ℝ) / (2 * Fintype.card X) := by
+  let _ : MeasurableSpace (List X) := ⊤
+  let _ : MeasurableSpace (Fin pts.length → X) := ⊤
   let : DecidableEq X := Classical.decEq X
   have hq : Nonempty (Fin pts.length ↪ X) := ⟨nodupEmbedding pts hpts⟩
   have hNpos : 0 < Fintype.card X := Fintype.card_pos
@@ -169,13 +169,13 @@ theorem tvDist_map_uniformPerm_mapM_const_uniform_le {X : Type} [FinEnum X] [Non
   have hRHSperm : sampleDistinctFrom X pts.length ⟨nodupEmbedding pts hpts⟩
       = (fun e : Fin pts.length ↪ X => List.ofFn (e : Fin pts.length → X)) <$>
         ($ᵗ (Fin pts.length ↪ X) : ProbComp (Fin pts.length ↪ X)) := rfl
-  have hperm : evalDist ((fun π : Equiv.Perm X => pts.map π) <$>
-      ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X)))
-      = evalDist ((fun e : Fin pts.length ↪ X => List.ofFn (e : Fin pts.length → X)) <$>
-          ($ᵗ (Fin pts.length ↪ X) : ProbComp (Fin pts.length ↪ X))) := by
-    rw [evalDist_map_uniformPerm_eq_uniformDistinct pts hpts, hRHSperm]
+  have hperm : (fun π : Equiv.Perm X => pts.map π) <$>
+      ($ᵗ (Equiv.Perm X) : ProbComp (Equiv.Perm X))
+      =ᵈ (fun e : Fin pts.length ↪ X => List.ofFn (e : Fin pts.length → X)) <$>
+          ($ᵗ (Fin pts.length ↪ X) : ProbComp (Fin pts.length ↪ X)) := by
+    rw [← hRHSperm]; exact evalDistEq_map_uniformPerm_uniformDistinct pts hpts
   -- (b) The i.i.d. side, as a single uniform function draw.
-  rw [tvDist_congr hperm (evalDist_listMapM_uniform_eq_map_ofFn pts)]
+  rw [measureTVDist_congr hperm (evalDistEq_listMapM_uniform_map_ofFn pts)]
   -- (c) Strip the common `List.ofFn`, leaving the embedding coercion against the full function
   -- space. `rw [Functor.map_map]` is used forwards and beta-reduces, so the coercion side is
   -- stated in its already-beta-reduced shape.
@@ -186,9 +186,10 @@ theorem tvDist_map_uniformPerm_mapM_const_uniform_le {X : Type} [FinEnum X] [Non
           ($ᵗ (Fin pts.length ↪ X) : ProbComp (Fin pts.length ↪ X))) := by
     rw [Functor.map_map]
   rw [hmap]
-  refine (tvDist_map_le (List.ofFn : (Fin pts.length → X) → List X) _ _).trans ?_
+  refine (measureTVDist_map_le _ _ (List.ofFn : (Fin pts.length → X) → List X)
+    measurable_from_top).trans ?_
   -- (d) The distance itself, and the two cardinalities.
-  rw [tvDist_map_injective_uniformSample _ Function.Embedding.coe_injective,
+  rw [measureTVDist_map_injective_uniformSample _ Function.Embedding.coe_injective,
     Fintype.card_embedding_eq, Fintype.card_fun, Fintype.card_fin, Nat.cast_pow]
   -- (e) The birthday arithmetic, after the single `ℕ → ℝ` cast. `pts.length = 0` is a real
   -- degenerate case (both sides are `0`); `pts.Nodup` makes `pts.length > card X` vacuous,

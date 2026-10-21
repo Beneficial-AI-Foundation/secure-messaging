@@ -205,7 +205,8 @@ structure CoefficientFailureBound (p : ParameterSet) (ring : NTTRingOps)
   `foldedNoiseMeasure p r / (2 * noiseDenominator p)`. -/
   prob_le_of_decodeFailure : ∀ (i : Fin ringDegree) (b : Fin 2) (r : Coeff),
     coefficientDecodeFailure b r →
-    Pr{let dzm ← honestNoiseSample}[((Concrete.concreteEncoding (ParameterSet.params p)).byteDecode1 dzm.2.2).get i =
+    Pr{let dzm ← honestNoiseSample}[
+          ((Concrete.concreteEncoding (ParameterSet.params p)).byteDecode1 dzm.2.2).get i =
             ((b : ℕ) : Coeff) ∧
           (kpkeHonestNoise ring prims dzm.1 dzm.2.2).get i = r]
       ≤ (foldedNoiseMeasure p r : ℝ≥0∞) / (2 * noiseDenominator p)
@@ -279,9 +280,9 @@ theorem coordinateTail_le (p : ParameterSet) (ring : NTTRingOps)
     Pr{let x ← honestNoiseSample}[(coordinateDecodeFailureEvent ring
           (Concrete.concreteEncoding (ParameterSet.params p)) prims i) x] ≤
       (decodeFailureMass p : ℝ≥0∞) / (2 * noiseDenominator p) := by
-  refine le_trans (probEvent_mono''
+  refine le_trans (prEvent_mono _ _ _
       (coordinateDecodeFailure_exists_failing_pair p ring prims hRing i))
-    (le_trans (probEvent_exists_finset_le_sum _ honestNoiseSample _) ?_)
+    (le_trans (prEvent_exists_finset_le _ honestNoiseSample _) ?_)
   refine le_trans (Finset.sum_le_sum fun br hbr =>
       hModel.prob_le_of_decodeFailure i br.1 br.2 (Finset.mem_filter.mp hbr).2)
     (le_of_eq ?_)
