@@ -61,8 +61,7 @@ structure FSAEADScheme (K SS SR AD M C : Type) where
   initR : K → SR
   /-- `FS-Send(v, a, m) = (v', e)`. -/
   send : SS → AD → M → SS × C
-  /-- `FS-Rcv(v, a, e) = (v', i, m)`, or `none` if `e` is rejected. A rejection produces
-  no new state and no index. -/
+  /-- `FS-Rcv(v, a, e) = (v', i, m)`, or `none` if `e` is rejected. -/
   rcv : SR → AD → C → Option (SR × ℕ × M)
 ```
 ::::
