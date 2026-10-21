@@ -1,6 +1,5 @@
 import VersoManual
 import VersoBlueprint
-import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Bibliography
 
 open Verso.Genre
@@ -22,9 +21,10 @@ The pseudocode in each {bpref "opp_bikem_cka_spec"}[Opp-BiKEM] and
 The Lean implementations record them in the module docstrings of
 `SecureMessaging/SCKA/OppBiKEM/Construction.lean` and `SecureMessaging/SCKA/OppUniKEM/Construction.lean`.
 
-::::gameCell "\\textsf{SCKA errata}" (kind := "errata")
-
-*Erratum 1: Opp-BiKEM sending is blocked under the strict failure convention.*
+# Erratum 1: Opp-BiKEM sending is blocked under the strict failure convention
+%%%
+number := false
+%%%
 
 In Figures 17–18, `CKA-Send-P` can reach line 19, `ch ← Encode(ct_P, i_ch)`,
 with `ct_P = ⊥`, where `P` stands for either `A` or `B`.
@@ -59,7 +59,10 @@ The {bpref "opp_bikem_cka_spec"}[shared send] of `OppBiKEM/Construction.lean` in
 recorded as correction 4 in its module docstring.
 Figure 19, {bpref "opp_rkem_cka_spec"}[Opp-RKEM-CKA], has the same pattern in `CKA-Send-A` lines 13–21.
 
-*Erratum 2: Opp-BiKEM public-key acknowledgements use the wrong indices.*
+# Erratum 2: Opp-BiKEM public-key acknowledgements use the wrong indices
+%%%
+number := false
+%%%
 
 In Figures 17–18, Send line 21 sends the `ek-rec` acknowledgement at the wrong epoch.
 Rec line 8 also records it at the wrong epoch.
@@ -94,7 +97,10 @@ The printed indices differ by two epochs, and with them, neither party learns th
 The boxes in the {bpref "opp_bikem_cka_spec"}[shared send and receive] mark the corrected indices,
 and `OppBiKEM/Construction.lean` records them as correction 3 in its module docstring.
 
-*Erratum 3: Opp-BiKEM variable typos in Send-B and Rec-A.*
+# Erratum 3: Opp-BiKEM variable typos in Send-B and Rec-A
+%%%
+number := false
+%%%
 
 In Figure 18, `CKA-Send-B`, lines 8, 9, and 13 use `t_res-A`, which is absent from B's state.
 The corrected variable is $`\boxed{t_{\mathrm{res}\text{-}B}}`, as in lines 14–16.
@@ -105,7 +111,10 @@ The corrected assignment is `ct_B ← Decode(L_ch)`, with $`\boxed{\mathit{ct}_B
 The boxes in the {bpref "opp_bikem_cka_spec"}[shared send and receive] mark the corrected variables,
 and `OppBiKEM/Construction.lean` records them as correction 1 in its module docstring.
 
-*Erratum 4: Opp-UniKEM acknowledgements are recorded in the wrong epoch.*
+# Erratum 4: Opp-UniKEM acknowledgements are recorded in the wrong epoch
+%%%
+number := false
+%%%
 
 Let `t` be the receiver's epoch and `(ch, ack', t', b)` the received message.
 In Figure 16, `CKA-Rec-A` and `CKA-Rec-B` end by copying the sender's acknowledgement,
@@ -122,7 +131,10 @@ The correction is to record the acknowledgement only if $`t=t'` after processing
 The boxes in the {bpref "opp_unikem_cka_spec"}[receive algorithms] mark this guard,
 and `OppUniKEM/Construction.lean` implements it under "Acknowledgements" in its module docstring.
 
-*Erratum 5: Opp-UniKEM Rec-B returns the receiver's epoch.*
+# Erratum 5: Opp-UniKEM Rec-B returns the receiver's epoch
+%%%
+number := false
+%%%
 
 `CKA-Rec-B` (Figure 16, line 15) returns `((⊥, ⊥), t − 1, st)`, where `t` is B's epoch.
 The matching-epoch condition (Figure 1, `Receive-P` line 4: `assert t_rcv_P = t_snd_P̄`) requires the sender's value.
@@ -140,7 +152,10 @@ The correction is to return $`t'-1`.
 The box in {bpref "opp_unikem_cka_spec"}[`Rec-B`] marks the corrected value,
 and `OppUniKEM/Construction.lean` implements it under "Receiving epoch" in its module docstring.
 
-*Erratum 6: Make Opp-UniKEM Rec-A's chunk guards and abort behavior explicit.*
+# Erratum 6: Make Opp-UniKEM Rec-A's chunk guards and abort behavior explicit
+%%%
+number := false
+%%%
 
 The corrections to Figure 16's `CKA-Rec-A` distinguish absent chunks,
 incomplete decoding, and failure after decoding the online ciphertext `ct_1`.
@@ -157,4 +172,3 @@ The abort discards local state changes and skips acknowledgement processing.
 Only successful decapsulation produces the epoch key, erases the epoch's secrets, and advances A to epoch `t + 1`.
 The boxes in {bpref "opp_unikem_cka_spec"}[`Rec-A`] mark these checks.
 
-::::
