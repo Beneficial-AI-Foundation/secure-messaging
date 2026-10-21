@@ -50,8 +50,9 @@ variable {D R : Type} [DecidableEq D] [DecidableEq R] [SampleableType R]
 oracle returning `ρ(d)`, and a **verify** oracle reporting whether `r = ρ(d)`. -/
 abbrev forgeSpec (D R : Type) := unifSpec + (D →ₒ R) + (D × R →ₒ Bool)
 
-/-- Uniform-spec witness for `forgeSpec`: every oracle (uniform randomness, the eval random
-oracle on `R`, the verify oracle on `Bool`) samples uniformly over a finite, inhabited range. -/
+/-- `UniformAnswerMeasure` witness for `forgeSpec`: every oracle (uniform randomness, the eval
+random oracle on `R`, the verify oracle on `Bool`) samples uniformly over a finite, inhabited
+range. -/
 noncomputable instance [Fintype R] [Inhabited R] : UniformAnswerMeasure (forgeSpec D R) :=
   UniformAnswerMeasure.ofFiniteNonempty _
 
