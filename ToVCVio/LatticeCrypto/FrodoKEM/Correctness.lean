@@ -285,7 +285,7 @@ theorem entryToBits_bitsToEntry (p : Params) (hw : p.WellFormed) (v : Vector Boo
   intro l hl
   rw [entryToBits, Vector.getElem_ofFn, bitsToEntry, ZMod.val_natCast, hw.q_eq,
     Nat.mod_eq_of_lt (Nat.ofBits_lt_two_pow _), Nat.testBit_ofBits]
-  simp only [show p.D - 1 - l < p.D by omega, dif_pos]
+  simp only [show p.D - 1 - l < p.D by omega, dite_eq_left]
   congr 1
   omega
 

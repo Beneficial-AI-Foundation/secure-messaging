@@ -263,7 +263,7 @@ theorem currentEpochFailure_eq_transcript [DecidableEq P.K] [DecidableEq P.Epoch
   simp only [GameState.stateAt, ↓reduceIte] at hRoleA
   simp only [GameState.stateAt, Bool.false_eq_true, ↓reduceIte] at hRoleB
   by_cases hepoch : s.stA.epoch = s.stB.epoch
-  · rw [if_pos hepoch]
+  · rw [ite_eq_left hepoch]
     by_cases hrole : s.stA.controlPosition.isGenerator = true
     · have hAllowed := hPair.1.1 hepoch hrole
       have hKeyPeer := hKeys false s.stA.epoch
@@ -280,8 +280,8 @@ theorem currentEpochFailure_eq_transcript [DecidableEq P.K] [DecidableEq P.Epoch
         rcases hEncaps s.stA.epoch c.1 c.2.1 c.2.2 hc with ⟨hpos, hbound, pk, sk, hkp, _⟩
         have hbound' : s.stA.epoch ≤ s.stB.completedEpoch := by simpa [hOdd] using hbound
         exact ⟨hpos, hbound', (pk, sk), hkp⟩
-      simp only [currentEpochFailure, hrole, if_true]
-      rw [if_neg (not_ne_iff.mpr hepoch)]
+      simp only [currentEpochFailure, hrole, ite_true]
+      rw [ite_eq_right (not_ne_iff.mpr hepoch)]
       change pairFailure s.stA s.stB s.keyB = (T s.stA.epoch).failurePotential s.stA.epoch
       exact hRecover s.stA s.stB s.keyB s.stA.epoch rfl hepoch.symm
         hAllowed hLocalA hLocalB hKeyPeer hEncapsCurrent
@@ -308,18 +308,18 @@ theorem currentEpochFailure_eq_transcript [DecidableEq P.K] [DecidableEq P.Epoch
         have hbound' : s.stA.epoch ≤ s.stA.completedEpoch := by simpa [hEven] using hbound
         exact ⟨hpos, hbound', (pk, sk), hkp⟩
       simp only [currentEpochFailure, hroleFalse, Bool.false_eq_true, ↓reduceIte]
-      rw [if_neg (not_ne_iff.mpr hepoch.symm)]
+      rw [ite_eq_right (not_ne_iff.mpr hepoch.symm)]
       change pairFailure s.stB s.stA s.keyA = (T s.stA.epoch).failurePotential s.stA.epoch
       exact hRecover s.stB s.stA s.keyA s.stA.epoch hepoch.symm rfl
         hAllowed hLocalB hLocalA hKeyPeer hEncapsCurrent
-  · rw [if_neg hepoch]
+  · rw [ite_eq_right hepoch]
     by_cases hrole : s.stA.controlPosition.isGenerator = true
-    · simp only [currentEpochFailure, hrole, if_true]
-      rw [if_pos hepoch]
+    · simp only [currentEpochFailure, hrole, ite_true]
+      rw [ite_eq_left hepoch]
     · have hroleFalse : s.stA.controlPosition.isGenerator = false :=
         Bool.eq_false_of_not_eq_true hrole
       simp only [currentEpochFailure, hroleFalse, Bool.false_eq_true, ↓reduceIte]
-      rw [if_pos (Ne.symm hepoch)]
+      rw [ite_eq_left (Ne.symm hepoch)]
 
 /-- The version of `currentEpochFailure_eq_transcript` using `party` to name the epoch. -/
 theorem currentEpochFailure_eq_transcript_party [DecidableEq P.K] [DecidableEq P.EpochKey]
@@ -334,7 +334,7 @@ theorem currentEpochFailure_eq_transcript_party [DecidableEq P.K] [DecidableEq P
   · by_cases heq : s.stA.epoch = s.stB.epoch
     · simp only [GameState.stateAt, Bool.not_false, Bool.false_eq_true, ↓reduceIte, heq]
     · simp only [GameState.stateAt, Bool.not_false, Bool.false_eq_true, ↓reduceIte,
-        if_neg heq, if_neg (Ne.symm heq)]
+        ite_eq_right heq, ite_eq_right (Ne.symm heq)]
   · rfl
 
 end MLKEMBraid

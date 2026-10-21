@@ -193,7 +193,7 @@ lemma advance_prereqs
       obtain ⟨hp, hpos, -, hkey, -⟩ := hS.dk_T _ sk hmem
       have henc := hS.ctRec_req_enc _ hgate.2 hpos hp
       have := hS.key_req _ hpos hp
-      rw [if_pos hgate.2, EpochTranscript.key] at this
+      rw [ite_eq_left hgate.2, EpochTranscript.key] at this
       obtain ⟨⟨c, k⟩, hck⟩ := Option.isSome_iff_exists.mp henc
       rw [hck] at this
       rw [this] at hkey
@@ -539,7 +539,7 @@ lemma tracked_sendA_score_le
     simp only [h1, kemFailure_eq_pairA, SCKAScheme.sendAUpdate_stA, SCKAScheme.sendAUpdate_stB,
       SCKAScheme.sendAUpdate_keyA_none, SCKAScheme.sendAUpdate_keyB]
     rw [pairFailure_advance hA hB ecEk kp hgate.2]
-    simp only [trackedScore, Bool.false_eq_true, if_false, failurePotential_eq_pairA,
+    simp only [trackedScore, Bool.false_eq_true, ite_false, failurePotential_eq_pairA,
       SCKAScheme.sendAUpdate_stA, SCKAScheme.sendAUpdate_stB, SCKAScheme.sendAUpdate_keyA_none,
       SCKAScheme.sendAUpdate_keyB]
     exact pairPotential_advance hA hB ecEk kp hgate.2
@@ -581,7 +581,7 @@ lemma tracked_sendA_score_le
         simp only [kemFailure_eq_pairA, SCKAScheme.sendAUpdate_stA, SCKAScheme.sendAUpdate_stB,
           SCKAScheme.sendAUpdate_keyA_none, SCKAScheme.sendAUpdate_keyB]
         rw [hfl, hfailA]
-        simp only [trackedScore, Bool.false_eq_true, if_false, failurePotential_eq_pairA,
+        simp only [trackedScore, Bool.false_eq_true, ite_false, failurePotential_eq_pairA,
           SCKAScheme.sendAUpdate_stA, SCKAScheme.sendAUpdate_stB, SCKAScheme.sendAUpdate_keyA_none,
           SCKAScheme.sendAUpdate_keyB]
         rw [hpot]
@@ -612,7 +612,7 @@ lemma tracked_sendB_score_le
     simp only [h1, kemFailure_eq_pairB, SCKAScheme.sendBUpdate_stA, SCKAScheme.sendBUpdate_stB,
       SCKAScheme.sendBUpdate_keyB_none, SCKAScheme.sendBUpdate_keyA]
     rw [pairFailure_advance hB hA ecEk kp hgate.2]
-    simp only [trackedScore, Bool.false_eq_true, if_false, failurePotential_eq_pairB,
+    simp only [trackedScore, Bool.false_eq_true, ite_false, failurePotential_eq_pairB,
       SCKAScheme.sendBUpdate_stA, SCKAScheme.sendBUpdate_stB, SCKAScheme.sendBUpdate_keyB_none,
       SCKAScheme.sendBUpdate_keyA]
     exact pairPotential_advance hB hA ecEk kp hgate.2
@@ -654,7 +654,7 @@ lemma tracked_sendB_score_le
         simp only [kemFailure_eq_pairB, SCKAScheme.sendBUpdate_stA, SCKAScheme.sendBUpdate_stB,
           SCKAScheme.sendBUpdate_keyB_none, SCKAScheme.sendBUpdate_keyA]
         rw [hfl, hfailB]
-        simp only [trackedScore, Bool.false_eq_true, if_false, failurePotential_eq_pairB,
+        simp only [trackedScore, Bool.false_eq_true, ite_false, failurePotential_eq_pairB,
           SCKAScheme.sendBUpdate_stA, SCKAScheme.sendBUpdate_stB, SCKAScheme.sendBUpdate_keyB_none,
           SCKAScheme.sendBUpdate_keyA]
         rw [hpot]
@@ -680,14 +680,14 @@ lemma tracked_step_score_le (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
   · rcases hp with h | ⟨hs, hfail⟩
     · exact absurd h Bool.false_ne_true
     · by_cases hsend : SCKAScheme.isSendQuery t = true
-      · rw [if_pos hsend]
+      · rw [ite_eq_left hsend]
         rcases t with (((m | ⟨⟩) | ⟨⟩) | m) | m
         · exact absurd hsend (by simp [SCKAScheme.isSendQuery])
         · exact tracked_sendA_score_le kem hDet ecEk ecCt leak s hs hfail
         · exact tracked_sendB_score_le kem hDet ecEk ecCt leak s hs hfail
         · exact absurd hsend (by simp [SCKAScheme.isSendQuery])
         · exact absurd hsend (by simp [SCKAScheme.isSendQuery])
-      · rw [if_neg hsend, add_zero]
+      · rw [ite_eq_right hsend, add_zero]
         exact tracked_nonSend_score_le kem hDet ecEk ecCt hEk hCt leak t hsend s hs hfail
   · exact tracked_step_score_le_of_flag kem hDet ecEk ecCt leak t s _
 

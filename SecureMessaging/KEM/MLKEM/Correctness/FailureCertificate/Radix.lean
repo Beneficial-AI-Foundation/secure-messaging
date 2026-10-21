@@ -166,9 +166,9 @@ private theorem sum_mul_pow_pad {R q n : ℕ} (hqn : q ≤ n) (f : ℕ → ℕ) 
       ∑ t ∈ Finset.range n, (if t < q then f t else 0) * R ^ t := by
   rw [show (∑ t ∈ Finset.range q, f t * R ^ t) =
       ∑ t ∈ Finset.range q, (if t < q then f t else 0) * R ^ t from
-    Finset.sum_congr rfl fun t ht => by rw [if_pos (Finset.mem_range.mp ht)]]
+    Finset.sum_congr rfl fun t ht => by rw [ite_eq_left (Finset.mem_range.mp ht)]]
   exact Finset.sum_subset (Finset.range_subset_range.mpr hqn) fun t _ htq => by
-    rw [if_neg (by simpa [Finset.mem_range] using htq), zero_mul]
+    rw [ite_eq_right (by simpa [Finset.mem_range] using htq), zero_mul]
 
 /-- A range sum of radix terms in blocks: `b` blocks of `a` digits, with the
 block shift pulled out as a power of `R ^ a`. -/
@@ -393,7 +393,7 @@ theorem seqMeasure_apply {q t : ℕ} (f : ℕ → ℕ) (ht : t < q) :
     rw [AddMonoidAlgebra.coeff_single, Finsupp.single_apply]
     exact if_congr Int.natCast_inj rfl rfl
   rw [Finset.sum_congr rfl hcong, Finset.sum_ite_eq' (Finset.range q) t fun x => f x,
-    if_pos (Finset.mem_range.mpr ht)]
+    ite_eq_left (Finset.mem_range.mpr ht)]
 
 theorem measureWindow_seqMeasure (q : ℕ) (f : ℕ → ℕ) :
     MeasureWindow (seqMeasure q f) 0 ((q : ℤ) - 1) := by

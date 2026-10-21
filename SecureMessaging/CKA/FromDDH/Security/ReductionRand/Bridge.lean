@@ -372,9 +372,9 @@ lemma probOutput_securityReductionRandGame_eq_honestTrue
     Pr{let x ← securityExpRandGame (gen := gen) gp adversary}[x = false] := by
   unfold securityReductionRandGame securityExpRandGame
   by_cases h_special_case : gp.challengeEpoch = 1 ∧ gp.challengedParty = .A
-  · simp only [reductionInitState, if_pos h_special_case, pure_bind]
+  · simp only [reductionInitState, ite_eq_left h_special_case, pure_bind]
     exact probOutput_special_pointwise_rand (gen := gen) gp hΔFS hΔPCS hg h_special_case adversary
-  · simp only [reductionInitState, if_neg h_special_case, bind_assoc, pure_bind]
+  · simp only [reductionInitState, ite_eq_right h_special_case, bind_assoc, pure_bind]
     exact probOutput_general_pointwise_rand (gen := gen) gp hΔFS hΔPCS hg h_special_case adversary
 
 

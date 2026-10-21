@@ -283,11 +283,11 @@ lemma pendingTerm_eq [DecidableEq K] (e : ℤ) (sk : SK) (hmem : (e, sk) ∈ st.
   have hkey := peerKey_eq_key_of_dk h h' e sk hmem
   by_cases henc : (T e).enc = none
   · have hnone : peerKey e.toNat = none := by rw [hkey, EpochTranscript.key, henc]; rfl
-    rw [if_pos henc]
+    rw [ite_eq_left henc]
     rcases hav with hpk | ⟨hpeer, hek⟩
     · exact pendingTerm_of_ekPeer hDet hnone hpk
     · exact pendingTerm_of_ek hDet hnone hpeer hek
-  · rw [if_neg henc]
+  · rw [ite_eq_right henc]
     apply pendingTerm_of_key_some
     rw [hkey, EpochTranscript.key]
     obtain ⟨⟨c, k⟩, hck⟩ := Option.ne_none_iff_exists'.mp henc

@@ -107,53 +107,53 @@ private lemma recv_nonstale_non_ciphertext_view
   rw [recv]
   dsimp only
   by_cases hctRec : ρ.ack.ctRec = true <;>
-    simp only [hctRec, Bool.false_eq_true, if_true, if_false]
+    simp only [hctRec, Bool.false_eq_true, ite_true, ite_false]
   all_goals
     by_cases hekRec : ρ.ack.ekRec = true <;>
-      simp only [hekRec, Bool.false_eq_true, if_true, if_false]
-  all_goals simp only [hstale, if_false]
+      simp only [hekRec, Bool.false_eq_true, ite_true, ite_false]
+  all_goals simp only [hstale, ite_false]
   all_goals
     by_cases hadvance : st.req.reqEpoch < ρ.tRes <;>
-      simp only [hadvance, if_true, if_false]
+      simp only [hadvance, ite_true, ite_false]
   all_goals
     by_cases hpk :
         (st.res.ekPeer (q - role.offset)).isNone = true ∧ ρ.bit = some 0
-    · simp only [q, hadvance, if_true, if_false] at hpk
+    · simp only [q, hadvance, ite_true, ite_false] at hpk
       simp only [hpk]
       cases hdecode : (insertChunkAndDecode ecEk st.req.receivedChunks ρ.ch) with
       | mk chunksEk peerEk? =>
           cases hpeerEk : peerEk? with
           | none =>
-              simp only [true_and, if_true]
+              simp only [true_and, ite_true]
               by_cases hclearCt : st.res.resEpoch ∈ ack.ctRec <;>
                 simp only [ack, hctRec, Bool.false_eq_true,
-                  if_true, if_false] at hclearCt <;>
+                  ite_true, ite_false] at hclearCt <;>
                 by_cases hclearEk : st.res.resEpoch + role.offset ∈ ack.ekRec <;>
                 simp only [ack, hekRec, Bool.false_eq_true,
-                  if_true, if_false] at hclearEk <;>
-                simp only [hclearCt, hclearEk, if_true, if_false,
+                  ite_true, ite_false] at hclearEk <;>
+                simp only [hclearCt, hclearEk, ite_true, ite_false,
                   Option.pure_def, Option.map_some]
           | some peerEk =>
-              simp only [true_and, if_true]
+              simp only [true_and, ite_true]
               by_cases hclearCt : st.res.resEpoch ∈ ack.ctRec <;>
                 simp only [ack, hctRec, Bool.false_eq_true,
-                  if_true, if_false] at hclearCt <;>
+                  ite_true, ite_false] at hclearCt <;>
                 by_cases hclearEk :
                     st.res.resEpoch + role.offset ∈ insert (q - role.offset) ack.ekRec <;>
                 simp only [ack, q, hekRec, hadvance,
-                  Bool.false_eq_true, if_true, if_false] at hclearEk <;>
-                simp only [hclearCt, hclearEk, if_true, if_false,
+                  Bool.false_eq_true, ite_true, ite_false] at hclearEk <;>
+                simp only [hclearCt, hclearEk, ite_true, ite_false,
                   Option.pure_def, Option.map_some]
-    · simp only [q, hadvance, if_true, if_false] at hpk
-      simp only [hpk, if_false]
+    · simp only [q, hadvance, ite_true, ite_false] at hpk
+      simp only [hpk, ite_false]
       simp only [hbit, and_false]
       by_cases hclearCt : st.res.resEpoch ∈ ack.ctRec <;>
         simp only [ack, hctRec, Bool.false_eq_true,
-          if_true, if_false] at hclearCt <;>
+          ite_true, ite_false] at hclearCt <;>
         by_cases hclearEk : st.res.resEpoch + role.offset ∈ ack.ekRec <;>
         simp only [ack, hekRec, Bool.false_eq_true,
-          if_true, if_false] at hclearEk <;>
-        simp only [hclearCt, hclearEk, if_true, if_false,
+          ite_true, ite_false] at hclearEk <;>
+        simp only [hclearCt, hclearEk, ite_true, ite_false,
           Option.pure_def, Option.map_some]
 
 /-- The branch of `recv` for a non-stale ciphertext message, projected to the same fields:
@@ -221,56 +221,56 @@ private lemma recv_nonstale_ciphertext_view
   rw [recv]
   dsimp only
   by_cases hctRec : ρ.ack.ctRec = true <;>
-    simp only [hctRec, Bool.false_eq_true, if_true, if_false]
+    simp only [hctRec, Bool.false_eq_true, ite_true, ite_false]
   all_goals
     by_cases hekRec : ρ.ack.ekRec = true <;>
-      simp only [hekRec, Bool.false_eq_true, if_true, if_false]
-  all_goals simp only [hstale, if_false]
+      simp only [hekRec, Bool.false_eq_true, ite_true, ite_false]
+  all_goals simp only [hstale, ite_false]
   all_goals
     by_cases hadvance : st.req.reqEpoch < ρ.tRes <;>
-      simp only [hadvance, if_true, if_false]
-  all_goals simp only [q, hadvance, if_true, if_false] at hnotpk
-  all_goals simp only [hnotpk, if_false]
+      simp only [hadvance, ite_true, ite_false]
+  all_goals simp only [q, hadvance, ite_true, ite_false] at hnotpk
+  all_goals simp only [hnotpk, ite_false]
   all_goals
     by_cases hguard : q ∉ ack.ctRec
     · simp only [ack, q, hctRec, hadvance,
-        Bool.false_eq_true, if_true, if_false] at hguard
+        Bool.false_eq_true, ite_true, ite_false] at hguard
       simp only [hguard, hbit, and_true]
       cases hdecode : (insertChunkAndDecode ecCt st.req.receivedChunks ρ.ch) with
       | mk chunksCt peerCt? =>
           cases hpeerCt : peerCt? with
           | none =>
-              simp only [not_false_eq_true, if_true]
+              simp only [not_false_eq_true, ite_true]
               by_cases hclearCt : st.res.resEpoch ∈ ack.ctRec <;>
                 simp only [ack, hctRec, Bool.false_eq_true,
-                  if_true, if_false] at hclearCt <;>
+                  ite_true, ite_false] at hclearCt <;>
                 by_cases hclearEk : st.res.resEpoch + role.offset ∈ ack.ekRec <;>
                 simp only [ack, hekRec, Bool.false_eq_true,
-                  if_true, if_false] at hclearEk <;>
-                simp only [hclearCt, hclearEk, if_true, if_false,
+                  ite_true, ite_false] at hclearEk <;>
+                simp only [hclearCt, hclearEk, ite_true, ite_false,
                   Option.pure_def, Option.map_some]
           | some ciphertext =>
               cases hlookup :
                   (List.lookup (α := ℤ) (β := SK) q st.req.dk) with
               | none =>
-                  simp only [q, hadvance, if_true, if_false] at hlookup
-                  simp only [not_false_eq_true, if_true]
+                  simp only [q, hadvance, ite_true, ite_false] at hlookup
+                  simp only [not_false_eq_true, ite_true]
                   simp only [Option.bind_eq_bind]
                   rw [hlookup]
                   simp only [Option.bind_none, Option.map_none]
               | some secretKey =>
                   cases hdecaps : (hDet.decapsDet secretKey ciphertext) with
                   | none =>
-                      simp only [q, hadvance, if_true, if_false] at hlookup
-                      simp only [not_false_eq_true, if_true]
+                      simp only [q, hadvance, ite_true, ite_false] at hlookup
+                      simp only [not_false_eq_true, ite_true]
                       simp only [Option.bind_eq_bind]
                       rw [hlookup]
                       simp only [Option.bind_some]
                       rw [hdecaps]
                       simp only [Option.bind_none, Option.map_none]
                   | some key =>
-                      simp only [q, hadvance, if_true, if_false] at hlookup
-                      simp only [not_false_eq_true, if_true]
+                      simp only [q, hadvance, ite_true, ite_false] at hlookup
+                      simp only [not_false_eq_true, ite_true]
                       simp only [Option.bind_eq_bind]
                       rw [hlookup]
                       simp only [Option.bind_some]
@@ -279,23 +279,23 @@ private lemma recv_nonstale_ciphertext_view
                       by_cases hclearCt :
                           st.res.resEpoch ∈ insert q ack.ctRec <;>
                         simp only [ack, q, hctRec, hadvance,
-                          Bool.false_eq_true, if_true, if_false] at hclearCt <;>
+                          Bool.false_eq_true, ite_true, ite_false] at hclearCt <;>
                         by_cases hclearEk :
                             st.res.resEpoch + role.offset ∈ ack.ekRec <;>
                         simp only [ack, hekRec, Bool.false_eq_true,
-                          if_true, if_false] at hclearEk <;>
-                        simp only [hclearCt, hclearEk, if_true, if_false,
+                          ite_true, ite_false] at hclearEk <;>
+                        simp only [hclearCt, hclearEk, ite_true, ite_false,
                           Option.pure_def, Option.map_some]
     · simp only [ack, q, hctRec, hadvance,
-        Bool.false_eq_true, if_true, if_false] at hguard
-      simp only [hguard, false_and, if_false]
+        Bool.false_eq_true, ite_true, ite_false] at hguard
+      simp only [hguard, false_and, ite_false]
       by_cases hclearCt : st.res.resEpoch ∈ ack.ctRec <;>
         simp only [ack, hctRec, Bool.false_eq_true,
-          if_true, if_false] at hclearCt <;>
+          ite_true, ite_false] at hclearCt <;>
         by_cases hclearEk : st.res.resEpoch + role.offset ∈ ack.ekRec <;>
         simp only [ack, hekRec, Bool.false_eq_true,
-          if_true, if_false] at hclearEk <;>
-        simp only [hclearCt, hclearEk, if_true, if_false,
+          ite_true, ite_false] at hclearEk <;>
+        simp only [hclearCt, hclearEk, ite_true, ite_false,
           Option.pure_def, Option.map_some]
 
 /-- A successful receive reports the message's sending epoch, keeps the responder epoch and
@@ -339,7 +339,7 @@ lemma recv_success_state_facts
     intro t ht
     unfold ack
     by_cases hctRec : ρ.ack.ctRec = true
-    · simp only [hctRec, if_true]
+    · simp only [hctRec, ite_true]
       exact Finset.mem_insert_of_mem ht
     · simp only [hctRec]
       exact ht
@@ -347,20 +347,20 @@ lemma recv_success_state_facts
     intro t ht
     unfold ack
     by_cases hekRec : ρ.ack.ekRec = true
-    · simp only [hekRec, if_true]
+    · simp only [hekRec, ite_true]
       exact Finset.mem_insert_of_mem ht
     · simp only [hekRec]
       exact ht
   have hctReported : ρ.ack.ctRec = true → ρ.tReq ∈ ack.ctRec := by
     intro hctRec
     unfold ack
-    simp only [hctRec, if_true]
+    simp only [hctRec, ite_true]
     exact Finset.mem_insert_self _ _
   have hekReported :
       ρ.ack.ekRec = true → ρ.tReq + role.offset ∈ ack.ekRec := by
     intro hekRec
     unfold ack
-    simp only [hekRec, if_true]
+    simp only [hekRec, ite_true]
     exact Finset.mem_insert_self _ _
   by_cases hstale : ρ.tRes < st.req.reqEpoch
   · have hview := congrArg
@@ -372,20 +372,20 @@ lemma recv_success_state_facts
     rw [recv] at hview
     dsimp only at hview
     by_cases hctRec : ρ.ack.ctRec = true <;>
-      simp only [hctRec, Bool.false_eq_true, if_true, if_false] at hview
+      simp only [hctRec, Bool.false_eq_true, ite_true, ite_false] at hview
     all_goals
       by_cases hekRec : ρ.ack.ekRec = true <;>
-        simp only [hekRec, Bool.false_eq_true, if_true, if_false] at hview
-    all_goals simp only [hstale, if_true, Option.pure_def, Option.map_some] at hview
+        simp only [hekRec, Bool.false_eq_true, ite_true, ite_false] at hview
+    all_goals simp only [hstale, ite_true, Option.pure_def, Option.map_some] at hview
     all_goals
       have hadvance : ¬ st.req.reqEpoch < ρ.tRes :=
         not_lt.mpr (le_of_lt hstale)
-      simp only [ack, hctRec, hekRec, if_true] at hctSubset hekSubset
+      simp only [ack, hctRec, hekRec, ite_true] at hctSubset hekSubset
       have htuple := Option.some.inj hview
       simp only [Prod.mk.injEq] at htuple
       rcases htuple with ⟨_, hres, hich, hreq, hdk, _, hack⟩
       refine ⟨htrcv, hres.symm, hich.symm, ?_, ?_, ?_, ?_, ?_, ?_⟩
-      · simp only [hadvance, if_false]
+      · simp only [hadvance, ite_false]
         exact hreq.symm
       · intro t ht
         rw [← hack]
@@ -396,12 +396,12 @@ lemma recv_success_state_facts
       · intro hct
         rw [← hack]
         have hctMem := hctReported hct
-        simp only [ack, hctRec, if_true] at hctMem
+        simp only [ack, hctRec, ite_true] at hctMem
         exact hctMem
       · intro hek
         rw [← hack]
         have hekMem := hekReported hek
-        simp only [ack, hekRec, if_true] at hekMem
+        simp only [ack, hekRec, ite_true] at hekMem
         exact hekMem
       · intro _
         exact hdk.symm
@@ -577,7 +577,7 @@ lemma recv_emitted_key_facts
     intro t ht
     unfold ack
     by_cases hctRec : ρ.ack.ctRec = true
-    · simp only [hctRec, if_true]
+    · simp only [hctRec, ite_true]
       exact Finset.mem_insert_of_mem ht
     · simp only [hctRec]
       exact ht
@@ -587,12 +587,12 @@ lemma recv_emitted_key_facts
     rw [recv] at hkeyView
     dsimp only at hkeyView
     by_cases hctRec : ρ.ack.ctRec = true <;>
-      simp only [hctRec, Bool.false_eq_true, if_true, if_false] at hkeyView
+      simp only [hctRec, Bool.false_eq_true, ite_true, ite_false] at hkeyView
     all_goals
       by_cases hekRec : ρ.ack.ekRec = true <;>
-        simp only [hekRec, Bool.false_eq_true, if_true, if_false] at hkeyView
+        simp only [hekRec, Bool.false_eq_true, ite_true, ite_false] at hkeyView
     all_goals
-      simp only [hstale, if_true, Option.pure_def, Option.map_some] at hkeyView
+      simp only [hstale, ite_true, Option.pure_def, Option.map_some] at hkeyView
     all_goals
       have hnone := Option.some.inj hkeyView
       cases hnone
@@ -641,7 +641,7 @@ lemma recv_emitted_key_facts
           rcases hkey' with ⟨htI, hdecodedKey⟩
           have hguard : q ∉ ack.ctRec := by
             intro hmem
-            simp only [decoded, hmem, not_true_eq_false, if_false] at hdecoded
+            simp only [decoded, hmem, not_true_eq_false, ite_false] at hdecoded
             cases hdecoded
           have hdecode :
               (insertChunkAndDecode ecCt st.req.receivedChunks ρ.ch).2 =
@@ -710,28 +710,28 @@ lemma recv_local_publicKey_eq_or_none
   rw [recv] at hproj
   dsimp only at hproj
   by_cases hctRec : ρ.ack.ctRec = true <;>
-    simp only [hctRec, Bool.false_eq_true, if_true, if_false] at hproj
+    simp only [hctRec, Bool.false_eq_true, ite_true, ite_false] at hproj
   all_goals
     by_cases hekRec : ρ.ack.ekRec = true <;>
-      simp only [hekRec, Bool.false_eq_true, if_true, if_false] at hproj
+      simp only [hekRec, Bool.false_eq_true, ite_true, ite_false] at hproj
   all_goals
     by_cases hstale : ρ.tRes < st.req.reqEpoch <;>
-      simp only [hstale, if_true, if_false] at hproj
+      simp only [hstale, ite_true, ite_false] at hproj
   all_goals try
     (simp only [Option.pure_def, Option.map_some] at hproj
      exact Or.inl (Option.some.inj hproj).symm)
   all_goals
     by_cases hadvance : st.req.reqEpoch < ρ.tRes <;>
-      simp only [hadvance, if_true, if_false] at hproj
+      simp only [hadvance, ite_true, ite_false] at hproj
   all_goals
     by_cases hpk :
         (st.res.ekPeer
           ((if st.req.reqEpoch < ρ.tRes then st.req.reqEpoch + 2
             else st.req.reqEpoch) - role.offset)).isNone = true ∧
         ρ.bit = some 0
-    · simp only [hadvance, if_true, if_false] at hpk
+    · simp only [hadvance, ite_true, ite_false] at hpk
       simp only [hpk] at hproj
-      simp only [true_and, if_true] at hproj
+      simp only [true_and, ite_true] at hproj
       cases hdecode : (insertChunkAndDecode ecEk st.req.receivedChunks ρ.ch).2 <;>
         simp only [hdecode] at hproj
       all_goals
@@ -740,8 +740,8 @@ lemma recv_local_publicKey_eq_or_none
         all_goals first
           | exact Or.inl (Option.some.inj hproj).symm
           | exact Or.inr (Option.some.inj hproj).symm
-    · simp only [hadvance, if_true, if_false] at hpk
-      simp only [hpk, if_false] at hproj
+    · simp only [hadvance, ite_true, ite_false] at hpk
+      simp only [hpk, ite_false] at hproj
       repeat' split at hproj
       all_goals try simp only [Option.bind_eq_bind,
         Option.bind] at hproj
@@ -780,28 +780,28 @@ lemma recv_peerKeys_stable [DecidableEq Sym]
   rw [recv] at hproj
   dsimp only at hproj
   by_cases hctRec : ρ.ack.ctRec = true <;>
-    simp only [hctRec, Bool.false_eq_true, if_true, if_false] at hproj
+    simp only [hctRec, Bool.false_eq_true, ite_true, ite_false] at hproj
   all_goals
     by_cases hekRec : ρ.ack.ekRec = true <;>
-      simp only [hekRec, Bool.false_eq_true, if_true, if_false] at hproj
+      simp only [hekRec, Bool.false_eq_true, ite_true, ite_false] at hproj
   all_goals
     by_cases hstale : ρ.tRes < st.req.reqEpoch <;>
-      simp only [hstale, if_true, if_false] at hproj
+      simp only [hstale, ite_true, ite_false] at hproj
   all_goals try
     (simp only [Option.pure_def, Option.map_some] at hproj
      exact (Option.some.inj hproj).symm)
   all_goals
     by_cases hadvance : st.req.reqEpoch < ρ.tRes <;>
-      simp only [hadvance, if_true, if_false] at hproj
+      simp only [hadvance, ite_true, ite_false] at hproj
   all_goals
     by_cases hpk :
         (st.res.ekPeer
           ((if st.req.reqEpoch < ρ.tRes then st.req.reqEpoch + 2
             else st.req.reqEpoch) - role.offset)).isNone = true ∧
         ρ.bit = some 0
-    · simp only [hadvance, if_true, if_false] at hpk
+    · simp only [hadvance, ite_true, ite_false] at hpk
       simp only [hpk] at hproj
-      simp only [true_and, if_true] at hproj
+      simp only [true_and, ite_true] at hproj
       cases hdecode : (insertChunkAndDecode ecEk st.req.receivedChunks ρ.ch).2 <;>
         simp only [hdecode] at hproj
       all_goals repeat' split at hproj
@@ -810,8 +810,8 @@ lemma recv_peerKeys_stable [DecidableEq Sym]
         | exact (Option.some.inj hproj).symm
         | exact (Option.some.inj hproj).symm.trans
             (Function.update_of_ne (hne _ hpk.1) _ _)
-    · simp only [hadvance, if_true, if_false] at hpk
-      simp only [hpk, if_false] at hproj
+    · simp only [hadvance, ite_true, ite_false] at hpk
+      simp only [hpk, ite_false] at hproj
       repeat' split at hproj
       all_goals try simp only [Option.bind_eq_bind,
         Option.bind] at hproj
@@ -842,29 +842,29 @@ lemma recv_peerKeys_origin [DecidableEq Sym]
   rw [recv] at hproj
   dsimp only at hproj
   by_cases hctRec : ρ.ack.ctRec = true <;>
-    simp only [hctRec, Bool.false_eq_true, if_true, if_false] at hproj
+    simp only [hctRec, Bool.false_eq_true, ite_true, ite_false] at hproj
   all_goals
     by_cases hekRec : ρ.ack.ekRec = true <;>
-      simp only [hekRec, Bool.false_eq_true, if_true, if_false] at hproj
+      simp only [hekRec, Bool.false_eq_true, ite_true, ite_false] at hproj
   all_goals
     by_cases hstale : ρ.tRes < st.req.reqEpoch <;>
-      simp only [hstale, if_true, if_false] at hproj
+      simp only [hstale, ite_true, ite_false] at hproj
   -- Stale leaves keep both the requester epoch and `ekPeer`.
   all_goals try
     (simp only [Option.pure_def, Option.map_some] at hproj
      exact Or.inl (Prod.mk.inj (Option.some.inj hproj)).2.symm)
   all_goals
     by_cases hadvance : st.req.reqEpoch < ρ.tRes <;>
-      simp only [hadvance, if_true, if_false] at hproj
+      simp only [hadvance, ite_true, ite_false] at hproj
   all_goals
     by_cases hpk :
         (st.res.ekPeer
           ((if st.req.reqEpoch < ρ.tRes then st.req.reqEpoch + 2
             else st.req.reqEpoch) - role.offset)).isNone = true ∧
         ρ.bit = some 0
-    · simp only [hadvance, if_true, if_false] at hpk
+    · simp only [hadvance, ite_true, ite_false] at hpk
       simp only [hpk] at hproj
-      simp only [true_and, if_true] at hproj
+      simp only [true_and, ite_true] at hproj
       cases hdecode : (insertChunkAndDecode ecEk st.req.receivedChunks ρ.ch).2 <;>
         simp only [hdecode] at hproj
       all_goals repeat' split at hproj
@@ -879,8 +879,8 @@ lemma recv_peerKeys_origin [DecidableEq Sym]
              split_ifs with htq
              · exact Or.inr htq
              · exact Or.inl rfl)
-    · simp only [hadvance, if_true, if_false] at hpk
-      simp only [hpk, if_false] at hproj
+    · simp only [hadvance, ite_true, ite_false] at hpk
+      simp only [hpk, ite_false] at hproj
       repeat' split at hproj
       all_goals try simp only [Option.bind_eq_bind,
         Option.bind] at hproj

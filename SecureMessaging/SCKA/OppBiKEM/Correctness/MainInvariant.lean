@@ -365,7 +365,7 @@ lemma keys_of_ctRec {kem : KEMScheme ProbComp K PK SK C}
     obtain ⟨⟨c, k⟩, hck⟩ := Option.isSome_iff_exists.mp henc
     have hp' : t % 2 = role.peer.resParity := by simpa using hp
     refine ⟨?_, ?_⟩
-    · rw [h.key_req t hpos hp, if_pos ht, EpochTranscript.key, hck]
+    · rw [h.key_req t hpos hp, ite_eq_left ht, EpochTranscript.key, hck]
       simp
     · rw [h'.key_res t hpos hp', EpochTranscript.key, hck]
       simp
@@ -376,7 +376,7 @@ lemma keys_of_ctRec {kem : KEMScheme ProbComp K PK SK C}
     refine ⟨?_, ?_⟩
     · rw [h.key_res t hpos hp, EpochTranscript.key, hck]
       simp
-    · rw [h'.key_req t hpos hp', if_pos hpeer, EpochTranscript.key, hck]
+    · rw [h'.key_req t hpos hp', ite_eq_left hpeer, EpochTranscript.key, hck]
       simp
 
 /-- The game's known-prefix assertion: for every bound at most the sending horizon, the party's
