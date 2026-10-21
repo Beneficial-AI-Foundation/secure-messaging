@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import ToVCVio.CryptoFoundations.UniversalHash
+import VCVio.CryptoFoundations.UniversalHash
 import ToVCVio.OracleComp.Constructions.BitVec
 
 /-!
@@ -25,7 +25,7 @@ sees the challenge `(X*, T*)`. The two kinds are bounded using different randomn
   decryption queries, which is what gives `q · ε` rather than `2 · q · ε`.
 -/
 
-open OracleSpec OracleComp ENNReal ToVCVio
+open OracleSpec OracleComp ENNReal ToVCVio UniversalHash
 
 namespace OracleComp.WegmanCarter
 
@@ -45,12 +45,12 @@ private theorem probEvent_post_axu_le_run {K D : Type} [SampleableType K] {ε : 
     Pr{let H ← ($ᵗ K : ProbComp K)}[∃ x ∈ l, hash H x.1 ^^^ hash H c.1 = x.2 ^^^ c.2]
       ≤ (l.length : ℝ≥0∞) * ε := by
   -- Reindex the existential over the fixed list by `Fin l.length`.
-  refine le_trans (probEvent_mono'' (q := fun H : K => ∃ i ∈ (Finset.univ : Finset (Fin l.length)),
+  refine le_trans (prEvent_mono _ _ (fun H : K => ∃ i ∈ (Finset.univ : Finset (Fin l.length)),
       hash H (l.get i).1 ^^^ hash H c.1 = (l.get i).2 ^^^ c.2) ?_) ?_
   · rintro H ⟨x, hx, hxe⟩
     obtain ⟨i, rfl⟩ := List.mem_iff_get.1 hx
     exact ⟨i, Finset.mem_univ i, hxe⟩
-  refine le_trans (probEvent_exists_finset_le_sum _ _ _) ?_
+  refine le_trans (prEvent_exists_finset_le _ _ _) ?_
   calc ∑ i : Fin l.length,
         Pr{let H ← ($ᵗ K : ProbComp K)}[hash H (l.get i).1 ^^^ hash H c.1 = (l.get i).2 ^^^ c.2]
       ≤ ∑ _i : Fin l.length, ε := by
@@ -59,16 +59,11 @@ private theorem probEvent_post_axu_le_run {K D : Type} [SampleableType K] {ε : 
         · -- Degenerate case: equal digest points contribute exactly `0`.
           have hx2 : (l.get i).2 ≠ c.2 := fun h =>
             hne (l.get i) (List.get_mem l i) (Prod.ext hd h)
-          refine le_of_eq_of_le (probEvent_eq_zero fun H _ hev => hx2 ?_) zero_le
+          refine le_of_eq_of_le
+            (prEvent_eq_zero_of_forall_mem_support _ _ fun H _ hev => hx2 ?_) zero_le
           rw [hd, BitVec.xor_self] at hev
           simpa [BitVec.xor_assoc] using congrArg (· ^^^ c.2) hev.symm
         · -- Distinct digest points: this is exactly the AXU predicate.
-          have hconv :
-              Pr{let H ← ($ᵗ K : ProbComp K)}[hash H (l.get i).1 ^^^ hash H c.1 = (l.get i).2 ^^^ c.2]
-                = Pr{let x ← (fun k => hash k (l.get i).1 ^^^ hash k c.1) <$> ($ᵗ K)}[x = (l.get i).2 ^^^ c.2] := by
-            rw [← probEvent_eq_eq_probOutput, prEvent_map]
-            rfl
-          rw [hconv]
           exact haxu (l.get i).1 c.1 hd _
     _ = (l.length : ℝ≥0∞) * ε := by
         simp [Finset.sum_const, Finset.card_univ, nsmul_eq_mul]
@@ -100,7 +95,7 @@ theorem probEvent_post_axu_le {Z K D : Type} [SampleableType K] {ε : ℝ≥0∞
 /-- Pre-challenge half. Let `w` be drawn from `ν` and then `m` uniformly from `{0,1}¹²⁸`, and
 let the continuation `k w m` end in the event `E` exactly when `m ∈ pre w`. Then `E` holds with
 probability at most `𝔼[|pre w|] · 2⁻¹²⁸`. Same mathematics as VCVio's
-`probEvent_hiddenReadMany_le` (`RandomOracle/ProbeEps.lean`), stated for an arbitrary
+`prEvent_hiddenReadMany_le` (`RandomOracle/ProbeEps.lean`), stated for an arbitrary
 continuation instead of the `readMany` game shape. -/
 theorem probEvent_pre_fresh_le {W β : Type} (ν : ProbComp W)
     (pre : W → List (BitVec 128)) (k : W → BitVec 128 → ProbComp β)
@@ -109,8 +104,10 @@ theorem probEvent_pre_fresh_le {W β : Type} (ν : ProbComp W)
     Pr{let x ← (do let w ← ν; let m ← ($ᵗ (BitVec 128) : ProbComp (BitVec 128)); k w m)}[E x]
       ≤ ∑' w, Pr{let x ← ν}[x = w] * ((pre w).length : ℝ≥0∞) * ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹ := by
   have hunif : ∀ m : BitVec 128,
-      Pr{let x ← ($ᵗ (BitVec 128) : ProbComp (BitVec 128))}[x = m] = ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹ := by
-    intro m; rw [probOutput_uniformSample, ToVCVio.natCast_card_bitVec]
+      Pr{let x ← ($ᵗ (BitVec 128) : ProbComp (BitVec 128))}[x = m]
+        = ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹ := by
+    intro m
+    rw [SampleableType.prEvent_uniformSample_eq_singleton, ToVCVio.natCast_card_bitVec]
   rw [OracleComp.prEvent_bind_eq_tsum]
   refine ENNReal.tsum_le_tsum fun w => ?_
   rw [mul_assoc]
@@ -126,8 +123,9 @@ theorem probEvent_pre_fresh_le {W β : Type} (ν : ProbComp W)
         gcongr
         by_cases hm : m ∈ pre w
         · simp [hm]
-        · simp only [hm, if_false]
-          exact le_of_eq (probEvent_eq_zero fun y hy hE => hm ((hk w m y hy).1 hE))
+        · simp only [hm, ite_false]
+          exact le_of_eq (prEvent_eq_zero_of_forall_mem_support _ _
+            fun y hy hE => hm ((hk w m y hy).1 hE))
     _ = ∑ m : BitVec 128, ((2 : ℝ≥0∞) ^ (128 : ℕ))⁻¹ * (if m ∈ pre w then 1 else 0) :=
         tsum_fintype _
       -- The locus has at most `(pre w).length` distinct points (duplicates only help).

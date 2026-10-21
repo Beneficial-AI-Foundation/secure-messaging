@@ -14,8 +14,8 @@ import ToVCVio.ProgramLogic.Relational.IdenticalUntilBad
 # Encrypt-then-MAC — auth hop: forge-probability bound
 
 The `game2' = game2` discard step and the chain bounding the instrumented bad-flag probability
-by the forge reduction (`tvDist_authInst_le_probForge`, `probForge_authInst_le_forgeReduction`,
-`forgeReduction_isQueryBoundP`).
+by the forge reduction (`measureTVDist_authInst_le_probForge`,
+`probForge_authInst_le_forgeReduction`, `forgeReduction_isQueryBoundP`).
 -/
 
 namespace EtM
@@ -31,7 +31,7 @@ omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
 /-- Step C of the auth hop: `game2'` (verify queries the RO then rejects unconditionally)
 has the same output distribution as `game2` (rejects directly). The discarded verify RO query
 reveals nothing, so removing it preserves the distribution
-(`OracleComp.evalDist_simulateQ_run'_discardRO`, the RO-mediated discarded-query brick), lifted
+(`OracleComp.evalDistEq_simulateQ_run'_discardRO`, the RO-mediated discarded-query brick), lifted
 through the skeleton. -/
 theorem game2'_eq_game2
     (se : DetSEAlg K_e M C_e)
@@ -41,15 +41,12 @@ theorem game2'_eq_game2
   -- Both games: `se.keygen` then the per-key skeleton run; descend through keygen.
   unfold game2' game2 etmGameSkeleton
   simp only [bind_pure_comp, ← StateT.run'_eq]
-  refine probOutput_bind_congr' se.keygen true (fun ke => ?_)
+  refine prEvent_bind_congr se.keygen _ _ (· = true) (· = true) (fun ke => ?_)
   -- Per key, the two query implementations differ only in `decImpl`'s `verifyTag`: `game2'`
   -- makes a discarded random-oracle query at `(ad, c)` before rejecting, while `game2`
-  -- rejects directly. Reduce the `Pr` equality to a `𝒟` equality and apply discarded-query
-  -- removal.
-  rw [prEvent_eq_evalDist_singleton, prEvent_eq_evalDist_singleton]
-  refine congrFun (congrArg DFunLike.coe ?_) true
-  refine OracleComp.evalDist_simulateQ_run'_discardRO
-    (D := AD × C_e) (R := T) _ _ ?h₁ ?hstep adv none ∅
+  -- rejects directly. Discarded-query removal gives equality in distribution.
+  refine (OracleComp.evalDistEq_simulateQ_run'_discardRO
+    (D := AD × C_e) (R := T) _ _ ?h₁ ?hstep adv none ∅).prEvent_eq (· = true)
   case h₁ =>
     -- `game2`'s query implementation respects the RO: the only cache access is
     -- `computeTag = randomOracle` inside `encrypt`; `verifyTag = pure false` and the uniform
@@ -81,9 +78,10 @@ theorem game2'_eq_game2
         rw [show (PRFScheme.prfIdealQueryImpl (D := AD × C_e) (R := T) (Sum.inl n)).run qc =
               (fun u => (u, qc)) <$> (liftM (OracleSpec.query (spec := unifSpec) n) :
                 ProbComp ((unifSpec + ((AD × C_e) →ₒ T)).Range (Sum.inl n))) from by
-            rw [PRFScheme.prfIdealQueryImpl, QueryImpl.add_apply_inl,
-              QueryImpl.liftTarget_apply, HasQuery.toQueryImpl]
-            simp [StateT.run_monadLift, bind_pure_comp, HasQuery.query]]
+            simp only [add_apply_inl, PRFScheme.prfIdealQueryImpl, OracleSpec.romImpl,
+              unifFwdImpl, QueryImpl.ofLift_eq_id', QueryImpl.add_apply_inl,
+              PFunctor.Handler.liftTarget_apply, ofPFunctor_toPFunctor, QueryImpl.id'_apply,
+              StateT.run_monadLift, monadLift_self, bind_pure_comp]]
         unfold gameUnifImpl
         simp only [QueryImpl.liftTarget_apply, QueryImpl.ofLift_apply,
           bind_pure_comp, Functor.map_map]
@@ -162,13 +160,14 @@ omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
 and `b = false` simulations agree on every non-forged transition (they differ only in the
 verify return when `ok = true`, which also sets the monotone `forged` flag), so the per-key TV
 distance between them is at most the forge probability of the `b = true` simulation
-(the generic `tvDist_simulateQ_le_probEvent_output_bad_base` at `spec₂ := unifSpec`). -/
-theorem tvDist_authInst_le_probForge
+(the generic `measureTVDist_simulateQ_le_prEvent_output_bad_base` at `spec₂ := unifSpec`). -/
+theorem measureTVDist_authInst_le_probForge
     (se : DetSEAlg K_e M C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) (ke : K_e) :
-    tvDist ((simulateQ (authInstImpl se true ke) adv).run' ((none, ∅), false))
+    measureTVDist ((simulateQ (authInstImpl se true ke) adv).run' ((none, ∅), false))
         ((simulateQ (authInstImpl se false ke) adv).run' ((none, ∅), false)) ≤
-      (Pr{let z ← (simulateQ (authInstImpl se true ke) adv).run ((none, ∅), false)}[z.2.2 = true]).toReal := by
+      (Pr{let z ← ((simulateQ (authInstImpl se true ke) adv).run
+        ((none, ∅), false))}[z.2.2 = true]).toReal := by
   -- Bad-flag monotonicity: the flag is only ever replaced by `forged` or `forged || ok`,
   -- so once `true` it stays `true`, for both `b = true` and `b = false`.
   have hmono : ∀ (b : Bool) (t : (aeadOneTimeCCASpec AD M (C_e × T)).Domain)
@@ -245,15 +244,17 @@ theorem tvDist_authInst_le_probForge
           StateT.run_get, pure_bind, ↓reduceIte, hg, Bool.false_or, StateT.run_monadLift,
           monadLift_self, bind_pure_comp, StateT.run_set, bind_map_left, Bool.false_eq_true,
           ite_self, StateT.run_map, map_pure, Functor.map_map]
-        rw [map_eq_bind_pure_comp]
-        refine probOutput_bind_congr' (m := ProbComp) _ _ fun p => ?_
+        refine congrArg prEvent ?_
+        refine (map_bind (m := ProbComp) _ _ _).trans
+          ((bind_congr fun p => ?_).trans (map_eq_bind_pure_comp ProbComp _ _).symm)
         obtain ⟨t', qc'⟩ := p
         -- `tg = t'` (forged): both outputs have flag `true` ≠ target flag `false` → both 0;
         -- `tg ≠ t'` (reject): output `none` regardless of `b`.
         by_cases hok : tg = t' <;>
-          simp [hok, probOutput_pure_eq_indicator,
-            Set.mem_singleton_iff, Prod.ext_iff]
-  exact OracleComp.ProgramLogic.Relational.tvDist_simulateQ_le_probEvent_output_bad_base
+          simp only [Prod.ext_iff, hok, ↓reduceIte, BEq.rfl, StateT.run_pure, map_pure,
+            Bool.true_eq_false, and_false, beq_eq_false_iff_ne, ne_eq, Function.comp_apply,
+            not_true_eq_false, not_false_eq_true, and_true]
+  exact OracleComp.ProgramLogic.Relational.measureTVDist_simulateQ_le_prEvent_output_bad_base
     (authInstImpl se true ke) (authInstImpl se false ke) adv (none, ∅)
     hagree (hmono true) (hmono false)
 
@@ -268,7 +269,8 @@ invariant (NRS14 App. A.2). -/
 theorem probForge_authInst_le_forgeReduction
     (se : DetSEAlg K_e M C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) (ke : K_e) :
-    (Pr{let z ← (simulateQ (authInstImpl se true ke) adv).run ((none, ∅), false)}[z.2.2 = true]).toReal ≤
+    (Pr{let z ← ((simulateQ (authInstImpl se true ke) adv).run
+        ((none, ∅), false))}[z.2.2 = true]).toReal ≤
       (Pr{let z ← ((simulateQ OracleComp.forgeImpl (forgeReduction se adv ke)).run
             (∅, ∅, false))}[z.2.2.2 = true]).toReal := by
   -- The proof relates the two experiments at the ENNReal level (`.toReal` is monotone on
@@ -307,7 +309,8 @@ theorem probForge_authInst_le_forgeReduction
   case hle =>
     -- (i) Reduction collapse: rewrite the forge run as a `simulateQ impl₂ adv` run.
     have hRHScollapse :
-        Pr{let z ← (simulateQ OracleComp.forgeImpl (forgeReduction se adv ke)).run (∅, ∅, false)}[z.2.2.2 = true] =
+        Pr{let z ← ((simulateQ OracleComp.forgeImpl (forgeReduction se adv ke)).run
+            (∅, ∅, false))}[z.2.2.2 = true] =
           Pr{let z ← (simulateQ impl₂ adv).run ((none, ∅), (∅, ∅, false))}[z.2.2.2.2 = true] := by
       -- Mechanical nested-`simulateQ` collapse: `forgeReduction = const () <$> skeleton`,
       -- the skeleton ends `let (b',_) ← (simulateQ inner adv).run (none,∅); return b'`, and
@@ -398,8 +401,6 @@ theorem probForge_authInst_le_forgeReduction
             by_cases hok : tg = a.1 <;>
               simp [hok, StateT.run_pure, simulateQ_pure,
                 ]
-      -- The composed event reindexes to the forge `forged` flag on the joint output.
-      rfl
     rw [hRHScollapse]
     -- (ii) Coupling lemma: the game's flag (`z.2.2 = true`) implies the forge flag
     -- (`z.2.2.2.2 = true`) under `R_state`, which is preserved per-query.
@@ -523,14 +524,14 @@ theorem probForge_authInst_le_forgeReduction
         erw [StateT.run_bind, StateT.run_bind, StateT.run_get, StateT.run_get]
         simp only [pure_bind]
         by_cases hg : ch₁ = some (ad, (c, tg))
-        · simp only [hg, beq_self_eq_true, if_true]
+        · simp only [hg, beq_self_eq_true, ite_true]
           exact ProgramLogic.Relational.relTriple_pure_pure
             ⟨rfl, rfl, rfl, hg ▸ hev, hflagimp⟩
-        · simp only [beq_iff_eq, hg, if_false]
+        · simp only [beq_iff_eq, hg, ite_false]
           set ro := (((AD × C_e) →ₒ T).randomOracle (ad, c)).run fs₂.1
           erw [StateT.run_bind, StateT.run_bind,
             OracleComp.liftM_run_StateT, OracleComp.liftM_run_StateT]
-          simp only [bind_assoc, pure_bind, if_true]
+          simp only [bind_assoc, pure_bind, ite_true]
           -- Diagonal coupling of the shared RO query: the resulting cache extends `fs₂.1`
           -- (existing entries persist) and maps the queried point `(ad, c)` to the response.
           have hcouple : ProgramLogic.Relational.RelTriple ro ro
@@ -569,14 +570,14 @@ theorem probForge_authInst_le_forgeReduction
               apply hg
               rw [hchal, htt, hok]
             subst hok
-            simp only [if_true]
+            simp only [ite_true]
             refine ProgramLogic.Relational.relTriple_pure_pure ⟨rfl, rfl, rfl, hevald, ?_⟩
             intro _
             simp only [beq_self_eq_true, hnotin, not_false_eq_true, decide_true,
               Bool.and_true, Bool.or_true]
           · -- `ok = false`: verification fails, both reject (`none`); flags threaded
             -- unchanged.
-            simp only [hok, if_false]
+            simp only [hok, ite_false]
             have hbeq : (tg == t') = false := by
               simp only [beq_eq_false_iff_ne, ne_eq, hok, not_false_eq_true]
             simp only [hbeq, Bool.or_false, Bool.false_and]
@@ -584,7 +585,7 @@ theorem probForge_authInst_le_forgeReduction
             intro hfl
             exact hflagimp hfl
 
-omit [Inhabited C_e] [SampleableType C_e] in
+omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
 /-- Query-bound transfer (auth hop adapter): each decrypt query of `adv` becomes exactly one
 verify query in `forgeReduction`, so the reduction makes at most `q_d` verify queries whenever
 `adv` makes at most `q_d` decrypt queries. -/
@@ -594,9 +595,6 @@ theorem forgeReduction_isQueryBoundP
     (q_d : ℕ) (hqd : AEADScheme.decryptQueryBound adv q_d) :
     (forgeReduction se adv ke).IsQueryBoundP
       (OracleComp.isVerifyQuery (D := AD × C_e) (R := T)) q_d := by
-  -- `forgeSpec`'s `IsUniformSpec` witness (needed by the query-bound lemma) wants `Fintype T`;
-  -- the tag type is sampleable, so it is finite.
-  let : Fintype T := SampleableType.Fintype T
   unfold forgeReduction etmGameSkeleton
   simp only [pure_bind, bind_pure_comp, Functor.map_map]
   rw [isQueryBoundP_def, isQueryBound_map_iff, ← isQueryBoundP_def]
@@ -606,7 +604,7 @@ theorem forgeReduction_isQueryBoundP
   -- per-handler `.run`-unwrapping (StateT `MonadLiftT` fusion of the `ofLift` forwarder),
   -- then `isQueryBoundP_query_iff` (encrypt eval / decrypt verify) and
   -- `IsQueryBoundP.liftComp_subSpec` (cross-spec unif lift). Cf. VCVio `CmaToNma` `hfwd`.
-  refine OracleComp.simulateQ_run_add_inr_of_step (fun t => by simp) hqd ?hleft ?hdec
+  refine OracleComp.IsQueryBoundP.simulateQ_run_add_inr_of_step (fun t => by simp) hqd ?hleft ?hdec
     (fun t hnp => absurd (by simp) hnp) (none, ∅)
   case hleft =>
     intro t s

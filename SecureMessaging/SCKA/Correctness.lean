@@ -407,19 +407,19 @@ theorem correctness_error_le_of_potential [DecidableEq I]
     simp [correctnessExp, map_eq_bind_pure_comp]
   have hle : Pr{let x ← correctnessExp scka adv}[x = false] ≤
       expectedPayoff (correctnessExp scka adv) (fun b => if b then 0 else 1) := by
-    rw [← probEvent_eq_eq_probOutput]
     exact probEvent_le_expectedPayoff _ _ _ fun b hb => by simp [hb]
   have hfalse : Pr{let x ← correctnessExp scka adv}[x = false] =
       1 - Pr{let x ← correctnessExp scka adv}[x = true] := by
-    rw [probOutput_false_eq_sub, OracleComp.prFail_eq_zero, tsub_zero]
+    rw [← OracleComp.prEvent_not_eq_one_sub]
+    simp only [Bool.not_eq_true]
   rw [← hfalse]
   refine hle.trans ?_
   rw [hexp, expectedPayoff_bind]
-  refine expectedPayoff_le_const_of_support _ _ _ OracleComp.prFail_eq_zero fun ik hik => ?_
+  refine expectedPayoff_le_const_of_support _ _ _ (OracleComp.prFail_eq_zero _) fun ik hik => ?_
   rw [expectedPayoff_bind]
-  refine expectedPayoff_le_const_of_support _ _ _ OracleComp.prFail_eq_zero fun stA hA => ?_
+  refine expectedPayoff_le_const_of_support _ _ _ (OracleComp.prFail_eq_zero _) fun stA hA => ?_
   rw [expectedPayoff_bind]
-  refine expectedPayoff_le_const_of_support _ _ _ OracleComp.prFail_eq_zero fun stB hB => ?_
+  refine expectedPayoff_le_const_of_support _ _ _ (OracleComp.prFail_eq_zero _) fun stB hB => ?_
   rw [expectedPayoff_map]
   exact hrun ik hik stA hA stB hB
 
