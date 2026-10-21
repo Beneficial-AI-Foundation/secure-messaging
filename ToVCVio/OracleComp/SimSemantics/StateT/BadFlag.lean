@@ -98,7 +98,7 @@ theorem trackedImpl_preserves (impl : QueryImpl spec (StateT σ ProbComp)) (bad 
     exact ⟨hstep t p.1 hinv hgood y hy, by simpa using hbad⟩
 
 /-- The probability that the flag is set is at most the expected score, for any score that is
-at least `1` on flagged states. Computation failure is charged `1` by `expectedPayoff`. -/
+at least `1` on flagged states. -/
 theorem tracked_bad_probability_le_score {α : Type} (score : σ × Bool → ℝ≥0∞)
     (hscore : ∀ p : σ × Bool, p.2 = true → 1 ≤ score p) (oa : ProbComp (α × (σ × Bool))) :
     Pr{let z ← oa}[z.2.2 = true] ≤ expectedPayoff oa (fun z => score z.2) :=

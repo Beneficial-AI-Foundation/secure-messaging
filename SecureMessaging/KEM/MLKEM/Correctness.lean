@@ -152,8 +152,10 @@ as `kpkeDecryptDifference_eq_noise`.
 The generic proof takes `hRing : NTTRingLaws ring`, an algebraic certificate
 that the forward and inverse transforms are mutually inverse and transport the
 addition and multiplication of `R_q`.  For the concrete ML-KEM transform,
-`Concrete.concreteNTTRingLaws` is the corresponding proof bundle; its inverse
-matrix identity is discharged by a finite `native_decide` certificate.  This
+`Concrete.concreteNTTRingLaws` is the corresponding proof bundle.  VCVio proves
+its inverse laws in the kernel from the butterfly layers, so it uses only the
+standard axioms.  At run time `@[implemented_by]` swaps in the loop kernels,
+which are not proved equal to the proof-facing definitions.  This
 is algebraic infrastructure for (6), distinct from the probabilistic
 comparison introduced below.
 
@@ -431,8 +433,7 @@ theorem fips203DecapsulationFailureProb_le_bound (p : ParameterSet) (ring : NTTR
 /-- Given the concrete NTT algebra certificate and the coefficient-distribution
 coefficient comparison, honest ML-KEM-512 decapsulation has error at most
 `2^(-138.8)`.  The canonical value for `hRing` is
-`Concrete.concreteNTTRingLaws`; it is kept explicit because its finite inverse
-matrix certificate is discharged by `native_decide`. -/
+`Concrete.concreteNTTRingLaws`. -/
 theorem deltaCorrect_mlkem512
     (hRing : NTTRingLaws Concrete.concreteNTTRingOps)
     (hModel : CoefficientFailureBound .MLKEM512 Concrete.concreteNTTRingOps

@@ -14,16 +14,16 @@ game that differ only in where the two DDH-programmed scalars are sampled.
 
 The regular CKA game samples them lazily, inside the oracle stack:
 
-  `𝒟[simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) 𝒜]`.
+  `simulateQ (ckaSecurityImpl gp false (ddhCKA F G gen)) 𝒜`.
 
 The parameterized game samples them eagerly, before the adversary runs:
 
-  `𝒟[do b a ← $ᵗ F; simulateQ (honestImplParamReal gp gen a b) 𝒜]`.
+  `do b a ← $ᵗ F; simulateQ (honestImplParamReal gp gen a b) 𝒜`.
 
 Here `a` is the scalar consumed at the embedding epoch, and `b` is the scalar
 consumed at the challenge epoch. The bridge proves that moving these samples
 from the oracle body to the top-level `ProbComp` does not change the output
-distribution.
+distribution: the two games are `=ᵈ`.
 
 The connection is made by the generic `consumeLazy` operator from
 `ToVCVio.OracleComp.QueryTracking.LazySampling.lean`. Given:
