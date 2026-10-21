@@ -53,13 +53,14 @@ macro "vcv_extract_support_binds" " at " h:ident : tactic =>
   `(tactic| repeat (obtain ⟨_, _, $h⟩ := Set.mem_iUnion₂.mp $h))
 
 /-- Normalize a support hypothesis for a stateful VCV-io computation. -/
-macro "vcvSupport" h:ident : tactic =>
+macro (name := vcvSupportHyp) "vcvSupport" h:ident : tactic =>
   `(tactic|
     (vcv_simp_support at $h:ident
      vcv_extract_support_binds at $h:ident))
 
 /-- Normalize a named support hypothesis and close the common counter-monotonicity goal. -/
-macro "vcvSupport" " at " h:ident : tactic =>
+@[tactic_alt vcvSupportHyp]
+macro (name := vcvSupportAt) "vcvSupport" " at " h:ident : tactic =>
   `(tactic|
     (vcvSupport $h:ident
      try simp only [Set.mem_range, Set.mem_singleton_iff] at $h:ident
@@ -78,7 +79,8 @@ After normalization the bind witnesses sit under existentials, so they are
 destructured before substitution; the explicit pair closers handle the
 one-counter-bump send shapes, where the bumped record is definitionally equal
 to the goal's projection but not syntactically. -/
-macro "vcvSupport" : tactic =>
+@[tactic_alt vcvSupportHyp]
+macro (name := vcvSupportBare) "vcvSupport" : tactic =>
   `(tactic|
     (try simp only [StateT.run_bind, StateT.run_get, StateT.run_set, StateT.run_monadLift,
       monadLift_self, StateT.run_pure, pure_bind, bind_assoc, support_bind,
