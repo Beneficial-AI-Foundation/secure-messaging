@@ -10,8 +10,6 @@ import ToVCVio.CryptoFoundations.WegmanCarter.Defs
 import ToVCVio.OracleComp.QueryTracking.LazySampling
 import VCVio.OracleComp.SimSemantics.StateT.StateProjection
 import VCVio.OracleComp.QueryTracking.RandomOracle.DeferredSampling
-import VCVio.EvalDist.Defs.Support.Failure
-import VCVio.EvalDist.Monad.Seq
 
 /-!
 # GCM: game skeleton and games
@@ -325,21 +323,21 @@ lemma simulateQ_gcmInstImpl_false_run'_eq_gcmTupleImplReject
 theorem game2Flat_eq_game2 (prp : PRPScheme K (BitVec 128)) (L : ℕ)
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    evalDist (game2Flat prp L hL adv) = evalDist (game2 prp L hL adv) := by
+    game2Flat prp L hL adv =ᵈ game2 prp L hL adv := by
   unfold game2Flat game2
   rw [bind_congr fun a =>
     simulateQ_gcmInstImpl_true_run'_eq_gcmTupleImpl a adv none false]
-  exact (evalDistEq_simulateQ_greedyLazy_run'_eq gcmTupleImpl adv none).evalDist_eq
+  exact evalDistEq_simulateQ_greedyLazy_run'_eq gcmTupleImpl adv none
 
 theorem game3Flat_eq_game3 (prp : PRPScheme K (BitVec 128)) (L : ℕ)
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    evalDist (game3Flat prp L hL adv) = evalDist (game3 prp L hL adv) := by
+    game3Flat prp L hL adv =ᵈ game3 prp L hL adv := by
   unfold game3Flat game3
   rw [bind_congr fun a =>
     simulateQ_gcmInstImpl_false_run'_eq_gcmTupleImplReject a adv none false]
   exact (evalDistEq_simulateQ_consumeLazy_run'_eq gcmTupleImplReject
-    (fun t => t matches OEncrypt _) gcmTupleImplReject_indep adv none).evalDist_eq
+    (fun t => t matches OEncrypt _) gcmTupleImplReject_indep adv none)
 
 end Instrumented
 
@@ -390,13 +388,12 @@ theorem game0_eq_real (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ
 `gcmRandRejectImpl default`, without sampling a tuple: `gcmRandRejectImpl` ignores the tuple. -/
 theorem game4_eq_plain (prp : PRPScheme K (BitVec 128)) (L : ℕ) (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    evalDist (game4 prp L hL adv) =
-      evalDist ((simulateQ (gcmRandRejectImpl (L := L) default) adv).run' none) := by
+    game4 prp L hL adv =ᵈ (simulateQ (gcmRandRejectImpl (L := L) default) adv).run' none := by
   unfold game4
   exact ((evalDistEq_simulateQ_consumeLazy_run'_eq gcmRandRejectImpl
     (fun t => t matches OEncrypt _) (fun _ _ _ _ _ => rfl) adv none).symm.trans
     (EvalDistEq.bind_const ($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _)
-      ((simulateQ (gcmRandRejectImpl (L := L) default) adv).run' none))).evalDist_eq
+      ((simulateQ (gcmRandRejectImpl (L := L) default) adv).run' none)))
 
 /-- `game4` outputs `true` with the same probability as the ideal ACD19 experiment, the one with
 challenge bit `true`. The key is unused on the ideal side, and no hypothesis on `prp.keygen` is
@@ -408,7 +405,7 @@ theorem game4_eq_rand (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ
       Pr{let x ←
         AEADScheme.securityExpFixedBit (gcmOneTimeAEAD prp iv L hL) adv true}[x = true] := by
   -- (1)-(2) Unconsume and kill the dead tuple sample: both steps are `game4_eq_plain`.
-  rw [(EvalDistEq.of_evalDist_eq (game4_eq_plain prp L hL adv)).prEvent_eq]
+  rw [(game4_eq_plain prp L hL adv).prEvent_eq]
   -- (3) RHS: the endpoint's keygen is dead on the random side; fold the tail to `.run'`.
   have hkg : (gcmOneTimeAEAD prp iv L hL).keygen = prp.keygen := rfl
   unfold AEADScheme.securityExpFixedBit

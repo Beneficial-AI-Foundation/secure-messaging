@@ -7,8 +7,6 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.SCKA.Defs
 import ToVCVio.OracleComp.ExpectedPayoff
 import ToVCVio.OracleComp.SimSemantics.StateT.ExpectedPayoffBound
-import VCVio.OracleComp.SimSemantics.Append
-import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
 
 /-!
 # Invariants of the SCKA correctness game

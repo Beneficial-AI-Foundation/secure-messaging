@@ -295,8 +295,7 @@ no advantage. -/
 theorem game3_eq_game4 {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ)
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    evalDist (game3 prp L hL adv) = evalDist (game4 prp L hL adv) := by
-  rw [game4_eq_plain prp L hL adv]
+    game3 prp L hL adv =ᵈ game4 prp L hL adv := by
   unfold game3
   -- Elaborating the coupling separately from its consumer keeps unification away from the
   -- unfolded game body (13 s → 1.5 s).
@@ -308,7 +307,7 @@ theorem game3_eq_game4 {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ)
     (fun t s₁ s₂ hs => gcmPrivacy_step t s₁ s₂ hs)
     (none, none) none
     ⟨rfl, rfl⟩
-  exact evalDist_eq_of_relTriple_eqRel h
+  exact (evalDistEq_of_relTriple_eqRel h).trans (game4_eq_plain prp L hL adv).symm
 
 /-- The privacy hop at the winning event: `game3` and `game4` output `true` with the same
 probability. -/
@@ -316,6 +315,6 @@ theorem prEvent_game3_eq_game4 {K : Type} (prp : PRPScheme K (BitVec 128)) (L : 
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
     Pr{let x ← game3 prp L hL adv}[x = true] = Pr{let x ← game4 prp L hL adv}[x = true] :=
-  (EvalDistEq.of_evalDist_eq (game3_eq_game4 prp L hL adv)).prEvent_eq _
+  (game3_eq_game4 prp L hL adv).prEvent_eq _
 
 end GCM

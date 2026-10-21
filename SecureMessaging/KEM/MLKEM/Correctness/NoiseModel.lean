@@ -277,8 +277,8 @@ theorem coordinateTail_le (p : ParameterSet) (ring : NTTRingOps)
       (Concrete.concreteEncoding (ParameterSet.params p)))
     (hRing : NTTRingLaws ring) (hModel : CoefficientFailureBound p ring prims)
     (i : Fin ringDegree) :
-    Pr{let x ← honestNoiseSample}[(coordinateDecodeFailureEvent ring
-          (Concrete.concreteEncoding (ParameterSet.params p)) prims i) x] ≤
+    Pr{let x ← honestNoiseSample}[coordinateDecodeFailureEvent ring
+          (Concrete.concreteEncoding (ParameterSet.params p)) prims i x] ≤
       (decodeFailureMass p : ℝ≥0∞) / (2 * noiseDenominator p) := by
   refine le_trans (prEvent_mono _ _ _
       (coordinateDecodeFailure_exists_failing_pair p ring prims hRing i))

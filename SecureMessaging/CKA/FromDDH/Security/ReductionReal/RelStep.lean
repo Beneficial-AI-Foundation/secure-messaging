@@ -1634,22 +1634,22 @@ This is the dead-store part of the real-branch bridge: the reduction writes
 `honestImplParamReal` writes the cached scalar. Those fields are not
 observable before the protocol overwrites them again; corruption is delayed
 by `hΔFS` and `hΔPCS`. -/
-lemma evalDist_reduction_honest_param_real_eq
+lemma evalDistEq_reduction_honest_param_real
   (gp : GameParams) (hΔFS : gp.ΔFS = 1) (hΔPCS : gp.ΔPCS = 2)
   (h_general_case : ¬ (gp.challengeEpoch = 1 ∧ gp.challengedParty = .A))
     (x₀ a b : F)
     (adversary : OracleComp (ckaSecuritySpec (CKAState F G) G G F) Bool) :
-    evalDist ((simulateQ
+    ((simulateQ
         (reductionOracleImpl gp gen (a • gen) (b • gen) ((a * b) • gen))
         adversary).run'
       (initGameState
         (CKAState.sendReady (x₀ • gen) : CKAState F G)
-        (CKAState.recvReady x₀ : CKAState F G))) =
-    evalDist ((simulateQ (honestImplParamReal gp gen a b) adversary).run'
+        (CKAState.recvReady x₀ : CKAState F G))) =ᵈ
+    ((simulateQ (honestImplParamReal gp gen a b) adversary).run'
       (initGameState
         (CKAState.sendReady (x₀ • gen) : CKAState F G)
         (CKAState.recvReady x₀ : CKAState F G))) := by
-  refine OracleComp.ProgramLogic.Relational.evalDist_eq_of_relTriple_eqRel
+  refine OracleComp.ProgramLogic.Relational.evalDistEq_of_relTriple_eqRel
     (OracleComp.ProgramLogic.Relational.relTriple_simulateQ_run' _ _
       (reductionHonestRel gp gen a b) _ ?_ _ _ ?_)
   · intro t sR sH hrel
@@ -1704,9 +1704,8 @@ lemma evalDistEq_eager_reduction_lazy
       (CKAState.sendReady (x₀ • gen) : CKAState F G)
       (CKAState.recvReady x₀ : CKAState F G)
   refine (EvalDistEq.bind_right _ fun a => EvalDistEq.bind_right _ fun b =>
-    EvalDistEq.of_evalDist_eq
-      (evalDist_reduction_honest_param_real_eq
-        (gen := gen) gp hΔFS hΔPCS h_general_case x₀ a b adversary)).trans
+    evalDistEq_reduction_honest_param_real
+      (gen := gen) gp hΔFS hΔPCS h_general_case x₀ a b adversary).trans
     ((EvalDistEq.bind_bind_swap ($ᵗ F : ProbComp F) ($ᵗ F : ProbComp F)
       fun a b => (simulateQ (honestImplParamReal gp gen a b) adversary).run' s₀).trans ?_)
   exact evalDistEq_eager_honest_lazy (gen := gen) gp s₀ adversary

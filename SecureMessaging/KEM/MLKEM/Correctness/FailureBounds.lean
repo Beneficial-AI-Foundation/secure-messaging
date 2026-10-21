@@ -73,8 +73,7 @@ def coordinateFailureEvent (i : Fin ringDegree) : Seed32 × Seed32 × Message �
 /-- The bad-noise probability rewritten as an event over the honest sample. -/
 theorem probOutput_true_kpkeBadNoiseExp :
     Pr{let x ← kpkeBadNoiseExp ring encoding prims}[x = true] =
-      Pr{let x ← honestNoiseSample}[
-        (fun (d, z, m) => kpkeBadNoise ring encoding prims d z m) x] := by
+      Pr{let (d, z, m) ← honestNoiseSample}[kpkeBadNoise ring encoding prims d z m] := by
   have hmap : kpkeBadNoiseExp ring encoding prims =
       (fun (d, z, m) => decide (kpkeBadNoise ring encoding prims d z m)) <$>
         honestNoiseSample := by
@@ -85,10 +84,10 @@ theorem probOutput_true_kpkeBadNoiseExp :
 /-- The recovery-failure probability rewritten as an event over the honest sample. -/
 theorem underlyingCorrectnessError_eq_probEvent :
     underlyingCorrectnessError ring encoding prims =
-      Pr{let x ← honestNoiseSample}[(fun (d, z, m) => KPKE.decrypt ring encoding prims
-              (keygenInternal ring encoding prims d z).2.dkPKE
-              (encapsInternal ring encoding prims
-                (keygenInternal ring encoding prims d z).1 m).2 ≠ m) x] := by
+      Pr{let (d, z, m) ← honestNoiseSample}[KPKE.decrypt ring encoding prims
+          (keygenInternal ring encoding prims d z).2.dkPKE
+          (encapsInternal ring encoding prims
+            (keygenInternal ring encoding prims d z).1 m).2 ≠ m] := by
   have hmap : underlyingCorrectExp ring encoding prims =
       (fun (d, z, m) => decide (KPKE.decrypt ring encoding prims
           (keygenInternal ring encoding prims d z).2.dkPKE
@@ -150,7 +149,7 @@ theorem underlyingCorrectnessError_eq_coordinateDecodeFailureEvent (hEnc : encod
 theorem underlyingCorrectnessError_le_sum_coordinateDecodeFailure (hEnc : encoding.Laws) :
     underlyingCorrectnessError ring encoding prims ≤
       ∑ i : Fin ringDegree,
-        Pr{let x ← honestNoiseSample}[(coordinateDecodeFailureEvent ring encoding prims i) x] := by
+        Pr{let x ← honestNoiseSample}[coordinateDecodeFailureEvent ring encoding prims i x] := by
   rw [underlyingCorrectnessError_eq_coordinateDecodeFailureEvent ring encoding prims hEnc]
   have hpred : (fun dzm => ∃ i : Fin ringDegree,
         coordinateDecodeFailureEvent ring encoding prims i dzm) =

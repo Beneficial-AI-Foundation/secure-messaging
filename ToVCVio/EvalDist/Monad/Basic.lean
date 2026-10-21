@@ -19,6 +19,8 @@ evaluation distribution.
 * `probOutput_true_uniformBool_bind_not` relabels a uniform challenge-bit sample by negation,
   absorbing a `Bool` negation on the final comparison in the process — the "flip the challenge
   bit" step of hybrid arguments;
+* `prEvent_uniformBool_branch_toReal_sub_half` writes hidden-bit guessing over a uniform bit,
+  centered at `1/2`, as half the signed gap between its two branches;
 * `tsum_ite_prEvent_eq_le_prEvent` and `tsum_prEvent_eq_le_one` bound sums of point masses
   in any monad;
 * `tsum_probOutput_mul_le_of_forall_mem_support` bounds the expectation
@@ -92,6 +94,28 @@ lemma probOutput_true_uniformBool_bind_not (f : Bool → ProbComp Bool) :
     congr 1; funext b; congr 1; funext b'; cases b <;> cases b' <;> rfl
   rw [hL, hR, prEvent_eq_evalDist_singleton, prEvent_eq_evalDist_singleton,
     ProbComp.evalDist_bind_not_uniformBool]
+
+/-- Hidden-bit guessing over a uniform bit, centered at `1/2`, is half the signed difference of
+its two branches: `Pr[b ←$ {0,1}; z ← (if b then real else rand); output (b = z)] - 1/2 =
+  (Pr[real = 1] - Pr[rand = 1]) / 2`. -/
+lemma prEvent_uniformBool_branch_toReal_sub_half (real rand : ProbComp Bool) :
+    (Pr{let x ← (do
+      let b ← ($ᵗ Bool : ProbComp Bool)
+      let z ← if b then real else rand
+      pure (b == z))}[x = true]).toReal - 1 / 2 =
+    ((Pr{let x ← real}[x = true]).toReal - (Pr{let x ← rand}[x = true]).toReal) / 2 := by
+  rw [prEvent_bind_eq_lintegral_of_discrete, MeasureTheory.lintegral_fintype, Fintype.sum_bool]
+  simp only [SampleableType.evalDist_uniformSample_singleton, ite_true, Bool.false_eq_true,
+    ite_false, Fintype.card_bool, bind_pure_comp, prEvent_map, Bool.true_beq, bind_pure]
+  have hf : Pr{let z ← rand}[(false == z) = true] = 1 - Pr{let z ← rand}[z = true] := by
+    simpa only [Bool.false_beq, Bool.not_eq_eq_eq_not, Bool.not_true, Bool.not_eq_true] using
+      OracleComp.prEvent_not_eq_one_sub rand (fun z => z = true)
+  have hle : Pr{let z ← rand}[z = true] ≤ 1 := prEvent_le_one _
+  rw [hf, ENNReal.toReal_add (by finiteness) (by finiteness), ENNReal.toReal_mul,
+    ENNReal.toReal_mul, ENNReal.toReal_sub_of_le hle ENNReal.one_ne_top]
+  simp only [Nat.cast_ofNat, ENNReal.toReal_inv, ENNReal.toReal_ofNat, ENNReal.toReal_one,
+    one_div]
+  ring
 
 /-- The point masses of the outputs of `mx` satisfying `p` sum to at most the probability of
 `p`. -/

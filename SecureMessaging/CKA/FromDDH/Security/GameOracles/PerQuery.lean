@@ -607,7 +607,7 @@ Per-oracle independence above promoted to the full `honestImplParamReal` /
 firing event can happen, the output at every oracle index is independent of
 the corresponding parameter. Together with the special-case lemmas, these
 provide the `hindep` hypotheses that `consumeLazy` requires in
-`evalDist_ckaSecurityImpl_lazy_eq_eager`. -/
+`evalDistEq_ckaSecurityImpl_lazy_eager`. -/
 
 omit [Inhabited F] [Fintype G] in
 /-- **Full impl-level `a`-independence at `challengedParty = .B`, post-`sendA`-event.**

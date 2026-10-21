@@ -33,20 +33,16 @@ namespace kemRKEM
 
 variable {K PK SK C : Type}
 
-/-- `correctExpA` at the RKEM-from-KEM scheme agrees on the shared key exactly as often as the
-underlying KEM's own correctness experiment: the extra independent key pairs sampled along the
-way (`A`'s own fresh pair, and the fresh pair generated inside `rencA`) don't affect the
-comparison. Holds unconditionally, for any KEM (not just a correct one). -/
-theorem prEvent_correctExpA_eq_prEvent_correctnessExperiment [DecidableEq K]
+/-- `correctExpA` at the RKEM-from-KEM scheme has the same distribution as the underlying KEM's
+own correctness experiment: the extra independent key pairs sampled along the way (`A`'s own fresh
+pair, and the fresh pair generated inside `rencA`) don't affect the comparison. Holds
+unconditionally, for any KEM (not just a correct one). -/
+theorem evalDistEq_correctExpA_correctnessExperiment [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (total : TotalDecaps kem) :
-    Pr{let x ← RKEMScheme.correctExpA (scheme kem total)}[x = true] =
-      Pr{let x ← kem.correctnessExperiment}[x = true] := by
+    RKEMScheme.correctExpA (scheme kem total) =ᵈ kem.correctnessExperiment := by
   unfold RKEMScheme.correctExpA KEMScheme.correctnessExperiment
   simp only [scheme, rkeygen, renc, rdec, total.decaps_eq,
     map_eq_bind_pure_comp, Function.comp, pure_bind, bind_assoc]
-  have key {mz mz' : ProbComp Prop} (h : mz =ᵈ mz') : prEvent mz = prEvent mz' := by
-    simpa using h.prEvent_eq id
-  apply key
   refine (EvalDistEq.bind_const kem.keygen _).trans ?_
   refine EvalDistEq.bind_right kem.keygen fun p : PK × SK =>
     EvalDistEq.bind_right (kem.encaps p.1) fun q : C × K => ?_
@@ -86,14 +82,14 @@ theorem deltaCorrect [DecidableEq K] (kem : KEMScheme ProbComp K PK SK C)
     := by
   refine ⟨⟨?_, ?_⟩, ?_, ?_⟩
   · unfold RKEMScheme.correctnessErrorA
-    rw [ProbCompRuntime.probComp_evalDist, ← prEvent_eq_evalDist_singleton,
-      prEvent_correctExpA_eq_prEvent_correctnessExperiment, prEvent_eq_evalDist_singleton,
+    rw [ProbCompRuntime.probComp_evalDist,
+      (evalDistEq_correctExpA_correctnessExperiment kem total).evalDist_eq,
       ← ProbCompRuntime.probComp_evalDist]
     exact hkem
   · unfold RKEMScheme.correctnessErrorB
     rw [show (scheme kem total).correctExpB = (scheme kem total).correctExpA by rfl,
-      ProbCompRuntime.probComp_evalDist, ← prEvent_eq_evalDist_singleton,
-      prEvent_correctExpA_eq_prEvent_correctnessExperiment, prEvent_eq_evalDist_singleton,
+      ProbCompRuntime.probComp_evalDist,
+      (evalDistEq_correctExpA_correctnessExperiment kem total).evalDist_eq,
       ← ProbCompRuntime.probComp_evalDist]
     exact hkem
   · unfold RKEMScheme.updateKeyDistErrorA

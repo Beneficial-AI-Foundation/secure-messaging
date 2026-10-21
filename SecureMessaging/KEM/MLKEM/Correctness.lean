@@ -50,7 +50,7 @@ is
 
 Thus `Π` is perfectly correct when `ε_Π=0`, and is `δ`-correct when
 `ε_Π≤δ`.  The equality in (1) is
-`KEMScheme.correctnessError_eq_probOutput_false_add_probFailure`.  ML-KEM is
+`KEMScheme.correctnessError_eq_evalDist_false_add_prFail`.  ML-KEM is
 interpreted by the total semantics `ProbComp`; hence `p_⊥=0` and its
 correctness error is simply the probability that honest decapsulation does
 not return the key produced by encapsulation.

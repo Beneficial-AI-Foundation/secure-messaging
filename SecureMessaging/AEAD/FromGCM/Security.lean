@@ -212,7 +212,7 @@ theorem gcmOneTimeAEAD_security_of_axu (prp : PRPScheme K (BitVec 128)) (iv : Bi
   dsimp only
   have hg12 :
       Pr{let x ← game1 prp L hL adv}[x = true] = Pr{let x ← game2 prp L hL adv}[x = true] :=
-    (EvalDistEq.of_evalDist_eq (game1_eq_game2 prp L hL adv)).prEvent_eq _
+    (game1_eq_game2 prp L hL adv).prEvent_eq _
   unfold AEADScheme.distAdvantage
   rw [← game4_eq_rand prp iv L hL adv, ← game0_eq_real prp iv L hL adv,
     ← prEvent_game3_eq_game4 prp L hL adv]
