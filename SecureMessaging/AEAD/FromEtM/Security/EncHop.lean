@@ -208,7 +208,7 @@ theorem game2_game3_le_enc [Inhabited K_e]
   -- game2 = DetSEAlg.securityExpFixedBit se (encReduction se adv) false
   -- game3 = DetSEAlg.securityExpFixedBit se (encReduction se adv) true
   --
-  -- Discovered proof path (both directions are probOutput equalities, then `abs_sub_comm`):
+  -- Discovered proof path (both directions are `Pr{…}[x = true]` equalities, then `abs_sub_comm`):
   --   `securityExpFixedBit se (encReduction se adv) b` unfolds to a NESTED simulateQ:
   --   `simulateQ (indCPAImpl se b k) (encReduction…)`, where `encReduction` itself is
   --   `simulateQ encRedImpl adv` over `EtmGameState`. Collapse the nesting with
@@ -229,7 +229,7 @@ theorem game2_game3_le_enc [Inhabited K_e]
       Pr{let x ← DetSEAlg.securityExpFixedBit se (encReduction se adv) true}[x = true] := by
     unfold game3 DetSEAlg.securityExpFixedBit
     simp only [bind_pure_comp, ← StateT.run'_eq]
-    refine probOutput_bind_congr' se.keygen true (fun key => ?_)
+    refine prEvent_bind_congr se.keygen _ _ _ _ (fun key => ?_)
     exact congrArg (Pr{let x ← ·}[x = true])
       (encFixedGame_eq_reductionBranch se true key adv)
   have hg2 : Pr{let x ← game2 se adv}[x = true] =
@@ -243,7 +243,7 @@ theorem game2_game3_le_enc [Inhabited K_e]
             (fun _ _ => pure false) gameUnifImpl adv : ProbComp Bool)}[x = true] := by
       unfold game2 etmGameSkeleton
       simp only [bind_pure_comp, ← StateT.run'_eq]
-      refine probOutput_bind_congr' se.keygen true (fun key => ?_)
+      refine prEvent_bind_congr se.keygen _ _ _ _ (fun key => ?_)
       rw [run'_simulateQ_eq_of_query_map_eq_inv'
             _ _ (fun s => s.1 = none → s.2 = (∅ : TagCache AD C_e T))
             (fun s => (s.1, (∅ : TagCache AD C_e T))) ?hinv ?hproj adv (none, ∅) ?hs]
@@ -329,7 +329,7 @@ theorem game2_game3_le_enc [Inhabited K_e]
         Pr{let x ← DetSEAlg.securityExpFixedBit se (encReduction se adv) false}[x = true] := by
       unfold DetSEAlg.securityExpFixedBit
       simp only [bind_pure_comp, ← StateT.run'_eq]
-      refine probOutput_bind_congr' se.keygen true (fun key => ?_)
+      refine prEvent_bind_congr se.keygen _ _ _ _ (fun key => ?_)
       exact congrArg (Pr{let x ← ·}[x = true])
         (encFixedGame_eq_reductionBranch se false key adv)
     rw [stepA, stepB]

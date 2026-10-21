@@ -311,16 +311,15 @@ noncomputable def securityReductionRealGame (gp : GameParams)
 
   `Pr[ℬ = true | DDH_real]  =  Pr[securityReductionRealGame = false]`
 
-`ddhExpReal gen ℬ` and `securityReductionRealGame gp 𝒜` run the same sampling
+`ddhRealExperiment gen ℬ` and `securityReductionRealGame gp 𝒜` run the same sampling
 and simulation; they differ only in their (negated bit) return. -/
-lemma probOutput_ddhExpReal_securityReduction (gp : GameParams)
+lemma prEvent_ddhRealExperiment_securityReduction (gp : GameParams)
     (adversary : CKAAdversary (CKAState F G) G G F) :
-    Pr{let x ← ddhExpReal gen (securityReduction gp adversary)}[x = true] =
+    Pr{let x ← ddhRealExperiment gen (securityReduction gp adversary)}[x = true] =
     Pr{let x ← securityReductionRealGame (gen := gen) gp adversary}[x = false] := by
-  unfold DiffieHellman.ddhExpReal securityReduction
-  simpa [securityReductionRealGame, monad_norm] using
-    (probOutput_not_map (m := ProbComp)
-      (mx := securityReductionRealGame (gen := gen) gp adversary))
+  unfold DiffieHellman.ddhRealExperiment securityReduction securityReductionRealGame
+  simp only [prEvent_norm]
+  simp only [Bool.not_eq_eq_eq_not, Bool.not_true, StateT.run'_eq, Functor.map_map]
 
 /-- **Game `CKA^{isRandom = false}`**
 `x₀ ←$ F`, run `𝒜` against `ckaSecurityImpl gp (ddhCKA F G gen)` with challenge bit `false`.
@@ -358,17 +357,16 @@ noncomputable def securityReductionRandGame (gp : GameParams)
 
   `Pr[ℬ = true | DDH_rand]  =  Pr{let x ← securityReductionRandGame}[x = false]`
 
-`ddhExpRand gen ℬ` returns `!b'` where `b'` is the output of
+`ddhRandomExperiment gen ℬ` returns `!b'` where `b'` is the output of
 `securityReductionRandGame`, so the probability of `true` on the left
-equals the probability of `false` on the right by `probOutput_not_map`. -/
-lemma probOutput_ddhExpRand_securityReduction (gp : GameParams)
+equals the probability of `false` on the right. -/
+lemma prEvent_ddhRandomExperiment_securityReduction (gp : GameParams)
     (adversary : CKAAdversary (CKAState F G) G G F) :
-    Pr{let x ← ddhExpRand gen (securityReduction gp adversary)}[x = true] =
+    Pr{let x ← ddhRandomExperiment gen (securityReduction gp adversary)}[x = true] =
     Pr{let x ← securityReductionRandGame (gen := gen) gp adversary}[x = false] := by
-  unfold DiffieHellman.ddhExpRand securityReduction
-  simpa [securityReductionRandGame, monad_norm] using
-    (probOutput_not_map (m := ProbComp)
-      (mx := securityReductionRandGame (gen := gen) gp adversary))
+  unfold DiffieHellman.ddhRandomExperiment securityReduction securityReductionRandGame
+  simp only [prEvent_norm]
+  simp only [Bool.not_eq_eq_eq_not, Bool.not_true, StateT.run'_eq, Functor.map_map]
 
 /-- **Game `CKA^{isRandom = true}`**
  `x₀ ←$ F`, run `𝒜` against `ckaSecurityImpl gp (ddhCKA F G gen)` with challenge bit

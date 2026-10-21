@@ -133,11 +133,11 @@ theorem probEvent_not_good_le_tracked_bad (impl : QueryImpl spec (StateT σ Prob
     Pr{let z ← (simulateQ impl oa).run s₀}[good z.2 = false] ≤
       Pr{let z ← (simulateQ (trackedImpl impl bad) oa).run (s₀, false)}[z.2.2 = true] := by
   rw [← tracked_run_project impl bad oa (s₀, false), prEvent_map]
-  refine prEvent_mono ?_
+  refine prEvent_mono_of_support _ _ _ ?_
   intro z hz hnotgood
   rcases simulateQ_run_preservesInv (trackedImpl impl bad) (trackedInv Inv bad) hpres oa
       (s₀, false) hinit z hz with hflag | ⟨hinv, -⟩
   · exact hflag
-  · simp [Function.comp, hgood _ hinv] at hnotgood
+  · simp [hgood _ hinv] at hnotgood
 
 end OracleComp

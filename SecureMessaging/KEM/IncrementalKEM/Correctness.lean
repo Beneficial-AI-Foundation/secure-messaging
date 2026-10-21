@@ -65,8 +65,8 @@ theorem expectedPayoff_keygen_decapsFailureProb [DecidableEq K] :
     expectedPayoff kem.keygen
         (fun (pk, sk) => inc.decapsFailureProb (inc.toHeader pk) (inc.toVector pk) sk) =
       kem.correctnessError ProbCompRuntime.probComp := by
-  rw [kem.correctnessError_eq_probOutput_false_add_probFailure, ← inc.correctExp_eq]
-  change _ = Pr{let x ← inc.CorrectExp}[x = false] + prFail inc.CorrectExp
+  rw [kem.correctnessError_probComp_eq_prEvent_false, ← inc.correctExp_eq,
+    ← add_zero (Pr{let x ← inc.CorrectExp}[x = false]), ← prFail_eq_zero inc.CorrectExp]
   unfold CorrectExp
   rw [probOutput_false_add_probFailure_bind]
   congr 1

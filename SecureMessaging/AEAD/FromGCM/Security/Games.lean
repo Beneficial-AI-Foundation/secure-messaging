@@ -329,7 +329,7 @@ theorem game2Flat_eq_game2 (prp : PRPScheme K (BitVec 128)) (L : ℕ)
   unfold game2Flat game2
   rw [bind_congr fun a =>
     simulateQ_gcmInstImpl_true_run'_eq_gcmTupleImpl a adv none false]
-  exact probOutput_simulateQ_greedyLazy_run'_eq gcmTupleImpl adv none
+  exact (evalDistEq_simulateQ_greedyLazy_run'_eq gcmTupleImpl adv none).evalDist_eq
 
 theorem game3Flat_eq_game3 (prp : PRPScheme K (BitVec 128)) (L : ℕ)
     (hL : ValidMsgLength L)
@@ -338,8 +338,8 @@ theorem game3Flat_eq_game3 (prp : PRPScheme K (BitVec 128)) (L : ℕ)
   unfold game3Flat game3
   rw [bind_congr fun a =>
     simulateQ_gcmInstImpl_false_run'_eq_gcmTupleImplReject a adv none false]
-  exact probOutput_simulateQ_consumeLazy_run'_eq gcmTupleImplReject
-    (fun t => t matches OEncrypt _) gcmTupleImplReject_indep adv none
+  exact (evalDistEq_simulateQ_consumeLazy_run'_eq gcmTupleImplReject
+    (fun t => t matches OEncrypt _) gcmTupleImplReject_indep adv none).evalDist_eq
 
 end Instrumented
 
@@ -355,17 +355,18 @@ theorem game0_eq_real (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
     Pr{let x ← game0 prp iv L hL adv}[x = true] =
-      Pr{let x ← AEADScheme.securityExpFixedBit (gcmOneTimeAEAD prp iv L hL) adv false}[x = true] := by
+      Pr{let x ←
+        AEADScheme.securityExpFixedBit (gcmOneTimeAEAD prp iv L hL) adv false}[x = true] := by
   -- Unfold only the keygen projection (keep `aeadSecurityImpl` folded to match the RHS).
   have hkg : (gcmOneTimeAEAD prp iv L hL).keygen = prp.keygen := rfl
   unfold game0 AEADScheme.securityExpFixedBit
   rw [hkg]
   simp only [bind_pure_comp, ← StateT.run'_eq]
   -- Both sides start with `prp.keygen`; descend under the single key bind.
-  refine probOutput_bind_congr' prp.keygen true (fun k => ?_)
+  refine prEvent_bind_congr prp.keygen _ _ (· = true) (· = true) (fun k => ?_)
   -- Inner per-key equality: game0's skeleton impl projects onto
   -- `aeadSecurityImpl … false k` with `proj = id` (state `Option (AD × C)` on both sides).
-  refine congrArg (fun o => Pr{let x ← o}[x = true]) ?_
+  refine congrArg (fun o : ProbComp Bool => Pr{let x ← o}[x = true]) ?_
   refine run'_simulateQ_eq_of_query_map_eq _
     (AEADScheme.aeadSecurityImpl (gcmOneTimeAEAD prp iv L hL) false k) id ?hproj adv none
   case hproj =>
@@ -392,12 +393,10 @@ theorem game4_eq_plain (prp : PRPScheme K (BitVec 128)) (L : ℕ) (hL : ValidMsg
     evalDist (game4 prp L hL adv) =
       evalDist ((simulateQ (gcmRandRejectImpl (L := L) default) adv).run' none) := by
   unfold game4
-  rw [← probOutput_simulateQ_consumeLazy_run'_eq gcmRandRejectImpl
-        (fun t => t matches OEncrypt _) (fun _ _ _ _ _ => rfl) adv none]
-  exact DeferredSampling.evalDist_bind_const_neverFails
-    ($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _)
-    (probFailure_uniformSample _)
-    ((simulateQ (gcmRandRejectImpl (L := L) default) adv).run' none)
+  exact ((evalDistEq_simulateQ_consumeLazy_run'_eq gcmRandRejectImpl
+    (fun t => t matches OEncrypt _) (fun _ _ _ _ _ => rfl) adv none).symm.trans
+    (EvalDistEq.bind_const ($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _)
+      ((simulateQ (gcmRandRejectImpl (L := L) default) adv).run' none))).evalDist_eq
 
 /-- `game4` outputs `true` with the same probability as the ideal ACD19 experiment, the one with
 challenge bit `true`. The key is unused on the ideal side, and no hypothesis on `prp.keygen` is
@@ -406,9 +405,10 @@ theorem game4_eq_rand (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ
     (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
     Pr{let x ← game4 prp L hL adv}[x = true] =
-      Pr{let x ← AEADScheme.securityExpFixedBit (gcmOneTimeAEAD prp iv L hL) adv true}[x = true] := by
+      Pr{let x ←
+        AEADScheme.securityExpFixedBit (gcmOneTimeAEAD prp iv L hL) adv true}[x = true] := by
   -- (1)-(2) Unconsume and kill the dead tuple sample: both steps are `game4_eq_plain`.
-  rw [evalDist_ext_iff.mp (game4_eq_plain prp L hL adv) true]
+  rw [(EvalDistEq.of_evalDist_eq (game4_eq_plain prp L hL adv)).prEvent_eq]
   -- (3) RHS: the endpoint's keygen is dead on the random side; fold the tail to `.run'`.
   have hkg : (gcmOneTimeAEAD prp iv L hL).keygen = prp.keygen := rfl
   unfold AEADScheme.securityExpFixedBit
@@ -416,15 +416,13 @@ theorem game4_eq_rand (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ
   simp only [bind_pure_comp, ← StateT.run'_eq]
   -- (4) Kill it with losslessness; the per-key body is constant (= the LHS value by
   -- the `id`-projection).
-  rw [probOutput_bind_of_const prp.keygen
+  rw [ToVCVio.probOutput_bind_of_const' prp.keygen
       (my := fun k => (simulateQ (AEADScheme.aeadSecurityImpl (gcmOneTimeAEAD prp iv L hL)
         true k) adv).run' none)
       (fun k _ => congrArg (fun o => Pr{let x ← o}[x = true])
         (run'_simulateQ_eq_of_query_map_eq _
           (AEADScheme.aeadSecurityImpl (gcmOneTimeAEAD prp iv L hL) true k)
           id ?_ adv none).symm)]
-  · -- `prp.keygen` is lossless, so the `(1 - Pr[⊥]) ·` factor is `1`; `rfl` pins `impl₁`.
-    rw [NeverFail.OracleComp.prFail_eq_zero, tsub_zero, one_mul]
   · -- Per-query `id`-projection (`impl₁` is the eager `gcmRandRejectImpl`).
     intro t s
     rcases t with (n | ⟨ad, m⟩) | ⟨ad, e⟩
