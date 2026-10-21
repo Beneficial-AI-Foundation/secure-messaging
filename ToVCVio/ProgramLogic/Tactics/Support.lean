@@ -52,13 +52,22 @@ macro "vcv_simp_support" " at " h:ident : tactic =>
 macro "vcv_extract_support_binds" " at " h:ident : tactic =>
   `(tactic| repeat (obtain ⟨_, _, $h⟩ := Set.mem_iUnion₂.mp $h))
 
-/-- Normalize a support hypothesis for a stateful VCV-io computation. -/
+/-- Support tactic for stateful VCV-io computations, in three forms. The three forms share
+this docstring, because Lean ignores the docstrings of `@[tactic_alt]` forms.
+
+* `vcvSupport h` normalizes the `StateT`/`support` combinators in the support hypothesis `h` and
+  extracts the witnesses that `support_bind` introduces. It does not try to close the goal.
+* `vcvSupport at h` does the same, then substitutes the remaining equation in `h` and tries to
+  close a counter-monotonicity goal with the pair closers.
+* `vcvSupport` normalizes every support fact in the context, destructures the bind witnesses,
+  substitutes forced equalities, and tries the pair closers, `omega`, `simp_all` and `grind`. The
+  pair closers handle the one-counter-bump send shapes, where the bumped record is
+  definitionally equal to the goal's projection but not syntactically. -/
 macro (name := vcvSupportHyp) "vcvSupport" h:ident : tactic =>
   `(tactic|
     (vcv_simp_support at $h:ident
      vcv_extract_support_binds at $h:ident))
 
-/-- Normalize a named support hypothesis and close the common counter-monotonicity goal. -/
 @[tactic_alt vcvSupportHyp]
 macro (name := vcvSupportAt) "vcvSupport" " at " h:ident : tactic =>
   `(tactic|
@@ -73,12 +82,6 @@ macro (name := vcvSupportAt) "vcvSupport" " at " h:ident : tactic =>
        | exact ⟨le_refl _, Nat.le_succ _⟩
        | exact ⟨rfl, rfl⟩))
 
-/-- Normalize local support facts and close common support-generated goals.
-
-After normalization the bind witnesses sit under existentials, so they are
-destructured before substitution; the explicit pair closers handle the
-one-counter-bump send shapes, where the bumped record is definitionally equal
-to the goal's projection but not syntactically. -/
 @[tactic_alt vcvSupportHyp]
 macro (name := vcvSupportBare) "vcvSupport" : tactic =>
   `(tactic|

@@ -612,7 +612,7 @@ The combination is generic and lives in
   preservation to one query from a state that is not bad;
 - `OracleComp.tracked_bad_le_of_score_step` turns a per-query score bound into
   `Pr[flag] ≤ score₀ + q · ε` for any class of counted queries;
-- `probEvent_not_good_le_tracked_bad` bounds by `Pr[flag]` the probability that the ordinary
+- `prEvent_not_good_le_tracked_bad` bounds by `Pr[flag]` the probability that the ordinary
   run ends in a state the invariant rules out.
 
 [`SCKA/Correctness/Tracked.lean`](../../SecureMessaging/SCKA/Correctness/Tracked.lean)
@@ -683,11 +683,11 @@ the KEM's correctness error is its average over key generation.
   epoch. With `pairPotential` and `pairFailure` presenting the two parties with the sender
   first:
   - *advance*: the potential gains `φ(pk, sk)` for the fresh key pair; averaged over key
-    generation this is at most `ε` (`expectedPayoff_keygen_le`, from
+    generation this is at most `ε` (`wp_keygen_le`, from
     `correctnessError_eq_avg_keypair`);
   - *encapsulation* to the peer's `pk`, with retained `sk`: with probability at most `φ(pk, sk)`
     the flag is set (score `1`), otherwise the term `φ(pk, sk)` leaves the potential
-    (`pairPotential_encaps`, `pairFailure_encaps`, `expectedPayoff_encaps_le`); the expected
+    (`pairPotential_encaps`, `pairFailure_encaps`, `wp_encaps_le`); the expected
     score is at most the old score;
   - *plain*: nothing changes (`pair_plain`).
 
@@ -722,8 +722,9 @@ every state, so neither the flag nor the potential is needed.
 is the pointwise fact the proof uses: for every key pair in the support of key generation and
 every encapsulation in the support of `encaps`, decapsulation returns the encapsulated key.
 [`decapsCorrectOnSupport_of_perfectlyCorrect`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/PerfectKEM.lean#L43)
-derives it from `Pr[CorrectExp = true] = 1`: `probOutput_eq_one_iff` gives
-`support CorrectExp = {true}`, and a counterexample would put `false` in the support.
+derives it from `Pr[correctnessExperiment = true] = 1`: `prEvent_eq_one_iff` gives that every
+result in the support of `correctnessExperiment` is `true`, and a counterexample would put
+`false` in the support.
 [`transcriptDecaps_of_support`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/PerfectKEM.lean#L69)
 applies it to the key pair and encapsulation recorded in a transcript, which lie in those
 supports (`keypair_mem`, `enc_mem`), and
@@ -734,9 +735,9 @@ uses it to discharge `DecapsReady` in `gameInv_step_of` at every state, giving
 [`simulateQ_gameInv`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/PerfectKEM.lean#L101)
 lifts this to every adversary with VCVio's `simulateQ_run_preservesInv`.
 [`correctness_of_perfectKEM`](../../SecureMessaging/SCKA/OppBiKEM/Correctness.lean#L154)
-then shows `Pr[G(Adv) = false] = 0` from `correctnessExp_eq_map`, `probEvent_eq_zero_iff` and the
+then shows `Pr[G(Adv) = false] = 0` from `correctnessExp_eq_map`, `prEvent_eq_zero_iff` and the
 invariant's `correct` field, and converts it to `Pr[G(Adv) = true] = 1` with
-`probOutput_false_eq_sub`.
+`prEvent_eq_false_eq_one_sub`.
 
 ## 13. Sends are never rejected
 
