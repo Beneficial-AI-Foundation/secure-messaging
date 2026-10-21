@@ -383,12 +383,12 @@ private lemma keygen_commute_after_install_tail [SampleableType K] [DecidableEq 
             (simulateQ (securityImpl kem hDet leak gp isRandom)
                 (cont (some ((ck.1, p.1), ck.2)))).run (mkState p.1 p.2 ck.1 ck.2) >>=
               fun x => pure x.1)}[y = true] := by
-  rw [OracleComp.prEvent_bind_bind_swap (mx := kem.keygen) (my := kem.encaps pk)]
-  refine probOutput_bind_congr fun ck _ => ?_
-  refine probOutput_bind_congr fun p _ => ?_
-  rw [probOutput_bind_of_const' kem.keygen fun _ _ => rfl]
+  rw [(OracleComp.EvalDistEq.bind_bind_swap kem.keygen (kem.encaps pk) _).prEvent_eq]
+  refine prEvent_bind_congr (kem.encaps pk) _ _ _ _ fun ck => ?_
+  refine prEvent_bind_congr kem.keygen _ _ _ _ fun p => ?_
+  rw [(OracleComp.EvalDistEq.bind_const kem.keygen _).prEvent_eq]
   simpa only [StateT.run'_eq, map_eq_bind_pure_comp, Function.comp_def] using
-    ToVCVio.probOutput_run'_true_eq_of_run_probOutput_eq _ fun z =>
+    ToVCVio.prEvent_run'_true_eq_of_run_prEvent_eq _ fun z =>
       probOutput_simulateQ_securityImplWithChallengeKeyPair_run_eq_of_injectionPassed
         kem hDet leak gp isRandom p.1 p.2 (cont (some ((ck.1, p.1), ck.2)))
         (mkState p.1 p.2 ck.1 ck.2) (hpass p ck) z
@@ -565,14 +565,15 @@ private lemma probOutput_simulateQ_keygen_commute [SampleableType K] [DecidableE
           injectResume kem leak (securityImpl kem hDet leak gp isRandom) x.1 x.2 :=
     simulateQ_run_eq_injectPrefix_bind kem hDet leak gp isRandom _ (fun _ _ _ _ => rfl) adv σ0
   simp only [hsplitWCK, hsplitH, bind_assoc]
-  rw [OracleComp.prEvent_bind_bind_swap (mx := kem.keygen)
-    (my := (injectPrefix kem hDet leak gp isRandom adv).run σ0)]
-  refine probOutput_bind_congr fun rs hrs => ?_
+  rw [(OracleComp.EvalDistEq.bind_bind_swap kem.keygen
+    ((injectPrefix kem hDet leak gp isRandom adv).run σ0) _).prEvent_eq]
+  rw [map_bind, map_bind]
+  refine prEvent_bind_congr_of_support _ _ _ fun rs hrs => ?_
   obtain ⟨res, σ_p⟩ := rs
   cases res with
   | done g =>
       simp only [injectResume, pure_bind]
-      rw [probOutput_bind_of_const' kem.keygen fun _ _ => rfl]
+      exact (OracleComp.EvalDistEq.bind_const kem.keygen _).prEvent_eq _
   | pausedA cont =>
       exact injectResume_pausedA_combine kem hDet leak gp isRandom cont σ_p
         (injectPrefix_run_support_effInject kem hDet leak gp isRandom
@@ -606,8 +607,8 @@ private lemma ckaSecurityFixedBranchWithChallengeKey_injected_probOutput_true_eq
   by_cases hinit :
       (gp.challengeEpoch == 1 && gp.challengedParty == .A) = true
   · simp only [hinit, ↓reduceIte]
-    refine probOutput_bind_congr' kem.keygen true fun pk0sk0 => ?_
-    refine probOutput_bind_congr' kem.keygen true fun pkStar_skStar => ?_
+    refine prEvent_bind_congr kem.keygen _ _ _ _ fun pk0sk0 => ?_
+    refine prEvent_bind_congr kem.keygen _ _ _ _ fun pkStar_skStar => ?_
     have hpass : injectionPassed gp
         (CKAScheme.initGameState
           (State.sendReady pkStar_skStar.1)
@@ -618,15 +619,15 @@ private lemma ckaSecurityFixedBranchWithChallengeKey_injected_probOutput_true_eq
       simp only [injectionPassed, hcp, CKAScheme.initGameState]
       omega
     simpa only [StateT.run'_eq, map_eq_bind_pure_comp, Function.comp_def] using
-      (ToVCVio.probOutput_run'_true_eq_of_run_probOutput_eq _ fun z =>
+      (ToVCVio.prEvent_run'_true_eq_of_run_prEvent_eq _ fun z =>
         probOutput_simulateQ_securityImplWithChallengeKeyPair_run_eq_of_injectionPassed
           kem hDet leak gp isRandom pkStar_skStar.1 pkStar_skStar.2 adv _ hpass z).symm
   · have hinitFalse :
         (gp.challengeEpoch == 1 && gp.challengedParty == .A) = false :=
       Bool.eq_false_of_not_eq_true hinit
     simp only [hinitFalse, Bool.false_eq_true, ↓reduceIte]
-    refine probOutput_bind_congr' kem.keygen true fun pk0sk0 => ?_
-    rw [probOutput_bind_of_const' kem.keygen fun _ _ => rfl]
+    refine prEvent_bind_congr kem.keygen _ _ _ _ fun pk0sk0 => ?_
+    rw [(OracleComp.EvalDistEq.bind_const kem.keygen _).prEvent_eq]
     exact (probOutput_simulateQ_keygen_commute
       kem hDet leak gp isRandom adv
       (CKAScheme.initGameState
@@ -642,8 +643,10 @@ lemma ckaSecurityFixedBranchWithChallengeKey_injected_gap_eq
     (leak : RandLeak kem)
     (adv : Adversary (kem := kem) leak)
     (gp : CKAScheme.GameParams) :
-    |(Pr{let x ← ckaSecurityFixedBranchWithChallengeKey kem hDet leak adv gp true}[x = true]).toReal -
-      (Pr{let x ← ckaSecurityFixedBranchWithChallengeKey kem hDet leak adv gp false}[x = true]).toReal| =
+    |(Pr{let x ← (ckaSecurityFixedBranchWithChallengeKey
+          kem hDet leak adv gp true)}[x = true]).toReal -
+      (Pr{let x ← (ckaSecurityFixedBranchWithChallengeKey
+          kem hDet leak adv gp false)}[x = true]).toReal| =
     |(Pr{let x ← (ckaSecurityFixedBranchWithInjectedChallengeKey
           kem hDet leak adv gp true)}[x = true]).toReal -
       (Pr{let x ← (ckaSecurityFixedBranchWithInjectedChallengeKey
