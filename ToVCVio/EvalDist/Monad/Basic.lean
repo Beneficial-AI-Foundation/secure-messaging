@@ -7,6 +7,7 @@ import VCVio.EvalDist.Monad.Basic
 import VCVio.EvalDist.Monad.Map
 import VCVio.OracleComp.Constructions.SampleableType
 import VCVio.OracleComp.Constructions.SampleableType.Measure
+import VCVio.OracleComp.EvalDist.Sum
 
 /-!
 # `EvalDist` point-probability transport
@@ -21,9 +22,7 @@ evaluation distribution.
   bit" step of hybrid arguments;
 * `prEvent_uniformBool_branch_toReal_sub_half` writes hidden-bit guessing over a uniform bit,
   centered at `1/2`, as half the signed gap between its two branches;
-* `tsum_ite_prEvent_eq_le_prEvent` and `tsum_prEvent_eq_le_one` bound sums of point masses
-  in any monad;
-* `tsum_probOutput_mul_le_of_forall_mem_support` bounds the expectation
+* `tsum_prEvent_mul_le_of_forall_mem_support` bounds the expectation
   `∑' z, Pr{let x ← mx}[x = z] * F z` by any bound on `F` over the support of `mx`;
 * the four `probOutput_*_sample_*_param_eq` lemmas couple two or three eager
   `uniformSample` draws over `ProbComp`.
@@ -117,31 +116,11 @@ lemma prEvent_uniformBool_branch_toReal_sub_half (real rand : ProbComp Bool) :
     one_div]
   ring
 
-/-- The point masses of the outputs of `mx` satisfying `p` sum to at most the probability of
-`p`. -/
-lemma tsum_ite_prEvent_eq_le_prEvent [EvalDistSemantics m] [LawfulEvalDistSemantics m]
-    (mx : m α) (p : α → Prop) [DecidablePred p] :
-    ∑' a, (if p a then Pr{let x ← mx}[x = a] else 0) ≤ Pr{let x ← mx}[p x] := by
-  let : MeasurableSpace α := ⊤
-  rw [prEvent_eq_evalDist_of_discrete, ENNReal.tsum_eq_iSup_sum]
-  refine iSup_le fun s => ?_
-  calc ∑ a ∈ s, (if p a then Pr{let x ← mx}[x = a] else 0)
-      = ∑ a ∈ s.filter p, 𝒟[mx] {a} := by
-        rw [Finset.sum_filter]
-        exact Finset.sum_congr rfl fun a _ => by rw [prEvent_eq_evalDist_singleton]
-    _ = 𝒟[mx] (s.filter p : Set α) := MeasureTheory.sum_measure_singleton
-    _ ≤ 𝒟[mx] {x | p x} := MeasureTheory.measure_mono fun a ha => (Finset.mem_filter.1 ha).2
-
-/-- The point masses of the outputs of `mx` sum to at most `1`. -/
-lemma tsum_prEvent_eq_le_one [EvalDistSemantics m] [LawfulEvalDistSemantics m] (mx : m α) :
-    ∑' a, Pr{let x ← mx}[x = a] ≤ 1 := by
-  simpa only [ite_true] using (tsum_ite_prEvent_eq_le_prEvent mx fun _ => True).trans
-    (prEvent_le_one _)
-
 /-- If `F z ≤ c` for every possible output `z` of `mx`, then the expectation of `F` under
-`mx` is at most `c`. Missing mass only lowers the sum, so `mx` may fail. -/
-lemma tsum_probOutput_mul_le_of_forall_mem_support [MonadAttach m] [WeaklyLawfulMonadAttach m]
-    [EvalDistSemantics m] [LawfulEvalDistSemantics m] (mx : m α) {F : α → ℝ≥0∞} {c : ℝ≥0∞}
+`mx` is at most `c`. -/
+lemma tsum_prEvent_mul_le_of_forall_mem_support {ι : Type} {spec : OracleSpec ι}
+    [OracleSpec.AnswerMeasure spec] [∀ t, Finite (spec.Range t)] (mx : OracleComp spec α)
+    {F : α → ℝ≥0∞} {c : ℝ≥0∞}
     (h : ∀ z ∈ support mx, F z ≤ c) :
     ∑' z, Pr{let x ← mx}[x = z] * F z ≤ c := by
   calc ∑' z, Pr{let x ← mx}[x = z] * F z ≤ ∑' z, Pr{let x ← mx}[x = z] * c := by
@@ -150,7 +129,7 @@ lemma tsum_probOutput_mul_le_of_forall_mem_support [MonadAttach m] [WeaklyLawful
         · exact mul_le_mul' le_rfl (h z hz)
         · rw [prEvent_eq_zero_of_not_mem_support mx hz, zero_mul, zero_mul]
     _ = (∑' z, Pr{let x ← mx}[x = z]) * c := ENNReal.tsum_mul_right
-    _ ≤ c := mul_le_of_le_one_left zero_le (tsum_prEvent_eq_le_one mx)
+    _ ≤ c := mul_le_of_le_one_left zero_le (OracleComp.tsum_prEvent_le_one mx)
 
 /-- Active-parameter coupling for two independent samples.
 

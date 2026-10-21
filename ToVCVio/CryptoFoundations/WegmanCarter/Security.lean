@@ -484,7 +484,7 @@ private lemma post_half_le [SampleableType K] [DecidableEq A] [DecidableEq Cb] {
       rw [Prod.ext_iff]
       exact ⟨(Prod.ext_iff.1 h3).1, by rw [Prod.ext_iff]; exact ⟨(Prod.ext_iff.1 h3).2, h2⟩⟩)
   · simp_rw [mul_assoc]
-    refine tsum_probOutput_mul_le_of_forall_mem_support _ fun w hw => ?_
+    refine tsum_prEvent_mul_le_of_forall_mem_support _ fun w hw => ?_
     simp only [mem_support_bind_iff, support_pure, Set.mem_singleton_iff] at hw
     obtain ⟨T, -, z, hz, rfl⟩ := hw
     have hlen := log_length_le_from hash enc H0 0 padMsg (ob (some (c0, T))) n (hn _)
