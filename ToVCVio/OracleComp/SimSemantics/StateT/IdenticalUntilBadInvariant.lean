@@ -31,8 +31,8 @@ output of `oa` together with the final state. Write `pL := Pr{let z ← L}[event
 
 Then, if the initial state `s` of `L` and `R` satisfies `Inv s`,
 
-- `probEvent_simulateQ_run_bounds_of_inv`: `pL ≤ pR + pBad` and `pR ≤ pL + pBad`;
-- `abs_probEvent_simulateQ_run_sub_le_bad_of_inv`: `|pL - pR| ≤ pBad` for the real values
+- `prEvent_simulateQ_run_bounds_of_inv`: `pL ≤ pR + pBad` and `pR ≤ pL + pBad`;
+- `abs_prEvent_simulateQ_run_sub_le_bad_of_inv`: `|pL - pR| ≤ pBad` for the real values
   of these probabilities.
 -/
 
@@ -49,8 +49,8 @@ private theorem bad_run_probability_one
     (hmono : QueryImpl.PreservesInv impl bad) (oa : OracleComp spec α)
     (s : σ) (hs : bad s) :
     Pr{let z ← (simulateQ impl oa).run s}[bad z.2] = 1 := by
-  apply probEvent_eq_one_iff.mpr
-  exact ⟨OracleComp.prFail_eq_zero, simulateQ_run_preservesInv impl bad hmono oa s hs⟩
+  exact prEvent_eq_one_of_forall_mem_support _ _
+    (simulateQ_run_preservesInv impl bad hmono oa s hs)
 
 /-- Let `left` preserve `Inv` and `bad`, and let `(left t).run u = (right t).run u` for every
 query `t` and state `u` with `Inv u` and `¬bad u`. Then, for every computation `oa`, event
@@ -58,7 +58,7 @@ query `t` and state `u` with `Inv u` and `¬bad u`. Then, for every computation 
 `pL := Pr{let z ← (simulateQ left oa).run s}[event z.1]`,
 `pR := Pr{let z ← (simulateQ right oa).run s}[event z.1]`, and
 `pBad := Pr{let z ← (simulateQ left oa).run s}[bad z.2]`. -/
-theorem probEvent_simulateQ_run_bounds_of_inv
+theorem prEvent_simulateQ_run_bounds_of_inv
     (left right : QueryImpl spec (StateT σ ProbComp))
     (Inv bad : σ → Prop)
     (hpres : QueryImpl.PreservesInv left Inv)
@@ -84,14 +84,16 @@ theorem probEvent_simulateQ_run_bounds_of_inv
       -- bind with VCVio's disagreement lemma, taking the disagreement set empty.
       have step y (hy : y ∈ support ((left t).run s)) := ih y.1 y.2 (hpres t s hs y hy)
       constructor
-      · simpa using prEvent_bind_le_add_bad_of_disagree' (D := fun _ => False) (ε := 0)
+      · have h := prEvent_bind_le_add_bad_of_disagree' (D := fun _ => False) (ε := 0)
           (fun _ _ h => h.elim) fun y hy _ => by simpa using (step y hy).1
-      · simpa using prEvent_bind_le_add_bad_of_disagree' (D := fun _ => False) (ε := 0)
+        simpa only [add_zero, prEvent_norm, OracleQuery.cont_query, id] using h
+      · have h := prEvent_bind_le_add_bad_of_disagree' (D := fun _ => False) (ε := 0)
           (fun _ _ h => h.elim) fun y hy _ => by simpa using (step y hy).2
+        simpa only [add_zero, prEvent_norm, OracleQuery.cont_query, id] using h
 
-/-- Under the hypotheses of `probEvent_simulateQ_run_bounds_of_inv` and with its notation, the
+/-- Under the hypotheses of `prEvent_simulateQ_run_bounds_of_inv` and with its notation, the
 real values satisfy `|pL - pR| ≤ pBad`. -/
-theorem abs_probEvent_simulateQ_run_sub_le_bad_of_inv
+theorem abs_prEvent_simulateQ_run_sub_le_bad_of_inv
     (left right : QueryImpl spec (StateT σ ProbComp))
     (Inv bad : σ → Prop)
     (hpres : QueryImpl.PreservesInv left Inv)
@@ -101,7 +103,7 @@ theorem abs_probEvent_simulateQ_run_sub_le_bad_of_inv
     |(Pr{let z ← (simulateQ left oa).run s}[event z.1]).toReal -
       (Pr{let z ← (simulateQ right oa).run s}[event z.1]).toReal| ≤
       (Pr{let z ← (simulateQ left oa).run s}[bad z.2]).toReal := by
-  obtain ⟨hl, hr⟩ := probEvent_simulateQ_run_bounds_of_inv
+  obtain ⟨hl, hr⟩ := prEvent_simulateQ_run_bounds_of_inv
     left right Inv bad hpres hmono hagree oa event s hs
   have hl' := ENNReal.toReal_mono (by simp) hl
   have hr' := ENNReal.toReal_mono (by simp) hr

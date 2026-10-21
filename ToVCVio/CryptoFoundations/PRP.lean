@@ -26,7 +26,7 @@ compares. Candidate for upstream VCVio.
   Game-Playing Proofs.* EUROCRYPT 2006, https://eprint.iacr.org/2004/331.pdf
 -/
 
-open OracleSpec OracleComp
+open OracleSpec OracleComp ENNReal
 
 /-- A block cipher (NIST SP 800-38D §5.1): a keyed permutation on `X`, given as
 forward/inverse functions that are mutually inverse for every key (`correct`). -/
@@ -80,7 +80,7 @@ def prpQueryImpl (g : X → X) : QueryImpl (PRPOracleSpec X) ProbComp :=
 It is by definition the PRF real experiment of `toPRFScheme`. -/
 def prpRealExp (prp : PRPScheme K X) (adversary : PRPAdversary X) :
     ProbComp Bool :=
-  PRFScheme.prfRealExp prp.toPRFScheme adversary
+  PRFScheme.prfRealExperiment prp.toPRFScheme adversary
 
 theorem prpRealExp_eq (prp : PRPScheme K X) (adversary : PRPAdversary X) :
     prpRealExp prp adversary =
@@ -97,10 +97,18 @@ def prpIdealExp [SampleableType (Equiv.Perm X)] (adversary : PRPAdversary X) :
 it outputs `true` in the real and in the ideal experiment. -/
 -- ANCHOR: prpAdvantage
 noncomputable def prpAdvantage [SampleableType (Equiv.Perm X)]
-    (prp : PRPScheme K X) (adversary : PRPAdversary X) : ℝ :=
-  |(Pr{let x ← prpRealExp prp adversary}[x = true]).toReal -
-    (Pr{let x ← prpIdealExp adversary}[x = true]).toReal|
+    (prp : PRPScheme K X) (adversary : PRPAdversary X) : ℝ≥0∞ :=
+  𝒟[prpRealExp prp adversary].boolDist 𝒟[prpIdealExp adversary]
 -- ANCHOR_END: prpAdvantage
+
+/-- The PRP advantage in real form: `|Pr[real ⇒ true] - Pr[ideal ⇒ true]|`. -/
+theorem toReal_prpAdvantage [SampleableType (Equiv.Perm X)]
+    (prp : PRPScheme K X) (adversary : PRPAdversary X) :
+    (prpAdvantage prp adversary).toReal =
+      |(Pr{let x ← prpRealExp prp adversary}[x = true]).toReal -
+        (Pr{let x ← prpIdealExp adversary}[x = true]).toReal| := by
+  rw [prpAdvantage, MeasureTheory.Measure.toReal_boolDist, prEvent_eq_evalDist_singleton,
+    prEvent_eq_evalDist_singleton]
 
 /-- `asPRF g` is the fixed function `g` viewed as a PRF scheme with a trivial key, so that the
 PRF simulation lemmas apply to `prpQueryImpl g`. -/

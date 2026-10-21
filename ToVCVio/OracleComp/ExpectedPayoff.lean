@@ -6,6 +6,7 @@ Authors: Beneficial AI Foundation
 
 import VCVio.OracleComp.ProbComp
 import VCVio.OracleComp.EvalDist
+import VCVio.OracleComp.EvalDist.Sum
 
 /-!
 # Failure-Aware Expected Payoff
@@ -14,7 +15,7 @@ For a probabilistic computation `oa : ProbComp A` and a function
 `f : A → ℝ≥0∞`, define
 
 ```text
-expectedPayoff oa f := Pr[oa = ⊥] + Σ a, Pr[oa = a] · f(a).
+expectedPayoff oa f := prFail oa + Σ a, Pr[oa = a] · f(a).
 ```
 
 This assigns payoff `1` to a missing output and payoff `f(a)` to a returned
@@ -50,11 +51,15 @@ For a Boolean computation `oc`, assigning payoff `0` to `true` and `1` to
 `false` gives its false-or-missing mass:
 
 ```text
-Pr[oc = false] + Pr[oc = ⊥].
+Pr[oc = false] + prFail oc.
 ```
 
 The final two lemmas describe this quantity under sequential composition and
 show that it is at most `1`.
+
+Under VCVio's measure semantics a `ProbComp` never fails, so `prFail` is `0`
+(`OracleComp.prFail_eq_zero`); the missing-mass terms are kept so that the
+statements read the same as for a failing monad.
 -/
 
 open OracleSpec ENNReal
@@ -70,12 +75,8 @@ noncomputable def expectedPayoff {A : Type}
 /-- A computation that deterministically returns `a` has payoff `payoff a`. -/
 lemma expectedPayoff_pure {A : Type} (a : A) (payoff : A → ℝ≥0∞) :
     expectedPayoff (pure a : ProbComp A) payoff = payoff a := by
-  unfold expectedPayoff
-  simp only [prFail_pure, zero_add]
-  rw [tsum_eq_single a]
-  · simp
-  · intro b hba
-    simp [hba]
+  simp only [expectedPayoff, prFail_eq_zero, zero_add]
+  exact tsum_prEvent_pure_mul a payoff
 
 /-- Sequential composition adds the first computation's missing mass to the
 average continuation payoff. -/
@@ -83,31 +84,8 @@ lemma expectedPayoff_bind {A B : Type} (oa : ProbComp A)
     (ob : A → ProbComp B) (payoff : B → ℝ≥0∞) :
     expectedPayoff (oa >>= ob) payoff =
       prFail oa + ∑' a, Pr{let x ← oa}[x = a] * expectedPayoff (ob a) payoff := by
-  unfold expectedPayoff
-  rw [probFailure_bind_eq_add_tsum]
-  have hout :
-      (∑' b, Pr{let x ← oa >>= ob}[x = b] * payoff b) =
-        ∑' b, ∑' a, Pr{let x ← oa}[x = a] * Pr{let x ← ob a}[x = b] * payoff b := by
-    refine tsum_congr fun b => ?_
-    rw [OracleComp.prEvent_bind_eq_tsum, ENNReal.tsum_mul_right]
-  calc
-    (prFail oa + ∑' a, Pr{let x ← oa}[x = a] * prFail (ob a)) +
-        ∑' b, Pr{let x ← oa >>= ob}[x = b] * payoff b =
-        prFail oa + ((∑' a, Pr{let x ← oa}[x = a] * prFail (ob a)) +
-          ∑' b, ∑' a, Pr{let x ← oa}[x = a] * Pr{let x ← ob a}[x = b] * payoff b) := by
-      rw [hout]
-      ac_rfl
-    _ = prFail oa + ((∑' a, Pr{let x ← oa}[x = a] * prFail (ob a)) +
-        ∑' a, ∑' b, Pr{let x ← oa}[x = a] * Pr{let x ← ob a}[x = b] * payoff b) := by
-      rw [ENNReal.tsum_comm]
-    _ = prFail oa + ∑' a, Pr{let x ← oa}[x = a] *
-        (prFail (ob a) + ∑' b, Pr{let x ← ob a}[x = b] * payoff b) := by
-      congr 1
-      rw [← ENNReal.tsum_add]
-      refine tsum_congr fun a => ?_
-      rw [mul_add]
-      simp_rw [mul_assoc]
-      rw [ENNReal.tsum_mul_left]
+  simp only [expectedPayoff, prFail_eq_zero, zero_add]
+  exact tsum_prEvent_bind_mul oa ob payoff
 
 /-- Applying `f` to each output before evaluating `payoff` is equivalent to
 evaluating `payoff (f a)` on the original output. -/
@@ -141,7 +119,7 @@ payoff. -/
 lemma probEvent_le_expectedPayoff {A : Type} (oa : ProbComp A) (p : A → Prop)
     (f : A → ℝ≥0∞) (hf : ∀ a, p a → 1 ≤ f a) :
     Pr{let x ← oa}[p x] ≤ expectedPayoff oa f :=
-  (probEvent_le_tsum_probOutput_mul_cost oa p f hf).trans le_add_self
+  (prEvent_le_tsum_prEvent_mul_cost oa p f hf).trans le_add_self
 
 /-- If `oa` has no missing mass and every possible output has payoff at most
 `c`, then its expected payoff is at most `c`. -/
@@ -156,7 +134,7 @@ lemma expectedPayoff_le_const_of_support {A : Type} (oa : ProbComp A)
       refine ENNReal.tsum_le_tsum fun a => ?_
       by_cases ha : a ∈ support oa
       · exact mul_le_mul' le_rfl (hf a ha)
-      · simp [(probOutput_eq_zero_iff _ _).2 ha]
+      · simp only [prEvent_eq_zero_of_not_mem_support oa ha, zero_mul, le_refl]
     _ = (∑' a, Pr{let x ← oa}[x = a]) * c := ENNReal.tsum_mul_right
     _ ≤ 1 * c := mul_le_mul' (OracleComp.tsum_prEvent_le_one _) le_rfl
     _ = c := one_mul c
@@ -189,27 +167,14 @@ lemma probOutput_false_add_probFailure_bind {A : Type} (oa : ProbComp A)
     Pr{let x ← oa >>= ob}[x = false] + prFail (oa >>= ob) =
       prFail oa + ∑' a, Pr{let x ← oa}[x = a] *
         (Pr{let x ← ob a}[x = false] + prFail (ob a)) := by
-  rw [OracleComp.prEvent_bind_eq_tsum, probFailure_bind_eq_add_tsum]
-  calc
-    (∑' a, Pr{let x ← oa}[x = a] * Pr{let x ← ob a}[x = false]) +
-          (prFail oa + ∑' a, Pr{let x ← oa}[x = a] * prFail (ob a)) =
-        prFail oa +
-          ((∑' a, Pr{let x ← oa}[x = a] * Pr{let x ← ob a}[x = false]) +
-            ∑' a, Pr{let x ← oa}[x = a] * prFail (ob a)) := by ac_rfl
-    _ = prFail oa + ∑' a, Pr{let x ← oa}[x = a] *
-          (Pr{let x ← ob a}[x = false] + prFail (ob a)) := by
-      congr 1
-      rw [← ENNReal.tsum_add]
-      refine tsum_congr fun a => ?_
-      rw [mul_add]
+  simp only [prFail_eq_zero, zero_add, add_zero]
+  exact prEvent_bind_eq_tsum oa ob _
 
 /-- The false-or-missing mass of a Boolean computation is at most `1`. -/
 lemma probOutput_false_add_probFailure_le_one (oa : ProbComp Bool) :
     Pr{let x ← oa}[x = false] + prFail oa ≤ 1 := by
-  calc
-    Pr{let x ← oa}[x = false] + prFail oa ≤
-        (∑' b : Bool, Pr{let x ← oa}[x = b]) + prFail oa := by
-      exact add_le_add (ENNReal.le_tsum false) le_rfl
-    _ = 1 := tsum_probOutput_add_probFailure oa
+  rw [prFail_eq_zero, add_zero]
+  exact (ENNReal.le_tsum (f := fun b => Pr{let x ← oa}[x = b]) false).trans
+    (tsum_prEvent_le_one oa)
 
 end OracleComp

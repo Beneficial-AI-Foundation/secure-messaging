@@ -6,6 +6,7 @@ Authors: Beneficial AI Foundation
 import VCVio.EvalDist.Monad.Basic
 import VCVio.EvalDist.Monad.Map
 import VCVio.OracleComp.Constructions.SampleableType
+import VCVio.OracleComp.Constructions.SampleableType.Measure
 
 /-!
 # `EvalDist` point-probability transport
@@ -13,13 +14,16 @@ import VCVio.OracleComp.Constructions.SampleableType
 Generic point-probability (`Pr{let y ← _}[y = x]`) facts that hold for any monad with an
 evaluation distribution.
 
-* `probOutput_bind_of_const'` drops the missing-mass factor from
-  `probOutput_bind_of_const` for a never-failing outer computation (`[NeverFail mx]`);
+* `probOutput_bind_of_const'` evaluates a bind whose continuation has the same point
+  probability after every possible output of a lossless prefix
+  (`Pr{let _ ← mx}[True] = 1`, discharged by `simp` on `OracleComp`);
 * `abs_probOutput_true_not_map_gap_eq` absorbs a final Boolean negation into the
-  absolute two-branch gap (for never-failing computations);
+  absolute two-branch gap (for lossless computations);
 * `probOutput_true_uniformBool_bind_not` relabels a uniform challenge-bit sample by negation,
   absorbing a `Bool` negation on the final comparison in the process — the "flip the challenge
   bit" step of hybrid arguments;
+* `tsum_ite_prEvent_eq_le_prEvent` and `tsum_prEvent_eq_le_one` bound sums of point masses
+  in any monad;
 * `tsum_probOutput_mul_le_of_forall_mem_support` bounds the expectation
   `∑' z, Pr{let x ← mx}[x = z] * F z` by any bound on `F` over the support of `mx`;
 * the four `probOutput_*_sample_*_param_eq` lemmas couple two or three eager
@@ -30,34 +34,41 @@ open scoped ENNReal
 
 namespace ToVCVio
 
-universe u v
+universe v
 
-variable {α : Type u} {m : Type u → Type v} [Monad m]
+variable {α : Type} {m : Type → Type v} [Monad m] [LawfulMonad m]
 
-/-- `probOutput_bind_of_const` for a never-failing outer computation: the missing-mass factor
-`1 - prFail mx` is always exactly `1`. -/
-lemma probOutput_bind_of_const' [MonadLiftT m SPMF] [LawfulMonadLiftT m SPMF]
-    [MonadLiftT m SetM] [EvalDistCompatible m]
-    {β : Type u} (mx : m α) [NeverFail mx] {my : α → m β}
-    {y : β} {r : ℝ≥0∞} (h : ∀ x ∈ support mx, Pr{let z ← my x}[z = y] = r) :
-    Pr{let x ← mx >>= my}[x = y] = r := by
-  rw [probOutput_bind_of_const mx h, NeverFail.OracleComp.prFail_eq_zero]
-  simp
+/-- If `mx` is lossless and the event `z = y` has the same probability `r` after every possible
+output of `mx`, then it has probability `r` after `mx >>= my`. -/
+lemma probOutput_bind_of_const' [MonadAttach m] [WeaklyLawfulMonadAttach m]
+    [EvalDistSemantics m] [LawfulEvalDistSemantics m]
+    {β : Type} (mx : m α) {my : α → m β}
+    {y : β} {r : ℝ≥0∞} (h : ∀ x ∈ support mx, Pr{let z ← my x}[z = y] = r)
+    (hmx : Pr{let _ ← mx}[True] = 1 := by simp) :
+    Pr{let x ← mx >>= my}[x = y] = r :=
+  le_antisymm
+    (prEvent_bind_le_of_forall_le_of_support mx my _ fun x hx => (h x hx).le)
+    (le_prEvent_bind_of_forall_le_of_support mx hmx my _ fun x hx => (h x hx).ge)
 
 /-- A final `(! ·)` map turns `true`-output probability into `false`-output
 probability, so the absolute two-branch gap is unchanged by negating both
-branches. For never-failing computations this is where a `Bool`-orientation
+branches. For lossless computations this is where a `Bool`-orientation
 reversal disappears. -/
 lemma abs_probOutput_true_not_map_gap_eq {n : Type → Type*}
-    [Monad n] [LawfulMonad n] [MonadLiftT n PMF] [LawfulMonadLiftT n PMF] (mx my : n Bool) :
+    [Monad n] [LawfulMonad n] [EvalDistSemantics n] [LawfulEvalDistSemantics n] (mx my : n Bool)
+    (hmx : Pr{let _ ← mx}[True] = 1 := by simp) (hmy : Pr{let _ ← my}[True] = 1 := by simp) :
     |(Pr{let x ← (! ·) <$> mx}[x = true]).toReal -
       (Pr{let x ← (! ·) <$> my}[x = true]).toReal| =
     |(Pr{let x ← mx}[x = true]).toReal - (Pr{let x ← my}[x = true]).toReal| := by
-  simp [probOutput_false_eq_sub]
-  ring_nf
-  rw [show -Pr{let x ← my}[x = true].toReal + Pr{let x ← mx}[x = true].toReal =
-      Pr{let x ← mx}[x = true].toReal - Pr{let x ← my}[x = true].toReal by ring]
-  exact abs_sub_comm (Pr{let x ← my}[x = true].toReal) (Pr{let x ← mx}[x = true].toReal)
+  have hnot (mz : n Bool) (hmz : Pr{let _ ← mz}[True] = 1) :
+      Pr{let x ← (! ·) <$> mz}[x = true] = 1 - Pr{let x ← mz}[x = true] := by
+    rw [prEvent_map, ← hmz, ← prEvent_add_prEvent_not_eq_prEvent_true mz (· = true),
+      ENNReal.add_sub_cancel_left (prEvent_ne_top _)]
+    exact prEvent_congr mz _ _ fun b => by cases b <;> simp
+  rw [hnot mx hmx, hnot my hmy, ENNReal.toReal_sub_of_le (prEvent_le_one _) ENNReal.one_ne_top,
+    ENNReal.toReal_sub_of_le (prEvent_le_one _) ENNReal.one_ne_top, abs_sub_comm]
+  congr 1
+  ring
 
 /-- Relabeling a uniform coin flip by negation, together with negating which side of the final
 comparison is complemented, doesn't change the success probability:
@@ -77,46 +88,60 @@ lemma probOutput_true_uniformBool_bind_not (f : Bool → ProbComp Bool) :
         let b ← ($ᵗ Bool : ProbComp Bool)
         let b' ← f !b
         pure (b == b'))}[x = true] := by
-  rw [probOutput_bind_uniformBool, probOutput_bind_uniformBool]
-  have h1 : Pr{let x ← f true >>= fun b' => (pure (true == !b') : ProbComp Bool)}[x = true] =
-      Pr{let x ← f true}[x = false] := by
-    have heq : (f true >>= fun b' => (pure (true == !b') : ProbComp Bool)) = (!·) <$> f true := by
-      rw [map_eq_bind_pure_comp]; congr 1; funext b'; cases b' <;> rfl
-    rw [heq, probOutput_not_map]
-  have h2 : Pr{let x ← f false >>= fun b' => (pure (false == !b') : ProbComp Bool)}[x = true] =
-      Pr{let x ← f false}[x = true] := by
-    have heq : (f false >>= fun b' => (pure (false == !b') : ProbComp Bool)) = f false := by
-      conv_rhs => rw [← bind_pure (f false)]
-      congr 1; funext b'; cases b' <;> rfl
-    rw [heq]
-  have h3 : Pr{let x ← f (!true) >>= fun b' => (pure (true == b') : ProbComp Bool)}[x = true] =
-      Pr{let x ← f false}[x = true] := by
-    have heq : (f (!true) >>= fun b' => (pure (true == b') : ProbComp Bool)) = f false := by
-      conv_rhs => rw [← bind_pure (f false)]
-      congr 1; funext b'; cases b' <;> rfl
-    rw [heq]
-  have h4 : Pr{let x ← f (!false) >>= fun b' => (pure (false == b') : ProbComp Bool)}[x = true] =
-      Pr{let x ← f true}[x = false] := by
-    have heq : (f (!false) >>= fun b' => (pure (false == b') : ProbComp Bool)) =
-        (!·) <$> f true := by
-      rw [map_eq_bind_pure_comp]; congr 1; funext b'; cases b' <;> rfl
-    rw [heq, probOutput_not_map]
-  rw [h1, h2, h3, h4, add_comm]
+  let g : Bool → ProbComp Bool := fun c => do
+    let b' ← f c
+    pure (!c == b')
+  have hL : (do
+        let b ← ($ᵗ Bool : ProbComp Bool)
+        let b' ← f b
+        pure (b == !b')) = (do
+        let b ← ($ᵗ Bool : ProbComp Bool)
+        g b) := by
+    congr 1; funext b; congr 1; funext b'; cases b <;> cases b' <;> rfl
+  have hR : (do
+        let b ← ($ᵗ Bool : ProbComp Bool)
+        let b' ← f !b
+        pure (b == b')) = (do
+        let b ← ($ᵗ Bool : ProbComp Bool)
+        g (!b)) := by
+    congr 1; funext b; congr 1; funext b'; cases b <;> cases b' <;> rfl
+  rw [hL, hR, prEvent_eq_evalDist_singleton, prEvent_eq_evalDist_singleton,
+    ProbComp.evalDist_bind_not_uniformBool]
 
-omit [Monad m] in
+/-- The point masses of the outputs of `mx` satisfying `p` sum to at most the probability of
+`p`. -/
+lemma tsum_ite_prEvent_eq_le_prEvent [EvalDistSemantics m] [LawfulEvalDistSemantics m]
+    (mx : m α) (p : α → Prop) [DecidablePred p] :
+    ∑' a, (if p a then Pr{let x ← mx}[x = a] else 0) ≤ Pr{let x ← mx}[p x] := by
+  let : MeasurableSpace α := ⊤
+  rw [prEvent_eq_evalDist_of_discrete, ENNReal.tsum_eq_iSup_sum]
+  refine iSup_le fun s => ?_
+  calc ∑ a ∈ s, (if p a then Pr{let x ← mx}[x = a] else 0)
+      = ∑ a ∈ s.filter p, 𝒟[mx] {a} := by
+        rw [Finset.sum_filter]
+        exact Finset.sum_congr rfl fun a _ => by rw [prEvent_eq_evalDist_singleton]
+    _ = 𝒟[mx] (s.filter p : Set α) := MeasureTheory.sum_measure_singleton
+    _ ≤ 𝒟[mx] {x | p x} := MeasureTheory.measure_mono fun a ha => (Finset.mem_filter.1 ha).2
+
+/-- The point masses of the outputs of `mx` sum to at most `1`. -/
+lemma tsum_prEvent_eq_le_one [EvalDistSemantics m] [LawfulEvalDistSemantics m] (mx : m α) :
+    ∑' a, Pr{let x ← mx}[x = a] ≤ 1 := by
+  simpa only [ite_true] using (tsum_ite_prEvent_eq_le_prEvent mx fun _ => True).trans
+    (prEvent_le_one _)
+
 /-- If `F z ≤ c` for every possible output `z` of `mx`, then the expectation of `F` under
 `mx` is at most `c`. Missing mass only lowers the sum, so `mx` may fail. -/
-lemma tsum_probOutput_mul_le_of_forall_mem_support [MonadLiftT m SPMF] [MonadLiftT m SetM]
-    [EvalDistCompatible m] (mx : m α) {F : α → ℝ≥0∞} {c : ℝ≥0∞}
+lemma tsum_probOutput_mul_le_of_forall_mem_support [MonadAttach m] [WeaklyLawfulMonadAttach m]
+    [EvalDistSemantics m] [LawfulEvalDistSemantics m] (mx : m α) {F : α → ℝ≥0∞} {c : ℝ≥0∞}
     (h : ∀ z ∈ support mx, F z ≤ c) :
     ∑' z, Pr{let x ← mx}[x = z] * F z ≤ c := by
   calc ∑' z, Pr{let x ← mx}[x = z] * F z ≤ ∑' z, Pr{let x ← mx}[x = z] * c := by
         refine ENNReal.tsum_le_tsum fun z => ?_
         by_cases hz : z ∈ support mx
         · exact mul_le_mul' le_rfl (h z hz)
-        · rw [(prEvent_eq_zero_of_not_mem_support _) hz, zero_mul, zero_mul]
+        · rw [prEvent_eq_zero_of_not_mem_support mx hz, zero_mul, zero_mul]
     _ = (∑' z, Pr{let x ← mx}[x = z]) * c := ENNReal.tsum_mul_right
-    _ ≤ c := mul_le_of_le_one_left zero_le (OracleComp.tsum_prEvent_le_one _)
+    _ ≤ c := mul_le_of_le_one_left zero_le (tsum_prEvent_eq_le_one mx)
 
 /-- Active-parameter coupling for two independent samples.
 
@@ -165,7 +190,7 @@ lemma probOutput_two_sample_active_param_eq
         let passive ← ($ᵗ passiveType : ProbComp passiveType)
         let active ← ($ᵗ activeType : ProbComp activeType)
         lazy active passive x)}[z = y] := by
-    refine probOutput_bind_congr' _ y fun x => ?_
+    refine prEvent_bind_congr _ _ _ _ _ fun x => ?_
     exact h_ih x
   have eq_indep : Pr{let z ← (do
         let x ← ($ᵗ activeType : ProbComp activeType)
@@ -176,8 +201,8 @@ lemma probOutput_two_sample_active_param_eq
         let x ← ($ᵗ activeType : ProbComp activeType)
         let passive ← ($ᵗ passiveType : ProbComp passiveType)
         lazy x passive x)}[z = y] := by
-    refine probOutput_bind_congr' _ y fun x => ?_
-    refine probOutput_bind_congr' _ y fun passive => ?_
+    refine prEvent_bind_congr _ _ _ _ _ fun x => ?_
+    refine prEvent_bind_congr _ _ _ _ _ fun passive => ?_
     exact probOutput_bind_of_const' _ fun active _ => h_indep x passive active
   have eq_swap : Pr{let z ← (do
         let x ← ($ᵗ activeType : ProbComp activeType)
@@ -187,10 +212,10 @@ lemma probOutput_two_sample_active_param_eq
         let passive ← ($ᵗ passiveType : ProbComp passiveType)
         let x ← ($ᵗ activeType : ProbComp activeType)
         lazy x passive x)}[z = y] :=
-    OracleComp.prEvent_bind_bind_swap
+    (OracleComp.EvalDistEq.bind_bind_swap
       (mx := ($ᵗ activeType : ProbComp activeType))
       (my := ($ᵗ passiveType : ProbComp passiveType))
-      (f := fun x passive => lazy x passive x) (z := y)
+      (f := fun x passive => lazy x passive x)).prEvent_eq (· = y)
   rw [eq_ih, eq_indep, eq_swap]
 
 /-- Second-parameter coupling for two independent samples.
@@ -240,7 +265,7 @@ lemma probOutput_two_sample_second_param_eq
         let second ← ($ᵗ secondType : ProbComp secondType)
         let first ← ($ᵗ firstType : ProbComp firstType)
         lazy first second x)}[z = y] := by
-    refine probOutput_bind_congr' _ y fun x => ?_
+    refine prEvent_bind_congr _ _ _ _ _ fun x => ?_
     exact h_ih x
   have eq_indep : Pr{let z ← (do
         let x ← ($ᵗ secondType : ProbComp secondType)
@@ -251,12 +276,12 @@ lemma probOutput_two_sample_second_param_eq
         let x ← ($ᵗ secondType : ProbComp secondType)
         let first ← ($ᵗ firstType : ProbComp firstType)
         lazy first x x)}[z = y] := by
-    refine probOutput_bind_congr' _ y fun x => ?_
-    rw [OracleComp.prEvent_bind_bind_swap
+    refine prEvent_bind_congr _ _ _ _ _ fun x => ?_
+    rw [(OracleComp.EvalDistEq.bind_bind_swap
       (mx := ($ᵗ secondType : ProbComp secondType))
       (my := ($ᵗ firstType : ProbComp firstType))
-      (f := fun second first => lazy first second x) (z := y)]
-    refine probOutput_bind_congr' _ y fun first => ?_
+      (f := fun second first => lazy first second x)).prEvent_eq (· = y)]
+    refine prEvent_bind_congr _ _ _ _ _ fun first => ?_
     exact probOutput_bind_of_const' _ fun second _ => h_indep x first second
   have eq_swap : Pr{let z ← (do
         let x ← ($ᵗ secondType : ProbComp secondType)
@@ -320,7 +345,7 @@ lemma probOutput_three_sample_active_param_eq
         let param₁ ← ($ᵗ paramType₁ : ProbComp paramType₁)
         let param₂ ← ($ᵗ paramType₂ : ProbComp paramType₂)
         lazy active param₁ param₂ x)}[z = y] := by
-    refine probOutput_bind_congr' _ y fun x => ?_
+    refine prEvent_bind_congr _ _ _ _ _ fun x => ?_
     exact h_ih x
   have eq_indep : Pr{let z ← (do
         let x ← ($ᵗ activeType : ProbComp activeType)
@@ -333,10 +358,10 @@ lemma probOutput_three_sample_active_param_eq
         let param₁ ← ($ᵗ paramType₁ : ProbComp paramType₁)
         let param₂ ← ($ᵗ paramType₂ : ProbComp paramType₂)
         lazy x param₁ param₂ x)}[z = y] := by
-    refine probOutput_bind_congr' _ y fun x => ?_
+    refine prEvent_bind_congr _ _ _ _ _ fun x => ?_
     refine probOutput_bind_of_const' _ fun active _ => ?_
-    refine probOutput_bind_congr' _ y fun param₁ => ?_
-    refine probOutput_bind_congr' _ y fun param₂ => ?_
+    refine prEvent_bind_congr _ _ _ _ _ fun param₁ => ?_
+    refine prEvent_bind_congr _ _ _ _ _ fun param₂ => ?_
     exact h_indep x param₁ active param₂
   have eq_swap : Pr{let z ← (do
         let x ← ($ᵗ activeType : ProbComp activeType)
@@ -415,8 +440,8 @@ lemma probOutput_three_sample_second_third_param_eq
         let second ← ($ᵗ secondType : ProbComp secondType)
         let third ← ($ᵗ thirdType : ProbComp thirdType)
         lazy first second third x z)}[w = y] := by
-    refine probOutput_bind_congr' _ y fun x => ?_
-    refine probOutput_bind_congr' _ y fun z => ?_
+    refine prEvent_bind_congr _ _ _ _ _ fun x => ?_
+    refine prEvent_bind_congr _ _ _ _ _ fun z => ?_
     exact h_ih x z
   have eq_second : Pr{let w ← (do
         let x ← ($ᵗ secondType : ProbComp secondType)
@@ -431,11 +456,11 @@ lemma probOutput_three_sample_second_third_param_eq
         let first ← ($ᵗ firstType : ProbComp firstType)
         let third ← ($ᵗ thirdType : ProbComp thirdType)
         lazy first x third x z)}[w = y] := by
-    refine probOutput_bind_congr' _ y fun x => ?_
-    refine probOutput_bind_congr' _ y fun z => ?_
-    refine probOutput_bind_congr' _ y fun first => ?_
+    refine prEvent_bind_congr _ _ _ _ _ fun x => ?_
+    refine prEvent_bind_congr _ _ _ _ _ fun z => ?_
+    refine prEvent_bind_congr _ _ _ _ _ fun first => ?_
     refine probOutput_bind_of_const' _ fun second _ => ?_
-    refine probOutput_bind_congr' _ y fun third => ?_
+    refine prEvent_bind_congr _ _ _ _ _ fun third => ?_
     exact h_second_indep x z first second third
   have eq_third : Pr{let w ← (do
         let x ← ($ᵗ secondType : ProbComp secondType)
@@ -448,9 +473,9 @@ lemma probOutput_three_sample_second_third_param_eq
         let z ← ($ᵗ thirdType : ProbComp thirdType)
         let first ← ($ᵗ firstType : ProbComp firstType)
         lazy first x z x z)}[w = y] := by
-    refine probOutput_bind_congr' _ y fun x => ?_
-    refine probOutput_bind_congr' _ y fun z => ?_
-    refine probOutput_bind_congr' _ y fun first => ?_
+    refine prEvent_bind_congr _ _ _ _ _ fun x => ?_
+    refine prEvent_bind_congr _ _ _ _ _ fun z => ?_
+    refine prEvent_bind_congr _ _ _ _ _ fun first => ?_
     exact probOutput_bind_of_const' _ fun third _ => h_third_indep x z first third
   have eq_swap_z_first : Pr{let w ← (do
         let x ← ($ᵗ secondType : ProbComp secondType)
@@ -462,11 +487,11 @@ lemma probOutput_three_sample_second_third_param_eq
         let first ← ($ᵗ firstType : ProbComp firstType)
         let z ← ($ᵗ thirdType : ProbComp thirdType)
         lazy first x z x z)}[w = y] := by
-    refine probOutput_bind_congr' _ y fun x => ?_
-    exact OracleComp.prEvent_bind_bind_swap
+    refine prEvent_bind_congr _ _ _ _ _ fun x => ?_
+    exact (OracleComp.EvalDistEq.bind_bind_swap
       (mx := ($ᵗ thirdType : ProbComp thirdType))
       (my := ($ᵗ firstType : ProbComp firstType))
-      (f := fun z first => lazy first x z x z) (z := y)
+      (f := fun z first => lazy first x z x z)).prEvent_eq (· = y)
   have eq_swap_x_first : Pr{let w ← (do
         let x ← ($ᵗ secondType : ProbComp secondType)
         let first ← ($ᵗ firstType : ProbComp firstType)
@@ -477,12 +502,12 @@ lemma probOutput_three_sample_second_third_param_eq
         let second ← ($ᵗ secondType : ProbComp secondType)
         let third ← ($ᵗ thirdType : ProbComp thirdType)
         lazy first second third second third)}[x = y] :=
-    OracleComp.prEvent_bind_bind_swap
+    (OracleComp.EvalDistEq.bind_bind_swap
       (mx := ($ᵗ secondType : ProbComp secondType))
       (my := ($ᵗ firstType : ProbComp firstType))
       (f := fun x first => do
         let z ← ($ᵗ thirdType : ProbComp thirdType)
-        lazy first x z x z) (z := y)
+        lazy first x z x z)).prEvent_eq (· = y)
   rw [eq_ih, eq_second, eq_third, eq_swap_z_first, eq_swap_x_first]
 
 end ToVCVio

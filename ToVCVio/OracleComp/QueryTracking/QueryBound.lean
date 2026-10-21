@@ -10,60 +10,17 @@ import VCVio.OracleComp.QueryTracking.QueryBound
 # Predicate query bounds under `simulateQ`
 
 `IsQueryBoundP oa p n` says that every run of `oa` makes at most `n` queries `t` with
-`p t`; queries not satisfying `p` are unrestricted. The two lemmas below push such a
-bound through a stateful simulation `(simulateQ impl oa).run s`.
+`p t`; queries not satisfying `p` are unrestricted.
 
-* `simulateQ_run_add_inr_of_step`. Let `impl₁ + impl₂ : QueryImpl (spec₁ + spec₂) m`
-  be the sum handler (`QueryImpl.add`), which answers a query `.inl t` with `impl₁ t`
-  and a query `.inr t` with `impl₂ t`. Suppose `oa : OracleComp (spec₁ + spec₂) α`
-  makes at most `n` `p`-queries, all of them on the right (`¬ p (.inl t)`). If
-  `impl₁` makes no `q`-queries, and `impl₂ t` makes at most one `q`-query when
-  `p (.inr t)` and none otherwise, then `(simulateQ (impl₁ + impl₂) oa).run s` makes
-  at most `n` `q`-queries.
-* `support_state_measure_le_of_isQueryBoundP`. Let `f : σ → ℕ` be a measure on the
-  simulation state. If one step of `impl` raises `f` by at most `1` on a `p`-query
-  and does not raise it otherwise, then every final state `s'` in the support of
-  `(simulateQ impl oa).run s` satisfies `f s' ≤ f s + n`.
+`support_state_measure_le_of_isQueryBoundP`: let `f : σ → ℕ` be a measure on the
+simulation state. If one step of `impl` raises `f` by at most `1` on a `p`-query
+and does not raise it otherwise, then every final state `s'` in the support of
+`(simulateQ impl oa).run s` satisfies `f s' ≤ f s + n`.
 -/
 
 open OracleSpec OracleComp
 
 namespace OracleComp
-
-universe u
-
-/-- Query-bound transfer for the sum handler `impl₁ + impl₂` when every `p`-query of `oa`
-goes to the right summand.
-
-The proof delegates to `simulateQ_run_of_step`, so it requires
-`[OracleSpec.UniformAnswerMeasure spec']` only for the base oracle. It does not require finite or
-inhabited ranges for the adversary spec `spec₁ + spec₂`, so the adversary
-interface may contain unbounded query-domain or response types. -/
-theorem simulateQ_run_add_inr_of_step
-    {ι₁ ι₂ ι' : Type u} {spec₁ : OracleSpec ι₁} {spec₂ : OracleSpec ι₂}
-    {spec' : OracleSpec ι'} [OracleSpec.UniformAnswerMeasure spec'] {σ α : Type u}
-    {p : ι₁ ⊕ ι₂ → Prop} [DecidablePred p]
-    {q : ι' → Prop} [DecidablePred q]
-    {impl₁ : QueryImpl spec₁ (StateT σ (OracleComp spec'))}
-    {impl₂ : QueryImpl spec₂ (StateT σ (OracleComp spec'))}
-    {oa : OracleComp (spec₁ + spec₂) α} {n : ℕ}
-    (hp_inl : ∀ t, ¬ p (.inl t))
-    (h : IsQueryBoundP oa p n)
-    (hstep_left : ∀ t s, IsQueryBoundP ((impl₁ t).run s) q 0)
-    (hstep_p₂ : ∀ t, p (.inr t) → ∀ s, IsQueryBoundP ((impl₂ t).run s) q 1)
-    (hstep_np₂ : ∀ t, ¬ p (.inr t) → ∀ s, IsQueryBoundP ((impl₂ t).run s) q 0)
-    (s : σ) :
-    IsQueryBoundP ((simulateQ (impl₁ + impl₂) oa).run s) q n :=
-  IsQueryBoundP.simulateQ_run_of_step h
-    (fun t hp s => by
-      cases t with
-      | inl t => exact absurd hp (hp_inl t)
-      | inr t => exact hstep_p₂ t hp s)
-    (fun t hnp s => by
-      cases t with
-      | inl t => exact hstep_left t s
-      | inr t => exact hstep_np₂ t hnp s)
-    s
 
 /-- If a state functional `f` grows by at most one at every `p`-query and not at all at other
 queries, then along any run in the support it grows by at most the `p`-query budget `n`. -/
@@ -91,10 +48,10 @@ theorem support_state_measure_le_of_isQueryBoundP
       by_cases hpt : p t
       · have h1 := hstep_p t hpt s x hx
         have h2 : 0 < n := hq.1.resolve_left (not_not_intro hpt)
-        simp only [if_pos hpt] at hrec
+        simp only [hpt, ↓reduceIte] at hrec
         omega
       · have h1 := hstep_np t hpt s x hx
-        simp only [if_neg hpt] at hrec
+        simp only [hpt, ↓reduceIte] at hrec
         omega
 
 end OracleComp
