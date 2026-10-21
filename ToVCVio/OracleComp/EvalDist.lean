@@ -9,22 +9,15 @@ import ToVCVio.EvalDist.Monad.Basic
 import VCVio.OracleComp.EvalDist.Sum
 
 /-!
-# Point-probability transport for `StateT` projections and support-wise bind sums
+# Support-wise bind sums and the Boolean complement
 
-Also the Boolean complement `Pr[false] = 1 - Pr[true]` for oracle computations.
+`prEvent_bind_congr_eq_add` splits an event probability after a common draw, and
+`prEvent_eq_false_eq_one_sub` gives `Pr[false] = 1 - Pr[true]` for oracle computations.
 -/
 
 open OracleSpec ENNReal
 
 namespace ToVCVio
-
-/-- Lift a `.run` point-distribution equality to the `Bool` `.run'` projection. -/
-lemma prEvent_run'_true_eq_of_run_prEvent_eq {σ : Type}
-    {m₁ m₂ : StateT σ ProbComp Bool} (s : σ)
-    (h : ∀ z, Pr{let x ← m₁.run s}[x = z] = Pr{let x ← m₂.run s}[x = z]) :
-    Pr{let x ← m₁.run' s}[x = true] = Pr{let x ← m₂.run' s}[x = true] := by
-  simp only [StateT.run'_eq]
-  exact ((OracleComp.evalDistEq_of_forall_prEvent_eq_output h).map Prod.fst).prEvent_eq _
 
 /-- If, on every possible output of a common `ProbComp` draw, one event probability is
 the sum of two others, the same holds after the draw. -/

@@ -19,7 +19,7 @@ The argument splits each run at the first send that installs the challenge key
 pair.  Before that send the injecting and honest implementations agree, so the
 prefix is shared; at the send the up-front key draw is coupled with the send's
 fresh key draw; after the send `injectionPassed` holds, so the post-injection
-equivalence (`probOutput_simulateQ_securityImplWithChallengeKeyPair_run_eq_of_injectionPassed`)
+equivalence (`evalDistEq_simulateQ_securityImplWithChallengeKeyPair_run_of_injectionPassed`)
 finishes the suffix.
 -/
 
@@ -388,10 +388,9 @@ private lemma keygen_commute_after_install_tail [SampleableType K] [DecidableEq 
   refine prEvent_bind_congr kem.keygen _ _ _ _ fun p => ?_
   rw [(OracleComp.EvalDistEq.bind_const kem.keygen _).prEvent_eq]
   simpa only [StateT.run'_eq, map_eq_bind_pure_comp, Function.comp_def] using
-    ToVCVio.prEvent_run'_true_eq_of_run_prEvent_eq _ fun z =>
-      probOutput_simulateQ_securityImplWithChallengeKeyPair_run_eq_of_injectionPassed
+    ((evalDistEq_simulateQ_securityImplWithChallengeKeyPair_run_of_injectionPassed
         kem hDet leak gp isRandom p.1 p.2 (cont (some ((ck.1, p.1), ck.2)))
-        (mkState p.1 p.2 ck.1 ck.2) (hpass p ck) z
+        (mkState p.1 p.2 ck.1 ck.2) (hpass p ck)).map Prod.fst).prEvent_eq (· = true)
 
 /-- The keygen commute at the installing A-send.
 
@@ -619,9 +618,9 @@ private lemma ckaSecurityFixedBranchWithChallengeKey_injected_probOutput_true_eq
       simp only [injectionPassed, hcp, CKAScheme.initGameState]
       omega
     simpa only [StateT.run'_eq, map_eq_bind_pure_comp, Function.comp_def] using
-      (ToVCVio.prEvent_run'_true_eq_of_run_prEvent_eq _ fun z =>
-        probOutput_simulateQ_securityImplWithChallengeKeyPair_run_eq_of_injectionPassed
-          kem hDet leak gp isRandom pkStar_skStar.1 pkStar_skStar.2 adv _ hpass z).symm
+      (((evalDistEq_simulateQ_securityImplWithChallengeKeyPair_run_of_injectionPassed
+          kem hDet leak gp isRandom pkStar_skStar.1 pkStar_skStar.2 adv _ hpass).map
+            Prod.fst).prEvent_eq (· = true)).symm
   · have hinitFalse :
         (gp.challengeEpoch == 1 && gp.challengedParty == .A) = false :=
       Bool.eq_false_of_not_eq_true hinit

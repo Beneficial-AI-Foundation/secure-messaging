@@ -811,7 +811,7 @@ The per-step equivalence
 through `simulateQ`; counter monotonicity
 (`securityImpl_preservesInv_injectionPassed`) keeps `injectionPassed` true along
 the whole run. -/
-lemma probOutput_simulateQ_securityImplWithChallengeKeyPair_run_eq_of_injectionPassed
+lemma evalDistEq_simulateQ_securityImplWithChallengeKeyPair_run_of_injectionPassed
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -821,19 +821,17 @@ lemma probOutput_simulateQ_securityImplWithChallengeKeyPair_run_eq_of_injectionP
     (pkStar : PK) (skStar : SK)
     (adv : Adversary (kem := kem) leak)
     (s : SecurityState K PK SK C)
-    (hs : injectionPassed gp s)
-    (z : Bool × SecurityState K PK SK C) :
-    Pr{let x ← ((simulateQ
-        (securityImplWithChallengeKeyPair kem hDet leak gp isRandom pkStar skStar) adv).run
-          s)}[x = z] =
-      Pr{let x ← (simulateQ (securityImpl kem hDet leak gp isRandom) adv).run s}[x = z] :=
-  (evalDistEq_of_relTriple_eqRel (relTriple_simulateQ_run_eqRel_of_impl_eq_preservesInv
+    (hs : injectionPassed gp s) :
+    (simulateQ (securityImplWithChallengeKeyPair kem hDet leak gp isRandom pkStar skStar)
+        adv).run s =ᵈ
+      (simulateQ (securityImpl kem hDet leak gp isRandom) adv).run s :=
+  evalDistEq_of_relTriple_eqRel (relTriple_simulateQ_run_eqRel_of_impl_eq_preservesInv
     (securityImplWithChallengeKeyPair kem hDet leak gp isRandom pkStar skStar)
     (securityImpl kem hDet leak gp isRandom)
     (injectionPassed gp) adv
     (securityImplWithChallengeKeyPair_run_eq_securityImpl_of_injectionPassed
       kem hDet leak gp isRandom pkStar skStar)
     (securityImpl_preservesInv_injectionPassed kem hDet leak gp isRandom)
-    s hs)).prEvent_eq _
+    s hs)
 
 end kemCKA
