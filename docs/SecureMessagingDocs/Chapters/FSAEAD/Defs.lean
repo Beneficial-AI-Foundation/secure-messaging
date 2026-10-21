@@ -54,15 +54,15 @@ where
 All algorithms are deterministic.
 
 ```anchor FSAEADScheme (project := ".") (module := SecureMessaging.FSAEAD.Defs)
-structure FSAEADScheme (K SS SR AD M C : Type) where
+structure FSAEADScheme (K StS StR AD M C : Type) where
   /-- `FS-Init-S`: the sender's initial state. -/
-  initS : K → SS
+  initS : K → StS
   /-- `FS-Init-R`: the receiver's initial state. -/
-  initR : K → SR
+  initR : K → StR
   /-- `FS-Send(v, a, m) = (v', e)`. -/
-  send : SS → AD → M → SS × C
+  send : StS → AD → M → StS × C
   /-- `FS-Rcv(v, a, e) = (v', i, m)`, or `none` if `e` is rejected. -/
-  rcv : SR → AD → C → Option (SR × ℕ × M)
+  rcv : StR → AD → C → Option (StR × ℕ × M)
 ```
 ::::
 
@@ -112,11 +112,11 @@ where the boxed part is (D2).
 :::
 
 ```anchor GameState (project := ".") (module := SecureMessaging.FSAEAD.Defs)
-structure GameState (SS SR AD M C : Type) where
+structure GameState (StS StR AD M C : Type) where
   /-- Sender state `v_A`. -/
-  vA : SS
+  vA : StS
   /-- Receiver state `v_B`. -/
-  vB : SR
+  vB : StR
   /-- Number of messages sent so far, `i_A`. -/
   iA : ℕ
   /-- Whether A has been corrupted. -/
@@ -141,7 +141,7 @@ structure GameState (SS SR AD M C : Type) where
 :::
 
 ```anchor gameStateIsCompromised (project := ".") (module := SecureMessaging.FSAEAD.Defs)
-def isCompromised (st : GameState SS SR AD M C) (i : ℕ) : Bool :=
+def isCompromised (st : GameState StS StR AD M C) (i : ℕ) : Bool :=
   i ∈ st.comp || (st.corrA && st.iA < i && i ∉ st.preempted)
 ```
 :::::
@@ -151,12 +151,12 @@ def isCompromised (st : GameState SS SR AD M C) (i : ℕ) : Bool :=
 :::
 
 ```anchor fsaeadSpec (project := ".") (module := SecureMessaging.FSAEAD.Defs)
-abbrev fsaeadSpec (SS SR AD M C : Type) :=
+abbrev fsaeadSpec (StS StR AD M C : Type) :=
   unifSpec
     + (AD × M →ₒ Option C)
     + (AD × M × M →ₒ Option C)
-    + (Unit →ₒ Option SS)
-    + (Unit →ₒ Option (SS × SR))
+    + (Unit →ₒ Option StS)
+    + (Unit →ₒ Option (StS × StR))
     + (AD × C →ₒ Option (ℕ × Option M))
     + (AD × C →ₒ Option (ℕ × M))
 ```
@@ -171,8 +171,8 @@ i_\A{+}{+}; \\
 \end{array}`
 
 ```anchor oracleTransmitA (project := ".") (module := SecureMessaging.FSAEAD.Defs)
-def oracleTransmitA (fs : FSAEADScheme K SS SR AD M C) :
-    QueryImpl (AD × M →ₒ Option C) (GameM SS SR AD M C) :=
+def oracleTransmitA (fs : FSAEADScheme K StS StR AD M C) :
+    QueryImpl (AD × M →ₒ Option C) (GameM StS StR AD M C) :=
   fun (a, m) => do
     let st ← get
     if st.ended then return none
@@ -202,8 +202,8 @@ r \gets \mathsf{FS\text{-}Rcv}(v_\B, a, e); \\
 
 ```anchor oracleDeliverB (project := ".") (module := SecureMessaging.FSAEAD.Defs)
 def oracleDeliverB [DecidableEq AD] [DecidableEq M] [DecidableEq C]
-    (fs : FSAEADScheme K SS SR AD M C) :
-    QueryImpl (AD × C →ₒ Option (ℕ × Option M)) (GameM SS SR AD M C) :=
+    (fs : FSAEADScheme K StS StR AD M C) :
+    QueryImpl (AD × C →ₒ Option (ℕ × Option M)) (GameM StS StR AD M C) :=
   fun (a, e) => do
     let st ← get
     if st.ended then return none
@@ -229,8 +229,8 @@ i_\A{+}{+}; \\
 \end{array}`
 
 ```anchor oracleChallA (project := ".") (module := SecureMessaging.FSAEAD.Defs)
-def oracleChallA (fs : FSAEADScheme K SS SR AD M C) (len : M → ℕ) (b : Bool) :
-    QueryImpl (AD × M × M →ₒ Option C) (GameM SS SR AD M C) :=
+def oracleChallA (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : Bool) :
+    QueryImpl (AD × M × M →ₒ Option C) (GameM StS StR AD M C) :=
   fun (a, m₀, m₁) => do
     let st ← get
     if st.ended || st.corrA || len m₀ ≠ len m₁ then return none
@@ -259,8 +259,8 @@ r \gets \mathsf{FS\text{-}Rcv}(v_\B, a, e); \\
 \end{array}`
 
 ```anchor oracleInjectB (project := ".") (module := SecureMessaging.FSAEAD.Defs)
-def oracleInjectB [DecidableEq AD] [DecidableEq C] (fs : FSAEADScheme K SS SR AD M C) :
-    QueryImpl (AD × C →ₒ Option (ℕ × M)) (GameM SS SR AD M C) :=
+def oracleInjectB [DecidableEq AD] [DecidableEq C] (fs : FSAEADScheme K StS StR AD M C) :
+    QueryImpl (AD × C →ₒ Option (ℕ × M)) (GameM StS StR AD M C) :=
   fun (a, e) => do
     let st ← get
     if st.ended || (st.findTrans a e).isSome then return none
@@ -279,8 +279,8 @@ $`\begin{array}{l}
 \end{array}`
 
 ```anchor oracleCorrA (project := ".") (module := SecureMessaging.FSAEAD.Defs)
-def oracleCorrA (SS SR AD M C : Type) :
-    QueryImpl (Unit →ₒ Option SS) (GameM SS SR AD M C) :=
+def oracleCorrA (StS StR AD M C : Type) :
+    QueryImpl (Unit →ₒ Option StS) (GameM StS StR AD M C) :=
   fun () => do
     let st ← get
     if st.ended then return none
@@ -297,8 +297,8 @@ $`\begin{array}{l}
 \end{array}`
 
 ```anchor oracleCorrB (project := ".") (module := SecureMessaging.FSAEAD.Defs)
-def oracleCorrB (SS SR AD M C : Type) :
-    QueryImpl (Unit →ₒ Option (SS × SR)) (GameM SS SR AD M C) :=
+def oracleCorrB (StS StR AD M C : Type) :
+    QueryImpl (Unit →ₒ Option (StS × StR)) (GameM StS StR AD M C) :=
   fun () => do
     let st ← get
     if st.ended || st.chall ≠ ∅ then return none
@@ -321,8 +321,8 @@ $`\begin{array}{l}
 \end{array}`
 
 ```anchor gameStateRecord (project := ".") (module := SecureMessaging.FSAEAD.Defs)
-def record (st : GameState SS SR AD M C) (isChall : Bool) (a : AD) (m : M) (e : C) :
-    GameState SS SR AD M C :=
+def record (st : GameState StS StR AD M C) (isChall : Bool) (a : AD) (m : M) (e : C) :
+    GameState StS StR AD M C :=
   if st.iA ∈ st.preempted then st else
   { st with
     trans := st.trans ++ [(st.iA, a, m, e)]
@@ -339,7 +339,7 @@ $`\begin{array}{l}
 \end{array}`
 
 ```anchor gameStateDelete (project := ".") (module := SecureMessaging.FSAEAD.Defs)
-def delete (st : GameState SS SR AD M C) (i : ℕ) : GameState SS SR AD M C :=
+def delete (st : GameState StS StR AD M C) (i : ℕ) : GameState StS StR AD M C :=
   { st with
     trans := st.trans.filter (·.1 ≠ i)
     chall := st.chall.erase i
@@ -390,7 +390,7 @@ b \sample \bit;\quad b' \gets \adv^{\O}; \\
 :::
 
 ```anchor gameStateInit (project := ".") (module := SecureMessaging.FSAEAD.Defs)
-def init (fs : FSAEADScheme K SS SR AD M C) (k : K) : GameState SS SR AD M C where
+def init (fs : FSAEADScheme K StS StR AD M C) (k : K) : GameState StS StR AD M C where
   vA := fs.initS k
   vB := fs.initR k
   iA := 0
@@ -408,8 +408,8 @@ def init (fs : FSAEADScheme K SS SR AD M C) (k : K) : GameState SS SR AD M C whe
 
 ```anchor securityExp (project := ".") (module := SecureMessaging.FSAEAD.Defs)
 def securityExp [SampleableType K] [DecidableEq AD] [DecidableEq M] [DecidableEq C]
-    (fs : FSAEADScheme K SS SR AD M C) (len : M → ℕ)
-    (adversary : FSAEADAdversary SS SR AD M C) : ProbComp Bool := do
+    (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ)
+    (adversary : FSAEADAdversary StS StR AD M C) : ProbComp Bool := do
   let k ← $ᵗ K
   let b ← $ᵗ Bool
   let (b', st) ← (simulateQ (fsaeadSecurityImpl fs len b) adversary).run (.init fs k)
@@ -428,8 +428,8 @@ factor out.
 
 ```anchor advantage (project := ".") (module := SecureMessaging.FSAEAD.Defs)
 noncomputable def advantage [SampleableType K] [DecidableEq AD] [DecidableEq M]
-    [DecidableEq C] (fs : FSAEADScheme K SS SR AD M C) (len : M → ℕ)
-    (adversary : FSAEADAdversary SS SR AD M C) : ℝ :=
+    [DecidableEq C] (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ)
+    (adversary : FSAEADAdversary StS StR AD M C) : ℝ :=
   |(Pr[= true | securityExp fs len adversary]).toReal - 1 / 2|
 ```
 :::::::

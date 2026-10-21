@@ -31,15 +31,15 @@ is decrypted as soon as it arrives.
 
 [SPACES]
 - `K`: key space.
-- `SS`, `SR`: sender and receiver state spaces.
+- `StS`, `StR`: sender and receiver state spaces.
 - `AD`: associated data space.
 - `M`: message space.
 - `C`: ciphertext space.
 
 [ALGORITHMS]
-- `initS : K → SS`, `initR : K → SR`: `FS-Init-S`, `FS-Init-R`.
-- `send : SS → AD → M → SS × C`: `(v', e) ← FS-Send(v, a, m)`.
-- `rcv : SR → AD → C → Option (SR × ℕ × M)`: `(v', i, m) ← FS-Rcv(v, a, e)`, where `i`
+- `initS : K → StS`, `initR : K → StR`: `FS-Init-S`, `FS-Init-R`.
+- `send : StS → AD → M → StS × C`: `(v', e) ← FS-Send(v, a, m)`.
+- `rcv : StR → AD → C → Option (StR × ℕ × M)`: `(v', i, m) ← FS-Rcv(v, a, e)`, where `i`
   is the position of `m` in the sender's sequence, or `none` on rejection.
 
 [DEVIATIONS FROM ACD19]
@@ -105,26 +105,26 @@ the text of Figure 5, like the boxes in the blueprint.
 
 open ToVCVio OracleSpec OracleComp ENNReal
 
-/-- A forward-secure AEAD scheme with key space `K`, sender state `SS`, receiver state
-`SR`, associated-data space `AD`, message space `M` and ciphertext space `C`.
+/-- A forward-secure AEAD scheme with key space `K`, sender state `StS`, receiver state
+`StR`, associated-data space `AD`, message space `M` and ciphertext space `C`.
 All algorithms are deterministic.
 
 Definition 14 of [ACD19]. -/
 -- ANCHOR: FSAEADScheme
-structure FSAEADScheme (K SS SR AD M C : Type) where
+structure FSAEADScheme (K StS StR AD M C : Type) where
   /-- `FS-Init-S`: the sender's initial state. -/
-  initS : K → SS
+  initS : K → StS
   /-- `FS-Init-R`: the receiver's initial state. -/
-  initR : K → SR
+  initR : K → StR
   /-- `FS-Send(v, a, m) = (v', e)`. -/
-  send : SS → AD → M → SS × C
+  send : StS → AD → M → StS × C
   /-- `FS-Rcv(v, a, e) = (v', i, m)`, or `none` if `e` is rejected. -/
-  rcv : SR → AD → C → Option (SR × ℕ × M)
+  rcv : StR → AD → C → Option (StR × ℕ × M)
 -- ANCHOR_END: FSAEADScheme
 
 namespace FSAEADScheme
 
-variable {K SS SR AD M C : Type}
+variable {K StS StR AD M C : Type}
 
 section Security
 
@@ -132,11 +132,11 @@ section Security
 
 /-- State of the FS-AEAD security game. -/
 -- ANCHOR: GameState
-structure GameState (SS SR AD M C : Type) where
+structure GameState (StS StR AD M C : Type) where
   /-- Sender state `v_A`. -/
-  vA : SS
+  vA : StS
   /-- Receiver state `v_B`. -/
-  vB : SR
+  vB : StR
   /-- Number of messages sent so far, `i_A`. -/
   iA : ℕ
   /-- Whether A has been corrupted. -/
@@ -161,7 +161,7 @@ namespace GameState
 
 /-- The `init` procedure of Figure 5, after `k ←$ K`. -/
 -- ANCHOR: gameStateInit
-def init (fs : FSAEADScheme K SS SR AD M C) (k : K) : GameState SS SR AD M C where
+def init (fs : FSAEADScheme K StS StR AD M C) (k : K) : GameState StS StR AD M C where
   vA := fs.initS k
   vB := fs.initR k
   iA := 0
@@ -177,8 +177,8 @@ def init (fs : FSAEADScheme K SS SR AD M C) (k : K) : GameState SS SR AD M C whe
 /-- `record(flag, a, m, e)` of Figure 5, for the record at index `i_A`.
 Deviation (D2): nothing is recorded if an injection already consumed `i_A`. -/
 -- ANCHOR: gameStateRecord
-def record (st : GameState SS SR AD M C) (isChall : Bool) (a : AD) (m : M) (e : C) :
-    GameState SS SR AD M C :=
+def record (st : GameState StS StR AD M C) (isChall : Bool) (a : AD) (m : M) (e : C) :
+    GameState StS StR AD M C :=
   if st.iA ∈ st.preempted then st else
   { st with
     trans := st.trans ++ [(st.iA, a, m, e)]
@@ -188,7 +188,7 @@ def record (st : GameState SS SR AD M C) (isChall : Bool) (a : AD) (m : M) (e : 
 
 /-- `delete(i)` of Figure 5: remove the record with index `i` everywhere. -/
 -- ANCHOR: gameStateDelete
-def delete (st : GameState SS SR AD M C) (i : ℕ) : GameState SS SR AD M C :=
+def delete (st : GameState StS StR AD M C) (i : ℕ) : GameState StS StR AD M C :=
   { st with
     trans := st.trans.filter (·.1 ≠ i)
     chall := st.chall.erase i
@@ -200,14 +200,14 @@ corrupted and it is still in transit, or A is corrupted, has not sent `i` yet, a
 injection consumed `i`.
 Deviation (D2): Figure 5 has only `i ∈ comp`. -/
 -- ANCHOR: gameStateIsCompromised
-def isCompromised (st : GameState SS SR AD M C) (i : ℕ) : Bool :=
+def isCompromised (st : GameState StS StR AD M C) (i : ℕ) : Bool :=
   i ∈ st.comp || (st.corrA && st.iA < i && i ∉ st.preempted)
 -- ANCHOR_END: gameStateIsCompromised
 
 /-- The in-transit record `(i, a, m, e)` with the smallest index `i`. `trans` is ordered by
 index, so this is its first match. Figure 5's `deliver-B` takes such a record "for some
 `i, m`" and does not say which one if there are several. -/
-def findTrans [DecidableEq AD] [DecidableEq C] (st : GameState SS SR AD M C)
+def findTrans [DecidableEq AD] [DecidableEq C] (st : GameState StS StR AD M C)
     (a : AD) (e : C) : Option (ℕ × AD × M × C) :=
   st.trans.find? fun r => r.2.1 = a ∧ r.2.2.2 = e
 
@@ -217,40 +217,40 @@ end GameState
 `O-Chall-A`, `O-Corr-A`, `O-Corr-B`, `O-Deliver-B` and `O-Inject-B`. Each of the last six answers
 `none` when its guard fails or after the game has ended. -/
 -- ANCHOR: fsaeadSpec
-abbrev fsaeadSpec (SS SR AD M C : Type) :=
+abbrev fsaeadSpec (StS StR AD M C : Type) :=
   unifSpec
     + (AD × M →ₒ Option C)
     + (AD × M × M →ₒ Option C)
-    + (Unit →ₒ Option SS)
-    + (Unit →ₒ Option (SS × SR))
+    + (Unit →ₒ Option StS)
+    + (Unit →ₒ Option (StS × StR))
     + (AD × C →ₒ Option (ℕ × Option M))
     + (AD × C →ₒ Option (ℕ × M))
 -- ANCHOR_END: fsaeadSpec
 
 namespace fsaeadSpec
 
-variable {SS SR AD M C : Type}
+variable {StS StR AD M C : Type}
 
 /-- Domain index selecting the uniform-randomness oracle. -/
-@[match_pattern] abbrev OUnif (n : ℕ) : (fsaeadSpec SS SR AD M C).Domain :=
+@[match_pattern] abbrev OUnif (n : ℕ) : (fsaeadSpec StS StR AD M C).Domain :=
   .inl (.inl (.inl (.inl (.inl (.inl n)))))
 /-- Domain index selecting `O-Transmit-A`. -/
-@[match_pattern] abbrev OTransmitA (am : AD × M) : (fsaeadSpec SS SR AD M C).Domain :=
+@[match_pattern] abbrev OTransmitA (am : AD × M) : (fsaeadSpec StS StR AD M C).Domain :=
   .inl (.inl (.inl (.inl (.inl (.inr am)))))
 /-- Domain index selecting `O-Chall-A`. -/
-@[match_pattern] abbrev OChallA (amm : AD × M × M) : (fsaeadSpec SS SR AD M C).Domain :=
+@[match_pattern] abbrev OChallA (amm : AD × M × M) : (fsaeadSpec StS StR AD M C).Domain :=
   .inl (.inl (.inl (.inl (.inr amm))))
 /-- Domain index selecting `O-Corr-A`. -/
-@[match_pattern] abbrev OCorrA : (fsaeadSpec SS SR AD M C).Domain :=
+@[match_pattern] abbrev OCorrA : (fsaeadSpec StS StR AD M C).Domain :=
   .inl (.inl (.inl (.inr ())))
 /-- Domain index selecting `O-Corr-B`. -/
-@[match_pattern] abbrev OCorrB : (fsaeadSpec SS SR AD M C).Domain :=
+@[match_pattern] abbrev OCorrB : (fsaeadSpec StS StR AD M C).Domain :=
   .inl (.inl (.inr ()))
 /-- Domain index selecting `O-Deliver-B`. -/
-@[match_pattern] abbrev ODeliverB (ae : AD × C) : (fsaeadSpec SS SR AD M C).Domain :=
+@[match_pattern] abbrev ODeliverB (ae : AD × C) : (fsaeadSpec StS StR AD M C).Domain :=
   .inl (.inr ae)
 /-- Domain index selecting `O-Inject-B`. -/
-@[match_pattern] abbrev OInjectB (ae : AD × C) : (fsaeadSpec SS SR AD M C).Domain :=
+@[match_pattern] abbrev OInjectB (ae : AD × C) : (fsaeadSpec StS StR AD M C).Domain :=
   .inr ae
 
 end fsaeadSpec
@@ -258,18 +258,18 @@ end fsaeadSpec
 /-- An FS-AEAD adversary: a computation with access to the game oracles, outputting a
 guess `b'` for the challenge bit. -/
 -- ANCHOR: FSAEADAdversary
-abbrev FSAEADAdversary (SS SR AD M C : Type) :=
-  OracleComp (fsaeadSpec SS SR AD M C) Bool
+abbrev FSAEADAdversary (StS StR AD M C : Type) :=
+  OracleComp (fsaeadSpec StS StR AD M C) Bool
 -- ANCHOR_END: FSAEADAdversary
 
 /-! ### Oracle implementations -/
 
 /-- Game monad of the FS-AEAD security game. -/
-abbrev GameM (SS SR AD M C : Type) := StateT (GameState SS SR AD M C) ProbComp
+abbrev GameM (StS StR AD M C : Type) := StateT (GameState StS StR AD M C) ProbComp
 
 /-- Uniform-randomness oracle lifted to the game monad. -/
-def oracleUnif (SS SR AD M C : Type) : QueryImpl unifSpec (GameM SS SR AD M C) :=
-  unifLiftStateT (GameState SS SR AD M C) unifSpec
+def oracleUnif (StS StR AD M C : Type) : QueryImpl unifSpec (GameM StS StR AD M C) :=
+  unifLiftStateT (GameState StS StR AD M C) unifSpec
 
 /-- **O-Transmit-A(a, m)**. A sends `m`, and the ciphertext is recorded as a normal one.
 ```text
@@ -281,8 +281,8 @@ O-Transmit-A(a, m):
   return e
 ``` -/
 -- ANCHOR: oracleTransmitA
-def oracleTransmitA (fs : FSAEADScheme K SS SR AD M C) :
-    QueryImpl (AD × M →ₒ Option C) (GameM SS SR AD M C) :=
+def oracleTransmitA (fs : FSAEADScheme K StS StR AD M C) :
+    QueryImpl (AD × M →ₒ Option C) (GameM StS StR AD M C) :=
   fun (a, m) => do
     let st ← get
     if st.ended then return none
@@ -301,8 +301,8 @@ O-Chall-A(a, m₀, m₁):
   return e
 ``` -/
 -- ANCHOR: oracleChallA
-def oracleChallA (fs : FSAEADScheme K SS SR AD M C) (len : M → ℕ) (b : Bool) :
-    QueryImpl (AD × M × M →ₒ Option C) (GameM SS SR AD M C) :=
+def oracleChallA (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : Bool) :
+    QueryImpl (AD × M × M →ₒ Option C) (GameM StS StR AD M C) :=
   fun (a, m₀, m₁) => do
     let st ← get
     if st.ended || st.corrA || len m₀ ≠ len m₁ then return none
@@ -321,8 +321,8 @@ O-Corr-A:
   return v_A
 ``` -/
 -- ANCHOR: oracleCorrA
-def oracleCorrA (SS SR AD M C : Type) :
-    QueryImpl (Unit →ₒ Option SS) (GameM SS SR AD M C) :=
+def oracleCorrA (StS StR AD M C : Type) :
+    QueryImpl (Unit →ₒ Option StS) (GameM StS StR AD M C) :=
   fun () => do
     let st ← get
     if st.ended then return none
@@ -338,8 +338,8 @@ O-Corr-B:
   return (v_A, v_B)
 ``` -/
 -- ANCHOR: oracleCorrB
-def oracleCorrB (SS SR AD M C : Type) :
-    QueryImpl (Unit →ₒ Option (SS × SR)) (GameM SS SR AD M C) :=
+def oracleCorrB (StS StR AD M C : Type) :
+    QueryImpl (Unit →ₒ Option (StS × StR)) (GameM StS StR AD M C) :=
   fun () => do
     let st ← get
     if st.ended || st.chall ≠ ∅ then return none
@@ -365,8 +365,8 @@ O-Deliver-B(a, e):
 ``` -/
 -- ANCHOR: oracleDeliverB
 def oracleDeliverB [DecidableEq AD] [DecidableEq M] [DecidableEq C]
-    (fs : FSAEADScheme K SS SR AD M C) :
-    QueryImpl (AD × C →ₒ Option (ℕ × Option M)) (GameM SS SR AD M C) :=
+    (fs : FSAEADScheme K StS StR AD M C) :
+    QueryImpl (AD × C →ₒ Option (ℕ × Option M)) (GameM StS StR AD M C) :=
   fun (a, e) => do
     let st ← get
     if st.ended then return none
@@ -398,8 +398,8 @@ O-Inject-B(a, e):
   return (i', m')
 ``` -/
 -- ANCHOR: oracleInjectB
-def oracleInjectB [DecidableEq AD] [DecidableEq C] (fs : FSAEADScheme K SS SR AD M C) :
-    QueryImpl (AD × C →ₒ Option (ℕ × M)) (GameM SS SR AD M C) :=
+def oracleInjectB [DecidableEq AD] [DecidableEq C] (fs : FSAEADScheme K StS StR AD M C) :
+    QueryImpl (AD × C →ₒ Option (ℕ × M)) (GameM StS StR AD M C) :=
   fun (a, e) => do
     let st ← get
     if st.ended || (st.findTrans a e).isSome then return none
@@ -413,13 +413,13 @@ def oracleInjectB [DecidableEq AD] [DecidableEq C] (fs : FSAEADScheme K SS SR AD
 /-- Complete oracle set for the FS-AEAD security game with challenge bit `b`. -/
 -- ANCHOR: fsaeadSecurityImpl
 def fsaeadSecurityImpl [DecidableEq AD] [DecidableEq M] [DecidableEq C]
-    (fs : FSAEADScheme K SS SR AD M C) (len : M → ℕ) (b : Bool) :
-    QueryImpl (fsaeadSpec SS SR AD M C) (GameM SS SR AD M C) :=
-  oracleUnif SS SR AD M C
+    (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : Bool) :
+    QueryImpl (fsaeadSpec StS StR AD M C) (GameM StS StR AD M C) :=
+  oracleUnif StS StR AD M C
     + oracleTransmitA fs
     + oracleChallA fs len b
-    + oracleCorrA SS SR AD M C
-    + oracleCorrB SS SR AD M C
+    + oracleCorrA StS StR AD M C
+    + oracleCorrB StS StR AD M C
     + oracleDeliverB fs
     + oracleInjectB fs
 -- ANCHOR_END: fsaeadSecurityImpl
@@ -433,8 +433,8 @@ def fsaeadSecurityImpl [DecidableEq AD] [DecidableEq M] [DecidableEq C]
 `output`: `true` if the adversary reached a winning condition, otherwise `b' = b` -/
 -- ANCHOR: securityExp
 def securityExp [SampleableType K] [DecidableEq AD] [DecidableEq M] [DecidableEq C]
-    (fs : FSAEADScheme K SS SR AD M C) (len : M → ℕ)
-    (adversary : FSAEADAdversary SS SR AD M C) : ProbComp Bool := do
+    (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ)
+    (adversary : FSAEADAdversary StS StR AD M C) : ProbComp Bool := do
   let k ← $ᵗ K
   let b ← $ᵗ Bool
   let (b', st) ← (simulateQ (fsaeadSecurityImpl fs len b) adversary).run (.init fs k)
@@ -446,8 +446,8 @@ def securityExp [SampleableType K] [DecidableEq AD] [DecidableEq M] [DecidableEq
 by 2. The guess advantages of this project leave the factor out. -/
 -- ANCHOR: advantage
 noncomputable def advantage [SampleableType K] [DecidableEq AD] [DecidableEq M]
-    [DecidableEq C] (fs : FSAEADScheme K SS SR AD M C) (len : M → ℕ)
-    (adversary : FSAEADAdversary SS SR AD M C) : ℝ :=
+    [DecidableEq C] (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ)
+    (adversary : FSAEADAdversary StS StR AD M C) : ℝ :=
   |(Pr[= true | securityExp fs len adversary]).toReal - 1 / 2|
 -- ANCHOR_END: advantage
 
