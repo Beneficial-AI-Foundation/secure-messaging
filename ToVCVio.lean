@@ -7,7 +7,6 @@ import ToVCVio.CryptoFoundations.PRP
 import ToVCVio.CryptoFoundations.PRPSwitching
 import ToVCVio.CryptoFoundations.RabinIrreducibility
 import ToVCVio.CryptoFoundations.RandomOracleForgery
-import ToVCVio.CryptoFoundations.UniversalHash
 import ToVCVio.CryptoFoundations.WegmanCarter.AbstractBounds
 import ToVCVio.CryptoFoundations.WegmanCarter.Defs
 import ToVCVio.CryptoFoundations.WegmanCarter.LogRefinement
@@ -27,7 +26,6 @@ import ToVCVio.OracleComp.Constructions.BitVec
 import ToVCVio.OracleComp.Constructions.SampleableType
 import ToVCVio.OracleComp.EvalDist
 import ToVCVio.OracleComp.ExpectedPayoff
-import ToVCVio.OracleComp.QueryTracking.CachingOracle
 import ToVCVio.OracleComp.QueryTracking.LazySampling
 import ToVCVio.OracleComp.QueryTracking.OneUseSampling
 import ToVCVio.OracleComp.QueryTracking.QueryBound
@@ -39,7 +37,6 @@ import ToVCVio.OracleComp.SimSemantics.StateT.BadFlag
 import ToVCVio.OracleComp.SimSemantics.StateT.ExpectedPayoffBound
 import ToVCVio.OracleComp.SimSemantics.StateT.IdenticalUntilBadInvariant
 import ToVCVio.OracleComp.SimSemantics.StateT.MapStateTBase
-import ToVCVio.OracleComp.SimSemantics.StateT.PreservesInv
 import ToVCVio.OracleComp.SimSemantics.StateT.Stop
 import ToVCVio.OracleComp.SimSemantics.UnifLift
 import ToVCVio.Probability.IntMeasure

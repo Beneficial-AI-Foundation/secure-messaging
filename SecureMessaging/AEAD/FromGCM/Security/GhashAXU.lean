@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.AEAD.FromGCM.Security.Axu
 import SecureMessaging.AEAD.FromGCM.Security.GhashPolynomial
-import ToVCVio.CryptoFoundations.UniversalHash
+import VCVio.CryptoFoundations.UniversalHash
 import ToVCVio.OracleComp.Constructions.BitVec
 import Mathlib.Algebra.Polynomial.Roots
 import Mathlib.Algebra.Field.ZMod
