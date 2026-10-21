@@ -133,7 +133,7 @@ private lemma rawResume_probOutput_decomp [SampleableType K] [DecidableEq K]
       simp only [rawResume, finishChallengeStepRaw, rawResumeKilled, injDone]
       rw [probOutput_bind_of_const' (kem.encaps pkStar) fun _ _ => rfl,
         probOutput_bind_of_const' ($ᵗ K : ProbComp K) fun _ _ => rfl]
-      simp only [prEvent_pure, Bool.true_eq, Bool.false_eq_true, ↓reduceIte, zero_add]
+      simp only [prEvent_pure, Bool.false_eq_true, ↓reduceIte, zero_add]
   | pausedA cont => simp [rawResumeKilled, injDone]
   | pausedB cont => simp [rawResumeKilled, injDone]
 
@@ -238,11 +238,11 @@ private lemma injected_probOutput_eq_killed_add_done
         Pr{let x ← injectedDoneGame kem hDet leak adv gp}[x = true] := by
   rw [ckaSecurityFixedBranchWithInjectedChallengeKey_eq_split]
   simp only [injectedKilledGame, injectedDoneGame]
-  refine probOutput_bind_congr_eq_add fun ks0 _ => ?_
+  refine ToVCVio.prEvent_bind_congr_eq_add _ fun ks0 _ => ?_
   obtain ⟨pk0, sk0⟩ := ks0
-  refine probOutput_bind_congr_eq_add fun ksS _ => ?_
+  refine ToVCVio.prEvent_bind_congr_eq_add _ fun ksS _ => ?_
   obtain ⟨pkStar, skStar⟩ := ksS
-  refine probOutput_bind_congr_eq_add fun z _ => ?_
+  refine ToVCVio.prEvent_bind_congr_eq_add _ fun z _ => ?_
   exact injResume_probOutput_decomp kem hDet leak gp b pkStar skStar z
 
 /-- The reduction game's success probability splits over the first pause. -/
@@ -259,17 +259,17 @@ private lemma reduction_probOutput_eq_killed_add_done
         Pr{let x ← reductionDoneGame kem hDet leak adv gp}[x = true] := by
   simp only [ckaReductionINDCPABranchRawKeygenSwapped, reductionKilledGame,
     reductionDoneGame]
-  refine probOutput_bind_congr_eq_add fun ks0 _ => ?_
+  refine ToVCVio.prEvent_bind_congr_eq_add _ fun ks0 _ => ?_
   obtain ⟨pk0, sk0⟩ := ks0
-  refine probOutput_bind_congr_eq_add fun ksS _ => ?_
+  refine ToVCVio.prEvent_bind_congr_eq_add _ fun ksS _ => ?_
   obtain ⟨pkStar, skStar⟩ := ksS
-  refine probOutput_bind_congr_eq_add fun z _ => ?_
+  refine ToVCVio.prEvent_bind_congr_eq_add _ fun z _ => ?_
   exact rawResume_probOutput_decomp kem hDet leak gp b pkStar z
 
 /-! ## Toward the paused-run chains
 
 The killed-game chain composes equality-relation triples, obtained from equal
-success probabilities by `relTriple_eqRel_of_probOutput_true_eq`.
+success probabilities by `relTriple_eqRel_of_prEvent_true_eq`.
 The two support lemmas pin the counters after a fired challenge query: the
 challenged party's counter is bumped once, the other counter is unchanged.
 The apexes' `injectionPassed`/`challengePassed` hypotheses follow from them at
@@ -465,7 +465,7 @@ private lemma injResumeKilled_pausedA_probOutput_true_eq
       (securityImpl kem hDet leak gp b
         (CKAScheme.ckaSecuritySpec.OChallA : (securitySpec leak).Domain)).run
         (preAToBHonestState base pkStar skStar) from rfl]
-  refine probOutput_bind_congr fun p hp => ?_
+  refine prEvent_bind_congr_of_support _ _ _ fun p hp => ?_
   obtain ⟨hpA, hpB⟩ := challA_run_support_counters kem hDet leak gp b
     (preAToBHonestState base pkStar skStar) pkStar rfl hWillH p hp
   simp only [preAToBHonestState] at hpA hpB
@@ -520,7 +520,7 @@ private lemma injResumeKilled_pausedB_probOutput_true_eq
       (securityImpl kem hDet leak gp b
         (CKAScheme.ckaSecuritySpec.OChallB : (securitySpec leak).Domain)).run
         (preBToAHonestState base pkStar skStar) from rfl]
-  refine probOutput_bind_congr fun p hp => ?_
+  refine prEvent_bind_congr_of_support _ _ _ fun p hp => ?_
   obtain ⟨hpB, hpA⟩ := challB_run_support_counters kem hDet leak gp b
     (preBToAHonestState base pkStar skStar) pkStar rfl hWillH p hp
   simp only [preBToAHonestState] at hpA hpB
@@ -579,20 +579,19 @@ private lemma pausedA_killed_probOutput_true_eq
       rw [challA_sampled_reduction_cont_probOutput_true_eq kem hDet hkem leak gp
         hgp base hInv hWill hks cont]
       simp only [Bool.not_false, rawResumeKilled, rawResume, ↓reduceIte]
-      refine probOutput_bind_congr fun ck _ => ?_
+      refine ToVCVio.prEvent_bind_congr_of_mem_support _ fun ck _ => ?_
       obtain ⟨cStar, kReal⟩ := ck
       rw [reductionBranch_challA_cont_eq_finishChallengeStepRaw kem hDet leak gp
         pkStar cStar kReal (preAToBReductionState base pkStar) hWillR cont]
-      rw [prEvent_bind_const]
-      simp only [probFailure_of_liftM_PMF, tsub_zero, one_mul]
+      rw [(EvalDistEq.bind_const ($ᵗ K : ProbComp K) _).prEvent_eq]
   | true =>
       rw [challA_sampled_reduction_random_cont_probOutput_true_eq kem hDet hkem
         leak gp hgp base hInv hWill hks cont]
       simp only [Bool.not_true, rawResumeKilled, rawResume, Bool.false_eq_true,
         ↓reduceIte]
-      refine probOutput_bind_congr fun ck _ => ?_
+      refine ToVCVio.prEvent_bind_congr_of_mem_support _ fun ck _ => ?_
       obtain ⟨cStar, _kReal⟩ := ck
-      refine probOutput_bind_congr fun kRand _ => ?_
+      refine ToVCVio.prEvent_bind_congr_of_mem_support _ fun kRand _ => ?_
       rw [reductionBranch_challA_cont_eq_finishChallengeStepRaw kem hDet leak gp
         pkStar cStar kRand (preAToBReductionState base pkStar) hWillR cont]
 
@@ -624,20 +623,19 @@ private lemma pausedB_killed_probOutput_true_eq
       rw [challB_sampled_reduction_cont_probOutput_true_eq kem hDet hkem leak gp
         hgp base hInv hWill hks cont]
       simp only [Bool.not_false, rawResumeKilled, rawResume, ↓reduceIte]
-      refine probOutput_bind_congr fun ck _ => ?_
+      refine ToVCVio.prEvent_bind_congr_of_mem_support _ fun ck _ => ?_
       obtain ⟨cStar, kReal⟩ := ck
       rw [reductionBranch_challB_cont_eq_finishChallengeStepRaw kem hDet leak gp
         pkStar cStar kReal (preBToAReductionState base pkStar) hWillR cont]
-      rw [prEvent_bind_const]
-      simp only [probFailure_of_liftM_PMF, tsub_zero, one_mul]
+      rw [(EvalDistEq.bind_const ($ᵗ K : ProbComp K) _).prEvent_eq]
   | true =>
       rw [challB_sampled_reduction_random_cont_probOutput_true_eq kem hDet hkem
         leak gp hgp base hInv hWill hks cont]
       simp only [Bool.not_true, rawResumeKilled, rawResume, Bool.false_eq_true,
         ↓reduceIte]
-      refine probOutput_bind_congr fun ck _ => ?_
+      refine ToVCVio.prEvent_bind_congr_of_mem_support _ fun ck _ => ?_
       obtain ⟨cStar, _kReal⟩ := ck
-      refine probOutput_bind_congr fun kRand _ => ?_
+      refine ToVCVio.prEvent_bind_congr_of_mem_support _ fun kRand _ => ?_
       rw [reductionBranch_challB_cont_eq_finishChallengeStepRaw kem hDet leak gp
         pkStar cStar kRand (preBToAReductionState base pkStar) hWillR cont]
 
@@ -665,7 +663,7 @@ private lemma injectedKilledGame_probOutput_true_eq_A
       Pr{let x ← reductionKilledGame kem hDet leak adv gp (!b)}[x = true] := by
   have hodd : gp.challengeEpoch % 2 = 1 := by
     simpa [challengeEpochCompatible, hparty] using hgp.challenge_epoch_compatible
-  refine probOutput_true_eq_of_relTriple_eqRel ?_
+  refine (evalDistEq_of_relTriple_eqRel ?_).prEvent_eq _
   simp only [injectedKilledGame, reductionKilledGame]
   refine relTriple_bind (relTriple_refl_support kem.keygen) ?_
   rintro ⟨pk0, sk0⟩ _ ⟨rfl, h0⟩
@@ -699,7 +697,7 @@ private lemma injectedKilledGame_probOutput_true_eq_A
       obtain rfl : res' = CKAChallengeStepResult.done a' := hz'
       simp only [injResumeKilled, rawResumeKilled]
       exact relTriple_pure_pure rfl
-    · exact relTriple_eqRel_of_probOutput_true_eq
+    · exact relTriple_eqRel_of_prEvent_true_eq
         (pausedA_killed_probOutput_true_eq kem hDet hkem leak gp hgp b
           pkStar skStar base hInv hWill hks cont)
 
@@ -718,7 +716,7 @@ private lemma injectedKilledGame_probOutput_true_eq_B
       Pr{let x ← reductionKilledGame kem hDet leak adv gp (!b)}[x = true] := by
   have heven : gp.challengeEpoch % 2 = 0 ∧ 0 < gp.challengeEpoch := by
     simpa [challengeEpochCompatible, hparty] using hgp.challenge_epoch_compatible
-  refine probOutput_true_eq_of_relTriple_eqRel ?_
+  refine (evalDistEq_of_relTriple_eqRel ?_).prEvent_eq _
   simp only [injectedKilledGame, reductionKilledGame]
   refine relTriple_bind (relTriple_refl_support kem.keygen) ?_
   rintro ⟨pk0, sk0⟩ _ ⟨rfl, h0⟩
@@ -742,7 +740,7 @@ private lemma injectedKilledGame_probOutput_true_eq_B
       obtain rfl : res' = CKAChallengeStepResult.done a' := hz'
       simp only [injResumeKilled, rawResumeKilled]
       exact relTriple_pure_pure rfl
-    · exact relTriple_eqRel_of_probOutput_true_eq
+    · exact relTriple_eqRel_of_prEvent_true_eq
         (pausedB_killed_probOutput_true_eq kem hDet hkem leak gp hgp b
           pkStar skStar base hInv hWill hks cont)
 

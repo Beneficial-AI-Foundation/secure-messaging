@@ -70,7 +70,7 @@ lemma probOutput_simulateQ_wck_run'_eq_of_injectionPassed
           (securityImplWithChallengeKeyPair kem hDet leak gp isRandom pkStar skStar)
           adv).run' s)}[x = true] =
       Pr{let x ← (simulateQ (securityImpl kem hDet leak gp isRandom) adv).run' s}[x = true] :=
-  probOutput_run'_true_eq_of_run_probOutput_eq s fun z =>
+  prEvent_run'_true_eq_of_run_prEvent_eq s fun z =>
     probOutput_simulateQ_securityImplWithChallengeKeyPair_run_eq_of_injectionPassed
       kem hDet leak gp isRandom pkStar skStar adv s hs z
 
@@ -87,13 +87,13 @@ lemma probOutput_simulateQ_true_false_run'_eq_of_challengePassed
     (hs : challengePassed gp s) :
     Pr{let x ← (simulateQ (securityImpl kem hDet leak gp true) adv).run' s}[x = true] =
       Pr{let x ← (simulateQ (securityImpl kem hDet leak gp false) adv).run' s}[x = true] :=
-  probOutput_run'_true_eq_of_run_probOutput_eq s fun z =>
-    probOutput_simulateQ_run_eq_of_impl_eq_preservesInv
+  prEvent_run'_true_eq_of_run_prEvent_eq s fun _ =>
+    (evalDistEq_of_relTriple_eqRel (relTriple_simulateQ_run_eqRel_of_impl_eq_preservesInv
       (securityImpl kem hDet leak gp true)
       (securityImpl kem hDet leak gp false)
       (challengePassed gp) adv
       (securityImpl_true_false_run_eq_of_challengePassed kem hDet leak gp)
       (securityImpl_preservesInv_challengePassed kem hDet leak gp false)
-      s hs z
+      s hs)).prEvent_eq _
 
 end kemCKA
