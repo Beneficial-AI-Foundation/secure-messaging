@@ -13,9 +13,10 @@ During formalization, we found the following issues in {Informal.citet SCKA25}[]
 The protocol pages contain the full explanations, execution traces, and corrections.
 The numbering preserves the original errata list.
 
-1. Under the paper's strict failure convention, Opp-BiKEM can abort a send while
-   waiting for the peer's encapsulation key. See {bpref "opp_bikem_cka_spec"}[] and its
-   {ref "opp-bikem-errata"}[errata box] for the trace, modeling convention, and proposed paper correction.
+1. Under the paper's strict failure convention, Opp-BiKEM aborts a send while
+   waiting for the peer's encapsulation key. The correction sends a ciphertext chunk only
+   when a ciphertext exists. See {bpref "opp_bikem_cka_spec"}[] and its
+   {ref "opp-bikem-errata"}[errata box] for the trace and the corrected lines.
    The same issue occurs in {bpref "opp_rkem_cka_spec"}[Opp-RKEM].
 2. Opp-BiKEM sends and records public-key acknowledgements at the wrong indices,
    preventing the first key exchange from completing. See the {ref "opp-bikem-errata"}[Opp-BiKEM errata box]

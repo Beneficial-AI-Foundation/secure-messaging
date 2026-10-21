@@ -17,10 +17,10 @@ public key before its ciphertext, overlapping the two directions of exchange.
 Each local state contains requester and responder substates matching `st_req` and
 `st_res` in the paper, together with their shared acknowledgements.
 
-Absent payloads (`⊥` in the pseudocode) are represented by `none`. The local
-`insertChunkAndDecode` helper makes their receive semantics explicit: an absent chunk
-leaves the accumulated chunks unchanged and does not attempt decoding. This
-is a modeling convention for a case the paper does not check explicitly.
+Absent payloads (`⊥` in the pseudocode) are represented by `none`. An honest sender
+sends `ch = none` only together with `bit = none` (correction 4 below). The local
+`insertChunkAndDecode` helper keeps `recv` total on arbitrary messages: an absent chunk
+leaves the accumulated chunks unchanged and does not attempt decoding.
 
 Epoch counters are naturals, but we model them as integers because initialization
 uses the placeholder epoch `-1`.
@@ -40,8 +40,9 @@ Rec-A records the bit at the sender's `reqEpoch + 1`, and Rec-B at the sender's
 `reqEpoch - 1` (line 8 in each figure). These are the entries set by peer-key
 decoding; the printed indices prevent acknowledgement of the first public keys.
 4. Send-P reaches `Encode(ct, i_ch)` (line 19 in each figure) with `ct = ⊥` while the
-peer's public key is not yet decoded. Instead of failing (the paper's convention),
-we send no chunk (`ch = none`) with bit `1`, still incrementing `ich`.
+peer's public key is not yet decoded, which fails under the paper's convention.
+We guard lines 17–19 with `ct ≠ ⊥`: while waiting, the message carries no chunk and
+no selector (`ch = none`, `bit = none`), and `ich` is unchanged.
 -/
 
 open KEMScheme
@@ -228,6 +229,7 @@ def vulnB (st : StB PK SK C Sym) : Finset ℕ := vuln st
 
 /-- Common send algorithm. Supplying the randomized primitives explicitly lets
 ordinary and leaking sends share the same state transitions.
+A send that waits for the peer's key succeeds with no payload.
 A missing local public key when encoding it, or a missing peer key when
 encapsulation is required, returns `pure none`; no updated protocol state is
 returned; the caller retains its original state. Effects already performed by
@@ -278,10 +280,12 @@ def sendWith {RKey REnc : Type} (role : Role)
       key? := some (tRes.toNat, key)
       ich := 0
       rEnc? := some rEnc
-    ich := ich + 1
-    -- Waiting for the peer's public key can legitimately leave ct absent.
-    ch? := ct.map (fun ciphertext => ecCt.encode ciphertext ich)
-    bit? := some 1
+    -- Corrected line 17: a ciphertext chunk is sent only once a ciphertext exists.
+    -- While waiting for the peer's key, the message carries no payload.
+    if let some ciphertext := ct then
+      ich := ich + 1
+      ch? := some (ecCt.encode ciphertext ich)
+      bit? := some 1
   let st : State PK SK C Sym :=
     { res := ⟨tRes, ekPeer, ct, ich⟩
       req := ⟨tReq, dk, ek, receivedChunks⟩
@@ -349,7 +353,8 @@ def sendBrleak (kem : KEMScheme m K PK SK C)
 
 -- ANCHOR: decodeChunk
 /-- Insert an incoming chunk and attempt decoding.
-If no chunk is supplied, preserve the buffer and return no payload. -/
+If no chunk is supplied, preserve the buffer and return no payload; honest senders never
+pair an absent chunk with a payload selector, so this case only keeps `recv` total. -/
 def insertChunkAndDecode {Payload : Type} [DecidableEq Sym]
     (ec : ErasureCodePayload Payload Sym) (receivedChunks : Finset (ℕ × Sym))
     (ch? : Option (ℕ × Sym)) : Finset (ℕ × Sym) × Option Payload :=
