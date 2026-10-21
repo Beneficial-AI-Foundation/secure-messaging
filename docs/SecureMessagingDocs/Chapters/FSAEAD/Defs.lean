@@ -87,7 +87,7 @@ The boxes below print ACD19 Figure 5 and frame one change:
   Otherwise B would have to accept both, and no correct scheme meets the game.
 
 ::::::gameGrid
-:::::gameCell "\\textsf{Game state}" (kind := "scheme-notation")
+:::::gameCell "\\textsf{Game state and notation}" (kind := "scheme-notation")
 The game state consists of:
 
 ::::table -header
@@ -112,6 +112,9 @@ An index $`i` is compromised if
 $$`\mathsf{compromised}(i) :\Leftrightarrow i \in \mathsf{comp} \;\vee\; \boxed{\mathsf{corrA} \wedge i > i_\A \wedge i \notin \mathsf{preempted}}`
 
 where the boxed part is (D2).
+
+In the oracles, $`\req\varphi` means: if $`\varphi` is false, the oracle returns
+$`\bot` and the game state does not change (§2.1).
 
 :::leanPillCaption "Game state"
 :::
