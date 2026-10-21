@@ -41,8 +41,10 @@ Forward-Secure AEAD (FS-AEAD).
 $`(\mathsf{FS\text{-}Init\text{-}S}, \mathsf{FS\text{-}Init\text{-}R}, \mathsf{FS\text{-}Send}, \mathsf{FS\text{-}Rcv})`,
 where
 
-- $`\mathsf{FS\text{-}Init\text{-}S}` (and similarly $`\mathsf{FS\text{-}Init\text{-}R}`)
-  takes a key $`k` and outputs a state $`v_A \gets \mathsf{FS\text{-}Init\text{-}S}(k)`,
+- $`\mathsf{FS\text{-}Init\text{-}S}` takes a key $`k` and outputs the sender's state
+  $`v_\A \gets \mathsf{FS\text{-}Init\text{-}S}(k)`,
+- $`\mathsf{FS\text{-}Init\text{-}R}` takes a key $`k` and outputs the receiver's state
+  $`v_\B \gets \mathsf{FS\text{-}Init\text{-}R}(k)`,
 - $`\mathsf{FS\text{-}Send}` takes a state $`v`, associated data $`a` and a message $`m`,
   and produces a new state and a ciphertext $`(v', e) \gets \mathsf{FS\text{-}Send}(v, a, m)`,
 - $`\mathsf{FS\text{-}Rcv}` takes a state $`v`, associated data $`a` and a ciphertext
