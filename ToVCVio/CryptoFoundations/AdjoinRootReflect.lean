@@ -65,11 +65,11 @@ def bitVecEquivFun (n : ℕ) : BitVec n ≃ (Fin n → ZMod 2) where
     apply BitVec.eq_of_getMsbD_eq
     intro i hi
     simp only [BitVec.getMsbD_cast, BitVec.getMsbD_ofBoolListBE, List.getD_eq_getElem?_getD,
-      List.getElem?_ofFn, hi, dif_pos, Option.getD_some, zmod2ToBool_boolToZMod2]
+      List.getElem?_ofFn, hi, dite_eq_left, Option.getD_some, zmod2ToBool_boolToZMod2]
   right_inv f := by
     funext i
     simp only [BitVec.getMsbD_cast, BitVec.getMsbD_ofBoolListBE, List.getD_eq_getElem?_getD,
-      List.getElem?_ofFn, i.isLt, dif_pos, Option.getD_some, boolToZMod2_zmod2ToBool]
+      List.getElem?_ofFn, i.isLt, dite_eq_left, Option.getD_some, boolToZMod2_zmod2ToBool]
 
 @[simp] theorem bitVecEquivFun_apply (n : ℕ) (x : BitVec n) (i : Fin n) :
     bitVecEquivFun n x i = boolToZMod2 (x.getMsbD i) := rfl

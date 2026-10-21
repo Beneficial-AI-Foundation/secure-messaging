@@ -360,9 +360,9 @@ lemma partyInv_recv_noKey (hns : ¬ ρ.tRes < stR.req.reqEpoch)
     · intro pk hpk
       rw [hst'ek] at hpk
       by_cases h : stR.res.resEpoch + roleR.offset ∈ ack'.ekRec
-      · rw [if_pos h] at hpk
+      · rw [ite_eq_left h] at hpk
         exact absurd hpk (by simp)
-      · rw [if_neg h] at hpk
+      · rw [ite_eq_right h] at hpk
         exact hR.ek_T pk hpk
     · intro e pk sk hkp hp hnot
       rw [hst'ack, hmemreq e hp] at hnot
@@ -373,34 +373,34 @@ lemma partyInv_recv_noKey (hns : ¬ ρ.tRes < stR.req.reqEpoch)
         stR.res.resEpoch + roleR.offset ∈ ack'.ekRec
       by_cases h : stR.res.resEpoch + roleR.offset ∈ ack'.ekRec
       · exact Or.inr h
-      · rw [if_neg h] at hek
+      · rw [ite_eq_right h] at hek
         exact (hR.ek_acked hek).imp_right (fun h' => heksub h')
     · intro c k henc
       rw [hst'res] at henc
       rw [hst'ct, hst'ack]
       by_cases hin : stR.res.resEpoch ∈ ack'.ctRec
       · exact Or.inr hin
-      · rw [if_neg hin]
+      · rw [ite_eq_right hin]
         rcases hR.enc_current c k henc with h | h
         · exact Or.inl h
         · exact absurd (hctsub h) hin
     · intro c hc
       rw [hst'ct] at hc
       by_cases h : stR.res.resEpoch ∈ ack'.ctRec
-      · rw [if_pos h] at hc
+      · rw [ite_eq_left h] at hc
         exact absurd hc (by simp)
-      · rw [if_neg h] at hc
+      · rw [ite_eq_right h] at hc
         exact hR.ct_T c hc
     · intro hin
       have hin' : stR.res.resEpoch ∈ ack'.ctRec := hin
       change (if stR.res.resEpoch ∈ ack'.ctRec then none else stR.res.ct) = none
-      rw [if_pos hin']
+      rw [ite_eq_left hin']
     · intro e he hp
       change keyR e.toNat = if e ∈ ack'.ctRec then (T e).key else none
       rw [hR.key_req e he hp]
       by_cases hin : e ∈ stR.ack.ctRec
-      · rw [if_pos hin, if_pos ((hmemreq e hp).2 hin)]
-      · rw [if_neg hin, if_neg (fun h => hin ((hmemreq e hp).1 h))]
+      · rw [ite_eq_left hin, ite_eq_left ((hmemreq e hp).2 hin)]
+      · rw [ite_eq_right hin, ite_eq_right (fun h => hin ((hmemreq e hp).1 h))]
     · intro t ht hpos hp
       rw [hst'ack, hmemreq t hp] at ht
       exact hR.ctRec_req_enc t ht hpos hp
@@ -629,7 +629,7 @@ lemma partyInv_decaps_local {st₁ : State PK SK C Sym} {ownKey : ℕ → Option
     · intro e he hp
       by_cases heq : e = q
       · subst heq
-        rw [Function.update_self, if_pos (Finset.mem_insert_self _ _), EpochTranscript.key, henc]
+        rw [Function.update_self, ite_eq_left (Finset.mem_insert_self _ _), EpochTranscript.key, henc]
         rfl
       · have hne : e.toNat ≠ q.toNat := fun h => heq (hqnat e he h)
         rw [Function.update_of_ne hne, h₁.key_req e he hp]
@@ -777,10 +777,10 @@ lemma recv_buffer_pk (hns : ¬ ρ.tRes < stR.req.reqEpoch) (hbit : ρ.bit = some
   unfold BufferConsistent at hbuf
   by_cases hadv : stR.req.reqEpoch < ρ.tRes
   · have hprev := recv_advance_prev hR hS hmsg hadv
-    rw [if_pos hprev] at hbuf
+    rw [ite_eq_left hprev] at hbuf
     exact ⟨∅, hkp, hch, by rw [hbuf, payloadChunks_empty], by simpa using ecEk.ec.nchunk_pos⟩
   · have hq : stR.req.reqEpoch = ρ.tRes := by omega
-    rw [hq, if_neg hqnot, if_pos hnone, hkp] at hbuf
+    rw [hq, ite_eq_right hqnot, ite_eq_left hnone, hkp] at hbuf
     obtain ⟨I, hI, hcard⟩ := hbuf
     exact ⟨I, hkp, hch, hI, hcard⟩
 
@@ -798,7 +798,7 @@ lemma recv_buffer_ct (hns : ¬ ρ.tRes < stR.req.reqEpoch) (hbit : ρ.bit = some
   unfold BufferConsistent at hbuf
   by_cases hadv : stR.req.reqEpoch < ρ.tRes
   · have hprev := recv_advance_prev hR hS hmsg hadv
-    rw [if_pos hprev] at hbuf
+    rw [ite_eq_left hprev] at hbuf
     exact ⟨c, k, i, ∅, henc, hchi, by rw [hbuf, payloadChunks_empty],
       by simpa using ecCt.ec.nchunk_pos⟩
   · have hq : stR.req.reqEpoch = ρ.tRes := by omega
@@ -807,7 +807,7 @@ lemma recv_buffer_ct (hns : ¬ ρ.tRes < stR.req.reqEpoch) (hbit : ρ.bit = some
       rw [Option.isNone_iff_eq_none] at h
       rw [h] at hsome
       exact absurd hsome (by simp)
-    rw [hq, if_neg hqnot, if_neg hnotnone, henc] at hbuf
+    rw [hq, ite_eq_right hqnot, ite_eq_right hnotnone, henc] at hbuf
     obtain ⟨I, hI, hcard⟩ := hbuf
     exact ⟨c, k, i, I, henc, hchi, hI, hcard⟩
 
@@ -821,7 +821,7 @@ lemma recv_buffer_unchanged (hns : ¬ ρ.tRes < stR.req.reqEpoch) :
   · have hprev := recv_advance_prev hR hS hmsg hadv
     have hbuf := hR.buffer
     unfold BufferConsistent at hbuf
-    rw [if_pos hprev] at hbuf
+    rw [ite_eq_left hprev] at hbuf
     exact bufferConsistent_of_empty _ _ _ _ _ hbuf
   · have hq : stR.req.reqEpoch = ρ.tRes := by omega
     have hiff : (ρ.tRes ∈ (recvAck roleR stR.ack ρ).ctRec) = (ρ.tRes ∈ stR.ack.ctRec) := by
@@ -1003,12 +1003,12 @@ lemma partyInv_recv_step [DecidableEq Sym] (hEk : ecEk.ec.Correct) (hCt : ecCt.e
   rw [recv_eq_recvSpec]
   unfold recvSpec
   by_cases hst : ρ.tRes < stR.req.reqEpoch
-  · simp only [hst, if_true]
+  · simp only [hst, ite_true]
     obtain ⟨hR', hS'⟩ := partyInv_recv_stale hR hS hmsg hst
     exact ⟨⟨_, _, _, rfl⟩, finish _ hR' hS'⟩
-  · simp only [hst, if_false, recvReq_eq_tRes hR hS hmsg hst]
+  · simp only [hst, ite_false, recvReq_eq_tRes hR hS hmsg hst]
     by_cases hg1 : (stR.res.ekPeer (ρ.tRes - roleR.offset)).isNone = true ∧ ρ.bit = some 0
-    · rw [if_pos hg1]
+    · rw [ite_eq_left hg1]
       obtain ⟨hqnot, pk, sk, i, I, hkp, hch, hbufI, hcard⟩ :=
         recv_buffer_pk hR hS hmsg hst hg1.2 hg1.1
       have hpos := recv_tRes_pos_of_keypair hS hmsg (by rw [hkp]; rfl)
@@ -1063,7 +1063,7 @@ lemma partyInv_recv_step [DecidableEq Sym] (hEk : ecEk.ec.Correct) (hCt : ecCt.e
               rw [← h] at h2
               cases roleR <;> simp only [Role.reqParity, Role.resParity] at h2 hpRes <;> omega
           apply bufferConsistent_recvFinish
-          rw [if_neg hnot, if_pos hg1.1, hkp]
+          rw [ite_eq_right hnot, ite_eq_left hg1.1, hkp]
           exact ⟨I', rfl, hlt⟩
         obtain ⟨hR', hS'⟩ := partyInv_recv_noKey hR hS hmsg hst stR.res.ekPeer
           (recvAck roleR stR.ack ρ) (payloadChunks ecEk pk I') (fun _ _ => rfl) hR.ekPeer_T
@@ -1090,9 +1090,9 @@ lemma partyInv_recv_step [DecidableEq Sym] (hEk : ecEk.ec.Correct) (hCt : ecCt.e
             · exact ⟨hpResO, by rw [Function.update_self]; rfl⟩
             · exact absurd ht hnot) hbuf
         exact ⟨⟨_, _, _, rfl⟩, finish _ hR' hS'⟩
-    · rw [if_neg hg1]
+    · rw [ite_eq_right hg1]
       by_cases hg2 : ρ.tRes ∉ (recvAck roleR stR.ack ρ).ctRec ∧ ρ.bit = some 1
-      · rw [if_pos hg2]
+      · rw [ite_eq_left hg2]
         have hqnot : ρ.tRes ∉ stR.ack.ctRec := fun h => hg2.1 (recvAck_ctRec_subset _ _ _ h)
         have hsome := recv_bit1_ekPeer hR hS hmsg hg2.2
         rcases hch : ρ.ch with _ | ch
@@ -1125,7 +1125,7 @@ lemma partyInv_recv_step [DecidableEq Sym] (hEk : ecEk.ec.Correct) (hCt : ecCt.e
                 (recvFinish roleR stR ρ.tRes stR.res.ekPeer stR.req.dk (payloadChunks ecCt c I')
                   (recvAck roleR stR.ack ρ)) := by
               apply bufferConsistent_recvFinish
-              rw [if_neg hg2.1, if_neg hnotnone, henc]
+              rw [ite_eq_right hg2.1, ite_eq_right hnotnone, henc]
               exact ⟨I', rfl, hlt⟩
             obtain ⟨hR', hS'⟩ := partyInv_recv_noKey hR hS hmsg hst stR.res.ekPeer
               (recvAck roleR stR.ack ρ) (payloadChunks ecCt c I') (fun _ _ => rfl) hR.ekPeer_T
@@ -1194,11 +1194,11 @@ lemma partyInv_recv_step [DecidableEq Sym] (hEk : ecEk.ec.Correct) (hCt : ecCt.e
               simp only [Option.some.injEq, Prod.mk.injEq] at h
               obtain ⟨rfl, rfl⟩ := h
               refine ⟨?_, Or.inr ?_⟩
-              · rw [hR.key_req _ hpos hpar, if_neg hqnot]
+              · rw [hR.key_req _ hpos hpar, ite_eq_right hqnot]
               · have hparS : ρ.tRes % 2 = roleR.peer.resParity := by simpa using hpar
                 rw [hS.key_res _ hpos hparS, EpochTranscript.key, henc]
                 rfl
-      · rw [if_neg hg2]
+      · rw [ite_eq_right hg2]
         obtain ⟨hR', hS'⟩ := partyInv_recv_noKey hR hS hmsg hst stR.res.ekPeer
           (recvAck roleR stR.ack ρ) stR.req.receivedChunks (fun _ _ => rfl) hR.ekPeer_T
           (fun e he => ⟨hR.ekPeer_parity e he, by

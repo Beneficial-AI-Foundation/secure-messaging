@@ -253,10 +253,10 @@ lemma probOutput_securityReductionRealGame_eq_honestFalse
   unfold securityReductionRealGame securityExpRealGame
   by_cases h_special_case : gp.challengeEpoch = 1 ∧ gp.challengedParty = .A
   · -- Special: `reductionInitState` = `pure (init .sendReady gA .recvReady 0)` (no x₀ sample).
-    simp only [reductionInitState, if_pos h_special_case, pure_bind]
+    simp only [reductionInitState, ite_eq_left h_special_case, pure_bind]
     exact probOutput_special_pointwise (gen := gen) gp hΔFS hΔPCS h_special_case adversary
   · -- General: `reductionInitState` = `do x₀ ← $F; pure (init .sendReady (x₀•gen) .recvReady x₀)`.
-    simp only [reductionInitState, if_neg h_special_case, bind_assoc, pure_bind]
+    simp only [reductionInitState, ite_eq_right h_special_case, bind_assoc, pure_bind]
     exact probOutput_general_pointwise (gen := gen) gp hΔFS hΔPCS h_special_case adversary
 
 

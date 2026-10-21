@@ -47,7 +47,7 @@ lemma recvA_kem_source_shape
   classical
   rcases msg with ⟨ch?, ack, t, b?⟩
   by_cases ht : stA.t = t
-  · simp only [recvA, ht, if_true, Option.bind_eq_bind, Option.pure_def] at hrecv
+  · simp only [recvA, ht, ite_true, Option.bind_eq_bind, Option.pure_def] at hrecv
     repeat' split at hrecv
     all_goals simp_all only [Bool.and_eq_true, beq_iff_eq, Option.bind_some,
       Option.bind_none, reduceCtorEq, and_true, Option.some.injEq, Prod.mk.injEq,
@@ -73,7 +73,7 @@ lemma recvB_kem_source_shape
   rcases msg with ⟨ch?, ack, t, b?⟩
   by_cases ht : stB.t < t
   · right
-    simp only [recvB, ht, if_true] at hrecv
+    simp only [recvB, ht, ite_true] at hrecv
     repeat' split at hrecv
     all_goals try simp_all only [Option.isNone_none, and_true, BEq.rfl,
       Bool.and_true, Bool.not_eq_true, insert_empty_eq, Option.some.injEq,
@@ -86,7 +86,7 @@ lemma recvB_kem_source_shape
       not_false_eq_true])
     all_goals (rcases hrecv with ⟨_, _, hstate⟩; subst stB'; simp_all)
   · left
-    simp only [recvB, ht, if_false] at hrecv
+    simp only [recvB, ht, ite_false] at hrecv
     repeat' split at hrecv
     all_goals try simp_all only [lt_self_iff_false, not_false_eq_true,
       Option.isNone_iff_eq_none, BEq.rfl, Bool.and_true, Bool.not_eq_true,

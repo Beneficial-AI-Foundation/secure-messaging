@@ -313,11 +313,11 @@ theorem generator_peer_key {ik : InitKey} {T : ℕ → EpochTranscript P}
       s.stateAt (!party) := by
     cases party
     · simp only [GameState.stateAt, Bool.not_false, Bool.false_eq_true, ↓reduceIte] at hpar ⊢
-      rw [if_neg (by omega)]
+      rw [ite_eq_right (by omega)]
     · simp only [GameState.stateAt, Bool.not_true, Bool.false_eq_true, ↓reduceIte] at hpar ⊢
-      rw [if_pos hpar]
+      rw [ite_eq_left hpar]
   rw [hpeer] at hbound
-  rw [GameState.keysAt, hT.keys (!party), if_pos ⟨hpos, hbound⟩, hencaps]
+  rw [GameState.keysAt, hT.keys (!party), ite_eq_left ⟨hpos, hbound⟩, hencaps]
   rfl
 
 /-- Any output key comes from recorded decapsulation at the generator's epoch; the peer holds the

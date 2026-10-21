@@ -46,15 +46,15 @@ theorem ghashPoly_coeff_succ (blocks : List (BitVec 128)) (i : ℕ) :
   simp only [Polynomial.coeff_C_mul, Polynomial.coeff_X_pow, mul_ite, mul_one, mul_zero]
   by_cases hi : i < blocks.length
   · rw [Finset.sum_eq_single i]
-    · rw [if_pos rfl]
-    · intro j _ hj; exact if_neg (by omega)
+    · rw [ite_eq_left rfl]
+    · intro j _ hj; exact ite_eq_right (by omega)
     · intro h; exact absurd (Finset.mem_range.2 hi) h
   · have hz : blocks.reverse.getD i 0 = 0 :=
       List.getD_eq_default _ _ (by simpa using hi)
     rw [hz, reflectN_zero]
     refine Finset.sum_eq_zero fun j hj => ?_
     rw [Finset.mem_range] at hj
-    exact if_neg (by omega)
+    exact ite_eq_right (by omega)
 
 /-! ## The difference polynomial -/
 
@@ -81,7 +81,7 @@ theorem ghashDiffPoly_ne_zero (bp bq : List (BitVec 128)) (Δ : BitVec 128) {i :
   have hc : (ghashDiffPoly bp bq Δ).coeff (i + 1) = 0 := by rw [h0]; simp
   rw [ghashDiffPoly] at hc
   simp only [Polynomial.coeff_sub, ghashPoly_coeff_succ, Polynomial.coeff_C,
-    Nat.succ_ne_zero, if_false, sub_zero] at hc
+    Nat.succ_ne_zero, ite_false, sub_zero] at hc
   exact hne (reflectN.injective (sub_eq_zero.1 hc))
 
 /-- Evaluating `ghashDiffPoly bp bq Δ` at `reflectN H` gives

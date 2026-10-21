@@ -1369,8 +1369,8 @@ lemma reduction_honest_param_real_step_rel
                         lastAction := some .sendA })) <$> ($ᵗ F : ProbComp F)) := by
               unfold oracleSendArleak
               rw [StateT.run_get_bind]
-              rw [if_pos h_v]
-              rw [if_pos h_allow]
+              rw [ite_eq_left h_v]
+              rw [ite_eq_left h_allow]
               simp [h_stAR, ddhCKA, sendRleak]
             have h_runH :
                 (oracleSendArleak gp (ddhCKA F G gen) ()).run sH =
@@ -1382,8 +1382,8 @@ lemma reduction_honest_param_real_step_rel
                         lastAction := some .sendA })) <$> ($ᵗ F : ProbComp F)) := by
               unfold oracleSendArleak
               rw [StateT.run_get_bind]
-              rw [if_pos (by simp [h_lastH, validStep])]
-              rw [if_pos h_allowH]
+              rw [ite_eq_left (by simp [h_lastH, validStep])]
+              rw [ite_eq_left h_allowH]
               simp [h_stAH, ddhCKA, sendRleak]
             refine relTriple_of_eq_map_map h_runR h_runH fun yR => ?_
             refine ⟨rfl, ?_⟩
@@ -1510,8 +1510,8 @@ lemma reduction_honest_param_real_step_rel
                         lastAction := some .sendB })) <$> ($ᵗ F : ProbComp F)) := by
               unfold oracleSendBrleak
               rw [StateT.run_get_bind]
-              rw [if_pos h_v]
-              rw [if_pos h_allow]
+              rw [ite_eq_left h_v]
+              rw [ite_eq_left h_allow]
               simp [h_stBR, ddhCKA, sendRleak]
             have h_runH :
                 (oracleSendBrleak gp (ddhCKA F G gen) ()).run sH =
@@ -1523,8 +1523,8 @@ lemma reduction_honest_param_real_step_rel
                         lastAction := some .sendB })) <$> ($ᵗ F : ProbComp F)) := by
               unfold oracleSendBrleak
               rw [StateT.run_get_bind]
-              rw [if_pos (by simp [h_lastH, validStep])]
-              rw [if_pos h_allowH]
+              rw [ite_eq_left (by simp [h_lastH, validStep])]
+              rw [ite_eq_left h_allowH]
               simp [h_stBH, ddhCKA, sendRleak]
             refine relTriple_of_eq_map_map h_runR h_runH fun xR => ?_
             refine ⟨rfl, ?_⟩
