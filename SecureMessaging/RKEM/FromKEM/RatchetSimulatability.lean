@@ -223,7 +223,7 @@ theorem RatchetSimulatable (kem : KEMScheme ProbComp K PK SK C) (total : TotalDe
     (scheme kem total).RatchetSimulatable (leak := randLeak kem total kemLeak) 0
 -- ANCHOR_END: RatchetSimulatable
     :=
-  RKEMScheme.ratchetSimulatable_zero_of_evalDist_eq _ (ratchetSimulator kem total kemLeak)
+  RKEMScheme.ratchetSimulatable_zero_of_evalDistEq _ (ratchetSimulator kem total kemLeak)
     (evalDistEq_keyBaseSimDistA kem total kemLeak) (evalDistEq_keyBaseSimDistB kem total kemLeak)
     (evalDistEq_keyUpdSimDistA kem total kemLeak) (evalDistEq_keyUpdSimDistB kem total kemLeak)
     (evalDistEq_ctxtSimDistA kem total kemLeak) (evalDistEq_ctxtSimDistB kem total kemLeak)

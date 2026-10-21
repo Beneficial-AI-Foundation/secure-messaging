@@ -189,7 +189,7 @@ theorem RatchetSimulatable (gen : G) :
     (scheme (F := F) gen).RatchetSimulatable (leak := randLeak gen) 0
 -- ANCHOR_END: RatchetSimulatable
     :=
-  RKEMScheme.ratchetSimulatable_zero_of_evalDist_eq _ (ratchetSimulator gen)
+  RKEMScheme.ratchetSimulatable_zero_of_evalDistEq _ (ratchetSimulator gen)
     (evalDistEq_keyBaseSimDistA gen) (evalDistEq_keyBaseSimDistB gen)
     (evalDistEq_keyUpdSimDistA gen) (evalDistEq_keyUpdSimDistB gen)
     (evalDistEq_ctxtSimDistA gen) (evalDistEq_ctxtSimDistB gen)

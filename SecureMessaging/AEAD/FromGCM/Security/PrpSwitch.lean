@@ -104,14 +104,14 @@ private lemma prpIdealExp_eq_bind_tail (iv : BitVec 96)
 
 /-- The PRF-ideal experiment as `D >>= cipherInputsTail adv`, `D` one independent uniform
 draw per query point. -/
-private lemma prfIdealExp_eq_bind_tail (iv : BitVec 96) (hL : ValidMsgLength L)
+private lemma prfIdealExperiment_eq_bind_tail (iv : BitVec 96) (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
     PRFScheme.prfIdealExperiment (prfReduction iv L adv) =
       ((((0 : BitVec 128) :: j0 iv ::
             counterChain (inc32 (j0 iv)) ((L + 127) / 128)).mapM
           (fun _ => ($ᵗ (BitVec 128) : ProbComp (BitVec 128)))) >>=
         cipherInputsTail adv) := by
-  rw [prfIdealExp_prfReduction_eq iv L hL adv]
+  rw [prfIdealExperiment_prfReduction_eq iv L hL adv]
   simp only [List.mapM_cons, bind_assoc, pure_bind]
   rfl
 
@@ -142,7 +142,7 @@ theorem abs_prfAdvantage_sub_prpAdvantage_le {K : Type}
   -- (3) The Bool-level bridge from a difference of `Pr[true]` values to TV distance.
   refine (abs_prEvent_toReal_sub_le_measureTVDist _ _ (· = true) Measurable.of_discrete).trans ?_
   -- (4) Both ideal experiments become `D >>= cipherInputsTail adv` over the same query list.
-  rw [prpIdealExp_eq_bind_tail iv adv, prfIdealExp_eq_bind_tail iv hL adv]
+  rw [prpIdealExp_eq_bind_tail iv adv, prfIdealExperiment_eq_bind_tail iv hL adv]
   -- (5) The data-processing inequality pushes the bound through that shared closed tail.
   let _ : MeasurableSpace (List (BitVec 128)) := ⊤
   refine (OracleComp.measureTVDist_bind_right_le _ _ _).trans ?_

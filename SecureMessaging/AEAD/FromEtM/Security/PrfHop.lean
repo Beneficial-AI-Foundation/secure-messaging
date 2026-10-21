@@ -82,7 +82,7 @@ theorem game0_eq_real
 omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
 /-- Game 0 → real PRF experiment: the `game0` distribution equals the real PRF experiment run on
 `prfReduction`. The "real" half of NRS14 Lemma 3, eq. (4). -/
-theorem game0_eq_prfRealExp
+theorem game0_eq_prfRealExperiment
     (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     Pr{let x ← game0 se prf adv}[x = true] =
@@ -139,7 +139,7 @@ omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
 /-- Game 1 → ideal PRF experiment: the `game1` distribution equals the ideal PRF experiment run
 on `prfReduction`. The "ideal" half of NRS14 Lemma 3, eq. (4); this is the heavier of the two
 halves, since it must relocate the outer lazy-RO cache into the (always-`∅`) inner `TagCache`. -/
-theorem game1_eq_prfIdealExp
+theorem game1_eq_prfIdealExperiment
     (se : DetSEAlg K_e M C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     Pr{let x ← game1 se adv}[x = true] =
@@ -293,14 +293,15 @@ omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
 /-- Game 0 → 1: PRF hop. Gap bounded by PRF advantage.
 
 NRS14 Lemma 3, eq. (4): replace F^tag with random ρ. The two reduction-equals-experiment
-equalities `game0_eq_prfRealExp` and `game1_eq_prfIdealExp` combine here, since both sides
-share the same `prfAdvantage` shape. -/
+equalities `game0_eq_prfRealExperiment` and `game1_eq_prfIdealExperiment` combine here, since
+both sides share the same `prfAdvantage` shape. -/
 theorem game0_game1_le_prf
     (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
     |(Pr{let x ← game0 se prf adv}[x = true]).toReal -
      (Pr{let x ← game1 se adv}[x = true]).toReal| ≤
       (PRFScheme.prfAdvantage prf (prfReduction se adv)).toReal := by
-  rw [PRFScheme.toReal_prfAdvantage, game0_eq_prfRealExp se prf adv, game1_eq_prfIdealExp se adv]
+  rw [PRFScheme.toReal_prfAdvantage, game0_eq_prfRealExperiment se prf adv,
+    game1_eq_prfIdealExperiment se adv]
 
 end EtM

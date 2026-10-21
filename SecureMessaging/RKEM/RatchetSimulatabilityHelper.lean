@@ -17,7 +17,7 @@ Each simulatability property is a bit-guessing experiment between a real distrib
 guess is independent of the bit, so every distinguisher has advantage exactly `0`
 (`ToVCVio.prEvent_true_bitGuess_eq_half`). A construction proving the six distribution
 equalities (three properties, two parties) thus gets `RatchetSimulatable 0` from
-`ratchetSimulatable_zero_of_evalDist_eq`.
+`ratchetSimulatable_zero_of_evalDistEq`.
 
 [REFERENCES]
 
@@ -36,7 +36,7 @@ variable {Par EK DK CT K : Type} (rkem : RKEMScheme ProbComp Par EK DK CT K)
 /-- If, for both parties, the simulated base-key distribution `D^KeyBaseSim_{P,1}` equals the
 real `D^KeyBaseSim_{P,0}`, then `Adv^{KeyBaseSim}` is `0` against every pair of
 distinguishers. -/
-theorem keyBaseSimAdvantage_eq_zero_of_evalDist_eq
+theorem keyBaseSimAdvantage_eq_zero_of_evalDistEq
     (hA : ∀ par, rkem.keyBaseSimDistA sim par true =ᵈ rkem.keyBaseSimDistA sim par false)
     (hB : ∀ par, rkem.keyBaseSimDistB sim par true =ᵈ rkem.keyBaseSimDistB sim par false)
     (adversaryA adversaryB : KeyBaseSimAdversary Par EK DK) :
@@ -49,7 +49,7 @@ theorem keyBaseSimAdvantage_eq_zero_of_evalDist_eq
 /-- If, for both parties, the simulated updated-key distribution `D^KeyUpdSim_{P,1}` equals the
 real `D^KeyUpdSim_{P,0}`, then `Adv^{KeyUpdSim}` is `0` against every pair of
 distinguishers. -/
-theorem keyUpdSimAdvantage_eq_zero_of_evalDist_eq
+theorem keyUpdSimAdvantage_eq_zero_of_evalDistEq
     (hA : ∀ par, rkem.keyUpdSimDistA sim par true =ᵈ rkem.keyUpdSimDistA sim par false)
     (hB : ∀ par, rkem.keyUpdSimDistB sim par true =ᵈ rkem.keyUpdSimDistB sim par false)
     (adversaryA adversaryB :
@@ -62,7 +62,7 @@ theorem keyUpdSimAdvantage_eq_zero_of_evalDist_eq
 
 /-- If, for both parties, the simulated ciphertext distribution `D^CtxtSim_{P,1}` equals the
 real `D^CtxtSim_{P,0}`, then `Adv^{CtxtSim}` is `0` against every pair of distinguishers. -/
-theorem ctxtSimAdvantage_eq_zero_of_evalDist_eq
+theorem ctxtSimAdvantage_eq_zero_of_evalDistEq
     (hA : ∀ par, rkem.ctxtSimDistA sim par true =ᵈ rkem.ctxtSimDistA sim par false)
     (hB : ∀ par, rkem.ctxtSimDistB sim par true =ᵈ rkem.ctxtSimDistB sim par false)
     (adversaryA adversaryB : CtxtSimAdversary Par EK DK CT K sim.Aux leak.KeygenRand) :
@@ -76,7 +76,7 @@ theorem ctxtSimAdvantage_eq_zero_of_evalDist_eq
 real and simulated distributions of base-key, updated-key and ciphertext simulatability coincide,
 for both parties and every public parameter, then `rkem` is `0`-ratchet simulatable with respect
 to `leak`, witnessed by `sim`. -/
-theorem ratchetSimulatable_zero_of_evalDist_eq
+theorem ratchetSimulatable_zero_of_evalDistEq
     (hBaseA : ∀ par,
       rkem.keyBaseSimDistA sim par true =ᵈ rkem.keyBaseSimDistA sim par false)
     (hBaseB : ∀ par,
@@ -91,8 +91,8 @@ theorem ratchetSimulatable_zero_of_evalDist_eq
       rkem.ctxtSimDistB sim par true =ᵈ rkem.ctxtSimDistB sim par false) :
     rkem.RatchetSimulatable (leak := leak) 0 :=
   ⟨sim, fun baseA baseB updA updB ctxtA ctxtB =>
-    ⟨(rkem.keyBaseSimAdvantage_eq_zero_of_evalDist_eq sim hBaseA hBaseB baseA baseB).le,
-      (rkem.keyUpdSimAdvantage_eq_zero_of_evalDist_eq sim hUpdA hUpdB updA updB).le,
-      (rkem.ctxtSimAdvantage_eq_zero_of_evalDist_eq sim hCtxtA hCtxtB ctxtA ctxtB).le⟩⟩
+    ⟨(rkem.keyBaseSimAdvantage_eq_zero_of_evalDistEq sim hBaseA hBaseB baseA baseB).le,
+      (rkem.keyUpdSimAdvantage_eq_zero_of_evalDistEq sim hUpdA hUpdB updA updB).le,
+      (rkem.ctxtSimAdvantage_eq_zero_of_evalDistEq sim hCtxtA hCtxtB ctxtA ctxtB).le⟩⟩
 
 end RKEMScheme
