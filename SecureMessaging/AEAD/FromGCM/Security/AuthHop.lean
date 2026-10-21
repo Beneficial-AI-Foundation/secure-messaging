@@ -50,7 +50,7 @@ example (A M Cb : Type) :
 
 /-- `gcmInstImpl` unfolds to the generic Wegman–Carter handler by definition. Nothing rewrites
 with this: it pins the coupling at compile time, so a change to either handler that breaks
-`probEvent_forge_gcmInst_le` is reported here first. -/
+`prEvent_forge_gcmInst_le` is reported here first. -/
 theorem gcmInstImpl_eq_wcInstImpl (L : ℕ) (h mask : BitVec 128) (ks : BitVec L)
     (b : Bool) :
     gcmInstImpl (L := L) (h, mask, ks) b =
@@ -66,7 +66,7 @@ theorem gcmInstImpl_eq_wcInstImpl (L : ℕ) (h mask : BitVec 128) (ks : BitVec L
 /-- Let GHASH be `ε`-AXU, let `adv` make at most `q_d` decryption queries, let `ks` be a fixed
 keystream and let `H` and `mask` be independent uniform 128-bit values. Then running `adv`
 against the always-reject oracles raises the `forged` flag with probability at most `q_d · ε`. -/
-theorem probEvent_forge_gcmInst_le (L : ℕ) {ε : ℝ≥0∞} (haxu : GhashIsAXU L ε)
+theorem prEvent_forge_gcmInst_le (L : ℕ) {ε : ℝ≥0∞} (haxu : GhashIsAXU L ε)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
     (q_d : ℕ) (hq : AEADScheme.decryptQueryBound adv q_d) (ks : BitVec L) :
     Pr{let z ← (do
@@ -165,7 +165,7 @@ theorem gcmInstImpl_identicalUntilBad (L : ℕ)
 /-- For a fixed tuple `a`, the outputs of `adv` against the always-reject and the live oracles
 have total-variation distance at most the probability that the always-reject run raises the
 `forged` flag. -/
-theorem gcmInst_measureTVDist_le_probEvent_forge (L : ℕ)
+theorem gcmInst_measureTVDist_le_prEvent_forge (L : ℕ)
     (a : BitVec 128 × BitVec 128 × BitVec L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
     measureTVDist ((simulateQ (gcmInstImpl a false) adv).run' (none, false))
@@ -178,8 +178,8 @@ theorem gcmInst_measureTVDist_le_probEvent_forge (L : ℕ)
 
 /-! ### Lifting the per-tuple bound across the tuple sample -/
 
-/-- `gcmInst_measureTVDist_le_probEvent_forge` averaged over the uniform tuple draw. -/
-private theorem measureTVDist_gcmInstFlat_le_probEvent_forge (L : ℕ)
+/-- `gcmInst_measureTVDist_le_prEvent_forge` averaged over the uniform tuple draw. -/
+private theorem measureTVDist_gcmInstFlat_le_prEvent_forge (L : ℕ)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
     measureTVDist (($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _) >>=
               fun a => (simulateQ (gcmInstImpl a false) adv).run' (none, false))
@@ -194,7 +194,7 @@ private theorem measureTVDist_gcmInstFlat_le_probEvent_forge (L : ℕ)
     (ne_top_of_le_ne_top one_ne_top (prEvent_le_one _)))]
   refine Summable.tsum_le_tsum (fun a => ?_) Summable.of_finite Summable.of_finite
   rw [ENNReal.toReal_mul]
-  exact mul_le_mul_of_nonneg_left (gcmInst_measureTVDist_le_probEvent_forge L a adv)
+  exact mul_le_mul_of_nonneg_left (gcmInst_measureTVDist_le_prEvent_forge L a adv)
     ENNReal.toReal_nonneg
 
 /-- Drawing the tuple `(H, mask, ks)` uniformly is the same as drawing `ks`, then `H`, then
@@ -222,7 +222,7 @@ private theorem evalDistEq_gcmInstRun_ks_outer (L : ℕ)
         (do let mask ← ($ᵗ (BitVec 128) : ProbComp _)
             (simulateQ (gcmInstImpl (h, mask, ks) false) adv).run (none, false))))
 
-private theorem probEvent_forge_gcmInstFlat_le (L : ℕ) {ε : ℝ≥0∞} (haxu : GhashIsAXU L ε)
+private theorem prEvent_forge_gcmInstFlat_le (L : ℕ) {ε : ℝ≥0∞} (haxu : GhashIsAXU L ε)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128))
     (q_d : ℕ) (hq : AEADScheme.decryptQueryBound adv q_d) :
     Pr{let z ← (($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _) >>=
@@ -230,7 +230,7 @@ private theorem probEvent_forge_gcmInstFlat_le (L : ℕ) {ε : ℝ≥0∞} (haxu
       ≤ (q_d : ℝ≥0∞) * ε := by
   rw [(evalDistEq_gcmInstRun_ks_outer L adv).prEvent_eq]
   exact prEvent_bind_le_of_forall_le _ _ _ fun ks =>
-    probEvent_forge_gcmInst_le L haxu adv q_d hq ks
+    prEvent_forge_gcmInst_le L haxu adv q_d hq ks
 
 /-- The authenticity hop. Let GHASH be `ε`-AXU with `ε` finite (`ε ≠ ⊤`), and let `adv` make
 at most `q_d` decryption queries. Then `|Pr[game3 = 1] − Pr[game2 = 1]| ≤ q_d · ε`. -/
@@ -241,7 +241,7 @@ theorem game2_game3_le_auth {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ
     {ε : ℝ≥0∞} (hε : ε ≠ ⊤) (haxu : GhashIsAXU L ε) :
     |(Pr{let x ← game3 prp L hL adv}[x = true]).toReal -
       (Pr{let x ← game2 prp L hL adv}[x = true]).toReal| ≤ (q_d : ℝ) * ε.toReal := by
-  -- The projections onto the instrumented games, consumed as `evalDist` equalities.
+  -- The projections onto the instrumented games, used through `.prEvent_eq`.
   have h3 :
       Pr{let x ← game3 prp L hL adv}[x = true] = Pr{let x ← game3Flat prp L hL adv}[x = true] :=
     ((game3Flat_eq_game3 prp L hL adv).prEvent_eq _).symm
@@ -256,10 +256,10 @@ theorem game2_game3_le_auth {K : Type} (prp : PRPScheme K (BitVec 128)) (L : ℕ
     _ ≤ (Pr{let z ← (($ᵗ (BitVec 128 × BitVec 128 × BitVec L) : ProbComp _) >>=
               fun a =>
                 (simulateQ (gcmInstImpl a false) adv).run (none, false))}[z.2.2 = true]).toReal :=
-        measureTVDist_gcmInstFlat_le_probEvent_forge L adv
+        measureTVDist_gcmInstFlat_le_prEvent_forge L adv
     _ ≤ ((q_d : ℝ≥0∞) * ε).toReal :=
         ENNReal.toReal_mono (ENNReal.mul_ne_top (ENNReal.natCast_ne_top q_d) hε)
-          (probEvent_forge_gcmInstFlat_le L haxu adv q_d hq)
+          (prEvent_forge_gcmInstFlat_le L haxu adv q_d hq)
     _ = (q_d : ℝ) * ε.toReal := by
         rw [ENNReal.toReal_mul, ENNReal.toReal_natCast]
 
