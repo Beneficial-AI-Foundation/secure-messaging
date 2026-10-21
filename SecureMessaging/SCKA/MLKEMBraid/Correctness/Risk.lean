@@ -7,8 +7,6 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.KEM.IncrementalKEM.Correctness
 import SecureMessaging.SCKA.MLKEMBraid.Correctness.Invariant
 import ToVCVio.OracleComp.ExpectedPayoff
-import VCVio.EvalDist.Defs.Support.Failure
-import VCVio.EvalDist.Monad.Seq
 
 /-!
 # Failure potential of the current epoch

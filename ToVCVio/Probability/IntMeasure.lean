@@ -8,8 +8,8 @@ module
 
 public import Mathlib.Algebra.MonoidAlgebra.Defs
 public import Mathlib.Algebra.MonoidAlgebra.Support
-public import Mathlib.Algebra.Order.Ring.Abs
-public import Mathlib.Tactic.Ring
+import Mathlib.Algebra.Order.Ring.Abs
+import Mathlib.Tactic.Ring
 
 /-!
 # Finite integer counting measures
