@@ -8,6 +8,8 @@ import SecureMessaging.RKEM.FromDDHNonFS.Construction
 import SecureMessaging.RKEM.FromDDHNonFS.Correctness
 import SecureMessaging.RKEM.FromDDHNonFS.RatchetSimulatability
 
+/-! # Blueprint chapter: RKEM from DDH (non-FS) -/
+
 set_option linter.style.setOption false
 set_option linter.hashCommand false
 set_option linter.style.emptyLine false

@@ -8,6 +8,8 @@ import SecureMessaging.AEAD.FromGCM.Construction
 import SecureMessaging.AEAD.FromGCM.Correctness
 import SecureMessaging.AEAD.FromGCM.Security
 
+/-! # Blueprint chapter: GCM -/
+
 set_option linter.style.setOption false
 set_option linter.hashCommand false
 set_option linter.style.emptyLine false

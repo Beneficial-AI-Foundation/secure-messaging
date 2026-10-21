@@ -9,6 +9,8 @@ import SecureMessaging.RKEM.FromKEM.Correctness
 import SecureMessaging.RKEM.FromKEM.Security
 import SecureMessaging.RKEM.FromKEM.RatchetSimulatability
 
+/-! # Blueprint chapter: RKEM from KEM -/
+
 set_option linter.style.setOption false
 set_option linter.hashCommand false
 set_option linter.style.emptyLine false

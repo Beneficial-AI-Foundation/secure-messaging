@@ -6,6 +6,8 @@ import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessagingDocs.Bibliography
 import SecureMessaging.SCKA.OppBiKEM.Correctness
 
+/-! # Blueprint chapter: Opp-BiKEM-CKA -/
+
 set_option linter.style.setOption false
 set_option linter.hashCommand false
 set_option linter.style.emptyLine false

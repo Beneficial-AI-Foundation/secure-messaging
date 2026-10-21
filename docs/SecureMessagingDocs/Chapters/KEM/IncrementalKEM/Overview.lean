@@ -9,6 +9,8 @@ import SecureMessaging.KEM.IncrementalKEM.Defs
 import SecureMessaging.KEM.IncrementalKEM.FromMLKEM
 import SecureMessaging.KEM.MLKEM.Correctness.EasyCryptBoundary
 
+/-! # Blueprint chapter: Incremental KEM -/
+
 set_option linter.style.setOption false
 set_option linter.hashCommand false
 set_option linter.style.emptyLine false

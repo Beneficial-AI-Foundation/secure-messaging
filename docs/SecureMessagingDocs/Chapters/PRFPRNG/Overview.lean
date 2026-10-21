@@ -8,6 +8,8 @@ import SecureMessagingDocs.Chapters.PRFPRNG.PRP
 import SecureMessagingDocs.Chapters.PRFPRNG.PRG
 import SecureMessagingDocs.Chapters.PRFPRNG.FromPRPPRG
 
+/-! # Blueprint chapter: Pseudorandom Function and Generator -/
+
 open Verso.Genre
 open Verso.Genre.Manual
 open Informal

@@ -6,6 +6,8 @@ import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessagingDocs.Bibliography
 import SecureMessaging.RKEM.Defs
 
+/-! # Blueprint chapter: RKEM Definitions -/
+
 set_option linter.style.setOption false
 set_option linter.hashCommand false
 set_option linter.style.emptyLine false

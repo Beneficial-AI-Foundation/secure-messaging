@@ -8,6 +8,8 @@ import SecureMessagingDocs.Visuals.SCKAKeyMaterial
 import SecureMessagingDocs.Bibliography
 import SecureMessaging.SCKA.Defs
 
+/-! # Blueprint chapter: SCKA Definitions -/
+
 set_option linter.style.setOption false
 set_option linter.hashCommand false
 set_option linter.style.emptyLine false

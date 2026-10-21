@@ -8,6 +8,8 @@ import SecureMessaging.CKA.FromDDH.Construction
 import SecureMessaging.CKA.FromDDH.Correctness
 import SecureMessaging.CKA.FromDDH.Security
 
+/-! # Blueprint chapter: CKA from DDH -/
+
 set_option linter.style.setOption false
 set_option linter.hashCommand false
 set_option linter.style.emptyLine false

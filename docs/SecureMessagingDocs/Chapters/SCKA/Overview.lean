@@ -11,6 +11,8 @@ import SecureMessagingDocs.Chapters.SCKA.MLKEMBraid
 import SecureMessagingDocs.Chapters.SCKA.SPQR
 import SecureMessagingDocs.Chapters.SCKA.Errata
 
+/-! # Blueprint chapter: Sparse Continuous Key Agreement -/
+
 open Verso.Genre
 open Verso.Genre.Manual
 open Informal

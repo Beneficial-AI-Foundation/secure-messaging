@@ -7,6 +7,8 @@ import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessagingDocs.Chapters.CKA.Defs
 import SecureMessaging.CKA.FromLWE.Construction
 
+/-! # Blueprint chapter: CKA from LWE -/
+
 set_option linter.style.setOption false
 set_option linter.hashCommand false
 set_option linter.style.emptyLine false

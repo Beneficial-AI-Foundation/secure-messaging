@@ -7,6 +7,8 @@ import SecureMessagingDocs.Visuals.OppUniKEMVulnerableEpochs
 import SecureMessagingDocs.Bibliography
 import SecureMessaging.SCKA.OppUniKEM.Correctness
 
+/-! # Blueprint chapter: Opp-UniKEM-CKA -/
+
 set_option linter.style.setOption false
 set_option linter.hashCommand false
 set_option linter.style.emptyLine false
