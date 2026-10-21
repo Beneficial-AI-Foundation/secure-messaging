@@ -41,7 +41,7 @@ that distinguishes between roles at different indices that `A` and `B` play.
 
 
 The pseudocode below marks with surrounding boxes the corrections we made with respect to the paper.
-See the {ref "opp-bikem-errata"}[errata box] for detailed explanations and justifications for the corrections.
+See errata 1–3 in the {ref "scka-errata"}[errata] for detailed explanations and justifications for the corrections.
 
 ::::::gameGrid
 
@@ -461,99 +461,4 @@ $`\todo`
 
 :::leanPill "missing"
 :::
-::::
-
-# Errata
-%%%
-tag := "opp-bikem-errata"
-number := false
-htmlSplit := .never
-%%%
-
-::::gameCell "\\textsf{Opp-BiKEM-CKA errata}" (kind := "errata")
-
-The following errata explain the differences from the paper.
-The {bpref "opp_bikem_cka_spec"}[protocol definition] uses the corrections from errata 2 and 3.
-Erratum 1 distinguishes the current implementation from a proposed paper correction.
-
-*Erratum 1: Sending is blocked under the strict failure convention.*
-
-In Figures 17–18, `CKA-Send-P` can reach line 19, `ch ← Encode(ct_P, i_ch)`,
-with `ct_P = ⊥`, where `P` stands for either `A` or `B`.
-This state occurs in normal honest runs.
-
-The paper's §2 notational convention says that a failing statement aborts the
-algorithm and discards its state changes. Under this convention, `Encode(⊥, ·)` fails.
-The send aborts, as does the `SM-Send-P` call that invokes it.
-A party cannot send any message while it waits for its peer's encapsulation key.
-
-In Figure 17, `CKA-Send-A`, lines 13–19 read as follows.
-Figure 18, `CKA-Send-B`, is symmetric.
-
-```
-13: elseif ¬ACK[t_res-A].ct-rec            / ct_A not yet received by B
-14:   if ct_A = ⊥ ∧ ACK[t_res-A].ek-rec
-15:     t_IA ← t_res-A; i_ch ← 0
-16:     (ct_A, I_A) ← Enc(EK_B[t_res-A])
-17:   i_ch += 1
-18:   b ← 1
-19:   ch ← Encode(ct_A, i_ch)               / fails, because ct_A may still be ⊥ here
-```
-
-When execution reaches line 13 but line 14 does not hold, `ct_A` is still `⊥` at line 19.
-B acknowledges A's key, but A does not yet decode B's key.
-
-The parties send their encapsulation keys concurrently.
-A's key can therefore arrive and receive an acknowledgement before A decodes B's key.
-Under the strict §2 convention, line 16 fails in `CKA-Send-A`,
-and A cannot send any secure-messaging message until it decodes `ek_B`.
-`OppBiKEM/Construction.lean` instead sends no chunk, recorded as correction 4 in its module docstring.
-
-
-*Erratum 2: Public-key acknowledgements use the wrong indices.*
-
-In Figures 17–18, Send line 21 sends the `ek-rec` acknowledgement at the wrong epoch.
-Rec line 8 also records it at the wrong epoch.
-The following table gives the printed and corrected indices.
-
-:::table +header (align := left)
-*
-  * Line
-  * Printed
-  * Corrected
-*
-  * Figure 17, `CKA-Send-A` line 21
-  * `ACK[t_req-A + 1].ek-rec`
-  * `ACK[t_req-A − 1].ek-rec`
-*
-  * Figure 17, `CKA-Rec-A` line 8
-  * `ACK[t_req-B − 1].ek-rec ← true`
-  * `ACK[t_req-B + 1].ek-rec ← true`
-*
-  * Figure 18, `CKA-Send-B` line 21
-  * `ACK[t_req-B − 1].ek-rec`
-  * `ACK[t_req-B + 1].ek-rec`
-*
-  * Figure 18, `CKA-Rec-B` line 8
-  * `ACK[t_req-A + 1].ek-rec ← true`
-  * `ACK[t_req-A − 1].ek-rec ← true`
-:::
-
-The corrected indices identify the entries set when a party decodes its peer's key:
-`ACK[t_req-A − 1].ek-rec` in Rec-A line 19 and `ACK[t_req-B + 1].ek-rec` in Rec-B line 19.
-The printed indices differ by two epochs, and with them, neither party learns that its first public key arrived.
-
-`OppBiKEM/Construction.lean` uses the corrected indices, recorded as correction 3 in its module docstring.
-
-
-*Erratum 3: Variable typos in Send-B and Rec-A.*
-
-In Figure 18, `CKA-Send-B`, lines 8, 9, and 13 use `t_res-A`, which is absent from B's state.
-The corrected variable is $`\boxed{t_{\mathrm{res}\text{-}B}}`, as in lines 14–16.
-The corrected expressions are `DK_B[t_res-B − 1] ← dk_B`, `¬ACK[t_res-B − 1].ek-rec`, and `¬ACK[t_res-B].ct-rec`.
-
-In Figure 17, `CKA-Rec-A`, line 22 reads `ct_A ← Decode(L_ch)`, which overwrites A's own ciphertext.
-The corrected assignment is `ct_B ← Decode(L_ch)`, with $`\boxed{\mathit{ct}_B}`, as used in lines 23 and 27.
-`OppBiKEM/Construction.lean` uses the corrected variables, recorded as correction 1 in its module docstring.
-
 ::::

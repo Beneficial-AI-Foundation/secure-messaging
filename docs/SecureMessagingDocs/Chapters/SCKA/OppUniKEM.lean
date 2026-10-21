@@ -43,7 +43,7 @@ Boxes mark three corrections and explicit checks added to Figure 16:
 * $`\mathsf{Rec}\text{-}\B` returns $`t'-1` rather than $`t-1`;
 * $`\mathsf{Rec}\text{-}\A` decodes only present chunks and aborts on missing
   decapsulation inputs or failed decapsulation.
-See the {ref "opp-unikem-errata"}[errata box] for details.
+See errata 4–6 in the {ref "scka-errata"}[errata] for details.
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Initialisation}" (kind := "scheme")
@@ -733,76 +733,4 @@ $`\todo`
 
 :::leanPill "missing"
 :::
-::::
-
-# Errata
-%%%
-tag := "opp-unikem-errata"
-number := false
-htmlSplit := .never
-%%%
-
-::::gameCell "\\textsf{Opp-UniKEM-CKA errata}" (kind := "errata")
-
-The following errata explain the corrections to the {bpref "opp_unikem_cka_spec"}[protocol definition].
-
-*Erratum 4: Acknowledgements are recorded in the wrong epoch.*
-
-Let `t` be the receiver's epoch and `(ch, ack', t', b)` the received message.
-`CKA-Rec-A` and `CKA-Rec-B` end by copying the sender's acknowledgement,
-regardless of `t` after processing:
-
-* `CKA-Rec-A` executes `if ack'.ek-rec then ack.ek-rec ← true`.
-* `CKA-Rec-B` (lines 12–13) executes `if ack'.ct0-rec then ack.ct0-rec ← true`.
-
-The acknowledgement belongs to epoch `t'`.
-When `t ≠ t'`, it marks the receiver's current payload as delivered although the peer did not receive it.
-
-This happens in honest runs with in-order delivery.
-Every `ct_1` chunk B sends carries `ack.ek-rec = true`, because B sends `ct_1` only once it has `ek_A`.
-When A decodes `ct_1`, it moves to epoch `t + 1` and resets `ack`.
-The final step then sets `ack.ek-rec` for epoch `t + 1`.
-A generates a fresh `ek_A` on its next send.
-Since `ack.ek-rec` is already true, A never sends a chunk of this key.
-B never obtains `ek_A` and never runs `Enc.On`, so no key is established after the first epoch.
-
-With delayed delivery, a stale message (`t' < t`) can likewise mark the current
-`ek_A` in Rec-A or `ct_0` in Rec-B as received.
-The correction is to record the acknowledgement only if $`t=t'` after processing:
-`if ack'.ek-rec ∧ t = t'` in Rec-A and `if ack'.ct0-rec ∧ t = t'` in Rec-B.
-`OppUniKEM/Construction.lean` implements this correction under "Acknowledgements" in its module docstring.
-
-*Erratum 5: Rec-B returns the receiver's epoch.*
-
-`CKA-Rec-B` (Figure 16, line 15) returns `((⊥, ⊥), t − 1, st)`, where `t` is B's epoch.
-The matching-epoch condition (Figure 1, `Receive-P` line 4: `assert t_rcv_P = t_snd_P̄`) requires the sender's value.
-`CKA-Send-A` computes that value as the message epoch minus one, `t' − 1`.
-`CKA-Rec-A` already returns `t' − 1`.
-
-The two values differ when B is ahead of the message.
-A sends `ρ_1` in epoch `t`, which the adversary withholds while epoch `t` completes.
-A then sends `ρ_2` in epoch `t + 1`.
-Delivering `ρ_2` moves B to epoch `t + 1`.
-Delivering `ρ_1` afterwards makes B return `t`, while `ρ_1` was sent with `t_snd_A = t − 1`.
-The correctness assertion fails.
-
-The correction is to return $`t'-1`.
-`OppUniKEM/Construction.lean` implements this correction under "Receiving epoch" in its module docstring.
-
-*Erratum 6: Make Rec-A's chunk guards and abort behavior explicit.*
-
-The corrections to Figure 16's `CKA-Rec-A` distinguish absent chunks,
-incomplete decoding, and failure after decoding the online ciphertext `ct_1`.
-Both ciphertext-decoding branches require `ch ≠ ⊥`.
-If the message contains no chunk, A neither inserts `⊥` into `L_ch` nor attempts decoding.
-
-If decoding is incomplete, A retains the received chunk in `L_ch` and remains in the same epoch.
-Acknowledgement processing continues only if `t = t'` after processing, with `t` denoting A's epoch and `t'` the message's epoch.
-Incomplete decoding does not abort the receive.
-
-After decoding a current-epoch `ct_1`, A requires both `dk_A` and `ct_0` to decapsulate.
-If either input is absent, or decapsulation returns `⊥`, the entire receive aborts under the paper's §2 failure convention.
-The abort discards local state changes and skips acknowledgement processing.
-Only successful decapsulation produces the epoch key, erases the epoch's secrets, and advances A to epoch `t + 1`.
-
 ::::

@@ -26,7 +26,7 @@ Figure 19, `CKA-Send-A`, lines 13–21, has the same absent-ciphertext pattern a
 Figures 17–18, with an extra conjunct in line 14.
 Under the paper's §2 failure convention, encoding an absent ciphertext aborts the send
 while the party waits for the peer's encapsulation key.
-See the {ref "opp-bikem-errata"}[Opp-BiKEM errata box] for the execution trace and analysis of this shared issue.
+See erratum 1 in the {ref "scka-errata"}[errata] for the analysis of this shared issue.
 
 The proposed paper correction is to guard lines 19–21 with `if ct_P ≠ ⊥`.
 While waiting, the message then carries only epochs and acknowledgements, with `ch = ⊥` and `b = ⊥`.
