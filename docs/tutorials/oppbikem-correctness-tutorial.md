@@ -22,7 +22,7 @@ acknowledgement flags, and the sender's *sending epoch* (`sendingEpoch`). Epochs
 `-1` and `0` are bootstrap values, and KEM instances run at epochs `≥ 1`.
 
 The correctness game is
-[`SCKAScheme.correctnessExp`](../../SecureMessaging/SCKA/Defs.lean#L730). Write
+[`SCKAScheme.correctnessExp`](../../SecureMessaging/SCKA/Defs.lean#L786). Write
 `Π := scheme kem hDet ecEk ecCt leak` for the scheme and
 `G(Adv) := SCKAScheme.correctnessExp Π Adv`. The adversary `Adv` calls five oracles in any order: `SendA`, `SendB`, `RecvA n`,
 `RecvB n` and `Unif`. A receive oracle delivers the `n`-th message the peer has sent, so messages
@@ -50,8 +50,8 @@ results are stated in
 | [`correctness_true_ge`](../../SecureMessaging/SCKA/OppBiKEM/Correctness.lean#L110) | under the same hypotheses, `Pr[G(Adv) = true] ≥ 1 - q · ε` |
 | [`correctness_of_perfectKEM'`](../../SecureMessaging/SCKA/OppBiKEM/Correctness.lean#L134) | for a perfectly correct KEM and at most `q` send queries, `Pr[G(Adv) = true] = 1`: the `ε = 0` case of the previous line |
 | [`correctness_of_perfectKEM`](../../SecureMessaging/SCKA/OppBiKEM/Correctness.lean#L154) | for a perfectly correct KEM, `Pr[G(Adv) = true] = 1` for every adversary, without a query bound |
-| [`sends_never_rejected_of_noFailure`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/Quantitative/Main.lean#L221) | on every reachable state of the tracked run (section 11) whose failure flag is clear, neither party's `send` is rejected |
-| [`sends_never_rejected_of_perfectKEM`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/PerfectKEM.lean#L125) | for a perfectly correct KEM, neither party's `send` is rejected on any reachable state |
+| [`sends_never_rejected_of_noFailure`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/Quantitative/Main.lean#L222) | on every reachable state of the tracked run (section 11) whose failure flag is clear, neither party's `send` is rejected |
+| [`sends_never_rejected_of_perfectKEM`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/PerfectKEM.lean#L124) | for a perfectly correct KEM, neither party's `send` is rejected on any reachable state |
 
 `SendQueryBound Adv q` counts `SendA` and `SendB` queries only. The game does not observe a
 rejected send, so the last two results complement the first four. All six depend only on the
@@ -182,16 +182,16 @@ Each correctness-game oracle in `SCKA/Defs.lean` runs the scheme's local `send` 
 then updates the game state. `SCKA/Correctness.lean`, shared by the SCKA correctness proofs,
 names those updates and restates each oracle run in terms of them:
 
-- [`sendAUpdate`](../../SecureMessaging/SCKA/Correctness.lean#L41) and
-  [`recvAUpdate`](../../SecureMessaging/SCKA/Correctness.lean#L74), and the `B` twins. The
+- [`sendAUpdate`](../../SecureMessaging/SCKA/Correctness.lean#L42) and
+  [`recvAUpdate`](../../SecureMessaging/SCKA/Correctness.lean#L75), and the `B` twins. The
   `correct` field carries the game's assertions verbatim, with the known-prefix check as
   `knownPrefix`. The field lemmas `sendAUpdate_stA`, `sendAUpdate_keyA_some`, … are what the
   quantitative send step reads.
-- [`mem_support_oracleSendA_run_iff`](../../SecureMessaging/SCKA/Correctness.lean#L196):
+- [`mem_support_oracleSendA_run_iff`](../../SecureMessaging/SCKA/Correctness.lean#L197):
   an outcome of a `SendA` query has one of two forms:
   - `(none, s)`, if the local `sendA` rejects; the state is unchanged;
   - the response paired with `sendAUpdate s …`, if the local `sendA` returns an outcome.
-- [`mem_support_oracleRecvA_run_iff`](../../SecureMessaging/SCKA/Correctness.lean#L267):
+- [`mem_support_oracleRecvA_run_iff`](../../SecureMessaging/SCKA/Correctness.lean#L268):
   an outcome of a `RecvA n` query has one of three forms:
   - `(none, s)`, if B has sent no message `n`; the state is unchanged;
   - `(none, { s with correct := false })`, if B's message `n` exists but the local `recvA`
@@ -200,7 +200,7 @@ names those updates and restates each oracle run in terms of them:
 
   Both lemmas have `B` versions. `gameInv_step_of` (section 10) and the receive cases of
   `Quantitative/RecvStep.lean` use them.
-- [`oracleSendA_run_eq`](../../SecureMessaging/SCKA/Correctness.lean#L167): a send run as a
+- [`oracleSendA_run_eq`](../../SecureMessaging/SCKA/Correctness.lean#L168): a send run as a
   computation, the local outcome mapped through the update. The expected-value proofs of
   `Quantitative/SendStep.lean` use it, through a private name `sendAOutcome` for that map.
 
@@ -458,7 +458,7 @@ sender's retained public key and ciphertext. The advance gate is `send_advance_g
 
 ## 9. The receive step
 
-[`partyInv_recv_step`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L975)
+[`partyInv_recv_step`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L976)
 says more than preservation. For a message recorded in the peer's table, the receive
 *succeeds*, the reported epoch matches the recorded one, the known-prefix check passes, an
 emitted key is fresh and agrees with the peer's table, and both invariants hold afterwards with
@@ -503,28 +503,28 @@ outcome:
   the decapsulation transition on an arbitrary invariant state: drop the secret key for `q`,
   acknowledge `q`, and write the transcript key into the table. `partyInv_recv_step` applies it
   to the output of `partyInv_recv_noKey`.
-- [`partyInv_recv_stale`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L849):
+- [`partyInv_recv_stale`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L850):
   a stale message changes only the acknowledgements, and by `msgs_stale` its ciphertext flag
   changes nothing.
 
 ### 9.3 The buffer in each case
 
-- [`recv_buffer_pk`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L757):
+- [`recv_buffer_pk`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L758):
   on the public-key path, the buffer holds honest chunks of the peer's key for this epoch, and
   the message carries one more such chunk. The subtle part is ruling out "current epoch already
   acknowledged while the peer key is undecoded":
-  [`recv_ekPeer_of_ctRec`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L740)
+  [`recv_ekPeer_of_ctRec`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L741)
   goes from the acknowledgement to the encapsulation, then through the peer's `enc_ekRec` and my
   `ekRec_req`.
-- [`recv_buffer_ct`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L790):
+- [`recv_buffer_ct`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L791):
   the ciphertext analogue.
-- [`recv_buffer_unchanged`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L816):
+- [`recv_buffer_unchanged`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L817):
   when nothing is inserted; on an advance the buffer was empty by `recv_advance_prev`.
 
 In each path the decoder is resolved by `decode_payloadChunks` or `decode_payloadChunks_none`
 from `ErasureCode/Payload.lean`, according to whether the inserted chunk reaches the threshold.
 The new buffer is checked with
-[`bufferConsistent_recvFinish`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L710),
+[`bufferConsistent_recvFinish`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant/Recv.lean#L711),
 which states `BufferConsistent` of a `recvFinish` state directly in terms of the arguments of
 `recvFinish`.
 
@@ -605,9 +605,9 @@ and combined by a generic layer:
 The combination is generic and lives in
 [`BadFlag.lean`](../../ToVCVio/OracleComp/SimSemantics/StateT/BadFlag.lean):
 
-- [`trackedImpl`](../../ToVCVio/OracleComp/SimSemantics/StateT/BadFlag.lean#L47)
+- [`trackedImpl`](../../ToVCVio/OracleComp/SimSemantics/StateT/BadFlag.lean#L48)
   wraps any stateful oracle implementation `impl` and sets the flag when the state becomes bad;
-- [`trackedInv`](../../ToVCVio/OracleComp/SimSemantics/StateT/BadFlag.lean#L54)
+- [`trackedInv`](../../ToVCVio/OracleComp/SimSemantics/StateT/BadFlag.lean#L55)
   is the invariant "flag set, or `Inv` and not bad", and `trackedImpl_preserves` reduces its
   preservation to one query from a state that is not bad;
 - `OracleComp.tracked_bad_le_of_score_step` turns a per-query score bound into
@@ -617,7 +617,7 @@ The combination is generic and lives in
 
 [`SCKA/Correctness/Tracked.lean`](../../SecureMessaging/SCKA/Correctness/Tracked.lean)
 specialises the last two to the SCKA correctness game:
-[`SCKAScheme.tracked_bad_le_of_score_step`](../../SecureMessaging/SCKA/Correctness/Tracked.lean#L53)
+[`SCKAScheme.tracked_bad_le_of_score_step`](../../SecureMessaging/SCKA/Correctness/Tracked.lean#L54)
 counts send queries, and
 [`SCKAScheme.correctness_failure_le_of_tracked_bad`](../../SecureMessaging/SCKA/Correctness/Tracked.lean#L83)
 turns a bound on the flag into a bound on `Pr[G(Adv) = false]`. Neither file depends on
@@ -657,9 +657,9 @@ of a key pair recorded in the transcript, and a party's pending potential is at 
 for an epoch that is not yet acknowledged, "not bad" implies the transcript decapsulation
 equation that `partyInv_recv_step` needs.
 
-[`keypairFailure`](../../SecureMessaging/KEM/CorrectnessError.lean#L41) is the probability,
+[`keypairFailure`](../../SecureMessaging/KEM/CorrectnessError.lean#L42) is the probability,
 over encapsulation to `pk`, that decapsulation with `sk` does not recover the encapsulated key.
-[`correctnessError_eq_avg_keypair`](../../SecureMessaging/KEM/CorrectnessError.lean#L59) says that
+[`correctnessError_eq_avg_keypair`](../../SecureMessaging/KEM/CorrectnessError.lean#L60) says that
 the KEM's correctness error is its average over key generation.
 
 ### 11.3 One query
@@ -670,7 +670,7 @@ the KEM's correctness error is its average over key generation.
   (`pendingPotential_recv_receiver`), or changes nothing the potential reads; the peer's term is
   unchanged (`pendingPotential_recv_peer`); and the state does not become bad
   (`kemFailure_recv`). `Unif` leaves the state alone. Hence
-  [`tracked_nonSend_score_le`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/Quantitative/RecvStep.lean#L430):
+  [`tracked_nonSend_score_le`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/Quantitative/RecvStep.lean#L431):
   the expected score does not grow. These proofs read `recv` through `RecvFacts.lean`.
 - **Send queries**
   ([`Quantitative/SendDist.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/Quantitative/SendDist.lean),
@@ -693,7 +693,7 @@ the KEM's correctness error is its average over key generation.
 
   `tracked_sendA_score_le` and `tracked_sendB_score_le` are the two orientations.
 - **Combined.**
-  [`tracked_step_score_le`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/Quantitative/SendStep.lean#L664)
+  [`tracked_step_score_le`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/Quantitative/SendStep.lean#L668)
   states the bound for every query, with `+ ε` only when `isSendQuery t`; from a state with the
   flag set, the score stays `1`.
 
@@ -703,9 +703,9 @@ In
 [`Quantitative/Main.lean`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/Quantitative/Main.lean),
 the initial state retains no secret keys, so `kemFailure_init` and `trackedScore_init` are
 immediate.
-[`trackedBiKem_preservesInv`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/Quantitative/Main.lean#L175)
+[`trackedBiKem_preservesInv`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/Quantitative/Main.lean#L176)
 is `trackedImpl_preserves` applied to `gameInv_step_of_noFailure`, and
-[`tracked_bad_le`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/Quantitative/Main.lean#L197)
+[`tracked_bad_le`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/Quantitative/Main.lean#L198)
 feeds `tracked_step_score_le` into `SCKAScheme.tracked_bad_le_of_score_step`. Finally,
 `correctness_failure_le` in `Correctness.lean` feeds `tracked_bad_le` into
 `SCKAScheme.correctness_failure_le_of_tracked_bad`, together with `correctnessExp_eq_map`.
@@ -725,14 +725,14 @@ every encapsulation in the support of `encaps`, decapsulation returns the encaps
 derives it from `Pr[correctnessExperiment = true] = 1`: `prEvent_eq_one_iff` gives that every
 result in the support of `correctnessExperiment` is `true`, and a counterexample would put
 `false` in the support.
-[`transcriptDecaps_of_support`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/PerfectKEM.lean#L69)
+[`transcriptDecaps_of_support`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/PerfectKEM.lean#L68)
 applies it to the key pair and encapsulation recorded in a transcript, which lie in those
 supports (`keypair_mem`, `enc_mem`), and
-[`gameInv_preserved`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/PerfectKEM.lean#L79)
+[`gameInv_preserved`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/PerfectKEM.lean#L78)
 uses it to discharge `DecapsReady` in `gameInv_step_of` at every state, giving
 `QueryImpl.PreservesInv`.
 
-[`simulateQ_gameInv`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/PerfectKEM.lean#L101)
+[`simulateQ_gameInv`](../../SecureMessaging/SCKA/OppBiKEM/Correctness/PerfectKEM.lean#L100)
 lifts this to every adversary with VCVio's `simulateQ_run_preservesInv`.
 [`correctness_of_perfectKEM`](../../SecureMessaging/SCKA/OppBiKEM/Correctness.lean#L154)
 then shows `Pr[G(Adv) = false] = 0` from `correctnessExp_eq_map`, `prEvent_eq_zero_iff` and the
