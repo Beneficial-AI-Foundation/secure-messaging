@@ -545,7 +545,7 @@ theorem trackedSecurity_score_step_le
       tracked_sendBrleak_score_le kem onoff hDet ecEk ecCt0 ecCt1 leak b p.1 hgood.1 hgood.2
   all_goals
     simp only [SCKAScheme.sckaSecuritySpec.isSendQuery, Bool.false_eq_true, ↓reduceIte, add_zero]
-    apply expectedPayoff_le_const_of_support _ _ _ OracleComp.prFail_eq_zero
+    apply expectedPayoff_le_const_of_support _ _ _ (OracleComp.prFail_eq_zero _)
     intro z hz
     change z ∈ support (do
       let y ← (SCKAScheme.sckaSecurityImpl b (exposureA kem onoff leak) (exposureB kem onoff leak)
@@ -690,7 +690,7 @@ theorem security_correctness_endpoint_le
         leak b t p.1 ⟨hCt1, hr, hc⟩
       simp only [left, right, trackedSecurityImpl, trackedIdealImpl, QueryImpl.extendState_apply]
       rw [heq]
-  have hbound := abs_probEvent_simulateQ_run_sub_le_bad_of_inv left right Inv
+  have hbound := abs_prEvent_simulateQ_run_sub_le_bad_of_inv left right Inv
     (fun p => p.2 = true)
     (trackedSecurityImpl_preserves kem onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1 leak b)
     (trackedSecurityImpl_preserves_bad kem onoff hDet ecEk ecCt0 ecCt1 leak b)
@@ -700,13 +700,13 @@ theorem security_correctness_endpoint_le
       (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv b (exposureA kem onoff leak)
         (exposureB kem onoff leak))}[x = true] =
       Pr{let z ← (simulateQ left adv).run (s₀, false)}[z.1 = true] := by
-    rw [securityExpFixedBit_eq_run', ← probEvent_eq_eq_probOutput, StateT.run'_eq, prEvent_map]
+    rw [securityExpFixedBit_eq_run', StateT.run'_eq, prEvent_map]
     rw [← trackedSecurity_run_project kem onoff hDet ecEk ecCt0 ecCt1 leak b adv (s₀, false),
       prEvent_map]
     rfl
   have hr : Pr{let x ← idealSecurityExp kem onoff hDet ecEk ecCt0 ecCt1 leak b adv}[x = true] =
       Pr{let z ← (simulateQ right adv).run (s₀, false)}[z.1 = true] := by
-    rw [idealSecurityExp, ← probEvent_eq_eq_probOutput, StateT.run'_eq, prEvent_map]
+    rw [idealSecurityExp, StateT.run'_eq, prEvent_map]
     rw [← trackedIdeal_run_project kem onoff hDet ecEk ecCt0 ecCt1 leak b adv (s₀, false),
       prEvent_map]
     rfl

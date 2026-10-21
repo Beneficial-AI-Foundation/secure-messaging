@@ -210,7 +210,7 @@ lemma correctness_failure_le_of_tracked_bad [DecidableEq K]
   have hmono :
       Pr{let z ← (simulateQ tracked adv).run (s₀, false)}[z.2.1.correct = false] ≤
         Pr{let z ← (simulateQ tracked adv).run (s₀, false)}[z.2.2 = true] := by
-    refine prEvent_mono ?_
+    refine prEvent_mono_of_support _ _ _ ?_
     intro z hz hincorrect
     have hzInv : Inv z.2 :=
       OracleComp.simulateQ_run_preservesInv tracked Inv hpres adv
@@ -224,7 +224,7 @@ lemma correctness_failure_le_of_tracked_bad [DecidableEq K]
           (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv)}[x = false] =
         Pr{let z ← (simulateQ tracked adv).run (s₀, false)}[z.2.1.correct = false] := by
       rw [correctnessExp_eq_final_map]
-      rw [← probEvent_eq_eq_probOutput, prEvent_map]
+      rw [prEvent_map]
       have hproject := tracked_run_project kem onoff hDet ecEk ecCt0 ecCt1
         leak adv (s₀, false)
       rw [← hproject, prEvent_map]
