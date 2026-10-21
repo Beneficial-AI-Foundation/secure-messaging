@@ -28,18 +28,18 @@ For `ProbComp` computations `A`, `B` and `C`:
   if `A = f <$> C`, `B = g <$> C` and `R (f c) (g c)` for every `c`.
   Same as the previous rule, with `A` and `B` given by equations.
 
-For `A : OracleComp spec₁ α` and `B : OracleComp spec₂ β`, where both specs are
-`IsUniformSpec`:
+For `A : OracleComp spec₁ α` and `B : OracleComp spec₂ β`, where both specs have uniform,
+finite answers:
 
 * `relTriple_of_eq_pure_pure`: `RelTriple A B R` if `A = pure a`, `B = pure b` and `R a b`.
   Computations that just return a value are related when their values are.
 
-* `relTriple_eqRel_of_probOutput_true_eq`: `RelTriple A B (EqRel Bool)`
+* `relTriple_eqRel_of_prEvent_true_eq`: `RelTriple A B (EqRel Bool)`
   if both return `Bool` and `Pr{let x ← A}[x = true] = Pr{let x ← B}[x = true]`.
   Games with the same success probability can be coupled to output the same bit.
 
 Candidate for upstream VCVio, next to `relTriple_refl`, `relTriple_map`, `relTriple_pure_pure`
-and `probOutput_true_eq_of_relTriple_eqRel` in that file.
+and `prEvent_eq_of_relTriple_eqRel` in that file.
 -/
 
 universe u v
@@ -51,20 +51,8 @@ namespace OracleComp.ProgramLogic.Relational
 /-- Diagonal coupling refined by the support: a computation is related to
 itself by equality of outputs together with membership in its support. -/
 lemma relTriple_refl_support {α : Type} (mx : ProbComp α) :
-    RelTriple mx mx (fun a b => a = b ∧ a ∈ support mx) := by
-  rw [relTriple_iff_relWP, relWP_iff_couplingPost]
-  refine ⟨_root_.SPMF.Coupling.refl (𝒟[mx]), ?_⟩
-  intro z hz
-  rcases (mem_support_bind_iff
-    (𝒟[mx]) (fun a => (pure (a, a) : SPMF (α × α))) z).1 hz with
-    ⟨a, ha, hz'⟩
-  have hzEq : z = (a, a) := by
-    simpa [support_pure, Set.mem_singleton_iff] using hz'
-  subst hzEq
-  have ha' : some a ∈ (𝒟[mx]).run.support := by
-    rw [PMF.mem_support_iff]
-    exact (SPMF.mem_support_iff (𝒟[mx]) a).1 ha
-  exact ⟨rfl, mem_support_of_mem_support_evalDist mx a ha'⟩
+    RelTriple mx mx (fun a b => a = b ∧ a ∈ support mx) :=
+  relTriple_refl_of_mem_support mx fun _ ha => ⟨rfl, ha⟩
 
 /-- A triple between a computation and itself follows from the postcondition
 holding on the diagonal of its support. -/
@@ -99,6 +87,7 @@ section AnySpec
 
 variable {ι₁ : Type u} {ι₂ : Type v} {spec₁ : OracleSpec ι₁} {spec₂ : OracleSpec ι₂}
   [OracleSpec.UniformAnswerMeasure spec₁] [OracleSpec.UniformAnswerMeasure spec₂]
+  [∀ t, Finite (spec₁.Range t)] [∀ t, Finite (spec₂.Range t)]
 
 /-- Let `oa` and `ob` be the pure computations returning `a` and `b`, and let `a`
 and `b` be `R`-related. Then `oa` and `ob` are `R`-related. -/
@@ -112,14 +101,19 @@ lemma relTriple_of_eq_pure_pure {α β : Type}
 /-- Let `mx` and `my` be Boolean computations over uniform specs that output
 `true` with equal probability. Then `mx` and `my` are related by output
 equality. Neither can fail, so they also output `false` with equal probability.
-Converse of upstream `probOutput_true_eq_of_relTriple_eqRel`. -/
-lemma relTriple_eqRel_of_probOutput_true_eq
+Converse of upstream `prEvent_eq_of_relTriple_eqRel`. -/
+lemma relTriple_eqRel_of_prEvent_true_eq
     {mx : OracleComp spec₁ Bool} {my : OracleComp spec₂ Bool}
     (h : Pr{let x ← mx}[x = true] = Pr{let x ← my}[x = true]) :
     RelTriple mx my (EqRel Bool) := by
-  refine relTriple_eqRel_of_evalDistEq fun x => ?_
-  cases x
-  · simp only [probOutput_false_eq_sub, OracleComp.prFail_eq_zero, h]
+  refine relTriple_eqRel_of_evalDistEq (EvalDistEq.of_evalDist_eq ?_)
+  refine MeasureTheory.Measure.ext_of_singleton fun b => ?_
+  rw [← prEvent_eq_evalDist_singleton, ← prEvent_eq_evalDist_singleton]
+  cases b
+  · have hx := prEvent_not_eq_one_sub mx (· = true)
+    have hy := prEvent_not_eq_one_sub my (· = true)
+    simp only [Bool.not_eq_true] at hx hy
+    rw [hx, hy, h]
   · exact h
 
 end AnySpec

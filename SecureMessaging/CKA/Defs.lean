@@ -876,36 +876,52 @@ noncomputable def ckaDistAdvantage [SampleableType I] [DecidableEq I]
   |(Pr{let x ← securityExpFixedBit cka adversary true gp}[x = true]).toReal -
    (Pr{let x ← securityExpFixedBit cka adversary false gp}[x = true]).toReal|
 
-/-- The single-game CKA experiment can be decomposed as a uniform-bit branch over
+/-- Hidden-bit guessing over a uniform bit, centered at `1/2`, is half the signed difference of
+its two branches: `Pr[b ←$ {0,1}; z ← (if b then real else rand); output (b = z)] - 1/2 =
+  (Pr[real = 1] - Pr[rand = 1]) / 2`. -/
+private lemma prEvent_uniformBool_branch_toReal_sub_half (real rand : ProbComp Bool) :
+    (Pr{let x ← (do
+      let b ← ($ᵗ Bool : ProbComp Bool)
+      let z ← if b then real else rand
+      pure (b == z))}[x = true]).toReal - 1 / 2 =
+    ((Pr{let x ← real}[x = true]).toReal - (Pr{let x ← rand}[x = true]).toReal) / 2 := by
+  rw [prEvent_bind_eq_lintegral_of_discrete, MeasureTheory.lintegral_fintype, Fintype.sum_bool]
+  simp only [SampleableType.evalDist_uniformSample_singleton, ite_true, Bool.false_eq_true,
+    ite_false, Fintype.card_bool, bind_pure_comp, prEvent_map, Bool.true_beq, bind_pure]
+  have hf : Pr{let z ← rand}[(false == z) = true] = 1 - Pr{let z ← rand}[z = true] := by
+    simpa only [Bool.false_beq, Bool.not_eq_eq_eq_not, Bool.not_true, Bool.not_eq_true] using
+      prEvent_not_eq_one_sub rand (fun z => z = true)
+  have hle : Pr{let z ← rand}[z = true] ≤ 1 := prEvent_le_one _
+  rw [hf, ENNReal.toReal_add (by finiteness) (by finiteness), ENNReal.toReal_mul,
+    ENNReal.toReal_mul, ENNReal.toReal_sub_of_le hle ENNReal.one_ne_top]
+  simp only [Nat.cast_ofNat, ENNReal.toReal_inv, ENNReal.toReal_ofNat, ENNReal.toReal_one,
+    one_div]
+  ring
+
+/-- The single-game CKA experiment is equal in distribution to a uniform-bit branch over
 the two fixed-bit experiments:
 
-  `Pr[Expˢᵉᶜ(cka, 𝒜, gp) = 1]`
-    `= Pr[b ←$ {0,1}; b' ← (if b then CKA_rand else CKA_real); output (b = b')]`.
+  `Expˢᵉᶜ(cka, 𝒜, gp) =ᵈ (b ←$ {0,1}; b' ← (if b then CKA_rand else CKA_real); output (b = b'))`.
 
 Here `CKA_real` abbreviates `securityExpFixedBit cka adversary false gp`, and
 `CKA_rand` abbreviates `securityExpFixedBit cka adversary true gp`; each branch
 returns the adversary's raw guess `b'`. Proved by swapping `b ← $ᵗ Bool` past
-the three initialization steps using `OracleComp.prEvent_bind_bind_swap`. -/
-private lemma securityExp_probOutput_eq_branch [SampleableType I] [DecidableEq I]
+the three initialization steps using `OracleComp.EvalDistEq.bind_bind_swap`. -/
+private lemma securityExp_evalDistEq_branch [SampleableType I] [DecidableEq I]
     (cka : CKAScheme ProbComp IK St I Rho Rand)
     (adversary : CKAAdversary St Rho I Rand) (gp : GameParams) :
-    Pr{let x ← securityExp cka adversary gp}[x = true] =
-    Pr{let x ← (do
+    securityExp cka adversary gp =ᵈ (do
       let b ← ($ᵗ Bool : ProbComp Bool)
       let z ← if b then securityExpFixedBit cka adversary true gp
                else securityExpFixedBit cka adversary false gp
-      pure (b == z))}[x = true] := by
-  unfold securityExp
-  simp only [← probEvent_eq_eq_probOutput]
-  rw [probEvent_bind_congr fun ik _ =>
-    probEvent_bind_congr fun stA _ =>
-    OracleComp.prEvent_bind_bind_swap _ _ _ _]
-  rw [probEvent_bind_congr fun ik _ =>
-    OracleComp.prEvent_bind_bind_swap _ _ _ _]
-  rw [OracleComp.prEvent_bind_bind_swap]
-  simp only [probEvent_eq_eq_probOutput]
-  refine probOutput_bind_congr' ($ᵗ Bool) true ?_
-  intro b; cases b <;> simp [securityExpFixedBit]
+      pure (b == z)) := by
+  refine (EvalDistEq.bind_right _ fun ik => EvalDistEq.bind_right _ fun stA =>
+    OracleComp.EvalDistEq.bind_bind_swap _ _ _).trans ?_
+  refine (EvalDistEq.bind_right _ fun ik =>
+    OracleComp.EvalDistEq.bind_bind_swap _ _ _).trans ?_
+  refine (OracleComp.EvalDistEq.bind_bind_swap _ _ _).trans ?_
+  refine EvalDistEq.bind_right _ fun b => ?_
+  cases b <;> simp only [securityExpFixedBit, bind_assoc, pure_bind] <;> exact EvalDistEq.refl _
 
 /-- The centered success probability of the single-bit experiment decomposes
 as the difference of the random-key and real-key fixed-bit branches:
@@ -920,14 +936,8 @@ lemma securityExp_toReal_sub_half [SampleableType I] [DecidableEq I]
     (Pr{let x ← securityExp cka adversary gp}[x = true]).toReal - 1 / 2 =
     ((Pr{let x ← securityExpFixedBit cka adversary true gp}[x = true]).toReal -
      (Pr{let x ← securityExpFixedBit cka adversary false gp}[x = true]).toReal) / 2 := by
-  rw [show (Pr{let x ← securityExp cka adversary gp}[x = true]).toReal =
-      (Pr{let x ← (do
-        let b ← ($ᵗ Bool : ProbComp Bool)
-        let z ← if b then securityExpFixedBit cka adversary true gp
-                 else securityExpFixedBit cka adversary false gp
-        pure (b == z))}[x = true]).toReal from by
-    congr 1; exact securityExp_probOutput_eq_branch cka adversary gp]
-  exact probOutput_uniformBool_branch_toReal_sub_half
+  rw [(securityExp_evalDistEq_branch cka adversary gp).prEvent_eq]
+  exact prEvent_uniformBool_branch_toReal_sub_half
     (securityExpFixedBit cka adversary true gp)
     (securityExpFixedBit cka adversary false gp)
 

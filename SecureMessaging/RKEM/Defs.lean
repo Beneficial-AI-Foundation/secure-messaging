@@ -181,7 +181,7 @@ stated below only for `A`; the `B` versions swap the roles). Fix `A`'s fresh key
    `RKeyGen-A(par, updated)`.
 
 `correctExpP`/`correctnessErrorP` capture property 1; `ratchetRoundOutputP`/`updateKeyDistErrorP`
-capture property 2, using total-variation distance (`SPMF.tvDist`) in place of the paper's
+capture property 2, using total-variation distance (`Measure.etvDist`) in place of the paper's
 asymptotic "statistically close".
 -/
 
@@ -209,15 +209,16 @@ def correctExpB (rkem : RKEMScheme m Par EK DK CT K) [DecidableEq K] : m Bool :=
   return decide (key = key')
 
 /-- Correctness error against `runtime`: missing success mass of `correctExpA`, i.e.
-`1 - Pr[correctExpA = true]`. -/
+`1 - Pr[correctExpA = true]`, the mass that `runtime.evalDist rkem.correctExpA` misses on
+`{true}`. -/
 noncomputable def correctnessErrorA (rkem : RKEMScheme m Par EK DK CT K)
     (runtime : ProbCompRuntime m) [DecidableEq K] : ℝ≥0∞ :=
-  1 - Pr{let x ← runtime.evalDist rkem.correctExpA}[x = true]
+  1 - runtime.evalDist rkem.correctExpA {true}
 
 /-- As `correctnessErrorA`, with the roles of `A` and `B` swapped. -/
 noncomputable def correctnessErrorB (rkem : RKEMScheme m Par EK DK CT K)
     (runtime : ProbCompRuntime m) [DecidableEq K] : ℝ≥0∞ :=
-  1 - Pr{let x ← runtime.evalDist rkem.correctExpB}[x = true]
+  1 - runtime.evalDist rkem.correctExpB {true}
 
 /-- Def. 5.3, property 1: correctness with updated keys holds within error `delta`, for
 both parties. -/
@@ -248,18 +249,20 @@ def ratchetRoundOutputB (rkem : RKEMScheme m Par EK DK CT K) : m (EK × DK) := d
 from `distKeyGenAUpdated`. -/
 noncomputable def updateKeyDistErrorA (rkem : RKEMScheme m Par EK DK CT K)
     (runtime : ProbCompRuntime m) : ℝ≥0∞ :=
-  ‖(SPMF.tvDist (runtime.evalDist rkem.ratchetRoundOutputA)
-                (runtime.evalDist (do
-                                  let par ← rkem.rsetup
-                                  rkem.rkeygenAUpdated par)))‖ₑ
+  letI : MeasurableSpace (EK × DK) := ⊤
+  (runtime.evalDist rkem.ratchetRoundOutputA).etvDist
+    (runtime.evalDist (do
+      let par ← rkem.rsetup
+      rkem.rkeygenAUpdated par))
 
 /-- As `updateKeyDistErrorA`, with the roles of `A` and `B` swapped. -/
 noncomputable def updateKeyDistErrorB (rkem : RKEMScheme m Par EK DK CT K)
     (runtime : ProbCompRuntime m) : ℝ≥0∞ :=
-  ‖SPMF.tvDist (runtime.evalDist rkem.ratchetRoundOutputB)
-               (runtime.evalDist (do
-                                  let par ← rkem.rsetup
-                                  rkem.rkeygenBUpdated par))‖ₑ
+  letI : MeasurableSpace (EK × DK) := ⊤
+  (runtime.evalDist rkem.ratchetRoundOutputB).etvDist
+    (runtime.evalDist (do
+      let par ← rkem.rsetup
+      rkem.rkeygenBUpdated par))
 
 /-- Def. 5.3, property 2: the updated-key distribution is within statistical distance `delta`
 of the directly sampled updated-key distribution, for both parties. -/

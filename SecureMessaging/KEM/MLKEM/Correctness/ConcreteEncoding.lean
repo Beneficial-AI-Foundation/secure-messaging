@@ -46,8 +46,15 @@ theorem compress1_recovers_decoded_bit_of_centered_distance_le (b w : Coeff) (hb
   have hev : e.val < 3329 := by have := ZMod.val_lt e; simpa [modulus] using this
   have hdisj : e.val ≤ 831 ∨ 2498 ≤ e.val := by
     have h' := h
-    rw [centeredRepr, show ((modulus : ℕ) : ℤ) = 3329 from rfl] at h'
-    split_ifs at h' with hc <;> omega
+    rw [centeredRepr, ZMod.valMinAbs_def_pos, show ((modulus : ℕ) : ℤ) = 3329 from rfl,
+      show (modulus : ℕ) / 2 = 1664 from rfl] at h'
+    split_ifs at h' with hc
+    · left
+      have := Int.natAbs_eq (e.val : ℤ)
+      omega
+    · right
+      have := Int.natAbs_eq ((e.val : ℤ) - 3329)
+      omega
   have hb2 : b = 0 ∨ b = 1 := by
     rcases (show b.val = 0 ∨ b.val = 1 from by omega) with hh | hh
     · left;  rw [← ZMod.natCast_zmod_val b, hh]; simp
