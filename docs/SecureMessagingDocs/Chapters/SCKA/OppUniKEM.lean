@@ -814,7 +814,7 @@ $`\begin{array}{l}
 \Return(pk^*,e)
 \end{array}`
 
-:::leanPillCaption "Choice of the selected epoch"
+:::leanPillCaption "Choice of the challenge epoch"
 :::
 
 ```anchor embedding_epochChoice (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Simulator)
@@ -1102,7 +1102,7 @@ theorem fixedBranch_signed_gap_eq
         base onoff hDet ecEk ecCt0 ecCt1 leak adv (i + 1)]).toReal
 ```
 
-:::leanPillCaption "Step 5: averaging over the selected epoch"
+:::leanPillCaption "Step 5: averaging over the challenge epoch"
 :::
 
 ```anchor hybrid_gap_eq_query_factor (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Security)

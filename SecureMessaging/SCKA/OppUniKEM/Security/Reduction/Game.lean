@@ -13,7 +13,7 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Receive
 /-!
 # The honest intermediate game
 
-**Setting.** `m` is complete material with pinned KEM `Pinned.kem m`, `e` a selected epoch, and
+**Setting.** `m` is complete material with pinned KEM `Pinned.kem m`, `e` a challenge epoch, and
 `kStar` a candidate key (`Simulator`).
 
 **Definitions.**

@@ -10,7 +10,7 @@ import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
 /-!
 # The IND-CPA adversary and its fixed branches
 
-**Setting.** `adv` is a security adversary, `q` a send budget, `e` a selected epoch, and
+**Setting.** `adv` is a security adversary, `q` a send budget, `e` a challenge epoch, and
 `(pkStar, ctStar, kStar)` an IND-CPA challenge. A *marked* value is `some x` (known) or `none`
 (unavailable); a marked protocol field is `none` (absent), `some none`, or `some (some x)`.
 

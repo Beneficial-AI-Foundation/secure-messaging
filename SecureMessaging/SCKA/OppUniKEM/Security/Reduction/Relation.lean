@@ -13,7 +13,7 @@ import SecureMessaging.SCKA.Security
 /-!
 # Marking honest states
 
-**Setting.** `e` is a selected epoch, `m` complete material, and `kStar` a candidate key; marked
+**Setting.** `e` is a challenge epoch, `m` complete material, and `kStar` a candidate key; marked
 values, `Pinned.kem m`, and the simulator are those of `Simulator`.
 
 **Definitions.**

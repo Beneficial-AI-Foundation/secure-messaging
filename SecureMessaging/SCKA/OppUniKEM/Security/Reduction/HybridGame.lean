@@ -120,7 +120,9 @@ namespace oppUniKemCKA.Security.Embedding
 variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- Challenge mode at epoch `e`: randomize `t` iff `0 < t < e`, or `t = e` and `b = true`. -/
+/-- Challenge mode of the hybrids adjacent at `e`: randomize `t` iff `0 < t < e`, or `t = e` and
+`b = true`. `adjacentMode e false` and `adjacentMode e true` are the modes of the ideal hybrids
+`H_{e-1}` and `H_e` (`idealEpochHybridExp`). -/
 def adjacentMode (e : ℕ) (b : Bool) (t : ℕ) : Bool :=
   decide (0 < t ∧ (t < e ∨ (b = true ∧ t = e)))
 
@@ -324,7 +326,7 @@ namespace oppUniKemCKA.Security.Embedding.Sampling
 
 variable {K PK SK C Sym : Type}
 
-/-- Which sampling phases of the selected epoch are *pinned* to stored outputs. -/
+/-- Which sampling phases of the challenge epoch are *pinned* to stored outputs. -/
 inductive Stage where
   /-- Online encapsulation is fresh; key generation and offline encapsulation are pinned. -/
   | onlineFresh
@@ -334,10 +336,10 @@ inductive Stage where
   | fresh
   deriving DecidableEq
 
-/-- Whether stage `stage` pins key generation at the selected epoch. -/
+/-- Whether stage `stage` pins key generation at the challenge epoch. -/
 def Stage.pinsKeygen (stage : Stage) : Bool := decide (stage ≠ .fresh)
 
-/-- Whether stage `stage` pins offline encapsulation at the selected epoch. -/
+/-- Whether stage `stage` pins offline encapsulation at the challenge epoch. -/
 def Stage.pinsOffline (stage : Stage) : Bool := decide (stage = .onlineFresh)
 
 /-- KEM of `schemeAt stage m e s`: `Pinned.kem m` pinning the phases of `stage` at epoch `e`,
