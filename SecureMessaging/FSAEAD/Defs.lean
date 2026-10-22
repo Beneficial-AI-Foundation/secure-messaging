@@ -60,16 +60,17 @@ to a receiver B, keyed by a pre-shared key.
   rejection returned an index `i` instead, `O-Inject-B` would run `delete(i)`, and the
   adversary could erase the record of an honest ciphertext in transit by injecting a junk
   ciphertext that B rejects [Kli21, Appendix A.1].
-- Post-corruption unsent indices (marked `[…]` in the oracle pseudocode): once A is
-  corrupted at counter `i_A^c`, the adversary knows A's state and can inject a
-  ciphertext for an unsent index `i > i_A^c` before A sends it. In Figure 5, `comp`
-  only holds indices already sent, so such an injection would count as a forgery
-  [Kli21, Appendix A.1], and `delete(i)` would run before A's record for `i` exists. In
-  our formalization:
-  1. `O-Corr-A` adds all unsent indices `i > i_A^c` to `comp`, so injecting them does
-     not count as a forgery, and `record` no longer adds to `comp`;
-  2. when A later sends at index `i_A > i_A^c`, `record` does nothing if `corrA` holds
-     and `i_A ∉ comp`, i.e. when an earlier injection already consumed index `i_A`.
+- Messages that A has not sent yet. A sends its `i`-th message at index `i`, so the
+  indices `i > i_A` are the ones A has not used yet. Once the adversary corrupts A at
+  counter `i_A^c`, it knows A's state. It can then compute the ciphertext that A would
+  send at an index `i > i_A^c` and inject it before A sends it, and B must accept it. In
+  Figure 5 this counts as a forgery, because `comp` only holds indices that A has
+  already sent, so every correct scheme loses [Kli21, Appendix A.1]. Two changes,
+  marked `[…]` in the pseudocode:
+  1. `O-Corr-A` adds every index `i > i_A^c` to `comp`, so injecting at these indices
+     does not count as a forgery, and `record` no longer adds to `comp`;
+  2. when A later sends at an index `i_A > i_A^c`, `record` does nothing if `corrA`
+     holds and `i_A ∉ comp`, i.e. when an earlier injection already consumed `i_A`.
 
 [CONVENTIONS]
 - Winning. A rejection in `O-Deliver-B` gives no `(i', m')` to compare with `(i, m)`. Our

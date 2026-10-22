@@ -94,7 +94,7 @@ The game state consists of:
       $`\mathsf{trans}`.
     * $`\mathsf{comp} \subseteq \mathbb N`: indices exposed by A's corruption and not yet
       received by B: those in $`\mathsf{trans}` sent while A was corrupted,
-      $`\boxed{\textit{\small and unsent indices while A is corrupted}}.`
+      $`\boxed{\textit{\small and indices that A has not sent yet, once A is corrupted}}.`
 ::::
 
 In the oracles, $`\req\varphi` means: if $`\varphi` is false, the oracle returns
@@ -129,15 +129,20 @@ structure GameState (StS StR AD M C : Type) where
 :::::
 
 :::::gameCell "\\textsf{Corrections}" (kind := "scheme-notation")
-Once A is corrupted at counter $`i_\A^c`, the adversary knows A's state and can inject a
-ciphertext for an unsent index $`i > i_\A^c` before A sends it. We make two corrections to
-the security game for this case, marked by boxes in pseudocode:
+A sends its $`i`-th message at index $`i`, so the indices $`i > i_\A` are the ones A has
+not used yet. Once the adversary corrupts A at counter $`i_\A^c`, it knows A's state. It
+can then compute the ciphertext that A would send at an index $`i > i_\A^c` and inject it
+before A sends it, and B must accept it. In {Informal.citet ACD19}[], Figure 5, this
+counts as a forgery, because $`\mathsf{comp}` only holds indices that A has already sent,
+so every correct scheme loses. We make two corrections for this case, marked by boxes in
+pseudocode:
 
-- $`\OCorrA` adds all unsent indices $`i > i_\A^c` to $`\mathsf{comp}`, so injecting them
-  does not count as a forgery, and $`\mathsf{record}` no longer adds to $`\mathsf{comp}`;
-- when A later sends at index $`i_\A > i_\A^c`, $`\mathsf{record}` does nothing if
+- $`\OCorrA` adds every index $`i > i_\A^c` to $`\mathsf{comp}`, so injecting at these
+  indices does not count as a forgery, and $`\mathsf{record}` no longer adds to
+  $`\mathsf{comp}`;
+- when A later sends at an index $`i_\A > i_\A^c`, $`\mathsf{record}` does nothing if
   $`\mathsf{corrA}` holds and $`i_\A \notin \mathsf{comp}`, i.e. when an earlier injection
-  already consumed index $`i_\A`.
+  already consumed $`i_\A`.
 :::::
 ::::::
 
