@@ -85,7 +85,8 @@ The game state consists of:
     * $`v_\A`, $`v_\B`: the states of A and B.
     * $`i_\A`: the number of messages A has sent.
     * $`\mathsf{corrA}`: whether A has been corrupted.
-    * $`\mathsf{won}`: whether the adversary reached a winning condition.
+    * $`\mathsf{win}`: whether the adversary reached a winning condition.
+    * $`\mathsf{end}`: whether the game has ended.
   *
     * $`\mathsf{trans}`: the records $`(i, a, m, e)` of ciphertexts in transit (sent by A
       for indices $`i` not yet received by B).
@@ -97,7 +98,8 @@ The game state consists of:
 ::::
 
 In the oracles, $`\req\varphi` means: if $`\varphi` is false, the oracle returns
-$`\bot` and the game state does not change.
+$`\bot` and the game state does not change. $`\mathsf{end}` disables all oracles: after
+it, every oracle returns $`\bot`.
 
 :::leanPillCaption "Game state"
 :::
@@ -112,11 +114,11 @@ structure GameState (StS StR AD M C : Type) where
   iA : ℕ
   /-- Whether A has been corrupted. -/
   corrA : Bool
-  /-- Set by `corr-B`, after which every oracle except the uniform-randomness oracle
+  /-- Set by `O-Corr-B`, after which every oracle except the uniform-randomness oracle
   returns `none`. -/
-  ended : Bool
+  end_ : Bool
   /-- Whether the adversary reached a winning condition. -/
-  won : Bool
+  win : Bool
   /-- Ciphertexts in transit, as records `(i, a, m, e)`. -/
   trans : List (ℕ × AD × M × C)
   /-- Indices of challenge ciphertexts in transit. -/
@@ -167,7 +169,7 @@ def oracleTransmitA (fs : FSAEADScheme K StS StR AD M C) :
     QueryImpl (AD × M →ₒ Option C) (GameM StS StR AD M C) :=
   fun (a, m) => do
     let st ← get
-    if st.ended then return none
+    if st.end_ then return none
     let (vA, e) := fs.send st.vA a m
     set ({ st with vA, iA := st.iA + 1 }.record false a m e)
     return some e
@@ -180,12 +182,12 @@ $`\begin{array}{l}
 r \gets \mathsf{FS\text{-}Rcv}(v_\B, a, e); \\
 \pcommentline{\text{correctness failure: B rejects the honest ciphertext } e} \\
 \pif\;r = \bot\;\pthen \\
-\quad\mathsf{won} \gets \mathsf{true}; \\
+\quad\mathsf{win} \gets \mathsf{true}; \\
 \quad\Return \bot; \\
 (v_\B, i', m') \gets r; \\
 \pcommentline{\text{correctness failure: B outputs a wrong index or message}} \\
 \pif\;(i', m') \neq (i, m)\;\pthen \\
-\quad\mathsf{won} \gets \mathsf{true}; \\
+\quad\mathsf{win} \gets \mathsf{true}; \\
 \pif\;i \in \mathsf{chall}\;\pthen \\
 \quad m' \gets \bot; \\
 \mathsf{delete}(i); \\
@@ -198,15 +200,15 @@ def oracleDeliverB [DecidableEq AD] [DecidableEq M] [DecidableEq C]
     QueryImpl (AD × C →ₒ Option (ℕ × Option M)) (GameM StS StR AD M C) :=
   fun (a, e) => do
     let st ← get
-    if st.ended then return none
+    if st.end_ then return none
     let some (i, _, m, _) := st.findTrans a e | return none
     match fs.rcv st.vB a e with
     | none =>
-      set { st with won := true }
+      set { st with win := true }
       return none
     | some (vB, i', m') =>
-      let won := st.won || !(decide (i' = i) && decide (m' = m))
-      set ({ st with vB, won }.delete i)
+      let win := st.win || !(decide (i' = i) && decide (m' = m))
+      set ({ st with vB, win }.delete i)
       return some (i', if i ∈ st.chall then none else some m')
 ```
 :::::
@@ -225,7 +227,7 @@ def oracleChallA (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : Boo
     QueryImpl (AD × M × M →ₒ Option C) (GameM StS StR AD M C) :=
   fun (a, m₀, m₁) => do
     let st ← get
-    if st.ended || st.corrA || len m₀ ≠ len m₁ then return none
+    if st.end_ || st.corrA || len m₀ ≠ len m₁ then return none
     let m := if b then m₁ else m₀
     let (vA, e) := fs.send st.vA a m
     set ({ st with vA, iA := st.iA + 1 }.record true a m e)
@@ -241,7 +243,7 @@ r \gets \mathsf{FS\text{-}Rcv}(v_\B, a, e); \\
 (v_\B, i', m') \gets r; \\
 \pcommentline{\text{authenticity failure: B accepts a forgery at an index that is not compromised}} \\
 \pif\;i' \notin \mathsf{comp}\;\pthen \\
-\quad\mathsf{won} \gets \mathsf{true}; \\
+\quad\mathsf{win} \gets \mathsf{true}; \\
 \mathsf{delete}(i'); \\
 \Return (i', m')
 \end{array}`
@@ -252,10 +254,10 @@ def oracleInjectB [DecidableEq AD] [DecidableEq C]
     QueryImpl (AD × C →ₒ Option (ℕ × M)) (GameM StS StR AD M C) :=
   fun (a, e) => do
     let st ← get
-    if st.ended || (st.findTrans a e).isSome then return none
+    if st.end_ || (st.findTrans a e).isSome then return none
     let some (vB, i', m') := fs.rcv st.vB a e | return none
-    let won := st.won || !st.comp i'
-    set ({ st with vB, won }.delete i')
+    let win := st.win || !st.comp i'
+    set ({ st with vB, win }.delete i')
     return some (i', m')
 ```
 :::::
@@ -275,7 +277,7 @@ def oracleCorrA (StS StR AD M C : Type) :
     QueryImpl (Unit →ₒ Option StS) (GameM StS StR AD M C) :=
   fun () => do
     let st ← get
-    if st.ended then return none
+    if st.end_ then return none
     let comp := if st.corrA then st.comp else fun i => decide (st.iA < i)
     set { st with corrA := true, comp }
     return some st.vA
@@ -285,7 +287,7 @@ def oracleCorrA (StS StR AD M C : Type) :
 :::::gameCell "\\OCorrB" (kind := "compact")
 $`\begin{array}{l}
 \req\;\mathsf{chall} = \emptyset; \\
-\text{end the game}; \\
+\mathsf{end} \gets \mathsf{true}; \\
 \Return (v_\A, v_\B)
 \end{array}`
 
@@ -294,8 +296,8 @@ def oracleCorrB (StS StR AD M C : Type) :
     QueryImpl (Unit →ₒ Option (StS × StR)) (GameM StS StR AD M C) :=
   fun () => do
     let st ← get
-    if st.ended || st.chall ≠ ∅ then return none
-    set { st with ended := true }
+    if st.end_ || st.chall ≠ ∅ then return none
+    set { st with end_ := true }
     return some (st.vA, st.vB)
 ```
 :::::
@@ -344,7 +346,7 @@ Black arrows are honest ciphertexts; red arrows are under the adversary's contro
 marks a call that the game refuses. A rejected forgery ($`e^*`) returns $`\bot` and
 leaves message 1 in $`\mathsf{trans}`. Corrupting A at $`i_\A = 2` sets
 $`\mathsf{comp} = \{i \mid i > 2\}`, so injecting $`e_3` for index 3 before A sends it
-does not set $`\mathsf{won}`.
+does not set $`\mathsf{win}`.
 
 :::fsaeadAdversaryIllustration
 :::
@@ -357,12 +359,12 @@ $`\begin{array}{l}
 \pcommentline{\text{Initialize both parties with a shared key}} \\
 k \sample \mathcal K;\quad v_\A \gets \mathsf{FS\text{-}Init\text{-}S}(k);\quad v_\B \gets \mathsf{FS\text{-}Init\text{-}R}(k); \\
 \pcommentline{\text{Initialize the game state}} \\
-i_\A \gets 0;\quad \mathsf{corrA} \gets \mathsf{false};\quad \mathsf{won} \gets \mathsf{false}; \\
+i_\A \gets 0;\quad \mathsf{corrA} \gets \mathsf{false};\quad \mathsf{win} \gets \mathsf{false};\quad \mathsf{end} \gets \mathsf{false}; \\
 \mathsf{trans}, \mathsf{chall}, \mathsf{comp} \gets \emptyset; \\
 \pcommentline{\text{Sample the challenge bit and run the adversary}} \\
 b \sample \bit;\quad b' \gets \adv^{\O}; \\
 \pcommentline{\text{Win by a winning condition or by guessing } b} \\
-\Return(\mathsf{won} \vee b'=b)
+\Return(\mathsf{win} \vee b'=b)
 \end{array}`
 
 :::leanPillCaption "Initial game state"
@@ -374,8 +376,8 @@ def init (fs : FSAEADScheme K StS StR AD M C) (k : K) : GameState StS StR AD M C
   vB := fs.initR k
   iA := 0
   corrA := false
-  ended := false
-  won := false
+  end_ := false
+  win := false
   trans := []
   chall := ∅
   comp := fun _ => false
@@ -391,7 +393,7 @@ def securityExp [SampleableType K] [DecidableEq AD] [DecidableEq M] [DecidableEq
   let k ← $ᵗ K
   let b ← $ᵗ Bool
   let (b', st) ← (simulateQ (fsaeadSecurityImpl fs len b) adversary).run (.init fs k)
-  return st.won || b == b'
+  return st.win || b == b'
 ```
 :::::
 ::::::

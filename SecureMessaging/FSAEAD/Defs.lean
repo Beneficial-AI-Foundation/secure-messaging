@@ -22,12 +22,16 @@ Formalization of FS-AEAD syntax and security following:
 - [Kli21] Tijana Klimović.
   *Modular Design of the Messaging Layer Security (MLS) Protocol.*
   Master's thesis, ETH Zürich, 2021
-  — Appendix A.1 (attack on Figure 5 through a rejected injection).
+  — Appendix A.1 (attacks on Figure 5).
 
 An FS-AEAD scheme is a deterministic, stateful, unidirectional channel from a sender A
-to a receiver B, keyed by a pre-shared key. It must provide forward secrecy and
-immediate decryption: ciphertexts may arrive out of order or not at all, and each one
-is decrypted as soon as it arrives.
+to a receiver B, keyed by a pre-shared key.
+
+[NOTATION]
+- The prose and the pseudocode use the notation of the blueprint: `FS-Send`, `FS-Rcv`,
+  `v_A`, `i_A`, and `O-Deliver-B` for the `deliver-B` oracle of ACD19 (likewise for the
+  other oracles). The code uses Lean names: `send`, `rcv`, `vA`, `iA`, `oracleDeliverB`.
+  [ALGORITHMS] and the docstrings give the mapping.
 
 [SPACES]
 - `K`: key space.
@@ -37,57 +41,61 @@ is decrypted as soon as it arrives.
 - `C`: ciphertext space.
 
 [ALGORITHMS]
-- `initS : K → StS`, `initR : K → StR`: `FS-Init-S`, `FS-Init-R`.
-- `send : StS → AD → M → StS × C`: `(v', e) ← FS-Send(v, a, m)`.
-- `rcv : StR → AD → C → Option (StR × ℕ × M)`: `(v', i, m) ← FS-Rcv(v, a, e)`, where `i`
-  is the position of `m` in the sender's sequence, or `none` on rejection.
+- `initS : K → StS`, `initR : K → StR`.
+  `v_A ← FS-Init-S(k)`, `v_B ← FS-Init-R(k)`: take a key `k` and output the sender's
+  and the receiver's state.
+- `send : StS → AD → M → StS × C`.
+  `(v', e) ← FS-Send(v, a, m)`: takes a state `v`, associated data `a` and a message
+  `m`, and produces a new state `v'` and a ciphertext `e`.
+- `rcv : StR → AD → C → Option (StR × ℕ × M)`.
+  `(v', i, m) ← FS-Rcv(v, a, e)`: takes a state `v`, associated data `a` and a
+  ciphertext `e`, and produces a new state `v'`, an index `i` and a message `m`, or
+  `none` if it rejects `e`.
 
 [CORRECTIONS TO ACD19]
 - Rejection in `FS-Rcv`: Definition 14 leaves the output of `FS-Rcv` on rejection
-  unspecified. Here `rcv` returns `none` (no new state and no index), matching the
-  state rollback of Figure 6 (§4.2.2). Consequently, a rejected `O-Inject-B` returns
-  `none` without calling `delete` (otherwise rejected garbage for an in-transit index
-  would erase its record [Kli21, Appendix A.1]), and a rejected `O-Deliver-B` sets `won`.
+  unspecified. In our formalization, `rcv` returns `none` (no new state and no index),
+  matching the state rollback of Figure 6 (§4.2.2). A rejected injection then gives
+  `O-Inject-B` no index, so the oracle stops at `req r ≠ ⊥` and deletes nothing. If a
+  rejection returned an index `i` instead, `O-Inject-B` would run `delete(i)`, and the
+  adversary could erase the record of an honest ciphertext in transit by injecting a junk
+  ciphertext that B rejects [Kli21, Appendix A.1].
 - Post-corruption unsent indices (marked `[…]` in the oracle pseudocode): once A is
   corrupted at counter `i_A^c`, the adversary knows A's state and can inject a
   ciphertext for an unsent index `i > i_A^c` before A sends it. In Figure 5, `comp`
-  only holds indices already sent, so such an injection would count as a forgery, and
-  `delete(i)` would run before A's record for `i` exists. Here:
+  only holds indices already sent, so such an injection would count as a forgery
+  [Kli21, Appendix A.1], and `delete(i)` would run before A's record for `i` exists. In
+  our formalization:
   1. `O-Corr-A` adds all unsent indices `i > i_A^c` to `comp`, so injecting them does
      not count as a forgery, and `record` no longer adds to `comp`;
   2. when A later sends at index `i_A > i_A^c`, `record` does nothing if `corrA` holds
      and `i_A ∉ comp`, i.e. when an earlier injection already consumed index `i_A`.
 
 [CONVENTIONS]
-- Winning. A rejection in `deliver-B` gives no `(i', m')` to compare with `(i, m)`. This
-  file counts the rejection as Figure 5's `(i', m') ≠ (i, m)`. `won` never returns to false.
-  The game continues to run after a win, but the result stays a win. The proof in ACD19
-  says that the game ends upon a win. That gives the same result, but not the same
-  transcript or the same number of queries.
+- Winning. A rejection in `O-Deliver-B` gives no `(i', m')` to compare with `(i, m)`. Our
+  formalization counts the rejection as Figure 5's `(i', m') ≠ (i, m)`. `win` never
+  returns to false. The game continues to run after a win, but the result stays a win.
+  The proof in ACD19 says that the game ends upon a win. That gives the same result, but
+  not the same transcript or the same number of queries.
 - Advantage. §2.1 defines the advantage of an indistinguishability game as
-  `2 · |Pr[A wins] - 1/2|`. Here the advantage is `|Pr[A wins] - 1/2|`, half of that, as in
-  the guess advantages of this project (`AEADScheme.guessAdvantage`, CKA, SCKA).
+  `2 · |Pr[A wins] - 1/2|`. In our formalization, the advantage is `|Pr[A wins] - 1/2|`,
+  half of that, as in the guess advantages of this project (`AEADScheme.guessAdvantage`,
+  CKA, SCKA).
 
 [AMBIGUITIES RESOLVED]
-- `deliver-B` requires `(i, a, m, e) ∈ trans` "for some `i, m`". If several in-transit
+- `O-Deliver-B` requires `(i, a, m, e) ∈ trans` "for some `i, m`". If several in-transit
   records have the same `(a, e)`, the one with the smallest index is used.
 - `delete(i)` for an index that A has already sent but that has no record changes
   nothing.
 
 [ENCODING OF FIGURE 5]
-- `won` and `ended` stand for the §2.1 keywords `win` and `end`. `end` is a Lean keyword.
+- `win` and `end` are the §2.1 keywords, here Boolean flags of the game state. The code
+  writes `end` as `end_`, because `end` is a Lean keyword.
 - The adversary wins if it reaches a winning condition or if its final guess `b'` equals
-  `b` (§2.1), so the experiment returns `won || b == b'`.
-- `req` exits the oracle and undoes its actions (§2.1). Here it is an explicit
-  `if … : return ⊥` at the start of the oracle, which leaves the game state unchanged.
-- `end` disables all oracles (§2.1): `corr-B` sets `ended`, after which every oracle
-  except the uniform-randomness oracle returns `none`.
-- `chall` and `comp` store indices rather than whole records: indices are unique per
-  record, so `(i, m) ∈ chall` amounts to `i ∈ chall`.
-- The challenge oracle's `|m₀| = |m₁|` uses a length function `len : M → ℕ` passed to
-  the game.
-- The `flag = bad` branch of `record` is dropped: FS-AEAD is deterministic, so no
-  oracle ever passes `bad`.
+  `b` (§2.1), so the experiment returns `win || b == b'`.
+- `req` and `end` follow §2.1: `req` exits the oracle and undoes its actions, and `end`
+  disables all oracles. In the code, `req` is an explicit `if … then return none` at the
+  start of the oracle, and `end` sets `end_`, which every oracle checks first.
 - As in `AEADScheme`, the adversary also has a uniform-randomness oracle.
 -/
 
@@ -129,11 +137,11 @@ structure GameState (StS StR AD M C : Type) where
   iA : ℕ
   /-- Whether A has been corrupted. -/
   corrA : Bool
-  /-- Set by `corr-B`, after which every oracle except the uniform-randomness oracle
+  /-- Set by `O-Corr-B`, after which every oracle except the uniform-randomness oracle
   returns `none`. -/
-  ended : Bool
+  end_ : Bool
   /-- Whether the adversary reached a winning condition. -/
-  won : Bool
+  win : Bool
   /-- Ciphertexts in transit, as records `(i, a, m, e)`. -/
   trans : List (ℕ × AD × M × C)
   /-- Indices of challenge ciphertexts in transit. -/
@@ -151,17 +159,27 @@ def init (fs : FSAEADScheme K StS StR AD M C) (k : K) : GameState StS StR AD M C
   vB := fs.initR k
   iA := 0
   corrA := false
-  ended := false
-  won := false
+  end_ := false
+  win := false
   trans := []
   chall := ∅
   comp := fun _ => false
 -- ANCHOR_END: gameStateInit
 
-/-- `record(flag, a, m, e)` of Figure 5, for the record at index `i_A`.
-Correction: nothing is recorded if A is corrupted and an injection already consumed `i_A`
-(removing `i_A` from `comp`). Figure 5's `comp ← rec` is dropped: past the guard, either A
-is not corrupted or `i_A` is already in `comp`. -/
+/-- `record(flag, a, m, e)` of Figure 5: adds the record at index `i_A` to `trans`, and
+also to `chall` if it is a challenge. `isChall` stands for `flag = chall`.
+```text
+record(flag, a, m, e):
+  [if corrA and i_A ∉ comp: return]
+  trans ← trans ∪ {(i_A, a, m, e)}
+  if flag = chall: chall ← chall ∪ {i_A}
+```
+Two changes from Figure 5:
+- The guard (correction 2 in the module header) skips the record if A is corrupted and
+  an injection already consumed index `i_A`, which removed `i_A` from `comp`.
+- Figure 5's `if flag = bad or corrA: comp ← comp ∪ {rec}` is dropped. FS-AEAD is
+  deterministic, so no oracle passes `bad`. If A is corrupted, `O-Corr-A` already put
+  `i_A` in `comp`, so adding it again changes nothing. -/
 -- ANCHOR: gameStateRecord
 def record (st : GameState StS StR AD M C) (isChall : Bool) (a : AD) (m : M) (e : C) :
     GameState StS StR AD M C :=
@@ -181,7 +199,7 @@ def delete (st : GameState StS StR AD M C) (i : ℕ) : GameState StS StR AD M C 
 -- ANCHOR_END: gameStateDelete
 
 /-- The in-transit record `(i, a, m, e)` with the smallest index `i`. `trans` is ordered by
-index, so this is its first match. Figure 5's `deliver-B` takes such a record "for some
+index, so this is its first match. Figure 5's `O-Deliver-B` takes such a record "for some
 `i, m`" and does not say which one if there are several. -/
 def findTrans [DecidableEq AD] [DecidableEq C] (st : GameState StS StR AD M C)
     (a : AD) (e : C) : Option (ℕ × AD × M × C) :=
@@ -250,7 +268,6 @@ def oracleUnif (StS StR AD M C : Type) : QueryImpl unifSpec (GameM StS StR AD M 
 /-- **O-Transmit-A(a, m)**. A sends `m`, and the ciphertext is recorded as a normal one.
 ```text
 O-Transmit-A(a, m):
-  if ended: return ⊥
   i_A++
   (v_A, e) ← FS-Send(v_A, a, m)
   record(good, a, m, e)
@@ -261,7 +278,7 @@ def oracleTransmitA (fs : FSAEADScheme K StS StR AD M C) :
     QueryImpl (AD × M →ₒ Option C) (GameM StS StR AD M C) :=
   fun (a, m) => do
     let st ← get
-    if st.ended then return none
+    if st.end_ then return none
     let (vA, e) := fs.send st.vA a m
     set ({ st with vA, iA := st.iA + 1 }.record false a m e)
     return some e
@@ -270,7 +287,7 @@ def oracleTransmitA (fs : FSAEADScheme K StS StR AD M C) :
 /-- **O-Chall-A(a, m₀, m₁)**. A sends `m_b`, and the ciphertext is recorded as a challenge.
 ```text
 O-Chall-A(a, m₀, m₁):
-  if ended or corrA or |m₀| ≠ |m₁|: return ⊥
+  req ¬corrA and |m₀| = |m₁|
   i_A++
   (v_A, e) ← FS-Send(v_A, a, m_b)
   record(chall, a, m_b, e)
@@ -281,7 +298,7 @@ def oracleChallA (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : Boo
     QueryImpl (AD × M × M →ₒ Option C) (GameM StS StR AD M C) :=
   fun (a, m₀, m₁) => do
     let st ← get
-    if st.ended || st.corrA || len m₀ ≠ len m₁ then return none
+    if st.end_ || st.corrA || len m₀ ≠ len m₁ then return none
     let m := if b then m₁ else m₀
     let (vA, e) := fs.send st.vA a m
     set ({ st with vA, iA := st.iA + 1 }.record true a m e)
@@ -292,7 +309,6 @@ def oracleChallA (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : Boo
 sent yet becomes compromised.
 ```text
 O-Corr-A:
-  if ended: return ⊥
   [if ¬corrA: comp ← {i | i > i_A}]
   corrA ← true
   return v_A
@@ -302,7 +318,7 @@ def oracleCorrA (StS StR AD M C : Type) :
     QueryImpl (Unit →ₒ Option StS) (GameM StS StR AD M C) :=
   fun () => do
     let st ← get
-    if st.ended then return none
+    if st.end_ then return none
     let comp := if st.corrA then st.comp else fun i => decide (st.iA < i)
     set { st with corrA := true, comp }
     return some st.vA
@@ -311,8 +327,8 @@ def oracleCorrA (StS StR AD M C : Type) :
 /-- **O-Corr-B**. Reveals both states and ends the game.
 ```text
 O-Corr-B:
-  if ended or chall ≠ ∅: return ⊥
-  ended ← true
+  req chall = ∅
+  end ← true
   return (v_A, v_B)
 ``` -/
 -- ANCHOR: oracleCorrB
@@ -320,8 +336,8 @@ def oracleCorrB (StS StR AD M C : Type) :
     QueryImpl (Unit →ₒ Option (StS × StR)) (GameM StS StR AD M C) :=
   fun () => do
     let st ← get
-    if st.ended || st.chall ≠ ∅ then return none
-    set { st with ended := true }
+    if st.end_ || st.chall ≠ ∅ then return none
+    set { st with end_ := true }
     return some (st.vA, st.vB)
 -- ANCHOR_END: oracleCorrB
 
@@ -329,14 +345,13 @@ def oracleCorrB (StS StR AD M C : Type) :
 recorded index and message, the adversary wins. Challenge plaintexts are not returned.
 ```text
 O-Deliver-B(a, e):
-  if ended: return ⊥
   req (i, a, m, e) ∈ trans, with the smallest such i
   r ← FS-Rcv(v_B, a, e)
   -- correctness failure: B rejects the honest ciphertext e
-  if r = ⊥: won ← true; return ⊥
+  if r = ⊥: win ← true; return ⊥
   (v_B, i', m') ← r
   -- correctness failure: B outputs a wrong index or message
-  if (i', m') ≠ (i, m): won ← true
+  if (i', m') ≠ (i, m): win ← true
   if i ∈ chall: m' ← ⊥
   delete(i)
   return (i', m')
@@ -347,15 +362,15 @@ def oracleDeliverB [DecidableEq AD] [DecidableEq M] [DecidableEq C]
     QueryImpl (AD × C →ₒ Option (ℕ × Option M)) (GameM StS StR AD M C) :=
   fun (a, e) => do
     let st ← get
-    if st.ended then return none
+    if st.end_ then return none
     let some (i, _, m, _) := st.findTrans a e | return none
     match fs.rcv st.vB a e with
     | none =>
-      set { st with won := true }
+      set { st with win := true }
       return none
     | some (vB, i', m') =>
-      let won := st.won || !(decide (i' = i) && decide (m' = m))
-      set ({ st with vB, won }.delete i)
+      let win := st.win || !(decide (i' = i) && decide (m' = m))
+      set ({ st with vB, win }.delete i)
       return some (i', if i ∈ st.chall then none else some m')
 -- ANCHOR_END: oracleDeliverB
 
@@ -365,12 +380,12 @@ is not compromised (`i' ∉ comp`), the adversary wins. `delete(i')` then remove
 at most once.
 ```text
 O-Inject-B(a, e):
-  if ended or (i, a, m, e) ∈ trans for some i, m: return ⊥
+  req ¬(∃ i, m: (i, a, m, e) ∈ trans)
   r ← FS-Rcv(v_B, a, e)
-  if r = ⊥: return ⊥
+  req r ≠ ⊥
   (v_B, i', m') ← r
   -- authenticity failure: B accepts a forgery at an index that is not compromised
-  if i' ∉ comp: won ← true
+  if i' ∉ comp: win ← true
   delete(i')
   return (i', m')
 ``` -/
@@ -380,10 +395,10 @@ def oracleInjectB [DecidableEq AD] [DecidableEq C]
     QueryImpl (AD × C →ₒ Option (ℕ × M)) (GameM StS StR AD M C) :=
   fun (a, e) => do
     let st ← get
-    if st.ended || (st.findTrans a e).isSome then return none
+    if st.end_ || (st.findTrans a e).isSome then return none
     let some (vB, i', m') := fs.rcv st.vB a e | return none
-    let won := st.won || !st.comp i'
-    set ({ st with vB, won }.delete i')
+    let win := st.win || !st.comp i'
+    set ({ st with vB, win }.delete i')
     return some (i', m')
 -- ANCHOR_END: oracleInjectB
 
@@ -415,12 +430,11 @@ def securityExp [SampleableType K] [DecidableEq AD] [DecidableEq M] [DecidableEq
   let k ← $ᵗ K
   let b ← $ᵗ Bool
   let (b', st) ← (simulateQ (fsaeadSecurityImpl fs len b) adversary).run (.init fs k)
-  return st.won || b == b'
+  return st.win || b == b'
 -- ANCHOR_END: securityExp
 
 /-- FS-AEAD advantage `Adv^{fs-aead}_{FS-AEAD}(A) = |Pr[securityExp = 1] - 1/2|`
-(Definition 15 of [ACD19]). ACD19 §2.1 scales the advantage of indistinguishability games
-by 2. The guess advantages of this project leave the factor out. -/
+(Definition 15 of [ACD19]). -/
 -- ANCHOR: advantage
 noncomputable def advantage [SampleableType K] [DecidableEq AD] [DecidableEq M]
     [DecidableEq C] (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ)

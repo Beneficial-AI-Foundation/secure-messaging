@@ -166,7 +166,7 @@ private def fsaeadAdversarySvg : String := r##"
   </g>
 
   <!-- The adversary's guess decides the game, since no win instruction was reached. -->
-  <text class="fa-text" x="450" y="992" text-anchor="middle">𝒜 outputs <tspan class="fa-math">b′</tspan>. won = false, so 𝒜 wins if <tspan class="fa-math">b′ = b</tspan>.</text>
+  <text class="fa-text" x="450" y="992" text-anchor="middle">𝒜 outputs <tspan class="fa-math">b′</tspan>. win = false, so 𝒜 wins if <tspan class="fa-math">b′ = b</tspan>.</text>
 </svg>
 "##
 
