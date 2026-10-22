@@ -52,14 +52,9 @@ where
 - $`\mathsf{FS\text{-}Rcv}` takes a state $`v`, associated data $`a` and a ciphertext
   $`e`, and produces a new state, an index and a message
   $`(v', i, m) \gets \mathsf{FS\text{-}Rcv}(v, a, e)`,
-  $`\boxed{\text{or } \bot \text{ if it rejects } e}` (D1).
+  $`\boxed{\text{or } \bot \text{ if it rejects } e}`.
 
 All algorithms are deterministic.
-
-(D1) The boxed case is not in Definition 14, which does not say what a rejection outputs.
-A rejection here has no new state and no index. If it could report the index named in
-the ciphertext, Figure 5's $`\OInjectB` would delete the record of an honest ciphertext
-with that index.
 
 ```anchor FSAEADScheme (project := ".") (module := SecureMessaging.FSAEAD.Defs)
 structure FSAEADScheme (K StS StR AD M C : Type) where
@@ -77,14 +72,13 @@ structure FSAEADScheme (K StS StR AD M C : Type) where
 :::defTitle "fs_aead_security" "FS-AEAD security"
 :::
 
-:::::::definition "fs_aead_security" (parent := "fs_aead") (lean := "FSAEADScheme.GameState, FSAEADScheme.GameState.isCompromised, FSAEADScheme.securityExp, FSAEADScheme.fsaeadSecurityImpl, FSAEADScheme.advantage") (tags := "gh-187") (uses := "fs_aead_scheme")
-Adapted from {Informal.citet ACD19}[], Figure 5 and Definition 15.
+:::::::definition "fs_aead_security" (parent := "fs_aead") (lean := "FSAEADScheme.GameState, FSAEADScheme.securityExp, FSAEADScheme.fsaeadSecurityImpl, FSAEADScheme.advantage") (tags := "gh-187") (uses := "fs_aead_scheme")
+Adapted from {Informal.citet ACD19}[], Figure 5 and Definition 15, with two boxed
+corrections for unsent indices after A is corrupted:
 
-The boxes below print ACD19 Figure 5 and frame one change:
-
-- (D2) Once A is corrupted, indices A has not sent yet also count as compromised. If an
-  injection consumes such an index, A's later ciphertext for it is not recorded.
-  Otherwise B would have to accept both, and no correct scheme meets the game.
+- $`\OCorrA` adds all unsent indices $`i > i_\A` to $`\mathsf{comp}`;
+- $`\mathsf{record}` skips $`i_\A` if A is corrupted and $`i_\A \notin \mathsf{comp}`
+  (already consumed by an injection).
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Game state and notation}" (kind := "scheme-notation")
@@ -102,19 +96,11 @@ The game state consists of:
     * $`\mathsf{chall} \subseteq \mathbb N`: the indices of challenge ciphertexts in
       transit.
     * $`\mathsf{comp} \subseteq \mathbb N`: the indices of ciphertexts in transit that A
-      sent while corrupted.
-    * $`\mathsf{preempted} \subseteq \mathbb N`: (D2) the indices that an injection
-      consumed before A sent them.
+      sent while corrupted, $`\boxed{\textit{\small and unsent indices not yet received by B}}`.
 ::::
 
-An index $`i` is compromised if
-
-$$`\mathsf{compromised}(i) :\Leftrightarrow i \in \mathsf{comp} \;\vee\; \boxed{\mathsf{corrA} \wedge i > i_\A \wedge i \notin \mathsf{preempted}}`
-
-where the boxed part is (D2).
-
 In the oracles, $`\req\varphi` means: if $`\varphi` is false, the oracle returns
-$`\bot` and the game state does not change (§2.1).
+$`\bot` and the game state does not change.
 
 :::leanPillCaption "Game state"
 :::
@@ -138,19 +124,8 @@ structure GameState (StS StR AD M C : Type) where
   trans : List (ℕ × AD × M × C)
   /-- Indices of challenge ciphertexts in transit. -/
   chall : Finset ℕ
-  /-- Indices of ciphertexts in transit that A sent while corrupted. -/
-  comp : Finset ℕ
-  /-- Indices that an injection consumed before A sent them.
-  Deviation (D2): not in Figure 5. -/
-  preempted : Finset ℕ
-```
-
-:::leanPillCaption "Compromised indices"
-:::
-
-```anchor gameStateIsCompromised (project := ".") (module := SecureMessaging.FSAEAD.Defs)
-def isCompromised (st : GameState StS StR AD M C) (i : ℕ) : Bool :=
-  i ∈ st.comp || (st.corrA && st.iA < i && i ∉ st.preempted)
+  /-- Indices exposed by A's corruption and not yet received by B. -/
+  comp : Set ℕ
 ```
 :::::
 ::::::
@@ -179,7 +154,7 @@ i_\A{+}{+}; \\
 \end{array}`
 
 ```anchor oracleTransmitA (project := ".") (module := SecureMessaging.FSAEAD.Defs)
-def oracleTransmitA (fs : FSAEADScheme K StS StR AD M C) :
+noncomputable def oracleTransmitA (fs : FSAEADScheme K StS StR AD M C) :
     QueryImpl (AD × M →ₒ Option C) (GameM StS StR AD M C) :=
   fun (a, m) => do
     let st ← get
@@ -237,7 +212,7 @@ i_\A{+}{+}; \\
 \end{array}`
 
 ```anchor oracleChallA (project := ".") (module := SecureMessaging.FSAEAD.Defs)
-def oracleChallA (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : Bool) :
+noncomputable def oracleChallA (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : Bool) :
     QueryImpl (AD × M × M →ₒ Option C) (GameM StS StR AD M C) :=
   fun (a, m₀, m₁) => do
     let st ← get
@@ -256,32 +231,32 @@ r \gets \mathsf{FS\text{-}Rcv}(v_\B, a, e); \\
 \req\;r \neq \bot; \\
 (v_\B, i', m') \gets r; \\
 \pcommentline{\text{authenticity failure: B accepts a forgery at an index that is not compromised}} \\
-\pif\;\neg\mathsf{compromised}(i')\;\pthen \\
+\pif\;i' \notin \mathsf{comp}\;\pthen \\
 \quad\mathsf{won} \gets \mathsf{true}; \\
-\boxed{\kern-5pt\begin{array}{l}
-\pif\;i' > i_\A\;\pthen \\
-\quad\mathsf{preempted} \gets \mathsf{preempted} \cup \{i'\};
-\end{array}\kern-5pt}\pcomment{\text{D2}} \\
 \mathsf{delete}(i'); \\
 \Return (i', m')
 \end{array}`
 
 ```anchor oracleInjectB (project := ".") (module := SecureMessaging.FSAEAD.Defs)
-def oracleInjectB [DecidableEq AD] [DecidableEq C] (fs : FSAEADScheme K StS StR AD M C) :
+noncomputable def oracleInjectB [DecidableEq AD] [DecidableEq C]
+    (fs : FSAEADScheme K StS StR AD M C) :
     QueryImpl (AD × C →ₒ Option (ℕ × M)) (GameM StS StR AD M C) :=
   fun (a, e) => do
     let st ← get
     if st.ended || (st.findTrans a e).isSome then return none
     let some (vB, i', m') := fs.rcv st.vB a e | return none
-    let won := st.won || !st.isCompromised i'
-    let preempted := if st.iA < i' then insert i' st.preempted else st.preempted
-    set ({ st with vB, won, preempted }.delete i')
+    let won := st.won || decide (i' ∉ st.comp)
+    set ({ st with vB, won }.delete i')
     return some (i', m')
 ```
 :::::
 
 :::::gameCell "\\OCorrA" (kind := "compact")
 $`\begin{array}{l}
+\boxed{\kern-5pt\begin{array}{l}
+\pif\;\neg\mathsf{corrA}\;\pthen \\
+\quad\mathsf{comp} \gets \{i \mid i > i_\A\};
+\end{array}\kern-5pt} \\
 \mathsf{corrA} \gets \mathsf{true}; \\
 \Return v_\A
 \end{array}`
@@ -292,7 +267,8 @@ def oracleCorrA (StS StR AD M C : Type) :
   fun () => do
     let st ← get
     if st.ended then return none
-    set { st with corrA := true }
+    let comp := if st.corrA then st.comp else {i | st.iA < i}
+    set { st with corrA := true, comp }
     return some st.vA
 ```
 :::::
@@ -318,9 +294,9 @@ def oracleCorrB (StS StR AD M C : Type) :
 :::::gameCell "\\mathsf{record}(\\mathit{flag}, a, m, e)" (kind := "compact")
 $`\begin{array}{l}
 \boxed{\kern-5pt\begin{array}{l}
-\pif\;i_\A \in \mathsf{preempted}\;\pthen \\
+\pif\;\mathsf{corrA} \wedge i_\A \notin \mathsf{comp}\;\pthen \\
 \quad\Return;
-\end{array}\kern-5pt}\pcomment{\text{D2}} \\
+\end{array}\kern-5pt} \\
 \mathsf{trans} \gets \mathsf{trans} \cup \{(i_\A, a, m, e)\}; \\
 \pif\;\mathsf{corrA}\;\pthen \\
 \quad\mathsf{comp} \gets \mathsf{comp} \cup \{i_\A\}; \\
@@ -329,9 +305,9 @@ $`\begin{array}{l}
 \end{array}`
 
 ```anchor gameStateRecord (project := ".") (module := SecureMessaging.FSAEAD.Defs)
-def record (st : GameState StS StR AD M C) (isChall : Bool) (a : AD) (m : M) (e : C) :
+noncomputable def record (st : GameState StS StR AD M C) (isChall : Bool) (a : AD) (m : M) (e : C) :
     GameState StS StR AD M C :=
-  if st.iA ∈ st.preempted then st else
+  if st.corrA ∧ st.iA ∉ st.comp then st else
   { st with
     trans := st.trans ++ [(st.iA, a, m, e)]
     chall := if isChall then insert st.iA st.chall else st.chall
@@ -351,25 +327,18 @@ def delete (st : GameState StS StR AD M C) (i : ℕ) : GameState StS StR AD M C 
   { st with
     trans := st.trans.filter (·.1 ≠ i)
     chall := st.chall.erase i
-    comp := st.comp.erase i }
+    comp := st.comp \ {i} }
 ```
 :::::
 ::::::
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Example run of this game}" (kind := "scheme")
-This run uses the game above, with D1 and D2. Whether the adversary wins depends on
-what is still in transit and on when A was corrupted. A rejected forgery leaves the
-honest message 1 in transit (D1). After $`\OCorrA` at $`i_\A = 2`, A cannot send a
-challenge, and a forgery for index 3, which A has not sent yet, is accepted without a
-win (D2).
-
-In Figure 5 as printed, the forgery for index 3 is a win. If the rejection of the forgery
-for index 1 reports index 1, Figure 5 still runs $`\mathsf{delete}(1)`, and the game
-refuses the late delivery of $`e_1`.
-
-Black arrows are honest ciphertexts. Red arrows are under the adversary's control. An X
-marks a call that the game refuses.
+Black arrows are honest ciphertexts; red arrows are under the adversary's control; an X
+marks a call that the game refuses. A rejected forgery ($`e^*`) returns $`\bot` and
+leaves message 1 in $`\mathsf{trans}`. Corrupting A at $`i_\A = 2` sets
+$`\mathsf{comp} = \{i \mid i > 2\}`, so injecting $`e_3` for index 3 before A sends it
+does not set $`\mathsf{won}`.
 
 :::fsaeadAdversaryIllustration
 :::
@@ -381,13 +350,9 @@ marks a call that the game refuses.
 $`\begin{array}{l}
 \pcommentline{\text{Initialize both parties with a shared key}} \\
 k \sample \mathcal K;\quad v_\A \gets \mathsf{FS\text{-}Init\text{-}S}(k);\quad v_\B \gets \mathsf{FS\text{-}Init\text{-}R}(k); \\
-\pcommentline{\text{Initialize the game records}} \\
-i_\A \gets 0; \\
-\mathsf{corrA} \gets \mathsf{false}; \\
+\pcommentline{\text{Initialize the game state}} \\
+i_\A \gets 0;\quad \mathsf{corrA} \gets \mathsf{false};\quad \mathsf{won} \gets \mathsf{false}; \\
 \mathsf{trans}, \mathsf{chall}, \mathsf{comp} \gets \emptyset; \\
-\boxed{\mathsf{preempted} \gets \emptyset;}\pcomment{\text{D2}} \\
-\pcommentline{\mathsf{won}\text{ stands for the §2.1 keyword }\mathsf{win}} \\
-\mathsf{won} \gets \mathsf{false}; \\
 \pcommentline{\text{Sample the challenge bit and run the adversary}} \\
 b \sample \bit;\quad b' \gets \adv^{\O}; \\
 \pcommentline{\text{Win by a winning condition or by guessing } b} \\
@@ -408,14 +373,13 @@ def init (fs : FSAEADScheme K StS StR AD M C) (k : K) : GameState StS StR AD M C
   trans := []
   chall := ∅
   comp := ∅
-  preempted := ∅
 ```
 
 :::leanPillCaption "Security experiment"
 :::
 
 ```anchor securityExp (project := ".") (module := SecureMessaging.FSAEAD.Defs)
-def securityExp [SampleableType K] [DecidableEq AD] [DecidableEq M] [DecidableEq C]
+noncomputable def securityExp [SampleableType K] [DecidableEq AD] [DecidableEq M] [DecidableEq C]
     (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ)
     (adversary : FSAEADAdversary StS StR AD M C) : ProbComp Bool := do
   let k ← $ᵗ K
@@ -430,9 +394,6 @@ The advantage of $`\adv` is
 
 $$`\mathsf{Adv}^{\textsf{fs-aead}}_{\textsf{FS-AEAD}}(\adv)
   = \Bigl|\, \Pr\bigl[\Exp{\textsf{fs-aead}}{\textsf{FS-AEAD}}(\adv) = 1\bigr] - \tfrac{1}{2} \,\Bigr|`
-
-ACD19 §2.1 multiplies this advantage by 2. The guess advantages of this project leave the
-factor out.
 
 ```anchor advantage (project := ".") (module := SecureMessaging.FSAEAD.Defs)
 noncomputable def advantage [SampleableType K] [DecidableEq AD] [DecidableEq M]

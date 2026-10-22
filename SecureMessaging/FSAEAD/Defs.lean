@@ -43,30 +43,32 @@ is decrypted as soon as it arrives.
   is the position of `m` in the sender's sequence, or `none` on rejection.
 
 [DEVIATIONS FROM ACD19]
-The definitions differ from ACD19 in two places. D1 fixes what `FS-Rcv` outputs on a
-rejection, which Definition 14 leaves open. D2 fixes an error in Figure 5: without it,
-every scheme either accepts a forgery or fails correctness. Each deviation is marked
-`(Dn)` where it takes effect. In the oracle pseudocode, `[…]  -- Dn` frames a change to
-the text of Figure 5, like the boxes in the blueprint.
+The definitions differ from ACD19 in two places: `rcv` makes explicit what `FS-Rcv`
+outputs on a rejection (which Definition 14 leaves open), and the security game fixes an
+error in Figure 5 (without which every scheme either accepts a forgery or fails
+correctness). In the oracle pseudocode, `[…]` frames the changes to the text of Figure 5,
+matching the boxes in the blueprint.
 
-- (D1) `rcv` returns `none` on rejection, with no new state and no index. Definition 14
-  does not say what a rejection outputs. Figure 6 raises an error and rolls the state
-  back (§4.2.2). If a rejection could report the index named in the ciphertext, Figure
-  5's `inject-B` would skip the win (`m' = ⊥`) and still run `delete(i')`. Rejected
-  garbage for an honest index then removes its record, and the honest ciphertext then
-  counts as a forgery [Kli21, Appendix A.1]. Here `O-Inject-B` stops on `none`, and
-  `O-Deliver-B` counts `none` as a correctness failure (see "Winning" below).
-- (D2) Figure 5's `inject-B` counts a forgery for index `i'` as a win unless `i' ∈ comp`,
-  and `comp` only holds indices that were already sent. So after `corr-A`, the adversary
-  wins by computing A's next ciphertext from the revealed state and injecting it. Here,
-  once A is corrupted, an index that A has not sent yet also counts as compromised,
-  unless an earlier injection consumed it. Figure 5's `delete(i')` has no record to
-  remove for such an index. Here `inject-B` puts the index into `preempted`, and when A
-  later sends it, `record` drops it, as if it were deleted then. Without this, no correct
-  scheme meets the game: B accepts the injected ciphertext for an index and must then
-  decrypt A's honest ciphertext for the same index, so it also accepts a replay without
-  any corruption. As in Figure 5, A can still send after `corr-A`, so the game still
-  checks that accepted injections do not break the delivery of A's later messages.
+- Rejection in `FS-Rcv`: `rcv` returns `none` on rejection, with no new state and no
+  index. Definition 14 does not say what a rejection outputs; Figure 6 raises an error
+  and rolls the state back (§4.2.2). If a rejection could report the index named in the
+  ciphertext, Figure 5's `inject-B` would skip the win (`m' = ⊥`) and still run
+  `delete(i')`. Rejected garbage for an honest index then removes its record, and the
+  honest ciphertext then counts as a forgery [Kli21, Appendix A.1]. Here `O-Inject-B`
+  stops on `none`, and `O-Deliver-B` counts `none` as a correctness failure.
+- Post-corruption unsent indices: Figure 5's `inject-B` counts a forgery
+  for index `i'` as a win unless `i' ∈ comp`, and `comp` only holds indices that were
+  already sent. So after `corr-A`, the adversary wins by computing A's next ciphertext
+  from the revealed state and injecting it before A sends it. Here, the first `O-Corr-A`
+  sets `comp ← {i | i > i_A}`, so every unsent index also counts as compromised until B
+  receives a message for it (via `O-Inject-B` or `O-Deliver-B`), which runs `delete` and
+  removes that index from `comp`. If an injection consumes an unsent index `i_A` before A
+  sends it, `i_A` is no longer in `comp` when A later sends it, and `record` drops A's
+  record as if `delete(i_A)` ran then. Without this, no correct scheme meets the game: B
+  accepts the injected ciphertext for an index and must then decrypt A's honest
+  ciphertext for the same index, so it also accepts a replay without any corruption. As
+  in Figure 5, A can still send after `corr-A`, so the game still checks that accepted
+  injections do not break the delivery of A's later messages.
 
 [CONVENTIONS]
 - Winning. A rejection in `deliver-B` gives no `(i', m')` to compare with `(i, m)`. This
@@ -107,7 +109,7 @@ open ToVCVio OracleSpec OracleComp ENNReal
 `StR`, associated-data space `AD`, message space `M` and ciphertext space `C`.
 All algorithms are deterministic.
 
-Definition 14 of [ACD19]. Deviation (D1): `rcv` returns `none` on rejection. -/
+Definition 14 of [ACD19], with `rcv` returning `none` on rejection. -/
 -- ANCHOR: FSAEADScheme
 structure FSAEADScheme (K StS StR AD M C : Type) where
   /-- `FS-Init-S`: the sender's initial state. -/
@@ -148,11 +150,8 @@ structure GameState (StS StR AD M C : Type) where
   trans : List (ℕ × AD × M × C)
   /-- Indices of challenge ciphertexts in transit. -/
   chall : Finset ℕ
-  /-- Indices of ciphertexts in transit that A sent while corrupted. -/
-  comp : Finset ℕ
-  /-- Indices that an injection consumed before A sent them.
-  Deviation (D2): not in Figure 5. -/
-  preempted : Finset ℕ
+  /-- Indices exposed by A's corruption and not yet received by B. -/
+  comp : Set ℕ
 -- ANCHOR_END: GameState
 
 namespace GameState
@@ -169,15 +168,16 @@ def init (fs : FSAEADScheme K StS StR AD M C) (k : K) : GameState StS StR AD M C
   trans := []
   chall := ∅
   comp := ∅
-  preempted := ∅
 -- ANCHOR_END: gameStateInit
 
+open Classical in
 /-- `record(flag, a, m, e)` of Figure 5, for the record at index `i_A`.
-Deviation (D2): nothing is recorded if an injection already consumed `i_A`. -/
+Correction: nothing is recorded if A is corrupted and an injection already consumed `i_A`
+(removing `i_A` from `comp`). -/
 -- ANCHOR: gameStateRecord
-def record (st : GameState StS StR AD M C) (isChall : Bool) (a : AD) (m : M) (e : C) :
+noncomputable def record (st : GameState StS StR AD M C) (isChall : Bool) (a : AD) (m : M) (e : C) :
     GameState StS StR AD M C :=
-  if st.iA ∈ st.preempted then st else
+  if st.corrA ∧ st.iA ∉ st.comp then st else
   { st with
     trans := st.trans ++ [(st.iA, a, m, e)]
     chall := if isChall then insert st.iA st.chall else st.chall
@@ -190,17 +190,8 @@ def delete (st : GameState StS StR AD M C) (i : ℕ) : GameState StS StR AD M C 
   { st with
     trans := st.trans.filter (·.1 ≠ i)
     chall := st.chall.erase i
-    comp := st.comp.erase i }
+    comp := st.comp \ {i} }
 -- ANCHOR_END: gameStateDelete
-
-/-- Whether a ciphertext for index `i` may legitimately be forged: A sent `i` while
-corrupted and it is still in transit, or A is corrupted, has not sent `i` yet, and no
-injection consumed `i`.
-Deviation (D2): Figure 5 has only `i ∈ comp`. -/
--- ANCHOR: gameStateIsCompromised
-def isCompromised (st : GameState StS StR AD M C) (i : ℕ) : Bool :=
-  i ∈ st.comp || (st.corrA && st.iA < i && i ∉ st.preempted)
--- ANCHOR_END: gameStateIsCompromised
 
 /-- The in-transit record `(i, a, m, e)` with the smallest index `i`. `trans` is ordered by
 index, so this is its first match. Figure 5's `deliver-B` takes such a record "for some
@@ -279,7 +270,7 @@ O-Transmit-A(a, m):
   return e
 ``` -/
 -- ANCHOR: oracleTransmitA
-def oracleTransmitA (fs : FSAEADScheme K StS StR AD M C) :
+noncomputable def oracleTransmitA (fs : FSAEADScheme K StS StR AD M C) :
     QueryImpl (AD × M →ₒ Option C) (GameM StS StR AD M C) :=
   fun (a, m) => do
     let st ← get
@@ -299,7 +290,7 @@ O-Chall-A(a, m₀, m₁):
   return e
 ``` -/
 -- ANCHOR: oracleChallA
-def oracleChallA (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : Bool) :
+noncomputable def oracleChallA (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : Bool) :
     QueryImpl (AD × M × M →ₒ Option C) (GameM StS StR AD M C) :=
   fun (a, m₀, m₁) => do
     let st ← get
@@ -310,11 +301,12 @@ def oracleChallA (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : Boo
     return some e
 -- ANCHOR_END: oracleChallA
 
-/-- **O-Corr-A**. Reveals A's state. Every index that A has not sent yet and that no
-injection consumed becomes compromised.
+/-- **O-Corr-A**. Reveals A's state. On the first corruption, every index that A has not
+sent yet becomes compromised.
 ```text
 O-Corr-A:
   if ended: return ⊥
+  [if ¬corrA: comp ← {i | i > i_A}]
   corrA ← true
   return v_A
 ``` -/
@@ -324,7 +316,8 @@ def oracleCorrA (StS StR AD M C : Type) :
   fun () => do
     let st ← get
     if st.ended then return none
-    set { st with corrA := true }
+    let comp := if st.corrA then st.comp else {i | st.iA < i}
+    set { st with corrA := true, comp }
     return some st.vA
 -- ANCHOR_END: oracleCorrA
 
@@ -379,10 +372,11 @@ def oracleDeliverB [DecidableEq AD] [DecidableEq M] [DecidableEq C]
       return some (i', if i ∈ st.chall then none else some m')
 -- ANCHOR_END: oracleDeliverB
 
+open Classical in
 /-- **O-Inject-B(a, e)**. Delivers any other ciphertext. If B accepts it for an index that
-is not compromised, the adversary wins. `compromised(i')` is evaluated before `i'` enters
-`preempted`. Only this oracle can consume an index that A has not sent yet: `O-Deliver-B`
-deletes the index of a record in `trans`, which is at most `i_A`.
+is not compromised (`i' ∉ comp`), the adversary wins. `delete(i')` then removes `i'` from
+`comp`, so a compromised index (whether in transit or not yet sent by A) can be consumed
+at most once.
 ```text
 O-Inject-B(a, e):
   if ended or (i, a, m, e) ∈ trans for some i, m: return ⊥
@@ -390,27 +384,26 @@ O-Inject-B(a, e):
   if r = ⊥: return ⊥
   (v_B, i', m') ← r
   -- authenticity failure: B accepts a forgery at an index that is not compromised
-  if not compromised(i'): won ← true
-  [if i' > i_A: preempted ← preempted ∪ {i'}]              -- D2
+  if i' ∉ comp: won ← true
   delete(i')
   return (i', m')
 ``` -/
 -- ANCHOR: oracleInjectB
-def oracleInjectB [DecidableEq AD] [DecidableEq C] (fs : FSAEADScheme K StS StR AD M C) :
+noncomputable def oracleInjectB [DecidableEq AD] [DecidableEq C]
+    (fs : FSAEADScheme K StS StR AD M C) :
     QueryImpl (AD × C →ₒ Option (ℕ × M)) (GameM StS StR AD M C) :=
   fun (a, e) => do
     let st ← get
     if st.ended || (st.findTrans a e).isSome then return none
     let some (vB, i', m') := fs.rcv st.vB a e | return none
-    let won := st.won || !st.isCompromised i'
-    let preempted := if st.iA < i' then insert i' st.preempted else st.preempted
-    set ({ st with vB, won, preempted }.delete i')
+    let won := st.won || decide (i' ∉ st.comp)
+    set ({ st with vB, won }.delete i')
     return some (i', m')
 -- ANCHOR_END: oracleInjectB
 
 /-- Complete oracle set for the FS-AEAD security game with challenge bit `b`. -/
 -- ANCHOR: fsaeadSecurityImpl
-def fsaeadSecurityImpl [DecidableEq AD] [DecidableEq M] [DecidableEq C]
+noncomputable def fsaeadSecurityImpl [DecidableEq AD] [DecidableEq M] [DecidableEq C]
     (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : Bool) :
     QueryImpl (fsaeadSpec StS StR AD M C) (GameM StS StR AD M C) :=
   oracleUnif StS StR AD M C
@@ -430,7 +423,7 @@ def fsaeadSecurityImpl [DecidableEq AD] [DecidableEq M] [DecidableEq C]
 `run`:    `b' ← A^{O-Transmit-A, O-Chall-A, O-Corr-A, O-Corr-B, O-Deliver-B, O-Inject-B}`
 `output`: `true` if the adversary reached a winning condition, otherwise `b' = b` -/
 -- ANCHOR: securityExp
-def securityExp [SampleableType K] [DecidableEq AD] [DecidableEq M] [DecidableEq C]
+noncomputable def securityExp [SampleableType K] [DecidableEq AD] [DecidableEq M] [DecidableEq C]
     (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ)
     (adversary : FSAEADAdversary StS StR AD M C) : ProbComp Bool := do
   let k ← $ᵗ K
