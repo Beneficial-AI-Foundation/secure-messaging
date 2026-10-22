@@ -48,8 +48,8 @@ lemma measureTVDist_bind_const_right {β : Type} [MeasurableSpace β]
 /-- A weighted identical-until-bad bound, in the style of the fundamental lemma of game playing:
 if `f a =ᵈ g a` for all `a` such that `¬ bad a`, and `δ(f a, g a) ≤ c` even when `bad a`
 holds, then averaging over any `mx : m α`,
-`∑ₐ Pr[x = a | mx] · δ(f a, g a) ≤ c · Pr[bad | mx]`, where `δ` is `measureTVDist`.
-Sharpens the trivial worst-case slack `c = 1`. -/
+`∑ₐ Pr{let x ← mx}[x = a] · δ(f a, g a) ≤ c · Pr{let x ← mx}[bad x]`,
+where `δ` is `measureTVDist`. Sharpens the trivial worst-case slack `c = 1`. -/
 lemma tsum_prEvent_toReal_mul_measureTVDist_le_const_mul_prEvent {β : Type} [MeasurableSpace β]
     (mx : m α) (f g : α → m β) (bad : α → Prop) (c : ℝ) (hc : 0 ≤ c)
     (h_eq : ∀ a, ¬ bad a → f a =ᵈ g a)
@@ -84,7 +84,7 @@ lemma tsum_prEvent_toReal_mul_measureTVDist_le_const_mul_prEvent {β : Type} [Me
 /-- Bind-level identical-until-bad bound:
 if `f a =ᵈ g a` for all `a` such that `¬ bad a`, and `δ(f a, g a) ≤ c` even when `bad a`
 holds, then averaging over any `mx : m α`,
-`δ(mx >>= f, mx >>= g) ≤ c · Pr[bad | mx]`, where `δ` is `measureTVDist`.
+`δ(mx >>= f, mx >>= g) ≤ c · Pr{let x ← mx}[bad x]`, where `δ` is `measureTVDist`.
 Sharpens VCVio's `OracleComp.measureTVDist_bind_left_le_prEvent_of_evalDistEq`, which only gets
 the trivial worst-case slack `c = 1`. -/
 lemma measureTVDist_bind_left_event_le_const {β : Type} [MeasurableSpace β]

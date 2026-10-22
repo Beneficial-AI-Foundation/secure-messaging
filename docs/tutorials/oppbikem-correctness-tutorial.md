@@ -760,9 +760,9 @@ them with `trackedBiKem_preservesInv`, and `sends_never_rejected_of_perfectKEM` 
   `cases role <;> simp only [Role.offset, Role.reqParity, Role.resParity] at h ⊢ <;> omega`.
   `omega` does not see through `if role = .A then … else …`; case on the role first.
 - **Decidable `if`s.** Rewriting under `if c then a else b` with an `iff` about `c` fails,
-  because the `Decidable` instance depends on `c`. Use `by_cases` with `if_pos` / `if_neg`, or
-  state the goal with `show` / `change` so that the condition is syntactically the one in your
-  hypothesis.
+  because the `Decidable` instance depends on `c`. Use `by_cases` with `ite_eq_left` /
+  `ite_eq_right`, or state the goal with `show` / `change` so that the condition is
+  syntactically the one in your hypothesis.
 - **`Int.toNat`.** Game tables are indexed by `ℕ`, local epochs by `ℤ`. Every key-table field
   carries `0 < e`, and `Int.toNat_of_nonneg` recovers `e` from `e.toNat`.
 - **Section variables.** `MainInvariant/Recv.lean` keeps both invariants and the message

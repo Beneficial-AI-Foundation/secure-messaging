@@ -21,8 +21,7 @@ For an execution of the tracked game against an adversary `adv`, let:
   failure probability of the KEM epoch in progress;
 * `S(s, b) := trackedFailureScore (s, b)` (`Reduction.Core`), equal to `1`
   when `b = true` and to `V(s)` otherwise;
-* `E[S(s_f, b_f)]` denote `wp` of the final score, which assigns
-  score `1` to computation failure.
+* `E[S(s_f, b_f)]` denote `wp` of the final score.
 
 For every tracked execution,
 
