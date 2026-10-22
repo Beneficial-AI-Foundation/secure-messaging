@@ -216,17 +216,12 @@ lemma honestImpl_param_real_a_indep_special
     (honestImplParamReal gp gen a₂ b t).run s := by
   rcases h_special_case with ⟨h_challengeEpoch, h_cp⟩
   match t with
-  | OSendBrleak => rfl
-  | OSendArleak => rfl
-  | OCorruptB => rfl
-  | OCorruptA => rfl
   | OChallB =>
     simp [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
       honestChallBparam, honestChallBparamMode]
   | OChallA =>
     simp [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
       honestChallAparam, honestChallAparamMode]
-  | ORecvB => rfl
   | OSendB =>
     change (honestSendBparam gp gen a₁ ()).run s = (honestSendBparam gp gen a₂ ()).run s
     have h_pred_false :
@@ -239,11 +234,13 @@ lemma honestImpl_param_real_a_indep_special
       simp [h_cp, h_other_false]
     rw [honestSendB_param_run_eq_when_pred_false (gen := gen) gp a₁ s h_pred_false,
       honestSendB_param_run_eq_when_pred_false (gen := gen) gp a₂ s h_pred_false]
-  | ORecvA => rfl
   | OSendA =>
     simp [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
       honestSendAparam]
-  | OUnif _ => rfl
+  | OSendBrleak | OSendArleak | OCorruptB | OCorruptA
+  | ORecvB | ORecvA | OUnif _ =>
+    -- `simp only` instead of `rfl`: the kernel checks this much faster.
+    simp only [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
 
 /-! ### Predicate-false dispatch (chall oracles, real and rand)
 
@@ -370,17 +367,12 @@ lemma honestImpl_param_rand_a_indep_special
     (honestImplParamRand gp gen a₂ b gT t).run s := by
   rcases h_special_case with ⟨h_challengeEpoch, h_cp⟩
   match t with
-  | OSendBrleak => rfl
-  | OSendArleak => rfl
-  | OCorruptB => rfl
-  | OCorruptA => rfl
   | OChallB =>
     simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
       honestChallBparamRand, honestChallBparamMode]
   | OChallA =>
     simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
       honestChallAparamRand, honestChallAparamMode]
-  | ORecvB => rfl
   | OSendB =>
     change (honestSendBparam gp gen a₁ ()).run s = (honestSendBparam gp gen a₂ ()).run s
     have h_pred_false :
@@ -393,11 +385,13 @@ lemma honestImpl_param_rand_a_indep_special
       simp [h_cp, h_other_false]
     rw [honestSendB_param_run_eq_when_pred_false (gen := gen) gp a₁ s h_pred_false,
       honestSendB_param_run_eq_when_pred_false (gen := gen) gp a₂ s h_pred_false]
-  | ORecvA => rfl
   | OSendA =>
     simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
       honestSendAparam]
-  | OUnif _ => rfl
+  | OSendBrleak | OSendArleak | OCorruptB | OCorruptA
+  | ORecvB | ORecvA | OUnif _ =>
+    -- `simp only` instead of `rfl`: the kernel checks this much faster.
+    simp only [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
 
 omit [Inhabited F] [Fintype G] in
 /-- Special rand case: once A has reached the challenge epoch (`gp.challengeEpoch ≤ s.tA`),
@@ -413,10 +407,6 @@ lemma honestImpl_param_rand_b_indep_post_challA_special
     (honestImplParamRand gp gen a b₂ gT t).run s := by
   rcases h_special_case with ⟨h_challengeEpoch, h_cp⟩
   match t with
-  | OSendBrleak => rfl
-  | OSendArleak => rfl
-  | OCorruptB => rfl
-  | OCorruptA => rfl
   | OChallB =>
     simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
       honestChallBparamRand, honestChallBparamMode]
@@ -433,15 +423,16 @@ lemma honestImpl_param_rand_b_indep_post_challA_special
       simp [h_cp, h_epoch_false]
     rw [honestChallA_param_rand_run_eq_when_pred_false (gen := gen) gp b₁ gT s h_pred_false,
       honestChallA_param_rand_run_eq_when_pred_false (gen := gen) gp b₂ gT s h_pred_false]
-  | ORecvB => rfl
   | OSendB =>
     simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
       honestSendBparam]
-  | ORecvA => rfl
   | OSendA =>
     simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, h_cp,
       honestSendAparam]
-  | OUnif _ => rfl
+  | OSendBrleak | OSendArleak | OCorruptB | OCorruptA
+  | ORecvB | ORecvA | OUnif _ =>
+    -- `simp only` instead of `rfl`: the kernel checks this much faster.
+    simp only [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
 
 /-! ### Per-oracle parameter independence
 
@@ -623,25 +614,22 @@ lemma honestImpl_param_real_a_indep_post_sendA
     (honestImplParamReal gp gen a₁ b t).run s =
     (honestImplParamReal gp gen a₂ b t).run s := by
   match t with
-  | OSendBrleak => rfl
-  | OSendArleak => rfl
-  | OCorruptB => rfl  -- corruptB
-  | OCorruptA => rfl  -- corruptA
   | OChallB =>  -- challB at h_cp = .B uses parameter b, not a
     simp [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
       honestChallBparam, honestChallBparamMode, h_cp]
   | OChallA =>  -- challA at h_cp = .B is off-party
     simp [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
       honestChallAparam, honestChallAparamMode, h_cp]
-  | ORecvB => rfl  -- recvB
   | OSendB =>  -- sendB at h_cp = .B is off-party
     simp [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
       honestSendBparam, h_cp]
-  | ORecvA => rfl  -- recvA
   | OSendA =>  -- sendA: hit at challengedParty=B
     change (honestSendAparam gp gen a₁ ()).run s = (honestSendAparam gp gen a₂ ()).run s
     exact honestSendA_param_a_indep_post_event (gen := gen) gp h_cp a₁ a₂ s h_post
-  | OUnif _ => rfl  -- oracleUnif
+  | OSendBrleak | OSendArleak | OCorruptB | OCorruptA
+  | ORecvB | ORecvA | OUnif _ =>
+    -- `simp only` instead of `rfl`: the kernel checks this much faster.
+    simp only [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
 
 omit [Inhabited F] [Fintype G] in
 /-- Mirror of `honestImpl_param_real_a_indep_post_sendA` at `challengedParty = .A`. Lazy
@@ -655,25 +643,22 @@ lemma honestImpl_param_real_a_indep_post_sendB
     (honestImplParamReal gp gen a₁ b t).run s =
     (honestImplParamReal gp gen a₂ b t).run s := by
   match t with
-  | OSendBrleak => rfl
-  | OSendArleak => rfl
-  | OCorruptB => rfl
-  | OCorruptA => rfl
   | OChallB =>  -- challB at h_cp = .A is off-party
     simp [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
       honestChallBparam, honestChallBparamMode, h_cp]
   | OChallA =>  -- challA at h_cp = .A uses parameter b, not a
     simp [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
       honestChallAparam, honestChallAparamMode, h_cp]
-  | ORecvB => rfl
   | OSendB =>  -- sendB: hit at challengedParty=A
     change (honestSendBparam gp gen a₁ ()).run s = (honestSendBparam gp gen a₂ ()).run s
     exact honestSendB_param_a_indep_post_event (gen := gen) gp h_cp a₁ a₂ s h_post
-  | ORecvA => rfl
   | OSendA =>  -- sendA at h_cp = .A is off-party
     simp [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
       honestSendAparam, h_cp]
-  | OUnif _ => rfl
+  | OSendBrleak | OSendArleak | OCorruptB | OCorruptA
+  | ORecvB | ORecvA | OUnif _ =>
+    -- `simp only` instead of `rfl`: the kernel checks this much faster.
+    simp only [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
 
 omit [Inhabited F] [Fintype G] in
 /-- Mirror of `honestImpl_param_real_a_indep_post_sendA` for the post-`challA`
@@ -686,23 +671,16 @@ lemma honestImpl_param_real_b_indep_post_challA
     (honestImplParamReal gp gen a b₁ t).run s =
     (honestImplParamReal gp gen a b₂ t).run s := by
   match t with
-  | OSendBrleak => rfl
-  | OSendArleak => rfl
-  | OCorruptB => rfl
-  | OCorruptA => rfl
   | OChallB =>  -- challB at h_cp = .A is off-party
     simp [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
       honestChallBparam, honestChallBparamMode, h_cp]
   | OChallA =>  -- challA: hit at challengedParty=A
     change (honestChallAparam gp gen b₁ ()).run s = (honestChallAparam gp gen b₂ ()).run s
     exact honestChallA_param_b_indep_post_event (gen := gen) gp h_cp b₁ b₂ s h_post
-  | ORecvB => rfl
-  | OSendB =>  -- sendB uses parameter `a`, not `b`
-    rfl
-  | ORecvA => rfl
-  | OSendA =>  -- sendA uses parameter `a`, not `b`
-    rfl
-  | OUnif _ => rfl
+  | OSendBrleak | OSendArleak | OCorruptB | OCorruptA | ORecvB
+  | OSendB | ORecvA | OSendA | OUnif _ =>
+    -- `simp only` instead of `rfl`: the kernel checks this much faster.
+    simp only [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
 
 omit [Inhabited F] [Fintype G] in
 /-- Mirror of `honestImpl_param_real_a_indep_post_sendA` for the post-`challB`
@@ -715,23 +693,16 @@ lemma honestImpl_param_real_b_indep_post_challB
     (honestImplParamReal gp gen a b₁ t).run s =
     (honestImplParamReal gp gen a b₂ t).run s := by
   match t with
-  | OSendBrleak => rfl
-  | OSendArleak => rfl
-  | OCorruptB => rfl
-  | OCorruptA => rfl
   | OChallA =>  -- challA at h_cp = .B is off-party
     simp [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
       honestChallAparam, honestChallAparamMode, h_cp]
   | OChallB =>  -- challB: hit at challengedParty=B
     change (honestChallBparam gp gen b₁ ()).run s = (honestChallBparam gp gen b₂ ()).run s
     exact honestChallB_param_b_indep_post_event (gen := gen) gp h_cp b₁ b₂ s h_post
-  | ORecvB => rfl
-  | OSendA =>  -- sendA uses parameter `a`, not `b`
-    rfl
-  | ORecvA => rfl
-  | OSendB =>  -- sendB uses parameter `a`, not `b`
-    rfl
-  | OUnif _ => rfl
+  | OSendBrleak | OSendArleak | OCorruptB | OCorruptA | ORecvB
+  | OSendA | ORecvA | OSendB | OUnif _ =>
+    -- `simp only` instead of `rfl`: the kernel checks this much faster.
+    simp only [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
 
 omit [Inhabited F] [Fintype G] in
 /-- Rand impl is `a`-independent after the A-side embedding window. -/
@@ -743,26 +714,23 @@ lemma honestImpl_param_rand_a_indep_post_sendA
     (honestImplParamRand gp gen a₁ b gT t).run s =
     (honestImplParamRand gp gen a₂ b gT t).run s := by
   match t with
-  | OSendBrleak => rfl
-  | OSendArleak => rfl
-  | OCorruptB => rfl
-  | OCorruptA => rfl
   | OChallB =>
     simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
       honestChallBparamRand, honestChallBparamMode, h_cp]
   | OChallA =>
     simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
       honestChallAparamRand, honestChallAparamMode, h_cp]
-  | ORecvB => rfl
   | OSendB =>
     simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
       honestSendBparam, h_cp]
-  | ORecvA => rfl
   | OSendA =>
     change (honestSendAparam gp gen a₁ ()).run s =
       (honestSendAparam gp gen a₂ ()).run s
     exact honestSendA_param_a_indep_post_event (gen := gen) gp h_cp a₁ a₂ s h_post
-  | OUnif _ => rfl
+  | OSendBrleak | OSendArleak | OCorruptB | OCorruptA
+  | ORecvB | ORecvA | OUnif _ =>
+    -- `simp only` instead of `rfl`: the kernel checks this much faster.
+    simp only [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
 
 omit [Inhabited F] [Fintype G] in
 /-- Rand impl is `a`-independent after the B-side embedding window. -/
@@ -774,26 +742,23 @@ lemma honestImpl_param_rand_a_indep_post_sendB
     (honestImplParamRand gp gen a₁ b gT t).run s =
     (honestImplParamRand gp gen a₂ b gT t).run s := by
   match t with
-  | OSendBrleak => rfl
-  | OSendArleak => rfl
-  | OCorruptB => rfl
-  | OCorruptA => rfl
   | OChallB =>
     simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
       honestChallBparamRand, honestChallBparamMode, h_cp]
   | OChallA =>
     simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
       honestChallAparamRand, honestChallAparamMode, h_cp]
-  | ORecvB => rfl
   | OSendB =>
     change (honestSendBparam gp gen a₁ ()).run s =
       (honestSendBparam gp gen a₂ ()).run s
     exact honestSendB_param_a_indep_post_event (gen := gen) gp h_cp a₁ a₂ s h_post
-  | ORecvA => rfl
   | OSendA =>
     simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
       honestSendAparam, h_cp]
-  | OUnif _ => rfl
+  | OSendBrleak | OSendArleak | OCorruptB | OCorruptA
+  | ORecvB | ORecvA | OUnif _ =>
+    -- `simp only` instead of `rfl`: the kernel checks this much faster.
+    simp only [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
 
 omit [Inhabited F] [Fintype G] in
 /-- Rand impl is `b`-independent after A's challenge window. -/
@@ -805,10 +770,6 @@ lemma honestImpl_param_rand_b_indep_post_challA
     (honestImplParamRand gp gen a b₁ gT t).run s =
     (honestImplParamRand gp gen a b₂ gT t).run s := by
   match t with
-  | OSendBrleak => rfl
-  | OSendArleak => rfl
-  | OCorruptB => rfl
-  | OCorruptA => rfl
   | OChallB =>
     simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
       honestChallBparamRand, honestChallBparamMode, h_cp]
@@ -816,11 +777,10 @@ lemma honestImpl_param_rand_b_indep_post_challA
     change (honestChallAparamRand gp gen b₁ gT ()).run s =
       (honestChallAparamRand gp gen b₂ gT ()).run s
     exact honestChallA_param_rand_b_indep_post_event (gen := gen) gp h_cp b₁ b₂ gT s h_post
-  | ORecvB => rfl
-  | OSendB => rfl
-  | ORecvA => rfl
-  | OSendA => rfl
-  | OUnif _ => rfl
+  | OSendBrleak | OSendArleak | OCorruptB | OCorruptA | ORecvB
+  | OSendB | ORecvA | OSendA | OUnif _ =>
+    -- `simp only` instead of `rfl`: the kernel checks this much faster.
+    simp only [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
 
 omit [Inhabited F] [Fintype G] in
 /-- Rand impl is `b`-independent after B's challenge window. -/
@@ -832,10 +792,6 @@ lemma honestImpl_param_rand_b_indep_post_challB
     (honestImplParamRand gp gen a b₁ gT t).run s =
     (honestImplParamRand gp gen a b₂ gT t).run s := by
   match t with
-  | OSendBrleak => rfl
-  | OSendArleak => rfl
-  | OCorruptB => rfl
-  | OCorruptA => rfl
   | OChallA =>
     simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
       honestChallAparamRand, honestChallAparamMode, h_cp]
@@ -843,11 +799,10 @@ lemma honestImpl_param_rand_b_indep_post_challB
     change (honestChallBparamRand gp gen b₁ gT ()).run s =
       (honestChallBparamRand gp gen b₂ gT ()).run s
     exact honestChallB_param_rand_b_indep_post_event (gen := gen) gp h_cp b₁ b₂ gT s h_post
-  | ORecvB => rfl
-  | OSendA => rfl
-  | ORecvA => rfl
-  | OSendB => rfl
-  | OUnif _ => rfl
+  | OSendBrleak | OSendArleak | OCorruptB | OCorruptA | ORecvB
+  | OSendA | ORecvA | OSendB | OUnif _ =>
+    -- `simp only` instead of `rfl`: the kernel checks this much faster.
+    simp only [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
 
 omit [Inhabited F] [Fintype G] in
 /-- Rand impl is `gT`-independent after A's challenge window. -/
@@ -859,10 +814,6 @@ lemma honestImpl_param_rand_gT_indep_post_challA
     (honestImplParamRand gp gen a b gT₁ t).run s =
     (honestImplParamRand gp gen a b gT₂ t).run s := by
   match t with
-  | OSendBrleak => rfl
-  | OSendArleak => rfl
-  | OCorruptB => rfl
-  | OCorruptA => rfl
   | OChallB =>
     simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
       honestChallBparamRand, honestChallBparamMode, h_cp]
@@ -870,11 +821,10 @@ lemma honestImpl_param_rand_gT_indep_post_challA
     change (honestChallAparamRand gp gen b gT₁ ()).run s =
       (honestChallAparamRand gp gen b gT₂ ()).run s
     exact honestChallA_param_rand_gT_indep_post_event (gen := gen) gp h_cp b gT₁ gT₂ s h_post
-  | ORecvB => rfl
-  | OSendB => rfl
-  | ORecvA => rfl
-  | OSendA => rfl
-  | OUnif _ => rfl
+  | OSendBrleak | OSendArleak | OCorruptB | OCorruptA | ORecvB
+  | OSendB | ORecvA | OSendA | OUnif _ =>
+    -- `simp only` instead of `rfl`: the kernel checks this much faster.
+    simp only [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
 
 omit [Inhabited F] [Fintype G] in
 /-- Rand impl is `gT`-independent after B's challenge window. -/
@@ -886,10 +836,6 @@ lemma honestImpl_param_rand_gT_indep_post_challB
     (honestImplParamRand gp gen a b gT₁ t).run s =
     (honestImplParamRand gp gen a b gT₂ t).run s := by
   match t with
-  | OSendBrleak => rfl
-  | OSendArleak => rfl
-  | OCorruptB => rfl
-  | OCorruptA => rfl
   | OChallA =>
     simp [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
       honestChallAparamRand, honestChallAparamMode, h_cp]
@@ -897,11 +843,10 @@ lemma honestImpl_param_rand_gT_indep_post_challB
     change (honestChallBparamRand gp gen b gT₁ ()).run s =
       (honestChallBparamRand gp gen b gT₂ ()).run s
     exact honestChallB_param_rand_gT_indep_post_event (gen := gen) gp h_cp b gT₁ gT₂ s h_post
-  | ORecvB => rfl
-  | OSendA => rfl
-  | ORecvA => rfl
-  | OSendB => rfl
-  | OUnif _ => rfl
+  | OSendBrleak | OSendArleak | OCorruptB | OCorruptA | ORecvB
+  | OSendA | ORecvA | OSendB | OUnif _ =>
+    -- `simp only` instead of `rfl`: the kernel checks this much faster.
+    simp only [honestImplParamRand, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
 
 /-! ### State preservation and auxiliary
 
@@ -1222,6 +1167,27 @@ lemma honestImpl_param_real_t_monotone
     exact ⟨le_refl _, le_refl _⟩
 
 omit [Inhabited F] [Fintype G] in
+/-- Let `t` be an oracle index other than `OChallA` and `OChallB`. Then the rand
+and real honest stacks have the same handler at `t`.
+
+The proof rewrites with `QueryImpl.add_apply_inl`/`_inr` instead of closing by
+`rfl`, because a defeq check makes the kernel unfold both `+` chains, which is
+slow. -/
+lemma honestImplParamRand_eq_real_of_ne_chall
+    (gp : GameParams) (a b : F) (gT : G)
+    (t : (ckaSecuritySpec (CKAState F G) G G F).Domain)
+    (hA : t ≠ OChallA) (hB : t ≠ OChallB) :
+    honestImplParamRand gp gen a b gT t = honestImplParamReal gp gen a b t := by
+  match t with
+  | OChallA => exact absurd rfl hA
+  | OChallB => exact absurd rfl hB
+  | OSendBrleak | OSendArleak | OCorruptB | OCorruptA | ORecvB | OSendB | ORecvA
+  | OSendA | OUnif _ =>
+    simp only [honestImplParamRand, honestImplParamReal, QueryImpl.add_apply_inl,
+      QueryImpl.add_apply_inr]
+    rfl
+
+omit [Inhabited F] [Fintype G] in
 /-- The rand honest stack preserves monotonicity of both local counters. -/
 lemma honestImpl_param_rand_t_monotone
     (gp : GameParams) (a b : F) (gT : G)
@@ -1231,12 +1197,6 @@ lemma honestImpl_param_rand_t_monotone
     (hz : z ∈ support ((honestImplParamRand gp gen a b gT t).run s)) :
     s.tA ≤ z.2.tA ∧ s.tB ≤ z.2.tB := by
   match t with
-  | OSendBrleak =>
-    have hz' : z ∈ support ((honestImplParamReal gp gen a b OSendBrleak).run s) := hz
-    exact honestImpl_param_real_t_monotone (gen := gen) gp a b OSendBrleak s z hz'
-  | OSendArleak =>
-    have hz' : z ∈ support ((honestImplParamReal gp gen a b OSendArleak).run s) := hz
-    exact honestImpl_param_real_t_monotone (gen := gen) gp a b OSendArleak s z hz'
   | OCorruptB =>
     simp only [honestImplParamRand] at hz
     have h_eq := oracleCorrupt_state_unchanged gp .B s z hz
@@ -1281,21 +1241,12 @@ lemma honestImpl_param_rand_t_monotone
         StateT.run_get, StateT.run_map, StateT.run_set, StateT.run_pure,
         pure_bind, map_pure, ↓reduceIte, support_pure]
       <;> (have hpair := Set.mem_singleton_iff.mp hz; cases hpair; simp)
-  | ORecvB =>
-    have hz' : z ∈ support ((honestImplParamReal gp gen a b ORecvB).run s) := hz
-    exact honestImpl_param_real_t_monotone (gen := gen) gp a b ORecvB s z hz'
-  | OSendB =>
-    have hz' : z ∈ support ((honestImplParamReal gp gen a b OSendB).run s) := hz
-    exact honestImpl_param_real_t_monotone (gen := gen) gp a b OSendB s z hz'
-  | ORecvA =>
-    have hz' : z ∈ support ((honestImplParamReal gp gen a b ORecvA).run s) := hz
-    exact honestImpl_param_real_t_monotone (gen := gen) gp a b ORecvA s z hz'
-  | OSendA =>
-    have hz' : z ∈ support ((honestImplParamReal gp gen a b OSendA).run s) := hz
-    exact honestImpl_param_real_t_monotone (gen := gen) gp a b OSendA s z hz'
-  | OUnif n =>
-    have hz' : z ∈ support ((honestImplParamReal gp gen a b (OUnif n)).run s) := hz
-    exact honestImpl_param_real_t_monotone (gen := gen) gp a b (OUnif n) s z hz'
+  | OSendBrleak | OSendArleak | ORecvB | OSendB
+  | ORecvA | OSendA | OUnif _ =>
+    rw [honestImplParamRand_eq_real_of_ne_chall (gen := gen) gp a b gT _
+      (by simp only [ne_eq, Sum.inl.injEq, reduceCtorEq, not_false_eq_true])
+      (by simp only [ne_eq, Sum.inl.injEq, reduceCtorEq, not_false_eq_true])] at hz
+    exact honestImpl_param_real_t_monotone (gen := gen) gp a b _ s z hz
 
 /-- If a counter has already reached `epoch - 1`, the next counter value cannot still be
 `epoch - 1`. This discharges the post-send embedding-window side conditions. -/
