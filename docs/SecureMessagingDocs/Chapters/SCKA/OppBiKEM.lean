@@ -194,7 +194,7 @@ def recvB (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
 
 
 
-:::::gameCell "\\textsf{Shared send implementation}" (kind := "compact")
+:::::gameCell "\\textsf{Shared send implementation}" (kind := "compact") (tag := "opp-bikem-shared-send")
 
 For party $`P`, the shared send follows Figures 17–18 with offset $`\delta_P`,
 where $`\delta_A=1` and $`\delta_B=-1`. We write $`\bar P` for the peer of party $`P`.
@@ -297,7 +297,7 @@ def sendWith {RKey REnc : Type} (role : Role)
 
 :::::
 
-:::::gameCell "\\textsf{Shared receive implementation}" (kind := "compact")
+:::::gameCell "\\textsf{Shared receive implementation}" (kind := "compact") (tag := "opp-bikem-shared-recv")
 For party $`P`, the shared receive follows Figures 17–18 with offset $`\delta_P`,
 where $`\delta_A=1` and $`\delta_B=-1`. We write $`\bar P` for the peer of party $`P`.
 The boxes mark the acknowledgement-index correction and, for $`P=A`, the corrected received-ciphertext variable.

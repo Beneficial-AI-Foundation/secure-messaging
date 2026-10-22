@@ -91,6 +91,16 @@ r#"
 \newcommand{\concat}{\mathbin{\|}}
 \newcommand{\orc}[1]{\textsf{#1}}
 
+% --- Opp-BiKEM / Opp-UniKEM figure notation (used by the errata) ---
+\newcommand{\ACK}{\mathsf{ACK}}                                    % acknowledgement table
+\newcommand{\tres}[1]{t_{\mathrm{res}\text{-}#1}}                  % responder epoch counter of party #1
+\newcommand{\treq}[1]{t_{\mathrm{req}\text{-}#1}}                  % requester epoch counter of party #1
+\newcommand{\ctxtrec}{\mathsf{ct\text{-}rec}}                      % ciphertext acknowledgement (Opp-BiKEM)
+\newcommand{\Encode}{\mathsf{Encode}}                              % erasure-code chunk encoding
+\newcommand{\Decode}{\mathsf{Decode}}                              % erasure-code chunk decoding
+\newcommand{\CKASend}[1]{\mathsf{CKA}\text{-}\mathsf{Send}\text{-}#1} % CKA-Send-#1 as printed in the paper
+\newcommand{\CKARec}[1]{\mathsf{CKA}\text{-}\mathsf{Rec}\text{-}#1}   % CKA-Rec-#1 as printed in the paper
+
 % --- security experiments and advantages ---
 \newcommand{\adv}{\mathcal{A}}                          % the adversary
 \newcommand{\bit}{\{0,1\}}                               % the set of bits

@@ -351,7 +351,7 @@ def sendBrleak (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 ```
 :::::
 
-:::::gameCell "\\RecA(\\stA,\\rho)" (kind := "compact")
+:::::gameCell "\\RecA(\\stA,\\rho)" (kind := "compact") (tag := "opp-unikem-rec-a")
 $`\begin{array}{l}
 (\dkA,\ekA,\ctzero,t,\ich,\Lch,\ack)\gets\stA \\
 (\chunk,\ack',t',b)\gets\rho \\
@@ -448,7 +448,7 @@ def recvA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 ```
 :::::
 
-:::::gameCell "\\RecB(\\stB,\\rho)" (kind := "compact")
+:::::gameCell "\\RecB(\\stB,\\rho)" (kind := "compact") (tag := "opp-unikem-rec-b")
 $`\begin{array}{l}
 (\ekA,\ctzero,\ctone,\stct,t,\ich,\Lch,\ack)\gets\stB \\
 (\chunk,\ack',t',\_)\gets\rho \\

@@ -1,6 +1,6 @@
 import VersoManual
 import VersoBlueprint
-import SecureMessagingDocs.Visuals.Notation
+import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Bibliography
 
 open Verso.Genre
@@ -21,51 +21,50 @@ The pseudocode in each {bpref "opp_bikem_cka_spec"}[Opp-BiKEM] and
 {bpref "opp_unikem_cka_spec"}[Opp-UniKEM] protocol definition marks the corrections with boxes.
 The Lean implementations record them in the module docstrings of
 `SecureMessaging/SCKA/OppBiKEM/Construction.lean` and `SecureMessaging/SCKA/OppUniKEM/Construction.lean`.
+Line numbers refer to the paper's figures.
 
-# Erratum 1: Opp-BiKEM sending is blocked under the strict failure convention
-%%%
-number := false
-%%%
+::::erratum "1" "Opp-BiKEM sending is blocked under the strict failure convention" (scope := "Opp-BiKEM-CKA, Figures 17–18")
 
-In Figures 17–18, `CKA-Send-P` can reach line 19, `ch ← Encode(ct_P, i_ch)`,
-with `ct_P = ⊥`, where `P` stands for either `A` or `B`.
+In Figures 17–18, $`\CKASend{P}` can reach line 19, $`\chunk\gets\Encode(\ct_P,\ich)`,
+with $`\ct_P=\bot`, where $`P` stands for either $`\A` or $`\B`.
 This state occurs in normal honest runs.
 
 The paper's §2 notational convention says that a failing statement aborts the
-algorithm and discards its state changes. Under this convention, `Encode(⊥, ·)` fails.
-The send aborts, as does the `SM-Send-P` call that invokes it.
+algorithm and discards its state changes. Under this convention, $`\Encode(\bot,\cdot)` fails.
+The send aborts, as does the $`\mathsf{SM}\text{-}\mathsf{Send}\text{-}P` call that invokes it.
 A party cannot send any message while it waits for its peer's encapsulation key.
 
-In Figure 17, `CKA-Send-A`, lines 13–19 read as follows.
-Figure 18, `CKA-Send-B`, is symmetric.
+In Figure 17, $`\CKASend{\A}`, lines 13–19 read as follows.
+Figure 18, $`\CKASend{\B}`, is symmetric.
 
-```
-13: elseif ¬ACK[t_res-A].ct-rec            / ct_A not yet received by B
-14:   if ct_A = ⊥ ∧ ACK[t_res-A].ek-rec
-15:     t_IA ← t_res-A; i_ch ← 0
-16:     (ct_A, I_A) ← Enc(EK_B[t_res-A])
-17:   i_ch += 1
-18:   b ← 1
-19:   ch ← Encode(ct_A, i_ch)               / ct_A may still be ⊥ here
-```
+$$`\begin{array}{rl}
+{\scriptstyle 13} & \mathsf{else\ if}\;\neg\ACK[\tres{\A}].\ctxtrec\;\pthen \pcomment{\ct_\A\text{ not yet received by }\B} \\
+{\scriptstyle 14} & \quad\pif\;\ct_\A=\bot\wedge\ACK[\tres{\A}].\ekrec\;\pthen \\
+{\scriptstyle 15} & \qquad t_{I_\A}\gets\tres{\A},\quad\ich\gets0 \\
+{\scriptstyle 16} & \qquad(\ct_\A,I_\A)\sample\mathsf{Enc}(\mathsf{EK}_\B[\tres{\A}]) \\
+{\scriptstyle 17} & \quad\ich\gets\ich+1 \\
+{\scriptstyle 18} & \quad b\gets1 \\
+{\scriptstyle 19} & \quad\chunk\gets\Encode(\ct_\A,\ich) \pcomment{\ct_\A\text{ may still be }\bot\text{ here}}
+\end{array}`
 
-When execution reaches line 13 but line 14 does not hold, `ct_A` is still `⊥` at line 19.
+When execution reaches line 13 but line 14 does not hold, $`\ct_\A` is still $`\bot` at line 19.
 B acknowledges A's key, but A does not yet decode B's key.
 
 The parties send their encapsulation keys concurrently.
 A's key can therefore arrive and receive an acknowledgement before A decodes B's key.
-Under the strict §2 convention, line 16 fails in `CKA-Send-A`,
-and A cannot send any secure-messaging message until it decodes `ek_B`.
-The {bpref "opp_bikem_cka_spec"}[shared send] of `OppBiKEM/Construction.lean` instead sends no chunk,
-recorded as correction 4 in its module docstring.
-Figure 19, {bpref "opp_rkem_cka_spec"}[Opp-RKEM-CKA], has the same pattern in `CKA-Send-A` lines 13–21.
+Under the strict §2 convention, line 16 fails in $`\CKASend{\A}`,
+and A cannot send any secure-messaging message until it decodes $`\ek_\B`.
+Figure 19, {bpref "opp_rkem_cka_spec"}[Opp-RKEM-CKA], has the same pattern in $`\CKASend{\A}` lines 13–21.
 
-# Erratum 2: Opp-BiKEM public-key acknowledgements use the wrong indices
-%%%
-number := false
-%%%
+*Correction.* The {cellref "opp-bikem-shared-send"}[shared send] sends no chunk while the ciphertext is absent.
 
-In Figures 17–18, Send line 21 sends the `ek-rec` acknowledgement at the wrong epoch.
+*Formalisation.* `OppBiKEM/Construction.lean` records this as correction 4 in its module docstring.
+
+::::
+
+::::erratum "2" "Opp-BiKEM public-key acknowledgements use the wrong indices" (scope := "Opp-BiKEM-CKA, Figures 17–18")
+
+In Figures 17–18, Send line 21 sends the $`\ekrec` acknowledgement at the wrong epoch.
 Rec line 8 also records it at the wrong epoch.
 The following table gives the printed and corrected indices.
 
@@ -75,101 +74,107 @@ The following table gives the printed and corrected indices.
   * Printed
   * Corrected
 *
-  * Figure 17, `CKA-Send-A` line 21
-  * `ACK[t_req-A + 1].ek-rec`
-  * `ACK[t_req-A − 1].ek-rec`
+  * Figure 17, $`\CKASend{\A}` line 21
+  * $`\ACK[\treq{\A}+1].\ekrec`
+  * $`\ACK[\treq{\A}-1].\ekrec`
 *
-  * Figure 17, `CKA-Rec-A` line 8
-  * `ACK[t_req-B − 1].ek-rec ← true`
-  * `ACK[t_req-B + 1].ek-rec ← true`
+  * Figure 17, $`\CKARec{\A}` line 8
+  * $`\ACK[\treq{\B}-1].\ekrec\gets\mathsf{true}`
+  * $`\ACK[\treq{\B}+1].\ekrec\gets\mathsf{true}`
 *
-  * Figure 18, `CKA-Send-B` line 21
-  * `ACK[t_req-B − 1].ek-rec`
-  * `ACK[t_req-B + 1].ek-rec`
+  * Figure 18, $`\CKASend{\B}` line 21
+  * $`\ACK[\treq{\B}-1].\ekrec`
+  * $`\ACK[\treq{\B}+1].\ekrec`
 *
-  * Figure 18, `CKA-Rec-B` line 8
-  * `ACK[t_req-A + 1].ek-rec ← true`
-  * `ACK[t_req-A − 1].ek-rec ← true`
+  * Figure 18, $`\CKARec{\B}` line 8
+  * $`\ACK[\treq{\A}+1].\ekrec\gets\mathsf{true}`
+  * $`\ACK[\treq{\A}-1].\ekrec\gets\mathsf{true}`
 :::
 
 The corrected indices identify the entries set when a party decodes its peer's key:
-`ACK[t_req-A − 1].ek-rec` in Rec-A line 19 and `ACK[t_req-B + 1].ek-rec` in Rec-B line 19.
+$`\ACK[\treq{\A}-1].\ekrec` in Rec-A line 19 and $`\ACK[\treq{\B}+1].\ekrec` in Rec-B line 19.
 The printed indices differ by two epochs, and with them, neither party learns that its first public key arrived.
-The boxes in the {bpref "opp_bikem_cka_spec"}[shared send and receive] mark the corrected indices,
-and `OppBiKEM/Construction.lean` records them as correction 3 in its module docstring.
 
-# Erratum 3: Opp-BiKEM variable typos in Send-B and Rec-A
-%%%
-number := false
-%%%
+*Correction.* The boxes in the {cellref "opp-bikem-shared-send"}[shared send] and {cellref "opp-bikem-shared-recv"}[shared receive] mark the corrected indices.
 
-In Figure 18, `CKA-Send-B`, lines 8, 9, and 13 use `t_res-A`, which is absent from B's state.
-The corrected variable is $`\boxed{t_{\mathrm{res}\text{-}B}}`, as in lines 14–16.
-The corrected expressions are `DK_B[t_res-B − 1] ← dk_B`, `¬ACK[t_res-B − 1].ek-rec`, and `¬ACK[t_res-B].ct-rec`.
+*Formalisation.* `OppBiKEM/Construction.lean` records them as correction 3 in its module docstring.
 
-In Figure 17, `CKA-Rec-A`, line 22 reads `ct_A ← Decode(L_ch)`, which overwrites A's own ciphertext.
-The corrected assignment is `ct_B ← Decode(L_ch)`, with $`\boxed{\mathit{ct}_B}`, as used in lines 23 and 27.
-The boxes in the {bpref "opp_bikem_cka_spec"}[shared send and receive] mark the corrected variables,
-and `OppBiKEM/Construction.lean` records them as correction 1 in its module docstring.
+::::
 
-# Erratum 4: Opp-UniKEM acknowledgements are recorded in the wrong epoch
-%%%
-number := false
-%%%
+::::erratum "3" "Opp-BiKEM variable typos in Send-B and Rec-A" (scope := "Opp-BiKEM-CKA, Figures 17–18")
 
-Let `t` be the receiver's epoch and `(ch, ack', t', b)` the received message.
-In Figure 16, `CKA-Rec-A` and `CKA-Rec-B` end by copying the sender's acknowledgement,
-regardless of `t` after processing:
+In Figure 18, $`\CKASend{\B}`, lines 8, 9, and 13 use $`\tres{\A}`, which is absent from B's state.
+The corrected variable is $`\boxed{\tres{\B}}`, as in lines 14–16.
+The corrected expressions are $`\mathsf{DK}_\B[\tres{\B}-1]\gets\dk_\B`,
+$`\neg\ACK[\tres{\B}-1].\ekrec`, and $`\neg\ACK[\tres{\B}].\ctxtrec`.
 
-* `CKA-Rec-A` executes `if ack'.ek-rec then ack.ek-rec ← true`.
-* `CKA-Rec-B` (lines 12–13) executes `if ack'.ct0-rec then ack.ct0-rec ← true`.
+In Figure 17, $`\CKARec{\A}`, line 22 reads $`\ct_\A\gets\Decode(\Lch)`, which overwrites A's own ciphertext.
+The corrected assignment is $`\boxed{\ct_\B}\gets\Decode(\Lch)`, as used in lines 23 and 27.
 
-The acknowledgement belongs to epoch `t'`.
-When `t ≠ t'`, it marks the receiver's current payload as delivered although the peer did not receive it.
+*Correction.* The boxes in the {cellref "opp-bikem-shared-send"}[shared send] and {cellref "opp-bikem-shared-recv"}[shared receive] mark the corrected variables.
 
-The correction is to record the acknowledgement only if $`t=t'` after processing:
-`if ack'.ek-rec ∧ t = t'` in Rec-A and `if ack'.ct0-rec ∧ t = t'` in Rec-B.
-The boxes in the {bpref "opp_unikem_cka_spec"}[receive algorithms] mark this guard,
-and `OppUniKEM/Construction.lean` implements it under "Acknowledgements" in its module docstring.
+*Formalisation.* `OppBiKEM/Construction.lean` records them as correction 1 in its module docstring.
 
-# Erratum 5: Opp-UniKEM Rec-B returns the receiver's epoch
-%%%
-number := false
-%%%
+::::
 
-`CKA-Rec-B` (Figure 16, line 15) returns `((⊥, ⊥), t − 1, st)`, where `t` is B's epoch.
-The matching-epoch condition (Figure 1, `Receive-P` line 4: `assert t_rcv_P = t_snd_P̄`) requires the sender's value.
-`CKA-Send-A` computes that value as the message epoch minus one, `t' − 1`.
-`CKA-Rec-A` already returns `t' − 1`.
+::::erratum "4" "Opp-UniKEM acknowledgements are recorded in the wrong epoch" (scope := "Opp-UniKEM-CKA, Figure 16")
+
+Let $`t` be the receiver's epoch and $`(\chunk,\ack',t',b)` the received message.
+In Figure 16, $`\CKARec{\A}` and $`\CKARec{\B}` end by copying the sender's acknowledgement,
+regardless of $`t` after processing:
+
+* $`\CKARec{\A}` executes $`\pif\;\ack'.\ekrec\;\pthen\;\ack.\ekrec\gets\mathsf{true}`.
+* $`\CKARec{\B}` (lines 12–13) executes $`\pif\;\ack'.\ctrec\;\pthen\;\ack.\ctrec\gets\mathsf{true}`.
+
+The acknowledgement belongs to epoch $`t'`.
+When $`t\ne t'`, it marks the receiver's current payload as delivered although the peer did not receive it.
+
+*Correction.* Record the acknowledgement only if $`t=t'` after processing:
+$`\pif\;\ack'.\ekrec\wedge\boxed{t=t'}` in Rec-A and $`\pif\;\ack'.\ctrec\wedge\boxed{t=t'}` in Rec-B.
+The boxes in {cellref "opp-unikem-rec-a"}[Rec-A] and {cellref "opp-unikem-rec-b"}[Rec-B] mark this guard.
+
+*Formalisation.* `OppUniKEM/Construction.lean` implements it under "Acknowledgements" in its module docstring.
+
+::::
+
+::::erratum "5" "Opp-UniKEM Rec-B returns the receiver's epoch" (scope := "Opp-UniKEM-CKA, Figure 16")
+
+$`\CKARec{\B}` (Figure 16, line 15) returns $`((\bot,\bot),\,t-1,\,\mathsf{st})`, where $`t` is B's epoch.
+The matching-epoch condition (Figure 1, $`\mathsf{Receive}\text{-}P` line 4:
+$`\mathsf{assert}\;t^{\mathrm{rcv}}_P=t^{\mathrm{snd}}_{\bar P}`) requires the sender's value.
+$`\CKASend{\A}` computes that value as the message epoch minus one, $`t'-1`.
+$`\CKARec{\A}` already returns $`t'-1`.
 
 The two values differ when B is ahead of the message.
-A sends `ρ_1` in epoch `t`, which the adversary withholds while epoch `t` completes.
-A then sends `ρ_2` in epoch `t + 1`.
-Delivering `ρ_2` moves B to epoch `t + 1`.
-Delivering `ρ_1` afterwards makes B return `t`, while `ρ_1` was sent with `t_snd_A = t − 1`.
+A sends $`\rho_1` in epoch $`t`, which the adversary withholds while epoch $`t` completes.
+A then sends $`\rho_2` in epoch $`t+1`.
+Delivering $`\rho_2` moves B to epoch $`t+1`.
+Delivering $`\rho_1` afterwards makes B return $`t`, while $`\rho_1` was sent with $`t^{\mathrm{snd}}_\A=t-1`.
 The correctness assertion fails.
 
-The correction is to return $`t'-1`.
-The box in {bpref "opp_unikem_cka_spec"}[`Rec-B`] marks the corrected value,
-and `OppUniKEM/Construction.lean` implements it under "Receiving epoch" in its module docstring.
+*Correction.* Return $`\boxed{t'-1}`. The box in {cellref "opp-unikem-rec-b"}[Rec-B] marks the corrected value.
 
-# Erratum 6: Make Opp-UniKEM Rec-A's chunk guards and abort behavior explicit
-%%%
-number := false
-%%%
+*Formalisation.* `OppUniKEM/Construction.lean` implements it under "Receiving epoch" in its module docstring.
 
-The corrections to Figure 16's `CKA-Rec-A` distinguish absent chunks,
-incomplete decoding, and failure after decoding the online ciphertext `ct_1`.
-Both ciphertext-decoding branches require `ch ≠ ⊥`.
-If the message contains no chunk, A neither inserts `⊥` into `L_ch` nor attempts decoding.
+::::
 
-If decoding is incomplete, A retains the received chunk in `L_ch` and remains in the same epoch.
-Acknowledgement processing continues only if `t = t'` after processing, with `t` denoting A's epoch and `t'` the message's epoch.
+::::erratum "6" "Opp-UniKEM Rec-A's chunk guards and abort behaviour made explicit" (scope := "Opp-UniKEM-CKA, Figure 16")
+
+The corrections to Figure 16's $`\CKARec{\A}` distinguish absent chunks,
+incomplete decoding, and failure after decoding the online ciphertext $`\ctone`.
+Both ciphertext-decoding branches require $`\chunk\ne\bot`.
+If the message contains no chunk, A neither inserts $`\bot` into $`\Lch` nor attempts decoding.
+
+If decoding is incomplete, A retains the received chunk in $`\Lch` and remains in the same epoch.
+Acknowledgement processing continues only if $`t=t'` after processing,
+with $`t` denoting A's epoch and $`t'` the message's epoch.
 Incomplete decoding does not abort the receive.
 
-After decoding a current-epoch `ct_1`, A requires both `dk_A` and `ct_0` to decapsulate.
-If either input is absent, or decapsulation returns `⊥`, the entire receive aborts under the paper's §2 failure convention.
+After decoding a current-epoch $`\ctone`, A requires both $`\dkA` and $`\ctzero` to decapsulate.
+If either input is absent, or decapsulation returns $`\bot`, the entire receive aborts under the paper's §2 failure convention.
 The abort discards local state changes and skips acknowledgement processing.
-Only successful decapsulation produces the epoch key, erases the epoch's secrets, and advances A to epoch `t + 1`.
-The boxes in {bpref "opp_unikem_cka_spec"}[`Rec-A`] mark these checks.
+Only successful decapsulation produces the epoch key, erases the epoch's secrets, and advances A to epoch $`t+1`.
 
+*Correction.* The boxes in {cellref "opp-unikem-rec-a"}[Rec-A] mark these checks.
+
+::::
