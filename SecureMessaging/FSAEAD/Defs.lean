@@ -54,7 +54,7 @@ is decrypted as soon as it arrives.
   only holds indices already sent, so such an injection would count as a forgery, and
   `delete(i)` would run before A's record for `i` exists. Here:
   1. `O-Corr-A` adds all unsent indices `i > i_A^c` to `comp`, so injecting them does
-     not count as a forgery;
+     not count as a forgery, and `record` no longer adds to `comp`;
   2. when A later sends at index `i_A > i_A^c`, `record` does nothing if `corrA` holds
      and `i_A ∉ comp`, i.e. when an earlier injection already consumed index `i_A`.
 
@@ -139,7 +139,7 @@ structure GameState (StS StR AD M C : Type) where
   /-- Indices of challenge ciphertexts in transit. -/
   chall : Finset ℕ
   /-- Indices exposed by A's corruption and not yet received by B. -/
-  comp : Set ℕ
+  comp : ℕ → Bool
 -- ANCHOR_END: GameState
 
 namespace GameState
@@ -155,21 +155,20 @@ def init (fs : FSAEADScheme K StS StR AD M C) (k : K) : GameState StS StR AD M C
   won := false
   trans := []
   chall := ∅
-  comp := ∅
+  comp := fun _ => false
 -- ANCHOR_END: gameStateInit
 
-open Classical in
 /-- `record(flag, a, m, e)` of Figure 5, for the record at index `i_A`.
 Correction: nothing is recorded if A is corrupted and an injection already consumed `i_A`
-(removing `i_A` from `comp`). -/
+(removing `i_A` from `comp`). Figure 5's `comp ← rec` is dropped: past the guard, either A
+is not corrupted or `i_A` is already in `comp`. -/
 -- ANCHOR: gameStateRecord
-noncomputable def record (st : GameState StS StR AD M C) (isChall : Bool) (a : AD) (m : M) (e : C) :
+def record (st : GameState StS StR AD M C) (isChall : Bool) (a : AD) (m : M) (e : C) :
     GameState StS StR AD M C :=
-  if st.corrA ∧ st.iA ∉ st.comp then st else
+  if st.corrA && !st.comp st.iA then st else
   { st with
     trans := st.trans ++ [(st.iA, a, m, e)]
-    chall := if isChall then insert st.iA st.chall else st.chall
-    comp := if st.corrA then insert st.iA st.comp else st.comp }
+    chall := if isChall then insert st.iA st.chall else st.chall }
 -- ANCHOR_END: gameStateRecord
 
 /-- `delete(i)` of Figure 5: remove the record with index `i` everywhere. -/
@@ -178,7 +177,7 @@ def delete (st : GameState StS StR AD M C) (i : ℕ) : GameState StS StR AD M C 
   { st with
     trans := st.trans.filter (·.1 ≠ i)
     chall := st.chall.erase i
-    comp := st.comp \ {i} }
+    comp := fun j => j != i && st.comp j }
 -- ANCHOR_END: gameStateDelete
 
 /-- The in-transit record `(i, a, m, e)` with the smallest index `i`. `trans` is ordered by
@@ -258,7 +257,7 @@ O-Transmit-A(a, m):
   return e
 ``` -/
 -- ANCHOR: oracleTransmitA
-noncomputable def oracleTransmitA (fs : FSAEADScheme K StS StR AD M C) :
+def oracleTransmitA (fs : FSAEADScheme K StS StR AD M C) :
     QueryImpl (AD × M →ₒ Option C) (GameM StS StR AD M C) :=
   fun (a, m) => do
     let st ← get
@@ -278,7 +277,7 @@ O-Chall-A(a, m₀, m₁):
   return e
 ``` -/
 -- ANCHOR: oracleChallA
-noncomputable def oracleChallA (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : Bool) :
+def oracleChallA (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : Bool) :
     QueryImpl (AD × M × M →ₒ Option C) (GameM StS StR AD M C) :=
   fun (a, m₀, m₁) => do
     let st ← get
@@ -304,7 +303,7 @@ def oracleCorrA (StS StR AD M C : Type) :
   fun () => do
     let st ← get
     if st.ended then return none
-    let comp := if st.corrA then st.comp else {i | st.iA < i}
+    let comp := if st.corrA then st.comp else fun i => decide (st.iA < i)
     set { st with corrA := true, comp }
     return some st.vA
 -- ANCHOR_END: oracleCorrA
@@ -360,7 +359,6 @@ def oracleDeliverB [DecidableEq AD] [DecidableEq M] [DecidableEq C]
       return some (i', if i ∈ st.chall then none else some m')
 -- ANCHOR_END: oracleDeliverB
 
-open Classical in
 /-- **O-Inject-B(a, e)**. Delivers any other ciphertext. If B accepts it for an index that
 is not compromised (`i' ∉ comp`), the adversary wins. `delete(i')` then removes `i'` from
 `comp`, so a compromised index (whether in transit or not yet sent by A) can be consumed
@@ -377,21 +375,21 @@ O-Inject-B(a, e):
   return (i', m')
 ``` -/
 -- ANCHOR: oracleInjectB
-noncomputable def oracleInjectB [DecidableEq AD] [DecidableEq C]
+def oracleInjectB [DecidableEq AD] [DecidableEq C]
     (fs : FSAEADScheme K StS StR AD M C) :
     QueryImpl (AD × C →ₒ Option (ℕ × M)) (GameM StS StR AD M C) :=
   fun (a, e) => do
     let st ← get
     if st.ended || (st.findTrans a e).isSome then return none
     let some (vB, i', m') := fs.rcv st.vB a e | return none
-    let won := st.won || decide (i' ∉ st.comp)
+    let won := st.won || !st.comp i'
     set ({ st with vB, won }.delete i')
     return some (i', m')
 -- ANCHOR_END: oracleInjectB
 
 /-- Complete oracle set for the FS-AEAD security game with challenge bit `b`. -/
 -- ANCHOR: fsaeadSecurityImpl
-noncomputable def fsaeadSecurityImpl [DecidableEq AD] [DecidableEq M] [DecidableEq C]
+def fsaeadSecurityImpl [DecidableEq AD] [DecidableEq M] [DecidableEq C]
     (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : Bool) :
     QueryImpl (fsaeadSpec StS StR AD M C) (GameM StS StR AD M C) :=
   oracleUnif StS StR AD M C
@@ -411,7 +409,7 @@ noncomputable def fsaeadSecurityImpl [DecidableEq AD] [DecidableEq M] [Decidable
 `run`:    `b' ← A^{O-Transmit-A, O-Chall-A, O-Corr-A, O-Corr-B, O-Deliver-B, O-Inject-B}`
 `output`: `true` if the adversary reached a winning condition, otherwise `b' = b` -/
 -- ANCHOR: securityExp
-noncomputable def securityExp [SampleableType K] [DecidableEq AD] [DecidableEq M] [DecidableEq C]
+def securityExp [SampleableType K] [DecidableEq AD] [DecidableEq M] [DecidableEq C]
     (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ)
     (adversary : FSAEADAdversary StS StR AD M C) : ProbComp Bool := do
   let k ← $ᵗ K
