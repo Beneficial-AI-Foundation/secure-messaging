@@ -73,12 +73,7 @@ structure FSAEADScheme (K StS StR AD M C : Type) where
 :::
 
 :::::::definition "fs_aead_security" (parent := "fs_aead") (lean := "FSAEADScheme.GameState, FSAEADScheme.securityExp, FSAEADScheme.fsaeadSecurityImpl, FSAEADScheme.advantage") (tags := "gh-187") (uses := "fs_aead_scheme")
-Adapted from {Informal.citet ACD19}[], Figure 5 and Definition 15, with two boxed
-corrections for unsent indices after A is corrupted:
-
-- $`\OCorrA` adds all unsent indices $`i > i_\A` to $`\mathsf{comp}`;
-- $`\mathsf{record}` skips $`i_\A` if A is corrupted and $`i_\A \notin \mathsf{comp}`
-  (already consumed by an injection).
+Adapted from {Informal.citet ACD19}[], Figure 5 and Definition 15.
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Game state and notation}" (kind := "scheme-notation")
@@ -92,11 +87,13 @@ The game state consists of:
     * $`\mathsf{corrA}`: whether A has been corrupted.
     * $`\mathsf{won}`: whether the adversary reached a winning condition.
   *
-    * $`\mathsf{trans}`: the records $`(i, a, m, e)` of ciphertexts in transit.
+    * $`\mathsf{trans}`: the records $`(i, a, m, e)` of ciphertexts in transit (sent by A
+      for indices $`i` not yet received by B).
     * $`\mathsf{chall} \subseteq \mathbb N`: the indices of challenge ciphertexts in
-      transit.
-    * $`\mathsf{comp} \subseteq \mathbb N`: the indices of ciphertexts in transit that A
-      sent while corrupted, $`\boxed{\textit{\small and unsent indices not yet received by B}}`.
+      $`\mathsf{trans}`.
+    * $`\mathsf{comp} \subseteq \mathbb N`: indices exposed by A's corruption and not yet
+      received by B: those in $`\mathsf{trans}` sent while A was corrupted,
+      $`\boxed{\textit{\small and unsent indices while A is corrupted}}`.
 ::::
 
 In the oracles, $`\req\varphi` means: if $`\varphi` is false, the oracle returns
@@ -127,6 +124,18 @@ structure GameState (StS StR AD M C : Type) where
   /-- Indices exposed by A's corruption and not yet received by B. -/
   comp : Set ℕ
 ```
+:::::
+
+:::::gameCell "\\textsf{Corrections}" (kind := "scheme-notation")
+Once A is corrupted at counter $`i_\A^c`, the adversary knows A's state and can inject a
+ciphertext for an unsent index $`i > i_\A^c` before A sends it. We make two corrections to
+the security game for this case, marked by boxes in pseudocode:
+
+- $`\OCorrA` adds all unsent indices $`i > i_\A^c` to $`\mathsf{comp}`, so injecting them
+  does not count as a forgery;
+- when A later sends at index $`i_\A > i_\A^c`, $`\mathsf{record}` does nothing if
+  $`\mathsf{corrA}` holds and $`i_\A \notin \mathsf{comp}`, i.e. when an earlier injection
+  already consumed index $`i_\A`.
 :::::
 ::::::
 
