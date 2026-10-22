@@ -356,10 +356,6 @@ lemma hindepA_param_honest (gp : GameParams) (b : F)
     (honestImplParamReal gp gen a₁ b t).run s =
     (honestImplParamReal gp gen a₂ b t).run s := by
   match t with
-  | OSendBrleak => rfl
-  | OSendArleak => rfl
-  | OCorruptB => rfl
-  | OCorruptA => rfl
   | OChallB =>  -- challB: gated by challengedParty = .B
     cases h_cp : gp.challengedParty with
     | A =>
@@ -374,7 +370,6 @@ lemma hindepA_param_honest (gp : GameParams) (b : F)
     | B =>
       simp only [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
         honestChallAparam]
-  | ORecvB => rfl  -- recvB
   | OSendB =>  -- sendB: gated by challengedParty = .A
     cases h_cp : gp.challengedParty with
     | A =>
@@ -382,7 +377,6 @@ lemma hindepA_param_honest (gp : GameParams) (b : F)
     | B =>
       simp [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
         honestSendBparam, h_cp]
-  | ORecvA => rfl  -- recvA
   | OSendA =>  -- sendA: gated by challengedParty = .B
     cases h_cp : gp.challengedParty with
     | A =>
@@ -390,7 +384,10 @@ lemma hindepA_param_honest (gp : GameParams) (b : F)
         honestSendAparam, h_cp]
     | B =>
       exfalso; simp [hitA, h_cp] at h
-  | OUnif _ => rfl  -- oracleUnif
+  | OSendBrleak | OSendArleak | OCorruptB | OCorruptA
+  | ORecvB | ORecvA | OUnif _ =>
+    -- `simp only` instead of `rfl`: the kernel checks this much faster.
+    simp only [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
 
 omit [Fintype G] in
 /-- Lazy honest impl wrapped in inner `consumeLazy hitA` is `b`-independent
@@ -404,10 +401,6 @@ lemma hindepB_param_honest (gp : GameParams)
     (OracleComp.ProgramLogic.Relational.consumeLazy (hit := hitA gp)
         (implFam := fun a => honestImplParamReal gp gen a b₂) t).run s := by
   match t with
-  | OSendBrleak => rfl
-  | OSendArleak => rfl
-  | OCorruptB => rfl
-  | OCorruptA => rfl
   | OChallB =>  -- challB: gated by challengedParty = .B
     cases h_cp : gp.challengedParty with
     | A =>
@@ -424,12 +417,11 @@ lemma hindepB_param_honest (gp : GameParams)
       unfold OracleComp.ProgramLogic.Relational.consumeLazy
       simp [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
         honestChallAparam, honestChallAparamMode, hitA, h_cp]
-  | ORecvB => rfl  -- recvB
-  | OSendB => rfl  -- sendB
-  | ORecvA => rfl  -- recvA
-  | OSendA => rfl  -- sendA
-  | OUnif _ => rfl  -- oracleUnif
-
+  | OSendBrleak | OSendArleak | OCorruptB | OCorruptA | ORecvB
+  | OSendB | ORecvA | OSendA | OUnif _ =>
+    -- `simp only` instead of `rfl`: the kernel checks this much faster.
+    unfold OracleComp.ProgramLogic.Relational.consumeLazy
+    simp only [honestImplParamReal, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
 
 /-! ### Lazy `QueryImpl` set ↔ eager `ProbComp` sampling
 
