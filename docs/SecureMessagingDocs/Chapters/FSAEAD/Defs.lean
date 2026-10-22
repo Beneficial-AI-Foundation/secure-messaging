@@ -52,7 +52,7 @@ where
 - $`\mathsf{FS\text{-}Rcv}` takes a state $`v`, associated data $`a` and a ciphertext
   $`e`, and produces a new state, an index and a message
   $`(v', i, m) \gets \mathsf{FS\text{-}Rcv}(v, a, e)`,
-  $`\boxed{\text{or } \bot \text{ if it rejects } e}`.
+  $`\boxed{\text{or } \bot \text{ if it rejects } e}.`
 
 All algorithms are deterministic.
 
@@ -93,7 +93,7 @@ The game state consists of:
       $`\mathsf{trans}`.
     * $`\mathsf{comp} \subseteq \mathbb N`: indices exposed by A's corruption and not yet
       received by B: those in $`\mathsf{trans}` sent while A was corrupted,
-      $`\boxed{\textit{\small and unsent indices while A is corrupted}}`.
+      $`\boxed{\textit{\small and unsent indices while A is corrupted}}.`
 ::::
 
 In the oracles, $`\req\varphi` means: if $`\varphi` is false, the oracle returns
