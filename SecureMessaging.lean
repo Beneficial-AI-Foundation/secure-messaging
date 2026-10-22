@@ -100,6 +100,7 @@ import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.RecvStep
 import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.SendStep
 import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.Main
 import SecureMessaging.SCKA.OppBiKEM.Correctness.PerfectKEM
+import SecureMessaging.SCKA.OppBiKEM.Security.Basic
 import SecureMessaging.SCKA.OppUniKEM.Correctness
 import SecureMessaging.SCKA.OppUniKEM.Security.Endpoints
 import SecureMessaging.SymEnc.Defs
