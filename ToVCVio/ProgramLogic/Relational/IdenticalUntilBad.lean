@@ -47,7 +47,7 @@ theorem measureTVDist_simulateQ_le_prEvent_output_bad_base [MeasurableSpace α]
       Pr{let z ← (impl₁ t).run p}[q z ∧ ¬z.2.2 = true] =
         Pr{let z ← (impl₂ t).run p}[q z ∧ ¬z.2.2 = true] := by
     rintro t ⟨s, b⟩ hb q
-    obtain rfl : b = false := by simpa using hb
+    obtain rfl : b = false := by simpa only [Bool.not_eq_true] using hb
     exact prEvent_and_not_flag_eq_of_forall_prEvent_eq (h_agree_good t s) q
   rw [measureTVDist_eq_toReal_measureETVDist]
   exact ENNReal.toReal_mono (prEvent_ne_top _)

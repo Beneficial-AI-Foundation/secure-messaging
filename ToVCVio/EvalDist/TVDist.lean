@@ -122,7 +122,8 @@ lemma measureTVDist_eq_abs_prEvent_true_sub (p q : m Bool)
   have hle (μ : Measure Bool) (hμ : μ Set.univ = 1) (s : Set Bool) : μ s ≤ 1 :=
     (measure_mono (Set.subset_univ s)).trans hμ.le
   have hcompl (μ : Measure Bool) (hμ : μ Set.univ = 1) : μ {false} = 1 - μ {true} := by
-    have hs : ({false} : Set Bool) = {true}ᶜ := by ext b; cases b <;> simp
+    have hs : ({false} : Set Bool) = {true}ᶜ := by ext b; cases b <;>
+      simp only [Set.mem_singleton_iff, Bool.true_eq_false, Bool.compl_singleton, Bool.not_true]
     rw [hs, measure_compl (measurableSet_singleton _)
       (ne_top_of_le_ne_top ENNReal.one_ne_top (hle μ hμ _)), hμ]
   rw [prEvent_eq_evalDist_singleton, prEvent_eq_evalDist_singleton,
@@ -134,10 +135,14 @@ lemma measureTVDist_eq_abs_prEvent_true_sub (p q : m Bool)
   refine iSup_le fun ⟨s, _⟩ => ?_
   have key : s = ∅ ∨ s = {true} ∨ s = {false} ∨ s = Set.univ := by
     by_cases ht : true ∈ s <;> by_cases hf : false ∈ s
-    · exact Or.inr <| Or.inr <| Or.inr <| by ext b; cases b <;> simp [ht, hf]
-    · exact Or.inr <| Or.inl <| by ext b; cases b <;> simp [ht, hf]
-    · exact Or.inr <| Or.inr <| Or.inl <| by ext b; cases b <;> simp [ht, hf]
-    · exact Or.inl <| by ext b; cases b <;> simp [ht, hf]
+    · exact Or.inr <| Or.inr <| Or.inr <| by
+        ext b; cases b <;> simp only [ht, hf, Bool.univ_eq, Set.mem_insert_iff,
+          Set.mem_singleton_iff, Bool.true_eq_false, Bool.false_eq_true, or_true, or_false]
+    · exact Or.inr <| Or.inl <| by
+        ext b; cases b <;> simp only [ht, hf, Set.mem_singleton_iff, Bool.false_eq_true]
+    · exact Or.inr <| Or.inr <| Or.inl <| by
+        ext b; cases b <;> simp only [ht, hf, Set.mem_singleton_iff, Bool.true_eq_false]
+    · exact Or.inl <| by ext b; cases b <;> simp only [ht, hf, Set.mem_empty_iff_false]
   rcases key with rfl | rfl | rfl | rfl
   · simp only [measure_empty, ENNReal.absDiff_self, zero_le]
   · exact le_rfl
