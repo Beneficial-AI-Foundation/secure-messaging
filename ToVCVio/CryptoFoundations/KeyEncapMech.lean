@@ -180,6 +180,30 @@ theorem correctnessError_probComp_eq_prEvent_false (kem : KEMScheme ProbComp K P
   rw [ProbCompRuntime.prFail, SemanticsVia.prFail, ← ProbCompRuntime.evalDist,
     MeasureTheory.measure_univ, tsub_self]
 
+/-- A pointwise bound on the events of two continuations survives a common draw. -/
+private lemma prEvent_bind_le_prEvent_bind [LawfulMonad m] [EvalDistSemantics m]
+    [LawfulEvalDistSemantics m] {α : Type} (mx : m α) (f g : α → m Prop)
+    (h : ∀ a, prEvent (f a) ≤ prEvent (g a)) : prEvent (mx >>= f) ≤ prEvent (mx >>= g) := by
+  simpa only [id_map] using
+    prEvent_bind_mono_of_forall_le mx f g id id fun a => by simpa only [id_map] using h a
+
+/-- Decapsulating an honestly-generated ciphertext fails no more often than `kem`'s own
+correctness experiment returns `false`: whenever decapsulation returns `none`, it certainly
+doesn't recover the encapsulated key. -/
+theorem prEvent_none_decaps_le_prEvent_false_correctnessExperiment [LawfulMonad m]
+    [EvalDistSemantics m] [LawfulEvalDistSemantics m] (kem : KEMScheme m K PK SK C) :
+    Pr{let x ← do let (pk, sk) ← kem.keygen; let (c, _k) ← kem.encaps pk; kem.decaps sk c}[
+        x = (none : Option K)] ≤
+      Pr{let x ← kem.correctnessExperiment}[x = false] := by
+  unfold KEMScheme.correctnessExperiment
+  simp only [map_bind, map_pure]
+  refine prEvent_bind_le_prEvent_bind _ _ _ fun _ => ?_
+  refine prEvent_bind_le_prEvent_bind _ _ _ fun _ => ?_
+  refine prEvent_bind_le_prEvent_bind _ _ _ fun r => ?_
+  rcases r with _ | k'
+  · simp only [prEvent_pure_prop, ↓reduceIte, reduceCtorEq, decide_false, Std.le_refl]
+  · simp only [reduceCtorEq, prEvent_pure_prop, ↓reduceIte, zero_le]
+
 /-- `delta`-correctness of `kem` under `runtime`: the correctness error is at most `delta`. -/
 -- ANCHOR: deltaCorrect
 def deltaCorrect (kem : KEMScheme m K PK SK C)
