@@ -126,12 +126,14 @@ Supporting modules: `Basic` (interface, send budget), `Invariant` (transcript an
 invariants), `SCKA.Security` (generic guards), ToVCVio (sampling and stopping).
 -/
 
-/-! ## Steps 3–5: from the fixed branches to the ideal hybrids
+/-! ## Steps 4 and 5: adjacent-hybrid gaps and epoch averaging
 
-In the notation of the proof structure, `S_e^b` is `idealSecurityImpl (adjacentMode e (!b))`
-stopped at the first exposure of `e`, where the function `adjacentMode e b : ℕ → Bool`
-(`HybridGame`) is `true` exactly at the epochs `1, …, e - 1`, and at `e` if `b`, whose
-challenges get uniform keys.
+In the notation of the proof structure above, `fixedBranch_eq_ideal` (`Reduction/SourceDeferral`)
+combines Steps 2 and 3: for every `e > 0` and `b`, the fixed branch `𝓑_e^b` (`fixedBranch adv e b`)
+has the same acceptance probability as the stopped ideal hybrid `S_e^b`:
+`Pr[𝓑_e^b = true] = Pr[S_e^b = true]`. From this identity, we derive the per-epoch difference in
+acceptance probability (`fixedBranch_signed_gap_eq`, Step 4) and average over `e`
+(`hybrid_gap_eq_query_factor`, Step 5).
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -141,128 +143,10 @@ namespace oppUniKemCKA.Security.Embedding
 variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- For all material `m₀`, `Pr[m ← sampleMaterial leak; hybridStopped m e b = true]` equals
-`Pr[stopped .fresh m₀ e b = true]`, both from the initial state; `fresh` reads no stored output. -/
-theorem pinnedHybrid_eq_fresh
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (hDet : base.DeterministicDecaps)
-    (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-    (leak : base.OnOffRandLeak onoff)
-    (m₀ : Material leak) (e : ℕ) (b : Bool) (adv : SecurityAdversary leak Sym) :
-    Pr[= true | do
-      let m ← sampleMaterial leak
-      optionRun (hybridStopped base onoff ecEk ecCt0 ecCt1 leak m e b) adv
-        (oppUniKemCKA.Reduction.Internal.initialGame base onoff)] =
-    Pr[= true | optionRun
-      (Sampling.stopped base onoff ecEk ecCt0 ecCt1 leak .fresh m₀ e b) adv
-      (oppUniKemCKA.Reduction.Internal.initialGame base onoff)] := by
-  trans Pr[= true | do
-    let kg ← leak.keygenRleak
-    let off ← leak.encapsOffRleak
-    optionRun (Sampling.stopped base onoff ecEk ecCt0 ecCt1 leak
-      .onlineFresh { m₀ with keygen := kg, off := off } e b) adv
-      (oppUniKemCKA.Reduction.Internal.initialGame base onoff)]
-  · simp only [sampleMaterial, bind_assoc, pure_bind]
-    apply probOutput_bind_congr
-    intro kg hkg
-    apply probOutput_bind_congr
-    intro off hoff
-    obtain ⟨online, hon⟩ : (support (leak.encapsOnRleak off.1.1 kg.1.1)).Nonempty := by
-      simp [Set.nonempty_iff_ne_empty, ← probFailure_eq_one_iff]
-    let m : Material leak := ⟨kg, off, online⟩
-    have hm : m ∈ support (sampleMaterial leak) := by
-      simp only [sampleMaterial, mem_support_bind_iff, mem_support_pure_iff]
-      exact ⟨kg, hkg, off, hoff, online, hon, rfl⟩
-    exact hybridStopped_online_deferred base onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
-      leak m hm e b adv _
-      (reachableInv_init base onoff ecEk ecCt0 ecCt1 ecEk.ec.nchunk_pos ecCt0.ec.nchunk_pos)
-      (pinnedSources_initial base onoff leak m e)
-  trans Pr[= true | do
-    let kg ← leak.keygenRleak
-    optionRun (Sampling.stopped base onoff ecEk ecCt0 ecCt1 leak
-      .encapsFresh { m₀ with keygen := kg } e b) adv
-      (oppUniKemCKA.Reduction.Internal.initialGame base onoff)]
-  · apply probOutput_bind_congr
-    intro kg _
-    exact Sampling.stopped_offline_deferred base onoff ecEk ecCt0 ecCt1 leak
-      { m₀ with keygen := kg } e b adv _
-  · exact Sampling.stopped_keygen_deferred base onoff ecEk ecCt0 ecCt1 leak m₀ e b adv _
-
-/-- Step 3: `Pr[m ← sampleMaterial leak; hybridStopped m e b = true]` equals the acceptance
-probability of `idealSecurityImpl (adjacentMode e b)` stopped at the first exposure of `e`. -/
-theorem pinnedHybrid_eq_ideal
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (hDet : base.DeterministicDecaps)
-    (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-    (leak : base.OnOffRandLeak onoff) (e : ℕ) (b : Bool) (adv : SecurityAdversary leak Sym) :
-    Pr[= true | do
-      let m ← sampleMaterial leak
-      optionRun (hybridStopped base onoff ecEk ecCt0 ecCt1 leak m e b) adv
-        (oppUniKemCKA.Reduction.Internal.initialGame base onoff)] =
-    Pr[= true | optionRun
-      (stopOnState (idealSecurityImpl base onoff hDet ecEk ecCt0 ecCt1 leak (adjacentMode e b))
-        (fun s => decide (e ∈ s.exposed))) adv
-      (oppUniKemCKA.Reduction.Internal.initialGame base onoff)] := by
-  obtain ⟨m₀, _⟩ : (support (sampleMaterial leak)).Nonempty := by
-    simp [Set.nonempty_iff_ne_empty, ← probFailure_eq_one_iff]
-  rw [pinnedHybrid_eq_fresh base onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1 leak m₀ e b adv]
-  unfold Sampling.stopped
-  rw [Sampling.oracle_fresh_eq_ideal base onoff hDet ecEk ecCt0 ecCt1 leak m₀ e b]
-
-/-- Steps 2 and 3: for `e > 0`, `Pr[𝓑_e^b = true] = Pr[S_e^b = true]`. -/
-theorem fixedBranch_eq_ideal
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (hDet : base.DeterministicDecaps)
-    (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-    (leak : base.OnOffRandLeak onoff) (e : ℕ) (he : 0 < e)
-    (b : Bool) (adv : SecurityAdversary leak Sym) :
-    Pr[= true | fixedBranch base onoff ecEk ecCt0 ecCt1 leak adv e b] =
-    Pr[= true | optionRun
-      (stopOnState (idealSecurityImpl base onoff hDet ecEk ecCt0 ecCt1 leak
-        (adjacentMode e (!b))) (fun s => decide (e ∈ s.exposed))) adv
-      (oppUniKemCKA.Reduction.Internal.initialGame base onoff)] := by
-  rw [fixedBranch_eq_pinnedHybrid base onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
-    leak adv e he b]
-  exact pinnedHybrid_eq_ideal base onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
-    leak e (!b) adv
-
-end oppUniKemCKA.Security.Embedding
-
-open OracleSpec OracleComp KEMScheme
-
-namespace oppUniKemCKA.Security.Embedding
-
-variable {K PK SK C Sym : Type}
-variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
-
-omit [DecidableEq K] [DecidableEq Sym] [SampleableType K] in
-/-- `adjacentMode (i + 1) false` randomizes exactly the epochs `1, …, i`. -/
-theorem adjacentMode_succ_false (i : ℕ) :
-    adjacentMode (i + 1) false = fun t => decide (0 < t ∧ t ≤ i) := by
-  funext t
-  simp only [adjacentMode, Bool.false_eq_true, false_and, or_false]
-  congr 1
-  apply propext
-  omega
-
-omit [DecidableEq K] [DecidableEq Sym] [SampleableType K] in
-/-- `adjacentMode (i + 1) true` randomizes exactly the epochs `1, …, i + 1`. -/
-theorem adjacentMode_succ_true (i : ℕ) :
-    adjacentMode (i + 1) true = fun t => decide (0 < t ∧ t ≤ i + 1) := by
-  funext t
-  simp only [adjacentMode, true_and]
-  congr 1
-  apply propext
-  omega
-
-/-- Step 4: `Pr[𝓑_{i+1}^true = true] - Pr[𝓑_{i+1}^false = true] = p_i - p_{i+1}`. -/
--- ANCHOR: fixedBranch_signed_gap_eq
+/-- Step 4 (exposure cancellation): for challenge epoch `i + 1`, the difference in acceptance
+probability between the real and random branches of `𝓑_{i+1} := fixedBranch adv (i + 1)` equals
+that between the adjacent ideal hybrids `H_i := idealEpochHybridExp adv i` and `H_{i+1}`:
+`Pr[𝓑_{i+1}^true = true] - Pr[𝓑_{i+1}^false = true] = Pr[H_i = true] - Pr[H_{i+1} = true]`. -/
 theorem fixedBranch_signed_gap_eq
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (hDet : base.DeterministicDecaps)
@@ -274,9 +158,7 @@ theorem fixedBranch_signed_gap_eq
       (Pr[= true | fixedBranch base onoff ecEk ecCt0 ecCt1 leak adv (i + 1) false]).toReal =
     (Pr[= true | idealEpochHybridExp base onoff hDet ecEk ecCt0 ecCt1 leak adv i]).toReal -
       (Pr[= true | idealEpochHybridExp
-        base onoff hDet ecEk ecCt0 ecCt1 leak adv (i + 1)]).toReal
--- ANCHOR_END: fixedBranch_signed_gap_eq
-    := by
+        base onoff hDet ecEk ecCt0 ecCt1 leak adv (i + 1)]).toReal := by
   rw [fixedBranch_eq_ideal base onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
       leak (i + 1) (Nat.succ_pos i) true adv,
     fixedBranch_eq_ideal base onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
@@ -298,7 +180,11 @@ theorem fixedBranch_signed_gap_eq
       (oppUniKemCKA.Reduction.Internal.initialGame base onoff)]).toReal = _
   linarith only [hstop]
 
-/-- Step 5: for `q > 0`, `Pr[𝓑_real = true] - Pr[𝓑_random = true] = (p_0 - p_q) / q`. -/
+/-- Step 5 (epoch averaging): for `q > 0`, averaging over the uniform challenge epoch
+`e ∈ {1, …, q}` and telescoping the adjacent-hybrid differences of `fixedBranch_signed_gap_eq`
+relates the difference in acceptance probability between the real and random IND-CPA branches of
+`𝓑 := securityReduction … adv q` to the endpoint ideal hybrids `H_0 := idealEpochHybridExp adv 0`
+and `H_q`: `Pr[𝓑_real = true] - Pr[𝓑_random = true] = (Pr[H_0 = true] - Pr[H_q = true]) / q`. -/
 theorem securityReduction_signed_gap_eq
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (hDet : base.DeterministicDecaps)
@@ -321,8 +207,10 @@ theorem securityReduction_signed_gap_eq
     (Pr[= true | idealEpochHybridExp base onoff hDet ecEk ecCt0 ecCt1 leak adv (i + 1)]).toReal) q,
     Finset.sum_range_sub']
 
-/-- Step 5: for every `q`, `|p_0 - p_q| = q · AdvINDCPA_KEM(base, 𝓑)`. -/
--- ANCHOR: hybrid_gap_eq_query_factor
+/-- Step 5: for every `q : ℕ`, the distance between the acceptance probabilities of the endpoint
+ideal hybrids `H_0 := idealEpochHybridExp adv 0` and `H_q := idealEpochHybridExp adv q` is `q`
+times the IND-CPA advantage of `𝓑 := securityReduction … adv q`:
+`|Pr[H_0 = true] - Pr[H_q = true]| = q · AdvINDCPA_KEM(base, 𝓑)`. -/
 theorem hybrid_gap_eq_query_factor
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (hDet : base.DeterministicDecaps)
@@ -333,9 +221,7 @@ theorem hybrid_gap_eq_query_factor
     |(Pr[= true | idealEpochHybridExp base onoff hDet ecEk ecCt0 ecCt1 leak adv 0]).toReal -
       (Pr[= true | idealEpochHybridExp base onoff hDet ecEk ecCt0 ecCt1 leak adv q]).toReal| =
     (q : ℝ) * base.IND_CPA_Advantage ProbCompRuntime.probComp
-      (securityReduction base onoff ecEk ecCt0 ecCt1 leak adv q)
--- ANCHOR_END: hybrid_gap_eq_query_factor
-    := by
+      (securityReduction base onoff ecEk ecCt0 ecCt1 leak adv q) := by
   rcases Nat.eq_zero_or_pos q with rfl | hpos
   · simp
   have hq : q ≠ 0 := hpos.ne'
@@ -357,7 +243,7 @@ variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
 /-- If `SecuritySendQueryBound adv q` and `𝓑 := securityReduction … adv q`, then
-`AdvGuess_SCKA(Π, adv) ≤ (q / 2) · AdvINDCPA_KEM(kem, 𝓑) + q · ε`. -/
+`AdvGuess_SCKA(scka, adv) ≤ (q / 2) · AdvINDCPA_KEM(kem, 𝓑) + q · ε`. -/
 -- ANCHOR: security
 theorem security
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
@@ -367,13 +253,14 @@ theorem security
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
     (leak : kem.OnOffRandLeak onoff)
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
-    SCKAScheme.sckaGuessAdvantage (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)
-      adv (exposureA kem onoff leak) (exposureB kem onoff leak) ≤
-    ((q : ℝ) / 2) * kem.IND_CPA_Advantage ProbCompRuntime.probComp
-      (Security.Embedding.securityReduction kem onoff ecEk ecCt0 ecCt1 leak adv q) +
-      (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal
+    let scka := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak
+    let 𝓑 := Security.Embedding.securityReduction kem onoff ecEk ecCt0 ecCt1 leak adv q
+    let ε := (kem.correctnessError ProbCompRuntime.probComp).toReal
+    SCKAScheme.sckaGuessAdvantage scka adv (exposureA kem onoff leak) (exposureB kem onoff leak) ≤
+      (q / 2 : ℝ) * kem.IND_CPA_Advantage ProbCompRuntime.probComp 𝓑 + q * ε
 -- ANCHOR_END: security
     := by
+  dsimp only
   have h := Security.security_guess_le_hybrid_gap kem onoff hDet ecEk hEk
     ecCt0 hCt0 ecCt1 hCt1 leak adv q hq
   have hgap := Security.Embedding.hybrid_gap_eq_query_factor kem onoff hDet ecEk hEk
@@ -381,7 +268,7 @@ theorem security
   linarith
 
 /-- `security` for a perfectly correct KEM:
-`AdvGuess_SCKA(Π, adv) ≤ (q / 2) · AdvINDCPA_KEM(kem, 𝓑)`. -/
+`AdvGuess_SCKA(scka, adv) ≤ (q / 2) · AdvINDCPA_KEM(kem, 𝓑)`. -/
 -- ANCHOR: security_perfectKEM
 theorem security_perfectKEM
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
@@ -391,15 +278,17 @@ theorem security_perfectKEM
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
     (leak : kem.OnOffRandLeak onoff) (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
-    SCKAScheme.sckaGuessAdvantage (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)
-      adv (exposureA kem onoff leak) (exposureB kem onoff leak) ≤
-    ((q : ℝ) / 2) * kem.IND_CPA_Advantage ProbCompRuntime.probComp
-      (Security.Embedding.securityReduction kem onoff ecEk ecCt0 ecCt1 leak adv q)
+    let scka := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak
+    let 𝓑 := Security.Embedding.securityReduction kem onoff ecEk ecCt0 ecCt1 leak adv q
+    SCKAScheme.sckaGuessAdvantage scka adv (exposureA kem onoff leak) (exposureB kem onoff leak) ≤
+      (q / 2 : ℝ) * kem.IND_CPA_Advantage ProbCompRuntime.probComp 𝓑
 -- ANCHOR_END: security_perfectKEM
     := by
+  dsimp only
   have herror := (KEMScheme.correctnessError_eq_zero_iff_perfectlyCorrect
     kem ProbCompRuntime.probComp).2 hkem
-  simpa only [herror, ENNReal.toReal_zero, mul_zero, add_zero] using
-    security kem onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1 leak adv q hq
+  have hsec := security kem onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1 leak adv q hq
+  dsimp only at hsec
+  simpa only [herror, ENNReal.toReal_zero, mul_zero, add_zero] using hsec
 
 end oppUniKemCKA

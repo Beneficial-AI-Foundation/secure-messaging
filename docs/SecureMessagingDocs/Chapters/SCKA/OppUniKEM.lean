@@ -745,14 +745,35 @@ exposure functions of {bpref "opp_unikem_cka_vulnerable_epochs"}[]. Assume:
 * the erasure codes for $`PK`, $`C_0`, $`C_1` satisfy {bpref "erasure_code_correctness"}[];
 * $`\mathcal A` makes at most $`q` ordinary or leaking sends on every oracle-response path.
 
-$`\varepsilon=\Pr[\mathsf{Decaps}(sk,ct)\ne k]` for $`(pk,sk)\sample\mathsf{KeyGen}()` and
-$`(ct,k)\sample\mathsf{Encaps}(pk)`, with failure $`\bot` counted as an error.
+*Definitions.*
 
-*Security bound.* For the IND-CPA adversary $`\mathcal B=\mathsf{securityReduction}(\mathcal A,q)`:
+* $`G_b(\mathcal A)` is the experiment of {bpref "scka_security"}[] with challenge bit $`b`, and
+  $`\operatorname{Adv}^{\mathsf{guess}}_{\mathsf{SCKA},\Pi}(\mathcal A)=|\Pr[b'=b]-\tfrac12|
+  =\tfrac12|\Pr[G_1(\mathcal A)=1]-\Pr[G_0(\mathcal A)=1]|`.
+* $`\operatorname{Adv}^{\mathsf{IND\text{-}CPA}}_{\mathsf{KEM}}(\mathcal B)
+  =|\Pr[\mathcal B(pk,ct,k)=1]-\Pr[\mathcal B(pk,ct,u)=1]|` for
+  $`(pk,sk)\sample\mathsf{KeyGen}()`, $`(ct,k)\sample\mathsf{Encaps}(pk)`, and $`u\sample K`.
+* $`\varepsilon=\Pr[\mathsf{Decaps}(sk,ct)\ne k]` over the same samples, with failure $`\bot`
+  counted as an error.
+
+*The adversary* $`\mathcal B=\mathsf{securityReduction}(\mathcal A,q)`. On $`(pk^*,ct^*,k^*)`,
+$`\mathcal B` draws $`e\sample\{1,\ldots,q\}` and returns the output of $`\mathcal A` run
+against the oracles of $`\Pi` with the following changes, or $`0` once a permitted corruption
+or leaking send would reveal a hidden value:
+
+* key generation at A's epoch $`e` returns $`pk^*` and encapsulation at B's epoch $`e` returns
+  $`ct^*`, with hidden secret key, offline state, shared key, and coins;
+* A, on completing an online ciphertext, outputs B's recorded key instead of decapsulating;
+* a challenge at epoch $`t` returns a uniform key if $`t<e`, $`k^*` if $`t=e`, and the
+  recorded key if $`t>e`.
+
+*Theorem.*
 
 $$`\boxed{\operatorname{Adv}^{\mathsf{guess}}_{\mathsf{SCKA},\Pi}(\mathcal A)
 \le \frac q2\operatorname{Adv}^{\mathsf{IND\text{-}CPA}}_{\mathsf{KEM}}(\mathcal B)
 +q\varepsilon.}`
+
+For a perfectly correct KEM, $`\varepsilon=0`.
 
 :::leanPillCaption "Security bound"
 :::
@@ -766,14 +787,14 @@ theorem security
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
     (leak : kem.OnOffRandLeak onoff)
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
-    SCKAScheme.sckaGuessAdvantage (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)
-      adv (exposureA kem onoff leak) (exposureB kem onoff leak) ≤
-    ((q : ℝ) / 2) * kem.IND_CPA_Advantage ProbCompRuntime.probComp
-      (Security.Embedding.securityReduction kem onoff ecEk ecCt0 ecCt1 leak adv q) +
-      (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal
+    let scka := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak
+    let 𝓑 := Security.Embedding.securityReduction kem onoff ecEk ecCt0 ecCt1 leak adv q
+    let ε := (kem.correctnessError ProbCompRuntime.probComp).toReal
+    SCKAScheme.sckaGuessAdvantage scka adv (exposureA kem onoff leak) (exposureB kem onoff leak) ≤
+      (q / 2 : ℝ) * kem.IND_CPA_Advantage ProbCompRuntime.probComp 𝓑 + q * ε
 ```
 
-:::leanPillCaption "Send budget: at most $`q` ordinary or leaking sends on every path"
+:::leanPillCaption "Send budget"
 :::
 
 ```anchor securitySendQueryBound (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Security.Basic)
@@ -782,58 +803,6 @@ def SecuritySendQueryBound {kem : KEMScheme ProbComp K PK SK C}
     (adv : SecurityAdversary leak Sym) (q : ℕ) : Prop :=
   adv.IsQueryBoundP (fun t => SCKAScheme.sckaSecuritySpec.isSendQuery t = true) q
 ```
-
-*Advantages.*
-
-* SCKA: $`G_b(\mathcal A)` is the experiment of {bpref "scka_security"}[] with its bit fixed
-  to $`b`.
-* IND-CPA: $`(pk^*,sk^*)\sample\mathsf{KeyGen}()`, $`(ct^*,k)\sample\mathsf{Encaps}(pk^*)`,
-  $`u\sample K`; $`\mathcal B` receives $`pk^*`, then $`(ct^*,k)` in the real branch or
-  $`(ct^*,u)` in the random branch.
-
-For a uniform bit $`b` and guess $`b'` (the second line is
-`KEMScheme.IND_CPA_Advantage_eq_fixed_branch_dist`):
-
-$$`\begin{aligned}
-\operatorname{Adv}^{\mathsf{guess}}_{\mathsf{SCKA},\Pi}(\mathcal A)
- &=|\Pr[b'=b]-\tfrac12|=\tfrac12\,|\Pr[G_1(\mathcal A)=1]-\Pr[G_0(\mathcal A)=1]|,\\
-\operatorname{Adv}^{\mathsf{IND\text{-}CPA}}_{\mathsf{KEM}}(\mathcal B)
- &=|2\Pr[b'=b]-1|=|\Pr[\mathcal B_{\mathsf{real}}=1]-\Pr[\mathcal B_{\mathsf{random}}=1]|.
-\end{aligned}`
-
-*The reduction.* On $`pk^*` and $`(ct^*,k^*)`, $`\mathcal B` selects an epoch $`e`, embeds
-$`pk^*` and $`ct^*` in its key generation and encapsulation, and runs $`\mathcal A` once
-against $`\mathsf{Sim}` (running time not formalized). A private field of a simulated state is
-absent, $`\mathsf{hidden}` (unknown to $`\mathcal B`), or known.
-
-::::::gameGrid
-:::::gameCell "\\mathcal B.\\mathsf{preChallenge}(pk^*)" (kind := "game")
-$`\begin{array}{l}
-\pif\;q=0\;\pthen\; e\gets1\\
-\pelse\;e\sample\{1,\ldots,q\}\\
-\Return(pk^*,e)
-\end{array}`
-
-:::leanPillCaption "Choice of the challenge epoch"
-:::
-
-```anchor embedding_epochChoice (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Simulator)
-def epochChoice (q : ℕ) : ProbComp ℕ :=
-  if hq : q = 0 then pure 1
-  else
-    letI : NeZero q := ⟨hq⟩
-    (fun i : Fin q => i.val + 1) <$> ($ᵗ (Fin q) : ProbComp (Fin q))
-```
-
-:::::
-:::::gameCell "\\mathcal B.\\mathsf{postChallenge}((pk^*,e),ct^*,k^*)" (kind := "game")
-$`\begin{array}{l}
-(c_0^*,c_1^*)\gets\mathsf{split}(ct^*)\\
-\widetilde{s}\gets\mathsf{InitialState}\\
-b'\gets\mathcal A^{\mathsf{Sim}_{e,pk^*,ct^*,k^*}}\\
-\pif\;\mathsf{Sim}\text{ terminates}\;\pthen\;\Return0\\
-\Return b'
-\end{array}`
 
 :::leanPillCaption "The IND-CPA adversary"
 :::
@@ -850,278 +819,6 @@ def securityReduction [DecidableEq K] [DecidableEq Sym] [SampleableType K]
   postChallenge state ct key := run base onoff ecEk ecCt0 ecCt1 leak adv state.2 state.1 ct key
 ```
 
-:::leanPillCaption "Simulated execution of the adversary; termination gives output 0"
-:::
-
-```anchor embedding_run (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Simulator)
-def run [DecidableEq K] [DecidableEq Sym] [SampleableType K]
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (adv : SecurityAdversary leak Sym) (e : ℕ) (pkStar : PK) (ctStar : C) (kStar : K) :
-    ProbComp Bool := do
-  let result ← ((simulateQ (oracle base onoff ecEk ecCt0 ecCt1 leak e pkStar ctStar kStar)
-    adv).run).run' (initial onoff)
-  pure (result.getD false)
-```
-
-:::::
-:::::gameCell "\\mathsf{Sim}:\\text{ sampling and delivery}" (kind := "oracle")
-$`\begin{array}{l}
-\text{Key generation at A's epoch }e:\\
-\quad(pk,sk)\gets(pk^*,\mathsf{hidden})\\
-\text{Offline encapsulation at B's epoch }e:\\
-\quad(st,c_0)\gets(\mathsf{hidden},c_0^*)\\
-\text{Online encapsulation with hidden }st:\\
-\quad(c_1,k)\gets(c_1^*,\mathsf{hidden})\\
-\text{Leaking sends: the coins of these three phases are hidden}\\
-\text{Other sampling phases: run the KEM honestly}\\
-\text{Send: encode and record the protocol message}\\
-\text{Receive}(n):\text{ deliver the recorded message }n\\
-\text{A's ciphertext completion: output B's recorded key of that epoch}\\
-\text{Uniform query: return a fresh uniform sample}
-\end{array}`
-
-:::leanPillCaption "Key generation and encapsulation with the embedded challenge"
-:::
-
-```anchor embedding_primitives (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Simulator)
-def keygen (kem : KEMScheme ProbComp K PK SK C) (selected : Bool) (pkStar : PK) :
-    ProbComp (PK × Option SK) :=
-  if selected then pure (pkStar, none) else Prod.map id some <$> kem.keygen
-
-/-- Simulator offline encapsulation: the offline part of `ctStar` with an unavailable state if
-`selected`, else `onoff.encapsOff` with a known state. -/
-def encapsOff {kem : KEMScheme ProbComp K PK SK C} (onoff : kem.OnOffStructure)
-    (selected : Bool) (ctStar : C) : ProbComp (Option onoff.St × onoff.C₀) :=
-  if selected then pure (none, (onoff.split ctStar).1)
-  else Prod.map some id <$> onoff.encapsOff
-
-/-- Simulator online encapsulation: the online part of `ctStar` with an unavailable key for an
-unavailable state, else `onoff.encapsOn st pk` with a known key. -/
-def encapsOn {kem : KEMScheme ProbComp K PK SK C} (onoff : kem.OnOffStructure)
-    (ctStar : C) (st : Option onoff.St) (pk : PK) : ProbComp (onoff.C₁ × Option K) :=
-  match st with
-  | none => pure ((onoff.split ctStar).2, none)
-  | some st => Prod.map id some <$> onoff.encapsOn st pk
-```
-
-:::::
-:::::gameCell "\\mathsf{Sim}:\\mathsf{Chall}(t)" (kind := "challenge")
-$`\begin{array}{l}
-\req\;t\notin\mathsf{Exposed}\cup\mathsf{Challenged}\\
-\req\;\text{a key is recorded for epoch }t\\
-\pif\;0<t<e\;\pthen\;z\sample K\\
-\pelse\;\pif\;t=e\;\pthen\;z\gets k^*\\
-\pelse\;z\gets\text{recorded key, or }k^*\text{ if it is hidden}\\
-\mathsf{Challenged}\gets\mathsf{Challenged}\cup\{t\}\\
-\Return z
-\end{array}`
-
-Challenges leave the key tables unchanged; in particular, $`k^*` is never recorded.
-
-:::leanPillCaption "Challenge oracle of the simulator"
-:::
-
-```anchor embedding_challenge (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Simulator)
-def challengeWith [SampleableType K] {σA σB κ ρ : Type} (toKey : κ → K) (e : ℕ) (kStar : K) :
-    QueryImpl (ℕ →ₒ Option K) (StateT (SCKAScheme.GameState σA σB κ ρ) ProbComp) :=
-  fun t => do
-    let s ← get
-    if t ∈ s.exposed ∨ t ∈ s.challenged then pure none
-    else
-      let key := match s.keyA t with
-        | some k => some k
-        | none => s.keyB t
-      match key with
-      | none => pure none
-      | some honest =>
-        let k ← if 0 < t ∧ t < e then liftM ($ᵗ K : ProbComp K)
-          else pure (if t = e then kStar else toKey honest)
-        set { s with challenged := insert t s.challenged }
-        pure (some k)
-
-/-- Simulator challenge oracle: an unavailable recorded key is read as `kStar`. -/
-def challenge [SampleableType K]
-    {base : KEMScheme ProbComp K PK SK C} (onoff : base.OnOffStructure)
-    (e : ℕ) (kStar : K) : QueryImpl (ℕ →ₒ Option K) (StateT (SimState onoff Sym) ProbComp) :=
-  challengeWith (fun key : Option K => key.getD kStar) e kStar
-```
-
-:::::
-:::::gameCell "\\mathsf{Sim}:\\text{ corruption and coin leakage}" (kind := "oracle")
-$`\begin{array}{l}
-\text{Compute the proposed response and its exposure set }E\\
-\pif\;E\cap\mathsf{Challenged}\ne\emptyset\;\pthen\\
-\quad\text{retain the input state};\ \Return\bot\\
-\text{Apply the oracle's state and exposure updates}\\
-\pif\;\text{the response needs hidden material}\;\pthen\\
-\quad\text{terminate the simulation with output }0\\
-\Return\text{the permitted state or coins}
-\end{array}`
-
-Revelation fails exactly on a $`\mathsf{hidden}` field or hidden coins; it succeeds on
-absent fields and on sends that sample no coins.
-
-:::leanPillCaption "Revelation of a private field"
-:::
-
-```anchor embedding_revealField (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Simulator)
-def revealField {α : Type} : Option (Option α) → Option (Option α)
-  | none => some none
-  | some none => none
-  | some (some a) => some (some a)
-```
-
-:::leanPillCaption "Revelation of leaked coins"
-:::
-
-```anchor embedding_revealCoins (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Simulator)
-def revealCoins {KG OFF ON : Type} :
-    SendRand (Option KG) (Option OFF) (Option ON) → Option (SendRand KG OFF ON)
-  | .none => some .none
-  | .keygen r => .keygen <$> r
-  | .off r => .off <$> r
-  | .on r => .on <$> r
-  | .offOn r₀ r₁ => do pure (.offOn (← r₀) (← r₁))
-```
-
-:::leanPillCaption "Simulated oracles: guards apply before revelation"
-:::
-
-```anchor embedding_oracle (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Simulator)
-def oracle [DecidableEq K] [DecidableEq Sym] [SampleableType K]
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (e : ℕ) (pkStar : PK) (ctStar : C) (kStar : K) :
-    QueryImpl (securitySpec leak Sym) (OptionT (StateT (SimState onoff Sym) ProbComp)) :=
-  fun t => (get : OptionT (StateT (SimState onoff Sym) ProbComp) (SimState onoff Sym)) >>= fun s =>
-    let selectedA := decide (s.stA.t = e)
-    let selectedB := decide (s.stB.t = e)
-    let key := s.keyB s.stA.t
-    let simKem := kem base onoff selectedA selectedB pkStar ctStar key
-    let simOnOff := onOff base onoff selectedA selectedB pkStar ctStar key
-    let simLeak := leakage base onoff leak selectedA selectedB pkStar ctStar key
-    let scka := scheme simKem simOnOff
-      (deterministic base onoff selectedA selectedB pkStar ctStar key) ecEk ecCt0 ecCt1 simLeak
-    match (motive := ∀ query,
-        OptionT (StateT (SimState onoff Sym) ProbComp) ((securitySpec leak Sym).Range query)) t with
-    | .inl (.inl (.inl (.inl (.inl t)))) =>
-      liftM (SCKAScheme.sckaCorrectnessImpl scka t)
-    | .inl (.inl (.inl (.inl (.inr u)))) =>
-      revealAfter (revealResponse (fun (out : ℕ × Option ℕ × Message Sym ×
-          SendRand (Option leak.KeygenRand) (Option leak.OffRand) (Option leak.OnRand)) => do
-        let (n, epoch, msg, coins) := out
-        pure (n, epoch, msg, ← revealCoins coins)))
-        (SCKAScheme.oracleSendArleak vulnRleakA scka u)
-    | .inl (.inl (.inl (.inr u))) =>
-      revealAfter (revealResponse (fun (out : ℕ × Option ℕ × Message Sym ×
-          SendRand (Option leak.KeygenRand) (Option leak.OffRand) (Option leak.OnRand)) => do
-        let (n, epoch, msg, coins) := out
-        pure (n, epoch, msg, ← revealCoins coins)))
-        (SCKAScheme.oracleSendBrleak vulnRleakB scka u)
-    | .inl (.inl (.inr t)) => liftM (challenge (Sym := Sym) onoff e kStar t)
-    | .inl (.inr u) =>
-      revealAfter (revealResponse (revealA (onoff := onoff) (Sym := Sym)))
-        (SCKAScheme.oracleCorruptA (vulnCorrA (Sym := Sym) simKem simOnOff)
-          (StateB PK onoff.C₀ onoff.C₁ (Option onoff.St) Sym) (Option K) (Message Sym) u)
-    | .inr u =>
-      revealAfter (revealResponse (revealB (onoff := onoff) (Sym := Sym)))
-        (SCKAScheme.oracleCorruptB (vulnCorrB (Sym := Sym) simKem simOnOff)
-          (StateA (Option SK) PK onoff.C₀ Sym) (Option K) (Message Sym) u)
-```
-
-:::::
-::::::
-
-*Proof outline.* $`I_b` is $`G_b` with A outputting B's recorded key instead of
-decapsulating; $`H_i` is $`I_0` with uniform keys at the eligible challenges of epochs
-$`1,\ldots,i`, and $`p_i=\Pr[H_i(\mathcal A)=1]`; $`\mathcal B^{(e)}` fixes the epoch to $`e`.
-
-$$`\begin{array}{ccccc}
-G_0 & \xleftrightarrow{\ \le q\varepsilon\ } &
-H_0\xleftrightarrow{\ \mathcal B^{(1)}\ }H_1\ \cdots
-H_{q-1}\xleftrightarrow{\ \mathcal B^{(q)}\ }H_q &
-\xleftrightarrow{\ \le q\varepsilon\ } & G_1\\
-\text{real SCKA} && \text{ideal hybrids} && \text{random SCKA}
-\end{array}`
-
-1. *Correctness errors:* $`|\Pr[G_b=1]-\Pr[I_b=1]|\le q\varepsilon`, $`H_0=I_0`, and
-   $`p_q=\Pr[I_1=1]`, so $`\operatorname{Adv}^{\mathsf{guess}}\le\tfrac12|p_0-p_q|+q\varepsilon`
-   (`security_correctness_endpoint_le`, `security_guess_le_hybrid_gap`).
-2. *Simulation:* each branch of $`\mathcal B^{(e)}` is the ideal game with the samples of epoch
-   $`e` drawn in advance and the challenges of $`\mathsf{Sim}`, stopped at the exposure of $`e`
-   (`fixedBranch_eq_honestStopped`).
-3. *Deferred sampling:* each pre-drawn sample is used at most once, at its protocol call, so
-   the real and random branches equal $`H_{e-1}` and $`H_e` stopped at $`e`
-   (`fixedBranch_eq_ideal`).
-4. *Exposure cancellation:* both hybrids reject the challenge of $`e` once $`e` is exposed, so
-   stopping preserves $`p_{e-1}-p_e`, the signed gap of $`\mathcal B^{(e)}`
-   (`fixedBranch_signed_gap_eq`).
-5. *Averaging* over $`e`:
-   $`|p_0-p_q|=q\operatorname{Adv}^{\mathsf{IND\text{-}CPA}}_{\mathsf{KEM}}(\mathcal B)`, also for
-   $`q=0` (`hybrid_gap_eq_query_factor`).
-
-:::leanPillCaption "Step 1: bound by the ideal hybrids and the correctness error"
-:::
-
-```anchor security_guess_le_hybrid_gap (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Security.IdealHybrids)
-theorem security_guess_le_hybrid_gap
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-    (leak : kem.OnOffRandLeak onoff)
-    (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
-    SCKAScheme.sckaGuessAdvantage (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)
-      adv (exposureA kem onoff leak) (exposureB kem onoff leak) ≤
-    |(Pr[= true | idealEpochHybridExp kem onoff hDet ecEk ecCt0 ecCt1 leak adv 0]).toReal -
-      (Pr[= true | idealEpochHybridExp kem onoff hDet ecEk ecCt0 ecCt1 leak adv q]).toReal| / 2 +
-      (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal
-```
-
-:::leanPillCaption "Steps 2–4: branches of $`\\mathcal B^{(i+1)}` versus $`H_i` and $`H_{i+1}`"
-:::
-
-```anchor fixedBranch_signed_gap_eq (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Security)
-theorem fixedBranch_signed_gap_eq
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (hDet : base.DeterministicDecaps)
-    (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-    (leak : base.OnOffRandLeak onoff) (adv : SecurityAdversary leak Sym) (i : ℕ) :
-    (Pr[= true | fixedBranch base onoff ecEk ecCt0 ecCt1 leak adv (i + 1) true]).toReal -
-      (Pr[= true | fixedBranch base onoff ecEk ecCt0 ecCt1 leak adv (i + 1) false]).toReal =
-    (Pr[= true | idealEpochHybridExp base onoff hDet ecEk ecCt0 ecCt1 leak adv i]).toReal -
-      (Pr[= true | idealEpochHybridExp
-        base onoff hDet ecEk ecCt0 ecCt1 leak adv (i + 1)]).toReal
-```
-
-:::leanPillCaption "Step 5: averaging over the challenge epoch"
-:::
-
-```anchor hybrid_gap_eq_query_factor (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Security)
-theorem hybrid_gap_eq_query_factor
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (hDet : base.DeterministicDecaps)
-    (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-    (leak : base.OnOffRandLeak onoff) (adv : SecurityAdversary leak Sym) (q : ℕ) :
-    |(Pr[= true | idealEpochHybridExp base onoff hDet ecEk ecCt0 ecCt1 leak adv 0]).toReal -
-      (Pr[= true | idealEpochHybridExp base onoff hDet ecEk ecCt0 ecCt1 leak adv q]).toReal| =
-    (q : ℝ) * base.IND_CPA_Advantage ProbCompRuntime.probComp
-      (securityReduction base onoff ecEk ecCt0 ecCt1 leak adv q)
-```
-
-*Special cases.* For $`q=0` the advantage is $`0`: no key is recorded, so every challenge is
-rejected ($`e=1` only makes $`\mathcal B` total). For a perfectly correct KEM, $`\varepsilon=0`.
-
 :::leanPillCaption "Bound for a perfectly correct KEM"
 :::
 
@@ -1134,10 +831,10 @@ theorem security_perfectKEM
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
     (leak : kem.OnOffRandLeak onoff) (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
-    SCKAScheme.sckaGuessAdvantage (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)
-      adv (exposureA kem onoff leak) (exposureB kem onoff leak) ≤
-    ((q : ℝ) / 2) * kem.IND_CPA_Advantage ProbCompRuntime.probComp
-      (Security.Embedding.securityReduction kem onoff ecEk ecCt0 ecCt1 leak adv q)
+    let scka := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak
+    let 𝓑 := Security.Embedding.securityReduction kem onoff ecEk ecCt0 ecCt1 leak adv q
+    SCKAScheme.sckaGuessAdvantage scka adv (exposureA kem onoff leak) (exposureB kem onoff leak) ≤
+      (q / 2 : ℝ) * kem.IND_CPA_Advantage ProbCompRuntime.probComp 𝓑
 ```
 
 ::::::::

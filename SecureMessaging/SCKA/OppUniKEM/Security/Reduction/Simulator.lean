@@ -46,7 +46,6 @@ variable {K PK SK C : Type}
 
 /-- Simulator key generation: `(pkStar, unavailable)` if `selected`, else `kem.keygen` with a
 known secret key. -/
--- ANCHOR: embedding_primitives
 def keygen (kem : KEMScheme ProbComp K PK SK C) (selected : Bool) (pkStar : PK) :
     ProbComp (PK × Option SK) :=
   if selected then pure (pkStar, none) else Prod.map id some <$> kem.keygen
@@ -65,7 +64,6 @@ def encapsOn {kem : KEMScheme ProbComp K PK SK C} (onoff : kem.OnOffStructure)
   match st with
   | none => pure ((onoff.split ctStar).2, none)
   | some st => Prod.map id some <$> onoff.encapsOn st pk
--- ANCHOR_END: embedding_primitives
 
 /-- Marked KEM of one simulator query, built from `keygen`, `encapsOff`, and `encapsOn` with the
 flags `selectedA`, `selectedB`; decapsulation returns `key`, B's recorded key for A's epoch. -/
@@ -157,12 +155,10 @@ abbrev SimState {base : KEMScheme ProbComp K PK SK C} (onoff : base.OnOffStructu
 
 /-- Unmark a field: absent gives `some none`, known `x` gives `some (some x)`, and unavailable
 gives `none` (termination). -/
--- ANCHOR: embedding_revealField
 def revealField {α : Type} : Option (Option α) → Option (Option α)
   | none => some none
   | some none => none
   | some (some a) => some (some a)
--- ANCHOR_END: embedding_revealField
 
 /-- Unmark A's state; `none` exactly when its secret key is unavailable. -/
 def revealA {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
@@ -179,7 +175,6 @@ def revealB {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
          ich := s.ich, lch := s.lch, ack := s.ack }
 
 /-- Unmark the coins of a leaking send; `none` exactly when a returned coin is unavailable. -/
--- ANCHOR: embedding_revealCoins
 def revealCoins {KG OFF ON : Type} :
     SendRand (Option KG) (Option OFF) (Option ON) → Option (SendRand KG OFF ON)
   | .none => some .none
@@ -187,7 +182,6 @@ def revealCoins {KG OFF ON : Type} :
   | .off r => .off <$> r
   | .on r => .on <$> r
   | .offOn r₀ r₁ => do pure (.offOn (← r₀) (← r₁))
--- ANCHOR_END: embedding_revealCoins
 
 /-- Unmark an optional answer: a rejection gives `some none`, an answer `a` gives
 `some <$> reveal a`. -/
@@ -211,7 +205,6 @@ theorem revealAfter_run {σ α β : Type} (reveal : α → Option β)
 rejects a challenge that is not eligible (A's table is consulted before B's); otherwise it adds
 `t` to `challenged` and returns a uniform key if `0 < t < e`, `kStar` if `t = e`, and `toKey` of
 the recorded entry otherwise. -/
--- ANCHOR: embedding_challenge
 def challengeWith [SampleableType K] {σA σB κ ρ : Type} (toKey : κ → K) (e : ℕ) (kStar : K) :
     QueryImpl (ℕ →ₒ Option K) (StateT (SCKAScheme.GameState σA σB κ ρ) ProbComp) :=
   fun t => do
@@ -234,13 +227,11 @@ def challenge [SampleableType K]
     {base : KEMScheme ProbComp K PK SK C} (onoff : base.OnOffStructure)
     (e : ℕ) (kStar : K) : QueryImpl (ℕ →ₒ Option K) (StateT (SimState onoff Sym) ProbComp) :=
   challengeWith (fun key : Option K => key.getD kStar) e kStar
--- ANCHOR_END: embedding_challenge
 
 /-- Simulator oracles: a query from `s` uses the Opp-UniKEM oracles over `kem` with
 `selectedA := (s.stA.t = e)`, `selectedB := (s.stB.t = e)`, `key := s.keyB s.stA.t`, and
 `challenge e kStar`. Corruptions and leaking sends unmark after their exposure guard: a rejection
 answers `none`, an unavailable value terminates the simulation. -/
--- ANCHOR: embedding_oracle
 def oracle [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -282,7 +273,6 @@ def oracle [DecidableEq K] [DecidableEq Sym] [SampleableType K]
       revealAfter (revealResponse (revealB (onoff := onoff) (Sym := Sym)))
         (SCKAScheme.oracleCorruptB (vulnCorrB (Sym := Sym) simKem simOnOff)
           (StateA (Option SK) PK onoff.C₀ Sym) (Option K) (Message Sym) u)
--- ANCHOR_END: embedding_oracle
 
 /-- Initial simulator state: both parties at epoch `1` with absent local fields; empty tables
 and sets. -/
@@ -296,7 +286,6 @@ def initial {base : KEMScheme ProbComp K PK SK C} (onoff : base.OnOffStructure) 
 
 /-- Output of `adv` against `oracle e pkStar ctStar kStar` from `initial`, or `false` if the
 simulation terminates. -/
--- ANCHOR: embedding_run
 def run [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -307,16 +296,13 @@ def run [DecidableEq K] [DecidableEq Sym] [SampleableType K]
   let result ← ((simulateQ (oracle base onoff ecEk ecCt0 ecCt1 leak e pkStar ctStar kStar)
     adv).run).run' (initial onoff)
   pure (result.getD false)
--- ANCHOR_END: embedding_run
 
 /-- Uniform on `{1, …, q}` if `q > 0`; `1` if `q = 0`. -/
--- ANCHOR: embedding_epochChoice
 def epochChoice (q : ℕ) : ProbComp ℕ :=
   if hq : q = 0 then pure 1
   else
     letI : NeZero q := ⟨hq⟩
     (fun i : Fin q => i.val + 1) <$> ($ᵗ (Fin q) : ProbComp (Fin q))
--- ANCHOR_END: embedding_epochChoice
 
 /-- IND-CPA adversary from `adv` and send budget `q`: on `pk`, sample `e ← epochChoice q`; on the
 challenge `(ct, k)`, return `run adv e pk ct k`. -/

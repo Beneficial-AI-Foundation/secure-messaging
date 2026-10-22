@@ -314,7 +314,6 @@ theorem idealEpochHybridExp_last
 
 /-- With correct erasure codes, if `SecuritySendQueryBound adv q`, then
 `AdvGuess(Π, adv) ≤ |Pr[H_0 = true] - Pr[H_q = true]| / 2 + q · ε`. -/
--- ANCHOR: security_guess_le_hybrid_gap
 theorem security_guess_le_hybrid_gap
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -327,9 +326,7 @@ theorem security_guess_le_hybrid_gap
       adv (exposureA kem onoff leak) (exposureB kem onoff leak) ≤
     |(Pr[= true | idealEpochHybridExp kem onoff hDet ecEk ecCt0 ecCt1 leak adv 0]).toReal -
       (Pr[= true | idealEpochHybridExp kem onoff hDet ecEk ecCt0 ecCt1 leak adv q]).toReal| / 2 +
-      (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal
--- ANCHOR_END: security_guess_le_hybrid_gap
-    := by
+      (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal := by
   rw [SCKAScheme.sckaGuessAdvantage_eq_sckaDistAdvantage_div_two,
     SCKAScheme.sckaDistAdvantage,
     idealEpochHybridExp_zero,

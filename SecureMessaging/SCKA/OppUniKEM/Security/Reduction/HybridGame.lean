@@ -126,6 +126,26 @@ variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 def adjacentMode (e : ℕ) (b : Bool) (t : ℕ) : Bool :=
   decide (0 < t ∧ (t < e ∨ (b = true ∧ t = e)))
 
+omit [DecidableEq K] [DecidableEq Sym] [SampleableType K] in
+/-- `adjacentMode (i + 1) false` randomizes exactly the epochs `1, …, i`. -/
+theorem adjacentMode_succ_false (i : ℕ) :
+    adjacentMode (i + 1) false = fun t => decide (0 < t ∧ t ≤ i) := by
+  funext t
+  simp only [adjacentMode, Bool.false_eq_true, false_and, or_false]
+  congr 1
+  apply propext
+  omega
+
+omit [DecidableEq K] [DecidableEq Sym] [SampleableType K] in
+/-- `adjacentMode (i + 1) true` randomizes exactly the epochs `1, …, i + 1`. -/
+theorem adjacentMode_succ_true (i : ℕ) :
+    adjacentMode (i + 1) true = fun t => decide (0 < t ∧ t ≤ i + 1) := by
+  funext t
+  simp only [adjacentMode, true_and]
+  congr 1
+  apply propext
+  omega
+
 /-- Pinned hybrid: the security oracles over `honestScheme m e s` with challenges
 `challOf (adjacentMode e b)`. -/
 def hybridOracle
