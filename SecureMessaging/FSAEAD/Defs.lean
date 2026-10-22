@@ -73,11 +73,10 @@ to a receiver B, keyed by a pre-shared key.
      holds and `i_A ∉ comp`, i.e. when an earlier injection already consumed `i_A`.
 
 [CONVENTIONS]
-- Winning. A rejection in `O-Deliver-B` gives no `(i', m')` to compare with `(i, m)`. Our
-  formalization counts the rejection as Figure 5's `(i', m') ≠ (i, m)`. `win` never
-  returns to false. The game continues to run after a win, but the result stays a win.
-  The proof in ACD19 says that the game ends upon a win. That gives the same result, but
-  not the same transcript or the same number of queries.
+- Rejection in `O-Deliver-B`. Figure 5 sets `win` if B's output `(i', m')` differs from
+  the recorded `(i, m)`. If B rejects the honest ciphertext, there is no output to
+  compare. Our formalization treats the rejection as a wrong output, so it also sets
+  `win`.
 - Advantage. §2.1 defines the advantage of an indistinguishability game as
   `2 · |Pr[A wins] - 1/2|`. In our formalization, the advantage is `|Pr[A wins] - 1/2|`,
   half of that, as in the guess advantages of this project (`AEADScheme.guessAdvantage`,
