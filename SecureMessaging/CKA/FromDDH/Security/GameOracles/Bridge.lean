@@ -128,22 +128,17 @@ lemma evalDistEq_eager_honest_lazy
     --     Off-party: same as non-divergence. On-party with embedding/challenge:
     --     bijection `a ↔ x'` or `b ↔ x` via `map_uniformSample_evalDistEq_of_bijective`.
     match t with
-    | OUnif _ =>
-      exact pass _ k (fun _ _ => rfl) ih
-    | ORecvA =>
-      exact pass _ k (fun _ _ => rfl) ih
-    | ORecvB =>
-      exact pass _ k (fun _ _ => rfl) ih
-    | OCorruptA =>
-      exact pass _ k (fun _ _ => rfl) ih
-    | OCorruptB =>
-      exact pass _ k (fun _ _ => rfl) ih
-    | OSendArleak =>
-      exact evalDistEq_eager_honest_lazy_step_passthrough
-        (gen := gen) gp s OSendArleak k (fun _ _ => rfl) ih
-    | OSendBrleak =>
-      exact evalDistEq_eager_honest_lazy_step_passthrough
-        (gen := gen) gp s OSendBrleak k (fun _ _ => rfl) ih
+    -- `simp only` instead of a bare `rfl`, which unfolds both `QueryImpl` sums
+    -- and takes about 12 s per index.
+    | OCorruptA | OCorruptB | OSendArleak | OSendBrleak =>
+      refine pass _ k (fun _ _ => ?_) ih
+      simp only [honestImplParamReal, ckaSecurityImpl, ckaCorrectnessImpl,
+        QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
+    | OUnif _ | ORecvA | ORecvB =>
+      refine pass _ k (fun _ _ => ?_) ih
+      simp only [honestImplParamReal, ckaSecurityImpl, ckaCorrectnessImpl,
+        QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
+      rfl
     | OSendA =>  -- sendA
       -- Case-split on `gp.challengedParty`:
       -- • challengedParty=A (off-party): impl_eq via
