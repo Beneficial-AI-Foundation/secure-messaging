@@ -42,33 +42,21 @@ is decrypted as soon as it arrives.
 - `rcv : StR → AD → C → Option (StR × ℕ × M)`: `(v', i, m) ← FS-Rcv(v, a, e)`, where `i`
   is the position of `m` in the sender's sequence, or `none` on rejection.
 
-[DEVIATIONS FROM ACD19]
-The definitions differ from ACD19 in two places: `rcv` makes explicit what `FS-Rcv`
-outputs on a rejection (which Definition 14 leaves open), and the security game fixes an
-error in Figure 5 (without which every scheme either accepts a forgery or fails
-correctness). In the oracle pseudocode, `[…]` frames the changes to the text of Figure 5,
-matching the boxes in the blueprint.
-
-- Rejection in `FS-Rcv`: `rcv` returns `none` on rejection, with no new state and no
-  index. Definition 14 does not say what a rejection outputs; Figure 6 raises an error
-  and rolls the state back (§4.2.2). If a rejection could report the index named in the
-  ciphertext, Figure 5's `inject-B` would skip the win (`m' = ⊥`) and still run
-  `delete(i')`. Rejected garbage for an honest index then removes its record, and the
-  honest ciphertext then counts as a forgery [Kli21, Appendix A.1]. Here `O-Inject-B`
-  stops on `none`, and `O-Deliver-B` counts `none` as a correctness failure.
-- Post-corruption unsent indices: Figure 5's `inject-B` counts a forgery
-  for index `i'` as a win unless `i' ∈ comp`, and `comp` only holds indices that were
-  already sent. So after `corr-A`, the adversary wins by computing A's next ciphertext
-  from the revealed state and injecting it before A sends it. Here, the first `O-Corr-A`
-  sets `comp ← {i | i > i_A}`, so every unsent index also counts as compromised until B
-  receives a message for it (via `O-Inject-B` or `O-Deliver-B`), which runs `delete` and
-  removes that index from `comp`. If an injection consumes an unsent index `i_A` before A
-  sends it, `i_A` is no longer in `comp` when A later sends it, and `record` drops A's
-  record as if `delete(i_A)` ran then. Without this, no correct scheme meets the game: B
-  accepts the injected ciphertext for an index and must then decrypt A's honest
-  ciphertext for the same index, so it also accepts a replay without any corruption. As
-  in Figure 5, A can still send after `corr-A`, so the game still checks that accepted
-  injections do not break the delivery of A's later messages.
+[CORRECTIONS TO ACD19]
+- Rejection in `FS-Rcv`: Definition 14 leaves the output of `FS-Rcv` on rejection
+  unspecified. Here `rcv` returns `none` (no new state and no index), matching the
+  state rollback of Figure 6 (§4.2.2). Consequently, a rejected `O-Inject-B` returns
+  `none` without calling `delete` (otherwise rejected garbage for an in-transit index
+  would erase its record [Kli21, Appendix A.1]), and a rejected `O-Deliver-B` sets `won`.
+- Post-corruption unsent indices (marked `[…]` in the oracle pseudocode): once A is
+  corrupted at counter `i_A^c`, the adversary knows A's state and can inject a
+  ciphertext for an unsent index `i > i_A^c` before A sends it. In Figure 5, `comp`
+  only holds indices already sent, so such an injection would count as a forgery, and
+  `delete(i)` would run before A's record for `i` exists. Here:
+  1. `O-Corr-A` adds all unsent indices `i > i_A^c` to `comp`, so injecting them does
+     not count as a forgery;
+  2. when A later sends at index `i_A > i_A^c`, `record` does nothing if `corrA` holds
+     and `i_A ∉ comp`, i.e. when an earlier injection already consumed index `i_A`.
 
 [CONVENTIONS]
 - Winning. A rejection in `deliver-B` gives no `(i', m')` to compare with `(i, m)`. This
