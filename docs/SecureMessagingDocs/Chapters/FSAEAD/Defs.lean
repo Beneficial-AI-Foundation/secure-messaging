@@ -122,7 +122,7 @@ structure GameState (StS StR AD M C : Type) where
   /-- Indices of challenge ciphertexts in transit. -/
   chall : Finset ℕ
   /-- Indices exposed by A's corruption and not yet received by B. -/
-  comp : Set ℕ
+  comp : ℕ → Bool
 ```
 :::::
 
@@ -132,7 +132,7 @@ ciphertext for an unsent index $`i > i_\A^c` before A sends it. We make two corr
 the security game for this case, marked by boxes in pseudocode:
 
 - $`\OCorrA` adds all unsent indices $`i > i_\A^c` to $`\mathsf{comp}`, so injecting them
-  does not count as a forgery;
+  does not count as a forgery, and $`\mathsf{record}` no longer adds to $`\mathsf{comp}`;
 - when A later sends at index $`i_\A > i_\A^c`, $`\mathsf{record}` does nothing if
   $`\mathsf{corrA}` holds and $`i_\A \notin \mathsf{comp}`, i.e. when an earlier injection
   already consumed index $`i_\A`.
@@ -163,7 +163,7 @@ i_\A{+}{+}; \\
 \end{array}`
 
 ```anchor oracleTransmitA (project := ".") (module := SecureMessaging.FSAEAD.Defs)
-noncomputable def oracleTransmitA (fs : FSAEADScheme K StS StR AD M C) :
+def oracleTransmitA (fs : FSAEADScheme K StS StR AD M C) :
     QueryImpl (AD × M →ₒ Option C) (GameM StS StR AD M C) :=
   fun (a, m) => do
     let st ← get
@@ -221,7 +221,7 @@ i_\A{+}{+}; \\
 \end{array}`
 
 ```anchor oracleChallA (project := ".") (module := SecureMessaging.FSAEAD.Defs)
-noncomputable def oracleChallA (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : Bool) :
+def oracleChallA (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ) (b : Bool) :
     QueryImpl (AD × M × M →ₒ Option C) (GameM StS StR AD M C) :=
   fun (a, m₀, m₁) => do
     let st ← get
@@ -247,14 +247,14 @@ r \gets \mathsf{FS\text{-}Rcv}(v_\B, a, e); \\
 \end{array}`
 
 ```anchor oracleInjectB (project := ".") (module := SecureMessaging.FSAEAD.Defs)
-noncomputable def oracleInjectB [DecidableEq AD] [DecidableEq C]
+def oracleInjectB [DecidableEq AD] [DecidableEq C]
     (fs : FSAEADScheme K StS StR AD M C) :
     QueryImpl (AD × C →ₒ Option (ℕ × M)) (GameM StS StR AD M C) :=
   fun (a, e) => do
     let st ← get
     if st.ended || (st.findTrans a e).isSome then return none
     let some (vB, i', m') := fs.rcv st.vB a e | return none
-    let won := st.won || decide (i' ∉ st.comp)
+    let won := st.won || !st.comp i'
     set ({ st with vB, won }.delete i')
     return some (i', m')
 ```
@@ -276,7 +276,7 @@ def oracleCorrA (StS StR AD M C : Type) :
   fun () => do
     let st ← get
     if st.ended then return none
-    let comp := if st.corrA then st.comp else {i | st.iA < i}
+    let comp := if st.corrA then st.comp else fun i => decide (st.iA < i)
     set { st with corrA := true, comp }
     return some st.vA
 ```
@@ -307,20 +307,17 @@ $`\begin{array}{l}
 \quad\Return;
 \end{array}\kern-5pt} \\
 \mathsf{trans} \gets \mathsf{trans} \cup \{(i_\A, a, m, e)\}; \\
-\pif\;\mathsf{corrA}\;\pthen \\
-\quad\mathsf{comp} \gets \mathsf{comp} \cup \{i_\A\}; \\
 \pif\;\mathit{flag} = \mathsf{chall}\;\pthen \\
 \quad\mathsf{chall} \gets \mathsf{chall} \cup \{i_\A\}
 \end{array}`
 
 ```anchor gameStateRecord (project := ".") (module := SecureMessaging.FSAEAD.Defs)
-noncomputable def record (st : GameState StS StR AD M C) (isChall : Bool) (a : AD) (m : M) (e : C) :
+def record (st : GameState StS StR AD M C) (isChall : Bool) (a : AD) (m : M) (e : C) :
     GameState StS StR AD M C :=
-  if st.corrA ∧ st.iA ∉ st.comp then st else
+  if st.corrA && !st.comp st.iA then st else
   { st with
     trans := st.trans ++ [(st.iA, a, m, e)]
-    chall := if isChall then insert st.iA st.chall else st.chall
-    comp := if st.corrA then insert st.iA st.comp else st.comp }
+    chall := if isChall then insert st.iA st.chall else st.chall }
 ```
 :::::
 
@@ -336,7 +333,7 @@ def delete (st : GameState StS StR AD M C) (i : ℕ) : GameState StS StR AD M C 
   { st with
     trans := st.trans.filter (·.1 ≠ i)
     chall := st.chall.erase i
-    comp := st.comp \ {i} }
+    comp := fun j => j != i && st.comp j }
 ```
 :::::
 ::::::
@@ -381,14 +378,14 @@ def init (fs : FSAEADScheme K StS StR AD M C) (k : K) : GameState StS StR AD M C
   won := false
   trans := []
   chall := ∅
-  comp := ∅
+  comp := fun _ => false
 ```
 
 :::leanPillCaption "Security experiment"
 :::
 
 ```anchor securityExp (project := ".") (module := SecureMessaging.FSAEAD.Defs)
-noncomputable def securityExp [SampleableType K] [DecidableEq AD] [DecidableEq M] [DecidableEq C]
+def securityExp [SampleableType K] [DecidableEq AD] [DecidableEq M] [DecidableEq C]
     (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ)
     (adversary : FSAEADAdversary StS StR AD M C) : ProbComp Bool := do
   let k ← $ᵗ K
