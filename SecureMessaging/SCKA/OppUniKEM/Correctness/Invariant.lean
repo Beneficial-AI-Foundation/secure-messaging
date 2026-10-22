@@ -435,8 +435,9 @@ def reachableInv
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) : Prop :=
   ∃ T, TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s
 
-/-- The KEM material currently held by A and the key currently recorded for B
-decapsulate consistently. -/
+/-- Whenever A holds a decapsulation key `dk` and an offline ciphertext `ct0` for its current epoch
+`s.stA.t` while B holds an online ciphertext `ct1` and a recorded key `key` for `s.stA.t`,
+decapsulating the reassembled ciphertext `(ct0, ct1)` under `dk` yields `key`. -/
 def CurrentKEMCorrect
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)

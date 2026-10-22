@@ -12,26 +12,34 @@ import VCVio.ProgramLogic.Relational.SimulateQ
 /-!
 # Ideal epoch hybrids
 
-**Setting.** `Π` is Opp-UniKEM with deterministic decapsulation and correct erasure codes, `adv`
-a security adversary, `idealSecurityImpl … mode` the ideal game (`Endpoints`), and
-`I_b := idealSecurityExp (fun _ => b) adv`.
+**Setting.** Let `scka` be the Opp-UniKEM protocol, `adv` an SCKA security adversary, `ε` the KEM
+correctness error (`kem.correctnessError`), and `I_b := idealSecurityExp … (fun _ => b) adv` the
+ideal security game with fixed challenge bit `b` (`Endpoints`), in which challenges return recorded
+keys when `b = false` and uniform keys when `b = true`.
 
 **Definitions.**
 
-- `H_i := idealEpochHybridExp … adv i`: the ideal game with mode `t ↦ (0 < t ∧ t ≤ i)`.
-- `H_i` *stopped at `i + 1`*: run through `stoppedRun` with stop test `i + 1 ∈ exposed`.
+- `H_i := idealEpochHybridExp … adv i` (with oracle implementation `idealEpochHybridImpl … i`): the
+  *ideal epoch hybrid `i`*, in which eligible challenges at epochs `1, …, i` return uniform keys
+  (as in `I_true`) and eligible challenges at epochs `t > i` return the recorded key (as in
+  `I_false`).
+- *Stopping at exposure of `i + 1`*: running an ideal hybrid via `stoppedRun` so that the
+  simulation halts and returns `false` as soon as a query exposes epoch `i + 1`
+  (`i + 1 ∈ s.exposed`).
 
-**Results.** `AdvGuess(Π, adv) := |Pr[b' = b] - 1/2|`; `ε` is the KEM correctness error.
+**Main results.**
 
-- Accounting: ideal queries preserve `sendEpochInv` and, with correct codes, `reachableInv`; a
-  send raises `nA` by at most one, and other queries do not raise it.
-- `idealEpochHybridExp_zero`: `H_0 = I_false` as computations.
-- `idealEpochHybridExp_last`: under `SecuritySendQueryBound adv q`,
-  `Pr[H_q = true] = Pr[I_true = true]`.
-- `security_guess_le_hybrid_gap`: under the same bound,
-  `AdvGuess(Π, adv) ≤ |Pr[H_0 = true] - Pr[H_q = true]| / 2 + q · ε`.
-- `idealEpochHybrid_signed_gap_stop_eq`: from a state with `Disjoint exposed challenged`,
-  stopping at `i + 1` preserves `Pr[H_{i+1} = true] - Pr[H_i = true]`.
+- `idealEpochHybridExp_zero` and `idealEpochHybridExp_last`: `H_0` coincides with `I_false`, and
+  when `adv` makes at most `q` send queries (`SecuritySendQueryBound adv q`) under correct erasure
+  codes, no epoch above `q` is ever recorded, so `H_q` has the same acceptance probability as
+  `I_true`.
+- `security_guess_le_hybrid_gap`: combining these endpoint identities with
+  `|Pr[G_b = true] - Pr[I_b = true]| ≤ q · ε` (`security_correctness_endpoint_le`) yields
+  `AdvGuess_SCKA(scka, adv) ≤ |Pr[H_0 = true] - Pr[H_q = true]| / 2 + q · ε`.
+- `idealEpochHybrid_signed_gap_stop_eq`: because `H_{i+1}` and `H_i` differ only on challenges at
+  epoch `i + 1`—which are rejected once `i + 1` is exposed and prevent later exposure of `i + 1`
+  once answered—stopping both hybrids at the first exposure of `i + 1` preserves the difference in
+  their acceptance probabilities `Pr[H_{i+1} = true] - Pr[H_i = true]`.
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -40,7 +48,8 @@ namespace SCKAScheme
 
 variable {StA StB I Rho : Type} [SampleableType I]
 
-/-- For `t ≠ i + 1`, the challenge oracles of hybrids `i` and `i + 1` agree on `t`. -/
+/-- For every epoch `t ≠ i + 1`, the challenge oracles of hybrids `i` and `i + 1` coincide on
+`t`. -/
 theorem epochHybrid_challenge_eq_of_ne (i t : ℕ) (hne : t ≠ i + 1) :
     oracleChall (decide (0 < t ∧ t ≤ i + 1)) StA StB I Rho t =
       oracleChall (decide (0 < t ∧ t ≤ i)) StA StB I Rho t := by
@@ -57,7 +66,7 @@ variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 /-! ### Send and epoch accounting -/
 
 omit [SampleableType K] in
-/-- Every ideal correctness query preserves `sendEpochInv`. -/
+/-- Every query of `idealCorrectnessImpl` preserves `sendEpochInv`. -/
 theorem idealCorrectnessImpl_preserves_sendEpochInv
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -75,7 +84,7 @@ theorem idealCorrectnessImpl_preserves_sendEpochInv
       leak n s hs z hz
   · exact oracleRecvB_preserves_sendEpochInv kem onoff hDet ecEk ecCt0 ecCt1 leak n s hs z hz
 
-/-- Every ideal query preserves `sendEpochInv`. -/
+/-- Every query of `idealSecurityImpl` preserves `sendEpochInv`. -/
 theorem idealSecurityImpl_preserves_sendEpochInv
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -92,8 +101,8 @@ theorem idealSecurityImpl_preserves_sendEpochInv
     (oracleSendA_preserves_sendEpochInv kem onoff hDet ecEk ecCt0 ecCt1 leak)
     (oracleSendB_preserves_sendEpochInv kem onoff hDet ecEk ecCt0 ecCt1 leak)
 
-/-- Every possible successor `z.2` of an ideal query `t` from `s` has `z.2.nA ≤ s.nA + 1` if
-`t` is a send and `z.2.nA ≤ s.nA` otherwise. -/
+/-- Every successor state `z.2` of a query `t` of `idealSecurityImpl` from `s` satisfies
+`z.2.nA ≤ s.nA + 1` when `t` is a send query and `z.2.nA ≤ s.nA` otherwise. -/
 theorem idealSecurityImpl_sendCounter_step
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -110,7 +119,8 @@ theorem idealSecurityImpl_sendCounter_step
     (idealCorrectnessImpl_nA_step kem onoff hDet ecEk ecCt0 ecCt1 leak)
     (SCKAScheme.challOf_recordsChallenges _) t s z hz
 
-/-- With correct erasure codes, every ideal query preserves `reachableInv`. -/
+/-- Assuming the erasure codes are correct, every query of `idealSecurityImpl` preserves
+`reachableInv`. -/
 theorem idealSecurityImpl_preserves_reachableInv
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -132,7 +142,8 @@ theorem idealSecurityImpl_preserves_reachableInv
 
 /-! ### Hybrids -/
 
-/-- The oracles of `H_i`: the ideal game with mode `t ↦ 0 < t ∧ t ≤ i`. -/
+/-- Oracle implementation of the ideal epoch hybrid `H_i`: `idealSecurityImpl` instantiated under
+the challenge mode `fun t => decide (0 < t ∧ t ≤ i)`. -/
 abbrev idealEpochHybridImpl
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -141,7 +152,8 @@ abbrev idealEpochHybridImpl
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff) (i : ℕ) :=
   idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak (fun t => decide (0 < t ∧ t ≤ i))
 
-/-- The ideal hybrid `H_i`: `adv` against `idealEpochHybridImpl … i` from the initial state. -/
+/-- The ideal epoch hybrid experiment `H_i`: executes `adv` against `idealEpochHybridImpl … i`
+starting from the initial game state. -/
 def idealEpochHybridExp
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -151,7 +163,8 @@ def idealEpochHybridExp
     (adv : SecurityAdversary leak Sym) (i : ℕ) : ProbComp Bool :=
   idealSecurityExp kem onoff hDet ecEk ecCt0 ecCt1 leak (fun t => decide (0 < t ∧ t ≤ i)) adv
 
-/-- `H_0 = I_false` as computations. -/
+/-- The initial hybrid `idealEpochHybridExp … 0` (`H_0`) coincides with the real-key ideal game
+`idealSecurityExp … (fun _ => false) adv` (`I_false`) as a probabilistic computation. -/
 theorem idealEpochHybridExp_zero
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -167,7 +180,7 @@ theorem idealEpochHybridExp_zero
     omega
   simp only [idealEpochHybridExp, hmode]
 
-/-- No ideal query removes an exposed epoch. -/
+/-- Every query of `idealSecurityImpl` is monotonic in the `exposed` epoch set. -/
 theorem idealSecurityImpl_exposed_subset
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -184,7 +197,7 @@ theorem idealSecurityImpl_exposed_subset
     (fun t s z hz => (idealCorrectnessImpl_securitySets_eq kem onoff hDet ecEk ecCt0 ecCt1 leak
       t s z hz).1) (SCKAScheme.challOf_recordsChallenges _) t s z hz
 
-/-- Every ideal query preserves `e ∈ exposed`. -/
+/-- Every query of `idealSecurityImpl` preserves membership `e ∈ s.exposed`. -/
 theorem idealSecurityImpl_preserves_exposed
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -197,8 +210,8 @@ theorem idealSecurityImpl_preserves_exposed
   fun t s hs z hz => idealSecurityImpl_exposed_subset kem onoff hDet ecEk ecCt0 ecCt1 leak mode
     t s z hz hs
 
-/-- If `i + 1` is exposed, `H_{i+1}` and `H_i` answer every query by equal response/state
-computations. -/
+/-- In any state `s` satisfying `i + 1 ∈ s.exposed`, `idealEpochHybridImpl … (i + 1)` and
+`idealEpochHybridImpl … i` evaluate every query `t` to the same response/state computation. -/
 theorem idealEpochHybrid_query_eq_of_exposed
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -218,8 +231,9 @@ theorem idealEpochHybrid_query_eq_of_exposed
   · simp only [SCKAScheme.challOf]
     rw [SCKAScheme.epochHybrid_challenge_eq_of_ne i t ht]
 
-/-- If `i + 1` is exposed, `H_{i+1}` and `H_i` give equal output/state computations for every
-continuation `adv`. -/
+/-- From any state `s` satisfying `i + 1 ∈ s.exposed`, simulating any oracle computation `adv`
+under `idealEpochHybridImpl … (i + 1)` and `idealEpochHybridImpl … i` yields identical output/state
+computations. -/
 theorem idealEpochHybrid_run_eq_of_exposed
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -242,8 +256,10 @@ theorem idealEpochHybrid_run_eq_of_exposed
     adv s hs
   simpa using h
 
-/-- From `s` with `reachableInv s`, `sendEpochInv s`, and `s.nA ≤ q`, `H_q` and `I_true` answer
-every query by equal response/state computations. -/
+/-- In any state `s` satisfying `reachableInv s`, `sendEpochInv s`, and `s.nA ≤ q`, the hybrid
+oracles `idealEpochHybridImpl … q` and the random-key ideal oracles
+`idealSecurityImpl … (fun _ => true)` evaluate every query `t` to the same response/state
+computation. -/
 theorem idealEpochHybrid_query_eq_random
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -268,8 +284,9 @@ theorem idealEpochHybrid_query_eq_random
   · simp only [not_or, Option.not_isSome_iff_eq_none] at hk
     exact SCKAScheme.oracleChall_run_eq_of_rejected _ _ s t (Or.inr hk)
 
-/-- With correct erasure codes, if `SecuritySendQueryBound adv q`, then
-`Pr[H_q = true] = Pr[I_true = true]`. -/
+/-- Assuming the erasure codes are correct and `SecuritySendQueryBound adv q`, the final hybrid
+`idealEpochHybridExp … q` (`H_q`) has the same acceptance probability as the random-key ideal game
+`idealSecurityExp … (fun _ => true) adv` (`I_true`): `Pr[H_q = true] = Pr[I_true = true]`. -/
 theorem idealEpochHybridExp_last
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -312,8 +329,11 @@ theorem idealEpochHybridExp_last
   simp only [idealEpochHybridExp, idealSecurityExp, StateT.run'_eq]
   exact probOutput_map_eq_of_evalDist_eq (evalDist_ext fun z => (h z).symm) Prod.fst true
 
-/-- With correct erasure codes, if `SecuritySendQueryBound adv q`, then
-`AdvGuess(Π, adv) ≤ |Pr[H_0 = true] - Pr[H_q = true]| / 2 + q · ε`. -/
+/-- Assuming the erasure codes are correct and `SecuritySendQueryBound adv q`, the SCKA guessing
+advantage of `adv` is bounded by half the distance between the endpoint ideal hybrids
+`H_0 := idealEpochHybridExp … 0` and `H_q := idealEpochHybridExp … q`, plus `q` times the KEM
+correctness error `ε`:
+`AdvGuess_SCKA(scka, adv) ≤ |Pr[H_0 = true] - Pr[H_q = true]| / 2 + q · ε`. -/
 theorem security_guess_le_hybrid_gap
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -366,7 +386,7 @@ variable (ecEk : ErasureCodePayload PK Sym)
 variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
 variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff)
 
-/-- Every ideal query preserves `Disjoint exposed challenged`. -/
+/-- Every query of `idealSecurityImpl` preserves `Disjoint s.exposed s.challenged`. -/
 theorem idealSecurityImpl_preserves_disjoint (mode : ℕ → Bool) :
     QueryImpl.PreservesInv (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak mode)
       (fun s => Disjoint s.exposed s.challenged) :=
@@ -374,7 +394,7 @@ theorem idealSecurityImpl_preserves_disjoint (mode : ℕ → Bool) :
     (idealCorrectnessImpl_securitySets_eq kem onoff hDet ecEk ecCt0 ecCt1 leak)
     (SCKAScheme.challOf_recordsChallenges _)
 
-/-- Every ideal query preserves `e ∈ challenged`. -/
+/-- Every query of `idealSecurityImpl` preserves membership `e ∈ s.challenged`. -/
 theorem idealSecurityImpl_preserves_challenged (mode : ℕ → Bool) (e : ℕ) :
     QueryImpl.PreservesInv (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak mode)
       (fun s => e ∈ s.challenged) :=
@@ -382,8 +402,8 @@ theorem idealSecurityImpl_preserves_challenged (mode : ℕ → Bool) (e : ℕ) :
     (fun t s z hz => (idealCorrectnessImpl_securitySets_eq kem onoff hDet ecEk ecCt0 ecCt1 leak
       t s z hz).2) (SCKAScheme.challOf_recordsChallenges _) t s z hz hs
 
-/-- Every ideal query preserves `Disjoint exposed challenged ∧ e ∈ challenged`, so `e` stays
-unexposed. -/
+/-- Every query of `idealSecurityImpl` preserves `Disjoint s.exposed s.challenged ∧ e ∈ s.challenged`,
+ensuring that a challenged epoch `e` remains unexposed. -/
 theorem idealSecurityImpl_preserves_committed (mode : ℕ → Bool) (e : ℕ) :
     QueryImpl.PreservesInv (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak mode)
       (fun s => Disjoint s.exposed s.challenged ∧ e ∈ s.challenged) := by
@@ -393,8 +413,9 @@ theorem idealSecurityImpl_preserves_committed (mode : ℕ → Bool) (e : ℕ) :
     idealSecurityImpl_preserves_challenged kem onoff hDet ecEk ecCt0 ecCt1
       leak mode e t s hs.2 z hz⟩
 
-/-- From `s` with `Disjoint s.exposed s.challenged`, either `H_{i+1}` and `H_i` answer `t` by
-equal response/state computations, or every possible successor of either satisfies
+/-- From any state `s` satisfying `Disjoint s.exposed s.challenged`, either `idealEpochHybridImpl … (i + 1)`
+and `idealEpochHybridImpl … i` evaluate query `t` to the same response/state computation, or `t` is
+an eligible challenge at epoch `i + 1` and every successor state of either hybrid satisfies
 `Disjoint exposed challenged ∧ i + 1 ∈ challenged`. -/
 theorem idealEpochHybrid_query_eq_or_committed
     (i : ℕ) (t : (securitySpec leak Sym).Domain)
@@ -432,8 +453,9 @@ theorem idealEpochHybrid_query_eq_or_committed
       (SCKAScheme.oracleChall (decide (0 < t ∧ t ≤ i)) _ _ _ _ t).run s
     rw [SCKAScheme.epochHybrid_challenge_eq_of_ne i t ht]
 
-/-- From `s` with `Disjoint s.exposed s.challenged`, stopping at the first exposure of `i + 1`
-preserves `Pr[H_{i+1} = true] - Pr[H_i = true]`. -/
+/-- From any state `s` satisfying `Disjoint s.exposed s.challenged`, stopping at the first exposure
+of epoch `i + 1` preserves the difference in acceptance probability between the adjacent ideal
+hybrids `idealEpochHybridImpl … (i + 1)` (`H_{i+1}`) and `idealEpochHybridImpl … i` (`H_i`). -/
 theorem idealEpochHybrid_signed_gap_stop_eq
     (i : ℕ) (adv : SecurityAdversary leak Sym)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
