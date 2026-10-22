@@ -1,5 +1,6 @@
 import VersoManual
 import VersoBlueprint
+import SecureMessagingDocs.Visuals.Notation
 import SecureMessagingDocs.Bibliography
 
 open Verso.Genre

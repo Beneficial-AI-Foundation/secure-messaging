@@ -43,6 +43,7 @@ Boxes mark three corrections and explicit checks added to Figure 16:
 * $`\mathsf{Rec}\text{-}\B` returns $`t'-1` rather than $`t-1`;
 * $`\mathsf{Rec}\text{-}\A` decodes only present chunks and aborts on missing
   decapsulation inputs or failed decapsulation.
+
 See errata 4–6 in the {ref "scka-errata"}[errata] for details.
 
 ::::::gameGrid
