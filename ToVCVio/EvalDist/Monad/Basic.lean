@@ -25,6 +25,8 @@ evaluation distribution.
   in any monad;
 * `tsum_prEvent_mul_le_of_forall_mem_support` bounds the expectation
   `∑' z, Pr{let x ← mx}[x = z] * F z` by any bound on `F` over the support of `mx`;
+* `prEvent_bind_eq_of_forall_eq_of_support` keeps a continuation probability that is the same
+  for every possible output of a lossless draw;
 * the four `prEvent_*_sample_*_param_eq` lemmas couple two or three eager
   `uniformSample` draws over `ProbComp`.
 -/
@@ -151,6 +153,17 @@ lemma tsum_prEvent_mul_le_of_forall_mem_support [MonadAttach m] [WeaklyLawfulMon
         · rw [prEvent_eq_zero_of_not_mem_support mx hz, zero_mul, zero_mul]
     _ = (∑' z, Pr{let x ← mx}[x = z]) * c := ENNReal.tsum_mul_right
     _ ≤ c := mul_le_of_le_one_left zero_le (tsum_prEvent_eq_le_one mx)
+
+/-- If every possible continuation of a lossless `mx` gives the event `q` the same probability
+`ε`, then so does `mx >>= f`. Upstream `prEvent_bind_eq_of_forall_eq` asks for this on every
+input, including outputs `mx` never produces. -/
+lemma prEvent_bind_eq_of_forall_eq_of_support [MonadAttach m] [WeaklyLawfulMonadAttach m]
+    [EvalDistSemantics m] [LawfulEvalDistSemantics m] {β : Type} (mx : m α)
+    (hmx : Pr{let _ ← mx}[True] = 1) (f : α → m β) (q : β → Prop) {ε : ℝ≥0∞}
+    (h : ∀ a ∈ support mx, Pr{let y ← f a}[q y] = ε) :
+    Pr{let y ← mx >>= f}[q y] = ε :=
+  le_antisymm (prEvent_bind_le_of_forall_le_of_support mx f q fun a ha => (h a ha).le)
+    (le_prEvent_bind_of_forall_le_of_support mx hmx f q fun a ha => (h a ha).ge)
 
 /-- Active-parameter coupling for two independent samples.
 
