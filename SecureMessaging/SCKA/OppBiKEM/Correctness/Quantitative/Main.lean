@@ -229,8 +229,7 @@ theorem sends_never_rejected_of_noFailure
   have hinv := simulateQ_run_preservesInv _ _
     (trackedBiKem_preservesInv kem hDet ecEk ecCt hEk hCt leak) adv _
     (trackedInv_init kem hDet ecEk ecCt) z hz
-  rcases hinv with h | ⟨hs, -⟩
-  · rw [hflag] at h; cases h
-  · exact ⟨sendA_ne_none kem ecEk ecCt _ hs, sendB_ne_none kem ecEk ecCt _ hs⟩
+  obtain ⟨hs, -⟩ := trackedInv_of_flag_false hinv hflag
+  exact ⟨sendA_ne_none kem ecEk ecCt _ hs, sendB_ne_none kem ecEk ecCt _ hs⟩
 
 end oppBiKemCKA

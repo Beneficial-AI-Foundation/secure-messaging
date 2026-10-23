@@ -415,6 +415,44 @@ theorem oracleSendBrleak_expectedPayoff_le
         exact probOutput_eq_zero_of_not_mem_support hout
       simp only [hz, zero_mul]
 
+omit [DecidableEq I] in
+/-- A challenge query does not raise any score that is insensitive to `challenged`. -/
+theorem oracleChall_expectedPayoff_le [SampleableType I] (b : Bool) (t : ℕ)
+    (s : GameState StA StB I Rho) (score : GameState StA StB I Rho → ℝ≥0∞)
+    (hbook : ∀ state challenged, score { state with challenged := challenged } = score state) :
+    expectedPayoff ((oracleChall b StA StB I Rho t).run s) (fun z => score z.2) ≤ score s := by
+  refine expectedPayoff_le_const_of_support _ _ _ probFailure_eq_zero ?_
+  intro z hz
+  rcases oracleChall_support b s t z hz with ⟨h, -⟩ | ⟨-, -, h⟩
+  · simp [h]
+  · simp [h, hbook]
+
+omit [DecidableEq I] in
+/-- Corrupting A does not raise any score that is insensitive to `exposed`. -/
+theorem oracleCorruptA_expectedPayoff_le (vuln : StA → Finset ℕ)
+    (s : GameState StA StB I Rho) (score : GameState StA StB I Rho → ℝ≥0∞)
+    (hbook : ∀ state exposed, score { state with exposed := exposed } = score state) :
+    expectedPayoff ((oracleCorruptA vuln StB I Rho ()).run s) (fun z => score z.2) ≤
+      score s := by
+  refine expectedPayoff_le_const_of_support _ _ _ probFailure_eq_zero ?_
+  intro z hz
+  rcases oracleCorruptA_support vuln s z hz with h | ⟨-, h⟩
+  · simp [h]
+  · simp [h, hbook]
+
+omit [DecidableEq I] in
+/-- Corrupting B does not raise any score that is insensitive to `exposed`. -/
+theorem oracleCorruptB_expectedPayoff_le (vuln : StB → Finset ℕ)
+    (s : GameState StA StB I Rho) (score : GameState StA StB I Rho → ℝ≥0∞)
+    (hbook : ∀ state exposed, score { state with exposed := exposed } = score state) :
+    expectedPayoff ((oracleCorruptB vuln StA I Rho ()).run s) (fun z => score z.2) ≤
+      score s := by
+  refine expectedPayoff_le_const_of_support _ _ _ probFailure_eq_zero ?_
+  intro z hz
+  rcases oracleCorruptB_support vuln s z hz with h | ⟨-, h⟩
+  · simp [h]
+  · simp [h, hbook]
+
 end ExpectedScores
 
 /-! ## Full security oracle family -/
@@ -513,6 +551,31 @@ theorem securityImplOf_preserves_at_of_book (Inv : GameState StA StB I Rho → P
     hchall
     (fun z hz => oracleCorruptA_preservesInv vulnA.corrupt Inv hexp () s hs z hz)
     (fun z hz => oracleCorruptB_preservesInv vulnB.corrupt Inv hexp () s hs z hz) t z hz
+
+/-- The special case of `securityImplOf_preserves_at_of_book` for `sckaSecurityImpl`. Its
+ordinary sends are correctness queries, so the two send hypotheses are instances of `hbase`. -/
+theorem sckaSecurityImpl_preserves_at_of_book [SampleableType I] (b : Bool)
+    (Inv : GameState StA StB I Rho → Prop)
+    (hbook : ∀ s exposed challenged, Inv s →
+      Inv { s with exposed := exposed, challenged := challenged })
+    (hmA : ∀ st, (do
+      let out ← scka.sendArleak st
+      pure (out.map fun (key, msg, epoch, state, _) => (key, msg, epoch, state))) =
+        scka.sendA st)
+    (hmB : ∀ st, (do
+      let out ← scka.sendBrleak st
+      pure (out.map fun (key, msg, epoch, state, _) => (key, msg, epoch, state))) =
+        scka.sendB st)
+    (s : GameState StA StB I Rho) (hs : Inv s)
+    (hbase : ∀ t z, z ∈ support ((sckaCorrectnessImpl scka t).run s) → Inv z.2)
+    (hchall : ∀ (t : ℕ) z, z ∈ support ((oracleChall b StA StB I Rho t).run s) → Inv z.2)
+    (t : (sckaSecuritySpec StA StB I Rho Rand).Domain)
+    (z : (sckaSecuritySpec StA StB I Rho Rand).Range t × GameState StA StB I Rho)
+    (hz : z ∈ support ((sckaSecurityImpl b vulnA vulnB scka t).run s)) :
+    Inv z.2 :=
+  securityImplOf_preserves_at_of_book (sckaCorrectnessImpl scka) (oracleChall b StA StB I Rho)
+    vulnA vulnB scka Inv hbook hmA hmB s hs hbase hchall
+    (hbase sckaCorrectnessSpec.OSendA) (hbase sckaCorrectnessSpec.OSendB) t z hz
 
 /-- If `base` and `base'` have equal query computations from `s`, and so do `chall` and
 `chall'`, the two assembled security implementations have equal query computations from `s`. -/

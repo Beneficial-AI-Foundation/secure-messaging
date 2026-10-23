@@ -11,12 +11,14 @@ import SecureMessaging.SCKA.OppBiKEM.Correctness.RecvFacts
 /-!
 # Opp-BiKEM-CKA — Receive step of the main invariant
 
-The main result, `partyInv_recv_step`, states that receiving a message recorded in the peer's
-table succeeds, satisfies the game's receive-side assertions, and preserves `PartyInv` for both
-parties with the transcript unchanged. It is the only step of the main invariant that uses KEM
-correctness, through its hypothesis `hdec`.
+The main result, `partyInv_recvWith_step`, states that receiving a message recorded in the
+peer's table through the recovery-parametrised receive `recvWith recover` succeeds, satisfies
+the game's receive-side assertions, and preserves `PartyInv` for both parties with the transcript
+unchanged, provided `recover` returns the transcript key at the received epoch (`hrec`). Its
+specialisation `partyInv_recv_step` to the real receive is the only step of the main invariant
+that uses KEM correctness, through its hypothesis `hdec`.
 
-The proof reads `recv` through its decision-tree form `recvSpec` (`Correctness.RecvSpec`). A
+The proof works on the decision-tree form of receive (`Correctness.RecvSpec`). A
 stale message is handled by `partyInv_recv_stale`, every other message by
 `partyInv_recv_noKey`, followed by `partyInv_decaps_local` when the message completes a
 ciphertext.
@@ -964,19 +966,61 @@ lemma partyInv_recv_stale (hst : ρ.tRes < stR.req.reqEpoch) :
           change ρ'.tReq ∈ (recvAck roleR stR.ack ρ).ctRec
           rw [hct]; exact hS.msgs_stale j ρ' t' hj hlt hfl }
 
+/-- At the decapsulation point of a non-stale ciphertext message — an unacknowledged epoch, a
+decoded ciphertext `c` and a stored secret key `sk` — the transcript has the key pair `(pk, sk)`
+and an encapsulation `(c, k)` at `ρ.tRes`, the peer's table records `k` there, and `ρ.tRes` is a
+positive requester-parity epoch. -/
+lemma recv_ciphertext_point [DecidableEq Sym] (hCt : ecCt.ec.Correct)
+    (hns : ¬ ρ.tRes < stR.req.reqEpoch) (hbit : ρ.bit = some 1)
+    (hqnot : ρ.tRes ∉ stR.ack.ctRec) (c : C)
+    (hdec : (insertChunkAndDecode ecCt stR.req.receivedChunks ρ.ch).2 = some c)
+    (sk : SK) (hlk : stR.req.dk.lookup ρ.tRes = some sk) :
+    ∃ pk k, (T ρ.tRes).keypair = some (pk, sk) ∧ (T ρ.tRes).enc = some (c, k) ∧
+      keyS ρ.tRes.toNat = some k ∧ 0 < ρ.tRes ∧ ρ.tRes % 2 = roleR.reqParity := by
+  rcases hch : ρ.ch with _ | ch
+  · rw [hch] at hdec
+    simp [insertChunkAndDecode] at hdec
+  · obtain ⟨c', k, i, I, henc, hchi, hbufI, hcard⟩ :=
+      recv_buffer_ct hR hS hmsg hns hbit hqnot ch hch
+    subst hchi
+    rw [hch, hbufI] at hdec
+    simp only [insertChunkAndDecode] at hdec
+    rw [insert_payloadChunks] at hdec
+    have hle : (insert (counterIndex ecCt i) I).card ≤ ecCt.ec.nchunk := by
+      have := Finset.card_insert_le (counterIndex ecCt i) I
+      omega
+    rcases Nat.lt_or_eq_of_le hle with hlt | heq
+    · rw [decode_payloadChunks_none ecCt hCt c' _ hlt] at hdec
+      cases hdec
+    · rw [decode_payloadChunks ecCt hCt c' _ heq.ge, Option.some.injEq] at hdec
+      subst hdec
+      have hpar := recv_tRes_parity hS hmsg
+      have hkpS : (T ρ.tRes).keypair.isSome = true :=
+        (T ρ.tRes).enc_keypair (by rw [henc]; rfl)
+      have hpos : 0 < ρ.tRes := hR.keypair_pos _ hpar hkpS
+      have hmem : (ρ.tRes, sk) ∈ stR.req.dk := by
+        obtain ⟨before, after, hlist, _⟩ := List.lookup_eq_some_iff.mp hlk
+        simp only [hlist, List.mem_append, List.mem_cons, true_or, or_true]
+      obtain ⟨-, -, -, -, pk, hkp⟩ := hR.dk_T _ sk hmem
+      refine ⟨pk, k, hkp, henc, ?_, hpos, hpar⟩
+      have hparS : ρ.tRes % 2 = roleR.peer.resParity := by simpa using hpar
+      rw [hS.key_res _ hpos hparS, EpochTranscript.key, henc]
+      rfl
+
 /-! ### The receive step -/
 
-/-- Receiving a message recorded in the peer's table succeeds, and every result satisfies the
-game's receive-side assertions — the reported epoch is the recorded sending epoch, the
-known-prefix check passes, and an emitted key is fresh for the receiver and consistent with the
-peer's table — and preserves `PartyInv` for both parties with the transcript unchanged. The only
-KEM hypothesis, `hdec`, is decapsulation correctness at the received epoch when that epoch is
-not yet acknowledged. -/
-lemma partyInv_recv_step [DecidableEq Sym] (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
-    (hdec : ρ.tRes ∉ stR.ack.ctRec → ∀ pk sk c k, (T ρ.tRes).keypair = some (pk, sk) →
-      (T ρ.tRes).enc = some (c, k) → hDet.decapsDet sk c = some k) :
-    (∃ key? trcv stR', recv roleR kem hDet ecEk ecCt stR ρ = some (key?, trcv, stR')) ∧
-    ∀ key? trcv stR', recv roleR kem hDet ecEk ecCt stR ρ = some (key?, trcv, stR') →
+/-- Receiving a message recorded in the peer's table through `recvWith recover` succeeds, and
+every result satisfies the game's receive-side assertions — the reported epoch is the recorded
+sending epoch, the known-prefix check passes, and an emitted key is fresh for the receiver and
+consistent with the peer's table — and preserves `PartyInv` for both parties with the transcript
+unchanged. The only hypothesis on `recover`, `hrec`, is that it returns the transcript key at the
+received epoch when that epoch is not yet acknowledged. -/
+lemma partyInv_recvWith_step [DecidableEq Sym] (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
+    (recover : ℤ → SK → C → Option K)
+    (hrec : ρ.tRes ∉ stR.ack.ctRec → ∀ pk sk c k, (T ρ.tRes).keypair = some (pk, sk) →
+      (T ρ.tRes).enc = some (c, k) → recover ρ.tRes sk c = some k) :
+    (∃ key? trcv stR', recvWith roleR recover ecEk ecCt stR ρ = some (key?, trcv, stR')) ∧
+    ∀ key? trcv stR', recvWith roleR recover ecEk ecCt stR ρ = some (key?, trcv, stR') →
       trcv = tsnd ∧
       (List.range (max tcurR trcv + 1)).all
         (fun t => t = 0 || (recordKey keyR key? t).isSome) = true ∧
@@ -1000,8 +1044,7 @@ lemma partyInv_recv_step [DecidableEq Sym] (hEk : ecEk.ec.Correct) (hCt : ecCt.e
     obtain ⟨rfl, rfl, rfl⟩ := h
     refine ⟨hepoch.symm, ?_, by simp, hR', hS'⟩
     simpa using knownPrefix_of_partyInv hR' hS' _ hR'.tcur_le
-  rw [recv_eq_recvSpec]
-  unfold recvSpec
+  unfold recvWith
   by_cases hst : ρ.tRes < stR.req.reqEpoch
   · simp only [hst, if_true]
     obtain ⟨hR', hS'⟩ := partyInv_recv_stale hR hS hmsg hst
@@ -1156,7 +1199,7 @@ lemma partyInv_recv_step [DecidableEq Sym] (hEk : ecEk.ec.Correct) (hCt : ecCt.e
                   simp only [Option.some.injEq, Prod.mk.injEq] at hkp'
                   rw [hkp'.2]
             rw [hlk]
-            simp only [Option.bind_eq_bind, Option.bind, hdec hqnot pk sk c k hkp henc]
+            simp only [Option.bind_eq_bind, Option.bind, hrec hqnot pk sk c k hkp henc]
             -- A decapsulating receive is the no-key receive followed by `partyInv_decaps_local`.
             obtain ⟨hR₁, hS₁⟩ := partyInv_recv_noKey hR hS hmsg hst stR.res.ekPeer
               (recvAck roleR stR.ack ρ) ∅ (fun _ _ => rfl) hR.ekPeer_T
@@ -1205,6 +1248,26 @@ lemma partyInv_recv_step [DecidableEq Sym] (hEk : ecEk.ec.Correct) (hCt : ecCt.e
             have := hR.ekPeer_le e he; have := not_lt.mp hst; omega⟩) rfl (fun _ h => h)
           (fun t ht hnot => absurd ht hnot) (recv_buffer_unchanged hR hS hmsg hst)
         exact ⟨⟨_, _, _, rfl⟩, finish _ hR' hS'⟩
+
+/-- Receiving a message recorded in the peer's table succeeds, and every result satisfies the
+game's receive-side assertions — the reported epoch is the recorded sending epoch, the
+known-prefix check passes, and an emitted key is fresh for the receiver and consistent with the
+peer's table — and preserves `PartyInv` for both parties with the transcript unchanged. The only
+KEM hypothesis, `hdec`, is decapsulation correctness at the received epoch when that epoch is
+not yet acknowledged. -/
+lemma partyInv_recv_step [DecidableEq Sym] (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
+    (hdec : ρ.tRes ∉ stR.ack.ctRec → ∀ pk sk c k, (T ρ.tRes).keypair = some (pk, sk) →
+      (T ρ.tRes).enc = some (c, k) → hDet.decapsDet sk c = some k) :
+    (∃ key? trcv stR', recv roleR kem hDet ecEk ecCt stR ρ = some (key?, trcv, stR')) ∧
+    ∀ key? trcv stR', recv roleR kem hDet ecEk ecCt stR ρ = some (key?, trcv, stR') →
+      trcv = tsnd ∧
+      (List.range (max tcurR trcv + 1)).all
+        (fun t => t = 0 || (recordKey keyR key? t).isSome) = true ∧
+      (∀ tI k, key? = some (tI, k) → keyR tI = none ∧ (keyS tI = none ∨ keyS tI = some k)) ∧
+      PartyInv roleR ecEk ecCt T stR' stS msgsR (recordKey keyR key?) keyS (max tcurR trcv) ∧
+      PartyInv roleR.peer ecEk ecCt T stS stR' msgsS keyS (recordKey keyR key?) tcurS := by
+  rw [recv_eq_recvWith]
+  exact partyInv_recvWith_step hR hS hmsg hEk hCt _ hdec
 
 end Receive
 

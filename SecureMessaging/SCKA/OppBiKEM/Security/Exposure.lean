@@ -40,6 +40,18 @@ def exposure {kem : KEMScheme ProbComp K PK SK C}
   corrupt := vuln
   rleak := rleakEpochs role
 
+/-- The corruption policy of `exposure` is `vuln`. -/
+@[simp] lemma exposure_corrupt {kem : KEMScheme ProbComp K PK SK C}
+    (role : Role) (leak : kem.RandLeak) :
+    (exposure (Sym := Sym) role leak).corrupt = vuln :=
+  rfl
+
+/-- The leakage policy of `exposure` is `rleakEpochs role`. -/
+@[simp] lemma exposure_rleak {kem : KEMScheme ProbComp K PK SK C}
+    (role : Role) (leak : kem.RandLeak) :
+    (exposure (Sym := Sym) role leak).rleak = rleakEpochs role :=
+  rfl
+
 /-- Whether the send control flow generates a key pair and advances the responder epoch.
 This guard constrains the local public key and ciphertext acknowledgements. -/
 def sendKeygenGuard (role : Role) (st : State PK SK C Sym) : Bool :=
@@ -63,6 +75,17 @@ def leakEpochs (role : Role) (st : State PK SK C Sym) : Finset ℕ :=
     ({ keygenRand := if sendKeygenGuard role st then some () else none
        encapsRand := if sendEncapsGuard role st then some () else none } :
       SendRand Unit Unit)
+
+/-- Membership in `vuln` means a positive epoch at which a decapsulation key is retained. -/
+lemma mem_vuln_iff (st : State PK SK C Sym) (t : ℕ) :
+    t ∈ vuln st ↔ 0 < t ∧ ∃ sk : SK, ((t : ℤ), sk) ∈ st.req.dk := by
+  simp only [vuln, Finset.mem_image, Finset.mem_filter, List.mem_toFinset, List.mem_map]
+  constructor
+  · rintro ⟨e, ⟨⟨⟨e', sk⟩, hmem, rfl⟩, hpos⟩, rfl⟩
+    refine ⟨by omega, sk, ?_⟩
+    rwa [Int.toNat_of_nonneg hpos.le]
+  · rintro ⟨ht, sk, hmem⟩
+    exact ⟨t, ⟨⟨(t, sk), hmem, rfl⟩, by omega⟩, by simp⟩
 
 /-- Membership in `rleakEpochs` means a positive epoch selected by a present randomness field. -/
 theorem mem_rleakEpochs_iff
@@ -92,10 +115,7 @@ theorem exposure_positive
       (∀ t ∈ (exposure role leak).rleak st rand, 0 < t) := by
   constructor
   · intro t ht
-    change t ∈ vuln st at ht
-    simp only [vuln, Finset.mem_image, Finset.mem_filter] at ht
-    obtain ⟨e, ⟨_, hpos⟩, het⟩ := ht
-    omega
+    exact ((mem_vuln_iff st t).mp ht).1
   · intro t ht
     exact ((mem_rleakEpochs_iff role st rand t).mp ht).1
 

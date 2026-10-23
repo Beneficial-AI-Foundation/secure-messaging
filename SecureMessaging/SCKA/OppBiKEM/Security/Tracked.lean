@@ -56,6 +56,32 @@ theorem trackedSecurityImpl_preservesInv
   trackedImpl_preserves _ _ _
     (security_gameInv_step_of_noFailure kem hDet ecEk ecCt hEk hCt leak b)
 
+/-- A supported outcome of a tracked security run from the initial state whose historical
+KEM-failure flag is clear satisfies `GameInv` and has no current KEM failure. -/
+lemma security_noFailure_of_flag_false
+    [DecidableEq K] [DecidableEq Sym] [SampleableType K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (hDet : kem.DeterministicDecaps)
+    (ecEk : ErasureCodePayload PK Sym)
+    (ecCt : ErasureCodePayload C Sym)
+    (hEk : ecEk.ec.Correct)
+    (hCt : ecCt.ec.Correct)
+    (leak : kem.RandLeak)
+    (b : Bool)
+    {α : Type}
+    (adv : OracleComp (securitySpec leak Sym) α)
+    (z : α ×
+      (SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym) × Bool))
+    (hz : z ∈ support
+      ((simulateQ (trackedSecurityImpl kem hDet ecEk ecCt leak b) adv).run
+        (initState (K := K) (PK := PK) (SK := SK) (C := C) (Sym := Sym), false)))
+    (hflag : z.2.2 = false) :
+    GameInv kem ecEk ecCt z.2.1 ∧ kemFailure hDet z.2.1 = false :=
+  trackedInv_of_flag_false
+    (simulateQ_run_preservesInv _ _
+      (trackedSecurityImpl_preservesInv kem hDet ecEk ecCt hEk hCt leak b) adv _
+      (trackedInv_init kem hDet ecEk ecCt) z hz) hflag
+
 /-- Assume:
 
 * `kem` has deterministic decapsulation;
@@ -84,13 +110,7 @@ theorem security_gameInv_of_noFailure
       ((simulateQ (trackedSecurityImpl kem hDet ecEk ecCt leak b) adv).run
         (initState (K := K) (PK := PK) (SK := SK) (C := C) (Sym := Sym), false)))
     (hflag : z.2.2 = false) :
-    GameInv kem ecEk ecCt z.2.1 := by
-  have hinv := simulateQ_run_preservesInv _ _
-    (trackedSecurityImpl_preservesInv kem hDet ecEk ecCt hEk hCt leak b) adv _
-    (trackedInv_init kem hDet ecEk ecCt) z hz
-  rcases hinv with h | ⟨hs, -⟩
-  · rw [hflag] at h
-    cases h
-  · exact hs
+    GameInv kem ecEk ecCt z.2.1 :=
+  (security_noFailure_of_flag_false kem hDet ecEk ecCt hEk hCt leak b adv z hz hflag).1
 
 end oppBiKemCKA

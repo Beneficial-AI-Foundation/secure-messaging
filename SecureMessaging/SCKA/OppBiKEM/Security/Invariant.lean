@@ -62,7 +62,7 @@ theorem security_gameInv_step_of_noFailure
         (scheme kem hDet ecEk ecCt leak) t).run s),
       GameInv kem ecEk ecCt z.2 := by
   intro z hz
-  exact SCKAScheme.securityImplOf_preserves_at_of_book _ _ _ _ _
+  exact SCKAScheme.sckaSecurityImpl_preserves_at_of_book _ _ _ b
     (GameInv kem ecEk ecCt)
     (fun _ E C h => gameInv_with_security_bookkeeping h E C)
     (sendWith_rleak_forget kem .A ecEk ecCt leak)
@@ -70,9 +70,6 @@ theorem security_gameInv_step_of_noFailure
     (fun t => gameInv_step_of_noFailure kem hDet ecEk ecCt hEk hCt leak t s hs hfail)
     (fun t => SCKAScheme.oracleChall_preservesInv b _
       (fun s C h => by simpa using gameInv_with_security_bookkeeping h s.exposed C) t s hs)
-    (gameInv_step_of_noFailure kem hDet ecEk ecCt hEk hCt leak
-      SCKAScheme.sckaCorrectnessSpec.OSendA s hs hfail)
-    (gameInv_step_of_noFailure kem hDet ecEk ecCt hEk hCt leak
-      SCKAScheme.sckaCorrectnessSpec.OSendB s hs hfail) t z hz
+    t z hz
 
 end oppBiKemCKA

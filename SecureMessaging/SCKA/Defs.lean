@@ -834,6 +834,70 @@ def securityExpFixedBit [SampleableType I] [DecidableEq I]
   return b'
 -- ANCHOR_END: securityExpFixedBit
 
+/-- SCKA distinguishing advantage: the distance between the random-key fixed-bit experiment
+(`b = true`) and the real-key one (`b = false`). -/
+noncomputable def sckaDistAdvantage [SampleableType I] [DecidableEq I]
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (adversary : SCKAAdversary StA StB I Rho Rand)
+    (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand) : ℝ :=
+  |(Pr[= true | securityExpFixedBit scka adversary true vulnA vulnB]).toReal -
+   (Pr[= true | securityExpFixedBit scka adversary false vulnA vulnB]).toReal|
+
+/-- The security experiment is a uniform-bit branch over the two fixed-bit experiments. -/
+private lemma securityExp_probOutput_eq_branch [SampleableType I] [DecidableEq I]
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (adversary : SCKAAdversary StA StB I Rho Rand)
+    (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand) :
+    Pr[= true | securityExp scka adversary vulnA vulnB] =
+    Pr[= true | do
+      let b ← ($ᵗ Bool : ProbComp Bool)
+      let z ← if b then securityExpFixedBit scka adversary true vulnA vulnB
+               else securityExpFixedBit scka adversary false vulnA vulnB
+      pure (b == z)] := by
+  unfold securityExp
+  simp only [← probEvent_eq_eq_probOutput]
+  rw [probEvent_bind_congr fun ik _ =>
+    probEvent_bind_congr fun stA _ =>
+    probEvent_bind_bind_swap _ _ _ _]
+  rw [probEvent_bind_congr fun ik _ =>
+    probEvent_bind_bind_swap _ _ _ _]
+  rw [probEvent_bind_bind_swap]
+  simp only [probEvent_eq_eq_probOutput]
+  refine probOutput_bind_congr' ($ᵗ Bool) true ?_
+  intro b; cases b <;> simp [securityExpFixedBit]
+
+/-- The centered success probability of the security experiment is half the difference of the
+random-key and real-key fixed-bit branches. -/
+lemma securityExp_toReal_sub_half [SampleableType I] [DecidableEq I]
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (adversary : SCKAAdversary StA StB I Rho Rand)
+    (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand) :
+    (Pr[= true | securityExp scka adversary vulnA vulnB]).toReal - 1 / 2 =
+    ((Pr[= true | securityExpFixedBit scka adversary true vulnA vulnB]).toReal -
+     (Pr[= true | securityExpFixedBit scka adversary false vulnA vulnB]).toReal) / 2 := by
+  rw [show (Pr[= true | securityExp scka adversary vulnA vulnB]).toReal =
+      (Pr[= true | do
+        let b ← ($ᵗ Bool : ProbComp Bool)
+        let z ← if b then securityExpFixedBit scka adversary true vulnA vulnB
+                 else securityExpFixedBit scka adversary false vulnA vulnB
+        pure (b == z)]).toReal from by
+    congr 1; exact securityExp_probOutput_eq_branch scka adversary vulnA vulnB]
+  exact probOutput_uniformBool_branch_toReal_sub_half
+    (securityExpFixedBit scka adversary true vulnA vulnB)
+    (securityExpFixedBit scka adversary false vulnA vulnB)
+
+/-- The SCKA guess advantage is half the distinguishing advantage. -/
+lemma sckaGuessAdvantage_eq_sckaDistAdvantage_div_two [SampleableType I] [DecidableEq I]
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (adversary : SCKAAdversary StA StB I Rho Rand)
+    (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand) :
+    sckaGuessAdvantage scka adversary vulnA vulnB =
+      sckaDistAdvantage scka adversary vulnA vulnB / 2 := by
+  simp only [sckaGuessAdvantage, sckaDistAdvantage]
+  rw [securityExp_toReal_sub_half, abs_div]
+  congr 1
+  exact abs_of_pos two_pos
+
 end Games
 
 end SCKAScheme
