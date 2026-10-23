@@ -13,8 +13,17 @@ import SecureMessaging.SCKA.Security
 /-!
 # Marking honest states
 
-**Setting.** `e` is a challenge epoch, `m` complete material, and `kStar` a candidate key; marked
-values, `Pinned.kem m`, and the simulator are those of `Simulator`.
+**Setting.**
+
+- `e`: a challenge epoch; `kStar`: a candidate key.
+- `m`: complete material, the outputs and coins of one epoch's key generation, offline
+  encapsulation, and online encapsulation.
+- From `Simulator`:
+  - *marked* values: the private values of the simulator's states (secret keys, offline states,
+    shared keys, coins), each `some x` if known to the simulator or `none` if hidden from it;
+  - `Pinned.kem m`: the KEM returning the stored outputs of `m` in its pinned phases;
+  - the simulator `oracle`, running over the marked KEM `kem`, which embeds the IND-CPA challenge
+    at epoch `e`.
 
 **Definitions.**
 
@@ -259,7 +268,6 @@ theorem recvA_key_source
     repeat' split at h
     all_goals simp_all
 
-set_option backward.dsimp.instances true in
 /-- B's receive over the marked KEM from `markB e s` is `recvB s msg` followed by marking. -/
 theorem recvB_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
@@ -277,7 +285,6 @@ theorem recvB_mark
 
 set_option maxHeartbeats 800000 in
 -- Splitting the receive branches also expands the state-marking equations.
-set_option backward.dsimp.instances true in
 /-- A's receive over the marked KEM with result `key.map (mark e s.t)` from `markA e s` is A's
 receive with result `key` from `s`, followed by marking the key and state. -/
 theorem recvA_mark
@@ -445,8 +452,6 @@ def markCoins {KG OFF ON : Type} (e t : ℕ) :
   | .on r => .on (mark e t r)
   | .offOn r₀ r₁ => .offOn (mark e t r₀) (mark e t r₁)
 
-set_option maxHeartbeats 1000000 in
--- Both leakage witnesses expand through different secret and coin types.
 /-- A's leaking send over the marked KEM from `markA e s`, A selected iff `s.t = e`, is A's
 leaking send over `Pinned.kem m` from `s` followed by marking; the output key is `none`. -/
 theorem sendArleak_mark
@@ -469,7 +474,7 @@ theorem sendArleak_mark
     try dsimp only [leakage, Pinned.leakage]
     simp [keygenLeak, markCoins, mark, he, monad_norm]
 
-set_option maxHeartbeats 2000000 in
+set_option maxHeartbeats 1400000 in
 -- Each leakage phase expands its output, coin conversion, and state update.
 /-- B version of `sendArleak_mark`; the output key is also marked. -/
 theorem sendBrleak_mark

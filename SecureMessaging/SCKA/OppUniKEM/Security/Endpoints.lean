@@ -26,8 +26,9 @@ send queries (`SecuritySendQueryBound adv q`), and let `ε` denote the KEM corre
 - `idealSecurityImpl … mode`, `idealSecurityExp … mode adv`: the *ideal security game*, in which
   party A, upon completing an online ciphertext at epoch `s.stA.t`, outputs party B's recorded key
   `s.keyB s.stA.t` instead of decapsulating, and an eligible challenge at epoch `t` returns a
-  uniform key if and only if `mode t = true`. In particular, `I_b := idealSecurityExp … (fun _ => b) adv`
-  coincides with `G_b` except for this ideal receive transition.
+  uniform key if and only if `mode t = true`. In particular,
+  `I_b := idealSecurityExp … (fun _ => b) adv` coincides with `G_b` except for this ideal receive
+  transition.
 
 **Main result.** `security_correctness_endpoint_le` bounds the difference in acceptance probability
 between the real and ideal games by the cumulative KEM correctness error over `q` sends:

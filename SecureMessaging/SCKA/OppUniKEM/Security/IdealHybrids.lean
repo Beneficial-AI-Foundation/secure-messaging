@@ -402,8 +402,9 @@ theorem idealSecurityImpl_preserves_challenged (mode : ℕ → Bool) (e : ℕ) :
     (fun t s z hz => (idealCorrectnessImpl_securitySets_eq kem onoff hDet ecEk ecCt0 ecCt1 leak
       t s z hz).2) (SCKAScheme.challOf_recordsChallenges _) t s z hz hs
 
-/-- Every query of `idealSecurityImpl` preserves `Disjoint s.exposed s.challenged ∧ e ∈ s.challenged`,
-ensuring that a challenged epoch `e` remains unexposed. -/
+/-- Every query of `idealSecurityImpl` preserves
+`Disjoint s.exposed s.challenged ∧ e ∈ s.challenged`, ensuring that a challenged epoch `e` remains
+unexposed. -/
 theorem idealSecurityImpl_preserves_committed (mode : ℕ → Bool) (e : ℕ) :
     QueryImpl.PreservesInv (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak mode)
       (fun s => Disjoint s.exposed s.challenged ∧ e ∈ s.challenged) := by
@@ -413,10 +414,10 @@ theorem idealSecurityImpl_preserves_committed (mode : ℕ → Bool) (e : ℕ) :
     idealSecurityImpl_preserves_challenged kem onoff hDet ecEk ecCt0 ecCt1
       leak mode e t s hs.2 z hz⟩
 
-/-- From any state `s` satisfying `Disjoint s.exposed s.challenged`, either `idealEpochHybridImpl … (i + 1)`
-and `idealEpochHybridImpl … i` evaluate query `t` to the same response/state computation, or `t` is
-an eligible challenge at epoch `i + 1` and every successor state of either hybrid satisfies
-`Disjoint exposed challenged ∧ i + 1 ∈ challenged`. -/
+/-- From any state `s` satisfying `Disjoint s.exposed s.challenged`, either
+`idealEpochHybridImpl … (i + 1)` and `idealEpochHybridImpl … i` evaluate query `t` to the same
+response/state computation, or `t` is an eligible challenge at epoch `i + 1` and every successor
+state of either hybrid satisfies `Disjoint exposed challenged ∧ i + 1 ∈ challenged`. -/
 theorem idealEpochHybrid_query_eq_or_committed
     (i : ℕ) (t : (securitySpec leak Sym).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))

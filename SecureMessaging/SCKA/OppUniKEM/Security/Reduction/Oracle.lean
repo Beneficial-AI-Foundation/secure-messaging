@@ -36,7 +36,7 @@ private theorem corruptA_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (e : ℕ) (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : e ∉ s.exposed) :
-    ((revealAfter (revealResponse (revealA (onoff := onoff)))
+    ((revealAfter (revealA (onoff := onoff))
       (SCKAScheme.oracleCorruptA
         (fun u => if u.dkA.isSome then {u.t} else ∅)
         (StateB PK onoff.C₀ onoff.C₁ (Option onoff.St) Sym)
@@ -57,7 +57,7 @@ private theorem corruptA_mark
     dsimp only [markState]
     simp only [hv]
     simp [hg, hs, StateT.run_pure,
-      revealResponse, revealA_markA_eq, markState, Prod.map]
+      revealA_markA_eq, markState, Prod.map]
   all_goals by_cases he : e ∈ vulnCorrA base onoff s.stA <;> simp [he]
 
 set_option backward.dsimp.instances true in
@@ -66,7 +66,7 @@ private theorem corruptB_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (e : ℕ) (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : e ∉ s.exposed) :
-    ((revealAfter (revealResponse (revealB (onoff := onoff)))
+    ((revealAfter (revealB (onoff := onoff))
       (SCKAScheme.oracleCorruptB
         (fun u => if u.stCt.isSome then {u.t} else ∅)
         (StateA (Option SK) PK onoff.C₀ Sym)
@@ -87,7 +87,7 @@ private theorem corruptB_mark
     dsimp only [markState]
     simp only [hv]
     simp [hg, hs, StateT.run_pure,
-      revealResponse, revealB_markB_eq, markState, Prod.map]
+      revealB_markB_eq, markState, Prod.map]
   all_goals by_cases he : e ∈ vulnCorrB base onoff s.stB <;> simp [he]
 
 end oppUniKemCKA.Security.Embedding
@@ -122,7 +122,6 @@ theorem honest_recvA_eq_ideal
     repeat' (split <;> simp_all only [Fin.zero_eta, Fin.mk_one, Fin.isValue,
       Bool.and_eq_true, beq_iff_eq, Option.bind_some, Option.bind_none])
 
-set_option backward.dsimp.instances true in
 /-- B's receive oracle: the marked instance on `markState e s` is the honest one, then marking. -/
 private theorem oracleRecvB_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
@@ -154,7 +153,6 @@ private theorem oracleRecvB_mark
       subst key
       simp [StateT.run_set, markState, markA, markB, Prod.map]
 
-set_option backward.dsimp.instances true in
 /-- A version of `oracleRecvB_mark`. -/
 private theorem oracleRecvA_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
@@ -285,9 +283,9 @@ private theorem oracleSendArleak_mark
     (m : Material leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : e ∉ s.exposed) :
-    𝒟[((revealAfter (revealResponse (fun out => do
+    𝒟[((revealAfter (fun out => do
         let (n, epoch, msg, coins) := out
-        pure (n, epoch, msg, ← revealCoins coins)))
+        pure (n, epoch, msg, ← revealCoins coins))
       (SCKAScheme.oracleSendArleak vulnRleakA
         (markedScheme base onoff ecEk ecCt0 ecCt1 leak m e s) ())).run).run (markState e s)] =
     𝒟[Prod.map id (markState e) <$>
@@ -310,7 +308,7 @@ private theorem oracleSendArleak_mark
   intro out hout
   cases out with
   | none =>
-    simp [StateT.run_pure, markState, markA, markB, Prod.map, revealResponse, hs]
+    simp [StateT.run_pure, markState, markA, markB, Prod.map, hs]
   | some out =>
     rcases out with ⟨key, msg, t, next, coins⟩
     obtain ⟨rfl, hcoins⟩ := sendArleak_shape
@@ -322,7 +320,7 @@ private theorem oracleSendArleak_mark
       have heq : (s.stA.t = e) ↔ (e = s.stA.t) := eq_comm
       by_cases he : e = s.stA.t <;> by_cases hc : s.stA.t ∈ s.challenged <;>
         (try simp only [he] at hs) <;>
-        simp [vulnRleakA, markCoins, revealResponse, revealCoins, mark,
+        simp [vulnRleakA, markCoins, revealCoins, mark,
           StateT.run_set, StateT.run_pure,
           markState, markA, markB, Prod.map, hs, heq, he, hc]
 
@@ -336,9 +334,9 @@ private theorem oracleSendBrleak_mark
     (m : Material leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : e ∉ s.exposed) (hinv : reachableInv base onoff ecEk ecCt0 ecCt1 s) :
-    𝒟[((revealAfter (revealResponse (fun out => do
+    𝒟[((revealAfter (fun out => do
         let (n, epoch, msg, coins) := out
-        pure (n, epoch, msg, ← revealCoins coins)))
+        pure (n, epoch, msg, ← revealCoins coins))
       (SCKAScheme.oracleSendBrleak vulnRleakB
         (markedScheme base onoff ecEk ecCt0 ecCt1 leak m e s) ())).run).run (markState e s)] =
     𝒟[Prod.map id (markState e) <$>
@@ -361,7 +359,7 @@ private theorem oracleSendBrleak_mark
   intro out hout
   cases out with
   | none =>
-    simp [StateT.run_pure, markState, markA, markB, Prod.map, revealResponse, hs]
+    simp [StateT.run_pure, markState, markA, markB, Prod.map, hs]
   | some out =>
     rcases out with ⟨key, msg, t, next, coins⟩
     have hcoins := sendBrleak_coins
@@ -375,7 +373,7 @@ private theorem oracleSendBrleak_mark
         have heq : (s.stB.t = e) ↔ (e = s.stB.t) := eq_comm
         by_cases he : e = s.stB.t <;> by_cases hc : s.stB.t ∈ s.challenged <;>
           (try simp only [he] at hs) <;>
-          simp [vulnRleakB, markCoins, revealResponse, revealCoins, mark,
+          simp [vulnRleakB, markCoins, revealCoins, mark,
             StateT.run_set, StateT.run_pure,
             markState, markA, markB, Prod.map, hs, heq, he, hc]
     | some key =>
@@ -391,7 +389,7 @@ private theorem oracleSendBrleak_mark
         have heq : (s.stB.t = e) ↔ (e = s.stB.t) := eq_comm
         by_cases he : e = s.stB.t <;> by_cases hc : s.stB.t ∈ s.challenged <;>
           (try simp only [he] at hs) <;>
-          simp [vulnRleakB, markCoins, revealResponse, revealCoins, mark,
+          simp [vulnRleakB, markCoins, revealCoins, mark,
             StateT.run_set, StateT.run_pure,
             markState, markA, markB, Prod.map, hs, heq, he, hc, hk]
 
