@@ -36,15 +36,15 @@ Figure 16 of {Informal.citet SCKA25}[]. In the receive algorithms,
 - $`t` is the epoch index of the receiver's state,
 - $`t'` is the epoch index of the delivered message.
 
-Boxes mark corrections and explicit checks added to Figure 16:
+Boxes mark three corrections and explicit checks added to Figure 16:
 
 * $`\mathsf{Rec}\text{-}\A` and $`\mathsf{Rec}\text{-}\B` record
   received acknowledgements only if $`t=t'`;
 * $`\mathsf{Rec}\text{-}\B` returns $`t'-1` rather than $`t-1`;
-* $`\mathsf{Rec}\text{-}\A` attempts decoding only if $`\chunk\ne\bot`.
-  After decoding a current-epoch $`\ctone`, it aborts if $`\dkA` or $`\ctzero` is
-  missing or decapsulation fails. Incomplete decoding retains the chunk and
-  processes acknowledgements.
+* $`\mathsf{Rec}\text{-}\A` decodes only present chunks and aborts on missing
+  decapsulation inputs or failed decapsulation.
+
+See errata 4–6 in the {ref "scka-errata"}[errata] for details.
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Initialisation}" (kind := "scheme")
@@ -351,7 +351,7 @@ def sendBrleak (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 ```
 :::::
 
-:::::gameCell "\\RecA(\\stA,\\rho)" (kind := "compact")
+:::::gameCell "\\RecA(\\stA,\\rho)" (kind := "compact") (tag := "opp-unikem-rec-a")
 $`\begin{array}{l}
 (\dkA,\ekA,\ctzero,t,\ich,\Lch,\ack)\gets\stA \\
 (\chunk,\ack',t',b)\gets\rho \\
@@ -448,7 +448,7 @@ def recvA (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 ```
 :::::
 
-:::::gameCell "\\RecB(\\stB,\\rho)" (kind := "compact")
+:::::gameCell "\\RecB(\\stB,\\rho)" (kind := "compact") (tag := "opp-unikem-rec-b")
 $`\begin{array}{l}
 (\ekA,\ctzero,\ctone,\stct,t,\ich,\Lch,\ack)\gets\stB \\
 (\chunk,\ack',t',\_)\gets\rho \\

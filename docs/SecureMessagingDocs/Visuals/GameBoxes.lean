@@ -26,13 +26,20 @@ open Lean
 /-! ## Argument Parsing -/
 
 /-- Arguments of a `gameCell`: its header `title`, optional `kind`
-(`game`/`oracle`/`challenge`/`corrupt`/`security`) selecting the box colour, and an
+(`game`/`oracle`/`challenge`/`corrupt`/`security`) selecting the box colour, an
 optional `state` (LaTeX) shown right-aligned in the header — the slice of game
-state the oracle reads/writes. -/
+state the oracle reads/writes — and an optional `tag` that makes the cell a link
+target for `{cellref "tag"}[…]`. -/
 structure GameCellConfig where
   title : String
   kind : Option String
   state : Option String
+  tag : Option String
+deriving Inhabited
+
+/-- Argument of `cellref`: the `tag` of the game cell to link to. -/
+structure CellRefConfig where
+  tag : String
 deriving Inhabited
 
 /-- Arguments of `defTitle`: a Blueprint label and the human-readable name shown
@@ -42,13 +49,21 @@ structure DefTitleConfig where
   title : String
 deriving Inhabited
 
+/-- Arguments of `erratum`: the erratum `number`, its `title`, and an optional
+`scope` (protocol and figures it concerns) shown right-aligned in the header. -/
+structure ErratumConfig where
+  number : String
+  title : String
+  scope : Option String
+deriving Inhabited
+
 section
 variable [Monad m] [MonadError m]
 
 /-- Parse `gameCell "Title" (kind := "...") (state := "...")` into a `GameCellConfig`. -/
 def GameCellConfig.parse : ArgParse m GameCellConfig :=
   GameCellConfig.mk <$> .positional `title .string <*> .named `kind .string true
-    <*> .named `state .string true
+    <*> .named `state .string true <*> .named `tag .string true
 
 /-- Lets the `gameCell` directive consume its arguments as a `GameCellConfig`. -/
 instance : FromArgs GameCellConfig m where
@@ -62,9 +77,29 @@ def DefTitleConfig.parse : ArgParse m DefTitleConfig :=
 instance : FromArgs DefTitleConfig m where
   fromArgs := DefTitleConfig.parse
 
+/-- Parse `cellref "tag"`. -/
+def CellRefConfig.parse : ArgParse m CellRefConfig :=
+  CellRefConfig.mk <$> .positional `tag .string
+
+/-- Lets the `cellref` role consume its tag. -/
+instance : FromArgs CellRefConfig m where
+  fromArgs := CellRefConfig.parse
+
+/-- Parse `erratum "1" "Title" (scope := "...")`. -/
+def ErratumConfig.parse : ArgParse m ErratumConfig :=
+  ErratumConfig.mk <$> .positional `number .string <*> .positional `title .string
+    <*> .named `scope .string true
+
+/-- Lets the `erratum` directive consume its arguments as an `ErratumConfig`. -/
+instance : FromArgs ErratumConfig m where
+  fromArgs := ErratumConfig.parse
+
 end
 
 /-! ## Block Extensions -/
+
+/-- The Verso domain in which tagged game cells are registered as link targets. -/
+def gameCellDomain : Name := `SecureMessagingDocs.gameCell
 
 /-- HTML attributes carrying a single CSS `class`. -/
 private def attrsWithClass (className : String) : Array (String × String) :=
@@ -120,18 +155,30 @@ block_extension Block.gameGrid where
         (withLocalTexPrelude (.seq body))
 
 -- A single titled box: a `<section class="game-cell" data-kind=…>` with a header
--- (`title` left, optional `state` LaTeX right) and a body of pseudocode.
-block_extension Block.gameCell (title : String) (kind? : Option String) (state? : Option String) where
-  data := toJson (title, kind?, state?)
-  traverse _id _data _contents := do
-    pure none
+-- (`title` left, optional `state` LaTeX right) and a body of pseudocode. A cell
+-- with a `tag` registers itself as a link target (see `cellref`); the first
+-- traversal pass records the assigned tag and pins the block's internal id.
+block_extension Block.gameCell (title : String) (kind? : Option String) (state? : Option String)
+    (tag? : Option String := none) (assignedTag : Option Tag := none) where
+  data := toJson (title, kind?, state?, tag?, assignedTag)
+  traverse id data contents := do
+    match fromJson? (α := String × Option String × Option String × Option String × Option Tag) data with
+    | .error e => reportError s!"Error deserializing game cell data: {e}"; pure none
+    | .ok (title, kind?, state?, some tag, none) =>
+      let path ← (·.path) <$> read
+      let assigned ← Verso.Genre.Manual.externalTag id path tag
+      modify fun st => st.saveDomainObject gameCellDomain tag id
+      pure <| some <| Block.other
+        {Block.gameCell title kind? state? (some tag) (some assigned) with id := some id} contents
+    | .ok _ => pure none
   toTeX := some <| fun _goI goB _id _data contents => contents.mapM goB
   toHtml :=
-    some <| fun _goI goB _id data contents => do
-      let (title, kind?, state?) :=
-        match fromJson? (α := String × Option String × Option String) data with
+    some <| fun _goI goB id data contents => do
+      let (title, kind?, state?, _, _) :=
+        match fromJson? (α := String × Option String × Option String × Option String × Option Tag) data with
         | .ok cell => cell
-        | .error _ => ("Oracle", none, none)
+        | .error _ => ("Oracle", none, none, none, none)
+      let xref ← Verso.Doc.Html.HtmlT.state
       let body ← contents.mapM goB
       let titleHtml := Verso.Output.Html.tag "span"
         #[("class", "game-cell-title")] (bpMathInline title)
@@ -140,13 +187,45 @@ block_extension Block.gameCell (title : String) (kind? : Option String) (state? 
         | some s => .seq #[titleHtml, bpMathInline s]
         | none => titleHtml
       pure <| Verso.Output.Html.tag "section"
-        (attrsWithClassAndKind "game-cell" kind?) <| .seq #[
+        (attrsWithClassAndKind "game-cell" kind? ++ xref.htmlId id) <| .seq #[
           Verso.Output.Html.tag "div" #[
             ("class", "game-cell-header")
           ] header,
           Verso.Output.Html.tag "div" #[
             ("class", "game-cell-body")
           ] (withLocalTexPrelude (.seq body))
+        ]
+
+-- A numbered erratum box: a `<section class="erratum">` whose header carries the
+-- number, title, and optional scope as plain text, and whose body is prose.
+block_extension Block.erratum (number title : String) (scope? : Option String) where
+  data := toJson (number, title, scope?)
+  traverse _id _data _contents := do
+    pure none
+  toTeX := some <| fun _goI goB _id _data contents => contents.mapM goB
+  toHtml :=
+    some <| fun _goI goB _id data contents => do
+      let (number, title, scope?) :=
+        match fromJson? (α := String × String × Option String) data with
+        | .ok item => item
+        | .error _ => ("", "", none)
+      let body ← contents.mapM goB
+      let numberHtml := Verso.Output.Html.tag "span"
+        #[("class", "erratum-number")] (Verso.Output.Html.text true s!"Erratum {number}")
+      let titleHtml := Verso.Output.Html.tag "span"
+        #[("class", "erratum-title")] (Verso.Output.Html.text true title)
+      let header : Verso.Output.Html :=
+        match scope? with
+        | some scope =>
+          .seq #[numberHtml, titleHtml,
+            Verso.Output.Html.tag "span" #[("class", "erratum-scope")]
+              (Verso.Output.Html.text true scope)]
+        | none => .seq #[numberHtml, titleHtml]
+      pure <| Verso.Output.Html.tag "section"
+        #[("class", "erratum"), ("id", s!"erratum-{number}")] <| .seq #[
+          Verso.Output.Html.tag "div" #[("class", "erratum-header")] header,
+          Verso.Output.Html.tag "div" #[("class", "erratum-body")]
+            (withLocalTexPrelude (.seq body))
         ]
 
 -- A hidden marker that names one Blueprint definition/theorem heading. Site JS
@@ -184,7 +263,22 @@ def gameGrid : DirectiveExpanderOf Unit
 def gameCell : DirectiveExpanderOf GameCellConfig
   | cfg, contents => do
     let contents ← contents.mapM Elab.elabBlock
-    ``(Block.other (Block.gameCell $(quote cfg.title) $(quote cfg.kind) $(quote cfg.state)) #[$contents,*])
+    ``(Block.other (Block.gameCell $(quote cfg.title) $(quote cfg.kind) $(quote cfg.state) $(quote cfg.tag)) #[$contents,*])
+
+/-- `{cellref "tag"}[text]` — link to the game cell tagged `tag` (possibly on
+another page). The site script unfolds the cell when the link is followed. -/
+@[role]
+def cellref : RoleExpanderOf CellRefConfig
+  | cfg, contents => do
+    let contents ← contents.mapM Elab.elabInline
+    ``(Inline.other (Inline.ref $(quote cfg.tag) (some $(quote gameCellDomain)) none) #[$contents,*])
+
+/-- `:::erratum "1" "Title" (scope := "...")` — a numbered, titled erratum box. -/
+@[directive]
+def erratum : DirectiveExpanderOf ErratumConfig
+  | cfg, contents => do
+    let contents ← contents.mapM Elab.elabBlock
+    ``(Block.other (Block.erratum $(quote cfg.number) $(quote cfg.title) $(quote cfg.scope)) #[$contents,*])
 
 /-- `:::defTitle "label" "Name"` — set the name shown beside one Blueprint
 definition/theorem number. Keeping this next to the definition makes the title

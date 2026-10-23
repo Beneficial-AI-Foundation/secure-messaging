@@ -102,8 +102,8 @@ lemma MessageInv.transfer {role : Role} {kem : KEMScheme ProbComp K PK SK C}
     rw [hkp _ (by omega) ((Role.offset_parity role _).2 h.res_parity)]
     exact hT
   ct_chunk := by
-    intro hbit ch hch
-    obtain ⟨c, k, i, hT, hc⟩ := h.ct_chunk hbit ch hch
+    intro hbit
+    obtain ⟨c, k, i, hT, hc⟩ := h.ct_chunk hbit
     refine ⟨c, k, i, ?_, hc⟩
     rw [henc _ (by rw [hT]; rfl)]
     exact hT
@@ -309,11 +309,10 @@ lemma MessageInv.of_send (roleS : Role) {kem : KEMScheme ProbComp K PK SK C}
       obtain ⟨sk, hT⟩ := hek pk hek'
       exact ⟨pk, sk, stS'.res.ich, by rw [hp.message_resEpoch]; exact hT, hch⟩
     ct_chunk := by
-      intro hbit ch hch
-      rw [hp.ciphertext_chunk hbit, Option.map_eq_some_iff] at hch
-      obtain ⟨c, hc, hch⟩ := hch
+      intro hbit
+      obtain ⟨c, hc, hch⟩ := hp.ciphertext_chunk hbit
       obtain ⟨k, hT⟩ := hct c hc
-      exact ⟨c, k, stS'.res.ich, by rw [hp.message_resEpoch]; exact hT, hch.symm⟩
+      exact ⟨c, k, stS'.res.ich, by rw [hp.message_resEpoch]; exact hT, hch⟩
     no_chunk := hp.absent_payload
     ct_flag := by
       intro hflag

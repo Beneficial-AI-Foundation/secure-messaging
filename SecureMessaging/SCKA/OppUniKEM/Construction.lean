@@ -72,7 +72,8 @@ The algorithms follow Figure 16 with these additions or differences:
 - **Receiving epoch.** Figure 16 returns `t - 1` from `Rec-B`. We instead return
   `t' - 1`, the epoch of the received message, as required by the SCKA matching-
   epoch condition under delayed or replayed delivery.
-- **Receive failure.** After decoding a current-epoch `ct_1`, `Rec-A` aborts if
+- **Receive failure.** `Rec-A` decodes only present chunks.
+  After decoding a current-epoch `ct_1`, `Rec-A` aborts if
   `dk_A` or `ct_0` is absent, or if decapsulation fails. An aborted receive makes
   no local state changes. Incomplete decoding retains the received chunk and
   processes acknowledgements.
