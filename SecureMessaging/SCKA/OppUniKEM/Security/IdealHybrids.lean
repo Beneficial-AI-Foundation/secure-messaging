@@ -12,34 +12,29 @@ import VCVio.ProgramLogic.Relational.SimulateQ
 /-!
 # Ideal epoch hybrids
 
-**Setting.** Let `scka` be the Opp-UniKEM protocol, `adv` an SCKA security adversary, `ε` the KEM
-correctness error (`kem.correctnessError`), and `I_b := idealSecurityExp … (fun _ => b) adv` the
-ideal security game with fixed challenge bit `b` (`Endpoints`), in which challenges return recorded
-keys when `b = false` and uniform keys when `b = true`.
+**Setting.** Throughout this module, we consider:
 
-**Definitions.**
+- the Opp-UniKEM protocol `scka` and an SCKA security adversary `adv`;
+- the KEM correctness error `ε` (`kem.correctnessError`);
+- the ideal security game `I_b := idealSecurityExp … (fun _ => b) adv` with fixed challenge bit
+  `b` (`Endpoints`), in which challenges return recorded keys when `b = false` and uniform keys
+  when `b = true`.
 
-- `H_i := idealEpochHybridExp … adv i` (with oracle implementation `idealEpochHybridImpl … i`): the
-  *ideal epoch hybrid `i`*, in which eligible challenges at epochs `1, …, i` return uniform keys
-  (as in `I_true`) and eligible challenges at epochs `t > i` return the recorded key (as in
-  `I_false`).
-- *Stopping at exposure of `i + 1`*: running an ideal hybrid via `stoppedRun` so that the
-  simulation halts and returns `false` as soon as a query exposes epoch `i + 1`
-  (`i + 1 ∈ s.exposed`).
+**Main results.** The *ideal epoch hybrid* `H_i := idealEpochHybridExp … adv i` answers eligible
+challenges at epochs `1, …, i` with uniform keys (as in `I_true`) and later ones with recorded keys
+(as in `I_false`); *stopping at `i + 1`* halts a run with output `false` at the first query that
+exposes epoch `i + 1`.
 
-**Main results.**
-
-- `idealEpochHybridExp_zero` and `idealEpochHybridExp_last`: `H_0` coincides with `I_false`, and
-  when `adv` makes at most `q` send queries (`SecuritySendQueryBound adv q`) under correct erasure
-  codes, no epoch above `q` is ever recorded, so `H_q` has the same acceptance probability as
-  `I_true`.
-- `security_guess_le_hybrid_gap`: combining these endpoint identities with
-  `|Pr[G_b = true] - Pr[I_b = true]| ≤ q · ε` (`security_correctness_endpoint_le`) yields
-  `AdvGuess_SCKA(scka, adv) ≤ |Pr[H_0 = true] - Pr[H_q = true]| / 2 + q · ε`.
-- `idealEpochHybrid_signed_gap_stop_eq`: because `H_{i+1}` and `H_i` differ only on challenges at
-  epoch `i + 1`—which are rejected once `i + 1` is exposed and prevent later exposure of `i + 1`
-  once answered—stopping both hybrids at the first exposure of `i + 1` preserves the difference in
-  their acceptance probabilities `Pr[H_{i+1} = true] - Pr[H_i = true]`.
+- `H_0` coincides with `I_false`, and when `adv` makes at most `q` send queries
+  (`SecuritySendQueryBound adv q`), no epoch above `q` is ever recorded, so `H_q` has the same
+  acceptance probability as `I_true` (`idealEpochHybridExp_zero`, `idealEpochHybridExp_last`).
+- Combining these endpoint identities with `|Pr[G_b = true] - Pr[I_b = true]| ≤ q · ε`
+  (`security_correctness_endpoint_le`) yields
+  `AdvGuess_SCKA(scka, adv) ≤ |Pr[H_0 = true] - Pr[H_q = true]| / 2 + q · ε`
+  (`security_guess_le_hybrid_gap`).
+- Stopping both hybrids at `i + 1` preserves `Pr[H_{i+1} = true] - Pr[H_i = true]`: they differ
+  only on challenges at `i + 1`, which are rejected once `i + 1` is exposed and, once answered,
+  prevent its later exposure (`idealEpochHybrid_signed_gap_stop_eq`).
 -/
 
 open OracleSpec OracleComp KEMScheme

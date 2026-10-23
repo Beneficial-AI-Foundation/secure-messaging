@@ -13,19 +13,20 @@ import ToVCVio.OracleComp.QueryTracking.OneUseSampling
 /-!
 # The pinned hybrids and their sampling stages
 
-Fix complete material `m`, an epoch `e > 0`, a mode bit `b`, an adversary `adv`, and the initial
-game state `s₀`. `securityImplAt`, `honestScheme`, `honestOracle`, and `honestStopped` are
-defined in `Game`; `challOf μ` (`SCKA.Security`) randomizes the eligible challenges at `t` with
-`μ t = true`.
+**Setting.** Throughout this module, we consider:
 
-**Definitions.**
+- a KEM material `m`, a challenge epoch `e > 0`, a mode bit `b`, an SCKA adversary `adv`, and
+  the initial game state `s₀`;
+- the security oracles `securityImplAt`, the protocol instance `honestScheme`, and the honest
+  intermediate game `honestOracle` with its stopped version `honestStopped` (`Game`);
+- the challenge oracle `challOf μ` (`SCKA.Security`), which answers an eligible challenge at `t`
+  with a uniform key exactly when `μ t = true`.
 
-- `adjacentMode e b t := decide (0 < t ∧ (t < e ∨ (b ∧ t = e)))`: randomize `1, …, e - 1`, and
-  `e` if `b`.
-- `hybridOracle m e b := securityImplAt (honestScheme m e) (challOf (adjacentMode e b))`, the
-  *pinned hybrid*; `hybridStopped m e b` answers `⊥` at the first query exposing `e`.
-- `oracle stage m e b`: as `hybridOracle`, with instance `schemeAt stage m e`, which pins only
-  the phases of `stage`; `stopped stage m e b` answers `⊥` at the first query exposing `e`.
+**Main results.** The *pinned hybrid* `hybridStopped m e b` runs the security oracles over
+`honestScheme m e` with challenge mode `adjacentMode e b`, which randomizes the epochs
+`1, …, e - 1`, and `e` if `b`, stopped at the first exposure of `e`. A *stage* pins only some
+sampling phases of epoch `e` to `m`; the others are *fresh*, sampling at their protocol calls
+(`Stage`, `stopped stage m e b`):
 
 | `Stage` | key generation | offline encapsulation | online encapsulation |
 | --- | --- | --- | --- |
@@ -33,18 +34,22 @@ defined in `Game`; `challOf μ` (`SCKA.Security`) randomizes the eligible challe
 | `encapsFresh` | pinned | fresh | fresh |
 | `fresh` | fresh | fresh | fresh |
 
-A *pinned* phase returns its output in `m`; a *fresh* one samples at its call. `OnlineDeferral`
-and `SourceDeferral` pass from the pinned hybrid to these stages in order.
+Write `P(O, s) := Pr[optionRun O adv s = true]`.
 
-**Results.** With `P(O, s) := Pr[optionRun O adv s = true]`:
-
-- `honestStopped_real_eq_hybrid`: for `m ∈ support (sampleMaterial leak)`,
-  `P(honestStopped m e m.on.1.2, s₀) = P(hybridStopped m e false, s₀)`;
-- `honestStopped_random_eq_hybrid`: for every `s`,
-  `Pr[k ←$ K; optionRun (honestStopped m e k) adv s = true] = P(hybridStopped m e true, s)`;
-- `fixedBranch_eq_pinnedHybrid`: `Pr[fixedBranch adv e b = true] =
-  Pr[m ← sampleMaterial leak; optionRun (hybridStopped m e (!b)) adv s₀ = true]`;
-- `oracle_fresh_eq_ideal`: `oracle .fresh m e b = idealSecurityImpl (adjacentMode e b)`.
+- Using the key of `m`, the stopped honest game has the acceptance probability of the stopped
+  pinned hybrid with mode bit `false`: for `m ∈ support (sampleMaterial leak)`,
+  `P(honestStopped m e m.on.1.2, s₀) = P(hybridStopped m e false, s₀)`
+  (`honestStopped_real_eq_hybrid`).
+- Using a uniform key, it has that of the pinned hybrid with mode bit `true`: for every `s`,
+  `Pr[k ←$ K; optionRun (honestStopped m e k) adv s = true] = P(hybridStopped m e true, s)`
+  (`honestStopped_random_eq_hybrid`).
+- Each fixed branch has the acceptance probability of the stopped pinned hybrid averaged over the
+  material:
+  `Pr[fixedBranch adv e b = true] =
+  Pr[m ← sampleMaterial leak; optionRun (hybridStopped m e (!b)) adv s₀ = true]`
+  (`fixedBranch_eq_pinnedHybrid`).
+- The fully fresh stage is the ideal game:
+  `oracle .fresh m e b = idealSecurityImpl (adjacentMode e b)` (`oracle_fresh_eq_ideal`).
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -70,7 +75,8 @@ variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
 variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
 
 /-- No query of `honestOracle m e kStar` removes an epoch from `challenged`. -/
-private theorem honestOracle_preserves_challenged (m : Material leak) (e : ℕ) (kStar : K) (u : ℕ) :
+private theorem honestOracle_preserves_challenged (m : KEMMaterial leak) (e : ℕ) (kStar : K)
+    (u : ℕ) :
     QueryImpl.PreservesInv (honestOracle base onoff ecEk ecCt0 ecCt1 leak m e kStar)
       (fun s => u ∈ s.challenged) := by
   intro t s hs z hz
@@ -81,7 +87,7 @@ private theorem honestOracle_preserves_challenged (m : Material leak) (e : ℕ) 
 
 /-- If `usesChallengeKey e t s = false`, the key does not affect how `honestOracle m e k`
 answers `t` from `s`. -/
-private theorem honestOracle_eq_of_unused (m : Material leak) (e : ℕ) (k k' : K)
+private theorem honestOracle_eq_of_unused (m : KEMMaterial leak) (e : ℕ) (k k' : K)
     (t : (securitySpec leak Sym).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (h : usesChallengeKey e t s = false) :
@@ -94,7 +100,7 @@ private theorem honestOracle_eq_of_unused (m : Material leak) (e : ℕ) (k k' : 
 
 /-- If `usesChallengeKey e t s = true`, every possible successor of
 `honestOracle m e k` on `t` from `s` has `e ∈ challenged`. -/
-private theorem honestOracle_use_records_challenge (m : Material leak) (e : ℕ) (k : K)
+private theorem honestOracle_use_records_challenge (m : KEMMaterial leak) (e : ℕ) (k : K)
     (t : (securitySpec leak Sym).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (h : usesChallengeKey e t s = true)
@@ -153,7 +159,7 @@ def hybridOracle
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (m : Material leak) (e : ℕ) (b : Bool) :
+    (m : KEMMaterial leak) (e : ℕ) (b : Bool) :
     QueryImpl (securitySpec leak Sym)
       (StateT (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) ProbComp) :=
   securityImplAt base onoff leak (honestScheme ecEk ecCt0 ecCt1 m e)
@@ -165,7 +171,7 @@ def hybridStopped
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (m : Material leak) (e : ℕ) (b : Bool) :
+    (m : KEMMaterial leak) (e : ℕ) (b : Bool) :
     QueryImpl (securitySpec leak Sym)
       (OptionT (StateT
         (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) ProbComp)) :=
@@ -179,7 +185,7 @@ private theorem honestOracle_eq_hybrid_real
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (m : Material leak) (e : ℕ) (t : (securitySpec leak Sym).Domain)
+    (m : KEMMaterial leak) (e : ℕ) (t : (securitySpec leak Sym).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hm : pinnedKey m e s) :
     (honestOracle base onoff ecEk ecCt0 ecCt1 leak m e m.on.1.2 t).run s =
@@ -201,7 +207,7 @@ theorem honestStopped_real_eq_hybrid
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
     (leak : base.OnOffRandLeak onoff)
-    (m : Material leak) (hm : m ∈ support (sampleMaterial leak)) (e : ℕ)
+    (m : KEMMaterial leak) (hm : m ∈ support (sampleMaterial leak)) (e : ℕ)
     (adv : SecurityAdversary leak Sym) :
     Pr[= true | optionRun (honestStopped base onoff ecEk ecCt0 ecCt1 leak m e m.on.1.2)
       adv (oppUniKemCKA.Reduction.Internal.initialGame base onoff)] =
@@ -264,7 +270,7 @@ private theorem honestOracle_sample_uniform
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (m : Material leak) (e : ℕ) (he : 0 < e) (t : (securitySpec leak Sym).Domain)
+    (m : KEMMaterial leak) (e : ℕ) (he : 0 < e) (t : (securitySpec leak Sym).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
     𝒟[(do
       let k ← ($ᵗ K : ProbComp K)
@@ -288,7 +294,7 @@ theorem honestStopped_random_eq_hybrid
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (m : Material leak) (e : ℕ) (he : 0 < e)
+    (m : KEMMaterial leak) (e : ℕ) (he : 0 < e)
     (adv : SecurityAdversary leak Sym)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
     Pr[= true | do
@@ -365,7 +371,7 @@ def Stage.pinsOffline (stage : Stage) : Bool := decide (stage = .onlineFresh)
 /-- KEM of `schemeAt stage m e s`: `Pinned.kem m` pinning the phases of `stage` at epoch `e`,
 decapsulating to `s.keyB s.stA.t`. -/
 abbrev stageKem {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
-    {leak : base.OnOffRandLeak onoff} (stage : Stage) (m : Material leak) (e : ℕ)
+    {leak : base.OnOffRandLeak onoff} (stage : Stage) (m : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
     KEMScheme ProbComp K PK SK C :=
   Pinned.kem m (stage.pinsKeygen && decide (s.stA.t = e))
@@ -373,7 +379,7 @@ abbrev stageKem {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructu
 
 /-- On/off structure of `stageKem stage m e s`. -/
 abbrev stageOnOff {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
-    {leak : base.OnOffRandLeak onoff} (stage : Stage) (m : Material leak) (e : ℕ)
+    {leak : base.OnOffRandLeak onoff} (stage : Stage) (m : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
     (stageKem stage m e s).OnOffStructure :=
   Pinned.onOff m (stage.pinsKeygen && decide (s.stA.t = e))
@@ -381,7 +387,7 @@ abbrev stageOnOff {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStruc
 
 /-- Leakage witnesses of `stageKem stage m e s`. -/
 abbrev stageLeak {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
-    {leak : base.OnOffRandLeak onoff} (stage : Stage) (m : Material leak) (e : ℕ)
+    {leak : base.OnOffRandLeak onoff} (stage : Stage) (m : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
     (stageKem stage m e s).OnOffRandLeak (stageOnOff stage m e s) :=
   Pinned.leakage leak m (stage.pinsKeygen && decide (s.stA.t = e))
@@ -393,7 +399,7 @@ abbrev schemeAt [DecidableEq Sym]
     {leak : base.OnOffRandLeak onoff}
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (stage : Stage) (m : Material leak) (e : ℕ)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (stage : Stage) (m : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :=
   let sa := stage.pinsKeygen && decide (s.stA.t = e)
   let soff := stage.pinsOffline && decide (s.stB.t = e)
@@ -408,7 +414,7 @@ def oracle [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (stage : Stage) (m : Material leak) (e : ℕ) (b : Bool) :
+    (stage : Stage) (m : KEMMaterial leak) (e : ℕ) (b : Bool) :
     QueryImpl (securitySpec leak Sym)
       (StateT (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) ProbComp) :=
   securityImplAt base onoff leak (schemeAt ecEk ecCt0 ecCt1 stage m e)
@@ -420,7 +426,7 @@ def stopped [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (stage : Stage) (m : Material leak) (e : ℕ) (b : Bool) :
+    (stage : Stage) (m : KEMMaterial leak) (e : ℕ) (b : Bool) :
     QueryImpl (securitySpec leak Sym)
       (OptionT (StateT
         (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) ProbComp)) :=
@@ -434,7 +440,7 @@ theorem recvA_eq_ideal [DecidableEq Sym]
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (stage : Stage) (m : Material leak) (e : ℕ)
+    (stage : Stage) (m : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (msg : Message Sym) :
     (schemeAt ecEk ecCt0 ecCt1 stage m e s).recvA s.stA msg =
@@ -467,7 +473,7 @@ theorem sendBrleak_fresh_eq [DecidableEq Sym]
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (hDet : base.DeterministicDecaps)
-    (m : Material leak) (e : ℕ)
+    (m : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (stB : StB onoff Sym) :
     (schemeAt ecEk ecCt0 ecCt1 .fresh m e s).sendBrleak stB =
@@ -489,7 +495,7 @@ theorem sendB_fresh_eq [DecidableEq Sym]
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (hDet : base.DeterministicDecaps)
-    (m : Material leak) (e : ℕ)
+    (m : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (stB : StB onoff Sym) :
     (schemeAt ecEk ecCt0 ecCt1 .fresh m e s).sendB stB =
@@ -504,7 +510,7 @@ theorem oracle_fresh_eq_ideal [DecidableEq K] [DecidableEq Sym] [SampleableType 
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (m : Material leak) (e : ℕ) (b : Bool) :
+    (m : KEMMaterial leak) (e : ℕ) (b : Bool) :
     oracle base onoff ecEk ecCt0 ecCt1 leak .fresh m e b =
       idealSecurityImpl base onoff hDet ecEk ecCt0 ecCt1 leak (adjacentMode e b) := by
   have hkg : Stage.pinsKeygen .fresh = false := rfl

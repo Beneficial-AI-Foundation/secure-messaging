@@ -11,20 +11,16 @@ import SecureMessaging.SCKA.OppUniKEM.Security.Basic
 /-!
 # Single use of the source samples
 
-**Definitions.**
+**Main results.** For a *source phase* (A's key generation or B's offline encapsulation,
+`SourcePhase`), let `used := sourceUsed phase e` (the phase output of `e` is present, or its party
+has passed `e`) and `hit := usesSource phase e` (the query runs the phase at `e`). These satisfy
+the one-use conditions of `stoppedRun_sample_once_eq` for the stage oracles `oracle stage m e b`
+(`HybridGame`):
 
-- `SourcePhase`: A's key generation or B's offline encapsulation (a *source phase*).
-- `sourceUsed phase e`: the phase output of `e` is present, or its party has passed `e`.
-- `usesSource phase e t s`: query `t` runs the phase at `e`.
-
-**Results.** The one-use conditions of `stoppedRun_sample_once_eq` for the stage oracles
-`oracle stage m e b` (`HybridGame`), with `used := sourceUsed phase e` and
-`hit := usesSource phase e`:
-
-- `oracle_preserves_sourceUsed`: every query preserves `used`;
-- `usesSource_false_of_used`: `used` implies `hit = false`;
-- `oracle_first_source_use`: after a query with `hit`, every possible successor with `e`
-  unexposed satisfies `used`.
+- every query preserves `used` (`oracle_preserves_sourceUsed`);
+- `used` implies `hit = false` (`usesSource_false_of_used`);
+- after a query satisfying `hit`, every possible successor in which `e` is unexposed satisfies
+  `used` (`oracle_first_source_use`).
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -88,7 +84,7 @@ theorem correctness_preserves_sourceUsed
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (stage : Stage) (m : Material leak) (e : ℕ) (phase : SourcePhase)
+    (stage : Stage) (m : KEMMaterial leak) (e : ℕ) (phase : SourcePhase)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : sourceUsed phase e s.stA s.stB)
     (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
@@ -146,7 +142,7 @@ theorem oracle_preserves_sourceUsed [SampleableType K]
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (stage : Stage) (m : Material leak) (e : ℕ) (b : Bool) (phase : SourcePhase) :
+    (stage : Stage) (m : KEMMaterial leak) (e : ℕ) (b : Bool) (phase : SourcePhase) :
     QueryImpl.PreservesInv (oracle base onoff ecEk ecCt0 ecCt1 leak stage m e b)
       (fun s => sourceUsed phase e s.stA s.stB) :=
   securityImplAt_preservesInv base onoff leak _ _ _ (fun _ _ _ h => h)
@@ -270,7 +266,7 @@ theorem oracleSendA_installs_source
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (stage : Stage) (m : Material leak) (e : ℕ)
+    (stage : Stage) (m : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (he : s.stA.t = e)
     (z : Option (ℕ × Option ℕ × Message Sym) ×
@@ -300,7 +296,7 @@ theorem leaking_keygen_stops
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (stage : Stage) (m : Material leak) (e : ℕ)
+    (stage : Stage) (m : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (he : s.stA.t = e) (hfield : s.stA.dkA = none) (hc : e ∉ s.challenged)
     (z : Option (Option (ℕ × Option ℕ × Message Sym ×
@@ -326,7 +322,7 @@ theorem oracleSendB_installs_source
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (stage : Stage) (m : Material leak) (e : ℕ)
+    (stage : Stage) (m : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (he : s.stB.t = e)
     (z : Option (ℕ × Option ℕ × Message Sym) ×
@@ -357,7 +353,7 @@ theorem leaking_offline_stops
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (stage : Stage) (m : Material leak) (e : ℕ)
+    (stage : Stage) (m : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (he : s.stB.t = e) (hfield : s.stB.ct0 = none) (hc : e ∉ s.challenged)
     (z : Option (Option (ℕ × Option ℕ × Message Sym ×
@@ -387,7 +383,7 @@ theorem oracle_first_source_use
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (stage : Stage) (m : Material leak) (e : ℕ) (b : Bool) (phase : SourcePhase)
+    (stage : Stage) (m : KEMMaterial leak) (e : ℕ) (b : Bool) (phase : SourcePhase)
     (t : (securitySpec leak Sym).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hh : usesSource phase e t s = true)

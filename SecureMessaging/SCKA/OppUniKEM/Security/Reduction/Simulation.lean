@@ -12,17 +12,27 @@ import ToVCVio.OracleComp.SimSemantics.StateT.Stop
 /-!
 # The simulation theorem
 
-Assume deterministic decapsulation and correct erasure codes. Fix an adversary `adv`, an epoch
-`e`, `kStar : K`, and the initial game state `s₀`; for material `m`, let `pk_m := m.keygen.1.1`,
-`ct_m := m.ciphertext`, `k_m := m.on.1.2`. `run`, `fixedBranch`, and `sampleMaterial` are
-defined in `Simulator`, `honestStopped` in `Game`; `pinnedKey m e s` states that B's keys at
-epoch `e` equal `k_m`.
+**Setting.** Throughout this module, we consider:
 
-- `run_eq_honestStopped`: for `m ∈ support (sampleMaterial leak)`,
-  `Pr[run adv e pk_m ct_m kStar = true] = Pr[optionRun (honestStopped m e kStar) adv s₀ = true]`.
-- `fixedBranch_eq_honestStopped`: `Pr[fixedBranch adv e b = true]` equals
+- an SCKA adversary `adv`, a challenge epoch `e`, a candidate key `kStar : K`, and the initial
+  game state `s₀`;
+- the abbreviations `pk_m := m.keygen.1.1`, `ct_m := m.ciphertext`, and `k_m := m.on.1.2` for
+  a KEM material `m`;
+- the simulator run `run`, the fixed branches `fixedBranch`, the material sampler
+  `sampleMaterial` (`Simulator`), and the stopped honest game `honestStopped` (`Game`);
+- the invariant `pinnedKey m e s`, which states that B's keys at epoch `e` equal `k_m`.
+
+**Main results.**
+
+- For fixed material, the simulator has the acceptance probability of the stopped honest game:
+  for `m ∈ support (sampleMaterial leak)`,
+  `Pr[run adv e pk_m ct_m kStar = true] = Pr[optionRun (honestStopped m e kStar) adv s₀ = true]`
+  (`run_eq_honestStopped`).
+- Averaged over the material, each fixed branch has the acceptance probability of the stopped
+  honest game:
+  `Pr[fixedBranch adv e b = true]` equals
   `Pr[m ← sampleMaterial leak; k ←$ K; optionRun (honestStopped m e k_b) adv s₀ = true]`,
-  where `k_b := if b then k_m else k`.
+  where `k_b := if b then k_m else k` (`fixedBranch_eq_honestStopped`).
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -33,7 +43,7 @@ variable {K PK SK C Sym : Type}
 
 /-- Every key recorded by B at epoch `e` is `m.on.1.2`. -/
 def pinnedKey {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
-    {leak : base.OnOffRandLeak onoff} (m : Material leak) (e : ℕ)
+    {leak : base.OnOffRandLeak onoff} (m : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) : Prop :=
   ∀ k, s.keyB e = some k → k = m.on.1.2
 
@@ -42,7 +52,7 @@ private theorem sendB_selected_key
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff}
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (m : Material leak) (e : ℕ)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (m : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (k : K) (msg : Message Sym) (t : ℕ) (next : StB onoff Sym)
     (hout : some (some (e, k), msg, t, next) ∈ support
@@ -66,7 +76,7 @@ private theorem honestCorrectness_preserves_pinnedKey [DecidableEq K] [Decidable
     {leak : base.OnOffRandLeak onoff}
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (m : Material leak) (e : ℕ)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (m : KEMMaterial leak) (e : ℕ)
     (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : pinnedKey m e s)
@@ -94,7 +104,7 @@ theorem honestScheme_preserves_pinnedKey
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (m : Material leak) (e : ℕ)
+    (m : KEMMaterial leak) (e : ℕ)
     (chall : QueryImpl (ℕ →ₒ Option K)
       (StateT (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) ProbComp))
     (hchall : SCKAScheme.RecordsChallenges chall) :
@@ -109,7 +119,7 @@ theorem honestScheme_preserves_pinnedKey
 /-- The initial game state satisfies `pinnedKey m e`. -/
 theorem pinnedKey_initial
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (leak : base.OnOffRandLeak onoff) (m : Material leak) (e : ℕ) :
+    (leak : base.OnOffRandLeak onoff) (m : KEMMaterial leak) (e : ℕ) :
     pinnedKey (Sym := Sym) m e
       (oppUniKemCKA.Reduction.Internal.initialGame base onoff) := by
   simp [pinnedKey, oppUniKemCKA.Reduction.Internal.initialGame,
@@ -136,7 +146,7 @@ theorem pinnedKey_both
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (m : Material leak) (e : ℕ)
+    (m : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hm : pinnedKey m e s)
     (k : K) (hk : s.keyA e = some k ∨ s.keyB e = some k) : k = m.on.1.2 := by
@@ -152,7 +162,7 @@ namespace oppUniKemCKA.Security.Embedding
 variable {K PK SK C Sym : Type} [DecidableEq K] [DecidableEq Sym]
 
 /-- For possible `m`, the correctness oracles of `honestScheme m e`
-preserve `reachableInv` on states with `pinnedSources m e`. -/
+preserve `reachableInv` on states satisfying `pinnedSources m e`. -/
 private theorem honestCorrectness_preserves_reachableInv
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (hDet : base.DeterministicDecaps)
@@ -160,7 +170,7 @@ private theorem honestCorrectness_preserves_reachableInv
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
     (leak : base.OnOffRandLeak onoff)
-    (m : Material leak) (hm : m ∈ support (sampleMaterial leak)) (e : ℕ)
+    (m : KEMMaterial leak) (hm : m ∈ support (sampleMaterial leak)) (e : ℕ)
     (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hsrc : pinnedSources m e s)
@@ -204,7 +214,7 @@ theorem honestScheme_preserves_simulationInv
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
     (leak : base.OnOffRandLeak onoff)
-    (m : Material leak) (hm : m ∈ support (sampleMaterial leak)) (e : ℕ)
+    (m : KEMMaterial leak) (hm : m ∈ support (sampleMaterial leak)) (e : ℕ)
     (chall : QueryImpl (ℕ →ₒ Option K)
       (StateT (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) ProbComp))
     (hchall : SCKAScheme.RecordsChallenges chall) :
@@ -238,7 +248,7 @@ private theorem optionRun_mark_eq
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
     (leak : base.OnOffRandLeak onoff)
-    (m : Material leak) (hm : m ∈ support (sampleMaterial leak)) (e : ℕ) (kStar : K)
+    (m : KEMMaterial leak) (hm : m ∈ support (sampleMaterial leak)) (e : ℕ) (kStar : K)
     (adv : SecurityAdversary leak Sym)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s)
@@ -286,7 +296,7 @@ theorem run_eq_honestStopped
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
     (leak : base.OnOffRandLeak onoff)
-    (m : Material leak) (hm : m ∈ support (sampleMaterial leak)) (e : ℕ) (kStar : K)
+    (m : KEMMaterial leak) (hm : m ∈ support (sampleMaterial leak)) (e : ℕ) (kStar : K)
     (adv : SecurityAdversary leak Sym) :
     Pr[= true | run base onoff ecEk ecCt0 ecCt1 leak adv e m.keygen.1.1 m.ciphertext kStar] =
     Pr[= true | optionRun (honestStopped base onoff ecEk ecCt0 ecCt1 leak m e kStar)

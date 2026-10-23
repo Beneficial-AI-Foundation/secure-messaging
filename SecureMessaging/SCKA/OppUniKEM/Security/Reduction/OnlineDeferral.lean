@@ -10,21 +10,22 @@ import SecureMessaging.SCKA.Security
 /-!
 # Deferring the online sample
 
-**Setting.**
+**Setting.** Throughout this module, we consider:
 
-- `m ∈ support (sampleMaterial leak)`: possible complete material (`Simulator`); states satisfy
-  `reachableInv` and `pinnedSources m e` (`Game`).
-- `{ m with on := o }`: `m` with its online output resampled,
-  `o ← leak.encapsOnRleak m.off.1.1 m.keygen.1.1`.
-- `hit := usesOnline e` (the query runs B's online encapsulation at `e`) and
-  `used s := (s.keyB e).isSome`.
+- a possible KEM material `m ∈ support (sampleMaterial leak)` (`Simulator`) and game states
+  satisfying `reachableInv` and `pinnedSources m e` (`Game`);
+- the material `{ m with on := o }`, that is, `m` with its online output resampled as
+  `o ← leak.encapsOnRleak m.off.1.1 m.keygen.1.1`;
+- the one-use test `hit := usesOnline e`, which holds when the query runs B's online
+  encapsulation at `e`, and the predicate `used s := (s.keyB e).isSome`.
 
-**Results.** For the pinned hybrid and the stages of `HybridGame`:
+**Main results.** For the pinned hybrid and the stages of `HybridGame`:
 
-- `hybridOracle_sample_online_eq_fresh`: averaging `hybridOracle { m with on := o } e b t` over
-  `o` gives the response/successor distribution of `oracle .onlineFresh m e b t`.
-- `hybridStopped_online_deferred`: drawing `o` once before `hybridStopped { m with on := o } e b`
-  gives the acceptance probability of `stopped .onlineFresh m e b`.
+- For every query, averaging `hybridOracle { m with on := o } e b t` over `o` gives the
+  response/successor distribution of `oracle .onlineFresh m e b t`
+  (`hybridOracle_sample_online_eq_fresh`).
+- Drawing `o` once before `hybridStopped { m with on := o } e b` gives the acceptance probability
+  of `stopped .onlineFresh m e b` (`hybridStopped_online_deferred`).
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -79,7 +80,7 @@ theorem hybridOracle_preserves_keyB_available
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (m : Material leak) (e : ℕ) (b : Bool) :
+    (m : KEMMaterial leak) (e : ℕ) (b : Bool) :
     QueryImpl.PreservesInv (hybridOracle base onoff ecEk ecCt0 ecCt1 leak m e b)
       (fun s => (s.keyB e).isSome) :=
   securityImplAt_preservesInv base onoff leak _ _ _ (fun _ _ _ h => h)
@@ -104,7 +105,7 @@ theorem hybridOracle_online_records_key
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (m : Material leak) (e : ℕ) (b : Bool)
+    (m : KEMMaterial leak) (e : ℕ) (b : Bool)
     (t : (securitySpec leak Sym).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hh : usesOnline e t s = true)
@@ -172,7 +173,7 @@ theorem sendBrleak_online_independent
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (m : Material leak) (e : ℕ)
+    (m : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hh : ¬(s.stB.t = e ∧ onlineReady s.stB))
     (online online' : (onoff.C₁ × K) × leak.OnRand) :
@@ -198,7 +199,7 @@ theorem sendB_online_independent
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (m : Material leak) (e : ℕ)
+    (m : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hh : ¬(s.stB.t = e ∧ onlineReady s.stB))
     (online online' : (onoff.C₁ × K) × leak.OnRand) :
@@ -216,7 +217,7 @@ theorem oracleSendBrleak_online_rejected [DecidableEq K]
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (m : Material leak) (e : ℕ)
+    (m : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (he : s.stB.t = e) (hready : onlineReady s.stB) (hc : e ∈ s.challenged) :
     (SCKAScheme.oracleSendBrleak vulnRleakB
@@ -240,7 +241,7 @@ theorem hybridOracle_online_independent
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (m : Material leak) (e : ℕ) (b : Bool)
+    (m : KEMMaterial leak) (e : ℕ) (b : Bool)
     (t : (securitySpec leak Sym).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hh : usesOnline e t s = false)
@@ -280,7 +281,7 @@ omit [DecidableEq K] [DecidableEq Sym] [SampleableType K] in
 `leak.encapsOnRleak m.off.1.1 m.keygen.1.1`, then `{ m with on := o }` is a possible material. -/
 theorem sampleMaterial_update_online_mem
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
-    (leak : base.OnOffRandLeak onoff) (m : Material leak)
+    (leak : base.OnOffRandLeak onoff) (m : KEMMaterial leak)
     (hm : m ∈ support (sampleMaterial leak))
     (online : (onoff.C₁ × K) × leak.OnRand)
     (hon : online ∈ support (leak.encapsOnRleak m.off.1.1 m.keygen.1.1)) :
@@ -304,7 +305,7 @@ theorem selected_online_public_key
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (m : Material leak) (e : ℕ)
+    (m : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hsrc : pinnedSources m e s)
     (he : s.stB.t = e) (pk : PK) (hp : s.stB.ekA = some pk) (hc1 : s.stB.ct1 = none) :
@@ -326,7 +327,7 @@ theorem sendBrleak_sample_online_eq_fresh [DecidableEq Sym]
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (m : Material leak) (e : ℕ)
+    (m : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hsrc : pinnedSources m e s) :
     𝒟[(do
@@ -366,7 +367,7 @@ theorem sendB_sample_online_eq_fresh [DecidableEq Sym]
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (m : Material leak) (e : ℕ)
+    (m : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hsrc : pinnedSources m e s) :
     𝒟[(do
@@ -396,7 +397,7 @@ theorem hybridOracle_sample_online_eq_fresh
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (m : Material leak) (e : ℕ) (b : Bool)
+    (m : KEMMaterial leak) (e : ℕ) (b : Bool)
     (t : (securitySpec leak Sym).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hsrc : pinnedSources m e s) :
@@ -427,7 +428,7 @@ theorem hybridStopped_online_deferred
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
     (leak : base.OnOffRandLeak onoff)
-    (m : Material leak) (hm : m ∈ support (sampleMaterial leak)) (e : ℕ) (b : Bool)
+    (m : KEMMaterial leak) (hm : m ∈ support (sampleMaterial leak)) (e : ℕ) (b : Bool)
     (adv : SecurityAdversary leak Sym)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hsrc : pinnedSources m e s) :

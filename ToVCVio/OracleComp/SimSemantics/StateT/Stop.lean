@@ -290,7 +290,7 @@ theorem stoppedRun_query_bind (impl : QueryImpl spec (StateT σ ProbComp)) (stop
   intro z
   cases stop z.2 <;> rfl
 
-/-- Let `impl` preserve an invariant `Inv : σ → Prop`, and assume
+/-- Assume that `impl` preserves an invariant `Inv : σ → Prop` and that
 `stop u = false` for every state `u` satisfying `Inv u`. Then, for every
 Boolean computation `oa` and initial state `s` satisfying `Inv s`,
 `stoppedRun impl stop oa s` and `(simulateQ impl oa).run' s` return `true`

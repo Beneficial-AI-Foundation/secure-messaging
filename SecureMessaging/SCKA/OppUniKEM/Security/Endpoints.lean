@@ -14,25 +14,22 @@ import ToVCVio.OracleComp.SimSemantics.StateT.IdenticalUntilBadInvariant
 /-!
 # Opp-UniKEM correctness-error endpoints
 
-**Setting.** Consider the Opp-UniKEM protocol (`scheme`) over a KEM `kem` with deterministic
-decapsulation and correct erasure codes. Let `adv` be an SCKA security adversary making at most `q`
-send queries (`SecuritySendQueryBound adv q`), and let `ε` denote the KEM correctness error
-`kem.correctnessError` (Def. A.1 of [SCKA]).
+**Setting.** Throughout this module, we consider:
 
-**Definitions.**
+- the Opp-UniKEM protocol (`scheme`) over a KEM `kem`;
+- an SCKA security adversary `adv` making at most `q` send queries
+  (`SecuritySendQueryBound adv q`);
+- the KEM correctness error `ε`, that is, `kem.correctnessError` (Def. A.1 of [SCKA]).
 
-- `G_b` (`SCKAScheme.securityExpFixedBit`): the real SCKA security game parameterized by a fixed
-  challenge bit `b`.
-- `idealSecurityImpl … mode`, `idealSecurityExp … mode adv`: the *ideal security game*, in which
-  party A, upon completing an online ciphertext at epoch `s.stA.t`, outputs party B's recorded key
-  `s.keyB s.stA.t` instead of decapsulating, and an eligible challenge at epoch `t` returns a
-  uniform key if and only if `mode t = true`. In particular,
-  `I_b := idealSecurityExp … (fun _ => b) adv` coincides with `G_b` except for this ideal receive
-  transition.
+**Main result.** The *ideal security game* `I_b` is the real game `G_b`
+(`SCKAScheme.securityExpFixedBit`) in which party A, upon completing an online ciphertext, outputs
+party B's recorded key instead of decapsulating (`I_b := idealSecurityExp … (fun _ => b) adv`).
+More generally, under a challenge mode `mode`, it answers an eligible challenge at epoch `t` with a
+uniform key exactly when `mode t = true` (`idealSecurityExp … mode adv`).
 
-**Main result.** `security_correctness_endpoint_le` bounds the difference in acceptance probability
-between the real and ideal games by the cumulative KEM correctness error over `q` sends:
-`|Pr[G_b = true] - Pr[I_b = true]| ≤ q · ε`.
+The real and ideal games differ in acceptance probability by at most the cumulative KEM correctness
+error over `q` sends: `|Pr[G_b = true] - Pr[I_b = true]| ≤ q · ε`
+(`security_correctness_endpoint_le`).
 -/
 
 open OracleSpec OracleComp KEMScheme ErasureCodePayload ENNReal

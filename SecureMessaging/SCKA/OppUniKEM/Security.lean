@@ -14,15 +14,15 @@ import SecureMessaging.SCKA.Security
 /-!
 # Opp-UniKEM SCKA security
 
-**Setting.**
+**Setting.** Throughout this module, we consider:
 
-- `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak`: Opp-UniKEM over a KEM `kem` with
-  deterministic decapsulation `hDet`, on/off factorization `onoff`, leakage witness `leak`, and
-  correct erasure codes `ecEk`, `ecCt0`, `ecCt1`.
-- `adv : SecurityAdversary leak Sym` with `SecuritySendQueryBound adv q`: at most `q` ordinary
-  and leaking sends on every oracle-response path.
-- `𝓑 := Security.Embedding.securityReduction … adv q`: the IND-CPA adversary against `kem`
-  constructed from `adv`. It draws a *challenge epoch* `e` uniformly from `1, …, q`, embeds the
+- the Opp-UniKEM protocol `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` over a KEM `kem`
+  with deterministic decapsulation `hDet`, on/off factorization `onoff`, leakage witness `leak`,
+  and correct erasure codes `ecEk`, `ecCt0`, `ecCt1`;
+- an SCKA adversary `adv : SecurityAdversary leak Sym` making at most `q` ordinary and leaking
+  sends on every oracle-response path (`SecuritySendQueryBound adv q`);
+- the IND-CPA adversary `𝓑 := Security.Embedding.securityReduction … adv q` against `kem`
+  constructed from `adv`, which draws a *challenge epoch* `e` uniformly from `1, …, q`, embeds the
   KEM challenge in the key generation and encapsulation of epoch `e`, and runs `adv`.
 
 **Security game and adversary advantage functions.**
@@ -242,7 +242,8 @@ namespace oppUniKemCKA
 variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- If `SecuritySendQueryBound adv q` and `𝓑 := securityReduction … adv q`, then
+/-- Let `𝓑 := securityReduction … adv q`. If `adv` makes at most `q` send queries
+(`SecuritySendQueryBound adv q`), then
 `AdvGuess_SCKA(scka, adv) ≤ (q / 2) · AdvINDCPA_KEM(kem, 𝓑) + q · ε`. -/
 -- ANCHOR: security
 theorem security

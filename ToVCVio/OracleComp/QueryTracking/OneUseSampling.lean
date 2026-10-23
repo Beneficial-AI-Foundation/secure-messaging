@@ -19,8 +19,8 @@ import ToVCVio.OracleComp.SimSemantics.StateT.Stop
   interface `spec` and state space `σ`.
 
 For an adaptive adversary `oa : OracleComp spec Bool` and initial state
-`s : σ`, let `Run(I, oa, s) := optionRun I oa s` run `oa` with oracle implementation `I` from
-`s`. It returns the adversary's output bit, or `false` if an oracle returns `none`.
+`s : σ`, write `Run(I, oa, s) := optionRun I oa s` for the run of `oa` from `s` with oracle
+implementation `I`. It returns the adversary's output bit, or `false` if an oracle returns `none`.
 
 **Two experiments.** Define
 

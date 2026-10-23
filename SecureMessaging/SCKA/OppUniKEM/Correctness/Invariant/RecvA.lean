@@ -634,8 +634,8 @@ lemma oracleRecvA_preserves_reachableInv_of_recv
           reachableInv_after_recvA_stale kem onoff ecEk ecCt0 ecCt1
             s T hInv t htlt
 
-/-- Opp-UniKEM version of `oracleRecvA_preserves_reachableInv_of_recv`: with deterministic
-decapsulation, `CurrentKEMCorrect s` supplies its decapsulation hypothesis. -/
+/-- Opp-UniKEM version of `oracleRecvA_preserves_reachableInv_of_recv`: for a KEM with
+deterministic decapsulation, `CurrentKEMCorrect s` supplies its decapsulation hypothesis. -/
 lemma oracleRecvA_preserves_reachableInv
     [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)

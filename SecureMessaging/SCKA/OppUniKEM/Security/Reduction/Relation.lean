@@ -13,32 +13,29 @@ import SecureMessaging.SCKA.Security
 /-!
 # Marking honest states
 
-**Setting.**
+**Setting.** Throughout this module, we consider:
 
-- `e`: a challenge epoch; `kStar`: a candidate key.
-- `m`: complete material, the outputs and coins of one epoch's key generation, offline
-  encapsulation, and online encapsulation.
-- From `Simulator`:
-  - *marked* values: the private values of the simulator's states (secret keys, offline states,
-    shared keys, coins), each `some x` if known to the simulator or `none` if hidden from it;
-  - `Pinned.kem m`: the KEM returning the stored outputs of `m` in its pinned phases;
-  - the simulator `oracle`, running over the marked KEM `kem`, which embeds the IND-CPA challenge
-    at epoch `e`.
+- a challenge epoch `e` and a candidate key `kStar`;
+- a *KEM material* `m : KEMMaterial leak` (`Simulator`), that is, a pre-sampled record of the
+  outputs and coins produced by the sampling phases of a single epoch (key generation, offline
+  encapsulation, and online encapsulation);
+- *marked* values (`Simulator`), that is, the private values of the simulator's states (secret
+  keys, offline states, shared keys, coins), each `some x` if known to the simulator and `none`
+  if hidden from it;
+- the pinned KEM `Pinned.kem m` (`Simulator`), whose designated sampling phases return the
+  corresponding outputs stored in `m`;
+- the simulator `oracle` (`Simulator`), which runs over the marked KEM `kem` embedding the IND-CPA
+  challenge at epoch `e`.
 
-**Definitions.**
+**Main results.** *Marking* hides the private values of epoch `e` and the keys recorded at `e`,
+and makes all other private values known (`markState e s`).
 
-- `markState e s` (with `mark`, `markA`, `markB`, `markCoins`): the private values of epoch `e`
-  and the keys recorded at `e` become unavailable, all others known; public data is unchanged.
-- `pinnedChallenge e kStar := challengeWith id e kStar`: the simulator's challenge oracle on
-  honest states.
-
-**Results.**
-
-- `*_mark`: each local send and receive over the marked KEM from a marked state equals the same
-  operation over `Pinned.kem m` from the honest state, followed by marking.
-- `challenge_mark`: `challenge e kStar` from `markState e s` is `pinnedChallenge e kStar` from
-  `s`, followed by marking.
-- `revealA_markA_eq`, `revealB_markB_eq`: unmarking fails exactly when corruption exposes `e`.
+- Each local send and receive over the marked KEM from a marked state equals the same operation
+  over `Pinned.kem m` from the honest state, followed by marking (`*_mark`).
+- The simulator's challenge from `markState e s` is the *pinned challenge*
+  `pinnedChallenge e kStar := challengeWith id e kStar` from `s`, followed by marking
+  (`challenge_mark`).
+- Unmarking fails exactly when a corruption exposes `e` (`revealA_markA_eq`, `revealB_markB_eq`).
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -457,7 +454,7 @@ leaking send over `Pinned.kem m` from `s` followed by marking; the output key is
 theorem sendArleak_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (leak : base.OnOffRandLeak onoff)
-    (m : Material leak) (e : ℕ) (selectedB : Bool)
+    (m : KEMMaterial leak) (e : ℕ) (selectedB : Bool)
     (keyS : Option (Option K)) (keyH : Option K) (s : StA onoff Sym) :
     sendArleak (kem base onoff (decide (s.t = e)) selectedB m.keygen.1.1 m.ciphertext keyS)
       (onOff base onoff (decide (s.t = e)) selectedB m.keygen.1.1 m.ciphertext keyS)
@@ -481,7 +478,7 @@ theorem sendBrleak_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (m : Material leak) (e : ℕ) (selectedA : Bool)
+    (m : KEMMaterial leak) (e : ℕ) (selectedA : Bool)
     (keyS : Option (Option K)) (keyH : Option K) (s : StB onoff Sym) :
     sendBrleak (kem base onoff selectedA (decide (s.t = e)) m.keygen.1.1 m.ciphertext keyS)
       (onOff base onoff selectedA (decide (s.t = e)) m.keygen.1.1 m.ciphertext keyS)
@@ -498,14 +495,14 @@ theorem sendBrleak_mark
   all_goals
     simp only [sendBrleak, markB, hct0, hek, hct1, hst, Option.map_none, Option.map_some]
     try dsimp only [leakage, Pinned.leakage]
-    simp [offLeak, onLeak, Material.ciphertext, markCoins, mark,
+    simp [offLeak, onLeak, KEMMaterial.ciphertext, markCoins, mark,
       he, hct0, hek, hct1, hst, hack, monad_norm]
 
 /-- Ordinary-send version of `sendArleak_mark`. -/
 theorem sendA_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (leak : base.OnOffRandLeak onoff)
-    (m : Material leak) (e : ℕ) (selectedB : Bool)
+    (m : KEMMaterial leak) (e : ℕ) (selectedB : Bool)
     (keyS : Option (Option K)) (keyH : Option K) (s : StA onoff Sym) :
     sendA (kem base onoff (decide (s.t = e)) selectedB m.keygen.1.1 m.ciphertext keyS)
       (onOff base onoff (decide (s.t = e)) selectedB m.keygen.1.1 m.ciphertext keyS)
@@ -528,7 +525,7 @@ theorem sendB_mark
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (m : Material leak) (e : ℕ) (selectedA : Bool)
+    (m : KEMMaterial leak) (e : ℕ) (selectedA : Bool)
     (keyS : Option (Option K)) (keyH : Option K) (s : StB onoff Sym) :
     sendB (kem base onoff selectedA (decide (s.t = e)) m.keygen.1.1 m.ciphertext keyS)
       (onOff base onoff selectedA (decide (s.t = e)) m.keygen.1.1 m.ciphertext keyS)

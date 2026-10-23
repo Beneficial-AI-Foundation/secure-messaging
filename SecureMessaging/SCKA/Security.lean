@@ -486,9 +486,9 @@ theorem oracleSendBrleak_nA_eq
   · rw [h]
   · exact hn
 
-/-- Suppose discarding A's returned coins recovers its ordinary send for every local state.
-Let `Inv` hold at `s` and be preserved by arbitrary changes to `exposed`. If every ordinary-send
-successor from `s` satisfies `Inv`, then every leaking-send successor from `s` does too. -/
+/-- Assume that discarding the coins returned by A's leaking send recovers its ordinary send for
+every local state, and that `Inv` holds at `s` and does not depend on `exposed`. If every
+ordinary-send successor from `s` satisfies `Inv`, then so does every leaking-send successor. -/
 theorem oracleSendArleak_preservesInv_at
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (leak : StA → Rand → Finset ℕ)

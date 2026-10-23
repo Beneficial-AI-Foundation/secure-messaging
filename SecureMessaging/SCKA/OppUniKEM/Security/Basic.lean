@@ -11,18 +11,13 @@ import VCVio.OracleComp.QueryTracking.QueryBound
 /-!
 # Opp-UniKEM security interface
 
-**Definitions.**
+**Main results.** The SCKA security interface of Opp-UniKEM admits Boolean adversaries
+(`securitySpec`, `SecurityAdversary`), whose *send budget* `q` bounds the ordinary and leaking sends
+on every response path (`SecuritySendQueryBound adv q`).
 
-- `securitySpec leak Sym`, `SecurityAdversary leak Sym`: the SCKA security interface of
-  Opp-UniKEM and its Boolean adversaries.
-- `SecuritySendQueryBound adv q`: at most `q` ordinary and leaking sends on every response path.
-- `leakEpochsA s`, `leakEpochsB s`: `{s.t}` if a leaking send from `s` samples, else `∅`.
-
-**Results.**
-
-- `sendArleak_forget`, `sendBrleak_forget`: a leaking send without its coins is the ordinary send.
-- `sendArleak_exposure`, `sendBrleak_exposure`: every successful leaking send from `s` with coins
-  `rand` has `vulnRleakA s rand = leakEpochsA s` (for B, `vulnRleakB s rand = leakEpochsB s`).
+- A leaking send without its coins is the ordinary send (`sendArleak_forget`, `sendBrleak_forget`).
+- The epochs exposed by a successful leaking send from `s` depend on `s` alone: `{s.t}` if the send
+  samples, else `∅` (`leakEpochsA`, `leakEpochsB`, `sendArleak_exposure`, `sendBrleak_exposure`).
 -/
 
 open OracleSpec OracleComp KEMScheme
