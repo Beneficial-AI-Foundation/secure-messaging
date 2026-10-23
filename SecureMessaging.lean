@@ -53,6 +53,7 @@ import SecureMessaging.CKA.FromLWE.EntryNoise
 import SecureMessaging.CKA.FromLWE.EntryNoiseMoments
 import SecureMessaging.CKA.FromLWE.ConcreteCorrectness
 import SecureMessaging.CKA.FromLWE.ChallengeCorrectness
+import SecureMessaging.CKA.FromLWE.HistoricalSharpCorrectness
 import SecureMessaging.ErasureCode.Defs
 import SecureMessaging.ErasureCode.Payload
 import SecureMessaging.ErasureCode.ReedSolomon.Construction

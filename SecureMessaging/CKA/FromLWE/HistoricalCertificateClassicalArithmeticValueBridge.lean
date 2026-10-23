@@ -1,0 +1,20 @@
+/-
+Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Beneficial AI Foundation
+-/
+
+import SecureMessaging.CKA.FromLWE.HistoricalCertificateClassicalArithmeticValueSetup
+
+namespace lweCKA.HistoricalCertificate
+
+/-- The semantic Classical certificate equals the closed arithmetic recurrence. -/
+theorem classical_certificateValues_eq_core :
+    certificateValues classicalConfig =
+      HistoricalCertificateArithmeticCore.Classical.valuePair
+        (HistoricalCertificateArithmeticCore.Classical.packedRun 1184
+          HistoricalCertificateArithmeticCore.Classical.initial) := by
+  rw [classical_certificateValues_eq_runList, classicalValuePair_eq_core,
+    classicalRunList_eq_core]
+
+end lweCKA.HistoricalCertificate
