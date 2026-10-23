@@ -434,7 +434,7 @@ private theorem productPack_eq_measurePack (c : Config) :
   intro j hj
   rw [MLKEM.measurePack_single]
   congr 2
-  ring
+  ring_nf
 
 private def runN (c : Config) (k : ℕ) : ℕ :=
   (List.range k).foldl (fun x _ => step c x)
@@ -528,7 +528,7 @@ private theorem measurePack_lower_product_mul (c : Config) (k : ℕ) :
           (ToVCVio.productMeasure (counts c) (counts c)) := by
       convert MLKEM.measurePack_mul (R := radix c)
         (measureWindow_lowerCounts c k) (measureWindow_products c) using 1
-      all_goals ring
+      all_goals ring_nf
     _ = _ := by rw [← productPack_eq_measurePack]
 
 private theorem packed_crop_step (c : Config) (f : ℕ → ℕ)
@@ -647,7 +647,7 @@ private theorem measurePack_approxCounts
       convert MLKEM.measurePack_mul (R := radix c)
         (measureWindow_lowerCounts c (2 * c.n)) (measureWindow_counts c) using 1
       simp only [center, Nat.cast_add]
-      ring
+      ring_nf
     _ = run c * extraPack c := by
       rw [measurePack_lowerCounts_runN c hmass, ← run_eq_runN,
         ← extraPack_eq_measurePack']
