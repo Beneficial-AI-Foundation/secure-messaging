@@ -23,16 +23,20 @@ The Lean implementations record them in the module docstrings of
 `SecureMessaging/SCKA/OppBiKEM/Construction.lean` and `SecureMessaging/SCKA/OppUniKEM/Construction.lean`.
 Line numbers refer to the paper's figures.
 
-::::erratum "1" "Opp-BiKEM sending is blocked under the strict failure convention" (scope := "Opp-BiKEM-CKA, Figures 17–18")
+::::erratum "1" "Unhandled absent-ciphertext case" (scope := "Opp-BiKEM-CKA, Figures 17–18")
 
 In Figures 17–18, $`\CKASend{P}` can reach line 19, $`\chunk\gets\Encode(\ct_P,\ich)`,
 with $`\ct_P=\bot`, where $`P` stands for either $`\A` or $`\B`.
 This state occurs in normal honest runs.
 
-The paper's §2 notational convention says that a failing statement aborts the
-algorithm and discards its state changes. Under this convention, $`\Encode(\bot,\cdot)` fails.
-The send aborts, as does the $`\mathsf{SM}\text{-}\mathsf{Send}\text{-}P` call that invokes it.
-A party cannot send any message while it waits for its peer's encapsulation key.
+The consequences of failing to handle this case depend on the exact implementation of $`\Encode`/$`\Decode`.
+
+If encoding non-existent data fails, per the paper's §2 notational convention,
+the processing is aborted and state changes are discarded.
+As a consequence, a party cannot send any message while it waits for its peer's encapsulation key.
+
+Otherwise, if encoding/decoding empty data is handled gracefully, values for $`\ich` of real chunks will be non-consecutive,
+which does not cause significant problems.
 
 In Figure 17, $`\CKASend{\A}`, lines 13–19 read as follows.
 Figure 18, $`\CKASend{\B}`, is symmetric.
@@ -52,9 +56,6 @@ B acknowledges A's key, but A does not yet decode B's key.
 
 The parties send their encapsulation keys concurrently.
 A's key can therefore arrive and receive an acknowledgement before A decodes B's key.
-Under the strict §2 convention, line 16 fails in $`\CKASend{\A}`,
-and A cannot send any secure-messaging message until it decodes $`\ek_\B`.
-Figure 19, {bpref "opp_rkem_cka_spec"}[Opp-RKEM-CKA], has the same pattern in $`\CKASend{\A}` lines 13–21.
 
 *Correction.* Guard lines 17–19 of Figures 17–18 with $`\boxed{\pif\;\ct_P\ne\bot}`, and lines 19–21 of Figure 19 likewise.
 While a party waits for its peer's key, its message carries only epochs and acknowledgements,

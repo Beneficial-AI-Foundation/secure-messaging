@@ -40,7 +40,7 @@ Rec-A records the bit at the sender's `reqEpoch + 1`, and Rec-B at the sender's
 `reqEpoch - 1` (line 8 in each figure). These are the entries set by peer-key
 decoding; the printed indices prevent acknowledgement of the first public keys.
 4. Send-P reaches `Encode(ct, i_ch)` (line 19 in each figure) with `ct = ⊥` while the
-peer's public key is not yet decoded, which fails under the paper's convention.
+peer's public key is not yet decoded.
 We guard lines 17–19 with `ct ≠ ⊥`: while waiting, the message carries no chunk and
 no selector (`ch = none`, `bit = none`), and `ich` is unchanged.
 -/
