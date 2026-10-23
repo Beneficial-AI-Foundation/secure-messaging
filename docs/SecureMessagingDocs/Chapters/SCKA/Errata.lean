@@ -162,23 +162,29 @@ The correctness assertion fails.
 
 ::::
 
-::::erratum "6" "Opp-UniKEM Rec-A's chunk guards and abort behaviour made explicit" (scope := "Opp-UniKEM-CKA, Figure 16")
+::::erratum "6" "Opp-UniKEM Rec-A: missing chunks and receive failures" (scope := "Opp-UniKEM-CKA, Figure 16")
 
-The corrections to Figure 16's $`\CKARec{\A}` distinguish absent chunks,
-incomplete decoding, and failure after decoding the online ciphertext $`\ctone`.
-Both ciphertext-decoding branches require $`\chunk\ne\bot`.
-If the message contains no chunk, A neither inserts $`\bot` into $`\Lch` nor attempts decoding.
+In Figure 16, $`\CKARec{\A}` must distinguish waiting for more chunks from a failed decapsulation.
 
-If decoding is incomplete, A retains the received chunk in $`\Lch` and remains in the same epoch.
-Acknowledgement processing continues only if $`t=t'` after processing,
-with $`t` denoting A's epoch and $`t'` the message's epoch.
-Incomplete decoding does not abort the receive.
+*Correction.* Within the current-epoch branch, require a chunk in both ciphertext branches:
 
-After decoding a current-epoch $`\ctone`, A requires both $`\dkA` and $`\ctzero` to decapsulate.
-If either input is absent, or decapsulation returns $`\bot`, the entire receive aborts under the paper's §2 failure convention.
-The abort discards local state changes and skips acknowledgement processing.
-Only successful decapsulation produces the epoch key, erases the epoch's secrets, and advances A to epoch $`t+1`.
+$$`\begin{array}{rl}
+{\scriptstyle 5} & \pif\;\ctzero=\bot\wedge b=0\wedge\boxed{\chunk\ne\bot}\;\pthen\;\cdots \\
+{\scriptstyle 11} & \mathsf{else\ if}\;b=1\wedge\boxed{\chunk\ne\bot}\;\pthen\;\cdots
+\end{array}`
 
-*Correction.* The boxes in {cellref "opp-unikem-rec-a"}[Rec-A] mark these checks.
+If the chunk is absent, skip chunk insertion and decoding.
+If decoding is incomplete, keep the chunk in $`\Lch` and stay in the same epoch.
+Neither case aborts the receive. Continue to acknowledgement processing, subject to the epoch guard in erratum 4.
+
+Once the online ciphertext $`\ctone` is decoded, check the decapsulation inputs and result:
+
+$$`\begin{array}{rl}
+{\scriptstyle\text{before }15} & \pif\;\dkA=\bot\vee\ctzero=\bot\;\pthen\;\mathsf{return}\;\bot \\
+{\scriptstyle 15} & I_{\B}\gets\Decaps(\dkA,(\ctzero,\ctone)) \\
+{\scriptstyle\text{after }15} & \pif\;I_{\B}=\bot\;\pthen\;\mathsf{return}\;\bot
+\end{array}`
+
+The boxes in {cellref "opp-unikem-rec-a"}[Rec-A] mark these checks.
 
 ::::
