@@ -406,4 +406,19 @@ theorem challenge_lower_strictly_above_paper_literal :
       simpa only [y] using challenge_lower_fifth_power
     _ = Real.rpow y (5 : ℝ) := (Real.rpow_natCast y 5).symm
 
+/-- At most `T` completed exchanges fail with probability at most the certified Challenge
+upper endpoint times `T`, capped at one, for exact D1 sampling and a uniform public matrix. -/
+theorem correctness_failure_challenge_le
+    (adv : CKAScheme.CKACorrectnessAdversary
+      (Message challengeParams) (Key challengeParams))
+    (T : ℕ)
+    (hT : HasExchangeBound challengeParams challengeParams_wellFormed d1Sampler adv T) :
+    Pr[= false | CKAScheme.correctnessExp
+      (scheme challengeParams challengeParams_wellFormed d1Sampler) adv] ≤
+      min 1 ((T : ℝ≥0∞) * ((316050145969 : ℝ≥0∞) / 2 ^ 80)) := by
+  refine le_trans (correctness_failure_le challengeParams
+    challengeParams_wellFormed d1Sampler adv T hT) ?_
+  exact min_le_min le_rfl
+    (mul_le_mul' le_rfl firstExchangeFailureProb_challenge_bounds.2)
+
 end lweCKA

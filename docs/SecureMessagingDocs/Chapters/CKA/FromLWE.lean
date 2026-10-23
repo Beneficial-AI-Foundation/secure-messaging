@@ -6,6 +6,8 @@ import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessagingDocs.Chapters.CKA.Defs
 import SecureMessaging.CKA.FromLWE.Construction
+import SecureMessaging.CKA.FromLWE.Correctness
+import SecureMessaging.CKA.FromLWE.ChallengeCorrectness
 
 set_option linter.style.setOption false
 set_option linter.hashCommand false
@@ -199,11 +201,46 @@ def scheme (p : Params) (_h : p.WellFormed) (χ : ProbComp (Scalar p)) :
 :::defTitle "cka_from_lwe_correctness" "CKA from LWE correctness"
 :::
 
-::::theorem "cka_from_lwe_correctness" (parent := "cka_cka_from_lwe") (tags := "gh-13") (uses := "cka_from_lwe_spec, cka_correctness")
-$`\todo`
+::::theorem "cka_from_lwe_correctness" (parent := "cka_cka_from_lwe") (lean := "lweCKA.correctness_failure_le, lweCKA.correctness_failure_challenge_le") (tags := "gh-13") (uses := "cka_from_lwe_spec, cka_correctness")
+Correctness means that the sender and receiver obtain the same key.
+Let $`\varepsilon` be the probability that their keys differ in the first honest exchange.
+The definition `lweCKA.firstExchangeFailureProb` measures disagreement in any entry of the complete key.
 
-:::leanPill "missing"
-:::
+The experiment samples the public base matrix uniformly.
+Each secret and error entry follows the chosen noise distribution independently.
+The historical instances use the exact discrete distributions D1 through D4 from {Informal.citet BCDMNNRS16}[].
+The construction does not use the optional public-message truncation from that paper.
+
+A completed exchange consists of a send and its matching receive.
+The condition `lweCKA.HasExchangeBound` requires at most $`T` completed exchanges in every possible final state.
+It counts exchanges with $`\min(t_A,t_B)`, where the two counters record each party's progress.
+A final send without its matching receive is allowed and does not increase this count.
+
+Under this condition, the probability that the correctness game reports failure satisfies
+
+$$`\Pr[\,\textsf{correctnessExp} = \mathsf{false}\,] \leq \min(1,T\varepsilon).`
+
+
+For the historical Challenge parameters and exact D1 sampling, $`\varepsilon \leq 316050145969/2^{80}`.
+The theorem `lweCKA.correctness_failure_challenge_le` substitutes this value into the game bound.
+The four historical parameter sets have the following upper bounds on $`\varepsilon`.
+
+| Parameter set | Noise distribution | Upper bound |
+| --- | --- | --- |
+| Challenge | D1 | $`316050145969 / 2^{80}` |
+| Classical | D2 | $`7484474965163 / 2^{80}` |
+| Recommended | D3 | $`571563876524 / 2^{80}` |
+| Paranoid | D4 | $`20431578738799 / 2^{80}` |
+
+Each bound gives a game failure bound of $`\min(1,T\varepsilon)`.
+The other three game theorems are `lweCKA.correctness_failure_classical_le`,
+`lweCKA.correctness_failure_recommended_sharp_le`, and `lweCKA.correctness_failure_paranoid_le`.
+The sharper Recommended bound keeps the older theorem available under its original name.
+These exact bounds are not the rounded estimates shown in the original paper.
+
+
+Perfect correctness means that keys agree with probability one.
+The bound above allows a positive failure probability, so it does not establish the perfect correctness requirement of {Informal.citet ACD19}[].
 ::::
 
 :::defTitle "cka_from_lwe_security" "CKA from LWE security"
