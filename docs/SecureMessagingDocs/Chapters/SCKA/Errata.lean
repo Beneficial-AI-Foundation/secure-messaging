@@ -25,9 +25,9 @@ Line numbers refer to the paper's figures.
 
 ::::erratum "1" "Unhandled absent-ciphertext case" (scope := "Opp-BiKEM-CKA, Figures 17–18")
 
-In Figures 17–18, $`\CKASend{P}` can reach line 19, $`\chunk\gets\Encode(\ct_P,\ich)`,
+After correcting the acknowledgement indices (erratum 2), an honest run of Figures 17–18
+can reach $`\CKASend{P}` line 19, $`\chunk\gets\Encode(\ct_P,\ich)`,
 with $`\ct_P=\bot`, where $`P` stands for either $`\A` or $`\B`.
-This state occurs in normal honest runs.
 
 The consequences of failing to handle this case depend on the exact implementation of $`\Encode`/$`\Decode`.
 
@@ -35,9 +35,8 @@ If encoding non-existent data fails, per the paper's §2 notational convention,
 the processing is aborted and state changes are discarded.
 As a consequence, a party cannot send any message while it waits for its peer's encapsulation key.
 
-Otherwise, if encoding/decoding empty data is handled gracefully, values for $`\ich` of real chunks will be non-consecutive,
+Otherwise, if encoding/decoding absent data is handled gracefully, values for $`\ich` of real chunks will be non-consecutive,
 which does not cause significant problems.
-
 In Figure 17, $`\CKASend{\A}`, lines 13–19 read as follows.
 Figure 18, $`\CKASend{\B}`, is symmetric.
 
@@ -51,13 +50,11 @@ $$`\begin{array}{rl}
 {\scriptstyle 19} & \quad\chunk\gets\Encode(\ct_\A,\ich) \pcomment{\ct_\A\text{ may still be }\bot\text{ here}}
 \end{array}`
 
-When execution reaches line 13 but line 14 does not hold, $`\ct_\A` is still $`\bot` at line 19.
-B acknowledges A's key, but A does not yet decode B's key.
-
 The parties send their encapsulation keys concurrently.
-A's key can therefore arrive and receive an acknowledgement before A decodes B's key.
+A's key can therefore be acknowledged while $`\ct_\A=\bot` and A still waits to decode B's key.
+In this case, execution reaches line 13, skips lines 15–16, and reaches line 19 with $`\ct_\A=\bot`.
 
-*Correction.* Guard lines 17–19 of Figures 17–18 with $`\boxed{\pif\;\ct_P\ne\bot}`, and lines 19–21 of Figure 19 likewise.
+*Correction.* Guard lines 17–19 of Figures 17–18 with $`\boxed{\pif\;\ct_P\ne\bot}`.
 While a party waits for its peer's key, its message carries only epochs and acknowledgements,
 with $`\chunk=\bot` and $`b=\bot`, and $`\ich` is unchanged.
 The box in the {cellref "opp-bikem-shared-send"}[shared send] marks this guard.
@@ -127,7 +124,7 @@ Let $`t` be the receiver's epoch and $`(\chunk,\ack',t',b)` the received message
 In Figure 16, $`\CKARec{\A}` and $`\CKARec{\B}` end by copying the sender's acknowledgement,
 regardless of $`t` after processing:
 
-* $`\CKARec{\A}` executes $`\pif\;\ack'.\ekrec\;\pthen\;\ack.\ekrec\gets\mathsf{true}`.
+* $`\CKARec{\A}` (lines 21–22) executes $`\pif\;\ack'.\ekrec\;\pthen\;\ack.\ekrec\gets\mathsf{true}`.
 * $`\CKARec{\B}` (lines 12–13) executes $`\pif\;\ack'.\ctrec\;\pthen\;\ack.\ctrec\gets\mathsf{true}`.
 
 The acknowledgement belongs to epoch $`t'`.
@@ -186,5 +183,7 @@ $$`\begin{array}{rl}
 \end{array}`
 
 The boxes in {cellref "opp-unikem-rec-a"}[Rec-A] mark these checks.
+
+*Formalisation.* `OppUniKEM/Construction.lean` records them under "Receive failure" in its module docstring.
 
 ::::
