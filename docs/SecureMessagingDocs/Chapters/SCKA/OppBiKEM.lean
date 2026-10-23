@@ -198,7 +198,7 @@ def recvB (kem : KEMScheme m K PK SK C) [DecidableEq Sym]
 
 For party $`P`, the shared send follows Figures 17–18 with offset $`\delta_P`,
 where $`\delta_A=1` and $`\delta_B=-1`. We write $`\bar P` for the peer of party $`P`.
-The boxes mark the acknowledgement-index correction and, for $`P=B`, the Send-B counter corrections.
+The boxes mark the ciphertext guard, the acknowledgement-index correction and, for $`P=B`, the Send-B counter corrections.
 
 $`\begin{array}{l}
 (t_{\mathrm{res}\text{-}P},\mathsf{EK}_{\bar P},\mathit{ct}_P,i_{\mathrm{ch}})\gets\mathsf{st}_{\mathrm{res}} \\
@@ -216,8 +216,9 @@ I_P\gets\bot,\ t_{I_P}\gets\bot,\ \mathit{ch}\gets\bot,\ b\gets\bot \\
 \quad\mathsf{if}\;\mathit{ct}_P=\bot\wedge\mathsf{ACK}[t_{\mathrm{res}\text{-}P}].\mathsf{ekRec}\;\mathsf{then} \\
 \qquad t_{I_P}\gets t_{\mathrm{res}\text{-}P},\quad i_{\mathrm{ch}}\gets0 \\
 \qquad(\mathit{ct}_P,I_P)\sample\Encaps(\mathsf{EK}_{\bar P}[t_{\mathrm{res}\text{-}P}]) \\
-\quad i_{\mathrm{ch}}\gets i_{\mathrm{ch}}+1,\quad b\gets1 \\
-\quad \mathit{ch}\gets\mathsf{Encode}(\mathit{ct}_P,i_{\mathrm{ch}}) \\
+\quad\boxed{\mathsf{if}\;\mathit{ct}_P\ne\bot\;\mathsf{then}} \\
+\qquad i_{\mathrm{ch}}\gets i_{\mathrm{ch}}+1,\quad b\gets1 \\
+\qquad \mathit{ch}\gets\mathsf{Encode}(\mathit{ct}_P,i_{\mathrm{ch}}) \\
 t^{\mathrm{snd}}_P\gets\max\{t:\mathsf{ACK}[t].\mathsf{ctRec} \\
 \qquad\wedge\mathsf{ACK}[t-1].\mathsf{ctRec}\} \\
 \mathit{ack}\gets(\mathsf{ACK}[\boxed{t_{\mathrm{req}\text{-}P}-\delta_P}].\mathsf{ekRec},\mathsf{ACK}[t_{\mathrm{req}\text{-}P}].\mathsf{ctRec}) \\
@@ -274,10 +275,12 @@ def sendWith {RKey REnc : Type} (role : Role)
       key? := some (tRes.toNat, key)
       ich := 0
       rEnc? := some rEnc
-    ich := ich + 1
-    -- Waiting for the peer's public key can legitimately leave ct absent.
-    ch? := ct.map (fun ciphertext => ecCt.encode ciphertext ich)
-    bit? := some 1
+    -- Corrected line 17: a ciphertext chunk is sent only once a ciphertext exists.
+    -- While waiting for the peer's key, the message carries no payload.
+    if let some ciphertext := ct then
+      ich := ich + 1
+      ch? := some (ecCt.encode ciphertext ich)
+      bit? := some 1
   let st : State PK SK C Sym :=
     { res := ⟨tRes, ekPeer, ct, ich⟩
       req := ⟨tReq, dk, ek, receivedChunks⟩

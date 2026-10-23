@@ -56,9 +56,12 @@ Under the strict §2 convention, line 16 fails in $`\CKASend{\A}`,
 and A cannot send any secure-messaging message until it decodes $`\ek_\B`.
 Figure 19, {bpref "opp_rkem_cka_spec"}[Opp-RKEM-CKA], has the same pattern in $`\CKASend{\A}` lines 13–21.
 
-*Correction.* The {cellref "opp-bikem-shared-send"}[shared send] sends no chunk while the ciphertext is absent.
+*Correction.* Guard lines 17–19 of Figures 17–18 with $`\boxed{\pif\;\ct_P\ne\bot}`, and lines 19–21 of Figure 19 likewise.
+While a party waits for its peer's key, its message carries only epochs and acknowledgements,
+with $`\chunk=\bot` and $`b=\bot`, and $`\ich` is unchanged.
+The box in the {cellref "opp-bikem-shared-send"}[shared send] marks this guard.
 
-*Formalisation.* `OppBiKEM/Construction.lean` records this as correction 4 in its module docstring.
+*Formalisation.* `OppBiKEM/Construction.lean` uses this guard, recorded as correction 4 in its module docstring.
 
 ::::
 

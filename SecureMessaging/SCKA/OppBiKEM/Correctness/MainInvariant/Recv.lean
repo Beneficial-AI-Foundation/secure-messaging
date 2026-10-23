@@ -784,15 +784,15 @@ lemma recv_buffer_pk (hns : ¬ ρ.tRes < stR.req.reqEpoch) (hbit : ρ.bit = some
     obtain ⟨I, hI, hcard⟩ := hbuf
     exact ⟨I, hkp, hch, hI, hcard⟩
 
-/-- For a non-stale ciphertext message (`ρ.bit = some 1`) at an unacknowledged epoch that
-carries a chunk `ch`, the chunk encodes the transcript's ciphertext `c` for `ρ.tRes`, and the
-buffer is an honest sub-threshold chunk set of `c`. -/
+/-- For a non-stale ciphertext message (`ρ.bit = some 1`) at an unacknowledged epoch, the
+message carries a chunk of the transcript's ciphertext `c` for `ρ.tRes`, and the buffer is an
+honest sub-threshold chunk set of `c`. -/
 lemma recv_buffer_ct (hns : ¬ ρ.tRes < stR.req.reqEpoch) (hbit : ρ.bit = some 1)
-    (hqnot : ρ.tRes ∉ stR.ack.ctRec) (ch : ℕ × Sym) (hch : ρ.ch = some ch) :
-    ∃ c k i I, (T ρ.tRes).enc = some (c, k) ∧ ch = ecCt.encode c i ∧
+    (hqnot : ρ.tRes ∉ stR.ack.ctRec) :
+    ∃ c k i I, (T ρ.tRes).enc = some (c, k) ∧ ρ.ch = some (ecCt.encode c i) ∧
       stR.req.receivedChunks = payloadChunks ecCt c I ∧ I.card < ecCt.ec.nchunk := by
   have m := recv_msgInv hS hmsg
-  obtain ⟨c, k, i, henc, hchi⟩ := m.ct_chunk hbit ch hch
+  obtain ⟨c, k, i, henc, hchi⟩ := m.ct_chunk hbit
   have hsome := recv_bit1_ekPeer hR hS hmsg hbit
   have hbuf := hR.buffer
   unfold BufferConsistent at hbuf
@@ -1095,109 +1095,100 @@ lemma partyInv_recv_step [DecidableEq Sym] (hEk : ecEk.ec.Correct) (hCt : ecCt.e
       · rw [if_pos hg2]
         have hqnot : ρ.tRes ∉ stR.ack.ctRec := fun h => hg2.1 (recvAck_ctRec_subset _ _ _ h)
         have hsome := recv_bit1_ekPeer hR hS hmsg hg2.2
-        rcases hch : ρ.ch with _ | ch
-        · simp only [insertChunkAndDecode]
+        obtain ⟨c, k, i, I, henc, hch, hbufI, hcard⟩ :=
+          recv_buffer_ct hR hS hmsg hst hg2.2 hqnot
+        rw [hch, hbufI]
+        simp only [insertChunkAndDecode]
+        rw [insert_payloadChunks]
+        have hle : (insert (counterIndex ecCt i) I).card ≤ ecCt.ec.nchunk := by
+          have := Finset.card_insert_le (counterIndex ecCt i) I
+          omega
+        set I' := insert (counterIndex ecCt i) I with hI'
+        have hnotnone : ¬ (stR.res.ekPeer (ρ.tRes - roleR.offset)).isNone = true := by
+          intro h
+          rw [Option.isNone_iff_eq_none] at h
+          rw [h] at hsome
+          exact absurd hsome (by simp)
+        rcases Nat.lt_or_eq_of_le hle with hlt | heq
+        · rw [decode_payloadChunks_none ecCt hCt c I' hlt]
+          simp only
+          have hbuf : BufferConsistent roleR ecEk ecCt T
+              (recvFinish roleR stR ρ.tRes stR.res.ekPeer stR.req.dk (payloadChunks ecCt c I')
+                (recvAck roleR stR.ack ρ)) := by
+            apply bufferConsistent_recvFinish
+            rw [if_neg hg2.1, if_neg hnotnone, henc]
+            exact ⟨I', rfl, hlt⟩
           obtain ⟨hR', hS'⟩ := partyInv_recv_noKey hR hS hmsg hst stR.res.ekPeer
-            (recvAck roleR stR.ack ρ) stR.req.receivedChunks (fun _ _ => rfl) hR.ekPeer_T
+            (recvAck roleR stR.ack ρ) (payloadChunks ecCt c I') (fun _ _ => rfl) hR.ekPeer_T
             (fun e he => ⟨hR.ekPeer_parity e he, by
               have := hR.ekPeer_le e he; have := not_lt.mp hst; omega⟩) rfl (fun _ h => h)
-            (fun t ht hnot => absurd ht hnot) (recv_buffer_unchanged hR hS hmsg hst)
+            (fun t ht hnot => absurd ht hnot) hbuf
           exact ⟨⟨_, _, _, rfl⟩, finish _ hR' hS'⟩
-        · obtain ⟨c, k, i, I, henc, hchi, hbufI, hcard⟩ :=
-            recv_buffer_ct hR hS hmsg hst hg2.2 hqnot ch hch
-          subst hchi
-          rw [hbufI]
-          simp only [insertChunkAndDecode]
-          rw [insert_payloadChunks]
-          have hle : (insert (counterIndex ecCt i) I).card ≤ ecCt.ec.nchunk := by
-            have := Finset.card_insert_le (counterIndex ecCt i) I
-            omega
-          set I' := insert (counterIndex ecCt i) I with hI'
-          have hnotnone : ¬ (stR.res.ekPeer (ρ.tRes - roleR.offset)).isNone = true := by
-            intro h
-            rw [Option.isNone_iff_eq_none] at h
-            rw [h] at hsome
-            exact absurd hsome (by simp)
-          rcases Nat.lt_or_eq_of_le hle with hlt | heq
-          · rw [decode_payloadChunks_none ecCt hCt c I' hlt]
-            simp only
-            have hbuf : BufferConsistent roleR ecEk ecCt T
-                (recvFinish roleR stR ρ.tRes stR.res.ekPeer stR.req.dk (payloadChunks ecCt c I')
-                  (recvAck roleR stR.ack ρ)) := by
-              apply bufferConsistent_recvFinish
-              rw [if_neg hg2.1, if_neg hnotnone, henc]
-              exact ⟨I', rfl, hlt⟩
-            obtain ⟨hR', hS'⟩ := partyInv_recv_noKey hR hS hmsg hst stR.res.ekPeer
-              (recvAck roleR stR.ack ρ) (payloadChunks ecCt c I') (fun _ _ => rfl) hR.ekPeer_T
-              (fun e he => ⟨hR.ekPeer_parity e he, by
-                have := hR.ekPeer_le e he; have := not_lt.mp hst; omega⟩) rfl (fun _ h => h)
-              (fun t ht hnot => absurd ht hnot) hbuf
-            exact ⟨⟨_, _, _, rfl⟩, finish _ hR' hS'⟩
-          · rw [decode_payloadChunks ecCt hCt c I' heq.ge]
-            simp only
-            have hkpS : (T ρ.tRes).keypair.isSome = true :=
-              (T ρ.tRes).enc_keypair (by rw [henc]; rfl)
-            obtain ⟨⟨pk, sk⟩, hkp⟩ := Option.isSome_iff_exists.mp hkpS
-            have hpar := recv_tRes_parity hS hmsg
-            have hpos : 0 < ρ.tRes := hR.keypair_pos _ hpar hkpS
-            have hmem : (ρ.tRes, sk) ∈ stR.req.dk := hR.T_dk _ pk sk hkp hpar hqnot
-            have hlk : stR.req.dk.lookup ρ.tRes = some sk := by
-              cases h : stR.req.dk.lookup ρ.tRes with
-              | none =>
-                  exfalso
-                  have := List.lookup_eq_none_iff.mp h (ρ.tRes, sk) hmem
-                  simp at this
-              | some sk' =>
-                  have hmem' : (ρ.tRes, sk') ∈ stR.req.dk := by
-                    obtain ⟨before, after, hlist, _⟩ := List.lookup_eq_some_iff.mp h
-                    simp only [hlist, List.mem_append, List.mem_cons, true_or, or_true]
-                  obtain ⟨-, -, -, -, pk', hkp'⟩ := hR.dk_T _ sk' hmem'
-                  rw [hkp] at hkp'
-                  simp only [Option.some.injEq, Prod.mk.injEq] at hkp'
-                  rw [hkp'.2]
-            rw [hlk]
-            simp only [Option.bind_eq_bind, Option.bind, hdec hqnot pk sk c k hkp henc]
-            -- A decapsulating receive is the no-key receive followed by `partyInv_decaps_local`.
-            obtain ⟨hR₁, hS₁⟩ := partyInv_recv_noKey hR hS hmsg hst stR.res.ekPeer
-              (recvAck roleR stR.ack ρ) ∅ (fun _ _ => rfl) hR.ekPeer_T
-              (fun e he => ⟨hR.ekPeer_parity e he, by
-                have := hR.ekPeer_le e he; have := not_lt.mp hst; omega⟩) rfl (fun _ h => h)
-              (fun t ht hnot => absurd ht hnot) (bufferConsistent_of_empty _ _ _ _ _ rfl)
-            obtain ⟨hR₂, hS₂⟩ := partyInv_decaps_local hS hR₁ hS₁ ρ.tRes rfl hpos hpar hg2.1 c k
-              henc rfl
-            have hstate :
-                recvFinish roleR stR ρ.tRes stR.res.ekPeer
-                    (stR.req.dk.filter (fun p => p.1 != ρ.tRes)) ∅
-                    { recvAck roleR stR.ack ρ with
-                      ctRec := insert ρ.tRes (recvAck roleR stR.ack ρ).ctRec } =
-                  { recvFinish roleR stR ρ.tRes stR.res.ekPeer stR.req.dk ∅
-                      (recvAck roleR stR.ack ρ) with
-                    req := { (recvFinish roleR stR ρ.tRes stR.res.ekPeer stR.req.dk ∅
-                      (recvAck roleR stR.ack ρ)).req with
-                        dk := stR.req.dk.filter (fun p => p.1 != ρ.tRes) }
-                    ack := { recvAck roleR stR.ack ρ with
-                      ctRec := insert ρ.tRes (recvAck roleR stR.ack ρ).ctRec } } := by
-              have hne : stR.res.resEpoch ≠ ρ.tRes := by
-                intro h
-                have := hR.res_parity
-                rw [h] at this
-                cases roleR <;> simp only [Role.reqParity, Role.resParity] at this hpar <;> omega
-              simp only [recvFinish, Finset.mem_insert, hne, false_or]
-            rw [hstate]
-            refine ⟨⟨_, _, _, rfl⟩, ?_⟩
-            intro key? trcv stR'' h
+        · rw [decode_payloadChunks ecCt hCt c I' heq.ge]
+          simp only
+          have hkpS : (T ρ.tRes).keypair.isSome = true :=
+            (T ρ.tRes).enc_keypair (by rw [henc]; rfl)
+          obtain ⟨⟨pk, sk⟩, hkp⟩ := Option.isSome_iff_exists.mp hkpS
+          have hpar := recv_tRes_parity hS hmsg
+          have hpos : 0 < ρ.tRes := hR.keypair_pos _ hpar hkpS
+          have hmem : (ρ.tRes, sk) ∈ stR.req.dk := hR.T_dk _ pk sk hkp hpar hqnot
+          have hlk : stR.req.dk.lookup ρ.tRes = some sk := by
+            cases h : stR.req.dk.lookup ρ.tRes with
+            | none =>
+                exfalso
+                have := List.lookup_eq_none_iff.mp h (ρ.tRes, sk) hmem
+                simp at this
+            | some sk' =>
+                have hmem' : (ρ.tRes, sk') ∈ stR.req.dk := by
+                  obtain ⟨before, after, hlist, _⟩ := List.lookup_eq_some_iff.mp h
+                  simp only [hlist, List.mem_append, List.mem_cons, true_or, or_true]
+                obtain ⟨-, -, -, -, pk', hkp'⟩ := hR.dk_T _ sk' hmem'
+                rw [hkp] at hkp'
+                simp only [Option.some.injEq, Prod.mk.injEq] at hkp'
+                rw [hkp'.2]
+          rw [hlk]
+          simp only [Option.bind_eq_bind, Option.bind, hdec hqnot pk sk c k hkp henc]
+          -- A decapsulating receive is the no-key receive followed by `partyInv_decaps_local`.
+          obtain ⟨hR₁, hS₁⟩ := partyInv_recv_noKey hR hS hmsg hst stR.res.ekPeer
+            (recvAck roleR stR.ack ρ) ∅ (fun _ _ => rfl) hR.ekPeer_T
+            (fun e he => ⟨hR.ekPeer_parity e he, by
+              have := hR.ekPeer_le e he; have := not_lt.mp hst; omega⟩) rfl (fun _ h => h)
+            (fun t ht hnot => absurd ht hnot) (bufferConsistent_of_empty _ _ _ _ _ rfl)
+          obtain ⟨hR₂, hS₂⟩ := partyInv_decaps_local hS hR₁ hS₁ ρ.tRes rfl hpos hpar hg2.1 c k
+            henc rfl
+          have hstate :
+              recvFinish roleR stR ρ.tRes stR.res.ekPeer
+                  (stR.req.dk.filter (fun p => p.1 != ρ.tRes)) ∅
+                  { recvAck roleR stR.ack ρ with
+                    ctRec := insert ρ.tRes (recvAck roleR stR.ack ρ).ctRec } =
+                { recvFinish roleR stR ρ.tRes stR.res.ekPeer stR.req.dk ∅
+                    (recvAck roleR stR.ack ρ) with
+                  req := { (recvFinish roleR stR ρ.tRes stR.res.ekPeer stR.req.dk ∅
+                    (recvAck roleR stR.ack ρ)).req with
+                      dk := stR.req.dk.filter (fun p => p.1 != ρ.tRes) }
+                  ack := { recvAck roleR stR.ack ρ with
+                    ctRec := insert ρ.tRes (recvAck roleR stR.ack ρ).ctRec } } := by
+            have hne : stR.res.resEpoch ≠ ρ.tRes := by
+              intro h
+              have := hR.res_parity
+              rw [h] at this
+              cases roleR <;> simp only [Role.reqParity, Role.resParity] at this hpar <;> omega
+            simp only [recvFinish, Finset.mem_insert, hne, false_or]
+          rw [hstate]
+          refine ⟨⟨_, _, _, rfl⟩, ?_⟩
+          intro key? trcv stR'' h
+          simp only [Option.some.injEq, Prod.mk.injEq] at h
+          obtain ⟨rfl, rfl, rfl⟩ := h
+          refine ⟨hepoch.symm, ?_, ?_, hR₂, hS₂⟩
+          · simpa using knownPrefix_of_partyInv hR₂ hS₂ _ hR₂.tcur_le
+          · intro tI k' h
             simp only [Option.some.injEq, Prod.mk.injEq] at h
-            obtain ⟨rfl, rfl, rfl⟩ := h
-            refine ⟨hepoch.symm, ?_, ?_, hR₂, hS₂⟩
-            · simpa using knownPrefix_of_partyInv hR₂ hS₂ _ hR₂.tcur_le
-            · intro tI k' h
-              simp only [Option.some.injEq, Prod.mk.injEq] at h
-              obtain ⟨rfl, rfl⟩ := h
-              refine ⟨?_, Or.inr ?_⟩
-              · rw [hR.key_req _ hpos hpar, if_neg hqnot]
-              · have hparS : ρ.tRes % 2 = roleR.peer.resParity := by simpa using hpar
-                rw [hS.key_res _ hpos hparS, EpochTranscript.key, henc]
-                rfl
+            obtain ⟨rfl, rfl⟩ := h
+            refine ⟨?_, Or.inr ?_⟩
+            · rw [hR.key_req _ hpos hpar, if_neg hqnot]
+            · have hparS : ρ.tRes % 2 = roleR.peer.resParity := by simpa using hpar
+              rw [hS.key_res _ hpos hparS, EpochTranscript.key, henc]
+              rfl
       · rw [if_neg hg2]
         obtain ⟨hR', hS'⟩ := partyInv_recv_noKey hR hS hmsg hst stR.res.ekPeer
           (recvAck roleR stR.ack ρ) stR.req.receivedChunks (fun _ _ => rfl) hR.ekPeer_T

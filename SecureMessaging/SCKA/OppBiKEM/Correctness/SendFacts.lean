@@ -207,11 +207,12 @@ structure SendProvenance
         st'.req.ek = some pk ∧
         ρ.ch = some (ecEk.encode pk st'.res.ich)
   /-- A ciphertext message carries the chunk of the retained ciphertext at the post-send chunk
-  index, or no chunk if no ciphertext is retained. -/
+  index. -/
   ciphertext_chunk :
     ρ.bit = some 1 →
-      ρ.ch = st'.res.ct.map
-        (fun ciphertext => ecCt.encode ciphertext st'.res.ich)
+      ∃ ciphertext : C,
+        st'.res.ct = some ciphertext ∧
+        ρ.ch = some (ecCt.encode ciphertext st'.res.ich)
   /-- A message without payload selector carries no chunk. -/
   absent_payload : ρ.bit = none → ρ.ch = none
   /-- The chunk index is reset to `0` by an advance or an emitted key, then incremented once if
