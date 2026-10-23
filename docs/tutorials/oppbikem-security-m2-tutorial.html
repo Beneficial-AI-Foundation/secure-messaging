@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Which Epochs Leak</title>
+<style>
+/* Layout: one reading column with a sticky rail of milestones on wide screens; the exposure
+   calculator is a two-pane form (inputs left, results right) that stacks on phones. */
+:root{
+  --bg:#f5f4f7; --panel:#ffffff; --fg:#1d1b22; --muted:#5f5a6b; --line:#d9d5e1;
+  --accent:#5b2a86; --accent-ink:#ffffff; --accent-soft:#ece4f5;
+  --done:#1f6f50; --done-soft:#dff0e6; --todo:#8a5a12; --todo-soft:#f7ecd6;
+  --code-bg:#f0edf4; --formula-bg:#e9eef6;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15131b; --panel:#1e1b26; --fg:#ece8f1; --muted:#a79fb5; --line:#363041;
+    --accent:#b68ae0; --accent-ink:#15131b; --accent-soft:#2b2238;
+    --done:#7fcfa3; --done-soft:#1c2f26; --todo:#e0b45e; --todo-soft:#33290f;
+    --code-bg:#262131; --formula-bg:#1f2633; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15131b; --panel:#1e1b26; --fg:#ece8f1; --muted:#a79fb5; --line:#363041;
+  --accent:#b68ae0; --accent-ink:#15131b; --accent-soft:#2b2238;
+  --done:#7fcfa3; --done-soft:#1c2f26; --todo:#e0b45e; --todo-soft:#33290f;
+  --code-bg:#262131; --formula-bg:#1f2633; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:24px}
+body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.65 var(--sans);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0}
+a{color:var(--accent);text-underline-offset:3px}
+h1,h2,h3{font-family:var(--serif);font-weight:500;line-height:1.15;text-wrap:balance;margin:0}
+h1{font-size:clamp(38px,6vw,68px);letter-spacing:-1px}
+h2{font-size:clamp(28px,3.6vw,38px);margin-bottom:18px}
+h3{font-size:21px;margin-bottom:10px}
+p{margin:0 0 16px;max-width:68ch}
+li{max-width:68ch}
+code{font:0.88em var(--mono);background:var(--code-bg);padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}
+pre{font:14px/1.5 var(--mono);background:var(--code-bg);border:1px solid var(--line);border-radius:8px;padding:16px;overflow-x:auto;margin:0 0 18px}
+pre code{background:none;padding:0;font-size:inherit}
+.wrap{max-width:1140px;margin:0 auto}
+.hero{padding:56px 0 28px;max-width:860px}
+.eyebrow{font-size:12px;letter-spacing:2px;text-transform:uppercase;font-weight:700;color:var(--accent);margin-bottom:14px}
+.lead{font-size:21px;line-height:1.5;margin-top:22px;max-width:62ch}
+.meta{font-size:14px;color:var(--muted)}
+.layout{display:grid;grid-template-columns:230px minmax(0,1fr);gap:48px;align-items:start}
+.rail{position:sticky;top:20px;font-size:14px}
+.rail strong{display:block;margin-bottom:10px;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)}
+.rail a{display:block;padding:5px 0;color:var(--muted);text-decoration:none}
+.rail a:hover{color:var(--accent)}
+.content{min-width:0}
+section.ch{padding:44px 0;border-top:1px solid var(--line)}
+section.ch:first-child{border-top:0;padding-top:12px}
+.num{display:block;font-size:12px;letter-spacing:2px;color:var(--accent);margin-bottom:10px;font-weight:700}
+.formula{font:20px/1.6 var(--serif);background:var(--formula-bg);border-radius:10px;padding:18px 22px;margin:18px 0;overflow-x:auto}
+.formula small{display:block;font:14px/1.5 var(--sans);color:var(--muted);margin-top:8px}
+.note{border-left:4px solid var(--accent);background:var(--accent-soft);padding:14px 18px;border-radius:0 8px 8px 0;margin:20px 0}
+.note.warn{border-color:var(--todo);background:var(--todo-soft)}
+.note p:last-child{margin-bottom:0}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin:18px 0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px}
+.card h3{font-size:18px}
+.card p:last-child{margin-bottom:0}
+table{width:100%;border-collapse:collapse;font-size:14.5px;line-height:1.5;margin:18px 0}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:12.5px;letter-spacing:.6px;text-transform:uppercase}
+.tscroll{overflow-x:auto}
+/* milestone map */
+.map{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:18px 0}
+.ms{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--panel);font-size:14px;min-width:0}
+.ms b{display:block;font-family:var(--mono);font-size:13px;margin-bottom:4px}
+.ms.done{border-color:var(--done);background:var(--done-soft)}
+.ms.done b::after{content:" · done";color:var(--done);font-family:var(--sans)}
+.ms.todo b::after{content:" · planned";color:var(--todo);font-family:var(--sans)}
+.ms.generic{border-style:dashed}
+/* send-engine decision tree */
+.tree{display:grid;gap:8px;margin:18px 0}
+.tnode{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:start;border:1px solid var(--line);border-radius:8px;padding:10px 14px;background:var(--panel)}
+.tnode .q{font-family:var(--mono);font-size:13px;color:var(--accent);white-space:nowrap}
+.tnode.deep{margin-left:28px}
+.tnode.deeper{margin-left:56px}
+.tag{display:inline-block;font-size:12px;padding:1px 7px;border-radius:10px;background:var(--accent-soft);color:var(--accent);margin-left:6px}
+.tag.fail{background:var(--todo-soft);color:var(--todo)}
+.tag.sample{background:var(--done-soft);color:var(--done)}
+/* proof explorer */
+.explorer{display:grid;grid-template-columns:minmax(220px,300px) minmax(0,1fr);gap:16px;margin:18px 0}
+.steps{display:grid;gap:6px;align-content:start}
+.steps button{text-align:left;font:inherit;font-size:14px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--fg);cursor:pointer}
+.steps button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.steps button:focus-visible,details summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.steps button span{display:block;font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:2px}
+.detail{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:18px;min-width:0}
+.detail h3{margin-bottom:8px}
+.detail pre{margin-top:10px}
+details{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:12px 16px;margin:12px 0}
+summary{cursor:pointer;font-weight:600}
+details p{margin:12px 0 0}
+footer{padding:36px 0 60px;font-size:13.5px;color:var(--muted)}
+@media (max-width:900px){
+  .layout{grid-template-columns:1fr;gap:0}
+  .rail{position:static;display:flex;flex-wrap:wrap;gap:2px 16px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+  .rail strong{width:100%}
+  .explorer{grid-template-columns:1fr}
+}
+@media (max-width:520px){
+  .hero{padding-top:36px}
+  .lead{font-size:19px}
+  .tnode{grid-template-columns:1fr}
+  .tnode .q{white-space:normal}
+  .tnode.deep{margin-left:12px}.tnode.deeper{margin-left:24px}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+/* exposure calculator */
+.calc{display:grid;grid-template-columns:minmax(240px,340px) minmax(0,1fr);gap:16px;margin:18px 0}
+.calc-form{display:grid;gap:10px;align-content:start;border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:16px;font-size:14px}
+.calc-form label{display:grid;gap:4px}
+.calc-form input[type=text],.calc-form input[type=number],.calc-form select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);max-width:100%}
+.calc-form input[type=checkbox]{margin-right:6px}
+.calc-out{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:16px;min-width:0;font-size:15px}
+.calc-out .row{display:grid;grid-template-columns:minmax(120px,180px) minmax(0,1fr);gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.calc-out .row:last-child{border-bottom:0}
+.calc-out .row span{color:var(--muted);font-family:var(--mono);font-size:13px}
+.calc-out .row b{font-weight:500;overflow-wrap:anywhere}
+@media (max-width:900px){.calc{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">Secure Messaging · Opp-BiKEM security · milestone M2</div>
+  <h1>Which Epochs Leak</h1>
+  <p class="lead">The second milestone answers a bookkeeping question the security game cannot avoid. When the adversary corrupts a party, or watches the coins of one send, which epochs' keys must be taken off the challenge table? This page explains the rule, shows that it agrees with what the send algorithm actually does, and walks the four Lean proofs.</p>
+  <p class="meta">Covers <code>SecureMessaging/SCKA/OppBiKEM/Security/Exposure.lean</code> on branch <code>opp-bikem-security</code>, planned in <code>.formalising/fv-plans/OppBiKEM-security/plans/PLAN_n3.md</code>. The companion page for M1 is <code>oppbikem-security-m1-tutorial.html</code>. No security claim is proved yet; the page says so wherever it matters.</p>
+</header>
+
+<div class="layout">
+<nav class="rail" aria-label="Sections">
+  <strong>Contents</strong>
+  <a href="#goal">1 · The goal</a>
+  <a href="#roadmap">2 · The roadmap</a>
+  <a href="#rule">3 · The game's exposure rule</a>
+  <a href="#send">4 · What a send does, and when</a>
+  <a href="#policy">5 · The policy</a>
+  <a href="#calc">6 · Try it</a>
+  <a href="#theorems">7 · The four theorems</a>
+  <a href="#proofs">8 · The proofs</a>
+  <a href="#later">9 · What uses it later</a>
+  <a href="#check">10 · Check yourself</a>
+  <a href="#sources">Sources</a>
+</nav>
+
+<main class="content">
+
+<section class="ch" id="goal">
+  <span class="num">1</span>
+  <h2>The goal, and the bookkeeping it needs</h2>
+  <p>The target of the whole plan is unchanged from M1: for every adversary that makes at most <em>q</em> sends,</p>
+  <div class="formula">Adv<sub>SCKA</sub>(𝒜) ≤ q · ε<sub>cor</sub> + ½ · Σ<sub>t ∈ range(2q+1)</sub> δ<sub>t</sub>
+    <small>ε<sub>cor</sub> is the KEM correctness error and δ<sub>t</sub> the IND-CPA distance of the KEM adversary built for epoch t.</small></div>
+  <p>The sum over epochs is only meaningful if, for each epoch <em>t</em>, the game refuses to answer a challenge at <em>t</em> once the adversary has learned enough to compute the key at <em>t</em>. The generic SCKA game enforces this with a set <code>Exposed</code> that grows on corruptions and on leaking sends, and a challenge oracle that rejects any epoch in it. What goes into <code>Exposed</code> is protocol-specific. M2 defines it for Opp-BiKEM, and proves that for a leaking send it is a function of the state before the send alone.</p>
+  <p>That last property is the one later milestones consume. An invariant about the game state can predict what a leaking send will expose before the send runs, so the leakage guard can be reasoned about without re-running the send.</p>
+</section>
+
+<section class="ch" id="roadmap">
+  <span class="num">2</span>
+  <h2>The roadmap, and where M2 sits</h2>
+  <p>Two milestones are implemented. Everything else is a design contract, not Lean.</p>
+  <div class="map">
+    <div class="ms done"><b>M1</b>Security interface and the coin-forgetting lemma</div>
+    <div class="ms done"><b>M2</b>Concrete exposure policy, state-only on successful sends</div>
+    <div class="ms todo"><b>M3</b>Real-world invariant through all security oracles; failure budget q·ε</div>
+    <div class="ms todo"><b>M4</b>Ideal receive built on the existing receive decision tree</div>
+    <div class="ms todo"><b>M4′</b>Ideal invariant, epoch bound ≤ 2q, one keygen and one encapsulation per epoch</div>
+    <div class="ms todo"><b>M5</b>Real-to-ideal endpoints: |p<sub>b</sub> − i<sub>b</sub>| ≤ q·ε</div>
+    <div class="ms todo"><b>M7</b>Epoch-indexed challenge hybrids H<sub>t</sub> and the key-observation lemma</div>
+    <div class="ms todo"><b>M8</b>KEM reduction D<sub>t</sub>: eager sampling, dummy secret, stop on target exposure</div>
+    <div class="ms todo"><b>M10</b>Adjacent hybrid gap ≤ δ<sub>t</sub></div>
+    <div class="ms todo generic"><b>N</b>Generic SCKA normalisation (guess advantage = half the branch distance)</div>
+    <div class="ms todo"><b>M11</b>Telescoping sum and the final theorem</div>
+  </div>
+  <p>M2 reads the coin record that M1's leaking send returns and turns it into a set of epochs. M3 plugs the resulting package into the game's handlers. M7 and M8 use the membership characterisation to say precisely when their target epoch becomes exposed, which is the moment the KEM reduction must stop.</p>
+</section>
+
+<section class="ch" id="rule">
+  <span class="num">3</span>
+  <h2>The game's exposure rule</h2>
+  <p>The generic game does not know Opp-BiKEM. It asks the protocol for a package of two functions:</p>
+<pre><code>structure VulnerableEpochs (St Rand : Type) where
+  corrupt : St → Finset ℕ          -- epochs exposed when this state is revealed
+  rleak   : St → Rand → Finset ℕ   -- epochs exposed when a send from this state leaks these coins</code></pre>
+  <p>Three oracles consume it. The corruption oracle for a party reads <code>corrupt</code> of the party's current state, refuses if any of those epochs has already been challenged, and otherwise adds them to <code>Exposed</code> and hands over the state. The leaking-send oracle runs the leaking send first, and only then checks:</p>
+<pre><code>((tIA, IA), ρ, t_snd, stA', rand) ←$ sendArleak(stA)      -- sample first
+E ← rleak(stA, rand)                                      -- note: the state BEFORE the send
+req E ∩ Challenged = ∅                                    -- otherwise reject, state unchanged
+Exposed ← Exposed ∪ E
+…</code></pre>
+  <p>The challenge oracle at epoch <em>t</em> begins with <code>req t ∉ Exposed ∪ Challenged</code>. Three details of this rule shape everything in M2.</p>
+  <ul>
+    <li><strong>Pre-state.</strong> <code>rleak</code> receives the state the send started from, together with the coins the send returned. A policy written for the post-state would be off by one epoch advance.</li>
+    <li><strong>Failure exposes nothing.</strong> If the send returns <code>none</code>, the oracle returns <code>none</code> before computing <code>E</code>. The sampling that happened inside the failed send is still an effect of the computation, which is why M1 insisted on keeping it.</li>
+    <li><strong>Rejection is not failure.</strong> A successful send whose exposure collides with a challenged epoch is rejected by the oracle, and the game state is not updated. "The send succeeded" and "the oracle accepted" are different statements, and M2 only ever proves things about the first.</li>
+  </ul>
+</section>
+
+<section class="ch" id="send">
+  <span class="num">4</span>
+  <h2>What a send does, and when</h2>
+  <p>To know which epochs a send can leak, you need to know which operations it performs and for which epochs. The shared engine <code>sendWith</code> from M1 has two sampling points and this decision structure. <code>tRes</code> is the responder epoch of the pre-state, <code>offset</code> is +1 for A and −1 for B.</p>
+  <div class="tree">
+    <div class="tnode"><span class="q">gate</span><div>Is my own public key absent, and are the ciphertexts at <code>tRes</code> and <code>tRes + offset</code> both acknowledged? <span class="tag sample">keygen</span> If yes, sample a key pair, set <code>tRes := tRes + 2</code>, and store the secret key at epoch <code>tRes + offset</code>, which equals <code>resEpoch + 2 + offset</code> in terms of the pre-state. This is the <b>key-generation epoch</b>.</div></div>
+    <div class="tnode"><span class="q">then</span><div>Is my public key for epoch <code>tRes + offset</code> still unacknowledged? <span class="tag">chunk ek</span> If yes, emit the next chunk of it. <span class="tag fail">none</span> if there is no key to chunk.</div></div>
+    <div class="tnode deep"><span class="q">else if</span><div>Is the ciphertext at <code>tRes</code> unacknowledged?</div></div>
+    <div class="tnode deeper"><span class="q">and</span><div>Is no ciphertext stored, and is the peer's key at <code>tRes</code> acknowledged? <span class="tag sample">encaps</span> Look up the peer key at <code>tRes</code> (<span class="tag fail">none</span> if missing), encapsulate, and emit the key <code>(tRes.toNat, K)</code>. This <code>tRes</code> is the one <em>after</em> any advance. This is the <b>encapsulation epoch</b>.</div></div>
+    <div class="tnode deeper"><span class="q">then</span><div>Emit the next ciphertext chunk if one is stored. <span class="tag">chunk ct</span></div></div>
+    <div class="tnode deep"><span class="q">else</span><div>Nothing to send but acknowledgement flags. <span class="tag">ack only</span></div></div>
+  </div>
+  <p>Two facts fall out of the shape. First, the encapsulation epoch depends on whether the gate fired: it is <code>resEpoch + 2</code> if a key pair was generated in the same send and <code>resEpoch</code> otherwise. Second, nothing in the engine forbids both samplers from running in one send on an arbitrary state. On reachable states that never happens, but the invariant that says so belongs to M3 and M4′, and M2 does not assume it.</p>
+  <p>For orientation, the initial states are: A has responder epoch −1 and offset +1, B has responder epoch 0 and offset −1, and both start with the placeholder ciphertexts at −1 and 0 acknowledged. So A's first send generates the key pair for epoch 2 and B's for epoch 1.</p>
+</section>
+
+<section class="ch" id="policy">
+  <span class="num">5</span>
+  <h2>The policy, line by line</h2>
+  <h3>Randomness leakage</h3>
+<pre><code>def rleakEpochs {RK RE : Type} (role : Role)
+    (st : State PK SK C Sym) (rand : SendRand RK RE) : Finset ℕ :=
+  let keyEpoch := st.res.resEpoch + 2 + role.offset
+  let encEpoch := st.res.resEpoch + if rand.keygenRand.isSome then 2 else 0
+  let epochs : Finset ℤ :=
+    (if rand.keygenRand.isSome then {keyEpoch} else ∅) ∪
+    (if rand.encapsRand.isSome then {encEpoch} else ∅)
+  (epochs.filter fun e => 0 &lt; e).image Int.toNat</code></pre>
+  <ul>
+    <li><strong>The record decides, not the coins.</strong> <code>SendRand</code> has two optional fields. The policy looks only at whether each is <code>some</code>. It never inspects a coin value, so it is the same for every leak package, including <code>noLeak</code>, whose coins are <code>()</code>.</li>
+    <li><strong>Key-generation coin ⇒ the key-generation epoch.</strong> With the seed, the adversary can recompute the secret key, hence the session key the peer will later encapsulate to it. That key lives at <code>resEpoch + 2 + offset</code>, exactly where the engine stores the secret key.</li>
+    <li><strong>Encapsulation coin ⇒ the encapsulation epoch.</strong> With the seed, the adversary can recompute the encapsulated key. That key is emitted at the advanced responder epoch, so the policy adds 2 precisely when the key-generation field is present.</li>
+    <li><strong>Positive filter, then <code>Int.toNat</code>.</strong> Protocol epochs are integers because of the placeholders at −1 and 0, but the game challenges natural numbers and real keys only exist at epochs ≥ 1. Filtering before converting keeps a negative epoch from aliasing epoch 0. This is the same convention as the corruption policy below.</li>
+  </ul>
+  <h3>State exposure</h3>
+<pre><code>def exposure {kem : KEMScheme ProbComp K PK SK C} (role : Role) (leak : kem.RandLeak) :
+    SCKAScheme.VulnerableEpochs (State PK SK C Sym) (SendRand leak.KeygenRand leak.EncapsRand) where
+  corrupt := vuln
+  rleak := rleakEpochs role</code></pre>
+  <p><code>vuln</code> already exists from the correctness work: the positive epochs at which the state still stores a decapsulation key. Revealing the state reveals those keys and nothing else of cryptographic value, because stored ciphertexts and public keys are not secrets. This is the paper's retained-key rule. The <code>leak</code> argument fixes the coin types in the package's index so that it unifies with <code>securitySpec leak Sym</code> from M1.</p>
+  <h3>The state-only guards</h3>
+<pre><code>def sendKeygenGuard (role : Role) (st : State PK SK C Sym) : Bool :=
+  st.req.ek.isNone &amp;&amp;
+    decide (st.res.resEpoch ∈ st.ack.ctRec ∧ st.res.resEpoch + role.offset ∈ st.ack.ctRec)
+
+def sendEncapsGuard (role : Role) (st : State PK SK C Sym) : Bool :=
+  let tRes := st.res.resEpoch + if sendKeygenGuard role st then 2 else 0
+  decide (tRes + role.offset ∈ st.ack.ekRec) &amp;&amp;
+    decide (tRes ∉ st.ack.ctRec) &amp;&amp;
+    st.res.ct.isNone &amp;&amp;
+    decide (tRes ∈ st.ack.ekRec)
+
+def leakEpochs (role : Role) (st : State PK SK C Sym) : Finset ℕ :=
+  rleakEpochs role st
+    ({ keygenRand := if sendKeygenGuard role st then some () else none
+       encapsRand := if sendEncapsGuard role st then some () else none } : SendRand Unit Unit)</code></pre>
+  <p>These read the decision tree off the pre-state. <code>sendKeygenGuard</code> is the gate. <code>sendEncapsGuard</code> is the conjunction of the three conditions on the path to the encapsulation sampler, evaluated at the advanced epoch if the gate fires, and it stops just before the peer-key lookup. <code>leakEpochs</code> feeds unit flags built from the guards into the policy. It is the exposure a successful send <em>will</em> cause, computed before the send runs.</p>
+  <div class="note">
+    <p><strong>Prediction versus outcome.</strong> <code>leakEpochs</code> can be non-empty for a state whose send fails: both guards hold but the peer key is missing from the table. That is not a bug. The theorem in section 7 only equates the prediction with the outcome on successful sends, and the oracle exposes nothing on failure.</p>
+  </div>
+</section>
+
+<section class="ch" id="calc">
+  <span class="num">6</span>
+  <h2>Try it: the exposure calculator</h2>
+  <p>This runs the two guards and the policy, transcribed from the Lean definitions above, on a state you describe. It also reports which branch of the engine would run and whether the oracle would accept a leaking send, given a set of already challenged epochs. Presets are the hand-trace cases from the plan; the Lean <code>#eval</code> results for all of them match.</p>
+  <div class="calc">
+    <div class="calc-form">
+      <label>Preset <select id="preset">
+        <option value="">—</option>
+        <option value="A|-1|0|0|yes||-1,0|">Initial A</option>
+        <option value="B|0|0|0|yes||-1,0|">Initial B</option>
+        <option value="A|3|0|0|yes|5,6|3,4|">A, both samplers (unreachable)</option>
+        <option value="B|2|0|0|yes|3,4|1,2|">B, both samplers (unreachable)</option>
+        <option value="A|3|1|0|yes|3,4|2|">A, encapsulate only</option>
+        <option value="A|3|1|0|yes|3|2|">A, own key unacknowledged</option>
+        <option value="A|3|1|0|yes|3,4|3|">A, acknowledgement only</option>
+        <option value="A|-3|0|0|yes|-1,0|-3,-2|">A, negative epochs</option>
+        <option value="A|3|0|0|no|5,6|3,4|">A, both guards but no peer key</option>
+        <option value="A|3|0|0|yes|5,6|3,4|5">A, both samplers, epoch 5 already challenged</option>
+      </select></label>
+      <label>Role <select id="role"><option>A</option><option>B</option></select></label>
+      <label>Responder epoch <code>resEpoch</code> <input id="tres" type="number" value="-1" step="1"></label>
+      <label><input id="ek" type="checkbox"> Own public key stored (<code>req.ek</code> is <code>some</code>)</label>
+      <label><input id="ct" type="checkbox"> Ciphertext stored (<code>res.ct</code> is <code>some</code>)</label>
+      <label><input id="peer" type="checkbox" checked> Peer key present at the encapsulation epoch</label>
+      <label>Acknowledged peer keys <code>ack.ekRec</code> <input id="ekrec" type="text" value="" placeholder="e.g. 5, 6"></label>
+      <label>Acknowledged ciphertexts <code>ack.ctRec</code> <input id="ctrec" type="text" value="-1, 0"></label>
+      <label>Already challenged epochs <input id="chal" type="text" value="" placeholder="e.g. 5"></label>
+    </div>
+    <div class="calc-out" id="out" aria-live="polite"></div>
+  </div>
+</section>
+
+<section class="ch" id="theorems">
+  <span class="num">7</span>
+  <h2>The four theorems</h2>
+  <div class="cols">
+    <div class="card"><h3><code>mem_rleakEpochs_iff</code></h3><p>An epoch <em>t</em> is in <code>rleakEpochs role st rand</code> exactly when <em>t</em> is positive and either the key-generation field is present and <em>t</em> is the key-generation epoch, or the encapsulation field is present and <em>t</em> is the encapsulation epoch (with its conditional +2). This is the interface later milestones use; nobody should unfold <code>rleakEpochs</code> again.</p></div>
+    <div class="card"><h3><code>exposure_positive</code></h3><p>Both fields of the package contain only positive epochs, for every state and every coin record. A small endpoint, recorded so that no later proof has to re-derive it from the filters.</p></div>
+    <div class="card"><h3><code>sendWith_operation_facts</code></h3><p>For any samplers and any state, if <code>some (key, msg, epoch, st', rand)</code> is a possible output of the engine, then six things hold: the key-generation field is present iff the keygen guard holds; the encapsulation field is present iff the encapsulation guard holds; the new responder epoch is the old one plus 2 iff a key was generated; if a key was generated, a secret key is stored at the key-generation epoch; the encapsulation field is present iff a session key was emitted; and an emitted key's epoch is the (advanced) responder epoch converted to ℕ.</p></div>
+    <div class="card"><h3><code>sendWith_exposure</code></h3><p>Under the same success premise, <code>rleakEpochs role st rand = leakEpochs role st</code>. What a successful leaking send exposes is determined by the state it started from. This is the M2 result the plan calls "state-only exposure".</p></div>
+  </div>
+  <h3>What they do not say</h3>
+  <ul>
+    <li>Nothing about reachable states. Both samplers may fire in one send on a contrived state, and the theorems describe that honestly rather than excluding it.</li>
+    <li>Nothing about the oracle accepting the send. The oracle's rejection on a challenge collision is a separate condition that M3 will reason about using these theorems.</li>
+    <li>Nothing about what the coins reveal. As in M1, only the presence of a field matters, so the results hold for every leak package.</li>
+  </ul>
+</section>
+
+<section class="ch" id="proofs">
+  <span class="num">8</span>
+  <h2>The proofs</h2>
+  <h3>Membership: unpacking image and filter</h3>
+  <p><code>rleakEpochs</code> is an image of a filter of a union of two conditionals. The current proof uses the six-line version suggested in the evaluation. It first rewrites membership in the image, filter and union. In the forward direction, it takes the witness integer <em>e</em> and splits the conditions on the randomness fields. In the backward direction, it supplies <em>t</em> as the witness. <code>simp_all</code> handles the branch facts, and <code>omega</code> handles the <code>Int.toNat</code> arithmetic:</p>
+<pre><code>  simp only [rleakEpochs, Finset.mem_image, Finset.mem_filter, Finset.mem_union]
+  constructor
+  · rintro ⟨e, ⟨he, hpos⟩, rfl⟩
+    split_ifs at he &lt;;&gt; simp_all &lt;;&gt; omega
+  · rintro ⟨ht, h⟩
+    exact ⟨t, ⟨by split_ifs &lt;;&gt; simp_all, by omega⟩, by simp⟩</code></pre>
+  <h3>Operation facts: one walk through the engine</h3>
+  <p>The premise says a particular tuple is in the <em>support</em> of the engine. The support of a bind <code>mx &gt;&gt;= f</code> is the union over samples <em>x</em> of the support of <code>f x</code>, so <code>mem_support_bind_iff</code> turns each sampling point into an existential witness. The proof then runs one loop:</p>
+<pre><code>  unfold sendWith at hout
+  dsimp only at hout
+  repeat' first
+    | split at hout
+    | (rw [mem_support_bind_iff] at hout; obtain ⟨x, _, hout⟩ := hout)</code></pre>
+  <p>Each <code>split at hout</code> case-splits the hypothesis on the next <code>if</code> or <code>match</code> in the engine, and each bind is peeled into a witness. When the loop stops, every leaf has the form <code>some (…) ∈ support (pure (…))</code> or <code>some (…) ∈ support (pure none)</code>. One <code>simp only</code> with <code>support_pure</code> turns the first kind into a tuple equality and the second into a contradiction via <code>reduceCtorEq</code>. Substituting the tuple equality makes <code>key</code>, <code>st'</code> and <code>rand</code> concrete in every surviving leaf. From there the key-generation flag equality is proved first and named <code>hkey</code>, because <code>sendEncapsGuard</code> mentions <code>sendKeygenGuard</code> and must be reduced under it; then <code>simp_all</code> closes the six conjuncts in each leaf. The leaves are the same eleven as in M1's branch explorer.</p>
+  <h3>Exposure: four cases and a membership rewrite</h3>
+<pre><code>  obtain ⟨hkey, henc, _⟩ := sendWith_operation_facts role keygen encaps ecEk ecCt st key msg epoch st' rand hout
+  ext t
+  by_cases hk : sendKeygenGuard role st &lt;;&gt;
+    by_cases hr : sendEncapsGuard role st &lt;;&gt;
+    simp [leakEpochs, mem_rleakEpochs_iff, hkey, henc, hk, hr]</code></pre>
+  <p>This is the payoff of separating the engine analysis from the policy. The two flag equalities are all that is needed. Extensionality reduces the set equality to membership for an arbitrary <em>t</em>, the membership lemma rewrites both sides to the same shape, and the flags on the left are replaced by the guards on the right. Four cases on the two guards finish it. The engine is never unfolded here.</p>
+</section>
+
+<section class="ch" id="later">
+  <span class="num">9</span>
+  <h2>What uses it later</h2>
+  <div class="tscroll"><table>
+    <tr><th>Milestone</th><th>Consumes</th><th>For</th></tr>
+    <tr><td>M3 real invariant</td><td><code>exposure</code>, <code>sendWith_exposure</code>, <code>exposure_positive</code></td><td>Instantiating the game handlers with the concrete package, and predicting the leakage guard's outcome from the invariant before the send runs.</td></tr>
+    <tr><td>M4′ ideal invariant</td><td><code>sendWith_operation_facts</code></td><td>The responder-epoch advance and the "secret key stored at the generation epoch" clause feed the epoch bound ≤ 2q and the one-keygen-per-epoch uniqueness.</td></tr>
+    <tr><td>M7 hybrids</td><td><code>mem_rleakEpochs_iff</code></td><td>Saying when the hybrid's target epoch becomes exposed: exactly when a leaking send generates or encapsulates for it, or a corruption finds its secret key retained.</td></tr>
+    <tr><td>M8 reduction</td><td><code>sendWith_exposure</code>, <code>mem_rleakEpochs_iff</code></td><td>The reduction stops at an accepted target exposure. The state-only form lets it recognise that boundary from the simulated state.</td></tr>
+  </table></div>
+  <p>Two suggestions carry forward to the M3 contract. The fields of <code>exposure</code> already reduce to their definitions; for example, <code>(exposure role leak).corrupt st</code> reduces to <code>vuln st</code>. Projection lemmas could make repeated handler proofs more convenient, but changing <code>def</code> to <code>abbrev</code> is not required. A membership lemma for <code>vuln</code> could also give corruption proofs a reusable interface, so they do not repeatedly unpack its filter and image.</p>
+</section>
+
+<section class="ch" id="check">
+  <span class="num">10</span>
+  <h2>Check yourself</h2>
+  <details><summary>A is at responder epoch 3 with both guards true. What does a successful leaking send expose?</summary><p><code>{5, 6}</code>. The key pair is generated for epoch 3 + 2 + 1 = 6 and the encapsulation happens at the advanced epoch 5. Such a state is not reachable, but the policy and theorem cover it.</p></details>
+  <details><summary>Why is the policy written for the pre-state rather than the post-state?</summary><p>Because the oracle calls <code>rleak</code> on the state it read before running the send. Writing it for the post-state would put the key-generation epoch at <code>resEpoch + offset</code> and be wrong by two for every send that advances.</p></details>
+  <details><summary>Both guards hold but the peer key is missing. What happens?</summary><p>The engine samples the key pair, then fails at the peer-key lookup and returns <code>none</code>. <code>leakEpochs</code> is non-empty, but the exposure theorem does not apply, and the oracle exposes nothing. The sampling effect is still part of the computation, which M1's marginal theorem respects.</p></details>
+  <details><summary>Does M2 prove that a send never both generates and encapsulates?</summary><p>No. It proves what is exposed if it does. Mutual exclusion on reachable states is an invariant, and invariants are M3 and M4′ work.</p></details>
+  <details><summary>Why does the encapsulation epoch move by 2 when a key pair is generated in the same send?</summary><p>The engine advances <code>tRes</code> by 2 right after sampling the key pair and only then decides about encapsulation, which uses the advanced <code>tRes</code> for the peer-key lookup and the emitted key. The policy must follow the same order, so it adds 2 exactly when the key-generation field is present.</p></details>
+  <details><summary>What does the verdict say about the step?</summary><p>Accept. Contract match, build, lint, axioms and semantics all check out. The suggested six-line membership proof is now applied. Two helper suggestions are saved for M3: projection lemmas for <code>exposure</code> if later proofs need them, and a membership lemma for <code>vuln</code>. The evaluation also identifies a diagnostic check spent on unsupported tactic syntax; future executors should check syntax in the pinned sources before using it.</p></details>
+</section>
+
+<footer id="sources">
+  <p><strong>Sources.</strong> Policy and theorems: <code>SecureMessaging/SCKA/OppBiKEM/Security/Exposure.lean</code>. Engine and corruption policy: <code>SecureMessaging/SCKA/OppBiKEM/Construction.lean</code> (<code>sendWith</code>, <code>vuln</code>, <code>init</code>, <code>Role.offset</code>). Game: <code>SecureMessaging/SCKA/Defs.lean</code> (<code>VulnerableEpochs</code>, <code>oracleSendArleak</code>, <code>oracleChall</code>, <code>oracleCorruptA</code>). Precedent: <code>SecureMessaging/SCKA/OppUniKEM/Security/Basic.lean</code> and <code>OppUniKEM/Construction.lean</code>. Plan, contract and execution record: <code>.formalising/fv-plans/OppBiKEM-security/plans/PLAN_n3.md</code>, <code>EXEC_PLAN_n3.md</code>, <code>merge/n3/EXECUTION_n3.md</code>. Verdict: <code>reviews/EVAL_n3.md</code>.</p>
+  <p>Written 22 October 2026. The milestone map reflects the revised roadmap after the n1 review; later revisions may renumber milestones.</p>
+</footer>
+</main>
+</div>
+</div>
+<script>
+(function(){
+  function parseSet(s){
+    return s.split(',').map(function(x){return x.trim();}).filter(function(x){return x!=='';})
+      .map(Number).filter(function(n){return Number.isInteger(n);});
+  }
+  function has(set,n){return set.indexOf(n)>=0;}
+  function fmt(list){return list.length?'{'+list.join(', ')+'}':'∅';}
+  var ids=['preset','role','tres','ek','ct','peer','ekrec','ctrec','chal'];
+  var el={}; ids.forEach(function(i){el[i]=document.getElementById(i);});
+  function applyPreset(v){
+    if(!v) return;
+    var p=v.split('|');
+    el.role.value=p[0]; el.tres.value=p[1]; el.ek.checked=p[2]==='1'; el.ct.checked=p[3]==='1';
+    el.peer.checked=p[4]==='yes'; el.ekrec.value=p[5]; el.ctrec.value=p[6]; el.chal.value=p[7]||'';
+  }
+  function run(){
+    var role=el.role.value, off=role==='A'?1:-1;
+    var t=parseInt(el.tres.value,10); if(!Number.isInteger(t)) t=0;
+    var ek=el.ek.checked, ct=el.ct.checked, peer=el.peer.checked;
+    var ekRec=parseSet(el.ekrec.value), ctRec=parseSet(el.ctrec.value), chal=parseSet(el.chal.value);
+    // sendKeygenGuard
+    var kg=!ek && has(ctRec,t) && has(ctRec,t+off);
+    var tRes=t+(kg?2:0);
+    // sendEncapsGuard
+    var eg=has(ekRec,tRes+off) && !has(ctRec,tRes) && !ct && has(ekRec,tRes);
+    // rleakEpochs with unit flags = leakEpochs
+    var keyEpoch=t+2+off, encEpoch=t+(kg?2:0);
+    var cand=[]; if(kg) cand.push(keyEpoch); if(eg) cand.push(encEpoch);
+    var exp=cand.filter(function(e){return e>0;}).map(function(e){return e;});
+    exp=exp.filter(function(e,i){return exp.indexOf(e)===i;}).sort(function(a,b){return a-b;});
+    // engine branch
+    var steps=[], fail=null;
+    if(kg){ steps.push('sample key pair for epoch '+keyEpoch+', advance responder epoch to '+tRes); }
+    var ownAfter = kg ? true : ek;
+    if(!has(ekRec,tRes+off)){
+      if(ownAfter) steps.push('chunk own public key'); else { fail='no public key to chunk'; }
+    } else if(!has(ctRec,tRes)){
+      if(!ct && has(ekRec,tRes)){
+        if(peer) steps.push('encapsulate to the peer key at epoch '+tRes+', emit key ('+Math.max(tRes,0)+', K)');
+        else fail='peer key at epoch '+tRes+' missing';
+      }
+      if(!fail) steps.push('emit ciphertext chunk if one is stored');
+    } else { steps.push('acknowledgement only'); }
+    var html='';
+    html+='<div class="row"><span>sendKeygenGuard</span><b>'+kg+'</b></div>';
+    html+='<div class="row"><span>sendEncapsGuard</span><b>'+eg+'</b></div>';
+    html+='<div class="row"><span>candidate epochs before filter</span><b>'+fmt(cand)+'</b></div>';
+    html+='<div class="row"><span>leakEpochs</span><b>'+fmt(exp)+'</b></div>';
+    html+='<div class="row"><span>engine</span><b>'+(steps.length?steps.join('; '):'—')+(fail?'; <em>fails: '+fail+'</em>':'')+'</b></div>';
+    var verdict;
+    if(fail) verdict='send returns none; the oracle exposes nothing and the state is unchanged';
+    else { var clash=exp.filter(function(e){return has(chal,e);});
+      verdict = clash.length ? 'send succeeds but the oracle rejects: '+fmt(clash)+' already challenged; state unchanged'
+                             : 'send succeeds and the oracle accepts; Exposed grows by '+fmt(exp); }
+    html+='<div class="row"><span>leaking-send oracle</span><b>'+verdict+'</b></div>';
+    document.getElementById('out').innerHTML=html;
+  }
+  el.preset.addEventListener('change',function(){applyPreset(el.preset.value);run();});
+  ids.slice(1).forEach(function(i){el[i].addEventListener('input',run);el[i].addEventListener('change',run);});
+  applyPreset('A|-1|0|0|yes||-1,0|'); el.preset.value='A|-1|0|0|yes||-1,0|'; run();
+})();
+</script>
+</body>
+</html>
