@@ -514,7 +514,7 @@ lemma securityImpl_run_counters_mono [SampleableType K] [DecidableEq K]
       uChallA) | uChallB) | uCorrA) | uCorrB) | uRLeakA) | uRLeakB
   · -- O-Unif
     change z ∈ support ((CKAScheme.oracleUnif (State PK SK) K (Message C PK) n).run σ) at hz
-    rw [CKAScheme.support_oracleUnif_run] at hz
+    rw [CKAScheme.oracleUnif, support_unifLiftStateT_run] at hz
     obtain ⟨x, rfl⟩ := hz
     vcvSupport
   · -- O-Send-A
