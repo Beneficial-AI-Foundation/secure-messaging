@@ -91,9 +91,10 @@ abbrev honestScheme [DecidableEq Sym]
   scheme (Pinned.kem m sa sb sb key) (Pinned.onOff m sa sb sb key)
     (Pinned.deterministic m sa sb sb key) ecEk ecCt0 ecCt1 (Pinned.leakage leak m sa sb sb key)
 
-/-- The simulator's instance for `s`: Opp-UniKEM over the marked `kem` with challenge
-`(pk_m, ct_m)`, A selected iff `s.stA.t = e`, and B iff `s.stB.t = e`. -/
-abbrev markedScheme [DecidableEq Sym]
+/-- The simulator's protocol instance at honest state `s`: Opp-UniKEM over the simulated KEM `kem`
+with challenge `(m.keygen.1.1, m.ciphertext)`, A selected iff `s.stA.t = e`, and B selected iff
+`s.stB.t = e`. -/
+abbrev simScheme [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
@@ -102,7 +103,7 @@ abbrev markedScheme [DecidableEq Sym]
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :=
   let sa := decide (s.stA.t = e)
   let sb := decide (s.stB.t = e)
-  let key := (s.keyB s.stA.t).map (mark e s.stA.t)
+  let key := (s.keyB s.stA.t).map (hide e s.stA.t)
   scheme (kem base onoff sa sb m.keygen.1.1 m.ciphertext key)
     (onOff base onoff sa sb m.keygen.1.1 m.ciphertext key)
     (deterministic base onoff sa sb m.keygen.1.1 m.ciphertext key) ecEk ecCt0 ecCt1

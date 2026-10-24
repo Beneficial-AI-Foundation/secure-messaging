@@ -238,10 +238,11 @@ namespace oppUniKemCKA.Security.Embedding
 variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- For possible `m` and `s` with `reachableInv`, `pinnedSources m e`, and `e ∉ s.exposed`,
-`adv` accepts equally often against `oracle e pk_m ct_m kStar` from `markState e s` and against
-`honestStopped m e kStar` from `s`. -/
-private theorem optionRun_mark_eq
+/-- For `m ∈ support (sampleMaterial leak)` and any state `s` satisfying `reachableInv s`,
+`pinnedSources m e s`, and `e ∉ s.exposed`, `adv` accepts with the same probability against
+`oracle … e m.keygen.1.1 m.ciphertext kStar` from `hideState e s` and against
+`honestStopped … m e kStar` from `s`. -/
+private theorem optionRun_hide_eq
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (hDet : base.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
@@ -255,10 +256,10 @@ private theorem optionRun_mark_eq
     (hsrc : pinnedSources m e s) (he : e ∉ s.exposed) :
     Pr[= true | optionRun
       (oracle base onoff ecEk ecCt0 ecCt1 leak e m.keygen.1.1 m.ciphertext kStar)
-      adv (markState e s)] =
+      adv (hideState e s)] =
     Pr[= true | optionRun (honestStopped base onoff ecEk ecCt0 ecCt1 leak m e kStar)
       adv s] := by
-  apply probOutput_optionRun_eq_of_state_map _ _ (markState e)
+  apply probOutput_optionRun_eq_of_state_map _ _ (hideState e)
     (fun s => (reachableInv base onoff ecEk ecCt0 ecCt1 s ∧ pinnedSources m e s) ∧
       e ∉ s.exposed)
   · intro t s hs z hz hcont
@@ -274,16 +275,16 @@ private theorem optionRun_mark_eq
       ecCt1 hCt1 leak m hm e _ (pinnedChallenge_recordsChallenges onoff e kStar)
       t s hs.1 out hout, hex⟩
   · intro t s hs
-    exact oracle_mark base onoff ecEk ecCt0 ecCt1 leak m e kStar t s hs.1.1 hs.2
+    exact oracle_hide base onoff ecEk ecCt0 ecCt1 leak m e kStar t s hs.1.1 hs.2
   · exact ⟨⟨hs, hsrc⟩, he⟩
 
 omit [DecidableEq K] [DecidableEq Sym] [SampleableType K] in
-/-- `markState e` maps the initial game state to the simulator's initial state. -/
-private theorem markState_initial
+/-- `hideState e` maps the initial game state to the simulator's initial state. -/
+private theorem hideState_initial
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure) (e : ℕ) :
-    markState e (oppUniKemCKA.Reduction.Internal.initialGame (Sym := Sym) base onoff) =
+    hideState e (oppUniKemCKA.Reduction.Internal.initialGame (Sym := Sym) base onoff) =
       initial onoff := by
-  simp [markState, markA, markB, initial, oppUniKemCKA.Reduction.Internal.initialGame,
+  simp [hideState, hideA, hideB, initial, oppUniKemCKA.Reduction.Internal.initialGame,
     oppUniKemCKA.Reduction.Internal.initialA, oppUniKemCKA.Reduction.Internal.initialB,
     SCKAScheme.initGameState]
 
@@ -305,8 +306,8 @@ theorem run_eq_honestStopped
       optionRun (oracle base onoff ecEk ecCt0 ecCt1 leak e
         m.keygen.1.1 m.ciphertext kStar) adv (initial onoff) := by
     simp [run, optionRun, StateT.run'_eq, bind_pure_comp, Functor.map_map]
-  rw [hrun, ← markState_initial base onoff e]
-  exact optionRun_mark_eq base onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
+  rw [hrun, ← hideState_initial base onoff e]
+  exact optionRun_hide_eq base onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
     leak m hm e kStar adv _
     (reachableInv_init base onoff ecEk ecCt0 ecCt1 ecEk.ec.nchunk_pos ecCt0.ec.nchunk_pos)
     (pinnedSources_initial base onoff leak m e)
