@@ -7,7 +7,7 @@ import SecureMessagingDocs.Visuals.AnchorPill
 import SecureMessagingDocs.Chapters.CKA.Defs
 import SecureMessaging.CKA.FromLWE.Construction
 import SecureMessaging.CKA.FromLWE.Correctness
-import SecureMessaging.CKA.FromLWE.ChallengeCorrectness
+import SecureMessaging.CKA.FromLWE.Frodo2016.Challenge.Correctness
 
 set_option linter.style.setOption false
 set_option linter.hashCommand false

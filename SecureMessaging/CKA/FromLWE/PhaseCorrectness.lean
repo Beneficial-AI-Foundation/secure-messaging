@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromLWE.ChallengeExperimentLaw
+import SecureMessaging.CKA.FromLWE.Frodo2016.Challenge.ExperimentLaw
 import SecureMessaging.CKA.FromLWE.NoiseCorrectness
 import SecureMessaging.CKA.FromLWE.ReconciliationPhase
 import VCVio.EvalDist.Expectation
