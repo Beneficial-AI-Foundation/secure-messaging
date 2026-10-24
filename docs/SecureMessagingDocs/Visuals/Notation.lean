@@ -125,6 +125,9 @@ r#"
 \newcommand{\OChallB}{\mathsf{O}\text{-}\mathsf{Chall}\text{-}\B}
 \newcommand{\OCorrA}{\mathsf{O}\text{-}\mathsf{Corr}\text{-}\A}
 \newcommand{\OCorrB}{\mathsf{O}\text{-}\mathsf{Corr}\text{-}\B}
+\newcommand{\OTransmitA}{\mathsf{O}\text{-}\mathsf{Transmit}\text{-}\A}
+\newcommand{\ODeliverB}{\mathsf{O}\text{-}\mathsf{Deliver}\text{-}\B}
+\newcommand{\OInjectB}{\mathsf{O}\text{-}\mathsf{Inject}\text{-}\B}
 \renewcommand{\O}{\mathcal{O}}
 \newcommand{\Ocor}{\mathcal{O}_{\mathsf{cor}}}
 \newcommand{\Osec}{\mathcal{O}_{\mathsf{sec}}}

@@ -59,6 +59,7 @@ import SecureMessaging.KEM.OnOffKEM.CorrectnessError
 import SecureMessaging.KEM.OnOffKEM.Defs
 import SecureMessaging.KEM.OnOffKEM.FromKPKE
 import SecureMessaging.KEM.CorrectnessError
+import SecureMessaging.FSAEAD.Defs
 import SecureMessaging.PRFPRNG.Defs
 import SecureMessaging.RKEM.Defs
 import SecureMessaging.RKEM.FromDDHNonFS.Construction
