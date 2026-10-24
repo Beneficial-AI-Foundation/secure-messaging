@@ -16,24 +16,24 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Receive
 **Setting.** Throughout this module, we consider:
 
 - a challenge epoch `e` and a candidate key `kStar`;
-- a *KEM material* `m : KEMMaterial leak` (`Simulator`), that is, a pre-sampled record of the
+- a *KEM material* `kemMat : KEMMaterial leak` (`Simulator`), that is, a pre-sampled record of the
   outputs and coins produced by the sampling phases of a single epoch (key generation, offline
   encapsulation, and online encapsulation);
-- the pinned KEM `Pinned.kem m` (`Simulator`), whose designated sampling phases return the
-  corresponding outputs stored in `m` and whose decapsulation returns a prescribed key.
+- the pinned KEM `Pinned.kem kemMat` (`Simulator`), whose designated sampling phases return the
+  corresponding outputs stored in `kemMat` and whose decapsulation returns a prescribed key.
 
-**Main results.** The *honest intermediate game* `honestStopped m e kStar` runs the security
-oracles over the instance `honestScheme m e s`, which pins epoch `e`'s sampling to `m` and lets A
-output B's recorded key instead of decapsulating, with the challenges of `pinnedChallenge e kStar`
-(`Relation`), and stops at the first exposure of `e`.
+**Main results.** The *honest intermediate game* `honestStopped kemMat e kStar` runs the security
+oracles over the instance `honestScheme kemMat e s`, which pins epoch `e`'s sampling to `kemMat` and
+lets A output B's recorded key instead of decapsulating, with the challenges of
+`pinnedChallenge e kStar` (`Relation`), and stops at the first exposure of `e`.
 
-- Every ordinary send, receive, and uniform query over `honestScheme m e s` preserves the *source
-  invariant*: the stored key-generation and offline outputs of epoch `e` are those of `m`
-  (`pinnedSources m e s`, `honestCorrectness_preserves_pinnedSources`).
-- For possible material `m ∈ support (sampleMaterial leak)` and states satisfying `reachableInv`
-  (and the source invariant for B), every possible result of a send of `honestScheme m e s` is a
-  possible result of the same send over `base` (`oracleSendA_pinned_support`,
-  `oracleSendB_pinned_support`).
+- Every ordinary send, receive, and uniform query over `honestScheme kemMat e s` preserves the
+  *source invariant*: the stored key-generation and offline outputs of epoch `e` are those of
+  `kemMat` (`pinnedSources kemMat e s`, `honestCorrectness_preserves_pinnedSources`).
+- For possible material `kemMat ∈ support (sampleMaterial leak)` and states satisfying
+  `reachableInv` (and the source invariant for B), every possible result of a send of
+  `honestScheme kemMat e s` is a possible result of the same send over `base`
+  (`oracleSendA_pinned_support`, `oracleSendB_pinned_support`).
 -/
 
 /-! ## The honest intermediate game -/
@@ -44,70 +44,71 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
 
-/-- KEM of `honestScheme m e s`: `Pinned.kem m` pinning A's key generation if `s.stA.t = e` and
-B's encapsulation if `s.stB.t = e`; decapsulation returns `s.keyB s.stA.t`. -/
+/-- KEM of `honestScheme kemMat e s`: `Pinned.kem kemMat` pinning A's key generation if
+`s.stA.t = e` and B's encapsulation if `s.stB.t = e`; decapsulation returns `s.keyB s.stA.t`. -/
 abbrev honestKem {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
-    {leak : base.OnOffRandLeak onoff} (m : KEMMaterial leak) (e : ℕ)
+    {leak : base.OnOffRandLeak onoff} (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
     KEMScheme ProbComp K PK SK C :=
-  Pinned.kem m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
+  Pinned.kem kemMat (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
     (s.keyB s.stA.t)
 
-/-- On/off structure of `honestKem m e s`. -/
+/-- On/off structure of `honestKem kemMat e s`. -/
 abbrev honestOnOff {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
-    {leak : base.OnOffRandLeak onoff} (m : KEMMaterial leak) (e : ℕ)
+    {leak : base.OnOffRandLeak onoff} (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
-    (honestKem m e s).OnOffStructure :=
-  Pinned.onOff m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
+    (honestKem kemMat e s).OnOffStructure :=
+  Pinned.onOff kemMat (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
     (s.keyB s.stA.t)
 
-/-- Deterministic-decapsulation witness of `honestKem m e s`. -/
+/-- Deterministic-decapsulation witness of `honestKem kemMat e s`. -/
 abbrev honestDet {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
-    {leak : base.OnOffRandLeak onoff} (m : KEMMaterial leak) (e : ℕ)
+    {leak : base.OnOffRandLeak onoff} (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
-    (honestKem m e s).DeterministicDecaps :=
-  Pinned.deterministic m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
+    (honestKem kemMat e s).DeterministicDecaps :=
+  Pinned.deterministic kemMat (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
     (s.keyB s.stA.t)
 
-/-- Leakage witnesses of `honestKem m e s`. -/
+/-- Leakage witnesses of `honestKem kemMat e s`. -/
 abbrev honestLeak {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
-    {leak : base.OnOffRandLeak onoff} (m : KEMMaterial leak) (e : ℕ)
+    {leak : base.OnOffRandLeak onoff} (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
-    (honestKem m e s).OnOffRandLeak (honestOnOff m e s) :=
-  Pinned.leakage leak m (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
+    (honestKem kemMat e s).OnOffRandLeak (honestOnOff kemMat e s) :=
+  Pinned.leakage leak kemMat (decide (s.stA.t = e)) (decide (s.stB.t = e)) (decide (s.stB.t = e))
     (s.keyB s.stA.t)
 
-/-- Opp-UniKEM over `honestKem m e s`, for a query from game state `s`. -/
+/-- Opp-UniKEM over `honestKem kemMat e s`, for a query from game state `s`. -/
 abbrev honestScheme [DecidableEq Sym]
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff}
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (m : KEMMaterial leak) (e : ℕ)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :=
   let sa := decide (s.stA.t = e)
   let sb := decide (s.stB.t = e)
   let key := s.keyB s.stA.t
-  scheme (Pinned.kem m sa sb sb key) (Pinned.onOff m sa sb sb key)
-    (Pinned.deterministic m sa sb sb key) ecEk ecCt0 ecCt1 (Pinned.leakage leak m sa sb sb key)
+  scheme (Pinned.kem kemMat sa sb sb key) (Pinned.onOff kemMat sa sb sb key)
+    (Pinned.deterministic kemMat sa sb sb key) ecEk ecCt0 ecCt1
+    (Pinned.leakage leak kemMat sa sb sb key)
 
 /-- The simulator's protocol instance at honest state `s`: Opp-UniKEM over the simulated KEM `kem`
-with challenge `(m.keygen.1.1, m.ciphertext)`, A selected iff `s.stA.t = e`, and B selected iff
+with challenge `(kemMat.pk, kemMat.ciphertext)`, A selected iff `s.stA.t = e`, and B selected iff
 `s.stB.t = e`. -/
 abbrev simScheme [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (m : KEMMaterial leak) (e : ℕ)
+    (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :=
   let sa := decide (s.stA.t = e)
   let sb := decide (s.stB.t = e)
   let key := (s.keyB s.stA.t).map (hide e s.stA.t)
-  scheme (kem base onoff sa sb m.keygen.1.1 m.ciphertext key)
-    (onOff base onoff sa sb m.keygen.1.1 m.ciphertext key)
-    (deterministic base onoff sa sb m.keygen.1.1 m.ciphertext key) ecEk ecCt0 ecCt1
-    (leakage base onoff leak sa sb m.keygen.1.1 m.ciphertext key)
+  scheme (kem base onoff sa sb kemMat.pk kemMat.ciphertext key)
+    (onOff base onoff sa sb kemMat.pk kemMat.ciphertext key)
+    (deterministic base onoff sa sb kemMat.pk kemMat.ciphertext key) ecEk ecCt0 ecCt1
+    (leakage base onoff leak sa sb kemMat.pk kemMat.ciphertext key)
 
 /-- Security oracles answering a query from `s` with the instance `schemeOf s`, challenge
 oracle `chall`, and Opp-UniKEM's exposure policies. -/
@@ -220,27 +221,28 @@ theorem securityImplAt_preservesInv [DecidableEq K]
   fun t s hs z hz => securityImplAt_preserves_at base onoff leak schemeOf chall Inv hbook hmA hmB
     hchall s hs (hbase s hs) t z hz
 
-/-- The honest intermediate game: `securityImplAt (honestScheme m e) (pinnedChallenge e kStar)`. -/
+/-- The honest intermediate game:
+`securityImplAt (honestScheme kemMat e) (pinnedChallenge e kStar)`. -/
 def honestOracle [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (m : KEMMaterial leak) (e : ℕ) (kStar : K) :
+    (kemMat : KEMMaterial leak) (e : ℕ) (kStar : K) :
     QueryImpl (securitySpec leak Sym)
       (StateT (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) ProbComp) :=
-  securityImplAt base onoff leak (honestScheme ecEk ecCt0 ecCt1 m e)
+  securityImplAt base onoff leak (honestScheme ecEk ecCt0 ecCt1 kemMat e)
     (pinnedChallenge onoff e kStar)
 
-/-- `honestOracle m e kStar` stopped at the exposure of `e` (an outer `none`); a rejection by
+/-- `honestOracle kemMat e kStar` stopped at the exposure of `e` (an outer `none`); a rejection by
 the game stays an inner `none`. -/
 def honestStopped [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (m : KEMMaterial leak) (e : ℕ) (kStar : K) :=
-  stopOnState (honestOracle base onoff ecEk ecCt0 ecCt1 leak m e kStar)
+    (kemMat : KEMMaterial leak) (e : ℕ) (kStar : K) :=
+  stopOnState (honestOracle base onoff ecEk ecCt0 ecCt1 leak kemMat e kStar)
     (fun s => decide (e ∈ s.exposed))
 
 /-- Assume that `sample` never fails, that, averaged over `a ← sample`, the four sends of
@@ -310,15 +312,15 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
 
-/-- At epoch `e`: A's key pair, if A holds a decapsulation key, is `m.keygen.1`; B's offline
-state and ciphertext, if B holds an offline state, are `m.off.1`. -/
+/-- At epoch `e`: A's key pair, if A holds a decapsulation key, is `kemMat.keygen.1`; B's offline
+state and ciphertext, if B holds an offline state, are `kemMat.off.1`. -/
 def pinnedSources {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
-    {leak : base.OnOffRandLeak onoff} (m : KEMMaterial leak) (e : ℕ)
+    {leak : base.OnOffRandLeak onoff} (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) : Prop :=
   (s.stA.t = e → s.stA.dkA.isSome →
-    s.stA.ekA = some m.keygen.1.1 ∧ s.stA.dkA = some m.keygen.1.2) ∧
+    s.stA.ekA = some kemMat.pk ∧ s.stA.dkA = some kemMat.sk) ∧
   (s.stB.t = e → s.stB.stCt.isSome →
-    s.stB.stCt = some m.off.1.1 ∧ s.stB.ct0 = some m.off.1.2)
+    s.stB.stCt = some kemMat.st ∧ s.stB.ct0 = some kemMat.ct0)
 
 /-- Under `reachableInv`, if B holds no online ciphertext, A and B are in the same epoch. -/
 theorem epochs_eq_before_online
@@ -341,19 +343,19 @@ theorem epochs_eq_before_online
   have := hT.epochs
   omega
 
-/-- Under `reachableInv` and `pinnedSources m e`, if B is at `e` with public key `pk`, offline
-state `st`, and no online ciphertext, then `pk = m.keygen.1.1` and `st = m.off.1.1`. -/
+/-- Under `reachableInv` and `pinnedSources kemMat e`, if B is at `e` with public key `pk`, offline
+state `st`, and no online ciphertext, then `pk = kemMat.pk` and `st = kemMat.st`. -/
 private theorem pinned_online_inputs
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (m : KEMMaterial leak) (e : ℕ)
+    (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hm : pinnedSources m e s)
+    (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hm : pinnedSources kemMat e s)
     (he : s.stB.t = e) (pk : PK) (st : onoff.St)
     (hp : s.stB.ekA = some pk) (hst : s.stB.stCt = some st) (hc : s.stB.ct1 = none) :
-    pk = m.keygen.1.1 ∧ st = m.off.1.1 := by
+    pk = kemMat.pk ∧ st = kemMat.st := by
   have ht := epochs_eq_before_online base onoff ecEk ecCt0 ecCt1 s hs hc
   obtain ⟨T, hT⟩ := hs
   obtain ⟨sk, hpk⟩ := hT.decodedEk pk hp
@@ -375,18 +377,18 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
 
-/-- A's successful send in `honestScheme m e s` preserves `pinnedSources m e`. -/
+/-- A's successful send in `honestScheme kemMat e s` preserves `pinnedSources kemMat e`. -/
 private theorem sendA_preserves_pinnedSources
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff}
-    (ecEk : ErasureCodePayload PK Sym) (m : KEMMaterial leak) (e : ℕ)
+    (ecEk : ErasureCodePayload PK Sym) (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (hs : pinnedSources m e s) (key : Option (ℕ × K)) (msg : Message Sym)
+    (hs : pinnedSources kemMat e s) (key : Option (ℕ × K)) (msg : Message Sym)
     (t : ℕ) (next : StA onoff Sym)
     (hout : some (key, msg, t, next) ∈ support
-      (sendA (honestKem m e s) (honestOnOff m e s)
+      (sendA (honestKem kemMat e s) (honestOnOff kemMat e s)
         ecEk s.stA)) :
-    pinnedSources m e { s with stA := next } := by
+    pinnedSources kemMat e { s with stA := next } := by
   by_cases he : s.stA.t = e <;> cases hd : s.stA.dkA <;>
     cases hp : s.stA.ekA <;> cases ha : s.stA.ack.ekRec
   all_goals
@@ -402,14 +404,14 @@ private theorem sendB_preserves_pinnedSources
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff}
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (m : KEMMaterial leak) (e : ℕ)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (hs : pinnedSources m e s) (key : Option (ℕ × K)) (msg : Message Sym)
+    (hs : pinnedSources kemMat e s) (key : Option (ℕ × K)) (msg : Message Sym)
     (t : ℕ) (next : StB onoff Sym)
     (hout : some (key, msg, t, next) ∈ support
-      (sendB (honestKem m e s) (honestOnOff m e s)
+      (sendB (honestKem kemMat e s) (honestOnOff kemMat e s)
         ecCt0 ecCt1 s.stB)) :
-    pinnedSources m e { s with stB := next } := by
+    pinnedSources kemMat e { s with stB := next } := by
   by_cases he : s.stB.t = e <;> cases hc0 : s.stB.ct0 <;> cases hp : s.stB.ekA <;>
     cases hc1 : s.stB.ct1 <;> cases hst : s.stB.stCt <;> cases ha : s.stB.ack.ctRec
   all_goals
@@ -421,71 +423,71 @@ private theorem sendB_preserves_pinnedSources
       Prod.exists, Option.some.injEq, Prod.mk.injEq] at hout
     simp_all [pinnedSources] <;> aesop
 
-/-- B's successful receive preserves `pinnedSources m e`. -/
+/-- B's successful receive preserves `pinnedSources kemMat e`. -/
 private theorem recvB_preserves_pinnedSources [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (leak : base.OnOffRandLeak onoff)
-    (m : KEMMaterial leak) (e : ℕ)
+    (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (hs : pinnedSources m e s) (msg : Message Sym) (key : Option (ℕ × K))
+    (hs : pinnedSources kemMat e s) (msg : Message Sym) (key : Option (ℕ × K))
     (t : ℕ) (next : StB onoff Sym)
     (hout : recvB base onoff ecEk s.stB msg = some (key, t, next)) :
-    pinnedSources m e { s with stB := next } := by
+    pinnedSources kemMat e { s with stB := next } := by
   obtain h | h := oppUniKemCKA.Reduction.Internal.recvB_kem_source_shape
     base onoff ecEk s.stB msg key t next hout
   · exact ⟨hs.1, by simpa only [h.1, h.2.1, h.2.2.1] using hs.2⟩
   · exact ⟨hs.1, by simp [h.2.1]⟩
 
-/-- A version of `recvB_preserves_pinnedSources`, in `honestScheme m e s`. -/
+/-- A version of `recvB_preserves_pinnedSources`, in `honestScheme kemMat e s`. -/
 private theorem recvA_preserves_pinnedSources [DecidableEq Sym]
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff}
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (m : KEMMaterial leak) (e : ℕ)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (hs : pinnedSources m e s) (msg : Message Sym) (key : Option (ℕ × K))
+    (hs : pinnedSources kemMat e s) (msg : Message Sym) (key : Option (ℕ × K))
     (t : ℕ) (next : StA onoff Sym)
-    (hout : (honestScheme ecEk ecCt0 ecCt1 m e s).recvA s.stA msg = some (key, t, next)) :
-    pinnedSources m e { s with stA := next } := by
+    (hout : (honestScheme ecEk ecCt0 ecCt1 kemMat e s).recvA s.stA msg = some (key, t, next)) :
+    pinnedSources kemMat e { s with stA := next } := by
   rcases oppUniKemCKA.Reduction.Internal.recvA_kem_source_shape
-    (honestKem m e s) (honestOnOff m e s)
-    (honestDet m e s).decapsDet
+    (honestKem kemMat e s) (honestOnOff kemMat e s)
+    (honestDet kemMat e s).decapsDet
     ecCt0 ecCt1 s.stA msg key t next hout with h | h
   · exact ⟨by simpa only [h.1, h.2.1, h.2.2] using hs.1, hs.2⟩
   · exact ⟨by simp [h.2.2.1], hs.2⟩
 
-/-- The correctness oracles of `honestScheme m e s` preserve `pinnedSources m e`. -/
+/-- The correctness oracles of `honestScheme kemMat e s` preserve `pinnedSources kemMat e`. -/
 theorem honestCorrectness_preserves_pinnedSources [DecidableEq K] [DecidableEq Sym]
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     {leak : base.OnOffRandLeak onoff}
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (m : KEMMaterial leak) (e : ℕ)
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (kemMat : KEMMaterial leak) (e : ℕ)
     (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (hs : pinnedSources m e s)
+    (hs : pinnedSources kemMat e s)
     (z : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Range t ×
       SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hz : z ∈ support
-      ((SCKAScheme.sckaCorrectnessImpl (honestScheme ecEk ecCt0 ecCt1 m e s) t).run s)) :
-    pinnedSources m e z.2 := by
+      ((SCKAScheme.sckaCorrectnessImpl (honestScheme ecEk ecCt0 ecCt1 kemMat e s) t).run s)) :
+    pinnedSources kemMat e z.2 := by
   apply SCKAScheme.correctnessImpl_preserves_localInv_at _
-    (fun a b => pinnedSources m e { s with stA := a, stB := b }) s hs ?_ ?_ ?_ ?_ t z hz
+    (fun a b => pinnedSources kemMat e { s with stA := a, stB := b }) s hs ?_ ?_ ?_ ?_ t z hz
   · exact fun key msg t next hout =>
-      sendA_preserves_pinnedSources ecEk m e s hs key msg t next hout
+      sendA_preserves_pinnedSources ecEk kemMat e s hs key msg t next hout
   · exact fun key msg t next hout =>
-      sendB_preserves_pinnedSources ecCt0 ecCt1 m e s hs key msg t next hout
+      sendB_preserves_pinnedSources ecCt0 ecCt1 kemMat e s hs key msg t next hout
   · exact fun msg key t next hout =>
-      recvA_preserves_pinnedSources ecEk ecCt0 ecCt1 m e s hs msg key t next hout
+      recvA_preserves_pinnedSources ecEk ecCt0 ecCt1 kemMat e s hs msg key t next hout
   · exact fun msg key t next hout =>
-      recvB_preserves_pinnedSources base onoff ecEk leak m e s hs msg key t next hout
+      recvB_preserves_pinnedSources base onoff ecEk leak kemMat e s hs msg key t next hout
 
-/-- The initial game state satisfies `pinnedSources m e`. -/
+/-- The initial game state satisfies `pinnedSources kemMat e`. -/
 theorem pinnedSources_initial
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (leak : base.OnOffRandLeak onoff) (m : KEMMaterial leak) (e : ℕ) :
-    pinnedSources (Sym := Sym) m e
+    (leak : base.OnOffRandLeak onoff) (kemMat : KEMMaterial leak) (e : ℕ) :
+    pinnedSources (Sym := Sym) kemMat e
       (oppUniKemCKA.Reduction.Internal.initialGame base onoff) := by
   simp [pinnedSources, oppUniKemCKA.Reduction.Internal.initialGame,
     oppUniKemCKA.Reduction.Internal.initialA, oppUniKemCKA.Reduction.Internal.initialB,
@@ -499,54 +501,54 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
 
-/-- For `m ∈ support (sampleMaterial leak)`, every possible output of `Pinned.keygen m selected`
-is one of `base.keygen`. -/
+/-- For `kemMat ∈ support (sampleMaterial leak)`, every possible output of
+`Pinned.keygen kemMat selected` is one of `base.keygen`. -/
 private theorem pinned_keygen_support
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
-    (leak : base.OnOffRandLeak onoff) (m : KEMMaterial leak)
-    (hm : m ∈ support (sampleMaterial leak)) (selected : Bool)
-    (pair : PK × SK) (h : pair ∈ support (Pinned.keygen m selected)) :
+    (leak : base.OnOffRandLeak onoff) (kemMat : KEMMaterial leak)
+    (hm : kemMat ∈ support (sampleMaterial leak)) (selected : Bool)
+    (pair : PK × SK) (h : pair ∈ support (Pinned.keygen kemMat selected)) :
     pair ∈ support base.keygen := by
   cases selected
   · exact h
   · obtain rfl := (mem_support_pure_iff _ _).mp h
-    exact (sampleMaterial_ordinary_support leak m hm).1
+    exact (sampleMaterial_ordinary_support leak kemMat hm).1
 
-/-- For `m ∈ support (sampleMaterial leak)`, every possible output of A's send in
-`honestScheme m e s` is one of `sendA` over `base`. -/
+/-- For `kemMat ∈ support (sampleMaterial leak)`, every possible output of A's send in
+`honestScheme kemMat e s` is one of `sendA` over `base`. -/
 private theorem sendA_pinned_support
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (leak : base.OnOffRandLeak onoff)
-    (m : KEMMaterial leak) (hm : m ∈ support (sampleMaterial leak)) (e : ℕ)
+    (kemMat : KEMMaterial leak) (hm : kemMat ∈ support (sampleMaterial leak)) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (out : Option (Option (ℕ × K) × Message Sym × ℕ × StA onoff Sym))
     (hout : out ∈ support
-      (sendA (honestKem m e s) (honestOnOff m e s)
+      (sendA (honestKem kemMat e s) (honestOnOff kemMat e s)
         ecEk s.stA)) :
     out ∈ support (sendA base onoff ecEk s.stA) := by
   cases hd : s.stA.dkA with
   | none =>
     simp only [sendA, hd, pure_bind, mem_support_bind_iff] at hout ⊢
     obtain ⟨pair, hpair, hout⟩ := hout
-    exact ⟨pair, pinned_keygen_support leak m hm _ pair hpair, hout⟩
+    exact ⟨pair, pinned_keygen_support leak kemMat hm _ pair hpair, hout⟩
   | some sk => simpa only [sendA, hd] using hout
 
-/-- B version of `sendA_pinned_support`, under `reachableInv` and `pinnedSources m e`. -/
+/-- B version of `sendA_pinned_support`, under `reachableInv` and `pinnedSources kemMat e`. -/
 private theorem sendB_pinned_support
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (m : KEMMaterial leak) (hm : m ∈ support (sampleMaterial leak)) (e : ℕ)
+    (kemMat : KEMMaterial leak) (hm : kemMat ∈ support (sampleMaterial leak)) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hsrc : pinnedSources m e s)
+    (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hsrc : pinnedSources kemMat e s)
     (out : Option (Option (ℕ × K) × Message Sym × ℕ × StB onoff Sym))
     (hout : out ∈ support
-      (sendB (honestKem m e s) (honestOnOff m e s)
+      (sendB (honestKem kemMat e s) (honestOnOff kemMat e s)
         ecCt0 ecCt1 s.stB)) :
     out ∈ support (sendB base onoff ecCt0 ecCt1 s.stB) := by
-  have hoff := (sampleMaterial_ordinary_support leak m hm).2.1
-  have hon := (sampleMaterial_ordinary_support leak m hm).2.2
+  have hoff := (sampleMaterial_ordinary_support leak kemMat hm).2.1
+  have hon := (sampleMaterial_ordinary_support leak kemMat hm).2.2
   by_cases he : s.stB.t = e
   · cases hc0 : s.stB.ct0 with
     | none =>
@@ -556,7 +558,7 @@ private theorem sendB_pinned_support
         he, decide_true, ↓reduceIte, pure_bind] at hout
       simp only [sendB, hc0, hack, he, Bool.not_false, ↓reduceIte, pure_bind,
         mem_support_bind_iff]
-      exact ⟨m.off.1, hoff, hout⟩
+      exact ⟨kemMat.off.1, hoff, hout⟩
     | some ct0 =>
       simp only [sendB, hc0, pure_bind] at hout ⊢
       cases hp : s.stB.ekA <;> cases hc1 : s.stB.ct1 <;>
@@ -567,9 +569,9 @@ private theorem sendB_pinned_support
         first
         | exact hout
         | have hinputs := pinned_online_inputs base onoff ecEk ecCt0 ecCt1
-            leak m e s hs hsrc he _ _ hp hst hc1
+            leak kemMat e s hs hsrc he _ _ hp hst hc1
           apply (mem_support_bind_iff _ _ _).mpr
-          refine ⟨m.on.1, ?_, hout⟩
+          refine ⟨kemMat.on.1, ?_, hout⟩
           simpa only [hinputs.1, hinputs.2] using hon
   · cases hc0 : s.stB.ct0 with
     | none =>
@@ -593,45 +595,45 @@ private theorem sendB_pinned_support
             | exact hout
             | cases hst : s.stB.stCt <;> simpa only [hst] using hout
 
-/-- For `m ∈ support (sampleMaterial leak)`, every possible result of A's send oracle of
-`honestScheme m e s` from `s` is one of A's send oracle over `base`. -/
+/-- For `kemMat ∈ support (sampleMaterial leak)`, every possible result of A's send oracle of
+`honestScheme kemMat e s` from `s` is one of A's send oracle over `base`. -/
 theorem oracleSendA_pinned_support [DecidableEq K] [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (hDet : base.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (m : KEMMaterial leak) (hm : m ∈ support (sampleMaterial leak)) (e : ℕ)
+    (kemMat : KEMMaterial leak) (hm : kemMat ∈ support (sampleMaterial leak)) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (z : Option (ℕ × Option ℕ × Message Sym) ×
       SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hz : z ∈ support
-      ((SCKAScheme.oracleSendA (honestScheme ecEk ecCt0 ecCt1 m e s) ()).run s)) :
+      ((SCKAScheme.oracleSendA (honestScheme ecEk ecCt0 ecCt1 kemMat e s) ()).run s)) :
     z ∈ support
       ((SCKAScheme.oracleSendA (scheme base onoff hDet ecEk ecCt0 ecCt1 leak) ()).run s) := by
   rw [SCKAScheme.mem_support_oracleSendA_run_iff] at hz ⊢
   obtain ⟨out, hout, hz⟩ := hz
-  exact ⟨out, sendA_pinned_support base onoff ecEk leak m hm e s out hout, hz⟩
+  exact ⟨out, sendA_pinned_support base onoff ecEk leak kemMat hm e s out hout, hz⟩
 
-/-- B version of `oracleSendA_pinned_support`, under `reachableInv` and `pinnedSources m e`. -/
+/-- B version of `oracleSendA_pinned_support`, under `reachableInv` and `pinnedSources kemMat e`. -/
 theorem oracleSendB_pinned_support [DecidableEq K] [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (hDet : base.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (m : KEMMaterial leak) (hm : m ∈ support (sampleMaterial leak)) (e : ℕ)
+    (kemMat : KEMMaterial leak) (hm : kemMat ∈ support (sampleMaterial leak)) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hsrc : pinnedSources m e s)
+    (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hsrc : pinnedSources kemMat e s)
     (z : Option (ℕ × Option ℕ × Message Sym) ×
       SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hz : z ∈ support
-      ((SCKAScheme.oracleSendB (honestScheme ecEk ecCt0 ecCt1 m e s) ()).run s)) :
+      ((SCKAScheme.oracleSendB (honestScheme ecEk ecCt0 ecCt1 kemMat e s) ()).run s)) :
     z ∈ support
       ((SCKAScheme.oracleSendB (scheme base onoff hDet ecEk ecCt0 ecCt1 leak) ()).run s) := by
   rw [SCKAScheme.mem_support_oracleSendB_run_iff] at hz ⊢
   obtain ⟨out, hout, hz⟩ := hz
   exact ⟨out, sendB_pinned_support base onoff ecEk ecCt0 ecCt1 leak
-    m hm e s hs hsrc out hout, hz⟩
+    kemMat hm e s hs hsrc out hout, hz⟩
 
 end oppUniKemCKA.Security.Embedding

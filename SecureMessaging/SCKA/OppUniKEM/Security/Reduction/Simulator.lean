@@ -20,15 +20,15 @@ import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
 
 **Main results.** The IND-CPA adversary `securityReduction … adv q` draws a challenge epoch `e`
 uniformly from `{1, …, q}` and runs `adv` against simulated oracles that embed `pkStar` and
-`ctStar` at `e`, keeping the corresponding secrets and coins *hidden* (`SimState`, `oracle`, `run`);
-its *fixed branch* fixes `e` and the IND-CPA bit `b` (`fixedBranch … adv e b`). The *KEM
+`ctStar` at `e`, keeping the corresponding secrets and coins *hidden* (`SimState`, `simOracle`,
+`run`); its *fixed branch* fixes `e` and the IND-CPA bit `b` (`fixedBranch … adv e b`). The *KEM
 material* of an epoch records its sampling outputs and coins (`KEMMaterial leak`, `sampleMaterial`),
-which the *pinned KEM* returns in its flagged phases (`Pinned.kem m …`).
+which the *pinned KEM* returns in its flagged phases (`Pinned.kem kemMat …`).
 
 - For `q ≠ 0`, the real-minus-random gap of `securityReduction … adv q` is the average over
   `e ∈ {1, …, q}` of the gaps of `fixedBranch … adv e` (`securityReduction_signed_gap_average`).
-- `fixedBranch … adv e b` coincides with drawing `m ← sampleMaterial leak` and `k' ←$ K` and
-  running `adv` on the public key, ciphertext, and key `(if b then m.on.1.2 else k')` of `m`
+- `fixedBranch … adv e b` coincides with drawing `kemMat ← sampleMaterial leak` and `k' ←$ K` and
+  running `adv` on the public key, ciphertext, and key `(if b then kemMat.key else k')` of `kemMat`
   (`fixedBranch_eq_material`).
 -/
 
@@ -244,7 +244,7 @@ def challenge [SampleableType K]
 selecting A if `s.stA.t = e` and B if `s.stB.t = e`, with decapsulation output `s.keyB s.stA.t`.
 Challenges use `challenge onoff e kStar`; corruptions and leaking sends reveal their answers with
 `revealAfter` after their exposure guards. -/
-def oracle [DecidableEq K] [DecidableEq Sym] [SampleableType K]
+def simOracle [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
@@ -297,8 +297,8 @@ def initial {base : KEMScheme ProbComp K PK SK C} (onoff : base.OnOffStructure) 
       ack := { ekRec := false, ctRec := false } }
 
 /-- Simulated execution of `adv` for challenge epoch `e` and IND-CPA challenge
-`(pkStar, ctStar, kStar)`: runs `adv` against `oracle … e pkStar ctStar kStar` from `initial onoff`
-and returns `false` if the simulation halts (`none`). -/
+`(pkStar, ctStar, kStar)`: runs `adv` against `simOracle … e pkStar ctStar kStar` from
+`initial onoff` and returns `false` if the simulation halts (`none`). -/
 def run [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -306,7 +306,7 @@ def run [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (adv : SecurityAdversary leak Sym) (e : ℕ) (pkStar : PK) (ctStar : C) (kStar : K) :
     ProbComp Bool := do
-  let result ← ((simulateQ (oracle base onoff ecEk ecCt0 ecCt1 leak e pkStar ctStar kStar)
+  let result ← ((simulateQ (simOracle base onoff ecEk ecCt0 ecCt1 leak e pkStar ctStar kStar)
     adv).run).run' (initial onoff)
   pure (result.getD false)
 
@@ -426,6 +426,31 @@ structure KEMMaterial {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffS
   /-- Online encapsulation output `(ct1, k)` paired with its random coins. -/
   on : (onoff.C₁ × K) × leak.OnRand
 
+namespace KEMMaterial
+
+variable {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
+  {leak : base.OnOffRandLeak onoff} (kemMat : KEMMaterial leak)
+
+/-- The public key of `kemMat`. -/
+abbrev pk : PK := kemMat.keygen.1.1
+
+/-- The secret key of `kemMat`. -/
+abbrev sk : SK := kemMat.keygen.1.2
+
+/-- The offline encapsulation state of `kemMat`. -/
+abbrev st : onoff.St := kemMat.off.1.1
+
+/-- The offline ciphertext component of `kemMat`. -/
+abbrev ct0 : onoff.C₀ := kemMat.off.1.2
+
+/-- The online ciphertext component of `kemMat`. -/
+abbrev ct1 : onoff.C₁ := kemMat.on.1.1
+
+/-- The encapsulated key of `kemMat`. -/
+abbrev key : K := kemMat.on.1.2
+
+end KEMMaterial
+
 /-- Sampler for the KEM material `KEMMaterial leak` of one epoch, executing `leak.keygenRleak`,
 `leak.encapsOffRleak`, and `leak.encapsOnRleak` at the sampled offline state and public key. -/
 def sampleMaterial {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
@@ -435,20 +460,21 @@ def sampleMaterial {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStru
   let on ← leak.encapsOnRleak off.1.1 kg.1.1
   pure ⟨kg, off, on⟩
 
-/-- Full KEM ciphertext reassembled from the offline and online ciphertext components of `m`. -/
+/-- Full KEM ciphertext reassembled from the offline and online ciphertext components of
+`kemMat`. -/
 def KEMMaterial.ciphertext {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
-    {leak : base.OnOffRandLeak onoff} (m : KEMMaterial leak) : C :=
-  onoff.split.symm (m.off.1.2, m.on.1.1)
+    {leak : base.OnOffRandLeak onoff} (kemMat : KEMMaterial leak) : C :=
+  onoff.split.symm (kemMat.ct0, kemMat.ct1)
 
-/-- Sampling `m ← sampleMaterial leak` and passing `(m.keygen.1.1, m.ciphertext, m.on.1.2)` to a
-continuation `f` coincides with sampling `(pk, _) ← base.keygen` and `(ct, key) ← base.encaps pk`
-and passing `(pk, ct, key)` to `f`. -/
+/-- Sampling `kemMat ← sampleMaterial leak` and passing `(kemMat.pk, kemMat.ciphertext, kemMat.key)`
+to a continuation `f` coincides with sampling `(pk, _) ← base.keygen` and
+`(ct, key) ← base.encaps pk` and passing `(pk, ct, key)` to `f`. -/
 theorem sampleMaterial_bind_challenge
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (leak : base.OnOffRandLeak onoff) {α : Type} (f : PK → C → K → ProbComp α) :
     (do
       let material ← sampleMaterial leak
-      f material.keygen.1.1 material.ciphertext material.on.1.2) =
+      f material.pk material.ciphertext material.key) =
     (do
       let (pk, _) ← base.keygen
       let (ct, key) ← base.encaps pk
@@ -464,30 +490,30 @@ theorem sampleMaterial_bind_challenge
   rw [← leak.encapsOn_fst]
   simp only [bind_assoc, pure_bind]
 
-/-- Every `m` in the support of `sampleMaterial leak` has components in the supports of
-`leak.keygenRleak`, `leak.encapsOffRleak`, and `leak.encapsOnRleak m.off.1.1 m.keygen.1.1`,
+/-- Every `kemMat` in the support of `sampleMaterial leak` has components in the supports of
+`leak.keygenRleak`, `leak.encapsOffRleak`, and `leak.encapsOnRleak kemMat.st kemMat.pk`,
 respectively. -/
 theorem sampleMaterial_support
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
-    (leak : base.OnOffRandLeak onoff) (m : KEMMaterial leak)
-    (hm : m ∈ support (sampleMaterial leak)) :
-    m.keygen ∈ support leak.keygenRleak ∧
-    m.off ∈ support leak.encapsOffRleak ∧
-    m.on ∈ support (leak.encapsOnRleak m.off.1.1 m.keygen.1.1) := by
+    (leak : base.OnOffRandLeak onoff) (kemMat : KEMMaterial leak)
+    (hm : kemMat ∈ support (sampleMaterial leak)) :
+    kemMat.keygen ∈ support leak.keygenRleak ∧
+    kemMat.off ∈ support leak.encapsOffRleak ∧
+    kemMat.on ∈ support (leak.encapsOnRleak kemMat.st kemMat.pk) := by
   simp only [sampleMaterial, mem_support_bind_iff, mem_support_pure_iff] at hm
   obtain ⟨kg, hkg, off, hoff, on, hon, rfl⟩ := hm
   exact ⟨hkg, hoff, hon⟩
 
-/-- Every `m` in the support of `sampleMaterial leak` has non-coin outputs in the supports of
-`base.keygen`, `onoff.encapsOff`, and `onoff.encapsOn m.off.1.1 m.keygen.1.1`, respectively. -/
+/-- Every `kemMat` in the support of `sampleMaterial leak` has non-coin outputs in the supports of
+`base.keygen`, `onoff.encapsOff`, and `onoff.encapsOn kemMat.st kemMat.pk`, respectively. -/
 theorem sampleMaterial_ordinary_support
     {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
-    (leak : base.OnOffRandLeak onoff) (m : KEMMaterial leak)
-    (hm : m ∈ support (sampleMaterial leak)) :
-    m.keygen.1 ∈ support base.keygen ∧
-    m.off.1 ∈ support onoff.encapsOff ∧
-    m.on.1 ∈ support (onoff.encapsOn m.off.1.1 m.keygen.1.1) := by
-  obtain ⟨hkg, hoff, hon⟩ := sampleMaterial_support leak m hm
+    (leak : base.OnOffRandLeak onoff) (kemMat : KEMMaterial leak)
+    (hm : kemMat ∈ support (sampleMaterial leak)) :
+    kemMat.keygen.1 ∈ support base.keygen ∧
+    kemMat.off.1 ∈ support onoff.encapsOff ∧
+    kemMat.on.1 ∈ support (onoff.encapsOn kemMat.st kemMat.pk) := by
+  obtain ⟨hkg, hoff, hon⟩ := sampleMaterial_support leak kemMat hm
   refine ⟨?_, ?_, ?_⟩
   · rw [← leak.keygen_fst]
     exact (mem_support_bind_iff _ _ _).mpr ⟨_, hkg, by simp⟩
@@ -496,8 +522,9 @@ theorem sampleMaterial_ordinary_support
   · rw [← leak.encapsOn_fst]
     exact (mem_support_bind_iff _ _ _).mpr ⟨_, hon, by simp⟩
 
-/-- `fixedBranch … adv e b` coincides with drawing `m ← sampleMaterial leak` and `randomKey ←$ K`
-and executing `run … adv e m.keygen.1.1 m.ciphertext (if b then m.on.1.2 else randomKey)`. -/
+/-- `fixedBranch … adv e b` coincides with drawing `kemMat ← sampleMaterial leak` and
+`randomKey ←$ K` and executing
+`run … adv e kemMat.pk kemMat.ciphertext (if b then kemMat.key else randomKey)`. -/
 theorem fixedBranch_eq_material
     [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
@@ -508,8 +535,8 @@ theorem fixedBranch_eq_material
     fixedBranch base onoff ecEk ecCt0 ecCt1 leak adv e b = (do
       let material ← sampleMaterial leak
       let randomKey ← ($ᵗ K : ProbComp K)
-      run base onoff ecEk ecCt0 ecCt1 leak adv e material.keygen.1.1 material.ciphertext
-        (if b then material.on.1.2 else randomKey)) :=
+      run base onoff ecEk ecCt0 ecCt1 leak adv e material.pk material.ciphertext
+        (if b then material.key else randomKey)) :=
   (sampleMaterial_bind_challenge base onoff leak (fun pk ct key => do
     let randomKey ← ($ᵗ K : ProbComp K)
     run base onoff ecEk ecCt0 ecCt1 leak adv e pk ct (if b then key else randomKey))).symm
@@ -522,75 +549,75 @@ namespace oppUniKemCKA.Security.Embedding.Pinned
 
 variable {K PK SK C : Type}
 
-/-- Key generation with optional pinning to `m`: returns the pre-sampled pair `m.keygen.1` when
-`selected` is `true`, and runs `base.keygen` otherwise. -/
+/-- Key generation with optional pinning to `kemMat`: returns the pre-sampled pair `kemMat.keygen.1`
+when `selected` is `true`, and runs `base.keygen` otherwise. -/
 def keygen {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
-    {leak : base.OnOffRandLeak onoff} (m : KEMMaterial leak) (selected : Bool) :
+    {leak : base.OnOffRandLeak onoff} (kemMat : KEMMaterial leak) (selected : Bool) :
     ProbComp (PK × SK) :=
-  if selected then pure m.keygen.1 else base.keygen
+  if selected then pure kemMat.keygen.1 else base.keygen
 
-/-- Offline encapsulation with optional pinning to `m`: returns the pre-sampled pair `m.off.1` when
-`selected` is `true`, and runs `onoff.encapsOff` otherwise. -/
+/-- Offline encapsulation with optional pinning to `kemMat`: returns the pre-sampled pair
+`kemMat.off.1` when `selected` is `true`, and runs `onoff.encapsOff` otherwise. -/
 def encapsOff {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
-    {leak : base.OnOffRandLeak onoff} (m : KEMMaterial leak) (selected : Bool) :
+    {leak : base.OnOffRandLeak onoff} (kemMat : KEMMaterial leak) (selected : Bool) :
     ProbComp (onoff.St × onoff.C₀) :=
-  if selected then pure m.off.1 else onoff.encapsOff
+  if selected then pure kemMat.off.1 else onoff.encapsOff
 
-/-- Online encapsulation with optional pinning to `m`: returns the pre-sampled pair `m.on.1` when
-`selected` is `true`, and runs `onoff.encapsOn st pk` otherwise. -/
+/-- Online encapsulation with optional pinning to `kemMat`: returns the pre-sampled pair
+`kemMat.on.1` when `selected` is `true`, and runs `onoff.encapsOn st pk` otherwise. -/
 def encapsOn {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
-    {leak : base.OnOffRandLeak onoff} (m : KEMMaterial leak) (selected : Bool)
+    {leak : base.OnOffRandLeak onoff} (kemMat : KEMMaterial leak) (selected : Bool)
     (st : onoff.St) (pk : PK) : ProbComp (onoff.C₁ × K) :=
-  if selected then pure m.on.1 else onoff.encapsOn st pk
+  if selected then pure kemMat.on.1 else onoff.encapsOn st pk
 
 /-- KEM instance in which each sampling phase whose boolean flag (`pinKeygen`, `pinOffline`,
-`pinOnline`) is `true` returns the corresponding output stored in `m`, and decapsulation constantly
-returns `key`. -/
+`pinOnline`) is `true` returns the corresponding output stored in `kemMat`, and decapsulation
+constantly returns `key`. -/
 abbrev kem {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
-    {leak : base.OnOffRandLeak onoff} (m : KEMMaterial leak)
+    {leak : base.OnOffRandLeak onoff} (kemMat : KEMMaterial leak)
     (pinKeygen pinOffline pinOnline : Bool) (key : Option K) :
     KEMScheme ProbComp K PK SK C where
-  keygen := keygen m pinKeygen
+  keygen := keygen kemMat pinKeygen
   encaps pk := do
-    let (st, ct0) ← encapsOff m pinOffline
-    let (ct1, k) ← encapsOn m pinOnline st pk
+    let (st, ct0) ← encapsOff kemMat pinOffline
+    let (ct1, k) ← encapsOn kemMat pinOnline st pk
     pure (onoff.split.symm (ct0, ct1), k)
   decaps _ _ := pure key
 
 /-- Deterministic-decapsulation witness for `Pinned.kem`. -/
 abbrev deterministic {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
-    {leak : base.OnOffRandLeak onoff} (m : KEMMaterial leak)
+    {leak : base.OnOffRandLeak onoff} (kemMat : KEMMaterial leak)
     (pinKeygen pinOffline pinOnline : Bool) (key : Option K) :
-    (kem m pinKeygen pinOffline pinOnline key).DeterministicDecaps where
+    (kem kemMat pinKeygen pinOffline pinOnline key).DeterministicDecaps where
   decapsDet _ _ := key
   decaps_eq _ _ := rfl
 
 /-- On/off structure for `Pinned.kem`. -/
 abbrev onOff {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
-    {leak : base.OnOffRandLeak onoff} (m : KEMMaterial leak)
+    {leak : base.OnOffRandLeak onoff} (kemMat : KEMMaterial leak)
     (pinKeygen pinOffline pinOnline : Bool) (key : Option K) :
-    (kem m pinKeygen pinOffline pinOnline key).OnOffStructure where
+    (kem kemMat pinKeygen pinOffline pinOnline key).OnOffStructure where
   St := onoff.St
   C₀ := onoff.C₀
   C₁ := onoff.C₁
   split := onoff.split
-  encapsOff := encapsOff m pinOffline
-  encapsOn := encapsOn m pinOnline
+  encapsOff := encapsOff kemMat pinOffline
+  encapsOn := encapsOn kemMat pinOnline
   factor _ := rfl
 
 /-- On/off randomness-leakage witness for `Pinned.kem`, in which each pinned phase returns both the
-output and the random coins stored in `m`. -/
+output and the random coins stored in `kemMat`. -/
 abbrev leakage {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
-    (leak : base.OnOffRandLeak onoff) (m : KEMMaterial leak)
+    (leak : base.OnOffRandLeak onoff) (kemMat : KEMMaterial leak)
     (pinKeygen pinOffline pinOnline : Bool) (key : Option K) :
-    (kem m pinKeygen pinOffline pinOnline key).OnOffRandLeak
-      (onOff m pinKeygen pinOffline pinOnline key) where
+    (kem kemMat pinKeygen pinOffline pinOnline key).OnOffRandLeak
+      (onOff kemMat pinKeygen pinOffline pinOnline key) where
   KeygenRand := leak.KeygenRand
   OffRand := leak.OffRand
   OnRand := leak.OnRand
-  keygenRleak := if pinKeygen then pure m.keygen else leak.keygenRleak
-  encapsOffRleak := if pinOffline then pure m.off else leak.encapsOffRleak
-  encapsOnRleak st pk := if pinOnline then pure m.on else leak.encapsOnRleak st pk
+  keygenRleak := if pinKeygen then pure kemMat.keygen else leak.keygenRleak
+  encapsOffRleak := if pinOffline then pure kemMat.off else leak.encapsOffRleak
+  encapsOnRleak st pk := if pinOnline then pure kemMat.on else leak.encapsOnRleak st pk
   keygen_fst := by cases pinKeygen <;> simp [keygen, leak.keygen_fst]
   encapsOff_fst := by cases pinOffline <;> simp [encapsOff, leak.encapsOff_fst]
   encapsOn_fst st pk := by cases pinOnline <;> simp [encapsOn, leak.encapsOn_fst]

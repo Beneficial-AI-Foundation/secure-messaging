@@ -16,14 +16,14 @@ import SecureMessaging.SCKA.Security
 **Setting.** Throughout this module, we consider:
 
 - a challenge epoch `e` and a candidate key `kStar`;
-- pre-sampled epoch material `m : KEMMaterial leak` (`Simulator`), bundling the outputs and coins
-  of the three sampling phases of one epoch (key generation, offline encapsulation, and online
+- pre-sampled epoch material `kemMat : KEMMaterial leak` (`Simulator`), bundling the outputs and
+  coins of the three sampling phases of one epoch (key generation, offline encapsulation, and online
   encapsulation);
 - the simulator's secret values (`Simulator`), wrapped in `Option` (`some x` when known to the
   simulator and `none` when hidden);
-- the pinned KEM `Pinned.kem m` (`Simulator`), whose designated sampling phases return the
-  corresponding outputs stored in `m`;
-- the simulator `oracle` (`Simulator`), which runs over the simulated KEM `kem` embedding the
+- the pinned KEM `Pinned.kem kemMat` (`Simulator`), whose designated sampling phases return the
+  corresponding outputs stored in `kemMat`;
+- the simulator `simOracle` (`Simulator`), which runs over the simulated KEM `kem` embedding the
   IND-CPA challenge at epoch `e`.
 
 **Main results.** The state map `hideState e s` hides the secret values of epoch `e` (party A's
@@ -31,7 +31,7 @@ decapsulation key, party B's offline state, and the keys recorded at `e`) by set
 and wraps all other secret values in `some`.
 
 - Each local send and receive over the simulated KEM `kem` from a hidden state equals the same
-  operation over `Pinned.kem m` from the honest state, followed by hiding (`*_hide`).
+  operation over `Pinned.kem kemMat` from the honest state, followed by hiding (`*_hide`).
 - The simulator's challenge oracle from `hideState e s` coincides with the *pinned challenge*
   `pinnedChallenge e kStar := challengeWith id e kStar` from `s`, followed by `hideState e`
   (`challenge_hide`).
@@ -456,22 +456,22 @@ def hideCoins {KG OFF ON : Type} (e t : ℕ) :
   | .offOn r₀ r₁ => .offOn (hide e t r₀) (hide e t r₁)
 
 /-- Party A's leaking send over the simulated KEM from `hideA e s` (with A selected iff `s.t = e`)
-equals A's leaking send over `Pinned.kem m` from `s` followed by hiding the state and coins; the
-output key is `none`. -/
+equals A's leaking send over `Pinned.kem kemMat` from `s` followed by hiding the state and coins;
+the output key is `none`. -/
 theorem sendArleak_hide
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (leak : base.OnOffRandLeak onoff)
-    (m : KEMMaterial leak) (e : ℕ) (selectedB : Bool)
+    (kemMat : KEMMaterial leak) (e : ℕ) (selectedB : Bool)
     (keyS : Option (Option K)) (keyH : Option K) (s : StA onoff Sym) :
-    sendArleak (kem base onoff (decide (s.t = e)) selectedB m.keygen.1.1 m.ciphertext keyS)
-      (onOff base onoff (decide (s.t = e)) selectedB m.keygen.1.1 m.ciphertext keyS)
+    sendArleak (kem base onoff (decide (s.t = e)) selectedB kemMat.pk kemMat.ciphertext keyS)
+      (onOff base onoff (decide (s.t = e)) selectedB kemMat.pk kemMat.ciphertext keyS)
       ecEk (leakage base onoff leak (decide (s.t = e)) selectedB
-        m.keygen.1.1 m.ciphertext keyS) (hideA e s) =
+        kemMat.pk kemMat.ciphertext keyS) (hideA e s) =
     (fun out => out.map (fun (_, msg, epoch, next, coins) =>
       (none, msg, epoch, hideA e next, hideCoins e s.t coins))) <$>
-      sendArleak (Pinned.kem m (decide (s.t = e)) selectedB selectedB keyH)
-        (Pinned.onOff m (decide (s.t = e)) selectedB selectedB keyH) ecEk
-        (Pinned.leakage leak m (decide (s.t = e)) selectedB selectedB keyH) s := by
+      sendArleak (Pinned.kem kemMat (decide (s.t = e)) selectedB selectedB keyH)
+        (Pinned.onOff kemMat (decide (s.t = e)) selectedB selectedB keyH) ecEk
+        (Pinned.leakage leak kemMat (decide (s.t = e)) selectedB selectedB keyH) s := by
   by_cases he : s.t = e <;> cases hd : s.dkA
   all_goals
     simp only [sendArleak, hideA, hd, Option.map_none, Option.map_some]
@@ -485,18 +485,18 @@ theorem sendBrleak_hide
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (m : KEMMaterial leak) (e : ℕ) (selectedA : Bool)
+    (kemMat : KEMMaterial leak) (e : ℕ) (selectedA : Bool)
     (keyS : Option (Option K)) (keyH : Option K) (s : StB onoff Sym) :
-    sendBrleak (kem base onoff selectedA (decide (s.t = e)) m.keygen.1.1 m.ciphertext keyS)
-      (onOff base onoff selectedA (decide (s.t = e)) m.keygen.1.1 m.ciphertext keyS)
+    sendBrleak (kem base onoff selectedA (decide (s.t = e)) kemMat.pk kemMat.ciphertext keyS)
+      (onOff base onoff selectedA (decide (s.t = e)) kemMat.pk kemMat.ciphertext keyS)
       ecCt0 ecCt1 (leakage base onoff leak selectedA (decide (s.t = e))
-        m.keygen.1.1 m.ciphertext keyS) (hideB e s) =
+        kemMat.pk kemMat.ciphertext keyS) (hideB e s) =
     (fun out => out.map (fun (key, msg, epoch, next, coins) =>
       (key.map (fun (t, k) => (t, hide e t k)), msg, epoch,
         hideB e next, hideCoins e s.t coins))) <$>
-      sendBrleak (Pinned.kem m selectedA (decide (s.t = e)) (decide (s.t = e)) keyH)
-        (Pinned.onOff m selectedA (decide (s.t = e)) (decide (s.t = e)) keyH) ecCt0 ecCt1
-        (Pinned.leakage leak m selectedA (decide (s.t = e)) (decide (s.t = e)) keyH) s := by
+      sendBrleak (Pinned.kem kemMat selectedA (decide (s.t = e)) (decide (s.t = e)) keyH)
+        (Pinned.onOff kemMat selectedA (decide (s.t = e)) (decide (s.t = e)) keyH) ecCt0 ecCt1
+        (Pinned.leakage leak kemMat selectedA (decide (s.t = e)) (decide (s.t = e)) keyH) s := by
   by_cases he : s.t = e <;> cases hct0 : s.ct0 <;> cases hek : s.ekA <;>
     cases hct1 : s.ct1 <;> cases hst : s.stCt <;> cases hack : s.ack.ctRec
   all_goals
@@ -509,19 +509,19 @@ theorem sendBrleak_hide
 theorem sendA_hide
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym) (leak : base.OnOffRandLeak onoff)
-    (m : KEMMaterial leak) (e : ℕ) (selectedB : Bool)
+    (kemMat : KEMMaterial leak) (e : ℕ) (selectedB : Bool)
     (keyS : Option (Option K)) (keyH : Option K) (s : StA onoff Sym) :
-    sendA (kem base onoff (decide (s.t = e)) selectedB m.keygen.1.1 m.ciphertext keyS)
-      (onOff base onoff (decide (s.t = e)) selectedB m.keygen.1.1 m.ciphertext keyS)
+    sendA (kem base onoff (decide (s.t = e)) selectedB kemMat.pk kemMat.ciphertext keyS)
+      (onOff base onoff (decide (s.t = e)) selectedB kemMat.pk kemMat.ciphertext keyS)
       ecEk (hideA e s) =
     (fun out => out.map (fun (_, msg, epoch, next) => (none, msg, epoch, hideA e next))) <$>
-      sendA (Pinned.kem m (decide (s.t = e)) selectedB selectedB keyH)
-        (Pinned.onOff m (decide (s.t = e)) selectedB selectedB keyH) ecEk s := by
+      sendA (Pinned.kem kemMat (decide (s.t = e)) selectedB selectedB keyH)
+        (Pinned.onOff kemMat (decide (s.t = e)) selectedB selectedB keyH) ecEk s := by
   rw [sendA_eq_map_sendArleak _ _ ecEk
-      (leakage base onoff leak (decide (s.t = e)) selectedB m.keygen.1.1 m.ciphertext keyS),
+      (leakage base onoff leak (decide (s.t = e)) selectedB kemMat.pk kemMat.ciphertext keyS),
     sendA_eq_map_sendArleak _ _ ecEk
-      (Pinned.leakage leak m (decide (s.t = e)) selectedB selectedB keyH),
-    sendArleak_hide base onoff ecEk leak m e selectedB keyS keyH s,
+      (Pinned.leakage leak kemMat (decide (s.t = e)) selectedB selectedB keyH),
+    sendArleak_hide base onoff ecEk leak kemMat e selectedB keyS keyH s,
     Functor.map_map, Functor.map_map]
   congr 1
   funext out
@@ -532,24 +532,25 @@ theorem sendB_hide
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (m : KEMMaterial leak) (e : ℕ) (selectedA : Bool)
+    (kemMat : KEMMaterial leak) (e : ℕ) (selectedA : Bool)
     (keyS : Option (Option K)) (keyH : Option K) (s : StB onoff Sym) :
-    sendB (kem base onoff selectedA (decide (s.t = e)) m.keygen.1.1 m.ciphertext keyS)
-      (onOff base onoff selectedA (decide (s.t = e)) m.keygen.1.1 m.ciphertext keyS)
+    sendB (kem base onoff selectedA (decide (s.t = e)) kemMat.pk kemMat.ciphertext keyS)
+      (onOff base onoff selectedA (decide (s.t = e)) kemMat.pk kemMat.ciphertext keyS)
       ecCt0 ecCt1 (hideB e s) =
     (fun out => out.map (fun (key, msg, epoch, next) =>
       (key.map (fun (t, k) => (t, hide e t k)), msg, epoch, hideB e next))) <$>
-      sendB (Pinned.kem m selectedA (decide (s.t = e)) (decide (s.t = e)) keyH)
-        (Pinned.onOff m selectedA (decide (s.t = e)) (decide (s.t = e)) keyH) ecCt0 ecCt1 s := by
+      sendB (Pinned.kem kemMat selectedA (decide (s.t = e)) (decide (s.t = e)) keyH)
+        (Pinned.onOff kemMat selectedA (decide (s.t = e)) (decide (s.t = e)) keyH)
+        ecCt0 ecCt1 s := by
   rw [sendB_eq_map_sendBrleak
-      (kem base onoff selectedA (decide (s.t = e)) m.keygen.1.1 m.ciphertext keyS)
-      (onOff base onoff selectedA (decide (s.t = e)) m.keygen.1.1 m.ciphertext keyS) ecCt0 ecCt1
-      (leakage base onoff leak selectedA (decide (s.t = e)) m.keygen.1.1 m.ciphertext keyS),
+      (kem base onoff selectedA (decide (s.t = e)) kemMat.pk kemMat.ciphertext keyS)
+      (onOff base onoff selectedA (decide (s.t = e)) kemMat.pk kemMat.ciphertext keyS) ecCt0 ecCt1
+      (leakage base onoff leak selectedA (decide (s.t = e)) kemMat.pk kemMat.ciphertext keyS),
     sendB_eq_map_sendBrleak
-      (Pinned.kem m selectedA (decide (s.t = e)) (decide (s.t = e)) keyH)
-      (Pinned.onOff m selectedA (decide (s.t = e)) (decide (s.t = e)) keyH) ecCt0 ecCt1
-      (Pinned.leakage leak m selectedA (decide (s.t = e)) (decide (s.t = e)) keyH),
-    sendBrleak_hide base onoff ecCt0 ecCt1 leak m e selectedA keyS keyH s,
+      (Pinned.kem kemMat selectedA (decide (s.t = e)) (decide (s.t = e)) keyH)
+      (Pinned.onOff kemMat selectedA (decide (s.t = e)) (decide (s.t = e)) keyH) ecCt0 ecCt1
+      (Pinned.leakage leak kemMat selectedA (decide (s.t = e)) (decide (s.t = e)) keyH),
+    sendBrleak_hide base onoff ecCt0 ecCt1 leak kemMat e selectedA keyS keyH s,
     Functor.map_map, Functor.map_map]
   congr 1
   funext out

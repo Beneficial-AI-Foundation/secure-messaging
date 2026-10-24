@@ -14,8 +14,8 @@ import SecureMessaging.SCKA.OppUniKEM.Security.Basic
 **Main results.** For a *source phase* (A's key generation or B's offline encapsulation,
 `SourcePhase`), let `used := sourceUsed phase e` (the phase output of `e` is present, or its party
 has passed `e`) and `hit := usesSource phase e` (the query runs the phase at `e`). These satisfy
-the one-use conditions of `stoppedRun_sample_once_eq` for the stage oracles `oracle stage m e b`
-(`HybridGame`):
+the one-use conditions of `stoppedRun_sample_once_eq` for the stage oracles
+`oracle stage kemMat e b` (`HybridGame`):
 
 - every query preserves `used` (`oracle_preserves_sourceUsed`);
 - `used` implies `hit = false` (`usesSource_false_of_used`);
@@ -78,26 +78,27 @@ theorem sendB_source_shape
 
 variable [DecidableEq K] [DecidableEq Sym]
 
-/-- The correctness queries of `schemeAt stage m e s` from `s` preserve `sourceUsed phase e`. -/
+/-- The correctness queries of `schemeAt stage kemMat e s` from `s` preserve
+`sourceUsed phase e`. -/
 theorem correctness_preserves_sourceUsed
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (stage : Stage) (m : KEMMaterial leak) (e : ℕ) (phase : SourcePhase)
+    (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ) (phase : SourcePhase)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : sourceUsed phase e s.stA s.stB)
     (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
     (z : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Range t ×
       SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hz : z ∈ support
-      ((SCKAScheme.sckaCorrectnessImpl (schemeAt ecEk ecCt0 ecCt1 stage m e s) t).run s)) :
+      ((SCKAScheme.sckaCorrectnessImpl (schemeAt ecEk ecCt0 ecCt1 stage kemMat e s) t).run s)) :
     sourceUsed phase e z.2.stA z.2.stB := by
   apply SCKAScheme.correctnessImpl_preserves_localInv_at _ (sourceUsed phase e) s hs
     ?_ ?_ ?_ ?_ t z hz
   · intro key msg epoch next hout
     have hshape := sendA_source_shape
-      (stageKem stage m e s) (stageOnOff stage m e s) ecEk s.stA key msg epoch next hout
+      (stageKem stage kemMat e s) (stageOnOff stage kemMat e s) ecEk s.stA key msg epoch next hout
     cases phase with
     | keygen =>
       rcases hs with h | ⟨h, _⟩
@@ -106,7 +107,8 @@ theorem correctness_preserves_sourceUsed
     | offline => exact hs
   · intro key msg epoch next hout
     have hshape := sendB_source_shape
-      (stageKem stage m e s) (stageOnOff stage m e s) ecCt0 ecCt1 s.stB key msg epoch next hout
+      (stageKem stage kemMat e s) (stageOnOff stage kemMat e s) ecCt0 ecCt1 s.stB key msg epoch
+      next hout
     cases phase with
     | keygen => exact hs
     | offline =>
@@ -136,21 +138,21 @@ theorem correctness_preserves_sourceUsed
       · apply Or.inl
         rcases hs with hs | ⟨hs, _⟩ <;> omega
 
-/-- `oracle stage m e b` preserves `sourceUsed phase e`. -/
+/-- `oracle stage kemMat e b` preserves `sourceUsed phase e`. -/
 theorem oracle_preserves_sourceUsed [SampleableType K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (stage : Stage) (m : KEMMaterial leak) (e : ℕ) (b : Bool) (phase : SourcePhase) :
-    QueryImpl.PreservesInv (oracle base onoff ecEk ecCt0 ecCt1 leak stage m e b)
+    (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool) (phase : SourcePhase) :
+    QueryImpl.PreservesInv (oracle base onoff ecEk ecCt0 ecCt1 leak stage kemMat e b)
       (fun s => sourceUsed phase e s.stA s.stB) :=
   securityImplAt_preservesInv base onoff leak _ _ _ (fun _ _ _ h => h)
-    (fun _ => sendArleak_forget (onoff := Pinned.onOff m _ _ _ _) _ _ _)
-    (fun _ => sendBrleak_forget (onoff := Pinned.onOff m _ _ _ _) _ _ _ _)
+    (fun _ => sendArleak_forget (onoff := Pinned.onOff kemMat _ _ _ _) _ _ _)
+    (fun _ => sendBrleak_forget (onoff := Pinned.onOff kemMat _ _ _ _) _ _ _ _)
     (SCKAScheme.challOf_recordsChallenges _)
     (fun s hs t => correctness_preserves_sourceUsed base onoff ecEk ecCt0 ecCt1 leak
-      stage m e phase s hs t)
+      stage kemMat e phase s hs t)
 
 end oppUniKemCKA.Security.Embedding.Sampling
 
@@ -266,13 +268,13 @@ theorem oracleSendA_installs_source
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (stage : Stage) (m : KEMMaterial leak) (e : ℕ)
+    (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (he : s.stA.t = e)
     (z : Option (ℕ × Option ℕ × Message Sym) ×
       SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hz : z ∈ support
-      ((SCKAScheme.oracleSendA (schemeAt ecEk ecCt0 ecCt1 stage m e s) ()).run s)) :
+      ((SCKAScheme.oracleSendA (schemeAt ecEk ecCt0 ecCt1 stage kemMat e s) ()).run s)) :
     sourceUsed .keygen e z.2.stA z.2.stB := by
   simp only [SCKAScheme.oracleSendA, StateT.run_bind, StateT.run_get,
     StateT.run_monadLift, monadLift_self, bind_assoc, pure_bind,
@@ -283,7 +285,7 @@ theorem oracleSendA_installs_source
   | some out =>
     rcases out with ⟨key, msg, epoch, next⟩
     have hshape := sendA_source_shape
-      (stageKem stage m e s) (stageOnOff stage m e s) ecEk s.stA key msg epoch next hout
+      (stageKem stage kemMat e s) (stageOnOff stage kemMat e s) ecEk s.stA key msg epoch next hout
     cases key <;>
       simp only [StateT.run_bind, StateT.run_set, pure_bind,
         StateT.run_pure, mem_support_pure_iff] at hz
@@ -296,22 +298,22 @@ theorem leaking_keygen_stops
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (stage : Stage) (m : KEMMaterial leak) (e : ℕ)
+    (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (he : s.stA.t = e) (hfield : s.stA.dkA = none) (hc : e ∉ s.challenged)
     (z : Option (Option (ℕ × Option ℕ × Message Sym ×
       SendRand leak.KeygenRand leak.OffRand leak.OnRand)) ×
       SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hz : z ∈ support (((stopOnState
-      (SCKAScheme.oracleSendArleak vulnRleakA (schemeAt ecEk ecCt0 ecCt1 stage m e s))
+      (SCKAScheme.oracleSendArleak vulnRleakA (schemeAt ecEk ecCt0 ecCt1 stage kemMat e s))
       (fun s => decide (e ∈ s.exposed)) ()).run).run s)) : z.1 = none := by
   apply SCKAScheme.oracleSendArleak_stop_of_exposure _ _ s {e} e ?_ ?_ ?_
     (Finset.mem_singleton_self e) z hz
   · exact sendArleak_none_not_mem_support _ _ ecEk _ _
   · intro key msg epoch next coins hout
     have hex := sendArleak_exposure
-      (stageKem stage m e s) (stageOnOff stage m e s) ecEk (stageLeak stage m e s) s.stA
-      key msg epoch next coins hout
+      (stageKem stage kemMat e s) (stageOnOff stage kemMat e s) ecEk (stageLeak stage kemMat e s)
+      s.stA key msg epoch next coins hout
     simpa only [leakEpochsA, hfield, Option.isNone_none,
       Bool.true_or, ↓reduceIte, he] using hex
   · simp [hc]
@@ -322,13 +324,13 @@ theorem oracleSendB_installs_source
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (stage : Stage) (m : KEMMaterial leak) (e : ℕ)
+    (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (he : s.stB.t = e)
     (z : Option (ℕ × Option ℕ × Message Sym) ×
       SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hz : z ∈ support
-      ((SCKAScheme.oracleSendB (schemeAt ecEk ecCt0 ecCt1 stage m e s) ()).run s)) :
+      ((SCKAScheme.oracleSendB (schemeAt ecEk ecCt0 ecCt1 stage kemMat e s) ()).run s)) :
     sourceUsed .offline e z.2.stA z.2.stB := by
   simp only [SCKAScheme.oracleSendB, StateT.run_bind, StateT.run_get,
     StateT.run_monadLift, monadLift_self, bind_assoc, pure_bind,
@@ -337,11 +339,12 @@ theorem oracleSendB_installs_source
   cases out with
   | none =>
     exact False.elim (sendB_none_not_mem_support
-      (stageKem stage m e s) (stageOnOff stage m e s) ecCt0 ecCt1 _ hout)
+      (stageKem stage kemMat e s) (stageOnOff stage kemMat e s) ecCt0 ecCt1 _ hout)
   | some out =>
     rcases out with ⟨key, msg, epoch, next⟩
     have hshape := sendB_source_shape
-      (stageKem stage m e s) (stageOnOff stage m e s) ecCt0 ecCt1 s.stB key msg epoch next hout
+      (stageKem stage kemMat e s) (stageOnOff stage kemMat e s) ecCt0 ecCt1 s.stB key msg epoch
+      next hout
     cases key <;>
       simp only [StateT.run_bind, StateT.run_set, pure_bind,
         StateT.run_pure, mem_support_pure_iff] at hz
@@ -353,43 +356,44 @@ theorem leaking_offline_stops
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (stage : Stage) (m : KEMMaterial leak) (e : ℕ)
+    (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (he : s.stB.t = e) (hfield : s.stB.ct0 = none) (hc : e ∉ s.challenged)
     (z : Option (Option (ℕ × Option ℕ × Message Sym ×
       SendRand leak.KeygenRand leak.OffRand leak.OnRand)) ×
       SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hz : z ∈ support (((stopOnState
-      (SCKAScheme.oracleSendBrleak vulnRleakB (schemeAt ecEk ecCt0 ecCt1 stage m e s))
+      (SCKAScheme.oracleSendBrleak vulnRleakB (schemeAt ecEk ecCt0 ecCt1 stage kemMat e s))
       (fun s => decide (e ∈ s.exposed)) ()).run).run s)) : z.1 = none := by
   apply SCKAScheme.oracleSendBrleak_stop_of_exposure _ _ s {e} e ?_ ?_ ?_
     (Finset.mem_singleton_self e) z hz
   · exact sendBrleak_none_not_mem_support
-      (stageKem stage m e s) (stageOnOff stage m e s) ecCt0 ecCt1 (stageLeak stage m e s) _
+      (stageKem stage kemMat e s) (stageOnOff stage kemMat e s) ecCt0 ecCt1
+      (stageLeak stage kemMat e s) _
   · intro key msg epoch next coins hout
     have hex := sendBrleak_exposure
-      (stageKem stage m e s) (stageOnOff stage m e s) ecCt0 ecCt1 (stageLeak stage m e s) s.stB
-      key msg epoch next coins hout
+      (stageKem stage kemMat e s) (stageOnOff stage kemMat e s) ecCt0 ecCt1
+      (stageLeak stage kemMat e s) s.stB key msg epoch next coins hout
     simpa only [leakEpochsB, hfield, Option.isNone_none,
       Bool.true_or, ↓reduceIte, he] using hex
   · simp [hc]
 
 variable [SampleableType K]
 
-/-- If `usesSource phase e t s`, every possible successor of query `t` of `oracle stage m e b`
+/-- If `usesSource phase e t s`, every possible successor of query `t` of `oracle stage kemMat e b`
 with `e` unexposed satisfies `sourceUsed phase e`. -/
 theorem oracle_first_source_use
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (stage : Stage) (m : KEMMaterial leak) (e : ℕ) (b : Bool) (phase : SourcePhase)
+    (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool) (phase : SourcePhase)
     (t : (securitySpec leak Sym).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hh : usesSource phase e t s = true)
     (z : (securitySpec leak Sym).Range t ×
       SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (hz : z ∈ support ((oracle base onoff ecEk ecCt0 ecCt1 leak stage m e b t).run s))
+    (hz : z ∈ support ((oracle base onoff ecEk ecCt0 ecCt1 leak stage kemMat e b t).run s))
     (hcont : decide (e ∈ z.2.exposed) = false) : sourceUsed phase e z.2.stA z.2.stB := by
   cases phase <;> rcases t with (((((t | u) | u) | t) | u) | u)
   all_goals try (rcases t with ((((n | u) | u) | n) | n))
@@ -397,32 +401,32 @@ theorem oracle_first_source_use
   all_goals cases u
   · have hhit : s.stA.t = e ∧ s.stA.dkA.isNone := of_decide_eq_true hh
     change z ∈ support
-      ((SCKAScheme.oracleSendA (schemeAt ecEk ecCt0 ecCt1 stage m e s) ()).run s) at hz
+      ((SCKAScheme.oracleSendA (schemeAt ecEk ecCt0 ecCt1 stage kemMat e s) ()).run s) at hz
     exact oracleSendA_installs_source base onoff ecEk ecCt0 ecCt1 leak
-      stage m e s hhit.1 z hz
+      stage kemMat e s hhit.1 z hz
   · have hhit : (s.stA.t = e ∧ s.stA.dkA.isNone) ∧ e ∉ s.challenged :=
       of_decide_eq_true hh
     change z ∈ support ((SCKAScheme.oracleSendArleak vulnRleakA
-      (schemeAt ecEk ecCt0 ecCt1 stage m e s) ()).run s) at hz
-    have hstop := leaking_keygen_stops base onoff ecEk ecCt0 ecCt1 leak stage m e s
+      (schemeAt ecEk ecCt0 ecCt1 stage kemMat e s) ()).run s) at hz
+    have hstop := leaking_keygen_stops base onoff ecEk ecCt0 ecCt1 leak stage kemMat e s
       hhit.1.1 (Option.isNone_iff_eq_none.mp hhit.1.2) hhit.2 (some z.1, z.2)
       (mem_support_stopOnState_of_mem (SCKAScheme.oracleSendArleak vulnRleakA
-        (schemeAt ecEk ecCt0 ecCt1 stage m e s)) (fun s => decide (e ∈ s.exposed)) () s z hz
+        (schemeAt ecEk ecCt0 ecCt1 stage kemMat e s)) (fun s => decide (e ∈ s.exposed)) () s z hz
         hcont)
     exact absurd hstop (Option.some_ne_none _)
   · have hhit : s.stB.t = e ∧ s.stB.ct0.isNone := of_decide_eq_true hh
     change z ∈ support
-      ((SCKAScheme.oracleSendB (schemeAt ecEk ecCt0 ecCt1 stage m e s) ()).run s) at hz
+      ((SCKAScheme.oracleSendB (schemeAt ecEk ecCt0 ecCt1 stage kemMat e s) ()).run s) at hz
     exact oracleSendB_installs_source base onoff ecEk ecCt0 ecCt1 leak
-      stage m e s hhit.1 z hz
+      stage kemMat e s hhit.1 z hz
   · have hhit : (s.stB.t = e ∧ s.stB.ct0.isNone) ∧ e ∉ s.challenged :=
       of_decide_eq_true hh
     change z ∈ support ((SCKAScheme.oracleSendBrleak vulnRleakB
-      (schemeAt ecEk ecCt0 ecCt1 stage m e s) ()).run s) at hz
-    have hstop := leaking_offline_stops base onoff ecEk ecCt0 ecCt1 leak stage m e s
+      (schemeAt ecEk ecCt0 ecCt1 stage kemMat e s) ()).run s) at hz
+    have hstop := leaking_offline_stops base onoff ecEk ecCt0 ecCt1 leak stage kemMat e s
       hhit.1.1 (Option.isNone_iff_eq_none.mp hhit.1.2) hhit.2 (some z.1, z.2)
       (mem_support_stopOnState_of_mem (SCKAScheme.oracleSendBrleak vulnRleakB
-        (schemeAt ecEk ecCt0 ecCt1 stage m e s)) (fun s => decide (e ∈ s.exposed)) () s z hz
+        (schemeAt ecEk ecCt0 ecCt1 stage kemMat e s)) (fun s => decide (e ∈ s.exposed)) () s z hz
         hcont)
     exact absurd hstop (Option.some_ne_none _)
 

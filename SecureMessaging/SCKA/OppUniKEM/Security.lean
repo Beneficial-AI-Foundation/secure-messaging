@@ -72,7 +72,7 @@ Paths are relative to `OppUniKEM/Security/`.
 
 2. *Reduction and simulation* (`Reduction/{Simulator,Relation,Game,Oracle,Simulation,HybridGame}`).
    - On public key `pk*` and challenge `(ct*, k*)`, the *reduction* `𝓑` runs `adv` against
-     the oracles of the ideal game (`oracle`):
+     the simulated oracles of the ideal game (`simOracle`):
      - key generation at epoch `e` returns `pk*` and encapsulation at `e` returns `ct*`, with
        *hidden* secret key, offline state, shared key, and coins; other epochs sample honestly;
      - a challenge at `t` returns a uniform key if `t < e`, `k*` if `t = e`, and the recorded
