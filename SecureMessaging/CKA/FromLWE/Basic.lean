@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import Mathlib.Data.Matrix.Mul
-import Mathlib.Data.ZMod.Basic
+module
+
+public import Mathlib.Data.Matrix.Mul
+public import Mathlib.Data.ZMod.Basic
 
 /-!
 # Basic types for continuous key agreement from LWE
@@ -15,6 +17,8 @@ References are listed in `Construction.lean`.
 Party names follow the repository interface: A sends first
 (the party labels are swapped relative to the paper).
 -/
+
+@[expose] public section
 
 namespace lweCKA
 

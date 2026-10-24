@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import Mathlib.FieldTheory.Finite.Extension
+module
+
+public import Mathlib.FieldTheory.Finite.Extension
 
 /-!
 # Rabin's irreducibility test over a finite field
@@ -20,6 +22,8 @@ This is Rabin's test (M. O. Rabin, *Probabilistic algorithms in finite fields*, 
 both conditions inside `AdjoinRoot f`, where they can be checked by kernel computation for a
 concrete `f`.
 -/
+
+@[expose] public section
 
 open Polynomial
 

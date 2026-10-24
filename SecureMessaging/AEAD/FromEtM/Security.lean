@@ -168,23 +168,16 @@ reductions (skeleton instantiations), and `q_d` upper-bounds the adversary's
 number of decryption queries (tied to `adv` via `decryptQueryBound`, i.e.
 `IsQueryBoundP` on the decrypt-oracle index).
 
-
-The `NeverFail prf.keygen` instance (i.e. `Pr[⊥ | prf.keygen] = 0`) is the explicit form
-of a losslessness property NRS14 has implicitly: there keys are sampled from a set, so keygen
-cannot fail. Our `prf.keygen : ProbComp K_m` lives in a more permissive, partiality-aware
-type, so we state it. It is satisfied by every standard PRF (whose key is a uniform sample
-`$ᵗ K_m`), so it doesn't rule out any construction of interest.
 NRS14 Figure 9 bound: `Adv^nAE ≤ Adv^prf_F(B) + Adv^ivE_E(D₁) + q_d/2^τ`.
 Our one-time adaptation: `Adv^ivE → Adv^{ind$-cpa}`, `2^τ → |T|`. -/
 -- ANCHOR: etmAEAD_security
-theorem etmAEAD_security [Inhabited K_e]
+theorem etmAEAD_security
     (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
     (adv : OneTimeCCAAdversary AD M (C_e × T))
     (q_d : ℕ) [Fintype T]
-    (hqd : AEADScheme.decryptQueryBound adv q_d)
-    [NeverFail prf.keygen] :
+    (hqd : AEADScheme.decryptQueryBound adv q_d) :
     AEADScheme.distAdvantage (etmAEAD se prf) adv ≤
-      PRFScheme.prfAdvantage prf (prfReduction se adv) +
+      (PRFScheme.prfAdvantage prf (prfReduction se adv)).toReal +
       ↑q_d * (Fintype.card T : ℝ)⁻¹ +
       DetSEAlg.distAdvantage se (encReduction se adv)
 -- ANCHOR_END: etmAEAD_security
@@ -197,25 +190,25 @@ theorem etmAEAD_security [Inhabited K_e]
   -- Substituting the three hop bounds gives the result.
   unfold AEADScheme.distAdvantage
   rw [← game3_eq_rand se prf adv, ← game0_eq_real se prf adv]
-  calc |(Pr[= true | game3 se adv]).toReal -
-        (Pr[= true | game0 se prf adv]).toReal|
-    _ ≤ |(Pr[= true | game0 se prf adv]).toReal -
-         (Pr[= true | game1 se adv]).toReal| +
-        |(Pr[= true | game1 se adv]).toReal -
-         (Pr[= true | game2 se adv]).toReal| +
-        |(Pr[= true | game2 se adv]).toReal -
-         (Pr[= true | game3 se adv]).toReal| := by
-          set g0 := (Pr[= true | game0 se prf adv]).toReal
-          set g1 := (Pr[= true | game1 se adv]).toReal
-          set g2 := (Pr[= true | game2 se adv]).toReal
-          set g3 := (Pr[= true | game3 se adv]).toReal
+  calc |(Pr{let x ← game3 se adv}[x = true]).toReal -
+        (Pr{let x ← game0 se prf adv}[x = true]).toReal|
+    _ ≤ |(Pr{let x ← game0 se prf adv}[x = true]).toReal -
+         (Pr{let x ← game1 se adv}[x = true]).toReal| +
+        |(Pr{let x ← game1 se adv}[x = true]).toReal -
+         (Pr{let x ← game2 se adv}[x = true]).toReal| +
+        |(Pr{let x ← game2 se adv}[x = true]).toReal -
+         (Pr{let x ← game3 se adv}[x = true]).toReal| := by
+          set g0 := (Pr{let x ← game0 se prf adv}[x = true]).toReal
+          set g1 := (Pr{let x ← game1 se adv}[x = true]).toReal
+          set g2 := (Pr{let x ← game2 se adv}[x = true]).toReal
+          set g3 := (Pr{let x ← game3 se adv}[x = true]).toReal
           have h1 := abs_sub_le g3 g2 g0
           have h2 := abs_sub_le g2 g1 g0
           have h3 : |g2 - g3| = |g3 - g2| := abs_sub_comm g2 g3
           have h4 : |g1 - g2| = |g2 - g1| := abs_sub_comm g1 g2
           have h5 : |g0 - g1| = |g1 - g0| := abs_sub_comm g0 g1
           linarith
-    _ ≤ PRFScheme.prfAdvantage prf (prfReduction se adv) +
+    _ ≤ (PRFScheme.prfAdvantage prf (prfReduction se adv)).toReal +
         ↑q_d * (Fintype.card T : ℝ)⁻¹ +
         DetSEAlg.distAdvantage se (encReduction se adv) :=
       add_le_add (add_le_add (game0_game1_le_prf se prf adv)

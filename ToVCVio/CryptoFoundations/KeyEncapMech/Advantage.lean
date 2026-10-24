@@ -5,7 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import VCVio.CryptoFoundations.KeyEncapMech
-import ToVCVio.OracleComp.EvalDist
+import VCVio.CryptoFoundations.SecExp.Measure
 
 /-!
 # Two definitions of KEM IND-CPA advantage
@@ -37,10 +37,11 @@ For every KEM and every IND-CPA adversary against it, these two advantages are e
 
 The pair `(c, k*)` is the IND-CPA challenge.
 
-In Lean, this experiment is written as `G_b := kem.IND_CPA_Exp ProbCompRuntime.probComp adv b`.
+In Lean, this experiment is written as
+`G_b := kem.IND_CPA_Experiment ProbCompRuntime.probComp adv b`.
 
 For each `b : Bool`,
-let `p_b := Pr[G_b = true]` be the probability that `adv` outputs `true`.
+let `p_b := Pr{let x ← G_b}[x = true]` be the probability that `adv` outputs `true`.
 
 The distinguishing advantage of `adv` against `kem` is defined as
 `Adv_dist := |p_true - p_false|`.
@@ -51,7 +52,7 @@ The distinguishing advantage of `adv` against `kem` is defined as
 2. Runs `G_b`, obtaining the adversary's guess `b'`.
 3. Returns `true` exactly when `b' = b`.
 
-Let `w := Pr[H = true]` be the probability of a correct guess.
+Let `w := Pr{let x ← H}[x = true]` be the probability of a correct guess.
 
 The normalized guessing advantage of `adv` against `kem` is defined as
 `Adv_guess := |2w - 1| = 2 |w - 1/2|`.
@@ -64,7 +65,7 @@ with `kem.IND_CPA_Advantage ProbCompRuntime.probComp adv` denoting `Adv_guess`.
 
 -/
 
-open ToVCVio OracleSpec OracleComp ENNReal
+open OracleSpec OracleComp ENNReal
 
 namespace KEMScheme
 
@@ -106,10 +107,10 @@ def indCPAExpProb [SampleableType K]
 
 
 /-- The IND-CPA guessing game as a computation of type `ProbComp Bool`.
-Its evaluated distribution `𝒟[indCPAGameProb kem adv]` is definitionally equal
-to `kem.IND_CPA_Game ProbCompRuntime.probComp adv`, which has type `SPMF Bool`.
+Its output measure `𝒟[indCPAGameProb kem adv]` is definitionally equal
+to `ProbCompRuntime.probComp.evalDist (kem.IND_CPA_Game ProbCompRuntime.probComp adv)`.
 This private helper names the computation so the proof can reorder its
-independent samples using `probOutput_bind_bind_swap`. -/
+independent samples using `OracleComp.EvalDistEq.bind_bind_swap`. -/
 private def indCPAGameProb [SampleableType K]
     (kem : KEMScheme ProbComp K PK SK C)
     (adv : kem.IND_CPA_Adversary) : ProbComp Bool := do
@@ -133,89 +134,82 @@ private def indCPABranchGameProb [SampleableType K]
           else adv.postChallenge p.st p.cStar p.kRand
   pure (b == z)
 
-/-- For every `kem` and `adv`, the guessing-game distributions agree when
+/-- For every `kem` and `adv`, the guessing game has the same distribution when
 encapsulation and uniform key sampling are performed before or after the
 independent challenge-bit draw. -/
-private lemma indCPAGameProb_evalDist_eq_branch [SampleableType K]
+private lemma indCPAGameProb_evalDistEq_branch [SampleableType K]
     (kem : KEMScheme ProbComp K PK SK C)
     (adv : kem.IND_CPA_Adversary) :
-    𝒟[indCPAGameProb kem adv] = 𝒟[indCPABranchGameProb kem adv] := by
-  apply evalDist_ext
-  intro x
+    indCPAGameProb kem adv =ᵈ indCPABranchGameProb kem adv := by
   unfold indCPAGameProb indCPABranchGameProb indCPAPrefix
   simp only [monad_norm]
-  refine probOutput_bind_congr' kem.keygen x ?_
-  intro pk_sk
-  refine probOutput_bind_congr' (adv.preChallenge pk_sk.1) x ?_
-  intro st
-  rw [probOutput_bind_bind_swap ($ᵗ Bool) (kem.encaps pk_sk.1)
+  refine EvalDistEq.bind_right kem.keygen fun pk_sk => ?_
+  refine EvalDistEq.bind_right (adv.preChallenge pk_sk.1) fun st => ?_
+  refine (OracleComp.EvalDistEq.bind_bind_swap ($ᵗ Bool) (kem.encaps pk_sk.1)
     (fun b ck => do
       let kRand ← ($ᵗ K)
       let b' ← adv.postChallenge st ck.1 (if b then ck.2 else kRand)
-      pure (b == b')) x]
-  refine probOutput_bind_congr' (kem.encaps pk_sk.1) x ?_
-  intro ck
-  rw [probOutput_bind_bind_swap ($ᵗ Bool) ($ᵗ K)
+      pure (b == b'))).trans ?_
+  refine EvalDistEq.bind_right (kem.encaps pk_sk.1) fun ck => ?_
+  refine (OracleComp.EvalDistEq.bind_bind_swap ($ᵗ Bool) ($ᵗ K)
     (fun b kRand => do
       let b' ← adv.postChallenge st ck.1 (if b then ck.2 else kRand)
-      pure (b == b')) x]
-  refine probOutput_bind_congr' ($ᵗ K) x ?_
-  intro kRand
-  refine probOutput_bind_congr' ($ᵗ Bool) x ?_
-  intro b
-  cases b <;> rfl
+      pure (b == b'))).trans ?_
+  refine EvalDistEq.bind_right ($ᵗ K) fun kRand => ?_
+  refine EvalDistEq.bind_right ($ᵗ Bool) fun b => ?_
+  cases b <;> exact EvalDistEq.rfl
 
-/-- For every KEM `kem` and IND-CPA adversary `adv`,
-the normalized guessing advantage of `adv` against `kem` equals the absolute
-difference between its probabilities of returning `true` in the real-key
-and random-key experiments. -/
-private lemma indCPAGameProb_advantage_eq_fixed_dist [SampleableType K]
+/-- The branch game is the uniform-bit choice between the two fixed-bit experiments. -/
+private lemma indCPABranchGameProb_evalDistEq_bit [SampleableType K]
     (kem : KEMScheme ProbComp K PK SK C)
     (adv : kem.IND_CPA_Adversary) :
-    (indCPAGameProb kem adv).boolBiasAdvantage =
-      (indCPAExpProb kem adv true).boolDistAdvantage
-        (indCPAExpProb kem adv false) := by
-  rw [show (indCPAGameProb kem adv).boolBiasAdvantage =
-      (indCPABranchGameProb kem adv).boolBiasAdvantage by
-    unfold ProbComp.boolBiasAdvantage
-    rw [evalDist_ext_iff.mp (indCPAGameProb_evalDist_eq_branch kem adv) true]
-    rw [evalDist_ext_iff.mp (indCPAGameProb_evalDist_eq_branch kem adv) false]]
-  simpa [indCPABranchGameProb, indCPAExpProb] using
-    ProbComp.boolBiasAdvantage_bind_uniformBool_eq_boolDistAdvantage
-      (indCPAPrefix kem adv)
-      (fun p => adv.postChallenge p.st p.cStar p.kReal)
-      (fun p => adv.postChallenge p.st p.cStar p.kRand)
+    indCPABranchGameProb kem adv =ᵈ (do
+      let b ← ($ᵗ Bool)
+      let z ← if b then indCPAExpProb kem adv true else indCPAExpProb kem adv false
+      pure (b == z) : ProbComp Bool) := by
+  unfold indCPABranchGameProb
+  refine (OracleComp.EvalDistEq.bind_bind_swap (indCPAPrefix kem adv) ($ᵗ Bool) _).trans ?_
+  refine EvalDistEq.bind_right ($ᵗ Bool) fun b => ?_
+  cases b <;> simp only [indCPAExpProb, Bool.false_eq_true, ↓reduceIte, bind_assoc] <;>
+    exact EvalDistEq.rfl
 
-/-- For every bit `b`, `indCPAExpProb kem adv b` and the standard experiment
-`kem.IND_CPA_Exp ProbCompRuntime.probComp adv b` return `true` with the same probability. -/
-lemma indCPAExpProb_probOutput_true_eq [SampleableType K]
+/-- For every bit `b`, `indCPAExpProb kem adv b` is the standard fixed-bit experiment
+`kem.IND_CPA_Experiment ProbCompRuntime.probComp adv b`. -/
+lemma indCPAExpProb_eq_IND_CPA_Experiment [SampleableType K]
     (kem : KEMScheme ProbComp K PK SK C)
     (adv : kem.IND_CPA_Adversary) (b : Bool) :
-    Pr[= true | indCPAExpProb kem adv b] =
-      Pr[= true | kem.IND_CPA_Exp ProbCompRuntime.probComp adv b] := by
-  unfold KEMScheme.IND_CPA_Exp
-  rw [probOutput_probCompRuntime_evalDist_eq]
-  cases b <;>
-    simp [indCPAExpProb, indCPAPrefix,
-      ProbCompRuntime.probComp, ProbCompRuntime.liftProbComp, ProbCompLift.id,
-      monad_norm]
+    indCPAExpProb kem adv b = kem.IND_CPA_Experiment ProbCompRuntime.probComp adv b := by
+  simp only [indCPAExpProb, indCPAPrefix, bind_pure_comp, map_eq_bind_pure_comp, bind_assoc,
+    Function.comp_apply, pure_bind, IND_CPA_Experiment, ProbCompRuntime.liftProbComp,
+    ProbCompRuntime.probComp, ProbCompLift.id, MonadHom.id_apply]
 
+/-- For every bit `b`, `indCPAExpProb kem adv b` and the standard experiment
+`kem.IND_CPA_Experiment ProbCompRuntime.probComp adv b` return `true` with the same
+probability. -/
+lemma indCPAExpProb_prEvent_true_eq [SampleableType K]
+    (kem : KEMScheme ProbComp K PK SK C)
+    (adv : kem.IND_CPA_Adversary) (b : Bool) :
+    Pr{let x ← indCPAExpProb kem adv b}[x = true] =
+      Pr{let x ← kem.IND_CPA_Experiment ProbCompRuntime.probComp adv b}[x = true] := by
+  rw [indCPAExpProb_eq_IND_CPA_Experiment]
 
 /-- For every KEM `kem` and IND-CPA adversary `adv`,
 the normalized guessing advantage `IND_CPA_Advantage` of `adv` against `kem`
-equals the absolute difference between its probabilities of returning
-`true` in the real-key and random-key experiments `IND_CPA_Exp`. -/
+equals `|p_true - p_false|`, where `p_b` is the probability that `adv` returns `true` in the
+fixed-bit experiment `IND_CPA_Experiment` with bit `b`. -/
 theorem IND_CPA_Advantage_eq_fixed_branch_dist [SampleableType K]
     (kem : KEMScheme ProbComp K PK SK C)
     (adv : kem.IND_CPA_Adversary) :
     kem.IND_CPA_Advantage ProbCompRuntime.probComp adv =
-      |(Pr[= true | kem.IND_CPA_Exp ProbCompRuntime.probComp adv true]).toReal -
-        (Pr[= true | kem.IND_CPA_Exp ProbCompRuntime.probComp adv false]).toReal| := by
+      ENNReal.absDiff
+        Pr{let x ← kem.IND_CPA_Experiment ProbCompRuntime.probComp adv true}[x = true]
+        Pr{let x ← kem.IND_CPA_Experiment ProbCompRuntime.probComp adv false}[x = true] := by
   rw [show kem.IND_CPA_Advantage ProbCompRuntime.probComp adv =
-      (indCPAGameProb kem adv).boolBiasAdvantage by rfl]
-  rw [indCPAGameProb_advantage_eq_fixed_dist]
-  unfold ProbComp.boolDistAdvantage
-  rw [indCPAExpProb_probOutput_true_eq kem adv true]
-  rw [indCPAExpProb_probOutput_true_eq kem adv false]
+      𝒟[indCPAGameProb kem adv].boolBias by rfl,
+    (indCPAGameProb_evalDistEq_branch kem adv).evalDist_eq,
+    (indCPABranchGameProb_evalDistEq_bit kem adv).evalDist_eq,
+    evalDist_boolBias_bind_uniformBool, MeasureTheory.Measure.boolDist,
+    ← prEvent_eq_evalDist_singleton, ← prEvent_eq_evalDist_singleton,
+    indCPAExpProb_prEvent_true_eq, indCPAExpProb_prEvent_true_eq]
 
 end KEMScheme

@@ -281,14 +281,14 @@ Each branch is proved by a 3-step chain:
 
 ```text
 Pr[ℬ = true | DDH_real]
-    = Pr[= false | securityReductionRealGame]             -- (1) peel `¬b'`
-    = Pr[= false | securityExpRealGame]          -- (2) game-level bridge
-    = Pr[= false | securityExpFixedBit ... false gp]      -- (3) def. fold
+    = Pr{let x ← securityReductionRealGame}[x = false]             -- (1) peel `¬b'`
+    = Pr{let x ← securityExpRealGame}[x = false]          -- (2) game-level bridge
+    = Pr{let x ← securityExpFixedBit ... false gp}[x = false]      -- (3) def. fold
 
 Pr[ℬ = true | DDH_rand]
-    = Pr[= false | securityReductionRandGame]             -- (1) peel `¬b'`
-    = Pr[= false | securityExpRandGame]           -- (2) game-level bridge
-    = Pr[= false | securityExpFixedBit ... true gp]       -- (3) def. fold
+    = Pr{let x ← securityReductionRandGame}[x = false]             -- (1) peel `¬b'`
+    = Pr{let x ← securityExpRandGame}[x = false]           -- (2) game-level bridge
+    = Pr{let x ← securityExpFixedBit ... true gp}[x = false]       -- (3) def. fold
 ```
 
 Steps (1) and (3) on each branch are simple mechanical unfolding.
@@ -311,16 +311,15 @@ noncomputable def securityReductionRealGame (gp : GameParams)
 
   `Pr[ℬ = true | DDH_real]  =  Pr[securityReductionRealGame = false]`
 
-`ddhExpReal gen ℬ` and `securityReductionRealGame gp 𝒜` run the same sampling
+`ddhRealExperiment gen ℬ` and `securityReductionRealGame gp 𝒜` run the same sampling
 and simulation; they differ only in their (negated bit) return. -/
-lemma probOutput_ddhExpReal_securityReduction (gp : GameParams)
+lemma prEvent_ddhRealExperiment_securityReduction (gp : GameParams)
     (adversary : CKAAdversary (CKAState F G) G G F) :
-    Pr[= true | ddhExpReal gen (securityReduction gp adversary)] =
-    Pr[= false | securityReductionRealGame (gen := gen) gp adversary] := by
-  unfold DiffieHellman.ddhExpReal securityReduction
-  simpa [securityReductionRealGame, monad_norm] using
-    (probOutput_not_map (m := ProbComp)
-      (mx := securityReductionRealGame (gen := gen) gp adversary))
+    Pr{let x ← ddhRealExperiment gen (securityReduction gp adversary)}[x = true] =
+    Pr{let x ← securityReductionRealGame (gen := gen) gp adversary}[x = false] := by
+  unfold DiffieHellman.ddhRealExperiment securityReduction securityReductionRealGame
+  simp only [prEvent_norm]
+  simp only [Bool.not_eq_eq_eq_not, Bool.not_true, StateT.run'_eq, Functor.map_map]
 
 /-- **Game `CKA^{isRandom = false}`**
 `x₀ ←$ F`, run `𝒜` against `ckaSecurityImpl gp (ddhCKA F G gen)` with challenge bit `false`.
@@ -335,10 +334,10 @@ noncomputable def securityExpRealGame (gp : GameParams)
   `Pr[𝒜 = false ∣ securityExpFixedBit … false gp] = Pr[𝒜 = false | CKA^{isRandom = false}]`
 
 Pure definitional unfolding of `securityExpFixedBit` at `ddhCKA F G gen` -/
-lemma probOutput_securityExpFixedBit_false (gp : GameParams)
+lemma prEvent_securityExpFixedBit_false (gp : GameParams)
     (adversary : CKAAdversary (CKAState F G) G G F) :
-    Pr[= false | securityExpFixedBit (ddhCKA F G gen) adversary false gp] =
-    Pr[= false | securityExpRealGame (gen := gen) gp adversary] := by
+    Pr{let x ← securityExpFixedBit (ddhCKA F G gen) adversary false gp}[x = false] =
+    Pr{let x ← securityExpRealGame (gen := gen) gp adversary}[x = false] := by
   unfold CKAScheme.securityExpFixedBit securityExpRealGame ddhCKA
   simp [initGameState]
 
@@ -356,19 +355,18 @@ noncomputable def securityReductionRandGame (gp : GameParams)
 
 /-- **Step (1) of the random branch.** Peel `ℬ`'s final `¬`:
 
-  `Pr[ℬ = true | DDH_rand]  =  Pr[= false | securityReductionRandGame]`
+  `Pr[ℬ = true | DDH_rand]  =  Pr[securityReductionRandGame = false]`
 
-`ddhExpRand gen ℬ` returns `!b'` where `b'` is the output of
+`ddhRandomExperiment gen ℬ` returns `!b'` where `b'` is the output of
 `securityReductionRandGame`, so the probability of `true` on the left
-equals the probability of `false` on the right by `probOutput_not_map`. -/
-lemma probOutput_ddhExpRand_securityReduction (gp : GameParams)
+equals the probability of `false` on the right. -/
+lemma prEvent_ddhRandomExperiment_securityReduction (gp : GameParams)
     (adversary : CKAAdversary (CKAState F G) G G F) :
-    Pr[= true | ddhExpRand gen (securityReduction gp adversary)] =
-    Pr[= false | securityReductionRandGame (gen := gen) gp adversary] := by
-  unfold DiffieHellman.ddhExpRand securityReduction
-  simpa [securityReductionRandGame, monad_norm] using
-    (probOutput_not_map (m := ProbComp)
-      (mx := securityReductionRandGame (gen := gen) gp adversary))
+    Pr{let x ← ddhRandomExperiment gen (securityReduction gp adversary)}[x = true] =
+    Pr{let x ← securityReductionRandGame (gen := gen) gp adversary}[x = false] := by
+  unfold DiffieHellman.ddhRandomExperiment securityReduction securityReductionRandGame
+  simp only [prEvent_norm]
+  simp only [Bool.not_eq_eq_eq_not, Bool.not_true, StateT.run'_eq, Functor.map_map]
 
 /-- **Game `CKA^{isRandom = true}`**
  `x₀ ←$ F`, run `𝒜` against `ckaSecurityImpl gp (ddhCKA F G gen)` with challenge bit
@@ -383,15 +381,15 @@ noncomputable def securityExpRandGame (gp : GameParams)
 /-- **Step (3) of the random branch.** Fold the named endpoint game
 back into the generic fixed-bit notation at `isRandom = true`:
 
-  `Pr[= false | securityExpFixedBit ... true gp]
-    = Pr[= false | securityExpRandGame gp 𝒜]`
+  `Pr{let x ← securityExpFixedBit ... true gp}[x = false]
+    = Pr{let x ← securityExpRandGame gp 𝒜}[x = false]`
 
 Holds by unfolding both sides; the two games coincide definitionally
 once `ddhCKA`'s `initKeyGen`/`initA`/`initB` are inlined. -/
-lemma probOutput_securityExpFixedBit_true (gp : GameParams)
+lemma prEvent_securityExpFixedBit_true (gp : GameParams)
     (adversary : CKAAdversary (CKAState F G) G G F) :
-    Pr[= false | securityExpFixedBit (ddhCKA F G gen) adversary true gp] =
-    Pr[= false | securityExpRandGame (gen := gen) gp adversary] := by
+    Pr{let x ← securityExpFixedBit (ddhCKA F G gen) adversary true gp}[x = false] =
+    Pr{let x ← securityExpRandGame (gen := gen) gp adversary}[x = false] := by
   unfold CKAScheme.securityExpFixedBit securityExpRandGame ddhCKA
   simp [initGameState]
 

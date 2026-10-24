@@ -7,6 +7,8 @@ import SecureMessaging.KEM.MLKEM.Construction
 import SecureMessaging.KEM.MLKEM.Correctness
 import SecureMessaging.KEM.MLKEM.Correctness.EasyCryptBoundary
 
+/-! # Blueprint chapter: ML-KEM -/
+
 set_option linter.style.setOption false
 set_option linter.hashCommand false
 set_option linter.style.emptyLine false

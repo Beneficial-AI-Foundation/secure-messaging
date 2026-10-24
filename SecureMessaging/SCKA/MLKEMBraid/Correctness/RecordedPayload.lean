@@ -64,12 +64,12 @@ theorem receive_recorded_payload
     · simp only [GameState.stateAt, Bool.false_eq_true, ↓reduceIte] at hRole hencapsulator ht ⊢
       rw [hencapsulator] at hRole
       have hne := of_decide_eq_false hRole.symm
-      rw [if_pos (by omega), if_neg (by omega)]
+      rw [ite_eq_left (by omega), ite_eq_right (by omega)]
       exact ⟨rfl, rfl⟩
     · simp only [GameState.stateAt, ↓reduceIte] at hRole hencapsulator ht ⊢
       rw [hencapsulator] at hRole
       have hne := of_decide_eq_false hRole.symm
-      rw [if_neg (by omega), if_pos (by omega)]
+      rw [ite_eq_right (by omega), ite_eq_left (by omega)]
       exact ⟨rfl, rfl⟩
   -- Case on the receiver's state; each case applies the matching lemma of `Generator` or
   -- `Encapsulator`. Only `ekSentCt1Received` can output a key.

@@ -3,123 +3,151 @@ Copyright (c) 2026 Beneficial AI Foundation. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
-import VCVio.EvalDist.TVDist
-import VCVio.EvalDist.Bool
+import VCVio.EvalDist.MeasureTVDist.Bind
+import VCVio.EvalDist.MeasureTVDist.Event
+import VCVio.EvalDist.Monad.Map
+import VCVio.EvalDist.EvalDistEq
+import ToVCVio.EvalDist.Monad.Basic
 
 /-!
 # Total Variation Distance — Extra Lemmas
 
-Generic total-variation-distance (`tvDist`) facts that hold for any monad with an
+Generic total-variation-distance (`measureTVDist`) facts that hold for any monad with an
 evaluation distribution.
 
-* `tvDist_bind_const_right` removes a never-failing leading sample whose value is discarded from
-  the right-hand computation.
-* `tvDist_bind_left_event_le_const` (with its underlying tsum form
-  `tsum_probOutput_toReal_mul_tvDist_le_const_mul_probEvent`) is VCVio's `tvDist_bind_left_event_le`
-  with a tunable per-branch bound `c` in place of the trivial bound `1`.
-* `tvDist_eq_abs_probOutput_true_sub` computes the exact total-variation distance between two
-  never-failing `Bool`-valued computations, sharpening `abs_probOutput_toReal_sub_le_tvDist` (which
-  only gives one inequality direction, for possibly-failing computations) to an equality.
+* `measureTVDist_bind_const_right` removes a lossless leading sample whose value is discarded
+  from the right-hand computation.
+* `measureTVDist_bind_left_event_le_const` (with its tsum form
+  `tsum_prEvent_toReal_mul_measureTVDist_le_const_mul_prEvent`) is VCVio's
+  `OracleComp.measureTVDist_bind_left_le_prEvent_of_evalDistEq` with a tunable per-branch bound
+  `c` in place of the trivial bound `1`, in any monad.
+* `measureTVDist_eq_abs_prEvent_true_sub` computes the exact total-variation distance between two
+  lossless `Bool`-valued computations, sharpening `abs_prEvent_toReal_sub_le_measureTVDist`
+  (which only gives one inequality direction) to an equality.
 -/
+
+open MeasureTheory
+open scoped ENNReal
 
 namespace ToVCVio
 
-universe u v
+universe v
 
-variable {α : Type u} {m : Type u → Type v} [Monad m]
+variable {α : Type} {m : Type → Type v} [Monad m] [LawfulMonad m]
+  [EvalDistSemantics m] [LawfulEvalDistSemantics m]
 
 /-- Total-variation distance is unaffected by a trailing bind whose result is discarded: if `mx`
-never fails, `mx >>= fun _ => my` has exactly the same distribution as `my`. -/
-lemma tvDist_bind_const_right [MonadLiftT m SPMF] [LawfulMonadLiftT m SPMF]
-    [MonadLiftT m SetM] [EvalDistCompatible m]
-    {β : Type u} (mx' : m β) (mx : m α) [NeverFail mx] (my : m β) :
-    tvDist mx' (mx >>= fun _ => my) = tvDist mx' my := by
-  unfold tvDist
-  rw [evalDist_ext (mx := mx >>= fun _ => my) (mx' := my) fun y => by simp]
+is lossless, `mx >>= fun _ => my` has exactly the same distribution as `my`. -/
+lemma measureTVDist_bind_const_right {β : Type} [MeasurableSpace β]
+    (mx' : m β) (mx : m α) (my : m β) (hmx : Pr{let _ ← mx}[True] = 1 := by simp) :
+    measureTVDist mx' (mx >>= fun _ => my) = measureTVDist mx' my := by
+  let : MeasurableSpace α := ⊤
+  rw [prEvent_true_eq_evalDist_apply_univ] at hmx
+  simp only [measureTVDist, evalDist_bind_const, hmx, one_smul]
 
-omit [Monad m] in
 /-- A weighted identical-until-bad bound, in the style of the fundamental lemma of game playing:
-if `𝒟[f a] = 𝒟[g a]` for all `a` such that `¬ bad a`, and `tvDist (f a) (g a) ≤ c` even when `bad a`
+if `f a =ᵈ g a` for all `a` such that `¬ bad a`, and `δ(f a, g a) ≤ c` even when `bad a`
 holds, then averaging over any `mx : m α`,
-`∑ₐ Pr[= a | mx] · tvDist (f a) (g a) ≤ c · Pr[bad | mx]`.
-Sharpens VCVio's `tsum_probOutput_toReal_mul_tvDist_le_probEvent`, which only gets the trivial
-worst-case slack `c = 1`. -/
-lemma tsum_probOutput_toReal_mul_tvDist_le_const_mul_probEvent [MonadLiftT m PMF]
-    {β : Type u} (mx : m α) (f g : α → m β) (bad : α → Prop)
-    (c : ℝ) (hc : 0 ≤ c)
-    (h_eq : ∀ a, ¬ bad a → 𝒟[f a] = 𝒟[g a])
-    (h_le : ∀ a, bad a → tvDist (f a) (g a) ≤ c) :
-    (∑' a, Pr[= a | mx].toReal * tvDist (f a) (g a)) ≤ c * Pr[bad | mx].toReal := by
+`∑ₐ Pr{let x ← mx}[x = a] · δ(f a, g a) ≤ c · Pr{let x ← mx}[bad x]`,
+where `δ` is `measureTVDist`. Sharpens the trivial worst-case slack `c = 1`. -/
+lemma tsum_prEvent_toReal_mul_measureTVDist_le_const_mul_prEvent {β : Type} [MeasurableSpace β]
+    (mx : m α) (f g : α → m β) (bad : α → Prop) (c : ℝ) (hc : 0 ≤ c)
+    (h_eq : ∀ a, ¬ bad a → f a =ᵈ g a)
+    (h_le : ∀ a, bad a → measureTVDist (f a) (g a) ≤ c) :
+    (∑' a, Pr{let x ← mx}[x = a].toReal * measureTVDist (f a) (g a)) ≤
+      c * Pr{let x ← mx}[bad x].toReal := by
   classical
-  have h_p_summable : Summable (fun a : α => Pr[= a | mx].toReal) :=
-    ENNReal.summable_toReal (ne_top_of_le_ne_top ENNReal.one_ne_top tsum_probOutput_le_one)
-  calc (∑' a, Pr[= a | mx].toReal * tvDist (f a) (g a))
-      ≤ ∑' a, if bad a then c * Pr[= a | mx].toReal else 0 := by
-        refine Summable.tsum_le_tsum (fun a => ?_)
-          (h_p_summable.of_nonneg_of_le
-            (fun a => mul_nonneg ENNReal.toReal_nonneg (tvDist_nonneg _ _))
-            (fun a => mul_le_of_le_one_right ENNReal.toReal_nonneg (tvDist_le_one _ _)))
-          ((h_p_summable.mul_left c).of_nonneg_of_le
-            (fun a => by by_cases ha : bad a <;> simp [ha, mul_nonneg hc ENNReal.toReal_nonneg])
-            (fun a => by by_cases ha : bad a <;> simp [ha, mul_nonneg hc ENNReal.toReal_nonneg]))
-        by_cases ha : bad a
-        · simpa [ha, mul_comm] using
-            mul_le_mul_of_nonneg_left (h_le a ha) ENNReal.toReal_nonneg
-        · simp [ha, (tvDist_eq_zero_iff (f a) (g a)).2 (h_eq a ha)]
-    _ = c * Pr[bad | mx].toReal := by
-        rw [show (∑' a, if bad a then c * Pr[= a | mx].toReal else 0) =
-            c * ∑' a, if bad a then Pr[= a | mx].toReal else 0 from by
-          rw [← tsum_mul_left]
-          exact tsum_congr fun a => by by_cases ha : bad a <;> simp [ha]]
-        congr 1
-        rw [probEvent_eq_tsum_ite, ENNReal.tsum_toReal_eq fun a => by
-          by_cases ha : bad a
-          · simp [ha,
-              ne_top_of_le_ne_top ENNReal.one_ne_top (probOutput_le_one (mx := mx) (x := a))]
-          · simp [ha]]
-        exact tsum_congr fun a => by by_cases ha : bad a <;> simp [ha]
+  have hterm : ∀ a, Pr{let x ← mx}[x = a] * measureETVDist (f a) (g a) ≤
+      ENNReal.ofReal c * (if bad a then Pr{let x ← mx}[x = a] else 0) := by
+    intro a
+    by_cases ha : bad a
+    · rw [ite_eq_left ha, mul_comm]
+      exact mul_le_mul'
+        ((ENNReal.le_ofReal_iff_toReal_le (measureETVDist_ne_top _ _) hc).2 (h_le a ha)) le_rfl
+    · rw [ite_eq_right ha, mul_zero, (measureETVDist_eq_zero_iff _ _).2 (h_eq a ha).evalDist_eq,
+        mul_zero]
+  have hsum : ∑' a, Pr{let x ← mx}[x = a] * measureETVDist (f a) (g a) ≤
+      ENNReal.ofReal c * Pr{let x ← mx}[bad x] := by
+    refine (ENNReal.tsum_le_tsum hterm).trans ?_
+    rw [ENNReal.tsum_mul_left]
+    exact mul_le_mul' le_rfl (tsum_ite_prEvent_eq_le_prEvent mx bad)
+  calc (∑' a, Pr{let x ← mx}[x = a].toReal * measureTVDist (f a) (g a))
+      = (∑' a, Pr{let x ← mx}[x = a] * measureETVDist (f a) (g a)).toReal := by
+        rw [ENNReal.tsum_toReal_eq fun a =>
+          ENNReal.mul_ne_top (prEvent_ne_top _) (measureETVDist_ne_top _ _)]
+        simp only [ENNReal.toReal_mul, measureTVDist_eq_toReal_measureETVDist]
+    _ ≤ (ENNReal.ofReal c * Pr{let x ← mx}[bad x]).toReal :=
+        ENNReal.toReal_mono (ENNReal.mul_ne_top ENNReal.ofReal_ne_top (prEvent_ne_top _)) hsum
+    _ = c * Pr{let x ← mx}[bad x].toReal := by
+        rw [ENNReal.toReal_mul, ENNReal.toReal_ofReal hc]
 
 /-- Bind-level identical-until-bad bound:
-if `𝒟[f a] = 𝒟[g a]` for all `a` such that `¬ bad a`, and `tvDist (f a) (g a) ≤ c` even when `bad a`
+if `f a =ᵈ g a` for all `a` such that `¬ bad a`, and `δ(f a, g a) ≤ c` even when `bad a`
 holds, then averaging over any `mx : m α`,
-`tvDist (mx >>= f) (mx >>= g) ≤ c · Pr[bad | mx]`.
-Sharpens VCVio's `tvDist_bind_left_event_le`, which only gets the trivial worst-case slack
-`c = 1`. -/
-lemma tvDist_bind_left_event_le_const [LawfulMonad m] [MonadLiftT m PMF] [LawfulMonadLiftT m PMF]
-    {β : Type u} (mx : m α) (f g : α → m β) (bad : α → Prop) (c : ℝ) (hc : 0 ≤ c)
-    (h_eq : ∀ a, ¬ bad a → 𝒟[f a] = 𝒟[g a])
-    (h_le : ∀ a, bad a → tvDist (f a) (g a) ≤ c) :
-    tvDist (mx >>= f) (mx >>= g) ≤ c * Pr[bad | mx].toReal :=
-  le_trans (tvDist_bind_left_le mx f g)
-    (tsum_probOutput_toReal_mul_tvDist_le_const_mul_probEvent mx f g bad c hc h_eq h_le)
+`δ(mx >>= f, mx >>= g) ≤ c · Pr{let x ← mx}[bad x]`, where `δ` is `measureTVDist`.
+Sharpens VCVio's `OracleComp.measureTVDist_bind_left_le_prEvent_of_evalDistEq`, which only gets
+the trivial worst-case slack `c = 1`. -/
+lemma measureTVDist_bind_left_event_le_const {β : Type} [MeasurableSpace β]
+    (mx : m α) (f g : α → m β) (bad : α → Prop) (c : ℝ) (hc : 0 ≤ c)
+    (h_eq : ∀ a, ¬ bad a → f a =ᵈ g a)
+    (h_le : ∀ a, bad a → measureTVDist (f a) (g a) ≤ c) :
+    measureTVDist (mx >>= f) (mx >>= g) ≤ c * Pr{let x ← mx}[bad x].toReal := by
+  let : MeasurableSpace α := ⊤
+  have hbound : ∀ᵐ a ∂𝒟[mx], measureETVDist (f a) (g a) ≤
+      {a | bad a}.indicator (fun _ => ENNReal.ofReal c) a := by
+    refine Filter.Eventually.of_forall fun a => ?_
+    by_cases ha : bad a
+    · rw [Set.indicator_of_mem (by exact ha)]
+      exact (ENNReal.le_ofReal_iff_toReal_le (measureETVDist_ne_top _ _) hc).2 (h_le a ha)
+    · rw [Set.indicator_of_notMem (by exact ha),
+        (measureETVDist_eq_zero_iff _ _).2 (h_eq a ha).evalDist_eq]
+  have hint : ∫⁻ a, {a | bad a}.indicator (fun _ => ENNReal.ofReal c) a ∂𝒟[mx] =
+      ENNReal.ofReal c * Pr{let x ← mx}[bad x] := by
+    rw [lintegral_indicator_const MeasurableSet.of_discrete, prEvent_eq_evalDist_of_discrete]
+  refine (measureTVDist_bind_bind_le_lintegral mx f g .of_discrete .of_discrete _ hbound
+    (by rw [hint]; exact ENNReal.mul_ne_top ENNReal.ofReal_ne_top (prEvent_ne_top _))).trans ?_
+  rw [hint, ENNReal.toReal_mul, ENNReal.toReal_ofReal hc]
 
-/-- For _never-failing_ `Bool`-valued experiments, total-variation distance equals the optimal
-distinguishing advantage exactly: `tvDist p q = |Pr[p = true] − Pr[q = true]|` — the best possible
+/-- For _lossless_ `Bool`-valued experiments, total-variation distance equals the optimal
+distinguishing advantage exactly: `δ(p, q) = |Pr[p = true] − Pr[q = true]|` — the best possible
 distinguisher against `p`/`q` is just "guess the bit you observed," and no distinguisher can do
 better.
-Sharpens VCVio's `abs_probOutput_toReal_sub_le_tvDist` which only lower-bounds `tvDist`. -/
-lemma tvDist_eq_abs_probOutput_true_sub {m : Type → Type v} [Monad m]
-    [MonadLiftT m SPMF]
-    (p q : m Bool) [NeverFail p] [NeverFail q] :
-    tvDist p q = |(Pr[= true | p]).toReal - (Pr[= true | q]).toReal| := by
-  have hp_none : (𝒟[p]).toPMF none = 0 := NeverFail.probFailure_eq_zero
-  have hq_none : (𝒟[q]).toPMF none = 0 := NeverFail.probFailure_eq_zero
-  have hp_true : (𝒟[p]).toPMF (some true) = Pr[= true | p] := rfl
-  have hq_true : (𝒟[q]).toPMF (some true) = Pr[= true | q] := rfl
-  have hp_false : (𝒟[p]).toPMF (some false) = 1 - Pr[= true | p] := by
-    rw [show (𝒟[p]).toPMF (some false) = Pr[= false | p] from rfl, probOutput_false_eq_sub,
-      NeverFail.probFailure_eq_zero, tsub_zero]
-  have hq_false : (𝒟[q]).toPMF (some false) = 1 - Pr[= true | q] := by
-    rw [show (𝒟[q]).toPMF (some false) = Pr[= false | q] from rfl, probOutput_false_eq_sub,
-      NeverFail.probFailure_eq_zero, tsub_zero]
-  unfold tvDist SPMF.tvDist PMF.tvDist PMF.etvDist
-  rw [tsum_fintype, Fintype.sum_option, Fintype.sum_bool, hp_none, hq_none,
-    ENNReal.absDiff_self, zero_add, hp_true, hq_true, hp_false, hq_false,
-    ENNReal.absDiff_tsub_tsub probOutput_le_one probOutput_le_one ENNReal.one_ne_top,
-    show ENNReal.absDiff (Pr[= true | p]) (Pr[= true | q]) +
-        ENNReal.absDiff (Pr[= true | p]) (Pr[= true | q]) =
-        2 * ENNReal.absDiff (Pr[= true | p]) (Pr[= true | q]) from by ring,
-    mul_div_assoc, ENNReal.mul_div_cancel two_ne_zero ENNReal.ofNat_ne_top]
-  exact ENNReal.absDiff_toReal probOutput_ne_top probOutput_ne_top
+Sharpens VCVio's `abs_prEvent_toReal_sub_le_measureTVDist` which only lower-bounds
+`measureTVDist`. -/
+lemma measureTVDist_eq_abs_prEvent_true_sub (p q : m Bool)
+    (hp : Pr{let _ ← p}[True] = 1 := by simp) (hq : Pr{let _ ← q}[True] = 1 := by simp) :
+    measureTVDist p q =
+      |(Pr{let x ← p}[x = true]).toReal - (Pr{let x ← q}[x = true]).toReal| := by
+  rw [prEvent_true_eq_evalDist_apply_univ] at hp hq
+  have hle (μ : Measure Bool) (hμ : μ Set.univ = 1) (s : Set Bool) : μ s ≤ 1 :=
+    (measure_mono (Set.subset_univ s)).trans hμ.le
+  have hcompl (μ : Measure Bool) (hμ : μ Set.univ = 1) : μ {false} = 1 - μ {true} := by
+    have hs : ({false} : Set Bool) = {true}ᶜ := by ext b; cases b <;>
+      simp only [Set.mem_singleton_iff, Bool.true_eq_false, Bool.compl_singleton, Bool.not_true]
+    rw [hs, measure_compl (measurableSet_singleton _)
+      (ne_top_of_le_ne_top ENNReal.one_ne_top (hle μ hμ _)), hμ]
+  rw [prEvent_eq_evalDist_singleton, prEvent_eq_evalDist_singleton,
+    ← ENNReal.absDiff_toReal (ne_top_of_le_ne_top ENNReal.one_ne_top (hle _ hp _))
+      (ne_top_of_le_ne_top ENNReal.one_ne_top (hle _ hq _))]
+  unfold measureTVDist Measure.tvDist
+  congr 1
+  refine le_antisymm ?_ (Measure.absDiff_apply_le_etvDist _ _ (measurableSet_singleton true))
+  refine iSup_le fun ⟨s, _⟩ => ?_
+  have key : s = ∅ ∨ s = {true} ∨ s = {false} ∨ s = Set.univ := by
+    by_cases ht : true ∈ s <;> by_cases hf : false ∈ s
+    · exact Or.inr <| Or.inr <| Or.inr <| by
+        ext b; cases b <;> simp only [ht, hf, Bool.univ_eq, Set.mem_insert_iff,
+          Set.mem_singleton_iff, Bool.true_eq_false, Bool.false_eq_true, or_true, or_false]
+    · exact Or.inr <| Or.inl <| by
+        ext b; cases b <;> simp only [ht, hf, Set.mem_singleton_iff, Bool.false_eq_true]
+    · exact Or.inr <| Or.inr <| Or.inl <| by
+        ext b; cases b <;> simp only [ht, hf, Set.mem_singleton_iff, Bool.true_eq_false]
+    · exact Or.inl <| by ext b; cases b <;> simp only [ht, hf, Set.mem_empty_iff_false]
+  rcases key with rfl | rfl | rfl | rfl
+  · simp only [measure_empty, ENNReal.absDiff_self, zero_le]
+  · exact le_rfl
+  · rw [hcompl _ hp, hcompl _ hq,
+      ENNReal.absDiff_tsub_tsub (hle _ hp _) (hle _ hq _) ENNReal.one_ne_top]
+  · simp only [hp, hq, ENNReal.absDiff_self, zero_le]
 
 end ToVCVio

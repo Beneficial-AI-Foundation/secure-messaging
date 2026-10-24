@@ -4,9 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import VCVio.EvalDist.TVDist
-import VCVio.OracleComp.Constructions.SampleableType
-import ToVCVio.OracleComp.Constructions.BitVec
+module
+
+import ToMathlib.MeasureTheory.Measure.Coupling.Maximal
+public import VCVio.EvalDist.MeasureTVDist.Basic
+public import VCVio.OracleComp.Constructions.SampleableType
+public import ToVCVio.OracleComp.Constructions.BitVec
 
 /-!
 # Uniform samples through an injection
@@ -14,15 +17,17 @@ import ToVCVio.OracleComp.Constructions.BitVec
 The distributional ingredients of the fixed-list PRP/PRF switching bound, which
 `CryptoFoundations/PRPSwitching.lean` assembles:
 
-* `tvDist_map_injective_uniformSample`: a uniform sample pushed through an injection
+* `measureTVDist_map_injective_uniformSample`: a uniform sample pushed through an injection
   `A → B` is at total-variation distance exactly `1 - card A / card B` from uniform on `B`;
 * `two_mul_sub_descFactorial_le`: the birthday inequality
   `1 - N.descFactorial q / N^q ≤ q(q - 1)/(2N)`, in `ℕ` with denominators cleared;
-* `evalDist_listMapM_uniform_eq_map_ofFn`: `q` independent uniform draws are one uniform
+* `evalDistEq_listMapM_uniform_map_ofFn`: `q` independent uniform draws are one uniform
   draw from `Fin q → X`.
 
 Candidate for upstream VCVio.
 -/
+
+@[expose] public section
 
 open ENNReal
 
@@ -32,10 +37,12 @@ namespace OracleComp
 
 /-- Let `ι : A → B` be injective, `a` uniform on `A` and `b` uniform on `B`. The
 total-variation distance between the laws of `ι(a)` and `b` is exactly `1 - |A|/|B|`. -/
-theorem tvDist_map_injective_uniformSample {A B : Type} [Fintype A] [Fintype B]
+theorem measureTVDist_map_injective_uniformSample {A B : Type} [Fintype A] [Fintype B]
     [SampleableType A] [SampleableType B] (ι : A → B) (hι : Function.Injective ι) :
-    tvDist (ι <$> ($ᵗ A : ProbComp A)) ($ᵗ B : ProbComp B)
+    letI : MeasurableSpace B := ⊤
+    measureTVDist (ι <$> ($ᵗ A : ProbComp A)) ($ᵗ B : ProbComp B)
       = 1 - (Fintype.card A : ℝ) / (Fintype.card B : ℝ) := by
+  let _ : MeasurableSpace B := ⊤
   -- `DecidableEq` is supplied explicitly rather than by `classical`: instance search from a
   -- bare `SampleableType` context times out at 20000 synthesis heartbeats in this build.
   let : DecidableEq A := Classical.decEq A
@@ -43,72 +50,43 @@ theorem tvDist_map_injective_uniformSample {A B : Type} [Fintype A] [Fintype B]
   set S : Finset B := Finset.univ.image ι with hS
   have hcard : Fintype.card A ≤ Fintype.card B := Fintype.card_le_of_injective ι hι
   have hApos : 0 < Fintype.card A := Fintype.card_pos
-  have hBpos : 0 < Fintype.card B := Fintype.card_pos
   have hA0 : (Fintype.card A : ℝ) ≠ 0 := Nat.cast_ne_zero.mpr hApos.ne'
-  have hB0 : (Fintype.card B : ℝ) ≠ 0 := Nat.cast_ne_zero.mpr hBpos.ne'
   have hcardS : S.card = Fintype.card A := by
     rw [hS, Finset.card_image_of_injective _ hι, Finset.card_univ]
   -- The mass of the pushed-forward sample: `(card A)⁻¹` on the image, `0` off it.
-  have hp : ∀ b : B, Pr[= b | ι <$> ($ᵗ A : ProbComp A)]
+  have hp : ∀ b : B, Pr{let x ← ι <$> ($ᵗ A : ProbComp A)}[x = b]
       = if b ∈ S then (Fintype.card A : ℝ≥0∞)⁻¹ else 0 := by
     intro b
     by_cases hb : b ∈ S
     · obtain ⟨a, -, rfl⟩ := Finset.mem_image.mp hb
-      rw [if_pos hb, probOutput_map_injective _ hι a, probOutput_uniformSample]
-    · rw [if_neg hb]
-      refine probOutput_eq_zero_of_not_mem_support ?_
+      rw [ite_eq_left hb, prEvent_map_injective _ hι a,
+        SampleableType.prEvent_uniformSample_eq_singleton]
+    · rw [ite_eq_right hb]
+      refine (prEvent_eq_zero_of_not_mem_support _) ?_
       rw [support_map]
       rintro ⟨a, -, rfl⟩
       exact hb (by rw [hS]; exact Finset.mem_image.mpr ⟨a, Finset.mem_univ a, rfl⟩)
-  have hinvle : (Fintype.card B : ℝ)⁻¹ ≤ (Fintype.card A : ℝ)⁻¹ :=
-    inv_anti₀ (by positivity) (Nat.cast_le.mpr hcard)
-  -- Each summand, measured in `ℝ` rather than in `ℝ≥0∞`.
-  have key : ∀ b : B,
-      (ENNReal.absDiff (Pr[= b | ι <$> ($ᵗ A : ProbComp A)])
-        (Pr[= b | ($ᵗ B : ProbComp B)])).toReal
-        = if b ∈ S then (Fintype.card A : ℝ)⁻¹ - (Fintype.card B : ℝ)⁻¹
-          else (Fintype.card B : ℝ)⁻¹ := by
-    intro b
-    rw [ENNReal.absDiff_toReal probOutput_ne_top probOutput_ne_top, hp b,
-      probOutput_uniformSample]
-    by_cases hb : b ∈ S
-    · rw [if_pos hb, if_pos hb, ENNReal.toReal_inv, ENNReal.toReal_inv,
-        ENNReal.toReal_natCast, ENNReal.toReal_natCast, abs_of_nonneg (by linarith)]
-    · rw [if_neg hb, if_neg hb, ENNReal.toReal_inv, ENNReal.toReal_natCast,
-        ENNReal.toReal_zero, zero_sub, abs_neg, abs_of_nonneg (by positivity)]
-  have habs : ∀ b : B, ENNReal.absDiff (Pr[= b | ι <$> ($ᵗ A : ProbComp A)])
-      (Pr[= b | ($ᵗ B : ProbComp B)]) ≠ ⊤ := by
-    intro b
-    simp only [ENNReal.absDiff, ne_eq, ENNReal.add_eq_top, not_or]
-    exact ⟨ENNReal.sub_ne_top probOutput_ne_top, ENNReal.sub_ne_top probOutput_ne_top⟩
-  -- Re-shaped so the sum splits as a constant plus a sum over the image alone; this is what
-  -- keeps `Fintype.card B - Fintype.card A` out of the statement as a `ℕ` subtraction.
-  have hsplit : ∀ b : B,
-      (if b ∈ S then (Fintype.card A : ℝ)⁻¹ - (Fintype.card B : ℝ)⁻¹
-        else (Fintype.card B : ℝ)⁻¹)
-        = (Fintype.card B : ℝ)⁻¹
-          + (if b ∈ S then (Fintype.card A : ℝ)⁻¹ - 2 * (Fintype.card B : ℝ)⁻¹ else 0) := by
-    intro b
-    by_cases hb : b ∈ S
-    · rw [if_pos hb, if_pos hb]; ring
-    · rw [if_neg hb, if_neg hb, add_zero]
-  rw [tvDist, SPMF.tvDist, PMF.tvDist, PMF.etvDist, tsum_option _ ENNReal.summable]
-  have hfailx : (𝒟[ι <$> ($ᵗ A : ProbComp A)]).toPMF none = 0 := probFailure_eq_zero
-  have hfaily : (𝒟[($ᵗ B : ProbComp B)]).toPMF none = 0 := probFailure_eq_zero
-  have hsome :
-      (∑' x : B, ENNReal.absDiff ((𝒟[ι <$> ($ᵗ A : ProbComp A)]).toPMF (some x))
-          ((𝒟[($ᵗ B : ProbComp B)]).toPMF (some x)))
-        = ∑' x : B, ENNReal.absDiff (Pr[= x | ι <$> ($ᵗ A : ProbComp A)])
-            (Pr[= x | ($ᵗ B : ProbComp B)]) :=
-    tsum_congr fun _ => rfl
-  rw [hfailx, hfaily, ENNReal.absDiff_self, zero_add, hsome, tsum_fintype,
-    ENNReal.toReal_div, ENNReal.toReal_ofNat,
-    ENNReal.toReal_sum (fun b _ => habs b), Finset.sum_congr rfl (fun b _ => key b),
-    Finset.sum_congr rfl (fun b _ => hsplit b), Finset.sum_add_distrib, Finset.sum_const,
-    Finset.sum_ite_mem, Finset.univ_inter, Finset.sum_const, Finset.card_univ, hcardS]
-  simp only [nsmul_eq_mul]
+  have hinvle : (Fintype.card B : ℝ≥0∞)⁻¹ ≤ (Fintype.card A : ℝ≥0∞)⁻¹ :=
+    ENNReal.inv_le_inv.mpr (Nat.cast_le.mpr hcard)
+  -- Both laws live on all of `B`, so the distance is the total excess of `ι(a)` over `b`.
+  have hcompl : ((Finset.univ : Finset B) : Set B)ᶜ = ∅ := by
+    rw [Finset.coe_univ, Set.compl_univ]
+  have hE : measureETVDist (ι <$> ($ᵗ A : ProbComp A)) ($ᵗ B : ProbComp B)
+      = (Fintype.card A : ℝ≥0∞) * ((Fintype.card A : ℝ≥0∞)⁻¹ - (Fintype.card B : ℝ≥0∞)⁻¹) := by
+    rw [measureETVDist, MeasureTheory.Measure.etvDist_eq_sum_tsub (F := Finset.univ)
+      (by rw [hcompl, MeasureTheory.measure_empty]) (by rw [hcompl, MeasureTheory.measure_empty])]
+    simp_rw [← prEvent_eq_evalDist_singleton, hp, SampleableType.prEvent_uniformSample_eq_singleton]
+    have hterm : ∀ b : B, ((if b ∈ S then (Fintype.card A : ℝ≥0∞)⁻¹ else 0)
+        - (Fintype.card B : ℝ≥0∞)⁻¹)
+        = if b ∈ S then (Fintype.card A : ℝ≥0∞)⁻¹ - (Fintype.card B : ℝ≥0∞)⁻¹ else 0 := by
+      intro b
+      by_cases hb : b ∈ S <;> simp only [hb, ↓reduceIte, zero_tsub]
+    rw [Finset.sum_congr rfl (fun b _ => hterm b), Finset.sum_ite_mem, Finset.univ_inter,
+      Finset.sum_const, hcardS, nsmul_eq_mul]
+  rw [measureTVDist_eq_toReal_measureETVDist, hE, ENNReal.toReal_mul,
+    ENNReal.toReal_sub_of_le hinvle (by simp), ENNReal.toReal_inv, ENNReal.toReal_inv,
+    ENNReal.toReal_natCast, ENNReal.toReal_natCast]
   field_simp
-  ring
 
 /-! ## The birthday arithmetic -/
 
@@ -159,15 +137,14 @@ theorem two_mul_sub_descFactorial_le (N : ℕ) : ∀ q : ℕ,
 
 /-- Let `q = pts.length`. A list of `q` independent uniform samples from `X` has the same law as
 the list `f(0), …, f(q - 1)` for a uniformly random function `f : Fin q → X`. -/
-theorem evalDist_listMapM_uniform_eq_map_ofFn {X : Type} [FinEnum X] [Nonempty X]
+theorem evalDistEq_listMapM_uniform_map_ofFn {X : Type} [FinEnum X] [Nonempty X]
     (pts : List X) :
-    evalDist (pts.mapM (fun _ => ($ᵗ X : ProbComp X)))
-      = evalDist ((List.ofFn : (Fin pts.length → X) → List X) <$>
-          ($ᵗ (Fin pts.length → X) : ProbComp (Fin pts.length → X))) := by
-  rw [ToVCVio.evalDist_mapM_const_uniform]
-  have h := evalDist_map_eq_of_evalDist_eq (evalDist_map_bijective_uniform_cross
-    (α := Vector X pts.length) (arrayVectorEquivFin X pts.length)
-    (arrayVectorEquivFin X pts.length).bijective) List.ofFn
+    pts.mapM (fun _ => ($ᵗ X : ProbComp X))
+      =ᵈ (List.ofFn : (Fin pts.length → X) → List X) <$>
+          ($ᵗ (Fin pts.length → X) : ProbComp (Fin pts.length → X)) := by
+  refine (ToVCVio.evalDistEq_mapM_const_uniform pts).trans ?_
+  have h := EvalDistEq.map (SampleableType.map_uniformSample_evalDistEq_of_bijective
+    (α := Vector X pts.length) (arrayVectorEquivFin X pts.length).bijective) List.ofFn
   rw [Functor.map_map] at h
   have hfun : (Vector.toList : Vector X pts.length → List X)
       = fun v => List.ofFn ((arrayVectorEquivFin X pts.length) v) := by

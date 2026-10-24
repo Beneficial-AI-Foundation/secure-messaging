@@ -9,6 +9,8 @@ import SecureMessaging.SCKA.SPQR.Chunked
 import SecureMessaging.SCKA.SPQR.Construction
 import SecureMessaging.SCKA.SPQR.Instances
 
+/-! # Blueprint chapter: SPQR -/
+
 set_option linter.style.setOption false
 set_option linter.hashCommand false
 set_option linter.style.emptyLine false

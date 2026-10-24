@@ -1,7 +1,3 @@
-/-
-Unified Verso manual: every chapter in one `#doc`. CI and
-`scripts/render-docs-site.sh` render this, then overlay the project landing page.
--/
 import VersoManual
 import VersoBlueprint
 import VersoBlueprint.Commands.Graph
@@ -16,6 +12,13 @@ import SecureMessagingDocs.Chapters.PRFPRNG.Overview
 import SecureMessagingDocs.Chapters.RKEM.Overview
 import SecureMessagingDocs.Chapters.SCKA.Overview
 import SecureMessagingDocs.Chapters.SecureMessaging.Overview
+
+/-!
+# Secure Messaging blueprint
+
+Unified Verso manual: every chapter in one `#doc`. CI and
+`scripts/render-docs-site.sh` render this, then overlay the project landing page.
+-/
 
 set_option linter.style.setOption false
 set_option linter.hashCommand false

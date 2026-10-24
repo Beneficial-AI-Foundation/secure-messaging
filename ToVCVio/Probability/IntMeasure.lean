@@ -4,8 +4,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import Mathlib.Algebra.MonoidAlgebra.Defs
-import Mathlib.Algebra.MonoidAlgebra.Support
+module
+
+public import Mathlib.Algebra.MonoidAlgebra.Defs
+public import Mathlib.Algebra.MonoidAlgebra.Support
+import Mathlib.Algebra.Order.Ring.Abs
+import Mathlib.Tactic.Ring
 
 /-!
 # Finite integer counting measures
@@ -36,6 +40,8 @@ These measures support exact failure-probability certificates for
 lattice-based schemes, which compose per-coefficient noise measures and
 evaluate their tail masses.
 -/
+
+@[expose] public section
 
 namespace ToVCVio
 
@@ -191,8 +197,8 @@ theorem mul_apply_window {F G : IntMeasure} {lo : ℤ} {n : ℕ}
       exact if_congr (by omega) rfl rfl
     rw [hcong, Finsupp.sum_ite_eq' G.coeff (v - a) fun _ k => m * k]
     by_cases hmem : v - a ∈ G.coeff.support
-    · rw [if_pos hmem]
-    · rw [if_neg hmem, Finsupp.notMem_support_iff.mp hmem, mul_zero]
+    · rw [ite_eq_left hmem]
+    · rw [ite_eq_right hmem, Finsupp.notMem_support_iff.mp hmem, mul_zero]
   rw [Finsupp.sum_congr (g2 := fun a m => m * G.coeff (v - a))
     fun a _ => hinner a (F.coeff a)]
   rw [Finsupp.sum_of_support_subset F.coeff
@@ -243,7 +249,7 @@ theorem exists_of_productMeasure_apply_ne_zero {F G : IntMeasure} {v : ℤ}
   obtain ⟨b, hb, hbne⟩ := Finset.exists_ne_zero_of_sum_ne_zero hane
   refine ⟨a, b, Finsupp.mem_support_iff.mp ha, Finsupp.mem_support_iff.mp hb, ?_⟩
   by_contra hne
-  exact hbne (if_neg hne)
+  exact hbne (ite_eq_right hne)
 
 /-- A product of symmetrically windowed finite measures is windowed by the
 product bound. -/

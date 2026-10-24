@@ -5,7 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Projection
-import ToVCVio.OracleComp.ExpectedPayoff
+import ToVCVio.ProgramLogic.Unary.WP
 
 /-!
 # Opp-UniKEM-CKA Adversary Composition
@@ -21,8 +21,7 @@ For an execution of the tracked game against an adversary `adv`, let:
   failure probability of the KEM epoch in progress;
 * `S(s, b) := trackedFailureScore (s, b)` (`Reduction.Core`), equal to `1`
   when `b = true` and to `V(s)` otherwise;
-* `E[S(s_f, b_f)]` denote `expectedPayoff` of the final score, which assigns
-  score `1` to computation failure.
+* `E[S(s_f, b_f)]` denote `wp` of the final score.
 
 For every tracked execution,
 
@@ -35,6 +34,7 @@ tracked failure score.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
+open OracleComp.ProgramLogic
 
 namespace oppUniKemCKA
 
@@ -60,9 +60,9 @@ lemma tracked_bad_probability_le_score [DecidableEq K]
       (Bool ×
         (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) ×
           Bool))) :
-    Pr[fun z => z.2.2 = true | oa] ≤
-      expectedPayoff oa (fun z => trackedFailureScore kem onoff z.2) :=
-  probEvent_le_expectedPayoff oa _ _ fun z hz => by simp [trackedFailureScore, hz]
+    Pr{let z ← oa}[z.2.2 = true] ≤
+      wp oa (fun z => trackedFailureScore kem onoff z.2) :=
+  prEvent_le_wp oa _ _ fun z hz => by simp [trackedFailureScore, hz]
 
 end Reduction.Internal
 

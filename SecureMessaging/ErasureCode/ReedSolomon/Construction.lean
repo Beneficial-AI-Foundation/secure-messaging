@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import Mathlib.LinearAlgebra.Lagrange
-import SecureMessaging.ErasureCode.Defs
+module
+
+public import Mathlib.LinearAlgebra.Lagrange
+public import SecureMessaging.ErasureCode.Defs
 
 /-!
 # Reed–Solomon Erasure-Code Construction
@@ -121,6 +123,8 @@ output    :  (Q(x₀), …, Q(x_(k-1)))         = (m₀, …, m_(k-1)) when all 
 over `Σ = F`.
 Correctness is proved in `SecureMessaging.ErasureCode.ReedSolomon.Correctness`
 -/
+
+@[expose] public section
 
 namespace ErasureCode.ReedSolomon
 

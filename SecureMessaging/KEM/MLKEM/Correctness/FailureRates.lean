@@ -4,8 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import LatticeCrypto.MLKEM.Params
-import Mathlib.Analysis.SpecialFunctions.Pow.NNReal
+module
+
+public import LatticeCrypto.MLKEM.Params
+public import Mathlib.Analysis.SpecialFunctions.Pow.NNReal
 
 /-!
 # FIPS 203 decapsulation-failure rates
@@ -34,6 +36,8 @@ so nothing in their mathematical meaning requires the point at infinity.  In
 particular, this file merely defines the proposed upper bounds; the substantive
 theorem is that a failure probability is at most one of these numbers.
 -/
+
+@[expose] public section
 
 open scoped ENNReal
 

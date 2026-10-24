@@ -8,6 +8,8 @@ import SecureMessaging.CKA.FromDDH.Construction
 import SecureMessaging.CKA.FromDDH.Correctness
 import SecureMessaging.CKA.FromDDH.Security
 
+/-! # Blueprint chapter: CKA from DDH -/
+
 set_option linter.style.setOption false
 set_option linter.hashCommand false
 set_option linter.style.emptyLine false
@@ -79,7 +81,7 @@ $$`\Pr[\,\textsf{correctnessExp} = \mathsf{true}\,] = 1`
 
 ```anchor correctness (project := ".") (module := SecureMessaging.CKA.FromDDH.Correctness)
 theorem correctness [DecidableEq G] (adv : CKACorrectnessAdversary G G) :
-  Pr[= true | correctnessExp (ddhCKA F G gen) adv] = 1
+  Pr{let x ← correctnessExp (ddhCKA F G gen) adv}[x = true] = 1
 ```
 :::
 
@@ -95,6 +97,6 @@ theorem security (gp : GameParams)
     (hg : Function.Bijective (· • gen : F → G))
     (adversary : CKAAdversary (CKAState F G) G G F) :
     ckaGuessAdvantage (ddhCKA F G gen) adversary gp ≤
-      ddhGuessAdvantage gen (securityReduction gp adversary)
+      (ddhAdvantage gen (securityReduction gp adversary)).toReal / 2
 ```
 ::::

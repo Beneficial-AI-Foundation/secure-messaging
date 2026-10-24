@@ -5,6 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.AEAD.FromEtM.Security.Games
+import ToVCVio.CryptoFoundations.PRF
 
 /-!
 # Encrypt-then-MAC — PRF hop (`game0` → `game1`)
@@ -34,8 +35,8 @@ The skeleton's `(challenge, TagCache)` state projects via `Prod.fst` onto the AE
 theorem game0_eq_real
     (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
-    Pr[= true | game0 se prf adv] =
-      Pr[= true | AEADScheme.securityExpFixedBit (etmAEAD se prf) adv false] := by
+    Pr{let x ← game0 se prf adv}[x = true] =
+      Pr{let x ← AEADScheme.securityExpFixedBit (etmAEAD se prf) adv false}[x = true] := by
   -- Tail helper: `(simulateQ impl adv).run s >>= take-fst = (simulateQ impl adv).run' s`.
   -- Unfold only `etmAEAD.keygen` (keep `aeadSecurityImpl` folded to match the RHS
   -- `securityExpFixedBit` impl).
@@ -47,12 +48,10 @@ theorem game0_eq_real
   simp only [bind_assoc, pure_bind]
   simp only [bind_pure_comp, ← StateT.run'_eq]
   -- Swap the two independent key samplers so both sides start with `se.keygen`.
-  simp only [← probEvent_eq_eq_probOutput]
-  rw [probEvent_bind_bind_swap prf.keygen se.keygen]
-  simp only [probEvent_eq_eq_probOutput]
+  rw [(OracleComp.EvalDistEq.bind_bind_swap prf.keygen se.keygen _).prEvent_eq]
   -- Descend under the two key binds; reduce to the per-key inner equality.
-  refine probOutput_bind_congr' se.keygen true (fun ke => ?_)
-  refine probOutput_bind_congr' prf.keygen true (fun km => ?_)
+  refine prEvent_bind_congr se.keygen _ _ _ _ (fun ke => ?_)
+  refine prEvent_bind_congr prf.keygen _ _ _ _ (fun km => ?_)
   -- Inner: project away the invariant `TagCache` via `Prod.fst`.
   rw [run'_simulateQ_eq_of_query_map_eq _
         (AEADScheme.aeadSecurityImpl (etmAEAD se prf) false (ke, km))
@@ -83,27 +82,27 @@ theorem game0_eq_real
 omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
 /-- Game 0 → real PRF experiment: the `game0` distribution equals the real PRF experiment run on
 `prfReduction`. The "real" half of NRS14 Lemma 3, eq. (4). -/
-theorem game0_eq_prfRealExp
+theorem game0_eq_prfRealExperiment
     (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
-    Pr[= true | game0 se prf adv] =
-      Pr[= true | prf.prfRealExp (prfReduction se adv)] := by
+    Pr{let x ← game0 se prf adv}[x = true] =
+      Pr{let x ← prf.prfRealExperiment (prfReduction se adv)}[x = true] := by
   -- RHS: unfold the reduction + experiment, fold the inner skeleton run to `run'`,
   -- collapse the nested `simulateQ` via `mapStateTBase`, forward `liftComp se.keygen`
   -- using the `unifSpec`-transparency theorem `simulateQ_prfRealQueryImpl_liftComp`.
-  unfold PRFScheme.prfRealExp prfReduction etmGameSkeleton
+  unfold PRFScheme.prfRealExperiment prfReduction etmGameSkeleton
   simp only [bind_pure_comp, ← StateT.run'_eq, simulateQ_bind,
     QueryImpl.simulateQ_mapStateTBase_run', PRFScheme.simulateQ_prfRealQueryImpl_liftComp]
   -- LHS: unfold game0 + skeleton, fold its run to `run'`.
   unfold game0 etmGameSkeleton
   simp only [bind_pure_comp, ← StateT.run'_eq]
   -- Both sides: `prf.keygen` then `se.keygen`, same order; descend both.
-  refine probOutput_bind_congr' prf.keygen true (fun k => ?_)
-  refine probOutput_bind_congr' se.keygen true (fun ke => ?_)
+  refine prEvent_bind_congr prf.keygen _ _ _ _ (fun k => ?_)
+  refine prEvent_bind_congr se.keygen _ _ _ _ (fun ke => ?_)
   -- Per-key inner equality: game0's oracle impl equals the mapped reduction impl
   -- (`computeTag`/`verifyTag` forward to the real PRF oracle = `pure (prf.eval k ·)`).
   -- Clean projection (proj = id): caches stay `∅` on both sides, no invariant needed.
-  refine congrArg (fun o => Pr[= true | o]) ?_
+  refine congrArg (fun o : ProbComp Bool => Pr{let x ← o}[x = true]) ?_
   refine run'_simulateQ_eq_of_query_map_eq _ _ id ?hproj adv (none, ∅)
   case hproj =>
     intro t s
@@ -140,18 +139,18 @@ omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
 /-- Game 1 → ideal PRF experiment: the `game1` distribution equals the ideal PRF experiment run
 on `prfReduction`. The "ideal" half of NRS14 Lemma 3, eq. (4); this is the heavier of the two
 halves, since it must relocate the outer lazy-RO cache into the (always-`∅`) inner `TagCache`. -/
-theorem game1_eq_prfIdealExp
+theorem game1_eq_prfIdealExperiment
     (se : DetSEAlg K_e M C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
-    Pr[= true | game1 se adv] =
-      Pr[= true | PRFScheme.prfIdealExp (prfReduction se adv)] := by
+    Pr{let x ← game1 se adv}[x = true] =
+      Pr{let x ← PRFScheme.prfIdealExperiment (prfReduction se adv)}[x = true] := by
   -- RHS: collapse the nested `simulateQ`, forward keygen using the cache-threading
   -- `unifSpec`-transparency theorem `simulateQ_prfIdealQueryImpl_liftComp`,
   -- then push the outer `.run' ∅` through the `liftM se.keygen` bind so both sides start with
   -- `se.keygen` (the cache threads through unchanged). `StateT.run'_liftM_bind` is used rather
   -- than the general `StateT.run'_bind'`, which unfolds *every* `run'`-of-bind and would
   -- dismantle the per-key `simulateQ … .run'` recovered below.
-  unfold PRFScheme.prfIdealExp prfReduction etmGameSkeleton
+  unfold PRFScheme.prfIdealExperiment prfReduction etmGameSkeleton
   simp only [bind_pure_comp, ← StateT.run'_eq, simulateQ_bind,
     QueryImpl.simulateQ_mapStateTBase_run', PRFScheme.simulateQ_prfIdealQueryImpl_liftComp,
     StateT.run'_liftM_bind]
@@ -169,8 +168,8 @@ theorem game1_eq_prfIdealExp
         = (((AD × C_e) →ₒ T).randomOracle q :
             StateT ((AD × C_e →ₒ T).QueryCache) ProbComp T) :=
     fun q => PRFScheme.simulateQ_prfIdealQueryImpl_inr q
-  refine probOutput_bind_congr' se.keygen true (fun ke => ?_)
-  refine congrArg (fun o => Pr[= true | o]) ?_
+  refine prEvent_bind_congr se.keygen _ _ _ _ (fun ke => ?_)
+  refine congrArg (fun o : ProbComp Bool => Pr{let x ← o}[x = true]) ?_
   -- Flatten the nested `StateT EtmGameState (StateT QueryCache ProbComp)` into a single
   -- `StateT (EtmGameState × QueryCache) ProbComp`, then project the joint state back to
   -- game1's `EtmGameState`, RELOCATING the outer RO `QueryCache` into the (always-`∅`)
@@ -252,13 +251,13 @@ theorem game1_eq_prfIdealExp
               StateT ((AD × C_e →ₒ T).QueryCache) ProbComp (unifSpec.Range n)) :=
         PRFScheme.simulateQ_prfIdealQueryImpl_liftComp
           (liftM (OracleSpec.query n) : OracleComp unifSpec (unifSpec.Range n))
-      rw [flattenStateT_mapStateTBase_apply_run]
+      rw [QueryImpl.flattenStateT_mapStateTBase_apply_run]
       simp [gameUnifImpl,
         QueryImpl.add_apply_inl, hq,
         StateT.run_bind, StateT.run_monadLift, Prod.map, Functor.map_map]
     · -- encryption oracle: `se.encrypt ke m` + tag = `randomOracle (ad,c)` on the relocated
       -- cache; the inner TagCache (∅) is dropped by proj
-      rw [flattenStateT_mapStateTBase_apply_run]
+      rw [QueryImpl.flattenStateT_mapStateTBase_apply_run]
       cases ch <;>
         simp [QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
           StateT.run_bind, StateT.run_get, StateT.run_set, StateT.run_monadLift,
@@ -266,7 +265,7 @@ theorem game1_eq_prfIdealExp
     · -- decryption oracle: verify = `randomOracle (ad,c)` compare; same relocation.
       -- After the (shared) RO query, the verify result is a `pure`, so `simulateQ` is the
       -- identity and the nested-state reassoc lines up with game1's direct run.
-      rw [flattenStateT_mapStateTBase_apply_run]
+      rw [QueryImpl.flattenStateT_mapStateTBase_apply_run]
       cases ch with
       | none =>
         simp only [add_apply_inr, StateT.run_pure, liftM_pure, StateT.run_monadLift,
@@ -294,15 +293,15 @@ omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
 /-- Game 0 → 1: PRF hop. Gap bounded by PRF advantage.
 
 NRS14 Lemma 3, eq. (4): replace F^tag with random ρ. The two reduction-equals-experiment
-equalities `game0_eq_prfRealExp` and `game1_eq_prfIdealExp` combine here, since both sides
-share the same `prfAdvantage` shape. -/
+equalities `game0_eq_prfRealExperiment` and `game1_eq_prfIdealExperiment` combine here, since
+both sides share the same `prfAdvantage` shape. -/
 theorem game0_game1_le_prf
     (se : DetSEAlg K_e M C_e) (prf : PRFScheme K_m (AD × C_e) T)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) :
-    |(Pr[= true | game0 se prf adv]).toReal -
-     (Pr[= true | game1 se adv]).toReal| ≤
-      PRFScheme.prfAdvantage prf (prfReduction se adv) := by
-  unfold PRFScheme.prfAdvantage
-  rw [game0_eq_prfRealExp se prf adv, game1_eq_prfIdealExp se adv]
+    |(Pr{let x ← game0 se prf adv}[x = true]).toReal -
+     (Pr{let x ← game1 se adv}[x = true]).toReal| ≤
+      (PRFScheme.prfAdvantage prf (prfReduction se adv)).toReal := by
+  rw [PRFScheme.toReal_prfAdvantage, game0_eq_prfRealExperiment se prf adv,
+    game1_eq_prfIdealExperiment se adv]
 
 end EtM

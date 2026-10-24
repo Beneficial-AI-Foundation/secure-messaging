@@ -8,6 +8,8 @@ import SecureMessagingDocs.Chapters.CKA.FromDDH
 import SecureMessagingDocs.Chapters.CKA.FromKEM
 import SecureMessagingDocs.Chapters.CKA.FromLWE
 
+/-! # Blueprint chapter: Continuous Key Agreement -/
+
 set_option linter.style.setOption false
 set_option linter.hashCommand false
 set_option linter.style.emptyLine false

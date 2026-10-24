@@ -45,12 +45,12 @@ lemma decapsCorrectOnSupport_of_perfectlyCorrect [DecidableEq K]
     (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp) :
     DecapsCorrectOnSupport kem hDet := by
   intro pk sk c k hkp henc
-  have hone : Pr[= true | kem.CorrectExp] = 1 := hkem
-  rw [probOutput_eq_one_iff] at hone
-  obtain ⟨-, hsupp⟩ := hone
+  have hone : Pr{let x ← kem.correctnessExperiment}[x = true] = 1 := by
+    rw [prEvent_eq_evalDist_singleton, ← ProbCompRuntime.probComp_evalDist]; exact hkem
+  rw [OracleComp.prEvent_eq_one_iff] at hone
   by_contra hne
-  have hfalse : false ∈ support kem.CorrectExp := by
-    unfold KEMScheme.CorrectExp
+  have hfalse : false ∈ support kem.correctnessExperiment := by
+    unfold KEMScheme.correctnessExperiment
     rw [mem_support_bind_iff]
     refine ⟨(pk, sk), hkp, ?_⟩
     rw [mem_support_bind_iff]
@@ -60,8 +60,7 @@ lemma decapsCorrectOnSupport_of_perfectlyCorrect [DecidableEq K]
     · rw [hDet.decaps_eq]
       simp
     · simp [hne]
-  rw [hsupp] at hfalse
-  simp at hfalse
+  exact Bool.false_ne_true (hone false hfalse)
 
 /-- If decapsulation never fails on honest outputs (i.e., `DecapsCorrectOnSupport` holds), then
 in every epoch of every transcript the recorded secret key decapsulates the recorded ciphertext

@@ -32,6 +32,7 @@ states that follow a primitive failure.
 -/
 
 open OracleSpec ENNReal
+open OracleComp.ProgramLogic
 
 namespace SCKAScheme
 
@@ -58,15 +59,14 @@ theorem tracked_bad_le_of_score_step [DecidableEq I]
     (hpres : QueryImpl.PreservesInv (trackedImpl (sckaCorrectnessImpl scka) bad)
       (trackedInv Inv bad))
     (hstep : ∀ t p, trackedInv Inv bad p →
-      expectedPayoff (((trackedImpl (sckaCorrectnessImpl scka) bad) t).run p)
+      wp (((trackedImpl (sckaCorrectnessImpl scka) bad) t).run p)
           (fun z => score z.2) ≤
         score p + if isSendQuery (Rho := Rho) t then ε else 0)
     (adv : SCKACorrectnessAdversary Rho) (q : ℕ) (hq : SendQueryBound adv q)
     (s₀ : GameState StA StB I Rho) (hinit : trackedInv Inv bad (s₀, false))
     (hscore₀ : score (s₀, false) = 0) :
-    Pr[ fun z => z.2.2 = true |
-        (simulateQ (trackedImpl (sckaCorrectnessImpl scka) bad) adv).run (s₀, false)] ≤
-      (q : ℝ≥0∞) * ε :=
+    Pr{let z ← ((simulateQ (trackedImpl (sckaCorrectnessImpl scka) bad) adv).run
+      (s₀, false))}[z.2.2 = true] ≤ (q : ℝ≥0∞) * ε :=
   (OracleComp.tracked_bad_le_of_score_step (sckaCorrectnessImpl scka) bad Inv score
     (fun t => isSendQuery (Rho := Rho) t = true) ε hscore1 hpres hstep adv q hq s₀
     hinit).trans_eq (by rw [hscore₀, zero_add])
@@ -91,11 +91,11 @@ theorem correctness_failure_le_of_tracked_bad [DecidableEq I]
     (hexp : correctnessExp scka adv =
       (fun z => z.2.correct) <$> (simulateQ (sckaCorrectnessImpl scka) adv).run s₀)
     (δ : ℝ≥0∞)
-    (hbad : Pr[ fun z => z.2.2 = true |
-      (simulateQ (trackedImpl (sckaCorrectnessImpl scka) bad) adv).run (s₀, false)] ≤ δ) :
-    Pr[= false | correctnessExp scka adv] ≤ δ := by
-  rw [hexp, ← probEvent_eq_eq_probOutput, probEvent_map]
-  exact (probEvent_not_good_le_tracked_bad (sckaCorrectnessImpl scka) bad Inv
+    (hbad : Pr{let z ← ((simulateQ (trackedImpl (sckaCorrectnessImpl scka) bad) adv).run
+      (s₀, false))}[z.2.2 = true] ≤ δ) :
+    Pr{let x ← correctnessExp scka adv}[x = false] ≤ δ := by
+  rw [hexp, prEvent_map]
+  exact (prEvent_not_good_le_tracked_bad (sckaCorrectnessImpl scka) bad Inv
     (fun s => s.correct) hcorrect hpres adv s₀ hinit).trans hbad
 
 end SCKAScheme

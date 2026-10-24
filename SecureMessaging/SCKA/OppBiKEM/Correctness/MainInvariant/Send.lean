@@ -210,11 +210,11 @@ lemma partyInv_peer_of_send (roleS : Role) {kem : KEMScheme ProbComp K PK SK C}
     intro e hpos hp
     have h := hR.key_req e hpos hp
     by_cases hmem : e ∈ stR.ack.ctRec
-    · rw [if_pos hmem] at h ⊢
+    · rw [ite_eq_left hmem] at h ⊢
       rw [h]
       unfold EpochTranscript.key
       rw [e2 e (hR.ctRec_req_enc e hmem hpos hp)]
-    · rw [if_neg hmem] at h ⊢
+    · rw [ite_eq_right hmem] at h ⊢
       exact h
   ctRec_req_enc := by
     intro t ht hpos hp
@@ -242,13 +242,13 @@ lemma partyInv_peer_of_send (roleS : Role) {kem : KEMScheme ProbComp K PK SK C}
         omega
     rw [hkp]
     by_cases hmem : stR.req.reqEpoch ∈ stR.ack.ctRec
-    · rw [if_pos hmem] at hb ⊢
+    · rw [ite_eq_left hmem] at hb ⊢
       exact hb
-    · rw [if_neg hmem] at hb ⊢
+    · rw [ite_eq_right hmem] at hb ⊢
       by_cases hnone : (stR.res.ekPeer (stR.req.reqEpoch - roleS.peer.offset)).isNone = true
-      · rw [if_pos hnone] at hb ⊢
+      · rw [ite_eq_left hnone] at hb ⊢
         exact hb
-      · rw [if_neg hnone] at hb ⊢
+      · rw [ite_eq_right hnone] at hb ⊢
         cases henc : (T stR.req.reqEpoch).enc with
         | none =>
           simp only [henc] at hb
@@ -704,30 +704,30 @@ private lemma send_step_advance (roleS : Role) {kem : KEMScheme ProbComp K PK SK
     exact Role.reqParity_ne_resParity roleS (hparA.symm.trans hpe)
   refine ⟨T', partyInv_sender_of_send roleS hS hR n hout ?_ ?_ ?_ (fun e _ => hT'enc e)
     (fun e _ => hT'enc e) (fun e _ => hT'enc e) (fun _ _ => rfl) ?_ ?_ ?_ ?_ ?_
-    (fun _ => by rw [hT'kp, if_pos heA.symm]; rfl) ?_ ?_ ?_ ?_ ?_ hS.key_zero,
+    (fun _ => by rw [hT'kp, ite_eq_left heA.symm]; rfl) ?_ ?_ ?_ ?_ ?_ hS.key_zero,
     partyInv_peer_of_send roleS hS hR hp.requester_epoch hp.peer_keys hp.acknowledgements
-      (fun e hpe => by rw [hT'kp, if_neg (hneA e hpe)]) ?_ (fun e _ => hT'key e) ?_
+      (fun e hpe => by rw [hT'kp, ite_eq_right (hneA e hpe)]) ?_ (fun e _ => hT'key e) ?_
       (fun e _ => hT'enc e) (fun e _ => hT'enc e)⟩
   · intro e hpe hs
     by_cases h : e = eA
     · exact Or.inr ⟨h, hres⟩
     · left
-      rw [hT'kp, if_neg h] at hs
+      rw [hT'kp, ite_eq_right h] at hs
       exact hs
   · intro e hle hpe
-    rw [hT'kp, if_neg (by omega)]
+    rw [hT'kp, ite_eq_right (by omega)]
   · intro e hpe
-    rw [hT'kp, if_neg (hneA e hpe)]
+    rw [hT'kp, ite_eq_right (hneA e hpe)]
   · intro pk h
     rw [hek, Option.some.injEq] at h
     subst h
-    exact ⟨sk₀, by rw [hT'kp, if_pos rfl]⟩
+    exact ⟨sk₀, by rw [hT'kp, ite_eq_left rfl]⟩
   · intro e sk h
     rw [hdk, List.mem_cons] at h
     rcases h with h | h
     · simp only [Prod.mk.injEq] at h
       obtain ⟨rfl, rfl⟩ := h
-      refine ⟨hparA, hApos, le_rfl, ?_, pk₀, by rw [hT'kp, if_pos rfl]⟩
+      refine ⟨hparA, hApos, le_rfl, ?_, pk₀, by rw [hT'kp, ite_eq_left rfl]⟩
       have hk := hS.key_req eA hApos hparA
       rw [EpochTranscript.key_eq_none_of_keypair_eq_none _ hTA] at hk
       rw [hk]
@@ -736,17 +736,17 @@ private lemma send_step_advance (roleS : Role) {kem : KEMScheme ProbComp K PK SK
       obtain ⟨hmem', hne⟩ := h
       have hne' : e ≠ eA := by simpa using hne
       obtain ⟨hpe, hpos, hle, hkey, pk, hT⟩ := hS.dk_T e sk hmem'
-      exact ⟨hpe, hpos, by omega, hkey, pk, by rw [hT'kp, if_neg hne']; exact hT⟩
+      exact ⟨hpe, hpos, by omega, hkey, pk, by rw [hT'kp, ite_eq_right hne']; exact hT⟩
   · intro e pk sk hT hpe hnot
     rw [hp.acknowledgements] at hnot
     rw [hdk]
     by_cases h : e = eA
     · subst h
-      rw [hT'kp, if_pos rfl] at hT
+      rw [hT'kp, ite_eq_left rfl] at hT
       simp only [Option.some.injEq, Prod.mk.injEq] at hT
       obtain ⟨-, rfl⟩ := hT
       exact List.mem_cons.mpr (Or.inl rfl)
-    · rw [hT'kp, if_neg h] at hT
+    · rw [hT'kp, ite_eq_right h] at hT
       exact List.mem_cons.mpr (Or.inr (List.mem_filter.mpr
         ⟨hS.T_dk e pk sk hT hpe hnot, by simpa using h⟩))
   · -- Before an advance the secret-key list is empty: a retained key for the previous
@@ -760,7 +760,7 @@ private lemma send_step_advance (roleS : Role) {kem : KEMScheme ProbComp K PK SK
           exact List.mem_singleton.mpr rfl
         obtain ⟨hpe, hpos, -, hkey, -⟩ := hS.dk_T _ sk₁ hmem₁
         have hk := hS.key_req _ hpos hpe
-        rw [if_pos hgate.2, hkey] at hk
+        rw [ite_eq_left hgate.2, hkey] at hk
         have henc := hS.ctRec_req_enc _ hgate.2 hpos hpe
         obtain ⟨⟨c, k⟩, hck⟩ := Option.isSome_iff_exists.mp henc
         rw [EpochTranscript.key, hck] at hk
@@ -785,14 +785,14 @@ private lemma send_step_advance (roleS : Role) {kem : KEMScheme ProbComp K PK SK
   · rw [hT'key]
     exact hS.key_res _ (by have := hS.res_lower; omega) hres_par
   · intro e pk sk hT
-    rw [hT'kp, if_neg]
+    rw [hT'kp, ite_eq_right]
     · exact hT
     · intro h
       subst h
       rw [hTA] at hT
       cases hT
   · intro e _ hle
-    rw [hT'kp, if_neg (by omega)]
+    rw [hT'kp, ite_eq_right (by omega)]
 
 /-- An encapsulating send, which keeps the epoch and the own keys, encapsulates at the current
 responder epoch and emits the encapsulated key, preserves `PartyInv` for both parties with the
@@ -851,13 +851,13 @@ private lemma send_step_encaps (roleS : Role) {kem : KEMScheme ProbComp K PK SK 
     split_ifs <;> rfl
   have hencReq : ∀ e, e % 2 = roleS.reqParity → (T' e).enc = (T e).enc := by
     intro e hpe
-    rw [hT'enc, if_neg]
+    rw [hT'enc, ite_eq_right]
     intro h
     subst h
     exact Role.reqParity_ne_resParity roleS (hpe.symm.trans hS.res_parity)
   have hencMono : ∀ e, (T e).enc.isSome = true → (T' e).enc = (T e).enc := by
     intro e hs
-    rw [hT'enc, if_neg]
+    rw [hT'enc, ite_eq_right]
     intro h
     subst h
     rw [hencB] at hs
@@ -872,7 +872,7 @@ private lemma send_step_encaps (roleS : Role) {kem : KEMScheme ProbComp K PK SK 
       hencReq hencMono⟩
   · intro e he
     rw [hres] at he
-    rw [hT'enc, if_neg he]
+    rw [hT'enc, ite_eq_right he]
   · intro i hi
     rw [hres] at hi
     exact Function.update_of_ne hi _ _
@@ -900,14 +900,14 @@ private lemma send_step_encaps (roleS : Role) {kem : KEMScheme ProbComp K PK SK 
     rw [hres, hp.acknowledgements, hT'kp]
     exact hS.ek_acked h
   · intro c k h
-    rw [hres, hT'enc, if_pos rfl] at h
+    rw [hres, hT'enc, ite_eq_left rfl] at h
     simp only [Option.some.injEq, Prod.mk.injEq] at h
     obtain ⟨rfl, -⟩ := h
     exact Or.inl hct'
   · intro c h
     rw [hct', Option.some.injEq] at h
     subst h
-    exact ⟨k₀, by rw [hres, hT'enc, if_pos rfl]⟩
+    exact ⟨k₀, by rw [hres, hT'enc, ite_eq_left rfl]⟩
   · intro h
     rw [hp.acknowledgements, hres] at h
     exact absurd h hnotin
@@ -916,7 +916,7 @@ private lemma send_step_encaps (roleS : Role) {kem : KEMScheme ProbComp K PK SK 
     exact hackk
   · rw [hres, Function.update_self]
     unfold EpochTranscript.key
-    rw [hT'enc, if_pos rfl]
+    rw [hT'enc, ite_eq_left rfl]
     rfl
   · rw [Function.update_of_ne (by omega)]
     exact hS.key_zero

@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import Mathlib.Data.Nat.Basic
+module
+
+public import Mathlib.Data.Nat.Basic
 
 /-!
 # Ratcheted Authenticator
@@ -53,6 +55,8 @@ KEM ciphertext parts, authenticated as a single message. In that protocol the
 epoch is part of every MAC input, and header tags use the state before
 `update` with the epoch key while ciphertext tags use the state after.
 -/
+
+@[expose] public section
 
 /-- Epoch-indexed MAC state with separate header and ciphertext authentication. -/
 -- ANCHOR: RatchetedAuthenticator

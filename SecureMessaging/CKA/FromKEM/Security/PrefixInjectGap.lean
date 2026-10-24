@@ -55,7 +55,7 @@ private lemma securityImpl_preservesInv_challengePassed [SampleableType K] [Deci
 
 /-- Past the injection epoch, `securityImplWithChallengeKeyPair` and the honest
 `securityImpl` give the same simulated output distribution after `.run'`. -/
-lemma probOutput_simulateQ_wck_run'_eq_of_injectionPassed
+lemma prEvent_simulateQ_wck_run'_eq_of_injectionPassed
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -66,19 +66,17 @@ lemma probOutput_simulateQ_wck_run'_eq_of_injectionPassed
     (adv : OracleComp (securitySpec leak) Bool)
     (s : SecurityState K PK SK C)
     (hs : injectionPassed gp s) :
-    Pr[= true |
-        (simulateQ
+    Pr{let x ← ((simulateQ
           (securityImplWithChallengeKeyPair kem hDet leak gp isRandom pkStar skStar)
-          adv).run' s] =
-      Pr[= true |
-        (simulateQ (securityImpl kem hDet leak gp isRandom) adv).run' s] :=
-  probOutput_run'_true_eq_of_run_probOutput_eq s fun z =>
-    probOutput_simulateQ_securityImplWithChallengeKeyPair_run_eq_of_injectionPassed
-      kem hDet leak gp isRandom pkStar skStar adv s hs z
+          adv).run' s)}[x = true] =
+      Pr{let x ← (simulateQ (securityImpl kem hDet leak gp isRandom) adv).run' s}[x = true] :=
+  by simpa only [StateT.run'_eq] using
+    ((evalDistEq_simulateQ_securityImplWithChallengeKeyPair_run_of_injectionPassed
+      kem hDet leak gp isRandom pkStar skStar adv s hs).map Prod.fst).prEvent_eq (· = true)
 
 /-- Past the challenge epoch, the fixed-bit honest implementations give the same
 simulated output distribution after `.run'`. -/
-lemma probOutput_simulateQ_true_false_run'_eq_of_challengePassed
+lemma prEvent_simulateQ_true_false_run'_eq_of_challengePassed
     [SampleableType K] [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C)
     (hDet : DeterministicDecaps kem)
@@ -87,17 +85,15 @@ lemma probOutput_simulateQ_true_false_run'_eq_of_challengePassed
     (adv : OracleComp (securitySpec leak) Bool)
     (s : SecurityState K PK SK C)
     (hs : challengePassed gp s) :
-    Pr[= true |
-        (simulateQ (securityImpl kem hDet leak gp true) adv).run' s] =
-      Pr[= true |
-        (simulateQ (securityImpl kem hDet leak gp false) adv).run' s] :=
-  probOutput_run'_true_eq_of_run_probOutput_eq s fun z =>
-    probOutput_simulateQ_run_eq_of_impl_eq_preservesInv
+    Pr{let x ← (simulateQ (securityImpl kem hDet leak gp true) adv).run' s}[x = true] =
+      Pr{let x ← (simulateQ (securityImpl kem hDet leak gp false) adv).run' s}[x = true] :=
+  by simpa only [StateT.run'_eq] using
+    ((evalDistEq_of_relTriple_eqRel (relTriple_simulateQ_run_eqRel_of_impl_eq_preservesInv
       (securityImpl kem hDet leak gp true)
       (securityImpl kem hDet leak gp false)
       (challengePassed gp) adv
       (securityImpl_true_false_run_eq_of_challengePassed kem hDet leak gp)
       (securityImpl_preservesInv_challengePassed kem hDet leak gp false)
-      s hs z
+      s hs)).map Prod.fst).prEvent_eq (· = true)
 
 end kemCKA

@@ -439,7 +439,7 @@ def securityExp [SampleableType K] [DecidableEq AD] [DecidableEq M] [DecidableEq
 noncomputable def advantage [SampleableType K] [DecidableEq AD] [DecidableEq M]
     [DecidableEq C] (fs : FSAEADScheme K StS StR AD M C) (len : M → ℕ)
     (adversary : FSAEADAdversary StS StR AD M C) : ℝ :=
-  |(Pr[= true | securityExp fs len adversary]).toReal - 1 / 2|
+  |(Pr{let x ← securityExp fs len adversary}[x = true]).toReal - 1 / 2|
 -- ANCHOR_END: advantage
 
 end Security

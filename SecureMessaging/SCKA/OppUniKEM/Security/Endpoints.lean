@@ -7,7 +7,7 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.SCKA.OppUniKEM.Security.Invariant
 import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Projection
 import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Composition
-import ToVCVio.OracleComp.SimSemantics.StateT.ExpectedPayoffBound
+import ToVCVio.OracleComp.SimSemantics.StateT.WPBound
 import ToVCVio.OracleComp.SimSemantics.StateT.IdenticalUntilBadInvariant
 
 /-!
@@ -43,6 +43,7 @@ For every `b`, `security_correctness_endpoint_le` bounds the difference between 
 -/
 
 open OracleSpec OracleComp KEMScheme ErasureCodePayload ENNReal
+open OracleComp.ProgramLogic
 
 universe u
 
@@ -431,17 +432,17 @@ theorem tracked_sendArleak_score_le
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv kem onoff ecEk ecCt0 ecCt1 s)
     (hf : currentKEMFailure kem onoff hDet s = false) :
-    expectedPayoff
+    wp
       ((trackedSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b
         SCKAScheme.sckaSecuritySpec.OSendArleak).run (s, false))
       (fun z => trackedFailureScore kem onoff z.2) ≤
       trackedFailureScore kem onoff (s, false) + factorCorrectnessError kem onoff := by
-  change expectedPayoff (do
+  change wp (do
     let y ← (SCKAScheme.oracleSendArleak vulnRleakA
       (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) ()).run s
     pure (y.1, (y.2, false || currentKEMFailure kem onoff hDet y.2))) _ ≤ _
-  rw [bind_pure_comp, expectedPayoff_map]
-  apply SCKAScheme.oracleSendArleak_expectedPayoff_le
+  rw [bind_pure_comp, wp_map, Function.comp_def]
+  apply SCKAScheme.oracleSendArleak_wp_le
       (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) vulnRleakA
       (sendArleak_forget kem onoff ecEk leak) s (leakEpochsA s.stA)
       (score := fun state => trackedFailureScore kem onoff
@@ -454,11 +455,11 @@ theorem tracked_sendArleak_score_le
     rfl
   · simp [hf]
   · have h := tracked_sendA_score_le kem onoff hDet ecEk ecCt0 ecCt1 leak s hs hf
-    change expectedPayoff (do
+    change wp (do
       let y ← (SCKAScheme.oracleSendA
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) ()).run s
       pure (y.1, (y.2, false || currentKEMFailure kem onoff hDet y.2))) _ ≤ _ at h
-    simpa only [bind_pure_comp, expectedPayoff_map] using h
+    simpa only [bind_pure_comp, wp_map, Function.comp_def] using h
 
 /-- The version of `tracked_sendArleak_score_le` for B. -/
 theorem tracked_sendBrleak_score_le
@@ -471,17 +472,17 @@ theorem tracked_sendBrleak_score_le
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv kem onoff ecEk ecCt0 ecCt1 s)
     (hf : currentKEMFailure kem onoff hDet s = false) :
-    expectedPayoff
+    wp
       ((trackedSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b
         SCKAScheme.sckaSecuritySpec.OSendBrleak).run (s, false))
       (fun z => trackedFailureScore kem onoff z.2) ≤
       trackedFailureScore kem onoff (s, false) + factorCorrectnessError kem onoff := by
-  change expectedPayoff (do
+  change wp (do
     let y ← (SCKAScheme.oracleSendBrleak vulnRleakB
       (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) ()).run s
     pure (y.1, (y.2, false || currentKEMFailure kem onoff hDet y.2))) _ ≤ _
-  rw [bind_pure_comp, expectedPayoff_map]
-  apply SCKAScheme.oracleSendBrleak_expectedPayoff_le
+  rw [bind_pure_comp, wp_map, Function.comp_def]
+  apply SCKAScheme.oracleSendBrleak_wp_le
       (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) vulnRleakB
       (sendBrleak_forget kem onoff ecCt0 ecCt1 leak) s (leakEpochsB s.stB)
       (score := fun state => trackedFailureScore kem onoff
@@ -494,11 +495,11 @@ theorem tracked_sendBrleak_score_le
     rfl
   · simp [hf]
   · have h := tracked_sendB_score_le kem onoff hDet ecEk ecCt0 ecCt1 leak s hs hf
-    change expectedPayoff (do
+    change wp (do
       let y ← (SCKAScheme.oracleSendB
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) ()).run s
       pure (y.1, (y.2, false || currentKEMFailure kem onoff hDet y.2))) _ ≤ _ at h
-    simpa only [bind_pure_comp, expectedPayoff_map] using h
+    simpa only [bind_pure_comp, wp_map, Function.comp_def] using h
 
 /-- Fix a bit `b`, a query `t`, and a state `p` satisfying `trackedInv`.
 Let `p'` be the state after `trackedSecurityImpl b` answers `t` from `p`.
@@ -515,15 +516,14 @@ theorem trackedSecurity_score_step_le
     (t : (securitySpec leak Sym).Domain)
     (p : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) × Bool)
     (hp : trackedInv kem onoff hDet ecEk ecCt0 ecCt1 p) :
-    expectedPayoff ((trackedSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b t).run p)
+    wp ((trackedSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b t).run p)
       (fun z => trackedFailureScore kem onoff z.2) ≤
       trackedFailureScore kem onoff p +
         if SCKAScheme.sckaSecuritySpec.isSendQuery t then factorCorrectnessError kem onoff
         else 0 := by
   by_cases hbad : p.2 = true
-  · refine (expectedPayoff_le_one _ _ ?_).trans ?_
-    · intro z
-      exact trackedFailureScore_le_one kem onoff z.2
+  · refine (wp_le_const_of_support (c := 1) _ fun z _ => ?_).trans ?_
+    · exact trackedFailureScore_le_one kem onoff z.2
     · simp [trackedFailureScore, hbad]
   have hfalse : p.2 = false := Bool.eq_false_iff.mpr hbad
   have hgood : reachableInv kem onoff ecEk ecCt0 ecCt1 p.1 ∧
@@ -545,7 +545,7 @@ theorem trackedSecurity_score_step_le
       tracked_sendBrleak_score_le kem onoff hDet ecEk ecCt0 ecCt1 leak b p.1 hgood.1 hgood.2
   all_goals
     simp only [SCKAScheme.sckaSecuritySpec.isSendQuery, Bool.false_eq_true, ↓reduceIte, add_zero]
-    apply expectedPayoff_le_const_of_support _ _ _ probFailure_eq_zero
+    apply wp_le_const_of_support _
     intro z hz
     change z ∈ support (do
       let y ← (SCKAScheme.sckaSecurityImpl b (exposureA kem onoff leak) (exposureB kem onoff leak)
@@ -582,9 +582,8 @@ theorem kem_failure_probability_le
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
     (leak : kem.OnOffRandLeak onoff) (b : Bool)
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
-    Pr[fun z => z.2.2 = true |
-      (simulateQ (trackedSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b) adv).run
-        (initialGame (Sym := Sym) kem onoff, false)] ≤
+    Pr{let z ← ((simulateQ (trackedSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b) adv).run
+        (initialGame (Sym := Sym) kem onoff, false))}[z.2.2 = true] ≤
       (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp := by
   have hpres := trackedSecurityImpl_preserves kem onoff hDet ecEk hEk ecCt0 hCt0
     ecCt1 hCt1 leak b
@@ -594,7 +593,7 @@ theorem kem_failure_probability_le
       (initialGame (Sym := Sym) kem onoff, false) = 0 := by
     simp [trackedFailureScore, currentFailurePotential, initialGame, initialA, initialB,
       SCKAScheme.initGameState, Option.map₂]
-  have hscore := expectedPayoff_simulateQ_run_le
+  have hscore := wp_simulateQ_run_le
     (trackedSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b)
     (trackedInv kem onoff hDet ecEk ecCt0 ecCt1)
     (trackedFailureScore kem onoff) (fun t => SCKAScheme.sckaSecuritySpec.isSendQuery t = true)
@@ -671,11 +670,11 @@ theorem security_correctness_endpoint_le
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
     (leak : kem.OnOffRandLeak onoff) (b : Bool)
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
-    |(Pr[= true | SCKAScheme.securityExpFixedBit
+    |(Pr{let x ← (SCKAScheme.securityExpFixedBit
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv b
-        (exposureA kem onoff leak) (exposureB kem onoff leak)]).toReal -
-      (Pr[= true | idealSecurityExp kem onoff hDet ecEk ecCt0 ecCt1 leak
-        b adv]).toReal| ≤
+        (exposureA kem onoff leak) (exposureB kem onoff leak))}[x = true]).toReal -
+      (Pr{let x ← (idealSecurityExp kem onoff hDet ecEk ecCt0 ecCt1 leak
+        b adv)}[x = true]).toReal| ≤
       (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal := by
   let left := trackedSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b
   let right := trackedIdealImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b
@@ -691,25 +690,25 @@ theorem security_correctness_endpoint_le
         leak b t p.1 ⟨hCt1, hr, hc⟩
       simp only [left, right, trackedSecurityImpl, trackedIdealImpl, QueryImpl.extendState_apply]
       rw [heq]
-  have hbound := abs_probEvent_simulateQ_run_sub_le_bad_of_inv left right Inv
+  have hbound := abs_prEvent_simulateQ_run_sub_le_bad_of_inv left right Inv
     (fun p => p.2 = true)
     (trackedSecurityImpl_preserves kem onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1 leak b)
     (trackedSecurityImpl_preserves_bad kem onoff hDet ecEk ecCt0 ecCt1 leak b)
     hagree adv (fun guess => guess = true) (s₀, false)
     (tracked_initial_inv kem onoff hDet ecEk ecCt0 ecCt1 ecEk.ec.nchunk_pos ecCt0.ec.nchunk_pos)
-  have hl : Pr[= true | SCKAScheme.securityExpFixedBit
+  have hl : Pr{let x ← (SCKAScheme.securityExpFixedBit
       (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv b (exposureA kem onoff leak)
-        (exposureB kem onoff leak)] =
-      Pr[fun z => z.1 = true | (simulateQ left adv).run (s₀, false)] := by
-    rw [securityExpFixedBit_eq_run', ← probEvent_eq_eq_probOutput, StateT.run'_eq, probEvent_map]
+        (exposureB kem onoff leak))}[x = true] =
+      Pr{let z ← (simulateQ left adv).run (s₀, false)}[z.1 = true] := by
+    rw [securityExpFixedBit_eq_run', StateT.run'_eq, prEvent_map]
     rw [← trackedSecurity_run_project kem onoff hDet ecEk ecCt0 ecCt1 leak b adv (s₀, false),
-      probEvent_map]
+      prEvent_map]
     rfl
-  have hr : Pr[= true | idealSecurityExp kem onoff hDet ecEk ecCt0 ecCt1 leak b adv] =
-      Pr[fun z => z.1 = true | (simulateQ right adv).run (s₀, false)] := by
-    rw [idealSecurityExp, ← probEvent_eq_eq_probOutput, StateT.run'_eq, probEvent_map]
+  have hr : Pr{let x ← idealSecurityExp kem onoff hDet ecEk ecCt0 ecCt1 leak b adv}[x = true] =
+      Pr{let z ← (simulateQ right adv).run (s₀, false)}[z.1 = true] := by
+    rw [idealSecurityExp, StateT.run'_eq, prEvent_map]
     rw [← trackedIdeal_run_project kem onoff hDet ecEk ecCt0 ecCt1 leak b adv (s₀, false),
-      probEvent_map]
+      prEvent_map]
     rfl
   rw [hl, hr]
   refine hbound.trans ?_

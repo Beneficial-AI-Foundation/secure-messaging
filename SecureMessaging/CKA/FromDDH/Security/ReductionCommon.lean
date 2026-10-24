@@ -375,7 +375,7 @@ lemma relTriple_reductionChallA_pred_false_of_state_rel
       simp [h_predR]
     unfold honestChallAparamMode
     rw [StateT.run_get_bind]
-    rw [if_neg h_param_false]
+    rw [ite_eq_right h_param_false]
     unfold oracleChallA
     rw [StateT.run_get_bind]
     by_cases h_valid : validStep sR.lastAction CKAAction.challA = true
@@ -387,10 +387,10 @@ lemma relTriple_reductionChallA_pred_false_of_state_rel
           ¬ (((gp.challengedParty == CKAParty.A) &&
             isChallengeEpoch gp { sR with tA := sR.tA + 1 }) = true) := by
         simp [h_tail]
-      rw [if_pos h_valid]
-      rw [if_neg h_tail_not]
+      rw [ite_eq_left h_valid]
+      rw [ite_eq_right h_tail_not]
       rfl
-    · rw [if_neg h_valid]
+    · rw [ite_eq_right h_valid]
       rfl
   refine relTriple_of_eq_pure_pure
     (R := fun pL pR => pL.1 = pR.1 ∧ R pL.2 pR.2)
@@ -443,7 +443,7 @@ lemma relTriple_reductionChallB_pred_false_of_state_rel
       simp [h_predR]
     unfold honestChallBparamMode
     rw [StateT.run_get_bind]
-    rw [if_neg h_param_false]
+    rw [ite_eq_right h_param_false]
     unfold oracleChallB
     rw [StateT.run_get_bind]
     by_cases h_valid : validStep sR.lastAction CKAAction.challB = true
@@ -455,10 +455,10 @@ lemma relTriple_reductionChallB_pred_false_of_state_rel
           ¬ (((gp.challengedParty == CKAParty.B) &&
             isChallengeEpoch gp { sR with tB := sR.tB + 1 }) = true) := by
         simp [h_tail]
-      rw [if_pos h_valid]
-      rw [if_neg h_tail_not]
+      rw [ite_eq_left h_valid]
+      rw [ite_eq_right h_tail_not]
       rfl
-    · rw [if_neg h_valid]
+    · rw [ite_eq_right h_valid]
       rfl
   refine relTriple_of_eq_pure_pure
     (R := fun pL pR => pL.1 = pR.1 ∧ R pL.2 pR.2)
