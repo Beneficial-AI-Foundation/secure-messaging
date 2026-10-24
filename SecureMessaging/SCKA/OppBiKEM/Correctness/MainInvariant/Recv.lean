@@ -1117,7 +1117,7 @@ lemma partyInv_recv_step [DecidableEq Sym] (hEk : ecEk.ec.Correct) (hCt : ecCt.e
               (recvFinish roleR stR ρ.tRes stR.res.ekPeer stR.req.dk (payloadChunks ecCt c I')
                 (recvAck roleR stR.ack ρ)) := by
             apply bufferConsistent_recvFinish
-            rw [if_neg hg2.1, if_neg hnotnone, henc]
+            rw [ite_eq_right hg2.1, ite_eq_right hnotnone, henc]
             exact ⟨I', rfl, hlt⟩
           obtain ⟨hR', hS'⟩ := partyInv_recv_noKey hR hS hmsg hst stR.res.ekPeer
             (recvAck roleR stR.ack ρ) (payloadChunks ecCt c I') (fun _ _ => rfl) hR.ekPeer_T
