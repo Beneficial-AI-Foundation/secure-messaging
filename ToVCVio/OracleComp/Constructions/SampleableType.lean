@@ -17,7 +17,8 @@ public import VCVio.OracleComp.EvalDist.Sum
 `evalDistEq_uniformSample_of_uniform` shows that a computation with pointwise-constant output
 probability is equal in distribution to the uniform sample. `prEvent_true_bitGuess_eq_half`
 says that guessing a uniform bit succeeds with probability exactly `1 / 2` when the bit does
-not affect the distribution of the guesser's input.
+not affect the distribution of the guesser's input. `bind_uniformSample_evalDistEq_of_bijective`
+reindexes a uniform draw by a bijection before a continuation.
 -/
 
 @[expose] public section
@@ -62,5 +63,14 @@ lemma prEvent_true_bitGuess_eq_half {Par X : Type} (setup : ProbComp Par)
     (fun b => do let par ← setup; let x ← dist par b; adversary par x) hf
   rw [prEvent_eq_evalDist_singleton]
   simpa [bind_assoc, Bool.beq_eq_decide_eq] using this
+
+
+/-- Let `f : α → β` be a bijection. Then drawing `x ← $ᵗ α` and continuing with `k (f x)` is
+equal in distribution to drawing `y ← $ᵗ β` and continuing with `k y`. -/
+theorem bind_uniformSample_evalDistEq_of_bijective {α β γ : Type} [SampleableType α]
+    [SampleableType β] {f : α → β} (hf : Function.Bijective f) (k : β → ProbComp γ) :
+    (do let x ← ($ᵗ α : ProbComp α); k (f x)) =ᵈ (do let y ← ($ᵗ β : ProbComp β); k y) := by
+  have h := (SampleableType.map_uniformSample_evalDistEq_of_bijective hf).bind_left k
+  simpa only [map_eq_bind_pure_comp, bind_assoc, pure_bind, Function.comp_apply] using h
 
 end ToVCVio
