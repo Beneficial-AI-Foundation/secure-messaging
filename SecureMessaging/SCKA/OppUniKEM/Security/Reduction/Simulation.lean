@@ -259,12 +259,12 @@ private theorem optionRun_hide_eq
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s)
     (hsrc : pinnedSources kemMat e s) (he : e ∉ s.exposed) :
-    Pr[= true | optionRun
+    Pr{let x ← (optionRun
       (simOracle base onoff ecEk ecCt0 ecCt1 leak e kemMat.pk kemMat.ciphertext kStar)
-      adv (hideState e s)] =
-    Pr[= true | optionRun (honestStopped base onoff ecEk ecCt0 ecCt1 leak kemMat e kStar)
-      adv s] := by
-  apply probOutput_optionRun_eq_of_state_map _ _ (hideState e)
+      adv (hideState e s))}[x = true] =
+    Pr{let x ← (optionRun
+        (honestStopped base onoff ecEk ecCt0 ecCt1 leak kemMat e kStar) adv s)}[x = true] := by
+  apply prEvent_optionRun_eq_of_state_map _ _ (hideState e)
     (fun s => (reachableInv base onoff ecEk ecCt0 ecCt1 s ∧ pinnedSources kemMat e s) ∧
       e ∉ s.exposed)
   · intro t s hs z hz hcont
@@ -305,9 +305,10 @@ theorem run_eq_honestStopped
     (leak : base.OnOffRandLeak onoff)
     (kemMat : KEMMaterial leak) (hm : kemMat ∈ support (sampleMaterial leak)) (e : ℕ) (kStar : K)
     (adv : SecurityAdversary leak Sym) :
-    Pr[= true | run base onoff ecEk ecCt0 ecCt1 leak adv e kemMat.pk kemMat.ciphertext kStar] =
-    Pr[= true | optionRun (honestStopped base onoff ecEk ecCt0 ecCt1 leak kemMat e kStar)
-      adv (oppUniKemCKA.Reduction.Internal.initialGame base onoff)] := by
+    Pr{let x ← (run
+        base onoff ecEk ecCt0 ecCt1 leak adv e kemMat.pk kemMat.ciphertext kStar)}[x = true] =
+    Pr{let x ← (optionRun (honestStopped base onoff ecEk ecCt0 ecCt1 leak kemMat e kStar)
+      adv (oppUniKemCKA.Reduction.Internal.initialGame base onoff))}[x = true] := by
   have hrun : run base onoff ecEk ecCt0 ecCt1 leak adv e kemMat.pk kemMat.ciphertext kStar =
       optionRun (simOracle base onoff ecEk ecCt0 ecCt1 leak e
         kemMat.pk kemMat.ciphertext kStar) adv (initial onoff) := by
@@ -330,18 +331,17 @@ theorem fixedBranch_eq_honestStopped
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
     (leak : base.OnOffRandLeak onoff)
     (adv : SecurityAdversary leak Sym) (e : ℕ) (b : Bool) :
-    Pr[= true | fixedBranch base onoff ecEk ecCt0 ecCt1 leak adv e b] =
-    Pr[= true | do
+    Pr{let x ← fixedBranch base onoff ecEk ecCt0 ecCt1 leak adv e b}[x = true] =
+    Pr{let x ← (do
       let kemMat ← sampleMaterial leak
       let k ← ($ᵗ K : ProbComp K)
       optionRun (honestStopped base onoff ecEk ecCt0 ecCt1 leak kemMat e
         (if b then kemMat.key else k)) adv
-        (oppUniKemCKA.Reduction.Internal.initialGame base onoff)] := by
+        (oppUniKemCKA.Reduction.Internal.initialGame base onoff))}[x = true] := by
   rw [fixedBranch_eq_material]
-  apply probOutput_bind_congr
-  intro kemMat hm
-  apply probOutput_bind_congr
-  intro k _
+  simp only [map_bind]
+  refine OracleComp.prEvent_bind_congr_of_support _ _ _ fun kemMat hm => ?_
+  refine OracleComp.prEvent_bind_congr_of_support _ _ _ fun k _ => ?_
   exact run_eq_honestStopped base onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
     leak kemMat hm e _ adv
 

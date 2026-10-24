@@ -331,16 +331,14 @@ theorem sendBrleak_sample_online_eq_fresh [DecidableEq Sym]
     (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hsrc : pinnedSources kemMat e s) :
-    𝒟[(do
+    (do
       let online ← leak.encapsOnRleak kemMat.st kemMat.pk
-      (honestScheme ecEk ecCt0 ecCt1 { kemMat with on := online } e s).sendBrleak s.stB)] =
-    𝒟[(Sampling.schemeAt ecEk ecCt0 ecCt1 .onlineFresh kemMat e s).sendBrleak s.stB] := by
+      (honestScheme ecEk ecCt0 ecCt1 { kemMat with on := online } e s).sendBrleak s.stB) =ᵈ
+    (Sampling.schemeAt ecEk ecCt0 ecCt1 .onlineFresh kemMat e s).sendBrleak s.stB := by
   have hpub := selected_online_public_key base onoff ecEk ecCt0 ecCt1 leak kemMat e s hs hsrc
   have hoff (he : s.stB.t = e) (st : onoff.St) (hst : s.stB.stCt = some st) :
       st = kemMat.st :=
     Option.some.inj (hst.symm.trans (hsrc.2 he (by simp [hst])).1)
-  apply evalDist_ext
-  intro out
   by_cases he : s.stB.t = e <;> cases hc0 : s.stB.ct0 <;> cases hp : s.stB.ekA <;>
     cases hc1 : s.stB.ct1 <;> cases hst : s.stB.stCt <;> cases ha : s.stB.ack.ctRec
   all_goals
@@ -353,14 +351,12 @@ theorem sendBrleak_sample_online_eq_fresh [DecidableEq Sym]
   all_goals
     first
     | solve
-      | apply ToVCVio.probOutput_bind_of_const'
-        intro online _
-        rfl
+      | exact ToVCVio.evalDistEq_bind_of_const' _ fun online _ => rfl
     | have hpk := hpub he _ hp hc1
       first
-      | solve | simp only [hpk]
+      | solve | simp only [hpk, EvalDistEq.refl]
       | have hstate := hoff he _ hst
-        simp only [hpk, hstate]
+        simp only [hpk, hstate, EvalDistEq.refl]
 
 /-- Ordinary-send version of `sendBrleak_sample_online_eq_fresh`. -/
 theorem sendB_sample_online_eq_fresh [DecidableEq Sym]
@@ -371,11 +367,11 @@ theorem sendB_sample_online_eq_fresh [DecidableEq Sym]
     (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hsrc : pinnedSources kemMat e s) :
-    𝒟[(do
+    (do
       let online ← leak.encapsOnRleak kemMat.st kemMat.pk
-      (honestScheme ecEk ecCt0 ecCt1 { kemMat with on := online } e s).sendB s.stB)] =
-    𝒟[(Sampling.schemeAt ecEk ecCt0 ecCt1 .onlineFresh kemMat e s).sendB s.stB] := by
-  have h := evalDist_map_eq_of_evalDist_eq
+      (honestScheme ecEk ecCt0 ecCt1 { kemMat with on := online } e s).sendB s.stB) =ᵈ
+    (Sampling.schemeAt ecEk ecCt0 ecCt1 .onlineFresh kemMat e s).sendB s.stB := by
+  have h := EvalDistEq.map
     (sendBrleak_sample_online_eq_fresh base onoff ecEk ecCt0 ecCt1 leak kemMat e s hs hsrc)
     (fun out => out.map fun (key, msg, epoch, state, _) => (key, msg, epoch, state))
   rw [map_bind] at h
@@ -402,17 +398,17 @@ theorem hybridOracle_sample_online_eq_fresh
     (t : (securitySpec leak Sym).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hsrc : pinnedSources kemMat e s) :
-    𝒟[(do
+    (do
       let online ← leak.encapsOnRleak kemMat.st kemMat.pk
-      (hybridOracle base onoff ecEk ecCt0 ecCt1 leak { kemMat with on := online } e b t).run s)] =
-    𝒟[(Sampling.oracle base onoff ecEk ecCt0 ecCt1 leak .onlineFresh kemMat e b t).run s] :=
+      (hybridOracle base onoff ecEk ecCt0 ecCt1 leak { kemMat with on := online } e b t).run s) =ᵈ
+    (Sampling.oracle base onoff ecEk ecCt0 ecCt1 leak .onlineFresh kemMat e b t).run s :=
   securityImplAt_sample_eq base onoff leak (leak.encapsOnRleak kemMat.st kemMat.pk)
     (fun online => honestScheme ecEk ecCt0 ecCt1 { kemMat with on := online } e)
     (Sampling.schemeAt ecEk ecCt0 ecCt1 .onlineFresh kemMat e)
     (SCKAScheme.challOf (adjacentMode e b)) s
-    (ToVCVio.evalDist_bind_of_const' _ fun _ _ => rfl)
+    (ToVCVio.evalDistEq_bind_of_const' _ fun _ _ => rfl)
     (sendB_sample_online_eq_fresh base onoff ecEk ecCt0 ecCt1 leak kemMat e s hs hsrc)
-    (ToVCVio.evalDist_bind_of_const' _ fun _ _ => rfl)
+    (ToVCVio.evalDistEq_bind_of_const' _ fun _ _ => rfl)
     (sendBrleak_sample_online_eq_fresh base onoff ecEk ecCt0 ecCt1 leak kemMat e s hs hsrc)
     (fun online _ ρ => (honest_recvA_eq_ideal base onoff ecEk ecCt0 ecCt1 leak
       { kemMat with on := online } e s ρ).trans
@@ -433,12 +429,13 @@ theorem hybridStopped_online_deferred
     (adv : SecurityAdversary leak Sym)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hsrc : pinnedSources kemMat e s) :
-    Pr[= true | do
+    Pr{let x ← (do
       let online ← leak.encapsOnRleak kemMat.st kemMat.pk
       optionRun (hybridStopped base onoff ecEk ecCt0 ecCt1 leak { kemMat with on := online } e b)
-        adv s] =
-    Pr[= true | optionRun
-      (Sampling.stopped base onoff ecEk ecCt0 ecCt1 leak .onlineFresh kemMat e b) adv s] :=
+        adv s)}[x = true] =
+    Pr{let x ← (optionRun
+      (Sampling.stopped base onoff ecEk ecCt0 ecCt1 leak .onlineFresh kemMat e b)
+      adv s)}[x = true] :=
   stoppedRun_sample_once_eq (leak.encapsOnRleak kemMat.st kemMat.pk)
     (fun online => hybridOracle base onoff ecEk ecCt0 ecCt1 leak { kemMat with on := online } e b)
     (Sampling.oracle base onoff ecEk ecCt0 ecCt1 leak .onlineFresh kemMat e b)
@@ -451,7 +448,7 @@ theorem hybridStopped_online_deferred
       (SCKAScheme.challOf_recordsChallenges _) t s hs z hz)
     (fun online _ t s _ hu z hz _ => hybridOracle_preserves_keyB_available base onoff ecEk
       ecCt0 ecCt1 leak { kemMat with on := online } e b t s hu z hz)
-    (fun t s _ hh online _ online' _ => congrArg evalDist
+    (fun t s _ hh online _ online' _ => ToVCVio.evalDistEq_of_eq
       (hybridOracle_online_independent base onoff ecEk ecCt0 ecCt1 leak kemMat e b t s hh
         online online'))
     (fun t s hs hu => usesOnline_eq_false_of_recorded base onoff ecEk ecCt0 ecCt1 leak

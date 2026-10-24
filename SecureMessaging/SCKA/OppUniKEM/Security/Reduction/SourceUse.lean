@@ -247,8 +247,12 @@ theorem usesSource_false_of_used
     simp only [Option.isNone_iff_eq_none] at hno
     rcases t with (((((t | u) | u) | t) | u) | u)
     · rcases t with ((((n | u) | u) | n) | n)
-      all_goals simp [usesSource] <;> aesop
-    all_goals simp [usesSource] <;> aesop
+      all_goals
+        simp [usesSource]
+        all_goals aesop
+    all_goals
+      simp [usesSource]
+      all_goals aesop
   | offline =>
     have hno : ¬(s.stB.t = e ∧ s.stB.ct0.isNone) := by
       rintro ⟨ht, hp⟩
@@ -256,8 +260,12 @@ theorem usesSource_false_of_used
     simp only [Option.isNone_iff_eq_none] at hno
     rcases t with (((((t | u) | u) | t) | u) | u)
     · rcases t with ((((n | u) | u) | n) | n)
-      all_goals simp [usesSource] <;> aesop
-    all_goals simp [usesSource] <;> aesop
+      all_goals
+        simp [usesSource]
+        all_goals aesop
+    all_goals
+      simp [usesSource]
+      all_goals aesop
 
 variable [DecidableEq K] [DecidableEq Sym]
 

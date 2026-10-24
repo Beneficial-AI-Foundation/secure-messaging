@@ -245,14 +245,14 @@ def honestStopped [DecidableEq K] [DecidableEq Sym] [SampleableType K]
   stopOnState (honestOracle base onoff ecEk ecCt0 ecCt1 leak kemMat e kStar)
     (fun s => decide (e ∈ s.exposed))
 
-/-- Assume that `sample` never fails, that, averaged over `a ← sample`, the four sends of
-`schemeOf a s` have the distributions of those of `target s`, and that the receives of
-`schemeOf a s` and `target s` agree for every `a ∈ support sample`. Then averaging
+/-- Assume that, averaged over `a ← sample`, the four sends of `schemeOf a s` have the
+distributions of those of `target s`, and that the receives of `schemeOf a s` and `target s`
+agree for every `a ∈ support sample`. Then averaging
 `securityImplAt (schemeOf a) chall t` from `s` over `a ← sample` gives the joint response/state
 distribution of `securityImplAt target chall t` from `s`. -/
 theorem securityImplAt_sample_eq [DecidableEq K] {τ : Type}
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (leak : base.OnOffRandLeak onoff) (sample : ProbComp τ) [NeverFail sample]
+    (leak : base.OnOffRandLeak onoff) (sample : ProbComp τ)
     (schemeOf : τ → SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) →
       SCKAScheme ProbComp Unit (StA onoff Sym) (StB onoff Sym) K (Message Sym)
         (SendRand leak.KeygenRand leak.OffRand leak.OnRand))
@@ -262,22 +262,22 @@ theorem securityImplAt_sample_eq [DecidableEq K] {τ : Type}
     (chall : QueryImpl (ℕ →ₒ Option K)
       (StateT (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) ProbComp))
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (hsendA : 𝒟[(do let a ← sample; (schemeOf a s).sendA s.stA)] = 𝒟[(target s).sendA s.stA])
-    (hsendB : 𝒟[(do let a ← sample; (schemeOf a s).sendB s.stB)] = 𝒟[(target s).sendB s.stB])
-    (hsendArleak : 𝒟[(do let a ← sample; (schemeOf a s).sendArleak s.stA)] =
-      𝒟[(target s).sendArleak s.stA])
-    (hsendBrleak : 𝒟[(do let a ← sample; (schemeOf a s).sendBrleak s.stB)] =
-      𝒟[(target s).sendBrleak s.stB])
+    (hsendA : (do let a ← sample; (schemeOf a s).sendA s.stA) =ᵈ (target s).sendA s.stA)
+    (hsendB : (do let a ← sample; (schemeOf a s).sendB s.stB) =ᵈ (target s).sendB s.stB)
+    (hsendArleak : (do let a ← sample; (schemeOf a s).sendArleak s.stA) =ᵈ
+      (target s).sendArleak s.stA)
+    (hsendBrleak : (do let a ← sample; (schemeOf a s).sendBrleak s.stB) =ᵈ
+      (target s).sendBrleak s.stB)
     (hrecvA : ∀ a ∈ support sample, ∀ ρ,
       (schemeOf a s).recvA s.stA ρ = (target s).recvA s.stA ρ)
     (hrecvB : ∀ a ∈ support sample, ∀ ρ,
       (schemeOf a s).recvB s.stB ρ = (target s).recvB s.stB ρ)
     (t : (securitySpec leak Sym).Domain) :
-    𝒟[(do let a ← sample; (securityImplAt base onoff leak (schemeOf a) chall t).run s)] =
-      𝒟[(securityImplAt base onoff leak target chall t).run s] := by
+    (do let a ← sample; (securityImplAt base onoff leak (schemeOf a) chall t).run s) =ᵈ
+      (securityImplAt base onoff leak target chall t).run s := by
   rcases t with (((((t | u) | u) | t) | u) | u)
   · rcases t with ((((n | u) | u) | n) | n)
-    · exact ToVCVio.evalDist_bind_of_const' sample fun _ _ => rfl
+    · exact ToVCVio.evalDistEq_bind_of_const' sample fun _ _ => rfl
     · cases u
       simp only [securityImplAt, StateT.run_bind, StateT.run_get, pure_bind,
         SCKAScheme.sckaCorrectnessImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
@@ -288,11 +288,11 @@ theorem securityImplAt_sample_eq [DecidableEq K] {τ : Type}
       exact SCKAScheme.oracleSendB_sample_eq _ _ _ s hsendB
     · simp only [securityImplAt, StateT.run_bind, StateT.run_get, pure_bind,
         SCKAScheme.sckaCorrectnessImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
-      exact ToVCVio.evalDist_bind_of_const' sample fun a ha =>
+      exact ToVCVio.evalDistEq_bind_of_const' sample fun a ha =>
         SCKAScheme.oracleRecvA_run_congr _ _ s (hrecvA a ha) n
     · simp only [securityImplAt, StateT.run_bind, StateT.run_get, pure_bind,
         SCKAScheme.sckaCorrectnessImpl, QueryImpl.add_apply_inr]
-      exact ToVCVio.evalDist_bind_of_const' sample fun a ha =>
+      exact ToVCVio.evalDistEq_bind_of_const' sample fun a ha =>
         SCKAScheme.oracleRecvB_run_congr _ _ s (hrecvB a ha) n
   · cases u
     simp only [securityImplAt, StateT.run_bind, StateT.run_get, pure_bind]
@@ -300,7 +300,7 @@ theorem securityImplAt_sample_eq [DecidableEq K] {τ : Type}
   · cases u
     simp only [securityImplAt, StateT.run_bind, StateT.run_get, pure_bind]
     exact SCKAScheme.oracleSendBrleak_sample_eq _ _ _ _ s hsendBrleak
-  all_goals exact ToVCVio.evalDist_bind_of_const' sample fun _ _ => rfl
+  all_goals exact ToVCVio.evalDistEq_bind_of_const' sample fun _ _ => rfl
 
 end oppUniKemCKA.Security.Embedding
 
@@ -393,11 +393,11 @@ private theorem sendA_preserves_pinnedSources
     cases hp : s.stA.ekA <;> cases ha : s.stA.ack.ekRec
   all_goals
     simp only [sendA, hd, hp, ha, Bool.false_eq_true, ↓reduceIte, pure_bind] at hout
-    try dsimp only [Pinned.kem, Pinned.onOff] at hout
     simp only [Pinned.keygen, he, decide_true, decide_false, ↓reduceIte, pure_bind,
       mem_support_bind_iff, mem_support_pure_iff, Prod.exists,
       Option.some.injEq, Prod.mk.injEq] at hout
-    simp_all [pinnedSources] <;> aesop
+    simp_all [pinnedSources]
+    all_goals aesop
 
 /-- B version of `sendA_preserves_pinnedSources`. -/
 private theorem sendB_preserves_pinnedSources
@@ -417,11 +417,11 @@ private theorem sendB_preserves_pinnedSources
   all_goals
     simp only [sendB, hc0, hp, hc1, hst, ha, Bool.not_false, Bool.not_true,
       Bool.false_eq_true, ↓reduceIte, pure_bind] at hout
-    try dsimp only [Pinned.kem, Pinned.onOff] at hout
     simp only [Pinned.encapsOff, Pinned.encapsOn, he, decide_true, decide_false,
       ↓reduceIte, pure_bind, mem_support_bind_iff, mem_support_pure_iff,
       Prod.exists, Option.some.injEq, Prod.mk.injEq] at hout
-    simp_all [pinnedSources] <;> aesop
+    simp_all [pinnedSources]
+    all_goals aesop
 
 /-- B's successful receive preserves `pinnedSources kemMat e`. -/
 private theorem recvB_preserves_pinnedSources [DecidableEq Sym]

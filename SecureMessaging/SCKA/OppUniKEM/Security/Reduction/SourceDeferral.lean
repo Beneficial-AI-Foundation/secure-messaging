@@ -105,10 +105,10 @@ theorem leaking_offline_rejected
     (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (he : s.stB.t = e) (hfield : s.stB.ct0 = none) (hc : e ∈ s.challenged) :
-    𝒟[(SCKAScheme.oracleSendBrleak vulnRleakB
-      (schemeAt ecEk ecCt0 ecCt1 stage kemMat e s) ()).run s] =
-      𝒟[(pure (none, s) : ProbComp _)] := by
-  apply SCKAScheme.oracleSendBrleak_rejected_evalDist _ _ s {e} ?_ ?_
+    (SCKAScheme.oracleSendBrleak vulnRleakB
+      (schemeAt ecEk ecCt0 ecCt1 stage kemMat e s) ()).run s =ᵈ
+      (pure (none, s) : ProbComp _) := by
+  apply SCKAScheme.oracleSendBrleak_rejected_evalDistEq _ _ s {e} ?_ ?_
   · intro key msg epoch next coins hout
     have hex := sendBrleak_exposure
       (stageKem stage kemMat e s) (stageOnOff stage kemMat e s) ecCt0 ecCt1
@@ -131,25 +131,26 @@ theorem oracle_offline_independent
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hh : usesSource .offline e t s = false)
     (offline offline' : (onoff.St × onoff.C₀) × leak.OffRand) :
-    𝒟[(oracle base onoff ecEk ecCt0 ecCt1 leak
-      .onlineFresh { kemMat with off := offline } e b t).run s] =
-    𝒟[(oracle base onoff ecEk ecCt0 ecCt1 leak
-      .onlineFresh { kemMat with off := offline' } e b t).run s] := by
+    (oracle base onoff ecEk ecCt0 ecCt1 leak
+      .onlineFresh { kemMat with off := offline } e b t).run s =ᵈ
+    (oracle base onoff ecEk ecCt0 ecCt1 leak
+      .onlineFresh { kemMat with off := offline' } e b t).run s := by
   rcases t with (((((t | u) | u) | _) | u) | u) <;> try rcases t with ((((n | u) | u) | n) | n)
   all_goals try cases u
   all_goals simp only [oracle, securityImplAt, StateT.run_bind, StateT.run_get, pure_bind,
-    SCKAScheme.sckaCorrectnessImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
-  · exact congrArg evalDist (SCKAScheme.oracleSendA_run_congr _ _ s rfl)
-  · exact congrArg evalDist (SCKAScheme.oracleSendB_run_congr _ _ s
+    SCKAScheme.sckaCorrectnessImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
+    EvalDistEq.refl]
+  · exact ToVCVio.evalDistEq_of_eq (SCKAScheme.oracleSendA_run_congr _ _ s rfl)
+  · exact ToVCVio.evalDistEq_of_eq (SCKAScheme.oracleSendB_run_congr _ _ s
       (sendB_offline_independent base onoff ecEk ecCt0 ecCt1 leak kemMat e s
         (of_decide_eq_false hh) offline offline'))
-  · exact congrArg evalDist (SCKAScheme.oracleRecvA_run_congr _ _ s (fun ρ =>
+  · exact ToVCVio.evalDistEq_of_eq (SCKAScheme.oracleRecvA_run_congr _ _ s (fun ρ =>
       (recvA_eq_ideal base onoff ecEk ecCt0 ecCt1 leak .onlineFresh
         { kemMat with off := offline } e s ρ).trans
       (recvA_eq_ideal base onoff ecEk ecCt0 ecCt1 leak .onlineFresh
         { kemMat with off := offline' } e s ρ).symm) n)
   · rfl
-  · exact congrArg evalDist (SCKAScheme.oracleSendArleak_run_congr _ _ _ s rfl)
+  · exact ToVCVio.evalDistEq_of_eq (SCKAScheme.oracleSendArleak_run_congr _ _ _ s rfl)
   · by_cases hready : s.stB.t = e ∧ s.stB.ct0.isNone
     · have hc : e ∈ s.challenged := by
         have hnot : ¬((s.stB.t = e ∧ s.stB.ct0.isNone) ∧ e ∉ s.challenged) :=
@@ -162,7 +163,7 @@ theorem oracle_offline_independent
         (leaking_offline_rejected base onoff ecEk ecCt0 ecCt1 leak .onlineFresh
           { kemMat with off := offline' } e s hready.1
           (Option.isNone_iff_eq_none.mp hready.2) hc).symm
-    · exact congrArg evalDist (SCKAScheme.oracleSendBrleak_run_congr _ _ _ s
+    · exact ToVCVio.evalDistEq_of_eq (SCKAScheme.oracleSendBrleak_run_congr _ _ _ s
         (sendBrleak_offline_independent base onoff ecEk ecCt0 ecCt1 leak kemMat e s hready
           offline offline'))
 
@@ -183,14 +184,12 @@ theorem sendBrleak_sample_offline_eq_fresh [DecidableEq Sym]
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
-    𝒟[(do
+    (do
       let offline ← leak.encapsOffRleak
       (Sampling.schemeAt ecEk ecCt0 ecCt1 .onlineFresh
-        { kemMat with off := offline } e s).sendBrleak s.stB)] =
-    𝒟[(Sampling.schemeAt ecEk ecCt0 ecCt1 .encapsFresh kemMat e s).sendBrleak s.stB] := by
+        { kemMat with off := offline } e s).sendBrleak s.stB) =ᵈ
+    (Sampling.schemeAt ecEk ecCt0 ecCt1 .encapsFresh kemMat e s).sendBrleak s.stB := by
   have he₁ : Sampling.Stage.encapsFresh ≠ .onlineFresh := by decide
-  apply evalDist_ext
-  intro out
   by_cases he : s.stB.t = e <;> cases hc0 : s.stB.ct0 <;> cases hp : s.stB.ekA <;>
     cases hc1 : s.stB.ct1 <;> cases hst : s.stB.stCt <;> cases ha : s.stB.ack.ctRec
   all_goals
@@ -199,11 +198,9 @@ theorem sendBrleak_sample_offline_eq_fresh [DecidableEq Sym]
       hc0, hp, hc1, hst, ha, pure_bind, Pinned.onOff, Pinned.leakage,
       Pinned.encapsOff, he, decide_true, decide_false,
       Bool.not_true, Bool.not_false, Bool.false_eq_true, he₁,
-      Bool.and_true, Bool.false_and, ↓reduceIte]
+      Bool.and_true, Bool.false_and, ↓reduceIte, EvalDistEq.refl]
   all_goals
-    apply ToVCVio.probOutput_bind_of_const'
-    intro offline _
-    rfl
+    exact ToVCVio.evalDistEq_bind_of_const' _ fun offline _ => rfl
 
 /-- Ordinary-send version of `sendBrleak_sample_offline_eq_fresh`. -/
 theorem sendB_sample_offline_eq_fresh [DecidableEq Sym]
@@ -213,12 +210,12 @@ theorem sendB_sample_offline_eq_fresh [DecidableEq Sym]
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
-    𝒟[(do
+    (do
       let offline ← leak.encapsOffRleak
       (Sampling.schemeAt ecEk ecCt0 ecCt1 .onlineFresh { kemMat with off := offline } e s).sendB
-        s.stB)] =
-    𝒟[(Sampling.schemeAt ecEk ecCt0 ecCt1 .encapsFresh kemMat e s).sendB s.stB] := by
-  have h := evalDist_map_eq_of_evalDist_eq
+        s.stB) =ᵈ
+    (Sampling.schemeAt ecEk ecCt0 ecCt1 .encapsFresh kemMat e s).sendB s.stB := by
+  have h := EvalDistEq.map
     (sendBrleak_sample_offline_eq_fresh base onoff ecEk ecCt0 ecCt1 leak kemMat e s)
     (fun out => out.map fun (key, msg, epoch, state, _) => (key, msg, epoch, state))
   rw [map_bind] at h
@@ -244,19 +241,19 @@ theorem oracle_sample_offline_eq_fresh
     (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool)
     (t : (securitySpec leak Sym).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
-    𝒟[(do
+    (do
       let offline ← leak.encapsOffRleak
       (Sampling.oracle base onoff ecEk ecCt0 ecCt1 leak
-        .onlineFresh { kemMat with off := offline } e b t).run s)] =
-    𝒟[(Sampling.oracle base onoff ecEk ecCt0 ecCt1 leak .encapsFresh kemMat e b t).run s] :=
+        .onlineFresh { kemMat with off := offline } e b t).run s) =ᵈ
+    (Sampling.oracle base onoff ecEk ecCt0 ecCt1 leak .encapsFresh kemMat e b t).run s :=
   securityImplAt_sample_eq base onoff leak leak.encapsOffRleak
     (fun offline =>
       Sampling.schemeAt ecEk ecCt0 ecCt1 .onlineFresh { kemMat with off := offline } e)
     (Sampling.schemeAt ecEk ecCt0 ecCt1 .encapsFresh kemMat e)
     (SCKAScheme.challOf (adjacentMode e b)) s
-    (ToVCVio.evalDist_bind_of_const' _ fun _ _ => rfl)
+    (ToVCVio.evalDistEq_bind_of_const' _ fun _ _ => rfl)
     (sendB_sample_offline_eq_fresh base onoff ecEk ecCt0 ecCt1 leak kemMat e s)
-    (ToVCVio.evalDist_bind_of_const' _ fun _ _ => rfl)
+    (ToVCVio.evalDistEq_bind_of_const' _ fun _ _ => rfl)
     (sendBrleak_sample_offline_eq_fresh base onoff ecEk ecCt0 ecCt1 leak kemMat e s)
     (fun offline _ ρ => (Sampling.recvA_eq_ideal base onoff ecEk ecCt0 ecCt1 leak
       .onlineFresh { kemMat with off := offline } e s ρ).trans
@@ -282,12 +279,12 @@ theorem stopped_offline_deferred
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool) (adv : SecurityAdversary leak Sym)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
-    Pr[= true | do
+    Pr{let x ← (do
       let offline ← leak.encapsOffRleak
       optionRun (stopped base onoff ecEk ecCt0 ecCt1 leak
-        .onlineFresh { kemMat with off := offline } e b) adv s] =
-    Pr[= true | optionRun (stopped base onoff ecEk ecCt0 ecCt1 leak .encapsFresh kemMat e b)
-      adv s] :=
+        .onlineFresh { kemMat with off := offline } e b) adv s)}[x = true] =
+    Pr{let x ← (optionRun (stopped base onoff ecEk ecCt0 ecCt1 leak .encapsFresh kemMat e b)
+      adv s)}[x = true] :=
   stoppedRun_sample_once_eq leak.encapsOffRleak
     (fun offline => oracle base onoff ecEk ecCt0 ecCt1 leak
       .onlineFresh { kemMat with off := offline } e b)
@@ -324,25 +321,21 @@ theorem sendArleak_sample_keygen_eq_fresh [DecidableEq Sym]
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
-    𝒟[(do
+    (do
       let pair ← leak.keygenRleak
       (schemeAt ecEk ecCt0 ecCt1 .encapsFresh { kemMat with keygen := pair } e s).sendArleak
-        s.stA)] =
-    𝒟[(schemeAt ecEk ecCt0 ecCt1 .fresh kemMat e s).sendArleak s.stA] := by
+        s.stA) =ᵈ
+    (schemeAt ecEk ecCt0 ecCt1 .fresh kemMat e s).sendArleak s.stA := by
   have hf : Stage.encapsFresh ≠ .fresh := by decide
-  apply evalDist_ext
-  intro out
   by_cases he : s.stA.t = e <;> cases hd : s.stA.dkA <;>
     cases hp : s.stA.ekA <;> cases ha : s.stA.ack.ekRec
   all_goals
     simp only [schemeAt, Stage.pinsKeygen, scheme, sendArleak, Pinned.leakage,
       hd, hp, ha, he, hf, ne_eq, not_true_eq_false, not_false_eq_true,
       decide_true, decide_false, Bool.true_and, Bool.false_and,
-      Bool.false_eq_true, ↓reduceIte, pure_bind]
+      Bool.false_eq_true, ↓reduceIte, pure_bind, EvalDistEq.refl]
   all_goals
-    apply ToVCVio.probOutput_bind_of_const'
-    intro pair _
-    rfl
+    exact ToVCVio.evalDistEq_bind_of_const' _ fun pair _ => rfl
 
 /-- Ordinary-send version of `sendArleak_sample_keygen_eq_fresh`. -/
 theorem sendA_sample_keygen_eq_fresh [DecidableEq Sym]
@@ -352,11 +345,11 @@ theorem sendA_sample_keygen_eq_fresh [DecidableEq Sym]
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
-    𝒟[(do
+    (do
       let pair ← leak.keygenRleak
-      (schemeAt ecEk ecCt0 ecCt1 .encapsFresh { kemMat with keygen := pair } e s).sendA s.stA)] =
-    𝒟[(schemeAt ecEk ecCt0 ecCt1 .fresh kemMat e s).sendA s.stA] := by
-  have h := evalDist_map_eq_of_evalDist_eq
+      (schemeAt ecEk ecCt0 ecCt1 .encapsFresh { kemMat with keygen := pair } e s).sendA s.stA) =ᵈ
+    (schemeAt ecEk ecCt0 ecCt1 .fresh kemMat e s).sendA s.stA := by
+  have h := EvalDistEq.map
     (sendArleak_sample_keygen_eq_fresh base onoff ecEk ecCt0 ecCt1 leak kemMat e s)
     (fun out => out.map fun (key, msg, epoch, state, _) => (key, msg, epoch, state))
   rw [map_bind] at h
@@ -378,7 +371,8 @@ theorem sendBrleak_encapsFresh_eq_fresh [DecidableEq Sym]
     cases hst : s.stB.stCt <;> cases ha : s.stB.ack.ctRec
   all_goals
     simp only [schemeAt, scheme, sendBrleak, hc0, hp, hc1, hst, ha, pure_bind,
-      Bool.not_false, Bool.not_true, Bool.false_eq_true, ↓reduceIte] <;> rfl
+      Bool.not_false, Bool.not_true, Bool.false_eq_true, ↓reduceIte]
+    all_goals rfl
 
 /-- Ordinary-send version of `sendBrleak_encapsFresh_eq_fresh`. -/
 theorem sendB_encapsFresh_eq_fresh [DecidableEq Sym]
@@ -406,19 +400,19 @@ theorem oracle_sample_keygen_eq_fresh
     (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool)
     (t : (securitySpec leak Sym).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
-    𝒟[(do
+    (do
       let pair ← leak.keygenRleak
       (oracle base onoff ecEk ecCt0 ecCt1 leak .encapsFresh
-        { kemMat with keygen := pair } e b t).run s)] =
-    𝒟[(oracle base onoff ecEk ecCt0 ecCt1 leak .fresh kemMat e b t).run s] :=
+        { kemMat with keygen := pair } e b t).run s) =ᵈ
+    (oracle base onoff ecEk ecCt0 ecCt1 leak .fresh kemMat e b t).run s :=
   securityImplAt_sample_eq base onoff leak leak.keygenRleak
     (fun pair => schemeAt ecEk ecCt0 ecCt1 .encapsFresh { kemMat with keygen := pair } e)
     (schemeAt ecEk ecCt0 ecCt1 .fresh kemMat e) (SCKAScheme.challOf (adjacentMode e b)) s
     (sendA_sample_keygen_eq_fresh base onoff ecEk ecCt0 ecCt1 leak kemMat e s)
-    (ToVCVio.evalDist_bind_of_const' _ fun pair _ =>
+    (ToVCVio.evalDistEq_bind_of_const' _ fun pair _ =>
       sendB_encapsFresh_eq_fresh base onoff ecEk ecCt0 ecCt1 leak kemMat e s pair)
     (sendArleak_sample_keygen_eq_fresh base onoff ecEk ecCt0 ecCt1 leak kemMat e s)
-    (ToVCVio.evalDist_bind_of_const' _ fun pair _ =>
+    (ToVCVio.evalDistEq_bind_of_const' _ fun pair _ =>
       sendBrleak_encapsFresh_eq_fresh base onoff ecEk ecCt0 ecCt1 leak kemMat e s pair)
     (fun pair _ ρ => (recvA_eq_ideal base onoff ecEk ecCt0 ecCt1 leak .encapsFresh
       { kemMat with keygen := pair } e s ρ).trans
@@ -491,10 +485,10 @@ theorem leaking_keygen_rejected
     (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (he : s.stA.t = e) (hfield : s.stA.dkA = none) (hc : e ∈ s.challenged) :
-    𝒟[(SCKAScheme.oracleSendArleak vulnRleakA
-      (schemeAt ecEk ecCt0 ecCt1 stage kemMat e s) ()).run s] =
-    𝒟[(pure (none, s) : ProbComp _)] := by
-  apply SCKAScheme.oracleSendArleak_rejected_evalDist _ _ s {e} ?_ ?_
+    (SCKAScheme.oracleSendArleak vulnRleakA
+      (schemeAt ecEk ecCt0 ecCt1 stage kemMat e s) ()).run s =ᵈ
+    (pure (none, s) : ProbComp _) := by
+  apply SCKAScheme.oracleSendArleak_rejected_evalDistEq _ _ s {e} ?_ ?_
   · intro key msg epoch next coins hout
     have hex := sendArleak_exposure
       (stageKem stage kemMat e s) (stageOnOff stage kemMat e s) ecEk (stageLeak stage kemMat e s)
@@ -516,21 +510,22 @@ theorem oracle_keygen_independent
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hh : usesSource .keygen e t s = false)
     (pair pair' : (PK × SK) × leak.KeygenRand) :
-    𝒟[(oracle base onoff ecEk ecCt0 ecCt1 leak
-      .encapsFresh { kemMat with keygen := pair } e b t).run s] =
-    𝒟[(oracle base onoff ecEk ecCt0 ecCt1 leak
-      .encapsFresh { kemMat with keygen := pair' } e b t).run s] := by
+    (oracle base onoff ecEk ecCt0 ecCt1 leak
+      .encapsFresh { kemMat with keygen := pair } e b t).run s =ᵈ
+    (oracle base onoff ecEk ecCt0 ecCt1 leak
+      .encapsFresh { kemMat with keygen := pair' } e b t).run s := by
   rcases t with (((((t | u) | u) | _) | u) | u) <;> try rcases t with ((((n | u) | u) | n) | n)
   all_goals try cases u
   all_goals simp only [oracle, securityImplAt, StateT.run_bind, StateT.run_get, pure_bind,
-    SCKAScheme.sckaCorrectnessImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
-  · exact congrArg evalDist (SCKAScheme.oracleSendA_run_congr _ _ s
+    SCKAScheme.sckaCorrectnessImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
+    EvalDistEq.refl]
+  · exact ToVCVio.evalDistEq_of_eq (SCKAScheme.oracleSendA_run_congr _ _ s
       (sendA_keygen_independent base onoff ecEk ecCt0 ecCt1 leak kemMat e s
         (of_decide_eq_false hh) pair pair'))
-  · exact congrArg evalDist (SCKAScheme.oracleSendB_run_congr _ _ s
+  · exact ToVCVio.evalDistEq_of_eq (SCKAScheme.oracleSendB_run_congr _ _ s
       ((sendB_encapsFresh_eq_fresh base onoff ecEk ecCt0 ecCt1 leak kemMat e s pair).trans
         (sendB_encapsFresh_eq_fresh base onoff ecEk ecCt0 ecCt1 leak kemMat e s pair').symm))
-  · exact congrArg evalDist (SCKAScheme.oracleRecvA_run_congr _ _ s (fun ρ =>
+  · exact ToVCVio.evalDistEq_of_eq (SCKAScheme.oracleRecvA_run_congr _ _ s (fun ρ =>
       (recvA_eq_ideal base onoff ecEk ecCt0 ecCt1 leak .encapsFresh
         { kemMat with keygen := pair } e s ρ).trans
       (recvA_eq_ideal base onoff ecEk ecCt0 ecCt1 leak .encapsFresh
@@ -548,10 +543,10 @@ theorem oracle_keygen_independent
         (leaking_keygen_rejected base onoff ecEk ecCt0 ecCt1 leak .encapsFresh
           { kemMat with keygen := pair' } e s hready.1
           (Option.isNone_iff_eq_none.mp hready.2) hc).symm
-    · exact congrArg evalDist (SCKAScheme.oracleSendArleak_run_congr _ _ _ s
+    · exact ToVCVio.evalDistEq_of_eq (SCKAScheme.oracleSendArleak_run_congr _ _ _ s
         (sendArleak_keygen_independent base onoff ecEk ecCt0 ecCt1 leak kemMat e s hready
           pair pair'))
-  · exact congrArg evalDist (SCKAScheme.oracleSendBrleak_run_congr _ _ _ s
+  · exact ToVCVio.evalDistEq_of_eq (SCKAScheme.oracleSendBrleak_run_congr _ _ _ s
       ((sendBrleak_encapsFresh_eq_fresh base onoff ecEk ecCt0 ecCt1 leak kemMat e s pair).trans
         (sendBrleak_encapsFresh_eq_fresh base onoff ecEk ecCt0 ecCt1 leak kemMat e s pair').symm))
 
@@ -574,12 +569,12 @@ theorem stopped_keygen_deferred
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool) (adv : SecurityAdversary leak Sym)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
-    Pr[= true | do
+    Pr{let x ← (do
       let keygen ← leak.keygenRleak
       optionRun (stopped base onoff ecEk ecCt0 ecCt1 leak
-        .encapsFresh { kemMat with keygen := keygen } e b) adv s] =
-    Pr[= true | optionRun (stopped base onoff ecEk ecCt0 ecCt1 leak .fresh kemMat e b)
-      adv s] :=
+        .encapsFresh { kemMat with keygen := keygen } e b) adv s)}[x = true] =
+    Pr{let x ← (optionRun (stopped base onoff ecEk ecCt0 ecCt1 leak .fresh kemMat e b)
+      adv s)}[x = true] :=
   stoppedRun_sample_once_eq leak.keygenRleak
     (fun keygen => oracle base onoff ecEk ecCt0 ecCt1 leak
       .encapsFresh { kemMat with keygen := keygen } e b)
@@ -621,26 +616,25 @@ theorem pinnedHybrid_eq_fresh
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
     (leak : base.OnOffRandLeak onoff)
     (kemMat₀ : KEMMaterial leak) (e : ℕ) (b : Bool) (adv : SecurityAdversary leak Sym) :
-    Pr[= true | do
+    Pr{let x ← (do
       let kemMat ← sampleMaterial leak
       optionRun (hybridStopped base onoff ecEk ecCt0 ecCt1 leak kemMat e b) adv
-        (oppUniKemCKA.Reduction.Internal.initialGame base onoff)] =
-    Pr[= true | optionRun
+        (oppUniKemCKA.Reduction.Internal.initialGame base onoff))}[x = true] =
+    Pr{let x ← (optionRun
       (Sampling.stopped base onoff ecEk ecCt0 ecCt1 leak .fresh kemMat₀ e b) adv
-      (oppUniKemCKA.Reduction.Internal.initialGame base onoff)] := by
-  trans Pr[= true | do
+      (oppUniKemCKA.Reduction.Internal.initialGame base onoff))}[x = true] := by
+  trans Pr{let x ← (do
     let kg ← leak.keygenRleak
     let off ← leak.encapsOffRleak
     optionRun (Sampling.stopped base onoff ecEk ecCt0 ecCt1 leak
       .onlineFresh { kemMat₀ with keygen := kg, off := off } e b) adv
-      (oppUniKemCKA.Reduction.Internal.initialGame base onoff)]
+      (oppUniKemCKA.Reduction.Internal.initialGame base onoff))}[x = true]
   · simp only [sampleMaterial, bind_assoc, pure_bind]
-    apply probOutput_bind_congr
-    intro kg hkg
-    apply probOutput_bind_congr
-    intro off hoff
-    obtain ⟨online, hon⟩ : (support (leak.encapsOnRleak off.1.1 kg.1.1)).Nonempty := by
-      simp [Set.nonempty_iff_ne_empty, ← probFailure_eq_one_iff]
+    rw [map_bind, map_bind]
+    refine OracleComp.prEvent_bind_congr_of_support _ _ _ fun kg hkg => ?_
+    rw [map_bind, map_bind]
+    refine OracleComp.prEvent_bind_congr_of_support _ _ _ fun off hoff => ?_
+    obtain ⟨online, hon⟩ := OracleComp.support_nonempty (leak.encapsOnRleak off.1.1 kg.1.1)
     let kemMat : KEMMaterial leak := ⟨kg, off, online⟩
     have hm : kemMat ∈ support (sampleMaterial leak) := by
       simp only [sampleMaterial, mem_support_bind_iff, mem_support_pure_iff]
@@ -649,13 +643,13 @@ theorem pinnedHybrid_eq_fresh
       leak kemMat hm e b adv _
       (reachableInv_init base onoff ecEk ecCt0 ecCt1 ecEk.ec.nchunk_pos ecCt0.ec.nchunk_pos)
       (pinnedSources_initial base onoff leak kemMat e)
-  trans Pr[= true | do
+  trans Pr{let x ← (do
     let kg ← leak.keygenRleak
     optionRun (Sampling.stopped base onoff ecEk ecCt0 ecCt1 leak
       .encapsFresh { kemMat₀ with keygen := kg } e b) adv
-      (oppUniKemCKA.Reduction.Internal.initialGame base onoff)]
-  · apply probOutput_bind_congr
-    intro kg _
+      (oppUniKemCKA.Reduction.Internal.initialGame base onoff))}[x = true]
+  · rw [map_bind, map_bind]
+    refine OracleComp.prEvent_bind_congr_of_support _ _ _ fun kg _ => ?_
     exact Sampling.stopped_offline_deferred base onoff ecEk ecCt0 ecCt1 leak
       { kemMat₀ with keygen := kg } e b adv _
   · exact Sampling.stopped_keygen_deferred base onoff ecEk ecCt0 ecCt1 leak kemMat₀ e b adv _
@@ -670,16 +664,15 @@ theorem pinnedHybrid_eq_ideal
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
     (leak : base.OnOffRandLeak onoff) (e : ℕ) (b : Bool) (adv : SecurityAdversary leak Sym) :
-    Pr[= true | do
+    Pr{let x ← (do
       let kemMat ← sampleMaterial leak
       optionRun (hybridStopped base onoff ecEk ecCt0 ecCt1 leak kemMat e b) adv
-        (oppUniKemCKA.Reduction.Internal.initialGame base onoff)] =
-    Pr[= true | optionRun
+        (oppUniKemCKA.Reduction.Internal.initialGame base onoff))}[x = true] =
+    Pr{let x ← (optionRun
       (stopOnState (idealSecurityImpl base onoff hDet ecEk ecCt0 ecCt1 leak (adjacentMode e b))
         (fun s => decide (e ∈ s.exposed))) adv
-      (oppUniKemCKA.Reduction.Internal.initialGame base onoff)] := by
-  obtain ⟨kemMat₀, _⟩ : (support (sampleMaterial leak)).Nonempty := by
-    simp [Set.nonempty_iff_ne_empty, ← probFailure_eq_one_iff]
+      (oppUniKemCKA.Reduction.Internal.initialGame base onoff))}[x = true] := by
+  obtain ⟨kemMat₀, _⟩ := OracleComp.support_nonempty (sampleMaterial leak)
   rw [pinnedHybrid_eq_fresh base onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1 leak kemMat₀ e b adv]
   unfold Sampling.stopped
   rw [Sampling.oracle_fresh_eq_ideal base onoff hDet ecEk ecCt0 ecCt1 leak kemMat₀ e b]
@@ -695,11 +688,11 @@ theorem fixedBranch_eq_ideal
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
     (leak : base.OnOffRandLeak onoff) (e : ℕ) (he : 0 < e)
     (b : Bool) (adv : SecurityAdversary leak Sym) :
-    Pr[= true | fixedBranch base onoff ecEk ecCt0 ecCt1 leak adv e b] =
-    Pr[= true | optionRun
+    Pr{let x ← fixedBranch base onoff ecEk ecCt0 ecCt1 leak adv e b}[x = true] =
+    Pr{let x ← (optionRun
       (stopOnState (idealSecurityImpl base onoff hDet ecEk ecCt0 ecCt1 leak
         (adjacentMode e (!b))) (fun s => decide (e ∈ s.exposed))) adv
-      (oppUniKemCKA.Reduction.Internal.initialGame base onoff)] := by
+      (oppUniKemCKA.Reduction.Internal.initialGame base onoff))}[x = true] := by
   rw [fixedBranch_eq_pinnedHybrid base onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
     leak adv e he b]
   exact pinnedHybrid_eq_ideal base onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1

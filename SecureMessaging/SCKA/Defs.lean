@@ -12,6 +12,7 @@ public import VCVio.OracleComp.QueryTracking.QueryBound
 public import VCVio.OracleComp.SimSemantics.Append
 public import VCVio.OracleComp.SimSemantics.StateT.PreservesInv
 public import Mathlib.Data.Finset.Basic
+public import ToVCVio.EvalDist.Monad.Basic
 
 /-!
 # Sparse Continuous Key Agreement (SCKA)
@@ -852,43 +853,38 @@ noncomputable def sckaDistAdvantage [SampleableType I] [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (adversary : SCKAAdversary StA StB I Rho Rand)
     (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand) : ℝ :=
-  |(Pr[= true | securityExpFixedBit scka adversary true vulnA vulnB]).toReal -
-   (Pr[= true | securityExpFixedBit scka adversary false vulnA vulnB]).toReal|
+  |(Pr{let x ← securityExpFixedBit scka adversary true vulnA vulnB}[x = true]).toReal -
+   (Pr{let x ← securityExpFixedBit scka adversary false vulnA vulnB}[x = true]).toReal|
 -- ANCHOR_END: sckaDistAdvantage
 
-/-- `w = Pr[b ←$ Bool; b' ← G_b; return (b = b')]`. -/
-private lemma securityExp_probOutput_eq_branch [SampleableType I] [DecidableEq I]
+/-- `Exp =ᵈ (b ←$ Bool; b' ← G_b; return (b = b'))`. -/
+private lemma securityExp_evalDistEq_branch [SampleableType I] [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (adversary : SCKAAdversary StA StB I Rho Rand)
     (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand) :
-    Pr[= true | securityExp scka adversary vulnA vulnB] =
-    Pr[= true | do
+    securityExp scka adversary vulnA vulnB =ᵈ (do
       let b ← ($ᵗ Bool : ProbComp Bool)
       let z ← if b then securityExpFixedBit scka adversary true vulnA vulnB
                else securityExpFixedBit scka adversary false vulnA vulnB
-      pure (b == z)] := by
-  unfold securityExp
-  simp only [← probEvent_eq_eq_probOutput]
-  rw [probEvent_bind_congr fun ik _ =>
-    probEvent_bind_congr fun stA _ =>
-    probEvent_bind_bind_swap _ _ _ _]
-  rw [probEvent_bind_congr fun ik _ =>
-    probEvent_bind_bind_swap _ _ _ _]
-  rw [probEvent_bind_bind_swap]
-  simp only [probEvent_eq_eq_probOutput]
-  refine probOutput_bind_congr' ($ᵗ Bool) true ?_
-  intro b; cases b <;> simp [securityExpFixedBit]
+      pure (b == z)) := by
+  refine (EvalDistEq.bind_right _ fun ik => EvalDistEq.bind_right _ fun stA =>
+    OracleComp.EvalDistEq.bind_bind_swap _ _ _).trans ?_
+  refine (EvalDistEq.bind_right _ fun ik =>
+    OracleComp.EvalDistEq.bind_bind_swap _ _ _).trans ?_
+  refine (OracleComp.EvalDistEq.bind_bind_swap _ _ _).trans ?_
+  refine EvalDistEq.bind_right _ fun b => ?_
+  cases b <;> simp only [securityExpFixedBit, bind_assoc, pure_bind] <;> exact EvalDistEq.refl _
 
 /-- `w - 1/2 = (Pr[G_true = true] - Pr[G_false = true]) / 2`. -/
 lemma securityExp_toReal_sub_half [SampleableType I] [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (adversary : SCKAAdversary StA StB I Rho Rand)
     (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand) :
-    (Pr[= true | securityExp scka adversary vulnA vulnB]).toReal - 1 / 2 =
-    ((Pr[= true | securityExpFixedBit scka adversary true vulnA vulnB]).toReal -
-     (Pr[= true | securityExpFixedBit scka adversary false vulnA vulnB]).toReal) / 2 := by
-  rw [securityExp_probOutput_eq_branch scka adversary vulnA vulnB]
-  exact probOutput_uniformBool_branch_toReal_sub_half
+    (Pr{let x ← securityExp scka adversary vulnA vulnB}[x = true]).toReal - 1 / 2 =
+    ((Pr{let x ← securityExpFixedBit scka adversary true vulnA vulnB}[x = true]).toReal -
+     (Pr{let x ← securityExpFixedBit scka adversary false vulnA vulnB}[x = true]).toReal) / 2 := by
+  rw [(securityExp_evalDistEq_branch scka adversary vulnA vulnB).prEvent_eq]
+  exact ToVCVio.prEvent_uniformBool_branch_toReal_sub_half
     (securityExpFixedBit scka adversary true vulnA vulnB)
     (securityExpFixedBit scka adversary false vulnA vulnB)
 

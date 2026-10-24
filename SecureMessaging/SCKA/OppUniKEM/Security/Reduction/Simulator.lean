@@ -362,47 +362,47 @@ boolean outcome `output` with the same probability as drawing `e ← epochChoice
 `fixedBranch … adv e b`. -/
 theorem securityReduction_probOutput
     (adv : SecurityAdversary leak Sym) (q : ℕ) (b output : Bool) :
-    Pr[= output | base.IND_CPA_Exp ProbCompRuntime.probComp
-      (securityReduction base onoff ecEk ecCt0 ecCt1 leak adv q) b] =
-    Pr[= output | do
+    Pr{let x ← (base.IND_CPA_Experiment ProbCompRuntime.probComp
+      (securityReduction base onoff ecEk ecCt0 ecCt1 leak adv q) b)}[x = output] =
+    Pr{let x ← (do
       let e ← epochChoice q
-      fixedBranch base onoff ecEk ecCt0 ecCt1 leak adv e b] := by
-  unfold KEMScheme.IND_CPA_Exp
-  rw [probOutput_probCompRuntime_evalDist_eq]
+      fixedBranch base onoff ecEk ecCt0 ecCt1 leak adv e b)}[x = output] := by
+  unfold KEMScheme.IND_CPA_Experiment
   simp only [securityReduction, fixedBranch, ProbCompRuntime.probComp,
     ProbCompRuntime.liftProbComp, ProbCompLift.id, bind_assoc, pure_bind]
-  exact probOutput_bind_bind_swap base.keygen (epochChoice q) _ output
+  exact (OracleComp.EvalDistEq.bind_bind_swap base.keygen (epochChoice q) _).prEvent_eq _
 
 /-- For `q ≠ 0`, the acceptance probability of `securityReduction … adv q` in the IND-CPA
-experiment with bit `b` equals the average of `Pr[= true | fixedBranch … adv e b]` over
+experiment with bit `b` equals the average of `Pr{let x ← fixedBranch … adv e b}[x = true]` over
 `e ∈ {1, …, q}`. -/
 theorem securityReduction_acceptance_average
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : q ≠ 0) (b : Bool) :
-    (Pr[= true | base.IND_CPA_Exp ProbCompRuntime.probComp
-      (securityReduction base onoff ecEk ecCt0 ecCt1 leak adv q) b]).toReal =
+    (Pr{let x ← (base.IND_CPA_Experiment ProbCompRuntime.probComp
+      (securityReduction base onoff ecEk ecCt0 ecCt1 leak adv q) b)}[x = true]).toReal =
     (q : ℝ)⁻¹ * ∑ i : Fin q,
-      (Pr[= true | fixedBranch base onoff ecEk ecCt0 ecCt1 leak adv (i.val + 1) b]).toReal := by
+      (Pr{let x ← (fixedBranch
+          base onoff ecEk ecCt0 ecCt1 leak adv (i.val + 1) b)}[x = true]).toReal := by
   rw [securityReduction_probOutput]
   let : NeZero q := ⟨hq⟩
-  simp only [epochChoice, hq, ↓reduceDIte, bind_map_left, probOutput_bind_eq_sum_fintype,
-    probOutput_uniformSample, Fintype.card_fin, ← Finset.mul_sum]
+  simp only [epochChoice, hq, ↓reduceDIte, bind_map_left, (prEvent_bind_eq_sum_fintype _),
+    SampleableType.prEvent_uniformSample_eq_singleton, Fintype.card_fin, ← Finset.mul_sum]
   rw [ENNReal.toReal_mul, ENNReal.toReal_inv, ENNReal.toReal_natCast,
-    ENNReal.toReal_sum (fun _ _ => probOutput_ne_top)]
+    ENNReal.toReal_sum (fun _ _ => (prEvent_ne_top _))]
 
 /-- For `q ≠ 0`, the difference in acceptance probability between the real (`true`) and random
 (`false`) IND-CPA branches of `securityReduction … adv q` equals the average over `e ∈ {1, …, q}`
 of the corresponding differences for `fixedBranch … adv e`. -/
 theorem securityReduction_signed_gap_average
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : q ≠ 0) :
-    (Pr[= true | base.IND_CPA_Exp ProbCompRuntime.probComp
-      (securityReduction base onoff ecEk ecCt0 ecCt1 leak adv q) true]).toReal -
-    (Pr[= true | base.IND_CPA_Exp ProbCompRuntime.probComp
-      (securityReduction base onoff ecEk ecCt0 ecCt1 leak adv q) false]).toReal =
+    (Pr{let x ← (base.IND_CPA_Experiment ProbCompRuntime.probComp
+      (securityReduction base onoff ecEk ecCt0 ecCt1 leak adv q) true)}[x = true]).toReal -
+    (Pr{let x ← (base.IND_CPA_Experiment ProbCompRuntime.probComp
+      (securityReduction base onoff ecEk ecCt0 ecCt1 leak adv q) false)}[x = true]).toReal =
     (q : ℝ)⁻¹ * ∑ i : Fin q,
-      ((Pr[= true | fixedBranch base onoff ecEk ecCt0 ecCt1 leak adv
-        (i.val + 1) true]).toReal -
-       (Pr[= true | fixedBranch base onoff ecEk ecCt0 ecCt1 leak adv
-        (i.val + 1) false]).toReal) := by
+      ((Pr{let x ← (fixedBranch base onoff ecEk ecCt0 ecCt1 leak adv
+        (i.val + 1) true)}[x = true]).toReal -
+       (Pr{let x ← (fixedBranch base onoff ecEk ecCt0 ecCt1 leak adv
+        (i.val + 1) false)}[x = true]).toReal) := by
   rw [securityReduction_acceptance_average base onoff ecEk ecCt0 ecCt1 leak adv q hq true,
     securityReduction_acceptance_average base onoff ecEk ecCt0 ecCt1 leak adv q hq false,
     Finset.sum_sub_distrib, mul_sub]

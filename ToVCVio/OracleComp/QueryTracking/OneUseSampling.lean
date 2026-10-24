@@ -66,7 +66,7 @@ initial state `s` satisfying `Inv s`,
 **Stopped executions** (`stoppedRun_sample_once_eq`). Let `impl a` and `target` be oracle
 implementations with plain `StateT σ ProbComp` answers and `stop : σ → Bool`. If conditions 1–5
 hold for `(impl a t).run s`, with 1, 2, and 5 only for successors `s'` with `stop s' = false`,
-and `𝒟[a ← sample; (impl a t).run s] = 𝒟[(target t).run s]` whenever `Inv s`, then for every
+and `(a ← sample; (impl a t).run s) =ᵈ (target t).run s` whenever `Inv s`, then for every
 `oa` and `s` with `Inv s`,
 `Pr[a ← sample; stoppedRun (impl a) stop oa s = true] = Pr[stoppedRun target stop oa s = true]`.
 -/
@@ -256,10 +256,10 @@ provided that for all `a, a' ∈ support sample`, queries `t`, states `u` with `
 continuing successors `(r, u') ∈ support ((impl a t).run u)` (those with `stop u' = false`):
 
 - `Inv u'`, and `used u'` if `used u`;
-- if `hit t u = false`, then `𝒟[(impl a t).run u] = 𝒟[(impl a' t).run u]`;
+- if `hit t u = false`, then `(impl a t).run u =ᵈ (impl a' t).run u`;
 - if `used u`, then `hit t u = false`;
 - if `hit t u = true`, then `used u'`;
-- `𝒟[a ← sample; (impl a t).run u] = 𝒟[(target t).run u]`. -/
+- `(a ← sample; (impl a t).run u) =ᵈ (target t).run u`. -/
 theorem stoppedRun_sample_once_eq
     (sample : ProbComp τ) (impl : τ → QueryImpl spec (StateT σ ProbComp))
     (target : QueryImpl spec (StateT σ ProbComp)) (stop : σ → Bool)
@@ -270,15 +270,16 @@ theorem stoppedRun_sample_once_eq
       ∀ z ∈ support ((impl a t).run s), stop z.2 = false → used z.2)
     (hindep : ∀ t s, Inv s → hit t s = false →
       ∀ a ∈ support sample, ∀ a' ∈ support sample,
-      𝒟[(impl a t).run s] = 𝒟[(impl a' t).run s])
+      (impl a t).run s =ᵈ (impl a' t).run s)
     (hnohit : ∀ t s, Inv s → used s → hit t s = false)
     (hfirst : ∀ a ∈ support sample, ∀ t s, Inv s → hit t s = true →
       ∀ z ∈ support ((impl a t).run s), stop z.2 = false → used z.2)
     (havg : ∀ t s, Inv s →
-      𝒟[do let a ← sample; (impl a t).run s] = 𝒟[(target t).run s])
+      (do let a ← sample; (impl a t).run s) =ᵈ (target t).run s)
     (oa : OracleComp spec Bool) (s : σ) (hs : Inv s) :
-    Pr[= true | do let a ← sample; stoppedRun (impl a) stop oa s] =
-      Pr[= true | stoppedRun target stop oa s] := by
+    Pr{let x ← (do let a ← sample; stoppedRun (impl a) stop oa s)}[x = true] =
+      Pr{let x ← stoppedRun target stop oa s}[x = true] := by
+  rw [map_bind]
   have hpres' : ∀ a ∈ support sample, ∀ t s, Inv s →
       ∀ z ∈ support (((stopOnState (impl a) stop t).run).run s), z.1.isSome → Inv z.2 := by
     intro a ha t s hs z hz hsome
@@ -291,13 +292,13 @@ theorem stoppedRun_sample_once_eq
       obtain ⟨y, hy, hstop, hzy⟩ := exists_of_mem_support_stopOnState _ stop t s z hz hsome
       exact hzy ▸ hused a ha t s hs hu y hy hstop)
     (fun t s hs hh a ha a' ha' => by
-      rw [stopOnState_run_eq_map, stopOnState_run_eq_map, evalDist_map, evalDist_map,
-        hindep t s hs hh a ha a' ha'])
+      rw [stopOnState_run_eq_map, stopOnState_run_eq_map]
+      exact (hindep t s hs hh a ha a' ha').map _)
     hnohit
     (fun a ha t s hs hh z hz hsome => by
       obtain ⟨y, hy, hstop, hzy⟩ := exists_of_mem_support_stopOnState _ stop t s z hz hsome
       exact hzy ▸ hfirst a ha t s hs hh y hy hstop) oa s hs]
-  refine (probOutput_optionRun_eq_of_state_map _ (stopOnState target stop) id Inv ?_ ?_
+  refine (prEvent_optionRun_eq_of_state_map _ (stopOnState target stop) id Inv ?_ ?_
     oa s hs).symm
   · intro t s hs z hz hsome
     rw [sampleEachQuery_run] at hz
@@ -309,7 +310,7 @@ theorem stoppedRun_sample_once_eq
         (fun y => (if stop y.2 then none else some y.1, y.2)) <$>
           (do let a ← sample; (impl a t).run s) := by
       simp only [stopOnState_run_eq_map, map_bind]
-    rw [h, stopOnState_run_eq_map, evalDist_map, evalDist_map, havg t s hs]
-    rfl
+    rw [h, stopOnState_run_eq_map]
+    exact ((havg t s hs).map _).symm
 
 end OracleComp

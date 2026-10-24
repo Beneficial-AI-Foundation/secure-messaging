@@ -766,9 +766,9 @@ theorem security_correctness_endpoint_le
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
     |(Pr{let x ← (SCKAScheme.securityExpFixedBit
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv b
-        (exposureA kem onoff leak) (exposureB kem onoff leak)]).toReal -
-      (Pr[= true | idealSecurityExp kem onoff hDet ecEk ecCt0 ecCt1 leak
-        (fun _ => b) adv]).toReal| ≤
+        (exposureA kem onoff leak) (exposureB kem onoff leak))}[x = true]).toReal -
+      (Pr{let x ← (idealSecurityExp kem onoff hDet ecEk ecCt0 ecCt1 leak
+        (fun _ => b) adv)}[x = true]).toReal| ≤
       (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal := by
   let left := trackedSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b
   let right := trackedIdealImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b
@@ -798,9 +798,10 @@ theorem security_correctness_endpoint_le
     rw [← trackedSecurity_run_project kem onoff hDet ecEk ecCt0 ecCt1 leak b adv (s₀, false),
       prEvent_map]
     rfl
-  have hr : Pr[= true | idealSecurityExp kem onoff hDet ecEk ecCt0 ecCt1 leak (fun _ => b) adv] =
-      Pr[fun z => z.1 = true | (simulateQ right adv).run (s₀, false)] := by
-    rw [idealSecurityExp, ← probEvent_eq_eq_probOutput, StateT.run'_eq, probEvent_map]
+  have hr : Pr{let x ← (idealSecurityExp kem onoff hDet ecEk ecCt0 ecCt1 leak (fun _ => b)
+      adv)}[x = true] =
+      Pr{let z ← (simulateQ right adv).run (s₀, false)}[z.1 = true] := by
+    rw [idealSecurityExp, StateT.run'_eq, prEvent_map]
     rw [← trackedIdeal_run_project kem onoff hDet ecEk ecCt0 ecCt1 leak b adv (s₀, false),
       prEvent_map]
     rfl

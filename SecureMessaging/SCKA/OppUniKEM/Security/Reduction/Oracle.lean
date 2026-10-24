@@ -29,8 +29,8 @@ joint response/state distribution as running `Hon` on `t` from `s` and applying 
 the successor state:
 
 ```text
-𝒟[((Sim t).run).run (hideState e s)] =
-  𝒟[Prod.map id (hideState e) <$> ((Hon t).run).run s]
+((Sim t).run).run (hideState e s) =ᵈ
+  Prod.map id (hideState e) <$> ((Hon t).run).run s
 ```
 -/
 
@@ -221,17 +221,17 @@ private theorem oracleSendA_hide
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
-    𝒟[(SCKAScheme.oracleSendA
-      (simScheme base onoff ecEk ecCt0 ecCt1 leak kemMat e s) ()).run (hideState e s)] =
-    𝒟[Prod.map id (hideState e) <$>
-      (SCKAScheme.oracleSendA (honestScheme ecEk ecCt0 ecCt1 kemMat e s) ()).run s] := by
+    (SCKAScheme.oracleSendA
+      (simScheme base onoff ecEk ecCt0 ecCt1 leak kemMat e s) ()).run (hideState e s) =ᵈ
+    Prod.map id (hideState e) <$>
+      (SCKAScheme.oracleSendA (honestScheme ecEk ecCt0 ecCt1 kemMat e s) ()).run s := by
   simp only [SCKAScheme.oracleSendA, StateT.run_bind, StateT.run_get, pure_bind,
     StateT.run_monadLift, monadLift_self, map_bind]
   dsimp only [simScheme, honestScheme, scheme, hideState]
   rw [sendA_hide base onoff ecEk leak kemMat e (decide (s.stB.t = e))
     ((s.keyB s.stA.t).map (hide e s.stA.t)) (s.keyB s.stA.t) s.stA]
   simp only [bind_map_left, bind_assoc, pure_bind]
-  apply evalDist_bind_congr
+  apply OracleComp.EvalDistEq.bind_congr_of_support
   intro out hout
   cases out with
   | none => simp [StateT.run_pure, hideState, hideA, hideB, Prod.map]
@@ -253,17 +253,17 @@ private theorem oracleSendB_hide
     (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) :
-    𝒟[(SCKAScheme.oracleSendB
-      (simScheme base onoff ecEk ecCt0 ecCt1 leak kemMat e s) ()).run (hideState e s)] =
-    𝒟[Prod.map id (hideState e) <$>
-      (SCKAScheme.oracleSendB (honestScheme ecEk ecCt0 ecCt1 kemMat e s) ()).run s] := by
+    (SCKAScheme.oracleSendB
+      (simScheme base onoff ecEk ecCt0 ecCt1 leak kemMat e s) ()).run (hideState e s) =ᵈ
+    Prod.map id (hideState e) <$>
+      (SCKAScheme.oracleSendB (honestScheme ecEk ecCt0 ecCt1 kemMat e s) ()).run s := by
   simp only [SCKAScheme.oracleSendB, StateT.run_bind, StateT.run_get, pure_bind,
     StateT.run_monadLift, monadLift_self, map_bind]
   dsimp only [simScheme, honestScheme, scheme, hideState]
   rw [sendB_hide base onoff ecCt0 ecCt1 leak kemMat e (decide (s.stA.t = e))
     ((s.keyB s.stA.t).map (hide e s.stA.t)) (s.keyB s.stA.t) s.stB]
   simp only [bind_map_left, bind_assoc, pure_bind]
-  apply evalDist_bind_congr
+  apply OracleComp.EvalDistEq.bind_congr_of_support
   intro out hout
   cases out with
   | none => simp [StateT.run_pure, hideState, hideA, hideB, Prod.map]
@@ -300,28 +300,28 @@ private theorem oracleSendArleak_hide
     (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : e ∉ s.exposed) :
-    𝒟[((revealAfter (fun out => do
+    ((revealAfter (fun out => do
         let (n, epoch, msg, coins) := out
         pure (n, epoch, msg, ← revealCoins coins))
       (SCKAScheme.oracleSendArleak vulnRleakA
-        (simScheme base onoff ecEk ecCt0 ecCt1 leak kemMat e s) ())).run).run (hideState e s)] =
-    𝒟[Prod.map id (hideState e) <$>
+        (simScheme base onoff ecEk ecCt0 ecCt1 leak kemMat e s) ())).run).run (hideState e s) =ᵈ
+    Prod.map id (hideState e) <$>
       ((stopOnState (SCKAScheme.oracleSendArleak vulnRleakA
         (honestScheme ecEk ecCt0 ecCt1 kemMat e s))
-        (fun u => decide (e ∈ u.exposed)) ()).run).run s] := by
+        (fun u => decide (e ∈ u.exposed)) ()).run).run s := by
   rw [revealAfter_run]
   simp only [stopOnState, OptionT.run_mk]
-  change 𝒟[_] = 𝒟[Prod.map id (hideState e) <$> (do
+  change _ =ᵈ Prod.map id (hideState e) <$> (do
     let z ← (SCKAScheme.oracleSendArleak vulnRleakA
       (honestScheme ecEk ecCt0 ecCt1 kemMat e s) ()).run s
-    pure (if decide (e ∈ z.2.exposed) then none else some z.1, z.2))]
+    pure (if decide (e ∈ z.2.exposed) then none else some z.1, z.2))
   simp only [SCKAScheme.oracleSendArleak, StateT.run_bind, StateT.run_get, pure_bind,
     StateT.run_monadLift, monadLift_self, map_bind, bind_assoc]
   dsimp only [simScheme, honestScheme, scheme, hideState]
   rw [sendArleak_hide base onoff ecEk leak kemMat e (decide (s.stB.t = e))
     ((s.keyB s.stA.t).map (hide e s.stA.t)) (s.keyB s.stA.t) s.stA]
   simp only [bind_map_left]
-  apply evalDist_bind_congr
+  apply OracleComp.EvalDistEq.bind_congr_of_support
   intro out hout
   cases out with
   | none =>
@@ -351,28 +351,28 @@ private theorem oracleSendBrleak_hide
     (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : e ∉ s.exposed) (hinv : reachableInv base onoff ecEk ecCt0 ecCt1 s) :
-    𝒟[((revealAfter (fun out => do
+    ((revealAfter (fun out => do
         let (n, epoch, msg, coins) := out
         pure (n, epoch, msg, ← revealCoins coins))
       (SCKAScheme.oracleSendBrleak vulnRleakB
-        (simScheme base onoff ecEk ecCt0 ecCt1 leak kemMat e s) ())).run).run (hideState e s)] =
-    𝒟[Prod.map id (hideState e) <$>
+        (simScheme base onoff ecEk ecCt0 ecCt1 leak kemMat e s) ())).run).run (hideState e s) =ᵈ
+    Prod.map id (hideState e) <$>
       ((stopOnState (SCKAScheme.oracleSendBrleak vulnRleakB
         (honestScheme ecEk ecCt0 ecCt1 kemMat e s))
-        (fun u => decide (e ∈ u.exposed)) ()).run).run s] := by
+        (fun u => decide (e ∈ u.exposed)) ()).run).run s := by
   rw [revealAfter_run]
   simp only [stopOnState, OptionT.run_mk]
-  change 𝒟[_] = 𝒟[Prod.map id (hideState e) <$> (do
+  change _ =ᵈ Prod.map id (hideState e) <$> (do
     let z ← (SCKAScheme.oracleSendBrleak vulnRleakB
       (honestScheme ecEk ecCt0 ecCt1 kemMat e s) ()).run s
-    pure (if decide (e ∈ z.2.exposed) then none else some z.1, z.2))]
+    pure (if decide (e ∈ z.2.exposed) then none else some z.1, z.2))
   simp only [SCKAScheme.oracleSendBrleak, StateT.run_bind, StateT.run_get, pure_bind,
     StateT.run_monadLift, monadLift_self, map_bind, bind_assoc]
   dsimp only [simScheme, honestScheme, scheme, hideState]
   rw [sendBrleak_hide base onoff ecCt0 ecCt1 leak kemMat e (decide (s.stA.t = e))
     ((s.keyB s.stA.t).map (hide e s.stA.t)) (s.keyB s.stA.t) s.stB]
   simp only [bind_map_left]
-  apply evalDist_bind_congr
+  apply OracleComp.EvalDistEq.bind_congr_of_support
   intro out hout
   cases out with
   | none =>
@@ -430,10 +430,10 @@ private theorem correctnessOracle_hide
     (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) :
-    𝒟[(SCKAScheme.sckaCorrectnessImpl
-      (simScheme base onoff ecEk ecCt0 ecCt1 leak kemMat e s) t).run (hideState e s)] =
-    𝒟[Prod.map id (hideState e) <$>
-      (SCKAScheme.sckaCorrectnessImpl (honestScheme ecEk ecCt0 ecCt1 kemMat e s) t).run s] := by
+    (SCKAScheme.sckaCorrectnessImpl
+      (simScheme base onoff ecEk ecCt0 ecCt1 leak kemMat e s) t).run (hideState e s) =ᵈ
+    Prod.map id (hideState e) <$>
+      (SCKAScheme.sckaCorrectnessImpl (honestScheme ecEk ecCt0 ecCt1 kemMat e s) t).run s := by
   rcases t with ((((n | u) | u) | n) | n)
   · simp [SCKAScheme.sckaCorrectnessImpl, SCKAScheme.oracleUnif,
       Prod.map, hideState, hideA, hideB]
@@ -441,8 +441,8 @@ private theorem correctnessOracle_hide
     exact oracleSendA_hide base onoff ecEk ecCt0 ecCt1 leak kemMat e s
   · cases u
     exact oracleSendB_hide base onoff ecEk ecCt0 ecCt1 leak kemMat e s hs
-  · exact congrArg evalDist (oracleRecvA_hide base onoff ecEk ecCt0 ecCt1 leak kemMat e n s)
-  · exact congrArg evalDist (oracleRecvB_hide base onoff ecEk ecCt0 ecCt1 leak kemMat e n s)
+  · exact ToVCVio.evalDistEq_of_eq (oracleRecvA_hide base onoff ecEk ecCt0 ecCt1 leak kemMat e n s)
+  · exact ToVCVio.evalDistEq_of_eq (oracleRecvB_hide base onoff ecEk ecCt0 ecCt1 leak kemMat e n s)
 
 /-- For every security query `t` and every state `s` satisfying `reachableInv s` and
 `e ∉ s.exposed`, running the simulator `simOracle … e kemMat.pk kemMat.ciphertext kStar` on `t` from
@@ -456,12 +456,12 @@ theorem simOracle_hide [SampleableType K]
     (kemMat : KEMMaterial leak) (e : ℕ) (kStar : K) (t : (securitySpec leak Sym).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (he : e ∉ s.exposed) :
-    𝒟[((simOracle base onoff ecEk ecCt0 ecCt1 leak e kemMat.pk kemMat.ciphertext kStar t).run).run
-      (hideState e s)] =
-    𝒟[Prod.map id (hideState e) <$>
-      ((honestStopped base onoff ecEk ecCt0 ecCt1 leak kemMat e kStar t).run).run s] := by
+    ((simOracle base onoff ecEk ecCt0 ecCt1 leak e kemMat.pk kemMat.ciphertext kStar t).run).run
+      (hideState e s) =ᵈ
+    Prod.map id (hideState e) <$>
+      ((honestStopped base onoff ecEk ecCt0 ecCt1 leak kemMat e kStar t).run).run s := by
   rcases t with (((((t | u) | u) | t) | u) | u)
-  · apply evalDist_lift_eq_stopOnState_map
+  · apply evalDistEq_lift_stopOnState_map
       (SCKAScheme.sckaCorrectnessImpl (honestScheme ecEk ecCt0 ecCt1 kemMat e s))
       (SCKAScheme.sckaCorrectnessImpl (simScheme base onoff ecEk ecCt0 ecCt1 leak kemMat e s))
       (hideState e) (fun u => decide (e ∈ u.exposed)) t s
@@ -473,15 +473,15 @@ theorem simOracle_hide [SampleableType K]
     exact oracleSendArleak_hide base onoff ecEk ecCt0 ecCt1 leak kemMat e s he
   · cases u
     exact oracleSendBrleak_hide base onoff ecEk ecCt0 ecCt1 leak kemMat e s he hs
-  · apply evalDist_lift_eq_stopOnState_map
+  · apply evalDistEq_lift_stopOnState_map
       (pinnedChallenge onoff e kStar) (challenge onoff e kStar)
       (hideState e) (fun u => decide (e ∈ u.exposed)) t s
-      (congrArg evalDist (challenge_hide onoff e kStar t s))
+      (ToVCVio.evalDistEq_of_eq (challenge_hide onoff e kStar t s))
     intro z hz
     simp [((pinnedChallenge_recordsChallenges onoff e kStar).exposed_nA_eq t s z hz).1, he]
   · cases u
-    exact congrArg evalDist (corruptA_hide base onoff e s he)
+    exact ToVCVio.evalDistEq_of_eq (corruptA_hide base onoff e s he)
   · cases u
-    exact congrArg evalDist (corruptB_hide base onoff e s he)
+    exact ToVCVio.evalDistEq_of_eq (corruptB_hide base onoff e s he)
 
 end oppUniKemCKA.Security.Embedding

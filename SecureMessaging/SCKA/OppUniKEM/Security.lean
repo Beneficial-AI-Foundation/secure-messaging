@@ -154,11 +154,12 @@ theorem fixedBranch_signed_gap_eq
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
     (leak : base.OnOffRandLeak onoff) (adv : SecurityAdversary leak Sym) (i : ℕ) :
-    (Pr[= true | fixedBranch base onoff ecEk ecCt0 ecCt1 leak adv (i + 1) true]).toReal -
-      (Pr[= true | fixedBranch base onoff ecEk ecCt0 ecCt1 leak adv (i + 1) false]).toReal =
-    (Pr[= true | idealEpochHybridExp base onoff hDet ecEk ecCt0 ecCt1 leak adv i]).toReal -
-      (Pr[= true | idealEpochHybridExp
-        base onoff hDet ecEk ecCt0 ecCt1 leak adv (i + 1)]).toReal := by
+    (Pr{let x ← fixedBranch base onoff ecEk ecCt0 ecCt1 leak adv (i + 1) true}[x = true]).toReal -
+      (Pr{let x ← (fixedBranch
+          base onoff ecEk ecCt0 ecCt1 leak adv (i + 1) false)}[x = true]).toReal =
+    (Pr{let x ← idealEpochHybridExp base onoff hDet ecEk ecCt0 ecCt1 leak adv i}[x = true]).toReal -
+      (Pr{let x ← (idealEpochHybridExp
+        base onoff hDet ecEk ecCt0 ecCt1 leak adv (i + 1))}[x = true]).toReal := by
   rw [fixedBranch_eq_ideal base onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
       leak (i + 1) (Nat.succ_pos i) true adv,
     fixedBranch_eq_ideal base onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
@@ -168,16 +169,18 @@ theorem fixedBranch_signed_gap_eq
     leak i adv (oppUniKemCKA.Reduction.Internal.initialGame base onoff)
     (by simp [oppUniKemCKA.Reduction.Internal.initialGame, SCKAScheme.initGameState])
   change
-    (Pr[= true | idealEpochHybridExp base onoff hDet ecEk ecCt0 ecCt1 leak adv (i + 1)]).toReal -
-      (Pr[= true | idealEpochHybridExp base onoff hDet ecEk ecCt0 ecCt1 leak adv i]).toReal = _
+    (Pr{let x ← (idealEpochHybridExp
+        base onoff hDet ecEk ecCt0 ecCt1 leak adv (i + 1))}[x = true]).toReal -
+      (Pr{let x ← (idealEpochHybridExp
+          base onoff hDet ecEk ecCt0 ecCt1 leak adv i)}[x = true]).toReal = _
     at hstop
   change
-    (Pr[= true | stoppedRun (idealEpochHybridImpl base onoff hDet ecEk ecCt0 ecCt1 leak i)
+    (Pr{let x ← (stoppedRun (idealEpochHybridImpl base onoff hDet ecEk ecCt0 ecCt1 leak i)
       (fun s => decide (i + 1 ∈ s.exposed)) adv
-      (oppUniKemCKA.Reduction.Internal.initialGame base onoff)]).toReal -
-    (Pr[= true | stoppedRun (idealEpochHybridImpl base onoff hDet ecEk ecCt0 ecCt1 leak (i + 1))
+      (oppUniKemCKA.Reduction.Internal.initialGame base onoff))}[x = true]).toReal -
+    (Pr{let x ← (stoppedRun (idealEpochHybridImpl base onoff hDet ecEk ecCt0 ecCt1 leak (i + 1))
       (fun s => decide (i + 1 ∈ s.exposed)) adv
-      (oppUniKemCKA.Reduction.Internal.initialGame base onoff)]).toReal = _
+      (oppUniKemCKA.Reduction.Internal.initialGame base onoff))}[x = true]).toReal = _
   linarith only [hstop]
 
 /-- Step 5 (epoch averaging): for `q > 0`, averaging over the uniform challenge epoch
@@ -193,18 +196,21 @@ theorem securityReduction_signed_gap_eq
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
     (leak : base.OnOffRandLeak onoff) (adv : SecurityAdversary leak Sym)
     (q : ℕ) (hq : q ≠ 0) :
-    (Pr[= true | base.IND_CPA_Exp ProbCompRuntime.probComp
-      (securityReduction base onoff ecEk ecCt0 ecCt1 leak adv q) true]).toReal -
-    (Pr[= true | base.IND_CPA_Exp ProbCompRuntime.probComp
-      (securityReduction base onoff ecEk ecCt0 ecCt1 leak adv q) false]).toReal =
+    (Pr{let x ← (base.IND_CPA_Experiment ProbCompRuntime.probComp
+      (securityReduction base onoff ecEk ecCt0 ecCt1 leak adv q) true)}[x = true]).toReal -
+    (Pr{let x ← (base.IND_CPA_Experiment ProbCompRuntime.probComp
+      (securityReduction base onoff ecEk ecCt0 ecCt1 leak adv q) false)}[x = true]).toReal =
     (q : ℝ)⁻¹ *
-      ((Pr[= true | idealEpochHybridExp base onoff hDet ecEk ecCt0 ecCt1 leak adv 0]).toReal -
-       (Pr[= true | idealEpochHybridExp base onoff hDet ecEk ecCt0 ecCt1 leak adv q]).toReal) := by
+      ((Pr{let x ← (idealEpochHybridExp
+          base onoff hDet ecEk ecCt0 ecCt1 leak adv 0)}[x = true]).toReal -
+       (Pr{let x ← (idealEpochHybridExp
+           base onoff hDet ecEk ecCt0 ecCt1 leak adv q)}[x = true]).toReal) := by
   rw [securityReduction_signed_gap_average base onoff ecEk ecCt0 ecCt1 leak adv q hq]
   simp_rw [fixedBranch_signed_gap_eq base onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1 leak adv]
   rw [Fin.sum_univ_eq_sum_range (fun i : ℕ =>
-    (Pr[= true | idealEpochHybridExp base onoff hDet ecEk ecCt0 ecCt1 leak adv i]).toReal -
-    (Pr[= true | idealEpochHybridExp base onoff hDet ecEk ecCt0 ecCt1 leak adv (i + 1)]).toReal) q,
+    (Pr{let x ← idealEpochHybridExp base onoff hDet ecEk ecCt0 ecCt1 leak adv i}[x = true]).toReal -
+    (Pr{let x ← (idealEpochHybridExp
+        base onoff hDet ecEk ecCt0 ecCt1 leak adv (i + 1))}[x = true]).toReal) q,
     Finset.sum_range_sub']
 
 /-- Step 5: for every `q : ℕ`, the distance between the acceptance probabilities of the endpoint
@@ -218,14 +224,17 @@ theorem hybrid_gap_eq_query_factor
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
     (leak : base.OnOffRandLeak onoff) (adv : SecurityAdversary leak Sym) (q : ℕ) :
-    |(Pr[= true | idealEpochHybridExp base onoff hDet ecEk ecCt0 ecCt1 leak adv 0]).toReal -
-      (Pr[= true | idealEpochHybridExp base onoff hDet ecEk ecCt0 ecCt1 leak adv q]).toReal| =
-    (q : ℝ) * base.IND_CPA_Advantage ProbCompRuntime.probComp
-      (securityReduction base onoff ecEk ecCt0 ecCt1 leak adv q) := by
+    |(Pr{let x ← (idealEpochHybridExp
+        base onoff hDet ecEk ecCt0 ecCt1 leak adv 0)}[x = true]).toReal -
+      (Pr{let x ← (idealEpochHybridExp
+          base onoff hDet ecEk ecCt0 ecCt1 leak adv q)}[x = true]).toReal| =
+    (q : ℝ) * (base.IND_CPA_Advantage ProbCompRuntime.probComp
+      (securityReduction base onoff ecEk ecCt0 ecCt1 leak adv q)).toReal := by
   rcases Nat.eq_zero_or_pos q with rfl | hpos
   · simp
   have hq : q ≠ 0 := hpos.ne'
   rw [KEMScheme.IND_CPA_Advantage_eq_fixed_branch_dist,
+    ENNReal.absDiff_toReal (prEvent_ne_top _) (prEvent_ne_top _),
     securityReduction_signed_gap_eq base onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
       leak adv q hq, abs_mul, abs_inv,
     abs_of_nonneg (show (0 : ℝ) ≤ (q : ℝ) from Nat.cast_nonneg q),
@@ -258,7 +267,7 @@ theorem security
     let 𝓑 := Security.Embedding.securityReduction kem onoff ecEk ecCt0 ecCt1 leak adv q
     let ε := (kem.correctnessError ProbCompRuntime.probComp).toReal
     SCKAScheme.sckaGuessAdvantage scka adv (exposureA kem onoff leak) (exposureB kem onoff leak) ≤
-      (q / 2 : ℝ) * kem.IND_CPA_Advantage ProbCompRuntime.probComp 𝓑 + q * ε
+      (q / 2 : ℝ) * (kem.IND_CPA_Advantage ProbCompRuntime.probComp 𝓑).toReal + q * ε
 -- ANCHOR_END: security
     := by
   dsimp only
@@ -282,7 +291,7 @@ theorem security_perfectKEM
     let scka := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak
     let 𝓑 := Security.Embedding.securityReduction kem onoff ecEk ecCt0 ecCt1 leak adv q
     SCKAScheme.sckaGuessAdvantage scka adv (exposureA kem onoff leak) (exposureB kem onoff leak) ≤
-      (q / 2 : ℝ) * kem.IND_CPA_Advantage ProbCompRuntime.probComp 𝓑
+      (q / 2 : ℝ) * (kem.IND_CPA_Advantage ProbCompRuntime.probComp 𝓑).toReal
 -- ANCHOR_END: security_perfectKEM
     := by
   dsimp only

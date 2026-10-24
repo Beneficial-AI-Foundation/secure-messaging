@@ -720,7 +720,7 @@ variable [DecidableEq I] {τ : Type}
 /-- If `E ∩ s.challenged ≠ ∅` and `leak s.stA r = E` for the coins `r` of every possible
 successful local leaking A-send, A's leaking-send query from `s` is `(none, s)` with probability
 one. -/
-theorem oracleSendArleak_rejected_evalDist
+theorem oracleSendArleak_rejected_evalDistEq
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (leak : StA → Rand → Finset ℕ)
     (s : GameState StA StB I Rho) (E : Finset ℕ)
@@ -728,19 +728,16 @@ theorem oracleSendArleak_rejected_evalDist
       some (key, msg, epoch, next, coins) ∈ support (scka.sendArleak s.stA) →
       leak s.stA coins = E)
     (hguard : E ∩ s.challenged ≠ ∅) :
-    𝒟[(oracleSendArleak leak scka ()).run s] = 𝒟[(pure (none, s) : ProbComp _)] := by
-  apply evalDist_ext
-  intro z
+    (oracleSendArleak leak scka ()).run s =ᵈ (pure (none, s) : ProbComp _) := by
   simp only [oracleSendArleak, StateT.run_bind, StateT.run_get, pure_bind,
     StateT.run_monadLift, monadLift_self, bind_assoc]
-  apply ToVCVio.probOutput_bind_of_const'
-  intro out hout
+  refine ToVCVio.evalDistEq_bind_of_const' _ fun out hout => ?_
   cases out with
   | none => rfl
   | some out =>
     rcases out with ⟨key, msg, epoch, next, coins⟩
     dsimp only
-    rw [hE key msg epoch next coins hout, if_pos hguard]
+    rw [hE key msg epoch next coins hout, ite_eq_left hguard]
     rfl
 
 /-- If every local leaking A-send from `s.stA` succeeds with coins `r` such that
@@ -777,8 +774,8 @@ theorem oracleSendArleak_stop_of_exposure
         decide_true, ↓reduceIte] at hz
     all_goals obtain rfl := hz; rfl
 
-/-- B version of `oracleSendArleak_rejected_evalDist`. -/
-theorem oracleSendBrleak_rejected_evalDist
+/-- B version of `oracleSendArleak_rejected_evalDistEq`. -/
+theorem oracleSendBrleak_rejected_evalDistEq
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (leak : StB → Rand → Finset ℕ)
     (s : GameState StA StB I Rho) (E : Finset ℕ)
@@ -786,19 +783,16 @@ theorem oracleSendBrleak_rejected_evalDist
       some (key, msg, epoch, next, coins) ∈ support (scka.sendBrleak s.stB) →
       leak s.stB coins = E)
     (hguard : E ∩ s.challenged ≠ ∅) :
-    𝒟[(oracleSendBrleak leak scka ()).run s] = 𝒟[(pure (none, s) : ProbComp _)] := by
-  apply evalDist_ext
-  intro z
+    (oracleSendBrleak leak scka ()).run s =ᵈ (pure (none, s) : ProbComp _) := by
   simp only [oracleSendBrleak, StateT.run_bind, StateT.run_get, pure_bind,
     StateT.run_monadLift, monadLift_self, bind_assoc]
-  apply ToVCVio.probOutput_bind_of_const'
-  intro out hout
+  refine ToVCVio.evalDistEq_bind_of_const' _ fun out hout => ?_
   cases out with
   | none => rfl
   | some out =>
     rcases out with ⟨key, msg, epoch, next, coins⟩
     dsimp only
-    rw [hE key msg epoch next coins hout, if_pos hguard]
+    rw [hE key msg epoch next coins hout, ite_eq_left hguard]
     rfl
 
 /-- B version of `oracleSendArleak_stop_of_exposure`. -/
@@ -833,54 +827,58 @@ theorem oracleSendBrleak_stop_of_exposure
         decide_true, ↓reduceIte] at hz
     all_goals obtain rfl := hz; rfl
 
-/-- If `𝒟[a ← sample; (family a).sendA s.stA] = 𝒟[target.sendA s.stA]`, the A-send queries
+/-- If `(a ← sample; (family a).sendA s.stA) =ᵈ target.sendA s.stA`, the A-send queries
 from `s` satisfy the same equality of joint response/state distributions. -/
 theorem oracleSendA_sample_eq
     (sample : ProbComp τ) (family : τ → SCKAScheme ProbComp IK StA StB I Rho Rand)
     (target : SCKAScheme ProbComp IK StA StB I Rho Rand) (s : GameState StA StB I Rho)
-    (h : 𝒟[(do let a ← sample; (family a).sendA s.stA)] = 𝒟[target.sendA s.stA]) :
-    𝒟[(do let a ← sample; (oracleSendA (family a) ()).run s)] =
-      𝒟[(oracleSendA target ()).run s] := by
+    (h : (do let a ← sample; (family a).sendA s.stA) =ᵈ target.sendA s.stA) :
+    (do let a ← sample; (oracleSendA (family a) ()).run s) =ᵈ
+      (oracleSendA target ()).run s := by
   simp only [oracleSendA, StateT.run_bind, StateT.run_get, pure_bind,
     StateT.run_monadLift, monadLift_self, bind_assoc]
-  rw [← bind_assoc, evalDist_bind, h, ← evalDist_bind]
+  rw [← bind_assoc]
+  exact h.bind_left _
 
 /-- B version of `oracleSendA_sample_eq`. -/
 theorem oracleSendB_sample_eq
     (sample : ProbComp τ) (family : τ → SCKAScheme ProbComp IK StA StB I Rho Rand)
     (target : SCKAScheme ProbComp IK StA StB I Rho Rand) (s : GameState StA StB I Rho)
-    (h : 𝒟[(do let a ← sample; (family a).sendB s.stB)] = 𝒟[target.sendB s.stB]) :
-    𝒟[(do let a ← sample; (oracleSendB (family a) ()).run s)] =
-      𝒟[(oracleSendB target ()).run s] := by
+    (h : (do let a ← sample; (family a).sendB s.stB) =ᵈ target.sendB s.stB) :
+    (do let a ← sample; (oracleSendB (family a) ()).run s) =ᵈ
+      (oracleSendB target ()).run s := by
   simp only [oracleSendB, StateT.run_bind, StateT.run_get, pure_bind,
     StateT.run_monadLift, monadLift_self, bind_assoc]
-  rw [← bind_assoc, evalDist_bind, h, ← evalDist_bind]
+  rw [← bind_assoc]
+  exact h.bind_left _
 
 /-- Leaking-send version of `oracleSendA_sample_eq`, for a common exposure function `leak`. -/
 theorem oracleSendArleak_sample_eq
     (sample : ProbComp τ) (family : τ → SCKAScheme ProbComp IK StA StB I Rho Rand)
     (target : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (leak : StA → Rand → Finset ℕ) (s : GameState StA StB I Rho)
-    (h : 𝒟[(do let a ← sample; (family a).sendArleak s.stA)] =
-      𝒟[target.sendArleak s.stA]) :
-    𝒟[(do let a ← sample; (oracleSendArleak leak (family a) ()).run s)] =
-      𝒟[(oracleSendArleak leak target ()).run s] := by
+    (h : (do let a ← sample; (family a).sendArleak s.stA) =ᵈ
+      target.sendArleak s.stA) :
+    (do let a ← sample; (oracleSendArleak leak (family a) ()).run s) =ᵈ
+      (oracleSendArleak leak target ()).run s := by
   simp only [oracleSendArleak, StateT.run_bind, StateT.run_get, pure_bind,
     StateT.run_monadLift, monadLift_self, bind_assoc]
-  rw [← bind_assoc, evalDist_bind, h, ← evalDist_bind]
+  rw [← bind_assoc]
+  exact h.bind_left _
 
 /-- B version of `oracleSendArleak_sample_eq`. -/
 theorem oracleSendBrleak_sample_eq
     (sample : ProbComp τ) (family : τ → SCKAScheme ProbComp IK StA StB I Rho Rand)
     (target : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (leak : StB → Rand → Finset ℕ) (s : GameState StA StB I Rho)
-    (h : 𝒟[(do let a ← sample; (family a).sendBrleak s.stB)] =
-      𝒟[target.sendBrleak s.stB]) :
-    𝒟[(do let a ← sample; (oracleSendBrleak leak (family a) ()).run s)] =
-      𝒟[(oracleSendBrleak leak target ()).run s] := by
+    (h : (do let a ← sample; (family a).sendBrleak s.stB) =ᵈ
+      target.sendBrleak s.stB) :
+    (do let a ← sample; (oracleSendBrleak leak (family a) ()).run s) =ᵈ
+      (oracleSendBrleak leak target ()).run s := by
   simp only [oracleSendBrleak, StateT.run_bind, StateT.run_get, pure_bind,
     StateT.run_monadLift, monadLift_self, bind_assoc]
-  rw [← bind_assoc, evalDist_bind, h, ← evalDist_bind]
+  rw [← bind_assoc]
+  exact h.bind_left _
 
 /-- Equal local A-sends from `s.stA` give equal A-send queries from `s`. -/
 theorem oracleSendA_run_congr

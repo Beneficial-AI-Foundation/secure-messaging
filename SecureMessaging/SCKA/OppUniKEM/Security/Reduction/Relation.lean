@@ -475,7 +475,6 @@ theorem sendArleak_hide
   by_cases he : s.t = e <;> cases hd : s.dkA
   all_goals
     simp only [sendArleak, hideA, hd, Option.map_none, Option.map_some]
-    try dsimp only [leakage, Pinned.leakage]
     simp [keygenLeak, hideCoins, hide, he, monad_norm]
 
 set_option maxHeartbeats 1400000 in
@@ -501,7 +500,6 @@ theorem sendBrleak_hide
     cases hct1 : s.ct1 <;> cases hst : s.stCt <;> cases hack : s.ack.ctRec
   all_goals
     simp only [sendBrleak, hideB, hct0, hek, hct1, hst, Option.map_none, Option.map_some]
-    try dsimp only [leakage, Pinned.leakage]
     simp [offLeak, onLeak, KEMMaterial.ciphertext, hideCoins, hide,
       he, hct0, hek, hct1, hst, hack, monad_norm]
 

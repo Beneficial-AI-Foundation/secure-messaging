@@ -791,7 +791,7 @@ theorem security
     let 𝓑 := Security.Embedding.securityReduction kem onoff ecEk ecCt0 ecCt1 leak adv q
     let ε := (kem.correctnessError ProbCompRuntime.probComp).toReal
     SCKAScheme.sckaGuessAdvantage scka adv (exposureA kem onoff leak) (exposureB kem onoff leak) ≤
-      (q / 2 : ℝ) * kem.IND_CPA_Advantage ProbCompRuntime.probComp 𝓑 + q * ε
+      (q / 2 : ℝ) * (kem.IND_CPA_Advantage ProbCompRuntime.probComp 𝓑).toReal + q * ε
 ```
 
 :::leanPillCaption "Send budget"
@@ -834,7 +834,7 @@ theorem security_perfectKEM
     let scka := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak
     let 𝓑 := Security.Embedding.securityReduction kem onoff ecEk ecCt0 ecCt1 leak adv q
     SCKAScheme.sckaGuessAdvantage scka adv (exposureA kem onoff leak) (exposureB kem onoff leak) ≤
-      (q / 2 : ℝ) * kem.IND_CPA_Advantage ProbCompRuntime.probComp 𝓑
+      (q / 2 : ℝ) * (kem.IND_CPA_Advantage ProbCompRuntime.probComp 𝓑).toReal
 ```
 
 ::::::::

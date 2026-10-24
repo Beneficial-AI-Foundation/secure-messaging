@@ -290,10 +290,11 @@ theorem idealEpochHybridExp_last
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
     (leak : kem.OnOffRandLeak onoff)
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
-    Pr[= true | idealEpochHybridExp kem onoff hDet ecEk ecCt0 ecCt1 leak adv q] =
-      Pr[= true | idealSecurityExp kem onoff hDet ecEk ecCt0 ecCt1 leak (fun _ => true) adv] := by
+    Pr{let x ← idealEpochHybridExp kem onoff hDet ecEk ecCt0 ecCt1 leak adv q}[x = true] =
+      Pr{let x ← (idealSecurityExp
+          kem onoff hDet ecEk ecCt0 ecCt1 leak (fun _ => true) adv)}[x = true] := by
   -- VCVio's query-bounded transport, with the remaining send budget `b` in the invariant.
-  have h z := OracleComp.ProgramLogic.Relational.probOutput_simulateQ_run_eq_of_impl_eq_queryBound
+  have h := OracleComp.ProgramLogic.Relational.evalDistEq_simulateQ_run_of_impl_eq_queryBound
     (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak (fun _ => true))
     (idealEpochHybridImpl kem onoff hDet ecEk ecCt0 ecCt1 leak q)
     (fun s b => (reachableInv kem onoff ecEk ecCt0 ecCt1 s ∧ sendEpochInv s) ∧ s.nA + b ≤ q)
@@ -320,9 +321,9 @@ theorem idealEpochHybridExp_last
         omega)
     (Reduction.Internal.initialGame kem onoff)
     ⟨⟨reachableInv_initialGame kem onoff ecEk ecCt0 ecCt1, sendEpochInv_init kem onoff⟩, by
-      simp [Reduction.Internal.initialGame, SCKAScheme.initGameState]⟩ z
+      simp [Reduction.Internal.initialGame, SCKAScheme.initGameState]⟩
   simp only [idealEpochHybridExp, idealSecurityExp, StateT.run'_eq]
-  exact probOutput_map_eq_of_evalDist_eq (evalDist_ext fun z => (h z).symm) Prod.fst true
+  exact (h.symm.map Prod.fst).prEvent_eq _
 
 /-- Assuming the erasure codes are correct and `SecuritySendQueryBound adv q`, the SCKA guessing
 advantage of `adv` is bounded by half the distance between the endpoint ideal hybrids
@@ -339,18 +340,19 @@ theorem security_guess_le_hybrid_gap
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
     SCKAScheme.sckaGuessAdvantage (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)
       adv (exposureA kem onoff leak) (exposureB kem onoff leak) ≤
-    |(Pr[= true | idealEpochHybridExp kem onoff hDet ecEk ecCt0 ecCt1 leak adv 0]).toReal -
-      (Pr[= true | idealEpochHybridExp kem onoff hDet ecEk ecCt0 ecCt1 leak adv q]).toReal| / 2 +
+    |(Pr{let x ← idealEpochHybridExp kem onoff hDet ecEk ecCt0 ecCt1 leak adv 0}[x = true]).toReal -
+      (Pr{let x ← (idealEpochHybridExp
+          kem onoff hDet ecEk ecCt0 ecCt1 leak adv q)}[x = true]).toReal| / 2 +
       (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal := by
   rw [SCKAScheme.sckaGuessAdvantage_eq_sckaDistAdvantage_div_two,
     SCKAScheme.sckaDistAdvantage,
     idealEpochHybridExp_zero,
     idealEpochHybridExp_last kem onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1 leak adv q hq]
-  let G := fun b => (Pr[= true | SCKAScheme.securityExpFixedBit
+  let G := fun b => (Pr{let x ← (SCKAScheme.securityExpFixedBit
     (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv b
-    (exposureA kem onoff leak) (exposureB kem onoff leak)]).toReal
-  let I := fun b => (Pr[= true | idealSecurityExp kem onoff hDet ecEk ecCt0 ecCt1
-    leak (fun _ => b) adv]).toReal
+    (exposureA kem onoff leak) (exposureB kem onoff leak))}[x = true]).toReal
+  let I := fun b => (Pr{let x ← (idealSecurityExp kem onoff hDet ecEk ecCt0 ecCt1
+    leak (fun _ => b) adv)}[x = true]).toReal
   have h0 : |G false - I false| ≤
       (q : ℝ) * (kem.correctnessError ProbCompRuntime.probComp).toReal :=
     security_correctness_endpoint_le kem onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
@@ -456,16 +458,18 @@ theorem idealEpochHybrid_signed_gap_stop_eq
     (i : ℕ) (adv : SecurityAdversary leak Sym)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : Disjoint s.exposed s.challenged) :
-    (Pr[= true | (simulateQ
-      (idealEpochHybridImpl kem onoff hDet ecEk ecCt0 ecCt1 leak (i + 1)) adv).run' s]).toReal -
-    (Pr[= true | (simulateQ
-      (idealEpochHybridImpl kem onoff hDet ecEk ecCt0 ecCt1 leak i) adv).run' s]).toReal =
-    (Pr[= true | stoppedRun
+    (Pr{let x ← ((simulateQ
+      (idealEpochHybridImpl kem onoff hDet ecEk ecCt0 ecCt1 leak (i + 1)) adv).run'
+        s)}[x = true]).toReal -
+    (Pr{let x ← ((simulateQ
+      (idealEpochHybridImpl kem onoff hDet ecEk ecCt0 ecCt1 leak i) adv).run'
+        s)}[x = true]).toReal =
+    (Pr{let x ← (stoppedRun
       (idealEpochHybridImpl kem onoff hDet ecEk ecCt0 ecCt1 leak (i + 1))
-      (fun u => decide (i + 1 ∈ u.exposed)) adv s]).toReal -
-    (Pr[= true | stoppedRun
+      (fun u => decide (i + 1 ∈ u.exposed)) adv s)}[x = true]).toReal -
+    (Pr{let x ← (stoppedRun
       (idealEpochHybridImpl kem onoff hDet ecEk ecCt0 ecCt1 leak i)
-      (fun u => decide (i + 1 ∈ u.exposed)) adv s]).toReal := by
+      (fun u => decide (i + 1 ∈ u.exposed)) adv s)}[x = true]).toReal := by
   -- A query of the two hybrids is identical or an answered challenge at `i + 1`; afterwards
   -- `i + 1` stays challenged, hence unexposed.
   apply signed_gap_stoppedRun_eq _ _

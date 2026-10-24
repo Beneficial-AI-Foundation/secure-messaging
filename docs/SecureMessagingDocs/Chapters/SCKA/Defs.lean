@@ -953,8 +953,8 @@ noncomputable def sckaDistAdvantage [SampleableType I] [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (adversary : SCKAAdversary StA StB I Rho Rand)
     (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand) : ℝ :=
-  |(Pr[= true | securityExpFixedBit scka adversary true vulnA vulnB]).toReal -
-   (Pr[= true | securityExpFixedBit scka adversary false vulnA vulnB]).toReal|
+  |(Pr{let x ← securityExpFixedBit scka adversary true vulnA vulnB}[x = true]).toReal -
+   (Pr{let x ← securityExpFixedBit scka adversary false vulnA vulnB}[x = true]).toReal|
 ```
 
 :::leanPillCaption "Guessing advantage is half the distinguishing advantage"
