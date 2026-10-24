@@ -5,6 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.CKA.FromDDH.Security.ReductionRand.Bridge
+import ToVCVio.EvalDist.BoolDist
 
 /-!
 # CKA from DDH — Security Proof
@@ -293,8 +294,7 @@ theorem security (gp : GameParams)
     rw [h, ENNReal.toReal_sub_of_le (prEvent_le_one _) ENNReal.one_ne_top, ENNReal.toReal_one]
   unfold ckaGuessAdvantage ddhAdvantage
   rw [securityExp_toReal_sub_half, hNot true, hNot false, ← hReal, ← hRand,
-    MeasureTheory.Measure.toReal_boolDist, ← prEvent_eq_evalDist_singleton,
-    ← prEvent_eq_evalDist_singleton, abs_div, abs_two]
+    ToVCVio.toReal_boolDist_evalDist, abs_div, abs_two]
   refine le_of_eq ?_
   congr 2
   ring

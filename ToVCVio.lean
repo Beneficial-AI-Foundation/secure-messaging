@@ -12,6 +12,7 @@ import ToVCVio.CryptoFoundations.WegmanCarter.AbstractBounds
 import ToVCVio.CryptoFoundations.WegmanCarter.Defs
 import ToVCVio.CryptoFoundations.WegmanCarter.LogRefinement
 import ToVCVio.CryptoFoundations.WegmanCarter.Security
+import ToVCVio.EvalDist.BoolDist
 import ToVCVio.EvalDist.Monad.Basic
 import ToVCVio.EvalDist.TVDist
 import ToVCVio.EvalDist.UniformInjection

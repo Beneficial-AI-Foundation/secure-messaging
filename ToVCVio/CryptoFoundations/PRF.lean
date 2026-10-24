@@ -6,12 +6,14 @@ Authors: Beneficial AI Foundation
 module
 
 public import VCVio.CryptoFoundations.PRF
+public import ToVCVio.EvalDist.BoolDist
 
 /-!
 # The PRF advantage in real form
 
-`toReal_prfAdvantage` unfolds VCVio's `ℝ≥0∞`-valued `prfAdvantage` to the absolute difference
-of the real and ideal success probabilities.
+VCVio defines `prfAdvantage` as the `ℝ≥0∞`-valued Boolean distance of the real and ideal
+experiments. `toReal_prfAdvantage` gives its real value as the absolute difference of their
+success probabilities, the form that the AEAD security bounds use.
 -/
 
 @[expose] public section
@@ -20,13 +22,13 @@ open OracleSpec OracleComp ENNReal
 
 namespace PRFScheme
 
-/-- The PRF advantage in real form: `|Pr[real ⇒ true] - Pr[ideal ⇒ true]|`. -/
+/-- Let `adversary` attack the PRF `prf`. Then the real value of its advantage is
+`|Pr[prfRealExperiment = true] - Pr[prfIdealExperiment = true]|`. -/
 theorem toReal_prfAdvantage {K D R : Type} [DecidableEq D] [SampleableType R]
     (prf : PRFScheme K D R) (adversary : PRFAdversary D R) :
     (prfAdvantage prf adversary).toReal =
       |(Pr{let x ← prf.prfRealExperiment adversary}[x = true]).toReal -
-        (Pr{let x ← prfIdealExperiment adversary}[x = true]).toReal| := by
-  rw [prfAdvantage, MeasureTheory.Measure.toReal_boolDist, prEvent_eq_evalDist_singleton,
-    prEvent_eq_evalDist_singleton]
+        (Pr{let x ← prfIdealExperiment adversary}[x = true]).toReal| :=
+  ToVCVio.toReal_boolDist_evalDist _ _
 
 end PRFScheme

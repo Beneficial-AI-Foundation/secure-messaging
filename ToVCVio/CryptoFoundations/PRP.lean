@@ -17,10 +17,10 @@ invertible map on a block space `X` that no efficient adversary can distinguish
 from a uniformly random permutation of `X`.
 
 The PRP game is set up exactly like VCVio's PRF game: same oracle spec, same adversary type,
-real/ideal experiments and an absolute-difference advantage. The real experiment `prpRealExp`
-is *defined* as the PRF real experiment of `toPRFScheme`, so the two games share their real
-side and differ only in the ideal one, which is what the PRP/PRF switching lemma [BR]
-compares. Candidate for upstream VCVio.
+real/ideal experiments, and an `ℝ≥0∞`-valued Boolean-distance advantage. The real experiment
+`prpRealExp` is *defined* as the PRF real experiment of `toPRFScheme`, so the two games share
+their real side and differ only in the ideal one, which is what the PRP/PRF switching lemma
+[BR] compares. Candidate for upstream VCVio.
 
 ## References
 
@@ -97,22 +97,23 @@ def prpIdealExp [SampleableType (Equiv.Perm X)] (adversary : PRPAdversary X) :
   let π ← $ᵗ (Equiv.Perm X)
   simulateQ (prpQueryImpl fun x => π x) adversary
 
-/-- The PRP advantage of an adversary: the absolute difference between the probabilities that
-it outputs `true` in the real and in the ideal experiment. -/
+/-- The PRP advantage of an adversary: the Boolean distance of its output distributions in the
+real and in the ideal experiment, as for VCVio's `prfAdvantage`. `toReal_prpAdvantage` gives
+its real value. -/
 -- ANCHOR: prpAdvantage
 noncomputable def prpAdvantage [SampleableType (Equiv.Perm X)]
     (prp : PRPScheme K X) (adversary : PRPAdversary X) : ℝ≥0∞ :=
   𝒟[prpRealExp prp adversary].boolDist 𝒟[prpIdealExp adversary]
 -- ANCHOR_END: prpAdvantage
 
-/-- The PRP advantage in real form: `|Pr[real ⇒ true] - Pr[ideal ⇒ true]|`. -/
+/-- Let `adversary` attack the PRP `prp`. Then the real value of its advantage is
+`|Pr[prpRealExp = true] - Pr[prpIdealExp = true]|`. -/
 theorem toReal_prpAdvantage [SampleableType (Equiv.Perm X)]
     (prp : PRPScheme K X) (adversary : PRPAdversary X) :
     (prpAdvantage prp adversary).toReal =
       |(Pr{let x ← prpRealExp prp adversary}[x = true]).toReal -
-        (Pr{let x ← prpIdealExp adversary}[x = true]).toReal| := by
-  rw [prpAdvantage, MeasureTheory.Measure.toReal_boolDist, prEvent_eq_evalDist_singleton,
-    prEvent_eq_evalDist_singleton]
+        (Pr{let x ← prpIdealExp adversary}[x = true]).toReal| :=
+  ToVCVio.toReal_boolDist_evalDist _ _
 
 /-- `asPRF g` is the fixed function `g` viewed as a PRF scheme with a trivial key, so that the
 PRF simulation lemmas apply to `prpQueryImpl g`. -/
