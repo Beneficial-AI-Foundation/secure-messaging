@@ -34,17 +34,8 @@ sampling phases of epoch `e` to `kemMat`; the others are *fresh*, sampling at th
 | `encapsFresh` | pinned | fresh | fresh |
 | `fresh` | fresh | fresh | fresh |
 
-Write `P(O, s) := Pr[optionRun O adv s = true]`.
-
-- Using the key of `kemMat`, the stopped honest game has the acceptance probability of the stopped
-  pinned hybrid with mode bit `false`: for `kemMat ∈ support (sampleMaterial leak)`,
-  `P(honestStopped kemMat e kemMat.key, s₀) = P(hybridStopped kemMat e false, s₀)`
-  (`honestStopped_real_eq_hybrid`).
-- Using a uniform key, it has that of the pinned hybrid with mode bit `true`: for every `s`,
-  `Pr[k ←$ K; optionRun (honestStopped kemMat e k) adv s = true] =
-  P(hybridStopped kemMat e true, s)` (`honestStopped_random_eq_hybrid`).
-- Each fixed branch has the acceptance probability of the stopped pinned hybrid averaged over the
-  material:
+- Each fixed branch of `𝓑` (`fixedBranch`, `Simulator`) has the acceptance probability of the
+  stopped pinned hybrid averaged over the material:
   `Pr[fixedBranch adv e b = true] =
   Pr[kemMat ← sampleMaterial leak; optionRun (hybridStopped kemMat e (!b)) adv s₀ = true]`
   (`fixedBranch_eq_pinnedHybrid`).
@@ -217,7 +208,7 @@ theorem honestStopped_real_eq_hybrid
       adv (oppUniKemCKA.Reduction.Internal.initialGame base onoff))}[x = true] := by
   symm
   apply prEvent_optionRun_eq_of_state_map _ _ id
-    (fun s => (reachableInv base onoff ecEk ecCt0 ecCt1 s ∧ pinnedSources kemMat e s) ∧
+    (fun s => (reachableInv base onoff ecEk ecCt0 ecCt1 s ∧ consistentMat kemMat e s) ∧
       ∀ k, s.keyB e = some k → k = kemMat.key)
   · intro t s hs z hz _
     change z ∈ support (do
@@ -238,7 +229,7 @@ theorem honestStopped_real_eq_hybrid
     rw [← honestOracle_eq_hybrid_real base onoff ecEk ecCt0 ecCt1 leak kemMat e t s hs.1.1 hs.2]
     rfl
   · exact ⟨⟨reachableInv_init base onoff ecEk ecCt0 ecCt1
-      ecEk.ec.nchunk_pos ecCt0.ec.nchunk_pos, pinnedSources_initial base onoff leak kemMat e⟩,
+      ecEk.ec.nchunk_pos ecCt0.ec.nchunk_pos, consistentMat_initial base onoff leak kemMat e⟩,
       keyB_eq_initial base onoff leak kemMat e⟩
 
 omit [DecidableEq K] [DecidableEq Sym] in

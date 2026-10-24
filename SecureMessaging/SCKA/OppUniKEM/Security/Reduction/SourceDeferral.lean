@@ -24,23 +24,10 @@ import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.OnlineDeferral
   at the first exposure of `e`, and the ideal game `idealSecurityImpl μ` with challenge mode `μ`
   (`Endpoints`).
 
-**Main results.** For the stages of `HybridGame`:
-
-- For every query, averaging `oracle .onlineFresh { kemMat with off := off } e b t` over `off` gives
-  the response/successor distribution of `oracle .encapsFresh kemMat e b t`
-  (`oracle_sample_offline_eq_fresh`).
-- Drawing `off` once before `stopped .onlineFresh { kemMat with off := off } e b` gives the
-  acceptance probability of `stopped .encapsFresh kemMat e b` (`stopped_offline_deferred`).
-- The same identities for `kg`, from stage `encapsFresh` to stage `fresh`
-  (`oracle_sample_keygen_eq_fresh`, `stopped_keygen_deferred`).
-
-**Combined** (step 3 of the proof structure in `OppUniKEM/Security`):
-
-- Averaged over `kemMat ← sampleMaterial leak`, `hybridStopped kemMat e b` has the acceptance
-  probability of `idealSecurityImpl (adjacentMode e b)` stopped at the first exposure of `e`
-  (`pinnedHybrid_eq_fresh`, `pinnedHybrid_eq_ideal`).
-- For `e > 0`, `fixedBranch adv e b` has that of the mode `adjacentMode e (!b)`
-  (`fixedBranch_eq_ideal`).
+**Main result** (step 3 of the proof structure in `OppUniKEM/Security`). For `e > 0`, each fixed
+branch `fixedBranch adv e b` of `𝓑` (`Simulator`) has the acceptance probability of the ideal game
+`idealSecurityImpl (adjacentMode e (!b))` stopped at the first exposure of `e`
+(`fixedBranch_eq_ideal`).
 -/
 
 /-! ## Offline encapsulation -/
@@ -642,7 +629,7 @@ theorem pinnedHybrid_eq_fresh
     exact hybridStopped_online_deferred base onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
       leak kemMat hm e b adv _
       (reachableInv_init base onoff ecEk ecCt0 ecCt1 ecEk.ec.nchunk_pos ecCt0.ec.nchunk_pos)
-      (pinnedSources_initial base onoff leak kemMat e)
+      (consistentMat_initial base onoff leak kemMat e)
   trans Pr{let x ← (do
     let kg ← leak.keygenRleak
     optionRun (Sampling.stopped base onoff ecEk ecCt0 ecCt1 leak

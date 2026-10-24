@@ -70,7 +70,7 @@ Paths are relative to `OppUniKEM/Security/`.
      failure within `q` sends (`security_correctness_endpoint_le`).
    - Hence `AdvGuess_SCKA(Π, adv) ≤ |p_0 - p_q| / 2 + q · ε` (`security_guess_le_hybrid_gap`).
 
-2. *Reduction and simulation* (`Reduction/{Simulator,Relation,Game,Oracle,Simulation,HybridGame}`).
+2. *Reduction and simulation* (`Reduction/{Simulator,Relation,Game,Simulation,HybridGame}`).
    - On public key `pk*` and challenge `(ct*, k*)`, the *reduction* `𝓑` runs `adv` against
      the simulated oracles of the ideal game (`simOracle`):
      - key generation at epoch `e` returns `pk*` and encapsulation at `e` returns `ct*`, with

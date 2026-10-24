@@ -25,11 +25,7 @@ challenges at epochs `1, …, i` with uniform keys (as in `I_true`) and later on
 (as in `I_false`); *stopping at `i + 1`* halts a run with output `false` at the first query that
 exposes epoch `i + 1`.
 
-- `H_0` coincides with `I_false`, and when `adv` makes at most `q` send queries
-  (`SecuritySendQueryBound adv q`), no epoch above `q` is ever recorded, so `H_q` has the same
-  acceptance probability as `I_true` (`idealEpochHybridExp_zero`, `idealEpochHybridExp_last`).
-- Combining these endpoint identities with `|Pr[G_b = true] - Pr[I_b = true]| ≤ q · ε`
-  (`security_correctness_endpoint_le`) yields
+- When `adv` makes at most `q` send queries (`SecuritySendQueryBound adv q`),
   `AdvGuess_SCKA(scka, adv) ≤ |Pr[H_0 = true] - Pr[H_q = true]| / 2 + q · ε`
   (`security_guess_le_hybrid_gap`).
 - Stopping both hybrids at `i + 1` preserves `Pr[H_{i+1} = true] - Pr[H_i = true]`: they differ

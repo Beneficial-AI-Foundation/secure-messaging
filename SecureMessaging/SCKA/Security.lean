@@ -140,8 +140,9 @@ theorem oracleChall_preservesInv [SampleableType I] (b : Bool)
   · rw [h]; exact hs
   · rw [h]; exact hbook s _ hs
 
-/-- `chall` records challenges: every possible successor of query `t` from `s` is `s`, or
-`s` with `t` inserted into `challenged` when `t ∉ s.exposed`. -/
+/-- Bookkeeping condition on a challenge oracle `chall`: every possible successor of a challenge
+at epoch `t` from `s` is `s` itself, or, when `t ∉ s.exposed`, `s` with `t` added to
+`challenged`. In particular, `chall` changes neither the party states nor the recorded keys. -/
 def RecordsChallenges
     (chall : QueryImpl (ℕ →ₒ Option I) (StateT (GameState StA StB I Rho) ProbComp)) : Prop :=
   ∀ (t : ℕ) s z, z ∈ support ((chall t).run s) →

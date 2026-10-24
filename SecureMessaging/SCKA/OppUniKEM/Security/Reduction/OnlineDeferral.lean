@@ -13,19 +13,16 @@ import SecureMessaging.SCKA.Security
 **Setting.** Throughout this module, we consider:
 
 - a possible KEM material `kemMat ∈ support (sampleMaterial leak)` (`Simulator`) and game states
-  satisfying `reachableInv` and `pinnedSources kemMat e` (`Game`);
+  satisfying `reachableInv` and `consistentMat kemMat e` (`Game`);
 - the material `{ kemMat with on := o }`, that is, `kemMat` with its online output resampled as
   `o ← leak.encapsOnRleak kemMat.st kemMat.pk`;
 - the one-use test `hit := usesOnline e`, which holds when the query runs B's online
   encapsulation at `e`, and the predicate `used s := (s.keyB e).isSome`.
 
-**Main results.** For the pinned hybrid and the stages of `HybridGame`:
-
-- For every query, averaging `hybridOracle { kemMat with on := o } e b t` over `o` gives the
-  response/successor distribution of `oracle .onlineFresh kemMat e b t`
-  (`hybridOracle_sample_online_eq_fresh`).
-- Drawing `o` once before `hybridStopped { kemMat with on := o } e b` gives the acceptance
-  probability of `stopped .onlineFresh kemMat e b` (`hybridStopped_online_deferred`).
+**Main result.** From states satisfying `reachableInv` and `consistentMat kemMat e`, drawing `o`
+once before the pinned hybrid `hybridStopped { kemMat with on := o } e b` gives the acceptance
+probability of the stage `stopped .onlineFresh kemMat e b` (`HybridGame`)
+(`hybridStopped_online_deferred`).
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -299,7 +296,7 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
 
-/-- Under `reachableInv s` and `pinnedSources kemMat e s`, if B is at `e` with public key `pk` and
+/-- Under `reachableInv s` and `consistentMat kemMat e s`, if B is at `e` with public key `pk` and
 no `ct1`, then `pk = kemMat.pk`. -/
 theorem selected_online_public_key
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
@@ -308,7 +305,7 @@ theorem selected_online_public_key
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hsrc : pinnedSources kemMat e s)
+    (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hsrc : consistentMat kemMat e s)
     (he : s.stB.t = e) (pk : PK) (hp : s.stB.ekA = some pk) (hc1 : s.stB.ct1 = none) :
     pk = kemMat.pk := by
   have ht := epochs_eq_before_online base onoff ecEk ecCt0 ecCt1 s hs hc1
@@ -320,7 +317,7 @@ theorem selected_online_public_key
     cases hpA : s.stA.ekA <;> cases hsA : s.stA.dkA <;> simp_all [Option.map₂]
   exact Option.some.inj (ha.1.symm.trans (hsrc.1 (ht.trans he) (by simp [ha.2])).1)
 
-/-- Under `reachableInv s` and `pinnedSources kemMat e s`, averaging B's leaking send in
+/-- Under `reachableInv s` and `consistentMat kemMat e s`, averaging B's leaking send in
 `honestScheme { kemMat with on := o } e s` over `o` gives the output distribution of B's leaking
 send in `schemeAt .onlineFresh kemMat e s`. -/
 theorem sendBrleak_sample_online_eq_fresh [DecidableEq Sym]
@@ -330,7 +327,7 @@ theorem sendBrleak_sample_online_eq_fresh [DecidableEq Sym]
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hsrc : pinnedSources kemMat e s) :
+    (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hsrc : consistentMat kemMat e s) :
     (do
       let online ← leak.encapsOnRleak kemMat.st kemMat.pk
       (honestScheme ecEk ecCt0 ecCt1 { kemMat with on := online } e s).sendBrleak s.stB) =ᵈ
@@ -366,7 +363,7 @@ theorem sendB_sample_online_eq_fresh [DecidableEq Sym]
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hsrc : pinnedSources kemMat e s) :
+    (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hsrc : consistentMat kemMat e s) :
     (do
       let online ← leak.encapsOnRleak kemMat.st kemMat.pk
       (honestScheme ecEk ecCt0 ecCt1 { kemMat with on := online } e s).sendB s.stB) =ᵈ
@@ -386,7 +383,7 @@ namespace oppUniKemCKA.Security.Embedding
 variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- Under `reachableInv s` and `pinnedSources kemMat e s`, for every query `t`, averaging
+/-- Under `reachableInv s` and `consistentMat kemMat e s`, for every query `t`, averaging
 `(hybridOracle { kemMat with on := o } e b t).run s` over `o` gives the response/successor
 distribution of `(oracle .onlineFresh kemMat e b t).run s`. -/
 theorem hybridOracle_sample_online_eq_fresh
@@ -397,7 +394,7 @@ theorem hybridOracle_sample_online_eq_fresh
     (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool)
     (t : (securitySpec leak Sym).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hsrc : pinnedSources kemMat e s) :
+    (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hsrc : consistentMat kemMat e s) :
     (do
       let online ← leak.encapsOnRleak kemMat.st kemMat.pk
       (hybridOracle base onoff ecEk ecCt0 ecCt1 leak { kemMat with on := online } e b t).run s) =ᵈ
@@ -416,7 +413,7 @@ theorem hybridOracle_sample_online_eq_fresh
     (fun _ _ _ => rfl) t
 
 /-- For `kemMat ∈ support (sampleMaterial leak)` and `s` with `reachableInv s` and
-`pinnedSources kemMat e s`, drawing `o` once before `hybridStopped { kemMat with on := o } e b` from
+`consistentMat kemMat e s`, drawing `o` once before `hybridStopped { kemMat with on := o } e b` from
 `s` gives the acceptance probability of `stopped .onlineFresh kemMat e b` from `s`. -/
 theorem hybridStopped_online_deferred
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
@@ -428,7 +425,7 @@ theorem hybridStopped_online_deferred
     (kemMat : KEMMaterial leak) (hm : kemMat ∈ support (sampleMaterial leak)) (e : ℕ) (b : Bool)
     (adv : SecurityAdversary leak Sym)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hsrc : pinnedSources kemMat e s) :
+    (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hsrc : consistentMat kemMat e s) :
     Pr{let x ← (do
       let online ← leak.encapsOnRleak kemMat.st kemMat.pk
       optionRun (hybridStopped base onoff ecEk ecCt0 ecCt1 leak { kemMat with on := online } e b)
@@ -440,7 +437,7 @@ theorem hybridStopped_online_deferred
     (fun online => hybridOracle base onoff ecEk ecCt0 ecCt1 leak { kemMat with on := online } e b)
     (Sampling.oracle base onoff ecEk ecCt0 ecCt1 leak .onlineFresh kemMat e b)
     (fun s => decide (e ∈ s.exposed))
-    (fun s => reachableInv base onoff ecEk ecCt0 ecCt1 s ∧ pinnedSources kemMat e s)
+    (fun s => reachableInv base onoff ecEk ecCt0 ecCt1 s ∧ consistentMat kemMat e s)
     (fun s => (s.keyB e).isSome) (usesOnline e)
     (fun online hon t s hs z hz _ => honestScheme_preserves_simulationInv base onoff hDet
       ecEk hEk ecCt0 hCt0 ecCt1 hCt1 leak { kemMat with on := online }
