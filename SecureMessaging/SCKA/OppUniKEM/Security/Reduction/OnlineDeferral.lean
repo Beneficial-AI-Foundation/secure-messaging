@@ -84,20 +84,9 @@ theorem stageOracle_preserves_keyB_available
     (SCKAScheme.challOf_recordsChallenges _)
     (fun s hs t => SCKAScheme.correctnessImpl_preserves_keyB_available _ e t s hs)
 
-end oppUniKemCKA.Security.Embedding
+section
 
-open OracleSpec OracleComp KEMScheme
-
-namespace oppUniKemCKA.Security.Embedding
-
-variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
-variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-  (hDet : base.DeterministicDecaps)
-variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-variable (leak : base.OnOffRandLeak onoff)
 
 /-- If `usesOnline e t s`, every possible successor of query `t` of `stageOracle .pinned kemMat e b`
 with `e` unexposed has a key in `keyB e`. -/
@@ -156,20 +145,11 @@ theorem stageOracle_online_records_key
   · simp only [usesOnline, Bool.false_eq_true] at hh
   · simp only [usesOnline, Bool.false_eq_true] at hh
 
-end oppUniKemCKA.Security.Embedding
+end
 
-open OracleSpec OracleComp KEMScheme
+section
 
-namespace oppUniKemCKA.Security.Embedding
-
-variable {K PK SK C Sym : Type}
 variable [DecidableEq Sym]
-variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-  (hDet : base.DeterministicDecaps)
-variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-variable (leak : base.OnOffRandLeak onoff)
 
 /-- Unless B is at `e` with `onlineReady`, B's leaking send in
 `honestScheme { kemMat with on := o } e s` is the same computation for every `o`. -/
@@ -284,19 +264,7 @@ theorem sampleMaterial_update_online_mem
   simp only [sampleMaterial, mem_support_bind_iff, mem_support_pure_iff]
   exact ⟨kemMat.keygen, hkg, kemMat.off, hoff, online, hon, rfl⟩
 
-end oppUniKemCKA.Security.Embedding
-
-open OracleSpec OracleComp KEMScheme
-
-namespace oppUniKemCKA.Security.Embedding
-
-variable {K PK SK C Sym : Type}
-variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-  (hDet : base.DeterministicDecaps)
-variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-variable (leak : base.OnOffRandLeak onoff)
+end
 
 /-- Under `reachableInv s` and `consistentMat kemMat e s`, if B is at `e` with public key `pk` and
 no `ct1`, then `pk = kemMat.pk`. -/
@@ -362,20 +330,9 @@ theorem sendB_sample_online_eq_fresh [DecidableEq Sym]
   rw [map_bind] at h
   simpa only [scheme_sendB_eq_map_sendBrleak] using h
 
-end oppUniKemCKA.Security.Embedding
+section
 
-open OracleSpec OracleComp KEMScheme
-
-namespace oppUniKemCKA.Security.Embedding
-
-variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
-variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-  (hDet : base.DeterministicDecaps)
-variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-variable (leak : base.OnOffRandLeak onoff)
 
 /-- Under `reachableInv s` and `consistentMat kemMat e s`, for every query `t`, averaging
 `(stageOracle .pinned { kemMat with on := o } e b t).run s` over `o` gives the response/successor
@@ -444,5 +401,7 @@ theorem stageStopped_online_deferred
     (fun t s hs => stageOracle_sample_online_eq_fresh base onoff ecEk ecCt0 ecCt1 leak
       kemMat e b t s hs.1 hs.2)
     adv s ⟨hs, hsrc⟩
+
+end
 
 end oppUniKemCKA.Security.Embedding

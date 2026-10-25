@@ -132,12 +132,6 @@ theorem keys_none_before_online
   rw [hT.keyA, hT.keyB, hk]
   simp
 
-end oppUniKemCKA.Security.Embedding
-
-namespace oppUniKemCKA.Security.Embedding
-
-variable {K PK SK C Sym : Type}
-
 /-- Hide a secret value of epoch `t`: returns `none` if `t = e` and `some value` otherwise. -/
 def hide {α : Type} (e t : ℕ) (value : α) : Option α :=
   if t = e then none else some value
@@ -222,19 +216,9 @@ theorem hideB_vulnerable {base : KEMScheme ProbComp K PK SK C}
     (if (hideB e s).stCt.isSome then {(hideB e s).t} else ∅) = vulnCorrB base onoff s := by
   cases h : s.stCt <;> simp [hideB, vulnCorrB, h]
 
-end oppUniKemCKA.Security.Embedding
+section
 
-open OracleSpec OracleComp KEMScheme
-
-namespace oppUniKemCKA.Security.Embedding
-
-variable {K PK SK C Sym : Type} [DecidableEq Sym]
-variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-  (hDet : base.DeterministicDecaps)
-variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-variable (leak : base.OnOffRandLeak onoff)
+variable [DecidableEq Sym]
 
 /-- `recvB s msg` outputs no key. -/
 theorem recvB_key_none (s : StB onoff Sym) (msg : Message Sym)
@@ -302,13 +286,7 @@ theorem recvA_hide (e : ℕ)
     repeat' (split <;> simp_all only [Option.map_none, Option.map_some, and_true,
       Bool.not_eq_true, Nat.add_eq_left, one_ne_zero, and_false, ↓reduceIte])
 
-end oppUniKemCKA.Security.Embedding
-
-open OracleSpec OracleComp KEMScheme
-
-namespace oppUniKemCKA.Security.Embedding
-
-variable {K PK SK C Sym : Type}
+end
 
 /-- Challenge oracle on honest game states: `challengeWith` reading recorded keys directly. -/
 def pinnedChallenge [SampleableType K]
@@ -422,20 +400,6 @@ theorem pinnedChallenge_eq_recorded [SampleableType K]
         simp [pinnedChallenge, challengeWith, SCKAScheme.oracleChall, hg, hA]
     · cases hA : s.keyA t <;> cases hB : s.keyB t <;> by_cases hr : 0 < t ∧ t < e <;>
         simp [pinnedChallenge, challengeWith, SCKAScheme.oracleChall, hg, hA, hB, ht, hr]
-
-end oppUniKemCKA.Security.Embedding
-
-open OracleSpec OracleComp KEMScheme
-
-namespace oppUniKemCKA.Security.Embedding
-
-variable {K PK SK C Sym : Type}
-variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-  (hDet : base.DeterministicDecaps)
-variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-variable (leak : base.OnOffRandLeak onoff)
 
 /-- Hide each coin returned by a send in epoch `t` via `hide e t`. -/
 def hideCoins {KG OFF ON : Type} (e t : ℕ) :

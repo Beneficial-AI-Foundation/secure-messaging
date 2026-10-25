@@ -126,6 +126,12 @@ Supporting modules: `Basic` (interface, send budget), `Invariant` (transcript an
 invariants), `SCKA.Security` (generic guards), ToVCVio (sampling and stopping).
 -/
 
+open OracleSpec OracleComp KEMScheme
+
+namespace oppUniKemCKA
+
+variable {K PK SK C Sym : Type}
+
 /-! ## Steps 4 and 5: adjacent-hybrid gaps and epoch averaging
 
 In the notation of the proof structure above, `fixedBranch_eq_ideal` (`Reduction/SourceDeferral`)
@@ -136,18 +142,16 @@ acceptance probability (`fixedBranch_signed_gap_eq`, Step 4) and average over `e
 (`hybrid_gap_eq_query_factor`, Step 5).
 -/
 
-open OracleSpec OracleComp KEMScheme
+namespace Security.Embedding
 
-namespace oppUniKemCKA.Security.Embedding
-
-variable {K PK SK C Sym : Type}
-variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
   (hDet : base.DeterministicDecaps)
 variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
 variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
 variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
 variable (leak : base.OnOffRandLeak onoff)
+
+variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
 include hEk hCt0 hCt1 in
 /-- Step 4 (exposure cancellation): for challenge epoch `i + 1`, the difference in acceptance
@@ -231,15 +235,12 @@ theorem hybrid_gap_eq_query_factor (adv : SecurityAdversary leak Sym) (q : ℕ) 
     abs_of_nonneg (show (0 : ℝ) ≤ (q : ℝ) from Nat.cast_nonneg q),
     ← mul_assoc, mul_inv_cancel₀ (by exact_mod_cast hq), one_mul]
 
-end oppUniKemCKA.Security.Embedding
+end Security.Embedding
 
 /-! ## The security theorem -/
 
-open OracleSpec OracleComp KEMScheme
+section
 
-namespace oppUniKemCKA
-
-variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
 /-- Let `𝓑 := securityReduction … adv q`. If `adv` makes at most `q` send queries
@@ -291,5 +292,7 @@ theorem security_perfectKEM
   have hsec := security kem onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1 leak adv q hq
   dsimp only at hsec
   simpa only [herror, ENNReal.toReal_zero, mul_zero, add_zero] using hsec
+
+end
 
 end oppUniKemCKA

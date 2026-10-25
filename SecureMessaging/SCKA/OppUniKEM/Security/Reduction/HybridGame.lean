@@ -77,6 +77,8 @@ variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
 variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
 variable (leak : base.OnOffRandLeak onoff)
 
+section
+
 /-- Whether `query` is an eligible challenge at epoch `e` from `s`, that is, a query whose answer
 reads the key at `e`. -/
 def usesChallengeKey {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
@@ -150,20 +152,11 @@ private theorem honestOracle_use_records_challenge (kemMat : KEMMaterial leak) (
   obtain rfl := (mem_support_pure_iff _ _).mp hz
   exact Finset.mem_insert_self _ _
 
-end oppUniKemCKA.Security.Embedding
+end
 
-open OracleSpec OracleComp KEMScheme
+section
 
-namespace oppUniKemCKA.Security.Embedding
-
-variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
-variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-  (hDet : base.DeterministicDecaps)
-variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-variable (leak : base.OnOffRandLeak onoff)
 
 /-- Under `reachableInv`, if every key B records at `e` is `kemMat.key`, then
 `honestOracle kemMat e kemMat.key` and `stageOracle .pinned kemMat e false` answer every query with
@@ -313,21 +306,9 @@ theorem fixedBranch_eq_pinnedHybrid
     exact honestStopped_real_eq_hybrid base onoff hDet ecEk hEk ecCt0 hCt0
       ecCt1 hCt1 leak kemMat hm e adv
 
-end oppUniKemCKA.Security.Embedding
+end
 
 /-! ## The fresh stage -/
-
-open OracleSpec OracleComp KEMScheme
-
-namespace oppUniKemCKA.Security.Embedding
-
-variable {K PK SK C Sym : Type}
-variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-  (hDet : base.DeterministicDecaps)
-variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-variable (leak : base.OnOffRandLeak onoff)
 
 /-- B's leaking send in `stageScheme .fresh kemMat e s` is that of Opp-UniKEM over `base`. -/
 theorem sendBrleak_fresh_eq [DecidableEq Sym]

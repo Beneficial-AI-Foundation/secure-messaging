@@ -32,15 +32,19 @@ which the *pinned KEM* returns in its flagged phases (`Pinned.kem kemMat …`).
   (`fixedBranch_eq_material`).
 -/
 
-/-! ## The simulator -/
-
 open OracleSpec OracleComp KEMScheme
 
 namespace oppUniKemCKA.Security.Embedding
 
-variable {K PK SK C : Type}
+variable {K PK SK C Sym : Type}
 variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-  (leak : base.OnOffRandLeak onoff)
+  (hDet : base.DeterministicDecaps)
+variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
+variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
+variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
+variable (leak : base.OnOffRandLeak onoff)
+
+/-! ## The simulator -/
 
 /-- Simulated key generation: returns `(pkStar, none)` (with a hidden secret key) when `selected`
 is `true`, and runs `kem.keygen` with a known secret key otherwise. -/
@@ -143,20 +147,6 @@ abbrev leakage
       simp [offLeak, encapsOff, ← leak.encapsOff_fst, map_eq_bind_pure_comp, Prod.map]
   encapsOn_fst st pk := by
     cases st <;> simp [onLeak, encapsOn, ← leak.encapsOn_fst, map_eq_bind_pure_comp, Prod.map]
-
-end oppUniKemCKA.Security.Embedding
-
-open OracleSpec OracleComp KEMScheme
-
-namespace oppUniKemCKA.Security.Embedding
-
-variable {K PK SK C Sym : Type}
-variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-  (hDet : base.DeterministicDecaps)
-variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-variable (leak : base.OnOffRandLeak onoff)
 
 /-- Simulator game state: an SCKA `GameState` in which party A's secret key (`Option SK`), party B's
 offline encapsulation state (`Option onoff.St`), and the recorded keys (`Option K`) may be hidden
@@ -332,22 +322,13 @@ def securityReduction [DecidableEq K] [DecidableEq Sym] [SampleableType K]
   postChallenge state ct key := run base onoff ecEk ecCt0 ecCt1 leak adv state.2 state.1 ct key
 -- ANCHOR_END: securityReduction
 
-end oppUniKemCKA.Security.Embedding
+open ToVCVio ENNReal
 
 /-! ## Fixed branches and stored epoch material -/
 
-open ToVCVio OracleSpec OracleComp KEMScheme ENNReal
+section
 
-namespace oppUniKemCKA.Security.Embedding
-
-variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
-variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-  (hDet : base.DeterministicDecaps)
-variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-variable (leak : base.OnOffRandLeak onoff)
 
 /-- Fixed-epoch branch of the reduction at challenge epoch `e` and IND-CPA challenge bit `b`:
 samples `(pk, _) ← base.keygen`, `(ct, key) ← base.encaps pk`, and an independent uniform key
@@ -408,19 +389,9 @@ theorem securityReduction_signed_gap_average
     securityReduction_acceptance_average base onoff ecEk ecCt0 ecCt1 leak adv q hq false,
     Finset.sum_sub_distrib, mul_sub]
 
-end oppUniKemCKA.Security.Embedding
+end
 
-open OracleSpec OracleComp KEMScheme
-
-namespace oppUniKemCKA.Security.Embedding
-
-variable {K PK SK C Sym : Type}
-variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-  (hDet : base.DeterministicDecaps)
-variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-variable (leak : base.OnOffRandLeak onoff)
+section
 
 /-- KEM material of a single epoch, bundling the outputs and random coins of the three KEM
 sampling phases: key generation, offline encapsulation, and online encapsulation. -/
@@ -542,15 +513,9 @@ theorem fixedBranch_eq_material
     let randomKey ← ($ᵗ K : ProbComp K)
     run base onoff ecEk ecCt0 ecCt1 leak adv e pk ct (if b then key else randomKey))).symm
 
-end oppUniKemCKA.Security.Embedding
+end
 
-open OracleSpec OracleComp KEMScheme
-
-namespace oppUniKemCKA.Security.Embedding.Pinned
-
-variable {K PK SK C : Type}
-variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-  (leak : base.OnOffRandLeak onoff)
+namespace Pinned
 
 /-- Key generation with optional pinning to `kemMat`: returns the pre-sampled pair `kemMat.keygen.1`
 when `selected` is `true`, and runs `base.keygen` otherwise. -/
@@ -625,4 +590,6 @@ abbrev leakage {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructur
   encapsOff_fst := by cases pinOffline <;> simp [encapsOff, leak.encapsOff_fst]
   encapsOn_fst st pk := by cases pinOnline <;> simp [encapsOn, leak.encapsOn_fst]
 
-end oppUniKemCKA.Security.Embedding.Pinned
+end Pinned
+
+end oppUniKemCKA.Security.Embedding

@@ -35,6 +35,8 @@ variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
 variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
 variable (leak : base.OnOffRandLeak onoff)
 
+section
+
 /-- The *source phases*, A's key generation and B's offline encapsulation: the sampling phases
 whose samplers read no protocol state. -/
 inductive SourcePhase where
@@ -148,19 +150,7 @@ theorem stageOracle_preserves_sourceUsed [SampleableType K]
     (fun s hs t => correctness_preserves_sourceUsed base onoff ecEk ecCt0 ecCt1 leak
       stage kemMat e phase s hs t)
 
-end oppUniKemCKA.Security.Embedding
-
-open OracleSpec OracleComp KEMScheme
-
-namespace oppUniKemCKA.Security.Embedding
-
-variable {K PK SK C Sym : Type}
-variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-  (hDet : base.DeterministicDecaps)
-variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-variable (leak : base.OnOffRandLeak onoff)
+end
 
 /-- A's ordinary send never fails: `none ∉ support (sendA s)`. -/
 theorem sendA_none_not_mem_support
@@ -195,19 +185,7 @@ theorem sendBrleak_none_not_mem_support
   rw [sendB_eq_map_sendBrleak base onoff ecCt0 ecCt1 leak s, support_map]
   exact ⟨none, h, rfl⟩
 
-end oppUniKemCKA.Security.Embedding
-
-open OracleSpec OracleComp KEMScheme
-
-namespace oppUniKemCKA.Security.Embedding
-
-variable {K PK SK C Sym : Type}
-variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-  (hDet : base.DeterministicDecaps)
-variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-variable (leak : base.OnOffRandLeak onoff)
+section
 
 /-- Query `t` from `s` runs source phase `phase` of epoch `e`: the party is at `e` without the
 phase output, and `t` is its ordinary send or its leaking send with `e ∉ s.challenged`. -/
@@ -411,5 +389,7 @@ theorem stageOracle_first_source_use
         (stageScheme ecEk ecCt0 ecCt1 stage kemMat e s)) (fun s => decide (e ∈ s.exposed)) () s z hz
         hcont)
     exact absurd hstop (Option.some_ne_none _)
+
+end
 
 end oppUniKemCKA.Security.Embedding

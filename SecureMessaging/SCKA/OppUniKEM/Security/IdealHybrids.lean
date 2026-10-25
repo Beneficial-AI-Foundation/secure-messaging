@@ -53,13 +53,16 @@ end SCKAScheme
 namespace oppUniKemCKA.Security
 
 variable {K PK SK C Sym : Type}
-variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 variable (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
   (hDet : kem.DeterministicDecaps)
 variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
 variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
 variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
 variable (leak : kem.OnOffRandLeak onoff)
+
+section
+
+variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
 /-! ### Send and epoch accounting -/
 
@@ -326,22 +329,15 @@ theorem security_guess_le_hybrid_gap
   change |G true - G false| / 2 ≤ |I false - I true| / 2 + _
   linarith
 
-end oppUniKemCKA.Security
-
-/-! ### Stopping at exposure -/
+end
 
 open SCKAScheme.sckaCorrectnessSpec SCKAScheme.sckaSecuritySpec
 
-namespace oppUniKemCKA.Security
+/-! ### Stopping at exposure -/
 
-variable {K PK SK C Sym : Type}
+section
+
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
-variable (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-  (hDet : kem.DeterministicDecaps)
-variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-variable (leak : kem.OnOffRandLeak onoff)
 
 /-- Every query of `idealSecurityImpl` preserves `Disjoint s.exposed s.challenged`. -/
 private theorem idealSecurityImpl_preserves_disjoint (mode : ℕ → Bool) :
@@ -447,5 +443,7 @@ theorem idealEpochHybrid_signed_gap_stop_eq
     have he : i + 1 ∈ u.exposed := of_decide_eq_true hu
     have h := idealEpochHybrid_run_eq_of_exposed kem onoff hDet ecEk ecCt0 ecCt1 leak i cont u he
     simp only [StateT.run'_eq, h]
+
+end
 
 end oppUniKemCKA.Security

@@ -123,17 +123,7 @@ theorem securityImpl_preserves_reachableInv
     (oracleSendB_preserves_reachableInv kem onoff hDet ecEk ecCt0 ecCt0.ec.nchunk_pos
       ecCt1 ecCt1.ec.nchunk_pos leak () s hs) t z hz
 
-end oppUniKemCKA
-
-namespace oppUniKemCKA.Security
-
-variable {K PK SK C Sym : Type}
-variable (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-  (hDet : kem.DeterministicDecaps)
-variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-variable (leak : kem.OnOffRandLeak onoff)
+namespace Security
 
 /-- Epoch bound invariant for party A: A's current epoch `s.stA.t` is at most `s.nA + 1`, and at
 most `s.nA` whenever A holds a decapsulation key (`s.stA.dkA.isSome`), where `s.nA` is the number
@@ -289,4 +279,6 @@ theorem oracleRecvB_preserves_sendEpochInv [DecidableEq K] [DecidableEq Sym] :
     obtain rfl := hz
     exact hs
 
-end oppUniKemCKA.Security
+end Security
+
+end oppUniKemCKA

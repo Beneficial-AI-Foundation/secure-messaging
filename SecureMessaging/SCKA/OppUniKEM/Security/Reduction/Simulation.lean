@@ -109,19 +109,9 @@ private theorem corruptB_hide
       revealB_hideB_eq, hideState, Prod.map]
   all_goals by_cases he : e ∈ vulnCorrB base onoff s.stB <;> simp [he]
 
-end oppUniKemCKA.Security.Embedding
+section
 
-open OracleSpec OracleComp KEMScheme
-
-namespace oppUniKemCKA.Security.Embedding
-
-variable {K PK SK C Sym : Type} [DecidableEq K] [DecidableEq Sym]
-variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-  (hDet : base.DeterministicDecaps)
-variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-variable (leak : base.OnOffRandLeak onoff)
+variable [DecidableEq K] [DecidableEq Sym]
 
 /-- Party B's receive oracle `oracleRecvB` over `simScheme` from `hideState e s` coincides with
 running `oracleRecvB` over `honestScheme` from `s` and applying `hideState e` to the successor
@@ -183,19 +173,11 @@ private theorem oracleRecvA_hide
         simp [StateT.run_set, hideState, hideA, hideB,
           Prod.map, hk, ← hide_update]
 
-end oppUniKemCKA.Security.Embedding
+end
 
-open OracleSpec OracleComp KEMScheme
+section
 
-namespace oppUniKemCKA.Security.Embedding
-
-variable {K PK SK C Sym : Type} [DecidableEq K] [DecidableEq Sym]
-variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-  (hDet : base.DeterministicDecaps)
-variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-variable (leak : base.OnOffRandLeak onoff)
+variable [DecidableEq K] [DecidableEq Sym]
 
 set_option backward.dsimp.instances true in
 /-- Party A's ordinary send oracle `oracleSendA` over `simScheme` from `hideState e s` has the
@@ -261,19 +243,11 @@ private theorem oracleSendB_hide
       simp [StateT.run_set, hideState, hideA, hideB,
         Prod.map, hk, ← hide_update]
 
-end oppUniKemCKA.Security.Embedding
+end
 
-open OracleSpec OracleComp KEMScheme
+section
 
-namespace oppUniKemCKA.Security.Embedding
-
-variable {K PK SK C Sym : Type} [DecidableEq K] [DecidableEq Sym]
-variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-  (hDet : base.DeterministicDecaps)
-variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-variable (leak : base.OnOffRandLeak onoff)
+variable [DecidableEq K] [DecidableEq Sym]
 
 set_option backward.dsimp.instances true in
 /-- If `e ∉ s.exposed`, party A's leaking send in the simulator from `hideState e s` has the same
@@ -391,19 +365,11 @@ private theorem oracleSendBrleak_hide
             StateT.run_set, StateT.run_pure,
             hideState, hideA, hideB, Prod.map, hs, heq, he, hc, hk]
 
-end oppUniKemCKA.Security.Embedding
+end
 
-open OracleSpec OracleComp KEMScheme
+section
 
-namespace oppUniKemCKA.Security.Embedding
-
-variable {K PK SK C Sym : Type} [DecidableEq K] [DecidableEq Sym]
-variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-  (hDet : base.DeterministicDecaps)
-variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-variable (leak : base.OnOffRandLeak onoff)
+variable [DecidableEq K] [DecidableEq Sym]
 
 /-- Under `reachableInv s`, every correctness query `t` of `sckaCorrectnessImpl` over
 `simScheme` from `hideState e s` has the same response/state distribution as running `t` over
@@ -463,22 +429,13 @@ theorem simOracle_hide [SampleableType K]
   · cases u
     exact ToVCVio.evalDistEq_of_eq (corruptB_hide base onoff e s he)
 
-end oppUniKemCKA.Security.Embedding
+end
 
 /-! ## Whole runs -/
 
-open OracleSpec OracleComp KEMScheme
+section
 
-namespace oppUniKemCKA.Security.Embedding
-
-variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
-variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-  (hDet : base.DeterministicDecaps)
-variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-variable (leak : base.OnOffRandLeak onoff)
 
 include hDet hEk hCt0 hCt1 in
 /-- Let `kemMat ∈ support (sampleMaterial leak)`, and let `s` be a state consistent with a protocol
@@ -567,5 +524,7 @@ theorem fixedBranch_eq_honestStopped
   refine OracleComp.prEvent_bind_congr_of_support _ _ _ fun k _ => ?_
   exact run_eq_honestStopped base onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
     leak kemMat hm e _ adv
+
+end
 
 end oppUniKemCKA.Security.Embedding

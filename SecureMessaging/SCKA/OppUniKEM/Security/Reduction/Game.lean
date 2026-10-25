@@ -43,8 +43,6 @@ and stops at the first exposure of `e`.
   (`honestScheme_preserves_simulationInv`, `honestScheme_preserves_keyB_eq`).
 -/
 
-/-! ## Pinned protocol instances -/
-
 open OracleSpec OracleComp KEMScheme
 
 namespace oppUniKemCKA.Security.Embedding
@@ -56,6 +54,8 @@ variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
 variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
 variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
 variable (leak : base.OnOffRandLeak onoff)
+
+/-! ## Pinned protocol instances -/
 
 /-- Which sampling phases of the challenge epoch are *pinned*, reading their output from the KEM
 material, and which are *fresh*, sampling at their protocol call:
@@ -376,21 +376,7 @@ theorem securityImplAt_sample_eq [DecidableEq K] {τ : Type} (sample : ProbComp 
     exact SCKAScheme.oracleSendBrleak_sample_eq _ _ _ _ s hsendBrleak
   all_goals exact ToVCVio.evalDistEq_bind_of_const' sample fun _ _ => rfl
 
-end oppUniKemCKA.Security.Embedding
-
 /-! ## The stored source material -/
-
-open OracleSpec OracleComp KEMScheme
-
-namespace oppUniKemCKA.Security.Embedding
-
-variable {K PK SK C Sym : Type}
-variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-  (hDet : base.DeterministicDecaps)
-variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-variable (leak : base.OnOffRandLeak onoff)
 
 /-- Material-consistency invariant for epoch `e`: if A is at epoch `e` and holds a decapsulation
 key, its key pair is `(kemMat.pk, kemMat.sk)`; if B is at epoch `e` and holds an offline state, its
@@ -441,20 +427,6 @@ private theorem pinned_online_inputs
   have hsrcB := hm.2 he (by simp [hst])
   exact ⟨Option.some.inj (ha.1.symm.trans hsrcA.1),
     Option.some.inj (hst.symm.trans hsrcB.1)⟩
-
-end oppUniKemCKA.Security.Embedding
-
-open OracleSpec OracleComp KEMScheme
-
-namespace oppUniKemCKA.Security.Embedding
-
-variable {K PK SK C Sym : Type}
-variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-  (hDet : base.DeterministicDecaps)
-variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-variable (leak : base.OnOffRandLeak onoff)
 
 /-- A's successful send in `honestScheme kemMat e s` preserves `consistentMat kemMat e`. -/
 private theorem sendA_preserves_consistentMat
@@ -567,20 +539,6 @@ theorem consistentMat_initial (kemMat : KEMMaterial leak) (e : ℕ) :
   simp [consistentMat, oppUniKemCKA.Reduction.Internal.initialGame,
     oppUniKemCKA.Reduction.Internal.initialA, oppUniKemCKA.Reduction.Internal.initialB,
     SCKAScheme.initGameState]
-
-end oppUniKemCKA.Security.Embedding
-
-open OracleSpec OracleComp KEMScheme
-
-namespace oppUniKemCKA.Security.Embedding
-
-variable {K PK SK C Sym : Type}
-variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-  (hDet : base.DeterministicDecaps)
-variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-variable (leak : base.OnOffRandLeak onoff)
 
 /-- For `kemMat ∈ support (sampleMaterial leak)`, every possible output of
 `Pinned.keygen kemMat selected` is one of `base.keygen`. -/
@@ -701,21 +659,7 @@ theorem oracleSendB_pinned_support [DecidableEq K] [DecidableEq Sym]
   exact ⟨out, sendB_pinned_support base onoff ecEk ecCt0 ecCt1 leak
     kemMat hm e s hs hsrc out hout, hz⟩
 
-end oppUniKemCKA.Security.Embedding
-
 /-! ## Invariants of the honest game -/
-
-open OracleSpec OracleComp KEMScheme
-
-namespace oppUniKemCKA.Security.Embedding
-
-variable {K PK SK C Sym : Type}
-variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-  (hDet : base.DeterministicDecaps)
-variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-variable (leak : base.OnOffRandLeak onoff)
 
 /-- If B's send in `honestScheme kemMat e s` can output a key `k` at epoch `e`, then
 `k = kemMat.key`. -/
@@ -813,19 +757,9 @@ theorem recorded_eq_key
   apply hm k
   exact hk.elim (recordedA_eq_recordedB base onoff ecEk ecCt0 ecCt1 s hs e k) id
 
-end oppUniKemCKA.Security.Embedding
+section
 
-open OracleSpec OracleComp KEMScheme
-
-namespace oppUniKemCKA.Security.Embedding
-
-variable {K PK SK C Sym : Type} [DecidableEq K] [DecidableEq Sym]
-variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-  (hDet : base.DeterministicDecaps)
-variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-variable (leak : base.OnOffRandLeak onoff)
+variable [DecidableEq K] [DecidableEq Sym]
 
 include hDet hEk hCt0 hCt1 in
 /-- For possible `kemMat`, the correctness oracles of `honestScheme kemMat e`
@@ -885,5 +819,7 @@ theorem honestScheme_preserves_simulationInv
     (fun s hs t z hz => ⟨honestCorrectness_preserves_reachableInv base onoff hDet ecEk hEk
       ecCt0 hCt0 ecCt1 hCt1 leak kemMat hm e t s hs.1 hs.2 z hz,
       honestCorrectness_preserves_consistentMat ecEk ecCt0 ecCt1 kemMat e t s hs.2 z hz⟩)
+
+end
 
 end oppUniKemCKA.Security.Embedding
