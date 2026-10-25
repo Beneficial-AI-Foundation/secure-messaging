@@ -357,8 +357,8 @@ theorem oracleSendArleak_support
 
 /-- A's leaking send preserves `Disjoint exposed challenged`. -/
 theorem oracleSendArleak_preserves_disjoint
-    (leak : StA → Rand → Finset ℕ)
-    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) :
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (leak : StA → Rand → Finset ℕ) :
     QueryImpl.PreservesInv (oracleSendArleak leak scka)
       (fun s => Disjoint s.exposed s.challenged) := by
   intro u s hs z hz
@@ -371,8 +371,8 @@ theorem oracleSendArleak_preserves_disjoint
 
 /-- A's leaking send never changes the challenged set. -/
 theorem oracleSendArleak_challenged_eq
-    (leak : StA → Rand → Finset ℕ)
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (leak : StA → Rand → Finset ℕ)
     (u : Unit) (s : GameState StA StB I Rho)
     (z : Option (ℕ × Option ℕ × Rho × Rand) × GameState StA StB I Rho)
     (hz : z ∈ support ((oracleSendArleak leak scka u).run s)) :
@@ -384,8 +384,8 @@ theorem oracleSendArleak_challenged_eq
 
 /-- A's leaking send never removes an exposed epoch. -/
 theorem oracleSendArleak_exposed_subset
-    (leak : StA → Rand → Finset ℕ)
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (leak : StA → Rand → Finset ℕ)
     (u : Unit) (s : GameState StA StB I Rho)
     (z : Option (ℕ × Option ℕ × Rho × Rand) × GameState StA StB I Rho)
     (hz : z ∈ support ((oracleSendArleak leak scka u).run s)) :
@@ -397,8 +397,8 @@ theorem oracleSendArleak_exposed_subset
 
 /-- A's leaking send increases `nA` by at most one. -/
 theorem oracleSendArleak_nA_le
-    (leak : StA → Rand → Finset ℕ)
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (leak : StA → Rand → Finset ℕ)
     (u : Unit) (s : GameState StA StB I Rho)
     (z : Option (ℕ × Option ℕ × Rho × Rand) × GameState StA StB I Rho)
     (hz : z ∈ support ((oracleSendArleak leak scka u).run s)) :
@@ -436,8 +436,8 @@ theorem oracleSendBrleak_support
 
 /-- B version of `oracleSendArleak_preserves_disjoint`. -/
 theorem oracleSendBrleak_preserves_disjoint
-    (leak : StB → Rand → Finset ℕ)
-    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand) :
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (leak : StB → Rand → Finset ℕ) :
     QueryImpl.PreservesInv (oracleSendBrleak leak scka)
       (fun s => Disjoint s.exposed s.challenged) := by
   intro u s hs z hz
@@ -450,8 +450,8 @@ theorem oracleSendBrleak_preserves_disjoint
 
 /-- B version of `oracleSendArleak_challenged_eq`. -/
 theorem oracleSendBrleak_challenged_eq
-    (leak : StB → Rand → Finset ℕ)
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (leak : StB → Rand → Finset ℕ)
     (u : Unit) (s : GameState StA StB I Rho)
     (z : Option (ℕ × Option ℕ × Rho × Rand) × GameState StA StB I Rho)
     (hz : z ∈ support ((oracleSendBrleak leak scka u).run s)) :
@@ -463,8 +463,8 @@ theorem oracleSendBrleak_challenged_eq
 
 /-- B version of `oracleSendArleak_exposed_subset`. -/
 theorem oracleSendBrleak_exposed_subset
-    (leak : StB → Rand → Finset ℕ)
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (leak : StB → Rand → Finset ℕ)
     (u : Unit) (s : GameState StA StB I Rho)
     (z : Option (ℕ × Option ℕ × Rho × Rand) × GameState StA StB I Rho)
     (hz : z ∈ support ((oracleSendBrleak leak scka u).run s)) :
@@ -476,8 +476,8 @@ theorem oracleSendBrleak_exposed_subset
 
 /-- B's leaking send preserves A's send counter. -/
 theorem oracleSendBrleak_nA_eq
-    (leak : StB → Rand → Finset ℕ)
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (leak : StB → Rand → Finset ℕ)
     (u : Unit) (s : GameState StA StB I Rho)
     (z : Option (ℕ × Option ℕ × Rho × Rand) × GameState StA StB I Rho)
     (hz : z ∈ support ((oracleSendBrleak leak scka u).run s)) :
@@ -1092,8 +1092,8 @@ theorem securityImplOf_exposed_subset
     s.exposed ⊆ z.2.exposed := by
   rcases t with (((((t | u) | u) | t) | u) | u)
   · rw [hbase t s z hz]
-  · exact oracleSendArleak_exposed_subset vulnA.rleak scka u s z hz
-  · exact oracleSendBrleak_exposed_subset vulnB.rleak scka u s z hz
+  · exact oracleSendArleak_exposed_subset scka vulnA.rleak u s z hz
+  · exact oracleSendBrleak_exposed_subset scka vulnB.rleak u s z hz
   · rw [(hchall.exposed_nA_eq t s z hz).1]
   · exact oracleCorruptA_exposed_subset vulnA.corrupt u s z hz
   · exact oracleCorruptB_exposed_subset vulnB.corrupt u s z hz
@@ -1108,8 +1108,8 @@ theorem securityImplOf_challenged_subset
     s.challenged ⊆ z.2.challenged := by
   rcases t with (((((t | u) | u) | t) | u) | u)
   · rw [hbase t s z hz]
-  · rw [oracleSendArleak_challenged_eq vulnA.rleak scka u s z hz]
-  · rw [oracleSendBrleak_challenged_eq vulnB.rleak scka u s z hz]
+  · rw [oracleSendArleak_challenged_eq scka vulnA.rleak u s z hz]
+  · rw [oracleSendBrleak_challenged_eq scka vulnB.rleak u s z hz]
   · exact hchall.challenged_subset t s z hz
   · rw [(oracleCorruptA_challenged_nA_eq vulnA.corrupt u s z hz).1]
   · rw [(oracleCorruptB_challenged_nA_eq vulnB.corrupt u s z hz).1]
@@ -1123,8 +1123,8 @@ theorem securityImplOf_preserves_disjoint
     QueryImpl.PreservesInv (securityImplOf base chall vulnA vulnB scka)
       (fun s => Disjoint s.exposed s.challenged) := by
   refine securityImplOf_preservesInv base chall vulnA vulnB scka _ ?_
-    (oracleSendArleak_preserves_disjoint vulnA.rleak scka)
-    (oracleSendBrleak_preserves_disjoint vulnB.rleak scka)
+    (oracleSendArleak_preserves_disjoint scka vulnA.rleak)
+    (oracleSendBrleak_preserves_disjoint scka vulnB.rleak)
     hchall.preserves_disjoint
     (oracleCorruptA_preserves_disjoint vulnA.corrupt)
     (oracleCorruptB_preserves_disjoint vulnB.corrupt)
@@ -1148,10 +1148,10 @@ theorem securityImplOf_nA_step
   · rw [sckaSecuritySpec.isSendQuery_OCorrectness]
     exact hbase t s z hz
   · cases u
-    simpa [sckaSecuritySpec.isSendQuery] using oracleSendArleak_nA_le vulnA.rleak scka () s z hz
+    simpa [sckaSecuritySpec.isSendQuery] using oracleSendArleak_nA_le scka vulnA.rleak () s z hz
   · cases u
     simpa [sckaSecuritySpec.isSendQuery] using
-      (oracleSendBrleak_nA_eq vulnB.rleak scka () s z hz).le.trans (Nat.le_succ _)
+      (oracleSendBrleak_nA_eq scka vulnB.rleak () s z hz).le.trans (Nat.le_succ _)
   · simpa [sckaSecuritySpec.isSendQuery] using (hchall.exposed_nA_eq t s z hz).2.le
   · cases u
     simpa [sckaSecuritySpec.isSendQuery] using

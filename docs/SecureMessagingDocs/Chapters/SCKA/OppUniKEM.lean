@@ -809,14 +809,14 @@ def SecuritySendQueryBound {kem : KEMScheme ProbComp K PK SK C}
 
 ```anchor securityReduction (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Simulator)
 def securityReduction [DecidableEq K] [DecidableEq Sym] [SampleableType K]
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
+    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (adv : SecurityAdversary leak Sym) (q : ℕ) : base.IND_CPA_Adversary where
+    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff)
+    (adv : SecurityAdversary leak Sym) (q : ℕ) : kem.IND_CPA_Adversary where
   State := PK × ℕ
   preChallenge pk := do pure (pk, ← epochChoice q)
-  postChallenge state ct key := run base onoff ecEk ecCt0 ecCt1 leak adv state.2 state.1 ct key
+  postChallenge state ct key := run kem onoff ecEk ecCt0 ecCt1 leak adv state.2 state.1 ct key
 ```
 
 :::leanPillCaption "Bound for a perfectly correct KEM"

@@ -34,13 +34,10 @@ variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
 variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
 variable (leak : kem.OnOffRandLeak onoff)
 
+variable {kem onoff ecEk ecCt0 ecCt1} in
 /-- Updating the `exposed` and `challenged` epoch sets preserves consistency with the execution
 transcript `T`. -/
 theorem TranscriptConsistent.with_security_bookkeeping
-    {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
-    {ecEk : ErasureCodePayload PK Sym}
-    {ecCt0 : ErasureCodePayload onoff.C₀ Sym}
-    {ecCt1 : ErasureCodePayload onoff.C₁ Sym}
     {T : Transcript kem onoff}
     {s : GameState onoff Sym}
     (h : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
@@ -50,12 +47,9 @@ theorem TranscriptConsistent.with_security_bookkeeping
   cases h
   constructor <;> assumption
 
+variable {kem onoff ecEk ecCt0 ecCt1} in
 /-- Updating the `exposed` and `challenged` epoch sets preserves `reachableInv`. -/
 theorem reachableInv_with_security_bookkeeping
-    {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
-    {ecEk : ErasureCodePayload PK Sym}
-    {ecCt0 : ErasureCodePayload onoff.C₀ Sym}
-    {ecCt1 : ErasureCodePayload onoff.C₁ Sym}
     {s : GameState onoff Sym}
     (h : reachableInv kem onoff ecEk ecCt0 ecCt1 s)
     (exposed challenged : Finset ℕ) :
@@ -125,10 +119,11 @@ theorem securityImpl_preserves_reachableInv
 
 namespace Security
 
+variable {kem onoff} in
 /-- Epoch bound invariant for party A: A's current epoch `s.stA.t` is at most `s.nA + 1`, and at
 most `s.nA` whenever A holds a decapsulation key (`s.stA.dkA.isSome`), where `s.nA` is the number
 of messages sent by A. -/
-def sendEpochInv {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
+def sendEpochInv
     (s : GameState onoff Sym) : Prop :=
   s.stA.t ≤ s.nA + 1 ∧ (s.stA.dkA.isSome → s.stA.t ≤ s.nA)
 
@@ -138,13 +133,10 @@ theorem sendEpochInv_init :
   simp [sendEpochInv, Reduction.Internal.initialGame, Reduction.Internal.initialA,
     SCKAScheme.initGameState]
 
+variable {kem onoff ecEk ecCt0 ecCt1} in
 /-- In any state `s` satisfying `reachableInv` and `sendEpochInv`, every epoch for which either
 party has recorded a key is at most `s.nA`. -/
 theorem recorded_epoch_le_sends
-    {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
-    {ecEk : ErasureCodePayload PK Sym}
-    {ecCt0 : ErasureCodePayload onoff.C₀ Sym}
-    {ecCt1 : ErasureCodePayload onoff.C₁ Sym}
     {s : GameState onoff Sym}
     (hr : reachableInv kem onoff ecEk ecCt0 ecCt1 s) (hs : sendEpochInv s)
     (t : ℕ) (hk : (s.keyA t).isSome ∨ (s.keyB t).isSome) : t ≤ s.nA := by

@@ -25,22 +25,29 @@ open OracleSpec OracleComp KEMScheme
 namespace oppUniKemCKA
 
 variable {K PK SK C Sym : Type}
+variable (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+  (hDet : kem.DeterministicDecaps)
+variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
+variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
+variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
+variable (leak : kem.OnOffRandLeak onoff)
 
+variable {kem} in
 /-- The game state of Opp-UniKEM's SCKA games over `onoff` with symbol type `Sym`:
 `SCKAScheme.GameState` with party states `StA onoff Sym` and `StB onoff Sym`, keys in `K`, and
 messages in `Message Sym`. -/
-abbrev GameState {kem : KEMScheme ProbComp K PK SK C} (onoff : kem.OnOffStructure) (Sym : Type) :=
+abbrev GameState (Sym : Type) :=
   SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)
 
+variable {kem onoff} in
 /-- Opp-UniKEM's SCKA security interface; the coin types come from `leak`. -/
-abbrev securitySpec {kem : KEMScheme ProbComp K PK SK C}
-    {onoff : kem.OnOffStructure} (leak : kem.OnOffRandLeak onoff) (Sym : Type) :=
+abbrev securitySpec (Sym : Type) :=
   SCKAScheme.sckaSecuritySpec (StA onoff Sym) (StB onoff Sym) K (Message Sym)
     (SendRand leak.KeygenRand leak.OffRand leak.OnRand)
 
+variable {kem onoff} in
 /-- A Boolean adversary against `securitySpec leak Sym`. -/
-abbrev SecurityAdversary {kem : KEMScheme ProbComp K PK SK C}
-    {onoff : kem.OnOffStructure} (leak : kem.OnOffRandLeak onoff) (Sym : Type) :=
+abbrev SecurityAdversary (Sym : Type) :=
   SCKAScheme.SCKAAdversary (StA onoff Sym) (StB onoff Sym) K (Message Sym)
     (SendRand leak.KeygenRand leak.OffRand leak.OnRand)
 
@@ -140,22 +147,17 @@ theorem scheme_sendB_eq_map_sendBrleak [DecidableEq Sym]
 
 end Marginals
 
-variable (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-  (hDet : kem.DeterministicDecaps)
-variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-variable (leak : kem.OnOffRandLeak onoff)
-
+variable {kem onoff} in
 /-- Epochs exposed by A's successful leaking send from `stA`: `{stA.t}` if A generates a key pair
 (`stA.dkA = none`), else `∅`. -/
-def leakEpochsA {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
+def leakEpochsA
     (stA : StA onoff Sym) : Finset ℕ :=
   if stA.dkA.isNone then {stA.t} else ∅
 
+variable {kem onoff} in
 /-- Epochs exposed by B's successful leaking send from `stB`: `{stB.t}` if B runs offline or
 online encapsulation, else `∅`. -/
-def leakEpochsB {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
+def leakEpochsB
     (stB : StB onoff Sym) : Finset ℕ :=
   if stB.ct0.isNone || (stB.ack.ctRec && stB.ekA.isSome && stB.ct1.isNone && stB.stCt.isSome)
   then {stB.t} else ∅
