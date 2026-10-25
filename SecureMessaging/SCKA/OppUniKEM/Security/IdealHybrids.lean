@@ -42,7 +42,7 @@ variable {StA StB I Rho : Type} [SampleableType I]
 
 /-- For every epoch `t ≠ i + 1`, the challenge oracles of hybrids `i` and `i + 1` coincide on
 `t`. -/
-theorem epochHybrid_challenge_eq_of_ne (i t : ℕ) (hne : t ≠ i + 1) :
+private theorem epochHybrid_challenge_eq_of_ne (i t : ℕ) (hne : t ≠ i + 1) :
     oracleChall (decide (0 < t ∧ t ≤ i + 1)) StA StB I Rho t =
       oracleChall (decide (0 < t ∧ t ≤ i)) StA StB I Rho t := by
   have h : (0 < t ∧ t ≤ i + 1) ↔ (0 < t ∧ t ≤ i) := by omega
@@ -59,7 +59,7 @@ variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
 omit [SampleableType K] in
 /-- Every query of `idealCorrectnessImpl` preserves `sendEpochInv`. -/
-theorem idealCorrectnessImpl_preserves_sendEpochInv
+private theorem idealCorrectnessImpl_preserves_sendEpochInv
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym)
@@ -77,7 +77,7 @@ theorem idealCorrectnessImpl_preserves_sendEpochInv
   · exact oracleRecvB_preserves_sendEpochInv kem onoff hDet ecEk ecCt0 ecCt1 leak n s hs z hz
 
 /-- Every query of `idealSecurityImpl` preserves `sendEpochInv`. -/
-theorem idealSecurityImpl_preserves_sendEpochInv
+private theorem idealSecurityImpl_preserves_sendEpochInv
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym)
@@ -95,7 +95,7 @@ theorem idealSecurityImpl_preserves_sendEpochInv
 
 /-- Every successor state `z.2` of a query `t` of `idealSecurityImpl` from `s` satisfies
 `z.2.nA ≤ s.nA + 1` when `t` is a send query and `z.2.nA ≤ s.nA` otherwise. -/
-theorem idealSecurityImpl_sendCounter_step
+private theorem idealSecurityImpl_sendCounter_step
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym)
@@ -113,7 +113,7 @@ theorem idealSecurityImpl_sendCounter_step
 
 /-- Assuming the erasure codes are correct, every query of `idealSecurityImpl` preserves
 `reachableInv`. -/
-theorem idealSecurityImpl_preserves_reachableInv
+private theorem idealSecurityImpl_preserves_reachableInv
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
@@ -197,7 +197,7 @@ theorem idealEpochHybridExp_zero
   simp only [idealEpochHybridExp, hmode]
 
 /-- Every query of `idealSecurityImpl` is monotonic in the `exposed` epoch set. -/
-theorem idealSecurityImpl_exposed_subset
+private theorem idealSecurityImpl_exposed_subset
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym)
@@ -214,7 +214,7 @@ theorem idealSecurityImpl_exposed_subset
       t s z hz).1) (SCKAScheme.challOf_recordsChallenges _) t s z hz
 
 /-- Every query of `idealSecurityImpl` preserves membership `e ∈ s.exposed`. -/
-theorem idealSecurityImpl_preserves_exposed
+private theorem idealSecurityImpl_preserves_exposed
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym)
@@ -228,7 +228,7 @@ theorem idealSecurityImpl_preserves_exposed
 
 /-- In any state `s` satisfying `i + 1 ∈ s.exposed`, `idealEpochHybridImpl … (i + 1)` and
 `idealEpochHybridImpl … i` evaluate every query `t` to the same response/state computation. -/
-theorem idealEpochHybrid_query_eq_of_exposed
+private theorem idealEpochHybrid_query_eq_of_exposed
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym)
@@ -250,7 +250,7 @@ theorem idealEpochHybrid_query_eq_of_exposed
 /-- From any state `s` satisfying `i + 1 ∈ s.exposed`, simulating any oracle computation `adv`
 under `idealEpochHybridImpl … (i + 1)` and `idealEpochHybridImpl … i` yields identical output/state
 computations. -/
-theorem idealEpochHybrid_run_eq_of_exposed
+private theorem idealEpochHybrid_run_eq_of_exposed
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym)
@@ -276,7 +276,7 @@ theorem idealEpochHybrid_run_eq_of_exposed
 oracles `idealEpochHybridImpl … q` and the random-key ideal oracles
 `idealSecurityImpl … (fun _ => true)` evaluate every query `t` to the same response/state
 computation. -/
-theorem idealEpochHybrid_query_eq_random
+private theorem idealEpochHybrid_query_eq_random
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym)
@@ -405,7 +405,7 @@ variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
 variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff)
 
 /-- Every query of `idealSecurityImpl` preserves `Disjoint s.exposed s.challenged`. -/
-theorem idealSecurityImpl_preserves_disjoint (mode : ℕ → Bool) :
+private theorem idealSecurityImpl_preserves_disjoint (mode : ℕ → Bool) :
     QueryImpl.PreservesInv (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak mode)
       (fun s => Disjoint s.exposed s.challenged) :=
   SCKAScheme.securityImplOf_preserves_disjoint _ _ _ _ _
@@ -413,7 +413,7 @@ theorem idealSecurityImpl_preserves_disjoint (mode : ℕ → Bool) :
     (SCKAScheme.challOf_recordsChallenges _)
 
 /-- Every query of `idealSecurityImpl` preserves membership `e ∈ s.challenged`. -/
-theorem idealSecurityImpl_preserves_challenged (mode : ℕ → Bool) (e : ℕ) :
+private theorem idealSecurityImpl_preserves_challenged (mode : ℕ → Bool) (e : ℕ) :
     QueryImpl.PreservesInv (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak mode)
       (fun s => e ∈ s.challenged) :=
   fun t s hs z hz => SCKAScheme.securityImplOf_challenged_subset _ _ _ _ _
@@ -423,7 +423,7 @@ theorem idealSecurityImpl_preserves_challenged (mode : ℕ → Bool) (e : ℕ) :
 /-- Every query of `idealSecurityImpl` preserves
 `Disjoint s.exposed s.challenged ∧ e ∈ s.challenged`, ensuring that a challenged epoch `e` remains
 unexposed. -/
-theorem idealSecurityImpl_preserves_committed (mode : ℕ → Bool) (e : ℕ) :
+private theorem idealSecurityImpl_preserves_committed (mode : ℕ → Bool) (e : ℕ) :
     QueryImpl.PreservesInv (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak mode)
       (fun s => Disjoint s.exposed s.challenged ∧ e ∈ s.challenged) := by
   intro t s hs z hz
@@ -436,7 +436,7 @@ theorem idealSecurityImpl_preserves_committed (mode : ℕ → Bool) (e : ℕ) :
 `idealEpochHybridImpl … (i + 1)` and `idealEpochHybridImpl … i` evaluate query `t` to the same
 response/state computation, or `t` is an eligible challenge at epoch `i + 1` and every successor
 state of either hybrid satisfies `Disjoint exposed challenged ∧ i + 1 ∈ challenged`. -/
-theorem idealEpochHybrid_query_eq_or_committed
+private theorem idealEpochHybrid_query_eq_or_committed
     (i : ℕ) (t : (securitySpec leak Sym).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : Disjoint s.exposed s.challenged) :
