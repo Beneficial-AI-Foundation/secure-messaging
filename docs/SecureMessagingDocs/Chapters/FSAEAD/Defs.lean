@@ -347,8 +347,10 @@ def delete (st : GameState StS StR AD M C) (i : ℕ) : GameState StS StR AD M C 
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Example run of this game}" (kind := "scheme")
-Black arrows are honest ciphertexts; red arrows are under the adversary's control; an X
-marks a call that the game refuses. A rejected forgery ($`e^*`) returns $`\bot` and
+Each oracle call has a solid arrow for the adversary's query and a dashed arrow for the
+oracle's reply. An X marks a query that the game refuses; the reply is then $`\bot`.
+Black arrows carry the states of A and B. The adversary holds $`e_1` and delivers the
+challenge $`e_2` first. A rejected forgery ($`e^*`) returns $`\bot` and
 leaves message 1 in $`\mathsf{trans}`. Corrupting A at $`i_\A = 2` sets
 $`\mathsf{comp} = \{i \mid i > 2\}`, so injecting $`e_3` for index 3 before A sends it
 does not set $`\mathsf{win}`.

@@ -13,7 +13,7 @@ open Lean
 challenge, gets the challenge, has a second encryption and the challenge pair refused, and
 then decrypts the challenge ciphertext under other associated data. -/
 private def aeadAdversarySvg : String := r##"
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 990 640" width="990" height="640" style="display:block;width:100%;height:auto" role="img" aria-label="AEAD oracle illustration: the game samples K and b. O-Dec(a0, e0) before the challenge returns Dec(K, a0, e0), or bottom if b = 1. O-Enc(a1, m) returns the challenge e*, which is Enc(K, a1, m) if b = 0 and random if b = 1, and sets the challenge pair to (a1, e*). A second O-Enc is refused. O-Dec(a1, e*) is refused because it is the challenge pair. O-Dec(a2, e*) with a2 different from a1 is answered; Figure 1 of ACD19 refuses it.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 990 640" width="990" height="640" style="display:block;width:100%;height:auto" role="img" aria-label="AEAD oracle illustration: the game samples K and b. O-Dec(a0, e0) before the challenge returns Dec(K, a0, e0), or bottom if b = 1. O-Enc(a1, m) returns the challenge e*, which is Enc(K, a1, m) if b = 0 and random if b = 1, and sets the challenge pair to (a1, e*). A second O-Enc is refused. O-Dec(a1, e*) is refused because it is the challenge pair. O-Dec(a2, e*) with a2 different from a1 is answered; Figure 1 of ACD19 refuses it. Each call has a query arrow to the oracle and a dashed reply arrow back.">
   <defs>
     <marker id="aead-adv-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#252525" stroke-width="1.2"/></marker>
     <marker id="aead-adv-red-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#b42318" stroke-width="1.2"/></marker>
@@ -26,6 +26,7 @@ private def aeadAdversarySvg : String := r##"
       .ae-algorithm { fill: white; stroke: #252525; stroke-width: 1; }
       .ae-flow { fill: none; stroke: #252525; stroke-width: 1.2; marker-end: url(#aead-adv-arrow); }
       .ae-control { fill: none; stroke: #b42318; stroke-width: 1.4; marker-end: url(#aead-adv-red-arrow); }
+      .ae-reply { fill: none; stroke: #b42318; stroke-width: 1.4; stroke-dasharray: 6 4; marker-end: url(#aead-adv-red-arrow); }
       .ae-cross { fill: none; stroke: #b42318; stroke-width: 1.7; }
     </style>
   </defs>
@@ -47,23 +48,27 @@ private def aeadAdversarySvg : String := r##"
   <rect class="ae-oracle" x="30" y="99" width="200" height="481"/>
   <text class="ae-text ae-red" x="130" y="125" text-anchor="middle">Adversary 𝒜</text>
 
-  <!-- Oracle calls, top to bottom. -->
+  <!-- Each oracle call: a solid query arrow to the oracle and a dashed reply arrow back.
+       An X marks a refused query; its reply is ⊥. -->
   <g class="ae-control">
-    <path d="M230 153 H520"/><path d="M230 243 H520"/>
-    <path d="M230 333 H498"/><path d="M230 423 H498"/>
-    <path d="M230 513 H520"/>
+    <path d="M230 143 H520"/><path d="M230 233 H520"/><path d="M230 323 H498"/><path d="M230 413 H498"/><path d="M230 503 H520"/>
   </g>
-  <path class="ae-cross" d="M504 325 L516 341 M516 325 L504 341"/>
-  <path class="ae-cross" d="M504 415 L516 431 M516 415 L504 431"/>
+  <g class="ae-reply">
+    <path d="M520 163 H230"/><path d="M520 253 H230"/><path d="M520 343 H230"/><path d="M520 433 H230"/><path d="M520 523 H230"/>
+  </g>
+  <path class="ae-cross" d="M504 315 L516 331 M516 315 L504 331"/>
+  <path class="ae-cross" d="M504 405 L516 421 M516 405 L504 421"/>
 
-  <!-- Return values. -->
+  <!-- Replies. -->
   <g class="ae-text ae-red ae-small" text-anchor="middle">
-    <text x="375" y="175">returns Dec(K, a₀, e₀)</text>
-    <text x="375" y="193">(⊥ if b = 1)</text>
-    <text x="375" y="265">returns <tspan class="ae-math">e*</tspan></text>
-    <text x="375" y="283">(Enc if b = 0, random if b = 1)</text>
-    <text x="375" y="535">returns Dec(K, a₂, <tspan class="ae-math">e*</tspan>)</text>
-    <text x="375" y="553">(⊥ if b = 1)</text>
+    <text x="375" y="181">Dec(K, a₀, e₀)</text>
+    <text x="375" y="199">(⊥ if b = 1)</text>
+    <text x="375" y="271"><tspan class="ae-math">e*</tspan></text>
+    <text x="375" y="289">(Enc if b = 0, random if b = 1)</text>
+    <text x="375" y="361">⊥</text>
+    <text x="375" y="451">⊥</text>
+    <text x="375" y="541">Dec(K, a₂, <tspan class="ae-math">e*</tspan>)</text>
+    <text x="375" y="559">(⊥ if b = 1)</text>
   </g>
 
   <!-- Red oracle wrappers enclose the black scheme algorithms. -->

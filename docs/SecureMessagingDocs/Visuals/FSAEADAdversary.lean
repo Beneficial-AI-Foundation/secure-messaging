@@ -9,11 +9,11 @@ import VersoManual.Diagrams
 open Verso Genre Manual Doc Elab
 open Lean
 
-/-- An example run of the FS-AEAD game. The adversary delivers the challenge before the
-first message, has a forgery rejected while the first message is still in transit, and
+/-- An example run of the FS-AEAD game. Each oracle call has a query arrow and a reply
+arrow. The adversary delivers the challenge before the first message, has a forgery rejected while the first message is still in transit, and
 corrupts A. After that, a forgery for index 3, which A has not sent yet, is not a win. -/
 private def fsaeadAdversarySvg : String := r##"
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-65 0 1030 1015" width="1030" height="1015" style="display:block;width:100%;height:auto" role="img" aria-label="FS-AEAD oracle illustration: A sends e1 with O-Transmit-A and the challenge e2 with O-Chall-A. O-Corr-B is refused while the challenge is in transit. The adversary delivers e2 first, and O-Deliver-B returns index 2 without the plaintext. A forgery is rejected and record 1 is kept. e1 is delivered late and decrypts to index 1. O-Corr-A reveals A's state and sets corrA, so every index A has not sent yet is compromised. O-Chall-A is then refused. A forgery for index 3 is accepted and is not a win.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-65 0 1030 1015" width="1030" height="1015" style="display:block;width:100%;height:auto" role="img" aria-label="FS-AEAD oracle illustration: Each oracle call has a query arrow from the adversary and a dashed reply arrow back. The adversary gets e1 from O-Transmit-A and the challenge e2 from O-Chall-A. O-Corr-B is refused while the challenge is in transit. The adversary delivers e2 first, and O-Deliver-B returns index 2 without the plaintext. A forgery is rejected and record 1 is kept. e1 is delivered late and decrypts to index 1. O-Corr-A reveals A's state and sets corrA, so every index A has not sent yet is compromised. O-Chall-A is then refused. A forgery for index 3 is accepted and is not a win.">
   <defs>
     <marker id="fsaead-adv-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#252525" stroke-width="1.2"/></marker>
     <marker id="fsaead-adv-red-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="#b42318" stroke-width="1.2"/></marker>
@@ -26,6 +26,7 @@ private def fsaeadAdversarySvg : String := r##"
       .fa-algorithm { fill: white; stroke: #252525; stroke-width: 1; }
       .fa-flow { fill: none; stroke: #252525; stroke-width: 1.2; marker-end: url(#fsaead-adv-arrow); }
       .fa-control { fill: none; stroke: #b42318; stroke-width: 1.4; marker-end: url(#fsaead-adv-red-arrow); }
+      .fa-reply { fill: none; stroke: #b42318; stroke-width: 1.4; stroke-dasharray: 6 4; marker-end: url(#fsaead-adv-red-arrow); }
       .fa-cross { fill: none; stroke: #b42318; stroke-width: 1.7; }
     </style>
   </defs>
@@ -69,55 +70,41 @@ private def fsaeadAdversarySvg : String := r##"
     <text x="765" y="769">v<tspan baseline-shift="sub" font-size="12">B</tspan></text>
   </g>
 
-  <!-- Message 1 is held until after the challenge and the rejected forgery.
-       The white underlay at the crossing marks two independent paths. -->
-  <path class="fa-control" d="M193 190 H330 V640 H707"/>
-  <path d="M321 280 H339" fill="none" stroke="white" stroke-width="8"/>
-  <path class="fa-flow" d="M193 280 H420 V460 H707"/>
-  <g class="fa-text" text-anchor="middle">
-    <text class="fa-math" x="292" y="179">e₁</text>
-    <text class="fa-math" x="380" y="269">e₂</text>
+  <!-- Each oracle call: a solid query arrow from the adversary to the oracle and a dashed
+       reply arrow back. An X marks a refused query; its reply is ⊥. -->
+  <g class="fa-control">
+    <path d="M370 169 H262"/><path d="M370 259 H262"/><path d="M530 349 H620"/><path d="M530 439 H638"/><path d="M530 529 H638"/><path d="M530 619 H638"/><path d="M370 709 H262"/><path d="M370 799 H280"/><path d="M530 889 H638"/>
   </g>
-  <g class="fa-text fa-red fa-small">
-    <text x="338" y="215">hold</text>
-    <text x="428" y="448">deliver first</text>
-    <text x="338" y="628">deliver second</text>
+  <g class="fa-reply">
+    <path d="M260 189 H370"/><path d="M260 279 H370"/><path d="M640 369 H530"/><path d="M640 459 H530"/><path d="M640 549 H530"/><path d="M640 639 H530"/><path d="M260 729 H370"/><path d="M260 819 H370"/><path d="M640 909 H530"/>
   </g>
+  <path class="fa-cross" d="M622 341 L634 357 M634 341 L622 357"/>
+  <path class="fa-cross" d="M266 791 L278 807 M278 791 L266 807"/>
 
-  <!-- O-Corr-B is refused while the challenge is in transit. -->
-  <path class="fa-control" d="M470 370 H612"/>
-  <path class="fa-cross" d="M618 362 L630 378 M630 362 L618 378"/>
-
-  <!-- Return values of the deliveries. The challenge plaintext is not returned. -->
+  <!-- Replies. -->
   <g class="fa-text fa-red fa-small" text-anchor="middle">
-    <text x="520" y="486">returns (2, ⊥)</text>
-    <text x="520" y="666">returns (1, <tspan class="fa-math">m</tspan>)</text>
+    <text x="316" y="207"><tspan class="fa-math">e₁</tspan></text>
+    <text x="316" y="297"><tspan class="fa-math">e₂</tspan></text>
+    <text x="584" y="387">⊥</text>
+    <text x="584" y="477">(2, ⊥)</text>
+    <text x="584" y="567">⊥</text>
+    <text x="584" y="657">(1, <tspan class="fa-math">m</tspan>)</text>
+    <text x="316" y="747">v<tspan baseline-shift="sub" font-size="12">A</tspan></text>
+    <text x="316" y="837">⊥</text>
+    <text x="584" y="927">(3, <tspan class="fa-math">m₃</tspan>)</text>
   </g>
 
-  <!-- A rejected forgery deletes no record, so message 1 still counts as honest. -->
-  <path class="fa-control" d="M470 550 H707"/>
-  <g class="fa-text" text-anchor="middle">
-    <text class="fa-red fa-math" x="560" y="539">e*</text>
-    <text class="fa-red fa-small" x="505" y="576">rejected: record 1 kept</text>
-  </g>
-
-  <!-- Corrupting A compromises every index A has not sent yet. -->
-  <path class="fa-control" d="M178 730 H450"/>
-  <g class="fa-text" text-anchor="middle">
-    <text class="fa-red" x="335" y="718">v<tspan baseline-shift="sub" font-size="13">A</tspan></text>
-    <text class="fa-red fa-small" x="450" y="756">comp ← {i | i &gt; 2}</text>
-  </g>
-
-  <!-- As in Figure 5, A cannot send a challenge while corrupted. -->
-  <path class="fa-control" d="M425 813 H284"/>
-  <path class="fa-cross" d="M266 805 L278 821 M278 805 L266 821"/>
-  <text class="fa-text fa-red fa-small" x="435" y="818">refused: A corrupted</text>
-
-  <!-- A forgery for a compromised index is accepted and is not a win. -->
-  <path class="fa-control" d="M470 910 H707"/>
-  <g class="fa-text" text-anchor="middle">
-    <text class="fa-red fa-small" x="560" y="898"><tspan class="fa-math">e₃</tspan> from <tspan class="fa-math">v</tspan><tspan baseline-shift="sub" font-size="12">A</tspan></text>
-    <text class="fa-red fa-small" x="450" y="938">accepts (3, <tspan class="fa-math">m₃</tspan>): 3 ∈ comp, no win</text>
+  <!-- What the adversary does with each reply, and the effect on the game state. -->
+  <g class="fa-text fa-red fa-small" text-anchor="middle">
+    <text x="450" y="274">hold e₁</text>
+    <text x="450" y="454">deliver e₂ first</text>
+    <text x="450" y="536">rejected:</text>
+    <text x="450" y="553">record 1 kept</text>
+    <text x="450" y="634">deliver e₁</text>
+    <text x="450" y="724">comp ← {i | i &gt; 2}</text>
+    <text x="450" y="814">refused: A corrupted</text>
+    <text x="450" y="896"><tspan class="fa-math">e₃</tspan> from v<tspan baseline-shift="sub" font-size="12">A</tspan></text>
+    <text x="450" y="913">3 ∈ comp: no win</text>
   </g>
 
   <!-- Red oracle wrappers enclose the black scheme algorithms. -->

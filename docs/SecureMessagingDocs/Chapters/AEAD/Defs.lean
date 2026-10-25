@@ -192,7 +192,8 @@ abbrev OneTimeCCAAdversary (AD M C : Type) :=
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Example run of this game}" (kind := "scheme")
-Red arrows are the adversary's oracle calls; an X marks a call that the game refuses.
+Each oracle call has a solid arrow for the adversary's query and a dashed arrow for the
+oracle's reply. An X marks a query that the game refuses; the reply is then $`\bot`.
 The adversary decrypts once before the challenge. $`\Oenc` answers only its first call.
 $`\Odec` refuses the challenge pair $`(a_1, e^*)` but answers $`(a_2, e^*)`, which
 {Informal.citet ACD19}[], Figure 1, refuses (see the correction above).
