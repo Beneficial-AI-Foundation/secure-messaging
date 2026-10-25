@@ -51,6 +51,22 @@ def NRS14 : Verso.Genre.Manual.Bibliography.Citable := .inProceedings
   , booktitle := inlines!"EUROCRYPT 2014"
   , url := some "https://eprint.iacr.org/2013/765" }
 
+@[bib "MV04"]
+def MV04 : Verso.Genre.Manual.Bibliography.Citable := .inProceedings
+  { title := inlines!"The Security and Performance of the Galois/Counter Mode (GCM) of Operation"
+  , authors := #[inlines!"David A. McGrew", inlines!"John Viega"]
+  , year := 2004
+  , booktitle := inlines!"INDOCRYPT 2004"
+  , url := some "https://eprint.iacr.org/2004/193" }
+
+@[bib "IOM12"]
+def IOM12 : Verso.Genre.Manual.Bibliography.Citable := .inProceedings
+  { title := inlines!"Breaking and Repairing GCM Security Proofs"
+  , authors := #[inlines!"Tetsu Iwata", inlines!"Keisuke Ohashi", inlines!"Kazuhiko Minematsu"]
+  , year := 2012
+  , booktitle := inlines!"CRYPTO 2012"
+  , url := some "https://eprint.iacr.org/2012/438" }
+
 @[bib "BR06"]
 def BR06 : Verso.Genre.Manual.Bibliography.Citable := .inProceedings
   { title := inlines!"The Security of Triple Encryption and a Framework for Code-Based Game-Playing Proofs"

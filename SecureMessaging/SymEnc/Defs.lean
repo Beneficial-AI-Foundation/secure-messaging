@@ -48,6 +48,7 @@ space `M`, and ciphertext space `C`.
 
 NRS14 Section 2: ivE scheme `E : K × {0,1}^η × M → {0,1}*`.
 Deviation: no IV parameter (one-time key provides all randomness). -/
+-- ANCHOR: DetSEAlg
 structure DetSEAlg (K M C : Type) where
   /-- Sample a fresh symmetric key. -/
   keygen : ProbComp K
@@ -55,14 +56,17 @@ structure DetSEAlg (K M C : Type) where
   encrypt : K → M → C
   /-- Deterministic decryption: `Dec(K, C) = some M` or `none`. -/
   decrypt : K → C → Option M
+-- ANCHOR_END: DetSEAlg
 
 namespace DetSEAlg
 
 variable {K M C : Type}
 
 /-- A `DetSEAlg` is correct if decryption always recovers the plaintext. -/
+-- ANCHOR: DetSEAlgCorrect
 def Correct (se : DetSEAlg K M C) : Prop :=
   ∀ (k : K) (m : M), se.decrypt k (se.encrypt k m) = some m
+-- ANCHOR_END: DetSEAlgCorrect
 
 section IndCPA
 
@@ -109,6 +113,7 @@ def oracleUnif :
 First call: if `b = false`, returns `some (se.encrypt k m)`;
             if `b = true`, returns `some ($ᵗ C)`.
 Subsequent calls: returns `none`. -/
+-- ANCHOR: detSEOracleEncrypt
 def oracleEncrypt [SampleableType C] (se : DetSEAlg K M C) (b : Bool) (k : K) :
     QueryImpl (M →ₒ Option C) (StateT Bool ProbComp) :=
   fun m => do
@@ -119,6 +124,7 @@ def oracleEncrypt [SampleableType C] (se : DetSEAlg K M C) (b : Bool) (k : K) :
         then liftM ($ᵗ C : ProbComp C)
         else pure (se.encrypt k m)
       return some c
+-- ANCHOR_END: detSEOracleEncrypt
 
 /-- Complete oracle set for the one-time IND$-CPA game. -/
 def indCPAImpl [SampleableType C] (se : DetSEAlg K M C) (b : Bool) (k : K) :
@@ -132,20 +138,24 @@ The branch `b = false` is the real experiment; `b = true` is the random
 experiment.
 
 NRS14 Section 2: ivE-security experiment, restricted to one query. -/
+-- ANCHOR: detSESecurityExpFixedBit
 def securityExpFixedBit [SampleableType C] (se : DetSEAlg K M C)
     (adversary : IndCPAAdversary M C) (b : Bool) : ProbComp Bool := do
   let k ← se.keygen
   let (b', _) ← (simulateQ (indCPAImpl se b k) adversary).run false
   return b'
+-- ANCHOR_END: detSESecurityExpFixedBit
 
 /-- One-time IND$-CPA distinguishing advantage:
 `|Pr[A^{rand} = 1] - Pr[A^{real} = 1]|`.
 
 NRS14 Section 2: `Adv^{ivE}_E(A)`, restricted to one query and no IV. -/
+-- ANCHOR: detSEDistAdvantage
 noncomputable def distAdvantage [SampleableType C] (se : DetSEAlg K M C)
     (adversary : IndCPAAdversary M C) : ℝ :=
   |(Pr{let x ← securityExpFixedBit se adversary true}[x = true]).toReal -
    (Pr{let x ← securityExpFixedBit se adversary false}[x = true]).toReal|
+-- ANCHOR_END: detSEDistAdvantage
 
 end IndCPA
 

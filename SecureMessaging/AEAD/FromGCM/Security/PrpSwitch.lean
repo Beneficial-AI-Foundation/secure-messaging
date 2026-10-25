@@ -160,13 +160,16 @@ theorem abs_prfAdvantage_sub_prpAdvantage_le {K : Type}
   ring
 
 /-- One-sided form of `abs_prfAdvantage_sub_prpAdvantage_le`. -/
+-- ANCHOR: prfAdvantage_le_prpAdvantage_switching
 theorem prfAdvantage_le_prpAdvantage_switching {K : Type}
     (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ) (hL : ValidMsgLength L)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
     (PRFScheme.prfAdvantage prp.toPRFScheme (prfReduction iv L adv)).toReal ≤
       (PRPScheme.prpAdvantage prp (prfReduction iv L adv)).toReal +
       ((((L + 127) / 128 : ℕ) : ℝ) + 2) * ((((L + 127) / 128 : ℕ) : ℝ) + 1)
-        / 2 ^ (129 : ℕ) := by
+        / 2 ^ (129 : ℕ)
+-- ANCHOR_END: prfAdvantage_le_prpAdvantage_switching
+    := by
   have h := (abs_le.mp (abs_prfAdvantage_sub_prpAdvantage_le prp iv L hL adv)).2
   linarith
 
