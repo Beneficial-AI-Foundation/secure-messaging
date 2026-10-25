@@ -4,6 +4,7 @@ import SecureMessagingDocs.Bibliography
 import SecureMessagingDocs.Visuals.Notation
 import SecureMessagingDocs.Visuals.GameBoxes
 import SecureMessagingDocs.Visuals.AnchorPill
+import SecureMessagingDocs.Visuals.AEADAdversary
 import SecureMessaging.AEAD.Defs
 
 set_option linter.style.setOption false
@@ -25,15 +26,29 @@ set_option pp.rawOnError true
 
 *References:*
 
-- {Informal.citet ACD19}[] — AEAD syntax (Definition 1) and the one-time
-  IND-CCA game (Figure 1, Definition 2).
+- {Informal.citet ACD19}[] — AEAD syntax and correctness (Definition 1), one-time IND-CCA
+  game (Figure 1) and security (Definition 2).
 - {Informal.citet TR25}[] — the AEAD advantage convention (Definition 2.5).
 
-:::defTitle "aead" "Authenticated Encryption with Associated Data - AEAD scheme"
+:::defTitle "aead" "AEAD scheme"
 :::
 
-:::definition "aead" (lean := "AEADScheme") (tags := "gh-192")
-$`\todo`
+::::definition "aead" (lean := "AEADScheme") (tags := "gh-192")
+Adapted from {Informal.citet ACD19}[], Definition 1.
+
+An authenticated encryption with associated data (AEAD) scheme is a tuple of algorithms
+$`(\boxed{\mathsf{KeyGen}}, \Enc, \Dec)` with message space $`\mathcal M`, associated data
+space $`\mathcal{AD}`, key space $`\mathcal K` and ciphertext space $`\mathcal C`, where
+
+- $`\boxed{\mathsf{KeyGen}}` samples a key $`K \in \mathcal K`,
+- $`\Enc` takes a key $`K`, associated data $`a` and a message $`m`, and produces a
+  ciphertext $`e \gets \Enc(K, a, m)`,
+- $`\Dec` takes a key $`K`, associated data $`a` and a ciphertext $`e`, and produces a
+  message $`m \gets \Dec(K, a, e)`, $`\boxed{\text{or } \bot \text{ if it rejects } e}.`
+
+$`\Enc` and $`\Dec` are deterministic. The boxed parts are not in Definition 1:
+$`\mathsf{KeyGen}` replaces the uniform key $`K \sample \mathcal K` of Figure 1, and
+$`\Dec` signals a rejection by $`\bot`.
 
 ```anchor AEADScheme (project := ".") (module := SecureMessaging.AEAD.Defs)
 structure AEADScheme (m : Type → Type u) [Monad m] (M AD K C : Type) where
@@ -44,21 +59,49 @@ structure AEADScheme (m : Type → Type u) [Monad m] (M AD K C : Type) where
   /-- Deterministic authenticated decryption: `Dec(K, a, e) = some m` or `none`. -/
   decrypt : K → AD → C → Option M
 ```
-
-:::
-
+::::
 
 :::defTitle "aead_oracles" "AEAD game oracles"
 :::
 
 :::::::definition "aead_oracles" (lean := "AEADScheme.oracleEncrypt, AEADScheme.oracleDecrypt") (uses := "aead")
-$`\todo`
+Adapted from {Informal.citet ACD19}[], Figure 1.
 
 ::::::gameGrid
-:::::gameCell "\\Oenc(a,m)" (kind := "oracle") (state := "\\gamestate\\; ((a^*, e^*)\\text{ - challenge}, b\\text{ - challenge bit})")
-$`\pif\;e^*\neq\bot\;\pthen\;\Return\bot`
+:::::gameCell "\\textsf{Game state and notation}" (kind := "scheme-notation")
+The game state consists of the key $`K`, the challenge bit $`b` and the challenge pair
+$`(a^*, e^*)`: the associated data and the ciphertext returned by $`\Oenc`. Before the
+first $`\Oenc` call, $`(a^*, e^*) = (\bot, \bot)`.
 
-$`\pif\;b\;\pthen\;e^* \sample \mathcal C\;\pelse\;e^* \gets \Enc(K,a,m);\quad a^* \gets a;\quad \Return e^*`
+In the oracles, $`\req\varphi` means: if $`\varphi` is false, the oracle returns
+$`\bot` and the game state does not change.
+:::::
+
+:::::gameCell "\\textsf{Correction}" (kind := "scheme-notation")
+In {Informal.citet ACD19}[], Figure 1, $`\Odec` refuses every query $`(a, e^*)`, for every
+associated data $`a`. The game then never tests whether $`e^*` decrypts under associated
+data other than $`a^*`, so a scheme that ignores associated data is secure. Built on such a
+scheme, the FS-AEAD scheme of {Informal.citet ACD19}[], Figure 6, is insecure, which
+contradicts their Theorem 5. We correct this, marked by boxes in pseudocode:
+
+- $`\Oenc` also stores the associated data $`a^*`;
+- $`\Odec` refuses only the challenge pair $`(a^*, e^*)`.
+
+{Informal.citet NRS14}[] restrict decryption queries in the same way.
+:::::
+::::::
+
+::::::gameGrid
+:::::gameCell "\\Oenc(a, m)" (kind := "compact")
+$`\begin{array}{l}
+\req\;e^* = \bot; \\
+\pif\;b = 0\;\pthen \\
+\quad e^* \gets \Enc(K, a, m); \\
+\pelse \\
+\quad e^* \sample \mathcal C; \\
+\boxed{a^* \gets a}; \\
+\Return e^*
+\end{array}`
 
 ```anchor oracleEncrypt (project := ".") (module := SecureMessaging.AEAD.Defs)
 def oracleEncrypt [SampleableType C] (ae : AEADScheme ProbComp M AD K C)
@@ -76,8 +119,12 @@ def oracleEncrypt [SampleableType C] (ae : AEADScheme ProbComp M AD K C)
 ```
 :::::
 
-:::::gameCell "\\Odec(a,e)" (kind := "oracle") (state := "\\gamestate\\; ((a^*, e^*)\\text{ - challenge}, b\\text{ - challenge bit})")
-$`\pif\;b\,\vee\,(a,e){ = }(a^*,e^*)\;\pthen\;\Return\bot\;\pelse\;\Return \Dec(K,a,e)`
+:::::gameCell "\\Odec(a, e)" (kind := "compact")
+$`\begin{array}{l}
+\req\;b = 0; \\
+\req\;\boxed{(a, e) \neq (a^*, e^*)}; \\
+\Return \Dec(K, a, e)
+\end{array}`
 
 ```anchor oracleDecrypt (project := ".") (module := SecureMessaging.AEAD.Defs)
 def oracleDecrypt [DecidableEq AD] [DecidableEq C] (ae : AEADScheme ProbComp M AD K C)
@@ -90,16 +137,16 @@ def oracleDecrypt [DecidableEq AD] [DecidableEq C] (ae : AEADScheme ProbComp M A
 ```
 :::::
 ::::::
-
-Adapted from {Informal.citet ACD19}[], Figure 1: the decrypt guard compares the pair $`(a, e)`,
-not $`e` alone, so schemes that ignore associated data are insecure.
 :::::::
 
 :::defTitle "aead_correctness" "AEAD correctness"
 :::
 
 :::definition "aead_correctness" (lean := "AEADScheme.Correct") (tags := "gh-193") (uses := "aead")
-$`\todo`
+Adapted from {Informal.citet ACD19}[], Definition 1.
+
+An AEAD scheme is correct if for all keys $`K`, associated data $`a` and messages $`m`,
+$`\Dec(K, a, \Enc(K, a, m)) = m`.
 
 ```anchor Correct (project := ".") (module := SecureMessaging.AEAD.Defs)
 def Correct (ae : AEADScheme m M AD K C) : Prop :=
@@ -111,9 +158,11 @@ def Correct (ae : AEADScheme m M AD K C) : Prop :=
 :::
 
 :::::::definition "aead_security_exp" (lean := "AEADScheme.securityExp, AEADScheme.aeadSecurityImpl, AEADScheme.OneTimeCCAAdversary") (tags := "gh-194") (uses := "aead, aead_oracles")
-$`\todo`
+Adapted from {Informal.citet ACD19}[], Figure 1 and Definition 2.
 
-Let $`\O = \{\Oenc, \Odec\}` and denote by $`\adv^{\O}` an adversary with oracle access to $`\O`.
+Let $`\O = \{\Oenc, \Odec\}` and denote by $`\adv^{\O}` an adversary with oracle access to
+$`\O`. The adversary can call $`\Odec` any number of times, before and after the single
+$`\Oenc` call.
 
 :::leanPillCaption "specification for oracle $`\\O` types"
 :::
@@ -142,10 +191,32 @@ abbrev OneTimeCCAAdversary (AD M C : Type) :=
 ```
 
 ::::::gameGrid
-:::::gameCell "\\Exp{\\textsf{1\\text{-}CCA}}{\\textsf{AEAD}}(\\adv)" (kind := "game")
-$`K \sample \mathcal K;\quad b \sample \bit;\quad b' \gets \adv^{\O};\quad \Return(b'=b)`
+:::::gameCell "\\textsf{Example run of this game}" (kind := "scheme")
+Red arrows are the adversary's oracle calls; an X marks a call that the game refuses.
+The adversary decrypts once before the challenge. $`\Oenc` answers only its first call.
+$`\Odec` refuses the challenge pair $`(a_1, e^*)` but answers $`(a_2, e^*)`, which
+{Informal.citet ACD19}[], Figure 1, refuses. If the scheme ignores associated data, this
+query returns $`m` when $`b = 0` and $`\bot` when $`b = 1`, so the adversary learns $`b`.
+
+:::aeadAdversaryIllustration
+:::
 :::::
 ::::::
+
+::::::gameGrid
+:::::gameCell "\\Exp{\\textsf{ot-cca}}{\\textsf{AEAD}}(\\adv)" (kind := "game")
+$`\begin{array}{l}
+\pcommentline{\text{Sample the key and the challenge bit}} \\
+K \gets \mathsf{KeyGen};\quad b \sample \bit; \\
+\pcommentline{\text{Initialize the game state: no challenge yet}} \\
+(a^*, e^*) \gets (\bot, \bot); \\
+\pcommentline{\text{Run the adversary and check its guess}} \\
+b' \gets \adv^{\O}; \\
+\Return(b' = b)
+\end{array}`
+
+:::leanPillCaption "Security experiment"
+:::
 
 ```anchor securityExp (project := ".") (module := SecureMessaging.AEAD.Defs)
 def securityExp [SampleableType C] [DecidableEq AD] [DecidableEq C]
@@ -156,18 +227,17 @@ def securityExp [SampleableType C] [DecidableEq AD] [DecidableEq C]
   let (b', _) ← (simulateQ (aeadSecurityImpl ae b k) adversary).run none
   return (b == b')
 ```
+:::::
+::::::
 :::::::
-
 
 :::defTitle "aead_decrypt_query_bound" "AEAD decryption-query bound"
 :::
 
 :::definition "aead_decrypt_query_bound" (lean := "AEADScheme.decryptQueryBound") (uses := "aead_security_exp")
-$`\todo`
-
-$`\mathsf{decryptQueryBound}(\adv, q_d)` asserts that the adversary $`\adv` makes at
-most $`q_d` queries to the decryption oracle $`\Odec` (the tag-guessing term
-$`q_d/|T|` in the EtM security bound is stated against this bound).
+$`\mathsf{decryptQueryBound}(\adv, q_d)` holds if the adversary $`\adv` makes at most
+$`q_d` queries to $`\Odec`. The security bounds for Encrypt-then-MAC and GCM have a term in
+$`q_d`, the number of tries the adversary has to forge a tag.
 
 ```anchor decryptQueryBound (project := ".") (module := SecureMessaging.AEAD.Defs)
 def decryptQueryBound (adv : OneTimeCCAAdversary AD M C)
@@ -180,7 +250,7 @@ def decryptQueryBound (adv : OneTimeCCAAdversary AD M C)
 :::
 
 :::definition "aead_guess_advantage" (lean := "AEADScheme.guessAdvantage") (uses := "aead_security_exp")
-$`\todo`
+Following {Informal.citet TR25}[], Definition 2.5, the advantage of $`\adv` is
 
 $$`\mathsf{Adv}^{\textsf{guess}}_{\textsf{AEAD}}(\adv)
   = \Bigl|\, \Pr[\,b' = b\,] - \tfrac{1}{2} \,\Bigr|`
@@ -197,14 +267,12 @@ noncomputable def guessAdvantage [SampleableType C] [DecidableEq AD] [DecidableE
 :::
 
 :::::definition "aead_dist_advantage" (lean := "AEADScheme.distAdvantage, AEADScheme.securityExpFixedBit") (uses := "aead_security_exp")
-$`\todo`
-
 $$`\mathsf{Adv}^{\textsf{dist}}_{\textsf{AEAD}}(\adv)
   = \Bigl|\, \Pr[\mathsf{AEAD_{rand}} = 1] - \Pr[\mathsf{AEAD_{real}} = 1] \,\Bigr|`
 
-Stated over the two fixed-bit experiments, each returning the adversary's raw
-guess $`b'`: $`\mathsf{AEAD_{real}}` fixes $`b = 0` and $`\mathsf{AEAD_{rand}}`
-fixes $`b = 1`. This is the advantage the Encrypt-then-MAC security theorem bounds.
+where $`\mathsf{AEAD_{real}}` and $`\mathsf{AEAD_{rand}}` are the security experiment
+with $`b` fixed to $`0` and to $`1`, and each returns the guess $`b'`. The security
+theorems for Encrypt-then-MAC and GCM bound this advantage.
 
 :::leanPillCaption "security experiment with a fixed challenge bit"
 :::
@@ -235,7 +303,7 @@ noncomputable def distAdvantage [SampleableType C] [DecidableEq AD] [DecidableEq
 :::
 
 :::theorem "aead_guess_dist_advantage" (lean := "AEADScheme.guessAdvantage_eq_distAdvantage_div_two") (uses := "aead_guess_advantage, aead_dist_advantage")
-$`\todo`
+Let $`\adv` be a one-time IND-CCA adversary. Then
 
 $$`\mathsf{Adv}^{\textsf{guess}}_{\textsf{AEAD}}(\adv)
   = \tfrac{1}{2}\,\mathsf{Adv}^{\textsf{dist}}_{\textsf{AEAD}}(\adv)`
