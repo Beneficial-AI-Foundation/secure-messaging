@@ -20,11 +20,11 @@ import VCVio.ProgramLogic.Relational.SimulateQ
   `b` (`Endpoints`), in which challenges return recorded keys when `b = false` and uniform keys
   when `b = true`.
 
-**Main results.** The *ideal epoch hybrid* `H_i := idealEpochHybridExp … adv i` answers eligible
-challenges at epochs `1, …, i` with uniform keys (as in `I_true`) and later ones with recorded keys
-(as in `I_false`); its challenge mode is `hybridMode i`, and `adjacentMode e b` is the mode of
-`H_{e-1}` if `b = false` and of `H_e` if `b = true`. *Stopping at `i + 1`* halts a run with output
-`false` at the first query that exposes epoch `i + 1`.
+**Main results.** For `i : ℕ`, the *ideal epoch hybrid* `H_i := idealEpochHybridExp … adv i` answers
+eligible challenges at epochs `1, …, i` with uniform keys (as in `I_true`) and later ones with
+recorded keys (as in `I_false`); its challenge mode is `hybridMode i`. For an epoch `e` and mode
+bit `b`, `adjacentMode e b` is the mode of `H_{e-1}` if `b = false` and of `H_e` if `b = true`.
+*Stopping at `i + 1`* halts a run with output `false` at the first query that exposes epoch `i + 1`.
 
 - When `adv` makes at most `q` send queries (`SecuritySendQueryBound adv q`),
   `AdvGuess_SCKA(scka, adv) ≤ |Pr[H_0 = true] - Pr[H_q = true]| / 2 + q · ε`

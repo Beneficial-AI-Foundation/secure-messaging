@@ -55,9 +55,9 @@ fixedBranch adv e b
 kemMat ← sampleMaterial leak;  stageStopped .pinned kemMat e (!b)
    ‖ stageStopped_online_deferred                                        (OnlineDeferral)
 kemMat ← sampleMaterial leak;  stageStopped .onlineFresh kemMat e (!b)
-   ‖ stageStopped_offline_deferred                                       (SourceDeferral)
+   ‖ stageStopped_offline_deferred                                       (KeygenOffDeferral)
 kemMat ← sampleMaterial leak;  stageStopped .encapsFresh kemMat e (!b)
-   ‖ stageStopped_keygen_deferred                                        (SourceDeferral)
+   ‖ stageStopped_keygen_deferred                                        (KeygenOffDeferral)
 stageStopped .fresh kemMat₀ e (!b)                                       kemMat₀ arbitrary (unused)
    ‖ stageOracle_fresh_eq_ideal                                          (an equality of oracles)
 idealSecurityImpl (adjacentMode e (!b)), stopped at the first exposure of e

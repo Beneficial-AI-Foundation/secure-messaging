@@ -12,8 +12,9 @@ import SecureMessaging.SCKA.Security
 
 **Setting.** Throughout this module, we consider:
 
-- a possible KEM material `kemMat ∈ support (sampleMaterial leak)` (`Simulator`) and game states
-  satisfying `reachableInv` and `consistentMat kemMat e` (`Game`);
+- a challenge epoch `e`, a mode bit `b`, a possible KEM material
+  `kemMat ∈ support (sampleMaterial leak)` (`Simulator`), and game states satisfying `reachableInv`
+  and `consistentMat kemMat e` (`Game`);
 - the material `{ kemMat with on := o }`, that is, `kemMat` with its online output resampled as
   `o ← leak.encapsOnRleak kemMat.st kemMat.pk`;
 - the one-use test `hit := usesOnline e`, which holds when the query runs B's online

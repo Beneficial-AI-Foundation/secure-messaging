@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.SourceUse
+import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.KeygenOffUse
 import ToVCVio.OracleComp.QueryTracking.OneUseSampling
 import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.OnlineDeferral
 
@@ -13,16 +13,17 @@ import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.OnlineDeferral
 
 **Setting.** Throughout this module, we consider:
 
-- a KEM material `kemMat` (`Simulator`) and the materials `{ kemMat with off := off }` and
-  `{ kemMat with keygen := kg }`, that is, `kemMat` with its offline output resampled as
-  `off ← leak.encapsOffRleak` and with its key-generation output resampled as
-  `kg ← leak.keygenRleak`;
-- the one-use test `hit := usesKeygenOff phase e` and the predicate `used := keygenOffUsed phase e`
-  (`SourceUse`), which satisfy the one-use conditions in every state;
-- the stage games `stageStopped stage kemMat e b` (`HybridGame`): the ideal game with challenge
-  mode `adjacentMode e b`, stopped at the first exposure of `e`, in which the sampling phases of
-  epoch `e` selected by `stage` read `kemMat` instead of sampling, from the pinned hybrid
-  `stageStopped .pinned` to the fully fresh `stageStopped .fresh`; and the ideal game
+- a challenge epoch `e`, a mode bit `b`, an SCKA adversary `adv`, a KEM material `kemMat`
+  (`Simulator`), and the materials `{ kemMat with off := off }` and `{ kemMat with keygen := kg }`,
+  that is, `kemMat` with its offline output resampled as `off ← leak.encapsOffRleak` and with its
+  key-generation output resampled as `kg ← leak.keygenRleak`;
+- for `phase : KeygenOff`, the one-use test `hit := usesKeygenOff phase e` and the predicate
+  `used := keygenOffUsed phase e` (`KeygenOffUse`), which satisfy the one-use conditions in every
+  state;
+- for a stage `stage`, the stage game `stageStopped stage kemMat e b` (`HybridGame`): the ideal
+  game with challenge mode `adjacentMode e b`, stopped at the first exposure of `e`, in which the
+  sampling phases of epoch `e` selected by `stage` read `kemMat` instead of sampling, from the
+  pinned hybrid `stageStopped .pinned` to the fully fresh `stageStopped .fresh`; and the ideal game
   `idealSecurityImpl μ` with challenge mode `μ` (`Endpoints`).
 
 **Main result** (step 3 of the proof structure in `OppUniKEM/Security`). For `e > 0`, each fixed

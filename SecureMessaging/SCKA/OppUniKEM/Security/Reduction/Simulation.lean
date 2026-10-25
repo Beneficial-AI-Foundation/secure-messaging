@@ -22,9 +22,9 @@ import SecureMessaging.SCKA.Security
   oracles with the public key and ciphertext of `kemMat` embedded at epoch `e`;
 - `honestStopped … kemMat e kStar` (`Game`) be the honest security oracles with the samples of
   epoch `e` pinned to `kemMat`, stopped (`⊥`) at the first query whose successor exposes `e`;
-- `fixedBranch adv e b` (`Simulator`) be the reduction `𝓑` with challenge epoch `e` and IND-CPA bit
-  `b`: it runs `adv` against the simulator with a fresh IND-CPA challenge, whose key is the
-  encapsulated key if `b` and a uniform key otherwise.
+- for an SCKA adversary `adv` and IND-CPA bit `b`, `fixedBranch adv e b` (`Simulator`) be the
+  reduction `𝓑` with challenge epoch `e` and bit `b`: it runs `adv` against the simulator with a
+  fresh IND-CPA challenge, whose key is the encapsulated key if `b` and a uniform key otherwise.
 
 **Main result** (`fixedBranch_eq_honestStopped`). Averaged over the KEM material, each fixed branch
 has the acceptance probability of the stopped honest game from the initial state `s₀`:

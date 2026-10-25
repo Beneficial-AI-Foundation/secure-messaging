@@ -26,9 +26,9 @@ import SecureMessaging.SCKA.Security
 - the simulator `simOracle` (`Simulator`), which runs over the simulated KEM `simKem` embedding the
   IND-CPA challenge at epoch `e`.
 
-**Main results.** The state map `hideState e s` hides the secret values of epoch `e` (party A's
-decapsulation key, party B's offline state, and the keys recorded at `e`) by setting them to `none`
-and wraps all other secret values in `some`.
+**Main results.** For an honest game state `s`, the state map `hideState e s` hides the secret
+values of epoch `e` (party A's decapsulation key, party B's offline state, and the keys recorded at
+`e`) by setting them to `none` and wraps all other secret values in `some`.
 
 - Each local send and receive over the simulated KEM `simKem` from a hidden state equals the same
   operation over `Pinned.kem kemMat` from the honest state, followed by hiding (`*_hide`).

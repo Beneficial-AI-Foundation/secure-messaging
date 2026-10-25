@@ -7,7 +7,7 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.SCKA.OppUniKEM.Security.Endpoints
 import SecureMessaging.SCKA.OppUniKEM.Security.IdealHybrids
 import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.OnlineDeferral
-import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.SourceDeferral
+import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.KeygenOffDeferral
 import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.HybridGame
 import SecureMessaging.SCKA.Security
 
@@ -87,11 +87,11 @@ Paths are relative to `OppUniKEM/Security/`.
 
    Main result: `Pr[𝓑_e^b = true] = Pr[P_e^b = true]` (`fixedBranch_eq_pinnedHybrid`).
 
-3. *Deferred sampling* (`Reduction/{SourceUse,OnlineDeferral,SourceDeferral}`).
+3. *Deferred sampling* (`Reduction/{KeygenOffUse,OnlineDeferral,KeygenOffDeferral}`).
    - Define `S_e^b`: `H_{i_b}` stopped at the first exposure of `e`.
    - In `P_e^b`, each pre-drawn sample of epoch `e` (key generation, offline and online
      encapsulation) is used by at most one query: the protocol call that draws it in `S_e^b`
-     (`SourceUse`). For a value used at most once, drawing it in advance or at that query gives
+     (`KeygenOffUse`). For a value used at most once, drawing it in advance or at that query gives
      the same acceptance probability (`stoppedRun_sample_once_eq`).
 
    Main result: `Pr[P_e^b = true] = Pr[S_e^b = true]` (`pinnedHybrid_eq_ideal`).
@@ -134,11 +134,11 @@ variable {K PK SK C Sym : Type}
 
 /-! ## Steps 4 and 5: adjacent-hybrid gaps and epoch averaging
 
-In the notation of the proof structure above, `fixedBranch_eq_ideal` (`Reduction/SourceDeferral`)
-combines Steps 2 and 3: for every `e > 0` and `b`, the fixed branch `𝓑_e^b` (`fixedBranch adv e b`)
-has the same acceptance probability as the stopped ideal hybrid `S_e^b`:
-`Pr[𝓑_e^b = true] = Pr[S_e^b = true]`. From this identity, we derive the per-epoch difference in
-acceptance probability (`fixedBranch_signed_gap_eq`, Step 4) and average over `e`
+In the notation of the proof structure above, `fixedBranch_eq_ideal`
+(`Reduction/KeygenOffDeferral`) combines Steps 2 and 3: for every `e > 0` and `b`, the fixed branch
+`𝓑_e^b` (`fixedBranch adv e b`) has the same acceptance probability as the stopped ideal hybrid
+`S_e^b`: `Pr[𝓑_e^b = true] = Pr[S_e^b = true]`. From this identity, we derive the per-epoch
+difference in acceptance probability (`fixedBranch_signed_gap_eq`, Step 4) and average over `e`
 (`hybrid_gap_eq_query_factor`, Step 5).
 -/
 

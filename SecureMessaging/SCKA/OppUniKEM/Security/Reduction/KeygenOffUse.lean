@@ -11,11 +11,11 @@ import SecureMessaging.SCKA.OppUniKEM.Security.Basic
 /-!
 # Single use of the key-generation and offline samples
 
-**Main results.** For `phase : KeygenOff` (A's key generation or B's offline encapsulation), let
-`used := keygenOffUsed phase e` (the phase output of `e` is present, or its party has passed `e`)
-and `hit := usesKeygenOff phase e` (the query runs the phase at `e`). These satisfy the one-use
-conditions of `stoppedRun_sample_once_eq` for the stage oracles `stageOracle stage kemMat e b`
-(`HybridGame`):
+**Main results.** For a challenge epoch `e` and `phase : KeygenOff` (A's key generation or B's
+offline encapsulation), let `used := keygenOffUsed phase e` (the phase output of `e` is present, or
+its party has passed `e`) and `hit := usesKeygenOff phase e` (the query runs the phase at `e`). For
+every stage `stage`, KEM material `kemMat`, and mode bit `b`, these satisfy the one-use conditions
+of `stoppedRun_sample_once_eq` for the stage oracles `stageOracle stage kemMat e b` (`HybridGame`):
 
 - every query preserves `used` (`stageOracle_preserves_keygenOffUsed`);
 - `used` implies `hit = false` (`usesKeygenOff_false_of_used`);
