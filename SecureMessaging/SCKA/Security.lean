@@ -23,7 +23,9 @@ records epochs whose challenges were successfully answered.
 
 We prove:
 
-- **State updates:** characterizations of challenge and corruption query outcomes.
+- **State updates:** characterizations of challenge and corruption query outcomes, and the
+  epoch-dependent challenge oracle `oracleChallOn`, whose query at epoch `t` is the fixed-bit
+  challenge with bit `random t`.
 - **Invariants:** conditions for security queries to preserve a predicate on game states.
 - **Expected scores:** conditions for ordinary-send bounds to hold also for leaking sends.
 - **Full oracle family:** `securityImplOf` combines correctness, challenge, leaking-send,
@@ -99,6 +101,21 @@ theorem oracleChall_support (b : Bool) (s : GameState StA StB I Rho) (t : ℕ)
     rw [oracleChall_unavailable b s t hA hB] at hz
     exact Or.inl ⟨(mem_support_pure_iff _ _).mp hz, Or.inr ⟨hA, hB⟩⟩
 
+/-- Two challenge bits give the same query computation at epoch `t` from `s` whenever they
+agree if `t` is eligible in `s`: not exposed, not already challenged, and keyed in one of the
+game's tables. On an ineligible epoch both bits return `none` and leave `s` unchanged. -/
+theorem oracleChall_run_eq_of_eligible_imp (b b' : Bool) (s : GameState StA StB I Rho) (t : ℕ)
+    (h : ¬(t ∈ s.exposed ∨ t ∈ s.challenged) →
+      ((s.keyA t).isSome = true ∨ (s.keyB t).isSome = true) → b = b') :
+    (oracleChall b StA StB I Rho t).run s = (oracleChall b' StA StB I Rho t).run s := by
+  by_cases hrej : t ∈ s.exposed ∨ t ∈ s.challenged
+  · rw [oracleChall_rejected b s t hrej, oracleChall_rejected b' s t hrej]
+  by_cases hkey : (s.keyA t).isSome = true ∨ (s.keyB t).isSome = true
+  · rw [h hrej hkey]
+  · have hA : s.keyA t = none := by cases hA : s.keyA t <;> simp_all
+    have hB : s.keyB t = none := by cases hB : s.keyB t <;> simp_all
+    rw [oracleChall_unavailable b s t hA hB, oracleChall_unavailable b' s t hA hB]
+
 end Challenge
 
 /-- The challenge oracle `oracleChall` preserves every predicate `Inv` on game states that is
@@ -111,6 +128,37 @@ theorem oracleChall_preservesInv [SampleableType I] (b : Bool)
   rcases oracleChall_support b s t z hz with ⟨h, _⟩ | ⟨_, _, h⟩
   · rw [h]; exact hs
   · rw [h]; exact hbook s _ hs
+
+/-! ### Epoch-dependent challenge -/
+
+section ChallengeOn
+
+variable [SampleableType I]
+
+/-- The challenge oracle whose eligible answers are random exactly at the epochs selected by
+`random`: the query at epoch `t` is `oracleChall (random t)` at `t`, with the same guards and
+bookkeeping. -/
+def oracleChallOn (random : ℕ → Bool) (StA StB I Rho : Type) [SampleableType I] :
+    QueryImpl (ℕ →ₒ Option I) (StateT (GameState StA StB I Rho) ProbComp) :=
+  fun t => oracleChall (random t) StA StB I Rho t
+
+@[simp]
+lemma oracleChallOn_apply (random : ℕ → Bool) (t : ℕ) :
+    oracleChallOn random StA StB I Rho t = oracleChall (random t) StA StB I Rho t := rfl
+
+/-- A constant selection is the fixed-bit challenge oracle. -/
+lemma oracleChallOn_const (b : Bool) :
+    oracleChallOn (fun _ => b) StA StB I Rho = oracleChall b StA StB I Rho := rfl
+
+/-- `oracleChallOn` preserves every predicate on game states that is insensitive to
+`challenged`. -/
+theorem oracleChallOn_preservesInv (random : ℕ → Bool)
+    (Inv : GameState StA StB I Rho → Prop)
+    (hbook : ∀ s challenged, Inv s → Inv { s with challenged := challenged }) :
+    QueryImpl.PreservesInv (oracleChallOn random StA StB I Rho) Inv :=
+  fun t => oracleChall_preservesInv (random t) Inv hbook t
+
+end ChallengeOn
 
 /-! ### Corruption -/
 
