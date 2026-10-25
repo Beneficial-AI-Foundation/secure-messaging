@@ -71,14 +71,14 @@ omit [SampleableType K] in
 private theorem idealCorrectnessImpl_preserves_sendEpochInv :
     QueryImpl.PreservesInv (idealCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak)
       sendEpochInv := by
-  intro t s hs z hz
+  intro t s hs res hres
   rcases t with ((((n | u) | u) | n) | n)
-  · rw [SCKAScheme.mem_support_oracleUnif_run n s z hz]; exact hs
-  · exact oracleSendA_preserves_sendEpochInv kem onoff hDet ecEk ecCt0 ecCt1 leak u s hs z hz
-  · exact oracleSendB_preserves_sendEpochInv kem onoff hDet ecEk ecCt0 ecCt1 leak u s hs z hz
+  · rw [SCKAScheme.mem_support_oracleUnif_run n s res hres]; exact hs
+  · exact oracleSendA_preserves_sendEpochInv kem onoff hDet ecEk ecCt0 ecCt1 leak u s hs res hres
+  · exact oracleSendB_preserves_sendEpochInv kem onoff hDet ecEk ecCt0 ecCt1 leak u s hs res hres
   · exact oracleRecvAIdeal_preserves_sendEpochInv kem onoff hDet ecEk ecCt0 ecCt1
-      leak n s hs z hz
-  · exact oracleRecvB_preserves_sendEpochInv kem onoff hDet ecEk ecCt0 ecCt1 leak n s hs z hz
+      leak n s hs res hres
+  · exact oracleRecvB_preserves_sendEpochInv kem onoff hDet ecEk ecCt0 ecCt1 leak n s hs res hres
 
 /-- Every query of `idealSecurityImpl` preserves `sendEpochInv`. -/
 private theorem idealSecurityImpl_preserves_sendEpochInv
@@ -92,18 +92,18 @@ private theorem idealSecurityImpl_preserves_sendEpochInv
     (oracleSendA_preserves_sendEpochInv kem onoff hDet ecEk ecCt0 ecCt1 leak)
     (oracleSendB_preserves_sendEpochInv kem onoff hDet ecEk ecCt0 ecCt1 leak)
 
-/-- Every successor state `z.2` of a query `t` of `idealSecurityImpl` from `s` satisfies
-`z.2.nA ≤ s.nA + 1` when `t` is a send query and `z.2.nA ≤ s.nA` otherwise. -/
+/-- Every successor state `res.2` of a query `t` of `idealSecurityImpl` from `s` satisfies
+`res.2.nA ≤ s.nA + 1` when `t` is a send query and `res.2.nA ≤ s.nA` otherwise. -/
 private theorem idealSecurityImpl_sendCounter_step
     (mode : ℕ → Bool) (t : (securitySpec leak Sym).Domain)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (z : (securitySpec leak Sym).Range t ×
-      SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (hz : z ∈ support ((idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak mode t).run s)) :
-    z.2.nA ≤ s.nA + if SCKAScheme.sckaSecuritySpec.isSendQuery t then 1 else 0 :=
+    (s : GameState onoff Sym)
+    (res : (securitySpec leak Sym).Range t ×
+      GameState onoff Sym)
+    (hres : res ∈ support ((idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak mode t).run s)) :
+    res.2.nA ≤ s.nA + if SCKAScheme.sckaSecuritySpec.isSendQuery t then 1 else 0 :=
   SCKAScheme.securityImplOf_nA_step _ _ _ _ _
     (idealCorrectnessImpl_nA_step kem onoff hDet ecEk ecCt0 ecCt1 leak)
-    (SCKAScheme.challOf_recordsChallenges _) t s z hz
+    (SCKAScheme.challOf_recordsChallenges _) t s res hres
 
 include hEk hCt0 hCt1 in
 /-- Assuming the erasure codes are correct, every query of `idealSecurityImpl` preserves
@@ -175,28 +175,28 @@ theorem idealEpochHybridExp_zero
 /-- Every query of `idealSecurityImpl` is monotonic in the `exposed` epoch set. -/
 private theorem idealSecurityImpl_exposed_subset
     (mode : ℕ → Bool) (t : (securitySpec leak Sym).Domain)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (z : (securitySpec leak Sym).Range t ×
-      SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (hz : z ∈ support ((idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak mode t).run s)) :
-    s.exposed ⊆ z.2.exposed :=
+    (s : GameState onoff Sym)
+    (res : (securitySpec leak Sym).Range t ×
+      GameState onoff Sym)
+    (hres : res ∈ support ((idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak mode t).run s)) :
+    s.exposed ⊆ res.2.exposed :=
   SCKAScheme.securityImplOf_exposed_subset _ _ _ _ _
-    (fun t s z hz => (idealCorrectnessImpl_securitySets_eq kem onoff hDet ecEk ecCt0 ecCt1 leak
-      t s z hz).1) (SCKAScheme.challOf_recordsChallenges _) t s z hz
+    (fun t s res hres => (idealCorrectnessImpl_securitySets_eq kem onoff hDet ecEk ecCt0 ecCt1 leak
+      t s res hres).1) (SCKAScheme.challOf_recordsChallenges _) t s res hres
 
 /-- Every query of `idealSecurityImpl` preserves membership `e ∈ s.exposed`. -/
 private theorem idealSecurityImpl_preserves_exposed
     (mode : ℕ → Bool) (e : ℕ) :
     QueryImpl.PreservesInv (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak mode)
       (fun s => e ∈ s.exposed) :=
-  fun t s hs z hz => idealSecurityImpl_exposed_subset kem onoff hDet ecEk ecCt0 ecCt1 leak mode
-    t s z hz hs
+  fun t s hs res hres => idealSecurityImpl_exposed_subset kem onoff hDet ecEk ecCt0 ecCt1 leak mode
+    t s res hres hs
 
 /-- In any state `s` satisfying `i + 1 ∈ s.exposed`, `idealEpochHybridImpl … (i + 1)` and
 `idealEpochHybridImpl … i` evaluate every query `t` to the same response/state computation. -/
 private theorem idealEpochHybrid_query_eq_of_exposed (i : ℕ)
     (t : (securitySpec leak Sym).Domain)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (s : GameState onoff Sym)
     (hs : i + 1 ∈ s.exposed) :
     (idealEpochHybridImpl kem onoff hDet ecEk ecCt0 ecCt1 leak (i + 1) t).run s =
       (idealEpochHybridImpl kem onoff hDet ecEk ecCt0 ecCt1 leak i t).run s := by
@@ -213,7 +213,7 @@ under `idealEpochHybridImpl … (i + 1)` and `idealEpochHybridImpl … i` yields
 computations. -/
 private theorem idealEpochHybrid_run_eq_of_exposed (i : ℕ)
     {α : Type} (adv : OracleComp (securitySpec leak Sym) α)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (s : GameState onoff Sym)
     (hs : i + 1 ∈ s.exposed) :
     (simulateQ (idealEpochHybridImpl kem onoff hDet ecEk ecCt0 ecCt1 leak (i + 1)) adv).run s =
       (simulateQ (idealEpochHybridImpl kem onoff hDet ecEk ecCt0 ecCt1 leak i) adv).run s := by
@@ -234,7 +234,7 @@ oracles `idealEpochHybridImpl … q` and the random-key ideal oracles
 computation. -/
 private theorem idealEpochHybrid_query_eq_random
     (q : ℕ) (t : (securitySpec leak Sym).Domain)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (s : GameState onoff Sym)
     (hr : reachableInv kem onoff ecEk ecCt0 ecCt1 s)
     (he : sendEpochInv s) (hc : s.nA ≤ q) :
     (idealEpochHybridImpl kem onoff hDet ecEk ecCt0 ecCt1 leak q t).run s =
@@ -272,14 +272,14 @@ theorem idealEpochHybridExp_last
       have hb := hs.2
       exact (idealEpochHybrid_query_eq_random kem onoff hDet ecEk ecCt0 ecCt1
         leak q t s hs.1.1 hs.1.2 (by omega)).symm)
-    (fun t s b hs hcan z hz => by
+    (fun t s b hs hcan res hres => by
       refine ⟨⟨idealSecurityImpl_preserves_reachableInv kem onoff hDet ecEk hEk ecCt0 hCt0
-          ecCt1 hCt1 leak _ t s hs.1.1 z hz,
+          ecCt1 hCt1 leak _ t s hs.1.1 res hres,
         idealSecurityImpl_preserves_sendEpochInv kem onoff hDet ecEk ecCt0 ecCt1
-          leak _ t s hs.1.2 z hz⟩, ?_⟩
+          leak _ t s hs.1.2 res hres⟩, ?_⟩
       have hb := hs.2
       have hc := idealSecurityImpl_sendCounter_step kem onoff hDet ecEk ecCt0 ecCt1 leak _
-        t s z hz
+        t s res hres
       by_cases ht : SCKAScheme.sckaSecuritySpec.isSendQuery t = true
       · have hpos : 0 < b := hcan.resolve_left (not_not_intro ht)
         simp only [ht, ↓reduceIte] at hc ⊢
@@ -351,9 +351,9 @@ private theorem idealSecurityImpl_preserves_disjoint (mode : ℕ → Bool) :
 private theorem idealSecurityImpl_preserves_challenged (mode : ℕ → Bool) (e : ℕ) :
     QueryImpl.PreservesInv (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak mode)
       (fun s => e ∈ s.challenged) :=
-  fun t s hs z hz => SCKAScheme.securityImplOf_challenged_subset _ _ _ _ _
-    (fun t s z hz => (idealCorrectnessImpl_securitySets_eq kem onoff hDet ecEk ecCt0 ecCt1 leak
-      t s z hz).2) (SCKAScheme.challOf_recordsChallenges _) t s z hz hs
+  fun t s hs res hres => SCKAScheme.securityImplOf_challenged_subset _ _ _ _ _
+    (fun t s res hres => (idealCorrectnessImpl_securitySets_eq kem onoff hDet ecEk ecCt0 ecCt1 leak
+      t s res hres).2) (SCKAScheme.challOf_recordsChallenges _) t s res hres hs
 
 /-- Every query of `idealSecurityImpl` preserves
 `Disjoint s.exposed s.challenged ∧ e ∈ s.challenged`, ensuring that a challenged epoch `e` remains
@@ -361,11 +361,11 @@ unexposed. -/
 private theorem idealSecurityImpl_preserves_committed (mode : ℕ → Bool) (e : ℕ) :
     QueryImpl.PreservesInv (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak mode)
       (fun s => Disjoint s.exposed s.challenged ∧ e ∈ s.challenged) := by
-  intro t s hs z hz
+  intro t s hs res hres
   exact ⟨idealSecurityImpl_preserves_disjoint kem onoff hDet ecEk ecCt0 ecCt1
-      leak mode t s hs.1 z hz,
+      leak mode t s hs.1 res hres,
     idealSecurityImpl_preserves_challenged kem onoff hDet ecEk ecCt0 ecCt1
-      leak mode e t s hs.2 z hz⟩
+      leak mode e t s hs.2 res hres⟩
 
 /-- From any state `s` satisfying `Disjoint s.exposed s.challenged`, either
 `idealEpochHybridImpl … (i + 1)` and `idealEpochHybridImpl … i` evaluate query `t` to the same
@@ -373,15 +373,15 @@ response/state computation, or `t` is an eligible challenge at epoch `i + 1` and
 state of either hybrid satisfies `Disjoint exposed challenged ∧ i + 1 ∈ challenged`. -/
 private theorem idealEpochHybrid_query_eq_or_committed
     (i : ℕ) (t : (securitySpec leak Sym).Domain)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (s : GameState onoff Sym)
     (hs : Disjoint s.exposed s.challenged) :
     (idealEpochHybridImpl kem onoff hDet ecEk ecCt0 ecCt1 leak (i + 1) t).run s =
         (idealEpochHybridImpl kem onoff hDet ecEk ecCt0 ecCt1 leak i t).run s ∨
-    ((∀ z ∈ support ((idealEpochHybridImpl kem onoff hDet ecEk ecCt0 ecCt1
+    ((∀ res ∈ support ((idealEpochHybridImpl kem onoff hDet ecEk ecCt0 ecCt1
         leak (i + 1) t).run s),
-        Disjoint z.2.exposed z.2.challenged ∧ i + 1 ∈ z.2.challenged) ∧
-     (∀ z ∈ support ((idealEpochHybridImpl kem onoff hDet ecEk ecCt0 ecCt1
-        leak i t).run s), Disjoint z.2.exposed z.2.challenged ∧ i + 1 ∈ z.2.challenged)) := by
+        Disjoint res.2.exposed res.2.challenged ∧ i + 1 ∈ res.2.challenged) ∧
+     (∀ res ∈ support ((idealEpochHybridImpl kem onoff hDet ecEk ecCt0 ecCt1
+        leak i t).run s), Disjoint res.2.exposed res.2.challenged ∧ i + 1 ∈ res.2.challenged)) := by
   rcases t with (((((t | u) | u) | t) | u) | u)
   all_goals try exact Or.inl rfl
   by_cases ht : t = i + 1
@@ -394,10 +394,10 @@ private theorem idealEpochHybrid_query_eq_or_committed
       · right
         constructor
         all_goals
-          intro z hz
+          intro res hres
           exact ⟨(SCKAScheme.challOf_recordsChallenges
-              (hybridMode _)).preserves_disjoint (i + 1) s hs z hz,
-            SCKAScheme.oracleChall_adds_challenged _ s _ helig hk z hz⟩
+              (hybridMode _)).preserves_disjoint (i + 1) s hs res hres,
+            SCKAScheme.oracleChall_adds_challenged _ s _ helig hk res hres⟩
       · simp only [not_or, Option.not_isSome_iff_eq_none] at hk
         left
         exact (SCKAScheme.oracleChall_unavailable _ s _ hk.1 hk.2).trans
@@ -412,7 +412,7 @@ of epoch `i + 1` preserves the difference in acceptance probability between the 
 hybrids `idealEpochHybridImpl … (i + 1)` (`H_{i+1}`) and `idealEpochHybridImpl … i` (`H_i`). -/
 theorem idealEpochHybrid_signed_gap_stop_eq
     (i : ℕ) (adv : SecurityAdversary leak Sym)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (s : GameState onoff Sym)
     (hs : Disjoint s.exposed s.challenged) :
     (Pr{let x ← ((simulateQ
       (idealEpochHybridImpl kem onoff hDet ecEk ecCt0 ecCt1 leak (i + 1)) adv).run'

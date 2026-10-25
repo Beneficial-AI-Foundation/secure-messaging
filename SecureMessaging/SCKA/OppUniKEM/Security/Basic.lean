@@ -26,6 +26,12 @@ namespace oppUniKemCKA
 
 variable {K PK SK C Sym : Type}
 
+/-- The game state of Opp-UniKEM's SCKA games over `onoff` with symbol type `Sym`:
+`SCKAScheme.GameState` with party states `StA onoff Sym` and `StB onoff Sym`, keys in `K`, and
+messages in `Message Sym`. -/
+abbrev GameState {kem : KEMScheme ProbComp K PK SK C} (onoff : kem.OnOffStructure) (Sym : Type) :=
+  SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)
+
 /-- Opp-UniKEM's SCKA security interface; the coin types come from `leak`. -/
 abbrev securitySpec {kem : KEMScheme ProbComp K PK SK C}
     {onoff : kem.OnOffStructure} (leak : kem.OnOffRandLeak onoff) (Sym : Type) :=
@@ -141,29 +147,29 @@ variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
 variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
 variable (leak : kem.OnOffRandLeak onoff)
 
-/-- Epochs exposed by A's successful leaking send from `s`: `{s.t}` if A generates a key pair
-(`s.dkA = none`), else `∅`. -/
+/-- Epochs exposed by A's successful leaking send from `stA`: `{stA.t}` if A generates a key pair
+(`stA.dkA = none`), else `∅`. -/
 def leakEpochsA {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
-    (s : StA onoff Sym) : Finset ℕ :=
-  if s.dkA.isNone then {s.t} else ∅
+    (stA : StA onoff Sym) : Finset ℕ :=
+  if stA.dkA.isNone then {stA.t} else ∅
 
-/-- Epochs exposed by B's successful leaking send from `s`: `{s.t}` if B runs offline or
+/-- Epochs exposed by B's successful leaking send from `stB`: `{stB.t}` if B runs offline or
 online encapsulation, else `∅`. -/
 def leakEpochsB {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
-    (s : StB onoff Sym) : Finset ℕ :=
-  if s.ct0.isNone || (s.ack.ctRec && s.ekA.isSome && s.ct1.isNone && s.stCt.isSome)
-  then {s.t} else ∅
+    (stB : StB onoff Sym) : Finset ℕ :=
+  if stB.ct0.isNone || (stB.ack.ctRec && stB.ekA.isSome && stB.ct1.isNone && stB.stCt.isSome)
+  then {stB.t} else ∅
 
-/-- Every possible successful output of `sendArleak s` with coins `rand` has
-`vulnRleakA s rand = leakEpochsA s`. -/
+/-- Every possible successful output of `sendArleak stA` with coins `rand` has
+`vulnRleakA stA rand = leakEpochsA stA`. -/
 theorem sendArleak_exposure
-    (s : StA onoff Sym)
-    (key : Option (ℕ × K)) (msg : Message Sym) (epoch : ℕ) (s' : StA onoff Sym)
+    (stA : StA onoff Sym)
+    (key : Option (ℕ × K)) (msg : Message Sym) (epoch : ℕ) (stA' : StA onoff Sym)
     (rand : SendRand leak.KeygenRand leak.OffRand leak.OnRand)
-    (hout : some (key, msg, epoch, s', rand) ∈ support (sendArleak kem onoff ecEk leak s)) :
-    vulnRleakA s rand = leakEpochsA s := by
-  generalize houtEq : some (key, msg, epoch, s', rand) = out at hout
-  cases hdk : s.dkA <;> cases hek : s.ekA <;> cases hack : s.ack.ekRec <;>
+    (hout : some (key, msg, epoch, stA', rand) ∈ support (sendArleak kem onoff ecEk leak stA)) :
+    vulnRleakA stA rand = leakEpochsA stA := by
+  generalize houtEq : some (key, msg, epoch, stA', rand) = out at hout
+  cases hdk : stA.dkA <;> cases hek : stA.ekA <;> cases hack : stA.ack.ekRec <;>
     simp only [sendArleak, hdk, hek, hack, Bool.false_eq_true, ↓reduceIte,
       pure_bind, mem_support_bind_iff, mem_support_pure_iff, Prod.exists,
       Nat.zero_add] at hout
@@ -176,24 +182,24 @@ theorem sendArleak_exposure
     rcases houtEq with ⟨rfl, rfl, rfl, rfl, rfl⟩
     simp [vulnRleakA, leakEpochsA, hdk]
 
-/-- B version of `sendArleak_exposure`: `vulnRleakB s rand = leakEpochsB s`. -/
+/-- B version of `sendArleak_exposure`: `vulnRleakB stB rand = leakEpochsB stB`. -/
 theorem sendBrleak_exposure
-    (s : StB onoff Sym)
-    (key : Option (ℕ × K)) (msg : Message Sym) (epoch : ℕ) (s' : StB onoff Sym)
+    (stB : StB onoff Sym)
+    (key : Option (ℕ × K)) (msg : Message Sym) (epoch : ℕ) (stB' : StB onoff Sym)
     (rand : SendRand leak.KeygenRand leak.OffRand leak.OnRand)
-    (hout : some (key, msg, epoch, s', rand) ∈
-      support (sendBrleak kem onoff ecCt0 ecCt1 leak s)) :
-    vulnRleakB s rand = leakEpochsB s := by
-  generalize houtEq : some (key, msg, epoch, s', rand) = out at hout
-  cases hct0 : s.ct0 <;> cases hek : s.ekA <;>
-    cases hct1 : s.ct1 <;> cases hst : s.stCt <;> cases hack : s.ack.ctRec <;>
+    (hout : some (key, msg, epoch, stB', rand) ∈
+      support (sendBrleak kem onoff ecCt0 ecCt1 leak stB)) :
+    vulnRleakB stB rand = leakEpochsB stB := by
+  generalize houtEq : some (key, msg, epoch, stB', rand) = out at hout
+  cases hct0 : stB.ct0 <;> cases hek : stB.ekA <;>
+    cases hct1 : stB.ct1 <;> cases hst : stB.stCt <;> cases hack : stB.ack.ctRec <;>
     simp only [sendBrleak, hct0, hek, hct1, hst, hack, Bool.not_false, Bool.not_true,
       Bool.false_eq_true, ↓reduceIte, pure_bind, mem_support_bind_iff,
       mem_support_pure_iff, Prod.exists, Nat.zero_add] at hout
   all_goals
     first
     | obtain rfl := hout
-    | obtain ⟨a, b, r, hs, rfl⟩ := hout
+    | obtain ⟨a, b, r, hstB, rfl⟩ := hout
     | obtain ⟨st, ct, roff, hoff, c1, key, ron, hon, rfl⟩ := hout
   all_goals
     simp only [Option.some.injEq, Prod.mk.injEq] at houtEq

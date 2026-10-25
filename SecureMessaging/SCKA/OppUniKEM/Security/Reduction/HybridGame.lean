@@ -83,7 +83,7 @@ section
 reads the key at `e`. -/
 def usesChallengeKey {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     (e : ℕ) (query : (SCKAScheme.sckaSecuritySpec Unit Unit Unit Unit Unit).Domain)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) : Bool :=
+    (s : GameState onoff Sym) : Bool :=
   match query with
   | .inl (.inl (.inr t)) => decide (t = e ∧ e ∉ s.exposed ∧ e ∉ s.challenged ∧
       ((s.keyA e).isSome ∨ (s.keyB e).isSome))
@@ -96,7 +96,7 @@ challenges `challOf (adjacentMode e b)`; `stageOracle .pinned kemMat e b` is the
 before stopping. -/
 def stageOracle (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool) :
     QueryImpl (securitySpec leak Sym)
-      (StateT (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) ProbComp) :=
+      (StateT (GameState onoff Sym) ProbComp) :=
   securityImplAt base onoff leak (stageScheme ecEk ecCt0 ecCt1 stage kemMat e)
     (SCKAScheme.challOf (adjacentMode e b))
 
@@ -105,7 +105,7 @@ def stageOracle (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool)
 def stageStopped (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool) :
     QueryImpl (securitySpec leak Sym)
       (OptionT (StateT
-        (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) ProbComp)) :=
+        (GameState onoff Sym) ProbComp)) :=
   stopOnState (stageOracle base onoff ecEk ecCt0 ecCt1 leak stage kemMat e b)
     (fun s => decide (e ∈ s.exposed))
 
@@ -114,42 +114,46 @@ private theorem honestOracle_preserves_challenged (kemMat : KEMMaterial leak) (e
     (u : ℕ) :
     QueryImpl.PreservesInv (honestOracle base onoff ecEk ecCt0 ecCt1 leak kemMat e kStar)
       (fun s => u ∈ s.challenged) := by
-  intro t s hs z hz
-  rw [honestOracle, securityImplAt_run] at hz
+  intro t s hs res hres
+  rw [honestOracle, securityImplAt_run] at hres
   exact SCKAScheme.securityImplOf_challenged_subset _ _ _ _ _
-    (fun t s z hz => (SCKAScheme.correctnessImpl_securitySets_eq _ t s z hz).2)
-    (pinnedChallenge_recordsChallenges onoff e kStar) t s z hz hs
+    (fun t s res hres => (SCKAScheme.correctnessImpl_securitySets_eq _ t s res hres).2)
+    (pinnedChallenge_recordsChallenges onoff e kStar) t s res hres hs
 
 /-- If `usesChallengeKey e t s = false`, the key does not affect how `honestOracle kemMat e k`
 answers `t` from `s`. -/
 private theorem honestOracle_eq_of_unused (kemMat : KEMMaterial leak) (e : ℕ) (k k' : K)
     (t : (securitySpec leak Sym).Domain)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (s : GameState onoff Sym)
     (h : usesChallengeKey e t s = false) :
     (honestOracle base onoff ecEk ecCt0 ecCt1 leak kemMat e k t).run s =
       (honestOracle base onoff ecEk ecCt0 ecCt1 leak kemMat e k' t).run s := by
   rcases t with (((((t | a) | a) | t) | a) | a)
   all_goals try rfl
-  simp only [securityImplAt, honestOracle, StateT.run_bind, StateT.run_get, pure_bind]
+  simp only [securityImplAt, SCKAScheme.securityImplOf, QueryImpl.add_apply_inl,
+    QueryImpl.add_apply_inr, honestOracle, StateT.run_bind, StateT.run_get,
+      pure_bind]
   exact pinnedChallenge_eq_of_unused onoff e t k k' s (of_decide_eq_false h)
 
 /-- If `usesChallengeKey e t s = true`, every possible successor of
 `honestOracle kemMat e k` on `t` from `s` has `e ∈ challenged`. -/
 private theorem honestOracle_use_records_challenge (kemMat : KEMMaterial leak) (e : ℕ) (k : K)
     (t : (securitySpec leak Sym).Domain)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (s : GameState onoff Sym)
     (h : usesChallengeKey e t s = true)
-    (z : (securitySpec leak Sym).Range t ×
-      SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (hz : z ∈ support ((honestOracle base onoff ecEk ecCt0 ecCt1 leak kemMat e k t).run s)) :
-    e ∈ z.2.challenged := by
+    (res : (securitySpec leak Sym).Range t ×
+      GameState onoff Sym)
+    (hres : res ∈ support ((honestOracle base onoff ecEk ecCt0 ecCt1 leak kemMat e k t).run s)) :
+    e ∈ res.2.challenged := by
   rcases t with (((((t | a) | a) | t) | a) | a)
   all_goals try simp only [usesChallengeKey, Bool.false_eq_true, decide_eq_true_eq] at h
   obtain ⟨ht, he, hc, hk⟩ := h
   subst t
-  simp only [securityImplAt, honestOracle, StateT.run_bind, StateT.run_get, pure_bind] at hz
-  rw [pinnedChallenge_selected onoff e k s (by simp [he, hc]) hk] at hz
-  obtain rfl := (mem_support_pure_iff _ _).mp hz
+  simp only [securityImplAt, SCKAScheme.securityImplOf, QueryImpl.add_apply_inl,
+    QueryImpl.add_apply_inr, honestOracle, StateT.run_bind, StateT.run_get,
+      pure_bind] at hres
+  rw [pinnedChallenge_selected onoff e k s (by simp [he, hc]) hk] at hres
+  obtain rfl := (mem_support_pure_iff _ _).mp hres
   exact Finset.mem_insert_self _ _
 
 end
@@ -163,14 +167,16 @@ variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 the same computation. -/
 private theorem honestOracle_eq_hybrid_real
     (kemMat : KEMMaterial leak) (e : ℕ) (t : (securitySpec leak Sym).Domain)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (s : GameState onoff Sym)
     (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s)
     (hm : ∀ k, s.keyB e = some k → k = kemMat.key) :
     (honestOracle base onoff ecEk ecCt0 ecCt1 leak kemMat e kemMat.key t).run s =
       (stageOracle base onoff ecEk ecCt0 ecCt1 leak .pinned kemMat e false t).run s := by
   rcases t with (((((t | u) | u) | t) | u) | u)
   all_goals try rfl
-  simp only [securityImplAt, honestOracle, stageOracle, StateT.run_bind, StateT.run_get,
+  simp only [securityImplAt, SCKAScheme.securityImplOf, QueryImpl.add_apply_inl,
+    QueryImpl.add_apply_inr, honestOracle, stageOracle, StateT.run_bind,
+      StateT.run_get,
     pure_bind, SCKAScheme.challOf, adjacentMode_apply, Bool.false_eq_true, false_and, or_false]
   exact pinnedChallenge_eq_recorded onoff e kemMat.key t s
     (recorded_eq_key base onoff ecEk ecCt0 ecCt1 leak kemMat e s hs hm)
@@ -191,12 +197,12 @@ theorem honestStopped_real_eq_hybrid
   apply prEvent_optionRun_eq_of_state_map _ _ id
     (fun s => (reachableInv base onoff ecEk ecCt0 ecCt1 s ∧ consistentMat kemMat e s) ∧
       ∀ k, s.keyB e = some k → k = kemMat.key)
-  · intro t s hs z hz _
-    change z ∈ support (do
+  · intro t s hs res hres _
+    change res ∈ support (do
       let out ← (honestOracle base onoff ecEk ecCt0 ecCt1 leak kemMat e kemMat.key t).run s
-      pure (if decide (e ∈ out.2.exposed) then none else some out.1, out.2)) at hz
-    obtain ⟨out, hout, hz⟩ := (mem_support_bind_iff _ _ _).mp hz
-    obtain rfl := (mem_support_pure_iff _ _).mp hz
+      pure (if decide (e ∈ out.2.exposed) then none else some out.1, out.2)) at hres
+    obtain ⟨out, hout, hres⟩ := (mem_support_bind_iff _ _ _).mp hres
+    obtain rfl := (mem_support_pure_iff _ _).mp hres
     exact ⟨honestScheme_preserves_simulationInv base onoff hDet ecEk hEk ecCt0 hCt0
       ecCt1 hCt1 leak kemMat hm e _ (pinnedChallenge_recordsChallenges onoff e kemMat.key)
       t s hs.1 out hout,
@@ -220,7 +226,7 @@ omit [DecidableEq K] [DecidableEq Sym] in
 private theorem pinnedChallenge_sample_uniform
     {base : KEMScheme ProbComp K PK SK C} (onoff : base.OnOffStructure)
     (e : ℕ) (he : 0 < e) (t : ℕ)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
+    (s : GameState onoff Sym) :
     (do
       let k ← ($ᵗ K : ProbComp K)
       (pinnedChallenge onoff e k t).run s) =ᵈ
@@ -242,7 +248,7 @@ private theorem pinnedChallenge_sample_uniform
 `k ←$ K; honestOracle kemMat e k t =ᵈ stageOracle .pinned kemMat e true t`. -/
 private theorem honestOracle_sample_uniform
     (kemMat : KEMMaterial leak) (e : ℕ) (he : 0 < e) (t : (securitySpec leak Sym).Domain)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
+    (s : GameState onoff Sym) :
     (do
       let k ← ($ᵗ K : ProbComp K)
       (honestOracle base onoff ecEk ecCt0 ecCt1 leak kemMat e k t).run s) =ᵈ
@@ -250,9 +256,13 @@ private theorem honestOracle_sample_uniform
   rcases t with (((((t | u) | u) | t) | u) | u)
   all_goals
     first
-    | simpa only [securityImplAt, honestOracle, stageOracle, StateT.run_bind, StateT.run_get,
+    | simpa only [securityImplAt, SCKAScheme.securityImplOf, QueryImpl.add_apply_inl,
+      QueryImpl.add_apply_inr, exposureA, exposureB, honestOracle, stageOracle, StateT.run_bind,
+        StateT.run_get,
         pure_bind, SCKAScheme.challOf] using pinnedChallenge_sample_uniform onoff e he t s
-    | simp only [securityImplAt, honestOracle, stageOracle, StateT.run_bind, StateT.run_get,
+    | simp only [securityImplAt, SCKAScheme.securityImplOf, QueryImpl.add_apply_inl,
+      QueryImpl.add_apply_inr, honestOracle, stageOracle, StateT.run_bind,
+        StateT.run_get,
         pure_bind]
       exact OracleComp.EvalDistEq.bind_const _ _
 
@@ -263,7 +273,7 @@ Pr[optionRun (stageStopped .pinned kemMat e true) adv s = true]`. -/
 theorem honestStopped_random_eq_hybrid
     (kemMat : KEMMaterial leak) (e : ℕ) (he : 0 < e)
     (adv : SecurityAdversary leak Sym)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
+    (s : GameState onoff Sym) :
     Pr{let x ← (do
       let k ← ($ᵗ K : ProbComp K)
       optionRun (honestStopped base onoff ecEk ecCt0 ecCt1 leak kemMat e k) adv s)}[x = true] =
@@ -274,14 +284,14 @@ theorem honestStopped_random_eq_hybrid
       s.exposed))
     (fun _ => True) (fun s => e ∈ s.challenged) (usesChallengeKey e)
     (fun _ _ _ _ _ _ _ _ => trivial)
-    (fun k _ t s _ hs z hz _ => honestOracle_preserves_challenged base onoff ecEk ecCt0 ecCt1
-      leak kemMat e k e t s hs z hz)
+    (fun k _ t s _ hs res hres _ => honestOracle_preserves_challenged base onoff ecEk ecCt0 ecCt1
+      leak kemMat e k e t s hs res hres)
     (fun t s _ h k _ k' _ => ToVCVio.evalDistEq_of_eq
       (honestOracle_eq_of_unused base onoff ecEk ecCt0 ecCt1 leak kemMat e k k' t s h))
     (fun t s _ hs => by
       rcases t with (((((t | a) | a) | t) | a) | a) <;> simp [usesChallengeKey, hs])
-    (fun k _ t s _ h z hz _ => honestOracle_use_records_challenge base onoff ecEk ecCt0 ecCt1
-      leak kemMat e k t s h z hz)
+    (fun k _ t s _ h res hres _ => honestOracle_use_records_challenge base onoff ecEk ecCt0 ecCt1
+      leak kemMat e k t s h res hres)
     (fun t s _ => honestOracle_sample_uniform base onoff ecEk ecCt0 ecCt1 leak kemMat e he t s)
     adv s trivial
 
@@ -313,7 +323,7 @@ end
 /-- B's leaking send in `stageScheme .fresh kemMat e s` is that of Opp-UniKEM over `base`. -/
 theorem sendBrleak_fresh_eq [DecidableEq Sym]
     (kemMat : KEMMaterial leak) (e : ℕ)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (s : GameState onoff Sym)
     (stB : StB onoff Sym) :
     (stageScheme ecEk ecCt0 ecCt1 .fresh kemMat e s).sendBrleak stB =
     (scheme base onoff hDet ecEk ecCt0 ecCt1 leak).sendBrleak stB := by
@@ -329,7 +339,7 @@ theorem sendBrleak_fresh_eq [DecidableEq Sym]
 /-- Ordinary-send version of `sendBrleak_fresh_eq`. -/
 theorem sendB_fresh_eq [DecidableEq Sym]
     (kemMat : KEMMaterial leak) (e : ℕ)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (s : GameState onoff Sym)
     (stB : StB onoff Sym) :
     (stageScheme ecEk ecCt0 ecCt1 .fresh kemMat e s).sendB stB =
     (scheme base onoff hDet ecEk ecCt0 ecCt1 leak).sendB stB := by
@@ -345,7 +355,9 @@ theorem stageOracle_fresh_eq_ideal [DecidableEq K] [DecidableEq Sym] [Sampleable
   funext t
   apply StateT.ext
   intro s
-  simp only [securityImplAt, stageOracle, StateT.run_bind, StateT.run_get, pure_bind]
+  simp only [securityImplAt, SCKAScheme.securityImplOf,
+    stageOracle, StateT.run_bind, StateT.run_get,
+      pure_bind]
   rcases t with (((((t | u) | u) | t) | u) | u)
   · rcases t with ((((n | u) | u) | n) | n)
     · simp only [idealSecurityImpl, SCKAScheme.securityImplOf, idealCorrectnessImpl,

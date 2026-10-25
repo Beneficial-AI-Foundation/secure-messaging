@@ -51,55 +51,55 @@ variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
 variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
 variable (leak : base.OnOffRandLeak onoff)
 
-/-- Every possible successful result of `sendA s` has key component `none`. -/
-theorem sendA_key_none (s : StA onoff Sym)
+/-- Every possible successful result of `sendA stA` has key component `none`. -/
+theorem sendA_key_none (stA : StA onoff Sym)
     (key : Option (ℕ × K)) (msg : Message Sym) (t : ℕ) (next : StA onoff Sym)
-    (hout : some (key, msg, t, next) ∈ support (sendA base onoff ecEk s)) :
+    (hout : some (key, msg, t, next) ∈ support (sendA base onoff ecEk stA)) :
     key = none := by
-  cases hd : s.dkA <;> cases hp : s.ekA <;> cases ha : s.ack.ekRec <;>
+  cases hd : stA.dkA <;> cases hp : stA.ekA <;> cases ha : stA.ack.ekRec <;>
     simp only [sendA, hd, hp, ha, Bool.false_eq_true, ↓reduceIte,
       pure_bind, mem_support_bind_iff, mem_support_pure_iff, Prod.exists,
       Option.some.injEq, Prod.mk.injEq] at hout
   all_goals aesop
 
-/-- A key `(t, k)` output by `sendB s` has `t = s.t` and `s.ct1 = none`. -/
-theorem sendB_key_fresh (s : StB onoff Sym)
+/-- A key `(t, k)` output by `sendB stB` has `t = stB.t` and `stB.ct1 = none`. -/
+theorem sendB_key_fresh (stB : StB onoff Sym)
     (t : ℕ) (k : K) (msg : Message Sym) (tsnd : ℕ) (next : StB onoff Sym)
     (hout : some (some (t, k), msg, tsnd, next) ∈
-      support (sendB base onoff ecCt0 ecCt1 s)) :
-    t = s.t ∧ s.ct1 = none := by
-  cases hc0 : s.ct0 <;> cases hp : s.ekA <;> cases hc1 : s.ct1 <;>
-    cases hst : s.stCt <;> cases ha : s.ack.ctRec <;>
+      support (sendB base onoff ecCt0 ecCt1 stB)) :
+    t = stB.t ∧ stB.ct1 = none := by
+  cases hc0 : stB.ct0 <;> cases hp : stB.ekA <;> cases hc1 : stB.ct1 <;>
+    cases hst : stB.stCt <;> cases ha : stB.ack.ctRec <;>
     simp only [sendB, hc0, hp, hc1, hst, ha, Bool.not_false, Bool.not_true,
       Bool.false_eq_true, ↓reduceIte, pure_bind, mem_support_bind_iff,
       mem_support_pure_iff, Prod.exists, Option.some.injEq, Prod.mk.injEq,
       Option.some_ne_none] at hout
   all_goals aesop
 
-/-- `sendArleak s` outputs no key and returns no coins or key-generation coins. -/
+/-- `sendArleak stA` outputs no key and returns no coins or key-generation coins. -/
 theorem sendArleak_shape
-    (s : StA onoff Sym) (key : Option (ℕ × K)) (msg : Message Sym)
+    (stA : StA onoff Sym) (key : Option (ℕ × K)) (msg : Message Sym)
     (t : ℕ) (next : StA onoff Sym)
     (coins : SendRand leak.KeygenRand leak.OffRand leak.OnRand)
-    (hout : some (key, msg, t, next, coins) ∈ support (sendArleak base onoff ecEk leak s)) :
+    (hout : some (key, msg, t, next, coins) ∈ support (sendArleak base onoff ecEk leak stA)) :
     key = none ∧ (coins = .none ∨ ∃ r, coins = .keygen r) := by
-  cases hd : s.dkA <;> cases hp : s.ekA <;> cases ha : s.ack.ekRec <;>
+  cases hd : stA.dkA <;> cases hp : stA.ekA <;> cases ha : stA.ack.ekRec <;>
     simp only [sendArleak, hd, hp, ha, Bool.false_eq_true, ↓reduceIte,
       pure_bind, mem_support_bind_iff, mem_support_pure_iff, Prod.exists,
       Option.some.injEq, Prod.mk.injEq] at hout
   all_goals aesop
 
-/-- `sendBrleak s` returns no coins, offline coins, online coins, or both. -/
+/-- `sendBrleak stB` returns no coins, offline coins, online coins, or both. -/
 theorem sendBrleak_coins
-    (s : StB onoff Sym) (key : Option (ℕ × K)) (msg : Message Sym)
+    (stB : StB onoff Sym) (key : Option (ℕ × K)) (msg : Message Sym)
     (t : ℕ) (next : StB onoff Sym)
     (coins : SendRand leak.KeygenRand leak.OffRand leak.OnRand)
     (hout : some (key, msg, t, next, coins) ∈
-      support (sendBrleak base onoff ecCt0 ecCt1 leak s)) :
+      support (sendBrleak base onoff ecCt0 ecCt1 leak stB)) :
     coins = .none ∨ (∃ r, coins = .off r) ∨ (∃ r, coins = .on r) ∨
       (∃ r₀ r₁, coins = .offOn r₀ r₁) := by
-  cases hc0 : s.ct0 <;> cases hp : s.ekA <;> cases hc1 : s.ct1 <;>
-    cases hst : s.stCt <;> cases ha : s.ack.ctRec <;>
+  cases hc0 : stB.ct0 <;> cases hp : stB.ekA <;> cases hc1 : stB.ct1 <;>
+    cases hst : stB.stCt <;> cases ha : stB.ack.ctRec <;>
     simp only [sendBrleak, hc0, hp, hc1, hst, ha, Bool.not_false, Bool.not_true,
       Bool.false_eq_true, ↓reduceIte, pure_bind, mem_support_bind_iff,
       mem_support_pure_iff, Prod.exists, Option.some.injEq, Prod.mk.injEq] at hout
@@ -107,19 +107,19 @@ theorem sendBrleak_coins
 
 /-- Leaking version of `sendB_key_fresh`. -/
 theorem sendBrleak_key_fresh
-    (s : StB onoff Sym) (t : ℕ) (k : K) (msg : Message Sym)
+    (stB : StB onoff Sym) (t : ℕ) (k : K) (msg : Message Sym)
     (tsnd : ℕ) (next : StB onoff Sym)
     (coins : SendRand leak.KeygenRand leak.OffRand leak.OnRand)
     (hout : some (some (t, k), msg, tsnd, next, coins) ∈
-      support (sendBrleak base onoff ecCt0 ecCt1 leak s)) :
-    t = s.t ∧ s.ct1 = none := by
-  apply sendB_key_fresh base onoff ecCt0 ecCt1 s t k msg tsnd next
-  rw [← sendBrleak_forget base onoff ecCt0 ecCt1 leak s]
+      support (sendBrleak base onoff ecCt0 ecCt1 leak stB)) :
+    t = stB.t ∧ stB.ct1 = none := by
+  apply sendB_key_fresh base onoff ecCt0 ecCt1 stB t k msg tsnd next
+  rw [← sendBrleak_forget base onoff ecCt0 ecCt1 leak stB]
   exact (mem_support_bind_iff _ _ _).mpr ⟨_, hout, by simp⟩
 
 /-- Under `reachableInv s` and `s.stB.ct1 = none`, no key is recorded for B's epoch `s.stB.t`. -/
 theorem keys_none_before_online
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (s : GameState onoff Sym)
     (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hc : s.stB.ct1 = none) :
     s.keyA s.stB.t = none ∧ s.keyB s.stB.t = none := by
   classical
@@ -136,35 +136,35 @@ theorem keys_none_before_online
 def hide {α : Type} (e t : ℕ) (value : α) : Option α :=
   if t = e then none else some value
 
-/-- Map party A's honest state `s` to the simulator's state by hiding A's decapsulation key when
-`s.t = e`. -/
+/-- Map party A's honest state `stA` to the simulator's state by hiding A's decapsulation key when
+`stA.t = e`. -/
 def hideA {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
-    (e : ℕ) (s : StA onoff Sym) : StateA (Option SK) PK onoff.C₀ Sym where
-  dkA := s.dkA.map (hide e s.t)
-  ekA := s.ekA
-  ct0 := s.ct0
-  t := s.t
-  ich := s.ich
-  lch := s.lch
-  ack := s.ack
+    (e : ℕ) (stA : StA onoff Sym) : StateA (Option SK) PK onoff.C₀ Sym where
+  dkA := stA.dkA.map (hide e stA.t)
+  ekA := stA.ekA
+  ct0 := stA.ct0
+  t := stA.t
+  ich := stA.ich
+  lch := stA.lch
+  ack := stA.ack
 
-/-- Map party B's honest state `s` to the simulator's state by hiding B's offline state when
-`s.t = e`. -/
+/-- Map party B's honest state `stB` to the simulator's state by hiding B's offline state when
+`stB.t = e`. -/
 def hideB {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
-    (e : ℕ) (s : StB onoff Sym) : StateB PK onoff.C₀ onoff.C₁ (Option onoff.St) Sym where
-  ekA := s.ekA
-  ct0 := s.ct0
-  ct1 := s.ct1
-  stCt := s.stCt.map (hide e s.t)
-  t := s.t
-  ich := s.ich
-  lch := s.lch
-  ack := s.ack
+    (e : ℕ) (stB : StB onoff Sym) : StateB PK onoff.C₀ onoff.C₁ (Option onoff.St) Sym where
+  ekA := stB.ekA
+  ct0 := stB.ct0
+  ct1 := stB.ct1
+  stCt := stB.stCt.map (hide e stB.t)
+  t := stB.t
+  ich := stB.ich
+  lch := stB.lch
+  ack := stB.ack
 
 /-- Map an honest game state `s` to the simulator's state `SimState` by hiding the local secrets of
 both parties and the recorded keys at epoch `e`. -/
 def hideState {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
-    (e : ℕ) (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
+    (e : ℕ) (s : GameState onoff Sym) :
     SimState onoff Sym where
   stA := hideA e s.stA
   stB := hideB e s.stB
@@ -187,96 +187,97 @@ theorem hide_update (e t : ℕ) (table : ℕ → Option K) (k : K) :
   funext u
   by_cases h : u = t <;> simp [h, Function.update_of_ne]
 
-/-- `revealA (hideA e s) = if e ∈ vulnCorrA s then none else some s`. -/
+/-- `revealA (hideA e stA) = if e ∈ vulnCorrA stA then none else some stA`. -/
 theorem revealA_hideA_eq {kem : KEMScheme ProbComp K PK SK C}
-    {onoff : kem.OnOffStructure} (e : ℕ) (s : StA onoff Sym) :
-    revealA (hideA e s) = if e ∈ vulnCorrA kem onoff s then none else some s := by
-  rcases s with ⟨dk, pk, ct, t, ich, lch, ack⟩
+    {onoff : kem.OnOffStructure} (e : ℕ) (stA : StA onoff Sym) :
+    revealA (hideA e stA) = if e ∈ vulnCorrA kem onoff stA then none else some stA := by
+  rcases stA with ⟨dk, pk, ct, t, ich, lch, ack⟩
   cases dk <;> by_cases ht : t = e <;>
     simp_all [revealA, revealField, hideA, hide, vulnCorrA, eq_comm]
 
 /-- B version of `revealA_hideA_eq`. -/
 theorem revealB_hideB_eq {kem : KEMScheme ProbComp K PK SK C}
-    {onoff : kem.OnOffStructure} (e : ℕ) (s : StB onoff Sym) :
-    revealB (hideB e s) = if e ∈ vulnCorrB kem onoff s then none else some s := by
-  rcases s with ⟨pk, ct0, ct1, st, t, ich, lch, ack⟩
+    {onoff : kem.OnOffStructure} (e : ℕ) (stB : StB onoff Sym) :
+    revealB (hideB e stB) = if e ∈ vulnCorrB kem onoff stB then none else some stB := by
+  rcases stB with ⟨pk, ct0, ct1, st, t, ich, lch, ack⟩
   cases st <;> by_cases ht : t = e <;>
     simp_all [revealB, revealField, hideB, hide, vulnCorrB, eq_comm]
 
-/-- The corruption-vulnerable epochs of `hideA e s` (`{t}` when holding a secret key, else `∅`)
-equal `vulnCorrA s`. -/
+/-- The corruption-vulnerable epochs of `hideA e stA` (`{t}` when holding a secret key, else `∅`)
+equal `vulnCorrA stA`. -/
 theorem hideA_vulnerable {base : KEMScheme ProbComp K PK SK C}
-    {onoff : base.OnOffStructure} (e : ℕ) (s : StA onoff Sym) :
-    (if (hideA e s).dkA.isSome then {(hideA e s).t} else ∅) = vulnCorrA base onoff s := by
-  cases h : s.dkA <;> simp [hideA, vulnCorrA, h]
+    {onoff : base.OnOffStructure} (e : ℕ) (stA : StA onoff Sym) :
+    (if (hideA e stA).dkA.isSome then {(hideA e stA).t} else ∅) = vulnCorrA base onoff stA := by
+  cases h : stA.dkA <;> simp [hideA, vulnCorrA, h]
 
 /-- B version of `hideA_vulnerable`. -/
 theorem hideB_vulnerable {base : KEMScheme ProbComp K PK SK C}
-    {onoff : base.OnOffStructure} (e : ℕ) (s : StB onoff Sym) :
-    (if (hideB e s).stCt.isSome then {(hideB e s).t} else ∅) = vulnCorrB base onoff s := by
-  cases h : s.stCt <;> simp [hideB, vulnCorrB, h]
+    {onoff : base.OnOffStructure} (e : ℕ) (stB : StB onoff Sym) :
+    (if (hideB e stB).stCt.isSome then {(hideB e stB).t} else ∅) = vulnCorrB base onoff stB := by
+  cases h : stB.stCt <;> simp [hideB, vulnCorrB, h]
 
 section
 
 variable [DecidableEq Sym]
 
-/-- `recvB s msg` outputs no key. -/
-theorem recvB_key_none (s : StB onoff Sym) (msg : Message Sym)
+/-- `recvB stB msg` outputs no key. -/
+theorem recvB_key_none (stB : StB onoff Sym) (msg : Message Sym)
     (key : Option (ℕ × K)) (t : ℕ) (next : StB onoff Sym)
-    (h : recvB base onoff ecEk s msg = some (key, t, next)) : key = none := by
+    (h : recvB base onoff ecEk stB msg = some (key, t, next)) : key = none := by
   unfold recvB at h
   repeat' split at h
   all_goals simp_all
 
-/-- A key `(t, k)` output by A's receive with decapsulation result `key` has `t = s.t` and
+/-- A key `(t, k)` output by A's receive with decapsulation result `key` has `t = stA.t` and
 `key = some k`. -/
 theorem recvA_key_source (key : Option K)
-    (s : StA onoff Sym) (msg : Message Sym)
+    (stA : StA onoff Sym) (msg : Message Sym)
     (t : ℕ) (k : K) (trcv : ℕ) (next : StA onoff Sym)
-    (h : recvA base onoff (fun _ _ => key) ecCt0 ecCt1 s msg =
+    (h : recvA base onoff (fun _ _ => key) ecCt0 ecCt1 stA msg =
       some (some (t, k), trcv, next)) :
-    t = s.t ∧ key = some k := by
+    t = stA.t ∧ key = some k := by
   rcases msg with ⟨ch, ack, epoch, bit⟩
-  by_cases ht : s.t = epoch
+  by_cases ht : stA.t = epoch
   all_goals
     simp only [recvA, ht, ↓reduceIte] at h
     repeat' split at h
     all_goals simp_all
 
-/-- Party B's receive over the simulated KEM from `hideB e s` equals `recvB s msg` followed by
+/-- Party B's receive over the simulated KEM from `hideB e stB` equals `recvB stB msg` followed by
 `hideB e`. -/
 theorem recvB_hide (e : ℕ)
     (selectedA selectedB : Bool) (pkStar : PK) (ctStar : C) (key : Option (Option K))
-    (s : StB onoff Sym) (msg : Message Sym) :
+    (stB : StB onoff Sym) (msg : Message Sym) :
     recvB (kem base onoff selectedA selectedB pkStar ctStar key)
-      (onOff base onoff selectedA selectedB pkStar ctStar key) ecEk (hideB e s) msg =
-      (recvB base onoff ecEk s msg).map (fun (_, t, u) => (none, t, hideB e u)) := by
+      (onOff base onoff selectedA selectedB pkStar ctStar key) ecEk (hideB e stB) msg =
+      (recvB base onoff ecEk stB msg).map (fun (_, t, u) => (none, t, hideB e u)) := by
   rcases msg with ⟨ch, ack, t, b⟩
-  by_cases hadv : s.t < t
+  by_cases hadv : stB.t < t
   all_goals
     simp only [recvB, hideB, hadv, ↓reduceIte]
     repeat' (split <;> simp_all only [Option.map_none, Option.map_some])
 
 set_option maxHeartbeats 800000 in
 -- Splitting the receive branches also expands the state-hiding equations.
-/-- Party A's receive over the simulated KEM with decapsulation result `key.map (hide e s.t)` from
-`hideA e s` equals A's receive with result `key` from `s`, followed by hiding the output key and
+/-- Party A's receive over the simulated KEM with decapsulation result `key.map (hide e stA.t)` from
+`hideA e stA` equals A's receive with result `key` from `stA`, followed by hiding the output key and
 state. -/
 theorem recvA_hide (e : ℕ)
     (selectedA selectedB : Bool) (pkStar : PK) (ctStar : C) (key : Option K)
-    (s : StA onoff Sym) (msg : Message Sym) :
-    recvA (kem base onoff selectedA selectedB pkStar ctStar (key.map (hide e s.t)))
-      (onOff base onoff selectedA selectedB pkStar ctStar (key.map (hide e s.t)))
-      (deterministic base onoff selectedA selectedB pkStar ctStar (key.map (hide e s.t))).decapsDet
-      ecCt0 ecCt1 (hideA e s) msg =
-      (recvA base onoff (fun _ _ => key) ecCt0 ecCt1 s msg).map
+    (stA : StA onoff Sym) (msg : Message Sym) :
+    recvA (kem base onoff selectedA selectedB pkStar ctStar (key.map (hide e stA.t)))
+      (onOff base onoff selectedA selectedB pkStar ctStar (key.map (hide e stA.t)))
+      (deterministic base onoff selectedA selectedB pkStar ctStar (key.map (hide e
+        stA.t))).decapsDet
+      ecCt0 ecCt1 (hideA e stA) msg =
+      (recvA base onoff (fun _ _ => key) ecCt0 ecCt1 stA msg).map
         (fun (out, t, u) =>
           (out.map (fun (epoch, k) => (epoch, hide e epoch k)), t, hideA e u)) := by
   rcases msg with ⟨ch, ack, t, b⟩
   cases b
   all_goals try (rename_i bit; fin_cases bit)
   all_goals cases ch
-  all_goals cases hd : s.dkA <;> cases hc : s.ct0 <;> cases hk : key
+  all_goals cases hd : stA.dkA <;> cases hc : stA.ct0 <;> cases hk : key
   all_goals
     simp only [recvA, hideA, hd, hc, Option.bind_eq_bind, Option.pure_def]
     repeat' (split <;> simp_all only [Option.bind_some, Option.bind_none,
@@ -292,7 +293,7 @@ end
 def pinnedChallenge [SampleableType K]
     {base : KEMScheme ProbComp K PK SK C} (onoff : base.OnOffStructure)
     (e : ℕ) (kStar : K) : QueryImpl (ℕ →ₒ Option K)
-      (StateT (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) ProbComp) :=
+      (StateT (GameState onoff Sym) ProbComp) :=
   challengeWith id e kStar
 
 /-- Running `challenge onoff e kStar t` from `hideState e s` coincides with running
@@ -300,7 +301,7 @@ def pinnedChallenge [SampleableType K]
 theorem challenge_hide [SampleableType K]
     {base : KEMScheme ProbComp K PK SK C} (onoff : base.OnOffStructure)
     (e : ℕ) (kStar : K) (t : ℕ)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
+    (s : GameState onoff Sym) :
     (challenge onoff e kStar t).run (hideState e s) =
       Prod.map id (hideState e) <$> (pinnedChallenge onoff e kStar t).run s := by
   simp only [challenge, pinnedChallenge, challengeWith, StateT.run_bind, StateT.run_get, pure_bind]
@@ -320,31 +321,31 @@ theorem pinnedChallenge_recordsChallenges [SampleableType K]
     {base : KEMScheme ProbComp K PK SK C} (onoff : base.OnOffStructure)
     (e : ℕ) (kStar : K) :
     SCKAScheme.RecordsChallenges (pinnedChallenge (Sym := Sym) onoff e kStar) := by
-  intro t s z hz
+  intro t s res hres
   by_cases helig : t ∈ s.exposed ∨ t ∈ s.challenged
   · left
     simp only [pinnedChallenge, challengeWith, StateT.run_bind, StateT.run_get, pure_bind, helig,
-      ↓reduceIte, StateT.run_pure, mem_support_pure_iff] at hz
-    rw [hz]
+      ↓reduceIte, StateT.run_pure, mem_support_pure_iff] at hres
+    rw [hres]
   · simp only [pinnedChallenge, challengeWith, StateT.run_bind, StateT.run_get, pure_bind, helig,
-      ↓reduceIte] at hz
-    repeat' split at hz
+      ↓reduceIte] at hres
+    repeat' split at hres
     all_goals
       simp only [StateT.run_pure, StateT.run_bind, StateT.run_map, StateT.run_set,
         StateT.run_monadLift, monadLift_self, bind_pure_comp,
         map_pure, Functor.map_map, mem_support_pure_iff,
-        support_map, support_uniformSample, Set.image_univ, Set.mem_range] at hz
+        support_map, support_uniformSample, Set.image_univ, Set.mem_range] at hres
     all_goals
       first
-      | (obtain rfl := hz; exact Or.inl rfl)
-      | (obtain ⟨_, rfl⟩ := hz; exact Or.inr ⟨fun h => helig (Or.inl h), rfl⟩)
+      | (obtain rfl := hres; exact Or.inl rfl)
+      | (obtain ⟨_, rfl⟩ := hres; exact Or.inr ⟨fun h => helig (Or.inl h), rfl⟩)
 
 /-- For an eligible `e`, `pinnedChallenge e kStar e` from `s` is `pure (some kStar, s')`, where
 `s'` adds `e` to `challenged`. -/
 theorem pinnedChallenge_selected [SampleableType K]
     {base : KEMScheme ProbComp K PK SK C} (onoff : base.OnOffStructure)
     (e : ℕ) (kStar : K)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (s : GameState onoff Sym)
     (helig : ¬(e ∈ s.exposed ∨ e ∈ s.challenged))
     (hkey : (s.keyA e).isSome ∨ (s.keyB e).isSome) :
     (pinnedChallenge onoff e kStar e).run s =
@@ -359,7 +360,7 @@ equal computations from `s`. -/
 theorem pinnedChallenge_eq_of_unused [SampleableType K]
     {base : KEMScheme ProbComp K PK SK C} (onoff : base.OnOffStructure)
     (e t : ℕ) (k k' : K)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (s : GameState onoff Sym)
     (h : ¬(t = e ∧ e ∉ s.exposed ∧ e ∉ s.challenged ∧
       ((s.keyA e).isSome ∨ (s.keyB e).isSome))) :
     (pinnedChallenge onoff e k t).run s = (pinnedChallenge onoff e k' t).run s := by
@@ -377,7 +378,7 @@ theorem pinnedChallenge_eq_of_unused [SampleableType K]
 theorem pinnedChallenge_eq_recorded [SampleableType K]
     {base : KEMScheme ProbComp K PK SK C} (onoff : base.OnOffStructure)
     (e : ℕ) (kStar : K) (t : ℕ)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (s : GameState onoff Sym)
     (hkey : ∀ k, s.keyA e = some k ∨ s.keyB e = some k → k = kStar) :
     (pinnedChallenge onoff e kStar t).run s =
       (SCKAScheme.oracleChall (decide (0 < t ∧ t < e))
@@ -410,22 +411,22 @@ def hideCoins {KG OFF ON : Type} (e t : ℕ) :
   | .on r => .on (hide e t r)
   | .offOn r₀ r₁ => .offOn (hide e t r₀) (hide e t r₁)
 
-/-- Party A's leaking send over the simulated KEM from `hideA e s` (with A selected iff `s.t = e`)
-equals A's leaking send over `Pinned.kem kemMat` from `s` followed by hiding the state and coins;
-the output key is `none`. -/
+/-- Party A's leaking send over the simulated KEM from `hideA e stA` (with A selected iff
+`stA.t = e`) equals A's leaking send over `Pinned.kem kemMat` from `stA` followed by hiding the
+state and coins; the output key is `none`. -/
 theorem sendArleak_hide
     (kemMat : KEMMaterial leak) (e : ℕ) (selectedB : Bool)
-    (keyS : Option (Option K)) (keyH : Option K) (s : StA onoff Sym) :
-    sendArleak (kem base onoff (decide (s.t = e)) selectedB kemMat.pk kemMat.ciphertext keyS)
-      (onOff base onoff (decide (s.t = e)) selectedB kemMat.pk kemMat.ciphertext keyS)
-      ecEk (leakage base onoff leak (decide (s.t = e)) selectedB
-        kemMat.pk kemMat.ciphertext keyS) (hideA e s) =
+    (keyS : Option (Option K)) (keyH : Option K) (stA : StA onoff Sym) :
+    sendArleak (kem base onoff (decide (stA.t = e)) selectedB kemMat.pk kemMat.ciphertext keyS)
+      (onOff base onoff (decide (stA.t = e)) selectedB kemMat.pk kemMat.ciphertext keyS)
+      ecEk (leakage base onoff leak (decide (stA.t = e)) selectedB
+        kemMat.pk kemMat.ciphertext keyS) (hideA e stA) =
     (fun out => out.map (fun (_, msg, epoch, next, coins) =>
-      (none, msg, epoch, hideA e next, hideCoins e s.t coins))) <$>
-      sendArleak (Pinned.kem kemMat (decide (s.t = e)) selectedB selectedB keyH)
-        (Pinned.onOff kemMat (decide (s.t = e)) selectedB selectedB keyH) ecEk
-        (Pinned.leakage leak kemMat (decide (s.t = e)) selectedB selectedB keyH) s := by
-  by_cases he : s.t = e <;> cases hd : s.dkA
+      (none, msg, epoch, hideA e next, hideCoins e stA.t coins))) <$>
+      sendArleak (Pinned.kem kemMat (decide (stA.t = e)) selectedB selectedB keyH)
+        (Pinned.onOff kemMat (decide (stA.t = e)) selectedB selectedB keyH) ecEk
+        (Pinned.leakage leak kemMat (decide (stA.t = e)) selectedB selectedB keyH) stA := by
+  by_cases he : stA.t = e <;> cases hd : stA.dkA
   all_goals
     simp only [sendArleak, hideA, hd, Option.map_none, Option.map_some]
     simp [keygenLeak, hideCoins, hide, he, monad_norm]
@@ -435,19 +436,20 @@ set_option maxHeartbeats 1400000 in
 /-- B version of `sendArleak_hide`; the output key is also hidden via `hide e`. -/
 theorem sendBrleak_hide
     (kemMat : KEMMaterial leak) (e : ℕ) (selectedA : Bool)
-    (keyS : Option (Option K)) (keyH : Option K) (s : StB onoff Sym) :
-    sendBrleak (kem base onoff selectedA (decide (s.t = e)) kemMat.pk kemMat.ciphertext keyS)
-      (onOff base onoff selectedA (decide (s.t = e)) kemMat.pk kemMat.ciphertext keyS)
-      ecCt0 ecCt1 (leakage base onoff leak selectedA (decide (s.t = e))
-        kemMat.pk kemMat.ciphertext keyS) (hideB e s) =
+    (keyS : Option (Option K)) (keyH : Option K) (stB : StB onoff Sym) :
+    sendBrleak (kem base onoff selectedA (decide (stB.t = e)) kemMat.pk kemMat.ciphertext keyS)
+      (onOff base onoff selectedA (decide (stB.t = e)) kemMat.pk kemMat.ciphertext keyS)
+      ecCt0 ecCt1 (leakage base onoff leak selectedA (decide (stB.t = e))
+        kemMat.pk kemMat.ciphertext keyS) (hideB e stB) =
     (fun out => out.map (fun (key, msg, epoch, next, coins) =>
       (key.map (fun (t, k) => (t, hide e t k)), msg, epoch,
-        hideB e next, hideCoins e s.t coins))) <$>
-      sendBrleak (Pinned.kem kemMat selectedA (decide (s.t = e)) (decide (s.t = e)) keyH)
-        (Pinned.onOff kemMat selectedA (decide (s.t = e)) (decide (s.t = e)) keyH) ecCt0 ecCt1
-        (Pinned.leakage leak kemMat selectedA (decide (s.t = e)) (decide (s.t = e)) keyH) s := by
-  by_cases he : s.t = e <;> cases hct0 : s.ct0 <;> cases hek : s.ekA <;>
-    cases hct1 : s.ct1 <;> cases hst : s.stCt <;> cases hack : s.ack.ctRec
+        hideB e next, hideCoins e stB.t coins))) <$>
+      sendBrleak (Pinned.kem kemMat selectedA (decide (stB.t = e)) (decide (stB.t = e)) keyH)
+        (Pinned.onOff kemMat selectedA (decide (stB.t = e)) (decide (stB.t = e)) keyH) ecCt0 ecCt1
+        (Pinned.leakage leak kemMat selectedA (decide (stB.t = e)) (decide (stB.t = e)) keyH)
+        stB := by
+  by_cases he : stB.t = e <;> cases hct0 : stB.ct0 <;> cases hek : stB.ekA <;>
+    cases hct1 : stB.ct1 <;> cases hst : stB.stCt <;> cases hack : stB.ack.ctRec
   all_goals
     simp only [sendBrleak, hideB, hct0, hek, hct1, hst, Option.map_none, Option.map_some]
     simp [offLeak, onLeak, KEMMaterial.ciphertext, hideCoins, hide,
@@ -456,18 +458,18 @@ theorem sendBrleak_hide
 /-- Ordinary-send version of `sendArleak_hide`. -/
 theorem sendA_hide
     (kemMat : KEMMaterial leak) (e : ℕ) (selectedB : Bool)
-    (keyS : Option (Option K)) (keyH : Option K) (s : StA onoff Sym) :
-    sendA (kem base onoff (decide (s.t = e)) selectedB kemMat.pk kemMat.ciphertext keyS)
-      (onOff base onoff (decide (s.t = e)) selectedB kemMat.pk kemMat.ciphertext keyS)
-      ecEk (hideA e s) =
+    (keyS : Option (Option K)) (keyH : Option K) (stA : StA onoff Sym) :
+    sendA (kem base onoff (decide (stA.t = e)) selectedB kemMat.pk kemMat.ciphertext keyS)
+      (onOff base onoff (decide (stA.t = e)) selectedB kemMat.pk kemMat.ciphertext keyS)
+      ecEk (hideA e stA) =
     (fun out => out.map (fun (_, msg, epoch, next) => (none, msg, epoch, hideA e next))) <$>
-      sendA (Pinned.kem kemMat (decide (s.t = e)) selectedB selectedB keyH)
-        (Pinned.onOff kemMat (decide (s.t = e)) selectedB selectedB keyH) ecEk s := by
+      sendA (Pinned.kem kemMat (decide (stA.t = e)) selectedB selectedB keyH)
+        (Pinned.onOff kemMat (decide (stA.t = e)) selectedB selectedB keyH) ecEk stA := by
   rw [sendA_eq_map_sendArleak _ _ ecEk
-      (leakage base onoff leak (decide (s.t = e)) selectedB kemMat.pk kemMat.ciphertext keyS),
+      (leakage base onoff leak (decide (stA.t = e)) selectedB kemMat.pk kemMat.ciphertext keyS),
     sendA_eq_map_sendArleak _ _ ecEk
-      (Pinned.leakage leak kemMat (decide (s.t = e)) selectedB selectedB keyH),
-    sendArleak_hide base onoff ecEk leak kemMat e selectedB keyS keyH s,
+      (Pinned.leakage leak kemMat (decide (stA.t = e)) selectedB selectedB keyH),
+    sendArleak_hide base onoff ecEk leak kemMat e selectedB keyS keyH stA,
     Functor.map_map, Functor.map_map]
   congr 1
   funext out
@@ -476,24 +478,24 @@ theorem sendA_hide
 /-- Ordinary-send version of `sendBrleak_hide`. -/
 theorem sendB_hide
     (kemMat : KEMMaterial leak) (e : ℕ) (selectedA : Bool)
-    (keyS : Option (Option K)) (keyH : Option K) (s : StB onoff Sym) :
-    sendB (kem base onoff selectedA (decide (s.t = e)) kemMat.pk kemMat.ciphertext keyS)
-      (onOff base onoff selectedA (decide (s.t = e)) kemMat.pk kemMat.ciphertext keyS)
-      ecCt0 ecCt1 (hideB e s) =
+    (keyS : Option (Option K)) (keyH : Option K) (stB : StB onoff Sym) :
+    sendB (kem base onoff selectedA (decide (stB.t = e)) kemMat.pk kemMat.ciphertext keyS)
+      (onOff base onoff selectedA (decide (stB.t = e)) kemMat.pk kemMat.ciphertext keyS)
+      ecCt0 ecCt1 (hideB e stB) =
     (fun out => out.map (fun (key, msg, epoch, next) =>
       (key.map (fun (t, k) => (t, hide e t k)), msg, epoch, hideB e next))) <$>
-      sendB (Pinned.kem kemMat selectedA (decide (s.t = e)) (decide (s.t = e)) keyH)
-        (Pinned.onOff kemMat selectedA (decide (s.t = e)) (decide (s.t = e)) keyH)
-        ecCt0 ecCt1 s := by
+      sendB (Pinned.kem kemMat selectedA (decide (stB.t = e)) (decide (stB.t = e)) keyH)
+        (Pinned.onOff kemMat selectedA (decide (stB.t = e)) (decide (stB.t = e)) keyH)
+        ecCt0 ecCt1 stB := by
   rw [sendB_eq_map_sendBrleak
-      (kem base onoff selectedA (decide (s.t = e)) kemMat.pk kemMat.ciphertext keyS)
-      (onOff base onoff selectedA (decide (s.t = e)) kemMat.pk kemMat.ciphertext keyS) ecCt0 ecCt1
-      (leakage base onoff leak selectedA (decide (s.t = e)) kemMat.pk kemMat.ciphertext keyS),
+      (kem base onoff selectedA (decide (stB.t = e)) kemMat.pk kemMat.ciphertext keyS)
+      (onOff base onoff selectedA (decide (stB.t = e)) kemMat.pk kemMat.ciphertext keyS) ecCt0 ecCt1
+      (leakage base onoff leak selectedA (decide (stB.t = e)) kemMat.pk kemMat.ciphertext keyS),
     sendB_eq_map_sendBrleak
-      (Pinned.kem kemMat selectedA (decide (s.t = e)) (decide (s.t = e)) keyH)
-      (Pinned.onOff kemMat selectedA (decide (s.t = e)) (decide (s.t = e)) keyH) ecCt0 ecCt1
-      (Pinned.leakage leak kemMat selectedA (decide (s.t = e)) (decide (s.t = e)) keyH),
-    sendBrleak_hide base onoff ecCt0 ecCt1 leak kemMat e selectedA keyS keyH s,
+      (Pinned.kem kemMat selectedA (decide (stB.t = e)) (decide (stB.t = e)) keyH)
+      (Pinned.onOff kemMat selectedA (decide (stB.t = e)) (decide (stB.t = e)) keyH) ecCt0 ecCt1
+      (Pinned.leakage leak kemMat selectedA (decide (stB.t = e)) (decide (stB.t = e)) keyH),
+    sendBrleak_hide base onoff ecCt0 ecCt1 leak kemMat e selectedA keyS keyH stB,
     Functor.map_map, Functor.map_map]
   congr 1
   funext out

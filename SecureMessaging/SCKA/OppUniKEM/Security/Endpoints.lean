@@ -85,11 +85,11 @@ except that decapsulation is replaced by looking up party B's recorded key `s.ke
 A's current epoch (`none` if no key is recorded). -/
 def oracleRecvAIdeal [DecidableEq K] [DecidableEq Sym] :
     QueryImpl (ℕ →ₒ Option (ℕ × Option ℕ))
-      (StateT (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) ProbComp) :=
+      (StateT (GameState onoff Sym) ProbComp) :=
   fun n => do
     let s ← (get : StateT
-      (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) ProbComp
-      (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)))
+      (GameState onoff Sym) ProbComp
+      (GameState onoff Sym))
     (SCKAScheme.oracleRecvA (schemeWithDecaps kem onoff hDet ecEk ecCt0 ecCt1 leak
       (fun _ _ => s.keyB s.stA.t)) n)
 
@@ -99,20 +99,20 @@ include hCt0 hCt1 in
 theorem oracleRecvAIdeal_preserves_reachableInv [DecidableEq K] [DecidableEq Sym] :
     QueryImpl.PreservesInv (oracleRecvAIdeal kem onoff hDet ecEk ecCt0 ecCt1 leak)
       (reachableInv kem onoff ecEk ecCt0 ecCt1) := by
-  intro n s hs z hz
+  intro n s hs res hres
   exact oracleRecvA_preserves_reachableInv_of_recv kem onoff ecEk ecCt0 hCt0
     ecCt1 hCt1 ecCt1.ec.nchunk_pos
     (schemeWithDecaps kem onoff hDet ecEk ecCt0 ecCt1 leak (fun _ _ => s.keyB s.stA.t))
-    (fun _ _ => s.keyB s.stA.t) rfl n s hs (fun _ _ _ _ _ _ _ hk => hk) z hz
+    (fun _ _ => s.keyB s.stA.t) rfl n s hs (fun _ _ _ _ _ _ _ hk => hk) res hres
 
 /-- Party A's ideal receive oracle `oracleRecvAIdeal` preserves `sendEpochInv`. -/
 theorem oracleRecvAIdeal_preserves_sendEpochInv [DecidableEq K] [DecidableEq Sym] :
     QueryImpl.PreservesInv (oracleRecvAIdeal kem onoff hDet ecEk ecCt0 ecCt1 leak)
       sendEpochInv := by
-  intro n s hs z hz
+  intro n s hs res hres
   exact oracleRecvA_preserves_sendEpochInv_of_recv kem onoff ecCt0 ecCt1
     (schemeWithDecaps kem onoff hDet ecEk ecCt0 ecCt1 leak (fun _ _ => s.keyB s.stA.t))
-    (fun _ _ => s.keyB s.stA.t) rfl n s hs z hz
+    (fun _ _ => s.keyB s.stA.t) rfl n s hs res hres
 
 section
 
@@ -123,7 +123,7 @@ include hDet in
 `oracleRecvAIdeal`. -/
 def idealCorrectnessImpl :
     QueryImpl (SCKAScheme.sckaCorrectnessSpec (Message Sym))
-      (StateT (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) ProbComp) :=
+      (StateT (GameState onoff Sym) ProbComp) :=
   let scka := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak
   SCKAScheme.oracleUnif (StA onoff Sym) (StB onoff Sym) K (Message Sym)
     + SCKAScheme.oracleSendA scka + SCKAScheme.oracleSendB scka
@@ -134,7 +134,7 @@ include hDet in
 def idealSecurityImpl
     (mode : ℕ → Bool) :
     QueryImpl (securitySpec leak Sym)
-      (StateT (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) ProbComp) :=
+      (StateT (GameState onoff Sym) ProbComp) :=
   SCKAScheme.securityImplOf (idealCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak)
     (SCKAScheme.challOf mode)
     (exposureA kem onoff leak) (exposureB kem onoff leak)
@@ -153,7 +153,7 @@ omit [SampleableType K] in
 on `schemeWithDecaps` using the constant lookup `fun _ _ => s.keyB s.stA.t`. -/
 private theorem idealCorrectnessImpl_run_eq
     (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
+    (s : GameState onoff Sym) :
     (idealCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak t).run s =
       (SCKAScheme.sckaCorrectnessImpl (schemeWithDecaps kem onoff hDet ecEk ecCt0 ecCt1 leak
         (fun _ _ => s.keyB s.stA.t)) t).run s := by
@@ -164,26 +164,26 @@ omit [SampleableType K] in
 unchanged. -/
 theorem idealCorrectnessImpl_securitySets_eq
     (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (z : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Range t ×
-      SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (hz : z ∈ support ((idealCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak t).run s)) :
-    z.2.exposed = s.exposed ∧ z.2.challenged = s.challenged := by
-  rw [idealCorrectnessImpl_run_eq] at hz
-  exact SCKAScheme.correctnessImpl_securitySets_eq _ t s z hz
+    (s : GameState onoff Sym)
+    (res : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Range t ×
+      GameState onoff Sym)
+    (hres : res ∈ support ((idealCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak t).run s)) :
+    res.2.exposed = s.exposed ∧ res.2.challenged = s.challenged := by
+  rw [idealCorrectnessImpl_run_eq] at hres
+  exact SCKAScheme.correctnessImpl_securitySets_eq _ t s res hres
 
 omit [SampleableType K] in
-/-- Every successor state `z.2` of an ideal correctness query `t` from `s` satisfies
-`z.2.nA ≤ s.nA + 1` when `t` is a send query and `z.2.nA ≤ s.nA` otherwise. -/
+/-- Every successor state `res.2` of an ideal correctness query `t` from `s` satisfies
+`res.2.nA ≤ s.nA + 1` when `t` is a send query and `res.2.nA ≤ s.nA` otherwise. -/
 theorem idealCorrectnessImpl_nA_step
     (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (z : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Range t ×
-      SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (hz : z ∈ support ((idealCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak t).run s)) :
-    z.2.nA ≤ s.nA + if SCKAScheme.isSendQuery t then 1 else 0 := by
-  rw [idealCorrectnessImpl_run_eq] at hz
-  exact SCKAScheme.correctnessImpl_nA_step _ t s z hz
+    (s : GameState onoff Sym)
+    (res : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Range t ×
+      GameState onoff Sym)
+    (hres : res ∈ support ((idealCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak t).run s)) :
+    res.2.nA ≤ s.nA + if SCKAScheme.isSendQuery t then 1 else 0 := by
+  rw [idealCorrectnessImpl_run_eq] at hres
+  exact SCKAScheme.correctnessImpl_nA_step _ t s res hres
 
 omit [SampleableType K] in
 include hEk hCt0 hCt1 in
@@ -192,17 +192,17 @@ include hEk hCt0 hCt1 in
 theorem idealCorrectnessImpl_preserves_reachableInv :
     QueryImpl.PreservesInv (idealCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak)
       (reachableInv kem onoff ecEk ecCt0 ecCt1) := by
-  intro t s hs z hz
+  intro t s hs res hres
   rcases t with ((((n | u) | u) | n) | n)
-  · exact SCKAScheme.oracleUnif_preservesInv _ n s hs z hz
+  · exact SCKAScheme.oracleUnif_preservesInv _ n s hs res hres
   · exact oracleSendA_preserves_reachableInv kem onoff hDet ecEk ecCt0 ecCt1 leak
-      ecEk.ec.nchunk_pos u s hs z hz
+      ecEk.ec.nchunk_pos u s hs res hres
   · exact oracleSendB_preserves_reachableInv kem onoff hDet ecEk ecCt0 ecCt0.ec.nchunk_pos
-      ecCt1 ecCt1.ec.nchunk_pos leak u s hs z hz
+      ecCt1 ecCt1.ec.nchunk_pos leak u s hs res hres
   · exact oracleRecvAIdeal_preserves_reachableInv kem onoff hDet ecEk ecCt0 hCt0 ecCt1 hCt1
-      leak n s hs z hz
+      leak n s hs res hres
   · exact oracleRecvB_preserves_reachableInv kem onoff hDet ecEk hEk ecEk.ec.nchunk_pos
-      ecCt0 ecCt1 leak n s hs z hz
+      ecCt0 ecCt1 leak n s hs res hres
 
 end
 
@@ -210,41 +210,41 @@ end
 message if they agree on every decapsulation reached by that receive. -/
 theorem recvA_eq_of_decaps_agrees [DecidableEq Sym]
     (decaps decaps' : SK → C → Option K)
-    (s : StA onoff Sym) (msg : Message Sym)
+    (stA : StA onoff Sym) (msg : Message Sym)
     (hdec : ∀ dk ct0 ch ct1 ack,
-      s.dkA = some dk → s.ct0 = some ct0 →
-      msg = (some ch, ack, s.t, some 1) →
-      ecCt1.decode (insert ch s.lch) = some ct1 →
+      stA.dkA = some dk → stA.ct0 = some ct0 →
+      msg = (some ch, ack, stA.t, some 1) →
+      ecCt1.decode (insert ch stA.lch) = some ct1 →
       decaps dk (onoff.split.symm (ct0, ct1)) = decaps' dk (onoff.split.symm (ct0, ct1))) :
-    recvA kem onoff decaps ecCt0 ecCt1 s msg =
-      recvA kem onoff decaps' ecCt0 ecCt1 s msg := by
+    recvA kem onoff decaps ecCt0 ecCt1 stA msg =
+      recvA kem onoff decaps' ecCt0 ecCt1 stA msg := by
   rcases msg with ⟨ch, ack, t, bit⟩
-  by_cases ht : t = s.t
+  by_cases ht : t = stA.t
   · subst t
     cases hc : ch with
     | none =>
-      cases hct : s.ct0 <;> simp [recvA, hct]
+      cases hct : stA.ct0 <;> simp [recvA, hct]
     | some chunk =>
       cases hb : bit with
       | none =>
-        cases hct : s.ct0 <;> simp [recvA, hct]
+        cases hct : stA.ct0 <;> simp [recvA, hct]
       | some bit =>
         fin_cases bit
-        · cases hct : s.ct0 <;> cases hdecode : ecCt0.decode (insert chunk s.lch) <;>
+        · cases hct : stA.ct0 <;> cases hdecode : ecCt0.decode (insert chunk stA.lch) <;>
             simp [recvA, hct, hdecode]
-        · cases hct1 : ecCt1.decode (insert chunk s.lch) with
-          | none => cases hct : s.ct0 <;> simp [recvA, hct, hct1]
+        · cases hct1 : ecCt1.decode (insert chunk stA.lch) with
+          | none => cases hct : stA.ct0 <;> simp [recvA, hct, hct1]
           | some ct1 =>
-            cases hd : s.dkA with
-            | none => cases hct : s.ct0 <;> simp [recvA, hd, hct, hct1]
+            cases hd : stA.dkA with
+            | none => cases hct : stA.ct0 <;> simp [recvA, hd, hct, hct1]
             | some dk =>
-              cases hct : s.ct0 with
+              cases hct : stA.ct0 with
               | none => simp [recvA, hd, hct, hct1]
               | some ct0 =>
                 have heq := hdec dk ct0 chunk ct1 ack hd hct
                   (by simp [hc, hb]) hct1
                 simp [recvA, hd, hct, hct1, heq]
-  · have ht' : s.t ≠ t := Ne.symm ht
+  · have ht' : stA.t ≠ t := Ne.symm ht
     simp [recvA, ht']
 
 include hDet in
@@ -256,7 +256,7 @@ include hDet in
   for A's epoch are present, decapsulation of those ciphertext components under that secret
   key returns the recorded key (`CurrentKEMCorrect`). -/
 def IdealReceiveConditions
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) : Prop :=
+    (s : GameState onoff Sym) : Prop :=
   ecCt1.ec.Correct ∧ reachableInv kem onoff ecEk ecCt0 ecCt1 s ∧
     CurrentKEMCorrect kem onoff hDet s
 
@@ -264,7 +264,7 @@ def IdealReceiveConditions
 If a recorded message from B completes A's online ciphertext, A's decapsulation result equals
 B's recorded key for A's current epoch. -/
 theorem honest_recvA_decapsulation_eq_recorded [DecidableEq Sym]
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (s : GameState onoff Sym)
     (hs : IdealReceiveConditions kem onoff hDet ecEk ecCt0 ecCt1 s)
     (n : ℕ) (msg : Message Sym) (epoch : ℕ) (hentry : s.msgB n = some (msg, epoch))
     (dk : SK) (ct0 : onoff.C₀) (ch : ℕ × Sym) (ct1 : onoff.C₁) (ack : Ack)
@@ -306,7 +306,7 @@ theorem honest_recvA_decapsulation_eq_recorded [DecidableEq Sym]
 For every delivery index `n`, A's receive oracles in `G_b` and `I_b` have equal response/state
 computations from `s`. -/
 theorem oracleRecvA_eq_ideal [DecidableEq K] [DecidableEq Sym]
-    (n : ℕ) (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (n : ℕ) (s : GameState onoff Sym)
     (hs : IdealReceiveConditions kem onoff hDet ecEk ecCt0 ecCt1 s) :
     (SCKAScheme.oracleRecvA (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) n).run s =
       (oracleRecvAIdeal kem onoff hDet ecEk ecCt0 ecCt1 leak n).run s := by
@@ -331,7 +331,7 @@ For every query `t`, the oracles of `G_b` and `I_b` have equal response/state co
 from `s`. -/
 theorem securityImpl_eq_ideal_of_current (b : Bool)
     (t : (securitySpec leak Sym).Domain)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (s : GameState onoff Sym)
     (hs : IdealReceiveConditions kem onoff hDet ecEk ecCt0 ecCt1 s) :
     (SCKAScheme.sckaSecurityImpl b (exposureA (Sym := Sym) kem onoff leak)
       (exposureB (Sym := Sym) kem onoff leak)
@@ -370,7 +370,7 @@ KEM decapsulation failure has occurred. -/
 def trackedSecurityImpl (b : Bool) :
     QueryImpl (securitySpec leak Sym)
       (StateT
-        (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) × Bool)
+        (GameState onoff Sym × Bool)
         ProbComp) :=
   -- VCVio's `extendState` adds a flag, updated by its second argument after each query.
   QueryImpl.extendState
@@ -383,7 +383,7 @@ as the original security oracles, including the adversary's output and final gam
 This holds for any initial state and flag. -/
 theorem trackedSecurity_run_project (b : Bool)
     {α : Type} (adv : OracleComp (securitySpec leak Sym) α)
-    (p : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) × Bool) :
+    (p : GameState onoff Sym × Bool) :
     -- Run with tracking from `p = (s, bad)`, then discard the final flag:
     -- `Prod.map id Prod.fst` maps `(a, (s', bad'))` to `(a, s')`.
     Prod.map id Prod.fst <$>
@@ -400,10 +400,10 @@ theorem trackedSecurity_run_project (b : Bool)
 theorem trackedSecurityImpl_preserves_bad (b : Bool) :
     QueryImpl.PreservesInv (trackedSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b)
       (fun p => p.2 = true) := by
-  intro t p hp z hz
-  rw [trackedSecurityImpl, QueryImpl.extendState_apply, mem_support_bind_iff] at hz
-  obtain ⟨y, _, hz⟩ := hz
-  obtain rfl := (mem_support_pure_iff _ _).mp hz
+  intro t p hp res hres
+  rw [trackedSecurityImpl, QueryImpl.extendState_apply, mem_support_bind_iff] at hres
+  obtain ⟨y, _, hres⟩ := hres
+  obtain rfl := (mem_support_pure_iff _ _).mp hres
   simp [hp]
 
 include hEk hCt0 hCt1 in
@@ -412,15 +412,15 @@ include hEk hCt0 hCt1 in
 theorem trackedSecurityImpl_preserves (b : Bool) :
     QueryImpl.PreservesInv (trackedSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b)
       (trackedInv kem onoff hDet ecEk ecCt0 ecCt1) := by
-  intro t p hp z hz
-  change z ∈ support (do
+  intro t p hp res hres
+  change res ∈ support (do
     let y ← (SCKAScheme.sckaSecurityImpl b (exposureA kem onoff leak) (exposureB kem onoff leak)
       (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) t).run p.1
-    pure (y.1, (y.2, p.2 || currentKEMFailure kem onoff hDet y.2))) at hz
-  rw [mem_support_bind_iff] at hz
-  obtain ⟨y, hy, hz⟩ := hz
-  simp only [mem_support_pure_iff] at hz
-  subst z
+    pure (y.1, (y.2, p.2 || currentKEMFailure kem onoff hDet y.2))) at hres
+  rw [mem_support_bind_iff] at hres
+  obtain ⟨y, hy, hres⟩ := hres
+  simp only [mem_support_pure_iff] at hres
+  subst res
   rcases hp with hbad | ⟨hreach, hfail⟩
   · left
     simp [hbad]
@@ -436,13 +436,13 @@ theorem trackedSecurityImpl_preserves (b : Bool) :
 A's instrumented leaking-send oracle from `(s, false)` increases the expected failure score
 `trackedFailureScore` by at most `factorCorrectnessError kem onoff`. -/
 theorem tracked_sendArleak_score_le (b : Bool)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (s : GameState onoff Sym)
     (hs : reachableInv kem onoff ecEk ecCt0 ecCt1 s)
     (hf : currentKEMFailure kem onoff hDet s = false) :
     wp
       ((trackedSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b
         SCKAScheme.sckaSecuritySpec.OSendArleak).run (s, false))
-      (fun z => trackedFailureScore kem onoff z.2) ≤
+      (fun res => trackedFailureScore kem onoff res.2) ≤
       trackedFailureScore kem onoff (s, false) + factorCorrectnessError kem onoff := by
   change wp (do
     let y ← (SCKAScheme.oracleSendArleak vulnRleakA
@@ -470,13 +470,13 @@ theorem tracked_sendArleak_score_le (b : Bool)
 
 /-- Counterpart of `tracked_sendArleak_score_le` for party B's leaking-send oracle. -/
 theorem tracked_sendBrleak_score_le (b : Bool)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (s : GameState onoff Sym)
     (hs : reachableInv kem onoff ecEk ecCt0 ecCt1 s)
     (hf : currentKEMFailure kem onoff hDet s = false) :
     wp
       ((trackedSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b
         SCKAScheme.sckaSecuritySpec.OSendBrleak).run (s, false))
-      (fun z => trackedFailureScore kem onoff z.2) ≤
+      (fun res => trackedFailureScore kem onoff res.2) ≤
       trackedFailureScore kem onoff (s, false) + factorCorrectnessError kem onoff := by
   change wp (do
     let y ← (SCKAScheme.oracleSendBrleak vulnRleakB
@@ -507,16 +507,16 @@ increases the expected failure score `Φ` by at most `factorCorrectnessError kem
 an ordinary or leaking send query, and does not increase `E[Φ]` otherwise. -/
 theorem trackedSecurity_score_step_le (b : Bool)
     (t : (securitySpec leak Sym).Domain)
-    (p : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) × Bool)
+    (p : GameState onoff Sym × Bool)
     (hp : trackedInv kem onoff hDet ecEk ecCt0 ecCt1 p) :
     wp ((trackedSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b t).run p)
-      (fun z => trackedFailureScore kem onoff z.2) ≤
+      (fun res => trackedFailureScore kem onoff res.2) ≤
       trackedFailureScore kem onoff p +
         if SCKAScheme.sckaSecuritySpec.isSendQuery t then factorCorrectnessError kem onoff
         else 0 := by
   by_cases hbad : p.2 = true
-  · refine (wp_le_const_of_support (c := 1) _ fun z _ => ?_).trans ?_
-    · exact trackedFailureScore_le_one kem onoff z.2
+  · refine (wp_le_const_of_support (c := 1) _ fun res _ => ?_).trans ?_
+    · exact trackedFailureScore_le_one kem onoff res.2
     · simp [trackedFailureScore, hbad]
   have hfalse : p.2 = false := Bool.eq_false_iff.mpr hbad
   have hgood : reachableInv kem onoff ecEk ecCt0 ecCt1 p.1 ∧
@@ -539,16 +539,16 @@ theorem trackedSecurity_score_step_le (b : Bool)
   all_goals
     simp only [SCKAScheme.sckaSecuritySpec.isSendQuery, Bool.false_eq_true, ↓reduceIte, add_zero]
     apply wp_le_const_of_support _
-    intro z hz
-    change z ∈ support (do
+    intro res hres
+    change res ∈ support (do
       let y ← (SCKAScheme.sckaSecurityImpl b (exposureA kem onoff leak) (exposureB kem onoff leak)
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) _).run p.1
-      pure (y.1, (y.2, false || currentKEMFailure kem onoff hDet y.2))) at hz
-    rw [mem_support_bind_iff] at hz
-    obtain ⟨y, hy, hz⟩ := hz
-    simp only [mem_support_pure_iff] at hz
-    subst z
-    let J := fun s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) =>
+      pure (y.1, (y.2, false || currentKEMFailure kem onoff hDet y.2))) at hres
+    rw [mem_support_bind_iff] at hres
+    obtain ⟨y, hy, hres⟩ := hres
+    simp only [mem_support_pure_iff] at hres
+    subst res
+    let J := fun s : GameState onoff Sym =>
       currentKEMFailure kem onoff hDet s = false ∧
       currentFailurePotential kem onoff s = currentFailurePotential kem onoff p.1
     have hj : J p.1 := ⟨hgood.2, rfl⟩
@@ -570,8 +570,8 @@ include hEk hCt0 hCt1 in
 satisfies `Pr[bad_final = true] ≤ q · ε`, where `bad_final` is its final failure flag. -/
 theorem kem_failure_probability_le (b : Bool)
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
-    Pr{let z ← ((simulateQ (trackedSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b) adv).run
-        (initialGame (Sym := Sym) kem onoff, false))}[z.2.2 = true] ≤
+    Pr{let res ← ((simulateQ (trackedSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b) adv).run
+        (initialGame (Sym := Sym) kem onoff, false))}[res.2.2 = true] ≤
       (q : ℝ≥0∞) * kem.correctnessError ProbCompRuntime.probComp := by
   have hpres := trackedSecurityImpl_preserves kem onoff hDet ecEk hEk ecCt0 hCt0
     ecCt1 hCt1 leak b
@@ -605,7 +605,7 @@ update as `trackedSecurityImpl`. -/
 def trackedIdealImpl (b : Bool) :
     QueryImpl (securitySpec leak Sym)
       (StateT
-        (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) × Bool) ProbComp) :=
+        (GameState onoff Sym × Bool) ProbComp) :=
   QueryImpl.extendState (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak (fun _ => b))
     (fun _ _ _ s' bad => bad || currentKEMFailure kem onoff hDet s')
 
@@ -613,7 +613,7 @@ def trackedIdealImpl (b : Bool) :
 discarding the failure flag recovers the ideal execution, for any initial state and flag. -/
 theorem trackedIdeal_run_project (b : Bool)
     {α : Type} (adv : OracleComp (securitySpec leak Sym) α)
-    (p : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) × Bool) :
+    (p : GameState onoff Sym × Bool) :
     Prod.map id Prod.fst <$>
         (simulateQ (trackedIdealImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b) adv).run p =
       (simulateQ (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak (fun _ => b))
@@ -668,14 +668,14 @@ theorem security_correctness_endpoint_le (b : Bool)
   have hl : Pr{let x ← (SCKAScheme.securityExpFixedBit
       (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv b (exposureA kem onoff leak)
         (exposureB kem onoff leak))}[x = true] =
-      Pr{let z ← (simulateQ left adv).run (s₀, false)}[z.1 = true] := by
+      Pr{let res ← (simulateQ left adv).run (s₀, false)}[res.1 = true] := by
     rw [securityExpFixedBit_eq_run', StateT.run'_eq, prEvent_map]
     rw [← trackedSecurity_run_project kem onoff hDet ecEk ecCt0 ecCt1 leak b adv (s₀, false),
       prEvent_map]
     rfl
   have hr : Pr{let x ← (idealSecurityExp kem onoff hDet ecEk ecCt0 ecCt1 leak (fun _ => b)
       adv)}[x = true] =
-      Pr{let z ← (simulateQ right adv).run (s₀, false)}[z.1 = true] := by
+      Pr{let res ← (simulateQ right adv).run (s₀, false)}[res.1 = true] := by
     rw [idealSecurityExp, StateT.run'_eq, prEvent_map]
     rw [← trackedIdeal_run_project kem onoff hDet ecEk ecCt0 ecCt1 leak b adv (s₀, false),
       prEvent_map]

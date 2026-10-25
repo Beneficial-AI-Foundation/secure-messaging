@@ -42,7 +42,7 @@ theorem TranscriptConsistent.with_security_bookkeeping
     {ecCt0 : ErasureCodePayload onoff.C₀ Sym}
     {ecCt1 : ErasureCodePayload onoff.C₁ Sym}
     {T : Transcript kem onoff}
-    {s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)}
+    {s : GameState onoff Sym}
     (h : TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T s)
     (exposed challenged : Finset ℕ) :
     TranscriptConsistent kem onoff ecEk ecCt0 ecCt1 T
@@ -56,7 +56,7 @@ theorem reachableInv_with_security_bookkeeping
     {ecEk : ErasureCodePayload PK Sym}
     {ecCt0 : ErasureCodePayload onoff.C₀ Sym}
     {ecCt1 : ErasureCodePayload onoff.C₁ Sym}
-    {s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)}
+    {s : GameState onoff Sym}
     (h : reachableInv kem onoff ecEk ecCt0 ecCt1 s)
     (exposed challenged : Finset ℕ) :
     reachableInv kem onoff ecEk ecCt0 ecCt1
@@ -76,25 +76,25 @@ include hEk hCt0 hCt1 in
 /-- Assuming the erasure codes are correct, every correctness query from a state satisfying
 `reachableInv` and `CurrentKEMCorrect` preserves `reachableInv`. -/
 theorem correctnessImpl_preserves_reachableInv_at [DecidableEq K] [DecidableEq Sym]
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (s : GameState onoff Sym)
     (hs : reachableInv kem onoff ecEk ecCt0 ecCt1 s)
     (hc : CurrentKEMCorrect kem onoff hDet s)
     (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
-    (z : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Range t ×
-      SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (hz : z ∈ support ((SCKAScheme.sckaCorrectnessImpl
+    (res : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Range t ×
+      GameState onoff Sym)
+    (hres : res ∈ support ((SCKAScheme.sckaCorrectnessImpl
       (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) t).run s)) :
-    reachableInv kem onoff ecEk ecCt0 ecCt1 z.2 := by
+    reachableInv kem onoff ecEk ecCt0 ecCt1 res.2 := by
   rcases t with ((((n | u) | u) | n) | n)
-  · exact SCKAScheme.oracleUnif_preservesInv _ n s hs z hz
+  · exact SCKAScheme.oracleUnif_preservesInv _ n s hs res hres
   · exact oracleSendA_preserves_reachableInv kem onoff hDet ecEk ecCt0 ecCt1 leak
-      ecEk.ec.nchunk_pos u s hs z hz
+      ecEk.ec.nchunk_pos u s hs res hres
   · exact oracleSendB_preserves_reachableInv kem onoff hDet ecEk ecCt0 ecCt0.ec.nchunk_pos
-      ecCt1 ecCt1.ec.nchunk_pos leak u s hs z hz
+      ecCt1 ecCt1.ec.nchunk_pos leak u s hs res hres
   · exact oracleRecvA_preserves_reachableInv kem onoff hDet ecEk ecCt0 hCt0
-      ecCt1 hCt1 ecCt1.ec.nchunk_pos leak n s hs hc z hz
+      ecCt1 hCt1 ecCt1.ec.nchunk_pos leak n s hs hc res hres
   · exact oracleRecvB_preserves_reachableInv kem onoff hDet ecEk hEk ecEk.ec.nchunk_pos
-      ecCt0 ecCt1 leak n s hs z hz
+      ecCt0 ecCt1 leak n s hs res hres
 
 include hEk hCt0 hCt1 in
 /-- Assuming the erasure codes are correct, every security query from a state satisfying
@@ -102,14 +102,14 @@ include hEk hCt0 hCt1 in
 theorem securityImpl_preserves_reachableInv
     [DecidableEq K] [DecidableEq Sym] [SampleableType K] (b : Bool)
     (t : (securitySpec leak Sym).Domain)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (s : GameState onoff Sym)
     (hs : reachableInv kem onoff ecEk ecCt0 ecCt1 s)
     (hc : CurrentKEMCorrect kem onoff hDet s)
-    (z : (securitySpec leak Sym).Range t ×
-      SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (hz : z ∈ support ((SCKAScheme.sckaSecurityImpl b (exposureA kem onoff leak)
+    (res : (securitySpec leak Sym).Range t ×
+      GameState onoff Sym)
+    (hres : res ∈ support ((SCKAScheme.sckaSecurityImpl b (exposureA kem onoff leak)
       (exposureB kem onoff leak) (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) t).run s)) :
-    reachableInv kem onoff ecEk ecCt0 ecCt1 z.2 :=
+    reachableInv kem onoff ecEk ecCt0 ecCt1 res.2 :=
   SCKAScheme.securityImplOf_preserves_at_of_book _ _ _ _ _
     (reachableInv kem onoff ecEk ecCt0 ecCt1)
     (fun _ E C h => reachableInv_with_security_bookkeeping h E C)
@@ -121,7 +121,7 @@ theorem securityImpl_preserves_reachableInv
     (oracleSendA_preserves_reachableInv kem onoff hDet ecEk ecCt0 ecCt1 leak
       ecEk.ec.nchunk_pos () s hs)
     (oracleSendB_preserves_reachableInv kem onoff hDet ecEk ecCt0 ecCt0.ec.nchunk_pos
-      ecCt1 ecCt1.ec.nchunk_pos leak () s hs) t z hz
+      ecCt1 ecCt1.ec.nchunk_pos leak () s hs) t res hres
 
 namespace Security
 
@@ -129,7 +129,7 @@ namespace Security
 most `s.nA` whenever A holds a decapsulation key (`s.stA.dkA.isSome`), where `s.nA` is the number
 of messages sent by A. -/
 def sendEpochInv {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) : Prop :=
+    (s : GameState onoff Sym) : Prop :=
   s.stA.t ≤ s.nA + 1 ∧ (s.stA.dkA.isSome → s.stA.t ≤ s.nA)
 
 /-- The initial game state satisfies `sendEpochInv`. -/
@@ -145,7 +145,7 @@ theorem recorded_epoch_le_sends
     {ecEk : ErasureCodePayload PK Sym}
     {ecCt0 : ErasureCodePayload onoff.C₀ Sym}
     {ecCt1 : ErasureCodePayload onoff.C₁ Sym}
-    {s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)}
+    {s : GameState onoff Sym}
     (hr : reachableInv kem onoff ecEk ecCt0 ecCt1 s) (hs : sendEpochInv s)
     (t : ℕ) (hk : (s.keyA t).isSome ∨ (s.keyB t).isSome) : t ≤ s.nA := by
   obtain ⟨T, hT⟩ := hr
@@ -179,11 +179,11 @@ epoch and decapsulation key unchanged, or increments A's epoch by one while clea
 decapsulation key. -/
 theorem recvA_epoch_shape [DecidableEq Sym]
     (decapsDet : SK → C → Option K)
-    (s : StA onoff Sym) (msg : Message Sym)
-    (key : Option (ℕ × K)) (epoch : ℕ) (s' : StA onoff Sym)
-    (h : recvA kem onoff decapsDet ecCt0 ecCt1 s msg = some (key, epoch, s')) :
-    (s'.t = s.t ∧ s'.dkA = s.dkA) ∨
-      (s'.t = s.t + 1 ∧ s.dkA.isSome ∧ s'.dkA = none) := by
+    (stA : StA onoff Sym) (msg : Message Sym)
+    (key : Option (ℕ × K)) (epoch : ℕ) (stA' : StA onoff Sym)
+    (h : recvA kem onoff decapsDet ecCt0 ecCt1 stA msg = some (key, epoch, stA')) :
+    (stA'.t = stA.t ∧ stA'.dkA = stA.dkA) ∨
+      (stA'.t = stA.t + 1 ∧ stA.dkA.isSome ∧ stA'.dkA = none) := by
   rcases msg with ⟨ch, ack, t, b⟩
   dsimp only [recvA, Option.bind_eq_bind, Option.pure_def] at h
   repeat' split at h
@@ -195,15 +195,15 @@ theorem recvA_epoch_shape [DecidableEq Sym]
 theorem oracleSendA_preserves_sendEpochInv [DecidableEq K] [DecidableEq Sym] :
     QueryImpl.PreservesInv (SCKAScheme.oracleSendA
       (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)) sendEpochInv := by
-  intro _ s hs z hz
+  intro _ s hs res hres
   cases hd : s.stA.dkA <;>
     simp only [SCKAScheme.oracleSendA, scheme, sendA, hd, zero_add,
       StateT.run_bind, StateT.run_get, StateT.run_monadLift, monadLift_self,
       bind_assoc, pure_bind, StateT.run_set, StateT.run_pure,
-      mem_support_bind_iff, mem_support_pure_iff, Prod.exists] at hz
-  · obtain ⟨pk, sk, _, rfl⟩ := hz
+      mem_support_bind_iff, mem_support_pure_iff, Prod.exists] at hres
+  · obtain ⟨pk, sk, _, rfl⟩ := hres
     exact ⟨hs.1.trans (Nat.le_succ _), fun _ => hs.1⟩
-  · obtain rfl := hz
+  · obtain rfl := hres
     exact ⟨hs.1.trans (Nat.le_succ _), fun _ => hs.1⟩
 
 /-- For any SCKA instance whose `recvA` transition is given by `oppUniKemCKA.recvA` (under an
@@ -214,32 +214,32 @@ theorem oracleRecvA_preserves_sendEpochInv_of_recv [DecidableEq K] [DecidableEq 
     (decapsDet : SK → C → Option K)
     (hRecv : scka.recvA = recvA kem onoff decapsDet ecCt0 ecCt1) :
     QueryImpl.PreservesInv (SCKAScheme.oracleRecvA scka) sendEpochInv := by
-  intro n s hs z hz
-  simp only [SCKAScheme.oracleRecvA, hRecv, StateT.run_bind, StateT.run_get, pure_bind] at hz
+  intro n s hs res hres
+  simp only [SCKAScheme.oracleRecvA, hRecv, StateT.run_bind, StateT.run_get, pure_bind] at hres
   cases hm : s.msgB n with
   | none =>
-    have hz' : z = (none, s) := by simpa [hm] using hz
-    obtain rfl := hz'
+    have hres' : res = (none, s) := by simpa [hm] using hres
+    obtain rfl := hres'
     exact hs
   | some entry =>
     rcases entry with ⟨msg, epoch⟩
-    rw [hm] at hz
-    dsimp only at hz
+    rw [hm] at hres
+    dsimp only at hres
     cases hr : recvA kem onoff decapsDet ecCt0 ecCt1 s.stA msg with
     | none =>
       simp only [hr, StateT.run_bind, StateT.run_set, pure_bind, StateT.run_pure,
-        mem_support_pure_iff] at hz
-      obtain rfl := hz
+        mem_support_pure_iff] at hres
+      obtain rfl := hres
       exact hs
     | some out =>
       rcases out with ⟨key, epoch', state⟩
       have hshape := recvA_epoch_shape kem onoff ecCt0 ecCt1 decapsDet s.stA msg key epoch' state hr
-      simp only [hr] at hz
+      simp only [hr] at hres
       cases key <;>
         simp only [StateT.run_bind, StateT.run_set, pure_bind, StateT.run_pure,
-          mem_support_pure_iff] at hz
+          mem_support_pure_iff] at hres
       all_goals
-        obtain rfl := hz
+        obtain rfl := hres
         rcases hshape with ⟨ht, hd⟩ | ⟨ht, hd, hnone⟩
         · simpa only [sendEpochInv, ht, hd] using hs
         · constructor
@@ -252,31 +252,31 @@ theorem oracleRecvA_preserves_sendEpochInv_of_recv [DecidableEq K] [DecidableEq 
 theorem oracleSendB_preserves_sendEpochInv [DecidableEq K] [DecidableEq Sym] :
     QueryImpl.PreservesInv (SCKAScheme.oracleSendB
       (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)) sendEpochInv := by
-  intro _ s hs z hz
+  intro _ s hs res hres
   simp only [SCKAScheme.oracleSendB, StateT.run_bind, StateT.run_get, pure_bind,
-    StateT.run_monadLift, monadLift_self, bind_assoc] at hz
-  rw [mem_support_bind_iff] at hz
-  obtain ⟨out, _, hz⟩ := hz
+    StateT.run_monadLift, monadLift_self, bind_assoc] at hres
+  rw [mem_support_bind_iff] at hres
+  obtain ⟨out, _, hres⟩ := hres
   cases out with
-  | none => simpa using (mem_support_pure_iff _ _).mp hz ▸ hs
+  | none => simpa using (mem_support_pure_iff _ _).mp hres ▸ hs
   | some out =>
     rcases out with ⟨key, msg, epoch, state⟩
     cases key <;>
       simp only [StateT.run_bind, StateT.run_set, pure_bind, StateT.run_pure,
-        mem_support_pure_iff] at hz
-    all_goals obtain rfl := hz; exact hs
+        mem_support_pure_iff] at hres
+    all_goals obtain rfl := hres; exact hs
 
 /-- Party B's receive oracle `oracleRecvB` preserves `sendEpochInv`. -/
 theorem oracleRecvB_preserves_sendEpochInv [DecidableEq K] [DecidableEq Sym] :
     QueryImpl.PreservesInv (SCKAScheme.oracleRecvB
       (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)) sendEpochInv := by
-  intro n s hs z hz
-  simp only [SCKAScheme.oracleRecvB, StateT.run_bind, StateT.run_get, pure_bind] at hz
-  repeat' split at hz
+  intro n s hs res hres
+  simp only [SCKAScheme.oracleRecvB, StateT.run_bind, StateT.run_get, pure_bind] at hres
+  repeat' split at hres
   all_goals
     simp only [StateT.run_bind, StateT.run_set, pure_bind, StateT.run_pure,
-      mem_support_pure_iff] at hz
-    obtain rfl := hz
+      mem_support_pure_iff] at hres
+    obtain rfl := hres
     exact hs
 
 end Security

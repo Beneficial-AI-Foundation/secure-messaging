@@ -108,7 +108,7 @@ def keygenLeak {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructur
     (leak : base.OnOffRandLeak onoff) (selected : Bool) (pkStar : PK) :
     ProbComp ((PK × Option SK) × Option leak.KeygenRand) :=
   if selected then pure ((pkStar, none), none)
-  else (fun z => ((z.1.1, some z.1.2), some z.2)) <$> leak.keygenRleak
+  else (fun res => ((res.1.1, some res.1.2), some res.2)) <$> leak.keygenRleak
 
 /-- Randomness-leaking counterpart of `encapsOff`, in which the offline encapsulation coins are
 hidden (`none`) whenever `selected` is `true`. -/
@@ -116,7 +116,7 @@ def offLeak {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     (leak : base.OnOffRandLeak onoff) (selected : Bool) (ctStar : C) :
     ProbComp ((Option onoff.St × onoff.C₀) × Option leak.OffRand) :=
   if selected then pure ((none, (onoff.split ctStar).1), none)
-  else (fun z => ((some z.1.1, z.1.2), some z.2)) <$> leak.encapsOffRleak
+  else (fun res => ((some res.1.1, res.1.2), some res.2)) <$> leak.encapsOffRleak
 
 /-- Randomness-leaking counterpart of `encapsOn`, in which the online encapsulation coins are
 hidden (`none`) whenever the offline state is hidden (`none`). -/
@@ -125,7 +125,7 @@ def onLeak {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     ProbComp ((onoff.C₁ × Option K) × Option leak.OnRand) :=
   match st with
   | none => pure (((onoff.split ctStar).2, none), none)
-  | some st => (fun z => ((z.1.1, some z.1.2), some z.2)) <$> leak.encapsOnRleak st pk
+  | some st => (fun res => ((res.1.1, some res.1.2), some res.2)) <$> leak.encapsOnRleak st pk
 
 /-- On/off randomness-leakage witness for the simulated KEM `kem`, defined from `keygenLeak`,
 `offLeak`, and `onLeak`. -/
@@ -164,17 +164,17 @@ def revealField {α : Type} : Option (Option α) → Option (Option α)
 
 /-- Reveal party A's state, failing if A's decapsulation key is hidden. -/
 def revealA {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
-    (s : StateA (Option SK) PK onoff.C₀ Sym) : Option (StA onoff Sym) := do
-  let dk ← revealField s.dkA
-  pure { dkA := dk, ekA := s.ekA, ct0 := s.ct0, t := s.t,
-         ich := s.ich, lch := s.lch, ack := s.ack }
+    (stA : StateA (Option SK) PK onoff.C₀ Sym) : Option (StA onoff Sym) := do
+  let dk ← revealField stA.dkA
+  pure { dkA := dk, ekA := stA.ekA, ct0 := stA.ct0, t := stA.t,
+         ich := stA.ich, lch := stA.lch, ack := stA.ack }
 
 /-- Reveal party B's state, failing if B's offline state is hidden. -/
 def revealB {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
-    (s : StateB PK onoff.C₀ onoff.C₁ (Option onoff.St) Sym) : Option (StB onoff Sym) := do
-  let st ← revealField s.stCt
-  pure { ekA := s.ekA, ct0 := s.ct0, ct1 := s.ct1, stCt := st, t := s.t,
-         ich := s.ich, lch := s.lch, ack := s.ack }
+    (stB : StateB PK onoff.C₀ onoff.C₁ (Option onoff.St) Sym) : Option (StB onoff Sym) := do
+  let st ← revealField stB.stCt
+  pure { ekA := stB.ekA, ct0 := stB.ct0, ct1 := stB.ct1, stCt := st, t := stB.t,
+         ich := stB.ich, lch := stB.lch, ack := stB.ack }
 
 /-- Reveal the coins of a leaking send, failing if any coin is hidden. -/
 def revealCoins {KG OFF ON : Type} :
@@ -204,8 +204,8 @@ theorem revealAfter_run {σ α β : Type} (reveal : α → Option β)
         pure (match a with | none => some none | some a => some <$> reveal a, s')) := by
   simp only [revealAfter, OptionT.run_mk, StateT.run_bind]
   congr 1
-  funext z
-  rcases z with ⟨_ | a, s'⟩ <;> rfl
+  funext res
+  rcases res with ⟨_ | a, s'⟩ <;> rfl
 
 /-- Challenge oracle on game states with key-table entries `κ`, read as keys via `toKey : κ → K`:
 - rejects (`none`) if `t` is exposed, already challenged, or absent from both `s.keyA` and `s.keyB`

@@ -54,7 +54,7 @@ variable [DecidableEq Sym]
 -/
 theorem sendBrleak_offline_independent
     (kemMat : KEMMaterial leak) (e : ℕ)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (s : GameState onoff Sym)
     (hh : ¬(s.stB.t = e ∧ s.stB.ct0.isNone))
     (offline offline' : (onoff.St × onoff.C₀) × leak.OffRand) :
     (stageScheme ecEk ecCt0 ecCt1 .onlineFresh { kemMat with off := offline } e s).sendBrleak
@@ -76,7 +76,7 @@ theorem sendBrleak_offline_independent
 /-- Ordinary-send version of `sendBrleak_offline_independent`. -/
 theorem sendB_offline_independent
     (kemMat : KEMMaterial leak) (e : ℕ)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (s : GameState onoff Sym)
     (hh : ¬(s.stB.t = e ∧ s.stB.ct0.isNone))
     (offline offline' : (onoff.St × onoff.C₀) × leak.OffRand) :
     (stageScheme ecEk ecCt0 ecCt1 .onlineFresh { kemMat with off := offline } e s).sendB s.stB =
@@ -91,7 +91,7 @@ variable [DecidableEq K]
 oracle from `s` has the distribution of `pure (none, s)`; it samples before rejecting. -/
 theorem leaking_offline_rejected
     (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (s : GameState onoff Sym)
     (he : s.stB.t = e) (hfield : s.stB.ct0 = none) (hc : e ∈ s.challenged) :
     (SCKAScheme.oracleSendBrleak vulnRleakB
       (stageScheme ecEk ecCt0 ecCt1 stage kemMat e s) ()).run s =ᵈ
@@ -112,7 +112,7 @@ variable [SampleableType K]
 theorem stageOracle_offline_independent
     (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool)
     (t : (securitySpec leak Sym).Domain)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (s : GameState onoff Sym)
     (hh : usesSource .offline e t s = false)
     (offline offline' : (onoff.St × onoff.C₀) × leak.OffRand) :
     (stageOracle base onoff ecEk ecCt0 ecCt1 leak
@@ -121,7 +121,9 @@ theorem stageOracle_offline_independent
       .onlineFresh { kemMat with off := offline' } e b t).run s := by
   rcases t with (((((t | u) | u) | _) | u) | u) <;> try rcases t with ((((n | u) | u) | n) | n)
   all_goals try cases u
-  all_goals simp only [stageOracle, securityImplAt, StateT.run_bind, StateT.run_get, pure_bind,
+  all_goals simp only [stageOracle, securityImplAt, SCKAScheme.securityImplOf,
+    QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, StateT.run_bind,
+      StateT.run_get, pure_bind,
     SCKAScheme.sckaCorrectnessImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
     EvalDistEq.refl]
   · exact ToVCVio.evalDistEq_of_eq (SCKAScheme.oracleSendA_run_congr _ _ s rfl)
@@ -157,7 +159,7 @@ end
 `off` gives the output distribution of B's leaking send in `stageScheme .encapsFresh kemMat e s`. -/
 theorem sendBrleak_sample_offline_eq_fresh [DecidableEq Sym]
     (kemMat : KEMMaterial leak) (e : ℕ)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
+    (s : GameState onoff Sym) :
     (do
       let offline ← leak.encapsOffRleak
       (stageScheme ecEk ecCt0 ecCt1 .onlineFresh
@@ -176,7 +178,7 @@ theorem sendBrleak_sample_offline_eq_fresh [DecidableEq Sym]
 /-- Ordinary-send version of `sendBrleak_sample_offline_eq_fresh`. -/
 theorem sendB_sample_offline_eq_fresh [DecidableEq Sym]
     (kemMat : KEMMaterial leak) (e : ℕ)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
+    (s : GameState onoff Sym) :
     (do
       let offline ← leak.encapsOffRleak
       (stageScheme ecEk ecCt0 ecCt1 .onlineFresh { kemMat with off := offline } e s).sendB
@@ -198,7 +200,7 @@ distribution of query `t` of `stageOracle .encapsFresh kemMat e b`. -/
 theorem stageOracle_sample_offline_eq_fresh
     (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool)
     (t : (securitySpec leak Sym).Domain)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
+    (s : GameState onoff Sym) :
     (do
       let offline ← leak.encapsOffRleak
       (stageOracle base onoff ecEk ecCt0 ecCt1 leak
@@ -229,7 +231,7 @@ variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 `stageStopped .encapsFresh kemMat e b`. -/
 theorem stageStopped_offline_deferred
     (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool) (adv : SecurityAdversary leak Sym)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
+    (s : GameState onoff Sym) :
     Pr{let x ← (do
       let offline ← leak.encapsOffRleak
       optionRun (stageStopped base onoff ecEk ecCt0 ecCt1 leak
@@ -243,13 +245,15 @@ theorem stageStopped_offline_deferred
     (fun s => decide (e ∈ s.exposed))
     (fun _ => True) (fun s => sourceUsed .offline e s.stA s.stB) (usesSource .offline e)
     (fun _ _ _ _ _ _ _ _ => trivial)
-    (fun offline _ t s _ hu z hz _ => stageOracle_preserves_sourceUsed base onoff ecEk ecCt0 ecCt1
-      leak .onlineFresh { kemMat with off := offline } e b .offline t s hu z hz)
+    (fun offline _ t s _ hu res hres _ => stageOracle_preserves_sourceUsed base onoff ecEk ecCt0
+      ecCt1
+      leak .onlineFresh { kemMat with off := offline } e b .offline t s hu res hres)
     (fun t s _ hh offline _ offline' _ => stageOracle_offline_independent base onoff ecEk ecCt0
       ecCt1 leak kemMat e b t s hh offline offline')
     (fun t s _ hu => usesSource_false_of_used .offline e t s hu)
-    (fun offline _ t s _ hh z hz hcont => stageOracle_first_source_use base onoff ecEk ecCt0 ecCt1
-      leak .onlineFresh { kemMat with off := offline } e b .offline t s hh z hz hcont)
+    (fun offline _ t s _ hh res hres hcont => stageOracle_first_source_use base onoff ecEk ecCt0
+      ecCt1
+      leak .onlineFresh { kemMat with off := offline } e b .offline t s hh res hres hcont)
     (fun t s _ => stageOracle_sample_offline_eq_fresh base onoff ecEk ecCt0 ecCt1 leak kemMat e b t
       s)
     adv s trivial
@@ -264,7 +268,7 @@ section
 `kg` gives the output distribution of A's leaking send in `stageScheme .fresh kemMat e s`. -/
 theorem sendArleak_sample_keygen_eq_fresh [DecidableEq Sym]
     (kemMat : KEMMaterial leak) (e : ℕ)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
+    (s : GameState onoff Sym) :
     (do
       let pair ← leak.keygenRleak
       (stageScheme ecEk ecCt0 ecCt1 .encapsFresh { kemMat with keygen := pair } e s).sendArleak
@@ -282,7 +286,7 @@ theorem sendArleak_sample_keygen_eq_fresh [DecidableEq Sym]
 /-- Ordinary-send version of `sendArleak_sample_keygen_eq_fresh`. -/
 theorem sendA_sample_keygen_eq_fresh [DecidableEq Sym]
     (kemMat : KEMMaterial leak) (e : ℕ)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
+    (s : GameState onoff Sym) :
     (do
       let pair ← leak.keygenRleak
       (stageScheme ecEk ecCt0 ecCt1 .encapsFresh { kemMat with keygen := pair } e s).sendA s.stA) =ᵈ
@@ -297,7 +301,7 @@ theorem sendA_sample_keygen_eq_fresh [DecidableEq Sym]
 is that of `stageScheme .fresh kemMat e s`. -/
 theorem sendBrleak_encapsFresh_eq_fresh [DecidableEq Sym]
     (kemMat : KEMMaterial leak) (e : ℕ)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (s : GameState onoff Sym)
     (pair : (PK × SK) × leak.KeygenRand) :
     (stageScheme ecEk ecCt0 ecCt1 .encapsFresh { kemMat with keygen := pair } e s).sendBrleak
       s.stB =
@@ -312,7 +316,7 @@ theorem sendBrleak_encapsFresh_eq_fresh [DecidableEq Sym]
 /-- Ordinary-send version of `sendBrleak_encapsFresh_eq_fresh`. -/
 theorem sendB_encapsFresh_eq_fresh [DecidableEq Sym]
     (kemMat : KEMMaterial leak) (e : ℕ)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (s : GameState onoff Sym)
     (pair : (PK × SK) × leak.KeygenRand) :
     (stageScheme ecEk ecCt0 ecCt1 .encapsFresh { kemMat with keygen := pair } e s).sendB s.stB =
     (stageScheme ecEk ecCt0 ecCt1 .fresh kemMat e s).sendB s.stB := by
@@ -326,7 +330,7 @@ stage `fresh`. -/
 theorem stageOracle_sample_keygen_eq_fresh
     (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool)
     (t : (securitySpec leak Sym).Domain)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
+    (s : GameState onoff Sym) :
     (do
       let pair ← leak.keygenRleak
       (stageOracle base onoff ecEk ecCt0 ecCt1 leak .encapsFresh
@@ -357,7 +361,7 @@ variable [DecidableEq Sym]
 -/
 theorem sendA_keygen_independent
     (kemMat : KEMMaterial leak) (e : ℕ)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (s : GameState onoff Sym)
     (hh : ¬(s.stA.t = e ∧ s.stA.dkA.isNone))
     (pair pair' : (PK × SK) × leak.KeygenRand) :
     (stageScheme ecEk ecCt0 ecCt1 .encapsFresh { kemMat with keygen := pair } e s).sendA s.stA =
@@ -376,7 +380,7 @@ theorem sendA_keygen_independent
 /-- Leaking-send version of `sendA_keygen_independent`. -/
 theorem sendArleak_keygen_independent
     (kemMat : KEMMaterial leak) (e : ℕ)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (s : GameState onoff Sym)
     (hh : ¬(s.stA.t = e ∧ s.stA.dkA.isNone))
     (pair pair' : (PK × SK) × leak.KeygenRand) :
     (stageScheme ecEk ecCt0 ecCt1 .encapsFresh { kemMat with keygen := pair } e s).sendArleak
@@ -398,7 +402,7 @@ variable [DecidableEq K]
 /-- A version of `leaking_offline_rejected`, for A without `dkA`. -/
 theorem leaking_keygen_rejected
     (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (s : GameState onoff Sym)
     (he : s.stA.t = e) (hfield : s.stA.dkA = none) (hc : e ∈ s.challenged) :
     (SCKAScheme.oracleSendArleak vulnRleakA
       (stageScheme ecEk ecCt0 ecCt1 stage kemMat e s) ()).run s =ᵈ
@@ -418,7 +422,7 @@ variable [SampleableType K]
 theorem stageOracle_keygen_independent
     (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool)
     (t : (securitySpec leak Sym).Domain)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
+    (s : GameState onoff Sym)
     (hh : usesSource .keygen e t s = false)
     (pair pair' : (PK × SK) × leak.KeygenRand) :
     (stageOracle base onoff ecEk ecCt0 ecCt1 leak
@@ -427,7 +431,9 @@ theorem stageOracle_keygen_independent
       .encapsFresh { kemMat with keygen := pair' } e b t).run s := by
   rcases t with (((((t | u) | u) | _) | u) | u) <;> try rcases t with ((((n | u) | u) | n) | n)
   all_goals try cases u
-  all_goals simp only [stageOracle, securityImplAt, StateT.run_bind, StateT.run_get, pure_bind,
+  all_goals simp only [stageOracle, securityImplAt, SCKAScheme.securityImplOf,
+    QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, StateT.run_bind,
+      StateT.run_get, pure_bind,
     SCKAScheme.sckaCorrectnessImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
     EvalDistEq.refl]
   · exact ToVCVio.evalDistEq_of_eq (SCKAScheme.oracleSendA_run_congr _ _ s
@@ -472,7 +478,7 @@ before `stageStopped .encapsFresh { kemMat with keygen := kg } e b` gives the ac
 of `stageStopped .fresh kemMat e b`. -/
 theorem stageStopped_keygen_deferred
     (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool) (adv : SecurityAdversary leak Sym)
-    (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
+    (s : GameState onoff Sym) :
     Pr{let x ← (do
       let keygen ← leak.keygenRleak
       optionRun (stageStopped base onoff ecEk ecCt0 ecCt1 leak
@@ -486,13 +492,15 @@ theorem stageStopped_keygen_deferred
       s.exposed))
     (fun _ => True) (fun s => sourceUsed .keygen e s.stA s.stB) (usesSource .keygen e)
     (fun _ _ _ _ _ _ _ _ => trivial)
-    (fun keygen _ t s _ hu z hz _ => stageOracle_preserves_sourceUsed base onoff ecEk ecCt0 ecCt1
-      leak .encapsFresh { kemMat with keygen := keygen } e b .keygen t s hu z hz)
+    (fun keygen _ t s _ hu res hres _ => stageOracle_preserves_sourceUsed base onoff ecEk ecCt0
+      ecCt1
+      leak .encapsFresh { kemMat with keygen := keygen } e b .keygen t s hu res hres)
     (fun t s _ hh keygen _ keygen' _ => stageOracle_keygen_independent base onoff ecEk ecCt0 ecCt1
       leak kemMat e b t s hh keygen keygen')
     (fun t s _ hu => usesSource_false_of_used .keygen e t s hu)
-    (fun keygen _ t s _ hh z hz hcont => stageOracle_first_source_use base onoff ecEk ecCt0 ecCt1
-      leak .encapsFresh { kemMat with keygen := keygen } e b .keygen t s hh z hz hcont)
+    (fun keygen _ t s _ hh res hres hcont => stageOracle_first_source_use base onoff ecEk ecCt0
+      ecCt1
+      leak .encapsFresh { kemMat with keygen := keygen } e b .keygen t s hh res hres hcont)
     (fun t s _ => stageOracle_sample_keygen_eq_fresh base onoff ecEk ecCt0 ecCt1 leak kemMat e b t
       s)
     adv s trivial
