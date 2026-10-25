@@ -54,17 +54,18 @@ namespace oppUniKemCKA.Security
 
 variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
+variable (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+  (hDet : kem.DeterministicDecaps)
+variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
+variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
+variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
+variable (leak : kem.OnOffRandLeak onoff)
 
 /-! ### Send and epoch accounting -/
 
 omit [SampleableType K] in
 /-- Every query of `idealCorrectnessImpl` preserves `sendEpochInv`. -/
-private theorem idealCorrectnessImpl_preserves_sendEpochInv
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff) :
+private theorem idealCorrectnessImpl_preserves_sendEpochInv :
     QueryImpl.PreservesInv (idealCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak)
       sendEpochInv := by
   intro t s hs z hz
@@ -78,11 +79,6 @@ private theorem idealCorrectnessImpl_preserves_sendEpochInv
 
 /-- Every query of `idealSecurityImpl` preserves `sendEpochInv`. -/
 private theorem idealSecurityImpl_preserves_sendEpochInv
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff)
     (mode : ℕ → Bool) :
     QueryImpl.PreservesInv (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak mode)
       sendEpochInv :=
@@ -96,11 +92,6 @@ private theorem idealSecurityImpl_preserves_sendEpochInv
 /-- Every successor state `z.2` of a query `t` of `idealSecurityImpl` from `s` satisfies
 `z.2.nA ≤ s.nA + 1` when `t` is a send query and `z.2.nA ≤ s.nA` otherwise. -/
 private theorem idealSecurityImpl_sendCounter_step
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff)
     (mode : ℕ → Bool) (t : (securitySpec leak Sym).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (z : (securitySpec leak Sym).Range t ×
@@ -111,15 +102,10 @@ private theorem idealSecurityImpl_sendCounter_step
     (idealCorrectnessImpl_nA_step kem onoff hDet ecEk ecCt0 ecCt1 leak)
     (SCKAScheme.challOf_recordsChallenges _) t s z hz
 
+include hEk hCt0 hCt1 in
 /-- Assuming the erasure codes are correct, every query of `idealSecurityImpl` preserves
 `reachableInv`. -/
-private theorem idealSecurityImpl_preserves_reachableInv
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-    (leak : kem.OnOffRandLeak onoff) (mode : ℕ → Bool) :
+private theorem idealSecurityImpl_preserves_reachableInv (mode : ℕ → Bool) :
     QueryImpl.PreservesInv (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak mode)
       (reachableInv kem onoff ecEk ecCt0 ecCt1) :=
   SCKAScheme.securityImplOf_preservesInv_of_book _ _ _ _ _ _
@@ -138,26 +124,18 @@ private theorem idealSecurityImpl_preserves_reachableInv
 iff `0 < t ∧ t ≤ i`, and the recorded key otherwise. -/
 def hybridMode (i t : ℕ) : Bool := decide (0 < t ∧ t ≤ i)
 
+include hDet in
 /-- Oracles of the ideal epoch hybrid `H_i`: the ideal security oracles answering eligible
 challenges at epochs `1, …, i` with uniform keys and later ones with recorded keys, that is,
 `idealSecurityImpl` under the challenge mode `hybridMode i`. -/
-abbrev idealEpochHybridImpl
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff) (i : ℕ) :=
+abbrev idealEpochHybridImpl (i : ℕ) :=
   idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak (hybridMode i)
 
+include hDet in
 /-- The ideal epoch hybrid `H_i`: `adv` run from the initial game state against the ideal security
 oracles that answer eligible challenges at epochs `1, …, i` with uniform keys and later ones with
 recorded keys (`idealEpochHybridImpl … i`). -/
 def idealEpochHybridExp
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff)
     (adv : SecurityAdversary leak Sym) (i : ℕ) : ProbComp Bool :=
   idealSecurityExp kem onoff hDet ecEk ecCt0 ecCt1 leak (hybridMode i) adv
 
@@ -182,11 +160,6 @@ theorem adjacentMode_apply (e : ℕ) (b : Bool) (t : ℕ) :
 /-- The initial hybrid `idealEpochHybridExp … 0` (`H_0`) coincides with the real-key ideal game
 `idealSecurityExp … (fun _ => false) adv` (`I_false`) as a probabilistic computation. -/
 theorem idealEpochHybridExp_zero
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff)
     (adv : SecurityAdversary leak Sym) :
     idealEpochHybridExp kem onoff hDet ecEk ecCt0 ecCt1 leak adv 0 =
       idealSecurityExp kem onoff hDet ecEk ecCt0 ecCt1 leak (fun _ => false) adv := by
@@ -198,11 +171,6 @@ theorem idealEpochHybridExp_zero
 
 /-- Every query of `idealSecurityImpl` is monotonic in the `exposed` epoch set. -/
 private theorem idealSecurityImpl_exposed_subset
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff)
     (mode : ℕ → Bool) (t : (securitySpec leak Sym).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (z : (securitySpec leak Sym).Range t ×
@@ -215,11 +183,6 @@ private theorem idealSecurityImpl_exposed_subset
 
 /-- Every query of `idealSecurityImpl` preserves membership `e ∈ s.exposed`. -/
 private theorem idealSecurityImpl_preserves_exposed
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff)
     (mode : ℕ → Bool) (e : ℕ) :
     QueryImpl.PreservesInv (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak mode)
       (fun s => e ∈ s.exposed) :=
@@ -228,12 +191,7 @@ private theorem idealSecurityImpl_preserves_exposed
 
 /-- In any state `s` satisfying `i + 1 ∈ s.exposed`, `idealEpochHybridImpl … (i + 1)` and
 `idealEpochHybridImpl … i` evaluate every query `t` to the same response/state computation. -/
-private theorem idealEpochHybrid_query_eq_of_exposed
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff) (i : ℕ)
+private theorem idealEpochHybrid_query_eq_of_exposed (i : ℕ)
     (t : (securitySpec leak Sym).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : i + 1 ∈ s.exposed) :
@@ -250,12 +208,7 @@ private theorem idealEpochHybrid_query_eq_of_exposed
 /-- From any state `s` satisfying `i + 1 ∈ s.exposed`, simulating any oracle computation `adv`
 under `idealEpochHybridImpl … (i + 1)` and `idealEpochHybridImpl … i` yields identical output/state
 computations. -/
-private theorem idealEpochHybrid_run_eq_of_exposed
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff) (i : ℕ)
+private theorem idealEpochHybrid_run_eq_of_exposed (i : ℕ)
     {α : Type} (adv : OracleComp (securitySpec leak Sym) α)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : i + 1 ∈ s.exposed) :
@@ -277,11 +230,6 @@ oracles `idealEpochHybridImpl … q` and the random-key ideal oracles
 `idealSecurityImpl … (fun _ => true)` evaluate every query `t` to the same response/state
 computation. -/
 private theorem idealEpochHybrid_query_eq_random
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff)
     (q : ℕ) (t : (securitySpec leak Sym).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hr : reachableInv kem onoff ecEk ecCt0 ecCt1 s)
@@ -300,16 +248,11 @@ private theorem idealEpochHybrid_query_eq_random
   · simp only [not_or, Option.not_isSome_iff_eq_none] at hk
     exact SCKAScheme.oracleChall_run_eq_of_rejected _ _ s t (Or.inr hk)
 
+include hEk hCt0 hCt1 in
 /-- Assuming the erasure codes are correct and `SecuritySendQueryBound adv q`, the final hybrid
 `idealEpochHybridExp … q` (`H_q`) has the same acceptance probability as the random-key ideal game
 `idealSecurityExp … (fun _ => true) adv` (`I_true`): `Pr[H_q = true] = Pr[I_true = true]`. -/
 theorem idealEpochHybridExp_last
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-    (leak : kem.OnOffRandLeak onoff)
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
     Pr{let x ← idealEpochHybridExp kem onoff hDet ecEk ecCt0 ecCt1 leak adv q}[x = true] =
       Pr{let x ← (idealSecurityExp
@@ -346,18 +289,13 @@ theorem idealEpochHybridExp_last
   simp only [idealEpochHybridExp, idealSecurityExp, StateT.run'_eq]
   exact (h.symm.map Prod.fst).prEvent_eq _
 
+include hEk hCt0 hCt1 in
 /-- Assuming the erasure codes are correct and `SecuritySendQueryBound adv q`, the SCKA guessing
 advantage of `adv` is bounded by half the distance between the endpoint ideal hybrids
 `H_0 := idealEpochHybridExp … 0` and `H_q := idealEpochHybridExp … q`, plus `q` times the KEM
 correctness error `ε`:
 `AdvGuess_SCKA(scka, adv) ≤ |Pr[H_0 = true] - Pr[H_q = true]| / 2 + q · ε`. -/
 theorem security_guess_le_hybrid_gap
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-    (leak : kem.OnOffRandLeak onoff)
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
     SCKAScheme.sckaGuessAdvantage (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)
       adv (exposureA kem onoff leak) (exposureB kem onoff leak) ≤
@@ -399,10 +337,11 @@ namespace oppUniKemCKA.Security
 variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 variable (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-variable (hDet : DeterministicDecaps kem)
-variable (ecEk : ErasureCodePayload PK Sym)
-variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff)
+  (hDet : kem.DeterministicDecaps)
+variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
+variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
+variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
+variable (leak : kem.OnOffRandLeak onoff)
 
 /-- Every query of `idealSecurityImpl` preserves `Disjoint s.exposed s.challenged`. -/
 private theorem idealSecurityImpl_preserves_disjoint (mode : ℕ → Bool) :

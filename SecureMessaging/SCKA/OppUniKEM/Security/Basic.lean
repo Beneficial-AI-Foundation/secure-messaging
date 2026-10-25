@@ -134,6 +134,13 @@ theorem scheme_sendB_eq_map_sendBrleak [DecidableEq Sym]
 
 end Marginals
 
+variable (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+  (hDet : kem.DeterministicDecaps)
+variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
+variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
+variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
+variable (leak : kem.OnOffRandLeak onoff)
+
 /-- Epochs exposed by A's successful leaking send from `s`: `{s.t}` if A generates a key pair
 (`s.dkA = none`), else `∅`. -/
 def leakEpochsA {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
@@ -150,8 +157,6 @@ def leakEpochsB {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure
 /-- Every possible successful output of `sendArleak s` with coins `rand` has
 `vulnRleakA s rand = leakEpochsA s`. -/
 theorem sendArleak_exposure
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym) (leak : kem.OnOffRandLeak onoff)
     (s : StA onoff Sym)
     (key : Option (ℕ × K)) (msg : Message Sym) (epoch : ℕ) (s' : StA onoff Sym)
     (rand : SendRand leak.KeygenRand leak.OffRand leak.OnRand)
@@ -173,9 +178,6 @@ theorem sendArleak_exposure
 
 /-- B version of `sendArleak_exposure`: `vulnRleakB s rand = leakEpochsB s`. -/
 theorem sendBrleak_exposure
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff)
     (s : StB onoff Sym)
     (key : Option (ℕ × K)) (msg : Message Sym) (epoch : ℕ) (s' : StB onoff Sym)
     (rand : SendRand leak.KeygenRand leak.OffRand leak.OnRand)

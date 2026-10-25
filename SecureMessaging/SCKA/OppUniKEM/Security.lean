@@ -142,18 +142,19 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
+variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
+  (hDet : base.DeterministicDecaps)
+variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
+variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
+variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
+variable (leak : base.OnOffRandLeak onoff)
 
+include hEk hCt0 hCt1 in
 /-- Step 4 (exposure cancellation): for challenge epoch `i + 1`, the difference in acceptance
 probability between the real and random branches of `𝓑_{i+1} := fixedBranch adv (i + 1)` equals
 that between the adjacent ideal hybrids `H_i := idealEpochHybridExp adv i` and `H_{i+1}`:
 `Pr[𝓑_{i+1}^true = true] - Pr[𝓑_{i+1}^false = true] = Pr[H_i = true] - Pr[H_{i+1} = true]`. -/
-theorem fixedBranch_signed_gap_eq
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (hDet : base.DeterministicDecaps)
-    (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-    (leak : base.OnOffRandLeak onoff) (adv : SecurityAdversary leak Sym) (i : ℕ) :
+theorem fixedBranch_signed_gap_eq (adv : SecurityAdversary leak Sym) (i : ℕ) :
     (Pr{let x ← fixedBranch base onoff ecEk ecCt0 ecCt1 leak adv (i + 1) true}[x = true]).toReal -
       (Pr{let x ← (fixedBranch
           base onoff ecEk ecCt0 ecCt1 leak adv (i + 1) false)}[x = true]).toReal =
@@ -183,18 +184,13 @@ theorem fixedBranch_signed_gap_eq
       (oppUniKemCKA.Reduction.Internal.initialGame base onoff))}[x = true]).toReal = _
   linarith only [hstop]
 
+include hEk hCt0 hCt1 in
 /-- Step 5 (epoch averaging): for `q > 0`, averaging over the uniform challenge epoch
 `e ∈ {1, …, q}` and telescoping the adjacent-hybrid differences of `fixedBranch_signed_gap_eq`
 relates the difference in acceptance probability between the real and random IND-CPA branches of
 `𝓑 := securityReduction … adv q` to the endpoint ideal hybrids `H_0 := idealEpochHybridExp adv 0`
 and `H_q`: `Pr[𝓑_real = true] - Pr[𝓑_random = true] = (Pr[H_0 = true] - Pr[H_q = true]) / q`. -/
-theorem securityReduction_signed_gap_eq
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (hDet : base.DeterministicDecaps)
-    (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-    (leak : base.OnOffRandLeak onoff) (adv : SecurityAdversary leak Sym)
+theorem securityReduction_signed_gap_eq (adv : SecurityAdversary leak Sym)
     (q : ℕ) (hq : q ≠ 0) :
     (Pr{let x ← (base.IND_CPA_Experiment ProbCompRuntime.probComp
       (securityReduction base onoff ecEk ecCt0 ecCt1 leak adv q) true)}[x = true]).toReal -
@@ -213,17 +209,12 @@ theorem securityReduction_signed_gap_eq
         base onoff hDet ecEk ecCt0 ecCt1 leak adv (i + 1))}[x = true]).toReal) q,
     Finset.sum_range_sub']
 
+include hEk hCt0 hCt1 in
 /-- Step 5: for every `q : ℕ`, the distance between the acceptance probabilities of the endpoint
 ideal hybrids `H_0 := idealEpochHybridExp adv 0` and `H_q := idealEpochHybridExp adv q` is `q`
 times the IND-CPA advantage of `𝓑 := securityReduction … adv q`:
 `|Pr[H_0 = true] - Pr[H_q = true]| = q · AdvINDCPA_KEM(base, 𝓑)`. -/
-theorem hybrid_gap_eq_query_factor
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (hDet : base.DeterministicDecaps)
-    (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-    (leak : base.OnOffRandLeak onoff) (adv : SecurityAdversary leak Sym) (q : ℕ) :
+theorem hybrid_gap_eq_query_factor (adv : SecurityAdversary leak Sym) (q : ℕ) :
     |(Pr{let x ← (idealEpochHybridExp
         base onoff hDet ecEk ecCt0 ecCt1 leak adv 0)}[x = true]).toReal -
       (Pr{let x ← (idealEpochHybridExp

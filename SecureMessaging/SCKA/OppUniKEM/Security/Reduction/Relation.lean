@@ -44,11 +44,15 @@ open OracleSpec OracleComp KEMScheme
 namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
+variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
+  (hDet : base.DeterministicDecaps)
+variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
+variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
+variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
+variable (leak : base.OnOffRandLeak onoff)
 
 /-- Every possible successful result of `sendA s` has key component `none`. -/
-theorem sendA_key_none
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym) (s : StA onoff Sym)
+theorem sendA_key_none (s : StA onoff Sym)
     (key : Option (ℕ × K)) (msg : Message Sym) (t : ℕ) (next : StA onoff Sym)
     (hout : some (key, msg, t, next) ∈ support (sendA base onoff ecEk s)) :
     key = none := by
@@ -59,10 +63,7 @@ theorem sendA_key_none
   all_goals aesop
 
 /-- A key `(t, k)` output by `sendB s` has `t = s.t` and `s.ct1 = none`. -/
-theorem sendB_key_fresh
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (s : StB onoff Sym)
+theorem sendB_key_fresh (s : StB onoff Sym)
     (t : ℕ) (k : K) (msg : Message Sym) (tsnd : ℕ) (next : StB onoff Sym)
     (hout : some (some (t, k), msg, tsnd, next) ∈
       support (sendB base onoff ecCt0 ecCt1 s)) :
@@ -77,8 +78,6 @@ theorem sendB_key_fresh
 
 /-- `sendArleak s` outputs no key and returns no coins or key-generation coins. -/
 theorem sendArleak_shape
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym) (leak : base.OnOffRandLeak onoff)
     (s : StA onoff Sym) (key : Option (ℕ × K)) (msg : Message Sym)
     (t : ℕ) (next : StA onoff Sym)
     (coins : SendRand leak.KeygenRand leak.OffRand leak.OnRand)
@@ -92,9 +91,6 @@ theorem sendArleak_shape
 
 /-- `sendBrleak s` returns no coins, offline coins, online coins, or both. -/
 theorem sendBrleak_coins
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (s : StB onoff Sym) (key : Option (ℕ × K)) (msg : Message Sym)
     (t : ℕ) (next : StB onoff Sym)
     (coins : SendRand leak.KeygenRand leak.OffRand leak.OnRand)
@@ -111,9 +107,6 @@ theorem sendBrleak_coins
 
 /-- Leaking version of `sendB_key_fresh`. -/
 theorem sendBrleak_key_fresh
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (s : StB onoff Sym) (t : ℕ) (k : K) (msg : Message Sym)
     (tsnd : ℕ) (next : StB onoff Sym)
     (coins : SendRand leak.KeygenRand leak.OffRand leak.OnRand)
@@ -126,10 +119,6 @@ theorem sendBrleak_key_fresh
 
 /-- Under `reachableInv s` and `s.stB.ct1 = none`, no key is recorded for B's epoch `s.stB.t`. -/
 theorem keys_none_before_online
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hc : s.stB.ct1 = none) :
     s.keyA s.stB.t = none ∧ s.keyB s.stB.t = none := by
@@ -240,11 +229,15 @@ open OracleSpec OracleComp KEMScheme
 namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type} [DecidableEq Sym]
+variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
+  (hDet : base.DeterministicDecaps)
+variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
+variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
+variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
+variable (leak : base.OnOffRandLeak onoff)
 
 /-- `recvB s msg` outputs no key. -/
-theorem recvB_key_none
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym) (s : StB onoff Sym) (msg : Message Sym)
+theorem recvB_key_none (s : StB onoff Sym) (msg : Message Sym)
     (key : Option (ℕ × K)) (t : ℕ) (next : StB onoff Sym)
     (h : recvB base onoff ecEk s msg = some (key, t, next)) : key = none := by
   unfold recvB at h
@@ -253,10 +246,7 @@ theorem recvB_key_none
 
 /-- A key `(t, k)` output by A's receive with decapsulation result `key` has `t = s.t` and
 `key = some k`. -/
-theorem recvA_key_source
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (key : Option K)
+theorem recvA_key_source (key : Option K)
     (s : StA onoff Sym) (msg : Message Sym)
     (t : ℕ) (k : K) (trcv : ℕ) (next : StA onoff Sym)
     (h : recvA base onoff (fun _ _ => key) ecCt0 ecCt1 s msg =
@@ -271,9 +261,7 @@ theorem recvA_key_source
 
 /-- Party B's receive over the simulated KEM from `hideB e s` equals `recvB s msg` followed by
 `hideB e`. -/
-theorem recvB_hide
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym) (e : ℕ)
+theorem recvB_hide (e : ℕ)
     (selectedA selectedB : Bool) (pkStar : PK) (ctStar : C) (key : Option (Option K))
     (s : StB onoff Sym) (msg : Message Sym) :
     recvB (kem base onoff selectedA selectedB pkStar ctStar key)
@@ -290,10 +278,7 @@ set_option maxHeartbeats 800000 in
 /-- Party A's receive over the simulated KEM with decapsulation result `key.map (hide e s.t)` from
 `hideA e s` equals A's receive with result `key` from `s`, followed by hiding the output key and
 state. -/
-theorem recvA_hide
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (e : ℕ)
+theorem recvA_hide (e : ℕ)
     (selectedA selectedB : Bool) (pkStar : PK) (ctStar : C) (key : Option K)
     (s : StA onoff Sym) (msg : Message Sym) :
     recvA (kem base onoff selectedA selectedB pkStar ctStar (key.map (hide e s.t)))
@@ -445,6 +430,12 @@ open OracleSpec OracleComp KEMScheme
 namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
+variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
+  (hDet : base.DeterministicDecaps)
+variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
+variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
+variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
+variable (leak : base.OnOffRandLeak onoff)
 
 /-- Hide each coin returned by a send in epoch `t` via `hide e t`. -/
 def hideCoins {KG OFF ON : Type} (e t : ℕ) :
@@ -459,8 +450,6 @@ def hideCoins {KG OFF ON : Type} (e t : ℕ) :
 equals A's leaking send over `Pinned.kem kemMat` from `s` followed by hiding the state and coins;
 the output key is `none`. -/
 theorem sendArleak_hide
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym) (leak : base.OnOffRandLeak onoff)
     (kemMat : KEMMaterial leak) (e : ℕ) (selectedB : Bool)
     (keyS : Option (Option K)) (keyH : Option K) (s : StA onoff Sym) :
     sendArleak (kem base onoff (decide (s.t = e)) selectedB kemMat.pk kemMat.ciphertext keyS)
@@ -481,9 +470,6 @@ set_option maxHeartbeats 1400000 in
 -- Each leakage phase expands its output, coin conversion, and state update.
 /-- B version of `sendArleak_hide`; the output key is also hidden via `hide e`. -/
 theorem sendBrleak_hide
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (kemMat : KEMMaterial leak) (e : ℕ) (selectedA : Bool)
     (keyS : Option (Option K)) (keyH : Option K) (s : StB onoff Sym) :
     sendBrleak (kem base onoff selectedA (decide (s.t = e)) kemMat.pk kemMat.ciphertext keyS)
@@ -505,8 +491,6 @@ theorem sendBrleak_hide
 
 /-- Ordinary-send version of `sendArleak_hide`. -/
 theorem sendA_hide
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym) (leak : base.OnOffRandLeak onoff)
     (kemMat : KEMMaterial leak) (e : ℕ) (selectedB : Bool)
     (keyS : Option (Option K)) (keyH : Option K) (s : StA onoff Sym) :
     sendA (kem base onoff (decide (s.t = e)) selectedB kemMat.pk kemMat.ciphertext keyS)
@@ -527,9 +511,6 @@ theorem sendA_hide
 
 /-- Ordinary-send version of `sendBrleak_hide`. -/
 theorem sendB_hide
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (kemMat : KEMMaterial leak) (e : ℕ) (selectedA : Bool)
     (keyS : Option (Option K)) (keyH : Option K) (s : StB onoff Sym) :
     sendB (kem base onoff selectedA (decide (s.t = e)) kemMat.pk kemMat.ciphertext keyS)

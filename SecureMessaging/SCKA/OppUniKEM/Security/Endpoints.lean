@@ -68,20 +68,22 @@ namespace Security
 open Reduction.Internal
 
 variable {K PK SK C Sym : Type}
+variable (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
+  (hDet : kem.DeterministicDecaps)
+variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
+variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
+variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
+variable (leak : kem.OnOffRandLeak onoff)
 
 section IdealGame
 
+include hDet in
 /-- Party A's receive oracle in the ideal security game.
 
 When invoked on message index `n` in game state `s`, this oracle executes `SCKAScheme.oracleRecvA`
 except that decapsulation is replaced by looking up party B's recorded key `s.keyB s.stA.t` for
 A's current epoch (`none` if no key is recorded). -/
-def oracleRecvAIdeal [DecidableEq K] [DecidableEq Sym]
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff) :
+def oracleRecvAIdeal [DecidableEq K] [DecidableEq Sym] :
     QueryImpl (ℕ →ₒ Option (ℕ × Option ℕ))
       (StateT (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) ProbComp) :=
   fun n => do
@@ -91,15 +93,10 @@ def oracleRecvAIdeal [DecidableEq K] [DecidableEq Sym]
     (SCKAScheme.oracleRecvA (schemeWithDecaps kem onoff hDet ecEk ecCt0 ecCt1 leak
       (fun _ _ => s.keyB s.stA.t)) n)
 
+include hCt0 hCt1 in
 /-- Assuming the ciphertext erasure codes are correct, party A's ideal receive oracle
 `oracleRecvAIdeal` preserves `reachableInv`. -/
-theorem oracleRecvAIdeal_preserves_reachableInv [DecidableEq K] [DecidableEq Sym]
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-    (leak : kem.OnOffRandLeak onoff) :
+theorem oracleRecvAIdeal_preserves_reachableInv [DecidableEq K] [DecidableEq Sym] :
     QueryImpl.PreservesInv (oracleRecvAIdeal kem onoff hDet ecEk ecCt0 ecCt1 leak)
       (reachableInv kem onoff ecEk ecCt0 ecCt1) := by
   intro n s hs z hz
@@ -109,12 +106,7 @@ theorem oracleRecvAIdeal_preserves_reachableInv [DecidableEq K] [DecidableEq Sym
     (fun _ _ => s.keyB s.stA.t) rfl n s hs (fun _ _ _ _ _ _ _ hk => hk) z hz
 
 /-- Party A's ideal receive oracle `oracleRecvAIdeal` preserves `sendEpochInv`. -/
-theorem oracleRecvAIdeal_preserves_sendEpochInv [DecidableEq K] [DecidableEq Sym]
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff) :
+theorem oracleRecvAIdeal_preserves_sendEpochInv [DecidableEq K] [DecidableEq Sym] :
     QueryImpl.PreservesInv (oracleRecvAIdeal kem onoff hDet ecEk ecCt0 ecCt1 leak)
       sendEpochInv := by
   intro n s hs z hz
@@ -126,14 +118,10 @@ section
 
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
+include hDet in
 /-- The SCKA correctness oracle implementation in which party A's receive oracle is replaced by
 `oracleRecvAIdeal`. -/
-def idealCorrectnessImpl
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff) :
+def idealCorrectnessImpl :
     QueryImpl (SCKAScheme.sckaCorrectnessSpec (Message Sym))
       (StateT (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) ProbComp) :=
   let scka := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak
@@ -141,13 +129,9 @@ def idealCorrectnessImpl
     + SCKAScheme.oracleSendA scka + SCKAScheme.oracleSendB scka
     + oracleRecvAIdeal kem onoff hDet ecEk ecCt0 ecCt1 leak + SCKAScheme.oracleRecvB scka
 
+include hDet in
 /-- Security oracle implementation for the ideal game under challenge mode `mode : ℕ → Bool`. -/
 def idealSecurityImpl
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff)
     (mode : ℕ → Bool) :
     QueryImpl (securitySpec leak Sym)
       (StateT (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) ProbComp) :=
@@ -156,14 +140,10 @@ def idealSecurityImpl
     (exposureA kem onoff leak) (exposureB kem onoff leak)
     (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)
 
+include hDet in
 /-- The ideal security experiment: executes `adv` against `idealSecurityImpl … mode` starting from
 the initial game state. -/
 def idealSecurityExp
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff)
     (mode : ℕ → Bool) (adv : SecurityAdversary leak Sym) : ProbComp Bool :=
   (simulateQ (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak mode) adv).run'
     (Reduction.Internal.initialGame kem onoff)
@@ -172,11 +152,6 @@ omit [SampleableType K] in
 /-- Evaluated at state `s`, `idealCorrectnessImpl` coincides with `sckaCorrectnessImpl` instantiated
 on `schemeWithDecaps` using the constant lookup `fun _ _ => s.keyB s.stA.t`. -/
 private theorem idealCorrectnessImpl_run_eq
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff)
     (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
     (idealCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak t).run s =
@@ -188,11 +163,6 @@ omit [SampleableType K] in
 /-- Every query of `idealCorrectnessImpl` leaves the `exposed` and `challenged` epoch sets
 unchanged. -/
 theorem idealCorrectnessImpl_securitySets_eq
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff)
     (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (z : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Range t ×
@@ -206,11 +176,6 @@ omit [SampleableType K] in
 /-- Every successor state `z.2` of an ideal correctness query `t` from `s` satisfies
 `z.2.nA ≤ s.nA + 1` when `t` is a send query and `z.2.nA ≤ s.nA` otherwise. -/
 theorem idealCorrectnessImpl_nA_step
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff)
     (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (z : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Range t ×
@@ -221,15 +186,10 @@ theorem idealCorrectnessImpl_nA_step
   exact SCKAScheme.correctnessImpl_nA_step _ t s z hz
 
 omit [SampleableType K] in
+include hEk hCt0 hCt1 in
 /-- Assuming the erasure codes are correct, every query of `idealCorrectnessImpl` preserves
 `reachableInv`. -/
-theorem idealCorrectnessImpl_preserves_reachableInv
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-    (leak : kem.OnOffRandLeak onoff) :
+theorem idealCorrectnessImpl_preserves_reachableInv :
     QueryImpl.PreservesInv (idealCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak)
       (reachableInv kem onoff ecEk ecCt0 ecCt1) := by
   intro t s hs z hz
@@ -249,10 +209,7 @@ end
 /-- Two decapsulation functions give equal A-receive computations on a fixed state and
 message if they agree on every decapsulation reached by that receive. -/
 theorem recvA_eq_of_decaps_agrees [DecidableEq Sym]
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (decaps decaps' : SK → C → Option K)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
     (s : StA onoff Sym) (msg : Message Sym)
     (hdec : ∀ dk ct0 ch ct1 ack,
       s.dkA = some dk → s.ct0 = some ct0 →
@@ -290,6 +247,7 @@ theorem recvA_eq_of_decaps_agrees [DecidableEq Sym]
   · have ht' : s.t ≠ t := Ne.symm ht
     simp [recvA, ht']
 
+include hDet in
 /-- Conditions for replacing A's decapsulation by B's recorded key in a game state `s`:
 
 - the online ciphertext erasure code is correct;
@@ -298,11 +256,6 @@ theorem recvA_eq_of_decaps_agrees [DecidableEq Sym]
   for A's epoch are present, decapsulation of those ciphertext components under that secret
   key returns the recorded key (`CurrentKEMCorrect`). -/
 def IdealReceiveConditions
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) : Prop :=
   ecCt1.ec.Correct ∧ reachableInv kem onoff ecEk ecCt0 ecCt1 s ∧
     CurrentKEMCorrect kem onoff hDet s
@@ -311,11 +264,6 @@ def IdealReceiveConditions
 If a recorded message from B completes A's online ciphertext, A's decapsulation result equals
 B's recorded key for A's current epoch. -/
 theorem honest_recvA_decapsulation_eq_recorded [DecidableEq Sym]
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : IdealReceiveConditions kem onoff hDet ecEk ecCt0 ecCt1 s)
     (n : ℕ) (msg : Message Sym) (epoch : ℕ) (hentry : s.msgB n = some (msg, epoch))
@@ -358,12 +306,6 @@ theorem honest_recvA_decapsulation_eq_recorded [DecidableEq Sym]
 For every delivery index `n`, A's receive oracles in `G_b` and `I_b` have equal response/state
 computations from `s`. -/
 theorem oracleRecvA_eq_ideal [DecidableEq K] [DecidableEq Sym]
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
-    (leak : kem.OnOffRandLeak onoff)
     (n : ℕ) (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : IdealReceiveConditions kem onoff hDet ecEk ecCt0 ecCt1 s) :
     (SCKAScheme.oracleRecvA (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) n).run s =
@@ -375,8 +317,8 @@ theorem oracleRecvA_eq_ideal [DecidableEq K] [DecidableEq Sym]
   | none => simp [SCKAScheme.oracleRecvA, hentry]
   | some entry =>
     rcases entry with ⟨msg, epoch⟩
-    have heq := recvA_eq_of_decaps_agrees kem onoff hDet.decapsDet (fun _ _ => s.keyB s.stA.t)
-      ecCt0 ecCt1 s.stA msg
+    have heq := recvA_eq_of_decaps_agrees kem onoff ecCt0 ecCt1 hDet.decapsDet
+      (fun _ _ => s.keyB s.stA.t) s.stA msg
       (honest_recvA_decapsulation_eq_recorded kem onoff hDet ecEk ecCt0 ecCt1
         s hs n msg epoch hentry)
     simp only [SCKAScheme.oracleRecvA, scheme, schemeWithDecaps, StateT.run_bind,
@@ -387,13 +329,7 @@ variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 /-- Suppose the game state `s` satisfies `IdealReceiveConditions`.
 For every query `t`, the oracles of `G_b` and `I_b` have equal response/state computations
 from `s`. -/
-theorem securityImpl_eq_ideal_of_current
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
-    (leak : kem.OnOffRandLeak onoff) (b : Bool)
+theorem securityImpl_eq_ideal_of_current (b : Bool)
     (t : (securitySpec leak Sym).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : IdealReceiveConditions kem onoff hDet ecEk ecCt0 ecCt1 s) :
@@ -428,14 +364,10 @@ section FailureProbability
 
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
+include hDet in
 /-- The security oracle implementation of `G_b` augmented with a boolean flag recording whether a
 KEM decapsulation failure has occurred. -/
-def trackedSecurityImpl
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff) (b : Bool) :
+def trackedSecurityImpl (b : Bool) :
     QueryImpl (securitySpec leak Sym)
       (StateT
         (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) × Bool)
@@ -449,12 +381,7 @@ def trackedSecurityImpl
 /-- Discarding the failure flag after running `trackedSecurityImpl` gives the same computation
 as the original security oracles, including the adversary's output and final game state.
 This holds for any initial state and flag. -/
-theorem trackedSecurity_run_project
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff) (b : Bool)
+theorem trackedSecurity_run_project (b : Bool)
     {α : Type} (adv : OracleComp (securitySpec leak Sym) α)
     (p : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) × Bool) :
     -- Run with tracking from `p = (s, bad)`, then discard the final flag:
@@ -470,12 +397,7 @@ theorem trackedSecurity_run_project
   extendState_run_proj_eq _ _ adv p.1 p.2
 
 /-- Once the failure flag is set, every tracked successor has it set. -/
-theorem trackedSecurityImpl_preserves_bad
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff) (b : Bool) :
+theorem trackedSecurityImpl_preserves_bad (b : Bool) :
     QueryImpl.PreservesInv (trackedSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b)
       (fun p => p.2 = true) := by
   intro t p hp z hz
@@ -484,15 +406,10 @@ theorem trackedSecurityImpl_preserves_bad
   obtain rfl := (mem_support_pure_iff _ _).mp hz
   simp [hp]
 
+include hEk hCt0 hCt1 in
 /-- Assume the three erasure codes are correct. Every query of `trackedSecurityImpl` preserves
 `trackedInv`: either `bad = true`, or `reachableInv` holds and `currentKEMFailure` is false. -/
-theorem trackedSecurityImpl_preserves
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-    (leak : kem.OnOffRandLeak onoff) (b : Bool) :
+theorem trackedSecurityImpl_preserves (b : Bool) :
     QueryImpl.PreservesInv (trackedSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b)
       (trackedInv kem onoff hDet ecEk ecCt0 ecCt1) := by
   intro t p hp z hz
@@ -518,13 +435,7 @@ theorem trackedSecurityImpl_preserves
 /-- In any state `s` satisfying `reachableInv s` and `currentKEMFailure s = false`, executing party
 A's instrumented leaking-send oracle from `(s, false)` increases the expected failure score
 `trackedFailureScore` by at most `factorCorrectnessError kem onoff`. -/
-theorem tracked_sendArleak_score_le
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
-    (leak : kem.OnOffRandLeak onoff) (b : Bool)
+theorem tracked_sendArleak_score_le (b : Bool)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv kem onoff ecEk ecCt0 ecCt1 s)
     (hf : currentKEMFailure kem onoff hDet s = false) :
@@ -558,13 +469,7 @@ theorem tracked_sendArleak_score_le
     simpa only [bind_pure_comp, wp_map, Function.comp_def] using h
 
 /-- Counterpart of `tracked_sendArleak_score_le` for party B's leaking-send oracle. -/
-theorem tracked_sendBrleak_score_le
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
-    (leak : kem.OnOffRandLeak onoff) (b : Bool)
+theorem tracked_sendBrleak_score_le (b : Bool)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv kem onoff ecEk ecCt0 ecCt1 s)
     (hf : currentKEMFailure kem onoff hDet s = false) :
@@ -600,13 +505,7 @@ theorem tracked_sendBrleak_score_le
 /-- For any state `p` satisfying `trackedInv`, executing a query `t` of `trackedSecurityImpl`
 increases the expected failure score `Φ` by at most `factorCorrectnessError kem onoff` when `t` is
 an ordinary or leaking send query, and does not increase `E[Φ]` otherwise. -/
-theorem trackedSecurity_score_step_le
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
-    (leak : kem.OnOffRandLeak onoff) (b : Bool)
+theorem trackedSecurity_score_step_le (b : Bool)
     (t : (securitySpec leak Sym).Domain)
     (p : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) × Bool)
     (hp : trackedInv kem onoff hDet ecEk ecCt0 ecCt1 p) :
@@ -665,16 +564,11 @@ theorem trackedSecurity_score_step_le
     intro state exposed hstate
     exact hstate
 
+include hEk hCt0 hCt1 in
 /-- Under the module's assumptions, for every bit `b` and SCKA adversary `adv` satisfying
 `SecuritySendQueryBound adv q`, the tracked execution of `G_b` from `(initialGame, false)`
 satisfies `Pr[bad_final = true] ≤ q · ε`, where `bad_final` is its final failure flag. -/
-theorem kem_failure_probability_le
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-    (leak : kem.OnOffRandLeak onoff) (b : Bool)
+theorem kem_failure_probability_le (b : Bool)
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
     Pr{let z ← ((simulateQ (trackedSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b) adv).run
         (initialGame (Sym := Sym) kem onoff, false))}[z.2.2 = true] ≤
@@ -705,14 +599,10 @@ section ComparisonBound
 
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
+include hDet in
 /-- The oracle implementation of the ideal game `I_b` augmented with the same boolean failure flag
 update as `trackedSecurityImpl`. -/
-def trackedIdealImpl
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff) (b : Bool) :
+def trackedIdealImpl (b : Bool) :
     QueryImpl (securitySpec leak Sym)
       (StateT
         (SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) × Bool) ProbComp) :=
@@ -721,12 +611,7 @@ def trackedIdealImpl
 
 /-- The version of `trackedSecurity_run_project` for the ideal game `I_b`:
 discarding the failure flag recovers the ideal execution, for any initial state and flag. -/
-theorem trackedIdeal_run_project
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff) (b : Bool)
+theorem trackedIdeal_run_project (b : Bool)
     {α : Type} (adv : OracleComp (securitySpec leak Sym) α)
     (p : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym) × Bool) :
     Prod.map id Prod.fst <$>
@@ -737,12 +622,7 @@ theorem trackedIdeal_run_project
 
 /-- The original game `G_b` equals the security-oracle simulation from `initialGame`,
 projected to the adversary's output. -/
-theorem securityExpFixedBit_eq_run'
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff) (b : Bool)
+theorem securityExpFixedBit_eq_run' (b : Bool)
     (adv : SecurityAdversary leak Sym) :
     SCKAScheme.securityExpFixedBit (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv b
       (exposureA kem onoff leak) (exposureB kem onoff leak) =
@@ -752,17 +632,12 @@ theorem securityExpFixedBit_eq_run'
   simp [SCKAScheme.securityExpFixedBit, scheme, initKeyGen, initA, initB,
     initialGame, initialA, initialB, StateT.run'_eq, map_eq_bind_pure_comp]
 
+include hEk hCt0 hCt1 in
 /-- Under the module's assumptions, for every bit `b` and SCKA adversary `adv` satisfying
 `SecuritySendQueryBound adv q`, that is, making at most `q` ordinary and leaking send queries,
 the original game `G_b` and ideal game `I_b` satisfy
 `|Pr[G_b = true] - Pr[I_b = true]| ≤ q · ε`. -/
-theorem security_correctness_endpoint_le
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : DeterministicDecaps kem)
-    (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-    (leak : kem.OnOffRandLeak onoff) (b : Bool)
+theorem security_correctness_endpoint_le (b : Bool)
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
     |(Pr{let x ← (SCKAScheme.securityExpFixedBit
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) adv b

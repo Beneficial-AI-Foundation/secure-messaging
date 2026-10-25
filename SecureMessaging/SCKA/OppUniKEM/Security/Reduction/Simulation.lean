@@ -42,13 +42,18 @@ open OracleSpec OracleComp KEMScheme
 namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
+variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
+  (hDet : base.DeterministicDecaps)
+variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
+variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
+variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
+variable (leak : base.OnOffRandLeak onoff)
 
 set_option backward.dsimp.instances true in
 /-- If `e ∉ s.exposed`, corrupting party A in the simulator from `hideState e s` coincides with
 corrupting party A in the stopped honest game from `s` and applying `hideState e` to the successor
 state. -/
 private theorem corruptA_hide
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (e : ℕ) (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : e ∉ s.exposed) :
     ((revealAfter (revealA (onoff := onoff))
@@ -78,7 +83,6 @@ private theorem corruptA_hide
 set_option backward.dsimp.instances true in
 /-- B version of `corruptA_hide`, with `revealB`. -/
 private theorem corruptB_hide
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (e : ℕ) (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : e ∉ s.exposed) :
     ((revealAfter (revealB (onoff := onoff))
@@ -112,15 +116,17 @@ open OracleSpec OracleComp KEMScheme
 namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type} [DecidableEq K] [DecidableEq Sym]
+variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
+  (hDet : base.DeterministicDecaps)
+variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
+variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
+variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
+variable (leak : base.OnOffRandLeak onoff)
 
 /-- Party B's receive oracle `oracleRecvB` over `simScheme` from `hideState e s` coincides with
 running `oracleRecvB` over `honestScheme` from `s` and applying `hideState e` to the successor
 state. -/
 private theorem oracleRecvB_hide
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (kemMat : KEMMaterial leak) (e n : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
     (SCKAScheme.oracleRecvB
@@ -148,10 +154,6 @@ private theorem oracleRecvB_hide
 
 /-- A version of `oracleRecvB_hide`. -/
 private theorem oracleRecvA_hide
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (kemMat : KEMMaterial leak) (e n : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
     (SCKAScheme.oracleRecvA
@@ -188,16 +190,18 @@ open OracleSpec OracleComp KEMScheme
 namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type} [DecidableEq K] [DecidableEq Sym]
+variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
+  (hDet : base.DeterministicDecaps)
+variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
+variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
+variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
+variable (leak : base.OnOffRandLeak onoff)
 
 set_option backward.dsimp.instances true in
 /-- Party A's ordinary send oracle `oracleSendA` over `simScheme` from `hideState e s` has the
 same response/state distribution as running `oracleSendA` over `honestScheme` from `s` and applying
 `hideState e` to the successor state. -/
 private theorem oracleSendA_hide
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) :
     (SCKAScheme.oracleSendA
@@ -226,10 +230,6 @@ private theorem oracleSendA_hide
 set_option backward.dsimp.instances true in
 /-- B version of `oracleSendA_hide`, under `reachableInv`. -/
 private theorem oracleSendB_hide
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) :
@@ -268,16 +268,18 @@ open OracleSpec OracleComp KEMScheme
 namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type} [DecidableEq K] [DecidableEq Sym]
+variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
+  (hDet : base.DeterministicDecaps)
+variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
+variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
+variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
+variable (leak : base.OnOffRandLeak onoff)
 
 set_option backward.dsimp.instances true in
 /-- If `e ∉ s.exposed`, party A's leaking send in the simulator from `hideState e s` has the same
 response/state distribution as party A's leaking send in the stopped honest game from `s` followed
 by `hideState e`. -/
 private theorem oracleSendArleak_hide
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : e ∉ s.exposed) :
@@ -326,10 +328,6 @@ private theorem oracleSendArleak_hide
 set_option backward.dsimp.instances true in
 /-- B version of `oracleSendArleak_hide`, under `reachableInv`. -/
 private theorem oracleSendBrleak_hide
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : e ∉ s.exposed) (hinv : reachableInv base onoff ecEk ecCt0 ecCt1 s) :
@@ -400,15 +398,17 @@ open OracleSpec OracleComp KEMScheme
 namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type} [DecidableEq K] [DecidableEq Sym]
+variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
+  (hDet : base.DeterministicDecaps)
+variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
+variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
+variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
+variable (leak : base.OnOffRandLeak onoff)
 
 /-- Under `reachableInv s`, every correctness query `t` of `sckaCorrectnessImpl` over
 `simScheme` from `hideState e s` has the same response/state distribution as running `t` over
 `honestScheme` from `s` and applying `hideState e` to the successor state. -/
 private theorem correctnessOracle_hide
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (kemMat : KEMMaterial leak) (e : ℕ)
     (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
@@ -432,10 +432,6 @@ private theorem correctnessOracle_hide
 `hideState e s` has the same response/state distribution as running `honestStopped … kemMat e kStar`
 on `t` from `s` and applying `hideState e` to the successor state. -/
 theorem simOracle_hide [SampleableType K]
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (kemMat : KEMMaterial leak) (e : ℕ) (kStar : K) (t : (securitySpec leak Sym).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (he : e ∉ s.exposed) :
@@ -477,7 +473,14 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
+variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
+  (hDet : base.DeterministicDecaps)
+variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
+variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
+variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
+variable (leak : base.OnOffRandLeak onoff)
 
+include hDet hEk hCt0 hCt1 in
 /-- Let `kemMat ∈ support (sampleMaterial leak)`, and let `s` be a state consistent with a protocol
 transcript (`reachableInv s`) in which `e` is unexposed and A's key pair and B's offline
 encapsulation output at `e`, when present, are those of `kemMat` (`consistentMat kemMat e s`).
@@ -485,12 +488,6 @@ Then `adv` accepts with the same probability against
 `simOracle … e kemMat.pk kemMat.ciphertext kStar` from `hideState e s` and against
 `honestStopped … kemMat e kStar` from `s`. -/
 private theorem optionRun_hide_eq
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (hDet : base.DeterministicDecaps)
-    (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-    (leak : base.OnOffRandLeak onoff)
     (kemMat : KEMMaterial leak) (hm : kemMat ∈ support (sampleMaterial leak)) (e : ℕ) (kStar : K)
     (adv : SecurityAdversary leak Sym)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
@@ -522,24 +519,18 @@ private theorem optionRun_hide_eq
 
 omit [DecidableEq K] [DecidableEq Sym] [SampleableType K] in
 /-- `hideState e` maps the initial game state to the simulator's initial state. -/
-private theorem hideState_initial
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure) (e : ℕ) :
+private theorem hideState_initial (e : ℕ) :
     hideState e (oppUniKemCKA.Reduction.Internal.initialGame (Sym := Sym) base onoff) =
       initial onoff := by
   simp [hideState, hideA, hideB, initial, oppUniKemCKA.Reduction.Internal.initialGame,
     oppUniKemCKA.Reduction.Internal.initialA, oppUniKemCKA.Reduction.Internal.initialB,
     SCKAScheme.initGameState]
 
+include hDet hEk hCt0 hCt1 in
 /-- For `kemMat ∈ support (sampleMaterial leak)`, the simulator run `run` (`Simulator`) satisfies
 `Pr[run adv e kemMat.pk kemMat.ciphertext kStar = true] =
 Pr[optionRun (honestStopped kemMat e kStar) adv s₀ = true]`. -/
 theorem run_eq_honestStopped
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (hDet : base.DeterministicDecaps)
-    (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-    (leak : base.OnOffRandLeak onoff)
     (kemMat : KEMMaterial leak) (hm : kemMat ∈ support (sampleMaterial leak)) (e : ℕ) (kStar : K)
     (adv : SecurityAdversary leak Sym) :
     Pr{let x ← (run
@@ -557,16 +548,11 @@ theorem run_eq_honestStopped
     (consistentMat_initial base onoff leak kemMat e)
     (by simp [oppUniKemCKA.Reduction.Internal.initialGame, SCKAScheme.initGameState])
 
+include hDet hEk hCt0 hCt1 in
 /-- `Pr[fixedBranch adv e b = true] =
 Pr[kemMat ← sampleMaterial leak; k ←$ K; optionRun (honestStopped kemMat e k_b) adv s₀ = true]` with
 `k_b := if b then kemMat.key else k`. -/
 theorem fixedBranch_eq_honestStopped
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (hDet : base.DeterministicDecaps)
-    (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-    (leak : base.OnOffRandLeak onoff)
     (adv : SecurityAdversary leak Sym) (e : ℕ) (b : Bool) :
     Pr{let x ← fixedBranch base onoff ecEk ecCt0 ecCt1 leak adv e b}[x = true] =
     Pr{let x ← (do

@@ -28,6 +28,12 @@ open OracleSpec OracleComp KEMScheme
 namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
+variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
+  (hDet : base.DeterministicDecaps)
+variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
+variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
+variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
+variable (leak : base.OnOffRandLeak onoff)
 
 /-- The *source phases*, A's key generation and B's offline encapsulation: the sampling phases
 whose samplers read no protocol state. -/
@@ -47,9 +53,7 @@ def sourceUsed {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructur
   | .offline => e < b.t ∨ (b.t = e ∧ b.ct0.isSome)
 
 /-- Every possible successful result of `sendA a` keeps A's epoch and has `dkA` present. -/
-theorem sendA_source_shape
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym) (a : StA onoff Sym)
+theorem sendA_source_shape (a : StA onoff Sym)
     (key : Option (ℕ × K)) (msg : Message Sym) (t : ℕ) (next : StA onoff Sym)
     (h : some (key, msg, t, next) ∈ support (sendA base onoff ecEk a)) :
     next.t = a.t ∧ next.dkA.isSome := by
@@ -61,10 +65,7 @@ theorem sendA_source_shape
     aesop
 
 /-- Every possible successful result of `sendB b` keeps B's epoch and has `ct0` present. -/
-theorem sendB_source_shape
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (b : StB onoff Sym)
+theorem sendB_source_shape (b : StB onoff Sym)
     (key : Option (ℕ × K)) (msg : Message Sym) (t : ℕ) (next : StB onoff Sym)
     (h : some (key, msg, t, next) ∈ support (sendB base onoff ecCt0 ecCt1 b)) :
     next.t = b.t ∧ next.ct0.isSome := by
@@ -82,10 +83,6 @@ variable [DecidableEq K] [DecidableEq Sym]
 /-- The correctness queries of `stageScheme stage kemMat e s` from `s` preserve
 `sourceUsed phase e`. -/
 theorem correctness_preserves_sourceUsed
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ) (phase : SourcePhase)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hs : sourceUsed phase e s.stA s.stB)
@@ -141,10 +138,6 @@ theorem correctness_preserves_sourceUsed
 
 /-- `stageOracle stage kemMat e b` preserves `sourceUsed phase e`. -/
 theorem stageOracle_preserves_sourceUsed [SampleableType K]
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool) (phase : SourcePhase) :
     QueryImpl.PreservesInv (stageOracle base onoff ecEk ecCt0 ecCt1 leak stage kemMat e b)
       (fun s => sourceUsed phase e s.stA s.stB) :=
@@ -162,11 +155,15 @@ open OracleSpec OracleComp KEMScheme
 namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
+variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
+  (hDet : base.DeterministicDecaps)
+variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
+variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
+variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
+variable (leak : base.OnOffRandLeak onoff)
 
 /-- A's ordinary send never fails: `none ∉ support (sendA s)`. -/
 theorem sendA_none_not_mem_support
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym)
     (s : StA onoff Sym) :
     none ∉ support (sendA base onoff ecEk s) := by
   cases hd : s.dkA <;> cases hp : s.ekA <;> cases ha : s.ack.ekRec <;>
@@ -174,9 +171,6 @@ theorem sendA_none_not_mem_support
 
 /-- Leaking-send version of `sendA_none_not_mem_support`. -/
 theorem sendArleak_none_not_mem_support
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym)
-    (leak : base.OnOffRandLeak onoff)
     (s : StA onoff Sym) :
     none ∉ support (sendArleak base onoff ecEk leak s) := by
   intro h
@@ -186,9 +180,6 @@ theorem sendArleak_none_not_mem_support
 
 /-- B version of `sendA_none_not_mem_support`. -/
 theorem sendB_none_not_mem_support
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
     (s : StB onoff Sym) :
     none ∉ support (sendB base onoff ecCt0 ecCt1 s) := by
   cases hc0 : s.ct0 <;> cases hp : s.ekA <;> cases hc1 : s.ct1 <;>
@@ -197,10 +188,6 @@ theorem sendB_none_not_mem_support
 
 /-- B version of `sendArleak_none_not_mem_support`. -/
 theorem sendBrleak_none_not_mem_support
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym)
-    (leak : base.OnOffRandLeak onoff)
     (s : StB onoff Sym) :
     none ∉ support (sendBrleak base onoff ecCt0 ecCt1 leak s) := by
   intro h
@@ -215,6 +202,12 @@ open OracleSpec OracleComp KEMScheme
 namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
+variable (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
+  (hDet : base.DeterministicDecaps)
+variable (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
+variable (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
+variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
+variable (leak : base.OnOffRandLeak onoff)
 
 /-- Query `t` from `s` runs source phase `phase` of epoch `e`: the party is at `e` without the
 phase output, and `t` is its ordinary send or its leaking send with `e ∉ s.challenged`. -/
@@ -273,10 +266,6 @@ variable [DecidableEq K] [DecidableEq Sym]
 /-- If A is at `e`, every possible successor of A's ordinary send satisfies
 `sourceUsed .keygen e`. -/
 theorem oracleSendA_installs_source
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (he : s.stA.t = e)
@@ -303,10 +292,6 @@ theorem oracleSendA_installs_source
 /-- If A is at `e` without `dkA` and `e ∉ s.challenged`, A's leaking send stopped at the
 exposure of `e` answers `none` on every path: the send is accepted and its coins expose `e`. -/
 theorem leaking_keygen_stops
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (he : s.stA.t = e) (hfield : s.stA.dkA = none) (hc : e ∉ s.challenged)
@@ -329,10 +314,6 @@ theorem leaking_keygen_stops
 
 /-- B version of `oracleSendA_installs_source`, for `sourceUsed .offline e`. -/
 theorem oracleSendB_installs_source
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (he : s.stB.t = e)
@@ -361,10 +342,6 @@ theorem oracleSendB_installs_source
 
 /-- B version of `leaking_keygen_stops`, for B without `ct0`. -/
 theorem leaking_offline_stops
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (he : s.stB.t = e) (hfield : s.stB.ct0 = none) (hc : e ∉ s.challenged)
@@ -392,10 +369,6 @@ variable [SampleableType K]
 /-- If `usesSource phase e t s`, every possible successor of query `t` of
 `stageOracle stage kemMat e b` with `e` unexposed satisfies `sourceUsed phase e`. -/
 theorem stageOracle_first_source_use
-    (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
-    (ecEk : ErasureCodePayload PK Sym)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
     (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool) (phase : SourcePhase)
     (t : (securitySpec leak Sym).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
