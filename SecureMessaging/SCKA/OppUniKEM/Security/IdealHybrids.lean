@@ -22,8 +22,9 @@ import VCVio.ProgramLogic.Relational.SimulateQ
 
 **Main results.** The *ideal epoch hybrid* `H_i := idealEpochHybridExp … adv i` answers eligible
 challenges at epochs `1, …, i` with uniform keys (as in `I_true`) and later ones with recorded keys
-(as in `I_false`); *stopping at `i + 1`* halts a run with output `false` at the first query that
-exposes epoch `i + 1`.
+(as in `I_false`); its challenge mode is `hybridMode i`, and `adjacentMode e b` is the mode of
+`H_{e-1}` if `b = false` and of `H_e` if `b = true`. *Stopping at `i + 1`* halts a run with output
+`false` at the first query that exposes epoch `i + 1`.
 
 - When `adv` makes at most `q` send queries (`SecuritySendQueryBound adv q`),
   `AdvGuess_SCKA(scka, adv) ≤ |Pr[H_0 = true] - Pr[H_q = true]| / 2 + q · ε`
@@ -133,18 +134,24 @@ theorem idealSecurityImpl_preserves_reachableInv
 
 /-! ### Hybrids -/
 
-/-- Oracle implementation of the ideal epoch hybrid `H_i`: `idealSecurityImpl` instantiated under
-the challenge mode `fun t => decide (0 < t ∧ t ≤ i)`. -/
+/-- Challenge mode of the ideal epoch hybrid `H_i`: a challenge at epoch `t` returns a uniform key
+iff `0 < t ∧ t ≤ i`, and the recorded key otherwise. -/
+def hybridMode (i t : ℕ) : Bool := decide (0 < t ∧ t ≤ i)
+
+/-- Oracles of the ideal epoch hybrid `H_i`: the ideal security oracles answering eligible
+challenges at epochs `1, …, i` with uniform keys and later ones with recorded keys, that is,
+`idealSecurityImpl` under the challenge mode `hybridMode i`. -/
 abbrev idealEpochHybridImpl
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff) (i : ℕ) :=
-  idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak (fun t => decide (0 < t ∧ t ≤ i))
+  idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak (hybridMode i)
 
-/-- The ideal epoch hybrid experiment `H_i`: executes `adv` against `idealEpochHybridImpl … i`
-starting from the initial game state. -/
+/-- The ideal epoch hybrid `H_i`: `adv` run from the initial game state against the ideal security
+oracles that answer eligible challenges at epochs `1, …, i` with uniform keys and later ones with
+recorded keys (`idealEpochHybridImpl … i`). -/
 def idealEpochHybridExp
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
     (hDet : DeterministicDecaps kem)
@@ -152,7 +159,25 @@ def idealEpochHybridExp
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : kem.OnOffRandLeak onoff)
     (adv : SecurityAdversary leak Sym) (i : ℕ) : ProbComp Bool :=
-  idealSecurityExp kem onoff hDet ecEk ecCt0 ecCt1 leak (fun t => decide (0 < t ∧ t ≤ i)) adv
+  idealSecurityExp kem onoff hDet ecEk ecCt0 ecCt1 leak (hybridMode i) adv
+
+/-- Challenge mode of the ideal hybrids adjacent at `e`: `adjacentMode e false` is the mode of
+`H_{e-1}` and `adjacentMode e true` that of `H_e`, so a challenge at epoch `t` returns a uniform key
+(`U`) iff `0 < t < e`, or `t = e` and `b = true`, and the recorded key (`R`) otherwise:
+
+```text
+epoch                  1   …   e-1   e   e+1  …
+adjacentMode e false   U   …   U     R   R    …      (H_{e-1})
+adjacentMode e true    U   …   U     U   R    …      (H_e)
+```
+-/
+def adjacentMode (e : ℕ) (b : Bool) : ℕ → Bool := hybridMode (if b then e else e - 1)
+
+/-- `adjacentMode e b t` randomizes `t` iff `0 < t < e`, or `t = e` and `b = true`. -/
+theorem adjacentMode_apply (e : ℕ) (b : Bool) (t : ℕ) :
+    adjacentMode e b t = decide (0 < t ∧ (t < e ∨ (b = true ∧ t = e))) := by
+  cases b <;> simp only [adjacentMode, hybridMode, Bool.false_eq_true, ↓reduceIte, false_and,
+    or_false, true_and, decide_eq_decide] <;> omega
 
 /-- The initial hybrid `idealEpochHybridExp … 0` (`H_0`) coincides with the real-key ideal game
 `idealSecurityExp … (fun _ => false) adv` (`I_false`) as a probabilistic computation. -/
@@ -165,9 +190,9 @@ theorem idealEpochHybridExp_zero
     (adv : SecurityAdversary leak Sym) :
     idealEpochHybridExp kem onoff hDet ecEk ecCt0 ecCt1 leak adv 0 =
       idealSecurityExp kem onoff hDet ecEk ecCt0 ecCt1 leak (fun _ => false) adv := by
-  have hmode : (fun t : ℕ => decide (0 < t ∧ t ≤ 0)) = fun _ => false := by
+  have hmode : hybridMode 0 = fun _ => false := by
     funext t
-    simp only [decide_eq_false_iff_not]
+    simp only [hybridMode, decide_eq_false_iff_not]
     omega
   simp only [idealEpochHybridExp, hmode]
 
@@ -219,7 +244,7 @@ theorem idealEpochHybrid_query_eq_of_exposed
   by_cases ht : t = i + 1
   · subst t
     exact SCKAScheme.oracleChall_run_eq_of_rejected _ _ s _ (Or.inl (Or.inl hs))
-  · simp only [SCKAScheme.challOf]
+  · simp only [SCKAScheme.challOf, hybridMode]
     rw [SCKAScheme.epochHybrid_challenge_eq_of_ne i t ht]
 
 /-- From any state `s` satisfying `i + 1 ∈ s.exposed`, simulating any oracle computation `adv`
@@ -271,7 +296,7 @@ theorem idealEpochHybrid_query_eq_random
     have hzeroA : s.keyA 0 = none := by simp [hT.keyA]
     have htpos : 0 < t := Nat.pos_of_ne_zero fun ht => by
       simp [ht, hzeroA, hT.keyB_zero] at hk
-    simp only [SCKAScheme.challOf, htpos, htq, and_self, decide_true]
+    simp only [SCKAScheme.challOf, hybridMode, htpos, htq, and_self, decide_true]
   · simp only [not_or, Option.not_isSome_iff_eq_none] at hk
     exact SCKAScheme.oracleChall_run_eq_of_rejected _ _ s t (Or.inr hk)
 
@@ -436,7 +461,7 @@ theorem idealEpochHybrid_query_eq_or_committed
         all_goals
           intro z hz
           exact ⟨(SCKAScheme.challOf_recordsChallenges
-              (fun t => decide (0 < t ∧ t ≤ _))).preserves_disjoint (i + 1) s hs z hz,
+              (hybridMode _)).preserves_disjoint (i + 1) s hs z hz,
             SCKAScheme.oracleChall_adds_challenged _ s _ helig hk z hz⟩
       · simp only [not_or, Option.not_isSome_iff_eq_none] at hk
         left

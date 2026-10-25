@@ -82,7 +82,7 @@ Paths are relative to `OppUniKEM/Security/`.
    - Define `𝓑_e^b := fixedBranch adv e b` (`Reduction/Simulator`): `𝓑` with its drawn challenge
      epoch fixed to `e` and the IND-CPA bit fixed to `b` (`true`: the encapsulated key).
    - Let `i_b := if b then e - 1 else e`.
-    Define the *pinned hybrid* `P_e^b` (`hybridStopped`): `H_{i_b}` with the samples of
+    Define the *pinned hybrid* `P_e^b` (`stageStopped .pinned`): `H_{i_b}` with the samples of
     epoch `e` drawn in advance, stopped at the first exposure of `e`.
 
    Main result: `Pr[𝓑_e^b = true] = Pr[P_e^b = true]` (`fixedBranch_eq_pinnedHybrid`).
@@ -164,7 +164,7 @@ theorem fixedBranch_signed_gap_eq
       leak (i + 1) (Nat.succ_pos i) true adv,
     fixedBranch_eq_ideal base onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
       leak (i + 1) (Nat.succ_pos i) false adv]
-  simp only [Bool.not_true, Bool.not_false, adjacentMode_succ_false, adjacentMode_succ_true]
+  simp only [Bool.not_true, Bool.not_false]
   have hstop := idealEpochHybrid_signed_gap_stop_eq base onoff hDet ecEk ecCt0 ecCt1
     leak i adv (oppUniKemCKA.Reduction.Internal.initialGame base onoff)
     (by simp [oppUniKemCKA.Reduction.Internal.initialGame, SCKAScheme.initGameState])

@@ -20,9 +20,9 @@ import SecureMessaging.SCKA.Security
   encapsulation at `e`, and the predicate `used s := (s.keyB e).isSome`.
 
 **Main result.** From states satisfying `reachableInv` and `consistentMat kemMat e`, drawing `o`
-once before the pinned hybrid `hybridStopped { kemMat with on := o } e b` gives the acceptance
-probability of the stage `stopped .onlineFresh kemMat e b` (`HybridGame`)
-(`hybridStopped_online_deferred`).
+once before the pinned hybrid `stageStopped .pinned { kemMat with on := o } e b` gives the
+acceptance probability of the stage `stageStopped .onlineFresh kemMat e b` (`HybridGame`)
+(`stageStopped_online_deferred`).
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -70,15 +70,15 @@ theorem usesOnline_eq_false_of_recorded
   · rcases t with ((((n | u) | u) | n) | n) <;> simp [usesOnline, hnot]
   all_goals simp [usesOnline, hnot]
 
-/-- `hybridOracle kemMat e b` preserves `(s.keyB e).isSome`. -/
-theorem hybridOracle_preserves_keyB_available
+/-- `stageOracle stage kemMat e b` preserves `(s.keyB e).isSome`. -/
+theorem stageOracle_preserves_keyB_available
     [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
     (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (leak : base.OnOffRandLeak onoff)
-    (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool) :
-    QueryImpl.PreservesInv (hybridOracle base onoff ecEk ecCt0 ecCt1 leak kemMat e b)
+    (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool) :
+    QueryImpl.PreservesInv (stageOracle base onoff ecEk ecCt0 ecCt1 leak stage kemMat e b)
       (fun s => (s.keyB e).isSome) :=
   securityImplAt_preservesInv base onoff leak _ _ _ (fun _ _ _ h => h)
     (fun _ => sendArleak_forget (onoff := Pinned.onOff kemMat _ _ _ _) _ _ _)
@@ -95,9 +95,9 @@ namespace oppUniKemCKA.Security.Embedding
 variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- If `usesOnline e t s`, every possible successor of query `t` of `hybridOracle kemMat e b` with
-`e` unexposed has a key in `keyB e`. -/
-theorem hybridOracle_online_records_key
+/-- If `usesOnline e t s`, every possible successor of query `t` of `stageOracle .pinned kemMat e b`
+with `e` unexposed has a key in `keyB e`. -/
+theorem stageOracle_online_records_key
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
@@ -108,7 +108,7 @@ theorem hybridOracle_online_records_key
     (hh : usesOnline e t s = true)
     (z : (securitySpec leak Sym).Range t ×
       SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
-    (hz : z ∈ support ((hybridOracle base onoff ecEk ecCt0 ecCt1 leak kemMat e b t).run s))
+    (hz : z ∈ support ((stageOracle base onoff ecEk ecCt0 ecCt1 leak .pinned kemMat e b t).run s))
     (hcont : decide (e ∈ z.2.exposed) = false) : (z.2.keyB e).isSome := by
   rcases t with (((((t | u) | u) | t) | u) | u)
   · rcases t with ((((n | u) | u) | n) | n)
@@ -122,8 +122,9 @@ theorem hybridOracle_online_records_key
     all_goals simp only [hc0, hst, Option.isNone_some, Option.isNone_none,
       Option.isSome_none, Option.isSome_some, Bool.false_eq_true, or_false] at hsrc
     all_goals
-      simp only [securityImplAt, hybridOracle, SCKAScheme.sckaCorrectnessImpl,
-        SCKAScheme.oracleSendB, honestScheme, scheme, sendB, Pinned.kem,
+      simp only [securityImplAt, stageOracle, SCKAScheme.sckaCorrectnessImpl,
+        SCKAScheme.oracleSendB, stageScheme, Stage.keygenFlag, Stage.offlineFlag,
+        Stage.onlineFlag, scheme, sendB, Pinned.kem,
         Pinned.onOff, Pinned.encapsOff, Pinned.encapsOn, he, ha, hp, hc1, hc0, hst,
         QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
         StateT.run_bind, StateT.run_get, StateT.run_set, StateT.run_pure,
@@ -142,8 +143,9 @@ theorem hybridOracle_online_records_key
     all_goals simp only [hc0, hst, Option.isNone_some, Option.isNone_none,
       Option.isSome_none, Option.isSome_some, Bool.false_eq_true, or_false] at hsrc
     all_goals
-      simp only [securityImplAt, hybridOracle, SCKAScheme.oracleSendBrleak,
-        honestScheme, scheme, sendBrleak, Pinned.leakage, vulnRleakB,
+      simp only [securityImplAt, stageOracle, SCKAScheme.oracleSendBrleak,
+        stageScheme, Stage.keygenFlag, Stage.offlineFlag, Stage.onlineFlag, scheme,
+        sendBrleak, Pinned.leakage, vulnRleakB,
         he, ha, hp, hc1, hc0, hst, hchall, StateT.run_bind, StateT.run_get,
         StateT.run_monadLift, monadLift_self, bind_assoc, pure_bind,
         Bool.not_true, Bool.false_eq_true, ↓reduceIte, decide_true,
@@ -186,7 +188,8 @@ theorem sendBrleak_online_independent
       Bool.false_eq_true, and_false, and_true,
       false_or, true_or, or_self, not_true_eq_false] at hh
   all_goals
-    simp only [honestScheme, scheme, sendBrleak, hc0, hp, hc1, hst, ha, pure_bind,
+    simp only [honestScheme, stageScheme, Stage.keygenFlag, Stage.offlineFlag, Stage.onlineFlag,
+      scheme, sendBrleak, hc0, hp, hc1, hst, ha, pure_bind,
       Bool.not_false, Bool.not_true, Bool.false_eq_true, ↓reduceIte,
       Pinned.leakage, he, decide_true, decide_false]
 
@@ -226,14 +229,15 @@ theorem oracleSendBrleak_online_rejected [DecidableEq K]
   all_goals simp only [hc0, hst, Option.isNone_some, Option.isNone_none,
     Option.isSome_none, Option.isSome_some, Bool.false_eq_true, or_false] at hsrc
   all_goals
-    simp [SCKAScheme.oracleSendBrleak, honestScheme, scheme, sendBrleak,
+    simp [SCKAScheme.oracleSendBrleak, honestScheme, stageScheme, Stage.keygenFlag,
+      Stage.offlineFlag, Stage.onlineFlag, scheme, sendBrleak,
       Pinned.leakage, vulnRleakB, he, ha, hp, hc1, hc0, hst, hc]
 
 variable [DecidableEq K] [SampleableType K]
 
-/-- If `usesOnline e t s = false`, query `t` of `hybridOracle { kemMat with on := o } e b` from `s`
-is the same computation for every `o`. -/
-theorem hybridOracle_online_independent
+/-- If `usesOnline e t s = false`, query `t` of `stageOracle .pinned { kemMat with on := o } e b`
+from `s` is the same computation for every `o`. -/
+theorem stageOracle_online_independent
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
@@ -243,20 +247,23 @@ theorem hybridOracle_online_independent
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym))
     (hh : usesOnline e t s = false)
     (online online' : (onoff.C₁ × K) × leak.OnRand) :
-    (hybridOracle base onoff ecEk ecCt0 ecCt1 leak { kemMat with on := online } e b t).run s =
-    (hybridOracle base onoff ecEk ecCt0 ecCt1 leak { kemMat with on := online' } e b t).run s := by
+    (stageOracle base onoff ecEk ecCt0 ecCt1 leak .pinned
+      { kemMat with on := online } e b t).run s =
+    (stageOracle base onoff ecEk ecCt0 ecCt1 leak .pinned
+      { kemMat with on := online' } e b t).run s
+      := by
   rcases t with (((((t | u) | u) | _) | u) | u) <;> try rcases t with ((((n | u) | u) | n) | n)
   all_goals try cases u
-  all_goals simp only [hybridOracle, securityImplAt, StateT.run_bind, StateT.run_get, pure_bind,
+  all_goals simp only [stageOracle, securityImplAt, StateT.run_bind, StateT.run_get, pure_bind,
     SCKAScheme.sckaCorrectnessImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
   · exact SCKAScheme.oracleSendA_run_congr _ _ s rfl
   · exact SCKAScheme.oracleSendB_run_congr _ _ s
       (sendB_online_independent base onoff ecEk ecCt0 ecCt1 leak kemMat e s
         (of_decide_eq_false hh) online online')
   · exact SCKAScheme.oracleRecvA_run_congr _ _ s (fun ρ =>
-      (honest_recvA_eq_ideal base onoff ecEk ecCt0 ecCt1 leak
+      (stageScheme_recvA_eq_ideal base onoff ecEk ecCt0 ecCt1 leak .pinned
         { kemMat with on := online } e s ρ).trans
-      (honest_recvA_eq_ideal base onoff ecEk ecCt0 ecCt1 leak
+      (stageScheme_recvA_eq_ideal base onoff ecEk ecCt0 ecCt1 leak .pinned
         { kemMat with on := online' } e s ρ).symm) n
   · rfl
   · exact SCKAScheme.oracleSendArleak_run_congr _ _ _ s rfl
@@ -319,7 +326,7 @@ theorem selected_online_public_key
 
 /-- Under `reachableInv s` and `consistentMat kemMat e s`, averaging B's leaking send in
 `honestScheme { kemMat with on := o } e s` over `o` gives the output distribution of B's leaking
-send in `schemeAt .onlineFresh kemMat e s`. -/
+send in `stageScheme .onlineFresh kemMat e s`. -/
 theorem sendBrleak_sample_online_eq_fresh [DecidableEq Sym]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -331,7 +338,7 @@ theorem sendBrleak_sample_online_eq_fresh [DecidableEq Sym]
     (do
       let online ← leak.encapsOnRleak kemMat.st kemMat.pk
       (honestScheme ecEk ecCt0 ecCt1 { kemMat with on := online } e s).sendBrleak s.stB) =ᵈ
-    (Sampling.schemeAt ecEk ecCt0 ecCt1 .onlineFresh kemMat e s).sendBrleak s.stB := by
+    (stageScheme ecEk ecCt0 ecCt1 .onlineFresh kemMat e s).sendBrleak s.stB := by
   have hpub := selected_online_public_key base onoff ecEk ecCt0 ecCt1 leak kemMat e s hs hsrc
   have hoff (he : s.stB.t = e) (st : onoff.St) (hst : s.stB.stCt = some st) :
       st = kemMat.st :=
@@ -339,12 +346,10 @@ theorem sendBrleak_sample_online_eq_fresh [DecidableEq Sym]
   by_cases he : s.stB.t = e <;> cases hc0 : s.stB.ct0 <;> cases hp : s.stB.ekA <;>
     cases hc1 : s.stB.ct1 <;> cases hst : s.stB.stCt <;> cases ha : s.stB.ack.ctRec
   all_goals
-    simp only [honestScheme, Sampling.schemeAt, Sampling.Stage.pinsKeygen,
-      Sampling.Stage.pinsOffline, scheme, sendBrleak,
-      hc0, hp, hc1, hst, ha, pure_bind, Pinned.leakage,
+    simp only [honestScheme, stageScheme, Stage.keygenFlag, Stage.offlineFlag, Stage.onlineFlag,
+      scheme, sendBrleak, hc0, hp, hc1, hst, ha, pure_bind, Pinned.leakage,
       he, decide_true, decide_false,
-      Bool.not_true, Bool.not_false, Bool.false_eq_true,
-      Bool.and_true, ↓reduceIte]
+      Bool.not_true, Bool.not_false, Bool.false_eq_true, ↓reduceIte]
   all_goals
     first
     | solve
@@ -367,7 +372,7 @@ theorem sendB_sample_online_eq_fresh [DecidableEq Sym]
     (do
       let online ← leak.encapsOnRleak kemMat.st kemMat.pk
       (honestScheme ecEk ecCt0 ecCt1 { kemMat with on := online } e s).sendB s.stB) =ᵈ
-    (Sampling.schemeAt ecEk ecCt0 ecCt1 .onlineFresh kemMat e s).sendB s.stB := by
+    (stageScheme ecEk ecCt0 ecCt1 .onlineFresh kemMat e s).sendB s.stB := by
   have h := EvalDistEq.map
     (sendBrleak_sample_online_eq_fresh base onoff ecEk ecCt0 ecCt1 leak kemMat e s hs hsrc)
     (fun out => out.map fun (key, msg, epoch, state, _) => (key, msg, epoch, state))
@@ -384,9 +389,9 @@ variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
 /-- Under `reachableInv s` and `consistentMat kemMat e s`, for every query `t`, averaging
-`(hybridOracle { kemMat with on := o } e b t).run s` over `o` gives the response/successor
+`(stageOracle { kemMat with on := o } e b t).run s` over `o` gives the response/successor
 distribution of `(oracle .onlineFresh kemMat e b t).run s`. -/
-theorem hybridOracle_sample_online_eq_fresh
+theorem stageOracle_sample_online_eq_fresh
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
     (ecCt0 : ErasureCodePayload onoff.C₀ Sym)
@@ -397,25 +402,27 @@ theorem hybridOracle_sample_online_eq_fresh
     (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hsrc : consistentMat kemMat e s) :
     (do
       let online ← leak.encapsOnRleak kemMat.st kemMat.pk
-      (hybridOracle base onoff ecEk ecCt0 ecCt1 leak { kemMat with on := online } e b t).run s) =ᵈ
-    (Sampling.oracle base onoff ecEk ecCt0 ecCt1 leak .onlineFresh kemMat e b t).run s :=
+      (stageOracle base onoff ecEk ecCt0 ecCt1 leak .pinned { kemMat with on := online } e b t).run
+        s) =ᵈ
+    (stageOracle base onoff ecEk ecCt0 ecCt1 leak .onlineFresh kemMat e b t).run s :=
   securityImplAt_sample_eq base onoff leak (leak.encapsOnRleak kemMat.st kemMat.pk)
     (fun online => honestScheme ecEk ecCt0 ecCt1 { kemMat with on := online } e)
-    (Sampling.schemeAt ecEk ecCt0 ecCt1 .onlineFresh kemMat e)
+    (stageScheme ecEk ecCt0 ecCt1 .onlineFresh kemMat e)
     (SCKAScheme.challOf (adjacentMode e b)) s
     (ToVCVio.evalDistEq_bind_of_const' _ fun _ _ => rfl)
     (sendB_sample_online_eq_fresh base onoff ecEk ecCt0 ecCt1 leak kemMat e s hs hsrc)
     (ToVCVio.evalDistEq_bind_of_const' _ fun _ _ => rfl)
     (sendBrleak_sample_online_eq_fresh base onoff ecEk ecCt0 ecCt1 leak kemMat e s hs hsrc)
-    (fun online _ ρ => (honest_recvA_eq_ideal base onoff ecEk ecCt0 ecCt1 leak
+    (fun online _ ρ => (stageScheme_recvA_eq_ideal base onoff ecEk ecCt0 ecCt1 leak .pinned
       { kemMat with on := online } e s ρ).trans
-      (Sampling.recvA_eq_ideal base onoff ecEk ecCt0 ecCt1 leak .onlineFresh kemMat e s ρ).symm)
+      (stageScheme_recvA_eq_ideal base onoff ecEk ecCt0 ecCt1 leak .onlineFresh kemMat e s ρ).symm)
     (fun _ _ _ => rfl) t
 
 /-- For `kemMat ∈ support (sampleMaterial leak)` and `s` with `reachableInv s` and
-`consistentMat kemMat e s`, drawing `o` once before `hybridStopped { kemMat with on := o } e b` from
-`s` gives the acceptance probability of `stopped .onlineFresh kemMat e b` from `s`. -/
-theorem hybridStopped_online_deferred
+`consistentMat kemMat e s`, drawing `o` once before
+`stageStopped .pinned { kemMat with on := o } e b` from `s` gives the acceptance probability of
+`stageStopped .onlineFresh kemMat e b` from `s`. -/
+theorem stageStopped_online_deferred
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (hDet : base.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
@@ -428,14 +435,16 @@ theorem hybridStopped_online_deferred
     (hs : reachableInv base onoff ecEk ecCt0 ecCt1 s) (hsrc : consistentMat kemMat e s) :
     Pr{let x ← (do
       let online ← leak.encapsOnRleak kemMat.st kemMat.pk
-      optionRun (hybridStopped base onoff ecEk ecCt0 ecCt1 leak { kemMat with on := online } e b)
+      optionRun (stageStopped base onoff ecEk ecCt0 ecCt1 leak .pinned { kemMat with on := online }
+        e b)
         adv s)}[x = true] =
     Pr{let x ← (optionRun
-      (Sampling.stopped base onoff ecEk ecCt0 ecCt1 leak .onlineFresh kemMat e b)
+      (stageStopped base onoff ecEk ecCt0 ecCt1 leak .onlineFresh kemMat e b)
       adv s)}[x = true] :=
   stoppedRun_sample_once_eq (leak.encapsOnRleak kemMat.st kemMat.pk)
-    (fun online => hybridOracle base onoff ecEk ecCt0 ecCt1 leak { kemMat with on := online } e b)
-    (Sampling.oracle base onoff ecEk ecCt0 ecCt1 leak .onlineFresh kemMat e b)
+    (fun online => stageOracle base onoff ecEk ecCt0 ecCt1 leak .pinned { kemMat with on := online }
+      e b)
+    (stageOracle base onoff ecEk ecCt0 ecCt1 leak .onlineFresh kemMat e b)
     (fun s => decide (e ∈ s.exposed))
     (fun s => reachableInv base onoff ecEk ecCt0 ecCt1 s ∧ consistentMat kemMat e s)
     (fun s => (s.keyB e).isSome) (usesOnline e)
@@ -443,16 +452,16 @@ theorem hybridStopped_online_deferred
       ecEk hEk ecCt0 hCt0 ecCt1 hCt1 leak { kemMat with on := online }
       (sampleMaterial_update_online_mem leak kemMat hm online hon) e _
       (SCKAScheme.challOf_recordsChallenges _) t s hs z hz)
-    (fun online _ t s _ hu z hz _ => hybridOracle_preserves_keyB_available base onoff ecEk
-      ecCt0 ecCt1 leak { kemMat with on := online } e b t s hu z hz)
+    (fun online _ t s _ hu z hz _ => stageOracle_preserves_keyB_available base onoff ecEk
+      ecCt0 ecCt1 leak .pinned { kemMat with on := online } e b t s hu z hz)
     (fun t s _ hh online _ online' _ => ToVCVio.evalDistEq_of_eq
-      (hybridOracle_online_independent base onoff ecEk ecCt0 ecCt1 leak kemMat e b t s hh
+      (stageOracle_online_independent base onoff ecEk ecCt0 ecCt1 leak kemMat e b t s hh
         online online'))
     (fun t s hs hu => usesOnline_eq_false_of_recorded base onoff ecEk ecCt0 ecCt1 leak
       e t s hs.1 hu)
-    (fun online _ t s _ hh z hz hcont => hybridOracle_online_records_key base onoff ecEk
+    (fun online _ t s _ hh z hz hcont => stageOracle_online_records_key base onoff ecEk
       ecCt0 ecCt1 leak { kemMat with on := online } e b t s hh z hz hcont)
-    (fun t s hs => hybridOracle_sample_online_eq_fresh base onoff ecEk ecCt0 ecCt1 leak
+    (fun t s hs => stageOracle_sample_online_eq_fresh base onoff ecEk ecCt0 ecCt1 leak
       kemMat e b t s hs.1 hs.2)
     adv s ⟨hs, hsrc⟩
 

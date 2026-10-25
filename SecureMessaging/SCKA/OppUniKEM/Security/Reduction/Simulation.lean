@@ -166,7 +166,7 @@ private theorem oracleRecvA_hide
     simp only [hideState, hm]
     dsimp only [simScheme, scheme]
     rw [recvA_hide]
-    have heq := honest_recvA_eq_ideal base onoff ecEk ecCt0 ecCt1 leak kemMat e s msg
+    have heq := stageScheme_recvA_eq_ideal base onoff ecEk ecCt0 ecCt1 leak .pinned kemMat e s msg
     rw [heq]
     cases hr : recvA base onoff (fun _ _ => s.keyB s.stA.t) ecCt0 ecCt1 s.stA msg with
     | none => simp [StateT.run_set, hideState, hideA, hideB, Prod.map]
@@ -206,7 +206,8 @@ private theorem oracleSendA_hide
       (SCKAScheme.oracleSendA (honestScheme ecEk ecCt0 ecCt1 kemMat e s) ()).run s := by
   simp only [SCKAScheme.oracleSendA, StateT.run_bind, StateT.run_get, pure_bind,
     StateT.run_monadLift, monadLift_self, map_bind]
-  dsimp only [simScheme, honestScheme, scheme, hideState]
+  dsimp only [simScheme, honestScheme, stageScheme, Stage.keygenFlag, Stage.offlineFlag,
+    Stage.onlineFlag, scheme, hideState]
   rw [sendA_hide base onoff ecEk leak kemMat e (decide (s.stB.t = e))
     ((s.keyB s.stA.t).map (hide e s.stA.t)) (s.keyB s.stA.t) s.stA]
   simp only [bind_map_left, bind_assoc, pure_bind]
@@ -217,7 +218,7 @@ private theorem oracleSendA_hide
   | some out =>
     rcases out with ⟨key, msg, t, next⟩
     have hk := sendA_key_none
-      (honestKem kemMat e s) (honestOnOff kemMat e s)
+      (stageKem .pinned kemMat e s) (stageOnOff .pinned kemMat e s)
       ecEk s.stA key msg t next hout
     subst key
     simp [StateT.run_set, hideState, hideA, hideB, Prod.map]
@@ -238,7 +239,8 @@ private theorem oracleSendB_hide
       (SCKAScheme.oracleSendB (honestScheme ecEk ecCt0 ecCt1 kemMat e s) ()).run s := by
   simp only [SCKAScheme.oracleSendB, StateT.run_bind, StateT.run_get, pure_bind,
     StateT.run_monadLift, monadLift_self, map_bind]
-  dsimp only [simScheme, honestScheme, scheme, hideState]
+  dsimp only [simScheme, honestScheme, stageScheme, Stage.keygenFlag, Stage.offlineFlag,
+    Stage.onlineFlag, scheme, hideState]
   rw [sendB_hide base onoff ecCt0 ecCt1 leak kemMat e (decide (s.stA.t = e))
     ((s.keyB s.stA.t).map (hide e s.stA.t)) (s.keyB s.stA.t) s.stB]
   simp only [bind_map_left, bind_assoc, pure_bind]
@@ -253,7 +255,7 @@ private theorem oracleSendB_hide
     | some key =>
       rcases key with ⟨epoch, k⟩
       obtain ⟨rfl, hc⟩ := sendB_key_fresh
-        (honestKem kemMat e s) (honestOnOff kemMat e s)
+        (stageKem .pinned kemMat e s) (stageOnOff .pinned kemMat e s)
         ecCt0 ecCt1 s.stB epoch k msg t next hout
       have hk := (keys_none_before_online base onoff ecEk ecCt0 ecCt1 s hs hc).1
       simp [StateT.run_set, hideState, hideA, hideB,
@@ -296,7 +298,8 @@ private theorem oracleSendArleak_hide
     pure (if decide (e ∈ z.2.exposed) then none else some z.1, z.2))
   simp only [SCKAScheme.oracleSendArleak, StateT.run_bind, StateT.run_get, pure_bind,
     StateT.run_monadLift, monadLift_self, map_bind, bind_assoc]
-  dsimp only [simScheme, honestScheme, scheme, hideState]
+  dsimp only [simScheme, honestScheme, stageScheme, Stage.keygenFlag, Stage.offlineFlag,
+    Stage.onlineFlag, scheme, hideState]
   rw [sendArleak_hide base onoff ecEk leak kemMat e (decide (s.stB.t = e))
     ((s.keyB s.stA.t).map (hide e s.stA.t)) (s.keyB s.stA.t) s.stA]
   simp only [bind_map_left]
@@ -308,8 +311,8 @@ private theorem oracleSendArleak_hide
   | some out =>
     rcases out with ⟨key, msg, t, next, coins⟩
     obtain ⟨rfl, hcoins⟩ := sendArleak_shape
-      (honestKem kemMat e s) (honestOnOff kemMat e s) ecEk
-        (honestLeak kemMat e s)
+      (stageKem .pinned kemMat e s) (stageOnOff .pinned kemMat e s) ecEk
+        (stageLeak .pinned kemMat e s)
       s.stA key msg t next coins hout
     rcases hcoins with rfl | ⟨r, rfl⟩
     all_goals
@@ -347,7 +350,8 @@ private theorem oracleSendBrleak_hide
     pure (if decide (e ∈ z.2.exposed) then none else some z.1, z.2))
   simp only [SCKAScheme.oracleSendBrleak, StateT.run_bind, StateT.run_get, pure_bind,
     StateT.run_monadLift, monadLift_self, map_bind, bind_assoc]
-  dsimp only [simScheme, honestScheme, scheme, hideState]
+  dsimp only [simScheme, honestScheme, stageScheme, Stage.keygenFlag, Stage.offlineFlag,
+    Stage.onlineFlag, scheme, hideState]
   rw [sendBrleak_hide base onoff ecCt0 ecCt1 leak kemMat e (decide (s.stA.t = e))
     ((s.keyB s.stA.t).map (hide e s.stA.t)) (s.keyB s.stA.t) s.stB]
   simp only [bind_map_left]
@@ -359,8 +363,8 @@ private theorem oracleSendBrleak_hide
   | some out =>
     rcases out with ⟨key, msg, t, next, coins⟩
     have hcoins := sendBrleak_coins
-      (honestKem kemMat e s) (honestOnOff kemMat e s) ecCt0 ecCt1
-        (honestLeak kemMat e s)
+      (stageKem .pinned kemMat e s) (stageOnOff .pinned kemMat e s) ecCt0 ecCt1
+        (stageLeak .pinned kemMat e s)
       s.stB key msg t next coins hout
     cases key with
     | none =>
@@ -375,8 +379,8 @@ private theorem oracleSendBrleak_hide
     | some key =>
       rcases key with ⟨epoch, k⟩
       obtain ⟨rfl, hct⟩ := sendBrleak_key_fresh
-        (honestKem kemMat e s) (honestOnOff kemMat e s) ecCt0 ecCt1
-        (honestLeak kemMat e s)
+        (stageKem .pinned kemMat e s) (stageOnOff .pinned kemMat e s) ecCt0 ecCt1
+        (stageLeak .pinned kemMat e s)
         s.stB epoch k msg t next coins hout
       have hk := (keys_none_before_online base onoff ecEk ecCt0 ecCt1 s hinv hct).1
       simp only [Option.map_some, ← hide_update]
