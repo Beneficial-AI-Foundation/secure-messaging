@@ -19,10 +19,11 @@ import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.OnlineDeferral
   `kg ← leak.keygenRleak`;
 - the one-use test `hit := usesSource phase e` and the predicate `used := sourceUsed phase e`
   (`SourceUse`), which satisfy the one-use conditions in every state;
-- the pinned hybrid `stageStopped .pinned kemMat e b` (`HybridGame`), that is, the ideal game with
-  challenge mode `adjacentMode e b` whose three samples at epoch `e` are those of `kemMat`, stopped
-  at the first exposure of `e`, and the ideal game `idealSecurityImpl μ` with challenge mode `μ`
-  (`Endpoints`).
+- the stage games `stageStopped stage kemMat e b` (`HybridGame`): the ideal game with challenge
+  mode `adjacentMode e b`, stopped at the first exposure of `e`, in which the sampling phases of
+  epoch `e` selected by `stage` read `kemMat` instead of sampling, from the pinned hybrid
+  `stageStopped .pinned` to the fully fresh `stageStopped .fresh`; and the ideal game
+  `idealSecurityImpl μ` with challenge mode `μ` (`Endpoints`).
 
 **Main result** (step 3 of the proof structure in `OppUniKEM/Security`). For `e > 0`, each fixed
 branch `fixedBranch adv e b` of `𝓑` (`Simulator`) has the acceptance probability of the ideal game
@@ -594,12 +595,11 @@ namespace oppUniKemCKA.Security.Embedding
 variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- Pre-sampling the KEM material `kemMat ← sampleMaterial leak` of
-epoch `e` in `stageStopped .pinned kemMat e b` yields the same acceptance probability as
-`stageStopped .fresh kemMat₀ e b`, which samples each phase on demand and is independent of the
-dummy material `kemMat₀`:
+/-- Drawing the KEM material `kemMat ← sampleMaterial leak` once before the pinned hybrid gives the
+acceptance probability of the fully fresh stage, which samples each phase at its protocol call and
+reads nothing from its material `kemMat₀`:
 `Pr[kemMat ← sampleMaterial leak; stageStopped .pinned kemMat e b = true] =
-Pr[stopped .fresh kemMat₀ e b = true]`. -/
+Pr[stageStopped .fresh kemMat₀ e b = true]`. -/
 theorem pinnedHybrid_eq_fresh
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (hDet : base.DeterministicDecaps)

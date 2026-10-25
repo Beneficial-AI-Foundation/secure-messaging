@@ -71,7 +71,8 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
 
-/-- Whether `query` is an eligible challenge of `e` from `s`. -/
+/-- Whether `query` is an eligible challenge at epoch `e` from `s`, that is, a query whose answer
+reads the key at `e`. -/
 def usesChallengeKey {base : KEMScheme ProbComp K PK SK C} {onoff : base.OnOffStructure}
     (e : ℕ) (query : (SCKAScheme.sckaSecuritySpec Unit Unit Unit Unit Unit).Domain)
     (s : SCKAScheme.GameState (StA onoff Sym) (StB onoff Sym) K (Message Sym)) : Bool :=
@@ -246,7 +247,7 @@ private theorem pinnedChallenge_sample_uniform
           challengeWith, SCKAScheme.oracleChall, adjacentMode_apply, hg, hA, hB, ht, hr]
 
 /-- The query-level version of `honestStopped_random_eq_hybrid`: for `e > 0`, from every state,
-`k ←$ K; honestOracle kemMat e k t =ᵈ stageOracle kemMat e true t`. -/
+`k ←$ K; honestOracle kemMat e k t =ᵈ stageOracle .pinned kemMat e true t`. -/
 private theorem honestOracle_sample_uniform
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
@@ -372,7 +373,8 @@ theorem sendB_fresh_eq [DecidableEq Sym]
   rw [scheme_sendB_eq_map_sendBrleak, scheme_sendB_eq_map_sendBrleak,
     sendBrleak_fresh_eq base onoff ecEk ecCt0 ecCt1 leak hDet kemMat e s stB]
 
-/-- `stageOracle .fresh kemMat e b = idealSecurityImpl (adjacentMode e b)`. -/
+/-- The fully fresh stage is the ideal game of mode `adjacentMode e b`:
+`stageOracle .fresh kemMat e b = idealSecurityImpl (adjacentMode e b)`. -/
 theorem stageOracle_fresh_eq_ideal [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (hDet : base.DeterministicDecaps)

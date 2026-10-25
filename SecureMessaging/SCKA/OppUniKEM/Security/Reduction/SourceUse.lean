@@ -29,7 +29,8 @@ namespace oppUniKemCKA.Security.Embedding
 
 variable {K PK SK C Sym : Type}
 
-/-- Sampling phases whose samplers read no protocol state. -/
+/-- The *source phases*, A's key generation and B's offline encapsulation: the sampling phases
+whose samplers read no protocol state. -/
 inductive SourcePhase where
   /-- A's key generation. -/
   | keygen

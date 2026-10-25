@@ -389,8 +389,8 @@ variable {K PK SK C Sym : Type}
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
 /-- Under `reachableInv s` and `consistentMat kemMat e s`, for every query `t`, averaging
-`(stageOracle { kemMat with on := o } e b t).run s` over `o` gives the response/successor
-distribution of `(oracle .onlineFresh kemMat e b t).run s`. -/
+`(stageOracle .pinned { kemMat with on := o } e b t).run s` over `o` gives the response/successor
+distribution of `(stageOracle .onlineFresh kemMat e b t).run s`. -/
 theorem stageOracle_sample_online_eq_fresh
     (base : KEMScheme ProbComp K PK SK C) (onoff : base.OnOffStructure)
     (ecEk : ErasureCodePayload PK Sym)
