@@ -34,7 +34,7 @@ open ToVCVio OracleSpec OracleComp ENNReal PRFScheme AEADScheme
 variable {K_e K_m M AD C_e T : Type}
   [DecidableEq AD] [DecidableEq C_e] [DecidableEq T]
   [Inhabited C_e] [Inhabited T]
-  [SampleableType C_e] [SampleableType T]
+  [LenSampleable C_e] [SampleableType T]
 
 /-! ## Type abbreviations -/
 
@@ -193,6 +193,7 @@ noncomputable def game2'
     adv
 
 /-- Game 3: decrypt always rejects (random encrypt, random tag, no decryption).
+The random ciphertext is uniform among those of the same length as `Enc(ke, m)`.
 Cache unused but present for type uniformity.
 
 NRS14 Figure 4, right column: `$` oracle (random bits) + `⊥` oracle
@@ -202,7 +203,7 @@ noncomputable def game3
     (adv : OneTimeCCAAdversary AD M (C_e × T)) : ProbComp Bool :=
   etmGameSkeleton (spec := unifSpec)
     se.keygen se.decrypt ∅
-    (fun _ _ => liftM ($ᵗ C_e : ProbComp C_e))
+    (fun ke m => liftM (LenSampleable.unifSameLen (se.encrypt ke m)))
     (fun _ => liftM ($ᵗ T : ProbComp T))
     (fun _ _ => pure false)
     gameUnifImpl

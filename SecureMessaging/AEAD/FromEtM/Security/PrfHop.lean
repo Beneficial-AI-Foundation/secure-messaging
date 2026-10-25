@@ -21,7 +21,7 @@ open OracleSpec OracleComp ENNReal PRFScheme AEADScheme
 variable {K_e K_m M AD C_e T : Type}
   [DecidableEq AD] [DecidableEq C_e] [DecidableEq T]
   [Inhabited C_e] [Inhabited T]
-  [SampleableType C_e] [SampleableType T]
+  [LenSampleable C_e] [SampleableType T]
 
 /-! ## Game-hop lemma signatures -/
 
@@ -79,7 +79,7 @@ theorem game0_eq_real
         split_ifs <;>
         simp [StateT.run_pure, map_pure, Prod.map]
 
-omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
+omit [Inhabited C_e] [Inhabited T] [LenSampleable C_e] in
 /-- Game 0 → real PRF experiment: the `game0` distribution equals the real PRF experiment run on
 `prfReduction`. The "real" half of NRS14 Lemma 3, eq. (4). -/
 theorem game0_eq_prfRealExperiment
@@ -135,7 +135,7 @@ theorem game0_eq_prfRealExperiment
         simp [*, StateT.run_pure, map_pure, simulateQ_bind,
           simulateQ_pure]
 
-omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
+omit [Inhabited C_e] [Inhabited T] [LenSampleable C_e] in
 /-- Game 1 → ideal PRF experiment: the `game1` distribution equals the ideal PRF experiment run
 on `prfReduction`. The "ideal" half of NRS14 Lemma 3, eq. (4); this is the heavier of the two
 halves, since it must relocate the outer lazy-RO cache into the (always-`∅`) inner `TagCache`. -/
@@ -289,7 +289,7 @@ theorem game1_eq_prfIdealExperiment
           refine bind_congr fun a => ?_
           split_ifs <;> simp [StateT.run_pure, simulateQ_pure]
 
-omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
+omit [Inhabited C_e] [Inhabited T] [LenSampleable C_e] in
 /-- Game 0 → 1: PRF hop. Gap bounded by PRF advantage.
 
 NRS14 Lemma 3, eq. (4): replace F^tag with random ρ. The two reduction-equals-experiment

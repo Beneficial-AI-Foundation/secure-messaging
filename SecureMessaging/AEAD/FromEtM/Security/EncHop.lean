@@ -19,16 +19,18 @@ open OracleSpec OracleComp ENNReal PRFScheme AEADScheme
 variable {K_e K_m M AD C_e T : Type}
   [DecidableEq AD] [DecidableEq C_e] [DecidableEq T]
   [Inhabited C_e] [Inhabited T]
-  [SampleableType C_e] [SampleableType T]
+  [LenSampleable C_e] [SampleableType T]
 
 /-- Fixed-key EtM game used on both sides of the IND$-CPA hop. At bit
-`false` encryption is real; at bit `true` ciphertexts are sampled uniformly. -/
+`false` encryption is real; at bit `true` the ciphertext is uniform among those of the same
+length as the real one. -/
 private noncomputable def encFixedGame
     (se : DetSEAlg K_e M C_e) (bit : Bool) (key : K_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T)) : ProbComp Bool :=
   etmGameSkeleton (spec := unifSpec)
     (pure key) se.decrypt ∅
-    (fun ke m => if bit then liftM ($ᵗ C_e : ProbComp C_e) else pure (se.encrypt ke m))
+    (fun ke m => if bit then liftM (LenSampleable.unifSameLen (se.encrypt ke m))
+      else pure (se.encrypt ke m))
     (fun _ => liftM ($ᵗ T : ProbComp T))
     (fun _ _ => pure false)
     gameUnifImpl
@@ -109,9 +111,9 @@ private theorem encFixedGame_eq_reductionBranch
             simulateQ_query, OracleQuery.input_query, OracleQuery.cont_query,
             DetSEAlg.oracleEncrypt, ↓reduceIte, map_bind, id_map, simulateQ_map,
             Bool.false_eq_true, simulateQ_pure, hqT, liftM_map, support_bind,
-            support_uniformSample, Set.mem_univ, support_map, Set.image_univ,
-            Set.iUnion_true] at hy
-          obtain ⟨_, ⟨x, rfl⟩, a, rfl⟩ := hy
+            support_uniformSample, support_map, Set.image_univ] at hy
+          simp only [Set.mem_iUnion, Set.mem_range, exists_prop] at hy
+          obtain ⟨x, -, a, rfl⟩ := hy
           rfl
       | some v =>
         cases bit <;>
