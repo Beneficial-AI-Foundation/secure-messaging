@@ -195,8 +195,7 @@ abbrev OneTimeCCAAdversary (AD M C : Type) :=
 Red arrows are the adversary's oracle calls; an X marks a call that the game refuses.
 The adversary decrypts once before the challenge. $`\Oenc` answers only its first call.
 $`\Odec` refuses the challenge pair $`(a_1, e^*)` but answers $`(a_2, e^*)`, which
-{Informal.citet ACD19}[], Figure 1, refuses. If the scheme ignores associated data, this
-query returns $`m` when $`b = 0` and $`\bot` when $`b = 1`, so the adversary learns $`b`.
+{Informal.citet ACD19}[], Figure 1, refuses (see the correction above).
 
 :::aeadAdversaryIllustration
 :::
