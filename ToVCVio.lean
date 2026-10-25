@@ -25,6 +25,7 @@ import ToVCVio.LatticeCrypto.FrodoKEM.Construction
 import ToVCVio.LatticeCrypto.FrodoKEM.Correctness
 import ToVCVio.LatticeCrypto.TransformOps
 import ToVCVio.OracleComp.Constructions.BitVec
+import ToVCVio.OracleComp.Constructions.LenSampleable
 import ToVCVio.OracleComp.Constructions.SampleableType
 import ToVCVio.OracleComp.EvalDist
 import ToVCVio.ProgramLogic.Unary.WP

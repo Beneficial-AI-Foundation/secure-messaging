@@ -66,10 +66,11 @@ game1   c = Enc_ke(m)       ρ(ad,c)         verify ρ, then Dec
 game2   c = Enc_ke(m)       ρ(ad,c)         ⊥ (always reject)
   │                                                           Adv^{ind$}  (encReduction)
   ▼   replace the real ciphertext and tag with uniform samples
-game3   c ←$ C_e            t ←$ T          ⊥ (always reject)
+game3   c ←$ C_e(ℓ)         t ←$ T          ⊥ (always reject)
 
   game0 = real one-time IND-CCA experiment
   game3 = ideal experiment ($ ciphertext, ⊥ decryption)
+  C_e(ℓ) = ciphertexts of length ℓ = |Enc_ke(m)| (`LenSampleable.unifSameLen`)
 ```
 
 ## Tag queries
@@ -103,8 +104,8 @@ lemmas live under `ToVCVio/`.
 
 The *notion* targeted here is one-time IND-CCA (`AEAD/Defs.securityExp`, adapted from ACD19
 Definition 2). The adversary makes at most one encryption query `(a*, m)` and receives
-`e* = Enc(K, a*, m)` if `b = 0` or a uniform `e*` if `b = 1`. A decryption query `(a, e)` returns
-`⊥` if `b = 1` or `(a, e) = (a*, e*)`, and `Dec(K, a, e)` otherwise.
+`e* = Enc(K, a*, m)` if `b = 0` or a uniform `e*` of the same length if `b = 1`. A decryption
+query `(a, e)` returns `⊥` if `b = 1` or `(a, e) = (a*, e*)`, and `Dec(K, a, e)` otherwise.
 
 The *proof* is an EtM argument adapted from **NRS14 scheme A5**. The two line up because the
 one-time real-or-random notion and NRS14's ivE/nAE rest on the same
@@ -151,7 +152,7 @@ open OracleSpec OracleComp ENNReal PRFScheme AEADScheme
 variable {K_e K_m M AD C_e T : Type}
   [DecidableEq AD] [DecidableEq C_e] [DecidableEq T]
   [Inhabited C_e] [Inhabited T]
-  [SampleableType C_e] [SampleableType T]
+  [LenSampleable C_e] [SampleableType T]
 
 /-! ## Main security theorem -/
 

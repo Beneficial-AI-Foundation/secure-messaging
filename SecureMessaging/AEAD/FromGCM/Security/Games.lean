@@ -432,7 +432,8 @@ theorem game4_eq_rand (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ
       cases s <;>
         simp [gcmRandRejectImpl, gcmGameSkeleton, AEADScheme.aeadSecurityImpl,
           AEADScheme.oracleEncrypt, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-          StateT.run_bind, StateT.run_get, StateT.run_set, StateT.run_pure, map_pure]
+          StateT.run_bind, StateT.run_get, StateT.run_set, StateT.run_pure, map_pure,
+          LenSampleable.unifSameLen_bitVec_prod]
     · -- ODecrypt: both sides always reject (`b = true` short-circuits `oracleDecrypt`).
       simp [gcmRandRejectImpl, gcmGameSkeleton, AEADScheme.aeadSecurityImpl,
         AEADScheme.oracleDecrypt, QueryImpl.add_apply_inr]

@@ -6,6 +6,7 @@ Authors: Beneficial AI Foundation
 
 import VCVio.CryptoFoundations.SecExp
 import VCVio.OracleComp.Constructions.SampleableType
+import ToVCVio.OracleComp.Constructions.LenSampleable
 
 /-!
 # Deterministic Symmetric Encryption (Local Placeholder)
@@ -39,6 +40,10 @@ assumption; `DetSEAlg` and its game below provide that interface.
   restrict to `q_e = 1` (one-time security).
 - **No nonce**: NRS14 has a nonce `N` for multi-query freshness. Not needed
   when each key is used once.
+
+As in NRS14, the random branch returns a uniform ciphertext of the same length as the real
+one (`|C|` random bits). The length and the uniform sample of each length come from the class
+`LenSampleable C`.
 -/
 
 open OracleSpec OracleComp ENNReal
@@ -79,7 +84,8 @@ The adversary `A` has access to:
 - Uniform randomness (`unifSpec`).
 - A one-time encryption oracle `encrypt(m)`:
   if `b = false`, returns `some (Enc(K, m))`;
-  if `b = true`, returns `some ($ᵗ C)` (uniform random ciphertext).
+  if `b = true`, returns `some c`, where `c` is uniform among the ciphertexts
+  of length `|Enc(K, m)|`.
   Returns `none` on subsequent calls.
 
 The game state is `Bool` tracking whether the encryption oracle has been called.
@@ -111,23 +117,24 @@ def oracleUnif :
 
 /-- One-time encryption oracle for the IND$-CPA game.
 First call: if `b = false`, returns `some (se.encrypt k m)`;
-            if `b = true`, returns `some ($ᵗ C)`.
+            if `b = true`, returns a uniform ciphertext of the same length as
+            `se.encrypt k m`.
 Subsequent calls: returns `none`. -/
 -- ANCHOR: detSEOracleEncrypt
-def oracleEncrypt [SampleableType C] (se : DetSEAlg K M C) (b : Bool) (k : K) :
+def oracleEncrypt [LenSampleable C] (se : DetSEAlg K M C) (b : Bool) (k : K) :
     QueryImpl (M →ₒ Option C) (StateT Bool ProbComp) :=
   fun m => do
     if (← get) then pure none
     else do
       set true
       let c ← if b
-        then liftM ($ᵗ C : ProbComp C)
+        then liftM (LenSampleable.unifSameLen (se.encrypt k m))
         else pure (se.encrypt k m)
       return some c
 -- ANCHOR_END: detSEOracleEncrypt
 
 /-- Complete oracle set for the one-time IND$-CPA game. -/
-def indCPAImpl [SampleableType C] (se : DetSEAlg K M C) (b : Bool) (k : K) :
+def indCPAImpl [LenSampleable C] (se : DetSEAlg K M C) (b : Bool) (k : K) :
     QueryImpl (indCPASpec M C) (StateT Bool ProbComp) :=
   oracleUnif + oracleEncrypt se b k
 
@@ -139,7 +146,7 @@ experiment.
 
 NRS14 Section 2: ivE-security experiment, restricted to one query. -/
 -- ANCHOR: detSESecurityExpFixedBit
-def securityExpFixedBit [SampleableType C] (se : DetSEAlg K M C)
+def securityExpFixedBit [LenSampleable C] (se : DetSEAlg K M C)
     (adversary : IndCPAAdversary M C) (b : Bool) : ProbComp Bool := do
   let k ← se.keygen
   let (b', _) ← (simulateQ (indCPAImpl se b k) adversary).run false
@@ -151,7 +158,7 @@ def securityExpFixedBit [SampleableType C] (se : DetSEAlg K M C)
 
 NRS14 Section 2: `Adv^{ivE}_E(A)`, restricted to one query and no IV. -/
 -- ANCHOR: detSEDistAdvantage
-noncomputable def distAdvantage [SampleableType C] (se : DetSEAlg K M C)
+noncomputable def distAdvantage [LenSampleable C] (se : DetSEAlg K M C)
     (adversary : IndCPAAdversary M C) : ℝ :=
   |(Pr{let x ← securityExpFixedBit se adversary true}[x = true]).toReal -
    (Pr{let x ← securityExpFixedBit se adversary false}[x = true]).toReal|

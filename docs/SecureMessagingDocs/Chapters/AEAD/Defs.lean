@@ -91,6 +91,17 @@ contradicts their Theorem 5. We correct this, marked by boxes in pseudocode:
 
 {Informal.citet NRS14}[] restrict decryption queries in the same way.
 :::::
+
+:::::gameCell "\\textsf{Deviation}" (kind := "scheme-notation")
+In {Informal.citet ACD19}[], Figure 1, $`\Oenc` with $`b = 1` samples $`e^*` from the whole
+ciphertext space $`\mathcal C`. We sample $`e^*` uniformly among the ciphertexts of the same
+length as $`\Enc(K, a, m)`, as the $`\$` oracle of {Informal.citet NRS14}[], Figure 4, does
+(boxed in $`\Oenc`). When messages have variable length, $`\mathcal C` has no uniform
+distribution, and every variable-length scheme fails the game of Figure 1 through the
+ciphertext length alone. For ciphertexts of one length, the two games are the same. The FS-AEAD
+game of {Informal.citet ACD19}[], Figure 5, requires $`|m_0| = |m_1|`, so their Theorem 5 needs
+only this weaker notion.
+:::::
 ::::::
 
 ::::::gameGrid
@@ -100,13 +111,13 @@ $`\begin{array}{l}
 \pif\;b = 0\;\pthen \\
 \quad e^* \gets \Enc(K, a, m); \\
 \pelse \\
-\quad e^* \sample \mathcal C; \\
+\quad \boxed{e^* \sample \{e \in \mathcal C : |e| = |\Enc(K, a, m)|\}}; \\
 \boxed{a^* \gets a}; \\
 \Return e^*
 \end{array}`
 
 ```anchor oracleEncrypt (project := ".") (module := SecureMessaging.AEAD.Defs)
-def oracleEncrypt [SampleableType C] (ae : AEADScheme ProbComp M AD K C)
+def oracleEncrypt [LenSampleable C] (ae : AEADScheme ProbComp M AD K C)
     (b : Bool) (k : K) :
     QueryImpl (AD × M →ₒ Option C) (StateT (Option (AD × C)) ProbComp) :=
   fun (a, m) => do
@@ -114,7 +125,7 @@ def oracleEncrypt [SampleableType C] (ae : AEADScheme ProbComp M AD K C)
     | some _ => pure none
     | none =>
       let eStar ← if b
-        then liftM ($ᵗ C : ProbComp C)
+        then liftM (LenSampleable.unifSameLen (ae.encrypt k a m))
         else pure (ae.encrypt k a m)
       set (some (a, eStar))
       return some eStar
@@ -178,7 +189,7 @@ abbrev aeadOneTimeCCASpec (AD M C : Type) :=
 :::
 
 ```anchor aeadSecurityImpl (project := ".") (module := SecureMessaging.AEAD.Defs)
-def aeadSecurityImpl [SampleableType C] [DecidableEq AD] [DecidableEq C]
+def aeadSecurityImpl [LenSampleable C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C) (b : Bool) (k : K) :
     QueryImpl (aeadOneTimeCCASpec AD M C) (StateT (Option (AD × C)) ProbComp) :=
   oracleUnif AD C + oracleEncrypt ae b k + oracleDecrypt ae b k
@@ -221,7 +232,7 @@ b' \gets \adv^{\O}; \\
 :::
 
 ```anchor securityExp (project := ".") (module := SecureMessaging.AEAD.Defs)
-def securityExp [SampleableType C] [DecidableEq AD] [DecidableEq C]
+def securityExp [LenSampleable C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) : ProbComp Bool := do
   let k ← ae.keygen
@@ -258,7 +269,7 @@ $$`\mathsf{Adv}^{\textsf{guess}}_{\textsf{AEAD}}(\adv)
   = \Bigl|\, \Pr[\,b' = b\,] - \tfrac{1}{2} \,\Bigr|`
 
 ```anchor guessAdvantage (project := ".") (module := SecureMessaging.AEAD.Defs)
-noncomputable def guessAdvantage [SampleableType C] [DecidableEq AD] [DecidableEq C]
+noncomputable def guessAdvantage [LenSampleable C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) : ℝ :=
   |(Pr{let x ← securityExp ae adversary}[x = true]).toReal - 1 / 2|
@@ -280,7 +291,7 @@ theorems for Encrypt-then-MAC and GCM bound this advantage.
 :::
 
 ```anchor securityExpFixedBit (project := ".") (module := SecureMessaging.AEAD.Defs)
-def securityExpFixedBit [SampleableType C] [DecidableEq AD] [DecidableEq C]
+def securityExpFixedBit [LenSampleable C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C)
     (b : Bool) : ProbComp Bool := do
@@ -293,7 +304,7 @@ def securityExpFixedBit [SampleableType C] [DecidableEq AD] [DecidableEq C]
 :::
 
 ```anchor distAdvantage (project := ".") (module := SecureMessaging.AEAD.Defs)
-noncomputable def distAdvantage [SampleableType C] [DecidableEq AD] [DecidableEq C]
+noncomputable def distAdvantage [LenSampleable C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) : ℝ :=
   |(Pr{let x ← securityExpFixedBit ae adversary true}[x = true]).toReal -
@@ -312,7 +323,7 @@ $$`\mathsf{Adv}^{\textsf{guess}}_{\textsf{AEAD}}(\adv)
 
 ```anchor guessAdvantage_eq_distAdvantage_div_two (project := ".") (module := SecureMessaging.AEAD.Defs)
 lemma guessAdvantage_eq_distAdvantage_div_two
-    [SampleableType C] [DecidableEq AD] [DecidableEq C]
+    [LenSampleable C] [DecidableEq AD] [DecidableEq C]
     (ae : AEADScheme ProbComp M AD K C)
     (adversary : OneTimeCCAAdversary AD M C) :
     guessAdvantage ae adversary = distAdvantage ae adversary / 2

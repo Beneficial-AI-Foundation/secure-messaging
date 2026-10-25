@@ -25,9 +25,9 @@ open OracleSpec OracleComp ENNReal PRFScheme AEADScheme
 variable {K_e K_m M AD C_e T : Type}
   [DecidableEq AD] [DecidableEq C_e] [DecidableEq T]
   [Inhabited C_e] [Inhabited T]
-  [SampleableType C_e] [SampleableType T]
+  [LenSampleable C_e] [SampleableType T]
 
-omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
+omit [Inhabited C_e] [Inhabited T] [LenSampleable C_e] in
 /-- Step C of the auth hop: `game2'` (verify queries the RO then rejects unconditionally)
 has the same output distribution as `game2` (rejects directly). The discarded verify RO query
 reveals nothing, so removing it preserves the distribution
@@ -121,7 +121,7 @@ theorem game2'_eq_game2
         simp [QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get, StateT.run_set,
           StateT.run_pure, beq_iff_eq, hg, map_bind, Functor.map_map]
 
-omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
+omit [Inhabited C_e] [Inhabited T] [LenSampleable C_e] in
 /-- Dropping the write-only `forged` flag from `authInstImpl` yields the
 uninstrumented fixed-key auth handler, independently of the initial flag. -/
 lemma simulateQ_authInstImpl_run'_eq_authPlainImpl
@@ -155,7 +155,7 @@ lemma simulateQ_authInstImpl_run'_eq_authPlainImpl
             StateT.run_bind, StateT.run_get, StateT.run_set, StateT.run_pure,
             Prod.map, Functor.map_map, ← apply_ite, beq_iff_eq, hguard]
 
-omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
+omit [Inhabited C_e] [Inhabited T] [LenSampleable C_e] in
 /-- Per-key identical-until-bad bound (auth hop, brick 3): the flag-instrumented `b = true`
 and `b = false` simulations agree on every non-forged transition (they differ only in the
 verify return when `ok = true`, which also sets the monotone `forged` flag), so the per-key TV
@@ -258,7 +258,7 @@ theorem measureTVDist_authInst_le_probForge
     (authInstImpl se true ke) (authInstImpl se false ke) adv (none, ∅)
     hagree (hmono true) (hmono false)
 
-omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
+omit [Inhabited C_e] [Inhabited T] [LenSampleable C_e] in
 /-- Per-key forge-probability collapse (auth hop, the heaviest sub-proof): the per-key game's
 forge probability (the `b = true` simulation's `forged` flag) is at most the `forged`
 probability of the eval+verify lazy-RO forge experiment run on `forgeReduction`. The proof
@@ -585,7 +585,7 @@ theorem probForge_authInst_le_forgeReduction
             intro hfl
             exact hflagimp hfl
 
-omit [Inhabited C_e] [Inhabited T] [SampleableType C_e] in
+omit [Inhabited C_e] [Inhabited T] [LenSampleable C_e] in
 /-- Query-bound transfer (auth hop adapter): each decrypt query of `adv` becomes exactly one
 verify query in `forgeReduction`, so the reduction makes at most `q_d` verify queries whenever
 `adv` makes at most `q_d` decrypt queries. -/
