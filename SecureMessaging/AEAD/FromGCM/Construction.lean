@@ -40,4 +40,11 @@ def gcmOneTimeAEAD {K : Type} (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) 
   decrypt := fun k ad c => gcmDecrypt prp.toBlockCipher k iv ad.1.2 c
 -- ANCHOR_END: gcmOneTimeAEAD
 
+/-- `gcmOneTimeAEAD` is `LengthRegular` for every message length `lenM`: its ciphertext type
+`BitVec L × BitVec 128` has one length. -/
+theorem gcmOneTimeAEAD_lengthRegular {K : Type} (prp : PRPScheme K (BitVec 128))
+    (iv : BitVec 96) (L : ℕ) (hL : ValidMsgLength L) (lenM : BitVec L → ℕ) :
+    (gcmOneTimeAEAD prp iv L hL).LengthRegular lenM :=
+  fun _ _ _ _ _ _ => rfl
+
 end GCM
