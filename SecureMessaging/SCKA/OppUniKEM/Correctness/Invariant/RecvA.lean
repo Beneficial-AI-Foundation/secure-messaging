@@ -9,8 +9,11 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
 /-!
 # RecvA Preserves the Reachability Invariant
 
-With correct ciphertext erasure codes and `ecCt1.ec.nchunk > 0`, A's receive preserves
-`reachableInv` under `CurrentKEMCorrect` (`oracleRecvA_preserves_reachableInv`).
+Assuming the ciphertext erasure codes are correct and `ecCt1.ec.nchunk > 0`, A's receive
+preserves `reachableInv` under `CurrentKEMCorrect` (`oracleRecvA_preserves_reachableInv`). The
+general form `oracleRecvA_preserves_reachableInv_of_recv` applies to every scheme whose receive
+algorithm for A is `recvA` with an arbitrary decapsulation function that agrees with B's recorded
+key; the ideal game of the security proof instantiates it with a key lookup.
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
@@ -344,10 +347,11 @@ private lemma reachableInv_after_recvA_ackOnly
   · simp
   · simpa using hInv.ct0Ack.1
 
-/-- Let `scka.recvA` be `recvA` with decapsulation `decapsDet`, and let the ciphertext codes be
-correct with a positive online chunk count. If `decapsDet dk (onoff.split.symm (ct0, ct1)) =
-some key` whenever A holds `dk` and `ct0`, B holds `ct1`, and B records `key` for A's epoch in `s`,
-then A's receive query preserves `reachableInv` from `s`. -/
+/-- Assuming the ciphertext erasure codes are correct and `ecCt1.ec.nchunk > 0`, let `scka` be an
+SCKA scheme whose receive algorithm for A is `recvA` with the decapsulation function `decapsDet`.
+If `decapsDet dk (onoff.split.symm (ct0, ct1)) = some key` whenever A holds `dk` and `ct0`, B holds
+`ct1`, and B records `key` for A's epoch in `s`, then every possible successor of A's receive query
+from `s` satisfies `reachableInv`. -/
 lemma oracleRecvA_preserves_reachableInv_of_recv
     [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
