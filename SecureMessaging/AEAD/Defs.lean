@@ -133,10 +133,10 @@ Each deviation is marked `Deviation (D1)` or `Deviation (D2)` where it takes eff
   random bits. For a ciphertext type with one length, such as `BitVec n` or
   `BitVec n × BitVec 128`, the two games are the same (`LenSampleable.unifSameLen_const_prod`).
 
-  The new game leaks `|Enc(K, a, m)|`. `LengthRegular` below limits that leak to the message
-  length. It suffices for the proof of Theorem 5 of [ACD19]: in hybrid H3, the challenge
-  ciphertext is drawn from `unifSameLen (Enc(K, (i, a), m_b))`. If `ae` is `LengthRegular` and
-  `|m₀| = |m₁|`, this distribution does not depend on `b`.
+  The new game leaks `|Enc(K, a, m)|`. For fixed associated data, `LengthRegular` below limits
+  that leak to the message length. It suffices for the proof of Theorem 5 of [ACD19]: in hybrid
+  H3, the challenge ciphertext is drawn from `unifSameLen (Enc(K, (i, a), m_b))`. If `ae` is
+  `LengthRegular` and `|m₀| = |m₁|`, this distribution does not depend on `b`.
 
 [WHY A PRF TAG, NOT JUST A MAC]
 The game above is *real-or-random*: when `b = 1` the oracle returns a uniform random
@@ -185,9 +185,11 @@ def Correct (ae : AEADScheme m M AD K C) : Prop :=
 of `ae` depends only on the message length: `|m| = |m'|` implies
 `|Enc(K, a, m)| = |Enc(K', a, m')|` for all keys `K, K'`.
 
-The game of Deviation (D2) leaks the ciphertext length. This property limits that leak to the
-message length. Section 2 of [NRS14] requires the same, and also lets the length depend on
-`|a|`. -/
+The game of Deviation (D2) leaks the ciphertext length. For fixed associated data, this property
+limits that leak to the message length. Section 2 of [NRS14] requires more: without a nonce,
+the length depends only on `|a|` and `|m|`, not on the content of `a`. Fixing `a` suffices for
+the FS-AEAD challenge of [ACD19], which encrypts both messages under the same associated
+data. -/
 -- ANCHOR: LengthRegular
 def LengthRegular [LenSampleable C] (lenM : M → ℕ) (ae : AEADScheme m M AD K C) : Prop :=
   ∀ (k k' : K) (a : AD) (msg msg' : M), lenM msg = lenM msg' →

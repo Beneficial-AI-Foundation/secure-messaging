@@ -60,8 +60,8 @@ message space $`\mathcal M` and ciphertext space $`\mathcal C_e`, where
 $`\mathsf{SE.Enc}` and $`\mathsf{SE.Dec}` are deterministic. Each ciphertext $`c` has a
 length $`|c|`, and the ciphertexts of each length can be sampled uniformly (`LenSampleable`).
 $`\mathsf{SE}` is correct if $`\mathsf{SE.Dec}(K_e, \mathsf{SE.Enc}(K_e, m)) = m` for all
-keys $`K_e` and messages $`m`. Let $`|m|` be a message length. $`\mathsf{SE}` is
-length-regular if $`|m| = |m'|` implies $`|\mathsf{SE.Enc}(K_e, m)| = |\mathsf{SE.Enc}(K_e', m')|`
+keys $`K_e` and messages $`m`. Let $`|m|` denote a fixed length function on messages
+($`\mathit{lenM}` in Lean). $`\mathsf{SE}` is length-regular if $`|m| = |m'|` implies $`|\mathsf{SE.Enc}(K_e, m)| = |\mathsf{SE.Enc}(K_e', m')|`
 for all keys $`K_e, K_e'`.
 
 ```anchor DetSEAlg (project := ".") (module := SecureMessaging.SymEnc.Defs)
@@ -195,17 +195,21 @@ encryption of $`m` under $`k` with IV $`\mathit{iv}`. The IV is secret, and the 
 chooses $`m` before it sees anything that depends on $`K_e`, so $`m` is independent of both
 $`k` and $`\mathit{iv}`.
 
-libsignal pads messages with PKCS#7. A message of $`|m|` bytes becomes
-$`\ell = \lfloor |m| / 16 \rfloor + 1` blocks, so the ciphertext has $`128\ell` bits. Its
-length depends only on $`|m|`, so the scheme is length-regular. For $`b = 1`, $`\Oenc`
-returns a uniformly random string of $`128\ell` bits, the same length as the real
-ciphertext. The adversary therefore learns $`|m|`, which it chose, and nothing from the
-length alone.
+libsignal pads messages with PKCS#7. Let $`|m|` be the length of $`m` in bytes. Then $`m`
+becomes $`\ell = \lfloor |m| / 16 \rfloor + 1` blocks, so the ciphertext has $`128\ell`
+bits. Its length depends only on $`|m|`, so the scheme is length-regular. For $`b = 1`,
+$`\Oenc` returns a uniformly random string of $`128\ell` bits, the same length as the real
+ciphertext. The length depends only on $`|m|`, which the adversary chose, so it is the same
+for $`b = 0` and $`b = 1`.
 
-The ciphertext is still not exactly uniform as with the one-time pad, because AES under $`k`
-is a fixed permutation and not a uniform random function. The standard CBC analysis bounds the
-advantage by the PRP advantage of AES plus a collision term of order $`\ell^2 / 2^{128}`.
-This repository does not prove that bound and does not instantiate AES-CBC in Lean.
+For $`\ell = 1`, let $`P` be the padded block. The map $`\mathit{iv} \mapsto \mathrm{AES}_k(P \oplus \mathit{iv})` is a
+bijection for every key $`k`, so a uniform $`\mathit{iv}` gives an exactly uniform ciphertext.
+For two or more blocks, the ciphertext need not be exactly uniform, because AES under $`k` is a
+fixed permutation and not a uniform random function. For $`k` and $`\mathit{iv}` sampled
+uniformly, the standard CBC analysis bounds the advantage by the PRP advantage of AES plus a
+collision term of order $`\ell^2 / 2^{128}`. For the pair that libsignal derives, add the
+advantage of distinguishing the derivation from uniform. This repository does not prove these
+bounds and does not instantiate AES-CBC in Lean.
 :::::
 ::::::
 :::::::
