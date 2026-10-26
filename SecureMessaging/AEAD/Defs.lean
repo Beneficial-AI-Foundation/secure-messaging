@@ -126,12 +126,17 @@ Each deviation is marked `Deviation (D1)` or `Deviation (D2)` where it takes eff
 
   The length and the uniform sample of each length come from the class `LenSampleable C`.
 
-  Reason. When messages have variable length, `C` has no uniform distribution, and every
-  variable-length scheme fails the Figure 1 game through the ciphertext length alone. The new
-  game follows the `$` oracle of [NRS14] Figure 4, which returns `|C|` random bits. For a
-  ciphertext type with one length, such as `BitVec n` or `BitVec n × BitVec 128`, the two games
-  are the same. The FS-AEAD game of [ACD19] Figure 5 requires `|m₀| = |m₁|`, so the proof of
-  Theorem 5 of [ACD19] needs only this weaker notion, together with `LengthRegular` below.
+  Reason. If `C` is infinite, for example all bit strings, Figure 1 is not defined: `C` has no
+  uniform distribution. If `C` is finite with several lengths, an adversary that encrypts a
+  message whose ciphertext length is rare under `$ C` tells the two branches apart by the
+  length alone. The new game follows the `$` oracle of [NRS14] Figure 4, which returns `|C|`
+  random bits. For a ciphertext type with one length, such as `BitVec n` or
+  `BitVec n × BitVec 128`, the two games are the same (`LenSampleable.unifSameLen_const_prod`).
+
+  The new game leaks `|Enc(K, a, m)|`. `LengthRegular` below limits that leak to the message
+  length. It suffices for the proof of Theorem 5 of [ACD19]: in hybrid H3, the challenge
+  ciphertext is drawn from `unifSameLen (Enc(K, (i, a), m_b))`. If `ae` is `LengthRegular` and
+  `|m₀| = |m₁|`, this distribution does not depend on `b`.
 
 [WHY A PRF TAG, NOT JUST A MAC]
 The game above is *real-or-random*: when `b = 1` the oracle returns a uniform random
@@ -139,8 +144,8 @@ ciphertext `e*` of the right length, so the **whole** ciphertext — authenticat
 included — must be indistinguishable from uniform. MAC unforgeability cannot deliver this
 (an unforgeable tag may still look non-uniform); pseudorandomness can. So the `AEAD/FromEtM`
 construction tags with a PRF, not a MAC. The textbook "LoR ⇒ RoR" shortcut does not bridge the
-gap: it is for random-*message* RoR, whereas ACD19 is random-*ciphertext* IND$, strictly
-stronger than LoR.
+gap: it is for random-*message* RoR, whereas ACD19 is random-*ciphertext* IND$. For schemes
+that satisfy `LengthRegular`, IND$ is strictly stronger than LoR on messages of equal length.
 
 -/
 
@@ -176,17 +181,17 @@ def Correct (ae : AEADScheme m M AD K C) : Prop :=
   ∀ (k : K) (a : AD) (msg : M), ae.decrypt k a (ae.encrypt k a msg) = some msg
 -- ANCHOR_END: Correct
 
-/-- Let `lenM : M → ℕ` be a message length. The ciphertext length of `ae` depends only on the
-message length: `|m| = |m'|` implies `|Enc(K, a, m)| = |Enc(K', a', m')|` for all keys and
-associated data.
+/-- Let `lenM : M → ℕ` be a message length. Under fixed associated data, the ciphertext length
+of `ae` depends only on the message length: `|m| = |m'|` implies
+`|Enc(K, a, m)| = |Enc(K', a, m')|` for all keys `K, K'`.
 
-Section 2 of [NRS14] requires this of every scheme. The game of Deviation (D2) leaks the
-ciphertext length, and this property limits that leak to the message length. The proof of
-Theorem 5 of [ACD19] needs it, with `lenM` the length of the FS-AEAD game. -/
+The game of Deviation (D2) leaks the ciphertext length. This property limits that leak to the
+message length. Section 2 of [NRS14] requires the same, and also lets the length depend on
+`|a|`. -/
 -- ANCHOR: LengthRegular
 def LengthRegular [LenSampleable C] (lenM : M → ℕ) (ae : AEADScheme m M AD K C) : Prop :=
-  ∀ (k k' : K) (a a' : AD) (msg msg' : M), lenM msg = lenM msg' →
-    LenSampleable.len (ae.encrypt k a msg) = LenSampleable.len (ae.encrypt k' a' msg')
+  ∀ (k k' : K) (a : AD) (msg msg' : M), lenM msg = lenM msg' →
+    LenSampleable.len (ae.encrypt k a msg) = LenSampleable.len (ae.encrypt k' a msg')
 -- ANCHOR_END: LengthRegular
 
 section OneTime_CCA

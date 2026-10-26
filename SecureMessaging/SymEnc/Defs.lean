@@ -73,6 +73,13 @@ def Correct (se : DetSEAlg K M C) : Prop :=
   ∀ (k : K) (m : M), se.decrypt k (se.encrypt k m) = some m
 -- ANCHOR_END: DetSEAlgCorrect
 
+/-- Let `lenM : M → ℕ` be a message length. The ciphertext length of `se` depends only on the
+message length: `|m| = |m'|` implies `|Enc(K, m)| = |Enc(K', m')|` for all keys `K, K'`.
+NRS14 Section 2 requires this of every scheme. -/
+def LengthRegular [LenSampleable C] (lenM : M → ℕ) (se : DetSEAlg K M C) : Prop :=
+  ∀ (k k' : K) (m m' : M), lenM m = lenM m' →
+    LenSampleable.len (se.encrypt k m) = LenSampleable.len (se.encrypt k' m')
+
 section IndCPA
 
 /-! ## One-Time IND$-CPA Security Game
@@ -91,8 +98,10 @@ The adversary `A` has access to:
 The game state is `Bool` tracking whether the encryption oracle has been called.
 
 Note: we write "IndCPA" in identifiers to avoid the Lean syntax issue with `$`
-in names, but the game is IND$-CPA (real ciphertext vs uniform random bits),
-which is strictly stronger than standard IND-CPA (left-or-right).
+in names, but the game is IND$-CPA (real ciphertext vs uniform random bits of the same
+length). For schemes that satisfy `LengthRegular`, it is strictly stronger than standard
+IND-CPA (left-or-right) on messages of equal length. Without `LengthRegular`, the ciphertext
+length can reveal the message.
 -/
 
 /-! ### Oracle spec -/

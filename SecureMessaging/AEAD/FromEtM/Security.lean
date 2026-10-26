@@ -25,6 +25,11 @@ advantage of `se`, and a tag-guessing term:
 where `B = prfReduction se A` and `D = encReduction se A`, and `q_d`
 upper-bounds the number of the adversary's decryption queries.
 
+Both advantages sample the ideal ciphertext by length (`LenSampleable C_e`). With the constant
+grading `LenSampleable.const C_e`, both samplers are uniform on the whole ciphertext type
+(`unifSameLen_const`, `unifSameLen_const_prod`), so the bound is the one for whole-space
+sampling.
+
 ## Notation
 
 | Symbol | Meaning |

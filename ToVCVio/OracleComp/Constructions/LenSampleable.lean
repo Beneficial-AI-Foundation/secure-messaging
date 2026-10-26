@@ -35,8 +35,11 @@ open OracleComp ENNReal
 /-- A type whose elements have a length, with a uniform sampler for each length that occurs.
 
 `unifOfLen (len c)` is uniform on `{c' | len c' = len c}`: its outputs have length `len c`, and
-any two elements of that length have the same probability. The two laws keep an ind$ game
-meaningful: an instance cannot replace the uniform sample by a fixed value. -/
+any two elements of that length have the same probability.
+
+`len` is the leakage that an ind$ game allows. The laws make the sample uniform within each
+length class. They do not restrict the choice of `len`: if `len` is injective, every class has
+one element, and the sample is that element. -/
 class LenSampleable (C : Type) where
   /-- The length of an element. -/
   len : C → ℕ
@@ -63,6 +66,10 @@ grading, an ind$ game samples from the whole type. -/
     let : Fintype C := Fintype.ofFinite C
     rw [SampleableType.prEvent_uniformSample_eq_singleton,
       SampleableType.prEvent_uniformSample_eq_singleton]
+
+/-- With the constant grading, the sampler is `$ᵗ C`. -/
+@[simp] lemma unifSameLen_const {C : Type} [SampleableType C] (c : C) :
+    @unifSameLen C (const C) c = $ᵗ C := rfl
 
 /-- `BitVec n` has one length, so its sampler is `$ᵗ BitVec n`. -/
 instance instBitVec (n : ℕ) : LenSampleable (BitVec n) := const (BitVec n)
@@ -102,11 +109,15 @@ instance instProd (C T : Type) [LenSampleable C] [SampleableType T] :
 /-- `BitVec n` has one length, so the sampler is `$ᵗ BitVec n`. -/
 @[simp] lemma unifSameLen_bitVec {n : ℕ} (x : BitVec n) : unifSameLen x = $ᵗ BitVec n := rfl
 
-/-- A pair with a `BitVec n` first component has one length, so the sampler is the uniform
-sample on the product. -/
+/-- With the constant grading on the first component, the sampler for a pair is `$ᵗ (C × T)`. -/
+lemma unifSameLen_const_prod {C T : Type} [SampleableType C] [SampleableType T] (p : C × T) :
+    @unifSameLen (C × T) (@instProd C T (const C) _) p = $ᵗ (C × T) :=
+  (SampleableType.uniformSample_prod_eq_bind C T).symm
+
+/-- A pair with a `BitVec n` first component has one length, so the sampler is `$ᵗ`. -/
 lemma unifSameLen_bitVec_prod {n : ℕ} {T : Type} [SampleableType T] (p : BitVec n × T) :
     unifSameLen p = $ᵗ (BitVec n × T) :=
-  (SampleableType.uniformSample_prod_eq_bind (BitVec n) T).symm
+  unifSameLen_const_prod p
 
 /-- Bit strings of every length: the length of `⟨n, x⟩` is `n`, and the sampler for length `n`
 draws `x ← $ᵗ BitVec n`. -/
