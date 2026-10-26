@@ -16,9 +16,7 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Receive
 **Setting.** Throughout this module, we consider:
 
 - a challenge epoch `e` and a candidate key `kStar`;
-- a *KEM material* `kemMat : KEMMaterial leak` (`Simulator`), that is, a pre-sampled record of the
-  outputs and coins produced by the sampling phases of a single epoch (key generation, offline
-  encapsulation, and online encapsulation);
+- a KEM material `kemMat` (`Simulator`), the pre-sampled outputs and coins of one epoch;
 - the pinned KEM `Pinned.kem kemMat` (`Simulator`), whose designated sampling phases return the
   corresponding outputs stored in `kemMat` and whose decapsulation returns a prescribed key;
 - the transcript consistency invariant `reachableInv` (`Correctness.Invariant`), stating that a game
@@ -36,11 +34,11 @@ and stops at the first exposure of `e`.
 
 - Party A's receive in `stageScheme stage kemMat e s` is the protocol receive with decapsulation
   replaced by the lookup of B's recorded key (`stageScheme_recvA_eq_ideal`).
-- For possible material and a challenge oracle that only records challenges, the security oracles
-  over `honestScheme kemMat e` preserve `reachableInv`, `consistentMat kemMat e` (the stored
-  key-generation and offline outputs of epoch `e` are those of `kemMat`), and the property that
-  every key B records at `e` is `kemMat.key`
-  (`honestScheme_preserves_simulationInv`, `honestScheme_preserves_keyB_eq`).
+- For `kemMat ∈ support (sampleMaterial leak)` and a challenge oracle that only records
+  challenges, the security oracles over `honestScheme kemMat e` preserve `reachableInv`,
+  `consistentMat kemMat e` (the stored key-generation and offline outputs of epoch `e` are those of
+  `kemMat`), and the property that every key B records at `e` is `kemMat.key`
+  (`honestScheme_preserves_reachableInv_consistentMat`, `honestScheme_preserves_keyB_eq`).
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -378,7 +376,7 @@ def consistentMat (kemMat : KEMMaterial leak) (e : ℕ)
     s.stB.stCt = some kemMat.st ∧ s.stB.ct0 = some kemMat.ct0)
 
 /-- Under `reachableInv`, if B holds no online ciphertext, A and B are in the same epoch. -/
-theorem epochs_eq_before_online
+private theorem epochs_eq_before_online
     (s : GameState onoff Sym)
     (hs : reachableInv kem onoff ecEk ecCt0 ecCt1 s) (hc : s.stB.ct1 = none) :
     s.stA.t = s.stB.t := by
@@ -394,6 +392,23 @@ theorem epochs_eq_before_online
   have := hT.epochs
   omega
 
+/-- Under `reachableInv` and `consistentMat kemMat e`, if B is at `e` with public key `pk` and no
+online ciphertext, then `pk = kemMat.pk`. -/
+theorem online_pk_eq_material
+    (kemMat : KEMMaterial leak) (e : ℕ)
+    (s : GameState onoff Sym)
+    (hs : reachableInv kem onoff ecEk ecCt0 ecCt1 s) (hm : consistentMat kemMat e s)
+    (he : s.stB.t = e) (pk : PK) (hp : s.stB.ekA = some pk) (hc : s.stB.ct1 = none) :
+    pk = kemMat.pk := by
+  have ht := epochs_eq_before_online kem onoff ecEk ecCt0 ecCt1 s hs hc
+  obtain ⟨T, hT⟩ := hs
+  obtain ⟨sk, hpk⟩ := hT.decodedEk pk hp
+  have hpair := hT.keypairA
+  rw [ht, hpk] at hpair
+  have ha : s.stA.ekA = some pk ∧ s.stA.dkA = some sk := by
+    cases hpA : s.stA.ekA <;> cases hsA : s.stA.dkA <;> simp_all [Option.map₂]
+  exact Option.some.inj (ha.1.symm.trans (hm.1 (ht.trans he) (by simp [ha.2])).1)
+
 /-- Under `reachableInv` and `consistentMat kemMat e`, if B is at `e` with public key `pk`, offline
 state `st`, and no online ciphertext, then `pk = kemMat.pk` and `st = kemMat.st`. -/
 private theorem pinned_online_inputs
@@ -402,19 +417,9 @@ private theorem pinned_online_inputs
     (hs : reachableInv kem onoff ecEk ecCt0 ecCt1 s) (hm : consistentMat kemMat e s)
     (he : s.stB.t = e) (pk : PK) (st : onoff.St)
     (hp : s.stB.ekA = some pk) (hst : s.stB.stCt = some st) (hc : s.stB.ct1 = none) :
-    pk = kemMat.pk ∧ st = kemMat.st := by
-  have ht := epochs_eq_before_online kem onoff ecEk ecCt0 ecCt1 s hs hc
-  obtain ⟨T, hT⟩ := hs
-  obtain ⟨sk, hpk⟩ := hT.decodedEk pk hp
-  have hpair := hT.keypairA
-  rw [ht, hpk] at hpair
-  have ha : s.stA.ekA = some pk ∧ s.stA.dkA = some sk := by
-    cases hpA : s.stA.ekA <;> cases hsA : s.stA.dkA <;>
-      simp_all [Option.map₂]
-  have hsrcA := hm.1 (ht.trans he) (by simp [ha.2])
-  have hsrcB := hm.2 he (by simp [hst])
-  exact ⟨Option.some.inj (ha.1.symm.trans hsrcA.1),
-    Option.some.inj (hst.symm.trans hsrcB.1)⟩
+    pk = kemMat.pk ∧ st = kemMat.st :=
+  ⟨online_pk_eq_material kem onoff ecEk ecCt0 ecCt1 leak kemMat e s hs hm he pk hp hc,
+    Option.some.inj (hst.symm.trans (hm.2 he (by simp [hst])).1)⟩
 
 variable {kem onoff leak} in
 /-- A's successful send in `honestScheme kemMat e s` preserves `consistentMat kemMat e`. -/
@@ -773,7 +778,7 @@ include hDet hEk hCt0 hCt1 in
 /-- For possible `kemMat` and a challenge oracle `chall` that only records challenges
 (`RecordsChallenges chall`), `securityImplAt (honestScheme kemMat e) chall` preserves
 `reachableInv ∧ consistentMat kemMat e`. -/
-theorem honestScheme_preserves_simulationInv
+theorem honestScheme_preserves_reachableInv_consistentMat
     (kemMat : KEMMaterial leak) (hm : kemMat ∈ support (sampleMaterial leak)) (e : ℕ)
     (chall : QueryImpl (ℕ →ₒ Option K)
       (StateT (GameState onoff Sym) ProbComp))

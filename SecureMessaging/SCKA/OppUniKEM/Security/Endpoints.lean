@@ -379,7 +379,7 @@ def trackedSecurityImpl (b : Bool) :
     (fun _ _ _ s' bad => bad || currentKEMFailure kem onoff hDet s')
 
 /-- Discarding the failure flag after running `trackedSecurityImpl` gives the same computation
-as the original security oracles, including the adversary's output and final game state.
+as the security oracles of `G_b`, including the adversary's output and final game state.
 This holds for any initial state and flag. -/
 theorem trackedSecurity_run_project (b : Bool)
     {α : Type} (adv : OracleComp (securitySpec leak Sym) α)
@@ -389,7 +389,7 @@ theorem trackedSecurity_run_project (b : Bool)
     Prod.map id Prod.fst <$>
         (simulateQ (trackedSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b) adv).run p
       =
-      -- Run the original game from `s = p.1`, retaining its output and final state.
+      -- Run the real game from `s = p.1`, retaining its output and final state.
       (simulateQ (SCKAScheme.sckaSecurityImpl b (exposureA kem onoff leak)
         (exposureB kem onoff leak)
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)) adv).run p.1 :=
@@ -565,7 +565,7 @@ theorem trackedSecurity_score_step_le (b : Bool)
     exact hstate
 
 include hEk hCt0 hCt1 in
-/-- Under the module's assumptions, for every bit `b` and SCKA adversary `adv` satisfying
+/-- Assuming the erasure codes are correct, for every bit `b` and SCKA adversary `adv` satisfying
 `SecuritySendQueryBound adv q`, the tracked execution of `G_b` from `(initialGame, false)`
 satisfies `Pr[bad_final = true] ≤ q · ε`, where `bad_final` is its final failure flag. -/
 theorem kem_failure_probability_le (b : Bool)
@@ -620,7 +620,7 @@ theorem trackedIdeal_run_project (b : Bool)
         adv).run p.1 :=
   extendState_run_proj_eq _ _ adv p.1 p.2
 
-/-- The original game `G_b` equals the security-oracle simulation from `initialGame`,
+/-- The real game `G_b` equals the security-oracle simulation from `initialGame`,
 projected to the adversary's output. -/
 theorem securityExpFixedBit_eq_run' (b : Bool)
     (adv : SecurityAdversary leak Sym) :
@@ -633,9 +633,9 @@ theorem securityExpFixedBit_eq_run' (b : Bool)
     initialGame, initialA, initialB, StateT.run'_eq, map_eq_bind_pure_comp]
 
 include hEk hCt0 hCt1 in
-/-- Under the module's assumptions, for every bit `b` and SCKA adversary `adv` satisfying
+/-- Assuming the erasure codes are correct, for every bit `b` and SCKA adversary `adv` satisfying
 `SecuritySendQueryBound adv q`, that is, making at most `q` ordinary and leaking send queries,
-the original game `G_b` and ideal game `I_b` satisfy
+the real game `G_b` and ideal game `I_b` satisfy
 `|Pr[G_b = true] - Pr[I_b = true]| ≤ q · ε`. -/
 theorem security_correctness_endpoint_le (b : Bool)
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :

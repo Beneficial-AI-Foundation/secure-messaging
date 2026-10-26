@@ -6,8 +6,7 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.SCKA.OppUniKEM.Security.Endpoints
 import SecureMessaging.SCKA.OppUniKEM.Security.IdealHybrids
-import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.OnlineDeferral
-import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.KeygenOffDeferral
+import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Deferral
 import SecureMessaging.SCKA.OppUniKEM.Security.Reduction.HybridGame
 import SecureMessaging.SCKA.Security
 
@@ -16,7 +15,7 @@ import SecureMessaging.SCKA.Security
 
 **Setting.** Throughout this module, we consider:
 
-- the Opp-UniKEM protocol `Π := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` over a KEM `kem`
+- the Opp-UniKEM protocol `scka := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak` over a KEM `kem`
   with deterministic decapsulation `hDet`, on/off factorization `onoff`, leakage witness `leak`,
   and correct erasure codes `ecEk`, `ecCt0`, `ecCt1`;
 - an SCKA adversary `adv : SecurityAdversary leak Sym` making at most `q` ordinary and leaking
@@ -28,9 +27,9 @@ import SecureMessaging.SCKA.Security
 **Security game and adversary advantage functions.**
 
 Let:
-- `G_b` be the SCKA security game of `Π` with its challenge bit fixed to `b`
+- `G_b` be the SCKA security game of `scka` with its challenge bit fixed to `b`
   (`securityExpFixedBit`);
-- `AdvGuess_SCKA(Π, adv) := |Pr[b' = b] - 1/2| = |Pr[G_true = true] - Pr[G_false = true]| / 2`
+- `AdvGuess_SCKA(scka, adv) := |Pr[b' = b] - 1/2| = |Pr[G_true = true] - Pr[G_false = true]| / 2`
   be the advantage of `adv` in guessing the challenge bit;
 - `AdvINDCPA_KEM(kem, 𝓑) := |2 Pr[b' = b] - 1| = |Pr[𝓑_real = true] - Pr[𝓑_random = true]|` be
   the advantage of `𝓑` in the IND-CPA game (`IND_CPA_Advantage_eq_fixed_branch_dist`);
@@ -39,7 +38,7 @@ Let:
 
 **Theorem** (`security`). For every `q : ℕ`,
 
-`AdvGuess_SCKA(Π, adv) ≤ (q / 2) · AdvINDCPA_KEM(kem, 𝓑) + q · ε`.
+`AdvGuess_SCKA(scka, adv) ≤ (q / 2) · AdvINDCPA_KEM(kem, 𝓑) + q · ε`.
 
 `security_perfectKEM` drops `q · ε` for a perfectly correct KEM.
 
@@ -68,7 +67,7 @@ Paths are relative to `OppUniKEM/Security/`.
      ideal game `I_b`:
      `|Pr[G_b = true] - Pr[I_b = true]| ≤ q · ε`, where `q · ε` bounds the probability of a KEM
      failure within `q` sends (`security_correctness_endpoint_le`).
-   - Hence `AdvGuess_SCKA(Π, adv) ≤ |p_0 - p_q| / 2 + q · ε` (`security_guess_le_hybrid_gap`).
+   - Hence `AdvGuess_SCKA(scka, adv) ≤ |p_0 - p_q| / 2 + q · ε` (`security_guess_le_hybrid_gap`).
 
 2. *Reduction and simulation* (`Reduction/{Simulator,Relation,Game,Simulation,HybridGame}`).
    - On public key `pk*` and challenge `(ct*, k*)`, the *reduction* `𝓑` runs `adv` against
@@ -82,17 +81,17 @@ Paths are relative to `OppUniKEM/Security/`.
    - Define `𝓑_e^b := fixedBranch adv e b` (`Reduction/Simulator`): `𝓑` with its drawn challenge
      epoch fixed to `e` and the IND-CPA bit fixed to `b` (`true`: the encapsulated key).
    - Let `i_b := if b then e - 1 else e`.
-    Define the *pinned hybrid* `P_e^b` (`stageStopped .pinned`): `H_{i_b}` with the samples of
-    epoch `e` drawn in advance, stopped at the first exposure of `e`.
+   - Define the *pinned hybrid* `P_e^b` (`stageStopped .pinned`): `H_{i_b}` with the samples of
+     epoch `e` drawn in advance, stopped at the first exposure of `e`.
 
    Main result: `Pr[𝓑_e^b = true] = Pr[P_e^b = true]` (`fixedBranch_eq_pinnedHybrid`).
 
-3. *Deferred sampling* (`Reduction/{KeygenOffUse,OnlineDeferral,KeygenOffDeferral}`).
+3. *Deferred sampling* (`Reduction/Deferral`).
    - Define `S_e^b`: `H_{i_b}` stopped at the first exposure of `e`.
    - In `P_e^b`, each pre-drawn sample of epoch `e` (key generation, offline and online
-     encapsulation) is used by at most one query: the protocol call that draws it in `S_e^b`
-     (`KeygenOffUse`). For a value used at most once, drawing it in advance or at that query gives
-     the same acceptance probability (`stoppedRun_sample_once_eq`).
+     encapsulation) is used by at most one query: the protocol call that draws it in `S_e^b`. For a
+     value used at most once, drawing it in advance or at that query gives the same acceptance
+     probability (`stoppedRun_sample_once_eq`).
 
    Main result: `Pr[P_e^b = true] = Pr[S_e^b = true]` (`pinnedHybrid_eq_ideal`).
 
@@ -115,11 +114,11 @@ Paths are relative to `OppUniKEM/Security/`.
      ```
 
    - Hence `|p_0 - p_q| = q · AdvINDCPA_KEM(kem, 𝓑)` (`hybrid_gap_eq_query_factor`).
-   - Substituting into the bound of step 1, `AdvGuess_SCKA(Π, adv) ≤ |p_0 - p_q| / 2 + q · ε`,
+   - Substituting into the bound of step 1, `AdvGuess_SCKA(scka, adv) ≤ |p_0 - p_q| / 2 + q · ε`,
      gives `security`:
 
      ```text
-     AdvGuess_SCKA(Π, adv) ≤ |p_0 - p_q| / 2 + q · ε = (q / 2) · AdvINDCPA_KEM(kem, 𝓑) + q · ε
+     AdvGuess_SCKA(scka, adv) ≤ |p_0 - p_q| / 2 + q · ε = (q / 2) · AdvINDCPA_KEM(kem, 𝓑) + q · ε
      ```
 
 Supporting modules: `Basic` (interface, send budget), `Invariant` (transcript and epoch
@@ -134,11 +133,11 @@ variable {K PK SK C Sym : Type}
 
 /-! ## Steps 4 and 5: adjacent-hybrid gaps and epoch averaging
 
-In the notation of the proof structure above, `fixedBranch_eq_ideal`
-(`Reduction/KeygenOffDeferral`) combines Steps 2 and 3: for every `e > 0` and `b`, the fixed branch
-`𝓑_e^b` (`fixedBranch adv e b`) has the same acceptance probability as the stopped ideal hybrid
-`S_e^b`: `Pr[𝓑_e^b = true] = Pr[S_e^b = true]`. From this identity, we derive the per-epoch
-difference in acceptance probability (`fixedBranch_signed_gap_eq`, Step 4) and average over `e`
+In the notation of the proof structure above, `fixedBranch_eq_ideal` (`Reduction/Deferral`)
+combines Steps 2 and 3: for every `e > 0` and `b`, the fixed branch `𝓑_e^b` (`fixedBranch adv e b`)
+has the same acceptance probability as the stopped ideal hybrid `S_e^b`:
+`Pr[𝓑_e^b = true] = Pr[S_e^b = true]`. From this identity, we derive the per-epoch difference in
+acceptance probability (`fixedBranch_signed_gap_eq`, Step 4) and average over `e`
 (`hybrid_gap_eq_query_factor`, Step 5).
 -/
 

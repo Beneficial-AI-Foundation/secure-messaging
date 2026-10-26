@@ -12,8 +12,8 @@ import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
 
 **Setting.** Throughout this module, we consider:
 
-- a KEM `kem` and an SCKA adversary `adv` against Opp-UniKEM over `kem` making at most `q`
-  send queries;
+- a KEM `kem`, an SCKA adversary `adv` against Opp-UniKEM over `kem`, and a send budget `q`, from
+  which the reduction draws its challenge epoch;
 - a challenge epoch `e`;
 - an IND-CPA challenge tuple `(pkStar, ctStar, kStar)` for `kem`, that is, a public key, a
   ciphertext, and a candidate key.
@@ -25,11 +25,12 @@ uniformly from `{1, …, q}` and runs `adv` against simulated oracles that embed
 material* of an epoch records its sampling outputs and coins (`KEMMaterial leak`, `sampleMaterial`),
 which the *pinned KEM* returns in its flagged phases (`Pinned.kem kemMat …`).
 
-- For `q ≠ 0`, the real-minus-random gap of `securityReduction … adv q` is the average over
-  `e ∈ {1, …, q}` of the gaps of `fixedBranch … adv e` (`securityReduction_signed_gap_average`).
-- `fixedBranch … adv e b` coincides with drawing `kemMat ← sampleMaterial leak` and `k' ←$ K` and
-  running `adv` on the public key, ciphertext, and key `(if b then kemMat.key else k')` of `kemMat`
-  (`fixedBranch_eq_material`).
+- For `q ≠ 0`, the difference in acceptance probability between the real and random IND-CPA
+  branches of `securityReduction … adv q` is the average over `e ∈ {1, …, q}` of the corresponding
+  differences for `fixedBranch … adv e` (`securityReduction_signed_gap_average`).
+- `fixedBranch … adv e b` coincides with drawing `kemMat ← sampleMaterial leak` and
+  `randomKey ←$ K` and running `adv` on the public key, ciphertext, and key
+  `(if b then kemMat.key else randomKey)` of `kemMat` (`fixedBranch_eq_material`).
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -333,7 +334,7 @@ def securityReduction [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
 open ToVCVio ENNReal
 
-/-! ## Fixed branches and stored epoch material -/
+/-! ## Fixed branches and KEM material -/
 
 section
 
@@ -504,6 +505,18 @@ theorem sampleMaterial_ordinary_support (kemMat : KEMMaterial leak)
     exact (mem_support_bind_iff _ _ _).mpr ⟨_, hoff, by simp⟩
   · rw [← leak.encapsOn_fst]
     exact (mem_support_bind_iff _ _ _).mpr ⟨_, hon, by simp⟩
+
+variable {kem onoff} in
+/-- If `kemMat ∈ support (sampleMaterial leak)` and `o` is a possible output of
+`leak.encapsOnRleak kemMat.st kemMat.pk`, then `{ kemMat with on := o }` is a possible material. -/
+theorem sampleMaterial_update_online_mem (kemMat : KEMMaterial leak)
+    (hm : kemMat ∈ support (sampleMaterial leak))
+    (online : (onoff.C₁ × K) × leak.OnRand)
+    (hon : online ∈ support (leak.encapsOnRleak kemMat.st kemMat.pk)) :
+    { kemMat with on := online } ∈ support (sampleMaterial leak) := by
+  obtain ⟨hkg, hoff, _⟩ := sampleMaterial_support leak kemMat hm
+  simp only [sampleMaterial, mem_support_bind_iff, mem_support_pure_iff]
+  exact ⟨kemMat.keygen, hkg, kemMat.off, hoff, online, hon, rfl⟩
 
 /-- `fixedBranch … adv e b` coincides with drawing `kemMat ← sampleMaterial leak` and
 `randomKey ←$ K` and executing

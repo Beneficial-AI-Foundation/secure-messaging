@@ -16,9 +16,7 @@ import SecureMessaging.SCKA.Security
 **Setting.** Throughout this module, we consider:
 
 - a challenge epoch `e` and a candidate key `kStar`;
-- pre-sampled epoch material `kemMat : KEMMaterial leak` (`Simulator`), bundling the outputs and
-  coins of the three sampling phases of one epoch (key generation, offline encapsulation, and online
-  encapsulation);
+- a KEM material `kemMat` (`Simulator`), the pre-sampled outputs and coins of one epoch;
 - the simulator's secret values (`Simulator`), wrapped in `Option` (`some x` when known to the
   simulator and `none` when hidden);
 - the pinned KEM `Pinned.kem kemMat` (`Simulator`), whose designated sampling phases return the
@@ -116,6 +114,65 @@ theorem sendBrleak_key_fresh
   apply sendB_key_fresh kem onoff ecCt0 ecCt1 stB t k msg tsnd next
   rw [← sendBrleak_forget kem onoff ecCt0 ecCt1 leak stB]
   exact (mem_support_bind_iff _ _ _).mpr ⟨_, hout, by simp⟩
+
+/-- Every possible successful result of `sendA stA` keeps A's epoch and has `dkA` present. -/
+theorem sendA_keygen_shape (stA : StA onoff Sym)
+    (key : Option (ℕ × K)) (msg : Message Sym) (t : ℕ) (next : StA onoff Sym)
+    (h : some (key, msg, t, next) ∈ support (sendA kem onoff ecEk stA)) :
+    next.t = stA.t ∧ next.dkA.isSome := by
+  cases hd : stA.dkA <;> cases hp : stA.ekA <;> cases ha : stA.ack.ekRec
+  all_goals
+    simp only [sendA, hd, hp, ha, Bool.false_eq_true, ↓reduceIte, pure_bind,
+      mem_support_bind_iff, mem_support_pure_iff, Prod.exists,
+      Option.some.injEq, Prod.mk.injEq] at h
+    aesop
+
+/-- Every possible successful result of `sendB stB` keeps B's epoch and has `ct0` present. -/
+theorem sendB_offline_shape (stB : StB onoff Sym)
+    (key : Option (ℕ × K)) (msg : Message Sym) (t : ℕ) (next : StB onoff Sym)
+    (h : some (key, msg, t, next) ∈ support (sendB kem onoff ecCt0 ecCt1 stB)) :
+    next.t = stB.t ∧ next.ct0.isSome := by
+  cases hc0 : stB.ct0 <;> cases hp : stB.ekA <;> cases hc1 : stB.ct1 <;>
+    cases hst : stB.stCt <;> cases ha : stB.ack.ctRec
+  all_goals
+    simp only [sendB, hc0, hp, hc1, hst, ha, Bool.not_false, Bool.not_true,
+      Bool.false_eq_true, ↓reduceIte, pure_bind,
+      mem_support_bind_iff, mem_support_pure_iff, Prod.exists,
+      Option.some.injEq, Prod.mk.injEq] at h
+    aesop
+
+/-- A's ordinary send never fails: `none ∉ support (sendA stA)`. -/
+theorem sendA_none_not_mem_support
+    (stA : StA onoff Sym) :
+    none ∉ support (sendA kem onoff ecEk stA) := by
+  cases hd : stA.dkA <;> cases hp : stA.ekA <;> cases ha : stA.ack.ekRec <;>
+    simp [sendA, hd, hp, ha]
+
+/-- Leaking-send version of `sendA_none_not_mem_support`. -/
+theorem sendArleak_none_not_mem_support
+    (stA : StA onoff Sym) :
+    none ∉ support (sendArleak kem onoff ecEk leak stA) := by
+  intro h
+  apply sendA_none_not_mem_support kem onoff ecEk stA
+  rw [sendA_eq_map_sendArleak kem onoff ecEk leak stA, support_map]
+  exact ⟨none, h, rfl⟩
+
+/-- B version of `sendA_none_not_mem_support`. -/
+theorem sendB_none_not_mem_support
+    (stB : StB onoff Sym) :
+    none ∉ support (sendB kem onoff ecCt0 ecCt1 stB) := by
+  cases hc0 : stB.ct0 <;> cases hp : stB.ekA <;> cases hc1 : stB.ct1 <;>
+    cases hst : stB.stCt <;> cases ha : stB.ack.ctRec <;>
+    simp [sendB, hc0, hp, hc1, hst, ha]
+
+/-- B version of `sendArleak_none_not_mem_support`. -/
+theorem sendBrleak_none_not_mem_support
+    (stB : StB onoff Sym) :
+    none ∉ support (sendBrleak kem onoff ecCt0 ecCt1 leak stB) := by
+  intro h
+  apply sendB_none_not_mem_support kem onoff ecCt0 ecCt1 stB
+  rw [sendB_eq_map_sendBrleak kem onoff ecCt0 ecCt1 leak stB, support_map]
+  exact ⟨none, h, rfl⟩
 
 /-- Under `reachableInv s` and `s.stB.ct1 = none`, no key is recorded for B's epoch `s.stB.t`. -/
 theorem keys_none_before_online

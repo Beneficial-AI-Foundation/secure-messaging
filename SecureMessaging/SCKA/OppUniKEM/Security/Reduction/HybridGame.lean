@@ -15,49 +15,30 @@ import ToVCVio.OracleComp.QueryTracking.OneUseSampling
 # The pinned hybrids and their sampling stages
 
 **Setting.** Throughout this module, we consider a KEM material `kemMat` (`Simulator`), a challenge
-epoch `e > 0`, a mode bit `b`, an SCKA adversary `adv`, the initial game state `s₀`, and the
-instances `stageScheme stage kemMat e s` (`Game`): Opp-UniKEM with the sampling phases of epoch `e`
-selected by the stage `stage` *pinned* to `kemMat` and the others *fresh*, where A outputs B's
-recorded key instead of decapsulating; `honestScheme kemMat e s` is the fully pinned instance.
+epoch `e > 0`, a mode bit `b`, an SCKA adversary `adv`, the initial game state `s₀`, and, for a
+stage `stage`, the protocol instance `stageScheme stage kemMat e s` (`Game`).
 
-**Definitions.** The *pinned hybrid* `stageStopped .pinned kemMat e b` is the ideal hybrid `H_{e-1}`
-if `b = false`, or `H_e` if `b = true` (`H_i := idealEpochHybridExp adv i`, `IdealHybrids`), with
-the samples of epoch `e` *pinned*: drawn in advance as `kemMat` and read from there by the sampling
-phases of epoch `e` instead of drawn at their protocol calls; the run stops at the first exposure
-of `e`. Formally, it is the security game over `honestScheme kemMat e` whose challenges follow the
-mode `adjacentMode e b` (`IdealHybrids`; `U`: uniform challenge key, `R`: recorded key):
+**Definitions.** The *stage game* `stageStopped stage kemMat e b` is the security game over
+`stageScheme stage kemMat e` whose challenges follow the mode `adjacentMode e b` (`IdealHybrids`),
+stopped at the first exposure of `e`. Its fully pinned stage `stageStopped .pinned kemMat e b` is
+the *pinned hybrid*: the ideal hybrid `H_{e-1}` if `b = false`, or `H_e` if `b = true`
+(`IdealHybrids`), with the samples of epoch `e` drawn in advance as `kemMat`.
 
-```text
-epoch                  1   …   e-1   e   e+1  …
-adjacentMode e false   U   …   U     R   R    …      (H_{e-1})
-adjacentMode e true    U   …   U     U   R    …      (H_e)
-```
-
-More generally, `stageStopped stage kemMat e b` is the same game over `stageScheme stage kemMat e`,
-so the stages interpolate between the pinned hybrid and the ideal game:
-
-| game                        | key generation | offline encapsulation | online encapsulation |
-| --------------------------- | -------------- | --------------------- | -------------------- |
-| `stageStopped .pinned`      | pinned         | pinned                | pinned               |
-| `stageStopped .onlineFresh` | pinned         | pinned                | fresh                |
-| `stageStopped .encapsFresh` | pinned         | fresh                 | fresh                |
-| `stageStopped .fresh`       | fresh          | fresh                 | fresh                |
-
-**Main results.** The games in the following chain, the stopped ones run by `adv` from `s₀`, all
-accept with the same probability; `fixedBranch adv e b` is the reduction `𝓑` with challenge epoch
-`e` and IND-CPA bit `b` (`Simulator`), and the mode bit is `!b` because the IND-CPA bit `true`
-selects the real key while the mode bit `true` selects a uniform key. This module proves the first
-and the last link, the deferral modules the middle ones.
+**Main results.** The games in the following chain, run by `adv` from `s₀`, all accept with the
+same probability. Here `fixedBranch adv e b` is the reduction `𝓑` with challenge epoch `e` and
+IND-CPA bit `b` (`Simulator`); the mode bit is `!b` because the IND-CPA bit `true` selects the real
+key while the mode bit `true` selects a uniform key. This module proves the first and the last
+link, `Deferral` the middle ones.
 
 ```text
 fixedBranch adv e b
    ‖ fixedBranch_eq_pinnedHybrid
 kemMat ← sampleMaterial leak;  stageStopped .pinned kemMat e (!b)
-   ‖ stageStopped_online_deferred                                        (OnlineDeferral)
+   ‖ stageStopped_online_deferred                                        (Deferral)
 kemMat ← sampleMaterial leak;  stageStopped .onlineFresh kemMat e (!b)
-   ‖ stageStopped_offline_deferred                                       (KeygenOffDeferral)
+   ‖ stageStopped_offline_deferred                                       (Deferral)
 kemMat ← sampleMaterial leak;  stageStopped .encapsFresh kemMat e (!b)
-   ‖ stageStopped_keygen_deferred                                        (KeygenOffDeferral)
+   ‖ stageStopped_keygen_deferred                                        (Deferral)
 stageStopped .fresh kemMat₀ e (!b)                                       kemMat₀ arbitrary (unused)
    ‖ stageOracle_fresh_eq_ideal                                          (an equality of oracles)
 idealSecurityImpl (adjacentMode e (!b)), stopped at the first exposure of e
@@ -204,7 +185,7 @@ theorem honestStopped_real_eq_hybrid
       pure (if decide (e ∈ out.2.exposed) then none else some out.1, out.2)) at hres
     obtain ⟨out, hout, hres⟩ := (mem_support_bind_iff _ _ _).mp hres
     obtain rfl := (mem_support_pure_iff _ _).mp hres
-    exact ⟨honestScheme_preserves_simulationInv kem onoff hDet ecEk hEk ecCt0 hCt0
+    exact ⟨honestScheme_preserves_reachableInv_consistentMat kem onoff hDet ecEk hEk ecCt0 hCt0
       ecCt1 hCt1 leak kemMat hm e _ (pinnedChallenge_recordsChallenges onoff e kemMat.key)
       t s hs.1 out hout,
       honestScheme_preserves_keyB_eq kem onoff ecEk ecCt0 ecCt1 leak kemMat e _

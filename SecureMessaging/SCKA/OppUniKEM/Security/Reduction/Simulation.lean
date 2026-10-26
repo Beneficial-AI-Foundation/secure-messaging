@@ -12,8 +12,8 @@ import SecureMessaging.SCKA.Security
 /-!
 # The simulation theorem
 
-**Setting.** Fix a challenge epoch `e`, a candidate key `kStar : K`, and pre-sampled epoch material
-`kemMat : KEMMaterial leak` (`Simulator`). Let:
+**Setting.** Fix a challenge epoch `e`, a candidate key `kStar : K`, and a KEM material `kemMat`
+(`Simulator`). Let:
 
 - `hideState e s` (`Relation`) be the state map from an honest game state `s` to the simulator's
   state `SimState`, replacing the secret key, offline state, and recorded keys of epoch `e` by
@@ -467,7 +467,7 @@ private theorem optionRun_hide_eq
     have hex : e ∉ out.2.exposed := by
       by_contra h
       simp only [h, decide_true, ↓reduceIte, Option.isSome_none, Bool.false_eq_true] at hcont
-    exact ⟨honestScheme_preserves_simulationInv kem onoff hDet ecEk hEk ecCt0 hCt0
+    exact ⟨honestScheme_preserves_reachableInv_consistentMat kem onoff hDet ecEk hEk ecCt0 hCt0
       ecCt1 hCt1 leak kemMat hm e _ (pinnedChallenge_recordsChallenges onoff e kStar)
       t s hs.1 out hout, hex⟩
   · intro t s hs

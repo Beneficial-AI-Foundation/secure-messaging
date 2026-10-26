@@ -11,9 +11,10 @@ import SecureMessaging.SCKA.Correctness
 
 For an SCKA scheme `scka` over `ProbComp`, every query of `sckaCorrectnessImpl scka`:
 
-- keeps `exposed` and `challenged`, and increases `nA` by at most one, only on sends;
-- preserves each predicate on the local states, or on B's key table, that the local send and
-  receive algorithms preserve.
+- leaves the exposed and challenged epoch sets (`exposed`, `challenged`) unchanged, and increases
+  party A's send counter `nA` by at most one, only on sends;
+- preserves each predicate on the local states (`stA`, `stB`), or on B's key table (`keyB`), that
+  the local send and receive algorithms preserve.
 -/
 
 open OracleSpec OracleComp
