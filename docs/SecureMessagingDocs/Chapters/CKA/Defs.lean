@@ -564,7 +564,7 @@ def securityExp [SampleableType I] [DecidableEq I] (cka : CKAScheme ProbComp IK 
 :::definition "cka_advantage" (lean := "CKAScheme.ckaGuessAdvantage") (uses := "cka_security")
 $`\todo`
 
-$$`\Adv{\textsf{guess}}(\adv, gp)
+$$`\Adv{\textsf{guess}}{\textsf{CKA}}(\adv, gp)
   \;=\; \Bigl|\, \Pr\bigl[\,\Exp{\textsf{sec}}{\textsf{CKA}}(\adv,gp) = 1\,\bigr] - \tfrac12 \,\Bigr|
   \;=\; \Bigl|\, \Pr[\,b' = b\,] - \tfrac12 \,\Bigr|`
 

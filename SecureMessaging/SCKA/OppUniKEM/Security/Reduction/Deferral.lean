@@ -13,7 +13,9 @@ import ToVCVio.OracleComp.QueryTracking.OneUseSampling
 
 **Setting.** Throughout this module, let
 - `adv` be an SCKA adversary against Opp-UniKEM;
-- `e : ℕ` be the challenge epoch and `b : Bool` a mode bit;
+- `e : ℕ` be the epoch at which the reduction embeds the IND-CPA challenge (`Simulator`), and
+  `b : Bool` a mode bit selecting whether a challenge at `e` receives a uniform key (`b = true`)
+  or the recorded key (`b = false`);
 - `kemMat` be a KEM material (`Simulator`): the outputs and coins of the three KEM sampling phases
   of epoch `e`, namely key generation by A and offline and online encapsulation by B.
 

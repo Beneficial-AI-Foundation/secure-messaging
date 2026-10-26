@@ -107,7 +107,7 @@ r#"
 \newcommand{\Exp}[2]{\mathsf{Exp}^{#1}_{#2}}            % experiment Exp^{goal}_{scheme}
 \newcommand{\Enc}{\mathsf{Enc}}                          % encryption oracle/algorithm
 \newcommand{\Dec}{\mathsf{Dec}}                          % decryption oracle/algorithm
-\newcommand{\Adv}[1]{\mathsf{Adv}^{#1}_{\mathsf{CKA}}}  % CKA advantage Adv^{goal}_{CKA}
+\newcommand{\Adv}[2]{\mathsf{Adv}^{#1}_{#2}}            % advantage Adv^{goal}_{scheme}
 \renewcommand{\Pr}{\operatorname{Pr}}
 \newcommand{\game}[1]{\boxed{\begin{array}{l}#1\end{array}}} % framed pseudocode game box
 

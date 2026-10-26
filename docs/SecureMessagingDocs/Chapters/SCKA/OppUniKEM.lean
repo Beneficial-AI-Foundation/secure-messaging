@@ -24,8 +24,6 @@ open Informal
 
 set_option doc.verso true
 set_option pp.rawOnError true
-set_option maxHeartbeats 800000
-set_option maxRecDepth 16384
 
 #doc (Manual) "Opp-UniKEM-CKA" =>
 
@@ -744,16 +742,16 @@ Then for every SCKA adversary $`\mathcal A` against $`\Pi` making at most $`q` s
 queries, the IND-CPA adversary $`\mathcal B` against $`\Gamma`, constructed from $`\mathcal A`,
 satisfies
 
-$$`\operatorname{Adv}^{\mathsf{guess}}_{\mathsf{SCKA},\Pi}(\mathcal A)
-\le \frac q2\operatorname{Adv}^{\mathsf{IND\text{-}CPA}}_{\mathsf{KEM},\Gamma}(\mathcal B)
+$$`\Adv{\mathsf{guess}}{\mathsf{SCKA},\Pi}(\mathcal A)
+\le \frac q2\Adv{\mathsf{IND\text{-}CPA}}{\mathsf{KEM},\Gamma}(\mathcal B)
 +q\varepsilon,`
 
 where:
 
-* $`\operatorname{Adv}^{\mathsf{guess}}_{\mathsf{SCKA},\Pi}` is the guessing advantage of
+* $`\Adv{\mathsf{guess}}{\mathsf{SCKA},\Pi}` is the guessing advantage of
   {bpref "scka_security"}[] with the exposure functions of
   {bpref "opp_unikem_cka_vulnerable_epochs"}[];
-* $`\operatorname{Adv}^{\mathsf{IND\text{-}CPA}}_{\mathsf{KEM},\Gamma}(\mathcal B)` is the
+* $`\Adv{\mathsf{IND\text{-}CPA}}{\mathsf{KEM},\Gamma}(\mathcal B)` is the
   advantage of $`\mathcal B` against $`\Gamma` in the KEM IND-CPA security game;
 * $`\varepsilon` is the correctness error of $`\Gamma`.
 

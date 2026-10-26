@@ -10,10 +10,9 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Invariant
 # RecvA Preserves the Reachability Invariant
 
 Assuming the ciphertext erasure codes are correct and `ecCt1.ec.nchunk > 0`, A's receive
-preserves `reachableInv` under `CurrentKEMCorrect` (`oracleRecvA_preserves_reachableInv`). The
-general form `oracleRecvA_preserves_reachableInv_of_recv` applies to every scheme whose receive
-algorithm for A is `recvA` with an arbitrary decapsulation function that agrees with B's recorded
-key; the ideal game of the security proof instantiates it with a key lookup.
+preserves `reachableInv` whenever its decapsulation returns B's recorded key
+(`oracleRecvA_preserves_reachableInv_of_recv`), in particular under `CurrentKEMCorrect`
+(`oracleRecvA_preserves_reachableInv`).
 -/
 
 open OracleSpec OracleComp ENNReal KEMScheme
@@ -347,11 +346,8 @@ private lemma reachableInv_after_recvA_ackOnly
   · simp
   · simpa using hInv.ct0Ack.1
 
-/-- Assuming the ciphertext erasure codes are correct and `ecCt1.ec.nchunk > 0`, let `scka` be an
-SCKA scheme whose receive algorithm for A is `recvA` with the decapsulation function `decapsDet`.
-If `decapsDet dk (onoff.split.symm (ct0, ct1)) = some key` whenever A holds `dk` and `ct0`, B holds
-`ct1`, and B records `key` for A's epoch in `s`, then every possible successor of A's receive query
-from `s` satisfies `reachableInv`. -/
+/-- A's receive preserves `reachableInv` when its decapsulation `decapsDet` returns B's recorded
+key. -/
 lemma oracleRecvA_preserves_reachableInv_of_recv
     [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
@@ -638,8 +634,7 @@ lemma oracleRecvA_preserves_reachableInv_of_recv
           reachableInv_after_recvA_stale kem onoff ecEk ecCt0 ecCt1
             s T hInv t htlt
 
-/-- Opp-UniKEM version of `oracleRecvA_preserves_reachableInv_of_recv`: for a KEM with
-deterministic decapsulation, `CurrentKEMCorrect s` supplies its decapsulation hypothesis. -/
+/-- A's receive preserves `reachableInv` under `CurrentKEMCorrect`. -/
 lemma oracleRecvA_preserves_reachableInv
     [DecidableEq K]
     (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
