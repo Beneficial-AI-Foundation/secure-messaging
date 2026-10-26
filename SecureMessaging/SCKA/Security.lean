@@ -37,6 +37,63 @@ namespace SCKAScheme
 
 variable {IK StA StB I Rho Rand : Type}
 
+/-! ## Sampled-bit and fixed-bit experiments -/
+
+/-- The sampled-bit experiment is a uniform choice between the two fixed-bit experiments.
+The bit is independent of the joint initialization; `true` selects random challenge keys. -/
+theorem securityExp_probOutput_eq_branch
+    {IK StA StB I Rho Rand : Type}
+    [SampleableType I] [DecidableEq I]
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (adversary : SCKAAdversary StA StB I Rho Rand)
+    (vulnA : VulnerableEpochs StA Rand)
+    (vulnB : VulnerableEpochs StB Rand) :
+    Pr[= true | securityExp scka adversary vulnA vulnB] =
+      Pr[= true | do
+        let b ← ($ᵗ Bool : ProbComp Bool)
+        let z ← if b then
+          securityExpFixedBit scka adversary true vulnA vulnB
+        else
+          securityExpFixedBit scka adversary false vulnA vulnB
+        pure (b == z)] := by
+  let init : ProbComp (StA × StB) := do
+    let ik ← scka.initKeyGen
+    let stA ← scka.initA ik
+    let stB ← scka.initB ik
+    pure (stA, stB)
+  have hinit : securityExp scka adversary vulnA vulnB = (do
+      let s ← init
+      let b ← ($ᵗ Bool : ProbComp Bool)
+      let (z, _) ← (simulateQ (sckaSecurityImpl b vulnA vulnB scka) adversary).run
+        (initGameState s.1 s.2)
+      pure (b == z)) := by
+    simp [init, securityExp, bind_assoc]
+  rw [hinit]
+  simp only [← probEvent_eq_eq_probOutput]
+  rw [probEvent_bind_bind_swap]
+  simp only [probEvent_eq_eq_probOutput]
+  refine probOutput_bind_congr' ($ᵗ Bool) true ?_
+  intro b
+  cases b <;> simp [init, securityExpFixedBit, bind_assoc]
+
+/-- Centered guessing success is half the random-key minus real-key fixed-bit gap. -/
+theorem securityExp_toReal_sub_half
+    {IK StA StB I Rho Rand : Type}
+    [SampleableType I] [DecidableEq I]
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (adversary : SCKAAdversary StA StB I Rho Rand)
+    (vulnA : VulnerableEpochs StA Rand)
+    (vulnB : VulnerableEpochs StB Rand) :
+    (Pr[= true | securityExp scka adversary vulnA vulnB]).toReal - 1 / 2 =
+      ((Pr[= true |
+          securityExpFixedBit scka adversary true vulnA vulnB]).toReal -
+        (Pr[= true |
+          securityExpFixedBit scka adversary false vulnA vulnB]).toReal) / 2 := by
+  rw [securityExp_probOutput_eq_branch]
+  exact probOutput_uniformBool_branch_toReal_sub_half
+    (securityExpFixedBit scka adversary true vulnA vulnB)
+    (securityExpFixedBit scka adversary false vulnA vulnB)
+
 /-! ## Individual security oracles -/
 
 /-! ### Challenge -/

@@ -9,6 +9,7 @@ import SecureMessaging.SCKA.MLKEMBraid.Security.Bounds
 import SecureMessaging.SCKA.MLKEMBraid.Security.Concrete
 import SecureMessaging.SCKA.MLKEMBraid.Security.Bounded
 import SecureMessaging.SCKA.MLKEMBraid.Security.Native
+import SecureMessaging.SCKA.MLKEMBraid.Security.InitialSnapshot
 
 /-!
 # No-authentication security of ML-KEM Braid
@@ -22,6 +23,10 @@ available; the old root APIs now take native policies, with no relocated old-nam
 The unrestricted-payload specialization keeps abstract payload codecs as caller parameters:
 finite-symbol fixed-block codecs cannot universally roundtrip unrestricted ByteArray payloads.
 A bounded payload domain is a distinct additive specialization.
+
+`InitialSnapshot` defines an initialized snapshot/challenge/ciphertext observation and its
+correlated primitive trial. Its structural query bounds include selected corruptions and the
+challenge even when an oracle refuses a response.
 
 The adapter preserves the supplied concrete primitive's vector-before-seed hash convention;
 the Braid PDF writes seed-before-vector. No hash-order equality or game hop is asserted.
