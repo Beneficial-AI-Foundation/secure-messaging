@@ -11,65 +11,34 @@ import ToVCVio.OracleComp.QueryTracking.OneUseSampling
 /-!
 # Deferring the challenge-epoch samples
 
-**Setting.** Throughout this module, we consider:
+**Setting.** Throughout this module, we consider a challenge epoch `e`, a mode bit `b`, an SCKA
+adversary `adv`, a KEM material `kemMat` (`Simulator`), and the stage games
+`stageStopped stage kemMat e b` (`HybridGame`), in which the sampling phases of epoch `e` selected
+by `stage` read their outputs from `kemMat` and the other phases sample at their protocol calls.
 
-- a challenge epoch `e`, a mode bit `b`, and an SCKA adversary `adv`;
-- a KEM material `kemMat` (`Simulator`): the outputs and coins of the three sampling phases of
-  epoch `e`, drawn in advance by `sampleMaterial leak` as A's key pair
-  `kemMat.keygen ← leak.keygenRleak`, B's offline encapsulation
-  `kemMat.off ← leak.encapsOffRleak`, and B's online encapsulation
-  `kemMat.on ← leak.encapsOnRleak kemMat.st kemMat.pk`;
-- the stage games `stageStopped stage kemMat e b` (`HybridGame`): the ideal game with challenge
-  mode `adjacentMode e b`, stopped at the first exposure of `e`, in which the sampling phases of
-  epoch `e` selected by `stage` read their outputs from `kemMat` instead of sampling: all three in
-  `.pinned`, key generation and offline encapsulation in `.onlineFresh`, key generation in
-  `.encapsFresh`, none in `.fresh`.
+**The deferral argument.** Before the first exposure of `e`, a run executes each sampling phase of
+epoch `e` at most once, so drawing its sample in advance or at that call gives the same acceptance
+probability (`stoppedRun_sample_once_eq`). For each phase, `hit` marks the queries that run the
+phase at `e`, and `used` the states in which it has run:
 
-**The deferral argument.** A run that has not exposed `e` runs each sampling phase of epoch `e` at
-most once, so the sample of a phase can be drawn at that call instead of in advance. For a phase
-with sampler `μ`, let `G(x)` be the stage game in which the phase reads the sample `x` from its
-material (`{ kemMat with on := x }`, `{ kemMat with off := x }`, or `{ kemMat with keygen := x }`),
-and `G'` the next stage, in which the phase draws its sample at its protocol call; for online
-encapsulation, `G(o) = stageStopped .pinned { kemMat with on := o } e b` and
-`G' = stageStopped .onlineFresh kemMat e b`. Then `Pr[x ← μ; G(x) = true] = Pr[G' = true]`
-(`stoppedRun_sample_once_eq`), provided that there are a predicate `used` on game states, a test
-`hit` on queries and states, and an invariant preserved by every query, such that every query from
-a state satisfying the invariant satisfies:
+| phase                 | `hit`           | `used`                |
+| --------------------- | --------------- | --------------------- |
+| online encapsulation  | `usesOnline e`  | `(s.keyB e).isSome`   |
+| offline encapsulation | `usesOffline e` | `offlineUsed e s.stB` |
+| key generation        | `usesKeygen e`  | `keygenUsed e s.stA`  |
 
-- *independence*: unless `hit`, its response and successor state have the same distribution under
-  every possible sample `x`;
-- *single use*: it preserves `used`; `hit` holds only while `used` fails; and after a query with
-  `hit`, every possible successor state in which `e` is unexposed satisfies `used`;
-- *averaging*: drawing `x ← μ` just before the query of `G(x)` gives the response/successor
-  distribution of the query of `G'`.
+The online sample depends on the pinned public key and offline state, so its deferral holds from
+states satisfying `reachableInv ∧ consistentMat kemMat e` (`Game`); the other two hold from every
+state.
 
-Here `hit` holds when the query runs the phase at epoch `e`, through the party's ordinary send or
-its leaking send while `e` is unchallenged (a leaking send of a challenged epoch is rejected):
-
-| phase                 | `hit`                      | `used`                     |
-| --------------------- | -------------------------- | -------------------------- |
-| online encapsulation  | `usesOnline e`             | `(s.keyB e).isSome`        |
-| offline encapsulation | `usesKeygenOff .offline e` | `keygenOffUsed .offline e` |
-| key generation        | `usesKeygenOff .keygen e`  | `keygenOffUsed .keygen e`  |
-
-The online sample is drawn from the pinned public key and offline state, so the online deferral
-uses the invariant `reachableInv ∧ consistentMat kemMat e` (`Game`), under which B encapsulates to
-`kemMat.pk` from `kemMat.st`; the other two deferrals need no invariant and hold from every state.
-
-**Main results.** The three deferrals are the middle links of the chain of games in `HybridGame`:
-from `stageStopped .pinned` to `.onlineFresh`, deferring the online sample
-(`stageStopped_online_deferred`); from `.onlineFresh` to `.encapsFresh`, deferring the offline
-sample (`stageStopped_offline_deferred`); and from `.encapsFresh` to `.fresh`, deferring the key
-pair (`stageStopped_keygen_deferred`).
-
-- Chained from the initial state, drawing `kemMat ← sampleMaterial leak` before the pinned stage
-  gives the acceptance probability of the fully fresh stage, which is independent of its material
-  (`pinnedHybrid_eq_fresh`).
-- The pinned hybrid `kemMat ← sampleMaterial leak; stageStopped .pinned kemMat e b` has the
-  acceptance probability of the ideal game `idealSecurityImpl (adjacentMode e b)` (`Endpoints`)
-  stopped at the first exposure of `e` (`pinnedHybrid_eq_ideal`); for `e > 0`, so does the fixed
-  branch `fixedBranch adv e (!b)` of the reduction (`Simulator`) (`fixedBranch_eq_ideal`), step 3
-  of the proof structure in `OppUniKEM/Security`.
+**Main results.** Deferring the online sample, the offline sample, and the key pair in turn leads
+from `.pinned` through `.onlineFresh` and `.encapsFresh` to `.fresh` and preserves the acceptance
+probability (`stageStopped_online_deferred`, `stageStopped_offline_deferred`,
+`stageStopped_keygen_deferred`). Hence the pinned hybrid
+`kemMat ← sampleMaterial leak; stageStopped .pinned kemMat e b` has the acceptance probability of
+the ideal game `idealSecurityImpl (adjacentMode e b)` (`Endpoints`) stopped at the first exposure
+of `e` (`pinnedHybrid_eq_ideal`), and for `e > 0` so does `fixedBranch adv e (!b)` (`Simulator`)
+(`fixedBranch_eq_ideal`).
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -439,212 +408,92 @@ theorem stageStopped_online_deferred
 
 end
 
-/-! ## Single use of key generation and offline encapsulation -/
+/-! ## Offline encapsulation: from `.onlineFresh` to `.encapsFresh` -/
 
 section
 
-/-- The two sampling phases whose samplers read no protocol state: A's key generation and B's
-offline encapsulation. -/
-inductive KeygenOff where
-  /-- A's key generation. -/
-  | keygen
-  /-- B's offline encapsulation. -/
-  | offline
-  deriving DecidableEq
-
 variable {kem onoff} in
-/-- `used` of the deferral of `phase` at epoch `e`: the party running `phase` has passed `e`, or is
-at `e` holding the phase output (A's decapsulation key `dkA`, respectively B's offline ciphertext
-`ct0`). -/
-def keygenOffUsed
-    (phase : KeygenOff) (e : ℕ) (a : StA onoff Sym) (b : StB onoff Sym) : Prop :=
-  match phase with
-  | .keygen => e < a.t ∨ (a.t = e ∧ a.dkA.isSome)
-  | .offline => e < b.t ∨ (b.t = e ∧ b.ct0.isSome)
+/-- `used` of the offline deferral at epoch `e`: B has passed `e`, or is at `e` holding its offline
+ciphertext `ct0`. -/
+def offlineUsed (e : ℕ) (stB : StB onoff Sym) : Prop :=
+  e < stB.t ∨ (stB.t = e ∧ stB.ct0.isSome)
+
+variable {kem onoff leak} in
+/-- `hit` of the offline deferral at epoch `e`: query `t` in state `s` runs B's offline
+encapsulation of `e`, that is, B is at `e` without `ct0`, and `t` is B's ordinary send, or its
+leaking send while `e ∉ s.challenged`. -/
+def usesOffline (e : ℕ) (t : (securitySpec leak Sym).Domain) (s : GameState onoff Sym) : Bool :=
+  match t with
+  | .inl (.inl (.inl (.inl (.inl (.inl (.inl (.inr ()))))))) =>
+    decide (s.stB.t = e ∧ s.stB.ct0.isNone)
+  | .inl (.inl (.inl (.inr ()))) =>
+    decide ((s.stB.t = e ∧ s.stB.ct0.isNone) ∧ e ∉ s.challenged)
+  | _ => false
+
+variable {kem onoff leak} in
+/-- Single use of the offline sample: once B has used its offline encapsulation of epoch `e`
+(`offlineUsed e s.stB`), no query runs it: `usesOffline e t s = false`. -/
+theorem usesOffline_eq_false_of_used (e : ℕ) (t : (securitySpec leak Sym).Domain)
+    (s : GameState onoff Sym) (hs : offlineUsed e s.stB) : usesOffline e t s = false := by
+  have hno : ¬(s.stB.t = e ∧ s.stB.ct0.isNone) := by
+    rintro ⟨ht, hp⟩
+    cases hc : s.stB.ct0 <;> simp_all [offlineUsed]
+  simp only [Option.isNone_iff_eq_none] at hno
+  rcases t with (((((t | u) | u) | t) | u) | u)
+  · rcases t with ((((n | u) | u) | n) | n)
+    all_goals
+      simp [usesOffline]
+      all_goals aesop
+  all_goals
+    simp [usesOffline]
+    all_goals aesop
 
 variable [DecidableEq K] [DecidableEq Sym]
 
-/-- Once `phase` of epoch `e` is used, it stays used: every correctness query (send or receive) of
-`stageScheme stage kemMat e s` from `s` preserves `keygenOffUsed phase e`. -/
-theorem correctness_preserves_keygenOffUsed
-    (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ) (phase : KeygenOff)
-    (s : GameState onoff Sym)
-    (hs : keygenOffUsed phase e s.stA s.stB)
+/-- Once B has used its offline encapsulation of epoch `e`, it stays used: every correctness query
+(send or receive) of `stageScheme stage kemMat e s` from `s` preserves `offlineUsed e`. -/
+theorem correctness_preserves_offlineUsed
+    (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ)
+    (s : GameState onoff Sym) (hs : offlineUsed e s.stB)
     (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
-    (res : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Range t ×
-      GameState onoff Sym)
+    (res : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Range t × GameState onoff Sym)
     (hres : res ∈ support
       ((SCKAScheme.sckaCorrectnessImpl (stageScheme ecEk ecCt0 ecCt1 stage kemMat e s) t).run s)) :
-    keygenOffUsed phase e res.2.stA res.2.stB := by
-  apply SCKAScheme.correctnessImpl_preserves_localInv_at _ (keygenOffUsed phase e) s hs
+    offlineUsed e res.2.stB := by
+  apply SCKAScheme.correctnessImpl_preserves_localInv_at _ (fun _ stB => offlineUsed e stB) s hs
     ?_ ?_ ?_ ?_ t res hres
-  · intro key msg epoch next hout
-    have hshape := sendA_keygen_shape
-      (stageKem stage kemMat e s) (stageOnOff stage kemMat e s) ecEk s.stA key msg epoch next hout
-    cases phase with
-    | keygen =>
-      rcases hs with h | ⟨h, _⟩
-      · exact Or.inl (by simpa only [hshape.1] using h)
-      · exact Or.inr ⟨hshape.1.trans h, hshape.2⟩
-    | offline => exact hs
+  · exact fun _ _ _ _ _ => hs
   · intro key msg epoch next hout
     have hshape := sendB_offline_shape
       (stageKem stage kemMat e s) (stageOnOff stage kemMat e s) ecCt0 ecCt1 s.stB key msg epoch
       next hout
-    cases phase with
-    | keygen => exact hs
-    | offline =>
-      rcases hs with h | ⟨h, _⟩
-      · exact Or.inl (by simpa only [hshape.1] using h)
-      · exact Or.inr ⟨hshape.1.trans h, hshape.2⟩
-  · intro msg key epoch next hout
-    rw [stageScheme_recvA_eq_ideal] at hout
-    have hshape := oppUniKemCKA.Reduction.Internal.recvA_kem_source_shape
-      kem onoff (fun _ _ => s.keyB s.stA.t)
-      ecCt0 ecCt1 s.stA msg key epoch next hout
-    cases phase with
-    | offline => exact hs
-    | keygen =>
-      rcases hshape with h | h
-      · simpa only [keygenOffUsed, h.1, h.2.2] using hs
-      · apply Or.inl
-        rcases hs with hs | ⟨hs, _⟩ <;> omega
+    rcases hs with h | ⟨h, _⟩
+    · exact Or.inl (by simpa only [hshape.1] using h)
+    · exact Or.inr ⟨hshape.1.trans h, hshape.2⟩
+  · exact fun _ _ _ _ _ => hs
   · intro msg key epoch next hout
     have hshape := oppUniKemCKA.Reduction.Internal.recvB_kem_source_shape
       kem onoff ecEk s.stB msg key epoch next hout
-    cases phase with
-    | keygen => exact hs
-    | offline =>
-      rcases hshape with h | h
-      · simpa only [keygenOffUsed, h.1, h.2.2.1] using hs
-      · apply Or.inl
-        rcases hs with hs | ⟨hs, _⟩ <;> omega
+    rcases hshape with h | h
+    · simpa only [offlineUsed, h.1, h.2.2.1] using hs
+    · apply Or.inl
+      rcases hs with hs | ⟨hs, _⟩ <;> omega
 
-/-- Single use of the key-generation and offline samples: every query of the stage oracle
-`stageOracle stage kemMat e b` preserves `keygenOffUsed phase e`. -/
-theorem stageOracle_preserves_keygenOffUsed [SampleableType K]
-    (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool) (phase : KeygenOff) :
+/-- Single use of the offline sample: every query of the stage oracle `stageOracle stage kemMat e b`
+preserves `offlineUsed e`. -/
+theorem stageOracle_preserves_offlineUsed [SampleableType K]
+    (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool) :
     QueryImpl.PreservesInv (stageOracle kem onoff ecEk ecCt0 ecCt1 leak stage kemMat e b)
-      (fun s => keygenOffUsed phase e s.stA s.stB) :=
+      (fun s => offlineUsed e s.stB) :=
   securityImplAt_preservesInv kem onoff leak _ _ _ (fun _ _ _ h => h)
     (fun _ => sendArleak_forget (onoff := Pinned.onOff kemMat _ _ _ _) _ _ _)
     (fun _ => sendBrleak_forget (onoff := Pinned.onOff kemMat _ _ _ _) _ _ _ _)
     (SCKAScheme.challOf_recordsChallenges _)
-    (fun s hs t => correctness_preserves_keygenOffUsed kem onoff ecEk ecCt0 ecCt1 leak
-      stage kemMat e phase s hs t)
+    (fun s hs t => correctness_preserves_offlineUsed kem onoff ecEk ecCt0 ecCt1 leak
+      stage kemMat e s hs t)
 
-end
-
-section
-
-variable {kem onoff leak} in
-/-- `hit` of the deferral of `phase` at epoch `e`: query `t` in state `s` runs `phase` of epoch `e`,
-that is, the party running `phase` is at `e` without the phase output, and `t` is its ordinary
-send, or its leaking send while `e ∉ s.challenged`. -/
-def usesKeygenOff (phase : KeygenOff) (e : ℕ)
-    (t : (securitySpec leak Sym).Domain)
-    (s : GameState onoff Sym) : Bool :=
-  match phase, t with
-  | .keygen, .inl (.inl (.inl (.inl (.inl (.inl (.inl (.inl (.inr ())))))))) =>
-    decide (s.stA.t = e ∧ s.stA.dkA.isNone)
-  | .offline, .inl (.inl (.inl (.inl (.inl (.inl (.inl (.inr ()))))))) =>
-    decide (s.stB.t = e ∧ s.stB.ct0.isNone)
-  | .keygen, .inl (.inl (.inl (.inl (.inr ())))) =>
-    decide ((s.stA.t = e ∧ s.stA.dkA.isNone) ∧ e ∉ s.challenged)
-  | .offline, .inl (.inl (.inl (.inr ()))) =>
-    decide ((s.stB.t = e ∧ s.stB.ct0.isNone) ∧ e ∉ s.challenged)
-  | _, _ => false
-
-variable {kem onoff leak} in
-/-- Single use of the key-generation and offline samples: once `phase` of epoch `e` is used
-(`keygenOffUsed phase e`), no query runs it: `usesKeygenOff phase e t s = false`. -/
-theorem usesKeygenOff_eq_false_of_used (phase : KeygenOff) (e : ℕ)
-    (t : (securitySpec leak Sym).Domain)
-    (s : GameState onoff Sym)
-    (hs : keygenOffUsed phase e s.stA s.stB) : usesKeygenOff phase e t s = false := by
-  cases phase with
-  | keygen =>
-    have hno : ¬(s.stA.t = e ∧ s.stA.dkA.isNone) := by
-      rintro ⟨ht, hp⟩
-      cases hd : s.stA.dkA <;> simp_all [keygenOffUsed]
-    simp only [Option.isNone_iff_eq_none] at hno
-    rcases t with (((((t | u) | u) | t) | u) | u)
-    · rcases t with ((((n | u) | u) | n) | n)
-      all_goals
-        simp [usesKeygenOff]
-        all_goals aesop
-    all_goals
-      simp [usesKeygenOff]
-      all_goals aesop
-  | offline =>
-    have hno : ¬(s.stB.t = e ∧ s.stB.ct0.isNone) := by
-      rintro ⟨ht, hp⟩
-      cases hc : s.stB.ct0 <;> simp_all [keygenOffUsed]
-    simp only [Option.isNone_iff_eq_none] at hno
-    rcases t with (((((t | u) | u) | t) | u) | u)
-    · rcases t with ((((n | u) | u) | n) | n)
-      all_goals
-        simp [usesKeygenOff]
-        all_goals aesop
-    all_goals
-      simp [usesKeygenOff]
-      all_goals aesop
-
-variable [DecidableEq K] [DecidableEq Sym]
-
-/-- A's ordinary send holds or generates A's decapsulation key: if A is at `e`, every possible
-successor state of the send satisfies `keygenOffUsed .keygen e`. -/
-theorem oracleSendA_installs_keygen
-    (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ)
-    (s : GameState onoff Sym)
-    (he : s.stA.t = e)
-    (res : Option (ℕ × Option ℕ × Message Sym) ×
-      GameState onoff Sym)
-    (hres : res ∈ support
-      ((SCKAScheme.oracleSendA (stageScheme ecEk ecCt0 ecCt1 stage kemMat e s) ()).run s)) :
-    keygenOffUsed .keygen e res.2.stA res.2.stB := by
-  simp only [SCKAScheme.oracleSendA, StateT.run_bind, StateT.run_get,
-    StateT.run_monadLift, monadLift_self, bind_assoc, pure_bind,
-    mem_support_bind_iff] at hres
-  obtain ⟨out, hout, hres⟩ := hres
-  cases out with
-  | none => exact False.elim (sendA_none_not_mem_support _ _ ecEk _ hout)
-  | some out =>
-    rcases out with ⟨key, msg, epoch, next⟩
-    have hshape := sendA_keygen_shape
-      (stageKem stage kemMat e s) (stageOnOff stage kemMat e s) ecEk s.stA key msg epoch next hout
-    cases key <;>
-      simp only [StateT.run_bind, StateT.run_set, pure_bind,
-        StateT.run_pure, mem_support_pure_iff] at hres
-    all_goals obtain rfl := hres; exact Or.inr ⟨hshape.1.trans he, hshape.2⟩
-
-/-- A leaking send that runs A's key generation of an unchallenged epoch `e` is accepted, and its
-leaked coins expose `e`: if A is at `e` without `dkA` and `e ∉ s.challenged`, A's leaking-send
-oracle of `stageScheme stage kemMat e s` from `s`, stopped at the exposure of `e`, answers `none`
-on every path. -/
-theorem leaking_keygen_stops
-    (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ)
-    (s : GameState onoff Sym)
-    (he : s.stA.t = e) (hfield : s.stA.dkA = none) (hc : e ∉ s.challenged)
-    (res : Option (Option (ℕ × Option ℕ × Message Sym ×
-      SendRand leak.KeygenRand leak.OffRand leak.OnRand)) ×
-      GameState onoff Sym)
-    (hres : res ∈ support (((stopOnState
-      (SCKAScheme.oracleSendArleak vulnRleakA (stageScheme ecEk ecCt0 ecCt1 stage kemMat e s))
-      (fun s => decide (e ∈ s.exposed)) ()).run).run s)) : res.1 = none := by
-  apply SCKAScheme.oracleSendArleak_stop_of_exposure _ _ s {e} e ?_ ?_ ?_
-    (Finset.mem_singleton_self e) res hres
-  · exact sendArleak_none_not_mem_support _ _ ecEk _ _
-  · intro key msg epoch next coins hout
-    have hex := sendArleak_exposure
-      (stageKem stage kemMat e s) (stageOnOff stage kemMat e s) ecEk (stageLeak stage kemMat e s)
-      s.stA key msg epoch next coins hout
-    simpa only [leakEpochsA, hfield, Option.isNone_none,
-      Bool.true_or, ↓reduceIte, he] using hex
-  · simp [hc]
-
-/-- The version of `oracleSendA_installs_keygen` for B's ordinary send, which holds or produces B's
-offline ciphertext: every possible successor state satisfies `keygenOffUsed .offline e`. -/
+/-- B's ordinary send holds or produces B's offline ciphertext: if B is at `e`, every possible
+successor state of the send satisfies `offlineUsed e`. -/
 theorem oracleSendB_installs_offline
     (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ)
     (s : GameState onoff Sym)
@@ -653,7 +502,7 @@ theorem oracleSendB_installs_offline
       GameState onoff Sym)
     (hres : res ∈ support
       ((SCKAScheme.oracleSendB (stageScheme ecEk ecCt0 ecCt1 stage kemMat e s) ()).run s)) :
-    keygenOffUsed .offline e res.2.stA res.2.stB := by
+    offlineUsed e res.2.stB := by
   simp only [SCKAScheme.oracleSendB, StateT.run_bind, StateT.run_get,
     StateT.run_monadLift, monadLift_self, bind_assoc, pure_bind,
     mem_support_bind_iff] at hres
@@ -672,8 +521,10 @@ theorem oracleSendB_installs_offline
         StateT.run_pure, mem_support_pure_iff] at hres
     all_goals obtain rfl := hres; exact Or.inr ⟨hshape.1.trans he, hshape.2⟩
 
-/-- The version of `leaking_keygen_stops` for B's leaking send running offline encapsulation (B at
-`e` without `ct0`). -/
+/-- A leaking send that runs B's offline encapsulation of an unchallenged epoch `e` is accepted,
+and its leaked coins expose `e`: if B is at `e` without `ct0` and `e ∉ s.challenged`, B's
+leaking-send oracle of `stageScheme stage kemMat e s` from `s`, stopped at the exposure of `e`,
+answers `none` on every path. -/
 theorem leaking_offline_stops
     (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ)
     (s : GameState onoff Sym)
@@ -699,37 +550,20 @@ theorem leaking_offline_stops
 
 variable [SampleableType K]
 
-/-- Single use of the key-generation and offline samples: after a query that runs `phase` of epoch
-`e` (`usesKeygenOff phase e t s`) in any stage oracle, `phase` is used (`keygenOffUsed phase e`) in
-every possible successor state in which `e` is unexposed. -/
-theorem stageOracle_keygenOff_first_use
-    (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool) (phase : KeygenOff)
-    (t : (securitySpec leak Sym).Domain)
-    (s : GameState onoff Sym)
-    (hh : usesKeygenOff phase e t s = true)
-    (res : (securitySpec leak Sym).Range t ×
-      GameState onoff Sym)
+/-- Single use of the offline sample: after a query that runs B's offline encapsulation of epoch `e`
+(`usesOffline e t s`) in any stage oracle, every possible successor state in which `e` is unexposed
+satisfies `offlineUsed e`. -/
+theorem stageOracle_offline_first_use
+    (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool)
+    (t : (securitySpec leak Sym).Domain) (s : GameState onoff Sym)
+    (hh : usesOffline e t s = true)
+    (res : (securitySpec leak Sym).Range t × GameState onoff Sym)
     (hres : res ∈ support ((stageOracle kem onoff ecEk ecCt0 ecCt1 leak stage kemMat e b t).run s))
-    (hcont : decide (e ∈ res.2.exposed) = false) : keygenOffUsed phase e res.2.stA res.2.stB := by
-  cases phase <;> rcases t with (((((t | u) | u) | t) | u) | u)
+    (hcont : decide (e ∈ res.2.exposed) = false) : offlineUsed e res.2.stB := by
+  rcases t with (((((t | u) | u) | t) | u) | u)
   all_goals try (rcases t with ((((n | u) | u) | n) | n))
-  all_goals try (simp only [usesKeygenOff, Bool.false_eq_true] at hh)
+  all_goals try (simp only [usesOffline, Bool.false_eq_true] at hh)
   all_goals cases u
-  · have hhit : s.stA.t = e ∧ s.stA.dkA.isNone := of_decide_eq_true hh
-    change res ∈ support
-      ((SCKAScheme.oracleSendA (stageScheme ecEk ecCt0 ecCt1 stage kemMat e s) ()).run s) at hres
-    exact oracleSendA_installs_keygen kem onoff ecEk ecCt0 ecCt1 leak
-      stage kemMat e s hhit.1 res hres
-  · have hhit : (s.stA.t = e ∧ s.stA.dkA.isNone) ∧ e ∉ s.challenged :=
-      of_decide_eq_true hh
-    change res ∈ support ((SCKAScheme.oracleSendArleak vulnRleakA
-      (stageScheme ecEk ecCt0 ecCt1 stage kemMat e s) ()).run s) at hres
-    have hstop := leaking_keygen_stops kem onoff ecEk ecCt0 ecCt1 leak stage kemMat e s
-      hhit.1.1 (Option.isNone_iff_eq_none.mp hhit.1.2) hhit.2 (some res.1, res.2)
-      (mem_support_stopOnState_of_mem (SCKAScheme.oracleSendArleak vulnRleakA
-        (stageScheme ecEk ecCt0 ecCt1 stage kemMat e s)) (fun s => decide (e ∈ s.exposed)) ()
-        s res hres hcont)
-    exact absurd hstop (Option.some_ne_none _)
   · have hhit : s.stB.t = e ∧ s.stB.ct0.isNone := of_decide_eq_true hh
     change res ∈ support
       ((SCKAScheme.oracleSendB (stageScheme ecEk ecCt0 ecCt1 stage kemMat e s) ()).run s) at hres
@@ -748,15 +582,14 @@ theorem stageOracle_keygenOff_first_use
 
 end
 
-/-! ## Offline encapsulation: from `.onlineFresh` to `.encapsFresh` -/
-
 section
 
 variable [DecidableEq Sym]
 
-/-- B's leaking send does not read the offline sample unless it runs offline encapsulation: if B is
-not at `e` without `ct0`, the send in `stageScheme .onlineFresh { kemMat with off := off } e s` is
-the same computation for every `off`. -/
+/-- B's leaking send does not read the offline sample unless it runs offline encapsulation: if
+`¬(s.stB.t = e ∧ s.stB.ct0.isNone)`, the send in
+`stageScheme .onlineFresh { kemMat with off := off } e s` is the same computation for every `off`.
+-/
 theorem sendBrleak_offline_independent
     (kemMat : KEMMaterial leak) (e : ℕ)
     (s : GameState onoff Sym)
@@ -815,13 +648,13 @@ theorem leaking_offline_rejected
 variable [SampleableType K]
 
 /-- Independence of the offline sample: a query `t` that does not run B's offline encapsulation of
-`e` (`usesKeygenOff .offline e t s = false`) has the same response/successor distribution in the
+`e` (`usesOffline e t s = false`) has the same response/successor distribution in the
 `onlineFresh` stage oracle for every offline sample `off`. -/
 theorem stageOracle_offline_independent
     (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool)
     (t : (securitySpec leak Sym).Domain)
     (s : GameState onoff Sym)
-    (hh : usesKeygenOff .offline e t s = false)
+    (hh : usesOffline e t s = false)
     (offline offline' : (onoff.St × onoff.C₀) × leak.OffRand) :
     (stageOracle kem onoff ecEk ecCt0 ecCt1 leak
       .onlineFresh { kemMat with off := offline } e b t).run s =ᵈ
@@ -952,15 +785,15 @@ theorem stageStopped_offline_deferred
       .onlineFresh { kemMat with off := offline } e b)
     (stageOracle kem onoff ecEk ecCt0 ecCt1 leak .encapsFresh kemMat e b)
     (fun s => decide (e ∈ s.exposed))
-    (fun _ => True) (fun s => keygenOffUsed .offline e s.stA s.stB) (usesKeygenOff .offline e)
+    (fun _ => True) (fun s => offlineUsed e s.stB) (usesOffline e)
     (fun _ _ _ _ _ _ _ _ => trivial)
-    (fun offline _ t s _ hu res hres _ => stageOracle_preserves_keygenOffUsed kem onoff ecEk ecCt0
-      ecCt1 leak .onlineFresh { kemMat with off := offline } e b .offline t s hu res hres)
+    (fun offline _ t s _ hu res hres _ => stageOracle_preserves_offlineUsed kem onoff ecEk ecCt0
+      ecCt1 leak .onlineFresh { kemMat with off := offline } e b t s hu res hres)
     (fun t s _ hh offline _ offline' _ => stageOracle_offline_independent kem onoff ecEk ecCt0
       ecCt1 leak kemMat e b t s hh offline offline')
-    (fun t s _ hu => usesKeygenOff_eq_false_of_used .offline e t s hu)
-    (fun offline _ t s _ hh res hres hcont => stageOracle_keygenOff_first_use kem onoff ecEk ecCt0
-      ecCt1 leak .onlineFresh { kemMat with off := offline } e b .offline t s hh res hres hcont)
+    (fun t s _ hu => usesOffline_eq_false_of_used e t s hu)
+    (fun offline _ t s _ hh res hres hcont => stageOracle_offline_first_use kem onoff ecEk ecCt0
+      ecCt1 leak .onlineFresh { kemMat with off := offline } e b t s hh res hres hcont)
     (fun t s _ => stageOracle_sample_offline_eq_fresh kem onoff ecEk ecCt0 ecCt1 leak kemMat e b t
       s)
     adv s trivial
@@ -968,6 +801,174 @@ theorem stageStopped_offline_deferred
 end
 
 /-! ## Key generation: from `.encapsFresh` to `.fresh` -/
+
+section
+
+variable {kem onoff} in
+/-- `used` of the key-generation deferral at epoch `e`: A has passed `e`, or is at `e` holding its
+decapsulation key `dkA`. -/
+def keygenUsed (e : ℕ) (stA : StA onoff Sym) : Prop :=
+  e < stA.t ∨ (stA.t = e ∧ stA.dkA.isSome)
+
+variable {kem onoff leak} in
+/-- `hit` of the key-generation deferral at epoch `e`: query `t` in state `s` runs A's key
+generation of `e`, that is, A is at `e` without `dkA`, and `t` is A's ordinary send, or its leaking
+send while `e ∉ s.challenged`. -/
+def usesKeygen (e : ℕ) (t : (securitySpec leak Sym).Domain) (s : GameState onoff Sym) : Bool :=
+  match t with
+  | .inl (.inl (.inl (.inl (.inl (.inl (.inl (.inl (.inr ())))))))) =>
+    decide (s.stA.t = e ∧ s.stA.dkA.isNone)
+  | .inl (.inl (.inl (.inl (.inr ())))) =>
+    decide ((s.stA.t = e ∧ s.stA.dkA.isNone) ∧ e ∉ s.challenged)
+  | _ => false
+
+variable {kem onoff leak} in
+/-- Single use of the key pair: once A has used its key generation of epoch `e`
+(`keygenUsed e s.stA`), no query runs it: `usesKeygen e t s = false`. -/
+theorem usesKeygen_eq_false_of_used (e : ℕ) (t : (securitySpec leak Sym).Domain)
+    (s : GameState onoff Sym) (hs : keygenUsed e s.stA) : usesKeygen e t s = false := by
+  have hno : ¬(s.stA.t = e ∧ s.stA.dkA.isNone) := by
+    rintro ⟨ht, hp⟩
+    cases hd : s.stA.dkA <;> simp_all [keygenUsed]
+  simp only [Option.isNone_iff_eq_none] at hno
+  rcases t with (((((t | u) | u) | t) | u) | u)
+  · rcases t with ((((n | u) | u) | n) | n)
+    all_goals
+      simp [usesKeygen]
+      all_goals aesop
+  all_goals
+    simp [usesKeygen]
+    all_goals aesop
+
+variable [DecidableEq K] [DecidableEq Sym]
+
+/-- Once A has used its key generation of epoch `e`, it stays used: every correctness query (send
+or receive) of `stageScheme stage kemMat e s` from `s` preserves `keygenUsed e`. -/
+theorem correctness_preserves_keygenUsed
+    (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ)
+    (s : GameState onoff Sym) (hs : keygenUsed e s.stA)
+    (t : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Domain)
+    (res : (SCKAScheme.sckaCorrectnessSpec (Message Sym)).Range t × GameState onoff Sym)
+    (hres : res ∈ support
+      ((SCKAScheme.sckaCorrectnessImpl (stageScheme ecEk ecCt0 ecCt1 stage kemMat e s) t).run s)) :
+    keygenUsed e res.2.stA := by
+  apply SCKAScheme.correctnessImpl_preserves_localInv_at _ (fun stA _ => keygenUsed e stA) s hs
+    ?_ ?_ ?_ ?_ t res hres
+  · intro key msg epoch next hout
+    have hshape := sendA_keygen_shape
+      (stageKem stage kemMat e s) (stageOnOff stage kemMat e s) ecEk s.stA key msg epoch next hout
+    rcases hs with h | ⟨h, _⟩
+    · exact Or.inl (by simpa only [hshape.1] using h)
+    · exact Or.inr ⟨hshape.1.trans h, hshape.2⟩
+  · exact fun _ _ _ _ _ => hs
+  · intro msg key epoch next hout
+    rw [stageScheme_recvA_eq_ideal] at hout
+    have hshape := oppUniKemCKA.Reduction.Internal.recvA_kem_source_shape
+      kem onoff (fun _ _ => s.keyB s.stA.t)
+      ecCt0 ecCt1 s.stA msg key epoch next hout
+    rcases hshape with h | h
+    · simpa only [keygenUsed, h.1, h.2.2] using hs
+    · apply Or.inl
+      rcases hs with hs | ⟨hs, _⟩ <;> omega
+  · exact fun _ _ _ _ _ => hs
+
+/-- Single use of the key pair: every query of the stage oracle `stageOracle stage kemMat e b`
+preserves `keygenUsed e`. -/
+theorem stageOracle_preserves_keygenUsed [SampleableType K]
+    (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool) :
+    QueryImpl.PreservesInv (stageOracle kem onoff ecEk ecCt0 ecCt1 leak stage kemMat e b)
+      (fun s => keygenUsed e s.stA) :=
+  securityImplAt_preservesInv kem onoff leak _ _ _ (fun _ _ _ h => h)
+    (fun _ => sendArleak_forget (onoff := Pinned.onOff kemMat _ _ _ _) _ _ _)
+    (fun _ => sendBrleak_forget (onoff := Pinned.onOff kemMat _ _ _ _) _ _ _ _)
+    (SCKAScheme.challOf_recordsChallenges _)
+    (fun s hs t => correctness_preserves_keygenUsed kem onoff ecEk ecCt0 ecCt1 leak
+      stage kemMat e s hs t)
+
+/-- A's ordinary send holds or generates A's decapsulation key: if A is at `e`, every possible
+successor state of the send satisfies `keygenUsed e`. -/
+theorem oracleSendA_installs_keygen
+    (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ)
+    (s : GameState onoff Sym)
+    (he : s.stA.t = e)
+    (res : Option (ℕ × Option ℕ × Message Sym) ×
+      GameState onoff Sym)
+    (hres : res ∈ support
+      ((SCKAScheme.oracleSendA (stageScheme ecEk ecCt0 ecCt1 stage kemMat e s) ()).run s)) :
+    keygenUsed e res.2.stA := by
+  simp only [SCKAScheme.oracleSendA, StateT.run_bind, StateT.run_get,
+    StateT.run_monadLift, monadLift_self, bind_assoc, pure_bind,
+    mem_support_bind_iff] at hres
+  obtain ⟨out, hout, hres⟩ := hres
+  cases out with
+  | none => exact False.elim (sendA_none_not_mem_support _ _ ecEk _ hout)
+  | some out =>
+    rcases out with ⟨key, msg, epoch, next⟩
+    have hshape := sendA_keygen_shape
+      (stageKem stage kemMat e s) (stageOnOff stage kemMat e s) ecEk s.stA key msg epoch next hout
+    cases key <;>
+      simp only [StateT.run_bind, StateT.run_set, pure_bind,
+        StateT.run_pure, mem_support_pure_iff] at hres
+    all_goals obtain rfl := hres; exact Or.inr ⟨hshape.1.trans he, hshape.2⟩
+
+/-- A leaking send that runs A's key generation of an unchallenged epoch `e` is accepted, and its
+leaked coins expose `e`: if A is at `e` without `dkA` and `e ∉ s.challenged`, A's leaking-send
+oracle of `stageScheme stage kemMat e s` from `s`, stopped at the exposure of `e`, answers `none`
+on every path. -/
+theorem leaking_keygen_stops
+    (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ)
+    (s : GameState onoff Sym)
+    (he : s.stA.t = e) (hfield : s.stA.dkA = none) (hc : e ∉ s.challenged)
+    (res : Option (Option (ℕ × Option ℕ × Message Sym ×
+      SendRand leak.KeygenRand leak.OffRand leak.OnRand)) ×
+      GameState onoff Sym)
+    (hres : res ∈ support (((stopOnState
+      (SCKAScheme.oracleSendArleak vulnRleakA (stageScheme ecEk ecCt0 ecCt1 stage kemMat e s))
+      (fun s => decide (e ∈ s.exposed)) ()).run).run s)) : res.1 = none := by
+  apply SCKAScheme.oracleSendArleak_stop_of_exposure _ _ s {e} e ?_ ?_ ?_
+    (Finset.mem_singleton_self e) res hres
+  · exact sendArleak_none_not_mem_support _ _ ecEk _ _
+  · intro key msg epoch next coins hout
+    have hex := sendArleak_exposure
+      (stageKem stage kemMat e s) (stageOnOff stage kemMat e s) ecEk (stageLeak stage kemMat e s)
+      s.stA key msg epoch next coins hout
+    simpa only [leakEpochsA, hfield, Option.isNone_none,
+      Bool.true_or, ↓reduceIte, he] using hex
+  · simp [hc]
+
+variable [SampleableType K]
+
+/-- Single use of the key pair: after a query that runs A's key generation of epoch `e`
+(`usesKeygen e t s`) in any stage oracle, every possible successor state in which `e` is unexposed
+satisfies `keygenUsed e`. -/
+theorem stageOracle_keygen_first_use
+    (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool)
+    (t : (securitySpec leak Sym).Domain) (s : GameState onoff Sym)
+    (hh : usesKeygen e t s = true)
+    (res : (securitySpec leak Sym).Range t × GameState onoff Sym)
+    (hres : res ∈ support ((stageOracle kem onoff ecEk ecCt0 ecCt1 leak stage kemMat e b t).run s))
+    (hcont : decide (e ∈ res.2.exposed) = false) : keygenUsed e res.2.stA := by
+  rcases t with (((((t | u) | u) | t) | u) | u)
+  all_goals try (rcases t with ((((n | u) | u) | n) | n))
+  all_goals try (simp only [usesKeygen, Bool.false_eq_true] at hh)
+  all_goals cases u
+  · have hhit : s.stA.t = e ∧ s.stA.dkA.isNone := of_decide_eq_true hh
+    change res ∈ support
+      ((SCKAScheme.oracleSendA (stageScheme ecEk ecCt0 ecCt1 stage kemMat e s) ()).run s) at hres
+    exact oracleSendA_installs_keygen kem onoff ecEk ecCt0 ecCt1 leak
+      stage kemMat e s hhit.1 res hres
+  · have hhit : (s.stA.t = e ∧ s.stA.dkA.isNone) ∧ e ∉ s.challenged :=
+      of_decide_eq_true hh
+    change res ∈ support ((SCKAScheme.oracleSendArleak vulnRleakA
+      (stageScheme ecEk ecCt0 ecCt1 stage kemMat e s) ()).run s) at hres
+    have hstop := leaking_keygen_stops kem onoff ecEk ecCt0 ecCt1 leak stage kemMat e s
+      hhit.1.1 (Option.isNone_iff_eq_none.mp hhit.1.2) hhit.2 (some res.1, res.2)
+      (mem_support_stopOnState_of_mem (SCKAScheme.oracleSendArleak vulnRleakA
+        (stageScheme ecEk ecCt0 ecCt1 stage kemMat e s)) (fun s => decide (e ∈ s.exposed)) ()
+        s res hres hcont)
+    exact absurd hstop (Option.some_ne_none _)
+
+end
 
 section
 
@@ -1066,9 +1067,10 @@ section
 
 variable [DecidableEq Sym]
 
-/-- A's ordinary send does not read the key pair unless it runs key generation: if A is not at `e`
-without `dkA`, the send in `stageScheme .encapsFresh { kemMat with keygen := kg } e s` is the same
-computation for every `kg`. -/
+/-- A's ordinary send does not read the key pair unless it runs key generation: if
+`¬(s.stA.t = e ∧ s.stA.dkA.isNone)`, the send in
+`stageScheme .encapsFresh { kemMat with keygen := kg } e s` is the same computation for every `kg`.
+-/
 theorem sendA_keygen_independent
     (kemMat : KEMMaterial leak) (e : ℕ)
     (s : GameState onoff Sym)
@@ -1129,13 +1131,13 @@ theorem leaking_keygen_rejected
 variable [SampleableType K]
 
 /-- Independence of the key pair: a query `t` that does not run A's key generation of `e`
-(`usesKeygenOff .keygen e t s = false`) has the same response/successor distribution in the
+(`usesKeygen e t s = false`) has the same response/successor distribution in the
 `encapsFresh` stage oracle for every key pair `kg`. -/
 theorem stageOracle_keygen_independent
     (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool)
     (t : (securitySpec leak Sym).Domain)
     (s : GameState onoff Sym)
-    (hh : usesKeygenOff .keygen e t s = false)
+    (hh : usesKeygen e t s = false)
     (pair pair' : (PK × SK) × leak.KeygenRand) :
     (stageOracle kem onoff ecEk ecCt0 ecCt1 leak
       .encapsFresh { kemMat with keygen := pair } e b t).run s =ᵈ
@@ -1202,15 +1204,15 @@ theorem stageStopped_keygen_deferred
       .encapsFresh { kemMat with keygen := keygen } e b)
     (stageOracle kem onoff ecEk ecCt0 ecCt1 leak .fresh kemMat e b) (fun s => decide (e ∈
       s.exposed))
-    (fun _ => True) (fun s => keygenOffUsed .keygen e s.stA s.stB) (usesKeygenOff .keygen e)
+    (fun _ => True) (fun s => keygenUsed e s.stA) (usesKeygen e)
     (fun _ _ _ _ _ _ _ _ => trivial)
-    (fun keygen _ t s _ hu res hres _ => stageOracle_preserves_keygenOffUsed kem onoff ecEk ecCt0
-      ecCt1 leak .encapsFresh { kemMat with keygen := keygen } e b .keygen t s hu res hres)
+    (fun keygen _ t s _ hu res hres _ => stageOracle_preserves_keygenUsed kem onoff ecEk ecCt0
+      ecCt1 leak .encapsFresh { kemMat with keygen := keygen } e b t s hu res hres)
     (fun t s _ hh keygen _ keygen' _ => stageOracle_keygen_independent kem onoff ecEk ecCt0 ecCt1
       leak kemMat e b t s hh keygen keygen')
-    (fun t s _ hu => usesKeygenOff_eq_false_of_used .keygen e t s hu)
-    (fun keygen _ t s _ hh res hres hcont => stageOracle_keygenOff_first_use kem onoff ecEk ecCt0
-      ecCt1 leak .encapsFresh { kemMat with keygen := keygen } e b .keygen t s hh res hres hcont)
+    (fun t s _ hu => usesKeygen_eq_false_of_used e t s hu)
+    (fun keygen _ t s _ hh res hres hcont => stageOracle_keygen_first_use kem onoff ecEk ecCt0
+      ecCt1 leak .encapsFresh { kemMat with keygen := keygen } e b t s hh res hres hcont)
     (fun t s _ => stageOracle_sample_keygen_eq_fresh kem onoff ecEk ecCt0 ecCt1 leak kemMat e b t
       s)
     adv s trivial
