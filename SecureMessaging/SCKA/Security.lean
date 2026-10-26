@@ -328,6 +328,68 @@ theorem oracleSendBrleak_preservesInv_at
           apply (mem_support_bind_iff _ _ _).mpr
           exact ⟨_, hout', by simp⟩
 
+/-- Bookkeeping of A's leaking-send query from `s`: the challenged set is unchanged, and the
+exposed set grows by a set disjoint from the challenged set (empty on rejection). -/
+theorem oracleSendArleak_bookkeeping
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (leak : StA → Rand → Finset ℕ)
+    (s : GameState StA StB I Rho)
+    (z : Option (ℕ × Option ℕ × Rho × Rand) × GameState StA StB I Rho)
+    (hz : z ∈ support ((oracleSendArleak leak scka ()).run s)) :
+    z.2.challenged = s.challenged ∧
+      ∃ E : Finset ℕ, E ∩ s.challenged = ∅ ∧ z.2.exposed = s.exposed ∪ E := by
+  simp only [oracleSendArleak, StateT.run_bind, StateT.run_get, pure_bind,
+    StateT.run_monadLift, monadLift_self, bind_assoc] at hz
+  rw [mem_support_bind_iff] at hz
+  obtain ⟨out, -, hz⟩ := hz
+  cases out with
+  | none =>
+      obtain rfl : z = (none, s) := by simpa using (mem_support_pure_iff _ _).mp hz
+      exact ⟨rfl, ∅, by simp, by simp⟩
+  | some out =>
+      rcases out with ⟨key, msg, epoch, state, coins⟩
+      dsimp only at hz
+      split at hz
+      · obtain rfl : z = (none, s) := by simpa using (mem_support_pure_iff _ _).mp hz
+        exact ⟨rfl, ∅, by simp, by simp⟩
+      · rename_i hvuln
+        cases key <;>
+          simp only [StateT.run_bind, StateT.run_set, pure_bind,
+            StateT.run_pure, mem_support_pure_iff] at hz
+        all_goals
+          obtain rfl := hz
+          exact ⟨rfl, leak s.stA coins, not_not.mp hvuln, rfl⟩
+
+/-- The version of `oracleSendArleak_bookkeeping` for B. -/
+theorem oracleSendBrleak_bookkeeping
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (leak : StB → Rand → Finset ℕ)
+    (s : GameState StA StB I Rho)
+    (z : Option (ℕ × Option ℕ × Rho × Rand) × GameState StA StB I Rho)
+    (hz : z ∈ support ((oracleSendBrleak leak scka ()).run s)) :
+    z.2.challenged = s.challenged ∧
+      ∃ E : Finset ℕ, E ∩ s.challenged = ∅ ∧ z.2.exposed = s.exposed ∪ E := by
+  simp only [oracleSendBrleak, StateT.run_bind, StateT.run_get, pure_bind,
+    StateT.run_monadLift, monadLift_self, bind_assoc] at hz
+  rw [mem_support_bind_iff] at hz
+  obtain ⟨out, -, hz⟩ := hz
+  cases out with
+  | none =>
+      obtain rfl : z = (none, s) := by simpa using (mem_support_pure_iff _ _).mp hz
+      exact ⟨rfl, ∅, by simp, by simp⟩
+  | some out =>
+      rcases out with ⟨key, msg, epoch, state, coins⟩
+      dsimp only at hz
+      split at hz
+      · obtain rfl : z = (none, s) := by simpa using (mem_support_pure_iff _ _).mp hz
+        exact ⟨rfl, ∅, by simp, by simp⟩
+      · rename_i hvuln
+        cases key <;>
+          simp only [StateT.run_bind, StateT.run_set, pure_bind,
+            StateT.run_pure, mem_support_pure_iff] at hz
+        all_goals
+          obtain rfl := hz
+          exact ⟨rfl, leak s.stB coins, not_not.mp hvuln, rfl⟩
 end LeakingSend
 
 /-! ## Expected scores of leaking sends -/
@@ -643,6 +705,51 @@ theorem securityImplOf_run_eq
   · exact hchall t
   · rfl
   · rfl
+
+
+/-- Bookkeeping of one assembled security query from `s`. Assume that base queries from `s` keep
+both `exposed` and `challenged`, and that challenge queries from `s` keep `exposed` and do not
+shrink `challenged`. Then the query shrinks neither set, and every newly exposed epoch was not
+challenged in `s`. -/
+theorem securityImplOf_bookkeeping (s : GameState StA StB I Rho)
+    (hbase : ∀ t z, z ∈ support ((base t).run s) →
+      z.2.exposed = s.exposed ∧ z.2.challenged = s.challenged)
+    (hchall : ∀ (t : ℕ) z, z ∈ support ((chall t).run s) →
+      z.2.exposed = s.exposed ∧ s.challenged ⊆ z.2.challenged)
+    (t : (sckaSecuritySpec StA StB I Rho Rand).Domain)
+    (z : (sckaSecuritySpec StA StB I Rho Rand).Range t × GameState StA StB I Rho)
+    (hz : z ∈ support ((securityImplOf base chall vulnA vulnB scka t).run s)) :
+    s.exposed ⊆ z.2.exposed ∧ s.challenged ⊆ z.2.challenged ∧
+      ∀ e ∈ z.2.exposed, e ∉ s.exposed → e ∉ s.challenged := by
+  have hgrow : ∀ (E : Finset ℕ) (u : GameState StA StB I Rho), E ∩ s.challenged = ∅ →
+      u.challenged = s.challenged → u.exposed = s.exposed ∪ E →
+      s.exposed ⊆ u.exposed ∧ s.challenged ⊆ u.challenged ∧
+        ∀ e ∈ u.exposed, e ∉ s.exposed → e ∉ s.challenged := by
+    intro E u hE hc he
+    refine ⟨by rw [he]; exact Finset.subset_union_left, by rw [hc], fun e he' hnot hchal => ?_⟩
+    rw [he, Finset.mem_union] at he'
+    have hmem : e ∈ E ∩ s.challenged := Finset.mem_inter.2 ⟨he'.resolve_left hnot, hchal⟩
+    rw [hE] at hmem
+    exact Finset.notMem_empty e hmem
+  rcases t with (((((t | u) | u) | t) | u) | u)
+  · obtain ⟨he, hc⟩ := hbase t z hz
+    exact hgrow ∅ z.2 (by simp) hc (by rw [he, Finset.union_empty])
+  · cases u
+    obtain ⟨hc, E, hE, he⟩ := oracleSendArleak_bookkeeping scka vulnA.rleak s z hz
+    exact hgrow E z.2 hE hc he
+  · cases u
+    obtain ⟨hc, E, hE, he⟩ := oracleSendBrleak_bookkeeping scka vulnB.rleak s z hz
+    exact hgrow E z.2 hE hc he
+  · obtain ⟨he, hc⟩ := hchall t z hz
+    exact ⟨by rw [he], hc, fun e he' hnot => by rw [he] at he'; exact absurd he' hnot⟩
+  · cases u
+    rcases oracleCorruptA_support vulnA.corrupt s z hz with h | ⟨hE, h⟩
+    · rw [h]; exact hgrow ∅ s (by simp) rfl (by simp)
+    · rw [h]; exact hgrow _ _ hE rfl rfl
+  · cases u
+    rcases oracleCorruptB_support vulnB.corrupt s z hz with h | ⟨hE, h⟩
+    · rw [h]; exact hgrow ∅ s (by simp) rfl (by simp)
+    · rw [h]; exact hgrow _ _ hE rfl rfl
 
 end SecurityFamily
 
