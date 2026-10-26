@@ -819,22 +819,4 @@ def securityReduction [DecidableEq K] [DecidableEq Sym] [SampleableType K]
   postChallenge state ct key := run kem onoff ecEk ecCt0 ecCt1 leak adv state.2 state.1 ct key
 ```
 
-:::leanPillCaption "Bound for a perfectly correct KEM"
-:::
-
-```anchor security_perfectKEM (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Security)
-theorem security_perfectKEM
-    (kem : KEMScheme ProbComp K PK SK C) (onoff : kem.OnOffStructure)
-    (hDet : kem.DeterministicDecaps)
-    (ecEk : ErasureCodePayload PK Sym) (hEk : ecEk.ec.Correct)
-    (ecCt0 : ErasureCodePayload onoff.C₀ Sym) (hCt0 : ecCt0.ec.Correct)
-    (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
-    (leak : kem.OnOffRandLeak onoff) (hkem : kem.PerfectlyCorrect ProbCompRuntime.probComp)
-    (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
-    let scka := scheme kem onoff hDet ecEk ecCt0 ecCt1 leak
-    let 𝓑 := Security.Embedding.securityReduction kem onoff ecEk ecCt0 ecCt1 leak adv q
-    SCKAScheme.sckaGuessAdvantage scka adv (exposureA kem onoff leak) (exposureB kem onoff leak) ≤
-      (q / 2 : ℝ) * (kem.IND_CPA_Advantage ProbCompRuntime.probComp 𝓑).toReal
-```
-
 ::::::::
