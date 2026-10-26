@@ -10,27 +10,29 @@ import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
 /-!
 # The IND-CPA reduction and its fixed-epoch branches
 
-**Setting.** Throughout this module, we consider:
+Fix a KEM `kem`, an SCKA adversary `adv` against Opp-UniKEM over `kem`, and a send budget `q`.
+For an epoch `e` at which the reduction embeds its IND-CPA challenge, let
+`(pkStar, ctStar, kStar)` be the challenge public key, ciphertext, and candidate key.
 
-- a KEM `kem`, an SCKA adversary `adv` against Opp-UniKEM over `kem`, and a send budget `q`, from
-  which the reduction draws its challenge epoch;
-- a challenge epoch `e`;
-- an IND-CPA challenge tuple `(pkStar, ctStar, kStar)` for `kem`, that is, a public key, a
-  ciphertext, and a candidate key.
+The simulator runs `adv` from the initial state, with both parties at epoch `1` and empty message,
+key, exposure, and challenge tables. At epoch `e`, key generation returns `pkStar` and
+encapsulation returns `ctStar`, while the corresponding secret key, offline state, shared key,
+and coins remain hidden. Other epochs sample honestly. Party A's receive uses B's recorded key
+for A's current epoch instead of decapsulation. An accepted challenge at epoch `t` returns a
+uniform key if
+`0 < t < e`, `kStar` if `t = e`, and the recorded key otherwise. A permitted corruption or leaking
+send that would reveal a hidden value stops the run with output `false`; otherwise the run returns
+`adv`'s output (`run`).
 
-**Main results.** The IND-CPA adversary `securityReduction … adv q` draws a challenge epoch `e`
-uniformly from `{1, …, q}` and runs `adv` against simulated oracles that embed `pkStar` and
-`ctStar` at `e`, keeping the corresponding secrets and coins *hidden* (`SimState`, `simOracle`,
-`run`); its *fixed branch* fixes `e` and the IND-CPA bit `b` (`fixedBranch … adv e b`). The *KEM
-material* of an epoch records its sampling outputs and coins (`KEMMaterial leak`, `sampleMaterial`),
-which the *pinned KEM* returns in its flagged phases (`Pinned.kem kemMat …`).
+- The IND-CPA adversary `𝓑 := securityReduction … adv q` draws `e` uniformly from `{1, …, q}`
+  when `q > 0` (and chooses `e = 1` when `q = 0`), then executes this simulation on its challenge.
+- For an IND-CPA bit `b`, its fixed branch `𝓑_e^b := fixedBranch … adv e b` fixes the epoch `e`,
+  draws a fresh KEM key pair and encapsulation, and uses the encapsulated key when `b = true`
+  or an independent uniform key when `b = false`.
 
-- For `q ≠ 0`, the difference in acceptance probability between the real and random IND-CPA
-  branches of `securityReduction … adv q` is the average over `e ∈ {1, …, q}` of the corresponding
-  differences for `fixedBranch … adv e` (`securityReduction_signed_gap_average`).
-- `fixedBranch … adv e b` coincides with drawing `kemMat ← sampleMaterial leak` and
-  `randomKey ←$ K` and running `adv` on the public key, ciphertext, and key
-  `(if b then kemMat.key else randomKey)` of `kemMat` (`fixedBranch_eq_material`).
+For `q > 0`, the difference in acceptance probability between the real and random IND-CPA
+experiments for `𝓑` is the average over `e ∈ {1, …, q}` of
+`Pr[𝓑_e^true = true] - Pr[𝓑_e^false = true]` (`securityReduction_signed_gap_average`).
 -/
 
 open OracleSpec OracleComp KEMScheme

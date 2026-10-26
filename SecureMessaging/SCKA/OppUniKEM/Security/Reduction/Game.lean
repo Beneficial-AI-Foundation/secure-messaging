@@ -11,34 +11,26 @@ import ToVCVio.OracleComp.SimSemantics.StateT.Stop
 import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Receive
 
 /-!
-# Pinned protocol instances and the honest intermediate game
+# The honest intermediate game
 
-**Setting.** Throughout this module, we consider:
+Throughout this module, we consider:
 
-- a challenge epoch `e` and a candidate key `kStar`;
-- a KEM material `kemMat` (`Simulator`), the pre-sampled outputs and coins of one epoch;
-- the pinned KEM `Pinned.kem kemMat` (`Simulator`), whose designated sampling phases return the
-  corresponding outputs stored in `kemMat` and whose decapsulation returns a prescribed key;
-- the transcript consistency invariant `reachableInv` (`Correctness.Invariant`), stating that a game
-  state is consistent with a transcript of the protocol.
+- an epoch `e` at which the reduction embeds the KEM IND-CPA challenge;
+- a candidate key `kStar` returned by an accepted SCKA challenge query at `e`;
+- KEM material `kemMat`, a record of the outputs and coins of key generation, offline
+  encapsulation, and online encapsulation for one epoch (`KEMMaterial`, `Simulator`).
 
-**Definitions.** A *stage* (`Stage`) selects which sampling phases of epoch `e` are *pinned*,
-reading their output from `kemMat`, and which are *fresh*, sampling at their protocol call. The
-instance `stageScheme stage kemMat e s` is Opp-UniKEM over the KEM pinned accordingly, for a query
-from state `s`, with A outputting B's recorded key instead of decapsulating; the *honest instance*
-`honestScheme kemMat e s` is its fully pinned stage.
+The protocol instances and security oracles are defined as follows:
 
-**Main results.** The *honest intermediate game* `honestStopped kemMat e kStar` runs the security
-oracles over `honestScheme kemMat e` with the challenges of `pinnedChallenge e kStar` (`Relation`),
-and stops at the first exposure of `e`.
-
-- Party A's receive in `stageScheme stage kemMat e s` is the protocol receive with decapsulation
-  replaced by the lookup of B's recorded key (`stageScheme_recvA_eq_ideal`).
-- For `kemMat ∈ support (sampleMaterial leak)` and a challenge oracle that only records
-  challenges, the security oracles over `honestScheme kemMat e` preserve `reachableInv`,
-  `consistentMat kemMat e` (the stored key-generation and offline outputs of epoch `e` are those of
-  `kemMat`), and the property that every key B records at `e` is `kemMat.key`
-  (`honestScheme_preserves_reachableInv_consistentMat`, `honestScheme_preserves_keyB_eq`).
+- The *honest instance* `honestScheme kemMat e` runs Opp-UniKEM with the sampling outputs and
+  coins of epoch `e` fixed to `kemMat`. Other epochs sample honestly, and A's receive replaces
+  decapsulation by the lookup of B's recorded key for A's current epoch.
+- The *honest intermediate oracle* `honestOracle kemMat e kStar` supplies the SCKA security
+  oracles for this instance. An accepted challenge at epoch `t` returns a uniform key if
+  `0 < t < e`, `kStar` if `t = e`, and the recorded key otherwise.
+- The *stopped honest oracle* `honestStopped kemMat e kStar` stops at the first query whose
+  successor state records `e` as exposed. Running an adversary against it returns `false` on
+  stopping and the adversary's output on normal completion.
 -/
 
 open OracleSpec OracleComp KEMScheme

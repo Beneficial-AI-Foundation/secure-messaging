@@ -12,37 +12,39 @@ import SecureMessaging.SCKA.Security
 import ToVCVio.OracleComp.QueryTracking.OneUseSampling
 
 /-!
-# The pinned hybrids and their sampling stages
+# The reduction branch and the pinned hybrid
 
-**Setting.** Throughout this module, we consider a KEM material `kemMat` (`Simulator`), a challenge
-epoch `e > 0`, a mode bit `b`, an SCKA adversary `adv`, the initial game state `s₀`, and, for a
-stage `stage`, the protocol instance `stageScheme stage kemMat e s` (`Game`).
+Fix a KEM `kem` with deterministic decapsulation, correct erasure codes for Opp-UniKEM, an SCKA
+adversary `adv`, a positive epoch `e` at which the reduction embeds its IND-CPA challenge, and an
+IND-CPA bit `b`. All experiments below run `adv` from the initial state, with both parties at
+epoch `1` and empty message, key, exposure, and challenge tables.
 
-**Definitions.** The *stage game* `stageStopped stage kemMat e b` is the security game over
-`stageScheme stage kemMat e` whose challenges follow the mode `adjacentMode e b` (`IdealHybrids`),
-stopped at the first exposure of `e`. Its fully pinned stage `stageStopped .pinned kemMat e b` is
-the *pinned hybrid*: the ideal hybrid `H_{e-1}` if `b = false`, or `H_e` if `b = true`
-(`IdealHybrids`), with the samples of epoch `e` drawn in advance as `kemMat`.
+- The ideal hybrid `H_i`, for `i : ℕ`, runs the SCKA security game for Opp-UniKEM, replacing A's
+  decapsulation by B's recorded key for A's current epoch. Accepted challenges at epochs
+  `1, …, i` return uniform keys; all other epochs return recorded keys
+  (`idealEpochHybridExp`, `IdealHybrids`).
+- Define `i_b := if b then e - 1 else e`. The pinned hybrid `P_e^b` samples the outputs and coins
+  of key generation, offline encapsulation, and online encapsulation as KEM material `kemMat`,
+  using the randomness-leaking samplers `leak` (`sampleMaterial leak`). It runs `H_{i_b}` with
+  the outputs and coins of epoch `e` fixed to `kemMat`, returning `false` at the first query whose
+  successor exposes `e`. In Lean this is the run using `stageStopped .pinned kemMat e (!b)`,
+  averaged over `kemMat`.
+- The reduction branch `𝓑_e^b := fixedBranch … adv e b` draws a fresh IND-CPA challenge, whose
+  candidate key is the encapsulated key if `b = true` and an independent uniform key otherwise.
+  It runs the same protocol, inserting the challenge public key and ciphertext at `e` and
+  hiding their secret key, offline state, shared key, and coins. Accepted challenges at `e`
+  return the candidate key; other challenges follow `H_{i_b}`. A permitted corruption or leaking
+  send that would reveal a hidden value returns `false`.
 
-**Main results.** The games in the following chain, run by `adv` from `s₀`, all accept with the
-same probability. Here `fixedBranch adv e b` is the reduction `𝓑` with challenge epoch `e` and
-IND-CPA bit `b` (`Simulator`); the mode bit is `!b` because the IND-CPA bit `true` selects the real
-key while the mode bit `true` selects a uniform key. This module proves the first and the last
-link, `Deferral` the middle ones.
+Both `P_e^b` and `𝓑_e^b` return `adv`'s output on normal completion. Their acceptance probabilities
+are equal (`fixedBranch_eq_pinnedHybrid`):
 
 ```text
-fixedBranch adv e b
-   ‖ fixedBranch_eq_pinnedHybrid
-kemMat ← sampleMaterial leak;  stageStopped .pinned kemMat e (!b)
-   ‖ stageStopped_online_deferred                                        (Deferral)
-kemMat ← sampleMaterial leak;  stageStopped .onlineFresh kemMat e (!b)
-   ‖ stageStopped_offline_deferred                                       (Deferral)
-kemMat ← sampleMaterial leak;  stageStopped .encapsFresh kemMat e (!b)
-   ‖ stageStopped_keygen_deferred                                        (Deferral)
-stageStopped .fresh kemMat₀ e (!b)                                       kemMat₀ arbitrary (unused)
-   ‖ stageOracle_fresh_eq_ideal                                          (an equality of oracles)
-idealSecurityImpl (adjacentMode e (!b)), stopped at the first exposure of e
+Pr[𝓑_e^b = true] = Pr[P_e^b = true].
 ```
+
+The mode bit in `stageStopped` is `!b`: `true` selects a uniform challenge key, whereas the
+IND-CPA bit `true` selects the encapsulated key.
 -/
 
 open OracleSpec OracleComp KEMScheme

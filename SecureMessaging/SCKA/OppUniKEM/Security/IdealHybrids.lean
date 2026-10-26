@@ -12,26 +12,30 @@ import VCVio.ProgramLogic.Relational.SimulateQ
 /-!
 # Ideal epoch hybrids
 
-**Setting.** Throughout this module, we consider:
+Let `scka` be the Opp-UniKEM protocol (`scheme`) over a KEM `kem` with deterministic decapsulation,
+an offline/online encapsulation factorization, and correct erasure codes, and let `adv` be an
+SCKA security adversary. Define:
 
-- the Opp-UniKEM protocol `scka` and an SCKA security adversary `adv`;
-- the KEM correctness error `ε` (`kem.correctnessError`);
-- the ideal security game `I_b := idealSecurityExp … (fun _ => b) adv` with fixed challenge bit
-  `b` (`Endpoints`), in which challenges return recorded keys when `b = false` and uniform keys
-  when `b = true`.
+- For `i : ℕ`, the ideal epoch hybrid `H_i` runs `adv` from epoch `1` with no KEM material or
+  chunks, empty message and key tables, and empty exposure and challenge sets. A uses B's recorded
+  key instead of decapsulating; eligible challenges at epochs `1, …, i` return independent uniform
+  keys, and all other eligible challenges return recorded keys. The game returns the output bit
+  of `adv` (`idealEpochHybridExp … adv i`).
+- For a uniform challenge bit `b` in the SCKA security game of `scka` and the output bit `b'` of
+  `adv`, its guessing advantage is `AdvGuess_SCKA(scka, adv) := |Pr[b' = b] - 1/2|`. Here
+  `b = true` selects uniform challenge keys and `b = false` selects recorded keys.
+- For an honest key pair `(pk, sk) ← kem.keygen`, encapsulation `(ct, k) ← kem.encaps pk`,
+  and decapsulation result `k' ← kem.decaps sk ct`, the correctness error is
+  `ε := 1 - Pr[k' = some k]` (`kem.correctnessError`).
 
-**Main results.** For `i : ℕ`, the *ideal epoch hybrid* `H_i := idealEpochHybridExp … adv i` answers
-eligible challenges at epochs `1, …, i` with uniform keys (as in `I_true`) and later ones with
-recorded keys (as in `I_false`); its challenge mode is `hybridMode i`. For an epoch `e` and mode
-bit `b`, `adjacentMode e b` is the mode of `H_{e-1}` if `b = false` and of `H_e` if `b = true`.
-*Stopping at `i + 1`* halts a run with output `false` at the first query that exposes epoch `i + 1`.
+If `adv` makes at most `q : ℕ` ordinary and leaking sends on every oracle-response path
+(`SecuritySendQueryBound adv q`), then (`security_guess_le_hybrid_gap`):
 
-- When `adv` makes at most `q` send queries (`SecuritySendQueryBound adv q`),
-  `AdvGuess_SCKA(scka, adv) ≤ |Pr[H_0 = true] - Pr[H_q = true]| / 2 + q · ε`
-  (`security_guess_le_hybrid_gap`).
-- Stopping both hybrids at `i + 1` preserves `Pr[H_{i+1} = true] - Pr[H_i = true]`: they differ
-  only on challenges at `i + 1`, which are rejected once `i + 1` is exposed and, once answered,
-  prevent its later exposure (`idealEpochHybrid_signed_gap_stop_eq`).
+`AdvGuess_SCKA(scka, adv) ≤ |Pr[H_0 = true] - Pr[H_q = true]| / 2 + q · ε`.
+
+For every `i`, stopping both `H_i` and `H_{i+1}` with output `false` after the first query whose
+successor state records epoch `i + 1` as exposed by a permitted corruption or leaking send
+preserves `Pr[H_{i+1} = true] - Pr[H_i = true]` (`idealEpochHybrid_signed_gap_stop_eq`).
 -/
 
 open OracleSpec OracleComp KEMScheme

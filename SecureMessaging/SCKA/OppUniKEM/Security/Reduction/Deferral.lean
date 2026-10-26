@@ -11,46 +11,38 @@ import ToVCVio.OracleComp.QueryTracking.OneUseSampling
 /-!
 # Deferring the challenge-epoch samples
 
-**Setting.** Throughout this module, let
+**Setting.** Let
 - `adv` be an SCKA adversary against Opp-UniKEM;
-- `e : ℕ` be the epoch at which the reduction embeds the IND-CPA challenge (`Simulator`), and
-  `b : Bool` a mode bit selecting whether a challenge at `e` receives a uniform key (`b = true`)
-  or the recorded key (`b = false`);
-- `kemMat` be a KEM material (`Simulator`): the outputs and coins of the three KEM sampling phases
-  of epoch `e`, namely key generation by A and offline and online encapsulation by B.
+- `e : ℕ` be the epoch at which the reduction embeds the KEM IND-CPA challenge;
+- `b : Bool` be the ideal challenge mode at `e`: uniform key for `true`, recorded key for `false`.
 
-**Stages.** A sampling phase of epoch `e` is *pinned* if it uses the sample recorded in `kemMat`,
-and *fresh* if its output is freshly sampled at its protocol call.
-The stages (`Stage`, `Game`) are:
-- `.pinned`: all three phases are pinned;
-- `.onlineFresh`: only online encapsulation is fresh;
-- `.encapsFresh`: only offline and online encapsulation are fresh;
-- `.fresh`: all three phases are fresh.
+Assume that the KEM has deterministic decapsulation and the three erasure codes are correct.
 
-**Stage games.** The *stage game* `stageStopped stage kemMat e b` (`HybridGame`) is the SCKA
-security game over Opp-UniKEM in which:
-- the phases of epoch `e` are pinned or fresh as specified by `stage`;
-- a challenge at epoch `t` receives a uniform key if `0 < t ≤ (if b then e else e - 1)`, and the
-  recorded key otherwise (challenge mode `adjacentMode e b`, `IdealHybrids`);
-- a run returns `false` at the first query that exposes `e`.
-
-The `.pinned` stage game is the *pinned hybrid*.
-
-**Deferral.** Before the first exposure of `e`, a run executes each sampling phase of epoch `e` at
-most once, so drawing its sample in advance or at that call yields the same acceptance probability
-(`stoppedRun_sample_once_eq`, applied with `hit` the queries that run the phase at `e` and `used`
-the states in which it has run). For online encapsulation, this holds from states satisfying
-`reachableInv ∧ consistentMat kemMat e` (`Game`); for the other two phases, from every state.
-
-**Main results.** Let `Pr[stage]` be the probability that `adv` accepts in the stage game with
-`kemMat ← sampleMaterial`, `I` the ideal game `idealSecurityImpl (adjacentMode e b)` (`Endpoints`)
-stopped at the first exposure of `e`, and `fixedBranch adv e (!b)` the reduction's fixed branch
-(`Simulator`). Then
+**Challenge mode.** Define `μ := adjacentMode e b` (`IdealHybrids`). For every epoch `t`,
 
 ```text
-Pr[.pinned] = Pr[.onlineFresh] = Pr[.encapsFresh] = Pr[.fresh]   (the three deferrals)
-  = Pr[adv accepts in I]                                         (pinnedHybrid_eq_ideal)
-  = Pr[fixedBranch adv e (!b) = true]          for e > 0         (fixedBranch_eq_ideal)
+μ(t) = true ↔ 0 < t ∧ (t < e ∨ (t = e ∧ b = true)).
+```
+
+An accepted challenge at epoch `t` returns a uniform key if `μ(t) = true`, and the recorded key
+otherwise.
+
+**Experiments.** Both run `adv` from their respective empty initial states at epoch `1`, replacing
+A's decapsulation by B's recorded key for A's current epoch. Let
+- `R := fixedBranch adv e (!b)` (`Simulator`) sample a fresh KEM challenge and embed its public
+  key and ciphertext at `e`, hiding its secret key, offline state, shared key, and coins.
+  An accepted challenge at `e` returns its candidate key: uniform if `b = true`, encapsulated
+  if `b = false`; other challenges follow `μ`. A permitted corruption or leaking send that
+  would reveal a hidden value stops the run with output `false`.
+- `I` run the SCKA security oracles with challenge mode `μ` (`idealSecurityImpl μ`, `Endpoints`),
+  returning `false` at the first query that exposes `e`.
+
+Both return the output of `adv` on normal completion.
+
+**Main result.** For `e > 0` (`fixedBranch_eq_ideal`):
+
+```text
+Pr[R = true] = Pr[I = true].
 ```
 -/
 

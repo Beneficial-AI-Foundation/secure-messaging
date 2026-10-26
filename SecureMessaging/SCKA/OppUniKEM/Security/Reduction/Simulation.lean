@@ -12,29 +12,33 @@ import SecureMessaging.SCKA.Security
 /-!
 # The simulation theorem
 
-**Setting.** Fix a challenge epoch `e`, a candidate key `kStar : K`, and a KEM material `kemMat`
-(`Simulator`). Let:
+Fix a KEM `kem` with shared-key space `K` and deterministic decapsulation, correct erasure codes
+for Opp-UniKEM, an SCKA adversary `adv`, an epoch `e` at which the reduction embeds its IND-CPA
+challenge, and an IND-CPA bit `b`. Let `leak` record the coins of the KEM samplers. A sample
+`kemMat ← sampleMaterial leak` consists of the outputs and coins of key generation, offline
+encapsulation, and online encapsulation. For an independent uniform key `k`, write
+`k_b := if b then kemMat.key else k`.
 
-- `hideState e s` (`Relation`) be the state map from an honest game state `s` to the simulator's
-  state `SimState`, replacing the secret key, offline state, and recorded keys of epoch `e` by
-  `none` (hidden);
-- `simOracle … e kemMat.pk kemMat.ciphertext kStar` (`Simulator`) be the simulator's security
-  oracles with the public key and ciphertext of `kemMat` embedded at epoch `e`;
-- `honestStopped … kemMat e kStar` (`Game`) be the honest security oracles with the samples of
-  epoch `e` pinned to `kemMat`, stopped (`⊥`) at the first query whose successor exposes `e`;
-- for an SCKA adversary `adv` and IND-CPA bit `b`, `fixedBranch adv e b` (`Simulator`) be the
-  reduction `𝓑` with challenge epoch `e` and bit `b`: it runs `adv` against the simulator with a
-  fresh IND-CPA challenge, whose key is the encapsulated key if `b` and a uniform key otherwise.
+Consider two experiments running `adv` from their respective empty initial states, with both
+parties at epoch `1` and empty message, key, exposure, and challenge tables. Let `s₀` denote the
+honest initial state. Both replace A's decapsulation by B's recorded key for A's current epoch.
+Accepted challenges at epoch `t` return a uniform key if `0 < t < e`, `k_b` if `t = e`, and the
+recorded key otherwise.
 
-**Main result** (`fixedBranch_eq_honestStopped`). Averaged over the KEM material, each fixed branch
-has the acceptance probability of the stopped honest game from the initial state `s₀`:
+- The reduction branch `𝓑_e^b := fixedBranch … adv e b` samples `kemMat` and `k`, inserts
+  `kemMat`'s public key and ciphertext at epoch `e`, and hides the corresponding secret key,
+  offline state, shared key, and coins. A permitted corruption or leaking send that would reveal
+  a hidden value stops the run with output `false`.
+- The honest experiment `G(kemMat, k_b)` fixes all sampling outputs and coins at epoch `e` to
+  `kemMat` and returns `false` at the first query whose successor exposes `e`. Formally, this is
+  `optionRun (honestStopped … kemMat e k_b) adv s₀`.
+
+Other epochs sample honestly, and both experiments return `adv`'s output on normal completion.
+The simulation theorem is the acceptance equality (`fixedBranch_eq_honestStopped`):
 
 ```text
-Pr[fixedBranch adv e b = true] =
-  Pr[kemMat ← sampleMaterial leak; k ←$ K; optionRun (honestStopped kemMat e k_b) adv s₀ = true]
+Pr[𝓑_e^b = true] = Pr[kemMat ← sampleMaterial leak; k ←$ K; G(kemMat, k_b) = true].
 ```
-
-where `k_b := if b then kemMat.key else k`.
 -/
 
 open OracleSpec OracleComp KEMScheme

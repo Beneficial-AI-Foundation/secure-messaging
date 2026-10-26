@@ -11,30 +11,22 @@ import SecureMessaging.SCKA.OppUniKEM.Security.Endpoints
 import SecureMessaging.SCKA.Security
 
 /-!
-# Hiding challenge-epoch secrets in honest states
+# Hiding challenge-epoch secrets in protocol states
 
-**Setting.** Throughout this module, we consider:
+Let `e` be the epoch at which the reduction embeds its KEM IND-CPA challenge. The state map
+`hideState e` replaces each present secret of epoch `e` by a hidden value `none`: A's decapsulation
+key, B's offline encapsulation state, and the keys recorded by either party. Other present secrets
+are wrapped in `some`; absent fields and all public state remain unchanged. The corresponding
+maps on local states and send coins are `hideA`, `hideB`, and `hideCoins`.
 
-- a challenge epoch `e` and a candidate key `kStar`;
-- a KEM material `kemMat` (`Simulator`), the pre-sampled outputs and coins of one epoch;
-- the simulator's secret values (`Simulator`), wrapped in `Option` (`some x` when known to the
-  simulator and `none` when hidden);
-- the pinned KEM `Pinned.kem kemMat` (`Simulator`), whose designated sampling phases return the
-  corresponding outputs stored in `kemMat`;
-- the simulator `simOracle` (`Simulator`), which runs over the simulated KEM `simKem` embedding the
-  IND-CPA challenge at epoch `e`.
+Revealing a mapped local state recovers the original state exactly when that party holds no
+secret of epoch `e`; otherwise revelation fails (`revealA_hideA_eq`, `revealB_hideB_eq`).
 
-**Main results.** For an honest game state `s`, the state map `hideState e s` hides the secret
-values of epoch `e` (party A's decapsulation key, party B's offline state, and the keys recorded at
-`e`) by setting them to `none` and wraps all other secret values in `some`.
-
-- Each local send and receive over the simulated KEM `simKem` from a hidden state equals the same
-  operation over `Pinned.kem kemMat` from the honest state, followed by hiding (`*_hide`).
-- The simulator's challenge oracle from `hideState e s` coincides with the *pinned challenge*
-  `pinnedChallenge e kStar := challengeWith id e kStar` from `s`, followed by `hideState e`
-  (`challenge_hide`).
-- Revealing a local state fails (`none`) if and only if a corruption exposes epoch `e`
-  (`revealA_hideA_eq`, `revealB_hideB_eq`).
+For a candidate key `kStar`, the challenge oracle `pinnedChallenge e kStar` answers an accepted
+SCKA challenge at epoch `t` with a uniform key if `0 < t < e`, with `kStar` if `t = e`, and with
+the recorded key otherwise. The simulator uses the same rule, interpreting a hidden recorded key
+as `kStar`. Running either challenge oracle and applying `hideState e` to the honest successor
+state gives the same response and simulator state (`challenge_hide`).
 -/
 
 open OracleSpec OracleComp KEMScheme
