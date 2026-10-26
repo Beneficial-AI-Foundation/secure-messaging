@@ -734,48 +734,30 @@ abbrev exposureB (kem : KEMScheme m K PK SK C) (onoff : kem.OnOffStructure)
 :::
 
 ::::::::theorem "opp_unikem_cka_security" (parent := "cka_protocols_opp_unikem_cka") (lean := "oppUniKemCKA.security") (tags := "gh-108") (uses := "opp_unikem_cka_spec, opp_unikem_cka_vulnerable_epochs, scka_security, scka_oracles, erasure_code_correctness, on_off_kem_scheme, on_off_kem_rand_leak")
-*Setting.* $`\Pi` is the Opp-UniKEM protocol of {bpref "opp_unikem_cka_spec"}[] with the
-exposure functions of {bpref "opp_unikem_cka_vulnerable_epochs"}[]. Assume:
+Let $`\Pi` be the Opp-UniKEM protocol ({bpref "opp_unikem_cka_spec"}[]) such that:
 
-* the KEM has deterministic decapsulation and an {bpref "on_off_kem_scheme"}[] witness:
-  $`C\simeq C_0\times C_1` and encapsulation is
-  $`(st,c_0)\sample\mathsf{Enc.Off}();\ (c_1,k)\sample\mathsf{Enc.On}(st,pk)`;
-* an {bpref "on_off_kem_rand_leak"}[] witness: forgetting the coins of a leaking sampler
-  gives the ordinary one;
-* the erasure codes for $`PK`, $`C_0`, $`C_1` satisfy {bpref "erasure_code_correctness"}[];
-* $`\mathcal A` makes at most $`q` ordinary or leaking sends on every oracle-response path.
+* the underlying KEM $`\Gamma` has deterministic decapsulation and its
+  encapsulation splits into on/off phases ({bpref "on_off_kem_scheme"}[]);
+* the underlying erasure codes are correct ({bpref "erasure_code_correctness"}[]).
 
-*Definitions.*
+Then for every SCKA adversary $`\mathcal A` against $`\Pi` making at most $`q` send oracle
+queries, the IND-CPA adversary $`\mathcal B` against $`\Gamma`, constructed from $`\mathcal A`,
+satisfies
 
-* $`G_b(\mathcal A)` is the experiment of {bpref "scka_security"}[] with challenge bit $`b`, and
-  $`\operatorname{Adv}^{\mathsf{guess}}_{\mathsf{SCKA},\Pi}(\mathcal A)=|\Pr[b'=b]-\tfrac12|
-  =\tfrac12|\Pr[G_1(\mathcal A)=1]-\Pr[G_0(\mathcal A)=1]|`.
-* $`\operatorname{Adv}^{\mathsf{IND\text{-}CPA}}_{\mathsf{KEM}}(\mathcal B)
-  =|\Pr[\mathcal B(pk,ct,k)=1]-\Pr[\mathcal B(pk,ct,u)=1]|` for
-  $`(pk,sk)\sample\mathsf{KeyGen}()`, $`(ct,k)\sample\mathsf{Encaps}(pk)`, and $`u\sample K`.
-* $`\varepsilon=\Pr[\mathsf{Decaps}(sk,ct)\ne k]` over the same samples, with failure $`\bot`
-  counted as an error.
+$$`\operatorname{Adv}^{\mathsf{guess}}_{\mathsf{SCKA},\Pi}(\mathcal A)
+\le \frac q2\operatorname{Adv}^{\mathsf{IND\text{-}CPA}}_{\mathsf{KEM},\Gamma}(\mathcal B)
++q\varepsilon,`
 
-*The adversary* $`\mathcal B=\mathsf{securityReduction}(\mathcal A,q)`. On $`(pk^*,ct^*,k^*)`,
-$`\mathcal B` draws $`e\sample\{1,\ldots,q\}` and returns the output of $`\mathcal A` run
-against the oracles of $`\Pi` with the following changes, or $`0` once a permitted corruption
-or leaking send would reveal a hidden value:
+where:
 
-* key generation at A's epoch $`e` returns $`pk^*` and encapsulation at B's epoch $`e` returns
-  $`ct^*`, with hidden secret key, offline state, shared key, and coins;
-* A, on completing an online ciphertext, outputs B's recorded key instead of decapsulating;
-* a challenge at epoch $`t` returns a uniform key if $`t<e`, $`k^*` if $`t=e`, and the
-  recorded key if $`t>e`.
+* $`\operatorname{Adv}^{\mathsf{guess}}_{\mathsf{SCKA},\Pi}` is the guessing advantage of
+  {bpref "scka_security"}[] with the exposure functions of
+  {bpref "opp_unikem_cka_vulnerable_epochs"}[];
+* $`\operatorname{Adv}^{\mathsf{IND\text{-}CPA}}_{\mathsf{KEM},\Gamma}(\mathcal B)` is the
+  advantage of $`\mathcal B` against $`\Gamma` in the KEM IND-CPA security game;
+* $`\varepsilon` is the correctness error of $`\Gamma`.
 
-*Theorem.*
-
-$$`\boxed{\operatorname{Adv}^{\mathsf{guess}}_{\mathsf{SCKA},\Pi}(\mathcal A)
-\le \frac q2\operatorname{Adv}^{\mathsf{IND\text{-}CPA}}_{\mathsf{KEM}}(\mathcal B)
-+q\varepsilon.}`
-
-For a perfectly correct KEM, $`\varepsilon=0`.
-
-:::leanPillCaption "Security bound"
+:::leanPillCaption "security"
 :::
 
 ```anchor security (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Security)
@@ -794,17 +776,17 @@ theorem security
       (q / 2 : ℝ) * (kem.IND_CPA_Advantage ProbCompRuntime.probComp 𝓑).toReal + q * ε
 ```
 
-:::leanPillCaption "Send budget"
+:::leanPillCaption "SecuritySendQueryBound"
 :::
 
-```anchor securitySendQueryBound (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Security.Basic)
+```anchor SecuritySendQueryBound (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Security.Basic)
 def SecuritySendQueryBound {kem : KEMScheme ProbComp K PK SK C}
     {onoff : kem.OnOffStructure} {leak : kem.OnOffRandLeak onoff}
     (adv : SecurityAdversary leak Sym) (q : ℕ) : Prop :=
   adv.IsQueryBoundP (fun t => SCKAScheme.sckaSecuritySpec.isSendQuery t = true) q
 ```
 
-:::leanPillCaption "The IND-CPA adversary"
+:::leanPillCaption "The constructed KEM adversary $`\\mathcal B`"
 :::
 
 ```anchor securityReduction (project := ".") (module := SecureMessaging.SCKA.OppUniKEM.Security.Reduction.Simulator)

@@ -53,12 +53,12 @@ abbrev SecurityAdversary (Sym : Type) :=
     (SendRand leak.KeygenRand leak.OffRand leak.OnRand)
 
 /-- Every response path of `adv` makes at most `q` ordinary or leaking sends (`isSendQuery`). -/
--- ANCHOR: securitySendQueryBound
+-- ANCHOR: SecuritySendQueryBound
 def SecuritySendQueryBound {kem : KEMScheme ProbComp K PK SK C}
     {onoff : kem.OnOffStructure} {leak : kem.OnOffRandLeak onoff}
     (adv : SecurityAdversary leak Sym) (q : ℕ) : Prop :=
   adv.IsQueryBoundP (fun t => SCKAScheme.sckaSecuritySpec.isSendQuery t = true) q
--- ANCHOR_END: securitySendQueryBound
+-- ANCHOR_END: SecuritySendQueryBound
 
 section Marginals
 

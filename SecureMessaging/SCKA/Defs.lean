@@ -845,7 +845,6 @@ uniform bit.
 /-- The SCKA experiment with fixed bit `b`: initialize `scka`, answer eligible challenges
 with recorded keys if `b = false` and independent uniform keys if `b = true`, and return the
 adversary's guess. -/
--- ANCHOR: securityExpFixedBit
 def securityExpFixedBit [SampleableType I] [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (adversary : SCKAAdversary StA StB I Rho Rand)
@@ -857,17 +856,14 @@ def securityExpFixedBit [SampleableType I] [DecidableEq I]
   let (b', _) ← (simulateQ (sckaSecurityImpl b vulnA vulnB scka) adversary).run
     (initGameState stA stB)
   return b'
--- ANCHOR_END: securityExpFixedBit
 
 /-- Distinguishing advantage `|Pr[G_true = true] - Pr[G_false = true]|`. -/
--- ANCHOR: sckaDistAdvantage
 noncomputable def sckaDistAdvantage [SampleableType I] [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (adversary : SCKAAdversary StA StB I Rho Rand)
     (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand) : ℝ :=
   |(Pr{let x ← securityExpFixedBit scka adversary true vulnA vulnB}[x = true]).toReal -
    (Pr{let x ← securityExpFixedBit scka adversary false vulnA vulnB}[x = true]).toReal|
--- ANCHOR_END: sckaDistAdvantage
 
 /-- `Exp =ᵈ (b ←$ Bool; b' ← G_b; return (b = b'))`. -/
 private lemma securityExp_evalDistEq_branch [SampleableType I] [DecidableEq I]
@@ -901,14 +897,12 @@ lemma securityExp_toReal_sub_half [SampleableType I] [DecidableEq I]
     (securityExpFixedBit scka adversary false vulnA vulnB)
 
 /-- `sckaGuessAdvantage = sckaDistAdvantage / 2`. -/
--- ANCHOR: sckaAdvantageNormalization
 lemma sckaGuessAdvantage_eq_sckaDistAdvantage_div_two [SampleableType I] [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (adversary : SCKAAdversary StA StB I Rho Rand)
     (vulnA : VulnerableEpochs StA Rand) (vulnB : VulnerableEpochs StB Rand) :
     sckaGuessAdvantage scka adversary vulnA vulnB =
       sckaDistAdvantage scka adversary vulnA vulnB / 2
--- ANCHOR_END: sckaAdvantageNormalization
     := by
   simp only [sckaGuessAdvantage, sckaDistAdvantage]
   rw [securityExp_toReal_sub_half, abs_div]
