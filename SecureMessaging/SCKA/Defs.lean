@@ -288,8 +288,8 @@ abbrev sckaSecuritySpec (StA StB I Rho Rand : Type) :=
 
 namespace sckaSecuritySpec
 
-/-! Named indices for the queries used in the send bound. The state, key, message, and
-coin types affect only responses, so `Unit` gives the same query indices for every scheme. -/
+/-! Named indices for the security queries. The state, key, message, and coin types affect only
+responses, so `Unit` gives the same query indices for every scheme. -/
 
 /-- Embed a correctness-query index into the security oracle interface. -/
 @[match_pattern] abbrev OCorrectness (t : (sckaCorrectnessSpec Unit).Domain) :
@@ -303,6 +303,18 @@ coin types affect only responses, so `Unit` gives the same query indices for eve
 /-- Select B's randomness-leaking send. -/
 @[match_pattern] abbrev OSendBrleak : (sckaSecuritySpec Unit Unit Unit Unit Unit).Domain :=
   .inl (.inl (.inl (.inr ())))
+
+/-- Select the challenge oracle at epoch `t`. -/
+@[match_pattern] abbrev OChall (t : ℕ) : (sckaSecuritySpec Unit Unit Unit Unit Unit).Domain :=
+  .inl (.inl (.inr t))
+
+/-- Select A's corruption. -/
+@[match_pattern] abbrev OCorruptA : (sckaSecuritySpec Unit Unit Unit Unit Unit).Domain :=
+  .inl (.inr ())
+
+/-- Select B's corruption. -/
+@[match_pattern] abbrev OCorruptB : (sckaSecuritySpec Unit Unit Unit Unit Unit).Domain :=
+  .inr ()
 
 /-- `true` exactly on the four send queries: the ordinary sends of the correctness interface
 and the two randomness-leaking sends. -/

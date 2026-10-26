@@ -34,6 +34,7 @@ which the *pinned KEM* returns in its flagged phases (`Pinned.kem kemMat …`).
 -/
 
 open OracleSpec OracleComp KEMScheme
+open SCKAScheme.sckaSecuritySpec
 
 namespace oppUniKemCKA.Security.Embedding
 
@@ -264,29 +265,29 @@ def simOracle [DecidableEq K] [DecidableEq Sym] [SampleableType K]
       (simDet kem onoff selectedA selectedB pkStar ctStar key) ecEk ecCt0 ecCt1 simLeak
     match (motive := ∀ query,
         OptionT (StateT (SimState onoff Sym) ProbComp) ((securitySpec leak Sym).Range query)) t with
-    | .inl (.inl (.inl (.inl (.inl t)))) =>
+    | OCorrectness t =>
       liftM (SCKAScheme.sckaCorrectnessImpl scka t)
-    | .inl (.inl (.inl (.inl (.inr u)))) =>
+    | OSendArleak =>
       revealAfter (fun (out : ℕ × Option ℕ × Message Sym ×
           SendRand (Option leak.KeygenRand) (Option leak.OffRand) (Option leak.OnRand)) => do
         let (n, epoch, msg, coins) := out
         pure (n, epoch, msg, ← revealCoins coins))
-        (SCKAScheme.oracleSendArleak vulnRleakA scka u)
-    | .inl (.inl (.inl (.inr u))) =>
+        (SCKAScheme.oracleSendArleak vulnRleakA scka ())
+    | OSendBrleak =>
       revealAfter (fun (out : ℕ × Option ℕ × Message Sym ×
           SendRand (Option leak.KeygenRand) (Option leak.OffRand) (Option leak.OnRand)) => do
         let (n, epoch, msg, coins) := out
         pure (n, epoch, msg, ← revealCoins coins))
-        (SCKAScheme.oracleSendBrleak vulnRleakB scka u)
-    | .inl (.inl (.inr t)) => liftM (challenge (Sym := Sym) onoff e kStar t)
-    | .inl (.inr u) =>
+        (SCKAScheme.oracleSendBrleak vulnRleakB scka ())
+    | OChall t => liftM (challenge (Sym := Sym) onoff e kStar t)
+    | OCorruptA =>
       revealAfter (revealA (onoff := onoff) (Sym := Sym))
         (SCKAScheme.oracleCorruptA (vulnCorrA (Sym := Sym) simKem simOnOff)
-          (StateB PK onoff.C₀ onoff.C₁ (Option onoff.St) Sym) (Option K) (Message Sym) u)
-    | .inr u =>
+          (StateB PK onoff.C₀ onoff.C₁ (Option onoff.St) Sym) (Option K) (Message Sym) ())
+    | OCorruptB =>
       revealAfter (revealB (onoff := onoff) (Sym := Sym))
         (SCKAScheme.oracleCorruptB (vulnCorrB (Sym := Sym) simKem simOnOff)
-          (StateA (Option SK) PK onoff.C₀ Sym) (Option K) (Message Sym) u)
+          (StateA (Option SK) PK onoff.C₀ Sym) (Option K) (Message Sym) ())
 
 variable {kem} in
 /-- Initial simulator state: both parties start at epoch `1` with all optional local fields set to

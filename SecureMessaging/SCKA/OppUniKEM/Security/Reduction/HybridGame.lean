@@ -67,7 +67,7 @@ def usesChallengeKey
     (e : ℕ) (query : (SCKAScheme.sckaSecuritySpec Unit Unit Unit Unit Unit).Domain)
     (s : GameState onoff Sym) : Bool :=
   match query with
-  | .inl (.inl (.inr t)) => decide (t = e ∧ e ∉ s.exposed ∧ e ∉ s.challenged ∧
+  | OChall t => decide (t = e ∧ e ∉ s.exposed ∧ e ∉ s.challenged ∧
       ((s.keyA e).isSome ∨ (s.keyB e).isSome))
   | _ => false
 

@@ -11,37 +11,48 @@ import ToVCVio.OracleComp.QueryTracking.OneUseSampling
 /-!
 # Deferring the challenge-epoch samples
 
-**Setting.** Throughout this module, we consider a challenge epoch `e`, a mode bit `b`, an SCKA
-adversary `adv`, a KEM material `kemMat` (`Simulator`), and the stage games
-`stageStopped stage kemMat e b` (`HybridGame`), in which the sampling phases of epoch `e` selected
-by `stage` read their outputs from `kemMat` and the other phases sample at their protocol calls.
+**Setting.** Throughout this module, let
+- `adv` be an SCKA adversary against Opp-UniKEM;
+- `e : ℕ` be the challenge epoch and `b : Bool` a mode bit;
+- `kemMat` be a KEM material (`Simulator`): the outputs and coins of the three KEM sampling phases
+  of epoch `e`, namely key generation by A and offline and online encapsulation by B.
 
-**The deferral argument.** Before the first exposure of `e`, a run executes each sampling phase of
-epoch `e` at most once, so drawing its sample in advance or at that call gives the same acceptance
-probability (`stoppedRun_sample_once_eq`). For each phase, `hit` marks the queries that run the
-phase at `e`, and `used` the states in which it has run:
+**Stages.** At epoch `e`, a sampling phase is *pinned* if it returns its output from `kemMat`, and
+*fresh* if it samples at its protocol call. A stage (`Stage`, `Game`) selects the pinned phases:
+- `.pinned`: all three phases;
+- `.onlineFresh`: key generation and offline encapsulation;
+- `.encapsFresh`: key generation;
+- `.fresh`: none.
 
-| phase                 | `hit`           | `used`                |
-| --------------------- | --------------- | --------------------- |
-| online encapsulation  | `usesOnline e`  | `(s.keyB e).isSome`   |
-| offline encapsulation | `usesOffline e` | `offlineUsed e s.stB` |
-| key generation        | `usesKeygen e`  | `keygenUsed e s.stA`  |
+**Stage games.** The *stage game* `stageStopped stage kemMat e b` (`HybridGame`) is the SCKA
+security game over Opp-UniKEM in which:
+- the phases selected by `stage` are pinned, and the others are fresh;
+- a challenge at epoch `t` receives a uniform key if `0 < t ≤ (if b then e else e - 1)`, and the
+  recorded key otherwise (challenge mode `adjacentMode e b`, `IdealHybrids`);
+- a run returns `false` at the first query that exposes `e`.
 
-The online sample depends on the pinned public key and offline state, so its deferral holds from
-states satisfying `reachableInv ∧ consistentMat kemMat e` (`Game`); the other two hold from every
-state.
+The `.pinned` stage game is the *pinned hybrid*.
 
-**Main results.** Deferring the online sample, the offline sample, and the key pair in turn leads
-from `.pinned` through `.onlineFresh` and `.encapsFresh` to `.fresh` and preserves the acceptance
-probability (`stageStopped_online_deferred`, `stageStopped_offline_deferred`,
-`stageStopped_keygen_deferred`). Hence the pinned hybrid
-`kemMat ← sampleMaterial leak; stageStopped .pinned kemMat e b` has the acceptance probability of
-the ideal game `idealSecurityImpl (adjacentMode e b)` (`Endpoints`) stopped at the first exposure
-of `e` (`pinnedHybrid_eq_ideal`), and for `e > 0` so does `fixedBranch adv e (!b)` (`Simulator`)
-(`fixedBranch_eq_ideal`).
+**Deferral.** Before the first exposure of `e`, a run executes each sampling phase of epoch `e` at
+most once, so drawing its sample in advance or at that call yields the same acceptance probability
+(`stoppedRun_sample_once_eq`, applied with `hit` the queries that run the phase at `e` and `used`
+the states in which it has run). For online encapsulation, this holds from states satisfying
+`reachableInv ∧ consistentMat kemMat e` (`Game`); for the other two phases, from every state.
+
+**Main results.** Let `Pr[stage]` be the probability that `adv` accepts in the stage game with
+`kemMat ← sampleMaterial`, `I` the ideal game `idealSecurityImpl (adjacentMode e b)` (`Endpoints`)
+stopped at the first exposure of `e`, and `fixedBranch adv e (!b)` the reduction's fixed branch
+(`Simulator`). Then
+
+```text
+Pr[.pinned] = Pr[.onlineFresh] = Pr[.encapsFresh] = Pr[.fresh]   (the three deferrals)
+  = Pr[adv accepts in I]                                         (pinnedHybrid_eq_ideal)
+  = Pr[fixedBranch adv e (!b) = true]          for e > 0         (fixedBranch_eq_ideal)
+```
 -/
 
 open OracleSpec OracleComp KEMScheme
+open SCKAScheme.sckaSecuritySpec SCKAScheme.sckaCorrectnessSpec
 
 namespace oppUniKemCKA.Security.Embedding
 
@@ -56,24 +67,21 @@ variable (leak : kem.OnOffRandLeak onoff)
 /-! ## Online encapsulation: from `.pinned` to `.onlineFresh` -/
 
 variable {kem onoff} in
-/-- B's next send runs online encapsulation: A has acknowledged B's offline ciphertext
-(`ack.ctRec`), B holds A's public key (`ekA`) and no online ciphertext (`ct1`), and B holds its
-offline state (`stCt`) unless this send also runs offline encapsulation (`ct0` absent). -/
+/-- Predicate on B's state `stB` stating that B's next send runs online encapsulation (`sendB`). -/
 abbrev onlineReady
     (stB : StB onoff Sym) : Prop :=
   stB.ack.ctRec = true ∧ stB.ekA.isSome ∧ stB.ct1.isNone ∧
     (stB.ct0.isNone ∨ stB.stCt.isSome)
 
 variable {kem onoff leak} in
-/-- `hit` of the online deferral: query `t` in state `s` runs B's online encapsulation of epoch
-`e`, that is, B is at `e` and `onlineReady`, and `t` is B's ordinary send, or B's leaking send
-while `e ∉ s.challenged`. -/
+/-- Predicate on a query `t` and a game state `s` stating that `t` runs B's online encapsulation of
+epoch `e` from `s` (`hit` of the online deferral). -/
 def usesOnline (e : ℕ) (t : (securitySpec leak Sym).Domain)
     (s : GameState onoff Sym) : Bool :=
   match t with
-  | .inl (.inl (.inl (.inl (.inl (.inl (.inl (.inr ()))))))) =>
+  | OCorrectness OSendB =>
     decide (s.stB.t = e ∧ onlineReady s.stB)
-  | .inl (.inl (.inl (.inr ()))) =>
+  | OSendBrleak =>
     decide ((s.stB.t = e ∧ onlineReady s.stB) ∧ e ∉ s.challenged)
   | _ => false
 
@@ -216,9 +224,8 @@ theorem sendB_online_independent
   rw [scheme_sendB_eq_map_sendBrleak, scheme_sendB_eq_map_sendBrleak,
     sendBrleak_online_independent kem onoff ecEk ecCt0 ecCt1 leak kemMat e s hh online online']
 
-/-- A leaking send that would run B's online encapsulation of a challenged epoch is rejected: if B
-is at `e` with `onlineReady` and `e ∈ s.challenged`, B's leaking-send oracle of
-`stageScheme .pinned kemMat e s` from `s` is the computation `pure (none, s)`. -/
+/-- If B is at `e` with `onlineReady` and `e ∈ s.challenged`, B's leaking-send oracle of
+`stageScheme .pinned kemMat e s` rejects from `s`: it is the computation `pure (none, s)`. -/
 theorem leaking_online_rejected [DecidableEq K]
     (kemMat : KEMMaterial leak) (e : ℕ)
     (s : GameState onoff Sym)
@@ -284,11 +291,9 @@ theorem stageOracle_online_independent
 
 end
 
-/-- Averaging of the online sample for B's leaking send: in a state satisfying `reachableInv` and
-`consistentMat kemMat e`, drawing `o ← leak.encapsOnRleak kemMat.st kemMat.pk` before the send of
-the pinned instance with online sample `o` gives the output distribution of the send of the
-`onlineFresh` instance, which draws it itself; the invariants ensure that B encapsulates to
-`kemMat.pk` from the offline state `kemMat.st`. -/
+/-- Averaging of the online sample for B's leaking send: from a state satisfying `reachableInv` and
+`consistentMat kemMat e`, pinning `o ← leak.encapsOnRleak kemMat.st kemMat.pk` (stage `.pinned`)
+gives the output distribution of fresh online encapsulation (stage `.onlineFresh`). -/
 theorem sendBrleak_sample_online_eq_fresh [DecidableEq Sym]
     (kemMat : KEMMaterial leak) (e : ℕ)
     (s : GameState onoff Sym)
@@ -337,10 +342,9 @@ section
 
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- Averaging of the online sample: from a state satisfying `reachableInv` and
-`consistentMat kemMat e`, drawing `o ← leak.encapsOnRleak kemMat.st kemMat.pk` before any query of
-the pinned stage oracle with online sample `o` gives the response/successor distribution of the
-query of the `onlineFresh` stage oracle. -/
+/-- Averaging of the online sample for every query: from a state satisfying `reachableInv` and
+`consistentMat kemMat e`, pinning `o ← leak.encapsOnRleak kemMat.st kemMat.pk` (stage `.pinned`)
+gives the response/successor distribution of fresh online encapsulation (stage `.onlineFresh`). -/
 theorem stageOracle_sample_online_eq_fresh
     (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool)
     (t : (securitySpec leak Sym).Domain)
@@ -413,20 +417,19 @@ end
 section
 
 variable {kem onoff} in
-/-- `used` of the offline deferral at epoch `e`: B has passed `e`, or is at `e` holding its offline
-ciphertext `ct0`. -/
+/-- Predicate on B's state `stB` stating that B has run its offline encapsulation of epoch `e`
+(`used` of the offline deferral). -/
 def offlineUsed (e : ℕ) (stB : StB onoff Sym) : Prop :=
   e < stB.t ∨ (stB.t = e ∧ stB.ct0.isSome)
 
 variable {kem onoff leak} in
-/-- `hit` of the offline deferral at epoch `e`: query `t` in state `s` runs B's offline
-encapsulation of `e`, that is, B is at `e` without `ct0`, and `t` is B's ordinary send, or its
-leaking send while `e ∉ s.challenged`. -/
+/-- Predicate on a query `t` and a game state `s` stating that `t` runs B's offline encapsulation
+of epoch `e` from `s` (`hit` of the offline deferral). -/
 def usesOffline (e : ℕ) (t : (securitySpec leak Sym).Domain) (s : GameState onoff Sym) : Bool :=
   match t with
-  | .inl (.inl (.inl (.inl (.inl (.inl (.inl (.inr ()))))))) =>
+  | OCorrectness OSendB =>
     decide (s.stB.t = e ∧ s.stB.ct0.isNone)
-  | .inl (.inl (.inl (.inr ()))) =>
+  | OSendBrleak =>
     decide ((s.stB.t = e ∧ s.stB.ct0.isNone) ∧ e ∉ s.challenged)
   | _ => false
 
@@ -521,10 +524,8 @@ theorem oracleSendB_installs_offline
         StateT.run_pure, mem_support_pure_iff] at hres
     all_goals obtain rfl := hres; exact Or.inr ⟨hshape.1.trans he, hshape.2⟩
 
-/-- A leaking send that runs B's offline encapsulation of an unchallenged epoch `e` is accepted,
-and its leaked coins expose `e`: if B is at `e` without `ct0` and `e ∉ s.challenged`, B's
-leaking-send oracle of `stageScheme stage kemMat e s` from `s`, stopped at the exposure of `e`,
-answers `none` on every path. -/
+/-- If B is at `e` without `ct0` and `e ∉ s.challenged`, B's leaking-send oracle of
+`stageScheme stage kemMat e s`, stopped at the first exposure of `e`, answers `none` from `s`. -/
 theorem leaking_offline_stops
     (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ)
     (s : GameState onoff Sym)
@@ -625,10 +626,8 @@ theorem sendB_offline_independent
 
 variable [DecidableEq K]
 
-/-- A leaking send that would run B's offline encapsulation of a challenged epoch is rejected: in
-every stage, if B is at `e` without `ct0` and `e ∈ s.challenged`, B's leaking-send oracle of
-`stageScheme stage kemMat e s` from `s` has the distribution of `pure (none, s)` (in distribution
-only, since a fresh phase samples before the rejection). -/
+/-- If B is at `e` without `ct0` and `e ∈ s.challenged`, B's leaking-send oracle of
+`stageScheme stage kemMat e s` rejects from `s`: it has the distribution of `pure (none, s)`. -/
 theorem leaking_offline_rejected
     (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ)
     (s : GameState onoff Sym)
@@ -696,9 +695,9 @@ theorem stageOracle_offline_independent
 
 end
 
-/-- Averaging of the offline sample for B's leaking send: drawing `off ← leak.encapsOffRleak`
-before the send of the `onlineFresh` instance with offline sample `off` gives the output
-distribution of the send of the `encapsFresh` instance, which draws it itself. -/
+/-- Averaging of the offline sample for B's leaking send: pinning `off ← leak.encapsOffRleak`
+(stage `.onlineFresh`) gives the output distribution of fresh offline encapsulation (stage
+`.encapsFresh`). -/
 theorem sendBrleak_sample_offline_eq_fresh [DecidableEq Sym]
     (kemMat : KEMMaterial leak) (e : ℕ)
     (s : GameState onoff Sym) :
@@ -736,9 +735,9 @@ section
 
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- Averaging of the offline sample: from every state, drawing `off ← leak.encapsOffRleak` before
-any query of the `onlineFresh` stage oracle with offline sample `off` gives the response/successor
-distribution of the query of the `encapsFresh` stage oracle. -/
+/-- Averaging of the offline sample for every query: pinning `off ← leak.encapsOffRleak` (stage
+`.onlineFresh`) gives the response/successor distribution of fresh offline encapsulation (stage
+`.encapsFresh`). -/
 theorem stageOracle_sample_offline_eq_fresh
     (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool)
     (t : (securitySpec leak Sym).Domain)
@@ -805,20 +804,19 @@ end
 section
 
 variable {kem onoff} in
-/-- `used` of the key-generation deferral at epoch `e`: A has passed `e`, or is at `e` holding its
-decapsulation key `dkA`. -/
+/-- Predicate on A's state `stA` stating that A has run its key generation of epoch `e` (`used` of
+the key-generation deferral). -/
 def keygenUsed (e : ℕ) (stA : StA onoff Sym) : Prop :=
   e < stA.t ∨ (stA.t = e ∧ stA.dkA.isSome)
 
 variable {kem onoff leak} in
-/-- `hit` of the key-generation deferral at epoch `e`: query `t` in state `s` runs A's key
-generation of `e`, that is, A is at `e` without `dkA`, and `t` is A's ordinary send, or its leaking
-send while `e ∉ s.challenged`. -/
+/-- Predicate on a query `t` and a game state `s` stating that `t` runs A's key generation of epoch
+`e` from `s` (`hit` of the key-generation deferral). -/
 def usesKeygen (e : ℕ) (t : (securitySpec leak Sym).Domain) (s : GameState onoff Sym) : Bool :=
   match t with
-  | .inl (.inl (.inl (.inl (.inl (.inl (.inl (.inl (.inr ())))))))) =>
+  | OCorrectness OSendA =>
     decide (s.stA.t = e ∧ s.stA.dkA.isNone)
-  | .inl (.inl (.inl (.inl (.inr ())))) =>
+  | OSendArleak =>
     decide ((s.stA.t = e ∧ s.stA.dkA.isNone) ∧ e ∉ s.challenged)
   | _ => false
 
@@ -911,10 +909,8 @@ theorem oracleSendA_installs_keygen
         StateT.run_pure, mem_support_pure_iff] at hres
     all_goals obtain rfl := hres; exact Or.inr ⟨hshape.1.trans he, hshape.2⟩
 
-/-- A leaking send that runs A's key generation of an unchallenged epoch `e` is accepted, and its
-leaked coins expose `e`: if A is at `e` without `dkA` and `e ∉ s.challenged`, A's leaking-send
-oracle of `stageScheme stage kemMat e s` from `s`, stopped at the exposure of `e`, answers `none`
-on every path. -/
+/-- If A is at `e` without `dkA` and `e ∉ s.challenged`, A's leaking-send oracle of
+`stageScheme stage kemMat e s`, stopped at the first exposure of `e`, answers `none` from `s`. -/
 theorem leaking_keygen_stops
     (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ)
     (s : GameState onoff Sym)
@@ -972,9 +968,8 @@ end
 
 section
 
-/-- Averaging of the key pair for A's leaking send: drawing `kg ← leak.keygenRleak` before the send
-of the `encapsFresh` instance with key pair `kg` gives the output distribution of the send of the
-`fresh` instance, which draws it itself. -/
+/-- Averaging of the key pair for A's leaking send: pinning `kg ← leak.keygenRleak` (stage
+`.encapsFresh`) gives the output distribution of fresh key generation (stage `.fresh`). -/
 theorem sendArleak_sample_keygen_eq_fresh [DecidableEq Sym]
     (kemMat : KEMMaterial leak) (e : ℕ)
     (s : GameState onoff Sym) :
@@ -1035,9 +1030,9 @@ theorem sendB_encapsFresh_eq_fresh [DecidableEq Sym]
 
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- Averaging of the key pair: from every state, drawing `kg ← leak.keygenRleak` before any query
-of the `encapsFresh` stage oracle with key pair `kg` gives the response/successor distribution of
-the query of the `fresh` stage oracle. -/
+/-- Averaging of the key pair for every query: pinning `kg ← leak.keygenRleak` (stage
+`.encapsFresh`) gives the response/successor distribution of fresh key generation (stage
+`.fresh`). -/
 theorem stageOracle_sample_keygen_eq_fresh
     (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool)
     (t : (securitySpec leak Sym).Domain)
