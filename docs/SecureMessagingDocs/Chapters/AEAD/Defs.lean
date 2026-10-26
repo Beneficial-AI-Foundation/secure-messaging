@@ -76,7 +76,8 @@ $`(a^*, e^*)`: the associated data and the ciphertext returned by $`\Oenc`. Befo
 first $`\Oenc` call, $`(a^*, e^*) = (\bot, \bot)`.
 
 In the oracles, $`\req\varphi` means: if $`\varphi` is false, the oracle returns
-$`\bot` and the game state does not change.
+$`\bot` and the game state does not change. $`|e|` is the length of $`e` given by
+`LenSampleable`. Only equality of lengths matters.
 :::::
 
 :::::gameCell "\\textsf{Correction}" (kind := "scheme-notation")
@@ -96,11 +97,14 @@ contradicts their Theorem 5. We correct this, marked by boxes in pseudocode:
 In {Informal.citet ACD19}[], Figure 1, $`\Oenc` with $`b = 1` samples $`e^*` from the whole
 ciphertext space $`\mathcal C`. We sample $`e^*` uniformly among the ciphertexts of the same
 length as $`\Enc(K, a, m)`, as the $`\$` oracle of {Informal.citet NRS14}[], Figure 4, does
-(boxed in $`\Oenc`). When messages have variable length, $`\mathcal C` has no uniform
-distribution, and every variable-length scheme fails the game of Figure 1 through the
-ciphertext length alone. For ciphertexts of one length, the two games are the same. The FS-AEAD
-game of {Informal.citet ACD19}[], Figure 5, requires $`|m_0| = |m_1|`, so their Theorem 5 needs
-only this weaker notion.
+(boxed in $`\Oenc`). If $`\mathcal C` is infinite, Figure 1 is not defined. If $`\mathcal C`
+is finite with several lengths, the length of $`e^*` alone can tell the two branches apart. For
+ciphertexts of one length, the two games are the same.
+
+The new game leaks $`|\Enc(K, a, m)|`. If this length depends only on $`|m|` (`LengthRegular`),
+the new game suffices for Theorem 5 of {Informal.citet ACD19}[]: the FS-AEAD game of their
+Figure 5 requires $`|m_0| = |m_1|`, so the random challenge ciphertext does not depend on
+$`b`.
 :::::
 ::::::
 
