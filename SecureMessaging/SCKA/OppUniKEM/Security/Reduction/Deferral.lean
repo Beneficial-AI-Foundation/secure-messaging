@@ -19,16 +19,17 @@ import ToVCVio.OracleComp.QueryTracking.OneUseSampling
 - `kemMat` be a KEM material (`Simulator`): the outputs and coins of the three KEM sampling phases
   of epoch `e`, namely key generation by A and offline and online encapsulation by B.
 
-**Stages.** At epoch `e`, a sampling phase is *pinned* if it returns its output from `kemMat`, and
-*fresh* if it samples at its protocol call. A stage (`Stage`, `Game`) selects the pinned phases:
-- `.pinned`: all three phases;
-- `.onlineFresh`: key generation and offline encapsulation;
-- `.encapsFresh`: key generation;
-- `.fresh`: none.
+**Stages.** A sampling phase of epoch `e` is *pinned* if it uses the sample recorded in `kemMat`,
+and *fresh* if its output is freshly sampled at its protocol call.
+The stages (`Stage`, `Game`) are:
+- `.pinned`: all three phases are pinned;
+- `.onlineFresh`: only online encapsulation is fresh;
+- `.encapsFresh`: only offline and online encapsulation are fresh;
+- `.fresh`: all three phases are fresh.
 
 **Stage games.** The *stage game* `stageStopped stage kemMat e b` (`HybridGame`) is the SCKA
 security game over Opp-UniKEM in which:
-- the phases selected by `stage` are pinned, and the others are fresh;
+- the phases of epoch `e` are pinned or fresh as specified by `stage`;
 - a challenge at epoch `t` receives a uniform key if `0 < t ≤ (if b then e else e - 1)`, and the
   recorded key otherwise (challenge mode `adjacentMode e b`, `IdealHybrids`);
 - a run returns `false` at the first query that exposes `e`.
