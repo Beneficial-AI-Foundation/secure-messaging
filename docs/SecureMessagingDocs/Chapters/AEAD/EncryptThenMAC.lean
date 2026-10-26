@@ -46,7 +46,7 @@ Encrypt-then-MAC.
 :::defTitle "aead_etm_det_se" "Deterministic symmetric encryption"
 :::
 
-:::::::definition "aead_etm_det_se" (parent := "aead_encrypt_then_mac") (lean := "DetSEAlg, DetSEAlg.Correct, DetSEAlg.oracleEncrypt, DetSEAlg.securityExpFixedBit, DetSEAlg.distAdvantage")
+:::::::definition "aead_etm_det_se" (parent := "aead_encrypt_then_mac") (lean := "DetSEAlg, DetSEAlg.Correct, DetSEAlg.LengthRegular, DetSEAlg.oracleEncrypt, DetSEAlg.securityExpFixedBit, DetSEAlg.distAdvantage")
 Adapted from {Informal.citet Ros26}[], Definition 5.3.2, where the adversary makes any number
 of encryption queries, each under a fresh key. The game we formalize answers one query.
 
@@ -60,10 +60,13 @@ message space $`\mathcal M` and ciphertext space $`\mathcal C`, where
 - $`\mathsf{SE.Dec}` takes a key $`K` and a ciphertext $`c`, and produces a message
   $`m \gets \mathsf{SE.Dec}(K, c)`, or $`\bot`.
 
-$`\mathsf{SE.Enc}` and $`\mathsf{SE.Dec}` are deterministic, and $`\mathcal C` is finite
-and nonempty, so that the game below can sample from it uniformly. $`\mathsf{SE}` is correct
-if $`\mathsf{SE.Dec}(K, \mathsf{SE.Enc}(K, m)) = m` for all keys $`K` and messages
-$`m`.
+$`\mathsf{SE.Enc}` and $`\mathsf{SE.Dec}` are deterministic. Each ciphertext $`c` has a
+length $`|c|`, and the ciphertexts of each length form a finite nonempty set, so that the game
+below can sample from it uniformly. $`\mathsf{SE}` is correct if
+$`\mathsf{SE.Dec}(K, \mathsf{SE.Enc}(K, m)) = m` for all keys $`K` and messages $`m`. Let
+$`|m|` denote a fixed length function on messages ($`\mathit{lenM}` in Lean). $`\mathsf{SE}`
+is length-regular if $`|m| = |m'|` implies $`|\mathsf{SE.Enc}(K, m)| = |\mathsf{SE.Enc}(K', m')|`
+for all keys $`K, K'`.
 
 :::leanPillCaption "deterministic symmetric encryption scheme"
 :::
@@ -86,11 +89,20 @@ def Correct (se : DetSEAlg K M C) : Prop :=
   ∀ (k : K) (m : M), se.decrypt k (se.encrypt k m) = some m
 ```
 
+:::leanPillCaption "length regularity"
+:::
+
+```anchor DetSEAlgLengthRegular (project := ".") (module := SecureMessaging.SymEnc.Defs)
+def LengthRegular [LenSampleable C] (lenM : M → ℕ) (se : DetSEAlg K M C) : Prop :=
+  ∀ (k k' : K) (m m' : M), lenM m = lenM m' →
+    LenSampleable.len (se.encrypt k m) = LenSampleable.len (se.encrypt k' m')
+```
+
 ::::::gameGrid
 :::::gameCell "\\textsf{Game state and notation}" (kind := "scheme-notation")
 The game state consists of the key $`K`, the challenge bit $`b` and the flag
 $`\mathsf{used}`, which records whether $`\Oenc` already answered. For $`b = 0`, $`\Oenc`
-encrypts. For $`b = 1`, it returns a uniformly random ciphertext.
+encrypts. For $`b = 1`, it returns a uniformly random ciphertext of the same length.
 
 The bit $`b \in \bit` is a fixed parameter of the experiment
 $`\Exp{\textsf{ind\$}\text{-}b}{\textsf{SE}}`, not a sampled bit. The experiment returns
@@ -110,7 +122,7 @@ $`\begin{array}{l}
 \pif\;b = 0\;\pthen \\
 \quad c \gets \mathsf{SE.Enc}(K, m); \\
 \pelse \\
-\quad c \sample \mathcal C; \\
+\quad c \sample \{c' \in \mathcal C : |c'| = |\mathsf{SE.Enc}(K, m)|\}; \\
 \Return c
 \end{array}`
 
@@ -118,14 +130,14 @@ $`\begin{array}{l}
 :::
 
 ```anchor detSEOracleEncrypt (project := ".") (module := SecureMessaging.SymEnc.Defs)
-def oracleEncrypt [SampleableType C] (se : DetSEAlg K M C) (b : Bool) (k : K) :
+def oracleEncrypt [LenSampleable C] (se : DetSEAlg K M C) (b : Bool) (k : K) :
     QueryImpl (M →ₒ Option C) (StateT Bool ProbComp) :=
   fun m => do
     if (← get) then pure none
     else do
       set true
       let c ← if b
-        then liftM ($ᵗ C : ProbComp C)
+        then liftM (LenSampleable.unifSameLen (se.encrypt k m))
         else pure (se.encrypt k m)
       return some c
 ```
@@ -143,7 +155,7 @@ b' \gets \adv^{\Oenc}; \\
 :::
 
 ```anchor detSESecurityExpFixedBit (project := ".") (module := SecureMessaging.SymEnc.Defs)
-def securityExpFixedBit [SampleableType C] (se : DetSEAlg K M C)
+def securityExpFixedBit [LenSampleable C] (se : DetSEAlg K M C)
     (adversary : IndCPAAdversary M C) (b : Bool) : ProbComp Bool := do
   let k ← se.keygen
   let (b', _) ← (simulateQ (indCPAImpl se b k) adversary).run false
@@ -162,7 +174,7 @@ $$`\mathsf{Adv}^{\textsf{ind\$}}_{\textsf{SE}}(\adv)
 :::
 
 ```anchor detSEDistAdvantage (project := ".") (module := SecureMessaging.SymEnc.Defs)
-noncomputable def distAdvantage [SampleableType C] (se : DetSEAlg K M C)
+noncomputable def distAdvantage [LenSampleable C] (se : DetSEAlg K M C)
     (adversary : IndCPAAdversary M C) : ℝ :=
   |(Pr{let x ← securityExpFixedBit se adversary true}[x = true]).toReal -
    (Pr{let x ← securityExpFixedBit se adversary false}[x = true]).toReal|
@@ -195,13 +207,13 @@ the line $`C_0 \gets \mathit{iv}` replaces this: $`\mathsf{SE.Enc}` does not sam
 $`C_0`, and $`\mathsf{SE.Dec}` does not read it from the ciphertext.
 
 Let $`\mathsf{AES}_k` be AES-256 under the key $`k \in \{0,1\}^{256}`, a permutation of
-$`\{0,1\}^{128}`, and let $`\mathsf{Pad}` be PKCS#7 padding to a multiple of 16 bytes. Fix a
-bound $`L` on the message length in bytes, so that $`\mathcal C` is finite. AES-CBC is the
-deterministic symmetric encryption scheme with
+$`\{0,1\}^{128}`, and let $`\mathsf{Pad}` be PKCS#7 padding to a multiple of 16 bytes.
+AES-CBC is the deterministic symmetric encryption scheme with
 
 - $`\mathcal K = \{0,1\}^{256} \times \{0,1\}^{128}`,
-- $`\mathcal M` the byte strings of at most $`L` bytes,
-- $`\mathcal C = \bigcup_{\ell = 1}^{\lfloor L / 16 \rfloor + 1} \{0,1\}^{128 \ell}`,
+- $`\mathcal M` the byte strings,
+- $`\mathcal C = \bigcup_{\ell \ge 1} \{0,1\}^{128 \ell}`, where the length of a ciphertext is
+  its number of bits,
 
 where $`\mathsf{SE.KeyGen}` samples $`(k, \mathit{iv}) \sample \mathcal K`, and
 
@@ -226,17 +238,22 @@ C_0 \gets \mathit{iv}; \\
 Here $`M_i` and $`C_i` are 128-bit blocks, and $`\mathsf{Pad}^{-1}` returns $`\bot` if the
 padding is invalid.
 
-The ciphertext of an $`|m|`-byte message has $`\lfloor |m| / 16 \rfloor + 1` blocks, so its
-length depends on $`|m|`. If $`L \ge 16`, then $`\mathcal C` contains strings of one block
-and strings of two or more blocks, and the length of the answer of $`\Oenc` tells the real
-game from the random one. Precisely, let $`L \ge 16`, and let $`\adv` be the adversary that
-queries $`\Oenc` on the empty message and outputs $`1` if and only if the answer $`c` has
-more than one block. Then
+Let $`|m|` be the length of $`m` in bytes. Then $`m` becomes
+$`\ell = \lfloor |m| / 16 \rfloor + 1` blocks, so the ciphertext has $`128\ell` bits. Its
+length depends only on $`|m|`, so the scheme is length-regular. For $`b = 1`, $`\Oenc` returns
+a uniformly random string of $`128\ell` bits, the same length as the real ciphertext. The
+length depends only on $`|m|`, which the adversary chose, so it is the same for $`b = 0` and
+$`b = 1`.
 
-$$`\mathsf{Adv}^{\textsf{ind\$}}_{\textsf{AES-CBC}}(\adv)
-  = 1 - \frac{2^{128}}{|\mathcal C|} \ge 1 - 2^{-128}`
-
-So AES-CBC is not secure in the sense of the one-time IND$-CPA game above.
+For $`\ell = 1`, let $`P` be the padded block. The map
+$`\mathit{iv} \mapsto \mathsf{AES}_k(P \oplus \mathit{iv})` is a bijection for every key $`k`,
+so a uniform $`\mathit{iv}` gives an exactly uniform ciphertext. For two or more blocks, the
+ciphertext need not be exactly uniform, because AES under $`k` is a fixed permutation and not
+a uniform random function. For $`k` and $`\mathit{iv}` sampled uniformly, the standard CBC
+analysis bounds the advantage by the PRP advantage of AES plus a collision term of order
+$`\ell^2 / 2^{128}`. For the pair that libsignal derives, add the advantage of distinguishing
+the derivation from uniform. This repository does not prove these bounds and does not
+instantiate AES-CBC in Lean.
 :::::
 ::::::
 :::::::
@@ -257,7 +274,7 @@ $`\mathcal K_e \times \mathcal K_m`, ciphertext space $`\mathcal C_e \times \mat
 the algorithms below.
 
 The tag function $`F` must be a PRF (encrypt-then-PRF), not only a MAC, because the
-security game compares $`(c, t)` with a uniformly random ciphertext.
+security game compares $`(c, t)` with a uniformly random ciphertext of the same length.
 
 ::::::gameGrid
 :::::gameCell "\\mathsf{KeyGen}()" (kind := "compact")
