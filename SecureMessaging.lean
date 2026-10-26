@@ -111,6 +111,7 @@ import SecureMessaging.SCKA.OppBiKEM.Security.Hybrid
 import SecureMessaging.SCKA.OppBiKEM.Security.Cancellation
 import SecureMessaging.SCKA.OppBiKEM.Security.Reduction
 import SecureMessaging.SCKA.OppBiKEM.Security.Injected
+import SecureMessaging.SCKA.OppBiKEM.Security.Eager
 import SecureMessaging.SCKA.OppUniKEM.Correctness
 import SecureMessaging.SCKA.OppUniKEM.Security.Endpoints
 import SecureMessaging.SymEnc.Defs

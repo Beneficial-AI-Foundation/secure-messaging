@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Opp-BiKEM security M8 stage C: why drawing the target epoch's key pair, encapsulation and random challenge key in advance does not change the stopped hybrid's acceptance probability, how the one-use sampling theorem is applied three times, and what stage D consumes.">
+<title>Drawn in Advance</title>
+<style>
+:root{--bg:#f6f4f8;--panel:#fff;--ink:#24202b;--muted:#62596d;--line:#ddd5e6;--accent:#63328a;--soft:#eee5f6;--good:#256347;--good-bg:#e3f1e9;--amber:#79520b;--amber-bg:#fbf0d9;--bad:#8a2d2d;--bad-bg:#f6e1e1;--code:#f0edf4;--serif:"Iowan Old Style",Palatino,Georgia,serif;--sans:system-ui,-apple-system,"Segoe UI",sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color-scheme:light}
+@media(prefers-color-scheme:dark){:root{--bg:#17141e;--panel:#211c2b;--ink:#eee9f4;--muted:#b5aac5;--line:#3e344d;--accent:#c5a0e7;--soft:#30233f;--good:#9bd7b2;--good-bg:#20362a;--amber:#f0ca83;--amber-bg:#3c2e17;--bad:#f0a0a0;--bad-bg:#3d2222;--code:#2c2436;color-scheme:dark}}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.7 var(--sans);padding-inline:max(20px,env(safe-area-inset-left)) max(20px,env(safe-area-inset-right))}a{color:var(--accent);text-underline-offset:3px}a:hover{text-decoration-thickness:2px}a:focus-visible,input:focus-visible,button:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:4px}button,a,summary{touch-action:manipulation}.wrap{max-width:1160px;margin:auto}
+.hero{padding:58px 0 36px;max-width:950px}.eyebrow,.num{color:var(--accent);font-size:12px;letter-spacing:1.6px;text-transform:uppercase;font-weight:700}.eyebrow{margin-bottom:16px}h1,h2{font-family:var(--serif);font-weight:500;line-height:1.15;text-wrap:balance}h1{font-size:clamp(38px,5.5vw,68px);margin:0 0 22px;letter-spacing:-1px}h2{font-size:clamp(28px,3.5vw,38px);margin:9px 0 20px}h3{font-family:var(--serif);font-weight:500;font-size:22px;margin:28px 0 12px}p{margin:0 0 18px;max-width:70ch}.lead{font-size:21px;line-height:1.6}.meta,.caption{font-size:14px;color:var(--muted)}.breadcrumbs{display:flex;flex-wrap:wrap;gap:8px 22px;font-size:14px;margin-top:22px}
+.layout{display:grid;grid-template-columns:212px minmax(0,1fr);gap:48px}.rail{position:sticky;top:24px;align-self:start;font-size:14px}.rail p{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:12px}.rail a{display:block;color:var(--muted);text-decoration:none;padding:5px 0}.rail a:hover{color:var(--accent)}main{min-width:0}section{padding:40px 0;border-top:1px solid var(--line)}section:first-child{padding-top:10px;border-top:0}
+code{font:0.85em var(--mono);background:var(--code);padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}pre{font:14px/1.65 var(--mono);padding:18px;background:var(--code);border:1px solid var(--line);border-radius:10px;overflow-x:auto;margin:20px 0}pre code{font:inherit;padding:0;background:none;overflow-wrap:normal}.formula{font:22px/1.65 var(--serif);padding:20px 24px;border:1px solid var(--line);border-radius:10px;background:var(--panel);margin:22px 0;overflow-x:auto}.formula small{display:block;font:14px/1.6 var(--sans);color:var(--muted);margin-top:8px}.formula.proved{border-left:4px solid var(--good)}.formula.planned{border-left:4px solid var(--amber)}.note{background:var(--soft);border-left:4px solid var(--accent);padding:16px 20px;border-radius:0 9px 9px 0;margin:22px 0}.note p:last-child{margin-bottom:0}.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:22px 0}.card{padding:18px;border:1px solid var(--line);border-radius:10px;background:var(--panel);min-width:0}.label{display:block;color:var(--accent);font-size:13px;margin-bottom:8px}.card p{font-size:15px}.card p:last-child{margin-bottom:0}.badge{display:inline-block;border-radius:5px;padding:3px 7px;font-size:12px;line-height:1.5;white-space:nowrap}.badge.done{color:var(--good);background:var(--good-bg)}.badge.next{color:var(--amber);background:var(--amber-bg)}.badge.stop{color:var(--bad);background:var(--bad-bg)}
+.table-wrap{max-width:100%;overflow-x:auto;margin:20px 0}table{border-collapse:collapse;width:100%;font-size:14.5px;line-height:1.6}th,td{padding:12px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{font-size:12px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase}caption{text-align:left;font-size:14px;color:var(--muted);padding-bottom:12px}.steps{padding-left:24px}.steps li{padding-left:5px;margin-bottom:20px}.steps li p{margin:7px 0 0}.bridge{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:24px 0}.bridge>div{padding:18px;border:1px solid var(--line);border-radius:9px;background:var(--panel);font-size:14px}.bridge .label{margin-bottom:8px}.bridge .ready{border-top:4px solid var(--good)}.bridge .future{border-top:4px solid var(--amber)}
+.chain{list-style:none;padding:0;margin:22px 0;display:grid;gap:10px}.chain li{display:grid;grid-template-columns:150px minmax(0,1fr);gap:14px;padding:14px 16px;border:1px solid var(--line);border-radius:9px;background:var(--panel);font-size:15px}.chain .stage{font-size:12px;letter-spacing:1px;text-transform:uppercase;font-weight:700;align-self:start}.chain .stage.done{color:var(--good)}.chain .stage.todo{color:var(--amber)}.chain .eq{font-family:var(--serif);font-size:19px}.chain .why{font-size:14px;color:var(--muted);margin-top:4px}
+.explorer{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:22px;margin:24px 0}.controls{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}button{font:14px/1.4 var(--sans);background:var(--bg);color:var(--ink);border:1px solid var(--line);padding:9px 13px;border-radius:6px;cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}.trace{display:flex;flex-wrap:wrap;gap:8px;min-height:38px;margin:14px 0;padding:10px;border:1px dashed var(--line);border-radius:8px;font:14px var(--mono)}.trace span{padding:4px 8px;border-radius:5px;background:var(--code)}.trace span.chall{background:var(--good-bg);color:var(--good)}.trace span.expose{background:var(--bad-bg);color:var(--bad)}.trace span.reject{text-decoration:line-through}.outputs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}.output{padding:14px;border:1px solid var(--line);border-radius:8px;min-width:0}.output span{display:block;font-size:13px;color:var(--muted)}.output output{display:block;font:17px/1.6 var(--sans)}.explorer .caption{margin-top:16px;margin-bottom:0}
+details{border:1px solid var(--line);border-radius:8px;padding:14px 17px;background:var(--panel);margin:14px 0}summary{cursor:pointer;font-size:15px}details p{margin:14px 0 0}footer{border-top:1px solid var(--line);padding:32px 0 60px;color:var(--muted);font-size:14px}.source-list{padding-left:22px}.source-list li{margin:12px 0}.skip{position:absolute;left:20px;top:-70px;padding:10px;background:var(--panel);z-index:2}.skip:focus{top:12px}
+@media(max-width:900px){.layout{grid-template-columns:1fr;gap:0}.rail{position:static;display:flex;flex-wrap:wrap;gap:0 18px;border-bottom:1px solid var(--line);padding-bottom:20px;margin-bottom:20px}.rail p{width:100%;margin-bottom:8px}.hero{padding-top:36px}.cards,.bridge,.outputs{grid-template-columns:1fr}.chain li{grid-template-columns:1fr;gap:6px}.rail a{font-size:13px}.explorer{padding:16px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{.rail,.controls,.skip{display:none}.layout{display:block}.hero{padding-top:0}body{background:#fff;color:#111}section{break-inside:avoid}a{color:inherit}}
+.explorer{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:22px;margin:24px 0}.explorer select{font:15px var(--sans);padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);width:100%;max-width:560px}.explorer .result{margin-top:16px;padding:14px 16px;border:1px solid var(--line);border-radius:8px;font-size:15px}.explorer .result strong{font-weight:600}.clause{display:inline-block;font:13px var(--mono);background:var(--code);padding:2px 6px;border-radius:4px}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the tutorial</a>
+<div class="wrap">
+<header class="hero">
+  <div class="eyebrow">Secure messaging · Opp-BiKEM · M8, stage C of four</div>
+  <h1>Drawn in Advance</h1>
+  <p class="lead">The honest hybrid draws the target epoch's key pair when its owner sends, the encapsulation when the peer sends, and a random challenge key when the adversary asks. The KEM experiment draws the first two, correlated, before the reduction starts simulating, and the reduction receives the public key, the ciphertext and a candidate key; the honest secret stays with the experiment. Stage C proves that the order of drawing does not matter: the stopped hybrid accepts with exactly the probability of the eager game, averaged over the three draws. The proof applies one generic theorem three times, once per sample, and the only state reasoning it needs is the stage B invariant at a single query.</p>
+  <p class="meta">Snapshot: 26 October 2026, the unstaged stage C module above commit <code>27efe90</code>. Stage D remains planned.</p>
+  <div class="breadcrumbs"><a href="oppbikem-security-m8-stage-b-tutorial.html">Previous: stage B, the injected-state invariant</a><a href="oppbikem-security-m8-stage-a-tutorial.html">Stage A: cancellation and the reduction</a><a href="oppbikem-security-m7-tutorial.html">M7: the hybrids</a><a href="TUTORIAL_n1.html">Full roadmap</a></div>
+</header>
+<div class="layout">
+<nav class="rail" aria-label="Tutorial sections">
+  <p>Contents</p>
+  <a href="#position">1 · Where we are</a>
+  <a href="#claim">2 · The claim</a>
+  <a href="#tool">3 · The one-use theorem</a>
+  <a href="#families">4 · Four families, three peels</a>
+  <a href="#away">5 · Away from the hit</a>
+  <a href="#athit">6 · At the hit</a>
+  <a href="#invariants">7 · Invariants and used predicates</a>
+  <a href="#explorer">8 · Peel explorer</a>
+  <a href="#chall">9 · The generic challenge oracle</a>
+  <a href="#deviations">10 · What changed from the plan</a>
+  <a href="#stageD">11 · What stage D consumes</a>
+  <a href="#questions">Check your understanding</a>
+  <a href="#sources">Sources and verification</a>
+</nav>
+<main id="main">
+
+<section id="position">
+  <span class="num">01</span>
+  <h2>From a described run to an equal probability</h2>
+  <p>Stage A stopped the two adjacent hybrids at the exposure of the target epoch and showed their difference survives the stopping. Stage B described the states that runs against the injected oracles reach while the target stays unexposed. Neither stage yet relates the honest hybrid to anything the reduction can run: the hybrid draws the target's KEM values lazily, at the queries that need them, while the reduction is handed them at the start.</p>
+  <div class="bridge" aria-label="Phases of the hop bound">
+    <div class="ready"><span class="label">Stages A and B, proved</span>Cancellation of exposed paths; the reduction; the invariant of injected runs on continuing successors.</div>
+    <div class="ready"><span class="label">Stage C, this page</span>Eager equals lazy: the stopped hybrid is the eager hybrid averaged over the target's three draws.</div>
+    <div class="future"><span class="label">Stage D</span>The state map from the eager hybrid to the reduction; the public theorem.</div>
+  </div>
+  <p>Stage C closes that gap. Its output is one equation between two probabilities. On the left is the stopped hybrid of threshold <code>t + b</code> from stage A. On the right is a new experiment, the eager hybrid, in which the target's key pair, encapsulation and random challenge key are drawn first and the adversary then runs against oracles that merely look them up.</p>
+</section>
+
+<section id="claim">
+  <span class="num">02 · proved</span>
+  <h2>The claim</h2>
+  <div class="formula proved">Pr[S<sub>t+b</sub> = true] = E<sub>(pk,sk) ← keygen, (c,k<sub>real</sub>) ← encaps pk, k<sub>rand</sub> ← $K</sub> Pr[E<sub>b</sub>(pk, sk, c, k<sub>real</sub>, k<sub>rand</sub>) = true]
+    <small><code>probOutput_stoppedHybridExp_eq_eager</code>, for every adversary, every target <code>t ≥ 1</code> and both bits, under correct erasure codes. The three draws are nested exactly as written, so the encapsulation is to the drawn public key.</small>
+  </div>
+  <p>The eager hybrid <code>E<sub>b</sub></code> is the stopped run of the eager oracles. These are the injected oracles of stage A, with injection <code>⟨pk, sk, c, k<sub>real</sub>⟩</code>, except for the challenge. The challenge answers through a function of the epoch and the table key:</p>
+  <pre><code>eagerAnswer t b kRand e k :=
+  if e &lt; t then $K            -- below the target: a fresh random key, as in every hybrid
+  else if b &amp;&amp; e = t then pure kRand   -- at the target with b set: the eager random key
+  else pure k                   -- otherwise: the recorded key</code></pre>
+  <p>Compare this with the hybrid of threshold <code>t + b</code>, which answers randomly below <code>t + b</code> and from the table above. The two agree everywhere except that the eager game's randomness at the target was drawn before the run. The same is true of the key pair and the encapsulation: the injected oracles return them where the honest oracles would draw them. The claim is that none of this is visible in the acceptance probability.</p>
+  <div class="note"><p>The statement is exactly the shape the reduction needs. Stage D will show that <code>E<sub>b</sub></code>, for a fixed draw, is the reduction's run on the challenge <code>(pk, c, k<sub>b</sub>)</code> up to a renaming of what sits in the state at the target epoch. The IND-CPA experiment then supplies the outer expectation over <code>keygen</code> and <code>encaps</code>.</p></div>
+</section>
+
+<section id="tool">
+  <span class="num">03 · reused</span>
+  <h2>The one-use sampling theorem</h2>
+  <p>The tool is a generic ToVCVio theorem that was already in the repository, <code>optionRun_sample_once_eq_sampleEachQuery</code>. It compares two ways of running an adversary against a family of stateful oracles <code>impl a</code> indexed by a sample <code>a</code>:</p>
+  <pre><code>G_once:  a ← sample;  run (impl a) from s
+G_each:  run (sampleEachQuery sample impl) from s     -- a fresh a ← sample at every query</code></pre>
+  <p>Under five hypotheses, the two accept with the same probability. The hypotheses are stated with a state invariant <code>Inv</code>, a state predicate <code>used</code> and a test <code>hit q s</code> that says whether query <code>q</code> in state <code>s</code> is the one that consumes the sample.</p>
+  <div class="table-wrap"><table>
+    <caption>The five hypotheses, and what they mean for one sample</caption>
+    <thead><tr><th>Name</th><th>Says</th><th>Why it is needed</th></tr></thead>
+    <tbody>
+      <tr><td><code>hpres</code></td><td><code>Inv</code> is preserved by every continuing query, for every sample in the support.</td><td>The other hypotheses are only required on invariant states.</td></tr>
+      <tr><td><code>hused</code></td><td><code>used</code> is preserved by every continuing query.</td><td>Once the sample has been consumed, it stays consumed.</td></tr>
+      <tr><td><code>hindep</code></td><td>Away from the hit, the joint distribution of answer and next state does not depend on the sample.</td><td>Before the hit the sample is invisible; after it, nothing may depend on it either.</td></tr>
+      <tr><td><code>hnohit</code></td><td>In a used state, no query is a hit.</td><td>The sample is consumed at most once.</td></tr>
+      <tr><td><code>hfirst</code></td><td>A hit that continues leaves a used state.</td><td>The consuming query marks the state.</td></tr>
+    </tbody>
+  </table></div>
+  <p>The theorem's proof is an induction over the adversary's queries. At a non-hit query the sample integrates out by <code>hindep</code>. At the hit, drawing the sample now or earlier is the same thing, and afterwards the state is used, so there are no further hits and the sample is never read again. The theorem only talks about one sample, and about stopped runs, since the oracles return an option. A stopped answer still comes with a state, but it has no adversary continuation. The preservation and first-use hypotheses apply only to continuing answers; the independence hypothesis away from the hit still compares the full distribution of optional answer and state.</p>
+  <p>Note what the theorem does <em>not</em> provide. Its right side, <code>sampleEachQuery sample impl</code>, draws a fresh sample at every query and runs <code>impl</code> with it. To arrive at the lazy oracles one still has to identify this per-query sampling with the next honest family, query by query. That identification is the second half of every peel.</p>
+</section>
+
+<section id="families">
+  <span class="num">04 · implemented</span>
+  <h2>Four oracle families, three peels</h2>
+  <p>The claim has three nested draws, and the theorem handles one at a time. So the proof passes through a chain of four oracle families, each differing from the next in exactly one sample. Read from the eager side:</p>
+  <ul class="chain" aria-label="The three peels">
+    <li><span class="stage done">Peel 1 · k<sub>rand</sub></span><div><div class="eq">E<sub>k<sub>rand</sub></sub> Pr[E<sub>b</sub>(x, y, k<sub>rand</sub>)] = Pr[I<sub>t+b</sub>(x, y)]</div><div class="why">Eager oracles versus the injected oracles with the hybrid selection of threshold <code>t + b</code>. Only the challenge of <code>t</code> differs. <code>probOutput_stopped_eager_eq_injected</code>.</div></div></li>
+    <li><span class="stage done">Peel 2 · y = (c, k<sub>real</sub>)</span><div><div class="eq">E<sub>y ← encaps pk</sub> Pr[I<sub>t+b</sub>(x, y)] = Pr[G(x)]</div><div class="why">Injected oracles versus the <em>keygen-injected</em> oracles, which inject only the key pair and encapsulate honestly. Only the encapsulating send differs. <code>probOutput_stopped_injected_eq_keygenInjected</code>.</div></div></li>
+    <li><span class="stage done">Peel 3 · x = (pk, sk)</span><div><div class="eq">E<sub>x ← keygen</sub> Pr[G(x)] = Pr[S<sub>t+b</sub>]</div><div class="why">Keygen-injected oracles versus the honest hybrid. Only the generating send differs. <code>probOutput_stopped_hybrid_eq_keygenInjected</code>.</div></div></li>
+  </ul>
+  <p>The keygen-injected family is new in this stage. It exists because the encapsulation must be peeled before the key pair: the sample <code>y</code> is drawn from <code>encaps pk</code>, so <code>pk</code> has to be fixed while <code>y</code> is being removed. After peel 2 the encapsulation is honest, to whatever public key the sender decoded, and only then can the key pair go. Both the honest and the injected sends are instances of the generic <code>sendWith</code>, so the family is one definition away: <code>keygenInjectedSend</code> is <code>sendWith</code> with the target's key generation replaced and the encapsulation left honest.</p>
+  <p>Each family's security oracles are an instance of one definition, <code>idealRecvSecurityImpl scka random</code>: the ordinary sends of a scheme, the ideal receives, the selection-indexed challenge and the honest leaking sends and corruptions. The hybrid is this at the honest scheme, the injected family at the injected scheme, the keygen-injected family at its scheme, all by <code>rfl</code>. That lets every lemma about a send query be stated once for an arbitrary scheme and instantiated three times.</p>
+  <p>The headline theorem chains the three peels. It rewrites the hybrid into the key-pair draw with peel 3, then under that draw rewrites the keygen-injected run into the encapsulation draw with peel 2, and under both draws rewrites the injected run into the random-key draw with peel 1. Every application needs only that the outer samples are in their supports.</p>
+</section>
+
+<section id="away">
+  <span class="num">05 · implemented</span>
+  <h2>Away from the hit: the sample is not read</h2>
+  <p>The independence hypothesis asks for equal distributions. The proof delivers more: at every query that is not a hit, the query computations for two samples are <em>syntactically the same computation</em>, for every state. This is stronger than required and much easier to use. It means the full distribution of answer and next state agrees, including the probability of a stopped answer, which the stopping wrapper adds on top of the base oracle. A lemma about the wrapper, <code>stopOnState_run_run_eq</code>, lifts an equality of base query computations to an equality of stopped ones.</p>
+  <div class="table-wrap"><table>
+    <caption>Why no non-hit query reads the sample</caption>
+    <thead><tr><th>Peel</th><th>The sample is read by</th><th>Away from the hit</th></tr></thead>
+    <tbody>
+      <tr><td>1, the random key</td><td>The eager answer, at an eligible challenge of <code>t</code> with <code>b</code> set.</td><td>Below <code>t</code> both the eager answer and the hybrid's are a fresh draw. At <code>t</code> with <code>b</code> clear, both return the table key. At <code>t</code> with <code>b</code> set and the challenge not eligible, both reject or report no key, and the answer function is never called. Above <code>t</code> both return the table key.</td></tr>
+      <tr><td>2, the encapsulation</td><td>The injected encapsulation sampler, when the send's encapsulation test for <code>t</code> holds.</td><td>When the test is false the injected send <em>is</em> the keygen-injected send, by unfolding: <code>injectedSend_eq_keygenInjectedSend</code>. Every other query is shared by the two families.</td></tr>
+      <tr><td>3, the key pair</td><td>The target key generation, when the send's generation test for <code>t</code> holds.</td><td>When the test is false the keygen-injected send is the honest send: <code>keygenInjectedSend_eq_send</code>. Every other query is shared.</td></tr>
+    </tbody>
+  </table></div>
+  <p>Because the hit tests are decided from the state before the query, they match exactly the branch the send takes, which is also decided from the state before the send. That design choice from stage A, that the injection tests mirror <code>sendWith</code>'s own guards, is what makes the "away from the hit" lemmas pure unfolding.</p>
+  <p>The same equalities serve the second half of each peel. After the generic theorem the right side draws a fresh sample at every query. At a non-hit query the computation does not depend on the sample, so the draw integrates out and what remains is the next family's query, by the same unfolding lemma. At the hit, the next section applies.</p>
+</section>
+
+<section id="athit">
+  <span class="num">06 · implemented</span>
+  <h2>At the hit: three different identities</h2>
+  <p>At the consuming query the lazy family draws the sample inside its query computation, while the eager side draws it just before. The three samples sit in three different places inside their queries, and each needs its own argument.</p>
+  <h3>The random key: an answer by sampling</h3>
+  <p>At an eligible challenge of <code>t</code> with <code>b</code> set, the eager oracle returns the pre-drawn key. Drawing a uniform key and then returning it is, as a computation, the challenge oracle whose answer function at <code>t</code> is a uniform draw. That is what the hybrid of threshold <code>t + 1</code> does at <code>t</code>. The identity is a computation equality, proved with a generic lemma about the challenge oracle, <code>oracleChallWith_bind_eq_of_eligible</code>: a draw followed by a challenge that returns a function of the draw is the challenge that answers by sampling.</p>
+  <h3>The key pair: the first effect of the send</h3>
+  <p>When the generation test holds, the send's first action is to draw the key pair; everything after reads it from the local variable. So drawing <code>x</code> and running the keygen-injected send that returns <code>x</code> at the generation site is, by the monad laws, the honest send: <code>keygenInjectedSend_hit_eq</code>. Again a computation equality, lifted to the oracle level by <code>keygenInjected_hitKeygen_eq</code>.</p>
+  <h3>The encapsulation: commuting past an independent draw</h3>
+  <p>This is the one hit where the sample is not the first effect. The encapsulating send may first generate the sender's own next key pair, if its generation guard holds, and only then encapsulate to the peer key it decoded. So on the lazy side the encapsulation is drawn <em>after</em> an independent key generation. The two draws commute in distribution, by <code>evalDist_bind_bind_swap</code>, and the rest is unfolding. The identity holds at the level of output distributions, not computations, which is all the theorem asks.</p>
+  <p>There is one more condition. The lazy side encapsulates to the key the sender decoded for the target; the eager side's sample was drawn from <code>encaps pk</code> for the injected <code>pk</code>. These coincide because of stage B's <code>ekPeer_pinned</code> clause: on an invariant state, the peer's decoded key for the target is the injected public key. This is the only place in stage C where a pinning clause of the invariant is read.</p>
+  <div class="note"><p>The hit tests do not know which party owns the target: <code>hitEncaps</code> tests both ordinary sends. If the wrong party's send passed the test the identity would be false, since that party does not hold the decoded key. The ordinary game invariant's parity clauses rule this out: a send by the owner's peer encapsulates at odd distance from its own key epochs, and the target's parity fixes its owner. The encapsulation and key-pair peels include the game invariant, which supplies their parity exclusions. The random-key peel uses <code>True</code> and needs no parity exclusion, since its hit is a challenge.</p></div>
+</section>
+
+<section id="invariants">
+  <span class="num">07 · implemented</span>
+  <h2>Invariants and used predicates, one per peel</h2>
+  <p>The stage B evaluation made one request of this stage: the invariant passed to the generic theorem must not depend on the sample, since the theorem compares runs for different samples under the same invariant. Each peel resolves this in its own way.</p>
+  <div class="cards">
+    <div class="card"><span class="label">Peel 1 · the random key</span><p>Invariant <code>True</code>. Used: <code>t ∈ challenged</code>. The state never stores the eager key, so no invariant is needed. The challenged set grows with every query, an eligible challenge of <code>t</code> inserts it, and once inserted no challenge of <code>t</code> is eligible again. All three facts come from the generic bookkeeping of the security oracles.</p></div>
+    <div class="card"><span class="label">Peel 3 · the key pair</span><p>Invariant <code>GameInv</code>. Used: <code>targetGenerated</code> for the owner. The keygen-injected send's successors are successors of the honest send whenever the injected pair is in the support of key generation, so the honest preservation theorem transfers. The first-use predicate from stage B is lifted through the oracles in <code>usedKeygen_step</code> and <code>usedKeygen_of_hit</code>.</p></div>
+  </div>
+  <h3>Peel 2: an existential closure</h3>
+  <p>The encapsulation peel is where stage B's invariant is consumed, and <code>InjInv</code> mentions the injected ciphertext and key, which is the sample being peeled. The resolution is to close over it:</p>
+  <pre><code>encapsInv x s := ∃ y ∈ supp (encaps x.1), InjInv t ⟨x.1, x.2, y.1, y.2⟩ s</code></pre>
+  <p>This predicate depends only on the key pair, which peel 2 holds fixed. Its preservation, <code>encapsInv_step</code>, has two cases:</p>
+  <ol class="steps">
+    <li>Away from the hit, the query for the actual sample is the same computation as the query for the witness <code>y</code>, so every successor is a successor of the witness's oracles, and stage B's preservation theorem keeps <code>InjInv</code> for the same witness.</li>
+    <li>At the hit, the witness has to change to the sample, because after the encapsulation the state holds the sample's key. It can: at the moment the peer encapsulates for the target, both key tables are still empty at <code>t</code> (<code>tables_empty_of_hitEncaps</code>, from the per-party invariant: a recorded key at <code>t</code> would mean an encapsulation already in the transcript), and the pinning clauses read the injected key only through the tables. So <code>InjInv</code> for the witness implies <code>InjInv</code> for the sample, <code>injInv_switch_key</code>, and stage B's preservation theorem then runs for the sample.</li>
+  </ol>
+  <p>Both cases need stage B's theorem only on continuing successors, which is exactly its contract: the generic theorem asks for preservation only when the answer is not a stop.</p>
+  <h3>Rejected sends</h3>
+  <p>A hit is an accepted ordinary send, and the generic theorem's first-use hypothesis asks that its continuing successors be used. A send that is rejected returns the state unchanged and would break this. It cannot happen: the Opp-BiKEM send never returns a rejection, and since both injected sends' supports sit inside the honest send's support on invariant states, neither do they.</p>
+</section>
+
+<section id="explorer">
+  <span class="num">08 · interactive</span>
+  <h2>Peel explorer</h2>
+  <p>Pick a peel. The explorer lists the two oracle families it compares, the hit test, the invariant and used predicate, and the lemma that discharges each hypothesis of the generic theorem.</p>
+  <div class="explorer" aria-label="Peel explorer">
+    <label for="peel">Which sample is being peeled</label>
+    <select id="peel">
+      <option value="rand" selected>Peel 1: the random challenge key</option>
+      <option value="enc">Peel 2: the target's encapsulation</option>
+      <option value="gen">Peel 3: the target's key pair</option>
+    </select>
+    <div class="result" id="peel-result"></div>
+  </div>
+</section>
+
+<section id="chall">
+  <span class="num">09 · generic</span>
+  <h2>The generic challenge oracle</h2>
+  <p>Stating the eager challenge answer needed a challenge oracle that takes an arbitrary answer function from the epoch and the table key to a distribution over keys. It was added to the generic SCKA security module as <code>oracleChallWith</code>, with the same eligibility checks as the existing oracles, by insertion only: the fixed-bit challenge and the selection-indexed challenge are identified with instances of it at the level of query computations, and nothing already proved moved.</p>
+  <pre><code>oracleChallWith answer … e :
+  -- rejected if e is exposed or already challenged
+  -- no key if neither table holds e
+  -- otherwise: outK ← answer e k; mark e challenged; return outK</code></pre>
+  <p>Three lemmas about it do the work of peel 1. Its support characterisation gives the bookkeeping of the challenged set. The "eligible implication" lemma says two challenge oracles with answer functions that agree whenever a challenge is eligible have the same query computation, which is the away-from-hit fact. The "bind" lemma is the at-hit identity. The run-level identification of the selection-indexed oracle with <code>oracleChallWith</code> turns facts about the hybrids into facts about the generic oracle.</p>
+</section>
+
+<section id="deviations">
+  <span class="num">10</span>
+  <h2>What changed from the plan</h2>
+  <ul class="steps">
+    <li>The plan stated three peels under the stage B invariant. The stage B evaluation pointed out that the invariant must be independent of the sample. The random-key and key-pair peels now use <code>True</code> and the game invariant; the encapsulation peel uses the existential closure above. Stage B's invariant is consumed only through that closure.</li>
+    <li>The keygen-injected family was not in the plan as a named object. It was needed as soon as the peel order was fixed: the encapsulation must go before the key pair, and between the two the sends must encapsulate honestly to the decoded key.</li>
+    <li>Independence is proved as computation equality at every non-hit query and every state, not merely as equal output distributions on invariant states. This is stronger and simpler, and it covers the stopped answer without a separate argument.</li>
+    <li>The hit tests are role-agnostic. The plan's hit tests were going to name the owner; testing both sends and excluding the wrong one by parity avoids a case split on the owner in every lemma.</li>
+    <li>The encapsulation hit is a distribution identity rather than a computation identity, because the lazy encapsulation sits after the sender's own key generation. The plan had not anticipated this reordering.</li>
+    <li>Rejected sends at a hit are excluded through the support inclusions and the fact that the honest send never rejects, as the stage B evaluation anticipated.</li>
+  </ul>
+</section>
+
+<section id="stageD">
+  <span class="num">11 · planned</span>
+  <h2>What stage D consumes</h2>
+  <p>For a fixed draw, the eager hybrid <code>E<sub>b</sub>(pk, sk, c, k<sub>real</sub>, k<sub>rand</sub>)</code> and the reduction's run on the challenge <code>(pk, c, k<sub>b</sub>)</code> are both the injected oracles up to what the state holds at the target epoch. The eager hybrid stores the honest secret and records <code>k<sub>real</sub></code> in the table, answering the challenge of <code>t</code> with <code>k<sub>b</sub></code> through the eager answer. The reduction stores a placeholder secret and records <code>k<sub>b</sub></code>, answering from the table. Stage D's state map renames the first into the second.</p>
+  <div class="formula planned">Pr[E<sub>b</sub>(pk, sk, c, k<sub>real</sub>, k<sub>rand</sub>) = true] = Pr[R(pk, dummy, c, k<sub>b</sub>) = true]
+    <small>with <code>k<sub>0</sub> = k<sub>real</sub></code> and <code>k<sub>1</sub> = k<sub>rand</sub></code>, for every placeholder <code>dummy</code>.</small>
+  </div>
+  <p>Three things from this stage carry over directly. For one and the same injection, the eager oracles and the selection-indexed injected oracles differ only at the challenge of <code>t</code>, and the generic challenge oracle's support lemma gives the bookkeeping on both; the reduction additionally replaces the stored secret and the table key at <code>t</code>, which is what the state map is for. The party-state step lemmas along ideal-receive runs are stated for an arbitrary scheme, so they apply to the reduction's oracles too. And the eager experiment is exactly the stopped run of an <code>idealRecvSecurityImpl</code>-shaped family, so the stopped-run machinery of stage A applies unchanged.</p>
+</section>
+
+<section id="questions">
+  <span class="num">Check your understanding</span>
+  <h2>Separate the claims</h2>
+  <details><summary>Why is the random key peeled first, and the key pair last?</summary><p>The statement nests the draws: the encapsulation is drawn from the public key, so the key pair is outermost. The generic theorem removes one sample at a time while the outer samples are fixed, so the innermost draw, the random key, goes first. Reading the headline proof in the forward direction, it rewrites the hybrid with peel 3 first, but conceptually each peel assumes the samples outside it are fixed.</p></details>
+  <details><summary>Why does the encapsulation peel need an intermediate family at all?</summary><p>Between removing the encapsulation and removing the key pair, the sends must encapsulate honestly while still returning the fixed key pair at the generation site. Neither the injected scheme nor the honest scheme does this. The keygen-injected scheme is that family, and it is one <code>sendWith</code> instance away from both.</p></details>
+  <details><summary>What is the difference between the independence hypothesis and the "next family" identification?</summary><p>The generic theorem's conclusion mentions per-query sampling, not the lazy family. Independence lets the theorem integrate the sample out at non-hit queries. A second argument then identifies per-query sampling with the next family: at non-hit queries by the same unfolding lemma after integrating the draw out, and at the hit by the at-hit identity. Both halves use the same three "away from the hit" lemmas.</p></details>
+  <details><summary>Why is independence proved as a computation equality rather than as equal distributions?</summary><p>Because it is both easier and stronger. The unfolding lemmas give equal computations for every state, without any invariant, and an equal computation has an equal distribution of answer and state including the stop. Proving only equal output distributions would have required reasoning about the stopping wrapper separately.</p></details>
+  <details><summary>Where is stage B's invariant actually used?</summary><p>In peel 2, twice. The <code>ekPeer_pinned</code> clause makes the lazy encapsulation go to the injected public key at the hit. The preservation theorem on continuing successors keeps the existential closure across every query. The table clauses enter indirectly, through the fact that both tables are empty at the hit so the witness can switch to the sample.</p></details>
+  <details><summary>Could the three peels be one application of the theorem with a product sample?</summary><p>Not directly. The three samples are consumed at three different queries, so there is no single hit test and no single used predicate, and the encapsulation sample's distribution depends on the key pair. Three applications keep each one a statement about one sample consumed once.</p></details>
+  <details><summary>What happens at a leaking send that generates or encapsulates for the target?</summary><p>Two cases. If the leaking send is accepted it exposes the target, so its answer is a stop: there is no continuation, and the preservation and first-use hypotheses ask nothing of it. If its guard rejects, the state is unchanged and the run continues, which the used predicates tolerate. In both cases the away-from-hit independence holds, because both families' leaking sends are the honest ones and never read the sample.</p></details>
+</section>
+
+<footer id="sources">
+  <p>Snapshot of 26 October 2026. The covering full build passed with 3,186 jobs with no warnings in the touched modules. The three touched modules pass the repository linter. The 78-declaration axiom audit found only standard axioms and no <code>sorryAx</code>. The generic SCKA security module changed by insertion only.</p>
+  <ul class="source-list">
+    <li><a href="../../SecureMessaging/SCKA/OppBiKEM/Security/Eager.lean">Security/Eager.lean</a>: the families, hit tests, away-from-hit and at-hit lemmas, the three peels and the headline theorem.</li>
+    <li><a href="../../SecureMessaging/SCKA/Security.lean">SCKA/Security.lean</a>: the generic challenge oracle <code>oracleChallWith</code> and its lemmas. <a href="../../ToVCVio/OracleComp/QueryTracking/OneUseSampling.lean">OneUseSampling.lean</a>: the one-use sampling theorem.</li>
+    <li><a href="../../SecureMessaging/SCKA/OppBiKEM/Security/Injected.lean">Security/Injected.lean</a>: the invariant consumed by peel 2, with the hygiene changes from the stage B evaluation. <a href="../../SecureMessaging/SCKA/OppBiKEM/Security/Reduction.lean">Security/Reduction.lean</a>: the injected oracles.</li>
+    <li><a href="../../.formalising/fv-plans/OppBiKEM-security/merge/n10/EXECUTION_n10.md">Execution record</a> with build, lint and axiom logs and the full deviation list; <a href="../../.formalising/fv-plans/OppBiKEM-security/reviews/EVAL_n9.md">stage B evaluation</a>, which asked for sample-independent invariants; <a href="../../.formalising/fv-plans/OppBiKEM-security/plans/PLAN_n8.md">four-stage plan</a>.</li>
+    <li>Protocol context: Auerbach et al., <a href="https://www.usenix.org/system/files/usenixsecurity25-auerbach.pdf">How to Compare Bandwidth Constrained Two-Party Secure Messaging Protocols</a>, USENIX Security 2025.</li>
+  </ul>
+</footer>
+</main>
+</div>
+</div>
+<script>
+(() => {
+  const sel = document.getElementById('peel'), out = document.getElementById('peel-result');
+  const row = (k, v) => '<tr><th scope="row" style="text-transform:none;letter-spacing:0;font-size:14px;width:34%">' + k + '</th><td>' + v + '</td></tr>';
+  const c = s => '<span class="clause">' + s + '</span>';
+  const text = {
+    rand: '<p><strong>Eager oracles versus injected oracles with selection of threshold t + b.</strong> The sample is a uniform key; for b = 0 it is never read and the peel is trivial.</p><div class="table-wrap"><table><tbody>'
+      + row('Hit test', c('hitRand t b') + ': a challenge of t with b set, t neither exposed nor challenged, and a table entry at t.')
+      + row('Invariant', c('True') + '. The state never stores the eager key.')
+      + row('Used predicate', c('t ∈ s.challenged'))
+      + row('hpres', 'Trivial.')
+      + row('hused', c('eagerSecurityImpl_challenged_subset') + ': every query grows the challenged set.')
+      + row('hindep', c('eagerSecurityImpl_run_eq_of_not_hitRand') + ': away from the hit the answer function is never asked about the sample; a computation equality.')
+      + row('hnohit', c('hitRand_eq_false_of_challenged') + '.')
+      + row('hfirst', c('oracleChallWith_eligible') + ': an eligible challenge inserts t.')
+      + row('At the hit', c('eager_hitRand_evalDist') + ': drawing the key and returning it is answering by sampling, which is the hybrid of threshold t + 1 at t.')
+      + row('Next family, away from the hit', c('eagerSecurityImpl_run_eq_injected_of_not_hitRand') + '.')
+      + '</tbody></table></div>',
+    enc: '<p><strong>Injected oracles versus keygen-injected oracles,</strong> both with selection of threshold t + b. The sample is an encapsulation to the injected public key.</p><div class="table-wrap"><table><tbody>'
+      + row('Hit test', c('hitEncaps t') + ': an ordinary send by either party whose encapsulation test for t holds.')
+      + row('Invariant', c('encapsInv x') + ': InjInv for the fixed key pair and some supported encapsulation.')
+      + row('Used predicate', c('usedEncaps') + ': the owner\'s peer satisfies ' + c('targetEncapsulated t') + '.')
+      + row('hpres', c('encapsInv_step') + ': witness kept away from the hit; switched to the sample at the hit by ' + c('injInv_switch_key') + ' after ' + c('tables_empty_of_hitEncaps') + '.')
+      + row('hused', c('usedEncaps_step') + ', lifting stage B\'s monotonicity through the oracles.')
+      + row('hindep', c('injectedSecurityImpl_run_eq_of_not_hitEncaps') + ': the injected send is the keygen-injected send when the test is false.')
+      + row('hnohit', c('hitEncaps_eq_false_of_used') + ': the encapsulated party\'s test is false, and the other party is excluded by parity.')
+      + row('hfirst', c('usedEncaps_of_hit') + ': an accepted encapsulating send makes the predicate true; rejection is excluded by ' + c('send_ne_none') + '.')
+      + row('At the hit', c('injected_hitEncaps_evalDist') + ' with ' + c('ekPeer_pinned_of_hitA/B') + ': the draw commutes past the sender\'s own key generation, to the decoded key, which is the injected public key.')
+      + row('Next family, away from the hit', c('injectedSecurityImpl_run_eq_keygenInjected_of_not_hitEncaps') + '.')
+      + '</tbody></table></div>',
+    gen: '<p><strong>Keygen-injected oracles versus the honest hybrid,</strong> both with selection of threshold t + b. The sample is a key pair.</p><div class="table-wrap"><table><tbody>'
+      + row('Hit test', c('hitKeygen t') + ': an ordinary send by either party whose generation test for t holds.')
+      + row('Invariant', c('GameInv') + '.')
+      + row('Used predicate', c('usedKeygen') + ': the owner satisfies ' + c('targetGenerated t') + '.')
+      + row('hpres', c('gameInv_idealRecv_step') + ' with ' + c('keygenInjectedSend_support_subset') + ': successors are honest successors for a supported pair.')
+      + row('hused', c('usedKeygen_step') + '.')
+      + row('hindep', c('keygenInjected_run_eq_of_not_hitKeygen') + ': the keygen-injected send is the honest send when the test is false.')
+      + row('hnohit', c('hitKeygen_eq_false_of_used') + '.')
+      + row('hfirst', c('usedKeygen_of_hit') + '.')
+      + row('At the hit', c('keygenInjected_hitKeygen_eq') + ': key generation is the send\'s first effect, so drawing it first is the honest send, as a computation.')
+      + row('Next family, away from the hit', c('keygenInjected_run_eq_hybrid_of_not_hitKeygen') + '.')
+      + '</tbody></table></div>'
+  };
+  function render() { out.innerHTML = text[sel.value]; }
+  sel.addEventListener('change', render);
+  render();
+})();
+</script>
+</body>
+</html>

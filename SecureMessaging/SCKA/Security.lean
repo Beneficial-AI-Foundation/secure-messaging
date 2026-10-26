@@ -160,6 +160,175 @@ theorem oracleChallOn_preservesInv (random : ℕ → Bool)
 
 end ChallengeOn
 
+/-! ### Challenge with an arbitrary answer function -/
+
+/-- The challenge oracle whose eligible answer at epoch `t` with recorded key `k` is drawn from
+`answer t k`: the same guards and bookkeeping as `oracleChall`, which is the instance
+`answer t k = if b then $ᵗ I else pure k`. -/
+def oracleChallWith (answer : ℕ → I → ProbComp I) (StA StB Rho : Type) :
+    QueryImpl (ℕ →ₒ Option I) (StateT (GameState StA StB I Rho) ProbComp) :=
+  fun (t : ℕ) => do
+    let state ← get
+    if t ∈ state.exposed ∨ t ∈ state.challenged then pure none
+    else
+      let key? := match state.keyA t with
+        | some k => some k
+        | none => state.keyB t
+      match key? with
+      | none => pure none
+      | some k =>
+        let outK ← liftM (answer t k)
+        set { state with challenged := insert t state.challenged }
+        return some outK
+
+section ChallengeWith
+
+variable (answer : ℕ → I → ProbComp I)
+
+/-- Challenging an exposed or previously challenged epoch returns `none` and keeps the state. -/
+lemma oracleChallWith_rejected (s : GameState StA StB I Rho) (t : ℕ)
+    (h : t ∈ s.exposed ∨ t ∈ s.challenged) :
+    (oracleChallWith answer StA StB Rho t).run s = pure (none, s) := by
+  simp [oracleChallWith, h]
+
+/-- Challenging an epoch without a recorded key returns `none` and keeps the state. -/
+lemma oracleChallWith_unavailable (s : GameState StA StB I Rho) (t : ℕ)
+    (hA : s.keyA t = none) (hB : s.keyB t = none) :
+    (oracleChallWith answer StA StB Rho t).run s = pure (none, s) := by
+  by_cases h : t ∈ s.exposed ∨ t ∈ s.challenged
+  · exact oracleChallWith_rejected answer s t h
+  · simp [oracleChallWith, h, hA, hB]
+
+/-- The eligible challenge at epoch `t` from `s`, with recorded key `k` (A's table first): draw
+the answer, record the challenge, return the answer. -/
+lemma oracleChallWith_eligible (s : GameState StA StB I Rho) (t : ℕ)
+    (h : ¬(t ∈ s.exposed ∨ t ∈ s.challenged)) (k : I)
+    (hk : s.keyA t = some k ∨ (s.keyA t = none ∧ s.keyB t = some k)) :
+    (oracleChallWith answer StA StB Rho t).run s = (do
+      let outK ← answer t k
+      pure (some outK, { s with challenged := insert t s.challenged })) := by
+  rcases hk with hA | ⟨hA, hB⟩
+  · simp [oracleChallWith, h, hA, StateT.run_bind, StateT.run_set, StateT.run_monadLift,
+      monadLift_self]
+  · simp [oracleChallWith, h, hA, hB, StateT.run_bind, StateT.run_set, StateT.run_monadLift,
+      monadLift_self]
+
+/-- Every result of `oracleChallWith` at epoch `t` from `s` is a rejection, with `t` exposed,
+challenged or unkeyed and the state kept, or an accepted challenge with `t` added to the
+challenged set. -/
+lemma oracleChallWith_support (s : GameState StA StB I Rho) (t : ℕ)
+    (z : Option I × GameState StA StB I Rho)
+    (hz : z ∈ support ((oracleChallWith answer StA StB Rho t).run s)) :
+    (z = (none, s) ∧
+      ((t ∈ s.exposed ∨ t ∈ s.challenged) ∨
+        (s.keyA t = none ∧ s.keyB t = none))) ∨
+    (¬(t ∈ s.exposed ∨ t ∈ s.challenged) ∧
+      ((s.keyA t).isSome ∨ (s.keyB t).isSome) ∧
+      z.2 = { s with challenged := insert t s.challenged }) := by
+  by_cases h : t ∈ s.exposed ∨ t ∈ s.challenged
+  · rw [oracleChallWith_rejected answer s t h] at hz
+    exact Or.inl ⟨(mem_support_pure_iff _ _).mp hz, Or.inl h⟩
+  by_cases hkey : (s.keyA t).isSome ∨ (s.keyB t).isSome
+  · refine Or.inr ⟨h, hkey, ?_⟩
+    have hk : ∃ k, s.keyA t = some k ∨ (s.keyA t = none ∧ s.keyB t = some k) := by
+      cases hA : s.keyA t with
+      | some k => exact ⟨k, Or.inl rfl⟩
+      | none =>
+        cases hB : s.keyB t with
+        | some k => exact ⟨k, Or.inr ⟨rfl, rfl⟩⟩
+        | none => simp [hA, hB] at hkey
+    obtain ⟨k, hk⟩ := hk
+    rw [oracleChallWith_eligible answer s t h k hk, mem_support_bind_iff] at hz
+    obtain ⟨outK, -, hz⟩ := hz
+    rw [(mem_support_pure_iff _ _).mp hz]
+  · have hA : s.keyA t = none := by cases hA : s.keyA t <;> simp_all
+    have hB : s.keyB t = none := by cases hB : s.keyB t <;> simp_all
+    rw [oracleChallWith_unavailable answer s t hA hB] at hz
+    exact Or.inl ⟨(mem_support_pure_iff _ _).mp hz, Or.inr ⟨hA, hB⟩⟩
+
+/-- Two answer functions give the same query computation at epoch `t` from `s` whenever they
+agree at `t` on every key if `t` is eligible in `s`. -/
+lemma oracleChallWith_run_eq_of_eligible_imp (answer' : ℕ → I → ProbComp I)
+    (s : GameState StA StB I Rho) (t : ℕ)
+    (h : ¬(t ∈ s.exposed ∨ t ∈ s.challenged) →
+      ((s.keyA t).isSome = true ∨ (s.keyB t).isSome = true) → ∀ k, answer t k = answer' t k) :
+    (oracleChallWith answer StA StB Rho t).run s =
+      (oracleChallWith answer' StA StB Rho t).run s := by
+  by_cases hrej : t ∈ s.exposed ∨ t ∈ s.challenged
+  · rw [oracleChallWith_rejected answer s t hrej, oracleChallWith_rejected answer' s t hrej]
+  by_cases hkey : (s.keyA t).isSome = true ∨ (s.keyB t).isSome = true
+  · have hk : ∃ k, s.keyA t = some k ∨ (s.keyA t = none ∧ s.keyB t = some k) := by
+      cases hA : s.keyA t with
+      | some k => exact ⟨k, Or.inl rfl⟩
+      | none =>
+        cases hB : s.keyB t with
+        | some k => exact ⟨k, Or.inr ⟨rfl, rfl⟩⟩
+        | none => simp [hA, hB] at hkey
+    obtain ⟨k, hk⟩ := hk
+    rw [oracleChallWith_eligible answer s t hrej k hk,
+      oracleChallWith_eligible answer' s t hrej k hk, h hrej hkey k]
+  · have hA : s.keyA t = none := by cases hA : s.keyA t <;> simp_all
+    have hB : s.keyB t = none := by cases hB : s.keyB t <;> simp_all
+    rw [oracleChallWith_unavailable answer s t hA hB,
+      oracleChallWith_unavailable answer' s t hA hB]
+
+/-- Drawing a value first and answering an eligible challenge with it is answering the
+challenge with the draw. -/
+lemma oracleChallWith_bind_eq_of_eligible {τ : Type} (sample : ProbComp τ)
+    (answerOf : τ → ℕ → I → ProbComp I) (f : τ → I)
+    (s : GameState StA StB I Rho) (t : ℕ)
+    (h : ¬(t ∈ s.exposed ∨ t ∈ s.challenged))
+    (hkey : (s.keyA t).isSome = true ∨ (s.keyB t).isSome = true)
+    (hans : ∀ a k, answerOf a t k = pure (f a)) :
+    (do let a ← sample; (oracleChallWith (answerOf a) StA StB Rho t).run s) =
+      (oracleChallWith (fun _ _ => f <$> sample) StA StB Rho t).run s := by
+  have hk : ∃ k, s.keyA t = some k ∨ (s.keyA t = none ∧ s.keyB t = some k) := by
+    cases hA : s.keyA t with
+    | some k => exact ⟨k, Or.inl rfl⟩
+    | none =>
+      cases hB : s.keyB t with
+      | some k => exact ⟨k, Or.inr ⟨rfl, rfl⟩⟩
+      | none => simp [hA, hB] at hkey
+  obtain ⟨k, hk⟩ := hk
+  rw [oracleChallWith_eligible _ s t h k hk]
+  simp only [oracleChallWith_eligible _ s t h k hk, hans, pure_bind, map_eq_bind_pure_comp,
+    bind_assoc, Function.comp]
+
+/-- The fixed-bit challenge oracle computes as the instance of `oracleChallWith` that answers
+a random key if the bit is set and the recorded key otherwise. -/
+lemma oracleChall_run_eq_oracleChallWith [SampleableType I] (b : Bool)
+    (s : GameState StA StB I Rho) (t : ℕ) :
+    (oracleChall b StA StB I Rho t).run s =
+      (oracleChallWith (fun _ k => if b then ($ᵗ I : ProbComp I) else pure k) StA StB Rho
+        t).run s := by
+  by_cases h : t ∈ s.exposed ∨ t ∈ s.challenged
+  · rw [oracleChall_rejected b s t h, oracleChallWith_rejected _ s t h]
+  cases hA : s.keyA t with
+  | some k =>
+    rw [oracleChallWith_eligible _ s t h k (Or.inl hA)]
+    cases b <;> simp [oracleChall, h, hA, StateT.run_bind, StateT.run_get, StateT.run_monadLift,
+      StateT.run_set, monadLift_self]
+  | none =>
+    cases hB : s.keyB t with
+    | some k =>
+      rw [oracleChallWith_eligible _ s t h k (Or.inr ⟨hA, hB⟩)]
+      cases b <;> simp [oracleChall, h, hA, hB, StateT.run_bind, StateT.run_get,
+        StateT.run_monadLift, StateT.run_set, monadLift_self]
+    | none => rw [oracleChall_unavailable b s t hA hB, oracleChallWith_unavailable _ s t hA hB]
+
+/-- The selection-indexed challenge oracle computes as the instance of `oracleChallWith` that
+answers a random key at the selected epochs and the recorded key otherwise. -/
+lemma oracleChallOn_run_eq_oracleChallWith [SampleableType I] (random : ℕ → Bool)
+    (s : GameState StA StB I Rho) (t : ℕ) :
+    (oracleChallOn random StA StB I Rho t).run s =
+      (oracleChallWith (fun t k => if random t then ($ᵗ I : ProbComp I) else pure k)
+        StA StB Rho t).run s := by
+  rw [oracleChallOn_apply, oracleChall_run_eq_oracleChallWith]
+  exact oracleChallWith_run_eq_of_eligible_imp _ _ s t (fun _ _ _ => rfl)
+
+end ChallengeWith
+
+
 /-! ### Corruption -/
 
 /-- The corruption of A is a deterministic update: rejection returns `(none, s)`;

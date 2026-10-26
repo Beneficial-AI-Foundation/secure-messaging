@@ -12,8 +12,12 @@ import SecureMessaging.SCKA.OppBiKEM.Security.Reduction
 The reduction of `Security.Reduction` runs the adversary against `injectedSecurityImpl`: the
 ideal security oracles whose ordinary sends return the injected key pair at the generation of
 the target epoch `t` and the injected encapsulation at the encapsulation for `t`. This module
-describes the states such runs reach, for every challenge selection, as long as `t` is not
-exposed (`InjInv`, `injectedSecurityImpl_preservesInv_continuing`):
+describes the states such runs reach for a *supported honest* injection, a key pair in the
+support of key generation and an encapsulation in the support of encapsulation to its public
+key, for every challenge selection, as long as `t` is not exposed (`InjInv`,
+`injectedSecurityImpl_preservesInv_continuing`). The reduction's own injection, with its
+placeholder secret and possibly random candidate key, is related to such runs by the state map
+of a later stage; the invariant is never claimed for it directly:
 
 * `GameInv` holds, because on such states the injected send's outputs are outputs of the honest
   send (`injectedSend_support_subset`);
@@ -124,8 +128,6 @@ structure SendWithFacts {RK RE : Type} (role : Role)
     (st' : State PK SK C Sym) (rand : SendRand RK RE) : Prop where
   /-- The message carries the post-send responder epoch. -/
   message_resEpoch : ρ.tRes = st'.res.resEpoch
-  /-- The requester epoch is unchanged. -/
-  requester_epoch : st'.req.reqEpoch = st.req.reqEpoch
   /-- The decoded peer keys are unchanged. -/
   peer_keys : st'.res.ekPeer = st.res.ekPeer
   /-- The acknowledgements are unchanged. -/
@@ -291,7 +293,7 @@ change: the responder epoch is kept, own material is kept or cleared, decoded pe
 kept and at most one is added, secret keys only disappear, ciphertext acknowledgements grow by
 the message's flag and by the decapsulated epoch, and an emitted key comes from the recovery
 function at the decapsulated epoch. -/
-structure RecvWithFacts (role : Role) [DecidableEq Sym] (recover : ℤ → SK → C → Option K)
+structure RecvWithFacts (role : Role) (recover : ℤ → SK → C → Option K)
     (st : State PK SK C Sym) (ρ : Message Sym) (key? : Option (ℕ × K))
     (st' : State PK SK C Sym) : Prop where
   /-- The responder epoch is unchanged. -/
@@ -485,6 +487,28 @@ lemma injInv_B {kem : KEMScheme ProbComp K PK SK C}
     InjInv kem ecEk ecCt t inj s ↔
       GameInv kem ecEk ecCt s ∧ TargetInv .B t inj s.stB s.stA s.msgA s.keyB s.keyA := by
   simp only [InjInv, ho]
+
+/-- `InjInv` holds at the initial game state, for every positive target and every injection:
+no material, message, key or positive acknowledgement is present. -/
+lemma injInv_init (kem : KEMScheme ProbComp K PK SK C)
+    (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)
+    (t : ℕ) (ht : 0 < t) (inj : TargetInjection PK SK C K) :
+    InjInv kem ecEk ecCt t inj
+      (initState (K := K) (PK := PK) (SK := SK) (C := C) (Sym := Sym)) := by
+  refine ⟨gameInv_init kem ecEk ecCt _ _ (by simp [initA, init, initialState])
+    (by simp [initB, init, initialState]), ?_⟩
+  have hinit : ∀ role role', TargetInv role t inj (initialState (Sym := Sym) role')
+      (initialState (Sym := Sym) role'.peer) (fun _ => none) (fun _ => none) (fun _ => none) := by
+    intro role role'
+    refine ⟨fun _ pk h => by simp [initialState] at h, fun pk h => by simp [initialState] at h,
+      fun sk h => by simp [initialState] at h, Or.inl rfl, Or.inl rfl, fun h => ?_,
+      fun n ρ tsnd h => by simp at h, fun h => ?_⟩
+    · simp only [initialState, Finset.mem_insert, Finset.mem_singleton] at h
+      omega
+    · cases role' <;> simp [initialState] at h <;> omega
+  rcases targetOwner t with _ | _
+  · exact hinit .A .A
+  · exact hinit .B .B
 
 /-! ## Parity: the wrong party never touches the target -/
 
@@ -871,7 +895,8 @@ variable (hpk : (inj.pk, inj.sk) ∈ support kem.keygen)
 
 omit [DecidableEq K] [DecidableEq Sym] in
 include hpk hct in
-/-- On an `InjInv` state, A's injected send has the support of A's honest send. -/
+/-- On an `InjInv` state, the support of A's injected send is included in that of A's honest
+send. -/
 lemma injectedSendA_subset
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : InjInv kem ecEk ecCt t inj s) :
@@ -893,7 +918,8 @@ lemma injectedSendA_subset
 
 omit [DecidableEq K] [DecidableEq Sym] in
 include hpk hct in
-/-- On an `InjInv` state, B's injected send has the support of B's honest send. -/
+/-- On an `InjInv` state, the support of B's injected send is included in that of B's honest
+send. -/
 lemma injectedSendB_subset
     (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
     (hs : InjInv kem ecEk ecCt t inj s) :
