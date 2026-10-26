@@ -101,10 +101,10 @@ length as $`\Enc(K, a, m)`, as the $`\$` oracle of {Informal.citet NRS14}[], Fig
 is finite with several lengths, the length of $`e^*` alone can tell the two branches apart. For
 ciphertexts of one length, the two games are the same.
 
-The new game leaks $`|\Enc(K, a, m)|`. If this length depends only on $`|m|` (`LengthRegular`),
-the new game suffices for Theorem 5 of {Informal.citet ACD19}[]: the FS-AEAD game of their
-Figure 5 requires $`|m_0| = |m_1|`, so the random challenge ciphertext does not depend on
-$`b`.
+The new game leaks $`|\Enc(K, a, m)|`. If, for fixed associated data, this length depends only
+on $`|m|` (`LengthRegular`), the new game suffices for Theorem 5 of {Informal.citet ACD19}[]: the FS-AEAD game of their
+Figure 5 requires $`|m_0| = |m_1|` and encrypts both messages under the same associated data,
+so the random challenge ciphertext does not depend on $`b`.
 :::::
 ::::::
 
