@@ -13,33 +13,34 @@ import ToVCVio.OracleComp.QueryTracking.OneUseSampling
 
 **Setting.** Let
 - `adv` be an SCKA adversary against Opp-UniKEM;
-- `e : ℕ` be the epoch at which the reduction embeds the KEM IND-CPA challenge;
+- `e > 0` be the epoch at which the reduction embeds the KEM IND-CPA challenge;
 - `b : Bool` be the ideal challenge mode at `e`: uniform key for `true`, recorded key for `false`.
 
 Assume that the KEM has deterministic decapsulation and the three erasure codes are correct.
 
-**Challenge mode.** Define `μ := adjacentMode e b` (`IdealHybrids`). For every epoch `t`,
+**Challenge mode.** The mode `μ := adjacentMode e b` (`IdealHybrids`) answers accepted challenges
+as follows:
 
-```text
-μ(t) = true ↔ 0 < t ∧ (t < e ∨ (t = e ∧ b = true)).
-```
+| Epoch `t`   | Answer                                                 |
+| ----------- | ------------------------------------------------------ |
+| `0 < t < e` | Uniform key                                            |
+| `t = e`     | Uniform key if `b = true`; recorded key if `b = false` |
+| Otherwise   | Recorded key                                           |
 
-An accepted challenge at epoch `t` returns a uniform key if `μ(t) = true`, and the recorded key
-otherwise.
+**Experiments.** Both run `adv` from their respective empty initial states at epoch `1`.
+A uses B's recorded key for A's current epoch instead of decapsulating.
 
-**Experiments.** Both run `adv` from their respective empty initial states at epoch `1`, replacing
-A's decapsulation by B's recorded key for A's current epoch. Let
-- `R := fixedBranch adv e (!b)` (`Simulator`) sample a fresh KEM challenge and embed its public
-  key and ciphertext at `e`, hiding its secret key, offline state, shared key, and coins.
-  An accepted challenge at `e` returns its candidate key: uniform if `b = true`, encapsulated
-  if `b = false`; other challenges follow `μ`. A permitted corruption or leaking send that
-  would reveal a hidden value stops the run with output `false`.
-- `I` run the SCKA security oracles with challenge mode `μ` (`idealSecurityImpl μ`, `Endpoints`),
-  returning `false` at the first query that exposes `e`.
+- **Ideal game `I`** (`idealSecurityImpl μ`, `Endpoints`): uses the challenge answers above
+  and returns `false` at the first query that exposes `e`.
+- **Reduction `R`** (`fixedBranch adv e (!b)`, `Simulator`): embeds a fresh KEM challenge's
+  public key and ciphertext at `e`. Challenges at `e` receive its candidate key: independent
+  uniform if `b = true`, encapsulated if `b = false`. Other challenges follow the table.
+  The run returns `false` if a permitted corruption or leaking send requires unavailable
+  challenge secrets or coins.
 
 Both return the output of `adv` on normal completion.
 
-**Main result.** For `e > 0` (`fixedBranch_eq_ideal`):
+**Main result** (`fixedBranch_eq_ideal`):
 
 ```text
 Pr[R = true] = Pr[I = true].
