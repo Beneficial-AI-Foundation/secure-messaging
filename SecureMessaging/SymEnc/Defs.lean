@@ -76,9 +76,11 @@ def Correct (se : DetSEAlg K M C) : Prop :=
 /-- Let `lenM : M → ℕ` be a message length. The ciphertext length of `se` depends only on the
 message length: `|m| = |m'|` implies `|Enc(K, m)| = |Enc(K', m')|` for all keys `K, K'`.
 NRS14 Section 2 requires this of every scheme. -/
+-- ANCHOR: DetSEAlgLengthRegular
 def LengthRegular [LenSampleable C] (lenM : M → ℕ) (se : DetSEAlg K M C) : Prop :=
   ∀ (k k' : K) (m m' : M), lenM m = lenM m' →
     LenSampleable.len (se.encrypt k m) = LenSampleable.len (se.encrypt k' m')
+-- ANCHOR_END: DetSEAlgLengthRegular
 
 section IndCPA
 

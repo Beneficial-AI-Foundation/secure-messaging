@@ -44,7 +44,7 @@ Encrypt-then-MAC.
 :::defTitle "aead_etm_det_se" "Deterministic symmetric encryption"
 :::
 
-:::::::definition "aead_etm_det_se" (parent := "aead_encrypt_then_mac") (lean := "DetSEAlg, DetSEAlg.Correct, DetSEAlg.oracleEncrypt, DetSEAlg.securityExpFixedBit, DetSEAlg.distAdvantage")
+:::::::definition "aead_etm_det_se" (parent := "aead_encrypt_then_mac") (lean := "DetSEAlg, DetSEAlg.Correct, DetSEAlg.LengthRegular, DetSEAlg.oracleEncrypt, DetSEAlg.securityExpFixedBit, DetSEAlg.distAdvantage")
 Adapted from {Informal.citet NRS14}[], Section 2 (ivE schemes).
 
 A deterministic symmetric encryption scheme $`\mathsf{SE}` is a tuple of algorithms
@@ -57,10 +57,12 @@ message space $`\mathcal M` and ciphertext space $`\mathcal C_e`, where
 - $`\mathsf{SE.Dec}` takes a key $`K_e` and a ciphertext $`c`, and produces a message
   $`m \gets \mathsf{SE.Dec}(K_e, c)`, or $`\bot`.
 
-$`\mathsf{SE.Enc}` and $`\mathsf{SE.Dec}` are deterministic, and $`\mathcal C_e` is finite
-and nonempty, so that the game below can sample from it uniformly. $`\mathsf{SE}` is correct
-if $`\mathsf{SE.Dec}(K_e, \mathsf{SE.Enc}(K_e, m)) = m` for all keys $`K_e` and messages
-$`m`.
+$`\mathsf{SE.Enc}` and $`\mathsf{SE.Dec}` are deterministic. Each ciphertext $`c` has a
+length $`|c|`, and the ciphertexts of each length can be sampled uniformly (`LenSampleable`).
+$`\mathsf{SE}` is correct if $`\mathsf{SE.Dec}(K_e, \mathsf{SE.Enc}(K_e, m)) = m` for all
+keys $`K_e` and messages $`m`. Let $`|m|` be a message length. $`\mathsf{SE}` is
+length-regular if $`|m| = |m'|` implies $`|\mathsf{SE.Enc}(K_e, m)| = |\mathsf{SE.Enc}(K_e', m')|`
+for all keys $`K_e, K_e'`.
 
 ```anchor DetSEAlg (project := ".") (module := SecureMessaging.SymEnc.Defs)
 structure DetSEAlg (K M C : Type) where
@@ -77,23 +79,26 @@ def Correct (se : DetSEAlg K M C) : Prop :=
   ∀ (k : K) (m : M), se.decrypt k (se.encrypt k m) = some m
 ```
 
+```anchor DetSEAlgLengthRegular (project := ".") (module := SecureMessaging.SymEnc.Defs)
+def LengthRegular [LenSampleable C] (lenM : M → ℕ) (se : DetSEAlg K M C) : Prop :=
+  ∀ (k k' : K) (m m' : M), lenM m = lenM m' →
+    LenSampleable.len (se.encrypt k m) = LenSampleable.len (se.encrypt k' m')
+```
+
 ::::::gameGrid
 :::::gameCell "\\textsf{Deviations from ivE schemes}" (kind := "scheme-notation")
 In {Informal.citet NRS14}[], an ivE scheme encrypts under a key and an initialization vector
 (IV), and the adversary makes many encryption queries. Here each key encrypts one message, so
 the scheme takes no IV and the game answers at most one encryption query. The security notion
-stays ind$-style: the adversary must tell real ciphertexts from uniformly random ones. This
-is stronger than left-or-right indistinguishability. The ind$ game of
-{Informal.citet NRS14}[] returns a random string of the same length as the real ciphertext.
-The game here samples from all of $`\mathcal C_e` instead, so ciphertexts must also hide the
-message length. This matches the AEAD game of {Informal.citet ACD19}[], which samples the
-challenge ciphertext from the whole ciphertext space.
+stays ind$-style: as in {Informal.citet NRS14}[], the adversary must tell real ciphertexts
+from uniformly random ones of the same length. For length-regular schemes, this is stronger
+than left-or-right indistinguishability on messages of equal length.
 :::::
 
 :::::gameCell "\\textsf{Game state and notation}" (kind := "scheme-notation")
 The game state consists of the key $`K_e`, the challenge bit $`b` and the flag
 $`\mathsf{used}`, which records whether $`\Oenc` already answered. For $`b = 0`, $`\Oenc`
-encrypts. For $`b = 1`, it returns a uniformly random ciphertext.
+encrypts. For $`b = 1`, it returns a uniformly random ciphertext of the same length.
 
 The bit $`b \in \bit` is a fixed parameter of the experiment
 $`\Exp{\textsf{ind\$}\text{-}b}{\textsf{SE}}`, not a sampled bit. The experiment returns
@@ -113,19 +118,19 @@ $`\begin{array}{l}
 \pif\;b = 0\;\pthen \\
 \quad c \gets \mathsf{SE.Enc}(K_e, m); \\
 \pelse \\
-\quad c \sample \mathcal C_e; \\
+\quad c \sample \{c' \in \mathcal C_e : |c'| = |\mathsf{SE.Enc}(K_e, m)|\}; \\
 \Return c
 \end{array}`
 
 ```anchor detSEOracleEncrypt (project := ".") (module := SecureMessaging.SymEnc.Defs)
-def oracleEncrypt [SampleableType C] (se : DetSEAlg K M C) (b : Bool) (k : K) :
+def oracleEncrypt [LenSampleable C] (se : DetSEAlg K M C) (b : Bool) (k : K) :
     QueryImpl (M →ₒ Option C) (StateT Bool ProbComp) :=
   fun m => do
     if (← get) then pure none
     else do
       set true
       let c ← if b
-        then liftM ($ᵗ C : ProbComp C)
+        then liftM (LenSampleable.unifSameLen (se.encrypt k m))
         else pure (se.encrypt k m)
       return some c
 ```
@@ -140,7 +145,7 @@ b' \gets \adv^{\Oenc}; \\
 \end{array}`
 
 ```anchor detSESecurityExpFixedBit (project := ".") (module := SecureMessaging.SymEnc.Defs)
-def securityExpFixedBit [SampleableType C] (se : DetSEAlg K M C)
+def securityExpFixedBit [LenSampleable C] (se : DetSEAlg K M C)
     (adversary : IndCPAAdversary M C) (b : Bool) : ProbComp Bool := do
   let k ← se.keygen
   let (b', _) ← (simulateQ (indCPAImpl se b k) adversary).run false
@@ -156,7 +161,7 @@ $$`\mathsf{Adv}^{\textsf{ind\$}}_{\textsf{SE}}(\adv)
   - \Pr\bigl[\Exp{\textsf{ind\$}\text{-}0}{\textsf{SE}}(\adv) = 1\bigr] \,\Bigr|`
 
 ```anchor detSEDistAdvantage (project := ".") (module := SecureMessaging.SymEnc.Defs)
-noncomputable def distAdvantage [SampleableType C] (se : DetSEAlg K M C)
+noncomputable def distAdvantage [LenSampleable C] (se : DetSEAlg K M C)
     (adversary : IndCPAAdversary M C) : ℝ :=
   |(Pr{let x ← securityExpFixedBit se adversary true}[x = true]).toReal -
    (Pr{let x ← securityExpFixedBit se adversary false}[x = true]).toReal|
@@ -190,21 +195,15 @@ encryption of $`m` under $`k` with IV $`\mathit{iv}`. The IV is secret, and the 
 chooses $`m` before it sees anything that depends on $`K_e`, so $`m` is independent of both
 $`k` and $`\mathit{iv}`.
 
-libsignal pads messages with PKCS#7, so the ciphertext length depends on $`|m|`. This is
-the usual behavior, and {Informal.citet NRS14}[] allows it: their ind$ game returns a
-random string of the same length as the real ciphertext. The game on this page is stricter.
-It samples $`c` from all of $`\mathcal C_e`, so it also requires the ciphertext to hide the
-message length (see the deviations above). In $`\Exp{\textsf{ind\$}\text{-}0}{\textsf{SE}}(\adv)`,
-the length of $`c` is fixed by $`|m|`. In $`\Exp{\textsf{ind\$}\text{-}1}{\textsf{SE}}(\adv)`,
-$`c` is uniform on all of $`\mathcal C_e`, so its length is random. An adversary that queries
-a short $`m` and outputs $`1` if the length of $`c` does not match $`|m|` has advantage
-close to $`1`. This attack learns only the message length, which any variable-length scheme
-reveals. It is a limit of the notion, not a weakness of libsignal.
+libsignal pads messages with PKCS#7. A message of $`|m|` bytes becomes
+$`\ell = \lfloor |m| / 16 \rfloor + 1` blocks, so the ciphertext has $`128\ell` bits. Its
+length depends only on $`|m|`, so the scheme is length-regular. For $`b = 1`, $`\Oenc`
+returns a uniformly random string of $`128\ell` bits, the same length as the real
+ciphertext. The adversary therefore learns $`|m|`, which it chose, and nothing from the
+length alone.
 
-For fixed-length messages without padding, for example
-$`\mathcal M = \mathcal C_e = \{0,1\}^{128\ell}`, the length gives nothing away. The
-ciphertext is still not exactly uniform as with the one-time pad, because AES under $`k` is
-a fixed permutation and not a uniform random function. The standard CBC analysis bounds the
+The ciphertext is still not exactly uniform as with the one-time pad, because AES under $`k`
+is a fixed permutation and not a uniform random function. The standard CBC analysis bounds the
 advantage by the PRP advantage of AES plus a collision term of order $`\ell^2 / 2^{128}`.
 This repository does not prove that bound and does not instantiate AES-CBC in Lean.
 :::::
@@ -226,7 +225,7 @@ independently and returns $`(K_e, K_m)`. $`\Enc` encrypts the message with $`\ma
 then computes the tag $`t` with $`F` on the associated data and the ciphertext.
 
 The tag is a PRF, not only a MAC (an unforgeable tag), because the security game compares
-the whole ciphertext $`(c, t)` with a uniformly random one. Unforgeability alone does not
+the whole ciphertext $`(c, t)` with a uniformly random one of the same length. Unforgeability alone does not
 make $`t` look random.
 
 ::::::gameGrid
@@ -316,8 +315,8 @@ $$`\mathsf{Adv}^{\textsf{dist}}_{\mathsf{EtM}[\mathsf{SE}, F]}(\adv)
 Here $`\mathsf{Adv}^{\textsf{dist}}` is the {bpref "aead_dist_advantage"}[distinguishing
 advantage] in the {bpref "aead_security_exp"}[one-time IND-CCA game]. In that game, for
 the key $`(K_e, K_m)` and a fixed challenge bit $`b`, $`\Oenc` answers only its first query
-$`(a, m)`. It returns $`e^* = \Enc((K_e, K_m), a, m)` for $`b = 0` and a uniformly random
-$`e^* \in \mathcal C_e \times \mathcal T` for $`b = 1`, and it records the challenge pair
+$`(a, m)`. It returns $`e^* = \Enc((K_e, K_m), a, m)` for $`b = 0`, and for $`b = 1` a uniformly random
+$`e^* = (c, t)` with $`|c| = |\mathsf{SE.Enc}(K_e, m)|` and $`t \in \mathcal T`, and it records the challenge pair
 $`(a^*, e^*)`, where $`a^* = a`. For $`b = 0`, $`\Odec` decrypts every query except
 $`(a^*, e^*)`. For $`b = 1`, it returns $`\bot`.
 
