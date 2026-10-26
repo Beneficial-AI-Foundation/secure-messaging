@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Opp-BiKEM security M8 stage B: the invariant of runs against the injected oracles, why it is preserved only on continuing successors, how the decoded target key is pinned without tracking the transcript, and what the eager-sampling stage will consume.">
+<title>Pinned in Place</title>
+<style>
+:root{--bg:#f6f4f8;--panel:#fff;--ink:#24202b;--muted:#62596d;--line:#ddd5e6;--accent:#63328a;--soft:#eee5f6;--good:#256347;--good-bg:#e3f1e9;--amber:#79520b;--amber-bg:#fbf0d9;--bad:#8a2d2d;--bad-bg:#f6e1e1;--code:#f0edf4;--serif:"Iowan Old Style",Palatino,Georgia,serif;--sans:system-ui,-apple-system,"Segoe UI",sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color-scheme:light}
+@media(prefers-color-scheme:dark){:root{--bg:#17141e;--panel:#211c2b;--ink:#eee9f4;--muted:#b5aac5;--line:#3e344d;--accent:#c5a0e7;--soft:#30233f;--good:#9bd7b2;--good-bg:#20362a;--amber:#f0ca83;--amber-bg:#3c2e17;--bad:#f0a0a0;--bad-bg:#3d2222;--code:#2c2436;color-scheme:dark}}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.7 var(--sans);padding-inline:max(20px,env(safe-area-inset-left)) max(20px,env(safe-area-inset-right))}a{color:var(--accent);text-underline-offset:3px}a:hover{text-decoration-thickness:2px}a:focus-visible,input:focus-visible,button:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:4px}button,a,summary{touch-action:manipulation}.wrap{max-width:1160px;margin:auto}
+.hero{padding:58px 0 36px;max-width:950px}.eyebrow,.num{color:var(--accent);font-size:12px;letter-spacing:1.6px;text-transform:uppercase;font-weight:700}.eyebrow{margin-bottom:16px}h1,h2{font-family:var(--serif);font-weight:500;line-height:1.15;text-wrap:balance}h1{font-size:clamp(38px,5.5vw,68px);margin:0 0 22px;letter-spacing:-1px}h2{font-size:clamp(28px,3.5vw,38px);margin:9px 0 20px}h3{font-family:var(--serif);font-weight:500;font-size:22px;margin:28px 0 12px}p{margin:0 0 18px;max-width:70ch}.lead{font-size:21px;line-height:1.6}.meta,.caption{font-size:14px;color:var(--muted)}.breadcrumbs{display:flex;flex-wrap:wrap;gap:8px 22px;font-size:14px;margin-top:22px}
+.layout{display:grid;grid-template-columns:212px minmax(0,1fr);gap:48px}.rail{position:sticky;top:24px;align-self:start;font-size:14px}.rail p{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:12px}.rail a{display:block;color:var(--muted);text-decoration:none;padding:5px 0}.rail a:hover{color:var(--accent)}main{min-width:0}section{padding:40px 0;border-top:1px solid var(--line)}section:first-child{padding-top:10px;border-top:0}
+code{font:0.85em var(--mono);background:var(--code);padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}pre{font:14px/1.65 var(--mono);padding:18px;background:var(--code);border:1px solid var(--line);border-radius:10px;overflow-x:auto;margin:20px 0}pre code{font:inherit;padding:0;background:none;overflow-wrap:normal}.formula{font:22px/1.65 var(--serif);padding:20px 24px;border:1px solid var(--line);border-radius:10px;background:var(--panel);margin:22px 0;overflow-x:auto}.formula small{display:block;font:14px/1.6 var(--sans);color:var(--muted);margin-top:8px}.formula.proved{border-left:4px solid var(--good)}.formula.planned{border-left:4px solid var(--amber)}.note{background:var(--soft);border-left:4px solid var(--accent);padding:16px 20px;border-radius:0 9px 9px 0;margin:22px 0}.note p:last-child{margin-bottom:0}.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:22px 0}.card{padding:18px;border:1px solid var(--line);border-radius:10px;background:var(--panel);min-width:0}.label{display:block;color:var(--accent);font-size:13px;margin-bottom:8px}.card p{font-size:15px}.card p:last-child{margin-bottom:0}.badge{display:inline-block;border-radius:5px;padding:3px 7px;font-size:12px;line-height:1.5;white-space:nowrap}.badge.done{color:var(--good);background:var(--good-bg)}.badge.next{color:var(--amber);background:var(--amber-bg)}.badge.stop{color:var(--bad);background:var(--bad-bg)}
+.table-wrap{max-width:100%;overflow-x:auto;margin:20px 0}table{border-collapse:collapse;width:100%;font-size:14.5px;line-height:1.6}th,td{padding:12px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{font-size:12px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase}caption{text-align:left;font-size:14px;color:var(--muted);padding-bottom:12px}.steps{padding-left:24px}.steps li{padding-left:5px;margin-bottom:20px}.steps li p{margin:7px 0 0}.bridge{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:24px 0}.bridge>div{padding:18px;border:1px solid var(--line);border-radius:9px;background:var(--panel);font-size:14px}.bridge .label{margin-bottom:8px}.bridge .ready{border-top:4px solid var(--good)}.bridge .future{border-top:4px solid var(--amber)}
+.chain{list-style:none;padding:0;margin:22px 0;display:grid;gap:10px}.chain li{display:grid;grid-template-columns:150px minmax(0,1fr);gap:14px;padding:14px 16px;border:1px solid var(--line);border-radius:9px;background:var(--panel);font-size:15px}.chain .stage{font-size:12px;letter-spacing:1px;text-transform:uppercase;font-weight:700;align-self:start}.chain .stage.done{color:var(--good)}.chain .stage.todo{color:var(--amber)}.chain .eq{font-family:var(--serif);font-size:19px}.chain .why{font-size:14px;color:var(--muted);margin-top:4px}
+.explorer{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:22px;margin:24px 0}.controls{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}button{font:14px/1.4 var(--sans);background:var(--bg);color:var(--ink);border:1px solid var(--line);padding:9px 13px;border-radius:6px;cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}.trace{display:flex;flex-wrap:wrap;gap:8px;min-height:38px;margin:14px 0;padding:10px;border:1px dashed var(--line);border-radius:8px;font:14px var(--mono)}.trace span{padding:4px 8px;border-radius:5px;background:var(--code)}.trace span.chall{background:var(--good-bg);color:var(--good)}.trace span.expose{background:var(--bad-bg);color:var(--bad)}.trace span.reject{text-decoration:line-through}.outputs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}.output{padding:14px;border:1px solid var(--line);border-radius:8px;min-width:0}.output span{display:block;font-size:13px;color:var(--muted)}.output output{display:block;font:17px/1.6 var(--sans)}.explorer .caption{margin-top:16px;margin-bottom:0}
+details{border:1px solid var(--line);border-radius:8px;padding:14px 17px;background:var(--panel);margin:14px 0}summary{cursor:pointer;font-size:15px}details p{margin:14px 0 0}footer{border-top:1px solid var(--line);padding:32px 0 60px;color:var(--muted);font-size:14px}.source-list{padding-left:22px}.source-list li{margin:12px 0}.skip{position:absolute;left:20px;top:-70px;padding:10px;background:var(--panel);z-index:2}.skip:focus{top:12px}
+@media(max-width:900px){.layout{grid-template-columns:1fr;gap:0}.rail{position:static;display:flex;flex-wrap:wrap;gap:0 18px;border-bottom:1px solid var(--line);padding-bottom:20px;margin-bottom:20px}.rail p{width:100%;margin-bottom:8px}.hero{padding-top:36px}.cards,.bridge,.outputs{grid-template-columns:1fr}.chain li{grid-template-columns:1fr;gap:6px}.rail a{font-size:13px}.explorer{padding:16px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{.rail,.controls,.skip{display:none}.layout{display:block}.hero{padding-top:0}body{background:#fff;color:#111}section{break-inside:avoid}a{color:inherit}}
+.explorer{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:22px;margin:24px 0}.explorer select{font:15px var(--sans);padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);width:100%;max-width:560px}.explorer .result{margin-top:16px;padding:14px 16px;border:1px solid var(--line);border-radius:8px;font-size:15px}.explorer .result strong{font-weight:600}.clause{display:inline-block;font:13px var(--mono);background:var(--code);padding:2px 6px;border-radius:4px}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the tutorial</a>
+<div class="wrap">
+<header class="hero">
+  <div class="eyebrow">Secure messaging · Opp-BiKEM · M8, stage B of four</div>
+  <h1>Pinned in Place</h1>
+  <p class="lead">The KEM reduction replaces the target epoch's key pair and encapsulation by the values a challenger hands it. Stage B proves what the game states reached by such runs look like: the injected values are pinned wherever the state holds them, and the ordinary game invariant still holds. The proof needs no tracking of the transcript across steps, and it holds only on the successors that keep the target unexposed, which is exactly what the stopped run keeps.</p>
+  <p class="meta">Snapshot: 26 October 2026, the unstaged stage B module above commit <code>cc4c09f</code>. Stages C and D remain planned.</p>
+  <div class="breadcrumbs"><a href="oppbikem-security-m8-stage-a-tutorial.html">Previous: stage A, cancellation and the reduction</a><a href="oppbikem-security-m7-tutorial.html">M7: the hybrids</a><a href="TUTORIAL_n1.html">Full roadmap</a></div>
+</header>
+<div class="layout">
+<nav class="rail" aria-label="Tutorial sections">
+  <p>Contents</p>
+  <a href="#position">1 · Where we are</a>
+  <a href="#why">2 · What later stages need</a>
+  <a href="#continuing">3 · Continuing successors only</a>
+  <a href="#invariant">4 · The invariant</a>
+  <a href="#pinning">5 · Pinning the decoded key</a>
+  <a href="#explorer">6 · Case explorer</a>
+  <a href="#steps">7 · One step at a time</a>
+  <a href="#gameinv">8 · The game invariant for free</a>
+  <a href="#firstuse">9 · First-use predicates</a>
+  <a href="#deviations">10 · What changed from the plan</a>
+  <a href="#questions">Check your understanding</a>
+  <a href="#sources">Sources and verification</a>
+</nav>
+<main id="main">
+
+<section id="position">
+  <span class="num">01</span>
+  <h2>The reduction exists; now describe its runs</h2>
+  <p>Stage A defined the reduction and showed that the two adjacent hybrids can be stopped when the target epoch is exposed, without changing their difference. The reduction runs the adversary against the <em>injected</em> oracles: the ideal security oracles whose ordinary sends return a fixed key pair at the generation of the target's key epoch and a fixed ciphertext and key at the encapsulation for the target. Everything else is honest.</p>
+  <div class="bridge" aria-label="Phases of the hop bound">
+    <div class="ready"><span class="label">Stage A, proved</span>Cancellation of exposed paths; the reduction, frozen; generic bookkeeping.</div>
+    <div class="ready"><span class="label">Stage B, this page</span>An invariant of injected runs on continuing successors; facts about one send and one receive; first-use predicates.</div>
+    <div class="future"><span class="label">Stages C and D</span>Eager equals lazy by three one-use peels; the state map to the reduction; the public theorem.</div>
+  </div>
+  <p>Stages C and D compare the injected oracles with the honest ones query by query. Every such comparison needs facts about the state at the moment of the query: that the peer key read at the encapsulation site is the injected public key, that the table entry at the target is the injected key, that the retained secret at the target is the injected one. Stage B supplies these facts as an invariant.</p>
+</section>
+
+<section id="why">
+  <span class="num">02</span>
+  <h2>What the later stages need, and nothing more</h2>
+  <p>The plan's first draft of the invariant quantified over transcript witnesses: for every transcript that witnesses the game invariant, the key pair recorded at the target has the injected public key. Before writing a line, it pays to ask who consumes each clause.</p>
+  <div class="table-wrap"><table>
+    <caption>Consumers of the invariant in stages C and D</caption>
+    <thead><tr><th>Need</th><th>Where</th><th>Clause that serves it</th></tr></thead>
+    <tbody>
+      <tr><td>The peer key read at the encapsulation for the target is the injected public key</td><td>Game invariant preservation now; the encapsulation peel in stage C</td><td><code>ekPeer_pinned</code></td></tr>
+      <tr><td>The table entry at the target is empty or the injected key</td><td>Stage D's state map, which replaces that entry by the candidate key</td><td><code>table_own</code>, <code>table_peer</code></td></tr>
+      <tr><td>The retained secret at the target is the injected one</td><td>Available for stage D; not currently consumed</td><td><code>secret_pinned</code></td></tr>
+      <tr><td>The ordinary game invariant</td><td>Everywhere: parities, message honesty, lockstep of epochs</td><td><code>gameInv</code></td></tr>
+    </tbody>
+  </table></div>
+  <p>No consumer needs the transcript's ciphertext at the target: both sides of the eventual state map inject the same ciphertext, and the ideal receive ignores it. And no consumer needs the transcript's key pair as such; what matters is the value the peer decodes. So the invariant can be stated entirely on the state. The price is that pinning the decoded value needs an argument, which is the heart of this stage.</p>
+</section>
+
+<section id="continuing">
+  <span class="num">03</span>
+  <h2>Preserved on continuing successors only</h2>
+  <p>The stage A review found that the invariant cannot be preserved by every query. The reduction's leaking sends are the honest ones. A leaking send by the owner whose key-generation guard holds at the target's key epoch draws a fresh honest pair, which with positive probability differs from the injected one, and stores its secret at the target. Any clause pinning that secret is violated.</p>
+  <p>The same send exposes the target. The exposure set of an accepted leaking send is exactly the epochs whose key-generation or encapsulation randomness it leaked, and these are the epochs the two injection tests name. So the violating successor has the target exposed, and the stopped run discards it before the adversary sees anything further.</p>
+  <div class="formula proved">InjInv(s) ⇒ ∀ z ∈ supp(query from s), t ∉ z.exposed ⇒ InjInv(z)
+    <small><code>injectedSecurityImpl_preservesInv_continuing</code>, for every selection, every security query, every target <code>t ≥ 1</code> and supported injected values. The stopping test is applied after the query, so "<code>t</code> unexposed afterwards" is exactly "the stopped run continues".</small>
+  </div>
+  <p>This is the shape the one-use sampling lemma asks for in its preservation hypothesis, and the shape the stage D state map will carry. A rejected query, whose answer is an ordinary rejection and whose state is unchanged, is a continuing successor and is covered.</p>
+  <div class="note"><p>The review also warned against a tempting half-measure: keeping the ordinary game invariant unconditional and weakening only the pinning clauses. After an honest leaking generation of the target, a later injected encapsulation would use the injected ciphertext against a different public key, and even the game invariant would fail on that path. The restriction has to apply to the whole invariant.</p></div>
+</section>
+
+<section id="invariant">
+  <span class="num">04 · implemented</span>
+  <h2>The invariant</h2>
+  <p>The target epoch has an owner, the party that generates its key pair: A for even epochs, B for odd ones. The invariant is the ordinary game invariant together with a pinning invariant stated for the owner's state, the peer's state, the peer's outgoing messages and the two key tables.</p>
+  <pre><code>InjInv t inj s := GameInv s ∧ TargetInv (owner t) t inj own peer peerMsgs ownKey peerKey</code></pre>
+  <div class="table-wrap"><table>
+    <caption>The eight clauses of <code>TargetInv</code></caption>
+    <thead><tr><th>Clause</th><th>Says</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td><code>ek_pinned</code></td><td>While the owner's key epoch is <code>t</code>, its retained public key is the injected one.</td><td>Pins what the peer will decode.</td></tr>
+      <tr><td><code>ekPeer_pinned</code></td><td>The peer's decoded key for <code>t</code> is the injected one.</td><td>The encapsulation site.</td></tr>
+      <tr><td><code>secret_pinned</code></td><td>The owner's retained secret for <code>t</code> is the injected one.</td><td>Reserved for stage D.</td></tr>
+      <tr><td><code>table_own</code>, <code>table_peer</code></td><td>Each table's entry at <code>t</code> is empty or the injected key.</td><td>The challenge and the ideal receive at <code>t</code>.</td></tr>
+      <tr><td><code>ctRec_decoded</code></td><td>Once the owner acknowledges <code>t</code>'s ciphertext, the peer has decoded <code>t</code>'s key.</td><td rowspan="3">Three monotone facts recording that the peer decoded the key before any ciphertext for <code>t</code> could exist. They close the hard case of pinning.</td></tr>
+      <tr><td><code>ctMsg_decoded</code></td><td>Once the peer recorded a ciphertext chunk for <code>t</code>, it has decoded <code>t</code>'s key.</td></tr>
+      <tr><td><code>ct_decoded</code></td><td>Once the peer retains a ciphertext at responder epoch <code>t</code>, it has decoded <code>t</code>'s key.</td></tr>
+    </tbody>
+  </table></div>
+  <p>Every clause is about the current state. The three decoding clauses look redundant with the protocol's control flow, and in a sense they are: a ciphertext for <code>t</code> can only be produced by an encapsulation, which reads the decoded key. But the ordinary per-party invariant does not record that link, and once the material is gone from the state nothing else does. The clauses carry the link forward, and each is preserved by a local argument because decoded peer keys are never cleared.</p>
+</section>
+
+<section id="pinning">
+  <span class="num">05 · the argument</span>
+  <h2>Pinning a key the peer decodes right now</h2>
+  <p>The only clause whose preservation is not a one-line consequence of the step facts is <code>ekPeer_pinned</code> at the peer's receive that decodes the target's public key. The peer assembles chunks, decodes a public key, and stores it as the decoded key for <code>t</code>. Why is it the injected key?</p>
+  <ol class="steps">
+    <li>The chunks come from the owner's messages, and the receive-step theorem of the correctness proof says the decoded value is the transcript's public key at <code>t</code>, for the same transcript that witnesses the invariant before and after the step.<p>This uses the existing receive step with the ideal recovery function, discharged from the owner's table clause exactly as in the ideal-game invariant.</p></li>
+    <li>The owner's key epoch is at least <code>t</code>, because the message that carries chunks for <code>t</code> carries the owner's responder epoch at sending time, which only grows.</li>
+    <li>If the owner's key epoch equals <code>t</code>: either the owner still retains its public key, which the invariant says is the transcript's key at <code>t</code> and <code>ek_pinned</code> says is the injected one; or it has cleared it, which the invariant allows only after the peer acknowledged decoding, so the peer already had a decoded key for <code>t</code>, contradicting that it is decoding now.</li>
+    <li>If the owner's key epoch exceeds <code>t</code>: the invariant's secret-key clauses say the transcript's secret at <code>t</code> is retained unless <code>t</code> is acknowledged, and at most one secret is retained, the one for the current key epoch. So <code>t</code> is acknowledged by the owner, and <code>ctRec_decoded</code> says the peer already decoded <code>t</code>'s key, again a contradiction.</li>
+  </ol>
+  <p>Step 4 is where the transcript-quantified formulation of the plan breaks down. With the owner past <code>t</code>, nothing in the per-party invariant pins the transcript's key pair at <code>t</code> to anything in the state. The decoding clauses supply the missing fact from the other side: the peer cannot be decoding now because it decoded earlier.</p>
+</section>
+
+<section id="explorer">
+  <span class="num">06 · interactive</span>
+  <h2>Case explorer</h2>
+  <p>Pick the owner's situation at the moment the peer decodes a public key for the target epoch. The explorer names the clause that pins the decoded key or refutes the situation.</p>
+  <div class="explorer" aria-label="Pinning argument explorer">
+    <label for="case">Owner's state when the peer decodes <code>t</code></label>
+    <select id="case">
+      <option value="below">Key epoch below t</option>
+      <option value="eq-ek" selected>Key epoch equal to t, public key retained</option>
+      <option value="eq-noek">Key epoch equal to t, public key cleared</option>
+      <option value="above">Key epoch above t</option>
+    </select>
+    <div class="result" id="case-result"></div>
+  </div>
+</section>
+
+<section id="steps">
+  <span class="num">07 · implemented</span>
+  <h2>One step at a time, generic in the samplers</h2>
+  <p>The send algorithm is one function, <code>sendWith</code>, parametrised by its key-generation and encapsulation samplers. The honest send, the honest leaking send and the injected send are three instances. Stage B proves the facts about one send step once, for arbitrary samplers:</p>
+  <pre><code>SendWithFacts role keygen encaps ecCt st key? ρ st' rand
+  -- unchanged: requester epoch, decoded peer keys, acknowledgements
+  -- with key-generation randomness: a supported pair, public key retained, secret stored
+  -- with encapsulation randomness: a supported encapsulation to the decoded peer key,
+  --   key emitted at the new responder epoch, ciphertext retained
+  -- ciphertext messages carry a chunk of the retained ciphertext</code></pre>
+  <p>The four preservation lemmas for the pinning invariant are then stated for an arbitrary <code>sendWith</code> output, with hypotheses only at the two hit sites: if this send generates the target's key pair, the pair it generated is the injected one; if it encapsulates for the target, the key it emitted is the injected one. The injected sends discharge both from their samplers. The honest leaking sends discharge both vacuously on continuing successors, because hitting a site exposes the target.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Transition</th><th>Lemma</th><th>What it needs beyond the invariant</th></tr></thead>
+    <tbody>
+      <tr><td>The owner sends</td><td><code>TargetInv.ownSend</code></td><td>Parities of <code>t</code> and of the owner's responder epoch, to see that an emitted key is never at <code>t</code>.</td></tr>
+      <tr><td>The peer sends</td><td><code>TargetInv.peerSend</code></td><td>That an acknowledged responder epoch has no retained ciphertext, to rule out a ciphertext surviving an advance.</td></tr>
+      <tr><td>The owner receives</td><td><code>TargetInv.ownRecv</code></td><td>The message's parity and the new requester epoch, from the game invariant.</td></tr>
+      <tr><td>The peer receives</td><td><code>TargetInv.peerRecv</code></td><td>Both per-party invariants and the receive step, for the pinning argument of the previous section.</td></tr>
+      <tr><td>Challenge, corruptions</td><td>inline</td><td>Nothing: only bookkeeping fields change.</td></tr>
+    </tbody>
+  </table></div>
+  <p>A matching <code>RecvWithFacts</code> describes one receive: the responder epoch is kept, own material is kept or cleared, decoded peer keys are kept and at most one is added, secrets only disappear, ciphertext acknowledgements grow by the flag and the decapsulated epoch, and an emitted key is the recovery function's value at the decapsulated epoch.</p>
+</section>
+
+<section id="gameinv">
+  <span class="num">08 · implemented</span>
+  <h2>The game invariant comes for free</h2>
+  <p>The ordinary game invariant was proved for honest sends. The injected send differs only in its samplers, and on an invariant state its samples are honest samples: the injected key pair is in the support of key generation by assumption, and the injected encapsulation is in the support of encapsulation to the injected public key, which is the key the send reads at the target site by <code>ekPeer_pinned</code>.</p>
+  <div class="formula proved">supp(injectedSend) ⊆ supp(send)  on InjInv states
+    <small><code>injectedSend_support_subset</code>, from <code>sendWith_support_mono</code>: <code>sendWith</code> is monotone in the supports of its samplers, with the encapsulation inclusion required only at the peer key the send actually reads.</small>
+  </div>
+  <p>So every successor of an injected send is a successor of the honest send from the same state, and the existing preservation theorem applies unchanged. The ideal receives are literally the ideal game's, and the leaking sends are honest, so their game-invariant preservation is reused too.</p>
+</section>
+
+<section id="firstuse">
+  <span class="num">09 · implemented</span>
+  <h2>First-use predicates for stage C</h2>
+  <p>The eager-sampling stage will draw the target's key pair and encapsulation up front and show this equals drawing them at the query that first uses them. The one-use sampling lemma needs, for each sample, a state predicate "already used" that becomes true at the consuming query, stays true afterwards, and excludes a second consuming query.</p>
+  <div class="cards">
+    <div class="card"><span class="label">Key pair</span><p><code>targetGenerated role t st</code>: the owner's key epoch is at least <code>t</code>. A generating send makes it true; sends and receives keep it; once true, the generation test is false.</p></div>
+    <div class="card"><span class="label">Encapsulation</span><p><code>targetEncapsulated t st</code>: the peer's responder epoch passed <code>t</code>, or equals <code>t</code> with a retained ciphertext or an acknowledgement for <code>t</code>. An encapsulating send makes it true; sends and receives keep it; once true, the encapsulation test is false.</p></div>
+  </div>
+  <p>These are proved at the level of one send or receive. Lifting them through the game oracles is routine and is left to stage C, which fixes the exact shape of the hit and used predicates the generic lemma takes.</p>
+</section>
+
+<section id="deviations">
+  <span class="num">10</span>
+  <h2>What changed from the plan</h2>
+  <ul class="steps">
+    <li>No transcript-quantified clauses. The plan's <code>key_pinned</code> over all witnesses is not derivable from the state once the owner has passed the target. The three decoding clauses replace it, and the plan's fallback of tracking the transcript through the send step was not needed.</li>
+    <li>The ciphertext clause was dropped: nothing in stages C or D reads the ciphertext value.</li>
+    <li>The encapsulation predicate takes no role argument; it describes the encapsulating party's own state.</li>
+    <li>The generic support characterisations of the leaking-send oracles live in the new module rather than in the generic SCKA file, whose imports do not include the game-state update functions.</li>
+  </ul>
+</section>
+
+<section id="questions">
+  <span class="num">Check your understanding</span>
+  <h2>Separate the claims</h2>
+  <details><summary>Why is the invariant not preserved by every query?</summary><p>Because the reduction's leaking sends are honest. A leaking generation of the target's key pair stores a fresh secret, not the injected one. That query exposes the target, and the stopped run discards it, so the theorem only promises the invariant on successors that keep the target unexposed.</p></details>
+  <details><summary>Could the proof keep the ordinary game invariant unconditionally and restrict only the pinning clauses?</summary><p>No. After an honest leaking generation, a later injected encapsulation would pair the injected ciphertext with a public key it was not made for, and the transcript-support clauses of the game invariant would fail. Since the run has stopped, nothing is claimed on that path at all.</p></details>
+  <details><summary>Why are decoded peer keys never cleared?</summary><p>The receive algorithm only adds to the decoded-key map, and the send algorithm does not touch it. This is why the three decoding clauses are monotone and why "the peer already decoded" is a stable fact once established.</p></details>
+  <details><summary>Where does the game invariant enter the pinning argument?</summary><p>In the peer's receive. It supplies the transcript that witnesses the pre- and post-state, the honesty of the owner's message, the clauses tying the owner's retained public key and secrets to the transcript, and the fact that the owner clears its public key only after the peer acknowledged decoding.</p></details>
+  <details><summary>Why does the injected send inherit the game invariant rather than needing a new proof?</summary><p>Its support is included in the honest send's support on invariant states, because its two samples are honest samples at the sites where they are used. Preservation is a property of successors, so it transfers through support inclusion.</p></details>
+  <details><summary>Is the retained-secret clause used?</summary><p>Not by the planned consumers. The stage D state map replaces whatever value sits at the target epoch by the placeholder secret, so it does not need to know the value. The clause is cheap to maintain and kept in case stage D's exact shape wants it.</p></details>
+</section>
+
+<footer id="sources">
+  <p>Snapshot of 26 October 2026. The covering full build passed with 3,185 jobs with no warnings in the new module. The module passes the repository linter. The 48-declaration axiom audit found only standard axioms and no <code>sorryAx</code>. The only edit to an existing file is one import line.</p>
+  <ul class="source-list">
+    <li><a href="../../SecureMessaging/SCKA/OppBiKEM/Security/Injected.lean">Security/Injected.lean</a>: send and receive step facts, support monotonicity, the invariant and its preservation, first-use predicates.</li>
+    <li><a href="../../SecureMessaging/SCKA/OppBiKEM/Security/Reduction.lean">Security/Reduction.lean</a>: the injected oracles the invariant describes. <a href="../../SecureMessaging/SCKA/OppBiKEM/Correctness/MainInvariant.lean">Correctness/MainInvariant.lean</a>: the per-party invariant whose clauses the pinning argument uses.</li>
+    <li><a href="../../.formalising/fv-plans/OppBiKEM-security/merge/n9/EXECUTION_n9.md">Execution record</a> with build, lint and axiom logs and the full deviation list; <a href="../../.formalising/fv-plans/OppBiKEM-security/reviews/EVAL_n8.md">stage A evaluation</a>, which required the continuing-successor contract; <a href="../../.formalising/fv-plans/OppBiKEM-security/plans/PLAN_n8.md">four-stage plan</a>.</li>
+    <li>Protocol context: Auerbach et al., <a href="https://www.usenix.org/system/files/usenixsecurity25-auerbach.pdf">How to Compare Bandwidth Constrained Two-Party Secure Messaging Protocols</a>, USENIX Security 2025.</li>
+  </ul>
+</footer>
+</main>
+</div>
+</div>
+<script>
+(() => {
+  const sel = document.getElementById('case'), out = document.getElementById('case-result');
+  const text = {
+    'below': '<strong>Impossible.</strong> The owner\'s message carrying chunks of the key for t carries its responder epoch at sending time, and the per-party invariant bounds it by the current one (<span class="clause">MessageInv.res_le</span>). So the owner\'s key epoch is at least t.',
+    'eq-ek': '<strong>Pinned by the owner.</strong> The retained public key is the transcript\'s key at the key epoch (<span class="clause">PartyInv.ek_T</span>), the decoded value is the transcript\'s key at t for the same witness, and <span class="clause">ek_pinned</span> says the retained key is the injected one.',
+    'eq-noek': '<strong>Impossible.</strong> A cleared public key means the key epoch is acknowledged by the peer (<span class="clause">PartyInv.ek_acked</span>, with <span class="clause">keypair_current</span> excluding a missing pair), and an acknowledged key epoch means the peer already holds a decoded key for it (<span class="clause">PartyInv.ekRec_req</span>). But the peer is decoding t now, so it had none.',
+    'above': '<strong>Impossible.</strong> The transcript\'s secret at t is retained unless t is acknowledged (<span class="clause">PartyInv.T_dk</span>), and only the current key epoch\'s secret is retained (<span class="clause">PartyInv.dk_shape</span>), so t is acknowledged. Then <span class="clause">ctRec_decoded</span> says the peer already decoded t\'s key, contradicting that it decodes now. This is the case the transcript-quantified plan could not close.'
+  };
+  function render() { out.innerHTML = text[sel.value]; }
+  sel.addEventListener('change', render);
+  render();
+})();
+</script>
+</body>
+</html>

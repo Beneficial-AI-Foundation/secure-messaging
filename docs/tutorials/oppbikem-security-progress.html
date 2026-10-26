@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="The Opp-BiKEM proof so far: correctness, the security interface, exposure policy, invariant preservation, failure probability and advantage normalization. A guide to the next phase.">
+<title>Opp-BiKEM: The Proof So Far</title>
+<style>
+:root{--bg:#f6f4f8;--panel:#fff;--ink:#24202b;--muted:#62596d;--line:#ddd5e6;--accent:#63328a;--soft:#eee5f6;--good:#256347;--good-bg:#e3f1e9;--amber:#79520b;--amber-bg:#fbf0d9;--code:#f0edf4;--serif:"Iowan Old Style",Palatino,Georgia,serif;--sans:system-ui,-apple-system,"Segoe UI",sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color-scheme:light}
+@media(prefers-color-scheme:dark){:root{--bg:#17141e;--panel:#211c2b;--ink:#eee9f4;--muted:#b5aac5;--line:#3e344d;--accent:#c5a0e7;--soft:#30233f;--good:#9bd7b2;--good-bg:#20362a;--amber:#f0ca83;--amber-bg:#3c2e17;--code:#2c2436;color-scheme:dark}}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.7 var(--sans);padding-inline:max(20px,env(safe-area-inset-left)) max(20px,env(safe-area-inset-right))}a{color:var(--accent);text-underline-offset:3px}a:hover{text-decoration-thickness:2px}a:focus-visible,input:focus-visible,button:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:4px}button,a,summary{touch-action:manipulation}.wrap{max-width:1160px;margin:auto}
+.hero{padding:58px 0 36px;max-width:950px}.eyebrow,.num{color:var(--accent);font-size:12px;letter-spacing:1.6px;text-transform:uppercase;font-weight:700}.eyebrow{margin-bottom:16px}h1,h2{font-family:var(--serif);font-weight:500;line-height:1.15;text-wrap:balance}h1{font-size:clamp(38px,5.5vw,68px);margin:0 0 22px;letter-spacing:-1px}h2{font-size:clamp(28px,3.5vw,38px);margin:9px 0 20px}p{margin:0 0 18px;max-width:70ch}.lead{font-size:21px;line-height:1.6}.meta,.caption{font-size:14px;color:var(--muted)}.breadcrumbs{display:flex;flex-wrap:wrap;gap:8px 22px;font-size:14px;margin-top:22px}
+.layout{display:grid;grid-template-columns:212px minmax(0,1fr);gap:48px}.rail{position:sticky;top:24px;align-self:start;font-size:14px}.rail p{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:12px}.rail a{display:block;color:var(--muted);text-decoration:none;padding:5px 0}.rail a:hover{color:var(--accent)}main{min-width:0}section{padding:40px 0;border-top:1px solid var(--line)}section:first-child{padding-top:10px;border-top:0}
+code{font:0.85em var(--mono);background:var(--code);padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}pre{font:14px/1.65 var(--mono);padding:18px;background:var(--code);border:1px solid var(--line);border-radius:10px;overflow-x:auto;margin:20px 0}pre code{font:inherit;padding:0;background:none;overflow-wrap:normal}.formula{font:22px/1.65 var(--serif);padding:20px 24px;border:1px solid var(--line);border-radius:10px;background:var(--panel);margin:22px 0;overflow-x:auto}.formula small{display:block;font:14px/1.6 var(--sans);color:var(--muted);margin-top:8px}.formula.proved{border-left:4px solid var(--good)}.formula.planned{border-left:4px solid var(--amber)}.note{background:var(--soft);border-left:4px solid var(--accent);padding:16px 20px;border-radius:0 9px 9px 0;margin:22px 0}.note p:last-child{margin-bottom:0}.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:22px 0}.card{padding:18px;border:1px solid var(--line);border-radius:10px;background:var(--panel);min-width:0}.label{display:block;color:var(--accent);font-size:13px;margin-bottom:8px}.card p{font-size:15px}.card p:last-child{margin-bottom:0}.badge{display:inline-block;border-radius:5px;padding:3px 7px;font-size:12px;line-height:1.5;white-space:nowrap}.badge.done{color:var(--good);background:var(--good-bg)}.badge.next{color:var(--amber);background:var(--amber-bg)}
+.table-wrap{max-width:100%;overflow-x:auto;margin:20px 0}table{border-collapse:collapse;width:100%;font-size:14.5px;line-height:1.6}th,td{padding:12px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{font-size:12px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase}caption{text-align:left;font-size:14px;color:var(--muted);padding-bottom:12px}.steps{padding-left:24px}.steps li{padding-left:5px;margin-bottom:20px}.steps li p{margin:7px 0 0}.bridge{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:24px 0}.bridge>div{padding:18px;border:1px solid var(--line);border-radius:9px;background:var(--panel);font-size:14px}.bridge .label{margin-bottom:8px}.bridge .ready{border-top:4px solid var(--good)}.bridge .future{border-top:4px solid var(--amber)}
+.calculator{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:22px;margin:24px 0}.inputs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}label{display:block;font-size:15px;margin-bottom:8px}input[type=range]{width:100%;accent-color:var(--accent)}.track{height:7px;background:var(--code);border-radius:6px;overflow:hidden;margin:12px 0}.fill{height:100%;background:var(--accent);width:25%}.fill.random{background:var(--good);width:75%}.outputs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:20px}.output{padding:14px;border:1px solid var(--line);border-radius:8px;min-width:0}.output span{display:block;font-size:13px;color:var(--muted)}.output output{display:block;font:25px/1.8 var(--mono)}button{font:14px/1.4 var(--sans);background:var(--bg);color:var(--ink);border:1px solid var(--line);padding:9px 13px;border-radius:6px;cursor:pointer}.controls{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}.calculator .caption{margin-top:16px;margin-bottom:0}
+details{border:1px solid var(--line);border-radius:8px;padding:14px 17px;background:var(--panel);margin:14px 0}summary{cursor:pointer;font-size:15px}details p{margin:14px 0 0}footer{border-top:1px solid var(--line);padding:32px 0 60px;color:var(--muted);font-size:14px}.source-list{padding-left:22px}.source-list li{margin:12px 0}.skip{position:absolute;left:20px;top:-70px;padding:10px;background:var(--panel);z-index:2}.skip:focus{top:12px}
+@media(max-width:900px){.layout{grid-template-columns:1fr;gap:0}.rail{position:static;display:flex;flex-wrap:wrap;gap:0 18px;border-bottom:1px solid var(--line);padding-bottom:20px;margin-bottom:20px}.rail p{width:100%;margin-bottom:8px}.hero{padding-top:36px}.cards,.bridge,.inputs{grid-template-columns:1fr}.rail a{font-size:13px}.calculator{padding:16px}.outputs{grid-template-columns:1fr}.output output{font-size:23px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{.rail,.controls,.skip{display:none}.layout{display:block}.hero{padding-top:0}body{background:#fff;color:#111}section{break-inside:avoid}a{color:inherit}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the tutorial</a>
+<div class="wrap">
+<header class="hero">
+  <div class="eyebrow">Secure messaging · Opp-BiKEM · progress through M3 and N</div>
+  <h1>The Proof So Far</h1>
+  <p class="lead">The real security game now has a proved consistency guarantee and a bound on KEM failures. We also have the identity that converts a distance between two game branches into guessing advantage. This page connects those results and explains the work that comes next.</p>
+  <p class="meta">Snapshot: 23 October 2026, including the unstaged M3b/N changes above commit <code>38416ef</code>. The final key-secrecy theorem remains open.</p>
+  <div class="breadcrumbs"><a href="../reviews/oppbikem-security-prerequisites-review.md">Review of the current changes</a><a href="TUTORIAL_n1.html">Full roadmap</a><a href="oppbikem-correctness-tutorial.md">Correctness tutorial</a></div>
+</header>
+<div class="layout">
+<nav class="rail" aria-label="Tutorial sections">
+  <p>Contents</p>
+  <a href="#position">1 · Where we are</a>
+  <a href="#game">2 · The security experiment</a>
+  <a href="#correctness">3 · Existing correctness</a>
+  <a href="#m1">4 · M1: sends and coins</a>
+  <a href="#m2">5 · M2: exposed epochs</a>
+  <a href="#m3a">6 · M3a: the same invariant</a>
+  <a href="#m3b">7 · M3b: the failure budget</a>
+  <a href="#normalization">8 · N: the factor of two</a>
+  <a href="#inventory">9 · What code is available</a>
+  <a href="#next">10 · The harder next phase</a>
+  <a href="#questions">Check your understanding</a>
+  <a href="#sources">Sources and verification</a>
+</nav>
+<main id="main">
+
+<section id="position">
+  <span class="num">01</span>
+  <h2>The initial foundation is built</h2>
+  <p>Opp-BiKEM sends public keys and ciphertexts in chunks. The parties alternate KEM roles across epochs. An epoch identifies one key-agreement instance. The existing correctness proof explains why these exchanges remain consistent.</p>
+  <p>The security development adds an adversary that can observe selected send randomness, corrupt party states and request challenge keys. We now know how the real game behaves under all of those requests.</p>
+  <div class="bridge" aria-label="Three phases of the security proof">
+    <div class="ready"><span class="label">Available now</span>Correctness, M1, M2, M3a, M3b and N: real-game consistency, exposure bookkeeping, a failure budget and advantage normalization.</div>
+    <div class="future"><span class="label">Next constructions</span>M4, M4′ and M5: an ideal game, its structural invariants, and comparisons with the real game.</div>
+    <div class="future"><span class="label">Main cryptographic argument</span>M7, M8, M10 and M11: hybrids, a KEM reduction, adjacent-game bounds and final composition.</div>
+  </div>
+  <p>The transition toward harder work is real. Most of the completed security steps adapt the correctness machinery. The next phase needs new ideal-game definitions and invariants. Those results are still prerequisites for the main cryptographic reduction.</p>
+  <div class="cards">
+    <div class="card"><span class="label">KEM correctness</span><p>Decapsulation recovers the key produced by encapsulation, except with error <code>ε_cor</code>. The current failure bound uses this quantity.</p></div>
+    <div class="card"><span class="label">KEM secrecy</span><p>An adversary cannot distinguish an encapsulated key from a fresh random key beyond its KEM advantage. The future reduction must connect this property to Opp-BiKEM.</p></div>
+  </div>
+</section>
+
+<section id="game">
+  <span class="num">02</span>
+  <h2>What the security experiment asks</h2>
+  <p>An oracle is an operation that the adversary can request. The adversary chooses later requests from earlier answers. This is adaptive interaction. Its eventual Boolean return is its guess of a hidden bit.</p>
+  <div class="table-wrap"><table>
+    <caption>The full interface</caption>
+    <thead><tr><th>Request</th><th>Role in the experiment</th></tr></thead>
+    <tbody>
+      <tr><td>Ordinary send or receive</td><td>Drive the protocol and deliver previously generated honest messages. Delivery can involve delay, replay, duplication or reordering.</td></tr>
+      <tr><td>Leaking send</td><td>Run a send and disclose the returned randomness information, subject to the exposure guard.</td></tr>
+      <tr><td>Corrupt A or B</td><td>Reveal the party's current state, subject to the exposure guard.</td></tr>
+      <tr><td>Challenge epoch t</td><td>Return a recorded key or an independent uniform key, depending on the hidden bit and the eligibility checks.</td></tr>
+      <tr><td>Base uniform-key query</td><td>Use the shared game's key-sampling operation.</td></tr>
+    </tbody>
+  </table></div>
+  <p>The implementation uses <code>b = false</code> for real challenge keys and <code>b = true</code> for random challenge keys. A challenge is an oracle request. The adversary can continue making allowed requests before it returns its final guess.</p>
+  <p>The game maintains <code>exposed</code> and <code>challenged</code> sets. An exposed epoch cannot become a challenge. A later exposure that conflicts with an earlier challenge is also rejected. These rules protect the meaning of the real-versus-random experiment.</p>
+  <p>The send budget <code>q</code> counts ordinary and leaking sends across both parties. It applies on every oracle-response path. Rejected send calls count too. Other query types do not consume that send budget.</p>
+</section>
+
+<section id="correctness">
+  <span class="num">03</span>
+  <h2>The correctness proof we already had</h2>
+  <p>The correctness game covers ordinary sends, receives and uniform-key queries. Its adversary controls the schedule and delivery of honest messages. The existing theorem bounds failure of the game's correctness assertions.</p>
+  <div class="formula proved">Pr[correctness game fails] ≤ q · ε<sub>cor</sub>
+    <small>Proved in <code>correctness_failure_le</code>, with deterministic decapsulation, correct erasure codes and at most q ordinary sends.</small>
+  </div>
+  <p>The proof uses <code>GameInv</code>. An invariant is a fact preserved through execution. Here, the original correctness flag is true, and one common transcript explains both parties' states, message tables and key tables.</p>
+  <p>It also uses <code>kemFailure</code>, a test for a current KEM inconsistency, and a historical flag <code>F</code>. The monitor sets that flag when a post-query state satisfies the failure test. The flag never clears during a run.</p>
+  <div class="formula">J(s, F) := F = true ∨ (GameInv(s) ∧ kemFailure(s) = false)</div>
+  <p>This tracked invariant already belonged to the correctness proof. While the flag is false, it supplies the consistency and no-current-failure premises for another step. The correctness development also supplied a score that bounds the flag probability.</p>
+  <p>The security proof reuses this foundation. It does not assume that the KEM is perfectly correct. A separate existing correctness theorem covers that special case.</p>
+</section>
+
+<section id="m1">
+  <span class="num">04 · implemented</span>
+  <h2>M1: connect ordinary and leaking sends</h2>
+  <p>A leaking send returns extra information about its random choices. The first question is whether the protocol computation still agrees with the ordinary send after that extra output is removed.</p>
+  <div class="formula proved">Forget the returned coins from a leaking send<br>= the ordinary send computation</div>
+  <p><code>sendWith_rleak_forget</code> proves this identity for either party and every local state. It follows the actual order of key generation, guards, lookups and encapsulation. Sampling that occurs before a later <code>none</code> result remains part of the computation.</p>
+  <p>The result transfers facts about ordinary sends to leaking sends. It does not claim that disclosing randomness preserves secrecy. The adversary receives extra information, and later arguments must respect that exposure.</p>
+  <p>M1 also supplies the specialized oracle interface, the Boolean adversary type and <code>SecuritySendQueryBound</code>. Read the <a href="oppbikem-security-m1-tutorial.html">M1 tutorial</a> for the shared send engine and its proof.</p>
+</section>
+
+<section id="m2">
+  <span class="num">05 · implemented</span>
+  <h2>M2: define which epochs are excluded</h2>
+  <p>The exposure policy tells the security game which epochs to exclude from challenges after a corruption or a leaking send. It is a conservative rule. Membership in the set alone does not prove that the adversary can reconstruct a key.</p>
+  <p>For corruption, <code>vuln</code> selects positive epochs whose secret keys remain stored. The new <code>mem_vuln_iff</code> gives that meaning directly. For randomness leakage, <code>rleakEpochs</code> uses the presence of key-generation and encapsulation randomness fields.</p>
+  <p>M2 proves that those fields agree with the operations of a successful supported send. It identifies the generation and encapsulation epochs, including the epoch advance that key generation can cause.</p>
+  <div class="formula proved">For every successful supported send:<br>actual exclusion set = leakEpochs(pre-send state)</div>
+  <p>This makes the exclusion set predictable from the pre-state. The oracle's acceptance guard still applies. A successful send computation can produce an exposure conflict, in which case the oracle rejects its result and leaves the game state unchanged.</p>
+  <p>The recent <code>exposure_corrupt</code> and <code>exposure_rleak</code> helpers expose the policy's fields to simplification. The positivity and membership results describe the policy without repeating its filter and image operations. The <a href="oppbikem-security-m2-tutorial.html">M2 tutorial</a> gives the detailed epoch calculations.</p>
+</section>
+
+<section id="m3a">
+  <span class="num">06 · implemented</span>
+  <h2>M3a: preserve the same invariant in a larger game</h2>
+  <p>Both <code>GameInv</code> and <code>J</code> stay unchanged. The new work proves that the additional security operations preserve them. The correctness theorem alone does not cover those additional query types.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Additional operation</th><th>New preservation argument</th></tr></thead>
+    <tbody>
+      <tr><td>Challenge</td><td>Changing challenge bookkeeping preserves <code>GameInv</code>, which does not read that field.</td></tr>
+      <tr><td>Corruption</td><td>Revealing a local state changes only exposure bookkeeping in the game state. Transcript consistency survives.</td></tr>
+      <tr><td>Leaking send</td><td>M1 transfers the ordinary send's preservation result. Bookkeeping closure handles the exposure update and rejection cases.</td></tr>
+    </tbody>
+  </table></div>
+  <p>The full-security step preserves <code>GameInv</code> from an invariant state with no current failure. The generic monitor then preserves <code>J</code> across every query. Generic induction extends this to arbitrary adaptive oracle computations.</p>
+  <div class="formula proved">Supported tracked security run from (initState, false)<br>+ F<sub>final</sub> = false<br>⇒ GameInv(s<sub>final</sub>) ∧ kemFailure(s<sub>final</sub>) = false</div>
+  <p>The stronger endpoint <code>security_noFailure_of_flag_false</code> now retains both facts. The earlier <code>security_gameInv_of_noFailure</code> remains available as its first projection.</p>
+  <p>For example, corrupting A can reveal secrets while leaving the two party states consistent with the same transcript. This is why the invariant can survive corruption without establishing key secrecy.</p>
+  <p>The historical flag differs from the hidden challenge bit and the original correctness flag. A current failure test can later become false while the historical flag remains true. The <a href="oppbikem-security-m3-tutorial.html">M3a tutorial</a> contains an interactive example.</p>
+</section>
+
+<section id="m3b">
+  <span class="num">07 · implemented in the current changes</span>
+  <h2>M3b: bound the historical failure flag</h2>
+  <p>The clear-flag endpoint is useful only if we can also bound how often the flag becomes set. The new <code>security_kemFailure_le</code> supplies that bound for the full security game.</p>
+  <p>Assume deterministic decapsulation and correct erasure codes. Start from <code>(initState, false)</code>. If the adversary makes at most <code>q</code> ordinary or leaking sends, then for either fixed challenge bit:</p>
+  <div class="formula proved">Pr[F<sub>final</sub> = true] ≤ q · ε<sub>cor</sub>
+    <small>Here ε_cor := <code>kem.correctnessError ProbCompRuntime.probComp</code>. It averages over key generation and encapsulation randomness.</small>
+  </div>
+  <p>The theorem uses the same failure predicate, historical flag and score as correctness. Its contribution is extending the expected-score argument to all security queries.</p>
+  <div class="note"><p>A small average error does not give the same bound for each fixed key pair. For illustration, suppose 1% of generated pairs always fail and the rest never fail. The average error is 1%, but a fixed pair from the first group has error 100%.</p></div>
+  <p>The proof records each retained key pair's conditional error in a pending potential <code>V(s)</code>. A potential is a quantity used to account for future risk. Here, it sums relevant pending terms for both parties.</p>
+  <p>Before a failure, the score is that potential. Once the historical flag is set, the score is one:</p>
+  <pre><code>S(s, F) = if F then 1 else V(s)</code></pre>
+  <p>The potential can exceed one because it is a sum. It is an accounting quantity, not a probability. When fresh key pairs are generated, their conditional errors average to <code>ε_cor</code>. Later uses of a retained pair carry its already-accounted risk.</p>
+  <p>The local bound concerns the increase in expected score. It does not assume that every stored key has conditional error at most <code>ε_cor</code>.</p>
+  <div class="table-wrap"><table>
+    <caption>The new score step covers every security query</caption>
+    <thead><tr><th>Query or state</th><th>Allowed increase</th><th>Reason</th></tr></thead>
+    <tbody>
+      <tr><td>Ordinary send</td><td>At most <code>ε_cor</code> in expectation</td><td>Reuse the correctness score estimate.</td></tr>
+      <tr><td>Leaking send</td><td>At most <code>ε_cor</code> in expectation</td><td>M1 transfers the ordinary-send computation. M2 makes the exposure guard state-determined on successful outputs.</td></tr>
+      <tr><td>Receive or base sampling query</td><td>No increase</td><td>Reuse the corresponding correctness score estimate.</td></tr>
+      <tr><td>Challenge or corruption</td><td>No increase</td><td>These operations change only bookkeeping fields, which the failure predicate and score do not read.</td></tr>
+      <tr><td>Already flagged</td><td>No increase is needed</td><td>The flag remains true, and the score remains one.</td></tr>
+    </tbody>
+  </table></div>
+  <p>Rejected leaking sends need care because their send computations sample before the guard runs. The transfer proof retains those samples. If the guard rejects, the state remains unchanged. If it accepts, the marginal identity transfers the ordinary-send bound.</p>
+  <p>Generic induction now accumulates at most one <code>ε_cor</code> allowance per counted send. The initial score is zero. A flagged final state has score one, so the flag probability is at most the expected final score.</p>
+  <div class="formula proved">Pr[F<sub>final</sub> = true] ≤ E[S<sub>final</sub>] ≤ 0 + q · ε<sub>cor</sub></div>
+  <p>The proof permits adaptive choices of later queries. It uses the state-dependent score to keep the average-error argument valid. It adds no stronger assumption about each fixed key.</p>
+</section>
+
+<section id="normalization">
+  <span class="num">08 · implemented in the current changes</span>
+  <h2>N: why guessing advantage has a factor of two</h2>
+  <p>The final proof will compare two fixed-bit experiments. The original security experiment instead picks a uniform hidden bit and asks whether the adversary guessed it. Milestone N proves how these quantities relate.</p>
+  <p>For one fixed adversary, define two probabilities of its final guess being true:</p>
+  <pre><code>p_real   := Pr[final guess = true | b = false, real keys]
+p_random := Pr[final guess = true | b = true, random keys]</code></pre>
+  <p>In the real branch, the winning guess is false, so the adversary wins with probability <code>1 − p_real</code>. In the random branch, the winning guess is true, so it wins with probability <code>p_random</code>. Each branch has probability one half.</p>
+  <div class="formula proved">Pr[Win] = ½(1 − p_real) + ½ p_random<br>Pr[Win] − ½ = ½(p_random − p_real)</div>
+  <p>Take absolute values. The distinguishing gap for this adversary is the difference between those two output probabilities. The new <code>sckaDistAdvantage</code> names its absolute value.</p>
+  <div class="formula proved">Δ = |p_random − p_real|<br>Adv<sub>guess</sub> = |Pr[Win] − ½| = ½ Δ
+    <small>Proved by <code>sckaGuessAdvantage_eq_sckaDistAdvantage_div_two</code>. This identity does not itself bound Δ.</small>
+  </div>
+  <p>The shared SCKA proof decomposes the branches and reuses the existing uniform-Boolean lemma. It applies to the general SCKA experiment, beyond this one Opp-BiKEM construction.</p>
+  <div class="calculator" aria-label="Interactive advantage normalization example">
+    <p>Choose hypothetical final-guess rates for the two branches.</p>
+    <div class="inputs">
+      <div>
+        <label for="real-rate">Real keys, b = false: p_real = <output id="real-value" for="real-rate">0.25</output></label>
+        <input id="real-rate" type="range" min="0" max="100" step="1" value="25">
+        <div class="track" aria-hidden="true"><div class="fill" id="real-bar"></div></div>
+      </div>
+      <div>
+        <label for="random-rate">Random keys, b = true: p_random = <output id="random-value" for="random-rate">0.75</output></label>
+        <input id="random-rate" type="range" min="0" max="100" step="1" value="75">
+        <div class="track" aria-hidden="true"><div class="fill random" id="random-bar"></div></div>
+      </div>
+    </div>
+    <div class="outputs" aria-live="polite" aria-atomic="true">
+      <div class="output"><span>Win probability</span><output id="win-value">0.75</output></div>
+      <div class="output"><span>Distinguishing gap Δ</span><output id="distance-value">0.50</output></div>
+      <div class="output"><span>Guessing advantage ½Δ</span><output id="adv-value">0.25</output></div>
+    </div>
+    <div class="controls"><button type="button" id="swap-rates">Swap the rates</button><button type="button" id="same-rates">Set both to 0.50</button><button type="button" id="reset-rates">Reset the example</button></div>
+    <p class="caption">These are illustrative probabilities, not measurements from a protocol attacker. Swapping the rates changes the win probability but leaves the absolute advantage unchanged.</p>
+    <noscript><p>With p_real = 0.25 and p_random = 0.75, the win probability is 0.75, the distinguishing gap is 0.50, and the guessing advantage is 0.25.</p></noscript>
+  </div>
+  <p>Equal branch rates give zero advantage, even if both rates differ from one half. What matters is the change between the real and random experiments.</p>
+</section>
+
+<section id="inventory">
+  <span class="num">09</span>
+  <h2>The available implementation</h2>
+  <p>The following map covers the current security foundation and its shared helpers. The milestone tutorials explain individual proofs in more detail. The source files contain the full statements and assumptions.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Source</th><th>Available result</th></tr></thead>
+    <tbody>
+      <tr><td><a href="../../SecureMessaging/SCKA/OppBiKEM/Correctness.lean">Correctness.lean</a></td><td>The existing correctness-error bound, success bound and perfect-KEM corollaries.</td></tr>
+      <tr><td><a href="../../SecureMessaging/SCKA/OppBiKEM/Security/Basic.lean">Security/Basic.lean</a></td><td>M1: interface, adversary, send budget and coin-forgetting identity.</td></tr>
+      <tr><td><a href="../../SecureMessaging/SCKA/OppBiKEM/Security/Exposure.lean">Security/Exposure.lean</a></td><td>M2: exclusion policy, positivity, membership, operation facts, state-only exposure and field projections.</td></tr>
+      <tr><td><a href="../../SecureMessaging/SCKA/OppBiKEM/Security/Invariant.lean">Security/Invariant.lean</a></td><td>M3a: bookkeeping closure and the full-security no-current-failure step.</td></tr>
+      <tr><td><a href="../../SecureMessaging/SCKA/OppBiKEM/Security/Tracked.lean">Security/Tracked.lean</a></td><td>Tracked security handler, preservation of J, and both clear-flag endpoints.</td></tr>
+      <tr><td><a href="../../SecureMessaging/SCKA/OppBiKEM/Security/BadEvent.lean">Security/BadEvent.lean</a></td><td>M3b: both leaking-send score estimates, the all-query score step, and the historical failure-probability bound.</td></tr>
+      <tr><td><a href="../../ToVCVio/OracleComp/SimSemantics/StateT/BadFlag.lean">Generic BadFlag.lean</a></td><td>Monitoring, projection, preservation, flag elimination, flagged-score control and query-bound aggregation.</td></tr>
+      <tr><td><a href="../../SecureMessaging/SCKA/Security.lean">Shared SCKA/Security.lean</a></td><td>Preservation composition and score transfer, including the challenge and corruption bookkeeping estimates.</td></tr>
+      <tr><td><a href="../../SecureMessaging/SCKA/Defs.lean">Shared SCKA/Defs.lean</a></td><td>N: the distinguishing-gap definition, branch decomposition and normalization identities.</td></tr>
+    </tbody>
+  </table></div>
+  <p>The recent helper changes expose useful consequences of existing facts. Generic flag elimination now serves correctness and security. The specialized preservation helper derives ordinary-send facts from the base correctness handler. Neither change alters the protocol or the game's existing guards.</p>
+  <p>The unstaged implementation preserves the earlier public theorem statements. It adds a stronger clear-flag endpoint rather than replacing the old one. This gives later comparisons the current no-failure fact as well as <code>GameInv</code>.</p>
+</section>
+
+<section id="next">
+  <span class="num">10 · planned</span>
+  <h2>The next phase needs new mathematical structure</h2>
+  <p>We can reason about the real game and bound KEM failures. To establish secrecy, we must connect real challenge keys to random ones through experiments whose differences we can control.</p>
+  <ol class="steps">
+    <li>M4: construct the ideal receive and game.<p>Reuse the receive decision tree through a configurable receive function. Prove its real specialization agrees with the current receive. Define the ideal behavior explicitly.</p></li>
+    <li>M4′: prove the ideal game's structural facts.<p>Establish its invariant, key eligibility and domain facts, the positive epoch bound <code>≤ 2q</code>, and unique key generation and encapsulation per epoch. These facts cannot be inferred from M3's failure bound. Leakage guards remain in force.</p></li>
+    <li>M5: compare real and ideal endpoints.<p>Use the failure monitor to bound the difference between corresponding fixed-bit runs. The completed M3 results supply the failure budget and clear-flag consistency facts.</p></li>
+    <li>M7: define challenge hybrids.<p>A hybrid is an intermediate game in a sequence. Replace challenge behavior epoch by epoch, with exact first and last games.</p></li>
+    <li>M8 and M10: build and justify the KEM reduction.<p>A reduction turns a protocol attacker into a KEM attacker. It must supply the correct oracle answers around a target epoch, including adaptive exposure and stopping behavior. The proof must relate retained secret state and the candidate session key together. It must also justify sample reordering and the bound between adjacent hybrids.</p></li>
+    <li>M11: assemble the final bound.<p>Sum the adjacent-game differences, combine the real-to-ideal estimates, and apply the completed normalization identity.</p></li>
+  </ol>
+  <div class="formula planned">Planned final form:<br>Adv<sub>SCKA</sub>(A) ≤ q · ε<sub>cor</sub> + ½ Σ<sub>t = 0</sub><sup>2q</sup> δ<sub>t</sub>
+    <small>The reductions defining δ_t, the epoch limit and the game-comparison estimates remain proof obligations. This displayed bound is the roadmap target.</small>
+  </div>
+  <p>The main new difficulty is keeping several executions related while the adversary chooses queries from their answers. The reduction must handle partial messages, retained secrets, candidate keys and exposure at the same time. A generic correctness invariant alone does not establish that relation.</p>
+  <p>The next concrete implementation target is M4's receive abstraction and ideal-game definitions. M4′ then provides structural facts for the hybrids and reduction. A narrow design check of the joint reduction relation can run alongside that work. This is a direction for later plans, not an implemented theorem.</p>
+</section>
+
+<section id="questions">
+  <span class="num">Check your understanding</span>
+  <h2>Separate the claims</h2>
+  <details><summary>Did M3 add new clauses to the correctness invariant?</summary><p>No. It preserved the same <code>GameInv</code> and tracked invariant <code>J</code> across the larger security interface. M3b then extended the score estimate to that interface.</p></details>
+  <details><summary>Does q · ε_cor already bound the adversary's secrecy advantage?</summary><p>No. It bounds the historical KEM-failure event. Later game comparisons and the KEM reduction must account for the distinguishing gap between real and random challenge keys.</p></details>
+  <details><summary>Why is the pending potential necessary?</summary><p>Average KEM correctness does not give a uniform error bound for each fixed pair. The potential records conditional risk associated with retained pairs. Fresh sampling supplies the averaging step.</p></details>
+  <details><summary>Why must rejected leaking sends still be considered?</summary><p>The send computation samples before the exposure guard. Its samples remain part of the computation, even when the guard rejects the state update. The send-query budget also counts that call.</p></details>
+  <details><summary>What if the hidden bit is true?</summary><p>This implementation returns random keys on eligible challenges when <code>b = true</code>. The real-key branch uses <code>b = false</code>. The final guess is a separate result of the adversary's program.</p></details>
+  <details><summary>Are all prerequisites complete?</summary><p>The initial real-game foundation and normalization are complete. The ideal-game invariant, epoch bound and uniqueness results remain prerequisites for the main cryptographic argument.</p></details>
+</section>
+
+<footer id="sources">
+  <p>Current implementation reviewed on 23 October 2026. The fresh full build passed with 3,178 jobs. All eight affected module linters passed. The 22-declaration audit found only the standard axioms or no axioms, with no new admitted or native-proof dependency.</p>
+  <ul class="source-list">
+    <li><a href="../reviews/oppbikem-security-prerequisites-review.md">Review note</a>: separate standards and specification findings, the exact scope and verification results. It records two low-priority documentation suggestions. The Lean source was left unchanged.</li>
+    <li><a href="../../.formalising/fv-plans/OppBiKEM-security/sources/review-unstaged-20261023/snapshot.json">Reviewed source hashes</a>, <a href="../../.formalising/fv-plans/OppBiKEM-security/sources/review-unstaged-20261023/build.log">fresh build</a>, <a href="../../.formalising/fv-plans/OppBiKEM-security/sources/review-unstaged-20261023/lint.log">lint output</a>, and <a href="../../.formalising/fv-plans/OppBiKEM-security/sources/review-unstaged-20261023/axioms.log">axiom audit</a>. Eight unrelated PRFPRNG admission warnings remain in the project build.</li>
+    <li><a href="../../SecureMessaging/KEM/CorrectnessError.lean">KEM/CorrectnessError.lean</a>: conditional key-pair error and its average. <a href="../../SecureMessaging/SCKA/OppBiKEM/Correctness/Quantitative/Core.lean">Quantitative/Core.lean</a> and <a href="../../SecureMessaging/SCKA/OppBiKEM/Correctness/Quantitative/SendStep.lean">SendStep.lean</a>: the reused potential and averaging steps.</li>
+    <li><a href="../../.formalising/fv-plans/OppBiKEM-security/plans/PLAN_n1.md">Roadmap</a> and <a href="../../.formalising/fv-plans/OppBiKEM-security/merge/n5/EXECUTION_n5.md">M3b/N execution record</a>. Earlier milestone tutorials describe their own snapshots; their future-work labels predate this consolidated page.</li>
+    <li>Protocol context: Auerbach et al., <a href="https://www.usenix.org/system/files/usenixsecurity25-auerbach.pdf">How to Compare Bandwidth Constrained Two-Party Secure Messaging Protocols</a>, USENIX Security 2025. For proof basics, see the official <a href="https://lean-lang.org/theorem_proving_in_lean4/Induction-and-Recursion/">Lean introduction to induction</a>.</li>
+  </ul>
+</footer>
+</main>
+</div>
+</div>
+<script>
+(() => {
+  const real = document.getElementById('real-rate');
+  const random = document.getElementById('random-rate');
+  const show = (id, value) => { document.getElementById(id).textContent = value.toFixed(2); };
+  function render() {
+    const pReal = Number(real.value) / 100;
+    const pRandom = Number(random.value) / 100;
+    const win = (1 - pReal + pRandom) / 2;
+    const distance = Math.abs(pRandom - pReal);
+    show('real-value', pReal);
+    show('random-value', pRandom);
+    show('win-value', win);
+    show('distance-value', distance);
+    show('adv-value', distance / 2);
+    document.getElementById('real-bar').style.width = real.value + '%';
+    document.getElementById('random-bar').style.width = random.value + '%';
+  }
+  real.addEventListener('input', render);
+  random.addEventListener('input', render);
+  document.getElementById('swap-rates').addEventListener('click', () => {
+    const previous = real.value;
+    real.value = random.value;
+    random.value = previous;
+    render();
+  });
+  document.getElementById('same-rates').addEventListener('click', () => {
+    real.value = 50;
+    random.value = 50;
+    render();
+  });
+  document.getElementById('reset-rates').addEventListener('click', () => {
+    real.value = 25;
+    random.value = 75;
+    render();
+  });
+  render();
+})();
+</script>
+</body>
+</html>
