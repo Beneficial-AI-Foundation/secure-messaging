@@ -14,8 +14,8 @@ import VCVio.OracleComp.Constructions.SampleableType
 The supplied computation `χ` samples one scalar from the noise distribution in the paper.
 Nested `ProbComp.sampleIID` calls sample matrix entries independently from this distribution.
 They visit rows in increasing order, then columns in increasing order within each row.
-Each call samples fresh values. Initialization samples the uniform base, secret, and error in that
-order.
+Each call samples fresh values. Initialization samples the uniform base matrix, secret, and error
+in that order.
 Each send samples its secret, error, and extra error in that order.
 
 `sendArleak` and `sendBrleak` return the sampled secret, error, and extra-error matrices as
@@ -33,10 +33,10 @@ def sampleMatrix {p : Params}
 /-- Sample the public base uniformly, followed by the initial secret and error from `χ`. -/
 def initKeyGen (p : Params) (χ : ProbComp (Scalar p)) :
     ProbComp (InitKey p) := do
-  let base ← ($ᵗ (Base p) : ProbComp (Base p))
+  let baseMatrix ← ($ᵗ (BaseMatrix p) : ProbComp (BaseMatrix p))
   let secret ← sampleMatrix χ p.n p.nbar
   let error ← sampleMatrix χ p.n p.nbar
-  return { base := base, secret := secret, error := error }
+  return { baseMatrix := baseMatrix, secret := secret, error := error }
 
 /-- Sample fresh secret, error, and extra error matrices for party A. -/
 def sampleSendACoins (p : Params) (χ : ProbComp (Scalar p)) :

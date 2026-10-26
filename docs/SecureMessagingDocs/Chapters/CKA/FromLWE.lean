@@ -9,6 +9,8 @@ import SecureMessaging.CKA.FromLWE.Construction
 import SecureMessaging.CKA.FromLWE.Correctness
 import SecureMessaging.CKA.FromLWE.Frodo2016.Challenge.Correctness
 
+/-! # Blueprint chapter: CKA from LWE -/
+
 set_option linter.style.setOption false
 set_option linter.hashCommand false
 set_option linter.style.emptyLine false

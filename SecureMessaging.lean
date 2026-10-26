@@ -44,7 +44,7 @@ import SecureMessaging.CKA.FromLWE.Reconciliation
 import SecureMessaging.CKA.FromLWE.ReconciliationCorrectness
 import SecureMessaging.CKA.FromLWE.ReconciliationPhase
 import SecureMessaging.CKA.FromLWE.Sampling
-import SecureMessaging.CKA.FromLWE.Frodo2016.Recommended.Sampling
+import SecureMessaging.CKA.FromLWE.Frodo2016.Sampling
 import SecureMessaging.CKA.FromLWE.Frodo2016.Recommended.Moments
 import SecureMessaging.CKA.FromLWE.Construction
 import SecureMessaging.CKA.FromLWE.Correctness
@@ -71,6 +71,7 @@ import SecureMessaging.KEM.OnOffKEM.CorrectnessError
 import SecureMessaging.KEM.OnOffKEM.Defs
 import SecureMessaging.KEM.OnOffKEM.FromKPKE
 import SecureMessaging.KEM.CorrectnessError
+import SecureMessaging.FSAEAD.Defs
 import SecureMessaging.PRFPRNG.Defs
 import SecureMessaging.RKEM.Defs
 import SecureMessaging.RKEM.FromDDHNonFS.Construction

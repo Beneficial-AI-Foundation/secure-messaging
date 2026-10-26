@@ -16,6 +16,25 @@ strict reconciliation radius therefore extract the same shared-key bits.
 
 namespace lweCKA
 
+/-- Circular distance from an integer residue to zero is at most its integer magnitude. -/
+theorem modularDistance_intCast_zero_le_natAbs
+    (p : Params) (z : ℤ) :
+    modularDistance p (z : Scalar p) 0 ≤ z.natAbs := by
+  cases z with
+  | ofNat n =>
+      unfold modularDistance
+      simp only [Int.ofNat_eq_natCast, Int.cast_natCast, Int.natAbs_natCast, sub_zero]
+      exact le_trans (min_le_left _ _) (by
+        rw [ZMod.val_natCast]
+        exact Nat.mod_le _ _)
+  | negSucc n =>
+      unfold modularDistance
+      simp only [Int.cast_negSucc, Int.natAbs_negSucc, sub_zero, zero_sub, neg_neg]
+      exact le_trans (min_le_right _ _) (by
+        rw [ZMod.val_natCast]
+        exact Nat.mod_le _ _)
+
+
 private theorem discardBits_two_le (p : Params) (hp : p.WellFormed) :
     2 ≤ p.discardBits := by
   have h := hp.keyBits_lt
@@ -287,7 +306,7 @@ theorem reconcileScalar_eq_extractScalar_of_modularDistance_lt
 
 /-- Entrywise strict-radius closeness makes matrix reconciliation agree with extraction. -/
 theorem reconcile_eq_extract_of_modularDistance_lt
-    (p : Params) (hp : p.WellFormed) (w v : Shared p)
+    (p : Params) (hp : p.WellFormed) (w v : SharedMatrix p)
     (hclose : ∀ i j : Fin p.nbar,
       modularDistance p (w i j) (v i j) < 2 ^ (p.discardBits - 2)) :
     reconcile p w (makeHint p v) = extract p v := by

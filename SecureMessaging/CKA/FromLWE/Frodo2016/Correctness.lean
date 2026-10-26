@@ -4,9 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromLWE.Frodo2016.Certificate.Classical.Values
-import SecureMessaging.CKA.FromLWE.Frodo2016.Certificate.Recommended.Values
-import SecureMessaging.CKA.FromLWE.Frodo2016.Certificate.Paranoid.Values
+import SecureMessaging.CKA.FromLWE.Correctness
+import SecureMessaging.CKA.FromLWE.PhaseCorrectness
+import SecureMessaging.CKA.FromLWE.Frodo2016.Certificate.Classical.Setup
+import SecureMessaging.CKA.FromLWE.Frodo2016.Certificate.Recommended.Setup
+import SecureMessaging.CKA.FromLWE.Frodo2016.Certificate.Paranoid.Setup
 import SecureMessaging.CKA.FromLWE.Frodo2016.Recommended.MomentBound
 
 /-!

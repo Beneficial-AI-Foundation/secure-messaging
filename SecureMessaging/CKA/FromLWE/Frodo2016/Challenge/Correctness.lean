@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
+import SecureMessaging.CKA.FromLWE.Correctness
 import SecureMessaging.CKA.FromLWE.Frodo2016.Challenge.PairBound
 import SecureMessaging.CKA.FromLWE.Frodo2016.Certificate.Challenge.Bounds
 import Mathlib.Data.Finset.Prod
