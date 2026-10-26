@@ -242,11 +242,11 @@ Let $`G=\langle g\rangle` be of prime order $`q`, so that $`x\mapsto g^x` is a b
 
 For each party $`\mathsf{P}\in\{\A,\B\}` and every IND-CPA adversary $`\adv` against the non-forward-secure RKEM from DDH, the DDH adversary $`\mathcal{B}` below satisfies
 
-$$`\mathsf{Adv}^{\mathsf{IND\text{-}CPA}\text{-}\mathsf{P}}(\adv)=\mathsf{Adv}^{\mathsf{DDH}}(\mathcal{B}),`
+$$`\mathsf{Adv}^{\mathsf{IND\text{-}CPA}\text{-}\mathsf{P}}(\adv)=\tfrac12\,\mathsf{Adv}^{\mathsf{DDH}}(\mathcal{B}),`
 
-with $`\mathsf{Adv}^{\mathsf{DDH}}` the guess advantage $`|\Pr[\cdot]-\tfrac12|` of the DDH experiment.
+with $`\mathsf{Adv}^{\mathsf{DDH}}(\mathcal{B})=|\Pr[\mathcal{B}\text{ outputs }1\text{ on a real triple}]-\Pr[\mathcal{B}\text{ outputs }1\text{ on a random triple}]|` the distinguishing advantage. The factor $`\tfrac12` only converts this distinguishing advantage into the bias advantage $`|\Pr[\cdot]-\tfrac12|` of the IND-CPA game; the reduction is tight.
 
-Consequently, if every DDH adversary has advantage at most $`\varepsilon`, the scheme is $`\varepsilon`-IND-CPA secure in the sense of {bpref "rkem_ind_cpa"}[RKEM IND-CPA].
+Consequently, if every DDH adversary has advantage at most $`\varepsilon`, the scheme is $`\tfrac{\varepsilon}{2}`-IND-CPA secure in the sense of {bpref "rkem_ind_cpa"}[RKEM IND-CPA].
 
 ::::::gameGrid
 :::::gameCell "\\mathcal{B}(g,X,Y,T)" (kind := "compact")
@@ -273,7 +273,7 @@ def ddhReduction (adversary : RKEMScheme.INDCPAAdversary Unit G Unit G) :
 theorem indCpaAdvantageA_eq (gen : G) (hg : Function.Bijective (· • gen : F → G))
     (adversary : RKEMScheme.INDCPAAdversary Unit G Unit G) :
     (scheme (F := F) gen).indCpaAdvantageA adversary =
-      ddhGuessAdvantage gen (ddhReduction (F := F) adversary)
+      (ddhAdvantage gen (ddhReduction (F := F) adversary)).toReal / 2
 ```
 
 :::leanPillCaption "IND-CPA security"
@@ -281,9 +281,9 @@ theorem indCpaAdvantageA_eq (gen : G) (hg : Function.Bijective (· • gen : F �
 
 ```anchor INDCPASecure (project := ".") (module := SecureMessaging.RKEM.FromDDHNonFS.Security)
 theorem INDCPASecure (gen : G) (hg : Function.Bijective (· • gen : F → G)) (ε : ℝ)
-    (hddh : ∀ adversary : DDHAdversary F G, ddhGuessAdvantage gen adversary ≤ ε)
+    (hddh : ∀ adversary : DDHAdversary F G, (ddhAdvantage gen adversary).toReal ≤ ε)
     (adversaryA adversaryB : RKEMScheme.INDCPAAdversary Unit G Unit G) :
-    (scheme (F := F) gen).INDCPASecure adversaryA adversaryB ε
+    (scheme (F := F) gen).INDCPASecure adversaryA adversaryB (ε / 2)
 ```
 :::::::
 
