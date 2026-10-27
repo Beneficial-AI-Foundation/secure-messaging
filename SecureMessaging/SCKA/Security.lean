@@ -152,7 +152,8 @@ namespace RecordsChallenges
 
 variable {chall : QueryImpl (ℕ →ₒ Option I) (StateT (GameState StA StB I Rho) ProbComp)}
 
-/-- Preserves every `Inv` that is stable under changes to `challenged`. -/
+/-- If `chall` records challenges and `Inv` is insensitive to `challenged`
+(`Inv s → Inv { s with challenged := C }` for every `C`), then `chall` preserves `Inv`. -/
 theorem preservesInv (h : RecordsChallenges chall) (Inv : GameState StA StB I Rho → Prop)
     (hbook : ∀ s challenged, Inv s → Inv { s with challenged := challenged }) :
     QueryImpl.PreservesInv chall Inv := by
@@ -161,7 +162,7 @@ theorem preservesInv (h : RecordsChallenges chall) (Inv : GameState StA StB I Rh
   · rw [h]; exact hs
   · rw [h]; exact hbook s _ hs
 
-/-- Preserves `Disjoint exposed challenged`. -/
+/-- If `chall` records challenges, then `chall` preserves `Disjoint s.exposed s.challenged`. -/
 theorem preserves_disjoint (h : RecordsChallenges chall) :
     QueryImpl.PreservesInv chall (fun s => Disjoint s.exposed s.challenged) := by
   intro t s hs z hz
@@ -170,7 +171,8 @@ theorem preserves_disjoint (h : RecordsChallenges chall) :
   · rw [h]
     exact Finset.disjoint_insert_right.mpr ⟨ht, hs⟩
 
-/-- Removes no challenged epoch. -/
+/-- If `chall` records challenges, then every possible successor `z.2` of a challenge at `t` from
+`s` satisfies `s.challenged ⊆ z.2.challenged`. -/
 theorem challenged_subset (h : RecordsChallenges chall) (t : ℕ) (s : GameState StA StB I Rho)
     (z : Option I × GameState StA StB I Rho) (hz : z ∈ support ((chall t).run s)) :
     s.challenged ⊆ z.2.challenged := by
@@ -178,7 +180,8 @@ theorem challenged_subset (h : RecordsChallenges chall) (t : ℕ) (s : GameState
   · rw [h]
   · rw [h]; exact Finset.subset_insert _ _
 
-/-- Changes neither `exposed` nor `nA`. -/
+/-- If `chall` records challenges, then every possible successor `z.2` of a challenge at `t` from
+`s` satisfies `z.2.exposed = s.exposed` and `z.2.nA = s.nA`. -/
 theorem exposed_nA_eq (h : RecordsChallenges chall) (t : ℕ) (s : GameState StA StB I Rho)
     (z : Option I × GameState StA StB I Rho) (hz : z ∈ support ((chall t).run s)) :
     z.2.exposed = s.exposed ∧ z.2.nA = s.nA := by
