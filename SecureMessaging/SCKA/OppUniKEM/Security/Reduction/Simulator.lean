@@ -8,32 +8,44 @@ import SecureMessaging.SCKA.OppUniKEM.Security.Basic
 import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
 
 /-!
-# The IND-CPA reduction and its fixed-epoch branches
+# The IND-CPA reduction and its fixed branches
 
-Fix a KEM `kem`, an SCKA adversary `adv` against Opp-UniKEM over `kem`, and a send budget `q`.
-For an epoch `e` at which the reduction embeds its IND-CPA challenge, let
-`(pkStar, ctStar, kStar)` be the challenge public key, ciphertext, and candidate key.
+Let `kem` be a KEM, `adv` an SCKA adversary against Opp-UniKEM over `kem`, and `q` a send budget.
+The IND-CPA adversary `𝓑 := securityReduction … adv q` embeds its challenge
+`(pkStar, ctStar, kStar)` at a random epoch `e` and runs `adv` against the simulated security
+oracles `Sim` (`simOracle … e pkStar ctStar kStar`, `run`):
 
-The simulator runs `adv` from the initial state, with both parties at epoch `1`, empty message and
-key tables, and empty exposure and challenge sets. At epoch `e`, key generation returns `pkStar` and
-encapsulation returns `ctStar`, while the corresponding secret key, offline state, shared key,
-and coins remain hidden. Other epochs sample honestly. Party A's receive uses B's recorded key
-for A's current epoch instead of decapsulation. An eligible challenge at epoch `t` returns a
-uniform key if
-`0 < t < e`, `kStar` if `t = e`, and the recorded key otherwise. A permitted corruption or leaking
-send that would reveal a hidden value stops the run with output `false`; otherwise the run returns
-`adv`'s output (`run`).
+```text
+𝓑.pre(pkStar):          e ←$ {1, …, q}                    -- e := 1 if q = 0
+𝓑.post(ctStar, kStar):  run adv against Sim from the initial state
+                        return false if Sim stopped, else the output of adv
+```
 
-- The IND-CPA adversary `𝓑 := securityReduction … adv q` draws `e` uniformly from `{1, …, q}`
-  when `q > 0` (and chooses `e = 1` when `q = 0`), then executes this simulation on its challenge.
-- Its fixed branches `𝓑_e^real := fixedBranch … adv e true` and
-  `𝓑_e^random := fixedBranch … adv e false` fix the epoch `e`, draw a fresh KEM key pair and
-  encapsulation, and take as `kStar` the encapsulated key (`real`) or an independent uniform key
-  (`random`).
+`Sim` answers as the Opp-UniKEM security game, except in the following cases:
 
-For `q > 0`, the difference in acceptance probability between the real and random IND-CPA
-experiments for `𝓑` is the average over `e ∈ {1, …, q}` of
-`Pr[𝓑_e^real = true] - Pr[𝓑_e^random = true]` (`securityReduction_signed_gap_average`).
+| Operation                 | Answer of `Sim`                                               |
+| ------------------------- | ------------------------------------------------------------- |
+| A's key generation at `e` | `pkStar`; secret key and coins hidden                         |
+| B's encapsulation at `e`  | `ctStar`; offline state, shared key, and coins hidden         |
+| A's decapsulation at `t`  | B's recorded key `Key[B, t]`                                  |
+| eligible challenge at `t` | uniform if `0 < t < e`, `kStar` if `t = e`, else recorded key |
+| corruption, leaking send  | stop if the revealed state or coins contain a hidden value    |
+
+The fixed branch `𝓑_e^x` (`fixedBranch … adv e true` for `real`, `… false` for `random`) runs
+`𝓑` with epoch `e` on a fresh challenge: `(pk, _) ← kem.keygen`, `(ct, k) ← kem.encaps pk`, and
+`kStar := k` in `real` or `kStar ←$ K` in `random`. Equivalently, it draws *KEM material*
+`kemMat ← sampleMaterial leak`, the outputs and coins of key generation, offline encapsulation,
+and online encapsulation, and uses `pkStar := kemMat.pk`, `ctStar := kemMat.ciphertext`, and, in
+`real`, `kStar := kemMat.key` (`fixedBranch_eq_material`). `Pinned` builds the KEM whose
+selected sampling phases return the outputs in `kemMat`.
+
+Let `𝓑_real` and `𝓑_random` be the real and random IND-CPA experiments for `𝓑`. For `q > 0`
+(`securityReduction_signed_gap_average`):
+
+```text
+Pr[𝓑_real = true] - Pr[𝓑_random = true]
+  = q⁻¹ · ∑_{e=1}^{q} (Pr[𝓑_e^real = true] - Pr[𝓑_e^random = true])
+```
 -/
 
 open OracleSpec OracleComp KEMScheme
