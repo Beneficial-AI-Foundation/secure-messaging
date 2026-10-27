@@ -7,8 +7,6 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.CKA.FromLWE.Frodo2016.Certificate.Packing
 import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate.Radix
 import VCVio.ProgramLogic.Unary.HoareTriple
-import Mathlib.Data.Int.NatAbs
-import Mathlib.Data.Nat.Bitwise
 
 /-!
 # Count model and packed arithmetic for the historical Frodo parameter sets
@@ -129,12 +127,12 @@ theorem SharedModelInternal.lowerCounts_succ_apply (c : Config) (k : ℕ) (z : �
   classical
   rw [lowerCounts, AddMonoidAlgebra.coeff_sum, Finsupp.finsetSum_apply]
   by_cases hz : z ∈ Finset.Icc (-(c.window : ℤ)) (c.window : ℤ)
-  · rw [if_pos hz, Finset.sum_eq_single z]
+  · rw [ite_eq_left hz, Finset.sum_eq_single z]
     · simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_eq_same]
     · intro y hy hne
       simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_apply, hne, ite_false]
     · exact fun h => (h hz).elim
-  · rw [if_neg hz]
+  · rw [ite_eq_right hz]
     apply Finset.sum_eq_zero
     intro y hy
     have hne : y ≠ z := fun h => hz (h ▸ hy)
@@ -204,7 +202,7 @@ private theorem totalMass_lowerCounts_le
             refine Finset.sum_congr rfl fun i hi => ?_
             rw [lowerCounts_succ_apply]
             simp only [Finset.mem_Icc]
-            rw [if_pos (by have hi := Finset.mem_range.mp hi; omega)]
+            rw [ite_eq_left (by have hi := Finset.mem_range.mp hi; omega)]
           _ ≤ ∑ i ∈ Finset.range (2 * c.window + 1),
                 (lowerCounts c k * ToVCVio.productMeasure (counts c) (counts c))
                   (-(c.window : ℤ) + i) := by
@@ -505,7 +503,7 @@ private theorem measurePack_lowerCounts_succ_sum (c : Config) (k : ℕ) :
       all_goals push_cast
       all_goals omega)]
   refine Finset.sum_congr rfl fun i hi => ?_
-  rw [lowerCounts_succ_apply, if_pos]
+  rw [lowerCounts_succ_apply, ite_eq_left]
   simpa only [Finset.mem_Icc] using
     (show -(c.window : ℤ) ≤ -(c.window : ℤ) + (i : ℤ) ∧
         -(c.window : ℤ) + (i : ℤ) ≤ c.window by
@@ -601,9 +599,7 @@ private theorem indexWeight_eq (c : Config) (i : ℕ) :
         ((if i ≤ center c then center c - i else i - center c) - c.radius) := by
   congr 2
   rw [show -(center c : ℤ) + (i : ℤ) = (i : ℤ) - center c by ring]
-  by_cases hi : i ≤ center c
-  · rw [Int.natAbs_natCast_sub_natCast_of_le hi, if_pos hi]
-  · rw [Int.natAbs_natCast_sub_natCast_of_ge (by omega), if_neg hi]
+  split_ifs <;> omega
 
 private theorem indexedWeight_le_center (c : Config) (i : ℕ)
     (hi : i < 2 * center c + 1) :

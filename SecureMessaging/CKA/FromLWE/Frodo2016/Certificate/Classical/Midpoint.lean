@@ -6,6 +6,12 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.CKA.FromLWE.Frodo2016.Certificate.Classical.Base
 
+/-!
+# Classical-parameter certificate midpoint
+
+This file reconstructs and verifies the packed recurrence checkpoint at step 640.
+-/
+
 namespace lweCKA.Frodo2016.Certificate.Arithmetic.Classical
 
 /-- Reconstruct a checkpoint from 256-bit limbs, most significant first. -/
@@ -467,7 +473,6 @@ def checkpointPack640 : ℕ :=
     0x0000000000000000000000000000000000000000000000000000000000000000,
     0x0000000000000000000000000000000000000000000000000000000000000000
   ]
-
 
 set_option maxRecDepth 65536 in
 set_option maxHeartbeats 20000000 in

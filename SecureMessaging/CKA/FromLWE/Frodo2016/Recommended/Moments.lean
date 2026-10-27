@@ -5,8 +5,6 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.CKA.FromLWE.Frodo2016.Sampling
-import Mathlib.Data.Rat.BigOperators
-import Mathlib.Tactic.NormNum
 
 /-!
 # Exact moments of the Frodo D3 sampler

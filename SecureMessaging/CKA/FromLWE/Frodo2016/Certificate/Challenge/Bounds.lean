@@ -9,10 +9,6 @@ import SecureMessaging.CKA.FromLWE.Frodo2016.Certificate.Challenge.Model
 import SecureMessaging.CKA.FromLWE.Frodo2016.Certificate.Challenge.Arithmetic
 import SecureMessaging.CKA.FromLWE.Frodo2016.Certificate.Packing
 import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate.Radix
-import Mathlib.Data.Int.NatAbs
-import Mathlib.Data.Nat.Bitwise
-import Mathlib.Tactic.IntervalCases
-import Mathlib.Tactic.NormNum
 
 /-!
 # Numerical certificate for the Frodo Challenge entry ramp
@@ -113,7 +109,7 @@ private theorem measurePack_lowerCounts_succ_sum (n : Nat) :
       norm_num
       exact measureWindow_lowerCounts (n + 1))]
   refine Finset.sum_congr rfl fun i hi => ?_
-  rw [lowerCounts_succ_apply, if_pos]
+  rw [lowerCounts_succ_apply, ite_eq_left]
   simpa only [Finset.mem_Icc] using
     (show (-384 : ℤ) ≤ -384 + (i : ℤ) ∧ -384 + (i : ℤ) ≤ 384 by
       have := Finset.mem_range.mp hi
@@ -191,14 +187,7 @@ private theorem measurePack_lowerCounts_run (n : Nat) :
 private theorem indexWeight_eq (i : Nat) :
     ((-387 : ℤ) + (i : ℤ)).natAbs - 256 =
       (if i ≤ 387 then 387 - i else i - 387) - 256 := by
-  rw [show (-387 : ℤ) + (i : ℤ) = (i : ℤ) - (387 : ℤ) by ring]
-  by_cases hi : i ≤ 387
-  · have h := Int.natAbs_natCast_sub_natCast_of_le hi
-    norm_num only [Nat.cast_ofNat] at h
-    rw [h, if_pos hi]
-  · have h := Int.natAbs_natCast_sub_natCast_of_ge (a := i) (b := 387) (by omega)
-    norm_num only [Nat.cast_ofNat] at h
-    rw [h, if_neg hi]
+  split_ifs <;> omega
 
 private theorem indexedWeight_le_131 (i : Nat) (hi : i < 775) :
     ((-387 : ℤ) + (i : ℤ)).natAbs - 256 ≤ 131 := by

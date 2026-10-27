@@ -7,9 +7,6 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.CKA.FromLWE.Sampling
 import VCVio.OracleComp.Constructions.UniformSelectMeasure
 import VCVio.OracleComp.EvalDist.Sum
-import Mathlib.Data.Int.Interval
-import Mathlib.Tactic.NormNum
-import Mathlib.Tactic.IntervalCases
 
 /-!
 # Original Frodo recommended parameters and D3 sampling

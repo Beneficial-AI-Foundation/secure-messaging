@@ -7,11 +7,6 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.CKA.FromLWE.Frodo2016.Recommended.Moments
 import SecureMessaging.CKA.FromLWE.Frodo2016.Recommended.EntryNoise
 import VCVio.EvalDist.Monad.Basic
-import Mathlib.Algebra.BigOperators.Fin
-import Mathlib.Data.ENNReal.BigOperators
-import Mathlib.Algebra.Order.Ring.Abs
-import Mathlib.Tactic.Ring
-import Mathlib.Tactic.NormNum
 
 /-!
 # Exact fourth moment of first-exchange entry noise
@@ -111,7 +106,7 @@ private theorem finiteRealExpectation_ofReal
 private lemma finiteRealExpectation_pure (x : ℤ) (f : ℤ → ℝ) :
     finiteRealExpectation (pure x : ProbComp ℤ) f = f x := by
   rw [finiteRealExpectation_eq_tsum]
-  exact tsum_eq_single x (fun z hz => by simp [prEvent_pure, hz, Ne.symm hz]) |>.trans (by simp)
+  exact tsum_eq_single x (fun z hz => by simp [Ne.symm hz]) |>.trans (by simp)
 
 private lemma finiteRealExpectation_congr
     {mx my : ProbComp ℤ} (h : finiteLaw mx = finiteLaw my) (f : ℤ → ℝ) :

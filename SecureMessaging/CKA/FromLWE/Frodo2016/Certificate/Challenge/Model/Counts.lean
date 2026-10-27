@@ -8,9 +8,6 @@ import SecureMessaging.CKA.FromLWE.Frodo2016.Sampling
 import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate.Radix
 import VCVio.ProgramLogic.Unary.HoareTriple
 import VCVio.EvalDist.Monad.Seq
-import Mathlib.Data.Int.NatAbs
-import Mathlib.Tactic.IntervalCases
-import Mathlib.Tactic.NormNum
 
 /-!
 # Discrete count model for the Frodo Challenge certificate
@@ -289,11 +286,11 @@ private theorem probOutput_add_productCounts
         if z = x + y then Pr{let y ← mx}[y = x] * Pr{let x ← my}[x = y] else 0) =
         Pr{let y ← mx}[y = x] * Pr{let y ← my}[y = z - x] := by
     refine (tsum_eq_single (z - x) (fun y hy => ?_)).trans ?_
-    · rw [if_neg]
+    · rw [ite_eq_right]
       intro h
       apply hy
       omega
-    · rw [if_pos (by omega)]
+    · rw [ite_eq_left (by omega)]
   simp_rw [hinner]
   rw [tsum_eq_sum (s := Finset.Icc (-9 : ℤ) 9)]
   · simp_rw [hmx, hmy]
@@ -385,11 +382,11 @@ theorem ChallengeModelInternal.probOutput_add_counts
         if z = x + y then Pr{let y ← mx}[y = x] * Pr{let x ← my}[x = y] else 0) =
         Pr{let y ← mx}[y = x] * Pr{let y ← my}[y = z - x] := by
     refine (tsum_eq_single (z - x) (fun y hy => ?_)).trans ?_
-    · rw [if_neg]
+    · rw [ite_eq_right]
       intro h
       apply hy
       omega
-    · rw [if_pos (by omega)]
+    · rw [ite_eq_left (by omega)]
   simp_rw [hinner]
   rw [tsum_eq_sum (s := F.coeff.support)]
   · simp_rw [hmx, hmy]

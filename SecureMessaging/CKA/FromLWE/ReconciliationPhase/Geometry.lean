@@ -94,12 +94,12 @@ private theorem modularDistance_radius_shifts
   · rw [modularDistance]
     have hforward : w - (w - (r : Scalar p)) = (r : Scalar p) := by ring
     have hbackward : w - (r : Scalar p) - w = -(r : Scalar p) := by ring
-    rw [hforward, hbackward, hrval, ZMod.neg_val, if_neg hrne]
+    rw [hforward, hbackward, hrval, ZMod.neg_val, ite_eq_right hrne]
     omega
   · rw [modularDistance]
     have hforward : w - (w + (r : Scalar p)) = -(r : Scalar p) := by ring
     have hbackward : w + (r : Scalar p) - w = (r : Scalar p) := by ring
-    rw [hforward, hbackward, hrval, ZMod.neg_val, if_neg hrne]
+    rw [hforward, hbackward, hrval, ZMod.neg_val, ite_eq_right hrne]
     omega
 
 private theorem hintScalar_add_halfWidth
@@ -270,7 +270,7 @@ theorem ReconciliationPhase.Internal.extractScalar_eq_natCast_iff_centered
           (((a : ℕ) : Scalar p) - ((c : ℕ) : Scalar p)).val = p.q - (c - a) := by
         rw [show ((a : ℕ) : Scalar p) - ((c : ℕ) : Scalar p) =
             -(((c : ℕ) : Scalar p) - ((a : ℕ) : Scalar p)) by ring,
-          ZMod.neg_val, if_neg hdiffne, hdiffval]
+          ZMod.neg_val, ite_eq_right hdiffne, hdiffval]
       rw [hval]
       have hnext : c + p.blockWidth = (k + 1) * p.blockWidth := by
         simp only [c, Nat.add_mul, one_mul]
@@ -326,7 +326,7 @@ theorem ReconciliationPhase.Internal.extractScalar_eq_natCast_iff_centered
         omega
       rw [show ((a : ℕ) : Scalar p) - ((c : ℕ) : Scalar p) =
           -(((c : ℕ) : Scalar p) - ((a : ℕ) : Scalar p)) by ring,
-        ZMod.neg_val, if_neg hdiffne, hdiffval]
+        ZMod.neg_val, ite_eq_right hdiffne, hdiffval]
       have hnext : c + p.blockWidth = (k + 1) * p.blockWidth := by
         simp only [c, Nat.add_mul, one_mul]
       have hkstep : (k + 1) * p.blockWidth ≤ p.q := by

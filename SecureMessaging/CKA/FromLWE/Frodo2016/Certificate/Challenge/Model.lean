@@ -32,12 +32,12 @@ theorem lowerCounts_succ_apply (n : Nat) (z : ℤ) :
   classical
   rw [lowerCounts, AddMonoidAlgebra.coeff_sum, Finsupp.finsetSum_apply]
   by_cases hz : z ∈ Finset.Icc (-384 : ℤ) 384
-  · rw [if_pos hz, Finset.sum_eq_single z]
+  · rw [ite_eq_left hz, Finset.sum_eq_single z]
     · simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_eq_same]
     · intro y hy hne
       simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_apply, hne, ite_false]
     · exact fun h => (h hz).elim
-  · rw [if_neg hz]
+  · rw [ite_eq_right hz]
     apply Finset.sum_eq_zero
     intro y hy
     have hne : y ≠ z := fun h => hz (h ▸ hy)
@@ -101,7 +101,7 @@ theorem totalMass_lowerCounts_le (n : Nat) :
             refine Finset.sum_congr rfl fun i hi => ?_
             rw [lowerCounts_succ_apply]
             simp only [Finset.mem_Icc]
-            rw [if_pos (by have hi := Finset.mem_range.mp hi; omega)]
+            rw [ite_eq_left (by have hi := Finset.mem_range.mp hi; omega)]
           _ ≤ ∑ i ∈ Finset.range 769,
                 (lowerCounts n * productCounts) ((-384 : ℤ) + i) := by
             exact Finset.sum_le_sum fun i hi => by
@@ -157,7 +157,7 @@ private theorem lowerCounts_domination (n : Nat) (z : ℤ) :
         -LaurentPolynomial.single_eq_C_mul_T]
   | succ n ih =>
       by_cases hz : z ∈ Finset.Icc (-384 : ℤ) 384
-      · rw [lowerCounts_succ_apply, if_pos hz]
+      · rw [lowerCounts_succ_apply, ite_eq_left hz]
         have hdiv :
             65536 * ((lowerCounts n * productCounts) z / 65536) ≤
               (lowerCounts n * productCounts) z := by
@@ -208,7 +208,7 @@ private theorem lowerCounts_domination (n : Nat) (z : ℤ) :
                   rw [Finset.sum_image hinj.injOn]]
             exact finsetSum_mul_apply_le _ _ _ _
           _ = scale * (productCounts ^ (n + 1)) z := by rw [pow_succ]
-      · rw [lowerCounts_succ_apply, if_neg hz]
+      · rw [lowerCounts_succ_apply, ite_eq_right hz]
         simp
 
 private theorem lowerCounts_mul_d1_domination (n : Nat) (z : ℤ) :
@@ -318,7 +318,7 @@ private theorem modularDistance_eq_natAbs_valMinAbs_local
   · have hsub : u - v ≠ 0 := sub_ne_zero.mpr h
     have hneg : v - u = -(u - v) := by simp
     have hnegval : (v - u).val = p.q - (u - v).val := by
-      rw [hneg, ZMod.neg_val, if_neg hsub]
+      rw [hneg, ZMod.neg_val, ite_eq_right hsub]
     rw [modularDistance, hnegval, ZMod.valMinAbs_natAbs_eq_min]
 
 private theorem valMinAbs_intCast_eq_of_natAbs_le_387
@@ -330,8 +330,7 @@ private theorem valMinAbs_intCast_eq_of_natAbs_le_387
   apply (ZMod.valMinAbs_spec (z : Scalar challengeParams) z).2
   constructor
   · rfl
-  · change z * 2 ∈ Set.Ioc (-(challengeParams.q : ℤ)) challengeParams.q
-    simp only [Set.mem_Ioc, challengeParams, Params.q]
+  · simp only [Set.mem_Ioc, challengeParams, Params.q]
     omega
 
 private theorem modularDistance_intCast_zero_eq_natAbs_of_le_387

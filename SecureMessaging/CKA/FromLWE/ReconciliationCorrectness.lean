@@ -4,8 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromLWE.Reconciliation
-import Mathlib.Data.ZMod.ValMinAbs
+module
+
+public import SecureMessaging.CKA.FromLWE.Reconciliation
+public import Mathlib.Tactic.Linarith
+public import Mathlib.Data.ZMod.ValMinAbs
 
 /-!
 # Correctness of Frodo reconciliation
@@ -13,6 +16,8 @@ import Mathlib.Data.ZMod.ValMinAbs
 The executable search returns a closest residue with the requested hint. Residues within the
 strict reconciliation radius therefore extract the same shared-key bits.
 -/
+
+@[expose] public section
 
 namespace lweCKA
 
@@ -112,7 +117,7 @@ private theorem nearestFold_spec
               candidate.val < best.val))
       · have hrec := ih candidate hchoose.1
         simp only [List.foldl_cons]
-        rw [nearestStep, if_pos hchoose]
+        rw [nearestStep, ite_eq_left hchoose]
         refine ⟨hrec.1, ?_, ?_⟩
         · exact le_trans hrec.2.1 (by omega)
         · intro x hx hhint
@@ -122,7 +127,7 @@ private theorem nearestFold_spec
           · exact hrec.2.2 x hx hhint
       · have hrec := ih best hbest
         simp only [List.foldl_cons]
-        rw [nearestStep, if_neg hchoose]
+        rw [nearestStep, ite_eq_right hchoose]
         refine ⟨hrec.1, hrec.2.1, ?_⟩
         intro x hx hhint
         simp only [List.mem_cons] at hx
@@ -161,7 +166,7 @@ private theorem modularDistance_eq_natAbs_valMinAbs
   · have hsub : u - v ≠ 0 := sub_ne_zero.mpr h
     have hneg : v - u = -(u - v) := by simp
     have hnegval : (v - u).val = p.q - (u - v).val := by
-      rw [hneg, ZMod.neg_val, if_neg hsub]
+      rw [hneg, ZMod.neg_val, ite_eq_right hsub]
     rw [modularDistance, hnegval, ZMod.valMinAbs_natAbs_eq_min]
 
 private theorem modularDistance_triangle
@@ -258,7 +263,7 @@ private theorem extractScalar_eq_of_order_of_same_hint_of_close
   have hvusub : v - u ≠ 0 := sub_ne_zero.mpr (Ne.symm huv)
   have hcases := hclose
   unfold modularDistance at hcases
-  rw [show u - v = -(v - u) by simp, ZMod.neg_val, if_neg hvusub,
+  rw [show u - v = -(v - u) by simp, ZMod.neg_val, ite_eq_right hvusub,
     ZMod.val_sub hle, min_lt_iff] at hcases
   rcases hcases with hwrap | hsub
   · exact False.elim (not_wrap_close_of_same_hint p hp u v hle hwrap hhint)

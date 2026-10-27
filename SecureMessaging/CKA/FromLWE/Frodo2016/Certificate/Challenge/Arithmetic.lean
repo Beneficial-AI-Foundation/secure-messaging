@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import Mathlib.Data.Nat.Bitwise
+module
+
+public import Mathlib.Data.Nat.Bitwise
 
 /-!
 # Exact arithmetic for the Frodo Challenge certificate
@@ -14,6 +16,8 @@ challenge certificate. The checkpoint is encoded as 256-bit limbs so every
 source line remains short, while the kernel checks both its reconstruction and
 the final extracted values.
 -/
+
+@[expose] public section
 
 namespace lweCKA.ChallengeCertificateArithmetic
 

@@ -4,10 +4,8 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
+import SecureMessaging.CKA.FromLWE.Frodo2016.Certificate.ArithmeticLemmas
 import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate.Radix
-import Mathlib.Data.Nat.Bitwise
-import Mathlib.Tactic.Positivity
-import Mathlib.Tactic.Ring
 
 /-!
 # Generic packing lemmas for the Frodo Challenge certificate

@@ -416,9 +416,11 @@ theorem
         norm_num [challengeParams, Params.halfWidth, Params.blockWidth,
           Params.discardBits]
   calc
-    Pr{let v ← ($ᵗ (Scalar challengeParams) : ProbComp (Scalar challengeParams))}[phaseBad (v.val % 512)] =
+    Pr{let v ← ($ᵗ (Scalar challengeParams) : ProbComp (Scalar challengeParams))}[phaseBad (v.val
+        % 512)] =
         Pr{let u ← ((fun v : Scalar challengeParams => (challengeScalarPhaseEquiv v).1) <$>
-            ($ᵗ (Scalar challengeParams) : ProbComp (Scalar challengeParams)))}[phaseBad u.val] := by
+            ($ᵗ (Scalar challengeParams) : ProbComp (Scalar challengeParams)))}[phaseBad u.val] :=
+                by
       rw [prEvent_map]
       apply probEvent_congr'
       · intro v _

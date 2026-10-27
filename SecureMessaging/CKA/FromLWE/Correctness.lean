@@ -185,7 +185,7 @@ private theorem pending_recvA (p : Params) (hp : p.WellFormed) (χ : ProbComp (S
   have he : ¬ n % 2 = 0 := by omega
   have hs : (n + 1) % 2 = 0 := by omega
   have hm := mismatch_values p ik tape n hn
-  simp only [senderValue, receiverValue, if_neg he] at hm
+  simp only [senderValue, receiverValue, ite_eq_right he] at hm
   cases rest with
   | nil =>
     simp [tapeCorrectnessImpl, recvA_run p, pending, he, complete, hs,
@@ -210,7 +210,7 @@ private theorem pending_recvB (p : Params) (hp : p.WellFormed) (χ : ProbComp (S
       (pending p ik tape n, rest) = pure ((), complete p ik tape (n + 1), rest) := by
   have hs : ¬ (n + 1) % 2 = 0 := by omega
   have hm := mismatch_values p ik tape n hn
-  simp only [senderValue, receiverValue, if_pos he] at hm
+  simp only [senderValue, receiverValue, ite_eq_left he] at hm
   cases rest with
   | nil =>
     simp [tapeCorrectnessImpl, recvB_run p, pending, he, complete, hs,
@@ -638,8 +638,9 @@ theorem correctness_failure_le
     calc
       Pr{let z ← replay}[z.2.correct = false] =
           Pr{let z ← sampleHonestTape p χ (T + 1) >>= runTape}[z.2.1.correct = false] := by
-        simp [replay, OracleComp.prEvent_bind_eq_tsum, Function.comp_def]
-      _ ≤ Pr{let t ← sampleHonestTape p χ (T + 1)}[∃ j : Fin T, tapeRoundMismatch p t.1 t.2 j.val = true] := by
+        simp [replay]
+      _ ≤ Pr{let t ← sampleHonestTape p χ (T + 1)}[∃ j : Fin T, tapeRoundMismatch p t.1 t.2 j.val
+          = true] := by
         apply prEvent_bind_le_prEvent_of_support
         intro t ht hgood
         apply (OracleComp.prEvent_eq_zero_iff _ _).mpr

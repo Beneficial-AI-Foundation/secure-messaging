@@ -30,7 +30,8 @@ private theorem evalDist_sampleIID_two_coords
   apply evalDist_ext
   intro z
   rw [prEvent_map]
-  change Pr{let v ← Fin.mOfFn n fun _ => mx}[(v i, v j) = z] = Pr{let x ← Prod.mk <$> mx <*> mx}[x = z]
+  change Pr{let v ← Fin.mOfFn n fun _ => mx}[(v i, v j) = z] = Pr{let x ← Prod.mk <$> mx <*> mx}[x
+      = z]
   have hevent :
       (fun v : Fin n → α => (v i, v j) = z) =
         fun v => ∀ k,

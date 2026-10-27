@@ -7,8 +7,6 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.CKA.FromLWE.Correctness
 import SecureMessaging.CKA.FromLWE.Frodo2016.Challenge.PairBound
 import SecureMessaging.CKA.FromLWE.Frodo2016.Certificate.Challenge.Bounds
-import Mathlib.Data.Finset.Prod
-import Mathlib.Analysis.SpecialFunctions.Pow.Real
 
 /-!
 # Concrete correctness of the historical Frodo challenge parameters
@@ -40,7 +38,7 @@ private theorem nat_le_indicator_add_choose_two (n : ℕ) :
   cases n with
   | zero => simp
   | succ n =>
-      rw [if_neg (Nat.succ_ne_zero n)]
+      rw [ite_eq_right (Nat.succ_ne_zero n)]
       rw [show (n + 1).choose 2 = n + n.choose 2 by
         simp only [Nat.choose_succ_succ, Nat.choose_one_right]]
       omega
@@ -99,7 +97,7 @@ private theorem sum_indicators_le_exists_add_pairs
     rw [show indicator (∃ i ∈ s, E i x) = 1 by
       simp [indicator, hexists.mpr hnonempty]]
     have hn := nat_le_indicator_add_choose_two u.card
-    rw [if_neg hu] at hn
+    rw [ite_eq_right hu] at hn
     exact_mod_cast hn
 
 private theorem probEvent_sum_le_union_add_pairs
@@ -173,12 +171,12 @@ private theorem challenge_pair_sum_le :
       apply Finset.sum_le_sum
       intro ij _
       by_cases hlt : ij.1 < ij.2
-      · simp only [if_pos hlt]
+      · simp only [ite_eq_left hlt]
         have hne : challengeCoord ij.1 ≠ challengeCoord ij.2 := by
           intro h
           exact hlt.ne (challengeCoord_injective h)
         exact probEvent_challengeEntryMismatch_pair_le _ _ hne
-      · simp only [if_neg hlt]
+      · simp only [ite_eq_right hlt]
         exact le_rfl
     _ = ∑ _ij ∈ ((Finset.univ : Finset (Fin 64)) ×ˢ Finset.univ).filter
           (fun ij => ij.1 < ij.2),

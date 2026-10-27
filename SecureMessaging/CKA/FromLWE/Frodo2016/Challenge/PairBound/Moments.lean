@@ -6,11 +6,7 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.CKA.FromLWE.Frodo2016.Sampling
 import VCVio.ProgramLogic.Unary.HoareTriple
-import Mathlib.Data.ENNReal.Inv
-import Mathlib.Data.ENNReal.BigOperators
 import VCVio.EvalDist.Prod
-import Mathlib.Data.Rat.BigOperators
-import Mathlib.Tactic.NormNum
 
 /-!
 # Scalar and IID moment tools for the Frodo Challenge pair bound

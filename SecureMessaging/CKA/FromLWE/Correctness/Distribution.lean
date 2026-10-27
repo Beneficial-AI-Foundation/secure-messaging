@@ -316,15 +316,15 @@ private theorem evalDist_tapeCorrectnessImpl_sendA_head
       CKAScheme.validStep,
       liftM_map, bind_map_left, eraseCoins, StateT.run_bind, StateT.run_get,
       pure_bind, liftM_pure, lt_sup_iff, sup_lt_iff, ↓reduceIte, StateT.run_map,
-      StateT.run_set, map_pure, liftM_bind, Option.map_some, StateT.run_monadLift,
+      StateT.run_set, map_pure, Option.map_some, StateT.run_monadLift,
       monadLift_self, Functor.map_map]
     dsimp [CKAScheme.ckaCorrectnessSpec, CKAScheme.ckaCorrectnessSpec.OSendA]
     simp only [pure_bind, bind_map_left]
-    simp only [liftM_pure, map_pure]
+    simp only [map_pure]
     have hab : tA = tB := by omega
     subst tB
     simp only [lt_add_iff_pos_right, Order.lt_one_iff, and_self, lt_self_iff_false,
-      or_false, ↓reduceIte, bind_pure_comp, liftM_map]
+      or_false, ↓reduceIte, bind_pure_comp]
     simp only [map_eq_bind_pure_comp]
     apply evalDist_bind_congr'
     intro a
@@ -363,15 +363,15 @@ private theorem evalDist_tapeCorrectnessImpl_sendB_head
       CKAScheme.validStep,
       liftM_map, bind_map_left, eraseCoins, StateT.run_bind, StateT.run_get,
       pure_bind, liftM_pure, lt_sup_iff, sup_lt_iff, ↓reduceIte, StateT.run_map,
-      StateT.run_set, map_pure, liftM_bind, Option.map_some, StateT.run_monadLift,
+      StateT.run_set, map_pure, Option.map_some, StateT.run_monadLift,
       monadLift_self, Functor.map_map]
     dsimp [CKAScheme.ckaCorrectnessSpec, CKAScheme.ckaCorrectnessSpec.OSendB]
     simp only [pure_bind, bind_map_left]
-    simp only [liftM_pure, map_pure]
+    simp only [map_pure]
     have hab : tA = tB := by omega
     subst tB
     simp only [lt_self_iff_false, and_self, lt_add_iff_pos_right, Order.lt_one_iff,
-      or_true, ↓reduceIte, bind_pure_comp, liftM_map]
+      or_true, ↓reduceIte, bind_pure_comp]
     simp only [map_eq_bind_pure_comp]
     exact lweCKA.evalDist_bind_const_neverFails
       (sampleSendACoins p χ) (probFailure_eq_zero) _

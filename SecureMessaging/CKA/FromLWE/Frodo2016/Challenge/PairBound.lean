@@ -252,7 +252,7 @@ private theorem challenge_four_signed_tails_le
   have hsum := hunion.trans
     (add_le_add hpp (add_le_add hpn (add_le_add hnp hnn)))
   by_cases hshare : c.1 = d.1 ∨ c.2 = d.2
-  · rw [if_pos hshare] at hsum
+  · rw [ite_eq_left hshare] at hsum
     exact hsum.trans <| by
       have harith := challenge_pair_chernoff_arithmetic.1
       let q : ℝ≥0∞ := ((5 : ℝ≥0∞) / 6) ^ 512 *
@@ -275,7 +275,7 @@ private theorem challenge_four_signed_tails_le
             simpa only [Rat.cast_mul, Rat.cast_div, Rat.cast_pow,
               Rat.cast_ofNat, Rat.cast_one] using (Rat.cast_le (K := ℝ)).2 harith
           simpa only [mul_assoc] using harith'
-  · rw [if_neg hshare] at hsum
+  · rw [ite_eq_right hshare] at hsum
     exact hsum.trans <| by
       have harith := challenge_pair_chernoff_arithmetic.2
       let q : ℝ≥0∞ := ((5 : ℝ≥0∞) / 6) ^ 512 *

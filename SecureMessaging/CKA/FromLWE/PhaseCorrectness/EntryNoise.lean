@@ -205,7 +205,8 @@ private theorem evalDist_sampleMatrix_entry
   intro y
   rw [prEvent_map]
   unfold sampleMatrix ProbComp.sampleIID
-  change Pr{let m ← Fin.mOfFn rows fun _ => Fin.mOfFn cols fun _ => χ}[m i j = y] = Pr{let x ← χ}[x = y]
+  change Pr{let m ← Fin.mOfFn rows fun _ => Fin.mOfFn cols fun _ => χ}[m i j = y] = Pr{let x ←
+      χ}[x = y]
   calc
     Pr{let m ← Fin.mOfFn rows fun _ => Fin.mOfFn cols fun _ => χ}[m i j = y] =
         Pr{let row ← Fin.mOfFn cols fun _ => χ}[row j = y] :=

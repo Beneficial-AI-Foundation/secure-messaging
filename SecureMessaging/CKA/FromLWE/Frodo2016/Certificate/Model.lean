@@ -58,7 +58,7 @@ private theorem lowerCounts_domination
   | succ k ih =>
       let P := ToVCVio.productMeasure (counts c) (counts c)
       by_cases hz : z ∈ Finset.Icc (-(c.window : ℤ)) (c.window : ℤ)
-      · rw [lowerCounts_succ_apply, if_pos hz]
+      · rw [lowerCounts_succ_apply, ite_eq_left hz]
         have hdiv :
             2 ^ (2 * c.seedBits) *
                 ((lowerCounts c k * P) z / 2 ^ (2 * c.seedBits)) ≤
@@ -116,7 +116,7 @@ private theorem lowerCounts_domination
             exact finsetSum_mul_apply_le _ _ _ _
           _ = 2 ^ 128 * (P ^ (k + 1)) z := by
             rw [show P ^ (k + 1) = P ^ k * P by rw [pow_succ]]
-      · rw [lowerCounts_succ_apply, if_neg hz]
+      · rw [lowerCounts_succ_apply, ite_eq_right hz]
         simp
 
 private theorem lowerCounts_mul_counts_domination
@@ -233,7 +233,7 @@ private theorem modularDistance_eq_natAbs_valMinAbs
   · have hsub : u - v ≠ 0 := sub_ne_zero.mpr h
     have hneg : v - u = -(u - v) := by simp
     have hnegval : (v - u).val = p.q - (u - v).val := by
-      rw [hneg, ZMod.neg_val, if_neg hsub]
+      rw [hneg, ZMod.neg_val, ite_eq_right hsub]
     rw [modularDistance, hnegval, ZMod.valMinAbs_natAbs_eq_min]
 
 private theorem valMinAbs_intCast_eq_of_natAbs_le
@@ -245,8 +245,7 @@ private theorem valMinAbs_intCast_eq_of_natAbs_le
   apply (ZMod.valMinAbs_spec (z : Scalar p) z).2
   constructor
   · rfl
-  · change z * 2 ∈ Set.Ioc (-(p.q : ℤ)) p.q
-    simp only [Set.mem_Ioc]
+  · simp only [Set.mem_Ioc]
     exact_mod_cast (show (-(p.q : ℤ)) < z * 2 ∧ z * 2 ≤ p.q by omega)
 
 private theorem modularDistance_intCast_zero_eq_natAbs_of_le

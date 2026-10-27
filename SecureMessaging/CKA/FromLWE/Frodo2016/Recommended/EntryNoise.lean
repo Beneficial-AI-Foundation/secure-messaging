@@ -9,7 +9,6 @@ import SecureMessaging.CKA.FromLWE.NoiseCorrectness
 import VCVio.EvalDist.IndepProduct
 import VCVio.EvalDist.Monad.Map
 import VCVio.OracleComp.QueryTracking.RandomOracle.DeferredSampling
-import Mathlib.Algebra.BigOperators.Ring.Finset
 
 /-!
 # Entrywise first-exchange noise

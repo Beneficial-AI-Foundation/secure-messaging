@@ -83,9 +83,9 @@ private theorem probOutput_mul_counts
     rw [Finset.sum_mul]
     refine Finset.sum_congr rfl fun y hy => ?_
     by_cases hxy : z = x * y
-    · rw [if_pos hxy, if_pos hxy.symm]
+    · rw [ite_eq_left hxy, ite_eq_left hxy.symm]
       ac_rfl
-    · rw [if_neg hxy, if_neg (fun h => hxy h.symm)]
+    · rw [ite_eq_right hxy, ite_eq_right (fun h => hxy h.symm)]
       simp only [zero_mul]
   · intro x hx
     have hzero : F x = 0 := Finsupp.notMem_support_iff.mp hx
@@ -155,11 +155,11 @@ private theorem probOutput_add_counts
       (∑' y : ℤ, if z = x + y then Pr{let y ← mx}[y = x] * Pr{let x ← my}[x = y] else 0) =
         Pr{let y ← mx}[y = x] * Pr{let y ← my}[y = z - x] := by
     refine (tsum_eq_single (z - x) (fun y hy => ?_)).trans ?_
-    · rw [if_neg]
+    · rw [ite_eq_right]
       intro h
       apply hy
       omega
-    · rw [if_pos (by omega)]
+    · rw [ite_eq_left (by omega)]
   simp_rw [hinner]
   rw [tsum_eq_sum (s := F.coeff.support)]
   · simp_rw [hmx, hmy]
@@ -508,7 +508,7 @@ theorem SharedModelInternal.probOutput_entryNoiseIntExp_counts
   | zero =>
       simp only [entryNoiseIntExp, ProbComp.sampleIID, Fin.mOfFn, pure_bind,
         Fin.sum_univ_zero, zero_sub, neg_zero, zero_add, bind_pure, Nat.mul_zero, pow_zero,
-        one_mul, Nat.zero_add, pow_one]
+        one_mul, pow_one]
       exact hlaw z
   | succ n ih =>
       rw [(evalDist_ext_iff.mp (evalDist_entryNoiseIntExp_succ n χ)) z]

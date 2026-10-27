@@ -5,7 +5,6 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.CKA.FromLWE.ReconciliationPhase.Geometry
-import Mathlib.Order.Interval.Finset.Nat
 
 /-!
 # Exact phase geometry for Frodo reconciliation
@@ -220,7 +219,7 @@ theorem card_reconciliationFailurePhases
     rw [hempty, Finset.card_empty]
     simp [modularDistance]
   · have hnegval : (-z).val = p.q - z.val := by
-      rw [ZMod.neg_val, if_neg hz]
+      rw [ZMod.neg_val, ite_eq_right hz]
     by_cases hcenter : z.val ≤ p.q - z.val
     · have hdist : modularDistance p z 0 = z.val := by
         simp only [modularDistance, sub_zero, zero_sub, hnegval]
@@ -257,7 +256,7 @@ theorem card_reconciliationFailurePhases
             omega
           rw [show ((u + r : ℕ) : Scalar p) - z =
               -(z - ((u + r : ℕ) : Scalar p)) by ring,
-            ZMod.neg_val, if_neg hdiffne, hdiffval]
+            ZMod.neg_val, ite_eq_right hdiffne, hdiffval]
           omega
       change ((Finset.range p.halfWidth).filter (fun u =>
         p.blockWidth ≤ ((((u + r : ℕ) : Scalar p) - z).val))).card = _

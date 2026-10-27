@@ -6,6 +6,12 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.CKA.FromLWE.Frodo2016.Certificate.Classical.Midpoint
 
+/-!
+# Classical-parameter certificate suffix
+
+This file verifies the remaining recurrence steps after the midpoint checkpoint.
+-/
+
 namespace lweCKA.Frodo2016.Certificate.Arithmetic.Classical
 
 set_option maxRecDepth 65536 in

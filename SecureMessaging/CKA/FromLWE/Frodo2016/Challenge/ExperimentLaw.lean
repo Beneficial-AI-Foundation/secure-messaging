@@ -11,11 +11,6 @@ import VCVio.EvalDist.IndepProduct
 import VCVio.EvalDist.Monad.Map
 import VCVio.ProgramLogic.Unary.HoareTriple
 import VCVio.OracleComp.QueryTracking.RandomOracle.DeferredSampling
-import Mathlib.Algebra.BigOperators.Ring.Finset
-import Mathlib.Data.ZMod.ValMinAbs
-import Mathlib.Algebra.Group.Units.Basic
-import Mathlib.Logic.Equiv.Prod
-import Mathlib.Logic.Equiv.Fin.Basic
 
 /-!
 # The Challenge entry-noise law
@@ -130,7 +125,6 @@ private theorem valMinAbs_intCast_eq_of_mem_d1_support
   · rfl
   · rw [support_d1IntSampler] at hz
     simp only [Set.mem_Icc] at hz
-    change z * 2 ∈ Set.Ioc (-(challengeParams.q : ℤ)) challengeParams.q
     simp only [Set.mem_Ioc, challengeParams, Params.q]
     omega
 

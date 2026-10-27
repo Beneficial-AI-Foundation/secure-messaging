@@ -244,11 +244,12 @@ theorem evalDist_secondExchangeCoins_transpose
   have hHead { α β : Type } (mx my : ProbComp α)
       (h : finiteLaw (mx) = finiteLaw (my)) (f : α → ProbComp β) :
       finiteLaw (mx >>= f) = finiteLaw (my >>= f) := by
-    letI : MeasurableSpace α := ⊤
-    letI : MeasurableSpace β := ⊤
+    let : MeasurableSpace α := ⊤
+    let : MeasurableSpace β := ⊤
     exact ((EvalDistEq.of_evalDist_eq h).bind_left f).evalDist_eq
   have hBase :
-      finiteLaw ((fun m : BaseMatrix p => m.transpose) <$> ($ᵗ (BaseMatrix p) : ProbComp (BaseMatrix p))) =
+      finiteLaw ((fun m : BaseMatrix p => m.transpose) <$> ($ᵗ (BaseMatrix p) : ProbComp
+          (BaseMatrix p))) =
         finiteLaw (($ᵗ (BaseMatrix p) : ProbComp (BaseMatrix p))) := by
     apply evalDist_map_bijective_uniform_cross
     exact ⟨Matrix.transpose_injective,

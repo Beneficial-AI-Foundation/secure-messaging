@@ -42,7 +42,7 @@ private theorem sum_update_mul
   congr 1
   · apply Finset.sum_congr rfl
     intro j hj
-    simp only [Function.update_apply, if_neg (Finset.ne_of_mem_erase hj)]
+    simp only [Function.update_apply, ite_eq_right (Finset.ne_of_mem_erase hj)]
   · rw [Function.update_self]
 
 private theorem double_sum_update_affine
@@ -68,7 +68,7 @@ private theorem double_sum_update_affine
     congr 1
     · apply Finset.sum_congr rfl
       intro i hi
-      simp only [Function.update_apply, if_neg (Finset.ne_of_mem_erase hi)]
+      simp only [Function.update_apply, ite_eq_right (Finset.ne_of_mem_erase hi)]
     · simp only [Function.update_self]
   rw [houter x, houter 0, sum_update_mul r right l x,
     sum_update_mul r right l 0]
@@ -116,8 +116,8 @@ private theorem evalDist_uniform_update_map
           pure (ψ (Function.update g t u))) =
       finiteLaw (ψ <$> ($ᵗ (D → R) : ProbComp (D → R))) := by
   rw [map_eq_bind_pure_comp]
-  letI : MeasurableSpace R := ⊤
-  letI : MeasurableSpace α := ⊤
+  let : MeasurableSpace R := ⊤
+  let : MeasurableSpace α := ⊤
   exact OracleComp.evalDist_uniformSample_bind_update_map
     SampleableType.evalDist_uniformSample SampleableType.evalDist_uniformSample t ψ
 
@@ -145,8 +145,8 @@ private theorem evalDist_uniform_update_bind
         (do
           let g ← ($ᵗ (D → R) : ProbComp (D → R))
           pure (ψ g)) := by
-  letI : MeasurableSpace R := ⊤
-  letI : MeasurableSpace α := ⊤
+  let : MeasurableSpace R := ⊤
+  let : MeasurableSpace α := ⊤
   exact OracleComp.evalDist_uniformSample_bind_update_map
     SampleableType.evalDist_uniformSample SampleableType.evalDist_uniformSample t ψ
 
@@ -395,22 +395,27 @@ private theorem probEvent_challengeEntryMismatch_withBase
     (c : Fin challengeParams.nbar × Fin challengeParams.nbar)
     (t : InitKey challengeParams × SendACoins challengeParams)
     (hgood : ¬challengeEntryBad c t) :
-    Pr{let a ← ($ᵗ (BaseMatrix challengeParams) : ProbComp (BaseMatrix challengeParams))}[challengeEntryMismatch c (challengeWithBase a t)] =
+    Pr{let a ← ($ᵗ (BaseMatrix challengeParams) : ProbComp (BaseMatrix
+        challengeParams))}[challengeEntryMismatch c (challengeWithBase a t)] =
       challengeFailureRamp (challengeEntryNoiseInt c t) := by
   let phaseBad := fun v : Scalar challengeParams =>
     1024 ≤
       ((((v.val % 512 + 256 : ℕ) : Scalar challengeParams) -
         (challengeEntryNoiseInt c t : Scalar challengeParams)).val)
   calc
-    Pr{let a ← ($ᵗ (BaseMatrix challengeParams) : ProbComp (BaseMatrix challengeParams))}[challengeEntryMismatch c (challengeWithBase a t)] =
-        Pr{let x ← ((fun a : BaseMatrix challengeParams => challengeSenderScalar challengeParams c t a) <$>
-            ($ᵗ (BaseMatrix challengeParams) : ProbComp (BaseMatrix challengeParams)))}[phaseBad x] := by
+    Pr{let a ← ($ᵗ (BaseMatrix challengeParams) : ProbComp (BaseMatrix
+        challengeParams))}[challengeEntryMismatch c (challengeWithBase a t)] =
+        Pr{let x ← ((fun a : BaseMatrix challengeParams => challengeSenderScalar challengeParams c
+            t a) <$>
+            ($ᵗ (BaseMatrix challengeParams) : ProbComp (BaseMatrix challengeParams)))}[phaseBad
+                x] := by
       rw [prEvent_map]
       apply probEvent_congr'
       · intro a _
         exact challengeEntryMismatch_withBase_iff_phase c t a
       · rfl
-    _ = Pr{let x ← ($ᵗ (Scalar challengeParams) : ProbComp (Scalar challengeParams))}[phaseBad x] := by
+    _ = Pr{let x ← ($ᵗ (Scalar challengeParams) : ProbComp (Scalar challengeParams))}[phaseBad x]
+        := by
       simp only [probEvent_def, evalDist_challengeSender_uniform_of_not_bad c t hgood]
     _ = challengeFailureRamp (challengeEntryNoiseInt c t) :=
       probEvent_uniform_phase_eq_challengeFailureRamp (challengeEntryNoiseInt c t)
@@ -418,7 +423,8 @@ private theorem probEvent_challengeEntryMismatch_withBase
 private noncomputable def challengeFixedFailure
     (c : Fin challengeParams.nbar × Fin challengeParams.nbar)
     (t : InitKey challengeParams × SendACoins challengeParams) : ℝ≥0∞ :=
-  Pr{let a ← ($ᵗ (BaseMatrix challengeParams) : ProbComp (BaseMatrix challengeParams))}[challengeEntryMismatch c (challengeWithBase a t)]
+  Pr{let a ← ($ᵗ (BaseMatrix challengeParams) : ProbComp (BaseMatrix
+      challengeParams))}[challengeEntryMismatch c (challengeWithBase a t)]
 
 private noncomputable local instance challengeEntryBadDecidable
     (c : Fin challengeParams.nbar × Fin challengeParams.nbar)
@@ -494,7 +500,7 @@ private theorem expectedValue_noiseCoins_badIndicator
   rw [expectedValue_def, OracleComp.prEvent_eq_tsum_ite]
   apply tsum_congr
   intro t
-  by_cases hbad : challengeEntryBad c t <;> simp only [hbad, if_true, if_false,
+  by_cases hbad : challengeEntryBad c t <;> simp only [hbad, ite_true, ite_false,
     mul_one, mul_zero]
 
 private theorem challengeFixedFailure_le_ramp_add_bad
@@ -505,11 +511,11 @@ private theorem challengeFixedFailure_le_ramp_add_bad
         if challengeEntryBad c t then 1 else 0 := by
   classical
   by_cases hbad : challengeEntryBad c t
-  · simp only [hbad, if_true]
+  · simp only [hbad, ite_true]
     exact (prEvent_le_one _).trans (le_add_left le_rfl)
   · unfold challengeFixedFailure
     rw [probEvent_challengeEntryMismatch_withBase c t hbad]
-    simp only [hbad, if_false, add_zero]
+    simp only [hbad, ite_false, add_zero]
     exact le_rfl
 
 private theorem challengeRamp_le_fixedFailure_add_bad
@@ -519,11 +525,11 @@ private theorem challengeRamp_le_fixedFailure_add_bad
       challengeFixedFailure c t + if challengeEntryBad c t then 1 else 0 := by
   classical
   by_cases hbad : challengeEntryBad c t
-  · simp only [hbad, if_true]
+  · simp only [hbad, ite_true]
     exact (challengeFailureRamp_le_one _).trans (le_add_left le_rfl)
   · unfold challengeFixedFailure
     rw [probEvent_challengeEntryMismatch_withBase c t hbad]
-    simp only [hbad, if_false, add_zero]
+    simp only [hbad, ite_false, add_zero]
     exact le_rfl
 
 /-- The actual entry probability and exact modular-ramp expectation differ by at most `2^-351`. -/

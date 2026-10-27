@@ -4,9 +4,13 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import Mathlib.Data.Nat.Bitwise
+module
+
+public import Mathlib.Data.Nat.Bitwise
 
 /-! # Generic low-memory arithmetic iteration lemmas -/
+
+@[expose] public section
 
 namespace lweCKA.Frodo2016.Certificate.Arithmetic
 

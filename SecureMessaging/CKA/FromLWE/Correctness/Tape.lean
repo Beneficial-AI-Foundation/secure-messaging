@@ -510,7 +510,6 @@ theorem evalDist_tapeRoundMismatch_eq_first
               let current ← honestRoundCoins p χ
               return roundMismatch ik previous current) := by
                 simp [observe, map_eq_bind_pure_comp, Function.comp_apply, bind_assoc]
-        all_goals rfl
       rw [hfront]
       by_cases hparity : (j + 1) % 2 = 0
       · simpa [roundMismatch, hparity] using evalDist_evenRoundCoins_eq_first p χ
@@ -529,12 +528,14 @@ firstExchangeFailureProb`.
 This sum of individual failure probabilities is a union bound. -/
 theorem probEvent_tapePrefixFailure_le
     (p : Params) (χ : ProbComp (Scalar p)) (T : ℕ) :
-    Pr{let t ← sampleHonestTape p χ (T + 1)}[∃ j : Fin T, tapeRoundMismatch p t.1 t.2 j.val = true] ≤
+    Pr{let t ← sampleHonestTape p χ (T + 1)}[∃ j : Fin T, tapeRoundMismatch p t.1 t.2 j.val =
+        true] ≤
       (T : ℝ≥0∞) * firstExchangeFailureProb p χ := by
   let E (j : Fin T) (t : InitKey p × List (SendACoins p × SendBCoins p)) : Prop :=
     tapeRoundMismatch p t.1 t.2 j.val = true
   calc
-    Pr{let t ← sampleHonestTape p χ (T + 1)}[∃ j : Fin T, tapeRoundMismatch p t.1 t.2 j.val = true] ≤
+    Pr{let t ← sampleHonestTape p χ (T + 1)}[∃ j : Fin T, tapeRoundMismatch p t.1 t.2 j.val =
+        true] ≤
         Finset.sum Finset.univ (fun j : Fin T =>
           Pr{let x ← sampleHonestTape p χ (T + 1)}[(E j) x]) := by
             simpa [E] using prEvent_exists_finset_le Finset.univ

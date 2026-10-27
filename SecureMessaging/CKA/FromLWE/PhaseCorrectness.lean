@@ -8,9 +8,6 @@ import SecureMessaging.CKA.FromLWE.PhaseCorrectness.EntryNoise
 import SecureMessaging.CKA.FromLWE.ReconciliationPhase
 import VCVio.ProgramLogic.Unary.HoareTriple
 import VCVio.OracleComp.QueryTracking.RandomOracle.EagerTable
-import Mathlib.Algebra.Group.Units.Basic
-import Mathlib.Logic.Equiv.Fin.Basic
-import Mathlib.Logic.Equiv.Prod
 
 /-!
 # Generic phase correctness for historical Frodo parameters
@@ -163,7 +160,7 @@ private theorem sum_update_mul
   congr 1
   · apply Finset.sum_congr rfl
     intro j hj
-    simp only [Function.update_apply, if_neg (Finset.ne_of_mem_erase hj)]
+    simp only [Function.update_apply, ite_eq_right (Finset.ne_of_mem_erase hj)]
   · rw [Function.update_self]
 
 private theorem double_sum_update_affine
@@ -188,7 +185,7 @@ private theorem double_sum_update_affine
     congr 1
     · apply Finset.sum_congr rfl
       intro i hi
-      simp only [Function.update_apply, if_neg (Finset.ne_of_mem_erase hi)]
+      simp only [Function.update_apply, ite_eq_right (Finset.ne_of_mem_erase hi)]
     · simp only [Function.update_self]
   rw [houter x, houter 0, sum_update_mul r right l x,
     sum_update_mul r right l 0]
@@ -237,8 +234,8 @@ private theorem evalDist_uniform_update_map
       pure (ψ (Function.update g t u))) =
       finiteLaw (ψ <$> ($ᵗ (D → R) : ProbComp (D → R))) := by
   rw [map_eq_bind_pure_comp]
-  letI : MeasurableSpace R := ⊤
-  letI : MeasurableSpace α := ⊤
+  let : MeasurableSpace R := ⊤
+  let : MeasurableSpace α := ⊤
   exact OracleComp.evalDist_uniformSample_bind_update_map
     SampleableType.evalDist_uniformSample SampleableType.evalDist_uniformSample t ψ
 
@@ -264,8 +261,8 @@ private theorem evalDist_row_update_cell
       finiteLaw (do
         let r ← ($ᵗ (Fin p.n → Scalar p) : ProbComp (Fin p.n → Scalar p))
         pure (ψ r)) := by
-  letI : MeasurableSpace (Scalar p) := ⊤
-  letI : MeasurableSpace α := ⊤
+  let : MeasurableSpace (Scalar p) := ⊤
+  let : MeasurableSpace α := ⊤
   exact OracleComp.evalDist_uniformSample_bind_update_map
     SampleableType.evalDist_uniformSample SampleableType.evalDist_uniformSample l ψ
 
@@ -503,11 +500,11 @@ private theorem fixedFailure_le_ramp_add_bad
       if entryBad p c t then 1 else 0 := by
   classical
   by_cases hbad : entryBad p c t
-  · simp only [hbad, if_true]
+  · simp only [hbad, ite_true]
     exact (prEvent_le_one _).trans (le_add_left le_rfl)
   · unfold fixedFailure
     rw [probEvent_entryMismatch_withBase p hp c t hbad]
-    simp only [hbad, if_false, add_zero]
+    simp only [hbad, ite_false, add_zero]
     exact le_rfl
 
 private theorem probEvent_entryMismatch_le_ramp
