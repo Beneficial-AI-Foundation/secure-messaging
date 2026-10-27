@@ -834,13 +834,7 @@ noncomputable def sckaGuessAdvantage [SampleableType I] [DecidableEq I]
   |(Pr{let x ← securityExp scka adversary vulnA vulnB}[x = true]).toReal - 1 / 2|
 -- ANCHOR_END: sckaGuessAdvantage
 
-/-! ### Fixed-bit experiments and advantage normalization
-
-Write `G_b := securityExpFixedBit scka adversary b vulnA vulnB` for the security experiment with
-its challenge bit fixed to `b` (recorded challenge keys for `b = false`, independent uniform keys
-for `b = true`), and `w := Pr[securityExp scka adversary vulnA vulnB = true]` for the probability
-that `adversary` guesses the uniform challenge bit `b` (`b' = b`).
--/
+/-! ### Fixed-bit experiments and advantage normalization -/
 
 /-- The SCKA experiment with fixed bit `b`: initialize `scka`, answer eligible challenges
 with recorded keys if `b = false` and independent uniform keys if `b = true`, and return the
@@ -857,7 +851,8 @@ def securityExpFixedBit [SampleableType I] [DecidableEq I]
     (initGameState stA stB)
   return b'
 
-/-- Distinguishing advantage `|Pr[G_true = true] - Pr[G_false = true]|`. -/
+/-- Distinguishing advantage `|Pr[G_true = true] - Pr[G_false = true]|`, where
+`G_b := securityExpFixedBit scka adversary b vulnA vulnB`. -/
 noncomputable def sckaDistAdvantage [SampleableType I] [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (adversary : SCKAAdversary StA StB I Rho Rand)
@@ -865,7 +860,8 @@ noncomputable def sckaDistAdvantage [SampleableType I] [DecidableEq I]
   |(Pr{let x ← securityExpFixedBit scka adversary true vulnA vulnB}[x = true]).toReal -
    (Pr{let x ← securityExpFixedBit scka adversary false vulnA vulnB}[x = true]).toReal|
 
-/-- `Exp =ᵈ (b ←$ Bool; b' ← G_b; return (b = b'))`. -/
+/-- `securityExp =ᵈ (b ←$ Bool; b' ← G_b; return (b == b'))`, where
+`G_b := securityExpFixedBit scka adversary b vulnA vulnB`. -/
 private lemma securityExp_evalDistEq_branch [SampleableType I] [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (adversary : SCKAAdversary StA StB I Rho Rand)
@@ -883,7 +879,9 @@ private lemma securityExp_evalDistEq_branch [SampleableType I] [DecidableEq I]
   refine EvalDistEq.bind_right _ fun b => ?_
   cases b <;> simp only [securityExpFixedBit, bind_assoc, pure_bind] <;> exact EvalDistEq.refl _
 
-/-- `w - 1/2 = (Pr[G_true = true] - Pr[G_false = true]) / 2`. -/
+/-- `Pr[b' = b] - 1/2 = (Pr[G_true = true] - Pr[G_false = true]) / 2`, where `Pr[b' = b]` is the
+probability that the guess `b'` equals the challenge bit `b` in `securityExp` and
+`G_b := securityExpFixedBit scka adversary b vulnA vulnB`. -/
 lemma securityExp_toReal_sub_half [SampleableType I] [DecidableEq I]
     (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
     (adversary : SCKAAdversary StA StB I Rho Rand)
