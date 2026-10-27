@@ -93,9 +93,9 @@ def Stage.onlineFlag : Stage → Bool → Bool
   | .fresh, _ => false
 
 variable {kem onoff leak} in
-/-- KEM of `stageScheme stage kemMat e s`: `Pinned.kem kemMat` pinning the phases of `stage` at
-epoch `e` (A's key generation if `s.stA.t = e`, B's encapsulations if `s.stB.t = e`), with
-decapsulation returning `s.keyB s.stA.t`. -/
+/-- KEM whose phases selected by `stage` at epoch `e` return their outputs from `kemMat`;
+other phases sample honestly. Decapsulation returns B's recorded key for A's current epoch
+(`s.keyB s.stA.t`). -/
 abbrev stageKem (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ)
     (s : GameState onoff Sym) :
     KEMScheme ProbComp K PK SK C :=
@@ -170,9 +170,9 @@ theorem stageScheme_recvA_eq_ideal [DecidableEq Sym]
 
 /-! ## The honest intermediate game -/
 
-/-- The simulator's protocol instance at honest state `s`: Opp-UniKEM over the simulated KEM
-`simKem` with challenge `(kemMat.pk, kemMat.ciphertext)`, A selected iff `s.stA.t = e`, and B
-selected iff `s.stB.t = e`. -/
+/-- The simulator's protocol instance at `s`: at epoch `e`, A uses `kemMat.pk` and B uses
+`kemMat.ciphertext`, with the corresponding secrets and coins hidden. Other epochs sample
+honestly, and A's receive uses B's recorded key, hidden at `e`. -/
 abbrev simScheme [DecidableEq Sym]
     (kemMat : KEMMaterial leak) (e : ℕ)
     (s : GameState onoff Sym) :=
@@ -184,9 +184,8 @@ abbrev simScheme [DecidableEq Sym]
     (simDet kem onoff sa sb kemMat.pk kemMat.ciphertext key) ecEk ecCt0 ecCt1
     (simLeak kem onoff leak sa sb kemMat.pk kemMat.ciphertext key)
 
-/-- Security oracles answering a query from `s` with the instance `schemeOf s`: the generic
-assembly `securityImplOf` (`SCKA.Security`) over `schemeOf s`, with the challenge oracle `chall` and
-Opp-UniKEM's exposure policies. -/
+/-- Security oracles using `schemeOf s` for each query from state `s`, `chall` for challenges,
+and Opp-UniKEM's exposure guards for corruptions and leaking sends. -/
 def securityImplAt [DecidableEq K]
     (schemeOf : GameState onoff Sym →
       SCKAScheme ProbComp Unit (StA onoff Sym) (StB onoff Sym) K (Message Sym)
@@ -213,10 +212,10 @@ theorem securityImplAt_run [DecidableEq K]
         (exposureA kem onoff leak) (exposureB kem onoff leak) (schemeOf s) t).run s :=
   rfl
 
-/-- Assume that `Inv` does not depend on `exposed` and `challenged`, that each ordinary send of
-`schemeOf s` is its leaking send with the coins forgotten, and that `chall` records challenges.
-If `Inv s` holds and the correctness queries of `schemeOf s` preserve `Inv` from `s`, then so
-does every query of `securityImplAt schemeOf chall`. -/
+/-- Assume `Inv` ignores `exposed` and `challenged`, ordinary sends forget the leaking-send
+coins, and `chall` only adds the queried epoch to `challenged` when unexposed. If correctness
+queries of `schemeOf s` preserve `Inv` from `s` satisfying `Inv`, then so does every query of
+`securityImplAt schemeOf chall`. -/
 theorem securityImplAt_preserves_at [DecidableEq K]
     (schemeOf : GameState onoff Sym →
       SCKAScheme ProbComp Unit (StA onoff Sym) (StB onoff Sym) K (Message Sym)
@@ -367,7 +366,8 @@ def consistentMat (kemMat : KEMMaterial leak) (e : ℕ)
   (s.stB.t = e → s.stB.stCt.isSome →
     s.stB.stCt = some kemMat.st ∧ s.stB.ct0 = some kemMat.ct0)
 
-/-- Under `reachableInv`, if B holds no online ciphertext, A and B are in the same epoch. -/
+/-- In a transcript-consistent state (`reachableInv`), B holding no online ciphertext implies
+that A and B are in the same epoch. -/
 private theorem epochs_eq_before_online
     (s : GameState onoff Sym)
     (hs : reachableInv kem onoff ecEk ecCt0 ecCt1 s) (hc : s.stB.ct1 = none) :

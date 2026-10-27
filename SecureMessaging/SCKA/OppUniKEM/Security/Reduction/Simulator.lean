@@ -78,9 +78,9 @@ def encapsOn
   | none => pure ((onoff.split ctStar).2, none)
   | some st => Prod.map id some <$> onoff.encapsOn st pk
 
-/-- Simulated KEM for a single oracle query, constructed from `keygen`, `encapsOff`, and `encapsOn`
-under the selection flags `selectedA` and `selectedB`; decapsulation constantly returns `key`
-(party B's recorded key for party A's current epoch). -/
+/-- Simulated KEM: `selectedA` selects the challenge public key for key generation, and
+`selectedB` selects the challenge ciphertext for encapsulation. Decapsulation returns `key`,
+party B's recorded key for A's current epoch. -/
 abbrev simKem
     (selectedA selectedB : Bool) (pkStar : PK) (ctStar : C) (key : Option (Option K)) :
     KEMScheme ProbComp (Option K) PK (Option SK) C where
@@ -98,8 +98,8 @@ abbrev simDet
   decapsDet _ _ := key
   decaps_eq _ _ := rfl
 
-/-- On/off structure for the simulated KEM `simKem`, with `Option onoff.St` as the offline state
-space. -/
+/-- Factorization of `simKem` encapsulation into `encapsOff` and `encapsOn`, with a possibly
+hidden offline state in `Option onoff.St`. -/
 abbrev simOnOff
     (selectedA selectedB : Bool) (pkStar : PK) (ctStar : C) (key : Option (Option K)) :
     (simKem kem onoff selectedA selectedB pkStar ctStar key).OnOffStructure where
@@ -136,8 +136,8 @@ def onLeak (ctStar : C) (st : Option onoff.St) (pk : PK) :
   | none => pure (((onoff.split ctStar).2, none), none)
   | some st => (fun res => ((res.1.1, some res.1.2), some res.2)) <$> leak.encapsOnRleak st pk
 
-/-- On/off randomness-leakage witness for the simulated KEM `simKem`, defined from `keygenLeak`,
-`offLeak`, and `onLeak`. -/
+/-- Randomness-leaking samplers for key generation and both encapsulation phases; discarding coins
+recovers `keygen`, `encapsOff`, and `encapsOn`. -/
 abbrev simLeak
     (selectedA selectedB : Bool) (pkStar : PK) (ctStar : C) (key : Option (Option K)) :
     (simKem kem onoff selectedA selectedB pkStar ctStar key).OnOffRandLeak
@@ -585,7 +585,7 @@ abbrev deterministic {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStru
   decapsDet _ _ := key
   decaps_eq _ _ := rfl
 
-/-- On/off structure for `Pinned.kem`. -/
+/-- Factorization of `Pinned.kem` encapsulation into `Pinned.encapsOff` and `Pinned.encapsOn`. -/
 abbrev onOff {kem : KEMScheme ProbComp K PK SK C} {onoff : kem.OnOffStructure}
     {leak : kem.OnOffRandLeak onoff} (kemMat : KEMMaterial leak)
     (pinKeygen pinOffline pinOnline : Bool) (key : Option K) :

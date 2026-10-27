@@ -166,7 +166,8 @@ theorem sendBrleak_none_not_mem_support
   rw [sendB_eq_map_sendBrleak kem onoff ecCt0 ecCt1 leak stB, support_map]
   exact ⟨none, h, rfl⟩
 
-/-- Under `reachableInv s` and `s.stB.ct1 = none`, no key is recorded for B's epoch `s.stB.t`. -/
+/-- If `s` is consistent with a protocol transcript (`reachableInv s`) and B has no online
+ciphertext, neither party has recorded a key for B's current epoch. -/
 theorem keys_none_before_online
     (s : GameState onoff Sym)
     (hs : reachableInv kem onoff ecEk ecCt0 ecCt1 s) (hc : s.stB.ct1 = none) :
@@ -240,7 +241,8 @@ theorem hide_update (e t : ℕ) (table : ℕ → Option K) (k : K) :
   by_cases h : u = t <;> simp [h, Function.update_of_ne]
 
 variable {kem onoff} in
-/-- `revealA (hideA e stA) = if e ∈ vulnCorrA stA then none else some stA`. -/
+/-- Revealing `hideA e stA` recovers `stA` unless A holds a decapsulation key at epoch `e`;
+then it fails. -/
 theorem revealA_hideA_eq (e : ℕ) (stA : StA onoff Sym) :
     revealA (hideA e stA) = if e ∈ vulnCorrA kem onoff stA then none else some stA := by
   rcases stA with ⟨dk, pk, ct, t, ich, lch, ack⟩
@@ -256,8 +258,8 @@ theorem revealB_hideB_eq (e : ℕ) (stB : StB onoff Sym) :
     simp_all [revealB, revealField, hideB, hide, vulnCorrB, eq_comm]
 
 variable {kem onoff} in
-/-- The corruption-vulnerable epochs of `hideA e stA` (`{t}` when holding a secret key, else `∅`)
-equal `vulnCorrA stA`. -/
+/-- Hiding A's secret key preserves the epochs a corruption would expose: A's current epoch
+when a secret key is present, and no epoch otherwise. -/
 theorem hideA_vulnerable (e : ℕ) (stA : StA onoff Sym) :
     (if (hideA e stA).dkA.isSome then {(hideA e stA).t} else ∅) = vulnCorrA kem onoff stA := by
   cases h : stA.dkA <;> simp [hideA, vulnCorrA, h]
@@ -342,7 +344,9 @@ theorem recvA_hide (e : ℕ)
 end
 
 variable {kem} in
-/-- Challenge oracle on honest game states: `challengeWith` reading recorded keys directly. -/
+/-- Challenge oracle on honest states: rejects exposed, already challenged, or unrecorded epochs.
+Otherwise it returns a uniform key at epochs `1, …, e - 1`, `kStar` at `e`, and the recorded key
+elsewhere. -/
 def pinnedChallenge [SampleableType K]
     (e : ℕ) (kStar : K) : QueryImpl (ℕ →ₒ Option K)
       (StateT (GameState onoff Sym) ProbComp) :=
@@ -369,7 +373,8 @@ theorem challenge_hide [SampleableType K]
           hideState, Prod.map]
 
 variable {kem} in
-/-- `pinnedChallenge` records challenges (`SCKAScheme.RecordsChallenges`). -/
+/-- A query leaves the state unchanged or adds its unexposed epoch to `challenged`
+(`SCKAScheme.RecordsChallenges`). -/
 theorem pinnedChallenge_recordsChallenges [SampleableType K]
     (e : ℕ) (kStar : K) :
     SCKAScheme.RecordsChallenges (pinnedChallenge (Sym := Sym) onoff e kStar) := by
@@ -426,8 +431,8 @@ theorem pinnedChallenge_eq_of_unused [SampleableType K]
   · simp only [pinnedChallenge, challengeWith, ht, ↓reduceIte]
 
 variable {kem} in
-/-- If every key recorded at `e` in `s` equals `kStar`, then from `s`,
-`pinnedChallenge e kStar t = oracleChall (decide (0 < t ∧ t < e)) t`. -/
+/-- If every key recorded at `e` in `s` equals `kStar`, `pinnedChallenge e kStar` and the ordinary
+SCKA challenge oracle randomizing epochs `1, …, e - 1` give equal computations from `s`. -/
 theorem pinnedChallenge_eq_recorded [SampleableType K]
     (e : ℕ) (kStar : K) (t : ℕ)
     (s : GameState onoff Sym)
@@ -463,9 +468,9 @@ def hideCoins {KG OFF ON : Type} (e t : ℕ) :
   | .on r => .on (hide e t r)
   | .offOn r₀ r₁ => .offOn (hide e t r₀) (hide e t r₁)
 
-/-- Party A's leaking send over the simulated KEM from `hideA e stA` (with A selected iff
-`stA.t = e`) equals A's leaking send over `Pinned.kem kemMat` from `stA` followed by hiding the
-state and coins; the output key is `none`. -/
+/-- Fix A's key-generation output and coins to those stored in `kemMat` when `stA.t = e`.
+The simulated leaking send from `hideA e stA` equals this send from `stA` followed by hiding its
+state and coins; neither send outputs a key. -/
 theorem sendArleak_hide
     (kemMat : KEMMaterial leak) (e : ℕ) (selectedB : Bool)
     (keyS : Option (Option K)) (keyH : Option K) (stA : StA onoff Sym) :
@@ -485,7 +490,8 @@ theorem sendArleak_hide
 
 set_option maxHeartbeats 1400000 in
 -- Each leakage phase expands its output, coin conversion, and state update.
-/-- B version of `sendArleak_hide`; the output key is also hidden via `hide e`. -/
+/-- The version for B, fixing offline and online encapsulation at `e` to `kemMat`; the output
+key is also hidden via `hide e`. -/
 theorem sendBrleak_hide
     (kemMat : KEMMaterial leak) (e : ℕ) (selectedA : Bool)
     (keyS : Option (Option K)) (keyH : Option K) (stB : StB onoff Sym) :

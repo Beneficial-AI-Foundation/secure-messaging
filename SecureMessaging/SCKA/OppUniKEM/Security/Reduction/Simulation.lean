@@ -54,9 +54,9 @@ variable (ecCt1 : ErasureCodePayload onoff.C₁ Sym) (hCt1 : ecCt1.ec.Correct)
 variable (leak : kem.OnOffRandLeak onoff)
 
 set_option backward.dsimp.instances true in
-/-- If `e ∉ s.exposed`, corrupting party A in the simulator from `hideState e s` coincides with
-corrupting party A in the stopped honest game from `s` and applying `hideState e` to the successor
-state. -/
+/-- Let `hideState e s` hide the local secrets and recorded keys of epoch `e` in `s`.
+If `e ∉ s.exposed`, corrupting A in the simulator equals corrupting A in the honest game stopped
+at exposure of `e`, followed by hiding the successor state. -/
 private theorem corruptA_hide
     (e : ℕ) (s : GameState onoff Sym)
     (hs : e ∉ s.exposed) :
@@ -117,9 +117,9 @@ section
 
 variable [DecidableEq K] [DecidableEq Sym]
 
-/-- Party B's receive oracle `oracleRecvB` over `simScheme` from `hideState e s` coincides with
-running `oracleRecvB` over `honestScheme` from `s` and applying `hideState e` to the successor
-state. -/
+/-- Party B's receive with the KEM challenge embedded (`simScheme`) from `hideState e s` equals
+receiving with the KEM samples at `e` fixed to `kemMat` (`honestScheme`) from `s`, followed by
+hiding the successor state. -/
 private theorem oracleRecvB_hide
     (kemMat : KEMMaterial leak) (e n : ℕ)
     (s : GameState onoff Sym) :
@@ -214,7 +214,8 @@ private theorem oracleSendA_hide
     simp [StateT.run_set, hideState, hideA, hideB, Prod.map]
 
 set_option backward.dsimp.instances true in
-/-- B version of `oracleSendA_hide`, under `reachableInv`. -/
+/-- B version of `oracleSendA_hide`, for states consistent with a protocol transcript
+(`reachableInv`). -/
 private theorem oracleSendB_hide
     (kemMat : KEMMaterial leak) (e : ℕ)
     (s : GameState onoff Sym)

@@ -75,17 +75,17 @@ def usesChallengeKey
 
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- Stage oracles: the security oracles over `stageScheme stage kemMat e s` at state `s`, with
-challenges `challOf (adjacentMode e b)`; `stageOracle .pinned kemMat e b` is the pinned hybrid
-before stopping. -/
+/-- Security oracles pinning the phases specified by `stage` at `e`, with A using B's recorded
+key. An eligible challenge at `t` returns a uniform key iff
+`0 < t ∧ (t < e ∨ (t = e ∧ b = true))`, and the recorded key otherwise. -/
 def stageOracle (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool) :
     QueryImpl (securitySpec leak Sym)
       (StateT (GameState onoff Sym) ProbComp) :=
   securityImplAt kem onoff leak (stageScheme ecEk ecCt0 ecCt1 stage kemMat e)
     (SCKAScheme.challOf (adjacentMode e b))
 
-/-- `stageOracle stage kemMat e b`, answering `⊥` at the first query whose successor exposes `e`;
-`stageStopped .pinned kemMat e b` is the pinned hybrid. -/
+/-- The stage oracle stops whenever a query leaves `e` exposed; a stopped run returns `false`.
+The fully pinned case gives the pinned hybrid. -/
 def stageStopped (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool) :
     QueryImpl (securitySpec leak Sym)
       (OptionT (StateT
@@ -146,9 +146,9 @@ section
 
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- Under `reachableInv`, if every key B records at `e` is `kemMat.key`, then
-`honestOracle kemMat e kemMat.key` and `stageOracle .pinned kemMat e false` answer every query with
-the same computation. -/
+/-- In a transcript-consistent state (`reachableInv`), if B's recorded key at `e`, when present,
+is `kemMat.key`, answering challenges at `e` with `kemMat.key` or the recorded key gives the same
+query computation. -/
 private theorem honestOracle_eq_hybrid_real
     (kemMat : KEMMaterial leak) (e : ℕ) (t : (securitySpec leak Sym).Domain)
     (s : GameState onoff Sym)
@@ -166,10 +166,9 @@ private theorem honestOracle_eq_hybrid_real
     (recorded_eq_key kem onoff ecEk ecCt0 ecCt1 leak kemMat e s hs hm)
 
 include hDet hEk hCt0 hCt1 in
-/-- With the key of `kemMat` at `e`, the stopped honest game has the acceptance probability of the
-stopped pinned hybrid with mode bit `false`: for `kemMat ∈ support (sampleMaterial leak)`,
-`Pr[optionRun (honestStopped kemMat e kemMat.key) adv s₀ = true] =
-Pr[optionRun (stageStopped .pinned kemMat e false) adv s₀ = true]`. -/
+/-- For any possible honest material `kemMat`, answering challenges at `e` with `kemMat.key` or
+the recorded key gives the same acceptance probability from the initial state. Both games pin
+epoch `e` to `kemMat` and return `false` after the first query leaving `e` exposed. -/
 theorem honestStopped_real_eq_hybrid
     (kemMat : KEMMaterial leak) (hm : kemMat ∈ support (sampleMaterial leak)) (e : ℕ)
     (adv : SecurityAdversary leak Sym) :
@@ -205,9 +204,9 @@ theorem honestStopped_real_eq_hybrid
 
 omit [DecidableEq K] [DecidableEq Sym] in
 variable {kem} in
-/-- Drawing the key at `e` uniformly turns the pinned challenge into the challenge of mode
-`adjacentMode e true`: for `e > 0`, from every state,
-`k ←$ K; pinnedChallenge e k t =ᵈ oracleChall (adjacentMode e true t) t`. -/
+/-- For `e > 0`, drawing the pinned challenge key uniformly gives the same response/state
+distribution as answering eligible challenges at epochs `1, …, e` uniformly and all others
+with recorded keys, from every state. -/
 private theorem pinnedChallenge_sample_uniform
     (e : ℕ) (he : 0 < e) (t : ℕ)
     (s : GameState onoff Sym) :
@@ -250,10 +249,9 @@ private theorem honestOracle_sample_uniform
         pure_bind]
       exact OracleComp.EvalDistEq.bind_const _ _
 
-/-- With a uniform key at `e`, the stopped honest game has the acceptance probability of the stopped
-pinned hybrid with mode bit `true`: for `e > 0` and every state `s`,
-`Pr[k ←$ K; optionRun (honestStopped kemMat e k) adv s = true] =
-Pr[optionRun (stageStopped .pinned kemMat e true) adv s = true]`. -/
+/-- For `e > 0`, drawing a uniform challenge key before the run or at the accepted challenge
+at `e` gives the same acceptance probability from every state. Both games pin epoch `e` to
+`kemMat` and return `false` after the first query leaving `e` exposed. -/
 theorem honestStopped_random_eq_hybrid
     (kemMat : KEMMaterial leak) (e : ℕ) (he : 0 < e)
     (adv : SecurityAdversary leak Sym)

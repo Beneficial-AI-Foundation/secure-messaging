@@ -71,7 +71,8 @@ variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 /-! ### Send and epoch accounting -/
 
 omit [SampleableType K] in
-/-- Every query of `idealCorrectnessImpl` preserves `sendEpochInv`. -/
+/-- Ideal correctness queries preserve `sendEpochInv`: A's epoch is at most its send count plus
+one, and at most its send count when A holds a secret key. -/
 private theorem idealCorrectnessImpl_preserves_sendEpochInv :
     QueryImpl.PreservesInv (idealCorrectnessImpl kem onoff hDet ecEk ecCt0 ecCt1 leak)
       sendEpochInv := by
@@ -110,8 +111,8 @@ private theorem idealSecurityImpl_sendCounter_step
     (SCKAScheme.challOf_recordsChallenges _) t s res hres
 
 include hEk hCt0 hCt1 in
-/-- Assuming the erasure codes are correct, every query of `idealSecurityImpl` preserves
-`reachableInv`. -/
+/-- Assuming correct erasure codes, every ideal security query preserves consistency with a
+protocol transcript (`reachableInv`). -/
 private theorem idealSecurityImpl_preserves_reachableInv (mode : ℕ → Bool) :
     QueryImpl.PreservesInv (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak mode)
       (reachableInv kem onoff ecEk ecCt0 ecCt1) :=
