@@ -44,66 +44,74 @@ Let:
 
 Paths are relative to `OppUniKEM/Security/`.
 
-**Notation.**
+**Notation.** Every game runs `adv` and returns its output bit. The games at an epoch `e` come in
+two *versions* `x ∈ {real, random}`: a challenge at `e` returns the real key in `real` and an
+independent uniform key in `random`.
 
-- `I_b := idealSecurityExp (fun _ => b) adv` (`Endpoints`): the *ideal game*, defined as
-  `G_b` in which party A, on completing an online ciphertext, outputs party B's recorded key for
-  that epoch instead of decapsulating.
-- `H_i := idealEpochHybridExp adv i` (`IdealHybrids`): the *ideal hybrid* `i`, the ideal game
-  whose challenges at epochs `1, …, i` return uniform keys (as in `I_true`) and all others
-  recorded keys (as in `I_false`).
-  Let `p_i := Pr[H_i = true]`. Then `H_0 = I_false`, and `p_q = Pr[I_true = true]` under the
-  send bound.
-- Epoch `e` is *exposed* once a permitted corruption or leaking send reveals its secrets
-  (`exposureA`, `exposureB`); the game then records `e` in `exposed` and rejects challenges
-  at `e`.
-- The games `𝓑_e^x`, `P_e^x`, and `S_e^x` defined below come in two *versions*
-  `x ∈ {real, random}`: a challenge at `e` returns the real key in `real` and an independent
-  uniform key in `random`.
+- **`I_b`**, the *ideal game*: `G_b` without decapsulation failures.
+  Party A outputs party B's recorded key instead of decapsulating
+  (`idealSecurityExp (fun _ => b) adv`, `Endpoints`).
+- **`H_i`**, the *ideal hybrid*: uniform keys at epochs `1, …, i`, real keys after.
+  It is the ideal game with these challenge answers (`idealEpochHybridExp adv i`, `IdealHybrids`).
+  Let `p_i := Pr[H_i = true]`; then `H_0 = I_false`, and `p_q = Pr[I_true = true]` under the send
+  bound.
+- **Exposure**: an epoch `e` is *exposed* once a permitted corruption or leaking send reveals its
+  secrets (`exposureA`, `exposureB`); the game then rejects challenges at `e`.
+- **`S_e^x`**, the *stopped hybrid*: the hybrids on either side of `e`, stopped when `e` is exposed.
+  `S_e^real := H_{e-1}` (real key at `e`) and `S_e^random := H_e` (uniform key at `e`), each
+  returning `false` at the first exposure of `e` (`IdealHybrids`).
+- **`P_e^x`**, the *pinned hybrid*: `S_e^x` with the KEM samples of `e` drawn in advance
+  (`stageStopped .pinned`, `Reduction/HybridGame`).
+- **`𝓑_e^x`**, the *fixed branch*: the reduction at epoch `e` on a real or random challenge key.
+  `𝓑` with its challenge epoch fixed to `e`, run on a fresh KEM challenge whose key is the
+  encapsulated key in `real` and an independent uniform key in `random`
+  (`fixedBranch adv e true` and `… false`, `Reduction/Simulator`).
+
+For every epoch `e > 0`, steps 2 to 4 connect these games:
+
+```text
+Pr[𝓑_e^x = true] = Pr[P_e^x = true] = Pr[S_e^x = true]          (steps 2 and 3)
+Pr[S_e^real = true] - Pr[S_e^random = true] = p_{e-1} - p_e      (step 4)
+```
 
 **Proof steps.**
 
 1. *Correctness error* (`Endpoints`, `IdealHybrids`).
-   - Bound the distance between the acceptance probabilities of the real game `G_b` and the
-     ideal game `I_b`:
+   - Bound the distance between the real game `G_b` and the ideal game `I_b`:
      `|Pr[G_b = true] - Pr[I_b = true]| ≤ q · ε`, where `q · ε` bounds the probability of a KEM
      failure within `q` sends (`security_correctness_endpoint_le`).
-   - Hence `AdvGuess_SCKA(scka, adv) ≤ |p_0 - p_q| / 2 + q · ε` (`security_guess_le_hybrid_gap`).
+
+   Main result: `AdvGuess_SCKA(scka, adv) ≤ |p_0 - p_q| / 2 + q · ε`
+   (`security_guess_le_hybrid_gap`).
 
 2. *Reduction and simulation* (`Reduction/{Simulator,Relation,Game,Simulation,HybridGame}`).
-   - On public key `pk*` and challenge `(ct*, k*)`, the *reduction* `𝓑` runs `adv` against
-     the simulated oracles of the ideal game (`simOracle`):
-     - key generation at epoch `e` returns `pk*` and encapsulation at `e` returns `ct*`, with
-       *hidden* secret key, offline state, shared key, and coins; other epochs sample honestly;
+   - On public key `pk*` and challenge `(ct*, k*)`, the reduction `𝓑` runs `adv` against
+     simulated oracles (`simOracle`):
+     - key generation at `e` returns `pk*` and encapsulation at `e` returns `ct*`, with *hidden*
+       secret key, offline state, shared key, and coins; other epochs sample honestly;
      - a challenge at `t` returns a uniform key if `t < e`, `k*` if `t = e`, and the recorded
        key if `t > e`;
      - a permitted corruption or leaking send that would reveal a hidden value stops the run
        with output `false`.
-   - Define the *fixed branch* `𝓑_e^x` (`fixedBranch adv e true` for `real`, `… false` for
-     `random`; `Reduction/Simulator`): `𝓑` with its drawn challenge epoch fixed to `e` and `k*`
-     fixed to the encapsulated key in `real` and an independent uniform key in `random`.
-   - Define the *pinned hybrid* `P_e^x` (`stageStopped .pinned`): `H_{e-1}` in `real` and `H_e`
-     in `random`, with the samples of epoch `e` drawn in advance, stopped at the first exposure
-     of `e`.
 
    Main result: `Pr[𝓑_e^x = true] = Pr[P_e^x = true]` (`fixedBranch_eq_pinnedHybrid`).
 
 3. *Deferred sampling* (`Reduction/Deferral`).
-   - Define the *stopped hybrid* `S_e^x`: `H_{e-1}` in `real` and `H_e` in `random`, stopped at
-     the first exposure of `e`.
-   - In `P_e^x`, each pre-drawn sample of epoch `e` (key generation, offline and online
-     encapsulation) is used by at most one query: the protocol call that draws it in `S_e^x`. For a
-     value used at most once, drawing it in advance or at that query gives the same acceptance
-     probability (`stoppedRun_sample_once_eq`).
+   - `P_e^x` draws the KEM samples of `e` (key generation, offline and online encapsulation) at
+     the start, while `S_e^x` draws each one at the protocol call that uses it. Each sample is
+     used by at most one query, so drawing it early or at that query gives the same acceptance
+     probability (lazy sampling, `stoppedRun_sample_once_eq`).
 
    Main result: `Pr[P_e^x = true] = Pr[S_e^x = true]` (`pinnedHybrid_eq_ideal`).
 
 4. *Exposure cancellation* (`IdealHybrids`, this module).
-   - Prove `Pr[S_e^real = true] - Pr[S_e^random = true] = p_{e-1} - p_e`
-     (`idealEpochHybrid_signed_gap_stop_eq`): `H_{e-1}` and `H_e` differ only at a challenge of
-     `e`, which is rejected once `e` is exposed.
-   - Hence `Pr[𝓑_e^real = true] - Pr[𝓑_e^random = true] = p_{e-1} - p_e`
-     (`fixedBranch_signed_gap_eq`).
+   - `H_{e-1}` and `H_e` differ only at a challenge of `e`, which is rejected once `e` is exposed,
+     so stopping at that exposure preserves their difference:
+     `Pr[S_e^real = true] - Pr[S_e^random = true] = p_{e-1} - p_e`
+     (`idealEpochHybrid_signed_gap_stop_eq`).
+
+   Main result, with steps 2 and 3: `Pr[𝓑_e^real = true] - Pr[𝓑_e^random = true] = p_{e-1} - p_e`
+   (`fixedBranch_signed_gap_eq`).
 
 5. *Averaging* (this module).
    - For `q > 0`, `𝓑` draws `e` uniformly from `1, …, q`, so
