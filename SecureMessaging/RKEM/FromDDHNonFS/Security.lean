@@ -113,7 +113,10 @@ private lemma prEvent_true_securityExpA_eq_branch (gen : G)
 `scheme gen` equals the DDH advantage of `ddhReduction adversary`, converted from the
 distinguishing to the bias convention (`/ 2`; see the module docstring). -/
 -- ANCHOR: indCpaAdvantageA_eq
-theorem indCpaAdvantageA_eq (gen : G) (hg : Function.Bijective (· • gen : F → G))
+theorem indCpaAdvantageA_eq (gen : G)
+    -- ANCHOR: bijectiveGenerator
+    (hg : Function.Bijective (· • gen : F → G))
+    -- ANCHOR_END: bijectiveGenerator
     (adversary : RKEMScheme.INDCPAAdversary Unit G Unit G) :
     (scheme (F := F) gen).indCpaAdvantageA adversary =
       (ddhAdvantage gen (ddhReduction (F := F) adversary)).toReal / 2

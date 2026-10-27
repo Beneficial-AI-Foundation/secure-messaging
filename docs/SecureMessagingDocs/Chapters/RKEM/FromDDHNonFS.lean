@@ -238,7 +238,14 @@ theorem deltaCorrect [DecidableEq G] (gen : G) :
 :::::::theorem "rkem_from_ddh_nonfs_ind_cpa" (parent := "rkem_rkem_from_ddh_non_fs") (lean := "ddhRKEM.ddhReduction, ddhRKEM.indCpaAdvantageA_eq, ddhRKEM.indCpaAdvantageB_eq, ddhRKEM.INDCPASecure") (tags := "gh-375") (uses := "rkem_from_ddh_nonfs_spec, rkem_scheme, rkem_ind_cpa")
 Adapted from {Informal.citet TR25}[], Theorem A.4.
 
-Let $`G=\langle g\rangle` be of prime order $`q`, so that $`x\mapsto g^x` is a bijection $`\mathbb{Z}_q\to G`; in Lean, `fun x => x • gen` is bijective from $`F` to $`G`.
+Let $`G=\langle g\rangle` be of prime order $`q`, so that $`x\mapsto g^x` is a bijection $`\mathbb{Z}_q\to G`. In Lean, this is the hypothesis
+
+:::leanPillCaption "Generator hypothesis"
+:::
+
+```anchor bijectiveGenerator (project := ".") (module := SecureMessaging.RKEM.FromDDHNonFS.Security)
+    (hg : Function.Bijective (· • gen : F → G))
+```
 
 For each party $`\mathsf{P}\in\{\A,\B\}` and every IND-CPA adversary $`\adv` against the non-forward-secure RKEM from DDH, the DDH adversary $`\mathcal{B}` below satisfies
 
@@ -270,7 +277,8 @@ def ddhReduction (adversary : RKEMScheme.INDCPAAdversary Unit G Unit G) :
 :::
 
 ```anchor indCpaAdvantageA_eq (project := ".") (module := SecureMessaging.RKEM.FromDDHNonFS.Security)
-theorem indCpaAdvantageA_eq (gen : G) (hg : Function.Bijective (· • gen : F → G))
+theorem indCpaAdvantageA_eq (gen : G)
+    (hg : Function.Bijective (· • gen : F → G))
     (adversary : RKEMScheme.INDCPAAdversary Unit G Unit G) :
     (scheme (F := F) gen).indCpaAdvantageA adversary =
       (ddhAdvantage gen (ddhReduction (F := F) adversary)).toReal / 2
