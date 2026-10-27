@@ -13,21 +13,26 @@ import VCVio.ProgramLogic.Relational.SimulateQ
 # Ideal hybrids
 
 Let `scka` be Opp-UniKEM (`scheme`) over a KEM `kem` with deterministic decapsulation and correct
-erasure codes, and let `adv` be an SCKA adversary. For a challenge mode `μ : ℕ → Bool`, let `I_μ`
-be the ideal game (`idealSecurityExp … μ adv`, `Endpoints`): the SCKA security game in which A uses
-B's recorded key instead of decapsulating, and an eligible challenge at `t` returns a uniform key
-if `μ t` and the recorded key otherwise. For `i : ℕ` and an epoch `e > 0`, define the ideal hybrid
-`H_i` (`idealEpochHybridExp … adv i`) and the stopped hybrids `S_e^real`, `S_e^random`:
+erasure codes, and let `adv` be an SCKA adversary.
+
+A *challenge mode* `μ : ℕ → Bool` decides which epochs' challenges get random keys: an eligible
+challenge at `t` returns a uniform key if `μ t` and the real (recorded) key otherwise. The *ideal
+game* `I_μ` (`idealSecurityExp … μ adv`, `Endpoints`) is the SCKA security game under `μ` without
+decapsulation failures: A uses B's recorded key instead of decapsulating. The constant modes give
+`I_false` (all keys real) and `I_true` (all keys uniform).
+
+The *ideal hybrids* `H_i` (`idealEpochHybridExp … adv i`) switch from real to uniform keys one
+epoch at a time. For `e > 0`, the *stopped hybrids* `S_e^real` and `S_e^random` are the adjacent
+hybrids at `e`, returning `false` at the first exposure of `e`:
 
 ```text
-H_i        := I_{μ_i},  where μ_i(t) := (0 < t ≤ i)
-S_e^real   := H_{e-1}, returning false at the first exposure of e
-S_e^random := H_e,     returning false at the first exposure of e
+H_i        := I_{μ_i},  μ_i(t) := (0 < t ≤ i)    -- uniform keys at epochs 1, …, i
+S_e^real   := H_{e-1} stopped at e               -- real key at e
+S_e^random := H_e     stopped at e               -- uniform key at e
 ```
 
-Thus `S_e^real` and `S_e^random` differ only in answering a challenge at `e` with the recorded key
-or a uniform key. Let `AdvGuess_SCKA(scka, adv) := |Pr[b' = b] - 1/2|` be the advantage of `adv`
-in guessing the challenge bit `b` of the SCKA security game, and `ε` the KEM correctness error
+Let `AdvGuess_SCKA(scka, adv) := |Pr[b' = b] - 1/2|` be the advantage of `adv` in guessing the
+challenge bit `b` of the SCKA security game, and `ε` the KEM correctness error
 (`kem.correctnessError`): the probability that an honest encapsulation does not decapsulate to its
 key.
 
