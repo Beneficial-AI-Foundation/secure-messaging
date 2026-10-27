@@ -836,10 +836,10 @@ noncomputable def sckaGuessAdvantage [SampleableType I] [DecidableEq I]
 
 /-! ### Fixed-bit experiments and advantage normalization
 
-Write `G_b := securityExpFixedBit scka adversary b vulnA vulnB` (recorded challenge keys for
-`b = false`, independent uniform keys for `b = true`) and
-`w := Pr[securityExp scka adversary vulnA vulnB = true]`, the probability of guessing the
-uniform bit.
+Write `G_b := securityExpFixedBit scka adversary b vulnA vulnB` for the security experiment with
+its challenge bit fixed to `b` (recorded challenge keys for `b = false`, independent uniform keys
+for `b = true`), and `w := Pr[securityExp scka adversary vulnA vulnB = true]` for the probability
+that `adversary` guesses the uniform challenge bit `b` (`b' = b`).
 -/
 
 /-- The SCKA experiment with fixed bit `b`: initialize `scka`, answer eligible challenges
