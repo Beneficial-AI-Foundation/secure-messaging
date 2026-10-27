@@ -184,8 +184,8 @@ abbrev simScheme [DecidableEq Sym]
     (simDet kem onoff sa sb kemMat.pk kemMat.ciphertext key) ecEk ecCt0 ecCt1
     (simLeak kem onoff leak sa sb kemMat.pk kemMat.ciphertext key)
 
-/-- Security oracles using `schemeOf s` for each query from state `s`, `chall` for challenges,
-and Opp-UniKEM's exposure guards for corruptions and leaking sends. -/
+/-- Opp-UniKEM's SCKA security oracles, where each query runs the protocol instance chosen from
+the current game state and challenges are answered by `chall`. -/
 def securityImplAt [DecidableEq K]
     (schemeOf : GameState onoff Sym →
       SCKAScheme ProbComp Unit (StA onoff Sym) (StB onoff Sym) K (Message Sym)
@@ -197,8 +197,8 @@ def securityImplAt [DecidableEq K]
     SCKAScheme.securityImplOf (SCKAScheme.sckaCorrectnessImpl (schemeOf s)) chall
       (exposureA kem onoff leak) (exposureB kem onoff leak) (schemeOf s) t
 
-/-- From `s`, each query of `securityImplAt schemeOf chall` is that of `securityImplOf` over
-`schemeOf s`. -/
+/-- Unfolding of `securityImplAt`: from a game state `s`, each query runs the security oracles
+`securityImplOf` over the instance chosen from `s`, kept fixed for the whole query. -/
 theorem securityImplAt_run [DecidableEq K]
     (schemeOf : GameState onoff Sym →
       SCKAScheme ProbComp Unit (StA onoff Sym) (StB onoff Sym) K (Message Sym)
