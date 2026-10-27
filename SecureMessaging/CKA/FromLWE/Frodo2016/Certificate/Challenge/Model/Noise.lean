@@ -14,7 +14,7 @@ This unit rearranges the independent samples in the challenge experiment and
 proves the exact distribution of its integer entry noise.
 -/
 
-open OracleComp OracleComp.EvalDist
+open OracleComp
 open scoped BigOperators ENNReal
 
 namespace lweCKA.ChallengeCertificateModel
@@ -36,18 +36,18 @@ private def entryNoiseIntExpAux (n : Nat) : ProbComp ℤ := do
 private theorem evalDist_bind_move_after_two
     {A B C D : Type} (ma : ProbComp A) (mb : ProbComp B) (mc : ProbComp C)
     (f : A → B → C → ProbComp D) :
-    evalDist (do
+    finiteLaw (do
       let a ← ma
       let b ← mb
       let c ← mc
       f a b c) =
-    evalDist (do
+    finiteLaw (do
       let b ← mb
       let c ← mc
       let a ← ma
       f a b c) := by
   calc
-    _ = evalDist (do
+    _ = finiteLaw (do
           let b ← mb
           let a ← ma
           let c ← mc
@@ -58,20 +58,20 @@ private theorem evalDist_bind_move_after_two
 private theorem evalDist_bind_move_after_three
     {A B C D E : Type} (ma : ProbComp A) (mb : ProbComp B) (mc : ProbComp C)
     (md : ProbComp D) (f : A → B → C → D → ProbComp E) :
-    evalDist (do
+    finiteLaw (do
       let a ← ma
       let b ← mb
       let c ← mc
       let d ← md
       f a b c d) =
-    evalDist (do
+    finiteLaw (do
       let b ← mb
       let c ← mc
       let d ← md
       let a ← ma
       f a b c d) := by
   calc
-    _ = evalDist (do
+    _ = finiteLaw (do
           let b ← mb
           let a ← ma
           let c ← mc
@@ -84,14 +84,14 @@ private theorem evalDist_bind_move_after_four
     {A B C D E F : Type} (ma : ProbComp A) (mb : ProbComp B) (mc : ProbComp C)
     (md : ProbComp D) (me : ProbComp E)
     (f : A → B → C → D → E → ProbComp F) :
-    evalDist (do
+    finiteLaw (do
       let a ← ma
       let b ← mb
       let c ← mc
       let d ← md
       let e ← me
       f a b c d e) =
-    evalDist (do
+    finiteLaw (do
       let b ← mb
       let c ← mc
       let d ← md
@@ -99,7 +99,7 @@ private theorem evalDist_bind_move_after_four
       let a ← ma
       f a b c d e) := by
   calc
-    _ = evalDist (do
+    _ = finiteLaw (do
           let b ← mb
           let a ← ma
           let c ← mc
@@ -115,7 +115,7 @@ private theorem evalDist_bind_rotate_four_heads
     (h2 : ProbComp H2) (t2 : ProbComp T2) (h3 : ProbComp H3) (t3 : ProbComp T3)
     (mx : ProbComp X)
     (f : H0 → T0 → H1 → T1 → H2 → T2 → H3 → T3 → X → ProbComp R) :
-    evalDist (do
+    finiteLaw (do
       let a0 ← h0
       let b0 ← t0
       let a1 ← h1
@@ -126,7 +126,7 @@ private theorem evalDist_bind_rotate_four_heads
       let b3 ← t3
       let x ← mx
       f a0 b0 a1 b1 a2 b2 a3 b3 x) =
-    evalDist (do
+    finiteLaw (do
       let b0 ← t0
       let b1 ← t1
       let b2 ← t2
@@ -138,7 +138,7 @@ private theorem evalDist_bind_rotate_four_heads
       let a3 ← h3
       f a0 b0 a1 b1 a2 b2 a3 b3 x) := by
   calc
-    _ = evalDist (do
+    _ = finiteLaw (do
           let b0 ← t0
           let a0 ← h0
           let a1 ← h1
@@ -149,7 +149,7 @@ private theorem evalDist_bind_rotate_four_heads
           let b3 ← t3
           let x ← mx
           f a0 b0 a1 b1 a2 b2 a3 b3 x) := evalDist_bind_bind_swap h0 t0 _
-    _ = evalDist (do
+    _ = finiteLaw (do
           let b0 ← t0
           let b1 ← t1
           let a0 ← h0
@@ -169,7 +169,7 @@ private theorem evalDist_bind_rotate_four_heads
             let b3 ← t3
             let x ← mx
             f a0 b0 a1 b1 a2 b2 a3 b3 x)).symm
-    _ = evalDist (do
+    _ = finiteLaw (do
           let b0 ← t0
           let b1 ← t1
           let b2 ← t2
@@ -188,7 +188,7 @@ private theorem evalDist_bind_rotate_four_heads
             let b3 ← t3
             let x ← mx
             f a0 b0 a1 b1 a2 b2 a3 b3 x)).symm
-    _ = evalDist (do
+    _ = finiteLaw (do
           let b0 ← t0
           let b1 ← t1
           let b2 ← t2
@@ -215,8 +215,8 @@ private theorem evalDist_bind_rotate_four_heads
           (fun x a0 a1 a2 a3 => f a0 b0 a1 b1 a2 b2 a3 b3 x)).symm
 
 private theorem evalDist_entryNoiseIntExpAux_succ (n : Nat) :
-    evalDist (entryNoiseIntExpAux (n + 1)) =
-      evalDist (do
+    finiteLaw (entryNoiseIntExpAux (n + 1)) =
+      finiteLaw (do
         let rest ← entryNoiseIntExpAux n
         let step ← d1DifferenceBlock
         return rest + step) := by
@@ -228,7 +228,7 @@ private theorem evalDist_entryNoiseIntExpAux_succ (n : Nat) :
       (∑ k, Fin.cons e1 e1s k * Fin.cons s0 s0s k) + extra)
   simp only [entryNoiseIntExpAux, d1DifferenceBlock, ProbComp.sampleIID,
     Fin.mOfFn, bind_assoc, pure_bind]
-  change evalDist (do
+  change finiteLaw (do
       let s0 ← d1IntSampler
       let s0s ← tail
       let e0 ← d1IntSampler
@@ -240,7 +240,7 @@ private theorem evalDist_entryNoiseIntExpAux_succ (n : Nat) :
       let extra ← d1IntSampler
       finish s0 s0s e0 e0s s1 s1s e1 e1s extra) = _
   calc
-    _ = evalDist (do
+    _ = finiteLaw (do
           let s0s ← tail
           let e0s ← tail
           let s1s ← tail
@@ -270,7 +270,7 @@ private theorem evalDist_entryNoiseIntExpAux_succ (n : Nat) :
         ring
 
 private theorem probOutput_entryNoiseIntExpAux (n : Nat) (z : ℤ) :
-    Pr[= z | entryNoiseIntExpAux n] =
+    Pr{let x ← entryNoiseIntExpAux n}[x = z] =
       (((productCounts ^ (2 * n)) * d1Counts) z : ℝ≥0∞) /
         256 ^ (4 * n + 1) := by
   induction n generalizing z with
@@ -288,12 +288,12 @@ private theorem probOutput_entryNoiseIntExpAux (n : Nat) (z : ℤ) :
         simp only [map_eq_bind_pure_comp, seq_eq_bind_map,
           Function.comp_def, bind_assoc, pure_bind]]
       have ihNat (u : ℤ) :
-          Pr[= u | entryNoiseIntExpAux n] =
+          Pr{let x ← entryNoiseIntExpAux n}[x = u] =
             (((productCounts ^ (2 * n)) * d1Counts) u : ℝ≥0∞) /
               ((256 ^ (4 * n + 1) : Nat) : ℝ≥0∞) := by
         simpa only [Nat.cast_pow, Nat.cast_ofNat] using ih u
       have hstepNat (u : ℤ) :
-          Pr[= u | d1DifferenceBlock] =
+          Pr{let x ← d1DifferenceBlock}[x = u] =
             ((productCounts ^ 2) u : ℝ≥0∞) /
               ((65536 ^ 2 : Nat) : ℝ≥0∞) := by
         simpa only [Nat.cast_pow, Nat.cast_ofNat] using
@@ -328,7 +328,7 @@ private theorem challengeEntryNoiseIntExp_eq_aux :
   rfl
 
 theorem ChallengeModelInternal.probOutput_challengeEntryNoiseIntExp_counts (z : ℤ) :
-    Pr[= z | challengeEntryNoiseIntExp] =
+    Pr{let x ← challengeEntryNoiseIntExp}[x = z] =
       (((productCounts ^ 704) * d1Counts) z : ℝ≥0∞) / 256 ^ 1409 := by
   rw [challengeEntryNoiseIntExp_eq_aux, probOutput_entryNoiseIntExpAux]
 

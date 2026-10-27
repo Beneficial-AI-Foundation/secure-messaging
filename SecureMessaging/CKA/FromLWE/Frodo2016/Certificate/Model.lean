@@ -13,7 +13,7 @@ This endpoint bounds the exact entry-noise distribution by the rounded
 certificate measure and proves the final reconciliation-ramp enclosure.
 -/
 
-open OracleComp OracleComp.EvalDist
+open OracleComp
 open scoped BigOperators ENNReal
 
 namespace lweCKA.Frodo2016.Certificate
@@ -53,7 +53,8 @@ private theorem lowerCounts_domination
   induction k generalizing z with
   | zero =>
       by_cases hz : z = 0 <;>
-        simp [lowerCounts, AddMonoidAlgebra.one_def, hz]
+        simp [lowerCounts, AddMonoidAlgebra.one_def, hz,
+          -LaurentPolynomial.single_eq_C_mul_T]
   | succ k ih =>
       let P := ToVCVio.productMeasure (counts c) (counts c)
       by_cases hz : z ∈ Finset.Icc (-(c.window : ℤ)) (c.window : ℤ)
@@ -480,7 +481,7 @@ private theorem sum_union_support_weighted_right
 private theorem expectedValue_entryNoiseIntExp_eq_support_sum
     (c : Config) (p : Params) (χ : ProbComp ℤ)
     (hn : p.n = c.n)
-    (hlaw : ∀ z : ℤ, Pr[= z | χ] = (counts c z : ℝ≥0∞) / 2 ^ c.seedBits)
+    (hlaw : ∀ z : ℤ, Pr{let x ← χ}[x = z] = (counts c z : ℝ≥0∞) / 2 ^ c.seedBits)
     (hsym : ∀ z : ℤ, c.weight (-z) = c.weight z) :
     expectedValue (entryNoiseIntExp p.n χ) (reconciliationFailureRamp p) =
       ∑ z ∈
@@ -505,11 +506,11 @@ private theorem expectedValue_entryNoiseIntExp_eq_support_sum
 /-- The expected reconciliation ramp is bounded by the packed rounded mass and missing mass. -/
 theorem expectedValue_ramp_le_certificate
     (c : Config) (p : Params) (hp : p.WellFormed)
-    (χ : ProbComp ℤ) (hχ : Pr[⊥ | χ] = 0)
+    (χ : ProbComp ℤ) (hχ : prFail χ = 0)
     (hn : p.n = c.n) (hr : 2 ^ (p.discardBits - 2) = c.radius)
     (hbits : 0 < c.seedBits)
     (hmass : ToVCVio.totalMass (counts c) = 2 ^ c.seedBits)
-    (hlaw : ∀ z : ℤ, Pr[= z | χ] = (counts c z : ℝ≥0∞) / 2 ^ c.seedBits)
+    (hlaw : ∀ z : ℤ, Pr{let x ← χ}[x = z] = (counts c z : ℝ≥0∞) / 2 ^ c.seedBits)
     (hsym : ∀ z : ℤ, c.weight (-z) = c.weight z)
     (hwindow : 2 * (c.window + c.a) < p.q)
     (hpack : c.window + c.a < 2 ^ (c.seedBits + 1)) :
@@ -517,7 +518,7 @@ theorem expectedValue_ramp_le_certificate
       ((certificateValues c).1 : ℝ≥0∞) /
         (2 ^ 128 * 2 ^ c.seedBits * (2 * c.radius)) +
       ((certificateValues c).2 : ℝ≥0∞) / 2 ^ 128 := by
-  have hχ0 : Pr[⊥ | χ] = 0 := hχ
+  have hχ0 : prFail χ = 0 := hχ
   clear hχ0
   have hfinite := finite_missingMass_enclosure
     ((((ToVCVio.productMeasure (counts c) (counts c)) ^ (2 * c.n) *

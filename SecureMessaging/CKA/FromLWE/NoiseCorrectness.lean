@@ -71,13 +71,11 @@ theorem firstExchange_mismatch_imp_largeNoise
 theorem firstExchangeFailureProb_le_noiseTail
     (p : Params) (hp : p.WellFormed) (χ : ProbComp (Scalar p)) :
     firstExchangeFailureProb p χ ≤
-      Pr[fun delta : SharedMatrix p =>
-        ∃ i j : Fin p.nbar,
-          2 ^ (p.discardBits - 2) ≤ modularDistance p (delta i j) 0 |
-        firstExchangeNoiseExp p χ] := by
-  rw [firstExchangeFailureProb, ← probEvent_eq_eq_probOutput]
-  simp only [firstExchangeFailureExp, firstExchangeNoiseExp, probEvent_bind_eq_tsum,
-    probEvent_pure]
+      Pr{let delta ← firstExchangeNoiseExp p χ}[∃ i j : Fin p.nbar,
+          2 ^ (p.discardBits - 2) ≤ modularDistance p (delta i j) 0] := by
+  rw [firstExchangeFailureProb]
+  simp only [firstExchangeFailureExp, firstExchangeNoiseExp, OracleComp.prEvent_bind_eq_tsum,
+    prEvent_pure]
   gcongr with ik r
   split_ifs with hmismatch hlarge
   · exact le_rfl

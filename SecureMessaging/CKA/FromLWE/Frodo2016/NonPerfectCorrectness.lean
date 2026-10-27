@@ -74,18 +74,18 @@ private theorem constMatrix_mem_support
     (rows cols : ℕ) (x : Scalar p) (hx : x ∈ support χ) :
     (fun _ : Fin rows => fun _ : Fin cols => x) ∈ support (sampleMatrix χ rows cols) := by
   apply mem_support_of_probOutput_pos
-  rw [sampleMatrix, ProbComp.sampleIID, probOutput_mOfFn]
+  rw [sampleMatrix, ProbComp.sampleIID, prEvent_eq_mOfFn]
   rw [pos_iff_ne_zero]
   apply Finset.prod_ne_zero_iff.mpr
   intro i _
-  rw [ProbComp.sampleIID, probOutput_mOfFn]
+  rw [ProbComp.sampleIID, prEvent_eq_mOfFn]
   apply Finset.prod_ne_zero_iff.mpr
   exact fun _ _ => ne_of_gt (probOutput_pos χ x hx)
 
 private theorem witnessInitKey_prob_pos
     {p : Params} (χ : ProbComp (Scalar p)) (errorValue : Scalar p)
     (hzero : (0 : Scalar p) ∈ support χ) (herror : errorValue ∈ support χ) :
-    0 < Pr[= witnessInitKey p errorValue | initKeyGen p χ] := by
+    0 < Pr{let x ← initKeyGen p χ}[x = witnessInitKey p errorValue] := by
   rw [probOutput_pos_iff]
   let base : BaseMatrix p := 0
   let afterError (baseMatrix : BaseMatrix p) (secret error : RightMatrix p) :
@@ -179,7 +179,7 @@ private theorem witnessFailure_true
 
 private theorem firstExchangeFailureProb_pos_of_witness
     (p : Params) (χ : ProbComp (Scalar p)) (errorValue secretValue : Scalar p)
-    (hinit : 0 < Pr[= witnessInitKey p errorValue | initKeyGen p χ])
+    (hinit : 0 < Pr{let x ← initKeyGen p χ}[x = witnessInitKey p errorValue])
     (hsend : witnessSendACoins p secretValue ∈ support (sampleSendACoins p χ))
     (hfailure :
       decide
@@ -210,13 +210,9 @@ private theorem firstExchangeFailureProb_pos_of_witness
     change true ∈ support
       (sampleSendACoins p χ >>= afterCoins (witnessInitKey p errorValue))
     exact mem_support_bind_intro hsend hout
-  change 0 < Pr[= true | initKeyGen p χ >>= afterInit]
-  rw [probOutput_bind_eq_tsum]
-  have hterm :
-      0 < Pr[= witnessInitKey p errorValue | initKeyGen p χ] *
-        Pr[= true | afterInit (witnessInitKey p errorValue)] :=
-    ENNReal.mul_pos (ne_of_gt hinit) (ne_of_gt (probOutput_pos _ _ hafterInit))
-  exact lt_of_lt_of_le hterm (ENNReal.le_tsum (witnessInitKey p errorValue))
+  change 0 < Pr{let x ← initKeyGen p χ >>= afterInit}[x = true]
+  apply probOutput_pos
+  exact mem_support_bind_intro (mem_support_of_probOutput_pos hinit) hafterInit
 
 private theorem challengeWitnessSenderValue_entry
     (i j : Fin challengeParams.nbar) :
@@ -447,16 +443,16 @@ private theorem recommended_constMatrix_mem_support
     (fun _ : Fin rows => fun _ : Fin cols => x) ∈
       support (sampleMatrix d3Sampler rows cols) := by
   apply mem_support_of_probOutput_pos
-  rw [sampleMatrix, ProbComp.sampleIID, probOutput_mOfFn]
+  rw [sampleMatrix, ProbComp.sampleIID, prEvent_eq_mOfFn]
   rw [pos_iff_ne_zero]
   apply Finset.prod_ne_zero_iff.mpr
   intro i _
-  rw [ProbComp.sampleIID, probOutput_mOfFn]
+  rw [ProbComp.sampleIID, prEvent_eq_mOfFn]
   apply Finset.prod_ne_zero_iff.mpr
   exact fun _ _ => ne_of_gt (probOutput_pos d3Sampler x hx)
 
 private theorem failureInitKey_prob_pos :
-    0 < Pr[= failureInitKey | initKeyGen recommendedParams d3Sampler] := by
+    0 < Pr{let x ← initKeyGen recommendedParams d3Sampler}[x = failureInitKey] := by
   rw [probOutput_pos_iff]
   let base : BaseMatrix recommendedParams := 0
   let afterError (baseMatrix : BaseMatrix recommendedParams)
@@ -583,37 +579,7 @@ private theorem failureWitness_true :
 probability. -/
 theorem firstExchangeFailureProb_recommended_pos :
     0 < firstExchangeFailureProb recommendedParams d3Sampler := by
-  rw [firstExchangeFailureProb]
-  let afterCoins (ik : InitKey recommendedParams) (r : SendACoins recommendedParams) :
-      ProbComp Bool :=
-    pure (decide
-      (reconcile recommendedParams
-          ((r.secret * ik.baseMatrix + r.error) * ik.secret)
-          (makeHint recommendedParams
-            (r.secret * (ik.baseMatrix * ik.secret + ik.error) + r.extra)) ≠
-        extract recommendedParams
-          (r.secret * (ik.baseMatrix * ik.secret + ik.error) + r.extra)))
-  let afterInit (ik : InitKey recommendedParams) : ProbComp Bool :=
-    sampleSendACoins recommendedParams d3Sampler >>= afterCoins ik
-  have hout : true ∈ support (afterCoins failureInitKey failureSendACoins) := by
-    change true ∈ support (pure (decide
-      (reconcile recommendedParams failureReceiverValue
-          (makeHint recommendedParams failureSenderValue) ≠
-        extract recommendedParams failureSenderValue)) : ProbComp Bool)
-    rw [failureWitness_true]
-    simp
-  have hafterInit : true ∈ support (afterInit failureInitKey) := by
-    change true ∈ support
-      (sampleSendACoins recommendedParams d3Sampler >>= afterCoins failureInitKey)
-    exact recommended_mem_support_bind_intro failureSendACoins_mem_support hout
-  change 0 < Pr[= true | initKeyGen recommendedParams d3Sampler >>= afterInit]
-  rw [probOutput_bind_eq_tsum]
-  have hterm :
-      0 < Pr[= failureInitKey | initKeyGen recommendedParams d3Sampler] *
-        Pr[= true | afterInit failureInitKey] :=
-    ENNReal.mul_pos
-      (ne_of_gt failureInitKey_prob_pos)
-      (ne_of_gt (probOutput_pos _ _ hafterInit))
-  exact lt_of_lt_of_le hterm (ENNReal.le_tsum failureInitKey)
+  exact firstExchangeFailureProb_pos_of_witness recommendedParams d3Sampler 2 2
+    failureInitKey_prob_pos failureSendACoins_mem_support failureWitness_true
 
 end lweCKA

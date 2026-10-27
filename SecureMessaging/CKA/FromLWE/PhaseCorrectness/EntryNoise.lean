@@ -15,7 +15,7 @@ each of the two relevant secret vectors makes one public-matrix cell an affine u
 The exceptional all-even vectors are retained explicitly.
 -/
 
-open OracleComp OracleComp.EvalDist
+open OracleComp
 open scoped BigOperators ENNReal
 
 namespace lweCKA
@@ -104,12 +104,11 @@ private theorem matrix_ne_iff_exists_entry_ne
 theorem PhaseCorrectness.Internal.firstExchangeFailureProb_eq_entry_union
     (p : Params) (χ : ProbComp (Scalar p)) :
     firstExchangeFailureProb p χ =
-      Pr[fun t => ∃ c : Fin p.nbar × Fin p.nbar, entryMismatch p c t |
-        coinsExp p χ] := by
+      Pr{let t ← coinsExp p χ}[∃ c : Fin p.nbar × Fin p.nbar, entryMismatch p c t] := by
   classical
-  rw [firstExchangeFailureProb, ← probEvent_eq_eq_probOutput]
-  simp only [firstExchangeFailureExp, coinsExp, probEvent_bind_eq_tsum,
-    probEvent_pure]
+  rw [firstExchangeFailureProb]
+  simp only [firstExchangeFailureExp, coinsExp, OracleComp.prEvent_bind_eq_tsum,
+    prEvent_pure]
   apply tsum_congr
   intro ik
   congr 1
@@ -131,8 +130,8 @@ theorem PhaseCorrectness.Internal.firstExchangeFailureProb_eq_entry_union
 
 theorem PhaseCorrectness.Internal.evalDist_coinsExp_noiseFirst
     (p : Params) (χ : ProbComp (Scalar p)) :
-    evalDist (coinsExp p χ) =
-      evalDist (do
+    finiteLaw (coinsExp p χ) =
+      finiteLaw (do
         let t ← noiseCoinsExp p χ
         let a ← ($ᵗ (BaseMatrix p) : ProbComp (BaseMatrix p))
         return withBase p a t) := by
@@ -160,9 +159,9 @@ theorem PhaseCorrectness.Internal.evalDist_coinsExp_noiseFirst
 
 private theorem evalDist_sampleIID_map
     {α β : Type} (n : ℕ) (χ : ProbComp α) (f : α → β) :
-    evalDist ((fun xs : Fin n → α => fun k => f (xs k)) <$>
+    finiteLaw ((fun xs : Fin n → α => fun k => f (xs k)) <$>
       ProbComp.sampleIID n χ) =
-      evalDist (ProbComp.sampleIID n (f <$> χ)) := by
+      finiteLaw (ProbComp.sampleIID n (f <$> χ)) := by
   induction n with
   | zero =>
       simp only [ProbComp.sampleIID, Fin.mOfFn, map_pure]
@@ -173,7 +172,7 @@ private theorem evalDist_sampleIID_map
       simp only [ProbComp.sampleIID, Fin.mOfFn, map_eq_bind_pure_comp,
         Function.comp_apply, bind_assoc, pure_bind]
       refine evalDist_bind_congr' χ fun a => ?_
-      have htail := evalDist_map_eq_of_evalDist_eq ih
+      have htail := finiteLaw_map_congr ih
         (fun rest : Fin n → β => @Fin.cons n (fun _ => β) (f a) rest)
       convert htail using 1
       · simp only [ProbComp.sampleIID, map_eq_bind_pure_comp, bind_assoc, pure_bind,
@@ -186,66 +185,63 @@ private theorem evalDist_sampleIID_map
 
 private theorem evalDist_sampleIID_congr
     {α : Type} (n : ℕ) (χ ψ : ProbComp α)
-    (hχψ : evalDist χ = evalDist ψ) :
-    evalDist (ProbComp.sampleIID n χ) =
-      evalDist (ProbComp.sampleIID n ψ) := by
+    (hχψ : finiteLaw χ = finiteLaw ψ) :
+    finiteLaw (ProbComp.sampleIID n χ) =
+      finiteLaw (ProbComp.sampleIID n ψ) := by
   apply evalDist_ext
   intro v
-  simp only [ProbComp.sampleIID, probOutput_mOfFn]
+  simp only [ProbComp.sampleIID, prEvent_eq_mOfFn]
   apply Finset.prod_congr rfl
   intro i _
   exact evalDist_ext_iff.mp hχψ (v i)
 
 private theorem evalDist_sampleMatrix_entry
     {p : Params} (χ : ProbComp (Scalar p))
-    (hχ : Pr[⊥ | χ] = 0) (rows cols : ℕ)
+    (hχ : prFail χ = 0) (rows cols : ℕ)
     (i : Fin rows) (j : Fin cols) :
-    evalDist ((fun m : Matrix (Fin rows) (Fin cols) (Scalar p) => m i j) <$>
-      sampleMatrix χ rows cols) = evalDist χ := by
+    finiteLaw ((fun m : Matrix (Fin rows) (Fin cols) (Scalar p) => m i j) <$>
+      sampleMatrix χ rows cols) = finiteLaw χ := by
   apply evalDist_ext
   intro y
-  rw [probOutput_map]
+  rw [prEvent_map]
   unfold sampleMatrix ProbComp.sampleIID
-  change Pr[fun m : Fin rows → Fin cols → Scalar p => m i j = y |
-      Fin.mOfFn rows fun _ => Fin.mOfFn cols fun _ => χ] = Pr[= y | χ]
+  change Pr{let m ← Fin.mOfFn rows fun _ => Fin.mOfFn cols fun _ => χ}[m i j = y] = Pr{let x ← χ}[x = y]
   calc
-    Pr[fun m : Fin rows → Fin cols → Scalar p => m i j = y |
-        Fin.mOfFn rows fun _ => Fin.mOfFn cols fun _ => χ] =
-        Pr[fun row : Fin cols → Scalar p => row j = y |
-          Fin.mOfFn cols fun _ => χ] :=
+    Pr{let m ← Fin.mOfFn rows fun _ => Fin.mOfFn cols fun _ => χ}[m i j = y] =
+        Pr{let row ← Fin.mOfFn cols fun _ => χ}[row j = y] :=
       probEvent_coord_mOfFn rows (fun _ => Fin.mOfFn cols fun _ => χ)
         (fun _ => probFailure_mOfFn cols (fun _ => χ) fun _ => hχ) i
         (fun row : Fin cols → Scalar p => row j = y)
-    _ = Pr[(· = y) | χ] :=
+    _ = Pr{let x ← χ}[x = y] :=
       probEvent_coord_mOfFn cols (fun _ => χ) (fun _ => hχ) j (· = y)
-    _ = Pr[= y | χ] := probEvent_eq_eq_probOutput χ y
+    _ = Pr{let x ← χ}[x = y] := rfl
 
 private theorem evalDist_sampleMatrix_row
     {p : Params} (χ : ProbComp (Scalar p))
-    (hχ : Pr[⊥ | χ] = 0) (rows cols : ℕ) (i : Fin rows) :
-    evalDist ((fun m : Matrix (Fin rows) (Fin cols) (Scalar p) => m i) <$>
-      sampleMatrix χ rows cols) = evalDist (ProbComp.sampleIID cols χ) := by
+    (hχ : prFail χ = 0) (rows cols : ℕ) (i : Fin rows) :
+    finiteLaw ((fun m : Matrix (Fin rows) (Fin cols) (Scalar p) => m i) <$>
+      sampleMatrix χ rows cols) = finiteLaw (ProbComp.sampleIID cols χ) := by
   rw [map_eq_bind_pure_comp]
   exact ChallengeExperimentLaw.evalDist_sampleMatrix_row_bind χ hχ rows cols i
 
 private theorem evalDist_sampleMatrix_col
     {p : Params} (χ : ProbComp (Scalar p))
-    (hχ : Pr[⊥ | χ] = 0) (rows cols : ℕ) (j : Fin cols) :
-    evalDist ((fun m : Matrix (Fin rows) (Fin cols) (Scalar p) =>
+    (hχ : prFail χ = 0) (rows cols : ℕ) (j : Fin cols) :
+    finiteLaw ((fun m : Matrix (Fin rows) (Fin cols) (Scalar p) =>
       fun k => m k j) <$> sampleMatrix χ rows cols) =
-      evalDist (ProbComp.sampleIID rows χ) := by
+      finiteLaw (ProbComp.sampleIID rows χ) := by
   rw [map_eq_bind_pure_comp]
   exact ChallengeExperimentLaw.evalDist_sampleMatrix_col_bind χ hχ rows cols j
 
 theorem PhaseCorrectness.Internal.evalDist_entryNoiseScalar_eq_cast
-    (p : Params) (χ : ProbComp ℤ) (hχ : Pr[⊥ | χ] = 0)
+    (p : Params) (χ : ProbComp ℤ) (hχ : prFail χ = 0)
     (c : Fin p.nbar × Fin p.nbar) :
-    evalDist ((fun z : ℤ => (z : Scalar p)) <$> entryNoiseIntExp p.n χ) =
-      evalDist ((fun t => entryNoiseScalar p c t) <$> noiseCoinsExp p
+    finiteLaw ((fun z : ℤ => (z : Scalar p)) <$> entryNoiseIntExp p.n χ) =
+      finiteLaw ((fun t => entryNoiseScalar p c t) <$> noiseCoinsExp p
         ((fun z : ℤ => (z : Scalar p)) <$> χ)) := by
   let χm : ProbComp (Scalar p) := (fun z : ℤ => (z : Scalar p)) <$> χ
-  have hχm : Pr[⊥ | χm] = 0 := by
-    simpa only [χm, probFailure_map] using hχ
+  have hχm : prFail χm = 0 := by
+    simpa only [χm, prFail_map] using hχ
   let matrixProjectedExp : ProbComp (Scalar p) := do
     let s0 ← (fun m : RightMatrix p => fun k => m k c.2) <$> sampleMatrix χm p.n p.nbar
     let e0 ← (fun m : RightMatrix p => fun k => m k c.2) <$> sampleMatrix χm p.n p.nbar
@@ -272,10 +268,10 @@ theorem PhaseCorrectness.Internal.evalDist_entryNoiseScalar_eq_cast
     let extra ← χm
     return (∑ k, s1 k * e0 k) - (∑ k, e1 k * s0 k) + extra
   have hHead {A B : Type} {mx my : ProbComp A}
-      (h : evalDist mx = evalDist my) (k : A → ProbComp B) :
-      evalDist (mx >>= k) = evalDist (my >>= k) := by
+      (h : finiteLaw mx = finiteLaw my) (k : A → ProbComp B) :
+      finiteLaw (mx >>= k) = finiteLaw (my >>= k) := by
     simp only [evalDist_bind, h]
-  have hMatrix : evalDist matrixProjectedExp = evalDist scalarExp := by
+  have hMatrix : finiteLaw matrixProjectedExp = finiteLaw scalarExp := by
     simp only [matrixProjectedExp, scalarExp]
     refine (hHead (evalDist_sampleMatrix_col χm hχm p.n p.nbar c.2) _).trans ?_
     refine evalDist_bind_congr' _ fun _ => ?_
@@ -287,12 +283,12 @@ theorem PhaseCorrectness.Internal.evalDist_entryNoiseScalar_eq_cast
     refine evalDist_bind_congr' _ fun _ => ?_
     exact hHead (evalDist_sampleMatrix_entry χm hχm _ _ c.1 c.2) _
   have hProjected :
-      evalDist ((fun t => entryNoiseScalar p c t) <$> noiseCoinsExp p χm) =
-        evalDist matrixProjectedExp := by
+      finiteLaw ((fun t => entryNoiseScalar p c t) <$> noiseCoinsExp p χm) =
+        finiteLaw matrixProjectedExp := by
     simp only [entryNoiseScalar, noiseCoinsExp, matrixProjectedExp,
       map_eq_bind_pure_comp, bind_assoc, pure_bind, Function.comp_apply,
       Matrix.add_apply, Matrix.sub_apply, Matrix.mul_apply]
-  have hMapped : evalDist mappedIntExp = evalDist scalarExp := by
+  have hMapped : finiteLaw mappedIntExp = finiteLaw scalarExp := by
     simp only [mappedIntExp, scalarExp, χm]
     refine (hHead (evalDist_sampleIID_map p.n χ
       (fun z : ℤ => (z : Scalar p))) _).trans ?_
@@ -307,8 +303,8 @@ theorem PhaseCorrectness.Internal.evalDist_entryNoiseScalar_eq_cast
       (fun z : ℤ => (z : Scalar p))) _).trans ?_
     rfl
   have hCast :
-      evalDist ((fun z : ℤ => (z : Scalar p)) <$> entryNoiseIntExp p.n χ) =
-        evalDist mappedIntExp := by
+      finiteLaw ((fun z : ℤ => (z : Scalar p)) <$> entryNoiseIntExp p.n χ) =
+        finiteLaw mappedIntExp := by
     simp only [entryNoiseIntExp, mappedIntExp, χm, map_eq_bind_pure_comp,
       bind_assoc, pure_bind, Function.comp_apply]
     refine evalDist_bind_congr' _ fun _ => ?_
@@ -333,139 +329,123 @@ private theorem even_val_intCast_iff
 
 theorem PhaseCorrectness.Internal.probEvent_even_cast
     (p : Params) (hp : p.WellFormed) (χ : ProbComp ℤ) :
-    Pr[fun x : Scalar p => Even x.val |
-      (fun z : ℤ => (z : Scalar p)) <$> χ] = Pr[fun z : ℤ => Even z | χ] := by
-  rw [probEvent_map]
+    Pr{let x ← (fun z : ℤ => (z : Scalar p)) <$> χ}[Even x.val] = Pr{let z ← χ}[Even z] := by
+  rw [prEvent_map]
   apply probEvent_congr'
   · intro z _
     exact even_val_intCast_iff p hp z
   · rfl
 
 private theorem probEvent_vector_all_even
-    {p : Params} (χ : ProbComp (Scalar p)) (_hχ : Pr[⊥ | χ] = 0) (n : ℕ) :
-    Pr[fun v : Fin n → Scalar p => ∀ k, Even (v k).val |
-      ProbComp.sampleIID n χ] = Pr[fun x : Scalar p => Even x.val | χ] ^ n := by
-  change Pr[fun v : Fin n → Scalar p => ∀ k, Even (v k).val |
-      Fin.mOfFn n fun _ => χ] = _
+    {p : Params} (χ : ProbComp (Scalar p)) (_hχ : prFail χ = 0) (n : ℕ) :
+    Pr{let v ← ProbComp.sampleIID n χ}[∀ k, Even (v k).val] = Pr{let x ← χ}[Even x.val] ^ n := by
+  change Pr{let v ← Fin.mOfFn n fun _ => χ}[∀ k, Even (v k).val] = _
   calc
-    Pr[fun v : Fin n → Scalar p => ∀ k, Even (v k).val |
-        Fin.mOfFn n fun _ => χ] =
-        ∏ _ : Fin n, Pr[fun x : Scalar p => Even x.val | χ] :=
-      probEvent_forall_coord_mOfFn n (fun _ => χ) (fun _ x => Even x.val)
-    _ = Pr[fun x : Scalar p => Even x.val | χ] ^ n := by
+    Pr{let v ← Fin.mOfFn n fun _ => χ}[∀ k, Even (v k).val] =
+        ∏ _ : Fin n, Pr{let x ← χ}[Even x.val] :=
+      prEvent_forall_coord_mOfFn n (fun _ => χ) (fun _ x => Even x.val)
+    _ = Pr{let x ← χ}[Even x.val] ^ n := by
       simp only [Finset.prod_const, Finset.card_univ, Fintype.card_fin]
 
 private theorem probFailure_sampleMatrix
-    {p : Params} (χ : ProbComp (Scalar p)) (hχ : Pr[⊥ | χ] = 0)
-    (rows cols : ℕ) : Pr[⊥ | sampleMatrix χ rows cols] = 0 := by
+    {p : Params} (χ : ProbComp (Scalar p)) (hχ : prFail χ = 0)
+    (rows cols : ℕ) : prFail (sampleMatrix χ rows cols) = 0 := by
   exact probFailure_mOfFn rows (fun _ => ProbComp.sampleIID cols χ)
     (fun _ => probFailure_mOfFn cols (fun _ => χ) fun _ => hχ)
 
 private theorem evalDist_noiseCoins_initSecretCol
-    (p : Params) (χ : ProbComp (Scalar p)) (hχ : Pr[⊥ | χ] = 0)
+    (p : Params) (χ : ProbComp (Scalar p)) (hχ : prFail χ = 0)
     (c : Fin p.nbar × Fin p.nbar) :
-    evalDist ((fun t : InitKey p × SendACoins p => fun k => t.1.secret k c.2) <$>
-      noiseCoinsExp p χ) = evalDist (ProbComp.sampleIID p.n χ) := by
+    finiteLaw ((fun t : InitKey p × SendACoins p => fun k => t.1.secret k c.2) <$>
+      noiseCoinsExp p χ) = finiteLaw (ProbComp.sampleIID p.n χ) := by
   simp only [noiseCoinsExp, map_eq_bind_pure_comp, bind_assoc, pure_bind,
     Function.comp_apply]
   calc
-    evalDist (do
+    finiteLaw (do
           let s0 ← sampleMatrix χ p.n p.nbar
           let _ ← sampleMatrix χ p.n p.nbar
           let _ ← sampleMatrix χ p.nbar p.n
           let _ ← sampleMatrix χ p.nbar p.n
           let _ ← sampleMatrix χ p.nbar p.nbar
           pure fun k => s0 k c.2) =
-        evalDist (do
+        finiteLaw (do
           let s0 ← sampleMatrix χ p.n p.nbar
           pure fun k => s0 k c.2) := by
       refine evalDist_bind_congr' (sampleMatrix χ p.n p.nbar) fun _ => ?_
-      rw [OracleComp.DeferredSampling.evalDist_bind_const_neverFails
+      rw [lweCKA.evalDist_bind_const_neverFails
         (sampleMatrix χ p.n p.nbar) (probFailure_sampleMatrix χ hχ _ _)]
-      rw [OracleComp.DeferredSampling.evalDist_bind_const_neverFails
+      rw [lweCKA.evalDist_bind_const_neverFails
         (sampleMatrix χ p.nbar p.n) (probFailure_sampleMatrix χ hχ _ _)]
-      rw [OracleComp.DeferredSampling.evalDist_bind_const_neverFails
+      rw [lweCKA.evalDist_bind_const_neverFails
         (sampleMatrix χ p.nbar p.n) (probFailure_sampleMatrix χ hχ _ _)]
-      rw [OracleComp.DeferredSampling.evalDist_bind_const_neverFails
+      rw [lweCKA.evalDist_bind_const_neverFails
         (sampleMatrix χ p.nbar p.nbar) (probFailure_sampleMatrix χ hχ _ _)]
-    _ = evalDist (ProbComp.sampleIID p.n χ) :=
+    _ = finiteLaw (ProbComp.sampleIID p.n χ) :=
       ChallengeExperimentLaw.evalDist_sampleMatrix_col_bind χ hχ p.n p.nbar c.2
 
 private theorem evalDist_noiseCoins_sendSecretRow
-    (p : Params) (χ : ProbComp (Scalar p)) (hχ : Pr[⊥ | χ] = 0)
+    (p : Params) (χ : ProbComp (Scalar p)) (hχ : prFail χ = 0)
     (c : Fin p.nbar × Fin p.nbar) :
-    evalDist ((fun t : InitKey p × SendACoins p => t.2.secret c.1) <$>
-      noiseCoinsExp p χ) = evalDist (ProbComp.sampleIID p.n χ) := by
+    finiteLaw ((fun t : InitKey p × SendACoins p => t.2.secret c.1) <$>
+      noiseCoinsExp p χ) = finiteLaw (ProbComp.sampleIID p.n χ) := by
   simp only [noiseCoinsExp, map_eq_bind_pure_comp, bind_assoc, pure_bind,
     Function.comp_apply]
-  rw [OracleComp.DeferredSampling.evalDist_bind_const_neverFails
+  rw [lweCKA.evalDist_bind_const_neverFails
     (sampleMatrix χ p.n p.nbar) (probFailure_sampleMatrix χ hχ _ _)]
-  rw [OracleComp.DeferredSampling.evalDist_bind_const_neverFails
+  rw [lweCKA.evalDist_bind_const_neverFails
     (sampleMatrix χ p.n p.nbar) (probFailure_sampleMatrix χ hχ _ _)]
   calc
-    evalDist (do
+    finiteLaw (do
           let s1 ← sampleMatrix χ p.nbar p.n
           let _ ← sampleMatrix χ p.nbar p.n
           let _ ← sampleMatrix χ p.nbar p.nbar
           pure (s1 c.1)) =
-        evalDist (do
+        finiteLaw (do
           let s1 ← sampleMatrix χ p.nbar p.n
           pure (s1 c.1)) := by
       refine evalDist_bind_congr' (sampleMatrix χ p.nbar p.n) fun _ => ?_
-      rw [OracleComp.DeferredSampling.evalDist_bind_const_neverFails
+      rw [lweCKA.evalDist_bind_const_neverFails
         (sampleMatrix χ p.nbar p.n) (probFailure_sampleMatrix χ hχ _ _)]
-      rw [OracleComp.DeferredSampling.evalDist_bind_const_neverFails
+      rw [lweCKA.evalDist_bind_const_neverFails
         (sampleMatrix χ p.nbar p.nbar) (probFailure_sampleMatrix χ hχ _ _)]
-    _ = evalDist (ProbComp.sampleIID p.n χ) :=
+    _ = finiteLaw (ProbComp.sampleIID p.n χ) :=
       ChallengeExperimentLaw.evalDist_sampleMatrix_row_bind χ hχ p.nbar p.n c.1
 
 theorem PhaseCorrectness.Internal.probEvent_entryBad_le
-    (p : Params) (χ : ProbComp (Scalar p)) (hχ : Pr[⊥ | χ] = 0)
+    (p : Params) (χ : ProbComp (Scalar p)) (hχ : prFail χ = 0)
     (c : Fin p.nbar × Fin p.nbar) :
-    Pr[entryBad p c | noiseCoinsExp p χ] ≤
-      2 * Pr[fun x : Scalar p => Even x.val | χ] ^ p.n := by
+    Pr{let x ← noiseCoinsExp p χ}[(entryBad p c) x] ≤
+      2 * Pr{let x ← χ}[Even x.val] ^ p.n := by
   let q := fun t : InitKey p × SendACoins p =>
     ∀ k : Fin p.n, Even (t.2.secret c.1 k).val
   let r := fun t : InitKey p × SendACoins p =>
     ∀ k : Fin p.n, Even (t.1.secret k c.2).val
-  have hq : Pr[q | noiseCoinsExp p χ] =
-      Pr[fun x : Scalar p => Even x.val | χ] ^ p.n := by
+  have hq : Pr{let x ← noiseCoinsExp p χ}[q x] =
+      Pr{let x ← χ}[Even x.val] ^ p.n := by
     calc
-      Pr[q | noiseCoinsExp p χ] =
-          Pr[fun v : Fin p.n → Scalar p => ∀ k, Even (v k).val |
-            (fun t : InitKey p × SendACoins p => t.2.secret c.1) <$>
-              noiseCoinsExp p χ] := by
-        rw [probEvent_map]
-        apply probEvent_congr'
-        · intro t _
-          rfl
-        · rfl
-      _ = Pr[fun v : Fin p.n → Scalar p => ∀ k, Even (v k).val |
-            ProbComp.sampleIID p.n χ] := by
+      Pr{let x ← noiseCoinsExp p χ}[q x] =
+          Pr{let v ← ((fun t : InitKey p × SendACoins p => t.2.secret c.1) <$>
+              noiseCoinsExp p χ)}[∀ k, Even (v k).val] := by
+        rw [prEvent_map]
+      _ = Pr{let v ← ProbComp.sampleIID p.n χ}[∀ k, Even (v k).val] := by
         simp only [probEvent_def, evalDist_noiseCoins_sendSecretRow p χ hχ c]
       _ = _ := probEvent_vector_all_even χ hχ p.n
-  have hr : Pr[r | noiseCoinsExp p χ] =
-      Pr[fun x : Scalar p => Even x.val | χ] ^ p.n := by
+  have hr : Pr{let x ← noiseCoinsExp p χ}[r x] =
+      Pr{let x ← χ}[Even x.val] ^ p.n := by
     calc
-      Pr[r | noiseCoinsExp p χ] =
-          Pr[fun v : Fin p.n → Scalar p => ∀ k, Even (v k).val |
-            (fun t : InitKey p × SendACoins p => fun k => t.1.secret k c.2) <$>
-              noiseCoinsExp p χ] := by
-        rw [probEvent_map]
-        apply probEvent_congr'
-        · intro t _
-          rfl
-        · rfl
-      _ = Pr[fun v : Fin p.n → Scalar p => ∀ k, Even (v k).val |
-            ProbComp.sampleIID p.n χ] := by
+      Pr{let x ← noiseCoinsExp p χ}[r x] =
+          Pr{let v ← ((fun t : InitKey p × SendACoins p => fun k => t.1.secret k c.2) <$>
+              noiseCoinsExp p χ)}[∀ k, Even (v k).val] := by
+        rw [prEvent_map]
+      _ = Pr{let v ← ProbComp.sampleIID p.n χ}[∀ k, Even (v k).val] := by
         simp only [probEvent_def, evalDist_noiseCoins_initSecretCol p χ hχ c]
       _ = _ := probEvent_vector_all_even χ hχ p.n
-  change Pr[fun t => q t ∨ r t | noiseCoinsExp p χ] ≤ _
+  change Pr{let t ← noiseCoinsExp p χ}[q t ∨ r t] ≤ _
   calc
-    Pr[fun t => q t ∨ r t | noiseCoinsExp p χ] ≤
-        Pr[q | noiseCoinsExp p χ] + Pr[r | noiseCoinsExp p χ] :=
-      probEvent_or_le (noiseCoinsExp p χ) q r
-    _ = 2 * Pr[fun x : Scalar p => Even x.val | χ] ^ p.n := by
+    Pr{let t ← noiseCoinsExp p χ}[q t ∨ r t] ≤
+        Pr{let x ← noiseCoinsExp p χ}[q x] + Pr{let x ← noiseCoinsExp p χ}[r x] :=
+      prEvent_or_le (noiseCoinsExp p χ) q r
+    _ = 2 * Pr{let x ← χ}[Even x.val] ^ p.n := by
       rw [hq, hr, two_mul]
 
 end lweCKA

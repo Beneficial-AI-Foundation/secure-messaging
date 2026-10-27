@@ -19,7 +19,7 @@ bounds for the Classical, Recommended, and Paranoid rows.  The exceptional all-e
 vectors remain explicit in every bound.
 -/
 
-open OracleComp OracleComp.EvalDist
+open OracleComp
 open scoped BigOperators ENNReal
 
 namespace lweCKA
@@ -79,21 +79,21 @@ private theorem counts_apply_eq_weight
   by_cases hz : z ∈ Finset.Icc (-(c.a : ℤ)) (c.a : ℤ)
   · rw [counts, AddMonoidAlgebra.coeff_sum, Finsupp.finsetSum_apply,
       Finset.sum_eq_single z]
-    · simp
+    · simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_eq_same]
     · intro y hy hne
-      simp [hne]
+      simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_apply, hne, ite_false]
     · exact fun h => (h hz).elim
   · rw [hzero hz, counts, AddMonoidAlgebra.coeff_sum, Finsupp.finsetSum_apply]
     apply Finset.sum_eq_zero
     intro y hy
     have hne : y ≠ z := fun h => hz (h ▸ hy)
-    simp [hne]
+    simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_apply, hne, ite_false]
 
 private theorem probOutput_d2IntSampler_counts (z : ℤ) :
-    Pr[= z | d2IntSampler] =
+    Pr{let x ← d2IntSampler}[x = z] =
       (counts classicalConfig z : ℝ≥0∞) / 2 ^ classicalConfig.seedBits := by
   rw [counts_apply_eq_weight classicalConfig z]
-  · change Pr[= z | d2IntSampler] = (d2Weight z : ℝ≥0∞) / 2 ^ 12
+  · change Pr{let x ← d2IntSampler}[x = z] = (d2Weight z : ℝ≥0∞) / 2 ^ 12
     convert probOutput_d2IntSampler z using 1
     norm_num
   · intro hz
@@ -101,15 +101,15 @@ private theorem probOutput_d2IntSampler_counts (z : ℤ) :
     have hzsupport : z ∉ support d2IntSampler := by
       rw [support_d2IntSampler]
       simpa [classicalConfig, Set.mem_Icc] using hz
-    have hprob := probOutput_eq_zero_of_not_mem_support hzsupport
+    have hprob := (prEvent_eq_zero_of_not_mem_support _) hzsupport
     rw [probOutput_d2IntSampler] at hprob
     simpa using hprob
 
 private theorem probOutput_d3IntSampler_counts (z : ℤ) :
-    Pr[= z | d3IntSampler] =
+    Pr{let x ← d3IntSampler}[x = z] =
       (counts recommendedConfig z : ℝ≥0∞) / 2 ^ recommendedConfig.seedBits := by
   rw [counts_apply_eq_weight recommendedConfig z]
-  · change Pr[= z | d3IntSampler] = (d3Weight z : ℝ≥0∞) / 2 ^ 12
+  · change Pr{let x ← d3IntSampler}[x = z] = (d3Weight z : ℝ≥0∞) / 2 ^ 12
     convert probOutput_d3IntSampler z using 1
     norm_num
   · intro hz
@@ -117,15 +117,15 @@ private theorem probOutput_d3IntSampler_counts (z : ℤ) :
     have hzsupport : z ∉ support d3IntSampler := by
       rw [support_d3IntSampler]
       simpa [recommendedConfig, Set.mem_Icc] using hz
-    have hprob := probOutput_eq_zero_of_not_mem_support hzsupport
+    have hprob := (prEvent_eq_zero_of_not_mem_support _) hzsupport
     rw [probOutput_d3IntSampler] at hprob
     simpa using hprob
 
 private theorem probOutput_d4IntSampler_counts (z : ℤ) :
-    Pr[= z | d4IntSampler] =
+    Pr{let x ← d4IntSampler}[x = z] =
       (counts paranoidConfig z : ℝ≥0∞) / 2 ^ paranoidConfig.seedBits := by
   rw [counts_apply_eq_weight paranoidConfig z]
-  · change Pr[= z | d4IntSampler] = (d4Weight z : ℝ≥0∞) / 2 ^ 16
+  · change Pr{let x ← d4IntSampler}[x = z] = (d4Weight z : ℝ≥0∞) / 2 ^ 16
     convert probOutput_d4IntSampler z using 1
     norm_num
   · intro hz
@@ -133,14 +133,14 @@ private theorem probOutput_d4IntSampler_counts (z : ℤ) :
     have hzsupport : z ∉ support d4IntSampler := by
       rw [support_d4IntSampler]
       simpa [paranoidConfig, Set.mem_Icc] using hz
-    have hprob := probOutput_eq_zero_of_not_mem_support hzsupport
+    have hprob := (prEvent_eq_zero_of_not_mem_support _) hzsupport
     rw [probOutput_d4IntSampler] at hprob
     simpa using hprob
 
-private theorem probFailure_d2IntSampler : Pr[⊥ | d2IntSampler] = 0 := by
+private theorem probFailure_d2IntSampler : prFail d2IntSampler = 0 := by
   simp [d2IntSampler]
 
-private theorem probFailure_d4IntSampler : Pr[⊥ | d4IntSampler] = 0 := by
+private theorem probFailure_d4IntSampler : prFail d4IntSampler = 0 := by
   simp [d4IntSampler]
 
 private theorem d2Weight_neg (z : ℤ) : d2Weight (-z) = d2Weight z := by
@@ -154,8 +154,8 @@ private theorem d4Weight_neg (z : ℤ) : d4Weight (-z) = d4Weight z := by
 
 /-- The D2 sampler assigns exact even mass `2068 / 4096`. -/
 theorem probEvent_even_d2IntSampler :
-    Pr[fun z : ℤ => Even z | d2IntSampler] = (2068 : ℝ≥0∞) / 4096 := by
-  rw [probEvent_eq_tsum_ite, tsum_eq_sum (s := Finset.Icc (-4 : ℤ) 4)]
+    Pr{let z ← d2IntSampler}[Even z] = (2068 : ℝ≥0∞) / 4096 := by
+  rw [OracleComp.prEvent_eq_tsum_ite, tsum_eq_sum (s := Finset.Icc (-4 : ℤ) 4)]
   · have hIcc : Finset.Icc (-4 : ℤ) 4 =
         {-4, -3, -2, -1, 0, 1, 2, 3, 4} := by decide
     rw [hIcc]
@@ -168,13 +168,13 @@ theorem probEvent_even_d2IntSampler :
     have hz' : z ∉ support d2IntSampler := by
       rw [support_d2IntSampler]
       simpa [Set.mem_Icc] using hz
-    rw [probOutput_eq_zero_of_not_mem_support hz']
+    rw [(prEvent_eq_zero_of_not_mem_support _) hz']
     split <;> simp
 
 /-- The D3 sampler assigns exact even mass `2048 / 4096`. -/
 theorem probEvent_even_d3IntSampler :
-    Pr[fun z : ℤ => Even z | d3IntSampler] = (2048 : ℝ≥0∞) / 4096 := by
-  rw [probEvent_eq_tsum_ite, tsum_eq_sum (s := Finset.Icc (-5 : ℤ) 5)]
+    Pr{let z ← d3IntSampler}[Even z] = (2048 : ℝ≥0∞) / 4096 := by
+  rw [OracleComp.prEvent_eq_tsum_ite, tsum_eq_sum (s := Finset.Icc (-5 : ℤ) 5)]
   · have hIcc : Finset.Icc (-5 : ℤ) 5 =
         {-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5} := by decide
     rw [hIcc]
@@ -185,13 +185,13 @@ theorem probEvent_even_d3IntSampler :
     have hz' : z ∉ support d3IntSampler := by
       rw [support_d3IntSampler]
       simpa [Set.mem_Icc] using hz
-    rw [probOutput_eq_zero_of_not_mem_support hz']
+    rw [(prEvent_eq_zero_of_not_mem_support _) hz']
     split <;> simp
 
 /-- The D4 sampler assigns exact even mass `32776 / 65536`. -/
 theorem probEvent_even_d4IntSampler :
-    Pr[fun z : ℤ => Even z | d4IntSampler] = (32776 : ℝ≥0∞) / 65536 := by
-  rw [probEvent_eq_tsum_ite, tsum_eq_sum (s := Finset.Icc (-6 : ℤ) 6)]
+    Pr{let z ← d4IntSampler}[Even z] = (32776 : ℝ≥0∞) / 65536 := by
+  rw [OracleComp.prEvent_eq_tsum_ite, tsum_eq_sum (s := Finset.Icc (-6 : ℤ) 6)]
   · have hIcc : Finset.Icc (-6 : ℤ) 6 =
         {-6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6} := by decide
     rw [hIcc]
@@ -204,7 +204,7 @@ theorem probEvent_even_d4IntSampler :
     have hz' : z ∉ support d4IntSampler := by
       rw [support_d4IntSampler]
       simpa [Set.mem_Icc] using hz
-    rw [probOutput_eq_zero_of_not_mem_support hz']
+    rw [(prEvent_eq_zero_of_not_mem_support _) hz']
     split <;> simp
 
 /-- Certified first-exchange upper bound for the historical Classical row. -/
@@ -415,7 +415,7 @@ theorem firstExchangeFailureProb_classical_le :
         (64 : ℕ) *
           (expectedValue (entryNoiseIntExp classicalParams.n d2IntSampler)
               (reconciliationFailureRamp classicalParams) +
-            2 * Pr[fun z : ℤ => Even z | d2IntSampler] ^ classicalParams.n) := by
+            2 * Pr{let z ← d2IntSampler}[Even z] ^ classicalParams.n) := by
       simpa [d2Sampler, classicalParams] using
         firstExchangeFailureProb_le_ramp classicalParams classicalParams_wellFormed
           d2IntSampler probFailure_d2IntSampler
@@ -448,7 +448,7 @@ theorem firstExchangeFailureProb_recommended_sharp_le :
         (64 : ℕ) *
           (expectedValue (entryNoiseIntExp recommendedParams.n d3IntSampler)
               (reconciliationFailureRamp recommendedParams) +
-            2 * Pr[fun z : ℤ => Even z | d3IntSampler] ^ recommendedParams.n) := by
+            2 * Pr{let z ← d3IntSampler}[Even z] ^ recommendedParams.n) := by
       simpa [d3Sampler, recommendedParams] using
         firstExchangeFailureProb_le_ramp recommendedParams recommendedParams_wellFormed
           d3IntSampler probFailure_d3IntSampler
@@ -480,7 +480,7 @@ theorem firstExchangeFailureProb_paranoid_le :
         (64 : ℕ) *
           (expectedValue (entryNoiseIntExp paranoidParams.n d4IntSampler)
               (reconciliationFailureRamp paranoidParams) +
-            2 * Pr[fun z : ℤ => Even z | d4IntSampler] ^ paranoidParams.n) := by
+            2 * Pr{let z ← d4IntSampler}[Even z] ^ paranoidParams.n) := by
       simpa [d4Sampler, paranoidParams] using
         firstExchangeFailureProb_le_ramp paranoidParams paranoidParams_wellFormed
           d4IntSampler probFailure_d4IntSampler
@@ -510,9 +510,8 @@ theorem correctness_failure_classical_le
     (T : ℕ)
     (hT : HasExchangeBound classicalParams
       classicalParams_wellFormed d2Sampler adv T) :
-    Pr[= false |
-      CKAScheme.correctnessExp
-        (scheme classicalParams classicalParams_wellFormed d2Sampler) adv] ≤
+    Pr{let x ← (CKAScheme.correctnessExp
+        (scheme classicalParams classicalParams_wellFormed d2Sampler) adv)}[x = false] ≤
       min 1 ((T : ℝ≥0∞) * classicalFailureBound) := by
   refine le_trans (correctness_failure_le classicalParams
     classicalParams_wellFormed d2Sampler adv T hT) ?_
@@ -525,9 +524,8 @@ theorem correctness_failure_recommended_sharp_le
     (T : ℕ)
     (hT : HasExchangeBound recommendedParams
       recommendedParams_wellFormed d3Sampler adv T) :
-    Pr[= false |
-      CKAScheme.correctnessExp
-        (scheme recommendedParams recommendedParams_wellFormed d3Sampler) adv] ≤
+    Pr{let x ← (CKAScheme.correctnessExp
+        (scheme recommendedParams recommendedParams_wellFormed d3Sampler) adv)}[x = false] ≤
       min 1 ((T : ℝ≥0∞) * recommendedSharpFailureBound) := by
   refine le_trans (correctness_failure_le recommendedParams
     recommendedParams_wellFormed d3Sampler adv T hT) ?_
@@ -541,9 +539,8 @@ theorem correctness_failure_paranoid_le
     (T : ℕ)
     (hT : HasExchangeBound paranoidParams
       paranoidParams_wellFormed d4Sampler adv T) :
-    Pr[= false |
-      CKAScheme.correctnessExp
-        (scheme paranoidParams paranoidParams_wellFormed d4Sampler) adv] ≤
+    Pr{let x ← (CKAScheme.correctnessExp
+        (scheme paranoidParams paranoidParams_wellFormed d4Sampler) adv)}[x = false] ≤
       min 1 ((T : ℝ≥0∞) * paranoidFailureBound) := by
   refine le_trans (correctness_failure_le paranoidParams
     paranoidParams_wellFormed d4Sampler adv T hT) ?_

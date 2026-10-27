@@ -13,7 +13,7 @@ This file completes the comparison between one actual Challenge entry-mismatch
 probability and the exact modular phase ramp.
 -/
 
-open OracleComp OracleComp.EvalDist
+open OracleComp
 open scoped BigOperators ENNReal
 
 namespace lweCKA
@@ -131,8 +131,8 @@ def Frodo2016.Challenge.Experiment.Internal.challengeEntryBad
   (∀ k : Fin challengeParams.n, Even (t.1.secret k c.2).val)
 
 theorem Frodo2016.Challenge.Experiment.Internal.evalDist_challengeCoinsExp_noiseFirst :
-    evalDist challengeCoinsExp =
-      evalDist
+    finiteLaw challengeCoinsExp =
+      finiteLaw
         (do
           let t ← challengeNoiseCoinsExp
           let a ← ($ᵗ (BaseMatrix challengeParams) :
@@ -175,17 +175,17 @@ private theorem even_val_intCast_iff_of_mem_d1_support
   interval_cases z <;> decide
 
 private theorem probEvent_even_d1Sampler :
-    Pr[fun x : Scalar challengeParams => Even x.val | d1Sampler] =
+    Pr{let x ← d1Sampler}[Even x.val] =
       1 / (2 : ℝ≥0∞) := by
-  rw [d1Sampler, probEvent_map]
+  rw [d1Sampler, prEvent_map]
   calc
-    Pr[fun z : ℤ => Even ((z : Scalar challengeParams).val) | d1IntSampler] =
-        Pr[fun z : ℤ => Even z | d1IntSampler] := by
+    Pr{let z ← d1IntSampler}[Even ((z : Scalar challengeParams).val)] =
+        Pr{let z ← d1IntSampler}[Even z] := by
       apply probEvent_congr'
       · exact fun z hz => even_val_intCast_iff_of_mem_d1_support z hz
       · rfl
     _ = 1 / (2 : ℝ≥0∞) := by
-      rw [probEvent_eq_tsum_ite, tsum_eq_sum (s := Finset.Icc (-3 : ℤ) 3)]
+      rw [OracleComp.prEvent_eq_tsum_ite, tsum_eq_sum (s := Finset.Icc (-3 : ℤ) 3)]
       · have hIcc : Finset.Icc (-3 : ℤ) 3 = {-3, -2, -1, 0, 1, 2, 3} := by
           ext z
           simp only [Finset.mem_Icc, Finset.mem_insert, Finset.mem_singleton]
@@ -202,20 +202,17 @@ private theorem probEvent_even_d1Sampler :
         have hz' : z ∉ support d1IntSampler := by
           rw [support_d1IntSampler]
           simpa [Set.mem_Icc] using hz
-        rw [probOutput_eq_zero_of_not_mem_support hz']
+        rw [(prEvent_eq_zero_of_not_mem_support _) hz']
         split <;> simp
 
 private theorem probEvent_d1_vector_all_even (n : ℕ) :
-    Pr[fun v : Fin n → Scalar challengeParams =>
-      ∀ k, Even (v k).val | ProbComp.sampleIID n d1Sampler] =
+    Pr{let v ← ProbComp.sampleIID n d1Sampler}[∀ k, Even (v k).val] =
         (1 / (2 : ℝ≥0∞)) ^ n := by
-  change Pr[fun v : Fin n → Scalar challengeParams =>
-      ∀ k, Even (v k).val | Fin.mOfFn n fun _ => d1Sampler] = _
+  change Pr{let v ← Fin.mOfFn n fun _ => d1Sampler}[∀ k, Even (v k).val] = _
   calc
-    Pr[fun v : Fin n → Scalar challengeParams => ∀ k, Even (v k).val |
-        Fin.mOfFn n fun _ => d1Sampler] =
-        ∏ _ : Fin n, Pr[fun x : Scalar challengeParams => Even x.val | d1Sampler] :=
-      probEvent_forall_coord_mOfFn n (fun _ => d1Sampler)
+    Pr{let v ← Fin.mOfFn n fun _ => d1Sampler}[∀ k, Even (v k).val] =
+        ∏ _ : Fin n, Pr{let x ← d1Sampler}[Even x.val] :=
+      prEvent_forall_coord_mOfFn n (fun _ => d1Sampler)
         (fun _ x => Even x.val)
     _ = (1 / (2 : ℝ≥0∞)) ^ n := by
       simp only [probEvent_even_d1Sampler, Finset.prod_const, Finset.card_univ,
@@ -223,34 +220,34 @@ private theorem probEvent_d1_vector_all_even (n : ℕ) :
 
 private theorem evalDist_challengeMatrix_col
     (j : Fin challengeParams.nbar) :
-    evalDist
+    finiteLaw
         (do
           let m ← sampleMatrix d1Sampler challengeParams.n challengeParams.nbar
           pure fun k => m k j) =
-      evalDist (ProbComp.sampleIID challengeParams.n d1Sampler) :=
+      finiteLaw (ProbComp.sampleIID challengeParams.n d1Sampler) :=
   ChallengeExperimentLaw.evalDist_sampleMatrix_col_bind d1Sampler probFailure_eq_zero
     challengeParams.n challengeParams.nbar j
 
 private theorem evalDist_challengeMatrix_row
     (i : Fin challengeParams.nbar) :
-    evalDist
+    finiteLaw
         (do
           let m ← sampleMatrix d1Sampler challengeParams.nbar challengeParams.n
           pure (m i)) =
-      evalDist (ProbComp.sampleIID challengeParams.n d1Sampler) :=
+      finiteLaw (ProbComp.sampleIID challengeParams.n d1Sampler) :=
   ChallengeExperimentLaw.evalDist_sampleMatrix_row_bind d1Sampler probFailure_eq_zero
     challengeParams.nbar challengeParams.n i
 
 private theorem evalDist_noiseCoins_initSecretCol
     (c : Fin challengeParams.nbar × Fin challengeParams.nbar) :
-    evalDist
+    finiteLaw
         ((fun t : InitKey challengeParams × SendACoins challengeParams =>
           fun k => t.1.secret k c.2) <$> challengeNoiseCoinsExp) =
-      evalDist (ProbComp.sampleIID challengeParams.n d1Sampler) := by
+      finiteLaw (ProbComp.sampleIID challengeParams.n d1Sampler) := by
   simp only [challengeNoiseCoinsExp, map_eq_bind_pure_comp, bind_assoc, pure_bind,
     Function.comp_apply]
   calc
-    evalDist
+    finiteLaw
           (do
             let s0 ← sampleMatrix d1Sampler challengeParams.n challengeParams.nbar
             let _ ← sampleMatrix d1Sampler challengeParams.n challengeParams.nbar
@@ -258,98 +255,88 @@ private theorem evalDist_noiseCoins_initSecretCol
             let _ ← sampleMatrix d1Sampler challengeParams.nbar challengeParams.n
             let _ ← sampleMatrix d1Sampler challengeParams.nbar challengeParams.nbar
             pure fun k => s0 k c.2) =
-        evalDist
+        finiteLaw
           (do
             let s0 ← sampleMatrix d1Sampler challengeParams.n challengeParams.nbar
             pure fun k => s0 k c.2) := by
       refine evalDist_bind_congr'
         (sampleMatrix d1Sampler challengeParams.n challengeParams.nbar) fun _ => ?_
-      rw [OracleComp.DeferredSampling.evalDist_bind_const_neverFails
+      rw [lweCKA.evalDist_bind_const_neverFails
         (sampleMatrix d1Sampler challengeParams.n challengeParams.nbar) probFailure_eq_zero]
-      rw [OracleComp.DeferredSampling.evalDist_bind_const_neverFails
+      rw [lweCKA.evalDist_bind_const_neverFails
         (sampleMatrix d1Sampler challengeParams.nbar challengeParams.n) probFailure_eq_zero]
-      rw [OracleComp.DeferredSampling.evalDist_bind_const_neverFails
+      rw [lweCKA.evalDist_bind_const_neverFails
         (sampleMatrix d1Sampler challengeParams.nbar challengeParams.n) probFailure_eq_zero]
-      rw [OracleComp.DeferredSampling.evalDist_bind_const_neverFails
+      rw [lweCKA.evalDist_bind_const_neverFails
         (sampleMatrix d1Sampler challengeParams.nbar challengeParams.nbar) probFailure_eq_zero]
-    _ = evalDist (ProbComp.sampleIID challengeParams.n d1Sampler) := by
+    _ = finiteLaw (ProbComp.sampleIID challengeParams.n d1Sampler) := by
       exact evalDist_challengeMatrix_col c.2
 
 private theorem evalDist_noiseCoins_sendSecretRow
     (c : Fin challengeParams.nbar × Fin challengeParams.nbar) :
-    evalDist
+    finiteLaw
         ((fun t : InitKey challengeParams × SendACoins challengeParams =>
           t.2.secret c.1) <$> challengeNoiseCoinsExp) =
-      evalDist (ProbComp.sampleIID challengeParams.n d1Sampler) := by
+      finiteLaw (ProbComp.sampleIID challengeParams.n d1Sampler) := by
   simp only [challengeNoiseCoinsExp, map_eq_bind_pure_comp, bind_assoc, pure_bind,
     Function.comp_apply]
-  rw [OracleComp.DeferredSampling.evalDist_bind_const_neverFails
+  rw [lweCKA.evalDist_bind_const_neverFails
     (sampleMatrix d1Sampler challengeParams.n challengeParams.nbar) probFailure_eq_zero]
-  rw [OracleComp.DeferredSampling.evalDist_bind_const_neverFails
+  rw [lweCKA.evalDist_bind_const_neverFails
     (sampleMatrix d1Sampler challengeParams.n challengeParams.nbar) probFailure_eq_zero]
   calc
-    evalDist
+    finiteLaw
           (do
             let s1 ← sampleMatrix d1Sampler challengeParams.nbar challengeParams.n
             let _ ← sampleMatrix d1Sampler challengeParams.nbar challengeParams.n
             let _ ← sampleMatrix d1Sampler challengeParams.nbar challengeParams.nbar
             pure (s1 c.1)) =
-        evalDist
+        finiteLaw
           (do
             let s1 ← sampleMatrix d1Sampler challengeParams.nbar challengeParams.n
             pure (s1 c.1)) := by
       refine evalDist_bind_congr'
         (sampleMatrix d1Sampler challengeParams.nbar challengeParams.n) fun _ => ?_
-      rw [OracleComp.DeferredSampling.evalDist_bind_const_neverFails
+      rw [lweCKA.evalDist_bind_const_neverFails
         (sampleMatrix d1Sampler challengeParams.nbar challengeParams.n) probFailure_eq_zero]
-      rw [OracleComp.DeferredSampling.evalDist_bind_const_neverFails
+      rw [lweCKA.evalDist_bind_const_neverFails
         (sampleMatrix d1Sampler challengeParams.nbar challengeParams.nbar) probFailure_eq_zero]
-    _ = evalDist (ProbComp.sampleIID challengeParams.n d1Sampler) := by
+    _ = finiteLaw (ProbComp.sampleIID challengeParams.n d1Sampler) := by
       exact evalDist_challengeMatrix_row c.1
 
 theorem Frodo2016.Challenge.Experiment.Internal.probEvent_challengeEntryBad_le
     (c : Fin challengeParams.nbar × Fin challengeParams.nbar) :
-    Pr[challengeEntryBad c | challengeNoiseCoinsExp] ≤
+    Pr{let x ← challengeNoiseCoinsExp}[(challengeEntryBad c) x] ≤
       1 / (2 : ℝ≥0∞) ^ 351 := by
   let p := fun t : InitKey challengeParams × SendACoins challengeParams =>
     ∀ k : Fin challengeParams.n, Even (t.2.secret c.1 k).val
   let q := fun t : InitKey challengeParams × SendACoins challengeParams =>
     ∀ k : Fin challengeParams.n, Even (t.1.secret k c.2).val
-  have hp : Pr[p | challengeNoiseCoinsExp] = (1 / (2 : ℝ≥0∞)) ^ 352 := by
+  have hp : Pr{let x ← challengeNoiseCoinsExp}[p x] = (1 / (2 : ℝ≥0∞)) ^ 352 := by
     calc
-      Pr[p | challengeNoiseCoinsExp] =
-          Pr[fun v : Fin challengeParams.n → Scalar challengeParams =>
-              ∀ k, Even (v k).val |
-            (fun t : InitKey challengeParams × SendACoins challengeParams =>
-              t.2.secret c.1) <$> challengeNoiseCoinsExp] := by
-        rw [probEvent_map]
-        rfl
-      _ = Pr[fun v : Fin challengeParams.n → Scalar challengeParams =>
-              ∀ k, Even (v k).val |
-            ProbComp.sampleIID challengeParams.n d1Sampler] := by
+      Pr{let x ← challengeNoiseCoinsExp}[p x] =
+          Pr{let v ← ((fun t : InitKey challengeParams × SendACoins challengeParams =>
+              t.2.secret c.1) <$> challengeNoiseCoinsExp)}[∀ k, Even (v k).val] := by
+        rw [prEvent_map]
+      _ = Pr{let v ← ProbComp.sampleIID challengeParams.n d1Sampler}[∀ k, Even (v k).val] := by
         simp only [probEvent_def, evalDist_noiseCoins_sendSecretRow c]
       _ = (1 / (2 : ℝ≥0∞)) ^ 352 := by
         simpa only [challengeParams] using probEvent_d1_vector_all_even 352
-  have hq : Pr[q | challengeNoiseCoinsExp] = (1 / (2 : ℝ≥0∞)) ^ 352 := by
+  have hq : Pr{let x ← challengeNoiseCoinsExp}[q x] = (1 / (2 : ℝ≥0∞)) ^ 352 := by
     calc
-      Pr[q | challengeNoiseCoinsExp] =
-          Pr[fun v : Fin challengeParams.n → Scalar challengeParams =>
-              ∀ k, Even (v k).val |
-            (fun t : InitKey challengeParams × SendACoins challengeParams =>
-              fun k => t.1.secret k c.2) <$> challengeNoiseCoinsExp] := by
-        rw [probEvent_map]
-        rfl
-      _ = Pr[fun v : Fin challengeParams.n → Scalar challengeParams =>
-              ∀ k, Even (v k).val |
-            ProbComp.sampleIID challengeParams.n d1Sampler] := by
+      Pr{let x ← challengeNoiseCoinsExp}[q x] =
+          Pr{let v ← ((fun t : InitKey challengeParams × SendACoins challengeParams =>
+              fun k => t.1.secret k c.2) <$> challengeNoiseCoinsExp)}[∀ k, Even (v k).val] := by
+        rw [prEvent_map]
+      _ = Pr{let v ← ProbComp.sampleIID challengeParams.n d1Sampler}[∀ k, Even (v k).val] := by
         simp only [probEvent_def, evalDist_noiseCoins_initSecretCol c]
       _ = (1 / (2 : ℝ≥0∞)) ^ 352 := by
         simpa only [challengeParams] using probEvent_d1_vector_all_even 352
-  change Pr[fun t => p t ∨ q t | challengeNoiseCoinsExp] ≤ _
+  change Pr{let t ← challengeNoiseCoinsExp}[p t ∨ q t] ≤ _
   calc
-    Pr[fun t => p t ∨ q t | challengeNoiseCoinsExp] ≤
-        Pr[p | challengeNoiseCoinsExp] + Pr[q | challengeNoiseCoinsExp] :=
-      probEvent_or_le challengeNoiseCoinsExp p q
+    Pr{let t ← challengeNoiseCoinsExp}[p t ∨ q t] ≤
+        Pr{let x ← challengeNoiseCoinsExp}[p x] + Pr{let x ← challengeNoiseCoinsExp}[q x] :=
+      prEvent_or_le challengeNoiseCoinsExp p q
     _ = (1 / (2 : ℝ≥0∞)) ^ 352 + (1 / (2 : ℝ≥0∞)) ^ 352 := by rw [hp, hq]
     _ = 1 / (2 : ℝ≥0∞) ^ 351 := by
       simp only [one_div, ENNReal.inv_pow]
@@ -373,36 +360,34 @@ private theorem challengeScalarPhaseEquiv_fst
   rfl
 
 private theorem evalDist_uniform_challengePhase :
-    evalDist
+    finiteLaw
         ((fun v : Scalar challengeParams => (challengeScalarPhaseEquiv v).1) <$>
           ($ᵗ (Scalar challengeParams) : ProbComp (Scalar challengeParams))) =
-      evalDist ($ᵗ (Fin 512) : ProbComp (Fin 512)) := by
+      finiteLaw ($ᵗ (Fin 512) : ProbComp (Fin 512)) := by
   calc
-    evalDist
+    finiteLaw
           ((fun v : Scalar challengeParams => (challengeScalarPhaseEquiv v).1) <$>
             ($ᵗ (Scalar challengeParams) : ProbComp (Scalar challengeParams))) =
-        evalDist
+        finiteLaw
           (Prod.fst <$>
             (challengeScalarPhaseEquiv <$>
               ($ᵗ (Scalar challengeParams) : ProbComp (Scalar challengeParams)))) := by
       rw [Functor.map_map]
-    _ = evalDist
+    _ = finiteLaw
           (Prod.fst <$> ($ᵗ (Fin 512 × Fin 4) : ProbComp (Fin 512 × Fin 4))) := by
-      exact evalDist_map_eq_of_evalDist_eq
+      exact finiteLaw_map_congr
         (evalDist_map_bijective_uniform_cross
           (α := Scalar challengeParams) challengeScalarPhaseEquiv
           challengeScalarPhaseEquiv.bijective) Prod.fst
-    _ = evalDist ($ᵗ (Fin 512) : ProbComp (Fin 512)) :=
+    _ = finiteLaw ($ᵗ (Fin 512) : ProbComp (Fin 512)) :=
       evalDist_map_fst_uniformSample_prod
 
 theorem
     Frodo2016.Challenge.Experiment.Internal.probEvent_uniform_phase_eq_challengeFailureRamp
     (z : ℤ) :
-    Pr[fun v : Scalar challengeParams =>
-      1024 ≤
+    Pr{let v ← ($ᵗ (Scalar challengeParams) : ProbComp (Scalar challengeParams))}[1024 ≤
         ((((v.val % 512 + 256 : ℕ) : Scalar challengeParams) -
-          (z : Scalar challengeParams)).val) |
-      ($ᵗ (Scalar challengeParams) : ProbComp (Scalar challengeParams))] =
+          (z : Scalar challengeParams)).val)] =
         challengeFailureRamp z := by
   let phaseBad := fun u : ℕ =>
     1024 ≤
@@ -431,23 +416,19 @@ theorem
         norm_num [challengeParams, Params.halfWidth, Params.blockWidth,
           Params.discardBits]
   calc
-    Pr[fun v : Scalar challengeParams => phaseBad (v.val % 512) |
-        ($ᵗ (Scalar challengeParams) : ProbComp (Scalar challengeParams))] =
-        Pr[fun u : Fin 512 => phaseBad u.val |
-          (fun v : Scalar challengeParams => (challengeScalarPhaseEquiv v).1) <$>
-            ($ᵗ (Scalar challengeParams) : ProbComp (Scalar challengeParams))] := by
-      rw [probEvent_map]
+    Pr{let v ← ($ᵗ (Scalar challengeParams) : ProbComp (Scalar challengeParams))}[phaseBad (v.val % 512)] =
+        Pr{let u ← ((fun v : Scalar challengeParams => (challengeScalarPhaseEquiv v).1) <$>
+            ($ᵗ (Scalar challengeParams) : ProbComp (Scalar challengeParams)))}[phaseBad u.val] := by
+      rw [prEvent_map]
       apply probEvent_congr'
       · intro v _
-        simp only [Function.comp_apply]
         rw [challengeScalarPhaseEquiv_fst]
       · rfl
-    _ = Pr[fun u : Fin 512 => phaseBad u.val |
-          ($ᵗ (Fin 512) : ProbComp (Fin 512))] := by
+    _ = Pr{let u ← ($ᵗ (Fin 512) : ProbComp (Fin 512))}[phaseBad u.val] := by
       simp only [probEvent_def, evalDist_uniform_challengePhase]
     _ = (((Finset.univ : Finset (Fin 512)).filter fun u => phaseBad u.val).card :
           ℝ≥0∞) / 512 := by
-      rw [probEvent_uniformSample]
+      rw [SampleableType.prEvent_uniformSample]
       change (((Finset.univ : Finset (Fin 512)).filter fun u => phaseBad u.val).card :
         ℝ≥0∞) / 512 = _
       rfl

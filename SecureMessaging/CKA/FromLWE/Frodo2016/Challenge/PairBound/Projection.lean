@@ -13,7 +13,7 @@ This module rewrites shared-row, shared-column, and disjoint coordinate projecti
 experiments whose moments were computed in the preceding layer.
 -/
 
-open OracleComp OracleComp.EvalDist
+open OracleComp
 open scoped BigOperators ENNReal
 
 namespace lweCKA
@@ -115,14 +115,14 @@ private theorem evalDist_bind_five_output_congr
     (m₄ : ProbComp α₄) (m₅ : ProbComp α₅)
     (f g : α₁ → α₂ → α₃ → α₄ → α₅ → ProbComp ρ)
     (h : ∀ a₁ a₂ a₃ a₄ a₅, f a₁ a₂ a₃ a₄ a₅ = g a₁ a₂ a₃ a₄ a₅) :
-    evalDist (do
+    finiteLaw (do
       let a₁ ← m₁
       let a₂ ← m₂
       let a₃ ← m₃
       let a₄ ← m₄
       let a₅ ← m₅
       f a₁ a₂ a₃ a₄ a₅) =
-    evalDist (do
+    finiteLaw (do
       let a₁ ← m₁
       let a₂ ← m₂
       let a₃ ← m₃
@@ -134,10 +134,10 @@ private theorem evalDist_bind_five_output_congr
 theorem evalDist_challengeInt_to_row_projected
     (c d : Fin challengeParams.nbar × Fin challengeParams.nbar)
     (hrow : c.1 = d.1) (σ τ : ℤ) :
-    evalDist
+    finiteLaw
         ((fun t => σ * challengeEntryNoiseAux c t + τ * challengeEntryNoiseAux d t) <$>
           challengeIntCoinsExp) =
-      evalDist (challengeProjectedRowExponentExp c d σ τ) := by
+      finiteLaw (challengeProjectedRowExponentExp c d σ τ) := by
   simp only [challengeIntCoinsExp, challengeProjectedRowExponentExp,
     challengeEntryNoiseAux, map_eq_bind_pure_comp, bind_assoc, pure_bind,
     Function.comp_apply]
@@ -152,10 +152,10 @@ theorem evalDist_challengeInt_to_row_projected
 theorem evalDist_challengeInt_to_col_projected
     (c d : Fin challengeParams.nbar × Fin challengeParams.nbar)
     (hcol : c.2 = d.2) (σ τ : ℤ) :
-    evalDist
+    finiteLaw
         ((fun t => σ * challengeEntryNoiseAux c t + τ * challengeEntryNoiseAux d t) <$>
           challengeIntCoinsExp) =
-      evalDist (challengeProjectedColExponentExp c d σ τ) := by
+      finiteLaw (challengeProjectedColExponentExp c d σ τ) := by
   simp only [challengeIntCoinsExp, challengeProjectedColExponentExp,
     challengeEntryNoiseAux, map_eq_bind_pure_comp, bind_assoc, pure_bind,
     Function.comp_apply]
@@ -179,10 +179,10 @@ theorem evalDist_challengeInt_to_col_projected
 theorem evalDist_challengeInt_to_disjoint_projected
     (c d : Fin challengeParams.nbar × Fin challengeParams.nbar)
     (σ τ : ℤ) :
-    evalDist
+    finiteLaw
         ((fun t => σ * challengeEntryNoiseAux c t + τ * challengeEntryNoiseAux d t) <$>
           challengeIntCoinsExp) =
-      evalDist (challengeProjectedDisjointExponentExp c d σ τ) := by
+      finiteLaw (challengeProjectedDisjointExponentExp c d σ τ) := by
   simp only [challengeIntCoinsExp, challengeProjectedDisjointExponentExp,
     challengeEntryNoiseAux, map_eq_bind_pure_comp, bind_assoc, pure_bind,
     Function.comp_apply]
@@ -228,26 +228,26 @@ private def challengeSharedPairBlock (σ τ : ℤ) : ProbComp ℤ := do
 
 private theorem evalDist_sharedPairBlock_eq
     (σ τ : ℤ) :
-    evalDist (challengeSharedPairBlock σ τ) =
-      evalDist (challengeSharedBlock σ τ) := by
+    finiteLaw (challengeSharedPairBlock σ τ) =
+      finiteLaw (challengeSharedBlock σ τ) := by
   simp only [challengeSharedPairBlock, challengeSharedBlock, challengeSharedExponent,
     challengeAddExponents, challengePairSampler, seq_eq_bind_map,
     map_eq_bind_pure_comp, bind_assoc, pure_bind, Function.comp_apply]
 
 private theorem evalDist_rowBlock_eq_sharedBlock (σ τ : ℤ) :
-    evalDist (challengeRowBlock σ τ) = evalDist (challengeSharedBlock σ τ) := by
-  apply (show evalDist (challengeRowBlock σ τ) =
-      evalDist (challengeSharedPairBlock σ τ) by
+    finiteLaw (challengeRowBlock σ τ) = finiteLaw (challengeSharedBlock σ τ) := by
+  apply (show finiteLaw (challengeRowBlock σ τ) =
+      finiteLaw (challengeSharedPairBlock σ τ) by
     simp only [challengeRowBlock, challengeSharedPairBlock]
     calc
-      evalDist
+      finiteLaw
             (challengePairSampler >>= fun s0 =>
               challengePairSampler >>= fun e0 =>
               d1IntSampler >>= fun s1 =>
               d1IntSampler >>= fun e1 =>
               pure (s1 * (σ * e0.1 + τ * e0.2) +
                 e1 * (-σ * s0.1 + -τ * s0.2))) =
-          evalDist
+          finiteLaw
             (challengePairSampler >>= fun s0 =>
               d1IntSampler >>= fun s1 =>
               challengePairSampler >>= fun e0 =>
@@ -257,7 +257,7 @@ private theorem evalDist_rowBlock_eq_sharedBlock (σ τ : ℤ) :
         apply evalDist_bind_congr'
         intro s0
         rw [evalDist_bind_bind_swap]
-      _ = evalDist
+      _ = finiteLaw
             (d1IntSampler >>= fun s1 =>
               challengePairSampler >>= fun s0 =>
               challengePairSampler >>= fun e0 =>
@@ -270,7 +270,7 @@ private theorem evalDist_rowBlock_eq_sharedBlock (σ τ : ℤ) :
             d1IntSampler >>= fun e1 =>
             pure (s1 * (σ * e0.1 + τ * e0.2) +
               e1 * (-σ * s0.1 + -τ * s0.2)))
-      _ = evalDist
+      _ = finiteLaw
             (d1IntSampler >>= fun s1 =>
               challengePairSampler >>= fun e0 =>
               challengePairSampler >>= fun s0 =>
@@ -280,7 +280,7 @@ private theorem evalDist_rowBlock_eq_sharedBlock (σ τ : ℤ) :
         apply evalDist_bind_congr'
         intro s1
         rw [evalDist_bind_bind_swap]
-      _ = evalDist
+      _ = finiteLaw
             (d1IntSampler >>= fun s1 =>
               challengePairSampler >>= fun e0 =>
               d1IntSampler >>= fun e1 =>
@@ -294,19 +294,19 @@ private theorem evalDist_rowBlock_eq_sharedBlock (σ τ : ℤ) :
         rw [evalDist_bind_bind_swap])
 
 private theorem evalDist_colBlock_eq_sharedBlock (σ τ : ℤ) :
-    evalDist (challengeColBlock σ τ) = evalDist (challengeSharedBlock σ τ) := by
-  have hreorder : evalDist (challengeColBlock σ τ) =
-      evalDist (challengeSharedPairBlock σ τ) := by
+    finiteLaw (challengeColBlock σ τ) = finiteLaw (challengeSharedBlock σ τ) := by
+  have hreorder : finiteLaw (challengeColBlock σ τ) =
+      finiteLaw (challengeSharedPairBlock σ τ) := by
     simp only [challengeColBlock, challengeSharedPairBlock]
     calc
-      evalDist
+      finiteLaw
             (d1IntSampler >>= fun s0 =>
               d1IntSampler >>= fun e0 =>
               challengePairSampler >>= fun s1 =>
               challengePairSampler >>= fun e1 =>
               pure (e0 * (σ * s1.1 + τ * s1.2) +
                 s0 * (-σ * e1.1 + -τ * e1.2))) =
-          evalDist
+          finiteLaw
             (d1IntSampler >>= fun s0 =>
               challengePairSampler >>= fun s1 =>
               d1IntSampler >>= fun e0 =>
@@ -316,7 +316,7 @@ private theorem evalDist_colBlock_eq_sharedBlock (σ τ : ℤ) :
         apply evalDist_bind_congr'
         intro s0
         rw [evalDist_bind_bind_swap]
-      _ = evalDist
+      _ = finiteLaw
             (challengePairSampler >>= fun s1 =>
               d1IntSampler >>= fun s0 =>
               d1IntSampler >>= fun e0 =>
@@ -329,7 +329,7 @@ private theorem evalDist_colBlock_eq_sharedBlock (σ τ : ℤ) :
             challengePairSampler >>= fun e1 =>
             pure (e0 * (σ * s1.1 + τ * s1.2) +
               s0 * (-σ * e1.1 + -τ * e1.2)))
-      _ = evalDist
+      _ = finiteLaw
             (challengePairSampler >>= fun s1 =>
               d1IntSampler >>= fun e0 =>
               d1IntSampler >>= fun s0 =>
@@ -339,7 +339,7 @@ private theorem evalDist_colBlock_eq_sharedBlock (σ τ : ℤ) :
         apply evalDist_bind_congr'
         intro s1
         rw [evalDist_bind_bind_swap]
-      _ = evalDist
+      _ = finiteLaw
             (d1IntSampler >>= fun e0 =>
               challengePairSampler >>= fun s1 =>
               d1IntSampler >>= fun s0 =>
@@ -352,7 +352,7 @@ private theorem evalDist_colBlock_eq_sharedBlock (σ τ : ℤ) :
             challengePairSampler >>= fun e1 =>
             pure (e0 * (σ * s1.1 + τ * s1.2) +
               s0 * (-σ * e1.1 + -τ * e1.2)))
-      _ = evalDist (challengeSharedPairBlock σ τ) := by
+      _ = finiteLaw (challengeSharedPairBlock σ τ) := by
         simp only [challengeSharedPairBlock]
   exact hreorder.trans (evalDist_sharedPairBlock_eq σ τ)
 
@@ -366,8 +366,8 @@ private def challengeDisjointPairBlock (σ τ : ℤ) : ProbComp ℤ :=
     (challengeDoubleProductBlock (-σ) (-τ))
 
 private theorem evalDist_doubleProductBlock_eq (σ τ : ℤ) :
-    evalDist (challengeDoubleProductBlock σ τ) =
-      evalDist (challengeAddExponents (challengeProductExponent σ)
+    finiteLaw (challengeDoubleProductBlock σ τ) =
+      finiteLaw (challengeAddExponents (challengeProductExponent σ)
         (challengeProductExponent τ)) := by
   simp only [challengeDoubleProductBlock, challengePairSampler,
     challengeAddExponents, challengeProductExponent, seq_eq_bind_map,
@@ -385,11 +385,11 @@ private theorem evalDist_doubleProductBlock_eq (σ τ : ℤ) :
   ring
 
 private theorem evalDist_disjointPairBlock_eq (σ τ : ℤ) :
-    evalDist (challengeDisjointPairBlock σ τ) =
-      evalDist (challengeDisjointBlock σ τ) := by
+    finiteLaw (challengeDisjointPairBlock σ τ) =
+      finiteLaw (challengeDisjointBlock σ τ) := by
   have hHead {α β : Type} {mx my : ProbComp α}
-      (h : evalDist mx = evalDist my) (f : α → ProbComp β) :
-      evalDist (mx >>= f) = evalDist (my >>= f) := by
+      (h : finiteLaw mx = finiteLaw my) (f : α → ProbComp β) :
+      finiteLaw (mx >>= f) = finiteLaw (my >>= f) := by
     simp only [evalDist_bind, h]
   simp only [challengeDisjointPairBlock, challengeDisjointBlock,
     challengeAddExponents]
@@ -438,14 +438,14 @@ private def disjointOrder4 (σ τ : ℤ) : ProbComp ℤ := do
     (-σ) * e1.1 * s0.1 + (-τ) * e1.2 * s0.2
 
 private theorem evalDist_disjointOrder01 (σ τ : ℤ) :
-    evalDist (disjointOrder0 σ τ) = evalDist (disjointOrder1 σ τ) := by
+    finiteLaw (disjointOrder0 σ τ) = finiteLaw (disjointOrder1 σ τ) := by
   simp only [disjointOrder0, disjointOrder1]
   apply evalDist_bind_congr'
   intro s0
   rw [evalDist_bind_bind_swap]
 
 private theorem evalDist_disjointOrder12 (σ τ : ℤ) :
-    evalDist (disjointOrder1 σ τ) = evalDist (disjointOrder2 σ τ) := by
+    finiteLaw (disjointOrder1 σ τ) = finiteLaw (disjointOrder2 σ τ) := by
   simp only [disjointOrder1, disjointOrder2]
   exact evalDist_bind_bind_swap challengePairSampler challengePairSampler
     (fun s0 s1 =>
@@ -455,14 +455,14 @@ private theorem evalDist_disjointOrder12 (σ τ : ℤ) :
         -σ * e1.1 * s0.1 + -τ * e1.2 * s0.2))
 
 private theorem evalDist_disjointOrder23 (σ τ : ℤ) :
-    evalDist (disjointOrder2 σ τ) = evalDist (disjointOrder3 σ τ) := by
+    finiteLaw (disjointOrder2 σ τ) = finiteLaw (disjointOrder3 σ τ) := by
   simp only [disjointOrder2, disjointOrder3]
   apply evalDist_bind_congr'
   intro s1
   rw [evalDist_bind_bind_swap]
 
 private theorem evalDist_disjointOrder34 (σ τ : ℤ) :
-    evalDist (disjointOrder3 σ τ) = evalDist (disjointOrder4 σ τ) := by
+    finiteLaw (disjointOrder3 σ τ) = finiteLaw (disjointOrder4 σ τ) := by
   simp only [disjointOrder3, disjointOrder4]
   apply evalDist_bind_congr'
   intro s1
@@ -471,8 +471,8 @@ private theorem evalDist_disjointOrder34 (σ τ : ℤ) :
   rw [evalDist_bind_bind_swap]
 
 private theorem evalDist_disjointOrder4_pair (σ τ : ℤ) :
-    evalDist (disjointOrder4 σ τ) =
-      evalDist (challengeDisjointPairBlock σ τ) := by
+    finiteLaw (disjointOrder4 σ τ) =
+      finiteLaw (challengeDisjointPairBlock σ τ) := by
   have hout (s1 e0 e1 s0 : ℤ × ℤ) :
       σ * s1.1 * e0.1 + τ * s1.2 * e0.2 +
           -σ * e1.1 * s0.1 + -τ * e1.2 * s0.2 =
@@ -484,9 +484,9 @@ private theorem evalDist_disjointOrder4_pair (σ τ : ℤ) :
   simp_rw [hout]
 
 theorem evalDist_disjointProjectedBlock_eq (σ τ : ℤ) :
-    evalDist (challengeDisjointProjectedBlock σ τ) =
-      evalDist (challengeDisjointBlock σ τ) := by
-  change evalDist (disjointOrder0 σ τ) = _
+    finiteLaw (challengeDisjointProjectedBlock σ τ) =
+      finiteLaw (challengeDisjointBlock σ τ) := by
+  change finiteLaw (disjointOrder0 σ τ) = _
   exact (evalDist_disjointOrder01 σ τ).trans
     ((evalDist_disjointOrder12 σ τ).trans
       ((evalDist_disjointOrder23 σ τ).trans
@@ -499,20 +499,20 @@ theorem evalDist_bind_five_congr
     {ma₁ mb₁ : ProbComp α₁} {ma₂ mb₂ : ProbComp α₂}
     {ma₃ mb₃ : ProbComp α₃} {ma₄ mb₄ : ProbComp α₄}
     {ma₅ mb₅ : ProbComp α₅}
-    (h₁ : evalDist ma₁ = evalDist mb₁)
-    (h₂ : evalDist ma₂ = evalDist mb₂)
-    (h₃ : evalDist ma₃ = evalDist mb₃)
-    (h₄ : evalDist ma₄ = evalDist mb₄)
-    (h₅ : evalDist ma₅ = evalDist mb₅)
+    (h₁ : finiteLaw ma₁ = finiteLaw mb₁)
+    (h₂ : finiteLaw ma₂ = finiteLaw mb₂)
+    (h₃ : finiteLaw ma₃ = finiteLaw mb₃)
+    (h₄ : finiteLaw ma₄ = finiteLaw mb₄)
+    (h₅ : finiteLaw ma₅ = finiteLaw mb₅)
     (f : α₁ → α₂ → α₃ → α₄ → α₅ → ProbComp ρ) :
-    evalDist (do
+    finiteLaw (do
       let a₁ ← ma₁
       let a₂ ← ma₂
       let a₃ ← ma₃
       let a₄ ← ma₄
       let a₅ ← ma₅
       f a₁ a₂ a₃ a₄ a₅) =
-    evalDist (do
+    finiteLaw (do
       let b₁ ← mb₁
       let b₂ ← mb₂
       let b₃ ← mb₃
@@ -523,15 +523,15 @@ theorem evalDist_bind_five_congr
 
 theorem evalDist_bind_head_congr
     {α β : Type} {mx my : ProbComp α}
-    (h : evalDist mx = evalDist my) (f : α → ProbComp β) :
-    evalDist (mx >>= f) = evalDist (my >>= f) := by
+    (h : finiteLaw mx = finiteLaw my) (f : α → ProbComp β) :
+    finiteLaw (mx >>= f) = finiteLaw (my >>= f) := by
   simp only [evalDist_bind, h]
 
 theorem evalDist_projected_row_pairExponent
     (c d : Fin challengeParams.nbar × Fin challengeParams.nbar)
     (hcol : c.2 ≠ d.2) (σ τ : ℤ) :
-    evalDist (challengeProjectedRowExponentExp c d σ τ) =
-      evalDist (challengePairExponentExp true σ τ) := by
+    finiteLaw (challengeProjectedRowExponentExp c d σ τ) =
+      finiteLaw (challengePairExponentExp true σ τ) := by
   let vectorExp : ProbComp (Fin challengeParams.n → ℤ) := do
     let s0 ← ProbComp.sampleIID challengeParams.n challengePairSampler
     let e0 ← ProbComp.sampleIID challengeParams.n challengePairSampler
@@ -539,8 +539,8 @@ theorem evalDist_projected_row_pairExponent
     let e1 ← ProbComp.sampleIID challengeParams.n d1IntSampler
     return fun k => s1 k * (σ * (e0 k).1 + τ * (e0 k).2) +
       e1 k * ((-σ) * (s0 k).1 + (-τ) * (s0 k).2)
-  have hprojected : evalDist (challengeProjectedRowExponentExp c d σ τ) =
-      evalDist (do
+  have hprojected : finiteLaw (challengeProjectedRowExponentExp c d σ τ) =
+      finiteLaw (do
         let blocks ← vectorExp
         let extra ← challengePairSampler
         return (∑ k, blocks k) + σ * extra.1 + τ * extra.2) := by
@@ -552,8 +552,8 @@ theorem evalDist_projected_row_pairExponent
     · exact evalDist_challengeIntMatrix_row _ _ c.1
     · exact evalDist_challengeIntMatrix_two_entries _ _ _ _ _ _
         (fun h => hcol (congrArg Prod.snd h))
-  have hvector : evalDist vectorExp =
-      evalDist (ProbComp.sampleIID challengeParams.n (challengeRowBlock σ τ)) := by
+  have hvector : finiteLaw vectorExp =
+      finiteLaw (ProbComp.sampleIID challengeParams.n (challengeRowBlock σ τ)) := by
     simpa only [vectorExp, challengeRowBlock] using
       evalDist_sampleIID_map_four challengePairSampler challengePairSampler
         d1IntSampler d1IntSampler challengeParams.n
@@ -579,8 +579,8 @@ theorem evalDist_projected_row_pairExponent
 theorem evalDist_projected_col_pairExponent
     (c d : Fin challengeParams.nbar × Fin challengeParams.nbar)
     (hrow : c.1 ≠ d.1) (σ τ : ℤ) :
-    evalDist (challengeProjectedColExponentExp c d σ τ) =
-      evalDist (challengePairExponentExp true σ τ) := by
+    finiteLaw (challengeProjectedColExponentExp c d σ τ) =
+      finiteLaw (challengePairExponentExp true σ τ) := by
   let vectorExp : ProbComp (Fin challengeParams.n → ℤ) := do
     let s0 ← ProbComp.sampleIID challengeParams.n d1IntSampler
     let e0 ← ProbComp.sampleIID challengeParams.n d1IntSampler
@@ -588,8 +588,8 @@ theorem evalDist_projected_col_pairExponent
     let e1 ← ProbComp.sampleIID challengeParams.n challengePairSampler
     return fun k => e0 k * (σ * (s1 k).1 + τ * (s1 k).2) +
       s0 k * ((-σ) * (e1 k).1 + (-τ) * (e1 k).2)
-  have hprojected : evalDist (challengeProjectedColExponentExp c d σ τ) =
-      evalDist (do
+  have hprojected : finiteLaw (challengeProjectedColExponentExp c d σ τ) =
+      finiteLaw (do
         let blocks ← vectorExp
         let extra ← challengePairSampler
         return (∑ k, blocks k) + σ * extra.1 + τ * extra.2) := by
@@ -601,8 +601,8 @@ theorem evalDist_projected_col_pairExponent
     · exact evalDist_challengeIntMatrix_two_rows _ _ _ _ hrow
     · exact evalDist_challengeIntMatrix_two_entries _ _ _ _ _ _
         (fun h => hrow (congrArg Prod.fst h))
-  have hvector : evalDist vectorExp =
-      evalDist (ProbComp.sampleIID challengeParams.n (challengeColBlock σ τ)) := by
+  have hvector : finiteLaw vectorExp =
+      finiteLaw (ProbComp.sampleIID challengeParams.n (challengeColBlock σ τ)) := by
     simpa only [vectorExp, challengeColBlock] using
       evalDist_sampleIID_map_four d1IntSampler d1IntSampler
         challengePairSampler challengePairSampler challengeParams.n

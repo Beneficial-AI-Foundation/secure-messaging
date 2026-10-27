@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.CKA.FromLWE.Frodo2016.Sampling
 import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate.Radix
-import VCVio.EvalDist.Expectation
+import VCVio.ProgramLogic.Unary.HoareTriple
 import VCVio.EvalDist.Monad.Seq
 import Mathlib.Data.Int.NatAbs
 import Mathlib.Tactic.IntervalCases
@@ -20,7 +20,7 @@ proves their sampling laws, and connects the concrete product pack to the
 semantic measure pack.
 -/
 
-open OracleComp OracleComp.EvalDist
+open OracleComp
 open scoped BigOperators ENNReal
 
 namespace lweCKA.ChallengeCertificateModel
@@ -90,9 +90,9 @@ theorem ChallengeModelInternal.d1Counts_apply (z : ℤ) :
   rw [d1Counts, AddMonoidAlgebra.coeff_sum, Finsupp.finsetSum_apply]
   by_cases hz : z ∈ Finset.Icc (-3 : ℤ) 3
   · rw [Finset.sum_eq_single z]
-    · simp
+    · simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_eq_same]
     · intro b hb hne
-      simp [hne]
+      simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_apply, hne, ite_false]
     · exact fun h => (h hz).elim
   · have hweight : d1Weight z = 0 := by
       have hnot : z ∉ Set.Icc (-3 : ℤ) 3 := by simpa using hz
@@ -105,13 +105,13 @@ theorem ChallengeModelInternal.d1Counts_apply (z : ℤ) :
     have hne : b ≠ z := by
       intro h
       exact hz (h ▸ hb)
-    simp [hne]
+    simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_apply, hne, ite_false]
 
 private theorem d1Weight_ne_zero_iff (z : ℤ) :
     d1Weight z ≠ 0 ↔ z ∈ Finset.Icc (-3 : ℤ) 3 := by
   constructor
   · intro hw
-    have hp : Pr[= z | d1IntSampler] ≠ 0 := by
+    have hp : Pr{let x ← d1IntSampler}[x = z] ≠ 0 := by
       rw [probOutput_d1IntSampler]
       exact ENNReal.div_ne_zero.mpr ⟨Nat.cast_ne_zero.mpr hw, by norm_num⟩
     have hs : z ∈ support d1IntSampler :=
@@ -134,7 +134,7 @@ theorem ChallengeModelInternal.measureWindow_d1Counts :
     ToVCVio.MeasureWindow d1Counts (-3) 3 := by
   intro z hz
   rw [d1Counts_apply] at hz
-  have hp : 0 < Pr[= z | d1IntSampler] := by
+  have hp : 0 < Pr{let x ← d1IntSampler}[x = z] := by
     rw [probOutput_d1IntSampler]
     exact ENNReal.div_pos (Nat.cast_ne_zero.mpr hz) (by norm_num)
   have hs : z ∈ support d1IntSampler :=
@@ -207,7 +207,7 @@ private def d1ProductExp : ProbComp ℤ := do
   return x * y
 
 private theorem probOutput_d1ProductExp (z : ℤ) :
-    Pr[= z | d1ProductExp] = (productCounts z : ℝ≥0∞) / 65536 := by
+    Pr{let x ← d1ProductExp}[x = z] = (productCounts z : ℝ≥0∞) / 65536 := by
   rw [show d1ProductExp = (fun x y : ℤ => x * y) <$> d1IntSampler <*>
       d1IntSampler from rfl,
     probOutput_seq_map_eq_tsum_ite]
@@ -216,12 +216,12 @@ private theorem probOutput_d1ProductExp (z : ℤ) :
       (∑ x ∈ Finset.Icc (-3 : ℤ) 3,
           ∑' y : ℤ,
             if z = x * y then
-              Pr[= x | d1IntSampler] * Pr[= y | d1IntSampler]
+              Pr{let y ← d1IntSampler}[y = x] * Pr{let x ← d1IntSampler}[x = y]
             else 0) =
           ∑ x ∈ Finset.Icc (-3 : ℤ) 3,
             ∑ y ∈ Finset.Icc (-3 : ℤ) 3,
               if z = x * y then
-                Pr[= x | d1IntSampler] * Pr[= y | d1IntSampler]
+                Pr{let y ← d1IntSampler}[y = x] * Pr{let x ← d1IntSampler}[x = y]
               else 0 := by
         refine Finset.sum_congr rfl fun x hx => ?_
         rw [tsum_eq_sum (s := Finset.Icc (-3 : ℤ) 3)]
@@ -255,11 +255,11 @@ private def d1NegProductExp : ProbComp ℤ :=
   (-·) <$> d1ProductExp
 
 private theorem probOutput_d1NegProductExp (z : ℤ) :
-    Pr[= z | d1NegProductExp] = (productCounts z : ℝ≥0∞) / 65536 := by
+    Pr{let x ← d1NegProductExp}[x = z] = (productCounts z : ℝ≥0∞) / 65536 := by
   calc
-    Pr[= z | d1NegProductExp] = Pr[= -z | d1ProductExp] := by
+    Pr{let x ← d1NegProductExp}[x = z] = Pr{let x ← d1ProductExp}[x = -z] := by
       unfold d1NegProductExp
-      convert probOutput_map_injective d1ProductExp
+      convert prEvent_map_injective d1ProductExp
         (fun _ _ h => neg_inj.mp h) (-z) using 1
       all_goals simp
     _ = (productCounts (-z) : ℝ≥0∞) / 65536 := probOutput_d1ProductExp (-z)
@@ -278,16 +278,16 @@ private theorem productWindow_eq_rangeImage :
 
 private theorem probOutput_add_productCounts
     (mx my : ProbComp ℤ)
-    (hmx : ∀ z, Pr[= z | mx] = (productCounts z : ℝ≥0∞) / 65536)
-    (hmy : ∀ z, Pr[= z | my] = (productCounts z : ℝ≥0∞) / 65536)
+    (hmx : ∀ z, Pr{let x ← mx}[x = z] = (productCounts z : ℝ≥0∞) / 65536)
+    (hmy : ∀ z, Pr{let x ← my}[x = z] = (productCounts z : ℝ≥0∞) / 65536)
     (z : ℤ) :
-    Pr[= z | (fun x y : ℤ => x + y) <$> mx <*> my] =
+    Pr{let w ← (fun x y : ℤ => x + y) <$> mx <*> my}[w = z] =
       ((productCounts * productCounts) z : ℝ≥0∞) / 65536 ^ 2 := by
   rw [probOutput_seq_map_eq_tsum_ite]
   have hinner (x : ℤ) :
       (∑' y : ℤ,
-        if z = x + y then Pr[= x | mx] * Pr[= y | my] else 0) =
-        Pr[= x | mx] * Pr[= z - x | my] := by
+        if z = x + y then Pr{let y ← mx}[y = x] * Pr{let x ← my}[x = y] else 0) =
+        Pr{let y ← mx}[y = x] * Pr{let y ← my}[y = z - x] := by
     refine (tsum_eq_single (z - x) (fun y hy => ?_)).trans ?_
     · rw [if_neg]
       intro h
@@ -327,18 +327,18 @@ def ChallengeModelInternal.d1DifferenceBlock : ProbComp ℤ := do
   return s1 * e0 - e1 * s0
 
 private theorem evalDist_d1DifferenceBlock_grouped :
-    evalDist d1DifferenceBlock =
-      evalDist ((fun x y : ℤ => x + y) <$> d1ProductExp <*> d1NegProductExp) := by
+    finiteLaw d1DifferenceBlock =
+      finiteLaw ((fun x y : ℤ => x + y) <$> d1ProductExp <*> d1NegProductExp) := by
   simp only [d1DifferenceBlock, d1ProductExp, d1NegProductExp,
     map_eq_bind_pure_comp, seq_eq_bind_map, Function.comp_apply, bind_assoc, pure_bind]
   calc
-    _ = evalDist (do
+    _ = finiteLaw (do
           let e0 ← d1IntSampler
           let s0 ← d1IntSampler
           let s1 ← d1IntSampler
           let e1 ← d1IntSampler
           return s1 * e0 - e1 * s0) := evalDist_bind_bind_swap _ _ _
-    _ = evalDist (do
+    _ = finiteLaw (do
           let e0 ← d1IntSampler
           let s1 ← d1IntSampler
           let s0 ← d1IntSampler
@@ -346,13 +346,13 @@ private theorem evalDist_d1DifferenceBlock_grouped :
           return s1 * e0 - e1 * s0) := by
         refine evalDist_bind_congr' d1IntSampler fun e0 => ?_
         exact evalDist_bind_bind_swap _ _ _
-    _ = evalDist (do
+    _ = finiteLaw (do
           let s1 ← d1IntSampler
           let e0 ← d1IntSampler
           let s0 ← d1IntSampler
           let e1 ← d1IntSampler
           return s1 * e0 - e1 * s0) := evalDist_bind_bind_swap _ _ _
-    _ = evalDist (do
+    _ = finiteLaw (do
           let s1 ← d1IntSampler
           let e0 ← d1IntSampler
           let e1 ← d1IntSampler
@@ -365,7 +365,7 @@ private theorem evalDist_d1DifferenceBlock_grouped :
       congr 1
 
 theorem ChallengeModelInternal.probOutput_d1DifferenceBlock (z : ℤ) :
-    Pr[= z | d1DifferenceBlock] =
+    Pr{let x ← d1DifferenceBlock}[x = z] =
       ((productCounts ^ 2) z : ℝ≥0∞) / 65536 ^ 2 := by
   rw [(evalDist_ext_iff.mp evalDist_d1DifferenceBlock_grouped) z]
   simpa only [pow_two] using
@@ -374,16 +374,16 @@ theorem ChallengeModelInternal.probOutput_d1DifferenceBlock (z : ℤ) :
 
 theorem ChallengeModelInternal.probOutput_add_counts
     (mx my : ProbComp ℤ) (F G : ToVCVio.IntMeasure) (D E : Nat)
-    (hmx : ∀ z, Pr[= z | mx] = (F z : ℝ≥0∞) / D)
-    (hmy : ∀ z, Pr[= z | my] = (G z : ℝ≥0∞) / E)
+    (hmx : ∀ z, Pr{let x ← mx}[x = z] = (F z : ℝ≥0∞) / D)
+    (hmy : ∀ z, Pr{let x ← my}[x = z] = (G z : ℝ≥0∞) / E)
     (z : ℤ) :
-    Pr[= z | (fun x y : ℤ => x + y) <$> mx <*> my] =
+    Pr{let w ← (fun x y : ℤ => x + y) <$> mx <*> my}[w = z] =
       ((F * G) z : ℝ≥0∞) / (D * E) := by
   rw [probOutput_seq_map_eq_tsum_ite]
   have hinner (x : ℤ) :
       (∑' y : ℤ,
-        if z = x + y then Pr[= x | mx] * Pr[= y | my] else 0) =
-        Pr[= x | mx] * Pr[= z - x | my] := by
+        if z = x + y then Pr{let y ← mx}[y = x] * Pr{let x ← my}[x = y] else 0) =
+        Pr{let y ← mx}[y = x] * Pr{let y ← my}[y = z - x] := by
     refine (tsum_eq_single (z - x) (fun y hy => ?_)).trans ?_
     · rw [if_neg]
       intro h

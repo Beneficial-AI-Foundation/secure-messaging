@@ -7,7 +7,7 @@ Authors: Beneficial AI Foundation
 import SecureMessaging.CKA.FromLWE.Correctness
 import SecureMessaging.CKA.FromLWE.Frodo2016.Recommended.EntryNoiseMoments
 import SecureMessaging.CKA.FromLWE.NoiseCorrectness
-import VCVio.EvalDist.Expectation
+import VCVio.ProgramLogic.Unary.HoareTriple
 import VCVio.EvalDist.Monad.Basic
 import VCVio.EvalDist.Monad.Map
 import Mathlib.Data.ENNReal.Inv
@@ -42,10 +42,9 @@ theorem recommendedFailureBound_lt_one :
   norm_num
 
 private theorem probEvent_firstExchangeEntryNoiseIntExp_natAbs_ge_radius_le :
-    Pr[fun z : ℤ => 512 ≤ z.natAbs |
-      firstExchangeEntryNoiseIntExp] ≤
+    Pr{let z ← firstExchangeEntryNoiseIntExp}[512 ≤ z.natAbs] ≤
         recommendedFailureBound / 64 := by
-  refine (probEvent_le_tsum_probOutput_mul_cost firstExchangeEntryNoiseIntExp
+  refine (OracleComp.prEvent_le_tsum_prEvent_mul_cost firstExchangeEntryNoiseIntExp
     (fun z : ℤ => 512 ≤ z.natAbs)
     (fun z : ℤ => (z.natAbs : ℝ≥0∞) ^ 4 / (512 : ℝ≥0∞) ^ 4) ?_).trans ?_
   · intro z hz
@@ -58,7 +57,8 @@ private theorem probEvent_firstExchangeEntryNoiseIntExp_natAbs_ge_radius_le :
     exact hp
   · simp_rw [div_eq_mul_inv, ← mul_assoc]
     rw [ENNReal.tsum_mul_right]
-    change OracleComp.EvalDist.expectedValue firstExchangeEntryNoiseIntExp
+    rw [← expectedValue_def]
+    change lweCKA.expectedValue firstExchangeEntryNoiseIntExp
         (fun z : ℤ => (z.natAbs : ℝ≥0∞) ^ 4) *
           ((512 : ℝ≥0∞) ^ 4)⁻¹ ≤ recommendedFailureBound / 64
     rw [expectedValue_firstExchangeEntryNoiseIntExp_fourth]
@@ -81,31 +81,22 @@ private theorem probEvent_firstExchangeEntryNoiseIntExp_natAbs_ge_radius_le :
 /-- Every actual first-exchange noise entry exceeds the radius with probability at most delta/64. -/
 theorem probEvent_firstExchangeNoise_entry_ge_radius_le
     (i j : Fin recommendedParams.nbar) :
-    Pr[fun delta : SharedMatrix recommendedParams =>
-      512 ≤ modularDistance recommendedParams (delta i j) 0 |
-      firstExchangeNoiseExp recommendedParams d3Sampler] ≤
+    Pr{let delta ← firstExchangeNoiseExp recommendedParams d3Sampler}[512 ≤ modularDistance recommendedParams (delta i j) 0] ≤
         recommendedFailureBound / 64 := by
   let q := fun x : Scalar recommendedParams =>
     512 ≤ modularDistance recommendedParams x 0
   calc
-    Pr[fun delta : SharedMatrix recommendedParams =>
-        512 ≤ modularDistance recommendedParams (delta i j) 0 |
-        firstExchangeNoiseExp recommendedParams d3Sampler] =
-        Pr[q | (fun delta : SharedMatrix recommendedParams => delta i j) <$>
-          firstExchangeNoiseExp recommendedParams d3Sampler] := by
-          rw [probEvent_map]
-          rfl
-    _ = Pr[q | (fun z : ℤ => (z : Scalar recommendedParams)) <$>
-          firstExchangeEntryNoiseIntExp] := by
+    Pr{let delta ← firstExchangeNoiseExp recommendedParams d3Sampler}[512 ≤ modularDistance recommendedParams (delta i j) 0] =
+        Pr{let x ← ((fun delta : SharedMatrix recommendedParams => delta i j) <$>
+          firstExchangeNoiseExp recommendedParams d3Sampler)}[q x] := by
+          rw [prEvent_map]
+    _ = Pr{let x ← ((fun z : ℤ => (z : Scalar recommendedParams)) <$>
+          firstExchangeEntryNoiseIntExp)}[q x] := by
           simp only [probEvent_def]
           rw [evalDist_firstExchangeNoise_entry_eq_cast i j]
-    _ = Pr[fun z : ℤ =>
-          512 ≤ modularDistance recommendedParams (z : Scalar recommendedParams) 0 |
-          firstExchangeEntryNoiseIntExp] := by
-          rw [probEvent_map]
-          rfl
-    _ ≤ Pr[fun z : ℤ => 512 ≤ z.natAbs |
-          firstExchangeEntryNoiseIntExp] := by
+    _ = Pr{let z ← firstExchangeEntryNoiseIntExp}[512 ≤ modularDistance recommendedParams (z : Scalar recommendedParams) 0] := by
+          rw [prEvent_map]
+    _ ≤ Pr{let z ← firstExchangeEntryNoiseIntExp}[512 ≤ z.natAbs] := by
           exact probEvent_mono'' fun z hz =>
             le_trans hz (modularDistance_intCast_zero_le_natAbs recommendedParams z)
     _ ≤ recommendedFailureBound / 64 :=
@@ -117,27 +108,21 @@ theorem firstExchangeFailureProb_recommended_le :
       recommendedFailureBound := by
   calc
     firstExchangeFailureProb recommendedParams d3Sampler ≤
-        Pr[fun delta : SharedMatrix recommendedParams =>
-          ∃ i j : Fin recommendedParams.nbar,
-            512 ≤ modularDistance recommendedParams (delta i j) 0 |
-          firstExchangeNoiseExp recommendedParams d3Sampler] := by
+        Pr{let delta ← firstExchangeNoiseExp recommendedParams d3Sampler}[∃ i j : Fin recommendedParams.nbar,
+            512 ≤ modularDistance recommendedParams (delta i j) 0] := by
           simpa only [recommendedParams_radius] using
             firstExchangeFailureProb_le_noiseTail recommendedParams
               recommendedParams_wellFormed d3Sampler
-    _ ≤ Pr[fun delta : SharedMatrix recommendedParams =>
-          ∃ ij ∈ (Finset.univ : Finset
+    _ ≤ Pr{let delta ← firstExchangeNoiseExp recommendedParams d3Sampler}[∃ ij ∈ (Finset.univ : Finset
             (Fin recommendedParams.nbar × Fin recommendedParams.nbar)),
-            512 ≤ modularDistance recommendedParams (delta ij.1 ij.2) 0 |
-          firstExchangeNoiseExp recommendedParams d3Sampler] := by
+            512 ≤ modularDistance recommendedParams (delta ij.1 ij.2) 0] := by
           exact probEvent_mono'' fun delta h => by
             obtain ⟨i, j, hij⟩ := h
             exact ⟨(i, j), Finset.mem_univ _, hij⟩
     _ ≤ ∑ ij ∈ (Finset.univ : Finset
           (Fin recommendedParams.nbar × Fin recommendedParams.nbar)),
-          Pr[fun delta : SharedMatrix recommendedParams =>
-            512 ≤ modularDistance recommendedParams (delta ij.1 ij.2) 0 |
-            firstExchangeNoiseExp recommendedParams d3Sampler] :=
-          probEvent_exists_finset_le_sum _ _ _
+          Pr{let delta ← firstExchangeNoiseExp recommendedParams d3Sampler}[512 ≤ modularDistance recommendedParams (delta ij.1 ij.2) 0] :=
+          prEvent_exists_finset_le _ _ _
     _ ≤ ∑ _ij ∈ (Finset.univ : Finset
           (Fin recommendedParams.nbar × Fin recommendedParams.nbar)),
           recommendedFailureBound / 64 := by
@@ -159,10 +144,9 @@ theorem correctness_failure_recommended_le
     (T : ℕ)
     (hT : HasExchangeBound recommendedParams
       recommendedParams_wellFormed d3Sampler adv T) :
-    Pr[= false |
-      CKAScheme.correctnessExp
+    Pr{let x ← (CKAScheme.correctnessExp
         (scheme recommendedParams recommendedParams_wellFormed d3Sampler)
-        adv] ≤
+        adv)}[x = false] ≤
       min 1 ((T : ℝ≥0∞) * recommendedFailureBound) := by
   refine le_trans (correctness_failure_le recommendedParams
     recommendedParams_wellFormed d3Sampler adv T hT) ?_

@@ -181,31 +181,31 @@ private theorem evalDist_sample_tape_query_bind_passthrough
       (fun z => (z.1, (z.2, param))) <$> (baseMatrix t).run s)
     (hpres : ∀ z, z ∈ support ((baseMatrix t).run s) → Inv z.2)
     (hih : ∀ (u : spec.Range t) (s' : σ), Inv s' →
-      𝒟[do
+      finiteLaw (do
         let param ← sample
         let (out, s'', _) ← (simulateQ impl (k u)).run (s', param)
-        return (out, s'')] =
-      𝒟[(simulateQ baseMatrix (k u)).run s']) :
-    𝒟[do
+        return (out, s'')) =
+      finiteLaw ((simulateQ baseMatrix (k u)).run s')) :
+    finiteLaw (do
       let param ← sample
       let (out, s', _) ←
         (simulateQ impl (OracleSpec.query t >>= k)).run (s, param)
-      return (out, s')] =
-      𝒟[(simulateQ baseMatrix (OracleSpec.query t >>= k)).run s] := by
+      return (out, s')) =
+      finiteLaw ((simulateQ baseMatrix (OracleSpec.query t >>= k)).run s) := by
   apply evalDist_ext
   intro y
   simp only [simulateQ_bind, simulateQ_query, OracleQuery.cont_query, id_map,
     OracleQuery.input_query, StateT.run_bind, bind_assoc]
-  have halign : Pr[= y | do
+  have halign : Pr{let x ← (do
         let param ← sample
         let step ← (impl t).run (s, param)
         let out ← (simulateQ impl (k step.1)).run step.2
-        pure (out.1, out.2.1)] =
-      Pr[= y | do
+        pure (out.1, out.2.1))}[x = y] =
+      Pr{let x ← (do
         let param ← sample
         let step ← (baseMatrix t).run s
         let out ← (simulateQ impl (k step.1)).run (step.2, param)
-        pure (out.1, out.2.1)] := by
+        pure (out.1, out.2.1))}[x = y] := by
     refine probOutput_bind_congr ?_
     intro param hparam
     rw [himpl param hparam, bind_map_left]
@@ -219,8 +219,8 @@ private theorem evalDist_sample_tape_query_bind_passthrough
   exact evalDist_ext_iff.mp (hih step.1 step.2 (hpres step hstep)) y
 
 private theorem evalDist_bind_of_evalDist_eq
-    {A B : Type} {mx my : ProbComp A} (h : 𝒟[mx] = 𝒟[my])
-    (f : A → ProbComp B) : 𝒟[mx >>= f] = 𝒟[my >>= f] := by
+    {A B : Type} {mx my : ProbComp A} (h : finiteLaw (mx) = finiteLaw (my))
+    (f : A → ProbComp B) : finiteLaw (mx >>= f) = finiteLaw (my >>= f) := by
   rw [evalDist_bind, evalDist_bind, h]
 
 private theorem evalDist_head_tail_query_bind_consume
@@ -230,24 +230,24 @@ private theorem evalDist_head_tail_query_bind_consume
     (baseMatrix : QueryImpl spec (StateT σ ProbComp))
     (Inv : σ → Prop) (s : σ) (t : spec.Domain)
     (k : spec.Range t → OracleComp spec α)
-    (hstep : ∀ rest, 𝒟[do
+    (hstep : ∀ rest, finiteLaw (do
         let h ← head
-        (impl t).run (s, combine h rest)] =
-      𝒟[(fun z => (z.1, (z.2, rest))) <$> (baseMatrix t).run s])
+        (impl t).run (s, combine h rest)) =
+      finiteLaw ((fun z => (z.1, (z.2, rest))) <$> (baseMatrix t).run s))
     (hpres : ∀ z, z ∈ support ((baseMatrix t).run s) → Inv z.2)
     (hih : ∀ (u : spec.Range t) (s' : σ), Inv s' →
-      𝒟[do
+      finiteLaw (do
         let rest ← tail
         let (out, s'', _) ← (simulateQ impl (k u)).run (s', rest)
-        return (out, s'')] =
-      𝒟[(simulateQ baseMatrix (k u)).run s']) :
-    𝒟[do
+        return (out, s'')) =
+      finiteLaw ((simulateQ baseMatrix (k u)).run s')) :
+    finiteLaw (do
       let h ← head
       let rest ← tail
       let (out, s', _) ←
         (simulateQ impl (OracleSpec.query t >>= k)).run (s, combine h rest)
-      return (out, s')] =
-      𝒟[(simulateQ baseMatrix (OracleSpec.query t >>= k)).run s] := by
+      return (out, s')) =
+      finiteLaw ((simulateQ baseMatrix (OracleSpec.query t >>= k)).run s) := by
   apply evalDist_ext
   intro y
   simp only [simulateQ_bind, simulateQ_query, OracleQuery.cont_query, id_map,
@@ -257,17 +257,17 @@ private theorem evalDist_head_tail_query_bind_consume
       let step ← (impl t).run (s, combine h rest)
       let out ← (simulateQ impl (k step.1)).run step.2
       pure (out.1, out.2.1)) (z := y)]
-  have halign : Pr[= y | do
+  have halign : Pr{let x ← (do
         let rest ← tail
         let h ← head
         let step ← (impl t).run (s, combine h rest)
         let out ← (simulateQ impl (k step.1)).run step.2
-        pure (out.1, out.2.1)] =
-      Pr[= y | do
+        pure (out.1, out.2.1))}[x = y] =
+      Pr{let x ← (do
         let rest ← tail
         let step ← (fun z : spec.Range t × σ => (z.1, (z.2, rest))) <$> (baseMatrix t).run s
         let out ← (simulateQ impl (k step.1)).run step.2
-        pure (out.1, out.2.1)] := by
+        pure (out.1, out.2.1))}[x = y] := by
     refine probOutput_bind_congr' tail y fun rest => ?_
     simpa only [bind_assoc] using evalDist_ext_iff.mp
       (evalDist_bind_of_evalDist_eq (hstep rest)
@@ -296,15 +296,15 @@ private theorem evalDist_tapeCorrectnessImpl_sendA_head
     (s : CKAScheme.GameState (State p) (Key p) (Message p))
     (rest : List (SendACoins p × SendBCoins p)) (hs : honestPhase p s)
     (hg : CKAScheme.validStep s.lastAction .sendA = true) :
-    𝒟[do
+    finiteLaw (do
       let a ← sampleSendACoins p χ
       let b ← sampleSendBCoins p χ
       (tapeCorrectnessImpl p hp χ CKAScheme.ckaCorrectnessSpec.OSendA).run
-        (s, (a, b) :: rest)] =
-    𝒟[do
+        (s, (a, b) :: rest)) =
+    finiteLaw (do
       let z ← (CKAScheme.ckaCorrectnessImpl (scheme p hp χ)
         CKAScheme.ckaCorrectnessSpec.OSendA).run s
-      pure (z.1, (z.2, rest))] := by
+      pure (z.1, (z.2, rest))) := by
   rcases s with ⟨stA, stB, rhoA, rhoB, keyA, keyB, correct, last, tA, tB⟩
   rcases last with _ | (_ | _ | _ | _ | _ | _) <;>
     simp [CKAScheme.validStep] at hg
@@ -325,11 +325,10 @@ private theorem evalDist_tapeCorrectnessImpl_sendA_head
     subst tB
     simp only [lt_add_iff_pos_right, Order.lt_one_iff, and_self, lt_self_iff_false,
       or_false, ↓reduceIte, bind_pure_comp, liftM_map]
-    simp only [← liftM_bind, ← liftM_map]
     simp only [map_eq_bind_pure_comp]
     apply evalDist_bind_congr'
     intro a
-    exact OracleComp.DeferredSampling.evalDist_bind_const_neverFails
+    exact lweCKA.evalDist_bind_const_neverFails
       (sampleSendBCoins p χ) (probFailure_eq_zero) _
 
 private theorem correctnessImpl_sendB_run_for_head (p : Params)
@@ -344,15 +343,15 @@ private theorem evalDist_tapeCorrectnessImpl_sendB_head
     (s : CKAScheme.GameState (State p) (Key p) (Message p))
     (rest : List (SendACoins p × SendBCoins p)) (hs : honestPhase p s)
     (hg : CKAScheme.validStep s.lastAction .sendB = true) :
-    𝒟[do
+    finiteLaw (do
       let a ← sampleSendACoins p χ
       let b ← sampleSendBCoins p χ
       (tapeCorrectnessImpl p hp χ CKAScheme.ckaCorrectnessSpec.OSendB).run
-        (s, (a, b) :: rest)] =
-    𝒟[do
+        (s, (a, b) :: rest)) =
+    finiteLaw (do
       let z ← (CKAScheme.ckaCorrectnessImpl (scheme p hp χ)
         CKAScheme.ckaCorrectnessSpec.OSendB).run s
-      pure (z.1, (z.2, rest))] := by
+      pure (z.1, (z.2, rest))) := by
   rcases s with ⟨stA, stB, rhoA, rhoB, keyA, keyB, correct, last, tA, tB⟩
   rcases last with _ | (_ | _ | _ | _ | _ | _) <;>
     simp [CKAScheme.validStep] at hg
@@ -373,9 +372,8 @@ private theorem evalDist_tapeCorrectnessImpl_sendB_head
     subst tB
     simp only [lt_self_iff_false, and_self, lt_add_iff_pos_right, Order.lt_one_iff,
       or_true, ↓reduceIte, bind_pure_comp, liftM_map]
-    simp only [← liftM_bind, ← liftM_map]
     simp only [map_eq_bind_pure_comp]
-    exact OracleComp.DeferredSampling.evalDist_bind_const_neverFails
+    exact lweCKA.evalDist_bind_const_neverFails
       (sampleSendACoins p χ) (probFailure_eq_zero) _
 
 private theorem tapeCorrectnessImpl_sendA_invalid_run_eq_map
@@ -416,23 +414,23 @@ theorem evalDist_tapeCorrectnessRun
     (oa : OracleComp (CKAScheme.ckaCorrectnessSpec (Message p) (Key p)) α)
     (s : CKAScheme.GameState (State p) (Key p) (Message p))
     (hs : honestPhase p s) (N : ℕ) :
-    𝒟[do
+    finiteLaw (do
       let tape ← OracleComp.drawList (do
         let a ← sampleSendACoins p χ
         let b ← sampleSendBCoins p χ
         return (a, b)) N
       let (out, s', _) ← (simulateQ (tapeCorrectnessImpl p hp χ) oa).run (s, tape)
-      return (out, s')] =
-      𝒟[(simulateQ (CKAScheme.ckaCorrectnessImpl (scheme p hp χ)) oa).run s] := by
+      return (out, s')) =
+      finiteLaw ((simulateQ (CKAScheme.ckaCorrectnessImpl (scheme p hp χ)) oa).run s) := by
   induction oa using OracleComp.inductionOn generalizing s N with
   | pure x =>
       simp only [simulateQ_pure, StateT.run_pure, pure_bind]
-      exact OracleComp.DeferredSampling.evalDist_bind_const_neverFails
+      exact lweCKA.evalDist_bind_const_neverFails
         (OracleComp.drawList (do
           let a ← sampleSendACoins p χ
           let b ← sampleSendBCoins p χ
           return (a, b)) N)
-        (OracleComp.probFailure_drawList _ _) _
+        (probFailure_drawList _ _) _
   | query_bind t k ih =>
       match t with
       | CKAScheme.ckaCorrectnessSpec.OUnif n =>

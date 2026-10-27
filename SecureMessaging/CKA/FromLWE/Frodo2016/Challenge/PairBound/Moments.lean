@@ -5,7 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.CKA.FromLWE.Frodo2016.Sampling
-import VCVio.EvalDist.Expectation
+import VCVio.ProgramLogic.Unary.HoareTriple
 import Mathlib.Data.ENNReal.Inv
 import Mathlib.Data.ENNReal.BigOperators
 import VCVio.EvalDist.Prod
@@ -19,7 +19,7 @@ This module contains the exact scalar moments, expectation identities, and IID m
 by the integer-coin and joint-tail layers. It also checks the exact rational tail inequalities.
 -/
 
-open OracleComp OracleComp.EvalDist
+open OracleComp
 open scoped BigOperators ENNReal
 
 namespace lweCKA
@@ -60,7 +60,7 @@ private theorem expectedValue_d1IntSampler_eq_sum (f : ℤ → ℝ≥0∞) :
     have hz' : z ∉ support d1IntSampler := by
       rw [support_d1IntSampler]
       simpa [Set.mem_Icc] using hz
-    rw [probOutput_eq_zero_of_not_mem_support hz']
+    rw [(prEvent_eq_zero_of_not_mem_support _) hz']
     simp
 
 private noncomputable def d1MomentNN (a : ℤ) : NNReal :=
@@ -324,7 +324,7 @@ theorem challenge_shared_moment
       norm_num
 
 theorem expectedValue_congr_evalDist
-    {α : Type} {mx my : ProbComp α} (h : evalDist mx = evalDist my)
+    {α : Type} {mx my : ProbComp α} (h : finiteLaw mx = finiteLaw my)
     (f : α → ℝ≥0∞) : expectedValue mx f = expectedValue my f := by
   apply expectedValue_congr
   intro x
@@ -335,24 +335,24 @@ theorem expectedValue_const_mul_left
     expectedValue mx (fun x => a * f x) = a * expectedValue mx f := by
   rw [expectedValue_def, expectedValue_def]
   calc
-    (∑' x, Pr[= x | mx] * (a * f x)) =
-        ∑' x, a * (Pr[= x | mx] * f x) := by
+    (∑' x, Pr{let y ← mx}[y = x] * (a * f x)) =
+        ∑' x, a * (Pr{let y ← mx}[y = x] * f x) := by
       apply tsum_congr
       intro x
       ac_rfl
-    _ = a * ∑' x, Pr[= x | mx] * f x := ENNReal.tsum_mul_left
+    _ = a * ∑' x, Pr{let y ← mx}[y = x] * f x := ENNReal.tsum_mul_left
 
 theorem expectedValue_const_mul_right
     {α : Type} (mx : ProbComp α) (f : α → ℝ≥0∞) (a : ℝ≥0∞) :
     expectedValue mx (fun x => f x * a) = expectedValue mx f * a := by
   rw [expectedValue_def, expectedValue_def]
   calc
-    (∑' x, Pr[= x | mx] * (f x * a)) =
-        ∑' x, (Pr[= x | mx] * f x) * a := by
+    (∑' x, Pr{let y ← mx}[y = x] * (f x * a)) =
+        ∑' x, (Pr{let y ← mx}[y = x] * f x) * a := by
       apply tsum_congr
       intro x
       ac_rfl
-    _ = (∑' x, Pr[= x | mx] * f x) * a := ENNReal.tsum_mul_right
+    _ = (∑' x, Pr{let y ← mx}[y = x] * f x) * a := ENNReal.tsum_mul_right
 
 private theorem expectedValue_cons_zpow
     {α : Type} (r : ℝ≥0∞) (hr_zero : r ≠ 0) (hr_top : r ≠ ∞)

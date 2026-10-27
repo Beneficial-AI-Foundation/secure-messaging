@@ -84,7 +84,7 @@ theorem d3Moment_four :
 /-- The rational D3 moment is the raw real moment of the actual integer sampler. -/
 theorem tsum_probOutput_d3IntSampler_mul_pow (k : ℕ) :
     (∑' z : ℤ,
-      (Pr[= z | d3IntSampler]).toReal * (z : ℝ) ^ k) =
+      (Pr{let x ← d3IntSampler}[x = z]).toReal * (z : ℝ) ^ k) =
       (d3Moment k : ℝ) := by
   rw [tsum_eq_sum (s := Finset.Icc (-5 : ℤ) 5)]
   · rw [d3Moment, Rat.cast_sum]
@@ -96,7 +96,7 @@ theorem tsum_probOutput_d3IntSampler_mul_pow (k : ℕ) :
     have hz' : z ∉ support d3IntSampler := by
       rw [support_d3IntSampler]
       simpa [Set.mem_Icc] using hz
-    rw [probOutput_eq_zero_of_not_mem_support hz']
+    rw [(prEvent_eq_zero_of_not_mem_support _) hz']
     simp
 
 end lweCKA

@@ -107,16 +107,16 @@ private def honestRoundStep
 private theorem evalDist_odd_step_even
     (p : Params) (hp : p.WellFormed) (χ : ProbComp (Scalar p)) (n : ℕ)
     (hn : n % 2 = 1) :
-    evalDist (oddRoundCanonical p χ >>= honestRoundStep p hp χ n) =
-      evalDist (evenRoundCanonical p χ) := by
+    finiteLaw (oddRoundCanonical p χ >>= honestRoundStep p hp χ n) =
+      finiteLaw (evenRoundCanonical p χ) := by
   simp [oddRoundCanonical, evenRoundCanonical, honestRoundStep, hn, scheme,
     sendBrleak, eraseCoins, recvA]
 
 private theorem evalDist_even_step_odd
     (p : Params) (hp : p.WellFormed) (χ : ProbComp (Scalar p)) (n : ℕ)
     (hn : n % 2 = 0) :
-    evalDist (evenRoundCanonical p χ >>= honestRoundStep p hp χ n) =
-      evalDist (oddRoundCanonical p χ) := by
+    finiteLaw (evenRoundCanonical p χ >>= honestRoundStep p hp χ n) =
+      finiteLaw (oddRoundCanonical p χ) := by
   let f : BaseMatrix p → RightMatrix p → RightMatrix p → SendACoins p →
       Option (State p × State p × Bool) := fun baseMatrix previousSecret previousError current =>
     let senderValue := current.secret * (baseMatrix * previousSecret + previousError) +
@@ -137,16 +137,16 @@ private theorem honestRoundsSchemeExp_succ
 
 private theorem evalDist_honestRounds_one
     (p : Params) (hp : p.WellFormed) (χ : ProbComp (Scalar p)) :
-    evalDist (honestRoundsSchemeExp p hp χ 1) = evalDist (oddRoundCanonical p χ) := by
+    finiteLaw (honestRoundsSchemeExp p hp χ 1) = finiteLaw (oddRoundCanonical p χ) := by
   simp [honestRoundsSchemeExp, oddRoundCanonical, scheme, initA, initB,
     sendArleak, eraseCoins, recvB]
 
 private theorem evalDist_honestRounds_canonical
     (p : Params) (hp : p.WellFormed) (χ : ProbComp (Scalar p)) (k : ℕ) :
-    (evalDist (honestRoundsSchemeExp p hp χ (2 * k + 1)) =
-        evalDist (oddRoundCanonical p χ)) ∧
-      (evalDist (honestRoundsSchemeExp p hp χ (2 * k + 2)) =
-        evalDist (evenRoundCanonical p χ)) := by
+    (finiteLaw (honestRoundsSchemeExp p hp χ (2 * k + 1)) =
+        finiteLaw (oddRoundCanonical p χ)) ∧
+      (finiteLaw (honestRoundsSchemeExp p hp χ (2 * k + 2)) =
+        finiteLaw (evenRoundCanonical p χ)) := by
   induction k with
   | zero =>
       constructor
@@ -162,8 +162,8 @@ private theorem evalDist_honestRounds_canonical
           (evalDist_even_step_odd p hp χ (2 * k + 2) (by omega))
       · rw [show 2 * (k + 1) + 2 = (2 * (k + 1) + 1) + 1 by omega,
           honestRoundsSchemeExp_succ]
-        have hodd : evalDist (honestRoundsSchemeExp p hp χ (2 * (k + 1) + 1)) =
-            evalDist (oddRoundCanonical p χ) := by
+        have hodd : finiteLaw (honestRoundsSchemeExp p hp χ (2 * (k + 1) + 1)) =
+            finiteLaw (oddRoundCanonical p χ) := by
           rw [show 2 * (k + 1) + 1 = (2 * k + 2) + 1 by omega,
             honestRoundsSchemeExp_succ]
           exact (evalDist_bind_replace ih.2 _).trans
@@ -174,55 +174,55 @@ private theorem evalDist_honestRounds_canonical
 
 private theorem evalDist_oddCanonical_last
     (p : Params) (χ : ProbComp (Scalar p)) :
-    evalDist ((fun out => out.map (fun z => z.2.2)) <$> oddRoundCanonical p χ) =
-      evalDist (Option.some <$> firstExchangeFailureExp p χ) := by
+    finiteLaw ((fun out => out.map (fun z => z.2.2)) <$> oddRoundCanonical p χ) =
+      finiteLaw (Option.some <$> firstExchangeFailureExp p χ) := by
   simp [oddRoundCanonical, firstExchangeFailureExp]
 
 private theorem evalDist_evenCanonical_last
     (p : Params) (χ : ProbComp (Scalar p)) :
-    evalDist ((fun out => out.map (fun z => z.2.2)) <$> evenRoundCanonical p χ) =
-      evalDist (Option.some <$> firstExchangeFailureExp p χ) := by
+    finiteLaw ((fun out => out.map (fun z => z.2.2)) <$> evenRoundCanonical p χ) =
+      finiteLaw (Option.some <$> firstExchangeFailureExp p χ) := by
   calc
-    evalDist ((fun out => out.map (fun z => z.2.2)) <$> evenRoundCanonical p χ) =
-        evalDist (Option.some <$> secondExchangeFailureExp p χ) := by
+    finiteLaw ((fun out => out.map (fun z => z.2.2)) <$> evenRoundCanonical p χ) =
+        finiteLaw (Option.some <$> secondExchangeFailureExp p χ) := by
           simp [evenRoundCanonical, secondExchangeFailureExp]
-    _ = evalDist (Option.some <$> firstExchangeFailureExp p χ) :=
-      evalDist_map_eq_of_evalDist_eq (evalDist_secondExchangeFailureExp_eq_first p χ)
+    _ = finiteLaw (Option.some <$> firstExchangeFailureExp p χ) :=
+      finiteLaw_map_congr (evalDist_secondExchangeFailureExp_eq_first p χ)
         Option.some
 
 private theorem evalDist_honestRounds_last_eq_first
     (p : Params) (hp : p.WellFormed) (χ : ProbComp (Scalar p)) (j : ℕ) :
-    evalDist ((fun out => out.map (fun z => z.2.2)) <$>
+    finiteLaw ((fun out => out.map (fun z => z.2.2)) <$>
       honestRoundsSchemeExp p hp χ (j + 1)) =
-      evalDist (Option.some <$> firstExchangeFailureExp p χ) := by
+      finiteLaw (Option.some <$> firstExchangeFailureExp p χ) := by
   by_cases hj : j % 2 = 0
   · have hround := (evalDist_honestRounds_canonical p hp χ (j / 2)).1
     have hcount : 2 * (j / 2) + 1 = j + 1 := by omega
     rw [hcount] at hround
-    have hmapped : evalDist ((fun out => out.map (fun z => z.2.2)) <$>
+    have hmapped : finiteLaw ((fun out => out.map (fun z => z.2.2)) <$>
         honestRoundsSchemeExp p hp χ (j + 1)) =
-        evalDist ((fun out => out.map (fun z => z.2.2)) <$> oddRoundCanonical p χ) :=
-      evalDist_map_eq_of_evalDist_eq hround (fun out => out.map (fun z => z.2.2))
+        finiteLaw ((fun out => out.map (fun z => z.2.2)) <$> oddRoundCanonical p χ) :=
+      finiteLaw_map_congr hround (fun out => out.map (fun z => z.2.2))
     exact hmapped.trans (evalDist_oddCanonical_last p χ)
   · have hj' : j % 2 = 1 := by omega
     have hround := (evalDist_honestRounds_canonical p hp χ (j / 2)).2
     have hcount : 2 * (j / 2) + 2 = j + 1 := by omega
     rw [hcount] at hround
-    have hmapped : evalDist ((fun out => out.map (fun z => z.2.2)) <$>
+    have hmapped : finiteLaw ((fun out => out.map (fun z => z.2.2)) <$>
         honestRoundsSchemeExp p hp χ (j + 1)) =
-        evalDist ((fun out => out.map (fun z => z.2.2)) <$> evenRoundCanonical p χ) :=
-      evalDist_map_eq_of_evalDist_eq hround (fun out => out.map (fun z => z.2.2))
+        finiteLaw ((fun out => out.map (fun z => z.2.2)) <$> evenRoundCanonical p χ) :=
+      finiteLaw_map_congr hround (fun out => out.map (fun z => z.2.2))
     exact hmapped.trans (evalDist_evenCanonical_last p χ)
 
 /-- The final round through the scheme has the same mismatch distribution as the corresponding
 tape round. -/
 theorem evalDist_honestRoundsSchemeExp_last_eq_tape
     (p : Params) (hp : p.WellFormed) (χ : ProbComp (Scalar p)) (j : ℕ) :
-    𝒟[(fun out => out.map (fun z => z.2.2)) <$>
-      honestRoundsSchemeExp p hp χ (j + 1)] =
-      𝒟[(fun t => some (tapeRoundMismatch p t.1 t.2 j)) <$>
-        sampleHonestTape p χ (j + 1)] := by
-  have hmapped := evalDist_map_eq_of_evalDist_eq
+    finiteLaw ((fun out => out.map (fun z => z.2.2)) <$>
+      honestRoundsSchemeExp p hp χ (j + 1)) =
+      finiteLaw ((fun t => some (tapeRoundMismatch p t.1 t.2 j)) <$>
+        sampleHonestTape p χ (j + 1)) := by
+  have hmapped := finiteLaw_map_congr
     (evalDist_tapeRoundMismatch_eq_first p χ (j + 1) j (by omega)) Option.some
   exact (evalDist_honestRounds_last_eq_first p hp χ j).trans (by
     simpa [Functor.map_map, Function.comp_def] using hmapped.symm)
@@ -230,9 +230,9 @@ theorem evalDist_honestRoundsSchemeExp_last_eq_tape
 /-- The final round has the same mismatch distribution as the first exchange. -/
 theorem evalDist_honestRoundsSchemeExp_last_eq_first
     (p : Params) (hp : p.WellFormed) (χ : ProbComp (Scalar p)) (j : ℕ) :
-    𝒟[(fun out => out.map (fun z => z.2.2)) <$>
-      honestRoundsSchemeExp p hp χ (j + 1)] =
-      𝒟[Option.some <$> firstExchangeFailureExp p χ] := by
+    finiteLaw ((fun out => out.map (fun z => z.2.2)) <$>
+      honestRoundsSchemeExp p hp χ (j + 1)) =
+      finiteLaw (Option.some <$> firstExchangeFailureExp p χ) := by
   exact evalDist_honestRounds_last_eq_first p hp χ j
 
 /-- Describe the states allowed during honest exchanges in which the parties take turns.

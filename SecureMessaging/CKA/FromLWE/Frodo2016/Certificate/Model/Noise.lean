@@ -14,7 +14,7 @@ This unit derives the exact entry-noise distribution from the shared integer
 counting measure.
 -/
 
-open OracleComp OracleComp.EvalDist
+open OracleComp
 open scoped BigOperators ENNReal
 
 namespace lweCKA.Frodo2016.Certificate
@@ -55,17 +55,17 @@ private def negProductExp (χ : ProbComp ℤ) : ProbComp ℤ := do
 
 private theorem probOutput_mul_counts
     (mx my : ProbComp ℤ) (F G : ToVCVio.IntMeasure) (D E : Nat)
-    (hmx : ∀ z, Pr[= z | mx] = (F z : ℝ≥0∞) / D)
-    (hmy : ∀ z, Pr[= z | my] = (G z : ℝ≥0∞) / E)
+    (hmx : ∀ z, Pr{let x ← mx}[x = z] = (F z : ℝ≥0∞) / D)
+    (hmy : ∀ z, Pr{let x ← my}[x = z] = (G z : ℝ≥0∞) / E)
     (z : ℤ) :
-    Pr[= z | (fun x y : ℤ => x * y) <$> mx <*> my] =
+    Pr{let w ← (fun x y : ℤ => x * y) <$> mx <*> my}[w = z] =
       (ToVCVio.productMeasure F G z : ℝ≥0∞) / (D * E) := by
   rw [probOutput_seq_map_eq_tsum_ite]
   rw [tsum_eq_sum (s := F.coeff.support)]
   · have hinner (x : ℤ) :
-        (∑' y : ℤ, if z = x * y then Pr[= x | mx] * Pr[= y | my] else 0) =
+        (∑' y : ℤ, if z = x * y then Pr{let y ← mx}[y = x] * Pr{let x ← my}[x = y] else 0) =
           ∑ y ∈ G.coeff.support,
-            if z = x * y then Pr[= x | mx] * Pr[= y | my] else 0 := by
+            if z = x * y then Pr{let y ← mx}[y = x] * Pr{let x ← my}[x = y] else 0 := by
       rw [tsum_eq_sum (s := G.coeff.support)]
       intro y hy
       have hzero : G y = 0 := Finsupp.notMem_support_iff.mp hy
@@ -93,13 +93,13 @@ private theorem probOutput_mul_counts
 
 private theorem probOutput_productExp
     (c : Config) (χ : ProbComp ℤ)
-    (hlaw : ∀ z : ℤ, Pr[= z | χ] = (counts c z : ℝ≥0∞) / 2 ^ c.seedBits)
+    (hlaw : ∀ z : ℤ, Pr{let x ← χ}[x = z] = (counts c z : ℝ≥0∞) / 2 ^ c.seedBits)
     (z : ℤ) :
-    Pr[= z | productExp χ] =
+    Pr{let x ← productExp χ}[x = z] =
       (ToVCVio.productMeasure (counts c) (counts c) z : ℝ≥0∞) /
         (2 ^ c.seedBits) ^ 2 := by
   have hlawNat (u : ℤ) :
-      Pr[= u | χ] =
+      Pr{let x ← χ}[x = u] =
         (counts c u : ℝ≥0∞) / (((2 ^ c.seedBits : Nat) : ℝ≥0∞)) := by
     simpa only [Nat.cast_pow, Nat.cast_ofNat] using hlaw u
   simpa only [productExp, map_eq_bind_pure_comp, seq_eq_bind_map,
@@ -110,30 +110,30 @@ private theorem probOutput_productExp
 
 private theorem probOutput_neg_map
     (c : Config) (χ : ProbComp ℤ)
-    (hlaw : ∀ z : ℤ, Pr[= z | χ] = (counts c z : ℝ≥0∞) / 2 ^ c.seedBits)
+    (hlaw : ∀ z : ℤ, Pr{let x ← χ}[x = z] = (counts c z : ℝ≥0∞) / 2 ^ c.seedBits)
     (hsym : ∀ z : ℤ, c.weight (-z) = c.weight z) (z : ℤ) :
-    Pr[= z | (-·) <$> χ] = (counts c z : ℝ≥0∞) / 2 ^ c.seedBits := by
+    Pr{let x ← (-·) <$> χ}[x = z] = (counts c z : ℝ≥0∞) / 2 ^ c.seedBits := by
   calc
-    Pr[= z | (-·) <$> χ] = Pr[= -z | χ] := by
-      convert probOutput_map_injective χ (fun _ _ h => neg_inj.mp h) (-z) using 1
+    Pr{let x ← (-·) <$> χ}[x = z] = Pr{let x ← χ}[x = -z] := by
+      convert prEvent_map_injective χ (fun _ _ h => neg_inj.mp h) (-z) using 1
       all_goals simp
     _ = (counts c (-z) : ℝ≥0∞) / 2 ^ c.seedBits := hlaw (-z)
     _ = (counts c z : ℝ≥0∞) / 2 ^ c.seedBits := by rw [counts_neg c hsym]
 
 private theorem probOutput_negProductExp
     (c : Config) (χ : ProbComp ℤ)
-    (hlaw : ∀ z : ℤ, Pr[= z | χ] = (counts c z : ℝ≥0∞) / 2 ^ c.seedBits)
+    (hlaw : ∀ z : ℤ, Pr{let x ← χ}[x = z] = (counts c z : ℝ≥0∞) / 2 ^ c.seedBits)
     (hsym : ∀ z : ℤ, c.weight (-z) = c.weight z) (z : ℤ) :
-    Pr[= z | negProductExp χ] =
+    Pr{let x ← negProductExp χ}[x = z] =
       (ToVCVio.productMeasure (counts c) (counts c) z : ℝ≥0∞) /
         (2 ^ c.seedBits) ^ 2 := by
   have hnegNat (u : ℤ) :
-      Pr[= u | (-·) <$> χ] =
+      Pr{let x ← (-·) <$> χ}[x = u] =
         (counts c u : ℝ≥0∞) / (((2 ^ c.seedBits : Nat) : ℝ≥0∞)) := by
     simpa only [Nat.cast_pow, Nat.cast_ofNat] using
       probOutput_neg_map c χ hlaw hsym u
   have hlawNat (u : ℤ) :
-      Pr[= u | χ] =
+      Pr{let x ← χ}[x = u] =
         (counts c u : ℝ≥0∞) / (((2 ^ c.seedBits : Nat) : ℝ≥0∞)) := by
     simpa only [Nat.cast_pow, Nat.cast_ofNat] using hlaw u
   simpa only [negProductExp, map_eq_bind_pure_comp, seq_eq_bind_map,
@@ -145,15 +145,15 @@ private theorem probOutput_negProductExp
 
 private theorem probOutput_add_counts
     (mx my : ProbComp ℤ) (F G : ToVCVio.IntMeasure) (D E : Nat)
-    (hmx : ∀ z, Pr[= z | mx] = (F z : ℝ≥0∞) / D)
-    (hmy : ∀ z, Pr[= z | my] = (G z : ℝ≥0∞) / E)
+    (hmx : ∀ z, Pr{let x ← mx}[x = z] = (F z : ℝ≥0∞) / D)
+    (hmy : ∀ z, Pr{let x ← my}[x = z] = (G z : ℝ≥0∞) / E)
     (z : ℤ) :
-    Pr[= z | (fun x y : ℤ => x + y) <$> mx <*> my] =
+    Pr{let w ← (fun x y : ℤ => x + y) <$> mx <*> my}[w = z] =
       ((F * G) z : ℝ≥0∞) / (D * E) := by
   rw [probOutput_seq_map_eq_tsum_ite]
   have hinner (x : ℤ) :
-      (∑' y : ℤ, if z = x + y then Pr[= x | mx] * Pr[= y | my] else 0) =
-        Pr[= x | mx] * Pr[= z - x | my] := by
+      (∑' y : ℤ, if z = x + y then Pr{let y ← mx}[y = x] * Pr{let x ← my}[x = y] else 0) =
+        Pr{let y ← mx}[y = x] * Pr{let y ← my}[y = z - x] := by
     refine (tsum_eq_single (z - x) (fun y hy => ?_)).trans ?_
     · rw [if_neg]
       intro h
@@ -185,18 +185,18 @@ private def differenceBlock (χ : ProbComp ℤ) : ProbComp ℤ := do
   return s1 * e0 - e1 * s0
 
 private theorem evalDist_differenceBlock_grouped (χ : ProbComp ℤ) :
-    evalDist (differenceBlock χ) =
-      evalDist ((fun x y : ℤ => x + y) <$> productExp χ <*> negProductExp χ) := by
+    finiteLaw (differenceBlock χ) =
+      finiteLaw ((fun x y : ℤ => x + y) <$> productExp χ <*> negProductExp χ) := by
   simp only [differenceBlock, productExp, negProductExp,
     map_eq_bind_pure_comp, seq_eq_bind_map, Function.comp_apply, bind_assoc, pure_bind]
   calc
-    _ = evalDist (do
+    _ = finiteLaw (do
           let e0 ← χ
           let s0 ← χ
           let s1 ← χ
           let e1 ← χ
           return s1 * e0 - e1 * s0) := evalDist_bind_bind_swap _ _ _
-    _ = evalDist (do
+    _ = finiteLaw (do
           let e0 ← χ
           let s1 ← χ
           let s0 ← χ
@@ -204,13 +204,13 @@ private theorem evalDist_differenceBlock_grouped (χ : ProbComp ℤ) :
           return s1 * e0 - e1 * s0) := by
         refine evalDist_bind_congr' χ fun _ => ?_
         exact evalDist_bind_bind_swap _ _ _
-    _ = evalDist (do
+    _ = finiteLaw (do
           let s1 ← χ
           let e0 ← χ
           let s0 ← χ
           let e1 ← χ
           return s1 * e0 - e1 * s0) := evalDist_bind_bind_swap _ _ _
-    _ = evalDist (do
+    _ = finiteLaw (do
           let s1 ← χ
           let e0 ← χ
           let e1 ← χ
@@ -230,20 +230,20 @@ private theorem evalDist_differenceBlock_grouped (χ : ProbComp ℤ) :
 
 private theorem probOutput_differenceBlock
     (c : Config) (χ : ProbComp ℤ)
-    (hlaw : ∀ z : ℤ, Pr[= z | χ] = (counts c z : ℝ≥0∞) / 2 ^ c.seedBits)
+    (hlaw : ∀ z : ℤ, Pr{let x ← χ}[x = z] = (counts c z : ℝ≥0∞) / 2 ^ c.seedBits)
     (hsym : ∀ z : ℤ, c.weight (-z) = c.weight z) (z : ℤ) :
-    Pr[= z | differenceBlock χ] =
+    Pr{let x ← differenceBlock χ}[x = z] =
       (((ToVCVio.productMeasure (counts c) (counts c)) ^ 2) z : ℝ≥0∞) /
         (2 ^ c.seedBits) ^ 4 := by
   rw [(evalDist_ext_iff.mp (evalDist_differenceBlock_grouped χ)) z]
   have hprodNat (u : ℤ) :
-      Pr[= u | productExp χ] =
+      Pr{let x ← productExp χ}[x = u] =
         (ToVCVio.productMeasure (counts c) (counts c) u : ℝ≥0∞) /
           ((((2 ^ c.seedBits) ^ 2 : Nat) : ℝ≥0∞)) := by
     simpa only [Nat.cast_pow, Nat.cast_ofNat] using
       probOutput_productExp c χ hlaw u
   have hnegProdNat (u : ℤ) :
-      Pr[= u | negProductExp χ] =
+      Pr{let x ← negProductExp χ}[x = u] =
         (ToVCVio.productMeasure (counts c) (counts c) u : ℝ≥0∞) /
           ((((2 ^ c.seedBits) ^ 2 : Nat) : ℝ≥0∞)) := by
     simpa only [Nat.cast_pow, Nat.cast_ofNat] using
@@ -265,18 +265,18 @@ private theorem probOutput_differenceBlock
 private theorem evalDist_bind_move_after_two
     {A B C D : Type} (ma : ProbComp A) (mb : ProbComp B) (mc : ProbComp C)
     (f : A → B → C → ProbComp D) :
-    evalDist (do
+    finiteLaw (do
       let a ← ma
       let b ← mb
       let c ← mc
       f a b c) =
-    evalDist (do
+    finiteLaw (do
       let b ← mb
       let c ← mc
       let a ← ma
       f a b c) := by
   calc
-    _ = evalDist (do
+    _ = finiteLaw (do
           let b ← mb
           let a ← ma
           let c ← mc
@@ -286,20 +286,20 @@ private theorem evalDist_bind_move_after_two
 private theorem evalDist_bind_move_after_three
     {A B C D E : Type} (ma : ProbComp A) (mb : ProbComp B) (mc : ProbComp C)
     (md : ProbComp D) (f : A → B → C → D → ProbComp E) :
-    evalDist (do
+    finiteLaw (do
       let a ← ma
       let b ← mb
       let c ← mc
       let d ← md
       f a b c d) =
-    evalDist (do
+    finiteLaw (do
       let b ← mb
       let c ← mc
       let d ← md
       let a ← ma
       f a b c d) := by
   calc
-    _ = evalDist (do
+    _ = finiteLaw (do
           let b ← mb
           let a ← ma
           let c ← mc
@@ -312,14 +312,14 @@ private theorem evalDist_bind_move_after_four
     {A B C D E F : Type} (ma : ProbComp A) (mb : ProbComp B) (mc : ProbComp C)
     (md : ProbComp D) (me : ProbComp E)
     (f : A → B → C → D → E → ProbComp F) :
-    evalDist (do
+    finiteLaw (do
       let a ← ma
       let b ← mb
       let c ← mc
       let d ← md
       let e ← me
       f a b c d e) =
-    evalDist (do
+    finiteLaw (do
       let b ← mb
       let c ← mc
       let d ← md
@@ -327,7 +327,7 @@ private theorem evalDist_bind_move_after_four
       let a ← ma
       f a b c d e) := by
   calc
-    _ = evalDist (do
+    _ = finiteLaw (do
           let b ← mb
           let a ← ma
           let c ← mc
@@ -343,7 +343,7 @@ private theorem evalDist_bind_rotate_four_heads
     (h2 : ProbComp H2) (t2 : ProbComp T2) (h3 : ProbComp H3) (t3 : ProbComp T3)
     (mx : ProbComp X)
     (f : H0 → T0 → H1 → T1 → H2 → T2 → H3 → T3 → X → ProbComp R) :
-    evalDist (do
+    finiteLaw (do
       let a0 ← h0
       let b0 ← t0
       let a1 ← h1
@@ -354,7 +354,7 @@ private theorem evalDist_bind_rotate_four_heads
       let b3 ← t3
       let x ← mx
       f a0 b0 a1 b1 a2 b2 a3 b3 x) =
-    evalDist (do
+    finiteLaw (do
       let b0 ← t0
       let b1 ← t1
       let b2 ← t2
@@ -366,7 +366,7 @@ private theorem evalDist_bind_rotate_four_heads
       let a3 ← h3
       f a0 b0 a1 b1 a2 b2 a3 b3 x) := by
   calc
-    _ = evalDist (do
+    _ = finiteLaw (do
           let b0 ← t0
           let a0 ← h0
           let a1 ← h1
@@ -377,7 +377,7 @@ private theorem evalDist_bind_rotate_four_heads
           let b3 ← t3
           let x ← mx
           f a0 b0 a1 b1 a2 b2 a3 b3 x) := evalDist_bind_bind_swap h0 t0 _
-    _ = evalDist (do
+    _ = finiteLaw (do
           let b0 ← t0
           let b1 ← t1
           let a0 ← h0
@@ -397,7 +397,7 @@ private theorem evalDist_bind_rotate_four_heads
             let b3 ← t3
             let x ← mx
             f a0 b0 a1 b1 a2 b2 a3 b3 x)).symm
-    _ = evalDist (do
+    _ = finiteLaw (do
           let b0 ← t0
           let b1 ← t1
           let b2 ← t2
@@ -416,7 +416,7 @@ private theorem evalDist_bind_rotate_four_heads
             let b3 ← t3
             let x ← mx
             f a0 b0 a1 b1 a2 b2 a3 b3 x)).symm
-    _ = evalDist (do
+    _ = finiteLaw (do
           let b0 ← t0
           let b1 ← t1
           let b2 ← t2
@@ -443,8 +443,8 @@ private theorem evalDist_bind_rotate_four_heads
         (fun x a0 a1 a2 a3 => f a0 b0 a1 b1 a2 b2 a3 b3 x)).symm
 
 private theorem evalDist_entryNoiseIntExp_succ (n : ℕ) (χ : ProbComp ℤ) :
-    evalDist (entryNoiseIntExp (n + 1) χ) =
-      evalDist (do
+    finiteLaw (entryNoiseIntExp (n + 1) χ) =
+      finiteLaw (do
         let rest ← entryNoiseIntExp n χ
         let delta ← differenceBlock χ
         return rest + delta) := by
@@ -456,7 +456,7 @@ private theorem evalDist_entryNoiseIntExp_succ (n : ℕ) (χ : ProbComp ℤ) :
       (∑ k, Fin.cons e1 e1s k * Fin.cons s0 s0s k) + extra)
   simp only [entryNoiseIntExp, differenceBlock, ProbComp.sampleIID,
     Fin.mOfFn, bind_assoc, pure_bind]
-  change evalDist (do
+  change finiteLaw (do
       let s0 ← χ
       let s0s ← tail
       let e0 ← χ
@@ -468,7 +468,7 @@ private theorem evalDist_entryNoiseIntExp_succ (n : ℕ) (χ : ProbComp ℤ) :
       let extra ← χ
       finish s0 s0s e0 e0s s1 s1s e1 e1s extra) = _
   calc
-    _ = evalDist (do
+    _ = finiteLaw (do
           let s0s ← tail
           let e0s ← tail
           let s1s ← tail
@@ -497,17 +497,19 @@ private theorem evalDist_entryNoiseIntExp_succ (n : ℕ) (χ : ProbComp ℤ) :
 
 theorem SharedModelInternal.probOutput_entryNoiseIntExp_counts
     (c : Config) (χ : ProbComp ℤ)
-    (hlaw : ∀ z : ℤ, Pr[= z | χ] = (counts c z : ℝ≥0∞) / 2 ^ c.seedBits)
+    (hlaw : ∀ z : ℤ, Pr{let x ← χ}[x = z] = (counts c z : ℝ≥0∞) / 2 ^ c.seedBits)
     (hsym : ∀ z : ℤ, c.weight (-z) = c.weight z)
     (n : ℕ) (z : ℤ) :
-    Pr[= z | entryNoiseIntExp n χ] =
+    Pr{let x ← entryNoiseIntExp n χ}[x = z] =
       (((ToVCVio.productMeasure (counts c) (counts c)) ^ (2 * n) * counts c) z :
           ℝ≥0∞) /
         (2 ^ c.seedBits) ^ (4 * n + 1) := by
   induction n generalizing z with
   | zero =>
-      simp [entryNoiseIntExp, ProbComp.sampleIID, Fin.mOfFn, hlaw,
-        AddMonoidAlgebra.one_def]
+      simp only [entryNoiseIntExp, ProbComp.sampleIID, Fin.mOfFn, pure_bind,
+        Fin.sum_univ_zero, zero_sub, neg_zero, zero_add, bind_pure, Nat.mul_zero, pow_zero,
+        one_mul, Nat.zero_add, pow_one]
+      exact hlaw z
   | succ n ih =>
       rw [(evalDist_ext_iff.mp (evalDist_entryNoiseIntExp_succ n χ)) z]
       rw [show (do
@@ -518,13 +520,13 @@ theorem SharedModelInternal.probOutput_entryNoiseIntExp_counts
         simp only [map_eq_bind_pure_comp, seq_eq_bind_map,
           Function.comp_def, bind_assoc, pure_bind]]
       have ihNat (u : ℤ) :
-          Pr[= u | entryNoiseIntExp n χ] =
+          Pr{let x ← entryNoiseIntExp n χ}[x = u] =
             (((ToVCVio.productMeasure (counts c) (counts c)) ^ (2 * n) *
                 counts c) u : ℝ≥0∞) /
               (((2 ^ c.seedBits) ^ (4 * n + 1) : Nat) : ℝ≥0∞) := by
         simpa only [Nat.cast_pow, Nat.cast_ofNat] using ih u
       have hstepNat (u : ℤ) :
-          Pr[= u | differenceBlock χ] =
+          Pr{let x ← differenceBlock χ}[x = u] =
             ((((ToVCVio.productMeasure (counts c) (counts c)) ^ 2) u : ℝ≥0∞) /
               (((2 ^ c.seedBits) ^ 4 : Nat) : ℝ≥0∞)) := by
         simpa only [Nat.cast_pow, Nat.cast_ofNat] using

@@ -90,8 +90,8 @@ open CorrectnessInternal
 
 private theorem evalDist_drawList_get?
     {R : Type} (oa : ProbComp R) (N j : ℕ) (hj : j < N) :
-    evalDist ((fun xs => getElem? xs j) <$> OracleComp.drawList oa N) =
-      evalDist (Option.some <$> oa) := by
+    finiteLaw ((fun xs => getElem? xs j) <$> OracleComp.drawList oa N) =
+      finiteLaw (Option.some <$> oa) := by
   induction N generalizing j with
   | zero => omega
   | succ N ih =>
@@ -100,22 +100,22 @@ private theorem evalDist_drawList_get?
           simp only [OracleComp.drawList, map_eq_bind_pure_comp, bind_assoc]
           simp only [pure_bind, Function.comp_apply, List.getElem?_cons_zero]
           refine (evalDist_bind_congr' oa (ob₂ := fun x => pure (some x)) fun x => ?_).trans ?_
-          · exact OracleComp.DeferredSampling.evalDist_bind_const_neverFails
-              (OracleComp.drawList oa N) (OracleComp.probFailure_drawList oa N) (pure (some x))
+          · exact lweCKA.evalDist_bind_const_neverFails
+              (OracleComp.drawList oa N) (probFailure_drawList oa N) (pure (some x))
           · simp [map_eq_bind_pure_comp]
       | succ j =>
           have hj' : j < N := by omega
           simp only [OracleComp.drawList, map_eq_bind_pure_comp, bind_assoc]
           simp only [pure_bind, Function.comp_apply, List.getElem?_cons_succ]
-          rw [OracleComp.DeferredSampling.evalDist_bind_const_neverFails oa
+          rw [lweCKA.evalDist_bind_const_neverFails oa
             (probFailure_eq_zero (mx := oa))]
           simpa [map_eq_bind_pure_comp, Function.comp_apply] using ih j hj'
 
 private theorem evalDist_drawList_adjacent
     {R : Type} (oa : ProbComp R) (N j : ℕ) (hj : j + 1 < N) :
-    evalDist ((fun xs => (getElem? xs j, getElem? xs (j + 1))) <$>
+    finiteLaw ((fun xs => (getElem? xs j, getElem? xs (j + 1))) <$>
       OracleComp.drawList oa N) =
-      evalDist (do
+      finiteLaw (do
         let x ← oa
         let y ← oa
         return (some x, some y)) := by
@@ -128,14 +128,14 @@ private theorem evalDist_drawList_adjacent
           simp only [OracleComp.drawList, map_eq_bind_pure_comp, bind_assoc, pure_bind,
             Function.comp_apply, List.getElem?_cons_zero, List.getElem?_cons_succ]
           refine evalDist_bind_congr' oa fun x => ?_
-          have hmap := evalDist_map_eq_of_evalDist_eq
+          have hmap := finiteLaw_map_congr
             (evalDist_drawList_get? oa N 0 hzero) (fun oy => (some x, oy))
           simpa [map_eq_bind_pure_comp, Function.comp_apply, bind_assoc] using hmap
       | succ j =>
           have hj' : j + 1 < N := by omega
           simp only [OracleComp.drawList, map_eq_bind_pure_comp, bind_assoc, pure_bind,
             Function.comp_apply, List.getElem?_cons_succ]
-          rw [OracleComp.DeferredSampling.evalDist_bind_const_neverFails oa
+          rw [lweCKA.evalDist_bind_const_neverFails oa
             (probFailure_eq_zero (mx := oa))]
           simpa [map_eq_bind_pure_comp, Function.comp_apply] using ih j hj'
 
@@ -147,27 +147,27 @@ private noncomputable def honestRoundCoins
   return (a, b)
 
 private theorem evalDist_drop {A B : Type} (mx : ProbComp A) (my : ProbComp B) :
-    evalDist (mx >>= fun _ => my) = evalDist my :=
-  OracleComp.DeferredSampling.evalDist_bind_const_neverFails
+    finiteLaw (mx >>= fun _ => my) = finiteLaw my :=
+  lweCKA.evalDist_bind_const_neverFails
     mx (probFailure_eq_zero (mx := mx)) my
 
 private theorem evalDist_drop3 {A₁ A₂ A₃ B : Type}
     (mx₁ : ProbComp A₁) (mx₂ : ProbComp A₂) (mx₃ : ProbComp A₃)
     (my : ProbComp B) :
-    evalDist (mx₁ >>= fun _ => mx₂ >>= fun _ => mx₃ >>= fun _ => my) = evalDist my := by
+    finiteLaw (mx₁ >>= fun _ => mx₂ >>= fun _ => mx₃ >>= fun _ => my) = finiteLaw my := by
   exact (evalDist_drop mx₁ _).trans <| (evalDist_drop mx₂ _).trans <|
     evalDist_drop mx₃ my
 
 private theorem evalDist_drop2 {A₁ A₂ B : Type}
     (mx₁ : ProbComp A₁) (mx₂ : ProbComp A₂) (my : ProbComp B) :
-    evalDist (mx₁ >>= fun _ => mx₂ >>= fun _ => my) = evalDist my := by
+    finiteLaw (mx₁ >>= fun _ => mx₂ >>= fun _ => my) = finiteLaw my := by
   exact (evalDist_drop mx₁ _).trans <| evalDist_drop mx₂ my
 
 namespace CorrectnessInternal
 
 theorem evalDist_bind_replace {A B : Type} {mx my : ProbComp A}
-    (h : evalDist mx = evalDist my) (k : A → ProbComp B) :
-    evalDist (mx >>= k) = evalDist (my >>= k) := by
+    (h : finiteLaw mx = finiteLaw my) (k : A → ProbComp B) :
+    finiteLaw (mx >>= k) = finiteLaw (my >>= k) := by
   simp only [evalDist_bind, h]
 
 end CorrectnessInternal
@@ -176,8 +176,8 @@ open CorrectnessInternal
 
 private theorem evalDist_initBase
     (p : Params) (χ : ProbComp (Scalar p)) :
-    evalDist ((fun ik => ik.baseMatrix) <$> initKeyGen p χ) =
-      evalDist (($ᵗ (BaseMatrix p) : ProbComp (BaseMatrix p))) := by
+    finiteLaw ((fun ik => ik.baseMatrix) <$> initKeyGen p χ) =
+      finiteLaw (($ᵗ (BaseMatrix p) : ProbComp (BaseMatrix p))) := by
   simp only [initKeyGen, map_eq_bind_pure_comp, bind_assoc, pure_bind,
     Function.comp_apply]
   refine (evalDist_bind_congr' (($ᵗ (BaseMatrix p) : ProbComp (BaseMatrix p)))
@@ -188,8 +188,8 @@ private theorem evalDist_initBase
 
 private theorem evalDist_roundA
     (p : Params) (χ : ProbComp (Scalar p)) :
-    evalDist ((fun coins => coins.1) <$> honestRoundCoins p χ) =
-      evalDist (sampleSendACoins p χ) := by
+    finiteLaw ((fun coins => coins.1) <$> honestRoundCoins p χ) =
+      finiteLaw (sampleSendACoins p χ) := by
   simp only [honestRoundCoins, map_eq_bind_pure_comp, bind_assoc, pure_bind,
     Function.comp_apply]
   refine (evalDist_bind_congr' (sampleSendACoins p χ)
@@ -199,8 +199,8 @@ private theorem evalDist_roundA
 
 private theorem evalDist_roundB
     (p : Params) (χ : ProbComp (Scalar p)) :
-    evalDist ((fun coins => coins.2) <$> honestRoundCoins p χ) =
-      evalDist (sampleSendBCoins p χ) := by
+    finiteLaw ((fun coins => coins.2) <$> honestRoundCoins p χ) =
+      finiteLaw (sampleSendBCoins p χ) := by
   simp only [honestRoundCoins, map_eq_bind_pure_comp, bind_assoc, pure_bind,
     Function.comp_apply]
   refine (evalDist_drop (sampleSendACoins p χ) _).trans ?_
@@ -208,8 +208,8 @@ private theorem evalDist_roundB
 
 private theorem evalDist_roundBNoise
     (p : Params) (χ : ProbComp (Scalar p)) :
-    evalDist ((fun coins => (coins.2.secret, coins.2.error)) <$> honestRoundCoins p χ) =
-      evalDist (do
+    finiteLaw ((fun coins => (coins.2.secret, coins.2.error)) <$> honestRoundCoins p χ) =
+      finiteLaw (do
         let secret ← sampleMatrix χ p.n p.nbar
         let error ← sampleMatrix χ p.n p.nbar
         return (secret, error)) := by
@@ -222,9 +222,9 @@ private theorem evalDist_roundBNoise
 
 private theorem evalDist_sendBNoise
     (p : Params) (χ : ProbComp (Scalar p)) :
-    evalDist ((fun coins : SendBCoins p => (coins.secret, coins.error)) <$>
+    finiteLaw ((fun coins : SendBCoins p => (coins.secret, coins.error)) <$>
       sampleSendBCoins p χ) =
-      evalDist (do
+      finiteLaw (do
         let secret ← sampleMatrix χ p.n p.nbar
         let error ← sampleMatrix χ p.n p.nbar
         return (secret, error)) := by
@@ -239,13 +239,13 @@ namespace CorrectnessInternal
 theorem evalDist_evenRelevant
     (p : Params) (χ : ProbComp (Scalar p)) {X : Type}
     (f : BaseMatrix p → RightMatrix p → RightMatrix p → SendACoins p → X) :
-    evalDist (do
+    finiteLaw (do
       let ik ← initKeyGen p χ
       let _ ← sampleSendACoins p χ
       let previous ← sampleSendBCoins p χ
       let current ← sampleSendACoins p χ
       return f ik.baseMatrix previous.secret previous.error current) =
-      evalDist (do
+      finiteLaw (do
         let ik ← initKeyGen p χ
         let current ← sampleSendACoins p χ
         return f ik.baseMatrix ik.secret ik.error current) := by
@@ -256,17 +256,17 @@ theorem evalDist_evenRelevant
     let current ← sampleSendACoins p χ
     return f baseMatrix previous.1 previous.2 current
   calc
-    evalDist (do
+    finiteLaw (do
         let ik ← initKeyGen p χ
         let _ ← sampleSendACoins p χ
         let previous ← sampleSendBCoins p χ
         let current ← sampleSendACoins p χ
-        return f ik.baseMatrix previous.secret previous.error current) = evalDist projected := by
+        return f ik.baseMatrix previous.secret previous.error current) = finiteLaw projected := by
           simp only [projected, map_eq_bind_pure_comp, bind_assoc, pure_bind,
             Function.comp_apply]
           refine evalDist_bind_congr' (initKeyGen p χ) fun ik => ?_
           exact evalDist_drop (sampleSendACoins p χ) _
-    _ = evalDist (do
+    _ = finiteLaw (do
         let baseMatrix ← ($ᵗ (BaseMatrix p) : ProbComp (BaseMatrix p))
         let previousSecret ← sampleMatrix χ p.n p.nbar
         let previousError ← sampleMatrix χ p.n p.nbar
@@ -278,7 +278,7 @@ theorem evalDist_evenRelevant
               (($ᵗ (BaseMatrix p) : ProbComp (BaseMatrix p))) fun baseMatrix => ?_
           refine (evalDist_bind_replace (evalDist_sendBNoise p χ) _).trans ?_
           simp only [bind_assoc, pure_bind]
-    _ = evalDist (do
+    _ = finiteLaw (do
         let ik ← initKeyGen p χ
         let current ← sampleSendACoins p χ
         return f ik.baseMatrix ik.secret ik.error current) := by
@@ -288,7 +288,7 @@ end CorrectnessInternal
 
 private theorem evalDist_evenRoundCoins_eq_first
     (p : Params) (χ : ProbComp (Scalar p)) :
-    evalDist (do
+    finiteLaw (do
       let ik ← initKeyGen p χ
       let previous ← honestRoundCoins p χ
       let current ← honestRoundCoins p χ
@@ -298,7 +298,7 @@ private theorem evalDist_evenRoundCoins_eq_first
         (ik.baseMatrix * previous.2.secret + previous.2.error) + current.1.extra
       return decide (reconcile p receiverValue (makeHint p senderValue) ≠
         extract p senderValue)) =
-      evalDist (firstExchangeFailureExp p χ) := by
+      finiteLaw (firstExchangeFailureExp p χ) := by
   let projected : ProbComp Bool := do
     let baseMatrix ← (fun ik => ik.baseMatrix) <$> initKeyGen p χ
     let previous ←
@@ -309,7 +309,7 @@ private theorem evalDist_evenRoundCoins_eq_first
     return decide (reconcile p receiverValue (makeHint p senderValue) ≠
       extract p senderValue)
   calc
-    evalDist (do
+    finiteLaw (do
         let ik ← initKeyGen p χ
         let previous ← honestRoundCoins p χ
         let current ← honestRoundCoins p χ
@@ -318,10 +318,10 @@ private theorem evalDist_evenRoundCoins_eq_first
         let senderValue := current.1.secret *
           (ik.baseMatrix * previous.2.secret + previous.2.error) + current.1.extra
         return decide (reconcile p receiverValue (makeHint p senderValue) ≠
-          extract p senderValue)) = evalDist projected := by
+          extract p senderValue)) = finiteLaw projected := by
             simp only [projected, map_eq_bind_pure_comp, bind_assoc, pure_bind,
               Function.comp_apply]
-    _ = evalDist (do
+    _ = finiteLaw (do
         let baseMatrix ← ($ᵗ (BaseMatrix p) : ProbComp (BaseMatrix p))
         let previousSecret ← sampleMatrix χ p.n p.nbar
         let previousError ← sampleMatrix χ p.n p.nbar
@@ -349,12 +349,12 @@ private theorem evalDist_evenRoundCoins_eq_first
                   extract p senderValue)) fun previous => ?_).trans ?_
             · exact evalDist_bind_replace (evalDist_roundA p χ) _
             · simp only [bind_assoc, pure_bind]
-    _ = evalDist (firstExchangeFailureExp p χ) := by
+    _ = finiteLaw (firstExchangeFailureExp p χ) := by
       simp [firstExchangeFailureExp, initKeyGen]
 
 private theorem evalDist_oddRoundCoins_eq_second
     (p : Params) (χ : ProbComp (Scalar p)) :
-    evalDist (do
+    finiteLaw (do
       let ik ← initKeyGen p χ
       let previous ← honestRoundCoins p χ
       let current ← honestRoundCoins p χ
@@ -365,7 +365,7 @@ private theorem evalDist_oddRoundCoins_eq_second
           current.2.extra
       return decide (reconcile p receiverValue (makeHint p senderValue) ≠
         extract p senderValue)) =
-      evalDist (secondExchangeFailureExp p χ) := by
+      finiteLaw (secondExchangeFailureExp p χ) := by
   let projected : ProbComp Bool := do
     let ik ← initKeyGen p χ
     let previous ← (fun coins => coins.1) <$> honestRoundCoins p χ
@@ -376,7 +376,7 @@ private theorem evalDist_oddRoundCoins_eq_second
     return decide (reconcile p receiverValue (makeHint p senderValue) ≠
       extract p senderValue)
   calc
-    evalDist (do
+    finiteLaw (do
         let ik ← initKeyGen p χ
         let previous ← honestRoundCoins p χ
         let current ← honestRoundCoins p χ
@@ -386,10 +386,10 @@ private theorem evalDist_oddRoundCoins_eq_second
           (previous.1.secret * ik.baseMatrix + previous.1.error) * current.2.secret +
             current.2.extra
         return decide (reconcile p receiverValue (makeHint p senderValue) ≠
-          extract p senderValue)) = evalDist projected := by
+          extract p senderValue)) = finiteLaw projected := by
             simp only [projected, map_eq_bind_pure_comp, bind_assoc, pure_bind,
               Function.comp_apply]
-    _ = evalDist (secondExchangeFailureExp p χ) := by
+    _ = finiteLaw (secondExchangeFailureExp p χ) := by
       simp only [projected, secondExchangeFailureExp]
       refine evalDist_bind_congr' (initKeyGen p χ) fun ik => ?_
       refine (evalDist_bind_replace (evalDist_roundA p χ) _).trans ?_
@@ -399,8 +399,8 @@ private theorem evalDist_oddRoundCoins_eq_second
 /-- Each round within the tape has the same mismatch distribution as the first exchange. -/
 theorem evalDist_tapeRoundMismatch_eq_first
     (p : Params) (χ : ProbComp (Scalar p)) (N j : ℕ) (hj : j < N) :
-    𝒟[(fun t => tapeRoundMismatch p t.1 t.2 j) <$> sampleHonestTape p χ N] =
-      𝒟[firstExchangeFailureExp p χ] := by
+    finiteLaw ((fun t => tapeRoundMismatch p t.1 t.2 j) <$> sampleHonestTape p χ N) =
+      finiteLaw (firstExchangeFailureExp p χ) := by
   cases j with
   | zero =>
       let mismatch (ik : InitKey p) (a : SendACoins p) : Bool :=
@@ -423,24 +423,24 @@ theorem evalDist_tapeRoundMismatch_eq_first
           | some coin =>
               rcases coin with ⟨a, b⟩
               simp [tapeRoundMismatch, observe, mismatch, hcoin]
-        have hcoord := evalDist_map_eq_of_evalDist_eq
+        have hcoord := finiteLaw_map_congr
           (evalDist_drawList_get? (honestRoundCoins p χ) N 0 hj) observe
         calc
-          evalDist (OracleComp.drawList (do
+          finiteLaw (OracleComp.drawList (do
               let a ← sampleSendACoins p χ
               let b ← sampleSendBCoins p χ
               return (a, b)) N >>= fun tape =>
                 pure (tapeRoundMismatch p ik tape 0)) =
-              evalDist (observe <$> (fun tape => getElem? tape 0) <$>
+              finiteLaw (observe <$> (fun tape => getElem? tape 0) <$>
                 OracleComp.drawList (honestRoundCoins p χ) N) := by
                   simp [honestRoundCoins, hobserve, map_eq_bind_pure_comp,
                     Function.comp_apply, bind_assoc]
-          _ = evalDist (observe <$> Option.some <$> honestRoundCoins p χ) := hcoord
-          _ = evalDist (mismatch ik <$> ((fun coins => coins.1) <$>
+          _ = finiteLaw (observe <$> Option.some <$> honestRoundCoins p χ) := hcoord
+          _ = finiteLaw (mismatch ik <$> ((fun coins => coins.1) <$>
                 honestRoundCoins p χ)) := by
                   simp [observe, map_eq_bind_pure_comp, Function.comp_apply, bind_assoc]
-          _ = evalDist (mismatch ik <$> sampleSendACoins p χ) :=
-            evalDist_map_eq_of_evalDist_eq (evalDist_roundA p χ) (mismatch ik)
+          _ = finiteLaw (mismatch ik <$> sampleSendACoins p χ) :=
+            finiteLaw_map_congr (evalDist_roundA p χ) (mismatch ik)
       · simp [firstExchangeFailureExp, mismatch, map_eq_bind_pure_comp]
   | succ j =>
       have hj' : j + 1 < N := by omega
@@ -458,9 +458,9 @@ theorem evalDist_tapeRoundMismatch_eq_first
                 current.2.extra)
         decide (reconcile p values.1 (makeHint p values.2) ≠ extract p values.2)
       have hfront :
-          evalDist ((fun t => tapeRoundMismatch p t.1 t.2 (j + 1)) <$>
+          finiteLaw ((fun t => tapeRoundMismatch p t.1 t.2 (j + 1)) <$>
             sampleHonestTape p χ N) =
-            evalDist (do
+            finiteLaw (do
               let ik ← initKeyGen p χ
               let previous ← honestRoundCoins p χ
               let current ← honestRoundCoins p χ
@@ -468,9 +468,9 @@ theorem evalDist_tapeRoundMismatch_eq_first
         simp only [sampleHonestTape, map_eq_bind_pure_comp, bind_assoc, pure_bind,
           Function.comp_apply]
         refine evalDist_bind_congr' (initKeyGen p χ) fun ik => ?_
-        change evalDist (OracleComp.drawList (honestRoundCoins p χ) N >>= fun tape =>
+        change finiteLaw (OracleComp.drawList (honestRoundCoins p χ) N >>= fun tape =>
             pure (tapeRoundMismatch p ik tape (j + 1))) =
-          evalDist (do
+          finiteLaw (do
             let previous ← honestRoundCoins p χ
             let current ← honestRoundCoins p χ
             return roundMismatch ik previous current)
@@ -492,20 +492,20 @@ theorem evalDist_tapeRoundMismatch_eq_first
               | some current =>
                   rcases current with ⟨a, b⟩
                   simp [observe, roundMismatch]
-        have hcoord := evalDist_map_eq_of_evalDist_eq
+        have hcoord := finiteLaw_map_congr
           (evalDist_drawList_adjacent (honestRoundCoins p χ) N j hj') observe
         calc
-          evalDist (OracleComp.drawList (honestRoundCoins p χ) N >>= fun tape =>
+          finiteLaw (OracleComp.drawList (honestRoundCoins p χ) N >>= fun tape =>
               pure (tapeRoundMismatch p ik tape (j + 1))) =
-              evalDist (observe <$> (fun tape =>
+              finiteLaw (observe <$> (fun tape =>
                 (getElem? tape j, getElem? tape (j + 1))) <$>
                   OracleComp.drawList (honestRoundCoins p χ) N) := by
                     simp [hobserve, map_eq_bind_pure_comp, Function.comp_apply, bind_assoc]
-          _ = evalDist (observe <$> (do
+          _ = finiteLaw (observe <$> (do
               let previous ← honestRoundCoins p χ
               let current ← honestRoundCoins p χ
               return (some previous, some current))) := hcoord
-          _ = evalDist (do
+          _ = finiteLaw (do
               let previous ← honestRoundCoins p χ
               let current ← honestRoundCoins p χ
               return roundMismatch ik previous current) := by
@@ -515,12 +515,12 @@ theorem evalDist_tapeRoundMismatch_eq_first
       by_cases hparity : (j + 1) % 2 = 0
       · simpa [roundMismatch, hparity] using evalDist_evenRoundCoins_eq_first p χ
       · have hodd := evalDist_oddRoundCoins_eq_second p χ
-        have hodd' : evalDist (do
+        have hodd' : finiteLaw (do
             let ik ← initKeyGen p χ
             let previous ← honestRoundCoins p χ
             let current ← honestRoundCoins p χ
             return roundMismatch ik previous current) =
-            evalDist (secondExchangeFailureExp p χ) := by
+            finiteLaw (secondExchangeFailureExp p χ) := by
           simpa [roundMismatch, hparity] using hodd
         exact hodd'.trans (evalDist_secondExchangeFailureExp_eq_first p χ)
 
@@ -529,24 +529,23 @@ firstExchangeFailureProb`.
 This sum of individual failure probabilities is a union bound. -/
 theorem probEvent_tapePrefixFailure_le
     (p : Params) (χ : ProbComp (Scalar p)) (T : ℕ) :
-    Pr[fun t => ∃ j : Fin T, tapeRoundMismatch p t.1 t.2 j.val = true |
-      sampleHonestTape p χ (T + 1)] ≤
+    Pr{let t ← sampleHonestTape p χ (T + 1)}[∃ j : Fin T, tapeRoundMismatch p t.1 t.2 j.val = true] ≤
       (T : ℝ≥0∞) * firstExchangeFailureProb p χ := by
   let E (j : Fin T) (t : InitKey p × List (SendACoins p × SendBCoins p)) : Prop :=
     tapeRoundMismatch p t.1 t.2 j.val = true
   calc
-    Pr[fun t => ∃ j : Fin T, tapeRoundMismatch p t.1 t.2 j.val = true |
-        sampleHonestTape p χ (T + 1)] ≤
+    Pr{let t ← sampleHonestTape p χ (T + 1)}[∃ j : Fin T, tapeRoundMismatch p t.1 t.2 j.val = true] ≤
         Finset.sum Finset.univ (fun j : Fin T =>
-          Pr[E j | sampleHonestTape p χ (T + 1)]) := by
-            simpa [E] using probEvent_exists_finset_le_sum Finset.univ
+          Pr{let x ← sampleHonestTape p χ (T + 1)}[(E j) x]) := by
+            simpa [E] using prEvent_exists_finset_le Finset.univ
               (sampleHonestTape p χ (T + 1)) E
     _ = Finset.sum Finset.univ (fun _ : Fin T => firstExchangeFailureProb p χ) := by
       apply Finset.sum_congr rfl
       intro j _
-      rw [← probOutput_map]
-      exact evalDist_ext_iff.mp
-        (evalDist_tapeRoundMismatch_eq_first p χ (T + 1) j.val (by omega)) true
+      change Pr{let t ← sampleHonestTape p χ (T + 1)}[tapeRoundMismatch p t.1 t.2 j.val = true] = _
+      simpa only [prEvent_map, firstExchangeFailureProb] using
+        evalDist_ext_iff.mp
+          (evalDist_tapeRoundMismatch_eq_first p χ (T + 1) j.val (by omega)) true
     _ = (T : ℝ≥0∞) * firstExchangeFailureProb p χ := by
       simp
 

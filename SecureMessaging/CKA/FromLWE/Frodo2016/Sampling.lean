@@ -5,6 +5,8 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.CKA.FromLWE.Sampling
+import VCVio.OracleComp.Constructions.UniformSelectMeasure
+import VCVio.OracleComp.EvalDist.Sum
 import Mathlib.Data.Int.Interval
 import Mathlib.Tactic.NormNum
 import Mathlib.Tactic.IntervalCases
@@ -51,7 +53,7 @@ private def d3Values : List ℤ :=
 
 private theorem d3Values_length :
     d3Values.length = 4096 := by
-  norm_num [d3Values]
+  simp only [d3Values, List.length_append, List.length_replicate]
 
 private def d3Table : List.Vector ℤ 4096 :=
   ⟨d3Values, d3Values_length⟩
@@ -73,7 +75,8 @@ private theorem d3Values_count (z : ℤ) :
   obtain ⟨n, rfl | rfl⟩ := Int.eq_nat_or_neg z
   · by_cases hn : n ≤ 5
     · interval_cases n <;>
-        norm_num [d3Values, d3Weight, List.count_append, List.count_replicate]
+        simp only [d3Values, List.count_append, List.count_replicate, beq_iff_eq]
+        <;> norm_num [d3Weight]
     · have hn6 : 6 ≤ n := by omega
       obtain ⟨k, rfl⟩ := Nat.exists_eq_add_of_le' hn6
       have hweight : d3Weight (↑(k + 6) : ℤ) = 0 := by
@@ -88,7 +91,8 @@ private theorem d3Values_count (z : ℤ) :
       all_goals omega
   · by_cases hn : n ≤ 5
     · interval_cases n <;>
-        norm_num [d3Values, d3Weight, List.count_append, List.count_replicate]
+        simp only [d3Values, List.count_append, List.count_replicate, beq_iff_eq]
+        <;> norm_num [d3Weight]
     · have hn6 : 6 ≤ n := by omega
       obtain ⟨k, rfl⟩ := Nat.exists_eq_add_of_le' hn6
       have hweight : d3Weight (-(↑(k + 6) : ℤ)) = 0 := by
@@ -137,43 +141,44 @@ theorem d3Value_mem_Icc (u : Fin 4096) :
 
 /-- Every integer's D3 point mass is its source-table weight divided by `4096`. -/
 theorem probOutput_d3IntSampler (z : ℤ) :
-    Pr[= z | d3IntSampler] = (d3Weight z : ℝ≥0∞) / 4096 := by
+    Pr{let x ← d3IntSampler}[x = z] = (d3Weight z : ℝ≥0∞) / 4096 := by
   have hcount : d3Table.toList.count z = d3Weight z := by
     change d3Values.count z = d3Weight z
     exact d3Values_count z
-  change Pr[= z | $! d3Table] = (d3Weight z : ℝ≥0∞) / 4096
-  rw [ProbComp.probOutput_uniformSelectListVector, hcount]
+  change Pr{let x ← $! d3Table}[x = z] = (d3Weight z : ℝ≥0∞) / 4096
+  rw [uniformSelectListVector_mass, hcount]
   norm_num
 
 /-- Uniform seed sampling and deterministic decoding never fail. -/
 theorem probFailure_d3IntSampler :
-    Pr[⊥ | d3IntSampler] = 0 := by
+    prFail d3IntSampler = 0 := by
   simp [d3IntSampler]
 
 /-- The exact support of the signed D3 sampler is the integer interval from `-5` to `5`. -/
 theorem support_d3IntSampler :
     support d3IntSampler = Set.Icc (-5 : ℤ) 5 := by
   ext z
-  rw [mem_support_iff, probOutput_d3IntSampler]
+  rw [OracleComp.mem_support_iff_prEvent_ne_zero, probOutput_d3IntSampler]
   simpa [Nat.pos_iff_ne_zero] using d3Weight_pos_iff z
 
 /-- The signed D3 distribution is invariant under integer negation. -/
 theorem evalDist_neg_d3IntSampler :
-    evalDist ((fun z : ℤ => -z) <$> d3IntSampler) =
-      evalDist d3IntSampler := by
-  apply evalDist_ext_iff.mpr
+    finiteLaw ((fun z : ℤ => -z) <$> d3IntSampler) =
+      finiteLaw d3IntSampler := by
+  apply EvalDistEq.evalDist_eq
+  apply OracleComp.evalDistEq_of_forall_prEvent_eq_output
   intro z
   calc
-    Pr[= z | (fun t : ℤ => -t) <$> d3IntSampler] = Pr[= -z | d3IntSampler] := by
+    Pr{let x ← (fun t : ℤ => -t) <$> d3IntSampler}[x = z] = Pr{let x ← d3IntSampler}[x = -z] := by
       simpa only [neg_neg] using
-        (probOutput_map_injective d3IntSampler (f := fun t : ℤ => -t) neg_injective (-z))
+        (prEvent_map_injective d3IntSampler (f := fun t : ℤ => -t) neg_injective (-z))
     _ = (d3Weight (-z) : ℝ≥0∞) / 4096 := probOutput_d3IntSampler (-z)
     _ = (d3Weight z : ℝ≥0∞) / 4096 := by simp [d3Weight]
-    _ = Pr[= z | d3IntSampler] := (probOutput_d3IntSampler z).symm
+    _ = Pr{let x ← d3IntSampler}[x = z] := (probOutput_d3IntSampler z).symm
 
 /-- Scalar point masses are the finite pushforward of the eleven signed integer masses. -/
 theorem probOutput_d3Sampler (x : Scalar recommendedParams) :
-    Pr[= x | d3Sampler] =
+    Pr{let y ← d3Sampler}[y = x] =
       ∑ z ∈ Finset.Icc (-5 : ℤ) 5,
         if x = (z : Scalar recommendedParams) then
           (d3Weight z : ℝ≥0∞) / 4096
@@ -181,8 +186,17 @@ theorem probOutput_d3Sampler (x : Scalar recommendedParams) :
   have hfin : finSupport d3IntSampler = Finset.Icc (-5 : ℤ) 5 := by
     apply (finSupport_eq_iff_support_eq_coe d3IntSampler _).2
     simpa using support_d3IntSampler
-  simp only [d3Sampler, probOutput_map_eq_sum_finSupport_ite, hfin,
-    probOutput_d3IntSampler]
+  rw [d3Sampler, prEvent_map, OracleComp.prEvent_eq_tsum_ite]
+  rw [tsum_eq_sum (s := Finset.Icc (-5 : ℤ) 5)]
+  · apply Finset.sum_congr rfl
+    intro z hz
+    rw [probOutput_d3IntSampler]
+    simp only [eq_comm]
+  · intro z hz
+    have hzero : Pr{let x ← d3IntSampler}[x = z] = 0 := by
+      apply prEvent_eq_zero_of_not_mem_support
+      simpa [support_d3IntSampler] using hz
+    simp [hzero]
 
 end lweCKA
 
@@ -275,15 +289,15 @@ private def d4Values : List ℤ :=
 
 private theorem d1Values_length :
     d1Values.length = 256 := by
-  norm_num [d1Values]
+  simp only [d1Values, List.length_append, List.length_replicate]
 
 private theorem d2Values_length :
     d2Values.length = 4096 := by
-  norm_num [d2Values]
+  simp only [d2Values, List.length_append, List.length_replicate]
 
 private theorem d4Values_length :
     d4Values.length = 65536 := by
-  norm_num [d4Values]
+  simp only [d4Values, List.length_append, List.length_replicate]
 
 private def d1Table : List.Vector ℤ 256 :=
   ⟨d1Values, d1Values_length⟩
@@ -335,7 +349,8 @@ private theorem d1Values_count (z : ℤ) :
   obtain ⟨n, rfl | rfl⟩ := Int.eq_nat_or_neg z
   · by_cases hn : n ≤ 3
     · interval_cases n <;>
-        norm_num [d1Values, d1Weight, List.count_append, List.count_replicate]
+        simp only [d1Values, List.count_append, List.count_replicate, beq_iff_eq]
+        <;> norm_num [d1Weight]
     · have hn4 : 4 ≤ n := by omega
       obtain ⟨k, rfl⟩ := Nat.exists_eq_add_of_le' hn4
       have hweight : d1Weight (↑(k + 4) : ℤ) = 0 := by
@@ -349,7 +364,8 @@ private theorem d1Values_count (z : ℤ) :
       all_goals omega
   · by_cases hn : n ≤ 3
     · interval_cases n <;>
-        norm_num [d1Values, d1Weight, List.count_append, List.count_replicate]
+        simp only [d1Values, List.count_append, List.count_replicate, beq_iff_eq]
+        <;> norm_num [d1Weight]
     · have hn4 : 4 ≤ n := by omega
       obtain ⟨k, rfl⟩ := Nat.exists_eq_add_of_le' hn4
       have hweight : d1Weight (-(↑(k + 4) : ℤ)) = 0 := by
@@ -367,7 +383,8 @@ private theorem d2Values_count (z : ℤ) :
   obtain ⟨n, rfl | rfl⟩ := Int.eq_nat_or_neg z
   · by_cases hn : n ≤ 4
     · interval_cases n <;>
-        norm_num [d2Values, d2Weight, List.count_append, List.count_replicate]
+        simp only [d2Values, List.count_append, List.count_replicate, beq_iff_eq]
+        <;> norm_num [d2Weight]
     · have hn5 : 5 ≤ n := by omega
       obtain ⟨k, rfl⟩ := Nat.exists_eq_add_of_le' hn5
       have hweight : d2Weight (↑(k + 5) : ℤ) = 0 := by
@@ -381,7 +398,8 @@ private theorem d2Values_count (z : ℤ) :
       all_goals omega
   · by_cases hn : n ≤ 4
     · interval_cases n <;>
-        norm_num [d2Values, d2Weight, List.count_append, List.count_replicate]
+        simp only [d2Values, List.count_append, List.count_replicate, beq_iff_eq]
+        <;> norm_num [d2Weight]
     · have hn5 : 5 ≤ n := by omega
       obtain ⟨k, rfl⟩ := Nat.exists_eq_add_of_le' hn5
       have hweight : d2Weight (-(↑(k + 5) : ℤ)) = 0 := by
@@ -399,7 +417,8 @@ private theorem d4Values_count (z : ℤ) :
   obtain ⟨n, rfl | rfl⟩ := Int.eq_nat_or_neg z
   · by_cases hn : n ≤ 6
     · interval_cases n <;>
-        norm_num [d4Values, d4Weight, List.count_append, List.count_replicate]
+        simp only [d4Values, List.count_append, List.count_replicate, beq_iff_eq]
+        <;> norm_num [d4Weight]
     · have hn7 : 7 ≤ n := by omega
       obtain ⟨k, rfl⟩ := Nat.exists_eq_add_of_le' hn7
       have hweight : d4Weight (↑(k + 7) : ℤ) = 0 := by
@@ -414,7 +433,8 @@ private theorem d4Values_count (z : ℤ) :
       all_goals omega
   · by_cases hn : n ≤ 6
     · interval_cases n <;>
-        norm_num [d4Values, d4Weight, List.count_append, List.count_replicate]
+        simp only [d4Values, List.count_append, List.count_replicate, beq_iff_eq]
+        <;> norm_num [d4Weight]
     · have hn7 : 7 ≤ n := by omega
       obtain ⟨k, rfl⟩ := Nat.exists_eq_add_of_le' hn7
       have hweight : d4Weight (-(↑(k + 7) : ℤ)) = 0 := by
@@ -469,53 +489,53 @@ theorem paranoidParams_wellFormed :
 
 /-- Every integer's D1 point mass is its source-table weight divided by `256`. -/
 theorem probOutput_d1IntSampler (z : ℤ) :
-    Pr[= z | d1IntSampler] = (d1Weight z : ℝ≥0∞) / 256 := by
+    Pr{let x ← d1IntSampler}[x = z] = (d1Weight z : ℝ≥0∞) / 256 := by
   have hcount : d1Table.toList.count z = d1Weight z := by
     change d1Values.count z = d1Weight z
     exact d1Values_count z
-  change Pr[= z | $! d1Table] = (d1Weight z : ℝ≥0∞) / 256
-  rw [ProbComp.probOutput_uniformSelectListVector, hcount]
+  change Pr{let x ← $! d1Table}[x = z] = (d1Weight z : ℝ≥0∞) / 256
+  rw [uniformSelectListVector_mass, hcount]
   norm_num
 
 /-- Every integer's D2 point mass is its source-table weight divided by `4096`. -/
 theorem probOutput_d2IntSampler (z : ℤ) :
-    Pr[= z | d2IntSampler] = (d2Weight z : ℝ≥0∞) / 4096 := by
+    Pr{let x ← d2IntSampler}[x = z] = (d2Weight z : ℝ≥0∞) / 4096 := by
   have hcount : d2Table.toList.count z = d2Weight z := by
     change d2Values.count z = d2Weight z
     exact d2Values_count z
-  change Pr[= z | $! d2Table] = (d2Weight z : ℝ≥0∞) / 4096
-  rw [ProbComp.probOutput_uniformSelectListVector, hcount]
+  change Pr{let x ← $! d2Table}[x = z] = (d2Weight z : ℝ≥0∞) / 4096
+  rw [uniformSelectListVector_mass, hcount]
   norm_num
 
 /-- Every integer's D4 point mass is its source-table weight divided by `65536`. -/
 theorem probOutput_d4IntSampler (z : ℤ) :
-    Pr[= z | d4IntSampler] = (d4Weight z : ℝ≥0∞) / 65536 := by
+    Pr{let x ← d4IntSampler}[x = z] = (d4Weight z : ℝ≥0∞) / 65536 := by
   have hcount : d4Table.toList.count z = d4Weight z := by
     change d4Values.count z = d4Weight z
     exact d4Values_count z
-  change Pr[= z | $! d4Table] = (d4Weight z : ℝ≥0∞) / 65536
-  rw [ProbComp.probOutput_uniformSelectListVector, hcount]
+  change Pr{let x ← $! d4Table}[x = z] = (d4Weight z : ℝ≥0∞) / 65536
+  rw [uniformSelectListVector_mass, hcount]
   norm_num
 
 /-- The exact support of D1 is the integer interval from `-3` to `3`. -/
 theorem support_d1IntSampler :
     support d1IntSampler = Set.Icc (-3 : ℤ) 3 := by
   ext z
-  rw [mem_support_iff, probOutput_d1IntSampler]
+  rw [OracleComp.mem_support_iff_prEvent_ne_zero, probOutput_d1IntSampler]
   simpa [Nat.pos_iff_ne_zero] using d1Weight_pos_iff z
 
 /-- The exact support of D2 is the integer interval from `-4` to `4`. -/
 theorem support_d2IntSampler :
     support d2IntSampler = Set.Icc (-4 : ℤ) 4 := by
   ext z
-  rw [mem_support_iff, probOutput_d2IntSampler]
+  rw [OracleComp.mem_support_iff_prEvent_ne_zero, probOutput_d2IntSampler]
   simpa [Nat.pos_iff_ne_zero] using d2Weight_pos_iff z
 
 /-- The exact support of D4 is the integer interval from `-6` to `6`. -/
 theorem support_d4IntSampler :
     support d4IntSampler = Set.Icc (-6 : ℤ) 6 := by
   ext z
-  rw [mem_support_iff, probOutput_d4IntSampler]
+  rw [OracleComp.mem_support_iff_prEvent_ne_zero, probOutput_d4IntSampler]
   simpa [Nat.pos_iff_ne_zero] using d4Weight_pos_iff z
 
 end lweCKA

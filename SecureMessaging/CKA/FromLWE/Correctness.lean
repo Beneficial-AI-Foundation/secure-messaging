@@ -606,7 +606,7 @@ theorem correctness_failure_le
     (p : Params) (hp : p.WellFormed) (χ : ProbComp (Scalar p))
     (adv : CKAScheme.CKACorrectnessAdversary (Message p) (Key p))
     (T : ℕ) (hT : HasExchangeBound p hp χ adv T) :
-    Pr[= false | CKAScheme.correctnessExp (scheme p hp χ) adv] ≤
+    Pr{let x ← CKAScheme.correctnessExp (scheme p hp χ) adv}[x = false] ≤
       min 1 ((T : ℝ≥0∞) * firstExchangeFailureProb p χ) := by
   have hReplay := fun (ik : InitKey p) (N : ℕ) =>
     evalDist_tapeCorrectnessRun p hp χ adv
@@ -622,7 +622,7 @@ theorem correctness_failure_le
     let t ← sampleHonestTape p χ (T + 1)
     let z ← runTape t
     return (z.1, z.2.1)
-  have hdist : 𝒟[replay] = 𝒟[correctnessStateExp p hp χ adv] := by
+  have hdist : finiteLaw (replay) = finiteLaw (correctnessStateExp p hp χ adv) := by
     simp only [replay, sampleHonestTape, correctnessStateExp, scheme, bind_assoc,
       pure_bind]
     exact evalDist_bind_congr' (initKeyGen p χ) fun ik => hReplay ik (T + 1)
@@ -633,18 +633,16 @@ theorem correctness_failure_le
     apply (mem_support_iff_of_evalDist_eq hdist _).1
     simp only [replay, mem_support_bind_iff, mem_support_pure_iff]
     exact ⟨t, ht, z, hz, rfl⟩
-  have hevent : Pr[fun z => z.2.correct = false | replay] ≤
+  have hevent : Pr{let z ← replay}[z.2.correct = false] ≤
       (T : ℝ≥0∞) * firstExchangeFailureProb p χ := by
     calc
-      Pr[fun z => z.2.correct = false | replay] =
-          Pr[fun z => z.2.1.correct = false |
-            sampleHonestTape p χ (T + 1) >>= runTape] := by
-        simp [replay, probEvent_bind_eq_tsum, Function.comp_def]
-      _ ≤ Pr[fun t => ∃ j : Fin T, tapeRoundMismatch p t.1 t.2 j.val = true |
-          sampleHonestTape p χ (T + 1)] := by
-        apply probEvent_bind_le_probEvent
+      Pr{let z ← replay}[z.2.correct = false] =
+          Pr{let z ← sampleHonestTape p χ (T + 1) >>= runTape}[z.2.1.correct = false] := by
+        simp [replay, OracleComp.prEvent_bind_eq_tsum, Function.comp_def]
+      _ ≤ Pr{let t ← sampleHonestTape p χ (T + 1)}[∃ j : Fin T, tapeRoundMismatch p t.1 t.2 j.val = true] := by
+        apply prEvent_bind_le_prEvent_of_support
         intro t ht hgood
-        apply probEvent_eq_zero_iff.mpr
+        apply (OracleComp.prEvent_eq_zero_iff _ _).mpr
         intro z hz hfalse
         have hc := hcount t ht z hz
         have hl := sampleHonestTape_length p χ (T + 1) t ht
@@ -659,10 +657,10 @@ theorem correctness_failure_le
         simp [hall, hfalse] at hpref
       _ ≤ (T : ℝ≥0∞) * firstExchangeFailureProb p χ :=
         probEvent_tapePrefixFailure_le p χ T
-  apply le_min probOutput_le_one
-  rw [correctnessExp_eq_map_state, probOutput_map]
-  have heq : Pr[fun z => z.2.correct = false | replay] =
-      Pr[fun z => z.2.correct = false | correctnessStateExp p hp χ adv] := by
+  apply le_min (prEvent_le_one _)
+  rw [correctnessExp_eq_map_state, prEvent_map]
+  have heq : Pr{let z ← replay}[z.2.correct = false] =
+      Pr{let z ← correctnessStateExp p hp χ adv}[z.2.correct = false] := by
     rw [probEvent_def, probEvent_def, hdist]
   exact heq ▸ hevent
 
@@ -673,16 +671,15 @@ theorem correctness_of_zero
     (adv : CKAScheme.CKACorrectnessAdversary (Message p) (Key p))
     (T : ℕ) (hT : HasExchangeBound p hp χ adv T)
     (hzero : firstExchangeFailureProb p χ = 0) :
-    Pr[= true | CKAScheme.correctnessExp (scheme p hp χ) adv] = 1 := by
-  have hz : Pr[= false | CKAScheme.correctnessExp (scheme p hp χ) adv] = 0 :=
+    Pr{let x ← CKAScheme.correctnessExp (scheme p hp χ) adv}[x = true] = 1 := by
+  have hz : Pr{let x ← CKAScheme.correctnessExp (scheme p hp χ) adv}[x = false] = 0 :=
     le_antisymm
       (by simpa [hzero] using correctness_failure_le p hp χ adv T hT)
       bot_le
-  apply (probOutput_eq_one_iff_forall _ true).2
-  refine ⟨probFailure_eq_zero, ?_⟩
+  apply (OracleComp.prEvent_eq_one_iff _ (· = true)).2
   intro y hy
   cases y
-  · exact False.elim ((probOutput_eq_zero_iff _ false).1 hz hy)
+  · exact False.elim ((OracleComp.prEvent_eq_zero_iff _ (· = false)).1 hz false hy rfl)
   · rfl
 
 end lweCKA

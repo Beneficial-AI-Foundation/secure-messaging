@@ -18,7 +18,7 @@ the lower estimate is the additive two-term Bonferroni inequality.  The final th
 certified lower endpoint with the literal real power printed in the paper.
 -/
 
-open OracleComp OracleComp.EvalDist
+open OracleComp
 open scoped BigOperators ENNReal
 
 namespace lweCKA
@@ -28,9 +28,9 @@ private noncomputable def indicator (p : Prop) : ℝ≥0∞ :=
 
 private theorem expectedValue_indicator
     {α : Type} (mx : ProbComp α) (p : α → Prop) :
-    expectedValue mx (fun x => indicator (p x)) = Pr[p | mx] := by
+    expectedValue mx (fun x => indicator (p x)) = Pr{let x ← mx}[p x] := by
   classical
-  rw [expectedValue_def, probEvent_eq_tsum_ite]
+  rw [expectedValue_def, OracleComp.prEvent_eq_tsum_ite]
   apply tsum_congr
   intro x
   by_cases hx : p x <;> simp [indicator, hx]
@@ -105,13 +105,13 @@ private theorem sum_indicators_le_exists_add_pairs
 private theorem probEvent_sum_le_union_add_pairs
     {ι α : Type} [LinearOrder ι] (s : Finset ι) (mx : ProbComp α)
     (E : ι → α → Prop) :
-    (∑ i ∈ s, Pr[E i | mx]) ≤
-      Pr[fun x => ∃ i ∈ s, E i x | mx] +
+    (∑ i ∈ s, Pr{let x ← mx}[(E i) x]) ≤
+      Pr{let x ← mx}[∃ i ∈ s, E i x] +
         ∑ ij ∈ (s ×ˢ s).filter (fun ij => ij.1 < ij.2),
-          Pr[fun x => E ij.1 x ∧ E ij.2 x | mx] := by
+          Pr{let x ← mx}[E ij.1 x ∧ E ij.2 x] := by
   classical
   calc
-    (∑ i ∈ s, Pr[E i | mx]) =
+    (∑ i ∈ s, Pr{let x ← mx}[(E i) x]) =
         expectedValue mx (fun x => ∑ i ∈ s, indicator (E i x)) := by
       rw [expectedValue_finsetSum]
       simp_rw [expectedValue_indicator]
@@ -121,9 +121,9 @@ private theorem probEvent_sum_le_union_add_pairs
               ∑ ij ∈ (s ×ˢ s).filter (fun ij => ij.1 < ij.2),
                 indicator (E ij.1 x ∧ E ij.2 x)) :=
       expectedValue_mono mx (sum_indicators_le_exists_add_pairs s E)
-    _ = Pr[fun x => ∃ i ∈ s, E i x | mx] +
+    _ = Pr{let x ← mx}[∃ i ∈ s, E i x] +
           ∑ ij ∈ (s ×ˢ s).filter (fun ij => ij.1 < ij.2),
-            Pr[fun x => E ij.1 x ∧ E ij.2 x | mx] := by
+            Pr{let x ← mx}[E ij.1 x ∧ E ij.2 x] := by
       rw [expectedValue_add, expectedValue_indicator, expectedValue_finsetSum]
       simp_rw [expectedValue_indicator]
 
@@ -139,11 +139,9 @@ private lemma challengeCoord_injective : Function.Injective challengeCoord :=
   challengeCoordEquiv.symm.injective
 
 private theorem challenge_entry_union_reindex :
-    Pr[fun t =>
-      ∃ c : Fin challengeParams.nbar × Fin challengeParams.nbar,
-        challengeEntryMismatch c t | challengeCoinsExp] =
-      Pr[fun t => ∃ i : Fin 64, challengeEntryMismatch (challengeCoord i) t |
-        challengeCoinsExp] := by
+    Pr{let t ← challengeCoinsExp}[∃ c : Fin challengeParams.nbar × Fin challengeParams.nbar,
+        challengeEntryMismatch c t] =
+      Pr{let t ← challengeCoinsExp}[∃ i : Fin 64, challengeEntryMismatch (challengeCoord i) t] := by
   apply le_antisymm
   · apply probEvent_mono''
     intro t ht
@@ -156,24 +154,18 @@ private theorem challenge_entry_union_reindex :
 private theorem challenge_pair_sum_le :
     (∑ ij ∈ ((Finset.univ : Finset (Fin 64)) ×ˢ Finset.univ).filter
         (fun ij => ij.1 < ij.2),
-      Pr[fun t =>
-        challengeEntryMismatch (challengeCoord ij.1) t ∧
-          challengeEntryMismatch (challengeCoord ij.2) t |
-        challengeCoinsExp]) ≤
+      Pr{let t ← challengeCoinsExp}[challengeEntryMismatch (challengeCoord ij.1) t ∧
+          challengeEntryMismatch (challengeCoord ij.2) t]) ≤
       (2016 : ℝ≥0∞) / 2 ^ 70 := by
   calc
     (∑ ij ∈ ((Finset.univ : Finset (Fin 64)) ×ˢ Finset.univ).filter
         (fun ij => ij.1 < ij.2),
-      Pr[fun t =>
-        challengeEntryMismatch (challengeCoord ij.1) t ∧
-          challengeEntryMismatch (challengeCoord ij.2) t |
-        challengeCoinsExp]) =
+      Pr{let t ← challengeCoinsExp}[challengeEntryMismatch (challengeCoord ij.1) t ∧
+          challengeEntryMismatch (challengeCoord ij.2) t]) =
         ∑ ij ∈ ((Finset.univ : Finset (Fin 64)) ×ˢ Finset.univ),
           if ij.1 < ij.2 then
-            Pr[fun t =>
-              challengeEntryMismatch (challengeCoord ij.1) t ∧
-                challengeEntryMismatch (challengeCoord ij.2) t |
-              challengeCoinsExp]
+            Pr{let t ← challengeCoinsExp}[challengeEntryMismatch (challengeCoord ij.1) t ∧
+                challengeEntryMismatch (challengeCoord ij.2) t]
           else 0 := by
       rw [Finset.sum_filter]
     _ ≤ ∑ ij ∈ ((Finset.univ : Finset (Fin 64)) ×ˢ Finset.univ),
@@ -203,11 +195,11 @@ private theorem challenge_marginal_sum_bounds :
     let m := expectedValue challengeEntryNoiseIntExp challengeFailureRamp
     let e := (1 : ℝ≥0∞) / 2 ^ 345
     (∑ i : Fin 64,
-        Pr[challengeEntryMismatch (challengeCoord i) | challengeCoinsExp]) ≤
+        Pr{let x ← challengeCoinsExp}[(challengeEntryMismatch (challengeCoord i)) x]) ≤
         64 * m + e ∧
       64 * m ≤
         (∑ i : Fin 64,
-          Pr[challengeEntryMismatch (challengeCoord i) | challengeCoinsExp]) + e := by
+          Pr{let x ← challengeCoinsExp}[(challengeEntryMismatch (challengeCoord i)) x]) + e := by
   dsimp only
   have hpow : (2 : ℝ≥0∞) ^ 351 = 64 * 2 ^ 345 := by
     rw [show 351 = 6 + 345 by norm_num, pow_add]
@@ -219,7 +211,7 @@ private theorem challenge_marginal_sum_bounds :
   constructor
   · calc
       (∑ i : Fin 64,
-          Pr[challengeEntryMismatch (challengeCoord i) | challengeCoinsExp]) ≤
+          Pr{let x ← challengeCoinsExp}[(challengeEntryMismatch (challengeCoord i)) x]) ≤
           ∑ _i : Fin 64,
             (expectedValue challengeEntryNoiseIntExp challengeFailureRamp +
               (1 : ℝ≥0∞) / 2 ^ 351) := by
@@ -242,18 +234,18 @@ private theorem challenge_marginal_sum_bounds :
           Nat.cast_ofNat]
       _ ≤
           ∑ _i : Fin 64,
-            (Pr[challengeEntryMismatch (challengeCoord _i) | challengeCoinsExp] +
+            (Pr{let x ← challengeCoinsExp}[(challengeEntryMismatch (challengeCoord _i)) x] +
               (1 : ℝ≥0∞) / 2 ^ 351) := by
         apply Finset.sum_le_sum
         intro i _
         exact (probEvent_challengeEntryMismatch_ramp_bounds (challengeCoord i)).2
       _ = (∑ i : Fin 64,
-          Pr[challengeEntryMismatch (challengeCoord i) | challengeCoinsExp]) +
+          Pr{let x ← challengeCoinsExp}[(challengeEntryMismatch (challengeCoord i)) x]) +
           (1 : ℝ≥0∞) / 2 ^ 345 := by
         rw [Finset.sum_add_distrib, Finset.sum_const, Finset.card_univ,
           Fintype.card_fin, nsmul_eq_mul, Nat.cast_ofNat]
         change (∑ i : Fin 64,
-            Pr[challengeEntryMismatch (challengeCoord i) | challengeCoinsExp]) +
+            Pr{let x ← challengeCoinsExp}[(challengeEntryMismatch (challengeCoord i)) x]) +
               (64 : ℝ≥0∞) * (1 / 2 ^ 351) = _
         rw [hscale]
 
@@ -268,13 +260,12 @@ private theorem challenge_probability_vs_ramp :
   have hmarg := challenge_marginal_sum_bounds
   constructor
   · rw [firstExchangeFailureProb_challenge_eq_entry_union, hreindex]
-    have hunion := probEvent_exists_finset_le_sum Finset.univ challengeCoinsExp
+    have hunion := prEvent_exists_finset_le Finset.univ challengeCoinsExp
       (fun i t => challengeEntryMismatch (challengeCoord i) t)
     have hunion' :
-        Pr[fun t => ∃ i : Fin 64, challengeEntryMismatch (challengeCoord i) t |
-          challengeCoinsExp] ≤
+        Pr{let t ← challengeCoinsExp}[∃ i : Fin 64, challengeEntryMismatch (challengeCoord i) t] ≤
           ∑ i : Fin 64,
-            Pr[challengeEntryMismatch (challengeCoord i) | challengeCoinsExp] := by
+            Pr{let x ← challengeCoinsExp}[(challengeEntryMismatch (challengeCoord i)) x] := by
       simpa using hunion
     exact hunion'.trans hmarg.1
   · have hbonf := probEvent_sum_le_union_add_pairs
@@ -287,23 +278,21 @@ private theorem challenge_probability_vs_ramp :
         firstExchangeFailureProb challengeParams d1Sampler +
             (∑ ij ∈ ((Finset.univ : Finset (Fin 64)) ×ˢ Finset.univ).filter
               (fun ij => ij.1 < ij.2),
-              Pr[fun t =>
-                challengeEntryMismatch (challengeCoord ij.1) t ∧
-                  challengeEntryMismatch (challengeCoord ij.2) t |
-                challengeCoinsExp]) ≤
+              Pr{let t ← challengeCoinsExp}[challengeEntryMismatch (challengeCoord ij.1) t ∧
+                  challengeEntryMismatch (challengeCoord ij.2) t]) ≤
           firstExchangeFailureProb challengeParams d1Sampler +
             (2016 : ℝ≥0∞) / 2 ^ 70 :=
       add_le_add le_rfl hpair
     have hsump :
         (∑ i : Fin 64,
-          Pr[challengeEntryMismatch (challengeCoord i) | challengeCoinsExp]) ≤
+          Pr{let x ← challengeCoinsExp}[(challengeEntryMismatch (challengeCoord i)) x]) ≤
           firstExchangeFailureProb challengeParams d1Sampler +
             (2016 : ℝ≥0∞) / 2 ^ 70 :=
       hbonf.trans hpair'
     calc
       64 * expectedValue challengeEntryNoiseIntExp challengeFailureRamp ≤
           (∑ i : Fin 64,
-            Pr[challengeEntryMismatch (challengeCoord i) | challengeCoinsExp]) +
+            Pr{let x ← challengeCoinsExp}[(challengeEntryMismatch (challengeCoord i)) x]) +
               (1 : ℝ≥0∞) / 2 ^ 345 := hmarg.2
       _ ≤ (firstExchangeFailureProb challengeParams d1Sampler +
             (2016 : ℝ≥0∞) / 2 ^ 70) + 1 / 2 ^ 345 :=
@@ -414,8 +403,8 @@ theorem correctness_failure_challenge_le
       (Message challengeParams) (Key challengeParams))
     (T : ℕ)
     (hT : HasExchangeBound challengeParams challengeParams_wellFormed d1Sampler adv T) :
-    Pr[= false | CKAScheme.correctnessExp
-      (scheme challengeParams challengeParams_wellFormed d1Sampler) adv] ≤
+    Pr{let x ← (CKAScheme.correctnessExp
+      (scheme challengeParams challengeParams_wellFormed d1Sampler) adv)}[x = false] ≤
       min 1 ((T : ℝ≥0∞) * ((316050145969 : ℝ≥0∞) / 2 ^ 80)) := by
   refine le_trans (correctness_failure_le challengeParams
     challengeParams_wellFormed d1Sampler adv T hT) ?_

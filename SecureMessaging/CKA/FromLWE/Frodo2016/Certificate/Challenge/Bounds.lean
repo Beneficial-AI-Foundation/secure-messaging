@@ -23,7 +23,7 @@ is an exact base-`2^145` implementation of the same natural-number recurrence. T
 enclose the expected modular reconciliation ramp for the exact D1 noise distribution.
 -/
 
-open OracleComp OracleComp.EvalDist
+open OracleComp
 open scoped BigOperators ENNReal
 
 namespace lweCKA
@@ -438,9 +438,9 @@ private theorem challenge_missing_scale_cancel (d S : ℝ≥0∞) :
 matrix, including the exceptional-secret-vector and pairwise-overlap allowances. -/
 theorem challengeEntryRamp_bounds :
     (182190504909736707587867345424 : ℝ≥0∞) / 2 ^ 139 ≤
-      64 * OracleComp.EvalDist.expectedValue
+      64 * lweCKA.expectedValue
         challengeEntryNoiseIntExp challengeFailureRamp ∧
-    64 * OracleComp.EvalDist.expectedValue
+    64 * lweCKA.expectedValue
         challengeEntryNoiseIntExp challengeFailureRamp ≤
       (182190504909736707587867345424 : ℝ≥0∞) / 2 ^ 139 +
         64 * (4538522943514 : ℝ≥0∞) / 2 ^ 128 := by
@@ -476,11 +476,11 @@ theorem challengeEntryRamp_bounds :
       (182190504909736707587867345424 : ℝ≥0∞) / 2 ^ 139 =
           64 * ((182190504909736707587867345424 : ℝ≥0∞) /
             ((256 * scale) * 512)) := hmain
-      _ ≤ 64 * OracleComp.EvalDist.expectedValue
+      _ ≤ 64 * lweCKA.expectedValue
           challengeEntryNoiseIntExp challengeFailureRamp :=
         by simpa only [mul_comm] using mul_le_mul_left hbounds.1 64
   · calc
-      64 * OracleComp.EvalDist.expectedValue
+      64 * lweCKA.expectedValue
           challengeEntryNoiseIntExp challengeFailureRamp ≤
           64 * ((182190504909736707587867345424 : ℝ≥0∞) /
               ((256 * scale) * 512) +

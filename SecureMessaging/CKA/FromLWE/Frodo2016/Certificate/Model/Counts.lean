@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.CKA.FromLWE.Frodo2016.Certificate.Packing
 import SecureMessaging.KEM.MLKEM.Correctness.FailureCertificate.Radix
-import VCVio.EvalDist.Expectation
+import VCVio.ProgramLogic.Unary.HoareTriple
 import Mathlib.Data.Int.NatAbs
 import Mathlib.Data.Nat.Bitwise
 
@@ -18,7 +18,7 @@ here once for all three historical rows. The final domination and missing-mass
 enclosure remain in `Certificate.Model`.
 -/
 
-open OracleComp OracleComp.EvalDist
+open OracleComp
 open scoped BigOperators ENNReal
 
 namespace lweCKA.Frodo2016.Certificate
@@ -93,9 +93,9 @@ theorem SharedModelInternal.counts_apply_of_mem (c : Config) (z : ℤ)
   classical
   rw [counts, AddMonoidAlgebra.coeff_sum, Finsupp.finsetSum_apply,
     Finset.sum_eq_single z]
-  · simp
+  · simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_eq_same]
   · intro y hy hne
-    simp [hne]
+    simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_apply, hne, ite_false]
   · exact fun h => (h hz).elim
 
 theorem SharedModelInternal.counts_apply_of_not_mem (c : Config) (z : ℤ)
@@ -106,7 +106,7 @@ theorem SharedModelInternal.counts_apply_of_not_mem (c : Config) (z : ℤ)
   apply Finset.sum_eq_zero
   intro y hy
   have hne : y ≠ z := fun h => hz (h ▸ hy)
-  simp [hne]
+  simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_apply, hne, ite_false]
 
 private theorem measureWindow_counts (c : Config) :
     ToVCVio.MeasureWindow (counts c) (-(c.a : ℤ)) (c.a : ℤ) := by
@@ -130,15 +130,15 @@ theorem SharedModelInternal.lowerCounts_succ_apply (c : Config) (k : ℕ) (z : �
   rw [lowerCounts, AddMonoidAlgebra.coeff_sum, Finsupp.finsetSum_apply]
   by_cases hz : z ∈ Finset.Icc (-(c.window : ℤ)) (c.window : ℤ)
   · rw [if_pos hz, Finset.sum_eq_single z]
-    · simp
+    · simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_eq_same]
     · intro y hy hne
-      simp [hne]
+      simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_apply, hne, ite_false]
     · exact fun h => (h hz).elim
   · rw [if_neg hz]
     apply Finset.sum_eq_zero
     intro y hy
     have hne : y ≠ z := fun h => hz (h ▸ hy)
-    simp [hne]
+    simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_apply, hne, ite_false]
 
 theorem SharedModelInternal.measureWindow_lowerCounts (c : Config) (k : ℕ) :
     ToVCVio.MeasureWindow (lowerCounts c k)

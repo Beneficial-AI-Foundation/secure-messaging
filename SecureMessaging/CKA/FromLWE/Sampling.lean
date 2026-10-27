@@ -5,6 +5,7 @@ Authors: Beneficial AI Foundation
 -/
 
 import SecureMessaging.CKA.FromLWE.Basic
+import SecureMessaging.CKA.FromLWE.Probability
 import VCVio.OracleComp.ProbComp
 import VCVio.OracleComp.Constructions.SampleableType
 

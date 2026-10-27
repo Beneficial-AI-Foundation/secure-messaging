@@ -28,7 +28,7 @@ namespace lweCKA
 
 private noncomputable def finiteRealExpectation
     (mx : ProbComp ℤ) (f : ℤ → ℝ) : ℝ :=
-  ∑ z ∈ finSupport mx, (Pr[= z | mx]).toReal * f z
+  ∑ z ∈ finSupport mx, (Pr{let x ← mx}[x = z]).toReal * f z
 
 private def d3DifferenceBlock : ProbComp ℤ := do
   let s0 ← d3IntSampler
@@ -48,7 +48,7 @@ private def entryNoiseIntExpAux (n : ℕ) : ProbComp ℤ := do
 
 private lemma summable_probOutput_toReal_mul
     (mx : ProbComp ℤ) (f : ℤ → ℝ) :
-    Summable (fun z : ℤ ↦ (Pr[= z | mx]).toReal * f z) := by
+    Summable (fun z : ℤ ↦ (Pr{let x ← mx}[x = z]).toReal * f z) := by
   apply summable_of_ne_finset_zero (s := finSupport mx)
   intro z hz
   rw [probOutput_eq_zero' mx z hz]
@@ -57,7 +57,7 @@ private lemma summable_probOutput_toReal_mul
 private theorem finiteRealExpectation_eq_tsum
     (mx : ProbComp ℤ) (f : ℤ → ℝ) :
     finiteRealExpectation mx f =
-      ∑' z : ℤ, (Pr[= z | mx]).toReal * f z := by
+      ∑' z : ℤ, (Pr{let x ← mx}[x = z]).toReal * f z := by
   rw [finiteRealExpectation, tsum_eq_sum (s := finSupport mx)]
   intro z hz
   rw [probOutput_eq_zero' mx z hz]
@@ -69,13 +69,13 @@ private theorem finiteRealExpectation_bind
       finiteRealExpectation mx
         (fun x => finiteRealExpectation (my x) f) := by
   have hToReal (z : ℤ) :
-      (Pr[= z | mx >>= my]).toReal =
+      (Pr{let x ← mx >>= my}[x = z]).toReal =
         ∑ x ∈ finSupport mx,
-          (Pr[= x | mx]).toReal * (Pr[= z | my x]).toReal := by
+          (Pr{let y ← mx}[y = x]).toReal * (Pr{let y ← my x}[y = z]).toReal := by
     rw [probOutput_bind_eq_sum_finSupport, ENNReal.toReal_sum]
     · simp_rw [ENNReal.toReal_mul]
     · intro x _
-      exact ENNReal.mul_ne_top probOutput_ne_top probOutput_ne_top
+      exact ENNReal.mul_ne_top (prEvent_ne_top _) (prEvent_ne_top _)
   rw [finiteRealExpectation_eq_tsum, finiteRealExpectation]
   simp_rw [hToReal]
   simp_rw [Finset.sum_mul]
@@ -92,16 +92,16 @@ private theorem finiteRealExpectation_bind
 private theorem finiteRealExpectation_ofReal
     (mx : ProbComp ℤ) (f : ℤ → ℝ)
     (hf : ∀ z : ℤ, 0 ≤ f z) :
-    OracleComp.EvalDist.expectedValue mx
+    lweCKA.expectedValue mx
         (fun z => ENNReal.ofReal (f z)) =
       ENNReal.ofReal (finiteRealExpectation mx f) := by
-  rw [OracleComp.EvalDist.expectedValue_def,
+  rw [lweCKA.expectedValue_def,
     tsum_eq_sum (s := finSupport mx)]
   · rw [finiteRealExpectation, ENNReal.ofReal_sum_of_nonneg]
     · apply Finset.sum_congr rfl
       intro z _
       rw [ENNReal.ofReal_mul ENNReal.toReal_nonneg,
-        ENNReal.ofReal_toReal probOutput_ne_top]
+        ENNReal.ofReal_toReal (prEvent_ne_top _)]
     · intro z _
       exact mul_nonneg ENNReal.toReal_nonneg (hf z)
   · intro z hz
@@ -111,10 +111,10 @@ private theorem finiteRealExpectation_ofReal
 private lemma finiteRealExpectation_pure (x : ℤ) (f : ℤ → ℝ) :
     finiteRealExpectation (pure x : ProbComp ℤ) f = f x := by
   rw [finiteRealExpectation_eq_tsum]
-  exact tsum_eq_single x (fun z hz => by simp [probOutput_pure, hz]) |>.trans (by simp)
+  exact tsum_eq_single x (fun z hz => by simp [prEvent_pure, hz, Ne.symm hz]) |>.trans (by simp)
 
 private lemma finiteRealExpectation_congr
-    {mx my : ProbComp ℤ} (h : evalDist mx = evalDist my) (f : ℤ → ℝ) :
+    {mx my : ProbComp ℤ} (h : finiteLaw mx = finiteLaw my) (f : ℤ → ℝ) :
     finiteRealExpectation mx f = finiteRealExpectation my f := by
   rw [finiteRealExpectation_eq_tsum, finiteRealExpectation_eq_tsum]
   apply tsum_congr
@@ -125,14 +125,14 @@ private lemma finiteRealExpectation_linear_two
     (mx : ProbComp ℤ) (f g : ℤ → ℝ) (a b c : ℝ) :
     finiteRealExpectation mx (fun z => a * f z + b * g z + c) =
       a * finiteRealExpectation mx f + b * finiteRealExpectation mx g + c := by
-  have hmassENN : ∑ z ∈ finSupport mx, Pr[= z | mx] = 1 :=
+  have hmassENN : ∑ z ∈ finSupport mx, Pr{let x ← mx}[x = z] = 1 :=
     sum_finSupport_probOutput_of_liftM_PMF mx
-  have hmass : ∑ z ∈ finSupport mx, (Pr[= z | mx]).toReal = 1 := by
+  have hmass : ∑ z ∈ finSupport mx, (Pr{let x ← mx}[x = z]).toReal = 1 := by
     rw [← ENNReal.toReal_sum]
     · rw [hmassENN]
       simp
     · intro z _
-      exact probOutput_ne_top
+      exact (prEvent_ne_top _)
   unfold finiteRealExpectation
   simp_rw [mul_add]
   rw [Finset.sum_add_distrib, Finset.sum_add_distrib]
@@ -150,7 +150,7 @@ private lemma finiteRealExpectation_d3_quartic
     finiteRealExpectation d3IntSampler f =
       c0 + c2 * ((117 : ℝ) / 64) + c4 * ((1269 : ℝ) / 128) := by
   have hs (k : ℕ) :
-      Summable (fun z : ℤ ↦ (Pr[= z | d3IntSampler]).toReal * (z : ℝ) ^ k) :=
+      Summable (fun z : ℤ ↦ (Pr{let x ← d3IntSampler}[x = z]).toReal * (z : ℝ) ^ k) :=
     summable_probOutput_toReal_mul d3IntSampler (fun z => (z : ℝ) ^ k)
   have h0 := (hs 0).mul_right c0
   have h1 := (hs 1).mul_right c1
@@ -159,28 +159,28 @@ private lemma finiteRealExpectation_d3_quartic
   have h4 := (hs 4).mul_right c4
   rw [finiteRealExpectation_eq_tsum]
   calc
-    (∑' z : ℤ, (Pr[= z | d3IntSampler]).toReal * f z) =
+    (∑' z : ℤ, (Pr{let x ← d3IntSampler}[x = z]).toReal * f z) =
         ∑' z : ℤ,
-          (((((Pr[= z | d3IntSampler]).toReal * (z : ℝ) ^ 0 * c0 +
-            (Pr[= z | d3IntSampler]).toReal * (z : ℝ) ^ 1 * c1) +
-            (Pr[= z | d3IntSampler]).toReal * (z : ℝ) ^ 2 * c2) +
-            (Pr[= z | d3IntSampler]).toReal * (z : ℝ) ^ 3 * c3) +
-            (Pr[= z | d3IntSampler]).toReal * (z : ℝ) ^ 4 * c4) := by
+          (((((Pr{let x ← d3IntSampler}[x = z]).toReal * (z : ℝ) ^ 0 * c0 +
+            (Pr{let x ← d3IntSampler}[x = z]).toReal * (z : ℝ) ^ 1 * c1) +
+            (Pr{let x ← d3IntSampler}[x = z]).toReal * (z : ℝ) ^ 2 * c2) +
+            (Pr{let x ← d3IntSampler}[x = z]).toReal * (z : ℝ) ^ 3 * c3) +
+            (Pr{let x ← d3IntSampler}[x = z]).toReal * (z : ℝ) ^ 4 * c4) := by
           apply tsum_congr
           intro z
           rw [hf z]
           ring
     _ =
         (((∑' z : ℤ,
-              (Pr[= z | d3IntSampler]).toReal * (z : ℝ) ^ 0) * c0 +
+              (Pr{let x ← d3IntSampler}[x = z]).toReal * (z : ℝ) ^ 0) * c0 +
           (∑' z : ℤ,
-              (Pr[= z | d3IntSampler]).toReal * (z : ℝ) ^ 1) * c1) +
+              (Pr{let x ← d3IntSampler}[x = z]).toReal * (z : ℝ) ^ 1) * c1) +
           (∑' z : ℤ,
-              (Pr[= z | d3IntSampler]).toReal * (z : ℝ) ^ 2) * c2) +
+              (Pr{let x ← d3IntSampler}[x = z]).toReal * (z : ℝ) ^ 2) * c2) +
           (∑' z : ℤ,
-              (Pr[= z | d3IntSampler]).toReal * (z : ℝ) ^ 3) * c3 +
+              (Pr{let x ← d3IntSampler}[x = z]).toReal * (z : ℝ) ^ 3) * c3 +
           (∑' z : ℤ,
-              (Pr[= z | d3IntSampler]).toReal * (z : ℝ) ^ 4) * c4 := by
+              (Pr{let x ← d3IntSampler}[x = z]).toReal * (z : ℝ) ^ 4) * c4 := by
           rw [(((h0.add h1).add h2).add h3).tsum_add h4,
             ((h0.add h1).add h2).tsum_add h3,
             (h0.add h1).tsum_add h2, h0.tsum_add h1,
@@ -394,18 +394,18 @@ private theorem finiteRealExpectation_block_shift_fourth (a : ℝ) :
 private lemma evalDist_bind_move_after_two
     {A B C D : Type} (ma : ProbComp A) (mb : ProbComp B) (mc : ProbComp C)
     (f : A → B → C → ProbComp D) :
-    evalDist (do
+    finiteLaw (do
       let a ← ma
       let b ← mb
       let c ← mc
       f a b c) =
-      evalDist (do
+      finiteLaw (do
         let b ← mb
         let c ← mc
         let a ← ma
         f a b c) := by
   calc
-    _ = evalDist (do
+    _ = finiteLaw (do
           let b ← mb
           let a ← ma
           let c ← mc
@@ -416,20 +416,20 @@ private lemma evalDist_bind_move_after_two
 private lemma evalDist_bind_move_after_three
     {A B C D E : Type} (ma : ProbComp A) (mb : ProbComp B) (mc : ProbComp C)
     (md : ProbComp D) (f : A → B → C → D → ProbComp E) :
-    evalDist (do
+    finiteLaw (do
       let a ← ma
       let b ← mb
       let c ← mc
       let d ← md
       f a b c d) =
-      evalDist (do
+      finiteLaw (do
         let b ← mb
         let c ← mc
         let d ← md
         let a ← ma
         f a b c d) := by
   calc
-    _ = evalDist (do
+    _ = finiteLaw (do
           let b ← mb
           let a ← ma
           let c ← mc
@@ -442,14 +442,14 @@ private lemma evalDist_bind_move_after_four
     {A B C D E F : Type} (ma : ProbComp A) (mb : ProbComp B) (mc : ProbComp C)
     (md : ProbComp D) (me : ProbComp E)
     (f : A → B → C → D → E → ProbComp F) :
-    evalDist (do
+    finiteLaw (do
       let a ← ma
       let b ← mb
       let c ← mc
       let d ← md
       let e ← me
       f a b c d e) =
-      evalDist (do
+      finiteLaw (do
         let b ← mb
         let c ← mc
         let d ← md
@@ -457,7 +457,7 @@ private lemma evalDist_bind_move_after_four
         let a ← ma
         f a b c d e) := by
   calc
-    _ = evalDist (do
+    _ = finiteLaw (do
           let b ← mb
           let a ← ma
           let c ← mc
@@ -473,7 +473,7 @@ private lemma evalDist_bind_rotate_four_heads
     (h2 : ProbComp H2) (t2 : ProbComp T2) (h3 : ProbComp H3) (t3 : ProbComp T3)
     (mx : ProbComp X)
     (f : H0 → T0 → H1 → T1 → H2 → T2 → H3 → T3 → X → ProbComp R) :
-    evalDist (do
+    finiteLaw (do
       let a0 ← h0
       let b0 ← t0
       let a1 ← h1
@@ -484,7 +484,7 @@ private lemma evalDist_bind_rotate_four_heads
       let b3 ← t3
       let x ← mx
       f a0 b0 a1 b1 a2 b2 a3 b3 x) =
-      evalDist (do
+      finiteLaw (do
         let b0 ← t0
         let b1 ← t1
         let b2 ← t2
@@ -496,7 +496,7 @@ private lemma evalDist_bind_rotate_four_heads
         let a3 ← h3
         f a0 b0 a1 b1 a2 b2 a3 b3 x) := by
   calc
-    _ = evalDist (do
+    _ = finiteLaw (do
           let b0 ← t0
           let a0 ← h0
           let a1 ← h1
@@ -507,7 +507,7 @@ private lemma evalDist_bind_rotate_four_heads
           let b3 ← t3
           let x ← mx
           f a0 b0 a1 b1 a2 b2 a3 b3 x) := evalDist_bind_bind_swap h0 t0 _
-    _ = evalDist (do
+    _ = finiteLaw (do
           let b0 ← t0
           let b1 ← t1
           let a0 ← h0
@@ -527,7 +527,7 @@ private lemma evalDist_bind_rotate_four_heads
             let b3 ← t3
             let x ← mx
             f a0 b0 a1 b1 a2 b2 a3 b3 x)).symm
-    _ = evalDist (do
+    _ = finiteLaw (do
           let b0 ← t0
           let b1 ← t1
           let b2 ← t2
@@ -546,7 +546,7 @@ private lemma evalDist_bind_rotate_four_heads
             let b3 ← t3
             let x ← mx
             f a0 b0 a1 b1 a2 b2 a3 b3 x)).symm
-    _ = evalDist (do
+    _ = finiteLaw (do
           let b0 ← t0
           let b1 ← t1
           let b2 ← t2
@@ -573,8 +573,8 @@ private lemma evalDist_bind_rotate_four_heads
           (fun x a0 a1 a2 a3 => f a0 b0 a1 b1 a2 b2 a3 b3 x)).symm
 
 private theorem evalDist_entryNoiseIntExpAux_succ (n : ℕ) :
-    evalDist (entryNoiseIntExpAux (n + 1)) =
-      evalDist (do
+    finiteLaw (entryNoiseIntExpAux (n + 1)) =
+      finiteLaw (do
         let rest ← entryNoiseIntExpAux n
         let step ← d3DifferenceBlock
         return rest + step) := by
@@ -586,7 +586,7 @@ private theorem evalDist_entryNoiseIntExpAux_succ (n : ℕ) :
       (∑ k, Fin.cons e1 e1s k * Fin.cons s0 s0s k) + extra)
   simp only [entryNoiseIntExpAux, d3DifferenceBlock, ProbComp.sampleIID,
     Fin.mOfFn, bind_assoc, pure_bind]
-  change evalDist (do
+  change finiteLaw (do
       let s0 ← d3IntSampler
       let s0s ← tail
       let e0 ← d3IntSampler
@@ -598,7 +598,7 @@ private theorem evalDist_entryNoiseIntExpAux_succ (n : ℕ) :
       let extra ← d3IntSampler
       finish s0 s0s e0 e0s s1 s1s e1 e1s extra) = _
   calc
-    _ = evalDist (do
+    _ = finiteLaw (do
           let s0s ← tail
           let e0s ← tail
           let s1s ← tail
@@ -735,7 +735,7 @@ private theorem finiteRealExpectation_entryNoiseIntExpAux_moments
 
 /-- The actual first-exchange entry noise has the exact fourth moment used by the tail bound. -/
 theorem expectedValue_firstExchangeEntryNoiseIntExp_fourth :
-    OracleComp.EvalDist.expectedValue firstExchangeEntryNoiseIntExp
+    lweCKA.expectedValue firstExchangeEntryNoiseIntExp
         (fun z : ℤ => (z.natAbs : ℝ≥0∞) ^ 4) =
       ENNReal.ofReal ((39818394483939 : ℝ) / 524288) := by
   have hAux :

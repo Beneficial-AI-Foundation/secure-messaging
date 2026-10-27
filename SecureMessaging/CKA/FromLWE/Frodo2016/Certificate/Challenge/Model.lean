@@ -13,7 +13,7 @@ This endpoint proves the rounded lower-measure bounds, the missing-mass ramp
 enclosure, and the final recurrence coefficient bound.
 -/
 
-open OracleComp OracleComp.EvalDist
+open OracleComp
 open scoped BigOperators ENNReal
 
 namespace lweCKA.ChallengeCertificateModel
@@ -33,15 +33,15 @@ theorem lowerCounts_succ_apply (n : Nat) (z : ℤ) :
   rw [lowerCounts, AddMonoidAlgebra.coeff_sum, Finsupp.finsetSum_apply]
   by_cases hz : z ∈ Finset.Icc (-384 : ℤ) 384
   · rw [if_pos hz, Finset.sum_eq_single z]
-    · simp
+    · simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_eq_same]
     · intro y hy hne
-      simp [hne]
+      simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_apply, hne, ite_false]
     · exact fun h => (h hz).elim
   · rw [if_neg hz]
     apply Finset.sum_eq_zero
     intro y hy
     have hne : y ≠ z := fun h => hz (h ▸ hy)
-    simp [hne]
+    simp only [AddMonoidAlgebra.coeff_single, Finsupp.single_apply, hne, ite_false]
 
 /-- Every lower counting measure is supported on the prescribed 769-point window. -/
 theorem measureWindow_lowerCounts (n : Nat) :
@@ -153,7 +153,8 @@ private theorem lowerCounts_domination (n : Nat) (z : ℤ) :
       scale * (productCounts ^ n) z := by
   induction n generalizing z with
   | zero =>
-      by_cases hz : z = 0 <;> simp [lowerCounts, AddMonoidAlgebra.one_def, hz]
+      by_cases hz : z = 0 <;> simp [lowerCounts, AddMonoidAlgebra.one_def, hz,
+        -LaurentPolynomial.single_eq_C_mul_T]
   | succ n ih =>
       by_cases hz : z ∈ Finset.Icc (-384 : ℤ) 384
       · rw [lowerCounts_succ_apply, if_pos hz]
@@ -524,13 +525,13 @@ private theorem sum_union_support_right
   exact sum_union_support_left A F
 
 private theorem expectedValue_challengeEntryNoiseIntExp_eq_support_sum :
-    OracleComp.EvalDist.expectedValue
+    lweCKA.expectedValue
         challengeEntryNoiseIntExp challengeFailureRamp =
       ∑ z ∈ ((productCounts ^ 704) * d1Counts).coeff.support ∪
           (lowerCounts 704 * d1Counts).coeff.support,
         (((productCounts ^ 704) * d1Counts) z : ℝ≥0∞) /
             256 ^ 1409 * challengeFailureRamp z := by
-  rw [OracleComp.EvalDist.expectedValue_def]
+  rw [lweCKA.expectedValue_def]
   simp_rw [probOutput_challengeEntryNoiseIntExp_counts]
   rw [tsum_eq_sum (s :=
     ((productCounts ^ 704) * d1Counts).coeff.support ∪
@@ -548,9 +549,9 @@ theorem challengeEntryRamp_missingMass_bounds :
     (∑ z ∈ s,
         ((A z * (z.natAbs - 256) : Nat) : ℝ≥0∞) /
           ((256 * scale) * 512)) ≤
-        OracleComp.EvalDist.expectedValue
+        lweCKA.expectedValue
           challengeEntryNoiseIntExp challengeFailureRamp ∧
-      OracleComp.EvalDist.expectedValue
+      lweCKA.expectedValue
           challengeEntryNoiseIntExp challengeFailureRamp ≤
         (∑ z ∈ s,
           ((A z * (z.natAbs - 256) : Nat) : ℝ≥0∞) /

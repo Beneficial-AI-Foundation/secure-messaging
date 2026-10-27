@@ -14,7 +14,7 @@ This module converts the Challenge sampler to centered integer coins, proves the
 laws needed downstream, and computes the shared and disjoint block moments.
 -/
 
-open OracleComp OracleComp.EvalDist
+open OracleComp
 open scoped BigOperators ENNReal
 
 namespace lweCKA
@@ -25,13 +25,12 @@ namespace PairBoundInternal
 
 private theorem evalDist_sampleIID_two_coords
     {α : Type} (mx : ProbComp α) (n : ℕ) (i j : Fin n) (hij : i ≠ j) :
-    evalDist ((fun v : Fin n → α => (v i, v j)) <$> ProbComp.sampleIID n mx) =
-      evalDist (Prod.mk <$> mx <*> mx) := by
+    finiteLaw ((fun v : Fin n → α => (v i, v j)) <$> ProbComp.sampleIID n mx) =
+      finiteLaw (Prod.mk <$> mx <*> mx) := by
   apply evalDist_ext
   intro z
-  rw [probOutput_map]
-  change Pr[fun v : Fin n → α => (v i, v j) = z |
-      Fin.mOfFn n fun _ => mx] = Pr[= z | Prod.mk <$> mx <*> mx]
+  rw [prEvent_map]
+  change Pr{let v ← Fin.mOfFn n fun _ => mx}[(v i, v j) = z] = Pr{let x ← Prod.mk <$> mx <*> mx}[x = z]
   have hevent :
       (fun v : Fin n → α => (v i, v j) = z) =
         fun v => ∀ k,
@@ -54,14 +53,13 @@ private theorem evalDist_sampleIID_two_coords
       · simpa [Ne.symm hij] using hv j
   rw [hevent]
   calc
-    Pr[fun v : Fin n → α => ∀ k,
+    Pr{let v ← Fin.mOfFn n fun _ => mx}[∀ k,
           (fun x => if k = i then x = z.1 else if k = j then x = z.2 else True)
-            (v k) | Fin.mOfFn n fun _ => mx] =
-        ∏ k, Pr[fun x =>
-          if k = i then x = z.1 else if k = j then x = z.2 else True | mx] :=
-      probEvent_forall_coord_mOfFn n (fun _ => mx)
+            (v k)] =
+        ∏ k, Pr{let x ← mx}[if k = i then x = z.1 else if k = j then x = z.2 else True] :=
+      prEvent_forall_coord_mOfFn n (fun _ => mx)
         (fun k x => if k = i then x = z.1 else if k = j then x = z.2 else True)
-    _ = Pr[= z | Prod.mk <$> mx <*> mx] := by
+    _ = Pr{let x ← Prod.mk <$> mx <*> mx}[x = z] := by
       rw [probOutput_seq_map_prod_mk_eq_mul]
       classical
       rw [Finset.prod_eq_mul_of_mem i j (by simp) (by simp) hij]
@@ -71,10 +69,10 @@ private theorem evalDist_sampleIID_two_coords
 
 private theorem evalDist_sampleIID_map_local
     {α β : Type} (n : ℕ) (mx : ProbComp α) (f : α → β) :
-    evalDist
+    finiteLaw
         ((fun xs : Fin n → α => fun i => f (xs i)) <$>
           ProbComp.sampleIID n mx) =
-      evalDist (ProbComp.sampleIID n (f <$> mx)) := by
+      finiteLaw (ProbComp.sampleIID n (f <$> mx)) := by
   induction n with
   | zero =>
       simp only [ProbComp.sampleIID, Fin.mOfFn, map_pure]
@@ -85,7 +83,7 @@ private theorem evalDist_sampleIID_map_local
       simp only [ProbComp.sampleIID, Fin.mOfFn, map_eq_bind_pure_comp,
         Function.comp_apply, bind_assoc, pure_bind]
       refine evalDist_bind_congr' mx fun a => ?_
-      have htail := evalDist_map_eq_of_evalDist_eq ih
+      have htail := finiteLaw_map_congr ih
         (fun rest : Fin n → β => @Fin.cons n (fun _ => β) (f a) rest)
       convert htail using 1
       · simp only [ProbComp.sampleIID, map_eq_bind_pure_comp, bind_assoc, pure_bind,
@@ -97,8 +95,8 @@ private theorem evalDist_sampleIID_map_local
       · simp only [ProbComp.sampleIID, map_eq_bind_pure_comp, Function.comp_def]
 
 theorem evalDist_sampleIID_congr_local
-    {α : Type} (n : ℕ) (mx my : ProbComp α) (h : evalDist mx = evalDist my) :
-    evalDist (ProbComp.sampleIID n mx) = evalDist (ProbComp.sampleIID n my) := by
+    {α : Type} (n : ℕ) (mx my : ProbComp α) (h : finiteLaw mx = finiteLaw my) :
+    finiteLaw (ProbComp.sampleIID n mx) = finiteLaw (ProbComp.sampleIID n my) := by
   induction n with
   | zero => rfl
   | succ n ih =>
@@ -106,8 +104,8 @@ theorem evalDist_sampleIID_congr_local
       rw [evalDist_bind, evalDist_bind, h]
       apply congrArg
       funext a
-      have ih' : evalDist (Fin.mOfFn n fun _ => mx) =
-          evalDist (Fin.mOfFn n fun _ => my) := by
+      have ih' : finiteLaw (Fin.mOfFn n fun _ => mx) =
+          finiteLaw (Fin.mOfFn n fun _ => my) := by
         simpa only [ProbComp.sampleIID] using ih
       rw [evalDist_bind, evalDist_bind, ih']
 
@@ -117,11 +115,11 @@ def challengeIntMatrix (rows cols : ℕ) :
   ProbComp.sampleIID rows (ProbComp.sampleIID cols d1IntSampler)
 
 private theorem evalDist_sampleMatrix_valMinAbs (rows cols : ℕ) :
-    evalDist
+    finiteLaw
         ((fun m : Matrix (Fin rows) (Fin cols) (Scalar challengeParams) =>
             fun i j => (m i j).valMinAbs) <$>
           sampleMatrix d1Sampler rows cols) =
-      evalDist (challengeIntMatrix rows cols) := by
+      finiteLaw (challengeIntMatrix rows cols) := by
   have hinner := (evalDist_sampleIID_map_local cols d1Sampler
     (fun x : Scalar challengeParams => x.valMinAbs)).trans
       (evalDist_sampleIID_congr_local cols
@@ -211,22 +209,22 @@ theorem challengeEntryNoiseAux_center
     challengeEntryNoiseAux c (centerChallengeCoins t) = challengeEntryNoiseInt c t := rfl
 
 theorem evalDist_centerChallengeCoins :
-    evalDist (centerChallengeCoins <$> challengeCoinsExp) =
-      evalDist challengeIntCoinsExp := by
+    finiteLaw (centerChallengeCoins <$> challengeCoinsExp) =
+      finiteLaw challengeIntCoinsExp := by
   have hcentered :
-      evalDist (centerChallengeCoins <$> challengeCoinsExp) =
-        evalDist challengeCenteredCoinsExp := by
+      finiteLaw (centerChallengeCoins <$> challengeCoinsExp) =
+        finiteLaw challengeCenteredCoinsExp := by
     simp only [challengeCoinsExp, challengeCenteredCoinsExp, centerChallengeCoins,
       initKeyGen, sampleSendACoins, map_eq_bind_pure_comp, bind_assoc, pure_bind,
       Function.comp_apply]
-    exact OracleComp.DeferredSampling.evalDist_bind_const_neverFails
+    exact lweCKA.evalDist_bind_const_neverFails
       (($ᵗ (BaseMatrix challengeParams) : ProbComp (BaseMatrix challengeParams)))
       (probFailure_eq_zero
         (mx := ($ᵗ (BaseMatrix challengeParams) : ProbComp (BaseMatrix challengeParams))))
       _
   have hHead {α β : Type} {mx my : ProbComp α}
-      (h : evalDist mx = evalDist my) (f : α → ProbComp β) :
-      evalDist (mx >>= f) = evalDist (my >>= f) := by
+      (h : finiteLaw mx = finiteLaw my) (f : α → ProbComp β) :
+      finiteLaw (mx >>= f) = finiteLaw (my >>= f) := by
     simp only [evalDist_bind, h]
   apply hcentered.trans
   simp only [challengeCenteredCoinsExp, challengeIntCoinsExp]
@@ -385,21 +383,21 @@ theorem expectedValue_pair_exponent
     ring
 
 private theorem evalDist_sampleIID_coord
-    {α : Type} (mx : ProbComp α) (hfail : Pr[⊥ | mx] = 0)
+    {α : Type} (mx : ProbComp α) (hfail : prFail mx = 0)
     (n : ℕ) (i : Fin n) :
-    evalDist ((fun v : Fin n → α => v i) <$> ProbComp.sampleIID n mx) =
-      evalDist mx := by
+    finiteLaw ((fun v : Fin n → α => v i) <$> ProbComp.sampleIID n mx) =
+      finiteLaw mx := by
   apply evalDist_ext
   intro x
-  rw [probOutput_map]
+  rw [prEvent_map]
   exact (probEvent_coord_mOfFn n (fun _ => mx) (fun _ => hfail) i (· = x)).trans
-    (probEvent_eq_eq_probOutput mx x)
+    (rfl)
 
 theorem evalDist_challengeIntMatrix_row
     (rows cols : ℕ) (i : Fin rows) :
-    evalDist ((fun m : Matrix (Fin rows) (Fin cols) ℤ => m i) <$>
+    finiteLaw ((fun m : Matrix (Fin rows) (Fin cols) ℤ => m i) <$>
       challengeIntMatrix rows cols) =
-      evalDist (ProbComp.sampleIID cols d1IntSampler) := by
+      finiteLaw (ProbComp.sampleIID cols d1IntSampler) := by
   unfold challengeIntMatrix
   exact evalDist_sampleIID_coord _
     (probFailure_mOfFn cols (fun _ => d1IntSampler) fun _ => probFailure_eq_zero)
@@ -407,57 +405,57 @@ theorem evalDist_challengeIntMatrix_row
 
 theorem evalDist_challengeIntMatrix_col
     (rows cols : ℕ) (j : Fin cols) :
-    evalDist
+    finiteLaw
         ((fun m : Matrix (Fin rows) (Fin cols) ℤ => fun i => m i j) <$>
           challengeIntMatrix rows cols) =
-      evalDist (ProbComp.sampleIID rows d1IntSampler) := by
+      finiteLaw (ProbComp.sampleIID rows d1IntSampler) := by
   unfold challengeIntMatrix
   calc
-    evalDist
+    finiteLaw
           ((fun m : Matrix (Fin rows) (Fin cols) ℤ => fun i => m i j) <$>
             ProbComp.sampleIID rows (ProbComp.sampleIID cols d1IntSampler)) =
-        evalDist
+        finiteLaw
           (ProbComp.sampleIID rows
             ((fun row : Fin cols → ℤ => row j) <$>
               ProbComp.sampleIID cols d1IntSampler)) :=
       evalDist_sampleIID_map_local rows _ (fun row : Fin cols → ℤ => row j)
-    _ = evalDist (ProbComp.sampleIID rows d1IntSampler) := by
+    _ = finiteLaw (ProbComp.sampleIID rows d1IntSampler) := by
       apply evalDist_sampleIID_congr_local
       exact evalDist_sampleIID_coord d1IntSampler probFailure_eq_zero cols j
 
 theorem evalDist_challengeIntMatrix_two_cols
     (rows cols : ℕ) (j l : Fin cols) (hjl : j ≠ l) :
-    evalDist
+    finiteLaw
         ((fun m : Matrix (Fin rows) (Fin cols) ℤ =>
             fun i => (m i j, m i l)) <$>
           challengeIntMatrix rows cols) =
-      evalDist (ProbComp.sampleIID rows
+      finiteLaw (ProbComp.sampleIID rows
         (Prod.mk <$> d1IntSampler <*> d1IntSampler)) := by
   unfold challengeIntMatrix
   calc
-    evalDist
+    finiteLaw
           ((fun m : Matrix (Fin rows) (Fin cols) ℤ =>
               fun i => (m i j, m i l)) <$>
             ProbComp.sampleIID rows (ProbComp.sampleIID cols d1IntSampler)) =
-        evalDist
+        finiteLaw
           (ProbComp.sampleIID rows
             ((fun row : Fin cols → ℤ => (row j, row l)) <$>
               ProbComp.sampleIID cols d1IntSampler)) :=
       evalDist_sampleIID_map_local rows _
         (fun row : Fin cols → ℤ => (row j, row l))
-    _ = evalDist (ProbComp.sampleIID rows
+    _ = finiteLaw (ProbComp.sampleIID rows
           (Prod.mk <$> d1IntSampler <*> d1IntSampler)) := by
       apply evalDist_sampleIID_congr_local
       exact evalDist_sampleIID_two_coords d1IntSampler cols j l hjl
 
 private theorem evalDist_sampleIID_zip
     {α β : Type} (mx : ProbComp α) (my : ProbComp β) (n : ℕ) :
-    evalDist
+    finiteLaw
         (do
           let xs ← ProbComp.sampleIID n mx
           let ys ← ProbComp.sampleIID n my
           return fun i => (xs i, ys i)) =
-      evalDist (ProbComp.sampleIID n (Prod.mk <$> mx <*> my)) := by
+      finiteLaw (ProbComp.sampleIID n (Prod.mk <$> mx <*> my)) := by
   induction n with
   | zero =>
       simp only [ProbComp.sampleIID, Fin.mOfFn, pure_bind]
@@ -470,7 +468,7 @@ private theorem evalDist_sampleIID_zip
       refine evalDist_bind_congr' mx fun x => ?_
       rw [evalDist_bind_bind_swap]
       refine evalDist_bind_congr' my fun y => ?_
-      have htail := evalDist_map_eq_of_evalDist_eq ih
+      have htail := finiteLaw_map_congr ih
         (fun rest : Fin n → α × β => @Fin.cons n (fun _ => α × β) (x, y) rest)
       convert htail using 1
       · simp only [ProbComp.sampleIID, map_eq_bind_pure_comp, bind_assoc,
@@ -487,35 +485,35 @@ private theorem evalDist_sampleIID_zip
 
 theorem evalDist_challengeIntMatrix_two_rows
     (rows cols : ℕ) (i k : Fin rows) (hik : i ≠ k) :
-    evalDist
+    finiteLaw
         ((fun m : Matrix (Fin rows) (Fin cols) ℤ =>
             fun j => (m i j, m k j)) <$>
           challengeIntMatrix rows cols) =
-      evalDist (ProbComp.sampleIID cols
+      finiteLaw (ProbComp.sampleIID cols
         (Prod.mk <$> d1IntSampler <*> d1IntSampler)) := by
   calc
-    evalDist
+    finiteLaw
           ((fun m : Matrix (Fin rows) (Fin cols) ℤ =>
               fun j => (m i j, m k j)) <$>
             challengeIntMatrix rows cols) =
-        evalDist
+        finiteLaw
           ((fun rows : (Fin cols → ℤ) × (Fin cols → ℤ) =>
               fun j => (rows.1 j, rows.2 j)) <$>
             ((fun m : Matrix (Fin rows) (Fin cols) ℤ => (m i, m k)) <$>
               challengeIntMatrix rows cols)) := by
       rw [Functor.map_map]
-    _ = evalDist
+    _ = finiteLaw
           ((fun rows : (Fin cols → ℤ) × (Fin cols → ℤ) =>
               fun j => (rows.1 j, rows.2 j)) <$>
             (Prod.mk <$>
               ProbComp.sampleIID cols d1IntSampler <*>
               ProbComp.sampleIID cols d1IntSampler)) :=
-      evalDist_map_eq_of_evalDist_eq
+      finiteLaw_map_congr
         (by
           unfold challengeIntMatrix
           exact evalDist_sampleIID_two_coords _ rows i k hik)
         _
-    _ = evalDist (ProbComp.sampleIID cols
+    _ = finiteLaw (ProbComp.sampleIID cols
           (Prod.mk <$> d1IntSampler <*> d1IntSampler)) := by
       simpa only [seq_eq_bind_map, map_eq_bind_pure_comp, bind_assoc, pure_bind,
         Function.comp_apply]
@@ -524,54 +522,54 @@ theorem evalDist_challengeIntMatrix_two_rows
 theorem evalDist_challengeIntMatrix_two_entries
     (rows cols : ℕ) (i k : Fin rows) (j l : Fin cols)
     (hentry : (i, j) ≠ (k, l)) :
-    evalDist
+    finiteLaw
         ((fun m : Matrix (Fin rows) (Fin cols) ℤ => (m i j, m k l)) <$>
           challengeIntMatrix rows cols) =
-      evalDist (Prod.mk <$> d1IntSampler <*> d1IntSampler) := by
+      finiteLaw (Prod.mk <$> d1IntSampler <*> d1IntSampler) := by
   by_cases hik : i = k
   · subst k
     have hjl : j ≠ l := by
       intro h
       exact hentry (Prod.ext rfl h)
     calc
-      evalDist
+      finiteLaw
             ((fun m : Matrix (Fin rows) (Fin cols) ℤ => (m i j, m i l)) <$>
               challengeIntMatrix rows cols) =
-          evalDist
+          finiteLaw
             ((fun v : Fin rows → ℤ × ℤ => v i) <$>
               ((fun m : Matrix (Fin rows) (Fin cols) ℤ =>
                   fun r => (m r j, m r l)) <$>
                 challengeIntMatrix rows cols)) := by
         rw [Functor.map_map]
-      _ = evalDist
+      _ = finiteLaw
             ((fun v : Fin rows → ℤ × ℤ => v i) <$>
               ProbComp.sampleIID rows
                 (Prod.mk <$> d1IntSampler <*> d1IntSampler)) :=
-        evalDist_map_eq_of_evalDist_eq
+        finiteLaw_map_congr
           (evalDist_challengeIntMatrix_two_cols rows cols j l hjl) _
-      _ = evalDist (Prod.mk <$> d1IntSampler <*> d1IntSampler) :=
+      _ = finiteLaw (Prod.mk <$> d1IntSampler <*> d1IntSampler) :=
         evalDist_sampleIID_coord _ (by simp) rows i
   · calc
-      evalDist
+      finiteLaw
             ((fun m : Matrix (Fin rows) (Fin cols) ℤ => (m i j, m k l)) <$>
               challengeIntMatrix rows cols) =
-          evalDist
+          finiteLaw
             ((fun rs : (Fin cols → ℤ) × (Fin cols → ℤ) =>
                 (rs.1 j, rs.2 l)) <$>
               ((fun m : Matrix (Fin rows) (Fin cols) ℤ => (m i, m k)) <$>
                 challengeIntMatrix rows cols)) := by
         rw [Functor.map_map]
-      _ = evalDist
+      _ = finiteLaw
             ((fun rs : (Fin cols → ℤ) × (Fin cols → ℤ) =>
                 (rs.1 j, rs.2 l)) <$>
               (Prod.mk <$>
                 ProbComp.sampleIID cols d1IntSampler <*>
                 ProbComp.sampleIID cols d1IntSampler)) :=
-        evalDist_map_eq_of_evalDist_eq
+        finiteLaw_map_congr
           (by
             unfold challengeIntMatrix
             exact evalDist_sampleIID_two_coords _ rows i k hik) _
-      _ = evalDist
+      _ = finiteLaw
             (Prod.mk <$>
               ((fun row : Fin cols → ℤ => row j) <$>
                 ProbComp.sampleIID cols d1IntSampler) <*>
@@ -579,23 +577,27 @@ theorem evalDist_challengeIntMatrix_two_entries
                 ProbComp.sampleIID cols d1IntSampler)) := by
         simp only [seq_eq_bind_map, map_eq_bind_pure_comp, bind_assoc, pure_bind,
           Function.comp_apply]
-      _ = evalDist (Prod.mk <$> d1IntSampler <*> d1IntSampler) := by
-        simp only [evalDist_seq_map,
-          evalDist_sampleIID_coord d1IntSampler probFailure_eq_zero cols j,
-          evalDist_sampleIID_coord d1IntSampler probFailure_eq_zero cols l]
+      _ = finiteLaw (Prod.mk <$> d1IntSampler <*> d1IntSampler) := by
+        apply evalDist_ext
+        intro z
+        simp only [probOutput_seq_map_prod_mk_eq_mul]
+        rw [evalDist_ext_iff.mp
+          (evalDist_sampleIID_coord d1IntSampler probFailure_eq_zero cols j) z.1,
+          evalDist_ext_iff.mp
+          (evalDist_sampleIID_coord d1IntSampler probFailure_eq_zero cols l) z.2]
 
 theorem evalDist_sampleIID_map_four
     {α β γ δ ε : Type}
     (mx : ProbComp α) (my : ProbComp β) (mz : ProbComp γ) (mw : ProbComp δ)
     (n : ℕ) (f : α → β → γ → δ → ε) :
-    evalDist
+    finiteLaw
         (do
           let xs ← ProbComp.sampleIID n mx
           let ys ← ProbComp.sampleIID n my
           let zs ← ProbComp.sampleIID n mz
           let ws ← ProbComp.sampleIID n mw
           return fun i => f (xs i) (ys i) (zs i) (ws i)) =
-      evalDist
+      finiteLaw
         (ProbComp.sampleIID n (do
           let x ← mx
           let y ← my
@@ -606,21 +608,21 @@ theorem evalDist_sampleIID_map_four
   let mxyz : ProbComp ((α × β) × γ) := Prod.mk <$> mxy <*> mz
   let mxyzw : ProbComp (((α × β) × γ) × δ) := Prod.mk <$> mxyz <*> mw
   have hHead {κ ρ : Type} {ma mb : ProbComp κ}
-      (h : evalDist ma = evalDist mb) (g : κ → ProbComp ρ) :
-      evalDist (ma >>= g) = evalDist (mb >>= g) := by
+      (h : finiteLaw ma = finiteLaw mb) (g : κ → ProbComp ρ) :
+      finiteLaw (ma >>= g) = finiteLaw (mb >>= g) := by
     simp only [evalDist_bind, h]
   have hxy := evalDist_sampleIID_zip mx my n
   have hxyz := evalDist_sampleIID_zip mxy mz n
   have hxyzw := evalDist_sampleIID_zip mxyz mw n
   calc
-    evalDist
+    finiteLaw
           (do
             let xs ← ProbComp.sampleIID n mx
             let ys ← ProbComp.sampleIID n my
             let zs ← ProbComp.sampleIID n mz
             let ws ← ProbComp.sampleIID n mw
             return fun i => f (xs i) (ys i) (zs i) (ws i)) =
-        evalDist
+        finiteLaw
           (do
             let xys ← ProbComp.sampleIID n mxy
             let zs ← ProbComp.sampleIID n mz
@@ -632,7 +634,7 @@ theorem evalDist_sampleIID_map_four
           let zs ← ProbComp.sampleIID n mz
           let ws ← ProbComp.sampleIID n mw
           return fun i => f (xys i).1 (xys i).2 (zs i) (ws i))
-    _ = evalDist
+    _ = finiteLaw
           (do
             let xyzs ← ProbComp.sampleIID n mxyz
             let ws ← ProbComp.sampleIID n mw
@@ -642,18 +644,18 @@ theorem evalDist_sampleIID_map_four
         hHead hxyz (fun xyzs => do
           let ws ← ProbComp.sampleIID n mw
           return fun i => f (xyzs i).1.1 (xyzs i).1.2 (xyzs i).2 (ws i))
-    _ = evalDist
+    _ = finiteLaw
           ((fun xyzw : Fin n → (((α × β) × γ) × δ) =>
               fun i => f (xyzw i).1.1.1 (xyzw i).1.1.2
                 (xyzw i).1.2 (xyzw i).2) <$>
             ProbComp.sampleIID n mxyzw) := by
       simpa only [mxyzw, bind_assoc, pure_bind, seq_eq_bind_map,
         map_eq_bind_pure_comp, Function.comp_apply] using
-        evalDist_map_eq_of_evalDist_eq hxyzw
+        finiteLaw_map_congr hxyzw
           (fun xyzw : Fin n → (((α × β) × γ) × δ) =>
             fun i => f (xyzw i).1.1.1 (xyzw i).1.1.2
               (xyzw i).1.2 (xyzw i).2)
-    _ = evalDist
+    _ = finiteLaw
           (ProbComp.sampleIID n (do
             let x ← mx
             let y ← my
@@ -661,19 +663,19 @@ theorem evalDist_sampleIID_map_four
             let w ← mw
             return f x y z w)) := by
       calc
-        evalDist
+        finiteLaw
               ((fun xyzw : Fin n → (((α × β) × γ) × δ) =>
                   fun i => f (xyzw i).1.1.1 (xyzw i).1.1.2
                     (xyzw i).1.2 (xyzw i).2) <$>
                 ProbComp.sampleIID n mxyzw) =
-            evalDist
+            finiteLaw
               (ProbComp.sampleIID n
                 ((fun xyzw : (((α × β) × γ) × δ) =>
                     f xyzw.1.1.1 xyzw.1.1.2 xyzw.1.2 xyzw.2) <$> mxyzw)) :=
           evalDist_sampleIID_map_local n mxyzw
             (fun xyzw : (((α × β) × γ) × δ) =>
               f xyzw.1.1.1 xyzw.1.1.2 xyzw.1.2 xyzw.2)
-        _ = evalDist
+        _ = finiteLaw
               (ProbComp.sampleIID n (do
                 let x ← mx
                 let y ← my

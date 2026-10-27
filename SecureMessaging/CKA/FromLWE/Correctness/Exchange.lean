@@ -6,7 +6,7 @@ Authors: Beneficial AI Foundation
 
 import SecureMessaging.CKA.FromLWE.Construction
 import VCVio.EvalDist.IndepProduct
-import VCVio.EvalDist.Option
+import VCVio.EvalDist.Monad.Map
 
 /-!
 # First and second honest-exchange laws
@@ -85,7 +85,7 @@ def firstExchangeFailureExp (p : Params) (χ : ProbComp (Scalar p)) : ProbComp B
 This definition gives no upper bound below one.
 VCVio also provides a finite rational evaluator for concrete executable experiments. -/
 noncomputable def firstExchangeFailureProb (p : Params) (χ : ProbComp (Scalar p)) : ℝ≥0∞ :=
-  Pr[= true | firstExchangeFailureExp p χ]
+  Pr{let x ← firstExchangeFailureExp p χ}[x = true]
 
 /-- Run the first honest exchange through the scheme operations.
 The result `some true` means that the keys disagree, and `some false` means that they agree.
@@ -118,7 +118,7 @@ theorem firstExchangeSchemeExp_eq_map
 /-- Neither scheme operation returns `none` during the first honest exchange. -/
 theorem probOutput_firstExchangeSchemeExp_none
     (p : Params) (hp : p.WellFormed) (χ : ProbComp (Scalar p)) :
-    Pr[= none | firstExchangeSchemeExp p hp χ] = 0 := by
+    Pr{let x ← firstExchangeSchemeExp p hp χ}[x = none] = 0 := by
   rw [firstExchangeSchemeExp_eq_map]
   exact probOutput_some_map_none _
 
@@ -126,7 +126,7 @@ theorem probOutput_firstExchangeSchemeExp_none
 A difference in any key entry counts as failure. -/
 theorem probOutput_firstExchangeSchemeExp_true
     (p : Params) (hp : p.WellFormed) (χ : ProbComp (Scalar p)) :
-    Pr[= some true | firstExchangeSchemeExp p hp χ] =
+    Pr{let x ← firstExchangeSchemeExp p hp χ}[x = some true] =
       firstExchangeFailureProb p χ := by
   rw [firstExchangeSchemeExp_eq_map]
   exact probOutput_some_map_some _ _
@@ -135,21 +135,19 @@ theorem probOutput_firstExchangeSchemeExp_true
 Each entry is sampled independently from the same distribution. -/
 theorem evalDist_sampleMatrix_transpose
     {p : Params} (χ : ProbComp (Scalar p)) (rows cols : ℕ) :
-    𝒟[(fun m : Matrix (Fin rows) (Fin cols) (Scalar p) => m.transpose) <$>
-      sampleMatrix χ rows cols] =
-      𝒟[sampleMatrix χ cols rows] := by
+    finiteLaw ((fun m : Matrix (Fin rows) (Fin cols) (Scalar p) => m.transpose) <$>
+      sampleMatrix χ rows cols) =
+      finiteLaw (sampleMatrix χ cols rows) := by
   apply evalDist_ext
   intro y
   rw [probOutput_map_eq_probOutput_inverse (sampleMatrix χ rows cols)
     (f := fun m : Matrix (Fin rows) (Fin cols) (Scalar p) => m.transpose)
     (g := fun m => m.transpose) (fun x => Matrix.transpose_transpose x)
     (Matrix.transpose_transpose y)]
-  change Pr[= (fun i j => y j i) |
-      Fin.mOfFn rows fun _ => Fin.mOfFn cols fun _ => χ] =
-    Pr[= (fun j i => y j i) |
-      Fin.mOfFn cols fun _ => Fin.mOfFn rows fun _ => χ]
-  rw [probOutput_mOfFn]
-  simp_rw [probOutput_mOfFn]
+  change Pr{let x ← Fin.mOfFn rows fun _ => Fin.mOfFn cols fun _ => χ}[x = (fun i j => y j i)] =
+    Pr{let x ← Fin.mOfFn cols fun _ => Fin.mOfFn rows fun _ => χ}[x = (fun j i => y j i)]
+  rw [prEvent_eq_mOfFn]
+  simp_rw [prEvent_eq_mOfFn]
   exact Finset.prod_comm
 
 /-- Transposing both keys preserves whether the recovered and extracted keys disagree. -/
@@ -223,7 +221,7 @@ samples used by the first.
 Unused samples are summed out of the distribution. No outcome is excluded. -/
 theorem evalDist_secondExchangeCoins_transpose
     (p : Params) (χ : ProbComp (Scalar p)) :
-    𝒟[do
+    finiteLaw (do
       let ik ← initKeyGen p χ
       let a ← sampleSendACoins p χ
       let b ← sampleSendBCoins p χ
@@ -233,24 +231,25 @@ theorem evalDist_secondExchangeCoins_transpose
             error := a.error.transpose } : InitKey p),
          ({ secret := b.secret.transpose
             error := b.error.transpose
-            extra := b.extra.transpose } : SendACoins p))] =
-      𝒟[do
+            extra := b.extra.transpose } : SendACoins p))) =
+      finiteLaw (do
         let ik ← initKeyGen p χ
         let a ← sampleSendACoins p χ
-        return (ik, a)] := by
+        return (ik, a)) := by
   have hDrop { α β : Type } (mx : ProbComp α) (my : ProbComp β) :
-      𝒟[mx >>= fun _ => my] = 𝒟[my] := by
+      finiteLaw (mx >>= fun _ => my) = finiteLaw (my) := by
     apply evalDist_ext
     intro y
-    rw [probOutput_bind_const, probFailure_of_liftM_PMF]
-    simp
+    simpa only [map_bind] using OracleComp.prEvent_bind_const mx ((· = y) <$> my)
   have hHead { α β : Type } (mx my : ProbComp α)
-      (h : 𝒟[mx] = 𝒟[my]) (f : α → ProbComp β) :
-      𝒟[mx >>= f] = 𝒟[my >>= f] := by
-    rw [evalDist_bind, evalDist_bind, h]
+      (h : finiteLaw (mx) = finiteLaw (my)) (f : α → ProbComp β) :
+      finiteLaw (mx >>= f) = finiteLaw (my >>= f) := by
+    letI : MeasurableSpace α := ⊤
+    letI : MeasurableSpace β := ⊤
+    exact ((EvalDistEq.of_evalDist_eq h).bind_left f).evalDist_eq
   have hBase :
-      𝒟[(fun m : BaseMatrix p => m.transpose) <$> ($ᵗ (BaseMatrix p) : ProbComp (BaseMatrix p))] =
-        𝒟[($ᵗ (BaseMatrix p) : ProbComp (BaseMatrix p))] := by
+      finiteLaw ((fun m : BaseMatrix p => m.transpose) <$> ($ᵗ (BaseMatrix p) : ProbComp (BaseMatrix p))) =
+        finiteLaw (($ᵗ (BaseMatrix p) : ProbComp (BaseMatrix p))) := by
     apply evalDist_map_bijective_uniform_cross
     exact ⟨Matrix.transpose_injective,
       fun y => ⟨y.transpose, Matrix.transpose_transpose y⟩⟩
@@ -265,7 +264,7 @@ theorem evalDist_secondExchangeCoins_transpose
     let sendExtra ← (fun m => m.transpose) <$> sampleMatrix χ p.nbar p.nbar
     pure (InitKey.mk baseMatrix initSecret initError,
       SendACoins.mk sendSecret sendError sendExtra)
-  refine Eq.trans (b := 𝒟[mid]) ?_ ?_
+  refine Eq.trans (b := finiteLaw (mid)) ?_ ?_
   · simp only [mid, map_eq_bind_pure_comp, Function.comp_apply, bind_assoc, pure_bind]
     refine evalDist_bind_congr' (($ᵗ (BaseMatrix p) : ProbComp (BaseMatrix p))) fun _ => ?_
     refine (hDrop (sampleMatrix χ p.n p.nbar) _).trans ?_
@@ -291,7 +290,7 @@ theorem evalDist_secondExchangeCoins_transpose
 first succeeds. -/
 theorem evalDist_secondExchangeFailureExp_eq_first
     (p : Params) (χ : ProbComp (Scalar p)) :
-    𝒟[secondExchangeFailureExp p χ] = 𝒟[firstExchangeFailureExp p χ] := by
+    finiteLaw (secondExchangeFailureExp p χ) = finiteLaw (firstExchangeFailureExp p χ) := by
   let firstMismatch : InitKey p × SendACoins p → Bool := fun coins =>
     let ik := coins.1
     let a := coins.2
@@ -331,13 +330,13 @@ theorem evalDist_secondExchangeFailureExp_eq_first
       return (ik, a)) := by
     simp [firstExchangeFailureExp, firstMismatch, map_eq_bind_pure_comp]
   rw [hSecond, hFirst]
-  exact evalDist_map_eq_of_evalDist_eq
+  exact finiteLaw_map_congr
     (evalDist_secondExchangeCoins_transpose p χ) firstMismatch
 
 /-- No send or receive operation rejects its input during the first two honest exchanges. -/
 theorem probOutput_secondExchangeSchemeExp_none
     (p : Params) (hp : p.WellFormed) (χ : ProbComp (Scalar p)) :
-    Pr[= none | secondExchangeSchemeExp p hp χ] = 0 := by
+    Pr{let x ← secondExchangeSchemeExp p hp χ}[x = none] = 0 := by
   rw [secondExchangeSchemeExp_eq_map]
   exact probOutput_some_map_none _
 
@@ -345,7 +344,7 @@ theorem probOutput_secondExchangeSchemeExp_none
 first. -/
 theorem probOutput_secondExchangeSchemeExp_true
     (p : Params) (hp : p.WellFormed) (χ : ProbComp (Scalar p)) :
-    Pr[= some true | secondExchangeSchemeExp p hp χ] =
+    Pr{let x ← secondExchangeSchemeExp p hp χ}[x = some true] =
       firstExchangeFailureProb p χ := by
   rw [secondExchangeSchemeExp_eq_map, probOutput_some_map_some]
   exact evalDist_ext_iff.mp (evalDist_secondExchangeFailureExp_eq_first p χ) true

@@ -15,7 +15,7 @@ independent `X * Y` blocks.  The two extra errors are always distinct.  Four sig
 cover the two absolute-value tails.
 -/
 
-open OracleComp OracleComp.EvalDist
+open OracleComp
 open scoped BigOperators ENNReal
 
 namespace lweCKA
@@ -27,8 +27,8 @@ namespace PairBoundInternal
 private theorem evalDist_projected_disjoint_pairExponent
     (c d : Fin challengeParams.nbar × Fin challengeParams.nbar)
     (hrow : c.1 ≠ d.1) (hcol : c.2 ≠ d.2) (σ τ : ℤ) :
-    evalDist (challengeProjectedDisjointExponentExp c d σ τ) =
-      evalDist (challengePairExponentExp false σ τ) := by
+    finiteLaw (challengeProjectedDisjointExponentExp c d σ τ) =
+      finiteLaw (challengePairExponentExp false σ τ) := by
   let vectorExp : ProbComp (Fin challengeParams.n → ℤ) := do
     let s0 ← ProbComp.sampleIID challengeParams.n challengePairSampler
     let e0 ← ProbComp.sampleIID challengeParams.n challengePairSampler
@@ -36,8 +36,8 @@ private theorem evalDist_projected_disjoint_pairExponent
     let e1 ← ProbComp.sampleIID challengeParams.n challengePairSampler
     return fun k => σ * (s1 k).1 * (e0 k).1 + τ * (s1 k).2 * (e0 k).2 +
       (-σ) * (e1 k).1 * (s0 k).1 + (-τ) * (e1 k).2 * (s0 k).2
-  have hprojected : evalDist (challengeProjectedDisjointExponentExp c d σ τ) =
-      evalDist (do
+  have hprojected : finiteLaw (challengeProjectedDisjointExponentExp c d σ τ) =
+      finiteLaw (do
         let blocks ← vectorExp
         let extra ← challengePairSampler
         return (∑ k, blocks k) + σ * extra.1 + τ * extra.2) := by
@@ -49,8 +49,8 @@ private theorem evalDist_projected_disjoint_pairExponent
     · exact evalDist_challengeIntMatrix_two_rows _ _ _ _ hrow
     · exact evalDist_challengeIntMatrix_two_entries _ _ _ _ _ _
         (fun h => hcol (congrArg Prod.snd h))
-  have hvector : evalDist vectorExp =
-      evalDist (ProbComp.sampleIID challengeParams.n
+  have hvector : finiteLaw vectorExp =
+      finiteLaw (ProbComp.sampleIID challengeParams.n
         (challengeDisjointProjectedBlock σ τ)) := by
     simpa only [vectorExp, challengeDisjointProjectedBlock] using
       evalDist_sampleIID_map_four challengePairSampler challengePairSampler
@@ -158,7 +158,7 @@ private theorem challenge_signed_pair_tail_le
     (c d : Fin challengeParams.nbar × Fin challengeParams.nbar)
     (hcd : c ≠ d) (σ τ : ℤ)
     (hσ : σ = 1 ∨ σ = -1) (hτ : τ = 1 ∨ τ = -1) :
-    Pr[challengeSignedPairEvent c d σ τ | challengeCoinsExp] ≤
+    Pr{let x ← challengeCoinsExp}[(challengeSignedPairEvent c d σ τ) x] ≤
       ((5 : ℝ≥0∞) / 6) ^ 512 *
         (if c.1 = d.1 ∨ c.2 = d.2 then
           challengeSharedMoment ^ 704 * challengeOneMoment ^ 2
@@ -168,7 +168,7 @@ private theorem challenge_signed_pair_tail_le
   let cost := fun t : InitKey challengeParams × SendACoins challengeParams =>
     K * challengeChernoffBase ^
       (σ * challengeEntryNoiseInt c t + τ * challengeEntryNoiseInt d t)
-  have hmarkov := probEvent_le_tsum_probOutput_mul_cost challengeCoinsExp
+  have hmarkov := OracleComp.prEvent_le_tsum_prEvent_mul_cost challengeCoinsExp
     (challengeSignedPairEvent c d σ τ) cost
   have hcost : ∀ t, challengeSignedPairEvent c d σ τ t → 1 ≤ cost t := by
     intro t ht
@@ -208,7 +208,7 @@ private theorem challenge_signed_pair_tail_le
   specialize hmarkov hcost
   rw [← expectedValue_def] at hmarkov
   calc
-    Pr[challengeSignedPairEvent c d σ τ | challengeCoinsExp] ≤
+    Pr{let x ← challengeCoinsExp}[(challengeSignedPairEvent c d σ τ) x] ≤
         expectedValue challengeCoinsExp cost := hmarkov
     _ = K * expectedValue challengeCoinsExp (fun t =>
         challengeChernoffBase ^
@@ -225,26 +225,24 @@ private theorem challenge_signed_pair_tail_le
 private theorem challenge_four_signed_tails_le
     (c d : Fin challengeParams.nbar × Fin challengeParams.nbar)
     (hcd : c ≠ d) :
-    Pr[fun t =>
-      challengeSignedPairEvent c d 1 1 t ∨
+    Pr{let t ← challengeCoinsExp}[challengeSignedPairEvent c d 1 1 t ∨
       challengeSignedPairEvent c d 1 (-1) t ∨
       challengeSignedPairEvent c d (-1) 1 t ∨
-      challengeSignedPairEvent c d (-1) (-1) t |
-      challengeCoinsExp] ≤ (1 : ℝ≥0∞) / 2 ^ 70 := by
+      challengeSignedPairEvent c d (-1) (-1) t] ≤ (1 : ℝ≥0∞) / 2 ^ 70 := by
   have hpp := challenge_signed_pair_tail_le c d hcd 1 1 (Or.inl rfl) (Or.inl rfl)
   have hpn := challenge_signed_pair_tail_le c d hcd 1 (-1) (Or.inl rfl) (Or.inr rfl)
   have hnp := challenge_signed_pair_tail_le c d hcd (-1) 1 (Or.inr rfl) (Or.inl rfl)
   have hnn := challenge_signed_pair_tail_le c d hcd (-1) (-1) (Or.inr rfl) (Or.inr rfl)
-  have hlast := probEvent_or_le challengeCoinsExp
+  have hlast := prEvent_or_le challengeCoinsExp
     (challengeSignedPairEvent c d (-1) 1)
     (challengeSignedPairEvent c d (-1) (-1))
-  have hrest := (probEvent_or_le challengeCoinsExp
+  have hrest := (prEvent_or_le challengeCoinsExp
     (challengeSignedPairEvent c d 1 (-1))
     (fun t =>
       challengeSignedPairEvent c d (-1) 1 t ∨
       challengeSignedPairEvent c d (-1) (-1) t)).trans
     (add_le_add_right hlast _)
-  have hunion := (probEvent_or_le challengeCoinsExp
+  have hunion := (prEvent_or_le challengeCoinsExp
     (challengeSignedPairEvent c d 1 1)
     (fun t =>
       challengeSignedPairEvent c d 1 (-1) t ∨
@@ -308,9 +306,7 @@ This includes shared-row and shared-column pairs and accounts for their dependen
 theorem probEvent_challengeEntryMismatch_pair_le
     (c d : Fin challengeParams.nbar × Fin challengeParams.nbar)
     (hcd : c ≠ d) :
-    Pr[fun t =>
-      challengeEntryMismatch c t ∧ challengeEntryMismatch d t |
-      challengeCoinsExp] ≤
+    Pr{let t ← challengeCoinsExp}[challengeEntryMismatch c t ∧ challengeEntryMismatch d t] ≤
       (1 : ℝ≥0∞) / 2 ^ 70 := by
   refine (probEvent_mono'' (mx := challengeCoinsExp) ?_).trans
     (challenge_four_signed_tails_le c d hcd)

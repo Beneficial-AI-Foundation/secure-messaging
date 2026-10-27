@@ -9,7 +9,7 @@ import SecureMessaging.CKA.FromLWE.NoiseCorrectness
 import SecureMessaging.CKA.FromLWE.ReconciliationPhase
 import VCVio.EvalDist.IndepProduct
 import VCVio.EvalDist.Monad.Map
-import VCVio.EvalDist.Expectation
+import VCVio.ProgramLogic.Unary.HoareTriple
 import VCVio.OracleComp.QueryTracking.RandomOracle.DeferredSampling
 import Mathlib.Algebra.BigOperators.Ring.Finset
 import Mathlib.Data.ZMod.ValMinAbs
@@ -26,7 +26,7 @@ modular phase ramp. `ChallengeExperiment` compares entry-mismatch probability wi
 allowing the mass where at least one relevant secret vector has no odd entry.
 -/
 
-open OracleComp OracleComp.EvalDist
+open OracleComp
 open scoped BigOperators ENNReal
 
 namespace lweCKA
@@ -91,13 +91,12 @@ private theorem matrix_ne_iff_exists_entry_ne
 /-- Whole-key failure is exactly the union of the 64 entry-mismatch events. -/
 theorem firstExchangeFailureProb_challenge_eq_entry_union :
     firstExchangeFailureProb challengeParams d1Sampler =
-      Pr[fun t =>
-        ∃ c : Fin challengeParams.nbar × Fin challengeParams.nbar,
-          challengeEntryMismatch c t | challengeCoinsExp] := by
+      Pr{let t ← challengeCoinsExp}[∃ c : Fin challengeParams.nbar × Fin challengeParams.nbar,
+          challengeEntryMismatch c t] := by
   classical
-  rw [firstExchangeFailureProb, ← probEvent_eq_eq_probOutput]
-  simp only [firstExchangeFailureExp, challengeCoinsExp, probEvent_bind_eq_tsum,
-    probEvent_pure]
+  rw [firstExchangeFailureProb]
+  simp only [firstExchangeFailureExp, challengeCoinsExp, OracleComp.prEvent_bind_eq_tsum,
+    prEvent_pure]
   apply tsum_congr
   intro ik
   congr 1
@@ -137,26 +136,26 @@ private theorem valMinAbs_intCast_eq_of_mem_d1_support
 
 /-- Taking the centered representative of a modular D1 draw recovers the signed D1 law. -/
 theorem evalDist_valMinAbs_d1Sampler :
-    evalDist
+    finiteLaw
         ((fun x : Scalar challengeParams => x.valMinAbs) <$> d1Sampler) =
-      evalDist d1IntSampler := by
+      finiteLaw d1IntSampler := by
   simp only [d1Sampler, map_eq_bind_pure_comp]
   calc
-    evalDist
+    finiteLaw
           (d1IntSampler >>= fun z =>
             pure ((z : Scalar challengeParams).valMinAbs)) =
-        evalDist (d1IntSampler >>= fun z => pure z) := by
+        finiteLaw (d1IntSampler >>= fun z => pure z) := by
       apply evalDist_bind_congr
       intro z hz
       rw [valMinAbs_intCast_eq_of_mem_d1_support z hz]
-    _ = evalDist d1IntSampler := by rw [bind_pure]
+    _ = finiteLaw d1IntSampler := by rw [bind_pure]
 
 private theorem evalDist_sampleIID_map
     {α β : Type} (n : ℕ) (χ : ProbComp α) (f : α → β) :
-    evalDist
+    finiteLaw
         ((fun xs : Fin n → α => fun k => f (xs k)) <$>
           ProbComp.sampleIID n χ) =
-      evalDist (ProbComp.sampleIID n (f <$> χ)) := by
+      finiteLaw (ProbComp.sampleIID n (f <$> χ)) := by
   induction n with
   | zero =>
       simp only [ProbComp.sampleIID, Fin.mOfFn, map_pure]
@@ -167,7 +166,7 @@ private theorem evalDist_sampleIID_map
       simp only [ProbComp.sampleIID, Fin.mOfFn, map_eq_bind_pure_comp,
         Function.comp_apply, bind_assoc, pure_bind]
       refine evalDist_bind_congr' χ fun a => ?_
-      have htail := evalDist_map_eq_of_evalDist_eq ih
+      have htail := finiteLaw_map_congr ih
         (fun rest : Fin n → β => @Fin.cons n (fun _ => β) (f a) rest)
       convert htail using 1
       · simp only [ProbComp.sampleIID, map_eq_bind_pure_comp, bind_assoc, pure_bind,
@@ -180,68 +179,67 @@ private theorem evalDist_sampleIID_map
 
 private theorem evalDist_sampleIID_congr
     {α : Type} (n : ℕ) (χ ψ : ProbComp α)
-    (hχψ : evalDist χ = evalDist ψ) :
-    evalDist (ProbComp.sampleIID n χ) =
-    evalDist (ProbComp.sampleIID n ψ) := by
+    (hχψ : finiteLaw χ = finiteLaw ψ) :
+    finiteLaw (ProbComp.sampleIID n χ) =
+    finiteLaw (ProbComp.sampleIID n ψ) := by
   apply evalDist_ext
   intro v
-  simp only [ProbComp.sampleIID, probOutput_mOfFn]
+  simp only [ProbComp.sampleIID, prEvent_eq_mOfFn]
   apply Finset.prod_congr rfl
   intro i _
   exact evalDist_ext_iff.mp hχψ (v i)
 
 private theorem evalDist_sampleMatrix_row
     {p : Params} (χ : ProbComp (Scalar p))
-    (hχ : Pr[⊥ | χ] = 0) (rows cols : ℕ) (i : Fin rows) :
-    evalDist
+    (hχ : prFail χ = 0) (rows cols : ℕ) (i : Fin rows) :
+    finiteLaw
         ((fun m : Matrix (Fin rows) (Fin cols) (Scalar p) => m i) <$>
           sampleMatrix χ rows cols) =
-      evalDist (ProbComp.sampleIID cols χ) := by
+      finiteLaw (ProbComp.sampleIID cols χ) := by
   apply evalDist_ext
   intro y
-  rw [probOutput_map]
+  rw [prEvent_map]
   unfold sampleMatrix ProbComp.sampleIID
   change
-    Pr[fun m : Fin rows → Fin cols → Scalar p => m i = y |
-      Fin.mOfFn rows fun _ => Fin.mOfFn cols fun _ => χ] =
-      Pr[= y | Fin.mOfFn cols fun _ => χ]
-  simpa only [Function.comp_apply, probEvent_eq_eq_probOutput] using
+    Pr{let m ← Fin.mOfFn rows fun _ => Fin.mOfFn cols fun _ => χ}[m i = y] =
+      Pr{let x ← Fin.mOfFn cols fun _ => χ}[x = y]
+  simpa only [Function.comp_apply] using
     probEvent_coord_mOfFn rows (fun _ => Fin.mOfFn cols fun _ => χ)
       (fun _ => probFailure_mOfFn cols (fun _ => χ) fun _ => hχ) i (· = y)
 
 private theorem evalDist_sampleMatrix_col
     {p : Params} (χ : ProbComp (Scalar p))
-    (hχ : Pr[⊥ | χ] = 0) (rows cols : ℕ) (j : Fin cols) :
-    evalDist
+    (hχ : prFail χ = 0) (rows cols : ℕ) (j : Fin cols) :
+    finiteLaw
         ((fun m : Matrix (Fin rows) (Fin cols) (Scalar p) =>
             fun k => m k j) <$>
           sampleMatrix χ rows cols) =
-      evalDist (ProbComp.sampleIID rows χ) := by
+      finiteLaw (ProbComp.sampleIID rows χ) := by
   calc
-    evalDist
+    finiteLaw
           ((fun m : Matrix (Fin rows) (Fin cols) (Scalar p) => fun k => m k j) <$>
             sampleMatrix χ rows cols) =
-        evalDist
+        finiteLaw
           ((fun m : Matrix (Fin cols) (Fin rows) (Scalar p) => m j) <$>
             ((fun m : Matrix (Fin rows) (Fin cols) (Scalar p) => m.transpose) <$>
               sampleMatrix χ rows cols)) := by
           rw [Functor.map_map]
           congr 2
-    _ = evalDist
+    _ = finiteLaw
           ((fun m : Matrix (Fin cols) (Fin rows) (Scalar p) => m j) <$>
             sampleMatrix χ cols rows) :=
-        evalDist_map_eq_of_evalDist_eq
+        finiteLaw_map_congr
           (evalDist_sampleMatrix_transpose χ rows cols) (fun m => m j)
-    _ = evalDist (ProbComp.sampleIID rows χ) :=
+    _ = finiteLaw (ProbComp.sampleIID rows χ) :=
       evalDist_sampleMatrix_row χ hχ cols rows j
 
 /-- Evaluation law for binding a sampled matrix to one selected row. -/
 theorem ChallengeExperimentLaw.evalDist_sampleMatrix_row_bind
     {p : Params} (χ : ProbComp (Scalar p))
-    (hχ : Pr[⊥ | χ] = 0) (rows cols : ℕ) (i : Fin rows) :
-    evalDist
+    (hχ : prFail χ = 0) (rows cols : ℕ) (i : Fin rows) :
+    finiteLaw
         (sampleMatrix χ rows cols >>= fun m => pure (m i)) =
-      evalDist (ProbComp.sampleIID cols χ) := by
+      finiteLaw (ProbComp.sampleIID cols χ) := by
   rw [show
     (sampleMatrix χ rows cols >>= fun m => pure (m i)) =
       ((fun m : Matrix (Fin rows) (Fin cols) (Scalar p) => m i) <$>
@@ -252,10 +250,10 @@ theorem ChallengeExperimentLaw.evalDist_sampleMatrix_row_bind
 /-- Evaluation law for binding a sampled matrix to one selected column. -/
 theorem ChallengeExperimentLaw.evalDist_sampleMatrix_col_bind
     {p : Params} (χ : ProbComp (Scalar p))
-    (hχ : Pr[⊥ | χ] = 0) (rows cols : ℕ) (j : Fin cols) :
-    evalDist
+    (hχ : prFail χ = 0) (rows cols : ℕ) (j : Fin cols) :
+    finiteLaw
         (sampleMatrix χ rows cols >>= fun m => pure (fun k => m k j)) =
-      evalDist (ProbComp.sampleIID rows χ) := by
+      finiteLaw (ProbComp.sampleIID rows χ) := by
   rw [show
     (sampleMatrix χ rows cols >>= fun m => pure (fun k => m k j)) =
       ((fun m : Matrix (Fin rows) (Fin cols) (Scalar p) => fun k => m k j) <$>
@@ -265,110 +263,107 @@ theorem ChallengeExperimentLaw.evalDist_sampleMatrix_col_bind
 
 private theorem evalDist_sampleMatrix_entry
     {p : Params} (χ : ProbComp (Scalar p))
-    (hχ : Pr[⊥ | χ] = 0) (rows cols : ℕ)
+    (hχ : prFail χ = 0) (rows cols : ℕ)
     (i : Fin rows) (j : Fin cols) :
-    evalDist
+    finiteLaw
         ((fun m : Matrix (Fin rows) (Fin cols) (Scalar p) => m i j) <$>
           sampleMatrix χ rows cols) =
-      evalDist χ := by
+      finiteLaw χ := by
   apply evalDist_ext
   intro y
-  rw [probOutput_map]
+  rw [prEvent_map]
   unfold sampleMatrix ProbComp.sampleIID
   change
-    Pr[fun m : Fin rows → Fin cols → Scalar p => m i j = y |
-      Fin.mOfFn rows fun _ => Fin.mOfFn cols fun _ => χ] = Pr[= y | χ]
+    Pr{let m ← Fin.mOfFn rows fun _ => Fin.mOfFn cols fun _ => χ}[m i j = y] = Pr{let x ← χ}[x = y]
   calc
-    Pr[fun m : Fin rows → Fin cols → Scalar p => m i j = y |
-        Fin.mOfFn rows fun _ => Fin.mOfFn cols fun _ => χ] =
-        Pr[fun row : Fin cols → Scalar p => row j = y |
-          Fin.mOfFn cols fun _ => χ] :=
+    Pr{let m ← Fin.mOfFn rows fun _ => Fin.mOfFn cols fun _ => χ}[m i j = y] =
+        Pr{let row ← Fin.mOfFn cols fun _ => χ}[row j = y] :=
       probEvent_coord_mOfFn rows (fun _ => Fin.mOfFn cols fun _ => χ)
         (fun _ => probFailure_mOfFn cols (fun _ => χ) fun _ => hχ) i
         (fun row : Fin cols → Scalar p => row j = y)
-    _ = Pr[(· = y) | χ] :=
+    _ = Pr{let x ← χ}[x = y] :=
       probEvent_coord_mOfFn cols (fun _ => χ) (fun _ => hχ) j (· = y)
-    _ = Pr[= y | χ] := probEvent_eq_eq_probOutput χ y
+    _ = Pr{let x ← χ}[x = y] := rfl
 
 private theorem evalDist_sampleMatrix_row_valMinAbs
     (rows cols : ℕ) (i : Fin rows) :
-    evalDist
+    finiteLaw
         ((fun m : Matrix (Fin rows) (Fin cols) (Scalar challengeParams) =>
             fun k => (m i k).valMinAbs) <$>
           sampleMatrix d1Sampler rows cols) =
-      evalDist (ProbComp.sampleIID cols d1IntSampler) := by
+      finiteLaw (ProbComp.sampleIID cols d1IntSampler) := by
   calc
-    evalDist
+    finiteLaw
           ((fun m : Matrix (Fin rows) (Fin cols) (Scalar challengeParams) =>
               fun k => (m i k).valMinAbs) <$>
             sampleMatrix d1Sampler rows cols) =
-        evalDist
+        finiteLaw
           ((fun xs : Fin cols → Scalar challengeParams =>
               fun k => (xs k).valMinAbs) <$>
             ProbComp.sampleIID cols d1Sampler) := by
       simpa only [Functor.map_map, Function.comp_apply] using
-        (evalDist_map_eq_of_evalDist_eq
+        (finiteLaw_map_congr
           (evalDist_sampleMatrix_row d1Sampler probFailure_eq_zero rows cols i)
           (fun xs : Fin cols → Scalar challengeParams => fun k => (xs k).valMinAbs))
-    _ = evalDist
+    _ = finiteLaw
           (ProbComp.sampleIID cols
             ((fun x : Scalar challengeParams => x.valMinAbs) <$> d1Sampler)) :=
       evalDist_sampleIID_map cols d1Sampler (fun x => x.valMinAbs)
-    _ = evalDist (ProbComp.sampleIID cols d1IntSampler) :=
+    _ = finiteLaw (ProbComp.sampleIID cols d1IntSampler) :=
       evalDist_sampleIID_congr cols _ _ evalDist_valMinAbs_d1Sampler
 
 private theorem evalDist_sampleMatrix_col_valMinAbs
     (rows cols : ℕ) (j : Fin cols) :
-    evalDist
+    finiteLaw
         ((fun m : Matrix (Fin rows) (Fin cols) (Scalar challengeParams) =>
             fun k => (m k j).valMinAbs) <$>
           sampleMatrix d1Sampler rows cols) =
-      evalDist (ProbComp.sampleIID rows d1IntSampler) := by
+      finiteLaw (ProbComp.sampleIID rows d1IntSampler) := by
   calc
-    evalDist
+    finiteLaw
           ((fun m : Matrix (Fin rows) (Fin cols) (Scalar challengeParams) =>
               fun k => (m k j).valMinAbs) <$>
             sampleMatrix d1Sampler rows cols) =
-        evalDist
+        finiteLaw
           ((fun xs : Fin rows → Scalar challengeParams =>
               fun k => (xs k).valMinAbs) <$>
             ProbComp.sampleIID rows d1Sampler) := by
       simpa only [Functor.map_map, Function.comp_apply] using
-        (evalDist_map_eq_of_evalDist_eq
+        (finiteLaw_map_congr
           (evalDist_sampleMatrix_col d1Sampler probFailure_eq_zero rows cols j)
           (fun xs : Fin rows → Scalar challengeParams => fun k => (xs k).valMinAbs))
-    _ = evalDist
+    _ = finiteLaw
           (ProbComp.sampleIID rows
             ((fun x : Scalar challengeParams => x.valMinAbs) <$> d1Sampler)) :=
       evalDist_sampleIID_map rows d1Sampler (fun x => x.valMinAbs)
-    _ = evalDist (ProbComp.sampleIID rows d1IntSampler) :=
+    _ = finiteLaw (ProbComp.sampleIID rows d1IntSampler) :=
       evalDist_sampleIID_congr rows _ _ evalDist_valMinAbs_d1Sampler
 
 private theorem evalDist_sampleMatrix_entry_valMinAbs
     (rows cols : ℕ) (i : Fin rows) (j : Fin cols) :
-    evalDist
+    finiteLaw
         ((fun m : Matrix (Fin rows) (Fin cols) (Scalar challengeParams) =>
             (m i j).valMinAbs) <$>
           sampleMatrix d1Sampler rows cols) =
-      evalDist d1IntSampler := by
+      finiteLaw d1IntSampler := by
   calc
-    evalDist
+    finiteLaw
           ((fun m : Matrix (Fin rows) (Fin cols) (Scalar challengeParams) =>
               (m i j).valMinAbs) <$>
             sampleMatrix d1Sampler rows cols) =
-        evalDist
+        finiteLaw
           ((fun x : Scalar challengeParams => x.valMinAbs) <$> d1Sampler) := by
       simpa only [Functor.map_map, Function.comp_apply] using
-        (evalDist_map_eq_of_evalDist_eq
+        (finiteLaw_map_congr
           (evalDist_sampleMatrix_entry d1Sampler probFailure_eq_zero rows cols i j)
           (fun x : Scalar challengeParams => x.valMinAbs))
-    _ = evalDist d1IntSampler := evalDist_valMinAbs_d1Sampler
+    _ = finiteLaw d1IntSampler := evalDist_valMinAbs_d1Sampler
 
 /-- The centered integer noise extracted from an actual entry has the independent scalar law. -/
 theorem evalDist_challengeEntryNoiseInt
     (c : Fin challengeParams.nbar × Fin challengeParams.nbar) :
-    evalDist ((fun t => challengeEntryNoiseInt c t) <$> challengeCoinsExp) =
-      evalDist challengeEntryNoiseIntExp := by
+    finiteLaw ((fun t => challengeEntryNoiseInt c t) <$> challengeCoinsExp) =
+      finiteLaw challengeEntryNoiseIntExp := by
   let projectedExp : ProbComp ℤ := do
     let s0 ←
       (fun m : Matrix (Fin challengeParams.n) (Fin challengeParams.nbar)
@@ -391,20 +386,20 @@ theorem evalDist_challengeEntryNoiseInt
         sampleMatrix d1Sampler challengeParams.nbar challengeParams.nbar
     return (∑ k, s1 k * e0 k) - (∑ k, e1 k * s0 k) + extra
   have hActual :
-      evalDist ((fun t => challengeEntryNoiseInt c t) <$> challengeCoinsExp) =
-        evalDist projectedExp := by
+      finiteLaw ((fun t => challengeEntryNoiseInt c t) <$> challengeCoinsExp) =
+        finiteLaw projectedExp := by
     simp only [challengeCoinsExp, challengeEntryNoiseInt, projectedExp, initKeyGen,
       sampleSendACoins, map_eq_bind_pure_comp, bind_assoc, pure_bind, Function.comp_apply]
-    exact OracleComp.DeferredSampling.evalDist_bind_const_neverFails
+    exact lweCKA.evalDist_bind_const_neverFails
       (($ᵗ (BaseMatrix challengeParams) : ProbComp (BaseMatrix challengeParams)))
       (probFailure_eq_zero
         (mx := ($ᵗ (BaseMatrix challengeParams) : ProbComp (BaseMatrix challengeParams))))
       _
   have hHead {A B : Type} {mx my : ProbComp A}
-      (h : evalDist mx = evalDist my) (k : A → ProbComp B) :
-      evalDist (mx >>= k) = evalDist (my >>= k) := by
+      (h : finiteLaw mx = finiteLaw my) (k : A → ProbComp B) :
+      finiteLaw (mx >>= k) = finiteLaw (my >>= k) := by
     simp only [evalDist_bind, h]
-  have hProjected : evalDist projectedExp = evalDist challengeEntryNoiseIntExp := by
+  have hProjected : finiteLaw projectedExp = finiteLaw challengeEntryNoiseIntExp := by
     simp only [projectedExp, challengeEntryNoiseIntExp]
     refine (hHead (evalDist_sampleMatrix_col_valMinAbs _ _ c.2) _).trans ?_
     refine evalDist_bind_congr' _ fun _ => ?_
