@@ -13,20 +13,22 @@ import SecureMessaging.SCKA.Security
 /-!
 # Hiding challenge-epoch secrets in protocol states
 
-Let `e` be the epoch at which the reduction embeds its KEM IND-CPA challenge. The state map
-`hideState e` replaces each present secret of epoch `e` by a hidden value `none`: A's decapsulation
-key, B's offline encapsulation state, and the keys recorded by either party. Other present secrets
-are wrapped in `some`; absent fields and all public state remain unchanged. The corresponding
-maps on local states and send coins are `hideA`, `hideB`, and `hideCoins`.
+Let `e` be the epoch at which the reduction embeds its KEM IND-CPA challenge. The simulator does
+not know the secrets of epoch `e`: A's decapsulation key, B's offline encapsulation state, the
+shared key, and the coins that produced them. This module relates its states to those of the
+honest game `P_e(kemMat, kStar)` (`Game`), which knows them.
 
-Revealing a mapped local state recovers the original state exactly when that party holds no
-secret of epoch `e`; otherwise revelation fails (`revealA_hideA_eq`, `revealB_hideB_eq`).
-
-For a candidate key `kStar`, the challenge oracle `pinnedChallenge e kStar` answers an eligible
-SCKA challenge at epoch `t` with a uniform key if `0 < t < e`, with `kStar` if `t = e`, and with
-the recorded key otherwise. The simulator uses the same rule, interpreting a hidden recorded key
-as `kStar`. Running either challenge oracle and applying `hideState e` to the honest successor
-state gives the same response and simulator state (`challenge_hide`).
+- *Hiding.* `hideState e s` is the honest game state `s` with A's decapsulation key, B's offline
+  encapsulation state, and the recorded keys of epoch `e` hidden; all other fields are unchanged.
+  `hideA`, `hideB`, and `hideCoins` hide the local states and the coins of a send.
+- *Revealing.* Revealing `hideA e stA` recovers `stA` unless A holds its decapsulation key of
+  epoch `e`; then revelation fails (`revealA_hideA_eq`, and `revealB_hideB_eq` for B).
+- *Commutation.* On hidden states, the simulated sends and receives equal the honest ones followed
+  by hiding (`sendA_hide`, `sendArleak_hide`, `sendB_hide`, `sendBrleak_hide`, `recvA_hide`,
+  `recvB_hide`). The same holds for challenges (`challenge_hide`): the honest challenge oracle
+  `pinnedChallenge e kStar` answers an eligible challenge at `t` with a uniform key if
+  `0 < t < e`, `kStar` if `t = e`, and the recorded key otherwise, and the simulator reads a
+  hidden recorded key as `kStar`.
 -/
 
 open OracleSpec OracleComp KEMScheme
