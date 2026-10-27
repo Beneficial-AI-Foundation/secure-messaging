@@ -479,9 +479,20 @@ def FSINDCPASecure (rkem : RKEMScheme ProbComp Par EK DK CT K)
 :::::::definition "rkem_ind_cpa" (parent := "rkem") (lean := "RKEMScheme.INDCPAAdversary, RKEMScheme.indCpaAdvantageA, RKEMScheme.indCpaAdvantageB, RKEMScheme.indCpaAdvantage, RKEMScheme.INDCPASecure") (uses := "rkem_scheme, rkem_security_experiment, rkem_guess_advantageA")
 Adapted from {Informal.citet TR25}[], Definition 5.4 and the remark following it.
 
-A non-forward-secure RKEM is IND-CPA secure if it is secure in the {bpref "rkem_security_experiment"}[FS-IND-CPA experiment] with $`\dkh{P}` withheld from the adversary. The experiment for party $`\A` is shown below; the experiment for party $`\B` is symmetric, with the roles of $`\A` and $`\B` swapped.
+A non-forward-secure RKEM is IND-CPA secure if it is secure in the {bpref "rkem_security_experiment"}[FS-IND-CPA experiment] with $`\dkh{P}` withheld from the adversary. Both experiments for party $`\A` are shown below side by side; they differ only in the adversary's input. The experiments for party $`\B` are symmetric, with the roles of $`\A` and $`\B` swapped.
 
 ::::::gameGrid
+:::::gameCell "\\mathsf{Exp}^{\\mathsf{FS\\text{-}IND\\text{-}CPA}\\text{-}\\A}(\\adv)" (kind := "compact")
+$`\begin{array}{l}
+b\sample\{0,1\},\;K_1\sample\mathcal{K} \\
+(\ekA,\dkA)\sample\DRKG{A},\;(\ekh{B},\dkh{B})\sample\DRKGup{B} \\
+(\ct_\B,K_0,\dkh{A})\sample\REnc\text{-}\A(\ekh{B},\dkA) \\
+(\cdot,\ekh{A})\sample\RDec\text{-}\B(\dkh{B},\ct_\B,\ekA) \\
+b'\sample\adv(\ekA,\ekh{A},\ekh{B},\ct_\B,\dkh{A},K_b)\pcomment{\dkh{A}\text{ given}} \\
+\Return(b=b')
+\end{array}`
+:::::
+
 :::::gameCell "\\mathsf{Exp}^{\\mathsf{IND\\text{-}CPA}\\text{-}\\A}(\\adv)" (kind := "compact")
 $`\begin{array}{l}
 b\sample\{0,1\},\;K_1\sample\mathcal{K} \\
