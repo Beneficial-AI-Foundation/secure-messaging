@@ -49,7 +49,7 @@ def NRS14 : Verso.Genre.Manual.Bibliography.Citable := .inProceedings
   , authors := #[inlines!"Chanathip Namprempre", inlines!"Phillip Rogaway", inlines!"Thomas Shrimpton"]
   , year := 2014
   , booktitle := inlines!"EUROCRYPT 2014"
-  , url := some "https://eprint.iacr.org/2013/765" }
+  , url := some "https://eprint.iacr.org/2014/206" }
 
 @[bib "MV04"]
 def MV04 : Verso.Genre.Manual.Bibliography.Citable := .inProceedings

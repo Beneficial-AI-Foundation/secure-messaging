@@ -34,7 +34,7 @@ Indistinguishability under Chosen-Ciphertext Attack (IND-CCA) security following
 
 - [NRS14] Namprempre, Rogaway, Shrimpton.
   *Reconsidering Generic Composition.*
-  EUROCRYPT 2014, https://eprint.iacr.org/2013/765
+  EUROCRYPT 2014, https://eprint.iacr.org/2014/206
 
 - [BS] Boneh, Shoup.
   *A Graduate Course in Applied Cryptography*, version 0.6, 2023.
