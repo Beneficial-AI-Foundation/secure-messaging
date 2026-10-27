@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.CKA.FromLWE.Basic
+module
+
+public import SecureMessaging.CKA.FromLWE.Basic
 
 /-!
 # Frodo reconciliation for continuous key agreement from LWE
@@ -81,6 +83,8 @@ The matrix operations apply these scalar functions to each entry.
   CCA-Secure Learning With Errors Key Encapsulation Mechanism*, IACR Communications in
   Cryptology 2:3, 2025, <https://cic.iacr.org/p/2/3/25>.
 -/
+
+@[expose] public section
 
 namespace lweCKA
 
