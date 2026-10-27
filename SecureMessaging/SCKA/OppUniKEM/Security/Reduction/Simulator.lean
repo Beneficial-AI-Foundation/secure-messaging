@@ -14,11 +14,11 @@ Fix a KEM `kem`, an SCKA adversary `adv` against Opp-UniKEM over `kem`, and a se
 For an epoch `e` at which the reduction embeds its IND-CPA challenge, let
 `(pkStar, ctStar, kStar)` be the challenge public key, ciphertext, and candidate key.
 
-The simulator runs `adv` from the initial state, with both parties at epoch `1` and empty message,
-key, exposure, and challenge tables. At epoch `e`, key generation returns `pkStar` and
+The simulator runs `adv` from the initial state, with both parties at epoch `1`, empty message and
+key tables, and empty exposure and challenge sets. At epoch `e`, key generation returns `pkStar` and
 encapsulation returns `ctStar`, while the corresponding secret key, offline state, shared key,
 and coins remain hidden. Other epochs sample honestly. Party A's receive uses B's recorded key
-for A's current epoch instead of decapsulation. An accepted challenge at epoch `t` returns a
+for A's current epoch instead of decapsulation. An eligible challenge at epoch `t` returns a
 uniform key if
 `0 < t < e`, `kStar` if `t = e`, and the recorded key otherwise. A permitted corruption or leaking
 send that would reveal a hidden value stops the run with output `false`; otherwise the run returns
@@ -26,13 +26,14 @@ send that would reveal a hidden value stops the run with output `false`; otherwi
 
 - The IND-CPA adversary `𝓑 := securityReduction … adv q` draws `e` uniformly from `{1, …, q}`
   when `q > 0` (and chooses `e = 1` when `q = 0`), then executes this simulation on its challenge.
-- For an IND-CPA bit `b`, its fixed branch `𝓑_e^b := fixedBranch … adv e b` fixes the epoch `e`,
-  draws a fresh KEM key pair and encapsulation, and uses the encapsulated key when `b = true`
-  or an independent uniform key when `b = false`.
+- Its fixed branches `𝓑_e^real := fixedBranch … adv e true` and
+  `𝓑_e^random := fixedBranch … adv e false` fix the epoch `e`, draw a fresh KEM key pair and
+  encapsulation, and take as `kStar` the encapsulated key (`real`) or an independent uniform key
+  (`random`).
 
 For `q > 0`, the difference in acceptance probability between the real and random IND-CPA
 experiments for `𝓑` is the average over `e ∈ {1, …, q}` of
-`Pr[𝓑_e^true = true] - Pr[𝓑_e^false = true]` (`securityReduction_signed_gap_average`).
+`Pr[𝓑_e^real = true] - Pr[𝓑_e^random = true]` (`securityReduction_signed_gap_average`).
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -293,7 +294,7 @@ def simOracle [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
 variable {kem} in
 /-- Initial simulator state: both parties start at epoch `1` with all optional local fields set to
-`none` and empty message, key, exposure, and challenge tables. -/
+`none`, empty message and key tables, and empty exposure and challenge sets. -/
 def initial :
     SimState onoff Sym :=
   SCKAScheme.initGameState
@@ -343,9 +344,10 @@ section
 
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- Fixed-epoch branch of the reduction at challenge epoch `e` and IND-CPA challenge bit `b`:
-samples `(pk, _) ← kem.keygen`, `(ct, key) ← kem.encaps pk`, and an independent uniform key
-`randomKey ←$ K`, then executes `run … adv e pk ct (if b then key else randomKey)`. -/
+/-- Fixed branch of the reduction at challenge epoch `e` and IND-CPA challenge bit `b`, written
+`𝓑_e^real` for `b = true` and `𝓑_e^random` for `b = false`: samples `(pk, _) ← kem.keygen`,
+`(ct, key) ← kem.encaps pk`, and an independent uniform key `randomKey ←$ K`, then executes
+`run … adv e pk ct (if b then key else randomKey)`. -/
 def fixedBranch (adv : SecurityAdversary leak Sym) (e : ℕ) (b : Bool) : ProbComp Bool := do
   let (pk, _) ← kem.keygen
   let (ct, key) ← kem.encaps pk

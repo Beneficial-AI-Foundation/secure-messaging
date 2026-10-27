@@ -21,7 +21,7 @@ import ToVCVio.OracleComp.SimSemantics.StateT.IdenticalUntilBadInvariant
   (`SecuritySendQueryBound adv q`);
 - the KEM correctness error `ε`, that is, `kem.correctnessError` (Def. A.1 of [SCKA]).
 
-**Main result.** For a challenge bit `b`, the *ideal security game* `I_b` is the real game `G_b`
+**Main result.** For a challenge bit `b`, the *ideal game* `I_b` is the real game `G_b`
 (`SCKAScheme.securityExpFixedBit`) in which party A, upon completing an online ciphertext, outputs
 party B's recorded key instead of decapsulating (`I_b := idealSecurityExp … (fun _ => b) adv`).
 More generally, under a challenge mode `mode`, it answers an eligible challenge at epoch `t` with a
@@ -78,7 +78,7 @@ variable (leak : kem.OnOffRandLeak onoff)
 section IdealGame
 
 include hDet in
-/-- Party A's receive oracle in the ideal security game.
+/-- Party A's receive oracle in the ideal game.
 
 When invoked on message index `n` in game state `s`, this oracle executes `SCKAScheme.oracleRecvA`
 except that decapsulation is replaced by looking up party B's recorded key `s.keyB s.stA.t` for

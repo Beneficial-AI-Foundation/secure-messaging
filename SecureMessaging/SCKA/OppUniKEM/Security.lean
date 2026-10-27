@@ -57,6 +57,9 @@ Paths are relative to `OppUniKEM/Security/`.
 - Epoch `e` is *exposed* once a permitted corruption or leaking send reveals its secrets
   (`exposureA`, `exposureB`); the game then records `e` in `exposed` and rejects challenges
   at `e`.
+- The games `𝓑_e^x`, `P_e^x`, and `S_e^x` defined below come in two *versions*
+  `x ∈ {real, random}`: a challenge at `e` returns the real key in `real` and an independent
+  uniform key in `random`.
 
 **Proof steps.**
 
@@ -76,28 +79,30 @@ Paths are relative to `OppUniKEM/Security/`.
        key if `t > e`;
      - a permitted corruption or leaking send that would reveal a hidden value stops the run
        with output `false`.
-   - Define `𝓑_e^b := fixedBranch adv e b` (`Reduction/Simulator`): `𝓑` with its drawn challenge
-     epoch fixed to `e` and the IND-CPA bit fixed to `b` (`true`: the encapsulated key).
-   - Let `i_b := if b then e - 1 else e`.
-   - Define the *pinned hybrid* `P_e^b` (`stageStopped .pinned`): `H_{i_b}` with the samples of
-     epoch `e` drawn in advance, stopped at the first exposure of `e`.
+   - Define the *fixed branch* `𝓑_e^x` (`fixedBranch adv e true` for `real`, `… false` for
+     `random`; `Reduction/Simulator`): `𝓑` with its drawn challenge epoch fixed to `e` and `k*`
+     fixed to the encapsulated key in `real` and an independent uniform key in `random`.
+   - Define the *pinned hybrid* `P_e^x` (`stageStopped .pinned`): `H_{e-1}` in `real` and `H_e`
+     in `random`, with the samples of epoch `e` drawn in advance, stopped at the first exposure
+     of `e`.
 
-   Main result: `Pr[𝓑_e^b = true] = Pr[P_e^b = true]` (`fixedBranch_eq_pinnedHybrid`).
+   Main result: `Pr[𝓑_e^x = true] = Pr[P_e^x = true]` (`fixedBranch_eq_pinnedHybrid`).
 
 3. *Deferred sampling* (`Reduction/Deferral`).
-   - Define `S_e^b`: `H_{i_b}` stopped at the first exposure of `e`.
-   - In `P_e^b`, each pre-drawn sample of epoch `e` (key generation, offline and online
-     encapsulation) is used by at most one query: the protocol call that draws it in `S_e^b`. For a
+   - Define the *stopped hybrid* `S_e^x`: `H_{e-1}` in `real` and `H_e` in `random`, stopped at
+     the first exposure of `e`.
+   - In `P_e^x`, each pre-drawn sample of epoch `e` (key generation, offline and online
+     encapsulation) is used by at most one query: the protocol call that draws it in `S_e^x`. For a
      value used at most once, drawing it in advance or at that query gives the same acceptance
      probability (`stoppedRun_sample_once_eq`).
 
-   Main result: `Pr[P_e^b = true] = Pr[S_e^b = true]` (`pinnedHybrid_eq_ideal`).
+   Main result: `Pr[P_e^x = true] = Pr[S_e^x = true]` (`pinnedHybrid_eq_ideal`).
 
 4. *Exposure cancellation* (`IdealHybrids`, this module).
-   - Prove `Pr[S_e^true = true] - Pr[S_e^false = true] = p_{e-1} - p_e`
+   - Prove `Pr[S_e^real = true] - Pr[S_e^random = true] = p_{e-1} - p_e`
      (`idealEpochHybrid_signed_gap_stop_eq`): `H_{e-1}` and `H_e` differ only at a challenge of
      `e`, which is rejected once `e` is exposed.
-   - Hence `Pr[𝓑_e^true = true] - Pr[𝓑_e^false = true] = p_{e-1} - p_e`
+   - Hence `Pr[𝓑_e^real = true] - Pr[𝓑_e^random = true] = p_{e-1} - p_e`
      (`fixedBranch_signed_gap_eq`).
 
 5. *Averaging* (this module).
@@ -106,7 +111,7 @@ Paths are relative to `OppUniKEM/Security/`.
      ```text
      AdvINDCPA_KEM(kem, 𝓑)
        = |Pr[𝓑_real = true] - Pr[𝓑_random = true]|
-       = |q⁻¹ · ∑_{e=1}^{q} (Pr[𝓑_e^true = true] - Pr[𝓑_e^false = true])|   (e uniform)
+       = |q⁻¹ · ∑_{e=1}^{q} (Pr[𝓑_e^real = true] - Pr[𝓑_e^random = true])|  (e uniform)
        = |q⁻¹ · ∑_{e=1}^{q} (p_{e-1} - p_e)|                                (step 4)
        = |p_0 - p_q| / q                                                     (telescoping)
      ```
@@ -143,8 +148,9 @@ variable (leak : kem.OnOffRandLeak onoff)
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
 include hEk hCt0 hCt1 in
-/-- Step 4: for every `i`, `Pr[𝓑_{i+1}^true = true] - Pr[𝓑_{i+1}^false = true] = p_i - p_{i+1}`,
-where `𝓑_e^b := fixedBranch adv e b` and `p_i := Pr[idealEpochHybridExp adv i = true]`. -/
+/-- Step 4: for every `i`, `Pr[𝓑_{i+1}^real = true] - Pr[𝓑_{i+1}^random = true] = p_i - p_{i+1}`,
+where `𝓑_e^real := fixedBranch adv e true`, `𝓑_e^random := fixedBranch adv e false`, and
+`p_i := Pr[idealEpochHybridExp adv i = true]`. -/
 theorem fixedBranch_signed_gap_eq (adv : SecurityAdversary leak Sym) (i : ℕ) :
     (Pr{let x ← fixedBranch kem onoff ecEk ecCt0 ecCt1 leak adv (i + 1) true}[x = true]).toReal -
       (Pr{let x ← (fixedBranch

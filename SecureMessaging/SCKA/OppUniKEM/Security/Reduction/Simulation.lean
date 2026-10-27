@@ -14,30 +14,30 @@ import SecureMessaging.SCKA.Security
 
 Fix a KEM `kem` with shared-key space `K` and deterministic decapsulation, correct erasure codes
 for Opp-UniKEM, an SCKA adversary `adv`, an epoch `e` at which the reduction embeds its IND-CPA
-challenge, and an IND-CPA bit `b`. Let `leak` record the coins of the KEM samplers. A sample
-`kemMat ← sampleMaterial leak` consists of the outputs and coins of key generation, offline
-encapsulation, and online encapsulation. For an independent uniform key `k`, write
-`k_b := if b then kemMat.key else k`.
+challenge, and a version `x ∈ {real, random}`. Let `leak` record the coins of the KEM samplers.
+A sample `kemMat ← sampleMaterial leak` consists of the outputs and coins of key generation,
+offline encapsulation, and online encapsulation. For an independent uniform key `k`, write
+`k_real := kemMat.key` and `k_random := k`.
 
 Consider two experiments running `adv` from their respective empty initial states, with both
-parties at epoch `1` and empty message, key, exposure, and challenge tables. Let `s₀` denote the
-honest initial state. Both replace A's decapsulation by B's recorded key for A's current epoch.
-Accepted challenges at epoch `t` return a uniform key if `0 < t < e`, `k_b` if `t = e`, and the
-recorded key otherwise.
+parties at epoch `1`, empty message and key tables, and empty exposure and challenge sets. Let
+`s₀` denote the honest initial state. Both replace A's decapsulation by B's recorded key for A's
+current epoch. Eligible challenges at epoch `t` return a uniform key if `0 < t < e`, `k_x` if
+`t = e`, and the recorded key otherwise.
 
-- The reduction branch `𝓑_e^b := fixedBranch … adv e b` samples `kemMat` and `k`, inserts
-  `kemMat`'s public key and ciphertext at epoch `e`, and hides the corresponding secret key,
-  offline state, shared key, and coins. A permitted corruption or leaking send that would reveal
-  a hidden value stops the run with output `false`.
-- The honest experiment `G(kemMat, k_b)` fixes all sampling outputs and coins at epoch `e` to
-  `kemMat` and returns `false` at the first query whose successor exposes `e`. Formally, this is
-  `optionRun (honestStopped … kemMat e k_b) adv s₀`.
+- The fixed branch `𝓑_e^x` (`fixedBranch … adv e true` for `real`, `… false` for `random`)
+  samples `kemMat` and `k`, inserts `kemMat`'s public key and ciphertext at epoch `e`, and hides
+  the corresponding secret key, offline state, shared key, and coins. A permitted corruption or
+  leaking send that would reveal a hidden value stops the run with output `false`.
+- The honest game `P_e(kemMat, k_x)` fixes all sampling outputs and coins at epoch `e` to
+  `kemMat` and returns `false` at the first exposure of `e`. Formally, this is
+  `optionRun (honestStopped … kemMat e k_x) adv s₀`.
 
 Other epochs sample honestly, and both experiments return `adv`'s output on normal completion.
 The simulation theorem is the acceptance equality (`fixedBranch_eq_honestStopped`):
 
 ```text
-Pr[𝓑_e^b = true] = Pr[kemMat ← sampleMaterial leak; k ←$ K; G(kemMat, k_b) = true].
+Pr[𝓑_e^x = true] = Pr[kemMat ← sampleMaterial leak; k ←$ K; P_e(kemMat, k_x) = true].
 ```
 -/
 
@@ -512,8 +512,9 @@ theorem run_eq_honestStopped
 
 include hDet hEk hCt0 hCt1 in
 /-- `Pr[fixedBranch adv e b = true] =
-Pr[kemMat ← sampleMaterial leak; k ←$ K; optionRun (honestStopped kemMat e k_b) adv s₀ = true]` with
-`k_b := if b then kemMat.key else k`. -/
+Pr[kemMat ← sampleMaterial leak; k ←$ K; optionRun (honestStopped kemMat e k_x) adv s₀ = true]`,
+where `x` is `real` for `b = true` and `random` for `b = false`, so `k_x` is `kemMat.key` or `k`.
+-/
 theorem fixedBranch_eq_honestStopped
     (adv : SecurityAdversary leak Sym) (e : ℕ) (b : Bool) :
     Pr{let x ← fixedBranch kem onoff ecEk ecCt0 ecCt1 leak adv e b}[x = true] =

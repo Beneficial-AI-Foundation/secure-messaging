@@ -12,39 +12,38 @@ import SecureMessaging.SCKA.Security
 import ToVCVio.OracleComp.QueryTracking.OneUseSampling
 
 /-!
-# The reduction branch and the pinned hybrid
+# The fixed branch and the pinned hybrid
 
 Fix a KEM `kem` with deterministic decapsulation, correct erasure codes for Opp-UniKEM, an SCKA
-adversary `adv`, a positive epoch `e` at which the reduction embeds its IND-CPA challenge, and an
-IND-CPA bit `b`. All experiments below run `adv` from the initial state, with both parties at
-epoch `1` and empty message, key, exposure, and challenge tables.
+adversary `adv`, a positive epoch `e` at which the reduction embeds its IND-CPA challenge, and a
+version `x ∈ {real, random}`: a challenge at `e` returns the real key in `real` and an
+independent uniform key in `random`. All experiments below run `adv` from the initial state, with
+both parties at epoch `1`, empty message and key tables, and empty exposure and challenge sets.
 
 - The ideal hybrid `H_i`, for `i : ℕ`, runs the SCKA security game for Opp-UniKEM, replacing A's
-  decapsulation by B's recorded key for A's current epoch. Accepted challenges at epochs
-  `1, …, i` return uniform keys; all other epochs return recorded keys
+  decapsulation by B's recorded key for A's current epoch. Eligible challenges at epochs
+  `1, …, i` return uniform keys; all other eligible challenges return recorded keys
   (`idealEpochHybridExp`, `IdealHybrids`).
-- Define `i_b := if b then e - 1 else e`. The pinned hybrid `P_e^b` samples the outputs and coins
-  of key generation, offline encapsulation, and online encapsulation as KEM material `kemMat`,
-  using the randomness-leaking samplers `leak` (`sampleMaterial leak`). It runs `H_{i_b}` with
-  the outputs and coins of epoch `e` fixed to `kemMat`, returning `false` at the first query whose
-  successor exposes `e`. In Lean this is the run using `stageStopped .pinned kemMat e (!b)`,
-  averaged over `kemMat`.
-- The reduction branch `𝓑_e^b := fixedBranch … adv e b` draws a fresh IND-CPA challenge, whose
-  candidate key is the encapsulated key if `b = true` and an independent uniform key otherwise.
-  It runs the same protocol, inserting the challenge public key and ciphertext at `e` and
-  hiding their secret key, offline state, shared key, and coins. Accepted challenges at `e`
-  return the candidate key; other challenges follow `H_{i_b}`. A permitted corruption or leaking
-  send that would reveal a hidden value returns `false`.
+- The pinned hybrid `P_e^x` draws KEM material `kemMat ← sampleMaterial leak`: the outputs and
+  coins of key generation, offline encapsulation, and online encapsulation. It runs `H_{e-1}` in
+  `real` and `H_e` in `random` with the outputs and coins of epoch `e` fixed to `kemMat`,
+  returning `false` at the first exposure of `e` by a permitted corruption or leaking send
+  (`stageStopped .pinned kemMat e false` for `real`, `… true` for `random`, averaged over
+  `kemMat`).
+- The fixed branch `𝓑_e^x` (`fixedBranch … adv e true` for `real`, `… false` for `random`)
+  draws a fresh IND-CPA challenge, whose candidate key is the encapsulated key in `real` and an
+  independent uniform key in `random`. It runs the same protocol, inserting the challenge public
+  key and ciphertext at `e` and hiding their secret key, offline state, shared key, and coins.
+  Eligible challenges at `e` return the candidate key; other challenges at `t` return a uniform
+  key if `0 < t < e` and the recorded key otherwise. A permitted corruption or leaking send that
+  would reveal a hidden value returns `false`.
 
-Both `P_e^b` and `𝓑_e^b` return `adv`'s output on normal completion. Their acceptance probabilities
-are equal (`fixedBranch_eq_pinnedHybrid`):
+Both `P_e^x` and `𝓑_e^x` return `adv`'s output on normal completion. Their acceptance
+probabilities are equal (`fixedBranch_eq_pinnedHybrid`):
 
 ```text
-Pr[𝓑_e^b = true] = Pr[P_e^b = true].
+Pr[𝓑_e^x = true] = Pr[P_e^x = true].
 ```
-
-The mode bit in `stageStopped` is `!b`: `true` selects a uniform challenge key, whereas the
-IND-CPA bit `true` selects the encapsulated key.
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -84,8 +83,8 @@ def stageOracle (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool)
   securityImplAt kem onoff leak (stageScheme ecEk ecCt0 ecCt1 stage kemMat e)
     (SCKAScheme.challOf (adjacentMode e b))
 
-/-- The stage oracle stops whenever a query leaves `e` exposed; a stopped run returns `false`.
-The fully pinned case gives the pinned hybrid. -/
+/-- The stage oracle stopped at the first exposure of `e`, where a stopped run returns `false`.
+The fully pinned case gives the pinned hybrid `P_e^x`, with `b = true` for version `random`. -/
 def stageStopped (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ) (b : Bool) :
     QueryImpl (securitySpec leak Sym)
       (OptionT (StateT
@@ -168,7 +167,7 @@ private theorem honestOracle_eq_hybrid_real
 include hDet hEk hCt0 hCt1 in
 /-- For any possible honest material `kemMat`, answering challenges at `e` with `kemMat.key` or
 the recorded key gives the same acceptance probability from the initial state. Both games pin
-epoch `e` to `kemMat` and return `false` after the first query leaving `e` exposed. -/
+epoch `e` to `kemMat` and return `false` at the first exposure of `e`. -/
 theorem honestStopped_real_eq_hybrid
     (kemMat : KEMMaterial leak) (hm : kemMat ∈ support (sampleMaterial leak)) (e : ℕ)
     (adv : SecurityAdversary leak Sym) :
@@ -249,9 +248,9 @@ private theorem honestOracle_sample_uniform
         pure_bind]
       exact OracleComp.EvalDistEq.bind_const _ _
 
-/-- For `e > 0`, drawing a uniform challenge key before the run or at the accepted challenge
+/-- For `e > 0`, drawing a uniform challenge key before the run or at the eligible challenge
 at `e` gives the same acceptance probability from every state. Both games pin epoch `e` to
-`kemMat` and return `false` after the first query leaving `e` exposed. -/
+`kemMat` and return `false` at the first exposure of `e`. -/
 theorem honestStopped_random_eq_hybrid
     (kemMat : KEMMaterial leak) (e : ℕ) (he : 0 < e)
     (adv : SecurityAdversary leak Sym)
@@ -278,9 +277,10 @@ theorem honestStopped_random_eq_hybrid
     adv s trivial
 
 include hDet hEk hCt0 hCt1 in
-/-- For `e > 0`, `Pr[fixedBranch adv e b = true] =
-Pr[kemMat ← sampleMaterial leak; optionRun (stageStopped .pinned kemMat e (!b)) adv s₀ = true]`;
-the negation maps the IND-CPA bit (`true`: real key) to the mode bit (`true`: uniform key). -/
+/-- For `e > 0` and the initial game state `s₀`, `Pr[fixedBranch adv e b = true] =
+Pr[kemMat ← sampleMaterial leak; optionRun (stageStopped .pinned kemMat e (!b)) adv s₀ = true]`,
+that is, `Pr[𝓑_e^x = true] = Pr[P_e^x = true]`, where version `real` is `fixedBranch … true` and
+`stageStopped … false`. -/
 theorem fixedBranch_eq_pinnedHybrid
     (adv : SecurityAdversary leak Sym) (e : ℕ) (he : 0 < e) (b : Bool) :
     Pr{let x ← fixedBranch kem onoff ecEk ecCt0 ecCt1 leak adv e b}[x = true] =

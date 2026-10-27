@@ -22,7 +22,7 @@ maps on local states and send coins are `hideA`, `hideB`, and `hideCoins`.
 Revealing a mapped local state recovers the original state exactly when that party holds no
 secret of epoch `e`; otherwise revelation fails (`revealA_hideA_eq`, `revealB_hideB_eq`).
 
-For a candidate key `kStar`, the challenge oracle `pinnedChallenge e kStar` answers an accepted
+For a candidate key `kStar`, the challenge oracle `pinnedChallenge e kStar` answers an eligible
 SCKA challenge at epoch `t` with a uniform key if `0 < t < e`, with `kStar` if `t = e`, and with
 the recorded key otherwise. The simulator uses the same rule, interpreting a hidden recorded key
 as `kStar`. Running either challenge oracle and applying `hideState e` to the honest successor

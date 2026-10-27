@@ -14,37 +14,38 @@ import ToVCVio.OracleComp.QueryTracking.OneUseSampling
 **Setting.** Let
 - `adv` be an SCKA adversary against Opp-UniKEM;
 - `e > 0` be the epoch at which the reduction embeds the KEM IND-CPA challenge;
-- `b : Bool` be the ideal challenge mode at `e`: uniform key for `true`, recorded key for `false`.
+- `x ∈ {real, random}` be the version: a challenge at `e` returns the recorded key in `real` and
+  a uniform key in `random` (the Lean argument `b` of `adjacentMode e b` is `true` for `random`).
 
 Assume that the KEM has deterministic decapsulation and the three erasure codes are correct.
 
-**Challenge mode.** The mode `μ := adjacentMode e b` (`IdealHybrids`) answers accepted challenges
+**Challenge mode.** The mode `μ := adjacentMode e b` (`IdealHybrids`) answers eligible challenges
 as follows:
 
-| Epoch `t`   | Answer                                                 |
-| ----------- | ------------------------------------------------------ |
-| `0 < t < e` | Uniform key                                            |
-| `t = e`     | Uniform key if `b = true`; recorded key if `b = false` |
-| Otherwise   | Recorded key                                           |
+| Epoch `t`   | Answer                                          |
+| ----------- | ----------------------------------------------- |
+| `0 < t < e` | Uniform key                                     |
+| `t = e`     | Recorded key in `real`; uniform key in `random` |
+| Otherwise   | Recorded key                                    |
 
-**Experiments.** Both run `adv` from their respective empty initial states at epoch `1`.
-A uses B's recorded key for A's current epoch instead of decapsulating.
+**Experiments.** Both run `adv` from the empty initial state at epoch `1`, use B's recorded key
+for A's current epoch instead of decapsulating, and return the output of `adv` on normal
+completion.
 
-- **Ideal game `I`** (`idealSecurityImpl μ`, `Endpoints`): uses the challenge answers above
-  and returns `false` at the first query that exposes `e`.
-- **Reduction `R`** (`fixedBranch adv e (!b)`, `Simulator`): embeds a fresh KEM challenge's
-  public key and ciphertext at `e`. Challenges at `e` receive its candidate key: independent
-  uniform if `b = true`, encapsulated if `b = false`. Other challenges follow the table.
-  The run returns `false` if a permitted corruption or leaking send requires unavailable
-  challenge secrets or coins.
+- **Stopped hybrid `S_e^x`** (`idealSecurityImpl μ`, `Endpoints`): `H_{e-1}` in `real` and `H_e`
+  in `random` (`IdealHybrids`), with the challenge answers above, returning `false` at the first
+  query that exposes `e`.
+- **Pinned hybrid `P_e^x`** (`stageStopped .pinned kemMat e b`, `HybridGame`): `S_e^x` with the
+  KEM outputs and coins of epoch `e` drawn in advance as `kemMat ← sampleMaterial leak`.
 
-Both return the output of `adv` on normal completion.
-
-**Main result** (`fixedBranch_eq_ideal`):
+**Main result** (`pinnedHybrid_eq_ideal`):
 
 ```text
-Pr[R = true] = Pr[I = true].
+Pr[P_e^x = true] = Pr[S_e^x = true].
 ```
+
+With `fixedBranch_eq_pinnedHybrid` (`HybridGame`), this gives
+`Pr[𝓑_e^x = true] = Pr[S_e^x = true]` for the fixed branch `𝓑_e^x` (`fixedBranch_eq_ideal`).
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -1256,8 +1257,9 @@ theorem pinnedHybrid_eq_fresh
   · exact stageStopped_keygen_deferred kem onoff ecEk ecCt0 ecCt1 leak kemMat₀ e b adv _
 
 include hEk hCt0 hCt1 in
-/-- From the initial state, the ideal game stopped at the first exposure of `e` has the same
-acceptance probability when all KEM outputs and coins of `e` are sampled in advance. -/
+/-- From the initial state, the stopped hybrid `S_e^x` has the same acceptance probability as the
+pinned hybrid `P_e^x`, which samples all KEM outputs and coins of `e` in advance (`b = true` for
+version `random`). -/
 theorem pinnedHybrid_eq_ideal (e : ℕ) (b : Bool) (adv : SecurityAdversary leak Sym) :
     Pr{let x ← (do
       let kemMat ← sampleMaterial leak
@@ -1273,9 +1275,8 @@ theorem pinnedHybrid_eq_ideal (e : ℕ) (b : Bool) (adv : SecurityAdversary leak
   rw [stageOracle_fresh_eq_ideal kem onoff hDet ecEk ecCt0 ecCt1 leak kemMat₀ e b]
 
 include hEk hCt0 hCt1 in
-/-- For `e > 0` and IND-CPA bit `b`, the reduction's fixed branch has the same acceptance
-probability as the ideal game stopped at the first exposure of `e`, using mode `!b` at `e`
-(`true` in IND-CPA selects the encapsulated key). -/
+/-- For `e > 0`, the fixed branch `𝓑_e^x` and the stopped hybrid `S_e^x` have the same acceptance
+probability, where version `real` is `fixedBranch … true` and `adjacentMode e false`. -/
 theorem fixedBranch_eq_ideal (e : ℕ) (he : 0 < e)
     (b : Bool) (adv : SecurityAdversary leak Sym) :
     Pr{let x ← fixedBranch kem onoff ecEk ecCt0 ecCt1 leak adv e b}[x = true] =

@@ -16,7 +16,7 @@ import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Receive
 Throughout this module, we consider:
 
 - an epoch `e` at which the reduction embeds the KEM IND-CPA challenge;
-- a candidate key `kStar` returned by an accepted SCKA challenge query at `e`;
+- a candidate key `kStar` returned by an eligible SCKA challenge query at `e`;
 - KEM material `kemMat`, a record of the outputs and coins of key generation, offline
   encapsulation, and online encapsulation for one epoch (`KEMMaterial`, `Simulator`).
 
@@ -26,11 +26,12 @@ The protocol instances and security oracles are defined as follows:
   coins of epoch `e` fixed to `kemMat`. Other epochs sample honestly, and A's receive replaces
   decapsulation by the lookup of B's recorded key for A's current epoch.
 - The *honest intermediate oracle* `honestOracle kemMat e kStar` supplies the SCKA security
-  oracles for this instance. An accepted challenge at epoch `t` returns a uniform key if
+  oracles for this instance. An eligible challenge at epoch `t` returns a uniform key if
   `0 < t < e`, `kStar` if `t = e`, and the recorded key otherwise.
 - The *stopped honest oracle* `honestStopped kemMat e kStar` stops at the first query whose
-  successor state records `e` as exposed. Running an adversary against it returns `false` on
-  stopping and the adversary's output on normal completion.
+  successor state records `e` as exposed. Running an adversary against it from the initial state
+  is the *honest game* `P_e(kemMat, kStar)`, which returns `false` on stopping and the
+  adversary's output on normal completion.
 -/
 
 open OracleSpec OracleComp KEMScheme
