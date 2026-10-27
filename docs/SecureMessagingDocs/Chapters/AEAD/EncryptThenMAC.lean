@@ -48,18 +48,18 @@ Encrypt-then-MAC.
 Adapted from {Informal.citet NRS14}[], Section 2 (ivE schemes).
 
 A deterministic symmetric encryption scheme $`\mathsf{SE}` is a tuple of algorithms
-$`(\mathsf{SE.KeyGen}, \mathsf{SE.Enc}, \mathsf{SE.Dec})` with key space $`\mathcal K_e`,
-message space $`\mathcal M` and ciphertext space $`\mathcal C_e`, where
+$`(\mathsf{SE.KeyGen}, \mathsf{SE.Enc}, \mathsf{SE.Dec})` with key space $`\mathcal K`,
+message space $`\mathcal M` and ciphertext space $`\mathcal C`, where
 
-- $`\mathsf{SE.KeyGen}` samples a key $`K_e \in \mathcal K_e`,
-- $`\mathsf{SE.Enc}` takes a key $`K_e` and a message $`m`, and produces a ciphertext
-  $`c \gets \mathsf{SE.Enc}(K_e, m)`,
-- $`\mathsf{SE.Dec}` takes a key $`K_e` and a ciphertext $`c`, and produces a message
-  $`m \gets \mathsf{SE.Dec}(K_e, c)`, or $`\bot`.
+- $`\mathsf{SE.KeyGen}` samples a key $`K \in \mathcal K`,
+- $`\mathsf{SE.Enc}` takes a key $`K` and a message $`m`, and produces a ciphertext
+  $`c \gets \mathsf{SE.Enc}(K, m)`,
+- $`\mathsf{SE.Dec}` takes a key $`K` and a ciphertext $`c`, and produces a message
+  $`m \gets \mathsf{SE.Dec}(K, c)`, or $`\bot`.
 
-$`\mathsf{SE.Enc}` and $`\mathsf{SE.Dec}` are deterministic, and $`\mathcal C_e` is finite
+$`\mathsf{SE.Enc}` and $`\mathsf{SE.Dec}` are deterministic, and $`\mathcal C` is finite
 and nonempty, so that the game below can sample from it uniformly. $`\mathsf{SE}` is correct
-if $`\mathsf{SE.Dec}(K_e, \mathsf{SE.Enc}(K_e, m)) = m` for all keys $`K_e` and messages
+if $`\mathsf{SE.Dec}(K, \mathsf{SE.Enc}(K, m)) = m` for all keys $`K` and messages
 $`m`.
 
 ```anchor DetSEAlg (project := ".") (module := SecureMessaging.SymEnc.Defs)
@@ -85,13 +85,13 @@ the scheme takes no IV and the game answers at most one encryption query. The se
 stays ind$-style: the adversary must tell real ciphertexts from uniformly random ones. This
 is stronger than left-or-right indistinguishability. The ind$ game of
 {Informal.citet NRS14}[] returns a random string of the same length as the real ciphertext.
-The game here samples from all of $`\mathcal C_e` instead, so ciphertexts must also hide the
+The game here samples from all of $`\mathcal C` instead, so ciphertexts must also hide the
 message length. This matches the AEAD game of {Informal.citet ACD19}[], which samples the
 challenge ciphertext from the whole ciphertext space.
 :::::
 
 :::::gameCell "\\textsf{Game state and notation}" (kind := "scheme-notation")
-The game state consists of the key $`K_e`, the challenge bit $`b` and the flag
+The game state consists of the key $`K`, the challenge bit $`b` and the flag
 $`\mathsf{used}`, which records whether $`\Oenc` already answered. For $`b = 0`, $`\Oenc`
 encrypts. For $`b = 1`, it returns a uniformly random ciphertext.
 
@@ -111,9 +111,9 @@ $`\begin{array}{l}
 \req\;\neg\mathsf{used}; \\
 \mathsf{used} \gets \mathsf{true}; \\
 \pif\;b = 0\;\pthen \\
-\quad c \gets \mathsf{SE.Enc}(K_e, m); \\
+\quad c \gets \mathsf{SE.Enc}(K, m); \\
 \pelse \\
-\quad c \sample \mathcal C_e; \\
+\quad c \sample \mathcal C; \\
 \Return c
 \end{array}`
 
@@ -133,7 +133,7 @@ def oracleEncrypt [SampleableType C] (se : DetSEAlg K M C) (b : Bool) (k : K) :
 
 :::::gameCell "\\Exp{\\textsf{ind\\$}\\text{-}b}{\\textsf{SE}}(\\adv)" (kind := "game")
 $`\begin{array}{l}
-K_e \gets \mathsf{SE.KeyGen}; \\
+K \gets \mathsf{SE.KeyGen}; \\
 \mathsf{used} \gets \mathsf{false}; \\
 b' \gets \adv^{\Oenc}; \\
 \Return b'
@@ -169,13 +169,13 @@ after the tag check, so a forged ciphertext never reaches it.
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Example: one-time pad}" (kind := "scheme-notation")
-Let $`\mathcal K_e = \mathcal M = \mathcal C_e = \{0,1\}^n`, let $`\mathsf{SE.KeyGen}`
-sample $`K_e` uniformly, and let $`\mathsf{SE.Enc}(K_e, m) = K_e \oplus m` and
-$`\mathsf{SE.Dec}(K_e, c) = K_e \oplus c`. The scheme is correct. The adversary
-chooses $`m` before it sees anything that depends on $`K_e`, so $`m` is independent of
-$`K_e`. For a fixed $`m`, the map $`K \mapsto K \oplus m` is a bijection on $`\{0,1\}^n`,
-so $`\Pr[K_e \oplus m = c] = \Pr[K_e = c \oplus m] = 2^{-n}` for every $`c`. That is, the
-ciphertext $`K_e \oplus m` is uniform on $`\mathcal C_e`. So $`\Oenc` has the same output
+Let $`\mathcal K = \mathcal M = \mathcal C = \{0,1\}^n`, let $`\mathsf{SE.KeyGen}`
+sample $`K` uniformly, and let $`\mathsf{SE.Enc}(K, m) = K \oplus m` and
+$`\mathsf{SE.Dec}(K, c) = K \oplus c`. The scheme is correct. The adversary
+chooses $`m` before it sees anything that depends on $`K`, so $`m` is independent of
+$`K`. For a fixed $`m`, the map $`K \mapsto K \oplus m` is a bijection on $`\{0,1\}^n`,
+so $`\Pr[K \oplus m = c] = \Pr[K = c \oplus m] = 2^{-n}` for every $`c`. That is, the
+ciphertext $`K \oplus m` is uniform on $`\mathcal C`. So $`\Oenc` has the same output
 distribution for $`b = 0` and $`b = 1`, the experiments
 $`\Exp{\textsf{ind\$}\text{-}0}{\textsf{SE}}(\adv)` and
 $`\Exp{\textsf{ind\$}\text{-}1}{\textsf{SE}}(\adv)` have the same output distribution, and
@@ -185,24 +185,24 @@ $`\mathsf{Adv}^{\textsf{ind\$}}_{\textsf{SE}}(\adv) = 0` for every $`\adv`.
 :::::gameCell "\\textsf{Example: AES-CBC in libsignal}" (kind := "scheme-notation")
 libsignal encrypts each message with AES-256-CBC under a cipher key $`k` and an IV
 $`\mathit{iv}`, both derived from a fresh per-message key. The IV is not a separate input,
-so the key is the pair $`K_e = (k, \mathit{iv})`, and $`\mathsf{SE.Enc}(K_e, m)` is CBC
+so the key is the pair $`K = (k, \mathit{iv})`, and $`\mathsf{SE.Enc}(K, m)` is CBC
 encryption of $`m` under $`k` with IV $`\mathit{iv}`. The IV is secret, and the adversary
-chooses $`m` before it sees anything that depends on $`K_e`, so $`m` is independent of both
+chooses $`m` before it sees anything that depends on $`K`, so $`m` is independent of both
 $`k` and $`\mathit{iv}`.
 
 libsignal pads messages with PKCS#7, so the ciphertext length depends on $`|m|`. This is
 the usual behavior, and {Informal.citet NRS14}[] allows it: their ind$ game returns a
 random string of the same length as the real ciphertext. The game on this page is stricter.
-It samples $`c` from all of $`\mathcal C_e`, so it also requires the ciphertext to hide the
+It samples $`c` from all of $`\mathcal C`, so it also requires the ciphertext to hide the
 message length (see the deviations above). In $`\Exp{\textsf{ind\$}\text{-}0}{\textsf{SE}}(\adv)`,
 the length of $`c` is fixed by $`|m|`. In $`\Exp{\textsf{ind\$}\text{-}1}{\textsf{SE}}(\adv)`,
-$`c` is uniform on all of $`\mathcal C_e`, so its length is random. An adversary that queries
+$`c` is uniform on all of $`\mathcal C`, so its length is random. An adversary that queries
 a short $`m` and outputs $`1` if the length of $`c` does not match $`|m|` has advantage
 close to $`1`. This attack learns only the message length, which any variable-length scheme
 reveals. It is a limit of the notion, not a weakness of libsignal.
 
 For fixed-length messages without padding, for example
-$`\mathcal M = \mathcal C_e = \{0,1\}^{128\ell}`, the length gives nothing away. The
+$`\mathcal M = \mathcal C = \{0,1\}^{128\ell}`, the length gives nothing away. The
 ciphertext is still not exactly uniform as with the one-time pad, because AES under $`k` is
 a fixed permutation and not a uniform random function. The standard CBC analysis bounds the
 advantage by the PRP advantage of AES plus a collision term of order $`\ell^2 / 2^{128}`.
@@ -217,9 +217,10 @@ This repository does not prove that bound and does not instantiate AES-CBC in Le
 :::::::definition "aead_etm_spec" (parent := "aead_encrypt_then_mac") (lean := "EtM.etmAEAD") (tags := "gh-24") (uses := "aead, aead_etm_det_se, prf")
 Adapted from {Informal.citet NRS14}[], Figure 2, scheme A5.
 
-Let $`\mathsf{SE}` be a deterministic symmetric encryption scheme with ciphertext space
-$`\mathcal C_e`, and let $`F` be a PRF with domain $`\mathcal{AD} \times \mathcal C_e` and
-range $`\mathcal T`. The AEAD scheme $`\mathsf{EtM}[\mathsf{SE}, F]` has key space
+Let $`\mathsf{SE}` be a deterministic symmetric encryption scheme with key space
+$`\mathcal K_e` and ciphertext space $`\mathcal C_e`, and let $`F` be a PRF with domain
+$`\mathcal{AD} \times \mathcal C_e` and range $`\mathcal T`. The AEAD scheme
+$`\mathsf{EtM}[\mathsf{SE}, F]` has key space
 $`\mathcal K_e \times \mathcal K_m` and ciphertext space $`\mathcal C_e \times \mathcal T`.
 $`\mathsf{KeyGen}` samples $`K_e \gets \mathsf{SE.KeyGen}` and $`K_m \gets F.\mathsf{keygen}`
 independently and returns $`(K_e, K_m)`. $`\Enc` encrypts the message with $`\mathsf{SE}`,
