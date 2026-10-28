@@ -10,15 +10,20 @@ import ToVCVio.OracleComp.QueryTracking.StateBudget
 /-!
 # Opp-BiKEM — Epoch counter
 
-`advances s` counts the epoch advances both parties have committed: half the sum of A's
-responder epoch plus one and B's responder epoch. Every security query raises it by at most one
-if it is an ordinary or leaking send and not at all otherwise, on every state, so after `q`
-sends it is at most `q` (`advances_le_of_run_real`, `advances_le_of_run_ideal`). On states
-satisfying `GameInv`, every epoch with a recorded key is at most `2 · advances s`
-(`keyed_epoch_le_two_mul_advances`), which bounds the challengeable epochs of a run by `2q`.
+**Setting.** `advances s` counts the epoch advances both parties have committed in a game state
+`s`: half the sum of A's responder epoch plus one and B's responder epoch.
 
-Run-level uniqueness facts (one key generation and at most one encapsulation per epoch) are
-deliberately left to the KEM reduction, whose simulation relation fixes their shape.
+**Main results.**
+
+- Every real or ideal security query raises `advances` by at most one if it is an ordinary or
+  leaking send and not at all otherwise, on every state (`advances_step_real`,
+  `advances_step_ideal`); so after a run with at most `q` sends it is at most `q`
+  (`advances_le_of_run_real`, `advances_le_of_run_ideal`).
+- On a state satisfying `GameInv`, every epoch with a recorded key is at most `2 · advances s`
+  (`keyed_epoch_le_two_mul_advances`).
+
+Together they bound the challengeable epochs of a run with at most `q` sends by `2q`, which
+fixes the length of the hybrid chain (`Hybrid`).
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -309,7 +314,6 @@ lemma keyed_epoch_le_two_mul_advances
   have hkey_enc : ∀ (tr : EpochTranscript kem), tr.key.isSome = true → tr.enc.isSome = true := by
     intro tr h
     simpa [EpochTranscript.key, Option.isSome_map] using h
-  -- bound the keyed epoch by the owner's responder epoch (plus one for A)
   have hboundA : (s.keyA t).isSome = true → (t : ℤ) ≤ s.stA.res.resEpoch + 1 := by
     intro hk
     rcases Int.emod_two_eq_zero_or_one (t : ℤ) with h0 | h1

@@ -9,14 +9,19 @@ import SecureMessaging.SCKA.OppBiKEM.Security.Tracked
 /-!
 # Opp-BiKEM — Failure probability under security queries
 
-Let `ε_cor := kem.correctnessError ProbCompRuntime.probComp`.
+**Setting.** Let `ε := kem.correctnessError ProbCompRuntime.probComp` be the KEM correctness
+error, and let `trackedScore` be the failure score of a tracked state: `1` once the flag is set,
+and otherwise the probability that the next decapsulation fails.
 
-With deterministic decapsulation and correct erasure codes, the historical KEM-failure flag of a
-tracked security run from `(initState, false)` is set with probability at most `q · ε_cor`, for
-every adversary making at most `q` ordinary or leaking sends and for either challenge bit. The
-expected failure score of the correctness game extends to the security oracles: leaking sends
-inherit the ordinary-send bound through the coin-forgetting marginal, and challenges and
-corruptions leave the score unchanged.
+**Main result** (`security_kemFailure_le`). With deterministic decapsulation and correct erasure
+codes, for either challenge bit `b` and every adversary making at most `q` ordinary or leaking
+sends, the flag of the tracked security run from `(initState, false)` is set with probability at
+most `q · ε`.
+
+The per-query bound of the correctness game extends to the security oracles: an ordinary or
+leaking send raises the expected score by at most `ε`, a leaking send through the
+coin-forgetting marginal of the ordinary send (`sendWith_rleak_forget`), and every other query
+leaves it unchanged (`trackedSecurity_score_step_le`).
 -/
 
 open OracleSpec OracleComp KEMScheme ENNReal
@@ -25,7 +30,7 @@ namespace oppBiKemCKA
 
 variable {K PK SK C Sym : Type}
 
-/-- A's leaking send raises the expected tracked score by at most `ε_cor` from a state
+/-- A's leaking send raises the expected tracked score by at most `ε` from a state
 satisfying `GameInv` without current KEM failure. -/
 lemma tracked_sendArleak_score_le
     [DecidableEq K] [DecidableEq Sym] [SampleableType K]
@@ -58,7 +63,7 @@ lemma tracked_sendArleak_score_le
     rw [trackedImpl_run, bind_pure_comp, expectedPayoff_map] at h
     exact h
 
-/-- B's leaking send raises the expected tracked score by at most `ε_cor` from a state
+/-- B's leaking send raises the expected tracked score by at most `ε` from a state
 satisfying `GameInv` without current KEM failure. -/
 lemma tracked_sendBrleak_score_le
     [DecidableEq K] [DecidableEq Sym] [SampleableType K]
@@ -91,7 +96,7 @@ lemma tracked_sendBrleak_score_le
     rw [trackedImpl_run, bind_pure_comp, expectedPayoff_map] at h
     exact h
 
-/-- One security query raises the expected tracked score by at most `ε_cor` if it is an
+/-- One security query raises the expected tracked score by at most `ε` if it is an
 ordinary or leaking send and not at all otherwise, from any state satisfying the tracked
 invariant. -/
 lemma trackedSecurity_score_step_le
@@ -155,7 +160,7 @@ lemma trackedSecurity_score_step_le
 * `adv` makes at most `q` ordinary or leaking sends.
 
 Then, for either challenge bit `b`, the historical KEM-failure flag of the tracked security run
-of `adv` from the initial state is set with probability at most `q · ε_cor`, where `ε_cor` is the
+of `adv` from the initial state is set with probability at most `q · ε`, where `ε` is the
 correctness error of `kem`. -/
 theorem security_kemFailure_le
     [DecidableEq K] [DecidableEq Sym] [SampleableType K]

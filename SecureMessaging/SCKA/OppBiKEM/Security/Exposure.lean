@@ -9,9 +9,19 @@ import SecureMessaging.SCKA.OppBiKEM.Security.Basic
 /-!
 # Opp-BiKEM — Exposure policy
 
-`exposure` conservatively excludes positive epochs associated with retained keys or leaked send
-randomness. `sendWith_exposure` identifies its randomness-leakage set from the initial state for
-every successful supported output. The security oracle's separate acceptance guard still applies.
+**Main results.** The exposure policy `exposure role leak` of Opp-BiKEM's security game declares
+which epochs a corruption or an accepted leaking send exposes:
+
+- a corruption of a party exposes the positive epochs whose secret keys it retains (`vuln`,
+  `exposure_corrupt`, `mem_vuln_iff`);
+- an accepted leaking send exposes the positive epochs of the key pair it generates and of the
+  encapsulation it performs (`rleakEpochs`, `exposure_rleak`, `mem_rleakEpochs_iff`).
+
+The epochs exposed by a successful leaking send from a local state `st` depend on `st` alone:
+they are the epochs of the operations the send performs, decided by the guards
+`sendKeygenGuard` and `sendEncapsGuard` (`leakEpochs`, `sendWith_exposure`). Exposure records
+which operations touched an epoch; it does not assert that the leaked coins reconstruct a
+secret, and the security oracle's acceptance guard is a separate condition.
 -/
 
 open OracleSpec OracleComp KEMScheme

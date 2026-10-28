@@ -9,29 +9,43 @@ import SecureMessaging.SCKA.OppBiKEM.Security.Eager
 /-!
 # Opp-BiKEM — The eager hybrid is the reduction's simulation
 
-For a fixed draw of the target's key pair `(pk, sk)`, encapsulation `(c, kReal)` and random key
-`kRand`, the eager hybrid `stoppedEagerExp` of bit `b` and the reduction's run on the KEM
-challenge `(pk, c, k_b)`, with `k_b = kRand` if `b` is set and `kReal` otherwise, are the
-injected oracles up to what the game state holds at the target epoch: the eager hybrid stores
-the honest secret `sk` and records `kReal`, answering the challenge of `t` with `k_b` through
-`eagerAnswer`; the reduction stores a placeholder secret and records `k_b`, answering from the
-table. The state map `targetStateMap t dummy k_b` replaces the stored secret at `t` by `dummy`
-and the table entries at `t` by `k_b`.
+**Setting.** Fix a target epoch `t > 0`, a version `x ∈ {real, random}` (`b = true` for
+`random`), a supported key pair `(pk, sk)` and encapsulation `(c, kReal)`, a uniform key `kRand`
+and a placeholder secret `dummy`. Write `k_real := kReal` and `k_random := kRand`. Both
+experiments below run `adv` from the initial state against injected oracles (`Reduction`)
+stopped at the first exposure of `t`, and differ only in what the game state holds at `t`:
 
-The main result `probOutput_stoppedEagerExp_eq_reductionRun` transports acceptance through the
-state map with `probOutput_optionRun_eq_of_state_map_some`, whose per-query obligation compares
-the answer and the mapped successor on continuing answers only. Every oracle commutes with the
-map on an `InjInv` state with `t` unexposed:
+- the eager hybrid `E_t^x(pk, sk, c, kReal, kRand)` (`stoppedEagerExp`, `Eager`) stores the
+  honest secret `sk` and records `kReal`, answering the challenge of `t` with `k_x` through
+  `eagerAnswer`;
+- the simulation `Sim_t(pk, dummy, c, k_x)`, the run of `adv` performed by the reduction on the
+  challenge `(pk, c, k_x)` with placeholder `dummy` (`reductionRun` draws `dummy` from
+  `kem.keygen`), stores `dummy` and records `k_x`, answering the challenge of `t` from the table.
 
-* ordinary sends: the injected sends from the two injections are related by `sendWith_mapSecret`,
-  a commutation of `sendWith` with the secret map for samplers that differ exactly as the map
-  prescribes at the target sites;
-* ideal receives: `recvWith` commutes with the map, since the ideal recovery ignores the secret
+The *state map* `targetStateMap t dummy k_x` replaces the retained secret at `t` by `dummy` in
+both parties' states and the table entries at `t` by `k_x`.
+
+**Main result** (`probOutput_stoppedEagerExp_eq_reductionRun`). With correct erasure codes, for
+every placeholder `dummy`,
+
+```text
+Pr[E_t^x(pk, sk, c, kReal, kRand) = true] = Pr[Sim_t(pk, dummy, c, k_x) = true].
+```
+
+Acceptance is transported through the state map with
+`probOutput_optionRun_eq_of_state_map_some`, whose per-query obligation compares the answer and
+the mapped successor on continuing answers only. Every oracle commutes with the map on an
+`InjInv` state with `t` unexposed:
+
+- ordinary sends: the injected sends from the two injections are related by
+  `sendWith_mapSecret`, a commutation of `sendWith` with the secret map for samplers that differ
+  exactly as the map prescribes at the target sites;
+- ideal receives: `recvWith` commutes with the map, since the ideal recovery ignores the secret
   and copies the mapped table value;
-* challenges: both sides answer randomly below `t`, from the (equal) tables above `t`, and `k_b`
+- challenges: both sides answer uniformly below `t`, from the equal tables above `t`, and `k_x`
   at `t`, where the eager side reads the pinned entry `kReal`;
-* corruptions and leaking sends: honest on both sides; a query that touches the target's secret
-  or randomness stops with equal mass, every other query commutes with the map.
+- corruptions and leaking sends: honest on both sides; a query that touches the target's secret
+  or coins stops with equal mass, and every other query commutes with the map.
 
 The placeholder secret is never read, since the receives are ideal, and the secret map is
 discarded by every function of the state that the oracles compute (`vuln`, `rleakEpochs`, the
@@ -655,8 +669,8 @@ lemma consistent_mapTable (tbl : ℕ → Option K) (e : ℕ) (key : K)
   · simp only [hv, Option.isNone_some, Bool.false_or, beq_iff_eq, Option.some.injEq] at h
     simp [h]
 
-/-- A's send update commutes with the state map, provided the correctness flag holds after the
-update: every assertion then holds, and the mapped assertions follow. -/
+/-- A's send update commutes with the state map whenever the correctness flag holds after the
+update. -/
 lemma sendAUpdate_map (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K
       (Message Sym)) (key? : Option (ℕ × K)) (ρ : Message Sym) (tsnd : ℕ)
     (stA' : State PK SK C Sym)
@@ -1251,7 +1265,8 @@ include hEk hCt ht in
 
 Then the eager hybrid of bit `b` with these values accepts with the probability of the
 reduction's simulation on the KEM challenge `(pk, c, k_b)`, for every placeholder secret
-`dummy`, where `k_b` is `kRand` if `b` is set and `kReal` otherwise. -/
+`dummy`, where `k_b` is `kRand` if `b` is set and `kReal` otherwise:
+`Pr[E_t^x(pk, sk, c, kReal, kRand) = true] = Pr[Sim_t(pk, dummy, c, k_b) = true]`. -/
 theorem probOutput_stoppedEagerExp_eq_reductionRun (adv : SecurityAdversary leak Sym)
     (hx : (pk, sk) ∈ support kem.keygen) (hy : (c, kReal) ∈ support (kem.encaps pk)) :
     Pr[= true | stoppedEagerExp kem hDet ecEk ecCt leak t b pk sk c kReal kRand adv] =

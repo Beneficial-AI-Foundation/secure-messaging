@@ -9,35 +9,37 @@ import SecureMessaging.SCKA.OppBiKEM.Security.Reduction
 /-!
 # Opp-BiKEM — The injected-state invariant
 
-The reduction of `Security.Reduction` runs the adversary against `injectedSecurityImpl`: the
-ideal security oracles whose ordinary sends return the injected key pair at the generation of
-the target epoch `t` and the injected encapsulation at the encapsulation for `t`. This module
-describes the states such runs reach for a *supported honest* injection, a key pair in the
-support of key generation and an encapsulation in the support of encapsulation to its public
-key, for every challenge selection, as long as `t` is not exposed (`InjInv`,
-`injectedSecurityImpl_preservesInv_continuing`). The reduction's own injection, with its
-placeholder secret and possibly random candidate key, is related to such runs by the state map
-of a later stage; the invariant is never claimed for it directly:
+**Setting.** Fix a target epoch `t > 0` and a *supported honest injection*: a key pair
+`(pk, sk) ∈ support kem.keygen` and an encapsulation `(c, k) ∈ support (kem.encaps pk)`. The
+injected oracles `injectedSecurityImpl t ⟨pk, sk, c, k⟩ random` (`Reduction`) are the ideal
+security oracles whose ordinary sends return `(pk, sk)` at the generation of `t`'s key pair and
+`(c, k)` at the encapsulation for `t`, for any challenge selection `random`.
 
-* `GameInv` holds, because on such states the injected send's outputs are outputs of the honest
+**Main result** (`injectedSecurityImpl_preservesInv_continuing`). With correct erasure codes,
+every injected query keeps the *injected-state invariant* `InjInv ⟨pk, sk, c, k⟩` on every
+successor that leaves `t` unexposed:
+
+- `GameInv` holds, because on such states the injected send's outputs are outputs of the honest
   send (`injectedSend_support_subset`);
-* the target's material is pinned to the injected values wherever the state holds it
+- the target's material is pinned to the injected values wherever the state holds it
   (`TargetInv`): the owner's retained public key while its key epoch is `t`, the owner's
   retained secret for `t`, the peer's decoded key for `t`, and both tables at `t`.
 
-Pinning the key the peer decodes needs no transcript tracking. It follows from the owner's
-retained public key, which the owner clears only after the peer decoded it, together with three
-state clauses saying that the peer decoded `t`'s key before any ciphertext for `t` could exist
-(`ctRec_decoded`, `ctMsg_decoded`, `ct_decoded`).
+Pinning the key the peer decodes follows from the owner's retained public key, which the owner
+clears only after the peer decoded it, together with three state clauses saying that the peer
+decoded `t`'s key before any ciphertext for `t` could exist (`ctRec_decoded`, `ctMsg_decoded`,
+`ct_decoded`); no transcript tracking is needed.
 
-Preservation holds on *continuing* successors only, those with `t` unexposed: an honest leaking
-send that generates or encapsulates for `t` stores fresh honest values, and it exposes `t`
+Successors exposing `t` carry no obligation: an honest leaking send that generates or
+encapsulates for `t` stores fresh honest values, and it exposes `t`
 (`mem_rleakEpochs_of_target`), so the stopped run discards it before the adversary continues.
+The reduction's own injection, with its placeholder secret and candidate key, is related to
+these runs by the state map of `Simulation`; the invariant is never claimed for it directly.
 
-The file also provides the state-level facts of one `sendWith` step with arbitrary samplers
+The module also provides the state-level facts of one `sendWith` step with arbitrary samplers
 (`SendWithFacts`) and of one `recvWith` step (`RecvWithFacts`), and the first-use predicates
 `targetGenerated` and `targetEncapsulated` with their monotonicity and first-use lemmas, which
-the eager-sampling argument consumes.
+the eager-sampling argument consumes (`Eager`).
 -/
 
 open OracleSpec OracleComp KEMScheme

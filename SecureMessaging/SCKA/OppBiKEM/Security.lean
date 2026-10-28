@@ -10,19 +10,143 @@ import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
 /-!
 # Opp-BiKEM — Security
 
-The SCKA guess advantage of an adversary against Opp-BiKEM is bounded by `q · ε_cor` for the
-KEM's correctness error, plus half the sum over target epochs `t ≤ 2q` of the IND-CPA advantage
-of the reduction `reduction adv t` against the KEM (`security`); the sharper form over the
-positive targets only is `security_positive`. When every reduction at a positive target has
-advantage at most `δ`, the bound is `q · ε_cor + q · δ` (`security_uniform`).
+**Setting.** Throughout this module, we consider:
 
-The hop at a positive target is exact (`hybrid_hop_eq_reduction`): the distance between the
-adjacent hybrids `t` and `t + 1` of the challenge-answer chain is the reduction's IND-CPA
-advantage. It is assembled from the cancellation of exposed paths (`hybridExp_sub_eq_stopped_sub`),
-the eager sampling of the target's values (`probOutput_stoppedHybridExp_eq_eager`), the
-simulation by the reduction (`probOutput_stoppedEagerExp_eq_reductionRun`), and the fixed-branch
-form of the IND-CPA advantage. The real-key branch of the KEM experiment is the hybrid `t`, the
-random-key branch the hybrid `t + 1`.
+- the Opp-BiKEM protocol `scka := scheme kem hDet ecEk ecCt leak` over a KEM `kem` with
+  deterministic decapsulation `hDet`, randomness-leakage package `leak`, and correct erasure
+  codes `ecEk` (public keys) and `ecCt` (ciphertexts);
+- an SCKA adversary `adv : SecurityAdversary leak Sym` making at most `q` ordinary and leaking
+  sends on every oracle-response path (`SecuritySendQueryBound adv q`);
+- for each *target epoch* `t`, the IND-CPA adversary `R_t := reduction … adv t` against `kem`
+  constructed from `adv`, which embeds the KEM challenge in the key generation and encapsulation
+  of epoch `t` and runs `adv` (`Reduction`).
+
+**Security game and advantage functions.**
+
+Let:
+- `G_b` be the SCKA security game of `scka` with its challenge bit fixed to `b`
+  (`securityExpFixedBit`), under the exposure policy `exposure` (`Exposure`);
+- `AdvGuess_SCKA(scka, adv) := |Pr[b' = b] − 1/2| = |Pr[G_true = true] − Pr[G_false = true]| / 2`
+  be the advantage of `adv` in guessing the challenge bit (`sckaGuessAdvantage`);
+- `AdvINDCPA_KEM(kem, R) := |Pr[R_real = true] − Pr[R_random = true]|` be the advantage of an
+  IND-CPA adversary `R` against `kem` (`IND_CPA_Advantage_eq_fixed_branch_dist`), where
+  `R_real` and `R_random` are the IND-CPA experiments handing `R` the encapsulated key and an
+  independent uniform key;
+- `ε` be the KEM correctness error (`kem.correctnessError`): the probability that an honest
+  encapsulation `(c, k) ← Encaps(pk)` under `(pk, sk) ← KeyGen` does not decapsulate to `k`.
+
+**Theorem** (`security_positive`). For every `q : ℕ`,
+
+`AdvGuess_SCKA(scka, adv) ≤ q · ε + (1/2) · Σ_{t=1}^{2q} AdvINDCPA_KEM(kem, R_t)`.
+
+Two corollaries: `security` sums over `0 ≤ t ≤ 2q`, since `AdvINDCPA_KEM(kem, R_0) ≥ 0`, and
+`security_uniform` reads `AdvGuess_SCKA(scka, adv) ≤ q · ε + q · δ` when every `R_t` with
+`1 ≤ t ≤ 2q` has advantage at most `δ`.
+
+## Proof structure
+
+Paths are relative to `OppBiKEM/Security/`.
+
+**Notation.** Every game runs `adv` from the initial game state and returns its output bit. The
+games at a target epoch `t` come in two *versions* `x ∈ {real, random}`: a challenge at `t`
+returns the recorded key in `real` and an independent uniform key in `random`.
+
+- **`I_b`**, the *ideal game*: `G_b` without decapsulation. Each party's receive copies the
+  peer's recorded key for the received epoch instead of decapsulating
+  (`idealSecurityExp … b adv`, `IdealReceive`).
+- **`H_T`**, the *hybrid* with threshold `T`: the ideal game answering eligible challenges at
+  epochs below `T` with uniform keys and all others with recorded keys (`hybridExp … T adv`,
+  `Hybrid`). Let `p_T := Pr[H_T = true]`; then `H_0 = I_false`, and `p_T = Pr[I_true = true]`
+  for every `T > 2q` under the send bound.
+- **Exposure**: an epoch `t` is *exposed* once a permitted corruption or leaking send reveals
+  its secret key or coins (`Exposure`); the game then rejects challenges at `t`.
+- **`S_t^x`**, the *stopped hybrid*: the hybrids on either side of `t`, stopped at the first
+  query after which `t` is exposed. `S_t^real := H_t` (recorded key at `t`) and
+  `S_t^random := H_{t+1}` (uniform key at `t`), each returning `false` on stopping
+  (`stoppedHybridExp … t t adv` and `… t (t + 1) adv`, `Cancellation`).
+- **`E_t^x(pk, sk, c, k, r)`**, the *eager hybrid*: `S_t^x` with the target's key pair
+  `(pk, sk)`, encapsulation `(c, k)` and uniform challenge key `r` drawn before the run and
+  looked up at the queries that would draw them (`stoppedEagerExp … t b pk sk c k r adv`, with
+  `b = true` for `random`, `Eager`).
+- **`Sim_t(pk, dummy, c, k*)`**, the *simulation*: the run of `adv` that `R_t` performs on the
+  challenge `(pk, c, k*)` with the placeholder secret `dummy` in place of the secret key it does
+  not have, stopped at the first exposure of `t` (`reductionRun` draws `dummy` from
+  `kem.keygen`; `Reduction`, `Simulation`).
+- **`R_t^x`**, the *fixed branch*: the IND-CPA experiment of `R_t` with the candidate key fixed
+  to the encapsulated key in `real` and to an independent uniform key in `random`
+  (`indCPAExpProb kem R_t true` and `… false`).
+
+For every target `t > 0`, steps 3 to 5 connect these games, with `k_real := k` and
+`k_random := r`:
+
+```text
+p_{t+1} − p_t = Pr[S_t^random = true] − Pr[S_t^real = true]                      (step 3)
+Pr[S_t^x = true] = E_{(pk, sk), (c, k), r} Pr[E_t^x(pk, sk, c, k, r) = true]       (step 4)
+Pr[E_t^x(pk, sk, c, k, r) = true] = Pr[Sim_t(pk, dummy, c, k_x) = true]           (step 5)
+```
+
+where `(pk, sk) ← KeyGen`, `(c, k) ← Encaps(pk)` and `r ←$ K`.
+
+**Proof steps.**
+
+1. *Correctness error* (`Invariant`, `Tracked`, `BadEvent`, `IdealReceive`, `Endpoints`).
+   - The real and ideal oracles agree on every state satisfying the game invariant `GameInv`
+     without a current decapsulation failure, and a failure occurs within `q` sends with
+     probability at most `q · ε` (`security_kemFailure_le`).
+
+   Main result: `|Pr[G_b = true] − Pr[I_b = true]| ≤ q · ε` (`security_ideal_endpoint_le`).
+
+2. *Hybrids and telescoping* (`EpochCount`, `Hybrid`).
+   - `H_0 = I_false` (`hybridExp_zero`); `p_1 = p_0`, since epoch `0` is never keyed
+     (`probOutput_hybridExp_one`); and `p_T = Pr[I_true = true]` for `T > 2q`, since a keyed
+     epoch is at most twice the number of committed epoch advances, which is at most `q`
+     (`probOutput_hybridExp_top`, `keyed_epoch_le_two_mul_advances`).
+
+   Main result: for every `δ ≥ 0` with `|p_{t+1} − p_t| ≤ δ t` at every `1 ≤ t ≤ 2q`,
+   `AdvGuess_SCKA(scka, adv) ≤ q · ε + (1/2) · Σ_{t=0}^{2q} δ t`
+   (`sckaGuessAdvantage_le_of_hop_bound`).
+
+3. *Exposure cancellation* (`Cancellation`).
+   - `H_t` and `H_{t+1}` differ only at a challenge of `t`, which is rejected once `t` is
+     exposed, so stopping both at the first exposure of `t` preserves their difference.
+
+   Main result: `p_{t+1} − p_t = Pr[S_t^random = true] − Pr[S_t^real = true]`
+   (`hybridExp_sub_eq_stopped_sub`).
+
+4. *Eager sampling* (`Reduction`, `Injected`, `Eager`).
+   - `S_t^x` draws the target's key pair at the owner's generating send, the encapsulation at
+     the peer's encapsulating send and, in `random`, the challenge key at the challenge of `t`;
+     `E_t^x` holds them from the start. Each sample is consumed by one query, so drawing it in
+     advance or at that query gives the same acceptance probability (one-use sampling,
+     `optionRun_sample_once_eq_sampleEachQuery`). The states reached with injected values
+     satisfy the injected-state invariant `InjInv` (`Injected`), which pins the injected values
+     wherever the state holds them.
+
+   Main result: `Pr[S_t^x = true] = E_{(pk, sk), (c, k), r} Pr[E_t^x(pk, sk, c, k, r) = true]`
+   (`probOutput_stoppedHybridExp_eq_eager`).
+
+5. *Simulation* (`Reduction`, `Simulation`).
+   - `Sim_t(pk, dummy, c, k*)` runs `adv` against the injected oracles
+     (`injectedSecurityImpl`): the owner's key generation at `t` returns `pk` with the
+     placeholder `dummy`, the peer's encapsulation at `t` returns `(c, k*)`, receives are ideal,
+     challenges below `t` are uniform and the challenge of `t` returns the recorded `k*`, and
+     the run stops with output `false` once `t` is exposed. The state map
+     `targetStateMap t dummy k_x` sends the states of `E_t^x` to those of `Sim_t`, and every
+     oracle commutes with it.
+
+   Main result: `Pr[E_t^x(pk, sk, c, k, r) = true] = Pr[Sim_t(pk, dummy, c, k_x) = true]` for
+   every placeholder `dummy` (`probOutput_stoppedEagerExp_eq_reductionRun`).
+
+6. *The hop is the reduction's advantage* (this module).
+   - Unfolding the IND-CPA experiment of `R_t` and integrating out the placeholder gives
+     `Pr[R_t^x = true] = E_{(pk, sk), (c, k), r} Pr[E_t^x(pk, sk, c, k, r) = true]`
+     (`probOutput_indCPAExpProb_reduction_eq`), which is `Pr[S_t^x = true]` by step 4; with
+     step 3, `|p_{t+1} − p_t| = AdvINDCPA_KEM(kem, R_t)` for `t > 0` (`hybrid_hop_eq_reduction`).
+   - Substituting `δ t := AdvINDCPA_KEM(kem, R_t)` for `t > 0` and `δ 0 := 0` into step 2 gives
+     `security_positive`.
+
+Supporting modules: `Basic` (interface, send budget), `Exposure` (exposure policy),
+`SCKA.Security` (generic oracle facts), ToVCVio (sampling, stopping, identical-until-bad).
 -/
 
 open OracleSpec OracleComp KEMScheme ENNReal
@@ -35,9 +159,10 @@ variable {K PK SK C Sym : Type} [DecidableEq K] [DecidableEq Sym] [SampleableTyp
   (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct) (leak : kem.RandLeak)
 
 include hEk hCt in
-/-- The fixed-bit IND-CPA experiment of the reduction at target `t` accepts with the probability
-of the eager hybrid of the opposite bit, averaged over the target's values: the real key is
-hybrid `t`, the random key hybrid `t + 1`. -/
+/-- Step 6: for `t > 0`,
+`Pr[R_t^x = true] = E_{(pk, sk), (c, k), r} Pr[E_t^x(pk, sk, c, k, r) = true]` over
+`(pk, sk) ← keygen`, `(c, k) ← encaps pk` and `r ←$ K`, where the IND-CPA bit `bb = true` is the
+version `real` and the eager bit is `!bb`. -/
 lemma probOutput_indCPAExpProb_reduction_eq (adv : SecurityAdversary leak Sym) (t : ℕ)
     (ht : 0 < t) (bb : Bool) :
     Pr[= true | indCPAExpProb kem (reduction kem hDet ecEk ecCt leak adv t) bb] =
@@ -75,8 +200,9 @@ include hEk hCt in
 * `ecEk` and `ecCt` are correct erasure codes;
 * `0 < t`.
 
-Then the distance between the adjacent hybrids `t + 1` and `t` is the IND-CPA advantage of the
-reduction at target `t`. -/
+Then the hop at `t` is the IND-CPA advantage of the reduction at target `t`:
+`|p_{t+1} − p_t| = AdvINDCPA_KEM(kem, R_t)`, where `p_T := Pr[hybridExp … T adv = true]` and
+`R_t := reduction … adv t`. -/
 theorem hybrid_hop_eq_reduction (adv : SecurityAdversary leak Sym) (t : ℕ) (ht : 0 < t) :
     |(Pr[= true | hybridExp kem hDet ecEk ecCt leak (t + 1) adv]).toReal -
         (Pr[= true | hybridExp kem hDet ecEk ecCt leak t adv]).toReal| =
@@ -97,9 +223,8 @@ include hEk hCt in
 * `ecEk` and `ecCt` are correct erasure codes;
 * `adv` makes at most `q` ordinary or leaking sends.
 
-Then the SCKA guess advantage of `adv` against Opp-BiKEM is at most `q · ε_cor`, for the
-correctness error `ε_cor` of `kem`, plus half the sum over the positive targets `1 ≤ t ≤ 2q` of
-the IND-CPA advantage of `reduction adv t` against `kem`. -/
+Then `AdvGuess_SCKA(scka, adv) ≤ q · ε + (1/2) · Σ_{t=1}^{2q} AdvINDCPA_KEM(kem, R_t)`, where `ε`
+is the correctness error of `kem` and `R_t := reduction … adv t`. -/
 theorem security_positive (adv : SecurityAdversary leak Sym) (q : ℕ)
     (hq : SecuritySendQueryBound adv q) :
     SCKAScheme.sckaGuessAdvantage (scheme kem hDet ecEk ecCt leak) adv
@@ -134,10 +259,9 @@ include hEk hCt in
 * `ecEk` and `ecCt` are correct erasure codes;
 * `adv` makes at most `q` ordinary or leaking sends.
 
-Then the SCKA guess advantage of `adv` against Opp-BiKEM is at most `q · ε_cor`, for the
-correctness error `ε_cor` of `kem`, plus half the sum over targets `t ≤ 2q` of the IND-CPA
-advantage of `reduction adv t` against `kem`. The summand at `t = 0` only adds its
-non-negativity to `security_positive`. -/
+Then `AdvGuess_SCKA(scka, adv) ≤ q · ε + (1/2) · Σ_{t=0}^{2q} AdvINDCPA_KEM(kem, R_t)`, where `ε`
+is the correctness error of `kem` and `R_t := reduction … adv t`. The summand at `t = 0` only
+adds its non-negativity to `security_positive`. -/
 theorem security (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
     SCKAScheme.sckaGuessAdvantage (scheme kem hDet ecEk ecCt leak) adv
         (exposure .A leak) (exposure .B leak) ≤
@@ -162,7 +286,7 @@ include hEk hCt in
 * every reduction `reduction adv t` at a positive target `t ≤ 2q` has IND-CPA advantage at
   most `δ`.
 
-Then the SCKA guess advantage of `adv` against Opp-BiKEM is at most `q · ε_cor + q · δ`. -/
+Then `AdvGuess_SCKA(scka, adv) ≤ q · ε + q · δ`, where `ε` is the correctness error of `kem`. -/
 theorem security_uniform (adv : SecurityAdversary leak Sym) (q : ℕ)
     (hq : SecuritySendQueryBound adv q) (δ : ℝ)
     (hδ : ∀ t, 0 < t → t ≤ 2 * q →

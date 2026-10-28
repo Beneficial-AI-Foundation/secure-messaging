@@ -9,25 +9,35 @@ import SecureMessaging.SCKA.OppBiKEM.Security.Cancellation
 /-!
 # Opp-BiKEM — The KEM reduction
 
-For a target epoch `t`, the reduction receives a KEM public key `pkStar` and a challenge
-`(cStar, kStar)`, where `kStar` is either the encapsulated key or an independent uniform key,
-and runs the SCKA adversary against the following oracles, intended to simulate the hybrid
-security game with threshold `t` (the simulation theorem is later work):
+**Setting.** Fix a target epoch `t`. The IND-CPA adversary `R_t := reduction … adv t` against
+`kem` receives a public key `pkStar` and a challenge `(cStar, kStar)`, where `kStar` is either
+the encapsulated key or an independent uniform key, and runs `adv` against the *injected
+oracles* `injectedSecurityImpl t ⟨pkStar, dummySk, cStar, kStar⟩ (hybridRandom t)`, stopped at
+the first exposure of `t` (`reductionRun`):
 
-* the target owner's key generation for key epoch `t` returns `pkStar` with a placeholder secret
-  drawn from an independent key generation (`injectedKeygen`);
-* the peer's encapsulation for epoch `t` returns `(cStar, kStar)` (`injectedEncaps`);
-* receives are ideal, so the owner never decapsulates at `t` and the placeholder secret is never
-  used;
-* challenges below `t` are answered randomly and the challenge of `t` returns the table value
-  `kStar` (`hybridRandom t`);
-* the run stops with output `false` at the first query after which `t` is exposed
-  (`targetExposed`), since the reduction cannot reveal the secret or coins of `t`.
+```text
+R_t.pre(pkStar):          return pkStar
+R_t.post(cStar, kStar):   (_, dummySk) ← kem.keygen
+                          run adv against the injected oracles from the initial state
+                          return false if stopped, else the output of adv
+```
 
-Which key generation or encapsulation a send performs is decided from the sender's state before
-the send, exactly as `sendWith` does (`sendGeneratesTarget`, `sendEncapsulatesTarget`). The same
-injected oracles with the honest secret and encapsulated key describe the hybrids with eagerly
-drawn samples. Every definition here is computable.
+The injected oracles answer as the ideal security game (`IdealReceive`), except:
+
+| Operation                                      | Answer                                      |
+| ---------------------------------------------- | ------------------------------------------- |
+| the owner's key generation for key epoch `t`   | `pkStar`, with placeholder secret `dummySk` |
+| the peer's encapsulation for epoch `t`         | `(cStar, kStar)`                            |
+| eligible challenge at epoch `e`                | uniform if `e < t`, else the recorded key   |
+| corruption or leaking send exposing `t`        | stop with output `false`                    |
+
+In particular the challenge of `t` returns the recorded `kStar`. Whether a send generates the
+key pair of `t` or encapsulates for `t` is decided from the sender's state before the send, as
+`sendWith` decides its operations (`sendGeneratesTarget`, `sendEncapsulatesTarget`). Receives
+are ideal, so the placeholder secret is never read. The same injected oracles with the honest
+secret and the encapsulated key describe the hybrids with eagerly drawn samples (`Eager`), and
+the simulation theorem relating them to `R_t` is `probOutput_stoppedEagerExp_eq_reductionRun`
+(`Simulation`). Every definition here is computable.
 -/
 
 open OracleSpec OracleComp KEMScheme

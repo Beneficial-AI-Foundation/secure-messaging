@@ -10,12 +10,28 @@ import ToVCVio.OracleComp.SimSemantics.StateT.Stop
 /-!
 # Opp-BiKEM — Cancellation of exposed-target paths
 
-The adjacent hybrids with thresholds `t` and `t + 1` differ only in the answer to an accepted
-challenge of epoch `t`. Once epoch `t` is exposed, that challenge is rejected forever and the
-two hybrids agree, while an accepted challenge of `t` makes every later exposure of `t`
-rejected. Stopping both runs with output `false` at the first query after which `t` is exposed
-therefore leaves the signed difference of their acceptance probabilities unchanged
-(`hybridExp_sub_eq_stopped_sub`). The stopped runs are what the KEM reduction simulates.
+**Setting.** Fix a target epoch `t`. Let `H_T := hybridExp … T adv` be the hybrid with
+threshold `T` and `p_T := Pr[H_T = true]` (`Hybrid`). The *stopped hybrid*
+`stoppedHybridExp … t T adv` is `H_T` stopped with output `false` at the first query after which
+`t` is exposed (`targetExposed t`, `stoppedRun`). Write
+
+```text
+S_t^real   := stoppedHybridExp … t t adv         -- H_t stopped at t:     recorded key at t
+S_t^random := stoppedHybridExp … t (t + 1) adv   -- H_{t+1} stopped at t: uniform key at t
+```
+
+**Main result** (`hybridExp_sub_eq_stopped_sub`):
+
+```text
+p_{t+1} − p_t = Pr[S_t^random = true] − Pr[S_t^real = true].
+```
+
+`H_t` and `H_{t+1}` differ only in the answer to an accepted challenge of `t`. Once `t` is
+exposed, that challenge is rejected forever and the two hybrids agree
+(`probOutput_hybrid_succ_eq_of_exposed`), while an accepted challenge of `t` makes every later
+exposure of `t` rejected (`TargetCommitted`); the signed-gap theorem `signed_gap_stoppedRun_eq`
+turns the two facts into the equality. The stopped hybrids are what the KEM reduction simulates
+(`Reduction`, `Simulation`).
 -/
 
 open OracleSpec OracleComp KEMScheme ENNReal
@@ -213,7 +229,8 @@ def stoppedHybridExp (t T : ℕ) (adv : SecurityAdversary leak Sym) : ProbComp B
     (initState (K := K) (PK := PK) (SK := SK) (C := C) (Sym := Sym))
 
 /-- Stopping both adjacent hybrids once the target epoch `t` is exposed leaves the signed
-difference of their acceptance probabilities unchanged. -/
+difference of their acceptance probabilities unchanged:
+`p_{t+1} − p_t = Pr[S_t^random = true] − Pr[S_t^real = true]`. -/
 theorem hybridExp_sub_eq_stopped_sub (adv : SecurityAdversary leak Sym) (t : ℕ) :
     (Pr[= true | hybridExp kem hDet ecEk ecCt leak (t + 1) adv]).toReal -
         (Pr[= true | hybridExp kem hDet ecEk ecCt leak t adv]).toReal =

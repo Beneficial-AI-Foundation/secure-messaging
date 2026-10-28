@@ -11,11 +11,22 @@ import ToVCVio.OracleComp.SimSemantics.StateT.IdenticalUntilBadInvariant
 /-!
 # Opp-BiKEM — Real-to-ideal endpoint
 
-With deterministic decapsulation and correct erasure codes, the fixed-bit real security
-experiment and the ideal one differ by at most `q · ε_cor` in the adversary's success
-probability, for every adversary making at most `q` ordinary or leaking sends. The two games
-agree on every state satisfying `GameInv` without current KEM failure, and the tracked real run
-reaches a failure with probability at most `q · ε_cor`.
+**Setting.** Let `G_b := securityExpFixedBit … b` be the real SCKA security game of Opp-BiKEM
+with challenge bit `b`, `I_b := idealSecurityExp … b adv` the ideal game (`IdealReceive`), and
+`ε := kem.correctnessError` the KEM correctness error.
+
+**Main result** (`security_ideal_endpoint_le`). With deterministic decapsulation and correct
+erasure codes, for every adversary `adv` making at most `q` ordinary or leaking sends and either
+bit `b`,
+
+```text
+|Pr[G_b = true] − Pr[I_b = true]| ≤ q · ε.
+```
+
+The two games agree on every state satisfying `GameInv` without current KEM failure
+(`IdealReceive`), and the tracked real run reaches a failure with probability at most `q · ε`
+(`BadEvent`); the identical-until-bad bound on invariant states
+(`abs_probEvent_simulateQ_run_sub_le_bad_of_inv`) combines the two.
 -/
 
 open OracleSpec OracleComp KEMScheme ENNReal
@@ -54,9 +65,8 @@ lemma securityExpFixedBit_eq_run' [DecidableEq K] [DecidableEq Sym] [SampleableT
 * `ecEk` and `ecCt` are correct erasure codes;
 * `adv` makes at most `q` ordinary or leaking sends.
 
-Then, for either challenge bit `b`, the real and ideal fixed-bit security experiments differ by
-at most `q · ε_cor` in the probability that `adv` outputs `true`, where `ε_cor` is the
-correctness error of `kem`. -/
+Then, for either challenge bit `b`, `|Pr[G_b = true] − Pr[I_b = true]| ≤ q · ε` for the real
+game `G_b`, the ideal game `I_b` and the correctness error `ε` of `kem`. -/
 theorem security_ideal_endpoint_le [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
     (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym)

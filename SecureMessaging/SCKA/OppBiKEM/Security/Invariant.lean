@@ -11,9 +11,10 @@ import SecureMessaging.SCKA.Security
 /-!
 # Opp-BiKEM — Security oracle invariant
 
-With deterministic decapsulation and correct erasure codes, every supported security-query
-output satisfies `GameInv` when the current state satisfies the invariant and has no current
-KEM failure.
+**Main result.** With deterministic decapsulation and correct erasure codes, every security
+query from a state satisfying the game invariant `GameInv` (`Correctness.MainInvariant`) without
+a current KEM failure produces only states satisfying `GameInv`, for either challenge bit
+(`security_gameInv_step_of_noFailure`).
 -/
 
 open OracleSpec OracleComp KEMScheme

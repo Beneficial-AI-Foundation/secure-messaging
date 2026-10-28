@@ -10,44 +10,50 @@ import ToVCVio.OracleComp.QueryTracking.OneUseSampling
 /-!
 # Opp-BiKEM — Eager sampling of the target's values
 
-The stopped hybrid with threshold `t + b` draws the target epoch's key pair at the owner's
-generating send, the encapsulation at the peer's encapsulating send, and, for `b = 1`, the
-random challenge key at the challenge of `t`. The IND-CPA experiment draws the key pair and the
-encapsulation, correlated, before the KEM reduction's simulation starts, and the reduction
-receives the public key, the ciphertext and a candidate key, never the honest secret. This module
-proves that drawing all three values in advance does not change the acceptance probability
-(`probOutput_stoppedHybridExp_eq_eager`):
+**Setting.** Fix a target epoch `t > 0` and a version `x ∈ {real, random}` (the Lean argument
+`b` is `true` for `random`). The stopped hybrid `S_t^x` (`Cancellation`) draws the target's key
+pair at the owner's generating send, the encapsulation at the peer's encapsulating send and, in
+`random`, the uniform challenge key at the challenge of `t`. The *eager hybrid*
 
 ```text
-Pr[S_{t+b} = true] = E_{(pk,sk) ← keygen, (c,k) ← encaps pk, r ← $K} Pr[E_b(pk, sk, c, k, r) = true]
+E_t^x(pk, sk, c, k, r) := stoppedEagerExp … t b pk sk c k r adv
 ```
 
-where `E_b` runs `eagerSecurityImpl`, the injected oracles whose challenge of `t` answers `r`
-when `b` is set (`eagerAnswer`, over the generic `oracleChallWith`), stopped once `t` is
-exposed (`stoppedEagerExp`).
+holds all three from the start: it runs `adv` against the injected oracles with injection
+`⟨pk, sk, c, k⟩` (`Reduction`), whose challenge of `t` answers `r` in `random` (`eagerAnswer`,
+`eagerSecurityImpl`), stopped at the first exposure of `t`. The IND-CPA experiment draws the key
+pair and the encapsulation, correlated, before the reduction's simulation starts; the reduction
+receives `pk`, `c` and a candidate key, never `sk` (`Simulation`).
+
+**Main result** (`probOutput_stoppedHybridExp_eq_eager`). With correct erasure codes,
+
+```text
+Pr[S_t^x = true]
+  = E_{(pk, sk) ← keygen, (c, k) ← encaps pk, r ←$ K} Pr[E_t^x(pk, sk, c, k, r) = true].
+```
 
 The proof peels the three samples one at a time with the one-use sampling theorem
 `optionRun_sample_once_eq_sampleEachQuery`, from the innermost draw outwards, through two
 intermediate oracle families: the injected oracles with the hybrid challenge selection, and the
-keygen-injected oracles (`keygenInjectedScheme`, injected key pair, honest encapsulation). Each
-peel needs the same ingredients:
+*keygen-injected* oracles with the injected key pair and honest encapsulation
+(`keygenInjectedScheme`). Each peel supplies:
 
-* a hit test naming the query that consumes the sample (`hitRand`, `hitEncaps`, `hitKeygen`)
-  and a monotone used predicate that excludes a second consumption (the challenged set,
+- a hit test naming the query that consumes the sample (`hitRand`, `hitEncaps`, `hitKeygen`)
+  and a monotone used predicate excluding a second consumption (the challenged set,
   `usedEncaps`, `usedKeygen`);
-* away from the hit, the sampled oracle family does not read the sample, so its query
-  computations coincide (`…_of_not_hit…`);
-* at the hit, drawing the sample first and running the sampled oracles has the distribution of
-  the lazy oracles (`eager_hitRand_evalDist`, `injected_hitEncaps_evalDist`,
-  `keygenInjected_hitKeygen_eq`): the random key answers the challenge, the encapsulation
+- away from the hit, equal query computations of the sampled family for all samples
+  (`…_of_not_hit…`);
+- at the hit, the distribution of drawing the sample and running the sampled oracles equals that
+  of the lazy oracles (`eager_hitRand_evalDist`, `injected_hitEncaps_evalDist`,
+  `keygenInjected_hitKeygen_eq`): the uniform key answers the challenge, the encapsulation
   commutes with the sender's own independent key generation, and the key pair is the send's
   first effect.
 
-The random-key and key-pair peels need no state invariant beyond `GameInv`. The encapsulation
-peel needs the injected-state invariant of `Security.Injected` for the key the peer decoded,
-and uses it through an existential closure over supported encapsulations (`encapsInv`): at
-the encapsulation for the target both tables are empty, so the witness can be switched to the
-sample (`injInv_switch_key`), and elsewhere the sample is not read.
+The random-key and key-pair peels use `True` and `GameInv` as invariants. The encapsulation
+peel uses the injected-state invariant of `Injected` through its existential closure over
+supported encapsulations (`encapsInv`): at the encapsulation for the target both tables are
+empty, so the witness switches to the sample (`injInv_switch_key`); elsewhere the sample is not
+read.
 -/
 
 open OracleSpec OracleComp KEMScheme ENNReal
@@ -1514,9 +1520,9 @@ include hEk hCt in
 * `ecEk` and `ecCt` are correct erasure codes;
 * `0 < t`.
 
-Then the stopped hybrid with threshold `t + b` accepts with the probability of the stopped
-eager hybrid for bit `b`, with the target's key pair, encapsulation and random challenge key
-drawn in advance. -/
+Then the stopped hybrid with threshold `t + b` accepts with the probability of the eager hybrid
+for bit `b`, averaged over the target's key pair, encapsulation and uniform challenge key:
+`Pr[S_t^x = true] = E_{(pk, sk), (c, k), r} Pr[E_t^x(pk, sk, c, k, r) = true]`. -/
 theorem probOutput_stoppedHybridExp_eq_eager (adv : SecurityAdversary leak Sym) (t : ℕ)
     (ht : 0 < t) (b : Bool) :
     Pr[= true | stoppedHybridExp kem hDet ecEk ecCt leak t (t + b.toNat) adv] =

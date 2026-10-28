@@ -11,20 +11,35 @@ import VCVio.ProgramLogic.Relational.SimulateQ
 /-!
 # Opp-BiKEM — Epoch challenge hybrids
 
-The `T`-th hybrid is the ideal security game whose eligible challenges at epochs below `T`
-are answered with independent uniform keys and all others with the recorded key. Every table
-value, send, receive, leaking send and corruption is that of the ideal game, so each hybrid
-preserves `GameInv`.
+**Setting.** Let `I_b := idealSecurityExp … b adv` be the ideal game (`IdealReceive`) and
+`ε := kem.correctnessError` the KEM correctness error. The *hybrid* `H_T := hybridExp … T adv`
+with threshold `T` is the ideal game answering eligible challenges at epochs below `T` with
+independent uniform keys and all others with the recorded key
+(`hybridSecurityImpl (hybridRandom T)`); its table values, sends, receives, leaking sends and
+corruptions are those of the ideal game. Let `p_T := Pr[H_T = true]`.
 
-The bottom hybrid is the real-key ideal game. Above `2q` every hybrid has the output
-distribution of the random-key ideal game, for adversaries making at most `q` sends: a
-challengeable epoch is keyed, hence at most twice the number of committed epoch advances. The
-hop at epoch `0` is exact because epoch `0` is never keyed.
+```text
+epoch    0   1   …   T−1   T   T+1   …
+H_T      U   U   …   U     R   R     …        (U: uniform key, R: recorded key)
+```
 
-Telescoping over the `2q + 1` hops and the real-to-ideal endpoints gives the SCKA guess
-advantage bound `q · ε_cor + ½ Σ_{t < 2q + 1} δ t` from any per-hop bound `δ` at positive
-targets (`sckaGuessAdvantage_le_of_hop_bound`). The remaining obligation of the security
-proof is that per-hop bound.
+**Main results.** Assume that the erasure codes are correct and that `adv` makes at most `q`
+ordinary or leaking sends.
+
+- `H_0 = I_false` (`hybridExp_zero`), and `p_1 = p_0`, because epoch `0` is never keyed
+  (`probOutput_hybridExp_one`).
+- `p_T = Pr[I_true = true]` for every `T > 2q` (`probOutput_hybridExp_top`): a challengeable
+  epoch is keyed, hence at most `2 · advances s ≤ 2q` (`EpochCount`).
+- `AdvGuess_SCKA(scka, adv) ≤ q · ε + |Pr[I_true = true] − Pr[I_false = true]| / 2`
+  (`sckaGuessAdvantage_le_ideal_term`), and
+  `|Pr[I_true = true] − Pr[I_false = true]| ≤ Σ_{t=0}^{2q} |p_{t+1} − p_t|`
+  (`idealDist_le_sum_hybrid_hops`).
+- For every `δ : ℕ → ℝ` that is non-negative and satisfies `|p_{t+1} − p_t| ≤ δ t` at every
+  `1 ≤ t ≤ 2q`, `AdvGuess_SCKA(scka, adv) ≤ q · ε + (1/2) · Σ_{t=0}^{2q} δ t`
+  (`sckaGuessAdvantage_le_of_hop_bound`).
+
+`Security` supplies the per-hop bound `δ t` as the IND-CPA advantage of the reduction at target
+`t`.
 -/
 
 open OracleSpec OracleComp KEMScheme ENNReal
@@ -131,7 +146,7 @@ lemma hybridSecurityImpl_run_eq_ideal (random : ℕ → Bool) (b : Bool)
 
 /-! ## Endpoints -/
 
-/-- The bottom hybrid is the real-key ideal game. -/
+/-- The bottom hybrid is the real-key ideal game: `H_0 = I_false` as computations. -/
 theorem hybridExp_zero (adv : SecurityAdversary leak Sym) :
     hybridExp kem hDet ecEk ecCt leak 0 adv =
       idealSecurityExp kem hDet ecEk ecCt leak false adv := by
@@ -142,8 +157,8 @@ theorem hybridExp_zero (adv : SecurityAdversary leak Sym) :
 
 * `ecEk` and `ecCt` are correct erasure codes.
 
-Then the first hop is exact: epoch `0` is never keyed, so its challenge always returns `none`
-for either bit. -/
+Then the first hop is exact, `p_1 = p_0`: epoch `0` is never keyed, so its challenge always
+returns `none` for either bit. -/
 lemma probOutput_hybridExp_one (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
     (adv : SecurityAdversary leak Sym) :
     Pr[= true | hybridExp kem hDet ecEk ecCt leak 1 adv] =
@@ -172,9 +187,9 @@ lemma probOutput_hybridExp_one (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
 * `ecEk` and `ecCt` are correct erasure codes;
 * `adv` makes at most `q` ordinary or leaking sends.
 
-Then every hybrid with threshold above `2q` has the output distribution of the random-key
-ideal game: an eligible epoch is keyed, hence at most `2 · advances s ≤ 2q`, so its challenge
-is answered randomly. -/
+Then every hybrid with threshold `T > 2q` has the output distribution of the random-key ideal
+game, `p_T = Pr[I_true = true]`: an eligible epoch is keyed, hence at most
+`2 · advances s ≤ 2q`, so its challenge is answered randomly. -/
 theorem probOutput_hybridExp_top (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q)
     (T : ℕ) (hT : 2 * q < T) :
@@ -210,8 +225,8 @@ theorem probOutput_hybridExp_top (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
 * `ecEk` and `ecCt` are correct erasure codes;
 * `adv` makes at most `q` ordinary or leaking sends.
 
-Then the SCKA guess advantage is at most `q · ε_cor` plus half the distance between the two
-fixed-bit ideal games. -/
+Then `AdvGuess_SCKA(scka, adv) ≤ q · ε + |Pr[I_true = true] − Pr[I_false = true]| / 2`, for the
+correctness error `ε` of `kem` and the ideal games `I_b`. -/
 lemma sckaGuessAdvantage_le_ideal_term (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
     SCKAScheme.sckaGuessAdvantage (scheme kem hDet ecEk ecCt leak) adv
@@ -242,8 +257,8 @@ lemma sckaGuessAdvantage_le_ideal_term (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Co
 * `ecEk` and `ecCt` are correct erasure codes;
 * `adv` makes at most `q` ordinary or leaking sends.
 
-Then the distance between the two fixed-bit ideal games is at most the sum of the `2q + 1`
-adjacent hybrid distances. -/
+Then `|Pr[I_true = true] − Pr[I_false = true]| ≤ Σ_{t=0}^{2q} |p_{t+1} − p_t|`, for the ideal
+games `I_b` and `p_T := Pr[H_T = true]`. -/
 lemma idealDist_le_sum_hybrid_hops (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q) :
     |(Pr[= true | idealSecurityExp kem hDet ecEk ecCt leak true adv]).toReal -
@@ -266,8 +281,8 @@ lemma idealDist_le_sum_hybrid_hops (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correc
 * `δ` is non-negative and bounds every adjacent hybrid distance at positive targets up to
   `2q`.
 
-Then the SCKA guess advantage is at most `q · ε_cor + ½ Σ_{t < 2q + 1} δ t`. The hop at
-target `0` is exact, so `δ 0` only contributes its non-negativity. -/
+Then `AdvGuess_SCKA(scka, adv) ≤ q · ε + (1/2) · Σ_{t=0}^{2q} δ t`, for the correctness error
+`ε` of `kem`. The hop at target `0` is exact, so `δ 0` only contributes its non-negativity. -/
 theorem sckaGuessAdvantage_le_of_hop_bound (hEk : ecEk.ec.Correct) (hCt : ecCt.ec.Correct)
     (adv : SecurityAdversary leak Sym) (q : ℕ) (hq : SecuritySendQueryBound adv q)
     (δ : ℕ → ℝ) (hδ : ∀ t, 0 ≤ δ t)

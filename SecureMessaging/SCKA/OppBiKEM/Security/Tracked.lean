@@ -10,8 +10,14 @@ import SecureMessaging.SCKA.OppBiKEM.Security.Invariant
 /-!
 # Opp-BiKEM — Security runs with a sticky failure flag
 
-With deterministic decapsulation and correct erasure codes, every supported adaptive security
-run from the initial state satisfies `GameInv` when its historical KEM-failure flag is clear.
+**Setting.** `trackedSecurityImpl b` is the security oracle family of Opp-BiKEM with challenge
+bit `b`, paired with a flag that is set at the first KEM decapsulation failure and never cleared.
+
+**Main result.** With deterministic decapsulation and correct erasure codes, the tracked oracles
+preserve `trackedInv`: the flag is set, or `GameInv` holds without current KEM failure
+(`trackedSecurityImpl_preservesInv`). Hence every outcome of a tracked security run from the
+initial state whose flag is clear has a final state satisfying `GameInv`
+(`security_gameInv_of_noFailure`).
 -/
 
 open OracleSpec OracleComp KEMScheme

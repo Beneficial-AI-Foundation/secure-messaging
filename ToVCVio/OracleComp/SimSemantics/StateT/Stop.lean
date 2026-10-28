@@ -71,6 +71,11 @@ state.
   `impl`, whose state spaces are related by a map `f`: if `right` answers each query from `f u` as
   `left` does from `u`, then `left` from `s` and `right` from `f s` accept with the same
   probability. The agreement is needed only at states satisfying an invariant of `left`.
+- `probOutput_optionRun_eq_of_state_map_some`: the same transport when only the answers
+  `a ≠ ⊥` and their successors are compared; an answer `⊥` contributes its mass alone, so the
+  states at which the runs stop need not be related by `f`. `evalDist_stopped_map_of_base`
+  derives its per-query hypothesis from a base-level state map when `stop` is invariant
+  under `f`.
 - `probOutput_stoppedRun_eq_of_inv`: stopping has no effect when an invariant of `base` keeps
   `stop` false; the stopped and ordinary runs accept with the same probability.
 - `signed_gap_stoppedRun_eq`: if two oracles `left` and `right` of the type of `base` answer

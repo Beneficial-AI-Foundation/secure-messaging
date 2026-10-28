@@ -9,11 +9,14 @@ import SecureMessaging.ErasureCode.Payload
 import VCVio.OracleComp.QueryTracking.QueryBound
 
 /-!
-# Opp-BiKEM security interface
+# Opp-BiKEM — Security interface
 
-This module specializes the full SCKA oracle interface and its send-query bound to Opp-BiKEM.
-Discarding the coins returned by the shared leaking-send engine gives the ordinary send
-computation, for either role and every local state.
+**Main results.** The SCKA security interface of Opp-BiKEM admits Boolean adversaries `adv`
+(`securitySpec`, `SecurityAdversary`), whose *send budget* `q` bounds the ordinary and leaking
+sends on every oracle-response path (`SecuritySendQueryBound adv q`).
+
+- A leaking send without its coins is the ordinary send, for either role and every local state
+  (`sendWith_rleak_forget`).
 -/
 
 open OracleSpec OracleComp KEMScheme

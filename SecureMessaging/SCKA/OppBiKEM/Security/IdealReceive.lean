@@ -9,10 +9,20 @@ import SecureMessaging.SCKA.OppBiKEM.Security.Tracked
 /-!
 # Opp-BiKEM — Ideal receive
 
-The ideal game replaces decapsulation in each party's receive by a lookup of the peer's recorded
-key for the received epoch (`idealRecover`). Its oracles agree with the real security oracles on
-every state satisfying `GameInv` without current KEM failure, and they preserve `GameInv`
-unconditionally: the ideal invariant needs neither KEM correctness nor a no-failure premise.
+**Setting.** The *ideal game* `I_b := idealSecurityExp … b adv` is the SCKA security game of
+Opp-BiKEM with challenge bit `b` in which each party's receive copies the peer's recorded key
+for the received epoch instead of decapsulating (`idealRecover`, `oracleRecvAIdeal`,
+`oracleRecvBIdeal`). Its oracles `idealSecurityImpl b` are the security oracles over the ideal
+correctness oracles `idealCorrectnessImpl`, with the fixed-bit challenge, the exposure policy
+and the honest leaking sends and corruptions.
+
+**Main results.**
+
+- On every state satisfying `GameInv` without current KEM failure, the real and ideal oracles
+  have the same query computation (`securityImpl_eq_ideal_of_noFailure`).
+- With correct erasure codes, every ideal security query preserves `GameInv`, with no KEM
+  correctness and no no-failure premise (`idealSecurityImpl_preservesInv`): the ideal receive
+  returns the peer's recorded key, which is the transcript key.
 -/
 
 open OracleSpec OracleComp KEMScheme
