@@ -153,11 +153,6 @@ noncomputable def distAdvantage [SampleableType C] (se : DetSEAlg K M C)
    (Pr{let x ← securityExpFixedBit se adversary false}[x = true]).toReal|
 ```
 
-In this definition, $`\mathsf{SE.Dec}` appears only in the correctness condition. The game
-gives the adversary an encryption oracle and no decryption oracle, so security does not
-depend on $`\mathsf{SE.Dec}`. The encrypt-then-MAC construction calls $`\mathsf{SE.Dec}` only
-after the tag check, so a forged ciphertext never reaches it.
-
 ::::::gameGrid
 :::::gameCell "\\textsf{Example: one-time pad}" (kind := "scheme-notation")
 Let $`\mathcal K = \mathcal M = \mathcal C = \{0,1\}^n`, let $`\mathsf{SE.KeyGen}`
