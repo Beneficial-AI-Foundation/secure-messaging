@@ -460,6 +460,32 @@ p.lean-pill-caption {
   margin-top: 0.45rem;
 }
 
+/* `leanCompare`: one pill whose panel lays two code blocks out two-up. */
+.lean-compare-body:not([hidden]) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 1rem;
+  align-items: start;
+}
+.lean-compare-col {
+  min-width: 0;
+}
+.lean-compare-col > .hl.lean.block {
+  margin: 0;
+  font-size: 0.88em;
+}
+.lean-compare-label {
+  margin-bottom: 0.3rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #57606a;
+}
+@media (max-width: 900px) {
+  .lean-compare-body:not([hidden]) {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Shared pill appearance (details summary or standalone toggle button). */
 .lean-pill-btn,
 .lean-details > summary {
@@ -671,6 +697,8 @@ def smDocsJs : String := r#"
       "code.hl.lean.block:not(.bp_external_decl_signature):not(.lean-wrapped)");
     blocks.forEach(function (code) {
       code.classList.add("lean-wrapped");
+      // `leanCompare` panels already sit under their own pill.
+      if (code.closest(".lean-compare-body")) return;
       var suffix = pillSuffixFor(code);
       var parent = code.parentNode;
       if (suffix) {
@@ -713,6 +741,18 @@ def smDocsJs : String := r#"
         details.appendChild(code);
       }
     });
+  }
+  function installLeanCompares() {
+    document.querySelectorAll(".lean-compare > .lean-anchor-head > .lean-pill-btn")
+      .forEach(function (btn) {
+        var body = btn.closest(".lean-compare").querySelector(":scope > .lean-anchor-body");
+        if (!body) return;
+        btn.addEventListener("click", function () {
+          var open = body.hidden;
+          body.hidden = !open;
+          btn.setAttribute("aria-expanded", open ? "true" : "false");
+        });
+      });
   }
   function moveMetadataPanels() {
     document.querySelectorAll(".bp_wrapper > .bp_metadata_panel").forEach(function (panel) {
@@ -839,6 +879,7 @@ def smDocsJs : String := r#"
   function initLeanPills() {
     installHeadingTitles();
     wrapLeanBlocks();
+    installLeanCompares();
     moveMetadataPanels();
     foldGameCells();
     window.setTimeout(function () {

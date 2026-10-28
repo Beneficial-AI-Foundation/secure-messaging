@@ -300,8 +300,10 @@ variable {Par EK DK CT K : Type}
 its own updated encapsulation key, the peer's updated encapsulation key, the ciphertext sent to
 the peer, the challenger's own updated decapsulation key, and the challenge key; outputs a
 guess bit. Matches the adversary input `A(ekP, ek̂P, ek̂P', ctP, dk̂P, Kb)` of Def. 5.4. -/
+-- ANCHOR: FSINDCPAAdversary
 abbrev FSINDCPAAdversary (Par EK DK CT K : Type) : Type :=
   Par → EK → EK → EK → CT → DK → K → ProbComp Bool
+-- ANCHOR_END: FSINDCPAAdversary
 
 /-- **Definition 5.4** (FS-IND-CPA experiment, party `A`).
 

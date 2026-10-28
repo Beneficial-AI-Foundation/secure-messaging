@@ -23,6 +23,12 @@ structure LeanPillConfig where
   status : String
 deriving Inhabited
 
+structure LeanCompareConfig where
+  caption : String
+  left : Option String
+  right : Option String
+deriving Inhabited
+
 section
 variable [Monad m] [MonadError m]
 
@@ -37,6 +43,13 @@ def LeanPillConfig.parse : ArgParse m LeanPillConfig :=
 
 instance : FromArgs LeanPillConfig m where
   fromArgs := LeanPillConfig.parse
+
+def LeanCompareConfig.parse : ArgParse m LeanCompareConfig :=
+  LeanCompareConfig.mk <$> .positional `caption .string
+    <*> .named `left .string true <*> .named `right .string true
+
+instance : FromArgs LeanCompareConfig m where
+  fromArgs := LeanCompareConfig.parse
 
 end
 
@@ -133,11 +146,55 @@ block_extension Block.leanPill (status : String) where
             (renderPillCaption caption)
         ]
 
+-- One Lean pill opening two code blocks side by side: the pill row is rendered
+-- here (same classes as the rows `smDocsJs` builds), and the first two child
+-- blocks become the columns, headed by the optional `left`/`right` labels.
+block_extension Block.leanCompare (caption : String) (left right : Option String) where
+  data := toJson (caption, left, right)
+  traverse _id _data _contents := do
+    pure none
+  toTeX := some <| fun _goI goB _id _data contents => contents.mapM goB
+  toHtml :=
+    some <| fun _goI goB _id data contents => do
+      let (caption, left, right) :=
+        match fromJson? (α := String × Option String × Option String) data with
+        | .ok cfg => cfg
+        | .error _ => ("", none, none)
+      let column (label : Option String) (block : Verso.Output.Html) : Verso.Output.Html :=
+        let labelHtml := match label with
+          | some l => Verso.Output.Html.tag "div" #[("class", "lean-compare-label")]
+              (renderPillCaption l)
+          | none => .empty
+        Verso.Output.Html.tag "div" #[("class", "lean-compare-col")] (.seq #[labelHtml, block])
+      let body ← contents.mapM goB
+      let cols := body.mapIdx fun i b => column (if i == 0 then left else if i == 1 then right else none) b
+      pure <| Verso.Output.Html.tag "div" #[("class", "lean-anchor-row lean-compare")] <| .seq #[
+          Verso.Output.Html.tag "div" #[("class", "lean-anchor-head")] <| .seq #[
+            Verso.Output.Html.tag "button" #[
+                ("type", "button"), ("class", "lean-pill-btn"), ("aria-expanded", "false")
+              ] (Verso.Output.Html.text true "Lean"),
+            Verso.Output.Html.tag "span" #[("class", "lean-pill-caption")]
+              (renderPillCaption caption)
+          ],
+          Verso.Output.Html.tag "div" #[
+              ("class", "lean-anchor-body lean-compare-body"), ("hidden", "")
+            ] (.seq cols)
+        ]
+
 /-- Place directly above an anchor; text appears after the Lean pill, not on it. -/
 @[directive]
 def leanPillCaption : DirectiveExpanderOf LeanPillCaptionConfig
   | cfg, _contents => do
     ``(Block.other (Block.leanPillCaption $(quote cfg.caption)) #[])
+
+/-- `:::leanCompare "Caption" (left := "...") (right := "...")` around two anchors: one Lean
+pill whose panel shows both side by side, e.g. a definition next to its variant. -/
+@[directive]
+def leanCompare : DirectiveExpanderOf LeanCompareConfig
+  | cfg, contents => do
+    let contents ← contents.mapM elabBlock
+    ``(Block.other (Block.leanCompare $(quote cfg.caption) $(quote cfg.left) $(quote cfg.right))
+        #[$contents,*])
 
 /-- Place inside an atom when no anchor block exists yet, or when the Lean side is partial/planned. -/
 @[directive]
