@@ -155,44 +155,73 @@ noncomputable def distAdvantage [SampleableType C] (se : DetSEAlg K M C)
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Example: one-time pad}" (kind := "scheme-notation")
-Let $`\mathcal K = \mathcal M = \mathcal C = \{0,1\}^n`, let $`\mathsf{SE.KeyGen}`
-sample $`K` uniformly, and let $`\mathsf{SE.Enc}(K, m) = K \oplus m` and
-$`\mathsf{SE.Dec}(K, c) = K \oplus c`. The scheme is correct. The adversary
-chooses $`m` before it sees anything that depends on $`K`, so $`m` is independent of
-$`K`. For a fixed $`m`, the map $`K \mapsto K \oplus m` is a bijection on $`\{0,1\}^n`,
-so $`\Pr[K \oplus m = c] = \Pr[K = c \oplus m] = 2^{-n}` for every $`c`. That is, the
-ciphertext $`K \oplus m` is uniform on $`\mathcal C`. So $`\Oenc` has the same output
-distribution for $`b = 0` and $`b = 1`, the experiments
-$`\Exp{\textsf{ind\$}\text{-}0}{\textsf{SE}}(\adv)` and
-$`\Exp{\textsf{ind\$}\text{-}1}{\textsf{SE}}(\adv)` have the same output distribution, and
-$`\mathsf{Adv}^{\textsf{ind\$}}_{\textsf{SE}}(\adv) = 0` for every $`\adv`.
+Let $`n \ge 1`. The one-time pad $`\mathsf{OTP}_n` ({Informal.citet Ros26}[],
+Construction 1.2.1) is the deterministic symmetric encryption scheme with
+$`\mathcal K = \mathcal M = \mathcal C = \{0,1\}^n`, where
+
+- $`\mathsf{SE.KeyGen}` samples $`K \sample \{0,1\}^n`,
+- $`\mathsf{SE.Enc}(K, m) = K \oplus m`,
+- $`\mathsf{SE.Dec}(K, c) = K \oplus c`.
+
+$`\mathsf{OTP}_n` is correct, and $`\mathsf{Adv}^{\textsf{ind\$}}_{\mathsf{OTP}_n}(\adv) = 0`
+for every adversary $`\adv`. This is adapted from {Informal.citet Ros26}[], Claim 1.2.3
+(correctness) and Claim 2.2.2 (security), for the game we formalize.
 :::::
+::::::
 
+::::::gameGrid
 :::::gameCell "\\textsf{Example: AES-CBC in libsignal}" (kind := "scheme-notation")
-libsignal encrypts each message with AES-256-CBC under a cipher key $`k` and an IV
-$`\mathit{iv}`, both derived from a fresh per-message key. The IV is not a separate input,
-so the key is the pair $`K = (k, \mathit{iv})`, and $`\mathsf{SE.Enc}(K, m)` is CBC
-encryption of $`m` under $`k` with IV $`\mathit{iv}`. The IV is secret, and the adversary
-chooses $`m` before it sees anything that depends on $`K`, so $`m` is independent of both
-$`k` and $`\mathit{iv}`.
+Adapted from {Informal.citet Ros26}[], Construction 8.5.3 (CBC mode) with PKCS#7 padding
+(Example 8.6.3). There, $`\mathsf{Enc}` samples $`C_0` at random and sends it as the first
+block of the ciphertext, and $`\mathsf{Dec}` reads $`C_0` from the
+ciphertext. libsignal derives the AES key and the IV from a fresh per-message key, so in the
+scheme below the IV is part of the key. In both $`\mathsf{SE.Enc}` and $`\mathsf{SE.Dec}`,
+the line $`C_0 \gets \mathit{iv}` replaces this: $`\mathsf{SE.Enc}` does not sample or send
+$`C_0`, and $`\mathsf{SE.Dec}` does not read it from the ciphertext.
 
-libsignal pads messages with PKCS#7, so the ciphertext length depends on $`|m|`. This is
-the usual behavior, and length-respecting notions allow it: the CPA game of
-{Informal.citet Ros26}[], Definition 8.1.1, returns a random ciphertext of the same length as
-the real one. The game on this page is stricter. Like Definition 5.3.2, it samples $`c` from
-all of $`\mathcal C`, so it also requires the ciphertext to hide the message length. In $`\Exp{\textsf{ind\$}\text{-}0}{\textsf{SE}}(\adv)`,
-the length of $`c` is fixed by $`|m|`. In $`\Exp{\textsf{ind\$}\text{-}1}{\textsf{SE}}(\adv)`,
-$`c` is uniform on all of $`\mathcal C`, so its length is random. An adversary that queries
-a short $`m` and outputs $`1` if the length of $`c` does not match $`|m|` has advantage
-close to $`1`. This attack learns only the message length, which any variable-length scheme
-reveals. It is a limit of the notion, not a weakness of libsignal.
+Let $`\mathsf{AES}_k` be AES-256 under the key $`k \in \{0,1\}^{256}`, a permutation of
+$`\{0,1\}^{128}`, and let $`\mathsf{Pad}` be PKCS#7 padding to a multiple of 16 bytes. Fix a
+bound $`L` on the message length in bytes, so that $`\mathcal C` is finite. AES-CBC is the
+deterministic symmetric encryption scheme with
 
-For fixed-length messages without padding, for example
-$`\mathcal M = \mathcal C = \{0,1\}^{128\ell}`, the length gives nothing away. The
-ciphertext is still not exactly uniform as with the one-time pad, because AES under $`k` is
-a fixed permutation and not a uniform random function. The standard CBC analysis bounds the
-advantage by the PRP advantage of AES plus a collision term of order $`\ell^2 / 2^{128}`.
-This repository does not prove that bound and does not instantiate AES-CBC in Lean.
+- $`\mathcal K = \{0,1\}^{256} \times \{0,1\}^{128}`,
+- $`\mathcal M` the byte strings of at most $`L` bytes,
+- $`\mathcal C = \bigcup_{\ell = 1}^{\lfloor L / 16 \rfloor + 1} \{0,1\}^{128 \ell}`,
+
+where $`\mathsf{SE.KeyGen}` samples $`(k, \mathit{iv}) \sample \mathcal K`, and
+
+$$`\begin{array}{l}
+\underline{\mathsf{SE.Enc}((k, \mathit{iv}), m)} \\
+M_1 \concat \cdots \concat M_\ell \gets \mathsf{Pad}(m); \\
+C_0 \gets \mathit{iv}; \\
+\mathsf{for}\; i = 1, \ldots, \ell \\
+\quad C_i \gets \mathsf{AES}_k(C_{i-1} \oplus M_i); \\
+\Return C_1 \concat \cdots \concat C_\ell
+\end{array}
+\qquad\qquad
+\begin{array}{l}
+\underline{\mathsf{SE.Dec}((k, \mathit{iv}), c)} \\
+C_1 \concat \cdots \concat C_\ell \gets c; \\
+C_0 \gets \mathit{iv}; \\
+\mathsf{for}\; i = 1, \ldots, \ell \\
+\quad M_i \gets \mathsf{AES}_k^{-1}(C_i) \oplus C_{i-1}; \\
+\Return \mathsf{Pad}^{-1}(M_1 \concat \cdots \concat M_\ell)
+\end{array}`
+
+Here $`M_i` and $`C_i` are 128-bit blocks, and $`\mathsf{Pad}^{-1}` returns $`\bot` if the
+padding is invalid.
+
+The ciphertext of an $`|m|`-byte message has $`\lfloor |m| / 16 \rfloor + 1` blocks, so its
+length depends on $`|m|`. If $`L \ge 16`, then $`\mathcal C` contains strings of one block
+and strings of two or more blocks, and the length of the answer of $`\Oenc` tells the real
+game from the random one. Precisely, let $`L \ge 16`, and let $`\adv` be the adversary that
+queries $`\Oenc` on the empty message and outputs $`1` if and only if the answer $`c` has
+more than one block. Then
+
+$$`\mathsf{Adv}^{\textsf{ind\$}}_{\textsf{AES-CBC}}(\adv)
+  = 1 - \frac{2^{128}}{|\mathcal C|} \ge 1 - 2^{-128}`
+
+So AES-CBC is not secure in the sense of the one-time IND$-CPA game above.
 :::::
 ::::::
 :::::::
