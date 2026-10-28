@@ -83,6 +83,9 @@ Z_0 \gets 0^{128};\quad V_0 \gets Y; \\
 \Return Z_{128}
 \end{array}`
 
+:::leanPillCaption "block multiplication $`X \\bullet Y`"
+:::
+
 ```anchor gfmul (project := ".") (module := SecureMessaging.AEAD.GCM)
 def gfmul (x y : BitVec 128) : BitVec 128 :=
   (List.range 128 |>.foldl
@@ -111,6 +114,9 @@ Y_n^* \gets X_n^* \oplus \mathsf{MSB}_{|X_n^*|}(\mathsf{CIPH}_K(\mathit{CB}_n));
 \Return Y_1 \concat \cdots \concat Y_{n-1} \concat Y_n^*
 \end{array}`
 
+:::leanPillCaption "$`\\mathsf{GCTR}_K`"
+:::
+
 ```anchor gctr (project := ".") (module := SecureMessaging.AEAD.GCM)
 def gctr {K : Type} (ciph : K → BitVec 128 → BitVec 128) (k : K) (icb : BitVec 128)
     {p : ℕ} (x : BitVec p) : BitVec p :=
@@ -124,6 +130,9 @@ $`\begin{array}{l}
 c \gets \mathrm{int}(\mathsf{LSB}_{32}(X)) + 1 \bmod 2^{32}; \\
 \Return \mathsf{MSB}_{96}(X) \concat [c]_{32}
 \end{array}`
+
+:::leanPillCaption "$`\\mathsf{inc}_{32}`"
+:::
 
 ```anchor inc32 (project := ".") (module := SecureMessaging.AEAD.GCM)
 def inc32 (x : BitVec 128) : BitVec 128 :=
@@ -140,6 +149,9 @@ Y_0 \gets 0^{128}; \\
 \quad Y_i \gets (Y_{i-1} \oplus X_i) \bullet H; \\
 \Return Y_m
 \end{array}`
+
+:::leanPillCaption "$`\\mathsf{GHASH}_H`"
+:::
 
 ```anchor ghash (project := ".") (module := SecureMessaging.AEAD.GCM)
 def ghash (h : BitVec 128) (blocks : List (BitVec 128)) : BitVec 128 :=
@@ -174,6 +186,9 @@ T \gets \mathsf{GCTR}_K(J_0, S); \\
 \Return (C, T)
 \end{array}`
 
+:::leanPillCaption "GCM-AE (authenticated encryption)"
+:::
+
 ```anchor gcmEncrypt (project := ".") (module := SecureMessaging.AEAD.GCM)
 def gcmEncrypt {K : Type} (ciph : CIPH K) (k : K)
     (iv : BitVec 96) {lenA lenP : ℕ} (ad : BitVec lenA) (m : BitVec lenP) :
@@ -201,6 +216,9 @@ S \gets \mathsf{GHASH}_H(\mathsf{encode}(A, C)); \\
 \quad\Return \bot; \\
 \Return P
 \end{array}`
+
+:::leanPillCaption "GCM-AD (authenticated decryption)"
+:::
 
 ```anchor gcmDecrypt (project := ".") (module := SecureMessaging.AEAD.GCM)
 def gcmDecrypt {K : Type} (ciph : CIPH K) (k : K)
@@ -312,6 +330,9 @@ Correctness in the sense of {Informal.citet ACD19}[], Definition 1, for GCM as s
 Let $`P` be a PRP scheme on 128-bit blocks, $`\mathit{IV}` a 96-bit IV and $`L` a
 supported message length. Then $`\mathsf{GCM}[P, \mathit{IV}, L]` is correct.
 
+:::leanPillCaption "correctness theorem"
+:::
+
 ```anchor gcmOneTimeAEAD_correct (project := ".") (module := SecureMessaging.AEAD.FromGCM.Correctness)
 theorem gcmOneTimeAEAD_correct {K : Type} (prp : PRPScheme K (BitVec 128))
     (iv : BitVec 96) {L : ℕ} (hL : ValidMsgLength L) :
@@ -416,6 +437,9 @@ $`H`, the tag mask and the keystream. Then
 $$`\mathsf{Adv}^{\textsf{prf}}_{P}(\mathcal B)
   \le \mathsf{Adv}^{\textsf{prp}}_{P}(\mathcal B) + \frac{(n + 2)(n + 1)}{2^{129}}`
 
+:::leanPillCaption "switching bound"
+:::
+
 ```anchor prfAdvantage_le_prpAdvantage_switching (project := ".") (module := SecureMessaging.AEAD.FromGCM.Security.PrpSwitch)
 theorem prfAdvantage_le_prpAdvantage_switching {K : Type}
     (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ) (hL : ValidMsgLength L)
@@ -451,6 +475,9 @@ adversary of {bpref "aead_gcm_prp_switching"}[PRP/PRF switching].
 
 There is no separate tag-guessing term: $`\varepsilon \ge 2^{-128}` for every AXU bound of
 GHASH.
+
+:::leanPillCaption "security theorem for any AXU bound"
+:::
 
 ```anchor gcmOneTimeAEAD_security_of_axu (project := ".") (module := SecureMessaging.AEAD.FromGCM.Security)
 theorem gcmOneTimeAEAD_security_of_axu (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
@@ -498,6 +525,9 @@ where $`\mathsf{Adv}^{\textsf{dist}}` is as in
 {bpref "aead_gcm_security_of_axu"}[AEAD-GCM security for any AXU bound], and
 $`\mathcal B` is the adversary of {bpref "aead_gcm_prp_switching"}[PRP/PRF switching]. The
 second term is the switching bound, and the third is $`q_d` times the GHASH AXU bound.
+
+:::leanPillCaption "security theorem"
+:::
 
 ```anchor gcmOneTimeAEAD_security (project := ".") (module := SecureMessaging.AEAD.FromGCM.Security)
 theorem gcmOneTimeAEAD_security (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)

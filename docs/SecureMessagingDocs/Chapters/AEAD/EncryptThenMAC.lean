@@ -114,6 +114,9 @@ $`\begin{array}{l}
 \Return c
 \end{array}`
 
+:::leanPillCaption "encryption oracle"
+:::
+
 ```anchor detSEOracleEncrypt (project := ".") (module := SecureMessaging.SymEnc.Defs)
 def oracleEncrypt [SampleableType C] (se : DetSEAlg K M C) (b : Bool) (k : K) :
     QueryImpl (M →ₒ Option C) (StateT Bool ProbComp) :=
@@ -135,6 +138,9 @@ K \gets \mathsf{SE.KeyGen}; \\
 b' \gets \adv^{\Oenc}; \\
 \Return b'
 \end{array}`
+
+:::leanPillCaption "IND$-CPA experiment"
+:::
 
 ```anchor detSESecurityExpFixedBit (project := ".") (module := SecureMessaging.SymEnc.Defs)
 def securityExpFixedBit [SampleableType C] (se : DetSEAlg K M C)
@@ -280,6 +286,9 @@ $`\begin{array}{l}
 
 ::::::
 
+:::leanPillCaption "construction $`\\mathsf{EtM}[\\mathsf{SE}, F]`"
+:::
+
 ```anchor etmAEAD (project := ".") (module := SecureMessaging.AEAD.FromEtM.Construction)
 def etmAEAD (se : DetSEAlg K_e M C_e)
     (prf : PRFScheme K_m (AD × C_e) T) :
@@ -307,6 +316,9 @@ Correctness in the sense of {Informal.citet ACD19}[], Definition 1.
 
 Let $`\mathsf{SE}` be a correct deterministic symmetric encryption scheme and $`F` a PRF.
 Then $`\mathsf{EtM}[\mathsf{SE}, F]` is correct.
+
+:::leanPillCaption "correctness theorem"
+:::
 
 ```anchor etmAEAD_correct (project := ".") (module := SecureMessaging.AEAD.FromEtM.Correctness)
 theorem etmAEAD_correct (se : DetSEAlg K_e M C_e)
@@ -338,6 +350,9 @@ $$`\mathsf{Adv}^{\textsf{dist}}_{\mathsf{EtM}[\mathsf{SE}, F]}(\adv)
 where $`\mathsf{Adv}^{\textsf{dist}}` is the {bpref "aead_dist_advantage"}[distinguishing
 advantage] in the {bpref "aead_security_exp"}[one-time IND-CCA game]. In Figure 9 the middle
 term is $`q_d / 2^\tau` for $`\tau`-bit tags.
+
+:::leanPillCaption "security theorem"
+:::
 
 ```anchor etmAEAD_security (project := ".") (module := SecureMessaging.AEAD.FromEtM.Security)
 theorem etmAEAD_security
