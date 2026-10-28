@@ -16,8 +16,8 @@ import ToVCVio.CryptoFoundations.KeyEncapMech.Advantage
   deterministic decapsulation `hDet`, randomness-leakage package `leak`, and correct erasure
   codes `ecEk` (public keys) and `ecCt` (ciphertexts);
 - an SCKA adversary `adv : SecurityAdversary leak Sym` making at most `q` ordinary and leaking
-  sends on every oracle-response path (`SecuritySendQueryBound adv q`);
-- for each *target epoch* `t`, the IND-CPA adversary `R_t := reduction … adv t` against `kem`
+  sends in total on every oracle-response path (`SecuritySendQueryBound adv q`);
+- for each *target epoch* `t`, the IND-CPA adversary against `kem`: `R_t := reduction … adv t`,
   constructed from `adv`, which embeds the KEM challenge in the key generation and encapsulation
   of epoch `t` and runs `adv` (`Reduction`).
 
@@ -27,7 +27,9 @@ Let:
 - `G_b` be the SCKA security game of `scka` with its challenge bit fixed to `b`
   (`securityExpFixedBit`), under the exposure policy `exposure` (`Exposure`);
 - `AdvGuess_SCKA(scka, adv) := |Pr[b' = b] − 1/2| = |Pr[G_true = true] − Pr[G_false = true]| / 2`
-  be the advantage of `adv` in guessing the challenge bit (`sckaGuessAdvantage`);
+  be the advantage of `adv` in guessing the challenge bit (`sckaGuessAdvantage`). In
+  `Pr[b' = b]`, `b ←$ Bool` is drawn once for the run, and `b'` is the adversary's guess.
+  The advantage is the distance of its winning probability from `1/2`;
 - `AdvINDCPA_KEM(kem, R) := |Pr[R_real = true] − Pr[R_random = true]|` be the advantage of an
   IND-CPA adversary `R` against `kem` (`IND_CPA_Advantage_eq_fixed_branch_dist`), where
   `R_real` and `R_random` are the IND-CPA experiments handing `R` the encapsulated key and an
@@ -47,9 +49,10 @@ Two corollaries: `security` sums over `0 ≤ t ≤ 2q`, since `AdvINDCPA_KEM(kem
 
 Paths are relative to `OppBiKEM/Security/`.
 
-**Notation.** Every game runs `adv` from the initial game state and returns its output bit. The
-games at a target epoch `t` come in two *versions* `x ∈ {real, random}`: a challenge at `t`
-returns the recorded key in `real` and an independent uniform key in `random`.
+**Notation.** Every game runs `adv` from the initial game state. It returns the adversary's
+output bit, or `false` if the run stops. The games at a target epoch `t` come in two *versions*
+`x ∈ {real, random}`: an eligible challenge at `t` returns the recorded key in `real` and an
+independent uniform key in `random`.
 
 - **`I_b`**, the *ideal game*: `G_b` without decapsulation. Each party's receive copies the
   peer's recorded key for the received epoch instead of decapsulating
@@ -61,9 +64,9 @@ returns the recorded key in `real` and an independent uniform key in `random`.
 - **Exposure**: an epoch `t` is *exposed* once a permitted corruption or leaking send reveals
   its secret key or coins (`Exposure`); the game then rejects challenges at `t`.
 - **`S_t^x`**, the *stopped hybrid*: the hybrids on either side of `t`, stopped at the first
-  query after which `t` is exposed. `S_t^real := H_t` (recorded key at `t`) and
-  `S_t^random := H_{t+1}` (uniform key at `t`), each returning `false` on stopping
-  (`stoppedHybridExp … t t adv` and `… t (t + 1) adv`, `Cancellation`).
+  query after which `t` is exposed. `S_t^real := stoppedHybridExp … t t adv` is the stopped
+  version of `H_t`, and `S_t^random := stoppedHybridExp … t (t + 1) adv` of `H_{t+1}`.
+  Both return `false` on stopping (`Cancellation`).
 - **`E_t^x(pk, sk, c, k, r)`**, the *eager hybrid*: `S_t^x` with the target's key pair
   `(pk, sk)`, encapsulation `(c, k)` and uniform challenge key `r` drawn before the run and
   looked up at the queries that would draw them (`stoppedEagerExp … t b pk sk c k r adv`, with
@@ -76,16 +79,9 @@ returns the recorded key in `real` and an independent uniform key in `random`.
   to the encapsulated key in `real` and to an independent uniform key in `random`
   (`indCPAExpProb kem R_t true` and `… false`).
 
-For every target `t > 0`, steps 3 to 5 connect these games, with `k_real := k` and
-`k_random := r`:
-
-```text
-p_{t+1} − p_t = Pr[S_t^random = true] − Pr[S_t^real = true]                      (step 3)
-Pr[S_t^x = true] = E_{(pk, sk), (c, k), r} Pr[E_t^x(pk, sk, c, k, r) = true]       (step 4)
-Pr[E_t^x(pk, sk, c, k, r) = true] = Pr[Sim_t(pk, dummy, c, k_x) = true]           (step 5)
-```
-
-where `(pk, sk) ← KeyGen`, `(c, k) ← Encaps(pk)` and `r ←$ K`.
+Below, `(pk, sk) ← KeyGen`, `(c, k) ← Encaps(pk)` and `r ←$ K` are the target's values, and
+`k_real := k`, `k_random := r`. Steps 4 to 6 assume `t > 0`. The pointwise equality in step 5
+assumes `(pk, sk) ∈ support kem.keygen` and `(c, k) ∈ support (kem.encaps pk)`.
 
 **Proof steps.**
 
@@ -102,13 +98,16 @@ where `(pk, sk) ← KeyGen`, `(c, k) ← Encaps(pk)` and `r ←$ K`.
      epoch is at most twice the number of committed epoch advances, which is at most `q`
      (`probOutput_hybridExp_top`, `keyed_epoch_le_two_mul_advances`).
 
-   Main result: for every `δ ≥ 0` with `|p_{t+1} − p_t| ≤ δ t` at every `1 ≤ t ≤ 2q`,
+   Main result: for every `δ : ℕ → ℝ` with `0 ≤ δ t` for all `t` and
+   `|p_{t+1} − p_t| ≤ δ t` at every `1 ≤ t ≤ 2q`,
    `AdvGuess_SCKA(scka, adv) ≤ q · ε + (1/2) · Σ_{t=0}^{2q} δ t`
    (`sckaGuessAdvantage_le_of_hop_bound`).
 
 3. *Exposure cancellation* (`Cancellation`).
-   - `H_t` and `H_{t+1}` differ only at a challenge of `t`, which is rejected once `t` is
-     exposed, so stopping both at the first exposure of `t` preserves their difference.
+   - `H_t` and `H_{t+1}` differ only at an accepted challenge of `t`. Exposure of `t` prevents
+     later challenges of `t`, and an accepted challenge prevents later exposure of `t`. Thus paths
+     that expose `t` never reach a differing challenge answer. From exposure onward, the
+     hybrids agree, so stopping removes equal contributions to acceptance.
 
    Main result: `p_{t+1} − p_t = Pr[S_t^random = true] − Pr[S_t^real = true]`
    (`hybridExp_sub_eq_stopped_sub`).
@@ -116,11 +115,11 @@ where `(pk, sk) ← KeyGen`, `(c, k) ← Encaps(pk)` and `r ←$ K`.
 4. *Eager sampling* (`Reduction`, `Injected`, `Eager`).
    - `S_t^x` draws the target's key pair at the owner's generating send, the encapsulation at
      the peer's encapsulating send and, in `random`, the challenge key at the challenge of `t`;
-     `E_t^x` holds them from the start. Each sample is consumed by one query, so drawing it in
-     advance or at that query gives the same acceptance probability (one-use sampling,
-     `optionRun_sample_once_eq_sampleEachQuery`). The states reached with injected values
-     satisfy the injected-state invariant `InjInv` (`Injected`), which pins the injected values
-     wherever the state holds them.
+     `E_t^x` holds them from the start. Each sample is consumed by at most one query.
+     Drawing it in advance or at that query gives the same acceptance probability, and an
+     unused sample integrates out (one-use sampling, `optionRun_sample_once_eq_sampleEachQuery`).
+     The continuing states reached with injected values satisfy the injected-state invariant
+     `InjInv` (`Injected`), which pins the injected values wherever the state holds them.
 
    Main result: `Pr[S_t^x = true] = E_{(pk, sk), (c, k), r} Pr[E_t^x(pk, sk, c, k, r) = true]`
    (`probOutput_stoppedHybridExp_eq_eager`).
@@ -131,8 +130,10 @@ where `(pk, sk) ← KeyGen`, `(c, k) ← Encaps(pk)` and `r ←$ K`.
      placeholder `dummy`, the peer's encapsulation at `t` returns `(c, k*)`, receives are ideal,
      challenges below `t` are uniform and the challenge of `t` returns the recorded `k*`, and
      the run stops with output `false` once `t` is exposed. The state map
-     `targetStateMap t dummy k_x` sends the states of `E_t^x` to those of `Sim_t`, and every
-     oracle commutes with it.
+     `targetStateMap t dummy k_x` relates the continuing states of `E_t^x` and `Sim_t`.
+     On an `InjInv` state with `t` unexposed, continuing answers and mapped successors have
+     matching joint distributions. Stopped queries have equal probability mass, without
+     requiring their successor states to correspond.
 
    Main result: `Pr[E_t^x(pk, sk, c, k, r) = true] = Pr[Sim_t(pk, dummy, c, k_x) = true]` for
    every placeholder `dummy` (`probOutput_stoppedEagerExp_eq_reductionRun`).
@@ -144,6 +145,19 @@ where `(pk, sk) ← KeyGen`, `(c, k) ← Encaps(pk)` and `r ←$ K`.
      step 3, `|p_{t+1} − p_t| = AdvINDCPA_KEM(kem, R_t)` for `t > 0` (`hybrid_hop_eq_reduction`).
    - Substituting `δ t := AdvINDCPA_KEM(kem, R_t)` for `t > 0` and `δ 0 := 0` into step 2 gives
      `security_positive`.
+
+**Summary.** Writing `Δ_t^S := |Pr[S_t^random = true] − Pr[S_t^real = true]|` and
+`Δ_t^R := |Pr[R_t^random = true] − Pr[R_t^real = true]|`, the steps assemble as follows:
+
+```text
+AdvGuess_SCKA(scka, adv)
+  = |Pr[G_true = true] − Pr[G_false = true]| / 2             (definition)
+  ≤ q · ε + |Pr[I_true = true] − Pr[I_false = true]| / 2     (step 1)
+  ≤ q · ε + (1/2) · Σ_{t=0}^{2q} |p_{t+1} − p_t|             (step 2)
+  = q · ε + (1/2) · Σ_{t=1}^{2q} Δ_t^S                        (step 3, and p_1 = p_0)
+  = q · ε + (1/2) · Σ_{t=1}^{2q} Δ_t^R                        (steps 4 to 6)
+  = q · ε + (1/2) · Σ_{t=1}^{2q} AdvINDCPA_KEM(kem, R_t)       (definition)
+```
 
 Supporting modules: `Basic` (interface, send budget), `Exposure` (exposure policy),
 `SCKA.Security` (generic oracle facts), ToVCVio (sampling, stopping, identical-until-bad).
