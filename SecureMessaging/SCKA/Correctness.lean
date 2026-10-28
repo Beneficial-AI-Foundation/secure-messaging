@@ -424,3 +424,68 @@ theorem correctness_error_le_of_potential [DecidableEq I]
   exact hrun ik hik stA hA stB hB
 
 end SCKAScheme
+
+/-! ### Running the uniform-sampling oracle -/
+
+namespace SCKAScheme
+
+/-- The uniform-sampling oracle keeps the state. -/
+lemma oracleUnif_run_eq {StA StB I Rho : Type} (n : ℕ) (s : GameState StA StB I Rho) :
+    (SCKAScheme.oracleUnif StA StB I Rho n).run s =
+      (fun x => (x, s)) <$> ((QueryImpl.ofLift unifSpec ProbComp) n) := by
+  simp [SCKAScheme.oracleUnif, QueryImpl.liftTarget, StateT.run_monadLift,
+    map_eq_bind_pure_comp]
+
+
+/-! ### Running the leaking sends -/
+
+variable {IK StA StB I Rho Rand : Type} [DecidableEq I]
+  (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+
+/-- A's leaking send as a map over the scheme's leaking send. -/
+lemma oracleSendArleak_run_eq (leak : StA → Rand → Finset ℕ)
+    (s : SCKAScheme.GameState StA StB I Rho) :
+    (SCKAScheme.oracleSendArleak leak scka ()).run s =
+      (fun out => match out with
+        | none => (none, s)
+        | some (keyOpt, ρ, tsnd, stA', rand) =>
+            if leak s.stA rand ∩ s.challenged ≠ ∅ then (none, s)
+            else (some (tsnd, keyOpt.map Prod.fst, ρ, rand),
+              { SCKAScheme.sendAUpdate s keyOpt ρ tsnd stA' with
+                  exposed := s.exposed ∪ leak s.stA rand })) <$> scka.sendArleak s.stA := by
+  simp only [SCKAScheme.oracleSendArleak, StateT.run_bind, StateT.run_get, pure_bind,
+    StateT.run_monadLift, monadLift_self, bind_assoc, map_eq_bind_pure_comp]
+  refine bind_congr fun out => ?_
+  rcases out with _ | ⟨_ | ⟨tI, key⟩, ρ, tsnd, stA', rand⟩
+  · rfl
+  · dsimp only
+    split_ifs with h <;> simp [h, SCKAScheme.sendAUpdate, SCKAScheme.knownPrefix,
+      StateT.run_set, StateT.run_pure]
+  · dsimp only
+    split_ifs with h <;> simp [h, SCKAScheme.sendAUpdate, SCKAScheme.knownPrefix,
+      StateT.run_set, StateT.run_pure]
+
+/-- B's leaking send as a map over the scheme's leaking send. -/
+lemma oracleSendBrleak_run_eq (leak : StB → Rand → Finset ℕ)
+    (s : SCKAScheme.GameState StA StB I Rho) :
+    (SCKAScheme.oracleSendBrleak leak scka ()).run s =
+      (fun out => match out with
+        | none => (none, s)
+        | some (keyOpt, ρ, tsnd, stB', rand) =>
+            if leak s.stB rand ∩ s.challenged ≠ ∅ then (none, s)
+            else (some (tsnd, keyOpt.map Prod.fst, ρ, rand),
+              { SCKAScheme.sendBUpdate s keyOpt ρ tsnd stB' with
+                  exposed := s.exposed ∪ leak s.stB rand })) <$> scka.sendBrleak s.stB := by
+  simp only [SCKAScheme.oracleSendBrleak, StateT.run_bind, StateT.run_get, pure_bind,
+    StateT.run_monadLift, monadLift_self, bind_assoc, map_eq_bind_pure_comp]
+  refine bind_congr fun out => ?_
+  rcases out with _ | ⟨_ | ⟨tI, key⟩, ρ, tsnd, stB', rand⟩
+  · rfl
+  · dsimp only
+    split_ifs with h <;> simp [h, SCKAScheme.sendBUpdate, SCKAScheme.knownPrefix,
+      StateT.run_set, StateT.run_pure]
+  · dsimp only
+    split_ifs with h <;> simp [h, SCKAScheme.sendBUpdate, SCKAScheme.knownPrefix,
+      StateT.run_set, StateT.run_pure]
+
+end SCKAScheme
