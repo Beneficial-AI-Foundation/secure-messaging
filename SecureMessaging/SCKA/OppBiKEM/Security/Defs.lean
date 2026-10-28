@@ -73,12 +73,14 @@ abbrev SecurityAdversary
 
 /-- Every oracle-response path of `adv` makes at most `q` ordinary or leaking sends in total.
 Other queries may occur adaptively in any number and order. -/
+-- ANCHOR: SecuritySendQueryBound
 def SecuritySendQueryBound
     {kem : KEMScheme ProbComp K PK SK C}
     {leak : kem.RandLeak}
     (adv : SecurityAdversary leak Sym) (q : ℕ) : Prop :=
   adv.IsQueryBoundP
     (fun t => SCKAScheme.sckaSecuritySpec.isSendQuery t = true) q
+-- ANCHOR_END: SecuritySendQueryBound
 
 /-! ## The exposure policy -/
 
