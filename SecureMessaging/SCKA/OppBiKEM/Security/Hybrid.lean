@@ -15,8 +15,9 @@ import VCVio.ProgramLogic.Relational.SimulateQ
 `ε := kem.correctnessError` the KEM correctness error. The *hybrid* `H_T := hybridExp … T adv`
 with threshold `T` is the ideal game answering eligible challenges at epochs below `T` with
 independent uniform keys and all others with the recorded key
-(`hybridSecurityImpl (hybridRandom T)`); its table values, sends, receives, leaking sends and
-corruptions are those of the ideal game. Let `p_T := Pr[H_T = true]`.
+(`hybridSecurityImpl (hybridRandom T)`, with `hybridRandom` from `Defs`); its table values,
+sends, receives, leaking sends and corruptions are those of the ideal game. Let
+`p_T := Pr[H_T = true]`.
 
 ```text
 epoch    0   1   …   T−1   T   T+1   …
@@ -47,9 +48,6 @@ open OracleSpec OracleComp KEMScheme ENNReal
 namespace oppBiKemCKA
 
 variable {K PK SK C Sym : Type}
-
-/-- Random challenge answers exactly at the epochs below the threshold `T`. -/
-def hybridRandom (T : ℕ) : ℕ → Bool := fun t => decide (t < T)
 
 /-- Threshold `0` selects no epoch. -/
 lemma hybridRandom_zero : hybridRandom 0 = fun _ => false := by

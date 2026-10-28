@@ -9,8 +9,8 @@ import SecureMessaging.SCKA.OppBiKEM.Security.Basic
 /-!
 # Opp-BiKEM — Exposure policy
 
-**Main results.** The exposure policy `exposure role leak` of Opp-BiKEM's security game declares
-which epochs a corruption or an accepted leaking send exposes:
+**Main results.** The exposure policy `exposure role leak` of Opp-BiKEM's security game
+(`Defs`) declares which epochs a corruption or an accepted leaking send exposes:
 
 - a corruption of a party exposes the positive epochs whose secret keys it retains (`vuln`,
   `exposure_corrupt`, `mem_vuln_iff`);
@@ -19,9 +19,9 @@ which epochs a corruption or an accepted leaking send exposes:
 
 The epochs exposed by a successful leaking send from a local state `st` depend on `st` alone:
 they are the epochs of the operations the send performs, decided by the guards
-`sendKeygenGuard` and `sendEncapsGuard` (`leakEpochs`, `sendWith_exposure`). Exposure records
-which operations touched an epoch; it does not assert that the leaked coins reconstruct a
-secret, and the security oracle's acceptance guard is a separate condition.
+`sendKeygenGuard` and `sendEncapsGuard` of `Defs` (`leakEpochs`, `sendWith_exposure`). Exposure
+records which operations touched an epoch; it does not assert that the leaked coins reconstruct
+a secret, and the security oracle's acceptance guard is a separate condition.
 -/
 
 open OracleSpec OracleComp KEMScheme
@@ -29,26 +29,6 @@ open OracleSpec OracleComp KEMScheme
 namespace oppBiKemCKA
 
 variable {K PK SK C Sym : Type}
-
-/-- Positive epochs excluded by the presence of key-generation or encapsulation randomness.
-The flags identify operations; the exclusion does not assert key reconstruction. -/
-def rleakEpochs {RK RE : Type} (role : Role)
-    (st : State PK SK C Sym) (rand : SendRand RK RE) : Finset ℕ :=
-  let keyEpoch := st.res.resEpoch + 2 + role.offset
-  let encEpoch := st.res.resEpoch + if rand.keygenRand.isSome then 2 else 0
-  let epochs : Finset ℤ :=
-    (if rand.keygenRand.isSome then {keyEpoch} else ∅) ∪
-    (if rand.encapsRand.isSome then {encEpoch} else ∅)
-  (epochs.filter fun e => 0 < e).image Int.toNat
-
-/-- Build the conservative epoch-exclusion policy for state exposure and send randomness leakage.
-Membership alone does not certify reconstruction or satisfy the oracle's acceptance guard. -/
-def exposure {kem : KEMScheme ProbComp K PK SK C}
-    (role : Role) (leak : kem.RandLeak) :
-    SCKAScheme.VulnerableEpochs (State PK SK C Sym)
-      (SendRand leak.KeygenRand leak.EncapsRand) where
-  corrupt := vuln
-  rleak := rleakEpochs role
 
 /-- The corruption policy of `exposure` is `vuln`. -/
 @[simp] lemma exposure_corrupt {kem : KEMScheme ProbComp K PK SK C}
@@ -61,22 +41,6 @@ def exposure {kem : KEMScheme ProbComp K PK SK C}
     (role : Role) (leak : kem.RandLeak) :
     (exposure (Sym := Sym) role leak).rleak = rleakEpochs role :=
   rfl
-
-/-- Whether the send control flow generates a key pair and advances the responder epoch.
-This guard constrains the local public key and ciphertext acknowledgements. -/
-def sendKeygenGuard (role : Role) (st : State PK SK C Sym) : Bool :=
-  st.req.ek.isNone &&
-    decide (st.res.resEpoch ∈ st.ack.ctRec ∧
-      st.res.resEpoch + role.offset ∈ st.ack.ctRec)
-
-/-- The encapsulation control-flow guard, after any key-generation epoch advance and before
-peer-key lookup. It does not assert that the peer key exists or that the send succeeds. -/
-def sendEncapsGuard (role : Role) (st : State PK SK C Sym) : Bool :=
-  let tRes := st.res.resEpoch + if sendKeygenGuard role st then 2 else 0
-  decide (tRes + role.offset ∈ st.ack.ekRec) &&
-    decide (tRes ∉ st.ack.ctRec) &&
-    st.res.ct.isNone &&
-    decide (tRes ∈ st.ack.ekRec)
 
 /-- Positive epochs excluded by the send-operation guards in the initial state.
 The unit values record presence only, rather than actual coins or key reconstruction. -/

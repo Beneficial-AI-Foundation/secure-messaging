@@ -4,16 +4,14 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.OppBiKEM.Construction
-import SecureMessaging.ErasureCode.Payload
-import VCVio.OracleComp.QueryTracking.QueryBound
+import SecureMessaging.SCKA.OppBiKEM.Security.Defs
 
 /-!
 # Opp-BiKEM — Security interface
 
-**Main results.** The SCKA security interface of Opp-BiKEM admits Boolean adversaries `adv`
-(`securitySpec`, `SecurityAdversary`), whose *send budget* `q` bounds the ordinary and leaking
-sends on every oracle-response path (`SecuritySendQueryBound adv q`).
+**Main result.** The SCKA security interface of Opp-BiKEM admits Boolean adversaries `adv`
+(`securitySpec`, `SecurityAdversary`, `Defs`), whose *send budget* `q` bounds the ordinary and
+leaking sends on every oracle-response path (`SecuritySendQueryBound adv q`, `Defs`).
 
 - A leaking send without its coins is the ordinary send, for either role and every local state
   (`sendWith_rleak_forget`).
@@ -24,32 +22,6 @@ open OracleSpec OracleComp KEMScheme
 namespace oppBiKemCKA
 
 variable {K PK SK C Sym : Type}
-
-/-- Opp-BiKEM's full SCKA oracle interface, with erasure-code symbols `Sym` and
-coin types determined by `leak`. -/
-abbrev securitySpec
-    {kem : KEMScheme ProbComp K PK SK C}
-    (leak : kem.RandLeak) (Sym : Type) :=
-  SCKAScheme.sckaSecuritySpec
-    (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)
-    (SendRand leak.KeygenRand leak.EncapsRand)
-
-/-- An adversary against `securitySpec leak Sym`, returning a Boolean guess. -/
-abbrev SecurityAdversary
-    {kem : KEMScheme ProbComp K PK SK C}
-    (leak : kem.RandLeak) (Sym : Type) :=
-  SCKAScheme.SCKAAdversary
-    (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)
-    (SendRand leak.KeygenRand leak.EncapsRand)
-
-/-- Every oracle-response path of `adv` makes at most `q` ordinary or leaking sends in total.
-Other queries may occur adaptively in any number and order. -/
-def SecuritySendQueryBound
-    {kem : KEMScheme ProbComp K PK SK C}
-    {leak : kem.RandLeak}
-    (adv : SecurityAdversary leak Sym) (q : ℕ) : Prop :=
-  adv.IsQueryBoundP
-    (fun t => SCKAScheme.sckaSecuritySpec.isSendQuery t = true) q
 
 /-- For either role and every local state, dropping the returned coins from the leaking-send
 engine gives the ordinary send computation, including effects preceding a failed send. -/

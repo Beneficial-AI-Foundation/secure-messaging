@@ -210,17 +210,18 @@ key[me, t] := k</code></pre></div>
     <thead><tr><th>Step</th><th>Module</th><th>Headline declaration</th></tr></thead>
     <tbody>
       <tr><td>The game, the oracles, the advantage</td><td><code>SCKA/Defs.lean</code>, <code>SCKA/Security.lean</code></td><td><code>securityExp</code>, <code>sckaGuessAdvantage</code>, <code>oracleChall</code></td></tr>
-      <tr><td>The scheme and its exposure rule</td><td><code>OppBiKEM/Construction.lean</code>, <code>Security/Exposure.lean</code></td><td><code>sendWith</code>, <code>recv</code>, <code>exposure</code></td></tr>
+      <tr><td>The scheme and its exposure rule</td><td><code>OppBiKEM/Construction.lean</code>, <code>Security/Defs.lean</code></td><td><code>sendWith</code>, <code>recv</code>, <code>exposure</code></td></tr>
+      <tr><td>Every definition the theorem's statement depends on</td><td><code>Security/Defs.lean</code></td><td><code>SecurityAdversary</code>, <code>exposure</code>, <code>reduction</code></td></tr>
       <tr><td>Leaks are honest sends</td><td><code>Security/Basic.lean</code></td><td><code>sendWith_rleak_forget</code></td></tr>
       <tr><td>Invariant and failure budget</td><td><code>Security/Tracked.lean</code>, <code>Security/BadEvent.lean</code></td><td><code>security_kemFailure_le</code></td></tr>
       <tr><td>Ideal receive and real-to-ideal</td><td><code>Security/IdealReceive.lean</code>, <code>Security/Endpoints.lean</code></td><td><code>security_ideal_endpoint_le</code></td></tr>
       <tr><td>Epoch count</td><td><code>Security/EpochCount.lean</code></td><td><code>keyed_epoch_le_two_mul_advances</code></td></tr>
       <tr><td>Hybrids and telescoping</td><td><code>Security/Hybrid.lean</code></td><td><code>sckaGuessAdvantage_le_of_hop_bound</code></td></tr>
-      <tr><td>Stop and cancel; the reduction</td><td><code>Security/Cancellation.lean</code>, <code>Security/Reduction.lean</code></td><td><code>hybridExp_sub_eq_stopped_sub</code>, <code>reduction</code></td></tr>
+      <tr><td>Stop and cancel; the reduction</td><td><code>Security/Cancellation.lean</code>, <code>Security/Defs.lean</code></td><td><code>hybridExp_sub_eq_stopped_sub</code>, <code>reduction</code></td></tr>
       <tr><td>Injected-state invariant</td><td><code>Security/Injected.lean</code></td><td><code>injectedSecurityImpl_preservesInv_continuing</code></td></tr>
       <tr><td>Eager sampling</td><td><code>Security/Eager.lean</code></td><td><code>probOutput_stoppedHybridExp_eq_eager</code></td></tr>
       <tr><td>State map</td><td><code>Security/Simulation.lean</code></td><td><code>probOutput_stoppedEagerExp_eq_reductionRun</code></td></tr>
-      <tr><td>The theorem</td><td><code>OppBiKEM/Security.lean</code></td><td><code>security_positive</code>, <code>security</code>, <code>security_uniform</code></td></tr>
+      <tr><td>The theorem, and its proof</td><td><code>OppBiKEM/Security.lean</code>, <code>Security/Proofs.lean</code></td><td><code>security_positive</code>, <code>security</code>, <code>security_uniform</code></td></tr>
       <tr><td>Generic tools</td><td><code>ToVCVio/…/Stop.lean</code>, <code>…/OneUseSampling.lean</code>, <code>…/IdenticalUntilBadInvariant.lean</code></td><td>signed gap, one-use sampling, state-map transport, identical-until-bad</td></tr>
     </tbody>
   </table></div>

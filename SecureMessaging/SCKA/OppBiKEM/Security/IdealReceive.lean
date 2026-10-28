@@ -12,9 +12,9 @@ import SecureMessaging.SCKA.OppBiKEM.Security.Tracked
 **Setting.** The *ideal game* `I_b := idealSecurityExp … b adv` is the SCKA security game of
 Opp-BiKEM with challenge bit `b` in which each party's receive copies the peer's recorded key
 for the received epoch instead of decapsulating (`idealRecover`, `oracleRecvAIdeal`,
-`oracleRecvBIdeal`). Its oracles `idealSecurityImpl b` are the security oracles over the ideal
-correctness oracles `idealCorrectnessImpl`, with the fixed-bit challenge, the exposure policy
-and the honest leaking sends and corruptions.
+`oracleRecvBIdeal`, `Defs`). Its oracles `idealSecurityImpl b` are the security oracles over
+the ideal correctness oracles `idealCorrectnessImpl`, with the fixed-bit challenge, the exposure
+policy and the honest leaking sends and corruptions.
 
 **Main results.**
 
@@ -30,47 +30,6 @@ open OracleSpec OracleComp KEMScheme
 namespace oppBiKemCKA
 
 variable {K PK SK C Sym : Type}
-
-/-- Recovery by the peer's recorded key: ignore the secret key and ciphertext and return the
-peer's table entry for the received epoch. -/
-def idealRecover (peerKey : ℕ → Option K) : ℤ → SK → C → Option K :=
-  fun q _ _ => peerKey q.toNat
-
-/-- The Opp-BiKEM scheme with both receive algorithms replaced. -/
-def schemeWithRecv [DecidableEq Sym]
-    (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
-    (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym) (leak : kem.RandLeak)
-    (recvA' : StA PK SK C Sym → Message Sym → Option (Option (ℕ × K) × ℕ × StA PK SK C Sym))
-    (recvB' : StB PK SK C Sym → Message Sym → Option (Option (ℕ × K) × ℕ × StB PK SK C Sym)) :
-    SCKAScheme ProbComp Unit (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)
-      (SendRand leak.KeygenRand leak.EncapsRand) :=
-  { scheme kem hDet ecEk ecCt leak with recvA := recvA', recvB := recvB' }
-
-/-- A's ideal receive oracle: A receives with B's recorded keys of the current game state in
-place of decapsulation. -/
-def oracleRecvAIdeal [DecidableEq K] [DecidableEq Sym]
-    (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
-    (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym) (leak : kem.RandLeak) :
-    QueryImpl (ℕ →ₒ Option (ℕ × Option ℕ))
-      (StateT (SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
-        ProbComp) :=
-  fun n => do
-    let s ← get
-    SCKAScheme.oracleRecvA (schemeWithRecv kem hDet ecEk ecCt leak
-      (recvWith .A (idealRecover s.keyB) ecEk ecCt) (recvB kem hDet ecEk ecCt)) n
-
-/-- B's ideal receive oracle: B receives with A's recorded keys of the current game state in
-place of decapsulation. -/
-def oracleRecvBIdeal [DecidableEq K] [DecidableEq Sym]
-    (kem : KEMScheme ProbComp K PK SK C) (hDet : kem.DeterministicDecaps)
-    (ecEk : ErasureCodePayload PK Sym) (ecCt : ErasureCodePayload C Sym) (leak : kem.RandLeak) :
-    QueryImpl (ℕ →ₒ Option (ℕ × Option ℕ))
-      (StateT (SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym))
-        ProbComp) :=
-  fun n => do
-    let s ← get
-    SCKAScheme.oracleRecvB (schemeWithRecv kem hDet ecEk ecCt leak
-      (recvA kem hDet ecEk ecCt) (recvWith .B (idealRecover s.keyA) ecEk ecCt)) n
 
 /-- The ideal correctness oracles: the real sends and uniform sampling, with both receives
 ideal. -/

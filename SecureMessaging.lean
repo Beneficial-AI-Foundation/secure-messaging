@@ -100,6 +100,7 @@ import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.RecvStep
 import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.SendStep
 import SecureMessaging.SCKA.OppBiKEM.Correctness.Quantitative.Main
 import SecureMessaging.SCKA.OppBiKEM.Correctness.PerfectKEM
+import SecureMessaging.SCKA.OppBiKEM.Security.Defs
 import SecureMessaging.SCKA.OppBiKEM.Security.Basic
 import SecureMessaging.SCKA.OppBiKEM.Security.Exposure
 import SecureMessaging.SCKA.OppBiKEM.Security.Tracked
@@ -113,6 +114,7 @@ import SecureMessaging.SCKA.OppBiKEM.Security.Reduction
 import SecureMessaging.SCKA.OppBiKEM.Security.Injected
 import SecureMessaging.SCKA.OppBiKEM.Security.Eager
 import SecureMessaging.SCKA.OppBiKEM.Security.Simulation
+import SecureMessaging.SCKA.OppBiKEM.Security.Proofs
 import SecureMessaging.SCKA.OppBiKEM.Security
 import SecureMessaging.SCKA.OppUniKEM.Correctness
 import SecureMessaging.SCKA.OppUniKEM.Security.Endpoints

@@ -13,7 +13,7 @@ import ToVCVio.OracleComp.SimSemantics.StateT.Stop
 **Setting.** Fix a target epoch `t`. Let `H_T := hybridExp … T adv` be the hybrid with
 threshold `T` and `p_T := Pr[H_T = true]` (`Hybrid`). The *stopped hybrid*
 `stoppedHybridExp … t T adv` is `H_T` stopped with output `false` at the first query after which
-`t` is exposed (`targetExposed t`, `stoppedRun`). Write
+`t` is exposed (`targetExposed t` of `Defs`, `stoppedRun`). Write
 
 ```text
 S_t^real   := stoppedHybridExp … t t adv         -- H_t stopped at t:     recorded key at t
@@ -39,11 +39,6 @@ open OracleSpec OracleComp KEMScheme ENNReal
 namespace oppBiKemCKA
 
 variable {K PK SK C Sym : Type}
-
-/-- The stopping test for target epoch `t`: `t` is exposed. -/
-def targetExposed (t : ℕ)
-    (s : SCKAScheme.GameState (StA PK SK C Sym) (StB PK SK C Sym) K (Message Sym)) : Bool :=
-  decide (t ∈ s.exposed)
 
 /-- Committed states for target epoch `t`: `t` is challenged and not exposed. From such a state
 the challenge of `t` is rejected and `t` can no longer be exposed. -/
