@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Beneficial AI Foundation
 -/
 
-import SecureMessaging.SCKA.Defs
+import SecureMessaging.SCKA.Correctness
 import ToVCVio.OracleComp.SimSemantics.StateT.Stop
 import ToVCVio.ProgramLogic.Unary.WP
 
@@ -129,17 +129,6 @@ theorem oracleChall_adds_challenged (b : Bool) (s : GameState StA StB I Rho) (t 
 
 end Challenge
 
-/-- The challenge oracle `oracleChall` preserves every predicate `Inv` on game states that is
-insensitive to `challenged`: `Inv s → Inv { s with challenged := C }` for every `C`. -/
-theorem oracleChall_preservesInv [SampleableType I] (b : Bool)
-    (Inv : GameState StA StB I Rho → Prop)
-    (hbook : ∀ s challenged, Inv s → Inv { s with challenged := challenged }) :
-    QueryImpl.PreservesInv (oracleChall b StA StB I Rho) Inv := by
-  intro t s hs z hz
-  rcases oracleChall_support b s t z hz with ⟨h, _⟩ | ⟨_, _, h⟩
-  · rw [h]; exact hs
-  · rw [h]; exact hbook s _ hs
-
 /-- Bookkeeping condition on a challenge oracle `chall`: every possible successor of a challenge
 at epoch `t` from `s` is `s` itself, or, when `t ∉ s.exposed`, `s` with `t` added to
 `challenged`. In particular, `chall` changes neither the party states nor the recorded keys. -/
@@ -196,6 +185,14 @@ theorem challOf_recordsChallenges [SampleableType I] (mode : ℕ → Bool) :
   rcases oracleChall_support (mode t) s t z hz with ⟨h, _⟩ | ⟨helig, _, h⟩
   · exact Or.inl (by rw [h])
   · exact Or.inr ⟨fun ht => helig (Or.inl ht), h⟩
+
+/-- The challenge oracle `oracleChall` preserves every predicate `Inv` on game states that is
+insensitive to `challenged`: `Inv s → Inv { s with challenged := C }` for every `C`. -/
+theorem oracleChall_preservesInv [SampleableType I] (b : Bool)
+    (Inv : GameState StA StB I Rho → Prop)
+    (hbook : ∀ s challenged, Inv s → Inv { s with challenged := challenged }) :
+    QueryImpl.PreservesInv (oracleChall b StA StB I Rho) Inv :=
+  (challOf_recordsChallenges (fun _ => b)).preservesInv Inv hbook
 
 /-! ### Corruption -/
 
@@ -331,6 +328,51 @@ section LeakingSend
 
 variable [DecidableEq I]
 
+/-- Run A's leaking send, reject without changing `s` if it exposes a challenged epoch, and
+otherwise apply `sendAUpdate`, add the exposed epochs, and return the send report and coins. -/
+theorem oracleSendArleak_run_eq
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (leak : StA → Rand → Finset ℕ) (s : GameState StA StB I Rho) :
+    (oracleSendArleak leak scka ()).run s =
+      (fun out => match out with
+        | none => (none, s)
+        | some (keyOpt, ρ, tsnd, stA', coins) =>
+            let E := leak s.stA coins
+            if E ∩ s.challenged ≠ ∅ then (none, s)
+            else (some (tsnd, keyOpt.map Prod.fst, ρ, coins),
+              { sendAUpdate s keyOpt ρ tsnd stA' with exposed := s.exposed ∪ E })) <$>
+        scka.sendArleak s.stA := by
+  simp only [oracleSendArleak, StateT.run_bind, StateT.run_get, pure_bind,
+    StateT.run_monadLift, monadLift_self, bind_assoc, map_eq_bind_pure_comp]
+  refine bind_congr fun out => ?_
+  rcases out with _ | ⟨keyOpt, ρ, tsnd, stA', coins⟩
+  · rfl
+  · by_cases h : leak s.stA coins ∩ s.challenged ≠ ∅
+    · simp [h, StateT.run_pure]
+    · cases keyOpt <;> simp [h, sendAUpdate, knownPrefix, StateT.run_set]
+
+/-- The version of `oracleSendArleak_run_eq` for B. -/
+theorem oracleSendBrleak_run_eq
+    (scka : SCKAScheme ProbComp IK StA StB I Rho Rand)
+    (leak : StB → Rand → Finset ℕ) (s : GameState StA StB I Rho) :
+    (oracleSendBrleak leak scka ()).run s =
+      (fun out => match out with
+        | none => (none, s)
+        | some (keyOpt, ρ, tsnd, stB', coins) =>
+            let E := leak s.stB coins
+            if E ∩ s.challenged ≠ ∅ then (none, s)
+            else (some (tsnd, keyOpt.map Prod.fst, ρ, coins),
+              { sendBUpdate s keyOpt ρ tsnd stB' with exposed := s.exposed ∪ E })) <$>
+        scka.sendBrleak s.stB := by
+  simp only [oracleSendBrleak, StateT.run_bind, StateT.run_get, pure_bind,
+    StateT.run_monadLift, monadLift_self, bind_assoc, map_eq_bind_pure_comp]
+  refine bind_congr fun out => ?_
+  rcases out with _ | ⟨keyOpt, ρ, tsnd, stB', coins⟩
+  · rfl
+  · by_cases h : leak s.stB coins ∩ s.challenged ≠ ∅
+    · simp [h, StateT.run_pure]
+    · cases keyOpt <;> simp [h, sendBUpdate, knownPrefix, StateT.run_set]
+
 /-- Every possible result of A's leaking send from `s` is `(none, s)`, or has a successor with
 `exposed = s.exposed ∪ E` (`E ∩ s.challenged = ∅`), the same `challenged`, and `nA = s.nA + 1`. -/
 theorem oracleSendArleak_support
@@ -341,22 +383,16 @@ theorem oracleSendArleak_support
     z = (none, s) ∨
       ∃ E : Finset ℕ, E ∩ s.challenged = ∅ ∧ z.2.exposed = s.exposed ∪ E ∧
         z.2.challenged = s.challenged ∧ z.2.nA = s.nA + 1 := by
-  simp only [oracleSendArleak, StateT.run_bind, StateT.run_get, StateT.run_monadLift,
-    monadLift_self, bind_assoc, pure_bind, mem_support_bind_iff] at hz
-  obtain ⟨out, _, hz⟩ := hz
-  cases out with
-  | none => exact Or.inl (by simpa using (mem_support_pure_iff _ _).mp hz)
-  | some out =>
-    rcases out with ⟨key, msg, epoch, state, coins⟩
-    dsimp only at hz
-    split at hz
-    · exact Or.inl (by simpa using (mem_support_pure_iff _ _).mp hz)
+  rw [oracleSendArleak_run_eq, support_map, Set.mem_image] at hz
+  obtain ⟨out, _, rfl⟩ := hz
+  rcases out with _ | ⟨key, msg, epoch, state, coins⟩
+  · exact Or.inl rfl
+  · dsimp only
+    split
+    · exact Or.inl rfl
     · rename_i hguard
       refine Or.inr ⟨leak s.stA coins, not_not.mp hguard, ?_⟩
-      cases key <;>
-        simp only [StateT.run_bind, StateT.run_set, pure_bind, StateT.run_pure,
-          mem_support_pure_iff] at hz
-      all_goals obtain rfl := hz; exact ⟨rfl, rfl, rfl⟩
+      cases key <;> exact ⟨rfl, rfl, rfl⟩
 
 /-- A's leaking send preserves `Disjoint exposed challenged`. -/
 theorem oracleSendArleak_preserves_disjoint
@@ -420,22 +456,16 @@ theorem oracleSendBrleak_support
     z = (none, s) ∨
       ∃ E : Finset ℕ, E ∩ s.challenged = ∅ ∧ z.2.exposed = s.exposed ∪ E ∧
         z.2.challenged = s.challenged ∧ z.2.nA = s.nA := by
-  simp only [oracleSendBrleak, StateT.run_bind, StateT.run_get, StateT.run_monadLift,
-    monadLift_self, bind_assoc, pure_bind, mem_support_bind_iff] at hz
-  obtain ⟨out, _, hz⟩ := hz
-  cases out with
-  | none => exact Or.inl (by simpa using (mem_support_pure_iff _ _).mp hz)
-  | some out =>
-    rcases out with ⟨key, msg, epoch, state, coins⟩
-    dsimp only at hz
-    split at hz
-    · exact Or.inl (by simpa using (mem_support_pure_iff _ _).mp hz)
+  rw [oracleSendBrleak_run_eq, support_map, Set.mem_image] at hz
+  obtain ⟨out, _, rfl⟩ := hz
+  rcases out with _ | ⟨key, msg, epoch, state, coins⟩
+  · exact Or.inl rfl
+  · dsimp only
+    split
+    · exact Or.inl rfl
     · rename_i hguard
       refine Or.inr ⟨leak s.stB coins, not_not.mp hguard, ?_⟩
-      cases key <;>
-        simp only [StateT.run_bind, StateT.run_set, pure_bind, StateT.run_pure,
-          mem_support_pure_iff] at hz
-      all_goals obtain rfl := hz; exact ⟨rfl, rfl, rfl⟩
+      cases key <;> exact ⟨rfl, rfl, rfl⟩
 
 /-- B version of `oracleSendArleak_preserves_disjoint`. -/
 theorem oracleSendBrleak_preserves_disjoint
@@ -506,35 +536,19 @@ theorem oracleSendArleak_preservesInv_at
     (hplain : ∀ z ∈ support ((oracleSendA scka ()).run s), Inv z.2)
     (z : Option (ℕ × Option ℕ × Rho × Rand) × GameState StA StB I Rho)
     (hz : z ∈ support ((oracleSendArleak leak scka ()).run s)) : Inv z.2 := by
-  simp only [oracleSendArleak, StateT.run_bind, StateT.run_get, pure_bind,
-    StateT.run_monadLift, monadLift_self, bind_assoc] at hz
-  rw [mem_support_bind_iff] at hz
-  obtain ⟨out, hout, hz⟩ := hz
-  cases out with
-  | none =>
-      simpa using (mem_support_pure_iff _ _).mp hz ▸ hs
-  | some out =>
-      rcases out with ⟨key, msg, epoch, state, coins⟩
-      have hout' : some (key, msg, epoch, state) ∈ support (scka.sendA s.stA) := by
-        rw [← hm]
-        exact (mem_support_bind_iff _ _ _).mpr ⟨_, hout, by simp⟩
-      dsimp only at hz
-      split at hz
-      · simpa using (mem_support_pure_iff _ _).mp hz ▸ hs
-      · cases key <;>
-          simp only [StateT.run_bind, StateT.run_set, pure_bind,
-            StateT.run_pure, mem_support_pure_iff] at hz
-        all_goals
-          suffices h : Inv { z.2 with exposed := s.exposed } by
-            simpa using hbook _ z.2.exposed h
-          refine hplain
-            (z.1.map (fun (t, ti, msg, _) => (t, ti, msg)),
-              { z.2 with exposed := s.exposed }) ?_
-          obtain rfl := hz
-          simp only [oracleSendA, StateT.run_bind, StateT.run_get, pure_bind,
-            StateT.run_monadLift, monadLift_self, bind_assoc]
-          apply (mem_support_bind_iff _ _ _).mpr
-          exact ⟨_, hout', by simp⟩
+  rw [oracleSendArleak_run_eq, support_map, Set.mem_image] at hz
+  obtain ⟨out, hout, rfl⟩ := hz
+  rcases out with _ | ⟨key, msg, epoch, state, coins⟩
+  · exact hs
+  · dsimp only
+    split
+    · exact hs
+    · apply hbook
+      apply hplain (some (epoch, key.map Prod.fst, msg), sendAUpdate s key msg epoch state)
+      rw [mem_support_oracleSendA_run_iff]
+      refine ⟨some (key, msg, epoch, state), ?_, rfl⟩
+      rw [← hm]
+      exact (mem_support_bind_iff _ _ _).mpr ⟨_, hout, by simp⟩
 
 /-- The version of `oracleSendArleak_preservesInv_at` for B. -/
 theorem oracleSendBrleak_preservesInv_at
@@ -550,35 +564,19 @@ theorem oracleSendBrleak_preservesInv_at
     (hplain : ∀ z ∈ support ((oracleSendB scka ()).run s), Inv z.2)
     (z : Option (ℕ × Option ℕ × Rho × Rand) × GameState StA StB I Rho)
     (hz : z ∈ support ((oracleSendBrleak leak scka ()).run s)) : Inv z.2 := by
-  simp only [oracleSendBrleak, StateT.run_bind, StateT.run_get, pure_bind,
-    StateT.run_monadLift, monadLift_self, bind_assoc] at hz
-  rw [mem_support_bind_iff] at hz
-  obtain ⟨out, hout, hz⟩ := hz
-  cases out with
-  | none =>
-      simpa using (mem_support_pure_iff _ _).mp hz ▸ hs
-  | some out =>
-      rcases out with ⟨key, msg, epoch, state, coins⟩
-      have hout' : some (key, msg, epoch, state) ∈ support (scka.sendB s.stB) := by
-        rw [← hm]
-        exact (mem_support_bind_iff _ _ _).mpr ⟨_, hout, by simp⟩
-      dsimp only at hz
-      split at hz
-      · simpa using (mem_support_pure_iff _ _).mp hz ▸ hs
-      · cases key <;>
-          simp only [StateT.run_bind, StateT.run_set, pure_bind,
-            StateT.run_pure, mem_support_pure_iff] at hz
-        all_goals
-          suffices h : Inv { z.2 with exposed := s.exposed } by
-            simpa using hbook _ z.2.exposed h
-          refine hplain
-            (z.1.map (fun (t, ti, msg, _) => (t, ti, msg)),
-              { z.2 with exposed := s.exposed }) ?_
-          obtain rfl := hz
-          simp only [oracleSendB, StateT.run_bind, StateT.run_get, pure_bind,
-            StateT.run_monadLift, monadLift_self, bind_assoc]
-          apply (mem_support_bind_iff _ _ _).mpr
-          exact ⟨_, hout', by simp⟩
+  rw [oracleSendBrleak_run_eq, support_map, Set.mem_image] at hz
+  obtain ⟨out, hout, rfl⟩ := hz
+  rcases out with _ | ⟨key, msg, epoch, state, coins⟩
+  · exact hs
+  · dsimp only
+    split
+    · exact hs
+    · apply hbook
+      apply hplain (some (epoch, key.map Prod.fst, msg), sendBUpdate s key msg epoch state)
+      rw [mem_support_oracleSendB_run_iff]
+      refine ⟨some (key, msg, epoch, state), ?_, rfl⟩
+      rw [← hm]
+      exact (mem_support_bind_iff _ _ _).mpr ⟨_, hout, by simp⟩
 
 end LeakingSend
 
@@ -615,42 +613,31 @@ theorem oracleSendArleak_wp_le
     (hplain : wp ((oracleSendA scka ()).run s) (fun z => score z.2) ≤ c) :
     wp ((oracleSendArleak leak scka ()).run s) (fun z => score z.2) ≤ c := by
   by_cases hguard : E ∩ s.challenged ≠ ∅
-  · apply wp_le_const_of_support _
-    intro z hz
-    simp only [oracleSendArleak, StateT.run_bind, StateT.run_get, pure_bind,
-      StateT.run_monadLift, monadLift_self, bind_assoc] at hz
-    rw [mem_support_bind_iff] at hz
-    obtain ⟨out, hout, hz⟩ := hz
-    cases out with
-    | none => simpa using (mem_support_pure_iff _ _).mp hz ▸ hs
-    | some out =>
-      rcases out with ⟨key, msg, epoch, state, coins⟩
-      dsimp only at hz
-      rw [hE key msg epoch state coins hout] at hz
-      split at hz
-      · simpa using (mem_support_pure_iff _ _).mp hz ▸ hs
-      · contradiction
+  · rw [oracleSendArleak_run_eq, wp_map]
+    apply wp_le_const_of_support _
+    intro out hout
+    rcases out with _ | ⟨key, msg, epoch, state, coins⟩
+    · exact hs
+    · dsimp only [Function.comp_def]
+      rw [hE key msg epoch state coins hout, ite_eq_left hguard]
+      exact hs
   · suffices heq : wp ((oracleSendArleak leak scka ()).run s)
         (fun z => score z.2) =
         wp ((oracleSendA scka ()).run s) (fun z => score z.2) by
       exact heq ▸ hplain
-    simp only [oracleSendArleak, oracleSendA, StateT.run_bind, StateT.run_get,
-      pure_bind, StateT.run_monadLift, monadLift_self, bind_assoc]
+    simp only [oracleSendArleak_run_eq, oracleSendA_run_eq, map_eq_bind_pure_comp,
+      Function.comp_def]
     rw [← hm s.stA]
     simp only [bind_assoc, pure_bind, wp_bind_eq_tsum]
     apply tsum_congr
     intro out
     by_cases hout : out ∈ support (scka.sendArleak s.stA)
     · cases out with
-      | none => simp only [StateT.run_pure, ExactWPMonad.wp_pure, Option.map_none]
+      | none => simp only [wp_pure, Option.map_none]
       | some out =>
         rcases out with ⟨key, msg, epoch, state, coins⟩
-        simp only [hE key msg epoch state coins hout, hguard, ↓reduceIte]
-        cases key <;> simp only [Option.map_some, StateT.run_bind, StateT.run_set,
-          pure_bind, StateT.run_pure, wp_pure]
-        all_goals
-          congr 1
-          conv_rhs => rw [← hbook _ (s.exposed ∪ E)]
+        simp only [Option.map_some, hE key msg epoch state coins hout, hguard, ↓reduceIte, wp_pure]
+        rw [hbook]
     · have hz : Pr{let x ← scka.sendArleak s.stA}[x = out] = 0 := by
         exact (prEvent_eq_zero_of_not_mem_support _) hout
       simp only [hz, zero_mul]
@@ -673,42 +660,31 @@ theorem oracleSendBrleak_wp_le
     (hplain : wp ((oracleSendB scka ()).run s) (fun z => score z.2) ≤ c) :
     wp ((oracleSendBrleak leak scka ()).run s) (fun z => score z.2) ≤ c := by
   by_cases hguard : E ∩ s.challenged ≠ ∅
-  · apply wp_le_const_of_support _
-    intro z hz
-    simp only [oracleSendBrleak, StateT.run_bind, StateT.run_get, pure_bind,
-      StateT.run_monadLift, monadLift_self, bind_assoc] at hz
-    rw [mem_support_bind_iff] at hz
-    obtain ⟨out, hout, hz⟩ := hz
-    cases out with
-    | none => simpa using (mem_support_pure_iff _ _).mp hz ▸ hs
-    | some out =>
-      rcases out with ⟨key, msg, epoch, state, coins⟩
-      dsimp only at hz
-      rw [hE key msg epoch state coins hout] at hz
-      split at hz
-      · simpa using (mem_support_pure_iff _ _).mp hz ▸ hs
-      · contradiction
+  · rw [oracleSendBrleak_run_eq, wp_map]
+    apply wp_le_const_of_support _
+    intro out hout
+    rcases out with _ | ⟨key, msg, epoch, state, coins⟩
+    · exact hs
+    · dsimp only [Function.comp_def]
+      rw [hE key msg epoch state coins hout, ite_eq_left hguard]
+      exact hs
   · suffices heq : wp ((oracleSendBrleak leak scka ()).run s)
         (fun z => score z.2) =
         wp ((oracleSendB scka ()).run s) (fun z => score z.2) by
       exact heq ▸ hplain
-    simp only [oracleSendBrleak, oracleSendB, StateT.run_bind, StateT.run_get,
-      pure_bind, StateT.run_monadLift, monadLift_self, bind_assoc]
+    simp only [oracleSendBrleak_run_eq, oracleSendB_run_eq, map_eq_bind_pure_comp,
+      Function.comp_def]
     rw [← hm s.stB]
     simp only [bind_assoc, pure_bind, wp_bind_eq_tsum]
     apply tsum_congr
     intro out
     by_cases hout : out ∈ support (scka.sendBrleak s.stB)
     · cases out with
-      | none => simp only [StateT.run_pure, ExactWPMonad.wp_pure, Option.map_none]
+      | none => simp only [wp_pure, Option.map_none]
       | some out =>
         rcases out with ⟨key, msg, epoch, state, coins⟩
-        simp only [hE key msg epoch state coins hout, hguard, ↓reduceIte]
-        cases key <;> simp only [Option.map_some, StateT.run_bind, StateT.run_set,
-          pure_bind, StateT.run_pure, wp_pure]
-        all_goals
-          congr 1
-          conv_rhs => rw [← hbook _ (s.exposed ∪ E)]
+        simp only [Option.map_some, hE key msg epoch state coins hout, hguard, ↓reduceIte, wp_pure]
+        rw [hbook]
     · have hz : Pr{let x ← scka.sendBrleak s.stB}[x = out] = 0 := by
         exact (prEvent_eq_zero_of_not_mem_support _) hout
       simp only [hz, zero_mul]
@@ -733,16 +709,14 @@ theorem oracleSendArleak_rejected_evalDistEq
       leak s.stA coins = E)
     (hguard : E ∩ s.challenged ≠ ∅) :
     (oracleSendArleak leak scka ()).run s =ᵈ (pure (none, s) : ProbComp _) := by
-  simp only [oracleSendArleak, StateT.run_bind, StateT.run_get, pure_bind,
-    StateT.run_monadLift, monadLift_self, bind_assoc]
-  refine ToVCVio.evalDistEq_bind_of_const' _ fun out hout => ?_
+  rw [oracleSendArleak_run_eq, map_eq_bind_pure_comp]
+  refine OracleComp.EvalDistEq.bind_const_of_support _ fun out hout => ?_
   cases out with
   | none => rfl
   | some out =>
     rcases out with ⟨key, msg, epoch, next, coins⟩
-    dsimp only
+    dsimp only [Function.comp_def]
     rw [hE key msg epoch next coins hout, ite_eq_left hguard]
-    rfl
 
 /-- If every local leaking A-send from `s.stA` succeeds with coins `r` such that
 `leak s.stA r = E`, `E ∩ s.challenged = ∅`, and `e ∈ E`, then the query from `s`, stopped at
@@ -760,23 +734,15 @@ theorem oracleSendArleak_stop_of_exposure
     (hz : z ∈ support (((stopOnState (oracleSendArleak leak scka)
       (fun s => decide (e ∈ s.exposed)) ()).run).run s)) :
     z.1 = none := by
-  change z ∈ support (do
-    let out ← (oracleSendArleak leak scka ()).run s
-    pure (if decide (e ∈ out.2.exposed) then none else some out.1, out.2)) at hz
-  simp only [oracleSendArleak, StateT.run_bind, StateT.run_get, pure_bind,
-    StateT.run_monadLift, monadLift_self, bind_assoc, mem_support_bind_iff] at hz
-  obtain ⟨out, hout, hz⟩ := hz
+  rw [stopOnState_run_eq_map, oracleSendArleak_run_eq, Functor.map_map,
+    support_map, Set.mem_image] at hz
+  obtain ⟨out, hout, rfl⟩ := hz
   cases out with
   | none => exact False.elim (hsuccess hout)
   | some out =>
     rcases out with ⟨key, msg, epoch, next, coins⟩
-    simp only [hE key msg epoch next coins hout, hguard, ne_eq, not_true_eq_false,
-      ↓reduceIte] at hz
-    cases key <;>
-      simp only [StateT.run_bind, StateT.run_set, pure_bind, StateT.run_pure,
-        mem_support_pure_iff, exists_eq_left, Finset.mem_union, he, or_true,
-        decide_true, ↓reduceIte] at hz
-    all_goals obtain rfl := hz; rfl
+    simp only [hE key msg epoch next coins hout, hguard, ne_eq,
+      not_true_eq_false, ↓reduceIte, Finset.mem_union, he, or_true, decide_true]
 
 /-- B version of `oracleSendArleak_rejected_evalDistEq`. -/
 theorem oracleSendBrleak_rejected_evalDistEq
@@ -788,16 +754,14 @@ theorem oracleSendBrleak_rejected_evalDistEq
       leak s.stB coins = E)
     (hguard : E ∩ s.challenged ≠ ∅) :
     (oracleSendBrleak leak scka ()).run s =ᵈ (pure (none, s) : ProbComp _) := by
-  simp only [oracleSendBrleak, StateT.run_bind, StateT.run_get, pure_bind,
-    StateT.run_monadLift, monadLift_self, bind_assoc]
-  refine ToVCVio.evalDistEq_bind_of_const' _ fun out hout => ?_
+  rw [oracleSendBrleak_run_eq, map_eq_bind_pure_comp]
+  refine OracleComp.EvalDistEq.bind_const_of_support _ fun out hout => ?_
   cases out with
   | none => rfl
   | some out =>
     rcases out with ⟨key, msg, epoch, next, coins⟩
-    dsimp only
+    dsimp only [Function.comp_def]
     rw [hE key msg epoch next coins hout, ite_eq_left hguard]
-    rfl
 
 /-- B version of `oracleSendArleak_stop_of_exposure`. -/
 theorem oracleSendBrleak_stop_of_exposure
@@ -813,23 +777,15 @@ theorem oracleSendBrleak_stop_of_exposure
     (hz : z ∈ support (((stopOnState (oracleSendBrleak leak scka)
       (fun s => decide (e ∈ s.exposed)) ()).run).run s)) :
     z.1 = none := by
-  change z ∈ support (do
-    let out ← (oracleSendBrleak leak scka ()).run s
-    pure (if decide (e ∈ out.2.exposed) then none else some out.1, out.2)) at hz
-  simp only [oracleSendBrleak, StateT.run_bind, StateT.run_get, pure_bind,
-    StateT.run_monadLift, monadLift_self, bind_assoc, mem_support_bind_iff] at hz
-  obtain ⟨out, hout, hz⟩ := hz
+  rw [stopOnState_run_eq_map, oracleSendBrleak_run_eq, Functor.map_map,
+    support_map, Set.mem_image] at hz
+  obtain ⟨out, hout, rfl⟩ := hz
   cases out with
   | none => exact False.elim (hsuccess hout)
   | some out =>
     rcases out with ⟨key, msg, epoch, next, coins⟩
-    simp only [hE key msg epoch next coins hout, hguard, ne_eq, not_true_eq_false,
-      ↓reduceIte] at hz
-    cases key <;>
-      simp only [StateT.run_bind, StateT.run_set, pure_bind, StateT.run_pure,
-        mem_support_pure_iff, exists_eq_left, Finset.mem_union, he, or_true,
-        decide_true, ↓reduceIte] at hz
-    all_goals obtain rfl := hz; rfl
+    simp only [hE key msg epoch next coins hout, hguard, ne_eq,
+      not_true_eq_false, ↓reduceIte, Finset.mem_union, he, or_true, decide_true]
 
 /-- If `(a ← sample; (family a).sendA s.stA) =ᵈ target.sendA s.stA`, the A-send queries
 from `s` satisfy the same equality of joint response/state distributions. -/
@@ -865,8 +821,7 @@ theorem oracleSendArleak_sample_eq
       target.sendArleak s.stA) :
     (do let a ← sample; (oracleSendArleak leak (family a) ()).run s) =ᵈ
       (oracleSendArleak leak target ()).run s := by
-  simp only [oracleSendArleak, StateT.run_bind, StateT.run_get, pure_bind,
-    StateT.run_monadLift, monadLift_self, bind_assoc]
+  simp only [oracleSendArleak_run_eq, map_eq_bind_pure_comp]
   rw [← bind_assoc]
   exact h.bind_left _
 
@@ -879,8 +834,7 @@ theorem oracleSendBrleak_sample_eq
       target.sendBrleak s.stB) :
     (do let a ← sample; (oracleSendBrleak leak (family a) ()).run s) =ᵈ
       (oracleSendBrleak leak target ()).run s := by
-  simp only [oracleSendBrleak, StateT.run_bind, StateT.run_get, pure_bind,
-    StateT.run_monadLift, monadLift_self, bind_assoc]
+  simp only [oracleSendBrleak_run_eq, map_eq_bind_pure_comp]
   rw [← bind_assoc]
   exact h.bind_left _
 
@@ -908,9 +862,7 @@ theorem oracleSendArleak_run_congr
     (scka scka' : SCKAScheme ProbComp IK StA StB I Rho Rand) (s : GameState StA StB I Rho)
     (h : scka.sendArleak s.stA = scka'.sendArleak s.stA) :
     (oracleSendArleak leak scka ()).run s = (oracleSendArleak leak scka' ()).run s := by
-  simp only [oracleSendArleak, StateT.run_bind, StateT.run_get, pure_bind,
-    StateT.run_monadLift, monadLift_self, bind_assoc]
-  rw [h]
+  simp only [oracleSendArleak_run_eq, h]
 
 /-- B version of `oracleSendArleak_run_congr`. -/
 theorem oracleSendBrleak_run_congr
@@ -918,9 +870,7 @@ theorem oracleSendBrleak_run_congr
     (scka scka' : SCKAScheme ProbComp IK StA StB I Rho Rand) (s : GameState StA StB I Rho)
     (h : scka.sendBrleak s.stB = scka'.sendBrleak s.stB) :
     (oracleSendBrleak leak scka ()).run s = (oracleSendBrleak leak scka' ()).run s := by
-  simp only [oracleSendBrleak, StateT.run_bind, StateT.run_get, pure_bind,
-    StateT.run_monadLift, monadLift_self, bind_assoc]
-  rw [h]
+  simp only [oracleSendBrleak_run_eq, h]
 
 /-- If two schemes' A-receives agree on `s.stA`, their A-receive queries from `s` agree. -/
 theorem oracleRecvA_run_congr
@@ -1017,9 +967,7 @@ theorem securityImplOf_preservesInv (Inv : GameState StA StB I Rho → Prop)
     (hcA : QueryImpl.PreservesInv (oracleCorruptA vulnA.corrupt StB I Rho) Inv)
     (hcB : QueryImpl.PreservesInv (oracleCorruptB vulnB.corrupt StA I Rho) Inv) :
     QueryImpl.PreservesInv (securityImplOf base chall vulnA vulnB scka) Inv :=
-  fun t s hs z hz => securityImplOf_preserves_at base chall vulnA vulnB scka Inv s
-    (fun t => hbase t s hs) (hA () s hs) (hB () s hs) (fun t => hC t s hs)
-    (hcA () s hs) (hcB () s hs) t z hz
+  ((((hbase.add hA).add hB).add hC).add hcA).add hcB
 
 /-- Let `Inv` be a predicate on game states and `s` a game state. Assume:
 

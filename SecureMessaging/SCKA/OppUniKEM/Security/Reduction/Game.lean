@@ -30,7 +30,7 @@ The protocol instances and security oracles are defined as follows:
   `0 < t < e`, `kStar` if `t = e`, and the recorded key otherwise.
 - The *stopped honest oracle* `honestStopped kemMat e kStar` stops at the first query whose
   successor state records `e` as exposed. Running an adversary against it from the initial state
-  is the *honest game* `P_e(kemMat, kStar)`, which returns `false` on stopping and the
+  is the *honest game* `Q_e(kemMat, kStar)`, which returns `false` on stopping and the
   adversary's output on normal completion.
 -/
 
@@ -135,13 +135,8 @@ variable {kem onoff leak} in
 /-- Opp-UniKEM over `stageKem stage kemMat e s`, for a query from game state `s`. -/
 abbrev stageScheme [DecidableEq Sym] (stage : Stage) (kemMat : KEMMaterial leak) (e : ℕ)
     (s : GameState onoff Sym) :=
-  let sa := stage.keygenFlag (decide (s.stA.t = e))
-  let soff := stage.offlineFlag (decide (s.stB.t = e))
-  let son := stage.onlineFlag (decide (s.stB.t = e))
-  let key := s.keyB s.stA.t
-  scheme (Pinned.kem kemMat sa soff son key) (Pinned.onOff kemMat sa soff son key)
-    (Pinned.deterministic kemMat sa soff son key) ecEk ecCt0 ecCt1
-    (Pinned.leakage leak kemMat sa soff son key)
+  scheme (stageKem stage kemMat e s) (stageOnOff stage kemMat e s)
+    (stageDet stage kemMat e s) ecEk ecCt0 ecCt1 (stageLeak stage kemMat e s)
 
 variable {kem onoff leak} in
 /-- The *honest instance*: Opp-UniKEM with every sampling phase of epoch `e` pinned to `kemMat`,
@@ -277,7 +272,7 @@ theorem securityImplAt_preservesInv [DecidableEq K]
     hmB
     hchall s hs (hbase s hs) t res hres
 
-/-- The honest intermediate game:
+/-- The oracle for the honest intermediate game:
 `securityImplAt (honestScheme kemMat e) (pinnedChallenge e kStar)`. -/
 def honestOracle [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (kemMat : KEMMaterial leak) (e : ℕ) (kStar : K) :
@@ -292,6 +287,51 @@ def honestStopped [DecidableEq K] [DecidableEq Sym] [SampleableType K]
     (kemMat : KEMMaterial leak) (e : ℕ) (kStar : K) :=
   stopOnState (honestOracle kem onoff ecEk ecCt0 ecCt1 leak kemMat e kStar)
     (fun s => decide (e ∈ s.exposed))
+
+open SCKAScheme.sckaSecuritySpec SCKAScheme.sckaCorrectnessSpec in
+/-- Congruence for Opp-UniKEM's security oracles at a fixed query `t` and state `s`. -/
+theorem securityImplAt_congr [DecidableEq K]
+    {R : {α : Type} → ProbComp α → ProbComp α → Prop}
+    (hrefl : ∀ {α} (p : ProbComp α), R p p)
+    (schemeOf target : GameState onoff Sym →
+      SCKAScheme ProbComp Unit (StA onoff Sym) (StB onoff Sym) K (Message Sym)
+        (SendRand leak.KeygenRand leak.OffRand leak.OnRand))
+    (chall : QueryImpl (ℕ →ₒ Option K) (StateT (GameState onoff Sym) ProbComp))
+    (s : GameState onoff Sym) (t : (securitySpec leak Sym).Domain)
+    (hsendA : t = OCorrectness OSendA → (schemeOf s).sendA s.stA = (target s).sendA s.stA)
+    (hsendB : t = OCorrectness OSendB → (schemeOf s).sendB s.stB = (target s).sendB s.stB)
+    (hrecvA : ∀ n, t = OCorrectness (ORecvA n) → ∀ ρ,
+      (schemeOf s).recvA s.stA ρ = (target s).recvA s.stA ρ)
+    (hrecvB : ∀ n, t = OCorrectness (ORecvB n) → ∀ ρ,
+      (schemeOf s).recvB s.stB ρ = (target s).recvB s.stB ρ)
+    (hleakA : t = OSendArleak →
+      R ((SCKAScheme.oracleSendArleak vulnRleakA (schemeOf s) ()).run s)
+        ((SCKAScheme.oracleSendArleak vulnRleakA (target s) ()).run s))
+    (hleakB : t = OSendBrleak →
+      R ((SCKAScheme.oracleSendBrleak vulnRleakB (schemeOf s) ()).run s)
+        ((SCKAScheme.oracleSendBrleak vulnRleakB (target s) ()).run s)) :
+    R ((securityImplAt kem onoff leak schemeOf chall t).run s)
+      ((securityImplAt kem onoff leak target chall t).run s) := by
+  rcases t with (((((t | u) | u) | n) | u) | u) <;>
+    try rcases t with ((((n | u) | u) | n) | n)
+  all_goals try cases u
+  all_goals simp only [securityImplAt, SCKAScheme.securityImplOf,
+    QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get,
+    pure_bind, SCKAScheme.sckaCorrectnessImpl]
+  · exact hrefl _
+  · rw [SCKAScheme.oracleSendA_run_congr _ _ s (hsendA rfl)]
+    exact hrefl _
+  · rw [SCKAScheme.oracleSendB_run_congr _ _ s (hsendB rfl)]
+    exact hrefl _
+  · rw [SCKAScheme.oracleRecvA_run_congr _ _ s (hrecvA n rfl) n]
+    exact hrefl _
+  · rw [SCKAScheme.oracleRecvB_run_congr _ _ s (hrecvB n rfl) n]
+    exact hrefl _
+  · exact hleakA rfl
+  · exact hleakB rfl
+  · exact hrefl _
+  · exact hrefl _
+  · exact hrefl _
 
 /-- Assume that, averaged over `a ← sample`, the four sends of `schemeOf a s` have the
 distributions of those of `target s`, and that the receives of `schemeOf a s` and `target s`
@@ -323,7 +363,7 @@ theorem securityImplAt_sample_eq [DecidableEq K] {τ : Type} (sample : ProbComp 
       (securityImplAt kem onoff leak target chall t).run s := by
   rcases t with (((((t | u) | u) | t) | u) | u)
   · rcases t with ((((n | u) | u) | n) | n)
-    · exact ToVCVio.evalDistEq_bind_of_const' sample fun _ _ => rfl
+    · exact OracleComp.EvalDistEq.bind_const_of_support sample fun _ _ => rfl
     · cases u
       simp only [securityImplAt, SCKAScheme.securityImplOf, QueryImpl.add_apply_inl,
         QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get, pure_bind,
@@ -337,12 +377,12 @@ theorem securityImplAt_sample_eq [DecidableEq K] {τ : Type} (sample : ProbComp 
     · simp only [securityImplAt, SCKAScheme.securityImplOf, QueryImpl.add_apply_inl,
       QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get, pure_bind,
         SCKAScheme.sckaCorrectnessImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
-      exact ToVCVio.evalDistEq_bind_of_const' sample fun a ha =>
+      exact OracleComp.EvalDistEq.bind_const_of_support sample fun a ha =>
         SCKAScheme.oracleRecvA_run_congr _ _ s (hrecvA a ha) n
     · simp only [securityImplAt, SCKAScheme.securityImplOf, QueryImpl.add_apply_inl,
       QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get, pure_bind,
         SCKAScheme.sckaCorrectnessImpl, QueryImpl.add_apply_inr]
-      exact ToVCVio.evalDistEq_bind_of_const' sample fun a ha =>
+      exact OracleComp.EvalDistEq.bind_const_of_support sample fun a ha =>
         SCKAScheme.oracleRecvB_run_congr _ _ s (hrecvB a ha) n
   · cases u
     simp only [securityImplAt, SCKAScheme.securityImplOf, QueryImpl.add_apply_inl,
@@ -352,7 +392,7 @@ theorem securityImplAt_sample_eq [DecidableEq K] {τ : Type} (sample : ProbComp 
     simp only [securityImplAt, SCKAScheme.securityImplOf, QueryImpl.add_apply_inl,
       QueryImpl.add_apply_inr, StateT.run_bind, StateT.run_get, pure_bind]
     exact SCKAScheme.oracleSendBrleak_sample_eq _ _ _ _ s hsendBrleak
-  all_goals exact ToVCVio.evalDistEq_bind_of_const' sample fun _ _ => rfl
+  all_goals exact OracleComp.EvalDistEq.bind_const_of_support sample fun _ _ => rfl
 
 /-! ## Material consistency -/
 

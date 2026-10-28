@@ -155,6 +155,12 @@ def idealEpochHybridExp
     (adv : SecurityAdversary leak Sym) (i : ℕ) : ProbComp Bool :=
   idealSecurityExp kem onoff hDet ecEk ecCt0 ecCt1 leak (hybridMode i) adv
 
+include hDet in
+/-- Run the ideal hybrid `H_i` from the initial state, returning `false` at exposure of `e`. -/
+def stoppedHybridExp (adv : SecurityAdversary leak Sym) (i e : ℕ) : ProbComp Bool :=
+  stoppedRun (idealEpochHybridImpl kem onoff hDet ecEk ecCt0 ecCt1 leak i)
+    (fun s => decide (e ∈ s.exposed)) adv (Reduction.Internal.initialGame kem onoff)
+
 /-- Challenge mode of the ideal hybrids adjacent at `e`: `adjacentMode e false` is the mode of
 `H_{e-1}` and `adjacentMode e true` that of `H_e`, so a challenge at epoch `t` returns a uniform key
 (`U`) iff `0 < t < e`, or `t = e` and `b = true`, and the recorded key (`R`) otherwise:

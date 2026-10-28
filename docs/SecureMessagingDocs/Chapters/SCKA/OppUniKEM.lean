@@ -614,6 +614,9 @@ $`\mathsf{vuln}^{\mathsf{corr}}_X:\mathsf{St}_X\to\mathcal P_{\mathrm{fin}}(\mat
 $`\mathsf{vuln}^{\mathsf{rleak}}_X:\mathsf{St}_X\times R_X\to\mathcal P_{\mathrm{fin}}(\mathbb N)`,
 which parametrise the security game of {bpref "scka_oracles"}[], as follows.
 
+Epochs exposed by an accepted query are marked in red. Challenge queries reject these epochs.
+Each corruption or leaking send exposes at most one epoch.
+
 ::::::gameGrid
 :::::gameCell "\\mathsf{vuln}^{\\mathsf{corr}}_\\A" (kind := "compact")
 $$`\mathsf{vuln}^{\mathsf{corr}}_\A(\stA)=\begin{cases}
@@ -738,9 +741,9 @@ Let $`\Pi` be the Opp-UniKEM protocol ({bpref "opp_unikem_cka_spec"}[]) such tha
   encapsulation splits into on/off phases ({bpref "on_off_kem_scheme"}[]);
 * the underlying erasure codes are correct ({bpref "erasure_code_correctness"}[]).
 
-Then for every SCKA adversary $`\mathcal A` against $`\Pi` making at most $`q` send oracle
-queries, the IND-CPA adversary $`\mathcal B` against $`\Gamma`, constructed from $`\mathcal A`,
-satisfies
+Then for every SCKA adversary $`\mathcal A` against $`\Pi` making at most $`q` ordinary or
+leaking sends in total, the IND-CPA adversary $`\mathcal B` against $`\Gamma`, constructed from
+$`\mathcal A`, satisfies
 
 $$`\Adv{\mathsf{guess}}{\mathsf{SCKA},\Pi}(\mathcal A)
 \le \frac q2\Adv{\mathsf{IND\text{-}CPA}}{\mathsf{KEM},\Gamma}(\mathcal B)

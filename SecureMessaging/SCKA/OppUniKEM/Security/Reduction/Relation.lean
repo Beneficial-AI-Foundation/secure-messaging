@@ -16,7 +16,7 @@ import SecureMessaging.SCKA.Security
 Let `e` be the epoch at which the reduction embeds its KEM IND-CPA challenge. The simulator does
 not know the secrets of epoch `e`: A's decapsulation key, B's offline encapsulation state, the
 shared key, and the coins that produced them. This module relates its states to those of the
-honest game `P_e(kemMat, kStar)` (`Game`), which knows them.
+honest game `Q_e(kemMat, kStar)` (`Game`), which knows them.
 
 - *Hiding.* `hideState e s` is the honest game state `s` with A's decapsulation key, B's offline
   encapsulation state, and the recorded keys of epoch `e` hidden; all other fields are unchanged.

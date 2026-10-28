@@ -27,8 +27,8 @@ import SecureMessaging.SCKA.Security
 **Security game and adversary advantage functions.**
 
 Let:
-- `G_b` be the SCKA security game of `scka` with its challenge bit fixed to `b`
-  (`securityExpFixedBit`);
+- `G_b` be the SCKA security game of `scka` with its challenge bit fixed to `b`:
+  uniform keys for `true`, recorded keys for `false` (`securityExpFixedBit`);
 - `AdvGuess_SCKA(scka, adv) := |Pr[b' = b] - 1/2| = |Pr[G_true = true] - Pr[G_false = true]| / 2`
   be the advantage of `adv` in guessing the challenge bit;
 - `AdvINDCPA_KEM(kem, 𝓑) := |2 Pr[b' = b] - 1| = |Pr[𝓑_real = true] - Pr[𝓑_random = true]|` be
@@ -39,6 +39,10 @@ Let:
 **Theorem** (`security`). For every `q : ℕ`,
 
 `AdvGuess_SCKA(scka, adv) ≤ (q / 2) · AdvINDCPA_KEM(kem, 𝓑) + q · ε`.
+
+**Assertion failures.** In [SCKA], failed assertions are additional winning conditions.
+Here `security` bounds guessing advantage; `correctness_failure_le_security` in
+`OppUniKEM.Correctness` separately bounds assertion failures by `q · ε` for the full interface.
 
 ## Proof structure
 
@@ -170,23 +174,12 @@ theorem fixedBranch_signed_gap_eq (adv : SecurityAdversary leak Sym) (i : ℕ) :
       leak (i + 1) (Nat.succ_pos i) true adv,
     fixedBranch_eq_ideal kem onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
       leak (i + 1) (Nat.succ_pos i) false adv]
-  simp only [Bool.not_true, Bool.not_false]
+  simp only [Bool.false_eq_true, ↓reduceIte, Nat.add_sub_cancel]
   have hstop := idealEpochHybrid_signed_gap_stop_eq kem onoff hDet ecEk ecCt0 ecCt1
     leak i adv (oppUniKemCKA.Reduction.Internal.initialGame kem onoff)
     (by simp [oppUniKemCKA.Reduction.Internal.initialGame, SCKAScheme.initGameState])
-  change
-    (Pr{let x ← (idealEpochHybridExp
-        kem onoff hDet ecEk ecCt0 ecCt1 leak adv (i + 1))}[x = true]).toReal -
-      (Pr{let x ← (idealEpochHybridExp
-          kem onoff hDet ecEk ecCt0 ecCt1 leak adv i)}[x = true]).toReal = _
-    at hstop
-  change
-    (Pr{let x ← (stoppedRun (idealEpochHybridImpl kem onoff hDet ecEk ecCt0 ecCt1 leak i)
-      (fun s => decide (i + 1 ∈ s.exposed)) adv
-      (oppUniKemCKA.Reduction.Internal.initialGame kem onoff))}[x = true]).toReal -
-    (Pr{let x ← (stoppedRun (idealEpochHybridImpl kem onoff hDet ecEk ecCt0 ecCt1 leak (i + 1))
-      (fun s => decide (i + 1 ∈ s.exposed)) adv
-      (oppUniKemCKA.Reduction.Internal.initialGame kem onoff))}[x = true]).toReal = _
+  dsimp only [idealEpochHybridExp, idealSecurityExp, stoppedHybridExp,
+    idealEpochHybridImpl] at hstop ⊢
   linarith only [hstop]
 
 include hEk hCt0 hCt1 in
@@ -240,8 +233,8 @@ section
 
 variable [DecidableEq K] [DecidableEq Sym] [SampleableType K]
 
-/-- Let `𝓑 := securityReduction … adv q`. If `adv` makes at most `q` send queries
-(`SecuritySendQueryBound adv q`), then
+/-- Assume correct erasure codes and an adversary making at most `q` ordinary or leaking sends
+in total (`SecuritySendQueryBound adv q`). For `𝓑 := securityReduction … adv q`,
 `AdvGuess_SCKA(scka, adv) ≤ (q / 2) · AdvINDCPA_KEM(kem, 𝓑) + q · ε`. -/
 -- ANCHOR: security
 theorem security

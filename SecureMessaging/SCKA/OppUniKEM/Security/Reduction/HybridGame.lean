@@ -309,7 +309,8 @@ theorem sendBrleak_fresh_eq [DecidableEq Sym]
     (stB : StB onoff Sym) :
     (stageScheme ecEk ecCt0 ecCt1 .fresh kemMat e s).sendBrleak stB =
     (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak).sendBrleak stB := by
-  dsimp only [stageScheme, Stage.keygenFlag, Stage.offlineFlag, Stage.onlineFlag]
+  dsimp only [stageScheme, stageKem, stageOnOff, stageDet, stageLeak,
+    Stage.keygenFlag, Stage.offlineFlag, Stage.onlineFlag]
   simp only [scheme]
   cases hct0 : stB.ct0 <;> cases hek : stB.ekA <;> cases hct1 : stB.ct1 <;>
     cases hst : stB.stCt <;> cases hack : stB.ack.ctRec
@@ -346,8 +347,8 @@ theorem stageOracle_fresh_eq_ideal [DecidableEq K] [DecidableEq Sym] [Sampleable
         SCKAScheme.sckaCorrectnessImpl, QueryImpl.add_apply_inl]
     · simp only [idealSecurityImpl, SCKAScheme.securityImplOf, idealCorrectnessImpl,
         SCKAScheme.sckaCorrectnessImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-        SCKAScheme.oracleSendA, stageScheme, Stage.keygenFlag, Stage.offlineFlag,
-        Stage.onlineFlag, scheme, sendA, Pinned.kem, Pinned.onOff, Pinned.keygen,
+        SCKAScheme.oracleSendA, stageScheme, stageKem, Stage.keygenFlag,
+        scheme, sendA, Pinned.kem, Pinned.keygen,
         Bool.false_eq_true, ite_false]
     · simp only [idealSecurityImpl, SCKAScheme.securityImplOf, idealCorrectnessImpl,
         SCKAScheme.sckaCorrectnessImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
@@ -372,8 +373,8 @@ theorem stageOracle_fresh_eq_ideal [DecidableEq K] [DecidableEq Sym] [Sampleable
         SCKAScheme.oracleRecvB, stageScheme, scheme, recvB]
   · simp only [idealSecurityImpl, SCKAScheme.securityImplOf,
       QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-      SCKAScheme.oracleSendArleak, stageScheme, Stage.keygenFlag, Stage.offlineFlag,
-      Stage.onlineFlag, scheme, sendArleak, Pinned.kem, Pinned.onOff, Pinned.leakage,
+      SCKAScheme.oracleSendArleak, stageScheme, stageLeak, Stage.keygenFlag,
+      scheme, sendArleak, Pinned.leakage,
       Bool.false_eq_true, ite_false]
   · simp only [idealSecurityImpl, SCKAScheme.securityImplOf,
       QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,

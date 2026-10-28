@@ -8,7 +8,7 @@ import SecureMessaging.SCKA.Security.CorrectnessOracles
 import SecureMessaging.SCKA.OppUniKEM.Security.Invariant
 import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Projection
 import SecureMessaging.SCKA.OppUniKEM.Correctness.Reduction.Composition
-import ToVCVio.OracleComp.SimSemantics.StateT.WPBound
+import ToVCVio.OracleComp.SimSemantics.StateT.BadFlag
 import ToVCVio.OracleComp.SimSemantics.StateT.IdenticalUntilBadInvariant
 
 /-!
@@ -372,11 +372,10 @@ def trackedSecurityImpl (b : Bool) :
       (StateT
         (GameState onoff Sym × Bool)
         ProbComp) :=
-  -- VCVio's `extendState` adds a flag, updated by its second argument after each query.
-  QueryImpl.extendState
+  trackedImpl
     (SCKAScheme.sckaSecurityImpl b (exposureA kem onoff leak) (exposureB kem onoff leak)
       (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak))
-    (fun _ _ _ s' bad => bad || currentKEMFailure kem onoff hDet s')
+    (currentKEMFailure kem onoff hDet)
 
 /-- Discarding the failure flag after running `trackedSecurityImpl` gives the same computation
 as the security oracles of `G_b`, including the adversary's output and final game state.
@@ -393,15 +392,15 @@ theorem trackedSecurity_run_project (b : Bool)
       (simulateQ (SCKAScheme.sckaSecurityImpl b (exposureA kem onoff leak)
         (exposureB kem onoff leak)
         (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak)) adv).run p.1 :=
-  -- VCVio's projection theorem for `extendState` gives this equality.
-  extendState_run_proj_eq _ _ adv p.1 p.2
+  OracleComp.tracked_run_project _ _ adv p
 
 /-- Once the failure flag is set, every tracked successor has it set. -/
 theorem trackedSecurityImpl_preserves_bad (b : Bool) :
     QueryImpl.PreservesInv (trackedSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b)
       (fun p => p.2 = true) := by
   intro t p hp res hres
-  rw [trackedSecurityImpl, QueryImpl.extendState_apply, mem_support_bind_iff] at hres
+  unfold trackedSecurityImpl trackedImpl StateT.run at hres
+  rw [mem_support_bind_iff] at hres
   obtain ⟨y, _, hres⟩ := hres
   obtain rfl := (mem_support_pure_iff _ _).mp hres
   simp [hp]
@@ -412,25 +411,12 @@ include hEk hCt0 hCt1 in
 theorem trackedSecurityImpl_preserves (b : Bool) :
     QueryImpl.PreservesInv (trackedSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b)
       (trackedInv kem onoff hDet ecEk ecCt0 ecCt1) := by
-  intro t p hp res hres
-  change res ∈ support (do
-    let y ← (SCKAScheme.sckaSecurityImpl b (exposureA kem onoff leak) (exposureB kem onoff leak)
-      (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak) t).run p.1
-    pure (y.1, (y.2, p.2 || currentKEMFailure kem onoff hDet y.2))) at hres
-  rw [mem_support_bind_iff] at hres
-  obtain ⟨y, hy, hres⟩ := hres
-  simp only [mem_support_pure_iff] at hres
-  subst res
-  rcases hp with hbad | ⟨hreach, hfail⟩
-  · left
-    simp [hbad]
+  apply OracleComp.trackedImpl_preserves _ _ (reachableInv kem onoff ecEk ecCt0 ecCt1)
+  intro t s hreach hfail res hres
   have hc := currentKEMFailure_eq_false_implies_current kem onoff hDet ecEk ecCt0 ecCt1
-    p.1 hreach hfail
-  have hreach' := securityImpl_preserves_reachableInv kem onoff hDet ecEk hEk
-    ecCt0 hCt0 ecCt1 hCt1 leak b t p.1 hreach hc y hy
-  cases hbad : currentKEMFailure kem onoff hDet y.2
-  · exact Or.inr ⟨hreach', hbad⟩
-  · exact Or.inl (by simp)
+    s hreach hfail
+  exact securityImpl_preserves_reachableInv kem onoff hDet ecEk hEk
+    ecCt0 hCt0 ecCt1 hCt1 leak b t s hreach hc res hres
 
 /-- In any state `s` satisfying `reachableInv s` and `currentKEMFailure s = false`, executing party
 A's instrumented leaking-send oracle from `(s, false)` increases the expected failure score
@@ -581,15 +567,16 @@ theorem kem_failure_probability_le (b : Bool)
       (initialGame (Sym := Sym) kem onoff, false) = 0 := by
     simp [trackedFailureScore, currentFailurePotential, initialGame, initialA, initialB,
       SCKAScheme.initGameState, Option.map₂]
-  have hscore := wp_simulateQ_run_le
-    (trackedSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b)
-    (trackedInv kem onoff hDet ecEk ecCt0 ecCt1)
+  have hbound := OracleComp.tracked_bad_le_of_score_step
+    (SCKAScheme.sckaSecurityImpl b (exposureA kem onoff leak) (exposureB kem onoff leak)
+      (scheme kem onoff hDet ecEk ecCt0 ecCt1 leak))
+    (currentKEMFailure kem onoff hDet) (reachableInv kem onoff ecEk ecCt0 ecCt1)
     (trackedFailureScore kem onoff) (fun t => SCKAScheme.sckaSecuritySpec.isSendQuery t = true)
-    (factorCorrectnessError kem onoff) hpres
+    (factorCorrectnessError kem onoff)
+    (by intro p hp; simp [trackedFailureScore, hp]) hpres
     (trackedSecurity_score_step_le kem onoff hDet ecEk ecCt0 ecCt1 leak b)
-    adv q hq (initialGame kem onoff, false) hinit
-  rw [hscore₀, zero_add, factorCorrectnessError_eq] at hscore
-  exact (tracked_bad_probability_le_score kem onoff _).trans hscore
+    adv q hq (initialGame kem onoff) hinit
+  simpa only [trackedSecurityImpl, hscore₀, zero_add, factorCorrectnessError_eq] using hbound
 
 end FailureProbability
 
@@ -606,8 +593,8 @@ def trackedIdealImpl (b : Bool) :
     QueryImpl (securitySpec leak Sym)
       (StateT
         (GameState onoff Sym × Bool) ProbComp) :=
-  QueryImpl.extendState (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak (fun _ => b))
-    (fun _ _ _ s' bad => bad || currentKEMFailure kem onoff hDet s')
+  trackedImpl (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak (fun _ => b))
+    (currentKEMFailure kem onoff hDet)
 
 /-- The version of `trackedSecurity_run_project` for the ideal game `I_b`:
 discarding the failure flag recovers the ideal execution, for any initial state and flag. -/
@@ -618,7 +605,7 @@ theorem trackedIdeal_run_project (b : Bool)
         (simulateQ (trackedIdealImpl kem onoff hDet ecEk ecCt0 ecCt1 leak b) adv).run p =
       (simulateQ (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak (fun _ => b))
         adv).run p.1 :=
-  extendState_run_proj_eq _ _ adv p.1 p.2
+  OracleComp.tracked_run_project _ _ adv p
 
 /-- The real game `G_b` equals the security-oracle simulation from `initialGame`,
 projected to the adversary's output. -/
@@ -657,7 +644,7 @@ theorem security_correctness_endpoint_le (b : Bool)
         p.1 hr hf
       have heq := securityImpl_eq_ideal_of_current kem onoff hDet ecEk ecCt0 ecCt1
         leak b t p.1 ⟨hCt1, hr, hc⟩
-      simp only [left, right, trackedSecurityImpl, trackedIdealImpl, QueryImpl.extendState_apply]
+      unfold left right trackedSecurityImpl trackedIdealImpl trackedImpl StateT.run
       rw [heq]
   have hbound := abs_prEvent_simulateQ_run_sub_le_bad_of_inv left right Inv
     (fun p => p.2 = true)

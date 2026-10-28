@@ -75,7 +75,8 @@ abbrev onlineReady
     (stB.ct0.isNone ∨ stB.stCt.isSome)
 
 variable {kem onoff leak} in
-/-- Predicate stating that query `t` in state `s` runs B's online encapsulation of epoch `e`. -/
+/-- Marks queries that run B's online encapsulation at epoch `e`, excluding leaking sends
+rejected because `e` was challenged. -/
 def usesOnline (e : ℕ) (t : (securitySpec leak Sym).Domain)
     (s : GameState onoff Sym) : Bool :=
   match t with
@@ -145,9 +146,9 @@ theorem stageOracle_online_first_use
     all_goals
       simp only [securityImplAt, SCKAScheme.securityImplOf, QueryImpl.add_apply_inl,
         QueryImpl.add_apply_inr, stageOracle, SCKAScheme.sckaCorrectnessImpl,
-        SCKAScheme.oracleSendB, stageScheme, Stage.keygenFlag, Stage.offlineFlag,
-        Stage.onlineFlag, scheme, sendB, Pinned.kem,
-        Pinned.onOff, Pinned.encapsOff, Pinned.encapsOn, he, ha, hp, hc1, hc0, hst,
+        SCKAScheme.oracleSendB, stageScheme, Stage.offlineFlag,
+        Stage.onlineFlag, scheme, sendB,
+        Pinned.encapsOff, Pinned.encapsOn, he, ha, hp, hc1, hc0, hst,
         QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
         StateT.run_bind, StateT.run_get, StateT.run_set, StateT.run_pure,
         StateT.run_monadLift, monadLift_self, bind_assoc, pure_bind,
@@ -168,7 +169,7 @@ theorem stageOracle_online_first_use
       simp only [securityImplAt, SCKAScheme.securityImplOf, QueryImpl.add_apply_inl,
         QueryImpl.add_apply_inr, stageOracle, SCKAScheme.oracleSendBrleak,
         stageScheme, Stage.keygenFlag, Stage.offlineFlag, Stage.onlineFlag, scheme,
-        sendBrleak, Pinned.leakage, vulnRleakB,
+        sendBrleak, vulnRleakB,
         he, ha, hp, hc1, hc0, hst, hchall, StateT.run_bind, StateT.run_get,
         StateT.run_monadLift, monadLift_self, bind_assoc, pure_bind,
         Bool.not_true, Bool.false_eq_true, ↓reduceIte, decide_true,
@@ -207,7 +208,7 @@ theorem sendBrleak_online_independent
     simp only [stageScheme, Stage.keygenFlag, Stage.offlineFlag, Stage.onlineFlag,
       scheme, sendBrleak, hc0, hp, hc1, hst, ha, pure_bind,
       Bool.not_false, Bool.not_true, Bool.false_eq_true, ↓reduceIte,
-      Pinned.leakage, he, decide_true, decide_false]
+      he, decide_true, decide_false]
 
 /-- The version of `sendBrleak_online_independent` for B's ordinary send. -/
 theorem sendB_online_independent
@@ -239,7 +240,7 @@ theorem leaking_online_rejected [DecidableEq K]
   all_goals
     simp [SCKAScheme.oracleSendBrleak, stageScheme, Stage.keygenFlag,
       Stage.offlineFlag, Stage.onlineFlag, scheme, sendBrleak,
-      Pinned.leakage, vulnRleakB, he, ha, hp, hc1, hc0, hst, hc]
+      vulnRleakB, he, ha, hp, hc1, hc0, hst, hc]
 
 variable [DecidableEq K] [SampleableType K]
 
@@ -255,24 +256,21 @@ theorem stageOracle_online_independent
       { kemMat with on := online } e b t).run s =
     (stageOracle kem onoff ecEk ecCt0 ecCt1 leak .pinned
       { kemMat with on := online' } e b t).run s := by
-  rcases t with (((((t | u) | u) | _) | u) | u) <;> try rcases t with ((((n | u) | u) | n) | n)
-  all_goals try cases u
-  all_goals simp only [stageOracle, securityImplAt, SCKAScheme.securityImplOf,
-    QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, StateT.run_bind,
-      StateT.run_get, pure_bind,
-    SCKAScheme.sckaCorrectnessImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr]
-  · exact SCKAScheme.oracleSendA_run_congr _ _ s rfl
-  · exact SCKAScheme.oracleSendB_run_congr _ _ s
-      (sendB_online_independent kem onoff ecEk ecCt0 ecCt1 leak kemMat e s
-        (of_decide_eq_false hh) online online')
-  · exact SCKAScheme.oracleRecvA_run_congr _ _ s (fun ρ =>
-      (stageScheme_recvA_eq_ideal kem onoff ecEk ecCt0 ecCt1 leak .pinned
+  apply securityImplAt_congr kem onoff leak (R := fun {_} => Eq) (fun _ => rfl)
+  · intro _; rfl
+  · rintro rfl
+    exact sendB_online_independent kem onoff ecEk ecCt0 ecCt1 leak kemMat e s
+      (of_decide_eq_false hh) online online'
+  · intro _ _ ρ
+    exact (stageScheme_recvA_eq_ideal kem onoff ecEk ecCt0 ecCt1 leak .pinned
         { kemMat with on := online } e s ρ).trans
       (stageScheme_recvA_eq_ideal kem onoff ecEk ecCt0 ecCt1 leak .pinned
-        { kemMat with on := online' } e s ρ).symm) n
-  · rfl
-  · exact SCKAScheme.oracleSendArleak_run_congr _ _ _ s rfl
-  · by_cases hready : s.stB.t = e ∧ onlineReady s.stB
+        { kemMat with on := online' } e s ρ).symm
+  · intros; rfl
+  · intro _
+    exact SCKAScheme.oracleSendArleak_run_congr _ _ _ s rfl
+  · rintro rfl
+    by_cases hready : s.stB.t = e ∧ onlineReady s.stB
     · have hc : e ∈ s.challenged := by
         have hnot : ¬((s.stB.t = e ∧ onlineReady s.stB) ∧ e ∉ s.challenged) :=
           of_decide_eq_false hh
@@ -307,13 +305,13 @@ theorem sendBrleak_sample_online_eq_fresh [DecidableEq Sym]
     cases hc1 : s.stB.ct1 <;> cases hst : s.stB.stCt <;> cases ha : s.stB.ack.ctRec
   all_goals
     simp only [stageScheme, Stage.keygenFlag, Stage.offlineFlag, Stage.onlineFlag,
-      scheme, sendBrleak, hc0, hp, hc1, hst, ha, pure_bind, Pinned.leakage,
+      scheme, sendBrleak, hc0, hp, hc1, hst, ha, pure_bind,
       he, decide_true, decide_false,
       Bool.not_true, Bool.not_false, Bool.false_eq_true, ↓reduceIte]
   all_goals
     first
     | solve
-      | exact ToVCVio.evalDistEq_bind_of_const' _ fun online _ => rfl
+      | exact OracleComp.EvalDistEq.bind_const_of_support _ fun online _ => rfl
     | have hpk := hpub he _ hp hc1
       first
       | solve | simp only [hpk, EvalDistEq.refl]
@@ -356,9 +354,9 @@ theorem stageOracle_sample_online_eq_fresh
     (fun online => stageScheme ecEk ecCt0 ecCt1 .pinned { kemMat with on := online } e)
     (stageScheme ecEk ecCt0 ecCt1 .onlineFresh kemMat e)
     (SCKAScheme.challOf (adjacentMode e b)) s
-    (ToVCVio.evalDistEq_bind_of_const' _ fun _ _ => rfl)
+    (OracleComp.EvalDistEq.bind_const_of_support _ fun _ _ => rfl)
     (sendB_sample_online_eq_fresh kem onoff ecEk ecCt0 ecCt1 leak kemMat e s hs hsrc)
-    (ToVCVio.evalDistEq_bind_of_const' _ fun _ _ => rfl)
+    (OracleComp.EvalDistEq.bind_const_of_support _ fun _ _ => rfl)
     (sendBrleak_sample_online_eq_fresh kem onoff ecEk ecCt0 ecCt1 leak kemMat e s hs hsrc)
     (fun online _ ρ => (stageScheme_recvA_eq_ideal kem onoff ecEk ecCt0 ecCt1 leak .pinned
       { kemMat with on := online } e s ρ).trans
@@ -424,7 +422,8 @@ def offlineUsed (e : ℕ) (stB : StB onoff Sym) : Prop :=
   e < stB.t ∨ (stB.t = e ∧ stB.ct0.isSome)
 
 variable {kem onoff leak} in
-/-- Predicate stating that query `t` in state `s` runs B's offline encapsulation of epoch `e`. -/
+/-- Marks queries that run B's offline encapsulation at epoch `e`, excluding leaking sends
+rejected because `e` was challenged. -/
 def usesOffline (e : ℕ) (t : (securitySpec leak Sym).Domain) (s : GameState onoff Sym) : Bool :=
   match t with
   | OCorrectness OSendB =>
@@ -602,10 +601,8 @@ theorem sendBrleak_offline_independent
     simp only [he, hc0, Option.isNone_none, Option.isNone_some, Bool.false_eq_true,
       and_true, and_false, not_true_eq_false] at hh
   all_goals
-    simp only [stageScheme, Stage.keygenFlag, Stage.offlineFlag, Stage.onlineFlag,
-      scheme, sendBrleak, hc0, hp, hc1, hst, ha, pure_bind,
-      Pinned.onOff, Pinned.leakage, Pinned.encapsOff,
-      he, decide_false,
+    simp only [stageScheme, Stage.offlineFlag, Stage.onlineFlag, scheme, sendBrleak,
+      hc0, hp, hc1, hst, ha, pure_bind, he, decide_false,
       Bool.not_false, Bool.not_true, Bool.false_eq_true, ↓reduceIte]
 
 /-- The version of `sendBrleak_offline_independent` for B's ordinary send. -/
@@ -655,25 +652,22 @@ theorem stageOracle_offline_independent
       .onlineFresh { kemMat with off := offline } e b t).run s =ᵈ
     (stageOracle kem onoff ecEk ecCt0 ecCt1 leak
       .onlineFresh { kemMat with off := offline' } e b t).run s := by
-  rcases t with (((((t | u) | u) | _) | u) | u) <;> try rcases t with ((((n | u) | u) | n) | n)
-  all_goals try cases u
-  all_goals simp only [stageOracle, securityImplAt, SCKAScheme.securityImplOf,
-    QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, StateT.run_bind,
-      StateT.run_get, pure_bind,
-    SCKAScheme.sckaCorrectnessImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-    EvalDistEq.refl]
-  · exact ToVCVio.evalDistEq_of_eq (SCKAScheme.oracleSendA_run_congr _ _ s rfl)
-  · exact ToVCVio.evalDistEq_of_eq (SCKAScheme.oracleSendB_run_congr _ _ s
-      (sendB_offline_independent kem onoff ecEk ecCt0 ecCt1 leak kemMat e s
-        (of_decide_eq_false hh) offline offline'))
-  · exact ToVCVio.evalDistEq_of_eq (SCKAScheme.oracleRecvA_run_congr _ _ s (fun ρ =>
-      (stageScheme_recvA_eq_ideal kem onoff ecEk ecCt0 ecCt1 leak .onlineFresh
+  apply securityImplAt_congr kem onoff leak (R := fun {_} => EvalDistEq)
+    (fun _ => EvalDistEq.refl _)
+  · intro _; rfl
+  · rintro rfl
+    exact sendB_offline_independent kem onoff ecEk ecCt0 ecCt1 leak kemMat e s
+      (of_decide_eq_false hh) offline offline'
+  · intro _ _ ρ
+    exact (stageScheme_recvA_eq_ideal kem onoff ecEk ecCt0 ecCt1 leak .onlineFresh
         { kemMat with off := offline } e s ρ).trans
       (stageScheme_recvA_eq_ideal kem onoff ecEk ecCt0 ecCt1 leak .onlineFresh
-        { kemMat with off := offline' } e s ρ).symm) n)
-  · rfl
-  · exact ToVCVio.evalDistEq_of_eq (SCKAScheme.oracleSendArleak_run_congr _ _ _ s rfl)
-  · by_cases hready : s.stB.t = e ∧ s.stB.ct0.isNone
+        { kemMat with off := offline' } e s ρ).symm
+  · intros; rfl
+  · intro _
+    exact ToVCVio.evalDistEq_of_eq (SCKAScheme.oracleSendArleak_run_congr _ _ _ s rfl)
+  · rintro rfl
+    by_cases hready : s.stB.t = e ∧ s.stB.ct0.isNone
     · have hc : e ∈ s.challenged := by
         have hnot : ¬((s.stB.t = e ∧ s.stB.ct0.isNone) ∧ e ∉ s.challenged) :=
           of_decide_eq_false hh
@@ -706,11 +700,11 @@ theorem sendBrleak_sample_offline_eq_fresh [DecidableEq Sym]
     cases hc1 : s.stB.ct1 <;> cases hst : s.stB.stCt <;> cases ha : s.stB.ack.ctRec
   all_goals
     simp only [stageScheme, Stage.keygenFlag, Stage.offlineFlag, Stage.onlineFlag, scheme,
-      sendBrleak, hc0, hp, hc1, hst, ha, pure_bind, Pinned.onOff, Pinned.leakage,
+      sendBrleak, hc0, hp, hc1, hst, ha, pure_bind, Pinned.onOff,
       Pinned.encapsOff, he, decide_true, decide_false,
       Bool.not_true, Bool.not_false, Bool.false_eq_true, ↓reduceIte, EvalDistEq.refl]
   all_goals
-    exact ToVCVio.evalDistEq_bind_of_const' _ fun offline _ => rfl
+    exact OracleComp.EvalDistEq.bind_const_of_support _ fun offline _ => rfl
 
 /-- The version of `sendBrleak_sample_offline_eq_fresh` for B's ordinary send. -/
 theorem sendB_sample_offline_eq_fresh [DecidableEq Sym]
@@ -748,9 +742,9 @@ theorem stageOracle_sample_offline_eq_fresh
       stageScheme ecEk ecCt0 ecCt1 .onlineFresh { kemMat with off := offline } e)
     (stageScheme ecEk ecCt0 ecCt1 .encapsFresh kemMat e)
     (SCKAScheme.challOf (adjacentMode e b)) s
-    (ToVCVio.evalDistEq_bind_of_const' _ fun _ _ => rfl)
+    (OracleComp.EvalDistEq.bind_const_of_support _ fun _ _ => rfl)
     (sendB_sample_offline_eq_fresh kem onoff ecEk ecCt0 ecCt1 leak kemMat e s)
-    (ToVCVio.evalDistEq_bind_of_const' _ fun _ _ => rfl)
+    (OracleComp.EvalDistEq.bind_const_of_support _ fun _ _ => rfl)
     (sendBrleak_sample_offline_eq_fresh kem onoff ecEk ecCt0 ecCt1 leak kemMat e s)
     (fun offline _ ρ => (stageScheme_recvA_eq_ideal kem onoff ecEk ecCt0 ecCt1 leak
       .onlineFresh { kemMat with off := offline } e s ρ).trans
@@ -809,7 +803,8 @@ def keygenUsed (e : ℕ) (stA : StA onoff Sym) : Prop :=
   e < stA.t ∨ (stA.t = e ∧ stA.dkA.isSome)
 
 variable {kem onoff leak} in
-/-- Predicate stating that query `t` in state `s` runs A's key generation of epoch `e`. -/
+/-- Marks queries that run A's key generation at epoch `e`, excluding leaking sends
+rejected because `e` was challenged. -/
 def usesKeygen (e : ℕ) (t : (securitySpec leak Sym).Domain) (s : GameState onoff Sym) : Bool :=
   match t with
   | OCorrectness OSendA =>
@@ -976,11 +971,11 @@ theorem sendArleak_sample_keygen_eq_fresh [DecidableEq Sym]
   by_cases he : s.stA.t = e <;> cases hd : s.stA.dkA <;>
     cases hp : s.stA.ekA <;> cases ha : s.stA.ack.ekRec
   all_goals
-    simp only [stageScheme, Stage.keygenFlag, scheme, sendArleak, Pinned.leakage,
+    simp only [stageScheme, Stage.keygenFlag, scheme, sendArleak,
       hd, hp, ha, he, decide_true, decide_false,
       Bool.false_eq_true, ↓reduceIte, pure_bind, EvalDistEq.refl]
   all_goals
-    exact ToVCVio.evalDistEq_bind_of_const' _ fun pair _ => rfl
+    exact OracleComp.EvalDistEq.bind_const_of_support _ fun pair _ => rfl
 
 /-- The version of `sendArleak_sample_keygen_eq_fresh` for A's ordinary send. -/
 theorem sendA_sample_keygen_eq_fresh [DecidableEq Sym]
@@ -1039,10 +1034,10 @@ theorem stageOracle_sample_keygen_eq_fresh
     (fun pair => stageScheme ecEk ecCt0 ecCt1 .encapsFresh { kemMat with keygen := pair } e)
     (stageScheme ecEk ecCt0 ecCt1 .fresh kemMat e) (SCKAScheme.challOf (adjacentMode e b)) s
     (sendA_sample_keygen_eq_fresh kem onoff ecEk ecCt0 ecCt1 leak kemMat e s)
-    (ToVCVio.evalDistEq_bind_of_const' _ fun pair _ =>
+    (OracleComp.EvalDistEq.bind_const_of_support _ fun pair _ =>
       sendB_encapsFresh_eq_fresh kem onoff ecEk ecCt0 ecCt1 leak kemMat e s pair)
     (sendArleak_sample_keygen_eq_fresh kem onoff ecEk ecCt0 ecCt1 leak kemMat e s)
-    (ToVCVio.evalDistEq_bind_of_const' _ fun pair _ =>
+    (OracleComp.EvalDistEq.bind_const_of_support _ fun pair _ =>
       sendBrleak_encapsFresh_eq_fresh kem onoff ecEk ecCt0 ecCt1 leak kemMat e s pair)
     (fun pair _ ρ => (stageScheme_recvA_eq_ideal kem onoff ecEk ecCt0 ecCt1 leak .encapsFresh
       { kemMat with keygen := pair } e s ρ).trans
@@ -1072,7 +1067,7 @@ theorem sendA_keygen_independent
     simp only [he, hd, Option.isNone_none, Option.isNone_some, Bool.false_eq_true,
       and_true, and_false, not_true_eq_false] at hh
   all_goals
-    simp only [stageScheme, Stage.keygenFlag, scheme, sendA, Pinned.kem, Pinned.leakage,
+    simp only [stageScheme, Stage.keygenFlag, scheme, sendA,
       Pinned.keygen, hd, hp, ha, he, decide_false,
       Bool.false_eq_true, ↓reduceIte, pure_bind]
 
@@ -1092,8 +1087,8 @@ theorem sendArleak_keygen_independent
     simp only [he, hd, Option.isNone_none, Option.isNone_some, Bool.false_eq_true,
       and_true, and_false, not_true_eq_false] at hh
   all_goals
-    simp only [stageScheme, Stage.keygenFlag, scheme, sendArleak, Pinned.kem, Pinned.leakage,
-      Pinned.keygen, hd, hp, ha, he, decide_false,
+    simp only [stageScheme, Stage.keygenFlag, scheme, sendArleak,
+      hd, hp, ha, he, decide_false,
       Bool.false_eq_true, ↓reduceIte, pure_bind]
 
 variable [DecidableEq K]
@@ -1130,26 +1125,22 @@ theorem stageOracle_keygen_independent
       .encapsFresh { kemMat with keygen := pair } e b t).run s =ᵈ
     (stageOracle kem onoff ecEk ecCt0 ecCt1 leak
       .encapsFresh { kemMat with keygen := pair' } e b t).run s := by
-  rcases t with (((((t | u) | u) | _) | u) | u) <;> try rcases t with ((((n | u) | u) | n) | n)
-  all_goals try cases u
-  all_goals simp only [stageOracle, securityImplAt, SCKAScheme.securityImplOf,
-    QueryImpl.add_apply_inl, QueryImpl.add_apply_inr, StateT.run_bind,
-      StateT.run_get, pure_bind,
-    SCKAScheme.sckaCorrectnessImpl, QueryImpl.add_apply_inl, QueryImpl.add_apply_inr,
-    EvalDistEq.refl]
-  · exact ToVCVio.evalDistEq_of_eq (SCKAScheme.oracleSendA_run_congr _ _ s
-      (sendA_keygen_independent kem onoff ecEk ecCt0 ecCt1 leak kemMat e s
-        (of_decide_eq_false hh) pair pair'))
-  · exact ToVCVio.evalDistEq_of_eq (SCKAScheme.oracleSendB_run_congr _ _ s
-      ((sendB_encapsFresh_eq_fresh kem onoff ecEk ecCt0 ecCt1 leak kemMat e s pair).trans
-        (sendB_encapsFresh_eq_fresh kem onoff ecEk ecCt0 ecCt1 leak kemMat e s pair').symm))
-  · exact ToVCVio.evalDistEq_of_eq (SCKAScheme.oracleRecvA_run_congr _ _ s (fun ρ =>
-      (stageScheme_recvA_eq_ideal kem onoff ecEk ecCt0 ecCt1 leak .encapsFresh
+  apply securityImplAt_congr kem onoff leak (R := fun {_} => EvalDistEq)
+    (fun _ => EvalDistEq.refl _)
+  · rintro rfl
+    exact sendA_keygen_independent kem onoff ecEk ecCt0 ecCt1 leak kemMat e s
+      (of_decide_eq_false hh) pair pair'
+  · intro _
+    exact (sendB_encapsFresh_eq_fresh kem onoff ecEk ecCt0 ecCt1 leak kemMat e s pair).trans
+      (sendB_encapsFresh_eq_fresh kem onoff ecEk ecCt0 ecCt1 leak kemMat e s pair').symm
+  · intro _ _ ρ
+    exact (stageScheme_recvA_eq_ideal kem onoff ecEk ecCt0 ecCt1 leak .encapsFresh
         { kemMat with keygen := pair } e s ρ).trans
       (stageScheme_recvA_eq_ideal kem onoff ecEk ecCt0 ecCt1 leak .encapsFresh
-        { kemMat with keygen := pair' } e s ρ).symm) n)
-  · rfl
-  · by_cases hready : s.stA.t = e ∧ s.stA.dkA.isNone
+        { kemMat with keygen := pair' } e s ρ).symm
+  · intros; rfl
+  · rintro rfl
+    by_cases hready : s.stA.t = e ∧ s.stA.dkA.isNone
     · have hc : e ∈ s.challenged := by
         have hnot : ¬((s.stA.t = e ∧ s.stA.dkA.isNone) ∧ e ∉ s.challenged) :=
           of_decide_eq_false hh
@@ -1164,7 +1155,8 @@ theorem stageOracle_keygen_independent
     · exact ToVCVio.evalDistEq_of_eq (SCKAScheme.oracleSendArleak_run_congr _ _ _ s
         (sendArleak_keygen_independent kem onoff ecEk ecCt0 ecCt1 leak kemMat e s hready
           pair pair'))
-  · exact ToVCVio.evalDistEq_of_eq (SCKAScheme.oracleSendBrleak_run_congr _ _ _ s
+  · intro _
+    exact ToVCVio.evalDistEq_of_eq (SCKAScheme.oracleSendBrleak_run_congr _ _ _ s
       ((sendBrleak_encapsFresh_eq_fresh kem onoff ecEk ecCt0 ecCt1 leak kemMat e s pair).trans
         (sendBrleak_encapsFresh_eq_fresh kem onoff ecEk ecCt0 ecCt1 leak kemMat e s pair').symm))
 
@@ -1265,14 +1257,13 @@ theorem pinnedHybrid_eq_ideal (e : ℕ) (b : Bool) (adv : SecurityAdversary leak
       let kemMat ← sampleMaterial leak
       optionRun (stageStopped kem onoff ecEk ecCt0 ecCt1 leak .pinned kemMat e b) adv
         (oppUniKemCKA.Reduction.Internal.initialGame kem onoff))}[x = true] =
-    Pr{let x ← (optionRun
-      (stopOnState (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak (adjacentMode e b))
-        (fun s => decide (e ∈ s.exposed))) adv
-      (oppUniKemCKA.Reduction.Internal.initialGame kem onoff))}[x = true] := by
+    Pr{let x ← (stoppedHybridExp kem onoff hDet ecEk ecCt0 ecCt1 leak adv
+      (if b then e else e - 1) e)}[x = true] := by
   obtain ⟨kemMat₀, _⟩ := OracleComp.support_nonempty (sampleMaterial leak)
   rw [pinnedHybrid_eq_fresh kem onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1 leak kemMat₀ e b adv]
   unfold stageStopped
   rw [stageOracle_fresh_eq_ideal kem onoff hDet ecEk ecCt0 ecCt1 leak kemMat₀ e b]
+  rfl
 
 include hEk hCt0 hCt1 in
 /-- For `e > 0`, the fixed branch `𝓑_e^x` and the stopped hybrid `S_e^x` have the same acceptance
@@ -1280,14 +1271,13 @@ probability, where version `real` is `fixedBranch … true` and `adjacentMode e 
 theorem fixedBranch_eq_ideal (e : ℕ) (he : 0 < e)
     (b : Bool) (adv : SecurityAdversary leak Sym) :
     Pr{let x ← fixedBranch kem onoff ecEk ecCt0 ecCt1 leak adv e b}[x = true] =
-    Pr{let x ← (optionRun
-      (stopOnState (idealSecurityImpl kem onoff hDet ecEk ecCt0 ecCt1 leak
-        (adjacentMode e (!b))) (fun s => decide (e ∈ s.exposed))) adv
-      (oppUniKemCKA.Reduction.Internal.initialGame kem onoff))}[x = true] := by
+    Pr{let x ← (stoppedHybridExp kem onoff hDet ecEk ecCt0 ecCt1 leak adv
+      (if b then e - 1 else e) e)}[x = true] := by
   rw [fixedBranch_eq_pinnedHybrid kem onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
     leak adv e he b]
-  exact pinnedHybrid_eq_ideal kem onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
+  have h := pinnedHybrid_eq_ideal kem onoff hDet ecEk hEk ecCt0 hCt0 ecCt1 hCt1
     leak e (!b) adv
+  cases b <;> exact h
 
 end
 

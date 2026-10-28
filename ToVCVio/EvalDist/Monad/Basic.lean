@@ -51,7 +51,8 @@ lemma evalDistEq_of_eq [EvalDistSemantics m] {β : Type} {mx my : m β} (h : mx 
   h ▸ EvalDistEq.rfl
 
 /-- `mx >>= my =ᵈ mz` if `my x = mz` for every `x ∈ support mx`. -/
-lemma evalDistEq_bind_of_const' {ι : Type} {spec : OracleSpec ι} [OracleSpec.AnswerMeasure spec]
+lemma _root_.OracleComp.EvalDistEq.bind_const_of_support {ι : Type} {spec : OracleSpec ι}
+    [OracleSpec.AnswerMeasure spec]
     {β : Type} (mx : OracleComp spec α) {my : α → OracleComp spec β} {mz : OracleComp spec β}
     (h : ∀ x ∈ support mx, my x = mz) : mx >>= my =ᵈ mz :=
   (OracleComp.EvalDistEq.bind_congr_of_support mx fun x hx => by rw [h x hx]).trans

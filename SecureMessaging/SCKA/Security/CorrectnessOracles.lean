@@ -26,10 +26,8 @@ variable {IK StA StB I Rho Rand : Type}
 /-- A uniform-randomness query leaves the game state unchanged. -/
 theorem mem_support_oracleUnif_run (n : ℕ) (s : GameState StA StB I Rho)
     (z : unifSpec.Range n × GameState StA StB I Rho)
-    (hz : z ∈ support ((oracleUnif StA StB I Rho n).run s)) : z.2 = s := by
-  have hz' : ∃ r, (r, s) = z := by simpa [oracleUnif] using hz
-  obtain ⟨_, rfl⟩ := hz'
-  rfl
+    (hz : z ∈ support ((oracleUnif StA StB I Rho n).run s)) : z.2 = s :=
+  oracleUnif_preservesInv (· = s) n s rfl z hz
 
 variable [DecidableEq I]
 
