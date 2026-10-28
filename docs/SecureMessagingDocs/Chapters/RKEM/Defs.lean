@@ -522,10 +522,10 @@ noncomputable def indCpaAdvantage (rkem : RKEMScheme ProbComp Par EK DK CT K)
 ::::
 :::::
 
-:::defTitle "rkem_forward_security" "RKEM forward security"
+:::defTitle "rkem_forward_security" "RKEM (forward secure)-IND-CPA"
 :::
 
-:::::definition "rkem_forward_security" (parent := "rkem") (lean := "RKEMScheme.FSINDCPASecure, RKEMScheme.INDCPASecure") (tags := "gh-178") (uses := "rkem_guess_advantage")
+:::::definition "rkem_forward_security" (parent := "rkem") (lean := "RKEMScheme.FSINDCPASecure, RKEMScheme.INDCPASecure") (tags := "gh-178, gh-375") (uses := "rkem_guess_advantage")
 An RKEM is $`\varepsilon`-FS-IND-CPA secure when $`\mathsf{Adv}^{\mathsf{FS\text{-}IND\text{-}CPA}}(\adv_\A,\adv_\B)\le\varepsilon`, and a non-forward-secure RKEM is $`\varepsilon`-IND-CPA secure when $`\mathsf{Adv}^{\mathsf{IND\text{-}CPA}}(\adv_\A,\adv_\B)\le\varepsilon`.
 
 ::::leanCompare "Security" (left := "FS-IND-CPA") (right := "IND-CPA")

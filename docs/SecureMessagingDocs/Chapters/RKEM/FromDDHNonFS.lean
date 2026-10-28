@@ -238,7 +238,7 @@ theorem deltaCorrect [DecidableEq G] (gen : G) :
 :::::::theorem "rkem_from_ddh_nonfs_ind_cpa" (parent := "rkem_rkem_from_ddh_non_fs") (lean := "ddhRKEM.ddhReduction, ddhRKEM.indCpaAdvantageA_eq, ddhRKEM.indCpaAdvantageB_eq, ddhRKEM.INDCPASecure") (tags := "gh-375") (uses := "rkem_from_ddh_nonfs_spec, rkem_scheme, rkem_forward_security")
 Adapted from {Informal.citet TR25}[], Theorem A.4.
 
-Let $`G=\langle g\rangle` be of prime order $`q`, so that $`x\mapsto g^x` is a bijection $`\mathbb{Z}_q\to G`. In Lean, this is the hypothesis
+Let $`G=\langle g\rangle` be of prime order $`q`, so that $`x\mapsto g^x` is a bijection $`\mathbb{Z}_q\to G`; modeled as `fun x => x • gen` is bijective from $`F` to $`G`.
 
 :::leanPillCaption "Generator hypothesis"
 :::
