@@ -51,6 +51,17 @@ def NRS14 : Verso.Genre.Manual.Bibliography.Citable := .inProceedings
   , booktitle := inlines!"EUROCRYPT 2014"
   , url := some "https://eprint.iacr.org/2014/206" }
 
+@[bib "Ros26"]
+def Ros26 : Verso.Genre.Manual.Bibliography.Citable := .article
+  { title := inlines!"The Joy of Cryptography: An Undergraduate Course in Provable Security"
+  , authors := #[inlines!"Mike Rosulek"]
+  , journal := inlines!"MIT Press, online edition"
+  , year := 2026
+  , month := none
+  , volume := inlines!""
+  , number := inlines!""
+  , url := some "https://joyofcryptography.com" }
+
 @[bib "MV04"]
 def MV04 : Verso.Genre.Manual.Bibliography.Citable := .inProceedings
   { title := inlines!"The Security and Performance of the Galois/Counter Mode (GCM) of Operation"

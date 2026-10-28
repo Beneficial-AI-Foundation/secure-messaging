@@ -30,9 +30,11 @@ set_option pp.rawOnError true
 
 *References:*
 
-- {Informal.citet NRS14}[] — ivE schemes and their security (Section 2), the construction
-  (Figure 2, scheme A5) and its security (Theorem 1, Lemma 3, Appendix A.2, bound in
-  Figure 9).
+- {Informal.citet Ros26}[] — computational one-time secrecy (Definition 5.3.2) and the
+  encrypt-then-MAC construction (Construction 9.5.1).
+- {Informal.citet NRS14}[] — the security theorem for the encrypt-then-MAC scheme A5
+  (Theorem 1, bound in Figure 9) and its proof (Lemma 3, Appendix A.2), which the Lean proof
+  follows.
 - {Informal.citet ACD19}[] — the target notion: one-time IND-CCA security of AEAD
   (Definition 1, Figure 1, Definition 2). ACD19 uses AEAD as a building block and does not
   construct it.
@@ -45,7 +47,8 @@ Encrypt-then-MAC.
 :::
 
 :::::::definition "aead_etm_det_se" (parent := "aead_encrypt_then_mac") (lean := "DetSEAlg, DetSEAlg.Correct, DetSEAlg.oracleEncrypt, DetSEAlg.securityExpFixedBit, DetSEAlg.distAdvantage")
-Adapted from {Informal.citet NRS14}[], Section 2 (ivE schemes).
+Adapted from {Informal.citet Ros26}[], Definition 5.3.2, where the adversary makes any number
+of encryption queries, each under a fresh key. The game we formalize answers one query.
 
 A deterministic symmetric encryption scheme $`\mathsf{SE}` is a tuple of algorithms
 $`(\mathsf{SE.KeyGen}, \mathsf{SE.Enc}, \mathsf{SE.Dec})` with key space $`\mathcal K`,
@@ -78,18 +81,6 @@ def Correct (se : DetSEAlg K M C) : Prop :=
 ```
 
 ::::::gameGrid
-:::::gameCell "\\textsf{Deviations from ivE schemes}" (kind := "scheme-notation")
-In {Informal.citet NRS14}[], an ivE scheme encrypts under a key and an initialization vector
-(IV), and the adversary makes many encryption queries. Here each key encrypts one message, so
-the scheme takes no IV and the game answers at most one encryption query. The security notion
-stays ind$-style: the adversary must tell real ciphertexts from uniformly random ones. This
-is stronger than left-or-right indistinguishability. The ind$ game of
-{Informal.citet NRS14}[] returns a random string of the same length as the real ciphertext.
-The game here samples from all of $`\mathcal C` instead, so ciphertexts must also hide the
-message length. This matches the AEAD game of {Informal.citet ACD19}[], which samples the
-challenge ciphertext from the whole ciphertext space.
-:::::
-
 :::::gameCell "\\textsf{Game state and notation}" (kind := "scheme-notation")
 The game state consists of the key $`K`, the challenge bit $`b` and the flag
 $`\mathsf{used}`, which records whether $`\Oenc` already answered. For $`b = 0`, $`\Oenc`
@@ -191,10 +182,10 @@ chooses $`m` before it sees anything that depends on $`K`, so $`m` is independen
 $`k` and $`\mathit{iv}`.
 
 libsignal pads messages with PKCS#7, so the ciphertext length depends on $`|m|`. This is
-the usual behavior, and {Informal.citet NRS14}[] allows it: their ind$ game returns a
-random string of the same length as the real ciphertext. The game on this page is stricter.
-It samples $`c` from all of $`\mathcal C`, so it also requires the ciphertext to hide the
-message length (see the deviations above). In $`\Exp{\textsf{ind\$}\text{-}0}{\textsf{SE}}(\adv)`,
+the usual behavior, and length-respecting notions allow it: the CPA game of
+{Informal.citet Ros26}[], Definition 8.1.1, returns a random ciphertext of the same length as
+the real one. The game on this page is stricter. Like Definition 5.3.2, it samples $`c` from
+all of $`\mathcal C`, so it also requires the ciphertext to hide the message length. In $`\Exp{\textsf{ind\$}\text{-}0}{\textsf{SE}}(\adv)`,
 the length of $`c` is fixed by $`|m|`. In $`\Exp{\textsf{ind\$}\text{-}1}{\textsf{SE}}(\adv)`,
 $`c` is uniform on all of $`\mathcal C`, so its length is random. An adversary that queries
 a short $`m` and outputs $`1` if the length of $`c` does not match $`|m|` has advantage
@@ -215,7 +206,8 @@ This repository does not prove that bound and does not instantiate AES-CBC in Le
 :::
 
 :::::::definition "aead_etm_spec" (parent := "aead_encrypt_then_mac") (lean := "EtM.etmAEAD") (tags := "gh-24") (uses := "aead, aead_etm_det_se, prf")
-Adapted from {Informal.citet NRS14}[], Figure 2, scheme A5.
+Adapted from {Informal.citet Ros26}[], Construction 9.5.1, where the tag covers only the
+ciphertext. In the construction we formalize, the tag also covers the associated data.
 
 Let $`\mathsf{SE}` be a deterministic symmetric encryption scheme with key space
 $`\mathcal K_e` and ciphertext space $`\mathcal C_e`, and let $`F` be a PRF with domain
@@ -249,19 +241,6 @@ $`\begin{array}{l}
 
 ::::::
 
-::::::gameGrid
-:::::gameCell "\\textsf{Deviations from scheme A5}" (kind := "scheme-notation")
-Scheme A5 is nonce-based. Its key is $`K \concat L`, where $`K` is the key of the ivE
-scheme and $`L` is the key of the PRF from which A5 derives $`F^{\mathsf{iv}}_L` and
-$`F^{\mathsf{tag}}_L`. Here $`K_e` plays the role of $`K` and $`K_m` the role of $`L`. Each
-key of $`\mathsf{EtM}[\mathsf{SE}, F]` encrypts one message, so we remove the nonce:
-
-- there is no nonce $`N`, and the tag is $`F(K_m, (a, c))`, not $`F^{\mathsf{tag}}_L(N, a, c)`;
-- there is no IV: A5 computes the IV as $`F^{\mathsf{iv}}_L(N)`, so here $`F` computes only
-  the tag.
-:::::
-::::::
-
 ```anchor etmAEAD (project := ".") (module := SecureMessaging.AEAD.FromEtM.Construction)
 def etmAEAD (se : DetSEAlg K_e M C_e)
     (prf : PRFScheme K_m (AD × C_e) T) :
@@ -285,8 +264,7 @@ def etmAEAD (se : DetSEAlg K_e M C_e)
 :::
 
 ::::theorem "aead_etm_correctness" (parent := "aead_encrypt_then_mac") (lean := "EtM.etmAEAD_correct") (tags := "gh-25") (uses := "aead_etm_spec, aead_etm_det_se, aead_correctness")
-Correctness in the sense of {Informal.citet ACD19}[], Definition 1, for the one-time
-adaptation of the scheme A5 of {Informal.citet NRS14}[], Figure 2.
+Correctness in the sense of {Informal.citet ACD19}[], Definition 1.
 
 Let $`\mathsf{SE}` be a correct deterministic symmetric encryption scheme and $`F` a PRF.
 Then $`\mathsf{EtM}[\mathsf{SE}, F]` is correct.
@@ -302,7 +280,8 @@ theorem etmAEAD_correct (se : DetSEAlg K_e M C_e)
 :::
 
 :::::theorem "aead_etm_security" (parent := "aead_encrypt_then_mac") (lean := "EtM.etmAEAD_security") (tags := "gh-26") (uses := "aead_etm_spec, aead_etm_det_se, prf, aead_security_exp, aead_dist_advantage, aead_decrypt_query_bound, aead_oracles")
-Adapted from {Informal.citet NRS14}[], Theorem 1 for scheme A5, with the bound of Figure 9.
+Adapted from {Informal.citet NRS14}[], Theorem 1 for scheme A5 (bound of Figure 9), for
+one-time keys without a nonce.
 
 Let $`\mathsf{SE}` be a deterministic symmetric encryption scheme, $`F` a PRF with a finite
 range $`\mathcal T`, and $`\adv` a one-time IND-CCA adversary against

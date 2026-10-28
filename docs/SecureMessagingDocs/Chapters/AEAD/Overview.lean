@@ -27,6 +27,7 @@ set_option doc.verso true
 
 - {Informal.citet ACD19}[]
 - {Informal.citet TR25}[]
+- {Informal.citet Ros26}[]
 - {Informal.citet NRS14}[]
 - {Informal.citet SCKA25}[]
 - {Informal.citet NIST_GCM}[]
