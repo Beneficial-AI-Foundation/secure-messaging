@@ -65,6 +65,9 @@ and nonempty, so that the game below can sample from it uniformly. $`\mathsf{SE}
 if $`\mathsf{SE.Dec}(K, \mathsf{SE.Enc}(K, m)) = m` for all keys $`K` and messages
 $`m`.
 
+:::leanPillCaption "deterministic symmetric encryption scheme"
+:::
+
 ```anchor DetSEAlg (project := ".") (module := SecureMessaging.SymEnc.Defs)
 structure DetSEAlg (K M C : Type) where
   /-- Sample a fresh symmetric key. -/
@@ -74,6 +77,9 @@ structure DetSEAlg (K M C : Type) where
   /-- Deterministic decryption: `Dec(K, C) = some M` or `none`. -/
   decrypt : K → C → Option M
 ```
+
+:::leanPillCaption "correctness"
+:::
 
 ```anchor DetSEAlgCorrect (project := ".") (module := SecureMessaging.SymEnc.Defs)
 def Correct (se : DetSEAlg K M C) : Prop :=
@@ -145,6 +151,9 @@ The one-time IND$-CPA advantage of $`\adv` is
 $$`\mathsf{Adv}^{\textsf{ind\$}}_{\textsf{SE}}(\adv)
   = \Bigl|\, \Pr\bigl[\Exp{\textsf{ind\$}\text{-}1}{\textsf{SE}}(\adv) = 1\bigr]
   - \Pr\bigl[\Exp{\textsf{ind\$}\text{-}0}{\textsf{SE}}(\adv) = 1\bigr] \,\Bigr|`
+
+:::leanPillCaption "IND$-CPA advantage"
+:::
 
 ```anchor detSEDistAdvantage (project := ".") (module := SecureMessaging.SymEnc.Defs)
 noncomputable def distAdvantage [SampleableType C] (se : DetSEAlg K M C)
@@ -234,19 +243,25 @@ Adapted from {Informal.citet Ros26}[], Construction 9.5.1, where the tag covers 
 ciphertext. In the construction we formalize, the tag also covers the associated data.
 
 Let $`\mathsf{SE}` be a deterministic symmetric encryption scheme with key space
-$`\mathcal K_e` and ciphertext space $`\mathcal C_e`, and let $`F` be a PRF with domain
-$`\mathcal{AD} \times \mathcal C_e` and range $`\mathcal T`. The AEAD scheme
-$`\mathsf{EtM}[\mathsf{SE}, F]` has key space
-$`\mathcal K_e \times \mathcal K_m` and ciphertext space $`\mathcal C_e \times \mathcal T`.
-$`\mathsf{KeyGen}` samples $`K_e \gets \mathsf{SE.KeyGen}` and $`K_m \gets F.\mathsf{keygen}`
-independently and returns $`(K_e, K_m)`. $`\Enc` encrypts the message with $`\mathsf{SE}`,
-then computes the tag $`t` with $`F` on the associated data and the ciphertext.
+$`\mathcal K_e` and ciphertext space $`\mathcal C_e`, and let $`F` be a
+{bpref "prf"}[PRF] with key space $`\mathcal K_m`, domain
+$`\mathcal{AD} \times \mathcal C_e` and range $`\mathcal T`. Then
+$`\mathsf{EtM}[\mathsf{SE}, F]` is the {bpref "aead"}[AEAD scheme] with key space
+$`\mathcal K_e \times \mathcal K_m`, ciphertext space $`\mathcal C_e \times \mathcal T` and
+the algorithms below.
 
-The tag is a PRF, not only a MAC (an unforgeable tag), because the security game compares
-the whole ciphertext $`(c, t)` with a uniformly random one. Unforgeability alone does not
-make $`t` look random.
+The tag function $`F` must be a PRF (encrypt-then-PRF), not only a MAC, because the
+security game compares $`(c, t)` with a uniformly random ciphertext.
 
 ::::::gameGrid
+:::::gameCell "\\mathsf{KeyGen}()" (kind := "compact")
+$`\begin{array}{l}
+K_e \gets \mathsf{SE.KeyGen}; \\
+K_m \gets F.\mathsf{keygen}; \\
+\Return (K_e, K_m)
+\end{array}`
+:::::
+
 :::::gameCell "\\Enc((K_e, K_m), a, m)" (kind := "compact")
 $`\begin{array}{l}
 c \gets \mathsf{SE.Enc}(K_e, m); \\
@@ -303,42 +318,26 @@ theorem etmAEAD_correct (se : DetSEAlg K_e M C_e)
 :::defTitle "aead_etm_security" "AEAD encrypt-then-MAC security"
 :::
 
-:::::theorem "aead_etm_security" (parent := "aead_encrypt_then_mac") (lean := "EtM.etmAEAD_security") (tags := "gh-26") (uses := "aead_etm_spec, aead_etm_det_se, prf, aead_security_exp, aead_dist_advantage, aead_decrypt_query_bound, aead_oracles")
+:::::theorem "aead_etm_security" (parent := "aead_encrypt_then_mac") (lean := "EtM.etmAEAD_security, EtM.prfReduction, EtM.encReduction") (tags := "gh-26") (uses := "aead_etm_spec, aead_etm_det_se, prf, aead_security_exp, aead_dist_advantage, aead_decrypt_query_bound, aead_oracles")
 Adapted from {Informal.citet NRS14}[], Theorem 1 for scheme A5 (bound of Figure 9), for
 one-time keys without a nonce.
 
 Let $`\mathsf{SE}` be a deterministic symmetric encryption scheme, $`F` a PRF with a finite
 range $`\mathcal T`, and $`\adv` a one-time IND-CCA adversary against
 $`\mathsf{EtM}[\mathsf{SE}, F]` that makes at most $`q_d`
-queries to the decryption oracle $`\Odec` of the {bpref "aead_oracles"}[one-time IND-CCA game]. Then
+queries to the decryption oracle $`\Odec` of the {bpref "aead_oracles"}[one-time IND-CCA game].
+Then there exist a PRF adversary $`\mathcal B` against $`F` and an IND$-CPA adversary
+$`\mathcal D` against $`\mathsf{SE}`, constructed from $`\adv` as in
+{Informal.citet NRS14}[], Lemma 3, such that
 
 $$`\mathsf{Adv}^{\textsf{dist}}_{\mathsf{EtM}[\mathsf{SE}, F]}(\adv)
   \le \mathsf{Adv}^{\textsf{prf}}_{F}(\mathcal B)
   + \frac{q_d}{|\mathcal T|}
   + \mathsf{Adv}^{\textsf{ind\$}}_{\textsf{SE}}(\mathcal D)`
 
-Here $`\mathsf{Adv}^{\textsf{dist}}` is the {bpref "aead_dist_advantage"}[distinguishing
-advantage] in the {bpref "aead_security_exp"}[one-time IND-CCA game]. In that game, for
-the key $`(K_e, K_m)` and a fixed challenge bit $`b`, $`\Oenc` answers only its first query
-$`(a, m)`. It returns $`e^* = \Enc((K_e, K_m), a, m)` for $`b = 0` and a uniformly random
-$`e^* \in \mathcal C_e \times \mathcal T` for $`b = 1`, and it records the challenge pair
-$`(a^*, e^*)`, where $`a^* = a`. For $`b = 0`, $`\Odec` decrypts every query except
-$`(a^*, e^*)`. For $`b = 1`, it returns $`\bot`.
-
-The adversaries $`\mathcal B` and $`\mathcal D` run $`\adv` and answer its queries, as in
-{Informal.citet NRS14}[], Lemma 3. Both answer only the first $`\Oenc` query, record the
-challenge pair $`(a^*, e^*)`, return $`\bot` to the $`\Odec` query $`(a^*, e^*)`, and output
-the bit that $`\adv` outputs.
-
-- $`\mathcal B` samples $`K_e`. It answers $`\Oenc(a, m)` with $`(c, t)`, where
-  $`c = \mathsf{SE.Enc}(K_e, m)` and $`t` is the answer of its function oracle on $`(a, c)`.
-  It answers $`\Odec(a, (c, t))` by checking $`t` with that oracle and then returning
-  $`\mathsf{SE.Dec}(K_e, c)`, or $`\bot` if the check fails.
-- $`\mathcal D` answers $`\Oenc(a, m)` with $`(c, t)`, where $`c` is the answer of its own
-  $`\Oenc` on $`m` and $`t \sample \mathcal T`. It returns $`\bot` to every $`\Odec`
-  query.
-
-In Figure 9 the middle term is $`q_d / 2^\tau` for $`\tau`-bit tags.
+where $`\mathsf{Adv}^{\textsf{dist}}` is the {bpref "aead_dist_advantage"}[distinguishing
+advantage] in the {bpref "aead_security_exp"}[one-time IND-CCA game]. In Figure 9 the middle
+term is $`q_d / 2^\tau` for $`\tau`-bit tags.
 
 ```anchor etmAEAD_security (project := ".") (module := SecureMessaging.AEAD.FromEtM.Security)
 theorem etmAEAD_security
@@ -350,5 +349,25 @@ theorem etmAEAD_security
       (PRFScheme.prfAdvantage prf (prfReduction se adv)).toReal +
       ↑q_d * (Fintype.card T : ℝ)⁻¹ +
       DetSEAlg.distAdvantage se (encReduction se adv)
+```
+
+:::leanPillCaption "PRF adversary $`\\mathcal B`"
+:::
+
+```anchor etmPrfReduction (project := ".") (module := SecureMessaging.AEAD.FromEtM.Security.Games)
+noncomputable def prfReduction
+    (se : DetSEAlg K_e M C_e)
+    (adv : OneTimeCCAAdversary AD M (C_e × T))
+    : PRFAdversary (AD × C_e) T
+```
+
+:::leanPillCaption "IND$-CPA adversary $`\\mathcal D`"
+:::
+
+```anchor etmEncReduction (project := ".") (module := SecureMessaging.AEAD.FromEtM.Security.Games)
+noncomputable def encReduction
+    (_se : DetSEAlg K_e M C_e)
+    (adv : OneTimeCCAAdversary AD M (C_e × T))
+    : DetSEAlg.IndCPAAdversary M C_e
 ```
 :::::

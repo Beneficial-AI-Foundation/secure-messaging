@@ -44,9 +44,12 @@ function-oracle query. Fetching everything up front keeps the query count fixed 
 -- is a two-argument abbrev whose *second* argument is the oracle range, not the return
 -- type, so `do`-notation would otherwise unify the monad with `PRFAdversary (BitVec 128)`
 -- and fail to find `Monad`/`MonadLiftT` instances.
+-- ANCHOR: gcmPrfReduction
 noncomputable def prfReduction (iv : BitVec 96) (L : ℕ)
     (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
-    PRFScheme.PRFAdversary (BitVec 128) (BitVec 128) :=
+    PRFScheme.PRFAdversary (BitVec 128) (BitVec 128)
+-- ANCHOR_END: gcmPrfReduction
+    :=
   (do
     let h ← liftM (OracleSpec.query (Sum.inr (0 : BitVec 128)) :
         OracleQuery (PRFScheme.PRFOracleSpec (BitVec 128) (BitVec 128)) (BitVec 128))

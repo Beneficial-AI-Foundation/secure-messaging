@@ -232,10 +232,13 @@ NRS14 Lemma 3, eq. (4): reduction B(A) that distinguishes F^tag from ρ.
 The body is a skeleton instantiation where `computeTag` and `verifyTag` forward
 their queries to `OracleSpec.query (Sum.inr (ad, c))` — the PRF/random oracle
 provided by the experiment. -/
+-- ANCHOR: etmPrfReduction
 noncomputable def prfReduction
     (se : DetSEAlg K_e M C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T))
-    : PRFAdversary (AD × C_e) T :=
+    : PRFAdversary (AD × C_e) T
+-- ANCHOR_END: etmPrfReduction
+    :=
   let spec := unifSpec + ((AD × C_e) →ₒ T)
   let unifImpl : QueryImpl unifSpec
       (StateT (EtmGameState AD C_e T) (OracleComp spec)) :=
@@ -273,10 +276,13 @@ branch is unreachable. -/
 -- `_se` is unused in the body but kept to pin the key type `K_e` and to align
 -- the reduction's signature with `prfReduction` and the security theorems.
 @[nolint unusedArguments]
+-- ANCHOR: etmEncReduction
 noncomputable def encReduction
     (_se : DetSEAlg K_e M C_e)
     (adv : OneTimeCCAAdversary AD M (C_e × T))
-    : DetSEAlg.IndCPAAdversary M C_e :=
+    : DetSEAlg.IndCPAAdversary M C_e
+-- ANCHOR_END: etmEncReduction
+    :=
   let spec := unifSpec + (M →ₒ Option C_e)
   let unifImpl : QueryImpl unifSpec
       (StateT (EtmGameState AD C_e T) (OracleComp spec)) :=

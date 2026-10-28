@@ -51,27 +51,25 @@ GCM.
 
 :::::::gameGrid
 ::::::gameCell "\\textsf{Notation}" (kind := "scheme-notation")
-A block is a bit string of length 128. For a bit string $`X = x_0 x_1 \ldots x_{n-1}`:
+A block is a bitstring of length 128. For a bitstring $`X = x_0 x_1 \ldots x_{n-1}`:
 
 - $`|X| = n` is the length of $`X`, and $`x_0` is its leftmost and most significant bit;
 - $`\mathsf{MSB}_s(X)` and $`\mathsf{LSB}_s(X)` are the leftmost and the rightmost $`s` bits
   of $`X`;
 - $`X \gg 1` is $`X` shifted right by one bit: $`0 x_0 x_1 \ldots x_{n-2}`;
 - $`\mathrm{int}(X)` is the integer with binary representation $`X`, and for
-  $`0 \le k < 2^s`, $`[k]_s` is the $`s`-bit string with $`\mathrm{int}([k]_s) = k`;
+  $`0 \le k < 2^s`, $`[k]_s` is the $`s`-bit bitstring with $`\mathrm{int}([k]_s) = k`;
 - $`R = 11100001 \concat 0^{120}`.
 
-$`\mathsf{CIPH}_K` is a block cipher on blocks under the key $`K`. The inputs $`X` and $`Y`
-of $`X \bullet Y`, the hash key $`H`, the input $`X` of $`\mathsf{inc}_{32}` and the initial
-counter block $`\mathit{ICB}` are blocks. The input of $`\mathsf{GHASH}_H` is a sequence of
-$`m` blocks $`X = X_1 \concat \cdots \concat X_m`. The input $`X` of $`\mathsf{GCTR}_K` is a
-bit string of any length.
+$`\mathsf{CIPH}_K = \mathsf{perm}(K, \cdot)` is the forward permutation of a
+{bpref "prp"}[block cipher] on blocks under the key $`K`.
 ::::::
 :::::::
 
 :::::::gameGrid
 ::::::gameCell "X \\bullet Y \\quad \\textsf{(Algorithm 1)}" (kind := "compact")
 $`\begin{array}{l}
+\bullet : \bit^{128} \times \bit^{128} \to \bit^{128} \\ \hline
 Z_0 \gets 0^{128};\quad V_0 \gets Y; \\
 \mathsf{for}\; i = 0, \ldots, 127 \\
 \quad \pif\;x_i = 0\;\pthen \\
@@ -98,6 +96,8 @@ def gfmul (x y : BitVec 128) : BitVec 128 :=
 
 ::::::gameCell "\\mathsf{GCTR}_K(\\mathit{ICB}, X) \\quad \\textsf{(Algorithm 3)}" (kind := "compact")
 $`\begin{array}{l}
+\mathsf{GCTR}_K : \bit^{128} \times \bit^* \to \bit^* \\
+\pcommentline{|\mathsf{GCTR}_K(\mathit{ICB}, X)| = |X|} \\ \hline
 \pif\;|X| = 0\;\pthen\;\Return X; \\
 n \gets \lceil |X| / 128 \rceil; \\
 \pcommentline{\text{split } X = X_1 \concat \cdots \concat X_{n-1} \concat X_n^*} \\
@@ -120,6 +120,7 @@ def gctr {K : Type} (ciph : K → BitVec 128 → BitVec 128) (k : K) (icb : BitV
 
 ::::::gameCell "\\mathsf{inc}_{32}(X) \\quad \\textsf{(Section 6.2)}" (kind := "compact")
 $`\begin{array}{l}
+\mathsf{inc}_{32} : \bit^{128} \to \bit^{128} \\ \hline
 c \gets \mathrm{int}(\mathsf{LSB}_{32}(X)) + 1 \bmod 2^{32}; \\
 \Return \mathsf{MSB}_{96}(X) \concat [c]_{32}
 \end{array}`
@@ -132,6 +133,8 @@ def inc32 (x : BitVec 128) : BitVec 128 :=
 
 ::::::gameCell "\\mathsf{GHASH}_H(X) \\quad \\textsf{(Algorithm 2)}" (kind := "compact")
 $`\begin{array}{l}
+\mathsf{GHASH}_H : (\bit^{128})^* \to \bit^{128} \\
+\pcommentline{X = X_1 \concat \cdots \concat X_m} \\ \hline
 Y_0 \gets 0^{128}; \\
 \mathsf{for}\; i = 1, \ldots, m \\
 \quad Y_i \gets (Y_{i-1} \oplus X_i) \bullet H; \\
@@ -144,11 +147,6 @@ def ghash (h : BitVec 128) (blocks : List (BitVec 128)) : BitVec 128 :=
 ```
 ::::::
 :::::::
-
-$`X \bullet Y` is the product of $`X` and $`Y` in $`\mathrm{GF}(2^{128})`, where the block
-$`x_0 x_1 \ldots x_{127}` represents the polynomial $`\sum_i x_i\, \alpha^i` and $`\alpha`
-is a root of $`x^{128} + x^7 + x^2 + x + 1`. The keystream of $`\mathsf{GCTR}` does not
-depend on $`X`, so $`\mathsf{GCTR}_K(\mathit{ICB}, \cdot)` is its own inverse.
 ::::::::
 
 :::defTitle "aead_gcm_spec" "AEAD-GCM construction"
@@ -158,8 +156,8 @@ depend on $`X`, so $`\mathsf{GCTR}_K(\mathit{ICB}, \cdot)` is its own inverse.
 Adapted from {Informal.citet NIST_GCM}[], Section 7, Algorithms 4 and 5.
 
 GCM encrypts the message in counter mode and authenticates the associated data and the
-ciphertext with $`\mathsf{GHASH}`. Both use the block cipher $`\mathsf{CIPH}_K` of a PRP
-scheme on 128-bit blocks. The tag is 128 bits. For a bit string $`X`, let $`0^{v_X}` be the
+ciphertext with $`\mathsf{GHASH}`. Both use the block cipher $`\mathsf{CIPH}_K` of a
+{bpref "prp"}[PRP scheme] on 128-bit blocks. The tag is 128 bits. For a bitstring $`X`, let $`0^{v_X}` be the
 fewest zero bits that make $`|X| + v_X` a multiple of 128. GHASH hashes the associated data
 $`A` and the ciphertext $`C` as
 
@@ -227,22 +225,54 @@ A message or ciphertext length is supported when it is at most $`2^{39} - 256` b
 multiple of 8. An associated data length is supported when it is at most $`2^{64} - 1` bits
 and a multiple of 8.
 
+:::leanPillCaption "supported message length"
+:::
+
 ```anchor ValidMsgLength (project := ".") (module := SecureMessaging.AEAD.GCM)
 @[reducible] def ValidMsgLength (lenC : ℕ) : Prop := lenC ≤ 2 ^ 39 - 256 ∧ 8 ∣ lenC
 ```
+
+:::leanPillCaption "supported associated data length"
+:::
 
 ```anchor ValidAADLength (project := ".") (module := SecureMessaging.AEAD.GCM)
 @[reducible] def ValidAADLength (lenA : ℕ) : Prop := lenA ≤ 2 ^ 64 - 1 ∧ 8 ∣ lenA
 ```
 
+:::leanPillCaption "associated data of supported length"
+:::
+
 ```anchor SupportedAAD (project := ".") (module := SecureMessaging.AEAD.GCM)
 abbrev SupportedAAD := { x : (a : ℕ) × BitVec a // ValidAADLength x.1 }
 ```
 
-The one-time AEAD scheme $`\mathsf{GCM}[P, \mathit{IV}, L]` is GCM under the PRP scheme
-$`P` with a fixed public IV and $`L`-bit messages: $`\mathsf{KeyGen}` is the key generation
-of $`P`, $`\Enc(K, a, m) = \mathsf{GCM\text{-}AE}_K(\mathit{IV}, m, a)` and
-$`\Dec(K, a, (C, T)) = \mathsf{GCM\text{-}AD}_K(\mathit{IV}, C, a, T)`.
+Let $`P` be a PRP scheme on 128-bit blocks with key space $`\mathcal K`, let $`\mathit{IV}`
+be a 96-bit IV, and let $`L` be a supported message length. Then
+$`\mathsf{GCM}[P, \mathit{IV}, L]` is the one-time {bpref "aead"}[AEAD scheme] with key
+space $`\mathcal K`, message space $`\bit^L`, associated data space the bitstrings of
+supported length, ciphertext space $`\bit^L \times \bit^{128}` and the algorithms below.
+The block cipher $`\mathsf{CIPH}_K` of GCM-AE and GCM-AD is the permutation of $`P`.
+
+::::::gameGrid
+:::::gameCell "\\mathsf{KeyGen}()" (kind := "compact")
+$`\begin{array}{l}
+K \gets P.\mathsf{keygen}; \\
+\Return K
+\end{array}`
+:::::
+
+:::::gameCell "\\Enc(K, a, m)" (kind := "compact")
+$`\begin{array}{l}
+\Return \mathsf{GCM\text{-}AE}_K(\mathit{IV}, m, a)
+\end{array}`
+:::::
+
+:::::gameCell "\\Dec(K, a, (C, T))" (kind := "compact")
+$`\begin{array}{l}
+\Return \mathsf{GCM\text{-}AD}_K(\mathit{IV}, C, a, T)
+\end{array}`
+:::::
+::::::
 
 ::::::gameGrid
 :::::gameCell "\\textsf{Scope}" (kind := "scheme-notation")
@@ -257,6 +287,9 @@ The scheme covers a part of what {Informal.citet NIST_GCM}[] allows:
 - the tag is the full 128 bits, so $`\mathsf{MSB}_t` in step 6 of Algorithm 4 is the identity.
 :::::
 ::::::
+
+:::leanPillCaption "one-time AEAD scheme $`\\mathsf{GCM}[P, \\mathit{IV}, L]`"
+:::
 
 ```anchor gcmOneTimeAEAD (project := ".") (module := SecureMessaging.AEAD.FromGCM.Construction)
 def gcmOneTimeAEAD {K : Type} (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
@@ -303,10 +336,16 @@ supported associated data $`a` and $`c \in \bit^L`. Here the hash key $`H` is un
 $`\bit^{128}`. In GCM, $`H = \mathsf{CIPH}_K(0^{128})`, and the security proof replaces it
 by a uniform block before it uses this property.
 
+:::leanPillCaption "GHASH input $`\\mathsf{encode}(a, c)`"
+:::
+
 ```anchor gcmEncode (project := ".") (module := SecureMessaging.AEAD.FromGCM.Security.Encoding)
 def gcmEncode {L : ℕ} (ad : SupportedAAD) (c : BitVec L) : List (BitVec 128) :=
   padBlocks ad.1.2 ++ padBlocks c ++ [BitVec.ofNat 64 ad.1.1 ++ BitVec.ofNat 64 L]
 ```
+
+:::leanPillCaption "GHASH is $`\\varepsilon`-AXU for $`L`-bit ciphertexts"
+:::
 
 ```anchor GhashIsAXU (project := ".") (module := SecureMessaging.AEAD.FromGCM.Security.Axu)
 def GhashIsAXU (L : ℕ) (ε : ℝ≥0∞) : Prop :=
@@ -343,11 +382,17 @@ The bound needs $`x^{128} + x^7 + x^2 + x + 1` to be irreducible over $`\mathrm{
 that $`\bullet` is multiplication in a field. This is the second statement below. It is
 proved, not assumed.
 
+:::leanPillCaption "AXU bound of GHASH"
+:::
+
 ```anchor ghash_isAXU_unconditional (project := ".") (module := SecureMessaging.AEAD.FromGCM.Security.NistIrreducible)
 theorem ghash_isAXU_unconditional (L : ℕ) :
     GhashIsAXU L ((maxBlocks L : ℝ≥0∞) / 2 ^ (128 : ℕ)) :=
   ghash_isAXU L nistPoly_irreducible
 ```
+
+:::leanPillCaption "irreducibility of $`x^{128} + x^7 + x^2 + x + 1`"
+:::
 
 ```anchor nistPoly_irreducible (project := ".") (module := SecureMessaging.AEAD.FromGCM.Security.NistIrreducible)
 theorem nistPoly_irreducible : Irreducible nistPoly
@@ -385,7 +430,7 @@ theorem prfAdvantage_le_prpAdvantage_switching {K : Type}
 :::defTitle "aead_gcm_security_of_axu" "AEAD-GCM security for any AXU bound"
 :::
 
-:::::theorem "aead_gcm_security_of_axu" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD_security_of_axu") (uses := "aead_gcm_spec, aead_gcm_axu, prf, aead_security_exp, aead_dist_advantage, aead_decrypt_query_bound, aead_oracles")
+:::::theorem "aead_gcm_security_of_axu" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD_security_of_axu, GCM.prfReduction") (uses := "aead_gcm_spec, aead_gcm_axu, prf, aead_security_exp, aead_dist_advantage, aead_decrypt_query_bound, aead_oracles")
 Adapted from {Informal.citet IOM12}[], Corollaries 3 and 4, with one encryption query and an
 abstract AXU bound $`\varepsilon` in place of the GHASH bound.
 
@@ -393,19 +438,16 @@ Let $`P` be a PRP scheme on 128-bit blocks, $`\mathit{IV}` a 96-bit IV, $`L` a s
 message length such that GHASH is $`\varepsilon`-AXU for $`L`-bit ciphertexts with
 $`\varepsilon < \infty`, and $`\adv` a one-time IND-CCA adversary against
 $`\mathsf{GCM}[P, \mathit{IV}, L]` that makes at most $`q_d`
-queries to the decryption oracle $`\Odec` of the {bpref "aead_oracles"}[one-time IND-CCA game]. Then
+queries to the decryption oracle $`\Odec` of the {bpref "aead_oracles"}[one-time IND-CCA game].
+Then there exists a PRF adversary $`\mathcal B` against $`P`, constructed from $`\adv`, such
+that
 
 $$`\mathsf{Adv}^{\textsf{dist}}_{\textsf{GCM}}(\adv)
   \le \mathsf{Adv}^{\textsf{prf}}_{P}(\mathcal B) + q_d \cdot \varepsilon`
 
 where $`\mathsf{Adv}^{\textsf{dist}}` is the {bpref "aead_dist_advantage"}[distinguishing
-advantage] in the {bpref "aead_security_exp"}[one-time IND-CCA game], and $`\mathcal B` is
-the PRF adversary of {bpref "aead_gcm_prp_switching"}[PRP/PRF switching]. In that game,
-for the GCM key $`K` and a fixed challenge bit $`b`, $`\Oenc` answers only its first query
-$`(a, m)`. It returns $`e^* = \Enc(K, a, m)` for $`b = 0` and a uniformly random ciphertext
-$`e^*` for $`b = 1`, and it records the challenge pair $`(a^*, e^*)`, where $`a^* = a`. For
-$`b = 0`, $`\Odec` decrypts every query except $`(a^*, e^*)`. For $`b = 1`, it returns
-$`\bot`.
+advantage] in the {bpref "aead_security_exp"}[one-time IND-CCA game]. $`\mathcal B` is the
+adversary of {bpref "aead_gcm_prp_switching"}[PRP/PRF switching].
 
 There is no separate tag-guessing term: $`\varepsilon \ge 2^{-128}` for every AXU bound of
 GHASH.
@@ -421,12 +463,21 @@ theorem gcmOneTimeAEAD_security_of_axu (prp : PRPScheme K (BitVec 128)) (iv : Bi
     AEADScheme.distAdvantage (gcmOneTimeAEAD prp iv L hL) adv ≤
       (PRFScheme.prfAdvantage prp.toPRFScheme reduction).toReal + forgeryBound
 ```
+
+:::leanPillCaption "adversary $`\\mathcal B`"
+:::
+
+```anchor gcmPrfReduction (project := ".") (module := SecureMessaging.AEAD.FromGCM.Security.PrfHop)
+noncomputable def prfReduction (iv : BitVec 96) (L : ℕ)
+    (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
+    PRFScheme.PRFAdversary (BitVec 128) (BitVec 128)
+```
 :::::
 
 :::defTitle "aead_gcm_security" "AEAD-GCM security"
 :::
 
-::::theorem "aead_gcm_security" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD_security") (tags := "gh-23") (uses := "aead_gcm_spec, aead_gcm_security_of_axu, aead_gcm_ghash_axu, aead_gcm_prp_switching, aead_security_exp, aead_dist_advantage, aead_decrypt_query_bound, prp, aead_oracles")
+::::theorem "aead_gcm_security" (parent := "aead_gcm") (lean := "GCM.gcmOneTimeAEAD_security, GCM.prfReduction") (tags := "gh-23") (uses := "aead_gcm_spec, aead_gcm_security_of_axu, aead_gcm_ghash_axu, aead_gcm_prp_switching, aead_security_exp, aead_dist_advantage, aead_decrypt_query_bound, prp, aead_oracles")
 Adapted from {Informal.citet IOM12}[], Corollary 3 (privacy) and Corollary 4 (authenticity)
 for 96-bit nonces, with one encryption query. We prove one bound for the one-time IND-CCA
 game instead of two separate bounds.
@@ -434,7 +485,9 @@ game instead of two separate bounds.
 Let $`P` be a PRP scheme on 128-bit blocks, $`\mathit{IV}` a 96-bit IV, $`L` a supported
 message length, $`n = \lceil L / 128 \rceil`, and $`\adv` a one-time IND-CCA adversary
 against $`\mathsf{GCM}[P, \mathit{IV}, L]` that makes at most $`q_d`
-queries to the decryption oracle $`\Odec` of the {bpref "aead_oracles"}[one-time IND-CCA game]. Then
+queries to the decryption oracle $`\Odec` of the {bpref "aead_oracles"}[one-time IND-CCA game].
+Then there exists a PRP adversary $`\mathcal B` against $`P`, constructed from $`\adv`, such
+that
 
 $$`\mathsf{Adv}^{\textsf{dist}}_{\textsf{GCM}}(\adv)
   \le \mathsf{Adv}^{\textsf{prp}}_{P}(\mathcal B)
@@ -443,9 +496,8 @@ $$`\mathsf{Adv}^{\textsf{dist}}_{\textsf{GCM}}(\adv)
 
 where $`\mathsf{Adv}^{\textsf{dist}}` is as in
 {bpref "aead_gcm_security_of_axu"}[AEAD-GCM security for any AXU bound], and
-$`\mathcal B` is the reduction of {bpref "aead_gcm_prp_switching"}[PRP/PRF switching]. The
-first term is the PRP advantage of $`\mathcal B`, the second is the switching bound, and the
-third is $`q_d` times the GHASH AXU bound.
+$`\mathcal B` is the adversary of {bpref "aead_gcm_prp_switching"}[PRP/PRF switching]. The
+second term is the switching bound, and the third is $`q_d` times the GHASH AXU bound.
 
 ```anchor gcmOneTimeAEAD_security (project := ".") (module := SecureMessaging.AEAD.FromGCM.Security)
 theorem gcmOneTimeAEAD_security (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96) (L : ℕ)
@@ -458,5 +510,14 @@ theorem gcmOneTimeAEAD_security (prp : PRPScheme K (BitVec 128)) (iv : BitVec 96
     let forgeryBound : ℝ := (q_d : ℝ) * ((2 ^ 57 + (blocks : ℝ) + 1) / 2 ^ 128)
     AEADScheme.distAdvantage (gcmOneTimeAEAD prp iv L hL) adv ≤
       (PRPScheme.prpAdvantage prp reduction).toReal + switchingBound + forgeryBound
+```
+
+:::leanPillCaption "adversary $`\\mathcal B`"
+:::
+
+```anchor gcmPrfReduction (project := ".") (module := SecureMessaging.AEAD.FromGCM.Security.PrfHop)
+noncomputable def prfReduction (iv : BitVec 96) (L : ℕ)
+    (adv : OneTimeCCAAdversary SupportedAAD (BitVec L) (BitVec L × BitVec 128)) :
+    PRFScheme.PRFAdversary (BitVec 128) (BitVec 128)
 ```
 ::::
